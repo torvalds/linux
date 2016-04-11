@@ -1558,6 +1558,30 @@ static int mwifiex_cmd_robust_coex(struct mwifiex_private *priv,
 	return 0;
 }
 
+static int mwifiex_cmd_gtk_rekey_offload(struct mwifiex_private *priv,
+					 struct host_cmd_ds_command *cmd,
+					 u16 cmd_action,
+					 struct cfg80211_gtk_rekey_data *data)
+{
+	struct host_cmd_ds_gtk_rekey_params *rekey = &cmd->params.rekey;
+	u64 rekey_ctr;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG);
+	cmd->size = cpu_to_le16(sizeof(*rekey) + S_DS_GEN);
+
+	rekey->action = cpu_to_le16(cmd_action);
+	if (cmd_action == HostCmd_ACT_GEN_SET) {
+		memcpy(rekey->kek, data->kek, NL80211_KEK_LEN);
+		memcpy(rekey->kck, data->kck, NL80211_KCK_LEN);
+		rekey_ctr = be64_to_cpup((__be64 *)data->replay_ctr);
+		rekey->replay_ctr_low = cpu_to_le32((u32)rekey_ctr);
+		rekey->replay_ctr_high =
+			cpu_to_le32((u32)((u64)rekey_ctr >> 32));
+	}
+
+	return 0;
+}
+
 static int
 mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 			 struct host_cmd_ds_command *cmd,
@@ -2093,6 +2117,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_ROBUST_COEX:
 		ret = mwifiex_cmd_robust_coex(priv, cmd_ptr, cmd_action,
 					      data_buf);
+		break;
+	case HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG:
+		ret = mwifiex_cmd_gtk_rekey_offload(priv, cmd_ptr, cmd_action,
+						    data_buf);
 		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,

@@ -65,6 +65,7 @@
  *****************************************************************************/
 #include <linux/vmalloc.h>
 #include <linux/ieee80211.h>
+#include <linux/netdevice.h>
 
 #include "mvm.h"
 #include "fw-dbg.h"
@@ -463,69 +464,11 @@ int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_notif *notif, char *buf,
 	return pos;
 }
 
-static
-int iwl_mvm_coex_dump_mbox_old(struct iwl_bt_coex_profile_notif_old *notif,
-			       char *buf, int pos, int bufsz)
-{
-	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw0:\n");
-
-	BT_MBOX_PRINT(0, LE_SLAVE_LAT, false);
-	BT_MBOX_PRINT(0, LE_PROF1, false);
-	BT_MBOX_PRINT(0, LE_PROF2, false);
-	BT_MBOX_PRINT(0, LE_PROF_OTHER, false);
-	BT_MBOX_PRINT(0, CHL_SEQ_N, false);
-	BT_MBOX_PRINT(0, INBAND_S, false);
-	BT_MBOX_PRINT(0, LE_MIN_RSSI, false);
-	BT_MBOX_PRINT(0, LE_SCAN, false);
-	BT_MBOX_PRINT(0, LE_ADV, false);
-	BT_MBOX_PRINT(0, LE_MAX_TX_POWER, false);
-	BT_MBOX_PRINT(0, OPEN_CON_1, true);
-
-	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw1:\n");
-
-	BT_MBOX_PRINT(1, BR_MAX_TX_POWER, false);
-	BT_MBOX_PRINT(1, IP_SR, false);
-	BT_MBOX_PRINT(1, LE_MSTR, false);
-	BT_MBOX_PRINT(1, AGGR_TRFC_LD, false);
-	BT_MBOX_PRINT(1, MSG_TYPE, false);
-	BT_MBOX_PRINT(1, SSN, true);
-
-	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw2:\n");
-
-	BT_MBOX_PRINT(2, SNIFF_ACT, false);
-	BT_MBOX_PRINT(2, PAG, false);
-	BT_MBOX_PRINT(2, INQUIRY, false);
-	BT_MBOX_PRINT(2, CONN, false);
-	BT_MBOX_PRINT(2, SNIFF_INTERVAL, false);
-	BT_MBOX_PRINT(2, DISC, false);
-	BT_MBOX_PRINT(2, SCO_TX_ACT, false);
-	BT_MBOX_PRINT(2, SCO_RX_ACT, false);
-	BT_MBOX_PRINT(2, ESCO_RE_TX, false);
-	BT_MBOX_PRINT(2, SCO_DURATION, true);
-
-	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw3:\n");
-
-	BT_MBOX_PRINT(3, SCO_STATE, false);
-	BT_MBOX_PRINT(3, SNIFF_STATE, false);
-	BT_MBOX_PRINT(3, A2DP_STATE, false);
-	BT_MBOX_PRINT(3, ACL_STATE, false);
-	BT_MBOX_PRINT(3, MSTR_STATE, false);
-	BT_MBOX_PRINT(3, OBX_STATE, false);
-	BT_MBOX_PRINT(3, OPEN_CON_2, false);
-	BT_MBOX_PRINT(3, TRAFFIC_LOAD, false);
-	BT_MBOX_PRINT(3, CHL_SEQN_LSB, false);
-	BT_MBOX_PRINT(3, INBAND_P, false);
-	BT_MBOX_PRINT(3, MSG_TYPE_2, false);
-	BT_MBOX_PRINT(3, SSN_2, false);
-	BT_MBOX_PRINT(3, UPDATE_REQUEST, true);
-
-	return pos;
-}
-
 static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
+	struct iwl_bt_coex_profile_notif *notif = &mvm->last_bt_notif;
 	char *buf;
 	int ret, pos = 0, bufsz = sizeof(char) * 1024;
 
@@ -535,52 +478,24 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 
 	mutex_lock(&mvm->mutex);
 
-	if (!fw_has_api(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
-		struct iwl_bt_coex_profile_notif_old *notif =
-			&mvm->last_bt_notif_old;
+	pos += iwl_mvm_coex_dump_mbox(notif, buf, pos, bufsz);
 
-		pos += iwl_mvm_coex_dump_mbox_old(notif, buf, pos, bufsz);
-
-		pos += scnprintf(buf+pos, bufsz-pos, "bt_ci_compliance = %d\n",
-				 notif->bt_ci_compliance);
-		pos += scnprintf(buf+pos, bufsz-pos, "primary_ch_lut = %d\n",
-				 le32_to_cpu(notif->primary_ch_lut));
-		pos += scnprintf(buf+pos, bufsz-pos, "secondary_ch_lut = %d\n",
-				 le32_to_cpu(notif->secondary_ch_lut));
-		pos += scnprintf(buf+pos,
-				 bufsz-pos, "bt_activity_grading = %d\n",
-				 le32_to_cpu(notif->bt_activity_grading));
-		pos += scnprintf(buf+pos, bufsz-pos,
-				 "antenna isolation = %d CORUN LUT index = %d\n",
-				 mvm->last_ant_isol, mvm->last_corun_lut);
-		pos += scnprintf(buf + pos, bufsz - pos, "bt_rrc = %d\n",
-				 notif->rrc_enabled);
-		pos += scnprintf(buf + pos, bufsz - pos, "bt_ttc = %d\n",
-				 notif->ttc_enabled);
-	} else {
-		struct iwl_bt_coex_profile_notif *notif =
-			&mvm->last_bt_notif;
-
-		pos += iwl_mvm_coex_dump_mbox(notif, buf, pos, bufsz);
-
-		pos += scnprintf(buf+pos, bufsz-pos, "bt_ci_compliance = %d\n",
-				 notif->bt_ci_compliance);
-		pos += scnprintf(buf+pos, bufsz-pos, "primary_ch_lut = %d\n",
-				 le32_to_cpu(notif->primary_ch_lut));
-		pos += scnprintf(buf+pos, bufsz-pos, "secondary_ch_lut = %d\n",
-				 le32_to_cpu(notif->secondary_ch_lut));
-		pos += scnprintf(buf+pos,
-				 bufsz-pos, "bt_activity_grading = %d\n",
-				 le32_to_cpu(notif->bt_activity_grading));
-		pos += scnprintf(buf+pos, bufsz-pos,
-				 "antenna isolation = %d CORUN LUT index = %d\n",
-				 mvm->last_ant_isol, mvm->last_corun_lut);
-		pos += scnprintf(buf + pos, bufsz - pos, "bt_rrc = %d\n",
-				 (notif->ttc_rrc_status >> 4) & 0xF);
-		pos += scnprintf(buf + pos, bufsz - pos, "bt_ttc = %d\n",
-				 notif->ttc_rrc_status & 0xF);
-	}
+	pos += scnprintf(buf + pos, bufsz - pos, "bt_ci_compliance = %d\n",
+			 notif->bt_ci_compliance);
+	pos += scnprintf(buf + pos, bufsz - pos, "primary_ch_lut = %d\n",
+			 le32_to_cpu(notif->primary_ch_lut));
+	pos += scnprintf(buf + pos, bufsz - pos, "secondary_ch_lut = %d\n",
+			 le32_to_cpu(notif->secondary_ch_lut));
+	pos += scnprintf(buf + pos,
+			 bufsz - pos, "bt_activity_grading = %d\n",
+			 le32_to_cpu(notif->bt_activity_grading));
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "antenna isolation = %d CORUN LUT index = %d\n",
+			 mvm->last_ant_isol, mvm->last_corun_lut);
+	pos += scnprintf(buf + pos, bufsz - pos, "bt_rrc = %d\n",
+			 (notif->ttc_rrc_status >> 4) & 0xF);
+	pos += scnprintf(buf + pos, bufsz - pos, "bt_ttc = %d\n",
+			 notif->ttc_rrc_status & 0xF);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "sync_sco = %d\n",
 			 IWL_MVM_BT_COEX_SYNC2SCO);
@@ -602,44 +517,20 @@ static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
+	struct iwl_bt_coex_ci_cmd *cmd = &mvm->last_bt_ci_cmd;
 	char buf[256];
 	int bufsz = sizeof(buf);
 	int pos = 0;
 
 	mutex_lock(&mvm->mutex);
 
-	if (!fw_has_api(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
-		struct iwl_bt_coex_ci_cmd_old *cmd = &mvm->last_bt_ci_cmd_old;
-
-		pos += scnprintf(buf+pos, bufsz-pos,
-				 "Channel inhibition CMD\n");
-		pos += scnprintf(buf+pos, bufsz-pos,
-			       "\tPrimary Channel Bitmap 0x%016llx\n",
-			       le64_to_cpu(cmd->bt_primary_ci));
-		pos += scnprintf(buf+pos, bufsz-pos,
-			       "\tSecondary Channel Bitmap 0x%016llx\n",
-			       le64_to_cpu(cmd->bt_secondary_ci));
-
-		pos += scnprintf(buf+pos, bufsz-pos,
-				 "BT Configuration CMD - 0=default, 1=never, 2=always\n");
-		pos += scnprintf(buf+pos, bufsz-pos, "\tACK Kill msk idx %d\n",
-				 mvm->bt_ack_kill_msk[0]);
-		pos += scnprintf(buf+pos, bufsz-pos, "\tCTS Kill msk idx %d\n",
-				 mvm->bt_cts_kill_msk[0]);
-
-	} else {
-		struct iwl_bt_coex_ci_cmd *cmd = &mvm->last_bt_ci_cmd;
-
-		pos += scnprintf(buf+pos, bufsz-pos,
-				 "Channel inhibition CMD\n");
-		pos += scnprintf(buf+pos, bufsz-pos,
-			       "\tPrimary Channel Bitmap 0x%016llx\n",
-			       le64_to_cpu(cmd->bt_primary_ci));
-		pos += scnprintf(buf+pos, bufsz-pos,
-			       "\tSecondary Channel Bitmap 0x%016llx\n",
-			       le64_to_cpu(cmd->bt_secondary_ci));
-	}
+	pos += scnprintf(buf + pos, bufsz - pos, "Channel inhibition CMD\n");
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "\tPrimary Channel Bitmap 0x%016llx\n",
+			 le64_to_cpu(cmd->bt_primary_ci));
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "\tSecondary Channel Bitmap 0x%016llx\n",
+			 le64_to_cpu(cmd->bt_secondary_ci));
 
 	mutex_unlock(&mvm->mutex);
 
@@ -990,8 +881,10 @@ static ssize_t iwl_dbgfs_indirection_tbl_write(struct iwl_mvm *mvm,
 	struct iwl_rss_config_cmd cmd = {
 		.flags = cpu_to_le32(IWL_RSS_ENABLE),
 		.hash_mask = IWL_RSS_HASH_TYPE_IPV4_TCP |
+			     IWL_RSS_HASH_TYPE_IPV4_UDP |
 			     IWL_RSS_HASH_TYPE_IPV4_PAYLOAD |
 			     IWL_RSS_HASH_TYPE_IPV6_TCP |
+			     IWL_RSS_HASH_TYPE_IPV6_UDP |
 			     IWL_RSS_HASH_TYPE_IPV6_PAYLOAD,
 	};
 	int ret, i, num_repeats, nbytes = count / 2;
@@ -1015,7 +908,7 @@ static ssize_t iwl_dbgfs_indirection_tbl_write(struct iwl_mvm *mvm,
 	memcpy(&cmd.indirection_table[i * nbytes], cmd.indirection_table,
 	       ARRAY_SIZE(cmd.indirection_table) % nbytes);
 
-	memcpy(cmd.secret_key, mvm->secret_key, sizeof(cmd.secret_key));
+	netdev_rss_key_fill(cmd.secret_key, sizeof(cmd.secret_key));
 
 	mutex_lock(&mvm->mutex);
 	ret = iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);

@@ -149,7 +149,7 @@ static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	else
 		cmd->params.band = WL1271_SCAN_BAND_5_GHZ;
 
-	if (wl->scan.ssid_len && wl->scan.ssid) {
+	if (wl->scan.ssid_len) {
 		cmd->params.ssid_len = wl->scan.ssid_len;
 		memcpy(cmd->params.ssid, wl->scan.ssid, wl->scan.ssid_len);
 	}

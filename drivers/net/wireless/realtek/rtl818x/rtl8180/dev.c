@@ -1736,7 +1736,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	if (err) {
 		printk(KERN_ERR "%s (rtl8180): Cannot obtain PCI resources\n",
 		       pci_name(pdev));
-		return err;
+		goto err_disable_dev;
 	}
 
 	io_addr = pci_resource_start(pdev, 0);
@@ -1938,6 +1938,8 @@ static int rtl8180_probe(struct pci_dev *pdev,
 
  err_free_reg:
 	pci_release_regions(pdev);
+
+ err_disable_dev:
 	pci_disable_device(pdev);
 	return err;
 }

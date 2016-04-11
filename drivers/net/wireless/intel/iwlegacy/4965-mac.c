@@ -5553,6 +5553,7 @@ __il4965_up(struct il_priv *il)
 
 	il4965_prepare_card_hw(il);
 	if (!il->hw_ready) {
+		il_dealloc_bcast_stations(il);
 		IL_ERR("HW not ready\n");
 		return -EIO;
 	}
@@ -5564,6 +5565,7 @@ __il4965_up(struct il_priv *il)
 		set_bit(S_RFKILL, &il->status);
 		wiphy_rfkill_set_hw_state(il->hw->wiphy, true);
 
+		il_dealloc_bcast_stations(il);
 		il_enable_rfkill_int(il);
 		IL_WARN("Radio disabled by HW RF Kill switch\n");
 		return 0;
@@ -5577,6 +5579,7 @@ __il4965_up(struct il_priv *il)
 	ret = il4965_hw_nic_init(il);
 	if (ret) {
 		IL_ERR("Unable to init nic\n");
+		il_dealloc_bcast_stations(il);
 		return ret;
 	}
 

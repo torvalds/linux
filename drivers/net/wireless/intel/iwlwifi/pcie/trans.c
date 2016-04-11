@@ -1321,6 +1321,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	 * after this call.
 	 */
 	iwl_pcie_reset_ict(trans);
+	iwl_enable_interrupts(trans);
 
 	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
@@ -1434,7 +1435,7 @@ static void iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
 	int ret, i;
 
 	if (trans->cfg->mq_rx_supported) {
-		max_vector = min_t(u32, (num_possible_cpus() + 1),
+		max_vector = min_t(u32, (num_possible_cpus() + 2),
 				   IWL_MAX_RX_HW_QUEUES);
 		for (i = 0; i < max_vector; i++)
 			trans_pcie->msix_entries[i].entry = i;
@@ -1465,7 +1466,7 @@ static void iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
 
 	ret = pci_enable_msi(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "pci_enable_msi failed(0X%x)\n", ret);
+		dev_err(&pdev->dev, "pci_enable_msi failed - %d\n", ret);
 		/* enable rfkill interrupt: hw bug w/a */
 		pci_read_config_word(pdev, PCI_COMMAND, &pci_cmd);
 		if (pci_cmd & PCI_COMMAND_INTX_DISABLE) {
@@ -1499,8 +1500,8 @@ static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
 			IWL_ERR(trans_pcie->trans,
 				"Error allocating IRQ %d\n", i);
 			for (j = 0; j < i; j++)
-				free_irq(trans_pcie->msix_entries[i].vector,
-					 &trans_pcie->msix_entries[i]);
+				free_irq(trans_pcie->msix_entries[j].vector,
+					 &trans_pcie->msix_entries[j]);
 			pci_disable_msix(pdev);
 			return ret;
 		}
@@ -1694,6 +1695,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	}
 
 	free_percpu(trans_pcie->tso_hdr_page);
+	mutex_destroy(&trans_pcie->mutex);
 	iwl_trans_free(trans);
 }
 
@@ -2014,38 +2016,32 @@ static void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
 void iwl_trans_pcie_ref(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
 
 	if (iwlwifi_mod_params.d0i3_disable)
 		return;
 
-	spin_lock_irqsave(&trans_pcie->ref_lock, flags);
-	IWL_DEBUG_RPM(trans, "ref_counter: %d\n", trans_pcie->ref_count);
-	trans_pcie->ref_count++;
 	pm_runtime_get(&trans_pcie->pci_dev->dev);
-	spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
+
+#ifdef CONFIG_PM
+	IWL_DEBUG_RPM(trans, "runtime usage count: %d\n",
+		      atomic_read(&trans_pcie->pci_dev->dev.power.usage_count));
+#endif /* CONFIG_PM */
 }
 
 void iwl_trans_pcie_unref(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
 
 	if (iwlwifi_mod_params.d0i3_disable)
 		return;
 
-	spin_lock_irqsave(&trans_pcie->ref_lock, flags);
-	IWL_DEBUG_RPM(trans, "ref_counter: %d\n", trans_pcie->ref_count);
-	if (WARN_ON_ONCE(trans_pcie->ref_count == 0)) {
-		spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
-		return;
-	}
-	trans_pcie->ref_count--;
-
 	pm_runtime_mark_last_busy(&trans_pcie->pci_dev->dev);
 	pm_runtime_put_autosuspend(&trans_pcie->pci_dev->dev);
 
-	spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
+#ifdef CONFIG_PM
+	IWL_DEBUG_RPM(trans, "runtime usage count: %d\n",
+		      atomic_read(&trans_pcie->pci_dev->dev.power.usage_count));
+#endif /* CONFIG_PM */
 }
 
 static const char *get_csr_string(int cmd)
@@ -2793,7 +2789,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	trans_pcie->trans = trans;
 	spin_lock_init(&trans_pcie->irq_lock);
 	spin_lock_init(&trans_pcie->reg_lock);
-	spin_lock_init(&trans_pcie->ref_lock);
 	mutex_init(&trans_pcie->mutex);
 	init_waitqueue_head(&trans_pcie->ucode_write_waitq);
 	trans_pcie->tso_hdr_page = alloc_percpu(struct iwl_tso_hdr_page);

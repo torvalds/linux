@@ -210,8 +210,12 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 	if (trans->cfg->mq_rx_supported)
 		iwl_write_prph(trans, RFH_Q_FRBDCB_WIDX(rxq->id),
 			       rxq->write_actual);
-	else
-		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
+	/*
+	 * write to FH_RSCSR_CHNL0_WPTR register even in MQ as a W/A to
+	 * hardware shadow registers bug - writing to RFH_Q_FRBDCB_WIDX will
+	 * not wake the NIC.
+	 */
+	iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
 }
 
 static void iwl_pcie_rxq_check_wrptr(struct iwl_trans *trans)
@@ -908,6 +912,8 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	allocator_pool_size = trans->num_rx_queues *
 		(RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC);
 	num_alloc = queue_size + allocator_pool_size;
+	BUILD_BUG_ON(ARRAY_SIZE(trans_pcie->global_table) !=
+		     ARRAY_SIZE(trans_pcie->rx_pool));
 	for (i = 0; i < num_alloc; i++) {
 		struct iwl_rx_mem_buffer *rxb = &trans_pcie->rx_pool[i];
 
@@ -1805,7 +1811,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	struct msix_entry *entry = dev_id;
 	struct iwl_trans_pcie *trans_pcie = iwl_pcie_get_trans_pcie(entry);
 	struct iwl_trans *trans = trans_pcie->trans;
-	struct isr_statistics *isr_stats = isr_stats = &trans_pcie->isr_stats;
+	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
 	u32 inta_fh, inta_hw;
 
 	lock_map_acquire(&trans->sync_cmd_lockdep_map);

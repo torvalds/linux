@@ -60,6 +60,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
 		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
+		.cal_data_len = 2116,
 		.fw = {
 			.dir = QCA988X_HW_2_0_FW_DIR,
 			.fw = QCA988X_HW_2_0_FW_FILE,
@@ -78,6 +79,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
+		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA6174_HW_2_1_FW_DIR,
 			.fw = QCA6174_HW_2_1_FW_FILE,
@@ -97,6 +99,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
 		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
+		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA6174_HW_2_1_FW_DIR,
 			.fw = QCA6174_HW_2_1_FW_FILE,
@@ -116,6 +119,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
 		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
+		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA6174_HW_3_0_FW_DIR,
 			.fw = QCA6174_HW_3_0_FW_FILE,
@@ -135,6 +139,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
 		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
+		.cal_data_len = 8124,
 		.fw = {
 			/* uses same binaries as hw3.0 */
 			.dir = QCA6174_HW_3_0_FW_DIR,
@@ -156,11 +161,10 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.channel_counters_freq_hz = 150000,
 		.max_probe_resp_desc_thres = 24,
 		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
-		.num_msdu_desc = 1424,
-		.qcache_active_peers = 50,
 		.tx_chain_mask = 0xf,
 		.rx_chain_mask = 0xf,
 		.max_spatial_stream = 4,
+		.cal_data_len = 12064,
 		.fw = {
 			.dir = QCA99X0_HW_2_0_FW_DIR,
 			.fw = QCA99X0_HW_2_0_FW_FILE,
@@ -179,6 +183,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
+		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA9377_HW_1_0_FW_DIR,
 			.fw = QCA9377_HW_1_0_FW_FILE,
@@ -197,6 +202,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
+		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA9377_HW_1_0_FW_DIR,
 			.fw = QCA9377_HW_1_0_FW_FILE,
@@ -217,11 +223,10 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.channel_counters_freq_hz = 125000,
 		.max_probe_resp_desc_thres = 24,
 		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
-		.num_msdu_desc = 2500,
-		.qcache_active_peers = 35,
 		.tx_chain_mask = 0x3,
 		.rx_chain_mask = 0x3,
 		.max_spatial_stream = 2,
+		.cal_data_len = 12064,
 		.fw = {
 			.dir = QCA4019_HW_1_0_FW_DIR,
 			.fw = QCA4019_HW_1_0_FW_FILE,
@@ -466,18 +471,18 @@ exit:
 	return ret;
 }
 
-static int ath10k_download_cal_file(struct ath10k *ar)
+static int ath10k_download_cal_file(struct ath10k *ar,
+				    const struct firmware *file)
 {
 	int ret;
 
-	if (!ar->cal_file)
+	if (!file)
 		return -ENOENT;
 
-	if (IS_ERR(ar->cal_file))
-		return PTR_ERR(ar->cal_file);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
 
-	ret = ath10k_download_board_data(ar, ar->cal_file->data,
-					 ar->cal_file->size);
+	ret = ath10k_download_board_data(ar, file->data, file->size);
 	if (ret) {
 		ath10k_err(ar, "failed to download cal_file data: %d\n", ret);
 		return ret;
@@ -488,7 +493,7 @@ static int ath10k_download_cal_file(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_download_cal_dt(struct ath10k *ar)
+static int ath10k_download_cal_dt(struct ath10k *ar, const char *dt_name)
 {
 	struct device_node *node;
 	int data_len;
@@ -502,13 +507,12 @@ static int ath10k_download_cal_dt(struct ath10k *ar)
 		 */
 		return -ENOENT;
 
-	if (!of_get_property(node, "qcom,ath10k-calibration-data",
-			     &data_len)) {
+	if (!of_get_property(node, dt_name, &data_len)) {
 		/* The calibration data node is optional */
 		return -ENOENT;
 	}
 
-	if (data_len != QCA988X_CAL_DATA_LEN) {
+	if (data_len != ar->hw_params.cal_data_len) {
 		ath10k_warn(ar, "invalid calibration data length in DT: %d\n",
 			    data_len);
 		ret = -EMSGSIZE;
@@ -521,8 +525,7 @@ static int ath10k_download_cal_dt(struct ath10k *ar)
 		goto out;
 	}
 
-	ret = of_property_read_u8_array(node, "qcom,ath10k-calibration-data",
-					data, data_len);
+	ret = of_property_read_u8_array(node, dt_name, data, data_len);
 	if (ret) {
 		ath10k_warn(ar, "failed to read calibration data from DT: %d\n",
 			    ret);
@@ -726,6 +729,14 @@ static int ath10k_fetch_cal_file(struct ath10k *ar)
 {
 	char filename[100];
 
+	/* pre-cal-<bus>-<id>.bin */
+	scnprintf(filename, sizeof(filename), "pre-cal-%s-%s.bin",
+		  ath10k_bus_str(ar->hif.bus), dev_name(ar->dev));
+
+	ar->pre_cal_file = ath10k_fetch_fw_file(ar, ATH10K_FW_DIR, filename);
+	if (!IS_ERR(ar->pre_cal_file))
+		goto success;
+
 	/* cal-<bus>-<id>.bin */
 	scnprintf(filename, sizeof(filename), "cal-%s-%s.bin",
 		  ath10k_bus_str(ar->hif.bus), dev_name(ar->dev));
@@ -734,7 +745,7 @@ static int ath10k_fetch_cal_file(struct ath10k *ar)
 	if (IS_ERR(ar->cal_file))
 		/* calibration file is optional, don't print any warnings */
 		return PTR_ERR(ar->cal_file);
-
+success:
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "found calibration file %s/%s\n",
 		   ATH10K_FW_DIR, filename);
 
@@ -1258,11 +1269,77 @@ success:
 	return 0;
 }
 
+static int ath10k_core_pre_cal_download(struct ath10k *ar)
+{
+	int ret;
+
+	ret = ath10k_download_cal_file(ar, ar->pre_cal_file);
+	if (ret == 0) {
+		ar->cal_mode = ATH10K_PRE_CAL_MODE_FILE;
+		goto success;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "boot did not find a pre calibration file, try DT next: %d\n",
+		   ret);
+
+	ret = ath10k_download_cal_dt(ar, "qcom,ath10k-pre-calibration-data");
+	if (ret) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "unable to load pre cal data from DT: %d\n", ret);
+		return ret;
+	}
+	ar->cal_mode = ATH10K_PRE_CAL_MODE_DT;
+
+success:
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot using calibration mode %s\n",
+		   ath10k_cal_mode_str(ar->cal_mode));
+
+	return 0;
+}
+
+static int ath10k_core_pre_cal_config(struct ath10k *ar)
+{
+	int ret;
+
+	ret = ath10k_core_pre_cal_download(ar);
+	if (ret) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "failed to load pre cal data: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath10k_core_get_board_id_from_otp(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to get board id: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath10k_download_and_run_otp(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to run otp: %d\n", ret);
+		return ret;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "pre cal configuration done successfully\n");
+
+	return 0;
+}
+
 static int ath10k_download_cal_data(struct ath10k *ar)
 {
 	int ret;
 
-	ret = ath10k_download_cal_file(ar);
+	ret = ath10k_core_pre_cal_config(ar);
+	if (ret == 0)
+		return 0;
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "pre cal download procedure failed, try cal file: %d\n",
+		   ret);
+
+	ret = ath10k_download_cal_file(ar, ar->cal_file);
 	if (ret == 0) {
 		ar->cal_mode = ATH10K_CAL_MODE_FILE;
 		goto done;
@@ -1272,7 +1349,7 @@ static int ath10k_download_cal_data(struct ath10k *ar)
 		   "boot did not find a calibration file, try DT next: %d\n",
 		   ret);
 
-	ret = ath10k_download_cal_dt(ar);
+	ret = ath10k_download_cal_dt(ar, "qcom,ath10k-calibration-data");
 	if (ret == 0) {
 		ar->cal_mode = ATH10K_CAL_MODE_DT;
 		goto done;
@@ -1509,7 +1586,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 	case ATH10K_FW_WMI_OP_VERSION_10_1:
 	case ATH10K_FW_WMI_OP_VERSION_10_2:
 	case ATH10K_FW_WMI_OP_VERSION_10_2_4:
-		if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map)) {
+		if (ath10k_peer_stats_enabled(ar)) {
 			ar->max_num_peers = TARGET_10X_TX_STATS_NUM_PEERS;
 			ar->max_num_stations = TARGET_10X_TX_STATS_NUM_STATIONS;
 		} else {
@@ -1538,9 +1615,15 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->num_active_peers = TARGET_10_4_ACTIVE_PEERS;
 		ar->max_num_vdevs = TARGET_10_4_NUM_VDEVS;
 		ar->num_tids = TARGET_10_4_TGT_NUM_TIDS;
-		ar->htt.max_num_pending_tx = ar->hw_params.num_msdu_desc;
-		ar->fw_stats_req_mask = WMI_STAT_PEER;
+		ar->fw_stats_req_mask = WMI_10_4_STAT_PEER |
+					WMI_10_4_STAT_PEER_EXTD;
 		ar->max_spatial_stream = ar->hw_params.max_spatial_stream;
+
+		if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
+			     ar->fw_features))
+			ar->htt.max_num_pending_tx = TARGET_10_4_NUM_MSDU_DESC_PFC;
+		else
+			ar->htt.max_num_pending_tx = TARGET_10_4_NUM_MSDU_DESC;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_UNSET:
 	case ATH10K_FW_WMI_OP_VERSION_MAX:
@@ -1578,6 +1661,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 {
 	int status;
+	u32 val;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -1697,6 +1781,21 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "firmware %s booted\n",
 		   ar->hw->wiphy->fw_version);
+
+	if (test_bit(WMI_SERVICE_EXT_RES_CFG_SUPPORT, ar->wmi.svc_map)) {
+		val = 0;
+		if (ath10k_peer_stats_enabled(ar))
+			val = WMI_10_4_PEER_STATS;
+
+		status = ath10k_wmi_ext_resource_config(ar,
+							WMI_HOST_PLATFORM_HIGH_PERF, val);
+		if (status) {
+			ath10k_err(ar,
+				   "failed to send ext resource cfg command : %d\n",
+				   status);
+			goto err_hif_stop;
+		}
+	}
 
 	status = ath10k_wmi_cmd_init(ar);
 	if (status) {
@@ -1834,11 +1933,20 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 
 	ath10k_debug_print_hwfw_info(ar);
 
+	ret = ath10k_core_pre_cal_download(ar);
+	if (ret) {
+		/* pre calibration data download is not necessary
+		 * for all the chipsets. Ignore failures and continue.
+		 */
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "could not load pre cal data: %d\n", ret);
+	}
+
 	ret = ath10k_core_get_board_id_from_otp(ar);
 	if (ret && ret != -EOPNOTSUPP) {
 		ath10k_err(ar, "failed to get board id from otp: %d\n",
 			   ret);
-		return ret;
+		goto err_free_firmware_files;
 	}
 
 	ret = ath10k_core_fetch_board_file(ar);
@@ -2048,7 +2156,9 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 
 	mutex_init(&ar->conf_mutex);
 	spin_lock_init(&ar->data_lock);
+	spin_lock_init(&ar->txqs_lock);
 
+	INIT_LIST_HEAD(&ar->txqs);
 	INIT_LIST_HEAD(&ar->peers);
 	init_waitqueue_head(&ar->peer_mapping_wq);
 	init_waitqueue_head(&ar->htt.empty_tx_wq);

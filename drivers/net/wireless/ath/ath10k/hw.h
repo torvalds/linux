@@ -134,8 +134,6 @@ enum qca9377_chip_id_rev {
 
 #define REG_DUMP_COUNT_QCA988X 60
 
-#define QCA988X_CAL_DATA_LEN		2116
-
 struct ath10k_fw_ie {
 	__le32 id;
 	__le32 len;
@@ -431,10 +429,14 @@ enum ath10k_hw_4addr_pad {
 #define TARGET_10_4_ACTIVE_PEERS		0
 
 #define TARGET_10_4_NUM_QCACHE_PEERS_MAX	512
+#define TARGET_10_4_QCACHE_ACTIVE_PEERS		50
+#define TARGET_10_4_QCACHE_ACTIVE_PEERS_PFC	35
 #define TARGET_10_4_NUM_OFFLOAD_PEERS		0
 #define TARGET_10_4_NUM_OFFLOAD_REORDER_BUFFS	0
 #define TARGET_10_4_NUM_PEER_KEYS		2
 #define TARGET_10_4_TGT_NUM_TIDS		((TARGET_10_4_NUM_PEERS) * 2)
+#define TARGET_10_4_NUM_MSDU_DESC		(1024 + 400)
+#define TARGET_10_4_NUM_MSDU_DESC_PFC		2500
 #define TARGET_10_4_AST_SKID_LIMIT		32
 
 /* 100 ms for video, best-effort, and background */

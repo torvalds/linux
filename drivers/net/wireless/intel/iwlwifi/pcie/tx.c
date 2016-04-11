@@ -596,6 +596,28 @@ static void iwl_pcie_free_tso_page(struct sk_buff *skb)
 	}
 }
 
+static void iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	lockdep_assert_held(&trans_pcie->reg_lock);
+
+	if (trans_pcie->ref_cmd_in_flight) {
+		trans_pcie->ref_cmd_in_flight = false;
+		IWL_DEBUG_RPM(trans, "clear ref_cmd_in_flight - unref\n");
+		iwl_trans_pcie_unref(trans);
+	}
+
+	if (!trans->cfg->base_params->apmg_wake_up_wa)
+		return;
+	if (WARN_ON(!trans_pcie->cmd_hold_nic_awake))
+		return;
+
+	trans_pcie->cmd_hold_nic_awake = false;
+	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+}
+
 /*
  * iwl_pcie_txq_unmap -  Unmap any remaining DMA mappings and free skb's
  */
@@ -620,6 +642,20 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 		}
 		iwl_pcie_txq_free_tfd(trans, txq);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr);
+
+		if (q->read_ptr == q->write_ptr) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+			if (txq_id != trans_pcie->cmd_queue) {
+				IWL_DEBUG_RPM(trans, "Q %d - last tx freed\n",
+					      q->id);
+				iwl_trans_pcie_unref(trans);
+			} else {
+				iwl_pcie_clear_cmd_in_flight(trans);
+			}
+			spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
+		}
 	}
 	txq->active = false;
 
@@ -1145,29 +1181,6 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 		trans_pcie->cmd_hold_nic_awake = true;
 	}
 
-	return 0;
-}
-
-static int iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	lockdep_assert_held(&trans_pcie->reg_lock);
-
-	if (trans_pcie->ref_cmd_in_flight) {
-		trans_pcie->ref_cmd_in_flight = false;
-		IWL_DEBUG_RPM(trans, "clear ref_cmd_in_flight - unref\n");
-		iwl_trans_pcie_unref(trans);
-	}
-
-	if (trans->cfg->base_params->apmg_wake_up_wa) {
-		if (WARN_ON(!trans_pcie->cmd_hold_nic_awake))
-			return 0;
-
-		trans_pcie->cmd_hold_nic_awake = false;
-		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-	}
 	return 0;
 }
 
@@ -2197,6 +2210,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	__le16 fc;
 	u8 hdr_len;
 	u16 wifi_seq;
+	bool amsdu;
 
 	txq = &trans_pcie->txq[txq_id];
 	q = &txq->q;
@@ -2288,11 +2302,18 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	 */
 	len = sizeof(struct iwl_tx_cmd) + sizeof(struct iwl_cmd_header) +
 	      hdr_len - IWL_HCMD_SCRATCHBUF_SIZE;
-	tb1_len = ALIGN(len, 4);
-
-	/* Tell NIC about any 2-byte padding after MAC header */
-	if (tb1_len != len)
-		tx_cmd->tx_flags |= TX_CMD_FLG_MH_PAD_MSK;
+	/* do not align A-MSDU to dword as the subframe header aligns it */
+	amsdu = ieee80211_is_data_qos(fc) &&
+		(*ieee80211_get_qos_ctl(hdr) &
+		 IEEE80211_QOS_CTL_A_MSDU_PRESENT);
+	if (trans_pcie->sw_csum_tx || !amsdu) {
+		tb1_len = ALIGN(len, 4);
+		/* Tell NIC about any 2-byte padding after MAC header */
+		if (tb1_len != len)
+			tx_cmd->tx_flags |= TX_CMD_FLG_MH_PAD_MSK;
+	} else {
+		tb1_len = len;
+	}
 
 	/* The first TB points to the scratchbuf data - min_copy bytes */
 	memcpy(&txq->scratchbufs[q->write_ptr], &dev_cmd->hdr,
@@ -2310,8 +2331,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		goto out_err;
 	iwl_pcie_txq_build_tfd(trans, txq, tb1_phys, tb1_len, false);
 
-	if (ieee80211_is_data_qos(fc) &&
-	    (*ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_A_MSDU_PRESENT)) {
+	if (amsdu) {
 		if (unlikely(iwl_fill_data_tbs_amsdu(trans, skb, txq, hdr_len,
 						     out_meta, dev_cmd,
 						     tb1_len)))

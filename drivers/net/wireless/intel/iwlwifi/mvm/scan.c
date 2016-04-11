@@ -70,6 +70,7 @@
 
 #include "mvm.h"
 #include "fw-api-scan.h"
+#include "iwl-io.h"
 
 #define IWL_DENSE_EBS_SCAN_RATIO 5
 #define IWL_SPARSE_EBS_SCAN_RATIO 1
@@ -398,6 +399,10 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 		ieee80211_scan_completed(mvm->hw,
 				scan_notif->status == IWL_SCAN_OFFLOAD_ABORTED);
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+		del_timer(&mvm->scan_timer);
+	} else {
+		IWL_ERR(mvm,
+			"got scan complete notification but no scan is running\n");
 	}
 
 	mvm->last_ebs_successful =
@@ -961,6 +966,7 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 					 SCAN_CONFIG_FLAG_ALLOW_CHUB_REQS |
 					 SCAN_CONFIG_FLAG_SET_TX_CHAINS |
 					 SCAN_CONFIG_FLAG_SET_RX_CHAINS |
+					 SCAN_CONFIG_FLAG_SET_AUX_STA_ID |
 					 SCAN_CONFIG_FLAG_SET_ALL_TIMES |
 					 SCAN_CONFIG_FLAG_SET_LEGACY_RATES |
 					 SCAN_CONFIG_FLAG_SET_MAC_ADDR |
@@ -1216,6 +1222,18 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 	return -EIO;
 }
 
+#define SCAN_TIMEOUT (16 * HZ)
+
+void iwl_mvm_scan_timeout(unsigned long data)
+{
+	struct iwl_mvm *mvm = (struct iwl_mvm *)data;
+
+	IWL_ERR(mvm, "regular scan timed out\n");
+
+	del_timer(&mvm->scan_timer);
+	iwl_force_nmi(mvm->trans);
+}
+
 int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct cfg80211_scan_request *req,
 			   struct ieee80211_scan_ies *ies)
@@ -1294,6 +1312,8 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	IWL_DEBUG_SCAN(mvm, "Scan request was sent successfully\n");
 	mvm->scan_status |= IWL_MVM_SCAN_REGULAR;
 	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
+
+	mod_timer(&mvm->scan_timer, jiffies + SCAN_TIMEOUT);
 
 	return 0;
 }
@@ -1412,6 +1432,7 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_REGULAR) {
 		ieee80211_scan_completed(mvm->hw, aborted);
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+		del_timer(&mvm->scan_timer);
 	} else if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_SCHED) {
 		ieee80211_sched_scan_stopped(mvm->hw);
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
@@ -1607,6 +1628,7 @@ out:
 		 * to release the scan reference here.
 		 */
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+		del_timer(&mvm->scan_timer);
 		if (notify)
 			ieee80211_scan_completed(mvm->hw, true);
 	} else if (notify) {

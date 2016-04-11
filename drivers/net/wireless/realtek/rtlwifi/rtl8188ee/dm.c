@@ -1137,7 +1137,7 @@ void rtl88e_dm_check_txpower_tracking(struct ieee80211_hw *hw)
 	} else {
 		RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 			 "Schedule TxPowerTracking !!\n");
-				dm_txpower_track_cb_therm(hw);
+		dm_txpower_track_cb_therm(hw);
 		rtlpriv->dm.tm_trigger = 0;
 	}
 }
