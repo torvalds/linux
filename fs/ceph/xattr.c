@@ -804,13 +804,13 @@ out:
 	return err;
 }
 
-ssize_t ceph_getxattr(struct dentry *dentry, const char *name, void *value,
-		      size_t size)
+ssize_t ceph_getxattr(struct dentry *dentry, struct inode *inode,
+		      const char *name, void *value, size_t size)
 {
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
-		return generic_getxattr(dentry, name, value, size);
+		return generic_getxattr(dentry, inode, name, value, size);
 
-	return __ceph_getxattr(d_inode(dentry), name, value, size);
+	return __ceph_getxattr(inode, name, value, size);
 }
 
 ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)

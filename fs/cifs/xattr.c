@@ -213,8 +213,8 @@ set_ea_exit:
 	return rc;
 }
 
-ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
-	void *ea_value, size_t buf_size)
+ssize_t cifs_getxattr(struct dentry *direntry, struct inode *inode,
+	const char *ea_name, void *ea_value, size_t buf_size)
 {
 	ssize_t rc = -EOPNOTSUPP;
 #ifdef CONFIG_CIFS_XATTR
@@ -296,7 +296,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 				goto get_ea_exit; /* rc already EOPNOTSUPP */
 
 			pacl = pTcon->ses->server->ops->get_acl(cifs_sb,
-					d_inode(direntry), full_path, &acllen);
+					inode, full_path, &acllen);
 			if (IS_ERR(pacl)) {
 				rc = PTR_ERR(pacl);
 				cifs_dbg(VFS, "%s: error %zd getting sec desc\n",

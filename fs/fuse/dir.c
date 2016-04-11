@@ -1759,10 +1759,9 @@ static int fuse_setxattr(struct dentry *entry, const char *name,
 	return err;
 }
 
-static ssize_t fuse_getxattr(struct dentry *entry, const char *name,
-			     void *value, size_t size)
+static ssize_t fuse_getxattr(struct dentry *entry, struct inode *inode,
+			     const char *name, void *value, size_t size)
 {
-	struct inode *inode = d_inode(entry);
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	FUSE_ARGS(args);
 	struct fuse_getxattr_in inarg;

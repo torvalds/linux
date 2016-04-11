@@ -451,11 +451,9 @@ out:
 	return rc;
 }
 
-ssize_t ll_getxattr(struct dentry *dentry, const char *name,
-		    void *buffer, size_t size)
+ssize_t ll_getxattr(struct dentry *dentry, struct inode *inode,
+		    const char *name, void *buffer, size_t size)
 {
-	struct inode *inode = d_inode(dentry);
-
 	LASSERT(inode);
 	LASSERT(name);
 

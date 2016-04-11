@@ -84,8 +84,8 @@ int kernfs_iop_getattr(struct vfsmount *mnt, struct dentry *dentry,
 int kernfs_iop_setxattr(struct dentry *dentry, const char *name, const void *value,
 			size_t size, int flags);
 int kernfs_iop_removexattr(struct dentry *dentry, const char *name);
-ssize_t kernfs_iop_getxattr(struct dentry *dentry, const char *name, void *buf,
-			    size_t size);
+ssize_t kernfs_iop_getxattr(struct dentry *dentry, struct inode *inode,
+			    const char *name, void *buf, size_t size);
 ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size);
 
 /*
