@@ -681,18 +681,12 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	unsigned char *skb_buff;
 	unsigned int skb_size;
 
-	if (!kref_get_unless_zero(&if_incoming->refcount))
-		return;
-
-	if (!kref_get_unless_zero(&if_outgoing->refcount))
-		goto out_free_incoming;
-
 	/* own packet should always be scheduled */
 	if (!own_packet) {
 		if (!batadv_atomic_dec_not_zero(&bat_priv->batman_queue_left)) {
 			batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 				   "batman packet queue full\n");
-			goto out_free_outgoing;
+			return;
 		}
 	}
 
@@ -718,6 +712,8 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	forw_packet_aggr->packet_len = packet_len;
 	memcpy(skb_buff, packet_buff, packet_len);
 
+	kref_get(&if_incoming->refcount);
+	kref_get(&if_outgoing->refcount);
 	forw_packet_aggr->own = own_packet;
 	forw_packet_aggr->if_incoming = if_incoming;
 	forw_packet_aggr->if_outgoing = if_outgoing;
@@ -747,10 +743,6 @@ out_free_forw_packet:
 out_nomem:
 	if (!own_packet)
 		atomic_inc(&bat_priv->batman_queue_left);
-out_free_outgoing:
-	batadv_hardif_put(if_outgoing);
-out_free_incoming:
-	batadv_hardif_put(if_incoming);
 }
 
 /* aggregate a new packet into the existing ogm packet */

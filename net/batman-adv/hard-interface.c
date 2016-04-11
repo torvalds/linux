@@ -236,8 +236,8 @@ static void batadv_primary_if_select(struct batadv_priv *bat_priv,
 
 	ASSERT_RTNL();
 
-	if (new_hard_iface && !kref_get_unless_zero(&new_hard_iface->refcount))
-		new_hard_iface = NULL;
+	if (new_hard_iface)
+		kref_get(&new_hard_iface->refcount);
 
 	curr_hard_iface = rcu_dereference_protected(bat_priv->primary_if, 1);
 	rcu_assign_pointer(bat_priv->primary_if, new_hard_iface);
@@ -467,8 +467,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
 		goto out;
 
-	if (!kref_get_unless_zero(&hard_iface->refcount))
-		goto out;
+	kref_get(&hard_iface->refcount);
 
 	soft_iface = dev_get_by_name(net, iface_name);
 
