@@ -17,7 +17,6 @@
  */
 
 #include <linux/cpu.h>
-#include <linux/of_irq.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <linux/interrupt.h>
@@ -438,44 +437,28 @@ static struct notifier_block kvm_timer_cpu_nb = {
 	.notifier_call = kvm_timer_cpu_notify,
 };
 
-static const struct of_device_id arch_timer_of_match[] = {
-	{ .compatible	= "arm,armv7-timer",	},
-	{ .compatible	= "arm,armv8-timer",	},
-	{},
-};
-
 int kvm_timer_hyp_init(void)
 {
-	struct device_node *np;
-	unsigned int ppi;
+	struct arch_timer_kvm_info *info;
 	int err;
 
-	timecounter = arch_timer_get_timecounter();
-	if (!timecounter)
-		return -ENODEV;
+	info = arch_timer_get_kvm_info();
+	timecounter = &info->timecounter;
 
-	np = of_find_matching_node(NULL, arch_timer_of_match);
-	if (!np) {
-		kvm_err("kvm_arch_timer: can't find DT node\n");
+	if (info->virtual_irq <= 0) {
+		kvm_err("kvm_arch_timer: invalid virtual timer IRQ: %d\n",
+			info->virtual_irq);
 		return -ENODEV;
 	}
+	host_vtimer_irq = info->virtual_irq;
 
-	ppi = irq_of_parse_and_map(np, 2);
-	if (!ppi) {
-		kvm_err("kvm_arch_timer: no virtual timer interrupt\n");
-		err = -EINVAL;
-		goto out;
-	}
-
-	err = request_percpu_irq(ppi, kvm_arch_timer_handler,
+	err = request_percpu_irq(host_vtimer_irq, kvm_arch_timer_handler,
 				 "kvm guest timer", kvm_get_running_vcpus());
 	if (err) {
 		kvm_err("kvm_arch_timer: can't request interrupt %d (%d)\n",
-			ppi, err);
+			host_vtimer_irq, err);
 		goto out;
 	}
-
-	host_vtimer_irq = ppi;
 
 	err = __register_cpu_notifier(&kvm_timer_cpu_nb);
 	if (err) {
@@ -489,14 +472,13 @@ int kvm_timer_hyp_init(void)
 		goto out_free;
 	}
 
-	kvm_info("%s IRQ%d\n", np->name, ppi);
+	kvm_info("virtual timer IRQ%d\n", host_vtimer_irq);
 	on_each_cpu(kvm_timer_init_interrupt, NULL, 1);
 
 	goto out;
 out_free:
-	free_percpu_irq(ppi, kvm_get_running_vcpus());
+	free_percpu_irq(host_vtimer_irq, kvm_get_running_vcpus());
 out:
-	of_node_put(np);
 	return err;
 }
 
