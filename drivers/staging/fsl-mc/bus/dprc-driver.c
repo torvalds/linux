@@ -693,6 +693,25 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		goto error_cleanup_msi_domain;
 	}
 
+	error = dprc_get_attributes(mc_dev->mc_io, 0, mc_dev->mc_handle,
+				    &mc_bus->dprc_attr);
+	if (error < 0) {
+		dev_err(&mc_dev->dev, "dprc_get_attributes() failed: %d\n",
+			error);
+		goto error_cleanup_open;
+	}
+
+	if (mc_bus->dprc_attr.version.major < DPRC_MIN_VER_MAJOR ||
+	   (mc_bus->dprc_attr.version.major == DPRC_MIN_VER_MAJOR &&
+	    mc_bus->dprc_attr.version.minor < DPRC_MIN_VER_MINOR)) {
+		dev_err(&mc_dev->dev,
+			"ERROR: DPRC version %d.%d not supported\n",
+			mc_bus->dprc_attr.version.major,
+			mc_bus->dprc_attr.version.minor);
+		error = -ENOTSUPP;
+		goto error_cleanup_open;
+	}
+
 	mutex_init(&mc_bus->scan_mutex);
 
 	/*

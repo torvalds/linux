@@ -745,6 +745,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 		goto error_cleanup_mc_io;
 	}
 
+	memset(&obj_desc, 0, sizeof(struct dprc_obj_desc));
 	error = get_dprc_version(mc_io, container_id,
 				 &obj_desc.ver_major, &obj_desc.ver_minor);
 	if (error < 0)
