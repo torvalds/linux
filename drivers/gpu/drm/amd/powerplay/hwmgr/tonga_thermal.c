@@ -195,8 +195,8 @@ int tonga_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr, uint32_t speed)
 	if (0 == duty100)
 		return -EINVAL;
 
-	tmp64 = (uint64_t)speed * 100;
-	do_div(tmp64, duty100);
+	tmp64 = (uint64_t)speed * duty100;
+	do_div(tmp64, 100);
 	duty = (uint32_t)tmp64;
 
 	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_FDO_CTRL0, FDO_STATIC_DUTY, duty);
