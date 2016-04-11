@@ -3321,6 +3321,9 @@ static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
 	if (IS_CHERRYVIEW(dev_priv))
 		enable_mask |= I915_DISPLAY_PIPE_C_EVENT_INTERRUPT;
+
+	WARN_ON(dev_priv->irq_mask != ~0);
+
 	dev_priv->irq_mask = ~enable_mask;
 
 	GEN5_IRQ_INIT(VLV_, dev_priv->irq_mask, enable_mask);
