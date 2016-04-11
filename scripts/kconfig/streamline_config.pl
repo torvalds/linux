@@ -454,7 +454,7 @@ sub parse_config_depends
 	    $p =~ s/^[^$valid]*[$valid]+//;
 
 	    # We only need to process if the depend config is a module
-	    if (!defined($orig_configs{$conf}) || !$orig_configs{conf} eq "m") {
+	    if (!defined($orig_configs{$conf}) || $orig_configs{$conf} eq "y") {
 		next;
 	    }
 
