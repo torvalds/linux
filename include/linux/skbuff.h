@@ -483,7 +483,9 @@ enum {
 
 	SKB_GSO_UDP_TUNNEL_CSUM = 1 << 12,
 
-	SKB_GSO_TUNNEL_REMCSUM = 1 << 13,
+	SKB_GSO_PARTIAL = 1 << 13,
+
+	SKB_GSO_TUNNEL_REMCSUM = 1 << 14,
 };
 
 #if BITS_PER_LONG > 32
@@ -3591,7 +3593,10 @@ static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
  * Keeps track of level of encapsulation of network headers.
  */
 struct skb_gso_cb {
-	int	mac_offset;
+	union {
+		int	mac_offset;
+		int	data_offset;
+	};
 	int	encap_level;
 	__wsum	csum;
 	__u16	csum_start;

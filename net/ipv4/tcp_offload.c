@@ -109,6 +109,12 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 		goto out;
 	}
 
+	/* GSO partial only requires splitting the frame into an MSS
+	 * multiple and possibly a remainder.  So update the mss now.
+	 */
+	if (features & NETIF_F_GSO_PARTIAL)
+		mss = skb->len - (skb->len % mss);
+
 	copy_destructor = gso_skb->destructor == tcp_wfree;
 	ooo_okay = gso_skb->ooo_okay;
 	/* All segments but the first should have ooo_okay cleared */
@@ -133,7 +139,7 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 	newcheck = ~csum_fold((__force __wsum)((__force u32)th->check +
 					       (__force u32)delta));
 
-	do {
+	while (skb->next) {
 		th->fin = th->psh = 0;
 		th->check = newcheck;
 
@@ -153,7 +159,7 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 
 		th->seq = htonl(seq);
 		th->cwr = 0;
-	} while (skb->next);
+	}
 
 	/* Following permits TCP Small Queues to work well with GSO :
 	 * The callback to TCP stack will be called at the time last frag

@@ -2711,6 +2711,19 @@ struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 			return ERR_PTR(err);
 	}
 
+	/* Only report GSO partial support if it will enable us to
+	 * support segmentation on this frame without needing additional
+	 * work.
+	 */
+	if (features & NETIF_F_GSO_PARTIAL) {
+		netdev_features_t partial_features = NETIF_F_GSO_ROBUST;
+		struct net_device *dev = skb->dev;
+
+		partial_features |= dev->features & dev->gso_partial_features;
+		if (!skb_gso_ok(skb, features | partial_features))
+			features &= ~NETIF_F_GSO_PARTIAL;
+	}
+
 	BUILD_BUG_ON(SKB_SGO_CB_OFFSET +
 		     sizeof(*SKB_GSO_CB(skb)) > sizeof(skb->cb));
 
@@ -2834,8 +2847,17 @@ static netdev_features_t gso_features_check(const struct sk_buff *skb,
 	if (gso_segs > dev->gso_max_segs)
 		return features & ~NETIF_F_GSO_MASK;
 
-	/* Make sure to clear the IPv4 ID mangling feature if
-	 * the IPv4 header has the potential to be fragmented.
+	/* Support for GSO partial features requires software
+	 * intervention before we can actually process the packets
+	 * so we need to strip support for any partial features now
+	 * and we can pull them back in after we have partially
+	 * segmented the frame.
+	 */
+	if (!(skb_shinfo(skb)->gso_type & SKB_GSO_PARTIAL))
+		features &= ~dev->gso_partial_features;
+
+	/* Make sure to clear the IPv4 ID mangling feature if the
+	 * IPv4 header has the potential to be fragmented.
 	 */
 	if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4) {
 		struct iphdr *iph = skb->encapsulation ?
@@ -6729,6 +6751,14 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 		}
 	}
 
+	/* GSO partial features require GSO partial be set */
+	if ((features & dev->gso_partial_features) &&
+	    !(features & NETIF_F_GSO_PARTIAL)) {
+		netdev_dbg(dev,
+			   "Dropping partially supported GSO features since no GSO partial.\n");
+		features &= ~dev->gso_partial_features;
+	}
+
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	if (dev->netdev_ops->ndo_busy_poll)
 		features |= NETIF_F_BUSY_POLL;
@@ -7011,7 +7041,7 @@ int register_netdevice(struct net_device *dev)
 
 	/* Make NETIF_F_SG inheritable to tunnel devices.
 	 */
-	dev->hw_enc_features |= NETIF_F_SG;
+	dev->hw_enc_features |= NETIF_F_SG | NETIF_F_GSO_PARTIAL;
 
 	/* Make NETIF_F_SG inheritable to MPLS.
 	 */

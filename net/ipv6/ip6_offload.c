@@ -63,6 +63,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	int proto;
 	struct frag_hdr *fptr;
 	unsigned int unfrag_ip6hlen;
+	unsigned int payload_len;
 	u8 *prevhdr;
 	int offset = 0;
 	bool encap, udpfrag;
@@ -82,6 +83,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_UDP_TUNNEL |
 		       SKB_GSO_UDP_TUNNEL_CSUM |
 		       SKB_GSO_TUNNEL_REMCSUM |
+		       SKB_GSO_PARTIAL |
 		       0)))
 		goto out;
 
@@ -118,7 +120,13 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 
 	for (skb = segs; skb; skb = skb->next) {
 		ipv6h = (struct ipv6hdr *)(skb_mac_header(skb) + nhoff);
-		ipv6h->payload_len = htons(skb->len - nhoff - sizeof(*ipv6h));
+		if (skb_is_gso(skb))
+			payload_len = skb_shinfo(skb)->gso_size +
+				      SKB_GSO_CB(skb)->data_offset +
+				      skb->head - (unsigned char *)(ipv6h + 1);
+		else
+			payload_len = skb->len - nhoff - sizeof(*ipv6h);
+		ipv6h->payload_len = htons(payload_len);
 		skb->network_header = (u8 *)ipv6h - skb->head;
 
 		if (udpfrag) {
