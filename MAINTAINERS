@@ -776,6 +776,15 @@ S:	Supported
 F:	drivers/android/
 F:	drivers/staging/android/
 
+ANDROID ION DRIVER
+M:	Laura Abbott <labbott@redhat.com>
+M:	Sumit Semwal <sumit.semwal@linaro.org>
+L:	devel@driverdev.osuosl.org
+S:	Supported
+F:	drivers/staging/android/ion
+F:	drivers/staging/android/uapi/ion.h
+F:	drivers/staging/android/uapi/ion_test.h
+
 AOA (Apple Onboard Audio) ALSA DRIVER
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linuxppc-dev@lists.ozlabs.org
