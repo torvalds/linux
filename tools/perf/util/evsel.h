@@ -178,8 +178,11 @@ void perf_evsel__init(struct perf_evsel *evsel,
 void perf_evsel__exit(struct perf_evsel *evsel);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
+struct callchain_param;
+
 void perf_evsel__config(struct perf_evsel *evsel,
-			struct record_opts *opts);
+			struct record_opts *opts,
+			struct callchain_param *callchain);
 
 int __perf_evsel__sample_size(u64 sample_type);
 void perf_evsel__calc_id_pos(struct perf_evsel *evsel);

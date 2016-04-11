@@ -284,7 +284,7 @@ static int record__open(struct record *rec)
 	struct record_opts *opts = &rec->opts;
 	int rc = 0;
 
-	perf_evlist__config(evlist, opts);
+	perf_evlist__config(evlist, opts, &callchain_param);
 
 	evlist__for_each(evlist, pos) {
 try_again:

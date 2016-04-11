@@ -123,11 +123,14 @@ void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx);
 int perf_evlist__open(struct perf_evlist *evlist);
 void perf_evlist__close(struct perf_evlist *evlist);
 
+struct callchain_param;
+
 void perf_evlist__set_id_pos(struct perf_evlist *evlist);
 bool perf_can_sample_identifier(void);
 bool perf_can_record_switch_events(void);
 bool perf_can_record_cpu_wide(void);
-void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts);
+void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts,
+			 struct callchain_param *callchain);
 int record_opts__config(struct record_opts *opts);
 
 int perf_evlist__prepare_workload(struct perf_evlist *evlist,

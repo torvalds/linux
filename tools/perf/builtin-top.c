@@ -886,7 +886,7 @@ static int perf_top__start_counters(struct perf_top *top)
 	struct perf_evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
 
-	perf_evlist__config(evlist, opts);
+	perf_evlist__config(evlist, opts, &callchain_param);
 
 	evlist__for_each(evlist, counter) {
 try_again:
