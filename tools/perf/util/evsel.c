@@ -562,10 +562,9 @@ int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size)
 	return ret;
 }
 
-static void
-perf_evsel__config_callgraph(struct perf_evsel *evsel,
-			     struct record_opts *opts,
-			     struct callchain_param *param)
+void perf_evsel__config_callchain(struct perf_evsel *evsel,
+				  struct record_opts *opts,
+				  struct callchain_param *param)
 {
 	bool function = perf_evsel__is_function_event(evsel);
 	struct perf_event_attr *attr = &evsel->attr;
@@ -705,7 +704,7 @@ static void apply_config_terms(struct perf_evsel *evsel,
 
 		/* set perf-event callgraph */
 		if (param.enabled)
-			perf_evsel__config_callgraph(evsel, opts, &param);
+			perf_evsel__config_callchain(evsel, opts, &param);
 	}
 }
 
@@ -814,7 +813,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 		evsel->attr.exclude_callchain_user = 1;
 
 	if (callchain && callchain->enabled && !evsel->no_aux_samples)
-		perf_evsel__config_callgraph(evsel, opts, callchain);
+		perf_evsel__config_callchain(evsel, opts, callchain);
 
 	if (opts->sample_intr_regs) {
 		attr->sample_regs_intr = opts->sample_intr_regs;
