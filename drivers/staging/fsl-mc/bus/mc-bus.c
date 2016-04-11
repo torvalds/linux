@@ -40,8 +40,6 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(drv);
 	bool found = false;
-	bool major_version_mismatch = false;
-	bool minor_version_mismatch = false;
 
 	if (WARN_ON(!fsl_mc_bus_exists()))
 		goto out;
@@ -64,30 +62,10 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 	for (id = mc_drv->match_id_table; id->vendor != 0x0; id++) {
 		if (id->vendor == mc_dev->obj_desc.vendor &&
 		    strcmp(id->obj_type, mc_dev->obj_desc.type) == 0) {
-			if (id->ver_major == mc_dev->obj_desc.ver_major) {
-				found = true;
-				if (id->ver_minor != mc_dev->obj_desc.ver_minor)
-					minor_version_mismatch = true;
-			} else {
-				major_version_mismatch = true;
-			}
+			found = true;
 
 			break;
 		}
-	}
-
-	if (major_version_mismatch) {
-		dev_warn(dev,
-			 "Major version mismatch: driver version %u.%u, MC object version %u.%u\n",
-			 id->ver_major, id->ver_minor,
-			 mc_dev->obj_desc.ver_major,
-			 mc_dev->obj_desc.ver_minor);
-	} else if (minor_version_mismatch) {
-		dev_warn(dev,
-			 "Minor version mismatch: driver version %u.%u, MC object version %u.%u\n",
-			 id->ver_major, id->ver_minor,
-			 mc_dev->obj_desc.ver_major,
-			 mc_dev->obj_desc.ver_minor);
 	}
 
 out:
@@ -721,20 +699,6 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev,
 		 "Freescale Management Complex Firmware version: %u.%u.%u\n",
 		 mc_version.major, mc_version.minor, mc_version.revision);
-
-	if (mc_version.major < MC_VER_MAJOR) {
-		dev_err(&pdev->dev,
-			"ERROR: MC firmware version not supported by driver (driver version: %u.%u)\n",
-			MC_VER_MAJOR, MC_VER_MINOR);
-		error = -ENOTSUPP;
-		goto error_cleanup_mc_io;
-	}
-
-	if (mc_version.major > MC_VER_MAJOR) {
-		dev_warn(&pdev->dev,
-			 "WARNING: driver may not support newer MC firmware features (driver version: %u.%u)\n",
-			 MC_VER_MAJOR, MC_VER_MINOR);
-	}
 
 	error = get_mc_addr_translation_ranges(&pdev->dev,
 					       &mc->translation_ranges,

@@ -709,20 +709,14 @@ static const struct fsl_mc_device_match_id match_id_table[] = {
 	{
 	 .vendor = FSL_MC_VENDOR_FREESCALE,
 	 .obj_type = "dpbp",
-	 .ver_major = DPBP_VER_MAJOR,
-	 .ver_minor = DPBP_VER_MINOR
 	},
 	{
 	 .vendor = FSL_MC_VENDOR_FREESCALE,
 	 .obj_type = "dpmcp",
-	 .ver_major = DPMCP_VER_MAJOR,
-	 .ver_minor = DPMCP_VER_MINOR
 	},
 	{
 	 .vendor = FSL_MC_VENDOR_FREESCALE,
 	 .obj_type = "dpcon",
-	 .ver_major = DPCON_VER_MAJOR,
-	 .ver_minor = DPCON_VER_MINOR
 	},
 	{.vendor = 0x0},
 };
