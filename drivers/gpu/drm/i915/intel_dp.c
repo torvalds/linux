@@ -4578,6 +4578,15 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 		intel_dp->compliance_test_type = 0;
 		intel_dp->compliance_test_data = 0;
 
+		if (intel_dp->is_mst) {
+			DRM_DEBUG_KMS("MST device may have disappeared %d vs %d\n",
+				      intel_dp->is_mst,
+				      intel_dp->mst_mgr.mst_state);
+			intel_dp->is_mst = false;
+			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
+							intel_dp->is_mst);
+		}
+
 		goto out;
 	}
 
@@ -4635,20 +4644,9 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 	}
 
 out:
-	if (status != connector_status_connected) {
+	if ((status != connector_status_connected) &&
+	    (intel_dp->is_mst == false))
 		intel_dp_unset_edid(intel_dp);
-		/*
-		 * If we were in MST mode, and device is not there,
-		 * get out of MST mode
-		 */
-		if (intel_dp->is_mst) {
-			DRM_DEBUG_KMS("MST device may have disappeared %d vs %d\n",
-				      intel_dp->is_mst, intel_dp->mst_mgr.mst_state);
-			intel_dp->is_mst = false;
-			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
-							intel_dp->is_mst);
-		}
-	}
 
 	intel_display_power_put(to_i915(dev), power_domain);
 	return;
