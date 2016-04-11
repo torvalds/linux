@@ -20,11 +20,9 @@
 #include <linux/kvm_host.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
 
 #include <linux/irqchip/arm-gic-v3.h>
+#include <linux/irqchip/arm-gic-common.h>
 
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_arm.h>
@@ -222,30 +220,24 @@ static void vgic_cpu_init_lrs(void *params)
 }
 
 /**
- * vgic_v3_probe - probe for a GICv3 compatible interrupt controller in DT
- * @node:	pointer to the DT node
- * @ops: 	address of a pointer to the GICv3 operations
- * @params:	address of a pointer to HW-specific parameters
+ * vgic_v3_probe - probe for a GICv3 compatible interrupt controller
+ * @gic_kvm_info:	pointer to the GIC description
+ * @ops:		address of a pointer to the GICv3 operations
+ * @params:		address of a pointer to HW-specific parameters
  *
  * Returns 0 if a GICv3 has been found, with the low level operations
  * in *ops and the HW parameters in *params. Returns an error code
  * otherwise.
  */
-int vgic_v3_probe(struct device_node *vgic_node,
+int vgic_v3_probe(const struct gic_kvm_info *gic_kvm_info,
 		  const struct vgic_ops **ops,
 		  const struct vgic_params **params)
 {
 	int ret = 0;
-	u32 gicv_idx;
-	struct resource vcpu_res;
 	struct vgic_params *vgic = &vgic_v3_params;
+	const struct resource *vcpu_res = &gic_kvm_info->vcpu;
 
-	vgic->maint_irq = irq_of_parse_and_map(vgic_node, 0);
-	if (!vgic->maint_irq) {
-		kvm_err("error getting vgic maintenance irq from DT\n");
-		ret = -ENXIO;
-		goto out;
-	}
+	vgic->maint_irq = gic_kvm_info->maint_irq;
 
 	ich_vtr_el2 = kvm_call_hyp(__vgic_v3_get_ich_vtr_el2);
 
@@ -256,24 +248,19 @@ int vgic_v3_probe(struct device_node *vgic_node,
 	vgic->nr_lr = (ich_vtr_el2 & 0xf) + 1;
 	vgic->can_emulate_gicv2 = false;
 
-	if (of_property_read_u32(vgic_node, "#redistributor-regions", &gicv_idx))
-		gicv_idx = 1;
-
-	gicv_idx += 3; /* Also skip GICD, GICC, GICH */
-	if (of_address_to_resource(vgic_node, gicv_idx, &vcpu_res)) {
+	if (!vcpu_res->start) {
 		kvm_info("GICv3: no GICV resource entry\n");
 		vgic->vcpu_base = 0;
-	} else if (!PAGE_ALIGNED(vcpu_res.start)) {
+	} else if (!PAGE_ALIGNED(vcpu_res->start)) {
 		pr_warn("GICV physical address 0x%llx not page aligned\n",
-			(unsigned long long)vcpu_res.start);
+			(unsigned long long)vcpu_res->start);
 		vgic->vcpu_base = 0;
-	} else if (!PAGE_ALIGNED(resource_size(&vcpu_res))) {
+	} else if (!PAGE_ALIGNED(resource_size(vcpu_res))) {
 		pr_warn("GICV size 0x%llx not a multiple of page size 0x%lx\n",
-			(unsigned long long)resource_size(&vcpu_res),
+			(unsigned long long)resource_size(vcpu_res),
 			PAGE_SIZE);
-		vgic->vcpu_base = 0;
 	} else {
-		vgic->vcpu_base = vcpu_res.start;
+		vgic->vcpu_base = vcpu_res->start;
 		vgic->can_emulate_gicv2 = true;
 		kvm_register_device_ops(&kvm_arm_vgic_v2_ops,
 					KVM_DEV_TYPE_ARM_VGIC_V2);
@@ -286,15 +273,13 @@ int vgic_v3_probe(struct device_node *vgic_node,
 	vgic->type = VGIC_V3;
 	vgic->max_gic_vcpus = VGIC_V3_MAX_CPUS;
 
-	kvm_info("%s@%llx IRQ%d\n", vgic_node->name,
-		 vcpu_res.start, vgic->maint_irq);
+	kvm_info("GICV base=0x%llx, IRQ=%d\n",
+		 vgic->vcpu_base, vgic->maint_irq);
 
 	on_each_cpu(vgic_cpu_init_lrs, vgic, 1);
 
 	*ops = &vgic_v3_ops;
 	*params = vgic;
 
-out:
-	of_node_put(vgic_node);
 	return ret;
 }

@@ -25,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <kvm/iodev.h>
+#include <linux/irqchip/arm-gic-common.h>
 
 #define VGIC_NR_IRQS_LEGACY	256
 #define VGIC_NR_SGIS		16
@@ -353,15 +354,15 @@ bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, struct irq_phys_map *map);
 #define vgic_initialized(k)	(!!((k)->arch.vgic.nr_cpus))
 #define vgic_ready(k)		((k)->arch.vgic.ready)
 
-int vgic_v2_probe(struct device_node *vgic_node,
+int vgic_v2_probe(const struct gic_kvm_info *gic_kvm_info,
 		  const struct vgic_ops **ops,
 		  const struct vgic_params **params);
 #ifdef CONFIG_KVM_ARM_VGIC_V3
-int vgic_v3_probe(struct device_node *vgic_node,
+int vgic_v3_probe(const struct gic_kvm_info *gic_kvm_info,
 		  const struct vgic_ops **ops,
 		  const struct vgic_params **params);
 #else
-static inline int vgic_v3_probe(struct device_node *vgic_node,
+static inline int vgic_v3_probe(const struct gic_kvm_info *gic_kvm_info,
 				const struct vgic_ops **ops,
 				const struct vgic_params **params)
 {
