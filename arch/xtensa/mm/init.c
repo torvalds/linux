@@ -266,8 +266,7 @@ void __init bootmem_init(void)
 	if (min_low_pfn > max_pfn)
 		panic("No memory found!\n");
 
-	max_low_pfn = max_pfn < MAX_MEM_PFN >> PAGE_SHIFT ?
-		max_pfn : MAX_MEM_PFN >> PAGE_SHIFT;
+	max_low_pfn = min(max_pfn, MAX_LOW_PFN);
 
 	/* Find an area to use for the bootmem bitmap. */
 

@@ -116,21 +116,34 @@
 	add	a5, a5, a4
 	bne	a5, a2, 3b
 
-	/* Step 4: Setup MMU with the old V2 mappings. */
+	/* Step 4: Setup MMU with the requested static mappings. */
+
 	movi	a6, 0x01000000
 	wsr	a6, ITLBCFG
 	wsr	a6, DTLBCFG
 	isync
 
-	movi	a5, 0xd0000005
-	movi	a4, CA_WRITEBACK
+	movi	a5, XCHAL_KSEG_CACHED_VADDR + XCHAL_KSEG_TLB_WAY
+	movi	a4, XCHAL_KSEG_PADDR + CA_WRITEBACK
 	wdtlb	a4, a5
 	witlb	a4, a5
 
-	movi	a5, 0xd8000005
-	movi	a4, CA_BYPASS
+	movi	a5, XCHAL_KSEG_BYPASS_VADDR + XCHAL_KSEG_TLB_WAY
+	movi	a4, XCHAL_KSEG_PADDR + CA_BYPASS
 	wdtlb	a4, a5
 	witlb	a4, a5
+
+#ifdef CONFIG_XTENSA_KSEG_512M
+	movi	a5, XCHAL_KSEG_CACHED_VADDR + 0x10000000 + XCHAL_KSEG_TLB_WAY
+	movi	a4, XCHAL_KSEG_PADDR + 0x10000000 + CA_WRITEBACK
+	wdtlb	a4, a5
+	witlb	a4, a5
+
+	movi	a5, XCHAL_KSEG_BYPASS_VADDR + 0x10000000 + XCHAL_KSEG_TLB_WAY
+	movi	a4, XCHAL_KSEG_PADDR + 0x10000000 + CA_BYPASS
+	wdtlb	a4, a5
+	witlb	a4, a5
+#endif
 
 	movi	a5, XCHAL_KIO_CACHED_VADDR + 6
 	movi	a4, XCHAL_KIO_DEFAULT_PADDR + CA_WRITEBACK

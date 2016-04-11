@@ -236,6 +236,50 @@ config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 
 	  If in doubt, say Y.
 
+config KSEG_PADDR
+	hex "Physical address of the KSEG mapping"
+	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX && MMU
+	default 0x00000000
+	help
+	  This is the physical address where KSEG is mapped. Please refer to
+	  the chosen KSEG layout help for the required address alignment.
+	  Unpacked kernel image (including vectors) must be located completely
+	  within KSEG.
+	  Physical memory below this address is not available to linux.
+
+	  If unsure, leave the default value here.
+
+choice
+	prompt "KSEG layout"
+	depends on MMU
+	default XTENSA_KSEG_MMU_V2
+
+config XTENSA_KSEG_MMU_V2
+	bool "MMUv2: 128MB cached + 128MB uncached"
+	help
+	  MMUv2 compatible kernel memory map: TLB way 5 maps 128MB starting
+	  at KSEG_PADDR to 0xd0000000 with cache and to 0xd8000000
+	  without cache.
+	  KSEG_PADDR must be aligned to 128MB.
+
+config XTENSA_KSEG_256M
+	bool "256MB cached + 256MB uncached"
+	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	help
+	  TLB way 6 maps 256MB starting at KSEG_PADDR to 0xb0000000
+	  with cache and to 0xc0000000 without cache.
+	  KSEG_PADDR must be aligned to 256MB.
+
+config XTENSA_KSEG_512M
+	bool "512MB cached + 512MB uncached"
+	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	help
+	  TLB way 6 maps 512MB starting at KSEG_PADDR to 0xa0000000
+	  with cache and to 0xc0000000 without cache.
+	  KSEG_PADDR must be aligned to 256MB.
+
+endchoice
+
 config HIGHMEM
 	bool "High Memory Support"
 	depends on MMU
