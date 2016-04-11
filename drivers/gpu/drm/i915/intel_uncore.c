@@ -769,15 +769,6 @@ __unclaimed_reg_debug(struct drm_i915_private *dev_priv,
 		      const bool read,
 		      const bool before)
 {
-	/* XXX. We limit the auto arming traces for mmio
-	 * debugs on these platforms. There are just too many
-	 * revealed by these and CI/Bat suffers from the noise.
-	 * Please fix and then re-enable the automatic traces.
-	 */
-	if (i915.mmio_debug < 2 &&
-	    (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)))
-		return;
-
 	if (WARN(check_for_unclaimed_mmio(dev_priv),
 		 "Unclaimed register detected %s %s register 0x%x\n",
 		 before ? "before" : "after",
