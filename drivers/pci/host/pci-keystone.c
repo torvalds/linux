@@ -160,7 +160,7 @@ static void ks_pcie_legacy_irq_handler(struct irq_desc *desc)
 static int ks_pcie_get_irq_controller_info(struct keystone_pcie *ks_pcie,
 					   char *controller, int *num_irqs)
 {
-	int temp, max_host_irqs, legacy = 1, *host_irqs, ret = -EINVAL;
+	int temp, max_host_irqs, legacy = 1, *host_irqs;
 	struct device *dev = ks_pcie->pp.dev;
 	struct device_node *np_pcie = dev->of_node, **np_temp;
 
@@ -181,11 +181,15 @@ static int ks_pcie_get_irq_controller_info(struct keystone_pcie *ks_pcie,
 	*np_temp = of_find_node_by_name(np_pcie, controller);
 	if (!(*np_temp)) {
 		dev_err(dev, "Node for %s is absent\n", controller);
-		goto out;
+		return -EINVAL;
 	}
+
 	temp = of_irq_count(*np_temp);
-	if (!temp)
-		goto out;
+	if (!temp) {
+		dev_err(dev, "No IRQ entries in %s\n", controller);
+		return -EINVAL;
+	}
+
 	if (temp > max_host_irqs)
 		dev_warn(dev, "Too many %s interrupts defined %u\n",
 			(legacy ? "legacy" : "MSI"), temp);
@@ -199,12 +203,13 @@ static int ks_pcie_get_irq_controller_info(struct keystone_pcie *ks_pcie,
 		if (!host_irqs[temp])
 			break;
 	}
+
 	if (temp) {
 		*num_irqs = temp;
-		ret = 0;
+		return 0;
 	}
-out:
-	return ret;
+
+	return -EINVAL;
 }
 
 static void ks_pcie_setup_interrupts(struct keystone_pcie *ks_pcie)
@@ -345,7 +350,7 @@ static int __init ks_add_pcie_port(struct keystone_pcie *ks_pcie,
 		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id ks_pcie_of_match[] = {
@@ -374,7 +379,7 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *reg_p;
 	struct phy *phy;
-	int ret = 0;
+	int ret;
 
 	ks_pcie = devm_kzalloc(&pdev->dev, sizeof(*ks_pcie),
 				GFP_KERNEL);
