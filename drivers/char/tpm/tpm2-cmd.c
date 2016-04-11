@@ -773,7 +773,6 @@ void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
 		dev_warn(&chip->dev, "transmit returned %d while stopping the TPM",
 			 rc);
 }
-EXPORT_SYMBOL_GPL(tpm2_shutdown);
 
 /*
  * tpm2_calc_ordinal_duration() - maximum duration for a command
