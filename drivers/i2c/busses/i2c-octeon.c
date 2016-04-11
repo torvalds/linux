@@ -80,14 +80,14 @@ struct octeon_i2c {
 };
 
 /**
- * octeon_i2c_write_sw - write an I2C core register
+ * octeon_i2c_reg_write - write an I2C core register
  * @i2c: The struct octeon_i2c
  * @eop_reg: Register selector
  * @data: Value to be written
  *
  * The I2C core registers are accessed indirectly via the SW_TWSI CSR.
  */
-static void octeon_i2c_write_sw(struct octeon_i2c *i2c, u64 eop_reg, u8 data)
+static void octeon_i2c_reg_write(struct octeon_i2c *i2c, u64 eop_reg, u8 data)
 {
 	u64 tmp;
 
@@ -98,7 +98,7 @@ static void octeon_i2c_write_sw(struct octeon_i2c *i2c, u64 eop_reg, u8 data)
 }
 
 /**
- * octeon_i2c_read_sw - read lower bits of an I2C core register
+ * octeon_i2c_reg_read - read lower bits of an I2C core register
  * @i2c: The struct octeon_i2c
  * @eop_reg: Register selector
  *
@@ -106,7 +106,7 @@ static void octeon_i2c_write_sw(struct octeon_i2c *i2c, u64 eop_reg, u8 data)
  *
  * The I2C core registers are accessed indirectly via the SW_TWSI CSR.
  */
-static u8 octeon_i2c_read_sw(struct octeon_i2c *i2c, u64 eop_reg)
+static u8 octeon_i2c_reg_read(struct octeon_i2c *i2c, u64 eop_reg)
 {
 	u64 tmp;
 
@@ -189,7 +189,7 @@ static irqreturn_t octeon_i2c_isr(int irq, void *dev_id)
 
 static int octeon_i2c_test_iflg(struct octeon_i2c *i2c)
 {
-	return (octeon_i2c_read_sw(i2c, SW_TWSI_EOP_TWSI_CTL) & TWSI_CTL_IFLG) != 0;
+	return (octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_CTL) & TWSI_CTL_IFLG) != 0;
 }
 
 /**
@@ -252,8 +252,8 @@ static void octeon_i2c_set_clock(struct octeon_i2c *i2c)
 			}
 		}
 	}
-	octeon_i2c_write_sw(i2c, SW_TWSI_OP_TWSI_CLK, thp);
-	octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_CLKCTL, (mdiv << 3) | ndiv);
+	octeon_i2c_reg_write(i2c, SW_TWSI_OP_TWSI_CLK, thp);
+	octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_CLKCTL, (mdiv << 3) | ndiv);
 }
 
 static int octeon_i2c_init_lowlevel(struct octeon_i2c *i2c)
@@ -262,14 +262,14 @@ static int octeon_i2c_init_lowlevel(struct octeon_i2c *i2c)
 	int tries;
 
 	/* disable high level controller, enable bus access */
-	octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_CTL, TWSI_CTL_ENAB);
+	octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_CTL, TWSI_CTL_ENAB);
 
 	/* reset controller */
-	octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_RST, 0);
+	octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_RST, 0);
 
 	for (tries = 10; tries; tries--) {
 		udelay(1);
-		status = octeon_i2c_read_sw(i2c, SW_TWSI_EOP_TWSI_STAT);
+		status = octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_STAT);
 		if (status == STAT_IDLE)
 			return 0;
 	}
@@ -288,19 +288,19 @@ static int octeon_i2c_start(struct octeon_i2c *i2c)
 	int result;
 	u8 data;
 
-	octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_CTL,
+	octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_CTL,
 			    TWSI_CTL_ENAB | TWSI_CTL_STA);
 
 	result = octeon_i2c_wait(i2c);
 	if (result) {
-		if (octeon_i2c_read_sw(i2c, SW_TWSI_EOP_TWSI_STAT) == STAT_IDLE) {
+		if (octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_STAT) == STAT_IDLE) {
 			/*
 			 * Controller refused to send start flag May
 			 * be a client is holding SDA low - let's try
 			 * to free it.
 			 */
 			octeon_i2c_unblock(i2c);
-			octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_CTL,
+			octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_CTL,
 					    TWSI_CTL_ENAB | TWSI_CTL_STA);
 			result = octeon_i2c_wait(i2c);
 		}
@@ -308,7 +308,7 @@ static int octeon_i2c_start(struct octeon_i2c *i2c)
 			return result;
 	}
 
-	data = octeon_i2c_read_sw(i2c, SW_TWSI_EOP_TWSI_STAT);
+	data = octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_STAT);
 	if ((data != STAT_START) && (data != STAT_RSTART)) {
 		dev_err(i2c->dev, "%s: bad status (0x%x)\n", __func__, data);
 		return -EIO;
@@ -320,7 +320,7 @@ static int octeon_i2c_start(struct octeon_i2c *i2c)
 /* send STOP to the bus */
 static void octeon_i2c_stop(struct octeon_i2c *i2c)
 {
-	octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_CTL,
+	octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_CTL,
 			    TWSI_CTL_ENAB | TWSI_CTL_STP);
 }
 
@@ -345,15 +345,15 @@ static int octeon_i2c_write(struct octeon_i2c *i2c, int target,
 	if (result)
 		return result;
 
-	octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_DATA, target << 1);
-	octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_CTL, TWSI_CTL_ENAB);
+	octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_DATA, target << 1);
+	octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_CTL, TWSI_CTL_ENAB);
 
 	result = octeon_i2c_wait(i2c);
 	if (result)
 		return result;
 
 	for (i = 0; i < length; i++) {
-		tmp = octeon_i2c_read_sw(i2c, SW_TWSI_EOP_TWSI_STAT);
+		tmp = octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_STAT);
 
 		if ((tmp != STAT_TXADDR_ACK) && (tmp != STAT_TXDATA_ACK)) {
 			dev_err(i2c->dev,
@@ -362,8 +362,8 @@ static int octeon_i2c_write(struct octeon_i2c *i2c, int target,
 			return -EIO;
 		}
 
-		octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_DATA, data[i]);
-		octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_CTL, TWSI_CTL_ENAB);
+		octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_DATA, data[i]);
+		octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_CTL, TWSI_CTL_ENAB);
 
 		result = octeon_i2c_wait(i2c);
 		if (result)
@@ -398,15 +398,15 @@ static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
 	if (result)
 		return result;
 
-	octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_DATA, (target << 1) | 1);
-	octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_CTL, TWSI_CTL_ENAB);
+	octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_DATA, (target << 1) | 1);
+	octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_CTL, TWSI_CTL_ENAB);
 
 	result = octeon_i2c_wait(i2c);
 	if (result)
 		return result;
 
 	for (i = 0; i < length; i++) {
-		tmp = octeon_i2c_read_sw(i2c, SW_TWSI_EOP_TWSI_STAT);
+		tmp = octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_STAT);
 
 		if ((tmp != STAT_RXDATA_ACK) && (tmp != STAT_RXADDR_ACK)) {
 			dev_err(i2c->dev,
@@ -416,17 +416,17 @@ static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
 		}
 
 		if (i + 1 < length)
-			octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_CTL,
+			octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_CTL,
 					    TWSI_CTL_ENAB | TWSI_CTL_AAK);
 		else
-			octeon_i2c_write_sw(i2c, SW_TWSI_EOP_TWSI_CTL,
+			octeon_i2c_reg_write(i2c, SW_TWSI_EOP_TWSI_CTL,
 					    TWSI_CTL_ENAB);
 
 		result = octeon_i2c_wait(i2c);
 		if (result)
 			return result;
 
-		data[i] = octeon_i2c_read_sw(i2c, SW_TWSI_EOP_TWSI_DATA);
+		data[i] = octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_DATA);
 		if (recv_len && i == 0) {
 			if (data[i] > I2C_SMBUS_BLOCK_MAX + 1) {
 				dev_err(i2c->dev,
