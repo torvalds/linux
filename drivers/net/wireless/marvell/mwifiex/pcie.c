@@ -2830,6 +2830,8 @@ static void mwifiex_pcie_get_fw_name(struct mwifiex_adapter *adapter)
 			strcpy(adapter->fw_name, PCIE8897_B0_FW_NAME);
 			break;
 		default:
+			strcpy(adapter->fw_name, PCIE8897_DEFAULT_FW_NAME);
+
 			break;
 		}
 		break;
@@ -2855,6 +2857,7 @@ static void mwifiex_pcie_get_fw_name(struct mwifiex_adapter *adapter)
 				       PCIEUART8997_FW_NAME_Z);
 			break;
 		default:
+			strcpy(adapter->fw_name, PCIE8997_DEFAULT_FW_NAME);
 			break;
 		}
 	default:
