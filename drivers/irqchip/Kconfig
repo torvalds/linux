@@ -27,6 +27,7 @@ config ARM_GIC_V3
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
 	select IRQ_DOMAIN_HIERARCHY
+	select PARTITION_PERCPU
 
 config ARM_GIC_V3_ITS
 	bool
