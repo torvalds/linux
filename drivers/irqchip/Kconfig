@@ -193,3 +193,6 @@ config IRQ_MXS
 	def_bool y if MACH_ASM9260 || ARCH_MXS
 	select IRQ_DOMAIN
 	select STMP_DEVICE
+
+config PARTITION_PERCPU
+	bool
