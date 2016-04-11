@@ -15,6 +15,7 @@
 
 enum gic_type {
 	GIC_V2,
+	GIC_V3,
 };
 
 struct gic_kvm_info {
