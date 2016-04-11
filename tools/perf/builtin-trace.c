@@ -2203,8 +2203,8 @@ signed_print:
 			       event->header.type);
 			goto out_put;
 		}
-		perf_evsel__print_ip(evsel, sample, &al, 38, print_opts,
-				     scripting_max_stack, trace->output);
+		perf_evsel__fprintf_sym(evsel, sample, &al, 38, print_opts,
+					scripting_max_stack, trace->output);
 	}
 out:
 	ttrace->entry_pending = false;

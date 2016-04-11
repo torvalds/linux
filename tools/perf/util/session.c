@@ -1953,11 +1953,12 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 	return NULL;
 }
 
-void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
-			  struct addr_location *al, int left_alignment,
-			  unsigned int print_opts, unsigned int stack_depth,
-			  FILE *fp)
+int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample,
+			    struct addr_location *al, int left_alignment,
+			    unsigned int print_opts, unsigned int stack_depth,
+			    FILE *fp)
 {
+	int printed = 0;
 	struct callchain_cursor_node *node;
 	int print_ip = print_opts & PRINT_IP_OPT_IP;
 	int print_sym = print_opts & PRINT_IP_OPT_SYM;
@@ -1975,7 +1976,7 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 					      stack_depth) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");
-			return;
+			return printed;
 		}
 		callchain_cursor_commit(&callchain_cursor);
 
@@ -1992,71 +1993,66 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 			if (node->sym && node->sym->ignore)
 				goto next;
 
-			fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
+			printed += fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
 
 			if (print_ip)
-				fprintf(fp, "%c%16" PRIx64, s, node->ip);
+				printed += fprintf(fp, "%c%16" PRIx64, s, node->ip);
 
 			if (node->map)
 				addr = node->map->map_ip(node->map, node->ip);
 
 			if (print_sym) {
-				fprintf(fp, " ");
+				printed += fprintf(fp, " ");
 				if (print_symoffset) {
 					node_al.addr = addr;
 					node_al.map  = node->map;
-					symbol__fprintf_symname_offs(node->sym,
-								     &node_al,
-								     fp);
+					printed += symbol__fprintf_symname_offs(node->sym, &node_al, fp);
 				} else
-					symbol__fprintf_symname(node->sym, fp);
+					printed += symbol__fprintf_symname(node->sym, fp);
 			}
 
 			if (print_dso) {
-				fprintf(fp, " (");
-				map__fprintf_dsoname(node->map, fp);
-				fprintf(fp, ")");
+				printed += fprintf(fp, " (");
+				printed += map__fprintf_dsoname(node->map, fp);
+				printed += fprintf(fp, ")");
 			}
 
 			if (print_srcline)
-				map__fprintf_srcline(node->map, addr, "\n  ",
-						     fp);
+				printed += map__fprintf_srcline(node->map, addr, "\n  ", fp);
 
 			if (!print_oneline)
-				fprintf(fp, "\n");
+				printed += fprintf(fp, "\n");
 
 			stack_depth--;
 next:
 			callchain_cursor_advance(&callchain_cursor);
 		}
 
-	} else {
-		if (al->sym && al->sym->ignore)
-			return;
-
-		fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
+	} else if (!(al->sym && al->sym->ignore)) {
+		printed += fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
 
 		if (print_ip)
-			fprintf(fp, "%16" PRIx64, sample->ip);
+			printed += fprintf(fp, "%16" PRIx64, sample->ip);
 
 		if (print_sym) {
-			fprintf(fp, " ");
+			printed += fprintf(fp, " ");
 			if (print_symoffset)
-				symbol__fprintf_symname_offs(al->sym, al,
-							     fp);
+				printed += symbol__fprintf_symname_offs(al->sym, al, fp);
 			else
-				symbol__fprintf_symname(al->sym, fp);
+				printed += symbol__fprintf_symname(al->sym, fp);
 		}
 
 		if (print_dso) {
-			fprintf(fp, " (");
-			map__fprintf_dsoname(al->map, fp);
-			fprintf(fp, ")");
+			printed += fprintf(fp, " (");
+			printed += map__fprintf_dsoname(al->map, fp);
+			printed += fprintf(fp, ")");
 		}
 
 		if (print_srcline)
-			map__fprintf_srcline(al->map, al->addr, "\n  ", fp);
+			printed += map__fprintf_srcline(al->map, al->addr, "\n  ", fp);
 	}
+
+	return printed;
 }
 
 int perf_session__cpu_bitmap(struct perf_session *session,
