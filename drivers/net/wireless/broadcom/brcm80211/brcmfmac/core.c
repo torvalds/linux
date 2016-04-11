@@ -322,26 +322,35 @@ void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 		netif_rx_ni(skb);
 }
 
+static int brcmf_rx_hdrpull(struct brcmf_pub *drvr, struct sk_buff *skb,
+			    struct brcmf_if **ifp)
+{
+	int ret;
+
+	/* process and remove protocol-specific header */
+	ret = brcmf_proto_hdrpull(drvr, true, skb, ifp);
+
+	if (ret || !(*ifp) || !(*ifp)->ndev) {
+		if (ret != -ENODATA && ifp)
+			(*ifp)->stats.rx_errors++;
+		brcmu_pkt_buf_free_skb(skb);
+		return -ENODATA;
+	}
+
+	skb->protocol = eth_type_trans(skb, (*ifp)->ndev);
+	return 0;
+}
+
 void brcmf_rx_frame(struct device *dev, struct sk_buff *skb, bool handle_event)
 {
 	struct brcmf_if *ifp;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
-	int ret;
 
 	brcmf_dbg(DATA, "Enter: %s: rxp=%p\n", dev_name(dev), skb);
 
-	/* process and remove protocol-specific header */
-	ret = brcmf_proto_hdrpull(drvr, true, skb, &ifp);
-
-	if (ret || !ifp || !ifp->ndev) {
-		if (ret != -ENODATA && ifp)
-			ifp->stats.rx_errors++;
-		brcmu_pkt_buf_free_skb(skb);
+	if (brcmf_rx_hdrpull(drvr, skb, &ifp))
 		return;
-	}
-
-	skb->protocol = eth_type_trans(skb, ifp->ndev);
 
 	if (brcmf_proto_is_reorder_skb(skb)) {
 		brcmf_proto_rxreorder(ifp, skb);
@@ -359,21 +368,11 @@ void brcmf_rx_event(struct device *dev, struct sk_buff *skb)
 	struct brcmf_if *ifp;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
-	int ret;
 
 	brcmf_dbg(EVENT, "Enter: %s: rxp=%p\n", dev_name(dev), skb);
 
-	/* process and remove protocol-specific header */
-	ret = brcmf_proto_hdrpull(drvr, true, skb, &ifp);
-
-	if (ret || !ifp || !ifp->ndev) {
-		if (ret != -ENODATA && ifp)
-			ifp->stats.rx_errors++;
-		brcmu_pkt_buf_free_skb(skb);
+	if (brcmf_rx_hdrpull(drvr, skb, &ifp))
 		return;
-	}
-
-	skb->protocol = eth_type_trans(skb, ifp->ndev);
 
 	brcmf_fweh_process_skb(ifp->drvr, skb);
 	brcmu_pkt_buf_free_skb(skb);
