@@ -207,6 +207,7 @@ static struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 		INIT_LIST_HEAD(&conn->bundle_link);
 		conn->calls = RB_ROOT;
 		skb_queue_head_init(&conn->rx_queue);
+		conn->security = &rxrpc_no_security;
 		rwlock_init(&conn->lock);
 		spin_lock_init(&conn->state_lock);
 		atomic_set(&conn->usage, 1);
@@ -564,8 +565,7 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 		     candidate->debug_id, candidate->trans->debug_id);
 
 		rxrpc_assign_connection_id(candidate);
-		if (candidate->security)
-			candidate->security->prime_packet_security(candidate);
+		candidate->security->prime_packet_security(candidate);
 
 		/* leave the candidate lurking in zombie mode attached to the
 		 * bundle until we're ready for it */
@@ -619,8 +619,7 @@ interrupted:
  */
 struct rxrpc_connection *
 rxrpc_incoming_connection(struct rxrpc_transport *trans,
-			  struct rxrpc_host_header *hdr,
-			  gfp_t gfp)
+			  struct rxrpc_host_header *hdr)
 {
 	struct rxrpc_connection *conn, *candidate = NULL;
 	struct rb_node *p, **pp;
@@ -659,7 +658,7 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 
 	/* not yet present - create a candidate for a new record and then
 	 * redo the search */
-	candidate = rxrpc_alloc_connection(gfp);
+	candidate = rxrpc_alloc_connection(GFP_NOIO);
 	if (!candidate) {
 		_leave(" = -ENOMEM");
 		return ERR_PTR(-ENOMEM);
@@ -831,7 +830,10 @@ static void rxrpc_destroy_connection(struct rxrpc_connection *conn)
 	ASSERT(RB_EMPTY_ROOT(&conn->calls));
 	rxrpc_purge_queue(&conn->rx_queue);
 
-	rxrpc_clear_conn_security(conn);
+	conn->security->clear(conn);
+	key_put(conn->key);
+	key_put(conn->server_key);
+
 	rxrpc_put_transport(conn->trans);
 	kfree(conn);
 	_leave("");

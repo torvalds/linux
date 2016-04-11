@@ -25,12 +25,6 @@
 #include <net/net_namespace.h>
 #include "ar-internal.h"
 
-const char *rxrpc_pkts[] = {
-	"?00",
-	"DATA", "ACK", "BUSY", "ABORT", "ACKALL", "CHALL", "RESP", "DEBUG",
-	"?09", "?10", "?11", "?12", "VERSION", "?14", "?15"
-};
-
 /*
  * queue a packet for recvmsg to pass to userspace
  * - the caller must hold a lock on call->lock
@@ -199,7 +193,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 
 	/* if the packet need security things doing to it, then it goes down
 	 * the slow path */
-	if (call->conn->security)
+	if (call->conn->security_ix)
 		goto enqueue_packet;
 
 	sp->call = call;
@@ -355,7 +349,7 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		write_lock_bh(&call->state_lock);
 		if (call->state < RXRPC_CALL_COMPLETE) {
 			call->state = RXRPC_CALL_REMOTELY_ABORTED;
-			call->abort_code = abort_code;
+			call->remote_abort = abort_code;
 			set_bit(RXRPC_CALL_EV_RCVD_ABORT, &call->events);
 			rxrpc_queue_call(call);
 		}
@@ -428,7 +422,7 @@ protocol_error:
 protocol_error_locked:
 	if (call->state <= RXRPC_CALL_COMPLETE) {
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		call->abort_code = RX_PROTOCOL_ERROR;
+		call->local_abort = RX_PROTOCOL_ERROR;
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		rxrpc_queue_call(call);
 	}
@@ -500,7 +494,7 @@ protocol_error:
 	write_lock_bh(&call->state_lock);
 	if (call->state <= RXRPC_CALL_COMPLETE) {
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		call->abort_code = RX_PROTOCOL_ERROR;
+		call->local_abort = RX_PROTOCOL_ERROR;
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		rxrpc_queue_call(call);
 	}
