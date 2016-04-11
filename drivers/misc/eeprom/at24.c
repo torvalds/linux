@@ -245,8 +245,7 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 		if (status == count)
 			return count;
 
-		/* REVISIT: at HZ=100, this is sloooow */
-		msleep(1);
+		usleep_range(1000, 1500);
 	} while (time_before(read_time, timeout));
 
 	return -ETIMEDOUT;
@@ -365,8 +364,7 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
 		if (status == count)
 			return count;
 
-		/* REVISIT: at HZ=100, this is sloooow */
-		msleep(1);
+		usleep_range(1000, 1500);
 	} while (time_before(write_time, timeout));
 
 	return -ETIMEDOUT;
