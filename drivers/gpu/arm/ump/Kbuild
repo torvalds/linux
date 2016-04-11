@@ -13,14 +13,14 @@
 CONFIG ?= default
 
 # Validate selected config
-ifneq ($(shell [ -d $(src)/arch-$(CONFIG) ] && [ -f  $(src)/arch-$(CONFIG)/config.h ] && echo "OK"), OK)
-$(warning Current directory is $(src))
+ifneq ($(shell [ -d $(srctree)/$(src)/arch-$(CONFIG) ] && [ -f $(srctree)/$(src)/arch-$(CONFIG)/config.h ] && echo "OK"), OK)
+$(warning Current directory is $(srctree)/$(src))
 $(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/config.h exists)
 else
 # Link arch to the selected arch-config directory
-$(shell [ -L $(src)/arch ] && rm $(src)/arch)
-$(shell ln -sf arch-$(CONFIG) $(src)/arch)
-$(shell touch $(src)/arch/config.h)
+$(shell [ -L $(srctree)/$(src)/arch ] && rm $(srctree)/$(src)/arch)
+$(shell ln -sf arch-$(CONFIG) $(srctree)/$(src)/arch)
+$(shell touch $(srctree)/$(src)/arch/config.h)
 endif
 
 UDD_FILE_PREFIX = ../mali/
@@ -56,7 +56,8 @@ endif
 ccflags-y += -DSVN_REV=$(SVN_REV)
 ccflags-y += -DSVN_REV_STRING=\"$(DRIVER_REV)\"
 
-ccflags-y += -I$(src) -I$(src)/common -I$(src)/linux -I$(src)/../mali/common -I$(src)/../mali/linux -I$(src)/../../ump/include/ump -I$(src)/../../../../include/ump
+ccflags-y += -I$(srctree)/$(src) -I$(srctree)/$(src)/common -I$(srctree)/$(src)/linux -I$(srctree)/$(src)/../mali/common
+ccflags-y += -I$(srctree)/$(src)/../mali/linux -I$(srctree)/$(src)/../../ump/include/ump -I$(srctree)/$(src)/../../../../include/ump
 ccflags-y += -DMALI_STATE_TRACKING=0
 ccflags-y += -DMALI_ENABLE_CPU_CYCLES=0
 ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
@@ -65,7 +66,7 @@ ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
 
-ifeq ($(wildcard $(src)/linux/license/gpl/*),)
+ifeq ($(wildcard $(srctree)/$(src)/linux/license/gpl/*),)
 ccflags-y += -I$(src)/linux/license/proprietary -I$(src)/../mali/linux/license/proprietary
 else
 ccflags-y += -I$(src)/linux/license/gpl -I$(src)/../mali/linux/license/gpl
