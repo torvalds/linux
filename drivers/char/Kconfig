@@ -584,7 +584,6 @@ config TELCLOCK
 
 config DEVPORT
 	bool
-	depends on !M68K
 	depends on ISA || PCI
 	default y
 
