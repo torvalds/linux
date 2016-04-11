@@ -49,10 +49,10 @@ int jffs2_init_security(struct inode *inode, struct inode *dir,
 
 /* ---- XATTR Handler for "security.*" ----------------- */
 static int jffs2_security_getxattr(const struct xattr_handler *handler,
-				   struct dentry *dentry, const char *name,
-				   void *buffer, size_t size)
+				   struct dentry *unused, struct inode *inode,
+				   const char *name, void *buffer, size_t size)
 {
-	return do_jffs2_getxattr(d_inode(dentry), JFFS2_XPREFIX_SECURITY,
+	return do_jffs2_getxattr(inode, JFFS2_XPREFIX_SECURITY,
 				 name, buffer, size);
 }
 

@@ -12,11 +12,11 @@
 #include "xattr.h"
 
 static int hfsplus_user_getxattr(const struct xattr_handler *handler,
-				 struct dentry *dentry, const char *name,
-				 void *buffer, size_t size)
+				 struct dentry *unused, struct inode *inode,
+				 const char *name, void *buffer, size_t size)
 {
 
-	return hfsplus_getxattr(dentry, name, buffer, size,
+	return hfsplus_getxattr(inode, name, buffer, size,
 				XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
 }
 

@@ -28,7 +28,7 @@ int hfsplus_setxattr(struct dentry *dentry, const char *name,
 ssize_t __hfsplus_getxattr(struct inode *inode, const char *name,
 			   void *value, size_t size);
 
-ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
+ssize_t hfsplus_getxattr(struct inode *inode, const char *name,
 			 void *value, size_t size,
 			 const char *prefix, size_t prefixlen);
 

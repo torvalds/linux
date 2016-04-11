@@ -797,18 +797,18 @@ EXPORT_SYMBOL (posix_acl_to_xattr);
 
 static int
 posix_acl_xattr_get(const struct xattr_handler *handler,
-		    struct dentry *dentry, const char *name,
-		    void *value, size_t size)
+		    struct dentry *unused, struct inode *inode,
+		    const char *name, void *value, size_t size)
 {
 	struct posix_acl *acl;
 	int error;
 
-	if (!IS_POSIXACL(d_backing_inode(dentry)))
+	if (!IS_POSIXACL(inode))
 		return -EOPNOTSUPP;
-	if (d_is_symlink(dentry))
+	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
 
-	acl = get_acl(d_backing_inode(dentry), handler->flags);
+	acl = get_acl(inode, handler->flags);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl == NULL)

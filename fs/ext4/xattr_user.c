@@ -19,12 +19,12 @@ ext4_xattr_user_list(struct dentry *dentry)
 
 static int
 ext4_xattr_user_get(const struct xattr_handler *handler,
-		    struct dentry *dentry, const char *name,
-		    void *buffer, size_t size)
+		    struct dentry *unused, struct inode *inode,
+		    const char *name, void *buffer, size_t size)
 {
-	if (!test_opt(dentry->d_sb, XATTR_USER))
+	if (!test_opt(inode->i_sb, XATTR_USER))
 		return -EOPNOTSUPP;
-	return ext4_xattr_get(d_inode(dentry), EXT4_XATTR_INDEX_USER,
+	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_USER,
 			      name, buffer, size);
 }
 

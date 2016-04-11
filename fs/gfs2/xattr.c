@@ -584,10 +584,10 @@ out:
  * Returns: actual size of data on success, -errno on error
  */
 static int gfs2_xattr_get(const struct xattr_handler *handler,
-			  struct dentry *dentry, const char *name,
-			  void *buffer, size_t size)
+			  struct dentry *unused, struct inode *inode,
+			  const char *name, void *buffer, size_t size)
 {
-	struct gfs2_inode *ip = GFS2_I(d_inode(dentry));
+	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_ea_location el;
 	int type = handler->flags;
 	int error;

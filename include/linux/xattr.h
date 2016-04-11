@@ -30,7 +30,8 @@ struct xattr_handler {
 	int flags;      /* fs private flags */
 	bool (*list)(struct dentry *dentry);
 	int (*get)(const struct xattr_handler *, struct dentry *dentry,
-		   const char *name, void *buffer, size_t size);
+		   struct inode *inode, const char *name, void *buffer,
+		   size_t size);
 	int (*set)(const struct xattr_handler *, struct dentry *dentry,
 		   const char *name, const void *buffer, size_t size,
 		   int flags);

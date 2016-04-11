@@ -20,10 +20,10 @@ ext4_xattr_trusted_list(struct dentry *dentry)
 
 static int
 ext4_xattr_trusted_get(const struct xattr_handler *handler,
-		       struct dentry *dentry, const char *name, void *buffer,
-		       size_t size)
+		       struct dentry *unused, struct inode *inode,
+		       const char *name, void *buffer, size_t size)
 {
-	return ext4_xattr_get(d_inode(dentry), EXT4_XATTR_INDEX_TRUSTED,
+	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_TRUSTED,
 			      name, buffer, size);
 }
 

@@ -698,7 +698,8 @@ generic_getxattr(struct dentry *dentry, const char *name, void *buffer, size_t s
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
-	return handler->get(handler, dentry, name, buffer, size);
+	return handler->get(handler, dentry, d_inode(dentry),
+			    name, buffer, size);
 }
 
 /*

@@ -2646,10 +2646,10 @@ static int shmem_initxattrs(struct inode *inode,
 }
 
 static int shmem_xattr_handler_get(const struct xattr_handler *handler,
-				   struct dentry *dentry, const char *name,
-				   void *buffer, size_t size)
+				   struct dentry *unused, struct inode *inode,
+				   const char *name, void *buffer, size_t size)
 {
-	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
+	struct shmem_inode_info *info = SHMEM_I(inode);
 
 	name = xattr_full_name(handler, name);
 	return simple_xattr_get(&info->xattrs, name, buffer, size);
