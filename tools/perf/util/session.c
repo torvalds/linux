@@ -1954,7 +1954,7 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 }
 
 void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
-			  struct addr_location *al,
+			  struct addr_location *al, int left_alignment,
 			  unsigned int print_opts, unsigned int stack_depth,
 			  FILE *fp)
 {
@@ -1991,6 +1991,8 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 
 			if (node->sym && node->sym->ignore)
 				goto next;
+
+			fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
 
 			if (print_ip)
 				fprintf(fp, "%c%16" PRIx64, s, node->ip);
@@ -2031,6 +2033,8 @@ next:
 	} else {
 		if (al->sym && al->sym->ignore)
 			return;
+
+		fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
 
 		if (print_ip)
 			fprintf(fp, "%16" PRIx64, sample->ip);
