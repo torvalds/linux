@@ -220,8 +220,8 @@ int polaris10_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	if (duty100 == 0)
 		return -EINVAL;
 
-	tmp64 = (uint64_t)speed * 100;
-	do_div(tmp64, duty100);
+	tmp64 = (uint64_t)speed * duty100;
+	do_div(tmp64, 100);
 	duty = (uint32_t)tmp64;
 
 	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
