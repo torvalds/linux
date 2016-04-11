@@ -110,11 +110,6 @@ struct ibmvscsis_crq_msg {
 	__be64 IU_data_ptr;
 };
 
-struct ibmvscsis_nexus {
-	/* Pointer to TCM session for I_T Nexus */
-	struct se_session *se_sess;
-};
-
 struct ibmvscsis_tport {
 	/* SCSI protocol the tport is providing */
 	u8 tport_proto_id;
@@ -130,8 +125,8 @@ struct ibmvscsis_tpg {
 	u16 tport_tpgt;
 	/* Used for ibmvscsis device reference to tpg_nexus */
 	int tpg_ibmvscsis_count;
-	/* Pointer to the TCM ibmvscsis I_T Nexus for this TPG endpoint */
-	struct ibmvscsis_nexus *tpg_nexus;
+	/* Pointer to TCM session for I_T Nexus */
+	struct se_session *se_sess;
 	/* Pointer back to ibmvscsis_tport */
 	struct ibmvscsis_tport *tport;
 	/* Returned by ibmvscsis_make_tpg() */
@@ -387,71 +382,62 @@ static void ibmvscsis_aborted_task(struct se_cmd *se_cmd)
 static struct se_portal_group *ibmvscsis_make_nexus(struct ibmvscsis_tpg *tpg,
 				const char *name)
 {
-	struct ibmvscsis_nexus *nexus;
 	struct se_node_acl *acl;
 
 	pr_debug("ibmvscsis: make nexus");
-	if (tpg->tpg_nexus) {
-		pr_debug("tpg->tpg_nexus already exists\n");
+	if (tpg->se_sess) {
+		pr_debug("tpg->se_sess already exists\n");
 		ERR_PTR(-EEXIST);
 	}
 
-	nexus = kzalloc(sizeof(struct ibmvscsis_nexus), GFP_KERNEL);
-	if (!nexus) {
-		pr_err("Unable to allocate struct ibmvscsis_nexus\n");
-		ERR_PTR(-ENOMEM);
-	}
 	/*
 	 *  Initialize the struct se_session pointer and setup tagpool
 	 *  for struct ibmvscsis_cmd descriptors
 	 */
-	nexus->se_sess = transport_init_session(TARGET_PROT_NORMAL);
-	if (IS_ERR(nexus->se_sess)) {
+	tpg->se_sess = transport_init_session(TARGET_PROT_NORMAL);
+	if (IS_ERR(tpg->se_sess)) {
 		goto transport_init_fail;
 	}
-	pr_debug("ibmvscsis: make_nexus: se_sess:%p\n", nexus->se_sess);
+	pr_debug("ibmvscsis: make_nexus: se_sess:%p, tpg(%p)\n",
+			tpg->se_sess, tpg);
+	pr_debug("ibmvsciss: initiator name:%s, se_tpg:%p\n",
+		tpg->se_sess->se_node_acl->initiatorname, tpg->se_sess->se_tpg);
 	/*
 	 * Since we are running in 'demo mode' this call will generate a
 	 * struct se_node_acl for the ibmvscsis struct se_portal_group with
 	 * the SCSI Initiator port name of the passed configfs group 'name'.
 	 */
+
 	acl = core_tpg_check_initiator_node_acl(&tpg->se_tpg, (unsigned char *)name);
 	if (!acl) {
 		pr_debug("core_tpg_check_initiator_node_acl() failed"
 				" for %s\n", name);
 		goto acl_failed;
 	}
-	nexus->se_sess->se_node_acl = acl;
+	tpg->se_sess->se_node_acl = acl;
 
 	/*
 	 * Now register the TCM ibmvscsis virtual I_T Nexus as active.
 	 */
-	transport_register_session(&tpg->se_tpg, nexus->se_sess->se_node_acl,
-			nexus->se_sess, nexus);
-	tpg->tpg_nexus = nexus;
+	transport_register_session(&tpg->se_tpg, tpg->se_sess->se_node_acl,
+			tpg->se_sess, tpg);
 
 	return &tpg->se_tpg;
 
 acl_failed:
-	transport_free_session(nexus->se_sess);
+	transport_free_session(tpg->se_sess);
 transport_init_fail:
-	kfree(nexus);
+	kfree(tpg);
 	return ERR_PTR(-ENOMEM);
 }
 
 static int ibmvscsis_drop_nexus(struct ibmvscsis_tpg *tpg)
 {
 	struct se_session *se_sess;
-	struct ibmvscsis_nexus *nexus;
-	unsigned long flags;
 
 	pr_debug("ibmvscsis: drop nexus");
-	nexus = tpg->tpg_nexus;
-	if (!nexus) {
-		return -ENODEV;
-	}
 
-	se_sess = nexus->se_sess;
+	se_sess = tpg->se_sess;
 	if (!se_sess) {
 		return -ENODEV;
 	}
@@ -466,15 +452,10 @@ static int ibmvscsis_drop_nexus(struct ibmvscsis_tpg *tpg)
 	/*
 	 * Release the SCSI I_T Nexus to the emulated ibmvscsis Target Port
 	 */
-	transport_deregister_session(nexus->se_sess);
+	transport_deregister_session(tpg->se_sess);
 
-	transport_free_session(nexus->se_sess);
+	transport_free_session(tpg->se_sess);
 
-	spin_lock_irqsave(&ibmvscsis_dev_lock, flags);
-	tpg->tpg_nexus = NULL;
-	spin_unlock_irqrestore(&ibmvscsis_dev_lock, flags);
-
-	kfree(nexus);
 	return 0;
 }
 
@@ -504,7 +485,7 @@ static struct se_portal_group *ibmvscsis_make_tpg(struct se_wwn *wwn,
 		container_of(wwn, struct ibmvscsis_tport, tport_wwn);
 	struct ibmvscsis_tpg *tpg;
 	struct ibmvscsis_adapter *adapter;
-	struct se_portal_group *se_tpg;
+//	struct se_portal_group *se_tpg;
 	struct vio_dev *vdev;
 	u16 tpgt;
 	int ret;
@@ -533,19 +514,22 @@ static struct se_portal_group *ibmvscsis_make_tpg(struct se_wwn *wwn,
 
 found:
 	spin_unlock_irqrestore(&ibmvscsis_dev_lock, flags);
-	tpg->tport = tport;
-	tport->tport_wwn = *wwn;
-	tpg->tport_tpgt = tpgt;
+	adapter->tpg->tport = tport;
+	adapter->tport->tport_wwn = *wwn;
+	adapter->tpg->tport_tpgt = tpgt;
 
 	pr_debug("ibmvscsis: make_tpg name:%s, tport_proto_id:%x, tpgt:%x\n",
-			&tport->tport_name[0], tport->tport_proto_id, tpgt);
+			&adapter->tport->tport_name[0],
+			adapter->tport->tport_proto_id, tpgt);
 
-	ret = core_tpg_register(&tport->tport_wwn, &tpg->se_tpg, tport->tport_proto_id);
+	ret = core_tpg_register(&adapter->tport->tport_wwn,
+				&adapter->tpg->se_tpg,
+				adapter->tport->tport_proto_id);
 	if (ret < 0) {
-		kfree(tpg);
+		kfree(adapter->tpg);
 		return NULL;
 	}
-	se_tpg = ibmvscsis_make_nexus(tpg, &tport->tport_name[0]);
+/*	se_tpg = ibmvscsis_make_nexus(tpg, &tport->tport_name[0]);
 	tpg->se_tpg = *se_tpg;
 	if(!&tpg->se_tpg) {
 		pr_info("ibmvscsis: failed make nexus\n");
@@ -553,7 +537,8 @@ found:
 	}
 
 	pr_debug("ibmvscsis: make_se_tpg: %p\n", &tpg->se_tpg);
-	return &tpg->se_tpg;
+*/
+	return &adapter->tpg->se_tpg;
 }
 
 static struct ibmvscsis_tport *ibmvscsis_lookup_port(const char *name)
@@ -881,6 +866,7 @@ static void process_login(struct iu_entry *iue)
 	struct ibmvscsis_adapter *adapter = target->ldata;
 	struct vio_dev *vdev = adapter->dma_dev;
 	char name[16];
+	struct se_portal_group *se_tpg;
 
 	/*
 	 * TODO handle case that requested size is wrong and buffer
@@ -890,13 +876,20 @@ static void process_login(struct iu_entry *iue)
 
 	snprintf(name, sizeof(name), "%x", vdev->unit_address);
 
-/*	if(!adapter->tpg->enabled) {
+	if(!adapter->tpg->enabled) {
 		rej->reason = cpu_to_be32(SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
 		pr_err("ibmvscsis: Rejected SRP_LOGIN_REQ because target %s"
 			" has not yet been enabled", name);
 		goto reject;
 	}
-*/
+
+	se_tpg = ibmvscsis_make_nexus(adapter->tpg, &adapter->tport->tport_name[0]);
+	if(!se_tpg) {
+		pr_debug("ibmvscsis: login make nexus fail se_tpg(%p)\n",
+							se_tpg);
+		goto reject;
+	}
+
 	rsp->opcode = SRP_LOGIN_RSP;
 
 	rsp->req_lim_delta = cpu_to_be32(INITIAL_SRP_LIMIT);
@@ -912,7 +905,7 @@ static void process_login(struct iu_entry *iue)
 
 	send_iu(iue, sizeof(*rsp), VIOSRP_SRP_FORMAT);
 	return;
-/*
+
 reject:
 	rej->opcode = SRP_LOGIN_REJ;
 	rej->tag = tag;
@@ -920,7 +913,6 @@ reject:
 				   | SRP_BUF_FORMAT_INDIRECT);
 
 	send_iu(iue, sizeof(*rej), VIOSRP_SRP_FORMAT);
-*/
 }
 
 static void process_tsk_mgmt(struct iu_entry *iue)
@@ -965,18 +957,77 @@ static inline struct viosrp_crq *next_crq(struct crq_queue *queue)
 	return crq;
 }
 
-/*
- * TODO: Needs to be rewritten to support TCM, use target_submit_cmd()
- * for dispatching incoming SCSI CDB's and payloads into target-core
- */
+#define NO_SUCH_LUN ((uint64_t)-1LL)
+
+enum scsi_lun_addr_method {
+        SCSI_LUN_ADDR_METHOD_PERIPHERAL   = 0,
+        SCSI_LUN_ADDR_METHOD_FLAT         = 1,
+        SCSI_LUN_ADDR_METHOD_LUN          = 2,
+        SCSI_LUN_ADDR_METHOD_EXTENDED_LUN = 3,
+};
+
+static uint64_t ibmvscsis_unpack_lun(const uint8_t *lun, int len)
+{
+	uint64_t res = NO_SUCH_LUN;
+	int addressing_method;
+
+	if (unlikely(len < 2)) {
+		pr_err("Illegal LUN length %d, expected 2 bytes or more\n",
+			len);
+		goto out;
+	}
+
+	switch (len) {
+	case 8:
+		if ((*((__be64 *)lun) &
+			cpu_to_be64(0x0000FFFFFFFFFFFFLL)) != 0)
+			goto out_err;
+		break;
+	case 4:
+		if (*((__be16 *)&lun[2]) != 0)
+			goto out_err;
+		break;
+	case 6:
+		if (*((__be32 *)&lun[2]) != 0)
+		goto out_err;
+		break;
+	case 2:
+		break;
+	default:
+		goto out_err;
+	}
+
+	addressing_method = (*lun) >> 6; /* highest two bits of byte 0 */
+	switch (addressing_method) {
+	case SCSI_LUN_ADDR_METHOD_PERIPHERAL:
+	case SCSI_LUN_ADDR_METHOD_FLAT:
+	case SCSI_LUN_ADDR_METHOD_LUN:
+		res = *(lun + 1) | (((*lun) & 0x3f) << 8);
+		break;
+
+        case SCSI_LUN_ADDR_METHOD_EXTENDED_LUN:
+        default:
+                pr_err("Unimplemented LUN addressing method %u\n",
+                       addressing_method);
+                break;
+        }
+
+out:
+        return res;
+
+out_err:
+        pr_err("Support for multi-level LUNs has not yet been implemented\n");
+        goto out;
+}
+
 static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 			    struct ibmvscsis_cmnd *vsc,
 			    struct srp_cmd *scmd)
 {
-	struct se_cmd *se_cmd;
 	int attr;
-	int data_len;
-	sense_reason_t ret;
+	u64 data_len;
+	int ret;
+	uint64_t unpacked_lun;
 
 	switch (scmd->task_attr) {
 	case SRP_SIMPLE_TASK:
@@ -997,46 +1048,42 @@ static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 		attr = TCM_SIMPLE_TAG;
 	}
 
+	pr_debug("ibmvscsis: srp_data_length: %llx, srp_direction:%x\n",
+			srp_data_length(scmd, srp_cmd_direction(scmd)),
+			srp_cmd_direction(scmd));
 	data_len = srp_data_length(scmd, srp_cmd_direction(scmd));
 
-	se_cmd = &vsc->se_cmd;
+	vsc->se_cmd.tag = scmd->tag;
 
-	transport_init_se_cmd(se_cmd,
-			      adapter->tpg->se_tpg.se_tpg_tfo,
-			      adapter->tpg->tpg_nexus->se_sess, data_len,
-			      srp_cmd_direction(scmd),
-			      attr, vsc->sense_buf);
+	pr_debug("ibmvscsis: size of lun:%lx, lun:%s\n", sizeof(scmd->lun),
+				&scmd->lun.scsi_lun[0]);
 
-	ret = transport_lookup_cmd_lun(se_cmd, scsilun_to_int(&scmd->lun));
-	if (ret) {
-		transport_send_check_condition_and_sense(se_cmd,
-							 ret,
-							 0);
-		return -1;
+	unpacked_lun = ibmvscsis_unpack_lun((uint8_t *)&scmd->lun,
+				sizeof(scmd->lun));
+
+	pr_debug("ibmvscsis: tcm_queuecommand- se_cmd(%p), se_sess(%p),"
+			" cdb: %s, sense: %s, unpacked_lun: %llx,"
+			" data_length: %llx, task_attr: %x, data_dir: %x"
+			" flags: %x, tag:%llx, packed_lun:%llx\n",
+			&vsc->se_cmd, adapter->tpg->se_sess,
+			scmd->cdb, &vsc->sense_buf[0], unpacked_lun,
+			data_len, attr, srp_cmd_direction(scmd),
+			TARGET_SCF_ACK_KREF, scmd->tag,
+			be64_to_cpu(&scmd->lun));
+	ret = target_submit_cmd(&vsc->se_cmd, adapter->tpg->se_sess,
+				scmd->cdb, &vsc->sense_buf[0], unpacked_lun,
+				data_len, attr, srp_cmd_direction(scmd),
+				TARGET_SCF_ACK_KREF);
+	if(ret != 0) {
+		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		pr_debug("ibmvscsis: tcm_queuecommand fail submit_cmd\n");
+		goto send_sense;
 	}
-
-	/*
-	 * Allocate the necessary tasks to complete the received CDB+data
-	 */
-	ret = target_setup_cmd_from_cdb(se_cmd, scmd->cdb);
-	if (ret == -ENOMEM) {
-		transport_send_check_condition_and_sense(se_cmd,
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
-		transport_generic_free_cmd(se_cmd, 0);
-		return 0;
-	}
-	if (ret == -EINVAL) {
-		if (se_cmd->se_cmd_flags & SCF_SE_LUN_CMD)
-			ibmvscsis_queue_status(se_cmd);
-		else
-			transport_send_check_condition_and_sense(se_cmd,
-					ret, 0);
-		transport_generic_free_cmd(se_cmd, 0);
-		return 0;
-	}
-
-	transport_handle_cdb_direct(se_cmd);
 	return 0;
+
+send_sense:
+	transport_send_check_condition_and_sense(&vsc->se_cmd, ret, 0);
+	return -1;
 }
 
 struct inquiry_data {
@@ -1254,21 +1301,20 @@ static int ibmvscsis_rdma(struct scsi_cmnd *sc, struct scatterlist *sg, int nsg,
 	struct iu_entry *iue = (struct iu_entry *) sc->SCp.ptr;
 	struct srp_target *target = iue->target;
 	struct ibmvscsis_adapter *adapter = target->ldata;
-	struct scatterlist *sgp = sg;
 	dma_addr_t token;
 	long err;
 	unsigned int done = 0;
 	int i, sidx, soff;
 
 	sidx = soff = 0;
-	token = sg_dma_address(sgp);
+	token = sg_dma_address(sg + sidx);
 
 	for (i = 0; i < nmd && rest; i++) {
 		unsigned int mdone, mlen;
 
 		mlen = min(rest, be32_to_cpu(md[i].len));
 		for (mdone = 0; mlen;) {
-			int slen = min(sg_dma_len(sgp) - soff, mlen);
+			int slen = min(sg_dma_len(sg + sidx) - soff, mlen);
 
 			if (dir == DMA_TO_DEVICE)
 				err = h_copy_rdma(slen,
@@ -1294,21 +1340,18 @@ static int ibmvscsis_rdma(struct scsi_cmnd *sc, struct scatterlist *sg, int nsg,
 			soff += slen;
 			done += slen;
 
-			if (soff == sg_dma_len(sgp)) {
+			if (soff == sg_dma_len(sg + sidx)) {
 				sidx++;
-				sgp = sg_next(sgp);
 				soff = 0;
-				token = sg_dma_address(sgp);
+				token = sg_dma_address(sg + sidx);
 
 				if (sidx > nsg) {
-					pr_err("ibmvscsis: out of iue %p \
-						sgp %p %d %d\n",
-						iue, sgp, sidx, nsg);
+					pr_err("ibmvscsis: out of sg %p %d %d\n",
+						iue, sidx, nsg);
 					return -EIO;
 				}
 			}
-		};
-
+		}
 		rest -= mlen;
 	}
 	return 0;
@@ -1316,9 +1359,9 @@ static int ibmvscsis_rdma(struct scsi_cmnd *sc, struct scatterlist *sg, int nsg,
 //TODO: Needs to be rewritten to support TCM
 static int ibmvscsis_cmnd_done(struct scsi_cmnd *sc)
 {
-//	unsigned long flags;
+	unsigned long flags;
 	struct iu_entry *iue = (struct iu_entry *) sc->SCp.ptr;
-/*	struct srp_target *target = iue->target;
+	struct srp_target *target = iue->target;
 	int err = 0;
 
 	if (scsi_sg_count(sc))
@@ -1336,7 +1379,7 @@ static int ibmvscsis_cmnd_done(struct scsi_cmnd *sc)
 	} else
 		send_rsp(iue, sc, NO_SENSE, 0x00);
 
-*/	/* done(sc); */
+	/* done(sc); */
 	srp_iu_put(iue);
 	return 0;
 }
@@ -1429,6 +1472,7 @@ static int ibmvscsis_queuecommand(struct ibmvscsis_adapter *adapter,
 	struct scsi_cmnd *sc;
 	struct page *pg;
 	struct ibmvscsis_cmnd *vsc;
+	struct se_cmd *se_cmd;
 
 	pr_debug("ibmvscsis: ibmvscsis_queuecommand\n");
 
@@ -1439,6 +1483,7 @@ static int ibmvscsis_queuecommand(struct ibmvscsis_adapter *adapter,
 	sc->sense_buffer = vsc->sense_buf;
 	sc->cmnd = cmd->cdb;
 	sc->SCp.ptr = (char *)iue;
+	se_cmd = &vsc->se_cmd;
 
 	switch (cmd->cdb[0]) {
 	case INQUIRY:
@@ -1889,6 +1934,7 @@ static int ibmvscsis_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	ret = read_dma_window(adapter->dma_dev, adapter);
 	if(ret != 0) {
+		pr_debug("ibmvscsis: probe failed read dma window\n");
 		goto free_tpg;
 	}
 	pr_debug("ibmvscsis: Probe: liobn 0x%x, riobn 0x%x\n", adapter->liobn,
@@ -1906,24 +1952,21 @@ static int ibmvscsis_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	}
 
 	ret = crq_queue_create(&adapter->crq_queue, adapter);
-	if(ret) {
+	pr_debug("ibmvscsis: failed crq_queue_create ret: %d\n", ret);
+	if(ret != 0 && ret != H_RESOURCE) {
 		pr_debug("ibmvscsis: failed crq_queue_create ret: %d\n", ret);
-		goto free_srp_target;
+		ret = -1;
 	}
 
-	ret = h_send_crq(adapter, 0xC001000000000000LL, 0);
-	if(ret) {
+	if(h_send_crq(adapter, 0xC001000000000000LL, 0) != 0
+			&& ret != H_RESOURCE) {
 		pr_warn("ibmvscsis: Failed to send CRQ message\n");
-		goto destroy_crq_queue;
+		ret = 0;
 	}
 
 	dev_set_drvdata(&vdev->dev, adapter);
 	return 0;
 
-destroy_crq_queue:
-	crq_queue_destroy(adapter);
-free_srp_target:
-	srp_target_free(adapter->target);
 free_tpg:
 	kfree(tpg);
 free_tport:
@@ -2106,7 +2149,7 @@ out:
 	return ret;
 };
 
-static void ibmvscsis_exit(void)
+static void __exit ibmvscsis_exit(void)
 {
 	pr_info("ibmvscsis: Unregister IBM virtual SCSI driver\n");
 	vio_unregister_driver(&ibmvscsis_driver);
