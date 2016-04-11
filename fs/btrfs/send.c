@@ -6065,10 +6065,13 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	alloc_size = arg->clone_sources_count * sizeof(*arg->clone_sources);
 
 	if (arg->clone_sources_count) {
-		clone_sources_tmp = vmalloc(alloc_size);
+		clone_sources_tmp = kmalloc(alloc_size, GFP_KERNEL | __GFP_NOWARN);
 		if (!clone_sources_tmp) {
-			ret = -ENOMEM;
-			goto out;
+			clone_sources_tmp = vmalloc(alloc_size);
+			if (!clone_sources_tmp) {
+				ret = -ENOMEM;
+				goto out;
+			}
 		}
 
 		ret = copy_from_user(clone_sources_tmp, arg->clone_sources,
@@ -6106,7 +6109,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 			sctx->clone_roots[i].root = clone_root;
 			clone_sources_to_rollback = i + 1;
 		}
-		vfree(clone_sources_tmp);
+		kvfree(clone_sources_tmp);
 		clone_sources_tmp = NULL;
 	}
 
@@ -6224,7 +6227,7 @@ out:
 		btrfs_root_dec_send_in_progress(sctx->parent_root);
 
 	kfree(arg);
-	vfree(clone_sources_tmp);
+	kvfree(clone_sources_tmp);
 
 	if (sctx) {
 		if (sctx->send_filp)
