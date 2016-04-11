@@ -140,22 +140,34 @@ static int i2c_demux_change_master(struct i2c_demux_pinctrl_priv *priv, u32 new_
 	return i2c_demux_activate_master(priv, new_chan);
 }
 
-static ssize_t cur_master_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static ssize_t available_masters_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	struct i2c_demux_pinctrl_priv *priv = dev_get_drvdata(dev);
 	int count = 0, i;
 
 	for (i = 0; i < priv->num_chan && count < PAGE_SIZE; i++)
-		count += scnprintf(buf + count, PAGE_SIZE - count, "%c %d - %s\n",
-				 i == priv->cur_chan ? '*' : ' ', i,
-				 priv->chan[i].parent_np->full_name);
+		count += scnprintf(buf + count, PAGE_SIZE - count, "%d:%s%c",
+				   i, priv->chan[i].parent_np->full_name,
+				   i == priv->num_chan - 1 ? '\n' : ' ');
 
 	return count;
 }
+static DEVICE_ATTR_RO(available_masters);
 
-static ssize_t cur_master_store(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t current_master_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct i2c_demux_pinctrl_priv *priv = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", priv->cur_chan);
+}
+
+static ssize_t current_master_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
 {
 	struct i2c_demux_pinctrl_priv *priv = dev_get_drvdata(dev);
 	unsigned int val;
@@ -172,7 +184,7 @@ static ssize_t cur_master_store(struct device *dev, struct device_attribute *att
 
 	return ret < 0 ? ret : count;
 }
-static DEVICE_ATTR_RW(cur_master);
+static DEVICE_ATTR_RW(current_master);
 
 static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 {
@@ -218,12 +230,18 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 	/* switch to first parent as active master */
 	i2c_demux_activate_master(priv, 0);
 
-	err = device_create_file(&pdev->dev, &dev_attr_cur_master);
+	err = device_create_file(&pdev->dev, &dev_attr_available_masters);
 	if (err)
 		goto err_rollback;
 
+	err = device_create_file(&pdev->dev, &dev_attr_current_master);
+	if (err)
+		goto err_rollback_available;
+
 	return 0;
 
+err_rollback_available:
+	device_remove_file(&pdev->dev, &dev_attr_available_masters);
 err_rollback:
 	for (j = 0; j < i; j++) {
 		of_node_put(priv->chan[j].parent_np);
@@ -238,7 +256,8 @@ static int i2c_demux_pinctrl_remove(struct platform_device *pdev)
 	struct i2c_demux_pinctrl_priv *priv = platform_get_drvdata(pdev);
 	int i;
 
-	device_remove_file(&pdev->dev, &dev_attr_cur_master);
+	device_remove_file(&pdev->dev, &dev_attr_current_master);
+	device_remove_file(&pdev->dev, &dev_attr_available_masters);
 
 	i2c_demux_deactivate_master(priv);
 
