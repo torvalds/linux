@@ -244,3 +244,6 @@ config IRQ_MXS
 config MVEBU_ODMI
 	bool
 	select GENERIC_MSI_IRQ_DOMAIN
+
+config PARTITION_PERCPU
+	bool
