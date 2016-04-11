@@ -1129,7 +1129,7 @@ static int fjes_probe(struct platform_device *plat_dev)
 
 	res = platform_get_resource(plat_dev, IORESOURCE_MEM, 0);
 	hw->hw_res.start = res->start;
-	hw->hw_res.size = res->end - res->start + 1;
+	hw->hw_res.size = resource_size(res);
 	hw->hw_res.irq = platform_get_irq(plat_dev, 0);
 	err = fjes_hw_init(&adapter->hw);
 	if (err)
