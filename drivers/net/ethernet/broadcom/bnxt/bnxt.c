@@ -5696,10 +5696,9 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-#ifdef CONFIG_BNXT_SRIOV
-	if (BNXT_VF(bp) && is_valid_ether_addr(bp->vf.mac_addr))
-		return -EADDRNOTAVAIL;
-#endif
+	rc = bnxt_approve_mac(bp, addr->sa_data);
+	if (rc)
+		return rc;
 
 	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
 		return 0;
