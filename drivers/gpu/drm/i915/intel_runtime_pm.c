@@ -900,6 +900,17 @@ static bool vlv_power_well_enabled(struct drm_i915_private *dev_priv,
 	return enabled;
 }
 
+static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
+
+	/*
+	 * Disable trickle feed and enable pnd deadline calculation
+	 */
+	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
+	I915_WRITE(CBR1_VLV, 0);
+}
+
 static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
@@ -921,6 +932,8 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 
 		I915_WRITE(DPLL(pipe), val);
 	}
+
+	vlv_init_display_clock_gating(dev_priv);
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	valleyview_enable_display_irqs(dev_priv);
