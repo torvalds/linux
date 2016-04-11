@@ -2412,9 +2412,15 @@ static int iwl_mvm_send_sta_igtk(struct iwl_mvm *mvm,
 	struct iwl_mvm_mgmt_mcast_key_cmd igtk_cmd = {};
 
 	/* verify the key details match the required command's expectations */
-	if (WARN_ON((keyconf->cipher != WLAN_CIPHER_SUITE_AES_CMAC) ||
-		    (keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE) ||
-		    (keyconf->keyidx != 4 && keyconf->keyidx != 5)))
+	if (WARN_ON((keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE) ||
+		    (keyconf->keyidx != 4 && keyconf->keyidx != 5) ||
+		    (keyconf->cipher != WLAN_CIPHER_SUITE_AES_CMAC &&
+		     keyconf->cipher != WLAN_CIPHER_SUITE_BIP_GMAC_128 &&
+		     keyconf->cipher != WLAN_CIPHER_SUITE_BIP_GMAC_256)))
+		return -EINVAL;
+
+	if (WARN_ON(!iwl_mvm_has_new_rx_api(mvm) &&
+		    keyconf->cipher != WLAN_CIPHER_SUITE_AES_CMAC))
 		return -EINVAL;
 
 	igtk_cmd.key_id = cpu_to_le32(keyconf->keyidx);
@@ -2430,11 +2436,18 @@ static int iwl_mvm_send_sta_igtk(struct iwl_mvm *mvm,
 		case WLAN_CIPHER_SUITE_AES_CMAC:
 			igtk_cmd.ctrl_flags |= cpu_to_le32(STA_KEY_FLG_CCM);
 			break;
+		case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+			igtk_cmd.ctrl_flags |= cpu_to_le32(STA_KEY_FLG_GCMP);
+			break;
 		default:
 			return -EINVAL;
 		}
 
-		memcpy(igtk_cmd.IGTK, keyconf->key, keyconf->keylen);
+		memcpy(igtk_cmd.igtk, keyconf->key, keyconf->keylen);
+		if (keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256)
+			igtk_cmd.ctrl_flags |=
+				cpu_to_le32(STA_KEY_FLG_KEY_32BYTES);
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
 		pn = seq.aes_cmac.pn;
 		igtk_cmd.receive_seq_cnt = cpu_to_le64(((u64) pn[5] << 0) |
@@ -2449,6 +2462,19 @@ static int iwl_mvm_send_sta_igtk(struct iwl_mvm *mvm,
 		       remove_key ? "removing" : "installing",
 		       igtk_cmd.sta_id);
 
+	if (!iwl_mvm_has_new_rx_api(mvm)) {
+		struct iwl_mvm_mgmt_mcast_key_cmd_v1 igtk_cmd_v1 = {
+			.ctrl_flags = igtk_cmd.ctrl_flags,
+			.key_id = igtk_cmd.key_id,
+			.sta_id = igtk_cmd.sta_id,
+			.receive_seq_cnt = igtk_cmd.receive_seq_cnt
+		};
+
+		memcpy(igtk_cmd_v1.igtk, igtk_cmd.igtk,
+		       ARRAY_SIZE(igtk_cmd_v1.igtk));
+		return iwl_mvm_send_cmd_pdu(mvm, MGMT_MCAST_KEY, 0,
+					    sizeof(igtk_cmd_v1), &igtk_cmd_v1);
+	}
 	return iwl_mvm_send_cmd_pdu(mvm, MGMT_MCAST_KEY, 0,
 				    sizeof(igtk_cmd), &igtk_cmd);
 }
@@ -2573,7 +2599,9 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 	}
 	sta_id = mvm_sta->sta_id;
 
-	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
+	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
+	    keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
+	    keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256) {
 		ret = iwl_mvm_send_sta_igtk(mvm, keyconf, sta_id, false);
 		goto end;
 	}
@@ -2659,7 +2687,9 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 	IWL_DEBUG_WEP(mvm, "mvm remove dynamic key: idx=%d sta=%d\n",
 		      keyconf->keyidx, sta_id);
 
-	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
+	    keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
+	    keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256)
 		return iwl_mvm_send_sta_igtk(mvm, keyconf, sta_id, true);
 
 	if (!__test_and_clear_bit(keyconf->hw_key_idx, mvm->fw_key_table)) {

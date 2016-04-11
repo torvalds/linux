@@ -707,7 +707,7 @@ enum iwl_mvm_queue_status {
 };
 
 #define IWL_MVM_DQA_QUEUE_TIMEOUT	(5 * HZ)
-#define IWL_MVM_NUM_CIPHERS             8
+#define IWL_MVM_NUM_CIPHERS             10
 
 struct iwl_mvm {
 	/* for logger access */
