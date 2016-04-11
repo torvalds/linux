@@ -442,7 +442,7 @@ static void acpi_table_taint(struct acpi_table_header *table)
 	add_taint(TAINT_OVERRIDDEN_ACPI_TABLE, LOCKDEP_NOW_UNRELIABLE);
 }
 
-#ifdef CONFIG_ACPI_INITRD_TABLE_OVERRIDE
+#ifdef CONFIG_ACPI_TABLE_UPGRADE
 static u64 acpi_tables_addr;
 static int all_tables_size;
 
@@ -471,9 +471,9 @@ static const char * const table_sigs[] = {
 
 #define ACPI_HEADER_SIZE sizeof(struct acpi_table_header)
 
-#define ACPI_OVERRIDE_TABLES 64
-static struct cpio_data __initdata acpi_initrd_files[ACPI_OVERRIDE_TABLES];
-static DECLARE_BITMAP(acpi_initrd_installed, ACPI_OVERRIDE_TABLES);
+#define NR_ACPI_INITRD_TABLES 64
+static struct cpio_data __initdata acpi_initrd_files[NR_ACPI_INITRD_TABLES];
+static DECLARE_BITMAP(acpi_initrd_installed, NR_ACPI_INITRD_TABLES);
 
 #define MAP_CHUNK_SIZE   (NR_FIX_BTMAPS << PAGE_SHIFT)
 
@@ -488,7 +488,7 @@ static void __init acpi_table_initrd_init(void *data, size_t size)
 	if (data == NULL || size == 0)
 		return;
 
-	for (no = 0; no < ACPI_OVERRIDE_TABLES; no++) {
+	for (no = 0; no < NR_ACPI_INITRD_TABLES; no++) {
 		file = find_cpio_data(cpio_path, data, size, &offset);
 		if (!file.data)
 			break;
@@ -611,19 +611,30 @@ acpi_table_initrd_override(struct acpi_table_header *existing_table,
 		table_length = table->length;
 
 		/* Only override tables matched */
-		if (test_bit(table_index, acpi_initrd_installed) ||
-		    memcmp(existing_table->signature, table->signature, 4) ||
+		if (memcmp(existing_table->signature, table->signature, 4) ||
+		    memcmp(table->oem_id, existing_table->oem_id,
+			   ACPI_OEM_ID_SIZE) ||
 		    memcmp(table->oem_table_id, existing_table->oem_table_id,
 			   ACPI_OEM_TABLE_ID_SIZE)) {
+			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
+			goto next_table;
+		}
+		/*
+		 * Mark the table to avoid being used in
+		 * acpi_table_initrd_scan() and check the revision.
+		 */
+		if (test_and_set_bit(table_index, acpi_initrd_installed) ||
+		    existing_table->oem_revision >= table->oem_revision) {
 			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
 			goto next_table;
 		}
 
 		*length = table_length;
 		*address = acpi_tables_addr + table_offset;
-		acpi_table_taint(existing_table);
+		pr_info("Table Upgrade: override [%4.4s-%6.6s-%8.8s]\n",
+			table->signature, table->oem_id,
+			table->oem_table_id);
 		acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
-		set_bit(table_index, acpi_initrd_installed);
 		break;
 
 next_table:
@@ -655,17 +666,26 @@ static void __init acpi_table_initrd_scan(void)
 		table_length = table->length;
 
 		/* Skip RSDT/XSDT which should only be used for override */
-		if (test_bit(table_index, acpi_initrd_installed) ||
-		    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_RSDT) ||
+		if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_RSDT) ||
 		    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_XSDT)) {
 			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
 			goto next_table;
 		}
+		/*
+		 * Mark the table to avoid being used in
+		 * acpi_table_initrd_override(). Though this is not possible
+		 * because override is disabled in acpi_install_table().
+		 */
+		if (test_and_set_bit(table_index, acpi_initrd_installed)) {
+			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
+			goto next_table;
+		}
 
-		acpi_table_taint(table);
+		pr_info("Table Upgrade: install [%4.4s-%6.6s-%8.8s]\n",
+			table->signature, table->oem_id,
+			table->oem_table_id);
 		acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
 		acpi_install_table(acpi_tables_addr + table_offset, TRUE);
-		set_bit(table_index, acpi_initrd_installed);
 next_table:
 		table_offset += table_length;
 		table_index++;
@@ -689,7 +709,7 @@ acpi_table_initrd_override(struct acpi_table_header *existing_table,
 static void __init acpi_table_initrd_scan(void)
 {
 }
-#endif /* CONFIG_ACPI_INITRD_TABLE_OVERRIDE */
+#endif /* CONFIG_ACPI_TABLE_UPGRADE */
 
 acpi_status
 acpi_os_physical_table_override(struct acpi_table_header *existing_table,
