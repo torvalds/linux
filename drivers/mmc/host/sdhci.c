@@ -55,18 +55,6 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode);
 static void sdhci_enable_preset_value(struct sdhci_host *host, bool enable);
 static int sdhci_do_get_cd(struct sdhci_host *host);
 
-#ifdef CONFIG_PM
-static void sdhci_runtime_pm_bus_on(struct sdhci_host *host);
-static void sdhci_runtime_pm_bus_off(struct sdhci_host *host);
-#else
-static void sdhci_runtime_pm_bus_on(struct sdhci_host *host)
-{
-}
-static void sdhci_runtime_pm_bus_off(struct sdhci_host *host)
-{
-}
-#endif
-
 static void sdhci_dumpregs(struct sdhci_host *host)
 {
 	pr_debug(DRIVER_NAME ": =========== REGISTER DUMP (%s)===========\n",
@@ -159,6 +147,22 @@ static void sdhci_enable_card_detection(struct sdhci_host *host)
 static void sdhci_disable_card_detection(struct sdhci_host *host)
 {
 	sdhci_set_card_detection(host, false);
+}
+
+static void sdhci_runtime_pm_bus_on(struct sdhci_host *host)
+{
+	if (host->bus_on)
+		return;
+	host->bus_on = true;
+	pm_runtime_get_noresume(host->mmc->parent);
+}
+
+static void sdhci_runtime_pm_bus_off(struct sdhci_host *host)
+{
+	if (!host->bus_on)
+		return;
+	host->bus_on = false;
+	pm_runtime_put_noidle(host->mmc->parent);
 }
 
 void sdhci_reset(struct sdhci_host *host, u8 mask)
@@ -2666,22 +2670,6 @@ int sdhci_resume_host(struct sdhci_host *host)
 }
 
 EXPORT_SYMBOL_GPL(sdhci_resume_host);
-
-static void sdhci_runtime_pm_bus_on(struct sdhci_host *host)
-{
-	if (host->bus_on)
-		return;
-	host->bus_on = true;
-	pm_runtime_get_noresume(host->mmc->parent);
-}
-
-static void sdhci_runtime_pm_bus_off(struct sdhci_host *host)
-{
-	if (!host->bus_on)
-		return;
-	host->bus_on = false;
-	pm_runtime_put_noidle(host->mmc->parent);
-}
 
 int sdhci_runtime_suspend_host(struct sdhci_host *host)
 {
