@@ -53,13 +53,15 @@ struct comedi_subdevice;
 #define I8254_COUNTER2_REG		0x02
 #define I8254_CTRL_REG			0x03
 #define I8254_CTRL_SEL_CTR(x)		((x) << 6)
-#define I8254_CTRL_READBACK_COUNT	((3 << 6) | (1 << 4))
-#define I8254_CTRL_READBACK_STATUS	((3 << 6) | (1 << 5))
+#define I8254_CTRL_READBACK(x)		(I8254_CTRL_SEL_CTR(3) | BIT(x))
+#define I8254_CTRL_READBACK_COUNT	I8254_CTRL_READBACK(4)
+#define I8254_CTRL_READBACK_STATUS	I8254_CTRL_READBACK(5)
 #define I8254_CTRL_READBACK_SEL_CTR(x)	(2 << (x))
-#define I8254_CTRL_LATCH		(0 << 4)
-#define I8254_CTRL_LSB_ONLY		(1 << 4)
-#define I8254_CTRL_MSB_ONLY		(2 << 4)
-#define I8254_CTRL_LSB_MSB		(3 << 4)
+#define I8254_CTRL_RW(x)		(((x) & 0x3) << 4)
+#define I8254_CTRL_LATCH		I8254_CTRL_RW(0)
+#define I8254_CTRL_LSB_ONLY		I8254_CTRL_RW(1)
+#define I8254_CTRL_MSB_ONLY		I8254_CTRL_RW(2)
+#define I8254_CTRL_LSB_MSB		I8254_CTRL_RW(3)
 
 /* counter maps zero to 0x10000 */
 #define I8254_MAX_COUNT			0x10000
