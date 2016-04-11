@@ -283,7 +283,7 @@ static struct iommu_dev_data *get_dev_data(struct device *dev)
 static struct iommu_group *acpihid_device_group(struct device *dev)
 {
 	struct acpihid_map_entry *p, *entry = NULL;
-	u16 devid;
+	int devid;
 
 	devid = get_acpihid_device_id(dev, &entry);
 	if (devid < 0)
