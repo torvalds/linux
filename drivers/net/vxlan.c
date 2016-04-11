@@ -1181,7 +1181,7 @@ out:
 }
 
 static bool vxlan_parse_gpe_hdr(struct vxlanhdr *unparsed,
-				__be32 *protocol,
+				__be16 *protocol,
 				struct sk_buff *skb, u32 vxflags)
 {
 	struct vxlanhdr_gpe *gpe = (struct vxlanhdr_gpe *)unparsed;
@@ -1284,7 +1284,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 	struct vxlanhdr unparsed;
 	struct vxlan_metadata _md;
 	struct vxlan_metadata *md = &_md;
-	__be32 protocol = htons(ETH_P_TEB);
+	__be16 protocol = htons(ETH_P_TEB);
 	bool raw_proto = false;
 	void *oiph;
 
