@@ -64,7 +64,7 @@ static void ip6_datagram_flow_key_init(struct flowi6 *fl6, struct sock *sk)
 	security_sk_classify_flow(sk, flowi6_to_flowi(fl6));
 }
 
-static int ip6_datagram_dst_update(struct sock *sk)
+int ip6_datagram_dst_update(struct sock *sk, bool fix_sk_saddr)
 {
 	struct ip6_flowlabel *flowlabel = NULL;
 	struct in6_addr *final_p, final;
@@ -93,14 +93,16 @@ static int ip6_datagram_dst_update(struct sock *sk)
 		goto out;
 	}
 
-	if (ipv6_addr_any(&np->saddr))
-		np->saddr = fl6.saddr;
+	if (fix_sk_saddr) {
+		if (ipv6_addr_any(&np->saddr))
+			np->saddr = fl6.saddr;
 
-	if (ipv6_addr_any(&sk->sk_v6_rcv_saddr)) {
-		sk->sk_v6_rcv_saddr = fl6.saddr;
-		inet->inet_rcv_saddr = LOOPBACK4_IPV6;
-		if (sk->sk_prot->rehash)
-			sk->sk_prot->rehash(sk);
+		if (ipv6_addr_any(&sk->sk_v6_rcv_saddr)) {
+			sk->sk_v6_rcv_saddr = fl6.saddr;
+			inet->inet_rcv_saddr = LOOPBACK4_IPV6;
+			if (sk->sk_prot->rehash)
+				sk->sk_prot->rehash(sk);
+		}
 	}
 
 	ip6_dst_store(sk, dst,
@@ -221,7 +223,7 @@ ipv4_connected:
 	 *	destination cache for it.
 	 */
 
-	err = ip6_datagram_dst_update(sk);
+	err = ip6_datagram_dst_update(sk, true);
 	if (err)
 		goto out;
 
