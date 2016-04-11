@@ -3608,7 +3608,8 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 	if (!test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state))
 		wowl_config |= BRCMF_WOWL_UNASSOC;
 
-	brcmf_fil_iovar_data_set(ifp, "wowl_wakeind", "clear", strlen("clear"));
+	brcmf_fil_iovar_data_set(ifp, "wowl_wakeind", "clear",
+				 sizeof(struct brcmf_wowl_wakeind_le));
 	brcmf_fil_iovar_int_set(ifp, "wowl", wowl_config);
 	brcmf_fil_iovar_int_set(ifp, "wowl_activate", 1);
 	brcmf_bus_wowl_config(cfg->pub->bus_if, true);
