@@ -958,7 +958,7 @@ struct ni_board_struct {
 	unsigned int ao_maxdata;
 	int ao_fifo_depth;
 	const struct comedi_lrange *ao_range_table;
-	unsigned ao_speed;
+	unsigned int ao_speed;
 
 	int reg_type;
 	unsigned int has_8255:1;
@@ -1007,7 +1007,7 @@ struct ni_private {
 	struct ni_gpct_device *counter_dev;
 	unsigned short an_trig_etc_reg;
 
-	unsigned ai_offset[512];
+	unsigned int ai_offset[512];
 
 	unsigned long serial_interval_ns;
 	unsigned char serial_hw_mode;
@@ -1025,8 +1025,8 @@ struct ni_private {
 	unsigned short g0_g1_select_reg;
 	unsigned short cdio_dma_select_reg;
 
-	unsigned clock_ns;
-	unsigned clock_source;
+	unsigned int clock_ns;
+	unsigned int clock_source;
 
 	unsigned short pwm_up_count;
 	unsigned short pwm_down_count;
