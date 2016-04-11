@@ -6028,10 +6028,13 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	sctx->clone_roots_cnt = arg->clone_sources_count;
 
 	sctx->send_max_size = BTRFS_SEND_BUF_SIZE;
-	sctx->send_buf = vmalloc(sctx->send_max_size);
+	sctx->send_buf = kmalloc(sctx->send_max_size, GFP_KERNEL | __GFP_NOWARN);
 	if (!sctx->send_buf) {
-		ret = -ENOMEM;
-		goto out;
+		sctx->send_buf = vmalloc(sctx->send_max_size);
+		if (!sctx->send_buf) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
 
 	sctx->read_buf = vmalloc(BTRFS_SEND_READ_SIZE);
@@ -6220,7 +6223,7 @@ out:
 			fput(sctx->send_filp);
 
 		vfree(sctx->clone_roots);
-		vfree(sctx->send_buf);
+		kvfree(sctx->send_buf);
 		vfree(sctx->read_buf);
 
 		name_cache_free(sctx);
