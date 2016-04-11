@@ -3289,6 +3289,11 @@ static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
 
+	if (IS_CHERRYVIEW(dev_priv))
+		I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
+	else
+		I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK);
+
 	i915_hotplug_interrupt_update_locked(dev_priv, 0xffffffff, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
@@ -3351,8 +3356,6 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	gen5_gt_irq_reset(dev);
-
-	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK);
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display_irqs_enabled)
@@ -3429,8 +3432,6 @@ static void cherryview_irq_preinstall(struct drm_device *dev)
 	gen8_gt_irq_reset(dev_priv);
 
 	GEN5_IRQ_RESET(GEN8_PCU_);
-
-	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display_irqs_enabled)
@@ -3716,12 +3717,6 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	gen5_gt_irq_postinstall(dev);
-
-	/* ack & enable invalid PTE error interrupts */
-#if 0 /* FIXME: add support to irq handler for checking these bits */
-	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK);
-	I915_WRITE(DPINVGTT, DPINVGTT_EN_MASK);
-#endif
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display_irqs_enabled)
