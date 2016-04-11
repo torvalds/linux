@@ -23,6 +23,12 @@ Optional properties:
 - mti,reserved-cpu-vectors : Specifies the list of CPU interrupt vectors
   to which the GIC may not route interrupts.  Valid values are 2 - 7.
   This property is ignored if the CPU is started in EIC mode.
+- mti,reserved-ipi-vectors : Specifies the range of GIC interrupts that are
+  reserved for IPIs.
+  It accepts 2 values, the 1st is the starting interrupt and the 2nd is the size
+  of the reserved range.
+  If not specified, the driver will allocate the last 2 * number of VPEs in the
+  system.
 
 Required properties for timer sub-node:
 - compatible : Should be "mti,gic-timer".
@@ -44,6 +50,7 @@ Example:
 		#interrupt-cells = <3>;
 
 		mti,reserved-cpu-vectors = <7>;
+		mti,reserved-ipi-vectors = <40 8>;
 
 		timer {
 			compatible = "mti,gic-timer";

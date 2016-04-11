@@ -108,7 +108,7 @@
 	lid {
 		label = "Lid";
 		gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
-		gpio-key,wakeup;
+		wakeup-source;
 		linux,code = <0>; /* SW_LID */
 		linux,input-type = <5>; /* EV_SW */
 		debounce-interval = <1>;

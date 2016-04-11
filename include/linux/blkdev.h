@@ -499,7 +499,8 @@ struct request_queue {
 
 #define QUEUE_FLAG_MQ_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
-				 (1 << QUEUE_FLAG_SAME_COMP))
+				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
+				 (1 << QUEUE_FLAG_POLL))
 
 static inline void queue_lockdep_assert_held(struct request_queue *q)
 {
@@ -1029,6 +1030,7 @@ extern int blk_pre_runtime_suspend(struct request_queue *q);
 extern void blk_post_runtime_suspend(struct request_queue *q, int err);
 extern void blk_pre_runtime_resume(struct request_queue *q);
 extern void blk_post_runtime_resume(struct request_queue *q, int err);
+extern void blk_set_runtime_active(struct request_queue *q);
 #else
 static inline void blk_pm_runtime_init(struct request_queue *q,
 	struct device *dev) {}
@@ -1039,6 +1041,7 @@ static inline int blk_pre_runtime_suspend(struct request_queue *q)
 static inline void blk_post_runtime_suspend(struct request_queue *q, int err) {}
 static inline void blk_pre_runtime_resume(struct request_queue *q) {}
 static inline void blk_post_runtime_resume(struct request_queue *q, int err) {}
+extern inline void blk_set_runtime_active(struct request_queue *q) {}
 #endif
 
 /*
@@ -1369,7 +1372,7 @@ unsigned char *read_dev_sector(struct block_device *, sector_t, Sector *);
 
 static inline void put_dev_sector(Sector p)
 {
-	page_cache_release(p.v);
+	put_page(p.v);
 }
 
 static inline bool __bvec_gap_to_prev(struct request_queue *q,

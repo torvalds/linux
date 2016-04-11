@@ -1,3 +1,4 @@
+#include <linux/crypto.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -124,6 +125,49 @@ static bool tcp_fastopen_cookie_gen(struct request_sock *req,
 	return false;
 }
 
+
+/* If an incoming SYN or SYNACK frame contains a payload and/or FIN,
+ * queue this additional data / FIN.
+ */
+void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (TCP_SKB_CB(skb)->end_seq == tp->rcv_nxt)
+		return;
+
+	skb = skb_clone(skb, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	skb_dst_drop(skb);
+	/* segs_in has been initialized to 1 in tcp_create_openreq_child().
+	 * Hence, reset segs_in to 0 before calling tcp_segs_in()
+	 * to avoid double counting.  Also, tcp_segs_in() expects
+	 * skb->len to include the tcp_hdrlen.  Hence, it should
+	 * be called before __skb_pull().
+	 */
+	tp->segs_in = 0;
+	tcp_segs_in(tp, skb);
+	__skb_pull(skb, tcp_hdrlen(skb));
+	skb_set_owner_r(skb, sk);
+
+	TCP_SKB_CB(skb)->seq++;
+	TCP_SKB_CB(skb)->tcp_flags &= ~TCPHDR_SYN;
+
+	tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+	__skb_queue_tail(&sk->sk_receive_queue, skb);
+	tp->syn_data_acked = 1;
+
+	/* u64_stats_update_begin(&tp->syncp) not needed here,
+	 * as we certainly are not changing upper 32bit value (0)
+	 */
+	tp->bytes_received = skb->len;
+
+	if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
+		tcp_fin(sk);
+}
+
 static struct sock *tcp_fastopen_create_child(struct sock *sk,
 					      struct sk_buff *skb,
 					      struct dst_entry *dst,
@@ -132,7 +176,6 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	struct tcp_sock *tp;
 	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
 	struct sock *child;
-	u32 end_seq;
 	bool own_req;
 
 	req->num_retrans = 0;
@@ -178,35 +221,11 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	tcp_init_metrics(child);
 	tcp_init_buffer_space(child);
 
-	/* Queue the data carried in the SYN packet.
-	 * We used to play tricky games with skb_get().
-	 * With lockless listener, it is a dead end.
-	 * Do not think about it.
-	 *
-	 * XXX (TFO) - we honor a zero-payload TFO request for now,
-	 * (any reason not to?) but no need to queue the skb since
-	 * there is no data. How about SYN+FIN?
-	 */
-	end_seq = TCP_SKB_CB(skb)->end_seq;
-	if (end_seq != TCP_SKB_CB(skb)->seq + 1) {
-		struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
+	tp->rcv_nxt = TCP_SKB_CB(skb)->seq + 1;
 
-		if (likely(skb2)) {
-			skb_dst_drop(skb2);
-			__skb_pull(skb2, tcp_hdrlen(skb));
-			skb_set_owner_r(skb2, child);
-			__skb_queue_tail(&child->sk_receive_queue, skb2);
-			tp->syn_data_acked = 1;
+	tcp_fastopen_add_skb(child, skb);
 
-			/* u64_stats_update_begin(&tp->syncp) not needed here,
-			 * as we certainly are not changing upper 32bit value (0)
-			 */
-			tp->bytes_received = end_seq - TCP_SKB_CB(skb)->seq - 1;
-		} else {
-			end_seq = TCP_SKB_CB(skb)->seq + 1;
-		}
-	}
-	tcp_rsk(req)->rcv_nxt = tp->rcv_nxt = end_seq;
+	tcp_rsk(req)->rcv_nxt = tp->rcv_nxt;
 	/* tcp_conn_request() is sending the SYNACK,
 	 * and queues the child into listener accept queue.
 	 */

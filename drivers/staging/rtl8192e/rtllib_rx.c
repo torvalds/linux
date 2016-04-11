@@ -467,7 +467,7 @@ static bool AddReorderEntry(struct rx_ts_record *pTS,
 		else if (SN_EQUAL(pReorderEntry->SeqNum,
 			((struct rx_reorder_entry *)list_entry(pList->next,
 			struct rx_reorder_entry, List))->SeqNum))
-				return false;
+			return false;
 		else
 			break;
 	}
@@ -905,7 +905,7 @@ static size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee,
 {
 	struct rtllib_hdr_4addr *hdr = (struct rtllib_hdr_4addr *)skb->data;
 	u16 fc = le16_to_cpu(hdr->frame_ctl);
-	size_t hdrlen = 0;
+	size_t hdrlen;
 
 	hdrlen = rtllib_get_hdrlen(fc);
 	if (HTCCheck(ieee, skb->data)) {
@@ -1829,7 +1829,6 @@ static inline void rtllib_extract_country_ie(
 		if (IS_EQUAL_CIE_SRC(ieee, addr2))
 			UPDATE_CIE_WATCHDOG(ieee);
 	}
-
 }
 
 static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
@@ -1902,7 +1901,6 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 				       info_element->data,
 				       network->bssht.bdHTInfoLen);
 			}
-
 		}
 	}
 

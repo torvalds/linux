@@ -9,6 +9,7 @@
 #define ACPI_PROCESSOR_CLASS		"processor"
 #define ACPI_PROCESSOR_DEVICE_NAME	"Processor"
 #define ACPI_PROCESSOR_DEVICE_HID	"ACPI0007"
+#define ACPI_PROCESSOR_CONTAINER_HID	"ACPI0010"
 
 #define ACPI_PROCESSOR_BUSY_METRIC	10
 
@@ -393,14 +394,6 @@ static inline int acpi_processor_hotplug(struct acpi_processor *pr)
 	return -ENODEV;
 }
 #endif /* CONFIG_ACPI_PROCESSOR_IDLE */
-
-#if defined(CONFIG_PM_SLEEP) & defined(CONFIG_ACPI_PROCESSOR_IDLE)
-void acpi_processor_syscore_init(void);
-void acpi_processor_syscore_exit(void);
-#else
-static inline void acpi_processor_syscore_init(void) {}
-static inline void acpi_processor_syscore_exit(void) {}
-#endif
 
 /* in processor_thermal.c */
 int acpi_processor_get_limit_info(struct acpi_processor *pr);

@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -548,5 +549,63 @@ enum dtd_diode_reg {
 	DTS_DIODE_REG_FLAGS_PASS_ONCE_POS	= 7,
 	DTS_DIODE_REG_FLAGS_PASS_ONCE		= 0x00000080, /* bits [7:7] */
 };
+
+/*****************************************************************************
+ *                        MSIX related registers                             *
+ *****************************************************************************/
+
+#define CSR_MSIX_BASE			(0x2000)
+#define CSR_MSIX_FH_INT_CAUSES_AD	(CSR_MSIX_BASE + 0x800)
+#define CSR_MSIX_FH_INT_MASK_AD		(CSR_MSIX_BASE + 0x804)
+#define CSR_MSIX_HW_INT_CAUSES_AD	(CSR_MSIX_BASE + 0x808)
+#define CSR_MSIX_HW_INT_MASK_AD		(CSR_MSIX_BASE + 0x80C)
+#define CSR_MSIX_AUTOMASK_ST_AD		(CSR_MSIX_BASE + 0x810)
+#define CSR_MSIX_RX_IVAR_AD_REG		(CSR_MSIX_BASE + 0x880)
+#define CSR_MSIX_IVAR_AD_REG		(CSR_MSIX_BASE + 0x890)
+#define CSR_MSIX_PENDING_PBA_AD		(CSR_MSIX_BASE + 0x1000)
+#define CSR_MSIX_RX_IVAR(cause)		(CSR_MSIX_RX_IVAR_AD_REG + (cause))
+#define CSR_MSIX_IVAR(cause)		(CSR_MSIX_IVAR_AD_REG + (cause))
+
+#define MSIX_FH_INT_CAUSES_Q(q)		(q)
+
+/*
+ * Causes for the FH register interrupts
+ */
+enum msix_fh_int_causes {
+	MSIX_FH_INT_CAUSES_D2S_CH0_NUM		= BIT(16),
+	MSIX_FH_INT_CAUSES_D2S_CH1_NUM		= BIT(17),
+	MSIX_FH_INT_CAUSES_S2D			= BIT(19),
+	MSIX_FH_INT_CAUSES_FH_ERR		= BIT(21),
+};
+
+/*
+ * Causes for the HW register interrupts
+ */
+enum msix_hw_int_causes {
+	MSIX_HW_INT_CAUSES_REG_ALIVE		= BIT(0),
+	MSIX_HW_INT_CAUSES_REG_WAKEUP		= BIT(1),
+	MSIX_HW_INT_CAUSES_REG_CT_KILL		= BIT(6),
+	MSIX_HW_INT_CAUSES_REG_RF_KILL		= BIT(7),
+	MSIX_HW_INT_CAUSES_REG_PERIODIC		= BIT(8),
+	MSIX_HW_INT_CAUSES_REG_SW_ERR		= BIT(25),
+	MSIX_HW_INT_CAUSES_REG_SCD		= BIT(26),
+	MSIX_HW_INT_CAUSES_REG_FH_TX		= BIT(27),
+	MSIX_HW_INT_CAUSES_REG_HW_ERR		= BIT(29),
+	MSIX_HW_INT_CAUSES_REG_HAP		= BIT(30),
+};
+
+#define MSIX_MIN_INTERRUPT_VECTORS		2
+#define MSIX_AUTO_CLEAR_CAUSE			0
+#define MSIX_NON_AUTO_CLEAR_CAUSE		BIT(7)
+
+/*****************************************************************************
+ *                     HW address related registers                          *
+ *****************************************************************************/
+
+#define CSR_ADDR_BASE			(0x380)
+#define CSR_MAC_ADDR0_OTP		(CSR_ADDR_BASE)
+#define CSR_MAC_ADDR1_OTP		(CSR_ADDR_BASE + 4)
+#define CSR_MAC_ADDR0_STRAP		(CSR_ADDR_BASE + 8)
+#define CSR_MAC_ADDR1_STRAP		(CSR_ADDR_BASE + 0xC)
 
 #endif /* !__iwl_csr_h__ */

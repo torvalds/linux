@@ -32,6 +32,18 @@
 #include "../atom/sst-atom-controls.h"
 #include "../common/sst-acpi.h"
 
+enum {
+	BYT_RT5640_DMIC1_MAP,
+	BYT_RT5640_DMIC2_MAP,
+	BYT_RT5640_IN1_MAP,
+};
+
+#define BYT_RT5640_MAP(quirk)	((quirk) & 0xff)
+#define BYT_RT5640_DMIC_EN	BIT(16)
+
+static unsigned long byt_rt5640_quirk = BYT_RT5640_DMIC1_MAP |
+					BYT_RT5640_DMIC_EN;
+
 static const struct snd_soc_dapm_widget byt_rt5640_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
@@ -69,18 +81,6 @@ static const struct snd_soc_dapm_route byt_rt5640_intmic_in1_map[] = {
 	{"Internal Mic", NULL, "MICBIAS1"},
 	{"IN1P", NULL, "Internal Mic"},
 };
-
-enum {
-	BYT_RT5640_DMIC1_MAP,
-	BYT_RT5640_DMIC2_MAP,
-	BYT_RT5640_IN1_MAP,
-};
-
-#define BYT_RT5640_MAP(quirk)	((quirk) & 0xff)
-#define BYT_RT5640_DMIC_EN	BIT(16)
-
-static unsigned long byt_rt5640_quirk = BYT_RT5640_DMIC1_MAP |
-					BYT_RT5640_DMIC_EN;
 
 static const struct snd_kcontrol_new byt_rt5640_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone"),
@@ -174,7 +174,6 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	dmi_check_system(byt_rt5640_quirk_table);
 	switch (BYT_RT5640_MAP(byt_rt5640_quirk)) {
 	case BYT_RT5640_IN1_MAP:
 		custom_map = byt_rt5640_intmic_in1_map;
@@ -341,15 +340,34 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
 	struct sst_acpi_mach *mach;
+	const char *i2c_name = NULL;
+	int i;
+	int dai_index;
 
 	/* register the soc card */
 	byt_rt5640_card.dev = &pdev->dev;
 	mach = byt_rt5640_card.dev->platform_data;
 
+	/* fix index of codec dai */
+	dai_index = MERR_DPCM_COMPR + 1;
+	for (i = 0; i < ARRAY_SIZE(byt_rt5640_dais); i++) {
+		if (!strcmp(byt_rt5640_dais[i].codec_name, "i2c-10EC5640:00")) {
+			dai_index = i;
+			break;
+		}
+	}
+
 	/* fixup codec name based on HID */
-	snprintf(byt_rt5640_codec_name, sizeof(byt_rt5640_codec_name),
-		 "%s%s%s", "i2c-", mach->id, ":00");
-	byt_rt5640_dais[MERR_DPCM_COMPR+1].codec_name = byt_rt5640_codec_name;
+	i2c_name = sst_acpi_find_name_from_hid(mach->id);
+	if (i2c_name != NULL) {
+		snprintf(byt_rt5640_codec_name, sizeof(byt_rt5640_codec_name),
+			"%s%s", "i2c-", i2c_name);
+
+		byt_rt5640_dais[dai_index].codec_name = byt_rt5640_codec_name;
+	}
+
+	/* check quirks before creating card */
+	dmi_check_system(byt_rt5640_quirk_table);
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &byt_rt5640_card);
 

@@ -77,7 +77,7 @@ ptlrpc_alloc_rqbd(struct ptlrpc_service_part *svcpt)
 	rqbd = kzalloc_node(sizeof(*rqbd), GFP_NOFS,
 			    cfs_cpt_spread_node(svc->srv_cptable,
 						svcpt->scp_cpt));
-	if (rqbd == NULL)
+	if (!rqbd)
 		return NULL;
 
 	rqbd->rqbd_svcpt = svcpt;
@@ -89,7 +89,7 @@ ptlrpc_alloc_rqbd(struct ptlrpc_service_part *svcpt)
 						svcpt->scp_cpt,
 						svc->srv_buf_size,
 						GFP_KERNEL);
-	if (rqbd->rqbd_buffer == NULL) {
+	if (!rqbd->rqbd_buffer) {
 		kfree(rqbd);
 		return NULL;
 	}
@@ -144,13 +144,14 @@ ptlrpc_grow_req_bufs(struct ptlrpc_service_part *svcpt, int post)
 
 	for (i = 0; i < svc->srv_nbuf_per_group; i++) {
 		/* NB: another thread might have recycled enough rqbds, we
-		 * need to make sure it wouldn't over-allocate, see LU-1212. */
+		 * need to make sure it wouldn't over-allocate, see LU-1212.
+		 */
 		if (svcpt->scp_nrqbds_posted >= svc->srv_nbuf_per_group)
 			break;
 
 		rqbd = ptlrpc_alloc_rqbd(svcpt);
 
-		if (rqbd == NULL) {
+		if (!rqbd) {
 			CERROR("%s: Can't allocate request buffer\n",
 			       svc->srv_name);
 			rc = -ENOMEM;
@@ -298,8 +299,8 @@ ptlrpc_server_post_idle_rqbds(struct ptlrpc_service_part *svcpt)
 		}
 
 		rqbd = list_entry(svcpt->scp_rqbd_idle.next,
-				      struct ptlrpc_request_buffer_desc,
-				      rqbd_list);
+				  struct ptlrpc_request_buffer_desc,
+				  rqbd_list);
 		list_del(&rqbd->rqbd_list);
 
 		/* assume we will post successfully */
@@ -322,7 +323,8 @@ ptlrpc_server_post_idle_rqbds(struct ptlrpc_service_part *svcpt)
 	list_add_tail(&rqbd->rqbd_list, &svcpt->scp_rqbd_idle);
 
 	/* Don't complain if no request buffers are posted right now; LNET
-	 * won't drop requests because we set the portal lazy! */
+	 * won't drop requests because we set the portal lazy!
+	 */
 
 	spin_unlock(&svcpt->scp_lock);
 
@@ -363,13 +365,15 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 	init = max_t(int, init, tc->tc_nthrs_init);
 
 	/* NB: please see comments in lustre_lnet.h for definition
-	 * details of these members */
+	 * details of these members
+	 */
 	LASSERT(tc->tc_nthrs_max != 0);
 
 	if (tc->tc_nthrs_user != 0) {
 		/* In case there is a reason to test a service with many
 		 * threads, we give a less strict check here, it can
-		 * be up to 8 * nthrs_max */
+		 * be up to 8 * nthrs_max
+		 */
 		total = min(tc->tc_nthrs_max * 8, tc->tc_nthrs_user);
 		nthrs = total / svc->srv_ncpts;
 		init = max(init, nthrs);
@@ -379,7 +383,8 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 	total = tc->tc_nthrs_max;
 	if (tc->tc_nthrs_base == 0) {
 		/* don't care about base threads number per partition,
-		 * this is most for non-affinity service */
+		 * this is most for non-affinity service
+		 */
 		nthrs = total / svc->srv_ncpts;
 		goto out;
 	}
@@ -390,7 +395,8 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 
 		/* NB: Increase the base number if it's single partition
 		 * and total number of cores/HTs is larger or equal to 4.
-		 * result will always < 2 * nthrs_base */
+		 * result will always < 2 * nthrs_base
+		 */
 		weight = cfs_cpt_weight(svc->srv_cptable, CFS_CPT_ANY);
 		for (i = 1; (weight >> (i + 1)) != 0 && /* >= 4 cores/HTs */
 			    (tc->tc_nthrs_base >> i) != 0; i++)
@@ -490,7 +496,7 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
 	array->paa_reqs_array =
 		kzalloc_node(sizeof(struct list_head) * size, GFP_NOFS,
 			     cfs_cpt_spread_node(svc->srv_cptable, cpt));
-	if (array->paa_reqs_array == NULL)
+	if (!array->paa_reqs_array)
 		return -ENOMEM;
 
 	for (index = 0; index < size; index++)
@@ -499,14 +505,15 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
 	array->paa_reqs_count =
 		kzalloc_node(sizeof(__u32) * size, GFP_NOFS,
 			     cfs_cpt_spread_node(svc->srv_cptable, cpt));
-	if (array->paa_reqs_count == NULL)
+	if (!array->paa_reqs_count)
 		goto free_reqs_array;
 
 	setup_timer(&svcpt->scp_at_timer, ptlrpc_at_timer,
 		    (unsigned long)svcpt);
 
 	/* At SOW, service time should be quick; 10s seems generous. If client
-	 * timeout is less than this, we'll be sending an early reply. */
+	 * timeout is less than this, we'll be sending an early reply.
+	 */
 	at_init(&svcpt->scp_at_estimate, 10, 0);
 
 	/* assign this before call ptlrpc_grow_req_bufs */
@@ -514,7 +521,8 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
 	/* Now allocate the request buffers, but don't post them now */
 	rc = ptlrpc_grow_req_bufs(svcpt, 0);
 	/* We shouldn't be under memory pressure at startup, so
-	 * fail if we can't allocate all our buffers at this time. */
+	 * fail if we can't allocate all our buffers at this time.
+	 */
 	if (rc != 0)
 		goto free_reqs_count;
 
@@ -556,14 +564,14 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	LASSERT(conf->psc_thr.tc_ctx_tags != 0);
 
 	cptable = cconf->cc_cptable;
-	if (cptable == NULL)
+	if (!cptable)
 		cptable = cfs_cpt_table;
 
 	if (!conf->psc_thr.tc_cpu_affinity) {
 		ncpts = 1;
 	} else {
 		ncpts = cfs_cpt_number(cptable);
-		if (cconf->cc_pattern != NULL) {
+		if (cconf->cc_pattern) {
 			struct cfs_expr_list *el;
 
 			rc = cfs_expr_list_parse(cconf->cc_pattern,
@@ -632,11 +640,11 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 		if (!conf->psc_thr.tc_cpu_affinity)
 			cpt = CFS_CPT_ANY;
 		else
-			cpt = cpts != NULL ? cpts[i] : i;
+			cpt = cpts ? cpts[i] : i;
 
 		svcpt = kzalloc_node(sizeof(*svcpt), GFP_NOFS,
 				     cfs_cpt_spread_node(cptable, cpt));
-		if (svcpt == NULL) {
+		if (!svcpt) {
 			rc = -ENOMEM;
 			goto failed;
 		}
@@ -696,7 +704,8 @@ static void ptlrpc_server_free_request(struct ptlrpc_request *req)
 	LASSERT(list_empty(&req->rq_timed_list));
 
 	 /* DEBUG_REQ() assumes the reply state of a request with a valid
-	  * ref will not be destroyed until that reference is dropped. */
+	  * ref will not be destroyed until that reference is dropped.
+	  */
 	ptlrpc_req_drop_rs(req);
 
 	sptlrpc_svc_ctx_decref(req);
@@ -704,7 +713,8 @@ static void ptlrpc_server_free_request(struct ptlrpc_request *req)
 	if (req != &req->rq_rqbd->rqbd_req) {
 		/* NB request buffers use an embedded
 		 * req if the incoming req unlinked the
-		 * MD; this isn't one of them! */
+		 * MD; this isn't one of them!
+		 */
 		ptlrpc_request_cache_free(req);
 	}
 }
@@ -728,7 +738,8 @@ static void ptlrpc_server_drop_request(struct ptlrpc_request *req)
 	if (req->rq_at_linked) {
 		spin_lock(&svcpt->scp_at_lock);
 		/* recheck with lock, in case it's unlinked by
-		 * ptlrpc_at_check_timed() */
+		 * ptlrpc_at_check_timed()
+		 */
 		if (likely(req->rq_at_linked))
 			ptlrpc_at_remove_timed(req);
 		spin_unlock(&svcpt->scp_at_lock);
@@ -755,20 +766,22 @@ static void ptlrpc_server_drop_request(struct ptlrpc_request *req)
 		svcpt->scp_hist_nrqbds++;
 
 		/* cull some history?
-		 * I expect only about 1 or 2 rqbds need to be recycled here */
+		 * I expect only about 1 or 2 rqbds need to be recycled here
+		 */
 		while (svcpt->scp_hist_nrqbds > svc->srv_hist_nrqbds_cpt_max) {
 			rqbd = list_entry(svcpt->scp_hist_rqbds.next,
-					      struct ptlrpc_request_buffer_desc,
-					      rqbd_list);
+					  struct ptlrpc_request_buffer_desc,
+					  rqbd_list);
 
 			list_del(&rqbd->rqbd_list);
 			svcpt->scp_hist_nrqbds--;
 
 			/* remove rqbd's reqs from svc's req history while
-			 * I've got the service lock */
+			 * I've got the service lock
+			 */
 			list_for_each(tmp, &rqbd->rqbd_reqs) {
 				req = list_entry(tmp, struct ptlrpc_request,
-						     rq_list);
+						 rq_list);
 				/* Track the highest culled req seq */
 				if (req->rq_history_seq >
 				    svcpt->scp_hist_seq_culled) {
@@ -782,8 +795,8 @@ static void ptlrpc_server_drop_request(struct ptlrpc_request *req)
 
 			list_for_each_safe(tmp, nxt, &rqbd->rqbd_reqs) {
 				req = list_entry(rqbd->rqbd_reqs.next,
-						     struct ptlrpc_request,
-						     rq_list);
+						 struct ptlrpc_request,
+						 rq_list);
 				list_del(&req->rq_list);
 				ptlrpc_server_free_request(req);
 			}
@@ -795,8 +808,7 @@ static void ptlrpc_server_drop_request(struct ptlrpc_request *req)
 			 */
 			LASSERT(atomic_read(&rqbd->rqbd_req.rq_refcount) ==
 				0);
-			list_add_tail(&rqbd->rqbd_list,
-					  &svcpt->scp_rqbd_idle);
+			list_add_tail(&rqbd->rqbd_list, &svcpt->scp_rqbd_idle);
 		}
 
 		spin_unlock(&svcpt->scp_lock);
@@ -846,7 +858,7 @@ static void ptlrpc_server_finish_active_request(
 
 	ptlrpc_nrs_req_finalize(req);
 
-	if (req->rq_export != NULL)
+	if (req->rq_export)
 		class_export_rpc_dec(req->rq_export);
 
 	ptlrpc_server_finish_request(svcpt, req);
@@ -869,13 +881,13 @@ static int ptlrpc_check_req(struct ptlrpc_request *req)
 			  req->rq_export->exp_conn_cnt);
 		return -EEXIST;
 	}
-	if (unlikely(obd == NULL || obd->obd_fail)) {
+	if (unlikely(!obd || obd->obd_fail)) {
 		/*
 		 * Failing over, don't handle any more reqs, send
 		 * error response instead.
 		 */
 		CDEBUG(D_RPCTRACE, "Dropping req %p for failed obd %s\n",
-		       req, (obd != NULL) ? obd->obd_name : "unknown");
+		       req, obd ? obd->obd_name : "unknown");
 		rc = -ENODEV;
 	} else if (lustre_msg_get_flags(req->rq_reqmsg) &
 		   (MSG_REPLAY | MSG_REQ_REPLAY_DONE)) {
@@ -942,13 +954,13 @@ static int ptlrpc_at_add_timed(struct ptlrpc_request *req)
 	div_u64_rem(req->rq_deadline, array->paa_size, &index);
 	if (array->paa_reqs_count[index] > 0) {
 		/* latest rpcs will have the latest deadlines in the list,
-		 * so search backward. */
-		list_for_each_entry_reverse(rq,
-						&array->paa_reqs_array[index],
-						rq_timed_list) {
+		 * so search backward.
+		 */
+		list_for_each_entry_reverse(rq, &array->paa_reqs_array[index],
+					    rq_timed_list) {
 			if (req->rq_deadline >= rq->rq_deadline) {
 				list_add(&req->rq_timed_list,
-					     &rq->rq_timed_list);
+					 &rq->rq_timed_list);
 				break;
 			}
 		}
@@ -956,8 +968,7 @@ static int ptlrpc_at_add_timed(struct ptlrpc_request *req)
 
 	/* Add the request at the head of the list */
 	if (list_empty(&req->rq_timed_list))
-		list_add(&req->rq_timed_list,
-			     &array->paa_reqs_array[index]);
+		list_add(&req->rq_timed_list, &array->paa_reqs_array[index]);
 
 	spin_lock(&req->rq_lock);
 	req->rq_at_linked = 1;
@@ -1003,7 +1014,8 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	int rc;
 
 	/* deadline is when the client expects us to reply, margin is the
-	   difference between clients' and servers' expectations */
+	 * difference between clients' and servers' expectations
+	 */
 	DEBUG_REQ(D_ADAPTTO, req,
 		  "%ssending early reply (deadline %+lds, margin %+lds) for %d+%d",
 		  AT_OFF ? "AT off - not " : "",
@@ -1027,12 +1039,14 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	}
 
 	/* Fake our processing time into the future to ask the clients
-	 * for some extra amount of time */
+	 * for some extra amount of time
+	 */
 	at_measured(&svcpt->scp_at_estimate, at_extra +
 		    ktime_get_real_seconds() - req->rq_arrival_time.tv_sec);
 
 	/* Check to see if we've actually increased the deadline -
-	 * we may be past adaptive_max */
+	 * we may be past adaptive_max
+	 */
 	if (req->rq_deadline >= req->rq_arrival_time.tv_sec +
 	    at_get(&svcpt->scp_at_estimate)) {
 		DEBUG_REQ(D_WARNING, req, "Couldn't add any time (%ld/%lld), not sending early reply\n",
@@ -1044,7 +1058,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	newdl = ktime_get_real_seconds() + at_get(&svcpt->scp_at_estimate);
 
 	reqcopy = ptlrpc_request_cache_alloc(GFP_NOFS);
-	if (reqcopy == NULL)
+	if (!reqcopy)
 		return -ENOMEM;
 	reqmsg = libcfs_kvzalloc(req->rq_reqlen, GFP_NOFS);
 	if (!reqmsg) {
@@ -1074,7 +1088,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	/* Connection ref */
 	reqcopy->rq_export = class_conn2export(
 				     lustre_msg_get_handle(reqcopy->rq_reqmsg));
-	if (reqcopy->rq_export == NULL) {
+	if (!reqcopy->rq_export) {
 		rc = -ENODEV;
 		goto out;
 	}
@@ -1102,7 +1116,8 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	}
 
 	/* Free the (early) reply state from lustre_pack_reply.
-	   (ptlrpc_send_reply takes it's own rs ref, so this is safe here) */
+	 * (ptlrpc_send_reply takes it's own rs ref, so this is safe here)
+	 */
 	ptlrpc_req_drop_rs(reqcopy);
 
 out_put:
@@ -1117,8 +1132,9 @@ out_free:
 }
 
 /* Send early replies to everybody expiring within at_early_margin
-   asking for at_extra time */
-static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
+ * asking for at_extra time
+ */
+static void ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 {
 	struct ptlrpc_at_array *array = &svcpt->scp_at_array;
 	struct ptlrpc_request *rq, *n;
@@ -1132,14 +1148,14 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 	spin_lock(&svcpt->scp_at_lock);
 	if (svcpt->scp_at_check == 0) {
 		spin_unlock(&svcpt->scp_at_lock);
-		return 0;
+		return;
 	}
 	delay = cfs_time_sub(cfs_time_current(), svcpt->scp_at_checktime);
 	svcpt->scp_at_check = 0;
 
 	if (array->paa_count == 0) {
 		spin_unlock(&svcpt->scp_at_lock);
-		return 0;
+		return;
 	}
 
 	/* The timer went off, but maybe the nearest rpc already completed. */
@@ -1148,20 +1164,20 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 		/* We've still got plenty of time.  Reset the timer. */
 		ptlrpc_at_set_timer(svcpt);
 		spin_unlock(&svcpt->scp_at_lock);
-		return 0;
+		return;
 	}
 
 	/* We're close to a timeout, and we don't know how much longer the
-	   server will take. Send early replies to everyone expiring soon. */
+	 * server will take. Send early replies to everyone expiring soon.
+	 */
 	INIT_LIST_HEAD(&work_list);
 	deadline = -1;
 	div_u64_rem(array->paa_deadline, array->paa_size, &index);
 	count = array->paa_count;
 	while (count > 0) {
 		count -= array->paa_reqs_count[index];
-		list_for_each_entry_safe(rq, n,
-					     &array->paa_reqs_array[index],
-					     rq_timed_list) {
+		list_for_each_entry_safe(rq, n, &array->paa_reqs_array[index],
+					 rq_timed_list) {
 			if (rq->rq_deadline > now + at_early_margin) {
 				/* update the earliest deadline */
 				if (deadline == -1 ||
@@ -1194,7 +1210,8 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 	       first, at_extra, counter);
 	if (first < 0) {
 		/* We're already past request deadlines before we even get a
-		   chance to send early replies */
+		 * chance to send early replies
+		 */
 		LCONSOLE_WARN("%s: This server is not able to keep up with request traffic (cpu-bound).\n",
 			      svcpt->scp_service->srv_name);
 		CWARN("earlyQ=%d reqQ=%d recA=%d, svcEst=%d, delay=%ld(jiff)\n",
@@ -1204,10 +1221,11 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 	}
 
 	/* we took additional refcount so entries can't be deleted from list, no
-	 * locking is needed */
+	 * locking is needed
+	 */
 	while (!list_empty(&work_list)) {
 		rq = list_entry(work_list.next, struct ptlrpc_request,
-				    rq_timed_list);
+				rq_timed_list);
 		list_del_init(&rq->rq_timed_list);
 
 		if (ptlrpc_at_send_early_reply(rq) == 0)
@@ -1215,8 +1233,6 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 
 		ptlrpc_server_drop_request(rq);
 	}
-
-	return 1; /* return "did_something" for liblustre */
 }
 
 /**
@@ -1237,7 +1253,8 @@ static int ptlrpc_server_hpreq_init(struct ptlrpc_service_part *svcpt,
 	if (req->rq_export && req->rq_ops) {
 		/* Perform request specific check. We should do this check
 		 * before the request is added into exp_hp_rpcs list otherwise
-		 * it may hit swab race at LU-1044. */
+		 * it may hit swab race at LU-1044.
+		 */
 		if (req->rq_ops->hpreq_check) {
 			rc = req->rq_ops->hpreq_check(req);
 			/**
@@ -1257,8 +1274,7 @@ static int ptlrpc_server_hpreq_init(struct ptlrpc_service_part *svcpt,
 		}
 
 		spin_lock_bh(&req->rq_export->exp_rpc_lock);
-		list_add(&req->rq_exp_list,
-			     &req->rq_export->exp_hp_rpcs);
+		list_add(&req->rq_exp_list, &req->rq_export->exp_hp_rpcs);
 		spin_unlock_bh(&req->rq_export->exp_rpc_lock);
 	}
 
@@ -1272,7 +1288,8 @@ static void ptlrpc_server_hpreq_fini(struct ptlrpc_request *req)
 {
 	if (req->rq_export && req->rq_ops) {
 		/* refresh lock timeout again so that client has more
-		 * room to send lock cancel RPC. */
+		 * room to send lock cancel RPC.
+		 */
 		if (req->rq_ops->hpreq_fini)
 			req->rq_ops->hpreq_fini(req);
 
@@ -1316,7 +1333,7 @@ static bool ptlrpc_server_allow_high(struct ptlrpc_service_part *svcpt,
 		     CFS_FAIL_PRECHECK(OBD_FAIL_PTLRPC_CANCEL_RESEND))) {
 		/* leave just 1 thread for normal RPCs */
 		running = PTLRPC_NTHRS_INIT;
-		if (svcpt->scp_service->srv_ops.so_hpreq_handler != NULL)
+		if (svcpt->scp_service->srv_ops.so_hpreq_handler)
 			running += 1;
 	}
 
@@ -1355,7 +1372,7 @@ static bool ptlrpc_server_allow_normal(struct ptlrpc_service_part *svcpt,
 		     CFS_FAIL_PRECHECK(OBD_FAIL_PTLRPC_CANCEL_RESEND))) {
 		/* leave just 1 thread for normal RPCs */
 		running = PTLRPC_NTHRS_INIT;
-		if (svcpt->scp_service->srv_ops.so_hpreq_handler != NULL)
+		if (svcpt->scp_service->srv_ops.so_hpreq_handler)
 			running += 1;
 	}
 
@@ -1405,7 +1422,7 @@ ptlrpc_server_request_get(struct ptlrpc_service_part *svcpt, bool force)
 
 	if (ptlrpc_server_high_pending(svcpt, force)) {
 		req = ptlrpc_nrs_req_get_nolock(svcpt, true, force);
-		if (req != NULL) {
+		if (req) {
 			svcpt->scp_hreq_count++;
 			goto got_request;
 		}
@@ -1413,7 +1430,7 @@ ptlrpc_server_request_get(struct ptlrpc_service_part *svcpt, bool force)
 
 	if (ptlrpc_server_normal_pending(svcpt, force)) {
 		req = ptlrpc_nrs_req_get_nolock(svcpt, false, force);
-		if (req != NULL) {
+		if (req) {
 			svcpt->scp_hreq_count = 0;
 			goto got_request;
 		}
@@ -1457,11 +1474,12 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 	}
 
 	req = list_entry(svcpt->scp_req_incoming.next,
-			     struct ptlrpc_request, rq_list);
+			 struct ptlrpc_request, rq_list);
 	list_del_init(&req->rq_list);
 	svcpt->scp_nreqs_incoming--;
 	/* Consider this still a "queued" request as far as stats are
-	 * concerned */
+	 * concerned
+	 */
 	spin_unlock(&svcpt->scp_lock);
 
 	/* go through security check/transform */
@@ -1598,7 +1616,7 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 	int fail_opc = 0;
 
 	request = ptlrpc_server_request_get(svcpt, false);
-	if (request == NULL)
+	if (!request)
 		return 0;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_HPREQ_NOTIMEOUT))
@@ -1620,7 +1638,7 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 	timediff = timespec64_sub(work_start, request->rq_arrival_time);
 	timediff_usecs = timediff.tv_sec * USEC_PER_SEC +
 			 timediff.tv_nsec / NSEC_PER_USEC;
-	if (likely(svc->srv_stats != NULL)) {
+	if (likely(svc->srv_stats)) {
 		lprocfs_counter_add(svc->srv_stats, PTLRPC_REQWAIT_CNTR,
 				    timediff_usecs);
 		lprocfs_counter_add(svc->srv_stats, PTLRPC_REQQDEPTH_CNTR,
@@ -1652,7 +1670,8 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 	}
 
 	/* Discard requests queued for longer than the deadline.
-	   The deadline is increased if we send an early reply. */
+	 * The deadline is increased if we send an early reply.
+	 */
 	if (ktime_get_real_seconds() > request->rq_deadline) {
 		DEBUG_REQ(D_ERROR, request, "Dropping timed-out request from %s: deadline " CFS_DURATION_T ":" CFS_DURATION_T "s ago\n",
 			  libcfs_id2str(request->rq_peer),
@@ -1718,7 +1737,7 @@ put_conn:
 	       request->rq_status,
 	       (request->rq_repmsg ?
 		lustre_msg_get_status(request->rq_repmsg) : -999));
-	if (likely(svc->srv_stats != NULL && request->rq_reqmsg != NULL)) {
+	if (likely(svc->srv_stats && request->rq_reqmsg)) {
 		__u32 op = lustre_msg_get_opc(request->rq_reqmsg);
 		int opc = opcode_offset(op);
 
@@ -1804,7 +1823,8 @@ ptlrpc_handle_rs(struct ptlrpc_reply_state *rs)
 
 	if (nlocks == 0 && !been_handled) {
 		/* If we see this, we should already have seen the warning
-		 * in mds_steal_ack_locks()  */
+		 * in mds_steal_ack_locks()
+		 */
 		CDEBUG(D_HA, "All locks stolen from rs %p x%lld.t%lld o%d NID %s\n",
 		       rs,
 		       rs->rs_xid, rs->rs_transno, rs->rs_opc,
@@ -1858,7 +1878,8 @@ ptlrpc_check_rqbd_pool(struct ptlrpc_service_part *svcpt)
 	/* CAVEAT EMPTOR: We might be allocating buffers here because we've
 	 * allowed the request history to grow out of control.  We could put a
 	 * sanity check on that here and cull some history if we need the
-	 * space. */
+	 * space.
+	 */
 
 	if (avail <= low_water)
 		ptlrpc_grow_req_bufs(svcpt, 1);
@@ -1992,7 +2013,8 @@ static int ptlrpc_main(void *arg)
 
 	/* NB: we will call cfs_cpt_bind() for all threads, because we
 	 * might want to run lustre server only on a subset of system CPUs,
-	 * in that case ->scp_cpt is CFS_CPT_ANY */
+	 * in that case ->scp_cpt is CFS_CPT_ANY
+	 */
 	rc = cfs_cpt_bind(svc->srv_cptable, svcpt->scp_cpt);
 	if (rc != 0) {
 		CWARN("%s: failed to bind %s on CPT %d\n",
@@ -2008,7 +2030,7 @@ static int ptlrpc_main(void *arg)
 	set_current_groups(ginfo);
 	put_group_info(ginfo);
 
-	if (svc->srv_ops.so_thr_init != NULL) {
+	if (svc->srv_ops.so_thr_init) {
 		rc = svc->srv_ops.so_thr_init(thread);
 		if (rc)
 			goto out;
@@ -2035,7 +2057,7 @@ static int ptlrpc_main(void *arg)
 			continue;
 
 		CERROR("Failed to post rqbd for %s on CPT %d: %d\n",
-			svc->srv_name, svcpt->scp_cpt, rc);
+		       svc->srv_name, svcpt->scp_cpt, rc);
 		goto out_srv_fini;
 	}
 
@@ -2057,7 +2079,8 @@ static int ptlrpc_main(void *arg)
 	/* SVC_STOPPING may already be set here if someone else is trying
 	 * to stop the service while this new thread has been dynamically
 	 * forked. We still set SVC_RUNNING to let our creator know that
-	 * we are now running, however we will exit as soon as possible */
+	 * we are now running, however we will exit as soon as possible
+	 */
 	thread_add_flags(thread, SVC_RUNNING);
 	svcpt->scp_nthrs_running++;
 	spin_unlock(&svcpt->scp_lock);
@@ -2116,7 +2139,8 @@ static int ptlrpc_main(void *arg)
 		    ptlrpc_server_post_idle_rqbds(svcpt) < 0) {
 			/* I just failed to repost request buffers.
 			 * Wait for a timeout (unless something else
-			 * happens) before I try again */
+			 * happens) before I try again
+			 */
 			svcpt->scp_rqbd_timeout = cfs_time_seconds(1) / 10;
 			CDEBUG(D_RPCTRACE, "Posted buffers: %d\n",
 			       svcpt->scp_nrqbds_posted);
@@ -2132,10 +2156,10 @@ out_srv_fini:
 	/*
 	 * deconstruct service specific state created by ptlrpc_start_thread()
 	 */
-	if (svc->srv_ops.so_thr_done != NULL)
+	if (svc->srv_ops.so_thr_done)
 		svc->srv_ops.so_thr_done(thread);
 
-	if (env != NULL) {
+	if (env) {
 		lu_context_fini(&env->le_ctx);
 		kfree(env);
 	}
@@ -2183,7 +2207,7 @@ static int ptlrpc_hr_main(void *arg)
 {
 	struct ptlrpc_hr_thread	*hrt = arg;
 	struct ptlrpc_hr_partition *hrp = hrt->hrt_partition;
-	LIST_HEAD	(replies);
+	LIST_HEAD(replies);
 	char threadname[20];
 	int rc;
 
@@ -2206,9 +2230,8 @@ static int ptlrpc_hr_main(void *arg)
 		while (!list_empty(&replies)) {
 			struct ptlrpc_reply_state *rs;
 
-			rs = list_entry(replies.prev,
-					    struct ptlrpc_reply_state,
-					    rs_list);
+			rs = list_entry(replies.prev, struct ptlrpc_reply_state,
+					rs_list);
 			list_del_init(&rs->rs_list);
 			ptlrpc_handle_rs(rs);
 		}
@@ -2229,18 +2252,18 @@ static void ptlrpc_stop_hr_threads(void)
 	ptlrpc_hr.hr_stopping = 1;
 
 	cfs_percpt_for_each(hrp, i, ptlrpc_hr.hr_partitions) {
-		if (hrp->hrp_thrs == NULL)
+		if (!hrp->hrp_thrs)
 			continue; /* uninitialized */
 		for (j = 0; j < hrp->hrp_nthrs; j++)
 			wake_up_all(&hrp->hrp_thrs[j].hrt_waitq);
 	}
 
 	cfs_percpt_for_each(hrp, i, ptlrpc_hr.hr_partitions) {
-		if (hrp->hrp_thrs == NULL)
+		if (!hrp->hrp_thrs)
 			continue; /* uninitialized */
 		wait_event(ptlrpc_hr.hr_waitq,
-			       atomic_read(&hrp->hrp_nstopped) ==
-			       atomic_read(&hrp->hrp_nstarted));
+			   atomic_read(&hrp->hrp_nstopped) ==
+			   atomic_read(&hrp->hrp_nstarted));
 	}
 }
 
@@ -2255,24 +2278,26 @@ static int ptlrpc_start_hr_threads(void)
 
 		for (j = 0; j < hrp->hrp_nthrs; j++) {
 			struct	ptlrpc_hr_thread *hrt = &hrp->hrp_thrs[j];
+			struct task_struct *task;
 
-			rc = PTR_ERR(kthread_run(ptlrpc_hr_main,
-						 &hrp->hrp_thrs[j],
-						 "ptlrpc_hr%02d_%03d",
-						 hrp->hrp_cpt,
-						 hrt->hrt_id));
-			if (IS_ERR_VALUE(rc))
+			task = kthread_run(ptlrpc_hr_main,
+					   &hrp->hrp_thrs[j],
+					   "ptlrpc_hr%02d_%03d",
+					   hrp->hrp_cpt, hrt->hrt_id);
+			if (IS_ERR(task)) {
+				rc = PTR_ERR(task);
 				break;
+			}
 		}
 		wait_event(ptlrpc_hr.hr_waitq,
-			       atomic_read(&hrp->hrp_nstarted) == j);
-		if (!IS_ERR_VALUE(rc))
-			continue;
+			   atomic_read(&hrp->hrp_nstarted) == j);
 
-		CERROR("Reply handling thread %d:%d Failed on starting: rc = %d\n",
-		       i, j, rc);
-		ptlrpc_stop_hr_threads();
-		return rc;
+		if (rc < 0) {
+			CERROR("cannot start reply handler thread %d:%d: rc = %d\n",
+			       i, j, rc);
+			ptlrpc_stop_hr_threads();
+			return rc;
+		}
 	}
 	return 0;
 }
@@ -2281,7 +2306,7 @@ static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 {
 	struct l_wait_info lwi = { 0 };
 	struct ptlrpc_thread *thread;
-	LIST_HEAD	(zombie);
+	LIST_HEAD(zombie);
 
 	CDEBUG(D_INFO, "Stopping threads for service %s\n",
 	       svcpt->scp_service->srv_name);
@@ -2298,7 +2323,7 @@ static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 
 	while (!list_empty(&svcpt->scp_threads)) {
 		thread = list_entry(svcpt->scp_threads.next,
-					struct ptlrpc_thread, t_link);
+				    struct ptlrpc_thread, t_link);
 		if (thread_is_stopped(thread)) {
 			list_del(&thread->t_link);
 			list_add(&thread->t_link, &zombie);
@@ -2333,7 +2358,7 @@ static void ptlrpc_stop_all_threads(struct ptlrpc_service *svc)
 	int i;
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
-		if (svcpt->scp_service != NULL)
+		if (svcpt->scp_service)
 			ptlrpc_svcpt_stop_threads(svcpt);
 	}
 }
@@ -2374,9 +2399,8 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 	struct l_wait_info lwi = { 0 };
 	struct ptlrpc_thread *thread;
 	struct ptlrpc_service *svc;
+	struct task_struct *task;
 	int rc;
-
-	LASSERT(svcpt != NULL);
 
 	svc = svcpt->scp_service;
 
@@ -2396,7 +2420,7 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 	thread = kzalloc_node(sizeof(*thread), GFP_NOFS,
 			      cfs_cpt_spread_node(svc->srv_cptable,
 						  svcpt->scp_cpt));
-	if (thread == NULL)
+	if (!thread)
 		return -ENOMEM;
 	init_waitqueue_head(&thread->t_ctl_waitq);
 
@@ -2409,7 +2433,8 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 
 	if (svcpt->scp_nthrs_starting != 0) {
 		/* serialize starting because some modules (obdfilter)
-		 * might require unique and contiguous t_id */
+		 * might require unique and contiguous t_id
+		 */
 		LASSERT(svcpt->scp_nthrs_starting == 1);
 		spin_unlock(&svcpt->scp_lock);
 		kfree(thread);
@@ -2442,9 +2467,10 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 	}
 
 	CDEBUG(D_RPCTRACE, "starting thread '%s'\n", thread->t_name);
-	rc = PTR_ERR(kthread_run(ptlrpc_main, thread, "%s", thread->t_name));
-	if (IS_ERR_VALUE(rc)) {
-		CERROR("cannot start thread '%s': rc %d\n",
+	task = kthread_run(ptlrpc_main, thread, "%s", thread->t_name);
+	if (IS_ERR(task)) {
+		rc = PTR_ERR(task);
+		CERROR("cannot start thread '%s': rc = %d\n",
 		       thread->t_name, rc);
 		spin_lock(&svcpt->scp_lock);
 		--svcpt->scp_nthrs_starting;
@@ -2488,7 +2514,7 @@ int ptlrpc_hr_init(void)
 
 	ptlrpc_hr.hr_partitions = cfs_percpt_alloc(ptlrpc_hr.hr_cpt_table,
 						   sizeof(*hrp));
-	if (ptlrpc_hr.hr_partitions == NULL)
+	if (!ptlrpc_hr.hr_partitions)
 		return -ENOMEM;
 
 	init_waitqueue_head(&ptlrpc_hr.hr_waitq);
@@ -2509,7 +2535,7 @@ int ptlrpc_hr_init(void)
 			kzalloc_node(hrp->hrp_nthrs * sizeof(*hrt), GFP_NOFS,
 				cfs_cpt_spread_node(ptlrpc_hr.hr_cpt_table,
 						    i));
-		if (hrp->hrp_thrs == NULL) {
+		if (!hrp->hrp_thrs) {
 			rc = -ENOMEM;
 			goto out;
 		}
@@ -2537,7 +2563,7 @@ void ptlrpc_hr_fini(void)
 	struct ptlrpc_hr_partition *hrp;
 	int i;
 
-	if (ptlrpc_hr.hr_partitions == NULL)
+	if (!ptlrpc_hr.hr_partitions)
 		return;
 
 	ptlrpc_stop_hr_threads();
@@ -2577,7 +2603,7 @@ ptlrpc_service_del_atimer(struct ptlrpc_service *svc)
 
 	/* early disarm AT timer... */
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
-		if (svcpt->scp_service != NULL)
+		if (svcpt->scp_service)
 			del_timer(&svcpt->scp_at_timer);
 	}
 }
@@ -2592,18 +2618,20 @@ ptlrpc_service_unlink_rqbd(struct ptlrpc_service *svc)
 	int i;
 
 	/* All history will be culled when the next request buffer is
-	 * freed in ptlrpc_service_purge_all() */
+	 * freed in ptlrpc_service_purge_all()
+	 */
 	svc->srv_hist_nrqbds_cpt_max = 0;
 
 	rc = LNetClearLazyPortal(svc->srv_req_portal);
 	LASSERT(rc == 0);
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
-		if (svcpt->scp_service == NULL)
+		if (!svcpt->scp_service)
 			break;
 
 		/* Unlink all the request buffers.  This forces a 'final'
-		 * event with its 'unlink' flag set for each posted rqbd */
+		 * event with its 'unlink' flag set for each posted rqbd
+		 */
 		list_for_each_entry(rqbd, &svcpt->scp_rqbd_posted,
 					rqbd_list) {
 			rc = LNetMDUnlink(rqbd->rqbd_md_h);
@@ -2612,17 +2640,19 @@ ptlrpc_service_unlink_rqbd(struct ptlrpc_service *svc)
 	}
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
-		if (svcpt->scp_service == NULL)
+		if (!svcpt->scp_service)
 			break;
 
 		/* Wait for the network to release any buffers
-		 * it's currently filling */
+		 * it's currently filling
+		 */
 		spin_lock(&svcpt->scp_lock);
 		while (svcpt->scp_nrqbds_posted != 0) {
 			spin_unlock(&svcpt->scp_lock);
 			/* Network access will complete in finite time but
 			 * the HUGE timeout lets us CWARN for visibility
-			 * of sluggish NALs */
+			 * of sluggish LNDs
+			 */
 			lwi = LWI_TIMEOUT_INTERVAL(
 					cfs_time_seconds(LONG_UNLINK),
 					cfs_time_seconds(1), NULL, NULL);
@@ -2648,13 +2678,13 @@ ptlrpc_service_purge_all(struct ptlrpc_service *svc)
 	int i;
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
-		if (svcpt->scp_service == NULL)
+		if (!svcpt->scp_service)
 			break;
 
 		spin_lock(&svcpt->scp_rep_lock);
 		while (!list_empty(&svcpt->scp_rep_active)) {
 			rs = list_entry(svcpt->scp_rep_active.next,
-					    struct ptlrpc_reply_state, rs_list);
+					struct ptlrpc_reply_state, rs_list);
 			spin_lock(&rs->rs_lock);
 			ptlrpc_schedule_difficult_reply(rs);
 			spin_unlock(&rs->rs_lock);
@@ -2663,10 +2693,11 @@ ptlrpc_service_purge_all(struct ptlrpc_service *svc)
 
 		/* purge the request queue.  NB No new replies (rqbds
 		 * all unlinked) and no service threads, so I'm the only
-		 * thread noodling the request queue now */
+		 * thread noodling the request queue now
+		 */
 		while (!list_empty(&svcpt->scp_req_incoming)) {
 			req = list_entry(svcpt->scp_req_incoming.next,
-					     struct ptlrpc_request, rq_list);
+					 struct ptlrpc_request, rq_list);
 
 			list_del(&req->rq_list);
 			svcpt->scp_nreqs_incoming--;
@@ -2682,24 +2713,26 @@ ptlrpc_service_purge_all(struct ptlrpc_service *svc)
 		LASSERT(svcpt->scp_nreqs_incoming == 0);
 		LASSERT(svcpt->scp_nreqs_active == 0);
 		/* history should have been culled by
-		 * ptlrpc_server_finish_request */
+		 * ptlrpc_server_finish_request
+		 */
 		LASSERT(svcpt->scp_hist_nrqbds == 0);
 
 		/* Now free all the request buffers since nothing
-		 * references them any more... */
+		 * references them any more...
+		 */
 
 		while (!list_empty(&svcpt->scp_rqbd_idle)) {
 			rqbd = list_entry(svcpt->scp_rqbd_idle.next,
-					      struct ptlrpc_request_buffer_desc,
-					      rqbd_list);
+					  struct ptlrpc_request_buffer_desc,
+					  rqbd_list);
 			ptlrpc_free_rqbd(rqbd);
 		}
 		ptlrpc_wait_replies(svcpt);
 
 		while (!list_empty(&svcpt->scp_rep_idle)) {
 			rs = list_entry(svcpt->scp_rep_idle.next,
-					    struct ptlrpc_reply_state,
-					    rs_list);
+					struct ptlrpc_reply_state,
+					rs_list);
 			list_del(&rs->rs_list);
 			kvfree(rs);
 		}
@@ -2714,7 +2747,7 @@ ptlrpc_service_free(struct ptlrpc_service *svc)
 	int i;
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
-		if (svcpt->scp_service == NULL)
+		if (!svcpt->scp_service)
 			break;
 
 		/* In case somebody rearmed this in the meantime */
@@ -2730,7 +2763,7 @@ ptlrpc_service_free(struct ptlrpc_service *svc)
 	ptlrpc_service_for_each_part(svcpt, i, svc)
 		kfree(svcpt);
 
-	if (svc->srv_cpts != NULL)
+	if (svc->srv_cpts)
 		cfs_expr_list_values_free(svc->srv_cpts, svc->srv_ncpts);
 
 	kfree(svc);

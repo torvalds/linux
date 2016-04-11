@@ -144,7 +144,7 @@ void do_sigreturn32(struct pt_regs *regs)
 	compat_uptr_t fpu_save;
 	compat_uptr_t rwin_save;
 	unsigned int psr;
-	unsigned pc, npc;
+	unsigned int pc, npc;
 	sigset_t set;
 	compat_sigset_t seta;
 	int err, i;

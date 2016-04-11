@@ -65,10 +65,10 @@ static int tzic_set_irq_fiq(unsigned int irq, unsigned int type)
 		return -EINVAL;
 	mask = 1U << (irq & 0x1F);
 
-	value = __raw_readl(tzic_base + TZIC_INTSEC0(index)) | mask;
+	value = imx_readl(tzic_base + TZIC_INTSEC0(index)) | mask;
 	if (type)
 		value &= ~mask;
-	__raw_writel(value, tzic_base + TZIC_INTSEC0(index));
+	imx_writel(value, tzic_base + TZIC_INTSEC0(index));
 
 	return 0;
 }
@@ -82,15 +82,15 @@ static void tzic_irq_suspend(struct irq_data *d)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	int idx = d->hwirq >> 5;
 
-	__raw_writel(gc->wake_active, tzic_base + TZIC_WAKEUP0(idx));
+	imx_writel(gc->wake_active, tzic_base + TZIC_WAKEUP0(idx));
 }
 
 static void tzic_irq_resume(struct irq_data *d)
 {
 	int idx = d->hwirq >> 5;
 
-	__raw_writel(__raw_readl(tzic_base + TZIC_ENSET0(idx)),
-		     tzic_base + TZIC_WAKEUP0(idx));
+	imx_writel(imx_readl(tzic_base + TZIC_ENSET0(idx)),
+		   tzic_base + TZIC_WAKEUP0(idx));
 }
 
 #else
@@ -135,8 +135,8 @@ static void __exception_irq_entry tzic_handle_irq(struct pt_regs *regs)
 		handled = 0;
 
 		for (i = 0; i < 4; i++) {
-			stat = __raw_readl(tzic_base + TZIC_HIPND(i)) &
-				__raw_readl(tzic_base + TZIC_INTSEC0(i));
+			stat = imx_readl(tzic_base + TZIC_HIPND(i)) &
+				imx_readl(tzic_base + TZIC_INTSEC0(i));
 
 			while (stat) {
 				handled = 1;
@@ -166,18 +166,18 @@ void __init tzic_init_irq(void)
 	/* put the TZIC into the reset value with
 	 * all interrupts disabled
 	 */
-	i = __raw_readl(tzic_base + TZIC_INTCNTL);
+	i = imx_readl(tzic_base + TZIC_INTCNTL);
 
-	__raw_writel(0x80010001, tzic_base + TZIC_INTCNTL);
-	__raw_writel(0x1f, tzic_base + TZIC_PRIOMASK);
-	__raw_writel(0x02, tzic_base + TZIC_SYNCCTRL);
+	imx_writel(0x80010001, tzic_base + TZIC_INTCNTL);
+	imx_writel(0x1f, tzic_base + TZIC_PRIOMASK);
+	imx_writel(0x02, tzic_base + TZIC_SYNCCTRL);
 
 	for (i = 0; i < 4; i++)
-		__raw_writel(0xFFFFFFFF, tzic_base + TZIC_INTSEC0(i));
+		imx_writel(0xFFFFFFFF, tzic_base + TZIC_INTSEC0(i));
 
 	/* disable all interrupts */
 	for (i = 0; i < 4; i++)
-		__raw_writel(0xFFFFFFFF, tzic_base + TZIC_ENCLEAR0(i));
+		imx_writel(0xFFFFFFFF, tzic_base + TZIC_ENCLEAR0(i));
 
 	/* all IRQ no FIQ Warning :: No selection */
 
@@ -214,13 +214,13 @@ int tzic_enable_wake(void)
 {
 	unsigned int i;
 
-	__raw_writel(1, tzic_base + TZIC_DSMINT);
-	if (unlikely(__raw_readl(tzic_base + TZIC_DSMINT) == 0))
+	imx_writel(1, tzic_base + TZIC_DSMINT);
+	if (unlikely(imx_readl(tzic_base + TZIC_DSMINT) == 0))
 		return -EAGAIN;
 
 	for (i = 0; i < 4; i++)
-		__raw_writel(__raw_readl(tzic_base + TZIC_ENSET0(i)),
-			     tzic_base + TZIC_WAKEUP0(i));
+		imx_writel(imx_readl(tzic_base + TZIC_ENSET0(i)),
+			   tzic_base + TZIC_WAKEUP0(i));
 
 	return 0;
 }

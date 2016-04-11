@@ -1450,28 +1450,20 @@ DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_remove_inode_range);
 
 TRACE_EVENT(ocfs2_prepare_inode_for_write,
 	TP_PROTO(unsigned long long ino, unsigned long long saved_pos,
-		 int appending, unsigned long count,
-		 int *direct_io, int *has_refcount),
-	TP_ARGS(ino, saved_pos, appending, count, direct_io, has_refcount),
+		 unsigned long count),
+	TP_ARGS(ino, saved_pos, count),
 	TP_STRUCT__entry(
 		__field(unsigned long long, ino)
 		__field(unsigned long long, saved_pos)
-		__field(int, appending)
 		__field(unsigned long, count)
-		__field(int, direct_io)
-		__field(int, has_refcount)
 	),
 	TP_fast_assign(
 		__entry->ino = ino;
 		__entry->saved_pos = saved_pos;
-		__entry->appending = appending;
 		__entry->count = count;
-		__entry->direct_io = direct_io ? *direct_io : -1;
-		__entry->has_refcount = has_refcount ? *has_refcount : -1;
 	),
-	TP_printk("%llu %llu %d %lu %d %d", __entry->ino,
-		  __entry->saved_pos, __entry->appending, __entry->count,
-		  __entry->direct_io, __entry->has_refcount)
+	TP_printk("%llu %llu %lu", __entry->ino,
+		  __entry->saved_pos, __entry->count)
 );
 
 DEFINE_OCFS2_INT_EVENT(generic_file_aio_read_ret);
@@ -1540,6 +1532,8 @@ DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_read_locked_inode);
 DEFINE_OCFS2_INT_INT_EVENT(ocfs2_check_orphan_recovery_state);
 
 DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_inode_block);
+DEFINE_OCFS2_ULL_EVENT(ocfs2_filecheck_validate_inode_block);
+DEFINE_OCFS2_ULL_EVENT(ocfs2_filecheck_repair_inode_block);
 
 TRACE_EVENT(ocfs2_inode_is_valid_to_delete,
 	TP_PROTO(void *task, void *dc_task, unsigned long long ino,
@@ -2034,6 +2028,8 @@ DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_write_dquot);
 DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_release_dquot);
 
 DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_acquire_dquot);
+
+DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_get_next_id);
 
 DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_mark_dquot_dirty);
 

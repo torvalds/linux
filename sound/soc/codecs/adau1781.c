@@ -1,5 +1,5 @@
 /*
- * Driver for ADAU1781/ADAU1781 codec
+ * Driver for ADAU1381/ADAU1781 codec
  *
  * Copyright 2011-2013 Analog Devices Inc.
  * Author: Lars-Peter Clausen <lars@metafoo.de>

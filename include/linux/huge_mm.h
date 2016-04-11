@@ -41,7 +41,8 @@ int vmf_insert_pfn_pmd(struct vm_area_struct *, unsigned long addr, pmd_t *,
 enum transparent_hugepage_flag {
 	TRANSPARENT_HUGEPAGE_FLAG,
 	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-	TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
+	TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
+	TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
 	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
 	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
 	TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
@@ -71,12 +72,6 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
 	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
 	 !((__vma)->vm_flags & VM_NOHUGEPAGE) &&			\
 	 !is_vma_temporary_stack(__vma))
-#define transparent_hugepage_defrag(__vma)				\
-	((transparent_hugepage_flags &					\
-	  (1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)) ||			\
-	 (transparent_hugepage_flags &					\
-	  (1<<TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG) &&		\
-	  (__vma)->vm_flags & VM_HUGEPAGE))
 #define transparent_hugepage_use_zero_page()				\
 	(transparent_hugepage_flags &					\
 	 (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
@@ -101,19 +96,21 @@ static inline int split_huge_page(struct page *page)
 void deferred_split_huge_page(struct page *page);
 
 void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long address);
+		unsigned long address, bool freeze);
 
 #define split_huge_pmd(__vma, __pmd, __address)				\
 	do {								\
 		pmd_t *____pmd = (__pmd);				\
 		if (pmd_trans_huge(*____pmd)				\
 					|| pmd_devmap(*____pmd))	\
-			__split_huge_pmd(__vma, __pmd, __address);	\
+			__split_huge_pmd(__vma, __pmd, __address,	\
+						false);			\
 	}  while (0)
 
-#if HPAGE_PMD_ORDER >= MAX_ORDER
-#error "hugepages can't be allocated by the buddy allocator"
-#endif
+
+void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
+		bool freeze, struct page *page);
+
 extern int hugepage_madvise(struct vm_area_struct *vma,
 			    unsigned long *vm_flags, int advice);
 extern void vma_adjust_trans_huge(struct vm_area_struct *vma,
@@ -130,7 +127,7 @@ static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
 	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
 		return __pmd_trans_huge_lock(pmd, vma);
 	else
-		return false;
+		return NULL;
 }
 static inline int hpage_nr_pages(struct page *page)
 {
@@ -178,6 +175,10 @@ static inline int split_huge_page(struct page *page)
 static inline void deferred_split_huge_page(struct page *page) {}
 #define split_huge_pmd(__vma, __pmd, __address)	\
 	do { } while (0)
+
+static inline void split_huge_pmd_address(struct vm_area_struct *vma,
+		unsigned long address, bool freeze, struct page *page) {}
+
 static inline int hugepage_madvise(struct vm_area_struct *vma,
 				   unsigned long *vm_flags, int advice)
 {

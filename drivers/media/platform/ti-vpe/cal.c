@@ -804,6 +804,9 @@ static int cal_get_external_info(struct cal_ctx *ctx)
 {
 	struct v4l2_ctrl *ctrl;
 
+	if (!ctx->sensor)
+		return -ENODEV;
+
 	ctrl = v4l2_ctrl_find(ctx->sensor->ctrl_handler, V4L2_CID_PIXEL_RATE);
 	if (!ctrl) {
 		ctx_err(ctx, "no pixel rate control in subdev: %s\n",
@@ -950,9 +953,6 @@ static int __subdev_get_format(struct cal_ctx *ctx,
 	struct v4l2_mbus_framefmt *mbus_fmt = &sd_fmt.format;
 	int ret;
 
-	if (!ctx->sensor)
-		return -EINVAL;
-
 	sd_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sd_fmt.pad = 0;
 
@@ -974,9 +974,6 @@ static int __subdev_set_format(struct cal_ctx *ctx,
 	struct v4l2_subdev_format sd_fmt;
 	struct v4l2_mbus_framefmt *mbus_fmt = &sd_fmt.format;
 	int ret;
-
-	if (!ctx->sensor)
-		return -EINVAL;
 
 	sd_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sd_fmt.pad = 0;
@@ -1152,7 +1149,7 @@ static int cal_enum_framesizes(struct file *file, void *fh,
 
 	ret = v4l2_subdev_call(ctx->sensor, pad, enum_frame_size, NULL, &fse);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	ctx_dbg(1, ctx, "%s: index: %d code: %x W:[%d,%d] H:[%d,%d]\n",
 		__func__, fse.index, fse.code, fse.min_width, fse.max_width,
@@ -1201,42 +1198,25 @@ static int cal_enum_frameintervals(struct file *file, void *priv,
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 	const struct cal_fmt *fmt;
-	struct v4l2_subdev_frame_size_enum fse;
+	struct v4l2_subdev_frame_interval_enum fie = {
+		.index = fival->index,
+		.width = fival->width,
+		.height = fival->height,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret;
-
-	if (fival->index)
-		return -EINVAL;
 
 	fmt = find_format_by_pix(ctx, fival->pixel_format);
 	if (!fmt)
 		return -EINVAL;
 
-	/* check for valid width/height */
-	ret = 0;
-	fse.pad = 0;
-	fse.code = fmt->code;
-	fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	for (fse.index = 0; ; fse.index++) {
-		ret = v4l2_subdev_call(ctx->sensor, pad, enum_frame_size,
-				       NULL, &fse);
-		if (ret)
-			return -EINVAL;
-
-		if ((fival->width == fse.max_width) &&
-		    (fival->height == fse.max_height))
-			break;
-		else if ((fival->width >= fse.min_width) &&
-			 (fival->width <= fse.max_width) &&
-			 (fival->height >= fse.min_height) &&
-			 (fival->height <= fse.max_height))
-			break;
-
-		return -EINVAL;
-	}
-
+	fie.code = fmt->code;
+	ret = v4l2_subdev_call(ctx->sensor, pad, enum_frame_interval,
+			       NULL, &fie);
+	if (ret)
+		return ret;
 	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	fival->discrete.numerator = 1;
-	fival->discrete.denominator = 30;
+	fival->discrete = fie.interval;
 
 	return 0;
 }
@@ -1347,13 +1327,11 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	cal_wr_dma_addr(ctx, addr);
 	csi2_ppi_enable(ctx);
 
-	if (ctx->sensor) {
-		if (v4l2_subdev_call(ctx->sensor, video, s_stream, 1)) {
-			ctx_err(ctx, "stream on failed in subdev\n");
-			cal_runtime_put(ctx->dev);
-			ret = -EINVAL;
-			goto err;
-		}
+	ret = v4l2_subdev_call(ctx->sensor, video, s_stream, 1);
+	if (ret) {
+		ctx_err(ctx, "stream on failed in subdev\n");
+		cal_runtime_put(ctx->dev);
+		goto err;
 	}
 
 	if (debug >= 4)
@@ -1376,10 +1354,8 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	struct cal_buffer *buf, *tmp;
 	unsigned long flags;
 
-	if (ctx->sensor) {
-		if (v4l2_subdev_call(ctx->sensor, video, s_stream, 0))
-			ctx_err(ctx, "stream off failed in subdev\n");
-	}
+	if (v4l2_subdev_call(ctx->sensor, video, s_stream, 0))
+		ctx_err(ctx, "stream off failed in subdev\n");
 
 	csi2_ppi_disable(ctx);
 	disable_irqs(ctx);

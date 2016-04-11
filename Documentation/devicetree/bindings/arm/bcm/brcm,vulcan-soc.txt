@@ -1,0 +1,10 @@
+Broadcom Vulcan device tree bindings
+------------------------------------
+
+Boards with Broadcom Vulcan shall have the following root property:
+
+Broadcom Vulcan Evaluation Board:
+  compatible = "brcm,vulcan-eval", "brcm,vulcan-soc";
+
+Generic Vulcan board:
+  compatible = "brcm,vulcan-soc";

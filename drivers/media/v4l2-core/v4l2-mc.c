@@ -1,7 +1,10 @@
 /*
  * Media Controller ancillary functions
  *
- * (c) 2016 Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+ * Copyright (c) 2016 Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+ * Copyright (C) 2016 Shuah Khan <shuahkh@osg.samsung.com>
+ * Copyright (C) 2006-2010 Nokia Corporation
+ * Copyright (c) 2016 Intel Corporation.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,80 +20,14 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/usb.h>
+#include <media/media-device.h>
 #include <media/media-entity.h>
+#include <media/v4l2-fh.h>
 #include <media/v4l2-mc.h>
-
-
-struct media_device *v4l2_mc_pci_media_device_init(struct pci_dev *pci_dev,
-						   const char *name)
-{
-#ifdef CONFIG_PCI
-	struct media_device *mdev;
-
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
-	if (!mdev)
-		return NULL;
-
-	mdev->dev = &pci_dev->dev;
-
-	if (name)
-		strlcpy(mdev->model, name, sizeof(mdev->model));
-	else
-		strlcpy(mdev->model, pci_name(pci_dev), sizeof(mdev->model));
-
-	sprintf(mdev->bus_info, "PCI:%s", pci_name(pci_dev));
-
-	mdev->hw_revision = pci_dev->subsystem_vendor << 16
-			    || pci_dev->subsystem_device;
-
-	mdev->driver_version = LINUX_VERSION_CODE;
-
-	media_device_init(mdev);
-
-	return mdev;
-#else
-	return NULL;
-#endif
-}
-EXPORT_SYMBOL_GPL(v4l2_mc_pci_media_device_init);
-
-struct media_device *__v4l2_mc_usb_media_device_init(struct usb_device *udev,
-						     const char *board_name,
-						     const char *driver_name)
-{
-#ifdef CONFIG_USB
-	struct media_device *mdev;
-
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
-	if (!mdev)
-		return NULL;
-
-	mdev->dev = &udev->dev;
-
-	if (driver_name)
-		strlcpy(mdev->driver_name, driver_name,
-			sizeof(mdev->driver_name));
-
-	if (board_name)
-		strlcpy(mdev->model, board_name, sizeof(mdev->model));
-	else if (udev->product)
-		strlcpy(mdev->model, udev->product, sizeof(mdev->model));
-	else
-		strlcpy(mdev->model, "unknown model", sizeof(mdev->model));
-	if (udev->serial)
-		strlcpy(mdev->serial, udev->serial, sizeof(mdev->serial));
-	usb_make_path(udev, mdev->bus_info, sizeof(mdev->bus_info));
-	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
-	mdev->driver_version = LINUX_VERSION_CODE;
-
-	media_device_init(mdev);
-
-	return mdev;
-#else
-	return NULL;
-#endif
-}
-EXPORT_SYMBOL_GPL(__v4l2_mc_usb_media_device_init);
+#include <media/v4l2-subdev.h>
+#include <media/media-device.h>
+#include <media/v4l2-mc.h>
+#include <media/videobuf2-core.h>
 
 int v4l2_mc_create_media_graph(struct media_device *mdev)
 
@@ -253,6 +190,214 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 
 		flags = 0;
 	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_mc_create_media_graph);
+
+int v4l_enable_media_source(struct video_device *vdev)
+{
+	struct media_device *mdev = vdev->entity.graph_obj.mdev;
+	int ret;
+
+	if (!mdev || !mdev->enable_source)
+		return 0;
+	ret = mdev->enable_source(&vdev->entity, &vdev->pipe);
+	if (ret)
+		return -EBUSY;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l_enable_media_source);
+
+void v4l_disable_media_source(struct video_device *vdev)
+{
+	struct media_device *mdev = vdev->entity.graph_obj.mdev;
+
+	if (mdev && mdev->disable_source)
+		mdev->disable_source(&vdev->entity);
+}
+EXPORT_SYMBOL_GPL(v4l_disable_media_source);
+
+int v4l_vb2q_enable_media_source(struct vb2_queue *q)
+{
+	struct v4l2_fh *fh = q->owner;
+
+	if (fh && fh->vdev)
+		return v4l_enable_media_source(fh->vdev);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l_vb2q_enable_media_source);
+
+/* -----------------------------------------------------------------------------
+ * Pipeline power management
+ *
+ * Entities must be powered up when part of a pipeline that contains at least
+ * one open video device node.
+ *
+ * To achieve this use the entity use_count field to track the number of users.
+ * For entities corresponding to video device nodes the use_count field stores
+ * the users count of the node. For entities corresponding to subdevs the
+ * use_count field stores the total number of users of all video device nodes
+ * in the pipeline.
+ *
+ * The v4l2_pipeline_pm_use() function must be called in the open() and
+ * close() handlers of video device nodes. It increments or decrements the use
+ * count of all subdev entities in the pipeline.
+ *
+ * To react to link management on powered pipelines, the link setup notification
+ * callback updates the use count of all entities in the source and sink sides
+ * of the link.
+ */
+
+/*
+ * pipeline_pm_use_count - Count the number of users of a pipeline
+ * @entity: The entity
+ *
+ * Return the total number of users of all video device nodes in the pipeline.
+ */
+static int pipeline_pm_use_count(struct media_entity *entity,
+	struct media_entity_graph *graph)
+{
+	int use = 0;
+
+	media_entity_graph_walk_start(graph, entity);
+
+	while ((entity = media_entity_graph_walk_next(graph))) {
+		if (is_media_entity_v4l2_io(entity))
+			use += entity->use_count;
+	}
+
+	return use;
+}
+
+/*
+ * pipeline_pm_power_one - Apply power change to an entity
+ * @entity: The entity
+ * @change: Use count change
+ *
+ * Change the entity use count by @change. If the entity is a subdev update its
+ * power state by calling the core::s_power operation when the use count goes
+ * from 0 to != 0 or from != 0 to 0.
+ *
+ * Return 0 on success or a negative error code on failure.
+ */
+static int pipeline_pm_power_one(struct media_entity *entity, int change)
+{
+	struct v4l2_subdev *subdev;
+	int ret;
+
+	subdev = is_media_entity_v4l2_subdev(entity)
+	       ? media_entity_to_v4l2_subdev(entity) : NULL;
+
+	if (entity->use_count == 0 && change > 0 && subdev != NULL) {
+		ret = v4l2_subdev_call(subdev, core, s_power, 1);
+		if (ret < 0 && ret != -ENOIOCTLCMD)
+			return ret;
+	}
+
+	entity->use_count += change;
+	WARN_ON(entity->use_count < 0);
+
+	if (entity->use_count == 0 && change < 0 && subdev != NULL)
+		v4l2_subdev_call(subdev, core, s_power, 0);
+
+	return 0;
+}
+
+/*
+ * pipeline_pm_power - Apply power change to all entities in a pipeline
+ * @entity: The entity
+ * @change: Use count change
+ *
+ * Walk the pipeline to update the use count and the power state of all non-node
+ * entities.
+ *
+ * Return 0 on success or a negative error code on failure.
+ */
+static int pipeline_pm_power(struct media_entity *entity, int change,
+	struct media_entity_graph *graph)
+{
+	struct media_entity *first = entity;
+	int ret = 0;
+
+	if (!change)
+		return 0;
+
+	media_entity_graph_walk_start(graph, entity);
+
+	while (!ret && (entity = media_entity_graph_walk_next(graph)))
+		if (is_media_entity_v4l2_subdev(entity))
+			ret = pipeline_pm_power_one(entity, change);
+
+	if (!ret)
+		return ret;
+
+	media_entity_graph_walk_start(graph, first);
+
+	while ((first = media_entity_graph_walk_next(graph))
+	       && first != entity)
+		if (is_media_entity_v4l2_subdev(first))
+			pipeline_pm_power_one(first, -change);
+
+	return ret;
+}
+
+int v4l2_pipeline_pm_use(struct media_entity *entity, int use)
+{
+	struct media_device *mdev = entity->graph_obj.mdev;
+	int change = use ? 1 : -1;
+	int ret;
+
+	mutex_lock(&mdev->graph_mutex);
+
+	/* Apply use count to node. */
+	entity->use_count += change;
+	WARN_ON(entity->use_count < 0);
+
+	/* Apply power change to connected non-nodes. */
+	ret = pipeline_pm_power(entity, change, &mdev->pm_count_walk);
+	if (ret < 0)
+		entity->use_count -= change;
+
+	mutex_unlock(&mdev->graph_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_pipeline_pm_use);
+
+int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
+			      unsigned int notification)
+{
+	struct media_entity_graph *graph = &link->graph_obj.mdev->pm_count_walk;
+	struct media_entity *source = link->source->entity;
+	struct media_entity *sink = link->sink->entity;
+	int source_use;
+	int sink_use;
+	int ret = 0;
+
+	source_use = pipeline_pm_use_count(source, graph);
+	sink_use = pipeline_pm_use_count(sink, graph);
+
+	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
+	    !(flags & MEDIA_LNK_FL_ENABLED)) {
+		/* Powering off entities is assumed to never fail. */
+		pipeline_pm_power(source, -sink_use, graph);
+		pipeline_pm_power(sink, -source_use, graph);
+		return 0;
+	}
+
+	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
+		(flags & MEDIA_LNK_FL_ENABLED)) {
+
+		ret = pipeline_pm_power(source, sink_use, graph);
+		if (ret < 0)
+			return ret;
+
+		ret = pipeline_pm_power(sink, source_use, graph);
+		if (ret < 0)
+			pipeline_pm_power(source, -sink_use, graph);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_pipeline_link_notify);

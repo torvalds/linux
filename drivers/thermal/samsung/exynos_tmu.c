@@ -184,6 +184,7 @@
  * @temp_error2: fused value of the second point trim.
  * @regulator: pointer to the TMU regulator structure.
  * @reg_conf: pointer to structure to register with core thermal.
+ * @ntrip: number of supported trip points.
  * @tmu_initialize: SoC specific TMU initialization method
  * @tmu_control: SoC specific TMU control method
  * @tmu_read: SoC specific TMU temperature read method
@@ -203,6 +204,7 @@ struct exynos_tmu_data {
 	u16 temp_error1, temp_error2;
 	struct regulator *regulator;
 	struct thermal_zone_device *tzd;
+	unsigned int ntrip;
 
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
@@ -345,6 +347,14 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	int ret;
+
+	if (of_thermal_get_ntrips(data->tzd) > data->ntrip) {
+		dev_info(&pdev->dev,
+			 "More trip points than supported by this TMU.\n");
+		dev_info(&pdev->dev,
+			 "%d trip points should be configured in polling mode.\n",
+			 (of_thermal_get_ntrips(data->tzd) - data->ntrip));
+	}
 
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
@@ -1210,6 +1220,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->tmu_control = exynos4210_tmu_control;
 		data->tmu_read = exynos4210_tmu_read;
 		data->tmu_clear_irqs = exynos4210_tmu_clear_irqs;
+		data->ntrip = 4;
 		break;
 	case SOC_ARCH_EXYNOS3250:
 	case SOC_ARCH_EXYNOS4412:
@@ -1222,6 +1233,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->tmu_read = exynos4412_tmu_read;
 		data->tmu_set_emulation = exynos4412_tmu_set_emulation;
 		data->tmu_clear_irqs = exynos4210_tmu_clear_irqs;
+		data->ntrip = 4;
 		break;
 	case SOC_ARCH_EXYNOS5433:
 		data->tmu_initialize = exynos5433_tmu_initialize;
@@ -1229,6 +1241,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->tmu_read = exynos4412_tmu_read;
 		data->tmu_set_emulation = exynos4412_tmu_set_emulation;
 		data->tmu_clear_irqs = exynos4210_tmu_clear_irqs;
+		data->ntrip = 8;
 		break;
 	case SOC_ARCH_EXYNOS5440:
 		data->tmu_initialize = exynos5440_tmu_initialize;
@@ -1236,6 +1249,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->tmu_read = exynos5440_tmu_read;
 		data->tmu_set_emulation = exynos5440_tmu_set_emulation;
 		data->tmu_clear_irqs = exynos5440_tmu_clear_irqs;
+		data->ntrip = 4;
 		break;
 	case SOC_ARCH_EXYNOS7:
 		data->tmu_initialize = exynos7_tmu_initialize;
@@ -1243,6 +1257,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 		data->tmu_read = exynos7_tmu_read;
 		data->tmu_set_emulation = exynos4412_tmu_set_emulation;
 		data->tmu_clear_irqs = exynos4210_tmu_clear_irqs;
+		data->ntrip = 8;
 		break;
 	default:
 		dev_err(&pdev->dev, "Platform not supported\n");
@@ -1295,7 +1310,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	 * TODO: Add regulator as an SOC feature, so that regulator enable
 	 * is a compulsory call.
 	 */
-	data->regulator = devm_regulator_get(&pdev->dev, "vtmu");
+	data->regulator = devm_regulator_get_optional(&pdev->dev, "vtmu");
 	if (!IS_ERR(data->regulator)) {
 		ret = regulator_enable(data->regulator);
 		if (ret) {
@@ -1303,6 +1318,8 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 			return ret;
 		}
 	} else {
+		if (PTR_ERR(data->regulator) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
 		dev_info(&pdev->dev, "Regulator node (vtmu) not found\n");
 	}
 

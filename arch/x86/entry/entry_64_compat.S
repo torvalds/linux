@@ -19,12 +19,21 @@
 	.section .entry.text, "ax"
 
 /*
- * 32-bit SYSENTER instruction entry.
+ * 32-bit SYSENTER entry.
  *
- * SYSENTER loads ss, rsp, cs, and rip from previously programmed MSRs.
- * IF and VM in rflags are cleared (IOW: interrupts are off).
+ * 32-bit system calls through the vDSO's __kernel_vsyscall enter here
+ * on 64-bit kernels running on Intel CPUs.
+ *
+ * The SYSENTER instruction, in principle, should *only* occur in the
+ * vDSO.  In practice, a small number of Android devices were shipped
+ * with a copy of Bionic that inlined a SYSENTER instruction.  This
+ * never happened in any of Google's Bionic versions -- it only happened
+ * in a narrow range of Intel-provided versions.
+ *
+ * SYSENTER loads SS, RSP, CS, and RIP from previously programmed MSRs.
+ * IF and VM in RFLAGS are cleared (IOW: interrupts are off).
  * SYSENTER does not save anything on the stack,
- * and does not save old rip (!!!) and rflags.
+ * and does not save old RIP (!!!), RSP, or RFLAGS.
  *
  * Arguments:
  * eax  system call number
@@ -35,10 +44,6 @@
  * edi  arg5
  * ebp  user stack
  * 0(%ebp) arg6
- *
- * This is purely a fast path. For anything complicated we use the int 0x80
- * path below. We set up a complete hardware stack frame to share code
- * with the int 0x80 path.
  */
 ENTRY(entry_SYSENTER_compat)
 	/* Interrupts are off on entry. */
@@ -66,8 +71,6 @@ ENTRY(entry_SYSENTER_compat)
 	 */
 	pushfq				/* pt_regs->flags (except IF = 0) */
 	orl	$X86_EFLAGS_IF, (%rsp)	/* Fix saved flags */
-	ASM_CLAC			/* Clear AC after saving FLAGS */
-
 	pushq	$__USER32_CS		/* pt_regs->cs */
 	xorq    %r8,%r8
 	pushq	%r8			/* pt_regs->ip = 0 (placeholder) */
@@ -90,11 +93,17 @@ ENTRY(entry_SYSENTER_compat)
 	cld
 
 	/*
-	 * Sysenter doesn't filter flags, so we need to clear NT
+	 * SYSENTER doesn't filter flags, so we need to clear NT and AC
 	 * ourselves.  To save a few cycles, we can check whether
-	 * NT was set instead of doing an unconditional popfq.
+	 * either was set instead of doing an unconditional popfq.
 	 * This needs to happen before enabling interrupts so that
 	 * we don't get preempted with NT set.
+	 *
+	 * If TF is set, we will single-step all the way to here -- do_debug
+	 * will ignore all the traps.  (Yes, this is slow, but so is
+	 * single-stepping in general.  This allows us to avoid having
+	 * a more complicated code to handle the case where a user program
+	 * forces us to single-step through the SYSENTER entry code.)
 	 *
 	 * NB.: .Lsysenter_fix_flags is a label with the code under it moved
 	 * out-of-line as an optimization: NT is unlikely to be set in the
@@ -102,7 +111,7 @@ ENTRY(entry_SYSENTER_compat)
 	 * we're keeping that code behind a branch which will predict as
 	 * not-taken and therefore its instructions won't be fetched.
 	 */
-	testl	$X86_EFLAGS_NT, EFLAGS(%rsp)
+	testl	$X86_EFLAGS_NT|X86_EFLAGS_AC|X86_EFLAGS_TF, EFLAGS(%rsp)
 	jnz	.Lsysenter_fix_flags
 .Lsysenter_flags_fixed:
 
@@ -123,20 +132,42 @@ ENTRY(entry_SYSENTER_compat)
 	pushq	$X86_EFLAGS_FIXED
 	popfq
 	jmp	.Lsysenter_flags_fixed
+GLOBAL(__end_entry_SYSENTER_compat)
 ENDPROC(entry_SYSENTER_compat)
 
 /*
- * 32-bit SYSCALL instruction entry.
+ * 32-bit SYSCALL entry.
  *
- * 32-bit SYSCALL saves rip to rcx, clears rflags.RF, then saves rflags to r11,
- * then loads new ss, cs, and rip from previously programmed MSRs.
- * rflags gets masked by a value from another MSR (so CLD and CLAC
- * are not needed). SYSCALL does not save anything on the stack
- * and does not change rsp.
+ * 32-bit system calls through the vDSO's __kernel_vsyscall enter here
+ * on 64-bit kernels running on AMD CPUs.
  *
- * Note: rflags saving+masking-with-MSR happens only in Long mode
+ * The SYSCALL instruction, in principle, should *only* occur in the
+ * vDSO.  In practice, it appears that this really is the case.
+ * As evidence:
+ *
+ *  - The calling convention for SYSCALL has changed several times without
+ *    anyone noticing.
+ *
+ *  - Prior to the in-kernel X86_BUG_SYSRET_SS_ATTRS fixup, anything
+ *    user task that did SYSCALL without immediately reloading SS
+ *    would randomly crash.
+ *
+ *  - Most programmers do not directly target AMD CPUs, and the 32-bit
+ *    SYSCALL instruction does not exist on Intel CPUs.  Even on AMD
+ *    CPUs, Linux disables the SYSCALL instruction on 32-bit kernels
+ *    because the SYSCALL instruction in legacy/native 32-bit mode (as
+ *    opposed to compat mode) is sufficiently poorly designed as to be
+ *    essentially unusable.
+ *
+ * 32-bit SYSCALL saves RIP to RCX, clears RFLAGS.RF, then saves
+ * RFLAGS to R11, then loads new SS, CS, and RIP from previously
+ * programmed MSRs.  RFLAGS gets masked by a value from another MSR
+ * (so CLD and CLAC are not needed).  SYSCALL does not save anything on
+ * the stack and does not change RSP.
+ *
+ * Note: RFLAGS saving+masking-with-MSR happens only in Long mode
  * (in legacy 32-bit mode, IF, RF and VM bits are cleared and that's it).
- * Don't get confused: rflags saving+masking depends on Long Mode Active bit
+ * Don't get confused: RFLAGS saving+masking depends on Long Mode Active bit
  * (EFER.LMA=1), NOT on bitness of userspace where SYSCALL executes
  * or target CS descriptor's L bit (SYSCALL does not read segment descriptors).
  *
@@ -236,7 +267,21 @@ sysret32_from_system_call:
 END(entry_SYSCALL_compat)
 
 /*
- * Emulated IA32 system calls via int 0x80.
+ * 32-bit legacy system call entry.
+ *
+ * 32-bit x86 Linux system calls traditionally used the INT $0x80
+ * instruction.  INT $0x80 lands here.
+ *
+ * This entry point can be used by 32-bit and 64-bit programs to perform
+ * 32-bit system calls.  Instances of INT $0x80 can be found inline in
+ * various programs and libraries.  It is also used by the vDSO's
+ * __kernel_vsyscall fallback for hardware that doesn't support a faster
+ * entry method.  Restarted 32-bit system calls also fall back to INT
+ * $0x80 regardless of what instruction was originally used to do the
+ * system call.
+ *
+ * This is considered a slow path.  It is not used by most libc
+ * implementations on modern hardware except during process startup.
  *
  * Arguments:
  * eax  system call number
@@ -245,17 +290,8 @@ END(entry_SYSCALL_compat)
  * edx  arg3
  * esi  arg4
  * edi  arg5
- * ebp  arg6	(note: not saved in the stack frame, should not be touched)
- *
- * Notes:
- * Uses the same stack frame as the x86-64 version.
- * All registers except eax must be saved (but ptrace may violate that).
- * Arguments are zero extended. For system calls that want sign extension and
- * take long arguments a wrapper is needed. Most calls can just be called
- * directly.
- * Assumes it is only called from user space and entered with interrupts off.
+ * ebp  arg6
  */
-
 ENTRY(entry_INT80_compat)
 	/*
 	 * Interrupts are off on entry.
@@ -300,7 +336,7 @@ ENTRY(entry_INT80_compat)
 	TRACE_IRQS_OFF
 
 	movq	%rsp, %rdi
-	call	do_syscall_32_irqs_off
+	call	do_int80_syscall_32
 .Lsyscall_32_done:
 
 	/* Go back to user mode. */

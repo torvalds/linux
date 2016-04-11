@@ -70,9 +70,13 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 void amdgpu_job_free(struct amdgpu_job *job)
 {
 	unsigned i;
+	struct fence *f;
+	/* use sched fence if available */
+	f = (job->base.s_fence)? &job->base.s_fence->base : job->fence;
 
 	for (i = 0; i < job->num_ibs; ++i)
-		amdgpu_ib_free(job->adev, &job->ibs[i]);
+		amdgpu_sa_bo_free(job->adev, &job->ibs[i].sa_bo, f);
+	fence_put(job->fence);
 
 	amdgpu_bo_unref(&job->uf.bo);
 	amdgpu_sync_free(&job->sync);
@@ -148,7 +152,7 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	}
 
 	trace_amdgpu_sched_run_job(job);
-	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job->owner,
+	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs,
 			       job->sync.last_vm_update, &fence);
 	if (r) {
 		DRM_ERROR("Error scheduling IBs (%d)\n", r);
@@ -156,6 +160,7 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	}
 
 err:
+	job->fence = fence;
 	amdgpu_job_free(job);
 	return fence;
 }

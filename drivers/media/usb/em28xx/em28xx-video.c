@@ -2714,12 +2714,14 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	/* Init entities at the Media Controller */
 	em28xx_v4l2_create_entities(dev);
 
+#ifdef CONFIG_MEDIA_CONTROLLER
 	ret = v4l2_mc_create_media_graph(dev->media_dev);
 	if (ret) {
 		em28xx_errdev("failed to create media graph\n");
 		em28xx_v4l2_media_release(dev);
 		goto unregister_dev;
 	}
+#endif
 
 	em28xx_info("V4L2 video device registered as %s\n",
 		    video_device_node_name(&v4l2->vdev));

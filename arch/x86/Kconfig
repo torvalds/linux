@@ -28,6 +28,7 @@ config X86
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_KCOV			if X86_64
 	select ARCH_HAS_PMEM_API		if X86_64
 	select ARCH_HAS_MMIO_FLUSH
 	select ARCH_HAS_SG_CHAIN
@@ -155,6 +156,9 @@ config X86
 	select VIRT_TO_BUS
 	select X86_DEV_DMA_OPS			if X86_64
 	select X86_FEATURE_NAMES		if PROC_FS
+	select HAVE_STACK_VALIDATION		if X86_64
+	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
+	select ARCH_HAS_PKEYS			if X86_INTEL_MEMORY_PROTECTION_KEYS
 
 config INSTRUCTION_DECODER
 	def_bool y
@@ -301,6 +305,9 @@ config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
 config FIX_EARLYCON_MEM
+	def_bool y
+
+config DEBUG_RODATA
 	def_bool y
 
 config PGTABLE_LEVELS
@@ -1160,22 +1167,23 @@ config MICROCODE
 	bool "CPU microcode loading support"
 	default y
 	depends on CPU_SUP_AMD || CPU_SUP_INTEL
-	depends on BLK_DEV_INITRD
 	select FW_LOADER
 	---help---
-
 	  If you say Y here, you will be able to update the microcode on
-	  certain Intel and AMD processors. The Intel support is for the
-	  IA32 family, e.g. Pentium Pro, Pentium II, Pentium III, Pentium 4,
-	  Xeon etc. The AMD support is for families 0x10 and later. You will
-	  obviously need the actual microcode binary data itself which is not
-	  shipped with the Linux kernel.
+	  Intel and AMD processors. The Intel support is for the IA32 family,
+	  e.g. Pentium Pro, Pentium II, Pentium III, Pentium 4, Xeon etc. The
+	  AMD support is for families 0x10 and later. You will obviously need
+	  the actual microcode binary data itself which is not shipped with
+	  the Linux kernel.
 
-	  This option selects the general module only, you need to select
-	  at least one vendor specific module as well.
+	  The preferred method to load microcode from a detached initrd is described
+	  in Documentation/x86/early-microcode.txt. For that you need to enable
+	  CONFIG_BLK_DEV_INITRD in order for the loader to be able to scan the
+	  initrd for microcode blobs.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called microcode.
+	  In addition, you can build-in the microcode into the kernel. For that you
+	  need to enable FIRMWARE_IN_KERNEL and add the vendor-supplied microcode
+	  to the CONFIG_EXTRA_FIRMWARE config option.
 
 config MICROCODE_INTEL
 	bool "Intel microcode loading support"
@@ -1201,6 +1209,15 @@ config MICROCODE_AMD
 config MICROCODE_OLD_INTERFACE
 	def_bool y
 	depends on MICROCODE
+
+config PERF_EVENTS_AMD_POWER
+	depends on PERF_EVENTS && CPU_SUP_AMD
+	tristate "AMD Processor Power Reporting Mechanism"
+	---help---
+	  Provide power reporting mechanism support for AMD processors.
+	  Currently, it leverages X86_FEATURE_ACC_POWER
+	  (CPUID Fn8000_0007_EDX[12]) interface to calculate the
+	  average power consumption on Family 15h processors.
 
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
@@ -1713,6 +1730,20 @@ config X86_INTEL_MPX
 	  For details, see Documentation/x86/intel_mpx.txt
 
 	  If unsure, say N.
+
+config X86_INTEL_MEMORY_PROTECTION_KEYS
+	prompt "Intel Memory Protection Keys"
+	def_bool y
+	# Note: only available in 64-bit mode
+	depends on CPU_SUP_INTEL && X86_64
+	---help---
+	  Memory Protection Keys provides a mechanism for enforcing
+	  page-based protections, but without requiring modification of the
+	  page tables when an application changes protection domains.
+
+	  For details, see Documentation/x86/protection-keys.txt
+
+	  If unsure, say y.
 
 config EFI
 	bool "EFI runtime service support"
@@ -2431,8 +2462,6 @@ config PCI_CNB20LE_QUIRK
 
 	  You should say N unless you know you need this.
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
 
 # x86_64 have no ISA slots, but can have ISA-style DMA.
@@ -2587,8 +2616,6 @@ config AMD_NB
 	depends on CPU_SUP_AMD && PCI
 
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 config RAPIDIO
 	tristate "RapidIO support"

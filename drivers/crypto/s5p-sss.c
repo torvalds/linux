@@ -224,6 +224,7 @@ static inline struct samsung_aes_variant *find_s5p_sss_version
 {
 	if (IS_ENABLED(CONFIG_OF) && (pdev->dev.of_node)) {
 		const struct of_device_id *match;
+
 		match = of_match_node(s5p_sss_dt_match,
 					pdev->dev.of_node);
 		return (struct samsung_aes_variant *)match->data;
@@ -382,7 +383,7 @@ static void s5p_set_aes(struct s5p_aes_dev *dev,
 	void __iomem *keystart;
 
 	if (iv)
-		memcpy(dev->aes_ioaddr + SSS_REG_AES_IV_DATA(0), iv, 0x10);
+		memcpy_toio(dev->aes_ioaddr + SSS_REG_AES_IV_DATA(0), iv, 0x10);
 
 	if (keylen == AES_KEYSIZE_256)
 		keystart = dev->aes_ioaddr + SSS_REG_AES_KEY_DATA(0);
@@ -391,13 +392,12 @@ static void s5p_set_aes(struct s5p_aes_dev *dev,
 	else
 		keystart = dev->aes_ioaddr + SSS_REG_AES_KEY_DATA(4);
 
-	memcpy(keystart, key, keylen);
+	memcpy_toio(keystart, key, keylen);
 }
 
 static void s5p_aes_crypt_start(struct s5p_aes_dev *dev, unsigned long mode)
 {
 	struct ablkcipher_request  *req = dev->req;
-
 	uint32_t                    aes_control;
 	int                         err;
 	unsigned long               flags;
@@ -518,7 +518,7 @@ static int s5p_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 	struct s5p_aes_dev         *dev    = ctx->dev;
 
 	if (!IS_ALIGNED(req->nbytes, AES_BLOCK_SIZE)) {
-		pr_err("request size is not exact amount of AES blocks\n");
+		dev_err(dev->dev, "request size is not exact amount of AES blocks\n");
 		return -EINVAL;
 	}
 
@@ -566,7 +566,7 @@ static int s5p_aes_cbc_decrypt(struct ablkcipher_request *req)
 
 static int s5p_aes_cra_init(struct crypto_tfm *tfm)
 {
-	struct s5p_aes_ctx  *ctx = crypto_tfm_ctx(tfm);
+	struct s5p_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	ctx->dev = s5p_dev;
 	tfm->crt_ablkcipher.reqsize = sizeof(struct s5p_aes_reqctx);
@@ -701,7 +701,7 @@ static int s5p_aes_probe(struct platform_device *pdev)
 			goto err_algs;
 	}
 
-	pr_info("s5p-sss driver registered\n");
+	dev_info(dev, "s5p-sss driver registered\n");
 
 	return 0;
 

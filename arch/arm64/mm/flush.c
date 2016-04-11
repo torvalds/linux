@@ -58,17 +58,13 @@ static void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
  * Copy user data from/to a page which is mapped into a different processes
  * address space.  Really, we want to allow our "user space" model to handle
  * this.
- *
- * Note that this code needs to run on the current CPU.
  */
 void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long uaddr, void *dst, const void *src,
 		       unsigned long len)
 {
-	preempt_disable();
 	memcpy(dst, src, len);
 	flush_ptrace_access(vma, page, uaddr, dst, len);
-	preempt_enable();
 }
 
 void __sync_icache_dcache(pte_t pte, unsigned long addr)

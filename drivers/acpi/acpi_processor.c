@@ -491,6 +491,58 @@ static void acpi_processor_remove(struct acpi_device *device)
 }
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
 
+#ifdef CONFIG_X86
+static bool acpi_hwp_native_thermal_lvt_set;
+static acpi_status __init acpi_hwp_native_thermal_lvt_osc(acpi_handle handle,
+							  u32 lvl,
+							  void *context,
+							  void **rv)
+{
+	u8 sb_uuid_str[] = "4077A616-290C-47BE-9EBD-D87058713953";
+	u32 capbuf[2];
+	struct acpi_osc_context osc_context = {
+		.uuid_str = sb_uuid_str,
+		.rev = 1,
+		.cap.length = 8,
+		.cap.pointer = capbuf,
+	};
+
+	if (acpi_hwp_native_thermal_lvt_set)
+		return AE_CTRL_TERMINATE;
+
+	capbuf[0] = 0x0000;
+	capbuf[1] = 0x1000; /* set bit 12 */
+
+	if (ACPI_SUCCESS(acpi_run_osc(handle, &osc_context))) {
+		if (osc_context.ret.pointer && osc_context.ret.length > 1) {
+			u32 *capbuf_ret = osc_context.ret.pointer;
+
+			if (capbuf_ret[1] & 0x1000) {
+				acpi_handle_info(handle,
+					"_OSC native thermal LVT Acked\n");
+				acpi_hwp_native_thermal_lvt_set = true;
+			}
+		}
+		kfree(osc_context.ret.pointer);
+	}
+
+	return AE_OK;
+}
+
+void __init acpi_early_processor_osc(void)
+{
+	if (boot_cpu_has(X86_FEATURE_HWP)) {
+		acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
+				    ACPI_UINT32_MAX,
+				    acpi_hwp_native_thermal_lvt_osc,
+				    NULL, NULL, NULL);
+		acpi_get_devices(ACPI_PROCESSOR_DEVICE_HID,
+				 acpi_hwp_native_thermal_lvt_osc,
+				 NULL, NULL);
+	}
+}
+#endif
+
 /*
  * The following ACPI IDs are known to be suitable for representing as
  * processor devices.
@@ -514,7 +566,24 @@ static struct acpi_scan_handler processor_handler = {
 	},
 };
 
+static int acpi_processor_container_attach(struct acpi_device *dev,
+					   const struct acpi_device_id *id)
+{
+	return 1;
+}
+
+static const struct acpi_device_id processor_container_ids[] = {
+	{ ACPI_PROCESSOR_CONTAINER_HID, },
+	{ }
+};
+
+static struct acpi_scan_handler processor_container_handler = {
+	.ids = processor_container_ids,
+	.attach = acpi_processor_container_attach,
+};
+
 void __init acpi_processor_init(void)
 {
 	acpi_scan_add_handler_with_hotplug(&processor_handler, "processor");
+	acpi_scan_add_handler(&processor_container_handler);
 }

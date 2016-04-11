@@ -142,7 +142,7 @@ config MTD_AR7_PARTS
 
 config MTD_BCM63XX_PARTS
 	tristate "BCM63XX CFE partitioning support"
-	depends on BCM63XX
+	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
 	select CRC32
 	help
 	  This provides partions parsing for BCM63xx devices with CFE

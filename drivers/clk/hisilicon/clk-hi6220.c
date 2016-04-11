@@ -26,19 +26,19 @@
 
 /* clocks in AO (always on) controller */
 static struct hisi_fixed_rate_clock hi6220_fixed_rate_clks[] __initdata = {
-	{ HI6220_REF32K,	"ref32k",	NULL, CLK_IS_ROOT, 32764,     },
-	{ HI6220_CLK_TCXO,	"clk_tcxo",	NULL, CLK_IS_ROOT, 19200000,  },
-	{ HI6220_MMC1_PAD,	"mmc1_pad",	NULL, CLK_IS_ROOT, 100000000, },
-	{ HI6220_MMC2_PAD,	"mmc2_pad",	NULL, CLK_IS_ROOT, 100000000, },
-	{ HI6220_MMC0_PAD,	"mmc0_pad",	NULL, CLK_IS_ROOT, 200000000, },
-	{ HI6220_PLL_BBP,	"bbppll0",	NULL, CLK_IS_ROOT, 245760000, },
-	{ HI6220_PLL_GPU,	"gpupll",	NULL, CLK_IS_ROOT, 1000000000,},
-	{ HI6220_PLL1_DDR,	"ddrpll1",	NULL, CLK_IS_ROOT, 1066000000,},
-	{ HI6220_PLL_SYS,	"syspll",	NULL, CLK_IS_ROOT, 1200000000,},
-	{ HI6220_PLL_SYS_MEDIA,	"media_syspll",	NULL, CLK_IS_ROOT, 1200000000,},
-	{ HI6220_DDR_SRC,	"ddr_sel_src",  NULL, CLK_IS_ROOT, 1200000000,},
-	{ HI6220_PLL_MEDIA,	"media_pll",    NULL, CLK_IS_ROOT, 1440000000,},
-	{ HI6220_PLL_DDR,	"ddrpll0",      NULL, CLK_IS_ROOT, 1600000000,},
+	{ HI6220_REF32K,	"ref32k",	NULL, 0, 32764,     },
+	{ HI6220_CLK_TCXO,	"clk_tcxo",	NULL, 0, 19200000,  },
+	{ HI6220_MMC1_PAD,	"mmc1_pad",	NULL, 0, 100000000, },
+	{ HI6220_MMC2_PAD,	"mmc2_pad",	NULL, 0, 100000000, },
+	{ HI6220_MMC0_PAD,	"mmc0_pad",	NULL, 0, 200000000, },
+	{ HI6220_PLL_BBP,	"bbppll0",	NULL, 0, 245760000, },
+	{ HI6220_PLL_GPU,	"gpupll",	NULL, 0, 1000000000,},
+	{ HI6220_PLL1_DDR,	"ddrpll1",	NULL, 0, 1066000000,},
+	{ HI6220_PLL_SYS,	"syspll",	NULL, 0, 1200000000,},
+	{ HI6220_PLL_SYS_MEDIA,	"media_syspll",	NULL, 0, 1200000000,},
+	{ HI6220_DDR_SRC,	"ddr_sel_src",  NULL, 0, 1200000000,},
+	{ HI6220_PLL_MEDIA,	"media_pll",    NULL, 0, 1440000000,},
+	{ HI6220_PLL_DDR,	"ddrpll0",      NULL, 0, 1600000000,},
 };
 
 static struct hisi_fixed_factor_clock hi6220_fixed_factor_clks[] __initdata = {

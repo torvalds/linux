@@ -431,6 +431,7 @@ static int aim_rx_data(struct mbo *mbo)
 	u32 len = mbo->processed_length;
 	struct sk_buff *skb;
 	struct net_device *dev;
+	unsigned int skb_len;
 
 	nd = get_net_dev_context(mbo->ifp);
 	if (!nd || !nd->channels_opened || nd->rx.ch_id != mbo->hdm_channel_id)
@@ -482,9 +483,13 @@ static int aim_rx_data(struct mbo *mbo)
 
 	memcpy(skb_put(skb, len), buf, len);
 	skb->protocol = eth_type_trans(skb, dev);
-	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += skb->len;
-	netif_rx(skb);
+	skb_len = skb->len;
+	if (netif_rx(skb) == NET_RX_SUCCESS) {
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += skb_len;
+	} else {
+		dev->stats.rx_dropped++;
+	}
 
 out:
 	most_put_mbo(mbo);

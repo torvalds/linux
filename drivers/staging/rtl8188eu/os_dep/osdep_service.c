@@ -41,10 +41,7 @@ inline int RTW_STATUS_CODE(int error_code)
 
 u8 *_rtw_malloc(u32 sz)
 {
-	u8	*pbuf = NULL;
-
-	pbuf = kmalloc(sz, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-	return pbuf;
+	return kmalloc(sz, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 }
 
 void *rtw_malloc2d(int h, int w, int size)
@@ -67,8 +64,7 @@ u32 _rtw_down_sema(struct semaphore *sema)
 {
 	if (down_interruptible(sema))
 		return _FAIL;
-	else
-		return _SUCCESS;
+	return _SUCCESS;
 }
 
 void	_rtw_init_queue(struct __queue *pqueue)

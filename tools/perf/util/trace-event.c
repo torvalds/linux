@@ -10,6 +10,7 @@
 #include <linux/err.h>
 #include <traceevent/event-parse.h>
 #include <api/fs/tracing_path.h>
+#include <api/fs/fs.h>
 #include "trace-event.h"
 #include "machine.h"
 #include "util.h"

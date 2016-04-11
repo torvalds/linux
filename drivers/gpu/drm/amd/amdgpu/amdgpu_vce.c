@@ -425,8 +425,8 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, AMDGPU_FENCE_OWNER_UNDEFINED,
-			       NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+	job->fence = f;
 	if (r)
 		goto err;
 
@@ -487,9 +487,8 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 		ib->ptr[i] = 0x0;
 
 	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib,
-				       AMDGPU_FENCE_OWNER_UNDEFINED,
-				       NULL, &f);
+		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+		job->fence = f;
 		if (r)
 			goto err;
 

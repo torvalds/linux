@@ -18,6 +18,15 @@
 #include "q_struct.h"
 #include "nicvf_queues.h"
 
+static void nicvf_get_page(struct nicvf *nic)
+{
+	if (!nic->rb_pageref || !nic->rb_page)
+		return;
+
+	atomic_add(nic->rb_pageref, &nic->rb_page->_count);
+	nic->rb_pageref = 0;
+}
+
 /* Poll a register for a specific value */
 static int nicvf_poll_reg(struct nicvf *nic, int qidx,
 			  u64 reg, int bit_pos, int bits, int val)
@@ -78,32 +87,32 @@ static void nicvf_free_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem)
 static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
 					 u32 buf_len, u64 **rbuf)
 {
-	int order = get_order(buf_len);
+	int order = (PAGE_SIZE <= 4096) ?  PAGE_ALLOC_COSTLY_ORDER : 0;
 
 	/* Check if request can be accomodated in previous allocated page */
-	if (nic->rb_page) {
-		if ((nic->rb_page_offset + buf_len + buf_len) >
-		    (PAGE_SIZE << order)) {
-			nic->rb_page = NULL;
-		} else {
-			nic->rb_page_offset += buf_len;
-			get_page(nic->rb_page);
-		}
+	if (nic->rb_page &&
+	    ((nic->rb_page_offset + buf_len) < (PAGE_SIZE << order))) {
+		nic->rb_pageref++;
+		goto ret;
 	}
+
+	nicvf_get_page(nic);
+	nic->rb_page = NULL;
 
 	/* Allocate a new page */
 	if (!nic->rb_page) {
 		nic->rb_page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN,
 					   order);
 		if (!nic->rb_page) {
-			netdev_err(nic->netdev,
-				   "Failed to allocate new rcv buffer\n");
+			nic->drv_stats.rcv_buffer_alloc_failures++;
 			return -ENOMEM;
 		}
 		nic->rb_page_offset = 0;
 	}
 
+ret:
 	*rbuf = (u64 *)((u64)page_address(nic->rb_page) + nic->rb_page_offset);
+	nic->rb_page_offset += buf_len;
 
 	return 0;
 }
@@ -159,6 +168,9 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
 		desc = GET_RBDR_DESC(rbdr, idx);
 		desc->buf_addr = virt_to_phys(rbuf) >> NICVF_RCV_BUF_ALIGN;
 	}
+
+	nicvf_get_page(nic);
+
 	return 0;
 }
 
@@ -241,6 +253,8 @@ refill:
 		refill_rb_cnt--;
 		new_rb++;
 	}
+
+	nicvf_get_page(nic);
 
 	/* make sure all memory stores are done before ringing doorbell */
 	smp_wmb();

@@ -7,8 +7,12 @@ a fibre cable.
 Required properties:
 
 - compatible: should be one of the following:
-   - "rockchip,rk3288-spdif", "rockchip,rk3188-spdif" or
-     "rockchip,rk3066-spdif"
+   - "rockchip,rk3066-spdif"
+   - "rockchip,rk3188-spdif"
+   - "rockchip,rk3288-spdif"
+   - "rockchip,rk3366-spdif"
+   - "rockchip,rk3368-spdif"
+   - "rockchip,rk3399-spdif"
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: should contain the SPDIF interrupt.

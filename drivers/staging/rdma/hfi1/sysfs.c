@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,7 +50,6 @@
 #include "mad.h"
 #include "trace.h"
 
-
 /*
  * Start of per-port congestion control structures and support code
  */
@@ -62,8 +58,8 @@
  * Congestion control table size followed by table entries
  */
 static ssize_t read_cc_table_bin(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *bin_attr,
-		char *buf, loff_t pos, size_t count)
+				 struct bin_attribute *bin_attr,
+				 char *buf, loff_t pos, size_t count)
 {
 	int ret;
 	struct hfi1_pportdata *ppd =
@@ -84,7 +80,7 @@ static ssize_t read_cc_table_bin(struct file *filp, struct kobject *kobj,
 
 	rcu_read_lock();
 	cc_state = get_cc_state(ppd);
-	if (cc_state == NULL) {
+	if (!cc_state) {
 		rcu_read_unlock();
 		return -EINVAL;
 	}
@@ -99,10 +95,6 @@ static void port_release(struct kobject *kobj)
 	/* nothing to do since memory is freed by hfi1_free_devdata() */
 }
 
-static struct kobj_type port_cc_ktype = {
-	.release = port_release,
-};
-
 static struct bin_attribute cc_table_bin_attr = {
 	.attr = {.name = "cc_table_bin", .mode = 0444},
 	.read = read_cc_table_bin,
@@ -115,8 +107,8 @@ static struct bin_attribute cc_table_bin_attr = {
  * trigger threshold and the minimum injection rate delay.
  */
 static ssize_t read_cc_setting_bin(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *bin_attr,
-		char *buf, loff_t pos, size_t count)
+				   struct bin_attribute *bin_attr,
+				   char *buf, loff_t pos, size_t count)
 {
 	int ret;
 	struct hfi1_pportdata *ppd =
@@ -135,7 +127,7 @@ static ssize_t read_cc_setting_bin(struct file *filp, struct kobject *kobj,
 
 	rcu_read_lock();
 	cc_state = get_cc_state(ppd);
-	if (cc_state == NULL) {
+	if (!cc_state) {
 		rcu_read_unlock();
 		return -EINVAL;
 	}
@@ -149,6 +141,68 @@ static struct bin_attribute cc_setting_bin_attr = {
 	.attr = {.name = "cc_settings_bin", .mode = 0444},
 	.read = read_cc_setting_bin,
 	.size = PAGE_SIZE,
+};
+
+struct hfi1_port_attr {
+	struct attribute attr;
+	ssize_t	(*show)(struct hfi1_pportdata *, char *);
+	ssize_t	(*store)(struct hfi1_pportdata *, const char *, size_t);
+};
+
+static ssize_t cc_prescan_show(struct hfi1_pportdata *ppd, char *buf)
+{
+	return sprintf(buf, "%s\n", ppd->cc_prescan ? "on" : "off");
+}
+
+static ssize_t cc_prescan_store(struct hfi1_pportdata *ppd, const char *buf,
+				size_t count)
+{
+	if (!memcmp(buf, "on", 2))
+		ppd->cc_prescan = true;
+	else if (!memcmp(buf, "off", 3))
+		ppd->cc_prescan = false;
+
+	return count;
+}
+
+static struct hfi1_port_attr cc_prescan_attr =
+		__ATTR(cc_prescan, 0600, cc_prescan_show, cc_prescan_store);
+
+static ssize_t cc_attr_show(struct kobject *kobj, struct attribute *attr,
+			    char *buf)
+{
+	struct hfi1_port_attr *port_attr =
+		container_of(attr, struct hfi1_port_attr, attr);
+	struct hfi1_pportdata *ppd =
+		container_of(kobj, struct hfi1_pportdata, pport_cc_kobj);
+
+	return port_attr->show(ppd, buf);
+}
+
+static ssize_t cc_attr_store(struct kobject *kobj, struct attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct hfi1_port_attr *port_attr =
+		container_of(attr, struct hfi1_port_attr, attr);
+	struct hfi1_pportdata *ppd =
+		container_of(kobj, struct hfi1_pportdata, pport_cc_kobj);
+
+	return port_attr->store(ppd, buf, count);
+}
+
+static const struct sysfs_ops port_cc_sysfs_ops = {
+	.show = cc_attr_show,
+	.store = cc_attr_store
+};
+
+static struct attribute *port_cc_default_attributes[] = {
+	&cc_prescan_attr.attr
+};
+
+static struct kobj_type port_cc_ktype = {
+	.release = port_release,
+	.sysfs_ops = &port_cc_sysfs_ops,
+	.default_attrs = port_cc_default_attributes
 };
 
 /* Start sc2vl */
@@ -195,7 +249,6 @@ HFI1_SC2VL_ATTR(28);
 HFI1_SC2VL_ATTR(29);
 HFI1_SC2VL_ATTR(30);
 HFI1_SC2VL_ATTR(31);
-
 
 static struct attribute *sc2vl_default_attributes[] = {
 	&hfi1_sc2vl_attr_0.attr,
@@ -301,7 +354,6 @@ HFI1_SL2SC_ATTR(28);
 HFI1_SL2SC_ATTR(29);
 HFI1_SL2SC_ATTR(30);
 HFI1_SL2SC_ATTR(31);
-
 
 static struct attribute *sl2sc_default_attributes[] = {
 	&hfi1_sl2sc_attr_0.attr,
@@ -435,7 +487,6 @@ static struct kobj_type hfi1_vl2mtu_ktype = {
 	.default_attrs = vl2mtu_default_attributes
 };
 
-
 /* end of per-port file structures and support code */
 
 /*
@@ -446,7 +497,7 @@ static ssize_t show_rev(struct device *device, struct device_attribute *attr,
 			char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, ibdev.dev);
+		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
 
 	return sprintf(buf, "%x\n", dd_from_dev(dev)->minrev);
 }
@@ -455,7 +506,7 @@ static ssize_t show_hfi(struct device *device, struct device_attribute *attr,
 			char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, ibdev.dev);
+		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 	int ret;
 
@@ -470,19 +521,18 @@ static ssize_t show_boardversion(struct device *device,
 				 struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, ibdev.dev);
+		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	/* The string printed here is already newline-terminated. */
 	return scnprintf(buf, PAGE_SIZE, "%s", dd->boardversion);
 }
 
-
 static ssize_t show_nctxts(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, ibdev.dev);
+		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	/*
@@ -497,10 +547,10 @@ static ssize_t show_nctxts(struct device *device,
 }
 
 static ssize_t show_nfreectxts(struct device *device,
-			   struct device_attribute *attr, char *buf)
+			       struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, ibdev.dev);
+		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	/* Return the number of free user ports (contexts) available. */
@@ -511,11 +561,10 @@ static ssize_t show_serial(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, ibdev.dev);
+		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s", dd->serial);
-
 }
 
 static ssize_t store_chip_reset(struct device *device,
@@ -523,7 +572,7 @@ static ssize_t store_chip_reset(struct device *device,
 				size_t count)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, ibdev.dev);
+		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 	int ret;
 
@@ -552,7 +601,7 @@ static ssize_t show_tempsense(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, ibdev.dev);
+		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 	struct hfi1_temp temp;
 	int ret;
@@ -608,8 +657,8 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 
 	if (!port_num || port_num > dd->num_pports) {
 		dd_dev_err(dd,
-			"Skipping infiniband class with invalid port %u\n",
-			port_num);
+			   "Skipping infiniband class with invalid port %u\n",
+			   port_num);
 		return -ENODEV;
 	}
 	ppd = &dd->pport[port_num - 1];
@@ -644,39 +693,36 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 	}
 	kobject_uevent(&ppd->vl2mtu_kobj, KOBJ_ADD);
 
-
 	ret = kobject_init_and_add(&ppd->pport_cc_kobj, &port_cc_ktype,
 				   kobj, "CCMgtA");
 	if (ret) {
 		dd_dev_err(dd,
-		 "Skipping Congestion Control sysfs info, (err %d) port %u\n",
-		 ret, port_num);
+			   "Skipping Congestion Control sysfs info, (err %d) port %u\n",
+			   ret, port_num);
 		goto bail_vl2mtu;
 	}
 
 	kobject_uevent(&ppd->pport_cc_kobj, KOBJ_ADD);
 
-	ret = sysfs_create_bin_file(&ppd->pport_cc_kobj,
-				&cc_setting_bin_attr);
+	ret = sysfs_create_bin_file(&ppd->pport_cc_kobj, &cc_setting_bin_attr);
 	if (ret) {
 		dd_dev_err(dd,
-		 "Skipping Congestion Control setting sysfs info, (err %d) port %u\n",
-		 ret, port_num);
+			   "Skipping Congestion Control setting sysfs info, (err %d) port %u\n",
+			   ret, port_num);
 		goto bail_cc;
 	}
 
-	ret = sysfs_create_bin_file(&ppd->pport_cc_kobj,
-				&cc_table_bin_attr);
+	ret = sysfs_create_bin_file(&ppd->pport_cc_kobj, &cc_table_bin_attr);
 	if (ret) {
 		dd_dev_err(dd,
-		 "Skipping Congestion Control table sysfs info, (err %d) port %u\n",
-		 ret, port_num);
+			   "Skipping Congestion Control table sysfs info, (err %d) port %u\n",
+			   ret, port_num);
 		goto bail_cc_entry_bin;
 	}
 
 	dd_dev_info(dd,
-		"IB%u: Congestion Control Agent enabled for port %d\n",
-		dd->unit, port_num);
+		    "IB%u: Congestion Control Agent enabled for port %d\n",
+		    dd->unit, port_num);
 
 	return 0;
 
@@ -700,7 +746,7 @@ bail:
  */
 int hfi1_verbs_register_sysfs(struct hfi1_devdata *dd)
 {
-	struct ib_device *dev = &dd->verbs_dev.ibdev;
+	struct ib_device *dev = &dd->verbs_dev.rdi.ibdev;
 	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(hfi1_attributes); ++i) {

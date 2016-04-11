@@ -296,14 +296,14 @@ static inline ssize_t ad7816_set_oti(struct device *dev,
 		dev_err(dev, "Invalid oti channel id %d.\n", chip->channel_id);
 		return -EINVAL;
 	} else if (chip->channel_id == 0) {
-		if (ret || value < AD7816_BOUND_VALUE_MIN ||
+		if (value < AD7816_BOUND_VALUE_MIN ||
 		    value > AD7816_BOUND_VALUE_MAX)
 			return -EINVAL;
 
 		data = (u8)(value - AD7816_BOUND_VALUE_MIN +
 			AD7816_BOUND_VALUE_BASE);
 	} else {
-		if (ret || value < AD7816_BOUND_VALUE_BASE || value > 255)
+		if (value < AD7816_BOUND_VALUE_BASE || value > 255)
 			return -EINVAL;
 
 		data = (u8)value;

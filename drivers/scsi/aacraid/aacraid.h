@@ -62,7 +62,7 @@ enum {
 #define	PMC_GLOBAL_INT_BIT0		0x00000001
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 41010
+# define AAC_DRIVER_BUILD 41052
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -93,6 +93,13 @@ enum {
 
 #define aac_phys_to_logical(x)  ((x)+1)
 #define aac_logical_to_phys(x)  ((x)?(x)-1:0)
+
+/*
+ * These macros are for keeping track of
+ * character device state.
+ */
+#define AAC_CHARDEV_UNREGISTERED	(-1)
+#define AAC_CHARDEV_NEEDS_REINIT	(-2)
 
 /* #define AAC_DETAILED_STATUS_INFO */
 
@@ -944,6 +951,7 @@ struct fib {
 	 */
 	struct list_head	fiblink;
 	void			*data;
+	u32			vector_no;
 	struct hw_fib		*hw_fib_va;		/* Actual shared object */
 	dma_addr_t		hw_fib_pa;		/* physical address of hw_fib*/
 };
@@ -1123,6 +1131,7 @@ struct aac_dev
 	struct fib		*free_fib;
 	spinlock_t		fib_lock;
 
+	struct mutex		ioctl_mutex;
 	struct aac_queue_block *queues;
 	/*
 	 *	The user API will use an IOCTL to register itself to receive
@@ -1234,6 +1243,7 @@ struct aac_dev
 	struct msix_entry	msixentry[AAC_MAX_MSIX];
 	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
 	u8			adapter_shutdown;
+	u32			handle_pci_error;
 };
 
 #define aac_adapter_interrupt(dev) \
@@ -2113,7 +2123,9 @@ static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
 const char *aac_driverinfo(struct Scsi_Host *);
+void aac_fib_vector_assign(struct aac_dev *dev);
 struct fib *aac_fib_alloc(struct aac_dev *dev);
+struct fib *aac_fib_alloc_tag(struct aac_dev *dev, struct scsi_cmnd *scmd);
 int aac_fib_setup(struct aac_dev *dev);
 void aac_fib_map_free(struct aac_dev *dev);
 void aac_fib_free(struct fib * context);

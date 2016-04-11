@@ -52,7 +52,7 @@ device_initcall(puv3_gpio_leds_init);
 
 static int puv3_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	return readl(GPIO_GPLR) & GPIO_GPIO(offset);
+	return !!(readl(GPIO_GPLR) & GPIO_GPIO(offset));
 }
 
 static void puv3_gpio_set(struct gpio_chip *chip, unsigned offset, int value)

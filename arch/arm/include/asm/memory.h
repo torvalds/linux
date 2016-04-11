@@ -134,6 +134,21 @@
  */
 #define PLAT_PHYS_OFFSET	UL(CONFIG_PHYS_OFFSET)
 
+#ifdef CONFIG_XIP_KERNEL
+/*
+ * When referencing data in RAM from the XIP region in a relative manner
+ * with the MMU off, we need the relative offset between the two physical
+ * addresses.  The macro below achieves this, which is:
+ *    __pa(v_data) - __xip_pa(v_text)
+ */
+#define PHYS_RELATIVE(v_data, v_text) \
+	(((v_data) - PAGE_OFFSET + PLAT_PHYS_OFFSET) - \
+	 ((v_text) - XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR) + \
+          CONFIG_XIP_PHYS_ADDR))
+#else
+#define PHYS_RELATIVE(v_data, v_text) ((v_data) - (v_text))
+#endif
+
 #ifndef __ASSEMBLY__
 
 /*
@@ -273,14 +288,14 @@ static inline void *phys_to_virt(phys_addr_t x)
 #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
 #define pfn_to_kaddr(pfn)	__va((phys_addr_t)(pfn) << PAGE_SHIFT)
 
-extern phys_addr_t (*arch_virt_to_idmap)(unsigned long x);
+extern unsigned long (*arch_virt_to_idmap)(unsigned long x);
 
 /*
  * These are for systems that have a hardware interconnect supported alias of
  * physical memory for idmap purposes.  Most cases should leave these
- * untouched.
+ * untouched.  Note: this can only return addresses less than 4GiB.
  */
-static inline phys_addr_t __virt_to_idmap(unsigned long x)
+static inline unsigned long __virt_to_idmap(unsigned long x)
 {
 	if (IS_ENABLED(CONFIG_MMU) && arch_virt_to_idmap)
 		return arch_virt_to_idmap(x);
@@ -301,20 +316,6 @@ static inline phys_addr_t __virt_to_idmap(unsigned long x)
 #define __bus_to_virt	__phys_to_virt
 #define __pfn_to_bus(x)	__pfn_to_phys(x)
 #define __bus_to_pfn(x)	__phys_to_pfn(x)
-#endif
-
-#ifdef CONFIG_VIRT_TO_BUS
-#define virt_to_bus virt_to_bus
-static inline __deprecated unsigned long virt_to_bus(void *x)
-{
-	return __virt_to_bus((unsigned long)x);
-}
-
-#define bus_to_virt bus_to_virt
-static inline __deprecated void *bus_to_virt(unsigned long x)
-{
-	return (void *)__bus_to_virt(x);
-}
 #endif
 
 /*

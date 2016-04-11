@@ -1,9 +1,10 @@
-/* sunxvr1000.c: Sun XVR-1000 driver for sparc64 systems
+/* sunxvr1000.c: Sun XVR-1000 fb driver for sparc64 systems
+ *
+ * License: GPL
  *
  * Copyright (C) 2010 David S. Miller (davem@davemloft.net)
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/init.h>
@@ -173,36 +174,19 @@ err_out:
 	return err;
 }
 
-static int gfb_remove(struct platform_device *op)
-{
-	struct fb_info *info = dev_get_drvdata(&op->dev);
-	struct gfb_info *gp = info->par;
-
-	unregister_framebuffer(info);
-
-	iounmap(gp->fb_base);
-
-	of_iounmap(&op->resource[6], gp->fb_base, gp->fb_size);
-
-        framebuffer_release(info);
-
-	return 0;
-}
-
 static const struct of_device_id gfb_match[] = {
 	{
 		.name = "SUNW,gfb",
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, ffb_match);
 
 static struct platform_driver gfb_driver = {
 	.probe		= gfb_probe,
-	.remove		= gfb_remove,
 	.driver = {
-		.name		= "gfb",
-		.of_match_table	= gfb_match,
+		.name			= "gfb",
+		.of_match_table		= gfb_match,
+		.suppress_bind_attrs	= true,
 	},
 };
 
@@ -213,16 +197,4 @@ static int __init gfb_init(void)
 
 	return platform_driver_register(&gfb_driver);
 }
-
-static void __exit gfb_exit(void)
-{
-	platform_driver_unregister(&gfb_driver);
-}
-
-module_init(gfb_init);
-module_exit(gfb_exit);
-
-MODULE_DESCRIPTION("framebuffer driver for Sun XVR-1000 graphics");
-MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
-MODULE_VERSION("1.0");
-MODULE_LICENSE("GPL");
+device_initcall(gfb_init);

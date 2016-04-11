@@ -94,7 +94,7 @@ struct dma_buf_ops {
 	void (*release)(struct dma_buf *);
 
 	int (*begin_cpu_access)(struct dma_buf *, enum dma_data_direction);
-	void (*end_cpu_access)(struct dma_buf *, enum dma_data_direction);
+	int (*end_cpu_access)(struct dma_buf *, enum dma_data_direction);
 	void *(*kmap_atomic)(struct dma_buf *, unsigned long);
 	void (*kunmap_atomic)(struct dma_buf *, unsigned long, void *);
 	void *(*kmap)(struct dma_buf *, unsigned long);
@@ -224,8 +224,8 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
 				enum dma_data_direction);
 int dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
 			     enum dma_data_direction dir);
-void dma_buf_end_cpu_access(struct dma_buf *dma_buf,
-			    enum dma_data_direction dir);
+int dma_buf_end_cpu_access(struct dma_buf *dma_buf,
+			   enum dma_data_direction dir);
 void *dma_buf_kmap_atomic(struct dma_buf *, unsigned long);
 void dma_buf_kunmap_atomic(struct dma_buf *, unsigned long, void *);
 void *dma_buf_kmap(struct dma_buf *, unsigned long);

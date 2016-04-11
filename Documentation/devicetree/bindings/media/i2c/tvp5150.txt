@@ -12,32 +12,6 @@ Optional Properties:
 - pdn-gpios: phandle for the GPIO connected to the PDN pin, if any.
 - reset-gpios: phandle for the GPIO connected to the RESETB pin, if any.
 
-Optional nodes:
-- connectors: The input connectors of tvp5150 have to be defined under
-  a subnode name "connectors" using the following format:
-
-	input-connector-name {
-		input connector properties
-	};
-
-Each input connector must contain the following properties:
-
-	- label: a name for the connector.
-	- input: the input connector.
-
-The possible values for the "input" property are:
-	0: Composite0
-	1: Composite1
-	2: S-Video
-
-and on a tvp5150am1 and tvp5151 there is another:
-	4: Signal generator
-
-The list of valid input connectors are defined in dt-bindings/media/tvp5150.h
-header file and can be included by device tree source files.
-
-Each input connector can be defined only once.
-
 The device node must contain one 'port' child node for its digital output
 video port, in accordance with the video interface bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt.
@@ -61,23 +35,6 @@ Example:
 		reg = <0x5c>;
 		pdn-gpios = <&gpio4 30 GPIO_ACTIVE_LOW>;
 		reset-gpios = <&gpio6 7 GPIO_ACTIVE_LOW>;
-
-		connectors {
-			composite0 {
-				label = "Composite0";
-				input = <TVP5150_COMPOSITE0>;
-			};
-
-			composite1 {
-				label = "Composite1";
-				input = <TVP5150_COMPOSITE1>;
-			};
-
-			s-video {
-				label = "S-Video";
-				input = <TVP5150_SVIDEO>;
-			};
-		};
 
 		port {
 			tvp5150_1: endpoint {

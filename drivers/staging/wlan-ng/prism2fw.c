@@ -333,6 +333,10 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 
 	/* Make the image chunks */
 	result = mkimage(fchunk, &nfchunks);
+	if (result) {
+		netdev_err(wlandev->netdev, "Failed to make image chunk.\n");
+		return 1;
+	}
 
 	/* Do any plugging */
 	result = plugimage(fchunk, nfchunks, s3plug, ns3plug, &pda);
@@ -538,7 +542,7 @@ static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 	/* Allocate buffer space for chunks */
 	for (i = 0; i < *ccnt; i++) {
 		clist[i].data = kzalloc(clist[i].len, GFP_KERNEL);
-		if (clist[i].data == NULL) {
+		if (!clist[i].data) {
 			pr_err("failed to allocate image space, exitting.\n");
 			return 1;
 		}

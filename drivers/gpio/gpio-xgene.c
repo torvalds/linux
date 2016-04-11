@@ -173,6 +173,11 @@ static int xgene_gpio_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		err = -EINVAL;
+		goto err;
+	}
+
 	gpio->base = devm_ioremap_nocache(&pdev->dev, res->start,
 							resource_size(res));
 	if (!gpio->base) {
@@ -193,7 +198,7 @@ static int xgene_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gpio);
 
-	err = gpiochip_add_data(&gpio->chip, gpio);
+	err = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (err) {
 		dev_err(&pdev->dev,
 			"failed to register gpiochip.\n");
@@ -205,14 +210,6 @@ static int xgene_gpio_probe(struct platform_device *pdev)
 err:
 	dev_err(&pdev->dev, "X-Gene GPIO driver registration failed.\n");
 	return err;
-}
-
-static int xgene_gpio_remove(struct platform_device *pdev)
-{
-	struct xgene_gpio *gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&gpio->chip);
-	return 0;
 }
 
 static const struct of_device_id xgene_gpio_of_match[] = {
@@ -228,7 +225,6 @@ static struct platform_driver xgene_gpio_driver = {
 		.pm     = XGENE_GPIO_PM_OPS,
 	},
 	.probe = xgene_gpio_probe,
-	.remove = xgene_gpio_remove,
 };
 
 module_platform_driver(xgene_gpio_driver);

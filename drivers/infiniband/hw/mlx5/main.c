@@ -42,6 +42,7 @@
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
+#include <linux/mlx5/port.h>
 #include <linux/mlx5/vport.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_umem.h>
@@ -283,7 +284,7 @@ __be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
 
 static int mlx5_use_mad_ifc(struct mlx5_ib_dev *dev)
 {
-	return !dev->mdev->issi;
+	return !MLX5_CAP_GEN(dev->mdev, ib_virt);
 }
 
 enum {
@@ -487,6 +488,13 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		props->device_cap_flags |= IB_DEVICE_AUTO_PATH_MIG;
 	if (MLX5_CAP_GEN(mdev, xrc))
 		props->device_cap_flags |= IB_DEVICE_XRC;
+	if (MLX5_CAP_GEN(mdev, imaicl)) {
+		props->device_cap_flags |= IB_DEVICE_MEM_WINDOW |
+					   IB_DEVICE_MEM_WINDOW_TYPE_2B;
+		props->max_mw = 1 << MLX5_CAP_GEN(mdev, log_max_mkey);
+		/* We support 'Gappy' memory registration too */
+		props->device_cap_flags |= IB_DEVICE_SG_GAPS_REG;
+	}
 	props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 	if (MLX5_CAP_GEN(mdev, sho)) {
 		props->device_cap_flags |= IB_DEVICE_SIGNATURE_HANDOVER;
@@ -503,6 +511,11 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	if (MLX5_CAP_GEN(dev->mdev, eth_net_offloads) &&
 	    (MLX5_CAP_ETH(dev->mdev, csum_cap)))
 			props->device_cap_flags |= IB_DEVICE_RAW_IP_CSUM;
+
+	if (MLX5_CAP_GEN(mdev, ipoib_basic_offloads)) {
+		props->device_cap_flags |= IB_DEVICE_UD_IP_CSUM;
+		props->device_cap_flags |= IB_DEVICE_UD_TSO;
+	}
 
 	props->vendor_part_id	   = mdev->pdev->device;
 	props->hw_ver		   = mdev->pdev->revision;
@@ -529,7 +542,8 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->local_ca_ack_delay  = MLX5_CAP_GEN(mdev, local_ca_ack_delay);
 	props->max_res_rd_atom	   = props->max_qp_rd_atom * props->max_qp;
 	props->max_srq_sge	   = max_rq_sg - 1;
-	props->max_fast_reg_page_list_len = (unsigned int)-1;
+	props->max_fast_reg_page_list_len =
+		1 << MLX5_CAP_GEN(mdev, log_max_klm_list_size);
 	get_atomic_caps(dev, props);
 	props->masked_atomic_cap   = IB_ATOMIC_NONE;
 	props->max_mcast_grp	   = 1 << MLX5_CAP_GEN(mdev, log_max_mcg);
@@ -548,6 +562,9 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 
 	if (MLX5_CAP_GEN(mdev, cd))
 		props->device_cap_flags |= IB_DEVICE_CROSS_CHANNEL;
+
+	if (!mlx5_core_is_pf(mdev))
+		props->device_cap_flags |= IB_DEVICE_VIRTUAL_FUNCTION;
 
 	return 0;
 }
@@ -686,6 +703,7 @@ static int mlx5_query_hca_port(struct ib_device *ibdev, u8 port,
 	props->qkey_viol_cntr	= rep->qkey_violation_counter;
 	props->subnet_timeout	= rep->subnet_timeout;
 	props->init_type_reply	= rep->init_type_reply;
+	props->grh_required	= rep->grh_required;
 
 	err = mlx5_query_port_link_width_oper(mdev, &ib_link_width_oper, port);
 	if (err)
@@ -1369,11 +1387,20 @@ static int mlx5_ib_destroy_flow(struct ib_flow *flow_id)
 	return 0;
 }
 
+static int ib_prio_to_core_prio(unsigned int priority, bool dont_trap)
+{
+	priority *= 2;
+	if (!dont_trap)
+		priority++;
+	return priority;
+}
+
 #define MLX5_FS_MAX_TYPES	 10
 #define MLX5_FS_MAX_ENTRIES	 32000UL
 static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 						struct ib_flow_attr *flow_attr)
 {
+	bool dont_trap = flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP;
 	struct mlx5_flow_namespace *ns = NULL;
 	struct mlx5_ib_flow_prio *prio;
 	struct mlx5_flow_table *ft;
@@ -1383,10 +1410,12 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 	int err = 0;
 
 	if (flow_attr->type == IB_FLOW_ATTR_NORMAL) {
-		if (flow_is_multicast_only(flow_attr))
+		if (flow_is_multicast_only(flow_attr) &&
+		    !dont_trap)
 			priority = MLX5_IB_FLOW_MCAST_PRIO;
 		else
-			priority = flow_attr->priority;
+			priority = ib_prio_to_core_prio(flow_attr->priority,
+							dont_trap);
 		ns = mlx5_get_flow_namespace(dev->mdev,
 					     MLX5_FLOW_NAMESPACE_BYPASS);
 		num_entries = MLX5_FS_MAX_ENTRIES;
@@ -1434,6 +1463,7 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	unsigned int spec_index;
 	u32 *match_c;
 	u32 *match_v;
+	u32 action;
 	int err = 0;
 
 	if (!is_valid_attr(flow_attr))
@@ -1459,9 +1489,11 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 
 	/* Outer header support only */
 	match_criteria_enable = (!outer_header_zero(match_c)) << 0;
+	action = dst ? MLX5_FLOW_CONTEXT_ACTION_FWD_DEST :
+		MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
 	handler->rule = mlx5_add_flow_rule(ft, match_criteria_enable,
 					   match_c, match_v,
-					   MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+					   action,
 					   MLX5_FS_DEFAULT_FLOW_TAG,
 					   dst);
 
@@ -1481,6 +1513,29 @@ free:
 	return err ? ERR_PTR(err) : handler;
 }
 
+static struct mlx5_ib_flow_handler *create_dont_trap_rule(struct mlx5_ib_dev *dev,
+							  struct mlx5_ib_flow_prio *ft_prio,
+							  struct ib_flow_attr *flow_attr,
+							  struct mlx5_flow_destination *dst)
+{
+	struct mlx5_ib_flow_handler *handler_dst = NULL;
+	struct mlx5_ib_flow_handler *handler = NULL;
+
+	handler = create_flow_rule(dev, ft_prio, flow_attr, NULL);
+	if (!IS_ERR(handler)) {
+		handler_dst = create_flow_rule(dev, ft_prio,
+					       flow_attr, dst);
+		if (IS_ERR(handler_dst)) {
+			mlx5_del_flow_rule(handler->rule);
+			kfree(handler);
+			handler = handler_dst;
+		} else {
+			list_add(&handler_dst->list, &handler->list);
+		}
+	}
+
+	return handler;
+}
 enum {
 	LEFTOVERS_MC,
 	LEFTOVERS_UC,
@@ -1558,7 +1613,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 
 	if (domain != IB_FLOW_DOMAIN_USER ||
 	    flow_attr->port > MLX5_CAP_GEN(dev->mdev, num_ports) ||
-	    flow_attr->flags)
+	    (flow_attr->flags & ~IB_FLOW_ATTR_FLAGS_DONT_TRAP))
 		return ERR_PTR(-EINVAL);
 
 	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
@@ -1577,8 +1632,13 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 	dst->tir_num = to_mqp(qp)->raw_packet_qp.rq.tirn;
 
 	if (flow_attr->type == IB_FLOW_ATTR_NORMAL) {
-		handler = create_flow_rule(dev, ft_prio, flow_attr,
-					   dst);
+		if (flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP)  {
+			handler = create_dont_trap_rule(dev, ft_prio,
+							flow_attr, dst);
+		} else {
+			handler = create_flow_rule(dev, ft_prio, flow_attr,
+						   dst);
+		}
 	} else if (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
 		   flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT) {
 		handler = create_leftovers_rule(dev, ft_prio, flow_attr,
@@ -1716,6 +1776,17 @@ static struct device_attribute *mlx5_class_attributes[] = {
 	&dev_attr_reg_pages,
 };
 
+static void pkey_change_handler(struct work_struct *work)
+{
+	struct mlx5_ib_port_resources *ports =
+		container_of(work, struct mlx5_ib_port_resources,
+			     pkey_change_work);
+
+	mutex_lock(&ports->devr->mutex);
+	mlx5_ib_gsi_pkey_change(ports->gsi);
+	mutex_unlock(&ports->devr->mutex);
+}
+
 static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 			  enum mlx5_dev_event event, unsigned long param)
 {
@@ -1752,6 +1823,8 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 	case MLX5_DEV_EVENT_PKEY_CHANGE:
 		ibev.event = IB_EVENT_PKEY_CHANGE;
 		port = (u8)param;
+
+		schedule_work(&ibdev->devr.ports[port - 1].pkey_change_work);
 		break;
 
 	case MLX5_DEV_EVENT_GUID_CHANGE:
@@ -1838,7 +1911,7 @@ static void destroy_umrc_res(struct mlx5_ib_dev *dev)
 		mlx5_ib_warn(dev, "mr cache cleanup failed\n");
 
 	mlx5_ib_destroy_qp(dev->umrc.qp);
-	ib_destroy_cq(dev->umrc.cq);
+	ib_free_cq(dev->umrc.cq);
 	ib_dealloc_pd(dev->umrc.pd);
 }
 
@@ -1853,7 +1926,6 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 	struct ib_pd *pd;
 	struct ib_cq *cq;
 	struct ib_qp *qp;
-	struct ib_cq_init_attr cq_attr = {};
 	int ret;
 
 	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
@@ -1870,15 +1942,12 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 		goto error_0;
 	}
 
-	cq_attr.cqe = 128;
-	cq = ib_create_cq(&dev->ib_dev, mlx5_umr_cq_handler, NULL, NULL,
-			  &cq_attr);
+	cq = ib_alloc_cq(&dev->ib_dev, NULL, 128, 0, IB_POLL_SOFTIRQ);
 	if (IS_ERR(cq)) {
 		mlx5_ib_dbg(dev, "Couldn't create CQ for sync UMR QP\n");
 		ret = PTR_ERR(cq);
 		goto error_2;
 	}
-	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 
 	init_attr->send_cq = cq;
 	init_attr->recv_cq = cq;
@@ -1945,7 +2014,7 @@ error_4:
 	mlx5_ib_destroy_qp(qp);
 
 error_3:
-	ib_destroy_cq(cq);
+	ib_free_cq(cq);
 
 error_2:
 	ib_dealloc_pd(pd);
@@ -1961,9 +2030,12 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	struct ib_srq_init_attr attr;
 	struct mlx5_ib_dev *dev;
 	struct ib_cq_init_attr cq_attr = {.cqe = 1};
+	int port;
 	int ret = 0;
 
 	dev = container_of(devr, struct mlx5_ib_dev, devr);
+
+	mutex_init(&devr->mutex);
 
 	devr->p0 = mlx5_ib_alloc_pd(&dev->ib_dev, NULL, NULL);
 	if (IS_ERR(devr->p0)) {
@@ -2052,6 +2124,12 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	atomic_inc(&devr->p0->usecnt);
 	atomic_set(&devr->s0->usecnt, 0);
 
+	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port) {
+		INIT_WORK(&devr->ports[port].pkey_change_work,
+			  pkey_change_handler);
+		devr->ports[port].devr = devr;
+	}
+
 	return 0;
 
 error5:
@@ -2070,12 +2148,20 @@ error0:
 
 static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 {
+	struct mlx5_ib_dev *dev =
+		container_of(devr, struct mlx5_ib_dev, devr);
+	int port;
+
 	mlx5_ib_destroy_srq(devr->s1);
 	mlx5_ib_destroy_srq(devr->s0);
 	mlx5_ib_dealloc_xrcd(devr->x0);
 	mlx5_ib_dealloc_xrcd(devr->x1);
 	mlx5_ib_destroy_cq(devr->c0);
 	mlx5_ib_dealloc_pd(devr->p0);
+
+	/* Make sure no change P_Key work items are still executing */
+	for (port = 0; port < dev->num_ports; ++port)
+		cancel_work_sync(&devr->ports[port].pkey_change_work);
 }
 
 static u32 get_core_cap_flags(struct ib_device *ibdev)
@@ -2198,6 +2284,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		(1ull << IB_USER_VERBS_CMD_ALLOC_PD)		|
 		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)		|
 		(1ull << IB_USER_VERBS_CMD_REG_MR)		|
+		(1ull << IB_USER_VERBS_CMD_REREG_MR)		|
 		(1ull << IB_USER_VERBS_CMD_DEREG_MR)		|
 		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL)	|
 		(1ull << IB_USER_VERBS_CMD_CREATE_CQ)		|
@@ -2258,6 +2345,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.req_notify_cq	= mlx5_ib_arm_cq;
 	dev->ib_dev.get_dma_mr		= mlx5_ib_get_dma_mr;
 	dev->ib_dev.reg_user_mr		= mlx5_ib_reg_user_mr;
+	dev->ib_dev.rereg_user_mr	= mlx5_ib_rereg_user_mr;
 	dev->ib_dev.dereg_mr		= mlx5_ib_dereg_mr;
 	dev->ib_dev.attach_mcast	= mlx5_ib_mcg_attach;
 	dev->ib_dev.detach_mcast	= mlx5_ib_mcg_detach;
@@ -2266,8 +2354,22 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.map_mr_sg		= mlx5_ib_map_mr_sg;
 	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
 	dev->ib_dev.get_port_immutable  = mlx5_port_immutable;
+	if (mlx5_core_is_pf(mdev)) {
+		dev->ib_dev.get_vf_config	= mlx5_ib_get_vf_config;
+		dev->ib_dev.set_vf_link_state	= mlx5_ib_set_vf_link_state;
+		dev->ib_dev.get_vf_stats	= mlx5_ib_get_vf_stats;
+		dev->ib_dev.set_vf_guid		= mlx5_ib_set_vf_guid;
+	}
 
 	mlx5_ib_internal_fill_odp_caps(dev);
+
+	if (MLX5_CAP_GEN(mdev, imaicl)) {
+		dev->ib_dev.alloc_mw		= mlx5_ib_alloc_mw;
+		dev->ib_dev.dealloc_mw		= mlx5_ib_dealloc_mw;
+		dev->ib_dev.uverbs_cmd_mask |=
+			(1ull << IB_USER_VERBS_CMD_ALLOC_MW)	|
+			(1ull << IB_USER_VERBS_CMD_DEALLOC_MW);
+	}
 
 	if (MLX5_CAP_GEN(mdev, xrc)) {
 		dev->ib_dev.alloc_xrcd = mlx5_ib_alloc_xrcd;

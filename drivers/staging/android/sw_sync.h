@@ -29,7 +29,7 @@ struct sw_sync_timeline {
 };
 
 struct sw_sync_pt {
-	struct sync_pt		pt;
+	struct fence		pt;
 
 	u32			value;
 };
@@ -38,7 +38,7 @@ struct sw_sync_pt {
 struct sw_sync_timeline *sw_sync_timeline_create(const char *name);
 void sw_sync_timeline_inc(struct sw_sync_timeline *obj, u32 inc);
 
-struct sync_pt *sw_sync_pt_create(struct sw_sync_timeline *obj, u32 value);
+struct fence *sw_sync_pt_create(struct sw_sync_timeline *obj, u32 value);
 #else
 static inline struct sw_sync_timeline *sw_sync_timeline_create(const char *name)
 {
@@ -49,8 +49,8 @@ static inline void sw_sync_timeline_inc(struct sw_sync_timeline *obj, u32 inc)
 {
 }
 
-static inline struct sync_pt *sw_sync_pt_create(struct sw_sync_timeline *obj,
-						u32 value)
+static inline struct fence *sw_sync_pt_create(struct sw_sync_timeline *obj,
+					      u32 value)
 {
 	return NULL;
 }

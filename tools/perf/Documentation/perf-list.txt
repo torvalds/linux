@@ -40,10 +40,12 @@ address should be. The 'p' modifier can be specified multiple times:
  0 - SAMPLE_IP can have arbitrary skid
  1 - SAMPLE_IP must have constant skid
  2 - SAMPLE_IP requested to have 0 skid
- 3 - SAMPLE_IP must have 0 skid
+ 3 - SAMPLE_IP must have 0 skid, or uses randomization to avoid
+     sample shadowing effects.
 
 For Intel systems precise event sampling is implemented with PEBS
-which supports up to precise-level 2.
+which supports up to precise-level 2, and precise level 3 for
+some special cases
 
 On AMD systems it is implemented using IBS (up to precise-level 2).
 The precise modifier works with event types 0x76 (cpu-cycles, CPU

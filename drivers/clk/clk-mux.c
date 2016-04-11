@@ -26,8 +26,6 @@
  * parent - parent is adjustable through clk_set_parent
  */
 
-#define to_clk_mux(_hw) container_of(_hw, struct clk_mux, hw)
-
 static u8 clk_mux_get_parent(struct clk_hw *hw)
 {
 	struct clk_mux *mux = to_clk_mux(hw);

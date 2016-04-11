@@ -72,8 +72,13 @@
 #define RSN_AKM_NONE			0	/* None (IBSS) */
 #define RSN_AKM_UNSPECIFIED		1	/* Over 802.1x */
 #define RSN_AKM_PSK			2	/* Pre-shared Key */
+#define RSN_AKM_SHA256_1X		5	/* SHA256, 802.1X */
+#define RSN_AKM_SHA256_PSK		6	/* SHA256, Pre-shared Key */
 #define RSN_CAP_LEN			2	/* Length of RSN capabilities */
-#define RSN_CAP_PTK_REPLAY_CNTR_MASK	0x000C
+#define RSN_CAP_PTK_REPLAY_CNTR_MASK	(BIT(2) | BIT(3))
+#define RSN_CAP_MFPR_MASK		BIT(6)
+#define RSN_CAP_MFPC_MASK		BIT(7)
+#define RSN_PMKID_COUNT_LEN		2
 
 #define VNDR_IE_CMD_LEN			4	/* length of the set command
 						 * string :"add", "del" (+ NUL)
@@ -211,12 +216,19 @@ static const struct ieee80211_regdomain brcmf_regdom = {
 		REG_RULE(5470-10, 5850+10, 80, 6, 20, 0), }
 };
 
-static const u32 __wl_cipher_suites[] = {
+/* Note: brcmf_cipher_suites is an array of int defining which cipher suites
+ * are supported. A pointer to this array and the number of entries is passed
+ * on to upper layers. AES_CMAC defines whether or not the driver supports MFP.
+ * So the cipher suite AES_CMAC has to be the last one in the array, and when
+ * device does not support MFP then the number of suites will be decreased by 1
+ */
+static const u32 brcmf_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP40,
 	WLAN_CIPHER_SUITE_WEP104,
 	WLAN_CIPHER_SUITE_TKIP,
 	WLAN_CIPHER_SUITE_CCMP,
-	WLAN_CIPHER_SUITE_AES_CMAC,
+	/* Keep as last entry: */
+	WLAN_CIPHER_SUITE_AES_CMAC
 };
 
 /* Vendor specific ie. id = 221, oui and type defines exact ie */
@@ -247,7 +259,7 @@ static u16 chandef_to_chanspec(struct brcmu_d11inf *d11inf,
 	brcmf_dbg(TRACE, "chandef: control %d center %d width %d\n",
 		  ch->chan->center_freq, ch->center_freq1, ch->width);
 	ch_inf.chnum = ieee80211_frequency_to_channel(ch->center_freq1);
-	primary_offset = ch->center_freq1 - ch->chan->center_freq;
+	primary_offset = ch->chan->center_freq - ch->center_freq1;
 	switch (ch->width) {
 	case NL80211_CHAN_WIDTH_20:
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -256,24 +268,21 @@ static u16 chandef_to_chanspec(struct brcmu_d11inf *d11inf,
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		ch_inf.bw = BRCMU_CHAN_BW_40;
-		if (primary_offset < 0)
+		if (primary_offset > 0)
 			ch_inf.sb = BRCMU_CHAN_SB_U;
 		else
 			ch_inf.sb = BRCMU_CHAN_SB_L;
 		break;
 	case NL80211_CHAN_WIDTH_80:
 		ch_inf.bw = BRCMU_CHAN_BW_80;
-		if (primary_offset < 0) {
-			if (primary_offset < -CH_10MHZ_APART)
-				ch_inf.sb = BRCMU_CHAN_SB_UU;
-			else
-				ch_inf.sb = BRCMU_CHAN_SB_UL;
-		} else {
-			if (primary_offset > CH_10MHZ_APART)
-				ch_inf.sb = BRCMU_CHAN_SB_LL;
-			else
-				ch_inf.sb = BRCMU_CHAN_SB_LU;
-		}
+		if (primary_offset == -30)
+			ch_inf.sb = BRCMU_CHAN_SB_LL;
+		else if (primary_offset == -10)
+			ch_inf.sb = BRCMU_CHAN_SB_LU;
+		else if (primary_offset == 10)
+			ch_inf.sb = BRCMU_CHAN_SB_UL;
+		else
+			ch_inf.sb = BRCMU_CHAN_SB_UU;
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
 	case NL80211_CHAN_WIDTH_160:
@@ -459,7 +468,7 @@ send_key_to_dongle(struct brcmf_if *ifp, struct brcmf_wsec_key *key)
 }
 
 static s32
-brcmf_configure_arp_offload(struct brcmf_if *ifp, bool enable)
+brcmf_configure_arp_nd_offload(struct brcmf_if *ifp, bool enable)
 {
 	s32 err;
 	u32 mode;
@@ -486,6 +495,15 @@ brcmf_configure_arp_offload(struct brcmf_if *ifp, bool enable)
 			brcmf_dbg(TRACE, "successfully configured (%d) ARP offload to 0x%x\n",
 				  enable, mode);
 	}
+
+	err = brcmf_fil_iovar_int_set(ifp, "ndoe", enable);
+	if (err) {
+		brcmf_dbg(TRACE, "failed to configure (%d) ND offload err = %d\n",
+			  enable, err);
+		err = 0;
+	} else
+		brcmf_dbg(TRACE, "successfully configured (%d) ND offload to 0x%x\n",
+			  enable, mode);
 
 	return err;
 }
@@ -567,8 +585,8 @@ struct wireless_dev *brcmf_ap_add_vif(struct wiphy *wiphy, const char *name,
 	}
 
 	/* wait for firmware event */
-	err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_ADD,
-						    BRCMF_VIF_EVENT_TIMEOUT);
+	err = brcmf_cfg80211_wait_vif_event(cfg, BRCMF_E_IF_ADD,
+					    BRCMF_VIF_EVENT_TIMEOUT);
 	brcmf_cfg80211_arm_vif_event(cfg, NULL);
 	if (!err) {
 		brcmf_err("timeout occurred\n");
@@ -1128,7 +1146,7 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 
 	/* Arm scan timeout timer */
 	mod_timer(&cfg->escan_timeout, jiffies +
-			WL_ESCAN_TIMER_INTERVAL_MS * HZ / 1000);
+			BRCMF_ESCAN_TIMER_INTERVAL_MS * HZ / 1000);
 
 	return 0;
 
@@ -1527,7 +1545,7 @@ static s32 brcmf_set_auth_type(struct net_device *ndev,
 
 static s32
 brcmf_set_wsec_mode(struct net_device *ndev,
-		     struct cfg80211_connect_params *sme, bool mfp)
+		    struct cfg80211_connect_params *sme)
 {
 	struct brcmf_cfg80211_profile *profile = ndev_to_prof(ndev);
 	struct brcmf_cfg80211_security *sec;
@@ -1586,10 +1604,7 @@ brcmf_set_wsec_mode(struct net_device *ndev,
 	    sme->privacy)
 		pval = AES_ENABLED;
 
-	if (mfp)
-		wsec = pval | gval | MFP_CAPABLE;
-	else
-		wsec = pval | gval;
+	wsec = pval | gval;
 	err = brcmf_fil_bsscfg_int_set(netdev_priv(ndev), "wsec", wsec);
 	if (err) {
 		brcmf_err("error (%d)\n", err);
@@ -1606,56 +1621,100 @@ brcmf_set_wsec_mode(struct net_device *ndev,
 static s32
 brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 {
-	struct brcmf_cfg80211_profile *profile = ndev_to_prof(ndev);
-	struct brcmf_cfg80211_security *sec;
-	s32 val = 0;
-	s32 err = 0;
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	s32 val;
+	s32 err;
+	const struct brcmf_tlv *rsn_ie;
+	const u8 *ie;
+	u32 ie_len;
+	u32 offset;
+	u16 rsn_cap;
+	u32 mfp;
+	u16 count;
 
-	if (sme->crypto.n_akm_suites) {
-		err = brcmf_fil_bsscfg_int_get(netdev_priv(ndev),
-					       "wpa_auth", &val);
-		if (err) {
-			brcmf_err("could not get wpa_auth (%d)\n", err);
-			return err;
-		}
-		if (val & (WPA_AUTH_PSK | WPA_AUTH_UNSPECIFIED)) {
-			switch (sme->crypto.akm_suites[0]) {
-			case WLAN_AKM_SUITE_8021X:
-				val = WPA_AUTH_UNSPECIFIED;
-				break;
-			case WLAN_AKM_SUITE_PSK:
-				val = WPA_AUTH_PSK;
-				break;
-			default:
-				brcmf_err("invalid cipher group (%d)\n",
-					  sme->crypto.cipher_group);
-				return -EINVAL;
-			}
-		} else if (val & (WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED)) {
-			switch (sme->crypto.akm_suites[0]) {
-			case WLAN_AKM_SUITE_8021X:
-				val = WPA2_AUTH_UNSPECIFIED;
-				break;
-			case WLAN_AKM_SUITE_PSK:
-				val = WPA2_AUTH_PSK;
-				break;
-			default:
-				brcmf_err("invalid cipher group (%d)\n",
-					  sme->crypto.cipher_group);
-				return -EINVAL;
-			}
-		}
+	if (!sme->crypto.n_akm_suites)
+		return 0;
 
-		brcmf_dbg(CONN, "setting wpa_auth to %d\n", val);
-		err = brcmf_fil_bsscfg_int_set(netdev_priv(ndev),
-					       "wpa_auth", val);
-		if (err) {
-			brcmf_err("could not set wpa_auth (%d)\n", err);
-			return err;
+	err = brcmf_fil_bsscfg_int_get(netdev_priv(ndev), "wpa_auth", &val);
+	if (err) {
+		brcmf_err("could not get wpa_auth (%d)\n", err);
+		return err;
+	}
+	if (val & (WPA_AUTH_PSK | WPA_AUTH_UNSPECIFIED)) {
+		switch (sme->crypto.akm_suites[0]) {
+		case WLAN_AKM_SUITE_8021X:
+			val = WPA_AUTH_UNSPECIFIED;
+			break;
+		case WLAN_AKM_SUITE_PSK:
+			val = WPA_AUTH_PSK;
+			break;
+		default:
+			brcmf_err("invalid cipher group (%d)\n",
+				  sme->crypto.cipher_group);
+			return -EINVAL;
+		}
+	} else if (val & (WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED)) {
+		switch (sme->crypto.akm_suites[0]) {
+		case WLAN_AKM_SUITE_8021X:
+			val = WPA2_AUTH_UNSPECIFIED;
+			break;
+		case WLAN_AKM_SUITE_8021X_SHA256:
+			val = WPA2_AUTH_1X_SHA256;
+			break;
+		case WLAN_AKM_SUITE_PSK_SHA256:
+			val = WPA2_AUTH_PSK_SHA256;
+			break;
+		case WLAN_AKM_SUITE_PSK:
+			val = WPA2_AUTH_PSK;
+			break;
+		default:
+			brcmf_err("invalid cipher group (%d)\n",
+				  sme->crypto.cipher_group);
+			return -EINVAL;
 		}
 	}
-	sec = &profile->sec;
-	sec->wpa_auth = sme->crypto.akm_suites[0];
+
+	if (!brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MFP))
+		goto skip_mfp_config;
+	/* The MFP mode (1 or 2) needs to be determined, parse IEs. The
+	 * IE will not be verified, just a quick search for MFP config
+	 */
+	rsn_ie = brcmf_parse_tlvs((const u8 *)sme->ie, sme->ie_len,
+				  WLAN_EID_RSN);
+	if (!rsn_ie)
+		goto skip_mfp_config;
+	ie = (const u8 *)rsn_ie;
+	ie_len = rsn_ie->len + TLV_HDR_LEN;
+	/* Skip unicast suite */
+	offset = TLV_HDR_LEN + WPA_IE_VERSION_LEN + WPA_IE_MIN_OUI_LEN;
+	if (offset + WPA_IE_SUITE_COUNT_LEN >= ie_len)
+		goto skip_mfp_config;
+	/* Skip multicast suite */
+	count = ie[offset] + (ie[offset + 1] << 8);
+	offset += WPA_IE_SUITE_COUNT_LEN + (count * WPA_IE_MIN_OUI_LEN);
+	if (offset + WPA_IE_SUITE_COUNT_LEN >= ie_len)
+		goto skip_mfp_config;
+	/* Skip auth key management suite(s) */
+	count = ie[offset] + (ie[offset + 1] << 8);
+	offset += WPA_IE_SUITE_COUNT_LEN + (count * WPA_IE_MIN_OUI_LEN);
+	if (offset + WPA_IE_SUITE_COUNT_LEN > ie_len)
+		goto skip_mfp_config;
+	/* Ready to read capabilities */
+	mfp = BRCMF_MFP_NONE;
+	rsn_cap = ie[offset] + (ie[offset + 1] << 8);
+	if (rsn_cap & RSN_CAP_MFPR_MASK)
+		mfp = BRCMF_MFP_REQUIRED;
+	else if (rsn_cap & RSN_CAP_MFPC_MASK)
+		mfp = BRCMF_MFP_CAPABLE;
+	brcmf_fil_bsscfg_int_set(netdev_priv(ndev), "mfp", mfp);
+
+skip_mfp_config:
+	brcmf_dbg(CONN, "setting wpa_auth to %d\n", val);
+	err = brcmf_fil_bsscfg_int_set(netdev_priv(ndev), "wpa_auth", val);
+	if (err) {
+		brcmf_err("could not set wpa_auth (%d)\n", err);
+		return err;
+	}
 
 	return err;
 }
@@ -1821,7 +1880,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		goto done;
 	}
 
-	err = brcmf_set_wsec_mode(ndev, sme, sme->mfp == NL80211_MFP_REQUIRED);
+	err = brcmf_set_wsec_mode(ndev, sme);
 	if (err) {
 		brcmf_err("wl_set_set_cipher failed (%d)\n", err);
 		goto done;
@@ -2067,98 +2126,54 @@ done:
 }
 
 static s32
-brcmf_add_keyext(struct wiphy *wiphy, struct net_device *ndev,
-	      u8 key_idx, const u8 *mac_addr, struct key_params *params)
+brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
+		       u8 key_idx, bool pairwise, const u8 *mac_addr)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct brcmf_wsec_key key;
-	s32 err = 0;
-	u8 keybuf[8];
+	struct brcmf_wsec_key *key;
+	s32 err;
 
-	memset(&key, 0, sizeof(key));
-	key.index = (u32) key_idx;
-	/* Instead of bcast for ea address for default wep keys,
-		 driver needs it to be Null */
-	if (!is_multicast_ether_addr(mac_addr))
-		memcpy((char *)&key.ea, (void *)mac_addr, ETH_ALEN);
-	key.len = (u32) params->key_len;
-	/* check for key index change */
-	if (key.len == 0) {
-		/* key delete */
-		err = send_key_to_dongle(ifp, &key);
-		if (err)
-			brcmf_err("key delete error (%d)\n", err);
-	} else {
-		if (key.len > sizeof(key.data)) {
-			brcmf_err("Invalid key length (%d)\n", key.len);
-			return -EINVAL;
-		}
+	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(CONN, "key index (%d)\n", key_idx);
 
-		brcmf_dbg(CONN, "Setting the key index %d\n", key.index);
-		memcpy(key.data, params->key, key.len);
+	if (!check_vif_up(ifp->vif))
+		return -EIO;
 
-		if (!brcmf_is_apmode(ifp->vif) &&
-		    (params->cipher == WLAN_CIPHER_SUITE_TKIP)) {
-			brcmf_dbg(CONN, "Swapping RX/TX MIC key\n");
-			memcpy(keybuf, &key.data[24], sizeof(keybuf));
-			memcpy(&key.data[24], &key.data[16], sizeof(keybuf));
-			memcpy(&key.data[16], keybuf, sizeof(keybuf));
-		}
-
-		/* if IW_ENCODE_EXT_RX_SEQ_VALID set */
-		if (params->seq && params->seq_len == 6) {
-			/* rx iv */
-			u8 *ivptr;
-			ivptr = (u8 *) params->seq;
-			key.rxiv.hi = (ivptr[5] << 24) | (ivptr[4] << 16) |
-			    (ivptr[3] << 8) | ivptr[2];
-			key.rxiv.lo = (ivptr[1] << 8) | ivptr[0];
-			key.iv_initialized = true;
-		}
-
-		switch (params->cipher) {
-		case WLAN_CIPHER_SUITE_WEP40:
-			key.algo = CRYPTO_ALGO_WEP1;
-			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_WEP40\n");
-			break;
-		case WLAN_CIPHER_SUITE_WEP104:
-			key.algo = CRYPTO_ALGO_WEP128;
-			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_WEP104\n");
-			break;
-		case WLAN_CIPHER_SUITE_TKIP:
-			key.algo = CRYPTO_ALGO_TKIP;
-			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_TKIP\n");
-			break;
-		case WLAN_CIPHER_SUITE_AES_CMAC:
-			key.algo = CRYPTO_ALGO_AES_CCM;
-			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_AES_CMAC\n");
-			break;
-		case WLAN_CIPHER_SUITE_CCMP:
-			key.algo = CRYPTO_ALGO_AES_CCM;
-			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_CCMP\n");
-			break;
-		default:
-			brcmf_err("Invalid cipher (0x%x)\n", params->cipher);
-			return -EINVAL;
-		}
-		err = send_key_to_dongle(ifp, &key);
-		if (err)
-			brcmf_err("wsec_key error (%d)\n", err);
+	if (key_idx >= BRCMF_MAX_DEFAULT_KEYS) {
+		/* we ignore this key index in this case */
+		return -EINVAL;
 	}
+
+	key = &ifp->vif->profile.key[key_idx];
+
+	if (key->algo == CRYPTO_ALGO_OFF) {
+		brcmf_dbg(CONN, "Ignore clearing of (never configured) key\n");
+		return -EINVAL;
+	}
+
+	memset(key, 0, sizeof(*key));
+	key->index = (u32)key_idx;
+	key->flags = BRCMF_PRIMARY_KEY;
+
+	/* Clear the key/index */
+	err = send_key_to_dongle(ifp, key);
+
+	brcmf_dbg(TRACE, "Exit\n");
 	return err;
 }
 
 static s32
 brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
-		    u8 key_idx, bool pairwise, const u8 *mac_addr,
-		    struct key_params *params)
+		       u8 key_idx, bool pairwise, const u8 *mac_addr,
+		       struct key_params *params)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_wsec_key *key;
 	s32 val;
 	s32 wsec;
-	s32 err = 0;
+	s32 err;
 	u8 keybuf[8];
+	bool ext_key;
 
 	brcmf_dbg(TRACE, "Enter\n");
 	brcmf_dbg(CONN, "key index (%d)\n", key_idx);
@@ -2171,27 +2186,32 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		return -EINVAL;
 	}
 
-	if (mac_addr &&
-		(params->cipher != WLAN_CIPHER_SUITE_WEP40) &&
-		(params->cipher != WLAN_CIPHER_SUITE_WEP104)) {
-		brcmf_dbg(TRACE, "Exit");
-		return brcmf_add_keyext(wiphy, ndev, key_idx, mac_addr, params);
+	if (params->key_len == 0)
+		return brcmf_cfg80211_del_key(wiphy, ndev, key_idx, pairwise,
+					      mac_addr);
+
+	if (params->key_len > sizeof(key->data)) {
+		brcmf_err("Too long key length (%u)\n", params->key_len);
+		return -EINVAL;
+	}
+
+	ext_key = false;
+	if (mac_addr && (params->cipher != WLAN_CIPHER_SUITE_WEP40) &&
+	    (params->cipher != WLAN_CIPHER_SUITE_WEP104)) {
+		brcmf_dbg(TRACE, "Ext key, mac %pM", mac_addr);
+		ext_key = true;
 	}
 
 	key = &ifp->vif->profile.key[key_idx];
 	memset(key, 0, sizeof(*key));
-
-	if (params->key_len > sizeof(key->data)) {
-		brcmf_err("Too long key length (%u)\n", params->key_len);
-		err = -EINVAL;
-		goto done;
-	}
+	if ((ext_key) && (!is_multicast_ether_addr(mac_addr)))
+		memcpy((char *)&key->ea, (void *)mac_addr, ETH_ALEN);
 	key->len = params->key_len;
 	key->index = key_idx;
-
 	memcpy(key->data, params->key, key->len);
+	if (!ext_key)
+		key->flags = BRCMF_PRIMARY_KEY;
 
-	key->flags = BRCMF_PRIMARY_KEY;
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 		key->algo = CRYPTO_ALGO_WEP1;
@@ -2231,7 +2251,7 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	err = send_key_to_dongle(ifp, key);
-	if (err)
+	if (ext_key || err)
 		goto done;
 
 	err = brcmf_fil_bsscfg_int_get(ifp, "wsec", &wsec);
@@ -2252,41 +2272,10 @@ done:
 }
 
 static s32
-brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
-		    u8 key_idx, bool pairwise, const u8 *mac_addr)
-{
-	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct brcmf_wsec_key key;
-	s32 err = 0;
-
-	brcmf_dbg(TRACE, "Enter\n");
-	if (!check_vif_up(ifp->vif))
-		return -EIO;
-
-	if (key_idx >= BRCMF_MAX_DEFAULT_KEYS) {
-		/* we ignore this key index in this case */
-		return -EINVAL;
-	}
-
-	memset(&key, 0, sizeof(key));
-
-	key.index = (u32) key_idx;
-	key.flags = BRCMF_PRIMARY_KEY;
-	key.algo = CRYPTO_ALGO_OFF;
-
-	brcmf_dbg(CONN, "key index (%d)\n", key_idx);
-
-	/* Set the new key/index */
-	err = send_key_to_dongle(ifp, &key);
-
-	brcmf_dbg(TRACE, "Exit\n");
-	return err;
-}
-
-static s32
-brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
-		    u8 key_idx, bool pairwise, const u8 *mac_addr, void *cookie,
-		    void (*callback) (void *cookie, struct key_params * params))
+brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev, u8 key_idx,
+		       bool pairwise, const u8 *mac_addr, void *cookie,
+		       void (*callback)(void *cookie,
+					struct key_params *params))
 {
 	struct key_params params;
 	struct brcmf_if *ifp = netdev_priv(ndev);
@@ -2338,8 +2327,15 @@ done:
 
 static s32
 brcmf_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
-				    struct net_device *ndev, u8 key_idx)
+				       struct net_device *ndev, u8 key_idx)
 {
+	struct brcmf_if *ifp = netdev_priv(ndev);
+
+	brcmf_dbg(TRACE, "Enter key_idx %d\n", key_idx);
+
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MFP))
+		return 0;
+
 	brcmf_dbg(INFO, "Not supported\n");
 
 	return -EOPNOTSUPP;
@@ -3023,7 +3019,7 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 
 		list = (struct brcmf_scan_results *)
 				cfg->escan_info.escan_buf;
-		if (bi_length > WL_ESCAN_BUF_SIZE - list->buflen) {
+		if (bi_length > BRCMF_ESCAN_BUF_SIZE - list->buflen) {
 			brcmf_err("Buffer is too small: ignoring\n");
 			goto exit;
 		}
@@ -3036,8 +3032,8 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 							  bss_info_le))
 				goto exit;
 		}
-		memcpy(&(cfg->escan_info.escan_buf[list->buflen]),
-			bss_info_le, bi_length);
+		memcpy(&cfg->escan_info.escan_buf[list->buflen], bss_info_le,
+		       bi_length);
 		list->version = le32_to_cpu(bss_info_le->version);
 		list->buflen += bi_length;
 		list->count++;
@@ -3094,6 +3090,11 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 	u32 status;
 
 	brcmf_dbg(SCAN, "Enter\n");
+
+	if (e->datalen < (sizeof(*pfn_result) + sizeof(*netinfo))) {
+		brcmf_dbg(SCAN, "Event data to small. Ignore\n");
+		return 0;
+	}
 
 	if (e->event_code == BRCMF_E_PFN_NET_LOST) {
 		brcmf_dbg(SCAN, "PFN NET LOST event. Do Nothing\n");
@@ -3418,6 +3419,11 @@ brcmf_wowl_nd_results(struct brcmf_if *ifp, const struct brcmf_event_msg *e,
 
 	brcmf_dbg(SCAN, "Enter\n");
 
+	if (e->datalen < (sizeof(*pfn_result) + sizeof(*netinfo))) {
+		brcmf_dbg(SCAN, "Event data to small. Ignore\n");
+		return 0;
+	}
+
 	pfn_result = (struct brcmf_pno_scanresults_le *)data;
 
 	if (e->event_code == BRCMF_E_PFN_NET_LOST) {
@@ -3510,6 +3516,10 @@ static void brcmf_report_wowl_wakeind(struct wiphy *wiphy, struct brcmf_if *ifp)
 			else
 				wakeup_data.net_detect = cfg->wowl.nd_info;
 		}
+		if (wakeind & BRCMF_WOWL_GTK_FAILURE) {
+			brcmf_dbg(INFO, "WOWL Wake indicator: BRCMF_WOWL_GTK_FAILURE\n");
+			wakeup_data.gtk_rekey_failure = true;
+		}
 	} else {
 		wakeup = NULL;
 	}
@@ -3536,7 +3546,8 @@ static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 		brcmf_report_wowl_wakeind(wiphy, ifp);
 		brcmf_fil_iovar_int_set(ifp, "wowl_clear", 0);
 		brcmf_config_wowl_pattern(ifp, "clr", NULL, 0, NULL, 0);
-		brcmf_configure_arp_offload(ifp, true);
+		if (!brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_ARP_ND))
+			brcmf_configure_arp_nd_offload(ifp, true);
 		brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM,
 				      cfg->wowl.pre_pmmode);
 		cfg->wowl.active = false;
@@ -3560,7 +3571,8 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 
 	brcmf_dbg(TRACE, "Suspend, wowl config.\n");
 
-	brcmf_configure_arp_offload(ifp, false);
+	if (!brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_ARP_ND))
+		brcmf_configure_arp_nd_offload(ifp, false);
 	brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_PM, &cfg->wowl.pre_pmmode);
 	brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM, PM_MAX);
 
@@ -3591,6 +3603,8 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 		brcmf_fweh_register(cfg->pub, BRCMF_E_PFN_NET_FOUND,
 				    brcmf_wowl_nd_results);
 	}
+	if (wowl->gtk_rekey_failure)
+		wowl_config |= BRCMF_WOWL_GTK_FAILURE;
 	if (!test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state))
 		wowl_config |= BRCMF_WOWL_UNASSOC;
 
@@ -3821,7 +3835,7 @@ brcmf_configure_wpaie(struct brcmf_if *ifp,
 	u32 auth = 0; /* d11 open authentication */
 	u16 count;
 	s32 err = 0;
-	s32 len = 0;
+	s32 len;
 	u32 i;
 	u32 wsec;
 	u32 pval = 0;
@@ -3831,6 +3845,7 @@ brcmf_configure_wpaie(struct brcmf_if *ifp,
 	u8 *data;
 	u16 rsn_cap;
 	u32 wme_bss_disable;
+	u32 mfp;
 
 	brcmf_dbg(TRACE, "Enter\n");
 	if (wpa_ie == NULL)
@@ -3945,25 +3960,74 @@ brcmf_configure_wpaie(struct brcmf_if *ifp,
 			is_rsn_ie ? (wpa_auth |= WPA2_AUTH_PSK) :
 				    (wpa_auth |= WPA_AUTH_PSK);
 			break;
+		case RSN_AKM_SHA256_PSK:
+			brcmf_dbg(TRACE, "RSN_AKM_MFP_PSK\n");
+			wpa_auth |= WPA2_AUTH_PSK_SHA256;
+			break;
+		case RSN_AKM_SHA256_1X:
+			brcmf_dbg(TRACE, "RSN_AKM_MFP_1X\n");
+			wpa_auth |= WPA2_AUTH_1X_SHA256;
+			break;
 		default:
 			brcmf_err("Ivalid key mgmt info\n");
 		}
 		offset++;
 	}
 
+	mfp = BRCMF_MFP_NONE;
 	if (is_rsn_ie) {
 		wme_bss_disable = 1;
 		if ((offset + RSN_CAP_LEN) <= len) {
 			rsn_cap = data[offset] + (data[offset + 1] << 8);
 			if (rsn_cap & RSN_CAP_PTK_REPLAY_CNTR_MASK)
 				wme_bss_disable = 0;
+			if (rsn_cap & RSN_CAP_MFPR_MASK) {
+				brcmf_dbg(TRACE, "MFP Required\n");
+				mfp = BRCMF_MFP_REQUIRED;
+				/* Firmware only supports mfp required in
+				 * combination with WPA2_AUTH_PSK_SHA256 or
+				 * WPA2_AUTH_1X_SHA256.
+				 */
+				if (!(wpa_auth & (WPA2_AUTH_PSK_SHA256 |
+						  WPA2_AUTH_1X_SHA256))) {
+					err = -EINVAL;
+					goto exit;
+				}
+				/* Firmware has requirement that WPA2_AUTH_PSK/
+				 * WPA2_AUTH_UNSPECIFIED be set, if SHA256 OUI
+				 * is to be included in the rsn ie.
+				 */
+				if (wpa_auth & WPA2_AUTH_PSK_SHA256)
+					wpa_auth |= WPA2_AUTH_PSK;
+				else if (wpa_auth & WPA2_AUTH_1X_SHA256)
+					wpa_auth |= WPA2_AUTH_UNSPECIFIED;
+			} else if (rsn_cap & RSN_CAP_MFPC_MASK) {
+				brcmf_dbg(TRACE, "MFP Capable\n");
+				mfp = BRCMF_MFP_CAPABLE;
+			}
 		}
+		offset += RSN_CAP_LEN;
 		/* set wme_bss_disable to sync RSN Capabilities */
 		err = brcmf_fil_bsscfg_int_set(ifp, "wme_bss_disable",
 					       wme_bss_disable);
 		if (err < 0) {
 			brcmf_err("wme_bss_disable error %d\n", err);
 			goto exit;
+		}
+
+		/* Skip PMKID cnt as it is know to be 0 for AP. */
+		offset += RSN_PMKID_COUNT_LEN;
+
+		/* See if there is BIP wpa suite left for MFP */
+		if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MFP) &&
+		    ((offset + WPA_IE_MIN_OUI_LEN) <= len)) {
+			err = brcmf_fil_bsscfg_data_set(ifp, "bip",
+							&data[offset],
+							WPA_IE_MIN_OUI_LEN);
+			if (err < 0) {
+				brcmf_err("bip error %d\n", err);
+				goto exit;
+			}
 		}
 	}
 	/* FOR WPS , set SES_OW_ENABLED */
@@ -3980,6 +4044,16 @@ brcmf_configure_wpaie(struct brcmf_if *ifp,
 	if (err < 0) {
 		brcmf_err("wsec error %d\n", err);
 		goto exit;
+	}
+	/* Configure MFP, this needs to go after wsec otherwise the wsec command
+	 * will overwrite the values set by MFP
+	 */
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MFP)) {
+		err = brcmf_fil_bsscfg_int_set(ifp, "mfp", mfp);
+		if (err < 0) {
+			brcmf_err("mfp error %d\n", err);
+			goto exit;
+		}
 	}
 	/* set upper-layer auth */
 	err = brcmf_fil_bsscfg_int_set(ifp, "wpa_auth", wpa_auth);
@@ -4329,7 +4403,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 	if (!mbss) {
 		brcmf_set_mpc(ifp, 0);
-		brcmf_configure_arp_offload(ifp, false);
+		brcmf_configure_arp_nd_offload(ifp, false);
 	}
 
 	/* find the RSN_IE */
@@ -4475,7 +4549,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 exit:
 	if ((err) && (!mbss)) {
 		brcmf_set_mpc(ifp, 1);
-		brcmf_configure_arp_offload(ifp, true);
+		brcmf_configure_arp_nd_offload(ifp, true);
 	}
 	return err;
 }
@@ -4533,7 +4607,7 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 			brcmf_err("bss_enable config failed %d\n", err);
 	}
 	brcmf_set_mpc(ifp, 1);
-	brcmf_configure_arp_offload(ifp, true);
+	brcmf_configure_arp_nd_offload(ifp, true);
 	clear_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
 	brcmf_net_setcarrier(ifp, false);
 
@@ -4858,7 +4932,32 @@ static int brcmf_cfg80211_tdls_oper(struct wiphy *wiphy,
 	return ret;
 }
 
-static struct cfg80211_ops wl_cfg80211_ops = {
+#ifdef CONFIG_PM
+static int
+brcmf_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *ndev,
+			      struct cfg80211_gtk_rekey_data *gtk)
+{
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_gtk_keyinfo_le gtk_le;
+	int ret;
+
+	brcmf_dbg(TRACE, "Enter, bssidx=%d\n", ifp->bsscfgidx);
+
+	memcpy(gtk_le.kck, gtk->kck, sizeof(gtk_le.kck));
+	memcpy(gtk_le.kek, gtk->kek, sizeof(gtk_le.kek));
+	memcpy(gtk_le.replay_counter, gtk->replay_ctr,
+	       sizeof(gtk_le.replay_counter));
+
+	ret = brcmf_fil_iovar_data_set(ifp, "gtk_key_info", &gtk_le,
+				       sizeof(gtk_le));
+	if (ret < 0)
+		brcmf_err("gtk_key_info iovar failed: ret=%d\n", ret);
+
+	return ret;
+}
+#endif
+
+static struct cfg80211_ops brcmf_cfg80211_ops = {
 	.add_virtual_intf = brcmf_cfg80211_add_iface,
 	.del_virtual_intf = brcmf_cfg80211_del_iface,
 	.change_virtual_intf = brcmf_cfg80211_change_iface,
@@ -5405,23 +5504,20 @@ static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
 {
 	kfree(cfg->conf);
 	cfg->conf = NULL;
-	kfree(cfg->escan_ioctl_buf);
-	cfg->escan_ioctl_buf = NULL;
 	kfree(cfg->extra_buf);
 	cfg->extra_buf = NULL;
 	kfree(cfg->wowl.nd);
 	cfg->wowl.nd = NULL;
 	kfree(cfg->wowl.nd_info);
 	cfg->wowl.nd_info = NULL;
+	kfree(cfg->escan_info.escan_buf);
+	cfg->escan_info.escan_buf = NULL;
 }
 
 static s32 brcmf_init_priv_mem(struct brcmf_cfg80211_info *cfg)
 {
 	cfg->conf = kzalloc(sizeof(*cfg->conf), GFP_KERNEL);
 	if (!cfg->conf)
-		goto init_priv_mem_out;
-	cfg->escan_ioctl_buf = kzalloc(BRCMF_DCMD_MEDLEN, GFP_KERNEL);
-	if (!cfg->escan_ioctl_buf)
 		goto init_priv_mem_out;
 	cfg->extra_buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
 	if (!cfg->extra_buf)
@@ -5433,6 +5529,9 @@ static s32 brcmf_init_priv_mem(struct brcmf_cfg80211_info *cfg)
 				    sizeof(struct cfg80211_wowlan_nd_match *),
 				    GFP_KERNEL);
 	if (!cfg->wowl.nd_info)
+		goto init_priv_mem_out;
+	cfg->escan_info.escan_buf = kzalloc(BRCMF_ESCAN_BUF_SIZE, GFP_KERNEL);
+	if (!cfg->escan_info.escan_buf)
 		goto init_priv_mem_out;
 
 	return 0;
@@ -6123,19 +6222,18 @@ static void brcmf_wiphy_wowl_params(struct wiphy *wiphy, struct brcmf_if *ifp)
 {
 #ifdef CONFIG_PM
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	s32 err;
-	u32 wowl_cap;
 
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_PNO)) {
-		err = brcmf_fil_iovar_int_get(ifp, "wowl_cap", &wowl_cap);
-		if (!err) {
-			if (wowl_cap & BRCMF_WOWL_PFN_FOUND) {
-				brcmf_wowlan_support.flags |=
-							WIPHY_WOWLAN_NET_DETECT;
-				init_waitqueue_head(&cfg->wowl.nd_data_wait);
-			}
+		if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_ND)) {
+			brcmf_wowlan_support.flags |= WIPHY_WOWLAN_NET_DETECT;
+			init_waitqueue_head(&cfg->wowl.nd_data_wait);
 		}
 	}
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_GTK)) {
+		brcmf_wowlan_support.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY;
+		brcmf_wowlan_support.flags |= WIPHY_WOWLAN_GTK_REKEY_FAILURE;
+	}
+
 	wiphy->wowlan = &brcmf_wowlan_support;
 #endif
 }
@@ -6177,8 +6275,10 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 	wiphy->n_addresses = i;
 
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
-	wiphy->cipher_suites = __wl_cipher_suites;
-	wiphy->n_cipher_suites = ARRAY_SIZE(__wl_cipher_suites);
+	wiphy->cipher_suites = brcmf_cipher_suites;
+	wiphy->n_cipher_suites = ARRAY_SIZE(brcmf_cipher_suites);
+	if (!brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MFP))
+		wiphy->n_cipher_suites--;
 	wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT |
 			WIPHY_FLAG_OFFCHAN_TX |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
@@ -6280,7 +6380,7 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 	if (err)
 		goto default_conf_out;
 
-	brcmf_configure_arp_offload(ifp, true);
+	brcmf_configure_arp_nd_offload(ifp, true);
 
 	cfg->dongle_up = true;
 default_conf_out:
@@ -6398,13 +6498,60 @@ bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg)
 
 	return armed;
 }
-int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
-					  u8 action, ulong timeout)
+
+int brcmf_cfg80211_wait_vif_event(struct brcmf_cfg80211_info *cfg,
+				  u8 action, ulong timeout)
 {
 	struct brcmf_cfg80211_vif_event *event = &cfg->vif_event;
 
 	return wait_event_timeout(event->vif_wq,
 				  vif_event_equals(event, action), timeout);
+}
+
+static s32 brcmf_translate_country_code(struct brcmf_pub *drvr, char alpha2[2],
+					struct brcmf_fil_country_le *ccreq)
+{
+	struct brcmfmac_pd_cc *country_codes;
+	struct brcmfmac_pd_cc_entry *cc;
+	s32 found_index;
+	int i;
+
+	country_codes = drvr->settings->country_codes;
+	if (!country_codes) {
+		brcmf_dbg(TRACE, "No country codes configured for device\n");
+		return -EINVAL;
+	}
+
+	if ((alpha2[0] == ccreq->country_abbrev[0]) &&
+	    (alpha2[1] == ccreq->country_abbrev[1])) {
+		brcmf_dbg(TRACE, "Country code already set\n");
+		return -EAGAIN;
+	}
+
+	found_index = -1;
+	for (i = 0; i < country_codes->table_size; i++) {
+		cc = &country_codes->table[i];
+		if ((cc->iso3166[0] == '\0') && (found_index == -1))
+			found_index = i;
+		if ((cc->iso3166[0] == alpha2[0]) &&
+		    (cc->iso3166[1] == alpha2[1])) {
+			found_index = i;
+			break;
+		}
+	}
+	if (found_index == -1) {
+		brcmf_dbg(TRACE, "No country code match found\n");
+		return -EINVAL;
+	}
+	memset(ccreq, 0, sizeof(*ccreq));
+	ccreq->rev = cpu_to_le32(country_codes->table[found_index].rev);
+	memcpy(ccreq->ccode, country_codes->table[found_index].cc,
+	       BRCMF_COUNTRY_BUF_SZ);
+	ccreq->country_abbrev[0] = alpha2[0];
+	ccreq->country_abbrev[1] = alpha2[1];
+	ccreq->country_abbrev[2] = 0;
+
+	return 0;
 }
 
 static void brcmf_cfg80211_reg_notifier(struct wiphy *wiphy,
@@ -6413,22 +6560,33 @@ static void brcmf_cfg80211_reg_notifier(struct wiphy *wiphy,
 	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 	struct brcmf_fil_country_le ccreq;
+	s32 err;
 	int i;
-
-	brcmf_dbg(TRACE, "enter: initiator=%d, alpha=%c%c\n", req->initiator,
-		  req->alpha2[0], req->alpha2[1]);
 
 	/* ignore non-ISO3166 country codes */
 	for (i = 0; i < sizeof(req->alpha2); i++)
 		if (req->alpha2[i] < 'A' || req->alpha2[i] > 'Z') {
-			brcmf_err("not a ISO3166 code\n");
+			brcmf_err("not a ISO3166 code (0x%02x 0x%02x)\n",
+				  req->alpha2[0], req->alpha2[1]);
 			return;
 		}
-	memset(&ccreq, 0, sizeof(ccreq));
-	ccreq.rev = cpu_to_le32(-1);
-	memcpy(ccreq.ccode, req->alpha2, sizeof(req->alpha2));
-	if (brcmf_fil_iovar_data_set(ifp, "country", &ccreq, sizeof(ccreq))) {
-		brcmf_err("firmware rejected country setting\n");
+
+	brcmf_dbg(TRACE, "Enter: initiator=%d, alpha=%c%c\n", req->initiator,
+		  req->alpha2[0], req->alpha2[1]);
+
+	err = brcmf_fil_iovar_data_get(ifp, "country", &ccreq, sizeof(ccreq));
+	if (err) {
+		brcmf_err("Country code iovar returned err = %d\n", err);
+		return;
+	}
+
+	err = brcmf_translate_country_code(ifp->drvr, req->alpha2, &ccreq);
+	if (err)
+		return;
+
+	err = brcmf_fil_iovar_data_set(ifp, "country", &ccreq, sizeof(ccreq));
+	if (err) {
+		brcmf_err("Firmware rejected country setting\n");
 		return;
 	}
 	brcmf_setup_wiphybands(wiphy);
@@ -6464,6 +6622,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	struct net_device *ndev = brcmf_get_ifp(drvr, 0)->ndev;
 	struct brcmf_cfg80211_info *cfg;
 	struct wiphy *wiphy;
+	struct cfg80211_ops *ops;
 	struct brcmf_cfg80211_vif *vif;
 	struct brcmf_if *ifp;
 	s32 err = 0;
@@ -6475,8 +6634,17 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		return NULL;
 	}
 
+	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	if (!ops)
+		return NULL;
+
+	memcpy(ops, &brcmf_cfg80211_ops, sizeof(*ops));
 	ifp = netdev_priv(ndev);
-	wiphy = wiphy_new(&wl_cfg80211_ops, sizeof(struct brcmf_cfg80211_info));
+#ifdef CONFIG_PM
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_GTK))
+		ops->set_rekey_data = brcmf_cfg80211_set_rekey_data;
+#endif
+	wiphy = wiphy_new(ops, sizeof(struct brcmf_cfg80211_info));
 	if (!wiphy) {
 		brcmf_err("Could not allocate wiphy device\n");
 		return NULL;
@@ -6486,6 +6654,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 
 	cfg = wiphy_priv(wiphy);
 	cfg->wiphy = wiphy;
+	cfg->ops = ops;
 	cfg->pub = drvr;
 	init_vif_event(&cfg->vif_event);
 	INIT_LIST_HEAD(&cfg->vif_list);
@@ -6596,7 +6765,8 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_SCAN_RANDOM_MAC)) {
 		wiphy->features |= NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR;
 #ifdef CONFIG_PM
-		if (wiphy->wowlan->flags & WIPHY_WOWLAN_NET_DETECT)
+		if (wiphy->wowlan &&
+		    wiphy->wowlan->flags & WIPHY_WOWLAN_NET_DETECT)
 			wiphy->features |= NL80211_FEATURE_ND_RANDOM_MAC_ADDR;
 #endif
 	}
@@ -6611,6 +6781,7 @@ priv_out:
 	ifp->vif = NULL;
 wiphy_out:
 	brcmf_free_wiphy(wiphy);
+	kfree(ops);
 	return NULL;
 }
 
@@ -6621,6 +6792,7 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 
 	brcmf_btcoex_detach(cfg);
 	wiphy_unregister(cfg->wiphy);
+	kfree(cfg->ops);
 	wl_deinit_priv(cfg);
 	brcmf_free_wiphy(cfg->wiphy);
 }

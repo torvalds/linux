@@ -1413,10 +1413,12 @@ static void carl9170_ampdu_work(struct work_struct *work)
 
 static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
-				    enum ieee80211_ampdu_mlme_action action,
-				    struct ieee80211_sta *sta,
-				    u16 tid, u16 *ssn, u8 buf_size, bool amsdu)
+				    struct ieee80211_ampdu_params *params)
 {
+	struct ieee80211_sta *sta = params->sta;
+	enum ieee80211_ampdu_mlme_action action = params->action;
+	u16 tid = params->tid;
+	u16 *ssn = &params->ssn;
 	struct ar9170 *ar = hw->priv;
 	struct carl9170_sta_info *sta_info = (void *) sta->drv_priv;
 	struct carl9170_sta_tid *tid_info;

@@ -289,7 +289,7 @@ static int vsp1_video_pipeline_validate(struct vsp1_pipeline *pipe,
 		struct vsp1_rwpf *rwpf;
 		struct vsp1_entity *e;
 
-		if (is_media_entity_v4l2_io(entity))
+		if (!is_media_entity_v4l2_subdev(entity))
 			continue;
 
 		subdev = media_entity_to_v4l2_subdev(entity);

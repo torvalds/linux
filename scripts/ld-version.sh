@@ -1,7 +1,7 @@
 #!/usr/bin/awk -f
 # extract linker version number from stdin and turn into single number
 	{
-	gsub(".*)", "");
+	gsub(".*\\)", "");
 	gsub(".*version ", "");
 	gsub("-.*", "");
 	split($1,a, ".");

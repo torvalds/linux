@@ -68,7 +68,7 @@ static void sctp_mark_missing(struct sctp_outq *q,
 
 static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 sack_ctsn);
 
-static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout);
+static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp);
 
 /* Add data to the front of the queue. */
 static inline void sctp_outq_head_data(struct sctp_outq *q,
@@ -285,7 +285,7 @@ void sctp_outq_free(struct sctp_outq *q)
 }
 
 /* Put a new chunk in an sctp_outq.  */
-int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
+int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 {
 	struct net *net = sock_net(q->asoc->base.sk);
 	int error = 0;
@@ -341,7 +341,7 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
 		return error;
 
 	if (!q->cork)
-		error = sctp_outq_flush(q, 0);
+		error = sctp_outq_flush(q, 0, gfp);
 
 	return error;
 }
@@ -510,7 +510,7 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 	 * will be flushed at the end.
 	 */
 	if (reason != SCTP_RTXR_FAST_RTX)
-		error = sctp_outq_flush(q, /* rtx_timeout */ 1);
+		error = sctp_outq_flush(q, /* rtx_timeout */ 1, GFP_ATOMIC);
 
 	if (error)
 		q->asoc->base.sk->sk_err = -error;
@@ -601,12 +601,12 @@ redo:
 				 * control chunks are already freed so there
 				 * is nothing we can do.
 				 */
-				sctp_packet_transmit(pkt);
+				sctp_packet_transmit(pkt, GFP_ATOMIC);
 				goto redo;
 			}
 
 			/* Send this packet.  */
-			error = sctp_packet_transmit(pkt);
+			error = sctp_packet_transmit(pkt, GFP_ATOMIC);
 
 			/* If we are retransmitting, we should only
 			 * send a single packet.
@@ -622,7 +622,7 @@ redo:
 
 		case SCTP_XMIT_RWND_FULL:
 			/* Send this packet. */
-			error = sctp_packet_transmit(pkt);
+			error = sctp_packet_transmit(pkt, GFP_ATOMIC);
 
 			/* Stop sending DATA as there is no more room
 			 * at the receiver.
@@ -632,7 +632,7 @@ redo:
 
 		case SCTP_XMIT_DELAY:
 			/* Send this packet. */
-			error = sctp_packet_transmit(pkt);
+			error = sctp_packet_transmit(pkt, GFP_ATOMIC);
 
 			/* Stop sending DATA because of nagle delay. */
 			done = 1;
@@ -685,12 +685,12 @@ redo:
 }
 
 /* Cork the outqueue so queued chunks are really queued. */
-int sctp_outq_uncork(struct sctp_outq *q)
+int sctp_outq_uncork(struct sctp_outq *q, gfp_t gfp)
 {
 	if (q->cork)
 		q->cork = 0;
 
-	return sctp_outq_flush(q, 0);
+	return sctp_outq_flush(q, 0, gfp);
 }
 
 
@@ -703,7 +703,7 @@ int sctp_outq_uncork(struct sctp_outq *q)
  * locking concerns must be made.  Today we use the sock lock to protect
  * this function.
  */
-static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
+static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 {
 	struct sctp_packet *packet;
 	struct sctp_packet singleton;
@@ -825,7 +825,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			sctp_packet_init(&singleton, transport, sport, dport);
 			sctp_packet_config(&singleton, vtag, 0);
 			sctp_packet_append_chunk(&singleton, chunk);
-			error = sctp_packet_transmit(&singleton);
+			error = sctp_packet_transmit(&singleton, gfp);
 			if (error < 0)
 				return error;
 			break;
@@ -856,7 +856,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 		case SCTP_CID_ASCONF:
 		case SCTP_CID_FWD_TSN:
 			status = sctp_packet_transmit_chunk(packet, chunk,
-							    one_packet);
+							    one_packet, gfp);
 			if (status  != SCTP_XMIT_OK) {
 				/* put the chunk back */
 				list_add(&chunk->list, &q->control_chunk_list);
@@ -978,8 +978,12 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			     (new_transport->state == SCTP_UNCONFIRMED) ||
 			     (new_transport->state == SCTP_PF)))
 				new_transport = asoc->peer.active_path;
-			if (new_transport->state == SCTP_UNCONFIRMED)
+			if (new_transport->state == SCTP_UNCONFIRMED) {
+				WARN_ONCE(1, "Atempt to send packet on unconfirmed path.");
+				sctp_chunk_fail(chunk, 0);
+				sctp_chunk_free(chunk);
 				continue;
+			}
 
 			/* Change packets if necessary.  */
 			if (new_transport != transport) {
@@ -1011,7 +1015,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 				 atomic_read(&chunk->skb->users) : -1);
 
 			/* Add the chunk to the packet.  */
-			status = sctp_packet_transmit_chunk(packet, chunk, 0);
+			status = sctp_packet_transmit_chunk(packet, chunk, 0, gfp);
 
 			switch (status) {
 			case SCTP_XMIT_PMTU_FULL:
@@ -1088,7 +1092,7 @@ sctp_flush_out:
 						      send_ready);
 		packet = &t->packet;
 		if (!sctp_packet_empty(packet))
-			error = sctp_packet_transmit(packet);
+			error = sctp_packet_transmit(packet, gfp);
 
 		/* Clear the burst limited state, if any */
 		sctp_transport_burst_reset(t);

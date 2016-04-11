@@ -8,6 +8,34 @@
  * kind, whether express or implied.
  */
 
+/*
+ * SSI-AK4643
+ *
+ * SW1: 1: AK4643
+ *      2: CN22
+ *      3: ADV7511
+ *
+ * This command is required when Playback/Capture
+ *
+ *	amixer set "LINEOUT Mixer DACL" on
+ *	amixer set "DVC Out" 100%
+ *	amixer set "DVC In" 100%
+ *
+ * You can use Mute
+ *
+ *	amixer set "DVC Out Mute" on
+ *	amixer set "DVC In Mute" on
+ *
+ * You can use Volume Ramp
+ *
+ *	amixer set "DVC Out Ramp Up Rate"   "0.125 dB/64 steps"
+ *	amixer set "DVC Out Ramp Down Rate" "0.125 dB/512 steps"
+ *	amixer set "DVC Out Ramp" on
+ *	aplay xxx.wav &
+ *	amixer set "DVC Out"  80%  // Volume Down
+ *	amixer set "DVC Out" 100%  // Volume Up
+ */
+
 /dts-v1/;
 #include "r8a7793.dtsi"
 #include <dt-bindings/gpio/gpio.h>
@@ -31,6 +59,176 @@
 		device_type = "memory";
 		reg = <0 0x40000000 0 0x40000000>;
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-1 {
+		        gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
+		        linux,code = <KEY_1>;
+		        label = "SW2-1";
+		        wakeup-source;
+		        debounce-interval = <20>;
+		};
+		key-2 {
+		        gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+		        linux,code = <KEY_2>;
+		        label = "SW2-2";
+		        wakeup-source;
+		        debounce-interval = <20>;
+		};
+		key-3 {
+		        gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
+		        linux,code = <KEY_3>;
+		        label = "SW2-3";
+		        wakeup-source;
+		        debounce-interval = <20>;
+		};
+		key-4 {
+		        gpios = <&gpio5 3 GPIO_ACTIVE_LOW>;
+		        linux,code = <KEY_4>;
+		        label = "SW2-4";
+		        wakeup-source;
+		        debounce-interval = <20>;
+		};
+		key-a {
+		        gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
+		        linux,code = <KEY_A>;
+		        label = "SW30";
+		        wakeup-source;
+		        debounce-interval = <20>;
+		};
+		key-b {
+		        gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
+		        linux,code = <KEY_B>;
+		        label = "SW31";
+		        wakeup-source;
+		        debounce-interval = <20>;
+		};
+		key-c {
+		        gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
+		        linux,code = <KEY_C>;
+		        label = "SW32";
+		        wakeup-source;
+		        debounce-interval = <20>;
+		};
+		key-d {
+		        gpios = <&gpio7 3 GPIO_ACTIVE_LOW>;
+		        linux,code = <KEY_D>;
+		        label = "SW33";
+		        wakeup-source;
+		        debounce-interval = <20>;
+		};
+		key-e {
+		        gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
+		        linux,code = <KEY_E>;
+		        label = "SW34";
+		        wakeup-source;
+		        debounce-interval = <20>;
+		};
+		key-f {
+		        gpios = <&gpio7 5 GPIO_ACTIVE_LOW>;
+		        linux,code = <KEY_F>;
+		        label = "SW35";
+		        wakeup-source;
+		        debounce-interval = <20>;
+		};
+		key-g {
+		        gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
+		        linux,code = <KEY_G>;
+		        label = "SW36";
+		        wakeup-source;
+		        debounce-interval = <20>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led6 {
+			gpios = <&gpio2 19 GPIO_ACTIVE_HIGH>;
+			label = "LED6";
+		};
+		led7 {
+			gpios = <&gpio2 20 GPIO_ACTIVE_HIGH>;
+			label = "LED7";
+		};
+		led8 {
+			gpios = <&gpio2 21 GPIO_ACTIVE_HIGH>;
+			label = "LED8";
+		};
+	};
+
+	audio_clock: clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <11289600>;
+		clock-output-names = "audio_clock";
+	};
+
+	rsnd_ak4643: sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,format = "left_j";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
+		};
+
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&ak4643>;
+			clocks = <&audio_clock>;
+		};
+	};
+
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&adv7511_out>;
+			};
+		};
+	};
+
+	x2_clk: x2-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <74250000>;
+	};
+
+	x13_clk: x13-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <148500000>;
+	};
+};
+
+&du {
+	pinctrl-0 = <&du_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	clocks = <&mstp7_clks R8A7793_CLK_DU0>,
+		 <&mstp7_clks R8A7793_CLK_DU1>,
+		 <&mstp7_clks R8A7793_CLK_LVDS0>,
+		 <&x13_clk>, <&x2_clk>;
+	clock-names = "du.0", "du.1", "lvds.0",
+		      "dclkin.0", "dclkin.1";
+
+	ports {
+		port@0 {
+			endpoint {
+				remote-endpoint = <&adv7511_in>;
+			};
+		};
+		port@1 {
+			lvds_connector: endpoint {
+			};
+		};
+	};
 };
 
 &extal_clk {
@@ -38,6 +236,19 @@
 };
 
 &pfc {
+	pinctrl-0 = <&scif_clk_pins>;
+	pinctrl-names = "default";
+
+	i2c2_pins: i2c2 {
+		renesas,groups = "i2c2";
+		renesas,function = "i2c2";
+	};
+
+	du_pins: du {
+		renesas,groups = "du_rgb888", "du_sync", "du_disp", "du_clk_out_0";
+		renesas,function = "du";
+	};
+
 	scif0_pins: serial0 {
 		renesas,groups = "scif0_data_d";
 		renesas,function = "scif0";
@@ -46,6 +257,11 @@
 	scif1_pins: serial1 {
 		renesas,groups = "scif1_data_d";
 		renesas,function = "scif1";
+	};
+
+	scif_clk_pins: scif_clk {
+		renesas,groups = "scif_clk";
+		renesas,function = "scif_clk";
 	};
 
 	ether_pins: ether {
@@ -61,6 +277,16 @@
 	qspi_pins: spi0 {
 		renesas,groups = "qspi_ctrl", "qspi_data4";
 		renesas,function = "qspi";
+	};
+
+	sound_pins: sound {
+		renesas,groups = "ssi0129_ctrl", "ssi0_data", "ssi1_data";
+		renesas,function = "ssi";
+	};
+
+	sound_clk_pins: sound_clk {
+		renesas,groups = "audio_clk_a";
+		renesas,function = "audio_clk";
 	};
 };
 
@@ -95,6 +321,11 @@
 	pinctrl-0 = <&scif1_pins>;
 	pinctrl-names = "default";
 
+	status = "okay";
+};
+
+&scif_clk {
+	clock-frequency = <14745600>;
 	status = "okay";
 };
 
@@ -135,4 +366,77 @@
 			};
 		};
 	};
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <100000>;
+
+	ak4643: codec@12 {
+		compatible = "asahi-kasei,ak4643";
+		#sound-dai-cells = <0>;
+		reg = <0x12>;
+	};
+
+	hdmi@39 {
+		compatible = "adi,adv7511w";
+		reg = <0x39>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+
+		adi,input-depth = <8>;
+		adi,input-colorspace = "rgb";
+		adi,input-clock = "1x";
+		adi,input-style = <1>;
+		adi,input-justification = "evenly";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				adv7511_in: endpoint {
+					remote-endpoint = <&du_out_rgb>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				adv7511_out: endpoint {
+					remote-endpoint = <&hdmi_con>;
+				};
+			};
+		};
+	};
+
+	eeprom@50 {
+		compatible = "renesas,r1ex24002", "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-names = "default";
+
+	/* Single DAI */
+	#sound-dai-cells = <0>;
+
+	status = "okay";
+
+	rcar_sound,dai {
+		dai0 {
+			playback = <&ssi0 &src2 &dvc0>;
+			capture  = <&ssi1 &src3 &dvc1>;
+		};
+	};
+};
+
+&ssi1 {
+	shared-pin;
 };

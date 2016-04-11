@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/regmap.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger.h>
@@ -38,6 +39,9 @@
  *  @int_enable:	Interrupt enable register.
  *  @pwr_mgmt_1:	Controls chip's power state and clock source.
  *  @pwr_mgmt_2:	Controls power state of individual sensors.
+ *  @int_pin_cfg;	Controls interrupt pin configuration.
+ *  @accl_offset:	Controls the accelerometer calibration offset.
+ *  @gyro_offset:	Controls the gyroscope calibration offset.
  */
 struct inv_mpu6050_reg_map {
 	u8 sample_rate_div;
@@ -55,12 +59,15 @@ struct inv_mpu6050_reg_map {
 	u8 pwr_mgmt_1;
 	u8 pwr_mgmt_2;
 	u8 int_pin_cfg;
+	u8 accl_offset;
+	u8 gyro_offset;
 };
 
 /*device enum */
 enum inv_devices {
 	INV_MPU6050,
 	INV_MPU6500,
+	INV_MPU6000,
 	INV_NUM_PARTS
 };
 
@@ -107,9 +114,10 @@ struct inv_mpu6050_hw {
  *  @hw:		Other hardware-specific information.
  *  @chip_type:		chip type.
  *  @time_stamp_lock:	spin lock to time stamp.
- *  @client:		i2c client handle.
  *  @plat_data:		platform data.
  *  @timestamps:        kfifo queue to store time stamp.
+ *  @map		regmap pointer.
+ *  @irq		interrupt number.
  */
 struct inv_mpu6050_state {
 #define TIMESTAMP_FIFO_SIZE 16
@@ -119,15 +127,19 @@ struct inv_mpu6050_state {
 	const struct inv_mpu6050_hw *hw;
 	enum   inv_devices chip_type;
 	spinlock_t time_stamp_lock;
-	struct i2c_client *client;
 	struct i2c_adapter *mux_adapter;
 	struct i2c_client *mux_client;
 	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
 	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
+	struct regmap *map;
+	int irq;
 };
 
 /*register and associated bit definition*/
+#define INV_MPU6050_REG_ACCEL_OFFSET        0x06
+#define INV_MPU6050_REG_GYRO_OFFSET         0x13
+
 #define INV_MPU6050_REG_SAMPLE_RATE_DIV     0x19
 #define INV_MPU6050_REG_CONFIG              0x1A
 #define INV_MPU6050_REG_GYRO_CONFIG         0x1B
@@ -151,6 +163,7 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BIT_I2C_MST_EN          0x20
 #define INV_MPU6050_BIT_FIFO_EN             0x40
 #define INV_MPU6050_BIT_DMP_EN              0x80
+#define INV_MPU6050_BIT_I2C_IF_DIS          0x10
 
 #define INV_MPU6050_REG_PWR_MGMT_1          0x6B
 #define INV_MPU6050_BIT_H_RESET             0x80
@@ -167,10 +180,18 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BYTES_PER_3AXIS_SENSOR   6
 #define INV_MPU6050_FIFO_COUNT_BYTE          2
 #define INV_MPU6050_FIFO_THRESHOLD           500
+
+/* mpu6500 registers */
+#define INV_MPU6500_REG_ACCEL_OFFSET        0x77
+
+/* delay time in milliseconds */
 #define INV_MPU6050_POWER_UP_TIME            100
 #define INV_MPU6050_TEMP_UP_TIME             100
 #define INV_MPU6050_SENSOR_UP_TIME           30
-#define INV_MPU6050_REG_UP_TIME              5
+
+/* delay time in microseconds */
+#define INV_MPU6050_REG_UP_TIME_MIN          5000
+#define INV_MPU6050_REG_UP_TIME_MAX          10000
 
 #define INV_MPU6050_TEMP_OFFSET	             12421
 #define INV_MPU6050_TEMP_SCALE               2941
@@ -185,6 +206,7 @@ struct inv_mpu6050_state {
 
 #define INV_MPU6050_REG_INT_PIN_CFG	0x37
 #define INV_MPU6050_BIT_BYPASS_EN	0x2
+#define INV_MPU6050_INT_PIN_CFG		0
 
 /* init parameters */
 #define INV_MPU6050_INIT_FIFO_RATE           50
@@ -252,5 +274,10 @@ int inv_reset_fifo(struct iio_dev *indio_dev);
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask);
 int inv_mpu6050_write_reg(struct inv_mpu6050_state *st, int reg, u8 val);
 int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on);
-int inv_mpu_acpi_create_mux_client(struct inv_mpu6050_state *st);
-void inv_mpu_acpi_delete_mux_client(struct inv_mpu6050_state *st);
+int inv_mpu_acpi_create_mux_client(struct i2c_client *client);
+void inv_mpu_acpi_delete_mux_client(struct i2c_client *client);
+int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
+		int (*inv_mpu_bus_setup)(struct iio_dev *), int chip_type);
+int inv_mpu_core_remove(struct device *dev);
+int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on);
+extern const struct dev_pm_ops inv_mpu_pmops;

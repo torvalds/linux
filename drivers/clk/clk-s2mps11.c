@@ -28,11 +28,6 @@
 #include <linux/mfd/samsung/s5m8767.h>
 #include <linux/mfd/samsung/core.h>
 
-#define s2mps11_name(a) (a->hw.init->name)
-
-static struct clk **clk_table;
-static struct clk_onecell_data clk_data;
-
 enum {
 	S2MPS11_CLK_AP = 0,
 	S2MPS11_CLK_CP,
@@ -99,52 +94,19 @@ static struct clk_ops s2mps11_clk_ops = {
 	.recalc_rate	= s2mps11_clk_recalc_rate,
 };
 
+/* This s2mps11_clks_init tructure is common to s2mps11, s2mps13 and s2mps14 */
 static struct clk_init_data s2mps11_clks_init[S2MPS11_CLKS_NUM] = {
 	[S2MPS11_CLK_AP] = {
 		.name = "s2mps11_ap",
 		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
 	},
 	[S2MPS11_CLK_CP] = {
 		.name = "s2mps11_cp",
 		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
 	},
 	[S2MPS11_CLK_BT] = {
 		.name = "s2mps11_bt",
 		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
-	},
-};
-
-static struct clk_init_data s2mps13_clks_init[S2MPS11_CLKS_NUM] = {
-	[S2MPS11_CLK_AP] = {
-		.name = "s2mps13_ap",
-		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
-	},
-	[S2MPS11_CLK_CP] = {
-		.name = "s2mps13_cp",
-		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
-	},
-	[S2MPS11_CLK_BT] = {
-		.name = "s2mps13_bt",
-		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
-	},
-};
-
-static struct clk_init_data s2mps14_clks_init[S2MPS11_CLKS_NUM] = {
-	[S2MPS11_CLK_AP] = {
-		.name = "s2mps14_ap",
-		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
-	},
-	[S2MPS11_CLK_BT] = {
-		.name = "s2mps14_bt",
-		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
 	},
 };
 
@@ -164,12 +126,9 @@ static struct device_node *s2mps11_clk_parse_dt(struct platform_device *pdev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	for (i = 0; i < S2MPS11_CLKS_NUM; i++) {
-		if (!clks_init[i].name)
-			continue; /* Skip clocks not present in some devices */
+	for (i = 0; i < S2MPS11_CLKS_NUM; i++)
 		of_property_read_string_index(clk_np, "clock-output-names", i,
 				&clks_init[i].name);
-	}
 
 	return clk_np;
 }
@@ -177,39 +136,38 @@ static struct device_node *s2mps11_clk_parse_dt(struct platform_device *pdev,
 static int s2mps11_clk_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct s2mps11_clk *s2mps11_clks, *s2mps11_clk;
+	struct s2mps11_clk *s2mps11_clks;
+	struct clk_onecell_data *clk_data;
 	unsigned int s2mps11_reg;
-	struct clk_init_data *clks_init;
 	int i, ret = 0;
+	enum sec_device_type hwid = platform_get_device_id(pdev)->driver_data;
 
 	s2mps11_clks = devm_kcalloc(&pdev->dev, S2MPS11_CLKS_NUM,
-				sizeof(*s2mps11_clk), GFP_KERNEL);
+				sizeof(*s2mps11_clks), GFP_KERNEL);
 	if (!s2mps11_clks)
 		return -ENOMEM;
 
-	s2mps11_clk = s2mps11_clks;
-
-	clk_table = devm_kcalloc(&pdev->dev, S2MPS11_CLKS_NUM,
-				sizeof(struct clk *), GFP_KERNEL);
-	if (!clk_table)
+	clk_data = devm_kzalloc(&pdev->dev, sizeof(*clk_data), GFP_KERNEL);
+	if (!clk_data)
 		return -ENOMEM;
 
-	switch(platform_get_device_id(pdev)->driver_data) {
+	clk_data->clks = devm_kcalloc(&pdev->dev, S2MPS11_CLKS_NUM,
+				sizeof(struct clk *), GFP_KERNEL);
+	if (!clk_data->clks)
+		return -ENOMEM;
+
+	switch (hwid) {
 	case S2MPS11X:
 		s2mps11_reg = S2MPS11_REG_RTC_CTRL;
-		clks_init = s2mps11_clks_init;
 		break;
 	case S2MPS13X:
 		s2mps11_reg = S2MPS13_REG_RTCCTRL;
-		clks_init = s2mps13_clks_init;
 		break;
 	case S2MPS14X:
 		s2mps11_reg = S2MPS14_REG_RTCCTRL;
-		clks_init = s2mps14_clks_init;
 		break;
 	case S5M8767X:
 		s2mps11_reg = S5M8767_REG_CTRL1;
-		clks_init = s2mps11_clks_init;
 		break;
 	default:
 		dev_err(&pdev->dev, "Invalid device type\n");
@@ -217,46 +175,39 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	}
 
 	/* Store clocks of_node in first element of s2mps11_clks array */
-	s2mps11_clks->clk_np = s2mps11_clk_parse_dt(pdev, clks_init);
+	s2mps11_clks->clk_np = s2mps11_clk_parse_dt(pdev, s2mps11_clks_init);
 	if (IS_ERR(s2mps11_clks->clk_np))
 		return PTR_ERR(s2mps11_clks->clk_np);
 
-	for (i = 0; i < S2MPS11_CLKS_NUM; i++, s2mps11_clk++) {
-		if (!clks_init[i].name)
+	for (i = 0; i < S2MPS11_CLKS_NUM; i++) {
+		if (i == S2MPS11_CLK_CP && hwid == S2MPS14X)
 			continue; /* Skip clocks not present in some devices */
-		s2mps11_clk->iodev = iodev;
-		s2mps11_clk->hw.init = &clks_init[i];
-		s2mps11_clk->mask = 1 << i;
-		s2mps11_clk->reg = s2mps11_reg;
+		s2mps11_clks[i].iodev = iodev;
+		s2mps11_clks[i].hw.init = &s2mps11_clks_init[i];
+		s2mps11_clks[i].mask = 1 << i;
+		s2mps11_clks[i].reg = s2mps11_reg;
 
-		s2mps11_clk->clk = devm_clk_register(&pdev->dev,
-							&s2mps11_clk->hw);
-		if (IS_ERR(s2mps11_clk->clk)) {
+		s2mps11_clks[i].clk = devm_clk_register(&pdev->dev,
+							&s2mps11_clks[i].hw);
+		if (IS_ERR(s2mps11_clks[i].clk)) {
 			dev_err(&pdev->dev, "Fail to register : %s\n",
-						s2mps11_name(s2mps11_clk));
-			ret = PTR_ERR(s2mps11_clk->clk);
+						s2mps11_clks_init[i].name);
+			ret = PTR_ERR(s2mps11_clks[i].clk);
 			goto err_reg;
 		}
 
-		s2mps11_clk->lookup = clkdev_create(s2mps11_clk->clk,
-					s2mps11_name(s2mps11_clk), NULL);
-		if (!s2mps11_clk->lookup) {
+		s2mps11_clks[i].lookup = clkdev_create(s2mps11_clks[i].clk,
+					s2mps11_clks_init[i].name, NULL);
+		if (!s2mps11_clks[i].lookup) {
 			ret = -ENOMEM;
 			goto err_reg;
 		}
+		clk_data->clks[i] = s2mps11_clks[i].clk;
 	}
 
-	for (i = 0; i < S2MPS11_CLKS_NUM; i++) {
-		/* Skip clocks not present on S2MPS14 */
-		if (!clks_init[i].name)
-			continue;
-		clk_table[i] = s2mps11_clks[i].clk;
-	}
-
-	clk_data.clks = clk_table;
-	clk_data.clk_num = S2MPS11_CLKS_NUM;
+	clk_data->clk_num = S2MPS11_CLKS_NUM;
 	of_clk_add_provider(s2mps11_clks->clk_np, of_clk_src_onecell_get,
-			&clk_data);
+			clk_data);
 
 	platform_set_drvdata(pdev, s2mps11_clks);
 

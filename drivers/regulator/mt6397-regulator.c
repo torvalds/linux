@@ -317,11 +317,25 @@ static int mt6397_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id mt6397_platform_ids[] = {
+	{"mt6397-regulator", 0},
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(platform, mt6397_platform_ids);
+
+static const struct of_device_id mt6397_of_match[] = {
+	{ .compatible = "mediatek,mt6397-regulator", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, mt6397_of_match);
+
 static struct platform_driver mt6397_regulator_driver = {
 	.driver = {
 		.name = "mt6397-regulator",
+		.of_match_table = of_match_ptr(mt6397_of_match),
 	},
 	.probe = mt6397_regulator_probe,
+	.id_table = mt6397_platform_ids,
 };
 
 module_platform_driver(mt6397_regulator_driver);
@@ -329,4 +343,3 @@ module_platform_driver(mt6397_regulator_driver);
 MODULE_AUTHOR("Flora Fu <flora.fu@mediatek.com>");
 MODULE_DESCRIPTION("Regulator Driver for MediaTek MT6397 PMIC");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:mt6397-regulator");

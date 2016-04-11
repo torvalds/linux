@@ -87,7 +87,7 @@ enum {
 
 enum {
 	/* Start from the last defined clock in dt bindings */
-	LPC32XX_CLK_ADC_DIV = LPC32XX_CLK_ADC + 1,
+	LPC32XX_CLK_ADC_DIV = LPC32XX_CLK_HCLK_PLL + 1,
 	LPC32XX_CLK_ADC_RTC,
 	LPC32XX_CLK_TEST1,
 	LPC32XX_CLK_TEST2,
@@ -96,7 +96,6 @@ enum {
 	LPC32XX_CLK_OSC,
 	LPC32XX_CLK_SYS,
 	LPC32XX_CLK_PLL397X,
-	LPC32XX_CLK_HCLK_PLL,
 	LPC32XX_CLK_HCLK_DIV_PERIPH,
 	LPC32XX_CLK_HCLK_DIV,
 	LPC32XX_CLK_HCLK,
@@ -589,7 +588,8 @@ static long clk_hclk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 				    unsigned long *parent_rate)
 {
 	struct lpc32xx_pll_clk *clk = to_lpc32xx_pll_clk(hw);
-	u64 m_i, m, n, p, o = rate, i = *parent_rate, d = (u64)rate << 6;
+	u64 m_i, o = rate, i = *parent_rate, d = (u64)rate << 6;
+	u64 m = 0, n = 0, p = 0;
 	int p_i, n_i;
 
 	pr_debug("%s: %lu/%lu\n", clk_hw_get_name(hw), *parent_rate, rate);
@@ -1429,6 +1429,8 @@ static struct clk * __init lpc32xx_clk_register(u32 id)
 			hw = &clk_hw->hw0.div.hw;
 		else if (clk_hw->type == CLK_GATE)
 			hw = &clk_hw->hw0.gate.hw;
+		else
+			return ERR_PTR(-EINVAL);
 
 		hw->init = &clk_init;
 		clk = clk_register(NULL, hw);
@@ -1515,7 +1517,7 @@ static void __init lpc32xx_clk_init(struct device_node *np)
 		return;
 	}
 
-	for (i = 0; i < LPC32XX_CLK_MAX; i++) {
+	for (i = 1; i < LPC32XX_CLK_MAX; i++) {
 		clk[i] = lpc32xx_clk_register(i);
 		if (IS_ERR(clk[i])) {
 			pr_err("failed to register %s clock: %ld\n",
@@ -1525,9 +1527,6 @@ static void __init lpc32xx_clk_init(struct device_node *np)
 	}
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-
-	/* For 13MHz osc valid output range of PLL is from 156MHz to 266.5MHz */
-	clk_set_rate(clk[LPC32XX_CLK_HCLK_PLL], 208000000);
 
 	/* Set 48MHz rate of USB PLL clock */
 	clk_set_rate(clk[LPC32XX_CLK_USB_PLL], 48000000);
@@ -1555,7 +1554,7 @@ static void __init lpc32xx_usb_clk_init(struct device_node *np)
 		return;
 	}
 
-	for (i = 0; i < LPC32XX_USB_CLK_MAX; i++) {
+	for (i = 1; i < LPC32XX_USB_CLK_MAX; i++) {
 		usb_clk[i] = lpc32xx_clk_register(i + LPC32XX_CLK_USB_OFFSET);
 		if (IS_ERR(usb_clk[i])) {
 			pr_err("failed to register %s clock: %ld\n",

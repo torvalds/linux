@@ -686,13 +686,6 @@ static bool __comedi_is_subdevice_running(struct comedi_subdevice *s)
 	return comedi_is_runflags_running(runflags);
 }
 
-static bool comedi_is_subdevice_idle(struct comedi_subdevice *s)
-{
-	unsigned runflags = comedi_get_subdevice_runflags(s);
-
-	return !(runflags & COMEDI_SRF_BUSY_MASK);
-}
-
 bool comedi_can_auto_free_spriv(struct comedi_subdevice *s)
 {
 	unsigned runflags = __comedi_get_subdevice_runflags(s);
@@ -1111,6 +1104,9 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	struct comedi_bufinfo bi;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
+	unsigned int runflags;
+	int retval = 0;
+	bool become_nonbusy = false;
 
 	if (copy_from_user(&bi, arg, sizeof(bi)))
 		return -EFAULT;
@@ -1122,48 +1118,56 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 
 	async = s->async;
 
-	if (!async) {
-		dev_dbg(dev->class_dev,
-			"subdevice does not have async capability\n");
-		bi.buf_write_ptr = 0;
-		bi.buf_read_ptr = 0;
-		bi.buf_write_count = 0;
-		bi.buf_read_count = 0;
-		bi.bytes_read = 0;
-		bi.bytes_written = 0;
-		goto copyback;
-	}
-	if (!s->busy) {
-		bi.bytes_read = 0;
-		bi.bytes_written = 0;
-		goto copyback_position;
-	}
-	if (s->busy != file)
-		return -EACCES;
+	if (!async || s->busy != file)
+		return -EINVAL;
 
-	if (bi.bytes_read && !(async->cmd.flags & CMDF_WRITE)) {
-		bi.bytes_read = comedi_buf_read_alloc(s, bi.bytes_read);
-		comedi_buf_read_free(s, bi.bytes_read);
-
-		if (comedi_is_subdevice_idle(s) &&
-		    comedi_buf_read_n_available(s) == 0) {
-			do_become_nonbusy(dev, s);
+	runflags = comedi_get_subdevice_runflags(s);
+	if (!(async->cmd.flags & CMDF_WRITE)) {
+		/* command was set up in "read" direction */
+		if (bi.bytes_read) {
+			comedi_buf_read_alloc(s, bi.bytes_read);
+			bi.bytes_read = comedi_buf_read_free(s, bi.bytes_read);
 		}
+		/*
+		 * If nothing left to read, and command has stopped, and
+		 * {"read" position not updated or command stopped normally},
+		 * then become non-busy.
+		 */
+		if (comedi_buf_read_n_available(s) == 0 &&
+		    !comedi_is_runflags_running(runflags) &&
+		    (bi.bytes_read == 0 ||
+		     !comedi_is_runflags_in_error(runflags))) {
+			become_nonbusy = true;
+			if (comedi_is_runflags_in_error(runflags))
+				retval = -EPIPE;
+		}
+		bi.bytes_written = 0;
+	} else {
+		/* command was set up in "write" direction */
+		if (!comedi_is_runflags_running(runflags)) {
+			bi.bytes_written = 0;
+			become_nonbusy = true;
+			if (comedi_is_runflags_in_error(runflags))
+				retval = -EPIPE;
+		} else if (bi.bytes_written) {
+			comedi_buf_write_alloc(s, bi.bytes_written);
+			bi.bytes_written =
+			    comedi_buf_write_free(s, bi.bytes_written);
+		}
+		bi.bytes_read = 0;
 	}
 
-	if (bi.bytes_written && (async->cmd.flags & CMDF_WRITE)) {
-		bi.bytes_written =
-		    comedi_buf_write_alloc(s, bi.bytes_written);
-		comedi_buf_write_free(s, bi.bytes_written);
-	}
-
-copyback_position:
 	bi.buf_write_count = async->buf_write_count;
 	bi.buf_write_ptr = async->buf_write_ptr;
 	bi.buf_read_count = async->buf_read_count;
 	bi.buf_read_ptr = async->buf_read_ptr;
 
-copyback:
+	if (become_nonbusy)
+		do_become_nonbusy(dev, s);
+
+	if (retval)
+		return retval;
+
 	if (copy_to_user(arg, &bi, sizeof(bi)))
 		return -EFAULT;
 
@@ -2220,7 +2224,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 		retval = -EFAULT;
 		goto done;
 	}
-	if (size & (~PAGE_MASK)) {
+	if (offset_in_page(size)) {
 		retval = -EFAULT;
 		goto done;
 	}

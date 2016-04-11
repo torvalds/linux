@@ -139,14 +139,14 @@ static void gumstix_setup_bt_clock(void)
 {
 	int timeout = 500;
 
-	if (!(OSCC & OSCC_OOK))
+	if (!(readl(OSCC) & OSCC_OOK))
 		pr_warn("32kHz clock was not on. Bootloader may need to be updated\n");
 	else
 		return;
 
-	OSCC |= OSCC_OON;
+	writel(readl(OSCC) | OSCC_OON, OSCC);
 	do {
-		if (OSCC & OSCC_OOK)
+		if (readl(OSCC) & OSCC_OOK)
 			break;
 		udelay(1);
 	} while (--timeout);

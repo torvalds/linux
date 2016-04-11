@@ -51,6 +51,9 @@ struct gpmc_timings {
 	u32 adv_on;		/* Assertion time */
 	u32 adv_rd_off;		/* Read deassertion time */
 	u32 adv_wr_off;		/* Write deassertion time */
+	u32 adv_aad_mux_on;	/* ADV assertion time for AAD */
+	u32 adv_aad_mux_rd_off;	/* ADV read deassertion time for AAD */
+	u32 adv_aad_mux_wr_off;	/* ADV write deassertion time for AAD */
 
 	/* WE signals timings corresponding to GPMC_CONFIG4 */
 	u32 we_on;		/* WE assertion time */
@@ -59,6 +62,8 @@ struct gpmc_timings {
 	/* OE signals timings corresponding to GPMC_CONFIG4 */
 	u32 oe_on;		/* OE assertion time */
 	u32 oe_off;		/* OE deassertion time */
+	u32 oe_aad_mux_on;	/* OE assertion time for AAD */
+	u32 oe_aad_mux_off;	/* OE deassertion time for AAD */
 
 	/* Access time and cycle time timings corresponding to GPMC_CONFIG5 */
 	u32 page_burst_access;	/* Multiple access word delay */

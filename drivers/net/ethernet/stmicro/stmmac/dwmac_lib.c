@@ -26,6 +26,27 @@
 
 #define GMAC_HI_REG_AE		0x80000000
 
+int dwmac_dma_reset(void __iomem *ioaddr)
+{
+	u32 value = readl(ioaddr + DMA_BUS_MODE);
+	int limit;
+
+	/* DMA SW reset */
+	value |= DMA_BUS_MODE_SFT_RESET;
+	writel(value, ioaddr + DMA_BUS_MODE);
+	limit = 10;
+	while (limit--) {
+		if (!(readl(ioaddr + DMA_BUS_MODE) & DMA_BUS_MODE_SFT_RESET))
+			break;
+		mdelay(10);
+	}
+
+	if (limit < 0)
+		return -EBUSY;
+
+	return 0;
+}
+
 /* CSR1 enables the transmit DMA to check for new descriptor */
 void dwmac_enable_dma_transmission(void __iomem *ioaddr)
 {

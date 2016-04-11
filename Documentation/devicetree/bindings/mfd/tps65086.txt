@@ -1,0 +1,55 @@
+* TPS65086 Power Management Integrated Circuit (PMIC) bindings
+
+Required properties:
+ - compatible		: Should be "ti,tps65086".
+ - reg			: I2C slave address.
+ - interrupt-parent	: Phandle to the parent interrupt controller.
+ - interrupts		: The interrupt line the device is connected to.
+ - interrupt-controller	: Marks the device node as an interrupt controller.
+ - #interrupt-cells	: The number of cells to describe an IRQ, should be 2.
+			    The first cell is the IRQ number.
+			    The second cell is the flags, encoded as trigger
+			    masks from ../interrupt-controller/interrupts.txt.
+ - gpio-controller      : Marks the device node as a GPIO Controller.
+ - #gpio-cells          : Should be two.  The first cell is the pin number and
+                            the second cell is used to specify flags.
+                            See ../gpio/gpio.txt for more information.
+ - regulators:          : List of child nodes that specify the regulator
+                            initialization data. Child nodes must be named
+                            after their hardware counterparts: buck[1-6],
+                            ldoa[1-3], swa1, swb[1-2], and vtt. Each child
+                            node is defined using the standard binding for
+                            regulators and the optional regulator properties
+                            defined below.
+
+Optional regulator properties:
+ - ti,regulator-step-size-25mv	: This is applicable for buck[1,2,6], set this
+				    if the regulator is factory set with a 25mv
+				    step voltage mapping.
+ - ti,regulator-decay		: This is applicable for buck[1-6], set this if
+				    the output needs to decay, default is for
+				    the output to slew down.
+
+Example:
+
+	pmic: tps65086@5e {
+		compatible = "ti,tps65086";
+		reg = <0x5e>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <28 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		regulators {
+			buck1 {
+				regulator-name = "vcc1";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1600000>;
+				regulator-boot-on;
+				ti,regulator-decay;
+				ti,regulator-step-size-25mv;
+			};
+		};
+	};

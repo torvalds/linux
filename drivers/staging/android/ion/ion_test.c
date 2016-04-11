@@ -285,8 +285,8 @@ static int __init ion_test_init(void)
 {
 	ion_test_pdev = platform_device_register_simple("ion-test",
 							-1, NULL, 0);
-	if (!ion_test_pdev)
-		return -ENODEV;
+	if (IS_ERR(ion_test_pdev))
+		return PTR_ERR(ion_test_pdev);
 
 	return platform_driver_probe(&ion_test_platform_driver, ion_test_probe);
 }

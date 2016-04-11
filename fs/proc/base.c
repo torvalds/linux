@@ -434,7 +434,7 @@ static int proc_pid_wchan(struct seq_file *m, struct pid_namespace *ns,
 			&& !lookup_symbol_name(wchan, symname))
 		seq_printf(m, "%s", symname);
 	else
-		seq_putc(m, '0');
+		seq_puts(m, "0\n");
 
 	return 0;
 }
@@ -2158,6 +2158,7 @@ static const struct file_operations proc_map_files_operations = {
 	.llseek		= default_llseek,
 };
 
+#ifdef CONFIG_CHECKPOINT_RESTORE
 struct timers_private {
 	struct pid *pid;
 	struct task_struct *task;
@@ -2255,6 +2256,73 @@ static const struct file_operations proc_timers_operations = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release_private,
+};
+#endif
+
+static ssize_t timerslack_ns_write(struct file *file, const char __user *buf,
+					size_t count, loff_t *offset)
+{
+	struct inode *inode = file_inode(file);
+	struct task_struct *p;
+	u64 slack_ns;
+	int err;
+
+	err = kstrtoull_from_user(buf, count, 10, &slack_ns);
+	if (err < 0)
+		return err;
+
+	p = get_proc_task(inode);
+	if (!p)
+		return -ESRCH;
+
+	if (ptrace_may_access(p, PTRACE_MODE_ATTACH_FSCREDS)) {
+		task_lock(p);
+		if (slack_ns == 0)
+			p->timer_slack_ns = p->default_timer_slack_ns;
+		else
+			p->timer_slack_ns = slack_ns;
+		task_unlock(p);
+	} else
+		count = -EPERM;
+
+	put_task_struct(p);
+
+	return count;
+}
+
+static int timerslack_ns_show(struct seq_file *m, void *v)
+{
+	struct inode *inode = m->private;
+	struct task_struct *p;
+	int err =  0;
+
+	p = get_proc_task(inode);
+	if (!p)
+		return -ESRCH;
+
+	if (ptrace_may_access(p, PTRACE_MODE_ATTACH_FSCREDS)) {
+		task_lock(p);
+		seq_printf(m, "%llu\n", p->timer_slack_ns);
+		task_unlock(p);
+	} else
+		err = -EPERM;
+
+	put_task_struct(p);
+
+	return err;
+}
+
+static int timerslack_ns_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, timerslack_ns_show, inode);
+}
+
+static const struct file_operations proc_pid_set_timerslack_ns_operations = {
+	.open		= timerslack_ns_open,
+	.read		= seq_read,
+	.write		= timerslack_ns_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 static int proc_pident_instantiate(struct inode *dir,
@@ -2831,6 +2899,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	REG("timers",	  S_IRUGO, proc_timers_operations),
 #endif
+	REG("timerslack_ns", S_IRUGO|S_IWUGO, proc_pid_set_timerslack_ns_operations),
 };
 
 static int proc_tgid_base_readdir(struct file *file, struct dir_context *ctx)

@@ -261,6 +261,13 @@ static void cik_sdma_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, (0xfff << 16) | 10); /* retry count, poll interval */
 }
 
+static void cik_sdma_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	amdgpu_ring_write(ring, mmHDP_DEBUG0);
+	amdgpu_ring_write(ring, 1);
+}
+
 /**
  * cik_sdma_ring_emit_fence - emit a fence on the DMA ring
  *
@@ -636,8 +643,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 	ib.ptr[3] = 1;
 	ib.ptr[4] = 0xDEADBEEF;
 	ib.length_dw = 5;
-	r = amdgpu_ib_schedule(ring, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED,
-			       NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
 	if (r)
 		goto err1;
 
@@ -663,7 +669,8 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 
 err1:
 	fence_put(f);
-	amdgpu_ib_free(adev, &ib);
+	amdgpu_ib_free(adev, &ib, NULL);
+	fence_put(f);
 err0:
 	amdgpu_wb_free(adev, index);
 	return r;
@@ -813,6 +820,30 @@ static void cik_sdma_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 		else
 			ib->ptr[ib->length_dw++] =
 					SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0);
+}
+
+/**
+ * cik_sdma_ring_emit_pipeline_sync - sync the pipeline
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Make sure all previous operations are completed (CIK).
+ */
+static void cik_sdma_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
+{
+	uint32_t seq = ring->fence_drv.sync_seq;
+	uint64_t addr = ring->fence_drv.gpu_addr;
+
+	/* wait for idle */
+	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_POLL_REG_MEM, 0,
+					    SDMA_POLL_REG_MEM_EXTRA_OP(0) |
+					    SDMA_POLL_REG_MEM_EXTRA_FUNC(3) | /* equal */
+					    SDMA_POLL_REG_MEM_EXTRA_M));
+	amdgpu_ring_write(ring, addr & 0xfffffffc);
+	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
+	amdgpu_ring_write(ring, seq); /* reference */
+	amdgpu_ring_write(ring, 0xfffffff); /* mask */
+	amdgpu_ring_write(ring, (0xfff << 16) | 4); /* retry count, poll interval */
 }
 
 /**
@@ -1270,8 +1301,10 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.parse_cs = NULL,
 	.emit_ib = cik_sdma_ring_emit_ib,
 	.emit_fence = cik_sdma_ring_emit_fence,
+	.emit_pipeline_sync = cik_sdma_ring_emit_pipeline_sync,
 	.emit_vm_flush = cik_sdma_ring_emit_vm_flush,
 	.emit_hdp_flush = cik_sdma_ring_emit_hdp_flush,
+	.emit_hdp_invalidate = cik_sdma_ring_emit_hdp_invalidate,
 	.test_ring = cik_sdma_ring_test_ring,
 	.test_ib = cik_sdma_ring_test_ib,
 	.insert_nop = cik_sdma_ring_insert_nop,

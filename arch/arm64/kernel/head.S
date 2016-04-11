@@ -29,11 +29,14 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 #include <asm/cputype.h>
+#include <asm/elf.h>
 #include <asm/kernel-pgtable.h>
+#include <asm/kvm_arm.h>
 #include <asm/memory.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/smp.h>
 #include <asm/sysreg.h>
 #include <asm/thread_info.h>
 #include <asm/virt.h>
@@ -67,12 +70,11 @@
  * in the entry routines.
  */
 	__HEAD
-
+_head:
 	/*
 	 * DO NOT MODIFY. Image header expected by Linux boot-loaders.
 	 */
 #ifdef CONFIG_EFI
-efi_head:
 	/*
 	 * This add instruction has no meaningful effect except that
 	 * its opcode forms the magic "MZ" signature required by UEFI.
@@ -83,9 +85,9 @@ efi_head:
 	b	stext				// branch to kernel start, magic
 	.long	0				// reserved
 #endif
-	.quad	_kernel_offset_le		// Image load offset from start of RAM, little-endian
-	.quad	_kernel_size_le			// Effective size of kernel image, little-endian
-	.quad	_kernel_flags_le		// Informative flags, little-endian
+	le64sym	_kernel_offset_le		// Image load offset from start of RAM, little-endian
+	le64sym	_kernel_size_le			// Effective size of kernel image, little-endian
+	le64sym	_kernel_flags_le		// Informative flags, little-endian
 	.quad	0				// reserved
 	.quad	0				// reserved
 	.quad	0				// reserved
@@ -94,14 +96,14 @@ efi_head:
 	.byte	0x4d
 	.byte	0x64
 #ifdef CONFIG_EFI
-	.long	pe_header - efi_head		// Offset to the PE header.
+	.long	pe_header - _head		// Offset to the PE header.
 #else
 	.word	0				// reserved
 #endif
 
 #ifdef CONFIG_EFI
 	.globl	__efistub_stext_offset
-	.set	__efistub_stext_offset, stext - efi_head
+	.set	__efistub_stext_offset, stext - _head
 	.align 3
 pe_header:
 	.ascii	"PE"
@@ -124,7 +126,7 @@ optional_header:
 	.long	_end - stext			// SizeOfCode
 	.long	0				// SizeOfInitializedData
 	.long	0				// SizeOfUninitializedData
-	.long	__efistub_entry - efi_head	// AddressOfEntryPoint
+	.long	__efistub_entry - _head		// AddressOfEntryPoint
 	.long	__efistub_stext_offset		// BaseOfCode
 
 extra_header_fields:
@@ -139,7 +141,7 @@ extra_header_fields:
 	.short	0				// MinorSubsystemVersion
 	.long	0				// Win32VersionValue
 
-	.long	_end - efi_head			// SizeOfImage
+	.long	_end - _head			// SizeOfImage
 
 	// Everything before the kernel image is considered part of the header
 	.long	__efistub_stext_offset		// SizeOfHeaders
@@ -210,6 +212,7 @@ section_table:
 ENTRY(stext)
 	bl	preserve_boot_args
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
+	mov	x23, xzr			// KASLR offset, defaults to 0
 	adrp	x24, __PHYS_OFFSET
 	bl	set_cpu_boot_mode_flag
 	bl	__create_page_tables		// x25=TTBR0, x26=TTBR1
@@ -219,11 +222,13 @@ ENTRY(stext)
 	 * On return, the CPU will be ready for the MMU to be turned on and
 	 * the TCR will have been set.
 	 */
-	ldr	x27, =__mmap_switched		// address to jump to after
+	ldr	x27, 0f				// address to jump to after
 						// MMU has been enabled
 	adr_l	lr, __enable_mmu		// return (PIC) address
 	b	__cpu_setup			// initialise processor
 ENDPROC(stext)
+	.align	3
+0:	.quad	__mmap_switched - (_head - TEXT_OFFSET) + KIMAGE_VADDR
 
 /*
  * Preserve the arguments passed by the bootloader in x0 .. x3
@@ -311,7 +316,7 @@ ENDPROC(preserve_boot_args)
 __create_page_tables:
 	adrp	x25, idmap_pg_dir
 	adrp	x26, swapper_pg_dir
-	mov	x27, lr
+	mov	x28, lr
 
 	/*
 	 * Invalidate the idmap and swapper page tables to avoid potential
@@ -389,9 +394,11 @@ __create_page_tables:
 	 * Map the kernel image (starting with PHYS_OFFSET).
 	 */
 	mov	x0, x26				// swapper_pg_dir
-	mov	x5, #PAGE_OFFSET
+	ldr	x5, =KIMAGE_VADDR
+	add	x5, x5, x23			// add KASLR displacement
 	create_pgd_entry x0, x5, x3, x6
-	ldr	x6, =KERNEL_END			// __va(KERNEL_END)
+	ldr	w6, kernel_img_size
+	add	x6, x6, x5
 	mov	x3, x24				// phys offset
 	create_block_map x0, x7, x3, x5, x6
 
@@ -405,9 +412,11 @@ __create_page_tables:
 	dmb	sy
 	bl	__inval_cache_range
 
-	mov	lr, x27
-	ret
+	ret	x28
 ENDPROC(__create_page_tables)
+
+kernel_img_size:
+	.long	_end - (_head - TEXT_OFFSET)
 	.ltorg
 
 /*
@@ -415,22 +424,80 @@ ENDPROC(__create_page_tables)
  */
 	.set	initial_sp, init_thread_union + THREAD_START_SP
 __mmap_switched:
+	mov	x28, lr				// preserve LR
+	adr_l	x8, vectors			// load VBAR_EL1 with virtual
+	msr	vbar_el1, x8			// vector table address
+	isb
+
 	// Clear BSS
 	adr_l	x0, __bss_start
 	mov	x1, xzr
 	adr_l	x2, __bss_stop
 	sub	x2, x2, x0
 	bl	__pi_memset
+	dsb	ishst				// Make zero page visible to PTW
+
+#ifdef CONFIG_RELOCATABLE
+
+	/*
+	 * Iterate over each entry in the relocation table, and apply the
+	 * relocations in place.
+	 */
+	adr_l	x8, __dynsym_start		// start of symbol table
+	adr_l	x9, __reloc_start		// start of reloc table
+	adr_l	x10, __reloc_end		// end of reloc table
+
+0:	cmp	x9, x10
+	b.hs	2f
+	ldp	x11, x12, [x9], #24
+	ldr	x13, [x9, #-8]
+	cmp	w12, #R_AARCH64_RELATIVE
+	b.ne	1f
+	add	x13, x13, x23			// relocate
+	str	x13, [x11, x23]
+	b	0b
+
+1:	cmp	w12, #R_AARCH64_ABS64
+	b.ne	0b
+	add	x12, x12, x12, lsl #1		// symtab offset: 24x top word
+	add	x12, x8, x12, lsr #(32 - 3)	// ... shifted into bottom word
+	ldrsh	w14, [x12, #6]			// Elf64_Sym::st_shndx
+	ldr	x15, [x12, #8]			// Elf64_Sym::st_value
+	cmp	w14, #-0xf			// SHN_ABS (0xfff1) ?
+	add	x14, x15, x23			// relocate
+	csel	x15, x14, x15, ne
+	add	x15, x13, x15
+	str	x15, [x11, x23]
+	b	0b
+
+2:	adr_l	x8, kimage_vaddr		// make relocated kimage_vaddr
+	dc	cvac, x8			// value visible to secondaries
+	dsb	sy				// with MMU off
+#endif
 
 	adr_l	sp, initial_sp, x4
 	mov	x4, sp
 	and	x4, x4, #~(THREAD_SIZE - 1)
 	msr	sp_el0, x4			// Save thread_info
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
-	str_l	x24, memstart_addr, x6		// Save PHYS_OFFSET
+
+	ldr_l	x4, kimage_vaddr		// Save the offset between
+	sub	x4, x4, x24			// the kernel virtual and
+	str_l	x4, kimage_voffset, x5		// physical mappings
+
 	mov	x29, #0
 #ifdef CONFIG_KASAN
 	bl	kasan_early_init
+#endif
+#ifdef CONFIG_RANDOMIZE_BASE
+	cbnz	x23, 0f				// already running randomized?
+	mov	x0, x21				// pass FDT address in x0
+	bl	kaslr_early_init		// parse FDT for KASLR options
+	cbz	x0, 0f				// KASLR disabled? just proceed
+	mov	x23, x0				// record KASLR offset
+	ret	x28				// we must enable KASLR, return
+						// to __enable_mmu()
+0:
 #endif
 	b	start_kernel
 ENDPROC(__mmap_switched)
@@ -440,6 +507,10 @@ ENDPROC(__mmap_switched)
  * hotplug and needs to have the same protections as the text region
  */
 	.section ".text","ax"
+
+ENTRY(kimage_vaddr)
+	.quad		_text - TEXT_OFFSET
+
 /*
  * If we're fortunate enough to boot at EL2, ensure that the world is
  * sane before dropping to EL1.
@@ -464,9 +535,27 @@ CPU_LE(	bic	x0, x0, #(3 << 24)	)	// Clear the EE and E0E bits for EL1
 	isb
 	ret
 
+2:
+#ifdef CONFIG_ARM64_VHE
+	/*
+	 * Check for VHE being present. For the rest of the EL2 setup,
+	 * x2 being non-zero indicates that we do have VHE, and that the
+	 * kernel is intended to run at EL2.
+	 */
+	mrs	x2, id_aa64mmfr1_el1
+	ubfx	x2, x2, #8, #4
+#else
+	mov	x2, xzr
+#endif
+
 	/* Hyp configuration. */
-2:	mov	x0, #(1 << 31)			// 64-bit EL1
+	mov	x0, #HCR_RW			// 64-bit EL1
+	cbz	x2, set_hcr
+	orr	x0, x0, #HCR_TGE		// Enable Host Extensions
+	orr	x0, x0, #HCR_E2H
+set_hcr:
 	msr	hcr_el2, x0
+	isb
 
 	/* Generic timers. */
 	mrs	x0, cnthctl_el2
@@ -526,6 +615,13 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 	/* Stage-2 translation */
 	msr	vttbr_el2, xzr
 
+	cbz	x2, install_el2_stub
+
+	mov	w20, #BOOT_CPU_MODE_EL2		// This CPU booted in EL2
+	isb
+	ret
+
+install_el2_stub:
 	/* Hypervisor stub */
 	adrp	x0, __hyp_stub_vectors
 	add	x0, x0, #:lo12:__hyp_stub_vectors
@@ -605,19 +701,49 @@ ENTRY(secondary_startup)
 	adrp	x26, swapper_pg_dir
 	bl	__cpu_setup			// initialise processor
 
-	ldr	x21, =secondary_data
-	ldr	x27, =__secondary_switched	// address to jump to after enabling the MMU
+	ldr	x8, kimage_vaddr
+	ldr	w9, 0f
+	sub	x27, x8, w9, sxtw		// address to jump to after enabling the MMU
 	b	__enable_mmu
 ENDPROC(secondary_startup)
+0:	.long	(_text - TEXT_OFFSET) - __secondary_switched
 
 ENTRY(__secondary_switched)
-	ldr	x0, [x21]			// get secondary_data.stack
+	adr_l	x5, vectors
+	msr	vbar_el1, x5
+	isb
+
+	adr_l	x0, secondary_data
+	ldr	x0, [x0, #CPU_BOOT_STACK]	// get secondary_data.stack
 	mov	sp, x0
 	and	x0, x0, #~(THREAD_SIZE - 1)
 	msr	sp_el0, x0			// save thread_info
 	mov	x29, #0
 	b	secondary_start_kernel
 ENDPROC(__secondary_switched)
+
+/*
+ * The booting CPU updates the failed status @__early_cpu_boot_status,
+ * with MMU turned off.
+ *
+ * update_early_cpu_boot_status tmp, status
+ *  - Corrupts tmp1, tmp2
+ *  - Writes 'status' to __early_cpu_boot_status and makes sure
+ *    it is committed to memory.
+ */
+
+	.macro	update_early_cpu_boot_status status, tmp1, tmp2
+	mov	\tmp2, #\status
+	str_l	\tmp2, __early_cpu_boot_status, \tmp1
+	dmb	sy
+	dc	ivac, \tmp1			// Invalidate potentially stale cache line
+	.endm
+
+	.pushsection	.data..cacheline_aligned
+	.align	L1_CACHE_SHIFT
+ENTRY(__early_cpu_boot_status)
+	.long 	0
+	.popsection
 
 /*
  * Enable the MMU.
@@ -632,12 +758,12 @@ ENDPROC(__secondary_switched)
  */
 	.section	".idmap.text", "ax"
 __enable_mmu:
+	mrs	x22, sctlr_el1			// preserve old SCTLR_EL1 value
 	mrs	x1, ID_AA64MMFR0_EL1
 	ubfx	x2, x1, #ID_AA64MMFR0_TGRAN_SHIFT, 4
 	cmp	x2, #ID_AA64MMFR0_TGRAN_SUPPORTED
 	b.ne	__no_granule_support
-	ldr	x5, =vectors
-	msr	vbar_el1, x5
+	update_early_cpu_boot_status 0, x1, x2
 	msr	ttbr0_el1, x25			// load TTBR0
 	msr	ttbr1_el1, x26			// load TTBR1
 	isb
@@ -651,10 +777,34 @@ __enable_mmu:
 	ic	iallu
 	dsb	nsh
 	isb
+#ifdef CONFIG_RANDOMIZE_BASE
+	mov	x19, x0				// preserve new SCTLR_EL1 value
+	blr	x27
+
+	/*
+	 * If we return here, we have a KASLR displacement in x23 which we need
+	 * to take into account by discarding the current kernel mapping and
+	 * creating a new one.
+	 */
+	msr	sctlr_el1, x22			// disable the MMU
+	isb
+	bl	__create_page_tables		// recreate kernel mapping
+
+	msr	sctlr_el1, x19			// re-enable the MMU
+	isb
+	ic	iallu				// flush instructions fetched
+	dsb	nsh				// via old mapping
+	isb
+	add	x27, x27, x23			// relocated __mmap_switched
+#endif
 	br	x27
 ENDPROC(__enable_mmu)
 
 __no_granule_support:
+	/* Indicate that this CPU can't boot and is stuck in the kernel */
+	update_early_cpu_boot_status CPU_STUCK_IN_KERNEL, x1, x2
+1:
 	wfe
-	b __no_granule_support
+	wfi
+	b 1b
 ENDPROC(__no_granule_support)

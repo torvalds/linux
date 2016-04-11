@@ -18,6 +18,8 @@
 #include <linux/init.h>
 
 #include <linux/io.h>
+#include <linux/gpio/driver.h>
+/* FIXME: needed for gpio_request(), try to remove consumer API from driver */
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -91,9 +93,9 @@ static inline struct jz_gpio_chip *gpio_to_jz_gpio_chip(unsigned int gpio)
 	return &jz4740_gpio_chips[gpio >> 5];
 }
 
-static inline struct jz_gpio_chip *gpio_chip_to_jz_gpio_chip(struct gpio_chip *gpio_chip)
+static inline struct jz_gpio_chip *gpio_chip_to_jz_gpio_chip(struct gpio_chip *gc)
 {
-	return container_of(gpio_chip, struct jz_gpio_chip, gpio_chip);
+	return gpiochip_get_data(gc);
 }
 
 static inline struct jz_gpio_chip *irq_to_jz_gpio_chip(struct irq_data *data)
@@ -234,7 +236,7 @@ static int jz_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 
 static int jz_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
 {
-	struct jz_gpio_chip *jz_gpio = gpio_chip_to_jz_gpio_chip(chip);
+	struct jz_gpio_chip *jz_gpio = gpiochip_get_data(chip);
 
 	return jz_gpio->irq_base + gpio;
 }
@@ -449,7 +451,7 @@ static void jz4740_gpio_chip_init(struct jz_gpio_chip *chip, unsigned int id)
 	irq_setup_generic_chip(gc, IRQ_MSK(chip->gpio_chip.ngpio),
 		IRQ_GC_INIT_NESTED_LOCK, 0, IRQ_NOPROBE | IRQ_LEVEL);
 
-	gpiochip_add(&chip->gpio_chip);
+	gpiochip_add_data(&chip->gpio_chip, chip);
 }
 
 static int __init jz4740_gpio_init(void)

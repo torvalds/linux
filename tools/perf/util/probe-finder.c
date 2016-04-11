@@ -1314,18 +1314,18 @@ static int collect_variables_cb(Dwarf_Die *die_mem, void *data)
 			if (probe_conf.show_location_range) {
 				if (!externs) {
 					if (ret)
-						strbuf_addf(&buf, "[INV]\t");
+						strbuf_add(&buf, "[INV]\t", 6);
 					else
-						strbuf_addf(&buf, "[VAL]\t");
+						strbuf_add(&buf, "[VAL]\t", 6);
 				} else
-					strbuf_addf(&buf, "[EXT]\t");
+					strbuf_add(&buf, "[EXT]\t", 6);
 			}
 
 			ret2 = die_get_varname(die_mem, &buf);
 
 			if (!ret2 && probe_conf.show_location_range &&
 				!externs) {
-				strbuf_addf(&buf, "\t");
+				strbuf_addch(&buf, '\t');
 				ret2 = die_get_var_range(&af->pf.sp_die,
 							die_mem, &buf);
 			}

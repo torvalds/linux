@@ -190,6 +190,17 @@ static u32 xgene_enet_ring_len(struct xgene_enet_desc_ring *ring)
 	return num_msgs;
 }
 
+static void xgene_enet_setup_coalescing(struct xgene_enet_desc_ring *ring)
+{
+	u32 data = 0x7777;
+
+	xgene_enet_ring_wr32(ring, CSR_PBM_COAL, 0x8e);
+	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK1, data);
+	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK2, data << 16);
+	xgene_enet_ring_wr32(ring, CSR_THRESHOLD0_SET1, 0x40);
+	xgene_enet_ring_wr32(ring, CSR_THRESHOLD1_SET1, 0x80);
+}
+
 struct xgene_ring_ops xgene_ring2_ops = {
 	.num_ring_config = X2_NUM_RING_CONFIG,
 	.num_ring_id_shift = 13,
@@ -197,4 +208,5 @@ struct xgene_ring_ops xgene_ring2_ops = {
 	.clear = xgene_enet_clear_ring,
 	.wr_cmd = xgene_enet_wr_cmd,
 	.len = xgene_enet_ring_len,
+	.coalesce = xgene_enet_setup_coalescing,
 };

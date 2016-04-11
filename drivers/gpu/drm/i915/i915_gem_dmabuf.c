@@ -187,25 +187,20 @@ static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, enum dma_data_dire
 	return ret;
 }
 
-static void i915_gem_end_cpu_access(struct dma_buf *dma_buf, enum dma_data_direction direction)
+static int i915_gem_end_cpu_access(struct dma_buf *dma_buf, enum dma_data_direction direction)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	bool was_interruptible;
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
-	was_interruptible = dev_priv->mm.interruptible;
-	dev_priv->mm.interruptible = false;
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
 
 	ret = i915_gem_object_set_to_gtt_domain(obj, false);
-
-	dev_priv->mm.interruptible = was_interruptible;
 	mutex_unlock(&dev->struct_mutex);
 
-	if (unlikely(ret))
-		DRM_ERROR("unable to flush buffer following CPU access; rendering may be corrupt\n");
+	return ret;
 }
 
 static const struct dma_buf_ops i915_dmabuf_ops =  {

@@ -16,6 +16,7 @@ Table of Contents
     2) Entry point for arch/powerpc
     3) Entry point for arch/x86
     4) Entry point for arch/mips/bmips
+    5) Entry point for arch/sh
 
   II - The DT block format
     1) Header
@@ -315,6 +316,18 @@ it with special cases.
 
   This convention is defined for 32-bit systems only, as there are not
   currently any 64-bit BMIPS implementations.
+
+5) Entry point for arch/sh
+--------------------------
+
+  Device-tree-compatible SH bootloaders are expected to provide the physical
+  address of the device tree blob in r4. Since legacy bootloaders did not
+  guarantee any particular initial register state, kernels built to
+  inter-operate with old bootloaders must either use a builtin DTB or
+  select a legacy board option (something other than CONFIG_SH_DEVICE_TREE)
+  that does not use device tree. Support for the latter is being phased out
+  in favor of device tree.
+
 
 II - The DT block format
 ========================

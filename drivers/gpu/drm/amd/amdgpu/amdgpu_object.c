@@ -308,7 +308,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 {
 	bool is_iomem;
-	int r;
+	long r;
 
 	if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
 		return -EPERM;
@@ -319,14 +319,20 @@ int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 		}
 		return 0;
 	}
-	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
-	if (r) {
+
+	r = reservation_object_wait_timeout_rcu(bo->tbo.resv, false, false,
+						MAX_SCHEDULE_TIMEOUT);
+	if (r < 0)
 		return r;
-	}
+
+	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
+	if (r)
+		return r;
+
 	bo->kptr = ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
-	if (ptr) {
+	if (ptr)
 		*ptr = bo->kptr;
-	}
+
 	return 0;
 }
 
@@ -470,6 +476,17 @@ int amdgpu_bo_evict_vram(struct amdgpu_device *adev)
 	return ttm_bo_evict_mm(&adev->mman.bdev, TTM_PL_VRAM);
 }
 
+static const char *amdgpu_vram_names[] = {
+	"UNKNOWN",
+	"GDDR1",
+	"DDR2",
+	"GDDR3",
+	"GDDR4",
+	"GDDR5",
+	"HBM",
+	"DDR3"
+};
+
 int amdgpu_bo_init(struct amdgpu_device *adev)
 {
 	/* Add an MTRR for the VRAM */
@@ -478,8 +495,8 @@ int amdgpu_bo_init(struct amdgpu_device *adev)
 	DRM_INFO("Detected VRAM RAM=%lluM, BAR=%lluM\n",
 		adev->mc.mc_vram_size >> 20,
 		(unsigned long long)adev->mc.aper_size >> 20);
-	DRM_INFO("RAM width %dbits DDR\n",
-			adev->mc.vram_width);
+	DRM_INFO("RAM width %dbits %s\n",
+		 adev->mc.vram_width, amdgpu_vram_names[adev->mc.vram_type]);
 	return amdgpu_ttm_init(adev);
 }
 
@@ -601,6 +618,10 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	offset = bo->mem.start << PAGE_SHIFT;
 	if ((offset + size) <= adev->mc.visible_vram_size)
 		return 0;
+
+	/* Can't move a pinned BO to visible VRAM */
+	if (abo->pin_count > 0)
+		return -EINVAL;
 
 	/* hurrah the memory is not visible ! */
 	amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_VRAM);

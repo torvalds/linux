@@ -225,6 +225,11 @@ struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 	if (evsel != NULL)
 		perf_evsel__init(evsel, attr, idx);
 
+	if (perf_evsel__is_bpf_output(evsel)) {
+		evsel->attr.sample_type |= PERF_SAMPLE_RAW;
+		evsel->attr.sample_period = 1;
+	}
+
 	return evsel;
 }
 
@@ -897,6 +902,16 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 
 	if (evsel->precise_max)
 		perf_event_attr__set_max_precise_ip(attr);
+
+	if (opts->all_user) {
+		attr->exclude_kernel = 1;
+		attr->exclude_user   = 0;
+	}
+
+	if (opts->all_kernel) {
+		attr->exclude_kernel = 0;
+		attr->exclude_user   = 1;
+	}
 
 	/*
 	 * Apply event specific term settings,
@@ -1628,6 +1643,7 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	data->stream_id = data->id = data->time = -1ULL;
 	data->period = evsel->attr.sample_period;
 	data->weight = 0;
+	data->cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		if (!evsel->attr.sample_id_all)
@@ -2362,12 +2378,15 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	case EPERM:
 	case EACCES:
 		return scnprintf(msg, size,
-		 "You may not have permission to collect %sstats.\n"
-		 "Consider tweaking /proc/sys/kernel/perf_event_paranoid:\n"
-		 " -1 - Not paranoid at all\n"
-		 "  0 - Disallow raw tracepoint access for unpriv\n"
-		 "  1 - Disallow cpu events for unpriv\n"
-		 "  2 - Disallow kernel profiling for unpriv",
+		 "You may not have permission to collect %sstats.\n\n"
+		 "Consider tweaking /proc/sys/kernel/perf_event_paranoid,\n"
+		 "which controls use of the performance events system by\n"
+		 "unprivileged users (without CAP_SYS_ADMIN).\n\n"
+		 "The default value is 1:\n\n"
+		 "  -1: Allow use of (almost) all events by all users\n"
+		 ">= 0: Disallow raw tracepoint access by users without CAP_IOC_LOCK\n"
+		 ">= 1: Disallow CPU event access by users without CAP_SYS_ADMIN\n"
+		 ">= 2: Disallow kernel profiling by users without CAP_SYS_ADMIN",
 				 target->system_wide ? "system-wide " : "");
 	case ENOENT:
 		return scnprintf(msg, size, "The %s event is not supported.",

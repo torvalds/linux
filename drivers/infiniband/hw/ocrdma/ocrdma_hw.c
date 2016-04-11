@@ -1113,7 +1113,7 @@ mbx_err:
 static int ocrdma_nonemb_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe,
 				 void *payload_va)
 {
-	int status = 0;
+	int status;
 	struct ocrdma_mbx_rsp *rsp = payload_va;
 
 	if ((mqe->hdr.spcl_sge_cnt_emb & OCRDMA_MQE_HDR_EMB_MASK) >>
@@ -1144,6 +1144,9 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_pd =
 	    (rsp->max_pd_ca_ack_delay & OCRDMA_MBX_QUERY_CFG_MAX_PD_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_PD_SHIFT;
+	attr->udp_encap = (rsp->max_pd_ca_ack_delay &
+			   OCRDMA_MBX_QUERY_CFG_L3_TYPE_MASK) >>
+			   OCRDMA_MBX_QUERY_CFG_L3_TYPE_SHIFT;
 	attr->max_dpp_pds =
 	   (rsp->max_dpp_pds_credits & OCRDMA_MBX_QUERY_CFG_MAX_DPP_PDS_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_DPP_PDS_OFFSET;
@@ -2138,7 +2141,6 @@ int ocrdma_qp_state_change(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
 			   enum ib_qp_state *old_ib_state)
 {
 	unsigned long flags;
-	int status = 0;
 	enum ocrdma_qp_state new_state;
 	new_state = get_ocrdma_qp_state(new_ib_state);
 
@@ -2163,7 +2165,7 @@ int ocrdma_qp_state_change(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
 	qp->state = new_state;
 
 	spin_unlock_irqrestore(&qp->q_lock, flags);
-	return status;
+	return 0;
 }
 
 static u32 ocrdma_set_create_qp_mbx_access_flags(struct ocrdma_qp *qp)
@@ -2501,7 +2503,12 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	union ib_gid sgid, zgid;
 	struct ib_gid_attr sgid_attr;
 	u32 vlan_id = 0xFFFF;
-	u8 mac_addr[6];
+	u8 mac_addr[6], hdr_type;
+	union {
+		struct sockaddr     _sockaddr;
+		struct sockaddr_in  _sockaddr_in;
+		struct sockaddr_in6 _sockaddr_in6;
+	} sgid_addr, dgid_addr;
 	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
 
 	if ((ah_attr->ah_flags & IB_AH_GRH) == 0)
@@ -2516,6 +2523,8 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	cmd->params.hop_lmt_rq_psn |=
 	    (ah_attr->grh.hop_limit << OCRDMA_QP_PARAMS_HOP_LMT_SHIFT);
 	cmd->flags |= OCRDMA_QP_PARA_FLOW_LBL_VALID;
+
+	/* GIDs */
 	memcpy(&cmd->params.dgid[0], &ah_attr->grh.dgid.raw[0],
 	       sizeof(cmd->params.dgid));
 
@@ -2538,6 +2547,16 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 		return status;
 	cmd->params.dmac_b0_to_b3 = mac_addr[0] | (mac_addr[1] << 8) |
 				(mac_addr[2] << 16) | (mac_addr[3] << 24);
+
+	hdr_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
+	if (hdr_type == RDMA_NETWORK_IPV4) {
+		rdma_gid2ip(&sgid_addr._sockaddr, &sgid);
+		rdma_gid2ip(&dgid_addr._sockaddr, &ah_attr->grh.dgid);
+		memcpy(&cmd->params.dgid[0],
+		       &dgid_addr._sockaddr_in.sin_addr.s_addr, 4);
+		memcpy(&cmd->params.sgid[0],
+		       &sgid_addr._sockaddr_in.sin_addr.s_addr, 4);
+	}
 	/* convert them to LE format. */
 	ocrdma_cpu_to_le32(&cmd->params.dgid[0], sizeof(cmd->params.dgid));
 	ocrdma_cpu_to_le32(&cmd->params.sgid[0], sizeof(cmd->params.sgid));
@@ -2558,7 +2577,9 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 		cmd->params.rnt_rc_sl_fl |=
 			(dev->sl & 0x07) << OCRDMA_QP_PARAMS_SL_SHIFT;
 	}
-
+	cmd->params.max_sge_recv_flags |= ((hdr_type <<
+					OCRDMA_QP_PARAMS_FLAGS_L3_TYPE_SHIFT) &
+					OCRDMA_QP_PARAMS_FLAGS_L3_TYPE_MASK);
 	return 0;
 }
 
@@ -2871,7 +2892,7 @@ int ocrdma_mbx_destroy_srq(struct ocrdma_dev *dev, struct ocrdma_srq *srq)
 static int ocrdma_mbx_get_dcbx_config(struct ocrdma_dev *dev, u32 ptype,
 				      struct ocrdma_dcbx_cfg *dcbxcfg)
 {
-	int status = 0;
+	int status;
 	dma_addr_t pa;
 	struct ocrdma_mqe cmd;
 

@@ -95,7 +95,6 @@ struct vf_data_storage {
 	unsigned char vf_mac_addresses[ETH_ALEN];
 	u16 vf_mc_hashes[IGB_MAX_VF_MC_ENTRIES];
 	u16 num_vf_mc_hashes;
-	u16 vlans_enabled;
 	u32 flags;
 	unsigned long last_nack;
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
@@ -482,6 +481,7 @@ struct igb_adapter {
 #define IGB_FLAG_MAS_ENABLE		(1 << 12)
 #define IGB_FLAG_HAS_MSIX		(1 << 13)
 #define IGB_FLAG_EEE			(1 << 14)
+#define IGB_FLAG_VLAN_PROMISC		BIT(15)
 
 /* Media Auto Sense */
 #define IGB_MAS_ENABLE_0		0X0001
@@ -510,6 +510,8 @@ enum igb_boards {
 extern char igb_driver_name[];
 extern char igb_driver_version[];
 
+int igb_open(struct net_device *netdev);
+int igb_close(struct net_device *netdev);
 int igb_up(struct igb_adapter *);
 void igb_down(struct igb_adapter *);
 void igb_reinit_locked(struct igb_adapter *);

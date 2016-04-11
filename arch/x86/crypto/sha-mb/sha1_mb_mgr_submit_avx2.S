@@ -53,6 +53,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/frame.h>
 #include "sha1_mb_mgr_datastruct.S"
 
 
@@ -86,33 +87,21 @@ job_rax         = %rax
 len             = %rax
 DWORD_len	= %eax
 
-lane            = %rbp
-tmp3            = %rbp
+lane            = %r12
+tmp3            = %r12
 
 tmp             = %r9
 DWORD_tmp	= %r9d
 
 lane_data       = %r10
 
-# STACK_SPACE needs to be an odd multiple of 8
-STACK_SPACE     = 8*8 + 16*10 + 8
-
 # JOB* submit_mb_mgr_submit_avx2(MB_MGR *state, job_sha1 *job)
 # arg 1 : rcx : state
 # arg 2 : rdx : job
 ENTRY(sha1_mb_mgr_submit_avx2)
-
-	mov	%rsp, %r10
-	sub     $STACK_SPACE, %rsp
-	and	$~31, %rsp
-
-	mov     %rbx, (%rsp)
-	mov	%r10, 8*2(%rsp)	#save old rsp
-	mov     %rbp, 8*3(%rsp)
-	mov	%r12, 8*4(%rsp)
-	mov	%r13, 8*5(%rsp)
-	mov	%r14, 8*6(%rsp)
-	mov	%r15, 8*7(%rsp)
+	FRAME_BEGIN
+	push	%rbx
+	push	%r12
 
 	mov     _unused_lanes(state), unused_lanes
 	mov	unused_lanes, lane
@@ -197,22 +186,15 @@ len_is_0:
 	vpinsrd  $1, _args_digest+1*32(state , idx, 4), %xmm0, %xmm0
 	vpinsrd  $2, _args_digest+2*32(state , idx, 4), %xmm0, %xmm0
 	vpinsrd  $3, _args_digest+3*32(state , idx, 4), %xmm0, %xmm0
-	movl    4*32(state, idx, 4), DWORD_tmp
+	movl     _args_digest+4*32(state, idx, 4), DWORD_tmp
 
 	vmovdqu  %xmm0, _result_digest(job_rax)
 	movl    DWORD_tmp, _result_digest+1*16(job_rax)
 
 return:
-
-	mov     (%rsp), %rbx
-	mov	8*2(%rsp), %r10	#save old rsp
-	mov     8*3(%rsp), %rbp
-	mov	8*4(%rsp), %r12
-	mov	8*5(%rsp), %r13
-	mov	8*6(%rsp), %r14
-	mov	8*7(%rsp), %r15
-	mov     %r10, %rsp
-
+	pop	%r12
+	pop	%rbx
+	FRAME_END
 	ret
 
 return_null:

@@ -323,7 +323,6 @@ static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
 	if (unlikely(!scsicmd || !scsicmd->scsi_done)) {
 		dprintk((KERN_WARNING "aac_valid_context: scsi command corrupt\n"));
 		aac_fib_complete(fibptr);
-		aac_fib_free(fibptr);
 		return 0;
 	}
 	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
@@ -331,7 +330,6 @@ static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
 	if (unlikely(!device || !scsi_device_online(device))) {
 		dprintk((KERN_WARNING "aac_valid_context: scsi device corrupt\n"));
 		aac_fib_complete(fibptr);
-		aac_fib_free(fibptr);
 		return 0;
 	}
 	return 1;
@@ -541,7 +539,6 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 	scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
 
 	aac_fib_complete(fibptr);
-	aac_fib_free(fibptr);
 	scsicmd->scsi_done(scsicmd);
 }
 
@@ -557,7 +554,8 @@ static int aac_get_container_name(struct scsi_cmnd * scsicmd)
 
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 
-	if (!(cmd_fibcontext = aac_fib_alloc(dev)))
+	cmd_fibcontext = aac_fib_alloc_tag(dev, scsicmd);
+	if (!cmd_fibcontext)
 		return -ENOMEM;
 
 	aac_fib_init(cmd_fibcontext);
@@ -586,7 +584,6 @@ static int aac_get_container_name(struct scsi_cmnd * scsicmd)
 
 	printk(KERN_WARNING "aac_get_container_name: aac_fib_send failed with status: %d.\n", status);
 	aac_fib_complete(cmd_fibcontext);
-	aac_fib_free(cmd_fibcontext);
 	return -1;
 }
 
@@ -1024,7 +1021,6 @@ static void get_container_serial_callback(void *context, struct fib * fibptr)
 	scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
 
 	aac_fib_complete(fibptr);
-	aac_fib_free(fibptr);
 	scsicmd->scsi_done(scsicmd);
 }
 
@@ -1040,7 +1036,8 @@ static int aac_get_container_serial(struct scsi_cmnd * scsicmd)
 
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 
-	if (!(cmd_fibcontext = aac_fib_alloc(dev)))
+	cmd_fibcontext = aac_fib_alloc_tag(dev, scsicmd);
+	if (!cmd_fibcontext)
 		return -ENOMEM;
 
 	aac_fib_init(cmd_fibcontext);
@@ -1068,7 +1065,6 @@ static int aac_get_container_serial(struct scsi_cmnd * scsicmd)
 
 	printk(KERN_WARNING "aac_get_container_serial: aac_fib_send failed with status: %d.\n", status);
 	aac_fib_complete(cmd_fibcontext);
-	aac_fib_free(cmd_fibcontext);
 	return -1;
 }
 
@@ -1869,7 +1865,6 @@ static void io_callback(void *context, struct fib * fibptr)
 		break;
 	}
 	aac_fib_complete(fibptr);
-	aac_fib_free(fibptr);
 
 	scsicmd->scsi_done(scsicmd);
 }
@@ -1954,7 +1949,8 @@ static int aac_read(struct scsi_cmnd * scsicmd)
 	/*
 	 *	Alocate and initialize a Fib
 	 */
-	if (!(cmd_fibcontext = aac_fib_alloc(dev))) {
+	cmd_fibcontext = aac_fib_alloc_tag(dev, scsicmd);
+	if (!cmd_fibcontext) {
 		printk(KERN_WARNING "aac_read: fib allocation failed\n");
 		return -1;
 	}
@@ -2051,7 +2047,8 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 	/*
 	 *	Allocate and initialize a Fib then setup a BlockWrite command
 	 */
-	if (!(cmd_fibcontext = aac_fib_alloc(dev))) {
+	cmd_fibcontext = aac_fib_alloc_tag(dev, scsicmd);
+	if (!cmd_fibcontext) {
 		/* FIB temporarily unavailable,not catastrophic failure */
 
 		/* scsicmd->result = DID_ERROR << 16;
@@ -2285,7 +2282,7 @@ static int aac_start_stop(struct scsi_cmnd *scsicmd)
 	/*
 	 *	Allocate and initialize a Fib
 	 */
-	cmd_fibcontext = aac_fib_alloc(aac);
+	cmd_fibcontext = aac_fib_alloc_tag(aac, scsicmd);
 	if (!cmd_fibcontext)
 		return SCSI_MLQUEUE_HOST_BUSY;
 
@@ -3157,7 +3154,6 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 	scsicmd->result |= le32_to_cpu(srbreply->scsi_status);
 
 	aac_fib_complete(fibptr);
-	aac_fib_free(fibptr);
 	scsicmd->scsi_done(scsicmd);
 }
 
@@ -3187,9 +3183,10 @@ static int aac_send_srb_fib(struct scsi_cmnd* scsicmd)
 	/*
 	 *	Allocate and initialize a Fib then setup a BlockWrite command
 	 */
-	if (!(cmd_fibcontext = aac_fib_alloc(dev))) {
+	cmd_fibcontext = aac_fib_alloc_tag(dev, scsicmd);
+	if (!cmd_fibcontext)
 		return -1;
-	}
+
 	status = aac_adapter_scsi(cmd_fibcontext, scsicmd);
 
 	/*

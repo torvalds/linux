@@ -390,7 +390,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "\nIp: %d %d",
 		   IPV4_DEVCONF_ALL(net, FORWARDING) ? 1 : 2,
-		   sysctl_ip_default_ttl);
+		   net->ipv4.sysctl_ip_default_ttl);
 
 	BUILD_BUG_ON(offsetof(struct ipstats_mib, mibs) != 0);
 	for (i = 0; snmp4_ipstats_list[i].name != NULL; i++)

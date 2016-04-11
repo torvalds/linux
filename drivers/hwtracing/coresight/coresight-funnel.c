@@ -1,5 +1,7 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
+ * Description: CoreSight Funnel driver
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -11,7 +13,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
@@ -69,7 +70,6 @@ static int funnel_enable(struct coresight_device *csdev, int inport,
 {
 	struct funnel_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
-	pm_runtime_get_sync(drvdata->dev);
 	funnel_enable_hw(drvdata, inport);
 
 	dev_info(drvdata->dev, "FUNNEL inport %d enabled\n", inport);
@@ -95,7 +95,6 @@ static void funnel_disable(struct coresight_device *csdev, int inport,
 	struct funnel_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	funnel_disable_hw(drvdata, inport);
-	pm_runtime_put(drvdata->dev);
 
 	dev_info(drvdata->dev, "FUNNEL inport %d disabled\n", inport);
 }
@@ -226,14 +225,6 @@ static int funnel_probe(struct amba_device *adev, const struct amba_id *id)
 	return 0;
 }
 
-static int funnel_remove(struct amba_device *adev)
-{
-	struct funnel_drvdata *drvdata = amba_get_drvdata(adev);
-
-	coresight_unregister(drvdata->csdev);
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static int funnel_runtime_suspend(struct device *dev)
 {
@@ -273,13 +264,9 @@ static struct amba_driver funnel_driver = {
 		.name	= "coresight-funnel",
 		.owner	= THIS_MODULE,
 		.pm	= &funnel_dev_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 	.probe		= funnel_probe,
-	.remove		= funnel_remove,
 	.id_table	= funnel_ids,
 };
-
-module_amba_driver(funnel_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("CoreSight Funnel driver");
+builtin_amba_driver(funnel_driver);

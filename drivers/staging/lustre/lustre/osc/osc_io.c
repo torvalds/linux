@@ -73,7 +73,7 @@ static struct osc_page *osc_cl_page_osc(struct cl_page *page)
 	const struct cl_page_slice *slice;
 
 	slice = cl_page_at(page, &osc_device_type);
-	LASSERT(slice != NULL);
+	LASSERT(slice);
 
 	return cl2osc_page(slice);
 }
@@ -135,7 +135,7 @@ static int osc_io_submit(const struct lu_env *env,
 
 		/* Top level IO. */
 		io = page->cp_owner;
-		LASSERT(io != NULL);
+		LASSERT(io);
 
 		opg = osc_cl_page_osc(page);
 		oap = &opg->ops_oap;
@@ -266,13 +266,14 @@ static int osc_io_prepare_write(const struct lu_env *env,
 	 * This implements OBD_BRW_CHECK logic from old client.
 	 */
 
-	if (imp == NULL || imp->imp_invalid)
+	if (!imp || imp->imp_invalid)
 		result = -EIO;
 	if (result == 0 && oio->oi_lockless)
 		/* this page contains `invalid' data, but who cares?
 		 * nobody can access the invalid data.
 		 * in osc_io_commit_write(), we're going to write exact
-		 * [from, to) bytes of this page to OST. -jay */
+		 * [from, to) bytes of this page to OST. -jay
+		 */
 		cl_page_export(env, slice->cpl_page, 1);
 
 	return result;
@@ -349,14 +350,14 @@ static int trunc_check_cb(const struct lu_env *env, struct cl_io *io,
 	__u64 start = *(__u64 *)cbdata;
 
 	slice = cl_page_at(page, &osc_device_type);
-	LASSERT(slice != NULL);
+	LASSERT(slice);
 	ops = cl2osc_page(slice);
 	oap = &ops->ops_oap;
 
 	if (oap->oap_cmd & OBD_BRW_WRITE &&
 	    !list_empty(&oap->oap_pending_item))
 		CL_PAGE_DEBUG(D_ERROR, env, page, "exists %llu/%s.\n",
-				start, current->comm);
+			      start, current->comm);
 
 	{
 		struct page *vmpage = cl_page_vmpage(env, page);
@@ -500,7 +501,7 @@ static void osc_io_setattr_end(const struct lu_env *env,
 		__u64 size = io->u.ci_setattr.sa_attr.lvb_size;
 
 		osc_trunc_check(env, io, oio, size);
-		if (oio->oi_trunc != NULL) {
+		if (oio->oi_trunc) {
 			osc_cache_truncate_end(env, oio, cl2osc(obj));
 			oio->oi_trunc = NULL;
 		}
@@ -596,7 +597,8 @@ static int osc_io_fsync_start(const struct lu_env *env,
 		 * send OST_SYNC RPC. This is bad because it causes extents
 		 * to be written osc by osc. However, we usually start
 		 * writeback before CL_FSYNC_ALL so this won't have any real
-		 * problem. */
+		 * problem.
+		 */
 		rc = osc_cache_wait_range(env, osc, start, end);
 		if (result == 0)
 			result = rc;
@@ -754,13 +756,12 @@ static void osc_req_attr_set(const struct lu_env *env,
 		opg = osc_cl_page_osc(apage);
 		apage = opg->ops_cl.cpl_page; /* now apage is a sub-page */
 		lock = cl_lock_at_page(env, apage->cp_obj, apage, NULL, 1, 1);
-		if (lock == NULL) {
+		if (!lock) {
 			struct cl_object_header *head;
 			struct cl_lock *scan;
 
 			head = cl_object_header(apage->cp_obj);
-			list_for_each_entry(scan, &head->coh_locks,
-						cll_linkage)
+			list_for_each_entry(scan, &head->coh_locks, cll_linkage)
 				CL_LOCK_DEBUG(D_ERROR, env, scan,
 					      "no cover page!\n");
 			CL_PAGE_DEBUG(D_ERROR, env, apage,
@@ -770,10 +771,9 @@ static void osc_req_attr_set(const struct lu_env *env,
 		}
 
 		olck = osc_lock_at(lock);
-		LASSERT(olck != NULL);
-		LASSERT(ergo(opg->ops_srvlock, olck->ols_lock == NULL));
+		LASSERT(ergo(opg->ops_srvlock, !olck->ols_lock));
 		/* check for lockless io. */
-		if (olck->ols_lock != NULL) {
+		if (olck->ols_lock) {
 			oa->o_handle = olck->ols_lock->l_remote_handle;
 			oa->o_valid |= OBD_MD_FLHANDLE;
 		}
@@ -803,8 +803,8 @@ int osc_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct osc_req *or;
 	int result;
 
-	or = kmem_cache_alloc(osc_req_kmem, GFP_NOFS | __GFP_ZERO);
-	if (or != NULL) {
+	or = kmem_cache_zalloc(osc_req_kmem, GFP_NOFS);
+	if (or) {
 		cl_req_slice_add(req, &or->or_cl, dev, &osc_req_ops);
 		result = 0;
 	} else

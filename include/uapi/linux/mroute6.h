@@ -1,6 +1,7 @@
 #ifndef _UAPI__LINUX_MROUTE6_H
 #define _UAPI__LINUX_MROUTE6_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/sockios.h>
 
@@ -46,14 +47,8 @@ typedef unsigned short mifi_t;
 typedef	__u32		if_mask;
 #define NIFBITS (sizeof(if_mask) * 8)        /* bits per mask */
 
-#if !defined(__KERNEL__)
-#if !defined(DIV_ROUND_UP)
-#define	DIV_ROUND_UP(x,y)	(((x) + ((y) - 1)) / (y))
-#endif
-#endif
-
 typedef struct if_set {
-	if_mask ifs_bits[DIV_ROUND_UP(IF_SETSIZE, NIFBITS)];
+	if_mask ifs_bits[__KERNEL_DIV_ROUND_UP(IF_SETSIZE, NIFBITS)];
 } if_set;
 
 #define IF_SET(n, p)    ((p)->ifs_bits[(n)/NIFBITS] |= (1 << ((n) % NIFBITS)))

@@ -829,18 +829,19 @@ static void saa7134_media_release(struct saa7134_dev *dev)
 #endif
 }
 
+#if defined(CONFIG_MEDIA_CONTROLLER)
 static void saa7134_create_entities(struct saa7134_dev *dev)
 {
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	int ret, i;
 	struct media_entity *entity;
 	struct media_entity *decoder = NULL;
 
 	/* Check if it is using an external analog TV demod */
 	media_device_for_each_entity(entity, dev->media_dev) {
-		if (entity->function == MEDIA_ENT_F_ATV_DECODER)
+		if (entity->function == MEDIA_ENT_F_ATV_DECODER) {
 			decoder = entity;
 			break;
+		}
 	}
 
 	/*
@@ -950,8 +951,8 @@ static void saa7134_create_entities(struct saa7134_dev *dev)
 		if (ret < 0)
 			pr_err("failed to register input entity %d!\n", i);
 	}
-#endif
 }
+#endif
 
 static struct video_device *vdev_init(struct saa7134_dev *dev,
 				      struct video_device *template,
@@ -1042,11 +1043,12 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	sprintf(dev->name, "saa%x[%d]", pci_dev->device, dev->nr);
 
 #ifdef CONFIG_MEDIA_CONTROLLER
-	dev->media_dev = v4l2_mc_pci_media_device_init(pci_dev, dev->name);
+	dev->media_dev = kzalloc(sizeof(*dev->media_dev), GFP_KERNEL);
 	if (!dev->media_dev) {
 		err = -ENOMEM;
 		goto fail0;
 	}
+	media_device_pci_init(dev->media_dev, pci_dev, dev->name);
 	dev->v4l2_dev.mdev = dev->media_dev;
 #endif
 

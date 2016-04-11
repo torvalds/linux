@@ -841,7 +841,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 
 		i_size = i_size_read(ino);
 
-		lgp->args.minlength = PAGE_CACHE_SIZE;
+		lgp->args.minlength = PAGE_SIZE;
 		if (lgp->args.minlength > range->length)
 			lgp->args.minlength = range->length;
 		if (range->iomode == IOMODE_READ) {
@@ -1618,13 +1618,13 @@ lookup_again:
 		spin_unlock(&clp->cl_lock);
 	}
 
-	pg_offset = arg.offset & ~PAGE_CACHE_MASK;
+	pg_offset = arg.offset & ~PAGE_MASK;
 	if (pg_offset) {
 		arg.offset -= pg_offset;
 		arg.length += pg_offset;
 	}
 	if (arg.length != NFS4_MAX_UINT64)
-		arg.length = PAGE_CACHE_ALIGN(arg.length);
+		arg.length = PAGE_ALIGN(arg.length);
 
 	lseg = send_layoutget(lo, ctx, &arg, gfp_flags);
 	atomic_dec(&lo->plh_outstanding);

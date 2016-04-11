@@ -176,6 +176,7 @@ struct scsi_device {
 	unsigned no_dif:1;	/* T10 PI (DIF) should be disabled */
 	unsigned broken_fua:1;		/* Don't set FUA bit */
 	unsigned lun_in_cdb:1;		/* Store LUN bits in CDB[1] */
+	unsigned synchronous_alua:1;	/* Synchronous ALUA commands */
 
 	atomic_t disk_events_disable_depth; /* disable depth for disk events */
 
@@ -200,6 +201,7 @@ struct scsi_device {
 	struct scsi_device_handler *handler;
 	void			*handler_data;
 
+	unsigned char		access_state;
 	enum scsi_device_state sdev_state;
 	unsigned long		sdev_data[0];
 } __attribute__((aligned(sizeof(unsigned long))));
@@ -397,6 +399,7 @@ extern void scsi_remove_target(struct device *);
 extern const char *scsi_device_state_name(enum scsi_device_state);
 extern int scsi_is_sdev_device(const struct device *);
 extern int scsi_is_target_device(const struct device *);
+extern void scsi_sanitize_inquiry_string(unsigned char *s, int len);
 extern int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 			int data_direction, void *buffer, unsigned bufflen,
 			unsigned char *sense, int timeout, int retries,
@@ -511,6 +514,31 @@ static inline int scsi_device_protection(struct scsi_device *sdev)
 static inline int scsi_device_tpgs(struct scsi_device *sdev)
 {
 	return sdev->inquiry ? (sdev->inquiry[5] >> 4) & 0x3 : 0;
+}
+
+/**
+ * scsi_device_supports_vpd - test if a device supports VPD pages
+ * @sdev: the &struct scsi_device to test
+ *
+ * If the 'try_vpd_pages' flag is set it takes precedence.
+ * Otherwise we will assume VPD pages are supported if the
+ * SCSI level is at least SPC-3 and 'skip_vpd_pages' is not set.
+ */
+static inline int scsi_device_supports_vpd(struct scsi_device *sdev)
+{
+	/* Attempt VPD inquiry if the device blacklist explicitly calls
+	 * for it.
+	 */
+	if (sdev->try_vpd_pages)
+		return 1;
+	/*
+	 * Although VPD inquiries can go to SCSI-2 type devices,
+	 * some USB ones crash on receiving them, and the pages
+	 * we currently ask for are for SPC-3 and beyond
+	 */
+	if (sdev->scsi_level > SCSI_SPC_2 && !sdev->skip_vpd_pages)
+		return 1;
+	return 0;
 }
 
 #define MODULE_ALIAS_SCSI_DEVICE(type) \

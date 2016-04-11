@@ -345,6 +345,12 @@ extern struct Qdisc_ops pfifo_fast_ops;
 extern struct Qdisc_ops mq_qdisc_ops;
 extern struct Qdisc_ops noqueue_qdisc_ops;
 extern const struct Qdisc_ops *default_qdisc_ops;
+static inline const struct Qdisc_ops *
+get_default_qdisc_ops(const struct net_device *dev, int ntx)
+{
+	return ntx < dev->real_num_tx_queues ?
+			default_qdisc_ops : &pfifo_fast_ops;
+}
 
 struct Qdisc_class_common {
 	u32			classid;
@@ -396,7 +402,8 @@ struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 			      struct Qdisc *qdisc);
 void qdisc_reset(struct Qdisc *qdisc);
 void qdisc_destroy(struct Qdisc *qdisc);
-void qdisc_tree_decrease_qlen(struct Qdisc *qdisc, unsigned int n);
+void qdisc_tree_reduce_backlog(struct Qdisc *qdisc, unsigned int n,
+			       unsigned int len);
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  const struct Qdisc_ops *ops);
 struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
@@ -705,6 +712,23 @@ static inline void qdisc_reset_queue(struct Qdisc *sch)
 {
 	__qdisc_reset_queue(sch, &sch->q);
 	sch->qstats.backlog = 0;
+}
+
+static inline struct Qdisc *qdisc_replace(struct Qdisc *sch, struct Qdisc *new,
+					  struct Qdisc **pold)
+{
+	struct Qdisc *old;
+
+	sch_tree_lock(sch);
+	old = *pold;
+	*pold = new;
+	if (old != NULL) {
+		qdisc_tree_reduce_backlog(old, old->q.qlen, old->qstats.backlog);
+		qdisc_reset(old);
+	}
+	sch_tree_unlock(sch);
+
+	return old;
 }
 
 static inline unsigned int __qdisc_queue_drop(struct Qdisc *sch,

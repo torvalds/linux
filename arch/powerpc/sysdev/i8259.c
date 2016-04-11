@@ -238,7 +238,7 @@ void i8259_init(struct device_node *node, unsigned long intack_addr)
 	/* init master interrupt controller */
 	outb(0x11, 0x20); /* Start init sequence */
 	outb(0x00, 0x21); /* Vector base */
-	outb(0x04, 0x21); /* edge tiggered, Cascade (slave) on IRQ2 */
+	outb(0x04, 0x21); /* edge triggered, Cascade (slave) on IRQ2 */
 	outb(0x01, 0x21); /* Select 8086 mode */
 
 	/* init slave interrupt controller */

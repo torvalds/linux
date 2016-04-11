@@ -1,4 +1,4 @@
-/* Copyright (C) 2010-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -281,6 +281,8 @@ static int batadv_originators_open(struct inode *inode, struct file *file)
  *  originator table of an hard interface
  * @inode: inode pointer to debugfs file
  * @file: pointer to the seq_file
+ *
+ * Return: 0 on success or negative error number in case of failure
  */
 static int batadv_originators_hardif_open(struct inode *inode,
 					  struct file *file)
@@ -329,6 +331,8 @@ static int batadv_bla_backbone_table_open(struct inode *inode,
  * batadv_dat_cache_open - Prepare file handler for reads from dat_chache
  * @inode: inode which was opened
  * @file: file handle to be initialized
+ *
+ * Return: 0 on success or negative error number in case of failure
  */
 static int batadv_dat_cache_open(struct inode *inode, struct file *file)
 {
@@ -483,6 +487,8 @@ void batadv_debugfs_destroy(void)
  * batadv_debugfs_add_hardif - creates the base directory for a hard interface
  *  in debugfs.
  * @hard_iface: hard interface which should be added.
+ *
+ * Return: 0 on success or negative error number in case of failure
  */
 int batadv_debugfs_add_hardif(struct batadv_hard_iface *hard_iface)
 {

@@ -30,6 +30,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-mc.h>
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 #include "au8522.h"
@@ -38,14 +39,6 @@
 #define AU8522_ANALOG_MODE 0
 #define AU8522_DIGITAL_MODE 1
 #define AU8522_SUSPEND_MODE 2
-
-enum au8522_media_pads {
-	AU8522_PAD_INPUT,
-	AU8522_PAD_VID_OUT,
-	AU8522_PAD_VBI_OUT,
-
-	AU8522_NUM_PADS
-};
 
 struct au8522_state {
 	struct i2c_client *c;
@@ -78,7 +71,7 @@ struct au8522_state {
 	struct v4l2_ctrl_handler hdl;
 
 #ifdef CONFIG_MEDIA_CONTROLLER
-	struct media_pad pads[AU8522_NUM_PADS];
+	struct media_pad pads[DEMOD_NUM_PADS];
 #endif
 };
 

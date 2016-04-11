@@ -1171,6 +1171,7 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 	struct enet_cb *tx_cb_ptr;
 	struct netdev_queue *txq;
 	unsigned int pkts_compl = 0;
+	unsigned int bytes_compl = 0;
 	unsigned int c_index;
 	unsigned int txbds_ready;
 	unsigned int txbds_processed = 0;
@@ -1193,16 +1194,13 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 		tx_cb_ptr = &priv->tx_cbs[ring->clean_ptr];
 		if (tx_cb_ptr->skb) {
 			pkts_compl++;
-			dev->stats.tx_packets++;
-			dev->stats.tx_bytes += tx_cb_ptr->skb->len;
+			bytes_compl += GENET_CB(tx_cb_ptr->skb)->bytes_sent;
 			dma_unmap_single(&dev->dev,
 					 dma_unmap_addr(tx_cb_ptr, dma_addr),
-					 tx_cb_ptr->skb->len,
+					 dma_unmap_len(tx_cb_ptr, dma_len),
 					 DMA_TO_DEVICE);
 			bcmgenet_free_cb(tx_cb_ptr);
 		} else if (dma_unmap_addr(tx_cb_ptr, dma_addr)) {
-			dev->stats.tx_bytes +=
-				dma_unmap_len(tx_cb_ptr, dma_len);
 			dma_unmap_page(&dev->dev,
 				       dma_unmap_addr(tx_cb_ptr, dma_addr),
 				       dma_unmap_len(tx_cb_ptr, dma_len),
@@ -1219,6 +1217,9 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 
 	ring->free_bds += txbds_processed;
 	ring->c_index = (ring->c_index + txbds_processed) & DMA_C_INDEX_MASK;
+
+	dev->stats.tx_packets += pkts_compl;
+	dev->stats.tx_bytes += bytes_compl;
 
 	if (ring->free_bds > (MAX_SKB_FRAGS + 1)) {
 		txq = netdev_get_tx_queue(dev, ring->queue);
@@ -1296,7 +1297,7 @@ static int bcmgenet_xmit_single(struct net_device *dev,
 
 	tx_cb_ptr->skb = skb;
 
-	skb_len = skb_headlen(skb) < ETH_ZLEN ? ETH_ZLEN : skb_headlen(skb);
+	skb_len = skb_headlen(skb);
 
 	mapping = dma_map_single(kdev, skb->data, skb_len, DMA_TO_DEVICE);
 	ret = dma_mapping_error(kdev, mapping);
@@ -1308,7 +1309,7 @@ static int bcmgenet_xmit_single(struct net_device *dev,
 	}
 
 	dma_unmap_addr_set(tx_cb_ptr, dma_addr, mapping);
-	dma_unmap_len_set(tx_cb_ptr, dma_len, skb->len);
+	dma_unmap_len_set(tx_cb_ptr, dma_len, skb_len);
 	length_status = (skb_len << DMA_BUFLENGTH_SHIFT) | dma_desc_flags |
 			(priv->hw_params->qtag_mask << DMA_TX_QTAG_SHIFT) |
 			DMA_TX_APPEND_CRC;
@@ -1463,6 +1464,11 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 		ret = NETDEV_TX_OK;
 		goto out;
 	}
+
+	/* Retain how many bytes will be sent on the wire, without TSB inserted
+	 * by transmit checksum offload
+	 */
+	GENET_CB(skb)->bytes_sent = skb->len;
 
 	/* set the SKB transmit checksum */
 	if (priv->desc_64b_en) {

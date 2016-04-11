@@ -10,7 +10,6 @@
 #include <asm/pgtable.h>
 #include <asm/dcr.h>
 
-EXPORT_SYMBOL(clear_pages);
 EXPORT_SYMBOL(ISA_DMA_THRESHOLD);
 EXPORT_SYMBOL(DMA_MODE_READ);
 EXPORT_SYMBOL(DMA_MODE_WRITE);

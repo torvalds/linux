@@ -90,16 +90,15 @@ unsigned long usb_hcds_loaded;
 EXPORT_SYMBOL_GPL(usb_hcds_loaded);
 
 /* host controllers we manage */
-LIST_HEAD (usb_bus_list);
-EXPORT_SYMBOL_GPL (usb_bus_list);
+DEFINE_IDR (usb_bus_idr);
+EXPORT_SYMBOL_GPL (usb_bus_idr);
 
 /* used when allocating bus numbers */
 #define USB_MAXBUS		64
-static DECLARE_BITMAP(busmap, USB_MAXBUS);
 
 /* used when updating list of hcds */
-DEFINE_MUTEX(usb_bus_list_lock);	/* exported only for usbfs */
-EXPORT_SYMBOL_GPL (usb_bus_list_lock);
+DEFINE_MUTEX(usb_bus_idr_lock);	/* exported only for usbfs */
+EXPORT_SYMBOL_GPL (usb_bus_idr_lock);
 
 /* used for controlling access to virtual root hubs */
 static DEFINE_SPINLOCK(hcd_root_hub_lock);
@@ -127,6 +126,27 @@ static inline int is_root_hub(struct usb_device *udev)
 /*-------------------------------------------------------------------------*/
 #define KERNEL_REL	bin2bcd(((LINUX_VERSION_CODE >> 16) & 0x0ff))
 #define KERNEL_VER	bin2bcd(((LINUX_VERSION_CODE >> 8) & 0x0ff))
+
+/* usb 3.1 root hub device descriptor */
+static const u8 usb31_rh_dev_descriptor[18] = {
+	0x12,       /*  __u8  bLength; */
+	USB_DT_DEVICE, /* __u8 bDescriptorType; Device */
+	0x10, 0x03, /*  __le16 bcdUSB; v3.1 */
+
+	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
+	0x00,	    /*  __u8  bDeviceSubClass; */
+	0x03,       /*  __u8  bDeviceProtocol; USB 3 hub */
+	0x09,       /*  __u8  bMaxPacketSize0; 2^9 = 512 Bytes */
+
+	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
+	0x03, 0x00, /*  __le16 idProduct; device 0x0003 */
+	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
+
+	0x03,       /*  __u8  iManufacturer; */
+	0x02,       /*  __u8  iProduct; */
+	0x01,       /*  __u8  iSerialNumber; */
+	0x01        /*  __u8  bNumConfigurations; */
+};
 
 /* usb 3.0 root hub device descriptor */
 static const u8 usb3_rh_dev_descriptor[18] = {
@@ -557,6 +577,8 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 		case USB_DT_DEVICE << 8:
 			switch (hcd->speed) {
 			case HCD_USB31:
+				bufp = usb31_rh_dev_descriptor;
+				break;
 			case HCD_USB3:
 				bufp = usb3_rh_dev_descriptor;
 				break;
@@ -645,8 +667,14 @@ nongeneric:
 		/* non-generic request */
 		switch (typeReq) {
 		case GetHubStatus:
-		case GetPortStatus:
 			len = 4;
+			break;
+		case GetPortStatus:
+			if (wValue == HUB_PORT_STATUS)
+				len = 4;
+			else
+				/* other port status types return 8 bytes */
+				len = 8;
 			break;
 		case GetHubDescriptor:
 			len = sizeof (struct usb_hub_descriptor);
@@ -967,8 +995,6 @@ static void usb_bus_init (struct usb_bus *bus)
 	bus->bandwidth_int_reqs  = 0;
 	bus->bandwidth_isoc_reqs = 0;
 	mutex_init(&bus->usb_address0_mutex);
-
-	INIT_LIST_HEAD (&bus->bus_list);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -988,18 +1014,14 @@ static int usb_register_bus(struct usb_bus *bus)
 	int result = -E2BIG;
 	int busnum;
 
-	mutex_lock(&usb_bus_list_lock);
-	busnum = find_next_zero_bit(busmap, USB_MAXBUS, 1);
-	if (busnum >= USB_MAXBUS) {
-		printk (KERN_ERR "%s: too many buses\n", usbcore_name);
+	mutex_lock(&usb_bus_idr_lock);
+	busnum = idr_alloc(&usb_bus_idr, bus, 1, USB_MAXBUS, GFP_KERNEL);
+	if (busnum < 0) {
+		pr_err("%s: failed to get bus number\n", usbcore_name);
 		goto error_find_busnum;
 	}
-	set_bit(busnum, busmap);
 	bus->busnum = busnum;
-
-	/* Add it to the local list of buses */
-	list_add (&bus->bus_list, &usb_bus_list);
-	mutex_unlock(&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_idr_lock);
 
 	usb_notify_add_bus(bus);
 
@@ -1008,7 +1030,7 @@ static int usb_register_bus(struct usb_bus *bus)
 	return 0;
 
 error_find_busnum:
-	mutex_unlock(&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_idr_lock);
 	return result;
 }
 
@@ -1029,13 +1051,11 @@ static void usb_deregister_bus (struct usb_bus *bus)
 	 * controller code, as well as having it call this when cleaning
 	 * itself up
 	 */
-	mutex_lock(&usb_bus_list_lock);
-	list_del (&bus->bus_list);
-	mutex_unlock(&usb_bus_list_lock);
+	mutex_lock(&usb_bus_idr_lock);
+	idr_remove(&usb_bus_idr, bus->busnum);
+	mutex_unlock(&usb_bus_idr_lock);
 
 	usb_notify_remove_bus(bus);
-
-	clear_bit(bus->busnum, busmap);
 }
 
 /**
@@ -1063,12 +1083,12 @@ static int register_root_hub(struct usb_hcd *hcd)
 	set_bit (devnum, usb_dev->bus->devmap.devicemap);
 	usb_set_device_state(usb_dev, USB_STATE_ADDRESS);
 
-	mutex_lock(&usb_bus_list_lock);
+	mutex_lock(&usb_bus_idr_lock);
 
 	usb_dev->ep0.desc.wMaxPacketSize = cpu_to_le16(64);
 	retval = usb_get_device_descriptor(usb_dev, USB_DT_DEVICE_SIZE);
 	if (retval != sizeof usb_dev->descriptor) {
-		mutex_unlock(&usb_bus_list_lock);
+		mutex_unlock(&usb_bus_idr_lock);
 		dev_dbg (parent_dev, "can't read %s device descriptor %d\n",
 				dev_name(&usb_dev->dev), retval);
 		return (retval < 0) ? retval : -EMSGSIZE;
@@ -1078,8 +1098,8 @@ static int register_root_hub(struct usb_hcd *hcd)
 		retval = usb_get_bos_descriptor(usb_dev);
 		if (!retval) {
 			usb_dev->lpm_capable = usb_device_supports_lpm(usb_dev);
-		} else if (usb_dev->speed == USB_SPEED_SUPER) {
-			mutex_unlock(&usb_bus_list_lock);
+		} else if (usb_dev->speed >= USB_SPEED_SUPER) {
+			mutex_unlock(&usb_bus_idr_lock);
 			dev_dbg(parent_dev, "can't read %s bos descriptor %d\n",
 					dev_name(&usb_dev->dev), retval);
 			return retval;
@@ -1099,7 +1119,7 @@ static int register_root_hub(struct usb_hcd *hcd)
 		if (HCD_DEAD(hcd))
 			usb_hc_died (hcd);	/* This time clean up */
 	}
-	mutex_unlock(&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_idr_lock);
 
 	return retval;
 }
@@ -1408,7 +1428,8 @@ static void hcd_free_coherent(struct usb_bus *bus, dma_addr_t *dma_handle,
 
 void usb_hcd_unmap_urb_setup_for_dma(struct usb_hcd *hcd, struct urb *urb)
 {
-	if (urb->transfer_flags & URB_SETUP_MAP_SINGLE)
+	if (IS_ENABLED(CONFIG_HAS_DMA) &&
+	    (urb->transfer_flags & URB_SETUP_MAP_SINGLE))
 		dma_unmap_single(hcd->self.controller,
 				urb->setup_dma,
 				sizeof(struct usb_ctrlrequest),
@@ -1440,17 +1461,20 @@ void usb_hcd_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 	usb_hcd_unmap_urb_setup_for_dma(hcd, urb);
 
 	dir = usb_urb_dir_in(urb) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-	if (urb->transfer_flags & URB_DMA_MAP_SG)
+	if (IS_ENABLED(CONFIG_HAS_DMA) &&
+	    (urb->transfer_flags & URB_DMA_MAP_SG))
 		dma_unmap_sg(hcd->self.controller,
 				urb->sg,
 				urb->num_sgs,
 				dir);
-	else if (urb->transfer_flags & URB_DMA_MAP_PAGE)
+	else if (IS_ENABLED(CONFIG_HAS_DMA) &&
+		 (urb->transfer_flags & URB_DMA_MAP_PAGE))
 		dma_unmap_page(hcd->self.controller,
 				urb->transfer_dma,
 				urb->transfer_buffer_length,
 				dir);
-	else if (urb->transfer_flags & URB_DMA_MAP_SINGLE)
+	else if (IS_ENABLED(CONFIG_HAS_DMA) &&
+		 (urb->transfer_flags & URB_DMA_MAP_SINGLE))
 		dma_unmap_single(hcd->self.controller,
 				urb->transfer_dma,
 				urb->transfer_buffer_length,
@@ -1492,7 +1516,7 @@ int usb_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 	if (usb_endpoint_xfer_control(&urb->ep->desc)) {
 		if (hcd->self.uses_pio_for_control)
 			return ret;
-		if (hcd->self.uses_dma) {
+		if (IS_ENABLED(CONFIG_HAS_DMA) && hcd->self.uses_dma) {
 			urb->setup_dma = dma_map_single(
 					hcd->self.controller,
 					urb->setup_packet,
@@ -1518,7 +1542,7 @@ int usb_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 	dir = usb_urb_dir_in(urb) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 	if (urb->transfer_buffer_length != 0
 	    && !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)) {
-		if (hcd->self.uses_dma) {
+		if (IS_ENABLED(CONFIG_HAS_DMA) && hcd->self.uses_dma) {
 			if (urb->num_sgs) {
 				int n;
 
@@ -2112,7 +2136,7 @@ int usb_alloc_streams(struct usb_interface *interface,
 	hcd = bus_to_hcd(dev->bus);
 	if (!hcd->driver->alloc_streams || !hcd->driver->free_streams)
 		return -EINVAL;
-	if (dev->speed != USB_SPEED_SUPER)
+	if (dev->speed < USB_SPEED_SUPER)
 		return -EINVAL;
 	if (dev->state < USB_STATE_CONFIGURED)
 		return -ENODEV;
@@ -2160,7 +2184,7 @@ int usb_free_streams(struct usb_interface *interface,
 
 	dev = interface_to_usbdev(interface);
 	hcd = bus_to_hcd(dev->bus);
-	if (dev->speed != USB_SPEED_SUPER)
+	if (dev->speed < USB_SPEED_SUPER)
 		return -EINVAL;
 
 	/* Double-free is not allowed */
@@ -2208,7 +2232,7 @@ int usb_hcd_get_frame_number (struct usb_device *udev)
 
 int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 {
-	struct usb_hcd	*hcd = container_of(rhdev->bus, struct usb_hcd, self);
+	struct usb_hcd	*hcd = bus_to_hcd(rhdev->bus);
 	int		status;
 	int		old_state = hcd->state;
 
@@ -2257,7 +2281,7 @@ int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 
 int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 {
-	struct usb_hcd	*hcd = container_of(rhdev->bus, struct usb_hcd, self);
+	struct usb_hcd	*hcd = bus_to_hcd(rhdev->bus);
 	int		status;
 	int		old_state = hcd->state;
 
@@ -2371,7 +2395,7 @@ int usb_bus_start_enum(struct usb_bus *bus, unsigned port_num)
 	 * boards with root hubs hooked up to internal devices (instead of
 	 * just the OTG port) may need more attention to resetting...
 	 */
-	hcd = container_of (bus, struct usb_hcd, self);
+	hcd = bus_to_hcd(bus);
 	if (port_num && hcd->driver->start_port_reset)
 		status = hcd->driver->start_port_reset(hcd, port_num);
 
@@ -2778,8 +2802,10 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		rhdev->speed = USB_SPEED_WIRELESS;
 		break;
 	case HCD_USB3:
-	case HCD_USB31:
 		rhdev->speed = USB_SPEED_SUPER;
+		break;
+	case HCD_USB31:
+		rhdev->speed = USB_SPEED_SUPER_PLUS;
 		break;
 	default:
 		retval = -EINVAL;
@@ -2863,9 +2889,9 @@ error_create_attr_group:
 #ifdef CONFIG_PM
 	cancel_work_sync(&hcd->wakeup_work);
 #endif
-	mutex_lock(&usb_bus_list_lock);
+	mutex_lock(&usb_bus_idr_lock);
 	usb_disconnect(&rhdev);		/* Sets rhdev to NULL */
-	mutex_unlock(&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_idr_lock);
 err_register_root_hub:
 	hcd->rh_pollable = 0;
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
@@ -2932,9 +2958,9 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	cancel_work_sync(&hcd->wakeup_work);
 #endif
 
-	mutex_lock(&usb_bus_list_lock);
+	mutex_lock(&usb_bus_idr_lock);
 	usb_disconnect(&rhdev);		/* Sets rhdev to NULL */
-	mutex_unlock(&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_idr_lock);
 
 	/*
 	 * tasklet_kill() isn't needed here because:

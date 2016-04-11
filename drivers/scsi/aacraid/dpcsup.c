@@ -394,7 +394,6 @@ unsigned int aac_intr_normal(struct aac_dev *dev, u32 index,
 				fib->callback(fib->callback_data, fib);
 			} else {
 				aac_fib_complete(fib);
-				aac_fib_free(fib);
 			}
 		} else {
 			unsigned long flagv;
@@ -416,7 +415,6 @@ unsigned int aac_intr_normal(struct aac_dev *dev, u32 index,
 				fib->done = 0;
 				spin_unlock_irqrestore(&fib->event_lock, flagv);
 				aac_fib_complete(fib);
-				aac_fib_free(fib);
 			}
 
 		}

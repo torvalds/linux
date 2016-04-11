@@ -1847,14 +1847,12 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 	if (osd_req->r_result < 0)
 		obj_request->result = osd_req->r_result;
 
-	rbd_assert(osd_req->r_num_ops <= CEPH_OSD_MAX_OP);
-
 	/*
 	 * We support a 64-bit length, but ultimately it has to be
 	 * passed to the block layer, which just supports a 32-bit
 	 * length field.
 	 */
-	obj_request->xferred = osd_req->r_reply_op_len[0];
+	obj_request->xferred = osd_req->r_ops[0].outdata_len;
 	rbd_assert(obj_request->xferred < (u64)UINT_MAX);
 
 	opcode = osd_req->r_ops[0].op;
@@ -1955,7 +1953,7 @@ static struct ceph_osd_request *rbd_osd_req_create(
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
 	osd_req = ceph_osdc_alloc_request(osdc, snapc, num_ops, false,
-					  GFP_ATOMIC);
+					  GFP_NOIO);
 	if (!osd_req)
 		return NULL;	/* ENOMEM */
 
@@ -2004,7 +2002,7 @@ rbd_osd_req_create_copyup(struct rbd_obj_request *obj_request)
 	rbd_dev = img_request->rbd_dev;
 	osdc = &rbd_dev->rbd_client->client->osdc;
 	osd_req = ceph_osdc_alloc_request(osdc, snapc, num_osd_ops,
-						false, GFP_ATOMIC);
+						false, GFP_NOIO);
 	if (!osd_req)
 		return NULL;	/* ENOMEM */
 
@@ -2506,7 +2504,7 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 					bio_chain_clone_range(&bio_list,
 								&bio_offset,
 								clone_size,
-								GFP_ATOMIC);
+								GFP_NOIO);
 			if (!obj_request->bio_list)
 				goto out_unwind;
 		} else if (type == OBJ_REQUEST_PAGES) {
@@ -5643,18 +5641,12 @@ static void rbd_sysfs_cleanup(void)
 static int rbd_slab_init(void)
 {
 	rbd_assert(!rbd_img_request_cache);
-	rbd_img_request_cache = kmem_cache_create("rbd_img_request",
-					sizeof (struct rbd_img_request),
-					__alignof__(struct rbd_img_request),
-					0, NULL);
+	rbd_img_request_cache = KMEM_CACHE(rbd_img_request, 0);
 	if (!rbd_img_request_cache)
 		return -ENOMEM;
 
 	rbd_assert(!rbd_obj_request_cache);
-	rbd_obj_request_cache = kmem_cache_create("rbd_obj_request",
-					sizeof (struct rbd_obj_request),
-					__alignof__(struct rbd_obj_request),
-					0, NULL);
+	rbd_obj_request_cache = KMEM_CACHE(rbd_obj_request, 0);
 	if (!rbd_obj_request_cache)
 		goto out_err;
 

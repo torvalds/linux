@@ -65,7 +65,7 @@
 		};
 
 		iofpga@7,00000000 {
-			compatible = "arm,amba-bus", "simple-bus";
+			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 7 0 0x20000>;

@@ -97,6 +97,14 @@ DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_llc_shared_map);
 DEFINE_PER_CPU_READ_MOSTLY(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
+/* Logical package management. We might want to allocate that dynamically */
+static int *physical_to_logical_pkg __read_mostly;
+static unsigned long *physical_package_map __read_mostly;;
+static unsigned long *logical_package_map  __read_mostly;
+static unsigned int max_physical_pkg_id __read_mostly;
+unsigned int __max_logical_packages __read_mostly;
+EXPORT_SYMBOL(__max_logical_packages);
+
 static inline void smpboot_setup_warm_reset_vector(unsigned long start_eip)
 {
 	unsigned long flags;
@@ -248,7 +256,111 @@ static void notrace start_secondary(void *unused)
 	x86_cpuinit.setup_percpu_clockev();
 
 	wmb();
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
+}
+
+int topology_update_package_map(unsigned int apicid, unsigned int cpu)
+{
+	unsigned int new, pkg = apicid >> boot_cpu_data.x86_coreid_bits;
+
+	/* Called from early boot ? */
+	if (!physical_package_map)
+		return 0;
+
+	if (pkg >= max_physical_pkg_id)
+		return -EINVAL;
+
+	/* Set the logical package id */
+	if (test_and_set_bit(pkg, physical_package_map))
+		goto found;
+
+	new = find_first_zero_bit(logical_package_map, __max_logical_packages);
+	if (new >= __max_logical_packages) {
+		physical_to_logical_pkg[pkg] = -1;
+		pr_warn("APIC(%x) Package %u exceeds logical package map\n",
+			apicid, pkg);
+		return -ENOSPC;
+	}
+	set_bit(new, logical_package_map);
+	pr_info("APIC(%x) Converting physical %u to logical package %u\n",
+		apicid, pkg, new);
+	physical_to_logical_pkg[pkg] = new;
+
+found:
+	cpu_data(cpu).logical_proc_id = physical_to_logical_pkg[pkg];
+	return 0;
+}
+
+/**
+ * topology_phys_to_logical_pkg - Map a physical package id to a logical
+ *
+ * Returns logical package id or -1 if not found
+ */
+int topology_phys_to_logical_pkg(unsigned int phys_pkg)
+{
+	if (phys_pkg >= max_physical_pkg_id)
+		return -1;
+	return physical_to_logical_pkg[phys_pkg];
+}
+EXPORT_SYMBOL(topology_phys_to_logical_pkg);
+
+static void __init smp_init_package_map(void)
+{
+	unsigned int ncpus, cpu;
+	size_t size;
+
+	/*
+	 * Today neither Intel nor AMD support heterogenous systems. That
+	 * might change in the future....
+	 *
+	 * While ideally we'd want '* smp_num_siblings' in the below @ncpus
+	 * computation, this won't actually work since some Intel BIOSes
+	 * report inconsistent HT data when they disable HT.
+	 *
+	 * In particular, they reduce the APIC-IDs to only include the cores,
+	 * but leave the CPUID topology to say there are (2) siblings.
+	 * This means we don't know how many threads there will be until
+	 * after the APIC enumeration.
+	 *
+	 * By not including this we'll sometimes over-estimate the number of
+	 * logical packages by the amount of !present siblings, but this is
+	 * still better than MAX_LOCAL_APIC.
+	 *
+	 * We use total_cpus not nr_cpu_ids because nr_cpu_ids can be limited
+	 * on the command line leading to a similar issue as the HT disable
+	 * problem because the hyperthreads are usually enumerated after the
+	 * primary cores.
+	 */
+	ncpus = boot_cpu_data.x86_max_cores;
+	__max_logical_packages = DIV_ROUND_UP(total_cpus, ncpus);
+
+	/*
+	 * Possibly larger than what we need as the number of apic ids per
+	 * package can be smaller than the actual used apic ids.
+	 */
+	max_physical_pkg_id = DIV_ROUND_UP(MAX_LOCAL_APIC, ncpus);
+	size = max_physical_pkg_id * sizeof(unsigned int);
+	physical_to_logical_pkg = kmalloc(size, GFP_KERNEL);
+	memset(physical_to_logical_pkg, 0xff, size);
+	size = BITS_TO_LONGS(max_physical_pkg_id) * sizeof(unsigned long);
+	physical_package_map = kzalloc(size, GFP_KERNEL);
+	size = BITS_TO_LONGS(__max_logical_packages) * sizeof(unsigned long);
+	logical_package_map = kzalloc(size, GFP_KERNEL);
+
+	pr_info("Max logical packages: %u\n", __max_logical_packages);
+
+	for_each_present_cpu(cpu) {
+		unsigned int apicid = apic->cpu_present_to_apicid(cpu);
+
+		if (apicid == BAD_APICID || !apic->apic_id_valid(apicid))
+			continue;
+		if (!topology_update_package_map(apicid, cpu))
+			continue;
+		pr_warn("CPU %u APICId %x disabled\n", cpu, apicid);
+		per_cpu(x86_bios_cpu_apicid, cpu) = BAD_APICID;
+		set_cpu_possible(cpu, false);
+		set_cpu_present(cpu, false);
+	}
 }
 
 void __init smp_store_boot_cpu_info(void)
@@ -258,6 +370,7 @@ void __init smp_store_boot_cpu_info(void)
 
 	*c = boot_cpu_data;
 	c->cpu_index = id;
+	smp_init_package_map();
 }
 
 /*
@@ -309,7 +422,7 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 
 		if (c->phys_proc_id == o->phys_proc_id &&
 		    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2) &&
-		    c->compute_unit_id == o->compute_unit_id)
+		    c->cpu_core_id == o->cpu_core_id)
 			return topology_sane(c, o, "smt");
 
 	} else if (c->phys_proc_id == o->phys_proc_id &&

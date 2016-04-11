@@ -259,8 +259,12 @@ static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
 
 	rcu_read_lock();
 	opt = rcu_dereference(np->opt);
-	if (opt && !atomic_inc_not_zero(&opt->refcnt))
-		opt = NULL;
+	if (opt) {
+		if (!atomic_inc_not_zero(&opt->refcnt))
+			opt = NULL;
+		else
+			opt = rcu_pointer_handoff(opt);
+	}
 	rcu_read_unlock();
 	return opt;
 }
@@ -831,6 +835,12 @@ static inline u8 ip6_tclass(__be32 flowinfo)
 {
 	return ntohl(flowinfo & IPV6_TCLASS_MASK) >> IPV6_TCLASS_SHIFT;
 }
+
+static inline __be32 ip6_make_flowinfo(unsigned int tclass, __be32 flowlabel)
+{
+	return htonl(tclass << IPV6_TCLASS_SHIFT) | flowlabel;
+}
+
 /*
  *	Prototypes exported by ipv6
  */

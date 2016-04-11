@@ -259,6 +259,7 @@ static long dma_buf_ioctl(struct file *file,
 	struct dma_buf *dmabuf;
 	struct dma_buf_sync sync;
 	enum dma_data_direction direction;
+	int ret;
 
 	dmabuf = file->private_data;
 
@@ -285,11 +286,11 @@ static long dma_buf_ioctl(struct file *file,
 		}
 
 		if (sync.flags & DMA_BUF_SYNC_END)
-			dma_buf_end_cpu_access(dmabuf, direction);
+			ret = dma_buf_end_cpu_access(dmabuf, direction);
 		else
-			dma_buf_begin_cpu_access(dmabuf, direction);
+			ret = dma_buf_begin_cpu_access(dmabuf, direction);
 
-		return 0;
+		return ret;
 	default:
 		return -ENOTTY;
 	}
@@ -611,15 +612,19 @@ EXPORT_SYMBOL_GPL(dma_buf_begin_cpu_access);
  * @dmabuf:	[in]	buffer to complete cpu access for.
  * @direction:	[in]	length of range for cpu access.
  *
- * This call must always succeed.
+ * Can return negative error values, returns 0 on success.
  */
-void dma_buf_end_cpu_access(struct dma_buf *dmabuf,
-			    enum dma_data_direction direction)
+int dma_buf_end_cpu_access(struct dma_buf *dmabuf,
+			   enum dma_data_direction direction)
 {
+	int ret = 0;
+
 	WARN_ON(!dmabuf);
 
 	if (dmabuf->ops->end_cpu_access)
-		dmabuf->ops->end_cpu_access(dmabuf, direction);
+		ret = dmabuf->ops->end_cpu_access(dmabuf, direction);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dma_buf_end_cpu_access);
 

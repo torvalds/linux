@@ -27,7 +27,6 @@
 #include <sound/compress_driver.h>
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
-#include <sound/soc-topology.h>
 
 /*
  * Convenience kcontrol builders
@@ -404,6 +403,7 @@ struct snd_soc_jack_zone;
 struct snd_soc_jack_pin;
 #include <sound/soc-dapm.h>
 #include <sound/soc-dpcm.h>
+#include <sound/soc-topology.h>
 
 struct snd_soc_jack_gpio;
 

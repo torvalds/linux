@@ -184,6 +184,10 @@ struct task_struct;
 struct mm_struct;
 struct seq_file;
 
+typedef int (*dump_trace_func_t)(void *data, unsigned long address);
+void dump_trace(dump_trace_func_t func, void *data,
+		struct task_struct *task, unsigned long sp);
+
 void show_cacheinfo(struct seq_file *m);
 
 /* Free all resources held by a thread. */
@@ -202,6 +206,14 @@ unsigned long get_wchan(struct task_struct *p);
 
 /* Has task runtime instrumentation enabled ? */
 #define is_ri_task(tsk) (!!(tsk)->thread.ri_cb)
+
+static inline unsigned long current_stack_pointer(void)
+{
+	unsigned long sp;
+
+	asm volatile("la %0,0(15)" : "=a" (sp));
+	return sp;
+}
 
 static inline unsigned short stap(void)
 {

@@ -417,3 +417,6 @@ struct nvt_dev {
 /* as VISTA MCE definition, valid carrier value */
 #define MAX_CARRIER 60000
 #define MIN_CARRIER 30000
+
+/* max wakeup sequence length */
+#define WAKEUP_MAX_SIZE 65

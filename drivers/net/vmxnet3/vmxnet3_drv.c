@@ -1022,14 +1022,16 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 		if (ctx.mss) {
 			if (unlikely(ctx.eth_ip_hdr_size + ctx.l4_hdr_size >
 				     VMXNET3_MAX_TX_BUF_SIZE)) {
-				goto hdr_too_big;
+				tq->stats.drop_oversized_hdr++;
+				goto drop_pkt;
 			}
 		} else {
 			if (skb->ip_summed == CHECKSUM_PARTIAL) {
 				if (unlikely(ctx.eth_ip_hdr_size +
 					     skb->csum_offset >
 					     VMXNET3_MAX_CSUM_OFFSET)) {
-					goto hdr_too_big;
+					tq->stats.drop_oversized_hdr++;
+					goto drop_pkt;
 				}
 			}
 		}
@@ -1123,8 +1125,6 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 
 	return NETDEV_TX_OK;
 
-hdr_too_big:
-	tq->stats.drop_oversized_hdr++;
 unlock_drop_pkt:
 	spin_unlock_irqrestore(&tq->tx_lock, flags);
 drop_pkt:

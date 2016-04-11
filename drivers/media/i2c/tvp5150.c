@@ -1386,7 +1386,7 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 			goto err_connector;
 		}
 
-		if (input_type > TVP5150_INPUT_NUM) {
+		if (input_type >= TVP5150_INPUT_NUM) {
 			ret = -EINVAL;
 			goto err_connector;
 		}

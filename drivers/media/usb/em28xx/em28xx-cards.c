@@ -37,6 +37,7 @@
 #include <media/i2c-addr.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-common.h>
+#include <sound/ac97_codec.h>
 
 #include "em28xx.h"
 
@@ -556,6 +557,16 @@ static struct em28xx_led pctv_80e_leds[] = {
 		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
 		.gpio_mask = 0x80,
 		.inverted  = 0,
+	},
+	{-1, 0, 0, 0},
+};
+
+static struct em28xx_led terratec_grabby_leds[] = {
+	{
+		.role      = EM28XX_LED_ANALOG_CAPTURING,
+		.gpio_reg  = EM2820_R08_GPIO_CTRL,
+		.gpio_mask = EM_GPIO_3,
+		.inverted  = 1,
 	},
 	{-1, 0, 0, 0},
 };
@@ -2015,6 +2026,8 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
+		.buttons         = std_snapshot_button,
+		.leds            = terratec_grabby_leds,
 	},
 	[EM2860_BOARD_TERRATEC_AV350] = {
 		.name            = "Terratec AV350",
@@ -2551,6 +2564,36 @@ static inline void em28xx_set_model(struct em28xx *dev)
 	dev->def_i2c_bus = dev->board.def_i2c_bus;
 }
 
+/* Wait until AC97_RESET reports the expected value reliably before proceeding.
+ * We also check that two unrelated registers accesses don't return the same
+ * value to avoid premature return.
+ * This procedure helps ensuring AC97 register accesses are reliable.
+ */
+static int em28xx_wait_until_ac97_features_equals(struct em28xx *dev,
+						  int expected_feat)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(2000);
+	int feat, powerdown;
+
+	while (time_is_after_jiffies(timeout)) {
+		feat = em28xx_read_ac97(dev, AC97_RESET);
+		if (feat < 0)
+			return feat;
+
+		powerdown = em28xx_read_ac97(dev, AC97_POWERDOWN);
+		if (powerdown < 0)
+			return powerdown;
+
+		if (feat == expected_feat && feat != powerdown)
+			return 0;
+
+		msleep(50);
+	}
+
+	em28xx_warn("AC97 registers access is not reliable !\n");
+	return -ETIMEDOUT;
+}
+
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
  * this won't work for boards with generic PCI IDs
  */
@@ -2655,6 +2698,13 @@ static void em28xx_pre_card_setup(struct em28xx *dev)
 		msleep(70);
 		em28xx_write_reg(dev, EM2820_R08_GPIO_CTRL, 0xfd);
 		msleep(70);
+		break;
+
+	case EM2860_BOARD_TERRATEC_GRABBY:
+		/* HACK?: Ensure AC97 register reading is reliable before
+		 * proceeding. In practice, this will wait about 1.6 seconds.
+		 */
+		em28xx_wait_until_ac97_features_equals(dev, 0x6a90);
 		break;
 	}
 
@@ -3019,16 +3069,16 @@ static int em28xx_media_device_init(struct em28xx *dev,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
-	if (udev->product) {
-		mdev = v4l2_mc_usb_media_device_init(udev, udev->product);
-	} else if (udev->manufacturer) {
-		mdev = v4l2_mc_usb_media_device_init(udev, udev->manufacturer);
-	} else {
-		mdev = v4l2_mc_usb_media_device_init(udev, dev->name);
-	}
-
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		return -ENOMEM;
+
+	if (udev->product)
+		media_device_usb_init(mdev, udev, udev->product);
+	else if (udev->manufacturer)
+		media_device_usb_init(mdev, udev, udev->manufacturer);
+	else
+		media_device_usb_init(mdev, udev, dev->name);
 
 	dev->media_dev = mdev;
 #endif

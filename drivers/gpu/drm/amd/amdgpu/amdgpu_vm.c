@@ -95,6 +95,7 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 	entry->priority = 0;
 	entry->tv.bo = &vm->page_directory->tbo;
 	entry->tv.shared = true;
+	entry->user_pages = NULL;
 	list_add(&entry->tv.head, validated);
 }
 
@@ -188,6 +189,13 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (!is_later && owner == (long)id &&
 		    pd_addr == id->pd_gpu_addr) {
 
+			r = amdgpu_sync_fence(ring->adev, sync,
+					      id->mgr_id->active);
+			if (r) {
+				mutex_unlock(&adev->vm_manager.lock);
+				return r;
+			}
+
 			fence_put(id->mgr_id->active);
 			id->mgr_id->active = fence_get(fence);
 
@@ -234,19 +242,68 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
  * amdgpu_vm_flush - hardware flush the vm
  *
  * @ring: ring to use for flush
- * @vmid: vmid number to use
+ * @vm_id: vmid number to use
  * @pd_addr: address of the page directory
  *
  * Emit a VM flush when it is necessary.
  */
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
-		     unsigned vmid,
-		     uint64_t pd_addr)
+		     unsigned vm_id, uint64_t pd_addr,
+		     uint32_t gds_base, uint32_t gds_size,
+		     uint32_t gws_base, uint32_t gws_size,
+		     uint32_t oa_base, uint32_t oa_size)
 {
+	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_vm_manager_id *mgr_id = &adev->vm_manager.ids[vm_id];
+	bool gds_switch_needed = ring->funcs->emit_gds_switch && (
+		mgr_id->gds_base != gds_base ||
+		mgr_id->gds_size != gds_size ||
+		mgr_id->gws_base != gws_base ||
+		mgr_id->gws_size != gws_size ||
+		mgr_id->oa_base != oa_base ||
+		mgr_id->oa_size != oa_size);
+
+	if (ring->funcs->emit_pipeline_sync && (
+	    pd_addr != AMDGPU_VM_NO_FLUSH || gds_switch_needed))
+		amdgpu_ring_emit_pipeline_sync(ring);
+
 	if (pd_addr != AMDGPU_VM_NO_FLUSH) {
-		trace_amdgpu_vm_flush(pd_addr, ring->idx, vmid);
-		amdgpu_ring_emit_vm_flush(ring, vmid, pd_addr);
+		trace_amdgpu_vm_flush(pd_addr, ring->idx, vm_id);
+		amdgpu_ring_emit_vm_flush(ring, vm_id, pd_addr);
 	}
+
+	if (gds_switch_needed) {
+		mgr_id->gds_base = gds_base;
+		mgr_id->gds_size = gds_size;
+		mgr_id->gws_base = gws_base;
+		mgr_id->gws_size = gws_size;
+		mgr_id->oa_base = oa_base;
+		mgr_id->oa_size = oa_size;
+		amdgpu_ring_emit_gds_switch(ring, vm_id,
+					    gds_base, gds_size,
+					    gws_base, gws_size,
+					    oa_base, oa_size);
+	}
+}
+
+/**
+ * amdgpu_vm_reset_id - reset VMID to zero
+ *
+ * @adev: amdgpu device structure
+ * @vm_id: vmid number to use
+ *
+ * Reset saved GDW, GWS and OA to force switch on next flush.
+ */
+void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vm_id)
+{
+	struct amdgpu_vm_manager_id *mgr_id = &adev->vm_manager.ids[vm_id];
+
+	mgr_id->gds_base = 0;
+	mgr_id->gds_size = 0;
+	mgr_id->gws_base = 0;
+	mgr_id->gws_size = 0;
+	mgr_id->oa_base = 0;
+	mgr_id->oa_size = 0;
 }
 
 /**
@@ -810,7 +867,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 	while (start != mapping->it.last + 1) {
 		uint64_t last;
 
-		last = min((uint64_t)mapping->it.last, start + max_size);
+		last = min((uint64_t)mapping->it.last, start + max_size - 1);
 		r = amdgpu_vm_bo_update_mapping(adev, gtt, gtt_flags, vm,
 						start, last, flags, addr,
 						fence);
@@ -818,7 +875,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 			return r;
 
 		start = last + 1;
-		addr += max_size;
+		addr += max_size * AMDGPU_GPU_PAGE_SIZE;
 	}
 
 	return 0;
@@ -914,22 +971,18 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 	struct amdgpu_bo_va_mapping *mapping;
 	int r;
 
-	spin_lock(&vm->freed_lock);
 	while (!list_empty(&vm->freed)) {
 		mapping = list_first_entry(&vm->freed,
 			struct amdgpu_bo_va_mapping, list);
 		list_del(&mapping->list);
-		spin_unlock(&vm->freed_lock);
+
 		r = amdgpu_vm_bo_split_mapping(adev, NULL, 0, vm, mapping,
 					       0, NULL);
 		kfree(mapping);
 		if (r)
 			return r;
 
-		spin_lock(&vm->freed_lock);
 	}
-	spin_unlock(&vm->freed_lock);
-
 	return 0;
 
 }
@@ -956,9 +1009,8 @@ int amdgpu_vm_clear_invalids(struct amdgpu_device *adev,
 		bo_va = list_first_entry(&vm->invalidated,
 			struct amdgpu_bo_va, vm_status);
 		spin_unlock(&vm->status_lock);
-		mutex_lock(&bo_va->mutex);
+
 		r = amdgpu_vm_bo_update(adev, bo_va, NULL);
-		mutex_unlock(&bo_va->mutex);
 		if (r)
 			return r;
 
@@ -1002,7 +1054,7 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&bo_va->valids);
 	INIT_LIST_HEAD(&bo_va->invalids);
 	INIT_LIST_HEAD(&bo_va->vm_status);
-	mutex_init(&bo_va->mutex);
+
 	list_add_tail(&bo_va->bo_list, &bo->va);
 
 	return bo_va;
@@ -1054,9 +1106,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 	eaddr /= AMDGPU_GPU_PAGE_SIZE;
 
-	spin_lock(&vm->it_lock);
 	it = interval_tree_iter_first(&vm->va, saddr, eaddr);
-	spin_unlock(&vm->it_lock);
 	if (it) {
 		struct amdgpu_bo_va_mapping *tmp;
 		tmp = container_of(it, struct amdgpu_bo_va_mapping, it);
@@ -1080,13 +1130,8 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	mapping->offset = offset;
 	mapping->flags = flags;
 
-	mutex_lock(&bo_va->mutex);
 	list_add(&mapping->list, &bo_va->invalids);
-	mutex_unlock(&bo_va->mutex);
-	spin_lock(&vm->it_lock);
 	interval_tree_insert(&mapping->it, &vm->va);
-	spin_unlock(&vm->it_lock);
-	trace_amdgpu_vm_bo_map(bo_va, mapping);
 
 	/* Make sure the page tables are allocated */
 	saddr >>= amdgpu_vm_block_size;
@@ -1130,6 +1175,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		entry->priority = 0;
 		entry->tv.bo = &entry->robj->tbo;
 		entry->tv.shared = true;
+		entry->user_pages = NULL;
 		vm->page_tables[pt_idx].addr = 0;
 	}
 
@@ -1137,9 +1183,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 
 error_free:
 	list_del(&mapping->list);
-	spin_lock(&vm->it_lock);
 	interval_tree_remove(&mapping->it, &vm->va);
-	spin_unlock(&vm->it_lock);
 	trace_amdgpu_vm_bo_unmap(bo_va, mapping);
 	kfree(mapping);
 
@@ -1168,7 +1212,7 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 	bool valid = true;
 
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
-	mutex_lock(&bo_va->mutex);
+
 	list_for_each_entry(mapping, &bo_va->valids, list) {
 		if (mapping->it.start == saddr)
 			break;
@@ -1182,25 +1226,18 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 				break;
 		}
 
-		if (&mapping->list == &bo_va->invalids) {
-			mutex_unlock(&bo_va->mutex);
+		if (&mapping->list == &bo_va->invalids)
 			return -ENOENT;
-		}
 	}
-	mutex_unlock(&bo_va->mutex);
+
 	list_del(&mapping->list);
-	spin_lock(&vm->it_lock);
 	interval_tree_remove(&mapping->it, &vm->va);
-	spin_unlock(&vm->it_lock);
 	trace_amdgpu_vm_bo_unmap(bo_va, mapping);
 
-	if (valid) {
-		spin_lock(&vm->freed_lock);
+	if (valid)
 		list_add(&mapping->list, &vm->freed);
-		spin_unlock(&vm->freed_lock);
-	} else {
+	else
 		kfree(mapping);
-	}
 
 	return 0;
 }
@@ -1229,23 +1266,17 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 
 	list_for_each_entry_safe(mapping, next, &bo_va->valids, list) {
 		list_del(&mapping->list);
-		spin_lock(&vm->it_lock);
 		interval_tree_remove(&mapping->it, &vm->va);
-		spin_unlock(&vm->it_lock);
 		trace_amdgpu_vm_bo_unmap(bo_va, mapping);
-		spin_lock(&vm->freed_lock);
 		list_add(&mapping->list, &vm->freed);
-		spin_unlock(&vm->freed_lock);
 	}
 	list_for_each_entry_safe(mapping, next, &bo_va->invalids, list) {
 		list_del(&mapping->list);
-		spin_lock(&vm->it_lock);
 		interval_tree_remove(&mapping->it, &vm->va);
-		spin_unlock(&vm->it_lock);
 		kfree(mapping);
 	}
+
 	fence_put(bo_va->last_pt_update);
-	mutex_destroy(&bo_va->mutex);
 	kfree(bo_va);
 }
 
@@ -1298,8 +1329,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	INIT_LIST_HEAD(&vm->invalidated);
 	INIT_LIST_HEAD(&vm->cleared);
 	INIT_LIST_HEAD(&vm->freed);
-	spin_lock_init(&vm->it_lock);
-	spin_lock_init(&vm->freed_lock);
+
 	pd_size = amdgpu_vm_directory_size(adev);
 	pd_entries = amdgpu_vm_num_pdes(adev);
 
@@ -1386,6 +1416,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	amdgpu_bo_unref(&vm->page_directory);
 	fence_put(vm->page_directory_fence);
+
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		struct amdgpu_vm_id *id = &vm->ids[i];
 
@@ -1410,9 +1441,11 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 	INIT_LIST_HEAD(&adev->vm_manager.ids_lru);
 
 	/* skip over VMID 0, since it is the system VM */
-	for (i = 1; i < adev->vm_manager.num_ids; ++i)
+	for (i = 1; i < adev->vm_manager.num_ids; ++i) {
+		amdgpu_vm_reset_id(adev, i);
 		list_add_tail(&adev->vm_manager.ids[i].list,
 			      &adev->vm_manager.ids_lru);
+	}
 
 	atomic_set(&adev->vm_manager.vm_pte_next_ring, 0);
 }

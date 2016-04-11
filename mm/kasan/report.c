@@ -18,6 +18,7 @@
 #include <linux/printk.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/stackdepot.h>
 #include <linux/stacktrace.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -115,6 +116,53 @@ static inline bool init_task_stack_addr(const void *addr)
 			sizeof(init_thread_union.stack));
 }
 
+#ifdef CONFIG_SLAB
+static void print_track(struct kasan_track *track)
+{
+	pr_err("PID = %u\n", track->pid);
+	if (track->stack) {
+		struct stack_trace trace;
+
+		depot_fetch_stack(track->stack, &trace);
+		print_stack_trace(&trace, 0);
+	} else {
+		pr_err("(stack is not available)\n");
+	}
+}
+
+static void object_err(struct kmem_cache *cache, struct page *page,
+			void *object, char *unused_reason)
+{
+	struct kasan_alloc_meta *alloc_info = get_alloc_info(cache, object);
+	struct kasan_free_meta *free_info;
+
+	dump_stack();
+	pr_err("Object at %p, in cache %s\n", object, cache->name);
+	if (!(cache->flags & SLAB_KASAN))
+		return;
+	switch (alloc_info->state) {
+	case KASAN_STATE_INIT:
+		pr_err("Object not allocated yet\n");
+		break;
+	case KASAN_STATE_ALLOC:
+		pr_err("Object allocated with size %u bytes.\n",
+		       alloc_info->alloc_size);
+		pr_err("Allocation:\n");
+		print_track(&alloc_info->track);
+		break;
+	case KASAN_STATE_FREE:
+		pr_err("Object freed, allocated with size %u bytes\n",
+		       alloc_info->alloc_size);
+		free_info = get_free_info(cache, object);
+		pr_err("Allocation:\n");
+		print_track(&alloc_info->track);
+		pr_err("Deallocation:\n");
+		print_track(&free_info->track);
+		break;
+	}
+}
+#endif
+
 static void print_address_description(struct kasan_access_info *info)
 {
 	const void *addr = info->access_addr;
@@ -126,17 +174,10 @@ static void print_address_description(struct kasan_access_info *info)
 		if (PageSlab(page)) {
 			void *object;
 			struct kmem_cache *cache = page->slab_cache;
-			void *last_object;
-
-			object = virt_to_obj(cache, page_address(page), addr);
-			last_object = page_address(page) +
-				page->objects * cache->size;
-
-			if (unlikely(object > last_object))
-				object = last_object; /* we hit into padding */
-
+			object = nearest_obj(cache, page,
+						(void *)info->access_addr);
 			object_err(cache, page, object,
-				"kasan: bad access detected");
+					"kasan: bad access detected");
 			return;
 		}
 		dump_page(page, "kasan: bad access detected");
@@ -146,7 +187,6 @@ static void print_address_description(struct kasan_access_info *info)
 		if (!init_task_stack_addr(addr))
 			pr_err("Address belongs to variable %pS\n", addr);
 	}
-
 	dump_stack();
 }
 
@@ -214,8 +254,7 @@ static void kasan_report_error(struct kasan_access_info *info)
 	 */
 	kasan_disable_current();
 	spin_lock_irqsave(&report_lock, flags);
-	pr_err("================================="
-		"=================================\n");
+	pr_err("==================================================================\n");
 	if (info->access_addr <
 			kasan_shadow_to_mem((void *)KASAN_SHADOW_START)) {
 		if ((unsigned long)info->access_addr < PAGE_SIZE)
@@ -236,8 +275,7 @@ static void kasan_report_error(struct kasan_access_info *info)
 		print_address_description(info);
 		print_shadow_for_address(info->first_bad_addr);
 	}
-	pr_err("================================="
-		"=================================\n");
+	pr_err("==================================================================\n");
 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 	spin_unlock_irqrestore(&report_lock, flags);
 	kasan_enable_current();

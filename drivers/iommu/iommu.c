@@ -848,7 +848,8 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 	if (!group->default_domain) {
 		group->default_domain = __iommu_domain_alloc(dev->bus,
 							     IOMMU_DOMAIN_DMA);
-		group->domain = group->default_domain;
+		if (!group->domain)
+			group->domain = group->default_domain;
 	}
 
 	ret = iommu_group_add_device(group, dev);
@@ -1314,6 +1315,7 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	unsigned long orig_iova = iova;
 	unsigned int min_pagesz;
 	size_t orig_size = size;
+	phys_addr_t orig_paddr = paddr;
 	int ret = 0;
 
 	if (unlikely(domain->ops->map == NULL ||
@@ -1358,7 +1360,7 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	if (ret)
 		iommu_unmap(domain, orig_iova, orig_size - size);
 	else
-		trace_map(orig_iova, paddr, orig_size);
+		trace_map(orig_iova, orig_paddr, orig_size);
 
 	return ret;
 }

@@ -455,7 +455,7 @@ static void lp8788_charger_event(struct work_struct *work)
 
 static bool lp8788_find_irq_id(struct lp8788_charger *pchg, int virq, int *id)
 {
-	bool found;
+	bool found = false;
 	int i;
 
 	for (i = 0; i < pchg->num_irqs; i++) {

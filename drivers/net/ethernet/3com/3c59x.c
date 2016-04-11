@@ -1601,15 +1601,9 @@ vortex_up(struct net_device *dev)
 				dev->name, media_tbl[dev->if_port].name);
 	}
 
-	init_timer(&vp->timer);
-	vp->timer.expires = RUN_AT(media_tbl[dev->if_port].wait);
-	vp->timer.data = (unsigned long)dev;
-	vp->timer.function = vortex_timer;		/* timer handler */
-	add_timer(&vp->timer);
-
-	init_timer(&vp->rx_oom_timer);
-	vp->rx_oom_timer.data = (unsigned long)dev;
-	vp->rx_oom_timer.function = rx_oom_timer;
+	setup_timer(&vp->timer, vortex_timer, (unsigned long)dev);
+	mod_timer(&vp->timer, RUN_AT(media_tbl[dev->if_port].wait));
+	setup_timer(&vp->rx_oom_timer, rx_oom_timer, (unsigned long)dev);
 
 	if (vortex_debug > 1)
 		pr_debug("%s: Initial media type %s.\n",

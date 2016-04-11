@@ -1272,7 +1272,7 @@ xfs_rtpick_extent(
 
 	ASSERT(xfs_isilocked(mp->m_rbmip, XFS_ILOCK_EXCL));
 
-	seqp = (__uint64_t *)&mp->m_rbmip->i_d.di_atime;
+	seqp = (__uint64_t *)&VFS_I(mp->m_rbmip)->i_atime;
 	if (!(mp->m_rbmip->i_d.di_flags & XFS_DIFLAG_NEWRTBM)) {
 		mp->m_rbmip->i_d.di_flags |= XFS_DIFLAG_NEWRTBM;
 		*seqp = 0;

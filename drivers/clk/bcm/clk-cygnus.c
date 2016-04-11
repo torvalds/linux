@@ -268,3 +268,62 @@ static void __init cygnus_asiu_init(struct device_node *node)
 	iproc_asiu_setup(node, asiu_div, asiu_gate, ARRAY_SIZE(asiu_div));
 }
 CLK_OF_DECLARE(cygnus_asiu_clk, "brcm,cygnus-asiu-clk", cygnus_asiu_init);
+
+/*
+ * AUDIO PLL VCO frequency parameter table
+ *
+ * PLL output frequency = ((ndiv_int + ndiv_frac / 2^20) *
+ * (parent clock rate / pdiv)
+ *
+ * On Cygnus, parent is the 25MHz oscillator
+ */
+static const struct iproc_pll_vco_param audiopll_vco_params[] = {
+	/* rate (Hz) ndiv_int ndiv_frac pdiv */
+	{ 1354750204UL,  54,     199238,   1 },
+	{ 1769470191UL,  70,     816639,   1 },
+};
+
+static const struct iproc_pll_ctrl audiopll = {
+	.flags = IPROC_CLK_PLL_NEEDS_SW_CFG | IPROC_CLK_PLL_HAS_NDIV_FRAC |
+		IPROC_CLK_PLL_USER_MODE_ON | IPROC_CLK_PLL_RESET_ACTIVE_LOW,
+	.reset = RESET_VAL(0x5c, 0, 1),
+	.dig_filter = DF_VAL(0x48, 0, 3, 6, 4, 3, 3),
+	.sw_ctrl = SW_CTRL_VAL(0x4, 0),
+	.ndiv_int = REG_VAL(0x8, 0, 10),
+	.ndiv_frac = REG_VAL(0x8, 10, 20),
+	.pdiv = REG_VAL(0x44, 0, 4),
+	.vco_ctrl = VCO_CTRL_VAL(0x0c, 0x10),
+	.status = REG_VAL(0x54, 0, 1),
+	.macro_mode = REG_VAL(0x0, 0, 3),
+};
+
+static const struct iproc_clk_ctrl audiopll_clk[] = {
+	[BCM_CYGNUS_AUDIOPLL_CH0] = {
+		.channel = BCM_CYGNUS_AUDIOPLL_CH0,
+		.flags = IPROC_CLK_AON |
+				IPROC_CLK_MCLK_DIV_BY_2,
+		.enable = ENABLE_VAL(0x14, 8, 10, 9),
+		.mdiv = REG_VAL(0x14, 0, 8),
+	},
+	[BCM_CYGNUS_AUDIOPLL_CH1] = {
+		.channel = BCM_CYGNUS_AUDIOPLL_CH1,
+		.flags = IPROC_CLK_AON,
+		.enable = ENABLE_VAL(0x18, 8, 10, 9),
+		.mdiv = REG_VAL(0x18, 0, 8),
+	},
+	[BCM_CYGNUS_AUDIOPLL_CH2] = {
+		.channel = BCM_CYGNUS_AUDIOPLL_CH2,
+		.flags = IPROC_CLK_AON,
+		.enable = ENABLE_VAL(0x1c, 8, 10, 9),
+		.mdiv = REG_VAL(0x1c, 0, 8),
+	},
+};
+
+static void __init cygnus_audiopll_clk_init(struct device_node *node)
+{
+	iproc_pll_clk_setup(node, &audiopll, audiopll_vco_params,
+			    ARRAY_SIZE(audiopll_vco_params), audiopll_clk,
+			    ARRAY_SIZE(audiopll_clk));
+}
+CLK_OF_DECLARE(cygnus_audiopll, "brcm,cygnus-audiopll",
+			cygnus_audiopll_clk_init);

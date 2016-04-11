@@ -1813,6 +1813,22 @@ static int mwifiex_cmd_sdio_rx_aggr_cfg(struct host_cmd_ds_command *cmd,
 	return 0;
 }
 
+/* This function prepares command to get HS wakeup reason.
+ *
+ * Preparation includes -
+ *      - Setting command ID, action and proper size
+ *      - Ensuring correct endian-ness
+ */
+static int mwifiex_cmd_get_wakeup_reason(struct mwifiex_private *priv,
+					 struct host_cmd_ds_command *cmd)
+{
+	cmd->command = cpu_to_le16(HostCmd_CMD_HS_WAKEUP_REASON);
+	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_wakeup_reason) +
+				S_DS_GEN);
+
+	return 0;
+}
+
 /*
  * This function prepares the commands before sending them to the firmware.
  *
@@ -1872,6 +1888,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		break;
 	case HostCmd_CMD_802_11_SCAN:
 		ret = mwifiex_cmd_802_11_scan(cmd_ptr, data_buf);
+		break;
+	case HostCmd_CMD_802_11_BG_SCAN_CONFIG:
+		ret = mwifiex_cmd_802_11_bg_scan_config(priv, cmd_ptr,
+							data_buf);
 		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
 		ret = mwifiex_cmd_802_11_bg_scan_query(cmd_ptr);
@@ -2062,6 +2082,9 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
 		ret = mwifiex_cmd_sdio_rx_aggr_cfg(cmd_ptr, cmd_action,
 						   data_buf);
+		break;
+	case HostCmd_CMD_HS_WAKEUP_REASON:
+		ret = mwifiex_cmd_get_wakeup_reason(priv, cmd_ptr);
 		break;
 	case HostCmd_CMD_MC_POLICY:
 		ret = mwifiex_cmd_set_mc_policy(priv, cmd_ptr, cmd_action,

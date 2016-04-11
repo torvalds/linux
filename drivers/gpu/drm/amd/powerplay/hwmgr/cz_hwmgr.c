@@ -241,6 +241,11 @@ static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_DynamicUVDState);
 
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_UVDDPM);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_VCEDPM);
+
 	cz_hwmgr->cc6_settings.cpu_cc6_disable = false;
 	cz_hwmgr->cc6_settings.cpu_pstate_disable = false;
 	cz_hwmgr->cc6_settings.nb_pstate_switch_disable = false;
@@ -744,8 +749,9 @@ static int cz_tf_update_sclk_limit(struct pp_hwmgr *hwmgr,
 		cz_hwmgr->sclk_dpm.soft_max_clk  = table->entries[table->count - 1].clk;
 
 	clock = hwmgr->display_config.min_core_set_clock;
+;
 	if (clock == 0)
-		printk(KERN_ERR "[ powerplay ] min_core_set_clock not set\n");
+		printk(KERN_INFO "[ powerplay ] min_core_set_clock not set\n");
 
 	if (cz_hwmgr->sclk_dpm.hard_min_clk != clock) {
 		cz_hwmgr->sclk_dpm.hard_min_clk = clock;

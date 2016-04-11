@@ -114,13 +114,6 @@ config M68VZ328
 	help
 	  Motorola 68VZ328 processor support.
 
-config M68360
-	bool "MC68360"
-	depends on !MMU
-	select MCPU32
-	help
-	  Motorola 68360 processor support.
-
 endif # M68KCLASSIC
 
 if COLDFIRE

@@ -229,7 +229,6 @@ int __init bcm2836_smp_boot_secondary(unsigned int cpu,
 	unsigned long secondary_startup_phys =
 		(unsigned long)virt_to_phys((void *)secondary_startup);
 
-	dsb();
 	writel(secondary_startup_phys,
 	       intc.base + LOCAL_MAILBOX3_SET0 + 16 * cpu);
 

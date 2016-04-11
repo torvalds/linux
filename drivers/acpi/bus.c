@@ -479,24 +479,38 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
                              Device Matching
    -------------------------------------------------------------------------- */
 
-static struct acpi_device *acpi_primary_dev_companion(struct acpi_device *adev,
-						      const struct device *dev)
+/**
+ * acpi_get_first_physical_node - Get first physical node of an ACPI device
+ * @adev:	ACPI device in question
+ *
+ * Return: First physical node of ACPI device @adev
+ */
+struct device *acpi_get_first_physical_node(struct acpi_device *adev)
 {
 	struct mutex *physical_node_lock = &adev->physical_node_lock;
+	struct device *phys_dev;
 
 	mutex_lock(physical_node_lock);
 	if (list_empty(&adev->physical_node_list)) {
-		adev = NULL;
+		phys_dev = NULL;
 	} else {
 		const struct acpi_device_physical_node *node;
 
 		node = list_first_entry(&adev->physical_node_list,
 					struct acpi_device_physical_node, node);
-		if (node->dev != dev)
-			adev = NULL;
+
+		phys_dev = node->dev;
 	}
 	mutex_unlock(physical_node_lock);
-	return adev;
+	return phys_dev;
+}
+
+static struct acpi_device *acpi_primary_dev_companion(struct acpi_device *adev,
+						      const struct device *dev)
+{
+	const struct device *phys_dev = acpi_get_first_physical_node(adev);
+
+	return phys_dev && phys_dev == dev ? adev : NULL;
 }
 
 /**
@@ -1004,6 +1018,9 @@ static int __init acpi_bus_init(void)
 		printk(KERN_ERR PREFIX "Unable to initialize ACPI objects\n");
 		goto error1;
 	}
+
+	/* Set capability bits for _OSC under processor scope */
+	acpi_early_processor_osc();
 
 	/*
 	 * _OSC method may exist in module level code,

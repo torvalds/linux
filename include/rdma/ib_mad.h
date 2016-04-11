@@ -424,11 +424,11 @@ typedef void (*ib_mad_send_handler)(struct ib_mad_agent *mad_agent,
 /**
  * ib_mad_snoop_handler - Callback handler for snooping sent MADs.
  * @mad_agent: MAD agent that snooped the MAD.
- * @send_wr: Work request information on the sent MAD.
+ * @send_buf: send MAD data buffer.
  * @mad_send_wc: Work completion information on the sent MAD.  Valid
  *   only for snooping that occurs on a send completion.
  *
- * Clients snooping MADs should not modify data referenced by the @send_wr
+ * Clients snooping MADs should not modify data referenced by the @send_buf
  * or @mad_send_wc.
  */
 typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,

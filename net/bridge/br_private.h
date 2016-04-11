@@ -150,6 +150,9 @@ struct net_bridge_fdb_entry
 	struct rcu_head			rcu;
 };
 
+#define MDB_PG_FLAGS_PERMANENT	BIT(0)
+#define MDB_PG_FLAGS_OFFLOAD	BIT(1)
+
 struct net_bridge_port_group {
 	struct net_bridge_port		*port;
 	struct net_bridge_port_group __rcu *next;
@@ -157,7 +160,7 @@ struct net_bridge_port_group {
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct br_ip			addr;
-	unsigned char			state;
+	unsigned char			flags;
 };
 
 struct net_bridge_mdb_entry
@@ -554,11 +557,11 @@ void br_multicast_free_pg(struct rcu_head *head);
 struct net_bridge_port_group *
 br_multicast_new_port_group(struct net_bridge_port *port, struct br_ip *group,
 			    struct net_bridge_port_group __rcu *next,
-			    unsigned char state);
+			    unsigned char flags);
 void br_mdb_init(void);
 void br_mdb_uninit(void);
-void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
-		   struct br_ip *group, int type, u8 state);
+void br_mdb_notify(struct net_device *dev, struct net_bridge_port_group *pg,
+		   int type);
 void br_rtr_notify(struct net_device *dev, struct net_bridge_port *port,
 		   int type);
 
@@ -897,7 +900,6 @@ static inline void br_nf_core_fini(void) {}
 #endif
 
 /* br_stp.c */
-void br_log_state(const struct net_bridge_port *p);
 void br_set_state(struct net_bridge_port *p, unsigned int state);
 struct net_bridge_port *br_get_port(struct net_bridge *br, u16 port_no);
 void br_init_port(struct net_bridge_port *p);

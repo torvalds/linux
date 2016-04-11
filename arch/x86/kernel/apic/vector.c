@@ -213,6 +213,7 @@ update:
 	 */
 	cpumask_and(d->old_domain, d->old_domain, cpu_online_mask);
 	d->move_in_progress = !cpumask_empty(d->old_domain);
+	d->cfg.old_vector = d->move_in_progress ? d->cfg.vector : 0;
 	d->cfg.vector = vector;
 	cpumask_copy(d->domain, vector_cpumask);
 success:
@@ -655,46 +656,97 @@ void irq_complete_move(struct irq_cfg *cfg)
 }
 
 /*
- * Called with @desc->lock held and interrupts disabled.
+ * Called from fixup_irqs() with @desc->lock held and interrupts disabled.
  */
 void irq_force_complete_move(struct irq_desc *desc)
 {
 	struct irq_data *irqdata = irq_desc_get_irq_data(desc);
 	struct apic_chip_data *data = apic_chip_data(irqdata);
 	struct irq_cfg *cfg = data ? &data->cfg : NULL;
+	unsigned int cpu;
 
 	if (!cfg)
 		return;
-
-	__irq_complete_move(cfg, cfg->vector);
 
 	/*
 	 * This is tricky. If the cleanup of @data->old_domain has not been
 	 * done yet, then the following setaffinity call will fail with
 	 * -EBUSY. This can leave the interrupt in a stale state.
 	 *
-	 * The cleanup cannot make progress because we hold @desc->lock. So in
-	 * case @data->old_domain is not yet cleaned up, we need to drop the
-	 * lock and acquire it again. @desc cannot go away, because the
-	 * hotplug code holds the sparse irq lock.
+	 * All CPUs are stuck in stop machine with interrupts disabled so
+	 * calling __irq_complete_move() would be completely pointless.
 	 */
 	raw_spin_lock(&vector_lock);
-	/* Clean out all offline cpus (including ourself) first. */
+	/*
+	 * Clean out all offline cpus (including the outgoing one) from the
+	 * old_domain mask.
+	 */
 	cpumask_and(data->old_domain, data->old_domain, cpu_online_mask);
-	while (!cpumask_empty(data->old_domain)) {
+
+	/*
+	 * If move_in_progress is cleared and the old_domain mask is empty,
+	 * then there is nothing to cleanup. fixup_irqs() will take care of
+	 * the stale vectors on the outgoing cpu.
+	 */
+	if (!data->move_in_progress && cpumask_empty(data->old_domain)) {
 		raw_spin_unlock(&vector_lock);
-		raw_spin_unlock(&desc->lock);
-		cpu_relax();
-		raw_spin_lock(&desc->lock);
-		/*
-		 * Reevaluate apic_chip_data. It might have been cleared after
-		 * we dropped @desc->lock.
-		 */
-		data = apic_chip_data(irqdata);
-		if (!data)
-			return;
-		raw_spin_lock(&vector_lock);
+		return;
 	}
+
+	/*
+	 * 1) The interrupt is in move_in_progress state. That means that we
+	 *    have not seen an interrupt since the io_apic was reprogrammed to
+	 *    the new vector.
+	 *
+	 * 2) The interrupt has fired on the new vector, but the cleanup IPIs
+	 *    have not been processed yet.
+	 */
+	if (data->move_in_progress) {
+		/*
+		 * In theory there is a race:
+		 *
+		 * set_ioapic(new_vector) <-- Interrupt is raised before update
+		 *			      is effective, i.e. it's raised on
+		 *			      the old vector.
+		 *
+		 * So if the target cpu cannot handle that interrupt before
+		 * the old vector is cleaned up, we get a spurious interrupt
+		 * and in the worst case the ioapic irq line becomes stale.
+		 *
+		 * But in case of cpu hotplug this should be a non issue
+		 * because if the affinity update happens right before all
+		 * cpus rendevouz in stop machine, there is no way that the
+		 * interrupt can be blocked on the target cpu because all cpus
+		 * loops first with interrupts enabled in stop machine, so the
+		 * old vector is not yet cleaned up when the interrupt fires.
+		 *
+		 * So the only way to run into this issue is if the delivery
+		 * of the interrupt on the apic/system bus would be delayed
+		 * beyond the point where the target cpu disables interrupts
+		 * in stop machine. I doubt that it can happen, but at least
+		 * there is a theroretical chance. Virtualization might be
+		 * able to expose this, but AFAICT the IOAPIC emulation is not
+		 * as stupid as the real hardware.
+		 *
+		 * Anyway, there is nothing we can do about that at this point
+		 * w/o refactoring the whole fixup_irq() business completely.
+		 * We print at least the irq number and the old vector number,
+		 * so we have the necessary information when a problem in that
+		 * area arises.
+		 */
+		pr_warn("IRQ fixup: irq %d move in progress, old vector %d\n",
+			irqdata->irq, cfg->old_vector);
+	}
+	/*
+	 * If old_domain is not empty, then other cpus still have the irq
+	 * descriptor set in their vector array. Clean it up.
+	 */
+	for_each_cpu(cpu, data->old_domain)
+		per_cpu(vector_irq, cpu)[cfg->old_vector] = VECTOR_UNUSED;
+
+	/* Cleanup the left overs of the (half finished) move */
+	cpumask_clear(data->old_domain);
+	data->move_in_progress = 0;
 	raw_spin_unlock(&vector_lock);
 }
 #endif

@@ -382,6 +382,7 @@ static void mlx4_en_verify_params(void)
 static int __init mlx4_en_init(void)
 {
 	mlx4_en_verify_params();
+	mlx4_en_init_ptys2ethtool_map();
 
 	return mlx4_register_interface(&mlx4_en_interface);
 }

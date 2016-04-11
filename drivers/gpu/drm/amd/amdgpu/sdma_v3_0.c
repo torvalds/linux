@@ -410,6 +410,14 @@ static void sdma_v3_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(10)); /* retry count, poll interval */
 }
 
+static void sdma_v3_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
+			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
+	amdgpu_ring_write(ring, mmHDP_DEBUG0);
+	amdgpu_ring_write(ring, 1);
+}
+
 /**
  * sdma_v3_0_ring_emit_fence - emit a fence on the DMA ring
  *
@@ -845,8 +853,7 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring)
 	ib.ptr[7] = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP);
 	ib.length_dw = 8;
 
-	r = amdgpu_ib_schedule(ring, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED,
-			       NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
 	if (r)
 		goto err1;
 
@@ -871,7 +878,8 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring)
 	}
 err1:
 	fence_put(f);
-	amdgpu_ib_free(adev, &ib);
+	amdgpu_ib_free(adev, &ib, NULL);
+	fence_put(f);
 err0:
 	amdgpu_wb_free(adev, index);
 	return r;
@@ -1021,6 +1029,31 @@ static void sdma_v3_0_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib
 		else
 			ib->ptr[ib->length_dw++] =
 				SDMA_PKT_HEADER_OP(SDMA_OP_NOP);
+}
+
+/**
+ * sdma_v3_0_ring_emit_pipeline_sync - sync the pipeline
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Make sure all previous operations are completed (CIK).
+ */
+static void sdma_v3_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
+{
+	uint32_t seq = ring->fence_drv.sync_seq;
+	uint64_t addr = ring->fence_drv.gpu_addr;
+
+	/* wait for idle */
+	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_POLL_REGMEM) |
+			  SDMA_PKT_POLL_REGMEM_HEADER_HDP_FLUSH(0) |
+			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3) | /* equal */
+			  SDMA_PKT_POLL_REGMEM_HEADER_MEM_POLL(1));
+	amdgpu_ring_write(ring, addr & 0xfffffffc);
+	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
+	amdgpu_ring_write(ring, seq); /* reference */
+	amdgpu_ring_write(ring, 0xfffffff); /* mask */
+	amdgpu_ring_write(ring, SDMA_PKT_POLL_REGMEM_DW5_RETRY_COUNT(0xfff) |
+			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(4)); /* retry count, poll interval */
 }
 
 /**
@@ -1541,8 +1574,10 @@ static const struct amdgpu_ring_funcs sdma_v3_0_ring_funcs = {
 	.parse_cs = NULL,
 	.emit_ib = sdma_v3_0_ring_emit_ib,
 	.emit_fence = sdma_v3_0_ring_emit_fence,
+	.emit_pipeline_sync = sdma_v3_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = sdma_v3_0_ring_emit_vm_flush,
 	.emit_hdp_flush = sdma_v3_0_ring_emit_hdp_flush,
+	.emit_hdp_invalidate = sdma_v3_0_ring_emit_hdp_invalidate,
 	.test_ring = sdma_v3_0_ring_test_ring,
 	.test_ib = sdma_v3_0_ring_test_ib,
 	.insert_nop = sdma_v3_0_ring_insert_nop,

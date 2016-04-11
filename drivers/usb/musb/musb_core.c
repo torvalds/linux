@@ -1901,7 +1901,7 @@ static void musb_recover_from_babble(struct musb *musb)
  */
 
 static struct musb *allocate_instance(struct device *dev,
-		struct musb_hdrc_config *config, void __iomem *mbase)
+		const struct musb_hdrc_config *config, void __iomem *mbase)
 {
 	struct musb		*musb;
 	struct musb_hw_ep	*ep;

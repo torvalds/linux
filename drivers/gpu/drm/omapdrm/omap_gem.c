@@ -1313,8 +1313,8 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	}
 
 	if (omap_obj->flags & OMAP_BO_MEM_DMA_API) {
-		dma_free_writecombine(dev->dev, obj->size,
-				omap_obj->vaddr, omap_obj->paddr);
+		dma_free_wc(dev->dev, obj->size, omap_obj->vaddr,
+			    omap_obj->paddr);
 	} else if (omap_obj->vaddr) {
 		vunmap(omap_obj->vaddr);
 	} else if (obj->import_attach) {
@@ -1412,9 +1412,9 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 
 	/* Allocate memory if needed. */
 	if (flags & OMAP_BO_MEM_DMA_API) {
-		omap_obj->vaddr = dma_alloc_writecombine(dev->dev, size,
-							 &omap_obj->paddr,
-							 GFP_KERNEL);
+		omap_obj->vaddr = dma_alloc_wc(dev->dev, size,
+					       &omap_obj->paddr,
+					       GFP_KERNEL);
 		if (!omap_obj->vaddr)
 			goto err_release;
 	}

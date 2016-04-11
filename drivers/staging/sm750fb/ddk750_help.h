@@ -6,7 +6,6 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include "sm750_help.h"
 
 /* software control endianness */
 #define PEEK32(addr) readl(addr + mmio750)

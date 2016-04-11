@@ -681,7 +681,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 	if (demux && ca) {
 		ret = media_create_pad_link(demux, 1, ca,
 					    0, MEDIA_LNK_FL_ENABLED);
-		if (!ret)
+		if (ret)
 			return -ENOMEM;
 	}
 
