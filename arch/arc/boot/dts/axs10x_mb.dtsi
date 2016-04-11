@@ -47,14 +47,6 @@
 			clocks = <&apbclk>;
 			clock-names = "stmmaceth";
 			max-speed = <100>;
-			mdio0 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "snps,dwmac-mdio";
-				phy1: ethernet-phy@1 {
-					reg = <1>;
-				};
-			};
 		};
 
 		ehci@0x40000 {
