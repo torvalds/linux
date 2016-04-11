@@ -126,8 +126,6 @@ struct dwc3_omap {
 	u32			debug_offset;
 	u32			irq0_offset;
 
-	u32			dma_status:1;
-
 	struct extcon_dev	*edev;
 	struct notifier_block	vbus_nb;
 	struct notifier_block	id_nb;
@@ -276,9 +274,6 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 	u32			reg;
 
 	reg = dwc3_omap_read_irqmisc_status(omap);
-
-	if (reg & USBOTGSS_IRQMISC_DMADISABLECLR)
-		omap->dma_status = false;
 
 	dwc3_omap_write_irqmisc_status(omap, reg);
 
@@ -501,7 +496,6 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 
 	/* check the DMA Status */
 	reg = dwc3_omap_readl(omap->base, USBOTGSS_SYSCONFIG);
-	omap->dma_status = !!(reg & USBOTGSS_SYSCONFIG_DMADISABLE);
 
 	ret = devm_request_irq(dev, omap->irq, dwc3_omap_interrupt, 0,
 			"dwc3-omap", omap);
