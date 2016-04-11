@@ -236,4 +236,11 @@ enum {
 #define I2S_TXDR	(0x0024)
 #define I2S_RXDR	(0x0028)
 
+/* io direction cfg register */
+#define I2S_IO_DIRECTION_MASK	(7)
+#define I2S_IO_8CH_OUT_2CH_IN	(0)
+#define I2S_IO_6CH_OUT_4CH_IN	(4)
+#define I2S_IO_4CH_OUT_6CH_IN	(6)
+#define I2S_IO_2CH_OUT_8CH_IN	(7)
+
 #endif /* _ROCKCHIP_IIS_H */
