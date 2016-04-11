@@ -632,7 +632,7 @@ static void error_retry_list(struct pool *pool)
 {
 	int error = get_pool_io_error_code(pool);
 
-	return error_retry_list_with_code(pool, error);
+	error_retry_list_with_code(pool, error);
 }
 
 /*
