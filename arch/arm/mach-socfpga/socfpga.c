@@ -72,6 +72,8 @@ static void __init socfpga_arria10_init_irq(void)
 	socfpga_sysmgr_init();
 	if (IS_ENABLED(CONFIG_EDAC_ALTERA_L2C))
 		socfpga_init_arria10_l2_ecc();
+	if (IS_ENABLED(CONFIG_EDAC_ALTERA_OCRAM))
+		socfpga_init_arria10_ocram_ecc();
 }
 
 static void socfpga_cyclone5_restart(enum reboot_mode mode, const char *cmd)
