@@ -198,10 +198,9 @@ static irqreturn_t octeon_i2c_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-
 static int octeon_i2c_test_iflg(struct octeon_i2c *i2c)
 {
-	return (octeon_i2c_ctl_read(i2c) & TWSI_CTL_IFLG) != 0;
+	return (octeon_i2c_ctl_read(i2c) & TWSI_CTL_IFLG);
 }
 
 /**
