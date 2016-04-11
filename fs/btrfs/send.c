@@ -6053,10 +6053,13 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 
 	alloc_size = sizeof(struct clone_root) * (arg->clone_sources_count + 1);
 
-	sctx->clone_roots = vzalloc(alloc_size);
+	sctx->clone_roots = kzalloc(alloc_size, GFP_KERNEL | __GFP_NOWARN);
 	if (!sctx->clone_roots) {
-		ret = -ENOMEM;
-		goto out;
+		sctx->clone_roots = vzalloc(alloc_size);
+		if (!sctx->clone_roots) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
 
 	alloc_size = arg->clone_sources_count * sizeof(*arg->clone_sources);
@@ -6227,7 +6230,7 @@ out:
 		if (sctx->send_filp)
 			fput(sctx->send_filp);
 
-		vfree(sctx->clone_roots);
+		kvfree(sctx->clone_roots);
 		kvfree(sctx->send_buf);
 		kvfree(sctx->read_buf);
 
