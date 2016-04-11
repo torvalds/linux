@@ -3457,6 +3457,7 @@ extern int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 					 bool enable);
 extern int intel_opregion_notify_adapter(struct drm_device *dev,
 					 pci_power_t state);
+extern int intel_opregion_get_panel_type(struct drm_device *dev);
 #else
 static inline int intel_opregion_setup(struct drm_device *dev) { return 0; }
 static inline void intel_opregion_init(struct drm_device *dev) { return; }
@@ -3471,6 +3472,10 @@ static inline int
 intel_opregion_notify_adapter(struct drm_device *dev, pci_power_t state)
 {
 	return 0;
+}
+static inline int intel_opregion_get_panel_type(struct drm_device *dev)
+{
+	return -ENODEV;
 }
 #endif
 

@@ -205,19 +205,29 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	struct drm_display_mode *panel_fixed_mode;
 	int panel_type;
 	int drrs_mode;
+	int ret;
 
 	lvds_options = find_section(bdb, BDB_LVDS_OPTIONS);
 	if (!lvds_options)
 		return;
 
 	dev_priv->vbt.lvds_dither = lvds_options->pixel_dither;
-	if (lvds_options->panel_type > 0xf) {
-		DRM_DEBUG_KMS("Invalid VBT panel type 0x%x\n",
-			      lvds_options->panel_type);
-		return;
+
+	ret = intel_opregion_get_panel_type(dev_priv->dev);
+	if (ret >= 0) {
+		WARN_ON(ret > 0xf);
+		panel_type = ret;
+		DRM_DEBUG_KMS("Panel type: %d (OpRegion)\n", panel_type);
+	} else {
+		if (lvds_options->panel_type > 0xf) {
+			DRM_DEBUG_KMS("Invalid VBT panel type 0x%x\n",
+				      lvds_options->panel_type);
+			return;
+		}
+		panel_type = lvds_options->panel_type;
+		DRM_DEBUG_KMS("Panel type: %d (VBT)\n", panel_type);
 	}
 
-	panel_type = lvds_options->panel_type;
 	dev_priv->vbt.panel_type = panel_type;
 
 	drrs_mode = (lvds_options->dps_panel_type_bits
