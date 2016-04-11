@@ -6037,10 +6037,13 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		}
 	}
 
-	sctx->read_buf = vmalloc(BTRFS_SEND_READ_SIZE);
+	sctx->read_buf = kmalloc(BTRFS_SEND_READ_SIZE, GFP_KERNEL | __GFP_NOWARN);
 	if (!sctx->read_buf) {
-		ret = -ENOMEM;
-		goto out;
+		sctx->read_buf = vmalloc(BTRFS_SEND_READ_SIZE);
+		if (!sctx->read_buf) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
 
 	sctx->pending_dir_moves = RB_ROOT;
@@ -6224,7 +6227,7 @@ out:
 
 		vfree(sctx->clone_roots);
 		kvfree(sctx->send_buf);
-		vfree(sctx->read_buf);
+		kvfree(sctx->read_buf);
 
 		name_cache_free(sctx);
 
