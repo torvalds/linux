@@ -177,7 +177,7 @@ lowpan_iphc_uncompress_802154_lladdr(struct in6_addr *ipaddr,
 				     const void *lladdr)
 {
 	const struct ieee802154_addr *addr = lladdr;
-	u8 eui64[EUI64_ADDR_LEN] = { };
+	u8 eui64[EUI64_ADDR_LEN];
 
 	switch (addr->mode) {
 	case IEEE802154_ADDR_LONG:
