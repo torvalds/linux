@@ -46,6 +46,9 @@
 
 #include "virt-dma.h"
 
+#define BCM2835_DMA_MAX_DMA_CHAN_SUPPORTED 14
+#define BCM2835_DMA_CHAN_NAME_SIZE 8
+
 struct bcm2835_dmadev {
 	struct dma_device ddev;
 	spinlock_t lock;
@@ -81,6 +84,7 @@ struct bcm2835_chan {
 
 	void __iomem *chan_base;
 	int irq_number;
+	unsigned int irq_flags;
 
 	bool is_lite_channel;
 };
@@ -466,6 +470,15 @@ static irqreturn_t bcm2835_dma_callback(int irq, void *data)
 	struct bcm2835_desc *d;
 	unsigned long flags;
 
+	/* check the shared interrupt */
+	if (c->irq_flags & IRQF_SHARED) {
+		/* check if the interrupt is enabled */
+		flags = readl(c->chan_base + BCM2835_DMA_CS);
+		/* if not set then we are not the reason for the irq */
+		if (!(flags & BCM2835_DMA_INT))
+			return IRQ_NONE;
+	}
+
 	spin_lock_irqsave(&c->vc.lock, flags);
 
 	/* Acknowledge interrupt */
@@ -506,8 +519,8 @@ static int bcm2835_dma_alloc_chan_resources(struct dma_chan *chan)
 		return -ENOMEM;
 	}
 
-	return request_irq(c->irq_number,
-			bcm2835_dma_callback, 0, "DMA IRQ", c);
+	return request_irq(c->irq_number, bcm2835_dma_callback,
+			   c->irq_flags, "DMA IRQ", c);
 }
 
 static void bcm2835_dma_free_chan_resources(struct dma_chan *chan)
@@ -819,7 +832,8 @@ static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 	return 0;
 }
 
-static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id, int irq)
+static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id,
+				 int irq, unsigned int irq_flags)
 {
 	struct bcm2835_chan *c;
 
@@ -834,6 +848,7 @@ static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id, int irq)
 	c->chan_base = BCM2835_DMA_CHANIO(d->base, chan_id);
 	c->ch = chan_id;
 	c->irq_number = irq;
+	c->irq_flags = irq_flags;
 
 	/* check in DEBUG register if this is a LITE channel */
 	if (readl(c->chan_base + BCM2835_DMA_DEBUG) &
@@ -882,9 +897,11 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *base;
 	int rc;
-	int i;
-	int irq;
+	int i, j;
+	int irq[BCM2835_DMA_MAX_DMA_CHAN_SUPPORTED + 1];
+	int irq_flags;
 	uint32_t chans_available;
+	char chan_name[BCM2835_DMA_CHAN_NAME_SIZE];
 
 	if (!pdev->dev.dma_mask)
 		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
@@ -941,16 +958,48 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 		goto err_no_dma;
 	}
 
-	for (i = 0; i < pdev->num_resources; i++) {
-		irq = platform_get_irq(pdev, i);
-		if (irq < 0)
-			break;
-
-		if (chans_available & (1 << i)) {
-			rc = bcm2835_dma_chan_init(od, i, irq);
-			if (rc)
-				goto err_no_dma;
+	/* get irqs for each channel that we support */
+	for (i = 0; i <= BCM2835_DMA_MAX_DMA_CHAN_SUPPORTED; i++) {
+		/* skip masked out channels */
+		if (!(chans_available & (1 << i))) {
+			irq[i] = -1;
+			continue;
 		}
+
+		/* get the named irq */
+		snprintf(chan_name, sizeof(chan_name), "dma%i", i);
+		irq[i] = platform_get_irq_byname(pdev, chan_name);
+		if (irq[i] >= 0)
+			continue;
+
+		/* legacy device tree case handling */
+		dev_warn_once(&pdev->dev,
+			      "missing interrupts-names property in device tree - legacy interpretation is used");
+		/*
+		 * in case of channel >= 11
+		 * use the 11th interrupt and that is shared
+		 */
+		irq[i] = platform_get_irq(pdev, i < 11 ? i : 11);
+	}
+
+	/* get irqs for each channel */
+	for (i = 0; i <= BCM2835_DMA_MAX_DMA_CHAN_SUPPORTED; i++) {
+		/* skip channels without irq */
+		if (irq[i] < 0)
+			continue;
+
+		/* check if there are other channels that also use this irq */
+		irq_flags = 0;
+		for (j = 0; j <= BCM2835_DMA_MAX_DMA_CHAN_SUPPORTED; j++)
+			if ((i != j) && (irq[j] == irq[i])) {
+				irq_flags = IRQF_SHARED;
+				break;
+			}
+
+		/* initialize the channel */
+		rc = bcm2835_dma_chan_init(od, i, irq[i], irq_flags);
+		if (rc)
+			goto err_no_dma;
 	}
 
 	dev_dbg(&pdev->dev, "Initialized %i DMA channels\n", i);
