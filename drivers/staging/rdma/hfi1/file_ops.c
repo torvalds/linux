@@ -49,6 +49,8 @@
 #include <linux/vmalloc.h>
 #include <linux/io.h>
 
+#include <rdma/ib.h>
+
 #include "hfi.h"
 #include "pio.h"
 #include "device.h"
@@ -189,6 +191,10 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 	__u64 user_val = 0;
 	int uctxt_required = 1;
 	int must_be_root = 0;
+
+	/* FIXME: This interface cannot continue out of staging */
+	if (WARN_ON_ONCE(!ib_safe_file_access(fp)))
+		return -EACCES;
 
 	if (count < sizeof(cmd)) {
 		ret = -EINVAL;
