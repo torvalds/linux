@@ -58,6 +58,9 @@
 #include <net/ipv6.h>
 #include <net/net_namespace.h>
 
+/* special link-layer handling */
+#include <net/mac802154.h>
+
 #define EUI64_ADDR_LEN		8
 
 #define LOWPAN_NHC_MAX_ID_LEN	1

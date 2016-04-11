@@ -53,9 +53,6 @@
 #include <net/6lowpan.h>
 #include <net/ipv6.h>
 
-/* special link-layer handling */
-#include <net/mac802154.h>
-
 #include "6lowpan_i.h"
 #include "nhc.h"
 
