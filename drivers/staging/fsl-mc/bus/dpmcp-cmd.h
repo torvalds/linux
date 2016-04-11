@@ -32,9 +32,9 @@
 #ifndef _FSL_DPMCP_CMD_H
 #define _FSL_DPMCP_CMD_H
 
-/* DPMCP Version */
-#define DPMCP_VER_MAJOR				3
-#define DPMCP_VER_MINOR				0
+/* Minimal supported DPMCP Version */
+#define DPMCP_MIN_VER_MAJOR				3
+#define DPMCP_MIN_VER_MINOR				0
 
 /* Command IDs */
 #define DPMCP_CMDID_CLOSE				0x800

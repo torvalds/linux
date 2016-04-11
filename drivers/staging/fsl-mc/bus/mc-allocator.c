@@ -297,6 +297,17 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 	if (WARN_ON(!dpmcp_dev))
 		goto error_cleanup_resource;
 
+	if (dpmcp_dev->obj_desc.ver_major < DPMCP_MIN_VER_MAJOR ||
+	    (dpmcp_dev->obj_desc.ver_major == DPMCP_MIN_VER_MAJOR &&
+	     dpmcp_dev->obj_desc.ver_minor < DPMCP_MIN_VER_MINOR)) {
+		dev_err(&dpmcp_dev->dev,
+			"ERROR: Version %d.%d of DPMCP not supported.\n",
+			dpmcp_dev->obj_desc.ver_major,
+			dpmcp_dev->obj_desc.ver_minor);
+		error = -ENOTSUPP;
+		goto error_cleanup_resource;
+	}
+
 	if (WARN_ON(dpmcp_dev->obj_desc.region_count == 0))
 		goto error_cleanup_resource;
 
