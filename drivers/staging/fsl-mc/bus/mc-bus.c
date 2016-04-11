@@ -469,6 +469,10 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 			goto error_cleanup_dev;
 	}
 
+	/* Objects are coherent, unless 'no shareability' flag set. */
+	if (!(obj_desc->flags & DPRC_OBJ_FLAG_NO_MEM_SHAREABILITY))
+		arch_setup_dma_ops(&mc_dev->dev, 0, 0, NULL, true);
+
 	/*
 	 * The device-specific probe callback will get invoked by device_add()
 	 */
