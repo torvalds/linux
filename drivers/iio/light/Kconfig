@@ -73,6 +73,17 @@ config BH1750
 	 To compile this driver as a module, choose M here: the module will
 	 be called bh1750.
 
+config BH1780
+	tristate "ROHM BH1780 ambient light sensor"
+	depends on I2C
+	depends on !SENSORS_BH1780
+	help
+	 Say Y here to build support for the ROHM BH1780GLI ambient
+	 light sensor.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called bh1780.
+
 config CM32181
 	depends on I2C
 	tristate "CM32181 driver"
