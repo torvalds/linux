@@ -312,6 +312,15 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 				continue;
 			}
 
+			/*
+			 * add a quirk for all versions of dpsec < 4.0...none
+			 * are coherent regardless of what the MC reports.
+			 */
+			if ((strcmp(obj_desc->type, "dpseci") == 0) &&
+			    (obj_desc->ver_major < 4))
+				obj_desc->flags |=
+					DPRC_OBJ_FLAG_NO_MEM_SHAREABILITY;
+
 			irq_count += obj_desc->irq_count;
 			dev_dbg(&mc_bus_dev->dev,
 				"Discovered object: type %s, id %d\n",
