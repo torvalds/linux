@@ -2303,8 +2303,6 @@ extern unsigned long long notrace sched_clock(void);
 /*
  * See the comment in kernel/sched/clock.c
  */
-extern u64 cpu_clock(int cpu);
-extern u64 local_clock(void);
 extern u64 running_clock(void);
 extern u64 sched_clock_cpu(int cpu);
 
@@ -2323,6 +2321,16 @@ static inline void sched_clock_idle_sleep_event(void)
 static inline void sched_clock_idle_wakeup_event(u64 delta_ns)
 {
 }
+
+static inline u64 cpu_clock(int cpu)
+{
+	return sched_clock();
+}
+
+static inline u64 local_clock(void)
+{
+	return sched_clock();
+}
 #else
 /*
  * Architectures can set this to 1 if they have specified
@@ -2337,6 +2345,26 @@ extern void clear_sched_clock_stable(void);
 extern void sched_clock_tick(void);
 extern void sched_clock_idle_sleep_event(void);
 extern void sched_clock_idle_wakeup_event(u64 delta_ns);
+
+/*
+ * As outlined in clock.c, provides a fast, high resolution, nanosecond
+ * time source that is monotonic per cpu argument and has bounded drift
+ * between cpus.
+ *
+ * ######################### BIG FAT WARNING ##########################
+ * # when comparing cpu_clock(i) to cpu_clock(j) for i != j, time can #
+ * # go backwards !!                                                  #
+ * ####################################################################
+ */
+static inline u64 cpu_clock(int cpu)
+{
+	return sched_clock_cpu(cpu);
+}
+
+static inline u64 local_clock(void)
+{
+	return sched_clock_cpu(raw_smp_processor_id());
+}
 #endif
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
