@@ -256,8 +256,8 @@ sub read_kconfig {
 
 	    $iflevel-- if ($iflevel);
 
-	# stop on "help"
-	} elsif (/^\s*help\s*$/) {
+	# stop on "help" and keywords that end a menu entry
+	} elsif (/^\s*help\s*$/ || /^(comment|choice|menu)\b/) {
 	    $state = "NONE";
 	}
     }
