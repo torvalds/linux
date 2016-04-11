@@ -1434,7 +1434,7 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	struct mwifiex_private *priv = NULL;
 	int i;
 
-	if (down_interruptible(sem))
+	if (down_trylock(sem))
 		goto exit_sem_err;
 
 	if (!adapter)
