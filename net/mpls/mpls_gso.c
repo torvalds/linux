@@ -31,6 +31,7 @@ static struct sk_buff *mpls_gso_segment(struct sk_buff *skb,
 				  SKB_GSO_TCPV6 |
 				  SKB_GSO_UDP |
 				  SKB_GSO_DODGY |
+				  SKB_GSO_TCP_FIXEDID |
 				  SKB_GSO_TCP_ECN)))
 		goto out;
 

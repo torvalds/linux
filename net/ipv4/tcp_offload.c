@@ -89,6 +89,7 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 			     ~(SKB_GSO_TCPV4 |
 			       SKB_GSO_DODGY |
 			       SKB_GSO_TCP_ECN |
+			       SKB_GSO_TCP_FIXEDID |
 			       SKB_GSO_TCPV6 |
 			       SKB_GSO_GRE |
 			       SKB_GSO_GRE_CSUM |
@@ -98,7 +99,8 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 			       SKB_GSO_UDP_TUNNEL_CSUM |
 			       SKB_GSO_TUNNEL_REMCSUM |
 			       0) ||
-			     !(type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))))
+			     !(type & (SKB_GSO_TCPV4 |
+				       SKB_GSO_TCPV6))))
 			goto out;
 
 		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss);
