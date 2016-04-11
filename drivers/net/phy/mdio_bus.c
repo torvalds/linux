@@ -457,7 +457,7 @@ int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum)
 
 	BUG_ON(in_interrupt());
 
-	mutex_lock_nested(&bus->mdio_lock, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&bus->mdio_lock, MDIO_MUTEX_NESTED);
 	retval = bus->read(bus, addr, regnum);
 	mutex_unlock(&bus->mdio_lock);
 
@@ -509,7 +509,7 @@ int mdiobus_write_nested(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 
 	BUG_ON(in_interrupt());
 
-	mutex_lock_nested(&bus->mdio_lock, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&bus->mdio_lock, MDIO_MUTEX_NESTED);
 	err = bus->write(bus, addr, regnum, val);
 	mutex_unlock(&bus->mdio_lock);
 
