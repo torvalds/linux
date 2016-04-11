@@ -87,6 +87,17 @@ int perf_evlist__add_dummy(struct perf_evlist *evlist);
 int perf_evlist__add_newtp(struct perf_evlist *evlist,
 			   const char *sys, const char *name, void *handler);
 
+void __perf_evlist__set_sample_bit(struct perf_evlist *evlist,
+				   enum perf_event_sample_format bit);
+void __perf_evlist__reset_sample_bit(struct perf_evlist *evlist,
+				     enum perf_event_sample_format bit);
+
+#define perf_evlist__set_sample_bit(evlist, bit) \
+	__perf_evlist__set_sample_bit(evlist, PERF_SAMPLE_##bit)
+
+#define perf_evlist__reset_sample_bit(evlist, bit) \
+	__perf_evlist__reset_sample_bit(evlist, PERF_SAMPLE_##bit)
+
 int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter);
 int perf_evlist__set_filter_pid(struct perf_evlist *evlist, pid_t pid);
 int perf_evlist__set_filter_pids(struct perf_evlist *evlist, size_t npids, pid_t *pids);
