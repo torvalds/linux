@@ -432,6 +432,40 @@ struct drm_panel *sun4i_tcon_find_panel(struct device_node *node)
 	return of_drm_find_panel(remote) ?: ERR_PTR(-EPROBE_DEFER);
 }
 
+struct drm_bridge *sun4i_tcon_find_bridge(struct device_node *node)
+{
+	struct device_node *port, *remote, *child;
+	struct device_node *end_node = NULL;
+
+	/* Inputs are listed first, then outputs */
+	port = of_graph_get_port_by_id(node, 1);
+
+	/*
+	 * Our first output is the RGB interface where the panel will
+	 * be connected.
+	 */
+	for_each_child_of_node(port, child) {
+		u32 reg;
+
+		of_property_read_u32(child, "reg", &reg);
+		if (reg == 0)
+			end_node = child;
+	}
+
+	if (!end_node) {
+		DRM_DEBUG_DRIVER("Missing bridge endpoint\n");
+		return ERR_PTR(-ENODEV);
+	}
+
+	remote = of_graph_get_remote_port_parent(end_node);
+	if (!remote) {
+		DRM_DEBUG_DRIVER("Enable to parse remote node\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return of_drm_find_bridge(remote) ?: ERR_PTR(-EPROBE_DEFER);
+}
+
 static int sun4i_tcon_bind(struct device *dev, struct device *master,
 			   void *data)
 {
@@ -514,19 +548,22 @@ static struct component_ops sun4i_tcon_ops = {
 static int sun4i_tcon_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
+	struct drm_bridge *bridge;
 	struct drm_panel *panel;
 
 	/*
-	 * The panel is not ready.
+	 * Neither the bridge or the panel is ready.
 	 * Defer the probe.
 	 */
 	panel = sun4i_tcon_find_panel(node);
+	bridge = sun4i_tcon_find_bridge(node);
 
 	/*
 	 * If we don't have a panel endpoint, just go on
 	 */
-	if (PTR_ERR(panel) == -EPROBE_DEFER) {
-		DRM_DEBUG_DRIVER("Still waiting for our panel. Deferring...\n");
+	if ((PTR_ERR(panel) == -EPROBE_DEFER) &&
+	    (PTR_ERR(bridge) == -EPROBE_DEFER)) {
+		DRM_DEBUG_DRIVER("Still waiting for our panel/bridge. Deferring...\n");
 		return -EPROBE_DEFER;
 	}
 

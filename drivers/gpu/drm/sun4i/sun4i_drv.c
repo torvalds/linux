@@ -257,8 +257,8 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 		}
 
 		/*
-		 * If the node is our TCON, the first port is used for our
-		 * panel, and will not be part of the
+		 * If the node is our TCON, the first port is used for
+		 * panel or bridges, and will not be part of the
 		 * component framework.
 		 */
 		if (sun4i_drv_node_is_tcon(node)) {
