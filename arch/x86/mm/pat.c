@@ -778,25 +778,6 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	if (file->f_flags & O_DSYNC)
 		pcm = _PAGE_CACHE_MODE_UC_MINUS;
 
-#ifdef CONFIG_X86_32
-	/*
-	 * On the PPro and successors, the MTRRs are used to set
-	 * memory types for physical addresses outside main memory,
-	 * so blindly setting UC or PWT on those pages is wrong.
-	 * For Pentiums and earlier, the surround logic should disable
-	 * caching for the high addresses through the KEN pin, but
-	 * we maintain the tradition of paranoia in this code.
-	 */
-	if (!pat_enabled() &&
-	    !(boot_cpu_has(X86_FEATURE_MTRR) ||
-	      boot_cpu_has(X86_FEATURE_K6_MTRR) ||
-	      boot_cpu_has(X86_FEATURE_CYRIX_ARR) ||
-	      boot_cpu_has(X86_FEATURE_CENTAUR_MCR)) &&
-	    (pfn << PAGE_SHIFT) >= __pa(high_memory)) {
-		pcm = _PAGE_CACHE_MODE_UC;
-	}
-#endif
-
 	*vma_prot = __pgprot((pgprot_val(*vma_prot) & ~_PAGE_CACHE_MASK) |
 			     cachemode2protval(pcm));
 	return 1;
