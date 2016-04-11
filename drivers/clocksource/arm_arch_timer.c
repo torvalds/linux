@@ -475,11 +475,6 @@ struct arch_timer_kvm_info *arch_timer_get_kvm_info(void)
 	return &arch_timer_kvm_info;
 }
 
-struct timecounter *arch_timer_get_timecounter(void)
-{
-	return &arch_timer_kvm_info.timecounter;
-}
-
 static void __init arch_counter_register(unsigned type)
 {
 	u64 start_count;
