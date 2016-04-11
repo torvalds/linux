@@ -207,7 +207,7 @@ static inline void iphc_uncompress_802154_lladdr(struct in6_addr *ipaddr,
 static struct lowpan_iphc_ctx *
 lowpan_iphc_ctx_get_by_id(const struct net_device *dev, u8 id)
 {
-	struct lowpan_iphc_ctx *ret = &lowpan_priv(dev)->ctx.table[id];
+	struct lowpan_iphc_ctx *ret = &lowpan_dev(dev)->ctx.table[id];
 
 	if (!lowpan_iphc_ctx_is_active(ret))
 		return NULL;
@@ -219,7 +219,7 @@ static struct lowpan_iphc_ctx *
 lowpan_iphc_ctx_get_by_addr(const struct net_device *dev,
 			    const struct in6_addr *addr)
 {
-	struct lowpan_iphc_ctx *table = lowpan_priv(dev)->ctx.table;
+	struct lowpan_iphc_ctx *table = lowpan_dev(dev)->ctx.table;
 	struct lowpan_iphc_ctx *ret = NULL;
 	struct in6_addr addr_pfx;
 	u8 addr_plen;
@@ -263,7 +263,7 @@ static struct lowpan_iphc_ctx *
 lowpan_iphc_ctx_get_by_mcast_addr(const struct net_device *dev,
 				  const struct in6_addr *addr)
 {
-	struct lowpan_iphc_ctx *table = lowpan_priv(dev)->ctx.table;
+	struct lowpan_iphc_ctx *table = lowpan_dev(dev)->ctx.table;
 	struct lowpan_iphc_ctx *ret = NULL;
 	struct in6_addr addr_mcast, network_pfx = {};
 	int i;
@@ -332,7 +332,7 @@ static int uncompress_addr(struct sk_buff *skb, const struct net_device *dev,
 	case LOWPAN_IPHC_SAM_11:
 	case LOWPAN_IPHC_DAM_11:
 		fail = false;
-		switch (lowpan_priv(dev)->lltype) {
+		switch (lowpan_dev(dev)->lltype) {
 		case LOWPAN_LLTYPE_IEEE802154:
 			iphc_uncompress_802154_lladdr(ipaddr, lladdr);
 			break;
@@ -393,7 +393,7 @@ static int uncompress_ctx_addr(struct sk_buff *skb,
 	case LOWPAN_IPHC_SAM_11:
 	case LOWPAN_IPHC_DAM_11:
 		fail = false;
-		switch (lowpan_priv(dev)->lltype) {
+		switch (lowpan_dev(dev)->lltype) {
 		case LOWPAN_LLTYPE_IEEE802154:
 			iphc_uncompress_802154_lladdr(ipaddr, lladdr);
 			break;
@@ -657,17 +657,17 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 	}
 
 	if (iphc1 & LOWPAN_IPHC_SAC) {
-		spin_lock_bh(&lowpan_priv(dev)->ctx.lock);
+		spin_lock_bh(&lowpan_dev(dev)->ctx.lock);
 		ci = lowpan_iphc_ctx_get_by_id(dev, LOWPAN_IPHC_CID_SCI(cid));
 		if (!ci) {
-			spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+			spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 			return -EINVAL;
 		}
 
 		pr_debug("SAC bit is set. Handle context based source address.\n");
 		err = uncompress_ctx_addr(skb, dev, ci, &hdr.saddr,
 					  iphc1 & LOWPAN_IPHC_SAM_MASK, saddr);
-		spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+		spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 	} else {
 		/* Source address uncompression */
 		pr_debug("source address stateless compression\n");
@@ -681,10 +681,10 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 
 	switch (iphc1 & (LOWPAN_IPHC_M | LOWPAN_IPHC_DAC)) {
 	case LOWPAN_IPHC_M | LOWPAN_IPHC_DAC:
-		spin_lock_bh(&lowpan_priv(dev)->ctx.lock);
+		spin_lock_bh(&lowpan_dev(dev)->ctx.lock);
 		ci = lowpan_iphc_ctx_get_by_id(dev, LOWPAN_IPHC_CID_DCI(cid));
 		if (!ci) {
-			spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+			spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 			return -EINVAL;
 		}
 
@@ -693,7 +693,7 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 		err = lowpan_uncompress_multicast_ctx_daddr(skb, ci,
 							    &hdr.daddr,
 							    iphc1 & LOWPAN_IPHC_DAM_MASK);
-		spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+		spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 		break;
 	case LOWPAN_IPHC_M:
 		/* multicast */
@@ -701,10 +701,10 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 							iphc1 & LOWPAN_IPHC_DAM_MASK);
 		break;
 	case LOWPAN_IPHC_DAC:
-		spin_lock_bh(&lowpan_priv(dev)->ctx.lock);
+		spin_lock_bh(&lowpan_dev(dev)->ctx.lock);
 		ci = lowpan_iphc_ctx_get_by_id(dev, LOWPAN_IPHC_CID_DCI(cid));
 		if (!ci) {
-			spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+			spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 			return -EINVAL;
 		}
 
@@ -712,7 +712,7 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 		pr_debug("DAC bit is set. Handle context based destination address.\n");
 		err = uncompress_ctx_addr(skb, dev, ci, &hdr.daddr,
 					  iphc1 & LOWPAN_IPHC_DAM_MASK, daddr);
-		spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+		spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 		break;
 	default:
 		err = uncompress_addr(skb, dev, &hdr.daddr,
@@ -736,7 +736,7 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 			return err;
 	}
 
-	switch (lowpan_priv(dev)->lltype) {
+	switch (lowpan_dev(dev)->lltype) {
 	case LOWPAN_LLTYPE_IEEE802154:
 		if (lowpan_802154_cb(skb)->d_size)
 			hdr.payload_len = htons(lowpan_802154_cb(skb)->d_size -
@@ -1033,7 +1033,7 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 		       skb->data, skb->len);
 
 	ipv6_daddr_type = ipv6_addr_type(&hdr->daddr);
-	spin_lock_bh(&lowpan_priv(dev)->ctx.lock);
+	spin_lock_bh(&lowpan_dev(dev)->ctx.lock);
 	if (ipv6_daddr_type & IPV6_ADDR_MULTICAST)
 		dci = lowpan_iphc_ctx_get_by_mcast_addr(dev, &hdr->daddr);
 	else
@@ -1042,15 +1042,15 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 		memcpy(&dci_entry, dci, sizeof(*dci));
 		cid |= dci->id;
 	}
-	spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+	spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 
-	spin_lock_bh(&lowpan_priv(dev)->ctx.lock);
+	spin_lock_bh(&lowpan_dev(dev)->ctx.lock);
 	sci = lowpan_iphc_ctx_get_by_addr(dev, &hdr->saddr);
 	if (sci) {
 		memcpy(&sci_entry, sci, sizeof(*sci));
 		cid |= (sci->id << 4);
 	}
-	spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+	spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 
 	/* if cid is zero it will be compressed */
 	if (cid) {

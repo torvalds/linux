@@ -48,15 +48,15 @@ static inline u32 ieee802154_addr_hash(const struct ieee802154_addr *a)
 }
 
 /* private device info */
-struct lowpan_dev_info {
+struct lowpan_802154_dev {
 	struct net_device	*wdev; /* wpan device ptr */
 	u16			fragment_tag;
 };
 
 static inline struct
-lowpan_dev_info *lowpan_dev_info(const struct net_device *dev)
+lowpan_802154_dev *lowpan_802154_dev(const struct net_device *dev)
 {
-	return (struct lowpan_dev_info *)lowpan_priv(dev)->priv;
+	return (struct lowpan_802154_dev *)lowpan_dev(dev)->priv;
 }
 
 int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type);

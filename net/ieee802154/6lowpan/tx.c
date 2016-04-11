@@ -84,7 +84,7 @@ static struct sk_buff*
 lowpan_alloc_frag(struct sk_buff *skb, int size,
 		  const struct ieee802154_hdr *master_hdr, bool frag1)
 {
-	struct net_device *wdev = lowpan_dev_info(skb->dev)->wdev;
+	struct net_device *wdev = lowpan_802154_dev(skb->dev)->wdev;
 	struct sk_buff *frag;
 	int rc;
 
@@ -148,8 +148,8 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 	int frag_cap, frag_len, payload_cap, rc;
 	int skb_unprocessed, skb_offset;
 
-	frag_tag = htons(lowpan_dev_info(ldev)->fragment_tag);
-	lowpan_dev_info(ldev)->fragment_tag++;
+	frag_tag = htons(lowpan_802154_dev(ldev)->fragment_tag);
+	lowpan_802154_dev(ldev)->fragment_tag++;
 
 	frag_hdr[0] = LOWPAN_DISPATCH_FRAG1 | ((dgram_size >> 8) & 0x07);
 	frag_hdr[1] = dgram_size & 0xff;
@@ -208,7 +208,7 @@ err:
 static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 			 u16 *dgram_size, u16 *dgram_offset)
 {
-	struct wpan_dev *wpan_dev = lowpan_dev_info(ldev)->wdev->ieee802154_ptr;
+	struct wpan_dev *wpan_dev = lowpan_802154_dev(ldev)->wdev->ieee802154_ptr;
 	struct ieee802154_addr sa, da;
 	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
 	struct lowpan_addr_info info;
@@ -248,8 +248,8 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 		cb->ackreq = wpan_dev->ackreq;
 	}
 
-	return wpan_dev_hard_header(skb, lowpan_dev_info(ldev)->wdev, &da, &sa,
-				    0);
+	return wpan_dev_hard_header(skb, lowpan_802154_dev(ldev)->wdev, &da,
+				    &sa, 0);
 }
 
 netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
@@ -283,7 +283,7 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 	max_single = ieee802154_max_payload(&wpan_hdr);
 
 	if (skb_tail_pointer(skb) - skb_network_header(skb) <= max_single) {
-		skb->dev = lowpan_dev_info(ldev)->wdev;
+		skb->dev = lowpan_802154_dev(ldev)->wdev;
 		ldev->stats.tx_packets++;
 		ldev->stats.tx_bytes += dgram_size;
 		return dev_queue_xmit(skb);

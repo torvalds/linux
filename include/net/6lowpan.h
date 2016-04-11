@@ -93,7 +93,7 @@ static inline bool lowpan_is_iphc(u8 dispatch)
 }
 
 #define LOWPAN_PRIV_SIZE(llpriv_size)	\
-	(sizeof(struct lowpan_priv) + llpriv_size)
+	(sizeof(struct lowpan_dev) + llpriv_size)
 
 enum lowpan_lltypes {
 	LOWPAN_LLTYPE_BTLE,
@@ -129,7 +129,7 @@ lowpan_iphc_ctx_is_compression(const struct lowpan_iphc_ctx *ctx)
 	return test_bit(LOWPAN_IPHC_CTX_FLAG_COMPRESSION, &ctx->flags);
 }
 
-struct lowpan_priv {
+struct lowpan_dev {
 	enum lowpan_lltypes lltype;
 	struct dentry *iface_debugfs;
 	struct lowpan_iphc_ctx_table ctx;
@@ -139,7 +139,7 @@ struct lowpan_priv {
 };
 
 static inline
-struct lowpan_priv *lowpan_priv(const struct net_device *dev)
+struct lowpan_dev *lowpan_dev(const struct net_device *dev)
 {
 	return netdev_priv(dev);
 }
