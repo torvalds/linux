@@ -293,6 +293,7 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 	if (error < 0)
 		return error;
 
+	error = -EINVAL;
 	dpmcp_dev = resource->data;
 	if (WARN_ON(!dpmcp_dev))
 		goto error_cleanup_resource;
