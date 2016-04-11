@@ -212,8 +212,11 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 		return;
 
 	dev_priv->vbt.lvds_dither = lvds_options->pixel_dither;
-	if (lvds_options->panel_type == 0xff)
+	if (lvds_options->panel_type > 0xf) {
+		DRM_DEBUG_KMS("Invalid VBT panel type 0x%x\n",
+			      lvds_options->panel_type);
 		return;
+	}
 
 	panel_type = lvds_options->panel_type;
 
