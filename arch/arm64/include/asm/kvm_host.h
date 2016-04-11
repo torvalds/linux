@@ -27,7 +27,6 @@
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
-#include <asm/kvm_perf_event.h>
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 

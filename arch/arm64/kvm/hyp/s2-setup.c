@@ -36,8 +36,10 @@ void __hyp_text __init_stage2_translation(void)
 	 * Read the VMIDBits bits from ID_AA64MMFR1_EL1 and set the VS
 	 * bit in VTCR_EL2.
 	 */
-	tmp = (read_sysreg(id_aa64mmfr1_el1) >> 4) & 0xf;
-	val |= (tmp == 2) ? VTCR_EL2_VS : 0;
+	tmp = (read_sysreg(id_aa64mmfr1_el1) >> ID_AA64MMFR1_VMIDBITS_SHIFT) & 0xf;
+	val |= (tmp == ID_AA64MMFR1_VMIDBITS_16) ?
+			VTCR_EL2_VS_16BIT :
+			VTCR_EL2_VS_8BIT;
 
 	write_sysreg(val, vtcr_el2);
 }

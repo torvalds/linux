@@ -243,6 +243,18 @@ static int __init mips_smp_ipi_init(void)
 	struct irq_domain *ipidomain;
 	struct device_node *node;
 
+	/*
+	 * In some cases like qemu-malta, it is desired to try SMP with
+	 * a single core. Qemu-malta has no GIC, so an attempt to set any IPIs
+	 * would cause a BUG_ON() to be triggered since there's no ipidomain.
+	 *
+	 * Since for a single core system IPIs aren't required really, skip the
+	 * initialisation which should generally keep any such configurations
+	 * happy and only fail hard when trying to truely run SMP.
+	 */
+	if (cpumask_weight(cpu_possible_mask) == 1)
+		return 0;
+
 	node = of_irq_find_parent(of_root);
 	ipidomain = irq_find_matching_host(node, DOMAIN_BUS_IPI);
 

@@ -549,12 +549,12 @@ lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
 		if (len <= frag_len) {
 			dst->kiov_len = len;
 			LASSERT(dst->kiov_offset + dst->kiov_len
-					<= PAGE_CACHE_SIZE);
+					<= PAGE_SIZE);
 			return niov;
 		}
 
 		dst->kiov_len = frag_len;
-		LASSERT(dst->kiov_offset + dst->kiov_len <= PAGE_CACHE_SIZE);
+		LASSERT(dst->kiov_offset + dst->kiov_len <= PAGE_SIZE);
 
 		len -= frag_len;
 		dst++;
@@ -887,7 +887,7 @@ lnet_msg2bufpool(lnet_msg_t *msg)
 	rbp = &the_lnet.ln_rtrpools[cpt][0];
 
 	LASSERT(msg->msg_len <= LNET_MTU);
-	while (msg->msg_len > (unsigned int)rbp->rbp_npages * PAGE_CACHE_SIZE) {
+	while (msg->msg_len > (unsigned int)rbp->rbp_npages * PAGE_SIZE) {
 		rbp++;
 		LASSERT(rbp < &the_lnet.ln_rtrpools[cpt][LNET_NRBPOOLS]);
 	}

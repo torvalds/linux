@@ -827,7 +827,7 @@ static void osc_announce_cached(struct client_obd *cli, struct obdo *oa,
 		oa->o_undirty = 0;
 	} else {
 		long max_in_flight = (cli->cl_max_pages_per_rpc <<
-				      PAGE_CACHE_SHIFT)*
+				      PAGE_SHIFT)*
 				     (cli->cl_max_rpcs_in_flight + 1);
 		oa->o_undirty = max(cli->cl_dirty_max, max_in_flight);
 	}
@@ -910,11 +910,11 @@ static void osc_shrink_grant_local(struct client_obd *cli, struct obdo *oa)
 static int osc_shrink_grant(struct client_obd *cli)
 {
 	__u64 target_bytes = (cli->cl_max_rpcs_in_flight + 1) *
-			     (cli->cl_max_pages_per_rpc << PAGE_CACHE_SHIFT);
+			     (cli->cl_max_pages_per_rpc << PAGE_SHIFT);
 
 	spin_lock(&cli->cl_loi_list_lock);
 	if (cli->cl_avail_grant <= target_bytes)
-		target_bytes = cli->cl_max_pages_per_rpc << PAGE_CACHE_SHIFT;
+		target_bytes = cli->cl_max_pages_per_rpc << PAGE_SHIFT;
 	spin_unlock(&cli->cl_loi_list_lock);
 
 	return osc_shrink_grant_to_target(cli, target_bytes);
@@ -930,8 +930,8 @@ int osc_shrink_grant_to_target(struct client_obd *cli, __u64 target_bytes)
 	 * We don't want to shrink below a single RPC, as that will negatively
 	 * impact block allocation and long-term performance.
 	 */
-	if (target_bytes < cli->cl_max_pages_per_rpc << PAGE_CACHE_SHIFT)
-		target_bytes = cli->cl_max_pages_per_rpc << PAGE_CACHE_SHIFT;
+	if (target_bytes < cli->cl_max_pages_per_rpc << PAGE_SHIFT)
+		target_bytes = cli->cl_max_pages_per_rpc << PAGE_SHIFT;
 
 	if (target_bytes >= cli->cl_avail_grant) {
 		spin_unlock(&cli->cl_loi_list_lock);
@@ -979,7 +979,7 @@ static int osc_should_shrink_grant(struct client_obd *client)
 		 * cli_brw_size(obd->u.cli.cl_import->imp_obd->obd_self_export)
 		 * Keep comment here so that it can be found by searching.
 		 */
-		int brw_size = client->cl_max_pages_per_rpc << PAGE_CACHE_SHIFT;
+		int brw_size = client->cl_max_pages_per_rpc << PAGE_SHIFT;
 
 		if (client->cl_import->imp_state == LUSTRE_IMP_FULL &&
 		    client->cl_avail_grant > brw_size)
@@ -1053,7 +1053,7 @@ static void osc_init_grant(struct client_obd *cli, struct obd_connect_data *ocd)
 	}
 
 	/* determine the appropriate chunk size used by osc_extent. */
-	cli->cl_chunkbits = max_t(int, PAGE_CACHE_SHIFT, ocd->ocd_blocksize);
+	cli->cl_chunkbits = max_t(int, PAGE_SHIFT, ocd->ocd_blocksize);
 	spin_unlock(&cli->cl_loi_list_lock);
 
 	CDEBUG(D_CACHE, "%s, setting cl_avail_grant: %ld cl_lost_grant: %ld chunk bits: %d\n",
@@ -1315,9 +1315,9 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 		LASSERT(pg->count > 0);
 		/* make sure there is no gap in the middle of page array */
 		LASSERTF(page_count == 1 ||
-			 (ergo(i == 0, poff + pg->count == PAGE_CACHE_SIZE) &&
+			 (ergo(i == 0, poff + pg->count == PAGE_SIZE) &&
 			  ergo(i > 0 && i < page_count - 1,
-			       poff == 0 && pg->count == PAGE_CACHE_SIZE)   &&
+			       poff == 0 && pg->count == PAGE_SIZE)   &&
 			  ergo(i == page_count - 1, poff == 0)),
 			 "i: %d/%d pg: %p off: %llu, count: %u\n",
 			 i, page_count, pg, pg->off, pg->count);
@@ -1891,7 +1891,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 						oap->oap_count;
 			else
 				LASSERT(oap->oap_page_off + oap->oap_count ==
-					PAGE_CACHE_SIZE);
+					PAGE_SIZE);
 		}
 	}
 
@@ -2007,7 +2007,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 		tmp->oap_request = ptlrpc_request_addref(req);
 
 	spin_lock(&cli->cl_loi_list_lock);
-	starting_offset >>= PAGE_CACHE_SHIFT;
+	starting_offset >>= PAGE_SHIFT;
 	if (cmd == OBD_BRW_READ) {
 		cli->cl_r_in_flight++;
 		lprocfs_oh_tally_log2(&cli->cl_read_page_hist, page_count);
@@ -2782,12 +2782,12 @@ out:
 						PAGE_MASK;
 
 		if (OBD_OBJECT_EOF - fm_key->fiemap.fm_length <=
-		    fm_key->fiemap.fm_start + PAGE_CACHE_SIZE - 1)
+		    fm_key->fiemap.fm_start + PAGE_SIZE - 1)
 			policy.l_extent.end = OBD_OBJECT_EOF;
 		else
 			policy.l_extent.end = (fm_key->fiemap.fm_start +
 				fm_key->fiemap.fm_length +
-				PAGE_CACHE_SIZE - 1) & PAGE_MASK;
+				PAGE_SIZE - 1) & PAGE_MASK;
 
 		ostid_build_res_name(&fm_key->oa.o_oi, &res_id);
 		mode = ldlm_lock_match(exp->exp_obd->obd_namespace,

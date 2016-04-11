@@ -384,8 +384,14 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 			struct ttm_mem_reg *new_mem)
 {
 	struct amdgpu_device *adev;
+	struct amdgpu_bo *abo;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int r;
+
+	/* Can't move a pinned BO */
+	abo = container_of(bo, struct amdgpu_bo, tbo);
+	if (WARN_ON_ONCE(abo->pin_count > 0))
+		return -EINVAL;
 
 	adev = amdgpu_get_adev(bo->bdev);
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
@@ -616,7 +622,7 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 			set_page_dirty(page);
 
 		mark_page_accessed(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 
 	sg_free_table(ttm->sg);

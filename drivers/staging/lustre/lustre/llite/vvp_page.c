@@ -64,7 +64,7 @@ static void vvp_page_fini_common(struct vvp_page *vpg)
 	struct page *vmpage = vpg->vpg_page;
 
 	LASSERT(vmpage);
-	page_cache_release(vmpage);
+	put_page(vmpage);
 }
 
 static void vvp_page_fini(const struct lu_env *env,
@@ -561,7 +561,7 @@ int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
 	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
 
 	vpg->vpg_page = vmpage;
-	page_cache_get(vmpage);
+	get_page(vmpage);
 
 	INIT_LIST_HEAD(&vpg->vpg_pending_linkage);
 	if (page->cp_type == CPT_CACHEABLE) {

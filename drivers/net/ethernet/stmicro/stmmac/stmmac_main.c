@@ -278,7 +278,6 @@ static void stmmac_eee_ctrl_timer(unsigned long arg)
  */
 bool stmmac_eee_init(struct stmmac_priv *priv)
 {
-	char *phy_bus_name = priv->plat->phy_bus_name;
 	unsigned long flags;
 	bool ret = false;
 
@@ -287,10 +286,6 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 	 */
 	if ((priv->pcs == STMMAC_PCS_RGMII) || (priv->pcs == STMMAC_PCS_TBI) ||
 	    (priv->pcs == STMMAC_PCS_RTBI))
-		goto out;
-
-	/* Never init EEE in case of a switch is attached */
-	if (phy_bus_name && (!strcmp(phy_bus_name, "fixed")))
 		goto out;
 
 	/* MAC core supports the EEE feature. */
@@ -772,10 +767,16 @@ static void stmmac_adjust_link(struct net_device *dev)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* At this stage, it could be needed to setup the EEE or adjust some
-	 * MAC related HW registers.
-	 */
-	priv->eee_enabled = stmmac_eee_init(priv);
+	if (phydev->is_pseudo_fixed_link)
+		/* Stop PHY layer to call the hook to adjust the link in case
+		 * of a switch is attached to the stmmac driver.
+		 */
+		phydev->irq = PHY_IGNORE_INTERRUPT;
+	else
+		/* At this stage, init the EEE if supported.
+		 * Never called in case of fixed_link.
+		 */
+		priv->eee_enabled = stmmac_eee_init(priv);
 }
 
 /**
@@ -827,12 +828,8 @@ static int stmmac_init_phy(struct net_device *dev)
 		phydev = of_phy_connect(dev, priv->plat->phy_node,
 					&stmmac_adjust_link, 0, interface);
 	} else {
-		if (priv->plat->phy_bus_name)
-			snprintf(bus_id, MII_BUS_ID_SIZE, "%s-%x",
-				 priv->plat->phy_bus_name, priv->plat->bus_id);
-		else
-			snprintf(bus_id, MII_BUS_ID_SIZE, "stmmac-%x",
-				 priv->plat->bus_id);
+		snprintf(bus_id, MII_BUS_ID_SIZE, "stmmac-%x",
+			 priv->plat->bus_id);
 
 		snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
 			 priv->plat->phy_addr);
@@ -869,11 +866,6 @@ static int stmmac_init_phy(struct net_device *dev)
 		phy_disconnect(phydev);
 		return -ENODEV;
 	}
-
-	/* If attached to a switch, there is no reason to poll phy handler */
-	if (priv->plat->phy_bus_name)
-		if (!strcmp(priv->plat->phy_bus_name, "fixed"))
-			phydev->irq = PHY_IGNORE_INTERRUPT;
 
 	pr_debug("stmmac_init_phy:  %s: attached to PHY (UID 0x%x)"
 		 " Link = %d\n", dev->name, phydev->phy_id, phydev->link);

@@ -1022,16 +1022,16 @@ static inline int lu_dirent_size(struct lu_dirent *ent)
  * MDS_READPAGE page size
  *
  * This is the directory page size packed in MDS_READPAGE RPC.
- * It's different than PAGE_CACHE_SIZE because the client needs to
+ * It's different than PAGE_SIZE because the client needs to
  * access the struct lu_dirpage header packed at the beginning of
  * the "page" and without this there isn't any way to know find the
- * lu_dirpage header is if client and server PAGE_CACHE_SIZE differ.
+ * lu_dirpage header is if client and server PAGE_SIZE differ.
  */
 #define LU_PAGE_SHIFT 12
 #define LU_PAGE_SIZE  (1UL << LU_PAGE_SHIFT)
 #define LU_PAGE_MASK  (~(LU_PAGE_SIZE - 1))
 
-#define LU_PAGE_COUNT (1 << (PAGE_CACHE_SHIFT - LU_PAGE_SHIFT))
+#define LU_PAGE_COUNT (1 << (PAGE_SHIFT - LU_PAGE_SHIFT))
 
 /** @} lu_dir */
 

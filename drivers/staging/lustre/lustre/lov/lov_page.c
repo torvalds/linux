@@ -83,7 +83,7 @@ static int lov_raid0_page_is_under_lock(const struct lu_env *env,
 	}
 
 	/* calculate the end of current stripe */
-	pps = loo->lo_lsm->lsm_stripe_size >> PAGE_CACHE_SHIFT;
+	pps = loo->lo_lsm->lsm_stripe_size >> PAGE_SHIFT;
 	index = ((slice->cpl_index + pps) & ~(pps - 1)) - 1;
 
 	/* never exceed the end of the stripe */

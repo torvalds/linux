@@ -867,6 +867,10 @@ static int ocfs2_get_next_id(struct super_block *sb, struct kqid *qid)
 	int status = 0;
 
 	trace_ocfs2_get_next_id(from_kqid(&init_user_ns, *qid), type);
+	if (!sb_has_quota_loaded(sb, type)) {
+		status = -ESRCH;
+		goto out;
+	}
 	status = ocfs2_lock_global_qf(info, 0);
 	if (status < 0)
 		goto out;
@@ -878,8 +882,11 @@ static int ocfs2_get_next_id(struct super_block *sb, struct kqid *qid)
 out_global:
 	ocfs2_unlock_global_qf(info, 0);
 out:
-	/* Avoid logging ENOENT since it just means there isn't next ID */
-	if (status && status != -ENOENT)
+	/*
+	 * Avoid logging ENOENT since it just means there isn't next ID and
+	 * ESRCH which means quota isn't enabled for the filesystem.
+	 */
+	if (status && status != -ENOENT && status != -ESRCH)
 		mlog_errno(status);
 	return status;
 }

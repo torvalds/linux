@@ -309,7 +309,7 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 	int result;
 
 	opg->ops_from = 0;
-	opg->ops_to = PAGE_CACHE_SIZE;
+	opg->ops_to = PAGE_SIZE;
 
 	result = osc_prep_async_page(osc, opg, page->cp_vmpage,
 				     cl_offset(obj, index));
@@ -395,9 +395,9 @@ static DECLARE_WAIT_QUEUE_HEAD(osc_lru_waitq);
 /* LRU pages are freed in batch mode. OSC should at least free this
  * number of pages to avoid running out of LRU budget, and..
  */
-static const int lru_shrink_min = 2 << (20 - PAGE_CACHE_SHIFT);  /* 2M */
+static const int lru_shrink_min = 2 << (20 - PAGE_SHIFT);  /* 2M */
 /* free this number at most otherwise it will take too long time to finish. */
-static const int lru_shrink_max = 8 << (20 - PAGE_CACHE_SHIFT); /* 8M */
+static const int lru_shrink_max = 8 << (20 - PAGE_SHIFT); /* 8M */
 
 /* Check if we can free LRU slots from this OSC. If there exists LRU waiters,
  * we should free slots aggressively. In this way, slots are freed in a steady

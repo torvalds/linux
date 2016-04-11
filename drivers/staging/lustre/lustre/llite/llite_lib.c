@@ -269,12 +269,12 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	    valid != CLIENT_CONNECT_MDT_REQD) {
 		char *buf;
 
-		buf = kzalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
+		buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 		if (!buf) {
 			err = -ENOMEM;
 			goto out_md_fid;
 		}
-		obd_connect_flags2str(buf, PAGE_CACHE_SIZE,
+		obd_connect_flags2str(buf, PAGE_SIZE,
 				      valid ^ CLIENT_CONNECT_MDT_REQD, ",");
 		LCONSOLE_ERROR_MSG(0x170, "Server %s does not support feature(s) needed for correct operation of this client (%s). Please upgrade server or downgrade client.\n",
 				   sbi->ll_md_exp->exp_obd->obd_name, buf);
@@ -332,7 +332,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (data->ocd_connect_flags & OBD_CONNECT_BRW_SIZE)
 		sbi->ll_md_brw_size = data->ocd_brw_size;
 	else
-		sbi->ll_md_brw_size = PAGE_CACHE_SIZE;
+		sbi->ll_md_brw_size = PAGE_SIZE;
 
 	if (data->ocd_connect_flags & OBD_CONNECT_LAYOUTLOCK) {
 		LCONSOLE_INFO("Layout lock feature supported.\n");

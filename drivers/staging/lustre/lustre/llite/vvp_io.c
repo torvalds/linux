@@ -180,9 +180,8 @@ static int vvp_prep_size(const struct lu_env *env, struct cl_object *obj,
 				 * --bug 17336
 				 */
 				loff_t size = i_size_read(inode);
-				loff_t cur_index = start >> PAGE_CACHE_SHIFT;
-				loff_t size_index = (size - 1) >>
-						    PAGE_CACHE_SHIFT;
+				loff_t cur_index = start >> PAGE_SHIFT;
+				loff_t size_index = (size - 1) >> PAGE_SHIFT;
 
 				if ((size == 0 && cur_index != 0) ||
 				    size_index < cur_index)
@@ -714,7 +713,7 @@ static int vvp_io_read_start(const struct lu_env *env,
 	if (!vio->vui_ra_valid) {
 		vio->vui_ra_valid = true;
 		vio->vui_ra_start = cl_index(obj, pos);
-		vio->vui_ra_count = cl_index(obj, tot + PAGE_CACHE_SIZE - 1);
+		vio->vui_ra_count = cl_index(obj, tot + PAGE_SIZE - 1);
 		ll_ras_enter(file);
 	}
 

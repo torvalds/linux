@@ -307,8 +307,8 @@ static int mqueue_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *inode;
 	struct ipc_namespace *ns = data;
 
-	sb->s_blocksize = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	sb->s_blocksize = PAGE_SIZE;
+	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = MQUEUE_MAGIC;
 	sb->s_op = &mqueue_super_ops;
 

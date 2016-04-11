@@ -182,7 +182,7 @@ cfs_trace_get_tage_try(struct cfs_trace_cpu_data *tcd, unsigned long len)
 	if (tcd->tcd_cur_pages > 0) {
 		__LASSERT(!list_empty(&tcd->tcd_pages));
 		tage = cfs_tage_from_list(tcd->tcd_pages.prev);
-		if (tage->used + len <= PAGE_CACHE_SIZE)
+		if (tage->used + len <= PAGE_SIZE)
 			return tage;
 	}
 
@@ -260,7 +260,7 @@ static struct cfs_trace_page *cfs_trace_get_tage(struct cfs_trace_cpu_data *tcd,
 	 * from here: this will lead to infinite recursion.
 	 */
 
-	if (len > PAGE_CACHE_SIZE) {
+	if (len > PAGE_SIZE) {
 		pr_err("cowardly refusing to write %lu bytes in a page\n", len);
 		return NULL;
 	}
@@ -349,7 +349,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	for (i = 0; i < 2; i++) {
 		tage = cfs_trace_get_tage(tcd, needed + known_size + 1);
 		if (!tage) {
-			if (needed + known_size > PAGE_CACHE_SIZE)
+			if (needed + known_size > PAGE_SIZE)
 				mask |= D_ERROR;
 
 			cfs_trace_put_tcd(tcd);
@@ -360,7 +360,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 		string_buf = (char *)page_address(tage->page) +
 					tage->used + known_size;
 
-		max_nob = PAGE_CACHE_SIZE - tage->used - known_size;
+		max_nob = PAGE_SIZE - tage->used - known_size;
 		if (max_nob <= 0) {
 			printk(KERN_EMERG "negative max_nob: %d\n",
 			       max_nob);
@@ -424,7 +424,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	__LASSERT(debug_buf == string_buf);
 
 	tage->used += needed;
-	__LASSERT(tage->used <= PAGE_CACHE_SIZE);
+	__LASSERT(tage->used <= PAGE_SIZE);
 
 console:
 	if ((mask & libcfs_printk) == 0) {
@@ -835,7 +835,7 @@ EXPORT_SYMBOL(cfs_trace_copyout_string);
 
 int cfs_trace_allocate_string_buffer(char **str, int nob)
 {
-	if (nob > 2 * PAGE_CACHE_SIZE)	    /* string must be "sensible" */
+	if (nob > 2 * PAGE_SIZE)	    /* string must be "sensible" */
 		return -EINVAL;
 
 	*str = kmalloc(nob, GFP_KERNEL | __GFP_ZERO);
@@ -951,7 +951,7 @@ int cfs_trace_set_debug_mb(int mb)
 	}
 
 	mb /= num_possible_cpus();
-	pages = mb << (20 - PAGE_CACHE_SHIFT);
+	pages = mb << (20 - PAGE_SHIFT);
 
 	cfs_tracefile_write_lock();
 
@@ -977,7 +977,7 @@ int cfs_trace_get_debug_mb(void)
 
 	cfs_tracefile_read_unlock();
 
-	return (total_pages >> (20 - PAGE_CACHE_SHIFT)) + 1;
+	return (total_pages >> (20 - PAGE_SHIFT)) + 1;
 }
 
 static int tracefiled(void *arg)
