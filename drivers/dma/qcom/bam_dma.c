@@ -387,6 +387,7 @@ struct bam_device {
 
 	/* execution environment ID, from DT */
 	u32 ee;
+	bool controlled_remotely;
 
 	const struct reg_offset_data *layout;
 
@@ -1042,6 +1043,9 @@ static int bam_init(struct bam_device *bdev)
 	val = readl_relaxed(bam_addr(bdev, 0, BAM_NUM_PIPES));
 	bdev->num_channels = val & BAM_NUM_PIPES_MASK;
 
+	if (bdev->controlled_remotely)
+		return 0;
+
 	/* s/w reset bam */
 	/* after reset all pipes are disabled and idle */
 	val = readl_relaxed(bam_addr(bdev, 0, BAM_CTRL));
@@ -1128,6 +1132,9 @@ static int bam_dma_probe(struct platform_device *pdev)
 		dev_err(bdev->dev, "Execution environment unspecified\n");
 		return ret;
 	}
+
+	bdev->controlled_remotely = of_property_read_bool(pdev->dev.of_node,
+						"qcom,controlled-remotely");
 
 	bdev->bamclk = devm_clk_get(bdev->dev, "bam_clk");
 	if (IS_ERR(bdev->bamclk))
