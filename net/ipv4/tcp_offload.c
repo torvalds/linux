@@ -239,7 +239,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 found:
 	/* Include the IP ID check below from the inner most IP hdr */
-	flush = NAPI_GRO_CB(p)->flush | NAPI_GRO_CB(p)->flush_id;
+	flush = NAPI_GRO_CB(p)->flush;
 	flush |= (__force int)(flags & TCP_FLAG_CWR);
 	flush |= (__force int)((flags ^ tcp_flag_word(th2)) &
 		  ~(TCP_FLAG_CWR | TCP_FLAG_FIN | TCP_FLAG_PSH));
@@ -247,6 +247,17 @@ found:
 	for (i = sizeof(*th); i < thlen; i += 4)
 		flush |= *(u32 *)((u8 *)th + i) ^
 			 *(u32 *)((u8 *)th2 + i);
+
+	/* When we receive our second frame we can made a decision on if we
+	 * continue this flow as an atomic flow with a fixed ID or if we use
+	 * an incrementing ID.
+	 */
+	if (NAPI_GRO_CB(p)->flush_id != 1 ||
+	    NAPI_GRO_CB(p)->count != 1 ||
+	    !NAPI_GRO_CB(p)->is_atomic)
+		flush |= NAPI_GRO_CB(p)->flush_id;
+	else
+		NAPI_GRO_CB(p)->is_atomic = false;
 
 	mss = skb_shinfo(p)->gso_size;
 
@@ -315,6 +326,9 @@ static int tcp4_gro_complete(struct sk_buff *skb, int thoff)
 	th->check = ~tcp_v4_check(skb->len - thoff, iph->saddr,
 				  iph->daddr, 0);
 	skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV4;
+
+	if (NAPI_GRO_CB(skb)->is_atomic)
+		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_FIXEDID;
 
 	return tcp_gro_complete(skb);
 }

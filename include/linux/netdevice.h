@@ -2121,7 +2121,10 @@ struct napi_gro_cb {
 	/* Used in GRE, set in fou/gue_gro_receive */
 	u8	is_fou:1;
 
-	/* 6 bit hole */
+	/* Used to determine if flush_id can be ignored */
+	u8	is_atomic:1;
+
+	/* 5 bit hole */
 
 	/* used to support CHECKSUM_COMPLETE for tunneling protocols */
 	__wsum	csum;
