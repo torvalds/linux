@@ -270,17 +270,17 @@ static inline bool ieee802154_is_intra_pan(__le16 fc)
  *
  * @len: psdu len with (MHR + payload + MFR)
  */
-static inline bool ieee802154_is_valid_psdu_len(const u8 len)
+static inline bool ieee802154_is_valid_psdu_len(u8 len)
 {
 	return (len == IEEE802154_ACK_PSDU_LEN ||
 		(len >= IEEE802154_MIN_PSDU_LEN && len <= IEEE802154_MTU));
 }
 
 /**
- * ieee802154_is_valid_psdu_len - check if extended addr is valid
+ * ieee802154_is_valid_extended_unicast_addr - check if extended addr is valid
  * @addr: extended addr to check
  */
-static inline bool ieee802154_is_valid_extended_unicast_addr(const __le64 addr)
+static inline bool ieee802154_is_valid_extended_unicast_addr(__le64 addr)
 {
 	/* Bail out if the address is all zero, or if the group
 	 * address bit is set.
