@@ -43,6 +43,11 @@ config ARCH_LAYERSCAPE
 	help
 	  This enables support for the Freescale Layerscape SoC family.
 
+config ARCH_LG1K
+	bool "LG Electronics LG1K SoC Family"
+	help
+	  This enables support for LG Electronics LG1K SoC Family
+
 config ARCH_HISI
 	bool "Hisilicon SoC Family"
 	select HISILICON_IRQ_MBIGEN
