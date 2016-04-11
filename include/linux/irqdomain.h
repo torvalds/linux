@@ -96,6 +96,8 @@ enum irq_domain_bus_token {
 struct irq_domain_ops {
 	int (*match)(struct irq_domain *d, struct device_node *node,
 		     enum irq_domain_bus_token bus_token);
+	int (*select)(struct irq_domain *d, struct irq_fwspec *fwspec,
+		      enum irq_domain_bus_token bus_token);
 	int (*map)(struct irq_domain *d, unsigned int virq, irq_hw_number_t hw);
 	void (*unmap)(struct irq_domain *d, unsigned int virq);
 	int (*xlate)(struct irq_domain *d, struct device_node *node,
@@ -211,7 +213,7 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 					 irq_hw_number_t first_hwirq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data);
-extern struct irq_domain *irq_find_matching_fwnode(struct fwnode_handle *fwnode,
+extern struct irq_domain *irq_find_matching_fwspec(struct irq_fwspec *fwspec,
 						   enum irq_domain_bus_token bus_token);
 extern void irq_set_default_host(struct irq_domain *host);
 extern int irq_domain_alloc_descs(int virq, unsigned int nr_irqs,
@@ -225,6 +227,17 @@ static inline struct fwnode_handle *of_node_to_fwnode(struct device_node *node)
 static inline bool is_fwnode_irqchip(struct fwnode_handle *fwnode)
 {
 	return fwnode && fwnode->type == FWNODE_IRQCHIP;
+}
+
+static inline
+struct irq_domain *irq_find_matching_fwnode(struct fwnode_handle *fwnode,
+					    enum irq_domain_bus_token bus_token)
+{
+	struct irq_fwspec fwspec = {
+		.fwnode = fwnode,
+	};
+
+	return irq_find_matching_fwspec(&fwspec, bus_token);
 }
 
 static inline struct irq_domain *irq_find_matching_host(struct device_node *node,
