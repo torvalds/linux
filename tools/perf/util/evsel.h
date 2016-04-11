@@ -381,6 +381,12 @@ struct perf_attr_details {
 int perf_evsel__fprintf(struct perf_evsel *evsel,
 			struct perf_attr_details *details, FILE *fp);
 
+int perf_evsel__fprintf_callchain(struct perf_evsel *evsel,
+				  struct perf_sample *sample,
+				  struct addr_location *al, int left_alignment,
+				  unsigned int print_opts,
+				  unsigned int stack_depth, FILE *fp);
+
 bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 			  char *msg, size_t msgsize);
 int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,

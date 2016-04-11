@@ -1953,10 +1953,10 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 	return NULL;
 }
 
-int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample,
-			    struct addr_location *al, int left_alignment,
-			    unsigned int print_opts, unsigned int stack_depth,
-			    FILE *fp)
+int perf_evsel__fprintf_callchain(struct perf_evsel *evsel, struct perf_sample *sample,
+				  struct addr_location *al, int left_alignment,
+				  unsigned int print_opts, unsigned int stack_depth,
+				  FILE *fp)
 {
 	int printed = 0;
 	struct callchain_cursor_node *node;
@@ -1968,7 +1968,7 @@ int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample
 	int print_srcline = print_opts & PRINT_IP_OPT_SRCLINE;
 	char s = print_oneline ? ' ' : '\t';
 
-	if (symbol_conf.use_callchain && sample->callchain) {
+	if (sample->callchain) {
 		struct addr_location node_al;
 
 		if (thread__resolve_callchain(al->thread, evsel,
@@ -2027,7 +2027,26 @@ int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample
 next:
 			callchain_cursor_advance(&callchain_cursor);
 		}
+	}
 
+	return printed;
+}
+
+int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample,
+			    struct addr_location *al, int left_alignment,
+			    unsigned int print_opts, unsigned int stack_depth,
+			    FILE *fp)
+{
+	int printed = 0;
+	int print_ip = print_opts & PRINT_IP_OPT_IP;
+	int print_sym = print_opts & PRINT_IP_OPT_SYM;
+	int print_dso = print_opts & PRINT_IP_OPT_DSO;
+	int print_symoffset = print_opts & PRINT_IP_OPT_SYMOFFSET;
+	int print_srcline = print_opts & PRINT_IP_OPT_SRCLINE;
+
+	if (symbol_conf.use_callchain && sample->callchain) {
+		printed += perf_evsel__fprintf_callchain(evsel, sample, al, left_alignment,
+							 print_opts, stack_depth, fp);
 	} else if (!(al->sym && al->sym->ignore)) {
 		printed += fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
 
