@@ -4679,6 +4679,7 @@ F:	sound/soc/fsl/mpc8610_hpcd.c
 
 FREESCALE QORIQ MANAGEMENT COMPLEX DRIVER
 M:	"J. German Rivera" <German.Rivera@freescale.com>
+M:	Stuart Yoder <stuart.yoder@nxp.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/fsl-mc/
