@@ -47,6 +47,7 @@
 #define IEEE802154_ADDR_SHORT_UNSPEC	0xfffe
 
 #define IEEE802154_EXTENDED_ADDR_LEN	8
+#define IEEE802154_SHORT_ADDR_LEN	2
 
 #define IEEE802154_LIFS_PERIOD		40
 #define IEEE802154_SIFS_PERIOD		12
@@ -287,6 +288,34 @@ static inline bool ieee802154_is_valid_extended_unicast_addr(__le64 addr)
 	 */
 	return ((addr != cpu_to_le64(0x0000000000000000ULL)) &&
 		!(addr & cpu_to_le64(0x0100000000000000ULL)));
+}
+
+/**
+ * ieee802154_is_broadcast_short_addr - check if short addr is broadcast
+ * @addr: short addr to check
+ */
+static inline bool ieee802154_is_broadcast_short_addr(__le16 addr)
+{
+	return (addr == cpu_to_le16(IEEE802154_ADDR_SHORT_BROADCAST));
+}
+
+/**
+ * ieee802154_is_unspec_short_addr - check if short addr is unspecified
+ * @addr: short addr to check
+ */
+static inline bool ieee802154_is_unspec_short_addr(__le16 addr)
+{
+	return (addr == cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC));
+}
+
+/**
+ * ieee802154_is_valid_src_short_addr - check if source short address is valid
+ * @addr: short addr to check
+ */
+static inline bool ieee802154_is_valid_src_short_addr(__le16 addr)
+{
+	return !(ieee802154_is_broadcast_short_addr(addr) ||
+		 ieee802154_is_unspec_short_addr(addr));
 }
 
 /**
