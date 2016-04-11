@@ -344,7 +344,7 @@ void __init mem_init(void)
 		"    fixmap  : 0x%08lx - 0x%08lx  (%5lu kB)\n"
 #endif
 #ifdef CONFIG_MMU
-		"    vmalloc : 0x%08x - 0x%08x  (%5u MB)\n"
+		"    vmalloc : 0x%08lx - 0x%08lx  (%5lu MB)\n"
 #endif
 		"    lowmem  : 0x%08lx - 0x%08lx  (%5lu MB)\n",
 #ifdef CONFIG_HIGHMEM

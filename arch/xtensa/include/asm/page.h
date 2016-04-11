@@ -15,15 +15,7 @@
 #include <asm/types.h>
 #include <asm/cache.h>
 #include <platform/hardware.h>
-
-/*
- * Fixed TLB translations in the processor.
- */
-
-#define XCHAL_KSEG_CACHED_VADDR __XTENSA_UL_CONST(0xd0000000)
-#define XCHAL_KSEG_BYPASS_VADDR __XTENSA_UL_CONST(0xd8000000)
-#define XCHAL_KSEG_PADDR        __XTENSA_UL_CONST(0x00000000)
-#define XCHAL_KSEG_SIZE         __XTENSA_UL_CONST(0x08000000)
+#include <asm/kmem_layout.h>
 
 /*
  * PAGE_SHIFT determines the page size

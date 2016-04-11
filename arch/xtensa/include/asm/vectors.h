@@ -20,6 +20,7 @@
 
 #include <variant/core.h>
 #include <platform/hardware.h>
+#include <asm/kmem_layout.h>
 
 #if XCHAL_HAVE_PTP_MMU
 #define XCHAL_KIO_CACHED_VADDR		0xe0000000
@@ -48,10 +49,10 @@ static inline unsigned long xtensa_get_kio_paddr(void)
 #if defined(CONFIG_MMU)
 
 /* Will Become VECBASE */
-#define VIRTUAL_MEMORY_ADDRESS		0xD0000000
+#define VIRTUAL_MEMORY_ADDRESS		XCHAL_KSEG_CACHED_VADDR
 
 /* Image Virtual Start Address */
-#define KERNELOFFSET			0xD0003000
+#define KERNELOFFSET			(XCHAL_KSEG_CACHED_VADDR + 0x3000)
 
 #if defined(XCHAL_HAVE_PTP_MMU) && XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
   /* MMU v3  - XCHAL_HAVE_PTP_MMU  == 1 */
