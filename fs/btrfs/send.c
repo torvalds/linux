@@ -5939,6 +5939,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	u32 i;
 	u64 *clone_sources_tmp = NULL;
 	int clone_sources_to_rollback = 0;
+	unsigned alloc_size;
 	int sort_clone_roots = 0;
 	int index;
 
@@ -6050,24 +6051,25 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	sctx->waiting_dir_moves = RB_ROOT;
 	sctx->orphan_dirs = RB_ROOT;
 
-	sctx->clone_roots = vzalloc(sizeof(struct clone_root) *
-			(arg->clone_sources_count + 1));
+	alloc_size = sizeof(struct clone_root) * (arg->clone_sources_count + 1);
+
+	sctx->clone_roots = vzalloc(alloc_size);
 	if (!sctx->clone_roots) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
+	alloc_size = arg->clone_sources_count * sizeof(*arg->clone_sources);
+
 	if (arg->clone_sources_count) {
-		clone_sources_tmp = vmalloc(arg->clone_sources_count *
-				sizeof(*arg->clone_sources));
+		clone_sources_tmp = vmalloc(alloc_size);
 		if (!clone_sources_tmp) {
 			ret = -ENOMEM;
 			goto out;
 		}
 
 		ret = copy_from_user(clone_sources_tmp, arg->clone_sources,
-				arg->clone_sources_count *
-				sizeof(*arg->clone_sources));
+				alloc_size);
 		if (ret) {
 			ret = -EFAULT;
 			goto out;
