@@ -144,6 +144,18 @@ struct lowpan_dev *lowpan_dev(const struct net_device *dev)
 	return netdev_priv(dev);
 }
 
+/* private device info */
+struct lowpan_802154_dev {
+	struct net_device	*wdev; /* wpan device ptr */
+	u16			fragment_tag;
+};
+
+static inline struct
+lowpan_802154_dev *lowpan_802154_dev(const struct net_device *dev)
+{
+	return (struct lowpan_802154_dev *)lowpan_dev(dev)->priv;
+}
+
 struct lowpan_802154_cb {
 	u16 d_tag;
 	unsigned int d_size;
