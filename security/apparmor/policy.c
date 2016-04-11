@@ -1189,12 +1189,12 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 				aa_get_profile(newest);
 				aa_put_profile(parent);
 				rcu_assign_pointer(ent->new->parent, newest);
-			} else
-				aa_put_profile(newest);
+			}
 			/* aafs interface uses replacedby */
 			rcu_assign_pointer(ent->new->replacedby->profile,
 					   aa_get_profile(ent->new));
 			__list_add_profile(&parent->base.profiles, ent->new);
+			aa_put_profile(newest);
 		} else {
 			/* aafs interface uses replacedby */
 			rcu_assign_pointer(ent->new->replacedby->profile,
