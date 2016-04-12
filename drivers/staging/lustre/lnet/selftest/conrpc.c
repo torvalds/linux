@@ -807,7 +807,7 @@ lstcon_bulkrpc_v1_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
 
 int
 lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
-		    lstcon_test_t *test, struct lstcon_rpc **crpc)
+		    struct lstcon_test *test, struct lstcon_rpc **crpc)
 {
 	struct lstcon_group *sgrp = test->tes_src_grp;
 	struct lstcon_group *dgrp = test->tes_dst_grp;
@@ -1128,7 +1128,8 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 		case LST_TRANS_TSBCLIADD:
 		case LST_TRANS_TSBSRVADD:
 			rc = lstcon_testrpc_prep(nd, transop, feats,
-						 (lstcon_test_t *)arg, &rpc);
+						 (struct lstcon_test *)arg,
+						 &rpc);
 			break;
 		case LST_TRANS_TSBRUN:
 		case LST_TRANS_TSBSTOP:

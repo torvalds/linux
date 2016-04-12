@@ -934,7 +934,7 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 	lstcon_test_batch_ent_t *entp;
 	struct list_head *clilst;
 	struct list_head *srvlst;
-	lstcon_test_t *test = NULL;
+	struct lstcon_test *test = NULL;
 	struct lstcon_batch *bat;
 	struct lstcon_ndlink	*ndl;
 	int rc;
@@ -1091,14 +1091,14 @@ static void
 lstcon_batch_destroy(struct lstcon_batch *bat)
 {
 	struct lstcon_ndlink *ndl;
-	lstcon_test_t *test;
+	struct lstcon_test *test;
 	int i;
 
 	list_del(&bat->bat_link);
 
 	while (!list_empty(&bat->bat_test_list)) {
 		test = list_entry(bat->bat_test_list.next,
-				  lstcon_test_t, tes_link);
+				  struct lstcon_test, tes_link);
 		LASSERT(list_empty(&test->tes_trans_list));
 
 		list_del(&test->tes_link);
@@ -1106,7 +1106,7 @@ lstcon_batch_destroy(struct lstcon_batch *bat)
 		lstcon_group_decref(test->tes_src_grp);
 		lstcon_group_decref(test->tes_dst_grp);
 
-		LIBCFS_FREE(test, offsetof(lstcon_test_t,
+		LIBCFS_FREE(test, offsetof(struct lstcon_test,
 					   tes_param[test->tes_paramlen]));
 	}
 
@@ -1143,13 +1143,13 @@ lstcon_batch_destroy(struct lstcon_batch *bat)
 static int
 lstcon_testrpc_condition(int transop, struct lstcon_node *nd, void *arg)
 {
-	lstcon_test_t *test;
+	struct lstcon_test *test;
 	struct lstcon_batch *batch;
 	struct lstcon_ndlink *ndl;
 	struct list_head *hash;
 	struct list_head *head;
 
-	test = (lstcon_test_t *)arg;
+	test = (struct lstcon_test *)arg;
 	LASSERT(test);
 
 	batch = test->tes_batch;
@@ -1185,7 +1185,7 @@ lstcon_testrpc_condition(int transop, struct lstcon_node *nd, void *arg)
 }
 
 static int
-lstcon_test_nodes_add(lstcon_test_t *test, struct list_head __user *result_up)
+lstcon_test_nodes_add(struct lstcon_test *test, struct list_head __user *result_up)
 {
 	struct lstcon_rpc_trans *trans;
 	struct lstcon_group *grp;
@@ -1283,7 +1283,7 @@ lstcon_test_add(char *batch_name, int type, int loop,
 		void *param, int paramlen, int *retp,
 		struct list_head __user *result_up)
 {
-	lstcon_test_t *test = NULL;
+	struct lstcon_test *test = NULL;
 	int rc;
 	struct lstcon_group *src_grp = NULL;
 	struct lstcon_group *dst_grp = NULL;
@@ -1309,7 +1309,7 @@ lstcon_test_add(char *batch_name, int type, int loop,
 	if (dst_grp->grp_userland)
 		*retp = 1;
 
-	LIBCFS_ALLOC(test, offsetof(lstcon_test_t, tes_param[paramlen]));
+	LIBCFS_ALLOC(test, offsetof(struct lstcon_test, tes_param[paramlen]));
 	if (!test) {
 		CERROR("Can't allocate test descriptor\n");
 		rc = -ENOMEM;
@@ -1356,7 +1356,7 @@ lstcon_test_add(char *batch_name, int type, int loop,
 	return rc;
 out:
 	if (test)
-		LIBCFS_FREE(test, offsetof(lstcon_test_t, tes_param[paramlen]));
+		LIBCFS_FREE(test, offsetof(struct lstcon_test, tes_param[paramlen]));
 
 	if (dst_grp)
 		lstcon_group_decref(dst_grp);
@@ -1368,9 +1368,9 @@ out:
 }
 
 static int
-lstcon_test_find(struct lstcon_batch *batch, int idx, lstcon_test_t **testpp)
+lstcon_test_find(struct lstcon_batch *batch, int idx, struct lstcon_test **testpp)
 {
-	lstcon_test_t *test;
+	struct lstcon_test *test;
 
 	list_for_each_entry(test, &batch->bat_test_list, tes_link) {
 		if (idx == test->tes_hdr.tsb_index) {
@@ -1408,7 +1408,7 @@ lstcon_test_batch_query(char *name, int testidx, int client,
 	struct list_head *ndlist;
 	struct lstcon_tsb_hdr *hdr;
 	struct lstcon_batch *batch;
-	lstcon_test_t *test = NULL;
+	struct lstcon_test *test = NULL;
 	int transop;
 	int rc;
 

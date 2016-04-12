@@ -99,7 +99,7 @@ struct lstcon_batch {
 					   * for run, force for stop */
 	char		 bat_name[LST_NAME_SIZE];/* name of batch */
 
-	struct list_head bat_test_list;   /* list head of tests (lstcon_test_t)
+	struct list_head bat_test_list;   /* list head of tests (struct lstcon_test)
 					   */
 	struct list_head bat_trans_list;  /* list head of transaction */
 	struct list_head bat_cli_list;	  /* list head of client nodes
@@ -109,7 +109,8 @@ struct lstcon_batch {
 	struct list_head *bat_srv_hash;   /* hash table of server nodes */
 };
 
-typedef struct lstcon_test {
+/* a single test descriptor */
+struct lstcon_test {
 	struct lstcon_tsb_hdr	tes_hdr;	/* test batch header */
 	struct list_head tes_link;	 /* chain on batch's tests list */
 	struct lstcon_batch	*tes_batch;	 /* pointer to batch */
@@ -129,7 +130,7 @@ typedef struct lstcon_test {
 
 	int		 tes_paramlen;	 /* test parameter length */
 	char		 tes_param[0];	 /* test parameter */
-} lstcon_test_t; /* a single test descriptor */
+};
 
 #define LST_GLOBAL_HASHSIZE 503	     /* global nodes hash table size */
 #define LST_NODE_HASHSIZE   239	     /* node hash table (for batch or group) */
