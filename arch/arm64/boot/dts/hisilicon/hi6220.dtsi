@@ -6,6 +6,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/hi6220-clock.h>
+#include <dt-bindings/pinctrl/hisi.h>
 
 / {
 	compatible = "hisilicon,hi6220";
@@ -252,6 +253,60 @@
 			clock-names = "timer1", "timer2", "apb_pclk";
 		};
 
+		pmx0: pinmux@f7010000 {
+			compatible = "pinctrl-single";
+			reg = <0x0 0xf7010000  0x0 0x27c>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			#gpio-range-cells = <3>;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <7>;
+			pinctrl-single,gpio-range = <
+				&range  80  8 MUX_M0 /* gpio  3: [0..7] */
+				&range  88  8 MUX_M0 /* gpio  4: [0..7] */
+				&range  96  8 MUX_M0 /* gpio  5: [0..7] */
+				&range 104  8 MUX_M0 /* gpio  6: [0..7] */
+				&range 112  8 MUX_M0 /* gpio  7: [0..7] */
+				&range 120  2 MUX_M0 /* gpio  8: [0..1] */
+				&range   2  6 MUX_M1 /* gpio  8: [2..7] */
+				&range   8  8 MUX_M1 /* gpio  9: [0..7] */
+				&range   0  1 MUX_M1 /* gpio 10: [0]    */
+				&range  16  7 MUX_M1 /* gpio 10: [1..7] */
+				&range  23  3 MUX_M1 /* gpio 11: [0..2] */
+				&range  28  5 MUX_M1 /* gpio 11: [3..7] */
+				&range  33  3 MUX_M1 /* gpio 12: [0..2] */
+				&range  43  5 MUX_M1 /* gpio 12: [3..7] */
+				&range  48  8 MUX_M1 /* gpio 13: [0..7] */
+				&range  56  8 MUX_M1 /* gpio 14: [0..7] */
+				&range  74  6 MUX_M1 /* gpio 15: [0..5] */
+				&range 122  1 MUX_M1 /* gpio 15: [6]    */
+				&range 126  1 MUX_M1 /* gpio 15: [7]    */
+				&range 127  8 MUX_M1 /* gpio 16: [0..7] */
+				&range 135  8 MUX_M1 /* gpio 17: [0..7] */
+				&range 143  8 MUX_M1 /* gpio 18: [0..7] */
+				&range 151  8 MUX_M1 /* gpio 19: [0..7] */
+			>;
+			range: gpio-range {
+				#pinctrl-single,gpio-range-cells = <3>;
+			};
+		};
+
+		pmx1: pinmux@f7010800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xf7010800 0x0 0x28c>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			pinctrl-single,register-width = <32>;
+		};
+
+		pmx2: pinmux@f8001800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xf8001800 0x0 0x78>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			pinctrl-single,register-width = <32>;
+		};
+
 		gpio0: gpio@f8011000 {
 			compatible = "arm,pl061", "arm,primecell";
 			reg = <0x0 0xf8011000 0x0 0x1000>;
@@ -294,6 +349,7 @@
 			interrupts = <0 55 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 80 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -306,6 +362,7 @@
 			interrupts = <0 56 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 88 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -318,6 +375,7 @@
 			interrupts = <0 57 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 96 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -330,6 +388,7 @@
 			interrupts = <0 58 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 104 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -342,6 +401,7 @@
 			interrupts = <0 59 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 112 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -354,6 +414,7 @@
 			interrupts = <0 60 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 120 2 &pmx0 2 2 6>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -366,6 +427,7 @@
 			interrupts = <0 61 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 8 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -378,6 +440,7 @@
 			interrupts = <0 62 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 0 1 &pmx0 1 16 7>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -390,6 +453,7 @@
 			interrupts = <0 63 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 23 3 &pmx0 3 28 5>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -402,6 +466,7 @@
 			interrupts = <0 64 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 33 3 &pmx0 3 43 5>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -413,6 +478,8 @@
 			reg = <0x0 0xf7029000 0x0 0x1000>;
 			interrupts = <0 65 0x4>;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 48 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -425,6 +492,7 @@
 			interrupts = <0 66 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 56 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -437,6 +505,11 @@
 			interrupts = <0 67 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <
+				&pmx0 0 74 6
+				&pmx0 6 122 1
+				&pmx0 7 126 1
+			>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -449,6 +522,7 @@
 			interrupts = <0 68 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 127 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -461,6 +535,7 @@
 			interrupts = <0 69 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 135 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -473,6 +548,7 @@
 			interrupts = <0 70 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 143 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
@@ -485,6 +561,7 @@
 			interrupts = <0 71 0x4>;
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pmx0 0 151 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
