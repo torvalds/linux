@@ -71,12 +71,21 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 			     struct probe_trace_event *tev, struct map *map)
 {
 	/*
-	 * ppc64 ABIv2 local entry point is currently always 2 instructions
-	 * (8 bytes) after the global entry point.
+	 * When probing at a function entry point, we normally always want the
+	 * LEP since that catches calls to the function through both the GEP and
+	 * the LEP. Hence, we would like to probe at an offset of 8 bytes if
+	 * the user only specified the function entry.
+	 *
+	 * However, if the user specifies an offset, we fall back to using the
+	 * GEP since all userspace applications (objdump/readelf) show function
+	 * disassembly with offsets from the GEP.
+	 *
+	 * In addition, we shouldn't specify an offset for kretprobes.
 	 */
-	if (!pev->uprobes && map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS) {
-		tev->point.address += PPC64LE_LEP_OFFSET;
+	if (pev->point.offset || pev->point.retprobe || !map)
+		return;
+
+	if (map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS)
 		tev->point.offset += PPC64LE_LEP_OFFSET;
-	}
 }
 #endif
