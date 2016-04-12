@@ -485,7 +485,6 @@ static struct se_portal_group *ibmvscsis_make_tpg(struct se_wwn *wwn,
 		container_of(wwn, struct ibmvscsis_tport, tport_wwn);
 	struct ibmvscsis_tpg *tpg;
 	struct ibmvscsis_adapter *adapter;
-//	struct se_portal_group *se_tpg;
 	struct vio_dev *vdev;
 	u16 tpgt;
 	int ret;
@@ -529,15 +528,6 @@ found:
 		kfree(adapter->tpg);
 		return NULL;
 	}
-/*	se_tpg = ibmvscsis_make_nexus(tpg, &tport->tport_name[0]);
-	tpg->se_tpg = *se_tpg;
-	if(!&tpg->se_tpg) {
-		pr_info("ibmvscsis: failed make nexus\n");
-		ibmvscsis_drop_tpg(&tpg->se_tpg);
-	}
-
-	pr_debug("ibmvscsis: make_se_tpg: %p\n", &tpg->se_tpg);
-*/
 	return &adapter->tpg->se_tpg;
 }
 
@@ -1024,6 +1014,7 @@ static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 			    struct ibmvscsis_cmnd *vsc,
 			    struct srp_cmd *scmd)
 {
+	struct se_cmd *se_cmd;
 	int attr;
 	u64 data_len;
 	int ret;
@@ -1040,7 +1031,7 @@ static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 		attr = TCM_HEAD_TAG;
 		break;
 	case SRP_ACA_TASK:
-		attr = SRP_SIMPLE_TASK;
+		attr = TCM_ACA_TAG;
 		break;
 	default:
 		pr_err("ibmvscsis: Task attribute %d not supported\n",
@@ -1054,6 +1045,7 @@ static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 	data_len = srp_data_length(scmd, srp_cmd_direction(scmd));
 
 	vsc->se_cmd.tag = scmd->tag;
+	se_cmd = &vsc->se_cmd;
 
 	pr_debug("ibmvscsis: size of lun:%lx, lun:%s\n", sizeof(scmd->lun),
 				&scmd->lun.scsi_lun[0]);
@@ -1061,19 +1053,19 @@ static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 	unpacked_lun = ibmvscsis_unpack_lun((uint8_t *)&scmd->lun,
 				sizeof(scmd->lun));
 
-	pr_debug("ibmvscsis: tcm_queuecommand- se_cmd(%p), se_sess(%p),"
-			" cdb: %s, sense: %s, unpacked_lun: %llx,"
+	pr_err("ibmvscsis: tcm_queuecommand- se_cmd(%p), se_sess(%p),"
+			" cdb: %x, sense: %x, unpacked_lun: %llx,"
 			" data_length: %llx, task_attr: %x, data_dir: %x"
 			" flags: %x, tag:%llx, packed_lun:%llx\n",
-			&vsc->se_cmd, adapter->tpg->se_sess,
-			scmd->cdb, &vsc->sense_buf[0], unpacked_lun,
+			se_cmd, adapter->tpg->se_sess,
+			scmd->cdb[0], vsc->sense_buf[0], unpacked_lun,
 			data_len, attr, srp_cmd_direction(scmd),
 			TARGET_SCF_ACK_KREF, scmd->tag,
 			be64_to_cpu(&scmd->lun));
 	ret = target_submit_cmd(&vsc->se_cmd, adapter->tpg->se_sess,
-				scmd->cdb, &vsc->sense_buf[0], unpacked_lun,
+				&scmd->cdb[0], &vsc->sense_buf[0], unpacked_lun,
 				data_len, attr, srp_cmd_direction(scmd),
-				TARGET_SCF_ACK_KREF);
+				0);
 	if(ret != 0) {
 		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		pr_debug("ibmvscsis: tcm_queuecommand fail submit_cmd\n");
@@ -1163,11 +1155,15 @@ static int ibmvscsis_inquiry(struct ibmvscsis_adapter *adapter,
 	len = min_t(int, sizeof(*id), cdb[4]);
 
 	unpacked_lun = scsilun_to_int(&cmd->lun);
+	pr_debug("ibmvscsis: inquiry, unpacked_lun:%llx\n", unpacked_lun);
 
 	spin_lock(&se_tpg->session_lock);
 
 	hlist_for_each_entry(se_lun, &se_tpg->tpg_lun_hlist, link) {
+		pr_debug("ibmvscsis: inquiry, se_lun:%llx unpacked_lun:%llx\n",
+			se_lun->unpacked_lun, unpacked_lun);
 		if (se_lun->unpacked_lun == unpacked_lun) {
+			pr_debug("ibmvscsis: found lun\n");
 			found_lun = 1;
 			break;
 		}
@@ -1253,7 +1249,7 @@ static int ibmvscsis_mode_sense(struct ibmvscsis_adapter *adapter,
 static int ibmvscsis_report_luns(struct ibmvscsis_adapter *adapter,
 				 struct srp_cmd *cmd, u64 *data)
 {
-	u64 lun;
+//	u64 lun;
 	struct se_portal_group *se_tpg = &adapter->tpg->se_tpg;
 	int idx;
 	int alen, oalen, nr_luns, rbuflen = 4096;
@@ -1277,8 +1273,8 @@ static int ibmvscsis_report_luns(struct ibmvscsis_adapter *adapter,
 	spin_lock(&se_tpg->session_lock);
 	// TODO Is lun_index the right thing?
 	hlist_for_each_entry(se_lun, &se_tpg->tpg_lun_hlist, link) {
-		lun = make_lun(0, se_lun->lun_index & 0x003f, 0);
-		data[idx++] = cpu_to_be64(lun);
+//		lun = make_lun(0, se_lun->lun_index & 0x003f, 0);
+		data[idx++] = cpu_to_be64(se_lun->unpacked_lun);
 		alen -= 8;
 		if (!alen)
 			break;
