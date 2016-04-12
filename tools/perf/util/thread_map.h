@@ -55,4 +55,5 @@ static inline char *thread_map__comm(struct thread_map *map, int thread)
 }
 
 void thread_map__read_comms(struct thread_map *threads);
+bool thread_map__has(struct thread_map *threads, pid_t pid);
 #endif	/* __PERF_THREAD_MAP_H */

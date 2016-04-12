@@ -436,3 +436,15 @@ struct thread_map *thread_map__new_event(struct thread_map_event *event)
 
 	return threads;
 }
+
+bool thread_map__has(struct thread_map *threads, pid_t pid)
+{
+	int i;
+
+	for (i = 0; i < threads->nr; ++i) {
+		if (threads->map[i].pid == pid)
+			return true;
+	}
+
+	return false;
+}
