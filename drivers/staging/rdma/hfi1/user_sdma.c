@@ -180,6 +180,8 @@ struct user_sdma_iovec {
 	u64 offset;
 };
 
+#define SDMA_CACHE_NODE_EVICT BIT(0)
+
 struct sdma_mmu_node {
 	struct mmu_rb_node rb;
 	struct list_head list;
@@ -187,6 +189,7 @@ struct sdma_mmu_node {
 	atomic_t refcount;
 	struct page **pages;
 	unsigned npages;
+	unsigned long flags;
 };
 
 struct user_sdma_request {
@@ -1030,27 +1033,29 @@ static inline int num_user_pages(const struct iovec *iov)
 	return 1 + ((epage - spage) >> PAGE_SHIFT);
 }
 
-/* Caller must hold pq->evict_lock */
 static u32 sdma_cache_evict(struct hfi1_user_sdma_pkt_q *pq, u32 npages)
 {
 	u32 cleared = 0;
 	struct sdma_mmu_node *node, *ptr;
+	struct list_head to_evict = LIST_HEAD_INIT(to_evict);
 
+	spin_lock(&pq->evict_lock);
 	list_for_each_entry_safe_reverse(node, ptr, &pq->evict, list) {
 		/* Make sure that no one is still using the node. */
 		if (!atomic_read(&node->refcount)) {
-			/*
-			 * Need to use the page count now as the remove callback
-			 * will free the node.
-			 */
+			set_bit(SDMA_CACHE_NODE_EVICT, &node->flags);
+			list_del_init(&node->list);
+			list_add(&node->list, &to_evict);
 			cleared += node->npages;
-			spin_unlock(&pq->evict_lock);
-			hfi1_mmu_rb_remove(&pq->sdma_rb_root, &node->rb);
-			spin_lock(&pq->evict_lock);
 			if (cleared >= npages)
 				break;
 		}
 	}
+	spin_unlock(&pq->evict_lock);
+
+	list_for_each_entry_safe(node, ptr, &to_evict, list)
+		hfi1_mmu_rb_remove(&pq->sdma_rb_root, &node->rb);
+
 	return cleared;
 }
 
@@ -1092,11 +1097,25 @@ static int pin_vector_pages(struct user_sdma_request *req,
 		memcpy(pages, node->pages, node->npages * sizeof(*pages));
 
 		npages -= node->npages;
+
+		/*
+		 * If rb_node is NULL, it means that this is brand new node
+		 * and, therefore not on the eviction list.
+		 * If, however, the rb_node is non-NULL, it means that the
+		 * node is already in RB tree and, therefore on the eviction
+		 * list (nodes are unconditionally inserted in the eviction
+		 * list). In that case, we have to remove the node prior to
+		 * calling the eviction function in order to prevent it from
+		 * freeing this node.
+		 */
+		if (rb_node) {
+			spin_lock(&pq->evict_lock);
+			list_del_init(&node->list);
+			spin_unlock(&pq->evict_lock);
+		}
 retry:
 		if (!hfi1_can_pin_pages(pq->dd, pq->n_locked, npages)) {
-			spin_lock(&pq->evict_lock);
 			cleared = sdma_cache_evict(pq, npages);
-			spin_unlock(&pq->evict_lock);
 			if (cleared >= npages)
 				goto retry;
 		}
@@ -1121,10 +1140,7 @@ retry:
 		node->npages += pinned;
 		npages = node->npages;
 		spin_lock(&pq->evict_lock);
-		if (!rb_node)
-			list_add(&node->list, &pq->evict);
-		else
-			list_move(&node->list, &pq->evict);
+		list_add(&node->list, &pq->evict);
 		pq->n_locked += pinned;
 		spin_unlock(&pq->evict_lock);
 	}
@@ -1555,6 +1571,18 @@ static void sdma_rb_remove(struct rb_root *root, struct mmu_rb_node *mnode,
 		container_of(mnode, struct sdma_mmu_node, rb);
 
 	spin_lock(&node->pq->evict_lock);
+	/*
+	 * We've been called by the MMU notifier but this node has been
+	 * scheduled for eviction. The eviction function will take care
+	 * of freeing this node.
+	 * We have to take the above lock first because we are racing
+	 * against the setting of the bit in the eviction function.
+	 */
+	if (mm && test_bit(SDMA_CACHE_NODE_EVICT, &node->flags)) {
+		spin_unlock(&node->pq->evict_lock);
+		return;
+	}
+
 	if (!list_empty(&node->list))
 		list_del(&node->list);
 	node->pq->n_locked -= node->npages;

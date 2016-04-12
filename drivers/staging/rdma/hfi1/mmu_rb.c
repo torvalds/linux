@@ -316,9 +316,9 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 		hfi1_cdbg(MMU, "Invalidating node addr 0x%llx, len %u",
 			  node->addr, node->len);
 		if (handler->ops->invalidate(root, node)) {
-			spin_unlock_irqrestore(&handler->lock, flags);
-			__mmu_rb_remove(handler, node, mm);
-			spin_lock_irqsave(&handler->lock, flags);
+			__mmu_int_rb_remove(node, root);
+			if (handler->ops->remove)
+				handler->ops->remove(root, node, mm);
 		}
 	}
 	spin_unlock_irqrestore(&handler->lock, flags);
