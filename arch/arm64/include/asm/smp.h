@@ -113,6 +113,17 @@ static inline void update_cpu_boot_status(int val)
 	dsb(ishst);
 }
 
+/*
+ * The calling secondary CPU has detected serious configuration mismatch,
+ * which calls for a kernel panic. Update the boot status and park the calling
+ * CPU.
+ */
+static inline void cpu_panic_kernel(void)
+{
+	update_cpu_boot_status(CPU_PANIC_KERNEL);
+	cpu_park_loop();
+}
+
 #endif /* ifndef __ASSEMBLY__ */
 
 #endif /* ifndef __ASM_SMP_H */

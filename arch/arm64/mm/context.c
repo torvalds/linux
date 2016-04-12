@@ -75,8 +75,7 @@ void verify_cpu_asid_bits(void)
 		 */
 		pr_crit("CPU%d: smaller ASID size(%u) than boot CPU (%u)\n",
 				smp_processor_id(), asid, asid_bits);
-		update_cpu_boot_status(CPU_PANIC_KERNEL);
-		cpu_park_loop();
+		cpu_panic_kernel();
 	}
 }
 
