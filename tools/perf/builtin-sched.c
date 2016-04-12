@@ -125,6 +125,7 @@ struct trace_sched_handler {
 };
 
 #define COLOR_PIDS PERF_COLOR_BLUE
+#define COLOR_CPUS PERF_COLOR_BG_RED
 
 struct perf_sched_map {
 	DECLARE_BITMAP(comp_cpus_mask, MAX_CPUS);
@@ -132,6 +133,8 @@ struct perf_sched_map {
 	bool			 comp;
 	struct thread_map	*color_pids;
 	const char		*color_pids_str;
+	struct cpu_map		*color_cpus;
+	const char		*color_cpus_str;
 };
 
 struct perf_sched {
@@ -1461,14 +1464,18 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 		int cpu = sched->map.comp ? sched->map.comp_cpus[i] : i;
 		struct thread *curr_thread = sched->curr_thread[cpu];
 		const char *pid_color = color;
+		const char *cpu_color = color;
 
 		if (curr_thread && thread__has_color(curr_thread))
 			pid_color = COLOR_PIDS;
 
+		if (sched->map.color_cpus && cpu_map__has(sched->map.color_cpus, cpu))
+			cpu_color = COLOR_CPUS;
+
 		if (cpu != this_cpu)
-			color_fprintf(stdout, color, " ");
+			color_fprintf(stdout, cpu_color, " ");
 		else
-			color_fprintf(stdout, color, "*");
+			color_fprintf(stdout, cpu_color, "*");
 
 		if (sched->curr_thread[cpu])
 			color_fprintf(stdout, pid_color, "%2s ", sched->curr_thread[cpu]->shortname);
@@ -1753,7 +1760,8 @@ static int setup_map_cpus(struct perf_sched *sched)
 
 	if (sched->map.comp) {
 		sched->map.comp_cpus = zalloc(sched->max_cpu * sizeof(int));
-		return sched->map.comp_cpus ? 0 : -1;
+		if (!sched->map.comp_cpus)
+			return -1;
 	}
 
 	return 0;
@@ -1776,12 +1784,32 @@ static int setup_color_pids(struct perf_sched *sched)
 	return 0;
 }
 
+static int setup_color_cpus(struct perf_sched *sched)
+{
+	struct cpu_map *map;
+
+	if (!sched->map.color_cpus_str)
+		return 0;
+
+	map = cpu_map__new(sched->map.color_cpus_str);
+	if (!map) {
+		pr_err("failed to get thread map from %s\n", sched->map.color_cpus_str);
+		return -1;
+	}
+
+	sched->map.color_cpus = map;
+	return 0;
+}
+
 static int perf_sched__map(struct perf_sched *sched)
 {
 	if (setup_map_cpus(sched))
 		return -1;
 
 	if (setup_color_pids(sched))
+		return -1;
+
+	if (setup_color_cpus(sched))
 		return -1;
 
 	setup_pager();
@@ -1941,6 +1969,8 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "map output in compact mode"),
 	OPT_STRING(0, "color-pids", &sched.map.color_pids_str, "pids",
 		   "highlight given pids in map"),
+	OPT_STRING(0, "color-cpus", &sched.map.color_cpus_str, "cpus",
+                    "highlight given CPUs in map"),
 	OPT_END()
 	};
 	const char * const latency_usage[] = {
