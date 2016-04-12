@@ -813,9 +813,10 @@ In summary:
       the same variable, then those stores must be ordered, either by
       preceding both of them with smp_mb() or by using smp_store_release()
       to carry out the stores.  Please note that it is -not- sufficient
-      to use barrier() at beginning of each leg of the "if" statement,
-      as optimizing compilers do not necessarily respect barrier()
-      in this case.
+      to use barrier() at beginning of each leg of the "if" statement
+      because, as shown by the example above, optimizing compilers can
+      destroy the control dependency while respecting the letter of the
+      barrier() law.
 
   (*) Control dependencies require at least one run-time conditional
       between the prior load and the subsequent store, and this
