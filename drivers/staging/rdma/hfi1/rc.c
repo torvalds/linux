@@ -1497,7 +1497,7 @@ reserved:
 		/* Ignore reserved NAK codes. */
 		goto bail_stop;
 	}
-	return ret;
+	/* cannot be reached  */
 bail_stop:
 	hfi1_stop_rc_timers(qp);
 	return ret;
