@@ -117,8 +117,9 @@
 /*
  * Wait flags that would prevent any packet type from being sent.
  */
-#define RVT_S_ANY_WAIT_IO (RVT_S_WAIT_PIO | RVT_S_WAIT_TX | \
-	RVT_S_WAIT_DMA_DESC | RVT_S_WAIT_KMEM)
+#define RVT_S_ANY_WAIT_IO \
+	(RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN | RVT_S_WAIT_TX | \
+	 RVT_S_WAIT_DMA_DESC | RVT_S_WAIT_KMEM)
 
 /*
  * Wait flags that would prevent send work requests from making progress.
