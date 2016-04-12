@@ -2506,7 +2506,6 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 
 	if (!vsi)
 		return -EINVAL;
-
 	pf = vsi->back;
 
 	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
@@ -2564,15 +2563,18 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	input->src_ip[0] = fsp->h_u.tcp_ip4_spec.ip4dst;
 
 	if (ntohl(fsp->m_ext.data[1])) {
-		if (ntohl(fsp->h_ext.data[1]) >= pf->num_alloc_vfs) {
-			netif_info(pf, drv, vsi->netdev, "Invalid VF id\n");
+		vf_id = ntohl(fsp->h_ext.data[1]);
+		if (vf_id >= pf->num_alloc_vfs) {
+			netif_info(pf, drv, vsi->netdev,
+				   "Invalid VF id %d\n", vf_id);
 			goto free_input;
 		}
-		vf_id = ntohl(fsp->h_ext.data[1]);
 		/* Find vsi id from vf id and override dest vsi */
 		input->dest_vsi = pf->vf[vf_id].lan_vsi_id;
 		if (input->q_index >= pf->vf[vf_id].num_queue_pairs) {
-			netif_info(pf, drv, vsi->netdev, "Invalid queue id\n");
+			netif_info(pf, drv, vsi->netdev,
+				   "Invalid queue id %d for VF %d\n",
+				   input->q_index, vf_id);
 			goto free_input;
 		}
 	}
