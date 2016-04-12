@@ -114,21 +114,11 @@ static int qual_power(struct hfi1_pportdata *ppd)
 	if (ret)
 		return ret;
 
-	if (QSFP_HIGH_PWR(cache[QSFP_MOD_PWR_OFFS]) != 4)
-		cable_power_class = QSFP_HIGH_PWR(cache[QSFP_MOD_PWR_OFFS]);
-	else
-		cable_power_class = QSFP_PWR(cache[QSFP_MOD_PWR_OFFS]);
+	cable_power_class = get_qsfp_power_class(cache[QSFP_MOD_PWR_OFFS]);
 
-	if (cable_power_class <= 3 && cable_power_class > (power_class_max - 1))
+	if (cable_power_class > power_class_max)
 		ppd->offline_disabled_reason =
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_POWER_POLICY);
-	else if (cable_power_class > 4 && cable_power_class > (power_class_max))
-		ppd->offline_disabled_reason =
-			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_POWER_POLICY);
-	/*
-	 * cable_power_class will never have value 4 as this simply
-	 * means the high power settings are unused
-	 */
 
 	if (ppd->offline_disabled_reason ==
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_POWER_POLICY)) {
@@ -173,12 +163,9 @@ static int set_qsfp_high_power(struct hfi1_pportdata *ppd)
 	u8 *cache = ppd->qsfp_info.cache;
 	int ret;
 
-	if (QSFP_HIGH_PWR(cache[QSFP_MOD_PWR_OFFS]) != 4)
-		cable_power_class = QSFP_HIGH_PWR(cache[QSFP_MOD_PWR_OFFS]);
-	else
-		cable_power_class = QSFP_PWR(cache[QSFP_MOD_PWR_OFFS]);
+	cable_power_class = get_qsfp_power_class(cache[QSFP_MOD_PWR_OFFS]);
 
-	if (cable_power_class) {
+	if (cable_power_class > QSFP_POWER_CLASS_1) {
 		power_ctrl_byte = cache[QSFP_PWR_CTRL_BYTE_OFFS];
 
 		power_ctrl_byte |= 1;
@@ -190,8 +177,7 @@ static int set_qsfp_high_power(struct hfi1_pportdata *ppd)
 		if (ret != 1)
 			return -EIO;
 
-		if (cable_power_class > 3) {
-			/* > power class 4*/
+		if (cable_power_class > QSFP_POWER_CLASS_4) {
 			power_ctrl_byte |= (1 << 2);
 			ret = qsfp_write(ppd, ppd->dd->hfi1_id,
 					 QSFP_PWR_CTRL_BYTE_OFFS,
@@ -212,12 +198,21 @@ static void apply_rx_cdr(struct hfi1_pportdata *ppd,
 {
 	u32 rx_preset;
 	u8 *cache = ppd->qsfp_info.cache;
+	int cable_power_class;
 
 	if (!((cache[QSFP_MOD_PWR_OFFS] & 0x4) &&
 	      (cache[QSFP_CDR_INFO_OFFS] & 0x40)))
 		return;
 
-	/* rx_preset preset to zero to catch error */
+	/* RX CDR present, bypass supported */
+	cable_power_class = get_qsfp_power_class(cache[QSFP_MOD_PWR_OFFS]);
+
+	if (cable_power_class <= QSFP_POWER_CLASS_3) {
+		/* Power class <= 3, ignore config & turn RX CDR on */
+		*cdr_ctrl_byte |= 0xF;
+		return;
+	}
+
 	get_platform_config_field(
 		ppd->dd, PLATFORM_CONFIG_RX_PRESET_TABLE,
 		rx_preset_index, RX_PRESET_TABLE_QSFP_RX_CDR_APPLY,
@@ -250,14 +245,24 @@ static void apply_rx_cdr(struct hfi1_pportdata *ppd,
 
 static void apply_tx_cdr(struct hfi1_pportdata *ppd,
 			 u32 tx_preset_index,
-			 u8 *ctr_ctrl_byte)
+			 u8 *cdr_ctrl_byte)
 {
 	u32 tx_preset;
 	u8 *cache = ppd->qsfp_info.cache;
+	int cable_power_class;
 
 	if (!((cache[QSFP_MOD_PWR_OFFS] & 0x8) &&
 	      (cache[QSFP_CDR_INFO_OFFS] & 0x80)))
 		return;
+
+	/* TX CDR present, bypass supported */
+	cable_power_class = get_qsfp_power_class(cache[QSFP_MOD_PWR_OFFS]);
+
+	if (cable_power_class <= QSFP_POWER_CLASS_3) {
+		/* Power class <= 3, ignore config & turn TX CDR on */
+		*cdr_ctrl_byte |= 0xF0;
+		return;
+	}
 
 	get_platform_config_field(
 		ppd->dd,
@@ -282,10 +287,10 @@ static void apply_tx_cdr(struct hfi1_pportdata *ppd,
 			(tx_preset << 2) | (tx_preset << 3));
 
 	if (tx_preset)
-		*ctr_ctrl_byte |= (tx_preset << 4);
+		*cdr_ctrl_byte |= (tx_preset << 4);
 	else
 		/* Preserve current/determined RX CDR status */
-		*ctr_ctrl_byte &= ((tx_preset << 4) | 0xF);
+		*cdr_ctrl_byte &= ((tx_preset << 4) | 0xF);
 }
 
 static void apply_cdr_settings(
