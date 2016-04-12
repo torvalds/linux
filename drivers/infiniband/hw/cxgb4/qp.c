@@ -1895,13 +1895,27 @@ int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 void c4iw_drain_sq(struct ib_qp *ibqp)
 {
 	struct c4iw_qp *qp = to_c4iw_qp(ibqp);
+	unsigned long flag;
+	bool need_to_wait;
 
-	wait_for_completion(&qp->sq_drained);
+	spin_lock_irqsave(&qp->lock, flag);
+	need_to_wait = !t4_sq_empty(&qp->wq);
+	spin_unlock_irqrestore(&qp->lock, flag);
+
+	if (need_to_wait)
+		wait_for_completion(&qp->sq_drained);
 }
 
 void c4iw_drain_rq(struct ib_qp *ibqp)
 {
 	struct c4iw_qp *qp = to_c4iw_qp(ibqp);
+	unsigned long flag;
+	bool need_to_wait;
 
-	wait_for_completion(&qp->rq_drained);
+	spin_lock_irqsave(&qp->lock, flag);
+	need_to_wait = !t4_rq_empty(&qp->wq);
+	spin_unlock_irqrestore(&qp->lock, flag);
+
+	if (need_to_wait)
+		wait_for_completion(&qp->rq_drained);
 }
