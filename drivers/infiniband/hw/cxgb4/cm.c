@@ -3300,7 +3300,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		/*
 		 * Handle loopback requests to INADDR_ANY.
 		 */
-		if ((__force int)raddr->sin_addr.s_addr == INADDR_ANY) {
+		if (raddr->sin_addr.s_addr == htonl(INADDR_ANY)) {
 			err = pick_local_ipaddrs(dev, cm_id);
 			if (err)
 				goto fail1;
