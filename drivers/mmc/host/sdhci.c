@@ -2965,7 +2965,8 @@ int sdhci_add_host(struct sdhci_host *host)
 		if (!host->ops->get_max_clock) {
 			pr_err("%s: Hardware doesn't specify base clock frequency.\n",
 			       mmc_hostname(mmc));
-			return -ENODEV;
+			ret = -ENODEV;
+			goto undma;
 		}
 		host->max_clk = host->ops->get_max_clock(host);
 	}
@@ -3015,7 +3016,8 @@ int sdhci_add_host(struct sdhci_host *host)
 			} else {
 				pr_err("%s: Hardware doesn't specify timeout clock frequency.\n",
 					mmc_hostname(mmc));
-				return -ENODEV;
+				ret = -ENODEV;
+				goto undma;
 			}
 		}
 
@@ -3069,8 +3071,9 @@ int sdhci_add_host(struct sdhci_host *host)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	/* If there are external regulators, get them */
-	if (mmc_regulator_get_supply(mmc) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
+	ret = mmc_regulator_get_supply(mmc);
+	if (ret == -EPROBE_DEFER)
+		goto undma;
 
 	/* If vqmmc regulator and no 1.8V signalling, then there's no UHS */
 	if (!IS_ERR(mmc->supply.vqmmc)) {
@@ -3227,7 +3230,8 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (mmc->ocr_avail == 0) {
 		pr_err("%s: Hardware doesn't report any support voltages.\n",
 		       mmc_hostname(mmc));
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unreg;
 	}
 
 	spin_lock_init(&host->lock);
@@ -3323,13 +3327,15 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (ret) {
 		pr_err("%s: Failed to register LED device: %d\n",
 		       mmc_hostname(mmc), ret);
-		goto reset;
+		goto unirq;
 	}
 #endif
 
 	mmiowb();
 
-	mmc_add_host(mmc);
+	ret = mmc_add_host(mmc);
+	if (ret)
+		goto unled;
 
 	pr_info("%s: SDHCI controller on %s [%s] using %s\n",
 		mmc_hostname(mmc), host->hw_name, dev_name(mmc_dev(mmc)),
@@ -3341,15 +3347,27 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	return 0;
 
+unled:
 #ifdef SDHCI_USE_LEDS_CLASS
-reset:
+	led_classdev_unregister(&host->led);
+unirq:
+#endif
 	sdhci_do_reset(host, SDHCI_RESET_ALL);
 	sdhci_writel(host, 0, SDHCI_INT_ENABLE);
 	sdhci_writel(host, 0, SDHCI_SIGNAL_ENABLE);
 	free_irq(host->irq, host);
-#endif
 untasklet:
 	tasklet_kill(&host->finish_tasklet);
+unreg:
+	if (!IS_ERR(mmc->supply.vqmmc))
+		regulator_disable(mmc->supply.vqmmc);
+undma:
+	if (host->align_buffer)
+		dma_free_coherent(mmc_dev(mmc), host->align_buffer_sz +
+				  host->adma_table_sz, host->align_buffer,
+				  host->align_addr);
+	host->adma_table = NULL;
+	host->align_buffer = NULL;
 
 	return ret;
 }
