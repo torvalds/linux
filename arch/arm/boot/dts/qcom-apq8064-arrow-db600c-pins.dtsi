@@ -1,0 +1,9 @@
+&tlmm_pinmux {
+	card_detect: card-detect {
+		mux {
+			pins = "gpio26";
+			function = "gpio";
+			bias-disable;
+		};
+	};
+};

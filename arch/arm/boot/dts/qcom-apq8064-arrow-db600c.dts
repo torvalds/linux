@@ -1,4 +1,6 @@
 #include "qcom-apq8064-v2.0.dtsi"
+#include "qcom-apq8064-arrow-db600c-pins.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Arrow Electronics, APQ8064 DB600c";
@@ -69,6 +71,20 @@
 					regulator-max-microvolt = <1300000>;
 					qcom,switch-mode-frequency = <3200000>;
 				 };
+
+				l5 {
+					regulator-min-microvolt = <2750000>;
+					regulator-max-microvolt = <3000000>;
+					bias-pull-down;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				l6 {
+					regulator-min-microvolt = <2950000>;
+					regulator-max-microvolt = <2950000>;
+					bias-pull-down;
+				};
 			};
 		};
 
@@ -92,6 +108,24 @@
 				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&gsbi7_uart_2pins>;
+			};
+		};
+
+		amba {
+			/* eMMC */
+			sdcc@12400000 {
+				status = "okay";
+				vmmc-supply = <&pm8921_l5>;
+				vqmmc-supply = <&pm8921_s4>;
+			};
+
+			/* External micro SD card */
+			sdcc@12180000 {
+				status = "okay";
+				vmmc-supply = <&pm8921_l6>;
+				pinctrl-names	= "default";
+				pinctrl-0	= <&card_detect>;
+				cd-gpios	= <&tlmm_pinmux 26 GPIO_ACTIVE_HIGH>;
 			};
 		};
 	};
