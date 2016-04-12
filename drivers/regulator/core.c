@@ -4021,8 +4021,8 @@ void regulator_unregister(struct regulator_dev *rdev)
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
-	mutex_unlock(&regulator_list_mutex);
 	regulator_ena_gpio_free(rdev);
+	mutex_unlock(&regulator_list_mutex);
 	device_unregister(&rdev->dev);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
