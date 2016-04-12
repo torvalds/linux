@@ -926,9 +926,8 @@
 	i2s0: i2s@ff880000 {
 		compatible = "rockchip,rk3399-i2s", "rockchip,rk3066-i2s";
 		reg = <0x0 0xff880000 0x0 0x1000>;
+		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		dmas = <&dmac_bus 0>, <&dmac_bus 1>;
 		dma-names = "tx", "rx";
 		clock-names = "i2s_clk", "i2s_hclk";
@@ -942,8 +941,6 @@
 		compatible = "rockchip,rk3399-i2s", "rockchip,rk3066-i2s";
 		reg = <0x0 0xff890000 0x0 0x1000>;
 		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		dmas = <&dmac_bus 2>, <&dmac_bus 3>;
 		dma-names = "tx", "rx";
 		clock-names = "i2s_clk", "i2s_hclk";
@@ -957,8 +954,6 @@
 		compatible = "rockchip,rk3399-i2s", "rockchip,rk3066-i2s";
 		reg = <0x0 0xff8a0000 0x0 0x1000>;
 		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		dmas = <&dmac_bus 4>, <&dmac_bus 5>;
 		dma-names = "tx", "rx";
 		clock-names = "i2s_clk", "i2s_hclk";
