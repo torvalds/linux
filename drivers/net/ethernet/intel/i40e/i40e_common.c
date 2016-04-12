@@ -3138,6 +3138,12 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 			p->wr_csr_prot = (u64)number;
 			p->wr_csr_prot |= (u64)logical_id << 32;
 			break;
+		case I40E_AQ_CAP_ID_NVM_MGMT:
+			if (number & I40E_NVM_MGMT_SEC_REV_DISABLED)
+				p->sec_rev_disabled = true;
+			if (number & I40E_NVM_MGMT_UPDATE_DISABLED)
+				p->update_disabled = true;
+			break;
 		default:
 			break;
 		}
