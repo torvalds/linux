@@ -91,7 +91,7 @@ static unsigned long mmu_node_start(struct mmu_rb_node *node)
 
 static unsigned long mmu_node_last(struct mmu_rb_node *node)
 {
-	return PAGE_ALIGN((node->addr & PAGE_MASK) + node->len) - 1;
+	return PAGE_ALIGN(node->addr + node->len) - 1;
 }
 
 int hfi1_mmu_rb_register(struct rb_root *root, struct mmu_rb_ops *ops)
