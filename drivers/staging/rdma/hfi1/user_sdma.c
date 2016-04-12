@@ -600,6 +600,13 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 		goto free_req;
 	}
 
+	/* Checking P_KEY for requests from user-space */
+	if (egress_pkey_check(dd->pport, req->hdr.lrh, req->hdr.bth, sc,
+			      PKEY_CHECK_INVALID)) {
+		ret = -EINVAL;
+		goto free_req;
+	}
+
 	/*
 	 * Also should check the BTH.lnh. If it says the next header is GRH then
 	 * the RXE parsing will be off and will land in the middle of the KDETH
