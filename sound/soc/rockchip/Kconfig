@@ -23,6 +23,15 @@ config SND_SOC_ROCKCHIP_SPDIF
 	  Say Y or M if you want to add support for SPDIF driver for
 	  Rockchip SPDIF transceiver device.
 
+config SND_SOC_ROCKCHIP_DA7219
+	tristate "ASoC support for Rockchip boards using a DA7219 codec"
+	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB
+	select SND_SOC_ROCKCHIP_I2S
+	select SND_SOC_DA7219
+	help
+	  Say Y or M here if you want to add support for SoC audio on Rockchip
+	  boards using the DA7219 codec, such as Veyron.
+
 config SND_SOC_ROCKCHIP_MAX98090
 	tristate "ASoC support for Rockchip boards using a MAX98090 codec"
 	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && CLKDEV_LOOKUP
