@@ -61,6 +61,7 @@ Contents:
  (*) The things CPUs get up to.
 
      - And then there's the Alpha.
+     - Virtual Machine Guests.
 
  (*) Example uses.
 
