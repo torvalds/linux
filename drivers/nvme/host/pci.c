@@ -1855,8 +1855,16 @@ static void nvme_reset_work(struct work_struct *work)
 	if (result)
 		goto out;
 
-	dev->ctrl.event_limit = NVME_NR_AEN_COMMANDS;
-	queue_work(nvme_workq, &dev->async_work);
+	/*
+	 * A controller that can not execute IO typically requires user
+	 * intervention to correct. For such degraded controllers, the driver
+	 * should not submit commands the user did not request, so skip
+	 * registering for asynchronous event notification on this condition.
+	 */
+	if (dev->online_queues > 1) {
+		dev->ctrl.event_limit = NVME_NR_AEN_COMMANDS;
+		queue_work(nvme_workq, &dev->async_work);
+	}
 
 	mod_timer(&dev->watchdog_timer, round_jiffies(jiffies + HZ));
 
