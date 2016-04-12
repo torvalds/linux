@@ -3950,13 +3950,6 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	rdev->dev.parent = dev;
 	dev_set_name(&rdev->dev, "regulator.%lu",
 		    (unsigned long) atomic_inc_return(&regulator_no));
-	ret = device_register(&rdev->dev);
-	if (ret != 0) {
-		put_device(&rdev->dev);
-		goto wash;
-	}
-
-	dev_set_drvdata(&rdev->dev, rdev);
 
 	/* set regulator constraints */
 	if (init_data)
@@ -3964,7 +3957,15 @@ regulator_register(const struct regulator_desc *regulator_desc,
 
 	ret = set_machine_constraints(rdev, constraints);
 	if (ret < 0)
-		goto scrub;
+		goto wash;
+
+	ret = device_register(&rdev->dev);
+	if (ret != 0) {
+		put_device(&rdev->dev);
+		goto wash;
+	}
+
+	dev_set_drvdata(&rdev->dev, rdev);
 
 	if (init_data && init_data->supply_regulator)
 		rdev->supply_name = init_data->supply_regulator;
@@ -3993,8 +3994,6 @@ out:
 
 unset_supplies:
 	unset_regulator_supplies(rdev);
-
-scrub:
 	regulator_ena_gpio_free(rdev);
 	device_unregister(&rdev->dev);
 	/* device core frees rdev */
@@ -4002,6 +4001,7 @@ scrub:
 	goto out;
 
 wash:
+	kfree(rdev->constraints);
 	regulator_ena_gpio_free(rdev);
 clean:
 	kfree(rdev);
