@@ -748,6 +748,15 @@ static void lock_torture_cleanup(void)
 	if (torture_cleanup_begin())
 		return;
 
+	/*
+	 * Indicates early cleanup, meaning that the test has not run,
+	 * such as when passing bogus args when loading the module. As
+	 * such, only perform the underlying torture-specific cleanups,
+	 * and avoid anything related to locktorture.
+	 */
+	if (!cxt.lwsa)
+		goto end;
+
 	if (writer_tasks) {
 		for (i = 0; i < cxt.nrealwriters_stress; i++)
 			torture_stop_kthread(lock_torture_writer,
@@ -776,6 +785,7 @@ static void lock_torture_cleanup(void)
 	else
 		lock_torture_print_module_parms(cxt.cur_ops,
 						"End of test: SUCCESS");
+end:
 	torture_cleanup_end();
 }
 
@@ -870,6 +880,7 @@ static int __init lock_torture_init(void)
 			VERBOSE_TOROUT_STRING("cxt.lrsa: Out of memory");
 			firsterr = -ENOMEM;
 			kfree(cxt.lwsa);
+			cxt.lwsa = NULL;
 			goto unwind;
 		}
 
@@ -878,6 +889,7 @@ static int __init lock_torture_init(void)
 			cxt.lrsa[i].n_lock_acquired = 0;
 		}
 	}
+
 	lock_torture_print_module_parms(cxt.cur_ops, "Start of test");
 
 	/* Prepare torture context. */
