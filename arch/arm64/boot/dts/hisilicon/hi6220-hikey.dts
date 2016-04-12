@@ -45,6 +45,14 @@
 		spi0: spi@f7106000 {
 			status = "ok";
 		};
+
+		i2c0: i2c@f7100000 {
+			status = "ok";
+		};
+
+		i2c1: i2c@f7101000 {
+			status = "ok";
+		};
 	};
 };
 
