@@ -3375,6 +3375,22 @@ void nft_set_elem_destroy(const struct nft_set *set, void *elem)
 }
 EXPORT_SYMBOL_GPL(nft_set_elem_destroy);
 
+static int nft_setelem_parse_flags(const struct nft_set *set,
+				   const struct nlattr *attr, u32 *flags)
+{
+	if (attr == NULL)
+		return 0;
+
+	*flags = ntohl(nla_get_be32(attr));
+	if (*flags & ~NFT_SET_ELEM_INTERVAL_END)
+		return -EINVAL;
+	if (!(set->flags & NFT_SET_INTERVAL) &&
+	    *flags & NFT_SET_ELEM_INTERVAL_END)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 			    const struct nlattr *attr)
 {
@@ -3388,8 +3404,8 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	struct nft_data data;
 	enum nft_registers dreg;
 	struct nft_trans *trans;
+	u32 flags = 0;
 	u64 timeout;
-	u32 flags;
 	u8 ulen;
 	int err;
 
@@ -3403,17 +3419,11 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 
 	nft_set_ext_prepare(&tmpl);
 
-	flags = 0;
-	if (nla[NFTA_SET_ELEM_FLAGS] != NULL) {
-		flags = ntohl(nla_get_be32(nla[NFTA_SET_ELEM_FLAGS]));
-		if (flags & ~NFT_SET_ELEM_INTERVAL_END)
-			return -EINVAL;
-		if (!(set->flags & NFT_SET_INTERVAL) &&
-		    flags & NFT_SET_ELEM_INTERVAL_END)
-			return -EINVAL;
-		if (flags != 0)
-			nft_set_ext_add(&tmpl, NFT_SET_EXT_FLAGS);
-	}
+	err = nft_setelem_parse_flags(set, nla[NFTA_SET_ELEM_FLAGS], &flags);
+	if (err < 0)
+		return err;
+	if (flags != 0)
+		nft_set_ext_add(&tmpl, NFT_SET_EXT_FLAGS);
 
 	if (set->flags & NFT_SET_MAP) {
 		if (nla[NFTA_SET_ELEM_DATA] == NULL &&
