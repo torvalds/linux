@@ -141,17 +141,6 @@ static int vlv_compute_dsi_pll(struct intel_encoder *encoder,
 	return 0;
 }
 
-static void vlv_configure_dsi_pll(struct intel_encoder *encoder,
-				  const struct intel_crtc_state *config)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, 0);
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_DIVIDER, config->dsi_pll.div);
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL,
-		      config->dsi_pll.ctrl & ~DSI_PLL_VCO_EN);
-}
-
 static void vlv_enable_dsi_pll(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *config)
 {
@@ -161,7 +150,10 @@ static void vlv_enable_dsi_pll(struct intel_encoder *encoder,
 
 	mutex_lock(&dev_priv->sb_lock);
 
-	vlv_configure_dsi_pll(encoder, config);
+	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, 0);
+	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_DIVIDER, config->dsi_pll.div);
+	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL,
+		      config->dsi_pll.ctrl & ~DSI_PLL_VCO_EN);
 
 	/* wait at least 0.5 us after ungating before enabling VCO */
 	usleep_range(1, 10);
@@ -470,15 +462,6 @@ static int bxt_compute_dsi_pll(struct intel_encoder *encoder,
 	return 0;
 }
 
-static void bxt_configure_dsi_pll(struct intel_encoder *encoder,
-				  const struct intel_crtc_state *config)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	I915_WRITE(BXT_DSI_PLL_CTL, config->dsi_pll.ctrl);
-	POSTING_READ(BXT_DSI_PLL_CTL);
-}
-
 static void bxt_enable_dsi_pll(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *config)
 {
@@ -490,7 +473,8 @@ static void bxt_enable_dsi_pll(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("\n");
 
 	/* Configure PLL vales */
-	bxt_configure_dsi_pll(encoder, config);
+	I915_WRITE(BXT_DSI_PLL_CTL, config->dsi_pll.ctrl);
+	POSTING_READ(BXT_DSI_PLL_CTL);
 
 	/* Program TX, RX, Dphy clocks */
 	for_each_dsi_port(port, intel_dsi->ports)
