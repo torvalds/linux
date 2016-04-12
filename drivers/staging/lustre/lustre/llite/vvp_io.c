@@ -294,6 +294,7 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 	struct cl_io     *io  = ios->cis_io;
 	struct cl_object *obj = io->ci_obj;
 	struct vvp_io    *vio = cl2vvp_io(env, ios);
+	struct inode *inode = vvp_object_inode(obj);
 
 	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
 
@@ -309,7 +310,7 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		/* file was detected release, we need to restore it
 		 * before finishing the io
 		 */
-		rc = ll_layout_restore(vvp_object_inode(obj));
+		rc = ll_layout_restore(inode, 0, OBD_OBJECT_EOF);
 		/* if restore registration failed, no restart,
 		 * we will return -ENODATA
 		 */
@@ -335,7 +336,7 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		__u32 gen = 0;
 
 		/* check layout version */
-		ll_layout_refresh(vvp_object_inode(obj), &gen);
+		ll_layout_refresh(inode, &gen);
 		io->ci_need_restart = vio->vui_layout_gen != gen;
 		if (io->ci_need_restart) {
 			CDEBUG(D_VFSTRACE,
