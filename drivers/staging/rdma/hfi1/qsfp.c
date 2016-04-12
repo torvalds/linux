@@ -96,7 +96,7 @@ int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 {
 	int ret;
 
-	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+	if (!check_chip_resource(ppd->dd, i2c_target(target), __func__))
 		return -EACCES;
 
 	/* make sure the TWSI bus is in a sane state */
@@ -162,7 +162,7 @@ int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 {
 	int ret;
 
-	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+	if (!check_chip_resource(ppd->dd, i2c_target(target), __func__))
 		return -EACCES;
 
 	/* make sure the TWSI bus is in a sane state */
@@ -192,7 +192,7 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	int ret;
 	u8 page;
 
-	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+	if (!check_chip_resource(ppd->dd, i2c_target(target), __func__))
 		return -EACCES;
 
 	/* make sure the TWSI bus is in a sane state */
@@ -276,7 +276,7 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	int ret;
 	u8 page;
 
-	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+	if (!check_chip_resource(ppd->dd, i2c_target(target), __func__))
 		return -EACCES;
 
 	/* make sure the TWSI bus is in a sane state */
