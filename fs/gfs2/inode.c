@@ -93,11 +93,11 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 	int error;
 
 	inode = iget_locked(sb, (unsigned long)no_addr);
-	ip = GFS2_I(inode);
-	ip->i_no_addr = no_addr;
-
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
+
+	ip = GFS2_I(inode);
+	ip->i_no_addr = no_addr;
 
 	if (inode->i_state & I_NEW) {
 		struct gfs2_sbd *sdp = GFS2_SB(inode);
