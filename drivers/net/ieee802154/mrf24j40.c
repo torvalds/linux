@@ -61,6 +61,7 @@
 #define REG_TXBCON0	0x1A
 #define REG_TXNCON	0x1B  /* Transmit Normal FIFO Control */
 #define BIT_TXNTRIG	BIT(0)
+#define BIT_TXNSECEN	BIT(1)
 #define BIT_TXNACKREQ	BIT(2)
 
 #define REG_TXG1CON	0x1C
@@ -550,6 +551,9 @@ static void write_tx_buf_complete(void *context)
 	__le16 fc = ieee802154_get_fc_from_skb(devrec->tx_skb);
 	u8 val = BIT_TXNTRIG;
 	int ret;
+
+	if (ieee802154_is_secen(fc))
+		val |= BIT_TXNSECEN;
 
 	if (ieee802154_is_ackreq(fc))
 		val |= BIT_TXNACKREQ;
