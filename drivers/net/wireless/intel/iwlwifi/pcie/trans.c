@@ -269,9 +269,8 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	iwl_pcie_apm_config(trans);
 
 	/* Configure analog phase-lock-loop before activating to D0A */
-	if (trans->cfg->base_params->pll_cfg_val)
-		iwl_set_bit(trans, CSR_ANA_PLL_CFG,
-			    trans->cfg->base_params->pll_cfg_val);
+	if (trans->cfg->base_params->pll_cfg)
+		iwl_set_bit(trans, CSR_ANA_PLL_CFG, CSR50_ANA_PLL_CFG_VAL);
 
 	/*
 	 * Set "initialization complete" bit to move adapter from
