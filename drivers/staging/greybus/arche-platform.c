@@ -52,7 +52,6 @@ struct arche_platform_drvdata {
 
 	int num_apbs;
 
-	struct delayed_work delayed_work;
 	enum svc_wakedetect_state wake_detect_state;
 	int wake_detect_irq;
 	spinlock_t lock;
@@ -101,24 +100,6 @@ static int apb_poweroff(struct device *dev, void *data)
 	return 0;
 }
 
-/**
- * hub_conf_delayed_work - Configures USB3613 device to HUB mode
- *
- * The idea here is to split the APB coldboot operation with slow HUB configuration,
- * so that driver response to wake/detect event can be met.
- * So expectation is, once code reaches here, means initial unipro linkup
- * between APB<->Switch was successful, so now just take it to AP.
- */
-static void hub_conf_delayed_work(struct work_struct *work)
-{
-	struct arche_platform_drvdata *arche_pdata =
-		container_of(work, struct arche_platform_drvdata, delayed_work.work);
-
-	/* Enable HUB3613 into HUB mode. */
-	if (usb3613_hub_mode_ctrl(true))
-		dev_warn(arche_pdata->dev, "failed to control hub device\n");
-}
-
 static void assert_wakedetect(struct arche_platform_drvdata *arche_pdata)
 {
 	/* Assert wake/detect = Detect event from AP */
@@ -150,9 +131,11 @@ static irqreturn_t arche_platform_wd_irq_thread(int irq, void *devid)
 	/* Bring APB out of reset: cold boot sequence */
 	device_for_each_child(arche_pdata->dev, NULL, apb_cold_boot);
 
+	/* Enable HUB3613 into HUB mode. */
+	if (usb3613_hub_mode_ctrl(true))
+		dev_warn(arche_pdata->dev, "failed to control hub device\n");
+
 	spin_lock_irqsave(&arche_pdata->lock, flags);
-	/* USB HUB configuration */
-	schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
 	arche_pdata->wake_detect_state = WD_STATE_IDLE;
 	spin_unlock_irqrestore(&arche_pdata->lock, flags);
 
@@ -178,8 +161,6 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 			if (time_before(jiffies,
 					arche_pdata->wake_detect_start +
 					msecs_to_jiffies(WD_COLDBOOT_PULSE_WIDTH_MS))) {
-				/* No harm with cancellation, even if not pending */
-				cancel_delayed_work(&arche_pdata->delayed_work);
 				arche_pdata->wake_detect_state = WD_STATE_IDLE;
 			} else {
 				/* Check we are not in middle of irq thread already */
@@ -196,8 +177,6 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 		/* wake/detect falling */
 		if (arche_pdata->wake_detect_state == WD_STATE_IDLE) {
 			arche_pdata->wake_detect_start = jiffies;
-			/* No harm with cancellation even if it is not pending*/
-			cancel_delayed_work(&arche_pdata->delayed_work);
 			/*
 			 * In the begining, when wake/detect goes low (first time), we assume
 			 * it is meant for coldboot and set the flag. If wake/detect line stays low
@@ -494,7 +473,6 @@ static int arche_platform_probe(struct platform_device *pdev)
 	}
 
 	assert_wakedetect(arche_pdata);
-	INIT_DELAYED_WORK(&arche_pdata->delayed_work, hub_conf_delayed_work);
 
 	dev_info(dev, "Device registered successfully\n");
 	return 0;
@@ -520,7 +498,6 @@ static int arche_platform_remove(struct platform_device *pdev)
 	struct arche_platform_drvdata *arche_pdata = platform_get_drvdata(pdev);
 
 	device_remove_file(&pdev->dev, &dev_attr_state);
-	cancel_delayed_work_sync(&arche_pdata->delayed_work);
 	device_for_each_child(&pdev->dev, NULL, arche_remove_child);
 	arche_platform_poweroff_seq(arche_pdata);
 	platform_set_drvdata(pdev, NULL);
