@@ -18,4 +18,27 @@
 			bias-disable;
 		};
 	};
+
+	user_leds: user-leds {
+		mux {
+			pins = "gpio3", "gpio7", "gpio10", "gpio11";
+			function = "gpio";
+		};
+
+		conf {
+			pins = "gpio3", "gpio7", "gpio10", "gpio11";
+			function = "gpio";
+			output-low;
+		};
+	};
+};
+
+&pm8921_mpps {
+	mpp_leds: mpp-leds {
+		pinconf {
+			pins = "mpp7", "mpp8";
+			function = "digital";
+			output-low;
+		};
+	};
 };

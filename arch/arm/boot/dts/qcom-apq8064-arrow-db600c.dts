@@ -153,6 +153,53 @@
 			};
 		};
 
+		leds {
+			pinctrl-names = "default";
+			pinctrl-0 = <&user_leds>, <&mpp_leds>;
+
+			compatible = "gpio-leds";
+
+			user-led0 {
+				label = "user0-led";
+				gpios = <&tlmm_pinmux 3 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "heartbeat";
+				default-state = "off";
+			};
+
+			user-led1 {
+				label = "user1-led";
+				gpios = <&tlmm_pinmux 7 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "mmc0";
+				default-state = "off";
+			};
+
+			user-led2 {
+				label = "user2-led";
+				gpios = <&tlmm_pinmux 10 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "mmc1";
+				default-state = "off";
+			};
+
+			user-led3 {
+				label = "user3-led";
+				gpios = <&tlmm_pinmux 11 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "none";
+				default-state = "off";
+			};
+
+			wifi-led {
+				label = "WiFi-led";
+				gpios = <&pm8921_mpps 7 GPIO_ACTIVE_HIGH>;
+				default-state = "off";
+			};
+
+			bt-led {
+				label = "BT-led";
+				gpios = <&pm8921_mpps 8 GPIO_ACTIVE_HIGH>;
+				default-state = "off";
+			};
+		};
+
 		pci@1b500000 {
 			status = "okay";
 			vdda-supply = <&pm8921_s3>;
