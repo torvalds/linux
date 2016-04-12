@@ -6430,6 +6430,8 @@ unsigned int sctp_poll(struct file *file, struct socket *sock, poll_table *wait)
 
 	poll_wait(file, sk_sleep(sk), wait);
 
+	sock_rps_record_flow(sk);
+
 	/* A TCP-style listening socket becomes readable when the accept queue
 	 * is not empty.
 	 */
@@ -7186,6 +7188,7 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 	newsk->sk_lingertime = sk->sk_lingertime;
 	newsk->sk_rcvtimeo = sk->sk_rcvtimeo;
 	newsk->sk_sndtimeo = sk->sk_sndtimeo;
+	newsk->sk_rxhash = sk->sk_rxhash;
 
 	newinet = inet_sk(newsk);
 

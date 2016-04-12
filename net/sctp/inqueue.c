@@ -163,6 +163,9 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 		chunk->singleton = 1;
 		ch = (sctp_chunkhdr_t *) chunk->skb->data;
 		chunk->data_accepted = 0;
+
+		if (chunk->asoc)
+			sock_rps_save_rxhash(chunk->asoc->base.sk, chunk->skb);
 	}
 
 	chunk->chunk_hdr = ch;
