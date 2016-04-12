@@ -1030,18 +1030,10 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (ret)
 		goto err5;
 
-	ret = dwc3_debugfs_init(dwc);
-	if (ret) {
-		dev_err(dev, "failed to initialize debugfs\n");
-		goto err6;
-	}
-
+	dwc3_debugfs_init(dwc);
 	pm_runtime_allow(dev);
 
 	return 0;
-
-err6:
-	dwc3_core_exit_mode(dwc);
 
 err5:
 	dwc3_event_buffers_cleanup(dwc);
