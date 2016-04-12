@@ -715,11 +715,14 @@ int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 		struct lov_request *req;
 
 		if (!lov->lov_tgts[i] ||
-		    (!lov_check_and_wait_active(lov, i) &&
-		     (oinfo->oi_flags & OBD_STATFS_NODELAY))) {
+		    (oinfo->oi_flags & OBD_STATFS_NODELAY &&
+		     !lov->lov_tgts[i]->ltd_active)) {
 			CDEBUG(D_HA, "lov idx %d inactive\n", i);
 			continue;
 		}
+
+		if (!lov->lov_tgts[i]->ltd_active)
+			lov_check_and_wait_active(lov, i);
 
 		/* skip targets that have been explicitly disabled by the
 		 * administrator
