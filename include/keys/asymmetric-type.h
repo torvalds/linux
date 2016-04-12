@@ -23,9 +23,10 @@ extern struct key_type key_type_asymmetric;
  * follows:
  */
 enum asymmetric_payload_bits {
-	asym_crypto,
-	asym_subtype,
-	asym_key_ids,
+	asym_crypto,		/* The data representing the key */
+	asym_subtype,		/* Pointer to an asymmetric_key_subtype struct */
+	asym_key_ids,		/* Pointer to an asymmetric_key_ids struct */
+	asym_auth		/* The key's authorisation (signature, parent key ID) */
 };
 
 /*

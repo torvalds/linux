@@ -331,7 +331,8 @@ static void asymmetric_key_free_preparse(struct key_preparsed_payload *prep)
 	pr_devel("==>%s()\n", __func__);
 
 	if (subtype) {
-		subtype->destroy(prep->payload.data[asym_crypto]);
+		subtype->destroy(prep->payload.data[asym_crypto],
+				 prep->payload.data[asym_auth]);
 		module_put(subtype->owner);
 	}
 	asymmetric_key_free_kids(kids);
@@ -346,13 +347,15 @@ static void asymmetric_key_destroy(struct key *key)
 	struct asymmetric_key_subtype *subtype = asymmetric_key_subtype(key);
 	struct asymmetric_key_ids *kids = key->payload.data[asym_key_ids];
 	void *data = key->payload.data[asym_crypto];
+	void *auth = key->payload.data[asym_auth];
 
 	key->payload.data[asym_crypto] = NULL;
 	key->payload.data[asym_subtype] = NULL;
 	key->payload.data[asym_key_ids] = NULL;
+	key->payload.data[asym_auth] = NULL;
 
 	if (subtype) {
-		subtype->destroy(data);
+		subtype->destroy(data, auth);
 		module_put(subtype->owner);
 	}
 

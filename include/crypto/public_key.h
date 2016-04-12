@@ -41,12 +41,13 @@ struct public_key {
 	const char *pkey_algo;
 };
 
-extern void public_key_destroy(void *payload);
+extern void public_key_free(struct public_key *key);
 
 /*
  * Public key cryptography signature data
  */
 struct public_key_signature {
+	struct asymmetric_key_id *auth_ids[2];
 	u8 *s;			/* Signature */
 	u32 s_size;		/* Number of bytes in signature */
 	u8 *digest;
@@ -55,7 +56,10 @@ struct public_key_signature {
 	const char *hash_algo;
 };
 
+extern void public_key_signature_free(struct public_key_signature *sig);
+
 extern struct asymmetric_key_subtype public_key_subtype;
+
 struct key;
 extern int verify_signature(const struct key *key,
 			    const struct public_key_signature *sig);
