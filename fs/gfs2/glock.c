@@ -218,7 +218,7 @@ static void gfs2_holder_wake(struct gfs2_holder *gh)
  *
  */
 
-static inline void do_error(struct gfs2_glock *gl, const int ret)
+static void do_error(struct gfs2_glock *gl, const int ret)
 {
 	struct gfs2_holder *gh, *tmp;
 
