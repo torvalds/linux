@@ -85,3 +85,14 @@ config ENCRYPTED_KEYS
 	  Userspace only ever sees/stores encrypted blobs.
 
 	  If you are unsure as to whether this is required, answer N.
+
+config KEY_DH_OPERATIONS
+       bool "Diffie-Hellman operations on retained keys"
+       depends on KEYS
+       select MPILIB
+       help
+	 This option provides support for calculating Diffie-Hellman
+	 public keys and shared secrets using values stored as keys
+	 in the kernel.
+
+	 If you are unsure as to whether this is required, answer N.

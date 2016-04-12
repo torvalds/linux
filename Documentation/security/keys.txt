@@ -823,6 +823,36 @@ The keyctl syscall functions are:
      A process must have search permission on the key for this function to be
      successful.
 
+ (*) Compute a Diffie-Hellman shared secret or public key
+
+       long keyctl(KEYCTL_DH_COMPUTE, struct keyctl_dh_params *params,
+		   char *buffer, size_t buflen);
+
+     The params struct contains serial numbers for three keys:
+
+	 - The prime, p, known to both parties
+	 - The local private key
+	 - The base integer, which is either a shared generator or the
+	   remote public key
+
+     The value computed is:
+
+	result = base ^ private (mod prime)
+
+     If the base is the shared generator, the result is the local
+     public key.  If the base is the remote public key, the result is
+     the shared secret.
+
+     The buffer length must be at least the length of the prime, or zero.
+
+     If the buffer length is nonzero, the length of the result is
+     returned when it is successfully calculated and copied in to the
+     buffer. When the buffer length is zero, the minimum required
+     buffer length is returned.
+
+     This function will return error EOPNOTSUPP if the key type is not
+     supported, error ENOKEY if the key could not be found, or error
+     EACCES if the key is not readable by the caller.
 
 ===============
 KERNEL SERVICES
