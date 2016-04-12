@@ -31,15 +31,15 @@ Contents:
 
  (*) Implicit kernel memory barriers.
 
-     - Locking functions.
+     - Lock acquisition functions.
      - Interrupt disabling functions.
      - Sleep and wake-up functions.
      - Miscellaneous functions.
 
- (*) Inter-CPU locking barrier effects.
+ (*) Inter-CPU acquiring barrier effects.
 
-     - Locks vs memory accesses.
-     - Locks vs I/O accesses.
+     - Acquires vs memory accesses.
+     - Acquires vs I/O accesses.
 
  (*) Where are memory barriers needed?
 
@@ -1859,7 +1859,7 @@ This is a variation on the mandatory write barrier that causes writes to weakly
 ordered I/O regions to be partially ordered.  Its effects may go beyond the
 CPU->Hardware interface and actually affect the hardware at some level.
 
-See the subsection "Locks vs I/O accesses" for more information.
+See the subsection "Acquires vs I/O accesses" for more information.
 
 
 ===============================
@@ -1874,8 +1874,8 @@ provide more substantial guarantees, but these may not be relied upon outside
 of arch specific code.
 
 
-ACQUIRING FUNCTIONS
--------------------
+LOCK ACQUISITION FUNCTIONS
+--------------------------
 
 The Linux kernel has a number of locking constructs:
 
