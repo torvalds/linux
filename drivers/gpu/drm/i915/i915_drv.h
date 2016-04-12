@@ -3018,9 +3018,11 @@ static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
  * pages and then returns a contiguous mapping of the backing storage into
  * the kernel address space.
  *
- * The caller must hold the struct_mutex.
+ * The caller must hold the struct_mutex, and is responsible for calling
+ * i915_gem_object_unpin_map() when the mapping is no longer required.
  *
- * Returns the pointer through which to access the backing storage.
+ * Returns the pointer through which to access the mapped object, or an
+ * ERR_PTR() on error.
  */
 void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj);
 
