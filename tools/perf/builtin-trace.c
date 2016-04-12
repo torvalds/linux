@@ -2119,9 +2119,9 @@ static int trace__fprintf_callchain(struct trace *trace, struct perf_evsel *evse
 {
 	struct addr_location al;
 	/* TODO: user-configurable print_opts */
-	const unsigned int print_opts = PRINT_IP_OPT_SYM |
-				        PRINT_IP_OPT_DSO |
-				        PRINT_IP_OPT_UNKNOWN_AS_ADDR;
+	const unsigned int print_opts = EVSEL__PRINT_SYM |
+				        EVSEL__PRINT_DSO |
+				        EVSEL__PRINT_UNKNOWN_AS_ADDR;
 
 	if (sample->callchain == NULL)
 		return 0;
