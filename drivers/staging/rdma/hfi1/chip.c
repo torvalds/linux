@@ -1034,6 +1034,8 @@ static void read_planned_down_reason_code(struct hfi1_devdata *dd, u8 *pdrrc);
 static void handle_temp_err(struct hfi1_devdata *);
 static void dc_shutdown(struct hfi1_devdata *);
 static void dc_start(struct hfi1_devdata *);
+static int qos_rmt_entries(struct hfi1_devdata *dd, unsigned int *mp,
+			   unsigned int *np);
 
 /*
  * Error interrupt table entry.  This is used as input to the interrupt
@@ -12628,6 +12630,8 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
+	int qos_rmt_count;
+	int user_rmt_reduced;
 
 	/*
 	 * Kernel receive contexts:
@@ -12680,6 +12684,19 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 			   (int)num_user_contexts);
 		num_user_contexts = dd->chip_rcv_contexts - num_kernel_contexts;
 		/* recalculate */
+		total_contexts = num_kernel_contexts + num_user_contexts;
+	}
+
+	/* each user context requires an entry in the RMT */
+	qos_rmt_count = qos_rmt_entries(dd, NULL, NULL);
+	if (qos_rmt_count + num_user_contexts > NUM_MAP_ENTRIES) {
+		user_rmt_reduced = NUM_MAP_ENTRIES - qos_rmt_count;
+		dd_dev_err(dd,
+			   "RMT size is reducing the number of user receive contexts from %d to %d\n",
+			   (int)num_user_contexts,
+			   user_rmt_reduced);
+		/* recalculate */
+		num_user_contexts = user_rmt_reduced;
 		total_contexts = num_kernel_contexts + num_user_contexts;
 	}
 
@@ -13633,6 +13650,72 @@ bail:
 	init_qpmap_table(dd, FIRST_KERNEL_KCTXT, dd->n_krcv_queues - 1);
 }
 
+static void init_user_fecn_handling(struct hfi1_devdata *dd,
+				    struct rsm_map_table *rmt)
+{
+	struct rsm_rule_data rrd;
+	u64 reg;
+	int i, idx, regoff, regidx;
+	u8 offset;
+
+	/* there needs to be enough room in the map table */
+	if (rmt->used + dd->num_user_contexts >= NUM_MAP_ENTRIES) {
+		dd_dev_err(dd, "User FECN handling disabled - too many user contexts allocated\n");
+		return;
+	}
+
+	/*
+	 * RSM will extract the destination context as an index into the
+	 * map table.  The destination contexts are a sequential block
+	 * in the range first_user_ctxt...num_rcv_contexts-1 (inclusive).
+	 * Map entries are accessed as offset + extracted value.  Adjust
+	 * the added offset so this sequence can be placed anywhere in
+	 * the table - as long as the entries themselves do not wrap.
+	 * There are only enough bits in offset for the table size, so
+	 * start with that to allow for a "negative" offset.
+	 */
+	offset = (u8)(NUM_MAP_ENTRIES + (int)rmt->used -
+						(int)dd->first_user_ctxt);
+
+	for (i = dd->first_user_ctxt, idx = rmt->used;
+				i < dd->num_rcv_contexts; i++, idx++) {
+		/* replace with identity mapping */
+		regoff = (idx % 8) * 8;
+		regidx = idx / 8;
+		reg = rmt->map[regidx];
+		reg &= ~(RCV_RSM_MAP_TABLE_RCV_CONTEXT_A_MASK << regoff);
+		reg |= (u64)i << regoff;
+		rmt->map[regidx] = reg;
+	}
+
+	/*
+	 * For RSM intercept of Expected FECN packets:
+	 * o packet type 0 - expected
+	 * o match on F (bit 95), using select/match 1, and
+	 * o match on SH (bit 133), using select/match 2.
+	 *
+	 * Use index 1 to extract the 8-bit receive context from DestQP
+	 * (start at bit 64).  Use that as the RSM map table index.
+	 */
+	rrd.offset = offset;
+	rrd.pkt_type = 0;
+	rrd.field1_off = 95;
+	rrd.field2_off = 133;
+	rrd.index1_off = 64;
+	rrd.index1_width = 8;
+	rrd.index2_off = 0;
+	rrd.index2_width = 0;
+	rrd.mask1 = 1;
+	rrd.value1 = 1;
+	rrd.mask2 = 1;
+	rrd.value2 = 1;
+
+	/* add rule 1 */
+	add_rsm_rule(dd, 1, &rrd);
+
+	rmt->used += dd->num_user_contexts;
+}
+
 static void init_rxe(struct hfi1_devdata *dd)
 {
 	struct rsm_map_table *rmt;
@@ -13643,6 +13726,7 @@ static void init_rxe(struct hfi1_devdata *dd)
 	rmt = alloc_rsm_map_table(dd);
 	/* set up QOS, including the QPN map table */
 	init_qos(dd, rmt);
+	init_user_fecn_handling(dd, rmt);
 	complete_rsm_map_table(dd, rmt);
 	kfree(rmt);
 
