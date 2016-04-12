@@ -3306,13 +3306,18 @@ static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
 
-	i915_hotplug_interrupt_update(dev_priv, 0xFFFFFFFF, 0);
+	i915_hotplug_interrupt_update_locked(dev_priv, 0xffffffff, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
-	for_each_pipe(dev_priv, pipe)
-		I915_WRITE(PIPESTAT(pipe), 0xffff);
+	for_each_pipe(dev_priv, pipe) {
+		I915_WRITE(PIPESTAT(pipe),
+			   PIPE_FIFO_UNDERRUN_STATUS |
+			   PIPESTAT_INT_STATUS_MASK);
+		dev_priv->pipestat_irq_mask[pipe] = 0;
+	}
 
 	GEN5_IRQ_RESET(VLV_);
+	dev_priv->irq_mask = ~0;
 }
 
 static void valleyview_irq_preinstall(struct drm_device *dev)
@@ -3323,7 +3328,9 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 
 	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK);
 
+	spin_lock_irq(&dev_priv->irq_lock);
 	vlv_display_irq_reset(dev_priv);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 static void gen8_gt_irq_reset(struct drm_i915_private *dev_priv)
@@ -3398,7 +3405,9 @@ static void cherryview_irq_preinstall(struct drm_device *dev)
 
 	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
 
+	spin_lock_irq(&dev_priv->irq_lock);
 	vlv_display_irq_reset(dev_priv);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 static u32 intel_hpd_enabled_irqs(struct drm_device *dev,
@@ -3645,7 +3654,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static void valleyview_display_irqs_install(struct drm_i915_private *dev_priv)
+static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	u32 pipestat_mask;
 	u32 iir_mask;
@@ -3679,40 +3688,6 @@ static void valleyview_display_irqs_install(struct drm_i915_private *dev_priv)
 	POSTING_READ(VLV_IMR);
 }
 
-static void valleyview_display_irqs_uninstall(struct drm_i915_private *dev_priv)
-{
-	u32 pipestat_mask;
-	u32 iir_mask;
-	enum pipe pipe;
-
-	iir_mask = I915_DISPLAY_PORT_INTERRUPT |
-		   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
-	if (IS_CHERRYVIEW(dev_priv))
-		iir_mask |= I915_DISPLAY_PIPE_C_EVENT_INTERRUPT;
-
-	dev_priv->irq_mask |= iir_mask;
-	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
-	I915_WRITE(VLV_IER, ~dev_priv->irq_mask);
-	I915_WRITE(VLV_IIR, iir_mask);
-	I915_WRITE(VLV_IIR, iir_mask);
-	POSTING_READ(VLV_IIR);
-
-	pipestat_mask = PLANE_FLIP_DONE_INT_STATUS_VLV |
-			PIPE_CRC_DONE_INTERRUPT_STATUS;
-
-	i915_disable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
-	for_each_pipe(dev_priv, pipe)
-		i915_disable_pipestat(dev_priv, pipe, pipestat_mask);
-
-	pipestat_mask = PIPESTAT_INT_STATUS_MASK |
-			PIPE_FIFO_UNDERRUN_STATUS;
-
-	for_each_pipe(dev_priv, pipe)
-		I915_WRITE(PIPESTAT(pipe), pipestat_mask);
-	POSTING_READ(PIPESTAT(PIPE_A));
-}
-
 void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
@@ -3723,7 +3698,7 @@ void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)
 	dev_priv->display_irqs_enabled = true;
 
 	if (intel_irqs_enabled(dev_priv))
-		valleyview_display_irqs_install(dev_priv);
+		vlv_display_irq_postinstall(dev_priv);
 }
 
 void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
@@ -3736,35 +3711,13 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
 	dev_priv->display_irqs_enabled = false;
 
 	if (intel_irqs_enabled(dev_priv))
-		valleyview_display_irqs_uninstall(dev_priv);
+		vlv_display_irq_reset(dev_priv);
 }
 
-static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
-{
-	dev_priv->irq_mask = ~0;
-
-	i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
-	POSTING_READ(PORT_HOTPLUG_EN);
-
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(VLV_IER, ~dev_priv->irq_mask);
-	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
-	POSTING_READ(VLV_IMR);
-
-	/* Interrupt setup is already guaranteed to be single-threaded, this is
-	 * just to make the assert_spin_locked check happy. */
-	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->display_irqs_enabled)
-		valleyview_display_irqs_install(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
-}
 
 static int valleyview_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	vlv_display_irq_postinstall(dev_priv);
 
 	gen5_gt_irq_postinstall(dev);
 
@@ -3773,6 +3726,10 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK);
 	I915_WRITE(DPINVGTT, DPINVGTT_EN_MASK);
 #endif
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	vlv_display_irq_postinstall(dev_priv);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	I915_WRITE(VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
 
@@ -3874,9 +3831,11 @@ static int cherryview_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	vlv_display_irq_postinstall(dev_priv);
-
 	gen8_gt_irq_postinstall(dev_priv);
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	vlv_display_irq_postinstall(dev_priv);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	I915_WRITE(GEN8_MASTER_IRQ, MASTER_INTERRUPT_ENABLE);
 	POSTING_READ(GEN8_MASTER_IRQ);
@@ -3894,20 +3853,6 @@ static void gen8_irq_uninstall(struct drm_device *dev)
 	gen8_irq_reset(dev);
 }
 
-static void vlv_display_irq_uninstall(struct drm_i915_private *dev_priv)
-{
-	/* Interrupt setup is already guaranteed to be single-threaded, this is
-	 * just to make the assert_spin_locked check happy. */
-	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->display_irqs_enabled)
-		valleyview_display_irqs_uninstall(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	vlv_display_irq_reset(dev_priv);
-
-	dev_priv->irq_mask = ~0;
-}
-
 static void valleyview_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3921,7 +3866,9 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 
 	I915_WRITE(HWSTAM, 0xffffffff);
 
-	vlv_display_irq_uninstall(dev_priv);
+	spin_lock_irq(&dev_priv->irq_lock);
+	vlv_display_irq_reset(dev_priv);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 static void cherryview_irq_uninstall(struct drm_device *dev)
@@ -3938,7 +3885,9 @@ static void cherryview_irq_uninstall(struct drm_device *dev)
 
 	GEN5_IRQ_RESET(GEN8_PCU_);
 
-	vlv_display_irq_uninstall(dev_priv);
+	spin_lock_irq(&dev_priv->irq_lock);
+	vlv_display_irq_reset(dev_priv);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 static void ironlake_irq_uninstall(struct drm_device *dev)
