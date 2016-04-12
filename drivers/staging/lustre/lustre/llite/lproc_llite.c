@@ -460,8 +460,8 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 			break;
 
 		if (!sbi->ll_dt_exp) { /* being initialized */
-			rc = -ENODEV;
-			break;
+			rc = 0;
+			goto out;
 		}
 
 		/* difficult - have to ask OSCs to drop LRU slots. */
