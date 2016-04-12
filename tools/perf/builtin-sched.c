@@ -122,6 +122,12 @@ struct trace_sched_handler {
 				  struct machine *machine);
 };
 
+struct perf_sched_map {
+	DECLARE_BITMAP(comp_cpus_mask, MAX_CPUS);
+	int			*comp_cpus;
+	bool			 comp;
+};
+
 struct perf_sched {
 	struct perf_tool tool;
 	const char	 *sort_order;
@@ -173,6 +179,7 @@ struct perf_sched {
 	struct list_head sort_list, cmp_pid;
 	bool force;
 	bool skip_merge;
+	struct perf_sched_map map;
 };
 
 static u64 get_nsecs(void)
@@ -1347,12 +1354,23 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 	int new_shortname;
 	u64 timestamp0, timestamp = sample->time;
 	s64 delta;
-	int cpu, this_cpu = sample->cpu;
+	int i, this_cpu = sample->cpu;
+	int cpus_nr;
+	bool new_cpu = false;
 
 	BUG_ON(this_cpu >= MAX_CPUS || this_cpu < 0);
 
 	if (this_cpu > sched->max_cpu)
 		sched->max_cpu = this_cpu;
+
+	if (sched->map.comp) {
+		cpus_nr = bitmap_weight(sched->map.comp_cpus_mask, MAX_CPUS);
+		if (!test_and_set_bit(this_cpu, sched->map.comp_cpus_mask)) {
+			sched->map.comp_cpus[cpus_nr++] = this_cpu;
+			new_cpu = true;
+		}
+	} else
+		cpus_nr = sched->max_cpu;
 
 	timestamp0 = sched->cpu_last_switched[this_cpu];
 	sched->cpu_last_switched[this_cpu] = timestamp;
@@ -1400,7 +1418,9 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 		new_shortname = 1;
 	}
 
-	for (cpu = 0; cpu <= sched->max_cpu; cpu++) {
+	for (i = 0; i < cpus_nr; i++) {
+		int cpu = sched->map.comp ? sched->map.comp_cpus[i] : i;
+
 		if (cpu != this_cpu)
 			printf(" ");
 		else
@@ -1414,11 +1434,14 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 
 	printf("  %12.6f secs ", (double)timestamp/1e9);
 	if (new_shortname) {
-		printf("%s => %s:%d\n",
+		printf("%s => %s:%d",
 		       sched_in->shortname, thread__comm_str(sched_in), sched_in->tid);
-	} else {
-		printf("\n");
 	}
+
+	if (sched->map.comp && new_cpu)
+		printf(" (CPU %d)", this_cpu);
+
+	printf("\n");
 
 	thread__put(sched_in);
 
@@ -1675,9 +1698,22 @@ static int perf_sched__lat(struct perf_sched *sched)
 	return 0;
 }
 
+static int setup_map_cpus(struct perf_sched *sched)
+{
+	sched->max_cpu  = sysconf(_SC_NPROCESSORS_CONF);
+
+	if (sched->map.comp) {
+		sched->map.comp_cpus = zalloc(sched->max_cpu * sizeof(int));
+		return sched->map.comp_cpus ? 0 : -1;
+	}
+
+	return 0;
+}
+
 static int perf_sched__map(struct perf_sched *sched)
 {
-	sched->max_cpu = sysconf(_SC_NPROCESSORS_CONF);
+	if (setup_map_cpus(sched))
+		return -1;
 
 	setup_pager();
 	if (perf_sched__read_events(sched))
@@ -1831,12 +1867,21 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "dump raw trace in ASCII"),
 	OPT_END()
 	};
+	const struct option map_options[] = {
+	OPT_BOOLEAN(0, "compact", &sched.map.comp,
+		    "map output in compact mode"),
+	OPT_END()
+	};
 	const char * const latency_usage[] = {
 		"perf sched latency [<options>]",
 		NULL
 	};
 	const char * const replay_usage[] = {
 		"perf sched replay [<options>]",
+		NULL
+	};
+	const char * const map_usage[] = {
+		"perf sched map [<options>]",
 		NULL
 	};
 	const char *const sched_subcommands[] = { "record", "latency", "map",
@@ -1887,6 +1932,11 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		setup_sorting(&sched, latency_options, latency_usage);
 		return perf_sched__lat(&sched);
 	} else if (!strcmp(argv[0], "map")) {
+		if (argc) {
+			argc = parse_options(argc, argv, map_options, replay_usage, 0);
+			if (argc)
+				usage_with_options(map_usage, map_options);
+		}
 		sched.tp_handler = &map_ops;
 		setup_sorting(&sched, latency_options, latency_usage);
 		return perf_sched__map(&sched);
