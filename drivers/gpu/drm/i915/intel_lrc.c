@@ -229,9 +229,6 @@ enum {
 
 static int intel_lr_context_pin(struct intel_context *ctx,
 				struct intel_engine_cs *engine);
-static void lrc_setup_hardware_status_page(struct intel_engine_cs *engine,
-					   struct drm_i915_gem_object *default_ctx_obj);
-
 
 /**
  * intel_sanitize_enable_execlists() - sanitize i915.enable_execlists
@@ -1580,14 +1577,22 @@ out:
 	return ret;
 }
 
+static void lrc_init_hws(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+
+	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
+		   (u32)engine->status_page.gfx_addr);
+	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
+}
+
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
 {
 	struct drm_device *dev = engine->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned int next_context_status_buffer_hw;
 
-	lrc_setup_hardware_status_page(engine,
-				       dev_priv->kernel_context->engine[engine->id].state);
+	lrc_init_hws(engine);
 
 	I915_WRITE_IMR(engine,
 		       ~(engine->irq_enable_mask | engine->irq_keep_mask));
@@ -2087,6 +2092,20 @@ logical_ring_default_irqs(struct intel_engine_cs *engine, unsigned shift)
 	engine->irq_keep_mask = GT_CONTEXT_SWITCH_INTERRUPT << shift;
 }
 
+static void
+lrc_setup_hws(struct intel_engine_cs *engine,
+	      struct drm_i915_gem_object *dctx_obj)
+{
+	struct page *page;
+
+	/* The HWSP is part of the default context object in LRC mode. */
+	engine->status_page.gfx_addr = i915_gem_obj_ggtt_offset(dctx_obj) +
+				       LRC_PPHWSP_PN * PAGE_SIZE;
+	page = i915_gem_object_get_page(dctx_obj, LRC_PPHWSP_PN);
+	engine->status_page.page_addr = kmap(page);
+	engine->status_page.obj = dctx_obj;
+}
+
 static int
 logical_ring_init(struct drm_device *dev, struct intel_engine_cs *engine)
 {
@@ -2144,6 +2163,9 @@ logical_ring_init(struct drm_device *dev, struct intel_engine_cs *engine)
 			engine->name, ret);
 		goto error;
 	}
+
+	/* And setup the hardware status page. */
+	lrc_setup_hws(engine, dctx->engine[engine->id].state);
 
 	return 0;
 
@@ -2603,24 +2625,6 @@ uint32_t intel_lr_context_size(struct intel_engine_cs *engine)
 	}
 
 	return ret;
-}
-
-static void lrc_setup_hardware_status_page(struct intel_engine_cs *engine,
-					   struct drm_i915_gem_object *default_ctx_obj)
-{
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
-	struct page *page;
-
-	/* The HWSP is part of the default context object in LRC mode. */
-	engine->status_page.gfx_addr = i915_gem_obj_ggtt_offset(default_ctx_obj)
-			+ LRC_PPHWSP_PN * PAGE_SIZE;
-	page = i915_gem_object_get_page(default_ctx_obj, LRC_PPHWSP_PN);
-	engine->status_page.page_addr = kmap(page);
-	engine->status_page.obj = default_ctx_obj;
-
-	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
-			(u32)engine->status_page.gfx_addr);
-	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
 }
 
 /**
