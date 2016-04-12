@@ -335,9 +335,6 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 #endif
 #define PSN_MODIFY_MASK 0xFFFFFF
 
-/* Number of bits to pay attention to in the opcode for checking qp type */
-#define OPCODE_QP_MASK 0xE0
-
 /*
  * Compare the lower 24 bits of the msn values.
  * Returns an integer <, ==, or > than zero.

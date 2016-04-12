@@ -545,7 +545,7 @@ static inline int qp_ok(int opcode, struct hfi1_packet *packet)
 
 	if (!(ib_rvt_state_ops[packet->qp->state] & RVT_PROCESS_RECV_OK))
 		goto dropit;
-	if (((opcode & OPCODE_QP_MASK) == packet->qp->allowed_ops) ||
+	if (((opcode & RVT_OPCODE_QP_MASK) == packet->qp->allowed_ops) ||
 	    (opcode == IB_OPCODE_CNP))
 		return 1;
 dropit:
