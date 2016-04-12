@@ -157,6 +157,26 @@ ath10k_mac_max_vht_nss(const u16 vht_mcs_mask[NL80211_VHT_NSS_MAX])
 	return 1;
 }
 
+int ath10k_mac_ext_resource_config(struct ath10k *ar, u32 val)
+{
+	enum wmi_host_platform_type platform_type;
+	int ret;
+
+	if (test_bit(WMI_SERVICE_TX_MODE_DYNAMIC, ar->wmi.svc_map))
+		platform_type = WMI_HOST_PLATFORM_LOW_PERF;
+	else
+		platform_type = WMI_HOST_PLATFORM_HIGH_PERF;
+
+	ret = ath10k_wmi_ext_resource_config(ar, platform_type, val);
+
+	if (ret && ret != -EOPNOTSUPP) {
+		ath10k_warn(ar, "failed to configure ext resource: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 /**********/
 /* Crypto */
 /**********/

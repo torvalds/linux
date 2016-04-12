@@ -1787,8 +1787,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 		if (ath10k_peer_stats_enabled(ar))
 			val = WMI_10_4_PEER_STATS;
 
-		status = ath10k_wmi_ext_resource_config(ar,
-							WMI_HOST_PLATFORM_HIGH_PERF, val);
+		status = ath10k_mac_ext_resource_config(ar, val);
 		if (status) {
 			ath10k_err(ar,
 				   "failed to send ext resource cfg command : %d\n",
