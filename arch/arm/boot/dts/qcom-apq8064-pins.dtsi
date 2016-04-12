@@ -39,6 +39,20 @@
 		};
 	};
 
+	gsbi1_uart_2pins: gsbi1_uart_2pins {
+		mux {
+			pins = "gpio18", "gpio19";
+			function = "gsbi1";
+		};
+	};
+
+	gsbi1_uart_4pins: gsbi1_uart_4pins {
+		mux {
+			pins = "gpio18", "gpio19", "gpio20", "gpio21";
+			function = "gsbi1";
+		};
+	};
+
 	i2c2_pins: i2c2 {
 		mux {
 			pins = "gpio24", "gpio25";
