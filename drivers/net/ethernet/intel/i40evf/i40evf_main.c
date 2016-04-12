@@ -943,6 +943,14 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 bottom_of_search_loop:
 		continue;
 	}
+
+	if (netdev->flags & IFF_PROMISC &&
+	    !(adapter->flags & I40EVF_FLAG_PROMISC_ON))
+		adapter->aq_required |= I40EVF_FLAG_AQ_REQUEST_PROMISC;
+	else if (!(netdev->flags & IFF_PROMISC) &&
+		 adapter->flags & I40EVF_FLAG_PROMISC_ON)
+		adapter->aq_required |= I40EVF_FLAG_AQ_RELEASE_PROMISC;
+
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 }
 
@@ -1619,6 +1627,17 @@ static void i40evf_watchdog_task(struct work_struct *work)
 	}
 	if (adapter->aq_required & I40EVF_FLAG_AQ_SET_RSS_LUT) {
 		i40evf_set_rss_lut(adapter);
+		goto watchdog_done;
+	}
+
+	if (adapter->aq_required & I40EVF_FLAG_AQ_REQUEST_PROMISC) {
+		i40evf_set_promiscuous(adapter, I40E_FLAG_VF_UNICAST_PROMISC |
+				       I40E_FLAG_VF_MULTICAST_PROMISC);
+		goto watchdog_done;
+	}
+
+	if (adapter->aq_required & I40EVF_FLAG_AQ_RELEASE_PROMISC) {
+		i40evf_set_promiscuous(adapter, 0);
 		goto watchdog_done;
 	}
 

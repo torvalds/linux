@@ -220,6 +220,7 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_WB_ON_ITR_CAPABLE		BIT(11)
 #define I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE	BIT(12)
 #define I40EVF_FLAG_ADDR_SET_BY_PF		BIT(13)
+#define I40EVF_FLAG_PROMISC_ON			BIT(15)
 /* duplicates for common code */
 #define I40E_FLAG_FDIR_ATR_ENABLED		 0
 #define I40E_FLAG_DCB_ENABLED			 0
@@ -244,6 +245,8 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_SET_HENA			BIT(12)
 #define I40EVF_FLAG_AQ_SET_RSS_KEY		BIT(13)
 #define I40EVF_FLAG_AQ_SET_RSS_LUT		BIT(14)
+#define I40EVF_FLAG_AQ_REQUEST_PROMISC		BIT(15)
+#define I40EVF_FLAG_AQ_RELEASE_PROMISC		BIT(16)
 
 	/* OS defined structs */
 	struct net_device *netdev;

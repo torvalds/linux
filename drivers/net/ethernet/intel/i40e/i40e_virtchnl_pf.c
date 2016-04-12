@@ -1489,13 +1489,13 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 							    NULL);
 	} else if (i40e_getnum_vf_vsi_vlan_filters(vsi)) {
 		list_for_each_entry(f, &vsi->mac_filter_list, list) {
-			if (f->vlan >= 0 && f->vlan <= I40E_MAX_VLANID)
-				aq_ret = i40e_aq_set_vsi_mc_promisc_on_vlan
-								   (hw,
-								   vsi->seid,
-								   allmulti,
-								   f->vlan,
-								   NULL);
+			if (f->vlan < 0 || f->vlan > I40E_MAX_VLANID)
+				continue;
+			aq_ret = i40e_aq_set_vsi_mc_promisc_on_vlan(hw,
+								    vsi->seid,
+								    allmulti,
+								    f->vlan,
+								    NULL);
 			aq_err = pf->hw.aq.asq_last_status;
 			if (aq_ret) {
 				dev_err(&pf->pdev->dev,

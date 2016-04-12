@@ -652,6 +652,17 @@ void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags)
 			adapter->current_op);
 		return;
 	}
+
+	if (flags) {
+		adapter->flags |= I40EVF_FLAG_PROMISC_ON;
+		adapter->aq_required &= ~I40EVF_FLAG_AQ_REQUEST_PROMISC;
+		dev_info(&adapter->pdev->dev, "Entering promiscuous mode\n");
+	} else {
+		adapter->flags &= ~I40EVF_FLAG_PROMISC_ON;
+		adapter->aq_required &= ~I40EVF_FLAG_AQ_RELEASE_PROMISC;
+		dev_info(&adapter->pdev->dev, "Leaving promiscuous mode\n");
+	}
+
 	adapter->current_op = I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE;
 	vpi.vsi_id = adapter->vsi_res->vsi_id;
 	vpi.flags = flags;
