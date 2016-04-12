@@ -221,6 +221,15 @@
 					0xfc   MUX_M0	/* I2C2_SDA     (IOMG063) */
 				>;
 			};
+
+			spi0_pmx_func: spi0_pmx_func {
+				pinctrl-single,pins = <
+					0x1a0  MUX_M1   /* SPI0_DI      (IOMG104) */
+					0x1a4  MUX_M1	/* SPI0_DO	(IOMG105) */
+					0x1a8  MUX_M1	/* SPI0_CS_N	(IOMG106) */
+					0x1ac  MUX_M1	/* SPI0_CLK	(IOMG107) */
+				>;
+			};
 		};
 
 		pmx1: pinmux@f7010800 {
@@ -623,6 +632,18 @@
 				>;
 				pinctrl-single,bias-pulldown  = <PULL_DIS  PULL_DOWN PULL_DIS  PULL_DOWN>;
 				pinctrl-single,bias-pullup    = <PULL_DIS  PULL_UP   PULL_DIS  PULL_UP>;
+				pinctrl-single,drive-strength = <DRIVE1_02MA DRIVE_MASK>;
+			};
+
+			spi0_cfg_func: spi0_cfg_func {
+				pinctrl-single,pins = <
+					0x1b0  0x0	/* SPI0_DI	(IOCFG108) */
+					0x1b4  0x0	/* SPI0_DO	(IOCFG109) */
+					0x1b8  0x0	/* SPI0_CS_N	(IOCFG110) */
+					0x1bc  0x0	/* SPI0_CLK	(IOCFG111) */
+				>;
+				pinctrl-single,bias-pulldown  = <PULL_DIS  PULL_DOWN PULL_DIS PULL_DOWN>;
+				pinctrl-single,bias-pullup    = <PULL_DIS  PULL_UP   PULL_DIS PULL_UP>;
 				pinctrl-single,drive-strength = <DRIVE1_02MA DRIVE_MASK>;
 			};
 		};
