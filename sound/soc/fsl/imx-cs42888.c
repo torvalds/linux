@@ -332,6 +332,7 @@ static int imx_cs42888_probe(struct platform_device *pdev)
 	}
 	priv->mclk_freq = clk_get_rate(codec_clk);
 
+	priv->is_codec_master = false;
 	if (of_property_read_bool(pdev->dev.of_node, "codec-master"))
 		priv->is_codec_master = true;
 

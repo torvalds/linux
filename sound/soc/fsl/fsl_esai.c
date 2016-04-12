@@ -1,7 +1,7 @@
 /*
  * Freescale ESAI ALSA SoC Digital Audio Interface (DAI) driver
  *
- * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -979,10 +979,15 @@ static int fsl_esai_probe(struct platform_device *pdev)
 	esai_priv->dma_params_tx.addr = res->start + REG_ESAI_ETDR;
 	esai_priv->dma_params_rx.addr = res->start + REG_ESAI_ERDR;
 
-	esai_priv->dma_params_tx.check_xrun = fsl_esai_check_xrun;
-	esai_priv->dma_params_rx.check_xrun = fsl_esai_check_xrun;
-	esai_priv->dma_params_tx.device_reset = fsl_esai_reset;
-	esai_priv->dma_params_rx.device_reset = fsl_esai_reset;
+	/* From imx6ull, the channel swap issue in underrun/overrun is
+	 * fixed in hardware. So remove the workaround.
+	 */
+	if (!of_device_is_compatible(pdev->dev.of_node, "fsl,imx6ull-esai")) {
+		esai_priv->dma_params_tx.check_xrun = fsl_esai_check_xrun;
+		esai_priv->dma_params_rx.check_xrun = fsl_esai_check_xrun;
+		esai_priv->dma_params_tx.device_reset = fsl_esai_reset;
+		esai_priv->dma_params_rx.device_reset = fsl_esai_reset;
+	}
 
 	esai_priv->synchronous =
 		of_property_read_bool(np, "fsl,esai-synchronous");
@@ -1037,6 +1042,7 @@ static int fsl_esai_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id fsl_esai_dt_ids[] = {
+	{ .compatible = "fsl,imx6ull-esai", },
 	{ .compatible = "fsl,imx35-esai", },
 	{ .compatible = "fsl,vf610-esai", },
 	{}
