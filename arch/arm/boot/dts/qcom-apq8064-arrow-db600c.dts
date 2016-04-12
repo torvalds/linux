@@ -1,0 +1,36 @@
+#include "qcom-apq8064-v2.0.dtsi"
+
+/ {
+	model = "Arrow Electronics, APQ8064 DB600c";
+	compatible = "arrow,db600c", "qcom,apq8064";
+
+	aliases {
+		serial0 = &gsbi7_serial;
+		serial1 = &gsbi1_serial;
+	};
+
+	soc {
+		gsbi@12440000 {
+			status = "okay";
+			qcom,mode = <GSBI_PROT_UART_W_FC>;
+			serial@12450000 {
+				label = "LS-UART1";
+				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&gsbi1_uart_4pins>;
+			};
+		};
+
+		/* DEBUG UART  */
+		gsbi@16600000 {
+			status = "okay";
+			qcom,mode = <GSBI_PROT_I2C_UART>;
+			serial@16640000 {
+				label = "LS-UART0";
+				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&gsbi7_uart_2pins>;
+			};
+		};
+	};
+};
