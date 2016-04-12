@@ -168,8 +168,10 @@ static int osc_io_submit(const struct lu_env *env,
 		}
 
 		cl_page_list_move(qout, qin, page);
+		spin_lock(&oap->oap_lock);
 		oap->oap_async_flags = ASYNC_URGENT|ASYNC_READY;
 		oap->oap_async_flags |= ASYNC_COUNT_STABLE;
+		spin_unlock(&oap->oap_lock);
 
 		osc_page_submit(env, opg, crt, brw_flags);
 		list_add_tail(&oap->oap_pending_item, &list);
