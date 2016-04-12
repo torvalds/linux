@@ -149,7 +149,7 @@ As a further example, consider this sequence of events:
 
 	CPU 1		CPU 2
 	===============	===============
-	{ A == 1, B == 2, C = 3, P == &A, Q == &C }
+	{ A == 1, B == 2, C == 3, P == &A, Q == &C }
 	B = 4;		Q = P;
 	P = &B		D = *Q;
 
@@ -518,7 +518,7 @@ following sequence of events:
 
 	CPU 1		      CPU 2
 	===============	      ===============
-	{ A == 1, B == 2, C = 3, P == &A, Q == &C }
+	{ A == 1, B == 2, C == 3, P == &A, Q == &C }
 	B = 4;
 	<write barrier>
 	WRITE_ONCE(P, &B)
@@ -545,7 +545,7 @@ between the address load and the data load:
 
 	CPU 1		      CPU 2
 	===============	      ===============
-	{ A == 1, B == 2, C = 3, P == &A, Q == &C }
+	{ A == 1, B == 2, C == 3, P == &A, Q == &C }
 	B = 4;
 	<write barrier>
 	WRITE_ONCE(P, &B);
@@ -3043,7 +3043,7 @@ The Alpha defines the Linux kernel's memory barrier model.
 See the subsection on "Cache Coherency" above.
 
 VIRTUAL MACHINE GUESTS
--------------------
+----------------------
 
 Guests running within virtual machines might be affected by SMP effects even if
 the guest itself is compiled without SMP support.  This is an artifact of
