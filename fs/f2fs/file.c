@@ -1369,7 +1369,16 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 	set_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 
-	return 0;
+	if (!get_dirty_pages(inode))
+		return 0;
+
+	f2fs_msg(F2FS_I_SB(inode)->sb, KERN_WARNING,
+		"Unexpected flush for atomic writes: ino=%lu, npages=%u",
+					inode->i_ino, get_dirty_pages(inode));
+	ret = filemap_write_and_wait_range(inode->i_mapping, 0, LLONG_MAX);
+	if (ret)
+		clear_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
+	return ret;
 }
 
 static int f2fs_ioc_commit_atomic_write(struct file *filp)
