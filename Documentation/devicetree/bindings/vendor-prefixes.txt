@@ -27,6 +27,7 @@ aptina	Aptina Imaging
 arasan	Arasan Chip Systems
 arm	ARM Ltd.
 armadeus	ARMadeus Systems SARL
+arrow	Arrow Electronics
 artesyn	Artesyn Embedded Technologies Inc.
 asahi-kasei	Asahi Kasei Corp.
 atlas	Atlas Scientific LLC
