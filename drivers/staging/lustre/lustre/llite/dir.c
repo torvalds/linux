@@ -1843,6 +1843,9 @@ out_quotactl:
 		return rc;
 	}
 	case LL_IOC_HSM_CT_START:
+		if (!capable(CFS_CAP_SYS_ADMIN))
+			return -EPERM;
+
 		rc = copy_and_ioctl(cmd, sbi->ll_md_exp, (void __user *)arg,
 				    sizeof(struct lustre_kernelcomm));
 		return rc;
