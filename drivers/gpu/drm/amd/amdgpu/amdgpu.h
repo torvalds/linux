@@ -1593,16 +1593,19 @@ void amdgpu_get_pcie_info(struct amdgpu_device *adev);
 /*
  * UVD
  */
-#define AMDGPU_MAX_UVD_HANDLES	10
-#define AMDGPU_UVD_STACK_SIZE	(1024*1024)
-#define AMDGPU_UVD_HEAP_SIZE	(1024*1024)
-#define AMDGPU_UVD_FIRMWARE_OFFSET 256
+#define AMDGPU_DEFAULT_UVD_HANDLES	10
+#define AMDGPU_MAX_UVD_HANDLES		40
+#define AMDGPU_UVD_STACK_SIZE		(200*1024)
+#define AMDGPU_UVD_HEAP_SIZE		(256*1024)
+#define AMDGPU_UVD_SESSION_SIZE		(50*1024)
+#define AMDGPU_UVD_FIRMWARE_OFFSET	256
 
 struct amdgpu_uvd {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
 	void			*saved_bo;
+	unsigned		max_handles;
 	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
 	struct drm_file		*filp[AMDGPU_MAX_UVD_HANDLES];
 	struct delayed_work	idle_work;

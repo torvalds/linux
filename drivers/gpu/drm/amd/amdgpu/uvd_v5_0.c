@@ -272,12 +272,13 @@ static void uvd_v5_0_mc_resume(struct amdgpu_device *adev)
 	WREG32(mmUVD_VCPU_CACHE_SIZE0, size);
 
 	offset += size;
-	size = AMDGPU_UVD_STACK_SIZE;
+	size = AMDGPU_UVD_HEAP_SIZE;
 	WREG32(mmUVD_VCPU_CACHE_OFFSET1, offset >> 3);
 	WREG32(mmUVD_VCPU_CACHE_SIZE1, size);
 
 	offset += size;
-	size = AMDGPU_UVD_HEAP_SIZE;
+	size = AMDGPU_UVD_STACK_SIZE +
+	       (AMDGPU_UVD_SESSION_SIZE * adev->uvd.max_handles);
 	WREG32(mmUVD_VCPU_CACHE_OFFSET2, offset >> 3);
 	WREG32(mmUVD_VCPU_CACHE_SIZE2, size);
 

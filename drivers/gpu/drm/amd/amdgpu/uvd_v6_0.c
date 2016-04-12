@@ -272,18 +272,21 @@ static void uvd_v6_0_mc_resume(struct amdgpu_device *adev)
 	WREG32(mmUVD_VCPU_CACHE_SIZE0, size);
 
 	offset += size;
-	size = AMDGPU_UVD_STACK_SIZE;
+	size = AMDGPU_UVD_HEAP_SIZE;
 	WREG32(mmUVD_VCPU_CACHE_OFFSET1, offset >> 3);
 	WREG32(mmUVD_VCPU_CACHE_SIZE1, size);
 
 	offset += size;
-	size = AMDGPU_UVD_HEAP_SIZE;
+	size = AMDGPU_UVD_STACK_SIZE +
+	       (AMDGPU_UVD_SESSION_SIZE * adev->uvd.max_handles);
 	WREG32(mmUVD_VCPU_CACHE_OFFSET2, offset >> 3);
 	WREG32(mmUVD_VCPU_CACHE_SIZE2, size);
 
 	WREG32(mmUVD_UDEC_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 	WREG32(mmUVD_UDEC_DB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+
+	WREG32(mmUVD_GP_SCRATCH4, adev->uvd.max_handles);
 }
 
 #if 0

@@ -151,6 +151,9 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		return r;
 	}
 
+	/* Set the default UVD handles that the firmware can handle */
+	adev->uvd.max_handles = AMDGPU_DEFAULT_UVD_HANDLES;
+
 	hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
 	family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
 	version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
@@ -158,8 +161,19 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	DRM_INFO("Found UVD firmware Version: %hu.%hu Family ID: %hu\n",
 		version_major, version_minor, family_id);
 
+	/*
+	 * Limit the number of UVD handles depending on microcode major
+	 * and minor versions. The firmware version which has 40 UVD
+	 * instances support is 1.80. So all subsequent versions should
+	 * also have the same support.
+	 */
+	if ((version_major > 0x01) ||
+	    ((version_major == 0x01) && (version_minor >= 0x50)))
+		adev->uvd.max_handles = AMDGPU_MAX_UVD_HANDLES;
+
 	bo_size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8)
-		 +  AMDGPU_UVD_STACK_SIZE + AMDGPU_UVD_HEAP_SIZE;
+		  +  AMDGPU_UVD_STACK_SIZE + AMDGPU_UVD_HEAP_SIZE
+		  +  AMDGPU_UVD_SESSION_SIZE * adev->uvd.max_handles;
 	r = amdgpu_bo_create(adev, bo_size, PAGE_SIZE, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
@@ -202,7 +216,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
+	for (i = 0; i < adev->uvd.max_handles; ++i) {
 		atomic_set(&adev->uvd.handles[i], 0);
 		adev->uvd.filp[i] = NULL;
 	}
@@ -248,7 +262,7 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 	if (adev->uvd.vcpu_bo == NULL)
 		return 0;
 
-	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i)
+	for (i = 0; i < adev->uvd.max_handles; ++i)
 		if (atomic_read(&adev->uvd.handles[i]))
 			break;
 
@@ -303,7 +317,7 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 	struct amdgpu_ring *ring = &adev->uvd.ring;
 	int i, r;
 
-	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
+	for (i = 0; i < adev->uvd.max_handles; ++i) {
 		uint32_t handle = atomic_read(&adev->uvd.handles[i]);
 		if (handle != 0 && adev->uvd.filp[i] == filp) {
 			struct fence *fence;
@@ -563,7 +577,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 		amdgpu_bo_kunmap(bo);
 
 		/* try to alloc a new handle */
-		for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
+		for (i = 0; i < adev->uvd.max_handles; ++i) {
 			if (atomic_read(&adev->uvd.handles[i]) == handle) {
 				DRM_ERROR("Handle 0x%x already in use!\n", handle);
 				return -EINVAL;
@@ -586,7 +600,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 			return r;
 
 		/* validate the handle */
-		for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
+		for (i = 0; i < adev->uvd.max_handles; ++i) {
 			if (atomic_read(&adev->uvd.handles[i]) == handle) {
 				if (adev->uvd.filp[i] != ctx->parser->filp) {
 					DRM_ERROR("UVD handle collision detected!\n");
@@ -601,7 +615,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 
 	case 2:
 		/* it's a destroy msg, free the handle */
-		for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i)
+		for (i = 0; i < adev->uvd.max_handles; ++i)
 			atomic_cmpxchg(&adev->uvd.handles[i], handle, 0);
 		amdgpu_bo_kunmap(bo);
 		return 0;
@@ -1013,7 +1027,7 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 
 	fences = amdgpu_fence_count_emitted(&adev->uvd.ring);
 
-	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i)
+	for (i = 0; i < adev->uvd.max_handles; ++i)
 		if (atomic_read(&adev->uvd.handles[i]))
 			++handles;
 
