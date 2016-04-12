@@ -3002,7 +3002,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	} else
 		mmc->f_min = host->max_clk / SDHCI_MAX_DIV_SPEC_200;
 
-	if (!mmc->f_max || (mmc->f_max && (mmc->f_max > max_clk)))
+	if (!mmc->f_max || mmc->f_max > max_clk)
 		mmc->f_max = max_clk;
 
 	if (!(host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK)) {
