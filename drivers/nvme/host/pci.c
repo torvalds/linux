@@ -593,43 +593,6 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 	nvme_free_iod(dev, req);
 }
 
-static inline int nvme_setup_discard(struct nvme_ns *ns, struct request *req,
-		struct nvme_command *cmnd)
-{
-	struct nvme_dsm_range *range;
-	struct page *page;
-	int offset;
-	unsigned int nr_bytes = blk_rq_bytes(req);
-
-	range = kmalloc(sizeof(*range), GFP_ATOMIC);
-	if (!range)
-		return BLK_MQ_RQ_QUEUE_BUSY;
-
-	range->cattr = cpu_to_le32(0);
-	range->nlb = cpu_to_le32(nr_bytes >> ns->lba_shift);
-	range->slba = cpu_to_le64(nvme_block_nr(ns, blk_rq_pos(req)));
-
-	memset(cmnd, 0, sizeof(*cmnd));
-	cmnd->dsm.opcode = nvme_cmd_dsm;
-	cmnd->dsm.nsid = cpu_to_le32(ns->ns_id);
-	cmnd->dsm.nr = 0;
-	cmnd->dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
-
-	req->completion_data = range;
-	page = virt_to_page(range);
-	offset = offset_in_page(range);
-	blk_add_request_payload(req, page, offset, sizeof(*range));
-
-	/*
-	 * we set __data_len back to the size of the area to be discarded
-	 * on disk. This allows us to report completion on the full amount
-	 * of blocks described by the request.
-	 */
-	req->__data_len = nr_bytes;
-
-	return 0;
-}
-
 /*
  * NOTE: ns is NULL when called on the admin queue.
  */
@@ -662,15 +625,7 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (ret)
 		return ret;
 
-	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
-		memcpy(&cmnd, req->cmd, sizeof(cmnd));
-	else if (req->cmd_flags & REQ_FLUSH)
-		nvme_setup_flush(ns, &cmnd);
-	else if (req->cmd_flags & REQ_DISCARD)
-		ret = nvme_setup_discard(ns, req, &cmnd);
-	else
-		nvme_setup_rw(ns, req, &cmnd);
-
+	ret = nvme_setup_cmd(ns, req, &cmnd);
 	if (ret)
 		goto out;
 

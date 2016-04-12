@@ -181,57 +181,6 @@ static inline unsigned nvme_map_len(struct request *rq)
 		return blk_rq_bytes(rq);
 }
 
-static inline void nvme_setup_flush(struct nvme_ns *ns,
-		struct nvme_command *cmnd)
-{
-	memset(cmnd, 0, sizeof(*cmnd));
-	cmnd->common.opcode = nvme_cmd_flush;
-	cmnd->common.nsid = cpu_to_le32(ns->ns_id);
-}
-
-static inline void nvme_setup_rw(struct nvme_ns *ns, struct request *req,
-		struct nvme_command *cmnd)
-{
-	u16 control = 0;
-	u32 dsmgmt = 0;
-
-	if (req->cmd_flags & REQ_FUA)
-		control |= NVME_RW_FUA;
-	if (req->cmd_flags & (REQ_FAILFAST_DEV | REQ_RAHEAD))
-		control |= NVME_RW_LR;
-
-	if (req->cmd_flags & REQ_RAHEAD)
-		dsmgmt |= NVME_RW_DSM_FREQ_PREFETCH;
-
-	memset(cmnd, 0, sizeof(*cmnd));
-	cmnd->rw.opcode = (rq_data_dir(req) ? nvme_cmd_write : nvme_cmd_read);
-	cmnd->rw.command_id = req->tag;
-	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
-	cmnd->rw.slba = cpu_to_le64(nvme_block_nr(ns, blk_rq_pos(req)));
-	cmnd->rw.length = cpu_to_le16((blk_rq_bytes(req) >> ns->lba_shift) - 1);
-
-	if (ns->ms) {
-		switch (ns->pi_type) {
-		case NVME_NS_DPS_PI_TYPE3:
-			control |= NVME_RW_PRINFO_PRCHK_GUARD;
-			break;
-		case NVME_NS_DPS_PI_TYPE1:
-		case NVME_NS_DPS_PI_TYPE2:
-			control |= NVME_RW_PRINFO_PRCHK_GUARD |
-					NVME_RW_PRINFO_PRCHK_REF;
-			cmnd->rw.reftag = cpu_to_le32(
-					nvme_block_nr(ns, blk_rq_pos(req)));
-			break;
-		}
-		if (!blk_integrity_rq(req))
-			control |= NVME_RW_PRINFO_PRACT;
-	}
-
-	cmnd->rw.control = cpu_to_le16(control);
-	cmnd->rw.dsmgmt = cpu_to_le32(dsmgmt);
-}
-
-
 static inline int nvme_error_status(u16 status)
 {
 	switch (status & 0x7ff) {
@@ -269,6 +218,8 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl);
 struct request *nvme_alloc_request(struct request_queue *q,
 		struct nvme_command *cmd, unsigned int flags);
 void nvme_requeue_req(struct request *req);
+int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
+		struct nvme_command *cmd);
 int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		void *buf, unsigned bufflen);
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,

@@ -138,6 +138,111 @@ struct request *nvme_alloc_request(struct request_queue *q,
 }
 EXPORT_SYMBOL_GPL(nvme_alloc_request);
 
+static inline void nvme_setup_flush(struct nvme_ns *ns,
+		struct nvme_command *cmnd)
+{
+	memset(cmnd, 0, sizeof(*cmnd));
+	cmnd->common.opcode = nvme_cmd_flush;
+	cmnd->common.nsid = cpu_to_le32(ns->ns_id);
+}
+
+static inline int nvme_setup_discard(struct nvme_ns *ns, struct request *req,
+		struct nvme_command *cmnd)
+{
+	struct nvme_dsm_range *range;
+	struct page *page;
+	int offset;
+	unsigned int nr_bytes = blk_rq_bytes(req);
+
+	range = kmalloc(sizeof(*range), GFP_ATOMIC);
+	if (!range)
+		return BLK_MQ_RQ_QUEUE_BUSY;
+
+	range->cattr = cpu_to_le32(0);
+	range->nlb = cpu_to_le32(nr_bytes >> ns->lba_shift);
+	range->slba = cpu_to_le64(nvme_block_nr(ns, blk_rq_pos(req)));
+
+	memset(cmnd, 0, sizeof(*cmnd));
+	cmnd->dsm.opcode = nvme_cmd_dsm;
+	cmnd->dsm.nsid = cpu_to_le32(ns->ns_id);
+	cmnd->dsm.nr = 0;
+	cmnd->dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
+
+	req->completion_data = range;
+	page = virt_to_page(range);
+	offset = offset_in_page(range);
+	blk_add_request_payload(req, page, offset, sizeof(*range));
+
+	/*
+	 * we set __data_len back to the size of the area to be discarded
+	 * on disk. This allows us to report completion on the full amount
+	 * of blocks described by the request.
+	 */
+	req->__data_len = nr_bytes;
+
+	return 0;
+}
+
+static inline void nvme_setup_rw(struct nvme_ns *ns, struct request *req,
+		struct nvme_command *cmnd)
+{
+	u16 control = 0;
+	u32 dsmgmt = 0;
+
+	if (req->cmd_flags & REQ_FUA)
+		control |= NVME_RW_FUA;
+	if (req->cmd_flags & (REQ_FAILFAST_DEV | REQ_RAHEAD))
+		control |= NVME_RW_LR;
+
+	if (req->cmd_flags & REQ_RAHEAD)
+		dsmgmt |= NVME_RW_DSM_FREQ_PREFETCH;
+
+	memset(cmnd, 0, sizeof(*cmnd));
+	cmnd->rw.opcode = (rq_data_dir(req) ? nvme_cmd_write : nvme_cmd_read);
+	cmnd->rw.command_id = req->tag;
+	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
+	cmnd->rw.slba = cpu_to_le64(nvme_block_nr(ns, blk_rq_pos(req)));
+	cmnd->rw.length = cpu_to_le16((blk_rq_bytes(req) >> ns->lba_shift) - 1);
+
+	if (ns->ms) {
+		switch (ns->pi_type) {
+		case NVME_NS_DPS_PI_TYPE3:
+			control |= NVME_RW_PRINFO_PRCHK_GUARD;
+			break;
+		case NVME_NS_DPS_PI_TYPE1:
+		case NVME_NS_DPS_PI_TYPE2:
+			control |= NVME_RW_PRINFO_PRCHK_GUARD |
+					NVME_RW_PRINFO_PRCHK_REF;
+			cmnd->rw.reftag = cpu_to_le32(
+					nvme_block_nr(ns, blk_rq_pos(req)));
+			break;
+		}
+		if (!blk_integrity_rq(req))
+			control |= NVME_RW_PRINFO_PRACT;
+	}
+
+	cmnd->rw.control = cpu_to_le16(control);
+	cmnd->rw.dsmgmt = cpu_to_le32(dsmgmt);
+}
+
+int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
+		struct nvme_command *cmd)
+{
+	int ret = 0;
+
+	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
+		memcpy(cmd, req->cmd, sizeof(*cmd));
+	else if (req->cmd_flags & REQ_FLUSH)
+		nvme_setup_flush(ns, cmd);
+	else if (req->cmd_flags & REQ_DISCARD)
+		ret = nvme_setup_discard(ns, req, cmd);
+	else
+		nvme_setup_rw(ns, req, cmd);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nvme_setup_cmd);
+
 /*
  * Returns 0 on success.  If the result is negative, it's a Linux error code;
  * if the result is positive, it's an NVM Express status code
