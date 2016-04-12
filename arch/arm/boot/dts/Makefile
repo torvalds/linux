@@ -380,6 +380,7 @@ dtb-$(CONFIG_SOC_IMX6SX) += \
 	imx6sx-nitrogen6sx.dtb \
 	imx6sx-sabreauto.dtb \
 	imx6sx-sdb-reva.dtb \
+	imx6sx-sdb-sai.dtb \
 	imx6sx-sdb.dtb
 dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ul-14x14-evk.dtb \
