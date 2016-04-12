@@ -967,13 +967,13 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 
 static void nvme_cancel_io(struct request *req, void *data, bool reserved)
 {
-	struct nvme_dev *dev = data;
 	int status;
 
 	if (!blk_mq_request_started(req))
 		return;
 
-	dev_dbg_ratelimited(dev->ctrl.device, "Cancelling I/O %d", req->tag);
+	dev_dbg_ratelimited(((struct nvme_dev *) data)->ctrl.device,
+				"Cancelling I/O %d", req->tag);
 
 	status = NVME_SC_ABORT_REQ;
 	if (blk_queue_dying(req->q))
