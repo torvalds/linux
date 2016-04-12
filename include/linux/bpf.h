@@ -66,6 +66,11 @@ enum bpf_arg_type {
 	 * functions that access data on eBPF program stack
 	 */
 	ARG_PTR_TO_STACK,	/* any pointer to eBPF program stack */
+	ARG_PTR_TO_RAW_STACK,	/* any pointer to eBPF program stack, area does not
+				 * need to be initialized, helper function must fill
+				 * all bytes or clear them in error case.
+				 */
+
 	ARG_CONST_STACK_SIZE,	/* number of bytes accessed from stack */
 	ARG_CONST_STACK_SIZE_OR_ZERO, /* number of bytes accessed from stack or 0 */
 
