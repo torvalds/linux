@@ -219,4 +219,29 @@
 			function = "gsbi7";
 		};
 	};
+
+	i2c7_pins: i2c7 {
+		mux {
+			pins = "gpio84", "gpio85";
+			function = "gsbi7";
+		};
+
+		pinconf {
+			pins = "gpio84", "gpio85";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	i2c7_pins_sleep: i2c7_pins_sleep {
+		mux {
+			pins = "gpio84", "gpio85";
+			function = "gpio";
+		};
+		pinconf {
+			pins = "gpio84", "gpio85";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+	};
 };
