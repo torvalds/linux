@@ -173,9 +173,7 @@
 		regulator-name = "ppvar_bigcpu";
 		status = "okay";
 
-		// TODO: schematics say 600kHz so period of 1667 ns
-		// Rockchip has 25000 (40kHz) for these though.
-		pwms = <&pwm1 0 1667 0>;
+		pwms = <&pwm1 0 3333 0>;
 
 		// TODO: where's the mapping of duty cycle to voltage???
 		// TODO: we probably need in-flight PWM regulator series?
@@ -195,9 +193,7 @@
 		regulator-name = "ppvar_litcpu";
 		status = "okay";
 
-		// TODO: schematics say 600kHz so period of 1667 ns
-		// Rockchip has 25000 (40kHz) for these though.
-		pwms = <&pwm2 0 1667 0>;
+		pwms = <&pwm2 0 3333 0>;
 
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
@@ -214,9 +210,7 @@
 		regulator-name = "ppvar_gpu";
 		status = "okay";
 
-		// TODO: schematics say 600kHz so period of 1667 ns
-		// Rockchip has 25000 (40kHz) for these though.
-		pwms = <&pwm0 0 1667 0>;
+		pwms = <&pwm0 0 3333 0>;
 
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
@@ -233,9 +227,7 @@
 		regulator-name = "ppvar_centerlogic";
 		status = "okay";
 
-		// TODO: schematics say 600kHz so period of 1667 ns
-		// Rockchip has 25000 (40kHz) for these though.
-		pwms = <&pwm3 0 1667 0>;
+		pwms = <&pwm3 0 3333 0>;
 
 		/* EC turns on w/ ppvar_centerlogic_en; always on for AP */
 		regulator-always-on;
