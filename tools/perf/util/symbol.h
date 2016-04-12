@@ -55,6 +55,7 @@ struct symbol {
 	u16		namelen;
 	u8		binding;
 	bool		ignore;
+	u8		arch_sym;
 	char		name[0];
 };
 
@@ -323,7 +324,7 @@ int setup_intlist(struct intlist **list, const char *list_str,
 
 #ifdef HAVE_LIBELF_SUPPORT
 bool elf__needs_adjust_symbols(GElf_Ehdr ehdr);
-void arch__elf_sym_adjust(GElf_Sym *sym);
+void arch__sym_update(struct symbol *s, GElf_Sym *sym);
 #endif
 
 #define SYMBOL_A 0

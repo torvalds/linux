@@ -19,12 +19,6 @@ bool elf__needs_adjust_symbols(GElf_Ehdr ehdr)
 	       ehdr.e_type == ET_DYN;
 }
 
-#if defined(_CALL_ELF) && _CALL_ELF == 2
-void arch__elf_sym_adjust(GElf_Sym *sym)
-{
-	sym->st_value += PPC64_LOCAL_ENTRY_OFFSET(sym->st_other);
-}
-#endif
 #endif
 
 #if !defined(_CALL_ELF) || _CALL_ELF != 2
@@ -65,11 +59,21 @@ bool arch__prefers_symtab(void)
 	return true;
 }
 
+#ifdef HAVE_LIBELF_SUPPORT
+void arch__sym_update(struct symbol *s, GElf_Sym *sym)
+{
+	s->arch_sym = sym->st_other;
+}
+#endif
+
 #define PPC64LE_LEP_OFFSET	8
 
 void arch__fix_tev_from_maps(struct perf_probe_event *pev,
-			     struct probe_trace_event *tev, struct map *map)
+			     struct probe_trace_event *tev, struct map *map,
+			     struct symbol *sym)
 {
+	int lep_offset;
+
 	/*
 	 * When probing at a function entry point, we normally always want the
 	 * LEP since that catches calls to the function through both the GEP and
@@ -82,10 +86,18 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 	 *
 	 * In addition, we shouldn't specify an offset for kretprobes.
 	 */
-	if (pev->point.offset || pev->point.retprobe || !map)
+	if (pev->point.offset || pev->point.retprobe || !map || !sym)
 		return;
+
+	lep_offset = PPC64_LOCAL_ENTRY_OFFSET(sym->arch_sym);
 
 	if (map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS)
 		tev->point.offset += PPC64LE_LEP_OFFSET;
+	else if (lep_offset) {
+		if (pev->uprobes)
+			tev->point.address += lep_offset;
+		else
+			tev->point.offset += lep_offset;
+	}
 }
 #endif
