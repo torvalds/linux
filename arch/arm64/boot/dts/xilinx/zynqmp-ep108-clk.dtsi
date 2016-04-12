@@ -47,6 +47,10 @@
 	clocks = <&misc_clk &misc_clk>;
 };
 
+&can1 {
+	clocks = <&misc_clk &misc_clk>;
+};
+
 &fpd_dma_chan1 {
 	clocks = <&clk600>, <&clk100>;
 };

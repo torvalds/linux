@@ -37,6 +37,10 @@
 	status = "okay";
 };
 
+&can1 {
+	status = "okay";
+};
+
 &gem0 {
 	status = "okay";
 	phy-handle = <&phy0>;
