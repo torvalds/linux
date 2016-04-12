@@ -1062,9 +1062,9 @@ static int pin_vector_pages(struct user_sdma_request *req,
 	struct sdma_mmu_node *node = NULL;
 	struct mmu_rb_node *rb_node;
 
-	rb_node = hfi1_mmu_rb_search(&pq->sdma_rb_root,
-				     (unsigned long)iovec->iov.iov_base,
-				     iovec->iov.iov_len);
+	rb_node = hfi1_mmu_rb_extract(&pq->sdma_rb_root,
+				      (unsigned long)iovec->iov.iov_base,
+				      iovec->iov.iov_len);
 	if (rb_node && !IS_ERR(rb_node))
 		node = container_of(rb_node, struct sdma_mmu_node, rb);
 	else
@@ -1131,25 +1131,20 @@ retry:
 	iovec->pages = node->pages;
 	iovec->npages = npages;
 
-	if (!rb_node) {
-		ret = hfi1_mmu_rb_insert(&req->pq->sdma_rb_root, &node->rb);
-		if (ret) {
-			spin_lock(&pq->evict_lock);
-			if (!list_empty(&node->list))
-				list_del(&node->list);
-			pq->n_locked -= node->npages;
-			spin_unlock(&pq->evict_lock);
-			unpin_vector_pages(current->mm, node->pages, 0,
-					   node->npages);
-			goto bail;
-		}
-	} else {
-		atomic_inc(&node->refcount);
+	ret = hfi1_mmu_rb_insert(&req->pq->sdma_rb_root, &node->rb);
+	if (ret) {
+		spin_lock(&pq->evict_lock);
+		if (!list_empty(&node->list))
+			list_del(&node->list);
+		pq->n_locked -= node->npages;
+		spin_unlock(&pq->evict_lock);
+		goto bail;
 	}
 	return 0;
 bail:
-	if (!rb_node)
-		kfree(node);
+	if (rb_node)
+		unpin_vector_pages(current->mm, node->pages, 0, node->npages);
+	kfree(node);
 	return ret;
 }
 
