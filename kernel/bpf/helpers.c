@@ -163,17 +163,26 @@ static u64 bpf_get_current_comm(u64 r1, u64 size, u64 r3, u64 r4, u64 r5)
 	struct task_struct *task = current;
 	char *buf = (char *) (long) r1;
 
-	if (!task)
-		return -EINVAL;
+	if (unlikely(!task))
+		goto err_clear;
 
-	strlcpy(buf, task->comm, min_t(size_t, size, sizeof(task->comm)));
+	strncpy(buf, task->comm, size);
+
+	/* Verifier guarantees that size > 0. For task->comm exceeding
+	 * size, guarantee that buf is %NUL-terminated. Unconditionally
+	 * done here to save the size test.
+	 */
+	buf[size - 1] = 0;
 	return 0;
+err_clear:
+	memset(buf, 0, size);
+	return -EINVAL;
 }
 
 const struct bpf_func_proto bpf_get_current_comm_proto = {
 	.func		= bpf_get_current_comm,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
-	.arg1_type	= ARG_PTR_TO_STACK,
+	.arg1_type	= ARG_PTR_TO_RAW_STACK,
 	.arg2_type	= ARG_CONST_STACK_SIZE,
 };
