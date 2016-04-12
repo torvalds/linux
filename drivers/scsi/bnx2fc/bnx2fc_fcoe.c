@@ -486,7 +486,7 @@ static int bnx2fc_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	__skb_queue_tail(&bg->fcoe_rx_list, skb);
 	if (bg->fcoe_rx_list.qlen == 1)
-		wake_up_process(bg->thread);
+		wake_up_process(bg->kthread);
 
 	spin_unlock(&bg->fcoe_rx_list.lock);
 
@@ -2715,7 +2715,7 @@ static int __init bnx2fc_mod_init(void)
 	}
 	wake_up_process(l2_thread);
 	spin_lock_bh(&bg->fcoe_rx_list.lock);
-	bg->thread = l2_thread;
+	bg->kthread = l2_thread;
 	spin_unlock_bh(&bg->fcoe_rx_list.lock);
 
 	for_each_possible_cpu(cpu) {
@@ -2788,8 +2788,8 @@ static void __exit bnx2fc_mod_exit(void)
 	/* Destroy global thread */
 	bg = &bnx2fc_global;
 	spin_lock_bh(&bg->fcoe_rx_list.lock);
-	l2_thread = bg->thread;
-	bg->thread = NULL;
+	l2_thread = bg->kthread;
+	bg->kthread = NULL;
 	while ((skb = __skb_dequeue(&bg->fcoe_rx_list)) != NULL)
 		kfree_skb(skb);
 

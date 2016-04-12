@@ -319,14 +319,16 @@ struct fcoe_transport {
 
 /**
  * struct fcoe_percpu_s - The context for FCoE receive thread(s)
- * @thread:	    The thread context
+ * @kthread:	    The thread context (used by bnx2fc)
+ * @work:	    The work item (used by fcoe)
  * @fcoe_rx_list:   The queue of pending packets to process
  * @page:	    The memory page for calculating frame trailer CRCs
  * @crc_eof_offset: The offset into the CRC page pointing to available
  *		    memory for a new trailer
  */
 struct fcoe_percpu_s {
-	struct task_struct *thread;
+	struct task_struct *kthread;
+	struct work_struct work;
 	struct sk_buff_head fcoe_rx_list;
 	struct page *crc_eof_page;
 	int crc_eof_offset;
