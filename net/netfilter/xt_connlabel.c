@@ -65,7 +65,7 @@ static int connlabel_mt_check(const struct xt_mtchk_param *par)
 		return ret;
 	}
 
-	ret = nf_connlabels_get(par->net, info->bit + 1);
+	ret = nf_connlabels_get(par->net, info->bit);
 	if (ret < 0)
 		nf_ct_l3proto_module_put(par->family);
 	return ret;

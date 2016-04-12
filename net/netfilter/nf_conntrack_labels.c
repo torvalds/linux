@@ -78,14 +78,13 @@ int nf_connlabels_replace(struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(nf_connlabels_replace);
 
-int nf_connlabels_get(struct net *net, unsigned int n_bits)
+int nf_connlabels_get(struct net *net, unsigned int bits)
 {
 	size_t words;
 
-	if (n_bits > (NF_CT_LABELS_MAX_SIZE * BITS_PER_BYTE))
+	words = BIT_WORD(bits) + 1;
+	if (words > NF_CT_LABELS_MAX_SIZE / sizeof(long))
 		return -ERANGE;
-
-	words = BITS_TO_LONGS(n_bits);
 
 	spin_lock(&nf_connlabels_lock);
 	net->ct.labels_used++;
@@ -115,6 +114,8 @@ static struct nf_ct_ext_type labels_extend __read_mostly = {
 
 int nf_conntrack_labels_init(void)
 {
+	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE / sizeof(long) >= U8_MAX);
+
 	spin_lock_init(&nf_connlabels_lock);
 	return nf_ct_extend_register(&labels_extend);
 }
