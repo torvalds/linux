@@ -151,6 +151,33 @@ static int clk_composite_set_rate(struct clk_hw *hw, unsigned long rate,
 	return rate_ops->set_rate(rate_hw, rate, parent_rate);
 }
 
+static int clk_composite_set_rate_and_parent(struct clk_hw *hw,
+					     unsigned long rate,
+					     unsigned long parent_rate,
+					     u8 index)
+{
+	struct clk_composite *composite = to_clk_composite(hw);
+	const struct clk_ops *rate_ops = composite->rate_ops;
+	const struct clk_ops *mux_ops = composite->mux_ops;
+	struct clk_hw *rate_hw = composite->rate_hw;
+	struct clk_hw *mux_hw = composite->mux_hw;
+	unsigned long temp_rate;
+
+	__clk_hw_set_clk(rate_hw, hw);
+	__clk_hw_set_clk(mux_hw, hw);
+
+	temp_rate = rate_ops->recalc_rate(rate_hw, parent_rate);
+	if (temp_rate > rate) {
+		rate_ops->set_rate(rate_hw, rate, parent_rate);
+		mux_ops->set_parent(mux_hw, index);
+	} else {
+		mux_ops->set_parent(mux_hw, index);
+		rate_ops->set_rate(rate_hw, rate, parent_rate);
+	}
+
+	return 0;
+}
+
 static int clk_composite_is_enabled(struct clk_hw *hw)
 {
 	struct clk_composite *composite = to_clk_composite(hw);
@@ -248,6 +275,12 @@ struct clk *clk_register_composite(struct device *dev, const char *name,
 
 		composite->rate_hw = rate_hw;
 		composite->rate_ops = rate_ops;
+	}
+
+	if (mux_hw && mux_ops && rate_hw && rate_ops) {
+		if (mux_ops->set_parent && rate_ops->set_rate)
+			clk_composite_ops->set_rate_and_parent =
+			clk_composite_set_rate_and_parent;
 	}
 
 	if (gate_hw && gate_ops) {
