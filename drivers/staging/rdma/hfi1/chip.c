@@ -13508,7 +13508,7 @@ static void init_qos(struct hfi1_devdata *dd, u32 first_ctxt)
 		goto bail;
 	qpns_per_vl = __roundup_pow_of_two(max_by_vl);
 	/* determine bits vl */
-	n = ilog2(num_vls);
+	n = ilog2(__roundup_pow_of_two(num_vls));
 	/* determine bits for qpn */
 	m = ilog2(qpns_per_vl);
 	if ((m + n) > 7)
