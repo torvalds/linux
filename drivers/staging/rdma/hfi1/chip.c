@@ -13466,6 +13466,50 @@ static void complete_rsm_map_table(struct hfi1_devdata *dd,
 	}
 }
 
+/* return the number of RSM map table entries that will be used for QOS */
+static int qos_rmt_entries(struct hfi1_devdata *dd, unsigned int *mp,
+			   unsigned int *np)
+{
+	int i;
+	unsigned int m, n;
+	u8 max_by_vl = 0;
+
+	/* is QOS active at all? */
+	if (dd->n_krcv_queues <= MIN_KERNEL_KCTXTS ||
+	    num_vls == 1 ||
+	    krcvqsset <= 1)
+		goto no_qos;
+
+	/* determine bits for qpn */
+	for (i = 0; i < min_t(unsigned int, num_vls, krcvqsset); i++)
+		if (krcvqs[i] > max_by_vl)
+			max_by_vl = krcvqs[i];
+	if (max_by_vl > 32)
+		goto no_qos;
+	m = ilog2(__roundup_pow_of_two(max_by_vl));
+
+	/* determine bits for vl */
+	n = ilog2(__roundup_pow_of_two(num_vls));
+
+	/* reject if too much is used */
+	if ((m + n) > 7)
+		goto no_qos;
+
+	if (mp)
+		*mp = m;
+	if (np)
+		*np = n;
+
+	return 1 << (m + n);
+
+no_qos:
+	if (mp)
+		*mp = 0;
+	if (np)
+		*np = 0;
+	return 0;
+}
+
 /**
  * init_qos - init RX qos
  * @dd - device data
@@ -13482,33 +13526,22 @@ static void complete_rsm_map_table(struct hfi1_devdata *dd,
  */
 static void init_qos(struct hfi1_devdata *dd, struct rsm_map_table *rmt)
 {
-	u8 max_by_vl = 0;
 	unsigned qpns_per_vl, ctxt, i, qpn, n = 1, m;
 	unsigned int rmt_entries;
 	u64 reg;
 
-	/* validate */
-	if (!rmt ||
-	    dd->n_krcv_queues <= MIN_KERNEL_KCTXTS ||
-	    num_vls == 1 ||
-	    krcvqsset <= 1)
+	if (!rmt)
 		goto bail;
-	for (i = 0; i < min_t(unsigned, num_vls, krcvqsset); i++)
-		if (krcvqs[i] > max_by_vl)
-			max_by_vl = krcvqs[i];
-	if (max_by_vl > 32)
+	rmt_entries = qos_rmt_entries(dd, &m, &n);
+	if (rmt_entries == 0)
 		goto bail;
-	qpns_per_vl = __roundup_pow_of_two(max_by_vl);
-	/* determine bits vl */
-	n = ilog2(__roundup_pow_of_two(num_vls));
-	/* determine bits for qpn */
-	m = ilog2(qpns_per_vl);
-	if ((m + n) > 7)
-		goto bail;
+	qpns_per_vl = 1 << m;
+
 	/* enough room in the map table? */
 	rmt_entries = 1 << (m + n);
 	if (rmt->used + rmt_entries >= NUM_MAP_ENTRIES)
 		goto bail;
+
 	/* add qos entries to the the RSM map table */
 	for (i = 0, ctxt = FIRST_KERNEL_KCTXT; i < num_vls; i++) {
 		unsigned tctxt;
