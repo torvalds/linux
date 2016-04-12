@@ -399,8 +399,11 @@ int hfi1_user_exp_rcv_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 	 * pages, accept the amount pinned so far and program only that.
 	 * User space knows how to deal with partially programmed buffers.
 	 */
-	if (!hfi1_can_pin_pages(dd, fd->tid_n_pinned, npages))
-		return -ENOMEM;
+	if (!hfi1_can_pin_pages(dd, fd->tid_n_pinned, npages)) {
+		ret = -ENOMEM;
+		goto bail;
+	}
+
 	pinned = hfi1_acquire_user_pages(vaddr, npages, true, pages);
 	if (pinned <= 0) {
 		ret = pinned;
