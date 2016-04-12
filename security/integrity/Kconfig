@@ -35,7 +35,6 @@ config INTEGRITY_ASYMMETRIC_KEYS
 	default n
         select ASYMMETRIC_KEY_TYPE
         select ASYMMETRIC_PUBLIC_KEY_SUBTYPE
-        select PUBLIC_KEY_ALGO_RSA
         select CRYPTO_RSA
         select X509_CERTIFICATE_PARSER
 	help
