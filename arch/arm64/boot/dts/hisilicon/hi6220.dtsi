@@ -647,5 +647,13 @@
 			g-tx-fifo-size = <128 128 128 128 128 128>;
 			interrupts = <0 77 0x4>;
 		};
+
+		mailbox: mailbox@f7510000 {
+			compatible = "hisilicon,hi6220-mbox";
+			reg = <0x0 0xf7510000 0x0 0x1000>, /* IPC_S */
+			      <0x0 0x06dff800 0x0 0x0800>; /* Mailbox buffer */
+			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <3>;
+		};
 	};
 };
