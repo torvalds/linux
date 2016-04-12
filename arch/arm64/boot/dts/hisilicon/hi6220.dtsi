@@ -209,5 +209,16 @@
 			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
+
+		dual_timer0: timer@f8008000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x0 0xf8008000 0x0 0x1000>;
+			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ao_ctrl HI6220_TIMER0_PCLK>,
+				 <&ao_ctrl HI6220_TIMER0_PCLK>,
+				 <&ao_ctrl HI6220_TIMER0_PCLK>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+		};
 	};
 };
