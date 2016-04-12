@@ -11,6 +11,7 @@
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/cloexec.h"
+#include "util/color.h"
 
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
@@ -1357,6 +1358,7 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 	int i, this_cpu = sample->cpu;
 	int cpus_nr;
 	bool new_cpu = false;
+	const char *color = PERF_COLOR_NORMAL;
 
 	BUG_ON(this_cpu >= MAX_CPUS || this_cpu < 0);
 
@@ -1422,26 +1424,26 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 		int cpu = sched->map.comp ? sched->map.comp_cpus[i] : i;
 
 		if (cpu != this_cpu)
-			printf(" ");
+			color_fprintf(stdout, color, " ");
 		else
-			printf("*");
+			color_fprintf(stdout, color, "*");
 
 		if (sched->curr_thread[cpu])
-			printf("%2s ", sched->curr_thread[cpu]->shortname);
+			color_fprintf(stdout, color, "%2s ", sched->curr_thread[cpu]->shortname);
 		else
-			printf("   ");
+			color_fprintf(stdout, color, "   ");
 	}
 
-	printf("  %12.6f secs ", (double)timestamp/1e9);
+	color_fprintf(stdout, color, "  %12.6f secs ", (double)timestamp/1e9);
 	if (new_shortname) {
-		printf("%s => %s:%d",
+		color_fprintf(stdout, color, "%s => %s:%d",
 		       sched_in->shortname, thread__comm_str(sched_in), sched_in->tid);
 	}
 
 	if (sched->map.comp && new_cpu)
-		printf(" (CPU %d)", this_cpu);
+		color_fprintf(stdout, color, " (CPU %d)", this_cpu);
 
-	printf("\n");
+	color_fprintf(stdout, color, "\n");
 
 	thread__put(sched_in);
 
