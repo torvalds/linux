@@ -155,6 +155,7 @@ const char *v4l2_type_names[] = {
 	[V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE] = "vid-out-mplane",
 	[V4L2_BUF_TYPE_SDR_CAPTURE]        = "sdr-cap",
 	[V4L2_BUF_TYPE_SDR_OUTPUT]         = "sdr-out",
+	[V4L2_BUF_TYPE_META_CAPTURE]       = "meta-cap",
 };
 EXPORT_SYMBOL(v4l2_type_names);
 
@@ -246,6 +247,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 	const struct v4l2_sliced_vbi_format *sliced;
 	const struct v4l2_window *win;
 	const struct v4l2_sdr_format *sdr;
+	const struct v4l2_meta_format *meta;
 	unsigned i;
 
 	pr_cont("type=%s", prt_names(p->type, v4l2_type_names));
@@ -324,6 +326,15 @@ static void v4l_print_format(const void *arg, bool write_only)
 			(sdr->pixelformat >>  8) & 0xff,
 			(sdr->pixelformat >> 16) & 0xff,
 			(sdr->pixelformat >> 24) & 0xff);
+		break;
+	case V4L2_BUF_TYPE_META_CAPTURE:
+		meta = &p->fmt.meta;
+		pr_cont(", dataformat=%c%c%c%c, buffersize=%u\n",
+			(meta->dataformat >>  0) & 0xff,
+			(meta->dataformat >>  8) & 0xff,
+			(meta->dataformat >> 16) & 0xff,
+			(meta->dataformat >> 24) & 0xff,
+			meta->buffersize);
 		break;
 	}
 }
@@ -943,6 +954,10 @@ static int check_fmt(struct file *file, enum v4l2_buf_type type)
 		if (is_sdr && is_tx && ops->vidioc_g_fmt_sdr_out)
 			return 0;
 		break;
+	case V4L2_BUF_TYPE_META_CAPTURE:
+		if (is_vid && is_rx && ops->vidioc_g_fmt_meta_cap)
+			return 0;
+		break;
 	default:
 		break;
 	}
@@ -1327,6 +1342,11 @@ static int v4l_enum_fmt(const struct v4l2_ioctl_ops *ops,
 			break;
 		ret = ops->vidioc_enum_fmt_sdr_out(file, fh, arg);
 		break;
+	case V4L2_BUF_TYPE_META_CAPTURE:
+		if (unlikely(!is_rx || !is_vid || !ops->vidioc_enum_fmt_meta_cap))
+			break;
+		ret = ops->vidioc_enum_fmt_meta_cap(file, fh, arg);
+		break;
 	}
 	if (ret == 0)
 		v4l_fill_fmtdesc(p);
@@ -1426,6 +1446,10 @@ static int v4l_g_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!is_tx || !is_sdr || !ops->vidioc_g_fmt_sdr_out))
 			break;
 		return ops->vidioc_g_fmt_sdr_out(file, fh, arg);
+	case V4L2_BUF_TYPE_META_CAPTURE:
+		if (unlikely(!is_rx || !is_vid || !ops->vidioc_g_fmt_meta_cap))
+			break;
+		return ops->vidioc_g_fmt_meta_cap(file, fh, arg);
 	}
 	return -EINVAL;
 }
@@ -1531,6 +1555,11 @@ static int v4l_s_fmt(const struct v4l2_ioctl_ops *ops,
 			break;
 		CLEAR_AFTER_FIELD(p, fmt.sdr);
 		return ops->vidioc_s_fmt_sdr_out(file, fh, arg);
+	case V4L2_BUF_TYPE_META_CAPTURE:
+		if (unlikely(!is_rx || !is_vid || !ops->vidioc_s_fmt_meta_cap))
+			break;
+		CLEAR_AFTER_FIELD(p, fmt.meta);
+		return ops->vidioc_s_fmt_meta_cap(file, fh, arg);
 	}
 	return -EINVAL;
 }
@@ -1616,6 +1645,11 @@ static int v4l_try_fmt(const struct v4l2_ioctl_ops *ops,
 			break;
 		CLEAR_AFTER_FIELD(p, fmt.sdr);
 		return ops->vidioc_try_fmt_sdr_out(file, fh, arg);
+	case V4L2_BUF_TYPE_META_CAPTURE:
+		if (unlikely(!is_rx || !is_vid || !ops->vidioc_try_fmt_meta_cap))
+			break;
+		CLEAR_AFTER_FIELD(p, fmt.meta);
+		return ops->vidioc_try_fmt_meta_cap(file, fh, arg);
 	}
 	return -EINVAL;
 }

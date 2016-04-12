@@ -143,6 +143,7 @@ enum v4l2_buf_type {
 	V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE  = 10,
 	V4L2_BUF_TYPE_SDR_CAPTURE          = 11,
 	V4L2_BUF_TYPE_SDR_OUTPUT           = 12,
+	V4L2_BUF_TYPE_META_CAPTURE         = 13,
 	/* Deprecated, do not use */
 	V4L2_BUF_TYPE_PRIVATE              = 0x80,
 };
@@ -451,6 +452,7 @@ struct v4l2_capability {
 #define V4L2_CAP_SDR_CAPTURE		0x00100000  /* Is a SDR capture device */
 #define V4L2_CAP_EXT_PIX_FORMAT		0x00200000  /* Supports the extended pixel format */
 #define V4L2_CAP_SDR_OUTPUT		0x00400000  /* Is a SDR output device */
+#define V4L2_CAP_META_CAPTURE		0x00800000  /* Is a metadata capture device */
 
 #define V4L2_CAP_READWRITE              0x01000000  /* read/write systemcalls */
 #define V4L2_CAP_ASYNCIO                0x02000000  /* async I/O */
@@ -2086,6 +2088,16 @@ struct v4l2_sdr_format {
 } __attribute__ ((packed));
 
 /**
+ * struct v4l2_meta_format - metadata format definition
+ * @dataformat:		little endian four character code (fourcc)
+ * @buffersize:		maximum size in bytes required for data
+ */
+struct v4l2_meta_format {
+	__u32				dataformat;
+	__u32				buffersize;
+} __attribute__ ((packed));
+
+/**
  * struct v4l2_format - stream data format
  * @type:	enum v4l2_buf_type; type of the data stream
  * @pix:	definition of an image format
@@ -2104,6 +2116,7 @@ struct v4l2_format {
 		struct v4l2_vbi_format		vbi;     /* V4L2_BUF_TYPE_VBI_CAPTURE */
 		struct v4l2_sliced_vbi_format	sliced;  /* V4L2_BUF_TYPE_SLICED_VBI_CAPTURE */
 		struct v4l2_sdr_format		sdr;     /* V4L2_BUF_TYPE_SDR_CAPTURE */
+		struct v4l2_meta_format		meta;    /* V4L2_BUF_TYPE_META_CAPTURE */
 		__u8	raw_data[200];                   /* user-defined */
 	} fmt;
 };
