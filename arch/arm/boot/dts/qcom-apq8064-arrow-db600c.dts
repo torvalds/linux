@@ -153,6 +153,19 @@
 				/* On Low speed expansion and Sensors */
 				label = "LS-I2C0";
 				status = "okay";
+				lis3mdl_mag@1e {
+					compatible = "st,lis3mdl-magn";
+					reg = <0x1e>;
+					vdd-supply = <&vcc3v3>;
+					vddio-supply = <&pm8921_s4>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&magneto_pins>;
+					interrupt-parent = <&tlmm_pinmux>;
+
+					st,drdy-int-pin = <2>;
+					interrupts = <48 IRQ_TYPE_EDGE_RISING>, /* DRDY line */
+						     <31 IRQ_TYPE_EDGE_RISING>; /* INT */
+				};
 			};
 		};
 

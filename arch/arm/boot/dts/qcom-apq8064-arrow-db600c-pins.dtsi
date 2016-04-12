@@ -31,6 +31,14 @@
 			output-low;
 		};
 	};
+
+	magneto_pins: magneto-pins {
+		mux {
+			pins = "gpio31", "gpio48";
+			function = "gpio";
+			bias-disable;
+		};
+	};
 };
 
 &pm8921_mpps {
