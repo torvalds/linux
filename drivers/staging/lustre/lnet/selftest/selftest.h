@@ -93,7 +93,7 @@ struct sfw_test_instance;
 /* all reply/bulk RDMAs go to this portal */
 #define SRPC_RDMA_PORTAL		52
 
-static inline srpc_msg_type_t
+static inline enum srpc_msg_type
 srpc_service2request(int service)
 {
 	switch (service) {
@@ -128,7 +128,7 @@ srpc_service2request(int service)
 	}
 }
 
-static inline srpc_msg_type_t
+static inline enum srpc_msg_type
 srpc_service2reply(int service)
 {
 	return srpc_service2request(service) + 1;
@@ -385,9 +385,9 @@ struct sfw_test_instance {
 	struct list_head	   tsi_active_rpcs;	/* active rpcs */
 
 	union {
-		test_ping_req_t	   ping;    /* ping parameter */
-		test_bulk_req_t    bulk_v0; /* bulk parameter */
-		test_bulk_req_v1_t bulk_v1; /* bulk v1 parameter */
+		struct test_ping_req	ping;		/* ping parameter */
+		struct test_bulk_req	bulk_v0;	/* bulk parameter */
+		struct test_bulk_req_v1	bulk_v1;	/* bulk v1 parameter */
 	} tsi_u;
 };
 
@@ -428,7 +428,8 @@ void sfw_free_pages(struct srpc_server_rpc *rpc);
 void sfw_add_bulk_page(struct srpc_bulk *bk, struct page *pg, int i);
 int sfw_alloc_pages(struct srpc_server_rpc *rpc, int cpt, int npages, int len,
 		    int sink);
-int sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply);
+int sfw_make_session(struct srpc_mksn_reqst *request,
+		     struct srpc_mksn_reply *reply);
 
 struct srpc_client_rpc *
 srpc_create_client_rpc(lnet_process_id_t peer, int service,

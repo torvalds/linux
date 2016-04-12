@@ -373,7 +373,7 @@ static int
 lstcon_sesrpc_readent(int transop, struct srpc_msg *msg,
 		      lstcon_rpc_ent_t __user *ent_up)
 {
-	srpc_debug_reply_t *rep;
+	struct srpc_debug_reply *rep;
 
 	switch (transop) {
 	case LST_TRANS_SESNEW:
@@ -1386,7 +1386,7 @@ static int
 lstcon_tsbrpc_readent(int transop, struct srpc_msg *msg,
 		      lstcon_rpc_ent_t __user *ent_up)
 {
-	srpc_batch_reply_t *rep = &msg->msg_body.bat_reply;
+	struct srpc_batch_reply *rep = &msg->msg_body.bat_reply;
 
 	LASSERT(transop == LST_TRANS_TSBCLIQRY ||
 		transop == LST_TRANS_TSBSRVQRY);
@@ -1465,7 +1465,7 @@ static int
 lstcon_statrpc_readent(int transop, struct srpc_msg *msg,
 		       lstcon_rpc_ent_t __user *ent_up)
 {
-	srpc_stat_reply_t *rep = &msg->msg_body.stat_reply;
+	struct srpc_stat_reply *rep = &msg->msg_body.stat_reply;
 	sfw_counters_t __user *sfwk_stat;
 	srpc_counters_t __user *srpc_stat;
 	lnet_counters_t __user *lnet_stat;
@@ -1907,8 +1907,8 @@ lstcon_acceptor_handle(struct srpc_server_rpc *rpc)
 {
 	struct srpc_msg *rep	= &rpc->srpc_replymsg;
 	struct srpc_msg *req	= &rpc->srpc_reqstbuf->buf_msg;
-	srpc_join_reqst_t *jreq = &req->msg_body.join_reqst;
-	srpc_join_reply_t *jrep = &rep->msg_body.join_reply;
+	struct srpc_join_reqst *jreq = &req->msg_body.join_reqst;
+	struct srpc_join_reply *jrep = &rep->msg_body.join_reply;
 	struct lstcon_group *grp = NULL;
 	struct lstcon_ndlink *ndl;
 	int rc = 0;

@@ -390,7 +390,7 @@ lstcon_rpc_get_reply(struct lstcon_rpc *crpc, struct srpc_msg **msgpp)
 {
 	struct lstcon_node *nd = crpc->crp_node;
 	struct srpc_client_rpc *rpc = crpc->crp_rpc;
-	srpc_generic_reply_t *rep;
+	struct srpc_generic_reply *rep;
 
 	LASSERT(nd && rpc);
 	LASSERT(crpc->crp_stamp);
@@ -473,7 +473,7 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 	struct list_head tmp;
 	struct list_head __user *next;
 	lstcon_rpc_ent_t *ent;
-	srpc_generic_reply_t *rep;
+	struct srpc_generic_reply *rep;
 	struct lstcon_rpc *crpc;
 	struct srpc_msg *msg;
 	struct lstcon_node *nd;
@@ -520,7 +520,7 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 			continue;
 
 		/* RPC is done */
-		rep = (srpc_generic_reply_t *)&msg->msg_body.reply;
+		rep = (struct srpc_generic_reply *)&msg->msg_body.reply;
 
 		if (copy_to_user(&ent->rpe_sid, &rep->sid, sizeof(lst_sid_t)) ||
 		    copy_to_user(&ent->rpe_fwk_errno, &rep->status,
@@ -595,8 +595,8 @@ int
 lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
 		   unsigned feats, struct lstcon_rpc **crpc)
 {
-	srpc_mksn_reqst_t *msrq;
-	srpc_rmsn_reqst_t *rsrq;
+	struct srpc_mksn_reqst *msrq;
+	struct srpc_rmsn_reqst *rsrq;
 	int rc;
 
 	switch (transop) {
@@ -633,7 +633,7 @@ lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
 int
 lstcon_dbgrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **crpc)
 {
-	srpc_debug_reqst_t *drq;
+	struct srpc_debug_reqst *drq;
 	int rc;
 
 	rc = lstcon_rpc_prep(nd, SRPC_SERVICE_DEBUG, feats, 0, 0, crpc);
@@ -653,7 +653,7 @@ lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 		   struct lstcon_tsb_hdr *tsb, struct lstcon_rpc **crpc)
 {
 	struct lstcon_batch *batch;
-	srpc_batch_reqst_t *brq;
+	struct srpc_batch_reqst *brq;
 	int rc;
 
 	rc = lstcon_rpc_prep(nd, SRPC_SERVICE_BATCH, feats, 0, 0, crpc);
@@ -684,7 +684,7 @@ lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 int
 lstcon_statrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **crpc)
 {
-	srpc_stat_reqst_t *srq;
+	struct srpc_stat_reqst *srq;
 	int rc;
 
 	rc = lstcon_rpc_prep(nd, SRPC_SERVICE_QUERY_STAT, feats, 0, 0, crpc);
@@ -769,9 +769,9 @@ lstcon_dstnodes_prep(struct lstcon_group *grp, int idx,
 }
 
 static int
-lstcon_pingrpc_prep(lst_test_ping_param_t *param, srpc_test_reqst_t *req)
+lstcon_pingrpc_prep(lst_test_ping_param_t *param, struct srpc_test_reqst *req)
 {
-	test_ping_req_t *prq = &req->tsr_u.ping;
+	struct test_ping_req *prq = &req->tsr_u.ping;
 
 	prq->png_size = param->png_size;
 	prq->png_flags = param->png_flags;
@@ -780,9 +780,9 @@ lstcon_pingrpc_prep(lst_test_ping_param_t *param, srpc_test_reqst_t *req)
 }
 
 static int
-lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
+lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param, struct srpc_test_reqst *req)
 {
-	test_bulk_req_t *brq = &req->tsr_u.bulk_v0;
+	struct test_bulk_req *brq = &req->tsr_u.bulk_v0;
 
 	brq->blk_opc = param->blk_opc;
 	brq->blk_npg = (param->blk_size + PAGE_SIZE - 1) /
@@ -793,9 +793,9 @@ lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
 }
 
 static int
-lstcon_bulkrpc_v1_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
+lstcon_bulkrpc_v1_prep(lst_test_bulk_param_t *param, struct srpc_test_reqst *req)
 {
-	test_bulk_req_v1_t *brq = &req->tsr_u.bulk_v1;
+	struct test_bulk_req_v1 *brq = &req->tsr_u.bulk_v1;
 
 	brq->blk_opc = param->blk_opc;
 	brq->blk_flags = param->blk_flags;
@@ -811,7 +811,7 @@ lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 {
 	struct lstcon_group *sgrp = test->tes_src_grp;
 	struct lstcon_group *dgrp = test->tes_dst_grp;
-	srpc_test_reqst_t *trq;
+	struct srpc_test_reqst *trq;
 	struct srpc_bulk *bulk;
 	int i;
 	int npg = 0;
@@ -918,7 +918,7 @@ static int
 lstcon_sesnew_stat_reply(struct lstcon_rpc_trans *trans,
 			 struct lstcon_node *nd, struct srpc_msg *reply)
 {
-	srpc_mksn_reply_t *mksn_rep = &reply->msg_body.mksn_reply;
+	struct srpc_mksn_reply *mksn_rep = &reply->msg_body.mksn_reply;
 	int status = mksn_rep->mksn_status;
 
 	if (!status &&
@@ -965,11 +965,11 @@ void
 lstcon_rpc_stat_reply(struct lstcon_rpc_trans *trans, struct srpc_msg *msg,
 		      struct lstcon_node *nd, lstcon_trans_stat_t *stat)
 {
-	srpc_rmsn_reply_t *rmsn_rep;
-	srpc_debug_reply_t *dbg_rep;
-	srpc_batch_reply_t *bat_rep;
-	srpc_test_reply_t *test_rep;
-	srpc_stat_reply_t *stat_rep;
+	struct srpc_rmsn_reply *rmsn_rep;
+	struct srpc_debug_reply *dbg_rep;
+	struct srpc_batch_reply *bat_rep;
+	struct srpc_test_reply *test_rep;
+	struct srpc_stat_reply *stat_rep;
 	int rc = 0;
 
 	switch (trans->tas_opc) {
@@ -1173,7 +1173,7 @@ lstcon_rpc_pinger(void *arg)
 	struct lstcon_rpc_trans *trans;
 	struct lstcon_rpc *crpc;
 	struct srpc_msg *rep;
-	srpc_debug_reqst_t *drq;
+	struct srpc_debug_reqst *drq;
 	struct lstcon_ndlink *ndl;
 	struct lstcon_node *nd;
 	int intv;

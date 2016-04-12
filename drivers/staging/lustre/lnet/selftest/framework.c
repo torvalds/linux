@@ -361,7 +361,7 @@ sfw_bid2batch(lst_bid_t bid)
 }
 
 static int
-sfw_get_stats(srpc_stat_reqst_t *request, srpc_stat_reply_t *reply)
+sfw_get_stats(struct srpc_stat_reqst *request, struct srpc_stat_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 	sfw_counters_t *cnt = &reply->str_fw;
@@ -402,7 +402,7 @@ sfw_get_stats(srpc_stat_reqst_t *request, srpc_stat_reply_t *reply)
 }
 
 int
-sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
+sfw_make_session(struct srpc_mksn_reqst *request, struct srpc_mksn_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 	struct srpc_msg *msg = container_of(request, struct srpc_msg,
@@ -473,7 +473,7 @@ sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
 }
 
 static int
-sfw_remove_session(srpc_rmsn_reqst_t *request, srpc_rmsn_reply_t *reply)
+sfw_remove_session(struct srpc_rmsn_reqst *request, struct srpc_rmsn_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 
@@ -505,7 +505,7 @@ sfw_remove_session(srpc_rmsn_reqst_t *request, srpc_rmsn_reply_t *reply)
 }
 
 static int
-sfw_debug_session(srpc_debug_reqst_t *request, srpc_debug_reply_t *reply)
+sfw_debug_session(struct srpc_debug_reqst *request, struct srpc_debug_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 
@@ -687,7 +687,7 @@ sfw_destroy_session(struct sfw_session *sn)
 static void
 sfw_unpack_addtest_req(struct srpc_msg *msg)
 {
-	srpc_test_reqst_t *req = &msg->msg_body.tes_reqst;
+	struct srpc_test_reqst *req = &msg->msg_body.tes_reqst;
 
 	LASSERT(msg->msg_type == SRPC_MSG_TEST_REQST);
 	LASSERT(req->tsr_is_client);
@@ -699,14 +699,14 @@ sfw_unpack_addtest_req(struct srpc_msg *msg)
 
 	if (req->tsr_service == SRPC_SERVICE_BRW) {
 		if (!(msg->msg_ses_feats & LST_FEAT_BULK_LEN)) {
-			test_bulk_req_t *bulk = &req->tsr_u.bulk_v0;
+			struct test_bulk_req *bulk = &req->tsr_u.bulk_v0;
 
 			__swab32s(&bulk->blk_opc);
 			__swab32s(&bulk->blk_npg);
 			__swab32s(&bulk->blk_flags);
 
 		} else {
-			test_bulk_req_v1_t *bulk = &req->tsr_u.bulk_v1;
+			struct test_bulk_req_v1 *bulk = &req->tsr_u.bulk_v1;
 
 			__swab16s(&bulk->blk_opc);
 			__swab16s(&bulk->blk_flags);
@@ -718,7 +718,7 @@ sfw_unpack_addtest_req(struct srpc_msg *msg)
 	}
 
 	if (req->tsr_service == SRPC_SERVICE_PING) {
-		test_ping_req_t *ping = &req->tsr_u.ping;
+		struct test_ping_req *ping = &req->tsr_u.ping;
 
 		__swab32s(&ping->png_size);
 		__swab32s(&ping->png_flags);
@@ -732,7 +732,7 @@ static int
 sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 {
 	struct srpc_msg *msg = &rpc->srpc_reqstbuf->buf_msg;
-	srpc_test_reqst_t *req = &msg->msg_body.tes_reqst;
+	struct srpc_test_reqst *req = &msg->msg_body.tes_reqst;
 	struct srpc_bulk *bk = rpc->srpc_bulk;
 	int ndest = req->tsr_ndest;
 	struct sfw_test_unit *tsu;
@@ -1068,7 +1068,7 @@ sfw_stop_batch(struct sfw_batch *tsb, int force)
 }
 
 static int
-sfw_query_batch(struct sfw_batch *tsb, int testidx, srpc_batch_reply_t *reply)
+sfw_query_batch(struct sfw_batch *tsb, int testidx, struct srpc_batch_reply *reply)
 {
 	struct sfw_test_instance *tsi;
 
@@ -1116,8 +1116,8 @@ static int
 sfw_add_test(struct srpc_server_rpc *rpc)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
-	srpc_test_reply_t *reply = &rpc->srpc_replymsg.msg_body.tes_reply;
-	srpc_test_reqst_t *request;
+	struct srpc_test_reply *reply = &rpc->srpc_replymsg.msg_body.tes_reply;
+	struct srpc_test_reqst *request;
 	int rc;
 	struct sfw_batch *bat;
 
@@ -1183,7 +1183,7 @@ sfw_add_test(struct srpc_server_rpc *rpc)
 }
 
 static int
-sfw_control_batch(srpc_batch_reqst_t *request, srpc_batch_reply_t *reply)
+sfw_control_batch(struct srpc_batch_reqst *request, struct srpc_batch_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 	int rc = 0;
@@ -1424,7 +1424,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	LASSERT(msg->msg_magic == __swab32(SRPC_MSG_MAGIC));
 
 	if (msg->msg_type == SRPC_MSG_STAT_REQST) {
-		srpc_stat_reqst_t *req = &msg->msg_body.stat_reqst;
+		struct srpc_stat_reqst *req = &msg->msg_body.stat_reqst;
 
 		__swab32s(&req->str_type);
 		__swab64s(&req->str_rpyid);
@@ -1433,7 +1433,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_STAT_REPLY) {
-		srpc_stat_reply_t *rep = &msg->msg_body.stat_reply;
+		struct srpc_stat_reply *rep = &msg->msg_body.stat_reply;
 
 		__swab32s(&rep->str_status);
 		sfw_unpack_sid(rep->str_sid);
@@ -1444,7 +1444,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_MKSN_REQST) {
-		srpc_mksn_reqst_t *req = &msg->msg_body.mksn_reqst;
+		struct srpc_mksn_reqst *req = &msg->msg_body.mksn_reqst;
 
 		__swab64s(&req->mksn_rpyid);
 		__swab32s(&req->mksn_force);
@@ -1453,7 +1453,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_MKSN_REPLY) {
-		srpc_mksn_reply_t *rep = &msg->msg_body.mksn_reply;
+		struct srpc_mksn_reply *rep = &msg->msg_body.mksn_reply;
 
 		__swab32s(&rep->mksn_status);
 		__swab32s(&rep->mksn_timeout);
@@ -1462,7 +1462,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_RMSN_REQST) {
-		srpc_rmsn_reqst_t *req = &msg->msg_body.rmsn_reqst;
+		struct srpc_rmsn_reqst *req = &msg->msg_body.rmsn_reqst;
 
 		__swab64s(&req->rmsn_rpyid);
 		sfw_unpack_sid(req->rmsn_sid);
@@ -1470,7 +1470,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_RMSN_REPLY) {
-		srpc_rmsn_reply_t *rep = &msg->msg_body.rmsn_reply;
+		struct srpc_rmsn_reply *rep = &msg->msg_body.rmsn_reply;
 
 		__swab32s(&rep->rmsn_status);
 		sfw_unpack_sid(rep->rmsn_sid);
@@ -1478,7 +1478,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_DEBUG_REQST) {
-		srpc_debug_reqst_t *req = &msg->msg_body.dbg_reqst;
+		struct srpc_debug_reqst *req = &msg->msg_body.dbg_reqst;
 
 		__swab64s(&req->dbg_rpyid);
 		__swab32s(&req->dbg_flags);
@@ -1487,7 +1487,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_DEBUG_REPLY) {
-		srpc_debug_reply_t *rep = &msg->msg_body.dbg_reply;
+		struct srpc_debug_reply *rep = &msg->msg_body.dbg_reply;
 
 		__swab32s(&rep->dbg_nbatch);
 		__swab32s(&rep->dbg_timeout);
@@ -1496,7 +1496,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_BATCH_REQST) {
-		srpc_batch_reqst_t *req = &msg->msg_body.bat_reqst;
+		struct srpc_batch_reqst *req = &msg->msg_body.bat_reqst;
 
 		__swab32s(&req->bar_opc);
 		__swab64s(&req->bar_rpyid);
@@ -1508,7 +1508,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_BATCH_REPLY) {
-		srpc_batch_reply_t *rep = &msg->msg_body.bat_reply;
+		struct srpc_batch_reply *rep = &msg->msg_body.bat_reply;
 
 		__swab32s(&rep->bar_status);
 		sfw_unpack_sid(rep->bar_sid);
@@ -1516,7 +1516,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_TEST_REQST) {
-		srpc_test_reqst_t *req = &msg->msg_body.tes_reqst;
+		struct srpc_test_reqst *req = &msg->msg_body.tes_reqst;
 
 		__swab64s(&req->tsr_rpyid);
 		__swab64s(&req->tsr_bulkid);
@@ -1530,7 +1530,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_TEST_REPLY) {
-		srpc_test_reply_t *rep = &msg->msg_body.tes_reply;
+		struct srpc_test_reply *rep = &msg->msg_body.tes_reply;
 
 		__swab32s(&rep->tsr_status);
 		sfw_unpack_sid(rep->tsr_sid);
@@ -1538,7 +1538,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_JOIN_REQST) {
-		srpc_join_reqst_t *req = &msg->msg_body.join_reqst;
+		struct srpc_join_reqst *req = &msg->msg_body.join_reqst;
 
 		__swab64s(&req->join_rpyid);
 		sfw_unpack_sid(req->join_sid);
@@ -1546,7 +1546,7 @@ sfw_unpack_message(struct srpc_msg *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_JOIN_REPLY) {
-		srpc_join_reply_t *rep = &msg->msg_body.join_reply;
+		struct srpc_join_reply *rep = &msg->msg_body.join_reply;
 
 		__swab32s(&rep->join_status);
 		__swab32s(&rep->join_timeout);

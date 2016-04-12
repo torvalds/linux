@@ -81,7 +81,7 @@ brw_client_init(struct sfw_test_instance *tsi)
 	LASSERT(tsi->tsi_is_client);
 
 	if (!(sn->sn_features & LST_FEAT_BULK_LEN)) {
-		test_bulk_req_t *breq = &tsi->tsi_u.bulk_v0;
+		struct test_bulk_req *breq = &tsi->tsi_u.bulk_v0;
 
 		opc = breq->blk_opc;
 		flags = breq->blk_flags;
@@ -92,7 +92,7 @@ brw_client_init(struct sfw_test_instance *tsi)
 		 */
 		len = npg * PAGE_SIZE;
 	} else {
-		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
+		struct test_bulk_req_v1 *breq = &tsi->tsi_u.bulk_v1;
 
 		/*
 		 * I should never get this step if it's unknown feature
@@ -261,7 +261,7 @@ brw_client_prep_rpc(struct sfw_test_unit *tsu,
 	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct sfw_session *sn = tsi->tsi_batch->bat_session;
 	struct srpc_client_rpc *rpc;
-	srpc_brw_reqst_t *req;
+	struct srpc_brw_reqst *req;
 	int flags;
 	int npg;
 	int len;
@@ -272,14 +272,14 @@ brw_client_prep_rpc(struct sfw_test_unit *tsu,
 	LASSERT(bulk);
 
 	if (!(sn->sn_features & LST_FEAT_BULK_LEN)) {
-		test_bulk_req_t *breq = &tsi->tsi_u.bulk_v0;
+		struct test_bulk_req *breq = &tsi->tsi_u.bulk_v0;
 
 		opc = breq->blk_opc;
 		flags = breq->blk_flags;
 		npg = breq->blk_npg;
 		len = npg * PAGE_SIZE;
 	} else {
-		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
+		struct test_bulk_req_v1 *breq = &tsi->tsi_u.bulk_v1;
 
 		/*
 		 * I should never get this step if it's unknown feature
@@ -319,8 +319,8 @@ brw_client_done_rpc(struct sfw_test_unit *tsu, struct srpc_client_rpc *rpc)
 	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct sfw_session *sn = tsi->tsi_batch->bat_session;
 	struct srpc_msg *msg = &rpc->crpc_replymsg;
-	srpc_brw_reply_t *reply = &msg->msg_body.brw_reply;
-	srpc_brw_reqst_t *reqst = &rpc->crpc_reqstmsg.msg_body.brw_reqst;
+	struct srpc_brw_reply *reply = &msg->msg_body.brw_reply;
+	struct srpc_brw_reqst *reqst = &rpc->crpc_reqstmsg.msg_body.brw_reqst;
 
 	LASSERT(sn);
 
@@ -382,8 +382,8 @@ static int
 brw_bulk_ready(struct srpc_server_rpc *rpc, int status)
 {
 	__u64 magic = BRW_MAGIC;
-	srpc_brw_reply_t *reply = &rpc->srpc_replymsg.msg_body.brw_reply;
-	srpc_brw_reqst_t *reqst;
+	struct srpc_brw_reply *reply = &rpc->srpc_replymsg.msg_body.brw_reply;
+	struct srpc_brw_reqst *reqst;
 	struct srpc_msg *reqstmsg;
 
 	LASSERT(rpc->srpc_bulk);
@@ -420,8 +420,8 @@ brw_server_handle(struct srpc_server_rpc *rpc)
 	struct srpc_service *sv = rpc->srpc_scd->scd_svc;
 	struct srpc_msg *replymsg = &rpc->srpc_replymsg;
 	struct srpc_msg *reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
-	srpc_brw_reply_t *reply = &replymsg->msg_body.brw_reply;
-	srpc_brw_reqst_t *reqst = &reqstmsg->msg_body.brw_reqst;
+	struct srpc_brw_reply *reply = &replymsg->msg_body.brw_reply;
+	struct srpc_brw_reqst *reqst = &reqstmsg->msg_body.brw_reqst;
 	int npg;
 	int rc;
 

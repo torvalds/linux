@@ -997,7 +997,7 @@ srpc_handle_rpc(struct swi_workitem *wi)
 		LBUG();
 	case SWI_STATE_NEWBORN: {
 		struct srpc_msg *msg;
-		srpc_generic_reply_t *reply;
+		struct srpc_generic_reply *reply;
 
 		msg = &rpc->srpc_reqstbuf->buf_msg;
 		reply = &rpc->srpc_replymsg.msg_body.reply;
@@ -1238,7 +1238,7 @@ srpc_send_rpc(struct swi_workitem *wi)
 		wi->swi_state = SWI_STATE_REQUEST_SENT;
 		/* perhaps more events, fall thru */
 	case SWI_STATE_REQUEST_SENT: {
-		srpc_msg_type_t type = srpc_service2reply(rpc->crpc_service);
+		enum srpc_msg_type type = srpc_service2reply(rpc->crpc_service);
 
 		if (!rpc->crpc_replyev.ev_fired)
 			break;
@@ -1417,7 +1417,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 	struct srpc_buffer *buffer;
 	struct srpc_service *sv;
 	struct srpc_msg *msg;
-	srpc_msg_type_t type;
+	enum srpc_msg_type type;
 
 	LASSERT(!in_interrupt());
 
