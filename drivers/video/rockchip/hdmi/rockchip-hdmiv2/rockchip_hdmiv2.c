@@ -20,8 +20,9 @@
 #include "rockchip_hdmiv2.h"
 #include "rockchip_hdmiv2_hw.h"
 
-#define HDMI_SEL_LCDC(x)	((((x) & 1) << 4) | (1 << 20))
+#define HDMI_SEL_LCDC(x, bit)	((((x) & 1) << bit) | (1 << (16 + bit)))
 #define grf_writel(v, offset)	writel_relaxed(v, RK_GRF_VIRT + offset)
+#define GRF_SOC_CON20 0x6250
 
 static struct hdmi_dev *hdmi_dev;
 
@@ -210,7 +211,8 @@ void ext_pll_set_27m_out(void)
 static int rockchip_hdmiv2_clk_enable(struct hdmi_dev *hdmi_dev)
 {
 	if (hdmi_dev->soctype == HDMI_SOC_RK322X ||
-	    hdmi_dev->soctype == HDMI_SOC_RK3366) {
+	    hdmi_dev->soctype == HDMI_SOC_RK3366 ||
+	    hdmi_dev->soctype == HDMI_SOC_RK3399) {
 		if ((hdmi_dev->clk_on & HDMI_EXT_PHY_CLK_ON) == 0) {
 			if (!hdmi_dev->pclk_phy) {
 				if (hdmi_dev->soctype == HDMI_SOC_RK322X)
@@ -401,6 +403,7 @@ static const struct of_device_id rk_hdmi_dt_ids[] = {
 	{.compatible = "rockchip,rk3288-hdmi",},
 	{.compatible = "rockchip,rk3366-hdmi",},
 	{.compatible = "rockchip,rk3368-hdmi",},
+	{.compatible = "rockchip,rk3399-hdmi",},
 	{}
 };
 
@@ -422,6 +425,8 @@ static int rockchip_hdmiv2_parse_dt(struct hdmi_dev *hdmi_dev)
 		hdmi_dev->soctype = HDMI_SOC_RK322X;
 	} else if (!strcmp(match->compatible, "rockchip,rk3366-hdmi")) {
 		hdmi_dev->soctype = HDMI_SOC_RK3366;
+	} else if (!strcmp(match->compatible, "rockchip,rk3399-hdmi")) {
+		hdmi_dev->soctype = HDMI_SOC_RK3399;
 	} else {
 		pr_err("It is not a valid rockchip soc!");
 		return -ENOMEM;
@@ -558,10 +563,14 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 	}
 	/*lcdc source select*/
 	if (hdmi_dev->soctype == HDMI_SOC_RK3288) {
-		grf_writel(HDMI_SEL_LCDC(rk_hdmi_property.videosrc),
+		grf_writel(HDMI_SEL_LCDC(rk_hdmi_property.videosrc, 4),
 			   RK3288_GRF_SOC_CON6);
 		/* select GPIO7_C0 as cec pin */
 		grf_writel(((1 << 12) | (1 << 28)), RK3288_GRF_SOC_CON8);
+	} else if (hdmi_dev->soctype == HDMI_SOC_RK3399) {
+		regmap_write(hdmi_dev->grf_base,
+			     GRF_SOC_CON20,
+			     HDMI_SEL_LCDC(rk_hdmi_property.videosrc, 6));
 	}
 	rockchip_hdmiv2_dev_init_ops(&rk_hdmi_ops);
 	/* Register HDMI device */
@@ -595,6 +604,19 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 		 */
 	} else if (hdmi_dev->soctype == HDMI_SOC_RK3366) {
 		rk_hdmi_property.feature |=
+				SUPPORT_YCBCR_INPUT |
+				SUPPORT_1080I |
+				SUPPORT_480I_576I;
+		if (rk_hdmi_property.videosrc == DISPLAY_SOURCE_LCDC0)
+			rk_hdmi_property.feature |=
+						SUPPORT_4K |
+						SUPPORT_4K_4096 |
+						SUPPORT_YUV420 |
+						SUPPORT_YCBCR_INPUT |
+						SUPPORT_TMDS_600M;
+	} else if (hdmi_dev->soctype == HDMI_SOC_RK3399) {
+		rk_hdmi_property.feature |=
+				SUPPORT_DEEP_10BIT |
 				SUPPORT_YCBCR_INPUT |
 				SUPPORT_1080I |
 				SUPPORT_480I_576I;

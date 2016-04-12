@@ -377,6 +377,7 @@ enum {
 	HDMI_SOC_RK3288,
 	HDMI_SOC_RK3366,
 	HDMI_SOC_RK3368,
+	HDMI_SOC_RK3399,
 };
 
 /* HDMI Information */

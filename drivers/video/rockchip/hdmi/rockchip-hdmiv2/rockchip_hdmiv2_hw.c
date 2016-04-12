@@ -702,6 +702,8 @@ static int rockchip_hdmiv2_config_phy(struct hdmi_dev *hdmi_dev)
 			clk_set_rate(hdmi_dev->pclk_phy, 148500000);
 		else
 			clk_set_rate(hdmi_dev->pclk_phy, hdmi_dev->pixelclk);
+	} else if (hdmi_dev->soctype == HDMI_SOC_RK3399) {
+		clk_set_rate(hdmi_dev->pclk_phy, hdmi_dev->pixelclk);
 	}
 
 	hdmi_msk_reg(hdmi_dev, PHY_I2CM_DIV,
@@ -1722,6 +1724,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 	int word_length = 0, channel = 0, mclk_fs;
 	unsigned int N = 0, CTS = 0;
 	int rate = 0;
+	char design_id;
 
 	HDMIDBG("%s\n", __func__);
 
@@ -1869,7 +1872,11 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		hdmi_msk_reg(hdmi_dev, AUD_CONF0,
 			     m_SW_AUD_FIFO_RST, v_SW_AUD_FIFO_RST(1));
 		hdmi_writel(hdmi_dev, MC_SWRSTZREQ, 0xF7);
-		hdmi_writel(hdmi_dev, AUD_CONF2, 0x0);
+		design_id = hdmi_readl(hdmi_dev, DESIGN_ID);
+		if (design_id >= 0x21)
+			hdmi_writel(hdmi_dev, AUD_CONF2, 0x4);
+		else
+			hdmi_writel(hdmi_dev, AUD_CONF2, 0x0);
 		usleep_range(90, 100);
 		if (channel == I2S_CHANNEL_7_8) {
 			HDMIDBG("hbr mode.\n");
@@ -1881,7 +1888,10 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 			hdmi_writel(hdmi_dev, AUD_CONF2, 0x2);
 			word_length = I2S_24BIT_SAMPLE;
 		} else {
-			hdmi_writel(hdmi_dev, AUD_CONF2, 0x0);
+			if (design_id >= 0x21)
+				hdmi_writel(hdmi_dev, AUD_CONF2, 0x4);
+			else
+				hdmi_writel(hdmi_dev, AUD_CONF2, 0x0);
 		}
 		hdmi_msk_reg(hdmi_dev, AUD_CONF0,
 			     m_I2S_SEL | m_I2S_IN_EN,
