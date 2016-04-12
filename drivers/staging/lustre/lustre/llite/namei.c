@@ -847,12 +847,6 @@ static int ll_create_nd(struct inode *dir, struct dentry *dentry,
 	return rc;
 }
 
-static inline void ll_get_child_fid(struct dentry *child, struct lu_fid *fid)
-{
-	if (d_really_is_positive(child))
-		*fid = *ll_inode2fid(d_inode(child));
-}
-
 int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 {
 	struct mdt_body *body;
@@ -945,7 +939,9 @@ static int ll_unlink(struct inode *dir, struct dentry *dchild)
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	ll_get_child_fid(dchild, &op_data->op_fid3);
+	if (dchild && dchild->d_inode)
+		op_data->op_fid3 = *ll_inode2fid(dchild->d_inode);
+
 	op_data->op_fid2 = op_data->op_fid3;
 	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
 	ll_finish_md_op_data(op_data);
@@ -995,7 +991,9 @@ static int ll_rmdir(struct inode *dir, struct dentry *dchild)
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	ll_get_child_fid(dchild, &op_data->op_fid3);
+	if (dchild && dchild->d_inode)
+		op_data->op_fid3 = *ll_inode2fid(dchild->d_inode);
+
 	op_data->op_fid2 = op_data->op_fid3;
 	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
 	ll_finish_md_op_data(op_data);
@@ -1076,8 +1074,11 @@ static int ll_rename(struct inode *src, struct dentry *src_dchild,
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	ll_get_child_fid(src_dchild, &op_data->op_fid3);
-	ll_get_child_fid(tgt_dchild, &op_data->op_fid4);
+	if (src_dchild && src_dchild->d_inode)
+		op_data->op_fid3 = *ll_inode2fid(src_dchild->d_inode);
+	if (tgt_dchild && tgt_dchild->d_inode)
+		op_data->op_fid4 = *ll_inode2fid(tgt_dchild->d_inode);
+
 	err = md_rename(sbi->ll_md_exp, op_data,
 			src_dchild->d_name.name,
 			src_dchild->d_name.len,
