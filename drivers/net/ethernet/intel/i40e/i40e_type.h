@@ -550,6 +550,7 @@ struct i40e_hw {
 	struct i40e_aq_desc nvm_wb_desc;
 	struct i40e_virt_mem nvm_buff;
 	bool nvm_release_on_done;
+	u16 nvm_wait_opcode;
 
 	/* HMC info */
 	struct i40e_hmc_info hmc; /* HMC info struct */
