@@ -256,8 +256,10 @@ struct i40evf_adapter {
 	bool netdev_registered;
 	bool link_up;
 	enum i40e_virtchnl_ops current_op;
-#define CLIENT_ENABLED(_a) ((_a)->vf_res->vf_offload_flags & \
-			    I40E_VIRTCHNL_VF_OFFLOAD_IWARP)
+#define CLIENT_ENABLED(_a) ((_a)->vf_res ? \
+			    (_a)->vf_res->vf_offload_flags & \
+				I40E_VIRTCHNL_VF_OFFLOAD_IWARP : \
+			    0)
 #define RSS_AQ(_a) ((_a)->vf_res->vf_offload_flags & \
 		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ)
 #define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_offload_flags & \
