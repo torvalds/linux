@@ -1972,11 +1972,8 @@ void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
 	if (srcdev->missing)
 		fs_devices->missing_devices--;
 
-	if (srcdev->writeable) {
+	if (srcdev->writeable)
 		fs_devices->rw_devices--;
-		/* zero out the old super if it is writable */
-		btrfs_scratch_superblocks(srcdev->bdev, srcdev->name->str);
-	}
 
 	if (srcdev->bdev)
 		fs_devices->open_devices--;
@@ -1987,6 +1984,10 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_fs_devices *fs_devices = srcdev->fs_devices;
 
+	if (srcdev->writeable) {
+		/* zero out the old super if it is writable */
+		btrfs_scratch_superblocks(srcdev->bdev, srcdev->name->str);
+	}
 	call_rcu(&srcdev->rcu, free_device);
 
 	/*
