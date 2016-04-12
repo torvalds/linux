@@ -67,8 +67,6 @@ struct i40e_vsi {
 	u16 rx_itr_setting;
 	u16 tx_itr_setting;
 	u16 qs_handle;
-	u8 *rss_hkey_user; /* User configured hash keys */
-	u8 *rss_lut_user;  /* User configured lookup table entries */
 };
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
@@ -239,8 +237,13 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_CONFIGURE_QUEUES		BIT(6)
 #define I40EVF_FLAG_AQ_MAP_VECTORS		BIT(7)
 #define I40EVF_FLAG_AQ_HANDLE_RESET		BIT(8)
-#define I40EVF_FLAG_AQ_CONFIGURE_RSS		BIT(9)
+#define I40EVF_FLAG_AQ_CONFIGURE_RSS		BIT(9)	/* direct AQ config */
 #define I40EVF_FLAG_AQ_GET_CONFIG		BIT(10)
+/* Newer style, RSS done by the PF so we can ignore hardware vagaries. */
+#define I40EVF_FLAG_AQ_GET_HENA			BIT(11)
+#define I40EVF_FLAG_AQ_SET_HENA			BIT(12)
+#define I40EVF_FLAG_AQ_SET_RSS_KEY		BIT(13)
+#define I40EVF_FLAG_AQ_SET_RSS_LUT		BIT(14)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -260,8 +263,14 @@ struct i40evf_adapter {
 			    (_a)->vf_res->vf_offload_flags & \
 				I40E_VIRTCHNL_VF_OFFLOAD_IWARP : \
 			    0)
+/* RSS by the PF should be preferred over RSS via other methods. */
+#define RSS_PF(_a) ((_a)->vf_res->vf_offload_flags & \
+		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF)
 #define RSS_AQ(_a) ((_a)->vf_res->vf_offload_flags & \
 		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ)
+#define RSS_REG(_a) (!((_a)->vf_res->vf_offload_flags & \
+		       (I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ | \
+			I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF)))
 #define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_offload_flags & \
 			  I40E_VIRTCHNL_VF_OFFLOAD_VLAN)
 	struct i40e_virtchnl_vf_resource *vf_res; /* incl. all VSIs */
@@ -273,6 +282,12 @@ struct i40evf_adapter {
 	struct i40e_eth_stats current_stats;
 	struct i40e_vsi vsi;
 	u32 aq_wait_count;
+	/* RSS stuff */
+	u64 hena;
+	u16 rss_key_size;
+	u16 rss_lut_size;
+	u8 *rss_key;
+	u8 *rss_lut;
 };
 
 
@@ -316,11 +331,12 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter);
 void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags);
 void i40evf_request_stats(struct i40evf_adapter *adapter);
 void i40evf_request_reset(struct i40evf_adapter *adapter);
+void i40evf_get_hena(struct i40evf_adapter *adapter);
+void i40evf_set_hena(struct i40evf_adapter *adapter);
+void i40evf_set_rss_key(struct i40evf_adapter *adapter);
+void i40evf_set_rss_lut(struct i40evf_adapter *adapter);
 void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				enum i40e_virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);
-int i40evf_config_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut,
-		      u16 lut_size);
-int i40evf_get_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut,
-		   u16 lut_size);
+int i40evf_config_rss(struct i40evf_adapter *adapter);
 #endif /* _I40EVF_H_ */
