@@ -355,6 +355,8 @@ int one_qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
  * The calls to qsfp_{read,write} in this function correctly handle the
  * address map difference between this mapping and the mapping implemented
  * by those functions
+ *
+ * The caller must be holding the QSFP i2c chain resource.
  */
 int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 {
@@ -371,12 +373,8 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 
 	if (!qsfp_mod_present(ppd)) {
 		ret = -ENODEV;
-		goto bail_no_release;
+		goto bail;
 	}
-
-	ret = acquire_chip_resource(ppd->dd, qsfp_resource(ppd->dd), QSFP_WAIT);
-	if (ret)
-		goto bail_no_release;
 
 	ret = qsfp_read(ppd, target, 0, cache, QSFP_PAGESIZE);
 	if (ret != QSFP_PAGESIZE) {
@@ -440,8 +438,6 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 		}
 	}
 
-	release_chip_resource(ppd->dd, qsfp_resource(ppd->dd));
-
 	spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
 	ppd->qsfp_info.cache_valid = 1;
 	ppd->qsfp_info.cache_refresh_required = 0;
@@ -450,8 +446,6 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 	return 0;
 
 bail:
-	release_chip_resource(ppd->dd, qsfp_resource(ppd->dd));
-bail_no_release:
 	memset(cache, 0, (QSFP_MAX_NUM_PAGES * 128));
 	return ret;
 }
