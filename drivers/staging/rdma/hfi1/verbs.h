@@ -215,6 +215,7 @@ struct hfi1_pkt_state {
 	struct hfi1_ibport *ibp;
 	struct hfi1_pportdata *ppd;
 	struct verbs_txreq *s_txreq;
+	unsigned long flags;
 };
 
 #define HFI1_PSN_CREDIT  16
