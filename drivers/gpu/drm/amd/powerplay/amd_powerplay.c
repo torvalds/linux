@@ -763,7 +763,7 @@ static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
 }
 
 static int pp_dpm_force_clock_level(void *handle,
-		enum pp_clock_type type, int level)
+		enum pp_clock_type type, uint32_t mask)
 {
 	struct pp_hwmgr *hwmgr;
 
@@ -779,7 +779,7 @@ static int pp_dpm_force_clock_level(void *handle,
 		return 0;
 	}
 
-	return hwmgr->hwmgr_func->force_clock_level(hwmgr, type, level);
+	return hwmgr->hwmgr_func->force_clock_level(hwmgr, type, mask);
 }
 
 static int pp_dpm_print_clock_levels(void *handle,

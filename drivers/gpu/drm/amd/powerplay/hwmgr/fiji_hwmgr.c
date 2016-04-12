@@ -5113,7 +5113,7 @@ static int fiji_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t siz
 }
 
 static int fiji_force_clock_level(struct pp_hwmgr *hwmgr,
-		enum pp_clock_type type, int level)
+		enum pp_clock_type type, uint32_t mask)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 
@@ -5125,20 +5125,30 @@ static int fiji_force_clock_level(struct pp_hwmgr *hwmgr,
 		if (!data->sclk_dpm_key_disabled)
 			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 					PPSMC_MSG_SCLKDPM_SetEnabledMask,
-					(1 << level));
+					data->dpm_level_enable_mask.sclk_dpm_enable_mask & mask);
 		break;
+
 	case PP_MCLK:
 		if (!data->mclk_dpm_key_disabled)
 			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 					PPSMC_MSG_MCLKDPM_SetEnabledMask,
-					(1 << level));
+					data->dpm_level_enable_mask.mclk_dpm_enable_mask & mask);
 		break;
+
 	case PP_PCIE:
+	{
+		uint32_t tmp = mask & data->dpm_level_enable_mask.pcie_dpm_enable_mask;
+		uint32_t level = 0;
+
+		while (tmp >>= 1)
+			level++;
+
 		if (!data->pcie_dpm_key_disabled)
 			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 					PPSMC_MSG_PCIeDPM_ForceLevel,
-					(1 << level));
+					level);
 		break;
+	}
 	default:
 		break;
 	}

@@ -340,7 +340,7 @@ struct amd_powerplay_funcs {
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
-	int (*force_clock_level)(void *handle, enum pp_clock_type type, int level);
+	int (*force_clock_level)(void *handle, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
 };
 

@@ -335,7 +335,7 @@ struct pp_hwmgr_func {
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
 	int (*get_pp_table)(struct pp_hwmgr *hwmgr, char **table);
 	int (*set_pp_table)(struct pp_hwmgr *hwmgr, const char *buf, size_t size);
-	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, int level);
+	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
 	int (*enable_per_cu_power_gating)(struct pp_hwmgr *hwmgr, bool enable);
 };

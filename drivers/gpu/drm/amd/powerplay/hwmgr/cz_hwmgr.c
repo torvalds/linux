@@ -1729,7 +1729,7 @@ static int cz_get_dal_power_level(struct pp_hwmgr *hwmgr,
 }
 
 static int cz_force_clock_level(struct pp_hwmgr *hwmgr,
-		enum pp_clock_type type, int level)
+		enum pp_clock_type type, uint32_t mask)
 {
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
 		return -EINVAL;
@@ -1738,10 +1738,10 @@ static int cz_force_clock_level(struct pp_hwmgr *hwmgr,
 	case PP_SCLK:
 		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 				PPSMC_MSG_SetSclkSoftMin,
-				(1 << level));
+				mask);
 		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 				PPSMC_MSG_SetSclkSoftMax,
-				(1 << level));
+				mask);
 		break;
 	default:
 		break;
