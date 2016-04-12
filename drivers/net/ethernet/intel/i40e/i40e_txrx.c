@@ -1370,7 +1370,8 @@ static void i40e_receive_skb(struct i40e_ring *rx_ring,
 {
 	struct i40e_q_vector *q_vector = rx_ring->q_vector;
 
-	if (vlan_tag & VLAN_VID_MASK)
+	if ((rx_ring->netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
+	    (vlan_tag & VLAN_VID_MASK))
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 
 	napi_gro_receive(&q_vector->napi, skb);
