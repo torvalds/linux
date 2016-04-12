@@ -311,6 +311,12 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 			pipe_config->cpu_transcoder = TRANSCODER_DSI_A;
 	}
 
+	/*
+	 * FIXME move the DSI PLL calc from vlv_enable_dsi_pll()
+	 * to .compute_config().
+	 */
+	pipe_config->clock_set = true;
+
 	return true;
 }
 
@@ -498,8 +504,6 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	enum pipe pipe = intel_crtc->pipe;
 	enum port port;
 	u32 tmp;
 
@@ -521,19 +525,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	msleep(intel_dsi->panel_on_delay);
 
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
-		/*
-		 * Disable DPOunit clock gating, can stall pipe
-		 * and we need DPLL REFA always enabled
-		 */
-		tmp = I915_READ(DPLL(pipe));
-		tmp |= DPLL_REF_CLK_ENABLE_VLV;
-		I915_WRITE(DPLL(pipe), tmp);
-
-		/* update the hw state for DPLL */
-		intel_crtc->config->dpll_hw_state.dpll =
-				DPLL_INTEGRATED_REF_CLK_VLV |
-					DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
-
+		/* Disable DPOunit clock gating, can stall pipe */
 		tmp = I915_READ(DSPCLK_GATE_D);
 		tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
 		I915_WRITE(DSPCLK_GATE_D, tmp);
@@ -831,12 +823,6 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 
 	if (IS_BROXTON(dev))
 		bxt_dsi_get_pipe_config(encoder, pipe_config);
-
-	/*
-	 * DPLL_MD is not used in case of DSI, reading will get some default value
-	 * set dpll_md = 0
-	 */
-	pipe_config->dpll_hw_state.dpll_md = 0;
 
 	pclk = intel_dsi_get_pclk(encoder, pipe_config->pipe_bpp);
 	if (!pclk)
