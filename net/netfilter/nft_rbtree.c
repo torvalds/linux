@@ -29,6 +29,11 @@ struct nft_rbtree_elem {
 	struct nft_set_ext	ext;
 };
 
+static bool nft_rbtree_interval_end(const struct nft_rbtree_elem *rbe)
+{
+	return nft_set_ext_exists(&rbe->ext, NFT_SET_EXT_FLAGS) &&
+	       (*nft_set_ext_flags(&rbe->ext) & NFT_SET_ELEM_INTERVAL_END);
+}
 
 static bool nft_rbtree_lookup(const struct nft_set *set, const u32 *key,
 			      const struct nft_set_ext **ext)
@@ -56,9 +61,7 @@ found:
 				parent = parent->rb_left;
 				continue;
 			}
-			if (nft_set_ext_exists(&rbe->ext, NFT_SET_EXT_FLAGS) &&
-			    *nft_set_ext_flags(&rbe->ext) &
-			    NFT_SET_ELEM_INTERVAL_END)
+			if (nft_rbtree_interval_end(rbe))
 				goto out;
 			spin_unlock_bh(&nft_rbtree_lock);
 
