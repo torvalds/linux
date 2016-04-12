@@ -459,7 +459,7 @@ static void iw_cm_check_wildcard(struct sockaddr_storage *pm_addr,
 	if (pm_addr->ss_family == AF_INET) {
 		struct sockaddr_in *pm4_addr = (struct sockaddr_in *)pm_addr;
 
-		if (pm4_addr->sin_addr.s_addr == INADDR_ANY) {
+		if (pm4_addr->sin_addr.s_addr == htonl(INADDR_ANY)) {
 			struct sockaddr_in *cm4_addr =
 				(struct sockaddr_in *)cm_addr;
 			struct sockaddr_in *cm4_outaddr =
