@@ -3344,6 +3344,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		goto out;
 	}
 
+	err = -1;
+
 	if (trace.trace_pgfaults) {
 		trace.opts.sample_address = true;
 		trace.opts.sample_time = true;
@@ -3366,6 +3368,11 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	    trace.evlist->nr_entries == 0 /* Was --events used? */) {
 		pr_err("Please specify something to trace.\n");
 		return -1;
+	}
+
+	if (!trace.trace_syscalls && ev_qualifier_str) {
+		pr_err("The -e option can't be used with --no-syscalls.\n");
+		goto out;
 	}
 
 	if (output_name != NULL) {
