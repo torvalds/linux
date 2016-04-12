@@ -1868,15 +1868,8 @@ struct amdgpu_atcs {
 /*
  * CGS
  */
-void *amdgpu_cgs_create_device(struct amdgpu_device *adev);
-void amdgpu_cgs_destroy_device(void *cgs_device);
-
-
-/*
- * CGS
- */
-void *amdgpu_cgs_create_device(struct amdgpu_device *adev);
-void amdgpu_cgs_destroy_device(void *cgs_device);
+struct cgs_device *amdgpu_cgs_create_device(struct amdgpu_device *adev);
+void amdgpu_cgs_destroy_device(struct cgs_device *cgs_device);
 
 
 /* GPU virtualization */
