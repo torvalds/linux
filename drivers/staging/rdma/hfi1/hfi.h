@@ -1258,7 +1258,7 @@ void receive_interrupt_work(struct work_struct *work);
 static inline int hdr2sc(struct hfi1_message_header *hdr, u64 rhf)
 {
 	return ((be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf) |
-	       ((!!(rhf & RHF_DC_INFO_MASK)) << 4);
+	       ((!!(rhf & RHF_DC_INFO_SMASK)) << 4);
 }
 
 static inline u16 generate_jkey(kuid_t uid)
