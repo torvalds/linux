@@ -2196,8 +2196,9 @@ signed_print:
 	if (sample->callchain) {
 		struct addr_location al;
 		/* TODO: user-configurable print_opts */
-		const unsigned int print_opts = PRINT_IP_OPT_SYM
-					      | PRINT_IP_OPT_DSO;
+		const unsigned int print_opts = PRINT_IP_OPT_SYM |
+					        PRINT_IP_OPT_DSO |
+					        PRINT_IP_OPT_UNKNOWN_AS_ADDR;
 
 		if (machine__resolve(trace->host, &al, sample) < 0) {
 			pr_err("problem processing %d event, skipping it.\n",
