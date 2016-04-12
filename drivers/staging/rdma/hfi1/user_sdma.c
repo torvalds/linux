@@ -1135,7 +1135,8 @@ retry:
 		ret = hfi1_mmu_rb_insert(&req->pq->sdma_rb_root, &node->rb);
 		if (ret) {
 			spin_lock(&pq->evict_lock);
-			list_del(&node->list);
+			if (!list_empty(&node->list))
+				list_del(&node->list);
 			pq->n_locked -= node->npages;
 			spin_unlock(&pq->evict_lock);
 			ret = 0;
@@ -1558,7 +1559,8 @@ static void sdma_rb_remove(struct rb_root *root, struct mmu_rb_node *mnode,
 		container_of(mnode, struct sdma_mmu_node, rb);
 
 	spin_lock(&node->pq->evict_lock);
-	list_del(&node->list);
+	if (!list_empty(&node->list))
+		list_del(&node->list);
 	node->pq->n_locked -= node->npages;
 	spin_unlock(&node->pq->evict_lock);
 
