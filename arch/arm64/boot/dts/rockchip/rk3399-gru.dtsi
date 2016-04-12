@@ -433,6 +433,12 @@
 		pinctrl-0 = <&pp3300_disp_en>;
 
 		enable-active-high;
+
+		// TODO: for bringup; we should reference (and enable) this
+		// regulator with a panel (?) or backlight (?) driver
+		regulator-always-on;
+		regulator-boot-on;
+
 		gpio = <&gpio4 27 GPIO_ACTIVE_HIGH>;
 
 		vin-supply = <&pp3300>;
