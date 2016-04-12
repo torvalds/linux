@@ -634,6 +634,13 @@ enum forcewake_domains {
 			 FORCEWAKE_MEDIA)
 };
 
+#define FW_REG_READ  (1)
+#define FW_REG_WRITE (2)
+
+enum forcewake_domains
+intel_uncore_forcewake_for_reg(struct drm_i915_private *dev_priv,
+			       i915_reg_t reg, unsigned int op);
+
 struct intel_uncore_funcs {
 	void (*force_wake_get)(struct drm_i915_private *dev_priv,
 							enum forcewake_domains domains);

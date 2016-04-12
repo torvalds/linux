@@ -418,6 +418,7 @@ static void execlists_submit_requests(struct drm_i915_gem_request *rq0,
 				      struct drm_i915_gem_request *rq1)
 {
 	struct drm_i915_private *dev_priv = rq0->i915;
+	unsigned int fw_domains = rq0->engine->fw_domains;
 
 	execlists_update_context(rq0);
 
@@ -425,11 +426,11 @@ static void execlists_submit_requests(struct drm_i915_gem_request *rq0,
 		execlists_update_context(rq1);
 
 	spin_lock_irq(&dev_priv->uncore.lock);
-	intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get__locked(dev_priv, fw_domains);
 
 	execlists_elsp_write(rq0, rq1);
 
-	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put__locked(dev_priv, fw_domains);
 	spin_unlock_irq(&dev_priv->uncore.lock);
 }
 
@@ -552,7 +553,7 @@ static void intel_lrc_irq_handler(unsigned long data)
 	unsigned int csb_read = 0, i;
 	unsigned int submit_contexts = 0;
 
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(dev_priv, engine->fw_domains);
 
 	status_pointer = I915_READ_FW(RING_CONTEXT_STATUS_PTR(engine));
 
@@ -577,7 +578,7 @@ static void intel_lrc_irq_handler(unsigned long data)
 		      _MASKED_FIELD(GEN8_CSB_READ_PTR_MASK,
 				    engine->next_context_status_buffer << 8));
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(dev_priv, engine->fw_domains);
 
 	spin_lock(&engine->execlist_lock);
 
@@ -2089,7 +2090,9 @@ logical_ring_default_irqs(struct intel_engine_cs *engine, unsigned shift)
 static int
 logical_ring_init(struct drm_device *dev, struct intel_engine_cs *engine)
 {
-	struct intel_context *dctx = to_i915(dev)->kernel_context;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_context *dctx = dev_priv->kernel_context;
+	enum forcewake_domains fw_domains;
 	int ret;
 
 	/* Intentionally left blank. */
@@ -2110,6 +2113,20 @@ logical_ring_init(struct drm_device *dev, struct intel_engine_cs *engine)
 		     intel_lrc_irq_handler, (unsigned long)engine);
 
 	logical_ring_init_platform_invariants(engine);
+
+	fw_domains = intel_uncore_forcewake_for_reg(dev_priv,
+						    RING_ELSP(engine),
+						    FW_REG_WRITE);
+
+	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+						     RING_CONTEXT_STATUS_PTR(engine),
+						     FW_REG_READ | FW_REG_WRITE);
+
+	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+						     RING_CONTEXT_STATUS_BUF_BASE(engine),
+						     FW_REG_READ);
+
+	engine->fw_domains = fw_domains;
 
 	ret = i915_cmd_parser_init_ring(engine);
 	if (ret)

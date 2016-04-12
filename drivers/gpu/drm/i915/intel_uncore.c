@@ -1772,3 +1772,111 @@ intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv)
 
 	return false;
 }
+
+static enum forcewake_domains
+intel_uncore_forcewake_for_read(struct drm_i915_private *dev_priv,
+				i915_reg_t reg)
+{
+	enum forcewake_domains fw_domains;
+
+	if (intel_vgpu_active(dev_priv->dev))
+		return 0;
+
+	switch (INTEL_INFO(dev_priv)->gen) {
+	case 9:
+		fw_domains = __gen9_reg_read_fw_domains(i915_mmio_reg_offset(reg));
+		break;
+	case 8:
+		if (IS_CHERRYVIEW(dev_priv))
+			fw_domains = __chv_reg_read_fw_domains(i915_mmio_reg_offset(reg));
+		else
+			fw_domains = __gen6_reg_read_fw_domains(i915_mmio_reg_offset(reg));
+		break;
+	case 7:
+	case 6:
+		if (IS_VALLEYVIEW(dev_priv))
+			fw_domains = __vlv_reg_read_fw_domains(i915_mmio_reg_offset(reg));
+		else
+			fw_domains = __gen6_reg_read_fw_domains(i915_mmio_reg_offset(reg));
+		break;
+	default:
+		MISSING_CASE(INTEL_INFO(dev_priv)->gen);
+	case 5: /* forcewake was introduced with gen6 */
+	case 4:
+	case 3:
+	case 2:
+		return 0;
+	}
+
+	WARN_ON(fw_domains & ~dev_priv->uncore.fw_domains);
+
+	return fw_domains;
+}
+
+static enum forcewake_domains
+intel_uncore_forcewake_for_write(struct drm_i915_private *dev_priv,
+				 i915_reg_t reg)
+{
+	enum forcewake_domains fw_domains;
+
+	if (intel_vgpu_active(dev_priv->dev))
+		return 0;
+
+	switch (INTEL_INFO(dev_priv)->gen) {
+	case 9:
+		fw_domains = __gen9_reg_write_fw_domains(i915_mmio_reg_offset(reg));
+		break;
+	case 8:
+		if (IS_CHERRYVIEW(dev_priv))
+			fw_domains = __chv_reg_write_fw_domains(i915_mmio_reg_offset(reg));
+		else
+			fw_domains = __gen8_reg_write_fw_domains(i915_mmio_reg_offset(reg));
+		break;
+	case 7:
+	case 6:
+		fw_domains = FORCEWAKE_RENDER;
+		break;
+	default:
+		MISSING_CASE(INTEL_INFO(dev_priv)->gen);
+	case 5:
+	case 4:
+	case 3:
+	case 2:
+		return 0;
+	}
+
+	WARN_ON(fw_domains & ~dev_priv->uncore.fw_domains);
+
+	return fw_domains;
+}
+
+/**
+ * intel_uncore_forcewake_for_reg - which forcewake domains are needed to access
+ * 				    a register
+ * @dev_priv: pointer to struct drm_i915_private
+ * @reg: register in question
+ * @op: operation bitmask of FW_REG_READ and/or FW_REG_WRITE
+ *
+ * Returns a set of forcewake domains required to be taken with for example
+ * intel_uncore_forcewake_get for the specified register to be accessible in the
+ * specified mode (read, write or read/write) with raw mmio accessors.
+ *
+ * NOTE: On Gen6 and Gen7 write forcewake domain (FORCEWAKE_RENDER) requires the
+ * callers to do FIFO management on their own or risk losing writes.
+ */
+enum forcewake_domains
+intel_uncore_forcewake_for_reg(struct drm_i915_private *dev_priv,
+			       i915_reg_t reg, unsigned int op)
+{
+	enum forcewake_domains fw_domains = 0;
+
+	WARN_ON(!op);
+
+	if (op & FW_REG_READ)
+		fw_domains = intel_uncore_forcewake_for_read(dev_priv, reg);
+
+	if (op & FW_REG_WRITE)
+		fw_domains |= intel_uncore_forcewake_for_write(dev_priv, reg);
+
+	return fw_domains;
+}
