@@ -29,7 +29,7 @@ Required properties :
 
 Example :
 
-	soctherm@0,700e2000 {
+	soctherm@700e2000 {
 		compatible = "nvidia,tegra124-soctherm";
 		reg = <0x0 0x700e2000 0x0 0x1000>;
 		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;

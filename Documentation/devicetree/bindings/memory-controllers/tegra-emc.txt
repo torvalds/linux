@@ -190,7 +190,7 @@ be specified, according to the board documentation:
 Example SoC include file:
 
 / {
-	emc@0,7001b000 {
+	emc@7001b000 {
 		compatible = "nvidia,tegra124-emc";
 		reg = <0x0 0x7001b000 0x0 0x1000>;
 
@@ -201,7 +201,7 @@ Example SoC include file:
 Example board file:
 
 / {
-	emc@0,7001b000 {
+	emc@7001b000 {
 		emc-timings-3 {
 			nvidia,ram-code = <3>;
 

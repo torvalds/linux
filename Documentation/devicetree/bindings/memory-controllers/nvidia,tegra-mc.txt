@@ -61,7 +61,7 @@ specified, according to the board documentation:
 Example SoC include file:
 
 / {
-	mc: memory-controller@0,70019000 {
+	mc: memory-controller@70019000 {
 		compatible = "nvidia,tegra124-mc";
 		reg = <0x0 0x70019000 0x0 0x1000>;
 		clocks = <&tegra_car TEGRA124_CLK_MC>;
@@ -72,7 +72,7 @@ Example SoC include file:
 		#iommu-cells = <1>;
 	};
 
-	sdhci@0,700b0000 {
+	sdhci@700b0000 {
 		compatible = "nvidia,tegra124-sdhci";
 		...
 		iommus = <&mc TEGRA_SWGROUP_SDMMC1A>;
@@ -82,7 +82,7 @@ Example SoC include file:
 Example board file:
 
 / {
-	memory-controller@0,70019000 {
+	memory-controller@70019000 {
 		emc-timings-3 {
 			nvidia,ram-code = <3>;
 
