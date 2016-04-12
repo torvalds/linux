@@ -299,7 +299,8 @@ static int defer_packet_queue(
 static void activate_packet_queue(struct iowait *, int);
 static bool sdma_rb_filter(struct mmu_rb_node *, unsigned long, unsigned long);
 static int sdma_rb_insert(struct rb_root *, struct mmu_rb_node *);
-static void sdma_rb_remove(struct rb_root *, struct mmu_rb_node *, bool);
+static void sdma_rb_remove(struct rb_root *, struct mmu_rb_node *,
+			   struct mm_struct *);
 static int sdma_rb_invalidate(struct rb_root *, struct mmu_rb_node *);
 
 static struct mmu_rb_ops sdma_rb_ops = {
@@ -1063,8 +1064,10 @@ static int pin_vector_pages(struct user_sdma_request *req,
 	rb_node = hfi1_mmu_rb_search(&pq->sdma_rb_root,
 				     (unsigned long)iovec->iov.iov_base,
 				     iovec->iov.iov_len);
-	if (rb_node)
+	if (rb_node && !IS_ERR(rb_node))
 		node = container_of(rb_node, struct sdma_mmu_node, rb);
+	else
+		rb_node = NULL;
 
 	if (!node) {
 		node = kzalloc(sizeof(*node), GFP_KERNEL);
@@ -1502,7 +1505,7 @@ static void user_sdma_free_request(struct user_sdma_request *req, bool unpin)
 				&req->pq->sdma_rb_root,
 				(unsigned long)req->iovs[i].iov.iov_base,
 				req->iovs[i].iov.iov_len);
-			if (!mnode)
+			if (!mnode || IS_ERR(mnode))
 				continue;
 
 			node = container_of(mnode, struct sdma_mmu_node, rb);
@@ -1547,7 +1550,7 @@ static int sdma_rb_insert(struct rb_root *root, struct mmu_rb_node *mnode)
 }
 
 static void sdma_rb_remove(struct rb_root *root, struct mmu_rb_node *mnode,
-			   bool notifier)
+			   struct mm_struct *mm)
 {
 	struct sdma_mmu_node *node =
 		container_of(mnode, struct sdma_mmu_node, rb);
@@ -1557,14 +1560,19 @@ static void sdma_rb_remove(struct rb_root *root, struct mmu_rb_node *mnode,
 	node->pq->n_locked -= node->npages;
 	spin_unlock(&node->pq->evict_lock);
 
-	unpin_vector_pages(notifier ? NULL : current->mm, node->pages,
-			   node->npages);
+	/*
+	 * If mm is set, we are being called by the MMU notifier and we
+	 * should not pass a mm_struct to unpin_vector_page(). This is to
+	 * prevent a deadlock when hfi1_release_user_pages() attempts to
+	 * take the mmap_sem, which the MMU notifier has already taken.
+	 */
+	unpin_vector_pages(mm ? NULL : current->mm, node->pages, node->npages);
 	/*
 	 * If called by the MMU notifier, we have to adjust the pinned
 	 * page count ourselves.
 	 */
-	if (notifier)
-		current->mm->pinned_vm -= node->npages;
+	if (mm)
+		mm->pinned_vm -= node->npages;
 	kfree(node);
 }
 
