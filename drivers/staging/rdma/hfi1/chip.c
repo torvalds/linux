@@ -13429,6 +13429,21 @@ struct rsm_map_table {
 	unsigned int used;
 };
 
+struct rsm_rule_data {
+	u8 offset;
+	u8 pkt_type;
+	u32 field1_off;
+	u32 field2_off;
+	u32 index1_off;
+	u32 index1_width;
+	u32 index2_off;
+	u32 index2_width;
+	u32 mask1;
+	u32 value1;
+	u32 mask2;
+	u32 value2;
+};
+
 /*
  * Return an initialized RMT map table for users to fill in.  OK if it
  * returns NULL, indicating no table.
@@ -13464,6 +13479,30 @@ static void complete_rsm_map_table(struct hfi1_devdata *dd,
 		/* enable RSM */
 		add_rcvctrl(dd, RCV_CTRL_RCV_RSM_ENABLE_SMASK);
 	}
+}
+
+/*
+ * Add a receive side mapping rule.
+ */
+static void add_rsm_rule(struct hfi1_devdata *dd, u8 rule_index,
+			 struct rsm_rule_data *rrd)
+{
+	write_csr(dd, RCV_RSM_CFG + (8 * rule_index),
+		  (u64)rrd->offset << RCV_RSM_CFG_OFFSET_SHIFT |
+		  1ull << rule_index | /* enable bit */
+		  (u64)rrd->pkt_type << RCV_RSM_CFG_PACKET_TYPE_SHIFT);
+	write_csr(dd, RCV_RSM_SELECT + (8 * rule_index),
+		  (u64)rrd->field1_off << RCV_RSM_SELECT_FIELD1_OFFSET_SHIFT |
+		  (u64)rrd->field2_off << RCV_RSM_SELECT_FIELD2_OFFSET_SHIFT |
+		  (u64)rrd->index1_off << RCV_RSM_SELECT_INDEX1_OFFSET_SHIFT |
+		  (u64)rrd->index1_width << RCV_RSM_SELECT_INDEX1_WIDTH_SHIFT |
+		  (u64)rrd->index2_off << RCV_RSM_SELECT_INDEX2_OFFSET_SHIFT |
+		  (u64)rrd->index2_width << RCV_RSM_SELECT_INDEX2_WIDTH_SHIFT);
+	write_csr(dd, RCV_RSM_MATCH + (8 * rule_index),
+		  (u64)rrd->mask1 << RCV_RSM_MATCH_MASK1_SHIFT |
+		  (u64)rrd->value1 << RCV_RSM_MATCH_VALUE1_SHIFT |
+		  (u64)rrd->mask2 << RCV_RSM_MATCH_MASK2_SHIFT |
+		  (u64)rrd->value2 << RCV_RSM_MATCH_VALUE2_SHIFT);
 }
 
 /* return the number of RSM map table entries that will be used for QOS */
@@ -13526,6 +13565,7 @@ no_qos:
  */
 static void init_qos(struct hfi1_devdata *dd, struct rsm_map_table *rmt)
 {
+	struct rsm_rule_data rrd;
 	unsigned qpns_per_vl, ctxt, i, qpn, n = 1, m;
 	unsigned int rmt_entries;
 	u64 reg;
@@ -13565,24 +13605,23 @@ static void init_qos(struct hfi1_devdata *dd, struct rsm_map_table *rmt)
 		}
 		ctxt += krcvqs[i];
 	}
-	/* add rule0 */
-	write_csr(dd, RCV_RSM_CFG /* + (8 * 0) */,
-		  (u64)rmt->used << RCV_RSM_CFG_OFFSET_SHIFT |
-		  RCV_RSM_CFG_ENABLE_OR_CHAIN_RSM0_MASK <<
-			RCV_RSM_CFG_ENABLE_OR_CHAIN_RSM0_SHIFT |
-		  2ull << RCV_RSM_CFG_PACKET_TYPE_SHIFT);
-	write_csr(dd, RCV_RSM_SELECT /* + (8 * 0) */,
-		  LRH_BTH_MATCH_OFFSET << RCV_RSM_SELECT_FIELD1_OFFSET_SHIFT |
-		  LRH_SC_MATCH_OFFSET << RCV_RSM_SELECT_FIELD2_OFFSET_SHIFT |
-		  LRH_SC_SELECT_OFFSET << RCV_RSM_SELECT_INDEX1_OFFSET_SHIFT |
-		  ((u64)n) << RCV_RSM_SELECT_INDEX1_WIDTH_SHIFT |
-		  QPN_SELECT_OFFSET << RCV_RSM_SELECT_INDEX2_OFFSET_SHIFT |
-		  ((u64)m + (u64)n) << RCV_RSM_SELECT_INDEX2_WIDTH_SHIFT);
-	write_csr(dd, RCV_RSM_MATCH /* + (8 * 0) */,
-		  LRH_BTH_MASK << RCV_RSM_MATCH_MASK1_SHIFT |
-		  LRH_BTH_VALUE << RCV_RSM_MATCH_VALUE1_SHIFT |
-		  LRH_SC_MASK << RCV_RSM_MATCH_MASK2_SHIFT |
-		  LRH_SC_VALUE << RCV_RSM_MATCH_VALUE2_SHIFT);
+
+	rrd.offset = rmt->used;
+	rrd.pkt_type = 2;
+	rrd.field1_off = LRH_BTH_MATCH_OFFSET;
+	rrd.field2_off = LRH_SC_MATCH_OFFSET;
+	rrd.index1_off = LRH_SC_SELECT_OFFSET;
+	rrd.index1_width = n;
+	rrd.index2_off = QPN_SELECT_OFFSET;
+	rrd.index2_width = m + n;
+	rrd.mask1 = LRH_BTH_MASK;
+	rrd.value1 = LRH_BTH_VALUE;
+	rrd.mask2 = LRH_SC_MASK;
+	rrd.value2 = LRH_SC_VALUE;
+
+	/* add rule 0 */
+	add_rsm_rule(dd, 0, &rrd);
+
 	/* mark RSM map entries as used */
 	rmt->used += rmt_entries;
 	/* map everything else to the mcast/err/vl15 context */
