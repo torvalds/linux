@@ -342,7 +342,7 @@ void i915_gem_context_reset(struct drm_device *dev)
 		struct intel_context *ctx;
 
 		list_for_each_entry(ctx, &dev_priv->context_list, link)
-			intel_lr_context_reset(dev, ctx);
+			intel_lr_context_reset(dev_priv, ctx);
 	}
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {

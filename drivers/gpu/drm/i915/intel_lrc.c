@@ -1091,8 +1091,8 @@ static int intel_lr_context_do_pin(struct intel_context *ctx,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *ctx_obj = ctx->engine[engine->id].state;
 	struct intel_ringbuffer *ringbuf = ctx->engine[engine->id].ringbuf;
-	struct page *lrc_state_page;
-	uint32_t *lrc_reg_state;
+	void *vaddr;
+	u32 *lrc_reg_state;
 	int ret;
 
 	WARN_ON(!mutex_is_locked(&engine->dev->struct_mutex));
@@ -1102,19 +1102,20 @@ static int intel_lr_context_do_pin(struct intel_context *ctx,
 	if (ret)
 		return ret;
 
-	lrc_state_page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
-	if (WARN_ON(!lrc_state_page)) {
-		ret = -ENODEV;
+	vaddr = i915_gem_object_pin_map(ctx_obj);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
 		goto unpin_ctx_obj;
 	}
 
+	lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
+
 	ret = intel_pin_and_map_ringbuffer_obj(engine->dev, ringbuf);
 	if (ret)
-		goto unpin_ctx_obj;
+		goto unpin_map;
 
 	ctx->engine[engine->id].lrc_vma = i915_gem_obj_to_ggtt(ctx_obj);
 	intel_lr_context_descriptor_update(ctx, engine);
-	lrc_reg_state = kmap(lrc_state_page);
 	lrc_reg_state[CTX_RING_BUFFER_START+1] = ringbuf->vma->node.start;
 	ctx->engine[engine->id].lrc_reg_state = lrc_reg_state;
 	ctx_obj->dirty = true;
@@ -1125,6 +1126,8 @@ static int intel_lr_context_do_pin(struct intel_context *ctx,
 
 	return ret;
 
+unpin_map:
+	i915_gem_object_unpin_map(ctx_obj);
 unpin_ctx_obj:
 	i915_gem_object_ggtt_unpin(ctx_obj);
 
@@ -1157,7 +1160,7 @@ void intel_lr_context_unpin(struct intel_context *ctx,
 
 	WARN_ON(!mutex_is_locked(&ctx->i915->dev->struct_mutex));
 	if (--ctx->engine[engine->id].pin_count == 0) {
-		kunmap(kmap_to_page(ctx->engine[engine->id].lrc_reg_state));
+		i915_gem_object_unpin_map(ctx_obj);
 		intel_unpin_ringbuffer_obj(ctx->engine[engine->id].ringbuf);
 		i915_gem_object_ggtt_unpin(ctx_obj);
 		ctx->engine[engine->id].lrc_vma = NULL;
@@ -2054,7 +2057,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 	i915_gem_batch_pool_fini(&engine->batch_pool);
 
 	if (engine->status_page.obj) {
-		kunmap(sg_page(engine->status_page.obj->pages->sgl));
+		i915_gem_object_unpin_map(engine->status_page.obj);
 		engine->status_page.obj = NULL;
 	}
 
@@ -2092,18 +2095,22 @@ logical_ring_default_irqs(struct intel_engine_cs *engine, unsigned shift)
 	engine->irq_keep_mask = GT_CONTEXT_SWITCH_INTERRUPT << shift;
 }
 
-static void
+static int
 lrc_setup_hws(struct intel_engine_cs *engine,
 	      struct drm_i915_gem_object *dctx_obj)
 {
-	struct page *page;
+	void *hws;
 
 	/* The HWSP is part of the default context object in LRC mode. */
 	engine->status_page.gfx_addr = i915_gem_obj_ggtt_offset(dctx_obj) +
 				       LRC_PPHWSP_PN * PAGE_SIZE;
-	page = i915_gem_object_get_page(dctx_obj, LRC_PPHWSP_PN);
-	engine->status_page.page_addr = kmap(page);
+	hws = i915_gem_object_pin_map(dctx_obj);
+	if (IS_ERR(hws))
+		return PTR_ERR(hws);
+	engine->status_page.page_addr = hws + LRC_PPHWSP_PN * PAGE_SIZE;
 	engine->status_page.obj = dctx_obj;
+
+	return 0;
 }
 
 static int
@@ -2165,7 +2172,11 @@ logical_ring_init(struct drm_device *dev, struct intel_engine_cs *engine)
 	}
 
 	/* And setup the hardware status page. */
-	lrc_setup_hws(engine, dctx->engine[engine->id].state);
+	ret = lrc_setup_hws(engine, dctx->engine[engine->id].state);
+	if (ret) {
+		DRM_ERROR("Failed to set up hws %s: %d\n", engine->name, ret);
+		goto error;
+	}
 
 	return 0;
 
@@ -2417,15 +2428,16 @@ static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
 }
 
 static int
-populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_obj,
+populate_lr_context(struct intel_context *ctx,
+		    struct drm_i915_gem_object *ctx_obj,
 		    struct intel_engine_cs *engine,
 		    struct intel_ringbuffer *ringbuf)
 {
 	struct drm_device *dev = engine->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
-	struct page *page;
-	uint32_t *reg_state;
+	void *vaddr;
+	u32 *reg_state;
 	int ret;
 
 	if (!ppgtt)
@@ -2437,18 +2449,17 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 		return ret;
 	}
 
-	ret = i915_gem_object_get_pages(ctx_obj);
-	if (ret) {
-		DRM_DEBUG_DRIVER("Could not get object pages\n");
+	vaddr = i915_gem_object_pin_map(ctx_obj);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
+		DRM_DEBUG_DRIVER("Could not map object pages! (%d)\n", ret);
 		return ret;
 	}
-
-	i915_gem_object_pin_pages(ctx_obj);
+	ctx_obj->dirty = true;
 
 	/* The second page of the context object contains some fields which must
 	 * be set up prior to the first execution. */
-	page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
-	reg_state = kmap_atomic(page);
+	reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 
 	/* A context is actually a big batch buffer with several MI_LOAD_REGISTER_IMM
 	 * commands followed by (reg, value) pairs. The values we are setting here are
@@ -2553,8 +2564,7 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 			       make_rpcs(dev));
 	}
 
-	kunmap_atomic(reg_state);
-	i915_gem_object_unpin_pages(ctx_obj);
+	i915_gem_object_unpin_map(ctx_obj);
 
 	return 0;
 }
@@ -2581,6 +2591,7 @@ void intel_lr_context_free(struct intel_context *ctx)
 		if (ctx == ctx->i915->kernel_context) {
 			intel_unpin_ringbuffer_obj(ringbuf);
 			i915_gem_object_ggtt_unpin(ctx_obj);
+			i915_gem_object_unpin_map(ctx_obj);
 		}
 
 		WARN_ON(ctx->engine[i].pin_count);
@@ -2709,10 +2720,9 @@ error_deref_obj:
 	return ret;
 }
 
-void intel_lr_context_reset(struct drm_device *dev,
-			struct intel_context *ctx)
+void intel_lr_context_reset(struct drm_i915_private *dev_priv,
+			    struct intel_context *ctx)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
 
 	for_each_engine(engine, dev_priv) {
@@ -2720,23 +2730,23 @@ void intel_lr_context_reset(struct drm_device *dev,
 				ctx->engine[engine->id].state;
 		struct intel_ringbuffer *ringbuf =
 				ctx->engine[engine->id].ringbuf;
+		void *vaddr;
 		uint32_t *reg_state;
-		struct page *page;
 
 		if (!ctx_obj)
 			continue;
 
-		if (i915_gem_object_get_pages(ctx_obj)) {
-			WARN(1, "Failed get_pages for context obj\n");
+		vaddr = i915_gem_object_pin_map(ctx_obj);
+		if (WARN_ON(IS_ERR(vaddr)))
 			continue;
-		}
-		page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
-		reg_state = kmap_atomic(page);
+
+		reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
+		ctx_obj->dirty = true;
 
 		reg_state[CTX_RING_HEAD+1] = 0;
 		reg_state[CTX_RING_TAIL+1] = 0;
 
-		kunmap_atomic(reg_state);
+		i915_gem_object_unpin_map(ctx_obj);
 
 		ringbuf->head = 0;
 		ringbuf->tail = 0;

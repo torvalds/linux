@@ -104,8 +104,11 @@ int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 				    struct intel_engine_cs *engine);
 void intel_lr_context_unpin(struct intel_context *ctx,
 			    struct intel_engine_cs *engine);
-void intel_lr_context_reset(struct drm_device *dev,
-			struct intel_context *ctx);
+
+struct drm_i915_private;
+
+void intel_lr_context_reset(struct drm_i915_private *dev_priv,
+			    struct intel_context *ctx);
 uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
 				     struct intel_engine_cs *engine);
 
