@@ -1966,6 +1966,7 @@ int perf_evsel__fprintf_callchain(struct perf_evsel *evsel, struct perf_sample *
 	int print_symoffset = print_opts & PRINT_IP_OPT_SYMOFFSET;
 	int print_oneline = print_opts & PRINT_IP_OPT_ONELINE;
 	int print_srcline = print_opts & PRINT_IP_OPT_SRCLINE;
+	int print_unknown_as_addr = print_opts & PRINT_IP_OPT_UNKNOWN_AS_ADDR;
 	char s = print_oneline ? ' ' : '\t';
 
 	if (sample->callchain) {
@@ -2003,12 +2004,16 @@ int perf_evsel__fprintf_callchain(struct perf_evsel *evsel, struct perf_sample *
 
 			if (print_sym) {
 				printed += fprintf(fp, " ");
+				node_al.addr = addr;
+				node_al.map  = node->map;
+
 				if (print_symoffset) {
-					node_al.addr = addr;
-					node_al.map  = node->map;
-					printed += symbol__fprintf_symname_offs(node->sym, &node_al, fp);
-				} else
-					printed += symbol__fprintf_symname(node->sym, fp);
+					printed += __symbol__fprintf_symname_offs(node->sym, &node_al,
+										  print_unknown_as_addr, fp);
+				} else {
+					printed += __symbol__fprintf_symname(node->sym, &node_al,
+									     print_unknown_as_addr, fp);
+				}
 			}
 
 			if (print_dso) {
@@ -2043,6 +2048,7 @@ int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample
 	int print_dso = print_opts & PRINT_IP_OPT_DSO;
 	int print_symoffset = print_opts & PRINT_IP_OPT_SYMOFFSET;
 	int print_srcline = print_opts & PRINT_IP_OPT_SRCLINE;
+	int print_unknown_as_addr = print_opts & PRINT_IP_OPT_UNKNOWN_AS_ADDR;
 
 	if (symbol_conf.use_callchain && sample->callchain) {
 		printed += perf_evsel__fprintf_callchain(evsel, sample, al, left_alignment,
@@ -2055,10 +2061,13 @@ int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample
 
 		if (print_sym) {
 			printed += fprintf(fp, " ");
-			if (print_symoffset)
-				printed += symbol__fprintf_symname_offs(al->sym, al, fp);
-			else
-				printed += symbol__fprintf_symname(al->sym, fp);
+			if (print_symoffset) {
+				printed += __symbol__fprintf_symname_offs(al->sym, al,
+									  print_unknown_as_addr, fp);
+			} else {
+				printed += __symbol__fprintf_symname(al->sym, al,
+								     print_unknown_as_addr, fp);
+			}
 		}
 
 		if (print_dso) {

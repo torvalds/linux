@@ -42,6 +42,7 @@ struct perf_session {
 #define PRINT_IP_OPT_SYMOFFSET	(1<<3)
 #define PRINT_IP_OPT_ONELINE	(1<<4)
 #define PRINT_IP_OPT_SRCLINE	(1<<5)
+#define PRINT_IP_OPT_UNKNOWN_AS_ADDR (1<<6)
 
 struct perf_tool;
 
