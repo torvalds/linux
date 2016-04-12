@@ -197,9 +197,9 @@ static void rt73usb_brightness_set(struct led_classdev *led_cdev,
 	   container_of(led_cdev, struct rt2x00_led, led_dev);
 	unsigned int enabled = brightness != LED_OFF;
 	unsigned int a_mode =
-	    (enabled && led->rt2x00dev->curr_band == IEEE80211_BAND_5GHZ);
+	    (enabled && led->rt2x00dev->curr_band == NL80211_BAND_5GHZ);
 	unsigned int bg_mode =
-	    (enabled && led->rt2x00dev->curr_band == IEEE80211_BAND_2GHZ);
+	    (enabled && led->rt2x00dev->curr_band == NL80211_BAND_2GHZ);
 
 	if (led->type == LED_TYPE_RADIO) {
 		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
@@ -593,13 +593,13 @@ static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 2);
 		temp = !rt2x00_has_cap_frame_type(rt2x00dev) &&
-		       (rt2x00dev->curr_band != IEEE80211_BAND_5GHZ);
+		       (rt2x00dev->curr_band != NL80211_BAND_5GHZ);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, temp);
 		break;
 	case ANTENNA_A:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, 0);
-		if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ)
+		if (rt2x00dev->curr_band == NL80211_BAND_5GHZ)
 			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
 		else
 			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
@@ -608,7 +608,7 @@ static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	default:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, 0);
-		if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ)
+		if (rt2x00dev->curr_band == NL80211_BAND_5GHZ)
 			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
 		else
 			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
@@ -704,7 +704,7 @@ static void rt73usb_config_ant(struct rt2x00_dev *rt2x00dev,
 	BUG_ON(ant->rx == ANTENNA_SW_DIVERSITY ||
 	       ant->tx == ANTENNA_SW_DIVERSITY);
 
-	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
+	if (rt2x00dev->curr_band == NL80211_BAND_5GHZ) {
 		sel = antenna_sel_a;
 		lna = rt2x00_has_cap_external_lna_a(rt2x00dev);
 	} else {
@@ -718,9 +718,9 @@ static void rt73usb_config_ant(struct rt2x00_dev *rt2x00dev,
 	rt2x00usb_register_read(rt2x00dev, PHY_CSR0, &reg);
 
 	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_BG,
-			   (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ));
+			   (rt2x00dev->curr_band == NL80211_BAND_2GHZ));
 	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_A,
-			   (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ));
+			   (rt2x00dev->curr_band == NL80211_BAND_5GHZ));
 
 	rt2x00usb_register_write(rt2x00dev, PHY_CSR0, reg);
 
@@ -736,7 +736,7 @@ static void rt73usb_config_lna_gain(struct rt2x00_dev *rt2x00dev,
 	u16 eeprom;
 	short lna_gain = 0;
 
-	if (libconf->conf->chandef.chan->band == IEEE80211_BAND_2GHZ) {
+	if (libconf->conf->chandef.chan->band == NL80211_BAND_2GHZ) {
 		if (rt2x00_has_cap_external_lna_bg(rt2x00dev))
 			lna_gain += 14;
 
@@ -923,7 +923,7 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Determine r17 bounds.
 	 */
-	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
+	if (rt2x00dev->curr_band == NL80211_BAND_5GHZ) {
 		low_bound = 0x28;
 		up_bound = 0x48;
 
@@ -1657,7 +1657,7 @@ static int rt73usb_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxd_w1)
 		return 0;
 	}
 
-	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
+	if (rt2x00dev->curr_band == NL80211_BAND_5GHZ) {
 		if (rt2x00_has_cap_external_lna_a(rt2x00dev)) {
 			if (lna == 3 || lna == 2)
 				offset += 10;

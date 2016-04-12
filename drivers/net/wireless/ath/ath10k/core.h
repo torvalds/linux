@@ -765,7 +765,7 @@ struct ath10k {
 	} scan;
 
 	struct {
-		struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
+		struct ieee80211_supported_band sbands[NUM_NL80211_BANDS];
 	} mac;
 
 	/* should never be NULL; needed for regular htt rx */

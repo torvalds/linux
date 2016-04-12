@@ -128,9 +128,9 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 
 	if (!setup->chandef.chan) {
 		/* if we don't have that either, use the first usable channel */
-		enum ieee80211_band band;
+		enum nl80211_band band;
 
-		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		for (band = 0; band < NUM_NL80211_BANDS; band++) {
 			struct ieee80211_supported_band *sband;
 			struct ieee80211_channel *chan;
 			int i;

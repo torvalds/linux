@@ -724,9 +724,9 @@ static ssize_t iwl_dbgfs_tof_responder_params_write(struct ieee80211_vif *vif,
 
 		ret = kstrtou32(data, 10, &value);
 		if (ret == 0 && value) {
-			enum ieee80211_band band = (cmd->channel_num <= 14) ?
-						   IEEE80211_BAND_2GHZ :
-						   IEEE80211_BAND_5GHZ;
+			enum nl80211_band band = (cmd->channel_num <= 14) ?
+						   NL80211_BAND_2GHZ :
+						   NL80211_BAND_5GHZ;
 			struct ieee80211_channel chn = {
 				.band = band,
 				.center_freq = ieee80211_channel_to_frequency(

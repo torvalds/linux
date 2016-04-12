@@ -570,7 +570,7 @@ int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb)
 	if (!(prxpd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK)))
 		stats.flag |= RX_FLAG_FAILED_FCS_CRC;
 	stats.freq = priv->cur_freq;
-	stats.band = IEEE80211_BAND_2GHZ;
+	stats.band = NL80211_BAND_2GHZ;
 	stats.signal = prxpd->snr;
 	priv->noise = prxpd->nf;
 	/* Marvell rate index has a hole at value 4 */
@@ -642,7 +642,7 @@ struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev)
 	priv->band.bitrates = priv->rates;
 	priv->band.n_channels = ARRAY_SIZE(lbtf_channels);
 	priv->band.channels = priv->channels;
-	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
+	hw->wiphy->bands[NL80211_BAND_2GHZ] = &priv->band;
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);

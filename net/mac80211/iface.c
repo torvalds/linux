@@ -1800,7 +1800,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,
 			  ieee80211_delayed_tailroom_dec);
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		struct ieee80211_supported_band *sband;
 		sband = local->hw.wiphy->bands[i];
 		sdata->rc_rateidx_mask[i] =

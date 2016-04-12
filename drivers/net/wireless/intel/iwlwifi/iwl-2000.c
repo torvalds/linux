@@ -89,7 +89,7 @@ static const struct iwl_base_params iwl2030_base_params = {
 static const struct iwl_ht_params iwl2000_ht_params = {
 	.ht_greenfield_support = true,
 	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.ht40_bands = BIT(IEEE80211_BAND_2GHZ),
+	.ht40_bands = BIT(NL80211_BAND_2GHZ),
 };
 
 static const struct iwl_eeprom_params iwl20x0_eeprom_params = {

@@ -1049,7 +1049,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	int ret = 0;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	u32 mask, set;
 
 	sband = local->hw.wiphy->bands[band];
@@ -1848,7 +1848,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 				struct bss_parameters *params)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	u32 changed = 0;
 
 	if (!sdata_dereference(sdata->u.ap.beacon, sdata))
@@ -1867,7 +1867,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	}
 
 	if (!sdata->vif.bss_conf.use_short_slot &&
-	    band == IEEE80211_BAND_5GHZ) {
+	    band == NL80211_BAND_5GHZ) {
 		sdata->vif.bss_conf.use_short_slot = true;
 		changed |= BSS_CHANGED_ERP_SLOT;
 	}
@@ -2097,12 +2097,12 @@ static int ieee80211_leave_ocb(struct wiphy *wiphy, struct net_device *dev)
 }
 
 static int ieee80211_set_mcast_rate(struct wiphy *wiphy, struct net_device *dev,
-				    int rate[IEEE80211_NUM_BANDS])
+				    int rate[NUM_NL80211_BANDS])
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	memcpy(sdata->vif.bss_conf.mcast_rate, rate,
-	       sizeof(int) * IEEE80211_NUM_BANDS);
+	       sizeof(int) * NUM_NL80211_BANDS);
 
 	return 0;
 }
@@ -2507,7 +2507,7 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 			return ret;
 	}
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		struct ieee80211_supported_band *sband = wiphy->bands[i];
 		int j;
 
@@ -3135,7 +3135,7 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_tx_info *info;
 	struct sta_info *sta;
 	struct ieee80211_chanctx_conf *chanctx_conf;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	int ret;
 
 	/* the lock is needed to assign the cookie later */

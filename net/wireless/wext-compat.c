@@ -32,13 +32,13 @@ int cfg80211_wext_giwname(struct net_device *dev,
 	if (!wdev)
 		return -EOPNOTSUPP;
 
-	sband = wdev->wiphy->bands[IEEE80211_BAND_5GHZ];
+	sband = wdev->wiphy->bands[NL80211_BAND_5GHZ];
 	if (sband) {
 		is_a = true;
 		is_ht |= sband->ht_cap.ht_supported;
 	}
 
-	sband = wdev->wiphy->bands[IEEE80211_BAND_2GHZ];
+	sband = wdev->wiphy->bands[NL80211_BAND_2GHZ];
 	if (sband) {
 		int i;
 		/* Check for mandatory rates */
@@ -143,7 +143,7 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct iw_range *range = (struct iw_range *) extra;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	int i, c = 0;
 
 	if (!wdev)
@@ -215,7 +215,7 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 		}
 	}
 
-	for (band = 0; band < IEEE80211_NUM_BANDS; band ++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band ++) {
 		struct ieee80211_supported_band *sband;
 
 		sband = wdev->wiphy->bands[band];
@@ -265,11 +265,11 @@ int cfg80211_wext_freq(struct iw_freq *freq)
 	 * -EINVAL for impossible things.
 	 */
 	if (freq->e == 0) {
-		enum ieee80211_band band = IEEE80211_BAND_2GHZ;
+		enum nl80211_band band = NL80211_BAND_2GHZ;
 		if (freq->m < 0)
 			return 0;
 		if (freq->m > 14)
-			band = IEEE80211_BAND_5GHZ;
+			band = NL80211_BAND_5GHZ;
 		return ieee80211_channel_to_frequency(freq->m, band);
 	} else {
 		int i, div = 1000000;
@@ -1245,7 +1245,7 @@ static int cfg80211_wext_siwrate(struct net_device *dev,
 		maxrate = rate->value / 100000;
 	}
 
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		sband = wdev->wiphy->bands[band];
 		if (sband == NULL)
 			continue;

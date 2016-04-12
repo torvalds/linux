@@ -163,16 +163,16 @@ static inline __le16 iwl_mvm_scan_rx_chain(struct iwl_mvm *mvm)
 	return cpu_to_le16(rx_chain);
 }
 
-static __le32 iwl_mvm_scan_rxon_flags(enum ieee80211_band band)
+static __le32 iwl_mvm_scan_rxon_flags(enum nl80211_band band)
 {
-	if (band == IEEE80211_BAND_2GHZ)
+	if (band == NL80211_BAND_2GHZ)
 		return cpu_to_le32(PHY_BAND_24);
 	else
 		return cpu_to_le32(PHY_BAND_5);
 }
 
 static inline __le32
-iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum ieee80211_band band,
+iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum nl80211_band band,
 			  bool no_cck)
 {
 	u32 tx_ant;
@@ -182,7 +182,7 @@ iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum ieee80211_band band,
 				     mvm->scan_last_antenna_idx);
 	tx_ant = BIT(mvm->scan_last_antenna_idx) << RATE_MCS_ANT_POS;
 
-	if (band == IEEE80211_BAND_2GHZ && !no_cck)
+	if (band == NL80211_BAND_2GHZ && !no_cck)
 		return cpu_to_le32(IWL_RATE_1M_PLCP | RATE_MCS_CCK_MSK |
 				   tx_ant);
 	else
@@ -591,14 +591,14 @@ static void iwl_mvm_scan_fill_tx_cmd(struct iwl_mvm *mvm,
 	tx_cmd[0].tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
 					 TX_CMD_FLG_BT_DIS);
 	tx_cmd[0].rate_n_flags = iwl_mvm_scan_rate_n_flags(mvm,
-							   IEEE80211_BAND_2GHZ,
+							   NL80211_BAND_2GHZ,
 							   no_cck);
 	tx_cmd[0].sta_id = mvm->aux_sta.sta_id;
 
 	tx_cmd[1].tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
 					 TX_CMD_FLG_BT_DIS);
 	tx_cmd[1].rate_n_flags = iwl_mvm_scan_rate_n_flags(mvm,
-							   IEEE80211_BAND_5GHZ,
+							   NL80211_BAND_5GHZ,
 							   no_cck);
 	tx_cmd[1].sta_id = mvm->aux_sta.sta_id;
 }
@@ -695,19 +695,19 @@ iwl_mvm_build_scan_probe(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/* Insert ds parameter set element on 2.4 GHz band */
 	newpos = iwl_mvm_copy_and_insert_ds_elem(mvm,
-						 ies->ies[IEEE80211_BAND_2GHZ],
-						 ies->len[IEEE80211_BAND_2GHZ],
+						 ies->ies[NL80211_BAND_2GHZ],
+						 ies->len[NL80211_BAND_2GHZ],
 						 pos);
 	params->preq.band_data[0].offset = cpu_to_le16(pos - params->preq.buf);
 	params->preq.band_data[0].len = cpu_to_le16(newpos - pos);
 	pos = newpos;
 
-	memcpy(pos, ies->ies[IEEE80211_BAND_5GHZ],
-	       ies->len[IEEE80211_BAND_5GHZ]);
+	memcpy(pos, ies->ies[NL80211_BAND_5GHZ],
+	       ies->len[NL80211_BAND_5GHZ]);
 	params->preq.band_data[1].offset = cpu_to_le16(pos - params->preq.buf);
 	params->preq.band_data[1].len =
-		cpu_to_le16(ies->len[IEEE80211_BAND_5GHZ]);
-	pos += ies->len[IEEE80211_BAND_5GHZ];
+		cpu_to_le16(ies->len[NL80211_BAND_5GHZ]);
+	pos += ies->len[NL80211_BAND_5GHZ];
 
 	memcpy(pos, ies->common_ies, ies->common_ie_len);
 	params->preq.common_data.offset = cpu_to_le16(pos - params->preq.buf);
@@ -921,10 +921,10 @@ static __le32 iwl_mvm_scan_config_rates(struct iwl_mvm *mvm)
 	unsigned int rates = 0;
 	int i;
 
-	band = &mvm->nvm_data->bands[IEEE80211_BAND_2GHZ];
+	band = &mvm->nvm_data->bands[NL80211_BAND_2GHZ];
 	for (i = 0; i < band->n_bitrates; i++)
 		rates |= rate_to_scan_rate_flag(band->bitrates[i].hw_value);
-	band = &mvm->nvm_data->bands[IEEE80211_BAND_5GHZ];
+	band = &mvm->nvm_data->bands[NL80211_BAND_5GHZ];
 	for (i = 0; i < band->n_bitrates; i++)
 		rates |= rate_to_scan_rate_flag(band->bitrates[i].hw_value);
 
@@ -939,8 +939,8 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	struct iwl_scan_config *scan_config;
 	struct ieee80211_supported_band *band;
 	int num_channels =
-		mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels +
-		mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels;
+		mvm->nvm_data->bands[NL80211_BAND_2GHZ].n_channels +
+		mvm->nvm_data->bands[NL80211_BAND_5GHZ].n_channels;
 	int ret, i, j = 0, cmd_size;
 	struct iwl_host_cmd cmd = {
 		.id = iwl_cmd_id(SCAN_CFG_CMD, IWL_ALWAYS_LONG_GROUP, 0),
@@ -994,10 +994,10 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 				     IWL_CHANNEL_FLAG_EBS_ADD |
 				     IWL_CHANNEL_FLAG_PRE_SCAN_PASSIVE2ACTIVE;
 
-	band = &mvm->nvm_data->bands[IEEE80211_BAND_2GHZ];
+	band = &mvm->nvm_data->bands[NL80211_BAND_2GHZ];
 	for (i = 0; i < band->n_channels; i++, j++)
 		scan_config->channel_array[j] = band->channels[i].hw_value;
-	band = &mvm->nvm_data->bands[IEEE80211_BAND_5GHZ];
+	band = &mvm->nvm_data->bands[NL80211_BAND_5GHZ];
 	for (i = 0; i < band->n_channels; i++, j++)
 		scan_config->channel_array[j] = band->channels[i].hw_value;
 

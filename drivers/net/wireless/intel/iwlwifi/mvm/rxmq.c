@@ -456,8 +456,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	rx_status->mactime = le64_to_cpu(desc->tsf_on_air_rise);
 	rx_status->device_timestamp = le32_to_cpu(desc->gp2_on_air_rise);
-	rx_status->band = desc->channel > 14 ? IEEE80211_BAND_5GHZ :
-					       IEEE80211_BAND_2GHZ;
+	rx_status->band = desc->channel > 14 ? NL80211_BAND_5GHZ :
+					       NL80211_BAND_2GHZ;
 	rx_status->freq = ieee80211_channel_to_frequency(desc->channel,
 							 rx_status->band);
 	iwl_mvm_get_signal_strength(mvm, desc, rx_status);

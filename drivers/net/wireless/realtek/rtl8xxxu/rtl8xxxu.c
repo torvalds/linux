@@ -91,33 +91,33 @@ static struct ieee80211_rate rtl8xxxu_rates[] = {
 };
 
 static struct ieee80211_channel rtl8xxxu_channels_2g[] = {
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2412,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2412,
 	  .hw_value = 1, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2417,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2417,
 	  .hw_value = 2, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2422,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2422,
 	  .hw_value = 3, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2427,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2427,
 	  .hw_value = 4, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2432,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2432,
 	  .hw_value = 5, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2437,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2437,
 	  .hw_value = 6, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2442,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2442,
 	  .hw_value = 7, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2447,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2447,
 	  .hw_value = 8, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2452,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2452,
 	  .hw_value = 9, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2457,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2457,
 	  .hw_value = 10, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2462,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2462,
 	  .hw_value = 11, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2467,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2467,
 	  .hw_value = 12, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2472,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2472,
 	  .hw_value = 13, .max_power = 30 },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2484,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2484,
 	  .hw_value = 14, .max_power = 30 }
 };
 
@@ -8378,7 +8378,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		dev_info(&udev->dev, "Enabling HT_20_40 on the 2.4GHz band\n");
 		sband->ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	}
-	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = sband;
+	hw->wiphy->bands[NL80211_BAND_2GHZ] = sband;
 
 	hw->wiphy->rts_threshold = 2347;
 

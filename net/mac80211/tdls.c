@@ -47,7 +47,7 @@ static void ieee80211_tdls_add_ext_capab(struct ieee80211_sub_if_data *sdata,
 			   NL80211_FEATURE_TDLS_CHANNEL_SWITCH;
 	bool wider_band = ieee80211_hw_check(&local->hw, TDLS_WIDER_BW) &&
 			  !ifmgd->tdls_wider_bw_prohibited;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
 	bool vht = sband && sband->vht_cap.vht_supported;
 	u8 *pos = (void *)skb_put(skb, 10);
@@ -184,7 +184,7 @@ static u16 ieee80211_get_tdls_sta_capab(struct ieee80211_sub_if_data *sdata,
 	if (status_code != 0)
 		return 0;
 
-	if (ieee80211_get_sdata_band(sdata) == IEEE80211_BAND_2GHZ) {
+	if (ieee80211_get_sdata_band(sdata) == NL80211_BAND_2GHZ) {
 		return WLAN_CAPABILITY_SHORT_SLOT_TIME |
 		       WLAN_CAPABILITY_SHORT_PREAMBLE;
 	}
@@ -357,7 +357,7 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 				   u8 action_code, bool initiator,
 				   const u8 *extra_ies, size_t extra_ies_len)
 {
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_sta_ht_cap ht_cap;
@@ -544,7 +544,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	size_t offset = 0, noffset;
 	struct sta_info *sta, *ap_sta;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	u8 *pos;
 
 	mutex_lock(&local->sta_mtx);
@@ -611,7 +611,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tdls_add_link_ie(sdata, skb, peer, initiator);
 
 	/* only include VHT-operation if not on the 2.4GHz band */
-	if (band != IEEE80211_BAND_2GHZ && sta->sta.vht_cap.vht_supported) {
+	if (band != NL80211_BAND_2GHZ && sta->sta.vht_cap.vht_supported) {
 		/*
 		 * if both peers support WIDER_BW, we can expand the chandef to
 		 * a wider compatible one, up to 80MHz
@@ -1773,7 +1773,7 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 	u8 target_channel, oper_class;
 	bool local_initiator;
 	struct sta_info *sta;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_tdls_data *tf = (void *)skb->data;
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	int baselen = offsetof(typeof(*tf), u.chan_switch_req.variable);
@@ -1805,10 +1805,10 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 	if ((oper_class == 112 || oper_class == 2 || oper_class == 3 ||
 	     oper_class == 4 || oper_class == 5 || oper_class == 6) &&
 	     target_channel < 14)
-		band = IEEE80211_BAND_5GHZ;
+		band = NL80211_BAND_5GHZ;
 	else
-		band = target_channel < 14 ? IEEE80211_BAND_2GHZ :
-					     IEEE80211_BAND_5GHZ;
+		band = target_channel < 14 ? NL80211_BAND_2GHZ :
+					     NL80211_BAND_5GHZ;
 
 	freq = ieee80211_channel_to_frequency(target_channel, band);
 	if (freq == 0) {

@@ -185,7 +185,7 @@ struct iwl_base_params {
  * @stbc: support Tx STBC and 1*SS Rx STBC
  * @ldpc: support Tx/Rx with LDPC
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic
- * @ht40_bands: bitmap of bands (using %IEEE80211_BAND_*) that support HT40
+ * @ht40_bands: bitmap of bands (using %NL80211_BAND_*) that support HT40
  */
 struct iwl_ht_params {
 	enum ieee80211_smps_mode smps_mode;

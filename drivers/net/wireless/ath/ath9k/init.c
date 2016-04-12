@@ -705,9 +705,9 @@ static void ath9k_init_txpower_limits(struct ath_softc *sc)
 	struct ath9k_channel *curchan = ah->curchan;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
-		ath9k_init_band_txpower(sc, IEEE80211_BAND_2GHZ);
+		ath9k_init_band_txpower(sc, NL80211_BAND_2GHZ);
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
-		ath9k_init_band_txpower(sc, IEEE80211_BAND_5GHZ);
+		ath9k_init_band_txpower(sc, NL80211_BAND_5GHZ);
 
 	ah->curchan = curchan;
 }
@@ -879,11 +879,11 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	sc->ant_tx = hw->wiphy->available_antennas_tx;
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
-		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
-			&common->sbands[IEEE80211_BAND_2GHZ];
+		hw->wiphy->bands[NL80211_BAND_2GHZ] =
+			&common->sbands[NL80211_BAND_2GHZ];
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
-		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
-			&common->sbands[IEEE80211_BAND_5GHZ];
+		hw->wiphy->bands[NL80211_BAND_5GHZ] =
+			&common->sbands[NL80211_BAND_5GHZ];
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 	ath9k_set_mcc_capab(sc, hw);

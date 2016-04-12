@@ -126,7 +126,7 @@ ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (sband->band == IEEE80211_BAND_2GHZ) {
+	if (sband->band == NL80211_BAND_2GHZ) {
 		*pos++ = WLAN_EID_DS_PARAMS;
 		*pos++ = 1;
 		*pos++ = ieee80211_frequency_to_channel(
@@ -348,11 +348,11 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	 *
 	 * HT follows these specifications (IEEE 802.11-2012 20.3.18)
 	 */
-	sdata->vif.bss_conf.use_short_slot = chan->band == IEEE80211_BAND_5GHZ;
+	sdata->vif.bss_conf.use_short_slot = chan->band == NL80211_BAND_5GHZ;
 	bss_change |= BSS_CHANGED_ERP_SLOT;
 
 	/* cf. IEEE 802.11 9.2.12 */
-	if (chan->band == IEEE80211_BAND_2GHZ && have_higher_than_11mbit)
+	if (chan->band == NL80211_BAND_2GHZ && have_higher_than_11mbit)
 		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
 	else
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
@@ -989,7 +989,7 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_channel *channel)
 {
 	struct sta_info *sta;
-	enum ieee80211_band band = rx_status->band;
+	enum nl80211_band band = rx_status->band;
 	enum nl80211_bss_scan_width scan_width;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
@@ -1109,7 +1109,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_channel *channel;
 	u64 beacon_timestamp, rx_timestamp;
 	u32 supp_rates = 0;
-	enum ieee80211_band band = rx_status->band;
+	enum nl80211_band band = rx_status->band;
 
 	channel = ieee80211_get_channel(local->hw.wiphy, rx_status->freq);
 	if (!channel)

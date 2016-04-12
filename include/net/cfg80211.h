@@ -68,26 +68,6 @@ struct wiphy;
  */
 
 /**
- * enum ieee80211_band - supported frequency bands
- *
- * The bands are assigned this way because the supported
- * bitrates differ in these bands.
- *
- * @IEEE80211_BAND_2GHZ: 2.4GHz ISM band
- * @IEEE80211_BAND_5GHZ: around 5GHz band (4.9-5.7)
- * @IEEE80211_BAND_60GHZ: around 60 GHz band (58.32 - 64.80 GHz)
- * @IEEE80211_NUM_BANDS: number of defined bands
- */
-enum ieee80211_band {
-	IEEE80211_BAND_2GHZ = NL80211_BAND_2GHZ,
-	IEEE80211_BAND_5GHZ = NL80211_BAND_5GHZ,
-	IEEE80211_BAND_60GHZ = NL80211_BAND_60GHZ,
-
-	/* keep last */
-	IEEE80211_NUM_BANDS
-};
-
-/**
  * enum ieee80211_channel_flags - channel flags
  *
  * Channel flags set by the regulatory control code.
@@ -167,7 +147,7 @@ enum ieee80211_channel_flags {
  * @dfs_cac_ms: DFS CAC time in milliseconds, this is valid for DFS channels.
  */
 struct ieee80211_channel {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	u16 center_freq;
 	u16 hw_value;
 	u32 flags;
@@ -324,7 +304,7 @@ struct ieee80211_sta_vht_cap {
 struct ieee80211_supported_band {
 	struct ieee80211_channel *channels;
 	struct ieee80211_rate *bitrates;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	int n_channels;
 	int n_bitrates;
 	struct ieee80211_sta_ht_cap ht_cap;
@@ -1370,7 +1350,7 @@ struct mesh_setup {
 	bool user_mpm;
 	u8 dtim_period;
 	u16 beacon_interval;
-	int mcast_rate[IEEE80211_NUM_BANDS];
+	int mcast_rate[NUM_NL80211_BANDS];
 	u32 basic_rates;
 };
 
@@ -1468,7 +1448,7 @@ struct cfg80211_scan_request {
 	size_t ie_len;
 	u32 flags;
 
-	u32 rates[IEEE80211_NUM_BANDS];
+	u32 rates[NUM_NL80211_BANDS];
 
 	struct wireless_dev *wdev;
 
@@ -1860,7 +1840,7 @@ struct cfg80211_ibss_params {
 	bool privacy;
 	bool control_port;
 	bool userspace_handles_dfs;
-	int mcast_rate[IEEE80211_NUM_BANDS];
+	int mcast_rate[NUM_NL80211_BANDS];
 	struct ieee80211_ht_cap ht_capa;
 	struct ieee80211_ht_cap ht_capa_mask;
 };
@@ -1872,7 +1852,7 @@ struct cfg80211_ibss_params {
  * @delta: value of RSSI level adjustment.
  */
 struct cfg80211_bss_select_adjust {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	s8 delta;
 };
 
@@ -1887,7 +1867,7 @@ struct cfg80211_bss_select_adjust {
 struct cfg80211_bss_selection {
 	enum nl80211_bss_select_attr behaviour;
 	union {
-		enum ieee80211_band band_pref;
+		enum nl80211_band band_pref;
 		struct cfg80211_bss_select_adjust adjust;
 	} param;
 };
@@ -1990,7 +1970,7 @@ struct cfg80211_bitrate_mask {
 		u8 ht_mcs[IEEE80211_HT_MCS_MASK_LEN];
 		u16 vht_mcs[NL80211_VHT_NSS_MAX];
 		enum nl80211_txrate_gi gi;
-	} control[IEEE80211_NUM_BANDS];
+	} control[NUM_NL80211_BANDS];
 };
 /**
  * struct cfg80211_pmksa - PMK Security Association
@@ -2677,7 +2657,7 @@ struct cfg80211_ops {
 	int	(*leave_ibss)(struct wiphy *wiphy, struct net_device *dev);
 
 	int	(*set_mcast_rate)(struct wiphy *wiphy, struct net_device *dev,
-				  int rate[IEEE80211_NUM_BANDS]);
+				  int rate[NUM_NL80211_BANDS]);
 
 	int	(*set_wiphy_params)(struct wiphy *wiphy, u32 changed);
 
@@ -3323,7 +3303,7 @@ struct wiphy {
 	 * help determine whether you own this wiphy or not. */
 	const void *privid;
 
-	struct ieee80211_supported_band *bands[IEEE80211_NUM_BANDS];
+	struct ieee80211_supported_band *bands[NUM_NL80211_BANDS];
 
 	/* Lets us get back the wiphy on the callback */
 	void (*reg_notifier)(struct wiphy *wiphy,
@@ -3658,7 +3638,7 @@ static inline void *wdev_priv(struct wireless_dev *wdev)
  * @band: band, necessary due to channel number overlap
  * Return: The corresponding frequency (in MHz), or 0 if the conversion failed.
  */
-int ieee80211_channel_to_frequency(int chan, enum ieee80211_band band);
+int ieee80211_channel_to_frequency(int chan, enum nl80211_band band);
 
 /**
  * ieee80211_frequency_to_channel - convert frequency to channel number
@@ -5089,7 +5069,7 @@ void cfg80211_ch_switch_started_notify(struct net_device *dev,
  * Returns %true if the conversion was successful, %false otherwise.
  */
 bool ieee80211_operating_class_to_band(u8 operating_class,
-				       enum ieee80211_band *band);
+				       enum nl80211_band *band);
 
 /**
  * ieee80211_chandef_to_operating_class - convert chandef to operation class

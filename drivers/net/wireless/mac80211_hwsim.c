@@ -255,14 +255,14 @@ static struct class *hwsim_class;
 static struct net_device *hwsim_mon; /* global monitor netdev */
 
 #define CHAN2G(_freq)  { \
-	.band = IEEE80211_BAND_2GHZ, \
+	.band = NL80211_BAND_2GHZ, \
 	.center_freq = (_freq), \
 	.hw_value = (_freq), \
 	.max_power = 20, \
 }
 
 #define CHAN5G(_freq) { \
-	.band = IEEE80211_BAND_5GHZ, \
+	.band = NL80211_BAND_5GHZ, \
 	.center_freq = (_freq), \
 	.hw_value = (_freq), \
 	.max_power = 20, \
@@ -479,7 +479,7 @@ struct mac80211_hwsim_data {
 	struct list_head list;
 	struct ieee80211_hw *hw;
 	struct device *dev;
-	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
+	struct ieee80211_supported_band bands[NUM_NL80211_BANDS];
 	struct ieee80211_channel channels_2ghz[ARRAY_SIZE(hwsim_channels_2ghz)];
 	struct ieee80211_channel channels_5ghz[ARRAY_SIZE(hwsim_channels_5ghz)];
 	struct ieee80211_rate rates[ARRAY_SIZE(hwsim_rates)];
@@ -2347,7 +2347,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	u8 addr[ETH_ALEN];
 	struct mac80211_hwsim_data *data;
 	struct ieee80211_hw *hw;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	const struct ieee80211_ops *ops = &mac80211_hwsim_ops;
 	int idx;
 
@@ -2476,16 +2476,16 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		sizeof(hwsim_channels_5ghz));
 	memcpy(data->rates, hwsim_rates, sizeof(hwsim_rates));
 
-	for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {
 		struct ieee80211_supported_band *sband = &data->bands[band];
 		switch (band) {
-		case IEEE80211_BAND_2GHZ:
+		case NL80211_BAND_2GHZ:
 			sband->channels = data->channels_2ghz;
 			sband->n_channels = ARRAY_SIZE(hwsim_channels_2ghz);
 			sband->bitrates = data->rates;
 			sband->n_bitrates = ARRAY_SIZE(hwsim_rates);
 			break;
-		case IEEE80211_BAND_5GHZ:
+		case NL80211_BAND_5GHZ:
 			sband->channels = data->channels_5ghz;
 			sband->n_channels = ARRAY_SIZE(hwsim_channels_5ghz);
 			sband->bitrates = data->rates + 4;

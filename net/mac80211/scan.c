@@ -272,7 +272,7 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 		n_chans = req->n_channels;
 	} else {
 		do {
-			if (local->hw_scan_band == IEEE80211_NUM_BANDS)
+			if (local->hw_scan_band == NUM_NL80211_BANDS)
 				return false;
 
 			n_chans = 0;
@@ -485,7 +485,7 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 	int i;
 	struct ieee80211_sub_if_data *sdata;
 	struct cfg80211_scan_request *scan_req;
-	enum ieee80211_band band = local->hw.conf.chandef.chan->band;
+	enum nl80211_band band = local->hw.conf.chandef.chan->band;
 	u32 tx_flags;
 
 	scan_req = rcu_dereference_protected(local->scan_req,
@@ -953,7 +953,7 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	int ret = -EBUSY, i, n_ch = 0;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 
 	mutex_lock(&local->mtx);
 
@@ -965,7 +965,7 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 	if (!channels) {
 		int max_n;
 
-		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		for (band = 0; band < NUM_NL80211_BANDS; band++) {
 			if (!local->hw.wiphy->bands[band])
 				continue;
 
@@ -1085,7 +1085,7 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_scan_ies sched_scan_ies = {};
 	struct cfg80211_chan_def chandef;
 	int ret, i, iebufsz, num_bands = 0;
-	u32 rate_masks[IEEE80211_NUM_BANDS] = {};
+	u32 rate_masks[NUM_NL80211_BANDS] = {};
 	u8 bands_used = 0;
 	u8 *ie;
 	size_t len;
@@ -1097,7 +1097,7 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 	if (!local->ops->sched_scan_start)
 		return -ENOTSUPP;
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		if (local->hw.wiphy->bands[i]) {
 			bands_used |= BIT(i);
 			rate_masks[i] = (u32) -1;
