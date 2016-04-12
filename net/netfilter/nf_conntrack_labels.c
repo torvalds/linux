@@ -33,14 +33,18 @@ int nf_connlabel_set(struct nf_conn *ct, u16 bit)
 }
 EXPORT_SYMBOL_GPL(nf_connlabel_set);
 
-static void replace_u32(u32 *address, u32 mask, u32 new)
+static int replace_u32(u32 *address, u32 mask, u32 new)
 {
 	u32 old, tmp;
 
 	do {
 		old = *address;
 		tmp = (old & mask) ^ new;
+		if (old == tmp)
+			return 0;
 	} while (cmpxchg(address, old, tmp) != old);
+
+	return 1;
 }
 
 int nf_connlabels_replace(struct nf_conn *ct,
@@ -49,6 +53,7 @@ int nf_connlabels_replace(struct nf_conn *ct,
 {
 	struct nf_conn_labels *labels;
 	unsigned int size, i;
+	int changed = 0;
 	u32 *dst;
 
 	labels = nf_ct_labels_find(ct);
@@ -60,16 +65,15 @@ int nf_connlabels_replace(struct nf_conn *ct,
 		words32 = size / sizeof(u32);
 
 	dst = (u32 *) labels->bits;
-	if (words32) {
-		for (i = 0; i < words32; i++)
-			replace_u32(&dst[i], mask ? ~mask[i] : 0, data[i]);
-	}
+	for (i = 0; i < words32; i++)
+		changed |= replace_u32(&dst[i], mask ? ~mask[i] : 0, data[i]);
 
 	size /= sizeof(u32);
 	for (i = words32; i < size; i++) /* pad */
 		replace_u32(&dst[i], 0, 0);
 
-	nf_conntrack_event_cache(IPCT_LABEL, ct);
+	if (changed)
+		nf_conntrack_event_cache(IPCT_LABEL, ct);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_connlabels_replace);
