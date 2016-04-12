@@ -197,6 +197,8 @@
 #define VF610_CLK_OCOTP         184
 #define VF610_CLK_DDRMC			185
 #define VF610_CLK_WKPU			186
-#define VF610_CLK_END			187
+#define VF610_CLK_TCON0			187
+#define VF610_CLK_TCON1			188
+#define VF610_CLK_END			189
 
 #endif /* __DT_BINDINGS_CLOCK_VF610_H */
