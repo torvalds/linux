@@ -45,6 +45,7 @@
 #define RTC_INT_SEC		BIT(0)
 #define RTC_INT_ALRM		BIT(1)
 #define RTC_OSC_EN		BIT(24)
+#define RTC_BATT_EN		BIT(31)
 
 #define RTC_CALIB_DEF		0x198233
 #define RTC_CALIB_MASK		0x1FFFFF
@@ -122,6 +123,13 @@ static int xlnx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static void xlnx_init_rtc(struct xlnx_rtc_dev *xrtcdev, u32 calibval)
 {
+	u32 rtc_ctrl;
+
+	/* Enable RTC switch to battery when VCC_PSAUX is not available */
+	rtc_ctrl = readl(xrtcdev->reg_base + RTC_CTRL);
+	rtc_ctrl |= RTC_BATT_EN;
+	writel(rtc_ctrl, xrtcdev->reg_base + RTC_CTRL);
+
 	/*
 	 * Based on crystal freq of 33.330 KHz
 	 * set the seconds counter and enable, set fractions counter
