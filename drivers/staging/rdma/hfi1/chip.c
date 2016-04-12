@@ -6849,7 +6849,7 @@ void handle_link_down(struct work_struct *work)
 	 * If there is no cable attached, turn the DC off. Otherwise,
 	 * start the link bring up.
 	 */
-	if (!qsfp_mod_present(ppd)) {
+	if (ppd->port_type == PORT_TYPE_QSFP && !qsfp_mod_present(ppd)) {
 		dc_shutdown(ppd->dd);
 	} else {
 		tune_serdes(ppd);
@@ -9008,9 +9008,9 @@ set_local_link_attributes_fail:
 }
 
 /*
- * Call this to start the link.  Schedule a retry if the cable is not
- * present or if unable to start polling.  Do not do anything if the
- * link is disabled.  Returns 0 if link is disabled or moved to polling
+ * Call this to start the link.
+ * Do not do anything if the link is disabled.
+ * Returns 0 if link is disabled, moved to polling, or the driver is not ready.
  */
 int start_link(struct hfi1_pportdata *ppd)
 {
@@ -9027,15 +9027,7 @@ int start_link(struct hfi1_pportdata *ppd)
 		return 0;
 	}
 
-	if (qsfp_mod_present(ppd) || loopback == LOOPBACK_SERDES ||
-	    loopback == LOOPBACK_LCB ||
-	    ppd->dd->icode == ICODE_FUNCTIONAL_SIMULATOR)
-		return set_link_state(ppd, HLS_DN_POLL);
-
-	dd_dev_info(ppd->dd,
-		    "%s: stopping link start because no cable is present\n",
-		    __func__);
-	return -EAGAIN;
+	return set_link_state(ppd, HLS_DN_POLL);
 }
 
 static void wait_for_qsfp_init(struct hfi1_pportdata *ppd)
@@ -9206,7 +9198,7 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 	return 0;
 }
 
-/* This routine will only be scheduled if the QSFP module is present */
+/* This routine will only be scheduled if the QSFP module present is asserted */
 void qsfp_event(struct work_struct *work)
 {
 	struct qsfp_data *qd;

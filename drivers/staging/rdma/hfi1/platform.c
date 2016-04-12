@@ -838,9 +838,11 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 			total_atten = platform_atten + remote_atten;
 
 			tuning_method = OPA_PASSIVE_TUNING;
-		} else
+		} else {
 			ppd->offline_disabled_reason =
 			     HFI1_ODR_MASK(OPA_LINKDOWN_REASON_CHASSIS_CONFIG);
+			goto bail;
+		}
 		break;
 	case PORT_TYPE_QSFP:
 		if (qsfp_mod_present(ppd)) {
@@ -869,10 +871,12 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 					   __func__);
 				goto bail;
 			}
-		} else
+		} else {
 			ppd->offline_disabled_reason =
 			   HFI1_ODR_MASK(
 				OPA_LINKDOWN_REASON_LOCAL_MEDIA_NOT_INSTALLED);
+			goto bail;
+		}
 		break;
 	default:
 		dd_dev_info(ppd->dd, "%s: Unknown port type\n", __func__);
