@@ -138,10 +138,12 @@
 #define DWC3_DGCMDPAR		0xc710
 #define DWC3_DGCMD		0xc714
 #define DWC3_DALEPENA		0xc720
-#define DWC3_DEPCMDPAR2(n)	(0xc800 + (n * 0x10))
-#define DWC3_DEPCMDPAR1(n)	(0xc804 + (n * 0x10))
-#define DWC3_DEPCMDPAR0(n)	(0xc808 + (n * 0x10))
-#define DWC3_DEPCMD(n)		(0xc80c + (n * 0x10))
+
+#define DWC3_DEP_BASE(n)	(0xc800 + (n * 0x10))
+#define DWC3_DEPCMDPAR2		0x00
+#define DWC3_DEPCMDPAR1		0x04
+#define DWC3_DEPCMDPAR0		0x08
+#define DWC3_DEPCMD		0x0c
 
 /* OTG Registers */
 #define DWC3_OCFG		0xcc00
@@ -480,6 +482,7 @@ struct dwc3_event_buffer {
  * @endpoint: usb endpoint
  * @pending_list: list of pending requests for this endpoint
  * @started_list: list of started requests on this endpoint
+ * @regs: pointer to first endpoint register
  * @trb_pool: array of transaction buffers
  * @trb_pool_dma: dma address of @trb_pool
  * @trb_enqueue: enqueue 'pointer' into TRB array
@@ -500,6 +503,8 @@ struct dwc3_ep {
 	struct usb_ep		endpoint;
 	struct list_head	pending_list;
 	struct list_head	started_list;
+
+	void __iomem		*regs;
 
 	struct dwc3_trb		*trb_pool;
 	dma_addr_t		trb_pool_dma;
