@@ -13513,8 +13513,6 @@ static void init_qos(struct hfi1_devdata *dd, u32 first_ctxt)
 	m = ilog2(qpns_per_vl);
 	if ((m + n) > 7)
 		goto bail;
-	if (num_vls * qpns_per_vl > dd->chip_rcv_contexts)
-		goto bail;
 	rsmmap = kmalloc_array(NUM_MAP_REGS, sizeof(u64), GFP_KERNEL);
 	if (!rsmmap)
 		goto bail;
