@@ -260,7 +260,7 @@ struct thread_map *thread_map__new_dummy(void)
 	return threads;
 }
 
-static struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
+struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
 {
 	struct thread_map *threads = NULL, *nt;
 	int ntasks = 0;

@@ -31,6 +31,8 @@ void thread_map__put(struct thread_map *map);
 struct thread_map *thread_map__new_str(const char *pid,
 		const char *tid, uid_t uid);
 
+struct thread_map *thread_map__new_by_tid_str(const char *tid_str);
+
 size_t thread_map__fprintf(struct thread_map *threads, FILE *fp);
 
 static inline int thread_map__nr(struct thread_map *threads)
