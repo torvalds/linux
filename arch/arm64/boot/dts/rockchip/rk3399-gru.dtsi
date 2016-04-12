@@ -346,6 +346,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pp1800_audio_en>;
 
+		regulator-always-on;
+		regulator-boot-on;
+
 		enable-active-high;
 		gpio = <&gpio0 1 GPIO_ACTIVE_HIGH>;
 
@@ -470,6 +473,13 @@
 
 		pmu1830-supply = <&pp1800_pmu>;		/* PMUIO2_VDD */
 	};
+
+	sound {
+		compatible = "rockchip,rockchip-audio-da7219";
+		rockchip,model = "audio-da7219";
+		rockchip,i2s-controller = <&i2s0>;
+		rockchip,audio-codec = <&codec>;
+	};
 };
 
 &cpu_l0 {
@@ -569,6 +579,7 @@ ap_i2c_audio: &i2c8 {
 	codec: da7219@1a {
 		compatible = "dlg,da7219";
 		reg = <0x1a>;
+
 		pinctrl-names = "default";
 		pinctrl-0 = <&headset_int_l>;
 
@@ -584,25 +595,25 @@ ap_i2c_audio: &i2c8 {
 		clock-names = "mclk";
 
 // Below is from bindings; we need to adjust for our SoC / board.
-// 		dlg,ldo-lvl = <1200>;
-// 		dlg,micbias-lvl = <2600>;
-// 		dlg,mic-amp-in-sel = "diff";
-//
-// 		da7219_aad {
-// 			dlg,btn-cfg = <50>;
-// 			dlg,mic-det-thr = <500>;
-// 			dlg,jack-ins-deb = <20>;
-// 			dlg,jack-det-rate = "32ms_64ms";
-// 			dlg,jack-rem-deb = <1>;
-//
-// 			dlg,a-d-btn-thr = <0xa>;
-// 			dlg,d-b-btn-thr = <0x16>;
-// 			dlg,b-c-btn-thr = <0x21>;
-// 			dlg,c-mic-btn-thr = <0x3E>;
-//
-// 			dlg,btn-avg = <4>;
-// 			dlg,adc-1bit-rpt = <1>;
-// 		};
+		dlg,ldo-lvl = <1200>;
+		dlg,micbias-lvl = <2600>;
+		dlg,mic-amp-in-sel = "diff";
+
+		da7219_aad {
+			dlg,btn-cfg = <50>;
+			dlg,mic-det-thr = <500>;
+			dlg,jack-ins-deb = <20>;
+			dlg,jack-det-rate = "32ms_64ms";
+			dlg,jack-rem-deb = <1>;
+
+			dlg,a-d-btn-thr = <0xa>;
+			dlg,d-b-btn-thr = <0x16>;
+			dlg,b-c-btn-thr = <0x21>;
+			dlg,c-mic-btn-thr = <0x3E>;
+
+			dlg,btn-avg = <4>;
+			dlg,adc-1bit-rpt = <1>;
+		};
 	};
 };
 
