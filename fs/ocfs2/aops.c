@@ -2311,7 +2311,7 @@ static void ocfs2_dio_end_io_write(struct inode *inode,
 	/* ocfs2_file_write_iter will get i_mutex, so we need not lock if we
 	 * are in that context. */
 	if (dwc->dw_writer_pid != task_pid_nr(current)) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		locked = 1;
 	}
 
@@ -2390,7 +2390,7 @@ out:
 		ocfs2_free_alloc_context(meta_ac);
 	ocfs2_run_deallocs(osb, &dealloc);
 	if (locked)
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	ocfs2_dio_free_write_ctx(inode, dwc);
 }
 
