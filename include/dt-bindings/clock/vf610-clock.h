@@ -194,7 +194,7 @@
 #define VF610_PLL7_BYPASS		181
 #define VF610_CLK_SNVS			182
 #define VF610_CLK_DAP			183
-#define VF610_CLK_OCOTP         184
+#define VF610_CLK_OCOTP			184
 #define VF610_CLK_DDRMC			185
 #define VF610_CLK_WKPU			186
 #define VF610_CLK_TCON0			187
