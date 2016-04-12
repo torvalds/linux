@@ -542,7 +542,8 @@ static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	diff0 |= (diff1 << 8);
 	diff0 |= (diff2 << 16);
 
-	if ((diff0 & ~(1<<fls(diff0))) == 0)
+	/* equal to "(diff0 & ~(1 << __ffs(diff0)))" */
+	if ((diff0 & (diff0 - 1)) == 0)
 		return 1;
 
 	return -1;
