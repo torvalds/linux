@@ -9,6 +9,10 @@
 	aliases {
 		serial0 = &gsbi7_serial;
 		serial1 = &gsbi1_serial;
+		i2c0 = &gsbi2_i2c;
+		i2c1 = &gsbi3_i2c;
+		i2c2 = &gsbi4_i2c;
+		i2c3 = &gsbi7_i2c;
 	};
 
 	regulators {
@@ -141,6 +145,42 @@
 			};
 		};
 
+		gsbi@12480000 {
+			status = "okay";
+			qcom,mode = <GSBI_PROT_I2C>;
+			i2c@124a0000 {
+				/* On Low speed expansion and Sensors */
+				label = "LS-I2C0";
+				status = "okay";
+			};
+		};
+
+		gsbi@16200000 {
+			status = "okay";
+			qcom,mode = <GSBI_PROT_I2C>;
+			i2c@16280000 {
+			/* On Low speed expansion */
+				status = "okay";
+				label = "LS-I2C1";
+				clock-frequency = <200000>;
+				eeprom@52 {
+					compatible = "atmel,24c128";
+					reg = <0x52>;
+					pagesize = <64>;
+				};
+			};
+		};
+
+		gsbi@16300000 {
+			status = "okay";
+			qcom,mode = <GSBI_PROT_I2C>;
+			i2c@16380000 {
+				/* On High speed expansion */
+				label = "HS-CAM-I2C3";
+				status = "okay";
+			};
+		};
+
 		/* DEBUG UART  */
 		gsbi@16600000 {
 			status = "okay";
@@ -150,6 +190,12 @@
 				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&gsbi7_uart_2pins>;
+			};
+
+			i2c@16680000 {
+				/* On High speed expansion */
+				status = "okay";
+				label = "HS-CAM-I2C2";
 			};
 		};
 
