@@ -292,6 +292,7 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	int ret;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -311,10 +312,10 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 			pipe_config->cpu_transcoder = TRANSCODER_DSI_A;
 	}
 
-	/*
-	 * FIXME move the DSI PLL calc from vlv_enable_dsi_pll()
-	 * to .compute_config().
-	 */
+	ret = intel_compute_dsi_pll(encoder, pipe_config);
+	if (ret)
+		return false;
+
 	pipe_config->clock_set = true;
 
 	return true;
@@ -504,6 +505,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	enum port port;
 	u32 tmp;
 
@@ -514,7 +516,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	 * lock. It needs to be fully powered down to fix it.
 	 */
 	intel_disable_dsi_pll(encoder);
-	intel_enable_dsi_pll(encoder);
+	intel_enable_dsi_pll(encoder, crtc->config);
 
 	intel_dsi_prepare(encoder);
 
@@ -824,7 +826,8 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 	if (IS_BROXTON(dev))
 		bxt_dsi_get_pipe_config(encoder, pipe_config);
 
-	pclk = intel_dsi_get_pclk(encoder, pipe_config->pipe_bpp);
+	pclk = intel_dsi_get_pclk(encoder, pipe_config->pipe_bpp,
+				  pipe_config);
 	if (!pclk)
 		return;
 

@@ -127,11 +127,15 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 }
 
 bool intel_dsi_pll_is_enabled(struct drm_i915_private *dev_priv);
-extern void intel_enable_dsi_pll(struct intel_encoder *encoder);
-extern void intel_disable_dsi_pll(struct intel_encoder *encoder);
-extern u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp);
-extern void intel_dsi_reset_clocks(struct intel_encoder *encoder,
-							enum port port);
+int intel_compute_dsi_pll(struct intel_encoder *encoder,
+			  struct intel_crtc_state *config);
+void intel_enable_dsi_pll(struct intel_encoder *encoder,
+			  const struct intel_crtc_state *config);
+void intel_disable_dsi_pll(struct intel_encoder *encoder);
+u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+		       struct intel_crtc_state *config);
+void intel_dsi_reset_clocks(struct intel_encoder *encoder,
+			    enum port port);
 
 struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id);
 enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt);

@@ -497,6 +497,11 @@ struct intel_crtc_state {
 	/* Actual register state of the dpll, for shared dpll cross-checking. */
 	struct intel_dpll_hw_state dpll_hw_state;
 
+	/* DSI PLL registers */
+	struct {
+		u32 ctrl, div;
+	} dsi_pll;
+
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
 

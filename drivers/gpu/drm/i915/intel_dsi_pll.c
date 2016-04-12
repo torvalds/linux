@@ -30,11 +30,6 @@
 #include "i915_drv.h"
 #include "intel_dsi.h"
 
-struct dsi_mnp {
-	u32 dsi_pll_ctrl;
-	u32 dsi_pll_div;
-};
-
 static const u16 lfsr_converts[] = {
 	426, 469, 234, 373, 442, 221, 110, 311, 411,		/* 62 - 70 */
 	461, 486, 243, 377, 188, 350, 175, 343, 427, 213,	/* 71 - 80 */
@@ -57,7 +52,8 @@ static u32 dsi_clk_from_pclk(u32 pclk, enum mipi_dsi_pixel_format fmt,
 }
 
 static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
-			struct dsi_mnp *dsi_mnp, int target_dsi_clk)
+			struct intel_crtc_state *config,
+			int target_dsi_clk)
 {
 	unsigned int calc_m = 0, calc_p = 0;
 	unsigned int m_min, m_max, p_min = 2, p_max = 6;
@@ -103,8 +99,8 @@ static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
 	/* register has log2(N1), this works fine for powers of two */
 	n = ffs(n) - 1;
 	m_seed = lfsr_converts[calc_m - 62];
-	dsi_mnp->dsi_pll_ctrl = 1 << (DSI_PLL_P1_POST_DIV_SHIFT + calc_p - 2);
-	dsi_mnp->dsi_pll_div = n << DSI_PLL_N1_DIV_SHIFT |
+	config->dsi_pll.ctrl = 1 << (DSI_PLL_P1_POST_DIV_SHIFT + calc_p - 2);
+	config->dsi_pll.div = n << DSI_PLL_N1_DIV_SHIFT |
 		m_seed << DSI_PLL_M1_DIV_SHIFT;
 
 	return 0;
@@ -114,54 +110,63 @@ static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
  * XXX: The muxing and gating is hard coded for now. Need to add support for
  * sharing PLLs with two DSI outputs.
  */
-static void vlv_configure_dsi_pll(struct intel_encoder *encoder)
+static int vlv_compute_dsi_pll(struct intel_encoder *encoder,
+			       struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	int ret;
-	struct dsi_mnp dsi_mnp;
 	u32 dsi_clk;
 
 	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
 				    intel_dsi->lane_count);
 
-	ret = dsi_calc_mnp(dev_priv, &dsi_mnp, dsi_clk);
+	ret = dsi_calc_mnp(dev_priv, config, dsi_clk);
 	if (ret) {
 		DRM_DEBUG_KMS("dsi_calc_mnp failed\n");
-		return;
+		return ret;
 	}
 
 	if (intel_dsi->ports & (1 << PORT_A))
-		dsi_mnp.dsi_pll_ctrl |= DSI_PLL_CLK_GATE_DSI0_DSIPLL;
+		config->dsi_pll.ctrl |= DSI_PLL_CLK_GATE_DSI0_DSIPLL;
 
 	if (intel_dsi->ports & (1 << PORT_C))
-		dsi_mnp.dsi_pll_ctrl |= DSI_PLL_CLK_GATE_DSI1_DSIPLL;
+		config->dsi_pll.ctrl |= DSI_PLL_CLK_GATE_DSI1_DSIPLL;
+
+	config->dsi_pll.ctrl |= DSI_PLL_VCO_EN;
 
 	DRM_DEBUG_KMS("dsi pll div %08x, ctrl %08x\n",
-		      dsi_mnp.dsi_pll_div, dsi_mnp.dsi_pll_ctrl);
+		      config->dsi_pll.div, config->dsi_pll.ctrl);
 
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, 0);
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_DIVIDER, dsi_mnp.dsi_pll_div);
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, dsi_mnp.dsi_pll_ctrl);
+	return 0;
 }
 
-static void vlv_enable_dsi_pll(struct intel_encoder *encoder)
+static void vlv_configure_dsi_pll(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *config)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
-	u32 tmp;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, 0);
+	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_DIVIDER, config->dsi_pll.div);
+	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL,
+		      config->dsi_pll.ctrl & ~DSI_PLL_VCO_EN);
+}
+
+static void vlv_enable_dsi_pll(struct intel_encoder *encoder,
+			       const struct intel_crtc_state *config)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	DRM_DEBUG_KMS("\n");
 
 	mutex_lock(&dev_priv->sb_lock);
 
-	vlv_configure_dsi_pll(encoder);
+	vlv_configure_dsi_pll(encoder, config);
 
 	/* wait at least 0.5 us after ungating before enabling VCO */
 	usleep_range(1, 10);
 
-	tmp = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
-	tmp |= DSI_PLL_VCO_EN;
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, tmp);
+	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, config->dsi_pll.ctrl);
 
 	if (wait_for(vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL) &
 						DSI_PLL_LOCK, 20)) {
@@ -177,7 +182,7 @@ static void vlv_enable_dsi_pll(struct intel_encoder *encoder)
 
 static void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 tmp;
 
 	DRM_DEBUG_KMS("\n");
@@ -224,7 +229,7 @@ static bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
 
 static void bxt_disable_dsi_pll(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 val;
 
 	DRM_DEBUG_KMS("\n");
@@ -251,9 +256,10 @@ static void assert_bpp_mismatch(enum mipi_dsi_pixel_format fmt, int pipe_bpp)
 	     bpp, pipe_bpp);
 }
 
-static u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
+static u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+			    struct intel_crtc_state *config)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	u32 dsi_clock, pclk;
 	u32 pll_ctl, pll_div;
@@ -267,6 +273,9 @@ static u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	pll_ctl = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
 	pll_div = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_DIVIDER);
 	mutex_unlock(&dev_priv->sb_lock);
+
+	config->dsi_pll.ctrl = pll_ctl & ~DSI_PLL_LOCK;
+	config->dsi_pll.div = pll_div;
 
 	/* mask out other bits and extract the P1 divisor */
 	pll_ctl &= DSI_PLL_P1_POST_DIV_MASK;
@@ -313,7 +322,8 @@ static u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	return pclk;
 }
 
-static u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
+static u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+			    struct intel_crtc_state *config)
 {
 	u32 pclk;
 	u32 dsi_clk;
@@ -327,15 +337,9 @@ static u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
 		return 0;
 	}
 
-	dsi_ratio = I915_READ(BXT_DSI_PLL_CTL) &
-				BXT_DSI_PLL_RATIO_MASK;
+	config->dsi_pll.ctrl = I915_READ(BXT_DSI_PLL_CTL);
 
-	/* Invalid DSI ratio ? */
-	if (dsi_ratio < BXT_DSI_PLL_RATIO_MIN ||
-			dsi_ratio > BXT_DSI_PLL_RATIO_MAX) {
-		DRM_ERROR("Invalid DSI pll ratio(%u) programmed\n", dsi_ratio);
-		return 0;
-	}
+	dsi_ratio = config->dsi_pll.ctrl & BXT_DSI_PLL_RATIO_MASK;
 
 	dsi_clk = (dsi_ratio * BXT_REF_CLOCK_KHZ) / 2;
 
@@ -348,12 +352,13 @@ static u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	return pclk;
 }
 
-u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
+u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+		       struct intel_crtc_state *config)
 {
 	if (IS_BROXTON(encoder->base.dev))
-		return bxt_dsi_get_pclk(encoder, pipe_bpp);
+		return bxt_dsi_get_pclk(encoder, pipe_bpp, config);
 	else
-		return vlv_dsi_get_pclk(encoder, pipe_bpp);
+		return vlv_dsi_get_pclk(encoder, pipe_bpp, config);
 }
 
 static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
@@ -370,7 +375,8 @@ static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 }
 
 /* Program BXT Mipi clocks and dividers */
-static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port)
+static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port,
+				   const struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 tmp;
@@ -390,8 +396,7 @@ static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port)
 	tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
 
 	/* Get the current DSI rate(actual) */
-	pll_ratio = I915_READ(BXT_DSI_PLL_CTL) &
-				BXT_DSI_PLL_RATIO_MASK;
+	pll_ratio = config->dsi_pll.ctrl & BXT_DSI_PLL_RATIO_MASK;
 	dsi_rate = (BXT_REF_CLOCK_KHZ * pll_ratio) / 2;
 
 	/*
@@ -427,16 +432,15 @@ static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port)
 	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
 }
 
-static bool bxt_configure_dsi_pll(struct intel_encoder *encoder)
+static int bxt_compute_dsi_pll(struct intel_encoder *encoder,
+			       struct intel_crtc_state *config)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	u8 dsi_ratio;
 	u32 dsi_clk;
-	u32 val;
 
 	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
-			intel_dsi->lane_count);
+				    intel_dsi->lane_count);
 
 	/*
 	 * From clock diagram, to get PLL ratio divider, divide double of DSI
@@ -445,9 +449,9 @@ static bool bxt_configure_dsi_pll(struct intel_encoder *encoder)
 	 */
 	dsi_ratio = DIV_ROUND_UP(dsi_clk * 2, BXT_REF_CLOCK_KHZ);
 	if (dsi_ratio < BXT_DSI_PLL_RATIO_MIN ||
-			dsi_ratio > BXT_DSI_PLL_RATIO_MAX) {
+	    dsi_ratio > BXT_DSI_PLL_RATIO_MAX) {
 		DRM_ERROR("Cant get a suitable ratio from DSI PLL ratios\n");
-		return false;
+		return -ECHRNG;
 	}
 
 	/*
@@ -455,27 +459,28 @@ static bool bxt_configure_dsi_pll(struct intel_encoder *encoder)
 	 * Spec says both have to be programmed, even if one is not getting
 	 * used. Configure MIPI_CLOCK_CTL dividers in modeset
 	 */
-	val = I915_READ(BXT_DSI_PLL_CTL);
-	val &= ~BXT_DSI_PLL_PVD_RATIO_MASK;
-	val &= ~BXT_DSI_FREQ_SEL_MASK;
-	val &= ~BXT_DSI_PLL_RATIO_MASK;
-	val |= (dsi_ratio | BXT_DSIA_16X_BY2 | BXT_DSIC_16X_BY2);
+	config->dsi_pll.ctrl = dsi_ratio | BXT_DSIA_16X_BY2 | BXT_DSIC_16X_BY2;
 
 	/* As per recommendation from hardware team,
 	 * Prog PVD ratio =1 if dsi ratio <= 50
 	 */
-	if (dsi_ratio <= 50) {
-		val &= ~BXT_DSI_PLL_PVD_RATIO_MASK;
-		val |= BXT_DSI_PLL_PVD_RATIO_1;
-	}
+	if (dsi_ratio <= 50)
+		config->dsi_pll.ctrl |= BXT_DSI_PLL_PVD_RATIO_1;
 
-	I915_WRITE(BXT_DSI_PLL_CTL, val);
-	POSTING_READ(BXT_DSI_PLL_CTL);
-
-	return true;
+	return 0;
 }
 
-static void bxt_enable_dsi_pll(struct intel_encoder *encoder)
+static void bxt_configure_dsi_pll(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *config)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	I915_WRITE(BXT_DSI_PLL_CTL, config->dsi_pll.ctrl);
+	POSTING_READ(BXT_DSI_PLL_CTL);
+}
+
+static void bxt_enable_dsi_pll(struct intel_encoder *encoder,
+			       const struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -485,14 +490,11 @@ static void bxt_enable_dsi_pll(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("\n");
 
 	/* Configure PLL vales */
-	if (!bxt_configure_dsi_pll(encoder)) {
-		DRM_ERROR("Configure DSI PLL failed, abort PLL enable\n");
-		return;
-	}
+	bxt_configure_dsi_pll(encoder, config);
 
 	/* Program TX, RX, Dphy clocks */
 	for_each_dsi_port(port, intel_dsi->ports)
-		bxt_dsi_program_clocks(encoder->base.dev, port);
+		bxt_dsi_program_clocks(encoder->base.dev, port, config);
 
 	/* Enable DSI PLL */
 	val = I915_READ(BXT_DSI_PLL_ENABLE);
@@ -518,14 +520,28 @@ bool intel_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
 	return false;
 }
 
-void intel_enable_dsi_pll(struct intel_encoder *encoder)
+int intel_compute_dsi_pll(struct intel_encoder *encoder,
+			  struct intel_crtc_state *config)
 {
 	struct drm_device *dev = encoder->base.dev;
 
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
-		vlv_enable_dsi_pll(encoder);
+		return vlv_compute_dsi_pll(encoder, config);
 	else if (IS_BROXTON(dev))
-		bxt_enable_dsi_pll(encoder);
+		return bxt_compute_dsi_pll(encoder, config);
+
+	return -ENODEV;
+}
+
+void intel_enable_dsi_pll(struct intel_encoder *encoder,
+			  const struct intel_crtc_state *config)
+{
+	struct drm_device *dev = encoder->base.dev;
+
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+		vlv_enable_dsi_pll(encoder, config);
+	else if (IS_BROXTON(dev))
+		bxt_enable_dsi_pll(encoder, config);
 }
 
 void intel_disable_dsi_pll(struct intel_encoder *encoder)
