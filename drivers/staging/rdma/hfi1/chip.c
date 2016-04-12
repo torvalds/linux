@@ -5661,7 +5661,7 @@ static int sc_to_vl(struct hfi1_devdata *dd, int sw_index)
 	sci = &dd->send_contexts[sw_index];
 
 	/* there is no information for user (PSM) and ack contexts */
-	if (sci->type != SC_KERNEL)
+	if ((sci->type != SC_KERNEL) && (sci->type != SC_VL15))
 		return -1;
 
 	sc = sci->sc;
@@ -9627,6 +9627,7 @@ static void set_send_length(struct hfi1_pportdata *ppd)
 			      & SEND_LEN_CHECK1_LEN_VL15_MASK) <<
 		SEND_LEN_CHECK1_LEN_VL15_SHIFT;
 	int i;
+	u32 thres;
 
 	for (i = 0; i < ppd->vls_supported; i++) {
 		if (dd->vld[i].mtu > maxvlmtu)
@@ -9645,16 +9646,17 @@ static void set_send_length(struct hfi1_pportdata *ppd)
 	/* adjust kernel credit return thresholds based on new MTUs */
 	/* all kernel receive contexts have the same hdrqentsize */
 	for (i = 0; i < ppd->vls_supported; i++) {
-		sc_set_cr_threshold(dd->vld[i].sc,
-				    sc_mtu_to_threshold(dd->vld[i].sc,
-							dd->vld[i].mtu,
-							dd->rcd[0]->
-							rcvhdrqentsize));
-	}
-	sc_set_cr_threshold(dd->vld[15].sc,
-			    sc_mtu_to_threshold(dd->vld[15].sc,
-						dd->vld[15].mtu,
+		thres = min(sc_percent_to_threshold(dd->vld[i].sc, 50),
+			    sc_mtu_to_threshold(dd->vld[i].sc,
+						dd->vld[i].mtu,
 						dd->rcd[0]->rcvhdrqentsize));
+		sc_set_cr_threshold(dd->vld[i].sc, thres);
+	}
+	thres = min(sc_percent_to_threshold(dd->vld[15].sc, 50),
+		    sc_mtu_to_threshold(dd->vld[15].sc,
+					dd->vld[15].mtu,
+					dd->rcd[0]->rcvhdrqentsize));
+	sc_set_cr_threshold(dd->vld[15].sc, thres);
 
 	/* Adjust maximum MTU for the port in DC */
 	dcmtu = maxvlmtu == 10240 ? DCC_CFG_PORT_MTU_CAP_10240 :
@@ -12728,12 +12730,13 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		dd->num_send_contexts = ret;
 		dd_dev_info(
 			dd,
-			"send contexts: chip %d, used %d (kernel %d, ack %d, user %d)\n",
+			"send contexts: chip %d, used %d (kernel %d, ack %d, user %d, vl15 %d)\n",
 			dd->chip_send_contexts,
 			dd->num_send_contexts,
 			dd->sc_sizes[SC_KERNEL].count,
 			dd->sc_sizes[SC_ACK].count,
-			dd->sc_sizes[SC_USER].count);
+			dd->sc_sizes[SC_USER].count,
+			dd->sc_sizes[SC_VL15].count);
 		ret = 0;	/* success */
 	}
 
