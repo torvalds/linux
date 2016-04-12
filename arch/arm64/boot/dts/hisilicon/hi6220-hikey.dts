@@ -53,6 +53,18 @@
 		i2c1: i2c@f7101000 {
 			status = "ok";
 		};
+
+		uart1: uart@f7111000 {
+			status = "ok";
+		};
+
+		uart2: uart@f7112000 {
+			status = "ok";
+		};
+
+		uart3: uart@f7113000 {
+			status = "ok";
+		};
 	};
 };
 
