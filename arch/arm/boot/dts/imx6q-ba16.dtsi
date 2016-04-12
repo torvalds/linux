@@ -392,7 +392,6 @@
 	pinctrl-0 = <&pinctrl_usdhc3 &pinctrl_usdhc3_reset>;
 	bus-width = <8>;
 	vmmc-supply = <&vdd_bperi>;
-	vqmmc-supply = <&vdd_bio>;
 	non-removable;
 	keep-power-in-suspend;
 	status = "okay";
