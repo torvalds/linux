@@ -588,7 +588,6 @@ void assert_forcewakes_inactive(struct drm_i915_private *dev_priv)
 })
 
 static const i915_reg_t gen8_shadowed_regs[] = {
-	FORCEWAKE_MT,
 	GEN6_RPNSWREQ,
 	GEN6_RC_VIDEO_FREQ,
 	RING_TAIL(RENDER_RING_BASE),
@@ -724,9 +723,6 @@ static const i915_reg_t gen9_shadowed_regs[] = {
 	RING_TAIL(GEN6_BSD_RING_BASE),
 	RING_TAIL(VEBOX_RING_BASE),
 	RING_TAIL(BLT_RING_BASE),
-	FORCEWAKE_BLITTER_GEN9,
-	FORCEWAKE_RENDER_GEN9,
-	FORCEWAKE_MEDIA_GEN9,
 	GEN6_RPNSWREQ,
 	GEN6_RC_VIDEO_FREQ,
 	/* TODO: Other registers are not yet used */
