@@ -64,10 +64,27 @@ enum affinity_flags {
 	AFF_IRQ_LOCAL
 };
 
+struct cpu_mask_set {
+	struct cpumask mask;
+	struct cpumask used;
+	uint gen;
+};
+
+struct hfi1_affinity {
+	struct cpu_mask_set def_intr;
+	struct cpu_mask_set rcv_intr;
+	struct cpu_mask_set proc;
+	struct cpumask real_cpu_mask;
+	/* spin lock to protect affinity struct */
+	spinlock_t lock;
+};
+
 struct hfi1_msix_entry;
 
+/* Initialize non-HT cpu cores mask */
+int init_real_cpu_mask(struct hfi1_devdata *);
 /* Initialize driver affinity data */
-int hfi1_dev_affinity_init(struct hfi1_devdata *);
+void hfi1_dev_affinity_init(struct hfi1_devdata *);
 /* Free driver affinity data */
 void hfi1_dev_affinity_free(struct hfi1_devdata *);
 /*
