@@ -745,7 +745,7 @@ static void gen8_ppgtt_clear_pte_range(struct i915_address_space *vm,
 			num_entries--;
 		}
 
-		kunmap_px(ppgtt, pt);
+		kunmap_px(ppgtt, pt_vaddr);
 
 		pte = 0;
 		if (++pde == I915_PDES) {
