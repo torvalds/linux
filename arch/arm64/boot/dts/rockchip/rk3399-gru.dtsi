@@ -859,6 +859,59 @@ ap_i2c_audio: &i2c8 {
 	status = "okay";
 };
 
+/* HACKS: Poorly formatted on purpose so you know they're hacks */
+
+/* HACK THE PWM REGULATOR OUT
+ *
+ * We'll hack them all to pretend they are fixed regulators
+ * and at exactly .9V, which is where cpufreq wants them.
+ *
+ * We'll also set all PWMs to disabled so we know that the PWM
+ * framework won't touch them.
+ *
+ * This relies on PWM clock being a critical clock.
+ */
+&ppvar_bigcpu {
+	compatible = "regulator-fixed";
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+};
+
+&ppvar_centerlogic {
+	compatible = "regulator-fixed";
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+};
+
+&ppvar_litcpu {
+	compatible = "regulator-fixed";
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+};
+
+&ppvar_gpu {
+	compatible = "regulator-fixed";
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+};
+
+&pwm0 {
+	status = "disabled";
+};
+
+&pwm1 {
+	status = "disabled";
+};
+
+&pwm2 {
+
+	status = "disabled";
+};
+
+&pwm3 {
+	status = "disabled";
+};
+
 /* PINCTRL: always below everything else */
 
 &pinctrl {
