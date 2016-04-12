@@ -68,15 +68,15 @@
 /* color key value register for hardware window 1 ~ 4. */
 #define WKEYCON1_BASE(x)		((WKEYCON1 + 0x140) + ((x - 1) * 8))
 
-/* I80 / RGB trigger control register */
+/* I80 trigger control register */
 #define TRIGCON				0x1A4
-#define TRGMODE_I80_RGB_ENABLE_I80	(1 << 0)
-#define SWTRGCMD_I80_RGB_ENABLE		(1 << 1)
+#define TRGMODE_ENABLE			(1 << 0)
+#define SWTRGCMD_ENABLE			(1 << 1)
 /* Exynos3250, 3472, 4415, 5260 5410, 5420 and 5422 only supported. */
-#define HWTRGEN_I80_RGB_ENABLE		(1 << 3)
-#define HWTRGMASK_I80_RGB_ENABLE	(1 << 4)
+#define HWTRGEN_ENABLE			(1 << 3)
+#define HWTRGMASK_ENABLE		(1 << 4)
 /* Exynos3250, 3472, 4415, 5260, 5420 and 5422 only supported. */
-#define HWTRIGEN_PER_RGB_ENABLE		(1 << 31)
+#define HWTRIGEN_PER_ENABLE		(1 << 31)
 
 /* display mode change control register except exynos4 */
 #define VIDOUT_CON			0x000
@@ -420,16 +420,15 @@ static void fimd_setup_trigger(struct fimd_context *ctx)
 	u32 trg_type = ctx->driver_data->trg_type;
 	u32 val = readl(timing_base + TRIGCON);
 
-	val &= ~(TRGMODE_I80_RGB_ENABLE_I80);
+	val &= ~(TRGMODE_ENABLE);
 
 	if (trg_type == I80_HW_TRG) {
 		if (ctx->driver_data->has_hw_trigger)
-			val |= HWTRGEN_I80_RGB_ENABLE |
-				HWTRGMASK_I80_RGB_ENABLE;
+			val |= HWTRGEN_ENABLE | HWTRGMASK_ENABLE;
 		if (ctx->driver_data->has_trigger_per_te)
-			val |= HWTRIGEN_PER_RGB_ENABLE;
+			val |= HWTRIGEN_PER_ENABLE;
 	} else {
-		val |= TRGMODE_I80_RGB_ENABLE_I80;
+		val |= TRGMODE_ENABLE;
 	}
 
 	writel(val, timing_base + TRIGCON);
@@ -879,7 +878,7 @@ static void fimd_trigger(struct device *dev)
 	atomic_set(&ctx->triggering, 1);
 
 	reg = readl(timing_base + TRIGCON);
-	reg |= (TRGMODE_I80_RGB_ENABLE_I80 | SWTRGCMD_I80_RGB_ENABLE);
+	reg |= (TRGMODE_ENABLE | SWTRGCMD_ENABLE);
 	writel(reg, timing_base + TRIGCON);
 
 	/*
