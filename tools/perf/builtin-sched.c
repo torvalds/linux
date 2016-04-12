@@ -135,6 +135,8 @@ struct perf_sched_map {
 	const char		*color_pids_str;
 	struct cpu_map		*color_cpus;
 	const char		*color_cpus_str;
+	struct cpu_map		*cpus;
+	const char		*cpus_str;
 };
 
 struct perf_sched {
@@ -1469,6 +1471,9 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 		if (curr_thread && thread__has_color(curr_thread))
 			pid_color = COLOR_PIDS;
 
+		if (sched->map.cpus && !cpu_map__has(sched->map.cpus, cpu))
+			continue;
+
 		if (sched->map.color_cpus && cpu_map__has(sched->map.color_cpus, cpu))
 			cpu_color = COLOR_CPUS;
 
@@ -1482,6 +1487,9 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 		else
 			color_fprintf(stdout, color, "   ");
 	}
+
+	if (sched->map.cpus && !cpu_map__has(sched->map.cpus, this_cpu))
+		goto out;
 
 	color_fprintf(stdout, color, "  %12.6f secs ", (double)timestamp/1e9);
 	if (new_shortname) {
@@ -1497,6 +1505,7 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 	if (sched->map.comp && new_cpu)
 		color_fprintf(stdout, color, " (CPU %d)", this_cpu);
 
+out:
 	color_fprintf(stdout, color, "\n");
 
 	thread__put(sched_in);
@@ -1756,6 +1765,8 @@ static int perf_sched__lat(struct perf_sched *sched)
 
 static int setup_map_cpus(struct perf_sched *sched)
 {
+	struct cpu_map *map;
+
 	sched->max_cpu  = sysconf(_SC_NPROCESSORS_CONF);
 
 	if (sched->map.comp) {
@@ -1764,6 +1775,16 @@ static int setup_map_cpus(struct perf_sched *sched)
 			return -1;
 	}
 
+	if (!sched->map.cpus_str)
+		return 0;
+
+	map = cpu_map__new(sched->map.cpus_str);
+	if (!map) {
+		pr_err("failed to get cpus map from %s\n", sched->map.cpus_str);
+		return -1;
+	}
+
+	sched->map.cpus = map;
 	return 0;
 }
 
@@ -1971,6 +1992,8 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "highlight given pids in map"),
 	OPT_STRING(0, "color-cpus", &sched.map.color_cpus_str, "cpus",
                     "highlight given CPUs in map"),
+	OPT_STRING(0, "cpus", &sched.map.cpus_str, "cpus",
+                    "display given CPUs in map"),
 	OPT_END()
 	};
 	const char * const latency_usage[] = {

@@ -57,6 +57,9 @@ OPTIONS for 'perf sched map'
 	Show only CPUs with activity. Helps visualizing on high core
 	count systems.
 
+--cpus::
+	Show just entries with activities for the given CPUs.
+
 --color-cpus::
 	Highlight the given cpus.
 
