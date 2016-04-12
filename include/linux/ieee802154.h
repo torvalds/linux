@@ -218,6 +218,7 @@ enum {
 /* frame control handling */
 #define IEEE802154_FCTL_FTYPE		0x0003
 #define IEEE802154_FCTL_ACKREQ		0x0020
+#define IEEE802154_FCTL_SECEN		0x0004
 #define IEEE802154_FCTL_INTRA_PAN	0x0040
 
 #define IEEE802154_FTYPE_DATA		0x0001
@@ -230,6 +231,15 @@ static inline int ieee802154_is_data(__le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE802154_FCTL_FTYPE)) ==
 		cpu_to_le16(IEEE802154_FTYPE_DATA);
+}
+
+/**
+ * ieee802154_is_secen - check if Security bit is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee802154_is_secen(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_SECEN);
 }
 
 /**
