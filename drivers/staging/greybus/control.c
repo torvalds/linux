@@ -269,7 +269,7 @@ int gb_control_timesync_authoritative(struct gb_control *control,
 	int i;
 
 	for (i = 0; i < GB_TIMESYNC_MAX_STROBES; i++)
-		request.frame_time[i] = frame_time[i];
+		request.frame_time[i] = cpu_to_le64(frame_time[i]);
 
 	return gb_operation_sync(control->connection,
 				 GB_CONTROL_TYPE_TIMESYNC_AUTHORITATIVE,

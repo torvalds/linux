@@ -180,7 +180,7 @@ struct gb_control_timesync_enable_request {
 /* timesync enable response has no payload */
 
 struct gb_control_timesync_authoritative_request {
-	__u64	frame_time[GB_TIMESYNC_MAX_STROBES];
+	__le64	frame_time[GB_TIMESYNC_MAX_STROBES];
 } __packed;
 /* timesync authoritative response has no payload */
 
@@ -911,16 +911,16 @@ struct gb_svc_route_destroy_request {
 
 struct gb_svc_timesync_enable_request {
 	__u8	count;
-	__u64	frame_time;
-	__u32	strobe_delay;
-	__u32	strobe_mask;
-	__u32	refclk;
+	__le64	frame_time;
+	__le32	strobe_delay;
+	__le32	strobe_mask;
+	__le32	refclk;
 } __packed;
 /* timesync enable response has no payload */
 
 /* timesync authoritative request has no payload */
 struct gb_svc_timesync_authoritative_response {
-	__u64	frame_time[GB_TIMESYNC_MAX_STROBES];
+	__le64	frame_time[GB_TIMESYNC_MAX_STROBES];
 };
 
 #define GB_SVC_UNIPRO_FAST_MODE			0x01
