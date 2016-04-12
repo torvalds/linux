@@ -271,9 +271,6 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 		for (i = 0;
 		     i < ARRAY_SIZE(mvm->shared_mem_cfg.internal_txfifo_size);
 		     i++) {
-			/* Mark the number of TXF we're pulling now */
-			iwl_trans_write_prph(mvm->trans, TXF_CPU2_NUM, i);
-
 			fifo_hdr = (void *)(*dump_data)->data;
 			fifo_data = (void *)fifo_hdr->data;
 			fifo_len = mvm->shared_mem_cfg.internal_txfifo_size[i];
@@ -289,6 +286,10 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 				cpu_to_le32(fifo_len + sizeof(*fifo_hdr));
 
 			fifo_hdr->fifo_num = cpu_to_le32(i);
+
+			/* Mark the number of TXF we're pulling now */
+			iwl_trans_write_prph(mvm->trans, TXF_CPU2_NUM, i);
+
 			fifo_hdr->available_bytes =
 				cpu_to_le32(iwl_trans_read_prph(mvm->trans,
 								TXF_CPU2_FIFO_ITEM_CNT));
