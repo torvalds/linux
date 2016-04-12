@@ -273,6 +273,8 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 	memcpy(adev->uvd.cpu_addr, (adev->uvd.fw->data) + offset,
 		(adev->uvd.fw->size) - offset);
 
+	cancel_delayed_work_sync(&adev->uvd.idle_work);
+
 	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
 	size -= le32_to_cpu(hdr->ucode_size_bytes);
 	ptr = adev->uvd.cpu_addr;
