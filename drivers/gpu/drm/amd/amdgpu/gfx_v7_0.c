@@ -4414,7 +4414,7 @@ static int gfx_v7_0_sw_init(void *handle)
 		ring = &adev->gfx.gfx_ring[i];
 		ring->ring_obj = NULL;
 		sprintf(ring->name, "gfx");
-		r = amdgpu_ring_init(adev, ring, 1024 * 1024,
+		r = amdgpu_ring_init(adev, ring, 128 * 1024,
 				     PACKET3(PACKET3_NOP, 0x3FFF), 0xf,
 				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_EOP,
 				     AMDGPU_RING_TYPE_GFX);
@@ -4441,7 +4441,7 @@ static int gfx_v7_0_sw_init(void *handle)
 		sprintf(ring->name, "comp %d.%d.%d", ring->me, ring->pipe, ring->queue);
 		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
 		/* type-2 packets are deprecated on MEC, use type-3 instead */
-		r = amdgpu_ring_init(adev, ring, 1024 * 1024,
+		r = amdgpu_ring_init(adev, ring, 128 * 1024,
 				     PACKET3(PACKET3_NOP, 0x3FFF), 0xf,
 				     &adev->gfx.eop_irq, irq_type,
 				     AMDGPU_RING_TYPE_COMPUTE);

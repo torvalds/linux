@@ -215,18 +215,17 @@ int amdgpu_ring_restore(struct amdgpu_ring *ring,
  *
  * @adev: amdgpu_device pointer
  * @ring: amdgpu_ring structure holding ring information
- * @ring_size: size of the ring
+ * @max_ndw: maximum number of dw for ring alloc
  * @nop: nop packet for this ring
  *
  * Initialize the driver information for the selected ring (all asics).
  * Returns 0 on success, error on failure.
  */
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
-		     unsigned ring_size, u32 nop, u32 align_mask,
+		     unsigned max_dw, u32 nop, u32 align_mask,
 		     struct amdgpu_irq_src *irq_src, unsigned irq_type,
 		     enum amdgpu_ring_type ring_type)
 {
-	u32 rb_bufsz;
 	int r;
 
 	if (ring->adev == NULL) {
@@ -283,10 +282,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		return r;
 	}
 
-	/* Align ring size */
-	rb_bufsz = order_base_2(ring_size / 8);
-	ring_size = (1 << (rb_bufsz + 1)) * 4;
-	ring->ring_size = ring_size;
+	ring->ring_size = roundup_pow_of_two(max_dw * 4 *
+					     amdgpu_sched_hw_submission);
 	ring->align_mask = align_mask;
 	ring->nop = nop;
 	ring->type = ring_type;
@@ -319,8 +316,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		}
 	}
 	ring->ptr_mask = (ring->ring_size / 4) - 1;
-	ring->max_dw = DIV_ROUND_UP(ring->ring_size / 4,
-				    amdgpu_sched_hw_submission);
+	ring->max_dw = max_dw;
 
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");

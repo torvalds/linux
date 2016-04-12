@@ -381,14 +381,14 @@ static int vce_v3_0_sw_init(void *handle)
 
 	ring = &adev->vce.ring[0];
 	sprintf(ring->name, "vce0");
-	r = amdgpu_ring_init(adev, ring, 4096, VCE_CMD_NO_OP, 0xf,
+	r = amdgpu_ring_init(adev, ring, 512, VCE_CMD_NO_OP, 0xf,
 			     &adev->vce.irq, 0, AMDGPU_RING_TYPE_VCE);
 	if (r)
 		return r;
 
 	ring = &adev->vce.ring[1];
 	sprintf(ring->name, "vce1");
-	r = amdgpu_ring_init(adev, ring, 4096, VCE_CMD_NO_OP, 0xf,
+	r = amdgpu_ring_init(adev, ring, 512, VCE_CMD_NO_OP, 0xf,
 			     &adev->vce.irq, 0, AMDGPU_RING_TYPE_VCE);
 	if (r)
 		return r;
