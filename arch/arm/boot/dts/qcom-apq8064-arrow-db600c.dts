@@ -123,6 +123,10 @@
 				lvs6 {
 					bias-pull-down;
 				};
+
+				lvs7 {
+					bias-pull-down;
+				};
 			};
 		};
 
@@ -157,6 +161,15 @@
 			pinctrl-0 = <&pcie_pins>;
 			pinctrl-names = "default";
 			perst-gpio = <&tlmm_pinmux 27 GPIO_ACTIVE_LOW>;
+		};
+
+		phy@1b400000 {
+			status = "okay";
+		};
+
+		sata@29000000 {
+			status	= "okay";
+			target-supply	= <&pm8921_lvs7>;
 		};
 
 		/* OTG */
