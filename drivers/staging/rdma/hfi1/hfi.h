@@ -455,9 +455,9 @@ struct rvt_sge_state;
 #define HLS_UP (HLS_UP_INIT | HLS_UP_ARMED | HLS_UP_ACTIVE)
 
 /* use this MTU size if none other is given */
-#define HFI1_DEFAULT_ACTIVE_MTU 8192
+#define HFI1_DEFAULT_ACTIVE_MTU 10240
 /* use this MTU size as the default maximum */
-#define HFI1_DEFAULT_MAX_MTU 8192
+#define HFI1_DEFAULT_MAX_MTU 10240
 /* default partition key */
 #define DEFAULT_PKEY 0xffff
 
