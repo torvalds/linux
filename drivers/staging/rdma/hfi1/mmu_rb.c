@@ -126,10 +126,15 @@ void hfi1_mmu_rb_unregister(struct rb_root *root)
 	if (!handler)
 		return;
 
+	/* Unregister first so we don't get any more notifications. */
+	if (current->mm)
+		mmu_notifier_unregister(&handler->mn, current->mm);
+
 	spin_lock_irqsave(&mmu_rb_lock, flags);
 	list_del(&handler->list);
 	spin_unlock_irqrestore(&mmu_rb_lock, flags);
 
+	spin_lock_irqsave(&handler->lock, flags);
 	if (!RB_EMPTY_ROOT(root)) {
 		struct rb_node *node;
 		struct mmu_rb_node *rbnode;
@@ -141,9 +146,8 @@ void hfi1_mmu_rb_unregister(struct rb_root *root)
 				handler->ops->remove(root, rbnode, NULL);
 		}
 	}
+	spin_unlock_irqrestore(&handler->lock, flags);
 
-	if (current->mm)
-		mmu_notifier_unregister(&handler->mn, current->mm);
 	kfree(handler);
 }
 
