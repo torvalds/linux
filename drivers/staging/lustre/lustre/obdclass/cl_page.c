@@ -498,7 +498,7 @@ void cl_page_disown0(const struct lu_env *env,
 
 	state = pg->cp_state;
 	PINVRNT(env, pg, state == CPS_OWNED || state == CPS_FREEING);
-	PINVRNT(env, pg, cl_page_invariant(pg));
+	PINVRNT(env, pg, cl_page_invariant(pg) || state == CPS_FREEING);
 	cl_page_owner_clear(pg);
 
 	if (state == CPS_OWNED)
@@ -670,7 +670,8 @@ EXPORT_SYMBOL(cl_page_unassume);
 void cl_page_disown(const struct lu_env *env,
 		    struct cl_io *io, struct cl_page *pg)
 {
-	PINVRNT(env, pg, cl_page_is_owned(pg, io));
+	PINVRNT(env, pg, cl_page_is_owned(pg, io) ||
+		pg->cp_state == CPS_FREEING);
 
 	io = cl_io_top(io);
 	cl_page_disown0(env, io, pg);
