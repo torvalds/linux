@@ -909,8 +909,11 @@ int ptlrpcd_addref(void)
 	int rc = 0;
 
 	mutex_lock(&ptlrpcd_mutex);
-	if (++ptlrpcd_users == 1)
+	if (++ptlrpcd_users == 1) {
 		rc = ptlrpcd_init();
+		if (rc < 0)
+			ptlrpcd_users--;
+	}
 	mutex_unlock(&ptlrpcd_mutex);
 	return rc;
 }

@@ -2314,12 +2314,14 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 		return -ENOMEM;
 	mdc_init_rpc_lock(cli->cl_rpc_lock);
 
-	ptlrpcd_addref();
+	rc = ptlrpcd_addref();
+	if (rc < 0)
+		goto err_rpc_lock;
 
 	cli->cl_close_lock = kzalloc(sizeof(*cli->cl_close_lock), GFP_NOFS);
 	if (!cli->cl_close_lock) {
 		rc = -ENOMEM;
-		goto err_rpc_lock;
+		goto err_ptlrpcd_decref;
 	}
 	mdc_init_rpc_lock(cli->cl_close_lock);
 
@@ -2345,9 +2347,10 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 
 err_close_lock:
 	kfree(cli->cl_close_lock);
+err_ptlrpcd_decref:
+	ptlrpcd_decref();
 err_rpc_lock:
 	kfree(cli->cl_rpc_lock);
-	ptlrpcd_decref();
 	return rc;
 }
 
