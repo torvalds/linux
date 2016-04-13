@@ -1367,15 +1367,13 @@ static void igbvf_configure_rx(struct igbvf_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct igbvf_ring *rx_ring = adapter->rx_ring;
 	u64 rdba;
-	u32 rdlen, rxdctl;
+	u32 rxdctl;
 
 	/* disable receives */
 	rxdctl = er32(RXDCTL(0));
 	ew32(RXDCTL(0), rxdctl & ~E1000_RXDCTL_QUEUE_ENABLE);
 	e1e_flush();
 	msleep(10);
-
-	rdlen = rx_ring->count * sizeof(union e1000_adv_rx_desc);
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring
