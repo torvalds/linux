@@ -130,6 +130,12 @@ struct dsa_switch {
 	int			index;
 
 	/*
+	 * Give the switch driver somewhere to hang its private data
+	 * structure.
+	 */
+	void *priv;
+
+	/*
 	 * Tagging protocol understood by this switch
 	 */
 	enum dsa_tag_protocol	tag_protocol;
@@ -213,7 +219,7 @@ struct dsa_switch_driver {
 	 * Probing and setup.
 	 */
 	char	*(*probe)(struct device *dsa_dev, struct device *host_dev,
-			  int sw_addr);
+			  int sw_addr, void **priv);
 	int	(*setup)(struct dsa_switch *ds);
 	int	(*set_addr)(struct dsa_switch *ds, u8 *addr);
 	u32	(*get_phy_flags)(struct dsa_switch *ds, int port);
@@ -342,7 +348,7 @@ struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev);
 
 static inline void *ds_to_priv(struct dsa_switch *ds)
 {
-	return (void *)(ds + 1);
+	return ds->priv;
 }
 
 static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)

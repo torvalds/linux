@@ -397,6 +397,9 @@ struct mv88e6xxx_priv_port {
 };
 
 struct mv88e6xxx_priv_state {
+	/* The dsa_switch this private structure is related to */
+	struct dsa_switch *ds;
+
 	/* When using multi-chip addressing, this mutex protects
 	 * access to the indirect access registers.  (In single-chip
 	 * mode, this mutex is effectively useless.)

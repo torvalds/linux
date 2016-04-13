@@ -52,7 +52,7 @@ EXPORT_SYMBOL_GPL(unregister_switch_driver);
 
 static struct dsa_switch_driver *
 dsa_switch_probe(struct device *parent, struct device *host_dev, int sw_addr,
-		 char **_name)
+		 char **_name, void **priv)
 {
 	struct dsa_switch_driver *ret;
 	struct list_head *list;
@@ -67,7 +67,7 @@ dsa_switch_probe(struct device *parent, struct device *host_dev, int sw_addr,
 
 		drv = list_entry(list, struct dsa_switch_driver, list);
 
-		name = drv->probe(parent, host_dev, sw_addr);
+		name = drv->probe(parent, host_dev, sw_addr, priv);
 		if (name != NULL) {
 			ret = drv;
 			break;
@@ -384,11 +384,12 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	struct dsa_switch *ds;
 	int ret;
 	char *name;
+	void *priv;
 
 	/*
 	 * Probe for switch model.
 	 */
-	drv = dsa_switch_probe(parent, host_dev, pd->sw_addr, &name);
+	drv = dsa_switch_probe(parent, host_dev, pd->sw_addr, &name, &priv);
 	if (drv == NULL) {
 		netdev_err(dst->master_netdev, "[%d]: could not detect attached switch\n",
 			   index);
@@ -409,6 +410,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	ds->index = index;
 	ds->pd = pd;
 	ds->drv = drv;
+	ds->priv = priv;
 	ds->tag_protocol = drv->tag_protocol;
 	ds->master_dev = host_dev;
 
