@@ -964,7 +964,7 @@ static void igbvf_assign_vector(struct igbvf_adapter *adapter, int rx_queue,
 			ivar = ivar & 0xFFFFFF00;
 			ivar |= msix_vector | E1000_IVAR_VALID;
 		}
-		adapter->rx_ring[rx_queue].eims_value = 1 << msix_vector;
+		adapter->rx_ring[rx_queue].eims_value = BIT(msix_vector);
 		array_ew32(IVAR0, index, ivar);
 	}
 	if (tx_queue > IGBVF_NO_QUEUE) {
@@ -979,7 +979,7 @@ static void igbvf_assign_vector(struct igbvf_adapter *adapter, int rx_queue,
 			ivar = ivar & 0xFFFF00FF;
 			ivar |= (msix_vector | E1000_IVAR_VALID) << 8;
 		}
-		adapter->tx_ring[tx_queue].eims_value = 1 << msix_vector;
+		adapter->tx_ring[tx_queue].eims_value = BIT(msix_vector);
 		array_ew32(IVAR0, index, ivar);
 	}
 }
@@ -1014,8 +1014,8 @@ static void igbvf_configure_msix(struct igbvf_adapter *adapter)
 
 	ew32(IVAR_MISC, tmp);
 
-	adapter->eims_enable_mask = (1 << (vector)) - 1;
-	adapter->eims_other = 1 << (vector - 1);
+	adapter->eims_enable_mask = GENMASK(vector - 1, 0);
+	adapter->eims_other = BIT(vector - 1);
 	e1e_flush();
 }
 
@@ -2089,7 +2089,7 @@ static int igbvf_maybe_stop_tx(struct net_device *netdev, int size)
 }
 
 #define IGBVF_MAX_TXD_PWR	16
-#define IGBVF_MAX_DATA_PER_TXD	(1 << IGBVF_MAX_TXD_PWR)
+#define IGBVF_MAX_DATA_PER_TXD	(1u << IGBVF_MAX_TXD_PWR)
 
 static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 				   struct igbvf_ring *tx_ring,
