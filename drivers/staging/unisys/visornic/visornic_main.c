@@ -209,7 +209,7 @@ static void poll_for_irq(unsigned long v);
  *	Return value indicates number of entries filled in frags
  *	Negative values indicate an error.
  */
-static unsigned int
+static int
 visor_copy_fragsinfo_from_skb(struct sk_buff *skb, unsigned int firstfraglen,
 			      unsigned int frags_max,
 			      struct phys_info frags[])
@@ -269,11 +269,9 @@ visor_copy_fragsinfo_from_skb(struct sk_buff *skb, unsigned int firstfraglen,
 			 * zero if the frags array is out of room
 			 * That should never happen because we
 			 * fail above, if count+numfrags > frags_max.
-			 * Given that theres no recovery mechanism from putting
-			 * half a packet in the I/O channel, panic here as this
-			 * should never happen
 			 */
-			BUG_ON(!count);
+			if (!count)
+				return -EINVAL;
 		}
 	}
 	if (skb_shinfo(skb)->frag_list) {
