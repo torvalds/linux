@@ -30,10 +30,6 @@ jiffies = jiffies_64 + 4;
 jiffies = jiffies_64;
 #endif
 
-#ifndef KERNELOFFSET
-#define KERNELOFFSET 0xd0003000
-#endif
-
 /* Note: In the following macros, it would be nice to specify only the
    vector name and section kind and construct "sym" and "section" using
    CPP concatenation, but that does not work reliably.  Concatenating a

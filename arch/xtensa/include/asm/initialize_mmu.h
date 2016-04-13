@@ -77,13 +77,16 @@
 
 	.align	4
 1:	movi	a2, 0x10000000
-	movi	a3, 0x18000000
-	add	a2, a2, a0
-9:	bgeu	a2, a3, 9b	/* PC is out of the expected range */
+
+#if CONFIG_KERNEL_LOAD_ADDRESS < 0x40000000ul
+#define TEMP_MAPPING_VADDR 0x40000000
+#else
+#define TEMP_MAPPING_VADDR 0x00000000
+#endif
 
 	/* Step 1: invalidate mapping at 0x40000000..0x5FFFFFFF. */
 
-	movi	a2, 0x40000000 | XCHAL_SPANNING_WAY
+	movi	a2, TEMP_MAPPING_VADDR | XCHAL_SPANNING_WAY
 	idtlb	a2
 	iitlb	a2
 	isync
@@ -95,14 +98,14 @@
 	srli	a3, a0, 27
 	slli	a3, a3, 27
 	addi	a3, a3, CA_BYPASS
-	addi	a7, a2, -1
+	addi	a7, a2, 5 - XCHAL_SPANNING_WAY
 	wdtlb	a3, a7
 	witlb	a3, a7
 	isync
 
 	slli	a4, a0, 5
 	srli	a4, a4, 5
-	addi	a5, a2, -6
+	addi	a5, a2, -XCHAL_SPANNING_WAY
 	add	a4, a4, a5
 	jx	a4
 
@@ -145,19 +148,19 @@
 	witlb	a4, a5
 #endif
 
-	movi	a5, XCHAL_KIO_CACHED_VADDR + 6
+	movi	a5, XCHAL_KIO_CACHED_VADDR + XCHAL_KIO_TLB_WAY
 	movi	a4, XCHAL_KIO_DEFAULT_PADDR + CA_WRITEBACK
 	wdtlb	a4, a5
 	witlb	a4, a5
 
-	movi	a5, XCHAL_KIO_BYPASS_VADDR + 6
+	movi	a5, XCHAL_KIO_BYPASS_VADDR + XCHAL_KIO_TLB_WAY
 	movi	a4, XCHAL_KIO_DEFAULT_PADDR + CA_BYPASS
 	wdtlb	a4, a5
 	witlb	a4, a5
 
 	isync
 
-	/* Jump to self, using MMU v2 mappings. */
+	/* Jump to self, using final mappings. */
 	movi	a4, 1f
 	jx	a4
 

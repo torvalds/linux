@@ -27,10 +27,12 @@
 
 #ifdef CONFIG_MMU
 #define PAGE_OFFSET	XCHAL_KSEG_CACHED_VADDR
+#define PHYS_OFFSET	XCHAL_KSEG_PADDR
 #define MAX_LOW_PFN	(PHYS_PFN(XCHAL_KSEG_PADDR) + \
 			 PHYS_PFN(XCHAL_KSEG_SIZE))
 #else
 #define PAGE_OFFSET	__XTENSA_UL_CONST(0)
+#define PHYS_OFFSET	__XTENSA_UL_CONST(0)
 #define MAX_LOW_PFN	(PHYS_PFN(PLATFORM_DEFAULT_MEM_START) + \
 			 PHYS_PFN(PLATFORM_DEFAULT_MEM_SIZE))
 #endif
@@ -163,8 +165,10 @@ void copy_user_highpage(struct page *to, struct page *from,
 
 #define ARCH_PFN_OFFSET		(PLATFORM_DEFAULT_MEM_START >> PAGE_SHIFT)
 
-#define __pa(x)			((unsigned long) (x) - PAGE_OFFSET)
-#define __va(x)			((void *)((unsigned long) (x) + PAGE_OFFSET))
+#define __pa(x)	\
+	((unsigned long) (x) - PAGE_OFFSET + PHYS_OFFSET)
+#define __va(x)	\
+	((void *)((unsigned long) (x) - PHYS_OFFSET + PAGE_OFFSET))
 #define pfn_valid(pfn) \
 	((pfn) >= ARCH_PFN_OFFSET && ((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
 
