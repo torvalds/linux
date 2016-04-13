@@ -4997,7 +4997,8 @@ static void gen6_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_STATE, 0);
 
 	/* Clear the DBG now so we don't confuse earlier errors */
-	if ((gtfifodbg = I915_READ(GTFIFODBG))) {
+	gtfifodbg = I915_READ(GTFIFODBG);
+	if (gtfifodbg) {
 		DRM_ERROR("GT fifo had a previous error %x\n", gtfifodbg);
 		I915_WRITE(GTFIFODBG, gtfifodbg);
 	}
@@ -5528,7 +5529,8 @@ static void cherryview_enable_rps(struct drm_device *dev)
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
-	gtfifodbg = I915_READ(GTFIFODBG);
+	gtfifodbg = I915_READ(GTFIFODBG) & ~(GT_FIFO_SBDEDICATE_FREE_ENTRY_CHV |
+					     GT_FIFO_FREE_ENTRIES_CHV);
 	if (gtfifodbg) {
 		DRM_DEBUG_DRIVER("GT fifo had a previous error %x\n",
 				 gtfifodbg);
@@ -5627,7 +5629,8 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	valleyview_check_pctx(dev_priv);
 
-	if ((gtfifodbg = I915_READ(GTFIFODBG))) {
+	gtfifodbg = I915_READ(GTFIFODBG);
+	if (gtfifodbg) {
 		DRM_DEBUG_DRIVER("GT fifo had a previous error %x\n",
 				 gtfifodbg);
 		I915_WRITE(GTFIFODBG, gtfifodbg);

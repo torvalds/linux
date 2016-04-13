@@ -6866,6 +6866,8 @@ enum skl_disp_power_wells {
 #define  VLV_SPAREG2H				_MMIO(0xA194)
 
 #define  GTFIFODBG				_MMIO(0x120000)
+#define    GT_FIFO_SBDEDICATE_FREE_ENTRY_CHV	(0x1f << 20)
+#define    GT_FIFO_FREE_ENTRIES_CHV		(0x7f << 13)
 #define    GT_FIFO_SBDROPERR			(1<<6)
 #define    GT_FIFO_BLOBDROPERR			(1<<5)
 #define    GT_FIFO_SB_READ_ABORTERR		(1<<4)
