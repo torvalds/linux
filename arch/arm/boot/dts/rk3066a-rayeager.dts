@@ -41,6 +41,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/input/input.h>
 #include "rk3066a.dtsi"
 
 / {
@@ -61,14 +62,12 @@
 
 	keys: gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@0 {
+		power {
 			wakeup-source;
 			gpios = <&gpio6 2 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pwr_key>;
 		};
@@ -182,7 +181,6 @@
 };
 
 &emmc {
-	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
@@ -348,7 +346,6 @@
 };
 
 &mmc1 {
-	broken-cd;
 	bus-width = <4>;
 	disable-wp;
 	non-removable;
