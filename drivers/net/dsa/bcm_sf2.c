@@ -160,7 +160,7 @@ static void bcm_sf2_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 	 * the same VLAN.
 	 */
 	for (i = 0; i < priv->hw_params.num_ports; i++) {
-		if (!((1 << i) & ds->phys_port_mask))
+		if (!((1 << i) & ds->enabled_port_mask))
 			continue;
 
 		reg = core_readl(priv, CORE_PORT_VLAN_CTL_PORT(i));
@@ -1009,7 +1009,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	/* Enable all valid ports and disable those unused */
 	for (port = 0; port < priv->hw_params.num_ports; port++) {
 		/* IMP port receives special treatment */
-		if ((1 << port) & ds->phys_port_mask)
+		if ((1 << port) & ds->enabled_port_mask)
 			bcm_sf2_port_setup(ds, port, NULL);
 		else if (dsa_is_cpu_port(ds, port))
 			bcm_sf2_imp_setup(ds, port);
@@ -1022,11 +1022,12 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	 * 7445D0, since 7445E0 disconnects the internal switch pseudo-PHY such
 	 * that we can use the regular SWITCH_MDIO master controller instead.
 	 *
-	 * By default, DSA initializes ds->phys_mii_mask to ds->phys_port_mask
-	 * to have a 1:1 mapping between Port address and PHY address in order
-	 * to utilize the slave_mii_bus instance to read from Port PHYs. This is
-	 * not what we want here, so we initialize phys_mii_mask 0 to always
-	 * utilize the "master" MDIO bus backed by the "mdio-unimac" driver.
+	 * By default, DSA initializes ds->phys_mii_mask to
+	 * ds->enabled_port_mask to have a 1:1 mapping between Port address
+	 * and PHY address in order to utilize the slave_mii_bus instance to
+	 * read from Port PHYs. This is not what we want here, so we
+	 * initialize phys_mii_mask 0 to always utilize the "master" MDIO
+	 * bus backed by the "mdio-unimac" driver.
 	 */
 	if (of_machine_is_compatible("brcm,bcm7445d0"))
 		ds->phys_mii_mask |= ((1 << BRCM_PSEUDO_PHY_ADDR) | (1 << 0));
@@ -1284,7 +1285,7 @@ static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 	 * bcm_sf2_sw_setup
 	 */
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if ((1 << port) & ds->phys_port_mask ||
+		if ((1 << port) & ds->enabled_port_mask ||
 		    dsa_is_cpu_port(ds, port))
 			bcm_sf2_port_disable(ds, port, NULL);
 	}
@@ -1308,7 +1309,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 		bcm_sf2_gphy_enable_set(ds, true);
 
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if ((1 << port) & ds->phys_port_mask)
+		if ((1 << port) & ds->enabled_port_mask)
 			bcm_sf2_port_setup(ds, port, NULL);
 		else if (dsa_is_cpu_port(ds, port))
 			bcm_sf2_imp_setup(ds, port);

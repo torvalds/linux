@@ -246,7 +246,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 		} else if (!strcmp(name, "dsa")) {
 			ds->dsa_port_mask |= 1 << i;
 		} else {
-			ds->phys_port_mask |= 1 << i;
+			ds->enabled_port_mask |= 1 << i;
 		}
 		valid_name_found = true;
 	}
@@ -259,7 +259,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	/* Make the built-in MII bus mask match the number of ports,
 	 * switch drivers can override this later
 	 */
-	ds->phys_mii_mask = ds->phys_port_mask;
+	ds->phys_mii_mask = ds->enabled_port_mask;
 
 	/*
 	 * If the CPU connects to this switch, set the switch tree
@@ -325,7 +325,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	 * Create network devices for physical switch ports.
 	 */
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
-		if (!(ds->phys_port_mask & (1 << i)))
+		if (!(ds->enabled_port_mask & (1 << i)))
 			continue;
 
 		ret = dsa_slave_create(ds, parent, i, pd->port_names[i]);
@@ -435,7 +435,7 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 
 	/* Destroy network devices for physical switch ports. */
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if (!(ds->phys_port_mask & (1 << port)))
+		if (!(ds->enabled_port_mask & (1 << port)))
 			continue;
 
 		if (!ds->ports[port])
