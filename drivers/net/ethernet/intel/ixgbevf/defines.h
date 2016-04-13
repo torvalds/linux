@@ -74,7 +74,7 @@ typedef u32 ixgbe_link_speed;
 #define IXGBE_RXDCTL_RLPML_EN	0x00008000
 
 /* DCA Control */
-#define IXGBE_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* Tx Desc writeback RO bit */
+#define IXGBE_DCA_TXCTRL_TX_WB_RO_EN BIT(11) /* Tx Desc writeback RO bit */
 
 /* PSRTYPE bit definitions */
 #define IXGBE_PSRTYPE_TCPHDR	0x00000010
@@ -296,16 +296,16 @@ struct ixgbe_adv_tx_context_desc {
 #define IXGBE_TXDCTL_SWFLSH		0x04000000 /* Tx Desc. wr-bk flushing */
 #define IXGBE_TXDCTL_WTHRESH_SHIFT	16	   /* shift to WTHRESH bits */
 
-#define IXGBE_DCA_RXCTRL_DESC_DCA_EN	(1 << 5)  /* Rx Desc enable */
-#define IXGBE_DCA_RXCTRL_HEAD_DCA_EN	(1 << 6)  /* Rx Desc header ena */
-#define IXGBE_DCA_RXCTRL_DATA_DCA_EN	(1 << 7)  /* Rx Desc payload ena */
-#define IXGBE_DCA_RXCTRL_DESC_RRO_EN	(1 << 9)  /* Rx rd Desc Relax Order */
-#define IXGBE_DCA_RXCTRL_DATA_WRO_EN	(1 << 13) /* Rx wr data Relax Order */
-#define IXGBE_DCA_RXCTRL_HEAD_WRO_EN	(1 << 15) /* Rx wr header RO */
+#define IXGBE_DCA_RXCTRL_DESC_DCA_EN	BIT(5)  /* Rx Desc enable */
+#define IXGBE_DCA_RXCTRL_HEAD_DCA_EN	BIT(6)  /* Rx Desc header ena */
+#define IXGBE_DCA_RXCTRL_DATA_DCA_EN	BIT(7)  /* Rx Desc payload ena */
+#define IXGBE_DCA_RXCTRL_DESC_RRO_EN	BIT(9)  /* Rx rd Desc Relax Order */
+#define IXGBE_DCA_RXCTRL_DATA_WRO_EN	BIT(13) /* Rx wr data Relax Order */
+#define IXGBE_DCA_RXCTRL_HEAD_WRO_EN	BIT(15) /* Rx wr header RO */
 
-#define IXGBE_DCA_TXCTRL_DESC_DCA_EN	(1 << 5)  /* DCA Tx Desc enable */
-#define IXGBE_DCA_TXCTRL_DESC_RRO_EN	(1 << 9)  /* Tx rd Desc Relax Order */
-#define IXGBE_DCA_TXCTRL_DESC_WRO_EN	(1 << 11) /* Tx Desc writeback RO bit */
-#define IXGBE_DCA_TXCTRL_DATA_RRO_EN	(1 << 13) /* Tx rd data Relax Order */
+#define IXGBE_DCA_TXCTRL_DESC_DCA_EN	BIT(5)  /* DCA Tx Desc enable */
+#define IXGBE_DCA_TXCTRL_DESC_RRO_EN	BIT(9)  /* Tx rd Desc Relax Order */
+#define IXGBE_DCA_TXCTRL_DESC_WRO_EN	BIT(11) /* Tx Desc writeback RO bit */
+#define IXGBE_DCA_TXCTRL_DATA_RRO_EN	BIT(13) /* Tx rd data Relax Order */
 
 #endif /* _IXGBEVF_DEFINES_H_ */

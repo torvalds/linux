@@ -166,7 +166,8 @@ static void ixgbevf_get_regs(struct net_device *netdev,
 
 	memset(p, 0, regs_len);
 
-	regs->version = (1 << 24) | hw->revision_id << 16 | hw->device_id;
+	/* generate a number suitable for ethtool's register version */
+	regs->version = (1u << 24) | (hw->revision_id << 16) | hw->device_id;
 
 	/* General Registers */
 	regs_buff[0] = IXGBE_READ_REG(hw, IXGBE_VFCTRL);

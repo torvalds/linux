@@ -1056,7 +1056,7 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 	if (!test_bit(__IXGBEVF_DOWN, &adapter->state) &&
 	    !test_bit(__IXGBEVF_REMOVING, &adapter->state))
 		ixgbevf_irq_enable_queues(adapter,
-					  1 << q_vector->v_idx);
+					  BIT(q_vector->v_idx));
 
 	return 0;
 }
@@ -1158,14 +1158,14 @@ static void ixgbevf_configure_msix(struct ixgbevf_adapter *adapter)
 		}
 
 		/* add q_vector eims value to global eims_enable_mask */
-		adapter->eims_enable_mask |= 1 << v_idx;
+		adapter->eims_enable_mask |= BIT(v_idx);
 
 		ixgbevf_write_eitr(q_vector);
 	}
 
 	ixgbevf_set_ivar(adapter, -1, 1, v_idx);
 	/* setup eims_other and add value to global eims_enable_mask */
-	adapter->eims_other = 1 << v_idx;
+	adapter->eims_other = BIT(v_idx);
 	adapter->eims_enable_mask |= adapter->eims_other;
 }
 
@@ -1589,8 +1589,8 @@ static void ixgbevf_configure_tx_ring(struct ixgbevf_adapter *adapter,
 	txdctl |= (8 << 16);    /* WTHRESH = 8 */
 
 	/* Setting PTHRESH to 32 both improves performance */
-	txdctl |= (1 << 8) |    /* HTHRESH = 1 */
-		  32;          /* PTHRESH = 32 */
+	txdctl |= (1u << 8) |    /* HTHRESH = 1 */
+		   32;           /* PTHRESH = 32 */
 
 	clear_bit(__IXGBEVF_HANG_CHECK_ARMED, &ring->state);
 
@@ -1646,7 +1646,7 @@ static void ixgbevf_setup_psrtype(struct ixgbevf_adapter *adapter)
 		      IXGBE_PSRTYPE_L2HDR;
 
 	if (adapter->num_rx_queues > 1)
-		psrtype |= 1 << 29;
+		psrtype |= BIT(29);
 
 	IXGBE_WRITE_REG(hw, IXGBE_VFPSRTYPE, psrtype);
 }
@@ -2797,7 +2797,7 @@ static void ixgbevf_check_hang_subtask(struct ixgbevf_adapter *adapter)
 		struct ixgbevf_q_vector *qv = adapter->q_vector[i];
 
 		if (qv->rx.ring || qv->tx.ring)
-			eics |= 1 << i;
+			eics |= BIT(i);
 	}
 
 	/* Cause software interrupt to ensure rings are cleaned */
@@ -3325,7 +3325,7 @@ static int ixgbevf_tso(struct ixgbevf_ring *tx_ring,
 	/* mss_l4len_id: use 1 as index for TSO */
 	mss_l4len_idx = l4len << IXGBE_ADVTXD_L4LEN_SHIFT;
 	mss_l4len_idx |= skb_shinfo(skb)->gso_size << IXGBE_ADVTXD_MSS_SHIFT;
-	mss_l4len_idx |= 1 << IXGBE_ADVTXD_IDX_SHIFT;
+	mss_l4len_idx |= (1u << IXGBE_ADVTXD_IDX_SHIFT);
 
 	/* vlan_macip_lens: HEADLEN, MACLEN, VLAN tag */
 	vlan_macip_lens = skb_network_header_len(skb);
@@ -3422,7 +3422,7 @@ static void ixgbevf_tx_olinfo_status(union ixgbe_adv_tx_desc *tx_desc,
 
 	/* use index 1 context for TSO/FSO/FCOE */
 	if (tx_flags & IXGBE_TX_FLAGS_TSO)
-		olinfo_status |= cpu_to_le32(1 << IXGBE_ADVTXD_IDX_SHIFT);
+		olinfo_status |= cpu_to_le32(1u << IXGBE_ADVTXD_IDX_SHIFT);
 
 	/* Check Context must be set if Tx switch is enabled, which it
 	 * always is for case where virtual functions are running
