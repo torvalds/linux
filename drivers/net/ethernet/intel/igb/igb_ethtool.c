@@ -466,7 +466,7 @@ static void igb_get_regs(struct net_device *netdev,
 
 	memset(p, 0, IGB_REGS_LEN * sizeof(u32));
 
-	regs->version = (1 << 24) | (hw->revision_id << 16) | hw->device_id;
+	regs->version = (1u << 24) | (hw->revision_id << 16) | hw->device_id;
 
 	/* General Registers */
 	regs_buff[0] = rd32(E1000_CTRL);
@@ -1448,7 +1448,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	/* Test each interrupt */
 	for (; i < 31; i++) {
 		/* Interrupt to test */
-		mask = 1 << i;
+		mask = BIT(i);
 
 		if (!(mask & ics_mask))
 			continue;
@@ -2411,19 +2411,19 @@ static int igb_get_ts_info(struct net_device *dev,
 			SOF_TIMESTAMPING_RAW_HARDWARE;
 
 		info->tx_types =
-			(1 << HWTSTAMP_TX_OFF) |
-			(1 << HWTSTAMP_TX_ON);
+			BIT(HWTSTAMP_TX_OFF) |
+			BIT(HWTSTAMP_TX_ON);
 
-		info->rx_filters = 1 << HWTSTAMP_FILTER_NONE;
+		info->rx_filters = BIT(HWTSTAMP_FILTER_NONE);
 
 		/* 82576 does not support timestamping all packets. */
 		if (adapter->hw.mac.type >= e1000_82580)
-			info->rx_filters |= 1 << HWTSTAMP_FILTER_ALL;
+			info->rx_filters |= BIT(HWTSTAMP_FILTER_ALL);
 		else
 			info->rx_filters |=
-				(1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
-				(1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
-				(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
+				BIT(HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+				BIT(HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+				BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
 
 		return 0;
 	default:

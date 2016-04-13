@@ -836,7 +836,7 @@ static void igb_assign_vector(struct igb_q_vector *q_vector, int msix_vector)
 			igb_write_ivar(hw, msix_vector,
 				       tx_queue & 0x7,
 				       ((tx_queue & 0x8) << 1) + 8);
-		q_vector->eims_value = 1 << msix_vector;
+		q_vector->eims_value = BIT(msix_vector);
 		break;
 	case e1000_82580:
 	case e1000_i350:
@@ -857,7 +857,7 @@ static void igb_assign_vector(struct igb_q_vector *q_vector, int msix_vector)
 			igb_write_ivar(hw, msix_vector,
 				       tx_queue >> 1,
 				       ((tx_queue & 0x1) << 4) + 8);
-		q_vector->eims_value = 1 << msix_vector;
+		q_vector->eims_value = BIT(msix_vector);
 		break;
 	default:
 		BUG();
@@ -919,7 +919,7 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 		     E1000_GPIE_NSICR);
 
 		/* enable msix_other interrupt */
-		adapter->eims_other = 1 << vector;
+		adapter->eims_other = BIT(vector);
 		tmp = (vector++ | E1000_IVAR_VALID) << 8;
 
 		wr32(E1000_IVAR_MISC, tmp);
@@ -4064,7 +4064,7 @@ static int igb_vlan_promisc_enable(struct igb_adapter *adapter)
 	for (i = E1000_VLVF_ARRAY_SIZE; --i;) {
 		u32 vlvf = rd32(E1000_VLVF(i));
 
-		vlvf |= 1 << pf_id;
+		vlvf |= BIT(pf_id);
 		wr32(E1000_VLVF(i), vlvf);
 	}
 
@@ -4091,7 +4091,7 @@ static void igb_scrub_vfta(struct igb_adapter *adapter, u32 vfta_offset)
 	/* guarantee that we don't scrub out management VLAN */
 	vid = adapter->mng_vlan_id;
 	if (vid >= vid_start && vid < vid_end)
-		vfta[(vid - vid_start) / 32] |= 1 << (vid % 32);
+		vfta[(vid - vid_start) / 32] |= BIT(vid % 32);
 
 	if (!adapter->vfs_allocated_count)
 		goto set_vfta;
@@ -4110,7 +4110,7 @@ static void igb_scrub_vfta(struct igb_adapter *adapter, u32 vfta_offset)
 
 		if (vlvf & E1000_VLVF_VLANID_ENABLE) {
 			/* record VLAN ID in VFTA */
-			vfta[(vid - vid_start) / 32] |= 1 << (vid % 32);
+			vfta[(vid - vid_start) / 32] |= BIT(vid % 32);
 
 			/* if PF is part of this then continue */
 			if (test_bit(vid, adapter->active_vlans))
@@ -4118,7 +4118,7 @@ static void igb_scrub_vfta(struct igb_adapter *adapter, u32 vfta_offset)
 		}
 
 		/* remove PF from the pool */
-		bits = ~(1 << pf_id);
+		bits = ~BIT(pf_id);
 		bits &= rd32(E1000_VLVF(i));
 		wr32(E1000_VLVF(i), bits);
 	}
@@ -4276,13 +4276,13 @@ static void igb_spoof_check(struct igb_adapter *adapter)
 		return;
 
 	for (j = 0; j < adapter->vfs_allocated_count; j++) {
-		if (adapter->wvbr & (1 << j) ||
-		    adapter->wvbr & (1 << (j + IGB_STAGGERED_QUEUE_OFFSET))) {
+		if (adapter->wvbr & BIT(j) ||
+		    adapter->wvbr & BIT(j + IGB_STAGGERED_QUEUE_OFFSET)) {
 			dev_warn(&adapter->pdev->dev,
 				"Spoof event(s) detected on VF %d\n", j);
 			adapter->wvbr &=
-				~((1 << j) |
-				  (1 << (j + IGB_STAGGERED_QUEUE_OFFSET)));
+				~(BIT(j) |
+				  BIT(j + IGB_STAGGERED_QUEUE_OFFSET));
 		}
 	}
 }
@@ -5963,11 +5963,11 @@ static void igb_clear_vf_vfta(struct igb_adapter *adapter, u32 vf)
 
 	/* create mask for VF and other pools */
 	pool_mask = E1000_VLVF_POOLSEL_MASK;
-	vlvf_mask = 1 << (E1000_VLVF_POOLSEL_SHIFT + vf);
+	vlvf_mask = BIT(E1000_VLVF_POOLSEL_SHIFT + vf);
 
 	/* drop PF from pool bits */
-	pool_mask &= ~(1 << (E1000_VLVF_POOLSEL_SHIFT +
-			     adapter->vfs_allocated_count));
+	pool_mask &= ~BIT(E1000_VLVF_POOLSEL_SHIFT +
+			     adapter->vfs_allocated_count);
 
 	/* Find the vlan filter for this id */
 	for (i = E1000_VLVF_ARRAY_SIZE; i--;) {
@@ -5990,7 +5990,7 @@ static void igb_clear_vf_vfta(struct igb_adapter *adapter, u32 vf)
 			goto update_vlvf;
 
 		vid = vlvf & E1000_VLVF_VLANID_MASK;
-		vfta_mask = 1 << (vid % 32);
+		vfta_mask = BIT(vid % 32);
 
 		/* clear bit from VFTA */
 		vfta = adapter->shadow_vfta[vid / 32];
@@ -6041,13 +6041,13 @@ void igb_update_pf_vlvf(struct igb_adapter *adapter, u32 vid)
 	 * entry other than the PF.
 	 */
 	pf_id = adapter->vfs_allocated_count + E1000_VLVF_POOLSEL_SHIFT;
-	bits = ~(1 << pf_id) & E1000_VLVF_POOLSEL_MASK;
+	bits = ~BIT(pf_id) & E1000_VLVF_POOLSEL_MASK;
 	bits &= rd32(E1000_VLVF(idx));
 
 	/* Disable the filter so this falls into the default pool. */
 	if (!bits) {
 		if (adapter->flags & IGB_FLAG_VLAN_PROMISC)
-			wr32(E1000_VLVF(idx), 1 << pf_id);
+			wr32(E1000_VLVF(idx), BIT(pf_id));
 		else
 			wr32(E1000_VLVF(idx), 0);
 	}
@@ -6231,9 +6231,9 @@ static void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 
 	/* enable transmit and receive for vf */
 	reg = rd32(E1000_VFTE);
-	wr32(E1000_VFTE, reg | (1 << vf));
+	wr32(E1000_VFTE, reg | BIT(vf));
 	reg = rd32(E1000_VFRE);
-	wr32(E1000_VFRE, reg | (1 << vf));
+	wr32(E1000_VFRE, reg | BIT(vf));
 
 	adapter->vf_data[vf].flags |= IGB_VF_FLAG_CTS;
 
@@ -7927,7 +7927,7 @@ static void igb_set_vf_rate_limit(struct e1000_hw *hw, int vf, int tx_rate,
 		/* Calculate the rate factor values to set */
 		rf_int = link_speed / tx_rate;
 		rf_dec = (link_speed - (rf_int * tx_rate));
-		rf_dec = (rf_dec * (1 << E1000_RTTBCNRC_RF_INT_SHIFT)) /
+		rf_dec = (rf_dec * BIT(E1000_RTTBCNRC_RF_INT_SHIFT)) /
 			 tx_rate;
 
 		bcnrc_val = E1000_RTTBCNRC_RS_ENA;
@@ -8017,11 +8017,11 @@ static int igb_ndo_set_vf_spoofchk(struct net_device *netdev, int vf,
 	reg_offset = (hw->mac.type == e1000_82576) ? E1000_DTXSWC : E1000_TXSWC;
 	reg_val = rd32(reg_offset);
 	if (setting)
-		reg_val |= ((1 << vf) |
-			    (1 << (vf + E1000_DTXSWC_VLAN_SPOOF_SHIFT)));
+		reg_val |= (BIT(vf) |
+			    BIT(vf + E1000_DTXSWC_VLAN_SPOOF_SHIFT));
 	else
-		reg_val &= ~((1 << vf) |
-			     (1 << (vf + E1000_DTXSWC_VLAN_SPOOF_SHIFT)));
+		reg_val &= ~(BIT(vf) |
+			     BIT(vf + E1000_DTXSWC_VLAN_SPOOF_SHIFT));
 	wr32(reg_offset, reg_val);
 
 	adapter->vf_data[vf].spoofchk_enabled = setting;
