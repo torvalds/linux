@@ -2331,7 +2331,6 @@ struct drm_i915_gem_request {
 struct drm_i915_gem_request * __must_check
 i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       struct intel_context *ctx);
-void i915_gem_request_cancel(struct drm_i915_gem_request *req);
 void i915_gem_request_free(struct kref *req_ref);
 int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 				   struct drm_file *file);
@@ -2888,7 +2887,6 @@ int i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 void i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 					struct drm_i915_gem_request *req);
-void i915_gem_execbuffer_retire_commands(struct i915_execbuffer_params *params);
 int i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 				   struct drm_i915_gem_execbuffer2 *args,
 				   struct list_head *vmas);

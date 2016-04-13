@@ -1007,7 +1007,6 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, params->request);
-	i915_gem_execbuffer_retire_commands(params);
 
 	return 0;
 }
@@ -2700,13 +2699,12 @@ int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 		}
 
 		ret = engine->init_context(req);
+		i915_add_request_no_flush(req);
 		if (ret) {
 			DRM_ERROR("ring init context: %d\n",
 				ret);
-			i915_gem_request_cancel(req);
 			goto error_ringbuf;
 		}
-		i915_add_request_no_flush(req);
 	}
 	return 0;
 

@@ -11664,7 +11664,7 @@ cleanup_unpin:
 	intel_unpin_fb_obj(fb, crtc->primary->state->rotation);
 cleanup_pending:
 	if (!IS_ERR_OR_NULL(request))
-		i915_gem_request_cancel(request);
+		i915_add_request_no_flush(request);
 	atomic_dec(&intel_crtc->unpin_work_count);
 	mutex_unlock(&dev->struct_mutex);
 cleanup:

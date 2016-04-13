@@ -2791,7 +2791,8 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 		 * fully prepared. Thus it can be cleaned up using the proper
 		 * free code.
 		 */
-		i915_gem_request_cancel(req);
+		intel_ring_reserved_space_cancel(req->ringbuf);
+		i915_gem_request_unreference(req);
 		return ret;
 	}
 
@@ -2826,13 +2827,6 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		ctx = to_i915(engine->dev)->kernel_context;
 	err = __i915_gem_request_alloc(engine, ctx, &req);
 	return err ? ERR_PTR(err) : req;
-}
-
-void i915_gem_request_cancel(struct drm_i915_gem_request *req)
-{
-	intel_ring_reserved_space_cancel(req->ringbuf);
-
-	i915_gem_request_unreference(req);
 }
 
 struct drm_i915_gem_request *
@@ -3444,12 +3438,9 @@ int i915_gpu_idle(struct drm_device *dev)
 				return PTR_ERR(req);
 
 			ret = i915_switch_context(req);
-			if (ret) {
-				i915_gem_request_cancel(req);
-				return ret;
-			}
-
 			i915_add_request_no_flush(req);
+			if (ret)
+				return ret;
 		}
 
 		ret = intel_engine_idle(engine);
@@ -4949,34 +4940,33 @@ i915_gem_init_hw(struct drm_device *dev)
 		req = i915_gem_request_alloc(engine, NULL);
 		if (IS_ERR(req)) {
 			ret = PTR_ERR(req);
-			i915_gem_cleanup_engines(dev);
-			goto out;
+			break;
 		}
 
 		if (engine->id == RCS) {
-			for (j = 0; j < NUM_L3_SLICES(dev); j++)
-				i915_gem_l3_remap(req, j);
+			for (j = 0; j < NUM_L3_SLICES(dev); j++) {
+				ret = i915_gem_l3_remap(req, j);
+				if (ret)
+					goto err_request;
+			}
 		}
 
 		ret = i915_ppgtt_init_ring(req);
-		if (ret && ret != -EIO) {
-			DRM_ERROR("PPGTT enable %s failed %d\n",
-				  engine->name, ret);
-			i915_gem_request_cancel(req);
-			i915_gem_cleanup_engines(dev);
-			goto out;
-		}
+		if (ret)
+			goto err_request;
 
 		ret = i915_gem_context_enable(req);
-		if (ret && ret != -EIO) {
-			DRM_ERROR("Context enable %s failed %d\n",
-				  engine->name, ret);
-			i915_gem_request_cancel(req);
-			i915_gem_cleanup_engines(dev);
-			goto out;
-		}
+		if (ret)
+			goto err_request;
 
+err_request:
 		i915_add_request_no_flush(req);
+		if (ret) {
+			DRM_ERROR("Failed to enable %s, error=%d\n",
+				  engine->name, ret);
+			i915_gem_cleanup_engines(dev);
+			break;
+		}
 	}
 
 out:
