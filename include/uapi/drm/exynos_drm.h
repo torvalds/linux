@@ -28,8 +28,21 @@
  */
 struct drm_exynos_gem_create {
 	__u64 size;
-	unsigned int flags;
-	unsigned int handle;
+	__u32 flags;
+	__u32 handle;
+};
+
+/**
+ * A structure for getting a fake-offset that can be used with mmap.
+ *
+ * @handle: handle of gem object.
+ * @reserved: just padding to be 64-bit aligned.
+ * @offset: a fake-offset of gem object.
+ */
+struct drm_exynos_gem_map {
+	__u32 handle;
+	__u32 reserved;
+	__u64 offset;
 };
 
 /**
@@ -42,8 +55,8 @@ struct drm_exynos_gem_create {
  *	be set by driver.
  */
 struct drm_exynos_gem_info {
-	unsigned int handle;
-	unsigned int flags;
+	__u32 handle;
+	__u32 flags;
 	__u64 size;
 };
 
@@ -56,8 +69,8 @@ struct drm_exynos_gem_info {
  * @edid: the edid data pointer from user side.
  */
 struct drm_exynos_vidi_connection {
-	unsigned int connection;
-	unsigned int extensions;
+	__u32 connection;
+	__u32 extensions;
 	__u64 edid;
 };
 
@@ -206,9 +219,9 @@ struct drm_exynos_ipp_prop_list {
  * @pos: property of image position(src-cropped,dst-scaler).
  */
 struct drm_exynos_ipp_config {
-	enum drm_exynos_ops_id ops_id;
-	enum drm_exynos_flip	flip;
-	enum drm_exynos_degree	degree;
+	__u32 ops_id;
+	__u32 flip;
+	__u32 degree;
 	__u32	fmt;
 	struct drm_exynos_sz	sz;
 	struct drm_exynos_pos	pos;
@@ -233,7 +246,7 @@ enum drm_exynos_ipp_cmd {
  */
 struct drm_exynos_ipp_property {
 	struct drm_exynos_ipp_config config[EXYNOS_DRM_OPS_MAX];
-	enum drm_exynos_ipp_cmd	cmd;
+	__u32	cmd;
 	__u32	ipp_id;
 	__u32	prop_id;
 	__u32	refresh_rate;
@@ -255,8 +268,8 @@ enum drm_exynos_ipp_buf_type {
  * @user_data: user data.
  */
 struct drm_exynos_ipp_queue_buf {
-	enum drm_exynos_ops_id	ops_id;
-	enum drm_exynos_ipp_buf_type	buf_type;
+	__u32	ops_id;
+	__u32	buf_type;
 	__u32	prop_id;
 	__u32	buf_id;
 	__u32	handle[EXYNOS_DRM_PLANAR_MAX];
@@ -280,10 +293,11 @@ enum drm_exynos_ipp_ctrl {
  */
 struct drm_exynos_ipp_cmd_ctrl {
 	__u32	prop_id;
-	enum drm_exynos_ipp_ctrl	ctrl;
+	__u32	ctrl;
 };
 
 #define DRM_EXYNOS_GEM_CREATE		0x00
+#define DRM_EXYNOS_GEM_MAP		0x01
 /* Reserved 0x03 ~ 0x05 for exynos specific gem ioctl */
 #define DRM_EXYNOS_GEM_GET		0x04
 #define DRM_EXYNOS_VIDI_CONNECTION	0x07
@@ -301,7 +315,8 @@ struct drm_exynos_ipp_cmd_ctrl {
 
 #define DRM_IOCTL_EXYNOS_GEM_CREATE		DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_GEM_CREATE, struct drm_exynos_gem_create)
-
+#define DRM_IOCTL_EXYNOS_GEM_MAP		DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_EXYNOS_GEM_MAP, struct drm_exynos_gem_map)
 #define DRM_IOCTL_EXYNOS_GEM_GET	DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_GEM_GET,	struct drm_exynos_gem_info)
 

@@ -569,7 +569,7 @@
 		};
 	};
 
-	iio_hwmon {
+	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&lradc 8>;
 	};

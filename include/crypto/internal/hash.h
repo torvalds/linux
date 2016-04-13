@@ -57,9 +57,6 @@ int crypto_hash_walk_first(struct ahash_request *req,
 			   struct crypto_hash_walk *walk);
 int crypto_ahash_walk_first(struct ahash_request *req,
 			   struct crypto_hash_walk *walk);
-int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
-				  struct crypto_hash_walk *walk,
-				  struct scatterlist *sg, unsigned int len);
 
 static inline int crypto_ahash_walk_done(struct crypto_hash_walk *walk,
 					 int err)

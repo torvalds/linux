@@ -74,14 +74,6 @@
 	};
 };
 
-&extbus {
-	ranges = <1 0x00000000 0x42000000 0x02000000>;
-};
-
-&support_card {
-	ranges = <0x00000000 1 0x01f00000 0x00100000>;
-};
-
 &ethsc {
 	interrupts = <0 50 4>;
 };

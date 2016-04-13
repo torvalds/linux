@@ -36,7 +36,7 @@
 #define DRIVER_AUTHOR	"WOOJUNG HUH <woojung.huh@microchip.com>"
 #define DRIVER_DESC	"LAN78XX USB 3.0 Gigabit Ethernet Devices"
 #define DRIVER_NAME	"lan78xx"
-#define DRIVER_VERSION	"1.0.2"
+#define DRIVER_VERSION	"1.0.4"
 
 #define TX_TIMEOUT_JIFFIES		(5 * HZ)
 #define THROTTLE_JIFFIES		(HZ / 8)
@@ -85,6 +85,9 @@
 
 /* default autosuspend delay (mSec)*/
 #define DEFAULT_AUTOSUSPEND_DELAY	(10 * 1000)
+
+/* statistic update interval (mSec) */
+#define STAT_UPDATE_TIMER		(1 * 1000)
 
 static const char lan78xx_gstrings[][ETH_GSTRING_LEN] = {
 	"RX FCS Errors",
@@ -186,6 +189,56 @@ struct lan78xx_statstage {
 	u32 eee_tx_lpi_time;
 };
 
+struct lan78xx_statstage64 {
+	u64 rx_fcs_errors;
+	u64 rx_alignment_errors;
+	u64 rx_fragment_errors;
+	u64 rx_jabber_errors;
+	u64 rx_undersize_frame_errors;
+	u64 rx_oversize_frame_errors;
+	u64 rx_dropped_frames;
+	u64 rx_unicast_byte_count;
+	u64 rx_broadcast_byte_count;
+	u64 rx_multicast_byte_count;
+	u64 rx_unicast_frames;
+	u64 rx_broadcast_frames;
+	u64 rx_multicast_frames;
+	u64 rx_pause_frames;
+	u64 rx_64_byte_frames;
+	u64 rx_65_127_byte_frames;
+	u64 rx_128_255_byte_frames;
+	u64 rx_256_511_bytes_frames;
+	u64 rx_512_1023_byte_frames;
+	u64 rx_1024_1518_byte_frames;
+	u64 rx_greater_1518_byte_frames;
+	u64 eee_rx_lpi_transitions;
+	u64 eee_rx_lpi_time;
+	u64 tx_fcs_errors;
+	u64 tx_excess_deferral_errors;
+	u64 tx_carrier_errors;
+	u64 tx_bad_byte_count;
+	u64 tx_single_collisions;
+	u64 tx_multiple_collisions;
+	u64 tx_excessive_collision;
+	u64 tx_late_collisions;
+	u64 tx_unicast_byte_count;
+	u64 tx_broadcast_byte_count;
+	u64 tx_multicast_byte_count;
+	u64 tx_unicast_frames;
+	u64 tx_broadcast_frames;
+	u64 tx_multicast_frames;
+	u64 tx_pause_frames;
+	u64 tx_64_byte_frames;
+	u64 tx_65_127_byte_frames;
+	u64 tx_128_255_byte_frames;
+	u64 tx_256_511_bytes_frames;
+	u64 tx_512_1023_byte_frames;
+	u64 tx_1024_1518_byte_frames;
+	u64 tx_greater_1518_byte_frames;
+	u64 eee_tx_lpi_transitions;
+	u64 eee_tx_lpi_time;
+};
+
 struct lan78xx_net;
 
 struct lan78xx_priv {
@@ -232,6 +285,15 @@ struct usb_context {
 #define EVENT_DEV_WAKING		6
 #define EVENT_DEV_ASLEEP		7
 #define EVENT_DEV_OPEN			8
+#define EVENT_STAT_UPDATE		9
+
+struct statstage {
+	struct mutex			access_lock;	/* for stats access */
+	struct lan78xx_statstage	saved;
+	struct lan78xx_statstage	rollover_count;
+	struct lan78xx_statstage	rollover_max;
+	struct lan78xx_statstage64	curr_stat;
+};
 
 struct lan78xx_net {
 	struct net_device	*net;
@@ -272,14 +334,22 @@ struct lan78xx_net {
 
 	unsigned		maxpacket;
 	struct timer_list	delay;
+	struct timer_list	stat_monitor;
 
 	unsigned long		data[5];
 
 	int			link_on;
 	u8			mdix_ctrl;
 
-	u32			devid;
+	u32			chipid;
+	u32			chiprev;
 	struct mii_bus		*mdiobus;
+
+	int			fc_autoneg;
+	u8			fc_request_control;
+
+	int			delta;
+	struct statstage	stats;
 };
 
 /* use ethtool to change the level for any given device */
@@ -378,6 +448,93 @@ static int lan78xx_read_stats(struct lan78xx_net *dev,
 	return ret;
 }
 
+#define check_counter_rollover(struct1, dev_stats, member) {	\
+	if (struct1->member < dev_stats.saved.member)		\
+		dev_stats.rollover_count.member++;		\
+	}
+
+static void lan78xx_check_stat_rollover(struct lan78xx_net *dev,
+					struct lan78xx_statstage *stats)
+{
+	check_counter_rollover(stats, dev->stats, rx_fcs_errors);
+	check_counter_rollover(stats, dev->stats, rx_alignment_errors);
+	check_counter_rollover(stats, dev->stats, rx_fragment_errors);
+	check_counter_rollover(stats, dev->stats, rx_jabber_errors);
+	check_counter_rollover(stats, dev->stats, rx_undersize_frame_errors);
+	check_counter_rollover(stats, dev->stats, rx_oversize_frame_errors);
+	check_counter_rollover(stats, dev->stats, rx_dropped_frames);
+	check_counter_rollover(stats, dev->stats, rx_unicast_byte_count);
+	check_counter_rollover(stats, dev->stats, rx_broadcast_byte_count);
+	check_counter_rollover(stats, dev->stats, rx_multicast_byte_count);
+	check_counter_rollover(stats, dev->stats, rx_unicast_frames);
+	check_counter_rollover(stats, dev->stats, rx_broadcast_frames);
+	check_counter_rollover(stats, dev->stats, rx_multicast_frames);
+	check_counter_rollover(stats, dev->stats, rx_pause_frames);
+	check_counter_rollover(stats, dev->stats, rx_64_byte_frames);
+	check_counter_rollover(stats, dev->stats, rx_65_127_byte_frames);
+	check_counter_rollover(stats, dev->stats, rx_128_255_byte_frames);
+	check_counter_rollover(stats, dev->stats, rx_256_511_bytes_frames);
+	check_counter_rollover(stats, dev->stats, rx_512_1023_byte_frames);
+	check_counter_rollover(stats, dev->stats, rx_1024_1518_byte_frames);
+	check_counter_rollover(stats, dev->stats, rx_greater_1518_byte_frames);
+	check_counter_rollover(stats, dev->stats, eee_rx_lpi_transitions);
+	check_counter_rollover(stats, dev->stats, eee_rx_lpi_time);
+	check_counter_rollover(stats, dev->stats, tx_fcs_errors);
+	check_counter_rollover(stats, dev->stats, tx_excess_deferral_errors);
+	check_counter_rollover(stats, dev->stats, tx_carrier_errors);
+	check_counter_rollover(stats, dev->stats, tx_bad_byte_count);
+	check_counter_rollover(stats, dev->stats, tx_single_collisions);
+	check_counter_rollover(stats, dev->stats, tx_multiple_collisions);
+	check_counter_rollover(stats, dev->stats, tx_excessive_collision);
+	check_counter_rollover(stats, dev->stats, tx_late_collisions);
+	check_counter_rollover(stats, dev->stats, tx_unicast_byte_count);
+	check_counter_rollover(stats, dev->stats, tx_broadcast_byte_count);
+	check_counter_rollover(stats, dev->stats, tx_multicast_byte_count);
+	check_counter_rollover(stats, dev->stats, tx_unicast_frames);
+	check_counter_rollover(stats, dev->stats, tx_broadcast_frames);
+	check_counter_rollover(stats, dev->stats, tx_multicast_frames);
+	check_counter_rollover(stats, dev->stats, tx_pause_frames);
+	check_counter_rollover(stats, dev->stats, tx_64_byte_frames);
+	check_counter_rollover(stats, dev->stats, tx_65_127_byte_frames);
+	check_counter_rollover(stats, dev->stats, tx_128_255_byte_frames);
+	check_counter_rollover(stats, dev->stats, tx_256_511_bytes_frames);
+	check_counter_rollover(stats, dev->stats, tx_512_1023_byte_frames);
+	check_counter_rollover(stats, dev->stats, tx_1024_1518_byte_frames);
+	check_counter_rollover(stats, dev->stats, tx_greater_1518_byte_frames);
+	check_counter_rollover(stats, dev->stats, eee_tx_lpi_transitions);
+	check_counter_rollover(stats, dev->stats, eee_tx_lpi_time);
+
+	memcpy(&dev->stats.saved, stats, sizeof(struct lan78xx_statstage));
+}
+
+static void lan78xx_update_stats(struct lan78xx_net *dev)
+{
+	u32 *p, *count, *max;
+	u64 *data;
+	int i;
+	struct lan78xx_statstage lan78xx_stats;
+
+	if (usb_autopm_get_interface(dev->intf) < 0)
+		return;
+
+	p = (u32 *)&lan78xx_stats;
+	count = (u32 *)&dev->stats.rollover_count;
+	max = (u32 *)&dev->stats.rollover_max;
+	data = (u64 *)&dev->stats.curr_stat;
+
+	mutex_lock(&dev->stats.access_lock);
+
+	if (lan78xx_read_stats(dev, &lan78xx_stats) > 0)
+		lan78xx_check_stat_rollover(dev, &lan78xx_stats);
+
+	for (i = 0; i < (sizeof(lan78xx_stats) / (sizeof(u32))); i++)
+		data[i] = (u64)p[i] + ((u64)count[i] * ((u64)max[i] + 1));
+
+	mutex_unlock(&dev->stats.access_lock);
+
+	usb_autopm_put_interface(dev->intf);
+}
+
 /* Loop until the read is completed with timeout called with phy_mutex held */
 static int lan78xx_phy_wait_not_busy(struct lan78xx_net *dev)
 {
@@ -471,7 +628,7 @@ static int lan78xx_read_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 	 */
 	ret = lan78xx_read_reg(dev, HW_CFG, &val);
 	saved = val;
-	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000) {
+	if (dev->chipid == ID_REV_CHIP_ID_7800_) {
 		val &= ~(HW_CFG_LED1_EN_ | HW_CFG_LED0_EN_);
 		ret = lan78xx_write_reg(dev, HW_CFG, val);
 	}
@@ -505,7 +662,7 @@ static int lan78xx_read_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 
 	retval = 0;
 exit:
-	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000)
+	if (dev->chipid == ID_REV_CHIP_ID_7800_)
 		ret = lan78xx_write_reg(dev, HW_CFG, saved);
 
 	return retval;
@@ -539,7 +696,7 @@ static int lan78xx_write_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 	 */
 	ret = lan78xx_read_reg(dev, HW_CFG, &val);
 	saved = val;
-	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000) {
+	if (dev->chipid == ID_REV_CHIP_ID_7800_) {
 		val &= ~(HW_CFG_LED1_EN_ | HW_CFG_LED0_EN_);
 		ret = lan78xx_write_reg(dev, HW_CFG, val);
 	}
@@ -587,7 +744,7 @@ static int lan78xx_write_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 
 	retval = 0;
 exit:
-	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000)
+	if (dev->chipid == ID_REV_CHIP_ID_7800_)
 		ret = lan78xx_write_reg(dev, HW_CFG, saved);
 
 	return retval;
@@ -901,11 +1058,15 @@ static int lan78xx_update_flowcontrol(struct lan78xx_net *dev, u8 duplex,
 {
 	u32 flow = 0, fct_flow = 0;
 	int ret;
+	u8 cap;
 
-	u8 cap = mii_resolve_flowctrl_fdx(lcladv, rmtadv);
+	if (dev->fc_autoneg)
+		cap = mii_resolve_flowctrl_fdx(lcladv, rmtadv);
+	else
+		cap = dev->fc_request_control;
 
 	if (cap & FLOW_CTRL_TX)
-		flow = (FLOW_CR_TX_FCEN_ | 0xFFFF);
+		flow |= (FLOW_CR_TX_FCEN_ | 0xFFFF);
 
 	if (cap & FLOW_CTRL_RX)
 		flow |= FLOW_CR_RX_FCEN_;
@@ -959,6 +1120,8 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 			return -EIO;
 
 		phy_mac_interrupt(phydev, 0);
+
+		del_timer(&dev->stat_monitor);
 	} else if (phydev->link && !dev->link_on) {
 		dev->link_on = true;
 
@@ -999,6 +1162,12 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 
 		ret = lan78xx_update_flowcontrol(dev, ecmd.duplex, ladv, radv);
 		phy_mac_interrupt(phydev, 1);
+
+		if (!timer_pending(&dev->stat_monitor)) {
+			dev->delta = 1;
+			mod_timer(&dev->stat_monitor,
+				  jiffies + STAT_UPDATE_TIMER);
+		}
 	}
 
 	return ret;
@@ -1091,20 +1260,12 @@ static void lan78xx_get_stats(struct net_device *netdev,
 			      struct ethtool_stats *stats, u64 *data)
 {
 	struct lan78xx_net *dev = netdev_priv(netdev);
-	struct lan78xx_statstage lan78xx_stat;
-	u32 *p;
-	int i;
 
-	if (usb_autopm_get_interface(dev->intf) < 0)
-		return;
+	lan78xx_update_stats(dev);
 
-	if (lan78xx_read_stats(dev, &lan78xx_stat) > 0) {
-		p = (u32 *)&lan78xx_stat;
-		for (i = 0; i < (sizeof(lan78xx_stat) / (sizeof(u32))); i++)
-			data[i] = p[i];
-	}
-
-	usb_autopm_put_interface(dev->intf);
+	mutex_lock(&dev->stats.access_lock);
+	memcpy(data, &dev->stats.curr_stat, sizeof(dev->stats.curr_stat));
+	mutex_unlock(&dev->stats.access_lock);
 }
 
 static void lan78xx_get_wol(struct net_device *netdev,
@@ -1385,6 +1546,62 @@ static int lan78xx_set_settings(struct net_device *net, struct ethtool_cmd *cmd)
 	return ret;
 }
 
+static void lan78xx_get_pause(struct net_device *net,
+			      struct ethtool_pauseparam *pause)
+{
+	struct lan78xx_net *dev = netdev_priv(net);
+	struct phy_device *phydev = net->phydev;
+	struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET };
+
+	phy_ethtool_gset(phydev, &ecmd);
+
+	pause->autoneg = dev->fc_autoneg;
+
+	if (dev->fc_request_control & FLOW_CTRL_TX)
+		pause->tx_pause = 1;
+
+	if (dev->fc_request_control & FLOW_CTRL_RX)
+		pause->rx_pause = 1;
+}
+
+static int lan78xx_set_pause(struct net_device *net,
+			     struct ethtool_pauseparam *pause)
+{
+	struct lan78xx_net *dev = netdev_priv(net);
+	struct phy_device *phydev = net->phydev;
+	struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET };
+	int ret;
+
+	phy_ethtool_gset(phydev, &ecmd);
+
+	if (pause->autoneg && !ecmd.autoneg) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	dev->fc_request_control = 0;
+	if (pause->rx_pause)
+		dev->fc_request_control |= FLOW_CTRL_RX;
+
+	if (pause->tx_pause)
+		dev->fc_request_control |= FLOW_CTRL_TX;
+
+	if (ecmd.autoneg) {
+		u32 mii_adv;
+
+		ecmd.advertising &= ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
+		mii_adv = (u32)mii_advertise_flowctrl(dev->fc_request_control);
+		ecmd.advertising |= mii_adv_to_ethtool_adv_t(mii_adv);
+		phy_ethtool_sset(phydev, &ecmd);
+	}
+
+	dev->fc_autoneg = pause->autoneg;
+
+	ret = 0;
+exit:
+	return ret;
+}
+
 static const struct ethtool_ops lan78xx_ethtool_ops = {
 	.get_link	= lan78xx_get_link,
 	.nway_reset	= lan78xx_nway_reset,
@@ -1403,6 +1620,8 @@ static const struct ethtool_ops lan78xx_ethtool_ops = {
 	.set_wol	= lan78xx_set_wol,
 	.get_eee	= lan78xx_get_eee,
 	.set_eee	= lan78xx_set_eee,
+	.get_pauseparam	= lan78xx_get_pause,
+	.set_pauseparam	= lan78xx_set_pause,
 };
 
 static int lan78xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
@@ -1555,9 +1774,9 @@ static int lan78xx_mdio_init(struct lan78xx_net *dev)
 	snprintf(dev->mdiobus->id, MII_BUS_ID_SIZE, "usb-%03d:%03d",
 		 dev->udev->bus->busnum, dev->udev->devnum);
 
-	switch (dev->devid & ID_REV_CHIP_ID_MASK_) {
-	case 0x78000000:
-	case 0x78500000:
+	switch (dev->chipid) {
+	case ID_REV_CHIP_ID_7800_:
+	case ID_REV_CHIP_ID_7850_:
 		/* set to internal PHY id */
 		dev->mdiobus->phy_mask = ~(1 << 1);
 		break;
@@ -1590,6 +1809,7 @@ static void lan78xx_link_status_change(struct net_device *net)
 static int lan78xx_phy_init(struct lan78xx_net *dev)
 {
 	int ret;
+	u32 mii_adv;
 	struct phy_device *phydev = dev->net->phydev;
 
 	phydev = phy_find_first(dev->mdiobus);
@@ -1622,13 +1842,16 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 
 	/* MAC doesn't support 1000T Half */
 	phydev->supported &= ~SUPPORTED_1000baseT_Half;
-	phydev->supported |= (SUPPORTED_10baseT_Half |
-			      SUPPORTED_10baseT_Full |
-			      SUPPORTED_100baseT_Half |
-			      SUPPORTED_100baseT_Full |
-			      SUPPORTED_1000baseT_Full |
-			      SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+
+	/* support both flow controls */
+	dev->fc_request_control = (FLOW_CTRL_RX | FLOW_CTRL_TX);
+	phydev->advertising &= ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
+	mii_adv = (u32)mii_advertise_flowctrl(dev->fc_request_control);
+	phydev->advertising |= mii_adv_to_ethtool_adv_t(mii_adv);
+
 	genphy_config_aneg(phydev);
+
+	dev->fc_autoneg = phydev->autoneg;
 
 	phy_start(phydev);
 
@@ -1918,7 +2141,8 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 
 	/* save DEVID for later usage */
 	ret = lan78xx_read_reg(dev, ID_REV, &buf);
-	dev->devid = buf;
+	dev->chipid = (buf & ID_REV_CHIP_ID_MASK_) >> 16;
+	dev->chiprev = buf & ID_REV_CHIP_REV_MASK_;
 
 	/* Respond to the IN token with a NAK */
 	ret = lan78xx_read_reg(dev, USB_CFG0, &buf);
@@ -2024,6 +2248,32 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	return 0;
 }
 
+static void lan78xx_init_stats(struct lan78xx_net *dev)
+{
+	u32 *p;
+	int i;
+
+	/* initialize for stats update
+	 * some counters are 20bits and some are 32bits
+	 */
+	p = (u32 *)&dev->stats.rollover_max;
+	for (i = 0; i < (sizeof(dev->stats.rollover_max) / (sizeof(u32))); i++)
+		p[i] = 0xFFFFF;
+
+	dev->stats.rollover_max.rx_unicast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.rx_broadcast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.rx_multicast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.eee_rx_lpi_transitions = 0xFFFFFFFF;
+	dev->stats.rollover_max.eee_rx_lpi_time = 0xFFFFFFFF;
+	dev->stats.rollover_max.tx_unicast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.tx_broadcast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.tx_multicast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.eee_tx_lpi_transitions = 0xFFFFFFFF;
+	dev->stats.rollover_max.eee_tx_lpi_time = 0xFFFFFFFF;
+
+	lan78xx_defer_kevent(dev, EVENT_STAT_UPDATE);
+}
+
 static int lan78xx_open(struct net_device *net)
 {
 	struct lan78xx_net *dev = netdev_priv(net);
@@ -2050,6 +2300,8 @@ static int lan78xx_open(struct net_device *net)
 			goto done;
 		}
 	}
+
+	lan78xx_init_stats(dev);
 
 	set_bit(EVENT_DEV_OPEN, &dev->flags);
 
@@ -2094,6 +2346,9 @@ static void lan78xx_terminate_urbs(struct lan78xx_net *dev)
 int lan78xx_stop(struct net_device *net)
 {
 	struct lan78xx_net		*dev = netdev_priv(net);
+
+	if (timer_pending(&dev->stat_monitor))
+		del_timer_sync(&dev->stat_monitor);
 
 	phy_stop(net->phydev);
 	phy_disconnect(net->phydev);
@@ -2839,6 +3094,13 @@ static void lan78xx_bh(unsigned long param)
 	}
 
 	if (netif_device_present(dev->net) && netif_running(dev->net)) {
+		/* reset update timer delta */
+		if (timer_pending(&dev->stat_monitor) && (dev->delta != 1)) {
+			dev->delta = 1;
+			mod_timer(&dev->stat_monitor,
+				  jiffies + STAT_UPDATE_TIMER);
+		}
+
 		if (!skb_queue_empty(&dev->txq_pend))
 			lan78xx_tx_bh(dev);
 
@@ -2912,6 +3174,17 @@ skip_reset:
 		} else {
 			usb_autopm_put_interface(dev->intf);
 		}
+	}
+
+	if (test_bit(EVENT_STAT_UPDATE, &dev->flags)) {
+		lan78xx_update_stats(dev);
+
+		clear_bit(EVENT_STAT_UPDATE, &dev->flags);
+
+		mod_timer(&dev->stat_monitor,
+			  jiffies + (STAT_UPDATE_TIMER * dev->delta));
+
+		dev->delta = min((dev->delta * 2), 50);
 	}
 }
 
@@ -3003,6 +3276,15 @@ static const struct net_device_ops lan78xx_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= lan78xx_vlan_rx_kill_vid,
 };
 
+static void lan78xx_stat_monitor(unsigned long param)
+{
+	struct lan78xx_net *dev;
+
+	dev = (struct lan78xx_net *)param;
+
+	lan78xx_defer_kevent(dev, EVENT_STAT_UPDATE);
+}
+
 static int lan78xx_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -3048,6 +3330,13 @@ static int lan78xx_probe(struct usb_interface *intf,
 	netdev->netdev_ops = &lan78xx_netdev_ops;
 	netdev->watchdog_timeo = TX_TIMEOUT_JIFFIES;
 	netdev->ethtool_ops = &lan78xx_ethtool_ops;
+
+	dev->stat_monitor.function = lan78xx_stat_monitor;
+	dev->stat_monitor.data = (unsigned long)dev;
+	dev->delta = 1;
+	init_timer(&dev->stat_monitor);
+
+	mutex_init(&dev->stats.access_lock);
 
 	ret = lan78xx_bind(dev, intf);
 	if (ret < 0)
@@ -3326,6 +3615,8 @@ int lan78xx_suspend(struct usb_interface *intf, pm_message_t message)
 	}
 
 	if (test_bit(EVENT_DEV_ASLEEP, &dev->flags)) {
+		del_timer(&dev->stat_monitor);
+
 		if (PMSG_IS_AUTO(message)) {
 			/* auto suspend (selective suspend) */
 			ret = lan78xx_read_reg(dev, MAC_TX, &buf);
@@ -3385,6 +3676,12 @@ int lan78xx_resume(struct usb_interface *intf)
 	struct urb *res;
 	int ret;
 	u32 buf;
+
+	if (!timer_pending(&dev->stat_monitor)) {
+		dev->delta = 1;
+		mod_timer(&dev->stat_monitor,
+			  jiffies + STAT_UPDATE_TIMER);
+	}
 
 	if (!--dev->suspend_count) {
 		/* resume interrupt URBs */

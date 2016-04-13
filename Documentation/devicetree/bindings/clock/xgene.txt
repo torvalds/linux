@@ -9,6 +9,8 @@ Required properties:
 	"apm,xgene-socpll-clock" - for a X-Gene SoC PLL clock
 	"apm,xgene-pcppll-clock" - for a X-Gene PCP PLL clock
 	"apm,xgene-device-clock" - for a X-Gene device clock
+	"apm,xgene-socpll-v2-clock" - for a X-Gene SoC PLL v2 clock
+	"apm,xgene-pcppll-v2-clock" - for a X-Gene PCP PLL v2 clock
 
 Required properties for SoC or PCP PLL clocks:
 - reg : shall be the physical PLL register address for the pll clock.

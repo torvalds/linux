@@ -600,7 +600,7 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 
 	if (region_obj2->extra.method_REG == NULL ||
 	    region_obj->region.handler == NULL ||
-	    !acpi_gbl_reg_methods_enabled) {
+	    !acpi_gbl_namespace_initialized) {
 		return_ACPI_STATUS(AE_OK);
 	}
 

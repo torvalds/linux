@@ -132,9 +132,10 @@ static ssize_t key_tx_spec_read(struct file *file, char __user *userbuf,
 		len = scnprintf(buf, sizeof(buf), "\n");
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
+		pn = atomic64_read(&key->conf.tx_pn);
 		len = scnprintf(buf, sizeof(buf), "%08x %04x\n",
-				key->u.tkip.tx.iv32,
-				key->u.tkip.tx.iv16);
+				TKIP_PN_TO_IV32(pn),
+				TKIP_PN_TO_IV16(pn));
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:

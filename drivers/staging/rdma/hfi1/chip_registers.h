@@ -2,13 +2,12 @@
 #define DEF_CHIP_REG
 
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -20,8 +19,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -551,6 +548,17 @@
 #define CCE_MSIX_TABLE_UPPER (CCE + 0x000000100008)
 #define CCE_MSIX_TABLE_UPPER_RESETCSR 0x0000000100000000ull
 #define CCE_MSIX_VEC_CLR_WITHOUT_INT (CCE + 0x000000110400)
+#define CCE_PCIE_CTRL (CCE + 0x0000000000C0)
+#define CCE_PCIE_CTRL_PCIE_LANE_BUNDLE_MASK 0x3ull
+#define CCE_PCIE_CTRL_PCIE_LANE_BUNDLE_SHIFT 0
+#define CCE_PCIE_CTRL_PCIE_LANE_DELAY_MASK 0xFull
+#define CCE_PCIE_CTRL_PCIE_LANE_DELAY_SHIFT 2
+#define CCE_PCIE_CTRL_XMT_MARGIN_OVERWRITE_ENABLE_SHIFT 8
+#define CCE_PCIE_CTRL_XMT_MARGIN_SHIFT 9
+#define CCE_PCIE_CTRL_XMT_MARGIN_GEN1_GEN2_OVERWRITE_ENABLE_MASK 0x1ull
+#define CCE_PCIE_CTRL_XMT_MARGIN_GEN1_GEN2_OVERWRITE_ENABLE_SHIFT 12
+#define CCE_PCIE_CTRL_XMT_MARGIN_GEN1_GEN2_MASK 0x7ull
+#define CCE_PCIE_CTRL_XMT_MARGIN_GEN1_GEN2_SHIFT 13
 #define CCE_REVISION (CCE + 0x000000000000)
 #define CCE_REVISION2 (CCE + 0x000000000008)
 #define CCE_REVISION2_HFI_ID_MASK 0x1ull
@@ -1270,6 +1278,9 @@
 #define SEND_STATIC_RATE_CONTROL_CSR_SRC_RELOAD_SHIFT 0
 #define SEND_STATIC_RATE_CONTROL_CSR_SRC_RELOAD_SMASK 0xFFFFull
 #define PCIE_CFG_REG_PL2 (PCIE + 0x000000000708)
+#define PCIE_CFG_REG_PL3 (PCIE + 0x00000000070C)
+#define PCIE_CFG_REG_PL3_L1_ENT_LATENCY_SHIFT 27
+#define PCIE_CFG_REG_PL3_L1_ENT_LATENCY_SMASK 0x38000000
 #define PCIE_CFG_REG_PL102 (PCIE + 0x000000000898)
 #define PCIE_CFG_REG_PL102_GEN3_EQ_POST_CURSOR_PSET_SHIFT 12
 #define PCIE_CFG_REG_PL102_GEN3_EQ_CURSOR_PSET_SHIFT 6
@@ -1290,5 +1301,6 @@
 #define CCE_INT_BLOCKED (CCE + 0x000000110C00)
 #define SEND_DMA_IDLE_CNT (TXE + 0x000000200040)
 #define SEND_DMA_DESC_FETCHED_CNT (TXE + 0x000000200058)
+#define CCE_MSIX_PBA_OFFSET 0X0110000
 
 #endif          /* DEF_CHIP_REG */

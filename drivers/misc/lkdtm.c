@@ -92,6 +92,9 @@ enum ctype {
 	CT_UNALIGNED_LOAD_STORE_WRITE,
 	CT_OVERWRITE_ALLOCATION,
 	CT_WRITE_AFTER_FREE,
+	CT_READ_AFTER_FREE,
+	CT_WRITE_BUDDY_AFTER_FREE,
+	CT_READ_BUDDY_AFTER_FREE,
 	CT_SOFTLOCKUP,
 	CT_HARDLOCKUP,
 	CT_SPINLOCKUP,
@@ -105,6 +108,7 @@ enum ctype {
 	CT_WRITE_RO,
 	CT_WRITE_RO_AFTER_INIT,
 	CT_WRITE_KERN,
+	CT_WRAP_ATOMIC
 };
 
 static char* cp_name[] = {
@@ -130,6 +134,9 @@ static char* cp_type[] = {
 	"UNALIGNED_LOAD_STORE_WRITE",
 	"OVERWRITE_ALLOCATION",
 	"WRITE_AFTER_FREE",
+	"READ_AFTER_FREE",
+	"WRITE_BUDDY_AFTER_FREE",
+	"READ_BUDDY_AFTER_FREE",
 	"SOFTLOCKUP",
 	"HARDLOCKUP",
 	"SPINLOCKUP",
@@ -143,6 +150,7 @@ static char* cp_type[] = {
 	"WRITE_RO",
 	"WRITE_RO_AFTER_INIT",
 	"WRITE_KERN",
+	"WRAP_ATOMIC"
 };
 
 static struct jprobe lkdtm;
@@ -338,7 +346,7 @@ static noinline void corrupt_stack(void)
 	memset((void *)data, 0, 64);
 }
 
-static void execute_location(void *dst)
+static void noinline execute_location(void *dst)
 {
 	void (*func)(void) = dst;
 
@@ -412,12 +420,109 @@ static void lkdtm_do_action(enum ctype which)
 		break;
 	}
 	case CT_WRITE_AFTER_FREE: {
+		int *base, *again;
 		size_t len = 1024;
-		u32 *data = kmalloc(len, GFP_KERNEL);
+		/*
+		 * The slub allocator uses the first word to store the free
+		 * pointer in some configurations. Use the middle of the
+		 * allocation to avoid running into the freelist
+		 */
+		size_t offset = (len / sizeof(*base)) / 2;
 
-		kfree(data);
+		base = kmalloc(len, GFP_KERNEL);
+		pr_info("Allocated memory %p-%p\n", base, &base[offset * 2]);
+		pr_info("Attempting bad write to freed memory at %p\n",
+			&base[offset]);
+		kfree(base);
+		base[offset] = 0x0abcdef0;
+		/* Attempt to notice the overwrite. */
+		again = kmalloc(len, GFP_KERNEL);
+		kfree(again);
+		if (again != base)
+			pr_info("Hmm, didn't get the same memory range.\n");
+
+		break;
+	}
+	case CT_READ_AFTER_FREE: {
+		int *base, *val, saw;
+		size_t len = 1024;
+		/*
+		 * The slub allocator uses the first word to store the free
+		 * pointer in some configurations. Use the middle of the
+		 * allocation to avoid running into the freelist
+		 */
+		size_t offset = (len / sizeof(*base)) / 2;
+
+		base = kmalloc(len, GFP_KERNEL);
+		if (!base)
+			break;
+
+		val = kmalloc(len, GFP_KERNEL);
+		if (!val)
+			break;
+
+		*val = 0x12345678;
+		base[offset] = *val;
+		pr_info("Value in memory before free: %x\n", base[offset]);
+
+		kfree(base);
+
+		pr_info("Attempting bad read from freed memory\n");
+		saw = base[offset];
+		if (saw != *val) {
+			/* Good! Poisoning happened, so declare a win. */
+			pr_info("Memory correctly poisoned (%x)\n", saw);
+			BUG();
+		}
+		pr_info("Memory was not poisoned\n");
+
+		kfree(val);
+		break;
+	}
+	case CT_WRITE_BUDDY_AFTER_FREE: {
+		unsigned long p = __get_free_page(GFP_KERNEL);
+		if (!p)
+			break;
+		pr_info("Writing to the buddy page before free\n");
+		memset((void *)p, 0x3, PAGE_SIZE);
+		free_page(p);
 		schedule();
-		memset(data, 0x78, len);
+		pr_info("Attempting bad write to the buddy page after free\n");
+		memset((void *)p, 0x78, PAGE_SIZE);
+		/* Attempt to notice the overwrite. */
+		p = __get_free_page(GFP_KERNEL);
+		free_page(p);
+		schedule();
+
+		break;
+	}
+	case CT_READ_BUDDY_AFTER_FREE: {
+		unsigned long p = __get_free_page(GFP_KERNEL);
+		int saw, *val = kmalloc(1024, GFP_KERNEL);
+		int *base;
+
+		if (!p)
+			break;
+
+		if (!val)
+			break;
+
+		base = (int *)p;
+
+		*val = 0x12345678;
+		base[0] = *val;
+		pr_info("Value in memory before free: %x\n", base[0]);
+		free_page(p);
+		pr_info("Attempting to read from freed memory\n");
+		saw = base[0];
+		if (saw != *val) {
+			/* Good! Poisoning happened, so declare a win. */
+			pr_info("Memory correctly poisoned (%x)\n", saw);
+			BUG();
+		}
+		pr_info("Buddy page was not poisoned\n");
+
+		kfree(val);
 		break;
 	}
 	case CT_SOFTLOCKUP:
@@ -547,6 +652,17 @@ static void lkdtm_do_action(enum ctype which)
 
 		do_overwritten();
 		break;
+	}
+	case CT_WRAP_ATOMIC: {
+		atomic_t under = ATOMIC_INIT(INT_MIN);
+		atomic_t over = ATOMIC_INIT(INT_MAX);
+
+		pr_info("attempting atomic underflow\n");
+		atomic_dec(&under);
+		pr_info("attempting atomic overflow\n");
+		atomic_inc(&over);
+
+		return;
 	}
 	case CT_NONE:
 	default:

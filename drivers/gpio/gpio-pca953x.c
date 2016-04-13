@@ -18,6 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_data/pca953x.h>
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 #include <linux/of_platform.h>
 #include <linux/acpi.h>
 
@@ -159,7 +160,7 @@ static int pca953x_write_regs(struct pca953x_chip *chip, int reg, u8 *val)
 		switch (chip->chip_type) {
 		case PCA953X_TYPE:
 			ret = i2c_smbus_write_word_data(chip->client,
-							reg << 1, (u16) *val);
+			    reg << 1, cpu_to_le16(get_unaligned((u16 *)val)));
 			break;
 		case PCA957X_TYPE:
 			ret = i2c_smbus_write_byte_data(chip->client, reg << 1,
@@ -367,9 +368,11 @@ static void pca953x_gpio_set_multiple(struct gpio_chip *gc,
 	memcpy(reg_val, chip->reg_output, NBANK(chip));
 	mutex_lock(&chip->i2c_lock);
 	for(bank=0; bank<NBANK(chip); bank++) {
-		unsigned bankmask = mask[bank/4] >> ((bank % 4) * 8);
+		unsigned bankmask = mask[bank / sizeof(*mask)] >>
+				    ((bank % sizeof(*mask)) * 8);
 		if(bankmask) {
-			unsigned bankval  = bits[bank/4] >> ((bank % 4) * 8);
+			unsigned bankval  = bits[bank / sizeof(*bits)] >>
+					    ((bank % sizeof(*bits)) * 8);
 			reg_val[bank] = (reg_val[bank] & ~bankmask) | bankval;
 		}
 	}
@@ -754,7 +757,7 @@ static int pca953x_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	ret = gpiochip_add_data(&chip->gpio_chip, chip);
+	ret = devm_gpiochip_add_data(&client->dev, &chip->gpio_chip, chip);
 	if (ret)
 		return ret;
 
@@ -788,8 +791,6 @@ static int pca953x_remove(struct i2c_client *client)
 			return ret;
 		}
 	}
-
-	gpiochip_remove(&chip->gpio_chip);
 
 	return 0;
 }

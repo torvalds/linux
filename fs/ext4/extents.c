@@ -15,7 +15,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public Licens
+ * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-
  */
@@ -1736,6 +1736,12 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	 */
 	if (ext1_ee_len + ext2_ee_len > EXT_INIT_MAX_LEN)
 		return 0;
+	/*
+	 * The check for IO to unwritten extent is somewhat racy as we
+	 * increment i_unwritten / set EXT4_STATE_DIO_UNWRITTEN only after
+	 * dropping i_data_sem. But reserved blocks should save us in that
+	 * case.
+	 */
 	if (ext4_ext_is_unwritten(ex1) &&
 	    (ext4_test_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN) ||
 	     atomic_read(&EXT4_I(inode)->i_unwritten) ||
@@ -2293,59 +2299,69 @@ static int ext4_fill_fiemap_extents(struct inode *inode,
 }
 
 /*
+ * ext4_ext_determine_hole - determine hole around given block
+ * @inode:	inode we lookup in
+ * @path:	path in extent tree to @lblk
+ * @lblk:	pointer to logical block around which we want to determine hole
+ *
+ * Determine hole length (and start if easily possible) around given logical
+ * block. We don't try too hard to find the beginning of the hole but @path
+ * actually points to extent before @lblk, we provide it.
+ *
+ * The function returns the length of a hole starting at @lblk. We update @lblk
+ * to the beginning of the hole if we managed to find it.
+ */
+static ext4_lblk_t ext4_ext_determine_hole(struct inode *inode,
+					   struct ext4_ext_path *path,
+					   ext4_lblk_t *lblk)
+{
+	int depth = ext_depth(inode);
+	struct ext4_extent *ex;
+	ext4_lblk_t len;
+
+	ex = path[depth].p_ext;
+	if (ex == NULL) {
+		/* there is no extent yet, so gap is [0;-] */
+		*lblk = 0;
+		len = EXT_MAX_BLOCKS;
+	} else if (*lblk < le32_to_cpu(ex->ee_block)) {
+		len = le32_to_cpu(ex->ee_block) - *lblk;
+	} else if (*lblk >= le32_to_cpu(ex->ee_block)
+			+ ext4_ext_get_actual_len(ex)) {
+		ext4_lblk_t next;
+
+		*lblk = le32_to_cpu(ex->ee_block) + ext4_ext_get_actual_len(ex);
+		next = ext4_ext_next_allocated_block(path);
+		BUG_ON(next == *lblk);
+		len = next - *lblk;
+	} else {
+		BUG();
+	}
+	return len;
+}
+
+/*
  * ext4_ext_put_gap_in_cache:
  * calculate boundaries of the gap that the requested block fits into
  * and cache this gap
  */
 static void
-ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
-				ext4_lblk_t block)
+ext4_ext_put_gap_in_cache(struct inode *inode, ext4_lblk_t hole_start,
+			  ext4_lblk_t hole_len)
 {
-	int depth = ext_depth(inode);
-	ext4_lblk_t len;
-	ext4_lblk_t lblock;
-	struct ext4_extent *ex;
 	struct extent_status es;
 
-	ex = path[depth].p_ext;
-	if (ex == NULL) {
-		/* there is no extent yet, so gap is [0;-] */
-		lblock = 0;
-		len = EXT_MAX_BLOCKS;
-		ext_debug("cache gap(whole file):");
-	} else if (block < le32_to_cpu(ex->ee_block)) {
-		lblock = block;
-		len = le32_to_cpu(ex->ee_block) - block;
-		ext_debug("cache gap(before): %u [%u:%u]",
-				block,
-				le32_to_cpu(ex->ee_block),
-				 ext4_ext_get_actual_len(ex));
-	} else if (block >= le32_to_cpu(ex->ee_block)
-			+ ext4_ext_get_actual_len(ex)) {
-		ext4_lblk_t next;
-		lblock = le32_to_cpu(ex->ee_block)
-			+ ext4_ext_get_actual_len(ex);
-
-		next = ext4_ext_next_allocated_block(path);
-		ext_debug("cache gap(after): [%u:%u] %u",
-				le32_to_cpu(ex->ee_block),
-				ext4_ext_get_actual_len(ex),
-				block);
-		BUG_ON(next == lblock);
-		len = next - lblock;
-	} else {
-		BUG();
-	}
-
-	ext4_es_find_delayed_extent_range(inode, lblock, lblock + len - 1, &es);
+	ext4_es_find_delayed_extent_range(inode, hole_start,
+					  hole_start + hole_len - 1, &es);
 	if (es.es_len) {
 		/* There's delayed extent containing lblock? */
-		if (es.es_lblk <= lblock)
+		if (es.es_lblk <= hole_start)
 			return;
-		len = min(es.es_lblk - lblock, len);
+		hole_len = min(es.es_lblk - hole_start, hole_len);
 	}
-	ext_debug(" -> %u:%u\n", lblock, len);
-	ext4_es_insert_extent(inode, lblock, len, ~0, EXTENT_STATUS_HOLE);
+	ext_debug(" -> %u:%u\n", hole_start, hole_len);
+	ext4_es_insert_extent(inode, hole_start, hole_len, ~0,
+			      EXTENT_STATUS_HOLE);
 }
 
 /*
@@ -3927,7 +3943,7 @@ get_reserved_cluster_alloc(struct inode *inode, ext4_lblk_t lblk_start,
 static int
 convert_initialized_extent(handle_t *handle, struct inode *inode,
 			   struct ext4_map_blocks *map,
-			   struct ext4_ext_path **ppath, int flags,
+			   struct ext4_ext_path **ppath,
 			   unsigned int allocated)
 {
 	struct ext4_ext_path *path = *ppath;
@@ -4007,7 +4023,6 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 	struct ext4_ext_path *path = *ppath;
 	int ret = 0;
 	int err = 0;
-	ext4_io_end_t *io = ext4_inode_aio(inode);
 
 	ext_debug("ext4_ext_handle_unwritten_extents: inode %lu, logical "
 		  "block %llu, max_blocks %u, flags %x, allocated %u\n",
@@ -4030,15 +4045,6 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 					 flags | EXT4_GET_BLOCKS_CONVERT);
 		if (ret <= 0)
 			goto out;
-		/*
-		 * Flag the inode(non aio case) or end_io struct (aio case)
-		 * that this IO needs to conversion to written when IO is
-		 * completed
-		 */
-		if (io)
-			ext4_set_io_unwritten_flag(inode, io);
-		else
-			ext4_set_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
 		map->m_flags |= EXT4_MAP_UNWRITTEN;
 		goto out;
 	}
@@ -4283,9 +4289,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	unsigned int allocated = 0, offset = 0;
 	unsigned int allocated_clusters = 0;
 	struct ext4_allocation_request ar;
-	ext4_io_end_t *io = ext4_inode_aio(inode);
 	ext4_lblk_t cluster_offset;
-	int set_unwritten = 0;
 	bool map_from_cluster = false;
 
 	ext_debug("blocks %u/%u requested for inode %lu\n",
@@ -4347,7 +4351,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 			    (flags & EXT4_GET_BLOCKS_CONVERT_UNWRITTEN)) {
 				allocated = convert_initialized_extent(
 						handle, inode, map, &path,
-						flags, allocated);
+						allocated);
 				goto out2;
 			} else if (!ext4_ext_is_unwritten(ex))
 				goto out;
@@ -4368,11 +4372,22 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	 * we couldn't try to create block if create flag is zero
 	 */
 	if ((flags & EXT4_GET_BLOCKS_CREATE) == 0) {
+		ext4_lblk_t hole_start, hole_len;
+
+		hole_start = map->m_lblk;
+		hole_len = ext4_ext_determine_hole(inode, path, &hole_start);
 		/*
 		 * put just found gap into cache to speed up
 		 * subsequent requests
 		 */
-		ext4_ext_put_gap_in_cache(inode, path, map->m_lblk);
+		ext4_ext_put_gap_in_cache(inode, hole_start, hole_len);
+
+		/* Update hole_len to reflect hole size after map->m_lblk */
+		if (hole_start != map->m_lblk)
+			hole_len -= map->m_lblk - hole_start;
+		map->m_pblk = 0;
+		map->m_len = min_t(unsigned int, map->m_len, hole_len);
+
 		goto out2;
 	}
 
@@ -4482,15 +4497,6 @@ got_allocated_blocks:
 	if (flags & EXT4_GET_BLOCKS_UNWRIT_EXT){
 		ext4_ext_mark_unwritten(&newex);
 		map->m_flags |= EXT4_MAP_UNWRITTEN;
-		/*
-		 * io_end structure was created for every IO write to an
-		 * unwritten extent. To avoid unnecessary conversion,
-		 * here we flag the IO that really needs the conversion.
-		 * For non asycn direct IO case, flag the inode state
-		 * that we need to perform conversion when IO is done.
-		 */
-		if (flags & EXT4_GET_BLOCKS_PRE_IO)
-			set_unwritten = 1;
 	}
 
 	err = 0;
@@ -4500,14 +4506,6 @@ got_allocated_blocks:
 	if (!err)
 		err = ext4_ext_insert_extent(handle, inode, &path,
 					     &newex, flags);
-
-	if (!err && set_unwritten) {
-		if (io)
-			ext4_set_io_unwritten_flag(inode, io);
-		else
-			ext4_set_inode_state(inode,
-					     EXT4_STATE_DIO_UNWRITTEN);
-	}
 
 	if (err && free_on_err) {
 		int fb_flags = flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE ?

@@ -133,38 +133,38 @@ static const struct ddi_buf_trans skl_ddi_translations_dp[] = {
 	{ 0x00002016, 0x000000A0, 0x0 },
 	{ 0x00005012, 0x0000009B, 0x0 },
 	{ 0x00007011, 0x00000088, 0x0 },
-	{ 0x80009010, 0x000000C0, 0x1 },	/* Uses I_boost level 0x1 */
+	{ 0x80009010, 0x000000C0, 0x1 },
 	{ 0x00002016, 0x0000009B, 0x0 },
 	{ 0x00005012, 0x00000088, 0x0 },
-	{ 0x80007011, 0x000000C0, 0x1 },	/* Uses I_boost level 0x1 */
+	{ 0x80007011, 0x000000C0, 0x1 },
 	{ 0x00002016, 0x000000DF, 0x0 },
-	{ 0x80005012, 0x000000C0, 0x1 },	/* Uses I_boost level 0x1 */
+	{ 0x80005012, 0x000000C0, 0x1 },
 };
 
 /* Skylake U */
 static const struct ddi_buf_trans skl_u_ddi_translations_dp[] = {
 	{ 0x0000201B, 0x000000A2, 0x0 },
 	{ 0x00005012, 0x00000088, 0x0 },
-	{ 0x00007011, 0x00000087, 0x0 },
-	{ 0x80009010, 0x000000C0, 0x1 },	/* Uses I_boost level 0x1 */
+	{ 0x80007011, 0x000000CD, 0x0 },
+	{ 0x80009010, 0x000000C0, 0x1 },
 	{ 0x0000201B, 0x0000009D, 0x0 },
-	{ 0x80005012, 0x000000C0, 0x1 },	/* Uses I_boost level 0x1 */
-	{ 0x80007011, 0x000000C0, 0x1 },	/* Uses I_boost level 0x1 */
+	{ 0x80005012, 0x000000C0, 0x1 },
+	{ 0x80007011, 0x000000C0, 0x1 },
 	{ 0x00002016, 0x00000088, 0x0 },
-	{ 0x80005012, 0x000000C0, 0x1 },	/* Uses I_boost level 0x1 */
+	{ 0x80005012, 0x000000C0, 0x1 },
 };
 
 /* Skylake Y */
 static const struct ddi_buf_trans skl_y_ddi_translations_dp[] = {
 	{ 0x00000018, 0x000000A2, 0x0 },
 	{ 0x00005012, 0x00000088, 0x0 },
-	{ 0x00007011, 0x00000087, 0x0 },
-	{ 0x80009010, 0x000000C0, 0x3 },	/* Uses I_boost level 0x3 */
+	{ 0x80007011, 0x000000CD, 0x0 },
+	{ 0x80009010, 0x000000C0, 0x3 },
 	{ 0x00000018, 0x0000009D, 0x0 },
-	{ 0x80005012, 0x000000C0, 0x3 },	/* Uses I_boost level 0x3 */
-	{ 0x80007011, 0x000000C0, 0x3 },	/* Uses I_boost level 0x3 */
+	{ 0x80005012, 0x000000C0, 0x3 },
+	{ 0x80007011, 0x000000C0, 0x3 },
 	{ 0x00000018, 0x00000088, 0x0 },
-	{ 0x80005012, 0x000000C0, 0x3 },	/* Uses I_boost level 0x3 */
+	{ 0x80005012, 0x000000C0, 0x3 },
 };
 
 /*
@@ -226,26 +226,26 @@ static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
 	{ 0x00000018, 0x000000A1, 0x0 },
 	{ 0x00000018, 0x00000098, 0x0 },
 	{ 0x00004013, 0x00000088, 0x0 },
-	{ 0x00006012, 0x00000087, 0x0 },
+	{ 0x80006012, 0x000000CD, 0x1 },
 	{ 0x00000018, 0x000000DF, 0x0 },
-	{ 0x00003015, 0x00000087, 0x0 },	/* Default */
-	{ 0x00003015, 0x000000C7, 0x0 },
-	{ 0x00000018, 0x000000C7, 0x0 },
+	{ 0x80003015, 0x000000CD, 0x1 },	/* Default */
+	{ 0x80003015, 0x000000C0, 0x1 },
+	{ 0x80000018, 0x000000C0, 0x1 },
 };
 
 /* Skylake Y */
 static const struct ddi_buf_trans skl_y_ddi_translations_hdmi[] = {
 	{ 0x00000018, 0x000000A1, 0x0 },
 	{ 0x00005012, 0x000000DF, 0x0 },
-	{ 0x00007011, 0x00000084, 0x0 },
+	{ 0x80007011, 0x000000CB, 0x3 },
 	{ 0x00000018, 0x000000A4, 0x0 },
 	{ 0x00000018, 0x0000009D, 0x0 },
 	{ 0x00004013, 0x00000080, 0x0 },
-	{ 0x00006013, 0x000000C7, 0x0 },
+	{ 0x80006013, 0x000000C0, 0x3 },
 	{ 0x00000018, 0x0000008A, 0x0 },
-	{ 0x00003015, 0x000000C7, 0x0 },	/* Default */
-	{ 0x80003015, 0x000000C7, 0x7 },	/* Uses I_boost level 0x7 */
-	{ 0x00000018, 0x000000C7, 0x0 },
+	{ 0x80003015, 0x000000C0, 0x3 },	/* Default */
+	{ 0x80003015, 0x000000C0, 0x3 },
+	{ 0x80000018, 0x000000C0, 0x3 },
 };
 
 struct bxt_ddi_buf_trans {
@@ -301,8 +301,8 @@ static const struct bxt_ddi_buf_trans bxt_ddi_translations_hdmi[] = {
 	{ 154, 0x9A, 1, 128, true },	/* 9:	1200		0   */
 };
 
-static void bxt_ddi_vswing_sequence(struct drm_device *dev, u32 level,
-				    enum port port, int type);
+static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
+				    u32 level, enum port port, int type);
 
 static void ddi_get_encoder_port(struct intel_encoder *intel_encoder,
 				 struct intel_digital_port **dig_port,
@@ -342,81 +342,50 @@ enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 	return port;
 }
 
-static bool
-intel_dig_port_supports_hdmi(const struct intel_digital_port *intel_dig_port)
+static const struct ddi_buf_trans *
+skl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
 {
-	return i915_mmio_reg_valid(intel_dig_port->hdmi.hdmi_reg);
-}
-
-static const struct ddi_buf_trans *skl_get_buf_trans_dp(struct drm_device *dev,
-							int *n_entries)
-{
-	const struct ddi_buf_trans *ddi_translations;
-
-	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
-		ddi_translations = skl_y_ddi_translations_dp;
+	if (IS_SKL_ULX(dev_priv) || IS_KBL_ULX(dev_priv)) {
 		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
-	} else if (IS_SKL_ULT(dev) || IS_KBL_ULT(dev)) {
-		ddi_translations = skl_u_ddi_translations_dp;
+		return skl_y_ddi_translations_dp;
+	} else if (IS_SKL_ULT(dev_priv) || IS_KBL_ULT(dev_priv)) {
 		*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
+		return skl_u_ddi_translations_dp;
 	} else {
-		ddi_translations = skl_ddi_translations_dp;
 		*n_entries = ARRAY_SIZE(skl_ddi_translations_dp);
+		return skl_ddi_translations_dp;
 	}
-
-	return ddi_translations;
-}
-
-static const struct ddi_buf_trans *skl_get_buf_trans_edp(struct drm_device *dev,
-							 int *n_entries)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	const struct ddi_buf_trans *ddi_translations;
-
-	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
-		if (dev_priv->edp_low_vswing) {
-			ddi_translations = skl_y_ddi_translations_edp;
-			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_edp);
-		} else {
-			ddi_translations = skl_y_ddi_translations_dp;
-			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
-		}
-	} else if (IS_SKL_ULT(dev) || IS_KBL_ULT(dev)) {
-		if (dev_priv->edp_low_vswing) {
-			ddi_translations = skl_u_ddi_translations_edp;
-			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_edp);
-		} else {
-			ddi_translations = skl_u_ddi_translations_dp;
-			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
-		}
-	} else {
-		if (dev_priv->edp_low_vswing) {
-			ddi_translations = skl_ddi_translations_edp;
-			*n_entries = ARRAY_SIZE(skl_ddi_translations_edp);
-		} else {
-			ddi_translations = skl_ddi_translations_dp;
-			*n_entries = ARRAY_SIZE(skl_ddi_translations_dp);
-		}
-	}
-
-	return ddi_translations;
 }
 
 static const struct ddi_buf_trans *
-skl_get_buf_trans_hdmi(struct drm_device *dev,
-		       int *n_entries)
+skl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 {
-	const struct ddi_buf_trans *ddi_translations;
-
-	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
-		ddi_translations = skl_y_ddi_translations_hdmi;
-		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_hdmi);
-	} else {
-		ddi_translations = skl_ddi_translations_hdmi;
-		*n_entries = ARRAY_SIZE(skl_ddi_translations_hdmi);
+	if (dev_priv->edp_low_vswing) {
+		if (IS_SKL_ULX(dev_priv) || IS_KBL_ULX(dev_priv)) {
+			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_edp);
+			return skl_y_ddi_translations_edp;
+		} else if (IS_SKL_ULT(dev_priv) || IS_KBL_ULT(dev_priv)) {
+			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_edp);
+			return skl_u_ddi_translations_edp;
+		} else {
+			*n_entries = ARRAY_SIZE(skl_ddi_translations_edp);
+			return skl_ddi_translations_edp;
+		}
 	}
 
-	return ddi_translations;
+	return skl_get_buf_trans_dp(dev_priv, n_entries);
+}
+
+static const struct ddi_buf_trans *
+skl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
+{
+	if (IS_SKL_ULX(dev_priv) || IS_KBL_ULX(dev_priv)) {
+		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_hdmi);
+		return skl_y_ddi_translations_hdmi;
+	} else {
+		*n_entries = ARRAY_SIZE(skl_ddi_translations_hdmi);
+		return skl_ddi_translations_hdmi;
+	}
 }
 
 /*
@@ -426,42 +395,52 @@ skl_get_buf_trans_hdmi(struct drm_device *dev,
  * in either FDI or DP modes only, as HDMI connections will work with both
  * of those
  */
-static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
-				      bool supports_hdmi)
+void intel_prepare_ddi_buffer(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 iboost_bit = 0;
 	int i, n_hdmi_entries, n_dp_entries, n_edp_entries, hdmi_default_entry,
 	    size;
-	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
+	int hdmi_level;
+	enum port port;
 	const struct ddi_buf_trans *ddi_translations_fdi;
 	const struct ddi_buf_trans *ddi_translations_dp;
 	const struct ddi_buf_trans *ddi_translations_edp;
 	const struct ddi_buf_trans *ddi_translations_hdmi;
 	const struct ddi_buf_trans *ddi_translations;
 
-	if (IS_BROXTON(dev)) {
-		if (!supports_hdmi)
+	port = intel_ddi_get_encoder_port(encoder);
+	hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
+
+	if (IS_BROXTON(dev_priv)) {
+		if (encoder->type != INTEL_OUTPUT_HDMI)
 			return;
 
 		/* Vswing programming for HDMI */
-		bxt_ddi_vswing_sequence(dev, hdmi_level, port,
+		bxt_ddi_vswing_sequence(dev_priv, hdmi_level, port,
 					INTEL_OUTPUT_HDMI);
 		return;
-	} else if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
+	}
+
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		ddi_translations_fdi = NULL;
 		ddi_translations_dp =
-				skl_get_buf_trans_dp(dev, &n_dp_entries);
+				skl_get_buf_trans_dp(dev_priv, &n_dp_entries);
 		ddi_translations_edp =
-				skl_get_buf_trans_edp(dev, &n_edp_entries);
+				skl_get_buf_trans_edp(dev_priv, &n_edp_entries);
 		ddi_translations_hdmi =
-				skl_get_buf_trans_hdmi(dev, &n_hdmi_entries);
+				skl_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
 		hdmi_default_entry = 8;
 		/* If we're boosting the current, set bit 31 of trans1 */
 		if (dev_priv->vbt.ddi_port_info[port].hdmi_boost_level ||
 		    dev_priv->vbt.ddi_port_info[port].dp_boost_level)
 			iboost_bit = 1<<31;
-	} else if (IS_BROADWELL(dev)) {
+
+		if (WARN_ON(encoder->type == INTEL_OUTPUT_EDP &&
+			    port != PORT_A && port != PORT_E &&
+			    n_edp_entries > 9))
+			n_edp_entries = 9;
+	} else if (IS_BROADWELL(dev_priv)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		ddi_translations_edp = bdw_ddi_translations_edp;
@@ -470,7 +449,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		n_dp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
 		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
 		hdmi_default_entry = 7;
-	} else if (IS_HASWELL(dev)) {
+	} else if (IS_HASWELL(dev_priv)) {
 		ddi_translations_fdi = hsw_ddi_translations_fdi;
 		ddi_translations_dp = hsw_ddi_translations_dp;
 		ddi_translations_edp = hsw_ddi_translations_dp;
@@ -490,30 +469,18 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		hdmi_default_entry = 7;
 	}
 
-	switch (port) {
-	case PORT_A:
+	switch (encoder->type) {
+	case INTEL_OUTPUT_EDP:
 		ddi_translations = ddi_translations_edp;
 		size = n_edp_entries;
 		break;
-	case PORT_B:
-	case PORT_C:
+	case INTEL_OUTPUT_DISPLAYPORT:
+	case INTEL_OUTPUT_HDMI:
 		ddi_translations = ddi_translations_dp;
 		size = n_dp_entries;
 		break;
-	case PORT_D:
-		if (intel_dp_is_edp(dev, PORT_D)) {
-			ddi_translations = ddi_translations_edp;
-			size = n_edp_entries;
-		} else {
-			ddi_translations = ddi_translations_dp;
-			size = n_dp_entries;
-		}
-		break;
-	case PORT_E:
-		if (ddi_translations_fdi)
-			ddi_translations = ddi_translations_fdi;
-		else
-			ddi_translations = ddi_translations_dp;
+	case INTEL_OUTPUT_ANALOG:
+		ddi_translations = ddi_translations_fdi;
 		size = n_dp_entries;
 		break;
 	default:
@@ -527,7 +494,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 			   ddi_translations[i].trans2);
 	}
 
-	if (!supports_hdmi)
+	if (encoder->type != INTEL_OUTPUT_HDMI)
 		return;
 
 	/* Choose a good default if VBT is badly populated */
@@ -540,37 +507,6 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		   ddi_translations_hdmi[hdmi_level].trans1 | iboost_bit);
 	I915_WRITE(DDI_BUF_TRANS_HI(port, i),
 		   ddi_translations_hdmi[hdmi_level].trans2);
-}
-
-/* Program DDI buffers translations for DP. By default, program ports A-D in DP
- * mode and port E for FDI.
- */
-void intel_prepare_ddi(struct drm_device *dev)
-{
-	struct intel_encoder *intel_encoder;
-	bool visited[I915_MAX_PORTS] = { 0, };
-
-	if (!HAS_DDI(dev))
-		return;
-
-	for_each_intel_encoder(dev, intel_encoder) {
-		struct intel_digital_port *intel_dig_port;
-		enum port port;
-		bool supports_hdmi;
-
-		if (intel_encoder->type == INTEL_OUTPUT_DSI)
-			continue;
-
-		ddi_get_encoder_port(intel_encoder, &intel_dig_port, &port);
-		if (visited[port])
-			continue;
-
-		supports_hdmi = intel_dig_port &&
-				intel_dig_port_supports_hdmi(intel_dig_port);
-
-		intel_prepare_ddi_buffers(dev, port, supports_hdmi);
-		visited[port] = true;
-	}
 }
 
 static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
@@ -601,7 +537,13 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_encoder *encoder;
 	u32 temp, i, rx_ctl_val;
+
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		WARN_ON(encoder->type != INTEL_OUTPUT_ANALOG);
+		intel_prepare_ddi_buffer(encoder);
+	}
 
 	/* Set the FDI_RX_MISC pwrdn lanes and the 2 workarounds listed at the
 	 * mode set "sequence for CRT port" document:
@@ -1604,8 +1546,10 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 		}
 
 		cfgcr1 = cfgcr2 = 0;
-	} else /* eDP */
+	} else if (intel_encoder->type == INTEL_OUTPUT_EDP) {
 		return true;
+	} else
+		return false;
 
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
@@ -2109,10 +2053,9 @@ void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc)
 			   TRANS_CLK_SEL_DISABLED);
 }
 
-static void skl_ddi_set_iboost(struct drm_device *dev, u32 level,
-			       enum port port, int type)
+static void skl_ddi_set_iboost(struct drm_i915_private *dev_priv,
+			       u32 level, enum port port, int type)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct ddi_buf_trans *ddi_translations;
 	uint8_t iboost;
 	uint8_t dp_iboost, hdmi_iboost;
@@ -2127,21 +2070,26 @@ static void skl_ddi_set_iboost(struct drm_device *dev, u32 level,
 		if (dp_iboost) {
 			iboost = dp_iboost;
 		} else {
-			ddi_translations = skl_get_buf_trans_dp(dev, &n_entries);
+			ddi_translations = skl_get_buf_trans_dp(dev_priv, &n_entries);
 			iboost = ddi_translations[level].i_boost;
 		}
 	} else if (type == INTEL_OUTPUT_EDP) {
 		if (dp_iboost) {
 			iboost = dp_iboost;
 		} else {
-			ddi_translations = skl_get_buf_trans_edp(dev, &n_entries);
+			ddi_translations = skl_get_buf_trans_edp(dev_priv, &n_entries);
+
+			if (WARN_ON(port != PORT_A &&
+				    port != PORT_E && n_entries > 9))
+				n_entries = 9;
+
 			iboost = ddi_translations[level].i_boost;
 		}
 	} else if (type == INTEL_OUTPUT_HDMI) {
 		if (hdmi_iboost) {
 			iboost = hdmi_iboost;
 		} else {
-			ddi_translations = skl_get_buf_trans_hdmi(dev, &n_entries);
+			ddi_translations = skl_get_buf_trans_hdmi(dev_priv, &n_entries);
 			iboost = ddi_translations[level].i_boost;
 		}
 	} else {
@@ -2166,10 +2114,9 @@ static void skl_ddi_set_iboost(struct drm_device *dev, u32 level,
 	I915_WRITE(DISPIO_CR_TX_BMU_CR0, reg);
 }
 
-static void bxt_ddi_vswing_sequence(struct drm_device *dev, u32 level,
-				    enum port port, int type)
+static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
+				    u32 level, enum port port, int type)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct bxt_ddi_buf_trans *ddi_translations;
 	u32 n_entries, i;
 	uint32_t val;
@@ -2284,7 +2231,7 @@ static uint32_t translate_signal_level(int signal_levels)
 uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = dport->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
 	struct intel_encoder *encoder = &dport->base;
 	uint8_t train_set = intel_dp->train_set[0];
 	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
@@ -2294,10 +2241,10 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 
 	level = translate_signal_level(signal_levels);
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
-		skl_ddi_set_iboost(dev, level, port, encoder->type);
-	else if (IS_BROXTON(dev))
-		bxt_ddi_vswing_sequence(dev, level, port, encoder->type);
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
+		skl_ddi_set_iboost(dev_priv, level, port, encoder->type);
+	else if (IS_BROXTON(dev_priv))
+		bxt_ddi_vswing_sequence(dev_priv, level, port, encoder->type);
 
 	return DDI_BUF_TRANS_SELECT(level);
 }
@@ -2349,12 +2296,12 @@ void intel_ddi_clk_select(struct intel_encoder *encoder,
 static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
-	int hdmi_level;
+
+	intel_prepare_ddi_buffer(intel_encoder);
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -2372,17 +2319,11 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 		intel_dp_start_link_train(intel_dp);
-		if (port != PORT_A || INTEL_INFO(dev)->gen >= 9)
+		if (port != PORT_A || INTEL_INFO(dev_priv)->gen >= 9)
 			intel_dp_stop_link_train(intel_dp);
 	} else if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 
-		if (IS_BROXTON(dev)) {
-			hdmi_level = dev_priv->vbt.
-				ddi_port_info[port].hdmi_level_shift;
-			bxt_ddi_vswing_sequence(dev, hdmi_level, port,
-					INTEL_OUTPUT_HDMI);
-		}
 		intel_hdmi->set_infoframes(encoder,
 					   crtc->config->has_hdmi_sink,
 					   &crtc->config->base.adjusted_mode);
@@ -3329,6 +3270,33 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
 	bool init_hdmi, init_dp;
+	int max_lanes;
+
+	if (I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_A_4_LANES) {
+		switch (port) {
+		case PORT_A:
+			max_lanes = 4;
+			break;
+		case PORT_E:
+			max_lanes = 0;
+			break;
+		default:
+			max_lanes = 4;
+			break;
+		}
+	} else {
+		switch (port) {
+		case PORT_A:
+			max_lanes = 2;
+			break;
+		case PORT_E:
+			max_lanes = 2;
+			break;
+		default:
+			max_lanes = 4;
+			break;
+		}
+	}
 
 	init_hdmi = (dev_priv->vbt.ddi_port_info[port].supports_dvi ||
 		     dev_priv->vbt.ddi_port_info[port].supports_hdmi);
@@ -3373,8 +3341,11 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 		if (!(intel_dig_port->saved_port_bits & DDI_A_4_LANES)) {
 			DRM_DEBUG_KMS("BXT BIOS forgot to set DDI_A_4_LANES for port A; fixing\n");
 			intel_dig_port->saved_port_bits |= DDI_A_4_LANES;
+			max_lanes = 4;
 		}
 	}
+
+	intel_dig_port->max_lanes = max_lanes;
 
 	intel_encoder->type = INTEL_OUTPUT_UNKNOWN;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);

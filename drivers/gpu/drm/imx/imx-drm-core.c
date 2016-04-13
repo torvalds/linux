@@ -17,7 +17,6 @@
 #include <linux/device.h>
 #include <linux/fb.h>
 #include <linux/module.h>
-#include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
@@ -169,18 +168,6 @@ static void imx_drm_disable_vblank(struct drm_device *drm, unsigned int pipe)
 		return;
 
 	imx_drm_crtc->imx_drm_helper_funcs.disable_vblank(imx_drm_crtc->crtc);
-}
-
-static void imx_drm_driver_preclose(struct drm_device *drm,
-		struct drm_file *file)
-{
-	int i;
-
-	if (!file->is_master)
-		return;
-
-	for (i = 0; i < MAX_CRTC; i++)
-		imx_drm_disable_vblank(drm, i);
 }
 
 static const struct file_operations imx_drm_driver_fops = {
@@ -339,7 +326,6 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
 	struct imx_drm_crtc *imx_drm_crtc;
-	int ret;
 
 	/*
 	 * The vblank arrays are dimensioned by MAX_CRTC - we can't
@@ -364,10 +350,6 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 
 	*new_crtc = imx_drm_crtc;
 
-	ret = drm_mode_crtc_set_gamma_size(imx_drm_crtc->crtc, 256);
-	if (ret)
-		goto err_register;
-
 	drm_crtc_helper_add(crtc,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
 
@@ -375,11 +357,6 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs, NULL);
 
 	return 0;
-
-err_register:
-	imxdrm->crtc[--imxdrm->pipes] = NULL;
-	kfree(imx_drm_crtc);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(imx_drm_add_crtc);
 
@@ -424,36 +401,6 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 }
 EXPORT_SYMBOL_GPL(imx_drm_encoder_parse_of);
 
-/*
- * @node: device tree node containing encoder input ports
- * @encoder: drm_encoder
- */
-int imx_drm_encoder_get_mux_id(struct device_node *node,
-			       struct drm_encoder *encoder)
-{
-	struct imx_drm_crtc *imx_crtc = imx_drm_find_crtc(encoder->crtc);
-	struct device_node *ep;
-	struct of_endpoint endpoint;
-	struct device_node *port;
-	int ret;
-
-	if (!node || !imx_crtc)
-		return -EINVAL;
-
-	for_each_endpoint_of_node(node, ep) {
-		port = of_graph_get_remote_port(ep);
-		of_node_put(port);
-		if (port == imx_crtc->crtc->port) {
-			ret = of_graph_parse_endpoint(ep, &endpoint);
-			of_node_put(ep);
-			return ret ? ret : endpoint.port;
-		}
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(imx_drm_encoder_get_mux_id);
-
 static const struct drm_ioctl_desc imx_drm_ioctls[] = {
 	/* none so far */
 };
@@ -463,7 +410,6 @@ static struct drm_driver imx_drm_driver = {
 	.load			= imx_drm_driver_load,
 	.unload			= imx_drm_driver_unload,
 	.lastclose		= imx_drm_driver_lastclose,
-	.preclose		= imx_drm_driver_preclose,
 	.set_busid		= drm_platform_set_busid,
 	.gem_free_object	= drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,

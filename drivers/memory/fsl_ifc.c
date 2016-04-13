@@ -260,7 +260,7 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 
 	/* get the Controller level irq */
 	fsl_ifc_ctrl_dev->irq = irq_of_parse_and_map(dev->dev.of_node, 0);
-	if (fsl_ifc_ctrl_dev->irq == NO_IRQ) {
+	if (fsl_ifc_ctrl_dev->irq == 0) {
 		dev_err(&dev->dev, "failed to get irq resource "
 							"for IFC\n");
 		ret = -ENODEV;

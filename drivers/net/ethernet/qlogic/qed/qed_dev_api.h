@@ -78,6 +78,15 @@ int qed_hw_init(struct qed_dev *cdev,
 		const u8 *bin_fw_data);
 
 /**
+ * @brief qed_hw_timers_stop_all - stop the timers HW block
+ *
+ * @param cdev
+ *
+ * @return void
+ */
+void qed_hw_timers_stop_all(struct qed_dev *cdev);
+
+/**
  * @brief qed_hw_stop -
  *
  * @param cdev
@@ -156,8 +165,6 @@ struct qed_ptt *qed_ptt_acquire(struct qed_hwfn *p_hwfn);
  */
 void qed_ptt_release(struct qed_hwfn *p_hwfn,
 		     struct qed_ptt *p_ptt);
-void qed_get_vport_stats(struct qed_dev *cdev,
-			 struct qed_eth_stats   *stats);
 void qed_reset_vport_stats(struct qed_dev *cdev);
 
 enum qed_dmae_address_type_t {

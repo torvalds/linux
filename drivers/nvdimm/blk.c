@@ -31,8 +31,6 @@ struct nd_blk_device {
 	u32 internal_lbasize;
 };
 
-static int nd_blk_major;
-
 static u32 nd_blk_meta_size(struct nd_blk_device *blk_dev)
 {
 	return blk_dev->nsblk->lbasize - blk_dev->sector_size;
@@ -264,7 +262,6 @@ static int nd_blk_attach_disk(struct nd_namespace_common *ndns,
 	}
 
 	disk->driverfs_dev	= &ndns->dev;
-	disk->major		= nd_blk_major;
 	disk->first_minor	= 0;
 	disk->fops		= &nd_blk_fops;
 	disk->private_data	= blk_dev;
@@ -358,25 +355,12 @@ static struct nd_device_driver nd_blk_driver = {
 
 static int __init nd_blk_init(void)
 {
-	int rc;
-
-	rc = register_blkdev(0, "nd_blk");
-	if (rc < 0)
-		return rc;
-
-	nd_blk_major = rc;
-	rc = nd_driver_register(&nd_blk_driver);
-
-	if (rc < 0)
-		unregister_blkdev(nd_blk_major, "nd_blk");
-
-	return rc;
+	return nd_driver_register(&nd_blk_driver);
 }
 
 static void __exit nd_blk_exit(void)
 {
 	driver_unregister(&nd_blk_driver.drv);
-	unregister_blkdev(nd_blk_major, "nd_blk");
 }
 
 MODULE_AUTHOR("Ross Zwisler <ross.zwisler@linux.intel.com>");

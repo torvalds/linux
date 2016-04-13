@@ -44,7 +44,7 @@
 			label = "recovery";
 			gpios = <&gpio3 16 1>;
 			linux,code = <0x198>; /* KEY_RESTART */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 };

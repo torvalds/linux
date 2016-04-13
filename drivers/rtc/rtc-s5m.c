@@ -216,7 +216,7 @@ static int s5m8767_tm_to_data(struct rtc_time *tm, u8 *data)
  * Read RTC_UDR_CON register and wait till UDR field is cleared.
  * This indicates that time/alarm update ended.
  */
-static inline int s5m8767_wait_for_udr_update(struct s5m_rtc_info *info)
+static int s5m8767_wait_for_udr_update(struct s5m_rtc_info *info)
 {
 	int ret, retry = UDR_READ_RETRY_CNT;
 	unsigned int data;
@@ -231,7 +231,7 @@ static inline int s5m8767_wait_for_udr_update(struct s5m_rtc_info *info)
 	return ret;
 }
 
-static inline int s5m_check_peding_alarm_interrupt(struct s5m_rtc_info *info,
+static int s5m_check_peding_alarm_interrupt(struct s5m_rtc_info *info,
 		struct rtc_wkalrm *alarm)
 {
 	int ret;
@@ -264,7 +264,7 @@ static inline int s5m_check_peding_alarm_interrupt(struct s5m_rtc_info *info,
 	return 0;
 }
 
-static inline int s5m8767_rtc_set_time_reg(struct s5m_rtc_info *info)
+static int s5m8767_rtc_set_time_reg(struct s5m_rtc_info *info)
 {
 	int ret;
 	unsigned int data;
@@ -288,7 +288,7 @@ static inline int s5m8767_rtc_set_time_reg(struct s5m_rtc_info *info)
 	return ret;
 }
 
-static inline int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
+static int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 {
 	int ret;
 	unsigned int data;

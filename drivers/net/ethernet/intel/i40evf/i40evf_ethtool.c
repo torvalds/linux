@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -63,6 +63,12 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 #define I40EVF_STATS_LEN(_dev) \
 	(I40EVF_GLOBAL_STATS_LEN + I40EVF_QUEUE_STATS_LEN(_dev))
 
+static const char i40evf_priv_flags_strings[][ETH_GSTRING_LEN] = {
+	"packet-split",
+};
+
+#define I40EVF_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40evf_priv_flags_strings)
+
 /**
  * i40evf_get_settings - Get Link Speed and Duplex settings
  * @netdev: network interface device structure
@@ -97,6 +103,8 @@ static int i40evf_get_sset_count(struct net_device *netdev, int sset)
 {
 	if (sset == ETH_SS_STATS)
 		return I40EVF_STATS_LEN(netdev);
+	else if (sset == ETH_SS_PRIV_FLAGS)
+		return I40EVF_PRIV_FLAGS_STR_LEN;
 	else
 		return -EINVAL;
 }
@@ -162,6 +170,12 @@ static void i40evf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 			snprintf(p, ETH_GSTRING_LEN, "rx-%u.bytes", i);
 			p += ETH_GSTRING_LEN;
 		}
+	} else if (sset == ETH_SS_PRIV_FLAGS) {
+		for (i = 0; i < I40EVF_PRIV_FLAGS_STR_LEN; i++) {
+			memcpy(data, i40evf_priv_flags_strings[i],
+			       ETH_GSTRING_LEN);
+			data += ETH_GSTRING_LEN;
+		}
 	}
 }
 
@@ -211,6 +225,7 @@ static void i40evf_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->version, i40evf_driver_version, 32);
 	strlcpy(drvinfo->fw_version, "N/A", 4);
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	drvinfo->n_priv_flags = I40EVF_PRIV_FLAGS_STR_LEN;
 }
 
 /**
@@ -459,6 +474,7 @@ static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
 				   struct ethtool_rxnfc *nfc)
 {
 	struct i40e_hw *hw = &adapter->hw;
+	u32 flags = adapter->vf_res->vf_offload_flags;
 
 	u64 hena = (u64)rd32(hw, I40E_VFQF_HENA(0)) |
 		   ((u64)rd32(hw, I40E_VFQF_HENA(1)) << 32);
@@ -477,54 +493,50 @@ static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
 
 	switch (nfc->flow_type) {
 	case TCP_V4_FLOW:
-		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-		case 0:
-			hena &= ~BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
-			break;
-		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+		if (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+			if (flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+				hena |=
+			   BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK);
+
 			hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
-			break;
-		default:
+		} else {
 			return -EINVAL;
 		}
 		break;
 	case TCP_V6_FLOW:
-		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-		case 0:
-			hena &= ~BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
-			break;
-		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+		if (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+			if (flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+				hena |=
+			   BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK);
+
 			hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
-			break;
-		default:
+		} else {
 			return -EINVAL;
 		}
 		break;
 	case UDP_V4_FLOW:
-		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-		case 0:
-			hena &= ~(BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
-				  BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4));
-			break;
-		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+		if (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+			if (flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+				hena |=
+			    BIT_ULL(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP) |
+			    BIT_ULL(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP);
+
 			hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
 				 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4));
-			break;
-		default:
+		} else {
 			return -EINVAL;
 		}
 		break;
 	case UDP_V6_FLOW:
-		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-		case 0:
-			hena &= ~(BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
-				  BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6));
-			break;
-		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+		if (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+			if (flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+				hena |=
+			    BIT_ULL(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP) |
+			    BIT_ULL(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP);
+
 			hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
 				 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6));
-			break;
-		default:
+		} else {
 			return -EINVAL;
 		}
 		break;
@@ -713,6 +725,54 @@ static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
 				 I40EVF_HLUT_ARRAY_SIZE);
 }
 
+/**
+ * i40evf_get_priv_flags - report device private flags
+ * @dev: network interface device structure
+ *
+ * The get string set count and the string set should be matched for each
+ * flag returned.  Add new strings for each flag to the i40e_priv_flags_strings
+ * array.
+ *
+ * Returns a u32 bitmap of flags.
+ **/
+static u32 i40evf_get_priv_flags(struct net_device *dev)
+{
+	struct i40evf_adapter *adapter = netdev_priv(dev);
+	u32 ret_flags = 0;
+
+	ret_flags |= adapter->flags & I40EVF_FLAG_RX_PS_ENABLED ?
+		I40EVF_PRIV_FLAGS_PS : 0;
+
+	return ret_flags;
+}
+
+/**
+ * i40evf_set_priv_flags - set private flags
+ * @dev: network interface device structure
+ * @flags: bit flags to be set
+ **/
+static int i40evf_set_priv_flags(struct net_device *dev, u32 flags)
+{
+	struct i40evf_adapter *adapter = netdev_priv(dev);
+	bool reset_required = false;
+
+	if ((flags & I40EVF_PRIV_FLAGS_PS) &&
+	    !(adapter->flags & I40EVF_FLAG_RX_PS_ENABLED)) {
+		adapter->flags |= I40EVF_FLAG_RX_PS_ENABLED;
+		reset_required = true;
+	} else if (!(flags & I40EVF_PRIV_FLAGS_PS) &&
+		   (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED)) {
+		adapter->flags &= ~I40EVF_FLAG_RX_PS_ENABLED;
+		reset_required = true;
+	}
+
+	/* if needed, issue reset to cause things to take effect */
+	if (reset_required)
+		i40evf_schedule_reset(adapter);
+
+	return 0;
+}
+
 static const struct ethtool_ops i40evf_ethtool_ops = {
 	.get_settings		= i40evf_get_settings,
 	.get_drvinfo		= i40evf_get_drvinfo,
@@ -722,6 +782,8 @@ static const struct ethtool_ops i40evf_ethtool_ops = {
 	.get_strings		= i40evf_get_strings,
 	.get_ethtool_stats	= i40evf_get_ethtool_stats,
 	.get_sset_count		= i40evf_get_sset_count,
+	.get_priv_flags		= i40evf_get_priv_flags,
+	.set_priv_flags		= i40evf_set_priv_flags,
 	.get_msglevel		= i40evf_get_msglevel,
 	.set_msglevel		= i40evf_set_msglevel,
 	.get_coalesce		= i40evf_get_coalesce,

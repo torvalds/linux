@@ -1074,7 +1074,7 @@ static int __init vim2m_init(void)
 	if (ret)
 		platform_device_unregister(&vim2m_pdev);
 
-	return 0;
+	return ret;
 }
 
 module_init(vim2m_init);

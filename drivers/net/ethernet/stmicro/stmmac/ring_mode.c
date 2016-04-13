@@ -31,8 +31,7 @@
 static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 {
 	struct stmmac_priv *priv = (struct stmmac_priv *)p;
-	unsigned int txsize = priv->dma_tx_size;
-	unsigned int entry = priv->cur_tx % txsize;
+	unsigned int entry = priv->cur_tx;
 	struct dma_desc *desc;
 	unsigned int nopaged_len = skb_headlen(skb);
 	unsigned int bmax, len;
@@ -57,12 +56,14 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			return -1;
 
 		priv->tx_skbuff_dma[entry].buf = desc->des2;
+		priv->tx_skbuff_dma[entry].len = bmax;
+		priv->tx_skbuff_dma[entry].is_jumbo = true;
+
 		desc->des3 = desc->des2 + BUF_SIZE_4KiB;
 		priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum,
-						STMMAC_RING_MODE);
-		wmb();
+						STMMAC_RING_MODE, 0, false);
 		priv->tx_skbuff[entry] = NULL;
-		entry = (++priv->cur_tx) % txsize;
+		entry = STMMAC_GET_ENTRY(entry, DMA_TX_SIZE);
 
 		if (priv->extend_desc)
 			desc = (struct dma_desc *)(priv->dma_etx + entry);
@@ -74,21 +75,26 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 		if (dma_mapping_error(priv->device, desc->des2))
 			return -1;
 		priv->tx_skbuff_dma[entry].buf = desc->des2;
+		priv->tx_skbuff_dma[entry].len = len;
+		priv->tx_skbuff_dma[entry].is_jumbo = true;
+
 		desc->des3 = desc->des2 + BUF_SIZE_4KiB;
 		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum,
-						STMMAC_RING_MODE);
-		wmb();
-		priv->hw->desc->set_tx_owner(desc);
+						STMMAC_RING_MODE, 1, true);
 	} else {
 		desc->des2 = dma_map_single(priv->device, skb->data,
 					    nopaged_len, DMA_TO_DEVICE);
 		if (dma_mapping_error(priv->device, desc->des2))
 			return -1;
 		priv->tx_skbuff_dma[entry].buf = desc->des2;
+		priv->tx_skbuff_dma[entry].len = nopaged_len;
+		priv->tx_skbuff_dma[entry].is_jumbo = true;
 		desc->des3 = desc->des2 + BUF_SIZE_4KiB;
 		priv->hw->desc->prepare_tx_desc(desc, 1, nopaged_len, csum,
-						STMMAC_RING_MODE);
+						STMMAC_RING_MODE, 0, true);
 	}
+
+	priv->cur_tx = entry;
 
 	return entry;
 }
@@ -120,7 +126,13 @@ static void stmmac_init_desc3(struct dma_desc *p)
 
 static void stmmac_clean_desc3(void *priv_ptr, struct dma_desc *p)
 {
-	if (unlikely(p->des3))
+	struct stmmac_priv *priv = (struct stmmac_priv *)priv_ptr;
+	unsigned int entry = priv->dirty_tx;
+
+	/* des3 is only used for jumbo frames tx or time stamping */
+	if (unlikely(priv->tx_skbuff_dma[entry].is_jumbo ||
+		     (priv->tx_skbuff_dma[entry].last_segment &&
+		      !priv->extend_desc && priv->hwts_tx_en)))
 		p->des3 = 0;
 }
 

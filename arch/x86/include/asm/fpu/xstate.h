@@ -24,7 +24,8 @@
 				 XFEATURE_MASK_YMM | \
 				 XFEATURE_MASK_OPMASK | \
 				 XFEATURE_MASK_ZMM_Hi256 | \
-				 XFEATURE_MASK_Hi16_ZMM)
+				 XFEATURE_MASK_Hi16_ZMM	 | \
+				 XFEATURE_MASK_PKRU)
 
 /* Supported features which require eager state saving */
 #define XFEATURE_MASK_EAGER	(XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR)

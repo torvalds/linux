@@ -123,8 +123,7 @@ void mwifiex_11h_process_join(struct mwifiex_private *priv, u8 **buffer,
 void mwifiex_dfs_cac_work_queue(struct work_struct *work)
 {
 	struct cfg80211_chan_def chandef;
-	struct delayed_work *delayed_work =
-			container_of(work, struct delayed_work, work);
+	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct mwifiex_private *priv =
 			container_of(delayed_work, struct mwifiex_private,
 				     dfs_cac_work);
@@ -289,8 +288,7 @@ int mwifiex_11h_handle_radar_detected(struct mwifiex_private *priv,
 void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work)
 {
 	struct mwifiex_uap_bss_param *bss_cfg;
-	struct delayed_work *delayed_work =
-			container_of(work, struct delayed_work, work);
+	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct mwifiex_private *priv =
 			container_of(delayed_work, struct mwifiex_private,
 				     dfs_chan_sw_work);

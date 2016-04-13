@@ -127,13 +127,6 @@ int nfnetlink_has_listeners(struct net *net, unsigned int group)
 }
 EXPORT_SYMBOL_GPL(nfnetlink_has_listeners);
 
-struct sk_buff *nfnetlink_alloc_skb(struct net *net, unsigned int size,
-				    u32 dst_portid, gfp_t gfp_mask)
-{
-	return netlink_alloc_skb(net->nfnl, size, dst_portid, gfp_mask);
-}
-EXPORT_SYMBOL_GPL(nfnetlink_alloc_skb);
-
 int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 portid,
 		   unsigned int group, int echo, gfp_t flags)
 {

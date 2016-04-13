@@ -57,10 +57,12 @@ struct nbd_device {
 	int blksize;
 	loff_t bytesize;
 	int xmit_timeout;
+	bool timedout;
 	bool disconnect; /* a disconnect has been requested by user */
 
 	struct timer_list timeout_timer;
-	spinlock_t tasks_lock;
+	/* protects initialization and shutdown of the socket */
+	spinlock_t sock_lock;
 	struct task_struct *task_recv;
 	struct task_struct *task_send;
 
@@ -98,6 +100,11 @@ static inline struct device *nbd_to_dev(struct nbd_device *nbd)
 	return disk_to_dev(nbd->disk);
 }
 
+static bool nbd_is_connected(struct nbd_device *nbd)
+{
+	return !!nbd->task_recv;
+}
+
 static const char *nbdcmd_to_ascii(int cmd)
 {
 	switch (cmd) {
@@ -108,6 +115,42 @@ static const char *nbdcmd_to_ascii(int cmd)
 	case  NBD_CMD_TRIM: return "trim/discard";
 	}
 	return "invalid";
+}
+
+static int nbd_size_clear(struct nbd_device *nbd, struct block_device *bdev)
+{
+	bdev->bd_inode->i_size = 0;
+	set_capacity(nbd->disk, 0);
+	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
+
+	return 0;
+}
+
+static void nbd_size_update(struct nbd_device *nbd, struct block_device *bdev)
+{
+	if (!nbd_is_connected(nbd))
+		return;
+
+	bdev->bd_inode->i_size = nbd->bytesize;
+	set_capacity(nbd->disk, nbd->bytesize >> 9);
+	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
+}
+
+static int nbd_size_set(struct nbd_device *nbd, struct block_device *bdev,
+			int blocksize, int nr_blocks)
+{
+	int ret;
+
+	ret = set_blocksize(bdev, blocksize);
+	if (ret)
+		return ret;
+
+	nbd->blksize = blocksize;
+	nbd->bytesize = (loff_t)blocksize * (loff_t)nr_blocks;
+
+	nbd_size_update(nbd, bdev);
+
+	return 0;
 }
 
 static void nbd_end_request(struct nbd_device *nbd, struct request *req)
@@ -129,13 +172,20 @@ static void nbd_end_request(struct nbd_device *nbd, struct request *req)
  */
 static void sock_shutdown(struct nbd_device *nbd)
 {
-	if (!nbd->sock)
+	spin_lock_irq(&nbd->sock_lock);
+
+	if (!nbd->sock) {
+		spin_unlock_irq(&nbd->sock_lock);
 		return;
+	}
 
 	dev_warn(disk_to_dev(nbd->disk), "shutting down socket\n");
 	kernel_sock_shutdown(nbd->sock, SHUT_RDWR);
+	sockfd_put(nbd->sock);
 	nbd->sock = NULL;
-	del_timer_sync(&nbd->timeout_timer);
+	spin_unlock_irq(&nbd->sock_lock);
+
+	del_timer(&nbd->timeout_timer);
 }
 
 static void nbd_xmit_timeout(unsigned long arg)
@@ -146,19 +196,16 @@ static void nbd_xmit_timeout(unsigned long arg)
 	if (list_empty(&nbd->queue_head))
 		return;
 
-	nbd->disconnect = true;
+	spin_lock_irqsave(&nbd->sock_lock, flags);
 
-	spin_lock_irqsave(&nbd->tasks_lock, flags);
+	nbd->timedout = true;
 
-	if (nbd->task_recv)
-		force_sig(SIGKILL, nbd->task_recv);
+	if (nbd->sock)
+		kernel_sock_shutdown(nbd->sock, SHUT_RDWR);
 
-	if (nbd->task_send)
-		force_sig(SIGKILL, nbd->task_send);
+	spin_unlock_irqrestore(&nbd->sock_lock, flags);
 
-	spin_unlock_irqrestore(&nbd->tasks_lock, flags);
-
-	dev_err(nbd_to_dev(nbd), "Connection timed out, killed receiver and sender, shutting down connection\n");
+	dev_err(nbd_to_dev(nbd), "Connection timed out, shutting down connection\n");
 }
 
 /*
@@ -171,7 +218,6 @@ static int sock_xmit(struct nbd_device *nbd, int send, void *buf, int size,
 	int result;
 	struct msghdr msg;
 	struct kvec iov;
-	sigset_t blocked, oldset;
 	unsigned long pflags = current->flags;
 
 	if (unlikely(!sock)) {
@@ -180,11 +226,6 @@ static int sock_xmit(struct nbd_device *nbd, int send, void *buf, int size,
 			(send ? "send" : "recv"));
 		return -EINVAL;
 	}
-
-	/* Allow interception of SIGKILL only
-	 * Don't allow other signals to interrupt the transmission */
-	siginitsetinv(&blocked, sigmask(SIGKILL));
-	sigprocmask(SIG_SETMASK, &blocked, &oldset);
 
 	current->flags |= PF_MEMALLOC;
 	do {
@@ -212,7 +253,6 @@ static int sock_xmit(struct nbd_device *nbd, int send, void *buf, int size,
 		buf += result;
 	} while (size > 0);
 
-	sigprocmask(SIG_SETMASK, &oldset, NULL);
 	tsk_restore_flags(current, pflags, PF_MEMALLOC);
 
 	if (!send && nbd->xmit_timeout)
@@ -402,30 +442,27 @@ static struct device_attribute pid_attr = {
 	.show = pid_show,
 };
 
-static int nbd_thread_recv(struct nbd_device *nbd)
+static int nbd_thread_recv(struct nbd_device *nbd, struct block_device *bdev)
 {
 	struct request *req;
 	int ret;
-	unsigned long flags;
 
 	BUG_ON(nbd->magic != NBD_MAGIC);
 
 	sk_set_memalloc(nbd->sock->sk);
 
-	spin_lock_irqsave(&nbd->tasks_lock, flags);
 	nbd->task_recv = current;
-	spin_unlock_irqrestore(&nbd->tasks_lock, flags);
 
 	ret = device_create_file(disk_to_dev(nbd->disk), &pid_attr);
 	if (ret) {
 		dev_err(disk_to_dev(nbd->disk), "device_create_file failed!\n");
 
-		spin_lock_irqsave(&nbd->tasks_lock, flags);
 		nbd->task_recv = NULL;
-		spin_unlock_irqrestore(&nbd->tasks_lock, flags);
 
 		return ret;
 	}
+
+	nbd_size_update(nbd, bdev);
 
 	while (1) {
 		req = nbd_read_stat(nbd);
@@ -437,21 +474,11 @@ static int nbd_thread_recv(struct nbd_device *nbd)
 		nbd_end_request(nbd, req);
 	}
 
+	nbd_size_clear(nbd, bdev);
+
 	device_remove_file(disk_to_dev(nbd->disk), &pid_attr);
 
-	spin_lock_irqsave(&nbd->tasks_lock, flags);
 	nbd->task_recv = NULL;
-	spin_unlock_irqrestore(&nbd->tasks_lock, flags);
-
-	if (signal_pending(current)) {
-		ret = kernel_dequeue_signal(NULL);
-		dev_warn(nbd_to_dev(nbd), "pid %d, %s, got signal %d\n",
-			 task_pid_nr(current), current->comm, ret);
-		mutex_lock(&nbd->tx_lock);
-		sock_shutdown(nbd);
-		mutex_unlock(&nbd->tx_lock);
-		ret = -ETIMEDOUT;
-	}
 
 	return ret;
 }
@@ -544,11 +571,8 @@ static int nbd_thread_send(void *data)
 {
 	struct nbd_device *nbd = data;
 	struct request *req;
-	unsigned long flags;
 
-	spin_lock_irqsave(&nbd->tasks_lock, flags);
 	nbd->task_send = current;
-	spin_unlock_irqrestore(&nbd->tasks_lock, flags);
 
 	set_user_nice(current, MIN_NICE);
 	while (!kthread_should_stop() || !list_empty(&nbd->waiting_queue)) {
@@ -556,17 +580,6 @@ static int nbd_thread_send(void *data)
 		wait_event_interruptible(nbd->waiting_wq,
 					 kthread_should_stop() ||
 					 !list_empty(&nbd->waiting_queue));
-
-		if (signal_pending(current)) {
-			int ret = kernel_dequeue_signal(NULL);
-
-			dev_warn(nbd_to_dev(nbd), "pid %d, %s, got signal %d\n",
-				 task_pid_nr(current), current->comm, ret);
-			mutex_lock(&nbd->tx_lock);
-			sock_shutdown(nbd);
-			mutex_unlock(&nbd->tx_lock);
-			break;
-		}
 
 		/* extract request */
 		if (list_empty(&nbd->waiting_queue))
@@ -582,13 +595,7 @@ static int nbd_thread_send(void *data)
 		nbd_handle_req(nbd, req);
 	}
 
-	spin_lock_irqsave(&nbd->tasks_lock, flags);
 	nbd->task_send = NULL;
-	spin_unlock_irqrestore(&nbd->tasks_lock, flags);
-
-	/* Clear maybe pending signals */
-	if (signal_pending(current))
-		kernel_dequeue_signal(NULL);
 
 	return 0;
 }
@@ -618,8 +625,8 @@ static void nbd_request_handler(struct request_queue *q)
 			req, req->cmd_type);
 
 		if (unlikely(!nbd->sock)) {
-			dev_err(disk_to_dev(nbd->disk),
-				"Attempted send on closed socket\n");
+			dev_err_ratelimited(disk_to_dev(nbd->disk),
+					    "Attempted send on closed socket\n");
 			req->errors++;
 			nbd_end_request(nbd, req);
 			spin_lock_irq(q->queue_lock);
@@ -634,6 +641,61 @@ static void nbd_request_handler(struct request_queue *q)
 
 		spin_lock_irq(q->queue_lock);
 	}
+}
+
+static int nbd_set_socket(struct nbd_device *nbd, struct socket *sock)
+{
+	int ret = 0;
+
+	spin_lock_irq(&nbd->sock_lock);
+
+	if (nbd->sock) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	nbd->sock = sock;
+
+out:
+	spin_unlock_irq(&nbd->sock_lock);
+
+	return ret;
+}
+
+/* Reset all properties of an NBD device */
+static void nbd_reset(struct nbd_device *nbd)
+{
+	nbd->disconnect = false;
+	nbd->timedout = false;
+	nbd->blksize = 1024;
+	nbd->bytesize = 0;
+	set_capacity(nbd->disk, 0);
+	nbd->flags = 0;
+	nbd->xmit_timeout = 0;
+	queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
+	del_timer_sync(&nbd->timeout_timer);
+}
+
+static void nbd_bdev_reset(struct block_device *bdev)
+{
+	set_device_ro(bdev, false);
+	bdev->bd_inode->i_size = 0;
+	if (max_part > 0) {
+		blkdev_reread_part(bdev);
+		bdev->bd_invalidated = 1;
+	}
+}
+
+static void nbd_parse_flags(struct nbd_device *nbd, struct block_device *bdev)
+{
+	if (nbd->flags & NBD_FLAG_READ_ONLY)
+		set_device_ro(bdev, true);
+	if (nbd->flags & NBD_FLAG_SEND_TRIM)
+		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
+	if (nbd->flags & NBD_FLAG_SEND_FLUSH)
+		blk_queue_flush(nbd->disk->queue, REQ_FLUSH);
+	else
+		blk_queue_flush(nbd->disk->queue, 0);
 }
 
 static int nbd_dev_dbg_init(struct nbd_device *nbd);
@@ -668,48 +730,40 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		return 0;
 	}
  
-	case NBD_CLEAR_SOCK: {
-		struct socket *sock = nbd->sock;
-		nbd->sock = NULL;
+	case NBD_CLEAR_SOCK:
+		sock_shutdown(nbd);
 		nbd_clear_que(nbd);
 		BUG_ON(!list_empty(&nbd->queue_head));
 		BUG_ON(!list_empty(&nbd->waiting_queue));
 		kill_bdev(bdev);
-		if (sock)
-			sockfd_put(sock);
 		return 0;
-	}
 
 	case NBD_SET_SOCK: {
-		struct socket *sock;
 		int err;
-		if (nbd->sock)
-			return -EBUSY;
-		sock = sockfd_lookup(arg, &err);
-		if (sock) {
-			nbd->sock = sock;
-			if (max_part > 0)
-				bdev->bd_invalidated = 1;
-			nbd->disconnect = false; /* we're connected now */
-			return 0;
-		}
-		return -EINVAL;
+		struct socket *sock = sockfd_lookup(arg, &err);
+
+		if (!sock)
+			return err;
+
+		err = nbd_set_socket(nbd, sock);
+		if (!err && max_part)
+			bdev->bd_invalidated = 1;
+
+		return err;
 	}
 
-	case NBD_SET_BLKSIZE:
-		nbd->blksize = arg;
-		nbd->bytesize &= ~(nbd->blksize-1);
-		bdev->bd_inode->i_size = nbd->bytesize;
-		set_blocksize(bdev, nbd->blksize);
-		set_capacity(nbd->disk, nbd->bytesize >> 9);
-		return 0;
+	case NBD_SET_BLKSIZE: {
+		loff_t bsize = div_s64(nbd->bytesize, arg);
+
+		return nbd_size_set(nbd, bdev, arg, bsize);
+	}
 
 	case NBD_SET_SIZE:
-		nbd->bytesize = arg & ~(nbd->blksize-1);
-		bdev->bd_inode->i_size = nbd->bytesize;
-		set_blocksize(bdev, nbd->blksize);
-		set_capacity(nbd->disk, nbd->bytesize >> 9);
-		return 0;
+		return nbd_size_set(nbd, bdev, nbd->blksize,
+				    arg / nbd->blksize);
+
+	case NBD_SET_SIZE_BLOCKS:
+		return nbd_size_set(nbd, bdev, nbd->blksize, arg);
 
 	case NBD_SET_TIMEOUT:
 		nbd->xmit_timeout = arg * HZ;
@@ -725,16 +779,8 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		nbd->flags = arg;
 		return 0;
 
-	case NBD_SET_SIZE_BLOCKS:
-		nbd->bytesize = ((u64) arg) * nbd->blksize;
-		bdev->bd_inode->i_size = nbd->bytesize;
-		set_blocksize(bdev, nbd->blksize);
-		set_capacity(nbd->disk, nbd->bytesize >> 9);
-		return 0;
-
 	case NBD_DO_IT: {
 		struct task_struct *thread;
-		struct socket *sock;
 		int error;
 
 		if (nbd->task_recv)
@@ -744,15 +790,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 
 		mutex_unlock(&nbd->tx_lock);
 
-		if (nbd->flags & NBD_FLAG_READ_ONLY)
-			set_device_ro(bdev, true);
-		if (nbd->flags & NBD_FLAG_SEND_TRIM)
-			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD,
-				nbd->disk->queue);
-		if (nbd->flags & NBD_FLAG_SEND_FLUSH)
-			blk_queue_flush(nbd->disk->queue, REQ_FLUSH);
-		else
-			blk_queue_flush(nbd->disk->queue, 0);
+		nbd_parse_flags(nbd, bdev);
 
 		thread = kthread_run(nbd_thread_send, nbd, "%s",
 				     nbd_name(nbd));
@@ -762,29 +800,24 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		}
 
 		nbd_dev_dbg_init(nbd);
-		error = nbd_thread_recv(nbd);
+		error = nbd_thread_recv(nbd, bdev);
 		nbd_dev_dbg_close(nbd);
 		kthread_stop(thread);
 
 		mutex_lock(&nbd->tx_lock);
 
 		sock_shutdown(nbd);
-		sock = nbd->sock;
-		nbd->sock = NULL;
 		nbd_clear_que(nbd);
 		kill_bdev(bdev);
-		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
-		set_device_ro(bdev, false);
-		if (sock)
-			sockfd_put(sock);
-		nbd->flags = 0;
-		nbd->bytesize = 0;
-		bdev->bd_inode->i_size = 0;
-		set_capacity(nbd->disk, 0);
-		if (max_part > 0)
-			blkdev_reread_part(bdev);
+		nbd_bdev_reset(bdev);
+
 		if (nbd->disconnect) /* user requested, ignore socket errors */
-			return 0;
+			error = 0;
+		if (nbd->timedout)
+			error = -ETIMEDOUT;
+
+		nbd_reset(nbd);
+
 		return error;
 	}
 
@@ -892,50 +925,23 @@ static const struct file_operations nbd_dbg_flags_ops = {
 static int nbd_dev_dbg_init(struct nbd_device *nbd)
 {
 	struct dentry *dir;
-	struct dentry *f;
+
+	if (!nbd_dbg_dir)
+		return -EIO;
 
 	dir = debugfs_create_dir(nbd_name(nbd), nbd_dbg_dir);
-	if (IS_ERR_OR_NULL(dir)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs dir for '%s' (%ld)\n",
-			nbd_name(nbd), PTR_ERR(dir));
-		return PTR_ERR(dir);
+	if (!dir) {
+		dev_err(nbd_to_dev(nbd), "Failed to create debugfs dir for '%s'\n",
+			nbd_name(nbd));
+		return -EIO;
 	}
 	nbd->dbg_dir = dir;
 
-	f = debugfs_create_file("tasks", 0444, dir, nbd, &nbd_dbg_tasks_ops);
-	if (IS_ERR_OR_NULL(f)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'tasks', %ld\n",
-			PTR_ERR(f));
-		return PTR_ERR(f);
-	}
-
-	f = debugfs_create_u64("size_bytes", 0444, dir, &nbd->bytesize);
-	if (IS_ERR_OR_NULL(f)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'size_bytes', %ld\n",
-			PTR_ERR(f));
-		return PTR_ERR(f);
-	}
-
-	f = debugfs_create_u32("timeout", 0444, dir, &nbd->xmit_timeout);
-	if (IS_ERR_OR_NULL(f)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'timeout', %ld\n",
-			PTR_ERR(f));
-		return PTR_ERR(f);
-	}
-
-	f = debugfs_create_u32("blocksize", 0444, dir, &nbd->blksize);
-	if (IS_ERR_OR_NULL(f)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'blocksize', %ld\n",
-			PTR_ERR(f));
-		return PTR_ERR(f);
-	}
-
-	f = debugfs_create_file("flags", 0444, dir, &nbd, &nbd_dbg_flags_ops);
-	if (IS_ERR_OR_NULL(f)) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'flags', %ld\n",
-			PTR_ERR(f));
-		return PTR_ERR(f);
-	}
+	debugfs_create_file("tasks", 0444, dir, nbd, &nbd_dbg_tasks_ops);
+	debugfs_create_u64("size_bytes", 0444, dir, &nbd->bytesize);
+	debugfs_create_u32("timeout", 0444, dir, &nbd->xmit_timeout);
+	debugfs_create_u32("blocksize", 0444, dir, &nbd->blksize);
+	debugfs_create_file("flags", 0444, dir, &nbd, &nbd_dbg_flags_ops);
 
 	return 0;
 }
@@ -950,8 +956,8 @@ static int nbd_dbg_init(void)
 	struct dentry *dbg_dir;
 
 	dbg_dir = debugfs_create_dir("nbd", NULL);
-	if (IS_ERR(dbg_dir))
-		return PTR_ERR(dbg_dir);
+	if (!dbg_dir)
+		return -EIO;
 
 	nbd_dbg_dir = dbg_dir;
 
@@ -1069,7 +1075,7 @@ static int __init nbd_init(void)
 		nbd_dev[i].magic = NBD_MAGIC;
 		INIT_LIST_HEAD(&nbd_dev[i].waiting_queue);
 		spin_lock_init(&nbd_dev[i].queue_lock);
-		spin_lock_init(&nbd_dev[i].tasks_lock);
+		spin_lock_init(&nbd_dev[i].sock_lock);
 		INIT_LIST_HEAD(&nbd_dev[i].queue_head);
 		mutex_init(&nbd_dev[i].tx_lock);
 		init_timer(&nbd_dev[i].timeout_timer);
@@ -1077,14 +1083,12 @@ static int __init nbd_init(void)
 		nbd_dev[i].timeout_timer.data = (unsigned long)&nbd_dev[i];
 		init_waitqueue_head(&nbd_dev[i].active_wq);
 		init_waitqueue_head(&nbd_dev[i].waiting_wq);
-		nbd_dev[i].blksize = 1024;
-		nbd_dev[i].bytesize = 0;
 		disk->major = NBD_MAJOR;
 		disk->first_minor = i << part_shift;
 		disk->fops = &nbd_fops;
 		disk->private_data = &nbd_dev[i];
 		sprintf(disk->disk_name, "nbd%d", i);
-		set_capacity(disk, 0);
+		nbd_reset(&nbd_dev[i]);
 		add_disk(disk);
 	}
 

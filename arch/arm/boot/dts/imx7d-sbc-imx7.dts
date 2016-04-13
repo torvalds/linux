@@ -22,7 +22,7 @@
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
-	enable-sdio-wakeup;
+	wakeup-source;
 	status = "okay";
 };
 

@@ -34,9 +34,9 @@ void opp_debug_remove_one(struct dev_pm_opp *opp)
 	debugfs_remove_recursive(opp->dentry);
 }
 
-int opp_debug_create_one(struct dev_pm_opp *opp, struct device_opp *dev_opp)
+int opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 {
-	struct dentry *pdentry = dev_opp->dentry;
+	struct dentry *pdentry = opp_table->dentry;
 	struct dentry *d;
 	char name[25];	/* 20 chars for 64 bit value + 5 (opp:\0) */
 
@@ -83,52 +83,52 @@ int opp_debug_create_one(struct dev_pm_opp *opp, struct device_opp *dev_opp)
 	return 0;
 }
 
-static int device_opp_debug_create_dir(struct device_list_opp *list_dev,
-				       struct device_opp *dev_opp)
+static int opp_list_debug_create_dir(struct opp_device *opp_dev,
+				     struct opp_table *opp_table)
 {
-	const struct device *dev = list_dev->dev;
+	const struct device *dev = opp_dev->dev;
 	struct dentry *d;
 
-	opp_set_dev_name(dev, dev_opp->dentry_name);
+	opp_set_dev_name(dev, opp_table->dentry_name);
 
 	/* Create device specific directory */
-	d = debugfs_create_dir(dev_opp->dentry_name, rootdir);
+	d = debugfs_create_dir(opp_table->dentry_name, rootdir);
 	if (!d) {
 		dev_err(dev, "%s: Failed to create debugfs dir\n", __func__);
 		return -ENOMEM;
 	}
 
-	list_dev->dentry = d;
-	dev_opp->dentry = d;
+	opp_dev->dentry = d;
+	opp_table->dentry = d;
 
 	return 0;
 }
 
-static int device_opp_debug_create_link(struct device_list_opp *list_dev,
-					struct device_opp *dev_opp)
+static int opp_list_debug_create_link(struct opp_device *opp_dev,
+				      struct opp_table *opp_table)
 {
-	const struct device *dev = list_dev->dev;
+	const struct device *dev = opp_dev->dev;
 	char name[NAME_MAX];
 	struct dentry *d;
 
-	opp_set_dev_name(list_dev->dev, name);
+	opp_set_dev_name(opp_dev->dev, name);
 
 	/* Create device specific directory link */
-	d = debugfs_create_symlink(name, rootdir, dev_opp->dentry_name);
+	d = debugfs_create_symlink(name, rootdir, opp_table->dentry_name);
 	if (!d) {
 		dev_err(dev, "%s: Failed to create link\n", __func__);
 		return -ENOMEM;
 	}
 
-	list_dev->dentry = d;
+	opp_dev->dentry = d;
 
 	return 0;
 }
 
 /**
  * opp_debug_register - add a device opp node to the debugfs 'opp' directory
- * @list_dev: list-dev pointer for device
- * @dev_opp: the device-opp being added
+ * @opp_dev: opp-dev pointer for device
+ * @opp_table: the device-opp being added
  *
  * Dynamically adds device specific directory in debugfs 'opp' directory. If the
  * device-opp is shared with other devices, then links will be created for all
@@ -136,73 +136,72 @@ static int device_opp_debug_create_link(struct device_list_opp *list_dev,
  *
  * Return: 0 on success, otherwise negative error.
  */
-int opp_debug_register(struct device_list_opp *list_dev,
-		       struct device_opp *dev_opp)
+int opp_debug_register(struct opp_device *opp_dev, struct opp_table *opp_table)
 {
 	if (!rootdir) {
 		pr_debug("%s: Uninitialized rootdir\n", __func__);
 		return -EINVAL;
 	}
 
-	if (dev_opp->dentry)
-		return device_opp_debug_create_link(list_dev, dev_opp);
+	if (opp_table->dentry)
+		return opp_list_debug_create_link(opp_dev, opp_table);
 
-	return device_opp_debug_create_dir(list_dev, dev_opp);
+	return opp_list_debug_create_dir(opp_dev, opp_table);
 }
 
-static void opp_migrate_dentry(struct device_list_opp *list_dev,
-			       struct device_opp *dev_opp)
+static void opp_migrate_dentry(struct opp_device *opp_dev,
+			       struct opp_table *opp_table)
 {
-	struct device_list_opp *new_dev;
+	struct opp_device *new_dev;
 	const struct device *dev;
 	struct dentry *dentry;
 
-	/* Look for next list-dev */
-	list_for_each_entry(new_dev, &dev_opp->dev_list, node)
-		if (new_dev != list_dev)
+	/* Look for next opp-dev */
+	list_for_each_entry(new_dev, &opp_table->dev_list, node)
+		if (new_dev != opp_dev)
 			break;
 
 	/* new_dev is guaranteed to be valid here */
 	dev = new_dev->dev;
 	debugfs_remove_recursive(new_dev->dentry);
 
-	opp_set_dev_name(dev, dev_opp->dentry_name);
+	opp_set_dev_name(dev, opp_table->dentry_name);
 
-	dentry = debugfs_rename(rootdir, list_dev->dentry, rootdir,
-				dev_opp->dentry_name);
+	dentry = debugfs_rename(rootdir, opp_dev->dentry, rootdir,
+				opp_table->dentry_name);
 	if (!dentry) {
 		dev_err(dev, "%s: Failed to rename link from: %s to %s\n",
-			__func__, dev_name(list_dev->dev), dev_name(dev));
+			__func__, dev_name(opp_dev->dev), dev_name(dev));
 		return;
 	}
 
 	new_dev->dentry = dentry;
-	dev_opp->dentry = dentry;
+	opp_table->dentry = dentry;
 }
 
 /**
  * opp_debug_unregister - remove a device opp node from debugfs opp directory
- * @list_dev: list-dev pointer for device
- * @dev_opp: the device-opp being removed
+ * @opp_dev: opp-dev pointer for device
+ * @opp_table: the device-opp being removed
  *
  * Dynamically removes device specific directory from debugfs 'opp' directory.
  */
-void opp_debug_unregister(struct device_list_opp *list_dev,
-			  struct device_opp *dev_opp)
+void opp_debug_unregister(struct opp_device *opp_dev,
+			  struct opp_table *opp_table)
 {
-	if (list_dev->dentry == dev_opp->dentry) {
+	if (opp_dev->dentry == opp_table->dentry) {
 		/* Move the real dentry object under another device */
-		if (!list_is_singular(&dev_opp->dev_list)) {
-			opp_migrate_dentry(list_dev, dev_opp);
+		if (!list_is_singular(&opp_table->dev_list)) {
+			opp_migrate_dentry(opp_dev, opp_table);
 			goto out;
 		}
-		dev_opp->dentry = NULL;
+		opp_table->dentry = NULL;
 	}
 
-	debugfs_remove_recursive(list_dev->dentry);
+	debugfs_remove_recursive(opp_dev->dentry);
 
 out:
-	list_dev->dentry = NULL;
+	opp_dev->dentry = NULL;
 }
 
 static int __init opp_debug_init(void)

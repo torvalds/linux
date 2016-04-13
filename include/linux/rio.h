@@ -137,6 +137,13 @@ struct rio_switch_ops {
 	int (*em_handle) (struct rio_dev *dev, u8 swport);
 };
 
+enum rio_device_state {
+	RIO_DEVICE_INITIALIZING,
+	RIO_DEVICE_RUNNING,
+	RIO_DEVICE_GONE,
+	RIO_DEVICE_SHUTDOWN,
+};
+
 /**
  * struct rio_dev - RIO device info
  * @global_list: Node in list of all RIO devices
@@ -165,6 +172,7 @@ struct rio_switch_ops {
  * @destid: Network destination ID (or associated destid for switch)
  * @hopcount: Hopcount to this device
  * @prev: Previous RIO device connected to the current one
+ * @state: device state
  * @rswitch: struct rio_switch (if valid for this device)
  */
 struct rio_dev {
@@ -194,6 +202,7 @@ struct rio_dev {
 	u16 destid;
 	u8 hopcount;
 	struct rio_dev *prev;
+	atomic_t state;
 	struct rio_switch rswitch[0];	/* RIO switch info */
 };
 
@@ -202,6 +211,7 @@ struct rio_dev {
 #define	to_rio_dev(n) container_of(n, struct rio_dev, dev)
 #define sw_to_rio_dev(n) container_of(n, struct rio_dev, rswitch[0])
 #define	to_rio_mport(n) container_of(n, struct rio_mport, dev)
+#define	to_rio_net(n) container_of(n, struct rio_net, dev)
 
 /**
  * struct rio_msg - RIO message event
@@ -235,8 +245,11 @@ enum rio_phy_type {
 /**
  * struct rio_mport - RIO master port info
  * @dbells: List of doorbell events
+ * @pwrites: List of portwrite events
  * @node: Node in global list of master ports
  * @nnode: Node in network list of master ports
+ * @net: RIO net this mport is attached to
+ * @lock: lock to synchronize lists manipulations
  * @iores: I/O mem resource that this master port interface owns
  * @riores: RIO resources that this master port interfaces owns
  * @inb_msg: RIO inbound message event descriptors
@@ -253,11 +266,16 @@ enum rio_phy_type {
  * @priv: Master port private data
  * @dma: DMA device associated with mport
  * @nscan: RapidIO network enumeration/discovery operations
+ * @state: mport device state
+ * @pwe_refcnt: port-write enable ref counter to track enable/disable requests
  */
 struct rio_mport {
 	struct list_head dbells;	/* list of doorbell events */
+	struct list_head pwrites;	/* list of portwrite events */
 	struct list_head node;	/* node in global list of ports */
 	struct list_head nnode;	/* node in net list of ports */
+	struct rio_net *net;	/* RIO net this mport is attached to */
+	struct mutex lock;
 	struct resource iores;
 	struct resource riores[RIO_MAX_MPORT_RESOURCES];
 	struct rio_msg inb_msg[RIO_MAX_MBOX];
@@ -280,19 +298,19 @@ struct rio_mport {
 	struct dma_device	dma;
 #endif
 	struct rio_scan *nscan;
+	atomic_t state;
+	unsigned int pwe_refcnt;
 };
+
+static inline int rio_mport_is_running(struct rio_mport *mport)
+{
+	return atomic_read(&mport->state) == RIO_DEVICE_RUNNING;
+}
 
 /*
  * Enumeration/discovery control flags
  */
 #define RIO_SCAN_ENUM_NO_WAIT	0x00000001 /* Do not wait for enum completed */
-
-struct rio_id_table {
-	u16 start;	/* logical minimal id */
-	u32 max;	/* max number of IDs in table */
-	spinlock_t lock;
-	unsigned long *table;
-};
 
 /**
  * struct rio_net - RIO network info
@@ -302,7 +320,9 @@ struct rio_id_table {
  * @mports: List of master ports accessing this network
  * @hport: Default port for accessing this network
  * @id: RIO network ID
- * @destid_table: destID allocation table
+ * @dev: Device object
+ * @enum_data: private data specific to a network enumerator
+ * @release: enumerator-specific release callback
  */
 struct rio_net {
 	struct list_head node;	/* node in list of networks */
@@ -311,7 +331,53 @@ struct rio_net {
 	struct list_head mports;	/* list of ports accessing net */
 	struct rio_mport *hport;	/* primary port for accessing net */
 	unsigned char id;	/* RIO network ID */
-	struct rio_id_table destid_table;  /* destID allocation table */
+	struct device dev;
+	void *enum_data;	/* private data for enumerator of the network */
+	void (*release)(struct rio_net *net);
+};
+
+enum rio_link_speed {
+	RIO_LINK_DOWN = 0, /* SRIO Link not initialized */
+	RIO_LINK_125 = 1, /* 1.25 GBaud  */
+	RIO_LINK_250 = 2, /* 2.5 GBaud   */
+	RIO_LINK_312 = 3, /* 3.125 GBaud */
+	RIO_LINK_500 = 4, /* 5.0 GBaud   */
+	RIO_LINK_625 = 5  /* 6.25 GBaud  */
+};
+
+enum rio_link_width {
+	RIO_LINK_1X  = 0,
+	RIO_LINK_1XR = 1,
+	RIO_LINK_2X  = 3,
+	RIO_LINK_4X  = 2,
+	RIO_LINK_8X  = 4,
+	RIO_LINK_16X = 5
+};
+
+enum rio_mport_flags {
+	RIO_MPORT_DMA	 = (1 << 0), /* supports DMA data transfers */
+	RIO_MPORT_DMA_SG = (1 << 1), /* DMA supports HW SG mode */
+	RIO_MPORT_IBSG	 = (1 << 2), /* inbound mapping supports SG */
+};
+
+/**
+ * struct rio_mport_attr - RIO mport device attributes
+ * @flags: mport device capability flags
+ * @link_speed: SRIO link speed value (as defined by RapidIO specification)
+ * @link_width:	SRIO link width value (as defined by RapidIO specification)
+ * @dma_max_sge: number of SG list entries that can be handled by DMA channel(s)
+ * @dma_max_size: max number of bytes in single DMA transfer (SG entry)
+ * @dma_align: alignment shift for DMA operations (as for other DMA operations)
+ */
+struct rio_mport_attr {
+	int flags;
+	int link_speed;
+	int link_width;
+
+	/* DMA capability info: valid only if RIO_MPORT_DMA flag is set */
+	int dma_max_sge;
+	int dma_max_size;
+	int dma_align;
 };
 
 /* Low-level architecture-dependent routines */
@@ -333,6 +399,9 @@ struct rio_net {
  * @get_inb_message: Callback to get a message from an inbound mailbox queue.
  * @map_inb: Callback to map RapidIO address region into local memory space.
  * @unmap_inb: Callback to unmap RapidIO address region mapped with map_inb().
+ * @query_mport: Callback to query mport device attributes.
+ * @map_outb: Callback to map outbound address region into local memory space.
+ * @unmap_outb: Callback to unmap outbound RapidIO address region.
  */
 struct rio_ops {
 	int (*lcread) (struct rio_mport *mport, int index, u32 offset, int len,
@@ -358,6 +427,11 @@ struct rio_ops {
 	int (*map_inb)(struct rio_mport *mport, dma_addr_t lstart,
 			u64 rstart, u32 size, u32 flags);
 	void (*unmap_inb)(struct rio_mport *mport, dma_addr_t lstart);
+	int (*query_mport)(struct rio_mport *mport,
+			   struct rio_mport_attr *attr);
+	int (*map_outb)(struct rio_mport *mport, u16 destid, u64 rstart,
+			u32 size, u32 flags, dma_addr_t *laddr);
+	void (*unmap_outb)(struct rio_mport *mport, u16 destid, u64 rstart);
 };
 
 #define RIO_RESOURCE_MEM	0x00000100
@@ -376,6 +450,7 @@ struct rio_ops {
  * @id_table: RIO device ids to be associated with this driver
  * @probe: RIO device inserted
  * @remove: RIO device removed
+ * @shutdown: shutdown notification callback
  * @suspend: RIO device suspended
  * @resume: RIO device awakened
  * @enable_wake: RIO device enable wake event
@@ -390,6 +465,7 @@ struct rio_driver {
 	const struct rio_device_id *id_table;
 	int (*probe) (struct rio_dev * dev, const struct rio_device_id * id);
 	void (*remove) (struct rio_dev * dev);
+	void (*shutdown)(struct rio_dev *dev);
 	int (*suspend) (struct rio_dev * dev, u32 state);
 	int (*resume) (struct rio_dev * dev);
 	int (*enable_wake) (struct rio_dev * dev, u32 state, int enable);
@@ -476,10 +552,14 @@ struct rio_scan_node {
 };
 
 /* Architecture and hardware-specific functions */
+extern int rio_mport_initialize(struct rio_mport *);
 extern int rio_register_mport(struct rio_mport *);
+extern int rio_unregister_mport(struct rio_mport *);
 extern int rio_open_inb_mbox(struct rio_mport *, void *, int, int);
 extern void rio_close_inb_mbox(struct rio_mport *, int);
 extern int rio_open_outb_mbox(struct rio_mport *, void *, int, int);
 extern void rio_close_outb_mbox(struct rio_mport *, int);
+extern int rio_query_mport(struct rio_mport *port,
+			   struct rio_mport_attr *mport_attr);
 
 #endif				/* LINUX_RIO_H */

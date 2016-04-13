@@ -23,8 +23,6 @@ struct unx_cred {
 };
 #define uc_uid			uc_base.cr_uid
 
-#define UNX_WRITESLACK		(21 + XDR_QUADLEN(UNX_MAXNODENAME))
-
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
@@ -228,8 +226,8 @@ const struct rpc_authops authunix_ops = {
 
 static
 struct rpc_auth		unix_auth = {
-	.au_cslack	= UNX_WRITESLACK,
-	.au_rslack	= 2,			/* assume AUTH_NULL verf */
+	.au_cslack	= UNX_CALLSLACK,
+	.au_rslack	= NUL_REPLYSLACK,
 	.au_ops		= &authunix_ops,
 	.au_flavor	= RPC_AUTH_UNIX,
 	.au_count	= ATOMIC_INIT(0),

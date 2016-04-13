@@ -391,7 +391,7 @@ static void __twl4030_phy_power(struct twl4030_usb *twl, int on)
 	WARN_ON(twl4030_usb_write_verify(twl, PHY_PWR_CTRL, pwr) < 0);
 }
 
-static int twl4030_usb_runtime_suspend(struct device *dev)
+static int __maybe_unused twl4030_usb_runtime_suspend(struct device *dev)
 {
 	struct twl4030_usb *twl = dev_get_drvdata(dev);
 
@@ -405,7 +405,7 @@ static int twl4030_usb_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int twl4030_usb_runtime_resume(struct device *dev)
+static int __maybe_unused twl4030_usb_runtime_resume(struct device *dev)
 {
 	struct twl4030_usb *twl = dev_get_drvdata(dev);
 	int res;

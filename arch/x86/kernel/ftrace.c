@@ -1,5 +1,5 @@
 /*
- * Code for replacing ftrace calls with jumps.
+ * Dynamic function tracing support.
  *
  * Copyright (C) 2007-2008 Steven Rostedt <srostedt@redhat.com>
  *

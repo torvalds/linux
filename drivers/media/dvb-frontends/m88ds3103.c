@@ -791,11 +791,11 @@ err:
 	return ret;
 }
 
-static int m88ds3103_get_frontend(struct dvb_frontend *fe)
+static int m88ds3103_get_frontend(struct dvb_frontend *fe,
+				  struct dtv_frontend_properties *c)
 {
 	struct m88ds3103_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[3];
 

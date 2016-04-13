@@ -238,7 +238,7 @@ static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 				return -EINVAL;
 		}
 	}
-	return iptunnel_pull_header(skb, hdr_len, tpi->proto);
+	return iptunnel_pull_header(skb, hdr_len, tpi->proto, false);
 }
 
 static void ipgre_err(struct sk_buff *skb, u32 info,
@@ -440,6 +440,17 @@ drop:
 	return 0;
 }
 
+static __sum16 gre_checksum(struct sk_buff *skb)
+{
+	__wsum csum;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		csum = lco_csum(skb);
+	else
+		csum = skb_checksum(skb, 0, skb->len, 0);
+	return csum_fold(csum);
+}
+
 static void build_header(struct sk_buff *skb, int hdr_len, __be16 flags,
 			 __be16 proto, __be32 key, __be32 seq)
 {
@@ -467,8 +478,7 @@ static void build_header(struct sk_buff *skb, int hdr_len, __be16 flags,
 		    !(skb_shinfo(skb)->gso_type &
 		      (SKB_GSO_GRE | SKB_GSO_GRE_CSUM))) {
 			*ptr = 0;
-			*(__sum16 *)ptr = csum_fold(skb_checksum(skb, 0,
-								 skb->len, 0));
+			*(__sum16 *)ptr = gre_checksum(skb);
 		}
 	}
 }
@@ -493,8 +503,7 @@ static void __gre_xmit(struct sk_buff *skb, struct net_device *dev,
 static struct sk_buff *gre_handle_offloads(struct sk_buff *skb,
 					   bool csum)
 {
-	return iptunnel_handle_offloads(skb, csum,
-					csum ? SKB_GSO_GRE_CSUM : SKB_GSO_GRE);
+	return iptunnel_handle_offloads(skb, csum ? SKB_GSO_GRE_CSUM : SKB_GSO_GRE);
 }
 
 static struct rtable *gre_get_rt(struct sk_buff *skb,
@@ -518,11 +527,12 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel_info *tun_info;
 	const struct ip_tunnel_key *key;
+	struct rtable *rt = NULL;
 	struct flowi4 fl;
-	struct rtable *rt;
 	int min_headroom;
 	int tunnel_hlen;
 	__be16 df, flags;
+	bool use_cache;
 	int err;
 
 	tun_info = skb_tunnel_info(skb);
@@ -531,9 +541,17 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_free_skb;
 
 	key = &tun_info->key;
-	rt = gre_get_rt(skb, dev, &fl, key);
-	if (IS_ERR(rt))
-		goto err_free_skb;
+	use_cache = ip_tunnel_dst_cache_usable(skb, tun_info);
+	if (use_cache)
+		rt = dst_cache_get_ip4(&tun_info->dst_cache, &fl.saddr);
+	if (!rt) {
+		rt = gre_get_rt(skb, dev, &fl, key);
+		if (IS_ERR(rt))
+				goto err_free_skb;
+		if (use_cache)
+			dst_cache_set_ip4(&tun_info->dst_cache, &rt->dst,
+					  fl.saddr);
+	}
 
 	tunnel_hlen = ip_gre_calc_hlen(key->tun_flags);
 
@@ -844,9 +862,16 @@ static void __gre_tunnel_init(struct net_device *dev)
 	dev->hw_features	|= GRE_FEATURES;
 
 	if (!(tunnel->parms.o_flags & TUNNEL_SEQ)) {
-		/* TCP offload with GRE SEQ is not supported. */
-		dev->features    |= NETIF_F_GSO_SOFTWARE;
-		dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+		/* TCP offload with GRE SEQ is not supported, nor
+		 * can we support 2 levels of outer headers requiring
+		 * an update.
+		 */
+		if (!(tunnel->parms.o_flags & TUNNEL_CSUM) ||
+		    (tunnel->encap.type == TUNNEL_ENCAP_NONE)) {
+			dev->features    |= NETIF_F_GSO_SOFTWARE;
+			dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+		}
+
 		/* Can use a lockless transmit, unless we generate
 		 * output sequences
 		 */

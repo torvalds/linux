@@ -29,6 +29,8 @@
 
 #define SKBEDIT_TAB_MASK     15
 
+static int skbedit_net_id;
+
 static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
 		       struct tcf_result *res)
 {
@@ -61,6 +63,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 			    struct nlattr *est, struct tc_action *a,
 			    int ovr, int bind)
 {
+	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
 	struct nlattr *tb[TCA_SKBEDIT_MAX + 1];
 	struct tc_skbedit *parm;
 	struct tcf_skbedit *d;
@@ -98,9 +101,9 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_SKBEDIT_PARMS]);
 
-	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*d),
-				      bind, false);
+	if (!tcf_hash_check(tn, parm->index, a, bind)) {
+		ret = tcf_hash_create(tn, parm->index, est, a,
+				      sizeof(*d), bind, false);
 		if (ret)
 			return ret;
 
@@ -130,7 +133,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	spin_unlock_bh(&d->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(a);
+		tcf_hash_insert(tn, a);
 	return ret;
 }
 
@@ -173,6 +176,22 @@ nla_put_failure:
 	return -1;
 }
 
+static int tcf_skbedit_walker(struct net *net, struct sk_buff *skb,
+			      struct netlink_callback *cb, int type,
+			      struct tc_action *a)
+{
+	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
+
+	return tcf_generic_walker(tn, skb, cb, type, a);
+}
+
+static int tcf_skbedit_search(struct net *net, struct tc_action *a, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
+
+	return tcf_hash_search(tn, a, index);
+}
+
 static struct tc_action_ops act_skbedit_ops = {
 	.kind		=	"skbedit",
 	.type		=	TCA_ACT_SKBEDIT,
@@ -180,6 +199,29 @@ static struct tc_action_ops act_skbedit_ops = {
 	.act		=	tcf_skbedit,
 	.dump		=	tcf_skbedit_dump,
 	.init		=	tcf_skbedit_init,
+	.walk		=	tcf_skbedit_walker,
+	.lookup		=	tcf_skbedit_search,
+};
+
+static __net_init int skbedit_init_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
+
+	return tc_action_net_init(tn, &act_skbedit_ops, SKBEDIT_TAB_MASK);
+}
+
+static void __net_exit skbedit_exit_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
+
+	tc_action_net_exit(tn);
+}
+
+static struct pernet_operations skbedit_net_ops = {
+	.init = skbedit_init_net,
+	.exit = skbedit_exit_net,
+	.id   = &skbedit_net_id,
+	.size = sizeof(struct tc_action_net),
 };
 
 MODULE_AUTHOR("Alexander Duyck, <alexander.h.duyck@intel.com>");
@@ -188,12 +230,12 @@ MODULE_LICENSE("GPL");
 
 static int __init skbedit_init_module(void)
 {
-	return tcf_register_action(&act_skbedit_ops, SKBEDIT_TAB_MASK);
+	return tcf_register_action(&act_skbedit_ops, &skbedit_net_ops);
 }
 
 static void __exit skbedit_cleanup_module(void)
 {
-	tcf_unregister_action(&act_skbedit_ops);
+	tcf_unregister_action(&act_skbedit_ops, &skbedit_net_ops);
 }
 
 module_init(skbedit_init_module);

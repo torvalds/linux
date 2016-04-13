@@ -296,13 +296,19 @@ void bio_reset(struct bio *bio)
 }
 EXPORT_SYMBOL(bio_reset);
 
-static void bio_chain_endio(struct bio *bio)
+static struct bio *__bio_chain_endio(struct bio *bio)
 {
 	struct bio *parent = bio->bi_private;
 
-	parent->bi_error = bio->bi_error;
-	bio_endio(parent);
+	if (!parent->bi_error)
+		parent->bi_error = bio->bi_error;
 	bio_put(bio);
+	return parent;
+}
+
+static void bio_chain_endio(struct bio *bio)
+{
+	bio_endio(__bio_chain_endio(bio));
 }
 
 /*
@@ -1333,7 +1339,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 		 * release the pages we didn't map into the bio, if any
 		 */
 		while (j < page_limit)
-			page_cache_release(pages[j++]);
+			put_page(pages[j++]);
 	}
 
 	kfree(pages);
@@ -1359,7 +1365,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	for (j = 0; j < nr_pages; j++) {
 		if (!pages[j])
 			break;
-		page_cache_release(pages[j]);
+		put_page(pages[j]);
 	}
  out:
 	kfree(pages);
@@ -1379,7 +1385,7 @@ static void __bio_unmap_user(struct bio *bio)
 		if (bio_data_dir(bio) == READ)
 			set_page_dirty_lock(bvec->bv_page);
 
-		page_cache_release(bvec->bv_page);
+		put_page(bvec->bv_page);
 	}
 
 	bio_put(bio);
@@ -1609,8 +1615,8 @@ static void bio_release_pages(struct bio *bio)
  * the BIO and the offending pages and re-dirty the pages in process context.
  *
  * It is expected that bio_check_pages_dirty() will wholly own the BIO from
- * here on.  It will run one page_cache_release() against each page and will
- * run one bio_put() against the BIO.
+ * here on.  It will run one put_page() against each page and will run one
+ * bio_put() against the BIO.
  */
 
 static void bio_dirty_fn(struct work_struct *work);
@@ -1652,7 +1658,7 @@ void bio_check_pages_dirty(struct bio *bio)
 		struct page *page = bvec->bv_page;
 
 		if (PageDirty(page) || PageCompound(page)) {
-			page_cache_release(page);
+			put_page(page);
 			bvec->bv_page = NULL;
 		} else {
 			nr_clean_pages++;
@@ -1742,29 +1748,25 @@ static inline bool bio_remaining_done(struct bio *bio)
  **/
 void bio_endio(struct bio *bio)
 {
-	while (bio) {
-		if (unlikely(!bio_remaining_done(bio)))
-			break;
+again:
+	if (!bio_remaining_done(bio))
+		return;
 
-		/*
-		 * Need to have a real endio function for chained bios,
-		 * otherwise various corner cases will break (like stacking
-		 * block devices that save/restore bi_end_io) - however, we want
-		 * to avoid unbounded recursion and blowing the stack. Tail call
-		 * optimization would handle this, but compiling with frame
-		 * pointers also disables gcc's sibling call optimization.
-		 */
-		if (bio->bi_end_io == bio_chain_endio) {
-			struct bio *parent = bio->bi_private;
-			parent->bi_error = bio->bi_error;
-			bio_put(bio);
-			bio = parent;
-		} else {
-			if (bio->bi_end_io)
-				bio->bi_end_io(bio);
-			bio = NULL;
-		}
+	/*
+	 * Need to have a real endio function for chained bios, otherwise
+	 * various corner cases will break (like stacking block devices that
+	 * save/restore bi_end_io) - however, we want to avoid unbounded
+	 * recursion and blowing the stack. Tail call optimization would
+	 * handle this, but compiling with frame pointers also disables
+	 * gcc's sibling call optimization.
+	 */
+	if (bio->bi_end_io == bio_chain_endio) {
+		bio = __bio_chain_endio(bio);
+		goto again;
 	}
+
+	if (bio->bi_end_io)
+		bio->bi_end_io(bio);
 }
 EXPORT_SYMBOL(bio_endio);
 

@@ -50,12 +50,13 @@
 #define LUSTRE_CFG_MAX_BUFCOUNT 8
 
 #define LCFG_HDR_SIZE(count) \
-    cfs_size_round(offsetof (struct lustre_cfg, lcfg_buflens[(count)]))
+	cfs_size_round(offsetof(struct lustre_cfg, lcfg_buflens[(count)]))
 
 /** If the LCFG_REQUIRED bit is set in a configuration command,
  * then the client is required to understand this parameter
  * in order to mount the filesystem. If it does not understand
- * a REQUIRED command the client mount will fail. */
+ * a REQUIRED command the client mount will fail.
+ */
 #define LCFG_REQUIRED	 0x0001000
 
 enum lcfg_command_type {
@@ -87,9 +88,11 @@ enum lcfg_command_type {
 	LCFG_POOL_DEL	   = 0x00ce023, /**< destroy an ost pool name */
 	LCFG_SET_LDLM_TIMEOUT   = 0x00ce030, /**< set ldlm_timeout */
 	LCFG_PRE_CLEANUP	= 0x00cf031, /**< call type-specific pre
-					      * cleanup cleanup */
+					      * cleanup cleanup
+					      */
 	LCFG_SET_PARAM		= 0x00ce032, /**< use set_param syntax to set
-					      *a proc parameters */
+					      * a proc parameters
+					      */
 };
 
 struct lustre_cfg_bufs {
@@ -128,7 +131,7 @@ static inline void lustre_cfg_bufs_set(struct lustre_cfg_bufs *bufs,
 {
 	if (index >= LUSTRE_CFG_MAX_BUFCOUNT)
 		return;
-	if (bufs == NULL)
+	if (!bufs)
 		return;
 
 	if (bufs->lcfg_bufcount <= index)
@@ -158,7 +161,6 @@ static inline void *lustre_cfg_buf(struct lustre_cfg *lcfg, int index)
 	int offset;
 	int bufcount;
 
-	LASSERT (lcfg != NULL);
 	LASSERT (index >= 0);
 
 	bufcount = lcfg->lcfg_bufcount;
@@ -191,7 +193,7 @@ static inline char *lustre_cfg_string(struct lustre_cfg *lcfg, int index)
 		return NULL;
 
 	s = lustre_cfg_buf(lcfg, index);
-	if (s == NULL)
+	if (!s)
 		return NULL;
 
 	/*
@@ -252,10 +254,6 @@ static inline struct lustre_cfg *lustre_cfg_new(int cmd,
 
 static inline void lustre_cfg_free(struct lustre_cfg *lcfg)
 {
-	int len;
-
-	len = lustre_cfg_len(lcfg->lcfg_bufcount, lcfg->lcfg_buflens);
-
 	kfree(lcfg);
 	return;
 }

@@ -48,8 +48,7 @@ test_recv:
 	nv_iord($r1, NV_PPWR_DSCRATCH(2))
 	add b32 $r1 1
 	nv_iowr(NV_PPWR_DSCRATCH(2), $r1)
-	mov $r14 -0x2700 /* 0xd900, envyas grrr! */
-	sethi $r14 0x134f0000
+	imm32($r14, 0x134fd900)
 	call(timer)
 	ret
 

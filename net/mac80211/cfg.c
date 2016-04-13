@@ -339,8 +339,9 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 
 	switch (key->conf.cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		iv32 = key->u.tkip.tx.iv32;
-		iv16 = key->u.tkip.tx.iv16;
+		pn64 = atomic64_read(&key->conf.tx_pn);
+		iv32 = TKIP_PN_TO_IV32(pn64);
+		iv16 = TKIP_PN_TO_IV16(pn64);
 
 		if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
 		    !(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
@@ -1131,6 +1132,34 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		sta->sta.max_sp = params->max_sp;
 	}
 
+	/* The sender might not have sent the last bit, consider it to be 0 */
+	if (params->ext_capab_len >= 8) {
+		u8 val = (params->ext_capab[7] &
+			  WLAN_EXT_CAPA8_MAX_MSDU_IN_AMSDU_LSB) >> 7;
+
+		/* we did get all the bits, take the MSB as well */
+		if (params->ext_capab_len >= 9) {
+			u8 val_msb = params->ext_capab[8] &
+				WLAN_EXT_CAPA9_MAX_MSDU_IN_AMSDU_MSB;
+			val_msb <<= 1;
+			val |= val_msb;
+		}
+
+		switch (val) {
+		case 1:
+			sta->sta.max_amsdu_subframes = 32;
+			break;
+		case 2:
+			sta->sta.max_amsdu_subframes = 16;
+			break;
+		case 3:
+			sta->sta.max_amsdu_subframes = 8;
+			break;
+		default:
+			sta->sta.max_amsdu_subframes = 0;
+		}
+	}
+
 	/*
 	 * cfg80211 validates this (1-2007) and allows setting the AID
 	 * only when creating a new station entry
@@ -1160,6 +1189,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 						  params->ht_capa, sta);
 
+	/* VHT can override some HT caps such as the A-MSDU max length */
 	if (params->vht_capa)
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
 						    params->vht_capa, sta);

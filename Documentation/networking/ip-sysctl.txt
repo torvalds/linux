@@ -946,15 +946,20 @@ igmp_max_memberships - INTEGER
 	The value 5459 assumes no IP header options, so in practice
 	this number may be lower.
 
-	conf/interface/*  changes special settings per interface (where
-	"interface" is the name of your network interface)
-
-	conf/all/*	  is special, changes the settings for all interfaces
+igmp_max_msf - INTEGER
+	Maximum number of addresses allowed in the source filter list for a
+	multicast group.
+	Default: 10
 
 igmp_qrv - INTEGER
-	 Controls the IGMP query robustness variable (see RFC2236 8.1).
-	 Default: 2 (as specified by RFC2236 8.1)
-	 Minimum: 1 (as specified by RFC6636 4.5)
+	Controls the IGMP query robustness variable (see RFC2236 8.1).
+	Default: 2 (as specified by RFC2236 8.1)
+	Minimum: 1 (as specified by RFC6636 4.5)
+
+conf/interface/*  changes special settings per interface (where
+"interface" is the name of your network interface)
+
+conf/all/*	  is special, changes the settings for all interfaces
 
 log_martians - BOOLEAN
 	Log packets with impossible addresses to kernel log.
@@ -1215,6 +1220,19 @@ promote_secondaries - BOOLEAN
 	When a primary IP address is removed from this interface
 	promote a corresponding secondary IP address instead of
 	removing all the corresponding secondary IP addresses.
+
+drop_unicast_in_l2_multicast - BOOLEAN
+	Drop any unicast IP packets that are received in link-layer
+	multicast (or broadcast) frames.
+	This behavior (for multicast) is actually a SHOULD in RFC
+	1122, but is disabled by default for compatibility reasons.
+	Default: off (0)
+
+drop_gratuitous_arp - BOOLEAN
+	Drop all gratuitous ARP frames, for example if there's a known
+	good ARP proxy on the network and such frames need not be used
+	(or in the case of 802.11, must not be used to prevent attacks.)
+	Default: off (0)
 
 
 tag - INTEGER
@@ -1550,6 +1568,15 @@ temp_prefered_lft - INTEGER
 	Preferred lifetime (in seconds) for temporary addresses.
 	Default: 86400 (1 day)
 
+keep_addr_on_down - INTEGER
+	Keep all IPv6 addresses on an interface down event. If set static
+	global addresses with no expiration time are not flushed.
+	  >0 : enabled
+	   0 : system default
+	  <0 : disabled
+
+	Default: 0 (addresses are removed)
+
 max_desync_factor - INTEGER
 	Maximum value for DESYNC_FACTOR, which is a random value
 	that ensures that clients don't synchronize with each
@@ -1660,6 +1687,19 @@ stable_secret - IPv6 address
 	of a system and keep it stable after that.
 
 	By default the stable secret is unset.
+
+drop_unicast_in_l2_multicast - BOOLEAN
+	Drop any unicast IPv6 packets that are received in link-layer
+	multicast (or broadcast) frames.
+
+	By default this is turned off.
+
+drop_unsolicited_na - BOOLEAN
+	Drop all unsolicited neighbor advertisements, for example if there's
+	a known good NA proxy on the network and such frames need not be used
+	(or in the case of 802.11, must not be used to prevent attacks.)
+
+	By default this is turned off.
 
 icmp/*:
 ratelimit - INTEGER

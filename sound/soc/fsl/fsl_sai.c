@@ -17,6 +17,7 @@
 #include <linux/of_address.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/time.h>
 #include <sound/core.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm_params.h>
@@ -919,7 +920,7 @@ static int fsl_sai_resume(struct device *dev)
 	regcache_cache_only(sai->regmap, false);
 	regmap_write(sai->regmap, FSL_SAI_TCSR, FSL_SAI_CSR_SR);
 	regmap_write(sai->regmap, FSL_SAI_RCSR, FSL_SAI_CSR_SR);
-	msleep(1);
+	usleep_range(1000, 2000);
 	regmap_write(sai->regmap, FSL_SAI_TCSR, 0);
 	regmap_write(sai->regmap, FSL_SAI_RCSR, 0);
 	return regcache_sync(sai->regmap);

@@ -36,6 +36,7 @@ config GENERIC_HWEIGHT
 
 config GENERIC_BUG
 	def_bool y
+	depends on BUG
 
 config C6X_BIG_KERNEL
 	bool "Build a big kernel"

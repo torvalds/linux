@@ -1043,8 +1043,8 @@ static void ib_cache_update(struct ib_device *device,
 
 	ret = ib_query_port(device, port, tprops);
 	if (ret) {
-		printk(KERN_WARNING "ib_query_port failed (%d) for %s\n",
-		       ret, device->name);
+		pr_warn("ib_query_port failed (%d) for %s\n",
+			ret, device->name);
 		goto err;
 	}
 
@@ -1067,8 +1067,8 @@ static void ib_cache_update(struct ib_device *device,
 	for (i = 0; i < pkey_cache->table_len; ++i) {
 		ret = ib_query_pkey(device, port, i, pkey_cache->table + i);
 		if (ret) {
-			printk(KERN_WARNING "ib_query_pkey failed (%d) for %s (index %d)\n",
-			       ret, device->name, i);
+			pr_warn("ib_query_pkey failed (%d) for %s (index %d)\n",
+				ret, device->name, i);
 			goto err;
 		}
 	}
@@ -1078,8 +1078,8 @@ static void ib_cache_update(struct ib_device *device,
 			ret = ib_query_gid(device, port, i,
 					   gid_cache->table + i, NULL);
 			if (ret) {
-				printk(KERN_WARNING "ib_query_gid failed (%d) for %s (index %d)\n",
-				       ret, device->name, i);
+				pr_warn("ib_query_gid failed (%d) for %s (index %d)\n",
+					ret, device->name, i);
 				goto err;
 			}
 		}
@@ -1161,8 +1161,7 @@ int ib_cache_setup_one(struct ib_device *device)
 					  GFP_KERNEL);
 	if (!device->cache.pkey_cache ||
 	    !device->cache.lmc_cache) {
-		printk(KERN_WARNING "Couldn't allocate cache "
-		       "for %s\n", device->name);
+		pr_warn("Couldn't allocate cache for %s\n", device->name);
 		return -ENOMEM;
 	}
 

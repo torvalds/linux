@@ -121,7 +121,7 @@ void core_tpg_add_node_to_devs(
 	struct se_portal_group *tpg,
 	struct se_lun *lun_orig)
 {
-	u32 lun_access = 0;
+	bool lun_access_ro = true;
 	struct se_lun *lun;
 	struct se_device *dev;
 
@@ -137,27 +137,26 @@ void core_tpg_add_node_to_devs(
 		 * demo_mode_write_protect is ON, or READ_ONLY;
 		 */
 		if (!tpg->se_tpg_tfo->tpg_check_demo_mode_write_protect(tpg)) {
-			lun_access = TRANSPORT_LUNFLAGS_READ_WRITE;
+			lun_access_ro = false;
 		} else {
 			/*
 			 * Allow only optical drives to issue R/W in default RO
 			 * demo mode.
 			 */
 			if (dev->transport->get_device_type(dev) == TYPE_DISK)
-				lun_access = TRANSPORT_LUNFLAGS_READ_ONLY;
+				lun_access_ro = true;
 			else
-				lun_access = TRANSPORT_LUNFLAGS_READ_WRITE;
+				lun_access_ro = false;
 		}
 
 		pr_debug("TARGET_CORE[%s]->TPG[%u]_LUN[%llu] - Adding %s"
 			" access for LUN in Demo Mode\n",
 			tpg->se_tpg_tfo->get_fabric_name(),
 			tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
-			(lun_access == TRANSPORT_LUNFLAGS_READ_WRITE) ?
-			"READ-WRITE" : "READ-ONLY");
+			lun_access_ro ? "READ-ONLY" : "READ-WRITE");
 
 		core_enable_device_list_for_node(lun, NULL, lun->unpacked_lun,
-						 lun_access, acl, tpg);
+						 lun_access_ro, acl, tpg);
 		/*
 		 * Check to see if there are any existing persistent reservation
 		 * APTPL pre-registrations that need to be enabled for this dynamic
@@ -522,7 +521,7 @@ int core_tpg_register(
 			return PTR_ERR(se_tpg->tpg_virt_lun0);
 
 		ret = core_tpg_add_lun(se_tpg, se_tpg->tpg_virt_lun0,
-				TRANSPORT_LUNFLAGS_READ_ONLY, g_lun0_dev);
+				true, g_lun0_dev);
 		if (ret < 0) {
 			kfree(se_tpg->tpg_virt_lun0);
 			return ret;
@@ -616,7 +615,7 @@ struct se_lun *core_tpg_alloc_lun(
 int core_tpg_add_lun(
 	struct se_portal_group *tpg,
 	struct se_lun *lun,
-	u32 lun_access,
+	bool lun_access_ro,
 	struct se_device *dev)
 {
 	int ret;
@@ -644,9 +643,9 @@ int core_tpg_add_lun(
 	spin_unlock(&dev->se_port_lock);
 
 	if (dev->dev_flags & DF_READ_ONLY)
-		lun->lun_access = TRANSPORT_LUNFLAGS_READ_ONLY;
+		lun->lun_access_ro = true;
 	else
-		lun->lun_access = lun_access;
+		lun->lun_access_ro = lun_access_ro;
 	if (!(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		hlist_add_head_rcu(&lun->link, &tpg->tpg_lun_hlist);
 	mutex_unlock(&tpg->tpg_lun_mutex);

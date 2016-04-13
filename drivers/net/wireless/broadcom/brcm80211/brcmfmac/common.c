@@ -27,6 +27,11 @@
 #include "fwil_types.h"
 #include "tracepoint.h"
 #include "common.h"
+#include "of.h"
+
+MODULE_AUTHOR("Broadcom Corporation");
+MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
+MODULE_LICENSE("Dual BSD/GPL");
 
 const u8 ALLFFMAC[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -75,6 +80,7 @@ module_param_named(ignore_probe_fail, brcmf_ignore_probe_fail, int, 0);
 MODULE_PARM_DESC(ignore_probe_fail, "always succeed probe for debugging");
 #endif
 
+static struct brcmfmac_platform_data *brcmfmac_pdata;
 struct brcmf_mp_global_t brcmf_mp_global;
 
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
@@ -221,33 +227,147 @@ void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
 }
 #endif
 
-void brcmf_mp_attach(void)
+static void brcmf_mp_attach(void)
 {
+	/* If module param firmware path is set then this will always be used,
+	 * if not set then if available use the platform data version. To make
+	 * sure it gets initialized at all, always copy the module param version
+	 */
 	strlcpy(brcmf_mp_global.firmware_path, brcmf_firmware_path,
 		BRCMF_FW_ALTPATH_LEN);
+	if ((brcmfmac_pdata) && (brcmfmac_pdata->fw_alternative_path) &&
+	    (brcmf_mp_global.firmware_path[0] == '\0')) {
+		strlcpy(brcmf_mp_global.firmware_path,
+			brcmfmac_pdata->fw_alternative_path,
+			BRCMF_FW_ALTPATH_LEN);
+	}
 }
 
-int brcmf_mp_device_attach(struct brcmf_pub *drvr)
+struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
+					       enum brcmf_bus_type bus_type,
+					       u32 chip, u32 chiprev)
 {
-	drvr->settings = kzalloc(sizeof(*drvr->settings), GFP_ATOMIC);
-	if (!drvr->settings) {
-		brcmf_err("Failed to alloca storage space for settings\n");
-		return -ENOMEM;
-	}
+	struct brcmf_mp_device *settings;
+	struct brcmfmac_pd_device *device_pd;
+	bool found;
+	int i;
 
-	drvr->settings->sdiod_txglomsz = brcmf_sdiod_txglomsz;
-	drvr->settings->p2p_enable = !!brcmf_p2p_enable;
-	drvr->settings->feature_disable = brcmf_feature_disable;
-	drvr->settings->fcmode = brcmf_fcmode;
-	drvr->settings->roamoff = !!brcmf_roamoff;
+	brcmf_dbg(INFO, "Enter, bus=%d, chip=%d, rev=%d\n", bus_type, chip,
+		  chiprev);
+	settings = kzalloc(sizeof(*settings), GFP_ATOMIC);
+	if (!settings)
+		return NULL;
+
+	/* start by using the module paramaters */
+	settings->p2p_enable = !!brcmf_p2p_enable;
+	settings->feature_disable = brcmf_feature_disable;
+	settings->fcmode = brcmf_fcmode;
+	settings->roamoff = !!brcmf_roamoff;
 #ifdef DEBUG
-	drvr->settings->ignore_probe_fail = !!brcmf_ignore_probe_fail;
+	settings->ignore_probe_fail = !!brcmf_ignore_probe_fail;
 #endif
+
+	if (bus_type == BRCMF_BUSTYPE_SDIO)
+		settings->bus.sdio.txglomsz = brcmf_sdiod_txglomsz;
+
+	/* See if there is any device specific platform data configured */
+	found = false;
+	if (brcmfmac_pdata) {
+		for (i = 0; i < brcmfmac_pdata->device_count; i++) {
+			device_pd = &brcmfmac_pdata->devices[i];
+			if ((device_pd->bus_type == bus_type) &&
+			    (device_pd->id == chip) &&
+			    ((device_pd->rev == chiprev) ||
+			     (device_pd->rev == -1))) {
+				brcmf_dbg(INFO, "Platform data for device found\n");
+				settings->country_codes =
+						device_pd->country_codes;
+				if (device_pd->bus_type == BRCMF_BUSTYPE_SDIO)
+					memcpy(&settings->bus.sdio,
+					       &device_pd->bus.sdio,
+					       sizeof(settings->bus.sdio));
+				found = true;
+				break;
+			}
+		}
+	}
+	if ((bus_type == BRCMF_BUSTYPE_SDIO) && (!found)) {
+		/* No platform data for this device. In case of SDIO try OF
+		 * (Open Firwmare) Device Tree.
+		 */
+		brcmf_of_probe(dev, &settings->bus.sdio);
+	}
+	return settings;
+}
+
+void brcmf_release_module_param(struct brcmf_mp_device *module_param)
+{
+	kfree(module_param);
+}
+
+static int __init brcmf_common_pd_probe(struct platform_device *pdev)
+{
+	brcmf_dbg(INFO, "Enter\n");
+
+	brcmfmac_pdata = dev_get_platdata(&pdev->dev);
+
+	if (brcmfmac_pdata->power_on)
+		brcmfmac_pdata->power_on();
+
 	return 0;
 }
 
-void brcmf_mp_device_detach(struct brcmf_pub *drvr)
+static int brcmf_common_pd_remove(struct platform_device *pdev)
 {
-	kfree(drvr->settings);
+	brcmf_dbg(INFO, "Enter\n");
+
+	if (brcmfmac_pdata->power_off)
+		brcmfmac_pdata->power_off();
+
+	return 0;
 }
+
+static struct platform_driver brcmf_pd = {
+	.remove		= brcmf_common_pd_remove,
+	.driver		= {
+		.name	= BRCMFMAC_PDATA_NAME,
+	}
+};
+
+static int __init brcmfmac_module_init(void)
+{
+	int err;
+
+	/* Initialize debug system first */
+	brcmf_debugfs_init();
+
+	/* Get the platform data (if available) for our devices */
+	err = platform_driver_probe(&brcmf_pd, brcmf_common_pd_probe);
+	if (err == -ENODEV)
+		brcmf_dbg(INFO, "No platform data available.\n");
+
+	/* Initialize global module paramaters */
+	brcmf_mp_attach();
+
+	/* Continue the initialization by registering the different busses */
+	err = brcmf_core_init();
+	if (err) {
+		brcmf_debugfs_exit();
+		if (brcmfmac_pdata)
+			platform_driver_unregister(&brcmf_pd);
+	}
+
+	return err;
+}
+
+static void __exit brcmfmac_module_exit(void)
+{
+	brcmf_core_exit();
+	if (brcmfmac_pdata)
+		platform_driver_unregister(&brcmf_pd);
+	brcmf_debugfs_exit();
+}
+
+module_init(brcmfmac_module_init);
+module_exit(brcmfmac_module_exit);
 

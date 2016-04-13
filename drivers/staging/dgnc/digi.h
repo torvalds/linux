@@ -31,21 +31,21 @@
 #endif
 
 #if !defined(TIOCMSET)
-#define	TIOCMSET	(('d'<<8) | 252)	/* set modem ctrl state	*/
-#define	TIOCMGET	(('d'<<8) | 253)	/* set modem ctrl state	*/
+#define	TIOCMSET	(('d' << 8) | 252)	/* set modem ctrl state	*/
+#define	TIOCMGET	(('d' << 8) | 253)	/* set modem ctrl state	*/
 #endif
 
 #if !defined(TIOCMBIC)
-#define	TIOCMBIC	(('d'<<8) | 254)	/* set modem ctrl state */
-#define	TIOCMBIS	(('d'<<8) | 255)	/* set modem ctrl state */
+#define	TIOCMBIC	(('d' << 8) | 254)	/* set modem ctrl state */
+#define	TIOCMBIS	(('d' << 8) | 255)	/* set modem ctrl state */
 #endif
 
-#define DIGI_GETA	(('e'<<8) | 94)		/* Read params		*/
-#define DIGI_SETA	(('e'<<8) | 95)		/* Set params		*/
-#define DIGI_SETAW	(('e'<<8) | 96)		/* Drain & set params	*/
-#define DIGI_SETAF	(('e'<<8) | 97)		/* Drain, flush & set params */
-#define DIGI_GET_NI_INFO (('d'<<8) | 250) /* Non-intelligent state info */
-#define DIGI_LOOPBACK (('d'<<8) | 252) /*
+#define DIGI_GETA	(('e' << 8) | 94)	/* Read params		*/
+#define DIGI_SETA	(('e' << 8) | 95)	/* Set params		*/
+#define DIGI_SETAW	(('e' << 8) | 96)	/* Drain & set params	*/
+#define DIGI_SETAF	(('e' << 8) | 97)	/* Drain, flush & set params */
+#define DIGI_GET_NI_INFO (('d' << 8) | 250) /* Non-intelligent state info */
+#define DIGI_LOOPBACK (('d' << 8) | 252) /*
 					* Enable/disable UART
 					* internal loopback
 					*/
@@ -85,7 +85,7 @@ struct digi_dinfo {
 	char		dinfo_version[16];	/* driver version       */
 };
 
-#define	DIGI_GETDD	(('d'<<8) | 248)	/* get driver info      */
+#define	DIGI_GETDD	(('d' << 8) | 248)	/* get driver info      */
 
 /************************************************************************
  * Structure used with ioctl commands for per-board information
@@ -105,7 +105,7 @@ struct digi_info {
 	char		info_reserved[7];	/* for future expansion    */
 };
 
-#define	DIGI_GETBD	(('d'<<8) | 249)	/* get board info          */
+#define	DIGI_GETBD	(('d' << 8) | 249)	/* get board info          */
 
 struct digi_getbuffer /* Struct for holding buffer use counts */
 {
@@ -133,10 +133,10 @@ struct digi_getcounter {
 #define DIGI_SETCUSTOMBAUD _IOW('e', 106, int)	/* Set integer baud rate */
 #define DIGI_GETCUSTOMBAUD _IOR('e', 107, int)	/* Get integer baud rate */
 
-#define DIGI_REALPORT_GETBUFFERS (('e'<<8) | 108)
-#define DIGI_REALPORT_SENDIMMEDIATE (('e'<<8) | 109)
-#define DIGI_REALPORT_GETCOUNTERS (('e'<<8) | 110)
-#define DIGI_REALPORT_GETEVENTS (('e'<<8) | 111)
+#define DIGI_REALPORT_GETBUFFERS (('e' << 8) | 108)
+#define DIGI_REALPORT_SENDIMMEDIATE (('e' << 8) | 109)
+#define DIGI_REALPORT_GETCOUNTERS (('e' << 8) | 110)
+#define DIGI_REALPORT_GETEVENTS (('e' << 8) | 111)
 
 #define EV_OPU 0x0001 /* !<Output paused by client */
 #define EV_OPS 0x0002 /* !<Output paused by reqular sw flowctrl */

@@ -185,7 +185,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 		break;
 	};
 
-	mutex_lock(&arizona->dapm->card->dapm_mutex);
+	snd_soc_dapm_mutex_lock(arizona->dapm);
 
 	arizona->hpdet_clamp = clamp;
 
@@ -227,7 +227,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 				 ret);
 	}
 
-	mutex_unlock(&arizona->dapm->card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(arizona->dapm);
 }
 
 static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)

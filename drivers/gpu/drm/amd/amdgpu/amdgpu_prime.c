@@ -73,10 +73,6 @@ struct drm_gem_object *amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	mutex_lock(&adev->gem.mutex);
-	list_add_tail(&bo->list, &adev->gem.objects);
-	mutex_unlock(&adev->gem.mutex);
-
 	return &bo->gem_base;
 }
 
@@ -121,7 +117,7 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(gobj);
 
-	if (amdgpu_ttm_tt_has_userptr(bo->tbo.ttm))
+	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm))
 		return ERR_PTR(-EPERM);
 
 	return drm_gem_prime_export(dev, gobj, flags);

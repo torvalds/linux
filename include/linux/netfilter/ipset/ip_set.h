@@ -234,6 +234,10 @@ struct ip_set {
 	spinlock_t lock;
 	/* References to the set */
 	u32 ref;
+	/* References to the set for netlink events like dump,
+	 * ref can be swapped out by ip_set_swap
+	 */
+	u32 ref_netlink;
 	/* The core set type */
 	struct ip_set_type *type;
 	/* The type variant doing the real job */

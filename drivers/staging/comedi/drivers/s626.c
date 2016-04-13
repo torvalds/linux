@@ -1167,12 +1167,6 @@ static void s626_set_clk_mult(struct comedi_device *dev,
 	s626_set_mode(dev, chan, mode, false);
 }
 
-static uint16_t s626_get_clk_mult(struct comedi_device *dev,
-				  unsigned int chan)
-{
-	return S626_GET_STD_CLKMULT(s626_get_mode(dev, chan));
-}
-
 /*
  * Return/set the clock polarity.
  */
@@ -1188,12 +1182,6 @@ static void s626_set_clk_pol(struct comedi_device *dev,
 	s626_set_mode(dev, chan, mode, false);
 }
 
-static uint16_t s626_get_clk_pol(struct comedi_device *dev,
-				 unsigned int chan)
-{
-	return S626_GET_STD_CLKPOL(s626_get_mode(dev, chan));
-}
-
 /*
  * Return/set the encoder mode.
  */
@@ -1205,27 +1193,6 @@ static void s626_set_enc_mode(struct comedi_device *dev,
 	mode = s626_get_mode(dev, chan);
 	mode &= ~S626_STDMSK_ENCMODE;
 	mode |= S626_SET_STD_ENCMODE(value);
-
-	s626_set_mode(dev, chan, mode, false);
-}
-
-static uint16_t s626_get_enc_mode(struct comedi_device *dev,
-				  unsigned int chan)
-{
-	return S626_GET_STD_ENCMODE(s626_get_mode(dev, chan));
-}
-
-/*
- * Return/set the index polarity.
- */
-static void s626_set_index_pol(struct comedi_device *dev,
-			       unsigned int chan, uint16_t value)
-{
-	uint16_t mode;
-
-	mode = s626_get_mode(dev, chan);
-	mode &= ~S626_STDMSK_INDXPOL;
-	mode |= S626_SET_STD_INDXPOL(value != 0);
 
 	s626_set_mode(dev, chan, mode, false);
 }

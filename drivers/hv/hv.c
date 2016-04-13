@@ -204,6 +204,8 @@ int hv_init(void)
 	       sizeof(int) * NR_CPUS);
 	memset(hv_context.event_dpc, 0,
 	       sizeof(void *) * NR_CPUS);
+	memset(hv_context.msg_dpc, 0,
+	       sizeof(void *) * NR_CPUS);
 	memset(hv_context.clk_evt, 0,
 	       sizeof(void *) * NR_CPUS);
 
@@ -295,8 +297,14 @@ void hv_cleanup(void)
 	 * Cleanup the TSC page based CS.
 	 */
 	if (ms_hyperv.features & HV_X64_MSR_REFERENCE_TSC_AVAILABLE) {
-		clocksource_change_rating(&hyperv_cs_tsc, 10);
-		clocksource_unregister(&hyperv_cs_tsc);
+		/*
+		 * Crash can happen in an interrupt context and unregistering
+		 * a clocksource is impossible and redundant in this case.
+		 */
+		if (!oops_in_progress) {
+			clocksource_change_rating(&hyperv_cs_tsc, 10);
+			clocksource_unregister(&hyperv_cs_tsc);
+		}
 
 		hypercall_msr.as_uint64 = 0;
 		wrmsrl(HV_X64_MSR_REFERENCE_TSC, hypercall_msr.as_uint64);
@@ -334,22 +342,6 @@ int hv_post_message(union hv_connection_id connection_id,
 	status = hv_do_hypercall(HVCALL_POST_MESSAGE, aligned_msg, NULL);
 
 	put_cpu();
-	return status & 0xFFFF;
-}
-
-
-/*
- * hv_signal_event -
- * Signal an event on the specified connection using the hypervisor event IPC.
- *
- * This involves a hypercall.
- */
-int hv_signal_event(void *con_id)
-{
-	u64 status;
-
-	status = hv_do_hypercall(HVCALL_SIGNAL_EVENT, con_id, NULL);
-
 	return status & 0xFFFF;
 }
 
@@ -425,6 +417,13 @@ int hv_synic_alloc(void)
 		}
 		tasklet_init(hv_context.event_dpc[cpu], vmbus_on_event, cpu);
 
+		hv_context.msg_dpc[cpu] = kmalloc(size, GFP_ATOMIC);
+		if (hv_context.msg_dpc[cpu] == NULL) {
+			pr_err("Unable to allocate event dpc\n");
+			goto err;
+		}
+		tasklet_init(hv_context.msg_dpc[cpu], vmbus_on_msg_dpc, cpu);
+
 		hv_context.clk_evt[cpu] = kzalloc(ced_size, GFP_ATOMIC);
 		if (hv_context.clk_evt[cpu] == NULL) {
 			pr_err("Unable to allocate clock event device\n");
@@ -466,6 +465,7 @@ err:
 static void hv_synic_free_cpu(int cpu)
 {
 	kfree(hv_context.event_dpc[cpu]);
+	kfree(hv_context.msg_dpc[cpu]);
 	kfree(hv_context.clk_evt[cpu]);
 	if (hv_context.synic_event_page[cpu])
 		free_page((unsigned long)hv_context.synic_event_page[cpu]);

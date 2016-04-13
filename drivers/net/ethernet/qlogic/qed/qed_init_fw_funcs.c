@@ -513,17 +513,14 @@ static int qed_pf_rl_rt_init(struct qed_hwfn *p_hwfn,
  * Return -1 on error.
  */
 static int qed_vp_wfq_rt_init(struct qed_hwfn *p_hwfn,
-			      u8 start_vport,
 			      u8 num_vports,
 			      struct init_qm_vport_params *vport_params)
 {
-	u8 tc, i, vport_id;
 	u32 inc_val;
+	u8 tc, i;
 
 	/* go over all PF VPORTs */
-	for (i = 0, vport_id = start_vport; i < num_vports; i++, vport_id++) {
-		u32 temp = QM_REG_WFQVPUPPERBOUND_RT_OFFSET;
-		u16 *pq_ids = &vport_params[i].first_tx_pq_id[0];
+	for (i = 0; i < num_vports; i++) {
 
 		if (!vport_params[i].vport_wfq)
 			continue;
@@ -539,20 +536,16 @@ static int qed_vp_wfq_rt_init(struct qed_hwfn *p_hwfn,
 		 * different TCs
 		 */
 		for (tc = 0; tc < NUM_OF_TCS; tc++) {
-			u16 vport_pq_id = pq_ids[tc];
+			u16 vport_pq_id = vport_params[i].first_tx_pq_id[tc];
 
 			if (vport_pq_id != QM_INVALID_PQ_ID) {
 				STORE_RT_REG(p_hwfn,
-					     QM_REG_WFQVPWEIGHT_RT_OFFSET +
-					     vport_pq_id, inc_val);
-				STORE_RT_REG(p_hwfn, temp + vport_pq_id,
-					     QM_WFQ_UPPER_BOUND |
-					     QM_WFQ_CRD_REG_SIGN_BIT);
-				STORE_RT_REG(p_hwfn,
 					     QM_REG_WFQVPCRD_RT_OFFSET +
 					     vport_pq_id,
-					     QM_WFQ_INIT_CRD(inc_val) |
 					     QM_WFQ_CRD_REG_SIGN_BIT);
+				STORE_RT_REG(p_hwfn,
+					     QM_REG_WFQVPWEIGHT_RT_OFFSET +
+					     vport_pq_id, inc_val);
 			}
 		}
 	}
@@ -709,8 +702,7 @@ int qed_qm_pf_rt_init(struct qed_hwfn *p_hwfn,
 	if (qed_pf_rl_rt_init(p_hwfn, p_params->pf_id, p_params->pf_rl))
 		return -1;
 
-	if (qed_vp_wfq_rt_init(p_hwfn, p_params->start_vport,
-			       p_params->num_vports, vport_params))
+	if (qed_vp_wfq_rt_init(p_hwfn, p_params->num_vports, vport_params))
 		return -1;
 
 	if (qed_vport_rl_rt_init(p_hwfn, p_params->start_vport,

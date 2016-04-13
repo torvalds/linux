@@ -51,13 +51,25 @@ union srp_iu {
 	u8 reserved[SRP_MAX_IU_LEN];
 };
 
+enum viosrp_crq_headers {
+	VIOSRP_CRQ_FREE = 0x00,
+	VIOSRP_CRQ_CMD_RSP = 0x80,
+	VIOSRP_CRQ_INIT_RSP = 0xC0,
+	VIOSRP_CRQ_XPORT_EVENT = 0xFF
+};
+
+enum viosrp_crq_init_formats {
+	VIOSRP_CRQ_INIT = 0x01,
+	VIOSRP_CRQ_INIT_COMPLETE = 0x02
+};
+
 enum viosrp_crq_formats {
 	VIOSRP_SRP_FORMAT = 0x01,
 	VIOSRP_MAD_FORMAT = 0x02,
 	VIOSRP_OS400_FORMAT = 0x03,
 	VIOSRP_AIX_FORMAT = 0x04,
-	VIOSRP_LINUX_FORMAT = 0x06,
-	VIOSRP_INLINE_FORMAT = 0x07
+	VIOSRP_LINUX_FORMAT = 0x05,
+	VIOSRP_INLINE_FORMAT = 0x06
 };
 
 enum viosrp_crq_status {
@@ -87,7 +99,6 @@ enum viosrp_mad_types {
 	VIOSRP_EMPTY_IU_TYPE = 0x01,
 	VIOSRP_ERROR_LOG_TYPE = 0x02,
 	VIOSRP_ADAPTER_INFO_TYPE = 0x03,
-	VIOSRP_HOST_CONFIG_TYPE = 0x04,
 	VIOSRP_CAPABILITIES_TYPE = 0x05,
 	VIOSRP_ENABLE_FAST_FAIL = 0x08,
 };
@@ -153,11 +164,6 @@ struct viosrp_adapter_info {
 	__be64 buffer;
 };
 
-struct viosrp_host_config {
-	struct mad_common common;
-	__be64 buffer;
-};
-
 struct viosrp_fast_fail {
 	struct mad_common common;
 };
@@ -195,7 +201,6 @@ union mad_iu {
 	struct viosrp_empty_iu empty_iu;
 	struct viosrp_error_log error_log;
 	struct viosrp_adapter_info adapter_info;
-	struct viosrp_host_config host_config;
 	struct viosrp_fast_fail fast_fail;
 	struct viosrp_capabilities capabilities;
 };
@@ -209,7 +214,10 @@ struct mad_adapter_info_data {
 	char srp_version[8];
 	char partition_name[96];
 	__be32 partition_number;
+#define SRP_MAD_VERSION_1 1
 	__be32 mad_version;
+#define SRP_MAD_OS_LINUX 2
+#define SRP_MAD_OS_AIX 3
 	__be32 os_type;
 	__be32 port_max_txu[8];	/* per-port maximum transfer */
 };

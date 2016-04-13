@@ -1390,8 +1390,8 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	int err;
 
-	sb->s_blocksize = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	sb->s_blocksize = PAGE_SIZE;
+	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = RPCAUTH_GSSMAGIC;
 	sb->s_op = &s_ops;
 	sb->s_d_op = &simple_dentry_operations;

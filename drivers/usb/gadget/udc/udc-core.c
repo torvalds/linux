@@ -371,12 +371,6 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 	INIT_WORK(&gadget->work, usb_gadget_state_work);
 	gadget->dev.parent = parent;
 
-#ifdef	CONFIG_HAS_DMA
-	dma_set_coherent_mask(&gadget->dev, parent->coherent_dma_mask);
-	gadget->dev.dma_parms = parent->dma_parms;
-	gadget->dev.dma_mask = parent->dma_mask;
-#endif
-
 	if (release)
 		gadget->dev.release = release;
 	else
@@ -441,6 +435,36 @@ err1:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_add_gadget_udc_release);
+
+/**
+ * usb_get_gadget_udc_name - get the name of the first UDC controller
+ * This functions returns the name of the first UDC controller in the system.
+ * Please note that this interface is usefull only for legacy drivers which
+ * assume that there is only one UDC controller in the system and they need to
+ * get its name before initialization. There is no guarantee that the UDC
+ * of the returned name will be still available, when gadget driver registers
+ * itself.
+ *
+ * Returns pointer to string with UDC controller name on success, NULL
+ * otherwise. Caller should kfree() returned string.
+ */
+char *usb_get_gadget_udc_name(void)
+{
+	struct usb_udc *udc;
+	char *name = NULL;
+
+	/* For now we take the first available UDC */
+	mutex_lock(&udc_lock);
+	list_for_each_entry(udc, &udc_list, list) {
+		if (!udc->driver) {
+			name = kstrdup(udc->gadget->name, GFP_KERNEL);
+			break;
+		}
+	}
+	mutex_unlock(&udc_lock);
+	return name;
+}
+EXPORT_SYMBOL_GPL(usb_get_gadget_udc_name);
 
 /**
  * usb_add_gadget_udc - adds a new gadget to the udc class driver list

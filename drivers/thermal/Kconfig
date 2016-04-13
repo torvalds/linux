@@ -178,6 +178,7 @@ config THERMAL_EMULATION
 config HISI_THERMAL
 	tristate "Hisilicon thermal driver"
 	depends on (ARCH_HISI && CPU_THERMAL && OF) || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Enable this to plug hisilicon's thermal sensor driver into the Linux
 	  thermal framework. cpufreq is used as the cooling device to throttle
@@ -197,6 +198,7 @@ config IMX_THERMAL
 config SPEAR_THERMAL
 	tristate "SPEAr thermal sensor driver"
 	depends on PLAT_SPEAR || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on OF
 	help
 	  Enable this to plug the SPEAr thermal sensor driver into the Linux
@@ -206,6 +208,7 @@ config ROCKCHIP_THERMAL
 	tristate "Rockchip thermal driver"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on RESET_CONTROLLER
+	depends on HAS_IOMEM
 	help
 	  Rockchip thermal driver provides support for Temperature sensor
 	  ADC (TS-ADC) found on Rockchip SoCs. It supports one critical
@@ -214,7 +217,7 @@ config ROCKCHIP_THERMAL
 
 config RCAR_THERMAL
 	tristate "Renesas R-Car thermal driver"
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  Enable this to plug the R-Car thermal sensor driver into the Linux
@@ -223,6 +226,7 @@ config RCAR_THERMAL
 config KIRKWOOD_THERMAL
 	tristate "Temperature sensor on Marvell Kirkwood SoCs"
 	depends on MACH_KIRKWOOD || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on OF
 	help
 	  Support for the Kirkwood thermal sensor driver into the Linux thermal
@@ -231,6 +235,7 @@ config KIRKWOOD_THERMAL
 config DOVE_THERMAL
 	tristate "Temperature sensor on Marvell Dove SoCs"
 	depends on ARCH_DOVE || MACH_DOVE || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on OF
 	help
 	  Support for the Dove thermal sensor driver in the Linux thermal
@@ -249,6 +254,7 @@ config DB8500_THERMAL
 config ARMADA_THERMAL
 	tristate "Armada 370/XP thermal management"
 	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on OF
 	help
 	  Enable this option if you want to have support for thermal management
@@ -266,7 +272,8 @@ config TEGRA_SOCTHERM
 
 config DB8500_CPUFREQ_COOLING
 	tristate "DB8500 cpufreq cooling"
-	depends on ARCH_U8500
+	depends on ARCH_U8500 || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on CPU_THERMAL
 	default y
 	help
@@ -365,8 +372,18 @@ config INTEL_PCH_THERMAL
 	  Thermal reporting device will provide temperature reading,
 	  programmable trip points and other information.
 
+config MTK_THERMAL
+	tristate "Temperature sensor driver for mediatek SoCs"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+	default y
+	help
+	  Enable this option if you want to have support for thermal management
+	  controller present in Mediatek SoCs
+
 menu "Texas Instruments thermal drivers"
 depends on ARCH_HAS_BANDGAP || COMPILE_TEST
+depends on HAS_IOMEM
 source "drivers/thermal/ti-soc-thermal/Kconfig"
 endmenu
 

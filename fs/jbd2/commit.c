@@ -81,11 +81,11 @@ static void release_buffer_page(struct buffer_head *bh)
 	if (!trylock_page(page))
 		goto nope;
 
-	page_cache_get(page);
+	get_page(page);
 	__brelse(bh);
 	try_to_free_buffers(page);
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 	return;
 
 nope:
@@ -131,14 +131,12 @@ static int journal_submit_commit_record(journal_t *journal,
 	if (is_journal_aborted(journal))
 		return 0;
 
-	bh = jbd2_journal_get_descriptor_buffer(journal);
+	bh = jbd2_journal_get_descriptor_buffer(commit_transaction,
+						JBD2_COMMIT_BLOCK);
 	if (!bh)
 		return 1;
 
 	tmp = (struct commit_header *)bh->b_data;
-	tmp->h_magic = cpu_to_be32(JBD2_MAGIC_NUMBER);
-	tmp->h_blocktype = cpu_to_be32(JBD2_COMMIT_BLOCK);
-	tmp->h_sequence = cpu_to_be32(commit_transaction->t_tid);
 	tmp->h_commit_sec = cpu_to_be64(now.tv_sec);
 	tmp->h_commit_nsec = cpu_to_be32(now.tv_nsec);
 
@@ -222,7 +220,7 @@ static int journal_submit_data_buffers(journal_t *journal,
 	spin_lock(&journal->j_list_lock);
 	list_for_each_entry(jinode, &commit_transaction->t_inode_list, i_list) {
 		mapping = jinode->i_vfs_inode->i_mapping;
-		set_bit(__JI_COMMIT_RUNNING, &jinode->i_flags);
+		jinode->i_flags |= JI_COMMIT_RUNNING;
 		spin_unlock(&journal->j_list_lock);
 		/*
 		 * submit the inode data buffers. We use writepage
@@ -236,8 +234,8 @@ static int journal_submit_data_buffers(journal_t *journal,
 			ret = err;
 		spin_lock(&journal->j_list_lock);
 		J_ASSERT(jinode->i_transaction == commit_transaction);
-		clear_bit(__JI_COMMIT_RUNNING, &jinode->i_flags);
-		smp_mb__after_atomic();
+		jinode->i_flags &= ~JI_COMMIT_RUNNING;
+		smp_mb();
 		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
 	}
 	spin_unlock(&journal->j_list_lock);
@@ -258,7 +256,7 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 	/* For locking, see the comment in journal_submit_data_buffers() */
 	spin_lock(&journal->j_list_lock);
 	list_for_each_entry(jinode, &commit_transaction->t_inode_list, i_list) {
-		set_bit(__JI_COMMIT_RUNNING, &jinode->i_flags);
+		jinode->i_flags |= JI_COMMIT_RUNNING;
 		spin_unlock(&journal->j_list_lock);
 		err = filemap_fdatawait(jinode->i_vfs_inode->i_mapping);
 		if (err) {
@@ -274,8 +272,8 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 				ret = err;
 		}
 		spin_lock(&journal->j_list_lock);
-		clear_bit(__JI_COMMIT_RUNNING, &jinode->i_flags);
-		smp_mb__after_atomic();
+		jinode->i_flags &= ~JI_COMMIT_RUNNING;
+		smp_mb();
 		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
 	}
 
@@ -317,22 +315,6 @@ static void write_tag_block(journal_t *j, journal_block_tag_t *tag,
 	tag->t_blocknr = cpu_to_be32(block & (u32)~0);
 	if (jbd2_has_feature_64bit(j))
 		tag->t_blocknr_high = cpu_to_be32((block >> 31) >> 1);
-}
-
-static void jbd2_descr_block_csum_set(journal_t *j,
-				      struct buffer_head *bh)
-{
-	struct jbd2_journal_block_tail *tail;
-	__u32 csum;
-
-	if (!jbd2_journal_has_csum_v2or3(j))
-		return;
-
-	tail = (struct jbd2_journal_block_tail *)(bh->b_data + j->j_blocksize -
-			sizeof(struct jbd2_journal_block_tail));
-	tail->t_checksum = 0;
-	csum = jbd2_chksum(j, j->j_csum_seed, bh->b_data, j->j_blocksize);
-	tail->t_checksum = cpu_to_be32(csum);
 }
 
 static void jbd2_block_tag_csum_set(journal_t *j, journal_block_tag_t *tag,
@@ -379,7 +361,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	ktime_t start_time;
 	u64 commit_time;
 	char *tagp = NULL;
-	journal_header_t *header;
 	journal_block_tag_t *tag = NULL;
 	int space_left = 0;
 	int first_tag = 0;
@@ -554,8 +535,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		jbd2_journal_abort(journal, err);
 
 	blk_start_plug(&plug);
-	jbd2_journal_write_revoke_records(journal, commit_transaction,
-					  &log_bufs, WRITE_SYNC);
+	jbd2_journal_write_revoke_records(commit_transaction, &log_bufs);
 
 	jbd_debug(3, "JBD2: commit phase 2b\n");
 
@@ -616,7 +596,9 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 			jbd_debug(4, "JBD2: get descriptor\n");
 
-			descriptor = jbd2_journal_get_descriptor_buffer(journal);
+			descriptor = jbd2_journal_get_descriptor_buffer(
+							commit_transaction,
+							JBD2_DESCRIPTOR_BLOCK);
 			if (!descriptor) {
 				jbd2_journal_abort(journal, -EIO);
 				continue;
@@ -625,11 +607,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 			jbd_debug(4, "JBD2: got buffer %llu (%p)\n",
 				(unsigned long long)descriptor->b_blocknr,
 				descriptor->b_data);
-			header = (journal_header_t *)descriptor->b_data;
-			header->h_magic     = cpu_to_be32(JBD2_MAGIC_NUMBER);
-			header->h_blocktype = cpu_to_be32(JBD2_DESCRIPTOR_BLOCK);
-			header->h_sequence  = cpu_to_be32(commit_transaction->t_tid);
-
 			tagp = &descriptor->b_data[sizeof(journal_header_t)];
 			space_left = descriptor->b_size -
 						sizeof(journal_header_t);
@@ -721,7 +698,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 			tag->t_flags |= cpu_to_be16(JBD2_FLAG_LAST_TAG);
 
-			jbd2_descr_block_csum_set(journal, descriptor);
+			jbd2_descriptor_block_csum_set(journal, descriptor);
 start_journal_io:
 			for (i = 0; i < bufs; i++) {
 				struct buffer_head *bh = wbuf[i];

@@ -45,6 +45,7 @@ enum {
 	CSS_NO_REF	= (1 << 0), /* no reference counting for this css */
 	CSS_ONLINE	= (1 << 1), /* between ->css_online() and ->css_offline() */
 	CSS_RELEASED	= (1 << 2), /* refcnt reached zero, released */
+	CSS_VISIBLE	= (1 << 3), /* css is visible to userland */
 };
 
 /* bits in struct cgroup flags field */
@@ -190,12 +191,13 @@ struct css_set {
 
 	/*
 	 * If this cset is acting as the source of migration the following
-	 * two fields are set.  mg_src_cgrp is the source cgroup of the
-	 * on-going migration and mg_dst_cset is the destination cset the
-	 * target tasks on this cset should be migrated to.  Protected by
-	 * cgroup_mutex.
+	 * two fields are set.  mg_src_cgrp and mg_dst_cgrp are
+	 * respectively the source and destination cgroups of the on-going
+	 * migration.  mg_dst_cset is the destination cset the target tasks
+	 * on this cset should be migrated to.  Protected by cgroup_mutex.
 	 */
 	struct cgroup *mg_src_cgrp;
+	struct cgroup *mg_dst_cgrp;
 	struct css_set *mg_dst_cset;
 
 	/*
@@ -209,6 +211,9 @@ struct css_set {
 
 	/* all css_task_iters currently walking this cset */
 	struct list_head task_iters;
+
+	/* dead and being drained, ignore for migration */
+	bool dead;
 
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
@@ -253,13 +258,14 @@ struct cgroup {
 	/*
 	 * The bitmask of subsystems enabled on the child cgroups.
 	 * ->subtree_control is the one configured through
-	 * "cgroup.subtree_control" while ->child_subsys_mask is the
-	 * effective one which may have more subsystems enabled.
-	 * Controller knobs are made available iff it's enabled in
-	 * ->subtree_control.
+	 * "cgroup.subtree_control" while ->child_ss_mask is the effective
+	 * one which may have more subsystems enabled.  Controller knobs
+	 * are made available iff it's enabled in ->subtree_control.
 	 */
-	unsigned int subtree_control;
-	unsigned int child_subsys_mask;
+	u16 subtree_control;
+	u16 subtree_ss_mask;
+	u16 old_subtree_control;
+	u16 old_subtree_ss_mask;
 
 	/* Private pointers for each registered subsystem */
 	struct cgroup_subsys_state __rcu *subsys[CGROUP_SUBSYS_COUNT];
@@ -434,7 +440,6 @@ struct cgroup_subsys {
 	void (*css_released)(struct cgroup_subsys_state *css);
 	void (*css_free)(struct cgroup_subsys_state *css);
 	void (*css_reset)(struct cgroup_subsys_state *css);
-	void (*css_e_css_changed)(struct cgroup_subsys_state *css);
 
 	int (*can_attach)(struct cgroup_taskset *tset);
 	void (*cancel_attach)(struct cgroup_taskset *tset);
@@ -446,7 +451,20 @@ struct cgroup_subsys {
 	void (*free)(struct task_struct *task);
 	void (*bind)(struct cgroup_subsys_state *root_css);
 
-	int early_init;
+	bool early_init:1;
+
+	/*
+	 * If %true, the controller, on the default hierarchy, doesn't show
+	 * up in "cgroup.controllers" or "cgroup.subtree_control", is
+	 * implicitly enabled on all cgroups on the default hierarchy, and
+	 * bypasses the "no internal process" constraint.  This is for
+	 * utility type controllers which is transparent to userland.
+	 *
+	 * An implicit controller can be stolen from the default hierarchy
+	 * anytime and thus must be okay with offline csses from previous
+	 * hierarchies coexisting with csses for the current one.
+	 */
+	bool implicit_on_dfl:1;
 
 	/*
 	 * If %false, this subsystem is properly hierarchical -
@@ -460,8 +478,8 @@ struct cgroup_subsys {
 	 * cases.  Eventually, all subsystems will be made properly
 	 * hierarchical and this will go away.
 	 */
-	bool broken_hierarchy;
-	bool warned_broken_hierarchy;
+	bool broken_hierarchy:1;
+	bool warned_broken_hierarchy:1;
 
 	/* the following two fields are initialized automtically during boot */
 	int id;

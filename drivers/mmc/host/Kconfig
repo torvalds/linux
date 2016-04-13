@@ -318,15 +318,15 @@ config MMC_SDHCI_F_SDH30
 	  If unsure, say N.
 
 config MMC_SDHCI_IPROC
-	tristate "SDHCI platform support for the iProc SD/MMC Controller"
-	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	tristate "SDHCI support for the BCM2835 & iProc SD/MMC Controller"
+	depends on ARCH_BCM2835 || ARCH_BCM_IPROC || COMPILE_TEST
 	depends on MMC_SDHCI_PLTFM
 	default ARCH_BCM_IPROC
 	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the iProc SD/MMC controller.
 
-	  If you have an IPROC platform with SD or MMC devices,
+	  If you have a BCM2835 or IPROC platform with SD or MMC devices,
 	  say Y or M here.
 
 	  If unsure, say N.
@@ -560,8 +560,8 @@ config MMC_TMIO
 
 config MMC_SDHI
 	tristate "SH-Mobile SDHI SD/SDIO controller support"
-	depends on SUPERH || ARM
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on SUPERH || ARM || ARM64
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	select MMC_TMIO_CORE
 	help
 	  This provides support for the SDHI SD/SDIO controller found in
@@ -673,8 +673,8 @@ config MMC_DW_ROCKCHIP
 
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"
-	depends on MMC_BLOCK && HAS_DMA
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on HAS_DMA
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	help
 	  This selects the MMC Host Interface controller (MMCIF).
 
@@ -786,3 +786,14 @@ config MMC_MTK
 	  If you have a machine with a integrated SD/MMC card reader, say Y or M here.
 	  This is needed if support for any SD/SDIO/MMC devices is required.
 	  If unsure, say N.
+
+config MMC_SDHCI_MICROCHIP_PIC32
+        tristate "Microchip PIC32MZDA SDHCI support"
+        depends on MMC_SDHCI && PIC32MZDA && MMC_SDHCI_PLTFM
+        help
+          This selects the Secure Digital Host Controller Interface (SDHCI)
+          for PIC32MZDA platform.
+
+          If you have a controller with this interface, say Y or M here.
+
+          If unsure, say N.

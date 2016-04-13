@@ -6,9 +6,7 @@
  * License terms:  GNU General Public License (GPL), version 2
  */
 
-#include <linux/clk.h>
-#include <linux/dma-mapping.h>
-
+#include <drm/drm_atomic.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
@@ -32,10 +30,23 @@
 #define GDP_ABGR8888    (GDP_ARGB8888 | BIGNOTLITTLE | ALPHASWITCH)
 #define GDP_ARGB1555    0x06
 #define GDP_ARGB4444    0x07
-#define GDP_CLUT8       0x0B
-#define GDP_YCBR888     0x10
-#define GDP_YCBR422R    0x12
-#define GDP_AYCBR8888   0x15
+
+#define GDP2STR(fmt) { GDP_ ## fmt, #fmt }
+
+static struct gdp_format_to_str {
+	int format;
+	char name[20];
+} gdp_format_to_str[] = {
+		GDP2STR(RGB565),
+		GDP2STR(RGB888),
+		GDP2STR(RGB888_32),
+		GDP2STR(XBGR8888),
+		GDP2STR(ARGB8565),
+		GDP2STR(ARGB8888),
+		GDP2STR(ABGR8888),
+		GDP2STR(ARGB1555),
+		GDP2STR(ARGB4444)
+		};
 
 #define GAM_GDP_CTL_OFFSET      0x00
 #define GAM_GDP_AGC_OFFSET      0x04
@@ -97,6 +108,7 @@ struct sti_gdp_node_list {
  * @vtg_field_nb:       callback for VTG FIELD (top or bottom) notification
  * @is_curr_top:        true if the current node processed is the top field
  * @node_list:          array of node list
+ * @vtg:                registered vtg
  */
 struct sti_gdp {
 	struct sti_plane plane;
@@ -108,6 +120,7 @@ struct sti_gdp {
 	struct notifier_block vtg_field_nb;
 	bool is_curr_top;
 	struct sti_gdp_node_list node_list[GDP_NODE_NB_BANK];
+	struct sti_vtg *vtg;
 };
 
 #define to_sti_gdp(x) container_of(x, struct sti_gdp, plane)
@@ -121,11 +134,223 @@ static const uint32_t gdp_supported_formats[] = {
 	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
-	DRM_FORMAT_AYUV,
-	DRM_FORMAT_YUV444,
-	DRM_FORMAT_VYUY,
-	DRM_FORMAT_C8,
 };
+
+#define DBGFS_DUMP(reg) seq_printf(s, "\n  %-25s 0x%08X", #reg, \
+				   readl(gdp->regs + reg ## _OFFSET))
+
+static void gdp_dbg_ctl(struct seq_file *s, int val)
+{
+	int i;
+
+	seq_puts(s, "\tColor:");
+	for (i = 0; i < ARRAY_SIZE(gdp_format_to_str); i++) {
+		if (gdp_format_to_str[i].format == (val & 0x1F)) {
+			seq_printf(s, gdp_format_to_str[i].name);
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(gdp_format_to_str))
+		seq_puts(s, "<UNKNOWN>");
+
+	seq_printf(s, "\tWaitNextVsync:%d", val & WAIT_NEXT_VSYNC ? 1 : 0);
+}
+
+static void gdp_dbg_vpo(struct seq_file *s, int val)
+{
+	seq_printf(s, "\txdo:%4d\tydo:%4d", val & 0xFFFF, (val >> 16) & 0xFFFF);
+}
+
+static void gdp_dbg_vps(struct seq_file *s, int val)
+{
+	seq_printf(s, "\txds:%4d\tyds:%4d", val & 0xFFFF, (val >> 16) & 0xFFFF);
+}
+
+static void gdp_dbg_size(struct seq_file *s, int val)
+{
+	seq_printf(s, "\t%d x %d", val & 0xFFFF, (val >> 16) & 0xFFFF);
+}
+
+static void gdp_dbg_nvn(struct seq_file *s, struct sti_gdp *gdp, int val)
+{
+	void *base = NULL;
+	unsigned int i;
+
+	for (i = 0; i < GDP_NODE_NB_BANK; i++) {
+		if (gdp->node_list[i].top_field_paddr == val) {
+			base = gdp->node_list[i].top_field;
+			break;
+		}
+		if (gdp->node_list[i].btm_field_paddr == val) {
+			base = gdp->node_list[i].btm_field;
+			break;
+		}
+	}
+
+	if (base)
+		seq_printf(s, "\tVirt @: %p", base);
+}
+
+static void gdp_dbg_ppt(struct seq_file *s, int val)
+{
+	if (val & GAM_GDP_PPT_IGNORE)
+		seq_puts(s, "\tNot displayed on mixer!");
+}
+
+static void gdp_dbg_mst(struct seq_file *s, int val)
+{
+	if (val & 1)
+		seq_puts(s, "\tBUFFER UNDERFLOW!");
+}
+
+static int gdp_dbg_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_plane *drm_plane = &gdp->plane.drm_plane;
+	struct drm_crtc *crtc = drm_plane->crtc;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(s, "%s: (vaddr = 0x%p)",
+		   sti_plane_to_str(&gdp->plane), gdp->regs);
+
+	DBGFS_DUMP(GAM_GDP_CTL);
+	gdp_dbg_ctl(s, readl(gdp->regs + GAM_GDP_CTL_OFFSET));
+	DBGFS_DUMP(GAM_GDP_AGC);
+	DBGFS_DUMP(GAM_GDP_VPO);
+	gdp_dbg_vpo(s, readl(gdp->regs + GAM_GDP_VPO_OFFSET));
+	DBGFS_DUMP(GAM_GDP_VPS);
+	gdp_dbg_vps(s, readl(gdp->regs + GAM_GDP_VPS_OFFSET));
+	DBGFS_DUMP(GAM_GDP_PML);
+	DBGFS_DUMP(GAM_GDP_PMP);
+	DBGFS_DUMP(GAM_GDP_SIZE);
+	gdp_dbg_size(s, readl(gdp->regs + GAM_GDP_SIZE_OFFSET));
+	DBGFS_DUMP(GAM_GDP_NVN);
+	gdp_dbg_nvn(s, gdp, readl(gdp->regs + GAM_GDP_NVN_OFFSET));
+	DBGFS_DUMP(GAM_GDP_KEY1);
+	DBGFS_DUMP(GAM_GDP_KEY2);
+	DBGFS_DUMP(GAM_GDP_PPT);
+	gdp_dbg_ppt(s, readl(gdp->regs + GAM_GDP_PPT_OFFSET));
+	DBGFS_DUMP(GAM_GDP_CML);
+	DBGFS_DUMP(GAM_GDP_MST);
+	gdp_dbg_mst(s, readl(gdp->regs + GAM_GDP_MST_OFFSET));
+
+	seq_puts(s, "\n\n");
+	if (!crtc)
+		seq_puts(s, "  Not connected to any DRM CRTC\n");
+	else
+		seq_printf(s, "  Connected to DRM CRTC #%d (%s)\n",
+			   crtc->base.id, sti_mixer_to_str(to_sti_mixer(crtc)));
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static void gdp_node_dump_node(struct seq_file *s, struct sti_gdp_node *node)
+{
+	seq_printf(s, "\t@:0x%p", node);
+	seq_printf(s, "\n\tCTL  0x%08X", node->gam_gdp_ctl);
+	gdp_dbg_ctl(s, node->gam_gdp_ctl);
+	seq_printf(s, "\n\tAGC  0x%08X", node->gam_gdp_agc);
+	seq_printf(s, "\n\tVPO  0x%08X", node->gam_gdp_vpo);
+	gdp_dbg_vpo(s, node->gam_gdp_vpo);
+	seq_printf(s, "\n\tVPS  0x%08X", node->gam_gdp_vps);
+	gdp_dbg_vps(s, node->gam_gdp_vps);
+	seq_printf(s, "\n\tPML  0x%08X", node->gam_gdp_pml);
+	seq_printf(s, "\n\tPMP  0x%08X", node->gam_gdp_pmp);
+	seq_printf(s, "\n\tSIZE 0x%08X", node->gam_gdp_size);
+	gdp_dbg_size(s, node->gam_gdp_size);
+	seq_printf(s, "\n\tNVN  0x%08X", node->gam_gdp_nvn);
+	seq_printf(s, "\n\tKEY1 0x%08X", node->gam_gdp_key1);
+	seq_printf(s, "\n\tKEY2 0x%08X", node->gam_gdp_key2);
+	seq_printf(s, "\n\tPPT  0x%08X", node->gam_gdp_ppt);
+	gdp_dbg_ppt(s, node->gam_gdp_ppt);
+	seq_printf(s, "\n\tCML  0x%08X", node->gam_gdp_cml);
+	seq_puts(s, "\n");
+}
+
+static int gdp_node_dbg_show(struct seq_file *s, void *arg)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	unsigned int b;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	for (b = 0; b < GDP_NODE_NB_BANK; b++) {
+		seq_printf(s, "\n%s[%d].top", sti_plane_to_str(&gdp->plane), b);
+		gdp_node_dump_node(s, gdp->node_list[b].top_field);
+		seq_printf(s, "\n%s[%d].btm", sti_plane_to_str(&gdp->plane), b);
+		gdp_node_dump_node(s, gdp->node_list[b].btm_field);
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static struct drm_info_list gdp0_debugfs_files[] = {
+	{ "gdp0", gdp_dbg_show, 0, NULL },
+	{ "gdp0_node", gdp_node_dbg_show, 0, NULL },
+};
+
+static struct drm_info_list gdp1_debugfs_files[] = {
+	{ "gdp1", gdp_dbg_show, 0, NULL },
+	{ "gdp1_node", gdp_node_dbg_show, 0, NULL },
+};
+
+static struct drm_info_list gdp2_debugfs_files[] = {
+	{ "gdp2", gdp_dbg_show, 0, NULL },
+	{ "gdp2_node", gdp_node_dbg_show, 0, NULL },
+};
+
+static struct drm_info_list gdp3_debugfs_files[] = {
+	{ "gdp3", gdp_dbg_show, 0, NULL },
+	{ "gdp3_node", gdp_node_dbg_show, 0, NULL },
+};
+
+static int gdp_debugfs_init(struct sti_gdp *gdp, struct drm_minor *minor)
+{
+	unsigned int i;
+	struct drm_info_list *gdp_debugfs_files;
+	int nb_files;
+
+	switch (gdp->plane.desc) {
+	case STI_GDP_0:
+		gdp_debugfs_files = gdp0_debugfs_files;
+		nb_files = ARRAY_SIZE(gdp0_debugfs_files);
+		break;
+	case STI_GDP_1:
+		gdp_debugfs_files = gdp1_debugfs_files;
+		nb_files = ARRAY_SIZE(gdp1_debugfs_files);
+		break;
+	case STI_GDP_2:
+		gdp_debugfs_files = gdp2_debugfs_files;
+		nb_files = ARRAY_SIZE(gdp2_debugfs_files);
+		break;
+	case STI_GDP_3:
+		gdp_debugfs_files = gdp3_debugfs_files;
+		nb_files = ARRAY_SIZE(gdp3_debugfs_files);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < nb_files; i++)
+		gdp_debugfs_files[i].data = gdp;
+
+	return drm_debugfs_create_files(gdp_debugfs_files,
+					nb_files,
+					minor->debugfs_root, minor);
+}
 
 static int sti_gdp_fourcc2format(int fourcc)
 {
@@ -146,14 +371,6 @@ static int sti_gdp_fourcc2format(int fourcc)
 		return GDP_RGB565;
 	case DRM_FORMAT_RGB888:
 		return GDP_RGB888;
-	case DRM_FORMAT_AYUV:
-		return GDP_AYCBR8888;
-	case DRM_FORMAT_YUV444:
-		return GDP_YCBR888;
-	case DRM_FORMAT_VYUY:
-		return GDP_YCBR422R;
-	case DRM_FORMAT_C8:
-		return GDP_CLUT8;
 	}
 	return -1;
 }
@@ -163,7 +380,6 @@ static int sti_gdp_get_alpharange(int format)
 	switch (format) {
 	case GDP_ARGB8565:
 	case GDP_ARGB8888:
-	case GDP_AYCBR8888:
 	case GDP_ABGR8888:
 		return GAM_GDP_ALPHARANGE_255;
 	}
@@ -240,9 +456,6 @@ end:
  */
 static void sti_gdp_disable(struct sti_gdp *gdp)
 {
-	struct drm_plane *drm_plane = &gdp->plane.drm_plane;
-	struct sti_mixer *mixer = to_sti_mixer(drm_plane->crtc);
-	struct sti_compositor *compo = dev_get_drvdata(gdp->dev);
 	unsigned int i;
 
 	DRM_DEBUG_DRIVER("%s\n", sti_plane_to_str(&gdp->plane));
@@ -253,8 +466,7 @@ static void sti_gdp_disable(struct sti_gdp *gdp)
 		gdp->node_list[i].btm_field->gam_gdp_ppt |= GAM_GDP_PPT_IGNORE;
 	}
 
-	if (sti_vtg_unregister_client(mixer->id == STI_MIXER_MAIN ?
-			compo->vtg_main : compo->vtg_aux, &gdp->vtg_field_nb))
+	if (sti_vtg_unregister_client(gdp->vtg, &gdp->vtg_field_nb))
 		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
 
 	if (gdp->clk_pix)
@@ -379,37 +591,54 @@ static void sti_gdp_init(struct sti_gdp *gdp)
 	}
 }
 
-static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
-				  struct drm_plane_state *oldstate)
+/**
+ * sti_gdp_get_dst
+ * @dev: device
+ * @dst: requested destination size
+ * @src: source size
+ *
+ * Return the cropped / clamped destination size
+ *
+ * RETURNS:
+ * cropped / clamped destination size
+ */
+static int sti_gdp_get_dst(struct device *dev, int dst, int src)
 {
-	struct drm_plane_state *state = drm_plane->state;
+	if (dst == src)
+		return dst;
+
+	if (dst < src) {
+		dev_dbg(dev, "WARNING: GDP scale not supported, will crop\n");
+		return dst;
+	}
+
+	dev_dbg(dev, "WARNING: GDP scale not supported, will clamp\n");
+	return src;
+}
+
+static int sti_gdp_atomic_check(struct drm_plane *drm_plane,
+				struct drm_plane_state *state)
+{
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct sti_gdp *gdp = to_sti_gdp(plane);
 	struct drm_crtc *crtc = state->crtc;
 	struct sti_compositor *compo = dev_get_drvdata(gdp->dev);
 	struct drm_framebuffer *fb =  state->fb;
 	bool first_prepare = plane->status == STI_PLANE_DISABLED ? true : false;
+	struct drm_crtc_state *crtc_state;
 	struct sti_mixer *mixer;
 	struct drm_display_mode *mode;
 	int dst_x, dst_y, dst_w, dst_h;
 	int src_x, src_y, src_w, src_h;
-	struct drm_gem_cma_object *cma_obj;
-	struct sti_gdp_node_list *list;
-	struct sti_gdp_node_list *curr_list;
-	struct sti_gdp_node *top_field, *btm_field;
-	u32 dma_updated_top;
-	u32 dma_updated_btm;
 	int format;
-	unsigned int depth, bpp;
-	u32 ydo, xdo, yds, xds;
-	int res;
 
-	/* Manage the case where crtc is null (disabled) */
-	if (!crtc)
-		return;
+	/* no need for further checks if the plane is being disabled */
+	if (!crtc || !fb)
+		return 0;
 
 	mixer = to_sti_mixer(crtc);
-	mode = &crtc->mode;
+	crtc_state = drm_atomic_get_crtc_state(state->state, crtc);
+	mode = &crtc_state->mode;
 	dst_x = state->crtc_x;
 	dst_y = state->crtc_y;
 	dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
@@ -417,92 +646,41 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	/* src_x are in 16.16 format */
 	src_x = state->src_x >> 16;
 	src_y = state->src_y >> 16;
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
+	src_w = clamp_val(state->src_w >> 16, 0, GAM_GDP_SIZE_MAX);
+	src_h = clamp_val(state->src_h >> 16, 0, GAM_GDP_SIZE_MAX);
 
-	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
-		      crtc->base.id, sti_mixer_to_str(mixer),
-		      drm_plane->base.id, sti_plane_to_str(plane));
-	DRM_DEBUG_KMS("%s dst=(%dx%d)@(%d,%d) - src=(%dx%d)@(%d,%d)\n",
-		      sti_plane_to_str(plane),
-		      dst_w, dst_h, dst_x, dst_y,
-		      src_w, src_h, src_x, src_y);
-
-	list = sti_gdp_get_free_nodes(gdp);
-	top_field = list->top_field;
-	btm_field = list->btm_field;
-
-	dev_dbg(gdp->dev, "%s %s top_node:0x%p btm_node:0x%p\n", __func__,
-		sti_plane_to_str(plane), top_field, btm_field);
-
-	/* build the top field */
-	top_field->gam_gdp_agc = GAM_GDP_AGC_FULL_RANGE;
-	top_field->gam_gdp_ctl = WAIT_NEXT_VSYNC;
 	format = sti_gdp_fourcc2format(fb->pixel_format);
 	if (format == -1) {
 		DRM_ERROR("Format not supported by GDP %.4s\n",
 			  (char *)&fb->pixel_format);
-		return;
+		return -EINVAL;
 	}
-	top_field->gam_gdp_ctl |= format;
-	top_field->gam_gdp_ctl |= sti_gdp_get_alpharange(format);
-	top_field->gam_gdp_ppt &= ~GAM_GDP_PPT_IGNORE;
 
-	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	if (!cma_obj) {
+	if (!drm_fb_cma_get_gem_obj(fb, 0)) {
 		DRM_ERROR("Can't get CMA GEM object for fb\n");
-		return;
+		return -EINVAL;
 	}
-
-	DRM_DEBUG_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
-			 (char *)&fb->pixel_format,
-			 (unsigned long)cma_obj->paddr);
-
-	/* pixel memory location */
-	drm_fb_get_bpp_depth(fb->pixel_format, &depth, &bpp);
-	top_field->gam_gdp_pml = (u32)cma_obj->paddr + fb->offsets[0];
-	top_field->gam_gdp_pml += src_x * (bpp >> 3);
-	top_field->gam_gdp_pml += src_y * fb->pitches[0];
-
-	/* input parameters */
-	top_field->gam_gdp_pmp = fb->pitches[0];
-	top_field->gam_gdp_size = clamp_val(src_h, 0, GAM_GDP_SIZE_MAX) << 16 |
-				  clamp_val(src_w, 0, GAM_GDP_SIZE_MAX);
-
-	/* output parameters */
-	ydo = sti_vtg_get_line_number(*mode, dst_y);
-	yds = sti_vtg_get_line_number(*mode, dst_y + dst_h - 1);
-	xdo = sti_vtg_get_pixel_number(*mode, dst_x);
-	xds = sti_vtg_get_pixel_number(*mode, dst_x + dst_w - 1);
-	top_field->gam_gdp_vpo = (ydo << 16) | xdo;
-	top_field->gam_gdp_vps = (yds << 16) | xds;
-
-	/* Same content and chained together */
-	memcpy(btm_field, top_field, sizeof(*btm_field));
-	top_field->gam_gdp_nvn = list->btm_field_paddr;
-	btm_field->gam_gdp_nvn = list->top_field_paddr;
-
-	/* Interlaced mode */
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		btm_field->gam_gdp_pml = top_field->gam_gdp_pml +
-					 fb->pitches[0];
 
 	if (first_prepare) {
 		/* Register gdp callback */
-		if (sti_vtg_register_client(mixer->id == STI_MIXER_MAIN ?
-				compo->vtg_main : compo->vtg_aux,
-				&gdp->vtg_field_nb, crtc)) {
+		gdp->vtg = mixer->id == STI_MIXER_MAIN ?
+					compo->vtg_main : compo->vtg_aux;
+		if (sti_vtg_register_client(gdp->vtg,
+					    &gdp->vtg_field_nb, crtc)) {
 			DRM_ERROR("Cannot register VTG notifier\n");
-			return;
+			return -EINVAL;
 		}
 
 		/* Set and enable gdp clock */
 		if (gdp->clk_pix) {
 			struct clk *clkp;
 			int rate = mode->clock * 1000;
+			int res;
 
-			/* According to the mixer used, the gdp pixel clock
-			 * should have a different parent clock. */
+			/*
+			 * According to the mixer used, the gdp pixel clock
+			 * should have a different parent clock.
+			 */
 			if (mixer->id == STI_MIXER_MAIN)
 				clkp = gdp->clk_main_parent;
 			else
@@ -515,15 +693,113 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 			if (res < 0) {
 				DRM_ERROR("Cannot set rate (%dHz) for gdp\n",
 					  rate);
-				return;
+				return -EINVAL;
 			}
 
 			if (clk_prepare_enable(gdp->clk_pix)) {
 				DRM_ERROR("Failed to prepare/enable gdp\n");
-				return;
+				return -EINVAL;
 			}
 		}
 	}
+
+	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
+		      crtc->base.id, sti_mixer_to_str(mixer),
+		      drm_plane->base.id, sti_plane_to_str(plane));
+	DRM_DEBUG_KMS("%s dst=(%dx%d)@(%d,%d) - src=(%dx%d)@(%d,%d)\n",
+		      sti_plane_to_str(plane),
+		      dst_w, dst_h, dst_x, dst_y,
+		      src_w, src_h, src_x, src_y);
+
+	return 0;
+}
+
+static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
+				  struct drm_plane_state *oldstate)
+{
+	struct drm_plane_state *state = drm_plane->state;
+	struct sti_plane *plane = to_sti_plane(drm_plane);
+	struct sti_gdp *gdp = to_sti_gdp(plane);
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb =  state->fb;
+	struct drm_display_mode *mode;
+	int dst_x, dst_y, dst_w, dst_h;
+	int src_x, src_y, src_w, src_h;
+	struct drm_gem_cma_object *cma_obj;
+	struct sti_gdp_node_list *list;
+	struct sti_gdp_node_list *curr_list;
+	struct sti_gdp_node *top_field, *btm_field;
+	u32 dma_updated_top;
+	u32 dma_updated_btm;
+	int format;
+	unsigned int depth, bpp;
+	u32 ydo, xdo, yds, xds;
+
+	if (!crtc || !fb)
+		return;
+
+	mode = &crtc->mode;
+	dst_x = state->crtc_x;
+	dst_y = state->crtc_y;
+	dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
+	dst_h = clamp_val(state->crtc_h, 0, mode->crtc_vdisplay - dst_y);
+	/* src_x are in 16.16 format */
+	src_x = state->src_x >> 16;
+	src_y = state->src_y >> 16;
+	src_w = clamp_val(state->src_w >> 16, 0, GAM_GDP_SIZE_MAX);
+	src_h = clamp_val(state->src_h >> 16, 0, GAM_GDP_SIZE_MAX);
+
+	list = sti_gdp_get_free_nodes(gdp);
+	top_field = list->top_field;
+	btm_field = list->btm_field;
+
+	dev_dbg(gdp->dev, "%s %s top_node:0x%p btm_node:0x%p\n", __func__,
+		sti_plane_to_str(plane), top_field, btm_field);
+
+	/* build the top field */
+	top_field->gam_gdp_agc = GAM_GDP_AGC_FULL_RANGE;
+	top_field->gam_gdp_ctl = WAIT_NEXT_VSYNC;
+	format = sti_gdp_fourcc2format(fb->pixel_format);
+	top_field->gam_gdp_ctl |= format;
+	top_field->gam_gdp_ctl |= sti_gdp_get_alpharange(format);
+	top_field->gam_gdp_ppt &= ~GAM_GDP_PPT_IGNORE;
+
+	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
+
+	DRM_DEBUG_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
+			 (char *)&fb->pixel_format,
+			 (unsigned long)cma_obj->paddr);
+
+	/* pixel memory location */
+	drm_fb_get_bpp_depth(fb->pixel_format, &depth, &bpp);
+	top_field->gam_gdp_pml = (u32)cma_obj->paddr + fb->offsets[0];
+	top_field->gam_gdp_pml += src_x * (bpp >> 3);
+	top_field->gam_gdp_pml += src_y * fb->pitches[0];
+
+	/* output parameters (clamped / cropped) */
+	dst_w = sti_gdp_get_dst(gdp->dev, dst_w, src_w);
+	dst_h = sti_gdp_get_dst(gdp->dev, dst_h, src_h);
+	ydo = sti_vtg_get_line_number(*mode, dst_y);
+	yds = sti_vtg_get_line_number(*mode, dst_y + dst_h - 1);
+	xdo = sti_vtg_get_pixel_number(*mode, dst_x);
+	xds = sti_vtg_get_pixel_number(*mode, dst_x + dst_w - 1);
+	top_field->gam_gdp_vpo = (ydo << 16) | xdo;
+	top_field->gam_gdp_vps = (yds << 16) | xds;
+
+	/* input parameters */
+	src_w = dst_w;
+	top_field->gam_gdp_pmp = fb->pitches[0];
+	top_field->gam_gdp_size = src_h << 16 | src_w;
+
+	/* Same content and chained together */
+	memcpy(btm_field, top_field, sizeof(*btm_field));
+	top_field->gam_gdp_nvn = list->btm_field_paddr;
+	btm_field->gam_gdp_nvn = list->top_field_paddr;
+
+	/* Interlaced mode */
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		btm_field->gam_gdp_pml = top_field->gam_gdp_pml +
+					 fb->pitches[0];
 
 	/* Update the NVN field of the 'right' field of the current GDP node
 	 * (being used by the HW) with the address of the updated ('free') top
@@ -573,6 +849,8 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	}
 
 end:
+	sti_plane_update_fps(plane, true, false);
+
 	plane->status = STI_PLANE_UPDATED;
 }
 
@@ -580,7 +858,6 @@ static void sti_gdp_atomic_disable(struct drm_plane *drm_plane,
 				   struct drm_plane_state *oldstate)
 {
 	struct sti_plane *plane = to_sti_plane(drm_plane);
-	struct sti_mixer *mixer = to_sti_mixer(drm_plane->crtc);
 
 	if (!drm_plane->crtc) {
 		DRM_DEBUG_DRIVER("drm plane:%d not enabled\n",
@@ -589,13 +866,15 @@ static void sti_gdp_atomic_disable(struct drm_plane *drm_plane,
 	}
 
 	DRM_DEBUG_DRIVER("CRTC:%d (%s) drm plane:%d (%s)\n",
-			 drm_plane->crtc->base.id, sti_mixer_to_str(mixer),
+			 drm_plane->crtc->base.id,
+			 sti_mixer_to_str(to_sti_mixer(drm_plane->crtc)),
 			 drm_plane->base.id, sti_plane_to_str(plane));
 
 	plane->status = STI_PLANE_DISABLING;
 }
 
 static const struct drm_plane_helper_funcs sti_gdp_helpers_funcs = {
+	.atomic_check = sti_gdp_atomic_check,
 	.atomic_update = sti_gdp_atomic_update,
 	.atomic_disable = sti_gdp_atomic_disable,
 };
@@ -638,6 +917,9 @@ struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
 	drm_plane_helper_add(&gdp->plane.drm_plane, &sti_gdp_helpers_funcs);
 
 	sti_plane_init_property(&gdp->plane, type);
+
+	if (gdp_debugfs_init(gdp, drm_dev->primary))
+		DRM_ERROR("GDP debugfs setup failed\n");
 
 	return &gdp->plane.drm_plane;
 

@@ -2,6 +2,7 @@
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -140,8 +141,8 @@
  */
 static int iwl_rxq_space(const struct iwl_rxq *rxq)
 {
-	/* Make sure RX_QUEUE_SIZE is a power of 2 */
-	BUILD_BUG_ON(RX_QUEUE_SIZE & (RX_QUEUE_SIZE - 1));
+	/* Make sure rx queue size is a power of 2 */
+	WARN_ON(rxq->queue_size & (rxq->queue_size - 1));
 
 	/*
 	 * There can be up to (RX_QUEUE_SIZE - 1) free slots, to avoid ambiguity
@@ -149,7 +150,7 @@ static int iwl_rxq_space(const struct iwl_rxq *rxq)
 	 * The following is equivalent to modulo by RX_QUEUE_SIZE and is well
 	 * defined for negative dividends.
 	 */
-	return (rxq->read - rxq->write - 1) & (RX_QUEUE_SIZE - 1);
+	return (rxq->read - rxq->write - 1) & (rxq->queue_size - 1);
 }
 
 /*
@@ -158,6 +159,12 @@ static int iwl_rxq_space(const struct iwl_rxq *rxq)
 static inline __le32 iwl_pcie_dma_addr2rbd_ptr(dma_addr_t dma_addr)
 {
 	return cpu_to_le32((u32)(dma_addr >> 8));
+}
+
+static void iwl_pcie_write_prph_64(struct iwl_trans *trans, u64 ofs, u64 val)
+{
+	iwl_write_prph(trans, ofs, val & 0xffffffff);
+	iwl_write_prph(trans, ofs + 4, val >> 32);
 }
 
 /*
@@ -173,10 +180,9 @@ int iwl_pcie_rx_stop(struct iwl_trans *trans)
 /*
  * iwl_pcie_rxq_inc_wr_ptr - Update the write pointer for the RX queue
  */
-static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans)
+static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
+				    struct iwl_rxq *rxq)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	u32 reg;
 
 	lockdep_assert_held(&rxq->lock);
@@ -201,41 +207,84 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans)
 	}
 
 	rxq->write_actual = round_down(rxq->write, 8);
-	iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
+	if (trans->cfg->mq_rx_supported)
+		iwl_write_prph(trans, RFH_Q_FRBDCB_WIDX(rxq->id),
+			       rxq->write_actual);
+	else
+		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
 }
 
 static void iwl_pcie_rxq_check_wrptr(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
+	int i;
 
-	spin_lock(&rxq->lock);
+	for (i = 0; i < trans->num_rx_queues; i++) {
+		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
 
-	if (!rxq->need_update)
-		goto exit_unlock;
-
-	iwl_pcie_rxq_inc_wr_ptr(trans);
-	rxq->need_update = false;
-
- exit_unlock:
-	spin_unlock(&rxq->lock);
+		if (!rxq->need_update)
+			continue;
+		spin_lock(&rxq->lock);
+		iwl_pcie_rxq_inc_wr_ptr(trans, rxq);
+		rxq->need_update = false;
+		spin_unlock(&rxq->lock);
+	}
 }
 
 /*
- * iwl_pcie_rxq_restock - refill RX queue from pre-allocated pool
- *
- * If there are slots in the RX queue that need to be restocked,
- * and we have free pre-allocated buffers, fill the ranks as much
- * as we can, pulling from rx_free.
- *
- * This moves the 'write' index forward to catch up with 'processed', and
- * also updates the memory address in the firmware to reference the new
- * target buffer.
+ * iwl_pcie_rxq_mq_restock - restock implementation for multi-queue rx
  */
-static void iwl_pcie_rxq_restock(struct iwl_trans *trans)
+static void iwl_pcie_rxq_mq_restock(struct iwl_trans *trans,
+				    struct iwl_rxq *rxq)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
+	struct iwl_rx_mem_buffer *rxb;
+
+	/*
+	 * If the device isn't enabled - no need to try to add buffers...
+	 * This can happen when we stop the device and still have an interrupt
+	 * pending. We stop the APM before we sync the interrupts because we
+	 * have to (see comment there). On the other hand, since the APM is
+	 * stopped, we cannot access the HW (in particular not prph).
+	 * So don't try to restock if the APM has been already stopped.
+	 */
+	if (!test_bit(STATUS_DEVICE_ENABLED, &trans->status))
+		return;
+
+	spin_lock(&rxq->lock);
+	while (rxq->free_count) {
+		__le64 *bd = (__le64 *)rxq->bd;
+
+		/* Get next free Rx buffer, remove from free list */
+		rxb = list_first_entry(&rxq->rx_free, struct iwl_rx_mem_buffer,
+				       list);
+		list_del(&rxb->list);
+
+		/* 12 first bits are expected to be empty */
+		WARN_ON(rxb->page_dma & DMA_BIT_MASK(12));
+		/* Point to Rx buffer via next RBD in circular buffer */
+		bd[rxq->write] = cpu_to_le64(rxb->page_dma | rxb->vid);
+		rxq->write = (rxq->write + 1) & MQ_RX_TABLE_MASK;
+		rxq->free_count--;
+	}
+	spin_unlock(&rxq->lock);
+
+	/*
+	 * If we've added more space for the firmware to place data, tell it.
+	 * Increment device's write pointer in multiples of 8.
+	 */
+	if (rxq->write_actual != (rxq->write & ~0x7)) {
+		spin_lock(&rxq->lock);
+		iwl_pcie_rxq_inc_wr_ptr(trans, rxq);
+		spin_unlock(&rxq->lock);
+	}
+}
+
+/*
+ * iwl_pcie_rxq_sq_restock - restock implementation for single queue rx
+ */
+static void iwl_pcie_rxq_sq_restock(struct iwl_trans *trans,
+				    struct iwl_rxq *rxq)
+{
 	struct iwl_rx_mem_buffer *rxb;
 
 	/*
@@ -251,6 +300,7 @@ static void iwl_pcie_rxq_restock(struct iwl_trans *trans)
 
 	spin_lock(&rxq->lock);
 	while ((iwl_rxq_space(rxq) > 0) && (rxq->free_count)) {
+		__le32 *bd = (__le32 *)rxq->bd;
 		/* The overwritten rxb must be a used one */
 		rxb = rxq->queue[rxq->write];
 		BUG_ON(rxb && rxb->page);
@@ -261,7 +311,7 @@ static void iwl_pcie_rxq_restock(struct iwl_trans *trans)
 		list_del(&rxb->list);
 
 		/* Point to Rx buffer via next RBD in circular buffer */
-		rxq->bd[rxq->write] = iwl_pcie_dma_addr2rbd_ptr(rxb->page_dma);
+		bd[rxq->write] = iwl_pcie_dma_addr2rbd_ptr(rxb->page_dma);
 		rxq->queue[rxq->write] = rxb;
 		rxq->write = (rxq->write + 1) & RX_QUEUE_MASK;
 		rxq->free_count--;
@@ -272,9 +322,29 @@ static void iwl_pcie_rxq_restock(struct iwl_trans *trans)
 	 * Increment device's write pointer in multiples of 8. */
 	if (rxq->write_actual != (rxq->write & ~0x7)) {
 		spin_lock(&rxq->lock);
-		iwl_pcie_rxq_inc_wr_ptr(trans);
+		iwl_pcie_rxq_inc_wr_ptr(trans, rxq);
 		spin_unlock(&rxq->lock);
 	}
+}
+
+/*
+ * iwl_pcie_rxq_restock - refill RX queue from pre-allocated pool
+ *
+ * If there are slots in the RX queue that need to be restocked,
+ * and we have free pre-allocated buffers, fill the ranks as much
+ * as we can, pulling from rx_free.
+ *
+ * This moves the 'write' index forward to catch up with 'processed', and
+ * also updates the memory address in the firmware to reference the new
+ * target buffer.
+ */
+static
+void iwl_pcie_rxq_restock(struct iwl_trans *trans, struct iwl_rxq *rxq)
+{
+	if (trans->cfg->mq_rx_supported)
+		iwl_pcie_rxq_mq_restock(trans, rxq);
+	else
+		iwl_pcie_rxq_sq_restock(trans, rxq);
 }
 
 /*
@@ -285,12 +355,8 @@ static struct page *iwl_pcie_rx_alloc_page(struct iwl_trans *trans,
 					   gfp_t priority)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	struct page *page;
 	gfp_t gfp_mask = priority;
-
-	if (rxq->free_count > RX_LOW_WATERMARK)
-		gfp_mask |= __GFP_NOWARN;
 
 	if (trans_pcie->rx_page_order > 0)
 		gfp_mask |= __GFP_COMP;
@@ -301,16 +367,13 @@ static struct page *iwl_pcie_rx_alloc_page(struct iwl_trans *trans,
 		if (net_ratelimit())
 			IWL_DEBUG_INFO(trans, "alloc_pages failed, order: %d\n",
 				       trans_pcie->rx_page_order);
-		/* Issue an error if the hardware has consumed more than half
-		 * of its free buffer list and we don't have enough
-		 * pre-allocated buffers.
+		/*
+		 * Issue an error if we don't have enough pre-allocated
+		  * buffers.
 `		 */
-		if (rxq->free_count <= RX_LOW_WATERMARK &&
-		    iwl_rxq_space(rxq) > (RX_QUEUE_SIZE / 2) &&
-		    net_ratelimit())
+		if (!(gfp_mask & __GFP_NOWARN) && net_ratelimit())
 			IWL_CRIT(trans,
-				 "Failed to alloc_pages with GFP_KERNEL. Only %u free buffers remaining.\n",
-				 rxq->free_count);
+				 "Failed to alloc_pages\n");
 		return NULL;
 	}
 	return page;
@@ -325,10 +388,10 @@ static struct page *iwl_pcie_rx_alloc_page(struct iwl_trans *trans,
  * iwl_pcie_rxq_restock. The latter function will update the HW to use the newly
  * allocated buffers.
  */
-static void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority)
+static void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority,
+				   struct iwl_rxq *rxq)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	struct iwl_rx_mem_buffer *rxb;
 	struct page *page;
 
@@ -372,10 +435,6 @@ static void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority)
 			__free_pages(page, trans_pcie->rx_page_order);
 			return;
 		}
-		/* dma address must be no more than 36 bits */
-		BUG_ON(rxb->page_dma & ~DMA_BIT_MASK(36));
-		/* and also 256 byte aligned! */
-		BUG_ON(rxb->page_dma & DMA_BIT_MASK(8));
 
 		spin_lock(&rxq->lock);
 
@@ -386,38 +445,21 @@ static void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority)
 	}
 }
 
-static void iwl_pcie_rxq_free_rbs(struct iwl_trans *trans)
+static void iwl_pcie_free_rbs_pool(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	int i;
 
-	lockdep_assert_held(&rxq->lock);
-
-	for (i = 0; i < RX_QUEUE_SIZE; i++) {
-		if (!rxq->pool[i].page)
+	for (i = 0; i < RX_POOL_SIZE; i++) {
+		if (!trans_pcie->rx_pool[i].page)
 			continue;
-		dma_unmap_page(trans->dev, rxq->pool[i].page_dma,
+		dma_unmap_page(trans->dev, trans_pcie->rx_pool[i].page_dma,
 			       PAGE_SIZE << trans_pcie->rx_page_order,
 			       DMA_FROM_DEVICE);
-		__free_pages(rxq->pool[i].page, trans_pcie->rx_page_order);
-		rxq->pool[i].page = NULL;
+		__free_pages(trans_pcie->rx_pool[i].page,
+			     trans_pcie->rx_page_order);
+		trans_pcie->rx_pool[i].page = NULL;
 	}
-}
-
-/*
- * iwl_pcie_rx_replenish - Move all used buffers from rx_used to rx_free
- *
- * When moving to rx_free an page is allocated for the slot.
- *
- * Also restock the Rx queue via iwl_pcie_rxq_restock.
- * This is called only during initialization
- */
-static void iwl_pcie_rx_replenish(struct iwl_trans *trans)
-{
-	iwl_pcie_rxq_alloc_rbs(trans, GFP_KERNEL);
-
-	iwl_pcie_rxq_restock(trans);
 }
 
 /*
@@ -444,6 +486,11 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 	while (pending) {
 		int i;
 		struct list_head local_allocated;
+		gfp_t gfp_mask = GFP_KERNEL;
+
+		/* Do not post a warning if there are only a few requests */
+		if (pending < RX_PENDING_WATERMARK)
+			gfp_mask |= __GFP_NOWARN;
 
 		INIT_LIST_HEAD(&local_allocated);
 
@@ -463,7 +510,7 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 			BUG_ON(rxb->page);
 
 			/* Alloc a new receive buffer */
-			page = iwl_pcie_rx_alloc_page(trans, GFP_KERNEL);
+			page = iwl_pcie_rx_alloc_page(trans, gfp_mask);
 			if (!page)
 				continue;
 			rxb->page = page;
@@ -477,10 +524,6 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 				__free_pages(page, trans_pcie->rx_page_order);
 				continue;
 			}
-			/* dma address must be no more than 36 bits */
-			BUG_ON(rxb->page_dma & ~DMA_BIT_MASK(36));
-			/* and also 256 byte aligned! */
-			BUG_ON(rxb->page_dma & DMA_BIT_MASK(8));
 
 			/* move the allocated entry to the out list */
 			list_move(&rxb->list, &local_allocated);
@@ -512,40 +555,46 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 }
 
 /*
- * iwl_pcie_rx_allocator_get - Returns the pre-allocated pages
+ * iwl_pcie_rx_allocator_get - returns the pre-allocated pages
 .*
 .* Called by queue when the queue posted allocation request and
  * has freed 8 RBDs in order to restock itself.
+ * This function directly moves the allocated RBs to the queue's ownership
+ * and updates the relevant counters.
  */
-static int iwl_pcie_rx_allocator_get(struct iwl_trans *trans,
-				     struct iwl_rx_mem_buffer
-				     *out[RX_CLAIM_REQ_ALLOC])
+static void iwl_pcie_rx_allocator_get(struct iwl_trans *trans,
+				      struct iwl_rxq *rxq)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
 	int i;
 
+	lockdep_assert_held(&rxq->lock);
+
 	/*
 	 * atomic_dec_if_positive returns req_ready - 1 for any scenario.
 	 * If req_ready is 0 atomic_dec_if_positive will return -1 and this
-	 * function will return -ENOMEM, as there are no ready requests.
+	 * function will return early, as there are no ready requests.
 	 * atomic_dec_if_positive will perofrm the *actual* decrement only if
 	 * req_ready > 0, i.e. - there are ready requests and the function
 	 * hands one request to the caller.
 	 */
 	if (atomic_dec_if_positive(&rba->req_ready) < 0)
-		return -ENOMEM;
+		return;
 
 	spin_lock(&rba->lock);
 	for (i = 0; i < RX_CLAIM_REQ_ALLOC; i++) {
 		/* Get next free Rx buffer, remove it from free list */
-		out[i] = list_first_entry(&rba->rbd_allocated,
-			       struct iwl_rx_mem_buffer, list);
-		list_del(&out[i]->list);
+		struct iwl_rx_mem_buffer *rxb =
+			list_first_entry(&rba->rbd_allocated,
+					 struct iwl_rx_mem_buffer, list);
+
+		list_move(&rxb->list, &rxq->rx_free);
 	}
 	spin_unlock(&rba->lock);
 
-	return 0;
+	rxq->used_count -= RX_CLAIM_REQ_ALLOC;
+	rxq->free_count += RX_CLAIM_REQ_ALLOC;
 }
 
 static void iwl_pcie_rx_allocator_work(struct work_struct *data)
@@ -561,38 +610,83 @@ static void iwl_pcie_rx_allocator_work(struct work_struct *data)
 static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
 	struct device *dev = trans->dev;
+	int i;
+	int free_size = trans->cfg->mq_rx_supported ? sizeof(__le64) :
+						      sizeof(__le32);
 
-	memset(&trans_pcie->rxq, 0, sizeof(trans_pcie->rxq));
-
-	spin_lock_init(&rxq->lock);
-	spin_lock_init(&rba->lock);
-
-	if (WARN_ON(rxq->bd || rxq->rb_stts))
+	if (WARN_ON(trans_pcie->rxq))
 		return -EINVAL;
 
-	/* Allocate the circular buffer of Read Buffer Descriptors (RBDs) */
-	rxq->bd = dma_zalloc_coherent(dev, sizeof(__le32) * RX_QUEUE_SIZE,
-				      &rxq->bd_dma, GFP_KERNEL);
-	if (!rxq->bd)
-		goto err_bd;
+	trans_pcie->rxq = kcalloc(trans->num_rx_queues, sizeof(struct iwl_rxq),
+				  GFP_KERNEL);
+	if (!trans_pcie->rxq)
+		return -EINVAL;
 
-	/*Allocate the driver's pointer to receive buffer status */
-	rxq->rb_stts = dma_zalloc_coherent(dev, sizeof(*rxq->rb_stts),
-					   &rxq->rb_stts_dma, GFP_KERNEL);
-	if (!rxq->rb_stts)
-		goto err_rb_stts;
+	spin_lock_init(&rba->lock);
 
+	for (i = 0; i < trans->num_rx_queues; i++) {
+		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
+
+		spin_lock_init(&rxq->lock);
+		if (trans->cfg->mq_rx_supported)
+			rxq->queue_size = MQ_RX_TABLE_SIZE;
+		else
+			rxq->queue_size = RX_QUEUE_SIZE;
+
+		/*
+		 * Allocate the circular buffer of Read Buffer Descriptors
+		 * (RBDs)
+		 */
+		rxq->bd = dma_zalloc_coherent(dev,
+					     free_size * rxq->queue_size,
+					     &rxq->bd_dma, GFP_KERNEL);
+		if (!rxq->bd)
+			goto err;
+
+		if (trans->cfg->mq_rx_supported) {
+			rxq->used_bd = dma_zalloc_coherent(dev,
+							   sizeof(__le32) *
+							   rxq->queue_size,
+							   &rxq->used_bd_dma,
+							   GFP_KERNEL);
+			if (!rxq->used_bd)
+				goto err;
+		}
+
+		/*Allocate the driver's pointer to receive buffer status */
+		rxq->rb_stts = dma_zalloc_coherent(dev, sizeof(*rxq->rb_stts),
+						   &rxq->rb_stts_dma,
+						   GFP_KERNEL);
+		if (!rxq->rb_stts)
+			goto err;
+	}
 	return 0;
 
-err_rb_stts:
-	dma_free_coherent(dev, sizeof(__le32) * RX_QUEUE_SIZE,
-			  rxq->bd, rxq->bd_dma);
-	rxq->bd_dma = 0;
-	rxq->bd = NULL;
-err_bd:
+err:
+	for (i = 0; i < trans->num_rx_queues; i++) {
+		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
+
+		if (rxq->bd)
+			dma_free_coherent(dev, free_size * rxq->queue_size,
+					  rxq->bd, rxq->bd_dma);
+		rxq->bd_dma = 0;
+		rxq->bd = NULL;
+
+		if (rxq->rb_stts)
+			dma_free_coherent(trans->dev,
+					  sizeof(struct iwl_rb_status),
+					  rxq->rb_stts, rxq->rb_stts_dma);
+
+		if (rxq->used_bd)
+			dma_free_coherent(dev, sizeof(__le32) * rxq->queue_size,
+					  rxq->used_bd, rxq->used_bd_dma);
+		rxq->used_bd_dma = 0;
+		rxq->used_bd = NULL;
+	}
+	kfree(trans_pcie->rxq);
+
 	return -ENOMEM;
 }
 
@@ -659,65 +753,112 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 		iwl_set_bit(trans, CSR_INT_COALESCING, IWL_HOST_INT_OPER_MODE);
 }
 
-static void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
+static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	u32 rb_size, enabled = 0;
 	int i;
 
+	switch (trans_pcie->rx_buf_size) {
+	case IWL_AMSDU_4K:
+		rb_size = RFH_RXF_DMA_RB_SIZE_4K;
+		break;
+	case IWL_AMSDU_8K:
+		rb_size = RFH_RXF_DMA_RB_SIZE_8K;
+		break;
+	case IWL_AMSDU_12K:
+		rb_size = RFH_RXF_DMA_RB_SIZE_12K;
+		break;
+	default:
+		WARN_ON(1);
+		rb_size = RFH_RXF_DMA_RB_SIZE_4K;
+	}
+
+	/* Stop Rx DMA */
+	iwl_write_prph(trans, RFH_RXF_DMA_CFG, 0);
+	/* disable free amd used rx queue operation */
+	iwl_write_prph(trans, RFH_RXF_RXQ_ACTIVE, 0);
+
+	for (i = 0; i < trans->num_rx_queues; i++) {
+		/* Tell device where to find RBD free table in DRAM */
+		iwl_pcie_write_prph_64(trans, RFH_Q_FRBDCB_BA_LSB(i),
+				       (u64)(trans_pcie->rxq[i].bd_dma));
+		/* Tell device where to find RBD used table in DRAM */
+		iwl_pcie_write_prph_64(trans, RFH_Q_URBDCB_BA_LSB(i),
+				       (u64)(trans_pcie->rxq[i].used_bd_dma));
+		/* Tell device where in DRAM to update its Rx status */
+		iwl_pcie_write_prph_64(trans, RFH_Q_URBD_STTS_WPTR_LSB(i),
+				       trans_pcie->rxq[i].rb_stts_dma);
+		/* Reset device indice tables */
+		iwl_write_prph(trans, RFH_Q_FRBDCB_WIDX(i), 0);
+		iwl_write_prph(trans, RFH_Q_FRBDCB_RIDX(i), 0);
+		iwl_write_prph(trans, RFH_Q_URBDCB_WIDX(i), 0);
+
+		enabled |= BIT(i) | BIT(i + 16);
+	}
+
+	/* restock default queue */
+	iwl_pcie_rxq_mq_restock(trans, &trans_pcie->rxq[0]);
+
+	/*
+	 * Enable Rx DMA
+	 * Single frame mode
+	 * Rx buffer size 4 or 8k or 12k
+	 * Min RB size 4 or 8
+	 * Drop frames that exceed RB size
+	 * 512 RBDs
+	 */
+	iwl_write_prph(trans, RFH_RXF_DMA_CFG,
+		       RFH_DMA_EN_ENABLE_VAL |
+		       rb_size | RFH_RXF_DMA_SINGLE_FRAME_MASK |
+		       RFH_RXF_DMA_MIN_RB_4_8 |
+		       RFH_RXF_DMA_DROP_TOO_LARGE_MASK |
+		       RFH_RXF_DMA_RBDCB_SIZE_512);
+
+	/*
+	 * Activate DMA snooping.
+	 * Set RX DMA chunk size to 64B
+	 * Default queue is 0
+	 */
+	iwl_write_prph(trans, RFH_GEN_CFG, RFH_GEN_CFG_RFH_DMA_SNOOP |
+		       (DEFAULT_RXQ_NUM << RFH_GEN_CFG_DEFAULT_RXQ_NUM_POS) |
+		       RFH_GEN_CFG_SERVICE_DMA_SNOOP);
+	/* Enable the relevant rx queues */
+	iwl_write_prph(trans, RFH_RXF_RXQ_ACTIVE, enabled);
+
+	/* Set interrupt coalescing timer to default (2048 usecs) */
+	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
+}
+
+static void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
+{
 	lockdep_assert_held(&rxq->lock);
 
 	INIT_LIST_HEAD(&rxq->rx_free);
 	INIT_LIST_HEAD(&rxq->rx_used);
 	rxq->free_count = 0;
 	rxq->used_count = 0;
-
-	for (i = 0; i < RX_QUEUE_SIZE; i++)
-		list_add(&rxq->pool[i].list, &rxq->rx_used);
 }
 
-static void iwl_pcie_rx_init_rba(struct iwl_rb_allocator *rba)
+static int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget)
 {
-	int i;
-
-	lockdep_assert_held(&rba->lock);
-
-	INIT_LIST_HEAD(&rba->rbd_allocated);
-	INIT_LIST_HEAD(&rba->rbd_empty);
-
-	for (i = 0; i < RX_POOL_SIZE; i++)
-		list_add(&rba->pool[i].list, &rba->rbd_empty);
-}
-
-static void iwl_pcie_rx_free_rba(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rb_allocator *rba = &trans_pcie->rba;
-	int i;
-
-	lockdep_assert_held(&rba->lock);
-
-	for (i = 0; i < RX_POOL_SIZE; i++) {
-		if (!rba->pool[i].page)
-			continue;
-		dma_unmap_page(trans->dev, rba->pool[i].page_dma,
-			       PAGE_SIZE << trans_pcie->rx_page_order,
-			       DMA_FROM_DEVICE);
-		__free_pages(rba->pool[i].page, trans_pcie->rx_page_order);
-		rba->pool[i].page = NULL;
-	}
+	WARN_ON(1);
+	return 0;
 }
 
 int iwl_pcie_rx_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
+	struct iwl_rxq *def_rxq;
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
-	int i, err;
+	int i, err, queue_size, allocator_pool_size, num_alloc;
 
-	if (!rxq->bd) {
+	if (!trans_pcie->rxq) {
 		err = iwl_pcie_rx_alloc(trans);
 		if (err)
 			return err;
 	}
+	def_rxq = trans_pcie->rxq;
 	if (!rba->alloc_wq)
 		rba->alloc_wq = alloc_workqueue("rb_allocator",
 						WQ_HIGHPRI | WQ_UNBOUND, 1);
@@ -726,34 +867,69 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	spin_lock(&rba->lock);
 	atomic_set(&rba->req_pending, 0);
 	atomic_set(&rba->req_ready, 0);
-	/* free all first - we might be reconfigured for a different size */
-	iwl_pcie_rx_free_rba(trans);
-	iwl_pcie_rx_init_rba(rba);
+	INIT_LIST_HEAD(&rba->rbd_allocated);
+	INIT_LIST_HEAD(&rba->rbd_empty);
 	spin_unlock(&rba->lock);
 
-	spin_lock(&rxq->lock);
-
 	/* free all first - we might be reconfigured for a different size */
-	iwl_pcie_rxq_free_rbs(trans);
-	iwl_pcie_rx_init_rxb_lists(rxq);
+	iwl_pcie_free_rbs_pool(trans);
 
 	for (i = 0; i < RX_QUEUE_SIZE; i++)
-		rxq->queue[i] = NULL;
+		def_rxq->queue[i] = NULL;
 
-	/* Set us so that we have processed and used all buffers, but have
-	 * not restocked the Rx queue with fresh buffers */
-	rxq->read = rxq->write = 0;
-	rxq->write_actual = 0;
-	memset(rxq->rb_stts, 0, sizeof(*rxq->rb_stts));
-	spin_unlock(&rxq->lock);
+	for (i = 0; i < trans->num_rx_queues; i++) {
+		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
 
-	iwl_pcie_rx_replenish(trans);
+		rxq->id = i;
 
-	iwl_pcie_rx_hw_init(trans, rxq);
+		spin_lock(&rxq->lock);
+		/*
+		 * Set read write pointer to reflect that we have processed
+		 * and used all buffers, but have not restocked the Rx queue
+		 * with fresh buffers
+		 */
+		rxq->read = 0;
+		rxq->write = 0;
+		rxq->write_actual = 0;
+		memset(rxq->rb_stts, 0, sizeof(*rxq->rb_stts));
 
-	spin_lock(&rxq->lock);
-	iwl_pcie_rxq_inc_wr_ptr(trans);
-	spin_unlock(&rxq->lock);
+		iwl_pcie_rx_init_rxb_lists(rxq);
+
+		if (!rxq->napi.poll)
+			netif_napi_add(&trans_pcie->napi_dev, &rxq->napi,
+				       iwl_pcie_dummy_napi_poll, 64);
+
+		spin_unlock(&rxq->lock);
+	}
+
+	/* move the pool to the default queue and allocator ownerships */
+	queue_size = trans->cfg->mq_rx_supported ?
+		     MQ_RX_NUM_RBDS : RX_QUEUE_SIZE;
+	allocator_pool_size = trans->num_rx_queues *
+		(RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC);
+	num_alloc = queue_size + allocator_pool_size;
+	for (i = 0; i < num_alloc; i++) {
+		struct iwl_rx_mem_buffer *rxb = &trans_pcie->rx_pool[i];
+
+		if (i < allocator_pool_size)
+			list_add(&rxb->list, &rba->rbd_empty);
+		else
+			list_add(&rxb->list, &def_rxq->rx_used);
+		trans_pcie->global_table[i] = rxb;
+		rxb->vid = (u16)i;
+	}
+
+	iwl_pcie_rxq_alloc_rbs(trans, GFP_KERNEL, def_rxq);
+	if (trans->cfg->mq_rx_supported) {
+		iwl_pcie_rx_mq_hw_init(trans);
+	} else {
+		iwl_pcie_rxq_sq_restock(trans, def_rxq);
+		iwl_pcie_rx_hw_init(trans, def_rxq);
+	}
+
+	spin_lock(&def_rxq->lock);
+	iwl_pcie_rxq_inc_wr_ptr(trans, def_rxq);
+	spin_unlock(&def_rxq->lock);
 
 	return 0;
 }
@@ -761,12 +937,16 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 void iwl_pcie_rx_free(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
+	int free_size = trans->cfg->mq_rx_supported ? sizeof(__le64) :
+					      sizeof(__le32);
+	int i;
 
-	/*if rxq->bd is NULL, it means that nothing has been allocated,
-	 * exit now */
-	if (!rxq->bd) {
+	/*
+	 * if rxq is NULL, it means that nothing has been allocated,
+	 * exit now
+	 */
+	if (!trans_pcie->rxq) {
 		IWL_DEBUG_INFO(trans, "Free NULL rx context\n");
 		return;
 	}
@@ -777,27 +957,37 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 		rba->alloc_wq = NULL;
 	}
 
-	spin_lock(&rba->lock);
-	iwl_pcie_rx_free_rba(trans);
-	spin_unlock(&rba->lock);
+	iwl_pcie_free_rbs_pool(trans);
 
-	spin_lock(&rxq->lock);
-	iwl_pcie_rxq_free_rbs(trans);
-	spin_unlock(&rxq->lock);
+	for (i = 0; i < trans->num_rx_queues; i++) {
+		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
 
-	dma_free_coherent(trans->dev, sizeof(__le32) * RX_QUEUE_SIZE,
-			  rxq->bd, rxq->bd_dma);
-	rxq->bd_dma = 0;
-	rxq->bd = NULL;
+		if (rxq->bd)
+			dma_free_coherent(trans->dev,
+					  free_size * rxq->queue_size,
+					  rxq->bd, rxq->bd_dma);
+		rxq->bd_dma = 0;
+		rxq->bd = NULL;
 
-	if (rxq->rb_stts)
-		dma_free_coherent(trans->dev,
-				  sizeof(struct iwl_rb_status),
-				  rxq->rb_stts, rxq->rb_stts_dma);
-	else
-		IWL_DEBUG_INFO(trans, "Free rxq->rb_stts which is NULL\n");
-	rxq->rb_stts_dma = 0;
-	rxq->rb_stts = NULL;
+		if (rxq->rb_stts)
+			dma_free_coherent(trans->dev,
+					  sizeof(struct iwl_rb_status),
+					  rxq->rb_stts, rxq->rb_stts_dma);
+		else
+			IWL_DEBUG_INFO(trans,
+				       "Free rxq->rb_stts which is NULL\n");
+
+		if (rxq->used_bd)
+			dma_free_coherent(trans->dev,
+					  sizeof(__le32) * rxq->queue_size,
+					  rxq->used_bd, rxq->used_bd_dma);
+		rxq->used_bd_dma = 0;
+		rxq->used_bd = NULL;
+
+		if (rxq->napi.poll)
+			netif_napi_del(&rxq->napi);
+	}
+	kfree(trans_pcie->rxq);
 }
 
 /*
@@ -841,11 +1031,11 @@ static void iwl_pcie_rx_reuse_rbd(struct iwl_trans *trans,
 }
 
 static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
+				struct iwl_rxq *rxq,
 				struct iwl_rx_mem_buffer *rxb,
 				bool emergency)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	struct iwl_txq *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
 	bool page_stolen = false;
 	int max_len = PAGE_SIZE << trans_pcie->rx_page_order;
@@ -911,7 +1101,12 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		index = SEQ_TO_INDEX(sequence);
 		cmd_index = get_cmd_index(&txq->q, index);
 
-		iwl_op_mode_rx(trans->op_mode, &trans_pcie->napi, &rxcb);
+		if (rxq->id == 0)
+			iwl_op_mode_rx(trans->op_mode, &rxq->napi,
+				       &rxcb);
+		else
+			iwl_op_mode_rx_rss(trans->op_mode, &rxq->napi,
+					   &rxcb, rxq->id);
 
 		if (reclaim) {
 			kzfree(txq->entries[cmd_index].free_buf);
@@ -972,11 +1167,11 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 /*
  * iwl_pcie_rx_handle - Main entry function for receiving responses from fw
  */
-static void iwl_pcie_rx_handle(struct iwl_trans *trans)
+static void iwl_pcie_rx_handle(struct iwl_trans *trans, int queue)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
-	u32 r, i, j, count = 0;
+	struct iwl_rxq *rxq = &trans_pcie->rxq[queue];
+	u32 r, i, count = 0;
 	bool emergency = false;
 
 restart:
@@ -986,80 +1181,73 @@ restart:
 	r = le16_to_cpu(ACCESS_ONCE(rxq->rb_stts->closed_rb_num)) & 0x0FFF;
 	i = rxq->read;
 
+	/* W/A 9000 device step A0 wrap-around bug */
+	r &= (rxq->queue_size - 1);
+
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
-		IWL_DEBUG_RX(trans, "HW = SW = %d\n", r);
+		IWL_DEBUG_RX(trans, "Q %d: HW = SW = %d\n", rxq->id, r);
 
 	while (i != r) {
 		struct iwl_rx_mem_buffer *rxb;
 
-		if (unlikely(rxq->used_count == RX_QUEUE_SIZE / 2))
+		if (unlikely(rxq->used_count == rxq->queue_size / 2))
 			emergency = true;
 
-		rxb = rxq->queue[i];
-		rxq->queue[i] = NULL;
+		if (trans->cfg->mq_rx_supported) {
+			/*
+			 * used_bd is a 32 bit but only 12 are used to retrieve
+			 * the vid
+			 */
+			u16 vid = le32_to_cpu(rxq->used_bd[i]) & 0x0FFF;
 
-		IWL_DEBUG_RX(trans, "rxbuf: HW = %d, SW = %d\n", r, i);
-		iwl_pcie_rx_handle_rb(trans, rxb, emergency);
-
-		i = (i + 1) & RX_QUEUE_MASK;
-
-		/* If we have RX_CLAIM_REQ_ALLOC released rx buffers -
-		 * try to claim the pre-allocated buffers from the allocator */
-		if (rxq->used_count >= RX_CLAIM_REQ_ALLOC) {
-			struct iwl_rb_allocator *rba = &trans_pcie->rba;
-			struct iwl_rx_mem_buffer *out[RX_CLAIM_REQ_ALLOC];
-
-			if (rxq->used_count % RX_CLAIM_REQ_ALLOC == 0 &&
-			    !emergency) {
-				/* Add the remaining 6 empty RBDs
-				* for allocator use
-				 */
-				spin_lock(&rba->lock);
-				list_splice_tail_init(&rxq->rx_used,
-						      &rba->rbd_empty);
-				spin_unlock(&rba->lock);
-			}
-
-			/* If not ready - continue, will try to reclaim later.
-			* No need to reschedule work - allocator exits only on
-			* success */
-			if (!iwl_pcie_rx_allocator_get(trans, out)) {
-				/* If success - then RX_CLAIM_REQ_ALLOC
-				 * buffers were retrieved and should be added
-				 * to free list */
-				rxq->used_count -= RX_CLAIM_REQ_ALLOC;
-				for (j = 0; j < RX_CLAIM_REQ_ALLOC; j++) {
-					list_add_tail(&out[j]->list,
-						      &rxq->rx_free);
-					rxq->free_count++;
-				}
-			}
+			if (WARN(vid >= ARRAY_SIZE(trans_pcie->global_table),
+				 "Invalid rxb index from HW %u\n", (u32)vid))
+				goto out;
+			rxb = trans_pcie->global_table[vid];
+		} else {
+			rxb = rxq->queue[i];
+			rxq->queue[i] = NULL;
 		}
-		if (emergency) {
+
+		IWL_DEBUG_RX(trans, "Q %d: HW = %d, SW = %d\n", rxq->id, r, i);
+		iwl_pcie_rx_handle_rb(trans, rxq, rxb, emergency);
+
+		i = (i + 1) & (rxq->queue_size - 1);
+
+		/*
+		 * If we have RX_CLAIM_REQ_ALLOC released rx buffers -
+		 * try to claim the pre-allocated buffers from the allocator.
+		 * If not ready - will try to reclaim next time.
+		 * There is no need to reschedule work - allocator exits only
+		 * on success
+		 */
+		if (rxq->used_count >= RX_CLAIM_REQ_ALLOC)
+			iwl_pcie_rx_allocator_get(trans, rxq);
+
+		if (rxq->used_count % RX_CLAIM_REQ_ALLOC == 0 && !emergency) {
+			struct iwl_rb_allocator *rba = &trans_pcie->rba;
+
+			/* Add the remaining empty RBDs for allocator use */
+			spin_lock(&rba->lock);
+			list_splice_tail_init(&rxq->rx_used, &rba->rbd_empty);
+			spin_unlock(&rba->lock);
+		} else if (emergency) {
 			count++;
 			if (count == 8) {
 				count = 0;
-				if (rxq->used_count < RX_QUEUE_SIZE / 3)
+				if (rxq->used_count < rxq->queue_size / 3)
 					emergency = false;
+
+				rxq->read = i;
 				spin_unlock(&rxq->lock);
-				iwl_pcie_rxq_alloc_rbs(trans, GFP_ATOMIC);
-				spin_lock(&rxq->lock);
+				iwl_pcie_rxq_alloc_rbs(trans, GFP_ATOMIC, rxq);
+				iwl_pcie_rxq_restock(trans, rxq);
+				goto restart;
 			}
 		}
-		/* handle restock for three cases, can be all of them at once:
-		* - we just pulled buffers from the allocator
-		* - we have 8+ unstolen pages accumulated
-		* - we are in emergency and allocated buffers
-		 */
-		if (rxq->free_count >=  RX_CLAIM_REQ_ALLOC) {
-			rxq->read = i;
-			spin_unlock(&rxq->lock);
-			iwl_pcie_rxq_restock(trans);
-			goto restart;
-		}
 	}
-
+out:
 	/* Backtrack one entry */
 	rxq->read = i;
 	spin_unlock(&rxq->lock);
@@ -1077,10 +1265,60 @@ restart:
 	 * will be restocked by the next call of iwl_pcie_rxq_restock.
 	 */
 	if (unlikely(emergency && count))
-		iwl_pcie_rxq_alloc_rbs(trans, GFP_ATOMIC);
+		iwl_pcie_rxq_alloc_rbs(trans, GFP_ATOMIC, rxq);
 
-	if (trans_pcie->napi.poll)
-		napi_gro_flush(&trans_pcie->napi, false);
+	if (rxq->napi.poll)
+		napi_gro_flush(&rxq->napi, false);
+
+	iwl_pcie_rxq_restock(trans, rxq);
+}
+
+static struct iwl_trans_pcie *iwl_pcie_get_trans_pcie(struct msix_entry *entry)
+{
+	u8 queue = entry->entry;
+	struct msix_entry *entries = entry - queue;
+
+	return container_of(entries, struct iwl_trans_pcie, msix_entries[0]);
+}
+
+static inline void iwl_pcie_clear_irq(struct iwl_trans *trans,
+				      struct msix_entry *entry)
+{
+	/*
+	 * Before sending the interrupt the HW disables it to prevent
+	 * a nested interrupt. This is done by writing 1 to the corresponding
+	 * bit in the mask register. After handling the interrupt, it should be
+	 * re-enabled by clearing this bit. This register is defined as
+	 * write 1 clear (W1C) register, meaning that it's being clear
+	 * by writing 1 to the bit.
+	 */
+	iwl_write_direct32(trans, CSR_MSIX_AUTOMASK_ST_AD, BIT(entry->entry));
+}
+
+/*
+ * iwl_pcie_rx_msix_handle - Main entry function for receiving responses from fw
+ * This interrupt handler should be used with RSS queue only.
+ */
+irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
+{
+	struct msix_entry *entry = dev_id;
+	struct iwl_trans_pcie *trans_pcie = iwl_pcie_get_trans_pcie(entry);
+	struct iwl_trans *trans = trans_pcie->trans;
+
+	if (WARN_ON(entry->entry >= trans->num_rx_queues))
+		return IRQ_NONE;
+
+	lock_map_acquire(&trans->sync_cmd_lockdep_map);
+
+	local_bh_disable();
+	iwl_pcie_rx_handle(trans, entry->entry);
+	local_bh_enable();
+
+	iwl_pcie_clear_irq(trans, entry);
+
+	lock_map_release(&trans->sync_cmd_lockdep_map);
+
+	return IRQ_HANDLED;
 }
 
 /*
@@ -1413,7 +1651,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		isr_stats->rx++;
 
 		local_bh_disable();
-		iwl_pcie_rx_handle(trans);
+		iwl_pcie_rx_handle(trans, 0);
 		local_bh_enable();
 	}
 
@@ -1555,4 +1793,130 @@ irqreturn_t iwl_pcie_isr(int irq, void *data)
 	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
 
 	return IRQ_WAKE_THREAD;
+}
+
+irqreturn_t iwl_pcie_msix_isr(int irq, void *data)
+{
+	return IRQ_WAKE_THREAD;
+}
+
+irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
+{
+	struct msix_entry *entry = dev_id;
+	struct iwl_trans_pcie *trans_pcie = iwl_pcie_get_trans_pcie(entry);
+	struct iwl_trans *trans = trans_pcie->trans;
+	struct isr_statistics *isr_stats = isr_stats = &trans_pcie->isr_stats;
+	u32 inta_fh, inta_hw;
+
+	lock_map_acquire(&trans->sync_cmd_lockdep_map);
+
+	spin_lock(&trans_pcie->irq_lock);
+	inta_fh = iwl_read_direct32(trans, CSR_MSIX_FH_INT_CAUSES_AD);
+	inta_hw = iwl_read_direct32(trans, CSR_MSIX_HW_INT_CAUSES_AD);
+	/*
+	 * Clear causes registers to avoid being handling the same cause.
+	 */
+	iwl_write_direct32(trans, CSR_MSIX_FH_INT_CAUSES_AD, inta_fh);
+	iwl_write_direct32(trans, CSR_MSIX_HW_INT_CAUSES_AD, inta_hw);
+	spin_unlock(&trans_pcie->irq_lock);
+
+	if (unlikely(!(inta_fh | inta_hw))) {
+		IWL_DEBUG_ISR(trans, "Ignore interrupt, inta == 0\n");
+		lock_map_release(&trans->sync_cmd_lockdep_map);
+		return IRQ_NONE;
+	}
+
+	if (iwl_have_debug_level(IWL_DL_ISR))
+		IWL_DEBUG_ISR(trans, "ISR inta_fh 0x%08x, enabled 0x%08x\n",
+			      inta_fh,
+			      iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD));
+
+	/* This "Tx" DMA channel is used only for loading uCode */
+	if (inta_fh & MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
+		IWL_DEBUG_ISR(trans, "uCode load interrupt\n");
+		isr_stats->tx++;
+		/*
+		 * Wake up uCode load routine,
+		 * now that load is complete
+		 */
+		trans_pcie->ucode_write_complete = true;
+		wake_up(&trans_pcie->ucode_write_waitq);
+	}
+
+	/* Error detected by uCode */
+	if ((inta_fh & MSIX_FH_INT_CAUSES_FH_ERR) ||
+	    (inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR)) {
+		IWL_ERR(trans,
+			"Microcode SW error detected. Restarting 0x%X.\n",
+			inta_fh);
+		isr_stats->sw++;
+		iwl_pcie_irq_handle_error(trans);
+	}
+
+	/* After checking FH register check HW register */
+	if (iwl_have_debug_level(IWL_DL_ISR))
+		IWL_DEBUG_ISR(trans,
+			      "ISR inta_hw 0x%08x, enabled 0x%08x\n",
+			      inta_hw,
+			      iwl_read32(trans, CSR_MSIX_HW_INT_MASK_AD));
+
+	/* Alive notification via Rx interrupt will do the real work */
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_ALIVE) {
+		IWL_DEBUG_ISR(trans, "Alive interrupt\n");
+		isr_stats->alive++;
+	}
+
+	/* uCode wakes up after power-down sleep */
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_WAKEUP) {
+		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
+		iwl_pcie_rxq_check_wrptr(trans);
+		iwl_pcie_txq_check_wrptrs(trans);
+
+		isr_stats->wakeup++;
+	}
+
+	/* Chip got too hot and stopped itself */
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_CT_KILL) {
+		IWL_ERR(trans, "Microcode CT kill error detected.\n");
+		isr_stats->ctkill++;
+	}
+
+	/* HW RF KILL switch toggled */
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_RF_KILL) {
+		bool hw_rfkill;
+
+		hw_rfkill = iwl_is_rfkill_set(trans);
+		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
+			 hw_rfkill ? "disable radio" : "enable radio");
+
+		isr_stats->rfkill++;
+
+		mutex_lock(&trans_pcie->mutex);
+		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+		mutex_unlock(&trans_pcie->mutex);
+		if (hw_rfkill) {
+			set_bit(STATUS_RFKILL, &trans->status);
+			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
+					       &trans->status))
+				IWL_DEBUG_RF_KILL(trans,
+						  "Rfkill while SYNC HCMD in flight\n");
+			wake_up(&trans_pcie->wait_command_queue);
+		} else {
+			clear_bit(STATUS_RFKILL, &trans->status);
+		}
+	}
+
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_HW_ERR) {
+		IWL_ERR(trans,
+			"Hardware error detected. Restarting.\n");
+
+		isr_stats->hw++;
+		iwl_pcie_irq_handle_error(trans);
+	}
+
+	iwl_pcie_clear_irq(trans, entry);
+
+	lock_map_release(&trans->sync_cmd_lockdep_map);
+
+	return IRQ_HANDLED;
 }

@@ -296,16 +296,17 @@ struct dsa_switch_driver {
 	/*
 	 * Bridge integration
 	 */
-	int	(*port_join_bridge)(struct dsa_switch *ds, int port,
-				    u32 br_port_mask);
-	int	(*port_leave_bridge)(struct dsa_switch *ds, int port,
-				     u32 br_port_mask);
+	int	(*port_bridge_join)(struct dsa_switch *ds, int port,
+				    struct net_device *bridge);
+	void	(*port_bridge_leave)(struct dsa_switch *ds, int port);
 	int	(*port_stp_update)(struct dsa_switch *ds, int port,
 				   u8 state);
 
 	/*
 	 * VLAN support
 	 */
+	int	(*port_vlan_filtering)(struct dsa_switch *ds, int port,
+				       bool vlan_filtering);
 	int	(*port_vlan_prepare)(struct dsa_switch *ds, int port,
 				     const struct switchdev_obj_port_vlan *vlan,
 				     struct switchdev_trans *trans);
@@ -314,9 +315,9 @@ struct dsa_switch_driver {
 				 struct switchdev_trans *trans);
 	int	(*port_vlan_del)(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_vlan *vlan);
-	int	(*port_pvid_get)(struct dsa_switch *ds, int port, u16 *pvid);
-	int	(*vlan_getnext)(struct dsa_switch *ds, u16 *vid,
-				unsigned long *ports, unsigned long *untagged);
+	int	(*port_vlan_dump)(struct dsa_switch *ds, int port,
+				  struct switchdev_obj_port_vlan *vlan,
+				  int (*cb)(struct switchdev_obj *obj));
 
 	/*
 	 * Forwarding database

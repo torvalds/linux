@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -38,10 +38,10 @@
  * @description: text shown when throughput string cannot be parsed
  * @throughput: pointer holding the returned throughput information
  *
- * Returns false on parse error and true otherwise.
+ * Return: false on parse error and true otherwise.
  */
-static bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
-				    const char *description, u32 *throughput)
+bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
+			     const char *description, u32 *throughput)
 {
 	enum batadv_bandwidth_units bw_unit_type = BATADV_BW_UNIT_KBIT;
 	u64 lthroughput;

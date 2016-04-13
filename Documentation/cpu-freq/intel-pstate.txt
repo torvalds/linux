@@ -25,7 +25,7 @@ callback, so cpufreq core can't request a transition to a specific frequency.
 The driver provides minimum and maximum frequency limits and callbacks to set a
 policy. The policy in cpufreq sysfs is referred to as the "scaling governor".
 The cpufreq core can request the driver to operate in any of the two policies:
-"performance: and "powersave". The driver decides which frequency to use based
+"performance" and "powersave". The driver decides which frequency to use based
 on the above policy selection considering minimum and maximum frequency limits.
 
 The Intel P-State driver falls under the latter category, which implements the

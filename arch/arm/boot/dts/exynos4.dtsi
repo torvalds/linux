@@ -22,6 +22,7 @@
 #include <dt-bindings/clock/exynos4.h>
 #include <dt-bindings/clock/exynos-audss-clk.h>
 #include "skeleton.dtsi"
+#include "exynos-syscon-restart.dtsi"
 
 / {
 	interrupt-parent = <&gic>;
@@ -74,6 +75,11 @@
 	chipid@10000000 {
 		compatible = "samsung,exynos4210-chipid";
 		reg = <0x10000000 0x100>;
+	};
+
+	sromc@12570000 {
+		compatible = "samsung,exynos-srom";
+		reg = <0x12570000 0x14>;
 	};
 
 	mipi_phy: video-phy@10020710 {
@@ -156,20 +162,6 @@
 		interrupt-controller;
 		#interrupt-cells = <3>;
 		interrupt-parent = <&gic>;
-	};
-
-	poweroff: syscon-poweroff {
-		compatible = "syscon-poweroff";
-		regmap = <&pmu_system_controller>;
-		offset = <0x330C>; /* PS_HOLD_CONTROL */
-		mask = <0x5200>; /* reset value */
-	};
-
-	reboot: syscon-reboot {
-		compatible = "syscon-reboot";
-		regmap = <&pmu_system_controller>;
-		offset = <0x0400>; /* SWRESET */
-		mask = <0x1>;
 	};
 
 	dsi_0: dsi@11C80000 {
@@ -661,7 +653,7 @@
 	amba {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "arm,amba-bus";
+		compatible = "simple-bus";
 		interrupt-parent = <&gic>;
 		ranges;
 

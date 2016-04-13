@@ -128,8 +128,8 @@ static void choke_drop_by_idx(struct Qdisc *sch, unsigned int idx)
 		choke_zap_tail_holes(q);
 
 	qdisc_qstats_backlog_dec(sch, skb);
+	qdisc_tree_reduce_backlog(sch, 1, qdisc_pkt_len(skb));
 	qdisc_drop(skb, sch);
-	qdisc_tree_decrease_qlen(sch, 1);
 	--sch->q.qlen;
 }
 
@@ -456,6 +456,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
 		old = q->tab;
 		if (old) {
 			unsigned int oqlen = sch->q.qlen, tail = 0;
+			unsigned dropped = 0;
 
 			while (q->head != q->tail) {
 				struct sk_buff *skb = q->tab[q->head];
@@ -467,11 +468,12 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
 					ntab[tail++] = skb;
 					continue;
 				}
+				dropped += qdisc_pkt_len(skb);
 				qdisc_qstats_backlog_dec(sch, skb);
 				--sch->q.qlen;
 				qdisc_drop(skb, sch);
 			}
-			qdisc_tree_decrease_qlen(sch, oqlen - sch->q.qlen);
+			qdisc_tree_reduce_backlog(sch, oqlen - sch->q.qlen, dropped);
 			q->head = 0;
 			q->tail = tail;
 		}

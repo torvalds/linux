@@ -4,14 +4,13 @@ config RDS
 	depends on INET
 	---help---
 	  The RDS (Reliable Datagram Sockets) protocol provides reliable,
-	  sequenced delivery of datagrams over Infiniband, iWARP,
-	  or TCP.
+	  sequenced delivery of datagrams over Infiniband or TCP.
 
 config RDS_RDMA
-	tristate "RDS over Infiniband and iWARP"
+	tristate "RDS over Infiniband"
 	depends on RDS && INFINIBAND && INFINIBAND_ADDR_TRANS
 	---help---
-	  Allow RDS to use Infiniband and iWARP as a transport.
+	  Allow RDS to use Infiniband as a transport.
 	  This transport supports RDMA operations.
 
 config RDS_TCP

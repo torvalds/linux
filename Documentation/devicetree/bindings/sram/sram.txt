@@ -25,6 +25,11 @@ Required properties in the sram node:
 - ranges : standard definition, should translate from local addresses
            within the sram to bus addresses
 
+Optional properties in the sram node:
+
+- no-memory-wc : the flag indicating, that SRAM memory region has not to
+                 be remapped as write combining. WC is used by default.
+
 Required properties in the area nodes:
 
 - reg : iomem address range, relative to the SRAM range

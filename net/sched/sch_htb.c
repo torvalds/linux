@@ -600,6 +600,7 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		htb_activate(q, cl);
 	}
 
+	qdisc_qstats_backlog_inc(sch, skb);
 	sch->q.qlen++;
 	return NET_XMIT_SUCCESS;
 }
@@ -889,6 +890,7 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 ok:
 		qdisc_bstats_update(sch, skb);
 		qdisc_unthrottled(sch);
+		qdisc_qstats_backlog_dec(sch, skb);
 		sch->q.qlen--;
 		return skb;
 	}
@@ -955,6 +957,7 @@ static unsigned int htb_drop(struct Qdisc *sch)
 			unsigned int len;
 			if (cl->un.leaf.q->ops->drop &&
 			    (len = cl->un.leaf.q->ops->drop(cl->un.leaf.q))) {
+				sch->qstats.backlog -= len;
 				sch->q.qlen--;
 				if (!cl->un.leaf.q->q.qlen)
 					htb_deactivate(q, cl);
@@ -984,12 +987,12 @@ static void htb_reset(struct Qdisc *sch)
 			}
 			cl->prio_activity = 0;
 			cl->cmode = HTB_CAN_SEND;
-
 		}
 	}
 	qdisc_watchdog_cancel(&q->watchdog);
 	__skb_queue_purge(&q->direct_queue);
 	sch->q.qlen = 0;
+	sch->qstats.backlog = 0;
 	memset(q->hlevel, 0, sizeof(q->hlevel));
 	memset(q->row_mask, 0, sizeof(q->row_mask));
 	for (i = 0; i < TC_HTB_NUMPRIO; i++)
@@ -1163,14 +1166,7 @@ static int htb_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 				     cl->common.classid)) == NULL)
 		return -ENOBUFS;
 
-	sch_tree_lock(sch);
-	*old = cl->un.leaf.q;
-	cl->un.leaf.q = new;
-	if (*old != NULL) {
-		qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
-		qdisc_reset(*old);
-	}
-	sch_tree_unlock(sch);
+	*old = qdisc_replace(sch, new, &cl->un.leaf.q);
 	return 0;
 }
 
@@ -1272,7 +1268,6 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 {
 	struct htb_sched *q = qdisc_priv(sch);
 	struct htb_class *cl = (struct htb_class *)arg;
-	unsigned int qlen;
 	struct Qdisc *new_q = NULL;
 	int last_child = 0;
 
@@ -1292,9 +1287,11 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 	sch_tree_lock(sch);
 
 	if (!cl->level) {
-		qlen = cl->un.leaf.q->q.qlen;
+		unsigned int qlen = cl->un.leaf.q->q.qlen;
+		unsigned int backlog = cl->un.leaf.q->qstats.backlog;
+
 		qdisc_reset(cl->un.leaf.q);
-		qdisc_tree_decrease_qlen(cl->un.leaf.q, qlen);
+		qdisc_tree_reduce_backlog(cl->un.leaf.q, qlen, backlog);
 	}
 
 	/* delete from hash and active; remainder in destroy_class */
@@ -1428,10 +1425,11 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		sch_tree_lock(sch);
 		if (parent && !parent->level) {
 			unsigned int qlen = parent->un.leaf.q->q.qlen;
+			unsigned int backlog = parent->un.leaf.q->qstats.backlog;
 
 			/* turn parent into inner node */
 			qdisc_reset(parent->un.leaf.q);
-			qdisc_tree_decrease_qlen(parent->un.leaf.q, qlen);
+			qdisc_tree_reduce_backlog(parent->un.leaf.q, qlen, backlog);
 			qdisc_destroy(parent->un.leaf.q);
 			if (parent->prio_activity)
 				htb_deactivate(q, parent);

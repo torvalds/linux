@@ -934,10 +934,6 @@ skip_rio:
 			break;
 
 global_port_update:
-			/* Port unavailable. */
-			ql_log(ql_log_warn, vha, 0x505e,
-			    "Link is offline.\n");
-
 			if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 				atomic_set(&vha->loop_state, LOOP_DOWN);
 				atomic_set(&vha->loop_down_timer,

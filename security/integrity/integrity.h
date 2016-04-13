@@ -45,16 +45,12 @@
 #define IMA_MMAP_APPRAISED	0x00000800
 #define IMA_BPRM_APPRAISE	0x00001000
 #define IMA_BPRM_APPRAISED	0x00002000
-#define IMA_MODULE_APPRAISE	0x00004000
-#define IMA_MODULE_APPRAISED	0x00008000
-#define IMA_FIRMWARE_APPRAISE	0x00010000
-#define IMA_FIRMWARE_APPRAISED	0x00020000
+#define IMA_READ_APPRAISE	0x00004000
+#define IMA_READ_APPRAISED	0x00008000
 #define IMA_APPRAISE_SUBMASK	(IMA_FILE_APPRAISE | IMA_MMAP_APPRAISE | \
-				 IMA_BPRM_APPRAISE | IMA_MODULE_APPRAISE | \
-				 IMA_FIRMWARE_APPRAISE)
+				 IMA_BPRM_APPRAISE | IMA_READ_APPRAISE)
 #define IMA_APPRAISED_SUBMASK	(IMA_FILE_APPRAISED | IMA_MMAP_APPRAISED | \
-				 IMA_BPRM_APPRAISED | IMA_MODULE_APPRAISED | \
-				 IMA_FIRMWARE_APPRAISED)
+				 IMA_BPRM_APPRAISED | IMA_READ_APPRAISED)
 
 enum evm_ima_xattr_type {
 	IMA_XATTR_DIGEST = 0x01,
@@ -94,7 +90,7 @@ struct ima_digest_data {
 struct signature_v2_hdr {
 	uint8_t type;		/* xattr type */
 	uint8_t version;	/* signature format version */
-	uint8_t	hash_algo;	/* Digest algorithm [enum pkey_hash_algo] */
+	uint8_t	hash_algo;	/* Digest algorithm [enum hash_algo] */
 	uint32_t keyid;		/* IMA key identifier - not X509/PGP specific */
 	uint16_t sig_size;	/* signature size */
 	uint8_t sig[0];		/* signature payload */
@@ -109,8 +105,7 @@ struct integrity_iint_cache {
 	enum integrity_status ima_file_status:4;
 	enum integrity_status ima_mmap_status:4;
 	enum integrity_status ima_bprm_status:4;
-	enum integrity_status ima_module_status:4;
-	enum integrity_status ima_firmware_status:4;
+	enum integrity_status ima_read_status:4;
 	enum integrity_status evm_status:4;
 	struct ima_digest_data *ima_hash;
 };

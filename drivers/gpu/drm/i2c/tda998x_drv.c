@@ -856,14 +856,6 @@ static void tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
 	priv->dpms = mode;
 }
 
-static bool
-tda998x_encoder_mode_fixup(struct drm_encoder *encoder,
-			  const struct drm_display_mode *mode,
-			  struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static int tda998x_connector_mode_valid(struct drm_connector *connector,
 					struct drm_display_mode *mode)
 {
@@ -1343,7 +1335,6 @@ static void tda998x_encoder_commit(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs tda998x_encoder_helper_funcs = {
 	.dpms = tda998x_encoder_dpms,
-	.mode_fixup = tda998x_encoder_mode_fixup,
 	.prepare = tda998x_encoder_prepare,
 	.commit = tda998x_encoder_commit,
 	.mode_set = tda998x_encoder_mode_set,

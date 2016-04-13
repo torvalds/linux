@@ -58,7 +58,7 @@
  * bulk encryption page pools	   *
  ****************************************/
 
-#define POINTERS_PER_PAGE	(PAGE_CACHE_SIZE / sizeof(void *))
+#define POINTERS_PER_PAGE	(PAGE_SIZE / sizeof(void *))
 #define PAGES_PER_POOL		(POINTERS_PER_PAGE)
 
 #define IDLE_IDX_MAX	 (100)
@@ -120,7 +120,7 @@ static struct ptlrpc_enc_page_pool {
 } page_pools;
 
 /*
- * /proc/fs/lustre/sptlrpc/encrypt_page_pools
+ * /sys/kernel/debug/lustre/sptlrpc/encrypt_page_pools
  */
 int sptlrpc_proc_enc_pool_seq_show(struct seq_file *m, void *v)
 {
@@ -195,7 +195,7 @@ static void enc_pools_release_free_pages(long npages)
 
 	while (npages--) {
 		LASSERT(page_pools.epp_pools[p_idx]);
-		LASSERT(page_pools.epp_pools[p_idx][g_idx] != NULL);
+		LASSERT(page_pools.epp_pools[p_idx][g_idx]);
 
 		__free_page(page_pools.epp_pools[p_idx][g_idx]);
 		page_pools.epp_pools[p_idx][g_idx] = NULL;
@@ -304,7 +304,6 @@ static unsigned long enc_pools_cleanup(struct page ***pools, int npools)
 static inline void enc_pools_wakeup(void)
 {
 	assert_spin_locked(&page_pools.epp_lock);
-	LASSERT(page_pools.epp_waitqlen >= 0);
 
 	if (unlikely(page_pools.epp_waitqlen)) {
 		LASSERT(waitqueue_active(&page_pools.epp_waitq));
@@ -317,7 +316,7 @@ void sptlrpc_enc_pool_put_pages(struct ptlrpc_bulk_desc *desc)
 	int p_idx, g_idx;
 	int i;
 
-	if (desc->bd_enc_iov == NULL)
+	if (!desc->bd_enc_iov)
 		return;
 
 	LASSERT(desc->bd_iov_count > 0);
@@ -332,9 +331,9 @@ void sptlrpc_enc_pool_put_pages(struct ptlrpc_bulk_desc *desc)
 	LASSERT(page_pools.epp_pools[p_idx]);
 
 	for (i = 0; i < desc->bd_iov_count; i++) {
-		LASSERT(desc->bd_enc_iov[i].kiov_page != NULL);
+		LASSERT(desc->bd_enc_iov[i].kiov_page);
 		LASSERT(g_idx != 0 || page_pools.epp_pools[p_idx]);
-		LASSERT(page_pools.epp_pools[p_idx][g_idx] == NULL);
+		LASSERT(!page_pools.epp_pools[p_idx][g_idx]);
 
 		page_pools.epp_pools[p_idx][g_idx] =
 					desc->bd_enc_iov[i].kiov_page;
@@ -413,7 +412,7 @@ int sptlrpc_enc_pool_init(void)
 	page_pools.epp_st_max_wait = 0;
 
 	enc_pools_alloc();
-	if (page_pools.epp_pools == NULL)
+	if (!page_pools.epp_pools)
 		return -ENOMEM;
 
 	register_shrinker(&pools_shrinker);
@@ -476,7 +475,7 @@ int bulk_sec_desc_unpack(struct lustre_msg *msg, int offset, int swabbed)
 	int			  size = msg->lm_buflens[offset];
 
 	bsd = lustre_msg_buf(msg, offset, sizeof(*bsd));
-	if (bsd == NULL) {
+	if (!bsd) {
 		CERROR("Invalid bulk sec desc: size %d\n", size);
 		return -EINVAL;
 	}

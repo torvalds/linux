@@ -88,7 +88,6 @@
 #define   _POSIX_VDISABLE '\0'
 #endif
 
-
 /*
  * All the possible states the driver can be while being loaded.
  */
@@ -105,7 +104,6 @@ enum {
 	BOARD_FOUND,
 	BOARD_READY
 };
-
 
 /*************************************************************************
  *
@@ -144,7 +142,6 @@ struct board_ops {
  * Device flag definitions for bd_flags.
  ************************************************************************/
 #define BD_IS_PCI_EXPRESS     0x0001	  /* Is a PCI Express board */
-
 
 /*
  *	Per-board information
@@ -241,7 +238,6 @@ struct dgnc_board {
 
 };
 
-
 /************************************************************************
  * Unit flag definitions for un_flags.
  ************************************************************************/
@@ -277,7 +273,6 @@ struct un_t {
 	struct device *un_sysfs;
 };
 
-
 /************************************************************************
  * Device flag definitions for ch_flags.
  ************************************************************************/
@@ -300,7 +295,6 @@ struct un_t {
 #define CH_FORCED_STOP  0x20000		/* Output is forcibly stopped	*/
 #define CH_FORCED_STOPI 0x40000		/* Input is forcibly stopped	*/
 
-
 /* Our Read/Error/Write queue sizes */
 #define RQUEUEMASK	0x1FFF		/* 8 K - 1 */
 #define EQUEUEMASK	0x1FFF		/* 8 K - 1 */
@@ -308,7 +302,6 @@ struct un_t {
 #define RQUEUESIZE	(RQUEUEMASK + 1)
 #define EQUEUESIZE	RQUEUESIZE
 #define WQUEUESIZE	(WQUEUEMASK + 1)
-
 
 /************************************************************************
  * Channel information structure.
@@ -396,7 +389,6 @@ struct channel_t {
 	ulong		ch_intr_modem;	/* Count of interrupts */
 	ulong		ch_intr_tx;	/* Count of interrupts */
 	ulong		ch_intr_rx;	/* Count of interrupts */
-
 
 	/* /proc/<board>/<channel> entries */
 	struct proc_dir_entry *proc_entry_pointer;

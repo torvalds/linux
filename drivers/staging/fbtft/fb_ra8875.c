@@ -257,7 +257,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 static int write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 {
 	u16 *vmem16;
-	u16 *txbuf16 = (u16 *)par->txbuf.buf;
+	u16 *txbuf16 = par->txbuf.buf;
 	size_t remain;
 	size_t to_copy;
 	size_t tx_array_size;
@@ -271,13 +271,13 @@ static int write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 	remain = len / 2;
 	vmem16 = (u16 *)(par->info->screen_buffer + offset);
 	tx_array_size = par->txbuf.len / 2;
-		txbuf16 = (u16 *)(par->txbuf.buf + 1);
+		txbuf16 = par->txbuf.buf + 1;
 		tx_array_size -= 2;
 		*(u8 *)(par->txbuf.buf) = 0x00;
 		startbyte_size = 1;
 
 	while (remain) {
-		to_copy = remain > tx_array_size ? tx_array_size : remain;
+		to_copy = min(tx_array_size, remain);
 		dev_dbg(par->info->device, "    to_copy=%zu, remain=%zu\n",
 			to_copy, remain - to_copy);
 

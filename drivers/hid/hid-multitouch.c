@@ -396,6 +396,11 @@ static void mt_feature_mapping(struct hid_device *hdev,
 			td->is_buttonpad = true;
 
 		break;
+	case 0xff0000c5:
+		/* Retrieve the Win8 blob once to enable some devices */
+		if (usage->usage_index == 0)
+			mt_get_feature(hdev, field->report);
+		break;
 	}
 }
 
@@ -1133,6 +1138,9 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 
 	ret = sysfs_create_group(&hdev->dev.kobj, &mt_attribute_group);
+	if (ret)
+		dev_warn(&hdev->dev, "Cannot allocate sysfs group for %s\n",
+				hdev->name);
 
 	mt_set_maxcontacts(hdev);
 	mt_set_input_mode(hdev);
@@ -1145,8 +1153,30 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 }
 
 #ifdef CONFIG_PM
+static void mt_release_contacts(struct hid_device *hid)
+{
+	struct hid_input *hidinput;
+
+	list_for_each_entry(hidinput, &hid->inputs, list) {
+		struct input_dev *input_dev = hidinput->input;
+		struct input_mt *mt = input_dev->mt;
+		int i;
+
+		if (mt) {
+			for (i = 0; i < mt->num_slots; i++) {
+				input_mt_slot(input_dev, i);
+				input_mt_report_slot_state(input_dev,
+							   MT_TOOL_FINGER,
+							   false);
+			}
+			input_sync(input_dev);
+		}
+	}
+}
+
 static int mt_reset_resume(struct hid_device *hdev)
 {
+	mt_release_contacts(hdev);
 	mt_set_maxcontacts(hdev);
 	mt_set_input_mode(hdev);
 	return 0;

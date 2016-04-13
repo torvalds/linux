@@ -992,10 +992,6 @@ static int fimc_lite_link_setup(struct media_entity *entity,
 
 	switch (local->index) {
 	case FLITE_SD_PAD_SINK:
-		if (!is_media_entity_v4l2_subdev(remote->entity)) {
-			ret = -EINVAL;
-			break;
-		}
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (fimc->source_subdev_grp_id == 0)
 				fimc->source_subdev_grp_id = sd->grp_id;
@@ -1010,19 +1006,15 @@ static int fimc_lite_link_setup(struct media_entity *entity,
 	case FLITE_SD_PAD_SOURCE_DMA:
 		if (!(flags & MEDIA_LNK_FL_ENABLED))
 			atomic_set(&fimc->out_path, FIMC_IO_NONE);
-		else if (is_media_entity_v4l2_io(remote->entity))
-			atomic_set(&fimc->out_path, FIMC_IO_DMA);
 		else
-			ret = -EINVAL;
+			atomic_set(&fimc->out_path, FIMC_IO_DMA);
 		break;
 
 	case FLITE_SD_PAD_SOURCE_ISP:
 		if (!(flags & MEDIA_LNK_FL_ENABLED))
 			atomic_set(&fimc->out_path, FIMC_IO_NONE);
-		else if (is_media_entity_v4l2_subdev(remote->entity))
-			atomic_set(&fimc->out_path, FIMC_IO_ISP);
 		else
-			ret = -EINVAL;
+			atomic_set(&fimc->out_path, FIMC_IO_ISP);
 		break;
 
 	default:

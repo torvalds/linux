@@ -217,6 +217,11 @@
 #define	 BCMA_CC_CLKDIV_JTAG_SHIFT	8
 #define	 BCMA_CC_CLKDIV_UART		0x000000FF
 #define BCMA_CC_CAP_EXT			0x00AC		/* Capabilities */
+#define  BCMA_CC_CAP_EXT_SECI_PRESENT	0x00000001
+#define  BCMA_CC_CAP_EXT_GSIO_PRESENT	0x00000002
+#define  BCMA_CC_CAP_EXT_GCI_PRESENT	0x00000004
+#define  BCMA_CC_CAP_EXT_SECI_PUART_PRESENT		0x00000008    /* UART present */
+#define  BCMA_CC_CAP_EXT_AOB_PRESENT	0x00000040
 #define BCMA_CC_PLLONDELAY		0x00B0		/* Rev >= 4 only */
 #define BCMA_CC_FREFSELDELAY		0x00B4		/* Rev >= 4 only */
 #define BCMA_CC_SLOWCLKCTL		0x00B8		/* 6 <= Rev <= 9 only */
@@ -351,12 +356,12 @@
 #define BCMA_CC_PMU_RES_REQTS		0x0640 /* PMU res req timer sel */
 #define BCMA_CC_PMU_RES_REQT		0x0644 /* PMU res req timer */
 #define BCMA_CC_PMU_RES_REQM		0x0648 /* PMU res req mask */
-#define BCMA_CC_CHIPCTL_ADDR		0x0650
-#define BCMA_CC_CHIPCTL_DATA		0x0654
-#define BCMA_CC_REGCTL_ADDR		0x0658
-#define BCMA_CC_REGCTL_DATA		0x065C
-#define BCMA_CC_PLLCTL_ADDR		0x0660
-#define BCMA_CC_PLLCTL_DATA		0x0664
+#define BCMA_CC_PMU_CHIPCTL_ADDR	0x0650
+#define BCMA_CC_PMU_CHIPCTL_DATA	0x0654
+#define BCMA_CC_PMU_REGCTL_ADDR		0x0658
+#define BCMA_CC_PMU_REGCTL_DATA		0x065C
+#define BCMA_CC_PMU_PLLCTL_ADDR		0x0660
+#define BCMA_CC_PMU_PLLCTL_DATA		0x0664
 #define BCMA_CC_PMU_STRAPOPT		0x0668 /* (corerev >= 28) */
 #define BCMA_CC_PMU_XTAL_FREQ		0x066C /* (pmurev >= 10) */
 #define  BCMA_CC_PMU_XTAL_FREQ_ILPCTL_MASK	0x00001FFF
@@ -566,17 +571,16 @@
  * Check availability with ((struct bcma_chipcommon)->capabilities & BCMA_CC_CAP_PMU)
  */
 struct bcma_chipcommon_pmu {
+	struct bcma_device *core;	/* Can be separated core or just ChipCommon one */
 	u8 rev;			/* PMU revision */
 	u32 crystalfreq;	/* The active crystal frequency (in kHz) */
 };
 
-#ifdef CONFIG_BCMA_DRIVER_MIPS
+#ifdef CONFIG_BCMA_PFLASH
 struct bcma_pflash {
 	bool present;
-	u8 buswidth;
-	u32 window;
-	u32 window_size;
 };
+#endif
 
 #ifdef CONFIG_BCMA_SFLASH
 struct mtd_info;
@@ -600,6 +604,7 @@ struct bcma_nflash {
 };
 #endif
 
+#ifdef CONFIG_BCMA_DRIVER_MIPS
 struct bcma_serial_port {
 	void *regs;
 	unsigned long clockspeed;
@@ -619,8 +624,9 @@ struct bcma_drv_cc {
 	/* Fast Powerup Delay constant */
 	u16 fast_pwrup_delay;
 	struct bcma_chipcommon_pmu pmu;
-#ifdef CONFIG_BCMA_DRIVER_MIPS
+#ifdef CONFIG_BCMA_PFLASH
 	struct bcma_pflash pflash;
+#endif
 #ifdef CONFIG_BCMA_SFLASH
 	struct bcma_sflash sflash;
 #endif
@@ -628,6 +634,7 @@ struct bcma_drv_cc {
 	struct bcma_nflash nflash;
 #endif
 
+#ifdef CONFIG_BCMA_DRIVER_MIPS
 	int nr_serial_ports;
 	struct bcma_serial_port serial_ports[4];
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
@@ -659,6 +666,19 @@ struct bcma_drv_cc_b {
 	bcma_cc_write32(cc, offset, bcma_cc_read32(cc, offset) | (set))
 #define bcma_cc_maskset32(cc, offset, mask, set) \
 	bcma_cc_write32(cc, offset, (bcma_cc_read32(cc, offset) & (mask)) | (set))
+
+/* PMU registers access */
+#define bcma_pmu_read32(cc, offset) \
+	bcma_read32((cc)->pmu.core, offset)
+#define bcma_pmu_write32(cc, offset, val) \
+	bcma_write32((cc)->pmu.core, offset, val)
+
+#define bcma_pmu_mask32(cc, offset, mask) \
+	bcma_pmu_write32(cc, offset, bcma_pmu_read32(cc, offset) & (mask))
+#define bcma_pmu_set32(cc, offset, set) \
+	bcma_pmu_write32(cc, offset, bcma_pmu_read32(cc, offset) | (set))
+#define bcma_pmu_maskset32(cc, offset, mask, set) \
+	bcma_pmu_write32(cc, offset, (bcma_pmu_read32(cc, offset) & (mask)) | (set))
 
 extern u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks);
 

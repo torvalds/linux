@@ -623,18 +623,19 @@ static u64 kszphy_get_stat(struct phy_device *phydev, int i)
 {
 	struct kszphy_hw_stat stat = kszphy_hw_stats[i];
 	struct kszphy_priv *priv = phydev->priv;
-	u64 val;
+	int val;
+	u64 ret;
 
 	val = phy_read(phydev, stat.reg);
 	if (val < 0) {
-		val = UINT64_MAX;
+		ret = UINT64_MAX;
 	} else {
 		val = val & ((1 << stat.bits) - 1);
 		priv->stats[i] += val;
-		val = priv->stats[i];
+		ret = priv->stats[i];
 	}
 
-	return val;
+	return ret;
 }
 
 static void kszphy_get_stats(struct phy_device *phydev,

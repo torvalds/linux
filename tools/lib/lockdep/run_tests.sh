@@ -3,7 +3,7 @@
 make &> /dev/null
 
 for i in `ls tests/*.c`; do
-	testname=$(basename -s .c "$i")
+	testname=$(basename "$i" .c)
 	gcc -o tests/$testname -pthread -lpthread $i liblockdep.a -Iinclude -D__USE_LIBLOCKDEP &> /dev/null
 	echo -ne "$testname... "
 	if [ $(timeout 1 ./tests/$testname | wc -l) -gt 0 ]; then
@@ -11,11 +11,13 @@ for i in `ls tests/*.c`; do
 	else
 		echo "FAILED!"
 	fi
-	rm tests/$testname
+	if [ -f "tests/$testname" ]; then
+		rm tests/$testname
+	fi
 done
 
 for i in `ls tests/*.c`; do
-	testname=$(basename -s .c "$i")
+	testname=$(basename "$i" .c)
 	gcc -o tests/$testname -pthread -lpthread -Iinclude $i &> /dev/null
 	echo -ne "(PRELOAD) $testname... "
 	if [ $(timeout 1 ./lockdep ./tests/$testname | wc -l) -gt 0 ]; then
@@ -23,5 +25,7 @@ for i in `ls tests/*.c`; do
 	else
 		echo "FAILED!"
 	fi
-	rm tests/$testname
+	if [ -f "tests/$testname" ]; then
+		rm tests/$testname
+	fi
 done

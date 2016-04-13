@@ -237,4 +237,14 @@ device_dump
 
 	cat fw_dump
 
+verext
+	This command is used to get extended firmware version string using
+	different configuration parameters.
+
+	Usage:
+		echo "[version_str_sel]" > verext
+		cat verext
+
+		[version_str_sel]: firmware support several extend version
+				   string cases, include 0/1/10/20/21/99
 ===============================================================================

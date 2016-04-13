@@ -48,6 +48,8 @@
  */
 #define BRCMF_DRIVER_FIRMWARE_VERSION_LEN	32
 
+#define NDOL_MAX_ENTRIES	8
+
 /**
  * struct brcmf_ampdu_rx_reorder - AMPDU receive reorder info
  *
@@ -143,6 +145,7 @@ struct brcmf_pub {
 #endif
 
 	struct notifier_block inetaddr_notifier;
+	struct notifier_block inet6addr_notifier;
 	struct brcmf_mp_device *settings;
 };
 
@@ -175,6 +178,7 @@ enum brcmf_netif_stop_reason {
  * @stats: interface specific network statistics.
  * @setmacaddr_work: worker object for setting mac address.
  * @multicast_work: worker object for multicast provisioning.
+ * @ndoffload_work: worker object for neighbor discovery offload configuration.
  * @fws_desc: interface specific firmware-signalling descriptor.
  * @ifidx: interface index in device firmware.
  * @bsscfgidx: index of bss associated with this interface.
@@ -191,6 +195,7 @@ struct brcmf_if {
 	struct net_device_stats stats;
 	struct work_struct setmacaddr_work;
 	struct work_struct multicast_work;
+	struct work_struct ndoffload_work;
 	struct brcmf_fws_mac_descriptor *fws_desc;
 	int ifidx;
 	s32 bsscfgidx;
@@ -199,6 +204,8 @@ struct brcmf_if {
 	spinlock_t netif_stop_lock;
 	atomic_t pend_8021x_cnt;
 	wait_queue_head_t pend_8021x_wait;
+	struct in6_addr ipv6_addr_tbl[NDOL_MAX_ENTRIES];
+	u8 ipv6addr_idx;
 };
 
 struct brcmf_skb_reorder_data {
@@ -220,5 +227,7 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 void brcmf_txfinalize(struct brcmf_if *ifp, struct sk_buff *txp, bool success);
 void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb);
 void brcmf_net_setcarrier(struct brcmf_if *ifp, bool on);
+int __init brcmf_core_init(void);
+void __exit brcmf_core_exit(void);
 
 #endif /* BRCMFMAC_CORE_H */

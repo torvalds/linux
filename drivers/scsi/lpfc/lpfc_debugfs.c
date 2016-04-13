@@ -1054,11 +1054,11 @@ lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
 {
 	struct dentry *dent = file->f_path.dentry;
 	struct lpfc_hba *phba = file->private_data;
-	char dstbuf[32];
+	char dstbuf[33];
 	uint64_t tmp = 0;
 	int size;
 
-	memset(dstbuf, 0, 32);
+	memset(dstbuf, 0, 33);
 	size = (nbytes < 32) ? nbytes : 32;
 	if (copy_from_user(dstbuf, buf, size))
 		return 0;

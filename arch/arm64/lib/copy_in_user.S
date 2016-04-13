@@ -35,44 +35,44 @@
  *	x0 - bytes not copied
  */
 	.macro ldrb1 ptr, regB, val
-	USER(9998f, ldrb  \ptr, [\regB], \val)
+	uao_user_alternative 9998f, ldrb, ldtrb, \ptr, \regB, \val
 	.endm
 
 	.macro strb1 ptr, regB, val
-	USER(9998f, strb \ptr, [\regB], \val)
+	uao_user_alternative 9998f, strb, sttrb, \ptr, \regB, \val
 	.endm
 
 	.macro ldrh1 ptr, regB, val
-	USER(9998f, ldrh  \ptr, [\regB], \val)
+	uao_user_alternative 9998f, ldrh, ldtrh, \ptr, \regB, \val
 	.endm
 
 	.macro strh1 ptr, regB, val
-	USER(9998f, strh \ptr, [\regB], \val)
+	uao_user_alternative 9998f, strh, sttrh, \ptr, \regB, \val
 	.endm
 
 	.macro ldr1 ptr, regB, val
-	USER(9998f, ldr \ptr, [\regB], \val)
+	uao_user_alternative 9998f, ldr, ldtr, \ptr, \regB, \val
 	.endm
 
 	.macro str1 ptr, regB, val
-	USER(9998f, str \ptr, [\regB], \val)
+	uao_user_alternative 9998f, str, sttr, \ptr, \regB, \val
 	.endm
 
 	.macro ldp1 ptr, regB, regC, val
-	USER(9998f, ldp \ptr, \regB, [\regC], \val)
+	uao_ldp 9998f, \ptr, \regB, \regC, \val
 	.endm
 
 	.macro stp1 ptr, regB, regC, val
-	USER(9998f, stp \ptr, \regB, [\regC], \val)
+	uao_stp 9998f, \ptr, \regB, \regC, \val
 	.endm
 
 end	.req	x5
 ENTRY(__copy_in_user)
-ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(0)), ARM64_HAS_PAN, \
+ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(0)), ARM64_ALT_PAN_NOT_UAO, \
 	    CONFIG_ARM64_PAN)
 	add	end, x0, x2
 #include "copy_template.S"
-ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(1)), ARM64_HAS_PAN, \
+ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(1)), ARM64_ALT_PAN_NOT_UAO, \
 	    CONFIG_ARM64_PAN)
 	mov	x0, #0
 	ret

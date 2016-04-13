@@ -22,8 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 
 #include <mach/hardware.h>
 #include <mach/mux.h>

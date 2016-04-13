@@ -30,6 +30,10 @@
 
 #define IPT_TAB_MASK     15
 
+static int ipt_net_id;
+
+static int xt_net_id;
+
 static int ipt_init_target(struct xt_entry_target *t, char *table, unsigned int hook)
 {
 	struct xt_tgchk_param par;
@@ -84,8 +88,9 @@ static const struct nla_policy ipt_policy[TCA_IPT_MAX + 1] = {
 	[TCA_IPT_TARG]	= { .len = sizeof(struct xt_entry_target) },
 };
 
-static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
-			struct tc_action *a, int ovr, int bind)
+static int __tcf_ipt_init(struct tc_action_net *tn, struct nlattr *nla,
+			  struct nlattr *est, struct tc_action *a, int ovr,
+			  int bind)
 {
 	struct nlattr *tb[TCA_IPT_MAX + 1];
 	struct tcf_ipt *ipt;
@@ -114,8 +119,9 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	if (tb[TCA_IPT_INDEX] != NULL)
 		index = nla_get_u32(tb[TCA_IPT_INDEX]);
 
-	if (!tcf_hash_check(index, a, bind) ) {
-		ret = tcf_hash_create(index, est, a, sizeof(*ipt), bind, false);
+	if (!tcf_hash_check(tn, index, a, bind)) {
+		ret = tcf_hash_create(tn, index, est, a, sizeof(*ipt), bind,
+				      false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
@@ -158,7 +164,7 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	ipt->tcfi_hook  = hook;
 	spin_unlock_bh(&ipt->tcf_lock);
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(a);
+		tcf_hash_insert(tn, a);
 	return ret;
 
 err3:
@@ -169,6 +175,24 @@ err1:
 	if (ret == ACT_P_CREATED)
 		tcf_hash_cleanup(a, est);
 	return err;
+}
+
+static int tcf_ipt_init(struct net *net, struct nlattr *nla,
+			struct nlattr *est, struct tc_action *a, int ovr,
+			int bind)
+{
+	struct tc_action_net *tn = net_generic(net, ipt_net_id);
+
+	return __tcf_ipt_init(tn, nla, est, a, ovr, bind);
+}
+
+static int tcf_xt_init(struct net *net, struct nlattr *nla,
+		       struct nlattr *est, struct tc_action *a, int ovr,
+		       int bind)
+{
+	struct tc_action_net *tn = net_generic(net, xt_net_id);
+
+	return __tcf_ipt_init(tn, nla, est, a, ovr, bind);
 }
 
 static int tcf_ipt(struct sk_buff *skb, const struct tc_action *a,
@@ -262,6 +286,22 @@ nla_put_failure:
 	return -1;
 }
 
+static int tcf_ipt_walker(struct net *net, struct sk_buff *skb,
+			  struct netlink_callback *cb, int type,
+			  struct tc_action *a)
+{
+	struct tc_action_net *tn = net_generic(net, ipt_net_id);
+
+	return tcf_generic_walker(tn, skb, cb, type, a);
+}
+
+static int tcf_ipt_search(struct net *net, struct tc_action *a, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, ipt_net_id);
+
+	return tcf_hash_search(tn, a, index);
+}
+
 static struct tc_action_ops act_ipt_ops = {
 	.kind		=	"ipt",
 	.type		=	TCA_ACT_IPT,
@@ -270,7 +310,46 @@ static struct tc_action_ops act_ipt_ops = {
 	.dump		=	tcf_ipt_dump,
 	.cleanup	=	tcf_ipt_release,
 	.init		=	tcf_ipt_init,
+	.walk		=	tcf_ipt_walker,
+	.lookup		=	tcf_ipt_search,
 };
+
+static __net_init int ipt_init_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, ipt_net_id);
+
+	return tc_action_net_init(tn, &act_ipt_ops, IPT_TAB_MASK);
+}
+
+static void __net_exit ipt_exit_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, ipt_net_id);
+
+	tc_action_net_exit(tn);
+}
+
+static struct pernet_operations ipt_net_ops = {
+	.init = ipt_init_net,
+	.exit = ipt_exit_net,
+	.id   = &ipt_net_id,
+	.size = sizeof(struct tc_action_net),
+};
+
+static int tcf_xt_walker(struct net *net, struct sk_buff *skb,
+			 struct netlink_callback *cb, int type,
+			 struct tc_action *a)
+{
+	struct tc_action_net *tn = net_generic(net, xt_net_id);
+
+	return tcf_generic_walker(tn, skb, cb, type, a);
+}
+
+static int tcf_xt_search(struct net *net, struct tc_action *a, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, xt_net_id);
+
+	return tcf_hash_search(tn, a, index);
+}
 
 static struct tc_action_ops act_xt_ops = {
 	.kind		=	"xt",
@@ -279,7 +358,30 @@ static struct tc_action_ops act_xt_ops = {
 	.act		=	tcf_ipt,
 	.dump		=	tcf_ipt_dump,
 	.cleanup	=	tcf_ipt_release,
-	.init		=	tcf_ipt_init,
+	.init		=	tcf_xt_init,
+	.walk		=	tcf_xt_walker,
+	.lookup		=	tcf_xt_search,
+};
+
+static __net_init int xt_init_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, xt_net_id);
+
+	return tc_action_net_init(tn, &act_xt_ops, IPT_TAB_MASK);
+}
+
+static void __net_exit xt_exit_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, xt_net_id);
+
+	tc_action_net_exit(tn);
+}
+
+static struct pernet_operations xt_net_ops = {
+	.init = xt_init_net,
+	.exit = xt_exit_net,
+	.id   = &xt_net_id,
+	.size = sizeof(struct tc_action_net),
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002-13)");
@@ -291,12 +393,13 @@ static int __init ipt_init_module(void)
 {
 	int ret1, ret2;
 
-	ret1 = tcf_register_action(&act_xt_ops, IPT_TAB_MASK);
+	ret1 = tcf_register_action(&act_xt_ops, &xt_net_ops);
 	if (ret1 < 0)
-		printk("Failed to load xt action\n");
-	ret2 = tcf_register_action(&act_ipt_ops, IPT_TAB_MASK);
+		pr_err("Failed to load xt action\n");
+
+	ret2 = tcf_register_action(&act_ipt_ops, &ipt_net_ops);
 	if (ret2 < 0)
-		printk("Failed to load ipt action\n");
+		pr_err("Failed to load ipt action\n");
 
 	if (ret1 < 0 && ret2 < 0) {
 		return ret1;
@@ -306,8 +409,8 @@ static int __init ipt_init_module(void)
 
 static void __exit ipt_cleanup_module(void)
 {
-	tcf_unregister_action(&act_xt_ops);
-	tcf_unregister_action(&act_ipt_ops);
+	tcf_unregister_action(&act_ipt_ops, &ipt_net_ops);
+	tcf_unregister_action(&act_xt_ops, &xt_net_ops);
 }
 
 module_init(ipt_init_module);

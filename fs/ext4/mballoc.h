@@ -23,18 +23,6 @@
 #include "ext4.h"
 
 /*
- * with AGGRESSIVE_CHECK allocator runs consistency checks over
- * structures. these checks slow things down a lot
- */
-#define AGGRESSIVE_CHECK__
-
-/*
- * with DOUBLE_CHECK defined mballoc creates persistent in-core
- * bitmaps, maintains and uses them to check for double allocations
- */
-#define DOUBLE_CHECK__
-
-/*
  */
 #ifdef CONFIG_EXT4_DEBUG
 extern ushort ext4_mballoc_debug;

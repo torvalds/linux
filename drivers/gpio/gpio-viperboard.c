@@ -410,10 +410,10 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	vb_gpio->gpioa.get = vprbrd_gpioa_get;
 	vb_gpio->gpioa.direction_input = vprbrd_gpioa_direction_input;
 	vb_gpio->gpioa.direction_output = vprbrd_gpioa_direction_output;
-	ret = gpiochip_add_data(&vb_gpio->gpioa, vb_gpio);
+	ret = devm_gpiochip_add_data(&pdev->dev, &vb_gpio->gpioa, vb_gpio);
 	if (ret < 0) {
 		dev_err(vb_gpio->gpioa.parent, "could not add gpio a");
-		goto err_gpioa;
+		return ret;
 	}
 
 	/* registering gpio b */
@@ -427,37 +427,21 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	vb_gpio->gpiob.get = vprbrd_gpiob_get;
 	vb_gpio->gpiob.direction_input = vprbrd_gpiob_direction_input;
 	vb_gpio->gpiob.direction_output = vprbrd_gpiob_direction_output;
-	ret = gpiochip_add_data(&vb_gpio->gpiob, vb_gpio);
+	ret = devm_gpiochip_add_data(&pdev->dev, &vb_gpio->gpiob, vb_gpio);
 	if (ret < 0) {
 		dev_err(vb_gpio->gpiob.parent, "could not add gpio b");
-		goto err_gpiob;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, vb_gpio);
 
 	return ret;
-
-err_gpiob:
-	gpiochip_remove(&vb_gpio->gpioa);
-
-err_gpioa:
-	return ret;
-}
-
-static int vprbrd_gpio_remove(struct platform_device *pdev)
-{
-	struct vprbrd_gpio *vb_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&vb_gpio->gpiob);
-
-	return 0;
 }
 
 static struct platform_driver vprbrd_gpio_driver = {
 	.driver.name	= "viperboard-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= vprbrd_gpio_probe,
-	.remove		= vprbrd_gpio_remove,
 };
 
 static int __init vprbrd_gpio_init(void)

@@ -647,9 +647,9 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int mt312_get_frontend(struct dvb_frontend *fe)
+static int mt312_get_frontend(struct dvb_frontend *fe,
+			      struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 

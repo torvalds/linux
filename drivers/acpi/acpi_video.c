@@ -218,13 +218,6 @@ struct acpi_video_device {
 	struct thermal_cooling_device *cooling_dev;
 };
 
-static const char device_decode[][30] = {
-	"motherboard VGA device",
-	"PCI VGA device",
-	"AGP VGA device",
-	"UNKNOWN",
-};
-
 static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data);
 static void acpi_video_device_rebind(struct acpi_video_bus *video);
 static void acpi_video_device_bind(struct acpi_video_bus *video,

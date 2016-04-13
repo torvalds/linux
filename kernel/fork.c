@@ -75,6 +75,7 @@
 #include <linux/aio.h>
 #include <linux/compiler.h>
 #include <linux/sysctl.h>
+#include <linux/kcov.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -164,12 +165,20 @@ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
 	struct page *page = alloc_kmem_pages_node(node, THREADINFO_GFP,
 						  THREAD_SIZE_ORDER);
 
+	if (page)
+		memcg_kmem_update_page_stat(page, MEMCG_KERNEL_STACK,
+					    1 << THREAD_SIZE_ORDER);
+
 	return page ? page_address(page) : NULL;
 }
 
 static inline void free_thread_info(struct thread_info *ti)
 {
-	free_kmem_pages((unsigned long)ti, THREAD_SIZE_ORDER);
+	struct page *page = virt_to_page(ti);
+
+	memcg_kmem_update_page_stat(page, MEMCG_KERNEL_STACK,
+				    -(1 << THREAD_SIZE_ORDER));
+	__free_kmem_pages(page, THREAD_SIZE_ORDER);
 }
 # else
 static struct kmem_cache *thread_info_cache;
@@ -383,6 +392,8 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	tsk->wake_q.next = NULL;
 
 	account_kernel_stack(ti, 1);
+
+	kcov_task_init(tsk);
 
 	return tsk;
 
@@ -1884,7 +1895,7 @@ static int check_unshare_flags(unsigned long unshare_flags)
 	if (unshare_flags & ~(CLONE_THREAD|CLONE_FS|CLONE_NEWNS|CLONE_SIGHAND|
 				CLONE_VM|CLONE_FILES|CLONE_SYSVSEM|
 				CLONE_NEWUTS|CLONE_NEWIPC|CLONE_NEWNET|
-				CLONE_NEWUSER|CLONE_NEWPID))
+				CLONE_NEWUSER|CLONE_NEWPID|CLONE_NEWCGROUP))
 		return -EINVAL;
 	/*
 	 * Not implemented, but pretend it works if there is nothing

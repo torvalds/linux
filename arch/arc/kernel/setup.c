@@ -91,11 +91,9 @@ static void read_decode_ccm_bcr(struct cpuinfo_arc *cpu)
 
 static void read_arc_build_cfg_regs(void)
 {
-	struct bcr_perip uncached_space;
 	struct bcr_timer timer;
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
-	unsigned long perip_space;
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
@@ -107,14 +105,6 @@ static void read_arc_build_cfg_regs(void)
 	cpu->extn.rtc = timer.rtc;
 
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
-
-	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
-        if (uncached_space.ver < 3)
-		perip_space = uncached_space.start << 24;
-	else
-		perip_space = read_aux_reg(AUX_NON_VOL) & 0xF0000000;
-
-	BUG_ON(perip_space != ARC_UNCACHED_ADDR_SPACE);
 
 	READ_BCR(ARC_REG_MUL_BCR, cpu->extn_mpy);
 
@@ -288,8 +278,8 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	FIX_PTR(cpu);
 
 	n += scnprintf(buf + n, len - n,
-		       "Vector Table\t: %#x\nUncached Base\t: %#x\n",
-		       cpu->vec_base, ARC_UNCACHED_ADDR_SPACE);
+		       "Vector Table\t: %#x\nUncached Base\t: %#lx\n",
+		       cpu->vec_base, perip_base);
 
 	if (cpu->extn.fpu_sp || cpu->extn.fpu_dp)
 		n += scnprintf(buf + n, len - n, "FPU\t\t: %s%s\n",
@@ -357,11 +347,6 @@ static void arc_chk_core_config(void)
 		pr_warn("CONFIG_ARC_FPU_SAVE_RESTORE needed for working apps\n");
 	else if (!cpu->extn.fpu_dp && fpu_enabled)
 		panic("FPU non-existent, disable CONFIG_ARC_FPU_SAVE_RESTORE\n");
-
-	if (is_isa_arcv2() && IS_ENABLED(CONFIG_SMP) && cpu->isa.atomic &&
-	    IS_ENABLED(CONFIG_ARC_HAS_LLSC) &&
-	    !IS_ENABLED(CONFIG_ARC_STAR_9000923308))
-		panic("llock/scond livelock workaround missing\n");
 }
 
 /*
@@ -464,7 +449,7 @@ static int __init customize_machine(void)
 	 * Traverses flattened DeviceTree - registering platform devices
 	 * (if any) complete with their resources
 	 */
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	of_platform_default_populate(NULL, NULL, NULL);
 
 	if (machine_desc->init_machine)
 		machine_desc->init_machine();

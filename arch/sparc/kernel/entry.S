@@ -1255,7 +1255,7 @@ flush_patch_exception:
 kuw_patch1_7win:	sll	%o3, 6, %o3
 
 	/* No matter how much overhead this routine has in the worst
-	 * case scenerio, it is several times better than taking the
+	 * case scenario, it is several times better than taking the
 	 * traps with the old method of just doing flush_user_windows().
 	 */
 kill_user_windows:

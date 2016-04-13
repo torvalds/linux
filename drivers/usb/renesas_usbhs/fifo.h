@@ -54,7 +54,7 @@ struct usbhs_pkt_handle;
 struct usbhs_pkt {
 	struct list_head node;
 	struct usbhs_pipe *pipe;
-	struct usbhs_pkt_handle *handler;
+	const struct usbhs_pkt_handle *handler;
 	void (*done)(struct usbhs_priv *priv,
 		     struct usbhs_pkt *pkt);
 	struct work_struct work;
@@ -86,18 +86,18 @@ void usbhs_fifo_clear_dcp(struct usbhs_pipe *pipe);
 /*
  * packet info
  */
-extern struct usbhs_pkt_handle usbhs_fifo_pio_push_handler;
-extern struct usbhs_pkt_handle usbhs_fifo_pio_pop_handler;
-extern struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler;
+extern const struct usbhs_pkt_handle usbhs_fifo_pio_push_handler;
+extern const struct usbhs_pkt_handle usbhs_fifo_pio_pop_handler;
+extern const struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler;
 
-extern struct usbhs_pkt_handle usbhs_fifo_dma_push_handler;
-extern struct usbhs_pkt_handle usbhs_fifo_dma_pop_handler;
+extern const struct usbhs_pkt_handle usbhs_fifo_dma_push_handler;
+extern const struct usbhs_pkt_handle usbhs_fifo_dma_pop_handler;
 
-extern struct usbhs_pkt_handle usbhs_dcp_status_stage_in_handler;
-extern struct usbhs_pkt_handle usbhs_dcp_status_stage_out_handler;
+extern const struct usbhs_pkt_handle usbhs_dcp_status_stage_in_handler;
+extern const struct usbhs_pkt_handle usbhs_dcp_status_stage_out_handler;
 
-extern struct usbhs_pkt_handle usbhs_dcp_data_stage_in_handler;
-extern struct usbhs_pkt_handle usbhs_dcp_data_stage_out_handler;
+extern const struct usbhs_pkt_handle usbhs_dcp_data_stage_in_handler;
+extern const struct usbhs_pkt_handle usbhs_dcp_data_stage_out_handler;
 
 void usbhs_pkt_init(struct usbhs_pkt *pkt);
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,

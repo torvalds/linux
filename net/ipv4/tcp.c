@@ -247,6 +247,7 @@
 
 #define pr_fmt(fmt) "TCP: " fmt
 
+#include <crypto/hash.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -266,7 +267,6 @@
 #include <linux/swap.h>
 #include <linux/cache.h>
 #include <linux/err.h>
-#include <linux/crypto.h>
 #include <linux/time.h>
 #include <linux/slab.h>
 
@@ -281,8 +281,6 @@
 #include <asm/ioctls.h>
 #include <asm/unaligned.h>
 #include <net/busy_poll.h>
-
-int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
 
 int sysctl_tcp_min_tso_segs __read_mostly = 2;
 
@@ -406,7 +404,7 @@ void tcp_init_sock(struct sock *sk)
 	tp->mss_cache = TCP_MSS_DEFAULT;
 	u64_stats_init(&tp->syncp);
 
-	tp->reordering = sysctl_tcp_reordering;
+	tp->reordering = sock_net(sk)->ipv4.sysctl_tcp_reordering;
 	tcp_enable_early_retrans(tp);
 	tcp_assign_congestion_control(sk);
 
@@ -558,20 +556,7 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			return -EINVAL;
 
 		slow = lock_sock_fast(sk);
-		if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))
-			answ = 0;
-		else if (sock_flag(sk, SOCK_URGINLINE) ||
-			 !tp->urg_data ||
-			 before(tp->urg_seq, tp->copied_seq) ||
-			 !before(tp->urg_seq, tp->rcv_nxt)) {
-
-			answ = tp->rcv_nxt - tp->copied_seq;
-
-			/* Subtract 1, if FIN was received */
-			if (answ && sock_flag(sk, SOCK_DONE))
-				answ--;
-		} else
-			answ = tp->urg_seq - tp->copied_seq;
+		answ = tcp_inq(sk);
 		unlock_sock_fast(sk, slow);
 		break;
 	case SIOCATMARK:
@@ -1466,8 +1451,10 @@ static struct sk_buff *tcp_recv_skb(struct sock *sk, u32 seq, u32 *off)
 
 	while ((skb = skb_peek(&sk->sk_receive_queue)) != NULL) {
 		offset = seq - TCP_SKB_CB(skb)->seq;
-		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)
+		if (unlikely(TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)) {
+			pr_err_once("%s: found a SYN, please report !\n", __func__);
 			offset--;
+		}
 		if (offset < skb->len || (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)) {
 			*off = offset;
 			return skb;
@@ -1657,8 +1644,10 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 				break;
 
 			offset = *seq - TCP_SKB_CB(skb)->seq;
-			if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)
+			if (unlikely(TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)) {
+				pr_err_once("%s: found a SYN, please report !\n", __func__);
 				offset--;
+			}
 			if (offset < skb->len)
 				goto found_ok_skb;
 			if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
@@ -2326,6 +2315,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct net *net = sock_net(sk);
 	int val;
 	int err = 0;
 
@@ -2522,7 +2512,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_LINGER2:
 		if (val < 0)
 			tp->linger2 = -1;
-		else if (val > sysctl_tcp_fin_timeout / HZ)
+		else if (val > net->ipv4.sysctl_tcp_fin_timeout / HZ)
 			tp->linger2 = 0;
 		else
 			tp->linger2 = val * HZ;
@@ -2639,6 +2629,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	u32 now = tcp_time_stamp;
 	unsigned int start;
+	int notsent_bytes;
 	u64 rate64;
 	u32 rate;
 
@@ -2719,6 +2710,13 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	} while (u64_stats_fetch_retry_irq(&tp->syncp, start));
 	info->tcpi_segs_out = tp->segs_out;
 	info->tcpi_segs_in = tp->segs_in;
+
+	notsent_bytes = READ_ONCE(tp->write_seq) - READ_ONCE(tp->snd_nxt);
+	info->tcpi_notsent_bytes = max(0, notsent_bytes);
+
+	info->tcpi_min_rtt = tcp_min_rtt(tp);
+	info->tcpi_data_segs_in = tp->data_segs_in;
+	info->tcpi_data_segs_out = tp->data_segs_out;
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
 
@@ -2727,6 +2725,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct net *net = sock_net(sk);
 	int val, len;
 
 	if (get_user(len, optlen))
@@ -2761,12 +2760,12 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		val = keepalive_probes(tp);
 		break;
 	case TCP_SYNCNT:
-		val = icsk->icsk_syn_retries ? : sysctl_tcp_syn_retries;
+		val = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_syn_retries;
 		break;
 	case TCP_LINGER2:
 		val = tp->linger2;
 		if (val >= 0)
-			val = (val ? : sysctl_tcp_fin_timeout) / HZ;
+			val = (val ? : net->ipv4.sysctl_tcp_fin_timeout) / HZ;
 		break;
 	case TCP_DEFER_ACCEPT:
 		val = retrans_to_secs(icsk->icsk_accept_queue.rskq_defer_accept,
@@ -2943,17 +2942,26 @@ static bool tcp_md5sig_pool_populated = false;
 
 static void __tcp_alloc_md5sig_pool(void)
 {
+	struct crypto_ahash *hash;
 	int cpu;
 
-	for_each_possible_cpu(cpu) {
-		if (!per_cpu(tcp_md5sig_pool, cpu).md5_desc.tfm) {
-			struct crypto_hash *hash;
+	hash = crypto_alloc_ahash("md5", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hash))
+		return;
 
-			hash = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
-			if (IS_ERR(hash))
-				return;
-			per_cpu(tcp_md5sig_pool, cpu).md5_desc.tfm = hash;
-		}
+	for_each_possible_cpu(cpu) {
+		struct ahash_request *req;
+
+		if (per_cpu(tcp_md5sig_pool, cpu).md5_req)
+			continue;
+
+		req = ahash_request_alloc(hash, GFP_KERNEL);
+		if (!req)
+			return;
+
+		ahash_request_set_callback(req, 0, NULL, NULL);
+
+		per_cpu(tcp_md5sig_pool, cpu).md5_req = req;
 	}
 	/* before setting tcp_md5sig_pool_populated, we must commit all writes
 	 * to memory. See smp_rmb() in tcp_get_md5sig_pool()
@@ -3003,7 +3011,6 @@ int tcp_md5_hash_header(struct tcp_md5sig_pool *hp,
 {
 	struct scatterlist sg;
 	struct tcphdr hdr;
-	int err;
 
 	/* We are not allowed to change tcphdr, make a local copy */
 	memcpy(&hdr, th, sizeof(hdr));
@@ -3011,8 +3018,8 @@ int tcp_md5_hash_header(struct tcp_md5sig_pool *hp,
 
 	/* options aren't included in the hash */
 	sg_init_one(&sg, &hdr, sizeof(hdr));
-	err = crypto_hash_update(&hp->md5_desc, &sg, sizeof(hdr));
-	return err;
+	ahash_request_set_crypt(hp->md5_req, &sg, NULL, sizeof(hdr));
+	return crypto_ahash_update(hp->md5_req);
 }
 EXPORT_SYMBOL(tcp_md5_hash_header);
 
@@ -3021,7 +3028,7 @@ int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 {
 	struct scatterlist sg;
 	const struct tcphdr *tp = tcp_hdr(skb);
-	struct hash_desc *desc = &hp->md5_desc;
+	struct ahash_request *req = hp->md5_req;
 	unsigned int i;
 	const unsigned int head_data_len = skb_headlen(skb) > header_len ?
 					   skb_headlen(skb) - header_len : 0;
@@ -3031,7 +3038,8 @@ int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 	sg_init_table(&sg, 1);
 
 	sg_set_buf(&sg, ((u8 *) tp) + header_len, head_data_len);
-	if (crypto_hash_update(desc, &sg, head_data_len))
+	ahash_request_set_crypt(req, &sg, NULL, head_data_len);
+	if (crypto_ahash_update(req))
 		return 1;
 
 	for (i = 0; i < shi->nr_frags; ++i) {
@@ -3041,7 +3049,8 @@ int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 
 		sg_set_page(&sg, page, skb_frag_size(f),
 			    offset_in_page(offset));
-		if (crypto_hash_update(desc, &sg, skb_frag_size(f)))
+		ahash_request_set_crypt(req, &sg, NULL, skb_frag_size(f));
+		if (crypto_ahash_update(req))
 			return 1;
 	}
 
@@ -3058,7 +3067,8 @@ int tcp_md5_hash_key(struct tcp_md5sig_pool *hp, const struct tcp_md5sig_key *ke
 	struct scatterlist sg;
 
 	sg_init_one(&sg, key->key, key->keylen);
-	return crypto_hash_update(&hp->md5_desc, &sg, key->keylen);
+	ahash_request_set_crypt(hp->md5_req, &sg, NULL, key->keylen);
+	return crypto_ahash_update(hp->md5_req);
 }
 EXPORT_SYMBOL(tcp_md5_hash_key);
 

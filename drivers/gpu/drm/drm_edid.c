@@ -32,6 +32,7 @@
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/vga_switcheroo.h>
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_displayid.h>
@@ -1393,6 +1394,31 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 	return edid;
 }
 EXPORT_SYMBOL(drm_get_edid);
+
+/**
+ * drm_get_edid_switcheroo - get EDID data for a vga_switcheroo output
+ * @connector: connector we're probing
+ * @adapter: I2C adapter to use for DDC
+ *
+ * Wrapper around drm_get_edid() for laptops with dual GPUs using one set of
+ * outputs. The wrapper adds the requisite vga_switcheroo calls to temporarily
+ * switch DDC to the GPU which is retrieving EDID.
+ *
+ * Return: Pointer to valid EDID or %NULL if we couldn't find any.
+ */
+struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
+				     struct i2c_adapter *adapter)
+{
+	struct pci_dev *pdev = connector->dev->pdev;
+	struct edid *edid;
+
+	vga_switcheroo_lock_ddc(pdev);
+	edid = drm_get_edid(connector, adapter);
+	vga_switcheroo_unlock_ddc(pdev);
+
+	return edid;
+}
+EXPORT_SYMBOL(drm_get_edid_switcheroo);
 
 /**
  * drm_edid_duplicate - duplicate an EDID and the extensions
@@ -3282,7 +3308,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	u8 *cea;
 	u8 *name;
 	u8 *db;
-	int sad_count = 0;
+	int total_sad_count = 0;
 	int mnl;
 	int dbl;
 
@@ -3296,6 +3322,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 
 	name = NULL;
 	drm_for_each_detailed_block((u8 *)edid, monitor_name, &name);
+	/* max: 13 bytes EDID, 16 bytes ELD */
 	for (mnl = 0; name && mnl < 13; mnl++) {
 		if (name[mnl] == 0x0a)
 			break;
@@ -3324,11 +3351,15 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 			dbl = cea_db_payload_len(db);
 
 			switch (cea_db_tag(db)) {
+				int sad_count;
+
 			case AUDIO_BLOCK:
 				/* Audio Data Block, contains SADs */
-				sad_count = dbl / 3;
-				if (dbl >= 1)
-					memcpy(eld + 20 + mnl, &db[1], dbl);
+				sad_count = min(dbl / 3, 15 - total_sad_count);
+				if (sad_count >= 1)
+					memcpy(eld + 20 + mnl + total_sad_count * 3,
+					       &db[1], sad_count * 3);
+				total_sad_count += sad_count;
 				break;
 			case SPEAKER_BLOCK:
 				/* Speaker Allocation Data Block */
@@ -3345,13 +3376,13 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 			}
 		}
 	}
-	eld[5] |= sad_count << 4;
+	eld[5] |= total_sad_count << 4;
 
 	eld[DRM_ELD_BASELINE_ELD_LEN] =
 		DIV_ROUND_UP(drm_eld_calc_baseline_block_size(eld), 4);
 
 	DRM_DEBUG_KMS("ELD size %d, SAD count %d\n",
-		      drm_eld_size(eld), sad_count);
+		      drm_eld_size(eld), total_sad_count);
 }
 EXPORT_SYMBOL(drm_edid_to_eld);
 

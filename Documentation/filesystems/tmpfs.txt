@@ -60,7 +60,7 @@ size:      The limit of allocated bytes for this tmpfs instance. The
            default is half of your physical RAM without swap. If you
            oversize your tmpfs instances the machine will deadlock
            since the OOM handler will not be able to free that memory.
-nr_blocks: The same as size, but in blocks of PAGE_CACHE_SIZE.
+nr_blocks: The same as size, but in blocks of PAGE_SIZE.
 nr_inodes: The maximum number of inodes for this instance. The default
            is half of the number of your physical RAM pages, or (on a
            machine with highmem) the number of lowmem RAM pages,

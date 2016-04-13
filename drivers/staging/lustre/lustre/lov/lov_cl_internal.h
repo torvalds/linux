@@ -579,51 +579,49 @@ extern struct kmem_cache *lovsub_req_kmem;
 
 extern struct kmem_cache *lov_lock_link_kmem;
 
-int   lov_object_init(const struct lu_env *env, struct lu_object *obj,
-			   const struct lu_object_conf *conf);
-int   lovsub_object_init(const struct lu_env *env, struct lu_object *obj,
-			   const struct lu_object_conf *conf);
-int   lov_lock_init(const struct lu_env *env, struct cl_object *obj,
-			   struct cl_lock *lock, const struct cl_io *io);
-int   lov_io_init(const struct lu_env *env, struct cl_object *obj,
-			   struct cl_io *io);
-int   lovsub_lock_init(const struct lu_env *env, struct cl_object *obj,
-			   struct cl_lock *lock, const struct cl_io *io);
+int lov_object_init(const struct lu_env *env, struct lu_object *obj,
+		    const struct lu_object_conf *conf);
+int lovsub_object_init(const struct lu_env *env, struct lu_object *obj,
+		       const struct lu_object_conf *conf);
+int lov_lock_init(const struct lu_env *env, struct cl_object *obj,
+		  struct cl_lock *lock, const struct cl_io *io);
+int lov_io_init(const struct lu_env *env, struct cl_object *obj,
+		struct cl_io *io);
+int lovsub_lock_init(const struct lu_env *env, struct cl_object *obj,
+		     struct cl_lock *lock, const struct cl_io *io);
 
-int   lov_lock_init_raid0(const struct lu_env *env, struct cl_object *obj,
-			   struct cl_lock *lock, const struct cl_io *io);
-int   lov_lock_init_empty(const struct lu_env *env, struct cl_object *obj,
-			   struct cl_lock *lock, const struct cl_io *io);
-int   lov_io_init_raid0(const struct lu_env *env, struct cl_object *obj,
-			   struct cl_io *io);
-int   lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
-			   struct cl_io *io);
-int   lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
-			   struct cl_io *io);
-void  lov_lock_unlink(const struct lu_env *env, struct lov_lock_link *link,
-			   struct lovsub_lock *sub);
+int lov_lock_init_raid0(const struct lu_env *env, struct cl_object *obj,
+			struct cl_lock *lock, const struct cl_io *io);
+int lov_lock_init_empty(const struct lu_env *env, struct cl_object *obj,
+			struct cl_lock *lock, const struct cl_io *io);
+int lov_io_init_raid0(const struct lu_env *env, struct cl_object *obj,
+		      struct cl_io *io);
+int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
+		      struct cl_io *io);
+int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
+			 struct cl_io *io);
+void lov_lock_unlink(const struct lu_env *env, struct lov_lock_link *link,
+		     struct lovsub_lock *sub);
 
 struct lov_io_sub *lov_sub_get(const struct lu_env *env, struct lov_io *lio,
 			       int stripe);
-void  lov_sub_put(struct lov_io_sub *sub);
-int   lov_sublock_modify(const struct lu_env *env, struct lov_lock *lov,
-			   struct lovsub_lock *sublock,
-			   const struct cl_lock_descr *d, int idx);
+void lov_sub_put(struct lov_io_sub *sub);
+int lov_sublock_modify(const struct lu_env *env, struct lov_lock *lov,
+		       struct lovsub_lock *sublock,
+		       const struct cl_lock_descr *d, int idx);
 
-int   lov_page_init(const struct lu_env *env, struct cl_object *ob,
-			   struct cl_page *page, struct page *vmpage);
-int   lovsub_page_init(const struct lu_env *env, struct cl_object *ob,
-			   struct cl_page *page, struct page *vmpage);
+int lov_page_init(const struct lu_env *env, struct cl_object *ob,
+		  struct cl_page *page, struct page *vmpage);
+int lovsub_page_init(const struct lu_env *env, struct cl_object *ob,
+		     struct cl_page *page, struct page *vmpage);
 
-int   lov_page_init_empty(const struct lu_env *env,
-			   struct cl_object *obj,
-			   struct cl_page *page, struct page *vmpage);
-int   lov_page_init_raid0(const struct lu_env *env,
-			   struct cl_object *obj,
-			   struct cl_page *page, struct page *vmpage);
+int lov_page_init_empty(const struct lu_env *env, struct cl_object *obj,
+			struct cl_page *page, struct page *vmpage);
+int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
+			struct cl_page *page, struct page *vmpage);
 struct lu_object *lov_object_alloc(const struct lu_env *env,
-				      const struct lu_object_header *hdr,
-				      struct lu_device *dev);
+				   const struct lu_object_header *hdr,
+				   struct lu_device *dev);
 struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 				      const struct lu_object_header *hdr,
 				      struct lu_device *dev);
@@ -631,9 +629,8 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
 					 struct lov_lock *lck,
 					 struct lovsub_lock *sub);
-struct lov_io_sub    *lov_page_subio(const struct lu_env *env,
-					 struct lov_io *lio,
-					 const struct cl_page_slice *slice);
+struct lov_io_sub *lov_page_subio(const struct lu_env *env, struct lov_io *lio,
+				  const struct cl_page_slice *slice);
 
 #define lov_foreach_target(lov, var)		    \
 	for (var = 0; var < lov_targets_nr(lov); ++var)
@@ -651,7 +648,7 @@ static inline struct lov_session *lov_env_session(const struct lu_env *env)
 	struct lov_session *ses;
 
 	ses = lu_context_key_get(env->le_ses, &lov_session_key);
-	LASSERT(ses != NULL);
+	LASSERT(ses);
 	return ses;
 }
 
@@ -759,7 +756,7 @@ static inline struct lovsub_lock *cl2sub_lock(const struct cl_lock *lock)
 	const struct cl_lock_slice *slice;
 
 	slice = cl_lock_at(lock, &lovsub_device_type);
-	LASSERT(slice != NULL);
+	LASSERT(slice);
 	return cl2lovsub_lock(slice);
 }
 
@@ -798,7 +795,7 @@ static inline struct cl_page *lov_sub_page(const struct cl_page_slice *slice)
 }
 
 static inline struct lov_io *cl2lov_io(const struct lu_env *env,
-				const struct cl_io_slice *ios)
+				       const struct cl_io_slice *ios)
 {
 	struct lov_io *lio;
 
@@ -817,7 +814,7 @@ static inline struct lov_thread_info *lov_env_info(const struct lu_env *env)
 	struct lov_thread_info *info;
 
 	info = lu_context_key_get(&env->le_ctx, &lov_key);
-	LASSERT(info != NULL);
+	LASSERT(info);
 	return info;
 }
 

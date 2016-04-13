@@ -51,6 +51,8 @@ struct ms5611_state {
 	struct ms5611_chip_info *chip_info;
 };
 
-int ms5611_probe(struct iio_dev *indio_dev, struct device *dev, int type);
+int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
+                 const char* name, int type);
+int ms5611_remove(struct iio_dev *indio_dev);
 
 #endif /* _MS5611_H */

@@ -45,6 +45,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+#include <net/devlink.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/driver.h>
@@ -828,6 +829,7 @@ struct mlx4_port_info {
 	struct mlx4_roce_gid_table gid_table;
 	int			base_qpn;
 	struct cpu_rmap		*rmap;
+	struct devlink_port	devlink_port;
 };
 
 struct mlx4_sense {

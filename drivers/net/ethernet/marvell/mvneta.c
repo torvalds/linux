@@ -30,6 +30,8 @@
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/skbuff.h>
+#include <net/hwbm.h>
+#include "mvneta_bm.h"
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/tso.h>
@@ -37,6 +39,10 @@
 /* Registers */
 #define MVNETA_RXQ_CONFIG_REG(q)                (0x1400 + ((q) << 2))
 #define      MVNETA_RXQ_HW_BUF_ALLOC            BIT(0)
+#define      MVNETA_RXQ_SHORT_POOL_ID_SHIFT	4
+#define      MVNETA_RXQ_SHORT_POOL_ID_MASK	0x30
+#define      MVNETA_RXQ_LONG_POOL_ID_SHIFT	6
+#define      MVNETA_RXQ_LONG_POOL_ID_MASK	0xc0
 #define      MVNETA_RXQ_PKT_OFFSET_ALL_MASK     (0xf    << 8)
 #define      MVNETA_RXQ_PKT_OFFSET_MASK(offs)   ((offs) << 8)
 #define MVNETA_RXQ_THRESHOLD_REG(q)             (0x14c0 + ((q) << 2))
@@ -50,6 +56,9 @@
 #define MVNETA_RXQ_STATUS_UPDATE_REG(q)         (0x1500 + ((q) << 2))
 #define      MVNETA_RXQ_ADD_NON_OCCUPIED_SHIFT  16
 #define      MVNETA_RXQ_ADD_NON_OCCUPIED_MAX    255
+#define MVNETA_PORT_POOL_BUFFER_SZ_REG(pool)	(0x1700 + ((pool) << 2))
+#define      MVNETA_PORT_POOL_BUFFER_SZ_SHIFT	3
+#define      MVNETA_PORT_POOL_BUFFER_SZ_MASK	0xfff8
 #define MVNETA_PORT_RX_RESET                    0x1cc0
 #define      MVNETA_PORT_RX_DMA_RESET           BIT(0)
 #define MVNETA_PHY_ADDR                         0x2000
@@ -107,6 +116,7 @@
 #define MVNETA_GMAC_CLOCK_DIVIDER                0x24f4
 #define      MVNETA_GMAC_1MS_CLOCK_ENABLE        BIT(31)
 #define MVNETA_ACC_MODE                          0x2500
+#define MVNETA_BM_ADDRESS                        0x2504
 #define MVNETA_CPU_MAP(cpu)                      (0x2540 + ((cpu) << 2))
 #define      MVNETA_CPU_RXQ_ACCESS_ALL_MASK      0x000000ff
 #define      MVNETA_CPU_TXQ_ACCESS_ALL_MASK      0x0000ff00
@@ -250,10 +260,12 @@
 
 #define MVNETA_VLAN_TAG_LEN             4
 
-#define MVNETA_CPU_D_CACHE_LINE_SIZE    32
 #define MVNETA_TX_CSUM_DEF_SIZE		1600
 #define MVNETA_TX_CSUM_MAX_SIZE		9800
-#define MVNETA_ACC_MODE_EXT		1
+#define MVNETA_ACC_MODE_EXT1		1
+#define MVNETA_ACC_MODE_EXT2		2
+
+#define MVNETA_MAX_DECODE_WIN		6
 
 /* Timeout constants */
 #define MVNETA_TX_DISABLE_TIMEOUT_MSEC	1000
@@ -287,13 +299,14 @@
 #define MVNETA_RX_PKT_SIZE(mtu) \
 	ALIGN((mtu) + MVNETA_MH_SIZE + MVNETA_VLAN_TAG_LEN + \
 	      ETH_HLEN + ETH_FCS_LEN,			     \
-	      MVNETA_CPU_D_CACHE_LINE_SIZE)
+	      cache_line_size())
 
 #define IS_TSO_HEADER(txq, addr) \
 	((addr >= txq->tso_hdrs_phys) && \
 	 (addr < txq->tso_hdrs_phys + txq->size * TSO_HEADER_SIZE))
 
-#define MVNETA_RX_BUF_SIZE(pkt_size)   ((pkt_size) + NET_SKB_PAD)
+#define MVNETA_RX_GET_BM_POOL_ID(rxd) \
+	(((rxd)->status & MVNETA_RXD_BM_POOL_MASK) >> MVNETA_RXD_BM_POOL_SHIFT)
 
 struct mvneta_statistic {
 	unsigned short offset;
@@ -359,6 +372,7 @@ struct mvneta_pcpu_port {
 };
 
 struct mvneta_port {
+	u8 id;
 	struct mvneta_pcpu_port __percpu	*ports;
 	struct mvneta_pcpu_stats __percpu	*stats;
 
@@ -394,6 +408,11 @@ struct mvneta_port {
 	unsigned int tx_csum_limit;
 	unsigned int use_inband_status:1;
 
+	struct mvneta_bm *bm_priv;
+	struct mvneta_bm_pool *pool_long;
+	struct mvneta_bm_pool *pool_short;
+	int bm_win_id;
+
 	u64 ethtool_stats[ARRAY_SIZE(mvneta_statistics)];
 
 	u32 indir[MVNETA_RSS_LU_TABLE_SIZE];
@@ -419,6 +438,8 @@ struct mvneta_port {
 #define MVNETA_TX_L4_CSUM_NOT	BIT(31)
 
 #define MVNETA_RXD_ERR_CRC		0x0
+#define MVNETA_RXD_BM_POOL_SHIFT	13
+#define MVNETA_RXD_BM_POOL_MASK		(BIT(13) | BIT(14))
 #define MVNETA_RXD_ERR_SUMMARY		BIT(16)
 #define MVNETA_RXD_ERR_OVERRUN		BIT(17)
 #define MVNETA_RXD_ERR_LEN		BIT(18)
@@ -562,6 +583,9 @@ static int txq_number = 8;
 static int rxq_def;
 
 static int rx_copybreak __read_mostly = 256;
+
+/* HW BM need that each port be identify by a unique ID */
+static int global_port_id;
 
 #define MVNETA_DRIVER_NAME "mvneta"
 #define MVNETA_DRIVER_VERSION "1.0"
@@ -829,6 +853,215 @@ static void mvneta_rxq_bm_disable(struct mvneta_port *pp,
 	mvreg_write(pp, MVNETA_RXQ_CONFIG_REG(rxq->id), val);
 }
 
+/* Enable buffer management (BM) */
+static void mvneta_rxq_bm_enable(struct mvneta_port *pp,
+				 struct mvneta_rx_queue *rxq)
+{
+	u32 val;
+
+	val = mvreg_read(pp, MVNETA_RXQ_CONFIG_REG(rxq->id));
+	val |= MVNETA_RXQ_HW_BUF_ALLOC;
+	mvreg_write(pp, MVNETA_RXQ_CONFIG_REG(rxq->id), val);
+}
+
+/* Notify HW about port's assignment of pool for bigger packets */
+static void mvneta_rxq_long_pool_set(struct mvneta_port *pp,
+				     struct mvneta_rx_queue *rxq)
+{
+	u32 val;
+
+	val = mvreg_read(pp, MVNETA_RXQ_CONFIG_REG(rxq->id));
+	val &= ~MVNETA_RXQ_LONG_POOL_ID_MASK;
+	val |= (pp->pool_long->id << MVNETA_RXQ_LONG_POOL_ID_SHIFT);
+
+	mvreg_write(pp, MVNETA_RXQ_CONFIG_REG(rxq->id), val);
+}
+
+/* Notify HW about port's assignment of pool for smaller packets */
+static void mvneta_rxq_short_pool_set(struct mvneta_port *pp,
+				      struct mvneta_rx_queue *rxq)
+{
+	u32 val;
+
+	val = mvreg_read(pp, MVNETA_RXQ_CONFIG_REG(rxq->id));
+	val &= ~MVNETA_RXQ_SHORT_POOL_ID_MASK;
+	val |= (pp->pool_short->id << MVNETA_RXQ_SHORT_POOL_ID_SHIFT);
+
+	mvreg_write(pp, MVNETA_RXQ_CONFIG_REG(rxq->id), val);
+}
+
+/* Set port's receive buffer size for assigned BM pool */
+static inline void mvneta_bm_pool_bufsize_set(struct mvneta_port *pp,
+					      int buf_size,
+					      u8 pool_id)
+{
+	u32 val;
+
+	if (!IS_ALIGNED(buf_size, 8)) {
+		dev_warn(pp->dev->dev.parent,
+			 "illegal buf_size value %d, round to %d\n",
+			 buf_size, ALIGN(buf_size, 8));
+		buf_size = ALIGN(buf_size, 8);
+	}
+
+	val = mvreg_read(pp, MVNETA_PORT_POOL_BUFFER_SZ_REG(pool_id));
+	val |= buf_size & MVNETA_PORT_POOL_BUFFER_SZ_MASK;
+	mvreg_write(pp, MVNETA_PORT_POOL_BUFFER_SZ_REG(pool_id), val);
+}
+
+/* Configure MBUS window in order to enable access BM internal SRAM */
+static int mvneta_mbus_io_win_set(struct mvneta_port *pp, u32 base, u32 wsize,
+				  u8 target, u8 attr)
+{
+	u32 win_enable, win_protect;
+	int i;
+
+	win_enable = mvreg_read(pp, MVNETA_BASE_ADDR_ENABLE);
+
+	if (pp->bm_win_id < 0) {
+		/* Find first not occupied window */
+		for (i = 0; i < MVNETA_MAX_DECODE_WIN; i++) {
+			if (win_enable & (1 << i)) {
+				pp->bm_win_id = i;
+				break;
+			}
+		}
+		if (i == MVNETA_MAX_DECODE_WIN)
+			return -ENOMEM;
+	} else {
+		i = pp->bm_win_id;
+	}
+
+	mvreg_write(pp, MVNETA_WIN_BASE(i), 0);
+	mvreg_write(pp, MVNETA_WIN_SIZE(i), 0);
+
+	if (i < 4)
+		mvreg_write(pp, MVNETA_WIN_REMAP(i), 0);
+
+	mvreg_write(pp, MVNETA_WIN_BASE(i), (base & 0xffff0000) |
+		    (attr << 8) | target);
+
+	mvreg_write(pp, MVNETA_WIN_SIZE(i), (wsize - 1) & 0xffff0000);
+
+	win_protect = mvreg_read(pp, MVNETA_ACCESS_PROTECT_ENABLE);
+	win_protect |= 3 << (2 * i);
+	mvreg_write(pp, MVNETA_ACCESS_PROTECT_ENABLE, win_protect);
+
+	win_enable &= ~(1 << i);
+	mvreg_write(pp, MVNETA_BASE_ADDR_ENABLE, win_enable);
+
+	return 0;
+}
+
+/* Assign and initialize pools for port. In case of fail
+ * buffer manager will remain disabled for current port.
+ */
+static int mvneta_bm_port_init(struct platform_device *pdev,
+			       struct mvneta_port *pp)
+{
+	struct device_node *dn = pdev->dev.of_node;
+	u32 long_pool_id, short_pool_id, wsize;
+	u8 target, attr;
+	int err;
+
+	/* Get BM window information */
+	err = mvebu_mbus_get_io_win_info(pp->bm_priv->bppi_phys_addr, &wsize,
+					 &target, &attr);
+	if (err < 0)
+		return err;
+
+	pp->bm_win_id = -1;
+
+	/* Open NETA -> BM window */
+	err = mvneta_mbus_io_win_set(pp, pp->bm_priv->bppi_phys_addr, wsize,
+				     target, attr);
+	if (err < 0) {
+		netdev_info(pp->dev, "fail to configure mbus window to BM\n");
+		return err;
+	}
+
+	if (of_property_read_u32(dn, "bm,pool-long", &long_pool_id)) {
+		netdev_info(pp->dev, "missing long pool id\n");
+		return -EINVAL;
+	}
+
+	/* Create port's long pool depending on mtu */
+	pp->pool_long = mvneta_bm_pool_use(pp->bm_priv, long_pool_id,
+					   MVNETA_BM_LONG, pp->id,
+					   MVNETA_RX_PKT_SIZE(pp->dev->mtu));
+	if (!pp->pool_long) {
+		netdev_info(pp->dev, "fail to obtain long pool for port\n");
+		return -ENOMEM;
+	}
+
+	pp->pool_long->port_map |= 1 << pp->id;
+
+	mvneta_bm_pool_bufsize_set(pp, pp->pool_long->buf_size,
+				   pp->pool_long->id);
+
+	/* If short pool id is not defined, assume using single pool */
+	if (of_property_read_u32(dn, "bm,pool-short", &short_pool_id))
+		short_pool_id = long_pool_id;
+
+	/* Create port's short pool */
+	pp->pool_short = mvneta_bm_pool_use(pp->bm_priv, short_pool_id,
+					    MVNETA_BM_SHORT, pp->id,
+					    MVNETA_BM_SHORT_PKT_SIZE);
+	if (!pp->pool_short) {
+		netdev_info(pp->dev, "fail to obtain short pool for port\n");
+		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_long, 1 << pp->id);
+		return -ENOMEM;
+	}
+
+	if (short_pool_id != long_pool_id) {
+		pp->pool_short->port_map |= 1 << pp->id;
+		mvneta_bm_pool_bufsize_set(pp, pp->pool_short->buf_size,
+					   pp->pool_short->id);
+	}
+
+	return 0;
+}
+
+/* Update settings of a pool for bigger packets */
+static void mvneta_bm_update_mtu(struct mvneta_port *pp, int mtu)
+{
+	struct mvneta_bm_pool *bm_pool = pp->pool_long;
+	struct hwbm_pool *hwbm_pool = &bm_pool->hwbm_pool;
+	int num;
+
+	/* Release all buffers from long pool */
+	mvneta_bm_bufs_free(pp->bm_priv, bm_pool, 1 << pp->id);
+	if (hwbm_pool->buf_num) {
+		WARN(1, "cannot free all buffers in pool %d\n",
+		     bm_pool->id);
+		goto bm_mtu_err;
+	}
+
+	bm_pool->pkt_size = MVNETA_RX_PKT_SIZE(mtu);
+	bm_pool->buf_size = MVNETA_RX_BUF_SIZE(bm_pool->pkt_size);
+	hwbm_pool->frag_size = SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) +
+			SKB_DATA_ALIGN(MVNETA_RX_BUF_SIZE(bm_pool->pkt_size));
+
+	/* Fill entire long pool */
+	num = hwbm_pool_add(hwbm_pool, hwbm_pool->size, GFP_ATOMIC);
+	if (num != hwbm_pool->size) {
+		WARN(1, "pool %d: %d of %d allocated\n",
+		     bm_pool->id, num, hwbm_pool->size);
+		goto bm_mtu_err;
+	}
+	mvneta_bm_pool_bufsize_set(pp, bm_pool->buf_size, bm_pool->id);
+
+	return;
+
+bm_mtu_err:
+	mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_long, 1 << pp->id);
+	mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_short, 1 << pp->id);
+
+	pp->bm_priv = NULL;
+	mvreg_write(pp, MVNETA_ACC_MODE, MVNETA_ACC_MODE_EXT1);
+	netdev_info(pp->dev, "fail to update MTU, fall back to software BM\n");
+}
+
 /* Start the Ethernet port RX and TX activity */
 static void mvneta_port_up(struct mvneta_port *pp)
 {
@@ -873,14 +1106,14 @@ static void mvneta_port_down(struct mvneta_port *pp)
 	do {
 		if (count++ >= MVNETA_RX_DISABLE_TIMEOUT_MSEC) {
 			netdev_warn(pp->dev,
-				    "TIMEOUT for RX stopped ! rx_queue_cmd: 0x08%x\n",
+				    "TIMEOUT for RX stopped ! rx_queue_cmd: 0x%08x\n",
 				    val);
 			break;
 		}
 		mdelay(1);
 
 		val = mvreg_read(pp, MVNETA_RXQ_CMD);
-	} while (val & 0xff);
+	} while (val & MVNETA_RXQ_ENABLE_MASK);
 
 	/* Stop Tx port activity. Check port Tx activity. Issue stop
 	 * command for active channels only
@@ -905,14 +1138,14 @@ static void mvneta_port_down(struct mvneta_port *pp)
 		/* Check TX Command reg that all Txqs are stopped */
 		val = mvreg_read(pp, MVNETA_TXQ_CMD);
 
-	} while (val & 0xff);
+	} while (val & MVNETA_TXQ_ENABLE_MASK);
 
 	/* Double check to verify that TX FIFO is empty */
 	count = 0;
 	do {
 		if (count++ >= MVNETA_TX_FIFO_EMPTY_TIMEOUT) {
 			netdev_warn(pp->dev,
-				    "TX FIFO empty timeout status=0x08%x\n",
+				    "TX FIFO empty timeout status=0x%08x\n",
 				    val);
 			break;
 		}
@@ -1149,8 +1382,16 @@ static void mvneta_defaults_set(struct mvneta_port *pp)
 	mvreg_write(pp, MVNETA_PORT_RX_RESET, 0);
 
 	/* Set Port Acceleration Mode */
-	val = MVNETA_ACC_MODE_EXT;
+	if (pp->bm_priv)
+		/* HW buffer management + legacy parser */
+		val = MVNETA_ACC_MODE_EXT2;
+	else
+		/* SW buffer management + legacy parser */
+		val = MVNETA_ACC_MODE_EXT1;
 	mvreg_write(pp, MVNETA_ACC_MODE, val);
+
+	if (pp->bm_priv)
+		mvreg_write(pp, MVNETA_BM_ADDRESS, pp->bm_priv->bppi_phys_addr);
 
 	/* Update val of portCfg register accordingly with all RxQueue types */
 	val = MVNETA_PORT_CONFIG_DEFL_VALUE(pp->rxq_def);
@@ -1518,23 +1759,25 @@ static void mvneta_txq_done(struct mvneta_port *pp,
 	}
 }
 
-static void *mvneta_frag_alloc(const struct mvneta_port *pp)
+void *mvneta_frag_alloc(unsigned int frag_size)
 {
-	if (likely(pp->frag_size <= PAGE_SIZE))
-		return netdev_alloc_frag(pp->frag_size);
+	if (likely(frag_size <= PAGE_SIZE))
+		return netdev_alloc_frag(frag_size);
 	else
-		return kmalloc(pp->frag_size, GFP_ATOMIC);
+		return kmalloc(frag_size, GFP_ATOMIC);
 }
+EXPORT_SYMBOL_GPL(mvneta_frag_alloc);
 
-static void mvneta_frag_free(const struct mvneta_port *pp, void *data)
+void mvneta_frag_free(unsigned int frag_size, void *data)
 {
-	if (likely(pp->frag_size <= PAGE_SIZE))
+	if (likely(frag_size <= PAGE_SIZE))
 		skb_free_frag(data);
 	else
 		kfree(data);
 }
+EXPORT_SYMBOL_GPL(mvneta_frag_free);
 
-/* Refill processing */
+/* Refill processing for SW buffer management */
 static int mvneta_rx_refill(struct mvneta_port *pp,
 			    struct mvneta_rx_desc *rx_desc)
 
@@ -1542,7 +1785,7 @@ static int mvneta_rx_refill(struct mvneta_port *pp,
 	dma_addr_t phys_addr;
 	void *data;
 
-	data = mvneta_frag_alloc(pp);
+	data = mvneta_frag_alloc(pp->frag_size);
 	if (!data)
 		return -ENOMEM;
 
@@ -1550,7 +1793,7 @@ static int mvneta_rx_refill(struct mvneta_port *pp,
 				   MVNETA_RX_BUF_SIZE(pp->pkt_size),
 				   DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(pp->dev->dev.parent, phys_addr))) {
-		mvneta_frag_free(pp, data);
+		mvneta_frag_free(pp->frag_size, data);
 		return -ENOMEM;
 	}
 
@@ -1596,22 +1839,37 @@ static void mvneta_rxq_drop_pkts(struct mvneta_port *pp,
 	int rx_done, i;
 
 	rx_done = mvneta_rxq_busy_desc_num_get(pp, rxq);
+	if (rx_done)
+		mvneta_rxq_desc_num_update(pp, rxq, rx_done, rx_done);
+
+	if (pp->bm_priv) {
+		for (i = 0; i < rx_done; i++) {
+			struct mvneta_rx_desc *rx_desc =
+						  mvneta_rxq_next_desc_get(rxq);
+			u8 pool_id = MVNETA_RX_GET_BM_POOL_ID(rx_desc);
+			struct mvneta_bm_pool *bm_pool;
+
+			bm_pool = &pp->bm_priv->bm_pools[pool_id];
+			/* Return dropped buffer to the pool */
+			mvneta_bm_pool_put_bp(pp->bm_priv, bm_pool,
+					      rx_desc->buf_phys_addr);
+		}
+		return;
+	}
+
 	for (i = 0; i < rxq->size; i++) {
 		struct mvneta_rx_desc *rx_desc = rxq->descs + i;
 		void *data = (void *)rx_desc->buf_cookie;
 
 		dma_unmap_single(pp->dev->dev.parent, rx_desc->buf_phys_addr,
 				 MVNETA_RX_BUF_SIZE(pp->pkt_size), DMA_FROM_DEVICE);
-		mvneta_frag_free(pp, data);
+		mvneta_frag_free(pp->frag_size, data);
 	}
-
-	if (rx_done)
-		mvneta_rxq_desc_num_update(pp, rxq, rx_done, rx_done);
 }
 
-/* Main rx processing */
-static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
-		     struct mvneta_rx_queue *rxq)
+/* Main rx processing when using software buffer management */
+static int mvneta_rx_swbm(struct mvneta_port *pp, int rx_todo,
+			  struct mvneta_rx_queue *rxq)
 {
 	struct mvneta_pcpu_port *port = this_cpu_ptr(pp->ports);
 	struct net_device *dev = pp->dev;
@@ -1633,7 +1891,7 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 		struct sk_buff *skb;
 		unsigned char *data;
 		dma_addr_t phys_addr;
-		u32 rx_status;
+		u32 rx_status, frag_size;
 		int rx_bytes, err;
 
 		rx_done++;
@@ -1644,7 +1902,7 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 
 		if (!mvneta_rxq_desc_is_first_last(rx_status) ||
 		    (rx_status & MVNETA_RXD_ERR_SUMMARY)) {
-		err_drop_frame:
+err_drop_frame:
 			dev->stats.rx_errors++;
 			mvneta_rx_error(pp, rx_desc);
 			/* leave the descriptor untouched */
@@ -1652,16 +1910,16 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 		}
 
 		if (rx_bytes <= rx_copybreak) {
-			/* better copy a small frame and not unmap the DMA region */
+		/* better copy a small frame and not unmap the DMA region */
 			skb = netdev_alloc_skb_ip_align(dev, rx_bytes);
 			if (unlikely(!skb))
 				goto err_drop_frame;
 
 			dma_sync_single_range_for_cpu(dev->dev.parent,
-			                              rx_desc->buf_phys_addr,
-			                              MVNETA_MH_SIZE + NET_SKB_PAD,
-			                              rx_bytes,
-			                              DMA_FROM_DEVICE);
+						      rx_desc->buf_phys_addr,
+						      MVNETA_MH_SIZE + NET_SKB_PAD,
+						      rx_bytes,
+						      DMA_FROM_DEVICE);
 			memcpy(skb_put(skb, rx_bytes),
 			       data + MVNETA_MH_SIZE + NET_SKB_PAD,
 			       rx_bytes);
@@ -1685,14 +1943,146 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 			goto err_drop_frame;
 		}
 
-		skb = build_skb(data, pp->frag_size > PAGE_SIZE ? 0 : pp->frag_size);
+		frag_size = pp->frag_size;
+
+		skb = build_skb(data, frag_size > PAGE_SIZE ? 0 : frag_size);
 
 		/* After refill old buffer has to be unmapped regardless
 		 * the skb is successfully built or not.
 		 */
 		dma_unmap_single(dev->dev.parent, phys_addr,
-				 MVNETA_RX_BUF_SIZE(pp->pkt_size), DMA_FROM_DEVICE);
+				 MVNETA_RX_BUF_SIZE(pp->pkt_size),
+				 DMA_FROM_DEVICE);
 
+		if (!skb)
+			goto err_drop_frame;
+
+		rcvd_pkts++;
+		rcvd_bytes += rx_bytes;
+
+		/* Linux processing */
+		skb_reserve(skb, MVNETA_MH_SIZE + NET_SKB_PAD);
+		skb_put(skb, rx_bytes);
+
+		skb->protocol = eth_type_trans(skb, dev);
+
+		mvneta_rx_csum(pp, rx_status, skb);
+
+		napi_gro_receive(&port->napi, skb);
+	}
+
+	if (rcvd_pkts) {
+		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
+
+		u64_stats_update_begin(&stats->syncp);
+		stats->rx_packets += rcvd_pkts;
+		stats->rx_bytes   += rcvd_bytes;
+		u64_stats_update_end(&stats->syncp);
+	}
+
+	/* Update rxq management counters */
+	mvneta_rxq_desc_num_update(pp, rxq, rx_done, rx_done);
+
+	return rx_done;
+}
+
+/* Main rx processing when using hardware buffer management */
+static int mvneta_rx_hwbm(struct mvneta_port *pp, int rx_todo,
+			  struct mvneta_rx_queue *rxq)
+{
+	struct mvneta_pcpu_port *port = this_cpu_ptr(pp->ports);
+	struct net_device *dev = pp->dev;
+	int rx_done;
+	u32 rcvd_pkts = 0;
+	u32 rcvd_bytes = 0;
+
+	/* Get number of received packets */
+	rx_done = mvneta_rxq_busy_desc_num_get(pp, rxq);
+
+	if (rx_todo > rx_done)
+		rx_todo = rx_done;
+
+	rx_done = 0;
+
+	/* Fairness NAPI loop */
+	while (rx_done < rx_todo) {
+		struct mvneta_rx_desc *rx_desc = mvneta_rxq_next_desc_get(rxq);
+		struct mvneta_bm_pool *bm_pool = NULL;
+		struct sk_buff *skb;
+		unsigned char *data;
+		dma_addr_t phys_addr;
+		u32 rx_status, frag_size;
+		int rx_bytes, err;
+		u8 pool_id;
+
+		rx_done++;
+		rx_status = rx_desc->status;
+		rx_bytes = rx_desc->data_size - (ETH_FCS_LEN + MVNETA_MH_SIZE);
+		data = (unsigned char *)rx_desc->buf_cookie;
+		phys_addr = rx_desc->buf_phys_addr;
+		pool_id = MVNETA_RX_GET_BM_POOL_ID(rx_desc);
+		bm_pool = &pp->bm_priv->bm_pools[pool_id];
+
+		if (!mvneta_rxq_desc_is_first_last(rx_status) ||
+		    (rx_status & MVNETA_RXD_ERR_SUMMARY)) {
+err_drop_frame_ret_pool:
+			/* Return the buffer to the pool */
+			mvneta_bm_pool_put_bp(pp->bm_priv, bm_pool,
+					      rx_desc->buf_phys_addr);
+err_drop_frame:
+			dev->stats.rx_errors++;
+			mvneta_rx_error(pp, rx_desc);
+			/* leave the descriptor untouched */
+			continue;
+		}
+
+		if (rx_bytes <= rx_copybreak) {
+			/* better copy a small frame and not unmap the DMA region */
+			skb = netdev_alloc_skb_ip_align(dev, rx_bytes);
+			if (unlikely(!skb))
+				goto err_drop_frame_ret_pool;
+
+			dma_sync_single_range_for_cpu(dev->dev.parent,
+			                              rx_desc->buf_phys_addr,
+			                              MVNETA_MH_SIZE + NET_SKB_PAD,
+			                              rx_bytes,
+			                              DMA_FROM_DEVICE);
+			memcpy(skb_put(skb, rx_bytes),
+			       data + MVNETA_MH_SIZE + NET_SKB_PAD,
+			       rx_bytes);
+
+			skb->protocol = eth_type_trans(skb, dev);
+			mvneta_rx_csum(pp, rx_status, skb);
+			napi_gro_receive(&port->napi, skb);
+
+			rcvd_pkts++;
+			rcvd_bytes += rx_bytes;
+
+			/* Return the buffer to the pool */
+			mvneta_bm_pool_put_bp(pp->bm_priv, bm_pool,
+					      rx_desc->buf_phys_addr);
+
+			/* leave the descriptor and buffer untouched */
+			continue;
+		}
+
+		/* Refill processing */
+		err = hwbm_pool_refill(&bm_pool->hwbm_pool, GFP_ATOMIC);
+		if (err) {
+			netdev_err(dev, "Linux processing - Can't refill\n");
+			rxq->missed++;
+			goto err_drop_frame_ret_pool;
+		}
+
+		frag_size = bm_pool->hwbm_pool.frag_size;
+
+		skb = build_skb(data, frag_size > PAGE_SIZE ? 0 : frag_size);
+
+		/* After refill old buffer has to be unmapped regardless
+		 * the skb is successfully built or not.
+		 */
+		dma_unmap_single(&pp->bm_priv->pdev->dev, phys_addr,
+				 bm_pool->buf_size, DMA_FROM_DEVICE);
 		if (!skb)
 			goto err_drop_frame;
 
@@ -2297,7 +2687,10 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 
 	if (rx_queue) {
 		rx_queue = rx_queue - 1;
-		rx_done = mvneta_rx(pp, budget, &pp->rxqs[rx_queue]);
+		if (pp->bm_priv)
+			rx_done = mvneta_rx_hwbm(pp, budget, &pp->rxqs[rx_queue]);
+		else
+			rx_done = mvneta_rx_swbm(pp, budget, &pp->rxqs[rx_queue]);
 	}
 
 	budget -= rx_done;
@@ -2370,9 +2763,6 @@ static int mvneta_rxq_init(struct mvneta_port *pp,
 	if (rxq->descs == NULL)
 		return -ENOMEM;
 
-	BUG_ON(rxq->descs !=
-	       PTR_ALIGN(rxq->descs, MVNETA_CPU_D_CACHE_LINE_SIZE));
-
 	rxq->last_desc = rxq->size - 1;
 
 	/* Set Rx descriptors queue starting address */
@@ -2386,9 +2776,17 @@ static int mvneta_rxq_init(struct mvneta_port *pp,
 	mvneta_rx_pkts_coal_set(pp, rxq, rxq->pkts_coal);
 	mvneta_rx_time_coal_set(pp, rxq, rxq->time_coal);
 
-	/* Fill RXQ with buffers from RX pool */
-	mvneta_rxq_buf_size_set(pp, rxq, MVNETA_RX_BUF_SIZE(pp->pkt_size));
-	mvneta_rxq_bm_disable(pp, rxq);
+	if (!pp->bm_priv) {
+		/* Fill RXQ with buffers from RX pool */
+		mvneta_rxq_buf_size_set(pp, rxq,
+					MVNETA_RX_BUF_SIZE(pp->pkt_size));
+		mvneta_rxq_bm_disable(pp, rxq);
+	} else {
+		mvneta_rxq_bm_enable(pp, rxq);
+		mvneta_rxq_long_pool_set(pp, rxq);
+		mvneta_rxq_short_pool_set(pp, rxq);
+	}
+
 	mvneta_rxq_fill(pp, rxq, rxq->size);
 
 	return 0;
@@ -2434,10 +2832,6 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 					&txq->descs_phys, GFP_KERNEL);
 	if (txq->descs == NULL)
 		return -ENOMEM;
-
-	/* Make sure descriptor address is cache line size aligned  */
-	BUG_ON(txq->descs !=
-	       PTR_ALIGN(txq->descs, MVNETA_CPU_D_CACHE_LINE_SIZE));
 
 	txq->last_desc = txq->size - 1;
 
@@ -2648,6 +3042,20 @@ static int mvneta_check_mtu_valid(struct net_device *dev, int mtu)
 	return mtu;
 }
 
+static void mvneta_percpu_enable(void *arg)
+{
+	struct mvneta_port *pp = arg;
+
+	enable_percpu_irq(pp->dev->irq, IRQ_TYPE_NONE);
+}
+
+static void mvneta_percpu_disable(void *arg)
+{
+	struct mvneta_port *pp = arg;
+
+	disable_percpu_irq(pp->dev->irq);
+}
+
 /* Change the device mtu */
 static int mvneta_change_mtu(struct net_device *dev, int mtu)
 {
@@ -2661,6 +3069,9 @@ static int mvneta_change_mtu(struct net_device *dev, int mtu)
 	dev->mtu = mtu;
 
 	if (!netif_running(dev)) {
+		if (pp->bm_priv)
+			mvneta_bm_update_mtu(pp, mtu);
+
 		netdev_update_features(dev);
 		return 0;
 	}
@@ -2669,9 +3080,13 @@ static int mvneta_change_mtu(struct net_device *dev, int mtu)
 	 * reallocation of the queues
 	 */
 	mvneta_stop_dev(pp);
+	on_each_cpu(mvneta_percpu_disable, pp, true);
 
 	mvneta_cleanup_txqs(pp);
 	mvneta_cleanup_rxqs(pp);
+
+	if (pp->bm_priv)
+		mvneta_bm_update_mtu(pp, mtu);
 
 	pp->pkt_size = MVNETA_RX_PKT_SIZE(dev->mtu);
 	pp->frag_size = SKB_DATA_ALIGN(MVNETA_RX_BUF_SIZE(pp->pkt_size)) +
@@ -2689,6 +3104,7 @@ static int mvneta_change_mtu(struct net_device *dev, int mtu)
 		return ret;
 	}
 
+	on_each_cpu(mvneta_percpu_enable, pp, true);
 	mvneta_start_dev(pp);
 	mvneta_port_up(pp);
 
@@ -2842,20 +3258,6 @@ static void mvneta_mdio_remove(struct mvneta_port *pp)
 	pp->phy_dev = NULL;
 }
 
-static void mvneta_percpu_enable(void *arg)
-{
-	struct mvneta_port *pp = arg;
-
-	enable_percpu_irq(pp->dev->irq, IRQ_TYPE_NONE);
-}
-
-static void mvneta_percpu_disable(void *arg)
-{
-	struct mvneta_port *pp = arg;
-
-	disable_percpu_irq(pp->dev->irq);
-}
-
 /* Electing a CPU must be done in an atomic way: it should be done
  * after or before the removal/insertion of a CPU and this function is
  * not reentrant.
@@ -2920,6 +3322,8 @@ static int mvneta_percpu_notifier(struct notifier_block *nfb,
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
+	case CPU_DOWN_FAILED:
+	case CPU_DOWN_FAILED_FROZEN:
 		spin_lock(&pp->lock);
 		/* Configuring the driver for a new CPU while the
 		 * driver is stopping is racy, so just avoid it.
@@ -3070,17 +3474,17 @@ static int mvneta_stop(struct net_device *dev)
 	struct mvneta_port *pp = netdev_priv(dev);
 
 	/* Inform that we are stopping so we don't want to setup the
-	 * driver for new CPUs in the notifiers
+	 * driver for new CPUs in the notifiers. The code of the
+	 * notifier for CPU online is protected by the same spinlock,
+	 * so when we get the lock, the notifer work is done.
 	 */
 	spin_lock(&pp->lock);
 	pp->is_stopped = true;
+	spin_unlock(&pp->lock);
+
 	mvneta_stop_dev(pp);
 	mvneta_mdio_remove(pp);
 	unregister_cpu_notifier(&pp->cpu_notifier);
-	/* Now that the notifier are unregistered, we can release le
-	 * lock
-	 */
-	spin_unlock(&pp->lock);
 	on_each_cpu(mvneta_percpu_disable, pp, true);
 	free_percpu_irq(dev->irq, pp->ports);
 	mvneta_cleanup_rxqs(pp);
@@ -3557,6 +3961,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device_node *dn = pdev->dev.of_node;
 	struct device_node *phy_node;
+	struct device_node *bm_node;
 	struct mvneta_port *pp;
 	struct net_device *dev;
 	const char *dt_mac_addr;
@@ -3612,6 +4017,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	dev->ethtool_ops = &mvneta_eth_tool_ops;
 
 	pp = netdev_priv(dev);
+	spin_lock_init(&pp->lock);
 	pp->phy_node = phy_node;
 	pp->phy_interface = phy_mode;
 
@@ -3690,25 +4096,38 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	pp->tx_csum_limit = tx_csum_limit;
 
+	dram_target_info = mv_mbus_dram_info();
+	if (dram_target_info)
+		mvneta_conf_mbus_windows(pp, dram_target_info);
+
 	pp->tx_ring_size = MVNETA_MAX_TXD;
 	pp->rx_ring_size = MVNETA_MAX_RXD;
 
 	pp->dev = dev;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
+	pp->id = global_port_id++;
+
+	/* Obtain access to BM resources if enabled and already initialized */
+	bm_node = of_parse_phandle(dn, "buffer-manager", 0);
+	if (bm_node && bm_node->data) {
+		pp->bm_priv = bm_node->data;
+		err = mvneta_bm_port_init(pdev, pp);
+		if (err < 0) {
+			dev_info(&pdev->dev, "use SW buffer management\n");
+			pp->bm_priv = NULL;
+		}
+	}
+
 	err = mvneta_init(&pdev->dev, pp);
 	if (err < 0)
-		goto err_free_stats;
+		goto err_netdev;
 
 	err = mvneta_port_power_up(pp, phy_mode);
 	if (err < 0) {
 		dev_err(&pdev->dev, "can't power up port\n");
-		goto err_free_stats;
+		goto err_netdev;
 	}
-
-	dram_target_info = mv_mbus_dram_info();
-	if (dram_target_info)
-		mvneta_conf_mbus_windows(pp, dram_target_info);
 
 	for_each_present_cpu(cpu) {
 		struct mvneta_pcpu_port *port = per_cpu_ptr(pp->ports, cpu);
@@ -3720,7 +4139,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
 	dev->hw_features |= dev->features;
 	dev->vlan_features |= dev->features;
-	dev->priv_flags |= IFF_UNICAST_FLT;
+	dev->priv_flags |= IFF_UNICAST_FLT | IFF_LIVE_ADDR_CHANGE;
 	dev->gso_max_segs = MVNETA_MAX_TSO_SEGS;
 
 	err = register_netdev(dev);
@@ -3744,6 +4163,13 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_netdev:
+	unregister_netdev(dev);
+	if (pp->bm_priv) {
+		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_long, 1 << pp->id);
+		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_short,
+				       1 << pp->id);
+	}
 err_free_stats:
 	free_percpu(pp->stats);
 err_free_ports:
@@ -3774,6 +4200,12 @@ static int mvneta_remove(struct platform_device *pdev)
 	irq_dispose_mapping(dev->irq);
 	of_node_put(pp->phy_node);
 	free_netdev(dev);
+
+	if (pp->bm_priv) {
+		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_long, 1 << pp->id);
+		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_short,
+				       1 << pp->id);
+	}
 
 	return 0;
 }

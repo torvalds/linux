@@ -63,9 +63,12 @@ static struct snd_soc_dai_driver ipq806x_lpass_cpu_dai_driver = {
 	.ops    = &asoc_qcom_lpass_cpu_dai_ops,
 };
 
-static int ipq806x_lpass_alloc_dma_channel(struct lpass_data *drvdata)
+static int ipq806x_lpass_alloc_dma_channel(struct lpass_data *drvdata, int dir)
 {
-	return IPQ806X_LPAIF_RDMA_CHAN_MI2S;
+	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
+		return IPQ806X_LPAIF_RDMA_CHAN_MI2S;
+	else	/* Capture currently not implemented */
+		return -EINVAL;
 }
 
 static int ipq806x_lpass_free_dma_channel(struct lpass_data *drvdata, int chan)
@@ -83,6 +86,10 @@ static struct lpass_variant ipq806x_data = {
 	.rdma_reg_base		= 0x6000,
 	.rdma_reg_stride	= 0x1000,
 	.rdma_channels		= 4,
+	.wrdma_reg_base		= 0xB000,
+	.wrdma_reg_stride	= 0x1000,
+	.wrdma_channel_start	= 5,
+	.wrdma_channels		= 4,
 	.dai_driver		= &ipq806x_lpass_cpu_dai_driver,
 	.num_dai		= 1,
 	.alloc_dma_channel	= ipq806x_lpass_alloc_dma_channel,

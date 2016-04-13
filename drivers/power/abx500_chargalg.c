@@ -975,22 +975,18 @@ static void handle_maxim_chg_curr(struct abx500_chargalg *di)
 static int abx500_chargalg_get_ext_psy_data(struct device *dev, void *data)
 {
 	struct power_supply *psy;
-	struct power_supply *ext;
+	struct power_supply *ext = dev_get_drvdata(dev);
+	const char **supplicants = (const char **)ext->supplied_to;
 	struct abx500_chargalg *di;
 	union power_supply_propval ret;
-	int i, j;
-	bool psy_found = false;
+	int j;
 	bool capacity_updated = false;
 
 	psy = (struct power_supply *)data;
-	ext = dev_get_drvdata(dev);
 	di = power_supply_get_drvdata(psy);
 	/* For all psy where the driver name appears in any supplied_to */
-	for (i = 0; i < ext->num_supplicants; i++) {
-		if (!strcmp(ext->supplied_to[i], psy->desc->name))
-			psy_found = true;
-	}
-	if (!psy_found)
+	j = match_string(supplicants, ext->num_supplicants, psy->desc->name);
+	if (j < 0)
 		return 0;
 
 	/*
