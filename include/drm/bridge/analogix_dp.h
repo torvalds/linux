@@ -29,6 +29,10 @@ struct analogix_dp_plat_data {
 	int (*attach)(struct analogix_dp_plat_data *, struct drm_bridge *,
 		      struct drm_connector *);
 	int (*get_modes)(struct analogix_dp_plat_data *);
+
+	enum drm_mode_status (*mode_valid)(struct analogix_dp_plat_data *,
+					   struct drm_connector *,
+					   struct drm_display_mode *);
 };
 
 int analogix_dp_resume(struct device *dev);
