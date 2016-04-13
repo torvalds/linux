@@ -406,6 +406,12 @@ struct mv88e6xxx_priv_state {
 	 */
 	struct mutex	smi_mutex;
 
+	/* The MII bus and the address on the bus that is used to
+	 * communication with the switch
+	 */
+	struct mii_bus *bus;
+	int sw_addr;
+
 #ifdef CONFIG_NET_DSA_MV88E6XXX_NEED_PPU
 	/* Handles automatic disabling and re-enabling of the PHY
 	 * polling unit.
@@ -456,9 +462,11 @@ struct mv88e6xxx_hw_stat {
 };
 
 int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active);
-char *mv88e6xxx_lookup_name(struct device *host_dev, int sw_addr,
-			    const struct mv88e6xxx_switch_id *table,
-			    unsigned int num);
+char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
+			  int sw_addr, void **priv,
+			  const struct mv88e6xxx_switch_id *table,
+			  unsigned int num);
+
 int mv88e6xxx_setup_ports(struct dsa_switch *ds);
 int mv88e6xxx_setup_common(struct dsa_switch *ds);
 int mv88e6xxx_setup_global(struct dsa_switch *ds);

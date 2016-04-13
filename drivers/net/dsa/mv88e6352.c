@@ -40,18 +40,9 @@ static const struct mv88e6xxx_switch_id mv88e6352_table[] = {
 static char *mv88e6352_probe(struct device *dsa_dev, struct device *host_dev,
 			     int sw_addr, void **priv)
 {
-	struct mv88e6xxx_priv_state *ps;
-	char *name;
-
-	name = mv88e6xxx_lookup_name(host_dev, sw_addr, mv88e6352_table,
-				     ARRAY_SIZE(mv88e6352_table));
-	if (name) {
-		ps = devm_kzalloc(dsa_dev, sizeof(*ps), GFP_KERNEL);
-		if (!ps)
-			return NULL;
-		*priv = ps;
-	}
-	return name;
+	return mv88e6xxx_drv_probe(dsa_dev, host_dev, sw_addr, priv,
+				   mv88e6352_table,
+				   ARRAY_SIZE(mv88e6352_table));
 }
 
 static int mv88e6352_setup_global(struct dsa_switch *ds)
