@@ -397,24 +397,6 @@ static void i40e_tx_timeout(struct net_device *netdev)
 }
 
 /**
- * i40e_release_rx_desc - Store the new tail and head values
- * @rx_ring: ring to bump
- * @val: new head index
- **/
-static inline void i40e_release_rx_desc(struct i40e_ring *rx_ring, u32 val)
-{
-	rx_ring->next_to_use = val;
-
-	/* Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.  (Only
-	 * applicable for weak-ordered memory model archs,
-	 * such as IA-64).
-	 */
-	wmb();
-	writel(val, rx_ring->tail);
-}
-
-/**
  * i40e_get_vsi_stats_struct - Get System Network Statistics
  * @vsi: the VSI we care about
  *
