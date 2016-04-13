@@ -1777,7 +1777,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(dev_priv);
 
-	while (true) {
+	do {
 		u32 ier = 0;
 
 		gt_iir = I915_READ(GTIIR);
@@ -1785,7 +1785,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		iir = I915_READ(VLV_IIR);
 
 		if (gt_iir == 0 && pm_iir == 0 && iir == 0)
-			goto out;
+			break;
 
 		ret = IRQ_HANDLED;
 
@@ -1833,9 +1833,8 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		I915_WRITE(VLV_IER, ier);
 		I915_WRITE(VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
 		POSTING_READ(VLV_MASTER_IER);
-	}
+	} while (0);
 
-out:
 	enable_rpm_wakeref_asserts(dev_priv);
 
 	return ret;
