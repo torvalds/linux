@@ -976,7 +976,7 @@ static int cik_sdma_sw_init(void *handle)
 		ring = &adev->sdma.instance[i].ring;
 		ring->ring_obj = NULL;
 		sprintf(ring->name, "sdma%d", i);
-		r = amdgpu_ring_init(adev, ring, 32 * 1024,
+		r = amdgpu_ring_init(adev, ring, 1024,
 				     SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0), 0xf,
 				     &adev->sdma.trap_irq,
 				     (i == 0) ?

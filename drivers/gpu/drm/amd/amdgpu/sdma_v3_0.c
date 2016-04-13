@@ -1176,7 +1176,7 @@ static int sdma_v3_0_sw_init(void *handle)
 			AMDGPU_DOORBELL_sDMA_ENGINE0 : AMDGPU_DOORBELL_sDMA_ENGINE1;
 
 		sprintf(ring->name, "sdma%d", i);
-		r = amdgpu_ring_init(adev, ring, 256 * 1024,
+		r = amdgpu_ring_init(adev, ring, 1024,
 				     SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP), 0xf,
 				     &adev->sdma.trap_irq,
 				     (i == 0) ?
