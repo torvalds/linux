@@ -1781,19 +1781,20 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		/* Find, clear, then process each source of interrupt */
 
 		gt_iir = I915_READ(GTIIR);
-		if (gt_iir)
-			I915_WRITE(GTIIR, gt_iir);
-
 		pm_iir = I915_READ(GEN6_PMIIR);
-		if (pm_iir)
-			I915_WRITE(GEN6_PMIIR, pm_iir);
-
 		iir = I915_READ(VLV_IIR);
 
 		if (gt_iir == 0 && pm_iir == 0 && iir == 0)
 			goto out;
 
 		ret = IRQ_HANDLED;
+
+		I915_WRITE(VLV_MASTER_IER, 0);
+
+		if (gt_iir)
+			I915_WRITE(GTIIR, gt_iir);
+		if (pm_iir)
+			I915_WRITE(GEN6_PMIIR, pm_iir);
 
 		if (gt_iir)
 			snb_gt_irq_handler(dev, dev_priv, gt_iir);
@@ -1813,6 +1814,9 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		 */
 		if (iir)
 			I915_WRITE(VLV_IIR, iir);
+
+		I915_WRITE(VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
+		POSTING_READ(VLV_MASTER_IER);
 	}
 
 out:
