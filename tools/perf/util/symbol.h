@@ -262,8 +262,14 @@ int symbol__init(struct perf_env *env);
 void symbol__exit(void);
 void symbol__elf_init(void);
 struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name);
+size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
+				      const struct addr_location *al,
+				      bool unknown_as_addr, FILE *fp);
 size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 				    const struct addr_location *al, FILE *fp);
+size_t __symbol__fprintf_symname(const struct symbol *sym,
+				 const struct addr_location *al,
+				 bool unknown_as_addr, FILE *fp);
 size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp);
 size_t symbol__fprintf(struct symbol *sym, FILE *fp);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);

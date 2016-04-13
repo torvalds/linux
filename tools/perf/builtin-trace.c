@@ -34,6 +34,7 @@
 #include "trace-event.h"
 #include "util/parse-events.h"
 #include "util/bpf-loader.h"
+#include "callchain.h"
 #include "syscalltbl.h"
 
 #include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
@@ -158,6 +159,7 @@ struct trace {
 	bool			show_comm;
 	bool			show_tool_stats;
 	bool			trace_syscalls;
+	bool			kernel_syscallchains;
 	bool			force;
 	bool			vfs_getname;
 	int			trace_pgfaults;
@@ -2190,6 +2192,22 @@ signed_print:
 		goto signed_print;
 
 	fputc('\n', trace->output);
+
+	if (sample->callchain) {
+		struct addr_location al;
+		/* TODO: user-configurable print_opts */
+		const unsigned int print_opts = PRINT_IP_OPT_SYM |
+					        PRINT_IP_OPT_DSO |
+					        PRINT_IP_OPT_UNKNOWN_AS_ADDR;
+
+		if (machine__resolve(trace->host, &al, sample) < 0) {
+			pr_err("problem processing %d event, skipping it.\n",
+			       event->header.type);
+			goto out_put;
+		}
+		perf_evsel__fprintf_callchain(evsel, sample, &al, 38, print_opts,
+					      scripting_max_stack, trace->output);
+	}
 out:
 	ttrace->entry_pending = false;
 	err = 0;
@@ -2645,6 +2663,15 @@ static int trace__add_syscall_newtp(struct trace *trace)
 	perf_evlist__add(evlist, sys_enter);
 	perf_evlist__add(evlist, sys_exit);
 
+	if (trace->opts.callgraph_set && !trace->kernel_syscallchains) {
+		/*
+		 * We're interested only in the user space callchain
+		 * leading to the syscall, allow overriding that for
+		 * debugging reasons using --kernel_syscall_callchains
+		 */
+		sys_exit->attr.exclude_callchain_kernel = 1;
+	}
+
 	trace->syscalls.events.sys_enter = sys_enter;
 	trace->syscalls.events.sys_exit  = sys_exit;
 
@@ -2723,7 +2750,27 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__config(evlist, &trace->opts);
+	perf_evlist__config(evlist, &trace->opts, NULL);
+
+	if (trace->opts.callgraph_set && trace->syscalls.events.sys_exit) {
+		perf_evsel__config_callchain(trace->syscalls.events.sys_exit,
+					     &trace->opts, &callchain_param);
+               /*
+                * Now we have evsels with different sample_ids, use
+                * PERF_SAMPLE_IDENTIFIER to map from sample to evsel
+                * from a fixed position in each ring buffer record.
+                *
+                * As of this the changeset introducing this comment, this
+                * isn't strictly needed, as the fields that can come before
+                * PERF_SAMPLE_ID are all used, but we'll probably disable
+                * some of those for things like copying the payload of
+                * pointer syscall arguments, and for vfs_getname we don't
+                * need PERF_SAMPLE_ADDR and PERF_SAMPLE_IP, so do this
+                * here as a warning we need to use PERF_SAMPLE_IDENTIFIER.
+                */
+		perf_evlist__set_sample_bit(evlist, IDENTIFIER);
+		perf_evlist__reset_sample_bit(evlist, ID);
+	}
 
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
@@ -3205,6 +3252,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		.output = stderr,
 		.show_comm = true,
 		.trace_syscalls = true,
+		.kernel_syscallchains = false,
 	};
 	const char *output_name = NULL;
 	const char *ev_qualifier_str = NULL;
@@ -3250,6 +3298,11 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Trace pagefaults", parse_pagefaults, "maj"),
 	OPT_BOOLEAN(0, "syscalls", &trace.trace_syscalls, "Trace syscalls"),
 	OPT_BOOLEAN('f', "force", &trace.force, "don't complain, do it"),
+	OPT_CALLBACK(0, "call-graph", &trace.opts,
+		     "record_mode[,record_size]", record_callchain_help,
+		     &record_parse_callchain_opt),
+	OPT_BOOLEAN(0, "kernel-syscall-graph", &trace.kernel_syscallchains,
+		    "Show the kernel callchains on the syscall exit path"),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_END()
@@ -3273,10 +3326,20 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	argc = parse_options_subcommand(argc, argv, trace_options, trace_subcommands,
 				 trace_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
+	err = bpf__setup_stdout(trace.evlist);
+	if (err) {
+		bpf__strerror_setup_stdout(trace.evlist, err, bf, sizeof(bf));
+		pr_err("ERROR: Setup BPF stdout failed: %s\n", bf);
+		goto out;
+	}
+
 	if (trace.trace_pgfaults) {
 		trace.opts.sample_address = true;
 		trace.opts.sample_time = true;
 	}
+
+	if (trace.opts.callgraph_set)
+		symbol_conf.use_callchain = true;
 
 	if (trace.evlist->nr_entries > 0)
 		evlist__set_evsel_handler(trace.evlist, trace__event_handler);

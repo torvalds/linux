@@ -264,8 +264,9 @@ size_t symbol__fprintf(struct symbol *sym, FILE *fp)
 		       sym->name);
 }
 
-size_t symbol__fprintf_symname_offs(const struct symbol *sym,
-				    const struct addr_location *al, FILE *fp)
+size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
+				      const struct addr_location *al,
+				      bool unknown_as_addr, FILE *fp)
 {
 	unsigned long offset;
 	size_t length;
@@ -280,13 +281,29 @@ size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 			length += fprintf(fp, "+0x%lx", offset);
 		}
 		return length;
-	} else
+	} else if (al && unknown_as_addr)
+		return fprintf(fp, "[%#" PRIx64 "]", al->addr);
+	else
 		return fprintf(fp, "[unknown]");
+}
+
+size_t symbol__fprintf_symname_offs(const struct symbol *sym,
+				    const struct addr_location *al,
+				    FILE *fp)
+{
+	return __symbol__fprintf_symname_offs(sym, al, false, fp);
+}
+
+size_t __symbol__fprintf_symname(const struct symbol *sym,
+				 const struct addr_location *al,
+				 bool unknown_as_addr, FILE *fp)
+{
+	return __symbol__fprintf_symname_offs(sym, al, unknown_as_addr, fp);
 }
 
 size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp)
 {
-	return symbol__fprintf_symname_offs(sym, NULL, fp);
+	return __symbol__fprintf_symname_offs(sym, NULL, false, fp);
 }
 
 void symbols__delete(struct rb_root *symbols)

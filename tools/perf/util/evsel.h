@@ -178,8 +178,14 @@ void perf_evsel__init(struct perf_evsel *evsel,
 void perf_evsel__exit(struct perf_evsel *evsel);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
+struct callchain_param;
+
 void perf_evsel__config(struct perf_evsel *evsel,
-			struct record_opts *opts);
+			struct record_opts *opts,
+			struct callchain_param *callchain);
+void perf_evsel__config_callchain(struct perf_evsel *evsel,
+				  struct record_opts *opts,
+				  struct callchain_param *callchain);
 
 int __perf_evsel__sample_size(u64 sample_type);
 void perf_evsel__calc_id_pos(struct perf_evsel *evsel);
@@ -380,6 +386,12 @@ struct perf_attr_details {
 
 int perf_evsel__fprintf(struct perf_evsel *evsel,
 			struct perf_attr_details *details, FILE *fp);
+
+int perf_evsel__fprintf_callchain(struct perf_evsel *evsel,
+				  struct perf_sample *sample,
+				  struct addr_location *al, int left_alignment,
+				  unsigned int print_opts,
+				  unsigned int stack_depth, FILE *fp);
 
 bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 			  char *msg, size_t msgsize);

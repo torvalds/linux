@@ -1192,6 +1192,24 @@ void perf_evlist__set_maps(struct perf_evlist *evlist, struct cpu_map *cpus,
 	perf_evlist__propagate_maps(evlist);
 }
 
+void __perf_evlist__set_sample_bit(struct perf_evlist *evlist,
+				   enum perf_event_sample_format bit)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel)
+		__perf_evsel__set_sample_bit(evsel, bit);
+}
+
+void __perf_evlist__reset_sample_bit(struct perf_evlist *evlist,
+				     enum perf_event_sample_format bit)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel)
+		__perf_evsel__reset_sample_bit(evsel, bit);
+}
+
 int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel)
 {
 	struct perf_evsel *evsel;

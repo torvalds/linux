@@ -284,7 +284,7 @@ static int record__open(struct record *rec)
 	struct record_opts *opts = &rec->opts;
 	int rc = 0;
 
-	perf_evlist__config(evlist, opts);
+	perf_evlist__config(evlist, opts, &callchain_param);
 
 	evlist__for_each(evlist, pos) {
 try_again:
@@ -1275,6 +1275,14 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 					      rec->opts.auxtrace_snapshot_opts);
 	if (err)
 		return err;
+
+	err = bpf__setup_stdout(rec->evlist);
+	if (err) {
+		bpf__strerror_setup_stdout(rec->evlist, err, errbuf, sizeof(errbuf));
+		pr_err("ERROR: Setup BPF stdout failed: %s\n",
+			 errbuf);
+		return err;
+	}
 
 	err = -ENOMEM;
 
