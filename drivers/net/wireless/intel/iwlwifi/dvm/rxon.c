@@ -719,7 +719,7 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf)
 void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 			 struct iwl_rxon_context *ctx)
 {
-	enum ieee80211_band band = ch->band;
+	enum nl80211_band band = ch->band;
 	u16 channel = ch->hw_value;
 
 	if ((le16_to_cpu(ctx->staging.channel) == channel) &&
@@ -727,7 +727,7 @@ void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 		return;
 
 	ctx->staging.channel = cpu_to_le16(channel);
-	if (band == IEEE80211_BAND_5GHZ)
+	if (band == NL80211_BAND_5GHZ)
 		ctx->staging.flags &= ~RXON_FLG_BAND_24G_MSK;
 	else
 		ctx->staging.flags |= RXON_FLG_BAND_24G_MSK;
@@ -740,10 +740,10 @@ void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 
 void iwl_set_flags_for_band(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
-			    enum ieee80211_band band,
+			    enum nl80211_band band,
 			    struct ieee80211_vif *vif)
 {
-	if (band == IEEE80211_BAND_5GHZ) {
+	if (band == NL80211_BAND_5GHZ) {
 		ctx->staging.flags &=
 		    ~(RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK
 		      | RXON_FLG_CCK_MSK);
@@ -1476,7 +1476,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	iwlagn_set_rxon_chain(priv, ctx);
 
-	if (bss_conf->use_cts_prot && (priv->band != IEEE80211_BAND_5GHZ))
+	if (bss_conf->use_cts_prot && (priv->band != NL80211_BAND_5GHZ))
 		ctx->staging.flags |= RXON_FLG_TGG_PROTECT_MSK;
 	else
 		ctx->staging.flags &= ~RXON_FLG_TGG_PROTECT_MSK;

@@ -98,7 +98,7 @@ struct iwl_nvm_data {
 	s8 max_tx_pwr_half_dbm;
 
 	bool lar_enabled;
-	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
+	struct ieee80211_supported_band bands[NUM_NL80211_BANDS];
 	struct ieee80211_channel channels[];
 };
 
@@ -133,12 +133,12 @@ int iwl_nvm_check_version(struct iwl_nvm_data *data,
 
 int iwl_init_sband_channels(struct iwl_nvm_data *data,
 			    struct ieee80211_supported_band *sband,
-			    int n_channels, enum ieee80211_band band);
+			    int n_channels, enum nl80211_band band);
 
 void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 			  struct iwl_nvm_data *data,
 			  struct ieee80211_sta_ht_cap *ht_info,
-			  enum ieee80211_band band,
+			  enum nl80211_band band,
 			  u8 tx_chains, u8 rx_chains);
 
 #endif /* __iwl_eeprom_parse_h__ */

@@ -1137,7 +1137,7 @@ minstrel_ht_update_cck(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 {
 	int i;
 
-	if (sband->band != IEEE80211_BAND_2GHZ)
+	if (sband->band != NL80211_BAND_2GHZ)
 		return;
 
 	if (!ieee80211_hw_check(mp->hw, SUPPORTS_HT_CCK_RATES))
@@ -1335,7 +1335,7 @@ minstrel_ht_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 	int max_rates = 0;
 	int i;
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		sband = hw->wiphy->bands[i];
 		if (sband && sband->n_bitrates > max_rates)
 			max_rates = sband->n_bitrates;

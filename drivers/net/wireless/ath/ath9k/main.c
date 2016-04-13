@@ -1933,14 +1933,14 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 	if (idx == 0)
 		ath_update_survey_stats(sc);
 
-	sband = hw->wiphy->bands[IEEE80211_BAND_2GHZ];
+	sband = hw->wiphy->bands[NL80211_BAND_2GHZ];
 	if (sband && idx >= sband->n_channels) {
 		idx -= sband->n_channels;
 		sband = NULL;
 	}
 
 	if (!sband)
-		sband = hw->wiphy->bands[IEEE80211_BAND_5GHZ];
+		sband = hw->wiphy->bands[NL80211_BAND_5GHZ];
 
 	if (!sband || idx >= sband->n_channels) {
 		spin_unlock_bh(&common->cc_lock);

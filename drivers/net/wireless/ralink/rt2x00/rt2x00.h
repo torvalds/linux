@@ -753,8 +753,8 @@ struct rt2x00_dev {
 	 * IEEE80211 control structure.
 	 */
 	struct ieee80211_hw *hw;
-	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
-	enum ieee80211_band curr_band;
+	struct ieee80211_supported_band bands[NUM_NL80211_BANDS];
+	enum nl80211_band curr_band;
 	int curr_freq;
 
 	/*

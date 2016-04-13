@@ -335,7 +335,7 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 	if (!buf)
 		return -ENOMEM;
 
-	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_2GHZ);
+	supp_band = iwl_get_hw_mode(priv, NL80211_BAND_2GHZ);
 	if (supp_band) {
 		channels = supp_band->channels;
 
@@ -358,7 +358,7 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 					IEEE80211_CHAN_NO_IR ?
 					"passive only" : "active/passive");
 	}
-	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_5GHZ);
+	supp_band = iwl_get_hw_mode(priv, NL80211_BAND_5GHZ);
 	if (supp_band) {
 		channels = supp_band->channels;
 

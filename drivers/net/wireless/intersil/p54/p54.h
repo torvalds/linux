@@ -223,7 +223,7 @@ struct p54_common {
 	struct p54_cal_database *curve_data;
 	struct p54_cal_database *output_limit;
 	struct p54_cal_database *rssi_db;
-	struct ieee80211_supported_band *band_table[IEEE80211_NUM_BANDS];
+	struct ieee80211_supported_band *band_table[NUM_NL80211_BANDS];
 
 	/* BBP/MAC state */
 	u8 mac_addr[ETH_ALEN];

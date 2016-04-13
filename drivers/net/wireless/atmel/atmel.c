@@ -2434,7 +2434,7 @@ static int atmel_get_range(struct net_device *dev,
 
 			/* Values in MHz -> * 10^5 * 10 */
 			range->freq[k].m = 100000 *
-			 ieee80211_channel_to_frequency(i, IEEE80211_BAND_2GHZ);
+			 ieee80211_channel_to_frequency(i, NL80211_BAND_2GHZ);
 			range->freq[k++].e = 1;
 		}
 		range->num_frequency = k;
