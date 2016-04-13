@@ -1789,12 +1789,6 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			I915_WRITE(GEN6_PMIIR, pm_iir);
 
 		iir = I915_READ(VLV_IIR);
-		if (iir) {
-			/* Consume port before clearing IIR or we'll miss events */
-			if (iir & I915_DISPLAY_PORT_INTERRUPT)
-				i9xx_hpd_irq_handler(dev);
-			I915_WRITE(VLV_IIR, iir);
-		}
 
 		if (gt_iir == 0 && pm_iir == 0 && iir == 0)
 			goto out;
@@ -1805,9 +1799,20 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			snb_gt_irq_handler(dev, dev_priv, gt_iir);
 		if (pm_iir)
 			gen6_rps_irq_handler(dev_priv, pm_iir);
+
+		if (iir & I915_DISPLAY_PORT_INTERRUPT)
+			i9xx_hpd_irq_handler(dev);
+
 		/* Call regardless, as some status bits might not be
 		 * signalled in iir */
 		valleyview_pipestat_irq_handler(dev, iir);
+
+		/*
+		 * VLV_IIR is single buffered, and reflects the level
+		 * from PIPESTAT/PORT_HOTPLUG_STAT, hence clear it last.
+		 */
+		if (iir)
+			I915_WRITE(VLV_IIR, iir);
 	}
 
 out:
@@ -1840,20 +1845,21 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 		I915_WRITE(GEN8_MASTER_IRQ, 0);
 
-		/* Find, clear, then process each source of interrupt */
-
-		if (iir) {
-			/* Consume port before clearing IIR or we'll miss events */
-			if (iir & I915_DISPLAY_PORT_INTERRUPT)
-				i9xx_hpd_irq_handler(dev);
-			I915_WRITE(VLV_IIR, iir);
-		}
-
 		gen8_gt_irq_handler(dev_priv, master_ctl);
+
+		if (iir & I915_DISPLAY_PORT_INTERRUPT)
+			i9xx_hpd_irq_handler(dev);
 
 		/* Call regardless, as some status bits might not be
 		 * signalled in iir */
 		valleyview_pipestat_irq_handler(dev, iir);
+
+		/*
+		 * VLV_IIR is single buffered, and reflects the level
+		 * from PIPESTAT/PORT_HOTPLUG_STAT, hence clear it last.
+		 */
+		if (iir)
+			I915_WRITE(VLV_IIR, iir);
 
 		I915_WRITE(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 		POSTING_READ(GEN8_MASTER_IRQ);
