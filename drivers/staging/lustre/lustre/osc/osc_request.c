@@ -837,7 +837,6 @@ static void osc_announce_cached(struct client_obd *cli, struct obdo *oa,
 	spin_unlock(&cli->cl_loi_list_lock);
 	CDEBUG(D_CACHE, "dirty: %llu undirty: %u dropped %u grant: %llu\n",
 	       oa->o_dirty, oa->o_undirty, oa->o_dropped, oa->o_grant);
-
 }
 
 void osc_update_next_shrink(struct client_obd *cli)

@@ -1001,7 +1001,6 @@ finish:
 			return 0;
 		}
 	} else {
-
 		spin_lock(&imp->imp_lock);
 		list_del(&imp->imp_conn_current->oic_item);
 		list_add(&imp->imp_conn_current->oic_item, &imp->imp_conn_list);
@@ -1370,7 +1369,6 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 			if (rc)
 				goto out;
 		}
-
 	}
 
 	if (imp->imp_state == LUSTRE_IMP_REPLAY_WAIT) {
@@ -1453,7 +1451,6 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 				       back_to_sleep, LWI_ON_SIGNAL_NOOP, NULL);
 		rc = l_wait_event(imp->imp_recovery_waitq,
 				  !ptlrpc_import_in_recovery(imp), &lwi);
-
 	}
 
 	spin_lock(&imp->imp_lock);

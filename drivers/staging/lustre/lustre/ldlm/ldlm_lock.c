@@ -810,7 +810,6 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 	} else if (!lock->l_readers && !lock->l_writers &&
 		   !(lock->l_flags & LDLM_FL_NO_LRU) &&
 		   !(lock->l_flags & LDLM_FL_BL_AST)) {
-
 		LDLM_DEBUG(lock, "add lock into lru list");
 
 		/* If this is a client-side namespace and this was the last

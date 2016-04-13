@@ -136,7 +136,6 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 		CERROR("bad mem LOV MAGIC: 0x%08X != 0x%08X nor 0x%08X\n",
 		       lmm_magic, LOV_MAGIC_V1, LOV_MAGIC_V3);
 		return -EINVAL;
-
 	}
 
 	if (lsm) {

@@ -1720,7 +1720,6 @@ static int mgc_process_config(struct obd_device *obd, u32 len, void *buf)
 		CERROR("Unknown command: %d\n", lcfg->lcfg_command);
 		rc = -EINVAL;
 		goto out;
-
 	}
 	}
 out:

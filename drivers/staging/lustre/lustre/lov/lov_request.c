@@ -235,7 +235,6 @@ out:
 	if (tmp_oa)
 		kmem_cache_free(obdo_cachep, tmp_oa);
 	return rc;
-
 }
 
 int lov_fini_getattr_set(struct lov_request_set *set)

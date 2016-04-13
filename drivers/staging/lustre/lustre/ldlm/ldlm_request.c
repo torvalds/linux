@@ -1803,7 +1803,6 @@ static void ldlm_namespace_foreach(struct ldlm_namespace *ns,
 
 	cfs_hash_for_each_nolock(ns->ns_rs_hash,
 				 ldlm_res_iter_helper, &helper);
-
 }
 
 /* non-blocking function to manipulate a lock whose cb_data is being put away.

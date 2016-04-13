@@ -961,7 +961,6 @@ int class_process_config(struct lustre_cfg *lcfg)
 	default: {
 		err = obd_process_config(obd, sizeof(*lcfg), lcfg);
 		goto out;
-
 	}
 	}
 out:

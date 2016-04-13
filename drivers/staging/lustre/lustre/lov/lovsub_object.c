@@ -71,7 +71,6 @@ int lovsub_object_init(const struct lu_env *env, struct lu_object *obj,
 		result = -ENOMEM;
 	}
 	return result;
-
 }
 
 static void lovsub_object_free(const struct lu_env *env, struct lu_object *obj)

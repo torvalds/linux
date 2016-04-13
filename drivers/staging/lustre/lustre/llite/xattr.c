@@ -339,7 +339,6 @@ int ll_getxattr_common(struct inode *inode, const char *name,
 	 */
 	if (xattr_type == XATTR_ACL_ACCESS_T &&
 	    !(sbi->ll_flags & LL_SBI_RMT_CLIENT)) {
-
 		struct posix_acl *acl;
 
 		spin_lock(&lli->lli_lock);

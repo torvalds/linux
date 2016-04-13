@@ -1354,7 +1354,6 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 	for (i = 0, pgp = pga, off = offset;
 	     i < npages;
 	     i++, pgp++, off += PAGE_SIZE) {
-
 		LASSERT(!pgp->pg);      /* for cleanup */
 
 		rc = -ENOMEM;
@@ -1831,7 +1830,6 @@ static int __init obdecho_init(void)
 static void /*__exit*/ obdecho_exit(void)
 {
 	echo_client_exit();
-
 }
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");

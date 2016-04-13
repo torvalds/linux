@@ -254,7 +254,6 @@ static ssize_t max_read_ahead_mb_store(struct kobject *kobj,
 	pages_number *= 1 << (20 - PAGE_SHIFT); /* MB -> pages */
 
 	if (pages_number > totalram_pages / 2) {
-
 		CERROR("can't set file readahead more than %lu MB\n",
 		       totalram_pages >> (20 - PAGE_SHIFT + 1)); /*1/2 of RAM*/
 		return -ERANGE;

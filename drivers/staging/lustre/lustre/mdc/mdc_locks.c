@@ -963,7 +963,6 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	if (fid_is_sane(&op_data->op_fid2) &&
 	    it->it_create_mode & M_CHECK_STALE &&
 	    it->it_op != IT_GETATTR) {
-
 		/* Also: did we find the same inode? */
 		/* sever can return one of two fids:
 		 * op_fid2 - new allocated fid - if file is created.

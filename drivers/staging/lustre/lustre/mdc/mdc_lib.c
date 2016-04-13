@@ -438,7 +438,6 @@ void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, int flags,
 		char *tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
 
 		LOGL0(op_data->op_name, op_data->op_namelen, tmp);
-
 	}
 }
 

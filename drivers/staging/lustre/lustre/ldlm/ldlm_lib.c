@@ -429,7 +429,6 @@ err_ldlm:
 	ldlm_put_ref();
 err:
 	return rc;
-
 }
 EXPORT_SYMBOL(client_obd_setup);
 

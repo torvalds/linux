@@ -964,7 +964,6 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 		CERROR("Unknown command: %d\n", lcfg->lcfg_command);
 		rc = -EINVAL;
 		goto out;
-
 	}
 	}
 out:

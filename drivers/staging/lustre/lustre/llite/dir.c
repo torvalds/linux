@@ -1059,7 +1059,6 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 			/* hpk_errval must be >= 0 */
 			hpk.hpk_errval = EBUSY;
 		}
-
 	}
 
 progress:
@@ -1388,7 +1387,6 @@ out_free:
 lmv_out_free:
 		obd_ioctl_freedata(buf, len);
 		return rc;
-
 	}
 	case LL_IOC_LOV_SETSTRIPE: {
 		struct lov_user_md_v3 lumv3;

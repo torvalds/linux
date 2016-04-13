@@ -759,7 +759,6 @@ static int osc_lru_reserve(const struct lu_env *env, struct osc_object *obj,
 
 	LASSERT(atomic_read(cli->cl_lru_left) >= 0);
 	while (!atomic_add_unless(cli->cl_lru_left, -1, 0)) {
-
 		/* run out of LRU spaces, try to drop some by itself */
 		rc = osc_lru_reclaim(cli);
 		if (rc < 0)

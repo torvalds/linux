@@ -335,7 +335,6 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 		err = 0;
 		goto out;
 	}
-
 	}
 
 	if (data->ioc_dev == OBD_DEV_BY_DEVNAME) {

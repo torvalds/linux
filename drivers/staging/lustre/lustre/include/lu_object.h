@@ -198,7 +198,6 @@ typedef int (*lu_printer_t)(const struct lu_env *env,
  * Operations specific for particular lu_object.
  */
 struct lu_object_operations {
-
 	/**
 	 * Allocate lower-layer parts of the object by calling
 	 * lu_device_operations::ldo_object_alloc() of the corresponding

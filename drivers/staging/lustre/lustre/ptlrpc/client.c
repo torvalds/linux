@@ -1082,7 +1082,6 @@ static int ptlrpc_console_allow(struct ptlrpc_request *req)
 	 */
 	if ((lustre_handle_is_used(&req->rq_import->imp_remote_handle)) &&
 	    (opc == OST_CONNECT || opc == MDS_CONNECT || opc == MGS_CONNECT)) {
-
 		/* Suppress timed out reconnect requests */
 		if (req->rq_timedout)
 			return 0;

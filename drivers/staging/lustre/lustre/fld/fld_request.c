@@ -95,7 +95,6 @@ static void fld_exit_request(struct client_obd *cli)
 	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_r_in_flight--;
 	list_for_each_safe(l, tmp, &cli->cl_cache_waiters) {
-
 		if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
 			/* No free request slots anymore */
 			break;

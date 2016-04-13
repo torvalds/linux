@@ -1038,7 +1038,6 @@ static int nrs_policy_unregister_locked(struct ptlrpc_nrs_pol_desc *desc)
 	LASSERT(mutex_is_locked(&ptlrpc_all_services_mutex));
 
 	list_for_each_entry(svc, &ptlrpc_all_services, srv_list) {
-
 		if (!nrs_policy_compatible(svc, desc) ||
 		    unlikely(svc->srv_is_stopping))
 			continue;

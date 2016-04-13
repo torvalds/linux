@@ -442,7 +442,6 @@ static int lov_io_rw_iter_init(const struct lu_env *env,
 
 	/* fast path for common case. */
 	if (lio->lis_nr_subios != 1 && !cl_io_is_append(io)) {
-
 		lov_do_div64(start, ssize);
 		next = (start + 1) * ssize;
 		if (next <= start * ssize)

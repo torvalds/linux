@@ -1321,6 +1321,5 @@ int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 	up_read(&obd->u.cli.cl_sem);
 
 	return count;
-
 }
 EXPORT_SYMBOL(lprocfs_wr_pinger_recov);

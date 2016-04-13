@@ -1820,7 +1820,6 @@ static void osc_process_ar(struct osc_async_rc *ar, __u64 xid,
 		ar->ar_force_sync = 1;
 		ar->ar_min_xid = ptlrpc_sample_next_xid();
 		return;
-
 	}
 
 	if (ar->ar_force_sync && (xid >= ar->ar_min_xid))
