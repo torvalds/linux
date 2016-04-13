@@ -1723,21 +1723,20 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 		gmbus_irq_handler(dev);
 }
 
-static void i9xx_hpd_irq_handler(struct drm_device *dev)
+static u32 i9xx_hpd_irq_ack(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
+
+	if (hotplug_status)
+		I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
+
+	return hotplug_status;
+}
+
+static void i9xx_hpd_irq_handler(struct drm_device *dev,
+				 u32 hotplug_status)
+{
 	u32 pin_mask = 0, long_mask = 0;
-
-	if (!hotplug_status)
-		return;
-
-	I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
-	/*
-	 * Make sure hotplug status is cleared before we clear IIR, or else we
-	 * may miss hotplug events.
-	 */
-	POSTING_READ(PORT_HOTPLUG_STAT);
 
 	if (IS_G4X(dev) || IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_G4X;
@@ -1778,6 +1777,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 	do {
 		u32 iir, gt_iir, pm_iir;
+		u32 hotplug_status = 0;
 		u32 ier = 0;
 
 		gt_iir = I915_READ(GTIIR);
@@ -1817,7 +1817,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			gen6_rps_irq_handler(dev_priv, pm_iir);
 
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
-			i9xx_hpd_irq_handler(dev);
+			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
 		/* Call regardless, as some status bits might not be
 		 * signalled in iir */
@@ -1833,6 +1833,9 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		I915_WRITE(VLV_IER, ier);
 		I915_WRITE(VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
 		POSTING_READ(VLV_MASTER_IER);
+
+		if (hotplug_status)
+			i9xx_hpd_irq_handler(dev, hotplug_status);
 	} while (0);
 
 	enable_rpm_wakeref_asserts(dev_priv);
@@ -1854,6 +1857,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 	do {
 		u32 master_ctl, iir;
+		u32 hotplug_status = 0;
 		u32 ier = 0;
 
 		master_ctl = I915_READ(GEN8_MASTER_IRQ) & ~GEN8_MASTER_IRQ_CONTROL;
@@ -1884,7 +1888,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		gen8_gt_irq_handler(dev_priv, master_ctl);
 
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
-			i9xx_hpd_irq_handler(dev);
+			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
 		/* Call regardless, as some status bits might not be
 		 * signalled in iir */
@@ -1900,6 +1904,9 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		I915_WRITE(VLV_IER, ier);
 		I915_WRITE(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 		POSTING_READ(GEN8_MASTER_IRQ);
+
+		if (hotplug_status)
+			i9xx_hpd_irq_handler(dev, hotplug_status);
 	} while (0);
 
 	enable_rpm_wakeref_asserts(dev_priv);
@@ -4240,8 +4247,11 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 		/* Consume port.  Then clear IIR or we'll miss events */
 		if (I915_HAS_HOTPLUG(dev) &&
-		    iir & I915_DISPLAY_PORT_INTERRUPT)
-			i9xx_hpd_irq_handler(dev);
+		    iir & I915_DISPLAY_PORT_INTERRUPT) {
+			u32 hotplug_status = i9xx_hpd_irq_ack(dev_priv);
+			if (hotplug_status)
+				i9xx_hpd_irq_handler(dev, hotplug_status);
+		}
 
 		I915_WRITE(IIR, iir & ~flip_mask);
 		new_iir = I915_READ(IIR); /* Flush posted writes */
@@ -4470,8 +4480,11 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		ret = IRQ_HANDLED;
 
 		/* Consume port.  Then clear IIR or we'll miss events */
-		if (iir & I915_DISPLAY_PORT_INTERRUPT)
-			i9xx_hpd_irq_handler(dev);
+		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
+			u32 hotplug_status = i9xx_hpd_irq_ack(dev_priv);
+			if (hotplug_status)
+				i9xx_hpd_irq_handler(dev, hotplug_status);
+		}
 
 		I915_WRITE(IIR, iir & ~flip_mask);
 		new_iir = I915_READ(IIR); /* Flush posted writes */
