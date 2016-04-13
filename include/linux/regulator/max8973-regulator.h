@@ -54,6 +54,10 @@
  * @reg_init_data: The regulator init data.
  * @control_flags: Control flags which are ORed value of above flags to
  *		configure device.
+ * @junction_temp_warning: Junction temp in millicelcius on which warning need
+ *			   to be set. Thermal functionality is only supported on
+ *			   MAX77621. The threshold warning supported by MAX77621
+ *			   are 120C and 140C.
  * @enable_ext_control: Enable the voltage enable/disable through external
  *		control signal from EN input pin. If it is false then
  *		voltage output will be enabled/disabled through EN bit of
@@ -67,6 +71,7 @@
 struct max8973_regulator_platform_data {
 	struct regulator_init_data *reg_init_data;
 	unsigned long control_flags;
+	unsigned long junction_temp_warning;
 	bool enable_ext_control;
 	int enable_gpio;
 	int dvs_gpio;

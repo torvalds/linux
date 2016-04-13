@@ -409,6 +409,7 @@ config REGULATOR_MAX8952
 config REGULATOR_MAX8973
 	tristate "Maxim MAX8973 voltage regulator "
 	depends on I2C
+	depends on THERMAL && THERMAL_OF
 	select REGMAP_I2C
 	help
 	  The MAXIM MAX8973 high-efficiency. three phase, DC-DC step-down
