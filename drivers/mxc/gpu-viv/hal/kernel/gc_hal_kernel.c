@@ -2688,6 +2688,12 @@ gckKERNEL_Dispatch(
                                               syncPoint));
                 break;
 
+            case gcvSYNC_POINT_SIGNAL:
+                syncPoint = gcmUINT64_TO_PTR(Interface->u.SyncPoint.syncPoint);
+
+                gcmkONERROR(gckOS_SignalSyncPoint(Kernel->os, syncPoint));
+                break;
+
             default:
                 gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
                 break;
