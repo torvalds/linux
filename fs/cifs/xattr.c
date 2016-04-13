@@ -61,15 +61,7 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 	}
 	if (ea_name == NULL) {
 		cifs_dbg(FYI, "Null xattr names not supported\n");
-	} else if (strncmp(ea_name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN)
-		&& (strncmp(ea_name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN))) {
-		cifs_dbg(FYI,
-			 "illegal xattr request %s (only user namespace supported)\n",
-			 ea_name);
-		/* BB what if no namespace prefix? */
-		/* Should we just pass them to server, except for
-		system and perhaps security prefixes? */
-	} else {
+	} else if (!strncmp(ea_name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN)) {
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
 			goto remove_ea_exit;
 
@@ -78,6 +70,22 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 			rc = pTcon->ses->server->ops->set_EA(xid, pTcon,
 				full_path, ea_name, NULL, (__u16)0,
 				cifs_sb->local_nls, cifs_remap(cifs_sb));
+	} else if (!strncmp(ea_name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN)) {
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
+			goto remove_ea_exit;
+
+		ea_name += XATTR_OS2_PREFIX_LEN; /* skip past os2. prefix */
+		if (pTcon->ses->server->ops->set_EA)
+			rc = pTcon->ses->server->ops->set_EA(xid, pTcon,
+				full_path, ea_name, NULL, (__u16)0,
+				cifs_sb->local_nls, cifs_remap(cifs_sb));
+	} else {
+		cifs_dbg(FYI,
+			 "illegal xattr request %s (only user namespace supported)\n",
+			 ea_name);
+		/* BB what if no namespace prefix? */
+		/* Should we just pass them to server, except for
+		system and perhaps security prefixes? */
 	}
 remove_ea_exit:
 	kfree(full_path);
