@@ -917,7 +917,10 @@ int i915_reset(struct drm_device *dev)
 		pr_notice("drm/i915: Resetting chip after gpu hang\n");
 
 	if (ret) {
-		DRM_ERROR("Failed to reset chip: %i\n", ret);
+		if (ret != -ENODEV)
+			DRM_ERROR("Failed to reset chip: %i\n", ret);
+		else
+			DRM_DEBUG_DRIVER("GPU reset disabled\n");
 		goto error;
 	}
 
