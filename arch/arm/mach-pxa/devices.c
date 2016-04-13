@@ -1235,5 +1235,6 @@ static struct platform_device pxa2xx_pxa_dma = {
 void __init pxa2xx_set_dmac_info(int nb_channels, int nb_requestors)
 {
 	pxa_dma_pdata.dma_channels = nb_channels;
+	pxa_dma_pdata.nb_requestors = nb_requestors;
 	pxa_register_device(&pxa2xx_pxa_dma, &pxa_dma_pdata);
 }
