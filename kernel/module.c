@@ -2919,8 +2919,12 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 		return -ENOEXEC;
 	}
 
-	if (!get_modinfo(info, "intree"))
+	if (!get_modinfo(info, "intree")) {
+		if (!test_taint(TAINT_OOT_MODULE))
+			pr_warn("%s: loading out-of-tree module taints kernel.\n",
+				mod->name);
 		add_taint_module(mod, TAINT_OOT_MODULE, LOCKDEP_STILL_OK);
+	}
 
 	if (get_modinfo(info, "staging")) {
 		add_taint_module(mod, TAINT_CRAP, LOCKDEP_STILL_OK);
@@ -3089,6 +3093,8 @@ static int move_module(struct module *mod, struct load_info *info)
 
 static int check_module_license_and_versions(struct module *mod)
 {
+	int prev_taint = test_taint(TAINT_PROPRIETARY_MODULE);
+
 	/*
 	 * ndiswrapper is under GPL by itself, but loads proprietary modules.
 	 * Don't use add_taint_module(), as it would prevent ndiswrapper from
@@ -3106,6 +3112,9 @@ static int check_module_license_and_versions(struct module *mod)
 	if (strcmp(mod->name, "lve") == 0)
 		add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
 				 LOCKDEP_NOW_UNRELIABLE);
+
+	if (!prev_taint && test_taint(TAINT_PROPRIETARY_MODULE))
+		pr_warn("%s: module license taints kernel.\n", mod->name);
 
 #ifdef CONFIG_MODVERSIONS
 	if ((mod->num_syms && !mod->crcs)
