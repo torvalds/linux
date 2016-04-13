@@ -1070,7 +1070,7 @@ static int gsc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gsc->id = of_alias_get_id(pdev->dev.of_node, "gsc");
-	if (gsc->id >= drv_data->num_entities || gsc->id < 0) {
+	if (gsc->id >= drv_data->num_entities) {
 		dev_err(dev, "Invalid platform device id: %d\n", gsc->id);
 		return -EINVAL;
 	}
