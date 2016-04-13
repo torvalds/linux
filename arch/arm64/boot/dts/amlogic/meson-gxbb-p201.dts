@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2016 Andreas Färber
+ * Copyright (c) 2016 BayLibre, Inc.
+ * Author: Kevin Hilman <khilman@kernel.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -40,20 +42,11 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "meson-gxbb.dtsi"
+/dts-v1/;
+
+#include "meson-gxbb-p20x.dtsi"
 
 / {
-	compatible = "tronsmart,vega-s95", "amlogic,meson-gxbb";
-
-	aliases {
-		serial0 = &uart_AO;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-};
-
-&uart_AO {
-	status = "okay";
+	compatible = "amlogic,p201", "amlogic,meson-gxbb";
+	model = "Amlogic Meson GXBB P201 Development Board";
 };

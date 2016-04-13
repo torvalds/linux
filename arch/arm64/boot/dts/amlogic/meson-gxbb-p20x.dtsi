@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2016 Andreas Färber
+ * Copyright (c) 2016 BayLibre, Inc.
+ * Author: Kevin Hilman <khilman@kernel.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,8 +45,6 @@
 #include "meson-gxbb.dtsi"
 
 / {
-	compatible = "tronsmart,vega-s95", "amlogic,meson-gxbb";
-
 	aliases {
 		serial0 = &uart_AO;
 	};
@@ -52,8 +52,14 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x40000000>;
+	};
 };
 
+/* This UART is brought out to the DB9 connector */
 &uart_AO {
 	status = "okay";
 };
