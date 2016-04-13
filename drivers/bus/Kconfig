@@ -110,7 +110,7 @@ config OMAP_OCP2SCP
 config SIMPLE_PM_BUS
 	bool "Simple Power-Managed Bus Driver"
 	depends on OF && PM
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	help
 	  Driver for transparent busses that don't need a real driver, but
 	  where the bus controller is part of a PM domain, or under the control
