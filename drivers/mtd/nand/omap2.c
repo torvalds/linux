@@ -2012,6 +2012,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	 */
 	if (info->ecc_opt == OMAP_ECC_HAM1_CODE_SW) {
 		nand_chip->ecc.mode = NAND_ECC_SOFT;
+		nand_chip->ecc.algo = NAND_ECC_HAMMING;
 		goto scan_tail;
 	}
 
