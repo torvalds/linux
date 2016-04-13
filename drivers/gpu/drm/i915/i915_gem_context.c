@@ -609,9 +609,9 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	return ret;
 }
 
-static inline bool should_skip_switch(struct intel_engine_cs *engine,
-				      struct intel_context *from,
-				      struct intel_context *to)
+static inline bool skip_rcs_switch(struct intel_engine_cs *engine,
+				   struct intel_context *from,
+				   struct intel_context *to)
 {
 	if (to->remap_slice)
 		return false;
@@ -626,15 +626,17 @@ static inline bool should_skip_switch(struct intel_engine_cs *engine,
 static bool
 needs_pd_load_pre(struct intel_engine_cs *engine, struct intel_context *to)
 {
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
-
 	if (!to->ppgtt)
 		return false;
 
-	if (INTEL_INFO(engine->dev)->gen < 8)
+	if (engine->last_context == to &&
+	    !(intel_engine_flag(engine) & to->ppgtt->pd_dirty_rings))
+		return false;
+
+	if (engine->id != RCS)
 		return true;
 
-	if (engine != &dev_priv->engine[RCS])
+	if (INTEL_INFO(engine->dev)->gen < 8)
 		return true;
 
 	return false;
@@ -661,32 +663,24 @@ needs_pd_load_post(struct intel_engine_cs *engine, struct intel_context *to,
 	return false;
 }
 
-static int do_switch(struct drm_i915_gem_request *req)
+static int do_rcs_switch(struct drm_i915_gem_request *req)
 {
 	struct intel_context *to = req->ctx;
 	struct intel_engine_cs *engine = req->engine;
-	struct drm_i915_private *dev_priv = req->i915;
 	struct intel_context *from = engine->last_context;
 	u32 hw_flags = 0;
 	bool uninitialized = false;
 	int ret, i;
 
-	if (from != NULL && engine == &dev_priv->engine[RCS]) {
-		BUG_ON(from->legacy_hw_ctx.rcs_state == NULL);
-		BUG_ON(!i915_gem_obj_is_pinned(from->legacy_hw_ctx.rcs_state));
-	}
-
-	if (should_skip_switch(engine, from, to))
+	if (skip_rcs_switch(engine, from, to))
 		return 0;
 
 	/* Trying to pin first makes error handling easier. */
-	if (engine == &dev_priv->engine[RCS]) {
-		ret = i915_gem_obj_ggtt_pin(to->legacy_hw_ctx.rcs_state,
-					    get_context_alignment(engine->dev),
-					    0);
-		if (ret)
-			return ret;
-	}
+	ret = i915_gem_obj_ggtt_pin(to->legacy_hw_ctx.rcs_state,
+				    get_context_alignment(engine->dev),
+				    0);
+	if (ret)
+		return ret;
 
 	/*
 	 * Pin can switch back to the default context if we end up calling into
@@ -707,12 +701,6 @@ static int do_switch(struct drm_i915_gem_request *req)
 
 		/* Doing a PD load always reloads the page dirs */
 		to->ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
-	}
-
-	if (engine != &dev_priv->engine[RCS]) {
-		if (from)
-			i915_gem_context_unreference(from);
-		goto done;
 	}
 
 	/*
@@ -802,7 +790,6 @@ static int do_switch(struct drm_i915_gem_request *req)
 	uninitialized = !to->legacy_hw_ctx.initialized;
 	to->legacy_hw_ctx.initialized = true;
 
-done:
 	i915_gem_context_reference(to);
 	engine->last_context = to;
 
@@ -817,8 +804,7 @@ done:
 	return 0;
 
 unpin_out:
-	if (engine->id == RCS)
-		i915_gem_object_ggtt_unpin(to->legacy_hw_ctx.rcs_state);
+	i915_gem_object_ggtt_unpin(to->legacy_hw_ctx.rcs_state);
 	return ret;
 }
 
@@ -843,17 +829,33 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	WARN_ON(i915.enable_execlists);
 	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
-	if (req->ctx->legacy_hw_ctx.rcs_state == NULL) { /* We have the fake context */
-		if (req->ctx != engine->last_context) {
-			i915_gem_context_reference(req->ctx);
+	if (engine->id != RCS ||
+	    req->ctx->legacy_hw_ctx.rcs_state == NULL) {
+		struct intel_context *to = req->ctx;
+
+		if (needs_pd_load_pre(engine, to)) {
+			int ret;
+
+			trace_switch_mm(engine, to);
+			ret = to->ppgtt->switch_mm(to->ppgtt, req);
+			if (ret)
+				return ret;
+
+			/* Doing a PD load always reloads the page dirs */
+			to->ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
+		}
+
+		if (to != engine->last_context) {
+			i915_gem_context_reference(to);
 			if (engine->last_context)
 				i915_gem_context_unreference(engine->last_context);
-			engine->last_context = req->ctx;
+			engine->last_context = to;
 		}
+
 		return 0;
 	}
 
-	return do_switch(req);
+	return do_rcs_switch(req);
 }
 
 static bool contexts_enabled(struct drm_device *dev)
