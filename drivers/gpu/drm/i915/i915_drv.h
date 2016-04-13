@@ -57,6 +57,7 @@
 #include "intel_lrc.h"
 #include "intel_ringbuffer.h"
 
+#include "i915_gem.h"
 #include "i915_gem_gtt.h"
 #include "i915_gem_render_state.h"
 

@@ -27,3 +27,15 @@ config DRM_I915_DEBUG
 
           If in doubt, say "N".
 
+config DRM_I915_DEBUG_GEM
+        bool "Insert extra checks into the GEM internals"
+        default n
+        depends on DRM_I915_WERROR
+        help
+          Enable extra sanity checks (including BUGs) along the GEM driver
+          paths that may slow the system down and if hit hang the machine.
+
+          Recommended for driver developers only.
+
+          If in doubt, say "N".
+

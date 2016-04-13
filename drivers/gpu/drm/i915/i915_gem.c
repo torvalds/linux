@@ -38,8 +38,6 @@
 #include <linux/pci.h>
 #include <linux/dma-buf.h>
 
-#define RQ_BUG_ON(expr)
-
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
 static void
@@ -1521,7 +1519,7 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 
 			i915_gem_object_retire__read(obj, i);
 		}
-		RQ_BUG_ON(obj->active);
+		GEM_BUG_ON(obj->active);
 	}
 
 	return 0;
@@ -2473,8 +2471,8 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 static void
 i915_gem_object_retire__write(struct drm_i915_gem_object *obj)
 {
-	RQ_BUG_ON(obj->last_write_req == NULL);
-	RQ_BUG_ON(!(obj->active & intel_engine_flag(obj->last_write_req->engine)));
+	GEM_BUG_ON(obj->last_write_req == NULL);
+	GEM_BUG_ON(!(obj->active & intel_engine_flag(obj->last_write_req->engine)));
 
 	i915_gem_request_assign(&obj->last_write_req, NULL);
 	intel_fb_obj_flush(obj, true, ORIGIN_CS);
@@ -2485,8 +2483,8 @@ i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int ring)
 {
 	struct i915_vma *vma;
 
-	RQ_BUG_ON(obj->last_read_req[ring] == NULL);
-	RQ_BUG_ON(!(obj->active & (1 << ring)));
+	GEM_BUG_ON(obj->last_read_req[ring] == NULL);
+	GEM_BUG_ON(!(obj->active & (1 << ring)));
 
 	list_del_init(&obj->engine_list[ring]);
 	i915_gem_request_assign(&obj->last_read_req[ring], NULL);
