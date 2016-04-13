@@ -48,7 +48,7 @@ static void i40e_vc_vf_broadcast(struct i40e_pf *pf,
 	int i;
 
 	for (i = 0; i < pf->num_alloc_vfs; i++, vf++) {
-		int abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
+		int abs_vf_id = vf->vf_id + (int)hw->func_caps.vf_base_id;
 		/* Not all vfs are enabled so skip the ones that are not */
 		if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states) &&
 		    !test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states))
@@ -74,7 +74,7 @@ static void i40e_vc_notify_vf_link_state(struct i40e_vf *vf)
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_link_status *ls = &pf->hw.phy.link_info;
-	int abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
+	int abs_vf_id = vf->vf_id + (int)hw->func_caps.vf_base_id;
 
 	pfe.event = I40E_VIRTCHNL_EVENT_LINK_CHANGE;
 	pfe.severity = I40E_PF_EVENT_SEVERITY_INFO;
@@ -141,7 +141,7 @@ void i40e_vc_notify_vf_reset(struct i40e_vf *vf)
 	    !test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states))
 		return;
 
-	abs_vf_id = vf->vf_id + vf->pf->hw.func_caps.vf_base_id;
+	abs_vf_id = vf->vf_id + (int)vf->pf->hw.func_caps.vf_base_id;
 
 	pfe.event = I40E_VIRTCHNL_EVENT_RESET_IMPENDING;
 	pfe.severity = I40E_PF_EVENT_SEVERITY_CERTAIN_DOOM;
@@ -2516,11 +2516,11 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
  * called from the common aeq/arq handler to
  * process request from VF
  **/
-int i40e_vc_process_vf_msg(struct i40e_pf *pf, u16 vf_id, u32 v_opcode,
+int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 			   u32 v_retval, u8 *msg, u16 msglen)
 {
 	struct i40e_hw *hw = &pf->hw;
-	unsigned int local_vf_id = vf_id - hw->func_caps.vf_base_id;
+	int local_vf_id = vf_id - (s16)hw->func_caps.vf_base_id;
 	struct i40e_vf *vf;
 	int ret;
 
@@ -2622,9 +2622,10 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, u16 vf_id, u32 v_opcode,
  **/
 int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 {
-	u32 reg, reg_idx, bit_idx, vf_id;
 	struct i40e_hw *hw = &pf->hw;
+	u32 reg, reg_idx, bit_idx;
 	struct i40e_vf *vf;
+	int vf_id;
 
 	if (!test_bit(__I40E_VFLR_EVENT_PENDING, &pf->state))
 		return 0;

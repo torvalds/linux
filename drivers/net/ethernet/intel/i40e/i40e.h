@@ -554,7 +554,7 @@ struct i40e_vsi {
 	u16 num_queue_pairs; /* Used tx and rx pairs */
 	u16 num_desc;
 	enum i40e_vsi_type type;  /* VSI type, e.g., LAN, FCoE, etc */
-	u16 vf_id;		/* Virtual function ID for SRIOV VSIs */
+	s16 vf_id;		/* Virtual function ID for SRIOV VSIs */
 
 	struct i40e_tc_configuration tc_config;
 	struct i40e_aqc_vsi_properties_data info;
