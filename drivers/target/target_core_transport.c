@@ -2618,8 +2618,6 @@ void target_wait_for_sess_cmds(struct se_session *se_sess)
 
 	list_for_each_entry_safe(se_cmd, tmp_cmd,
 				&se_sess->sess_wait_list, se_cmd_list) {
-		list_del_init(&se_cmd->se_cmd_list);
-
 		pr_debug("Waiting for se_cmd: %p t_state: %d, fabric state:"
 			" %d\n", se_cmd, se_cmd->t_state,
 			se_cmd->se_tfo->get_cmd_state(se_cmd));

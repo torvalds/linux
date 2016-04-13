@@ -1109,12 +1109,8 @@ static void rq_completed(struct mapped_device *md, int rw, bool run_queue)
 	 * back into ->request_fn() could deadlock attempting to grab the
 	 * queue lock again.
 	 */
-	if (run_queue) {
-		if (md->queue->mq_ops)
-			blk_mq_run_hw_queues(md->queue, true);
-		else
-			blk_run_queue_async(md->queue);
-	}
+	if (!md->queue->mq_ops && run_queue)
+		blk_run_queue_async(md->queue);
 
 	/*
 	 * dm_put() must be at the end of this function. See the comment above
@@ -1214,9 +1210,9 @@ static void dm_requeue_original_request(struct mapped_device *md,
 {
 	int rw = rq_data_dir(rq);
 
+	rq_end_stats(md, rq);
 	dm_unprep_request(rq);
 
-	rq_end_stats(md, rq);
 	if (!rq->q->mq_ops)
 		old_requeue_request(rq);
 	else {
@@ -1336,7 +1332,10 @@ static void dm_complete_request(struct request *rq, int error)
 	struct dm_rq_target_io *tio = tio_from_request(rq);
 
 	tio->error = error;
-	blk_complete_request(rq);
+	if (!rq->q->mq_ops)
+		blk_complete_request(rq);
+	else
+		blk_mq_complete_request(rq, error);
 }
 
 /*

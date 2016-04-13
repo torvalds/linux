@@ -648,7 +648,7 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 	 */
 	if (sdkp->lbprz) {
 		q->limits.discard_alignment = 0;
-		q->limits.discard_granularity = 1;
+		q->limits.discard_granularity = logical_block_size;
 	} else {
 		q->limits.discard_alignment = sdkp->unmap_alignment *
 			logical_block_size;

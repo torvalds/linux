@@ -456,7 +456,10 @@ out_locked:
 	return status;
 }
 
-static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast)
+/*
+ * Caller must hold 'priv->lock'
+ */
+static int ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_sa_multicast *multicast;
@@ -465,6 +468,10 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast)
 	};
 	ib_sa_comp_mask comp_mask;
 	int ret = 0;
+
+	if (!priv->broadcast ||
+	    !test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
+		return -EINVAL;
 
 	ipoib_dbg_mcast(priv, "joining MGID %pI6\n", mcast->mcmember.mgid.raw);
 
@@ -525,20 +532,23 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast)
 			rec.join_state = 4;
 #endif
 	}
+	spin_unlock_irq(&priv->lock);
 
 	multicast = ib_sa_join_multicast(&ipoib_sa_client, priv->ca, priv->port,
 					 &rec, comp_mask, GFP_KERNEL,
 					 ipoib_mcast_join_complete, mcast);
+	spin_lock_irq(&priv->lock);
 	if (IS_ERR(multicast)) {
 		ret = PTR_ERR(multicast);
 		ipoib_warn(priv, "ib_sa_join_multicast failed, status %d\n", ret);
-		spin_lock_irq(&priv->lock);
 		/* Requeue this join task with a backoff delay */
 		__ipoib_mcast_schedule_join_thread(priv, mcast, 1);
 		clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
 		spin_unlock_irq(&priv->lock);
 		complete(&mcast->done);
+		spin_lock_irq(&priv->lock);
 	}
+	return 0;
 }
 
 void ipoib_mcast_join_task(struct work_struct *work)
@@ -620,9 +630,10 @@ void ipoib_mcast_join_task(struct work_struct *work)
 				/* Found the next unjoined group */
 				init_completion(&mcast->done);
 				set_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
-				spin_unlock_irq(&priv->lock);
-				ipoib_mcast_join(dev, mcast);
-				spin_lock_irq(&priv->lock);
+				if (ipoib_mcast_join(dev, mcast)) {
+					spin_unlock_irq(&priv->lock);
+					return;
+				}
 			} else if (!delay_until ||
 				 time_before(mcast->delay_until, delay_until))
 				delay_until = mcast->delay_until;
@@ -641,10 +652,9 @@ out:
 	if (mcast) {
 		init_completion(&mcast->done);
 		set_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
+		ipoib_mcast_join(dev, mcast);
 	}
 	spin_unlock_irq(&priv->lock);
-	if (mcast)
-		ipoib_mcast_join(dev, mcast);
 }
 
 int ipoib_mcast_start_thread(struct net_device *dev)

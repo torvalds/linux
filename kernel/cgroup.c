@@ -2498,6 +2498,14 @@ static void cgroup_migrate_add_src(struct css_set *src_cset,
 	lockdep_assert_held(&cgroup_mutex);
 	lockdep_assert_held(&css_set_lock);
 
+	/*
+	 * If ->dead, @src_set is associated with one or more dead cgroups
+	 * and doesn't contain any migratable tasks.  Ignore it early so
+	 * that the rest of migration path doesn't get confused by it.
+	 */
+	if (src_cset->dead)
+		return;
+
 	src_cgrp = cset_cgroup_from_root(src_cset, dst_cgrp->root);
 
 	if (!list_empty(&src_cset->mg_preload_node))
@@ -5131,6 +5139,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	__releases(&cgroup_mutex) __acquires(&cgroup_mutex)
 {
 	struct cgroup_subsys_state *css;
+	struct cgrp_cset_link *link;
 	int ssid;
 
 	lockdep_assert_held(&cgroup_mutex);
@@ -5151,10 +5160,17 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 		return -EBUSY;
 
 	/*
-	 * Mark @cgrp dead.  This prevents further task migration and child
-	 * creation by disabling cgroup_lock_live_group().
+	 * Mark @cgrp and the associated csets dead.  The former prevents
+	 * further task migration and child creation by disabling
+	 * cgroup_lock_live_group().  The latter makes the csets ignored by
+	 * the migration path.
 	 */
 	cgrp->self.flags &= ~CSS_ONLINE;
+
+	spin_lock_bh(&css_set_lock);
+	list_for_each_entry(link, &cgrp->cset_links, cset_link)
+		link->cset->dead = true;
+	spin_unlock_bh(&css_set_lock);
 
 	/* initiate massacre of all css's */
 	for_each_css(css, ssid, cgrp)

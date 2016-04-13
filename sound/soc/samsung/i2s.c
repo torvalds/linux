@@ -1260,26 +1260,13 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 	pri_dai->lock = &pri_dai->spinlock;
 
 	if (!np) {
-		res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-		if (!res) {
-			dev_err(&pdev->dev,
-				"Unable to get I2S-TX dma resource\n");
-			return -ENXIO;
-		}
-		pri_dai->dma_playback.channel = res->start;
-
-		res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-		if (!res) {
-			dev_err(&pdev->dev,
-				"Unable to get I2S-RX dma resource\n");
-			return -ENXIO;
-		}
-		pri_dai->dma_capture.channel = res->start;
-
 		if (i2s_pdata == NULL) {
 			dev_err(&pdev->dev, "Can't work without s3c_audio_pdata\n");
 			return -EINVAL;
 		}
+
+		pri_dai->dma_playback.slave = i2s_pdata->dma_playback;
+		pri_dai->dma_capture.slave = i2s_pdata->dma_capture;
 
 		if (&i2s_pdata->type)
 			i2s_cfg = &i2s_pdata->type.i2s;
@@ -1341,11 +1328,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		sec_dai->dma_playback.dma_addr = regs_base + I2STXDS;
 		sec_dai->dma_playback.ch_name = "tx-sec";
 
-		if (!np) {
-			res = platform_get_resource(pdev, IORESOURCE_DMA, 2);
-			if (res)
-				sec_dai->dma_playback.channel = res->start;
-		}
+		if (!np)
+			sec_dai->dma_playback.slave = i2s_pdata->dma_play_sec;
 
 		sec_dai->dma_playback.dma_size = 4;
 		sec_dai->addr = pri_dai->addr;

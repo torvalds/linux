@@ -165,6 +165,7 @@ struct x86_pmu_capability {
 #define GLOBAL_STATUS_ASIF				BIT_ULL(60)
 #define GLOBAL_STATUS_COUNTERS_FROZEN			BIT_ULL(59)
 #define GLOBAL_STATUS_LBRS_FROZEN			BIT_ULL(58)
+#define GLOBAL_STATUS_TRACE_TOPAPMI			BIT_ULL(55)
 
 /*
  * IBS cpuid feature detection

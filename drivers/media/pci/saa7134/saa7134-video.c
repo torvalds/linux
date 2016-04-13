@@ -1219,10 +1219,13 @@ static int saa7134_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.height       = dev->height;
 	f->fmt.pix.field        = dev->field;
 	f->fmt.pix.pixelformat  = dev->fmt->fourcc;
-	f->fmt.pix.bytesperline =
-		(f->fmt.pix.width * dev->fmt->depth) >> 3;
+	if (dev->fmt->planar)
+		f->fmt.pix.bytesperline = f->fmt.pix.width;
+	else
+		f->fmt.pix.bytesperline =
+			(f->fmt.pix.width * dev->fmt->depth) / 8;
 	f->fmt.pix.sizeimage =
-		f->fmt.pix.height * f->fmt.pix.bytesperline;
+		(f->fmt.pix.height * f->fmt.pix.width * dev->fmt->depth) / 8;
 	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
 	return 0;
 }
@@ -1298,10 +1301,13 @@ static int saa7134_try_fmt_vid_cap(struct file *file, void *priv,
 	if (f->fmt.pix.height > maxh)
 		f->fmt.pix.height = maxh;
 	f->fmt.pix.width &= ~0x03;
-	f->fmt.pix.bytesperline =
-		(f->fmt.pix.width * fmt->depth) >> 3;
+	if (fmt->planar)
+		f->fmt.pix.bytesperline = f->fmt.pix.width;
+	else
+		f->fmt.pix.bytesperline =
+			(f->fmt.pix.width * fmt->depth) / 8;
 	f->fmt.pix.sizeimage =
-		f->fmt.pix.height * f->fmt.pix.bytesperline;
+		(f->fmt.pix.height * f->fmt.pix.width * fmt->depth) / 8;
 	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
 
 	return 0;

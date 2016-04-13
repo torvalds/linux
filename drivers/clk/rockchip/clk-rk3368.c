@@ -165,7 +165,7 @@ static const struct rockchip_cpuclk_reg_data rk3368_cpuclkb_data = {
 	.core_reg = RK3368_CLKSEL_CON(0),
 	.div_core_shift = 0,
 	.div_core_mask = 0x1f,
-	.mux_core_shift = 15,
+	.mux_core_shift = 7,
 };
 
 static const struct rockchip_cpuclk_reg_data rk3368_cpuclkl_data = {
@@ -218,29 +218,29 @@ static const struct rockchip_cpuclk_reg_data rk3368_cpuclkl_data = {
 	}
 
 static struct rockchip_cpuclk_rate_table rk3368_cpuclkb_rates[] __initdata = {
-	RK3368_CPUCLKB_RATE(1512000000, 2, 6, 6),
-	RK3368_CPUCLKB_RATE(1488000000, 2, 5, 5),
-	RK3368_CPUCLKB_RATE(1416000000, 2, 5, 5),
-	RK3368_CPUCLKB_RATE(1200000000, 2, 4, 4),
-	RK3368_CPUCLKB_RATE(1008000000, 2, 4, 4),
-	RK3368_CPUCLKB_RATE( 816000000, 2, 3, 3),
-	RK3368_CPUCLKB_RATE( 696000000, 2, 3, 3),
-	RK3368_CPUCLKB_RATE( 600000000, 2, 2, 2),
-	RK3368_CPUCLKB_RATE( 408000000, 2, 2, 2),
-	RK3368_CPUCLKB_RATE( 312000000, 2, 2, 2),
+	RK3368_CPUCLKB_RATE(1512000000, 1, 5, 5),
+	RK3368_CPUCLKB_RATE(1488000000, 1, 4, 4),
+	RK3368_CPUCLKB_RATE(1416000000, 1, 4, 4),
+	RK3368_CPUCLKB_RATE(1200000000, 1, 3, 3),
+	RK3368_CPUCLKB_RATE(1008000000, 1, 3, 3),
+	RK3368_CPUCLKB_RATE( 816000000, 1, 2, 2),
+	RK3368_CPUCLKB_RATE( 696000000, 1, 2, 2),
+	RK3368_CPUCLKB_RATE( 600000000, 1, 1, 1),
+	RK3368_CPUCLKB_RATE( 408000000, 1, 1, 1),
+	RK3368_CPUCLKB_RATE( 312000000, 1, 1, 1),
 };
 
 static struct rockchip_cpuclk_rate_table rk3368_cpuclkl_rates[] __initdata = {
-	RK3368_CPUCLKL_RATE(1512000000, 2, 7, 7),
-	RK3368_CPUCLKL_RATE(1488000000, 2, 6, 6),
-	RK3368_CPUCLKL_RATE(1416000000, 2, 6, 6),
-	RK3368_CPUCLKL_RATE(1200000000, 2, 5, 5),
-	RK3368_CPUCLKL_RATE(1008000000, 2, 5, 5),
-	RK3368_CPUCLKL_RATE( 816000000, 2, 4, 4),
-	RK3368_CPUCLKL_RATE( 696000000, 2, 3, 3),
-	RK3368_CPUCLKL_RATE( 600000000, 2, 3, 3),
-	RK3368_CPUCLKL_RATE( 408000000, 2, 2, 2),
-	RK3368_CPUCLKL_RATE( 312000000, 2, 2, 2),
+	RK3368_CPUCLKL_RATE(1512000000, 1, 6, 6),
+	RK3368_CPUCLKL_RATE(1488000000, 1, 5, 5),
+	RK3368_CPUCLKL_RATE(1416000000, 1, 5, 5),
+	RK3368_CPUCLKL_RATE(1200000000, 1, 4, 4),
+	RK3368_CPUCLKL_RATE(1008000000, 1, 4, 4),
+	RK3368_CPUCLKL_RATE( 816000000, 1, 3, 3),
+	RK3368_CPUCLKL_RATE( 696000000, 1, 2, 2),
+	RK3368_CPUCLKL_RATE( 600000000, 1, 2, 2),
+	RK3368_CPUCLKL_RATE( 408000000, 1, 1, 1),
+	RK3368_CPUCLKL_RATE( 312000000, 1, 1, 1),
 };
 
 static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
@@ -384,10 +384,10 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 3
 	 */
 
-	COMPOSITE(0, "aclk_vepu", mux_pll_src_cpll_gpll_usb_p, 0,
+	COMPOSITE(0, "aclk_vepu", mux_pll_src_cpll_gpll_npll_usb_p, 0,
 			RK3368_CLKSEL_CON(15), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3368_CLKGATE_CON(4), 6, GFLAGS),
-	COMPOSITE(0, "aclk_vdpu", mux_pll_src_cpll_gpll_usb_p, 0,
+	COMPOSITE(0, "aclk_vdpu", mux_pll_src_cpll_gpll_npll_usb_p, 0,
 			RK3368_CLKSEL_CON(15), 14, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3368_CLKGATE_CON(4), 7, GFLAGS),
 
@@ -442,7 +442,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	GATE(SCLK_HDMI_HDCP, "sclk_hdmi_hdcp", "xin24m", 0,
 			RK3368_CLKGATE_CON(4), 13, GFLAGS),
 	GATE(SCLK_HDMI_CEC, "sclk_hdmi_cec", "xin32k", 0,
-			RK3368_CLKGATE_CON(5), 12, GFLAGS),
+			RK3368_CLKGATE_CON(4), 12, GFLAGS),
 
 	COMPOSITE_NODIV(0, "vip_src", mux_pll_src_cpll_gpll_p, 0,
 			RK3368_CLKSEL_CON(21), 15, 1, MFLAGS,
