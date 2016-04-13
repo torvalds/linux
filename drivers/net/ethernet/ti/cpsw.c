@@ -349,6 +349,7 @@ struct cpsw_slave {
 	struct cpsw_slave_data		*data;
 	struct phy_device		*phy;
 	struct net_device		*ndev;
+	struct device_node		*phy_node;
 	u32				port_vlan;
 	u32				open_stat;
 };
@@ -367,7 +368,6 @@ struct cpsw_priv {
 	spinlock_t			lock;
 	struct platform_device		*pdev;
 	struct net_device		*ndev;
-	struct device_node		*phy_node;
 	struct napi_struct		napi_rx;
 	struct napi_struct		napi_tx;
 	struct device			*dev;
@@ -1148,8 +1148,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 				   1 << slave_port, 0, 0, ALE_MCAST_FWD_2);
 
-	if (priv->phy_node)
-		slave->phy = of_phy_connect(priv->ndev, priv->phy_node,
+	if (slave->phy_node)
+		slave->phy = of_phy_connect(priv->ndev, slave->phy_node,
 				 &cpsw_adjust_link, 0, slave->data->phy_if);
 	else
 		slave->phy = phy_connect(priv->ndev, slave->data->phy_id,
@@ -2033,7 +2033,8 @@ static int cpsw_probe_dt(struct cpsw_priv *priv,
 		if (strcmp(slave_node->name, "slave"))
 			continue;
 
-		priv->phy_node = of_parse_phandle(slave_node, "phy-handle", 0);
+		priv->slaves[i].phy_node =
+			of_parse_phandle(slave_node, "phy-handle", 0);
 		parp = of_get_property(slave_node, "phy_id", &lenp);
 		if (of_phy_is_fixed_link(slave_node)) {
 			struct device_node *phy_node;
@@ -2275,12 +2276,22 @@ static int cpsw_probe(struct platform_device *pdev)
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(&pdev->dev);
 
+	data = &priv->data;
+	priv->slaves = devm_kzalloc(&pdev->dev,
+				    sizeof(struct cpsw_slave) * data->slaves,
+				    GFP_KERNEL);
+	if (!priv->slaves) {
+		ret = -ENOMEM;
+		goto clean_runtime_disable_ret;
+	}
+	for (i = 0; i < data->slaves; i++)
+		priv->slaves[i].slave_num = i;
+
 	if (cpsw_probe_dt(priv, pdev)) {
 		dev_err(&pdev->dev, "cpsw: platform data missing\n");
 		ret = -ENODEV;
 		goto clean_runtime_disable_ret;
 	}
-	data = &priv->data;
 
 	if (is_valid_ether_addr(data->slave_data[0].mac_addr)) {
 		memcpy(priv->mac_addr, data->slave_data[0].mac_addr, ETH_ALEN);
@@ -2291,16 +2302,6 @@ static int cpsw_probe(struct platform_device *pdev)
 	}
 
 	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
-
-	priv->slaves = devm_kzalloc(&pdev->dev,
-				    sizeof(struct cpsw_slave) * data->slaves,
-				    GFP_KERNEL);
-	if (!priv->slaves) {
-		ret = -ENOMEM;
-		goto clean_runtime_disable_ret;
-	}
-	for (i = 0; i < data->slaves; i++)
-		priv->slaves[i].slave_num = i;
 
 	priv->slaves[0].ndev = ndev;
 	priv->emac_port = 0;
