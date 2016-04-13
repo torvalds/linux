@@ -171,6 +171,10 @@
 	status = "okay";
 };
 
+&rga {
+	status = "okay";
+};
+
 &hdmi_rk_fb {
 	status = "disabled";
 };
