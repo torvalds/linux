@@ -13424,9 +13424,9 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 		return ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
-	if (!ret && !async && !i915_reset_in_progress_or_wedged(&dev_priv->gpu_error)) {
-		mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->struct_mutex);
 
+	if (!ret && !async) {
 		for_each_plane_in_state(state, plane, plane_state, i) {
 			struct intel_plane_state *intel_plane_state =
 				to_intel_plane_state(plane_state);
@@ -13440,19 +13440,15 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 			/* Swallow -EIO errors to allow updates during hw lockup. */
 			if (ret == -EIO)
 				ret = 0;
-
-			if (ret)
+			if (ret) {
+				mutex_lock(&dev->struct_mutex);
+				drm_atomic_helper_cleanup_planes(dev, state);
+				mutex_unlock(&dev->struct_mutex);
 				break;
+			}
 		}
-
-		if (!ret)
-			return 0;
-
-		mutex_lock(&dev->struct_mutex);
-		drm_atomic_helper_cleanup_planes(dev, state);
 	}
 
-	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
