@@ -69,8 +69,9 @@ static char *mv88e6060_get_name(struct mii_bus *bus, int sw_addr)
 	return NULL;
 }
 
-static char *mv88e6060_probe(struct device *dsa_dev, struct device *host_dev,
-			     int sw_addr, void **_priv)
+static char *mv88e6060_drv_probe(struct device *dsa_dev,
+				 struct device *host_dev,
+				 int sw_addr, void **_priv)
 {
 	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
 	struct mv88e6060_priv *priv;
@@ -248,7 +249,7 @@ mv88e6060_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
 
 static struct dsa_switch_driver mv88e6060_switch_driver = {
 	.tag_protocol	= DSA_TAG_PROTO_TRAILER,
-	.probe		= mv88e6060_probe,
+	.probe		= mv88e6060_drv_probe,
 	.setup		= mv88e6060_setup,
 	.set_addr	= mv88e6060_set_addr,
 	.phy_read	= mv88e6060_phy_read,

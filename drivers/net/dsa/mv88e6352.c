@@ -37,8 +37,9 @@ static const struct mv88e6xxx_switch_id mv88e6352_table[] = {
 	{ PORT_SWITCH_ID_6352_A1, "Marvell 88E6352 (A1)" },
 };
 
-static char *mv88e6352_probe(struct device *dsa_dev, struct device *host_dev,
-			     int sw_addr, void **priv)
+static char *mv88e6352_drv_probe(struct device *dsa_dev,
+				 struct device *host_dev,
+				 int sw_addr, void **priv)
 {
 	return mv88e6xxx_drv_probe(dsa_dev, host_dev, sw_addr, priv,
 				   mv88e6352_table,
@@ -306,7 +307,7 @@ static int mv88e6352_set_eeprom(struct dsa_switch *ds,
 
 struct dsa_switch_driver mv88e6352_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_EDSA,
-	.probe			= mv88e6352_probe,
+	.probe			= mv88e6352_drv_probe,
 	.setup			= mv88e6352_setup,
 	.set_addr		= mv88e6xxx_set_addr_indirect,
 	.phy_read		= mv88e6xxx_phy_read_indirect,

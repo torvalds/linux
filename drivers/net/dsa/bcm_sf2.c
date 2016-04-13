@@ -135,8 +135,9 @@ static int bcm_sf2_sw_get_sset_count(struct dsa_switch *ds)
 	return BCM_SF2_STATS_SIZE;
 }
 
-static char *bcm_sf2_sw_probe(struct device *dsa_dev, struct device *host_dev,
-			      int sw_addr, void **_priv)
+static char *bcm_sf2_sw_drv_probe(struct device *dsa_dev,
+				  struct device *host_dev,
+				  int sw_addr, void **_priv)
 {
 	struct bcm_sf2_priv *priv;
 
@@ -1370,7 +1371,7 @@ static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 
 static struct dsa_switch_driver bcm_sf2_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_BRCM,
-	.probe			= bcm_sf2_sw_probe,
+	.probe			= bcm_sf2_sw_drv_probe,
 	.setup			= bcm_sf2_sw_setup,
 	.set_addr		= bcm_sf2_sw_set_addr,
 	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,

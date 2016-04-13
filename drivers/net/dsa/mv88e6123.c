@@ -29,8 +29,9 @@ static const struct mv88e6xxx_switch_id mv88e6123_table[] = {
 	{ PORT_SWITCH_ID_6165_A2, "Marvell 88e6165 (A2)" },
 };
 
-static char *mv88e6123_probe(struct device *dsa_dev, struct device *host_dev,
-			     int sw_addr, void **priv)
+static char *mv88e6123_drv_probe(struct device *dsa_dev,
+				 struct device *host_dev,
+				 int sw_addr, void **priv)
 {
 	return mv88e6xxx_drv_probe(dsa_dev, host_dev, sw_addr, priv,
 				   mv88e6123_table,
@@ -106,7 +107,7 @@ static int mv88e6123_setup(struct dsa_switch *ds)
 
 struct dsa_switch_driver mv88e6123_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_EDSA,
-	.probe			= mv88e6123_probe,
+	.probe			= mv88e6123_drv_probe,
 	.setup			= mv88e6123_setup,
 	.set_addr		= mv88e6xxx_set_addr_indirect,
 	.phy_read		= mv88e6xxx_phy_read,
