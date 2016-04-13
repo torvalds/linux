@@ -874,8 +874,8 @@ bfa_status_t bfa_fcb_rport_alloc(struct bfad_s *bfad,
 /*
  * itnim callbacks
  */
-void bfa_fcb_itnim_alloc(struct bfad_s *bfad, struct bfa_fcs_itnim_s **itnim,
-			 struct bfad_itnim_s **itnim_drv);
+int bfa_fcb_itnim_alloc(struct bfad_s *bfad, struct bfa_fcs_itnim_s **itnim,
+			struct bfad_itnim_s **itnim_drv);
 void bfa_fcb_itnim_free(struct bfad_s *bfad,
 			struct bfad_itnim_s *itnim_drv);
 void bfa_fcb_itnim_online(struct bfad_itnim_s *itnim_drv);
