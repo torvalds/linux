@@ -203,6 +203,19 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	add_sta_cmd.station_flags |=
 		cpu_to_le32(mpdu_dens << STA_FLG_AGG_MPDU_DENS_SHIFT);
 
+	if (sta->wme) {
+		add_sta_cmd.modify_mask |= STA_MODIFY_UAPSD_ACS;
+
+		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
+			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_BK);
+		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
+			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_BE);
+		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VI)
+			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_VI);
+		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
+			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_VO);
+	}
+
 	status = ADD_STA_SUCCESS;
 	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA,
 					  iwl_mvm_add_sta_cmd_size(mvm),

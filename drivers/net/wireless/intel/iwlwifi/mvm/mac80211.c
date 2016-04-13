@@ -445,6 +445,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	ieee80211_hw_set(hw, NEEDS_UNIQUE_STA_ADDR);
 	if (iwl_mvm_has_new_rx_api(mvm))
 		ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_STA_PM_NOTIF))
+		ieee80211_hw_set(hw, AP_LINK_PS);
 
 	if (mvm->trans->num_rx_queues > 1)
 		ieee80211_hw_set(hw, USES_RSS);
@@ -2318,10 +2320,9 @@ iwl_mvm_mac_release_buffered_frames(struct ieee80211_hw *hw,
 					  tids, more_data, true);
 }
 
-static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
-				   struct ieee80211_vif *vif,
-				   enum sta_notify_cmd cmd,
-				   struct ieee80211_sta *sta)
+static void __iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
+				     enum sta_notify_cmd cmd,
+				     struct ieee80211_sta *sta)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
@@ -2372,6 +2373,67 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 		break;
 	}
 	spin_unlock_bh(&mvmsta->lock);
+}
+
+static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   enum sta_notify_cmd cmd,
+				   struct ieee80211_sta *sta)
+{
+	__iwl_mvm_mac_sta_notify(hw, cmd, sta);
+}
+
+void iwl_mvm_sta_pm_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_mvm_pm_state_notification *notif = (void *)pkt->data;
+	struct ieee80211_sta *sta;
+	struct iwl_mvm_sta *mvmsta;
+	bool sleeping = (notif->type != IWL_MVM_PM_EVENT_AWAKE);
+
+	if (WARN_ON(notif->sta_id >= ARRAY_SIZE(mvm->fw_id_to_mac_id)))
+		return;
+
+	rcu_read_lock();
+	sta = mvm->fw_id_to_mac_id[notif->sta_id];
+	if (WARN_ON(IS_ERR_OR_NULL(sta))) {
+		rcu_read_unlock();
+		return;
+	}
+
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	if (!mvmsta->vif ||
+	    mvmsta->vif->type != NL80211_IFTYPE_AP) {
+		rcu_read_unlock();
+		return;
+	}
+
+	if (mvmsta->sleeping != sleeping) {
+		mvmsta->sleeping = sleeping;
+		__iwl_mvm_mac_sta_notify(mvm->hw,
+			sleeping ? STA_NOTIFY_SLEEP : STA_NOTIFY_AWAKE,
+			sta);
+		ieee80211_sta_ps_transition(sta, sleeping);
+	}
+
+	if (sleeping) {
+		switch (notif->type) {
+		case IWL_MVM_PM_EVENT_AWAKE:
+		case IWL_MVM_PM_EVENT_ASLEEP:
+			break;
+		case IWL_MVM_PM_EVENT_UAPSD:
+			ieee80211_sta_uapsd_trigger(sta, IEEE80211_NUM_TIDS);
+			break;
+		case IWL_MVM_PM_EVENT_PS_POLL:
+			ieee80211_sta_pspoll(sta);
+			break;
+		default:
+			break;
+		}
+	}
+
+	rcu_read_unlock();
 }
 
 static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
