@@ -79,27 +79,26 @@ struct lkl_dev_net_ops {
 	int (*rx)(struct lkl_netdev *nd, void *data, int *len);
 #define LKL_DEV_NET_POLL_RX		1
 #define LKL_DEV_NET_POLL_TX		2
-        /* Polls a net device.
-         *
-         * Supports only one of two events: LKL_DEV_NET_POLL_RX (readable) and
-         * LKL_DEV_NET_POLL_TX (writable). Blocks until one event is available.
-         *
-         * Implementation can assume only one of LKL_DEV_NET_POLL_RX or
-         * LKL_DEV_NET_POLL_TX is set in @events.
-         *
-         * For LKL_DEV_NET_POLL_RX, it must be level-triggered which means the
-         * events are always triggered as long as it's readable.
-         *
-         * For LKL_DEV_NET_POLL_TX, it can be level-triggered or
-         * event-triggered. When it's level-triggered, tx thread becomes a busy
-         * waiting loop which burns out CPU.
-         *
-         * @nd - pointer to the network device
-         * @events - a bit mask specifying the events to poll on. Only one of
-         * LKL_DEV_NET_POLL_RX or LKL_DEV_NET_POLL_TX is set.
-         * @returns the events triggered for success. -1 for failure.
-         */
-        int (*poll)(struct lkl_netdev *nd, int events);
+	/* Polls a net device.
+	 *
+	 * Supports only one of two events: LKL_DEV_NET_POLL_RX (readable) and
+	 * LKL_DEV_NET_POLL_TX (writable). Blocks until one event is available.
+	 *
+	 * Implementation can assume only one of LKL_DEV_NET_POLL_RX or
+	 * LKL_DEV_NET_POLL_TX is set in @events.
+	 *
+	 * Both LKL_DEV_NET_POLL_RX and LKL_DEV_NET_POLL_TX can be
+	 * level-triggered or edge-triggered. When it's level-triggered,
+	 * rx/tx thread can become a busy waiting loop which burns out CPU.
+	 * This is more of a problem for tx, because LKL_DEV_NET_POLL_TX event
+	 * is present most of the time.
+	 *
+	 * @nd - pointer to the network device
+	 * @events - a bit mask specifying the events to poll on. Only one of
+	 * LKL_DEV_NET_POLL_RX or LKL_DEV_NET_POLL_TX is set.
+	 * @returns the events triggered for success. -1 for failure.
+	 */
+	int (*poll)(struct lkl_netdev *nd, int events);
 	/* Closes a net device.
 	 *
 	 * Implementation can choose to release any resources releated to it. In
