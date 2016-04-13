@@ -1845,6 +1845,7 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 				(epnum & 1) ? "in" : "out");
 
 		dep->endpoint.name = dep->name;
+		spin_lock_init(&dep->lock);
 
 		dwc3_trace(trace_dwc3_gadget, "initializing %s", dep->name);
 
