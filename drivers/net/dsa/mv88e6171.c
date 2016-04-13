@@ -24,10 +24,13 @@ static const struct mv88e6xxx_switch_id mv88e6171_table[] = {
 	{ PORT_SWITCH_ID_6351, "Marvell 88E6351" },
 };
 
-static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
+static char *mv88e6171_drv_probe(struct device *dsa_dev,
+				 struct device *host_dev,
+				 int sw_addr, void **priv)
 {
-	return mv88e6xxx_lookup_name(host_dev, sw_addr, mv88e6171_table,
-				     ARRAY_SIZE(mv88e6171_table));
+	return mv88e6xxx_drv_probe(dsa_dev, host_dev, sw_addr, priv,
+				   mv88e6171_table,
+				   ARRAY_SIZE(mv88e6171_table));
 }
 
 static int mv88e6171_setup_global(struct dsa_switch *ds)
@@ -69,6 +72,8 @@ static int mv88e6171_setup(struct dsa_switch *ds)
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
+	ps->ds = ds;
+
 	ret = mv88e6xxx_setup_common(ds);
 	if (ret < 0)
 		return ret;
@@ -88,8 +93,7 @@ static int mv88e6171_setup(struct dsa_switch *ds)
 
 struct dsa_switch_driver mv88e6171_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_EDSA,
-	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
-	.probe			= mv88e6171_probe,
+	.probe			= mv88e6171_drv_probe,
 	.setup			= mv88e6171_setup,
 	.set_addr		= mv88e6xxx_set_addr_indirect,
 	.phy_read		= mv88e6xxx_phy_read_indirect,

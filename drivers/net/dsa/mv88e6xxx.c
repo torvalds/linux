@@ -94,15 +94,12 @@ static int __mv88e6xxx_reg_read(struct mii_bus *bus, int sw_addr, int addr,
 
 static int _mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg)
 {
-	struct mii_bus *bus = dsa_host_dev_to_mii_bus(ds->master_dev);
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
 	assert_smi_lock(ds);
 
-	if (bus == NULL)
-		return -EINVAL;
-
-	ret = __mv88e6xxx_reg_read(bus, ds->pd->sw_addr, addr, reg);
+	ret = __mv88e6xxx_reg_read(ps->bus, ps->sw_addr, addr, reg);
 	if (ret < 0)
 		return ret;
 
@@ -159,17 +156,14 @@ static int __mv88e6xxx_reg_write(struct mii_bus *bus, int sw_addr, int addr,
 static int _mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg,
 				u16 val)
 {
-	struct mii_bus *bus = dsa_host_dev_to_mii_bus(ds->master_dev);
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
 	assert_smi_lock(ds);
-
-	if (bus == NULL)
-		return -EINVAL;
 
 	dev_dbg(ds->master_dev, "-> addr: 0x%.2x reg: 0x%.2x val: 0x%.4x\n",
 		addr, reg, val);
 
-	return __mv88e6xxx_reg_write(bus, ds->pd->sw_addr, addr, reg, val);
+	return __mv88e6xxx_reg_write(ps->bus, ps->sw_addr, addr, reg, val);
 }
 
 int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
@@ -281,7 +275,7 @@ static void mv88e6xxx_ppu_reenable_work(struct work_struct *ugly)
 
 	ps = container_of(ugly, struct mv88e6xxx_priv_state, ppu_work);
 	if (mutex_trylock(&ps->ppu_mutex)) {
-		struct dsa_switch *ds = ((struct dsa_switch *)ps) - 1;
+		struct dsa_switch *ds = ps->ds;
 
 		if (mv88e6xxx_ppu_enable(ds) == 0)
 			ps->ppu_disabled = 0;
@@ -2322,7 +2316,7 @@ static void mv88e6xxx_bridge_work(struct work_struct *work)
 	int port;
 
 	ps = container_of(work, struct mv88e6xxx_priv_state, bridge_work);
-	ds = ((struct dsa_switch *)ps) - 1;
+	ds = ps->ds;
 
 	mutex_lock(&ps->smi_mutex);
 
@@ -2670,6 +2664,7 @@ int mv88e6xxx_setup_common(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
+	ps->ds = ds;
 	mutex_init(&ps->smi_mutex);
 
 	ps->id = REG_READ(REG_PORT(0), PORT_SWITCH_ID) & 0xfff0;
@@ -3073,11 +3068,10 @@ int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
 }
 #endif /* CONFIG_NET_DSA_HWMON */
 
-char *mv88e6xxx_lookup_name(struct device *host_dev, int sw_addr,
-			    const struct mv88e6xxx_switch_id *table,
-			    unsigned int num)
+static char *mv88e6xxx_lookup_name(struct mii_bus *bus, int sw_addr,
+				   const struct mv88e6xxx_switch_id *table,
+				   unsigned int num)
 {
-	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
 	int i, ret;
 
 	if (!bus)
@@ -3095,7 +3089,8 @@ char *mv88e6xxx_lookup_name(struct device *host_dev, int sw_addr,
 	/* Look up only the product number */
 	for (i = 0; i < num; ++i) {
 		if (table[i].id == (ret & PORT_SWITCH_ID_PROD_NUM_MASK)) {
-			dev_warn(host_dev, "unknown revision %d, using base switch 0x%x\n",
+			dev_warn(&bus->dev,
+				 "unknown revision %d, using base switch 0x%x\n",
 				 ret & PORT_SWITCH_ID_REV_MASK,
 				 ret & PORT_SWITCH_ID_PROD_NUM_MASK);
 			return table[i].name;
@@ -3103,6 +3098,32 @@ char *mv88e6xxx_lookup_name(struct device *host_dev, int sw_addr,
 	}
 
 	return NULL;
+}
+
+char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
+			  int sw_addr, void **priv,
+			  const struct mv88e6xxx_switch_id *table,
+			  unsigned int num)
+{
+	struct mv88e6xxx_priv_state *ps;
+	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
+	char *name;
+
+	if (!bus)
+		return NULL;
+
+	name = mv88e6xxx_lookup_name(bus, sw_addr, table, num);
+	if (name) {
+		ps = devm_kzalloc(dsa_dev, sizeof(*ps), GFP_KERNEL);
+		if (!ps)
+			return NULL;
+		*priv = ps;
+		ps->bus = dsa_host_dev_to_mii_bus(host_dev);
+		if (!ps->bus)
+			return NULL;
+		ps->sw_addr = sw_addr;
+	}
+	return name;
 }
 
 static int __init mv88e6xxx_init(void)
