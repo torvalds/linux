@@ -360,7 +360,7 @@ static void gb_interface_release(struct device *dev)
 	kfree(intf->vendor_string);
 
 	if (intf->control)
-		gb_control_destroy(intf->control);
+		gb_control_put(intf->control);
 
 	kfree(intf);
 }

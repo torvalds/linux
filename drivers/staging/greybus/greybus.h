@@ -113,6 +113,7 @@ extern struct bus_type greybus_bus_type;
 
 extern struct device_type greybus_hd_type;
 extern struct device_type greybus_interface_type;
+extern struct device_type greybus_control_type;
 extern struct device_type greybus_bundle_type;
 extern struct device_type greybus_svc_type;
 
@@ -124,6 +125,11 @@ static inline int is_gb_host_device(const struct device *dev)
 static inline int is_gb_interface(const struct device *dev)
 {
 	return dev->type == &greybus_interface_type;
+}
+
+static inline int is_gb_control(const struct device *dev)
+{
+	return dev->type == &greybus_control_type;
 }
 
 static inline int is_gb_bundle(const struct device *dev)

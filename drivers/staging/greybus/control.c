@@ -213,6 +213,20 @@ int gb_control_timesync_authoritative(struct gb_control *control,
 				 NULL, 0);
 }
 
+static void gb_control_release(struct device *dev)
+{
+	struct gb_control *control = to_gb_control(dev);
+
+	gb_connection_destroy(control->connection);
+
+	kfree(control);
+}
+
+struct device_type greybus_control_type = {
+	.name =		"greybus_control",
+	.release =	gb_control_release,
+};
+
 struct gb_control *gb_control_create(struct gb_interface *intf)
 {
 	struct gb_control *control;
@@ -220,6 +234,8 @@ struct gb_control *gb_control_create(struct gb_interface *intf)
 	control = kzalloc(sizeof(*control), GFP_KERNEL);
 	if (!control)
 		return NULL;
+
+	control->intf = intf;
 
 	control->connection = gb_connection_create_control(intf);
 	if (IS_ERR(control->connection)) {
@@ -229,6 +245,13 @@ struct gb_control *gb_control_create(struct gb_interface *intf)
 		kfree(control);
 		return NULL;
 	}
+
+	control->dev.parent = &intf->dev;
+	control->dev.bus = &greybus_bus_type;
+	control->dev.type = &greybus_control_type;
+	control->dev.dma_mask = intf->dev.dma_mask;
+	device_initialize(&control->dev);
+	dev_set_name(&control->dev, "%s.ctrl", dev_name(&intf->dev));
 
 	gb_connection_set_data(control->connection, control);
 
@@ -271,8 +294,7 @@ void gb_control_disable(struct gb_control *control)
 	gb_connection_disable(control->connection);
 }
 
-void gb_control_destroy(struct gb_control *control)
+void gb_control_put(struct gb_control *control)
 {
-	gb_connection_destroy(control->connection);
-	kfree(control);
+	put_device(&control->dev);
 }

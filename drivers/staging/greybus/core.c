@@ -86,6 +86,7 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct gb_host_device *hd;
 	struct gb_interface *intf = NULL;
+	struct gb_control *control = NULL;
 	struct gb_bundle *bundle = NULL;
 	struct gb_svc *svc = NULL;
 
@@ -93,6 +94,10 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 		hd = to_gb_host_device(dev);
 	} else if (is_gb_interface(dev)) {
 		intf = to_gb_interface(dev);
+		hd = intf->hd;
+	} else if (is_gb_control(dev)) {
+		control = to_gb_control(dev);
+		intf = control->intf;
 		hd = intf->hd;
 	} else if (is_gb_bundle(dev)) {
 		bundle = to_gb_bundle(dev);
