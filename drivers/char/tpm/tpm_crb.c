@@ -310,10 +310,10 @@ static int crb_acpi_remove(struct acpi_device *device)
 	struct device *dev = &device->dev;
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
-	tpm_chip_unregister(chip);
-
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		tpm2_shutdown(chip, TPM2_SU_CLEAR);
+
+	tpm_chip_unregister(chip);
 
 	return 0;
 }

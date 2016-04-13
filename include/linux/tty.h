@@ -594,7 +594,7 @@ static inline int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
 		count = ld->ops->receive_buf2(ld->tty, p, f, count);
 	else {
 		count = min_t(int, count, ld->tty->receive_room);
-		if (count)
+		if (count && ld->ops->receive_buf)
 			ld->ops->receive_buf(ld->tty, p, f, count);
 	}
 	return count;

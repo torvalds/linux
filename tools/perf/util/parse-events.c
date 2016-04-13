@@ -2101,11 +2101,11 @@ char *parse_events_formats_error_string(char *additional_terms)
 
 	/* valid terms */
 	if (additional_terms) {
-		if (!asprintf(&str, "valid terms: %s,%s",
-			      additional_terms, static_terms))
+		if (asprintf(&str, "valid terms: %s,%s",
+			     additional_terms, static_terms) < 0)
 			goto fail;
 	} else {
-		if (!asprintf(&str, "valid terms: %s", static_terms))
+		if (asprintf(&str, "valid terms: %s", static_terms) < 0)
 			goto fail;
 	}
 	return str;

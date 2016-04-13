@@ -961,7 +961,7 @@ static void xen_load_sp0(struct tss_struct *tss,
 	tss->x86_tss.sp0 = thread->sp0;
 }
 
-static void xen_set_iopl_mask(unsigned mask)
+void xen_set_iopl_mask(unsigned mask)
 {
 	struct physdev_set_iopl set_iopl;
 

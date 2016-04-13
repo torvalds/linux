@@ -513,10 +513,10 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 
 	/* fail write commands (when read-only) */
 	if (read_only)
-		switch (ioctl_cmd) {
-		case ND_IOCTL_VENDOR:
-		case ND_IOCTL_SET_CONFIG_DATA:
-		case ND_IOCTL_ARS_START:
+		switch (cmd) {
+		case ND_CMD_VENDOR:
+		case ND_CMD_SET_CONFIG_DATA:
+		case ND_CMD_ARS_START:
 			dev_dbg(&nvdimm_bus->dev, "'%s' command while read-only.\n",
 					nvdimm ? nvdimm_cmd_name(cmd)
 					: nvdimm_bus_cmd_name(cmd));

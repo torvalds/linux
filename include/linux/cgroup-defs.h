@@ -216,6 +216,9 @@ struct css_set {
 	/* all css_task_iters currently walking this cset */
 	struct list_head task_iters;
 
+	/* dead and being drained, ignore for migration */
+	bool dead;
+
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
 };

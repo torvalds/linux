@@ -16,7 +16,7 @@
 
 __HEAD
 ENTRY(startup_continue)
-	tm	__LC_STFL_FAC_LIST+6,0x80	# LPP available ?
+	tm	__LC_STFL_FAC_LIST+5,0x80	# LPP available ?
 	jz	0f
 	xc	__LC_LPP+1(7,0),__LC_LPP+1	# clear lpp and current_pid
 	mvi	__LC_LPP,0x80			#   and set LPP_MAGIC
