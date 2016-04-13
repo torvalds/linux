@@ -1,3 +1,20 @@
+config DRM_I915_WERROR
+        bool "Force GCC to throw an error instead of a warning when compiling"
+        # As this may inadvertently break the build, only allow the user
+        # to shoot oneself in the foot iff they aim really hard
+        depends on EXPERT
+        # We use the dependency on !COMPILE_TEST to not be enabled in
+        # allmodconfig or allyesconfig configurations
+        depends on !COMPILE_TEST
+        default n
+        help
+          Add -Werror to the build flags for (and only for) i915.ko.
+          Do not enable this unless you are writing code for the i915.ko module.
+
+          Recommended for driver developers only.
+
+          If in doubt, say "N".
+
 config DRM_I915_DEBUG
         bool "Enable additional driver debugging"
         depends on DRM_I915
