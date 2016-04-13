@@ -42,8 +42,6 @@
 #include <net/genetlink.h>
 
 #define MAX_MEDIA	3
-#define MAX_NODES	4096
-#define WSIZE		32
 
 /* Identifiers associated with TIPC message header media address info
  * - address info field is 32 bytes long
@@ -60,16 +58,6 @@
 #define TIPC_MEDIA_TYPE_ETH	1
 #define TIPC_MEDIA_TYPE_IB	2
 #define TIPC_MEDIA_TYPE_UDP	3
-
-/**
- * struct tipc_node_map - set of node identifiers
- * @count: # of nodes in set
- * @map: bitmap of node identifiers that are in the set
- */
-struct tipc_node_map {
-	u32 count;
-	u32 map[MAX_NODES / WSIZE];
-};
 
 /**
  * struct tipc_media_addr - destination address used by TIPC bearers
@@ -142,7 +130,6 @@ struct tipc_media {
  * @identity: array index of this bearer within TIPC bearer array
  * @link_req: ptr to (optional) structure making periodic link setup requests
  * @net_plane: network plane ('A' through 'H') currently associated with bearer
- * @nodes: indicates which nodes in cluster can be reached through bearer
  *
  * Note: media-specific code is responsible for initialization of the fields
  * indicated below when a bearer is enabled; TIPC's generic bearer code takes
@@ -163,8 +150,6 @@ struct tipc_bearer {
 	u32 identity;
 	struct tipc_link_req *link_req;
 	char net_plane;
-	int node_cnt;
-	struct tipc_node_map nodes;
 };
 
 struct tipc_bearer_names {
