@@ -3368,12 +3368,12 @@ static int e1000e_write_uc_addr_list(struct net_device *netdev)
 		 * combining
 		 */
 		netdev_for_each_uc_addr(ha, netdev) {
-			int rval;
+			int ret_val;
 
 			if (!rar_entries)
 				break;
-			rval = hw->mac.ops.rar_set(hw, ha->addr, rar_entries--);
-			if (rval < 0)
+			ret_val = hw->mac.ops.rar_set(hw, ha->addr, rar_entries--);
+			if (ret_val < 0)
 				return -ENOMEM;
 			count++;
 		}
@@ -6965,7 +6965,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int bars, i, err, pci_using_dac;
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
-	s32 rval = 0;
+	s32 ret_val = 0;
 
 	if (ei->flags2 & FLAG2_DISABLE_ASPM_L0S)
 		aspm_disable_flag = PCIE_LINK_STATE_L0S;
@@ -7200,18 +7200,18 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else if (adapter->flags & FLAG_APME_IN_CTRL3) {
 		if (adapter->flags & FLAG_APME_CHECK_PORT_B &&
 		    (adapter->hw.bus.func == 1))
-			rval = e1000_read_nvm(&adapter->hw,
+			ret_val = e1000_read_nvm(&adapter->hw,
 					      NVM_INIT_CONTROL3_PORT_B,
 					      1, &eeprom_data);
 		else
-			rval = e1000_read_nvm(&adapter->hw,
+			ret_val = e1000_read_nvm(&adapter->hw,
 					      NVM_INIT_CONTROL3_PORT_A,
 					      1, &eeprom_data);
 	}
 
 	/* fetch WoL from EEPROM */
-	if (rval)
-		e_dbg("NVM read error getting WoL initial values: %d\n", rval);
+	if (ret_val)
+		e_dbg("NVM read error getting WoL initial values: %d\n", ret_val);
 	else if (eeprom_data & eeprom_apme_mask)
 		adapter->eeprom_wol |= E1000_WUFC_MAG;
 
@@ -7231,10 +7231,10 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		device_wakeup_enable(&pdev->dev);
 
 	/* save off EEPROM version number */
-	rval = e1000_read_nvm(&adapter->hw, 5, 1, &adapter->eeprom_vers);
+	ret_val = e1000_read_nvm(&adapter->hw, 5, 1, &adapter->eeprom_vers);
 
-	if (rval) {
-		e_dbg("NVM read error getting EEPROM version: %d\n", rval);
+	if (ret_val) {
+		e_dbg("NVM read error getting EEPROM version: %d\n", ret_val);
 		adapter->eeprom_vers = 0;
 	}
 
