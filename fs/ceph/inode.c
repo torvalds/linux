@@ -1776,16 +1776,12 @@ static const struct inode_operations ceph_symlink_iops = {
 	.removexattr = ceph_removexattr,
 };
 
-/*
- * setattr
- */
-int ceph_setattr(struct dentry *dentry, struct iattr *attr)
+int __ceph_setattr(struct inode *inode, struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	const unsigned int ia_valid = attr->ia_valid;
 	struct ceph_mds_request *req;
-	struct ceph_mds_client *mdsc = ceph_sb_to_client(dentry->d_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_cap_flush *prealloc_cf;
 	int issued;
 	int release = 0, dirtied = 0;
@@ -2007,6 +2003,14 @@ out_put:
 	ceph_mdsc_put_request(req);
 	ceph_free_cap_flush(prealloc_cf);
 	return err;
+}
+
+/*
+ * setattr
+ */
+int ceph_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	return __ceph_setattr(d_inode(dentry), attr);
 }
 
 /*
