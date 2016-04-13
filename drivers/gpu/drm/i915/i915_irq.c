@@ -1644,10 +1644,10 @@ static bool intel_pipe_handle_vblank(struct drm_device *dev, enum pipe pipe)
 	return true;
 }
 
-static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
+static void valleyview_pipestat_irq_ack(struct drm_device *dev, u32 iir,
+					u32 pipe_stats[I915_MAX_PIPES])
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pipe_stats[I915_MAX_PIPES] = { };
 	int pipe;
 
 	spin_lock(&dev_priv->irq_lock);
@@ -1701,6 +1701,13 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 			I915_WRITE(reg, pipe_stats[pipe]);
 	}
 	spin_unlock(&dev_priv->irq_lock);
+}
+
+static void valleyview_pipestat_irq_handler(struct drm_device *dev,
+					    u32 pipe_stats[I915_MAX_PIPES])
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS &&
@@ -1777,6 +1784,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 	do {
 		u32 iir, gt_iir, pm_iir;
+		u32 pipe_stats[I915_MAX_PIPES] = {};
 		u32 hotplug_status = 0;
 		u32 ier = 0;
 
@@ -1821,7 +1829,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 		/* Call regardless, as some status bits might not be
 		 * signalled in iir */
-		valleyview_pipestat_irq_handler(dev, iir);
+		valleyview_pipestat_irq_ack(dev, iir, pipe_stats);
 
 		/*
 		 * VLV_IIR is single buffered, and reflects the level
@@ -1836,6 +1844,8 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 		if (hotplug_status)
 			i9xx_hpd_irq_handler(dev, hotplug_status);
+
+		valleyview_pipestat_irq_handler(dev, pipe_stats);
 	} while (0);
 
 	enable_rpm_wakeref_asserts(dev_priv);
@@ -1857,6 +1867,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 	do {
 		u32 master_ctl, iir;
+		u32 pipe_stats[I915_MAX_PIPES] = {};
 		u32 hotplug_status = 0;
 		u32 ier = 0;
 
@@ -1892,7 +1903,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 		/* Call regardless, as some status bits might not be
 		 * signalled in iir */
-		valleyview_pipestat_irq_handler(dev, iir);
+		valleyview_pipestat_irq_ack(dev, iir, pipe_stats);
 
 		/*
 		 * VLV_IIR is single buffered, and reflects the level
@@ -1907,6 +1918,8 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 		if (hotplug_status)
 			i9xx_hpd_irq_handler(dev, hotplug_status);
+
+		valleyview_pipestat_irq_handler(dev, pipe_stats);
 	} while (0);
 
 	enable_rpm_wakeref_asserts(dev_priv);
