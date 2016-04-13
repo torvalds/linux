@@ -352,9 +352,6 @@ static void gb_interface_release(struct device *dev)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
 
-	if (intf->control)
-		gb_control_put(intf->control);
-
 	kfree(intf);
 }
 
@@ -381,7 +378,6 @@ struct device_type greybus_interface_type = {
 struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 					 u8 interface_id)
 {
-	struct gb_control *control;
 	struct gb_interface *intf;
 
 	intf = kzalloc(sizeof(*intf), GFP_KERNEL);
@@ -403,13 +399,6 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 	intf->dev.dma_mask = hd->dev.dma_mask;
 	device_initialize(&intf->dev);
 	dev_set_name(&intf->dev, "%d-%d", hd->bus_id, interface_id);
-
-	control = gb_control_create(intf);
-	if (IS_ERR(control)) {
-		put_device(&intf->dev);
-		return NULL;
-	}
-	intf->control = control;
 
 	list_add(&intf->links, &hd->interfaces);
 
@@ -442,6 +431,7 @@ void gb_interface_deactivate(struct gb_interface *intf)
  */
 int gb_interface_enable(struct gb_interface *intf)
 {
+	struct gb_control *control;
 	struct gb_bundle *bundle, *tmp;
 	int ret, size;
 	void *manifest;
@@ -453,9 +443,17 @@ int gb_interface_enable(struct gb_interface *intf)
 	}
 
 	/* Establish control connection */
+	control = gb_control_create(intf);
+	if (IS_ERR(control)) {
+		dev_err(&intf->dev, "failed to create control device: %lu\n",
+				PTR_ERR(control));
+		return PTR_ERR(control);
+	}
+	intf->control = control;
+
 	ret = gb_control_enable(intf->control);
 	if (ret)
-		return ret;
+		goto err_put_control;
 
 	/* Get manifest size using control protocol on CPort */
 	size = gb_control_get_manifest_size_operation(intf);
@@ -503,6 +501,8 @@ int gb_interface_enable(struct gb_interface *intf)
 
 	kfree(manifest);
 
+	intf->enabled = true;
+
 	return 0;
 
 err_destroy_bundles:
@@ -512,6 +512,9 @@ err_free_manifest:
 	kfree(manifest);
 err_disable_control:
 	gb_control_disable(intf->control);
+err_put_control:
+	gb_control_put(intf->control);
+	intf->control = NULL;
 
 	return ret;
 }
@@ -521,6 +524,9 @@ void gb_interface_disable(struct gb_interface *intf)
 {
 	struct gb_bundle *bundle;
 	struct gb_bundle *next;
+
+	if (!intf->enabled)
+		return;
 
 	/*
 	 * Disable the control-connection early to avoid operation timeouts
@@ -534,6 +540,10 @@ void gb_interface_disable(struct gb_interface *intf)
 
 	gb_control_del(intf->control);
 	gb_control_disable(intf->control);
+	gb_control_put(intf->control);
+	intf->control = NULL;
+
+	intf->enabled = false;
 }
 
 /* Register an interface and its bundles. */
