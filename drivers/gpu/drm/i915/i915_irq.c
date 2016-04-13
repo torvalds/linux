@@ -1264,18 +1264,17 @@ out:
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
-static void ivybridge_parity_error_irq_handler(struct drm_device *dev, u32 iir)
+static void ivybridge_parity_error_irq_handler(struct drm_i915_private *dev_priv,
+					       u32 iir)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (!HAS_L3_DPF(dev))
+	if (!HAS_L3_DPF(dev_priv))
 		return;
 
 	spin_lock(&dev_priv->irq_lock);
-	gen5_disable_gt_irq(dev_priv, GT_PARITY_ERROR(dev));
+	gen5_disable_gt_irq(dev_priv, GT_PARITY_ERROR(dev_priv));
 	spin_unlock(&dev_priv->irq_lock);
 
-	iir &= GT_PARITY_ERROR(dev);
+	iir &= GT_PARITY_ERROR(dev_priv);
 	if (iir & GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1)
 		dev_priv->l3_parity.which_slice |= 1 << 1;
 
@@ -1285,8 +1284,7 @@ static void ivybridge_parity_error_irq_handler(struct drm_device *dev, u32 iir)
 	queue_work(dev_priv->wq, &dev_priv->l3_parity.error_work);
 }
 
-static void ilk_gt_irq_handler(struct drm_device *dev,
-			       struct drm_i915_private *dev_priv,
+static void ilk_gt_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
 {
 	if (gt_iir &
@@ -1296,8 +1294,7 @@ static void ilk_gt_irq_handler(struct drm_device *dev,
 		notify_ring(&dev_priv->engine[VCS]);
 }
 
-static void snb_gt_irq_handler(struct drm_device *dev,
-			       struct drm_i915_private *dev_priv,
+static void snb_gt_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
 {
 
@@ -1314,8 +1311,8 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 		      GT_RENDER_CS_MASTER_ERROR_INTERRUPT))
 		DRM_DEBUG("Command parser error, gt_iir 0x%08x\n", gt_iir);
 
-	if (gt_iir & GT_PARITY_ERROR(dev))
-		ivybridge_parity_error_irq_handler(dev, gt_iir);
+	if (gt_iir & GT_PARITY_ERROR(dev_priv))
+		ivybridge_parity_error_irq_handler(dev_priv, gt_iir);
 }
 
 static __always_inline void
@@ -1838,7 +1835,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		POSTING_READ(VLV_MASTER_IER);
 
 		if (gt_iir)
-			snb_gt_irq_handler(dev, dev_priv, gt_iir);
+			snb_gt_irq_handler(dev_priv, gt_iir);
 		if (pm_iir)
 			gen6_rps_irq_handler(dev_priv, pm_iir);
 
@@ -2280,9 +2277,9 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		I915_WRITE(GTIIR, gt_iir);
 		ret = IRQ_HANDLED;
 		if (INTEL_INFO(dev)->gen >= 6)
-			snb_gt_irq_handler(dev, dev_priv, gt_iir);
+			snb_gt_irq_handler(dev_priv, gt_iir);
 		else
-			ilk_gt_irq_handler(dev, dev_priv, gt_iir);
+			ilk_gt_irq_handler(dev_priv, gt_iir);
 	}
 
 	de_iir = I915_READ(DEIIR);
