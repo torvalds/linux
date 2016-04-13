@@ -1819,11 +1819,6 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		if (pm_iir)
 			I915_WRITE(GEN6_PMIIR, pm_iir);
 
-		if (gt_iir)
-			snb_gt_irq_handler(dev, dev_priv, gt_iir);
-		if (pm_iir)
-			gen6_rps_irq_handler(dev_priv, pm_iir);
-
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
@@ -1841,6 +1836,11 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		I915_WRITE(VLV_IER, ier);
 		I915_WRITE(VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
 		POSTING_READ(VLV_MASTER_IER);
+
+		if (gt_iir)
+			snb_gt_irq_handler(dev, dev_priv, gt_iir);
+		if (pm_iir)
+			gen6_rps_irq_handler(dev_priv, pm_iir);
 
 		if (hotplug_status)
 			i9xx_hpd_irq_handler(dev, hotplug_status);
