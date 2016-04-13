@@ -317,8 +317,8 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 		else
 			next_desc = "";
 		pr_info("T%c[0x%03X]    %016llX %016llX %016llX %04X  %3X %016llX %p%s\n",
-			(!(le64_to_cpu(u0->b) & (1 << 29)) ? 'l' :
-			 ((le64_to_cpu(u0->b) & (1 << 20)) ? 'd' : 'c')),
+			(!(le64_to_cpu(u0->b) & BIT(29)) ? 'l' :
+			 ((le64_to_cpu(u0->b) & BIT(20)) ? 'd' : 'c')),
 			i,
 			(unsigned long long)le64_to_cpu(u0->a),
 			(unsigned long long)le64_to_cpu(u0->b),
@@ -2018,7 +2018,7 @@ static void e1000_configure_msix(struct e1000_adapter *adapter)
 	adapter->eiac_mask |= E1000_IMS_OTHER;
 
 	/* Cause Tx interrupts on every write back */
-	ivar |= (1 << 31);
+	ivar |= BIT(31);
 
 	ew32(IVAR, ivar);
 
@@ -2709,7 +2709,7 @@ static int e1000_vlan_rx_add_vid(struct net_device *netdev,
 	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
 		index = (vid >> 5) & 0x7F;
 		vfta = E1000_READ_REG_ARRAY(hw, E1000_VFTA, index);
-		vfta |= (1 << (vid & 0x1F));
+		vfta |= BIT((vid & 0x1F));
 		hw->mac.ops.write_vfta(hw, index, vfta);
 	}
 
@@ -2737,7 +2737,7 @@ static int e1000_vlan_rx_kill_vid(struct net_device *netdev,
 	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
 		index = (vid >> 5) & 0x7F;
 		vfta = E1000_READ_REG_ARRAY(hw, E1000_VFTA, index);
-		vfta &= ~(1 << (vid & 0x1F));
+		vfta &= ~BIT((vid & 0x1F));
 		hw->mac.ops.write_vfta(hw, index, vfta);
 	}
 
@@ -2878,7 +2878,7 @@ static void e1000_init_manageability_pt(struct e1000_adapter *adapter)
 
 			/* Enable this decision filter in MANC2H */
 			if (mdef)
-				manc2h |= (1 << i);
+				manc2h |= BIT(i);
 
 			j |= mdef;
 		}
@@ -2891,7 +2891,7 @@ static void e1000_init_manageability_pt(struct e1000_adapter *adapter)
 			if (er32(MDEF(i)) == 0) {
 				ew32(MDEF(i), (E1000_MDEF_PORT_623 |
 					       E1000_MDEF_PORT_664));
-				manc2h |= (1 << 1);
+				manc2h |= BIT(1);
 				j++;
 				break;
 			}
@@ -2971,7 +2971,7 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 		/* set the speed mode bit, we'll clear it if we're not at
 		 * gigabit link later
 		 */
-#define SPEED_MODE_BIT (1 << 21)
+#define SPEED_MODE_BIT BIT(21)
 		tarc |= SPEED_MODE_BIT;
 		ew32(TARC(0), tarc);
 	}
@@ -3071,12 +3071,12 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 
 		e1e_rphy(hw, PHY_REG(770, 26), &phy_data);
 		phy_data &= 0xfff8;
-		phy_data |= (1 << 2);
+		phy_data |= BIT(2);
 		e1e_wphy(hw, PHY_REG(770, 26), phy_data);
 
 		e1e_rphy(hw, 22, &phy_data);
 		phy_data &= 0x0fff;
-		phy_data |= (1 << 14);
+		phy_data |= BIT(14);
 		e1e_wphy(hw, 0x10, 0x2823);
 		e1e_wphy(hw, 0x11, 0x0003);
 		e1e_wphy(hw, 22, phy_data);
@@ -3503,8 +3503,8 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca)
 	    !(er32(TSYNCRXCTL) & E1000_TSYNCRXCTL_ENABLED)) {
 		u32 fextnvm7 = er32(FEXTNVM7);
 
-		if (!(fextnvm7 & (1 << 0))) {
-			ew32(FEXTNVM7, fextnvm7 | (1 << 0));
+		if (!(fextnvm7 & BIT(0))) {
+			ew32(FEXTNVM7, fextnvm7 | BIT(0));
 			e1e_flush();
 		}
 	}
@@ -3839,7 +3839,7 @@ static void e1000_flush_rx_ring(struct e1000_adapter *adapter)
 	/* update thresholds: prefetch threshold to 31, host threshold to 1
 	 * and make sure the granularity is "descriptors" and not "cache lines"
 	 */
-	rxdctl |= (0x1F | (1 << 8) | E1000_RXDCTL_THRESH_UNIT_DESC);
+	rxdctl |= (0x1F | BIT(8) | E1000_RXDCTL_THRESH_UNIT_DESC);
 
 	ew32(RXDCTL(0), rxdctl);
 	/* momentarily enable the RX ring for the changes to take effect */
@@ -6862,7 +6862,7 @@ static void e1000_eeprom_checks(struct e1000_adapter *adapter)
 
 	ret_val = e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &buf);
 	le16_to_cpus(&buf);
-	if (!ret_val && (!(buf & (1 << 0)))) {
+	if (!ret_val && (!(buf & BIT(0)))) {
 		/* Deep Smart Power Down (DSPD) */
 		dev_warn(&adapter->pdev->dev,
 			 "Warning: detected DSPD enabled in EEPROM\n");
