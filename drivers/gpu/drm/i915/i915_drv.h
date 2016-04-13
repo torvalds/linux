@@ -2250,6 +2250,7 @@ struct drm_i915_gem_request {
 	/** On Which ring this request was generated */
 	struct drm_i915_private *i915;
 	struct intel_engine_cs *engine;
+	unsigned reset_counter;
 
 	 /** GEM sequence number associated with the previous request,
 	  * when the HWS breadcrumb is equal to this the GPU is processing
@@ -3160,7 +3161,6 @@ void __i915_add_request(struct drm_i915_gem_request *req,
 #define i915_add_request_no_flush(req) \
 	__i915_add_request(req, NULL, false)
 int __i915_wait_request(struct drm_i915_gem_request *req,
-			unsigned reset_counter,
 			bool interruptible,
 			s64 *timeout,
 			struct intel_rps_client *rps);

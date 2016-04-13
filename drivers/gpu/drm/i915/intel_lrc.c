@@ -890,16 +890,9 @@ static int logical_ring_prepare(struct drm_i915_gem_request *req, int bytes)
  */
 int intel_logical_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 {
-	struct drm_i915_private *dev_priv;
 	int ret;
 
 	WARN_ON(req == NULL);
-	dev_priv = req->i915;
-
-	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
-				   dev_priv->mm.interruptible);
-	if (ret)
-		return ret;
 
 	ret = logical_ring_prepare(req, num_dwords * sizeof(uint32_t));
 	if (ret)

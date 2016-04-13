@@ -65,7 +65,6 @@ static void wait_rendering(struct drm_i915_gem_object *obj)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
-	unsigned reset_counter;
 	int i, n;
 
 	if (!obj->active)
@@ -82,12 +81,10 @@ static void wait_rendering(struct drm_i915_gem_object *obj)
 		requests[n++] = i915_gem_request_reference(req);
 	}
 
-	reset_counter = atomic_read(&to_i915(dev)->gpu_error.reset_counter);
 	mutex_unlock(&dev->struct_mutex);
 
 	for (i = 0; i < n; i++)
-		__i915_wait_request(requests[i], reset_counter, false,
-				    NULL, NULL);
+		__i915_wait_request(requests[i], false, NULL, NULL);
 
 	mutex_lock(&dev->struct_mutex);
 
