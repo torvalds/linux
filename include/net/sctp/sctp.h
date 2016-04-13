@@ -359,21 +359,6 @@ int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id, struct socket **sockp);
 #define sctp_skb_for_each(pos, head, tmp) \
 	skb_queue_walk_safe(head, pos, tmp)
 
-/* A helper to append an entire skb list (list) to another (head). */
-static inline void sctp_skb_list_tail(struct sk_buff_head *list,
-				      struct sk_buff_head *head)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&head->lock, flags);
-	spin_lock(&list->lock);
-
-	skb_queue_splice_tail_init(list, head);
-
-	spin_unlock(&list->lock);
-	spin_unlock_irqrestore(&head->lock, flags);
-}
-
 /**
  *	sctp_list_dequeue - remove from the head of the queue
  *	@list: list to dequeue from

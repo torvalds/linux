@@ -141,7 +141,8 @@ int sctp_clear_pd(struct sock *sk, struct sctp_association *asoc)
 		 */
 		if (!skb_queue_empty(&sp->pd_lobby)) {
 			struct list_head *list;
-			sctp_skb_list_tail(&sp->pd_lobby, &sk->sk_receive_queue);
+			skb_queue_splice_tail_init(&sp->pd_lobby,
+						   &sk->sk_receive_queue);
 			list = (struct list_head *)&sctp_sk(sk)->pd_lobby;
 			INIT_LIST_HEAD(list);
 			return 1;
@@ -252,7 +253,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 	 * collected on a list.
 	 */
 	if (skb_list)
-		sctp_skb_list_tail(skb_list, queue);
+		skb_queue_splice_tail_init(skb_list, queue);
 	else
 		__skb_queue_tail(queue, skb);
 
