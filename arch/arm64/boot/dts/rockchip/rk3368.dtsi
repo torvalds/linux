@@ -555,6 +555,18 @@
 		status = "disabled";
 	};
 
+	mbox: mbox@ff6b0000 {
+		compatible = "rockchip,rk3368-mailbox";
+		reg = <0x0 0xff6b0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MAILBOX>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
+	};
+
 	pmugrf: syscon@ff738000 {
 		compatible = "rockchip,rk3368-pmugrf", "syscon";
 		reg = <0x0 0xff738000 0x0 0x1000>;
@@ -926,11 +938,11 @@
 
 		tsadc {
 			otp_gpio: otp-gpio {
-				rockchip,pins = <0 10 RK_FUNC_GPIO &pcfg_pull_none>;
+				rockchip,pins = <0 3 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 
 			otp_out: otp-out {
-				rockchip,pins = <0 10 RK_FUNC_1 &pcfg_pull_none>;
+				rockchip,pins = <0 3 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
