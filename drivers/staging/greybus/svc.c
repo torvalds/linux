@@ -435,15 +435,6 @@ static int gb_svc_hello(struct gb_operation *op)
 	return 0;
 }
 
-static void gb_svc_intf_remove(struct gb_svc *svc, struct gb_interface *intf)
-{
-	intf->disconnected = true;
-
-	gb_interface_disable(intf);
-	gb_interface_deactivate(intf);
-	gb_interface_remove(intf);
-}
-
 static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 {
 	struct gb_svc_intf_hotplug_request *request;
@@ -527,7 +518,12 @@ static void gb_svc_process_intf_hot_unplug(struct gb_operation *operation)
 		return;
 	}
 
-	gb_svc_intf_remove(svc, intf);
+	/* Mark as disconnected to prevent I/O during disable. */
+	intf->disconnected = true;
+
+	gb_interface_disable(intf);
+	gb_interface_deactivate(intf);
+	gb_interface_remove(intf);
 }
 
 static void gb_svc_process_deferred_request(struct work_struct *work)
