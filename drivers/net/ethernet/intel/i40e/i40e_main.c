@@ -2098,6 +2098,12 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		}
 	}
 
+	/* if the VF is not trusted do not do promisc */
+	if ((vsi->type == I40E_VSI_SRIOV) && !pf->vf[vsi->vf_id].trusted) {
+		clear_bit(__I40E_FILTER_OVERFLOW_PROMISC, &vsi->state);
+		goto out;
+	}
+
 	/* check for changes in promiscuous modes */
 	if (changed_flags & IFF_ALLMULTI) {
 		bool cur_multipromisc;
