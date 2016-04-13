@@ -1768,7 +1768,6 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 iir, gt_iir, pm_iir;
 	irqreturn_t ret = IRQ_NONE;
 
 	if (!intel_irqs_enabled(dev_priv))
@@ -1778,6 +1777,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	do {
+		u32 iir, gt_iir, pm_iir;
 		u32 ier = 0;
 
 		gt_iir = I915_READ(GTIIR);
@@ -1844,7 +1844,6 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 master_ctl, iir;
 	irqreturn_t ret = IRQ_NONE;
 
 	if (!intel_irqs_enabled(dev_priv))
@@ -1854,6 +1853,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	do {
+		u32 master_ctl, iir;
 		u32 ier = 0;
 
 		master_ctl = I915_READ(GEN8_MASTER_IRQ) & ~GEN8_MASTER_IRQ_CONTROL;
