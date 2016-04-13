@@ -177,9 +177,8 @@ struct trace_options {
 };
 
 struct trace_pid_list {
-	unsigned int			nr_pids;
-	int				order;
-	pid_t				*pids;
+	int				pid_max;
+	unsigned long			*pids;
 };
 
 /*
