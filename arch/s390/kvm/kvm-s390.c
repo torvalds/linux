@@ -281,6 +281,24 @@ static void kvm_s390_cpu_feat_init(void)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_CEI);
 	if (sclp.has_ibs)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_IBS);
+	/*
+	 * KVM_S390_VM_CPU_FEAT_SKEY: Wrong shadow of PTE.I bits will make
+	 * all skey handling functions read/set the skey from the PGSTE
+	 * instead of the real storage key.
+	 *
+	 * KVM_S390_VM_CPU_FEAT_CMMA: Wrong shadow of PTE.I bits will make
+	 * pages being detected as preserved although they are resident.
+	 *
+	 * KVM_S390_VM_CPU_FEAT_PFMFI: Wrong shadow of PTE.I bits will
+	 * have the same effect as for KVM_S390_VM_CPU_FEAT_SKEY.
+	 *
+	 * For KVM_S390_VM_CPU_FEAT_SKEY, KVM_S390_VM_CPU_FEAT_CMMA and
+	 * KVM_S390_VM_CPU_FEAT_PFMFI, all PTE.I and PGSTE bits have to be
+	 * correctly shadowed. We can do that for the PGSTE but not for PTE.I.
+	 *
+	 * KVM_S390_VM_CPU_FEAT_SIGPIF: Wrong SCB addresses in the SCA. We
+	 * cannot easily shadow the SCA because of the ipte lock.
+	 */
 }
 
 int kvm_arch_init(void *opaque)
