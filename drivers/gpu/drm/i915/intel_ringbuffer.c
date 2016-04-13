@@ -2091,10 +2091,12 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj = ringbuf->obj;
+	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
+	unsigned flags = PIN_OFFSET_BIAS | 4096;
 	int ret;
 
 	if (HAS_LLC(dev_priv) && !obj->stolen) {
-		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, 0);
+		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, flags);
 		if (ret)
 			return ret;
 
@@ -2110,7 +2112,8 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 			return -ENOMEM;
 		}
 	} else {
-		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, PIN_MAPPABLE);
+		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE,
+					    flags | PIN_MAPPABLE);
 		if (ret)
 			return ret;
 
