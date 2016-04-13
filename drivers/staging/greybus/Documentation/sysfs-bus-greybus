@@ -81,6 +81,27 @@ Description:
 		Interface version represented as <16 bit major number>.<16 bit
 		minor number>.
 
+What:		/sys/bus/greybus/device/N-I/voltage_now
+Date:		March 2016
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Voltage measurement of the interface in microvolts (uV)
+
+What:		/sys/bus/greybus/device/N-I/current_now
+Date:		March 2016
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Current measurement of the interface in microamps (uA)
+
+What:		/sys/bus/greybus/device/N-I/power_now
+Date:		March 2016
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Power measurement of the interface in microwatts (uW)
+
 What:		/sys/bus/greybus/device/N-I.B
 Date:		October 2015
 KernelVersion:	4.XX
@@ -164,24 +185,3 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		If the SVC watchdog is enabled or not.  Writing 0 to this
 		file will disable the watchdog, writing 1 will enable it.
-
-What:		/sys/bus/greybus/device/N-I/voltage_now
-Date:		March 2016
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Voltage measurement of the interface in microvolts (uV)
-
-What:		/sys/bus/greybus/device/N-I/current_now
-Date:		March 2016
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Current measurement of the interface in microamps (uA)
-
-What:		/sys/bus/greybus/device/N-I/power_now
-Date:		March 2016
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Power measurement of the interface in microwatts (uW)
