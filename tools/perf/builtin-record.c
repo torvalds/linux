@@ -56,6 +56,7 @@ struct record {
 	bool			no_buildid_cache;
 	bool			no_buildid_cache_set;
 	bool			buildid_all;
+	bool			timestamp_filename;
 	unsigned long long	samples;
 };
 
@@ -531,6 +532,37 @@ record__finish_output(struct record *rec)
 	return;
 }
 
+static int
+record__switch_output(struct record *rec, bool at_exit)
+{
+	struct perf_data_file *file = &rec->file;
+	int fd, err;
+
+	/* Same Size:      "2015122520103046"*/
+	char timestamp[] = "InvalidTimestamp";
+
+	rec->samples = 0;
+	record__finish_output(rec);
+	err = fetch_current_timestamp(timestamp, sizeof(timestamp));
+	if (err) {
+		pr_err("Failed to get current timestamp\n");
+		return -EINVAL;
+	}
+
+	fd = perf_data_file__switch(file, timestamp,
+				    rec->session->header.data_offset,
+				    at_exit);
+	if (fd >= 0 && !at_exit) {
+		rec->bytes_written = 0;
+		rec->session->header.data_size = 0;
+	}
+
+	if (!quiet)
+		fprintf(stderr, "[ perf record: Dump %s.%s ]\n",
+			file->path, timestamp);
+	return fd;
+}
+
 static volatile int workload_exec_errno;
 
 /*
@@ -865,11 +897,22 @@ out_child:
 	/* this will be recalculated during process_buildids() */
 	rec->samples = 0;
 
-	if (!err)
-		record__finish_output(rec);
+	if (!err) {
+		if (!rec->timestamp_filename) {
+			record__finish_output(rec);
+		} else {
+			fd = record__switch_output(rec, true);
+			if (fd < 0) {
+				status = fd;
+				goto out_delete_session;
+			}
+		}
+	}
 
 	if (!err && !quiet) {
 		char samples[128];
+		const char *postfix = rec->timestamp_filename ?
+					".<timestamp>" : "";
 
 		if (rec->samples && !rec->opts.full_auxtrace)
 			scnprintf(samples, sizeof(samples),
@@ -877,9 +920,9 @@ out_child:
 		else
 			samples[0] = '\0';
 
-		fprintf(stderr,	"[ perf record: Captured and wrote %.3f MB %s%s ]\n",
+		fprintf(stderr,	"[ perf record: Captured and wrote %.3f MB %s%s%s ]\n",
 			perf_data_file__size(file) / 1024.0 / 1024.0,
-			file->path, samples);
+			file->path, postfix, samples);
 	}
 
 out_delete_session:
@@ -1249,6 +1292,8 @@ struct option __record_options[] = {
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN(0, "buildid-all", &record.buildid_all,
 		    "Record build-id of all DSOs regardless of hits"),
+	OPT_BOOLEAN(0, "timestamp-filename", &record.timestamp_filename,
+		    "append timestamp to output filename"),
 	OPT_END()
 };
 
