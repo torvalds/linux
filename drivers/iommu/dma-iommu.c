@@ -190,11 +190,15 @@ static void __iommu_dma_free_pages(struct page **pages, int count)
 	kvfree(pages);
 }
 
-static struct page **__iommu_dma_alloc_pages(unsigned int count, gfp_t gfp)
+static struct page **__iommu_dma_alloc_pages(unsigned int count,
+		unsigned long order_mask, gfp_t gfp)
 {
 	struct page **pages;
 	unsigned int i = 0, array_size = count * sizeof(*pages);
-	unsigned int order = MAX_ORDER;
+
+	order_mask &= (2U << MAX_ORDER) - 1;
+	if (!order_mask)
+		return NULL;
 
 	if (array_size <= PAGE_SIZE)
 		pages = kzalloc(array_size, GFP_KERNEL);
@@ -208,36 +212,38 @@ static struct page **__iommu_dma_alloc_pages(unsigned int count, gfp_t gfp)
 
 	while (count) {
 		struct page *page = NULL;
-		int j;
+		unsigned int order_size;
 
 		/*
 		 * Higher-order allocations are a convenience rather
 		 * than a necessity, hence using __GFP_NORETRY until
-		 * falling back to single-page allocations.
+		 * falling back to minimum-order allocations.
 		 */
-		for (order = min_t(unsigned int, order, __fls(count));
-		     order > 0; order--) {
-			page = alloc_pages(gfp | __GFP_NORETRY, order);
+		for (order_mask &= (2U << __fls(count)) - 1;
+		     order_mask; order_mask &= ~order_size) {
+			unsigned int order = __fls(order_mask);
+
+			order_size = 1U << order;
+			page = alloc_pages((order_mask - order_size) ?
+					   gfp | __GFP_NORETRY : gfp, order);
 			if (!page)
 				continue;
-			if (PageCompound(page)) {
-				if (!split_huge_page(page))
-					break;
-				__free_pages(page, order);
-			} else {
+			if (!order)
+				break;
+			if (!PageCompound(page)) {
 				split_page(page, order);
 				break;
+			} else if (!split_huge_page(page)) {
+				break;
 			}
+			__free_pages(page, order);
 		}
-		if (!page)
-			page = alloc_page(gfp);
 		if (!page) {
 			__iommu_dma_free_pages(pages, i);
 			return NULL;
 		}
-		j = 1 << order;
-		count -= j;
-		while (j--)
+		count -= order_size;
+		while (order_size--)
 			pages[i++] = page++;
 	}
 	return pages;
@@ -267,6 +273,7 @@ void iommu_dma_free(struct device *dev, struct page **pages, size_t size,
  *	 attached to an iommu_dma_domain
  * @size: Size of buffer in bytes
  * @gfp: Allocation flags
+ * @attrs: DMA attributes for this allocation
  * @prot: IOMMU mapping flags
  * @handle: Out argument for allocated DMA handle
  * @flush_page: Arch callback which must ensure PAGE_SIZE bytes from the
@@ -278,8 +285,8 @@ void iommu_dma_free(struct device *dev, struct page **pages, size_t size,
  * Return: Array of struct page pointers describing the buffer,
  *	   or NULL on failure.
  */
-struct page **iommu_dma_alloc(struct device *dev, size_t size,
-		gfp_t gfp, int prot, dma_addr_t *handle,
+struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
+		struct dma_attrs *attrs, int prot, dma_addr_t *handle,
 		void (*flush_page)(struct device *, const void *, phys_addr_t))
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
@@ -288,11 +295,22 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size,
 	struct page **pages;
 	struct sg_table sgt;
 	dma_addr_t dma_addr;
-	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	unsigned int count, min_size, alloc_sizes = domain->pgsize_bitmap;
 
 	*handle = DMA_ERROR_CODE;
 
-	pages = __iommu_dma_alloc_pages(count, gfp);
+	min_size = alloc_sizes & -alloc_sizes;
+	if (min_size < PAGE_SIZE) {
+		min_size = PAGE_SIZE;
+		alloc_sizes |= PAGE_SIZE;
+	} else {
+		size = ALIGN(size, min_size);
+	}
+	if (dma_get_attr(DMA_ATTR_ALLOC_SINGLE_PAGES, attrs))
+		alloc_sizes = min_size;
+
+	count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	pages = __iommu_dma_alloc_pages(count, alloc_sizes >> PAGE_SHIFT, gfp);
 	if (!pages)
 		return NULL;
 
