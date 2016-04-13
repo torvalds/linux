@@ -63,40 +63,37 @@ static int fsl_dcu_drm_irq_init(struct drm_device *dev)
 	return ret;
 }
 
-static int fsl_dcu_load(struct drm_device *drm, unsigned long flags)
+static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
 {
-	struct device *dev = drm->dev;
-	struct fsl_dcu_drm_device *fsl_dev = drm->dev_private;
+	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 	int ret;
 
 	ret = fsl_dcu_drm_modeset_init(fsl_dev);
 	if (ret < 0) {
-		dev_err(dev, "failed to initialize mode setting\n");
+		dev_err(dev->dev, "failed to initialize mode setting\n");
 		return ret;
 	}
 
-	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
+	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
 	if (ret < 0) {
-		dev_err(dev, "failed to initialize vblank\n");
+		dev_err(dev->dev, "failed to initialize vblank\n");
 		goto done;
 	}
-	drm->vblank_disable_allowed = true;
+	dev->vblank_disable_allowed = true;
 
-	ret = fsl_dcu_drm_irq_init(drm);
+	ret = fsl_dcu_drm_irq_init(dev);
 	if (ret < 0)
 		goto done;
-	drm->irq_enabled = true;
+	dev->irq_enabled = true;
 
-	fsl_dcu_fbdev_init(drm);
+	fsl_dcu_fbdev_init(dev);
 
 	return 0;
 done:
-	if (ret) {
-		drm_mode_config_cleanup(drm);
-		drm_vblank_cleanup(drm);
-		drm_irq_uninstall(drm);
-		drm->dev_private = NULL;
-	}
+	drm_mode_config_cleanup(dev);
+	drm_vblank_cleanup(dev);
+	drm_irq_uninstall(dev);
+	dev->dev_private = NULL;
 
 	return ret;
 }
