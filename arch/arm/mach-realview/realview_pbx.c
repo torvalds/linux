@@ -248,6 +248,7 @@ static struct resource realview_pbx_isp1761_resources[] = {
 	},
 };
 
+#ifdef CONFIG_CACHE_L2X0
 static struct resource pmu_resources[] = {
 	[0] = {
 		.start		= IRQ_PBX_PMU_CPU0,
@@ -277,6 +278,7 @@ static struct platform_device pmu_device = {
 	.num_resources		= ARRAY_SIZE(pmu_resources),
 	.resource		= pmu_resources,
 };
+#endif
 
 static void __init gic_init_irq(void)
 {
