@@ -2917,7 +2917,7 @@ void scheduler_tick(void)
 	raw_spin_lock(&rq->lock);
 	update_rq_clock(rq);
 	curr->sched_class->task_tick(rq, curr, 0);
-	update_cpu_load_active(rq);
+	cpu_load_update_active(rq);
 	calc_global_load_tick(rq);
 	raw_spin_unlock(&rq->lock);
 

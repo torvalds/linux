@@ -4559,7 +4559,7 @@ decay_load_missed(unsigned long load, unsigned long missed_updates, int idx)
 }
 
 /**
- * __update_cpu_load - update the rq->cpu_load[] statistics
+ * __cpu_load_update - update the rq->cpu_load[] statistics
  * @this_rq: The rq to update statistics for
  * @this_load: The current load
  * @pending_updates: The number of missed updates
@@ -4594,7 +4594,7 @@ decay_load_missed(unsigned long load, unsigned long missed_updates, int idx)
  * see decay_load_misses(). For NOHZ_FULL we get to subtract and add the extra
  * term. See the @active paramter.
  */
-static void __update_cpu_load(struct rq *this_rq, unsigned long this_load,
+static void __cpu_load_update(struct rq *this_rq, unsigned long this_load,
 			      unsigned long pending_updates, int active)
 {
 	unsigned long tickless_load = active ? this_rq->cpu_load[0] : 0;
@@ -4642,7 +4642,7 @@ static unsigned long weighted_cpuload(const int cpu)
 }
 
 #ifdef CONFIG_NO_HZ_COMMON
-static void __update_cpu_load_nohz(struct rq *this_rq,
+static void __cpu_load_update_nohz(struct rq *this_rq,
 				   unsigned long curr_jiffies,
 				   unsigned long load,
 				   int active)
@@ -4657,7 +4657,7 @@ static void __update_cpu_load_nohz(struct rq *this_rq,
 		 * In the NOHZ_FULL case, we were non-idle, we should consider
 		 * its weighted load.
 		 */
-		__update_cpu_load(this_rq, load, pending_updates, active);
+		__cpu_load_update(this_rq, load, pending_updates, active);
 	}
 }
 
@@ -4678,7 +4678,7 @@ static void __update_cpu_load_nohz(struct rq *this_rq,
  * Called from nohz_idle_balance() to update the load ratings before doing the
  * idle balance.
  */
-static void update_cpu_load_idle(struct rq *this_rq)
+static void cpu_load_update_idle(struct rq *this_rq)
 {
 	/*
 	 * bail if there's load or we're actually up-to-date.
@@ -4686,13 +4686,13 @@ static void update_cpu_load_idle(struct rq *this_rq)
 	if (weighted_cpuload(cpu_of(this_rq)))
 		return;
 
-	__update_cpu_load_nohz(this_rq, READ_ONCE(jiffies), 0, 0);
+	__cpu_load_update_nohz(this_rq, READ_ONCE(jiffies), 0, 0);
 }
 
 /*
  * Called from tick_nohz_idle_exit() -- try and fix up the ticks we missed.
  */
-void update_cpu_load_nohz(int active)
+void cpu_load_update_nohz(int active)
 {
 	struct rq *this_rq = this_rq();
 	unsigned long curr_jiffies = READ_ONCE(jiffies);
@@ -4702,7 +4702,7 @@ void update_cpu_load_nohz(int active)
 		return;
 
 	raw_spin_lock(&this_rq->lock);
-	__update_cpu_load_nohz(this_rq, curr_jiffies, load, active);
+	__cpu_load_update_nohz(this_rq, curr_jiffies, load, active);
 	raw_spin_unlock(&this_rq->lock);
 }
 #endif /* CONFIG_NO_HZ */
@@ -4710,14 +4710,14 @@ void update_cpu_load_nohz(int active)
 /*
  * Called from scheduler_tick()
  */
-void update_cpu_load_active(struct rq *this_rq)
+void cpu_load_update_active(struct rq *this_rq)
 {
 	unsigned long load = weighted_cpuload(cpu_of(this_rq));
 	/*
-	 * See the mess around update_cpu_load_idle() / update_cpu_load_nohz().
+	 * See the mess around cpu_load_update_idle() / cpu_load_update_nohz().
 	 */
 	this_rq->last_load_update_tick = jiffies;
-	__update_cpu_load(this_rq, load, 1, 1);
+	__cpu_load_update(this_rq, load, 1, 1);
 }
 
 /*
@@ -8031,7 +8031,7 @@ static void nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle)
 		if (time_after_eq(jiffies, rq->next_balance)) {
 			raw_spin_lock_irq(&rq->lock);
 			update_rq_clock(rq);
-			update_cpu_load_idle(rq);
+			cpu_load_update_idle(rq);
 			raw_spin_unlock_irq(&rq->lock);
 			rebalance_domains(rq, CPU_IDLE);
 		}
