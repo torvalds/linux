@@ -36,7 +36,7 @@ void vsp1_drm_display_start(struct vsp1_device *vsp1)
 	vsp1_dlm_irq_display_start(vsp1->drm->pipe.output->dlm);
 }
 
-void vsp1_drm_frame_end(struct vsp1_pipeline *pipe)
+static void vsp1_drm_frame_end(struct vsp1_pipeline *pipe)
 {
 	vsp1_dlm_irq_frame_end(pipe->output->dlm);
 }
