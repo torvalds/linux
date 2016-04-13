@@ -1855,7 +1855,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		 * signalled in iir */
 		valleyview_pipestat_irq_handler(dev, iir);
 
-		I915_WRITE(GEN8_MASTER_IRQ, DE_MASTER_IRQ_CONTROL);
+		I915_WRITE(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 		POSTING_READ(GEN8_MASTER_IRQ);
 	} while (0);
 
@@ -3796,7 +3796,7 @@ static int gen8_irq_postinstall(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev))
 		ibx_irq_postinstall(dev);
 
-	I915_WRITE(GEN8_MASTER_IRQ, DE_MASTER_IRQ_CONTROL);
+	I915_WRITE(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 	POSTING_READ(GEN8_MASTER_IRQ);
 
 	return 0;
@@ -3813,7 +3813,7 @@ static int cherryview_irq_postinstall(struct drm_device *dev)
 		vlv_display_irq_postinstall(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	I915_WRITE(GEN8_MASTER_IRQ, MASTER_INTERRUPT_ENABLE);
+	I915_WRITE(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 	POSTING_READ(GEN8_MASTER_IRQ);
 
 	return 0;
