@@ -30,6 +30,7 @@
  */
 #define MAX_SLAVE_DIFF			 3000 /* ms */
 #define HSR_SEQNR_START			(USHRT_MAX - 1024)
+#define HSR_SUP_SEQNR_START		(HSR_SEQNR_START / 2)
 
 
 /* How often shall we check for broken ring and remove node entries older than
@@ -57,6 +58,8 @@ struct hsr_tag {
 } __packed;
 
 #define HSR_HLEN	6
+
+#define HSR_V1_SUP_LSDUSIZE		52
 
 /* The helper functions below assumes that 'path' occupies the 4 most
  * significant bits of the 16-bit field shared by 'path' and 'LSDU_size' (or
@@ -131,8 +134,14 @@ static inline void set_hsr_stag_HSR_Ver(struct hsr_sup_tag *hst, u16 HSR_Ver)
 	set_hsr_tag_LSDU_size((struct hsr_tag *) hst, HSR_Ver);
 }
 
-struct hsr_ethhdr_sp {
+struct hsrv0_ethhdr_sp {
 	struct ethhdr		ethhdr;
+	struct hsr_sup_tag	hsr_sup;
+} __packed;
+
+struct hsrv1_ethhdr_sp {
+	struct ethhdr		ethhdr;
+	struct hsr_tag		hsr;
 	struct hsr_sup_tag	hsr_sup;
 } __packed;
 
@@ -162,6 +171,8 @@ struct hsr_priv {
 	struct timer_list	prune_timer;
 	int announce_count;
 	u16 sequence_nr;
+	u16 sup_sequence_nr;			/* For HSRv1 separate seq_nr for supervision */
+	u8 protVersion;					/* Indicate if HSRv0 or HSRv1. */
 	spinlock_t seqnr_lock;			/* locking for sequence_nr */
 	unsigned char		sup_multicast_addr[ETH_ALEN];
 };

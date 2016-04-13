@@ -23,6 +23,7 @@ static const struct nla_policy hsr_policy[IFLA_HSR_MAX + 1] = {
 	[IFLA_HSR_SLAVE1]		= { .type = NLA_U32 },
 	[IFLA_HSR_SLAVE2]		= { .type = NLA_U32 },
 	[IFLA_HSR_MULTICAST_SPEC]	= { .type = NLA_U8 },
+	[IFLA_HSR_VERSION]	= { .type = NLA_U8 },
 	[IFLA_HSR_SUPERVISION_ADDR]	= { .type = NLA_BINARY, .len = ETH_ALEN },
 	[IFLA_HSR_SEQ_NR]		= { .type = NLA_U16 },
 };
@@ -35,7 +36,7 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 		       struct nlattr *tb[], struct nlattr *data[])
 {
 	struct net_device *link[2];
-	unsigned char multicast_spec;
+	unsigned char multicast_spec, hsr_version;
 
 	if (!data) {
 		netdev_info(dev, "HSR: No slave devices specified\n");
@@ -62,7 +63,12 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 	else
 		multicast_spec = nla_get_u8(data[IFLA_HSR_MULTICAST_SPEC]);
 
-	return hsr_dev_finalize(dev, link, multicast_spec);
+	if (!data[IFLA_HSR_VERSION])
+		hsr_version = 0;
+	else
+		hsr_version = nla_get_u8(data[IFLA_HSR_VERSION]);
+
+	return hsr_dev_finalize(dev, link, multicast_spec, hsr_version);
 }
 
 static int hsr_fill_info(struct sk_buff *skb, const struct net_device *dev)
