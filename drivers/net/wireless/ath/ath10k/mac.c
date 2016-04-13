@@ -6797,7 +6797,7 @@ static u64 ath10k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 }
 
 static void ath10k_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    u64 tsf)
+			   u64 tsf)
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
