@@ -368,9 +368,8 @@ static int amdgpu_debugfs_ring_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	int roffset = *(int*)node->info_ent->data;
+	int roffset = (unsigned long)node->info_ent->data;
 	struct amdgpu_ring *ring = (void *)(((uint8_t*)adev) + roffset);
-
 	uint32_t rptr, wptr, rptr_next;
 	unsigned i;
 
@@ -413,46 +412,37 @@ static int amdgpu_debugfs_ring_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-/* TODO: clean this up !*/
-static int amdgpu_gfx_index = offsetof(struct amdgpu_device, gfx.gfx_ring[0]);
-static int cayman_cp1_index = offsetof(struct amdgpu_device, gfx.compute_ring[0]);
-static int cayman_cp2_index = offsetof(struct amdgpu_device, gfx.compute_ring[1]);
-static int amdgpu_dma1_index = offsetof(struct amdgpu_device, sdma.instance[0].ring);
-static int amdgpu_dma2_index = offsetof(struct amdgpu_device, sdma.instance[1].ring);
-static int r600_uvd_index = offsetof(struct amdgpu_device, uvd.ring);
-static int si_vce1_index = offsetof(struct amdgpu_device, vce.ring[0]);
-static int si_vce2_index = offsetof(struct amdgpu_device, vce.ring[1]);
-
-static const struct drm_info_list amdgpu_debugfs_ring_info_list[] = {
-	{"amdgpu_ring_gfx", amdgpu_debugfs_ring_info, 0, &amdgpu_gfx_index},
-	{"amdgpu_ring_cp1", amdgpu_debugfs_ring_info, 0, &cayman_cp1_index},
-	{"amdgpu_ring_cp2", amdgpu_debugfs_ring_info, 0, &cayman_cp2_index},
-	{"amdgpu_ring_dma1", amdgpu_debugfs_ring_info, 0, &amdgpu_dma1_index},
-	{"amdgpu_ring_dma2", amdgpu_debugfs_ring_info, 0, &amdgpu_dma2_index},
-	{"amdgpu_ring_uvd", amdgpu_debugfs_ring_info, 0, &r600_uvd_index},
-	{"amdgpu_ring_vce1", amdgpu_debugfs_ring_info, 0, &si_vce1_index},
-	{"amdgpu_ring_vce2", amdgpu_debugfs_ring_info, 0, &si_vce2_index},
-};
+static struct drm_info_list amdgpu_debugfs_ring_info_list[AMDGPU_MAX_RINGS];
+static char amdgpu_debugfs_ring_names[AMDGPU_MAX_RINGS][32];
 
 #endif
 
-static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
+				    struct amdgpu_ring *ring)
 {
 #if defined(CONFIG_DEBUG_FS)
+	unsigned offset = (uint8_t*)ring - (uint8_t*)adev;
 	unsigned i;
+	struct drm_info_list *info;
+	char *name;
+
 	for (i = 0; i < ARRAY_SIZE(amdgpu_debugfs_ring_info_list); ++i) {
-		const struct drm_info_list *info = &amdgpu_debugfs_ring_info_list[i];
-		int roffset = *(int*)amdgpu_debugfs_ring_info_list[i].data;
-		struct amdgpu_ring *other = (void *)(((uint8_t*)adev) + roffset);
-		unsigned r;
-
-		if (other != ring)
-			continue;
-
-		r = amdgpu_debugfs_add_files(adev, info, 1);
-		if (r)
-			return r;
+		info = &amdgpu_debugfs_ring_info_list[i];
+		if (!info->data)
+			break;
 	}
+
+	if (i == ARRAY_SIZE(amdgpu_debugfs_ring_info_list))
+		return -ENOSPC;
+
+	name = &amdgpu_debugfs_ring_names[i][0];
+	sprintf(name, "amdgpu_ring_%s", ring->name);
+	info->name = name;
+	info->show = amdgpu_debugfs_ring_info;
+	info->driver_features = 0;
+	info->data = (void*)(uintptr_t)offset;
+
+	return amdgpu_debugfs_add_files(adev, info, 1);
 #endif
 	return 0;
 }
