@@ -20,6 +20,9 @@ struct gb_control {
 	u8 protocol_minor;
 
 	bool has_bundle_version;
+
+	char *vendor_string;
+	char *product_string;
 };
 #define to_gb_control(d) container_of(d, struct gb_control, dev)
 

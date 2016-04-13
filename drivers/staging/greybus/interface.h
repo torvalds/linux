@@ -25,10 +25,6 @@ struct gb_interface {
 	u8 interface_id;	/* Physical location within the Endo */
 	u8 device_id;
 
-	/* Information taken from the manifest descriptor */
-	char *vendor_string;
-	char *product_string;
-
 	u32 ddbl1_manufacturer_id;
 	u32 ddbl1_product_id;
 	u32 vendor_id;

@@ -213,11 +213,39 @@ int gb_control_timesync_authoritative(struct gb_control *control,
 				 NULL, 0);
 }
 
+static ssize_t vendor_string_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct gb_control *control = to_gb_control(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", control->vendor_string);
+}
+static DEVICE_ATTR_RO(vendor_string);
+
+static ssize_t product_string_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct gb_control *control = to_gb_control(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", control->product_string);
+}
+static DEVICE_ATTR_RO(product_string);
+
+static struct attribute *control_attrs[] = {
+	&dev_attr_vendor_string.attr,
+	&dev_attr_product_string.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(control);
+
 static void gb_control_release(struct device *dev)
 {
 	struct gb_control *control = to_gb_control(dev);
 
 	gb_connection_destroy(control->connection);
+
+	kfree(control->vendor_string);
+	kfree(control->product_string);
 
 	kfree(control);
 }
@@ -249,6 +277,7 @@ struct gb_control *gb_control_create(struct gb_interface *intf)
 	control->dev.parent = &intf->dev;
 	control->dev.bus = &greybus_bus_type;
 	control->dev.type = &greybus_control_type;
+	control->dev.groups = control_groups;
 	control->dev.dma_mask = intf->dev.dma_mask;
 	device_initialize(&control->dev);
 	dev_set_name(&control->dev, "%s.ctrl", dev_name(&intf->dev));

@@ -52,26 +52,12 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Product ID of a Greybus interface.
 
-What:		/sys/bus/greybus/device/N-I/product_string
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Product ID string of a Greybus interface.
-
 What:		/sys/bus/greybus/device/N-I/vendor_id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Vendor ID of a Greybus interface.
-
-What:		/sys/bus/greybus/device/N-I/vendor_string
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Vendor ID string of a Greybus interface block.
 
 What:		/sys/bus/greybus/device/N-I/version
 Date:		October 2015
@@ -109,6 +95,20 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		A bundle B on the Interface I, B is replaced by a 1-byte
 		number representing the bundle.
+
+What:		/sys/bus/greybus/device/N-I.ctrl/product_string
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Product ID string of a Greybus interface.
+
+What:		/sys/bus/greybus/device/N-I.ctrl/vendor_string
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Vendor ID string of a Greybus interface.
 
 What:		/sys/bus/greybus/device/N-I.B/bundle_class
 Date:		October 2015

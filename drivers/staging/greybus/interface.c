@@ -249,8 +249,6 @@ gb_interface_attr(ddbl1_product_id, "0x%08x");
 gb_interface_attr(interface_id, "%u");
 gb_interface_attr(vendor_id, "0x%08x");
 gb_interface_attr(product_id, "0x%08x");
-gb_interface_attr(vendor_string, "%s");
-gb_interface_attr(product_string, "%s");
 gb_interface_attr(serial_number, "0x%016llx");
 
 static ssize_t version_show(struct device *dev, struct device_attribute *attr,
@@ -326,8 +324,6 @@ static struct attribute *interface_attrs[] = {
 	&dev_attr_interface_id.attr,
 	&dev_attr_vendor_id.attr,
 	&dev_attr_product_id.attr,
-	&dev_attr_vendor_string.attr,
-	&dev_attr_product_string.attr,
 	&dev_attr_serial_number.attr,
 	&dev_attr_version.attr,
 	&dev_attr_voltage_now.attr,
@@ -355,9 +351,6 @@ struct gb_interface *gb_interface_find(struct gb_host_device *hd,
 static void gb_interface_release(struct device *dev)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
-
-	kfree(intf->product_string);
-	kfree(intf->vendor_string);
 
 	if (intf->control)
 		gb_control_put(intf->control);
