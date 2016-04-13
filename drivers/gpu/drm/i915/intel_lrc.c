@@ -1048,7 +1048,7 @@ void intel_logical_ring_stop(struct intel_engine_cs *engine)
 		return;
 
 	ret = intel_engine_idle(engine);
-	if (ret && !i915_reset_in_progress_or_wedged(&dev_priv->gpu_error))
+	if (ret)
 		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
 			  engine->name, ret);
 

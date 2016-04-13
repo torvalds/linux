@@ -112,10 +112,8 @@ static void cancel_userptr(struct work_struct *work)
 		was_interruptible = dev_priv->mm.interruptible;
 		dev_priv->mm.interruptible = false;
 
-		list_for_each_entry_safe(vma, tmp, &obj->vma_list, obj_link) {
-			int ret = i915_vma_unbind(vma);
-			WARN_ON(ret && ret != -EIO);
-		}
+		list_for_each_entry_safe(vma, tmp, &obj->vma_list, obj_link)
+			WARN_ON(i915_vma_unbind(vma));
 		WARN_ON(i915_gem_object_put_pages(obj));
 
 		dev_priv->mm.interruptible = was_interruptible;

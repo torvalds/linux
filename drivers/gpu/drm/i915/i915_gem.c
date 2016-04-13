@@ -206,11 +206,10 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj)
 	BUG_ON(obj->madv == __I915_MADV_PURGED);
 
 	ret = i915_gem_object_set_to_cpu_domain(obj, true);
-	if (ret) {
+	if (WARN_ON(ret)) {
 		/* In the event of a disaster, abandon all caches and
 		 * hope for the best.
 		 */
-		WARN_ON(ret != -EIO);
 		obj->base.read_domains = obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	}
 
@@ -1105,15 +1104,13 @@ put_rpm:
 	return ret;
 }
 
-int
-i915_gem_check_wedge(struct i915_gpu_error *error,
-		     bool interruptible)
+static int
+i915_gem_check_wedge(unsigned reset_counter, bool interruptible)
 {
-	if (i915_reset_in_progress_or_wedged(error)) {
-		/* Recovery complete, but the reset failed ... */
-		if (i915_terminally_wedged(error))
-			return -EIO;
+	if (__i915_terminally_wedged(reset_counter))
+		return -EIO;
 
+	if (__i915_reset_in_progress(reset_counter)) {
 		/* Non-interruptible callers can't handle -EAGAIN, hence return
 		 * -EIO unconditionally for these. */
 		if (!interruptible)
@@ -1287,13 +1284,14 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 		prepare_to_wait(&engine->irq_queue, &wait, state);
 
 		/* We need to check whether any gpu reset happened in between
-		 * the caller grabbing the seqno and now ... */
+		 * the request being submitted and now. If a reset has occurred,
+		 * the request is effectively complete (we either are in the
+		 * process of or have discarded the rendering and completely
+		 * reset the GPU. The results of the request are lost and we
+		 * are free to continue on with the original operation.
+		 */
 		if (req->reset_counter != i915_reset_counter(&dev_priv->gpu_error)) {
-			/* ... but upgrade the -EAGAIN to an -EIO if the gpu
-			 * is truely gone. */
-			ret = i915_gem_check_wedge(&dev_priv->gpu_error, interruptible);
-			if (ret == 0)
-				ret = -EAGAIN;
+			ret = 0;
 			break;
 		}
 
@@ -2154,11 +2152,10 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	BUG_ON(obj->madv == __I915_MADV_PURGED);
 
 	ret = i915_gem_object_set_to_cpu_domain(obj, true);
-	if (ret) {
+	if (WARN_ON(ret)) {
 		/* In the event of a disaster, abandon all caches and
 		 * hope for the best.
 		 */
-		WARN_ON(ret != -EIO);
 		i915_gem_clflush_object(obj, true);
 		obj->base.read_domains = obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	}
@@ -2729,8 +2726,11 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 
 	*req_out = NULL;
 
-	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
-				   dev_priv->mm.interruptible);
+	/* ABI: Before userspace accesses the GPU (e.g. execbuffer), report
+	 * EIO if the GPU is already wedged, or EAGAIN to drop the struct_mutex
+	 * and restart.
+	 */
+	ret = i915_gem_check_wedge(reset_counter, dev_priv->mm.interruptible);
 	if (ret)
 		return ret;
 
@@ -4165,9 +4165,9 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (ret)
 		return ret;
 
-	ret = i915_gem_check_wedge(&dev_priv->gpu_error, false);
-	if (ret)
-		return ret;
+	/* ABI: return -EIO if already wedged */
+	if (i915_terminally_wedged(&dev_priv->gpu_error))
+		return -EIO;
 
 	spin_lock(&file_priv->mm.lock);
 	list_for_each_entry(request, &file_priv->mm.request_list, client_list) {

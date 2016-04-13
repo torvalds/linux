@@ -13436,11 +13436,9 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 
 			ret = __i915_wait_request(intel_plane_state->wait_req,
 						  true, NULL, NULL);
-
-			/* Swallow -EIO errors to allow updates during hw lockup. */
-			if (ret == -EIO)
-				ret = 0;
 			if (ret) {
+				/* Any hang should be swallowed by the wait */
+				WARN_ON(ret == -EIO);
 				mutex_lock(&dev->struct_mutex);
 				drm_atomic_helper_cleanup_planes(dev, state);
 				mutex_unlock(&dev->struct_mutex);
@@ -13792,10 +13790,11 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		 */
 		if (needs_modeset(crtc_state))
 			ret = i915_gem_object_wait_rendering(old_obj, true);
-
-		/* Swallow -EIO errors to allow updates during hw lockup. */
-		if (ret && ret != -EIO)
+		if (ret) {
+			/* GPU hangs should have been swallowed by the wait */
+			WARN_ON(ret == -EIO);
 			return ret;
+		}
 	}
 
 	/* For framebuffer backed by dmabuf, wait for fence */
