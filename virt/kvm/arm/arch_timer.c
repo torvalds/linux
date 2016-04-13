@@ -486,7 +486,7 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu)
 
 	timer_disarm(timer);
 	if (timer->map)
-		kvm_vgic_unmap_phys_irq(vcpu, timer->map);
+		kvm_vgic_unmap_phys_irq(vcpu, timer->map->virt_irq);
 }
 
 void kvm_timer_enable(struct kvm *kvm)

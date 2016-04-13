@@ -1812,25 +1812,22 @@ static void vgic_free_phys_irq_map_rcu(struct rcu_head *rcu)
 /**
  * kvm_vgic_unmap_phys_irq - Remove a virtual to physical IRQ mapping
  * @vcpu: The VCPU pointer
- * @map: The pointer to a mapping obtained through kvm_vgic_map_phys_irq
+ * @virt_irq: The virtual IRQ number to be unmapped
  *
  * Remove an existing mapping between virtual and physical interrupts.
  */
-int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, struct irq_phys_map *map)
+int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int virt_irq)
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	struct irq_phys_map_entry *entry;
 	struct list_head *root;
 
-	if (!map)
-		return -EINVAL;
-
-	root = vgic_get_irq_phys_map_list(vcpu, map->virt_irq);
+	root = vgic_get_irq_phys_map_list(vcpu, virt_irq);
 
 	spin_lock(&dist->irq_phys_map_lock);
 
 	list_for_each_entry(entry, root, entry) {
-		if (&entry->map == map) {
+		if (entry->map.virt_irq == virt_irq) {
 			list_del_rcu(&entry->entry);
 			call_rcu(&entry->rcu, vgic_free_phys_irq_map_rcu);
 			break;
