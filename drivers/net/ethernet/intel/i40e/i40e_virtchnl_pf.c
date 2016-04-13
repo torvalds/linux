@@ -2356,7 +2356,7 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 				   u32 v_retval, u8 *msg, u16 msglen)
 {
 	bool err_msg_format = false;
-	int valid_len;
+	int valid_len = 0;
 
 	/* Check if VF is disabled. */
 	if (test_bit(I40E_VF_STAT_DISABLED, &vf->vf_states))
@@ -2368,13 +2368,10 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 		valid_len = sizeof(struct i40e_virtchnl_version_info);
 		break;
 	case I40E_VIRTCHNL_OP_RESET_VF:
-		valid_len = 0;
 		break;
 	case I40E_VIRTCHNL_OP_GET_VF_RESOURCES:
 		if (VF_IS_V11(vf))
 			valid_len = sizeof(u32);
-		else
-			valid_len = 0;
 		break;
 	case I40E_VIRTCHNL_OP_CONFIG_TX_QUEUE:
 		valid_len = sizeof(struct i40e_virtchnl_txq_info);
@@ -2489,7 +2486,6 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 		}
 		break;
 	case I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS:
-		valid_len = 0;
 		break;
 	case I40E_VIRTCHNL_OP_SET_RSS_HENA:
 		valid_len = sizeof(struct i40e_virtchnl_rss_hena);
