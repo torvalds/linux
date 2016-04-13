@@ -1110,6 +1110,13 @@ static size_t syscall_arg__scnprintf_seccomp_flags(char *bf, size_t size,
 
 #define SCA_SECCOMP_FLAGS syscall_arg__scnprintf_seccomp_flags
 
+#ifndef GRND_NONBLOCK
+#define GRND_NONBLOCK	0x0001
+#endif
+#ifndef GRND_RANDOM
+#define GRND_RANDOM	0x0002
+#endif
+
 static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 						   struct syscall_arg *arg)
 {
