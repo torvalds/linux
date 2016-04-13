@@ -33,6 +33,9 @@ static int visorbus_forcenomatch;
 static int visorbus_debugref;
 #define SERIALLOOPBACKCHANADDR (100 * 1024 * 1024)
 
+/* Display string that is guaranteed to be no longer the 99 characters*/
+#define LINESIZE 99
+
 #define CURRENT_FILE_PC VISOR_BUS_PC_visorbus_main_c
 #define POLLJIFFIES_TESTWORK         100
 #define POLLJIFFIES_NORMALCHANNEL     10
@@ -279,7 +282,7 @@ static ssize_t typeguid_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
-	char typeid[99];
+	char typeid[LINESIZE];
 
 	if (!vdev->visorchannel)
 		return 0;
@@ -291,7 +294,7 @@ static ssize_t zoneguid_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
-	char zoneid[99];
+	char zoneid[LINESIZE];
 
 	if (!vdev->visorchannel)
 		return 0;
