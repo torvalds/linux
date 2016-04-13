@@ -912,6 +912,7 @@ static u64 __raw_read_system_reg(u32 sys_id)
  */
 static void check_early_cpu_features(void)
 {
+	verify_cpu_run_el();
 	verify_cpu_asid_bits();
 }
 

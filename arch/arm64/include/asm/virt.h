@@ -60,6 +60,12 @@ static inline bool is_kernel_in_hyp_mode(void)
 	return el == CurrentEL_EL2;
 }
 
+#ifdef CONFIG_ARM64_VHE
+extern void verify_cpu_run_el(void);
+#else
+static inline void verify_cpu_run_el(void) {}
+#endif
+
 /* The section containing the hypervisor text */
 extern char __hyp_text_start[];
 extern char __hyp_text_end[];
