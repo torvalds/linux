@@ -3198,14 +3198,12 @@ void intel_finish_reset(struct drm_device *dev)
 static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	unsigned reset_counter;
 	bool pending;
 
-	reset_counter = i915_reset_counter(&dev_priv->gpu_error);
-	if (intel_crtc->reset_counter != reset_counter ||
-	    __i915_reset_in_progress_or_wedged(reset_counter))
+	reset_counter = i915_reset_counter(&to_i915(dev)->gpu_error);
+	if (intel_crtc->reset_counter != reset_counter)
 		return false;
 
 	spin_lock_irq(&dev->event_lock);
@@ -10913,8 +10911,7 @@ static bool page_flip_finished(struct intel_crtc *crtc)
 	unsigned reset_counter;
 
 	reset_counter = i915_reset_counter(&dev_priv->gpu_error);
-	if (crtc->reset_counter != reset_counter ||
-	    __i915_reset_in_progress_or_wedged(reset_counter))
+	if (crtc->reset_counter != reset_counter)
 		return true;
 
 	/*
@@ -11576,8 +11573,13 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (ret)
 		goto cleanup;
 
-	atomic_inc(&intel_crtc->unpin_work_count);
 	intel_crtc->reset_counter = i915_reset_counter(&dev_priv->gpu_error);
+	if (__i915_reset_in_progress_or_wedged(intel_crtc->reset_counter)) {
+		ret = -EIO;
+		goto cleanup;
+	}
+
+	atomic_inc(&intel_crtc->unpin_work_count);
 
 	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
 		work->flip_count = I915_READ(PIPE_FLIPCOUNT_G4X(pipe)) + 1;
