@@ -1732,7 +1732,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & ~(I915_MMAP_WC))
 		return -EINVAL;
 
-	if (args->flags & I915_MMAP_WC && !cpu_has_pat)
+	if (args->flags & I915_MMAP_WC && !boot_cpu_has(X86_FEATURE_PAT))
 		return -ENODEV;
 
 	obj = drm_gem_object_lookup(dev, file, args->handle);
