@@ -1119,7 +1119,10 @@ static int vi_common_early_init(void *handle)
 	case CHIP_STONEY:
 		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG |
 			AMD_CG_SUPPORT_GFX_MGCG |
-			AMD_CG_SUPPORT_GFX_MGLS;
+			AMD_CG_SUPPORT_GFX_MGLS |
+			AMD_CG_SUPPORT_BIF_LS |
+			AMD_CG_SUPPORT_HDP_MGCG |
+			AMD_CG_SUPPORT_HDP_LS;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x1;
 		break;
