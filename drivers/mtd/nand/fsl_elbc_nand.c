@@ -800,6 +800,7 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 	} else {
 		/* otherwise fall back to default software ECC */
 		chip->ecc.mode = NAND_ECC_SOFT;
+		chip->ecc.algo = NAND_ECC_HAMMING;
 	}
 
 	return 0;
