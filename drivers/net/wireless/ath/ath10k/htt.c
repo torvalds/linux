@@ -208,7 +208,7 @@ int ath10k_htt_init(struct ath10k *ar)
 	return 0;
 }
 
-#define HTT_TARGET_VERSION_TIMEOUT_HZ (3*HZ)
+#define HTT_TARGET_VERSION_TIMEOUT_HZ (3 * HZ)
 
 static int ath10k_htt_verify_version(struct ath10k_htt *htt)
 {

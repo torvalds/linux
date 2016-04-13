@@ -1808,7 +1808,7 @@ int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id)
 			ret = -ESHUTDOWN;
 
 		(ret != -EAGAIN);
-	}), 3*HZ);
+	}), 3 * HZ);
 
 	if (ret)
 		dev_kfree_skb_any(skb);

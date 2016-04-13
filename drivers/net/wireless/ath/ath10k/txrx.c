@@ -166,7 +166,7 @@ static int ath10k_wait_for_peer_common(struct ath10k *ar, int vdev_id,
 
 			(mapped == expect_mapped ||
 			 test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags));
-		}), 3*HZ);
+		}), 3 * HZ);
 
 	if (time_left == 0)
 		return -ETIMEDOUT;
