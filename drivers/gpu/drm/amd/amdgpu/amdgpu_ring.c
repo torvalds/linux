@@ -46,7 +46,8 @@
  * wptr.  The GPU then starts fetching commands and executes
  * them until the pointers are equal again.
  */
-static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring);
+static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
+				    struct amdgpu_ring *ring);
 
 /**
  * amdgpu_ring_alloc - allocate space on the ring buffer
@@ -264,7 +265,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		dev_err(adev->dev, "(%d) ring next_rptr wb alloc failed\n", r);
 		return r;
 	}
-	ring->next_rptr_gpu_addr = adev->wb.gpu_addr + (ring->next_rptr_offs * 4);
+	ring->next_rptr_gpu_addr = adev->wb.gpu_addr + ring->next_rptr_offs * 4;
 	ring->next_rptr_cpu_addr = &adev->wb.wb[ring->next_rptr_offs];
 
 	r = amdgpu_wb_get(adev, &ring->cond_exe_offs);
