@@ -223,6 +223,7 @@ static struct notifier_block bcm2836_arm_irqchip_cpu_notifier = {
 	.priority = 100,
 };
 
+#ifdef CONFIG_ARM
 int __init bcm2836_smp_boot_secondary(unsigned int cpu,
 				      struct task_struct *idle)
 {
@@ -238,7 +239,7 @@ int __init bcm2836_smp_boot_secondary(unsigned int cpu,
 static const struct smp_operations bcm2836_smp_ops __initconst = {
 	.smp_boot_secondary	= bcm2836_smp_boot_secondary,
 };
-
+#endif
 #endif
 
 static const struct irq_domain_ops bcm2836_arm_irqchip_intc_ops = {
@@ -256,7 +257,10 @@ bcm2836_arm_irqchip_smp_init(void)
 	register_cpu_notifier(&bcm2836_arm_irqchip_cpu_notifier);
 
 	set_smp_cross_call(bcm2836_arm_irqchip_send_ipi);
+
+#ifdef CONFIG_ARM
 	smp_set_ops(&bcm2836_smp_ops);
+#endif
 #endif
 }
 
