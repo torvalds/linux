@@ -539,7 +539,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 
 	len = 4;
 	if (INTEL_INFO(engine->dev)->gen >= 7)
-		len += 2 + (num_rings ? 4*num_rings + 2 : 0);
+		len += 2 + (num_rings ? 4*num_rings + 6 : 0);
 
 	ret = intel_ring_begin(req, len);
 	if (ret)
@@ -579,6 +579,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	if (INTEL_INFO(engine->dev)->gen >= 7) {
 		if (num_rings) {
 			struct intel_engine_cs *signaller;
+			i915_reg_t last_reg = {}; /* keep gcc quiet */
 
 			intel_ring_emit(engine,
 					MI_LOAD_REGISTER_IMM(num_rings));
@@ -586,11 +587,19 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 				if (signaller == engine)
 					continue;
 
-				intel_ring_emit_reg(engine,
-						    RING_PSMI_CTL(signaller->mmio_base));
+				last_reg = RING_PSMI_CTL(signaller->mmio_base);
+				intel_ring_emit_reg(engine, last_reg);
 				intel_ring_emit(engine,
 						_MASKED_BIT_DISABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 			}
+
+			/* Insert a delay before the next switch! */
+			intel_ring_emit(engine,
+					MI_STORE_REGISTER_MEM |
+					MI_SRM_LRM_GLOBAL_GTT);
+			intel_ring_emit_reg(engine, last_reg);
+			intel_ring_emit(engine, engine->scratch.gtt_offset);
+			intel_ring_emit(engine, MI_NOOP);
 		}
 		intel_ring_emit(engine, MI_ARB_ON_OFF | MI_ARB_ENABLE);
 	}
