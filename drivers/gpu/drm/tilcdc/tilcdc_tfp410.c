@@ -75,7 +75,6 @@ static void tfp410_encoder_dpms(struct drm_encoder *encoder, int mode)
 static void tfp410_encoder_prepare(struct drm_encoder *encoder)
 {
 	tfp410_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
-	tilcdc_crtc_set_panel_info(encoder->crtc, &dvi_info);
 }
 
 static void tfp410_encoder_commit(struct drm_encoder *encoder)
@@ -276,6 +275,7 @@ static int tfp410_modeset_init(struct tilcdc_module *mod, struct drm_device *dev
 	priv->encoders[priv->num_encoders++] = encoder;
 	priv->connectors[priv->num_connectors++] = connector;
 
+	tilcdc_crtc_set_panel_info(priv->crtc, &dvi_info);
 	return 0;
 }
 
