@@ -2959,9 +2959,6 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 {
 	netdev_features_t features;
 
-	if (skb->next)
-		return skb;
-
 	features = netif_skb_features(skb);
 	skb = validate_xmit_vlan(skb, features);
 	if (unlikely(!skb))
@@ -3004,6 +3001,7 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 out_kfree_skb:
 	kfree_skb(skb);
 out_null:
+	atomic_long_inc(&dev->tx_dropped);
 	return NULL;
 }
 
@@ -3393,7 +3391,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 
 			skb = validate_xmit_skb(skb, dev);
 			if (!skb)
-				goto drop;
+				goto out;
 
 			HARD_TX_LOCK(dev, txq, cpu);
 
@@ -3420,7 +3418,6 @@ recursion_alert:
 	}
 
 	rc = -ENETDOWN;
-drop:
 	rcu_read_unlock_bh();
 
 	atomic_long_inc(&dev->tx_dropped);
