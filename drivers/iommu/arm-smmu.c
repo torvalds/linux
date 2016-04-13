@@ -280,6 +280,7 @@ enum arm_smmu_arch_version {
 
 enum arm_smmu_implementation {
 	GENERIC_SMMU,
+	CAVIUM_SMMUV2,
 };
 
 struct arm_smmu_smr {
@@ -1686,6 +1687,17 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	}
 	dev_notice(smmu->dev, "\t%u context banks (%u stage-2 only)\n",
 		   smmu->num_context_banks, smmu->num_s2_context_banks);
+	/*
+	 * Cavium CN88xx erratum #27704.
+	 * Ensure ASID and VMID allocation is unique across all SMMUs in
+	 * the system.
+	 */
+	if (smmu->model == CAVIUM_SMMUV2) {
+		smmu->cavium_id_base =
+			atomic_add_return(smmu->num_context_banks,
+					  &cavium_smmu_context_count);
+		smmu->cavium_id_base -= smmu->num_context_banks;
+	}
 
 	/* ID2 */
 	id = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID2);
@@ -1750,6 +1762,7 @@ static struct arm_smmu_match_data name = { .version = ver, .model = imp }
 
 ARM_SMMU_MATCH_DATA(smmu_generic_v1, ARM_SMMU_V1, GENERIC_SMMU);
 ARM_SMMU_MATCH_DATA(smmu_generic_v2, ARM_SMMU_V2, GENERIC_SMMU);
+ARM_SMMU_MATCH_DATA(cavium_smmuv2, ARM_SMMU_V2, CAVIUM_SMMUV2);
 
 static const struct of_device_id arm_smmu_of_match[] = {
 	{ .compatible = "arm,smmu-v1", .data = &smmu_generic_v1 },
@@ -1757,7 +1770,7 @@ static const struct of_device_id arm_smmu_of_match[] = {
 	{ .compatible = "arm,mmu-400", .data = &smmu_generic_v1 },
 	{ .compatible = "arm,mmu-401", .data = &smmu_generic_v1 },
 	{ .compatible = "arm,mmu-500", .data = &smmu_generic_v2 },
-	{ .compatible = "cavium,smmu-v2", .data = &smmu_generic_v2 },
+	{ .compatible = "cavium,smmu-v2", .data = &cavium_smmuv2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, arm_smmu_of_match);
@@ -1869,18 +1882,6 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 				i, smmu->irqs[i]);
 			goto out_free_irqs;
 		}
-	}
-
-	/*
-	 * Cavium CN88xx erratum #27704.
-	 * Ensure ASID and VMID allocation is unique across all SMMUs in
-	 * the system.
-	 */
-	if (of_device_is_compatible(dev->of_node, "cavium,smmu-v2")) {
-		smmu->cavium_id_base =
-			atomic_add_return(smmu->num_context_banks,
-					  &cavium_smmu_context_count);
-		smmu->cavium_id_base -= smmu->num_context_banks;
 	}
 
 	INIT_LIST_HEAD(&smmu->list);
