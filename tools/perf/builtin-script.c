@@ -1961,6 +1961,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			.exit		 = perf_event__process_exit,
 			.fork		 = perf_event__process_fork,
 			.attr		 = process_attr,
+			.event_update   = perf_event__process_event_update,
 			.tracing_data	 = perf_event__process_tracing_data,
 			.build_id	 = perf_event__process_build_id,
 			.id_index	 = perf_event__process_id_index,

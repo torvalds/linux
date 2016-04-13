@@ -1607,9 +1607,8 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 
 			ret = fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
 			dummy_hpp.buf[ret] = '\0';
-			rtrim(dummy_hpp.buf);
 
-			start = ltrim(dummy_hpp.buf);
+			start = trim(dummy_hpp.buf);
 			ret = strlen(start);
 
 			if (start != dummy_hpp.buf)

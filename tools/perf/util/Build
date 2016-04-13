@@ -38,6 +38,7 @@ libperf-y += machine.o
 libperf-y += map.o
 libperf-y += pstack.o
 libperf-y += session.o
+libperf-$(CONFIG_AUDIT) += syscalltbl.o
 libperf-y += ordered-events.o
 libperf-y += comm.o
 libperf-y += thread.o
@@ -146,6 +147,10 @@ CFLAGS_rbtree.o        += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ET
 CFLAGS_libstring.o     += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_hweight.o       += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_parse-events.o  += -Wno-redundant-decls
+
+$(OUTPUT)util/syscalltbl.o: util/syscalltbl.c arch/x86/entry/syscalls/syscall_64.tbl $(OUTPUT)arch/x86/include/generated/asm/syscalls_64.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
 
 $(OUTPUT)util/kallsyms.o: ../lib/symbol/kallsyms.c FORCE
 	$(call rule_mkdir)

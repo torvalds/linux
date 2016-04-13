@@ -9,6 +9,9 @@
 #include "symbol.h"
 #include <strlist.h>
 #include <intlist.h>
+#ifdef HAVE_LIBUNWIND_SUPPORT
+#include <libunwind.h>
+#endif
 
 struct thread_stack;
 
@@ -32,6 +35,9 @@ struct thread {
 
 	void			*priv;
 	struct thread_stack	*ts;
+#ifdef HAVE_LIBUNWIND_SUPPORT
+	unw_addr_space_t	addr_space;
+#endif
 };
 
 struct machine;

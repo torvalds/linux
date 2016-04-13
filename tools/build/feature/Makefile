@@ -3,6 +3,7 @@ FILES=					\
 	test-backtrace.bin		\
 	test-bionic.bin			\
 	test-dwarf.bin			\
+	test-dwarf_getlocations.bin	\
 	test-fortify-source.bin		\
 	test-sync-compare-and-swap.bin	\
 	test-glibc.bin			\
@@ -80,6 +81,9 @@ DWARFLIBS += -lelf -lebl -lz -llzma -lbz2
 endif
 
 $(OUTPUT)test-dwarf.bin:
+	$(BUILD) $(DWARFLIBS)
+
+$(OUTPUT)test-dwarf_getlocations.bin:
 	$(BUILD) $(DWARFLIBS)
 
 $(OUTPUT)test-libelf-mmap.bin:

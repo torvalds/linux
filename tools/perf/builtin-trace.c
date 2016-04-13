@@ -34,8 +34,9 @@
 #include "trace-event.h"
 #include "util/parse-events.h"
 #include "util/bpf-loader.h"
+#include "syscalltbl.h"
 
-#include <libaudit.h>
+#include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <linux/futex.h>
@@ -112,6 +113,56 @@
 # define PERF_FLAG_FD_CLOEXEC		(1UL << 3) /* O_CLOEXEC */
 #endif
 
+struct trace {
+	struct perf_tool	tool;
+	struct syscalltbl	*sctbl;
+	struct {
+		int		max;
+		struct syscall  *table;
+		struct {
+			struct perf_evsel *sys_enter,
+					  *sys_exit;
+		}		events;
+	} syscalls;
+	struct record_opts	opts;
+	struct perf_evlist	*evlist;
+	struct machine		*host;
+	struct thread		*current;
+	u64			base_time;
+	FILE			*output;
+	unsigned long		nr_events;
+	struct strlist		*ev_qualifier;
+	struct {
+		size_t		nr;
+		int		*entries;
+	}			ev_qualifier_ids;
+	struct intlist		*tid_list;
+	struct intlist		*pid_list;
+	struct {
+		size_t		nr;
+		pid_t		*entries;
+	}			filter_pids;
+	double			duration_filter;
+	double			runtime_ms;
+	struct {
+		u64		vfs_getname,
+				proc_getname;
+	} stats;
+	bool			not_ev_qualifier;
+	bool			live;
+	bool			full_time;
+	bool			sched;
+	bool			multiple_threads;
+	bool			summary;
+	bool			summary_only;
+	bool			show_comm;
+	bool			show_tool_stats;
+	bool			trace_syscalls;
+	bool			force;
+	bool			vfs_getname;
+	int			trace_pgfaults;
+	int			open_id;
+};
 
 struct tp_field {
 	int offset;
@@ -1073,12 +1124,18 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 	  .arg_scnprintf = { [arg] = SCA_STRARRAY, }, \
 	  .arg_parm	 = { [arg] = &strarray__##array, }
 
+#include "trace/beauty/pid.c"
+#include "trace/beauty/mode_t.c"
+#include "trace/beauty/sched_policy.c"
+#include "trace/beauty/waitid_options.c"
+
 static struct syscall_fmt {
 	const char *name;
 	const char *alias;
 	size_t	   (*arg_scnprintf[6])(char *bf, size_t size, struct syscall_arg *arg);
 	void	   *arg_parm[6];
 	bool	   errmsg;
+	bool	   errpid;
 	bool	   timeout;
 	bool	   hexret;
 } syscall_fmts[] = {
@@ -1096,6 +1153,7 @@ static struct syscall_fmt {
 	{ .name	    = "chroot",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
 	{ .name     = "clock_gettime",  .errmsg = true, STRARRAY(0, clk_id, clockid), },
+	{ .name	    = "clone",	    .errpid = true, },
 	{ .name	    = "close",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_CLOSE_FD, /* fd */ }, },
 	{ .name	    = "connect",    .errmsg = true, },
@@ -1161,6 +1219,9 @@ static struct syscall_fmt {
 	{ .name	    = "getdents64", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "getitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
+	{ .name	    = "getpid",	    .errpid = true, },
+	{ .name	    = "getpgid",    .errpid = true, },
+	{ .name	    = "getppid",    .errpid = true, },
 	{ .name	    = "getrandom",  .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_GETRANDOM_FLAGS, /* flags */ }, },
 	{ .name	    = "getrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
@@ -1304,6 +1365,8 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "rt_tgsigqueueinfo", .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
+	{ .name	    = "sched_setscheduler",   .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_SCHED_POLICY, /* policy */ }, },
 	{ .name	    = "seccomp", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_SECCOMP_OP, /* op */
 			     [1] = SCA_SECCOMP_FLAGS, /* flags */ }, },
@@ -1317,7 +1380,9 @@ static struct syscall_fmt {
 	{ .name	    = "sendto",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
 			     [3] = SCA_MSG_FLAGS, /* flags */ }, },
+	{ .name	    = "set_tid_address", .errpid = true, },
 	{ .name	    = "setitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
+	{ .name	    = "setpgid",    .errmsg = true, },
 	{ .name	    = "setrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
 	{ .name	    = "setxattr",   .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
@@ -1360,6 +1425,10 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "vmsplice",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
+	{ .name	    = "wait4",	    .errpid = true,
+	  .arg_scnprintf = { [2] = SCA_WAITID_OPTIONS, /* options */ }, },
+	{ .name	    = "waitid",	    .errpid = true,
+	  .arg_scnprintf = { [3] = SCA_WAITID_OPTIONS, /* options */ }, },
 	{ .name	    = "write",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "writev",	    .errmsg = true,
@@ -1470,59 +1539,6 @@ fail:
 #define TRACE_PFMIN		(1 << 1)
 
 static const size_t trace__entry_str_size = 2048;
-
-struct trace {
-	struct perf_tool	tool;
-	struct {
-		int		machine;
-		int		open_id;
-	}			audit;
-	struct {
-		int		max;
-		struct syscall  *table;
-		struct {
-			struct perf_evsel *sys_enter,
-					  *sys_exit;
-		}		events;
-	} syscalls;
-	struct record_opts	opts;
-	struct perf_evlist	*evlist;
-	struct machine		*host;
-	struct thread		*current;
-	u64			base_time;
-	FILE			*output;
-	unsigned long		nr_events;
-	struct strlist		*ev_qualifier;
-	struct {
-		size_t		nr;
-		int		*entries;
-	}			ev_qualifier_ids;
-	struct intlist		*tid_list;
-	struct intlist		*pid_list;
-	struct {
-		size_t		nr;
-		pid_t		*entries;
-	}			filter_pids;
-	double			duration_filter;
-	double			runtime_ms;
-	struct {
-		u64		vfs_getname,
-				proc_getname;
-	} stats;
-	bool			not_ev_qualifier;
-	bool			live;
-	bool			full_time;
-	bool			sched;
-	bool			multiple_threads;
-	bool			summary;
-	bool			summary_only;
-	bool			show_comm;
-	bool			show_tool_stats;
-	bool			trace_syscalls;
-	bool			force;
-	bool			vfs_getname;
-	int			trace_pgfaults;
-};
 
 static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pathname)
 {
@@ -1749,6 +1765,10 @@ static int syscall__set_arg_fmts(struct syscall *sc)
 			sc->arg_scnprintf[idx] = sc->fmt->arg_scnprintf[idx];
 		else if (field->flags & FIELD_IS_POINTER)
 			sc->arg_scnprintf[idx] = syscall_arg__scnprintf_hex;
+		else if (strcmp(field->type, "pid_t") == 0)
+			sc->arg_scnprintf[idx] = SCA_PID;
+		else if (strcmp(field->type, "umode_t") == 0)
+			sc->arg_scnprintf[idx] = SCA_MODE_T;
 		++idx;
 	}
 
@@ -1759,7 +1779,7 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 {
 	char tp_name[128];
 	struct syscall *sc;
-	const char *name = audit_syscall_to_name(id, trace->audit.machine);
+	const char *name = syscalltbl__name(trace->sctbl, id);
 
 	if (name == NULL)
 		return -1;
@@ -1834,7 +1854,7 @@ static int trace__validate_ev_qualifier(struct trace *trace)
 
 	strlist__for_each(pos, trace->ev_qualifier) {
 		const char *sc = pos->s;
-		int id = audit_name_to_syscall(sc, trace->audit.machine);
+		int id = syscalltbl__id(trace->sctbl, sc);
 
 		if (id < 0) {
 			if (err == 0) {
@@ -2116,7 +2136,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 
 	ret = perf_evsel__sc_tp_uint(evsel, ret, sample);
 
-	if (id == trace->audit.open_id && ret >= 0 && ttrace->filename.pending_open) {
+	if (id == trace->open_id && ret >= 0 && ttrace->filename.pending_open) {
 		trace__set_fd_pathname(thread, ret, ttrace->filename.name);
 		ttrace->filename.pending_open = false;
 		++trace->stats.vfs_getname;
@@ -2147,7 +2167,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	if (sc->fmt == NULL) {
 signed_print:
 		fprintf(trace->output, ") = %ld", ret);
-	} else if (ret < 0 && sc->fmt->errmsg) {
+	} else if (ret < 0 && (sc->fmt->errmsg || sc->fmt->errpid)) {
 		char bf[STRERR_BUFSIZE];
 		const char *emsg = strerror_r(-ret, bf, sizeof(bf)),
 			   *e = audit_errno_to_name(-ret);
@@ -2157,7 +2177,16 @@ signed_print:
 		fprintf(trace->output, ") = 0 Timeout");
 	else if (sc->fmt->hexret)
 		fprintf(trace->output, ") = %#lx", ret);
-	else
+	else if (sc->fmt->errpid) {
+		struct thread *child = machine__find_thread(trace->host, ret, ret);
+
+		if (child != NULL) {
+			fprintf(trace->output, ") = %ld", ret);
+			if (child->comm_set)
+				fprintf(trace->output, " (%s)", thread__comm_str(child));
+			thread__put(child);
+		}
+	} else
 		goto signed_print;
 
 	fputc('\n', trace->output);
@@ -3159,10 +3188,6 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 	struct trace trace = {
-		.audit = {
-			.machine = audit_detect_machine(),
-			.open_id = audit_name_to_syscall("open", trace.audit.machine),
-		},
 		.syscalls = {
 			. max = -1,
 		},
@@ -3237,8 +3262,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	signal(SIGFPE, sighandler_dump_stack);
 
 	trace.evlist = perf_evlist__new();
+	trace.sctbl = syscalltbl__new();
 
-	if (trace.evlist == NULL) {
+	if (trace.evlist == NULL || trace.sctbl == NULL) {
 		pr_err("Not enough memory to run!\n");
 		err = -ENOMEM;
 		goto out;
@@ -3275,6 +3301,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			goto out;
 		}
 	}
+
+	trace.open_id = syscalltbl__id(trace.sctbl, "open");
 
 	if (ev_qualifier_str != NULL) {
 		const char *s = ev_qualifier_str;
