@@ -895,6 +895,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 		}
 	} else {
 		chip->ecc.mode = NAND_ECC_SOFT;
+		chip->ecc.algo = NAND_ECC_HAMMING;
 	}
 
 	if (ctrl->version == FSL_IFC_VERSION_1_1_0)
