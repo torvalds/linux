@@ -882,6 +882,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	}
 #else
 	chip->ecc.mode	    = NAND_ECC_SOFT;
+	chip->ecc.algo	= NAND_ECC_HAMMING;
 #endif
 
 	if (set->disable_ecc)
