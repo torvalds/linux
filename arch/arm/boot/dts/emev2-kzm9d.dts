@@ -105,8 +105,8 @@
 
 &pfc {
 	uart1_pins: serial@e1030000 {
-		renesas,groups = "uart1_ctrl", "uart1_data";
-		renesas,function = "uart1";
+		groups = "uart1_ctrl", "uart1_data";
+		function = "uart1";
 	};
 };
 
