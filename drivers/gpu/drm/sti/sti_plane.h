@@ -55,7 +55,7 @@ struct sti_fps_info {
 	unsigned int last_frame_counter;
 	unsigned int curr_field_counter;
 	unsigned int last_field_counter;
-	struct timespec last_timestamp;
+	ktime_t	     last_timestamp;
 	char fps_str[FPS_LENGTH];
 	char fips_str[FPS_LENGTH];
 };
