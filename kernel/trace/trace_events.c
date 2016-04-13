@@ -474,11 +474,23 @@ static void ftrace_clear_events(struct trace_array *tr)
 /* Shouldn't this be in a header? */
 extern int pid_max;
 
+/* Returns true if found in filter */
+static bool
+find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
+{
+	/*
+	 * If pid_max changed after filtered_pids was created, we
+	 * by default ignore all pids greater than the previous pid_max.
+	 */
+	if (search_pid >= filtered_pids->pid_max)
+		return false;
+
+	return test_bit(search_pid, filtered_pids->pids);
+}
+
 static bool
 ignore_this_task(struct trace_pid_list *filtered_pids, struct task_struct *task)
 {
-	pid_t pid;
-
 	/*
 	 * Return false, because if filtered_pids does not exist,
 	 * all pids are good to trace.
@@ -486,16 +498,68 @@ ignore_this_task(struct trace_pid_list *filtered_pids, struct task_struct *task)
 	if (!filtered_pids)
 		return false;
 
-	pid = task->pid;
+	return !find_filtered_pid(filtered_pids, task->pid);
+}
 
-	/*
-	 * If pid_max changed after filtered_pids was created, we
-	 * by default ignore all pids greater than the previous pid_max.
-	 */
-	if (task->pid >= filtered_pids->pid_max)
-		return true;
+static void filter_add_remove_task(struct trace_pid_list *pid_list,
+				   struct task_struct *self,
+				   struct task_struct *task)
+{
+	if (!pid_list)
+		return;
 
-	return !test_bit(task->pid, filtered_pids->pids);
+	/* For forks, we only add if the forking task is listed */
+	if (self) {
+		if (!find_filtered_pid(pid_list, self->pid))
+			return;
+	}
+
+	/* Sorry, but we don't support pid_max changing after setting */
+	if (task->pid >= pid_list->pid_max)
+		return;
+
+	/* "self" is set for forks, and NULL for exits */
+	if (self)
+		set_bit(task->pid, pid_list->pids);
+	else
+		clear_bit(task->pid, pid_list->pids);
+}
+
+static void
+event_filter_pid_sched_process_exit(void *data, struct task_struct *task)
+{
+	struct trace_pid_list *pid_list;
+	struct trace_array *tr = data;
+
+	pid_list = rcu_dereference_sched(tr->filtered_pids);
+	filter_add_remove_task(pid_list, NULL, task);
+}
+
+static void
+event_filter_pid_sched_process_fork(void *data,
+				    struct task_struct *self,
+				    struct task_struct *task)
+{
+	struct trace_pid_list *pid_list;
+	struct trace_array *tr = data;
+
+	pid_list = rcu_dereference_sched(tr->filtered_pids);
+	filter_add_remove_task(pid_list, self, task);
+}
+
+void trace_event_follow_fork(struct trace_array *tr, bool enable)
+{
+	if (enable) {
+		register_trace_prio_sched_process_fork(event_filter_pid_sched_process_fork,
+						       tr, INT_MIN);
+		register_trace_prio_sched_process_exit(event_filter_pid_sched_process_exit,
+						       tr, INT_MAX);
+	} else {
+		unregister_trace_sched_process_fork(event_filter_pid_sched_process_fork,
+						    tr);
+		unregister_trace_sched_process_exit(event_filter_pid_sched_process_exit,
+						    tr);
+	}
 }
 
 static void
