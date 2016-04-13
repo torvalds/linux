@@ -334,6 +334,19 @@ config HW_RANDOM_TPM
 
 	  If unsure, say Y.
 
+config HW_RANDOM_HISI
+	tristate "Hisilicon Random Number Generator support"
+	depends on HW_RANDOM && ARCH_HISI
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Hisilicon Hip04 and Hip05 SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hisi-rng.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_MSM
 	tristate "Qualcomm SoCs Random Number Generator support"
 	depends on HW_RANDOM && ARCH_QCOM
