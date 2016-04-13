@@ -107,10 +107,12 @@ ENTRY(call_rwsem_down_write_failed)
 ENDPROC(call_rwsem_down_write_failed)
 
 ENTRY(call_rwsem_down_write_failed_killable)
+	FRAME_BEGIN
 	save_common_regs
 	movq %rax,%rdi
 	call rwsem_down_write_failed_killable
 	restore_common_regs
+	FRAME_END
 	ret
 ENDPROC(call_rwsem_down_write_failed_killable)
 
