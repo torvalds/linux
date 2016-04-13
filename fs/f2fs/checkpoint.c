@@ -892,7 +892,7 @@ retry_flush_nodes:
 
 	if (get_pages(sbi, F2FS_DIRTY_NODES)) {
 		up_write(&sbi->node_write);
-		err = sync_node_pages(sbi, 0, &wbc);
+		err = sync_node_pages(sbi, &wbc);
 		if (err) {
 			f2fs_unlock_all(sbi);
 			goto out;

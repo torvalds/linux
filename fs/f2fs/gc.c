@@ -841,7 +841,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 				.nr_to_write = LONG_MAX,
 				.for_reclaim = 0,
 			};
-			sync_node_pages(sbi, 0, &wbc);
+			sync_node_pages(sbi, &wbc);
 		} else {
 			f2fs_submit_merged_bio(sbi, DATA, WRITE);
 		}

@@ -1222,12 +1222,84 @@ iput_out:
 	iput(inode);
 }
 
-int sync_node_pages(struct f2fs_sb_info *sbi, nid_t ino,
+int fsync_node_pages(struct f2fs_sb_info *sbi, nid_t ino,
 					struct writeback_control *wbc)
 {
 	pgoff_t index, end;
 	struct pagevec pvec;
-	int step = ino ? 2 : 0;
+	int nwritten = 0;
+
+	pagevec_init(&pvec, 0);
+	index = 0;
+	end = ULONG_MAX;
+
+	while (index <= end) {
+		int i, nr_pages;
+		nr_pages = pagevec_lookup_tag(&pvec, NODE_MAPPING(sbi), &index,
+				PAGECACHE_TAG_DIRTY,
+				min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
+		if (nr_pages == 0)
+			break;
+
+		for (i = 0; i < nr_pages; i++) {
+			struct page *page = pvec.pages[i];
+
+			if (unlikely(f2fs_cp_error(sbi))) {
+				pagevec_release(&pvec);
+				return -EIO;
+			}
+
+			if (!IS_DNODE(page) || !is_cold_node(page))
+				continue;
+			if (ino_of_node(page) != ino)
+				continue;
+
+			lock_page(page);
+
+			if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
+continue_unlock:
+				unlock_page(page);
+				continue;
+			}
+			if (ino_of_node(page) != ino)
+				goto continue_unlock;
+
+			if (!PageDirty(page)) {
+				/* someone wrote it for us */
+				goto continue_unlock;
+			}
+
+			f2fs_wait_on_page_writeback(page, NODE, true);
+			BUG_ON(PageWriteback(page));
+			if (!clear_page_dirty_for_io(page))
+				goto continue_unlock;
+
+			set_fsync_mark(page, 1);
+			if (IS_INODE(page))
+				set_dentry_mark(page,
+						need_dentry_mark(sbi, ino));
+			nwritten++;
+
+			if (NODE_MAPPING(sbi)->a_ops->writepage(page, wbc))
+				unlock_page(page);
+
+			if (--wbc->nr_to_write == 0)
+				break;
+		}
+		pagevec_release(&pvec);
+		cond_resched();
+
+		if (wbc->nr_to_write == 0)
+			break;
+	}
+	return nwritten;
+}
+
+int sync_node_pages(struct f2fs_sb_info *sbi, struct writeback_control *wbc)
+{
+	pgoff_t index, end;
+	struct pagevec pvec;
+	int step = 0;
 	int nwritten = 0;
 
 	pagevec_init(&pvec, 0);
@@ -1266,28 +1338,15 @@ next_step:
 			if (step == 2 && (!IS_DNODE(page) ||
 						!is_cold_node(page)))
 				continue;
-
-			/*
-			 * If an fsync mode,
-			 * we should not skip writing node pages.
-			 */
 lock_node:
-			if (ino) {
-				if (ino_of_node(page) == ino)
-					lock_page(page);
-				else
-					continue;
-			} else if (!trylock_page(page)) {
+			if (!trylock_page(page))
 				continue;
-			}
 
 			if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
 continue_unlock:
 				unlock_page(page);
 				continue;
 			}
-			if (ino && ino_of_node(page) != ino)
-				goto continue_unlock;
 
 			if (!PageDirty(page)) {
 				/* someone wrote it for us */
@@ -1295,7 +1354,7 @@ continue_unlock:
 			}
 
 			/* flush inline_data */
-			if (!ino && is_inline_node(page)) {
+			if (is_inline_node(page)) {
 				clear_inline_node(page);
 				unlock_page(page);
 				flush_inline_data(sbi, ino_of_node(page));
@@ -1308,17 +1367,8 @@ continue_unlock:
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
-			/* called by fsync() */
-			if (ino && IS_DNODE(page)) {
-				set_fsync_mark(page, 1);
-				if (IS_INODE(page))
-					set_dentry_mark(page,
-						need_dentry_mark(sbi, ino));
-				nwritten++;
-			} else {
-				set_fsync_mark(page, 0);
-				set_dentry_mark(page, 0);
-			}
+			set_fsync_mark(page, 0);
+			set_dentry_mark(page, 0);
 
 			if (NODE_MAPPING(sbi)->a_ops->writepage(page, wbc))
 				unlock_page(page);
@@ -1466,7 +1516,7 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 
 	diff = nr_pages_to_write(sbi, NODE, wbc);
 	wbc->sync_mode = WB_SYNC_NONE;
-	sync_node_pages(sbi, 0, wbc);
+	sync_node_pages(sbi, wbc);
 	wbc->nr_to_write = max((long)0, wbc->nr_to_write - diff);
 	return 0;
 
