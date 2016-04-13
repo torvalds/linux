@@ -518,7 +518,12 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 		goto err_interface_deactivate;
 	}
 
-	gb_interface_add(intf);
+	ret = gb_interface_add(intf);
+	if (ret) {
+		gb_interface_disable(intf);
+		gb_interface_deactivate(intf);
+		return;
+	}
 
 	return;
 
