@@ -1831,6 +1831,10 @@ error_param:
 				      (u8 *)&stats, sizeof(stats));
 }
 
+/* If the VF is not trusted restrict the number of MAC/VLAN it can program */
+#define I40E_VC_MAX_MAC_ADDR_PER_VF 8
+#define I40E_VC_MAX_VLAN_PER_VF 8
+
 /**
  * i40e_check_vf_permission
  * @vf: pointer to the VF info
@@ -1862,6 +1866,11 @@ static inline int i40e_check_vf_permission(struct i40e_vf *vf, u8 *macaddr)
 		 */
 		dev_err(&pf->pdev->dev,
 			"VF attempting to override administratively set MAC address, reload the VF driver to resume normal operation\n");
+		ret = -EPERM;
+	} else if ((vf->num_mac >= I40E_VC_MAX_MAC_ADDR_PER_VF) &&
+		   !test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps)) {
+		dev_err(&pf->pdev->dev,
+			"VF is not trusted, switch the VF to trusted to add more functionality\n");
 		ret = -EPERM;
 	}
 	return ret;
@@ -1924,6 +1933,8 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 			ret = I40E_ERR_PARAM;
 			spin_unlock_bh(&vsi->mac_filter_list_lock);
 			goto error_param;
+		} else {
+			vf->num_mac++;
 		}
 	}
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
@@ -1982,6 +1993,8 @@ static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 			ret = I40E_ERR_INVALID_MAC_ADDR;
 			spin_unlock_bh(&vsi->mac_filter_list_lock);
 			goto error_param;
+		} else {
+			vf->num_mac--;
 		}
 
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
@@ -2016,8 +2029,13 @@ static int i40e_vc_add_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	i40e_status aq_ret = 0;
 	int i;
 
+	if ((vf->num_vlan >= I40E_VC_MAX_VLAN_PER_VF) &&
+	    !test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps)) {
+		dev_err(&pf->pdev->dev,
+			"VF is not trusted, switch the VF to trusted to add more VLAN addresses\n");
+		goto error_param;
+	}
 	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
-	    !test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps) ||
 	    !i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
@@ -2041,6 +2059,8 @@ static int i40e_vc_add_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	for (i = 0; i < vfl->num_elements; i++) {
 		/* add new VLAN filter */
 		int ret = i40e_vsi_add_vlan(vsi, vfl->vlan_id[i]);
+		if (!ret)
+			vf->num_vlan++;
 
 		if (test_bit(I40E_VF_STAT_UC_PROMISC, &vf->vf_states))
 			i40e_aq_set_vsi_uc_promisc_on_vlan(&pf->hw, vsi->seid,
@@ -2083,7 +2103,6 @@ static int i40e_vc_remove_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	int i;
 
 	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
-	    !test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps) ||
 	    !i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
@@ -2104,6 +2123,8 @@ static int i40e_vc_remove_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 
 	for (i = 0; i < vfl->num_elements; i++) {
 		int ret = i40e_vsi_kill_vlan(vsi, vfl->vlan_id[i]);
+		if (!ret)
+			vf->num_vlan--;
 
 		if (test_bit(I40E_VF_STAT_UC_PROMISC, &vf->vf_states))
 			i40e_aq_set_vsi_uc_promisc_on_vlan(&pf->hw, vsi->seid,

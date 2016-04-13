@@ -111,6 +111,9 @@ struct i40e_vf {
 	bool link_forced;
 	bool link_up;		/* only valid if VF link is forced */
 	bool spoofchk;
+	u16 num_mac;
+	u16 num_vlan;
+
 	/* RDMA Client */
 	struct i40e_virtchnl_iwarp_qvlist_info *qvlist_info;
 };
