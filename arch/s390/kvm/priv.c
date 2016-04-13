@@ -733,8 +733,15 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 
 		start += PAGE_SIZE;
 	}
-	if (vcpu->run->s.regs.gprs[reg1] & PFMF_FSC)
-		vcpu->run->s.regs.gprs[reg2] = end;
+	if (vcpu->run->s.regs.gprs[reg1] & PFMF_FSC) {
+		if (psw_bits(vcpu->arch.sie_block->gpsw).eaba == PSW_AMODE_64BIT) {
+			vcpu->run->s.regs.gprs[reg2] = end;
+		} else {
+			vcpu->run->s.regs.gprs[reg2] &= ~0xffffffffUL;
+			end = kvm_s390_logical_to_effective(vcpu, end);
+			vcpu->run->s.regs.gprs[reg2] |= end;
+		}
+	}
 	return 0;
 }
 
