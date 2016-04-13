@@ -57,6 +57,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/time.h>
+#include <linux/ktime.h>
 #include <linux/kthread.h>
 #include <linux/aer.h>
 
@@ -4387,7 +4388,7 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	Mpi2IOCInitRequest_t mpi_request;
 	Mpi2IOCInitReply_t mpi_reply;
 	int i, r = 0;
-	struct timeval current_time;
+	ktime_t current_time;
 	u16 ioc_status;
 	u32 reply_post_free_array_sz = 0;
 	Mpi2IOCInitRDPQArrayEntry *reply_post_free_array = NULL;
@@ -4449,9 +4450,8 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	/* This time stamp specifies number of milliseconds
 	 * since epoch ~ midnight January 1, 1970.
 	 */
-	do_gettimeofday(&current_time);
-	mpi_request.TimeStamp = cpu_to_le64((u64)current_time.tv_sec * 1000 +
-	    (current_time.tv_usec / 1000));
+	current_time = ktime_get_real();
+	mpi_request.TimeStamp = cpu_to_le64(ktime_to_ms(current_time));
 
 	if (ioc->logging_level & MPT_DEBUG_INIT) {
 		__le32 *mfp;
