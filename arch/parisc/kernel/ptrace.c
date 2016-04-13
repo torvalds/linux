@@ -30,6 +30,9 @@
 /* PSW bits we allow the debugger to modify */
 #define USER_PSW_BITS	(PSW_N | PSW_B | PSW_V | PSW_CB)
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/syscalls.h>
+
 /*
  * Called by kernel/ptrace.c when detaching..
  *
@@ -283,6 +286,10 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 		regs->gr[20] = -1UL;
 		goto out;
 	}
+#ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
+		trace_sys_enter(regs, regs->gr[20]);
+#endif
 
 #ifdef CONFIG_64BIT
 	if (!is_compat_task())
@@ -310,6 +317,11 @@ void do_syscall_trace_exit(struct pt_regs *regs)
 		test_thread_flag(TIF_BLOCKSTEP);
 
 	audit_syscall_exit(regs);
+
+#ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
+		trace_sys_exit(regs, regs->gr[20]);
+#endif
 
 	if (stepping || test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall_exit(regs, stepping);
