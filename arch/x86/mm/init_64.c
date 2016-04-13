@@ -1295,7 +1295,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	struct vmem_altmap *altmap = to_vmem_altmap(start);
 	int err;
 
-	if (cpu_has_pse)
+	if (boot_cpu_has(X86_FEATURE_PSE))
 		err = vmemmap_populate_hugepages(start, end, node, altmap);
 	else if (altmap) {
 		pr_err_once("%s: no cpu support for altmap allocations\n",
@@ -1338,7 +1338,7 @@ void register_page_bootmem_memmap(unsigned long section_nr,
 		}
 		get_page_bootmem(section_nr, pud_page(*pud), MIX_SECTION_INFO);
 
-		if (!cpu_has_pse) {
+		if (!boot_cpu_has(X86_FEATURE_PSE)) {
 			next = (addr + PAGE_SIZE) & PAGE_MASK;
 			pmd = pmd_offset(pud, addr);
 			if (pmd_none(*pmd))

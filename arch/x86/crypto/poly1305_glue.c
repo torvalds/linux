@@ -179,7 +179,7 @@ static struct shash_alg alg = {
 
 static int __init poly1305_simd_mod_init(void)
 {
-	if (!cpu_has_xmm2)
+	if (!boot_cpu_has(X86_FEATURE_XMM2))
 		return -ENODEV;
 
 #ifdef CONFIG_AS_AVX2

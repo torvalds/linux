@@ -2425,7 +2425,7 @@ static __init uint32_t visorutil_spar_detect(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 
-	if (cpu_has_hypervisor) {
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
 		/* check the ID */
 		cpuid(UNISYS_SPAR_LEAF_ID, &eax, &ebx, &ecx, &edx);
 		return  (ebx == UNISYS_SPAR_ID_EBX) &&
