@@ -39,6 +39,7 @@ struct virtio_queue {
 	struct lkl_vring_avail *avail;
 	struct lkl_vring_used *used;
 	uint16_t last_avail_idx;
+	uint16_t last_used_idx_signaled;
 };
 
 struct virtio_dev {
