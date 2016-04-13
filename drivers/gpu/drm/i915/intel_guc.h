@@ -27,6 +27,8 @@
 #include "intel_guc_fwif.h"
 #include "i915_guc_reg.h"
 
+struct drm_i915_gem_request;
+
 struct i915_guc_client {
 	struct drm_i915_gem_object *client_obj;
 	struct intel_context *owner;

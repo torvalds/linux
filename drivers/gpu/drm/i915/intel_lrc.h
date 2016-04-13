@@ -24,6 +24,8 @@
 #ifndef _INTEL_LRC_H_
 #define _INTEL_LRC_H_
 
+#include "intel_ringbuffer.h"
+
 #define GEN8_LR_CONTEXT_ALIGN 4096
 
 /* Execlists regs */
