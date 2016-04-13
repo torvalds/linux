@@ -384,15 +384,18 @@ static bool gb_manifest_parse_interface(struct gb_interface *intf,
 					struct manifest_desc *interface_desc)
 {
 	struct greybus_descriptor_interface *desc_intf = interface_desc->data;
+	char *str;
 
 	/* Handle the strings first--they can fail */
-	intf->vendor_string = gb_string_get(intf, desc_intf->vendor_stringid);
-	if (IS_ERR(intf->vendor_string))
+	str = gb_string_get(intf, desc_intf->vendor_stringid);
+	if (IS_ERR(str))
 		return false;
+	intf->vendor_string = str;
 
-	intf->product_string = gb_string_get(intf, desc_intf->product_stringid);
-	if (IS_ERR(intf->product_string))
+	str = gb_string_get(intf, desc_intf->product_stringid);
+	if (IS_ERR(str))
 		goto out_free_vendor_string;
+	intf->product_string = str;
 
 	/* Release the interface descriptor, now that we're done with it */
 	release_manifest_descriptor(interface_desc);
