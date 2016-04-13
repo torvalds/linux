@@ -899,6 +899,7 @@ static void gb_svc_remove_interfaces(struct gb_svc *svc)
 
 	list_for_each_entry_safe(intf, tmp, &svc->hd->interfaces, links) {
 		gb_interface_disable(intf);
+		gb_interface_deactivate(intf);
 		gb_interface_remove(intf);
 	}
 }
