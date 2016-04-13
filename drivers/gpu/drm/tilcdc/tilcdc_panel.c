@@ -22,6 +22,7 @@
 #include <video/display_timing.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "tilcdc_drv.h"
 
@@ -194,9 +195,12 @@ static struct drm_encoder *panel_connector_best_encoder(
 
 static const struct drm_connector_funcs panel_connector_funcs = {
 	.destroy            = panel_connector_destroy,
-	.dpms               = drm_helper_connector_dpms,
+	.dpms               = drm_atomic_helper_connector_dpms,
 	.detect             = panel_connector_detect,
 	.fill_modes         = drm_helper_probe_single_connector_modes,
+	.reset              = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_connector_helper_funcs panel_connector_helper_funcs = {
