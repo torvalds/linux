@@ -6884,6 +6884,9 @@ enum skl_disp_power_wells {
 #define    IDIHASHMSK(x)			(((x) & 0x3f) << 16)
 #define  HSW_EDRAM_CAP				_MMIO(0x120010)
 #define    EDRAM_ENABLED			0x1
+#define    EDRAM_NUM_BANKS(cap)			(((cap) >> 1) & 0xf)
+#define    EDRAM_WAYS_IDX(cap)			(((cap) >> 5) & 0x7)
+#define    EDRAM_SETS_IDX(cap)			(((cap) >> 8) & 0x3)
 
 #define GEN6_UCGCTL1				_MMIO(0x9400)
 # define GEN6_EU_TCUNIT_CLOCK_GATE_DISABLE		(1 << 16)

@@ -315,17 +315,30 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+static u64 gen9_edram_size(struct drm_i915_private *dev_priv)
+{
+	const unsigned int ways[8] = { 4, 8, 12, 16, 16, 16, 16, 16 };
+	const unsigned int sets[4] = { 1, 1, 2, 2 };
+	const u32 cap = dev_priv->edram_cap;
+
+	return EDRAM_NUM_BANKS(cap) *
+		ways[EDRAM_WAYS_IDX(cap)] *
+		sets[EDRAM_SETS_IDX(cap)] *
+		1024 * 1024;
+}
+
 u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_EDRAM(dev_priv))
 		return 0;
 
-	/* The docs do not explain exactly how the calculation can be
-	 * made. It is somewhat guessable, but for now, it's always
-	 * 128MB.
+	/* The needed capability bits for size calculation
+	 * are not there with pre gen9 so return 128MB always.
 	 */
+	if (INTEL_GEN(dev_priv) < 9)
+		return 128 * 1024 * 1024;
 
-	return 128 * 1024 * 1024;
+	return gen9_edram_size(dev_priv);
 }
 
 static void intel_uncore_edram_detect(struct drm_i915_private *dev_priv)
