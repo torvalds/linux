@@ -122,6 +122,10 @@
 	};
 };
 
+&rtc {
+	system-power-controller;
+};
+
 /* NAND Flash */
 &elm {
 	status = "okay";
