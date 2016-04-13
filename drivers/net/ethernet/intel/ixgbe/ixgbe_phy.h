@@ -107,7 +107,7 @@
 #define IXGBE_PE				0xE0	/* Port expander addr */
 #define IXGBE_PE_OUTPUT				1	/* Output reg offset */
 #define IXGBE_PE_CONFIG				3	/* Config reg offset */
-#define IXGBE_PE_BIT1				(1 << 1)
+#define IXGBE_PE_BIT1				BIT(1)
 
 /* Flow control defines */
 #define IXGBE_TAF_SYM_PAUSE                  0x400

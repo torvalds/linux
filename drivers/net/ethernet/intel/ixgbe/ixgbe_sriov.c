@@ -406,7 +406,7 @@ static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
 		vector_reg = (vfinfo->vf_mc_hashes[i] >> 5) & 0x7F;
 		vector_bit = vfinfo->vf_mc_hashes[i] & 0x1F;
 		mta_reg = IXGBE_READ_REG(hw, IXGBE_MTA(vector_reg));
-		mta_reg |= (1 << vector_bit);
+		mta_reg |= BIT(vector_bit);
 		IXGBE_WRITE_REG(hw, IXGBE_MTA(vector_reg), mta_reg);
 	}
 	vmolr |= IXGBE_VMOLR_ROMPE;
@@ -433,7 +433,7 @@ void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 			vector_reg = (vfinfo->vf_mc_hashes[j] >> 5) & 0x7F;
 			vector_bit = vfinfo->vf_mc_hashes[j] & 0x1F;
 			mta_reg = IXGBE_READ_REG(hw, IXGBE_MTA(vector_reg));
-			mta_reg |= (1 << vector_bit);
+			mta_reg |= BIT(vector_bit);
 			IXGBE_WRITE_REG(hw, IXGBE_MTA(vector_reg), mta_reg);
 		}
 
@@ -536,9 +536,9 @@ static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 		/* enable or disable receive depending on error */
 		vfre = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));
 		if (err)
-			vfre &= ~(1 << vf_shift);
+			vfre &= ~BIT(vf_shift);
 		else
-			vfre |= 1 << vf_shift;
+			vfre |= BIT(vf_shift);
 		IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), vfre);
 
 		if (err) {
@@ -592,8 +592,8 @@ static void ixgbe_clear_vf_vlans(struct ixgbe_adapter *adapter, u32 vf)
 	u32 vlvfb_mask, pool_mask, i;
 
 	/* create mask for VF and other pools */
-	pool_mask = ~(1 << (VMDQ_P(0) % 32));
-	vlvfb_mask = 1 << (vf % 32);
+	pool_mask = ~BIT(VMDQ_P(0) % 32);
+	vlvfb_mask = BIT(vf % 32);
 
 	/* post increment loop, covers VLVF_ENTRIES - 1 to 0 */
 	for (i = IXGBE_VLVF_ENTRIES; i--;) {
@@ -629,7 +629,7 @@ static void ixgbe_clear_vf_vlans(struct ixgbe_adapter *adapter, u32 vf)
 			goto update_vlvfb;
 
 		vid = vlvf & VLAN_VID_MASK;
-		mask = 1 << (vid % 32);
+		mask = BIT(vid % 32);
 
 		/* clear bit from VFTA */
 		vfta = IXGBE_READ_REG(hw, IXGBE_VFTA(vid / 32));
@@ -813,7 +813,7 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 	/* enable transmit for vf */
 	reg = IXGBE_READ_REG(hw, IXGBE_VFTE(reg_offset));
-	reg |= 1 << vf_shift;
+	reg |= BIT(vf_shift);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), reg);
 
 	/* force drop enable for all VF Rx queues */
@@ -821,7 +821,7 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 	/* enable receive for vf */
 	reg = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));
-	reg |= 1 << vf_shift;
+	reg |= BIT(vf_shift);
 	/*
 	 * The 82599 cannot support a mix of jumbo and non-jumbo PF/VFs.
 	 * For more info take a look at ixgbe_set_vf_lpe
@@ -837,7 +837,7 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 #endif /* CONFIG_FCOE */
 		if (pf_max_frame > ETH_FRAME_LEN)
-			reg &= ~(1 << vf_shift);
+			reg &= ~BIT(vf_shift);
 	}
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), reg);
 
@@ -846,7 +846,7 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 	/* Enable counting of spoofed packets in the SSVPC register */
 	reg = IXGBE_READ_REG(hw, IXGBE_VMECM(reg_offset));
-	reg |= (1 << vf_shift);
+	reg |= BIT(vf_shift);
 	IXGBE_WRITE_REG(hw, IXGBE_VMECM(reg_offset), reg);
 
 	/*

@@ -396,7 +396,7 @@ static int ixgbe_ptp_adjfreq_82599(struct ptp_clock_info *ptp, s32 ppb)
 		if (incval > 0x00FFFFFFULL)
 			e_dev_warn("PTP ppb adjusted SYSTIME rate overflowed!\n");
 		IXGBE_WRITE_REG(hw, IXGBE_TIMINCA,
-				(1 << IXGBE_INCPER_SHIFT_82599) |
+				BIT(IXGBE_INCPER_SHIFT_82599) |
 				((u32)incval & 0x00FFFFFFUL));
 		break;
 	default:
@@ -1114,7 +1114,7 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 		incval >>= IXGBE_INCVAL_SHIFT_82599;
 		cc.shift -= IXGBE_INCVAL_SHIFT_82599;
 		IXGBE_WRITE_REG(hw, IXGBE_TIMINCA,
-				(1 << IXGBE_INCPER_SHIFT_82599) | incval);
+				BIT(IXGBE_INCPER_SHIFT_82599) | incval);
 		break;
 	default:
 		/* other devices aren't supported */
