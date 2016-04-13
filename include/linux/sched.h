@@ -178,9 +178,11 @@ extern void get_iowait_load(unsigned long *nr_waiters, unsigned long *load);
 extern void calc_global_load(unsigned long ticks);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
-extern void cpu_load_update_nohz(int active);
+extern void cpu_load_update_nohz_start(void);
+extern void cpu_load_update_nohz_stop(void);
 #else
-static inline void cpu_load_update_nohz(int active) { }
+static inline void cpu_load_update_nohz_start(void) { }
+static inline void cpu_load_update_nohz_stop(void) { }
 #endif
 
 extern void dump_cpu_task(int cpu);
