@@ -83,9 +83,7 @@ i915_gem_wait_for_error(struct i915_gpu_error *error)
 {
 	int ret;
 
-#define EXIT_COND (!i915_reset_in_progress_or_wedged(error) || \
-		   i915_terminally_wedged(error))
-	if (EXIT_COND)
+	if (!i915_reset_in_progress(error))
 		return 0;
 
 	/*
@@ -94,17 +92,16 @@ i915_gem_wait_for_error(struct i915_gpu_error *error)
 	 * we should simply try to bail out and fail as gracefully as possible.
 	 */
 	ret = wait_event_interruptible_timeout(error->reset_queue,
-					       EXIT_COND,
+					       !i915_reset_in_progress(error),
 					       10*HZ);
 	if (ret == 0) {
 		DRM_ERROR("Timed out waiting for the gpu reset to complete\n");
 		return -EIO;
 	} else if (ret < 0) {
 		return ret;
+	} else {
+		return 0;
 	}
-#undef EXIT_COND
-
-	return 0;
 }
 
 int i915_mutex_lock_interruptible(struct drm_device *dev)
@@ -1113,22 +1110,16 @@ i915_gem_check_wedge(struct i915_gpu_error *error,
 		     bool interruptible)
 {
 	if (i915_reset_in_progress_or_wedged(error)) {
+		/* Recovery complete, but the reset failed ... */
+		if (i915_terminally_wedged(error))
+			return -EIO;
+
 		/* Non-interruptible callers can't handle -EAGAIN, hence return
 		 * -EIO unconditionally for these. */
 		if (!interruptible)
 			return -EIO;
 
-		/* Recovery complete, but the reset failed ... */
-		if (i915_terminally_wedged(error))
-			return -EIO;
-
-		/*
-		 * Check if GPU Reset is in progress - we need intel_ring_begin
-		 * to work properly to reinit the hw state while the gpu is
-		 * still marked as reset-in-progress. Handle this with a flag.
-		 */
-		if (!error->reload_in_reset)
-			return -EAGAIN;
+		return -EAGAIN;
 	}
 
 	return 0;

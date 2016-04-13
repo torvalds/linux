@@ -4722,7 +4722,7 @@ i915_wedged_get(void *data, u64 *val)
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	*val = i915_reset_counter(&dev_priv->gpu_error);
+	*val = i915_terminally_wedged(&dev_priv->gpu_error);
 
 	return 0;
 }
@@ -4741,7 +4741,7 @@ i915_wedged_set(void *data, u64 val)
 	 * while it is writing to 'i915_wedged'
 	 */
 
-	if (i915_reset_in_progress_or_wedged(&dev_priv->gpu_error))
+	if (i915_reset_in_progress(&dev_priv->gpu_error))
 		return -EAGAIN;
 
 	intel_runtime_pm_get(dev_priv);

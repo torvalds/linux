@@ -880,23 +880,32 @@ int i915_resume_switcheroo(struct drm_device *dev)
 int i915_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	bool simulated;
+	struct i915_gpu_error *error = &dev_priv->gpu_error;
+	unsigned reset_counter;
 	int ret;
 
 	intel_reset_gt_powersave(dev);
 
 	mutex_lock(&dev->struct_mutex);
 
-	i915_gem_reset(dev);
+	/* Clear any previous failed attempts at recovery. Time to try again. */
+	atomic_andnot(I915_WEDGED, &error->reset_counter);
 
-	simulated = dev_priv->gpu_error.stop_rings != 0;
+	/* Clear the reset-in-progress flag and increment the reset epoch. */
+	reset_counter = atomic_inc_return(&error->reset_counter);
+	if (WARN_ON(__i915_reset_in_progress(reset_counter))) {
+		ret = -EIO;
+		goto error;
+	}
+
+	i915_gem_reset(dev);
 
 	ret = intel_gpu_reset(dev, ALL_ENGINES);
 
 	/* Also reset the gpu hangman. */
-	if (simulated) {
+	if (error->stop_rings != 0) {
 		DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
-		dev_priv->gpu_error.stop_rings = 0;
+		error->stop_rings = 0;
 		if (ret == -ENODEV) {
 			DRM_INFO("Reset not implemented, but ignoring "
 				 "error for simulated gpu hangs\n");
@@ -909,8 +918,7 @@ int i915_reset(struct drm_device *dev)
 
 	if (ret) {
 		DRM_ERROR("Failed to reset chip: %i\n", ret);
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
+		goto error;
 	}
 
 	intel_overlay_reset(dev_priv);
@@ -929,19 +937,13 @@ int i915_reset(struct drm_device *dev)
 	 * was running at the time of the reset (i.e. we weren't VT
 	 * switched away).
 	 */
-
-	/* Used to prevent gem_check_wedged returning -EAGAIN during gpu reset */
-	dev_priv->gpu_error.reload_in_reset = true;
-
 	ret = i915_gem_init_hw(dev);
-
-	dev_priv->gpu_error.reload_in_reset = false;
-
-	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
 		DRM_ERROR("Failed hw init on reset %d\n", ret);
-		return ret;
+		goto error;
 	}
+
+	mutex_unlock(&dev->struct_mutex);
 
 	/*
 	 * rps/rc6 re-init is necessary to restore state lost after the
@@ -953,6 +955,11 @@ int i915_reset(struct drm_device *dev)
 		intel_enable_gt_powersave(dev);
 
 	return 0;
+
+error:
+	atomic_or(I915_WEDGED, &error->reset_counter);
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
 }
 
 static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)

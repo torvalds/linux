@@ -2483,7 +2483,6 @@ static void i915_error_wake_up(struct drm_i915_private *dev_priv,
 static void i915_reset_and_wakeup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_gpu_error *error = &dev_priv->gpu_error;
 	char *error_event[] = { I915_ERROR_UEVENT "=1", NULL };
 	char *reset_event[] = { I915_RESET_UEVENT "=1", NULL };
 	char *reset_done_event[] = { I915_ERROR_UEVENT "=0", NULL };
@@ -2501,7 +2500,7 @@ static void i915_reset_and_wakeup(struct drm_device *dev)
 	 * the reset in-progress bit is only ever set by code outside of this
 	 * work we don't need to worry about any other races.
 	 */
-	if (i915_reset_in_progress_or_wedged(error) && !i915_terminally_wedged(error)) {
+	if (i915_reset_in_progress(&dev_priv->gpu_error)) {
 		DRM_DEBUG_DRIVER("resetting chip\n");
 		kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE,
 				   reset_event);
@@ -2529,25 +2528,9 @@ static void i915_reset_and_wakeup(struct drm_device *dev)
 
 		intel_runtime_pm_put(dev_priv);
 
-		if (ret == 0) {
-			/*
-			 * After all the gem state is reset, increment the reset
-			 * counter and wake up everyone waiting for the reset to
-			 * complete.
-			 *
-			 * Since unlock operations are a one-sided barrier only,
-			 * we need to insert a barrier here to order any seqno
-			 * updates before
-			 * the counter increment.
-			 */
-			smp_mb__before_atomic();
-			atomic_inc(&dev_priv->gpu_error.reset_counter);
-
+		if (ret == 0)
 			kobject_uevent_env(&dev->primary->kdev->kobj,
 					   KOBJ_CHANGE, reset_done_event);
-		} else {
-			atomic_or(I915_WEDGED, &error->reset_counter);
-		}
 
 		/*
 		 * Note: The wake_up also serves as a memory barrier so that
