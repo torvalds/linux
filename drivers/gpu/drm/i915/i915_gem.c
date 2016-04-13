@@ -4892,7 +4892,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	/* Double layer security blanket, see i915_gem_init() */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	if (dev_priv->ellc_size)
+	if (dev_priv->ellc_size && INTEL_GEN(dev_priv) < 9)
 		I915_WRITE(HSW_IDICR, I915_READ(HSW_IDICR) | IDIHASHMSK(0xf));
 
 	if (IS_HASWELL(dev))
