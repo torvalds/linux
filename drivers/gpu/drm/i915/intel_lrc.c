@@ -1626,7 +1626,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	intel_engine_init_hangcheck(engine);
 
-	return 0;
+	return intel_mocs_init_engine(engine);
 }
 
 static int gen8_init_render_ring(struct intel_engine_cs *engine)
