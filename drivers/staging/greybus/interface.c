@@ -381,6 +381,7 @@ struct device_type greybus_interface_type = {
 struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 					 u8 interface_id)
 {
+	struct gb_control *control;
 	struct gb_interface *intf;
 
 	intf = kzalloc(sizeof(*intf), GFP_KERNEL);
@@ -403,11 +404,12 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 	device_initialize(&intf->dev);
 	dev_set_name(&intf->dev, "%d-%d", hd->bus_id, interface_id);
 
-	intf->control = gb_control_create(intf);
-	if (!intf->control) {
+	control = gb_control_create(intf);
+	if (IS_ERR(control)) {
 		put_device(&intf->dev);
 		return NULL;
 	}
+	intf->control = control;
 
 	list_add(&intf->links, &hd->interfaces);
 

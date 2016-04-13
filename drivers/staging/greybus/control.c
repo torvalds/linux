@@ -257,22 +257,25 @@ struct device_type greybus_control_type = {
 
 struct gb_control *gb_control_create(struct gb_interface *intf)
 {
+	struct gb_connection *connection;
 	struct gb_control *control;
 
 	control = kzalloc(sizeof(*control), GFP_KERNEL);
 	if (!control)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	control->intf = intf;
 
-	control->connection = gb_connection_create_control(intf);
-	if (IS_ERR(control->connection)) {
+	connection = gb_connection_create_control(intf);
+	if (IS_ERR(connection)) {
 		dev_err(&intf->dev,
 				"failed to create control connection: %ld\n",
-				PTR_ERR(control->connection));
+				PTR_ERR(connection));
 		kfree(control);
-		return NULL;
+		return ERR_CAST(connection);
 	}
+
+	control->connection = connection;
 
 	control->dev.parent = &intf->dev;
 	control->dev.bus = &greybus_bus_type;
