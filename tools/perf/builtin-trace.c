@@ -2114,6 +2114,28 @@ out_put:
 	return err;
 }
 
+static int trace__fprintf_callchain(struct trace *trace, struct perf_evsel *evsel,
+				    struct perf_sample *sample)
+{
+	struct addr_location al;
+	/* TODO: user-configurable print_opts */
+	const unsigned int print_opts = EVSEL__PRINT_SYM |
+				        EVSEL__PRINT_DSO |
+				        EVSEL__PRINT_UNKNOWN_AS_ADDR;
+
+	if (sample->callchain == NULL)
+		return 0;
+
+	if (machine__resolve(trace->host, &al, sample) < 0) {
+		pr_err("Problem processing %s callchain, skipping...\n",
+			perf_evsel__name(evsel));
+		return 0;
+	}
+
+	return perf_evsel__fprintf_callchain(evsel, sample, &al, 38, print_opts,
+					     scripting_max_stack, trace->output);
+}
+
 static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 			   union perf_event *event __maybe_unused,
 			   struct perf_sample *sample)
@@ -2193,21 +2215,7 @@ signed_print:
 
 	fputc('\n', trace->output);
 
-	if (sample->callchain) {
-		struct addr_location al;
-		/* TODO: user-configurable print_opts */
-		const unsigned int print_opts = PRINT_IP_OPT_SYM |
-					        PRINT_IP_OPT_DSO |
-					        PRINT_IP_OPT_UNKNOWN_AS_ADDR;
-
-		if (machine__resolve(trace->host, &al, sample) < 0) {
-			pr_err("problem processing %d event, skipping it.\n",
-			       event->header.type);
-			goto out_put;
-		}
-		perf_evsel__fprintf_callchain(evsel, sample, &al, 38, print_opts,
-					      scripting_max_stack, trace->output);
-	}
+	trace__fprintf_callchain(trace, evsel, sample);
 out:
 	ttrace->entry_pending = false;
 	err = 0;
@@ -2355,6 +2363,9 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 	}
 
 	fprintf(trace->output, ")\n");
+
+	trace__fprintf_callchain(trace, evsel, sample);
+
 	return 0;
 }
 
@@ -3333,6 +3344,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		goto out;
 	}
 
+	err = -1;
+
 	if (trace.trace_pgfaults) {
 		trace.opts.sample_address = true;
 		trace.opts.sample_time = true;
@@ -3355,6 +3368,11 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	    trace.evlist->nr_entries == 0 /* Was --events used? */) {
 		pr_err("Please specify something to trace.\n");
 		return -1;
+	}
+
+	if (!trace.trace_syscalls && ev_qualifier_str) {
+		pr_err("The -e option can't be used with --no-syscalls.\n");
+		goto out;
 	}
 
 	if (output_name != NULL) {

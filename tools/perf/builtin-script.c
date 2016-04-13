@@ -317,19 +317,19 @@ static void set_print_ip_opts(struct perf_event_attr *attr)
 
 	output[type].print_ip_opts = 0;
 	if (PRINT_FIELD(IP))
-		output[type].print_ip_opts |= PRINT_IP_OPT_IP;
+		output[type].print_ip_opts |= EVSEL__PRINT_IP;
 
 	if (PRINT_FIELD(SYM))
-		output[type].print_ip_opts |= PRINT_IP_OPT_SYM;
+		output[type].print_ip_opts |= EVSEL__PRINT_SYM;
 
 	if (PRINT_FIELD(DSO))
-		output[type].print_ip_opts |= PRINT_IP_OPT_DSO;
+		output[type].print_ip_opts |= EVSEL__PRINT_DSO;
 
 	if (PRINT_FIELD(SYMOFFSET))
-		output[type].print_ip_opts |= PRINT_IP_OPT_SYMOFFSET;
+		output[type].print_ip_opts |= EVSEL__PRINT_SYMOFFSET;
 
 	if (PRINT_FIELD(SRCLINE))
-		output[type].print_ip_opts |= PRINT_IP_OPT_SRCLINE;
+		output[type].print_ip_opts |= EVSEL__PRINT_SRCLINE;
 }
 
 /*
@@ -574,9 +574,9 @@ static void print_sample_bts(struct perf_sample *sample,
 			printf("\n");
 		} else {
 			printf(" ");
-			if (print_opts & PRINT_IP_OPT_SRCLINE) {
+			if (print_opts & EVSEL__PRINT_SRCLINE) {
 				print_srcline_last = true;
-				print_opts &= ~PRINT_IP_OPT_SRCLINE;
+				print_opts &= ~EVSEL__PRINT_SRCLINE;
 			}
 		}
 		perf_evsel__fprintf_sym(evsel, sample, al, 0, print_opts,
