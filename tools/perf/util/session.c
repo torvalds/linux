@@ -1836,7 +1836,11 @@ out:
 out_err:
 	ui_progress__finish();
 	perf_session__warn_about_errors(session);
-	ordered_events__free(&session->ordered_events);
+	/*
+	 * We may switching perf.data output, make ordered_events
+	 * reusable.
+	 */
+	ordered_events__reinit(&session->ordered_events);
 	auxtrace__free_events(session);
 	session->one_mmap = false;
 	return err;
