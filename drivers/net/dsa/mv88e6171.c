@@ -24,7 +24,8 @@ static const struct mv88e6xxx_switch_id mv88e6171_table[] = {
 	{ PORT_SWITCH_ID_6351, "Marvell 88E6351" },
 };
 
-static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
+static char *mv88e6171_probe(struct device *dsa_dev, struct device *host_dev,
+			     int sw_addr)
 {
 	return mv88e6xxx_lookup_name(host_dev, sw_addr, mv88e6171_table,
 				     ARRAY_SIZE(mv88e6171_table));

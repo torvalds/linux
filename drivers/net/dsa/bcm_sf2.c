@@ -135,7 +135,8 @@ static int bcm_sf2_sw_get_sset_count(struct dsa_switch *ds)
 	return BCM_SF2_STATS_SIZE;
 }
 
-static char *bcm_sf2_sw_probe(struct device *host_dev, int sw_addr)
+static char *bcm_sf2_sw_probe(struct device *dsa_dev, struct device *host_dev,
+			      int sw_addr)
 {
 	return "Broadcom Starfighter 2";
 }

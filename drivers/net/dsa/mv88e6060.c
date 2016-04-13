@@ -57,7 +57,8 @@ static int reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 			return __ret;				\
 	})
 
-static char *mv88e6060_probe(struct device *host_dev, int sw_addr)
+static char *mv88e6060_probe(struct device *dsa_dev, struct device *host_dev,
+			     int sw_addr)
 {
 	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
 	int ret;
