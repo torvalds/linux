@@ -6882,7 +6882,7 @@ enum skl_disp_power_wells {
 
 #define  HSW_IDICR				_MMIO(0x9008)
 #define    IDIHASHMSK(x)			(((x) & 0x3f) << 16)
-#define  HSW_EDRAM_PRESENT			_MMIO(0x120010)
+#define  HSW_EDRAM_CAP				_MMIO(0x120010)
 #define    EDRAM_ENABLED			0x1
 
 #define GEN6_UCGCTL1				_MMIO(0x9400)

@@ -315,21 +315,36 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void intel_uncore_ellc_detect(struct drm_device *dev)
+u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	if (!HAS_EDRAM(dev_priv))
+		return 0;
 
-	if ((IS_HASWELL(dev) || IS_BROADWELL(dev) ||
-	     INTEL_INFO(dev)->gen >= 9) &&
-	    (__raw_i915_read32(dev_priv, HSW_EDRAM_PRESENT) & EDRAM_ENABLED)) {
-		/* The docs do not explain exactly how the calculation can be
-		 * made. It is somewhat guessable, but for now, it's always
-		 * 128MB.
-		 * NB: We can't write IDICR yet because we do not have gt funcs
+	/* The docs do not explain exactly how the calculation can be
+	 * made. It is somewhat guessable, but for now, it's always
+	 * 128MB.
+	 */
+
+	return 128 * 1024 * 1024;
+}
+
+static void intel_uncore_edram_detect(struct drm_i915_private *dev_priv)
+{
+	if (IS_HASWELL(dev_priv) ||
+	    IS_BROADWELL(dev_priv) ||
+	    INTEL_GEN(dev_priv) >= 9) {
+		dev_priv->edram_cap = __raw_i915_read32(dev_priv,
+							HSW_EDRAM_CAP);
+
+		/* NB: We can't write IDICR yet because we do not have gt funcs
 		 * set up */
-		dev_priv->ellc_size = 128;
-		DRM_INFO("Found %zuMB of eLLC\n", dev_priv->ellc_size);
+	} else {
+		dev_priv->edram_cap = 0;
 	}
+
+	if (HAS_EDRAM(dev_priv))
+		DRM_INFO("Found %lluMB of eDRAM\n",
+			 intel_uncore_edram_size(dev_priv) / (1024 * 1024));
 }
 
 static bool
@@ -1301,7 +1316,7 @@ void intel_uncore_init(struct drm_device *dev)
 
 	i915_check_vgpu(dev);
 
-	intel_uncore_ellc_detect(dev);
+	intel_uncore_edram_detect(dev_priv);
 	intel_uncore_fw_domains_init(dev);
 	__intel_uncore_early_sanitize(dev, false);
 

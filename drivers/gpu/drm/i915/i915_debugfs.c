@@ -2404,10 +2404,11 @@ static int i915_llc(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	const bool edram = INTEL_GEN(dev_priv) > 8;
 
-	/* Size calculation for LLC is a bit of a pain. Ignore for now. */
 	seq_printf(m, "LLC: %s\n", yesno(HAS_LLC(dev)));
-	seq_printf(m, "eLLC: %zuMB\n", dev_priv->ellc_size);
+	seq_printf(m, "%s: %lluMB\n", edram ? "eDRAM" : "eLLC",
+		   intel_uncore_edram_size(dev_priv)/1024/1024);
 
 	return 0;
 }

@@ -3172,7 +3172,8 @@ int i915_ggtt_init_hw(struct drm_device *dev)
 	} else if (INTEL_INFO(dev)->gen < 8) {
 		ggtt->probe = gen6_gmch_probe;
 		ggtt->base.cleanup = gen6_gmch_remove;
-		if (IS_HASWELL(dev) && dev_priv->ellc_size)
+
+		if (HAS_EDRAM(dev))
 			ggtt->base.pte_encode = iris_pte_encode;
 		else if (IS_HASWELL(dev))
 			ggtt->base.pte_encode = hsw_pte_encode;

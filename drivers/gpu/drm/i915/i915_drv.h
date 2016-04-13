@@ -1873,7 +1873,7 @@ struct drm_i915_private {
 	struct intel_l3_parity l3_parity;
 
 	/* Cannot be determined by PCIID. You must always read a register. */
-	size_t ellc_size;
+	u32 edram_cap;
 
 	/* gen6+ rps state */
 	struct intel_gen6_power_mgmt rps;
@@ -2624,8 +2624,9 @@ struct drm_i915_cmd_table {
 #define HAS_VEBOX(dev)		(INTEL_INFO(dev)->ring_mask & VEBOX_RING)
 #define HAS_LLC(dev)		(INTEL_INFO(dev)->has_llc)
 #define HAS_SNOOP(dev)		(INTEL_INFO(dev)->has_snoop)
+#define HAS_EDRAM(dev)		(__I915__(dev)->edram_cap & EDRAM_ENABLED)
 #define HAS_WT(dev)		((IS_HASWELL(dev) || IS_BROADWELL(dev)) && \
-				 __I915__(dev)->ellc_size)
+				 HAS_EDRAM(dev))
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
@@ -2803,6 +2804,8 @@ void intel_uncore_forcewake_get__locked(struct drm_i915_private *dev_priv,
 					enum forcewake_domains domains);
 void intel_uncore_forcewake_put__locked(struct drm_i915_private *dev_priv,
 					enum forcewake_domains domains);
+u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv);
+
 void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
 static inline bool intel_vgpu_active(struct drm_device *dev)
 {
