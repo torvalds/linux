@@ -977,6 +977,27 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 	return 0;
 }
 
+#ifndef __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+static int stage2_ptep_test_and_clear_young(pte_t *pte)
+{
+	if (pte_young(*pte)) {
+		*pte = pte_mkold(*pte);
+		return 1;
+	}
+	return 0;
+}
+#else
+static int stage2_ptep_test_and_clear_young(pte_t *pte)
+{
+	return __ptep_test_and_clear_young(pte);
+}
+#endif
+
+static int stage2_pmdp_test_and_clear_young(pmd_t *pmd)
+{
+	return stage2_ptep_test_and_clear_young((pte_t *)pmd);
+}
+
 /**
  * kvm_phys_addr_ioremap - map a device range to guest IPA
  *
@@ -1000,7 +1021,7 @@ int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
 		pte_t pte = pfn_pte(pfn, PAGE_S2_DEVICE);
 
 		if (writable)
-			kvm_set_s2pte_writable(&pte);
+			pte = kvm_s2pte_mkwrite(pte);
 
 		ret = mmu_topup_memory_cache(&cache, KVM_MMU_CACHE_MIN_PAGES,
 						KVM_NR_MEM_OBJS);
@@ -1342,7 +1363,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		pmd_t new_pmd = pfn_pmd(pfn, mem_type);
 		new_pmd = pmd_mkhuge(new_pmd);
 		if (writable) {
-			kvm_set_s2pmd_writable(&new_pmd);
+			new_pmd = kvm_s2pmd_mkwrite(new_pmd);
 			kvm_set_pfn_dirty(pfn);
 		}
 		coherent_cache_guest_page(vcpu, pfn, PMD_SIZE, fault_ipa_uncached);
@@ -1351,7 +1372,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		pte_t new_pte = pfn_pte(pfn, mem_type);
 
 		if (writable) {
-			kvm_set_s2pte_writable(&new_pte);
+			new_pte = kvm_s2pte_mkwrite(new_pte);
 			kvm_set_pfn_dirty(pfn);
 			mark_page_dirty(kvm, gfn);
 		}
@@ -1370,6 +1391,8 @@ out_unlock:
  * Resolve the access fault by making the page young again.
  * Note that because the faulting entry is guaranteed not to be
  * cached in the TLB, we don't need to invalidate anything.
+ * Only the HW Access Flag updates are supported for Stage 2 (no DBM),
+ * so there is no need for atomic (pte|pmd)_mkyoung operations.
  */
 static void handle_access_fault(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
 {
@@ -1610,25 +1633,14 @@ static int kvm_age_hva_handler(struct kvm *kvm, gpa_t gpa, void *data)
 	if (!pmd || pmd_none(*pmd))	/* Nothing there */
 		return 0;
 
-	if (pmd_thp_or_huge(*pmd)) {	/* THP, HugeTLB */
-		if (pmd_young(*pmd)) {
-			*pmd = pmd_mkold(*pmd);
-			return 1;
-		}
-
-		return 0;
-	}
+	if (pmd_thp_or_huge(*pmd))	/* THP, HugeTLB */
+		return stage2_pmdp_test_and_clear_young(pmd);
 
 	pte = pte_offset_kernel(pmd, gpa);
 	if (pte_none(*pte))
 		return 0;
 
-	if (pte_young(*pte)) {
-		*pte = pte_mkold(*pte);	/* Just a page... */
-		return 1;
-	}
-
-	return 0;
+	return stage2_ptep_test_and_clear_young(pte);
 }
 
 static int kvm_test_age_hva_handler(struct kvm *kvm, gpa_t gpa, void *data)

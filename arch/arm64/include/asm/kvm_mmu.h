@@ -111,19 +111,32 @@ static inline void kvm_clean_pmd_entry(pmd_t *pmd) {}
 static inline void kvm_clean_pte(pte_t *pte) {}
 static inline void kvm_clean_pte_entry(pte_t *pte) {}
 
-static inline void kvm_set_s2pte_writable(pte_t *pte)
+static inline pte_t kvm_s2pte_mkwrite(pte_t pte)
 {
-	pte_val(*pte) |= PTE_S2_RDWR;
+	pte_val(pte) |= PTE_S2_RDWR;
+	return pte;
 }
 
-static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
+static inline pmd_t kvm_s2pmd_mkwrite(pmd_t pmd)
 {
-	pmd_val(*pmd) |= PMD_S2_RDWR;
+	pmd_val(pmd) |= PMD_S2_RDWR;
+	return pmd;
 }
 
 static inline void kvm_set_s2pte_readonly(pte_t *pte)
 {
-	pte_val(*pte) = (pte_val(*pte) & ~PTE_S2_RDWR) | PTE_S2_RDONLY;
+	pteval_t pteval;
+	unsigned long tmp;
+
+	asm volatile("//	kvm_set_s2pte_readonly\n"
+	"	prfm	pstl1strm, %2\n"
+	"1:	ldxr	%0, %2\n"
+	"	and	%0, %0, %3		// clear PTE_S2_RDWR\n"
+	"	orr	%0, %0, %4		// set PTE_S2_RDONLY\n"
+	"	stxr	%w1, %0, %2\n"
+	"	cbnz	%w1, 1b\n"
+	: "=&r" (pteval), "=&r" (tmp), "+Q" (pte_val(*pte))
+	: "L" (~PTE_S2_RDWR), "L" (PTE_S2_RDONLY));
 }
 
 static inline bool kvm_s2pte_readonly(pte_t *pte)
@@ -133,12 +146,12 @@ static inline bool kvm_s2pte_readonly(pte_t *pte)
 
 static inline void kvm_set_s2pmd_readonly(pmd_t *pmd)
 {
-	pmd_val(*pmd) = (pmd_val(*pmd) & ~PMD_S2_RDWR) | PMD_S2_RDONLY;
+	kvm_set_s2pte_readonly((pte_t *)pmd);
 }
 
 static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
 {
-	return (pmd_val(*pmd) & PMD_S2_RDWR) == PMD_S2_RDONLY;
+	return kvm_s2pte_readonly((pte_t *)pmd);
 }
 
 static inline bool kvm_page_empty(void *ptr)

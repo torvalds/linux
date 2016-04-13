@@ -106,14 +106,16 @@ static inline void kvm_clean_pte(pte_t *pte)
 	clean_pte_table(pte);
 }
 
-static inline void kvm_set_s2pte_writable(pte_t *pte)
+static inline pte_t kvm_s2pte_mkwrite(pte_t pte)
 {
-	pte_val(*pte) |= L_PTE_S2_RDWR;
+	pte_val(pte) |= L_PTE_S2_RDWR;
+	return pte;
 }
 
-static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
+static inline pmd_t kvm_s2pmd_mkwrite(pmd_t pmd)
 {
-	pmd_val(*pmd) |= L_PMD_S2_RDWR;
+	pmd_val(pmd) |= L_PMD_S2_RDWR;
+	return pmd;
 }
 
 static inline void kvm_set_s2pte_readonly(pte_t *pte)
