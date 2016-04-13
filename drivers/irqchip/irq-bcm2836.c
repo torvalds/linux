@@ -195,7 +195,7 @@ static void bcm2836_arm_irqchip_send_ipi(const struct cpumask *mask,
 	 * Ensure that stores to normal memory are visible to the
 	 * other CPUs before issuing the IPI.
 	 */
-	dsb();
+	smp_wmb();
 
 	for_each_cpu(cpu, mask)	{
 		writel(1 << ipi, mailbox0_base + 16 * cpu);
