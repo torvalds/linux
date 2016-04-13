@@ -253,7 +253,7 @@ bcm2836_arm_irqchip_smp_init(void)
 	/* Unmask IPIs to the boot CPU. */
 	bcm2836_arm_irqchip_cpu_notify(&bcm2836_arm_irqchip_cpu_notifier,
 				       CPU_STARTING,
-				       (void *)smp_processor_id());
+				       (void *)(uintptr_t)smp_processor_id());
 	register_cpu_notifier(&bcm2836_arm_irqchip_cpu_notifier);
 
 	set_smp_cross_call(bcm2836_arm_irqchip_send_ipi);
