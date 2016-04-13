@@ -234,16 +234,6 @@ amdgpu_atombios_get_hpd_info_from_gpio(struct amdgpu_device *adev,
 	return hpd;
 }
 
-static bool amdgpu_atombios_apply_quirks(struct amdgpu_device *adev,
-					 uint32_t supported_device,
-					 int *connector_type,
-					 struct amdgpu_i2c_bus_rec *i2c_bus,
-					 uint16_t *line_mux,
-					 struct amdgpu_hpd *hpd)
-{
-	return true;
-}
-
 static const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_DVII,
@@ -513,11 +503,6 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 			ddc_bus.hpd = hpd.hpd;
 
 			conn_id = le16_to_cpu(path->usConnObjectId);
-
-			if (!amdgpu_atombios_apply_quirks
-			    (adev, le16_to_cpu(path->usDeviceTag), &connector_type,
-			     &ddc_bus, &conn_id, &hpd))
-				continue;
 
 			amdgpu_display_add_connector(adev,
 						      conn_id,
