@@ -582,7 +582,7 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 	iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 		    CSR_RESET_LINK_PWR_MGMT_DISABLED);
-	msleep(1);
+	usleep_range(1000, 2000);
 
 	for (iter = 0; iter < 10; iter++) {
 		/* If HW is not ready, prepare the conditions to check again */
@@ -1945,7 +1945,7 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 				      "WR pointer moved while flushing %d -> %d\n",
 				      wr_ptr, write_ptr))
 				return -ETIMEDOUT;
-			msleep(1);
+			usleep_range(1000, 2000);
 		}
 
 		if (q->read_ptr != q->write_ptr) {
