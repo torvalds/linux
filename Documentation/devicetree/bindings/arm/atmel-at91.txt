@@ -41,6 +41,10 @@ compatible: must be one of:
        - "atmel,sama5d43"
        - "atmel,sama5d44"
 
+Chipid required properties:
+- compatible: Should be "atmel,sama5d2-chipid"
+- reg : Should contain registers location and length
+
 PIT Timer required properties:
 - compatible: Should be "atmel,at91sam9260-pit"
 - reg: Should contain registers location and length
