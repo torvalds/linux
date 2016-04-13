@@ -19,6 +19,7 @@
  */
 
 #include "sdcardfs.h"
+#include <linux/fs_struct.h>
 
 /* Do not directly use this function. Use OVERRIDE_CRED() instead. */
 const struct cred * override_fsids(struct sdcardfs_sb_info* sbi)
@@ -56,6 +57,8 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 	struct dentry *lower_parent_dentry = NULL;
 	struct path lower_path;
 	const struct cred *saved_cred = NULL;
+	struct fs_struct *saved_fs;
+	struct fs_struct *copied_fs;
 
 	if(!check_caller_access_to_name(dir, dentry->d_name.name)) {
 		printk(KERN_INFO "%s: need to check the caller's gid in packages.list\n"
@@ -74,6 +77,16 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 
 	/* set last 16bytes of mode field to 0664 */
 	mode = (mode & S_IFMT) | 00664;
+
+	/* temporarily change umask for lower fs write */
+	saved_fs = current->fs;
+	copied_fs = copy_fs_struct(current->fs);
+	if (!copied_fs) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
+	current->fs = copied_fs;
+	current->fs->umask = 0;
 	err = vfs_create(d_inode(lower_parent_dentry), lower_dentry, mode, want_excl);
 	if (err)
 		goto out;
@@ -85,6 +98,9 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 	fsstack_copy_inode_size(dir, d_inode(lower_parent_dentry));
 
 out:
+	current->fs = saved_fs;
+	free_fs_struct(copied_fs);
+out_unlock:
 	unlock_dir(lower_parent_dentry);
 	sdcardfs_put_lower_path(dentry, &lower_path);
 	REVERT_CRED(saved_cred);
@@ -245,11 +261,9 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dentry->d_sb);
 	const struct cred *saved_cred = NULL;
 	struct sdcardfs_inode_info *pi = SDCARDFS_I(dir);
-	char *page_buf;
-	char *nomedia_dir_name;
-	char *nomedia_fullpath;
-	int fullpath_namelen;
 	int touch_err = 0;
+	struct fs_struct *saved_fs;
+	struct fs_struct *copied_fs;
 
 	if(!check_caller_access_to_name(dir, dentry->d_name.name)) {
 		printk(KERN_INFO "%s: need to check the caller's gid in packages.list\n"
@@ -276,6 +290,16 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 
 	/* set last 16bytes of mode field to 0775 */
 	mode = (mode & S_IFMT) | 00775;
+
+	/* temporarily change umask for lower fs write */
+	saved_fs = current->fs;
+	copied_fs = copy_fs_struct(current->fs);
+	if (!copied_fs) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
+	current->fs = copied_fs;
+	current->fs->umask = 0;
 	err = vfs_mkdir(d_inode(lower_parent_dentry), lower_dentry, mode);
 
 	if (err)
@@ -316,42 +340,18 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	/* When creating /Android/data and /Android/obb, mark them as .nomedia */
 	if (make_nomedia_in_obb ||
 		((pi->perm == PERM_ANDROID) && (!strcasecmp(dentry->d_name.name, "data")))) {
-
-		page_buf = (char *)__get_free_page(GFP_KERNEL);
-		if (!page_buf) {
-			printk(KERN_ERR "sdcardfs: failed to allocate page buf\n");
-			goto out;
-		}
-
-		nomedia_dir_name = d_absolute_path(&lower_path, page_buf, PAGE_SIZE);
-		if (IS_ERR(nomedia_dir_name)) {
-			free_page((unsigned long)page_buf);
-			printk(KERN_ERR "sdcardfs: failed to get .nomedia dir name\n");
-			goto out;
-		}
-
-		fullpath_namelen = page_buf + PAGE_SIZE - nomedia_dir_name - 1;
-		fullpath_namelen += strlen("/.nomedia");
-		nomedia_fullpath = kzalloc(fullpath_namelen + 1, GFP_KERNEL);
-		if (!nomedia_fullpath) {
-			free_page((unsigned long)page_buf);
-			printk(KERN_ERR "sdcardfs: failed to allocate .nomedia fullpath buf\n");
-			goto out;
-		}
-
-		strcpy(nomedia_fullpath, nomedia_dir_name);
-		free_page((unsigned long)page_buf);
-		strcat(nomedia_fullpath, "/.nomedia");
-		touch_err = touch(nomedia_fullpath, 0664);
+		set_fs_pwd(current->fs, &lower_path);
+		touch_err = touch(".nomedia", 0664);
 		if (touch_err) {
-			printk(KERN_ERR "sdcardfs: failed to touch(%s): %d\n",
-							nomedia_fullpath, touch_err);
-			kfree(nomedia_fullpath);
+			printk(KERN_ERR "sdcardfs: failed to create .nomedia in %s: %d\n",
+							lower_path.dentry->d_name.name, touch_err);
 			goto out;
 		}
-		kfree(nomedia_fullpath);
 	}
 out:
+	current->fs = saved_fs;
+	free_fs_struct(copied_fs);
+out_unlock:
 	unlock_dir(lower_parent_dentry);
 	sdcardfs_put_lower_path(dentry, &lower_path);
 out_revert:
