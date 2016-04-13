@@ -426,8 +426,9 @@ void gb_interface_deactivate(struct gb_interface *intf)
 }
 
 /*
- * Enable an interface by enabling its control connection and fetching the
- * manifest and other information over it.
+ * Enable an interface by enabling its control connection, fetching the
+ * manifest and other information over it, and finally registering its child
+ * devices.
  */
 int gb_interface_enable(struct gb_interface *intf)
 {
@@ -499,6 +500,19 @@ int gb_interface_enable(struct gb_interface *intf)
 	if (ret)
 		goto err_destroy_bundles;
 
+	/* Register the control device and any bundles */
+	ret = gb_control_add(intf->control);
+	if (ret)
+		goto err_destroy_bundles;
+
+	list_for_each_entry_safe_reverse(bundle, tmp, &intf->bundles, links) {
+		ret = gb_bundle_add(bundle);
+		if (ret) {
+			gb_bundle_destroy(bundle);
+			continue;
+		}
+	}
+
 	kfree(manifest);
 
 	intf->enabled = true;
@@ -546,10 +560,9 @@ void gb_interface_disable(struct gb_interface *intf)
 	intf->enabled = false;
 }
 
-/* Register an interface and its bundles. */
+/* Register an interface. */
 int gb_interface_add(struct gb_interface *intf)
 {
-	struct gb_bundle *bundle, *tmp;
 	int ret;
 
 	ret = device_add(&intf->dev);
@@ -562,17 +575,6 @@ int gb_interface_add(struct gb_interface *intf)
 		 intf->vendor_id, intf->product_id);
 	dev_info(&intf->dev, "DDBL1 Manufacturer=0x%08x, Product=0x%08x\n",
 		 intf->ddbl1_manufacturer_id, intf->ddbl1_product_id);
-
-	/* NOTE: ignoring errors for now */
-	gb_control_add(intf->control);
-
-	list_for_each_entry_safe_reverse(bundle, tmp, &intf->bundles, links) {
-		ret = gb_bundle_add(bundle);
-		if (ret) {
-			gb_bundle_destroy(bundle);
-			continue;
-		}
-	}
 
 	return 0;
 }

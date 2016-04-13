@@ -452,8 +452,6 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	struct gb_host_device *hd = connection->hd;
 	struct gb_interface *intf;
 	u8 intf_id;
-	u32 vendor_id = 0;
-	u32 product_id = 0;
 	int ret;
 
 	/* The request message size has already been verified. */
@@ -464,27 +462,15 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 
 	intf = gb_interface_find(hd, intf_id);
 	if (intf) {
-		/* HACK: Save Ara VID/PID for ES2 hack below */
-		vendor_id = intf->vendor_id;
-		product_id = intf->product_id;
-
-		/*
-		 * We have received a hotplug request for an interface that
-		 * already exists.
-		 *
-		 * This can happen in cases like:
-		 * - bootrom loading the firmware image and booting into that,
-		 *   which only generates a hotplug event. i.e. no hot-unplug
-		 *   event.
-		 * - Or the firmware on the module crashed and sent hotplug
-		 *   request again to the SVC, which got propagated to AP.
-		 *
-		 * Remove the interface and add it again, and let user know
-		 * about this with a print message.
-		 */
-		dev_info(&svc->dev, "removing interface %u to add it again\n",
+		dev_info(&svc->dev, "mode switch detected on interface %u\n",
 				intf_id);
-		gb_svc_intf_remove(svc, intf);
+
+		/* Mark as disconnected to prevent I/O during disable. */
+		intf->disconnected = true;
+		gb_interface_disable(intf);
+		intf->disconnected = false;
+
+		goto enable_interface;
 	}
 
 	intf = gb_interface_create(hd, intf_id);
@@ -498,19 +484,15 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	if (ret) {
 		dev_err(&svc->dev, "failed to activate interface %u: %d\n",
 				intf_id, ret);
-		goto err_interface_add;
+		gb_interface_add(intf);
+		return;
 	}
 
-	/*
-	 * HACK: Use Ara VID/PID from earlier boot stage.
-	 *
-	 * FIXME: remove quirk with ES2 support
-	 */
-	if (intf->quirks & GB_INTERFACE_QUIRK_NO_ARA_IDS) {
-		intf->vendor_id = vendor_id;
-		intf->product_id = product_id;
-	}
+	ret = gb_interface_add(intf);
+	if (ret)
+		goto err_interface_deactivate;
 
+enable_interface:
 	ret = gb_interface_enable(intf);
 	if (ret) {
 		dev_err(&svc->dev, "failed to enable interface %u: %d\n",
@@ -518,19 +500,10 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 		goto err_interface_deactivate;
 	}
 
-	ret = gb_interface_add(intf);
-	if (ret) {
-		gb_interface_disable(intf);
-		gb_interface_deactivate(intf);
-		return;
-	}
-
 	return;
 
 err_interface_deactivate:
 	gb_interface_deactivate(intf);
-err_interface_add:
-	gb_interface_add(intf);
 }
 
 static void gb_svc_process_intf_hot_unplug(struct gb_operation *operation)
