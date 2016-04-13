@@ -27,7 +27,7 @@ static int gbaudio_request_jack(struct gbaudio_module_info *module,
 	int report, button_status;
 
 	dev_warn(module->dev, "Jack Event received: type: %u, event: %u\n",
-		 req->widget_type, req->event);
+		 req->jack_attribute, req->event);
 
 	mutex_lock(&module->lock);
 	if (req->event == GB_AUDIO_JACK_EVENT_REMOVAL) {
@@ -43,18 +43,9 @@ static int gbaudio_request_jack(struct gbaudio_module_info *module,
 		return 0;
 	}
 
-	report &= ~GBCODEC_JACK_MASK;
 	/* currently supports Headphone, Headset & Lineout only */
-	if (req->widget_type && GB_AUDIO_WIDGET_TYPE_HP)
-		report |=  SND_JACK_HEADPHONE & GBCODEC_JACK_MASK;
-
-	if (req->widget_type && GB_AUDIO_WIDGET_TYPE_MIC)
-		report = SND_JACK_MICROPHONE & GBCODEC_JACK_MASK;
-
-	if (req->widget_type && GB_AUDIO_WIDGET_TYPE_LINE)
-		report = (report & GBCODEC_JACK_MASK) |
-			SND_JACK_LINEOUT | SND_JACK_LINEIN;
-
+	report &= ~GBCODEC_JACK_MASK;
+	report |= req->jack_attribute & GBCODEC_JACK_MASK;
 	if (module->jack_type)
 		dev_warn(module->dev, "Modifying jack from %d to %d\n",
 			 module->jack_type, report);
