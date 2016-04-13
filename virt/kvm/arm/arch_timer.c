@@ -333,7 +333,6 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
 			 const struct kvm_irq_level *irq)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
-	struct irq_phys_map *map;
 	struct irq_desc *desc;
 	struct irq_data *data;
 	int phys_irq;
@@ -374,11 +373,7 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
 	 * Tell the VGIC that the virtual interrupt is tied to a
 	 * physical interrupt. We do that once per VCPU.
 	 */
-	map = kvm_vgic_map_phys_irq(vcpu, irq->irq, phys_irq);
-	if (WARN_ON(IS_ERR(map)))
-		return PTR_ERR(map);
-
-	return 0;
+	return kvm_vgic_map_phys_irq(vcpu, irq->irq, phys_irq);
 }
 
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
