@@ -2501,7 +2501,7 @@ static void i915_reset_and_wakeup(struct drm_device *dev)
 	 * the reset in-progress bit is only ever set by code outside of this
 	 * work we don't need to worry about any other races.
 	 */
-	if (i915_reset_in_progress(error) && !i915_terminally_wedged(error)) {
+	if (i915_reset_in_progress_or_wedged(error) && !i915_terminally_wedged(error)) {
 		DRM_DEBUG_DRIVER("resetting chip\n");
 		kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE,
 				   reset_event);

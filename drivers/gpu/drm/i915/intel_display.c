@@ -3200,10 +3200,12 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	unsigned reset_counter;
 	bool pending;
 
-	if (i915_reset_in_progress(&dev_priv->gpu_error) ||
-	    intel_crtc->reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
+	reset_counter = i915_reset_counter(&dev_priv->gpu_error);
+	if (intel_crtc->reset_counter != reset_counter ||
+	    __i915_reset_in_progress_or_wedged(reset_counter))
 		return false;
 
 	spin_lock_irq(&dev->event_lock);
@@ -10908,9 +10910,11 @@ static bool page_flip_finished(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned reset_counter;
 
-	if (i915_reset_in_progress(&dev_priv->gpu_error) ||
-	    crtc->reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
+	reset_counter = i915_reset_counter(&dev_priv->gpu_error);
+	if (crtc->reset_counter != reset_counter ||
+	    __i915_reset_in_progress_or_wedged(reset_counter))
 		return true;
 
 	/*
@@ -11573,7 +11577,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup;
 
 	atomic_inc(&intel_crtc->unpin_work_count);
-	intel_crtc->reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
+	intel_crtc->reset_counter = i915_reset_counter(&dev_priv->gpu_error);
 
 	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
 		work->flip_count = I915_READ(PIPE_FLIPCOUNT_G4X(pipe)) + 1;
@@ -13419,10 +13423,10 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 		return ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
-	if (!ret && !async && !i915_reset_in_progress(&dev_priv->gpu_error)) {
+	if (!ret && !async && !i915_reset_in_progress_or_wedged(&dev_priv->gpu_error)) {
 		u32 reset_counter;
 
-		reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
+		reset_counter = i915_reset_counter(&dev_priv->gpu_error);
 		mutex_unlock(&dev->struct_mutex);
 
 		for_each_plane_in_state(state, plane, plane_state, i) {

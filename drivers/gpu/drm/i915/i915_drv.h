@@ -3093,20 +3093,44 @@ void i915_gem_retire_requests_ring(struct intel_engine_cs *engine);
 int __must_check i915_gem_check_wedge(struct i915_gpu_error *error,
 				      bool interruptible);
 
+static inline u32 i915_reset_counter(struct i915_gpu_error *error)
+{
+	return atomic_read(&error->reset_counter);
+}
+
+static inline bool __i915_reset_in_progress(u32 reset)
+{
+	return unlikely(reset & I915_RESET_IN_PROGRESS_FLAG);
+}
+
+static inline bool __i915_reset_in_progress_or_wedged(u32 reset)
+{
+	return unlikely(reset & (I915_RESET_IN_PROGRESS_FLAG | I915_WEDGED));
+}
+
+static inline bool __i915_terminally_wedged(u32 reset)
+{
+	return unlikely(reset & I915_WEDGED);
+}
+
 static inline bool i915_reset_in_progress(struct i915_gpu_error *error)
 {
-	return unlikely(atomic_read(&error->reset_counter)
-			& (I915_RESET_IN_PROGRESS_FLAG | I915_WEDGED));
+	return __i915_reset_in_progress(i915_reset_counter(error));
+}
+
+static inline bool i915_reset_in_progress_or_wedged(struct i915_gpu_error *error)
+{
+	return __i915_reset_in_progress_or_wedged(i915_reset_counter(error));
 }
 
 static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
 {
-	return atomic_read(&error->reset_counter) & I915_WEDGED;
+	return __i915_terminally_wedged(i915_reset_counter(error));
 }
 
 static inline u32 i915_reset_count(struct i915_gpu_error *error)
 {
-	return ((atomic_read(&error->reset_counter) & ~I915_WEDGED) + 1) / 2;
+	return ((i915_reset_counter(error) & ~I915_WEDGED) + 1) / 2;
 }
 
 static inline bool i915_stop_ring_allow_ban(struct drm_i915_private *dev_priv)

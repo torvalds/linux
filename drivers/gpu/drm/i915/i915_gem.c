@@ -83,7 +83,7 @@ i915_gem_wait_for_error(struct i915_gpu_error *error)
 {
 	int ret;
 
-#define EXIT_COND (!i915_reset_in_progress(error) || \
+#define EXIT_COND (!i915_reset_in_progress_or_wedged(error) || \
 		   i915_terminally_wedged(error))
 	if (EXIT_COND)
 		return 0;
@@ -1112,7 +1112,7 @@ int
 i915_gem_check_wedge(struct i915_gpu_error *error,
 		     bool interruptible)
 {
-	if (i915_reset_in_progress(error)) {
+	if (i915_reset_in_progress_or_wedged(error)) {
 		/* Non-interruptible callers can't handle -EAGAIN, hence return
 		 * -EIO unconditionally for these. */
 		if (!interruptible)
@@ -1299,7 +1299,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 
 		/* We need to check whether any gpu reset happened in between
 		 * the caller grabbing the seqno and now ... */
-		if (reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter)) {
+		if (reset_counter != i915_reset_counter(&dev_priv->gpu_error)) {
 			/* ... but upgrade the -EAGAIN to an -EIO if the gpu
 			 * is truely gone. */
 			ret = i915_gem_check_wedge(&dev_priv->gpu_error, interruptible);
@@ -1474,7 +1474,7 @@ i915_wait_request(struct drm_i915_gem_request *req)
 		return ret;
 
 	ret = __i915_wait_request(req,
-				  atomic_read(&dev_priv->gpu_error.reset_counter),
+				  i915_reset_counter(&dev_priv->gpu_error),
 				  interruptible, NULL, NULL);
 	if (ret)
 		return ret;
@@ -1563,7 +1563,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
+	reset_counter = i915_reset_counter(&dev_priv->gpu_error);
 
 	if (readonly) {
 		struct drm_i915_gem_request *req;
@@ -3179,7 +3179,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	}
 
 	drm_gem_object_unreference(&obj->base);
-	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
+	reset_counter = i915_reset_counter(&dev_priv->gpu_error);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		if (obj->last_read_req[i] == NULL)
@@ -3224,7 +3224,7 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	if (!i915_semaphore_is_enabled(obj->base.dev)) {
 		struct drm_i915_private *i915 = to_i915(obj->base.dev);
 		ret = __i915_wait_request(from_req,
-					  atomic_read(&i915->gpu_error.reset_counter),
+					  i915_reset_counter(&i915->gpu_error),
 					  i915->mm.interruptible,
 					  NULL,
 					  &i915->rps.semaphores);
@@ -4205,7 +4205,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 
 		target = request;
 	}
-	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
+	reset_counter = i915_reset_counter(&dev_priv->gpu_error);
 	if (target)
 		i915_gem_request_reference(target);
 	spin_unlock(&file_priv->mm.lock);
