@@ -196,6 +196,10 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 	 * sufficient, bump to 32 which makes Dell 4k monitors happier.
 	 */
 	for (retry = 0; retry < 32; retry++) {
+		if (err != 0 && err != -ETIMEDOUT) {
+			usleep_range(AUX_RETRY_INTERVAL,
+				     AUX_RETRY_INTERVAL + 100);
+		}
 
 		err = aux->transfer(aux, &msg);
 		if (err < 0) {
@@ -204,7 +208,6 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 
 			goto unlock;
 		}
-
 
 		switch (msg.reply & DP_AUX_NATIVE_REPLY_MASK) {
 		case DP_AUX_NATIVE_REPLY_ACK:
@@ -215,10 +218,6 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 		case DP_AUX_NATIVE_REPLY_NACK:
 			err = -EIO;
 			goto unlock;
-
-		case DP_AUX_NATIVE_REPLY_DEFER:
-			usleep_range(AUX_RETRY_INTERVAL, AUX_RETRY_INTERVAL + 100);
-			break;
 		}
 	}
 
