@@ -814,7 +814,7 @@ static int hvc_poll_get_char(struct tty_driver *driver, int line)
 
 	n = hp->ops->get_chars(hp->vtermno, &ch, 1);
 
-	if (n == 0)
+	if (n <= 0)
 		return NO_POLL_CHAR;
 
 	return ch;
