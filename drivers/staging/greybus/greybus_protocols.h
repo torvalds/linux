@@ -1922,7 +1922,7 @@ struct gb_audio_deactivate_rx_request {
 
 struct gb_audio_jack_event_request {
 	__u8	widget_id;
-	__u8	widget_type;
+	__u8	jack_attribute;
 	__u8	event;
 } __packed;
 
