@@ -537,6 +537,7 @@ void gb_interface_disable(struct gb_interface *intf)
 	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
 
+	gb_control_del(intf->control);
 	gb_control_disable(intf->control);
 }
 
@@ -556,6 +557,9 @@ int gb_interface_add(struct gb_interface *intf)
 		 intf->vendor_id, intf->product_id);
 	dev_info(&intf->dev, "DDBL1 Manufacturer=0x%08x, Product=0x%08x\n",
 		 intf->ddbl1_manufacturer_id, intf->ddbl1_product_id);
+
+	/* NOTE: ignoring errors for now */
+	gb_control_add(intf->control);
 
 	list_for_each_entry_safe_reverse(bundle, tmp, &intf->bundles, links) {
 		ret = gb_bundle_add(bundle);

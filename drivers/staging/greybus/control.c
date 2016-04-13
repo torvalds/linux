@@ -294,6 +294,27 @@ void gb_control_disable(struct gb_control *control)
 	gb_connection_disable(control->connection);
 }
 
+int gb_control_add(struct gb_control *control)
+{
+	int ret;
+
+	ret = device_add(&control->dev);
+	if (ret) {
+		dev_err(&control->dev,
+				"failed to register control device: %d\n",
+				ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+void gb_control_del(struct gb_control *control)
+{
+	if (device_is_registered(&control->dev))
+		device_del(&control->dev);
+}
+
 void gb_control_put(struct gb_control *control)
 {
 	put_device(&control->dev);
