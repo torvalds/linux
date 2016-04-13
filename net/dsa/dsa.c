@@ -402,7 +402,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	/*
 	 * Allocate and initialise switch state.
 	 */
-	ds = devm_kzalloc(parent, sizeof(*ds) + drv->priv_size, GFP_KERNEL);
+	ds = devm_kzalloc(parent, sizeof(*ds), GFP_KERNEL);
 	if (ds == NULL)
 		return ERR_PTR(-ENOMEM);
 

@@ -213,7 +213,6 @@ struct dsa_switch_driver {
 	struct list_head	list;
 
 	enum dsa_tag_protocol	tag_protocol;
-	int			priv_size;
 
 	/*
 	 * Probing and setup.
