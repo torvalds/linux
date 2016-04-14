@@ -3719,7 +3719,7 @@ static int rtl8xxxu_init_phy_regs(struct rtl8xxxu_priv *priv,
 
 static void rtl8723au_init_phy_bb(struct rtl8xxxu_priv *priv)
 {
-	u8 val8;
+	u8 val8, ldoa15, ldov12d, lpldo, ldohci12;
 	u16 val16;
 	u32 val32;
 
@@ -3761,6 +3761,13 @@ static void rtl8723au_init_phy_bb(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_highpa_table);
 	else
 		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_standard_table);
+
+	ldoa15 = LDOA15_ENABLE | LDOA15_OBUF;
+	ldov12d = LDOV12D_ENABLE | BIT(2) | (2 << LDOV12D_VADJ_SHIFT);
+	ldohci12 = 0x57;
+	lpldo = 1;
+	val32 = (lpldo << 24) | (ldohci12 << 16) | (ldov12d << 8) | ldoa15;
+	rtl8xxxu_write32(priv, REG_LDOA15_CTRL, val32);
 }
 
 static void rtl8723bu_init_phy_bb(struct rtl8xxxu_priv *priv)
@@ -3818,7 +3825,7 @@ static void rtl8192eu_init_phy_bb(struct rtl8xxxu_priv *priv)
  */
 static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 {
-	u8 val8, ldoa15, ldov12d, lpldo, ldohci12;
+	u8 val8;
 	u32 val32;
 
 	priv->fops->init_phy_bb(priv);
@@ -3891,17 +3898,6 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 		val32 |= ((val8 | (val8 << 6)) << 12);
 
 		rtl8xxxu_write32(priv, REG_MAC_PHY_CTRL, val32);
-	}
-
-	if (priv->rtl_chip != RTL8723B && priv->rtl_chip != RTL8192E) {
-		ldoa15 = LDOA15_ENABLE | LDOA15_OBUF;
-		ldov12d = LDOV12D_ENABLE | BIT(2) | (2 << LDOV12D_VADJ_SHIFT);
-		ldohci12 = 0x57;
-		lpldo = 1;
-		val32 = (lpldo << 24) | (ldohci12 << 16) |
-			(ldov12d << 8) | ldoa15;
-
-		rtl8xxxu_write32(priv, REG_LDOA15_CTRL, val32);
 	}
 
 	if (priv->rtl_chip == RTL8192E)
