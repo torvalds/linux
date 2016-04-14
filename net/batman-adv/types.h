@@ -1250,6 +1250,8 @@ struct batadv_forw_packet {
  * struct batadv_algo_ops - mesh algorithm callbacks
  * @list: list node for the batadv_algo_list
  * @name: name of the algorithm
+ * @bat_iface_activate: start routing mechanisms when hard-interface is brought
+ *  up
  * @bat_iface_enable: init routing info when hard-interface is enabled
  * @bat_iface_disable: de-init routing info when hard-interface is disabled
  * @bat_iface_update_mac: (re-)init mac addresses of the protocol information
@@ -1277,6 +1279,7 @@ struct batadv_forw_packet {
 struct batadv_algo_ops {
 	struct hlist_node list;
 	char *name;
+	void (*bat_iface_activate)(struct batadv_hard_iface *hard_iface);
 	int (*bat_iface_enable)(struct batadv_hard_iface *hard_iface);
 	void (*bat_iface_disable)(struct batadv_hard_iface *hard_iface);
 	void (*bat_iface_update_mac)(struct batadv_hard_iface *hard_iface);
