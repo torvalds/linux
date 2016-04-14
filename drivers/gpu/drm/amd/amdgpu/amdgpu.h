@@ -2034,6 +2034,7 @@ struct amdgpu_device {
 
 	/* tracking pinned memory */
 	u64 vram_pin_size;
+	u64 invisible_pin_size;
 	u64 gart_pin_size;
 
 	/* amdkfd interface */
