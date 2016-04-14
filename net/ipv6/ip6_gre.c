@@ -987,6 +987,8 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 				dev->mtu = rt->dst.dev->mtu - addend;
 				if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 					dev->mtu -= 8;
+				if (dev->type == ARPHRD_ETHER)
+					dev->mtu -= ETH_HLEN;
 
 				if (dev->mtu < IPV6_MIN_MTU)
 					dev->mtu = IPV6_MIN_MTU;
