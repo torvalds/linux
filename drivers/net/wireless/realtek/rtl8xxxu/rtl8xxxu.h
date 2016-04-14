@@ -49,6 +49,11 @@
 #define TX_PAGE_NUM_LO_PQ		0x02
 #define TX_PAGE_NUM_NORM_PQ		0x02
 
+#define TX_PAGE_NUM_PUBQ_8192E		0xe7
+#define TX_PAGE_NUM_HI_PQ_8192E		0x08
+#define TX_PAGE_NUM_LO_PQ_8192E		0x0c
+#define TX_PAGE_NUM_NORM_PQ_8192E	0x00
+
 #define RTL_FW_PAGE_SIZE		4096
 #define RTL8XXXU_FIRMWARE_POLL_MAX	1000
 
@@ -1304,4 +1309,8 @@ struct rtl8xxxu_fileops {
 	u32 adda_2t_path_on_a;
 	u32 adda_2t_path_on_b;
 	struct rtl8xxxu_reg8val *mactable;
+	u8 total_page_num;
+	u8 page_num_hi;
+	u8 page_num_lo;
+	u8 page_num_norm;
 };

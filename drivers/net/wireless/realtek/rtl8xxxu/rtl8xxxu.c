@@ -7439,6 +7439,60 @@ static void rtl8723bu_init_statistics(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32(priv, REG_OFDM0_FA_RSTC, val32);
 }
 
+static void rtl8xxxu_old_init_queue_reserved_page(struct rtl8xxxu_priv *priv)
+{
+	u8 val8;
+	u32 val32;
+
+	if (priv->ep_tx_normal_queue)
+		val8 = TX_PAGE_NUM_NORM_PQ;
+	else
+		val8 = 0;
+
+	rtl8xxxu_write8(priv, REG_RQPN_NPQ, val8);
+
+	val32 = (TX_PAGE_NUM_PUBQ << RQPN_PUB_PQ_SHIFT) | RQPN_LOAD;
+
+	if (priv->ep_tx_high_queue)
+		val32 |= (TX_PAGE_NUM_HI_PQ << RQPN_HI_PQ_SHIFT);
+	if (priv->ep_tx_low_queue)
+		val32 |= (TX_PAGE_NUM_LO_PQ << RQPN_LO_PQ_SHIFT);
+
+	rtl8xxxu_write32(priv, REG_RQPN, val32);
+}
+
+static void rtl8xxxu_init_queue_reserved_page(struct rtl8xxxu_priv *priv)
+{
+	struct rtl8xxxu_fileops *fops = priv->fops;
+	u32 hq, lq, nq, eq, pubq;
+	u32 val32;
+
+	hq = 0;
+	lq = 0;
+	nq = 0;
+	eq = 0;
+	pubq = 0;
+
+	if (priv->ep_tx_high_queue)
+		hq = fops->page_num_hi;
+	if (priv->ep_tx_low_queue)
+		lq = fops->page_num_lo;
+	if (priv->ep_tx_normal_queue)
+		nq = fops->page_num_norm;
+
+	val32 = (nq << RQPN_NPQ_SHIFT) | (eq << RQPN_EPQ_SHIFT);
+	rtl8xxxu_write32(priv, REG_RQPN_NPQ, val32);
+
+	pubq = fops->total_page_num - hq - lq - nq;
+
+	val32 = RQPN_LOAD;
+	val32 |= (hq << RQPN_HI_PQ_SHIFT);
+	val32 |= (lq << RQPN_LO_PQ_SHIFT);
+	val32 |= (pubq << RQPN_PUB_PQ_SHIFT);
+
+	rtl8xxxu_write32(priv, REG_RQPN, val32);
+}
+
 static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
@@ -7469,21 +7523,10 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	}
 
 	if (!macpower) {
-		if (priv->ep_tx_normal_queue)
-			val8 = TX_PAGE_NUM_NORM_PQ;
+		if (priv->fops->total_page_num)
+			rtl8xxxu_init_queue_reserved_page(priv);
 		else
-			val8 = 0;
-
-		rtl8xxxu_write8(priv, REG_RQPN_NPQ, val8);
-
-		val32 = (TX_PAGE_NUM_PUBQ << RQPN_NORM_PQ_SHIFT) | RQPN_LOAD;
-
-		if (priv->ep_tx_high_queue)
-			val32 |= (TX_PAGE_NUM_HI_PQ << RQPN_HI_PQ_SHIFT);
-		if (priv->ep_tx_low_queue)
-			val32 |= (TX_PAGE_NUM_LO_PQ << RQPN_LO_PQ_SHIFT);
-
-		rtl8xxxu_write32(priv, REG_RQPN, val32);
+			rtl8xxxu_old_init_queue_reserved_page(priv);
 	}
 
 	ret = rtl8xxxu_init_queue_priority(priv);
@@ -9751,6 +9794,10 @@ static struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.adda_2t_path_on_a = 0x0fc01616,
 	.adda_2t_path_on_b = 0x0fc01616,
 	.mactable = rtl8192e_mac_init_table,
+	.total_page_num = TX_TOTAL_PAGE_NUM_8192E,
+	.page_num_hi = TX_PAGE_NUM_HI_PQ_8192E,
+	.page_num_lo = TX_PAGE_NUM_LO_PQ_8192E,
+	.page_num_norm = TX_PAGE_NUM_NORM_PQ_8192E,
 };
 
 static struct usb_device_id dev_table[] = {
