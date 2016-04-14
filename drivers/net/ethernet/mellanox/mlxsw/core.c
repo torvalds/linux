@@ -55,6 +55,7 @@
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 #include <asm/byteorder.h>
 #include <net/devlink.h>
 
@@ -72,6 +73,8 @@ static DEFINE_SPINLOCK(mlxsw_core_driver_list_lock);
 static const char mlxsw_core_driver_name[] = "mlxsw_core";
 
 static struct dentry *mlxsw_core_dbg_root;
+
+static struct workqueue_struct *mlxsw_wq;
 
 struct mlxsw_core_pcpu_stats {
 	u64			trap_rx_packets[MLXSW_TRAP_ID_MAX];
@@ -1575,17 +1578,35 @@ int mlxsw_cmd_exec(struct mlxsw_core *mlxsw_core, u16 opcode, u8 opcode_mod,
 }
 EXPORT_SYMBOL(mlxsw_cmd_exec);
 
+int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay)
+{
+	return queue_delayed_work(mlxsw_wq, dwork, delay);
+}
+EXPORT_SYMBOL(mlxsw_core_schedule_dw);
+
 static int __init mlxsw_core_module_init(void)
 {
-	mlxsw_core_dbg_root = debugfs_create_dir(mlxsw_core_driver_name, NULL);
-	if (!mlxsw_core_dbg_root)
+	int err;
+
+	mlxsw_wq = create_workqueue(mlxsw_core_driver_name);
+	if (!mlxsw_wq)
 		return -ENOMEM;
+	mlxsw_core_dbg_root = debugfs_create_dir(mlxsw_core_driver_name, NULL);
+	if (!mlxsw_core_dbg_root) {
+		err = -ENOMEM;
+		goto err_debugfs_create_dir;
+	}
 	return 0;
+
+err_debugfs_create_dir:
+	destroy_workqueue(mlxsw_wq);
+	return err;
 }
 
 static void __exit mlxsw_core_module_exit(void)
 {
 	debugfs_remove_recursive(mlxsw_core_dbg_root);
+	destroy_workqueue(mlxsw_wq);
 }
 
 module_init(mlxsw_core_module_init);

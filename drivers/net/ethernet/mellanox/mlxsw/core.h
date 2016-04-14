@@ -43,6 +43,7 @@
 #include <linux/gfp.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
+#include <linux/workqueue.h>
 #include <net/devlink.h>
 
 #include "trap.h"
@@ -150,6 +151,8 @@ int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core,
 			 struct mlxsw_core_port *mlxsw_core_port, u8 local_port,
 			 struct net_device *dev, bool split, u32 split_group);
 void mlxsw_core_port_fini(struct mlxsw_core_port *mlxsw_core_port);
+
+int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay);
 
 #define MLXSW_CONFIG_PROFILE_SWID_COUNT 8
 
