@@ -492,6 +492,8 @@ static int mlxsw_sp_sb_mms_init(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 }
 
+#define MLXSW_SP_SB_SIZE (16 * 1024 * 1024)
+
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 {
 	int err;
@@ -503,8 +505,19 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return err;
 	err = mlxsw_sp_sb_mms_init(mlxsw_sp);
+	if (err)
+		return err;
+	return devlink_sb_register(priv_to_devlink(mlxsw_sp->core), 0,
+				   MLXSW_SP_SB_SIZE,
+				   MLXSW_SP_SB_POOL_COUNT,
+				   MLXSW_SP_SB_POOL_COUNT,
+				   MLXSW_SP_SB_TC_COUNT,
+				   MLXSW_SP_SB_TC_COUNT);
+}
 
-	return err;
+void mlxsw_sp_buffers_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	devlink_sb_unregister(priv_to_devlink(mlxsw_sp->core), 0);
 }
 
 int mlxsw_sp_port_buffers_init(struct mlxsw_sp_port *mlxsw_sp_port)
@@ -520,4 +533,176 @@ int mlxsw_sp_port_buffers_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	err = mlxsw_sp_port_sb_pms_init(mlxsw_sp_port);
 
 	return err;
+}
+
+static u8 pool_get(u16 pool_index)
+{
+	return pool_index % MLXSW_SP_SB_POOL_COUNT;
+}
+
+static u16 pool_index_get(u8 pool, enum mlxsw_reg_sbxx_dir dir)
+{
+	u16 pool_index;
+
+	pool_index = pool;
+	if (dir == MLXSW_REG_SBXX_DIR_EGRESS)
+		pool_index += MLXSW_SP_SB_POOL_COUNT;
+	return pool_index;
+}
+
+static enum mlxsw_reg_sbxx_dir dir_get(u16 pool_index)
+{
+	return pool_index < MLXSW_SP_SB_POOL_COUNT ?
+	       MLXSW_REG_SBXX_DIR_INGRESS : MLXSW_REG_SBXX_DIR_EGRESS;
+}
+
+int mlxsw_sp_sb_pool_get(struct mlxsw_core *mlxsw_core,
+			 unsigned int sb_index, u16 pool_index,
+			 struct devlink_sb_pool_info *pool_info)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+	u8 pool = pool_get(pool_index);
+	enum mlxsw_reg_sbxx_dir dir = dir_get(pool_index);
+	struct mlxsw_sp_sb_pr *pr = mlxsw_sp_sb_pr_get(mlxsw_sp, pool, dir);
+
+	pool_info->pool_type = dir;
+	pool_info->size = MLXSW_SP_CELLS_TO_BYTES(pr->size);
+	pool_info->threshold_type = pr->mode;
+	return 0;
+}
+
+int mlxsw_sp_sb_pool_set(struct mlxsw_core *mlxsw_core,
+			 unsigned int sb_index, u16 pool_index, u32 size,
+			 enum devlink_sb_threshold_type threshold_type)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+	u8 pool = pool_get(pool_index);
+	enum mlxsw_reg_sbxx_dir dir = dir_get(pool_index);
+	enum mlxsw_reg_sbpr_mode mode = threshold_type;
+	u32 pool_size = MLXSW_SP_BYTES_TO_CELLS(size);
+
+	return mlxsw_sp_sb_pr_write(mlxsw_sp, pool, dir, mode, pool_size);
+}
+
+#define MLXSW_SP_SB_THRESHOLD_TO_ALPHA_OFFSET (-2) /* 3->1, 16->14 */
+
+static u32 mlxsw_sp_sb_threshold_out(struct mlxsw_sp *mlxsw_sp, u8 pool,
+				     enum mlxsw_reg_sbxx_dir dir, u32 max_buff)
+{
+	struct mlxsw_sp_sb_pr *pr = mlxsw_sp_sb_pr_get(mlxsw_sp, pool, dir);
+
+	if (pr->mode == MLXSW_REG_SBPR_MODE_DYNAMIC)
+		return max_buff - MLXSW_SP_SB_THRESHOLD_TO_ALPHA_OFFSET;
+	return MLXSW_SP_CELLS_TO_BYTES(max_buff);
+}
+
+static int mlxsw_sp_sb_threshold_in(struct mlxsw_sp *mlxsw_sp, u8 pool,
+				    enum mlxsw_reg_sbxx_dir dir, u32 threshold,
+				    u32 *p_max_buff)
+{
+	struct mlxsw_sp_sb_pr *pr = mlxsw_sp_sb_pr_get(mlxsw_sp, pool, dir);
+
+	if (pr->mode == MLXSW_REG_SBPR_MODE_DYNAMIC) {
+		int val;
+
+		val = threshold + MLXSW_SP_SB_THRESHOLD_TO_ALPHA_OFFSET;
+		if (val < MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN ||
+		    val > MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX)
+			return -EINVAL;
+		*p_max_buff = val;
+	} else {
+		*p_max_buff = MLXSW_SP_BYTES_TO_CELLS(threshold);
+	}
+	return 0;
+}
+
+int mlxsw_sp_sb_port_pool_get(struct mlxsw_core_port *mlxsw_core_port,
+			      unsigned int sb_index, u16 pool_index,
+			      u32 *p_threshold)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port =
+			mlxsw_core_port_driver_priv(mlxsw_core_port);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 local_port = mlxsw_sp_port->local_port;
+	u8 pool = pool_get(pool_index);
+	enum mlxsw_reg_sbxx_dir dir = dir_get(pool_index);
+	struct mlxsw_sp_sb_pm *pm = mlxsw_sp_sb_pm_get(mlxsw_sp, local_port,
+						       pool, dir);
+
+	*p_threshold = mlxsw_sp_sb_threshold_out(mlxsw_sp, pool, dir,
+						 pm->max_buff);
+	return 0;
+}
+
+int mlxsw_sp_sb_port_pool_set(struct mlxsw_core_port *mlxsw_core_port,
+			      unsigned int sb_index, u16 pool_index,
+			      u32 threshold)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port =
+			mlxsw_core_port_driver_priv(mlxsw_core_port);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 local_port = mlxsw_sp_port->local_port;
+	u8 pool = pool_get(pool_index);
+	enum mlxsw_reg_sbxx_dir dir = dir_get(pool_index);
+	u32 max_buff;
+	int err;
+
+	err = mlxsw_sp_sb_threshold_in(mlxsw_sp, pool, dir,
+				       threshold, &max_buff);
+	if (err)
+		return err;
+
+	return mlxsw_sp_sb_pm_write(mlxsw_sp, local_port, pool, dir,
+				    0, max_buff);
+}
+
+int mlxsw_sp_sb_tc_pool_bind_get(struct mlxsw_core_port *mlxsw_core_port,
+				 unsigned int sb_index, u16 tc_index,
+				 enum devlink_sb_pool_type pool_type,
+				 u16 *p_pool_index, u32 *p_threshold)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port =
+			mlxsw_core_port_driver_priv(mlxsw_core_port);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 local_port = mlxsw_sp_port->local_port;
+	u8 pg_buff = tc_index;
+	enum mlxsw_reg_sbxx_dir dir = pool_type;
+	struct mlxsw_sp_sb_cm *cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port,
+						       pg_buff, dir);
+
+	*p_threshold = mlxsw_sp_sb_threshold_out(mlxsw_sp, cm->pool, dir,
+						 cm->max_buff);
+	*p_pool_index = pool_index_get(cm->pool, pool_type);
+	return 0;
+}
+
+int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
+				 unsigned int sb_index, u16 tc_index,
+				 enum devlink_sb_pool_type pool_type,
+				 u16 pool_index, u32 threshold)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port =
+			mlxsw_core_port_driver_priv(mlxsw_core_port);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 local_port = mlxsw_sp_port->local_port;
+	u8 pg_buff = tc_index;
+	enum mlxsw_reg_sbxx_dir dir = pool_type;
+	u8 pool = pool_index;
+	u32 max_buff;
+	int err;
+
+	err = mlxsw_sp_sb_threshold_in(mlxsw_sp, pool, dir,
+				       threshold, &max_buff);
+	if (err)
+		return err;
+
+	if (pool_type == DEVLINK_SB_POOL_TYPE_EGRESS) {
+		if (pool < MLXSW_SP_SB_POOL_COUNT)
+			return -EINVAL;
+		pool -= MLXSW_SP_SB_POOL_COUNT;
+	} else if (pool >= MLXSW_SP_SB_POOL_COUNT) {
+		return -EINVAL;
+	}
+	return mlxsw_sp_sb_cm_write(mlxsw_sp, local_port, pg_buff, dir,
+				    0, max_buff, pool);
 }
