@@ -7967,7 +7967,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8xxxu_write8(priv, REG_8192E_LDOV12_CTRL, 0x75);
 		val32 &= 0xfff00fff;
 		val32 |= 0x0007e000;
-		rtl8xxxu_write32(priv, REG_8192E_LDOV12_CTRL, val32);
+		rtl8xxxu_write32(priv, REG_AFE_MISC, val32);
 	}
 exit:
 	return ret;
