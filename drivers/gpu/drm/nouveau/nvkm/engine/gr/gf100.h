@@ -143,6 +143,7 @@ int gk104_gr_init(struct gf100_gr *);
 int gk20a_gr_init(struct gf100_gr *);
 
 int gm200_gr_init(struct gf100_gr *);
+int gm200_gr_rops(struct gf100_gr *);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 

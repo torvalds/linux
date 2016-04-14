@@ -32,6 +32,12 @@
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+int
+gm200_gr_rops(struct gf100_gr *gr)
+{
+	return nvkm_rd32(gr->base.engine.subdev.device, 0x12006c);
+}
+
 static void
 gm200_gr_init_gpc_mmu(struct gf100_gr *gr)
 {
@@ -197,7 +203,7 @@ static const struct gf100_gr_func
 gm200_gr = {
 	.init = gm200_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
-	.rops = gf100_gr_rops,
+	.rops = gm200_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gm200_grctx,
 	.sclass = {
