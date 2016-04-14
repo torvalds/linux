@@ -2967,6 +2967,7 @@ static void ni_ao_cmd_set_trigger(struct comedi_device *dev,
 				  const struct comedi_cmd *cmd)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned int trigsel;
 
 	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
 
@@ -2980,39 +2981,20 @@ static void ni_ao_cmd_set_trigger(struct comedi_device *dev,
 	}
 	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
 
-	{
-		unsigned int trigsel = devpriv->ao_trigger_select;
-
-		switch (cmd->start_src) {
-		case TRIG_INT:
-		case TRIG_NOW:
-			trigsel &= ~(NISTC_AO_TRIG_START1_POLARITY |
-				     NISTC_AO_TRIG_START1_SEL_MASK);
-			trigsel |= NISTC_AO_TRIG_START1_EDGE |
-				   NISTC_AO_TRIG_START1_SYNC;
-			break;
-		case TRIG_EXT:
-			trigsel = NISTC_AO_TRIG_START1_SEL(
-					CR_CHAN(cmd->start_arg) + 1);
-			if (cmd->start_arg & CR_INVERT)
-				/*
-				 * 0=active high, 1=active low.
-				 * see daq-stc 3-24 (p186)
-				 */
-				trigsel |= NISTC_AO_TRIG_START1_POLARITY;
-			if (cmd->start_arg & CR_EDGE)
-				/* 0=edge detection disabled, 1=enabled */
-				trigsel |= NISTC_AO_TRIG_START1_EDGE;
-			break;
-		default:
-			BUG();
-			break;
-		}
-
-		devpriv->ao_trigger_select = trigsel;
-		ni_stc_writew(dev, devpriv->ao_trigger_select,
-			      NISTC_AO_TRIG_SEL_REG);
+	if (cmd->start_src == TRIG_INT) {
+		trigsel = NISTC_AO_TRIG_START1_EDGE |
+			  NISTC_AO_TRIG_START1_SYNC;
+	} else { /* TRIG_EXT */
+		trigsel = NISTC_AO_TRIG_START1_SEL(CR_CHAN(cmd->start_arg) + 1);
+		/* 0=active high, 1=active low. see daq-stc 3-24 (p186) */
+		if (cmd->start_arg & CR_INVERT)
+			trigsel |= NISTC_AO_TRIG_START1_POLARITY;
+		/* 0=edge detection disabled, 1=enabled */
+		if (cmd->start_arg & CR_EDGE)
+			trigsel |= NISTC_AO_TRIG_START1_EDGE;
 	}
+	ni_stc_writew(dev, trigsel, NISTC_AO_TRIG_SEL_REG);
+
 	/* AO_Delayed_START1 = 0, we do not support delayed start...yet */
 
 	/* sync */
@@ -3443,7 +3425,6 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->ao_mode3 = NISTC_AO_MODE3_LAST_GATE_DISABLE;
 	else
 		devpriv->ao_mode3 = 0;
-	devpriv->ao_trigger_select = 0;
 
 	ni_stc_writew(dev, 0, NISTC_AO_PERSONAL_REG);
 	ni_stc_writew(dev, 0, NISTC_AO_CMD1_REG);

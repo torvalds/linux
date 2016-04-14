@@ -1001,7 +1001,6 @@ struct ni_private {
 	unsigned short ao_mode3;
 	unsigned short ao_cmd1;
 	unsigned short ao_cmd2;
-	unsigned short ao_trigger_select;
 
 	struct ni_gpct_device *counter_dev;
 	unsigned short an_trig_etc_reg;
