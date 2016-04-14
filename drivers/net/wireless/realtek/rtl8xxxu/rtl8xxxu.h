@@ -101,7 +101,7 @@ enum rtl8xxxu_rx_type {
 	RX_TYPE_ERROR = -1
 };
 
-struct rtl8xxxu_rx_desc {
+struct rtl8xxxu_rxdesc16 {
 #ifdef __LITTLE_ENDIAN
 	u32 pktlen:14;
 	u32 crc32:1;
@@ -237,7 +237,7 @@ struct rtl8xxxu_rx_desc {
 #endif
 };
 
-struct rtl8723bu_rx_desc {
+struct rtl8xxxu_rxdesc24 {
 #ifdef __LITTLE_ENDIAN
 	u32 pktlen:14;
 	u32 crc32:1;
@@ -1303,6 +1303,7 @@ struct rtl8xxxu_fileops {
 	u16 mbox_ext_reg;
 	char mbox_ext_width;
 	char tx_desc_size;
+	char rx_desc_size;
 	char has_s0s1;
 	u32 adda_1t_init;
 	u32 adda_1t_path_on;
