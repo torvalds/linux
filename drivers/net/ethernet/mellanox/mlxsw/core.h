@@ -137,6 +137,15 @@ struct mlxsw_core_port {
 	struct devlink_port devlink_port;
 };
 
+static inline void *
+mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port)
+{
+	/* mlxsw_core_port is ensured to always be the first field in driver
+	 * port structure.
+	 */
+	return mlxsw_core_port;
+}
+
 int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core,
 			 struct mlxsw_core_port *mlxsw_core_port, u8 local_port,
 			 struct net_device *dev, bool split, u32 split_group);
