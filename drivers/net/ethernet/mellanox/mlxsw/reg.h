@@ -3566,6 +3566,10 @@ MLXSW_ITEM32(reg, sbcm, dir, 0x00, 0, 2);
  */
 MLXSW_ITEM32(reg, sbcm, min_buff, 0x18, 0, 24);
 
+/* shared max_buff limits for dynamic threshold for SBCM, SBPM */
+#define MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN 1
+#define MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX 14
+
 /* reg_sbcm_max_buff
  * When the pool associated to the port-pg/tclass is configured to
  * static, Maximum buffer size for the limiter configured in cells.

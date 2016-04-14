@@ -255,13 +255,13 @@ static int mlxsw_sp_sb_prs_init(struct mlxsw_sp *mlxsw_sp)
 
 static const struct mlxsw_sp_sb_cm mlxsw_sp_sb_cms_ingress[] = {
 	MLXSW_SP_SB_CM(MLXSW_SP_BYTES_TO_CELLS(10000), 8, 0),
-	MLXSW_SP_SB_CM(0, 0, 0),
-	MLXSW_SP_SB_CM(0, 0, 0),
-	MLXSW_SP_SB_CM(0, 0, 0),
-	MLXSW_SP_SB_CM(0, 0, 0),
-	MLXSW_SP_SB_CM(0, 0, 0),
-	MLXSW_SP_SB_CM(0, 0, 0),
-	MLXSW_SP_SB_CM(0, 0, 0),
+	MLXSW_SP_SB_CM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN, 0),
+	MLXSW_SP_SB_CM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN, 0),
+	MLXSW_SP_SB_CM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN, 0),
+	MLXSW_SP_SB_CM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN, 0),
+	MLXSW_SP_SB_CM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN, 0),
+	MLXSW_SP_SB_CM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN, 0),
+	MLXSW_SP_SB_CM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN, 0),
 	MLXSW_SP_SB_CM(0, 0, 0), /* dummy, this PG does not exist */
 	MLXSW_SP_SB_CM(MLXSW_SP_BYTES_TO_CELLS(20000), 1, 3),
 };
@@ -385,19 +385,19 @@ static int mlxsw_sp_cpu_port_sb_cms_init(struct mlxsw_sp *mlxsw_sp)
 	}
 
 static const struct mlxsw_sp_sb_pm mlxsw_sp_sb_pms_ingress[] = {
-	MLXSW_SP_SB_PM(0, 0xff),
-	MLXSW_SP_SB_PM(0, 0),
-	MLXSW_SP_SB_PM(0, 0),
-	MLXSW_SP_SB_PM(0, 0xff),
+	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX),
+	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
+	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
+	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX),
 };
 
 #define MLXSW_SP_SB_PMS_INGRESS_LEN ARRAY_SIZE(mlxsw_sp_sb_pms_ingress)
 
 static const struct mlxsw_sp_sb_pm mlxsw_sp_sb_pms_egress[] = {
 	MLXSW_SP_SB_PM(0, 7),
-	MLXSW_SP_SB_PM(0, 0),
-	MLXSW_SP_SB_PM(0, 0),
-	MLXSW_SP_SB_PM(0, 0),
+	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
+	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
+	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 };
 
 #define MLXSW_SP_SB_PMS_EGRESS_LEN ARRAY_SIZE(mlxsw_sp_sb_pms_egress)
