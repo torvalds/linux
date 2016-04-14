@@ -7687,14 +7687,11 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	}
 
 	/*
-	 * Transfer page size is always 128
+	 * The vendor drivers set PBP for all devices, except 8192e.
+	 * There is no explanation for this in any of the sources.
 	 */
-	if (priv->rtl_chip == RTL8723B)
-		val8 = (PBP_PAGE_SIZE_256 << PBP_PAGE_SIZE_RX_SHIFT) |
-			(PBP_PAGE_SIZE_256 << PBP_PAGE_SIZE_TX_SHIFT);
-	else
-		val8 = (PBP_PAGE_SIZE_128 << PBP_PAGE_SIZE_RX_SHIFT) |
-			(PBP_PAGE_SIZE_128 << PBP_PAGE_SIZE_TX_SHIFT);
+	val8 = (priv->fops->pbp_rx << PBP_PAGE_SIZE_RX_SHIFT) |
+		(priv->fops->pbp_tx << PBP_PAGE_SIZE_TX_SHIFT);
 	if (priv->rtl_chip != RTL8192E)
 		rtl8xxxu_write8(priv, REG_PBP, val8);
 
@@ -9728,6 +9725,8 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.adda_2t_path_on_a = 0x04db25a4,
 	.adda_2t_path_on_b = 0x0b1b25a4,
 	.trxff_boundary = 0x27ff,
+	.pbp_rx = PBP_PAGE_SIZE_128,
+	.pbp_tx = PBP_PAGE_SIZE_128,
 	.mactable = rtl8723a_mac_init_table,
 };
 
@@ -9761,6 +9760,8 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.adda_2t_path_on_a = 0x01c00014,
 	.adda_2t_path_on_b = 0x01c00014,
 	.trxff_boundary = 0x3f7f,
+	.pbp_rx = PBP_PAGE_SIZE_256,
+	.pbp_tx = PBP_PAGE_SIZE_256,
 	.mactable = rtl8723b_mac_init_table,
 };
 
@@ -9792,6 +9793,8 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.adda_2t_path_on_a = 0x04db25a4,
 	.adda_2t_path_on_b = 0x0b1b25a4,
 	.trxff_boundary = 0x27ff,
+	.pbp_rx = PBP_PAGE_SIZE_128,
+	.pbp_tx = PBP_PAGE_SIZE_128,
 	.mactable = rtl8723a_mac_init_table,
 };
 
