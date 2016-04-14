@@ -391,15 +391,17 @@ static int __ethtool_set_flags(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static void convert_legacy_u32_to_link_mode(unsigned long *dst, u32 legacy_u32)
+void ethtool_convert_legacy_u32_to_link_mode(unsigned long *dst,
+					     u32 legacy_u32)
 {
 	bitmap_zero(dst, __ETHTOOL_LINK_MODE_MASK_NBITS);
 	dst[0] = legacy_u32;
 }
+EXPORT_SYMBOL(ethtool_convert_legacy_u32_to_link_mode);
 
 /* return false if src had higher bits set. lower bits always updated. */
-static bool convert_link_mode_to_legacy_u32(u32 *legacy_u32,
-					    const unsigned long *src)
+bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
+					     const unsigned long *src)
 {
 	bool retval = true;
 
@@ -419,6 +421,7 @@ static bool convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 	*legacy_u32 = src[0];
 	return retval;
 }
+EXPORT_SYMBOL(ethtool_convert_link_mode_to_legacy_u32);
 
 /* return false if legacy contained non-0 deprecated fields
  * transceiver/maxtxpkt/maxrxpkt. rest of ksettings always updated
@@ -441,13 +444,13 @@ convert_legacy_settings_to_link_ksettings(
 	    legacy_settings->maxrxpkt)
 		retval = false;
 
-	convert_legacy_u32_to_link_mode(
+	ethtool_convert_legacy_u32_to_link_mode(
 		link_ksettings->link_modes.supported,
 		legacy_settings->supported);
-	convert_legacy_u32_to_link_mode(
+	ethtool_convert_legacy_u32_to_link_mode(
 		link_ksettings->link_modes.advertising,
 		legacy_settings->advertising);
-	convert_legacy_u32_to_link_mode(
+	ethtool_convert_legacy_u32_to_link_mode(
 		link_ksettings->link_modes.lp_advertising,
 		legacy_settings->lp_advertising);
 	link_ksettings->base.speed
@@ -486,13 +489,13 @@ convert_link_ksettings_to_legacy_settings(
 	 * __u32	maxrxpkt;
 	 */
 
-	retval &= convert_link_mode_to_legacy_u32(
+	retval &= ethtool_convert_link_mode_to_legacy_u32(
 		&legacy_settings->supported,
 		link_ksettings->link_modes.supported);
-	retval &= convert_link_mode_to_legacy_u32(
+	retval &= ethtool_convert_link_mode_to_legacy_u32(
 		&legacy_settings->advertising,
 		link_ksettings->link_modes.advertising);
-	retval &= convert_link_mode_to_legacy_u32(
+	retval &= ethtool_convert_link_mode_to_legacy_u32(
 		&legacy_settings->lp_advertising,
 		link_ksettings->link_modes.lp_advertising);
 	ethtool_cmd_speed_set(legacy_settings, link_ksettings->base.speed);
