@@ -7336,7 +7336,11 @@ retry:
 		ppd->link_width_downgrade_rx_active = rx;
 	}
 
-	if (lwde == 0) {
+	if (ppd->link_width_downgrade_tx_active == 0 ||
+	    ppd->link_width_downgrade_rx_active == 0) {
+		/* the 8051 reported a dead link as a downgrade */
+		dd_dev_err(ppd->dd, "Link downgrade is really a link down, ignoring\n");
+	} else if (lwde == 0) {
 		/* downgrade is disabled */
 
 		/* bounce if not at starting active width */
