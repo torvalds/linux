@@ -137,7 +137,8 @@ hardware.
 	should be sent to the serial port.
 	This will be called only if hardware assisted flow control is enabled.
 
-	Locking: none.
+	Locking: serialized with .unthrottle() and termios modification by the
+		 tty layer.
 
   unthrottle(port)
 	Notify the serial driver that characters can now be sent to the serial
@@ -145,7 +146,8 @@ hardware.
 	disciplines.
 	This will be called only if hardware assisted flow control is enabled.
 
-	Locking: none.
+	Locking: serialized with .throttle() and termios modification by the
+		 tty layer.
 
   send_xchar(port,ch)
 	Transmit a high priority character, even if the port is stopped.
