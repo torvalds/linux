@@ -1,56 +1,53 @@
 /*
-    comedi/drivers/ni_mio_common.c
-    Hardware driver for DAQ-STC based boards
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-2001 David A. Schleef <ds@schleef.org>
-    Copyright (C) 2002-2006 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * Hardware driver for DAQ-STC based boards
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1997-2001 David A. Schleef <ds@schleef.org>
+ * Copyright (C) 2002-2006 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-	This file is meant to be included by another file, e.g.,
-	ni_atmio.c or ni_pcimio.c.
-
-	Interrupt support originally added by Truxton Fulton
-	<trux@truxton.com>
-
-	References (from ftp://ftp.natinst.com/support/manuals):
-
-	   340747b.pdf  AT-MIO E series Register Level Programmer Manual
-	   341079b.pdf  PCI E Series RLPM
-	   340934b.pdf  DAQ-STC reference manual
-	67xx and 611x registers (from ftp://ftp.ni.com/support/daq/mhddk/documentation/)
-	release_ni611x.pdf
-	release_ni67xx.pdf
-	Other possibly relevant info:
-
-	   320517c.pdf  User manual (obsolete)
-	   320517f.pdf  User manual (new)
-	   320889a.pdf  delete
-	   320906c.pdf  maximum signal ratings
-	   321066a.pdf  about 16x
-	   321791a.pdf  discontinuation of at-mio-16e-10 rev. c
-	   321808a.pdf  about at-mio-16e-10 rev P
-	   321837a.pdf  discontinuation of at-mio-16de-10 rev d
-	   321838a.pdf  about at-mio-16de-10 rev N
-
-	ISSUES:
-
-	 - the interrupt routine needs to be cleaned up
-
-	2006-02-07: S-Series PCI-6143: Support has been added but is not
-		fully tested as yet. Terry Barnaby, BEAM Ltd.
-*/
+ * This file is meant to be included by another file, e.g.,
+ * ni_atmio.c or ni_pcimio.c.
+ *
+ * Interrupt support originally added by Truxton Fulton <trux@truxton.com>
+ *
+ * References (ftp://ftp.natinst.com/support/manuals):
+ *   340747b.pdf  AT-MIO E series Register Level Programmer Manual
+ *   341079b.pdf  PCI E Series RLPM
+ *   340934b.pdf  DAQ-STC reference manual
+ *
+ * 67xx and 611x registers (ftp://ftp.ni.com/support/daq/mhddk/documentation/)
+ *   release_ni611x.pdf
+ *   release_ni67xx.pdf
+ *
+ * Other possibly relevant info:
+ *   320517c.pdf  User manual (obsolete)
+ *   320517f.pdf  User manual (new)
+ *   320889a.pdf  delete
+ *   320906c.pdf  maximum signal ratings
+ *   321066a.pdf  about 16x
+ *   321791a.pdf  discontinuation of at-mio-16e-10 rev. c
+ *   321808a.pdf  about at-mio-16e-10 rev P
+ *   321837a.pdf  discontinuation of at-mio-16de-10 rev d
+ *   321838a.pdf  about at-mio-16de-10 rev N
+ *
+ * ISSUES:
+ *   - the interrupt routine needs to be cleaned up
+ *
+ * 2006-02-07: S-Series PCI-6143: Support has been added but is not
+ * fully tested as yet. Terry Barnaby, BEAM Ltd.
+ */
 
 #include <linux/interrupt.h>
 #include <linux/sched.h>
@@ -828,8 +825,10 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 			ni_writeb(dev, 0, NI_M_STATIC_AI_CTRL_REG(0));
 			ni_writeb(dev, 1, NI_M_STATIC_AI_CTRL_REG(0));
 #if 0
-			/* the NI example code does 3 convert pulses for 625x boards,
-			   but that appears to be wrong in practice. */
+			/*
+			 * The NI example code does 3 convert pulses for 625x
+			 * boards, But that appears to be wrong in practice.
+			 */
 			ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE,
 				      NISTC_AI_CMD1_REG);
 			ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE,
@@ -971,8 +970,10 @@ static int ni_ao_wait_for_dma_load(struct comedi_device *dev)
 		b_status = ni_stc_readw(dev, NISTC_AO_STATUS1_REG);
 		if (b_status & NISTC_AO_STATUS1_FIFO_HF)
 			break;
-		/* if we poll too often, the pci bus activity seems
-		   to slow the dma transfer down */
+		/*
+		 * If we poll too often, the pci bus activity seems
+		 * to slow the dma transfer down.
+		 */
 		udelay(10);
 	}
 	if (i == timeout) {
@@ -1145,9 +1146,7 @@ static void ni_handle_fifo_half_full(struct comedi_device *dev)
 }
 #endif
 
-/*
-   Empties the AI fifo
-*/
+/* Empties the AI fifo */
 static void ni_handle_fifo_dregs(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
@@ -1348,8 +1347,10 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 		      NISTC_AI_STATUS1_SC_TC | NISTC_AI_STATUS1_START1)) {
 		if (status == 0xffff) {
 			dev_err(dev->class_dev, "Card removed?\n");
-			/* we probably aren't even running a command now,
-			 * so it's a good idea to be careful. */
+			/*
+			 * We probably aren't even running a command now,
+			 * so it's a good idea to be careful.
+			 */
 			if (comedi_is_subdevice_running(s)) {
 				s->async->events |= COMEDI_CB_ERROR;
 				comedi_handle_events(dev, s);
@@ -1378,8 +1379,11 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 	if (status & NISTC_AI_STATUS1_FIFO_HF) {
 		int i;
 		static const int timeout = 10;
-		/* pcmcia cards (at least 6036) seem to stop producing interrupts if we
-		 *fail to get the fifo less than half full, so loop to be sure.*/
+		/*
+		 * PCMCIA cards (at least 6036) seem to stop producing
+		 * interrupts if we fail to get the fifo less than half
+		 * full, so loop to be sure.
+		 */
 		for (i = 0; i < timeout; ++i) {
 			ni_handle_fifo_half_full(dev);
 			if ((ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
@@ -1560,8 +1564,11 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 		if (devpriv->is_611x || devpriv->is_6713) {
 			mite_prep_dma(devpriv->ao_mite_chan, 32, 32);
 		} else {
-			/* doing 32 instead of 16 bit wide transfers from memory
-			   makes the mite do 32 bit pci transfers, doubling pci bandwidth. */
+			/*
+			 * Doing 32 instead of 16 bit wide transfers from
+			 * memory makes the mite do 32 bit pci transfers,
+			 * doubling pci bandwidth.
+			 */
 			mite_prep_dma(devpriv->ao_mite_chan, 16, 32);
 		}
 		mite_dma_arm(devpriv->ao_mite_chan);
@@ -1576,11 +1583,10 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 #endif /*  PCIDMA */
 
 /*
-   used for both cancel ioctl and board initialization
-
-   this is pretty harsh for a cancel, but it works...
+ * used for both cancel ioctl and board initialization
+ *
+ * this is pretty harsh for a cancel, but it works...
  */
-
 static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct ni_private *devpriv = dev->private;
@@ -2261,8 +2267,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* start configuration */
 	ni_stc_writew(dev, NISTC_RESET_AI_CFG_START, NISTC_RESET_REG);
 
-	/* disable analog triggering for now, since it
-	 * interferes with the use of pfi0 */
+	/*
+	 * Disable analog triggering for now, since it interferes
+	 * with the use of pfi0.
+	 */
 	devpriv->an_trig_etc_reg &= ~NISTC_ATRIG_ETC_ENA;
 	ni_stc_writew(dev, devpriv->an_trig_etc_reg, NISTC_ATRIG_ETC_REG);
 
@@ -2834,9 +2842,11 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
-	/* Null trig at beginning prevent ao start trigger from executing more than
-	   once per command (and doing things like trying to allocate the ao dma channel
-	   multiple times) */
+	/*
+	 * Null trig at beginning prevent ao start trigger from executing more
+	 * than once per command (and doing things like trying to allocate the
+	 * ao dma channel multiple times).
+	 */
 	s->async->inttrig = NULL;
 
 	ni_set_bits(dev, NISTC_INTB_ENA_REG,
@@ -3808,16 +3818,20 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 	udelay((devpriv->serial_interval_ns + 999) / 1000);
 
 	for (mask = 0x80; mask; mask >>= 1) {
-		/* Output current bit; note that we cannot touch s->state
-		   because it is a per-subdevice field, and serial is
-		   a separate subdevice from DIO. */
+		/*
+		 * Output current bit; note that we cannot touch s->state
+		 * because it is a per-subdevice field, and serial is
+		 * a separate subdevice from DIO.
+		 */
 		devpriv->dio_output &= ~NISTC_DIO_SDOUT;
 		if (data_out & mask)
 			devpriv->dio_output |= NISTC_DIO_SDOUT;
 		ni_stc_writew(dev, devpriv->dio_output, NISTC_DIO_OUT_REG);
 
-		/* Assert SDCLK (active low, inverted), wait for half of
-		   the delay, deassert SDCLK, and wait for the other half. */
+		/*
+		 * Assert SDCLK (active low, inverted), wait for half of
+		 * the delay, deassert SDCLK, and wait for the other half.
+		 */
 		devpriv->dio_control |= NISTC_DIO_SDCLK;
 		ni_stc_writew(dev, devpriv->dio_control, NISTC_DIO_CTRL_REG);
 
@@ -3864,8 +3878,10 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 			data[1] = SERIAL_DISABLED;
 			devpriv->serial_interval_ns = data[1];
 		} else if (data[1] <= SERIAL_600NS) {
-			/* Warning: this clock speed is too fast to reliably
-			   control SCXI. */
+			/*
+			 * Warning: this clock speed is too fast to reliably
+			 * control SCXI.
+			 */
 			devpriv->dio_control &= ~NISTC_DIO_CTRL_HW_SER_TIMEBASE;
 			clk_fout |= NISTC_CLK_FOUT_SLOW_TIMEBASE;
 			clk_fout &= ~NISTC_CLK_FOUT_DIO_SER_OUT_DIV2;
@@ -3881,10 +3897,12 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 			devpriv->dio_control |= NISTC_DIO_CTRL_HW_SER_TIMEBASE;
 			clk_fout |= NISTC_CLK_FOUT_SLOW_TIMEBASE |
 				    NISTC_CLK_FOUT_DIO_SER_OUT_DIV2;
-			/* Note: NISTC_CLK_FOUT_DIO_SER_OUT_DIV2 only affects
-			   600ns/1.2us. If you turn divide_by_2 off with the
-			   slow clock, you will still get 10us, except then
-			   all your delays are wrong. */
+			/*
+			 * Note: NISTC_CLK_FOUT_DIO_SER_OUT_DIV2 only affects
+			 * 600ns/1.2us. If you turn divide_by_2 off with the
+			 * slow clock, you will still get 10us, except then
+			 * all your delays are wrong.
+			 */
 			data[1] = SERIAL_10US;
 			devpriv->serial_interval_ns = data[1];
 		} else {
@@ -4291,13 +4309,13 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 static int pack_mb88341(int addr, int val, int *bitstring)
 {
 	/*
-	   Fujitsu MB 88341
-	   Note that address bits are reversed.  Thanks to
-	   Ingo Keen for noticing this.
-
-	   Note also that the 88341 expects address values from
-	   1-12, whereas we use channel numbers 0-11.  The NI
-	   docs use 1-12, also, so be careful here.
+	 * Fujitsu MB 88341
+	 * Note that address bits are reversed.  Thanks to
+	 * Ingo Keen for noticing this.
+	 *
+	 * Note also that the 88341 expects address values from
+	 * 1-12, whereas we use channel numbers 0-11.  The NI
+	 * docs use 1-12, also, so be careful here.
 	 */
 	addr++;
 	*bitstring = ((addr & 0x1) << 11) |
@@ -4767,9 +4785,12 @@ static int cs5529_ai_insn_read(struct comedi_device *dev,
 	unsigned int channel_select;
 	const unsigned int INTERNAL_REF = 0x1000;
 
-	/* Set calibration adc source.  Docs lie, reference select bits 8 to 11
+	/*
+	 * Set calibration adc source.  Docs lie, reference select bits 8 to 11
 	 * do nothing. bit 12 seems to chooses internal reference voltage, bit
-	 * 13 causes the adc input to go overrange (maybe reads external reference?) */
+	 * 13 causes the adc input to go overrange (maybe reads external
+	 * reference?)
+	 */
 	if (insn->chanspec & CR_ALT_SOURCE)
 		channel_select = INTERNAL_REF;
 	else
@@ -4836,8 +4857,10 @@ static int ni_mseries_get_pll_parameters(unsigned int reference_period_ns,
 	static const unsigned int pico_per_nano = 1000;
 	const unsigned int reference_picosec = reference_period_ns *
 					       pico_per_nano;
-	/* m-series wants the phased-locked loop to output 80MHz, which is divided by 4 to
-	 * 20 MHz for most timing clocks */
+	/*
+	 * m-series wants the phased-locked loop to output 80MHz, which is
+	 * divided by 4 to 20 MHz for most timing clocks
+	 */
 	static const unsigned int target_picosec = 12500;
 	static const unsigned int fudge_factor_80_to_20Mhz = 4;
 	int best_period_picosec = 0;
