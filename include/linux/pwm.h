@@ -74,6 +74,24 @@ enum pwm_polarity {
 	PWM_POLARITY_INVERSED,
 };
 
+/**
+ * struct pwm_args - board-dependent PWM arguments
+ * @period: reference period
+ * @polarity: reference polarity
+ *
+ * This structure describes board-dependent arguments attached to a PWM
+ * device. These arguments are usually retrieved from the PWM lookup table or
+ * device tree.
+ *
+ * Do not confuse this with the PWM state: PWM arguments represent the initial
+ * configuration that users want to use on this PWM device rather than the
+ * current PWM hardware state.
+ */
+struct pwm_args {
+	unsigned int period;
+	enum pwm_polarity polarity;
+};
+
 enum {
 	PWMF_REQUESTED = 1 << 0,
 	PWMF_ENABLED = 1 << 1,
@@ -92,6 +110,7 @@ enum {
  * @period: period of the PWM signal (in nanoseconds)
  * @duty_cycle: duty cycle of the PWM signal (in nanoseconds)
  * @polarity: polarity of the PWM signal
+ * @args: PWM arguments
  */
 struct pwm_device {
 	const char *label;
@@ -105,6 +124,8 @@ struct pwm_device {
 	unsigned int period;
 	unsigned int duty_cycle;
 	enum pwm_polarity polarity;
+
+	struct pwm_args args;
 };
 
 static inline bool pwm_is_enabled(const struct pwm_device *pwm)
@@ -142,6 +163,18 @@ int pwm_set_polarity(struct pwm_device *pwm, enum pwm_polarity polarity);
 static inline enum pwm_polarity pwm_get_polarity(const struct pwm_device *pwm)
 {
 	return pwm ? pwm->polarity : PWM_POLARITY_NORMAL;
+}
+
+static inline void pwm_get_args(const struct pwm_device *pwm,
+				struct pwm_args *args)
+{
+	*args = pwm->args;
+}
+
+static inline void pwm_apply_args(struct pwm_device *pwm)
+{
+	pwm_set_period(pwm, pwm->args.period);
+	pwm_set_polarity(pwm, pwm->args.polarity);
 }
 
 /**
