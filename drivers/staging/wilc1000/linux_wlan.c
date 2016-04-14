@@ -857,7 +857,6 @@ int wilc_mac_open(struct net_device *ndev)
 	unsigned char mac_add[ETH_ALEN] = {0};
 	int ret = 0;
 	int i = 0;
-	struct wilc_priv *priv;
 	struct wilc *wl;
 
 	vif = netdev_priv(ndev);
@@ -868,7 +867,6 @@ int wilc_mac_open(struct net_device *ndev)
 		return -ENODEV;
 	}
 
-	priv = wiphy_priv(vif->ndev->ieee80211_ptr->wiphy);
 	netdev_dbg(ndev, "MAC OPEN[%p]\n", ndev);
 
 	ret = wilc_init_host_int(ndev);
@@ -945,14 +943,10 @@ static struct net_device_stats *mac_stats(struct net_device *dev)
 static void wilc_set_multicast_list(struct net_device *dev)
 {
 	struct netdev_hw_addr *ha;
-	struct wilc_priv *priv;
-	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif;
 	int i = 0;
 
-	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	vif = netdev_priv(dev);
-	hif_drv = (struct host_if_drv *)priv->hif_drv;
 
 	if (dev->flags & IFF_PROMISC)
 		return;
@@ -1106,7 +1100,6 @@ static int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	s8 rssi;
 	u32 size = 0, length = 0;
 	struct wilc_vif *vif;
-	struct wilc_priv *priv;
 	s32 ret = 0;
 	struct wilc *wilc;
 
@@ -1130,7 +1123,6 @@ static int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 				return PTR_ERR(buff);
 
 			if (strncasecmp(buff, "RSSI", length) == 0) {
-				priv = wiphy_priv(vif->ndev->ieee80211_ptr->wiphy);
 				ret = wilc_get_rssi(vif, &rssi);
 				netdev_info(ndev, "RSSI :%d\n", rssi);
 
