@@ -3357,6 +3357,12 @@ int main(int argc, char *argv[])
 	/* Tell the entry path not to try to reload segment registers. */
 	boot->hdr.loadflags |= KEEP_SEGMENTS;
 
+	/* We don't support tboot: */
+	boot->tboot_addr = 0;
+
+	/* Ensure this is 0 to prevent APM from loading: */
+	boot->apm_bios_info.version = 0;
+
 	/* We tell the kernel to initialize the Guest. */
 	tell_kernel(start);
 
