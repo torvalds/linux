@@ -7660,27 +7660,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	priv->rf_mode_ag[0] = rtl8xxxu_read_rfreg(priv, RF_A,
 						  RF6052_REG_MODE_AG);
 
-	/*
-	 * Chip specific quirks
-	 */
-	if (priv->rtl_chip == RTL8723A) {
-		/* Fix USB interface interference issue */
-		rtl8xxxu_write8(priv, 0xfe40, 0xe0);
-		rtl8xxxu_write8(priv, 0xfe41, 0x8d);
-		rtl8xxxu_write8(priv, 0xfe42, 0x80);
-		rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, 0xfd0320);
-
-		/* Reduce 80M spur */
-		rtl8xxxu_write32(priv, REG_AFE_XTAL_CTRL, 0x0381808d);
-		rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff83);
-		rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff82);
-		rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff83);
-	} else {
-		val32 = rtl8xxxu_read32(priv, REG_TXDMA_OFFSET_CHK);
-		val32 |= TXDMA_OFFSET_DROP_DATA_EN;
-		rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, val32);
-	}
-
 	if (!macpower) {
 		/*
 		 * Set TX buffer boundary
@@ -7717,6 +7696,27 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		if (ret) {
 			dev_warn(dev, "%s: LLT table init failed\n", __func__);
 			goto exit;
+		}
+
+		/*
+		 * Chip specific quirks
+		 */
+		if (priv->rtl_chip == RTL8723A) {
+			/* Fix USB interface interference issue */
+			rtl8xxxu_write8(priv, 0xfe40, 0xe0);
+			rtl8xxxu_write8(priv, 0xfe41, 0x8d);
+			rtl8xxxu_write8(priv, 0xfe42, 0x80);
+			rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, 0xfd0320);
+
+			/* Reduce 80M spur */
+			rtl8xxxu_write32(priv, REG_AFE_XTAL_CTRL, 0x0381808d);
+			rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff83);
+			rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff82);
+			rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff83);
+		} else {
+			val32 = rtl8xxxu_read32(priv, REG_TXDMA_OFFSET_CHK);
+			val32 |= TXDMA_OFFSET_DROP_DATA_EN;
+			rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, val32);
 		}
 
 		/*
