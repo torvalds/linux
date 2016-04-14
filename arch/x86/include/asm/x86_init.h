@@ -142,15 +142,41 @@ struct x86_cpuinit_ops {
 struct timespec;
 
 /**
+ * struct x86_legacy_devices - legacy x86 devices
+ *
+ * @pnpbios: this platform can have a PNPBIOS. If this is disabled the platform
+ * 	is known to never have a PNPBIOS.
+ *
+ * These are devices known to require LPC or ISA bus. The definition of legacy
+ * devices adheres to the ACPI 5.2.9.3 IA-PC Boot Architecture flag
+ * ACPI_FADT_LEGACY_DEVICES. These devices consist of user visible devices on
+ * the LPC or ISA bus. User visible devices are devices that have end-user
+ * accessible connectors (for example, LPT parallel port). Legacy devices on
+ * the LPC bus consist for example of serial and parallel ports, PS/2 keyboard
+ * / mouse, and the floppy disk controller. A system that lacks all known
+ * legacy devices can assume all devices can be detected exclusively via
+ * standard device enumeration mechanisms including the ACPI namespace.
+ *
+ * A system which has does not have ACPI_FADT_LEGACY_DEVICES enabled must not
+ * have any of the legacy devices enumerated below present.
+ */
+struct x86_legacy_devices {
+	int pnpbios;
+};
+
+/**
  * struct x86_legacy_features - legacy x86 features
  *
  * @rtc: this device has a CMOS real-time clock present
  * @ebda_search: it's safe to search for the EBDA signature in the hardware's
  * 	low RAM
+ * @devices: legacy x86 devices, refer to struct x86_legacy_devices
+ * 	documentation for further details.
  */
 struct x86_legacy_features {
 	int rtc;
 	int ebda_search;
+	struct x86_legacy_devices devices;
 };
 
 /**
