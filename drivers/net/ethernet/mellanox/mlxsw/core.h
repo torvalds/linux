@@ -200,6 +200,26 @@ struct mlxsw_driver {
 	int (*port_split)(struct mlxsw_core *mlxsw_core, u8 local_port,
 			  unsigned int count);
 	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u8 local_port);
+	int (*sb_pool_get)(struct mlxsw_core *mlxsw_core,
+			   unsigned int sb_index, u16 pool_index,
+			   struct devlink_sb_pool_info *pool_info);
+	int (*sb_pool_set)(struct mlxsw_core *mlxsw_core,
+			   unsigned int sb_index, u16 pool_index, u32 size,
+			   enum devlink_sb_threshold_type threshold_type);
+	int (*sb_port_pool_get)(struct mlxsw_core_port *mlxsw_core_port,
+				unsigned int sb_index, u16 pool_index,
+				u32 *p_threshold);
+	int (*sb_port_pool_set)(struct mlxsw_core_port *mlxsw_core_port,
+				unsigned int sb_index, u16 pool_index,
+				u32 threshold);
+	int (*sb_tc_pool_bind_get)(struct mlxsw_core_port *mlxsw_core_port,
+				   unsigned int sb_index, u16 tc_index,
+				   enum devlink_sb_pool_type pool_type,
+				   u16 *p_pool_index, u32 *p_threshold);
+	int (*sb_tc_pool_bind_set)(struct mlxsw_core_port *mlxsw_core_port,
+				   unsigned int sb_index, u16 tc_index,
+				   enum devlink_sb_pool_type pool_type,
+				   u16 pool_index, u32 threshold);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
 	u8 txhdr_len;
