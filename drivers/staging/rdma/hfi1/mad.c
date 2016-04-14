@@ -999,7 +999,21 @@ static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
 			break;
 		}
 
-		set_link_state(ppd, link_state);
+		if ((link_state == HLS_DN_POLL ||
+		     link_state == HLS_DN_DOWNDEF)) {
+			/*
+			 * Going to poll.  No matter what the current state,
+			 * always move offline first, then tune and start the
+			 * link.  This correctly handles a FM link bounce and
+			 * a link enable.  Going offline is a no-op if already
+			 * offline.
+			 */
+			set_link_state(ppd, HLS_DN_OFFLINE);
+			tune_serdes(ppd);
+			start_link(ppd);
+		} else {
+			set_link_state(ppd, link_state);
+		}
 		if (link_state == HLS_DN_DISABLE &&
 		    (ppd->offline_disabled_reason >
 		     HFI1_ODR_MASK(OPA_LINKDOWN_REASON_SMA_DISABLED) ||
