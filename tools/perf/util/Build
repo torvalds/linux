@@ -29,6 +29,7 @@ libperf-y += usage.o
 libperf-y += wrapper.o
 libperf-y += dso.o
 libperf-y += symbol.o
+libperf-y += symbol_fprintf.o
 libperf-y += color.o
 libperf-y += header.o
 libperf-y += callchain.o

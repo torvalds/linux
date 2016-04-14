@@ -140,6 +140,11 @@ struct symbol_conf {
 
 extern struct symbol_conf symbol_conf;
 
+struct symbol_name_rb_node {
+	struct rb_node	rb_node;
+	struct symbol	sym;
+};
+
 static inline int __symbol__join_symfs(char *bf, size_t size, const char *path)
 {
 	return path__join(bf, size, symbol_conf.symfs, path);
