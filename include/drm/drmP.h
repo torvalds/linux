@@ -90,7 +90,7 @@ struct reservation_object;
 struct dma_buf_attachment;
 
 /*
- * 4 debug categories are defined:
+ * The following categories are defined:
  *
  * CORE: Used in the generic drm code: drm_ioctl.c, drm_mm.c, drm_memory.c, ...
  *	 This is the category used by the DRM_DEBUG() macro.
