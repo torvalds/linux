@@ -206,6 +206,29 @@ static inline void pwm_get_args(const struct pwm_device *pwm,
 
 static inline void pwm_apply_args(struct pwm_device *pwm)
 {
+	/*
+	 * PWM users calling pwm_apply_args() expect to have a fresh config
+	 * where the polarity and period are set according to pwm_args info.
+	 * The problem is, polarity can only be changed when the PWM is
+	 * disabled.
+	 *
+	 * PWM drivers supporting hardware readout may declare the PWM device
+	 * as enabled, and prevent polarity setting, which changes from the
+	 * existing behavior, where all PWM devices are declared as disabled
+	 * at startup (even if they are actually enabled), thus authorizing
+	 * polarity setting.
+	 *
+	 * Instead of setting ->enabled to false, we call pwm_disable()
+	 * before pwm_set_polarity() to ensure that everything is configured
+	 * as expected, and the PWM is really disabled when the user request
+	 * it.
+	 *
+	 * Note that PWM users requiring a smooth handover between the
+	 * bootloader and the kernel (like critical regulators controlled by
+	 * PWM devices) will have to switch to the atomic API and avoid calling
+	 * pwm_apply_args().
+	 */
+	pwm_disable(pwm);
 	pwm_set_polarity(pwm, pwm->args.polarity);
 }
 
@@ -217,6 +240,9 @@ static inline void pwm_apply_args(struct pwm_device *pwm)
  * @set_polarity: configure the polarity of this PWM
  * @enable: enable PWM output toggling
  * @disable: disable PWM output toggling
+ * @get_state: get the current PWM state. This function is only
+ *	       called once per PWM device when the PWM chip is
+ *	       registered.
  * @dbg_show: optional routine to show contents in debugfs
  * @owner: helps prevent removal of modules exporting active PWMs
  */
@@ -229,6 +255,8 @@ struct pwm_ops {
 			    enum pwm_polarity polarity);
 	int (*enable)(struct pwm_chip *chip, struct pwm_device *pwm);
 	void (*disable)(struct pwm_chip *chip, struct pwm_device *pwm);
+	void (*get_state)(struct pwm_chip *chip, struct pwm_device *pwm,
+			  struct pwm_state *state);
 #ifdef CONFIG_DEBUG_FS
 	void (*dbg_show)(struct pwm_chip *chip, struct seq_file *s);
 #endif
