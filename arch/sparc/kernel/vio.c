@@ -105,9 +105,18 @@ static ssize_t type_show(struct device *dev,
 	return sprintf(buf, "%s\n", vdev->type);
 }
 
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	const struct vio_dev *vdev = to_vio_dev(dev);
+
+	return sprintf(buf, "vio:T%sS%s\n", vdev->type, vdev->compat);
+}
+
 static struct device_attribute vio_dev_attrs[] = {
 	__ATTR_RO(devspec),
 	__ATTR_RO(type),
+	__ATTR_RO(modalias),
 	__ATTR_NULL
 };
 
