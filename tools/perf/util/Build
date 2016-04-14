@@ -8,6 +8,7 @@ libperf-y += env.o
 libperf-y += event.o
 libperf-y += evlist.o
 libperf-y += evsel.o
+libperf-y += evsel_fprintf.o
 libperf-y += find_bit.o
 libperf-y += kallsyms.o
 libperf-y += levenshtein.o
