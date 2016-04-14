@@ -962,7 +962,7 @@ static int ni_ao_wait_for_dma_load(struct comedi_device *dev)
 		 * If we poll too often, the pci bus activity seems
 		 * to slow the dma transfer down.
 		 */
-		udelay(10);
+		usleep_range(10, 100);
 	}
 	if (i == timeout) {
 		dev_err(dev->class_dev, "timed out waiting for dma load\n");
@@ -3629,7 +3629,7 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 		if (ni_readl(dev, NI_M_CDIO_STATUS_REG) &
 		    NI_M_CDIO_STATUS_CDO_FIFO_FULL)
 			break;
-		udelay(10);
+		usleep_range(10, 100);
 	}
 	if (i == timeout) {
 		dev_err(dev->class_dev, "dma failed to fill cdo fifo!\n");
