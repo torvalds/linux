@@ -3104,7 +3104,8 @@ do_sigaltstack (const stack_t __user *uss, stack_t __user *uoss, unsigned long s
 	if (uss) {
 		void __user *ss_sp;
 		size_t ss_size;
-		int ss_flags;
+		unsigned ss_flags;
+		int ss_mode;
 
 		error = -EFAULT;
 		if (!access_ok(VERIFY_READ, uss, sizeof(*uss)))
@@ -3119,18 +3120,13 @@ do_sigaltstack (const stack_t __user *uss, stack_t __user *uoss, unsigned long s
 		if (on_sig_stack(sp))
 			goto out;
 
+		ss_mode = ss_flags & ~SS_FLAG_BITS;
 		error = -EINVAL;
-		/*
-		 * Note - this code used to test ss_flags incorrectly:
-		 *  	  old code may have been written using ss_flags==0
-		 *	  to mean ss_flags==SS_ONSTACK (as this was the only
-		 *	  way that worked) - this fix preserves that older
-		 *	  mechanism.
-		 */
-		if (ss_flags != SS_DISABLE && ss_flags != SS_ONSTACK && ss_flags != 0)
+		if (ss_mode != SS_DISABLE && ss_mode != SS_ONSTACK &&
+				ss_mode != 0)
 			goto out;
 
-		if (ss_flags == SS_DISABLE) {
+		if (ss_mode == SS_DISABLE) {
 			ss_size = 0;
 			ss_sp = NULL;
 		} else {
