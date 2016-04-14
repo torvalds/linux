@@ -146,7 +146,7 @@ static struct samsung_pll_rate_table pll1460x_24mhz_tbl[] __initdata = {
 
 static struct samsung_gate_clock topc_gate_clks[] __initdata = {
 	GATE(ACLK_CCORE_133, "aclk_ccore_133", "dout_aclk_ccore_133",
-		ENABLE_ACLK_TOPC0, 4, 0, 0),
+		ENABLE_ACLK_TOPC0, 4, CLK_IS_CRITICAL, 0),
 
 	GATE(ACLK_MSCL_532, "aclk_mscl_532", "dout_aclk_mscl_532",
 		ENABLE_ACLK_TOPC1, 20, 0, 0),
@@ -539,7 +539,8 @@ static struct samsung_gate_clock top1_gate_clks[] __initdata = {
 		ENABLE_SCLK_TOP1_FSYS11, 12, CLK_SET_RATE_PARENT, 0),
 
 	GATE(CLK_ACLK_FSYS0_200, "aclk_fsys0_200", "dout_aclk_fsys0_200",
-		ENABLE_ACLK_TOP13, 28, CLK_SET_RATE_PARENT, 0),
+		ENABLE_ACLK_TOP13, 28, CLK_SET_RATE_PARENT |
+		CLK_IS_CRITICAL, 0),
 	GATE(CLK_ACLK_FSYS1_200, "aclk_fsys1_200", "dout_aclk_fsys1_200",
 		ENABLE_ACLK_TOP13, 24, CLK_SET_RATE_PARENT, 0),
 
