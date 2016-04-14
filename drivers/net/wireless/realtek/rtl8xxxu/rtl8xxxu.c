@@ -7680,15 +7680,12 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/* RFSW Control - clear bit 14 ?? */
 	if (priv->rtl_chip != RTL8723B && priv->rtl_chip != RTL8192E)
 		rtl8xxxu_write32(priv, REG_FPGA0_TX_INFO, 0x00000003);
-	/* 0x07000760 */
-	if (priv->rtl_chip == RTL8192E) {
-		val32 = 0;
-	} else {
-		val32 = FPGA0_RF_TRSW | FPGA0_RF_TRSWB | FPGA0_RF_ANTSW |
-			FPGA0_RF_ANTSWB | FPGA0_RF_PAPE |
-			((FPGA0_RF_ANTSW | FPGA0_RF_ANTSWB | FPGA0_RF_PAPE) <<
-			 FPGA0_RF_BD_CTRL_SHIFT);
-	}
+
+	val32 = FPGA0_RF_TRSW | FPGA0_RF_TRSWB | FPGA0_RF_ANTSW |
+		FPGA0_RF_ANTSWB | FPGA0_RF_PAPE |
+		((FPGA0_RF_ANTSW | FPGA0_RF_ANTSWB | FPGA0_RF_PAPE) <<
+		 FPGA0_RF_BD_CTRL_SHIFT);
+
 	rtl8xxxu_write32(priv, REG_FPGA0_XAB_RF_SW_CTRL, val32);
 	/* 0x860[6:5]= 00 - why? - this sets antenna B */
 	if (priv->rtl_chip != RTL8192E)
