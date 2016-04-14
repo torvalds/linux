@@ -71,7 +71,7 @@
 #include "iwl-csr.h"
 
 static ssize_t iwl_mvm_read_coredump(char *buffer, loff_t offset, size_t count,
-				     const void *data, size_t datalen)
+				     void *data, size_t datalen)
 {
 	const struct iwl_mvm_dump_ptrs *dump_ptrs = data;
 	ssize_t bytes_read;
@@ -104,7 +104,7 @@ static ssize_t iwl_mvm_read_coredump(char *buffer, loff_t offset, size_t count,
 	return bytes_read + bytes_read_trans;
 }
 
-static void iwl_mvm_free_coredump(const void *data)
+static void iwl_mvm_free_coredump(void *data)
 {
 	const struct iwl_mvm_dump_ptrs *fw_error_dump = data;
 
