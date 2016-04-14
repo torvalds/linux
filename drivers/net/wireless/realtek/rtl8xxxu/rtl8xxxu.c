@@ -2125,8 +2125,6 @@ static void rtl8723a_disable_rf(struct rtl8xxxu_priv *priv)
 	u8 sps0;
 	u32 val32;
 
-	rtl8xxxu_write8(priv, REG_TXPAUSE, 0xff);
-
 	sps0 = rtl8xxxu_read8(priv, REG_SPS0_CTRL);
 
 	/* RF RX code for preamble power saving */
@@ -7665,8 +7663,6 @@ static void rtl8723b_disable_rf(struct rtl8xxxu_priv *priv)
 {
 	u32 val32;
 
-	rtl8xxxu_write8(priv, REG_TXPAUSE, 0xff);
-
 	val32 = rtl8xxxu_read32(priv, REG_RX_WAIT_CCA);
 	val32 &= ~(BIT(22) | BIT(23));
 	rtl8xxxu_write32(priv, REG_RX_WAIT_CCA, val32);
@@ -9590,6 +9586,8 @@ static void rtl8xxxu_stop(struct ieee80211_hw *hw)
 	usb_kill_anchored_urbs(&priv->tx_anchor);
 	if (priv->usb_interrupts)
 		usb_kill_anchored_urbs(&priv->int_anchor);
+
+	rtl8xxxu_write8(priv, REG_TXPAUSE, 0xff);
 
 	priv->fops->disable_rf(priv);
 
