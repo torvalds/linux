@@ -776,7 +776,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	/* Start the slowpath */
 	data = cdev->firmware->data;
 
-	rc = qed_hw_init(cdev, true, cdev->int_params.out.int_mode,
+	rc = qed_hw_init(cdev, NULL, true, cdev->int_params.out.int_mode,
 			 true, data);
 	if (rc)
 		goto err2;

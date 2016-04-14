@@ -788,3 +788,130 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn *p_hwfn,
 
 	return true;
 }
+
+static void
+qed_set_tunnel_type_enable_bit(unsigned long *var, int bit, bool enable)
+{
+	if (enable)
+		set_bit(bit, var);
+	else
+		clear_bit(bit, var);
+}
+
+#define PRS_ETH_TUNN_FIC_FORMAT	-188897008
+
+void qed_set_vxlan_dest_port(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt,
+			     u16 dest_port)
+{
+	qed_wr(p_hwfn, p_ptt, PRS_REG_VXLAN_PORT, dest_port);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_VXLAN_PORT, dest_port);
+	qed_wr(p_hwfn, p_ptt, PBF_REG_VXLAN_PORT, dest_port);
+}
+
+void qed_set_vxlan_enable(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  bool vxlan_enable)
+{
+	unsigned long reg_val = 0;
+	u8 shift;
+
+	reg_val = qed_rd(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN);
+	shift = PRS_REG_ENCAPSULATION_TYPE_EN_VXLAN_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, vxlan_enable);
+
+	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
+
+	if (reg_val)
+		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
+		       PRS_ETH_TUNN_FIC_FORMAT);
+
+	reg_val = qed_rd(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE);
+	shift = NIG_REG_ENC_TYPE_ENABLE_VXLAN_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, vxlan_enable);
+
+	qed_wr(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE, reg_val);
+
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_VXLAN_EN,
+	       vxlan_enable ? 1 : 0);
+}
+
+void qed_set_gre_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			bool eth_gre_enable, bool ip_gre_enable)
+{
+	unsigned long reg_val = 0;
+	u8 shift;
+
+	reg_val = qed_rd(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN);
+	shift = PRS_REG_ENCAPSULATION_TYPE_EN_ETH_OVER_GRE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, eth_gre_enable);
+
+	shift = PRS_REG_ENCAPSULATION_TYPE_EN_IP_OVER_GRE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, ip_gre_enable);
+	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
+	if (reg_val)
+		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
+		       PRS_ETH_TUNN_FIC_FORMAT);
+
+	reg_val = qed_rd(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE);
+	shift = NIG_REG_ENC_TYPE_ENABLE_ETH_OVER_GRE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, eth_gre_enable);
+
+	shift = NIG_REG_ENC_TYPE_ENABLE_IP_OVER_GRE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, ip_gre_enable);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE, reg_val);
+
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_GRE_ETH_EN,
+	       eth_gre_enable ? 1 : 0);
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_GRE_IP_EN,
+	       ip_gre_enable ? 1 : 0);
+}
+
+void qed_set_geneve_dest_port(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
+			      u16 dest_port)
+{
+	qed_wr(p_hwfn, p_ptt, PRS_REG_NGE_PORT, dest_port);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_PORT, dest_port);
+	qed_wr(p_hwfn, p_ptt, PBF_REG_NGE_PORT, dest_port);
+}
+
+void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt,
+			   bool eth_geneve_enable,
+			   bool ip_geneve_enable)
+{
+	unsigned long reg_val = 0;
+	u8 shift;
+
+	reg_val = qed_rd(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN);
+	shift = PRS_REG_ENCAPSULATION_TYPE_EN_ETH_OVER_GENEVE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, eth_geneve_enable);
+
+	shift = PRS_REG_ENCAPSULATION_TYPE_EN_IP_OVER_GENEVE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, ip_geneve_enable);
+
+	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
+	if (reg_val)
+		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
+		       PRS_ETH_TUNN_FIC_FORMAT);
+
+	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_ETH_ENABLE,
+	       eth_geneve_enable ? 1 : 0);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_IP_ENABLE, ip_geneve_enable ? 1 : 0);
+
+	/* comp ver */
+	reg_val = (ip_geneve_enable || eth_geneve_enable) ? 1 : 0;
+	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_COMP_VER, reg_val);
+	qed_wr(p_hwfn, p_ptt, PBF_REG_NGE_COMP_VER, reg_val);
+	qed_wr(p_hwfn, p_ptt, PRS_REG_NGE_COMP_VER, reg_val);
+
+	/* EDPM with geneve tunnel not supported in BB_B0 */
+	if (QED_IS_BB_B0(p_hwfn->cdev))
+		return;
+
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_NGE_ETH_EN,
+	       eth_geneve_enable ? 1 : 0);
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_NGE_IP_EN,
+	       ip_geneve_enable ? 1 : 0);
+}

@@ -558,6 +558,7 @@ static int qed_hw_init_port(struct qed_hwfn *p_hwfn,
 
 static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt,
+			  struct qed_tunn_start_params *p_tunn,
 			  int hw_mode,
 			  bool b_hw_start,
 			  enum qed_int_mode int_mode,
@@ -625,7 +626,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 		qed_int_igu_enable(p_hwfn, p_ptt, int_mode);
 
 		/* send function start command */
-		rc = qed_sp_pf_start(p_hwfn, p_hwfn->cdev->mf_mode);
+		rc = qed_sp_pf_start(p_hwfn, p_tunn, p_hwfn->cdev->mf_mode);
 		if (rc)
 			DP_NOTICE(p_hwfn, "Function start ramrod failed\n");
 	}
@@ -672,6 +673,7 @@ static void qed_reset_mb_shadow(struct qed_hwfn *p_hwfn,
 }
 
 int qed_hw_init(struct qed_dev *cdev,
+		struct qed_tunn_start_params *p_tunn,
 		bool b_hw_start,
 		enum qed_int_mode int_mode,
 		bool allow_npar_tx_switch,
@@ -724,7 +726,7 @@ int qed_hw_init(struct qed_dev *cdev,
 		/* Fall into */
 		case FW_MSG_CODE_DRV_LOAD_FUNCTION:
 			rc = qed_hw_init_pf(p_hwfn, p_hwfn->p_main_ptt,
-					    p_hwfn->hw_info.hw_mode,
+					    p_tunn, p_hwfn->hw_info.hw_mode,
 					    b_hw_start, int_mode,
 					    allow_npar_tx_switch);
 			break;
