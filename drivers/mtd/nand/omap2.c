@@ -216,7 +216,7 @@ static int omap_prefetch_enable(int cs, int fifo_th, int dma_mode,
 	 */
 	val = ((cs << PREFETCH_CONFIG1_CS_SHIFT) |
 		PREFETCH_FIFOTHRESHOLD(fifo_th) | ENABLE_PREFETCH |
-		(dma_mode << DMA_MPU_MODE_SHIFT) | (0x1 & is_write));
+		(dma_mode << DMA_MPU_MODE_SHIFT) | (is_write & 0x1));
 	writel(val, info->reg.gpmc_prefetch_config1);
 
 	/*  Start the prefetch engine */
