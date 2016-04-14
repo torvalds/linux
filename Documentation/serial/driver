@@ -135,6 +135,7 @@ hardware.
 	Notify the serial driver that input buffers for the line discipline are
 	close to full, and it should somehow signal that no more characters
 	should be sent to the serial port.
+	This will be called only if hardware assisted flow control is enabled.
 
 	Locking: none.
 
@@ -142,6 +143,7 @@ hardware.
 	Notify the serial driver that characters can now be sent to the serial
 	port without fear of overrunning the input buffers of the line
 	disciplines.
+	This will be called only if hardware assisted flow control is enabled.
 
 	Locking: none.
 
