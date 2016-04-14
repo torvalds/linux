@@ -149,7 +149,7 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 		if (!file || (event->base.file_priv == file)) {
 			mdp5_crtc->event = NULL;
 			DBG("%s: send event: %p", mdp5_crtc->name, event);
-			drm_send_vblank_event(dev, mdp5_crtc->id, event);
+			drm_crtc_send_vblank_event(crtc, event);
 		}
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
