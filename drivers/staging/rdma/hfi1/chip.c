@@ -6951,6 +6951,15 @@ void handle_link_down(struct work_struct *work)
 
 	set_link_down_reason(ppd, lcl_reason, neigh_reason, 0);
 
+	/* inform the SMA when the link transitions from up to down */
+	if (was_up && ppd->local_link_down_reason.sma == 0 &&
+	    ppd->neigh_link_down_reason.sma == 0) {
+		ppd->local_link_down_reason.sma =
+					ppd->local_link_down_reason.latest;
+		ppd->neigh_link_down_reason.sma =
+					ppd->neigh_link_down_reason.latest;
+	}
+
 	reset_neighbor_info(ppd);
 
 	/* disable the port */
@@ -10106,7 +10115,6 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 	struct hfi1_devdata *dd = ppd->dd;
 	struct ib_event event = {.device = NULL};
 	int ret1, ret = 0;
-	int was_up, is_down;
 	int orig_new_state, poll_bounce;
 
 	mutex_lock(&ppd->hls_lock);
@@ -10124,8 +10132,6 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		    link_state_name(orig_new_state),
 		    poll_bounce ? "(bounce) " : "",
 		    link_state_reason_name(ppd, state));
-
-	was_up = !!(ppd->host_link_state & HLS_UP);
 
 	/*
 	 * If we're going to a (HLS_*) link state that implies the logical
@@ -10335,17 +10341,6 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			    __func__, state);
 		ret = -EINVAL;
 		break;
-	}
-
-	is_down = !!(ppd->host_link_state & (HLS_DN_POLL |
-			HLS_DN_DISABLE | HLS_DN_OFFLINE));
-
-	if (was_up && is_down && ppd->local_link_down_reason.sma == 0 &&
-	    ppd->neigh_link_down_reason.sma == 0) {
-		ppd->local_link_down_reason.sma =
-		  ppd->local_link_down_reason.latest;
-		ppd->neigh_link_down_reason.sma =
-		  ppd->neigh_link_down_reason.latest;
 	}
 
 	goto done;
