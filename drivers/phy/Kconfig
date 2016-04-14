@@ -15,6 +15,15 @@ config GENERIC_PHY
 	  phy users can obtain reference to the PHY. All the users of this
 	  framework should select this config.
 
+config PHY_BCM_NS_USB2
+	tristate "Broadcom Northstar USB 2.0 PHY Driver"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support Broadcom USB 2.0 PHY connected to the USB
+	  controller on Northstar family.
+
 config PHY_BERLIN_USB
 	tristate "Marvell Berlin USB PHY Driver"
 	depends on ARCH_BERLIN && RESET_CONTROLLER && HAS_IOMEM && OF

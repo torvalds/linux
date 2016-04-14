@@ -4,6 +4,7 @@
 #include <linux/pci.h>
 #include <linux/mod_devicetable.h>
 
+#include <linux/bcma/bcma_driver_arm_c9.h>
 #include <linux/bcma/bcma_driver_chipcommon.h>
 #include <linux/bcma/bcma_driver_pci.h>
 #include <linux/bcma/bcma_driver_pcie2.h>
