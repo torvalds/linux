@@ -42,7 +42,7 @@ gm20b_gr_init_gpc_mmu(struct gf100_gr *gr)
 	}
 
 	val = nvkm_rd32(device, 0x100c80);
-	val &= 0xf000087f;
+	val &= 0xf000187f;
 	nvkm_wr32(device, 0x418880, val);
 	nvkm_wr32(device, 0x418890, 0);
 	nvkm_wr32(device, 0x418894, 0);

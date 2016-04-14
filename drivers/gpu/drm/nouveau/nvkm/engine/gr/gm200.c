@@ -36,10 +36,8 @@ static void
 gm200_gr_init_gpc_mmu(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	u32 tmp;
 
-	tmp = nvkm_rd32(device, 0x100c80); /*XXX: mask? */
-	nvkm_wr32(device, 0x418880, 0x00001000 | (tmp & 0x00000fff));
+	nvkm_wr32(device, 0x418880, nvkm_rd32(device, 0x100c80) & 0xf0001fff);
 	nvkm_wr32(device, 0x418890, 0x00000000);
 	nvkm_wr32(device, 0x418894, 0x00000000);
 
