@@ -58,13 +58,6 @@
 		 | DWC_CTLL_SMS(_sms));				\
 	})
 
-/*
- * Number of descriptors to allocate for each channel. This should be
- * made configurable somehow; preferably, the clients (at least the
- * ones using slave transfers) should be able to give us a hint.
- */
-#define NR_DESCS_PER_CHANNEL	64
-
 /* The set of bus widths supported by the DMA controller */
 #define DW_DMA_BUSWIDTHS			  \
 	BIT(DMA_SLAVE_BUSWIDTH_UNDEFINED)	| \
@@ -84,51 +77,65 @@ static struct dw_desc *dwc_first_active(struct dw_dma_chan *dwc)
 	return to_dw_desc(dwc->active_list.next);
 }
 
-static struct dw_desc *dwc_desc_get(struct dw_dma_chan *dwc)
+static dma_cookie_t dwc_tx_submit(struct dma_async_tx_descriptor *tx)
 {
-	struct dw_desc *desc, *_desc;
-	struct dw_desc *ret = NULL;
-	unsigned int i = 0;
-	unsigned long flags;
+	struct dw_desc		*desc = txd_to_dw_desc(tx);
+	struct dw_dma_chan	*dwc = to_dw_dma_chan(tx->chan);
+	dma_cookie_t		cookie;
+	unsigned long		flags;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	list_for_each_entry_safe(desc, _desc, &dwc->free_list, desc_node) {
-		i++;
-		if (async_tx_test_ack(&desc->txd)) {
-			list_del(&desc->desc_node);
-			ret = desc;
-			break;
-		}
-		dev_dbg(chan2dev(&dwc->chan), "desc %p not ACKed\n", desc);
-	}
+	cookie = dma_cookie_assign(tx);
+
+	/*
+	 * REVISIT: We should attempt to chain as many descriptors as
+	 * possible, perhaps even appending to those already submitted
+	 * for DMA. But this is hard to do in a race-free manner.
+	 */
+
+	list_add_tail(&desc->desc_node, &dwc->queue);
 	spin_unlock_irqrestore(&dwc->lock, flags);
+	dev_vdbg(chan2dev(tx->chan), "%s: queued %u\n",
+		 __func__, desc->txd.cookie);
 
-	dev_vdbg(chan2dev(&dwc->chan), "scanned %u descriptors on freelist\n", i);
-
-	return ret;
+	return cookie;
 }
 
-/*
- * Move a descriptor, including any children, to the free list.
- * `desc' must not be on any lists.
- */
+static struct dw_desc *dwc_desc_get(struct dw_dma_chan *dwc)
+{
+	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
+	struct dw_desc *desc;
+	dma_addr_t phys;
+
+	desc = dma_pool_zalloc(dw->desc_pool, GFP_ATOMIC, &phys);
+	if (!desc)
+		return NULL;
+
+	dwc->descs_allocated++;
+	INIT_LIST_HEAD(&desc->tx_list);
+	dma_async_tx_descriptor_init(&desc->txd, &dwc->chan);
+	desc->txd.tx_submit = dwc_tx_submit;
+	desc->txd.flags = DMA_CTRL_ACK;
+	desc->txd.phys = phys;
+	return desc;
+}
+
 static void dwc_desc_put(struct dw_dma_chan *dwc, struct dw_desc *desc)
 {
-	unsigned long flags;
+	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
+	struct dw_desc *child, *_next;
 
-	if (desc) {
-		struct dw_desc *child;
+	if (unlikely(!desc))
+		return;
 
-		spin_lock_irqsave(&dwc->lock, flags);
-		list_for_each_entry(child, &desc->tx_list, desc_node)
-			dev_vdbg(chan2dev(&dwc->chan),
-					"moving child desc %p to freelist\n",
-					child);
-		list_splice_init(&desc->tx_list, &dwc->free_list);
-		dev_vdbg(chan2dev(&dwc->chan), "moving desc %p to freelist\n", desc);
-		list_add(&desc->desc_node, &dwc->free_list);
-		spin_unlock_irqrestore(&dwc->lock, flags);
+	list_for_each_entry_safe(child, _next, &desc->tx_list, desc_node) {
+		list_del(&child->desc_node);
+		dma_pool_free(dw->desc_pool, child, child->txd.phys);
+		dwc->descs_allocated--;
 	}
+
+	dma_pool_free(dw->desc_pool, desc, desc->txd.phys);
+	dwc->descs_allocated--;
 }
 
 static void dwc_initialize(struct dw_dma_chan *dwc)
@@ -297,11 +304,7 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc,
 	list_for_each_entry(child, &desc->tx_list, desc_node)
 		async_tx_ack(&child->txd);
 	async_tx_ack(&desc->txd);
-
-	list_splice_init(&desc->tx_list, &dwc->free_list);
-	list_move(&desc->desc_node, &dwc->free_list);
-
-	dma_descriptor_unmap(txd);
+	dwc_desc_put(dwc, desc);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	if (callback)
@@ -662,30 +665,6 @@ static irqreturn_t dw_dma_interrupt(int irq, void *dev_id)
 }
 
 /*----------------------------------------------------------------------*/
-
-static dma_cookie_t dwc_tx_submit(struct dma_async_tx_descriptor *tx)
-{
-	struct dw_desc		*desc = txd_to_dw_desc(tx);
-	struct dw_dma_chan	*dwc = to_dw_dma_chan(tx->chan);
-	dma_cookie_t		cookie;
-	unsigned long		flags;
-
-	spin_lock_irqsave(&dwc->lock, flags);
-	cookie = dma_cookie_assign(tx);
-
-	/*
-	 * REVISIT: We should attempt to chain as many descriptors as
-	 * possible, perhaps even appending to those already submitted
-	 * for DMA. But this is hard to do in a race-free manner.
-	 */
-
-	dev_vdbg(chan2dev(tx->chan), "%s: queued %u\n", __func__, desc->txd.cookie);
-	list_add_tail(&desc->desc_node, &dwc->queue);
-
-	spin_unlock_irqrestore(&dwc->lock, flags);
-
-	return cookie;
-}
 
 static struct dma_async_tx_descriptor *
 dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
@@ -1159,9 +1138,6 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	struct dw_dma		*dw = to_dw_dma(chan->device);
-	struct dw_desc		*desc;
-	int			i;
-	unsigned long		flags;
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
@@ -1192,48 +1168,13 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 		dw_dma_on(dw);
 	dw->in_use |= dwc->mask;
 
-	spin_lock_irqsave(&dwc->lock, flags);
-	i = dwc->descs_allocated;
-	while (dwc->descs_allocated < NR_DESCS_PER_CHANNEL) {
-		dma_addr_t phys;
-
-		spin_unlock_irqrestore(&dwc->lock, flags);
-
-		desc = dma_pool_alloc(dw->desc_pool, GFP_ATOMIC, &phys);
-		if (!desc)
-			goto err_desc_alloc;
-
-		memset(desc, 0, sizeof(struct dw_desc));
-
-		INIT_LIST_HEAD(&desc->tx_list);
-		dma_async_tx_descriptor_init(&desc->txd, chan);
-		desc->txd.tx_submit = dwc_tx_submit;
-		desc->txd.flags = DMA_CTRL_ACK;
-		desc->txd.phys = phys;
-
-		dwc_desc_put(dwc, desc);
-
-		spin_lock_irqsave(&dwc->lock, flags);
-		i = ++dwc->descs_allocated;
-	}
-
-	spin_unlock_irqrestore(&dwc->lock, flags);
-
-	dev_dbg(chan2dev(chan), "%s: allocated %d descriptors\n", __func__, i);
-
-	return i;
-
-err_desc_alloc:
-	dev_info(chan2dev(chan), "only allocated %d descriptors\n", i);
-
-	return i;
+	return 0;
 }
 
 static void dwc_free_chan_resources(struct dma_chan *chan)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	struct dw_dma		*dw = to_dw_dma(chan->device);
-	struct dw_desc		*desc, *_desc;
 	unsigned long		flags;
 	LIST_HEAD(list);
 
@@ -1246,8 +1187,6 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 	BUG_ON(dma_readl(to_dw_dma(chan->device), CH_EN) & dwc->mask);
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	list_splice_init(&dwc->free_list, &list);
-	dwc->descs_allocated = 0;
 
 	/* Clear custom channel configuration */
 	dwc->src_id = 0;
@@ -1269,11 +1208,6 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 	dw->in_use &= ~dwc->mask;
 	if (!dw->in_use)
 		dw_dma_off(dw);
-
-	list_for_each_entry_safe(desc, _desc, &list, desc_node) {
-		dev_vdbg(chan2dev(chan), "  freeing descriptor %p\n", desc);
-		dma_pool_free(dw->desc_pool, desc, desc->txd.phys);
-	}
 
 	dev_vdbg(chan2dev(chan), "%s: done\n", __func__);
 }
@@ -1405,9 +1339,6 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 		goto out_err;
 
 	retval = ERR_PTR(-ENOMEM);
-
-	if (periods > NR_DESCS_PER_CHANNEL)
-		goto out_err;
 
 	cdesc = kzalloc(sizeof(struct dw_cyclic_desc), GFP_KERNEL);
 	if (!cdesc)
@@ -1641,7 +1572,6 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 		INIT_LIST_HEAD(&dwc->active_list);
 		INIT_LIST_HEAD(&dwc->queue);
-		INIT_LIST_HEAD(&dwc->free_list);
 
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 

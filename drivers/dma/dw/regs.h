@@ -236,7 +236,6 @@ struct dw_dma_chan {
 	unsigned long		flags;
 	struct list_head	active_list;
 	struct list_head	queue;
-	struct list_head	free_list;
 	struct dw_cyclic_desc	*cdesc;
 
 	unsigned int		descs_allocated;
