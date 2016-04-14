@@ -4831,7 +4831,6 @@ static int ni_mseries_get_pll_parameters(unsigned int reference_period_ns,
 	 * divided by 4 to 20 MHz for most timing clocks
 	 */
 	static const unsigned int target_picosec = 12500;
-	static const unsigned int fudge_factor_80_to_20Mhz = 4;
 	int best_period_picosec = 0;
 
 	for (div = 1; div <= NI_M_PLL_MAX_DIVISOR; ++div) {
@@ -4851,8 +4850,8 @@ static int ni_mseries_get_pll_parameters(unsigned int reference_period_ns,
 
 	*freq_divider = best_div;
 	*freq_multiplier = best_mult;
-	*actual_period_ns = DIV_ROUND_CLOSEST(best_period_picosec *
-					      fudge_factor_80_to_20Mhz,
+	/* return the actual period (* fudge factor for 80 to 20 MHz) */
+	*actual_period_ns = DIV_ROUND_CLOSEST(best_period_picosec * 4,
 					      pico_per_nano);
 	return 0;
 }
