@@ -290,6 +290,7 @@ struct qede_fastpath {
 
 #define QEDE_CSUM_ERROR			BIT(0)
 #define QEDE_CSUM_UNNECESSARY		BIT(1)
+#define QEDE_TUNN_CSUM_UNNECESSARY	BIT(2)
 
 #define QEDE_SP_RX_MODE			1
 #define QEDE_SP_VXLAN_PORT_CONFIG	2
