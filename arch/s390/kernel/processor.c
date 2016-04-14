@@ -53,10 +53,7 @@ int cpu_have_feature(unsigned int num)
 }
 EXPORT_SYMBOL(cpu_have_feature);
 
-/*
- * show_cpuinfo - Get information on one CPU for use by procfs.
- */
-static int show_cpuinfo(struct seq_file *m, void *v)
+static void show_cpu_summary(struct seq_file *m, void *v)
 {
 	static const char *hwcap_str[] = {
 		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
@@ -65,34 +62,43 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	static const char * const int_hwcap_str[] = {
 		"sie"
 	};
-	unsigned long n = (unsigned long) v - 1;
-	int i;
+	int i, cpu;
 
-	if (!n) {
-		s390_adjust_jiffies();
-		seq_printf(m, "vendor_id       : IBM/S390\n"
-			   "# processors    : %i\n"
-			   "bogomips per cpu: %lu.%02lu\n",
-			   num_online_cpus(), loops_per_jiffy/(500000/HZ),
-			   (loops_per_jiffy/(5000/HZ))%100);
-		seq_puts(m, "features\t: ");
-		for (i = 0; i < ARRAY_SIZE(hwcap_str); i++)
-			if (hwcap_str[i] && (elf_hwcap & (1UL << i)))
-				seq_printf(m, "%s ", hwcap_str[i]);
-		for (i = 0; i < ARRAY_SIZE(int_hwcap_str); i++)
-			if (int_hwcap_str[i] && (int_hwcap & (1UL << i)))
-				seq_printf(m, "%s ", int_hwcap_str[i]);
-		seq_puts(m, "\n");
-		show_cacheinfo(m);
-	}
-	if (cpu_online(n)) {
-		struct cpuid *id = &per_cpu(cpu_id, n);
-		seq_printf(m, "processor %li: "
+	s390_adjust_jiffies();
+	seq_printf(m, "vendor_id       : IBM/S390\n"
+		   "# processors    : %i\n"
+		   "bogomips per cpu: %lu.%02lu\n",
+		   num_online_cpus(), loops_per_jiffy/(500000/HZ),
+		   (loops_per_jiffy/(5000/HZ))%100);
+	seq_puts(m, "features\t: ");
+	for (i = 0; i < ARRAY_SIZE(hwcap_str); i++)
+		if (hwcap_str[i] && (elf_hwcap & (1UL << i)))
+			seq_printf(m, "%s ", hwcap_str[i]);
+	for (i = 0; i < ARRAY_SIZE(int_hwcap_str); i++)
+		if (int_hwcap_str[i] && (int_hwcap & (1UL << i)))
+			seq_printf(m, "%s ", int_hwcap_str[i]);
+	seq_puts(m, "\n");
+	show_cacheinfo(m);
+	for_each_online_cpu(cpu) {
+		struct cpuid *id = &per_cpu(cpu_id, cpu);
+
+		seq_printf(m, "processor %d: "
 			   "version = %02X,  "
 			   "identification = %06X,  "
 			   "machine = %04X\n",
-			   n, id->version, id->ident, id->machine);
+			   cpu, id->version, id->ident, id->machine);
 	}
+}
+
+/*
+ * show_cpuinfo - Get information on one CPU for use by procfs.
+ */
+static int show_cpuinfo(struct seq_file *m, void *v)
+{
+	unsigned long n = (unsigned long) v - 1;
+
+	if (!n)
+		show_cpu_summary(m, v);
 	return 0;
 }
 
