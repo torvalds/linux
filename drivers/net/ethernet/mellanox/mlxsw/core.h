@@ -229,6 +229,17 @@ struct mlxsw_driver {
 				   unsigned int sb_index, u16 tc_index,
 				   enum devlink_sb_pool_type pool_type,
 				   u16 pool_index, u32 threshold);
+	int (*sb_occ_snapshot)(struct mlxsw_core *mlxsw_core,
+			       unsigned int sb_index);
+	int (*sb_occ_max_clear)(struct mlxsw_core *mlxsw_core,
+				unsigned int sb_index);
+	int (*sb_occ_port_pool_get)(struct mlxsw_core_port *mlxsw_core_port,
+				    unsigned int sb_index, u16 pool_index,
+				    u32 *p_cur, u32 *p_max);
+	int (*sb_occ_tc_port_bind_get)(struct mlxsw_core_port *mlxsw_core_port,
+				       unsigned int sb_index, u16 tc_index,
+				       enum devlink_sb_pool_type pool_type,
+				       u32 *p_cur, u32 *p_max);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
 	u8 txhdr_len;
