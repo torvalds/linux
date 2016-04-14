@@ -2421,6 +2421,13 @@ rtl8723a_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 	cck[0] = priv->cck_tx_power_index_A[group];
 	cck[1] = priv->cck_tx_power_index_B[group];
 
+	if (priv->hi_pa) {
+		if (cck[0] > 0x20)
+			cck[0] = 0x20;
+		if (cck[1] > 0x20)
+			cck[1] = 0x20;
+	}
+
 	ofdm[0] = priv->ht40_1s_tx_power_index_A[group];
 	ofdm[1] = priv->ht40_1s_tx_power_index_B[group];
 
