@@ -20,7 +20,7 @@ config ANDROID_LOW_MEMORY_KILLER
 	  Registers processes to be killed when low memory conditions, this is useful
 	  as there is no particular swap space on android.
 
-	  The registered process will kills according to the priorities in android init
+	  The registered process will kill according to the priorities in android init
 	  scripts (/init.rc), and it defines priority values with minimum free memory size
 	  for each priority.
 
