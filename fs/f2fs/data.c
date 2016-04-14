@@ -1153,7 +1153,7 @@ static int f2fs_write_data_page(struct page *page,
 	struct f2fs_io_info fio = {
 		.sbi = sbi,
 		.type = DATA,
-		.rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : WRITE,
+		.rw = wbc_to_write_cmd(wbc),
 		.page = page,
 		.encrypted_page = NULL,
 	};
