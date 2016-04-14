@@ -43,6 +43,7 @@
 #include <linux/gfp.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
+#include <linux/workqueue.h>
 #include <net/devlink.h>
 
 #include "trap.h"
@@ -108,6 +109,19 @@ void mlxsw_core_event_listener_unregister(struct mlxsw_core *mlxsw_core,
 					  const struct mlxsw_event_listener *el,
 					  void *priv);
 
+typedef void mlxsw_reg_trans_cb_t(struct mlxsw_core *mlxsw_core, char *payload,
+				  size_t payload_len, unsigned long cb_priv);
+
+int mlxsw_reg_trans_query(struct mlxsw_core *mlxsw_core,
+			  const struct mlxsw_reg_info *reg, char *payload,
+			  struct list_head *bulk_list,
+			  mlxsw_reg_trans_cb_t *cb, unsigned long cb_priv);
+int mlxsw_reg_trans_write(struct mlxsw_core *mlxsw_core,
+			  const struct mlxsw_reg_info *reg, char *payload,
+			  struct list_head *bulk_list,
+			  mlxsw_reg_trans_cb_t *cb, unsigned long cb_priv);
+int mlxsw_reg_trans_bulk_wait(struct list_head *bulk_list);
+
 int mlxsw_reg_query(struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_reg_info *reg, char *payload);
 int mlxsw_reg_write(struct mlxsw_core *mlxsw_core,
@@ -137,10 +151,21 @@ struct mlxsw_core_port {
 	struct devlink_port devlink_port;
 };
 
+static inline void *
+mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port)
+{
+	/* mlxsw_core_port is ensured to always be the first field in driver
+	 * port structure.
+	 */
+	return mlxsw_core_port;
+}
+
 int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core,
 			 struct mlxsw_core_port *mlxsw_core_port, u8 local_port,
 			 struct net_device *dev, bool split, u32 split_group);
 void mlxsw_core_port_fini(struct mlxsw_core_port *mlxsw_core_port);
+
+int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay);
 
 #define MLXSW_CONFIG_PROFILE_SWID_COUNT 8
 
@@ -200,6 +225,37 @@ struct mlxsw_driver {
 	int (*port_split)(struct mlxsw_core *mlxsw_core, u8 local_port,
 			  unsigned int count);
 	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u8 local_port);
+	int (*sb_pool_get)(struct mlxsw_core *mlxsw_core,
+			   unsigned int sb_index, u16 pool_index,
+			   struct devlink_sb_pool_info *pool_info);
+	int (*sb_pool_set)(struct mlxsw_core *mlxsw_core,
+			   unsigned int sb_index, u16 pool_index, u32 size,
+			   enum devlink_sb_threshold_type threshold_type);
+	int (*sb_port_pool_get)(struct mlxsw_core_port *mlxsw_core_port,
+				unsigned int sb_index, u16 pool_index,
+				u32 *p_threshold);
+	int (*sb_port_pool_set)(struct mlxsw_core_port *mlxsw_core_port,
+				unsigned int sb_index, u16 pool_index,
+				u32 threshold);
+	int (*sb_tc_pool_bind_get)(struct mlxsw_core_port *mlxsw_core_port,
+				   unsigned int sb_index, u16 tc_index,
+				   enum devlink_sb_pool_type pool_type,
+				   u16 *p_pool_index, u32 *p_threshold);
+	int (*sb_tc_pool_bind_set)(struct mlxsw_core_port *mlxsw_core_port,
+				   unsigned int sb_index, u16 tc_index,
+				   enum devlink_sb_pool_type pool_type,
+				   u16 pool_index, u32 threshold);
+	int (*sb_occ_snapshot)(struct mlxsw_core *mlxsw_core,
+			       unsigned int sb_index);
+	int (*sb_occ_max_clear)(struct mlxsw_core *mlxsw_core,
+				unsigned int sb_index);
+	int (*sb_occ_port_pool_get)(struct mlxsw_core_port *mlxsw_core_port,
+				    unsigned int sb_index, u16 pool_index,
+				    u32 *p_cur, u32 *p_max);
+	int (*sb_occ_tc_port_bind_get)(struct mlxsw_core_port *mlxsw_core_port,
+				       unsigned int sb_index, u16 tc_index,
+				       enum devlink_sb_pool_type pool_type,
+				       u32 *p_cur, u32 *p_max);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
 	u8 txhdr_len;

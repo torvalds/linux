@@ -2434,6 +2434,7 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 
 err_switchdev_init:
 err_lag_init:
+	mlxsw_sp_buffers_fini(mlxsw_sp);
 err_buffers_init:
 err_flood_init:
 	mlxsw_sp_traps_fini(mlxsw_sp);
@@ -2448,6 +2449,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
+	mlxsw_sp_buffers_fini(mlxsw_sp);
 	mlxsw_sp_switchdev_fini(mlxsw_sp);
 	mlxsw_sp_traps_fini(mlxsw_sp);
 	mlxsw_sp_event_unregister(mlxsw_sp, MLXSW_TRAP_ID_PUDE);
@@ -2491,16 +2493,26 @@ static struct mlxsw_config_profile mlxsw_sp_config_profile = {
 };
 
 static struct mlxsw_driver mlxsw_sp_driver = {
-	.kind			= MLXSW_DEVICE_KIND_SPECTRUM,
-	.owner			= THIS_MODULE,
-	.priv_size		= sizeof(struct mlxsw_sp),
-	.init			= mlxsw_sp_init,
-	.fini			= mlxsw_sp_fini,
-	.port_split		= mlxsw_sp_port_split,
-	.port_unsplit		= mlxsw_sp_port_unsplit,
-	.txhdr_construct	= mlxsw_sp_txhdr_construct,
-	.txhdr_len		= MLXSW_TXHDR_LEN,
-	.profile		= &mlxsw_sp_config_profile,
+	.kind				= MLXSW_DEVICE_KIND_SPECTRUM,
+	.owner				= THIS_MODULE,
+	.priv_size			= sizeof(struct mlxsw_sp),
+	.init				= mlxsw_sp_init,
+	.fini				= mlxsw_sp_fini,
+	.port_split			= mlxsw_sp_port_split,
+	.port_unsplit			= mlxsw_sp_port_unsplit,
+	.sb_pool_get			= mlxsw_sp_sb_pool_get,
+	.sb_pool_set			= mlxsw_sp_sb_pool_set,
+	.sb_port_pool_get		= mlxsw_sp_sb_port_pool_get,
+	.sb_port_pool_set		= mlxsw_sp_sb_port_pool_set,
+	.sb_tc_pool_bind_get		= mlxsw_sp_sb_tc_pool_bind_get,
+	.sb_tc_pool_bind_set		= mlxsw_sp_sb_tc_pool_bind_set,
+	.sb_occ_snapshot		= mlxsw_sp_sb_occ_snapshot,
+	.sb_occ_max_clear		= mlxsw_sp_sb_occ_max_clear,
+	.sb_occ_port_pool_get		= mlxsw_sp_sb_occ_port_pool_get,
+	.sb_occ_tc_port_bind_get	= mlxsw_sp_sb_occ_tc_port_bind_get,
+	.txhdr_construct		= mlxsw_sp_txhdr_construct,
+	.txhdr_len			= MLXSW_TXHDR_LEN,
+	.profile			= &mlxsw_sp_config_profile,
 };
 
 static int

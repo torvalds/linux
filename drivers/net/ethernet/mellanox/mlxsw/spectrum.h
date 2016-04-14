@@ -65,6 +65,7 @@
 #define MLXSW_SP_BYTES_PER_CELL 96
 
 #define MLXSW_SP_BYTES_TO_CELLS(b) DIV_ROUND_UP(b, MLXSW_SP_BYTES_PER_CELL)
+#define MLXSW_SP_CELLS_TO_BYTES(c) (c * MLXSW_SP_BYTES_PER_CELL)
 
 /* Maximum delay buffer needed in case of PAUSE frames, in cells.
  * Assumes 100m cable and maximum MTU.
@@ -117,6 +118,40 @@ static inline bool mlxsw_sp_fid_is_vfid(u16 fid)
 	return fid >= MLXSW_SP_VFID_BASE;
 }
 
+struct mlxsw_sp_sb_pr {
+	enum mlxsw_reg_sbpr_mode mode;
+	u32 size;
+};
+
+struct mlxsw_cp_sb_occ {
+	u32 cur;
+	u32 max;
+};
+
+struct mlxsw_sp_sb_cm {
+	u32 min_buff;
+	u32 max_buff;
+	u8 pool;
+	struct mlxsw_cp_sb_occ occ;
+};
+
+struct mlxsw_sp_sb_pm {
+	u32 min_buff;
+	u32 max_buff;
+	struct mlxsw_cp_sb_occ occ;
+};
+
+#define MLXSW_SP_SB_POOL_COUNT	4
+#define MLXSW_SP_SB_TC_COUNT	8
+
+struct mlxsw_sp_sb {
+	struct mlxsw_sp_sb_pr prs[2][MLXSW_SP_SB_POOL_COUNT];
+	struct {
+		struct mlxsw_sp_sb_cm cms[2][MLXSW_SP_SB_TC_COUNT];
+		struct mlxsw_sp_sb_pm pms[2][MLXSW_SP_SB_POOL_COUNT];
+	} ports[MLXSW_PORT_MAX_PORTS];
+};
+
 struct mlxsw_sp {
 	struct {
 		struct list_head list;
@@ -147,6 +182,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_upper master_bridge;
 	struct mlxsw_sp_upper lags[MLXSW_SP_LAG_MAX];
 	u8 port_to_module[MLXSW_PORT_MAX_PORTS];
+	struct mlxsw_sp_sb sb;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -277,7 +313,39 @@ enum mlxsw_sp_flood_table {
 };
 
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_buffers_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_port_buffers_init(struct mlxsw_sp_port *mlxsw_sp_port);
+int mlxsw_sp_sb_pool_get(struct mlxsw_core *mlxsw_core,
+			 unsigned int sb_index, u16 pool_index,
+			 struct devlink_sb_pool_info *pool_info);
+int mlxsw_sp_sb_pool_set(struct mlxsw_core *mlxsw_core,
+			 unsigned int sb_index, u16 pool_index, u32 size,
+			 enum devlink_sb_threshold_type threshold_type);
+int mlxsw_sp_sb_port_pool_get(struct mlxsw_core_port *mlxsw_core_port,
+			      unsigned int sb_index, u16 pool_index,
+			      u32 *p_threshold);
+int mlxsw_sp_sb_port_pool_set(struct mlxsw_core_port *mlxsw_core_port,
+			      unsigned int sb_index, u16 pool_index,
+			      u32 threshold);
+int mlxsw_sp_sb_tc_pool_bind_get(struct mlxsw_core_port *mlxsw_core_port,
+				 unsigned int sb_index, u16 tc_index,
+				 enum devlink_sb_pool_type pool_type,
+				 u16 *p_pool_index, u32 *p_threshold);
+int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
+				 unsigned int sb_index, u16 tc_index,
+				 enum devlink_sb_pool_type pool_type,
+				 u16 pool_index, u32 threshold);
+int mlxsw_sp_sb_occ_snapshot(struct mlxsw_core *mlxsw_core,
+			     unsigned int sb_index);
+int mlxsw_sp_sb_occ_max_clear(struct mlxsw_core *mlxsw_core,
+			      unsigned int sb_index);
+int mlxsw_sp_sb_occ_port_pool_get(struct mlxsw_core_port *mlxsw_core_port,
+				  unsigned int sb_index, u16 pool_index,
+				  u32 *p_cur, u32 *p_max);
+int mlxsw_sp_sb_occ_tc_port_bind_get(struct mlxsw_core_port *mlxsw_core_port,
+				     unsigned int sb_index, u16 tc_index,
+				     enum devlink_sb_pool_type pool_type,
+				     u32 *p_cur, u32 *p_max);
 
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_switchdev_fini(struct mlxsw_sp *mlxsw_sp);
