@@ -1890,14 +1890,16 @@ static int trace__fprintf_callchain(struct trace *trace, struct perf_evsel *evse
 	if (sample->callchain == NULL)
 		return 0;
 
-	if (machine__resolve(trace->host, &al, sample) < 0) {
+	if (machine__resolve(trace->host, &al, sample) < 0 ||
+	    thread__resolve_callchain(al.thread, &callchain_cursor, evsel,
+				      sample, NULL, NULL, scripting_max_stack)) {
 		pr_err("Problem processing %s callchain, skipping...\n",
 			perf_evsel__name(evsel));
 		return 0;
 	}
 
-	return perf_evsel__fprintf_callchain(evsel, sample, &al, 38, print_opts,
-					     scripting_max_stack, trace->output);
+	return sample__fprintf_callchain(sample, &al, 38, print_opts,
+					 &callchain_cursor, trace->output);
 }
 
 static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,

@@ -2343,13 +2343,12 @@ out:
 	return ++printed;
 }
 
-int perf_evsel__fprintf_callchain(struct perf_evsel *evsel, struct perf_sample *sample,
-				  struct addr_location *al, int left_alignment,
-				  unsigned int print_opts, unsigned int stack_depth,
-				  FILE *fp)
+int sample__fprintf_callchain(struct perf_sample *sample,
+			      struct addr_location *al, int left_alignment,
+			      unsigned int print_opts, struct callchain_cursor *cursor,
+			      FILE *fp)
 {
 	int printed = 0;
-	struct callchain_cursor cursor;
 	struct callchain_cursor_node *node;
 	int print_ip = print_opts & EVSEL__PRINT_IP;
 	int print_sym = print_opts & EVSEL__PRINT_SYM;
@@ -2363,22 +2362,15 @@ int perf_evsel__fprintf_callchain(struct perf_evsel *evsel, struct perf_sample *
 	if (sample->callchain) {
 		struct addr_location node_al;
 
-		if (thread__resolve_callchain(al->thread, &cursor, evsel,
-					      sample, NULL, NULL,
-					      stack_depth) != 0) {
-			if (verbose)
-				error("Failed to resolve callchain. Skipping\n");
-			return printed;
-		}
-		callchain_cursor_commit(&cursor);
+		callchain_cursor_commit(cursor);
 
 		if (print_symoffset)
 			node_al = *al;
 
-		while (stack_depth) {
+		while (1) {
 			u64 addr = 0;
 
-			node = callchain_cursor_current(&cursor);
+			node = callchain_cursor_current(cursor);
 			if (!node)
 				break;
 
@@ -2418,20 +2410,17 @@ int perf_evsel__fprintf_callchain(struct perf_evsel *evsel, struct perf_sample *
 
 			if (!print_oneline)
 				printed += fprintf(fp, "\n");
-
-			stack_depth--;
 next:
-			callchain_cursor_advance(&cursor);
+			callchain_cursor_advance(cursor);
 		}
 	}
 
 	return printed;
 }
 
-int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample,
-			    struct addr_location *al, int left_alignment,
-			    unsigned int print_opts, bool print_callchain,
-			    unsigned int stack_depth, FILE *fp)
+int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
+			int left_alignment, unsigned int print_opts,
+			struct callchain_cursor *cursor, FILE *fp)
 {
 	int printed = 0;
 	int print_ip = print_opts & EVSEL__PRINT_IP;
@@ -2441,9 +2430,9 @@ int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample
 	int print_srcline = print_opts & EVSEL__PRINT_SRCLINE;
 	int print_unknown_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
 
-	if (print_callchain && sample->callchain) {
-		printed += perf_evsel__fprintf_callchain(evsel, sample, al, left_alignment,
-							 print_opts, stack_depth, fp);
+	if (cursor != NULL) {
+		printed += sample__fprintf_callchain(sample, al, left_alignment,
+						     print_opts, cursor, fp);
 	} else if (!(al->sym && al->sym->ignore)) {
 		printed += fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
 
