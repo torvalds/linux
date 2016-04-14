@@ -1898,8 +1898,7 @@ static int trace__fprintf_callchain(struct trace *trace, struct perf_evsel *evse
 		return 0;
 	}
 
-	return sample__fprintf_callchain(sample, &al, 38, print_opts,
-					 &callchain_cursor, trace->output);
+	return sample__fprintf_callchain(sample, 38, print_opts, &callchain_cursor, trace->output);
 }
 
 static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,

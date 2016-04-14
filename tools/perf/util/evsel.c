@@ -2343,8 +2343,7 @@ out:
 	return ++printed;
 }
 
-int sample__fprintf_callchain(struct perf_sample *sample,
-			      struct addr_location *al, int left_alignment,
+int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			      unsigned int print_opts, struct callchain_cursor *cursor,
 			      FILE *fp)
 {
@@ -2363,9 +2362,6 @@ int sample__fprintf_callchain(struct perf_sample *sample,
 		struct addr_location node_al;
 
 		callchain_cursor_commit(cursor);
-
-		if (print_symoffset)
-			node_al = *al;
 
 		while (1) {
 			u64 addr = 0;
@@ -2431,7 +2427,7 @@ int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 	int print_unknown_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
 
 	if (cursor != NULL) {
-		printed += sample__fprintf_callchain(sample, al, left_alignment,
+		printed += sample__fprintf_callchain(sample, left_alignment,
 						     print_opts, cursor, fp);
 	} else if (!(al->sym && al->sym->ignore)) {
 		printed += fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");

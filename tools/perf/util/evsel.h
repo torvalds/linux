@@ -397,8 +397,8 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 
 struct callchain_cursor;
 
-int sample__fprintf_callchain(struct perf_sample *sample, struct addr_location *al,
-			      int left_alignment, unsigned int print_opts,
+int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
+			      unsigned int print_opts,
 			      struct callchain_cursor *cursor, FILE *fp);
 
 int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
