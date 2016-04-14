@@ -191,7 +191,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (pd_addr != id->pd_gpu_addr)
 			continue;
 
-		if (id != vm->ids[ring->idx] &&
+		if (id->last_user != ring &&
 		    (!id->last_flush || !fence_is_signaled(id->last_flush)))
 			continue;
 
@@ -200,7 +200,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			continue;
 
 		/* Good we can use this VMID */
-		if (id == vm->ids[ring->idx]) {
+		if (id->last_user == ring) {
 			r = amdgpu_sync_fence(ring->adev, sync,
 					      id->first);
 			if (r)
