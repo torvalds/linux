@@ -7,8 +7,14 @@
  * Licensed under the GPL-2 or later.
  */
 
+enum {
+	W5100,
+	W5200,
+};
+
 struct w5100_ops {
 	bool may_sleep;
+	int chip_id;
 	int (*read)(struct net_device *ndev, u16 addr);
 	int (*write)(struct net_device *ndev, u16 addr, u8 data);
 	int (*read16)(struct net_device *ndev, u16 addr);
