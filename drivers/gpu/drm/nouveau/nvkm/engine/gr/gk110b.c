@@ -106,6 +106,7 @@ gk110b_gr = {
 	.mmio = gk110b_gr_pack_mmio,
 	.fecs.ucode = &gk110_gr_fecs_ucode,
 	.gpccs.ucode = &gk110_gr_gpccs_ucode,
+	.rops = gf100_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gk110b_grctx,
 	.sclass = {

@@ -702,6 +702,13 @@ gf100_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+int
+gf100_gr_rops(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	return (nvkm_rd32(device, 0x409604) & 0x001f0000) >> 16;
+}
+
 void
 gf100_gr_zbc_init(struct gf100_gr *gr)
 {
@@ -1633,8 +1640,8 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 		nvkm_wo32(gr->unk4188b8, i, 0x00000010);
 	nvkm_done(gr->unk4188b8);
 
-	gr->rop_nr = (nvkm_rd32(device, 0x409604) & 0x001f0000) >> 16;
-	gr->gpc_nr =  nvkm_rd32(device, 0x409604) & 0x0000001f;
+	gr->rop_nr = gr->func->rops(gr);
+	gr->gpc_nr = nvkm_rd32(device, 0x409604) & 0x0000001f;
 	for (i = 0; i < gr->gpc_nr; i++) {
 		gr->tpc_nr[i]  = nvkm_rd32(device, GPC_UNIT(i, 0x2608));
 		gr->tpc_total += gr->tpc_nr[i];
@@ -1946,6 +1953,7 @@ gf100_gr = {
 	.mmio = gf100_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,
+	.rops = gf100_gr_rops,
 	.grctx = &gf100_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },

@@ -165,6 +165,7 @@ gk208_gr = {
 	.mmio = gk208_gr_pack_mmio,
 	.fecs.ucode = &gk208_gr_fecs_ucode,
 	.gpccs.ucode = &gk208_gr_gpccs_ucode,
+	.rops = gf100_gr_rops,
 	.ppc_nr = 1,
 	.grctx = &gk208_grctx,
 	.sclass = {

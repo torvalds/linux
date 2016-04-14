@@ -313,6 +313,7 @@ static const struct gf100_gr_func
 gk20a_gr = {
 	.init = gk20a_gr_init,
 	.set_hww_esr_report_mask = gk20a_gr_set_hww_esr_report_mask,
+	.rops = gf100_gr_rops,
 	.ppc_nr = 1,
 	.grctx = &gk20a_grctx,
 	.sclass = {

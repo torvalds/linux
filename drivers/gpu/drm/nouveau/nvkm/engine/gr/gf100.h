@@ -129,12 +129,14 @@ struct gf100_gr_func {
 	struct {
 		struct gf100_gr_ucode *ucode;
 	} gpccs;
+	int (*rops)(struct gf100_gr *);
 	int ppc_nr;
 	const struct gf100_grctx_func *grctx;
 	struct nvkm_sclass sclass[];
 };
 
 int gf100_gr_init(struct gf100_gr *);
+int gf100_gr_rops(struct gf100_gr *);
 
 int gk104_gr_init(struct gf100_gr *);
 

@@ -189,6 +189,7 @@ gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 static const struct gf100_gr_func
 gm200_gr = {
 	.init = gm200_gr_init,
+	.rops = gf100_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gm200_grctx,
 	.sclass = {

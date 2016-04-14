@@ -441,6 +441,7 @@ gm107_gr = {
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,
 	.gpccs.ucode = &gm107_gr_gpccs_ucode,
+	.rops = gf100_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gm107_grctx,
 	.sclass = {
