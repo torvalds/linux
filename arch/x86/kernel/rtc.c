@@ -189,14 +189,6 @@ static __init int add_rtc_cmos(void)
 	if (of_have_populated_dt())
 		return 0;
 
-#ifdef CONFIG_ACPI
-	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_CMOS_RTC) {
-		/* This warning can likely go away again in a year or two. */
-		pr_info("ACPI: not registering RTC platform device\n");
-		return -ENODEV;
-	}
-#endif
-
 	if (!x86_platform.legacy.rtc)
 		return -ENODEV;
 
