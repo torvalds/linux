@@ -282,81 +282,31 @@ struct sctp_ht_iter {
 	struct rhashtable_iter hti;
 };
 
-static struct sctp_transport *sctp_transport_get_next(struct seq_file *seq)
-{
-	struct sctp_ht_iter *iter = seq->private;
-	struct sctp_transport *t;
-
-	t = rhashtable_walk_next(&iter->hti);
-	for (; t; t = rhashtable_walk_next(&iter->hti)) {
-		if (IS_ERR(t)) {
-			if (PTR_ERR(t) == -EAGAIN)
-				continue;
-			break;
-		}
-
-		if (net_eq(sock_net(t->asoc->base.sk), seq_file_net(seq)) &&
-		    t->asoc->peer.primary_path == t)
-			break;
-	}
-
-	return t;
-}
-
-static struct sctp_transport *sctp_transport_get_idx(struct seq_file *seq,
-						     loff_t pos)
-{
-	void *obj = SEQ_START_TOKEN;
-
-	while (pos && (obj = sctp_transport_get_next(seq)) && !IS_ERR(obj))
-		pos--;
-
-	return obj;
-}
-
-static int sctp_transport_walk_start(struct seq_file *seq)
-{
-	struct sctp_ht_iter *iter = seq->private;
-	int err;
-
-	err = rhashtable_walk_init(&sctp_transport_hashtable, &iter->hti,
-				   GFP_KERNEL);
-	if (err)
-		return err;
-
-	err = rhashtable_walk_start(&iter->hti);
-
-	return err == -EAGAIN ? 0 : err;
-}
-
-static void sctp_transport_walk_stop(struct seq_file *seq)
-{
-	struct sctp_ht_iter *iter = seq->private;
-
-	rhashtable_walk_stop(&iter->hti);
-	rhashtable_walk_exit(&iter->hti);
-}
-
 static void *sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	int err = sctp_transport_walk_start(seq);
+	struct sctp_ht_iter *iter = seq->private;
+	int err = sctp_transport_walk_start(&iter->hti);
 
 	if (err)
 		return ERR_PTR(err);
 
-	return sctp_transport_get_idx(seq, *pos);
+	return sctp_transport_get_idx(seq_file_net(seq), &iter->hti, *pos);
 }
 
 static void sctp_assocs_seq_stop(struct seq_file *seq, void *v)
 {
-	sctp_transport_walk_stop(seq);
+	struct sctp_ht_iter *iter = seq->private;
+
+	sctp_transport_walk_stop(&iter->hti);
 }
 
 static void *sctp_assocs_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
+	struct sctp_ht_iter *iter = seq->private;
+
 	++*pos;
 
-	return sctp_transport_get_next(seq);
+	return sctp_transport_get_next(seq_file_net(seq), &iter->hti);
 }
 
 /* Display sctp associations (/proc/net/sctp/assocs). */
@@ -458,24 +408,29 @@ void sctp_assocs_proc_exit(struct net *net)
 
 static void *sctp_remaddr_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	int err = sctp_transport_walk_start(seq);
+	struct sctp_ht_iter *iter = seq->private;
+	int err = sctp_transport_walk_start(&iter->hti);
 
 	if (err)
 		return ERR_PTR(err);
 
-	return sctp_transport_get_idx(seq, *pos);
+	return sctp_transport_get_idx(seq_file_net(seq), &iter->hti, *pos);
 }
 
 static void *sctp_remaddr_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
+	struct sctp_ht_iter *iter = seq->private;
+
 	++*pos;
 
-	return sctp_transport_get_next(seq);
+	return sctp_transport_get_next(seq_file_net(seq), &iter->hti);
 }
 
 static void sctp_remaddr_seq_stop(struct seq_file *seq, void *v)
 {
-	sctp_transport_walk_stop(seq);
+	struct sctp_ht_iter *iter = seq->private;
+
+	sctp_transport_walk_stop(&iter->hti);
 }
 
 static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
