@@ -7592,6 +7592,26 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	if (ret)
 		goto exit;
 
+	/* RFSW Control - clear bit 14 ?? */
+	if (priv->rtl_chip != RTL8723B)
+		rtl8xxxu_write32(priv, REG_FPGA0_TX_INFO, 0x00000003);
+	/* 0x07000760 */
+	if (priv->rtl_chip == RTL8192E) {
+		val32 = 0;
+	} else {
+		val32 = FPGA0_RF_TRSW | FPGA0_RF_TRSWB | FPGA0_RF_ANTSW |
+			FPGA0_RF_ANTSWB | FPGA0_RF_PAPE |
+			((FPGA0_RF_ANTSW | FPGA0_RF_ANTSWB | FPGA0_RF_PAPE) <<
+			 FPGA0_RF_BD_CTRL_SHIFT);
+	}
+	rtl8xxxu_write32(priv, REG_FPGA0_XAB_RF_SW_CTRL, val32);
+	/* 0x860[6:5]= 00 - why? - this sets antenna B */
+	if (priv->rtl_chip != RTL8192E)
+		rtl8xxxu_write32(priv, REG_FPGA0_XA_RF_INT_OE, 0x66f60210);
+
+	priv->rf_mode_ag[0] = rtl8xxxu_read_rfreg(priv, RF_A,
+						  RF6052_REG_MODE_AG);
+
 	/*
 	 * Chip specific quirks
 	 */
@@ -7652,21 +7672,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	dev_dbg(dev, "%s: init_queue_priority %i\n", __func__, ret);
 	if (ret)
 		goto exit;
-
-	/* RFSW Control - clear bit 14 ?? */
-	if (priv->rtl_chip != RTL8723B)
-		rtl8xxxu_write32(priv, REG_FPGA0_TX_INFO, 0x00000003);
-	/* 0x07000760 */
-	val32 = FPGA0_RF_TRSW | FPGA0_RF_TRSWB | FPGA0_RF_ANTSW |
-		FPGA0_RF_ANTSWB | FPGA0_RF_PAPE |
-		((FPGA0_RF_ANTSW | FPGA0_RF_ANTSWB | FPGA0_RF_PAPE) <<
-		 FPGA0_RF_BD_CTRL_SHIFT);
-	rtl8xxxu_write32(priv, REG_FPGA0_XAB_RF_SW_CTRL, val32);
-	/* 0x860[6:5]= 00 - why? - this sets antenna B */
-	rtl8xxxu_write32(priv, REG_FPGA0_XA_RF_INT_OE, 0x66F60210);
-
-	priv->rf_mode_ag[0] = rtl8xxxu_read_rfreg(priv, RF_A,
-						  RF6052_REG_MODE_AG);
 
 	/*
 	 * Set RX page boundary
