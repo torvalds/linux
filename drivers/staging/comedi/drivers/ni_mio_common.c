@@ -560,20 +560,13 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 }
 
 #ifdef PCIDMA
-/* DMA channel setup */
-static inline unsigned int
-ni_stc_dma_channel_select_bitfield(unsigned int channel)
-{
-	if (channel < 4)
-		return 1 << channel;
-	if (channel == 4)
-		return 0x3;
-	if (channel == 5)
-		return 0x5;
-	BUG();
-	return 0;
-}
 
+/* selects the MITE channel to use for DMA */
+#define NI_STC_DMA_CHAN_SEL(x)	(((x) < 4) ? BIT(x) :	\
+				 ((x) == 4) ? 0x3 :	\
+				 ((x) == 5) ? 0x5 : 0x0)
+
+/* DMA channel setup */
 static int ni_request_ai_mite_channel(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
@@ -592,7 +585,7 @@ static int ni_request_ai_mite_channel(struct comedi_device *dev)
 	mite_chan->dir = COMEDI_INPUT;
 	devpriv->ai_mite_chan = mite_chan;
 
-	bits = ni_stc_dma_channel_select_bitfield(mite_chan->channel);
+	bits = NI_STC_DMA_CHAN_SEL(mite_chan->channel);
 	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
 			NI_E_DMA_AI_SEL_MASK, NI_E_DMA_AI_SEL(bits));
 
@@ -618,7 +611,7 @@ static int ni_request_ao_mite_channel(struct comedi_device *dev)
 	mite_chan->dir = COMEDI_OUTPUT;
 	devpriv->ao_mite_chan = mite_chan;
 
-	bits = ni_stc_dma_channel_select_bitfield(mite_chan->channel);
+	bits = NI_STC_DMA_CHAN_SEL(mite_chan->channel);
 	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
 			NI_E_DMA_AO_SEL_MASK, NI_E_DMA_AO_SEL(bits));
 
@@ -648,7 +641,7 @@ static int ni_request_gpct_mite_channel(struct comedi_device *dev,
 	mite_chan->dir = direction;
 	ni_tio_set_mite_channel(counter, mite_chan);
 
-	bits = ni_stc_dma_channel_select_bitfield(mite_chan->channel);
+	bits = NI_STC_DMA_CHAN_SEL(mite_chan->channel);
 	ni_set_bitfield(dev, NI_E_DMA_G0_G1_SEL_REG,
 			NI_E_DMA_G0_G1_SEL_MASK(gpct_index),
 			NI_E_DMA_G0_G1_SEL(gpct_index, bits));
@@ -676,12 +669,12 @@ static int ni_request_cdo_mite_channel(struct comedi_device *dev)
 	devpriv->cdo_mite_chan = mite_chan;
 
 	/*
-	 * XXX just guessing ni_stc_dma_channel_select_bitfield()
+	 * XXX just guessing NI_STC_DMA_CHAN_SEL()
 	 * returns the right bits, under the assumption the cdio dma
 	 * selection works just like ai/ao/gpct.
 	 * Definitely works for dma channels 0 and 1.
 	 */
-	bits = ni_stc_dma_channel_select_bitfield(mite_chan->channel);
+	bits = NI_STC_DMA_CHAN_SEL(mite_chan->channel);
 	ni_set_bitfield(dev, NI_M_CDIO_DMA_SEL_REG,
 			NI_M_CDIO_DMA_SEL_CDO_MASK,
 			NI_M_CDIO_DMA_SEL_CDO(bits));
