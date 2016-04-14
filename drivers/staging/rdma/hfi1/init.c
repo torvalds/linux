@@ -422,9 +422,10 @@ static enum hrtimer_restart cca_timer_fn(struct hrtimer *t)
 	struct cca_timer *cca_timer;
 	struct hfi1_pportdata *ppd;
 	int sl;
-	u16 ccti, ccti_timer, ccti_min;
+	u16 ccti_timer, ccti_min;
 	struct cc_state *cc_state;
 	unsigned long flags;
+	enum hrtimer_restart ret = HRTIMER_NORESTART;
 
 	cca_timer = container_of(t, struct cca_timer, hrtimer);
 	ppd = cca_timer->ppd;
@@ -450,24 +451,21 @@ static enum hrtimer_restart cca_timer_fn(struct hrtimer *t)
 
 	spin_lock_irqsave(&ppd->cca_timer_lock, flags);
 
-	ccti = cca_timer->ccti;
-
-	if (ccti > ccti_min) {
+	if (cca_timer->ccti > ccti_min) {
 		cca_timer->ccti--;
 		set_link_ipg(ppd);
 	}
 
-	spin_unlock_irqrestore(&ppd->cca_timer_lock, flags);
-
-	rcu_read_unlock();
-
-	if (ccti > ccti_min) {
+	if (cca_timer->ccti > ccti_min) {
 		unsigned long nsec = 1024 * ccti_timer;
 		/* ccti_timer is in units of 1.024 usec */
 		hrtimer_forward_now(t, ns_to_ktime(nsec));
-		return HRTIMER_RESTART;
+		ret = HRTIMER_RESTART;
 	}
-	return HRTIMER_NORESTART;
+
+	spin_unlock_irqrestore(&ppd->cca_timer_lock, flags);
+	rcu_read_unlock();
+	return ret;
 }
 
 /*
