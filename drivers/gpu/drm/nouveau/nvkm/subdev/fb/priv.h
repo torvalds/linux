@@ -6,6 +6,7 @@ struct nvkm_bios;
 
 struct nvkm_fb_func {
 	void *(*dtor)(struct nvkm_fb *);
+	int (*oneinit)(struct nvkm_fb *);
 	void (*init)(struct nvkm_fb *);
 	void (*intr)(struct nvkm_fb *);
 

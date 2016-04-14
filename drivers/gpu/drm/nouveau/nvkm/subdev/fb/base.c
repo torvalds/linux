@@ -98,6 +98,7 @@ static int
 nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 {
 	struct nvkm_fb *fb = nvkm_fb(subdev);
+
 	if (fb->func->ram_new) {
 		int ret = fb->func->ram_new(fb, &fb->ram);
 		if (ret) {
@@ -105,6 +106,13 @@ nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 			return ret;
 		}
 	}
+
+	if (fb->func->oneinit) {
+		int ret = fb->func->oneinit(fb);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
