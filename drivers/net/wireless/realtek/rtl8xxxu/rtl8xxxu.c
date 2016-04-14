@@ -3811,6 +3811,20 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 
 	priv->fops->init_phy_bb(priv);
 
+	if (priv->rtl_chip == RTL8723B)
+		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_8723bu_table);
+	else if (priv->rtl_chip == RTL8192E) {
+		if (priv->hi_pa)
+			rtl8xxxu_init_phy_regs(priv,
+					       rtl8xxx_agc_8192eu_highpa_table);
+		else
+			rtl8xxxu_init_phy_regs(priv,
+					       rtl8xxx_agc_8192eu_std_table);
+	} else if (priv->hi_pa)
+		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_highpa_table);
+	else
+		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_standard_table);
+
 	if (priv->tx_paths == 1 && priv->rx_paths == 2) {
 		/*
 		 * For 1T2R boards, patch the registers.
@@ -3870,20 +3884,6 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 		val32 |= BIT(27);
 		rtl8xxxu_write32(priv, REG_TX_TO_TX, val32);
 	}
-
-	if (priv->rtl_chip == RTL8723B)
-		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_8723bu_table);
-	else if (priv->rtl_chip == RTL8192E) {
-		if (priv->hi_pa)
-			rtl8xxxu_init_phy_regs(priv,
-					       rtl8xxx_agc_8192eu_highpa_table);
-		else
-			rtl8xxxu_init_phy_regs(priv,
-					       rtl8xxx_agc_8192eu_std_table);
-	} else if (priv->hi_pa)
-		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_highpa_table);
-	else
-		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_standard_table);
 
 	if (priv->has_xtalk) {
 		val32 = rtl8xxxu_read32(priv, REG_MAC_PHY_CTRL);
