@@ -1634,7 +1634,11 @@ static struct dentry *lookup_slow(const struct qstr *name,
 		inode_unlock(inode);
 		return ERR_PTR(-ENOMEM);
 	}
+	spin_lock(&dentry->d_lock);
+	dentry->d_flags |= DCACHE_PAR_LOOKUP;
+	spin_unlock(&dentry->d_lock);
 	old = inode->i_op->lookup(inode, dentry, flags);
+	d_lookup_done(dentry);
 	if (unlikely(old)) {
 		dput(dentry);
 		dentry = old;

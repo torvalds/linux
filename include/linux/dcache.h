@@ -232,6 +232,8 @@ struct dentry_operations {
 #define DCACHE_ENCRYPTED_WITH_KEY	0x04000000 /* dir is encrypted with a valid key */
 #define DCACHE_OP_REAL			0x08000000
 
+#define DCACHE_PAR_LOOKUP		0x10000000 /* being looked up (with parent locked shared) */
+
 extern seqlock_t rename_lock;
 
 /*
@@ -365,6 +367,22 @@ static inline void dont_mount(struct dentry *dentry)
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags |= DCACHE_CANT_MOUNT;
 	spin_unlock(&dentry->d_lock);
+}
+
+extern void __d_lookup_done(struct dentry *);
+
+static inline int d_in_lookup(struct dentry *dentry)
+{
+	return dentry->d_flags & DCACHE_PAR_LOOKUP;
+}
+
+static inline void d_lookup_done(struct dentry *dentry)
+{
+	if (unlikely(d_in_lookup(dentry))) {
+		spin_lock(&dentry->d_lock);
+		__d_lookup_done(dentry);
+		spin_unlock(&dentry->d_lock);
+	}
 }
 
 extern void dput(struct dentry *);
