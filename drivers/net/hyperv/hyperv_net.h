@@ -202,6 +202,8 @@ int rndis_filter_receive(struct hv_device *dev,
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
 int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac);
 
+void netvsc_switch_datapath(struct netvsc_device *nv_dev, bool vf);
+
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)
 
 #define NVSP_PROTOCOL_VERSION_1		2
@@ -641,6 +643,12 @@ struct netvsc_reconfig {
 	u32 event;
 };
 
+struct garp_wrk {
+	struct work_struct dwrk;
+	struct net_device *netdev;
+	struct netvsc_device *netvsc_dev;
+};
+
 /* The context of the netvsc device  */
 struct net_device_context {
 	/* point back to our device context */
@@ -656,6 +664,7 @@ struct net_device_context {
 
 	struct work_struct work;
 	u32 msg_enable; /* debug level */
+	struct garp_wrk gwrk;
 
 	struct netvsc_stats __percpu *tx_stats;
 	struct netvsc_stats __percpu *rx_stats;
@@ -730,6 +739,11 @@ struct netvsc_device {
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
 	u32 vf_serial;
+	atomic_t open_cnt;
+	/* State to manage the associated VF interface. */
+	bool vf_inject;
+	struct net_device *vf_netdev;
+	atomic_t vf_use_cnt;
 };
 
 /* NdisInitialize message */

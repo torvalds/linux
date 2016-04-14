@@ -33,6 +33,30 @@
 
 #include "hyperv_net.h"
 
+/*
+ * Switch the data path from the synthetic interface to the VF
+ * interface.
+ */
+void netvsc_switch_datapath(struct netvsc_device *nv_dev, bool vf)
+{
+	struct nvsp_message *init_pkt = &nv_dev->channel_init_pkt;
+	struct hv_device *dev = nv_dev->dev;
+
+	memset(init_pkt, 0, sizeof(struct nvsp_message));
+	init_pkt->hdr.msg_type = NVSP_MSG4_TYPE_SWITCH_DATA_PATH;
+	if (vf)
+		init_pkt->msg.v4_msg.active_dp.active_datapath =
+			NVSP_DATAPATH_VF;
+	else
+		init_pkt->msg.v4_msg.active_dp.active_datapath =
+			NVSP_DATAPATH_SYNTHETIC;
+
+	vmbus_sendpacket(dev->channel, init_pkt,
+			       sizeof(struct nvsp_message),
+			       (unsigned long)init_pkt,
+			       VM_PKT_DATA_INBAND, 0);
+}
+
 
 static struct netvsc_device *alloc_net_device(struct hv_device *device)
 {
@@ -52,10 +76,15 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 	init_waitqueue_head(&net_device->wait_drain);
 	net_device->start_remove = false;
 	net_device->destroy = false;
+	atomic_set(&net_device->open_cnt, 0);
+	atomic_set(&net_device->vf_use_cnt, 0);
 	net_device->dev = device;
 	net_device->ndev = ndev;
 	net_device->max_pkt = RNDIS_MAX_PKT_DEFAULT;
 	net_device->pkt_align = RNDIS_PKT_ALIGN_DEFAULT;
+
+	net_device->vf_netdev = NULL;
+	net_device->vf_inject = false;
 
 	hv_set_drvdata(device, net_device);
 	return net_device;
