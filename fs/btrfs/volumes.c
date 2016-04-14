@@ -1848,7 +1848,8 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid)
 
 	next_device = list_entry(root->fs_info->fs_devices->devices.next,
 				 struct btrfs_device, dev_list);
-	if (device->bdev == root->fs_info->sb->s_bdev)
+	if (root->fs_info->sb->s_bdev &&
+		(root->fs_info->sb->s_bdev == device->bdev))
 		root->fs_info->sb->s_bdev = next_device->bdev;
 	if (device->bdev == root->fs_info->fs_devices->latest_bdev)
 		root->fs_info->fs_devices->latest_bdev = next_device->bdev;
@@ -1996,7 +1997,8 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 
 	next_device = list_entry(fs_info->fs_devices->devices.next,
 				 struct btrfs_device, dev_list);
-	if (tgtdev->bdev == fs_info->sb->s_bdev)
+	if (fs_info->sb->s_bdev &&
+		(tgtdev->bdev == fs_info->sb->s_bdev))
 		fs_info->sb->s_bdev = next_device->bdev;
 	if (tgtdev->bdev == fs_info->fs_devices->latest_bdev)
 		fs_info->fs_devices->latest_bdev = next_device->bdev;
