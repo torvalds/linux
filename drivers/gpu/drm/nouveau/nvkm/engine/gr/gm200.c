@@ -32,28 +32,37 @@
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-int
-gm200_gr_init(struct gf100_gr *gr)
+static void
+gm200_gr_init_gpc_mmu(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
-	u32 data[TPC_MAX / 8] = {}, tmp;
-	u8  tpcnr[GPC_MAX];
-	int gpc, tpc, ppc, rop;
-	int i;
+	u32 tmp;
 
 	tmp = nvkm_rd32(device, 0x100c80); /*XXX: mask? */
 	nvkm_wr32(device, 0x418880, 0x00001000 | (tmp & 0x00000fff));
 	nvkm_wr32(device, 0x418890, 0x00000000);
 	nvkm_wr32(device, 0x418894, 0x00000000);
-	nvkm_wr32(device, 0x4188b4, nvkm_memory_addr(gr->unk4188b4) >> 8);
-	nvkm_wr32(device, 0x4188b8, nvkm_memory_addr(gr->unk4188b8) >> 8);
-	nvkm_mask(device, 0x4188b0, 0x00040000, 0x00040000);
+
+	nvkm_wr32(device, 0x4188b4, nvkm_rd32(device, 0x100cc8));
+	nvkm_wr32(device, 0x4188b8, nvkm_rd32(device, 0x100ccc));
+	nvkm_wr32(device, 0x4188b0, nvkm_rd32(device, 0x100cc4));
+}
+
+int
+gm200_gr_init(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
+	u32 data[TPC_MAX / 8] = {};
+	u8  tpcnr[GPC_MAX];
+	int gpc, tpc, ppc, rop;
+	int i;
 
 	/*XXX: belongs in fb */
 	nvkm_wr32(device, 0x100cc8, nvkm_memory_addr(gr->unk4188b4) >> 8);
 	nvkm_wr32(device, 0x100ccc, nvkm_memory_addr(gr->unk4188b8) >> 8);
 	nvkm_mask(device, 0x100cc4, 0x00040000, 0x00040000);
+	gr->func->init_gpc_mmu(gr);
 
 	gf100_gr_mmio(gr, gr->fuc_sw_nonctx);
 
@@ -189,6 +198,7 @@ gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 static const struct gf100_gr_func
 gm200_gr = {
 	.init = gm200_gr_init,
+	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
 	.rops = gf100_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gm200_grctx,
