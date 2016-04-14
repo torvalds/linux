@@ -60,11 +60,17 @@ struct hdac_hdmi_cvt {
 	struct hdac_hdmi_cvt_params params;
 };
 
+/* Currently only spk_alloc, more to be added */
+struct hdac_hdmi_parsed_eld {
+	u8 spk_alloc;
+};
+
 struct hdac_hdmi_eld {
 	bool	monitor_present;
 	bool	eld_valid;
 	int	eld_size;
 	char    eld_buffer[ELD_MAX_SIZE];
+	struct	hdac_hdmi_parsed_eld info;
 };
 
 struct hdac_hdmi_pin {
@@ -1008,6 +1014,12 @@ static int hdac_hdmi_add_cvt(struct hdac_ext_device *edev, hda_nid_t nid)
 	return hdac_hdmi_query_cvt_params(&edev->hdac, cvt);
 }
 
+static void hdac_hdmi_parse_eld(struct hdac_ext_device *edev,
+			struct hdac_hdmi_pin *pin)
+{
+	pin->eld.info.spk_alloc = pin->eld.eld_buffer[DRM_ELD_SPEAKER];
+}
+
 static void hdac_hdmi_present_sense(struct hdac_hdmi_pin *pin, int repoll)
 {
 	struct hdac_ext_device *edev = pin->edev;
@@ -1065,6 +1077,7 @@ static void hdac_hdmi_present_sense(struct hdac_hdmi_pin *pin, int repoll)
 
 				snd_jack_report(pcm->jack, SND_JACK_AVOUT);
 			}
+			hdac_hdmi_parse_eld(edev, pin);
 
 			print_hex_dump_bytes("ELD: ", DUMP_PREFIX_OFFSET,
 					pin->eld.eld_buffer, pin->eld.eld_size);
