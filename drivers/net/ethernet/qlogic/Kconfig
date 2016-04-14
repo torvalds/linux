@@ -114,4 +114,14 @@ config QEDE_VXLAN
 	  support for Virtual eXtensible Local Area Network (VXLAN)
 	  in the driver.
 
+config QEDE_GENEVE
+	bool "Generic Network Virtualization Encapsulation (GENEVE) support"
+	depends on QEDE && GENEVE && !(QEDE=y && GENEVE=m)
+	---help---
+	  This allows one to create GENEVE virtual interfaces that provide
+	  Layer 2 Networks over Layer 3 Networks. GENEVE is often used
+	  to tunnel virtual network infrastructure in virtualized environments.
+	  Say Y here if you want to enable hardware offload support for
+	  Generic Network Virtualization Encapsulation (GENEVE) in the driver.
+
 endif # NET_VENDOR_QLOGIC

@@ -27,6 +27,9 @@
 #ifdef CONFIG_QEDE_VXLAN
 #include <net/vxlan.h>
 #endif
+#ifdef CONFIG_QEDE_GENEVE
+#include <net/geneve.h>
+#endif
 #include <linux/ip.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
@@ -1859,6 +1862,40 @@ static void qede_del_vxlan_port(struct net_device *dev,
 }
 #endif
 
+#ifdef CONFIG_QEDE_GENEVE
+static void qede_add_geneve_port(struct net_device *dev,
+				 sa_family_t sa_family, __be16 port)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	u16 t_port = ntohs(port);
+
+	if (edev->geneve_dst_port)
+		return;
+
+	edev->geneve_dst_port = t_port;
+
+	DP_VERBOSE(edev, QED_MSG_DEBUG, "Added geneve port=%d", t_port);
+	set_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+}
+
+static void qede_del_geneve_port(struct net_device *dev,
+				 sa_family_t sa_family, __be16 port)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	u16 t_port = ntohs(port);
+
+	if (t_port != edev->geneve_dst_port)
+		return;
+
+	edev->geneve_dst_port = 0;
+
+	DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted geneve port=%d", t_port);
+	set_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+}
+#endif
+
 static const struct net_device_ops qede_netdev_ops = {
 	.ndo_open = qede_open,
 	.ndo_stop = qede_close,
@@ -1873,6 +1910,10 @@ static const struct net_device_ops qede_netdev_ops = {
 #ifdef CONFIG_QEDE_VXLAN
 	.ndo_add_vxlan_port = qede_add_vxlan_port,
 	.ndo_del_vxlan_port = qede_del_vxlan_port,
+#endif
+#ifdef CONFIG_QEDE_GENEVE
+	.ndo_add_geneve_port = qede_add_geneve_port,
+	.ndo_del_geneve_port = qede_del_geneve_port,
 #endif
 };
 
@@ -2061,6 +2102,15 @@ static void qede_sp_task(struct work_struct *work)
 		memset(&tunn_params, 0, sizeof(tunn_params));
 		tunn_params.update_vxlan_port = 1;
 		tunn_params.vxlan_port = edev->vxlan_dst_port;
+		qed_ops->tunn_config(cdev, &tunn_params);
+	}
+
+	if (test_and_clear_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags)) {
+		struct qed_tunn_params tunn_params;
+
+		memset(&tunn_params, 0, sizeof(tunn_params));
+		tunn_params.update_geneve_port = 1;
+		tunn_params.geneve_port = edev->geneve_dst_port;
 		qed_ops->tunn_config(cdev, &tunn_params);
 	}
 
@@ -3215,6 +3265,9 @@ static int qede_open(struct net_device *ndev)
 
 #ifdef CONFIG_QEDE_VXLAN
 	vxlan_get_rx_port(ndev);
+#endif
+#ifdef CONFIG_QEDE_GENEVE
+	geneve_get_rx_port(ndev);
 #endif
 	return 0;
 }
