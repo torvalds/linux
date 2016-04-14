@@ -171,7 +171,6 @@ static inline void pwm_get_args(const struct pwm_device *pwm,
 
 static inline void pwm_apply_args(struct pwm_device *pwm)
 {
-	pwm_set_period(pwm, pwm->args.period);
 	pwm_set_polarity(pwm, pwm->args.polarity);
 }
 
