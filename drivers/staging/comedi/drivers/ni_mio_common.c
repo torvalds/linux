@@ -3747,7 +3747,7 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 	status1 = ni_stc_readw(dev, NISTC_STATUS1_REG);
 	if (status1 & NISTC_STATUS1_SERIO_IN_PROG) {
 		err = -EBUSY;
-		goto Error;
+		goto error;
 	}
 
 	devpriv->dio_control |= NISTC_DIO_CTRL_HW_SER_START;
@@ -3763,7 +3763,7 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 			dev_err(dev->class_dev,
 				"SPI serial I/O didn't finish in time!\n");
 			err = -ETIME;
-			goto Error;
+			goto error;
 		}
 	}
 
@@ -3776,7 +3776,7 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 	if (data_in)
 		*data_in = ni_stc_readw(dev, NISTC_DIO_SERIAL_IN_REG);
 
-Error:
+error:
 	ni_stc_writew(dev, devpriv->dio_control, NISTC_DIO_CTRL_REG);
 
 	return err;
