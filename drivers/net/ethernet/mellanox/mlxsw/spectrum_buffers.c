@@ -205,8 +205,7 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp_sb_prs_egress[] = {
 		       MLXSW_SP_BYTES_TO_CELLS(MLXSW_SP_SB_PR_EGRESS_SIZE)),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
-	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC,
-		       MLXSW_SP_BYTES_TO_CELLS(MLXSW_SP_SB_PR_EGRESS_SIZE)),
+	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 };
 
 #define MLXSW_SP_SB_PRS_EGRESS_LEN ARRAY_SIZE(mlxsw_sp_sb_prs_egress)
@@ -289,7 +288,7 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp_sb_cms_egress[] = {
 
 #define MLXSW_SP_SB_CMS_EGRESS_LEN ARRAY_SIZE(mlxsw_sp_sb_cms_egress)
 
-#define MLXSW_SP_CPU_PORT_SB_CM MLXSW_SP_SB_CM(104, 2, 3)
+#define MLXSW_SP_CPU_PORT_SB_CM MLXSW_SP_SB_CM(0, 0, 0)
 
 static const struct mlxsw_sp_sb_cm mlxsw_sp_cpu_port_sb_cms[] = {
 	MLXSW_SP_CPU_PORT_SB_CM,
