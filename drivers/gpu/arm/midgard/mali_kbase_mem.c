@@ -2130,6 +2130,10 @@ static void kbase_jd_user_buf_unmap(struct kbase_context *kctx,
 	alloc->nents = 0;
 }
 
+
+/* to replace sg_dma_len. */
+#define MALI_SG_DMA_LEN(sg)        ((sg)->length)
+
 #ifdef CONFIG_DMA_SHARED_BUFFER
 static int kbase_jd_umm_map(struct kbase_context *kctx,
 		struct kbase_va_region *reg)
@@ -2160,11 +2164,11 @@ static int kbase_jd_umm_map(struct kbase_context *kctx,
 
 	for_each_sg(sgt->sgl, s, sgt->nents, i) {
 		int j;
-		size_t pages = PFN_UP(sg_dma_len(s));
+		size_t pages = PFN_UP(MALI_SG_DMA_LEN(s));
 
-		WARN_ONCE(sg_dma_len(s) & (PAGE_SIZE-1),
-		"sg_dma_len(s)=%u is not a multiple of PAGE_SIZE\n",
-		sg_dma_len(s));
+		WARN_ONCE(MALI_SG_DMA_LEN(s) & (PAGE_SIZE-1),
+		"MALI_SG_DMA_LEN(s)=%u is not a multiple of PAGE_SIZE\n",
+		MALI_SG_DMA_LEN(s));
 
 		WARN_ONCE(sg_dma_address(s) & (PAGE_SIZE-1),
 		"sg_dma_address(s)=%llx is not aligned to PAGE_SIZE\n",
