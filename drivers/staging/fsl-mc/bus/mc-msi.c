@@ -37,10 +37,8 @@ static void fsl_mc_msi_update_dom_ops(struct msi_domain_info *info)
 	/*
 	 * set_desc should not be set by the caller
 	 */
-	if (WARN_ON(ops->set_desc))
-		return;
-
-	ops->set_desc = fsl_mc_msi_set_desc;
+	if (ops->set_desc == NULL)
+		ops->set_desc = fsl_mc_msi_set_desc;
 }
 
 static void __fsl_mc_msi_write_msg(struct fsl_mc_device *mc_bus_dev,
@@ -129,10 +127,8 @@ static void fsl_mc_msi_update_chip_ops(struct msi_domain_info *info)
 	/*
 	 * irq_write_msi_msg should not be set by the caller
 	 */
-	if (WARN_ON(chip->irq_write_msi_msg))
-		return;
-
-	chip->irq_write_msi_msg = fsl_mc_msi_write_msg;
+	if (chip->irq_write_msi_msg == NULL)
+		chip->irq_write_msi_msg = fsl_mc_msi_write_msg;
 }
 
 /**
