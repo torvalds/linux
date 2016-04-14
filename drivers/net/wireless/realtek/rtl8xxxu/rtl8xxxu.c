@@ -7468,33 +7468,38 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		goto exit;
 	}
 
-	dev_dbg(dev, "%s: macpower %i\n", __func__, macpower);
 	if (!macpower) {
-		ret = priv->fops->llt_init(priv, TX_TOTAL_PAGE_NUM);
-		if (ret) {
-			dev_warn(dev, "%s: LLT table init failed\n", __func__);
-			goto exit;
-		}
+		if (priv->ep_tx_normal_queue)
+			val8 = TX_PAGE_NUM_NORM_PQ;
+		else
+			val8 = 0;
 
-		/*
-		 * Presumably this is for 8188EU as well
-		 * Enable TX report and TX report timer
-		 */
-		if (priv->rtl_chip == RTL8723B) {
-			val8 = rtl8xxxu_read8(priv, REG_TX_REPORT_CTRL);
-			val8 |= TX_REPORT_CTRL_TIMER_ENABLE;
-			rtl8xxxu_write8(priv, REG_TX_REPORT_CTRL, val8);
-			/* Set MAX RPT MACID */
-			rtl8xxxu_write8(priv, REG_TX_REPORT_CTRL + 1, 0x02);
-			/* TX report Timer. Unit: 32us */
-			rtl8xxxu_write16(priv, REG_TX_REPORT_TIME, 0xcdf0);
+		rtl8xxxu_write8(priv, REG_RQPN_NPQ, val8);
 
-			/* tmp ps ? */
-			val8 = rtl8xxxu_read8(priv, 0xa3);
-			val8 &= 0xf8;
-			rtl8xxxu_write8(priv, 0xa3, val8);
-		}
+		val32 = (TX_PAGE_NUM_PUBQ << RQPN_NORM_PQ_SHIFT) | RQPN_LOAD;
+
+		if (priv->ep_tx_high_queue)
+			val32 |= (TX_PAGE_NUM_HI_PQ << RQPN_HI_PQ_SHIFT);
+		if (priv->ep_tx_low_queue)
+			val32 |= (TX_PAGE_NUM_LO_PQ << RQPN_LO_PQ_SHIFT);
+
+		rtl8xxxu_write32(priv, REG_RQPN, val32);
 	}
+
+	ret = rtl8xxxu_init_queue_priority(priv);
+	dev_dbg(dev, "%s: init_queue_priority %i\n", __func__, ret);
+	if (ret)
+		goto exit;
+
+	/*
+	 * Set RX page boundary
+	 */
+	if (priv->rtl_chip == RTL8723B)
+		rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x3f7f);
+	else if (priv->rtl_chip == RTL8192E)
+		rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x3cff);
+	else
+		rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x27ff);
 
 	ret = rtl8xxxu_download_firmware(priv);
 	dev_dbg(dev, "%s: download_fiwmare %i\n", __func__, ret);
@@ -7634,22 +7639,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	}
 
 	if (!macpower) {
-		if (priv->ep_tx_normal_queue)
-			val8 = TX_PAGE_NUM_NORM_PQ;
-		else
-			val8 = 0;
-
-		rtl8xxxu_write8(priv, REG_RQPN_NPQ, val8);
-
-		val32 = (TX_PAGE_NUM_PUBQ << RQPN_NORM_PQ_SHIFT) | RQPN_LOAD;
-
-		if (priv->ep_tx_high_queue)
-			val32 |= (TX_PAGE_NUM_HI_PQ << RQPN_HI_PQ_SHIFT);
-		if (priv->ep_tx_low_queue)
-			val32 |= (TX_PAGE_NUM_LO_PQ << RQPN_LO_PQ_SHIFT);
-
-		rtl8xxxu_write32(priv, REG_RQPN, val32);
-
 		/*
 		 * Set TX buffer boundary
 		 */
@@ -7668,20 +7657,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8xxxu_write8(priv, REG_TDECTRL + 1, val8);
 	}
 
-	ret = rtl8xxxu_init_queue_priority(priv);
-	dev_dbg(dev, "%s: init_queue_priority %i\n", __func__, ret);
-	if (ret)
-		goto exit;
-
-	/*
-	 * Set RX page boundary
-	 */
-	if (priv->rtl_chip == RTL8723B)
-		rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x3f7f);
-	else if (priv->rtl_chip == RTL8192E)
-		rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x3cff);
-	else
-		rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x27ff);
 	/*
 	 * Transfer page size is always 128
 	 */
@@ -7692,6 +7667,34 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		val8 = (PBP_PAGE_SIZE_128 << PBP_PAGE_SIZE_RX_SHIFT) |
 			(PBP_PAGE_SIZE_128 << PBP_PAGE_SIZE_TX_SHIFT);
 	rtl8xxxu_write8(priv, REG_PBP, val8);
+
+	dev_dbg(dev, "%s: macpower %i\n", __func__, macpower);
+	if (!macpower) {
+		ret = priv->fops->llt_init(priv, TX_TOTAL_PAGE_NUM);
+		if (ret) {
+			dev_warn(dev, "%s: LLT table init failed\n", __func__);
+			goto exit;
+		}
+
+		/*
+		 * Presumably this is for 8188EU as well
+		 * Enable TX report and TX report timer
+		 */
+		if (priv->rtl_chip == RTL8723B) {
+			val8 = rtl8xxxu_read8(priv, REG_TX_REPORT_CTRL);
+			val8 |= TX_REPORT_CTRL_TIMER_ENABLE;
+			rtl8xxxu_write8(priv, REG_TX_REPORT_CTRL, val8);
+			/* Set MAX RPT MACID */
+			rtl8xxxu_write8(priv, REG_TX_REPORT_CTRL + 1, 0x02);
+			/* TX report Timer. Unit: 32us */
+			rtl8xxxu_write16(priv, REG_TX_REPORT_TIME, 0xcdf0);
+
+			/* tmp ps ? */
+			val8 = rtl8xxxu_read8(priv, 0xa3);
+			val8 &= 0xf8;
+			rtl8xxxu_write8(priv, 0xa3, val8);
+		}
+	}
 
 	/*
 	 * Unit in 8 bytes, not obvious what it is used for
