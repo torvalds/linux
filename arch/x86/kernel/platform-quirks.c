@@ -17,6 +17,7 @@ void __init x86_early_init_platform_quirks(void)
 	case X86_SUBARCH_XEN:
 	case X86_SUBARCH_LGUEST:
 	case X86_SUBARCH_INTEL_MID:
+	case X86_SUBARCH_CE4100:
 		x86_platform.legacy.devices.pnpbios = 0;
 		x86_platform.legacy.rtc = 0;
 		break;

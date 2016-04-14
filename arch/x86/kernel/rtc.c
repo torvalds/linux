@@ -186,9 +186,6 @@ static __init int add_rtc_cmos(void)
 		}
 	}
 #endif
-	if (of_have_populated_dt())
-		return 0;
-
 	if (!x86_platform.legacy.rtc)
 		return -ENODEV;
 
