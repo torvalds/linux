@@ -3756,7 +3756,7 @@ static void rtl8723au_init_phy_bb(struct rtl8xxxu_priv *priv)
 	else
 		rtl8xxxu_init_phy_regs(priv, rtl8723a_phy_1t_init_table);
 
-	if (priv->rtl_chip == RTL8188C && priv->hi_pa &&
+	if (priv->rtl_chip == RTL8188R && priv->hi_pa &&
 	    priv->vendor_umc && priv->chip_cut == 1)
 		rtl8xxxu_write8(priv, REG_OFDM0_AGC_PARM1 + 2, 0x50);
 
