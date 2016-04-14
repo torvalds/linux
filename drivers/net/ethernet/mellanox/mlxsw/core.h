@@ -109,6 +109,19 @@ void mlxsw_core_event_listener_unregister(struct mlxsw_core *mlxsw_core,
 					  const struct mlxsw_event_listener *el,
 					  void *priv);
 
+typedef void mlxsw_reg_trans_cb_t(struct mlxsw_core *mlxsw_core, char *payload,
+				  size_t payload_len, unsigned long cb_priv);
+
+int mlxsw_reg_trans_query(struct mlxsw_core *mlxsw_core,
+			  const struct mlxsw_reg_info *reg, char *payload,
+			  struct list_head *bulk_list,
+			  mlxsw_reg_trans_cb_t *cb, unsigned long cb_priv);
+int mlxsw_reg_trans_write(struct mlxsw_core *mlxsw_core,
+			  const struct mlxsw_reg_info *reg, char *payload,
+			  struct list_head *bulk_list,
+			  mlxsw_reg_trans_cb_t *cb, unsigned long cb_priv);
+int mlxsw_reg_trans_bulk_wait(struct list_head *bulk_list);
+
 int mlxsw_reg_query(struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_reg_info *reg, char *payload);
 int mlxsw_reg_write(struct mlxsw_core *mlxsw_core,
