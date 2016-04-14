@@ -1295,17 +1295,9 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	uint32_t temp;
 	enum port port = (enum port)pll->id;	/* 1:1 port->PLL mapping */
 
-	temp = I915_READ(BXT_PORT_PLL_ENABLE(port));
-	/*
-	 * Definition of each bit polarity has been changed
-	 * after A1 stepping
-	 */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-		temp &= ~PORT_PLL_REF_SEL;
-	else
-		temp |= PORT_PLL_REF_SEL;
-
 	/* Non-SSC reference */
+	temp = I915_READ(BXT_PORT_PLL_ENABLE(port));
+	temp |= PORT_PLL_REF_SEL;
 	I915_WRITE(BXT_PORT_PLL_ENABLE(port), temp);
 
 	/* Disable 10 bit clock */
