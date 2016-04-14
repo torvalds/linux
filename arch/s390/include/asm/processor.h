@@ -77,7 +77,10 @@ static inline void get_cpu_id(struct cpuid *ptr)
 	asm volatile("stidp %0" : "=Q" (*ptr));
 }
 
-extern void s390_adjust_jiffies(void);
+void s390_adjust_jiffies(void);
+void s390_update_cpu_mhz(void);
+void cpu_detect_mhz_feature(void);
+
 extern const struct seq_operations cpuinfo_op;
 extern int sysctl_ieee_emulation_warnings;
 extern void execve_tail(void);
@@ -232,6 +235,18 @@ static inline unsigned short stap(void)
 void cpu_relax(void);
 
 #define cpu_relax_lowlatency()  barrier()
+
+#define ECAG_CACHE_ATTRIBUTE	0
+#define ECAG_CPU_ATTRIBUTE	1
+
+static inline unsigned long __ecag(unsigned int asi, unsigned char parm)
+{
+	unsigned long val;
+
+	asm volatile(".insn	rsy,0xeb000000004c,%0,0,0(%1)" /* ecag */
+		     : "=d" (val) : "a" (asi << 8 | parm));
+	return val;
+}
 
 static inline void psw_set_key(unsigned int key)
 {

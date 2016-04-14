@@ -13,12 +13,45 @@
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <asm/diag.h>
+#include <asm/facility.h>
 #include <asm/elf.h>
 #include <asm/lowcore.h>
 #include <asm/param.h>
 #include <asm/smp.h>
 
-static DEFINE_PER_CPU(struct cpuid, cpu_id);
+struct cpu_info {
+	unsigned int cpu_mhz_dynamic;
+	unsigned int cpu_mhz_static;
+	struct cpuid cpu_id;
+};
+
+static DEFINE_PER_CPU(struct cpu_info, cpu_info);
+
+static bool machine_has_cpu_mhz;
+
+void __init cpu_detect_mhz_feature(void)
+{
+	if (test_facility(34) && __ecag(ECAG_CPU_ATTRIBUTE, 0) != -1UL)
+		machine_has_cpu_mhz = 1;
+}
+
+static void update_cpu_mhz(void *arg)
+{
+	unsigned long mhz;
+	struct cpu_info *c;
+
+	mhz = __ecag(ECAG_CPU_ATTRIBUTE, 0);
+	c = this_cpu_ptr(&cpu_info);
+	c->cpu_mhz_dynamic = mhz >> 32;
+	c->cpu_mhz_static = mhz & 0xffffffff;
+}
+
+void s390_update_cpu_mhz(void)
+{
+	s390_adjust_jiffies();
+	if (machine_has_cpu_mhz)
+		on_each_cpu(update_cpu_mhz, NULL, 0);
+}
 
 void notrace cpu_relax(void)
 {
@@ -35,9 +68,11 @@ EXPORT_SYMBOL(cpu_relax);
  */
 void cpu_init(void)
 {
-	struct cpuid *id = this_cpu_ptr(&cpu_id);
+	struct cpuid *id = this_cpu_ptr(&cpu_info.cpu_id);
 
 	get_cpu_id(id);
+	if (machine_has_cpu_mhz)
+		update_cpu_mhz(NULL);
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
@@ -64,7 +99,6 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 	};
 	int i, cpu;
 
-	s390_adjust_jiffies();
 	seq_printf(m, "vendor_id       : IBM/S390\n"
 		   "# processors    : %i\n"
 		   "bogomips per cpu: %lu.%02lu\n",
@@ -80,7 +114,7 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 	seq_puts(m, "\n");
 	show_cacheinfo(m);
 	for_each_online_cpu(cpu) {
-		struct cpuid *id = &per_cpu(cpu_id, cpu);
+		struct cpuid *id = &per_cpu(cpu_info.cpu_id, cpu);
 
 		seq_printf(m, "processor %d: "
 			   "version = %02X,  "
@@ -88,6 +122,14 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 			   "machine = %04X\n",
 			   cpu, id->version, id->ident, id->machine);
 	}
+}
+
+static void show_cpu_mhz(struct seq_file *m, unsigned long n)
+{
+	struct cpu_info *c = per_cpu_ptr(&cpu_info, n);
+
+	seq_printf(m, "cpu MHz dynamic : %d\n", c->cpu_mhz_dynamic);
+	seq_printf(m, "cpu MHz static  : %d\n", c->cpu_mhz_static);
 }
 
 /*
@@ -99,6 +141,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	if (!n)
 		show_cpu_summary(m, v);
+	if (!machine_has_cpu_mhz)
+		return 0;
+	seq_printf(m, "\ncpu             : %ld\n", n);
+	show_cpu_mhz(m, n);
 	return 0;
 }
 
@@ -132,4 +178,3 @@ const struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo,
 };
-
