@@ -556,6 +556,11 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 		devpriv->g0_g1_select_reg |= bit_values & bit_mask;
 		ni_writeb(dev, devpriv->g0_g1_select_reg, reg);
 		break;
+	case NI_M_CDIO_DMA_SEL_REG:
+		devpriv->cdio_dma_select_reg &= ~bit_mask;
+		devpriv->cdio_dma_select_reg |= bit_values & bit_mask;
+		ni_writeb(dev, devpriv->cdio_dma_select_reg, reg);
+		break;
 	default:
 		dev_err(dev->class_dev, "called with invalid register %d\n",
 			reg);
@@ -579,43 +584,14 @@ static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
 	return 0;
 }
 
-static inline void ni_set_ai_dma_channel(struct comedi_device *dev,
-					 unsigned channel)
-{
-	unsigned bits = ni_stc_dma_channel_select_bitfield(channel);
-
-	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
-			NI_E_DMA_AI_SEL_MASK, NI_E_DMA_AI_SEL(bits));
-}
-
 static inline void ni_set_ai_dma_no_channel(struct comedi_device *dev)
 {
 	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG, NI_E_DMA_AI_SEL_MASK, 0);
 }
 
-static inline void ni_set_ao_dma_channel(struct comedi_device *dev,
-					 unsigned channel)
-{
-	unsigned bits = ni_stc_dma_channel_select_bitfield(channel);
-
-	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
-			NI_E_DMA_AO_SEL_MASK, NI_E_DMA_AO_SEL(bits));
-}
-
 static inline void ni_set_ao_dma_no_channel(struct comedi_device *dev)
 {
 	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG, NI_E_DMA_AO_SEL_MASK, 0);
-}
-
-static inline void ni_set_gpct_dma_channel(struct comedi_device *dev,
-					   unsigned gpct_index,
-					   unsigned channel)
-{
-	unsigned bits = ni_stc_dma_channel_select_bitfield(channel);
-
-	ni_set_bitfield(dev, NI_E_DMA_G0_G1_SEL_REG,
-			NI_E_DMA_G0_G1_SEL_MASK(gpct_index),
-			NI_E_DMA_G0_G1_SEL(gpct_index, bits));
 }
 
 static inline void ni_set_gpct_dma_no_channel(struct comedi_device *dev,
@@ -625,56 +601,34 @@ static inline void ni_set_gpct_dma_no_channel(struct comedi_device *dev,
 			NI_E_DMA_G0_G1_SEL_MASK(gpct_index), 0);
 }
 
-static inline void ni_set_cdo_dma_channel(struct comedi_device *dev,
-					  unsigned mite_channel)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned long flags;
-	unsigned bits;
-
-	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->cdio_dma_select_reg &= ~NI_M_CDIO_DMA_SEL_CDO_MASK;
-	/*
-	 * XXX just guessing ni_stc_dma_channel_select_bitfield()
-	 * returns the right bits, under the assumption the cdio dma
-	 * selection works just like ai/ao/gpct.
-	 * Definitely works for dma channels 0 and 1.
-	 */
-	bits = ni_stc_dma_channel_select_bitfield(mite_channel);
-	devpriv->cdio_dma_select_reg |= NI_M_CDIO_DMA_SEL_CDO(bits);
-	ni_writeb(dev, devpriv->cdio_dma_select_reg, NI_M_CDIO_DMA_SEL_REG);
-	mmiowb();
-	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
-}
-
 static inline void ni_set_cdo_dma_no_channel(struct comedi_device *dev)
 {
-	struct ni_private *devpriv = dev->private;
-	unsigned long flags;
-
-	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->cdio_dma_select_reg &= ~NI_M_CDIO_DMA_SEL_CDO_MASK;
-	ni_writeb(dev, devpriv->cdio_dma_select_reg, NI_M_CDIO_DMA_SEL_REG);
-	mmiowb();
-	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
+	ni_set_bitfield(dev, NI_M_CDIO_DMA_SEL_REG,
+			NI_M_CDIO_DMA_SEL_CDO_MASK, 0);
 }
 
 static int ni_request_ai_mite_channel(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
+	struct mite_channel *mite_chan;
 	unsigned long flags;
+	unsigned int bits;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	devpriv->ai_mite_chan =
-	    mite_request_channel(devpriv->mite, devpriv->ai_mite_ring);
-	if (!devpriv->ai_mite_chan) {
+	mite_chan = mite_request_channel(devpriv->mite, devpriv->ai_mite_ring);
+	if (!mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for analog input\n");
 		return -EBUSY;
 	}
-	devpriv->ai_mite_chan->dir = COMEDI_INPUT;
-	ni_set_ai_dma_channel(dev, devpriv->ai_mite_chan->channel);
+	mite_chan->dir = COMEDI_INPUT;
+	devpriv->ai_mite_chan = mite_chan;
+
+	bits = ni_stc_dma_channel_select_bitfield(mite_chan->channel);
+	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
+			NI_E_DMA_AI_SEL_MASK, NI_E_DMA_AI_SEL(bits));
+
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	return 0;
 }
@@ -682,19 +636,25 @@ static int ni_request_ai_mite_channel(struct comedi_device *dev)
 static int ni_request_ao_mite_channel(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
+	struct mite_channel *mite_chan;
 	unsigned long flags;
+	unsigned int bits;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	devpriv->ao_mite_chan =
-	    mite_request_channel(devpriv->mite, devpriv->ao_mite_ring);
-	if (!devpriv->ao_mite_chan) {
+	mite_chan = mite_request_channel(devpriv->mite, devpriv->ao_mite_ring);
+	if (!mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for analog outut\n");
 		return -EBUSY;
 	}
-	devpriv->ao_mite_chan->dir = COMEDI_OUTPUT;
-	ni_set_ao_dma_channel(dev, devpriv->ao_mite_chan->channel);
+	mite_chan->dir = COMEDI_OUTPUT;
+	devpriv->ao_mite_chan = mite_chan;
+
+	bits = ni_stc_dma_channel_select_bitfield(mite_chan->channel);
+	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
+			NI_E_DMA_AO_SEL_MASK, NI_E_DMA_AO_SEL(bits));
+
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	return 0;
 }
@@ -704,13 +664,14 @@ static int ni_request_gpct_mite_channel(struct comedi_device *dev,
 					enum comedi_io_direction direction)
 {
 	struct ni_private *devpriv = dev->private;
-	unsigned long flags;
+	struct ni_gpct *counter = &devpriv->counter_dev->counters[gpct_index];
 	struct mite_channel *mite_chan;
+	unsigned long flags;
+	unsigned int bits;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	mite_chan =
-	    mite_request_channel(devpriv->mite,
-				 devpriv->gpct_mite_ring[gpct_index]);
+	mite_chan = mite_request_channel(devpriv->mite,
+					 devpriv->gpct_mite_ring[gpct_index]);
 	if (!mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
@@ -718,9 +679,13 @@ static int ni_request_gpct_mite_channel(struct comedi_device *dev,
 		return -EBUSY;
 	}
 	mite_chan->dir = direction;
-	ni_tio_set_mite_channel(&devpriv->counter_dev->counters[gpct_index],
-				mite_chan);
-	ni_set_gpct_dma_channel(dev, gpct_index, mite_chan->channel);
+	ni_tio_set_mite_channel(counter, mite_chan);
+
+	bits = ni_stc_dma_channel_select_bitfield(mite_chan->channel);
+	ni_set_bitfield(dev, NI_E_DMA_G0_G1_SEL_REG,
+			NI_E_DMA_G0_G1_SEL_MASK(gpct_index),
+			NI_E_DMA_G0_G1_SEL(gpct_index, bits));
+
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	return 0;
 }
@@ -731,19 +696,32 @@ static int ni_request_cdo_mite_channel(struct comedi_device *dev)
 {
 #ifdef PCIDMA
 	struct ni_private *devpriv = dev->private;
+	struct mite_channel *mite_chan;
 	unsigned long flags;
+	unsigned int bits;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	devpriv->cdo_mite_chan =
-	    mite_request_channel(devpriv->mite, devpriv->cdo_mite_ring);
-	if (!devpriv->cdo_mite_chan) {
+	mite_chan = mite_request_channel(devpriv->mite, devpriv->cdo_mite_ring);
+	if (!mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for correlated digital output\n");
 		return -EBUSY;
 	}
-	devpriv->cdo_mite_chan->dir = COMEDI_OUTPUT;
-	ni_set_cdo_dma_channel(dev, devpriv->cdo_mite_chan->channel);
+	mite_chan->dir = COMEDI_OUTPUT;
+	devpriv->cdo_mite_chan = mite_chan;
+
+	/*
+	 * XXX just guessing ni_stc_dma_channel_select_bitfield()
+	 * returns the right bits, under the assumption the cdio dma
+	 * selection works just like ai/ao/gpct.
+	 * Definitely works for dma channels 0 and 1.
+	 */
+	bits = ni_stc_dma_channel_select_bitfield(mite_chan->channel);
+	ni_set_bitfield(dev, NI_M_CDIO_DMA_SEL_REG,
+			NI_M_CDIO_DMA_SEL_CDO_MASK,
+			NI_M_CDIO_DMA_SEL_CDO(bits));
+
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #endif /*  PCIDMA */
 	return 0;
