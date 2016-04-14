@@ -1284,6 +1284,7 @@ struct rtl8xxxu_fileops {
 	void (*power_off) (struct rtl8xxxu_priv *priv);
 	void (*reset_8051) (struct rtl8xxxu_priv *priv);
 	int (*llt_init) (struct rtl8xxxu_priv *priv, u8 last_tx_page);
+	void (*init_phy_bb) (struct rtl8xxxu_priv *priv);
 	void (*phy_init_antenna_selection) (struct rtl8xxxu_priv *priv);
 	void (*phy_iq_calibrate) (struct rtl8xxxu_priv *priv);
 	void (*config_channel) (struct ieee80211_hw *hw);
