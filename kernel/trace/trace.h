@@ -628,6 +628,15 @@ extern unsigned long nsecs_to_usecs(unsigned long nsecs);
 
 extern unsigned long tracing_thresh;
 
+/* PID filtering */
+bool trace_find_filtered_pid(struct trace_pid_list *filtered_pids,
+			     pid_t search_pid);
+bool trace_ignore_this_task(struct trace_pid_list *filtered_pids,
+			    struct task_struct *task);
+void trace_filter_add_remove_task(struct trace_pid_list *pid_list,
+				  struct task_struct *self,
+				  struct task_struct *task);
+
 #ifdef CONFIG_TRACER_MAX_TRACE
 void update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu);
 void update_max_tr_single(struct trace_array *tr,

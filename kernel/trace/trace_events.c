@@ -503,8 +503,8 @@ static void ftrace_clear_events(struct trace_array *tr)
 extern int pid_max;
 
 /* Returns true if found in filter */
-static bool
-find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
+bool
+trace_find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
 {
 	/*
 	 * If pid_max changed after filtered_pids was created, we
@@ -516,8 +516,8 @@ find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
 	return test_bit(search_pid, filtered_pids->pids);
 }
 
-static bool
-ignore_this_task(struct trace_pid_list *filtered_pids, struct task_struct *task)
+bool
+trace_ignore_this_task(struct trace_pid_list *filtered_pids, struct task_struct *task)
 {
 	/*
 	 * Return false, because if filtered_pids does not exist,
@@ -526,19 +526,19 @@ ignore_this_task(struct trace_pid_list *filtered_pids, struct task_struct *task)
 	if (!filtered_pids)
 		return false;
 
-	return !find_filtered_pid(filtered_pids, task->pid);
+	return !trace_find_filtered_pid(filtered_pids, task->pid);
 }
 
-static void filter_add_remove_task(struct trace_pid_list *pid_list,
-				   struct task_struct *self,
-				   struct task_struct *task)
+void trace_filter_add_remove_task(struct trace_pid_list *pid_list,
+				  struct task_struct *self,
+				  struct task_struct *task)
 {
 	if (!pid_list)
 		return;
 
 	/* For forks, we only add if the forking task is listed */
 	if (self) {
-		if (!find_filtered_pid(pid_list, self->pid))
+		if (!trace_find_filtered_pid(pid_list, self->pid))
 			return;
 	}
 
@@ -560,7 +560,7 @@ event_filter_pid_sched_process_exit(void *data, struct task_struct *task)
 	struct trace_array *tr = data;
 
 	pid_list = rcu_dereference_sched(tr->filtered_pids);
-	filter_add_remove_task(pid_list, NULL, task);
+	trace_filter_add_remove_task(pid_list, NULL, task);
 }
 
 static void
@@ -572,7 +572,7 @@ event_filter_pid_sched_process_fork(void *data,
 	struct trace_array *tr = data;
 
 	pid_list = rcu_dereference_sched(tr->filtered_pids);
-	filter_add_remove_task(pid_list, self, task);
+	trace_filter_add_remove_task(pid_list, self, task);
 }
 
 void trace_event_follow_fork(struct trace_array *tr, bool enable)
@@ -600,8 +600,8 @@ event_filter_pid_sched_switch_probe_pre(void *data, bool preempt,
 	pid_list = rcu_dereference_sched(tr->filtered_pids);
 
 	this_cpu_write(tr->trace_buffer.data->ignore_pid,
-		       ignore_this_task(pid_list, prev) &&
-		       ignore_this_task(pid_list, next));
+		       trace_ignore_this_task(pid_list, prev) &&
+		       trace_ignore_this_task(pid_list, next));
 }
 
 static void
@@ -614,7 +614,7 @@ event_filter_pid_sched_switch_probe_post(void *data, bool preempt,
 	pid_list = rcu_dereference_sched(tr->filtered_pids);
 
 	this_cpu_write(tr->trace_buffer.data->ignore_pid,
-		       ignore_this_task(pid_list, next));
+		       trace_ignore_this_task(pid_list, next));
 }
 
 static void
@@ -630,7 +630,7 @@ event_filter_pid_sched_wakeup_probe_pre(void *data, struct task_struct *task)
 	pid_list = rcu_dereference_sched(tr->filtered_pids);
 
 	this_cpu_write(tr->trace_buffer.data->ignore_pid,
-		       ignore_this_task(pid_list, task));
+		       trace_ignore_this_task(pid_list, task));
 }
 
 static void
@@ -647,7 +647,7 @@ event_filter_pid_sched_wakeup_probe_post(void *data, struct task_struct *task)
 
 	/* Set tracing if current is enabled */
 	this_cpu_write(tr->trace_buffer.data->ignore_pid,
-		       ignore_this_task(pid_list, current));
+		       trace_ignore_this_task(pid_list, current));
 }
 
 static void __ftrace_clear_event_pids(struct trace_array *tr)
@@ -1654,7 +1654,7 @@ static void ignore_task_cpu(void *data)
 					     mutex_is_locked(&event_mutex));
 
 	this_cpu_write(tr->trace_buffer.data->ignore_pid,
-		       ignore_this_task(pid_list, current));
+		       trace_ignore_this_task(pid_list, current));
 }
 
 static ssize_t
