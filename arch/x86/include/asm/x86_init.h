@@ -145,9 +145,12 @@ struct timespec;
  * struct x86_legacy_features - legacy x86 features
  *
  * @rtc: this device has a CMOS real-time clock present
+ * @ebda_search: it's safe to search for the EBDA signature in the hardware's
+ * 	low RAM
  */
 struct x86_legacy_features {
 	int rtc;
+	int ebda_search;
 };
 
 /**

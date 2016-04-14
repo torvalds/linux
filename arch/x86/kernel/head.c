@@ -38,7 +38,7 @@ void __init reserve_ebda_region(void)
 	 * that the paravirt case can handle memory setup
 	 * correctly, without our help.
 	 */
-	if (paravirt_enabled())
+	if (!x86_platform.legacy.ebda_search)
 		return;
 
 	/* end of low (conventional) memory */
