@@ -24,6 +24,7 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
+#include <subdev/fb.h>
 #include <subdev/secboot.h>
 
 #include <nvif/class.h>
@@ -56,6 +57,7 @@ int
 gm200_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fb *fb = device->fb;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
@@ -63,8 +65,8 @@ gm200_gr_init(struct gf100_gr *gr)
 	int i;
 
 	/*XXX: belongs in fb */
-	nvkm_wr32(device, 0x100cc8, nvkm_memory_addr(gr->unk4188b4) >> 8);
-	nvkm_wr32(device, 0x100ccc, nvkm_memory_addr(gr->unk4188b8) >> 8);
+	nvkm_wr32(device, 0x100cc8, nvkm_memory_addr(fb->mmu_wr) >> 8);
+	nvkm_wr32(device, 0x100ccc, nvkm_memory_addr(fb->mmu_rd) >> 8);
 	nvkm_mask(device, 0x100cc4, 0x00040000, 0x00040000);
 	gr->func->init_gpc_mmu(gr);
 

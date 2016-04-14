@@ -101,9 +101,6 @@ struct gf100_gr {
 	u8 ppc_mask[GPC_MAX];
 	u8 ppc_tpc_nr[GPC_MAX][4];
 
-	struct nvkm_memory *unk4188b4;
-	struct nvkm_memory *unk4188b8;
-
 	struct gf100_gr_data mmio_data[4];
 	struct gf100_gr_mmio mmio_list[4096/8];
 	u32  size;

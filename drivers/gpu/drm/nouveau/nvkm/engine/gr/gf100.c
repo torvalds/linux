@@ -1616,29 +1616,9 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 {
 	struct gf100_gr *gr = gf100_gr(base);
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	int ret, i, j;
+	int i, j;
 
 	nvkm_pmu_pgob(device->pmu, false);
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 256, false,
-			      &gr->unk4188b4);
-	if (ret)
-		return ret;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 256, false,
-			      &gr->unk4188b8);
-	if (ret)
-		return ret;
-
-	nvkm_kmap(gr->unk4188b4);
-	for (i = 0; i < 0x1000; i += 4)
-		nvkm_wo32(gr->unk4188b4, i, 0x00000010);
-	nvkm_done(gr->unk4188b4);
-
-	nvkm_kmap(gr->unk4188b8);
-	for (i = 0; i < 0x1000; i += 4)
-		nvkm_wo32(gr->unk4188b8, i, 0x00000010);
-	nvkm_done(gr->unk4188b8);
 
 	gr->rop_nr = gr->func->rops(gr);
 	gr->gpc_nr = nvkm_rd32(device, 0x409604) & 0x0000001f;
@@ -1736,8 +1716,6 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	gf100_gr_dtor_init(gr->fuc_sw_ctx);
 	gf100_gr_dtor_init(gr->fuc_sw_nonctx);
 
-	nvkm_memory_del(&gr->unk4188b8);
-	nvkm_memory_del(&gr->unk4188b4);
 	return gr;
 }
 
@@ -1822,6 +1800,7 @@ int
 gf100_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fb *fb = device->fb;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
@@ -1834,8 +1813,8 @@ gf100_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, GPC_BCAST(0x088c), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0890), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0894), 0x00000000);
-	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(gr->unk4188b4) >> 8);
-	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(gr->unk4188b8) >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(fb->mmu_wr) >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(fb->mmu_rd) >> 8);
 
 	gf100_gr_mmio(gr, gr->func->mmio);
 

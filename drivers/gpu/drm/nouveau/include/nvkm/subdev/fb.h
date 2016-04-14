@@ -55,6 +55,9 @@ struct nvkm_fb {
 		struct nvkm_fb_tile region[16];
 		int regions;
 	} tile;
+
+	struct nvkm_memory *mmu_rd;
+	struct nvkm_memory *mmu_wr;
 };
 
 bool nvkm_fb_memtype_valid(struct nvkm_fb *, u32 memtype);

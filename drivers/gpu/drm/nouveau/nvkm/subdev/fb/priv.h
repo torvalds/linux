@@ -59,5 +59,6 @@ void nv44_fb_tile_prog(struct nvkm_fb *, int, struct nvkm_fb_tile *);
 void nv46_fb_tile_init(struct nvkm_fb *, int i, u32 addr, u32 size,
 		       u32 pitch, u32 flags, struct nvkm_fb_tile *);
 
+int gf100_fb_oneinit(struct nvkm_fb *);
 bool gf100_fb_memtype_valid(struct nvkm_fb *, u32);
 #endif

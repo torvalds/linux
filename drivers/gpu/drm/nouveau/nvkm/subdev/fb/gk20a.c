@@ -30,6 +30,7 @@ gk20a_fb_init(struct nvkm_fb *fb)
 
 static const struct nvkm_fb_func
 gk20a_fb = {
+	.oneinit = gf100_fb_oneinit,
 	.init = gk20a_fb_init,
 	.memtype_valid = gf100_fb_memtype_valid,
 };
