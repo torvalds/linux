@@ -1076,6 +1076,20 @@ struct amdgpu_rlc {
 	/* safe mode for updating CG/PG state */
 	bool in_safe_mode;
 	const struct amdgpu_rlc_funcs *funcs;
+
+	/* for firmware data */
+	u32 save_and_restore_offset;
+	u32 clear_state_descriptor_offset;
+	u32 avail_scratch_ram_locations;
+	u32 reg_restore_list_size;
+	u32 reg_list_format_start;
+	u32 reg_list_format_separate_start;
+	u32 starting_offsets_start;
+	u32 reg_list_format_size_bytes;
+	u32 reg_list_size_bytes;
+
+	u32 *register_list_format;
+	u32 *register_restore;
 };
 
 struct amdgpu_mec {
