@@ -243,7 +243,7 @@ enum timebase_nanoseconds {
 
 static const int num_adc_stages_611x = 3;
 
-static void ni_writel(struct comedi_device *dev, uint32_t data, int reg)
+static void ni_writel(struct comedi_device *dev, unsigned int data, int reg)
 {
 	if (dev->mmio)
 		writel(data, dev->mmio + reg);
@@ -251,7 +251,7 @@ static void ni_writel(struct comedi_device *dev, uint32_t data, int reg)
 		outl(data, dev->iobase + reg);
 }
 
-static void ni_writew(struct comedi_device *dev, uint16_t data, int reg)
+static void ni_writew(struct comedi_device *dev, unsigned int data, int reg)
 {
 	if (dev->mmio)
 		writew(data, dev->mmio + reg);
@@ -259,7 +259,7 @@ static void ni_writew(struct comedi_device *dev, uint16_t data, int reg)
 		outw(data, dev->iobase + reg);
 }
 
-static void ni_writeb(struct comedi_device *dev, uint8_t data, int reg)
+static void ni_writeb(struct comedi_device *dev, unsigned int data, int reg)
 {
 	if (dev->mmio)
 		writeb(data, dev->mmio + reg);
@@ -267,7 +267,7 @@ static void ni_writeb(struct comedi_device *dev, uint8_t data, int reg)
 		outb(data, dev->iobase + reg);
 }
 
-static uint32_t ni_readl(struct comedi_device *dev, int reg)
+static unsigned int ni_readl(struct comedi_device *dev, int reg)
 {
 	if (dev->mmio)
 		return readl(dev->mmio + reg);
@@ -275,7 +275,7 @@ static uint32_t ni_readl(struct comedi_device *dev, int reg)
 	return inl(dev->iobase + reg);
 }
 
-static uint16_t ni_readw(struct comedi_device *dev, int reg)
+static unsigned int ni_readw(struct comedi_device *dev, int reg)
 {
 	if (dev->mmio)
 		return readw(dev->mmio + reg);
@@ -283,7 +283,7 @@ static uint16_t ni_readw(struct comedi_device *dev, int reg)
 	return inw(dev->iobase + reg);
 }
 
-static uint8_t ni_readb(struct comedi_device *dev, int reg)
+static unsigned int ni_readb(struct comedi_device *dev, int reg)
 {
 	if (dev->mmio)
 		return readb(dev->mmio + reg);
@@ -458,7 +458,8 @@ static unsigned int m_series_stc_read(struct comedi_device *dev,
 	}
 }
 
-static void ni_stc_writew(struct comedi_device *dev, uint16_t data, int reg)
+static void ni_stc_writew(struct comedi_device *dev,
+			  unsigned int data, int reg)
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
@@ -477,7 +478,8 @@ static void ni_stc_writew(struct comedi_device *dev, uint16_t data, int reg)
 	}
 }
 
-static void ni_stc_writel(struct comedi_device *dev, uint32_t data, int reg)
+static void ni_stc_writel(struct comedi_device *dev,
+			  unsigned int data, int reg)
 {
 	struct ni_private *devpriv = dev->private;
 
@@ -489,11 +491,11 @@ static void ni_stc_writel(struct comedi_device *dev, uint32_t data, int reg)
 	}
 }
 
-static uint16_t ni_stc_readw(struct comedi_device *dev, int reg)
+static unsigned int ni_stc_readw(struct comedi_device *dev, int reg)
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
-	uint16_t val;
+	unsigned int val;
 
 	if (devpriv->is_m_series) {
 		val = m_series_stc_read(dev, reg);
@@ -510,10 +512,10 @@ static uint16_t ni_stc_readw(struct comedi_device *dev, int reg)
 	return val;
 }
 
-static uint32_t ni_stc_readl(struct comedi_device *dev, int reg)
+static unsigned int ni_stc_readl(struct comedi_device *dev, int reg)
 {
 	struct ni_private *devpriv = dev->private;
-	uint32_t val;
+	unsigned int val;
 
 	if (devpriv->is_m_series) {
 		val = m_series_stc_read(dev, reg);
@@ -779,7 +781,7 @@ static void ni_e_series_enable_second_irq(struct comedi_device *dev,
 					  unsigned int gpct_index, short enable)
 {
 	struct ni_private *devpriv = dev->private;
-	uint16_t val = 0;
+	unsigned int val = 0;
 	int reg;
 
 	if (devpriv->is_m_series || gpct_index > 1)
@@ -839,8 +841,8 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 	}
 }
 
-static inline void ni_ao_win_outw(struct comedi_device *dev, uint16_t data,
-				  int addr)
+static inline void ni_ao_win_outw(struct comedi_device *dev,
+				  unsigned int data, int addr)
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
@@ -851,8 +853,8 @@ static inline void ni_ao_win_outw(struct comedi_device *dev, uint16_t data,
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
-static inline void ni_ao_win_outl(struct comedi_device *dev, uint32_t data,
-				  int addr)
+static inline void ni_ao_win_outl(struct comedi_device *dev,
+				  unsigned int data, int addr)
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
@@ -989,7 +991,7 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 	int i;
 	unsigned short d;
-	u32 packed_data;
+	unsigned int packed_data;
 
 	for (i = 0; i < n; i++) {
 		comedi_buf_read_samples(s, &d, 1);
@@ -1079,7 +1081,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 {
 	struct ni_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
-	u32 dl;
+	unsigned int dl;
 	unsigned short data;
 	int i;
 
@@ -1150,7 +1152,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	u32 dl;
+	unsigned int dl;
 	unsigned short data;
 	unsigned short fifo_empty;
 	int i;
@@ -1211,7 +1213,7 @@ static void get_last_sample_611x(struct comedi_device *dev)
 	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short data;
-	u32 dl;
+	unsigned int dl;
 
 	if (!devpriv->is_611x)
 		return;
@@ -1229,7 +1231,7 @@ static void get_last_sample_6143(struct comedi_device *dev)
 	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short data;
-	u32 dl;
+	unsigned int dl;
 
 	if (!devpriv->is_6143)
 		return;
