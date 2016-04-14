@@ -877,16 +877,17 @@ static inline unsigned short ni_ao_win_inw(struct comedi_device *dev, int addr)
 	return data;
 }
 
-/* ni_set_bits( ) allows different parts of the ni_mio_common driver to
-* share registers (such as Interrupt_A_Register) without interfering with
-* each other.
-*
-* NOTE: the switch/case statements are optimized out for a constant argument
-* so this is actually quite fast---  If you must wrap another function around this
-* make it inline to avoid a large speed penalty.
-*
-* value should only be 1 or 0.
-*/
+/*
+ * ni_set_bits( ) allows different parts of the ni_mio_common driver to
+ * share registers (such as Interrupt_A_Register) without interfering with
+ * each other.
+ *
+ * NOTE: the switch/case statements are optimized out for a constant argument
+ * so this is actually quite fast---  If you must wrap another function around
+ * this make it inline to avoid a large speed penalty.
+ *
+ * value should only be 1 or 0.
+ */
 static inline void ni_set_bits(struct comedi_device *dev, int reg,
 			       unsigned int bits, unsigned int value)
 {
@@ -1102,7 +1103,10 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 			comedi_buf_write_samples(s, &data, 1);
 		}
 	} else if (devpriv->is_6143) {
-		/*  This just reads the FIFO assuming the data is present, no checks on the FIFO status are performed */
+		/*
+		 * This just reads the FIFO assuming the data is present,
+		 * no checks on the FIFO status are performed.
+		 */
 		for (i = 0; i < n / 2; i++) {
 			dl = ni_readl(dev, NI6143_AI_FIFO_DATA_REG);
 
@@ -1153,7 +1157,6 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int dl;
 	unsigned short data;
-	unsigned short fifo_empty;
 	int i;
 
 	if (devpriv->is_611x) {
@@ -1189,15 +1192,16 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 		}
 
 	} else {
-		fifo_empty = ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
-			     NISTC_AI_STATUS1_FIFO_E;
-		while (fifo_empty == 0) {
+		unsigned short fe;	/* fifo empty */
+
+		fe = ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
+		     NISTC_AI_STATUS1_FIFO_E;
+		while (fe == 0) {
 			for (i = 0;
 			     i < ARRAY_SIZE(devpriv->ai_fifo_buffer); i++) {
-				fifo_empty = ni_stc_readw(dev,
-							  NISTC_AI_STATUS1_REG) &
-						NISTC_AI_STATUS1_FIFO_E;
-				if (fifo_empty)
+				fe = ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
+				     NISTC_AI_STATUS1_FIFO_E;
+				if (fe)
 					break;
 				devpriv->ai_fifo_buffer[i] =
 				    ni_readw(dev, NI_E_AI_FIFO_DATA_REG);
@@ -1323,7 +1327,10 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	/* 67xx boards don't have ai subdevice, but their gpct0 might generate an a interrupt */
+	/*
+	 * 67xx boards don't have ai subdevice, but their gpct0 might
+	 * generate an a interrupt.
+	 */
 	if (s->type == COMEDI_SUBD_UNUSED)
 		return;
 
@@ -1826,7 +1833,8 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 			ni_writew(dev, devpriv->ai_calib_source,
 				  NI6143_CALIB_CHAN_REG);
 			devpriv->ai_calib_source_enabled = 1;
-			msleep_interruptible(100);	/*  Allow relays to change */
+			/* Allow relays to change */
+			msleep_interruptible(100);
 		} else if (!(list[0] & CR_ALT_SOURCE)
 			   && devpriv->ai_calib_source_enabled) {
 			/*  Strobe Relay disable bit */
@@ -1836,7 +1844,8 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 			ni_writew(dev, devpriv->ai_calib_source,
 				  NI6143_CALIB_CHAN_REG);
 			devpriv->ai_calib_source_enabled = 0;
-			msleep_interruptible(100);	/*  Allow relays to change */
+			/* Allow relays to change */
+			msleep_interruptible(100);
 		}
 	}
 
@@ -1957,7 +1966,11 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 			ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE,
 				      NISTC_AI_CMD1_REG);
 
-			/* The 6143 has 32-bit FIFOs. You need to strobe a bit to move a single 16bit stranded sample into the FIFO */
+			/*
+			 * The 6143 has 32-bit FIFOs. You need to strobe a
+			 * bit to move a single 16bit stranded sample into
+			 * the FIFO.
+			 */
 			dl = 0;
 			for (i = 0; i < NI_TIMEOUT; i++) {
 				if (ni_readl(dev, NI6143_AI_FIFO_STATUS_REG) &
@@ -1995,7 +2008,8 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 				data[n] = dl;
 			} else {
 				d = ni_readw(dev, NI_E_AI_FIFO_DATA_REG);
-				d += signbits;	/* subtle: needs to be short addition */
+				/* subtle: needs to be short addition */
+				d += signbits;
 				data[n] = d;
 			}
 		}
@@ -2331,7 +2345,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (stop_count == 0) {
 			devpriv->ai_cmd2 |= NISTC_AI_CMD2_END_ON_EOS;
 			interrupt_a_enable |= NISTC_INTA_ENA_AI_STOP;
-			/*  this is required to get the last sample for chanlist_len > 1, not sure why */
+			/*
+			 * This is required to get the last sample for
+			 * chanlist_len > 1, not sure why.
+			 */
 			if (cmd->chanlist_len > 1)
 				start_stop_select |= NISTC_AI_STOP_POLARITY |
 						     NISTC_AI_STOP_EDGE;
@@ -2451,7 +2468,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		switch (devpriv->aimode) {
 		case AIMODE_HALF_FULL:
-			/*generate FIFO interrupts and DMA requests on half-full */
+			/* FIFO interrupts and DMA requests on half-full */
 #ifdef PCIDMA
 			ni_stc_writew(dev, NISTC_AI_MODE3_FIFO_MODE_HF_E,
 				      NISTC_AI_MODE3_REG);
@@ -4905,7 +4922,10 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 
 	if (source == NI_MIO_PLL_PXI10_CLOCK)
 		period_ns = 100;
-	/*  these limits are somewhat arbitrary, but NI advertises 1 to 20MHz range so we'll use that */
+	/*
+	 * These limits are somewhat arbitrary, but NI advertises 1 to 20MHz
+	 * range so we'll use that.
+	 */
 	if (period_ns < min_period_ns || period_ns > max_period_ns) {
 		dev_err(dev->class_dev,
 			"%s: you must specify an input clock frequency between %i and %i nanosec for the phased-lock loop\n",
@@ -4955,7 +4975,7 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 
 	ni_writew(dev, pll_control_bits, NI_M_PLL_CTRL_REG);
 	devpriv->clock_source = source;
-	/* it seems to typically take a few hundred microseconds for PLL to lock */
+	/* it takes a few hundred microseconds for PLL to lock */
 	for (i = 0; i < timeout; ++i) {
 		if (ni_readw(dev, NI_M_PLL_STATUS_REG) & NI_M_PLL_STATUS_LOCKED)
 			break;
@@ -5247,7 +5267,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 
 	if (!dev->attached)
 		return IRQ_NONE;
-	smp_mb();		/*  make sure dev->attached is checked before handler does anything else. */
+	smp_mb();		/* make sure dev->attached is checked */
 
 	/*  lock to avoid race with comedi_poll */
 	spin_lock_irqsave(&dev->spinlock, flags);
