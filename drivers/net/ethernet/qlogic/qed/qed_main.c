@@ -779,10 +779,14 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 
 	memset(&tunn_info, 0, sizeof(tunn_info));
 	tunn_info.tunn_mode |=  1 << QED_MODE_VXLAN_TUNN |
+				1 << QED_MODE_L2GRE_TUNN |
+				1 << QED_MODE_IPGRE_TUNN |
 				1 << QED_MODE_L2GENEVE_TUNN |
 				1 << QED_MODE_IPGENEVE_TUNN;
 
 	tunn_info.tunn_clss_vxlan = QED_TUNN_CLSS_MAC_VLAN;
+	tunn_info.tunn_clss_l2gre = QED_TUNN_CLSS_MAC_VLAN;
+	tunn_info.tunn_clss_ipgre = QED_TUNN_CLSS_MAC_VLAN;
 
 	rc = qed_hw_init(cdev, &tunn_info, true,
 			 cdev->int_params.out.int_mode,
