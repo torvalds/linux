@@ -3145,6 +3145,7 @@ static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 		sprintf(priv->chip_name, "8188RU");
 		priv->rtl_chip = RTL8188R;
 		priv->hi_pa = 1;
+		priv->no_pape = 1;
 		priv->power_base = &rtl8188r_power_base;
 	}
 
@@ -5555,9 +5556,12 @@ static void rtl8xxxu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	rtl8xxxu_write32(priv, REG_OFDM0_TR_MUX_PAR, 0x000800e4);
 	rtl8xxxu_write32(priv, REG_FPGA0_XCD_RF_SW_CTRL, 0x22204000);
 
-	val32 = rtl8xxxu_read32(priv, REG_FPGA0_XAB_RF_SW_CTRL);
-	val32 |= (FPGA0_RF_PAPE | (FPGA0_RF_PAPE << FPGA0_RF_BD_CTRL_SHIFT));
-	rtl8xxxu_write32(priv, REG_FPGA0_XAB_RF_SW_CTRL, val32);
+	if (!priv->no_pape) {
+		val32 = rtl8xxxu_read32(priv, REG_FPGA0_XAB_RF_SW_CTRL);
+		val32 |= (FPGA0_RF_PAPE |
+			  (FPGA0_RF_PAPE << FPGA0_RF_BD_CTRL_SHIFT));
+		rtl8xxxu_write32(priv, REG_FPGA0_XAB_RF_SW_CTRL, val32);
+	}
 
 	val32 = rtl8xxxu_read32(priv, REG_FPGA0_XA_RF_INT_OE);
 	val32 &= ~BIT(10);
@@ -7804,11 +7808,14 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8xxxu_write32(priv, REG_FPGA0_TX_INFO, 0x00000003);
 
 	val32 = FPGA0_RF_TRSW | FPGA0_RF_TRSWB | FPGA0_RF_ANTSW |
-		FPGA0_RF_ANTSWB | FPGA0_RF_PAPE |
-		((FPGA0_RF_ANTSW | FPGA0_RF_ANTSWB | FPGA0_RF_PAPE) <<
-		 FPGA0_RF_BD_CTRL_SHIFT);
-
+		FPGA0_RF_ANTSWB |
+		((FPGA0_RF_ANTSW | FPGA0_RF_ANTSWB) << FPGA0_RF_BD_CTRL_SHIFT);
+	if (!priv->no_pape) {
+		val32 |= (FPGA0_RF_PAPE |
+			  (FPGA0_RF_PAPE << FPGA0_RF_BD_CTRL_SHIFT));
+	}
 	rtl8xxxu_write32(priv, REG_FPGA0_XAB_RF_SW_CTRL, val32);
+
 	/* 0x860[6:5]= 00 - why? - this sets antenna B */
 	if (priv->rtl_chip != RTL8192E)
 		rtl8xxxu_write32(priv, REG_FPGA0_XA_RF_INT_OE, 0x66f60210);
