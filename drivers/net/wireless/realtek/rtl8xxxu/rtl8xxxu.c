@@ -3814,8 +3814,10 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_write32(priv, REG_FPGA1_TX_INFO, val32);
 
 		val32 = rtl8xxxu_read32(priv, REG_CCK0_AFE_SETTING);
+		val32 &= ~CCK0_AFE_RX_MASK;
 		val32 &= 0x00ffffff;
-		val32 |= 0x45000000;
+		val32 |= 0x40000000;
+		val32 |= CCK0_AFE_RX_ANT_B;
 		rtl8xxxu_write32(priv, REG_CCK0_AFE_SETTING, val32);
 
 		val32 = rtl8xxxu_read32(priv, REG_OFDM0_TRX_PATH_ENABLE);
