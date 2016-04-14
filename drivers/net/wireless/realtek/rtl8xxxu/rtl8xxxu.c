@@ -7214,6 +7214,8 @@ static int rtl8192cu_power_on(struct rtl8xxxu_priv *priv)
 		CR_SCHEDULE_ENABLE | CR_MAC_TX_ENABLE | CR_MAC_RX_ENABLE;
 	rtl8xxxu_write16(priv, REG_CR, val16);
 
+	rtl8xxxu_write8(priv, 0xfe10, 0x19);
+
 	/*
 	 * Workaround for 8188RU LNA power leakage problem.
 	 */
