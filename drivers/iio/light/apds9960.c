@@ -321,8 +321,12 @@ static const struct iio_chan_spec apds9960_channels[] = {
 };
 
 /* integration time in us */
-static const int apds9960_int_time[][2] =
-	{ {28000, 246}, {100000, 219}, {200000, 182}, {700000, 0} };
+static const int apds9960_int_time[][2] = {
+	{ 28000, 246},
+	{100000, 219},
+	{200000, 182},
+	{700000,   0}
+};
 
 /* gain mapping */
 static const int apds9960_pxs_gain_map[] = {1, 2, 4, 8};
