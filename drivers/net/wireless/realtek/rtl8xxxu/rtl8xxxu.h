@@ -630,6 +630,31 @@ struct rtl8xxxu_firmware_header {
 };
 
 /*
+ * 8723au/8192cu/8188ru required base power index offset tables.
+ */
+struct rtl8xxxu_power_base {
+	u32 reg_0e00;
+	u32 reg_0e04;
+	u32 reg_0e08;
+	u32 reg_086c;
+
+	u32 reg_0e10;
+	u32 reg_0e14;
+	u32 reg_0e18;
+	u32 reg_0e1c;
+
+	u32 reg_0830;
+	u32 reg_0834;
+	u32 reg_0838;
+	u32 reg_086c_2;
+
+	u32 reg_083c;
+	u32 reg_0848;
+	u32 reg_084c;
+	u32 reg_0868;
+};
+
+/*
  * The 8723au has 3 channel groups: 1-3, 4-9, and 10-14
  */
 struct rtl8723au_idx {
@@ -1201,6 +1226,7 @@ struct rtl8xxxu_priv {
 	struct rtl8723au_idx ofdm_tx_power_diff[RTL8723B_TX_COUNT];
 	struct rtl8723au_idx ht20_tx_power_diff[RTL8723B_TX_COUNT];
 	struct rtl8723au_idx ht40_tx_power_diff[RTL8723B_TX_COUNT];
+	struct rtl8xxxu_power_base *power_base;
 	u32 chip_cut:4;
 	u32 rom_rev:4;
 	u32 is_multi_func:1;

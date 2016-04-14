@@ -214,6 +214,72 @@ static struct rtl8xxxu_reg8val rtl8192e_mac_init_table[] = {
 	{0xffff, 0xff},
 };
 
+static struct rtl8xxxu_power_base rtl8188r_power_base = {
+	.reg_0e00 = 0x06080808,
+	.reg_0e04 = 0x00040406,
+	.reg_0e08 = 0x00000000,
+	.reg_086c = 0x00000000,
+
+	.reg_0e10 = 0x04060608,
+	.reg_0e14 = 0x00020204,
+	.reg_0e18 = 0x04060608,
+	.reg_0e1c = 0x00020204,
+
+	.reg_0830 = 0x06080808,
+	.reg_0834 = 0x00040406,
+	.reg_0838 = 0x00000000,
+	.reg_086c_2 = 0x00000000,
+
+	.reg_083c = 0x04060608,
+	.reg_0848 = 0x00020204,
+	.reg_084c = 0x04060608,
+	.reg_0868 = 0x00020204,
+};
+
+static struct rtl8xxxu_power_base rtl8192c_power_base = {
+	.reg_0e00 = 0x07090c0c,
+	.reg_0e04 = 0x01020405,
+	.reg_0e08 = 0x00000000,
+	.reg_086c = 0x00000000,
+
+	.reg_0e10 = 0x0b0c0c0e,
+	.reg_0e14 = 0x01030506,
+	.reg_0e18 = 0x0b0c0d0e,
+	.reg_0e1c = 0x01030509,
+
+	.reg_0830 = 0x07090c0c,
+	.reg_0834 = 0x01020405,
+	.reg_0838 = 0x00000000,
+	.reg_086c_2 = 0x00000000,
+
+	.reg_083c = 0x0b0c0d0e,
+	.reg_0848 = 0x01030509,
+	.reg_084c = 0x0b0c0d0e,
+	.reg_0868 = 0x01030509,
+};
+
+static struct rtl8xxxu_power_base rtl8723a_power_base = {
+	.reg_0e00 = 0x0a0c0c0c,
+	.reg_0e04 = 0x02040608,
+	.reg_0e08 = 0x00000000,
+	.reg_086c = 0x00000000,
+
+	.reg_0e10 = 0x0a0c0d0e,
+	.reg_0e14 = 0x02040608,
+	.reg_0e18 = 0x0a0c0d0e,
+	.reg_0e1c = 0x02040608,
+
+	.reg_0830 = 0x0a0c0c0c,
+	.reg_0834 = 0x02040608,
+	.reg_0838 = 0x00000000,
+	.reg_086c_2 = 0x00000000,
+
+	.reg_083c = 0x0a0c0d0e,
+	.reg_0848 = 0x02040608,
+	.reg_084c = 0x0a0c0d0e,
+	.reg_0868 = 0x02040608,
+};
+
 static struct rtl8xxxu_reg32val rtl8723a_phy_1t_init_table[] = {
 	{0x800, 0x80040000}, {0x804, 0x00000003},
 	{0x808, 0x0000fc00}, {0x80c, 0x0000000a},
@@ -2410,6 +2476,7 @@ static void rtl8723bu_config_channel(struct ieee80211_hw *hw)
 static void
 rtl8723a_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 {
+	struct rtl8xxxu_power_base *power_base = priv->power_base;
 	u8 cck[RTL8723A_MAX_RF_PATHS], ofdm[RTL8723A_MAX_RF_PATHS];
 	u8 ofdmbase[RTL8723A_MAX_RF_PATHS], mcsbase[RTL8723A_MAX_RF_PATHS];
 	u32 val32, ofdm_a, ofdm_b, mcs_a, mcs_b;
@@ -2418,8 +2485,8 @@ rtl8723a_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 
 	group = rtl8723a_channel_to_group(channel);
 
-	cck[0] = priv->cck_tx_power_index_A[group];
-	cck[1] = priv->cck_tx_power_index_B[group];
+	cck[0] = priv->cck_tx_power_index_A[group] - 1;
+	cck[1] = priv->cck_tx_power_index_B[group] - 1;
 
 	if (priv->hi_pa) {
 		if (cck[0] > 0x20)
@@ -2430,6 +2497,10 @@ rtl8723a_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 
 	ofdm[0] = priv->ht40_1s_tx_power_index_A[group];
 	ofdm[1] = priv->ht40_1s_tx_power_index_B[group];
+	if (ofdm[0])
+		ofdm[0] -= 1;
+	if (ofdm[1])
+		ofdm[1] -= 1;
 
 	ofdmbase[0] = ofdm[0] +	priv->ofdm_tx_power_index_diff[group].a;
 	ofdmbase[1] = ofdm[1] +	priv->ofdm_tx_power_index_diff[group].b;
@@ -2485,27 +2556,39 @@ rtl8723a_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 		ofdmbase[0] << 16 | ofdmbase[0] << 24;
 	ofdm_b = ofdmbase[1] | ofdmbase[1] << 8 |
 		ofdmbase[1] << 16 | ofdmbase[1] << 24;
-	rtl8xxxu_write32(priv, REG_TX_AGC_A_RATE18_06, ofdm_a);
-	rtl8xxxu_write32(priv, REG_TX_AGC_B_RATE18_06, ofdm_b);
 
-	rtl8xxxu_write32(priv, REG_TX_AGC_A_RATE54_24, ofdm_a);
-	rtl8xxxu_write32(priv, REG_TX_AGC_B_RATE54_24, ofdm_b);
+	rtl8xxxu_write32(priv, REG_TX_AGC_A_RATE18_06,
+			 ofdm_a + power_base->reg_0e00);
+	rtl8xxxu_write32(priv, REG_TX_AGC_B_RATE18_06,
+			 ofdm_b + power_base->reg_0830);
+
+	rtl8xxxu_write32(priv, REG_TX_AGC_A_RATE54_24,
+			 ofdm_a + power_base->reg_0e04);
+	rtl8xxxu_write32(priv, REG_TX_AGC_B_RATE54_24,
+			 ofdm_b + power_base->reg_0834);
 
 	mcs_a = mcsbase[0] | mcsbase[0] << 8 |
 		mcsbase[0] << 16 | mcsbase[0] << 24;
 	mcs_b = mcsbase[1] | mcsbase[1] << 8 |
 		mcsbase[1] << 16 | mcsbase[1] << 24;
 
-	rtl8xxxu_write32(priv, REG_TX_AGC_A_MCS03_MCS00, mcs_a);
-	rtl8xxxu_write32(priv, REG_TX_AGC_B_MCS03_MCS00, mcs_b);
+	rtl8xxxu_write32(priv, REG_TX_AGC_A_MCS03_MCS00,
+			 mcs_a + power_base->reg_0e10);
+	rtl8xxxu_write32(priv, REG_TX_AGC_B_MCS03_MCS00,
+			 mcs_b + power_base->reg_083c);
 
-	rtl8xxxu_write32(priv, REG_TX_AGC_A_MCS07_MCS04, mcs_a);
-	rtl8xxxu_write32(priv, REG_TX_AGC_B_MCS07_MCS04, mcs_b);
+	rtl8xxxu_write32(priv, REG_TX_AGC_A_MCS07_MCS04,
+			 mcs_a + power_base->reg_0e14);
+	rtl8xxxu_write32(priv, REG_TX_AGC_B_MCS07_MCS04,
+			 mcs_b + power_base->reg_0848);
 
-	rtl8xxxu_write32(priv, REG_TX_AGC_A_MCS11_MCS08, mcs_a);
-	rtl8xxxu_write32(priv, REG_TX_AGC_B_MCS11_MCS08, mcs_b);
+	rtl8xxxu_write32(priv, REG_TX_AGC_A_MCS11_MCS08,
+			 mcs_a + power_base->reg_0e18);
+	rtl8xxxu_write32(priv, REG_TX_AGC_B_MCS11_MCS08,
+			 mcs_b + power_base->reg_084c);
 
-	rtl8xxxu_write32(priv, REG_TX_AGC_A_MCS15_MCS12, mcs_a);
+	rtl8xxxu_write32(priv, REG_TX_AGC_A_MCS15_MCS12,
+			 mcs_a + power_base->reg_0e1c);
 	for (i = 0; i < 3; i++) {
 		if (i != 2)
 			val8 = (mcsbase[0] > 8) ? (mcsbase[0] - 8) : 0;
@@ -2513,7 +2596,8 @@ rtl8723a_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 			val8 = (mcsbase[0] > 6) ? (mcsbase[0] - 6) : 0;
 		rtl8xxxu_write8(priv, REG_OFDM0_XC_TX_IQ_IMBALANCE + i, val8);
 	}
-	rtl8xxxu_write32(priv, REG_TX_AGC_B_MCS15_MCS12, mcs_b);
+	rtl8xxxu_write32(priv, REG_TX_AGC_B_MCS15_MCS12,
+			 mcs_b + power_base->reg_0868);
 	for (i = 0; i < 3; i++) {
 		if (i != 2)
 			val8 = (mcsbase[1] > 8) ? (mcsbase[1] - 8) : 0;
@@ -2920,6 +3004,9 @@ static int rtl8723au_parse_efuse(struct rtl8xxxu_priv *priv)
 		priv->has_xtalk = 1;
 		priv->xtalk = priv->efuse_wifi.efuse8723.xtal_k & 0x3f;
 	}
+
+	priv->power_base = &rtl8723a_power_base;
+
 	dev_info(&priv->udev->dev, "Vendor: %.7s\n",
 		 efuse->vendor_name);
 	dev_info(&priv->udev->dev, "Product: %.41s\n",
@@ -3052,10 +3139,13 @@ static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 	dev_info(&priv->udev->dev, "Product: %.20s\n",
 		 efuse->device_name);
 
+	priv->power_base = &rtl8192c_power_base;
+
 	if (efuse->rf_regulatory & 0x20) {
 		sprintf(priv->chip_name, "8188RU");
 		priv->rtl_chip = RTL8188R;
 		priv->hi_pa = 1;
+		priv->power_base = &rtl8188r_power_base;
 	}
 
 	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
