@@ -8,6 +8,7 @@
  */
 
 struct w5100_ops {
+	bool may_sleep;
 	int (*read)(struct net_device *ndev, u16 addr);
 	int (*write)(struct net_device *ndev, u16 addr, u8 data);
 	int (*read16)(struct net_device *ndev, u16 addr);
