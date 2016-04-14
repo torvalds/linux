@@ -319,6 +319,84 @@ int call_filter_check_discard(struct trace_event_call *call, void *rec,
 	return 0;
 }
 
+/**
+ * trace_find_filtered_pid - check if a pid exists in a filtered_pid list
+ * @filtered_pids: The list of pids to check
+ * @search_pid: The PID to find in @filtered_pids
+ *
+ * Returns true if @search_pid is fonud in @filtered_pids, and false otherwis.
+ */
+bool
+trace_find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
+{
+	/*
+	 * If pid_max changed after filtered_pids was created, we
+	 * by default ignore all pids greater than the previous pid_max.
+	 */
+	if (search_pid >= filtered_pids->pid_max)
+		return false;
+
+	return test_bit(search_pid, filtered_pids->pids);
+}
+
+/**
+ * trace_ignore_this_task - should a task be ignored for tracing
+ * @filtered_pids: The list of pids to check
+ * @task: The task that should be ignored if not filtered
+ *
+ * Checks if @task should be traced or not from @filtered_pids.
+ * Returns true if @task should *NOT* be traced.
+ * Returns false if @task should be traced.
+ */
+bool
+trace_ignore_this_task(struct trace_pid_list *filtered_pids, struct task_struct *task)
+{
+	/*
+	 * Return false, because if filtered_pids does not exist,
+	 * all pids are good to trace.
+	 */
+	if (!filtered_pids)
+		return false;
+
+	return !trace_find_filtered_pid(filtered_pids, task->pid);
+}
+
+/**
+ * trace_pid_filter_add_remove - Add or remove a task from a pid_list
+ * @pid_list: The list to modify
+ * @self: The current task for fork or NULL for exit
+ * @task: The task to add or remove
+ *
+ * If adding a task, if @self is defined, the task is only added if @self
+ * is also included in @pid_list. This happens on fork and tasks should
+ * only be added when the parent is listed. If @self is NULL, then the
+ * @task pid will be removed from the list, which would happen on exit
+ * of a task.
+ */
+void trace_filter_add_remove_task(struct trace_pid_list *pid_list,
+				  struct task_struct *self,
+				  struct task_struct *task)
+{
+	if (!pid_list)
+		return;
+
+	/* For forks, we only add if the forking task is listed */
+	if (self) {
+		if (!trace_find_filtered_pid(pid_list, self->pid))
+			return;
+	}
+
+	/* Sorry, but we don't support pid_max changing after setting */
+	if (task->pid >= pid_list->pid_max)
+		return;
+
+	/* "self" is set for forks, and NULL for exits */
+	if (self)
+		set_bit(task->pid, pid_list->pids);
+	else
+		clear_bit(task->pid, pid_list->pids);
+}
+
 static cycle_t buffer_ftrace_now(struct trace_buffer *buf, int cpu)
 {
 	u64 ts;

@@ -502,57 +502,6 @@ static void ftrace_clear_events(struct trace_array *tr)
 /* Shouldn't this be in a header? */
 extern int pid_max;
 
-/* Returns true if found in filter */
-bool
-trace_find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
-{
-	/*
-	 * If pid_max changed after filtered_pids was created, we
-	 * by default ignore all pids greater than the previous pid_max.
-	 */
-	if (search_pid >= filtered_pids->pid_max)
-		return false;
-
-	return test_bit(search_pid, filtered_pids->pids);
-}
-
-bool
-trace_ignore_this_task(struct trace_pid_list *filtered_pids, struct task_struct *task)
-{
-	/*
-	 * Return false, because if filtered_pids does not exist,
-	 * all pids are good to trace.
-	 */
-	if (!filtered_pids)
-		return false;
-
-	return !trace_find_filtered_pid(filtered_pids, task->pid);
-}
-
-void trace_filter_add_remove_task(struct trace_pid_list *pid_list,
-				  struct task_struct *self,
-				  struct task_struct *task)
-{
-	if (!pid_list)
-		return;
-
-	/* For forks, we only add if the forking task is listed */
-	if (self) {
-		if (!trace_find_filtered_pid(pid_list, self->pid))
-			return;
-	}
-
-	/* Sorry, but we don't support pid_max changing after setting */
-	if (task->pid >= pid_list->pid_max)
-		return;
-
-	/* "self" is set for forks, and NULL for exits */
-	if (self)
-		set_bit(task->pid, pid_list->pids);
-	else
-		clear_bit(task->pid, pid_list->pids);
-}
-
 static void
 event_filter_pid_sched_process_exit(void *data, struct task_struct *task)
 {
