@@ -1746,7 +1746,9 @@ pause:
 					  pause,
 					  start_time);
 		__set_current_state(TASK_KILLABLE);
+		atomic_inc(&wb->dirty_sleeping);
 		io_schedule_timeout(pause);
+		atomic_dec(&wb->dirty_sleeping);
 
 		current->dirty_paused_when = now + pause;
 		current->nr_dirtied = 0;
