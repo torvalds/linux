@@ -329,7 +329,7 @@ enum CHSR_bits {
 	CHSR_END = (1 << 8),
 	CHSR_DRQ1 = (1 << 7),
 	CHSR_DRQ0 = (1 << 6),
-	CHSR_LxERR_mask = (3 << 4),
+	CHSR_LERR_MASK = (3 << 4),
 	CHSR_LBERR = (1 << 4),
 	CHSR_LRERR = (2 << 4),
 	CHSR_LOERR = (3 << 4),

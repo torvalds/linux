@@ -1327,7 +1327,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 
 	if (ai_mite_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY |
 			       CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR |
-			       CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)) {
+			       CHSR_SABORT | CHSR_XFERR | CHSR_LERR_MASK)) {
 		dev_err(dev->class_dev,
 			"unknown mite interrupt (ai_mite_status=%08x)\n",
 			ai_mite_status);
@@ -1432,7 +1432,7 @@ static void handle_b_interrupt(struct comedi_device *dev,
 
 	if (ao_mite_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY |
 			       CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR |
-			       CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)) {
+			       CHSR_SABORT | CHSR_XFERR | CHSR_LERR_MASK)) {
 		dev_err(dev->class_dev,
 			"unknown mite interrupt (ao_mite_status=%08x)\n",
 			ao_mite_status);
