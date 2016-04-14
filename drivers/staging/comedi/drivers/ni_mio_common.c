@@ -4478,12 +4478,12 @@ static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s)
 	s->n_chan = n_chans;
 
 	if (diffbits) {
-		unsigned int *maxdata_list;
+		unsigned int *maxdata_list = devpriv->caldac_maxdata_list;
 
 		if (n_chans > MAX_N_CALDACS)
 			dev_err(dev->class_dev,
 				"BUG! MAX_N_CALDACS too small\n");
-		s->maxdata_list = maxdata_list = devpriv->caldac_maxdata_list;
+		s->maxdata_list = maxdata_list;
 		chan = 0;
 		for (i = 0; i < n_dacs; i++) {
 			type = board->caldac[i];
