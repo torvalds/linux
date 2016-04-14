@@ -551,12 +551,6 @@
 		};
     };
 
-    aml_gpio_lib {
-        compatible = "aml-gpio";
-        dev_name = "aml_gpio";
-        status = "okay";
-    };
-    
     efuse{
                 compatible = "amlogic,efuse";
                 dev_name = "efuse";

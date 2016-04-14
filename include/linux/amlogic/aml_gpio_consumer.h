@@ -17,5 +17,14 @@ extern int amlogic_gpio_name_map_num(const char *name);
 extern int amlogic_set_pull_up_down(unsigned int pin,unsigned int val,const char *owner);
 extern int amlogic_disable_pullup(unsigned int pin,const char *owner);
 #define AML_GPIO_IRQ(irq_bank,filter,type) ((irq_bank&0x7)|(filter&0x7)<<8|(type&0x3)<<16)
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	extern int amlogic_setup_irq (unsigned int offset, unsigned int aml_irq_flags);
+	extern int meson_setup_irq(struct gpio_chip *chip, unsigned int gpio,
+				unsigned int irq_flags, int *irq_banks);
+	extern void meson_free_irq(unsigned int gpio, int *irq_banks);
+	extern int meson_fix_irqbank(int bank);
+#endif
+
 #endif
 

@@ -196,7 +196,18 @@ int amlogic_request_gpio_to_irq(unsigned int  pin,const char *label,unsigned int
 		spin_lock_irqsave(&gpio_irqlock, flags);
 		gpio_flag=flag;
 		__gpio_to_irq(pin);
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+		/* setup aml_gpio_irq; */
+		ret = amlogic_setup_irq(pin, flag);
+		if (ret < 0)
+			pr_err("%s : amlogic setup irq fail!\n", __func__);
+
 		spin_unlock_irqrestore(&gpio_irqlock, flags);
+		return ret;
+#else
+		spin_unlock_irqrestore(&gpio_irqlock, flags);
+#endif
 	}
 	return ret;
 }
@@ -214,8 +225,19 @@ int amlogic_gpio_to_irq(unsigned int  pin,const char *owner,unsigned int flag)
 			spin_lock_irqsave(&gpio_irqlock, flags);
 			gpio_flag=flag;
 			__gpio_to_irq(pin);
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+			/* setup aml_gpio_irq; */
+			ret = amlogic_setup_irq(pin, flag);
+			if (ret < 0)
+				pr_err("%s : amlogic setup irq fail!\n", __func__);
+
+			spin_unlock_irqrestore(&gpio_irqlock, flags);
+			return ret;
+#else
 			spin_unlock_irqrestore(&gpio_irqlock, flags);
 			return 0;
+#endif
 		}
 	return ret;
 }

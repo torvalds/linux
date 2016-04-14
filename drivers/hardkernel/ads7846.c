@@ -1358,6 +1358,23 @@ static const struct ads7846_platform_data *ads7846_probe_dt(struct device *dev)
 }
 #endif
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+static void amlgic_free_irq(struct ads7846 *ts)
+{
+	int	irq_banks[2];
+
+	meson_free_irq(ts->gpio_pendown, &irq_banks[0]);
+
+	/* rising irq bank */
+	if (irq_banks[0] != -1)
+		free_irq(irq_banks[0] + INT_GPIO_0, ts);
+
+	/* falling irq bank */
+	if (irq_banks[1] != -1)
+		free_irq(irq_banks[1] + INT_GPIO_0, ts);
+}
+#endif
+
 static int ads7846_probe(struct spi_device *spi)
 {
 	const struct ads7846_platform_data *pdata;
@@ -1508,6 +1525,14 @@ static int ads7846_probe(struct spi_device *spi)
 	dev_warn(&spi->dev, "Undfined irq-source value in DT! irq-source to assume a GPIO_IRQ0.!\n");
 		irq_source = GPIO_IRQ0;
 	}
+
+	/* find available irq bank */
+	irq_source = meson_fix_irqbank(irq_source);
+	if (irq_source < 0) {
+		dev_err(&spi->dev, "amlogic find irq bank fail!\n");
+		err = -ENODEV;
+		goto err_disable_regulator;
+	}
 	spi->irq = INT_GPIO_0 + irq_source;
         /*
             IRQ Filter Select : (0 ~ 7)
@@ -1595,7 +1620,11 @@ static int ads7846_probe(struct spi_device *spi)
  err_remove_hwmon:
 	ads784x_hwmon_unregister(spi, ts);
  err_free_irq:
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	amlgic_free_irq(ts);
+#else
 	free_irq(spi->irq, ts);
+#endif
  err_disable_regulator:
 #if !defined(CONFIG_MACH_MESON8B_ODROIDC)
 	regulator_disable(ts->reg);
@@ -1624,7 +1653,12 @@ static int ads7846_remove(struct spi_device *spi)
 	sysfs_remove_group(&spi->dev.kobj, &ads784x_attr_group);
 
 	ads7846_disable(ts);
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	amlgic_free_irq(ts);
+#else
 	free_irq(ts->spi->irq, ts);
+#endif
 
 	input_unregister_device(ts->input);
 
