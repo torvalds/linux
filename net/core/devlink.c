@@ -280,6 +280,10 @@ devlink_sb_tc_index_get_from_info(struct devlink_sb *devlink_sb,
 #define DEVLINK_NL_FLAG_NEED_DEVLINK	BIT(0)
 #define DEVLINK_NL_FLAG_NEED_PORT	BIT(1)
 #define DEVLINK_NL_FLAG_NEED_SB		BIT(2)
+#define DEVLINK_NL_FLAG_LOCK_PORTS	BIT(3)
+	/* port is not needed but we need to ensure they don't
+	 * change in the middle of command
+	 */
 
 static int devlink_nl_pre_doit(const struct genl_ops *ops,
 			       struct sk_buff *skb, struct genl_info *info)
@@ -306,6 +310,9 @@ static int devlink_nl_pre_doit(const struct genl_ops *ops,
 		}
 		info->user_ptr[0] = devlink_port;
 	}
+	if (ops->internal_flags & DEVLINK_NL_FLAG_LOCK_PORTS) {
+		mutex_lock(&devlink_port_mutex);
+	}
 	if (ops->internal_flags & DEVLINK_NL_FLAG_NEED_SB) {
 		struct devlink_sb *devlink_sb;
 
@@ -324,7 +331,8 @@ static int devlink_nl_pre_doit(const struct genl_ops *ops,
 static void devlink_nl_post_doit(const struct genl_ops *ops,
 				 struct sk_buff *skb, struct genl_info *info)
 {
-	if (ops->internal_flags & DEVLINK_NL_FLAG_NEED_PORT)
+	if (ops->internal_flags & DEVLINK_NL_FLAG_NEED_PORT ||
+	    ops->internal_flags & DEVLINK_NL_FLAG_LOCK_PORTS)
 		mutex_unlock(&devlink_port_mutex);
 	mutex_unlock(&devlink_mutex);
 }
@@ -942,12 +950,13 @@ static int devlink_nl_sb_port_pool_fill(struct sk_buff *msg,
 					enum devlink_command cmd,
 					u32 portid, u32 seq, int flags)
 {
+	const struct devlink_ops *ops = devlink->ops;
 	u32 threshold;
 	void *hdr;
 	int err;
 
-	err = devlink->ops->sb_port_pool_get(devlink_port, devlink_sb->index,
-					     pool_index, &threshold);
+	err = ops->sb_port_pool_get(devlink_port, devlink_sb->index,
+				    pool_index, &threshold);
 	if (err)
 		return err;
 
@@ -965,6 +974,22 @@ static int devlink_nl_sb_port_pool_fill(struct sk_buff *msg,
 		goto nla_put_failure;
 	if (nla_put_u32(msg, DEVLINK_ATTR_SB_THRESHOLD, threshold))
 		goto nla_put_failure;
+
+	if (ops->sb_occ_port_pool_get) {
+		u32 cur;
+		u32 max;
+
+		err = ops->sb_occ_port_pool_get(devlink_port, devlink_sb->index,
+						pool_index, &cur, &max);
+		if (err && err != -EOPNOTSUPP)
+			return err;
+		if (!err) {
+			if (nla_put_u32(msg, DEVLINK_ATTR_SB_OCC_CUR, cur))
+				goto nla_put_failure;
+			if (nla_put_u32(msg, DEVLINK_ATTR_SB_OCC_MAX, max))
+				goto nla_put_failure;
+		}
+	}
 
 	genlmsg_end(msg, hdr);
 	return 0;
@@ -1114,14 +1139,15 @@ devlink_nl_sb_tc_pool_bind_fill(struct sk_buff *msg, struct devlink *devlink,
 				enum devlink_command cmd,
 				u32 portid, u32 seq, int flags)
 {
+	const struct devlink_ops *ops = devlink->ops;
 	u16 pool_index;
 	u32 threshold;
 	void *hdr;
 	int err;
 
-	err = devlink->ops->sb_tc_pool_bind_get(devlink_port, devlink_sb->index,
-						tc_index, pool_type,
-						&pool_index, &threshold);
+	err = ops->sb_tc_pool_bind_get(devlink_port, devlink_sb->index,
+				       tc_index, pool_type,
+				       &pool_index, &threshold);
 	if (err)
 		return err;
 
@@ -1143,6 +1169,24 @@ devlink_nl_sb_tc_pool_bind_fill(struct sk_buff *msg, struct devlink *devlink,
 		goto nla_put_failure;
 	if (nla_put_u32(msg, DEVLINK_ATTR_SB_THRESHOLD, threshold))
 		goto nla_put_failure;
+
+	if (ops->sb_occ_tc_port_bind_get) {
+		u32 cur;
+		u32 max;
+
+		err = ops->sb_occ_tc_port_bind_get(devlink_port,
+						   devlink_sb->index,
+						   tc_index, pool_type,
+						   &cur, &max);
+		if (err && err != -EOPNOTSUPP)
+			return err;
+		if (!err) {
+			if (nla_put_u32(msg, DEVLINK_ATTR_SB_OCC_CUR, cur))
+				goto nla_put_failure;
+			if (nla_put_u32(msg, DEVLINK_ATTR_SB_OCC_MAX, max))
+				goto nla_put_failure;
+		}
+	}
 
 	genlmsg_end(msg, hdr);
 	return 0;
@@ -1326,6 +1370,30 @@ static int devlink_nl_cmd_sb_tc_pool_bind_set_doit(struct sk_buff *skb,
 					   pool_index, threshold);
 }
 
+static int devlink_nl_cmd_sb_occ_snapshot_doit(struct sk_buff *skb,
+					       struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_sb *devlink_sb = info->user_ptr[1];
+	const struct devlink_ops *ops = devlink->ops;
+
+	if (ops && ops->sb_occ_snapshot)
+		return ops->sb_occ_snapshot(devlink, devlink_sb->index);
+	return -EOPNOTSUPP;
+}
+
+static int devlink_nl_cmd_sb_occ_max_clear_doit(struct sk_buff *skb,
+						struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_sb *devlink_sb = info->user_ptr[1];
+	const struct devlink_ops *ops = devlink->ops;
+
+	if (ops && ops->sb_occ_max_clear)
+		return ops->sb_occ_max_clear(devlink, devlink_sb->index);
+	return -EOPNOTSUPP;
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
@@ -1438,6 +1506,24 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_PORT |
 				  DEVLINK_NL_FLAG_NEED_SB,
+	},
+	{
+		.cmd = DEVLINK_CMD_SB_OCC_SNAPSHOT,
+		.doit = devlink_nl_cmd_sb_occ_snapshot_doit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK |
+				  DEVLINK_NL_FLAG_NEED_SB |
+				  DEVLINK_NL_FLAG_LOCK_PORTS,
+	},
+	{
+		.cmd = DEVLINK_CMD_SB_OCC_MAX_CLEAR,
+		.doit = devlink_nl_cmd_sb_occ_max_clear_doit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK |
+				  DEVLINK_NL_FLAG_NEED_SB |
+				  DEVLINK_NL_FLAG_LOCK_PORTS,
 	},
 };
 

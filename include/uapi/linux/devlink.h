@@ -53,6 +53,10 @@ enum devlink_command {
 	DEVLINK_CMD_SB_TC_POOL_BIND_NEW,
 	DEVLINK_CMD_SB_TC_POOL_BIND_DEL,
 
+	/* Shared buffer occupancy monitoring commands */
+	DEVLINK_CMD_SB_OCC_SNAPSHOT,
+	DEVLINK_CMD_SB_OCC_MAX_CLEAR,
+
 	/* add new commands above here */
 
 	__DEVLINK_CMD_MAX,
@@ -119,6 +123,8 @@ enum devlink_attr {
 	DEVLINK_ATTR_SB_POOL_THRESHOLD_TYPE,	/* u8 */
 	DEVLINK_ATTR_SB_THRESHOLD,		/* u32 */
 	DEVLINK_ATTR_SB_TC_INDEX,		/* u16 */
+	DEVLINK_ATTR_SB_OCC_CUR,		/* u32 */
+	DEVLINK_ATTR_SB_OCC_MAX,		/* u32 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 
