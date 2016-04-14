@@ -46,6 +46,7 @@
 #include <linux/audit.h>
 #include <sys/ptrace.h>
 #include <linux/random.h>
+#include <linux/stringify.h>
 
 #ifndef O_CLOEXEC
 # define O_CLOEXEC		02000000
@@ -106,6 +107,7 @@ struct trace {
 		u64		vfs_getname,
 				proc_getname;
 	} stats;
+	unsigned int		max_stack;
 	bool			not_ev_qualifier;
 	bool			live;
 	bool			full_time;
@@ -1892,7 +1894,7 @@ static int trace__fprintf_callchain(struct trace *trace, struct perf_evsel *evse
 
 	if (machine__resolve(trace->host, &al, sample) < 0 ||
 	    thread__resolve_callchain(al.thread, &callchain_cursor, evsel,
-				      sample, NULL, NULL, scripting_max_stack)) {
+				      sample, NULL, NULL, trace->max_stack)) {
 		pr_err("Problem processing %s callchain, skipping...\n",
 			perf_evsel__name(evsel));
 		return 0;
@@ -3029,6 +3031,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		.show_comm = true,
 		.trace_syscalls = true,
 		.kernel_syscallchains = false,
+		.max_stack = PERF_MAX_STACK_DEPTH,
 	};
 	const char *output_name = NULL;
 	const char *ev_qualifier_str = NULL;
@@ -3079,6 +3082,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		     &record_parse_callchain_opt),
 	OPT_BOOLEAN(0, "kernel-syscall-graph", &trace.kernel_syscallchains,
 		    "Show the kernel callchains on the syscall exit path"),
+	OPT_UINTEGER(0, "max-stack", &trace.max_stack,
+		     "Set the maximum stack depth when parsing the callchain, "
+		     "anything beyond the specified depth will be ignored. "
+		     "Default: " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_END()

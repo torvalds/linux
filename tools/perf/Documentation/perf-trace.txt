@@ -129,6 +129,15 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 --event::
 	Trace other events, see 'perf list' for a complete list.
 
+--max-stack::
+        Set the stack depth limit when parsing the callchain, anything
+        beyond the specified depth will be ignored. Note that at this point
+        this is just about the presentation part, i.e. the kernel is still
+        not limiting, the overhead of callchains needs to be set via the
+        knobs in --call-graph dwarf.
+
+        Default: 127
+
 --proc-map-timeout::
 	When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
 	because the file may be huge. A time out is needed in such cases.
