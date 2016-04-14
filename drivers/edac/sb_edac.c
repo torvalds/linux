@@ -362,6 +362,7 @@ struct sbridge_pvt {
 
 	/* Memory type detection */
 	bool			is_mirrored, is_lockstep, is_close_pg;
+	bool			is_chan_hash;
 
 	/* Fifo double buffers */
 	struct mce		mce_entry[MCE_LOG_LEN];
@@ -1060,6 +1061,20 @@ static inline u8 sad_pkg_ha(u8 pkg)
 	return (pkg >> 2) & 0x1;
 }
 
+static int haswell_chan_hash(int idx, u64 addr)
+{
+	int i;
+
+	/*
+	 * XOR even bits from 12:26 to bit0 of idx,
+	 *     odd bits from 13:27 to bit1
+	 */
+	for (i = 12; i < 28; i += 2)
+		idx ^= (addr >> i) & 3;
+
+	return idx;
+}
+
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
@@ -1616,6 +1631,10 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		KNL_MAX_CHANNELS : NUM_CHANNELS;
 	u64 knl_mc_sizes[KNL_MAX_CHANNELS];
 
+	if (pvt->info.type == HASWELL || pvt->info.type == BROADWELL) {
+		pci_read_config_dword(pvt->pci_ha0, HASWELL_HASYSDEFEATURE2, &reg);
+		pvt->is_chan_hash = GET_BITFIELD(reg, 21, 21);
+	}
 	if (pvt->info.type == HASWELL || pvt->info.type == BROADWELL ||
 			pvt->info.type == KNIGHTS_LANDING)
 		pci_read_config_dword(pvt->pci_sad1, SAD_TARGET, &reg);
@@ -2122,8 +2141,11 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 
 	if (ch_way == 3)
 		idx = addr >> 6;
-	else
+	else {
 		idx = (addr >> (6 + sck_way + shiftup)) & 0x3;
+		if (pvt->is_chan_hash)
+			idx = haswell_chan_hash(idx, addr);
+	}
 	idx = idx % ch_way;
 
 	/*
