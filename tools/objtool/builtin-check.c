@@ -66,6 +66,7 @@ struct objtool_file {
 	struct list_head insn_list;
 	DECLARE_HASHTABLE(insn_hash, 16);
 	struct section *rodata, *whitelist;
+	bool ignore_unreachables;
 };
 
 const char *objname;
@@ -664,13 +665,40 @@ static int add_func_switch_tables(struct objtool_file *file,
 						text_rela->addend);
 
 		/*
-		 * TODO: Document where this is needed, or get rid of it.
-		 *
 		 * rare case:   jmpq *[addr](%rip)
+		 *
+		 * This check is for a rare gcc quirk, currently only seen in
+		 * three driver functions in the kernel, only with certain
+		 * obscure non-distro configs.
+		 *
+		 * As part of an optimization, gcc makes a copy of an existing
+		 * switch jump table, modifies it, and then hard-codes the jump
+		 * (albeit with an indirect jump) to use a single entry in the
+		 * table.  The rest of the jump table and some of its jump
+		 * targets remain as dead code.
+		 *
+		 * In such a case we can just crudely ignore all unreachable
+		 * instruction warnings for the entire object file.  Ideally we
+		 * would just ignore them for the function, but that would
+		 * require redesigning the code quite a bit.  And honestly
+		 * that's just not worth doing: unreachable instruction
+		 * warnings are of questionable value anyway, and this is such
+		 * a rare issue.
+		 *
+		 * kbuild reports:
+		 * - https://lkml.kernel.org/r/201603231906.LWcVUpxm%25fengguang.wu@intel.com
+		 * - https://lkml.kernel.org/r/201603271114.K9i45biy%25fengguang.wu@intel.com
+		 * - https://lkml.kernel.org/r/201603291058.zuJ6ben1%25fengguang.wu@intel.com
+		 *
+		 * gcc bug:
+		 * - https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70604
 		 */
-		if (!rodata_rela)
+		if (!rodata_rela) {
 			rodata_rela = find_rela_by_dest(file->rodata,
 							text_rela->addend + 4);
+			if (rodata_rela)
+				file->ignore_unreachables = true;
+		}
 
 		if (!rodata_rela)
 			continue;
@@ -731,9 +759,6 @@ static int add_switch_table_alts(struct objtool_file *file)
 static int decode_sections(struct objtool_file *file)
 {
 	int ret;
-
-	file->whitelist = find_section_by_name(file->elf, "__func_stack_frame_non_standard");
-	file->rodata = find_section_by_name(file->elf, ".rodata");
 
 	ret = decode_instructions(file);
 	if (ret)
@@ -1056,13 +1081,14 @@ static int validate_functions(struct objtool_file *file)
 				if (insn->visited)
 					continue;
 
-				if (!ignore_unreachable_insn(func, insn) &&
-				    !warnings) {
-					WARN_FUNC("function has unreachable instruction", insn->sec, insn->offset);
-					warnings++;
-				}
-
 				insn->visited = true;
+
+				if (file->ignore_unreachables || warnings ||
+				    ignore_unreachable_insn(func, insn))
+					continue;
+
+				WARN_FUNC("function has unreachable instruction", insn->sec, insn->offset);
+				warnings++;
 			}
 		}
 	}
@@ -1133,6 +1159,9 @@ int cmd_check(int argc, const char **argv)
 
 	INIT_LIST_HEAD(&file.insn_list);
 	hash_init(file.insn_hash);
+	file.whitelist = find_section_by_name(file.elf, "__func_stack_frame_non_standard");
+	file.rodata = find_section_by_name(file.elf, ".rodata");
+	file.ignore_unreachables = false;
 
 	ret = decode_sections(&file);
 	if (ret < 0)
