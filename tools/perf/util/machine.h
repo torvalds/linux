@@ -141,7 +141,11 @@ struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
 					   struct addr_location *al);
 struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 				     struct addr_location *al);
+
+struct callchain_cursor;
+
 int thread__resolve_callchain(struct thread *thread,
+			      struct callchain_cursor *cursor,
 			      struct perf_evsel *evsel,
 			      struct perf_sample *sample,
 			      struct symbol **parent,

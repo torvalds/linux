@@ -2349,6 +2349,7 @@ int perf_evsel__fprintf_callchain(struct perf_evsel *evsel, struct perf_sample *
 				  FILE *fp)
 {
 	int printed = 0;
+	struct callchain_cursor cursor;
 	struct callchain_cursor_node *node;
 	int print_ip = print_opts & EVSEL__PRINT_IP;
 	int print_sym = print_opts & EVSEL__PRINT_SYM;
@@ -2362,14 +2363,14 @@ int perf_evsel__fprintf_callchain(struct perf_evsel *evsel, struct perf_sample *
 	if (sample->callchain) {
 		struct addr_location node_al;
 
-		if (thread__resolve_callchain(al->thread, evsel,
+		if (thread__resolve_callchain(al->thread, &cursor, evsel,
 					      sample, NULL, NULL,
 					      stack_depth) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");
 			return printed;
 		}
-		callchain_cursor_commit(&callchain_cursor);
+		callchain_cursor_commit(&cursor);
 
 		if (print_symoffset)
 			node_al = *al;
@@ -2377,7 +2378,7 @@ int perf_evsel__fprintf_callchain(struct perf_evsel *evsel, struct perf_sample *
 		while (stack_depth) {
 			u64 addr = 0;
 
-			node = callchain_cursor_current(&callchain_cursor);
+			node = callchain_cursor_current(&cursor);
 			if (!node)
 				break;
 
@@ -2420,7 +2421,7 @@ int perf_evsel__fprintf_callchain(struct perf_evsel *evsel, struct perf_sample *
 
 			stack_depth--;
 next:
-			callchain_cursor_advance(&callchain_cursor);
+			callchain_cursor_advance(&cursor);
 		}
 	}
 

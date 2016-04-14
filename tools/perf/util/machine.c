@@ -1599,6 +1599,7 @@ struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 }
 
 static int add_callchain_ip(struct thread *thread,
+			    struct callchain_cursor *cursor,
 			    struct symbol **parent,
 			    struct addr_location *root_al,
 			    u8 *cpumode,
@@ -1630,7 +1631,7 @@ static int add_callchain_ip(struct thread *thread,
 				 * It seems the callchain is corrupted.
 				 * Discard all.
 				 */
-				callchain_cursor_reset(&callchain_cursor);
+				callchain_cursor_reset(cursor);
 				return 1;
 			}
 			return 0;
@@ -1648,13 +1649,13 @@ static int add_callchain_ip(struct thread *thread,
 			/* Treat this symbol as the root,
 			   forgetting its callees. */
 			*root_al = al;
-			callchain_cursor_reset(&callchain_cursor);
+			callchain_cursor_reset(cursor);
 		}
 	}
 
 	if (symbol_conf.hide_unresolved && al.sym == NULL)
 		return 0;
-	return callchain_cursor_append(&callchain_cursor, al.addr, al.map, al.sym);
+	return callchain_cursor_append(cursor, al.addr, al.map, al.sym);
 }
 
 struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
@@ -1724,6 +1725,7 @@ static int remove_loops(struct branch_entry *l, int nr)
  * negative error code on other errors.
  */
 static int resolve_lbr_callchain_sample(struct thread *thread,
+					struct callchain_cursor *cursor,
 					struct perf_sample *sample,
 					struct symbol **parent,
 					struct addr_location *root_al,
@@ -1778,7 +1780,7 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 					ip = lbr_stack->entries[0].to;
 			}
 
-			err = add_callchain_ip(thread, parent, root_al, &cpumode, ip);
+			err = add_callchain_ip(thread, cursor, parent, root_al, &cpumode, ip);
 			if (err)
 				return (err < 0) ? err : 0;
 		}
@@ -1789,6 +1791,7 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 }
 
 static int thread__resolve_callchain_sample(struct thread *thread,
+					    struct callchain_cursor *cursor,
 					    struct perf_evsel *evsel,
 					    struct perf_sample *sample,
 					    struct symbol **parent,
@@ -1803,10 +1806,10 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	int skip_idx = -1;
 	int first_call = 0;
 
-	callchain_cursor_reset(&callchain_cursor);
+	callchain_cursor_reset(cursor);
 
 	if (has_branch_callstack(evsel)) {
-		err = resolve_lbr_callchain_sample(thread, sample, parent,
+		err = resolve_lbr_callchain_sample(thread, cursor, sample, parent,
 						   root_al, max_stack);
 		if (err)
 			return (err < 0) ? err : 0;
@@ -1863,10 +1866,10 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 		nr = remove_loops(be, nr);
 
 		for (i = 0; i < nr; i++) {
-			err = add_callchain_ip(thread, parent, root_al,
+			err = add_callchain_ip(thread, cursor, parent, root_al,
 					       NULL, be[i].to);
 			if (!err)
-				err = add_callchain_ip(thread, parent, root_al,
+				err = add_callchain_ip(thread, cursor, parent, root_al,
 						       NULL, be[i].from);
 			if (err == -EINVAL)
 				break;
@@ -1896,7 +1899,7 @@ check_calls:
 #endif
 		ip = chain->ips[j];
 
-		err = add_callchain_ip(thread, parent, root_al, &cpumode, ip);
+		err = add_callchain_ip(thread, cursor, parent, root_al, &cpumode, ip);
 
 		if (err)
 			return (err < 0) ? err : 0;
@@ -1916,13 +1919,14 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 }
 
 int thread__resolve_callchain(struct thread *thread,
+			      struct callchain_cursor *cursor,
 			      struct perf_evsel *evsel,
 			      struct perf_sample *sample,
 			      struct symbol **parent,
 			      struct addr_location *root_al,
 			      int max_stack)
 {
-	int ret = thread__resolve_callchain_sample(thread, evsel,
+	int ret = thread__resolve_callchain_sample(thread, cursor, evsel,
 						   sample, parent,
 						   root_al, max_stack);
 	if (ret)
@@ -1938,7 +1942,7 @@ int thread__resolve_callchain(struct thread *thread,
 	    (!sample->user_stack.size))
 		return 0;
 
-	return unwind__get_entries(unwind_entry, &callchain_cursor,
+	return unwind__get_entries(unwind_entry, cursor,
 				   thread, sample, max_stack);
 
 }
