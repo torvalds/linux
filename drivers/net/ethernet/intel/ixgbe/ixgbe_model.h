@@ -38,6 +38,12 @@ struct ixgbe_mat_field {
 	unsigned int type;
 };
 
+struct ixgbe_jump_table {
+	struct ixgbe_mat_field *mat;
+	struct ixgbe_fdir_filter *input;
+	union ixgbe_atr_input *mask;
+};
+
 static inline int ixgbe_mat_prgm_sip(struct ixgbe_fdir_filter *input,
 				     union ixgbe_atr_input *mask,
 				     u32 val, u32 m)
