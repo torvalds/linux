@@ -439,7 +439,7 @@ static int tcp_v6_send_synack(const struct sock *sk, struct dst_entry *dst,
 			      struct flowi *fl,
 			      struct request_sock *req,
 			      struct tcp_fastopen_cookie *foc,
-			      bool attach_req)
+			      enum tcp_synack_type synack_type)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -452,7 +452,7 @@ static int tcp_v6_send_synack(const struct sock *sk, struct dst_entry *dst,
 					       IPPROTO_TCP)) == NULL)
 		goto done;
 
-	skb = tcp_make_synack(sk, dst, req, foc, attach_req);
+	skb = tcp_make_synack(sk, dst, req, foc, synack_type);
 
 	if (skb) {
 		__tcp_v6_send_check(skb, &ireq->ir_v6_loc_addr,

@@ -452,10 +452,15 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb);
 int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
 int tcp_connect(struct sock *sk);
+enum tcp_synack_type {
+	TCP_SYNACK_NORMAL,
+	TCP_SYNACK_FASTOPEN,
+	TCP_SYNACK_COOKIE,
+};
 struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 				struct request_sock *req,
 				struct tcp_fastopen_cookie *foc,
-				bool attach_req);
+				enum tcp_synack_type synack_type);
 int tcp_disconnect(struct sock *sk, int flags);
 
 void tcp_finish_connect(struct sock *sk, struct sk_buff *skb);
@@ -1728,7 +1733,7 @@ struct tcp_request_sock_ops {
 	int (*send_synack)(const struct sock *sk, struct dst_entry *dst,
 			   struct flowi *fl, struct request_sock *req,
 			   struct tcp_fastopen_cookie *foc,
-			   bool attach_req);
+			   enum tcp_synack_type synack_type);
 };
 
 #ifdef CONFIG_SYN_COOKIES
