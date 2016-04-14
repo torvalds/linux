@@ -580,6 +580,7 @@ static void print_sample_bts(struct perf_sample *sample,
 			}
 		}
 		perf_evsel__fprintf_sym(evsel, sample, al, 0, print_opts,
+					symbol_conf.use_callchain,
 					scripting_max_stack, stdout);
 	}
 
@@ -790,6 +791,7 @@ static void process_event(struct perf_script *script,
 
 		perf_evsel__fprintf_sym(evsel, sample, al, 0,
 					output[attr->type].print_ip_opts,
+					symbol_conf.use_callchain,
 					scripting_max_stack, stdout);
 	}
 

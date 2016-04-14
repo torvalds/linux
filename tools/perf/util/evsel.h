@@ -403,8 +403,8 @@ int perf_evsel__fprintf_callchain(struct perf_evsel *evsel,
 
 int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample,
 			    struct addr_location *al, int left_alignment,
-			    unsigned int print_opts, unsigned int stack_depth,
-			    FILE *fp);
+			    unsigned int print_opts, bool print_callchain,
+			    unsigned int stack_depth, FILE *fp);
 
 bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 			  char *msg, size_t msgsize);

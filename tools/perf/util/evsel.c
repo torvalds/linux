@@ -2430,8 +2430,8 @@ next:
 
 int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample,
 			    struct addr_location *al, int left_alignment,
-			    unsigned int print_opts, unsigned int stack_depth,
-			    FILE *fp)
+			    unsigned int print_opts, bool print_callchain,
+			    unsigned int stack_depth, FILE *fp)
 {
 	int printed = 0;
 	int print_ip = print_opts & EVSEL__PRINT_IP;
@@ -2441,7 +2441,7 @@ int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample
 	int print_srcline = print_opts & EVSEL__PRINT_SRCLINE;
 	int print_unknown_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
 
-	if (symbol_conf.use_callchain && sample->callchain) {
+	if (print_callchain && sample->callchain) {
 		printed += perf_evsel__fprintf_callchain(evsel, sample, al, left_alignment,
 							 print_opts, stack_depth, fp);
 	} else if (!(al->sym && al->sym->ignore)) {
