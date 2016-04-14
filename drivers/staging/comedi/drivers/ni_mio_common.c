@@ -665,7 +665,6 @@ static int ni_request_ai_mite_channel(struct comedi_device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	BUG_ON(devpriv->ai_mite_chan);
 	devpriv->ai_mite_chan =
 	    mite_request_channel(devpriv->mite, devpriv->ai_mite_ring);
 	if (!devpriv->ai_mite_chan) {
@@ -686,7 +685,6 @@ static int ni_request_ao_mite_channel(struct comedi_device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	BUG_ON(devpriv->ao_mite_chan);
 	devpriv->ao_mite_chan =
 	    mite_request_channel(devpriv->mite, devpriv->ao_mite_ring);
 	if (!devpriv->ao_mite_chan) {
@@ -710,7 +708,6 @@ static int ni_request_gpct_mite_channel(struct comedi_device *dev,
 	struct mite_channel *mite_chan;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	BUG_ON(devpriv->counter_dev->counters[gpct_index].mite_chan);
 	mite_chan =
 	    mite_request_channel(devpriv->mite,
 				 devpriv->gpct_mite_ring[gpct_index]);
@@ -737,7 +734,6 @@ static int ni_request_cdo_mite_channel(struct comedi_device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	BUG_ON(devpriv->cdo_mite_chan);
 	devpriv->cdo_mite_chan =
 	    mite_request_channel(devpriv->mite, devpriv->cdo_mite_ring);
 	if (!devpriv->cdo_mite_chan) {
