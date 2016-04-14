@@ -3099,8 +3099,9 @@ static void ni_ao_cmd_set_update(struct comedi_device *dev,
 	  NISTC_AO_MODE1_UPDATE_SRC_POLARITY
 	);
 
-	switch (cmd->scan_begin_src) {
-	case TRIG_TIMER:
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		unsigned int trigvar;
+
 		devpriv->ao_cmd2  &= ~NISTC_AO_CMD2_BC_GATE_ENA;
 
 		/*
@@ -3131,35 +3132,25 @@ static void ni_ao_cmd_set_update(struct comedi_device *dev,
 		 * eseries/ni67xx and tMSeries.h for mseries.
 		 */
 
-		{
-			unsigned int trigvar;
+		trigvar = ni_ns_to_timer(dev, cmd->scan_begin_arg,
+					 CMDF_ROUND_NEAREST);
 
-			trigvar = ni_ns_to_timer(dev, cmd->scan_begin_arg,
-						 CMDF_ROUND_NEAREST);
-
-			/*
-			 * Wait N TB3 ticks after the start trigger before
-			 * clocking(N must be >=2).
-			 */
-			/* following line: 2-1 per STC */
-			ni_stc_writel(dev, 1,           NISTC_AO_UI_LOADA_REG);
-			ni_stc_writew(dev, NISTC_AO_CMD1_UI_LOAD,
-				      NISTC_AO_CMD1_REG);
-			/* following line: N-1 per STC */
-			ni_stc_writel(dev, trigvar - 1, NISTC_AO_UI_LOADA_REG);
-		}
-		break;
-	case TRIG_EXT:
+		/*
+		 * Wait N TB3 ticks after the start trigger before
+		 * clocking (N must be >=2).
+		 */
+		/* following line: 2-1 per STC */
+		ni_stc_writel(dev, 1, NISTC_AO_UI_LOADA_REG);
+		ni_stc_writew(dev, NISTC_AO_CMD1_UI_LOAD, NISTC_AO_CMD1_REG);
+		/* following line: N-1 per STC */
+		ni_stc_writel(dev, trigvar - 1, NISTC_AO_UI_LOADA_REG);
+	} else { /* TRIG_EXT */
 		/* FIXME:  assert scan_begin_arg != 0, ret failure otherwise */
 		devpriv->ao_cmd2  |= NISTC_AO_CMD2_BC_GATE_ENA;
 		devpriv->ao_mode1 |= NISTC_AO_MODE1_UPDATE_SRC(
 					CR_CHAN(cmd->scan_begin_arg));
 		if (cmd->scan_begin_arg & CR_INVERT)
 			devpriv->ao_mode1 |= NISTC_AO_MODE1_UPDATE_SRC_POLARITY;
-		break;
-	default:
-		BUG();
-		break;
 	}
 
 	ni_stc_writew(dev, devpriv->ao_cmd2, NISTC_AO_CMD2_REG);
