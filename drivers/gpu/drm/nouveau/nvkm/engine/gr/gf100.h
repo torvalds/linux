@@ -31,7 +31,8 @@
 #include <subdev/mmu.h>
 
 #define GPC_MAX 32
-#define TPC_MAX (GPC_MAX * 8)
+#define TPC_MAX_PER_GPC 8
+#define TPC_MAX (GPC_MAX * TPC_MAX_PER_GPC)
 
 #define ROP_BCAST(r)      (0x408800 + (r))
 #define ROP_UNIT(u, r)    (0x410000 + (u) * 0x400 + (r))
