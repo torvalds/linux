@@ -3805,9 +3805,7 @@ static void page_flip_completed(struct intel_crtc *intel_crtc)
 	intel_crtc->unpin_work = NULL;
 
 	if (work->event)
-		drm_send_vblank_event(intel_crtc->base.dev,
-				      intel_crtc->pipe,
-				      work->event);
+		drm_crtc_send_vblank_event(&intel_crtc->base, work->event);
 
 	drm_crtc_vblank_put(&intel_crtc->base);
 
@@ -11714,7 +11712,7 @@ retry:
 
 		if (ret == 0 && event) {
 			spin_lock_irq(&dev->event_lock);
-			drm_send_vblank_event(dev, pipe, event);
+			drm_crtc_send_vblank_event(crtc, event);
 			spin_unlock_irq(&dev->event_lock);
 		}
 	}
