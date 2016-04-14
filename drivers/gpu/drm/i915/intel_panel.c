@@ -1640,6 +1640,12 @@ static int pwm_setup_backlight(struct intel_connector *connector,
 		return -ENODEV;
 	}
 
+	/*
+	 * FIXME: pwm_apply_args() should be removed when switching to
+	 * the atomic PWM API.
+	 */
+	pwm_apply_args(panel->backlight.pwm);
+
 	retval = pwm_config(panel->backlight.pwm, CRC_PMIC_PWM_PERIOD_NS,
 			    CRC_PMIC_PWM_PERIOD_NS);
 	if (retval < 0) {
