@@ -925,9 +925,8 @@ static int ni_ai_drain_dma(struct comedi_device *dev)
 	if (devpriv->ai_mite_chan) {
 		for (i = 0; i < timeout; i++) {
 			if ((ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
-			     NISTC_AI_STATUS1_FIFO_E)
-			    && mite_bytes_in_transit(devpriv->ai_mite_chan) ==
-			    0)
+			     NISTC_AI_STATUS1_FIFO_E) &&
+			    mite_bytes_in_transit(devpriv->ai_mite_chan) == 0)
 				break;
 			udelay(5);
 		}
@@ -1809,8 +1808,8 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 		return;
 	}
 	if (n_chan == 1 && !devpriv->is_611x && !devpriv->is_6143) {
-		if (devpriv->changain_state
-		    && devpriv->changain_spec == list[0]) {
+		if (devpriv->changain_state &&
+		    devpriv->changain_spec == list[0]) {
 			/*  ready to go. */
 			return;
 		}
@@ -1824,8 +1823,8 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 
 	/*  Set up Calibration mode if required */
 	if (devpriv->is_6143) {
-		if ((list[0] & CR_ALT_SOURCE)
-		    && !devpriv->ai_calib_source_enabled) {
+		if ((list[0] & CR_ALT_SOURCE) &&
+		    !devpriv->ai_calib_source_enabled) {
 			/*  Strobe Relay enable bit */
 			ni_writew(dev, devpriv->ai_calib_source |
 				       NI6143_CALIB_CHAN_RELAY_ON,
@@ -1835,8 +1834,8 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 			devpriv->ai_calib_source_enabled = 1;
 			/* Allow relays to change */
 			msleep_interruptible(100);
-		} else if (!(list[0] & CR_ALT_SOURCE)
-			   && devpriv->ai_calib_source_enabled) {
+		} else if (!(list[0] & CR_ALT_SOURCE) &&
+			   devpriv->ai_calib_source_enabled) {
 			/*  Strobe Relay disable bit */
 			ni_writew(dev, devpriv->ai_calib_source |
 				       NI6143_CALIB_CHAN_RELAY_OFF,
