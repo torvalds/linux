@@ -153,12 +153,6 @@
 #define MCE_COMMAND_IRDATA	0x80
 #define MCE_PACKET_LENGTH_MASK	0x1f /* Packet length mask */
 
-/* general constants */
-#define SEND_FLAG_IN_PROGRESS	1
-#define SEND_FLAG_COMPLETE	2
-#define RECV_FLAG_IN_PROGRESS	3
-#define RECV_FLAG_COMPLETE	4
-
 #define MCEUSB_RX		1
 #define MCEUSB_TX		2
 
@@ -422,7 +416,6 @@ struct mceusb_dev {
 	struct rc_dev *rc;
 
 	/* optional features we can enable */
-	bool carrier_report_enabled;
 	bool learning_enabled;
 
 	/* core device bits */
@@ -455,7 +448,6 @@ struct mceusb_dev {
 	} flags;
 
 	/* transmit support */
-	int send_flags;
 	u32 carrier;
 	unsigned char tx_mask;
 
@@ -778,8 +770,6 @@ static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 	} else if (urb_type == MCEUSB_RX) {
 		/* standard request */
 		async_urb = ir->urb_in;
-		ir->send_flags = RECV_FLAG_IN_PROGRESS;
-
 	} else {
 		dev_err(dev, "Error! Unknown urb type %d\n", urb_type);
 		return;
@@ -1060,7 +1050,6 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 static void mceusb_dev_recv(struct urb *urb)
 {
 	struct mceusb_dev *ir;
-	int buf_len;
 
 	if (!urb)
 		return;
@@ -1071,18 +1060,10 @@ static void mceusb_dev_recv(struct urb *urb)
 		return;
 	}
 
-	buf_len = urb->actual_length;
-
-	if (ir->send_flags == RECV_FLAG_IN_PROGRESS) {
-		ir->send_flags = SEND_FLAG_COMPLETE;
-		dev_dbg(ir->dev, "setup answer received %d bytes\n",
-			buf_len);
-	}
-
 	switch (urb->status) {
 	/* success */
 	case 0:
-		mceusb_process_ir_data(ir, buf_len);
+		mceusb_process_ir_data(ir, urb->actual_length);
 		break;
 
 	case -ECONNRESET:
