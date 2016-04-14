@@ -86,7 +86,7 @@ gm200_grctx_generate_405b60(struct gf100_gr *gr)
 		nvkm_wr32(device, 0x405ba0 + (i * 4), gpcs[i]);
 }
 
-void
+static void
 gm200_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
