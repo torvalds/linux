@@ -6370,7 +6370,7 @@ static void rtl8xxxu_set_ampdu_min_space(struct rtl8xxxu_priv *priv, u8 density)
 static int rtl8xxxu_active_to_emu(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
-	int count, ret;
+	int count, ret = 0;
 
 	/* Start of rtl8723AU_card_enable_flow */
 	/* Act to Cardemu sequence*/
@@ -6420,7 +6420,7 @@ static int rtl8723bu_active_to_emu(struct rtl8xxxu_priv *priv)
 	u8 val8;
 	u16 val16;
 	u32 val32;
-	int count, ret;
+	int count, ret = 0;
 
 	/* Turn off RF */
 	rtl8xxxu_write8(priv, REG_RF_CTRL, 0);
@@ -6477,7 +6477,7 @@ static int rtl8xxxu_active_to_lps(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
 	u8 val32;
-	int count, ret;
+	int count, ret = 0;
 
 	rtl8xxxu_write8(priv, REG_TXPAUSE, 0xff);
 
