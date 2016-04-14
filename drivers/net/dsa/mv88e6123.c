@@ -52,7 +52,9 @@ static int mv88e6123_setup_global(struct dsa_switch *ds)
 	 * external PHYs to poll), don't discard packets with
 	 * excessive collisions, and mask all interrupt sources.
 	 */
-	REG_WRITE(REG_GLOBAL, GLOBAL_CONTROL, 0x0000);
+	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_CONTROL, 0x0000);
+	if (ret)
+		return ret;
 
 	/* Configure the upstream port, and configure the upstream
 	 * port as the port to which ingress and egress monitor frames
@@ -61,14 +63,15 @@ static int mv88e6123_setup_global(struct dsa_switch *ds)
 	reg = upstream_port << GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
 		upstream_port << GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
 		upstream_port << GLOBAL_MONITOR_CONTROL_ARP_SHIFT;
-	REG_WRITE(REG_GLOBAL, GLOBAL_MONITOR_CONTROL, reg);
+	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_MONITOR_CONTROL, reg);
+	if (ret)
+		return ret;
 
 	/* Disable remote management for now, and set the switch's
 	 * DSA device number.
 	 */
-	REG_WRITE(REG_GLOBAL, GLOBAL_CONTROL_2, ds->index & 0x1f);
-
-	return 0;
+	return mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_CONTROL_2,
+				   ds->index & 0x1f);
 }
 
 static int mv88e6123_setup(struct dsa_switch *ds)
