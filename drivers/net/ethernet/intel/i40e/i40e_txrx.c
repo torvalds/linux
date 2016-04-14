@@ -2594,35 +2594,34 @@ int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 }
 
 /**
- * __i40e_chk_linearize - Check if there are more than 8 fragments per packet
+ * __i40e_chk_linearize - Check if there are more than 8 buffers per packet
  * @skb:      send buffer
  *
- * Note: Our HW can't scatter-gather more than 8 fragments to build
- * a packet on the wire and so we need to figure out the cases where we
- * need to linearize the skb.
+ * Note: Our HW can't DMA more than 8 buffers to build a packet on the wire
+ * and so we need to figure out the cases where we need to linearize the skb.
+ *
+ * For TSO we need to count the TSO header and segment payload separately.
+ * As such we need to check cases where we have 7 fragments or more as we
+ * can potentially require 9 DMA transactions, 1 for the TSO header, 1 for
+ * the segment payload in the first descriptor, and another 7 for the
+ * fragments.
  **/
 bool __i40e_chk_linearize(struct sk_buff *skb)
 {
 	const struct skb_frag_struct *frag, *stale;
-	int gso_size, nr_frags, sum;
+	int nr_frags, sum;
 
-	/* check to see if TSO is enabled, if so we may get a repreive */
-	gso_size = skb_shinfo(skb)->gso_size;
-	if (unlikely(!gso_size))
-		return true;
-
-	/* no need to check if number of frags is less than 8 */
+	/* no need to check if number of frags is less than 7 */
 	nr_frags = skb_shinfo(skb)->nr_frags;
-	if (nr_frags < I40E_MAX_BUFFER_TXD)
+	if (nr_frags < (I40E_MAX_BUFFER_TXD - 1))
 		return false;
 
 	/* We need to walk through the list and validate that each group
 	 * of 6 fragments totals at least gso_size.  However we don't need
-	 * to perform such validation on the first or last 6 since the first
-	 * 6 cannot inherit any data from a descriptor before them, and the
-	 * last 6 cannot inherit any data from a descriptor after them.
+	 * to perform such validation on the last 6 since the last 6 cannot
+	 * inherit any data from a descriptor after them.
 	 */
-	nr_frags -= I40E_MAX_BUFFER_TXD - 1;
+	nr_frags -= I40E_MAX_BUFFER_TXD - 2;
 	frag = &skb_shinfo(skb)->frags[0];
 
 	/* Initialize size to the negative value of gso_size minus 1.  We
@@ -2631,21 +2630,21 @@ bool __i40e_chk_linearize(struct sk_buff *skb)
 	 * descriptors for a single transmit as the header and previous
 	 * fragment are already consuming 2 descriptors.
 	 */
-	sum = 1 - gso_size;
+	sum = 1 - skb_shinfo(skb)->gso_size;
 
-	/* Add size of frags 1 through 5 to create our initial sum */
-	sum += skb_frag_size(++frag);
-	sum += skb_frag_size(++frag);
-	sum += skb_frag_size(++frag);
-	sum += skb_frag_size(++frag);
-	sum += skb_frag_size(++frag);
+	/* Add size of frags 0 through 4 to create our initial sum */
+	sum += skb_frag_size(frag++);
+	sum += skb_frag_size(frag++);
+	sum += skb_frag_size(frag++);
+	sum += skb_frag_size(frag++);
+	sum += skb_frag_size(frag++);
 
 	/* Walk through fragments adding latest fragment, testing it, and
 	 * then removing stale fragments from the sum.
 	 */
 	stale = &skb_shinfo(skb)->frags[0];
 	for (;;) {
-		sum += skb_frag_size(++frag);
+		sum += skb_frag_size(frag++);
 
 		/* if sum is negative we failed to make sufficient progress */
 		if (sum < 0)
@@ -2655,7 +2654,7 @@ bool __i40e_chk_linearize(struct sk_buff *skb)
 		if (!--nr_frags)
 			break;
 
-		sum -= skb_frag_size(++stale);
+		sum -= skb_frag_size(stale++);
 	}
 
 	return false;
