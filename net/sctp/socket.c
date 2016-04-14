@@ -4299,8 +4299,12 @@ int sctp_transport_walk_start(struct rhashtable_iter *iter)
 		return err;
 
 	err = rhashtable_walk_start(iter);
+	if (err && err != -EAGAIN) {
+		rhashtable_walk_exit(iter);
+		return err;
+	}
 
-	return err == -EAGAIN ? 0 : err;
+	return 0;
 }
 
 void sctp_transport_walk_stop(struct rhashtable_iter *iter)
@@ -4389,11 +4393,12 @@ EXPORT_SYMBOL_GPL(sctp_transport_lookup_process);
 int sctp_for_each_transport(int (*cb)(struct sctp_transport *, void *),
 			    struct net *net, int pos, void *p) {
 	struct rhashtable_iter hti;
-	int err = 0;
 	void *obj;
+	int err;
 
-	if (sctp_transport_walk_start(&hti))
-		goto out;
+	err = sctp_transport_walk_start(&hti);
+	if (err)
+		return err;
 
 	sctp_transport_get_idx(net, &hti, pos);
 	obj = sctp_transport_get_next(net, &hti);
@@ -4407,8 +4412,8 @@ int sctp_for_each_transport(int (*cb)(struct sctp_transport *, void *),
 		if (err)
 			break;
 	}
-out:
 	sctp_transport_walk_stop(&hti);
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(sctp_for_each_transport);

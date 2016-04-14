@@ -280,6 +280,7 @@ void sctp_eps_proc_exit(struct net *net)
 struct sctp_ht_iter {
 	struct seq_net_private p;
 	struct rhashtable_iter hti;
+	int start_fail;
 };
 
 static void *sctp_transport_seq_start(struct seq_file *seq, loff_t *pos)
@@ -287,8 +288,10 @@ static void *sctp_transport_seq_start(struct seq_file *seq, loff_t *pos)
 	struct sctp_ht_iter *iter = seq->private;
 	int err = sctp_transport_walk_start(&iter->hti);
 
-	if (err)
+	if (err) {
+		iter->start_fail = 1;
 		return ERR_PTR(err);
+	}
 
 	return sctp_transport_get_idx(seq_file_net(seq), &iter->hti, *pos);
 }
@@ -297,6 +300,8 @@ static void sctp_transport_seq_stop(struct seq_file *seq, void *v)
 {
 	struct sctp_ht_iter *iter = seq->private;
 
+	if (iter->start_fail)
+		return;
 	sctp_transport_walk_stop(&iter->hti);
 }
 
