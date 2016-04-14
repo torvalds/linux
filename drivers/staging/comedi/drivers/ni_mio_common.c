@@ -667,11 +667,8 @@ static int ni_request_gpct_mite_channel(struct comedi_device *dev,
 	return 0;
 }
 
-#endif /*  PCIDMA */
-
 static int ni_request_cdo_mite_channel(struct comedi_device *dev)
 {
-#ifdef PCIDMA
 	struct ni_private *devpriv = dev->private;
 	struct mite_channel *mite_chan;
 	unsigned long flags;
@@ -700,9 +697,9 @@ static int ni_request_cdo_mite_channel(struct comedi_device *dev)
 			NI_M_CDIO_DMA_SEL_CDO(bits));
 
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-#endif /*  PCIDMA */
 	return 0;
 }
+#endif /*  PCIDMA */
 
 static void ni_release_ai_mite_channel(struct comedi_device *dev)
 {
@@ -759,11 +756,9 @@ static void ni_release_gpct_mite_channel(struct comedi_device *dev,
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
-#endif /*  PCIDMA */
 
 static void ni_release_cdo_mite_channel(struct comedi_device *dev)
 {
-#ifdef PCIDMA
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
 
@@ -775,10 +770,8 @@ static void ni_release_cdo_mite_channel(struct comedi_device *dev)
 		devpriv->cdo_mite_chan = NULL;
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-#endif /*  PCIDMA */
 }
 
-#ifdef PCIDMA
 static void ni_e_series_enable_second_irq(struct comedi_device *dev,
 					  unsigned gpct_index, short enable)
 {
@@ -3505,6 +3498,7 @@ static int ni_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+#ifdef PCIDMA
 static int ni_m_series_dio_insn_config(struct comedi_device *dev,
 				       struct comedi_subdevice *s,
 				       struct comedi_insn *insn,
@@ -3610,10 +3604,8 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 	const unsigned timeout = 1000;
 	int retval = 0;
 	unsigned i;
-#ifdef PCIDMA
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
-#endif
 
 	if (trig_num != cmd->start_arg)
 		return -EINVAL;
@@ -3623,7 +3615,6 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 	/* read alloc the entire buffer */
 	comedi_buf_read_alloc(s, s->async->prealloc_bufsz);
 
-#ifdef PCIDMA
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->cdo_mite_chan) {
 		mite_prep_dma(devpriv->cdo_mite_chan, 32, 32);
@@ -3635,7 +3626,7 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	if (retval < 0)
 		return retval;
-#endif
+
 	/*
 	 * XXX not sure what interrupt C group does
 	 * wait for dma to fill output fifo
@@ -3716,13 +3707,8 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 	struct ni_private *devpriv = dev->private;
 	unsigned cdio_status;
 	struct comedi_subdevice *s = &dev->subdevices[NI_DIO_SUBDEV];
-#ifdef PCIDMA
 	unsigned long flags;
-#endif
 
-	if (!devpriv->is_m_series)
-		return;
-#ifdef PCIDMA
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->cdo_mite_chan) {
 		unsigned cdo_mite_status =
@@ -3735,7 +3721,6 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 		mite_sync_output_dma(devpriv->cdo_mite_chan, s);
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-#endif
 
 	cdio_status = ni_readl(dev, NI_M_CDIO_STATUS_REG);
 	if (cdio_status & NI_M_CDIO_STATUS_CDO_ERROR) {
@@ -3751,6 +3736,7 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 	}
 	comedi_handle_events(dev, s);
 }
+#endif /*  PCIDMA */
 
 static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
@@ -5266,7 +5252,10 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 		handle_b_interrupt(dev, b_status, ao_mite_status);
 	handle_gpct_interrupt(dev, 0);
 	handle_gpct_interrupt(dev, 1);
-	handle_cdio_interrupt(dev);
+#ifdef PCIDMA
+	if (devpriv->is_m_series)
+		handle_cdio_interrupt(dev);
+#endif
 
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 	return IRQ_HANDLED;
@@ -5405,6 +5394,7 @@ static int ni_E_init(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
 	if (devpriv->is_m_series) {
+#ifdef PCIDMA
 		s->subdev_flags	|= SDF_LSAMPL;
 		s->insn_bits	= ni_m_series_dio_insn_bits;
 		s->insn_config	= ni_m_series_dio_insn_config;
@@ -5424,6 +5414,7 @@ static int ni_E_init(struct comedi_device *dev,
 			       NI_M_CDI_CMD_RESET,
 			  NI_M_CDIO_CMD_REG);
 		ni_writel(dev, s->io_bits, NI_M_DIO_DIR_REG);
+#endif /* PCIDMA */
 	} else {
 		s->insn_bits	= ni_dio_insn_bits;
 		s->insn_config	= ni_dio_insn_config;
