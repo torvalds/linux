@@ -1603,8 +1603,15 @@ static struct dentry *lookup_slow(const struct qstr *name,
 				  struct dentry *dir,
 				  unsigned int flags)
 {
-	struct dentry *dentry;
-	inode_lock(dir->d_inode);
+	struct dentry *dentry, *old;
+	struct inode *inode = dir->d_inode;
+
+	inode_lock(inode);
+	/* Don't go there if it's already dead */
+	if (unlikely(IS_DEADDIR(inode))) {
+		inode_unlock(inode);
+		return ERR_PTR(-ENOENT);
+	}
 	dentry = d_lookup(dir, name);
 	if (unlikely(dentry)) {
 		if ((dentry->d_flags & DCACHE_OP_REVALIDATE) &&
@@ -1618,17 +1625,21 @@ static struct dentry *lookup_slow(const struct qstr *name,
 			}
 		}
 		if (dentry) {
-			inode_unlock(dir->d_inode);
+			inode_unlock(inode);
 			return dentry;
 		}
 	}
 	dentry = d_alloc(dir, name);
 	if (unlikely(!dentry)) {
-		inode_unlock(dir->d_inode);
+		inode_unlock(inode);
 		return ERR_PTR(-ENOMEM);
 	}
-	dentry = lookup_real(dir->d_inode, dentry, flags);
-	inode_unlock(dir->d_inode);
+	old = inode->i_op->lookup(inode, dentry, flags);
+	if (unlikely(old)) {
+		dput(dentry);
+		dentry = old;
+	}
+	inode_unlock(inode);
 	return dentry;
 }
 
