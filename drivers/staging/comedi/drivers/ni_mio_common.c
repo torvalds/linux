@@ -3993,10 +3993,6 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned int bits,
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
 	unsigned int stc_register = ni_gpct_to_stc_register(dev, reg);
-	static const unsigned int gpct_interrupt_a_enable_mask =
-	    NISTC_INTA_ENA_G0_GATE | NISTC_INTA_ENA_G0_TC;
-	static const unsigned int gpct_interrupt_b_enable_mask =
-	    NISTC_INTB_ENA_G1_GATE | NISTC_INTB_ENA_G1_TC;
 
 	if (stc_register == 0)
 		return;
@@ -4024,18 +4020,15 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned int bits,
 
 		/* 16 bit registers */
 	case NITIO_G0_INT_ENA:
-		BUG_ON(bits & ~gpct_interrupt_a_enable_mask);
 		ni_set_bitfield(dev, stc_register,
-				gpct_interrupt_a_enable_mask, bits);
+				NISTC_INTA_ENA_G0_GATE | NISTC_INTA_ENA_G0_TC,
+				bits);
 		break;
 	case NITIO_G1_INT_ENA:
-		BUG_ON(bits & ~gpct_interrupt_b_enable_mask);
 		ni_set_bitfield(dev, stc_register,
-				gpct_interrupt_b_enable_mask, bits);
+				NISTC_INTB_ENA_G1_GATE | NISTC_INTB_ENA_G1_TC,
+				bits);
 		break;
-	case NITIO_G01_RESET:
-		BUG_ON(bits & ~(NISTC_RESET_G0 | NISTC_RESET_G1));
-		/* fall-through */
 	default:
 		ni_stc_writew(dev, bits, stc_register);
 	}
