@@ -3076,8 +3076,9 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 	struct sk_buff *frag_skb = head_skb;
 	unsigned int offset = doffset;
 	unsigned int tnl_hlen = skb_tnl_header_len(head_skb);
+	unsigned int partial_segs = 0;
 	unsigned int headroom;
-	unsigned int len;
+	unsigned int len = head_skb->len;
 	__be16 proto;
 	bool csum;
 	int sg = !!(features & NETIF_F_SG);
@@ -3093,6 +3094,15 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 		return ERR_PTR(-EINVAL);
 
 	csum = !!can_checksum_protocol(features, proto);
+
+	/* GSO partial only requires that we trim off any excess that
+	 * doesn't fit into an MSS sized block, so take care of that
+	 * now.
+	 */
+	if (features & NETIF_F_GSO_PARTIAL) {
+		partial_segs = len / mss;
+		mss *= partial_segs;
+	}
 
 	headroom = skb_headroom(head_skb);
 	pos = skb_headlen(head_skb);
@@ -3280,6 +3290,23 @@ perform_csum_check:
 	 * (see validate_xmit_skb_list() for example)
 	 */
 	segs->prev = tail;
+
+	/* Update GSO info on first skb in partial sequence. */
+	if (partial_segs) {
+		int type = skb_shinfo(head_skb)->gso_type;
+
+		/* Update type to add partial and then remove dodgy if set */
+		type |= SKB_GSO_PARTIAL;
+		type &= ~SKB_GSO_DODGY;
+
+		/* Update GSO info and prepare to start updating headers on
+		 * our way back down the stack of protocols.
+		 */
+		skb_shinfo(segs)->gso_size = skb_shinfo(head_skb)->gso_size;
+		skb_shinfo(segs)->gso_segs = partial_segs;
+		skb_shinfo(segs)->gso_type = type;
+		SKB_GSO_CB(segs)->data_offset = skb_headroom(segs) + doffset;
+	}
 
 	/* Following permits correct backpressure, for protocols
 	 * using skb_set_owner_w().
