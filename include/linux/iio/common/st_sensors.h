@@ -122,6 +122,8 @@ struct st_sensor_bdu {
  * @mask_int2: mask to enable/disable IRQ on INT2 pin.
  * @addr_ihl: address to enable/disable active low on the INT lines.
  * @mask_ihl: mask to enable/disable active low on the INT lines.
+ * @addr_od: address to enable/disable Open Drain on the INT lines.
+ * @mask_od: mask to enable/disable Open Drain on the INT lines.
  * @addr_stat_drdy: address to read status of DRDY (data ready) interrupt
  * struct ig1 - represents the Interrupt Generator 1 of sensors.
  * @en_addr: address of the enable ig1 register.
@@ -133,6 +135,8 @@ struct st_sensor_data_ready_irq {
 	u8 mask_int2;
 	u8 addr_ihl;
 	u8 mask_ihl;
+	u8 addr_od;
+	u8 mask_od;
 	u8 addr_stat_drdy;
 	struct {
 		u8 en_addr;
@@ -215,6 +219,7 @@ struct st_sensor_settings {
  * @odr: Output data rate of the sensor [Hz].
  * num_data_channels: Number of data channels used in buffer.
  * @drdy_int_pin: Redirect DRDY on pin 1 (1) or pin 2 (2).
+ * @int_pin_open_drain: Set the interrupt/DRDY to open drain.
  * @get_irq_data_ready: Function to get the IRQ used for data ready signal.
  * @tf: Transfer function structure used by I/O operations.
  * @tb: Transfer buffers and mutex used by I/O operations.
@@ -236,6 +241,7 @@ struct st_sensor_data {
 	unsigned int num_data_channels;
 
 	u8 drdy_int_pin;
+	bool int_pin_open_drain;
 
 	unsigned int (*get_irq_data_ready) (struct iio_dev *indio_dev);
 

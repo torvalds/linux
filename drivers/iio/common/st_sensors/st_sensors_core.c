@@ -301,6 +301,14 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 
+	if (pdata->open_drain) {
+		if (!sdata->sensor_settings->drdy_irq.addr_od)
+			dev_err(&indio_dev->dev,
+				"open drain requested but unsupported.\n");
+		else
+			sdata->int_pin_open_drain = true;
+	}
+
 	return 0;
 }
 
@@ -320,6 +328,8 @@ static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
 		pdata->drdy_int_pin = (u8) val;
 	else
 		pdata->drdy_int_pin = defdata ? defdata->drdy_int_pin : 0;
+
+	pdata->open_drain = of_property_read_bool(np, "drive-open-drain");
 
 	return pdata;
 }
@@ -370,6 +380,16 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 		err = st_sensors_write_data_with_mask(indio_dev,
 					sdata->sensor_settings->bdu.addr,
 					sdata->sensor_settings->bdu.mask, true);
+		if (err < 0)
+			return err;
+	}
+
+	if (sdata->int_pin_open_drain) {
+		dev_info(&indio_dev->dev,
+			 "set interrupt line to open drain mode\n");
+		err = st_sensors_write_data_with_mask(indio_dev,
+				sdata->sensor_settings->drdy_irq.addr_od,
+				sdata->sensor_settings->drdy_irq.mask_od, 1);
 		if (err < 0)
 			return err;
 	}

@@ -64,6 +64,19 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 			"rising edge\n", irq_trig);
 		irq_trig = IRQF_TRIGGER_RISING;
 	}
+
+	/*
+	 * If the interrupt pin is Open Drain, by definition this
+	 * means that the interrupt line may be shared with other
+	 * peripherals. But to do this we also need to have a status
+	 * register and mask to figure out if this sensor was firing
+	 * the IRQ or not, so we can tell the interrupt handle that
+	 * it was "our" interrupt.
+	 */
+	if (sdata->int_pin_open_drain &&
+	    sdata->sensor_settings->drdy_irq.addr_stat_drdy)
+		irq_trig |= IRQF_SHARED;
+
 	err = request_threaded_irq(irq,
 			iio_trigger_generic_data_rdy_poll,
 			NULL,
