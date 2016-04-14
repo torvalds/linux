@@ -282,7 +282,7 @@ struct sctp_ht_iter {
 	struct rhashtable_iter hti;
 };
 
-static void *sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
+static void *sctp_transport_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct sctp_ht_iter *iter = seq->private;
 	int err = sctp_transport_walk_start(&iter->hti);
@@ -293,14 +293,14 @@ static void *sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 	return sctp_transport_get_idx(seq_file_net(seq), &iter->hti, *pos);
 }
 
-static void sctp_assocs_seq_stop(struct seq_file *seq, void *v)
+static void sctp_transport_seq_stop(struct seq_file *seq, void *v)
 {
 	struct sctp_ht_iter *iter = seq->private;
 
 	sctp_transport_walk_stop(&iter->hti);
 }
 
-static void *sctp_assocs_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+static void *sctp_transport_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct sctp_ht_iter *iter = seq->private;
 
@@ -367,9 +367,9 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 }
 
 static const struct seq_operations sctp_assoc_ops = {
-	.start = sctp_assocs_seq_start,
-	.next  = sctp_assocs_seq_next,
-	.stop  = sctp_assocs_seq_stop,
+	.start = sctp_transport_seq_start,
+	.next  = sctp_transport_seq_next,
+	.stop  = sctp_transport_seq_stop,
 	.show  = sctp_assocs_seq_show,
 };
 
@@ -404,33 +404,6 @@ int __net_init sctp_assocs_proc_init(struct net *net)
 void sctp_assocs_proc_exit(struct net *net)
 {
 	remove_proc_entry("assocs", net->sctp.proc_net_sctp);
-}
-
-static void *sctp_remaddr_seq_start(struct seq_file *seq, loff_t *pos)
-{
-	struct sctp_ht_iter *iter = seq->private;
-	int err = sctp_transport_walk_start(&iter->hti);
-
-	if (err)
-		return ERR_PTR(err);
-
-	return sctp_transport_get_idx(seq_file_net(seq), &iter->hti, *pos);
-}
-
-static void *sctp_remaddr_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	struct sctp_ht_iter *iter = seq->private;
-
-	++*pos;
-
-	return sctp_transport_get_next(seq_file_net(seq), &iter->hti);
-}
-
-static void sctp_remaddr_seq_stop(struct seq_file *seq, void *v)
-{
-	struct sctp_ht_iter *iter = seq->private;
-
-	sctp_transport_walk_stop(&iter->hti);
 }
 
 static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
@@ -506,9 +479,9 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 }
 
 static const struct seq_operations sctp_remaddr_ops = {
-	.start = sctp_remaddr_seq_start,
-	.next  = sctp_remaddr_seq_next,
-	.stop  = sctp_remaddr_seq_stop,
+	.start = sctp_transport_seq_start,
+	.next  = sctp_transport_seq_next,
+	.stop  = sctp_transport_seq_stop,
 	.show  = sctp_remaddr_seq_show,
 };
 
