@@ -584,29 +584,6 @@ static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
 	return 0;
 }
 
-static inline void ni_set_ai_dma_no_channel(struct comedi_device *dev)
-{
-	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG, NI_E_DMA_AI_SEL_MASK, 0);
-}
-
-static inline void ni_set_ao_dma_no_channel(struct comedi_device *dev)
-{
-	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG, NI_E_DMA_AO_SEL_MASK, 0);
-}
-
-static inline void ni_set_gpct_dma_no_channel(struct comedi_device *dev,
-					      unsigned gpct_index)
-{
-	ni_set_bitfield(dev, NI_E_DMA_G0_G1_SEL_REG,
-			NI_E_DMA_G0_G1_SEL_MASK(gpct_index), 0);
-}
-
-static inline void ni_set_cdo_dma_no_channel(struct comedi_device *dev)
-{
-	ni_set_bitfield(dev, NI_M_CDIO_DMA_SEL_REG,
-			NI_M_CDIO_DMA_SEL_CDO_MASK, 0);
-}
-
 static int ni_request_ai_mite_channel(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
@@ -735,7 +712,8 @@ static void ni_release_ai_mite_channel(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ai_mite_chan) {
-		ni_set_ai_dma_no_channel(dev);
+		ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
+				NI_E_DMA_AI_SEL_MASK, 0);
 		mite_release_channel(devpriv->ai_mite_chan);
 		devpriv->ai_mite_chan = NULL;
 	}
@@ -751,7 +729,8 @@ static void ni_release_ao_mite_channel(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ao_mite_chan) {
-		ni_set_ao_dma_no_channel(dev);
+		ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
+				NI_E_DMA_AO_SEL_MASK, 0);
 		mite_release_channel(devpriv->ao_mite_chan);
 		devpriv->ao_mite_chan = NULL;
 	}
@@ -771,7 +750,8 @@ static void ni_release_gpct_mite_channel(struct comedi_device *dev,
 		struct mite_channel *mite_chan =
 		    devpriv->counter_dev->counters[gpct_index].mite_chan;
 
-		ni_set_gpct_dma_no_channel(dev, gpct_index);
+		ni_set_bitfield(dev, NI_E_DMA_G0_G1_SEL_REG,
+				NI_E_DMA_G0_G1_SEL_MASK(gpct_index), 0);
 		ni_tio_set_mite_channel(&devpriv->
 					counter_dev->counters[gpct_index],
 					NULL);
@@ -789,7 +769,8 @@ static void ni_release_cdo_mite_channel(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->cdo_mite_chan) {
-		ni_set_cdo_dma_no_channel(dev);
+		ni_set_bitfield(dev, NI_M_CDIO_DMA_SEL_REG,
+				NI_M_CDIO_DMA_SEL_CDO_MASK, 0);
 		mite_release_channel(devpriv->cdo_mite_chan);
 		devpriv->cdo_mite_chan = NULL;
 	}
