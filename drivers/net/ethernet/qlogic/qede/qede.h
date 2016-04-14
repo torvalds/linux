@@ -169,6 +169,7 @@ struct qede_dev {
 	bool accept_any_vlan;
 	struct delayed_work		sp_task;
 	unsigned long			sp_flags;
+	u16				vxlan_dst_port;
 };
 
 enum QEDE_STATE {
@@ -289,7 +290,8 @@ struct qede_fastpath {
 #define QEDE_CSUM_ERROR			BIT(0)
 #define QEDE_CSUM_UNNECESSARY		BIT(1)
 
-#define QEDE_SP_RX_MODE		1
+#define QEDE_SP_RX_MODE			1
+#define QEDE_SP_VXLAN_PORT_CONFIG	2
 
 union qede_reload_args {
 	u16 mtu;

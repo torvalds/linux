@@ -353,7 +353,8 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	DMA_REGPAIR_LE(p_ramrod->consolid_q_pbl_addr,
 		       p_hwfn->p_consq->chain.pbl.p_phys_table);
 
-	qed_tunn_set_pf_start_params(p_hwfn, NULL, NULL);
+	qed_tunn_set_pf_start_params(p_hwfn, p_tunn,
+				     &p_ramrod->tunnel_config);
 	p_hwfn->hw_info.personality = PERSONALITY_ETH;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,

@@ -24,7 +24,9 @@
 #include <linux/netdev_features.h>
 #include <linux/udp.h>
 #include <linux/tcp.h>
+#ifdef CONFIG_QEDE_VXLAN
 #include <net/vxlan.h>
+#endif
 #include <linux/ip.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
@@ -1821,6 +1823,42 @@ static void qede_vlan_mark_nonconfigured(struct qede_dev *edev)
 	edev->accept_any_vlan = false;
 }
 
+#ifdef CONFIG_QEDE_VXLAN
+static void qede_add_vxlan_port(struct net_device *dev,
+				sa_family_t sa_family, __be16 port)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	u16 t_port = ntohs(port);
+
+	if (edev->vxlan_dst_port)
+		return;
+
+	edev->vxlan_dst_port = t_port;
+
+	DP_VERBOSE(edev, QED_MSG_DEBUG, "Added vxlan port=%d", t_port);
+
+	set_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+}
+
+static void qede_del_vxlan_port(struct net_device *dev,
+				sa_family_t sa_family, __be16 port)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	u16 t_port = ntohs(port);
+
+	if (t_port != edev->vxlan_dst_port)
+		return;
+
+	edev->vxlan_dst_port = 0;
+
+	DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted vxlan port=%d", t_port);
+
+	set_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+}
+#endif
+
 static const struct net_device_ops qede_netdev_ops = {
 	.ndo_open = qede_open,
 	.ndo_stop = qede_close,
@@ -1832,6 +1870,10 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,
 	.ndo_get_stats64 = qede_get_stats64,
+#ifdef CONFIG_QEDE_VXLAN
+	.ndo_add_vxlan_port = qede_add_vxlan_port,
+	.ndo_del_vxlan_port = qede_del_vxlan_port,
+#endif
 };
 
 /* -------------------------------------------------------------------------
@@ -2004,11 +2046,22 @@ static void qede_sp_task(struct work_struct *work)
 {
 	struct qede_dev *edev = container_of(work, struct qede_dev,
 					     sp_task.work);
+	struct qed_dev *cdev = edev->cdev;
+
 	mutex_lock(&edev->qede_lock);
 
 	if (edev->state == QEDE_STATE_OPEN) {
 		if (test_and_clear_bit(QEDE_SP_RX_MODE, &edev->sp_flags))
 			qede_config_rx_mode(edev->ndev);
+	}
+
+	if (test_and_clear_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags)) {
+		struct qed_tunn_params tunn_params;
+
+		memset(&tunn_params, 0, sizeof(tunn_params));
+		tunn_params.update_vxlan_port = 1;
+		tunn_params.vxlan_port = edev->vxlan_dst_port;
+		qed_ops->tunn_config(cdev, &tunn_params);
 	}
 
 	mutex_unlock(&edev->qede_lock);
@@ -3149,12 +3202,21 @@ void qede_reload(struct qede_dev *edev,
 static int qede_open(struct net_device *ndev)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
+	int rc;
 
 	netif_carrier_off(ndev);
 
 	edev->ops->common->set_power_state(edev->cdev, PCI_D0);
 
-	return qede_load(edev, QEDE_LOAD_NORMAL);
+	rc = qede_load(edev, QEDE_LOAD_NORMAL);
+
+	if (rc)
+		return rc;
+
+#ifdef CONFIG_QEDE_VXLAN
+	vxlan_get_rx_port(ndev);
+#endif
+	return 0;
 }
 
 static int qede_close(struct net_device *ndev)
