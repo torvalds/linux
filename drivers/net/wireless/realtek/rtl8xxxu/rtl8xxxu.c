@@ -8832,7 +8832,13 @@ static int rtl8723au_parse_rx_desc(struct rtl8xxxu_priv *priv,
 {
 	struct rtl8xxxu_rx_desc *rx_desc = (struct rtl8xxxu_rx_desc *)skb->data;
 	struct rtl8723au_phy_stats *phy_stats;
+	__le32 *_rx_desc_le = (__le32 *)skb->data;
+	u32 *_rx_desc = (u32 *)skb->data;
 	int drvinfo_sz, desc_shift;
+	int i;
+
+	for (i = 0; i < (sizeof(struct rtl8xxxu_rx_desc) / sizeof(u32)); i++)
+		_rx_desc[i] = le32_to_cpu(_rx_desc_le[i]);
 
 	skb_pull(skb, sizeof(struct rtl8xxxu_rx_desc));
 
@@ -8873,7 +8879,13 @@ static int rtl8723bu_parse_rx_desc(struct rtl8xxxu_priv *priv,
 	struct rtl8723bu_rx_desc *rx_desc =
 		(struct rtl8723bu_rx_desc *)skb->data;
 	struct rtl8723au_phy_stats *phy_stats;
+	__le32 *_rx_desc_le = (__le32 *)skb->data;
+	u32 *_rx_desc = (u32 *)skb->data;
 	int drvinfo_sz, desc_shift;
+	int i;
+
+	for (i = 0; i < (sizeof(struct rtl8723bu_rx_desc) / sizeof(u32)); i++)
+		_rx_desc[i] = le32_to_cpu(_rx_desc_le[i]);
 
 	skb_pull(skb, sizeof(struct rtl8723bu_rx_desc));
 
@@ -8967,12 +8979,7 @@ static void rtl8xxxu_rx_complete(struct urb *urb)
 	struct sk_buff *skb = (struct sk_buff *)urb->context;
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	struct device *dev = &priv->udev->dev;
-	__le32 *_rx_desc_le = (__le32 *)skb->data;
-	u32 *_rx_desc = (u32 *)skb->data;
-	int rx_type, i;
-
-	for (i = 0; i < (sizeof(struct rtl8xxxu_rx_desc) / sizeof(u32)); i++)
-		_rx_desc[i] = le32_to_cpu(_rx_desc_le[i]);
+	int rx_type;
 
 	skb_put(skb, urb->actual_length);
 
