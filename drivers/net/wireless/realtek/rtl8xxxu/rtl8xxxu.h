@@ -1310,6 +1310,7 @@ struct rtl8xxxu_fileops {
 	u32 adda_1t_path_on;
 	u32 adda_2t_path_on_a;
 	u32 adda_2t_path_on_b;
+	u16 trxff_boundary;
 	struct rtl8xxxu_reg8val *mactable;
 	u8 total_page_num;
 	u8 page_num_hi;

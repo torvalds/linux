@@ -7552,12 +7552,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/*
 	 * Set RX page boundary
 	 */
-	if (priv->rtl_chip == RTL8723B)
-		rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x3f7f);
-	else if (priv->rtl_chip == RTL8192E)
-		rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x3cff);
-	else
-		rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x27ff);
+	rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, priv->fops->trxff_boundary);
 
 	ret = rtl8xxxu_download_firmware(priv);
 	dev_dbg(dev, "%s: download_fiwmare %i\n", __func__, ret);
@@ -9735,6 +9730,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.adda_1t_path_on = 0x0bdb25a0,
 	.adda_2t_path_on_a = 0x04db25a4,
 	.adda_2t_path_on_b = 0x0b1b25a4,
+	.trxff_boundary = 0x27ff,
 	.mactable = rtl8723a_mac_init_table,
 };
 
@@ -9767,6 +9763,7 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.adda_1t_path_on = 0x01c00014,
 	.adda_2t_path_on_a = 0x01c00014,
 	.adda_2t_path_on_b = 0x01c00014,
+	.trxff_boundary = 0x3f7f,
 	.mactable = rtl8723b_mac_init_table,
 };
 
@@ -9797,6 +9794,7 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.adda_1t_path_on = 0x0bdb25a0,
 	.adda_2t_path_on_a = 0x04db25a4,
 	.adda_2t_path_on_b = 0x0b1b25a4,
+	.trxff_boundary = 0x27ff,
 	.mactable = rtl8723a_mac_init_table,
 };
 
@@ -9828,6 +9826,7 @@ static struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.adda_1t_path_on = 0x0fc01616,
 	.adda_2t_path_on_a = 0x0fc01616,
 	.adda_2t_path_on_b = 0x0fc01616,
+	.trxff_boundary = 0x3cff,
 	.mactable = rtl8192e_mac_init_table,
 	.total_page_num = TX_TOTAL_PAGE_NUM_8192E,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ_8192E,
