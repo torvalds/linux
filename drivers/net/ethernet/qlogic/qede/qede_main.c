@@ -141,19 +141,10 @@ static
 int __init qede_init(void)
 {
 	int ret;
-	u32 qed_ver;
 
 	pr_notice("qede_init: %s\n", version);
 
-	qed_ver = qed_get_protocol_version(QED_PROTOCOL_ETH);
-	if (qed_ver !=  QEDE_ETH_INTERFACE_VERSION) {
-		pr_notice("Version mismatch [%08x != %08x]\n",
-			  qed_ver,
-			  QEDE_ETH_INTERFACE_VERSION);
-		return -EINVAL;
-	}
-
-	qed_ops = qed_get_eth_ops(QEDE_ETH_INTERFACE_VERSION);
+	qed_ops = qed_get_eth_ops();
 	if (!qed_ops) {
 		pr_notice("Failed to get qed ethtool operations\n");
 		return -EINVAL;
@@ -2835,10 +2826,10 @@ static int qede_start_queues(struct qede_dev *edev)
 	int rc, tc, i;
 	int vlan_removal_en = 1;
 	struct qed_dev *cdev = edev->cdev;
-	struct qed_update_vport_rss_params *rss_params = &edev->rss_params;
 	struct qed_update_vport_params vport_update_params;
 	struct qed_queue_start_common_params q_params;
 	struct qed_start_vport_params start = {0};
+	bool reset_rss_indir = false;
 
 	if (!edev->num_rss) {
 		DP_ERR(edev,
@@ -2933,16 +2924,50 @@ static int qede_start_queues(struct qede_dev *edev)
 	/* Fill struct with RSS params */
 	if (QEDE_RSS_CNT(edev) > 1) {
 		vport_update_params.update_rss_flg = 1;
-		for (i = 0; i < 128; i++)
-			rss_params->rss_ind_table[i] =
-			ethtool_rxfh_indir_default(i, QEDE_RSS_CNT(edev));
-		netdev_rss_key_fill(rss_params->rss_key,
-				    sizeof(rss_params->rss_key));
+
+		/* Need to validate current RSS config uses valid entries */
+		for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++) {
+			if (edev->rss_params.rss_ind_table[i] >=
+			    edev->num_rss) {
+				reset_rss_indir = true;
+				break;
+			}
+		}
+
+		if (!(edev->rss_params_inited & QEDE_RSS_INDIR_INITED) ||
+		    reset_rss_indir) {
+			u16 val;
+
+			for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++) {
+				u16 indir_val;
+
+				val = QEDE_RSS_CNT(edev);
+				indir_val = ethtool_rxfh_indir_default(i, val);
+				edev->rss_params.rss_ind_table[i] = indir_val;
+			}
+			edev->rss_params_inited |= QEDE_RSS_INDIR_INITED;
+		}
+
+		if (!(edev->rss_params_inited & QEDE_RSS_KEY_INITED)) {
+			netdev_rss_key_fill(edev->rss_params.rss_key,
+					    sizeof(edev->rss_params.rss_key));
+			edev->rss_params_inited |= QEDE_RSS_KEY_INITED;
+		}
+
+		if (!(edev->rss_params_inited & QEDE_RSS_CAPS_INITED)) {
+			edev->rss_params.rss_caps = QED_RSS_IPV4 |
+						    QED_RSS_IPV6 |
+						    QED_RSS_IPV4_TCP |
+						    QED_RSS_IPV6_TCP;
+			edev->rss_params_inited |= QEDE_RSS_CAPS_INITED;
+		}
+
+		memcpy(&vport_update_params.rss_params, &edev->rss_params,
+		       sizeof(vport_update_params.rss_params));
 	} else {
-		memset(rss_params, 0, sizeof(*rss_params));
+		memset(&vport_update_params.rss_params, 0,
+		       sizeof(vport_update_params.rss_params));
 	}
-	memcpy(&vport_update_params.rss_params, rss_params,
-	       sizeof(*rss_params));
 
 	rc = edev->ops->vport_update(cdev, &vport_update_params);
 	if (rc) {

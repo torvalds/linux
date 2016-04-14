@@ -1172,14 +1172,3 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.chain_free = &qed_chain_free,
 	.set_led = &qed_set_led,
 };
-
-u32 qed_get_protocol_version(enum qed_protocol protocol)
-{
-	switch (protocol) {
-	case QED_PROTOCOL_ETH:
-		return QED_ETH_INTERFACE_VERSION;
-	default:
-		return 0;
-	}
-}
-EXPORT_SYMBOL(qed_get_protocol_version);

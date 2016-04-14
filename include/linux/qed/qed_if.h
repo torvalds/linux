@@ -271,15 +271,6 @@ struct qed_common_ops {
 		       enum qed_led_mode mode);
 };
 
-/**
- * @brief qed_get_protocol_version
- *
- * @param protocol
- *
- * @return version supported by qed for given protocol driver
- */
-u32 qed_get_protocol_version(enum qed_protocol protocol);
-
 #define MASK_FIELD(_name, _value) \
 	((_value) &= (_name ## _MASK))
 
@@ -524,4 +515,15 @@ static inline void internal_ram_wr(void __iomem *addr,
 	__internal_ram_wr(NULL, addr, size, data);
 }
 
+enum qed_rss_caps {
+	QED_RSS_IPV4		= 0x1,
+	QED_RSS_IPV6		= 0x2,
+	QED_RSS_IPV4_TCP	= 0x4,
+	QED_RSS_IPV6_TCP	= 0x8,
+	QED_RSS_IPV4_UDP	= 0x10,
+	QED_RSS_IPV6_UDP	= 0x20,
+};
+
+#define QED_RSS_IND_TABLE_SIZE 128
+#define QED_RSS_KEY_SIZE 10 /* size in 32b chunks */
 #endif

@@ -26,7 +26,7 @@
 #include "qed_hsi.h"
 
 extern const struct qed_common_ops qed_common_ops_pass;
-#define DRV_MODULE_VERSION "8.7.0.0"
+#define DRV_MODULE_VERSION "8.7.1.20"
 
 #define MAX_HWFNS_PER_DEVICE    (4)
 #define NAME_SIZE 16
@@ -506,7 +506,5 @@ u32 qed_unzip_data(struct qed_hwfn *p_hwfn,
 		   u32 max_size, u8 *unzip_buf);
 
 int qed_slowpath_irq_req(struct qed_hwfn *hwfn);
-
-#define QED_ETH_INTERFACE_VERSION       300
 
 #endif /* _QED_H */

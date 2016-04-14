@@ -27,6 +27,7 @@ struct qed_dev_eth_info {
 struct qed_update_vport_rss_params {
 	u16	rss_ind_table[128];
 	u32	rss_key[10];
+	u8	rss_caps;
 };
 
 struct qed_update_vport_params {
@@ -167,7 +168,7 @@ struct qed_eth_ops {
 				struct qed_eth_stats *stats);
 };
 
-const struct qed_eth_ops *qed_get_eth_ops(u32 version);
+const struct qed_eth_ops *qed_get_eth_ops(void);
 void qed_put_eth_ops(void);
 
 #endif
