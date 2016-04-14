@@ -377,7 +377,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 
 	/* wakeup userspace */
 	if (work->event)
-		drm_send_vblank_event(rdev->ddev, crtc_id, work->event);
+		drm_crtc_send_vblank_event(&radeon_crtc->base, work->event);
 
 	spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
 
