@@ -214,19 +214,7 @@ enum ni_common_subdevices {
 	NI_NUM_SUBDEVICES
 };
 
-static inline unsigned int NI_GPCT_SUBDEV(unsigned int counter_index)
-{
-	switch (counter_index) {
-	case 0:
-		return NI_GPCT0_SUBDEV;
-	case 1:
-		return NI_GPCT1_SUBDEV;
-	default:
-		break;
-	}
-	BUG();
-	return NI_GPCT0_SUBDEV;
-}
+#define NI_GPCT_SUBDEV(x)	(NI_GPCT0_SUBDEV + (x))
 
 enum timebase_nanoseconds {
 	TIMEBASE_1_NS = 50,
