@@ -2478,7 +2478,7 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	reg = 1 << port;
 	/* Disable learning for DSA and CPU ports */
 	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
-		reg = PORT_ASSOC_VECTOR_LOCKED_PORT;
+		reg = 0;
 
 	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_ASSOC_VECTOR, reg);
 	if (ret)
