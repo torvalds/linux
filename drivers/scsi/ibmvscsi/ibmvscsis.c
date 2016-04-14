@@ -118,29 +118,18 @@ struct ibmvscsis_tport {
 	/* Returned by ibmvscsis_make_tport() */
 	struct se_wwn tport_wwn;
 	int lun_count;
-};
-
-struct ibmvscsis_tpg {
-	/* ibmvscsis port target portal group tag for TCM */
-	u16 tport_tpgt;
-	/* Used for ibmvscsis device reference to tpg_nexus */
-	int tpg_ibmvscsis_count;
-	/* Pointer to TCM session for I_T Nexus */
-	struct se_session *se_sess;
-	/* Pointer back to ibmvscsis_tport */
-	struct ibmvscsis_tport *tport;
 	/* Returned by ibmvscsis_make_tpg() */
 	struct se_portal_group se_tpg;
-	/* Pointer back to ibmvscsis*/
-	struct ibmvscsis_adapter *adapter;
+	/* ibmvscsis port target portal group tag for TCM */
+	u16 tport_tpgt;
+	/* Pointer to TCM session for I_T Nexus */
+	struct se_session *se_sess;
 	struct ibmvscsis_cmnd *cmd;
 	bool enabled;
 	bool releasing;
 };
 
 struct ibmvscsis_adapter {
-	struct ibmvscsis_tpg *tpg;
-
 	struct device dev;
 	struct vio_dev *dma_dev;
 	struct list_head siblings;
@@ -152,10 +141,10 @@ struct ibmvscsis_adapter {
 	u32 riobn;
 
 	//TODO: FIX LIBSRP TO WORK WITH TCM
-	struct srp_target *target;
+	struct srp_target target;
 
 	struct list_head list;
-	struct ibmvscsis_tport *tport;
+	struct ibmvscsis_tport tport;
 };
 
 struct ibmvscsis_nacl {
@@ -238,19 +227,18 @@ static char *ibmvscsis_get_fabric_name(void)
 
 static char *ibmvscsis_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
-	struct ibmvscsis_tpg *tpg =
-		container_of(se_tpg, struct ibmvscsis_tpg, se_tpg);
-	struct ibmvscsis_tport *tport = tpg->tport;
+	struct ibmvscsis_tport *tport =
+		container_of(se_tpg, struct ibmvscsis_tport, se_tpg);
 
 	return &tport->tport_name[0];
 }
 
 static u16 ibmvscsis_get_tag(struct se_portal_group *se_tpg)
 {
-	struct ibmvscsis_tpg *tpg =
-		container_of(se_tpg, struct ibmvscsis_tpg, se_tpg);
+	struct ibmvscsis_tport *tport =
+		container_of(se_tpg, struct ibmvscsis_tport, se_tpg);
 
-	return tpg->tport_tpgt;
+	return tport->tport_tpgt;
 }
 
 static u32 ibmvscsis_get_default_depth(struct se_portal_group *se_tpg)
@@ -325,10 +313,10 @@ static ssize_t ibmvscsis_tpg_enable_show(struct config_item *item, char *page)
 {
 
         struct se_portal_group *se_tpg = to_tpg(item);
-        struct ibmvscsis_tpg *tpg = container_of(se_tpg,
-                                struct ibmvscsis_tpg, se_tpg);
+        struct ibmvscsis_tport *tport = container_of(se_tpg,
+                                struct ibmvscsis_tport, se_tpg);
 
-        return snprintf(page, PAGE_SIZE, "%d\n", (tpg->enabled) ? 1: 0);
+        return snprintf(page, PAGE_SIZE, "%d\n", (tport->enabled) ? 1: 0);
 }
 
 static ssize_t ibmvscsis_tpg_enable_store(struct config_item *item,
@@ -336,8 +324,8 @@ static ssize_t ibmvscsis_tpg_enable_store(struct config_item *item,
 {
 
         struct se_portal_group *se_tpg = to_tpg(item);
-        struct ibmvscsis_tpg *tpg = container_of(se_tpg,
-                                struct ibmvscsis_tpg, se_tpg);
+        struct ibmvscsis_tport *tport = container_of(se_tpg,
+                                struct ibmvscsis_tport, se_tpg);
         unsigned long tmp;
         int ret;
 
@@ -352,9 +340,9 @@ static ssize_t ibmvscsis_tpg_enable_store(struct config_item *item,
                 return -EINVAL;
         }
         if (tmp == 1)
-                tpg->enabled = true;
+                tport->enabled = true;
         else
-                tpg->enabled = false;
+                tport->enabled = false;
 
         return count;
 }
@@ -379,14 +367,14 @@ static void ibmvscsis_aborted_task(struct se_cmd *se_cmd)
 	return;
 }
 
-static struct se_portal_group *ibmvscsis_make_nexus(struct ibmvscsis_tpg *tpg,
+static struct se_portal_group *ibmvscsis_make_nexus(struct ibmvscsis_tport *tport,
 				const char *name)
 {
 	struct se_node_acl *acl;
 
 	pr_debug("ibmvscsis: make nexus");
-	if (tpg->se_sess) {
-		pr_debug("tpg->se_sess already exists\n");
+	if (tport->se_sess) {
+		pr_debug("tport->se_sess already exists\n");
 		ERR_PTR(-EEXIST);
 	}
 
@@ -394,87 +382,80 @@ static struct se_portal_group *ibmvscsis_make_nexus(struct ibmvscsis_tpg *tpg,
 	 *  Initialize the struct se_session pointer and setup tagpool
 	 *  for struct ibmvscsis_cmd descriptors
 	 */
-	tpg->se_sess = transport_init_session(TARGET_PROT_NORMAL);
-	if (IS_ERR(tpg->se_sess)) {
+	tport->se_sess = transport_init_session(TARGET_PROT_NORMAL);
+	if (IS_ERR(tport->se_sess)) {
 		goto transport_init_fail;
 	}
-	pr_debug("ibmvscsis: make_nexus: se_sess:%p, tpg(%p)\n",
-			tpg->se_sess, tpg);
+	pr_debug("ibmvscsis: make_nexus: se_sess:%p, tport(%p)\n",
+			tport->se_sess, tport);
 	pr_debug("ibmvsciss: initiator name:%s, se_tpg:%p\n",
-		tpg->se_sess->se_node_acl->initiatorname, tpg->se_sess->se_tpg);
+		tport->se_sess->se_node_acl->initiatorname, tport->se_sess->se_tpg);
 	/*
 	 * Since we are running in 'demo mode' this call will generate a
 	 * struct se_node_acl for the ibmvscsis struct se_portal_group with
 	 * the SCSI Initiator port name of the passed configfs group 'name'.
 	 */
 
-	acl = core_tpg_check_initiator_node_acl(&tpg->se_tpg, (unsigned char *)name);
+	acl = core_tpg_check_initiator_node_acl(&tport->se_tpg,
+				(unsigned char *)name);
 	if (!acl) {
 		pr_debug("core_tpg_check_initiator_node_acl() failed"
 				" for %s\n", name);
 		goto acl_failed;
 	}
-	tpg->se_sess->se_node_acl = acl;
+	tport->se_sess->se_node_acl = acl;
 
 	/*
 	 * Now register the TCM ibmvscsis virtual I_T Nexus as active.
 	 */
-	transport_register_session(&tpg->se_tpg, tpg->se_sess->se_node_acl,
-			tpg->se_sess, tpg);
+	transport_register_session(&tport->se_tpg, tport->se_sess->se_node_acl,
+			tport->se_sess, tport);
 
-	return &tpg->se_tpg;
+	return &tport->se_tpg;
 
 acl_failed:
-	transport_free_session(tpg->se_sess);
+	transport_free_session(tport->se_sess);
 transport_init_fail:
-	kfree(tpg);
+	kfree(tport);
 	return ERR_PTR(-ENOMEM);
 }
 
-static int ibmvscsis_drop_nexus(struct ibmvscsis_tpg *tpg)
+static int ibmvscsis_drop_nexus(struct ibmvscsis_tport *tport)
 {
 	struct se_session *se_sess;
 
 	pr_debug("ibmvscsis: drop nexus");
 
-	se_sess = tpg->se_sess;
+	se_sess = tport->se_sess;
 	if (!se_sess) {
 		return -ENODEV;
-	}
-
-	if (tpg->tpg_ibmvscsis_count != 0) {
-		pr_err("Unable to remove TCM_ibmvscsis I_T Nexus with"
-			" active TPG ibmvscsis count: %d\n",
-			tpg->tpg_ibmvscsis_count);
-		return -EBUSY;
 	}
 
 	/*
 	 * Release the SCSI I_T Nexus to the emulated ibmvscsis Target Port
 	 */
-	transport_deregister_session(tpg->se_sess);
+	transport_deregister_session(tport->se_sess);
 
-	transport_free_session(tpg->se_sess);
+	transport_free_session(tport->se_sess);
 
 	return 0;
 }
 
 static void ibmvscsis_drop_tpg(struct se_portal_group *se_tpg)
 {
-	struct ibmvscsis_tpg *tpg = container_of(se_tpg,
-				struct ibmvscsis_tpg, se_tpg);
+	struct ibmvscsis_tport *tport = container_of(se_tpg,
+				struct ibmvscsis_tport, se_tpg);
 
-	tpg->releasing = true;
+	tport->releasing = true;
 	//TODO: Add a release mechanism to remove vio
 	/*
 	 * Release the virtual I_T Nexus for this ibmvscsis TPG
 	 */
-	ibmvscsis_drop_nexus(tpg);
+	ibmvscsis_drop_nexus(tport);
 	/*
 	 * Deregister the se_tpg from TCM..
 	 */
 	core_tpg_deregister(se_tpg);
-	kfree(tpg);
 }
 
 static struct se_portal_group *ibmvscsis_make_tpg(struct se_wwn *wwn,
@@ -483,52 +464,16 @@ static struct se_portal_group *ibmvscsis_make_tpg(struct se_wwn *wwn,
 {
 	struct ibmvscsis_tport *tport =
 		container_of(wwn, struct ibmvscsis_tport, tport_wwn);
-	struct ibmvscsis_tpg *tpg;
-	struct ibmvscsis_adapter *adapter;
-	struct vio_dev *vdev;
-	u16 tpgt;
 	int ret;
-	unsigned long flags;
-	pr_debug("ibmvscsis: maketpg\n");
 
-	if (strstr(name, "tpgt_") != name)
-		return ERR_PTR(-EINVAL);
-	if (kstrtou16(name + 5, 10, &tpgt) || tpgt >= DEFAULT_MAX_SECTORS)
-		return ERR_PTR(-EINVAL);
+	tport->releasing = false;
+	ret = core_tpg_register(&tport->tport_wwn,
+				&tport->se_tpg,
+				tport->tport_proto_id);
+	if(ret)
+		return ERR_PTR(ret);
 
-	spin_lock_irqsave(&ibmvscsis_dev_lock, flags);
-	list_for_each_entry(adapter, &ibmvscsis_dev_list, list) {
-		vdev = adapter->dma_dev;
-		ret = strcmp(dev_name(&vdev->dev), &tport->tport_name[0]);
-		if(ret == 0) {
-			tpg = adapter->tpg;
-		}
-		if(tpg){
-			tpg->adapter = adapter;
-			goto found;
-		}
-	}
-	spin_unlock_irqrestore(&ibmvscsis_dev_lock, flags);
-	return NULL;
-
-found:
-	spin_unlock_irqrestore(&ibmvscsis_dev_lock, flags);
-	adapter->tpg->tport = tport;
-	adapter->tport->tport_wwn = *wwn;
-	adapter->tpg->tport_tpgt = tpgt;
-
-	pr_debug("ibmvscsis: make_tpg name:%s, tport_proto_id:%x, tpgt:%x\n",
-			&adapter->tport->tport_name[0],
-			adapter->tport->tport_proto_id, tpgt);
-
-	ret = core_tpg_register(&adapter->tport->tport_wwn,
-				&adapter->tpg->se_tpg,
-				adapter->tport->tport_proto_id);
-	if (ret < 0) {
-		kfree(adapter->tpg);
-		return NULL;
-	}
-	return &adapter->tpg->se_tpg;
+	return &tport->se_tpg;
 }
 
 static struct ibmvscsis_tport *ibmvscsis_lookup_port(const char *name)
@@ -544,7 +489,7 @@ static struct ibmvscsis_tport *ibmvscsis_lookup_port(const char *name)
 		vdev = adapter->dma_dev;
 		ret = strcmp(dev_name(&vdev->dev), name);
 		if(ret == 0) {
-			tport = adapter->tport;
+			tport = &adapter->tport;
 		}
 		if(tport)
 			goto found;
@@ -581,7 +526,8 @@ static void ibmvscsis_drop_tport(struct se_wwn *wwn)
 	struct ibmvscsis_tport *tport = container_of(wwn,
 				struct ibmvscsis_tport, tport_wwn);
 
-	kfree(tport);
+	pr_debug("drop_tport(%s\n",
+		config_item_name(&tport->tport_wwn.wwn_group.cg_item));
 }
 
 static ssize_t system_id_show(struct device *dev,
@@ -866,14 +812,14 @@ static void process_login(struct iu_entry *iue)
 
 	snprintf(name, sizeof(name), "%x", vdev->unit_address);
 
-	if(!adapter->tpg->enabled) {
+	if(!&adapter->tport.enabled) {
 		rej->reason = cpu_to_be32(SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
 		pr_err("ibmvscsis: Rejected SRP_LOGIN_REQ because target %s"
 			" has not yet been enabled", name);
 		goto reject;
 	}
 
-	se_tpg = ibmvscsis_make_nexus(adapter->tpg, &adapter->tport->tport_name[0]);
+	se_tpg = ibmvscsis_make_nexus(&adapter->tport, &adapter->tport.tport_name[0]);
 	if(!se_tpg) {
 		pr_debug("ibmvscsis: login make nexus fail se_tpg(%p)\n",
 							se_tpg);
@@ -1057,12 +1003,13 @@ static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 			" cdb: %x, sense: %x, unpacked_lun: %llx,"
 			" data_length: %llx, task_attr: %x, data_dir: %x"
 			" flags: %x, tag:%llx, packed_lun:%llx\n",
-			se_cmd, adapter->tpg->se_sess,
+			se_cmd, adapter->tport.se_sess,
 			scmd->cdb[0], vsc->sense_buf[0], unpacked_lun,
 			data_len, attr, srp_cmd_direction(scmd),
 			TARGET_SCF_ACK_KREF, scmd->tag,
 			be64_to_cpu(&scmd->lun));
-	ret = target_submit_cmd(&vsc->se_cmd, adapter->tpg->se_sess,
+
+	ret = target_submit_cmd(se_cmd, adapter->tport.se_sess,
 				&scmd->cdb[0], &vsc->sense_buf[0], unpacked_lun,
 				data_len, attr, srp_cmd_direction(scmd),
 				0);
@@ -1076,6 +1023,7 @@ static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 send_sense:
 	transport_send_check_condition_and_sense(&vsc->se_cmd, ret, 0);
 	return -1;
+
 }
 
 struct inquiry_data {
@@ -1101,7 +1049,7 @@ struct inquiry_data {
 static int ibmvscsis_inquiry(struct ibmvscsis_adapter *adapter,
 			      struct srp_cmd *cmd, char *data)
 {
-	struct se_portal_group *se_tpg = &adapter->tpg->se_tpg;
+	struct se_portal_group *se_tpg = &adapter->tport.se_tpg;
 	struct inquiry_data *id = (struct inquiry_data *)data;
 	u64 unpacked_lun, lun = scsilun_to_int(&cmd->lun);
 	u8 *cdb = cmd->cdb;
@@ -1182,7 +1130,7 @@ static int ibmvscsis_mode_sense(struct ibmvscsis_adapter *adapter,
 				struct srp_cmd *cmd, char *mode)
 {
 	int bytes = 0;
-	struct se_portal_group *se_tpg = &adapter->tpg->se_tpg;
+	struct se_portal_group *se_tpg = &adapter->tport.se_tpg;
 	u64 unpacked_lun;
 	struct se_lun *lun = NULL;
 	u32 blocks = 0 ;
@@ -1250,7 +1198,7 @@ static int ibmvscsis_report_luns(struct ibmvscsis_adapter *adapter,
 				 struct srp_cmd *cmd, u64 *data)
 {
 //	u64 lun;
-	struct se_portal_group *se_tpg = &adapter->tpg->se_tpg;
+	struct se_portal_group *se_tpg = &adapter->tport.se_tpg;
 	int idx;
 	int alen, oalen, nr_luns, rbuflen = 4096;
 	struct se_lun *se_lun;
@@ -1469,6 +1417,7 @@ static int ibmvscsis_queuecommand(struct ibmvscsis_adapter *adapter,
 	struct page *pg;
 	struct ibmvscsis_cmnd *vsc;
 	struct se_cmd *se_cmd;
+	int ret;
 
 	pr_debug("ibmvscsis: ibmvscsis_queuecommand\n");
 
@@ -1489,7 +1438,7 @@ static int ibmvscsis_queuecommand(struct ibmvscsis_adapter *adapter,
 		sc->sdb.length = ibmvscsis_inquiry(adapter, cmd,
 						   page_address(pg));
 		sg_set_page(sc->sdb.table.sgl, pg, sc->sdb.length, 0);
-		ibmvscsis_cmnd_done(sc);
+		ret = ibmvscsis_cmnd_done(sc);
 		sg_free_table(&sc->sdb.table);
 		__free_page(pg);
 		kfree(vsc);
@@ -1501,7 +1450,7 @@ static int ibmvscsis_queuecommand(struct ibmvscsis_adapter *adapter,
 		sc->sdb.length = ibmvscsis_report_luns(adapter, cmd,
 						       page_address(pg));
 		sg_set_page(sc->sdb.table.sgl, pg, sc->sdb.length, 0);
-		ibmvscsis_cmnd_done(sc);
+		ret = ibmvscsis_cmnd_done(sc);
 		sg_free_table(&sc->sdb.table);
 		__free_page(pg);
 		kfree(vsc);
@@ -1513,23 +1462,23 @@ static int ibmvscsis_queuecommand(struct ibmvscsis_adapter *adapter,
 		sc->sdb.length = ibmvscsis_mode_sense(adapter,
 						      cmd, page_address(pg));
 		sg_set_page(sc->sdb.table.sgl, pg, sc->sdb.length, 0);
-		ibmvscsis_cmnd_done(sc);
+		ret = ibmvscsis_cmnd_done(sc);
 		sg_free_table(&sc->sdb.table);
 		__free_page(pg);
 		kfree(vsc);
 		break;
 	default:
 		pr_debug("ibmvscsis: tcm_queuecommand\n");
-		tcm_queuecommand(adapter, vsc, cmd);
+		ret = tcm_queuecommand(adapter, vsc, cmd);
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 //TODO: Needs to be rewritten to support TCM
 static void handle_cmd_queue(struct ibmvscsis_adapter *adapter)
 {
-	struct srp_target *target = adapter->target;
+	struct srp_target *target = &adapter->target;
 	struct iu_entry *iue;
 	unsigned long flags;
 	int err;
@@ -1654,19 +1603,21 @@ static int process_srp_iu(struct iu_entry *iue)
 {
 	union viosrp_iu *iu = vio_iu(iue);
 	struct srp_target *target = iue->target;
-	struct ibmvscsis_adapter *adapter = target->ldata;
+//	struct ibmvscsis_adapter *adapter = target->ldata;
 	u8 opcode = iu->srp.rsp.opcode;
 	unsigned long flags;
 	int err = 1;
 
-	spin_lock_irqsave(&target->lock, flags);
-	if (adapter->tpg->releasing) {
+/*	spin_lock_irqsave(&target->lock, flags);
+	if (adapter->tport.releasing) {
 		spin_unlock_irqrestore(&target->lock, flags);
+		pr_err("ibmvscsis: process_srp_iu, no tpg, releasing:%x\n",
+			adapter->tport.releasing);
 		srp_iu_put(iue);
 		goto done;
 	}
 	spin_unlock_irqrestore(&target->lock, flags);
-
+*/
 	switch (opcode) {
 	case SRP_LOGIN_REQ:
 		pr_debug("ibmvscsis: srploginreq");
@@ -1680,12 +1631,10 @@ static int process_srp_iu(struct iu_entry *iue)
 		pr_debug("ibmvscsis: srpcmd");
 		pr_debug("ibmvscsis: process_srp_iu, iu_entry: %llx\n",
 				(u64)iue->sbuf->buf);
-		err = ibmvscsis_queuecommand(adapter, iue);
-		if (err) {
-			pr_err("ibmvscsis: cannot queue iue %p %d\n",
-				iue, err);
-			srp_iu_put(iue);
-		}
+		spin_lock_irqsave(&target->lock, flags);
+		list_add_tail(&iue->ilist, &target->cmd_queue);
+		spin_unlock_irqrestore(&target->lock, flags);
+		err = 0;
 		break;
 	case SRP_LOGIN_RSP:
 	case SRP_I_LOGOUT:
@@ -1700,7 +1649,7 @@ static int process_srp_iu(struct iu_entry *iue)
 	default:
 		pr_err("ibmvscsis: Unknown type %u\n", opcode);
 	}
-done:
+//done:
 	return err;
 }
 
@@ -1710,7 +1659,7 @@ static void process_iu(struct viosrp_crq *crq,
 	struct iu_entry *iue;
 	long err;
 
-	iue = srp_iu_get(adapter->target);
+	iue = srp_iu_get(&adapter->target);
 	if (!iue) {
 		pr_err("Error getting IU from pool %p\n", iue);
 		return;
@@ -1809,7 +1758,7 @@ static void handle_crq(unsigned long data)
 		} else
 			done = 1;
 	}
-//	handle_cmd_queue(adapter);
+	handle_cmd_queue(adapter);
 }
 
 static int crq_queue_create(struct crq_queue *queue,
@@ -1894,9 +1843,6 @@ static int ibmvscsis_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 {
 	int ret = 0;
 	struct ibmvscsis_adapter *adapter;
-	struct srp_target *target;
-	struct ibmvscsis_tport *tport;
-	struct ibmvscsis_tpg *tpg;
 	unsigned long flags;
 
 	pr_debug("ibmvscsis: Probe for UA 0x%x\n", vdev->unit_address);
@@ -1905,33 +1851,15 @@ static int ibmvscsis_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	if (!adapter)
 		return -ENOMEM;
 
-	target = kzalloc(sizeof(struct srp_target), GFP_KERNEL);
-	if (!target)
-		goto free_adapter;
-
-	tport = kzalloc(sizeof(struct ibmvscsis_tport), GFP_KERNEL);
-	if(!tport)
-		goto free_target;
-	tpg = kzalloc(sizeof(struct ibmvscsis_tpg), GFP_KERNEL);
-	if(!tpg)
-		goto free_tport;
-
 	adapter->dma_dev = vdev;
-	target->ldata = adapter;
-	adapter->target = target;
-	adapter->tport = tport;
-	adapter->tpg = tpg;
 
-	snprintf(&adapter->tport->tport_name[0], 256, "%s", dev_name(&vdev->dev));
-
-	pr_debug("ibmvscsis: probe- adapter: %p, target:%p, tpg:%p, tport:%p"
-			" tport_name:%s\n",
-			adapter, target, tpg, tport, tport->tport_name);
+	snprintf(&adapter->tport.tport_name[0], 256, "%s", dev_name(&vdev->dev));
+	pr_debug("ibmvscsis: probe tport_names:%s\n",
+			&adapter->tport.tport_name[0]);
 
 	ret = read_dma_window(adapter->dma_dev, adapter);
 	if(ret != 0) {
 		pr_debug("ibmvscsis: probe failed read dma window\n");
-		goto free_tpg;
 	}
 	pr_debug("ibmvscsis: Probe: liobn 0x%x, riobn 0x%x\n", adapter->liobn,
 			adapter->riobn);
@@ -1940,9 +1868,12 @@ static int ibmvscsis_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	list_add_tail(&adapter->list, &ibmvscsis_dev_list);
 	spin_unlock_irqrestore(&ibmvscsis_dev_lock, flags);
 
-	ret = srp_target_alloc(adapter->target, &vdev->dev,
+	ret = srp_target_alloc(&adapter->target, &vdev->dev,
 				INITIAL_SRP_LIMIT,
 				SRP_MAX_IU_LEN);
+
+	adapter->target.ldata = adapter;
+
 	if(ret) {
 		pr_debug("ibmvscsis: failed target alloc ret: %d\n", ret);
 	}
@@ -1962,38 +1893,21 @@ static int ibmvscsis_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	dev_set_drvdata(&vdev->dev, adapter);
 	return 0;
-
-free_tpg:
-	kfree(tpg);
-free_tport:
-	kfree(tport);
-free_target:
-	kfree(target);
-free_adapter:
-	kfree(adapter);
-	return ret;
 }
 
 static int ibmvscsis_remove(struct vio_dev *dev)
 {
 	unsigned long flags;
 	struct ibmvscsis_adapter *adapter = dev_get_drvdata(&dev->dev);
-	struct srp_target *target = adapter->target;
-	struct ibmvscsis_tpg *tpg = adapter->tpg;
-	struct ibmvscsis_tport *tport = adapter->tport;
-
-	pr_debug("ibmvscsis:rem- adapter: %p, target:%p, tpg:%p, tport:%p\n",
-			adapter, target, tpg, tport);
-	srp_target_free(adapter->target);
 
 	spin_lock_irqsave(&ibmvscsis_dev_lock, flags);
 	list_del(&adapter->list);
 	spin_unlock_irqrestore(&ibmvscsis_dev_lock, flags);
 
 	crq_queue_destroy(adapter);
-	kfree(tpg);
-	kfree(tport);
-	kfree(target);
+
+	srp_target_free(&adapter->target);
+
 	kfree(adapter);
 
 	return 0;
