@@ -577,7 +577,7 @@ EXPORT_SYMBOL(davinci_set_pllrate);
  * than that used by default in <soc>.c file. The reference clock rate
  * should be updated early in the boot process; ideally soon after the
  * clock tree has been initialized once with the default reference clock
- * rate (davinci_common_init()).
+ * rate (davinci_clk_init()).
  *
  * Returns 0 on success, error otherwise.
  */
