@@ -7667,9 +7667,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	if (priv->rtl_chip != RTL8192E)
 		rtl8xxxu_write32(priv, REG_FPGA0_XA_RF_INT_OE, 0x66f60210);
 
-	priv->rf_mode_ag[0] = rtl8xxxu_read_rfreg(priv, RF_A,
-						  RF6052_REG_MODE_AG);
-
 	if (!macpower) {
 		/*
 		 * Set TX buffer boundary

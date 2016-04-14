@@ -1228,7 +1228,6 @@ struct rtl8xxxu_priv {
 	u8 rf_paths;
 	u8 rx_paths;
 	u8 tx_paths;
-	u32 rf_mode_ag[2];
 	u32 rege94;
 	u32 rege9c;
 	u32 regeb4;
