@@ -1302,6 +1302,7 @@ struct uniperif {
 	struct device *dev;
 	int ver; /* IP version, used by register access macros */
 	struct regmap_field *clk_sel;
+	struct regmap_field *valid_sel;
 
 	/* capabilities */
 	const struct snd_pcm_hardware *hw;
