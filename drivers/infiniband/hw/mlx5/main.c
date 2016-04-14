@@ -1108,7 +1108,7 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 		if (vma->vm_end - vma->vm_start != PAGE_SIZE)
 			return -EINVAL;
 
-		if (vma->vm_flags & (VM_WRITE | VM_EXEC))
+		if (vma->vm_flags & VM_WRITE)
 			return -EPERM;
 
 		/* Don't expose to user-space information it shouldn't have */
