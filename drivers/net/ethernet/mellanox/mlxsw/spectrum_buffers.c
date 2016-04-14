@@ -113,7 +113,8 @@ static int mlxsw_sp_sb_pm_write(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	struct mlxsw_sp_sb_pm *pm;
 	int err;
 
-	mlxsw_reg_sbpm_pack(sbpm_pl, local_port, pool, dir, min_buff, max_buff);
+	mlxsw_reg_sbpm_pack(sbpm_pl, local_port, pool, dir, false,
+			    min_buff, max_buff);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbpm), sbpm_pl);
 	if (err)
 		return err;

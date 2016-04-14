@@ -3636,6 +3636,27 @@ MLXSW_ITEM32(reg, sbpm, pool, 0x00, 8, 4);
  */
 MLXSW_ITEM32(reg, sbpm, dir, 0x00, 0, 2);
 
+/* reg_sbpm_buff_occupancy
+ * Current buffer occupancy in cells.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, sbpm, buff_occupancy, 0x10, 0, 24);
+
+/* reg_sbpm_clr
+ * Clear Max Buffer Occupancy
+ * When this bit is set, max_buff_occupancy field is cleared (and a
+ * new max value is tracked from the time the clear was performed).
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, sbpm, clr, 0x14, 31, 1);
+
+/* reg_sbpm_max_buff_occupancy
+ * Maximum value of buffer occupancy in cells monitored. Cleared by
+ * writing to the clr field.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, sbpm, max_buff_occupancy, 0x14, 0, 24);
+
 /* reg_sbpm_min_buff
  * Minimum buffer size for the limiter, in cells.
  * Access: RW
@@ -3656,15 +3677,23 @@ MLXSW_ITEM32(reg, sbpm, min_buff, 0x18, 0, 24);
 MLXSW_ITEM32(reg, sbpm, max_buff, 0x1C, 0, 24);
 
 static inline void mlxsw_reg_sbpm_pack(char *payload, u8 local_port, u8 pool,
-				       enum mlxsw_reg_sbxx_dir dir,
+				       enum mlxsw_reg_sbxx_dir dir, bool clr,
 				       u32 min_buff, u32 max_buff)
 {
 	MLXSW_REG_ZERO(sbpm, payload);
 	mlxsw_reg_sbpm_local_port_set(payload, local_port);
 	mlxsw_reg_sbpm_pool_set(payload, pool);
 	mlxsw_reg_sbpm_dir_set(payload, dir);
+	mlxsw_reg_sbpm_clr_set(payload, clr);
 	mlxsw_reg_sbpm_min_buff_set(payload, min_buff);
 	mlxsw_reg_sbpm_max_buff_set(payload, max_buff);
+}
+
+static inline void mlxsw_reg_sbpm_unpack(char *payload, u32 *p_buff_occupancy,
+					 u32 *p_max_buff_occupancy)
+{
+	*p_buff_occupancy = mlxsw_reg_sbpm_buff_occupancy_get(payload);
+	*p_max_buff_occupancy = mlxsw_reg_sbpm_max_buff_occupancy_get(payload);
 }
 
 /* SBMM - Shared Buffer Multicast Management Register
