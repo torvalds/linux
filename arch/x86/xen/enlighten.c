@@ -1670,6 +1670,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	boot_params.hdr.ramdisk_image = initrd_start;
 	boot_params.hdr.ramdisk_size = xen_start_info->mod_len;
 	boot_params.hdr.cmd_line_ptr = __pa(xen_start_info->cmd_line);
+	boot_params.hdr.hardware_subarch = X86_SUBARCH_XEN;
 
 	if (!xen_initial_domain()) {
 		add_preferred_console("xenboot", 0, NULL);
