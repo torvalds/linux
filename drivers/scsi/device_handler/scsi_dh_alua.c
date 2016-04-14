@@ -190,8 +190,8 @@ static int submit_stpg(struct scsi_device *sdev, int group_id,
 				      ALUA_FAILOVER_RETRIES, NULL, req_flags);
 }
 
-struct alua_port_group *alua_find_get_pg(char *id_str, size_t id_size,
-					 int group_id)
+static struct alua_port_group *alua_find_get_pg(char *id_str, size_t id_size,
+						int group_id)
 {
 	struct alua_port_group *pg;
 
@@ -219,8 +219,8 @@ struct alua_port_group *alua_find_get_pg(char *id_str, size_t id_size,
  * Allocate a new port_group structure for a given
  * device.
  */
-struct alua_port_group *alua_alloc_pg(struct scsi_device *sdev,
-				      int group_id, int tpgs)
+static struct alua_port_group *alua_alloc_pg(struct scsi_device *sdev,
+					     int group_id, int tpgs)
 {
 	struct alua_port_group *pg, *tmp_pg;
 
