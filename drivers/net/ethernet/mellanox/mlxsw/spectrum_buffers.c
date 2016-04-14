@@ -42,14 +42,44 @@
 #include "port.h"
 #include "reg.h"
 
+static struct mlxsw_sp_sb_pr *mlxsw_sp_sb_pr_get(struct mlxsw_sp *mlxsw_sp,
+						 u8 pool,
+						 enum mlxsw_reg_sbxx_dir dir)
+{
+	return &mlxsw_sp->sb.prs[dir][pool];
+}
+
+static struct mlxsw_sp_sb_cm *mlxsw_sp_sb_cm_get(struct mlxsw_sp *mlxsw_sp,
+						 u8 local_port, u8 pg_buff,
+						 enum mlxsw_reg_sbxx_dir dir)
+{
+	return &mlxsw_sp->sb.ports[local_port].cms[dir][pg_buff];
+}
+
+static struct mlxsw_sp_sb_pm *mlxsw_sp_sb_pm_get(struct mlxsw_sp *mlxsw_sp,
+						 u8 local_port, u8 pool,
+						 enum mlxsw_reg_sbxx_dir dir)
+{
+	return &mlxsw_sp->sb.ports[local_port].pms[dir][pool];
+}
+
 static int mlxsw_sp_sb_pr_write(struct mlxsw_sp *mlxsw_sp, u8 pool,
 				enum mlxsw_reg_sbxx_dir dir,
 				enum mlxsw_reg_sbpr_mode mode, u32 size)
 {
 	char sbpr_pl[MLXSW_REG_SBPR_LEN];
+	struct mlxsw_sp_sb_pr *pr;
+	int err;
 
 	mlxsw_reg_sbpr_pack(sbpr_pl, pool, dir, mode, size);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbpr), sbpr_pl);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbpr), sbpr_pl);
+	if (err)
+		return err;
+
+	pr = mlxsw_sp_sb_pr_get(mlxsw_sp, pool, dir);
+	pr->mode = mode;
+	pr->size = size;
+	return 0;
 }
 
 static int mlxsw_sp_sb_cm_write(struct mlxsw_sp *mlxsw_sp, u8 local_port,
@@ -57,10 +87,22 @@ static int mlxsw_sp_sb_cm_write(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				u32 min_buff, u32 max_buff, u8 pool)
 {
 	char sbcm_pl[MLXSW_REG_SBCM_LEN];
+	int err;
 
 	mlxsw_reg_sbcm_pack(sbcm_pl, local_port, pg_buff, dir,
 			    min_buff, max_buff, pool);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbcm), sbcm_pl);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbcm), sbcm_pl);
+	if (err)
+		return err;
+	if (pg_buff < MLXSW_SP_SB_TC_COUNT) {
+		struct mlxsw_sp_sb_cm *cm;
+
+		cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port, pg_buff, dir);
+		cm->min_buff = min_buff;
+		cm->max_buff = max_buff;
+		cm->pool = pool;
+	}
+	return 0;
 }
 
 static int mlxsw_sp_sb_pm_write(struct mlxsw_sp *mlxsw_sp, u8 local_port,
@@ -68,9 +110,18 @@ static int mlxsw_sp_sb_pm_write(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				u32 min_buff, u32 max_buff)
 {
 	char sbpm_pl[MLXSW_REG_SBPM_LEN];
+	struct mlxsw_sp_sb_pm *pm;
+	int err;
 
 	mlxsw_reg_sbpm_pack(sbpm_pl, local_port, pool, dir, min_buff, max_buff);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbpm), sbpm_pl);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbpm), sbpm_pl);
+	if (err)
+		return err;
+
+	pm = mlxsw_sp_sb_pm_get(mlxsw_sp, local_port, pool, dir);
+	pm->min_buff = min_buff;
+	pm->max_buff = max_buff;
+	return 0;
 }
 
 static const u16 mlxsw_sp_pbs[] = {
@@ -127,11 +178,6 @@ static int mlxsw_sp_port_headroom_init(struct mlxsw_sp_port *mlxsw_sp_port)
 		return err;
 	return mlxsw_sp_port_pb_prio_init(mlxsw_sp_port);
 }
-
-struct mlxsw_sp_sb_pr {
-	enum mlxsw_reg_sbpr_mode mode;
-	u32 size;
-};
 
 #define MLXSW_SP_SB_PR_INGRESS_SIZE				\
 	(15000000 - (2 * 20000 * MLXSW_PORT_MAX_PORTS))
@@ -198,12 +244,6 @@ static int mlxsw_sp_sb_prs_init(struct mlxsw_sp *mlxsw_sp)
 				      mlxsw_sp_sb_prs_egress,
 				      MLXSW_SP_SB_PRS_EGRESS_LEN);
 }
-
-struct mlxsw_sp_sb_cm {
-	u32 min_buff;
-	u32 max_buff;
-	u8 pool;
-};
 
 #define MLXSW_SP_SB_CM(_min_buff, _max_buff, _pool)	\
 	{						\
@@ -336,11 +376,6 @@ static int mlxsw_sp_cpu_port_sb_cms_init(struct mlxsw_sp *mlxsw_sp)
 				      mlxsw_sp_cpu_port_sb_cms,
 				      MLXSW_SP_CPU_PORT_SB_MCS_LEN);
 }
-
-struct mlxsw_sp_sb_pm {
-	u32 min_buff;
-	u32 max_buff;
-};
 
 #define MLXSW_SP_SB_PM(_min_buff, _max_buff)	\
 	{					\

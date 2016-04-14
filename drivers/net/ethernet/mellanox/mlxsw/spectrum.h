@@ -117,6 +117,33 @@ static inline bool mlxsw_sp_fid_is_vfid(u16 fid)
 	return fid >= MLXSW_SP_VFID_BASE;
 }
 
+struct mlxsw_sp_sb_pr {
+	enum mlxsw_reg_sbpr_mode mode;
+	u32 size;
+};
+
+struct mlxsw_sp_sb_cm {
+	u32 min_buff;
+	u32 max_buff;
+	u8 pool;
+};
+
+struct mlxsw_sp_sb_pm {
+	u32 min_buff;
+	u32 max_buff;
+};
+
+#define MLXSW_SP_SB_POOL_COUNT	4
+#define MLXSW_SP_SB_TC_COUNT	8
+
+struct mlxsw_sp_sb {
+	struct mlxsw_sp_sb_pr prs[2][MLXSW_SP_SB_POOL_COUNT];
+	struct {
+		struct mlxsw_sp_sb_cm cms[2][MLXSW_SP_SB_TC_COUNT];
+		struct mlxsw_sp_sb_pm pms[2][MLXSW_SP_SB_POOL_COUNT];
+	} ports[MLXSW_PORT_MAX_PORTS];
+};
+
 struct mlxsw_sp {
 	struct {
 		struct list_head list;
@@ -147,6 +174,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_upper master_bridge;
 	struct mlxsw_sp_upper lags[MLXSW_SP_LAG_MAX];
 	u8 port_to_module[MLXSW_PORT_MAX_PORTS];
+	struct mlxsw_sp_sb sb;
 };
 
 static inline struct mlxsw_sp_upper *
