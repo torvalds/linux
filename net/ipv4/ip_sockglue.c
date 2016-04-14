@@ -106,7 +106,8 @@ static void ip_cmsg_recv_checksum(struct msghdr *msg, struct sk_buff *skb,
 		return;
 
 	if (offset != 0)
-		csum = csum_sub(csum, csum_partial(skb->data, offset, 0));
+		csum = csum_sub(csum, csum_partial(skb_transport_header(skb),
+						   offset, 0));
 
 	put_cmsg(msg, SOL_IP, IP_CHECKSUM, sizeof(__wsum), &csum);
 }

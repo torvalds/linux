@@ -1282,8 +1282,6 @@ int udp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			 * of this packet since that is all
 			 * that will be read.
 			 */
-			amount -= sizeof(struct udphdr);
-
 		return put_user(amount, (int __user *)arg);
 	}
 
@@ -1377,7 +1375,7 @@ try_again:
 		*addr_len = sizeof(*sin);
 	}
 	if (inet->cmsg_flags)
-		ip_cmsg_recv_offset(msg, skb, sizeof(struct udphdr));
+		ip_cmsg_recv_offset(msg, skb, sizeof(struct udphdr) + off);
 
 	err = copied;
 	if (flags & MSG_TRUNC)
