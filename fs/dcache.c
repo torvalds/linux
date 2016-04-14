@@ -2366,11 +2366,19 @@ EXPORT_SYMBOL(d_rehash);
 
 static inline void __d_add(struct dentry *dentry, struct inode *inode)
 {
+	spin_lock(&dentry->d_lock);
 	if (inode) {
-		__d_instantiate(dentry, inode);
-		spin_unlock(&inode->i_lock);
+		unsigned add_flags = d_flags_for_inode(inode);
+		hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
+		raw_write_seqcount_begin(&dentry->d_seq);
+		__d_set_inode_and_type(dentry, inode, add_flags);
+		raw_write_seqcount_end(&dentry->d_seq);
+		__fsnotify_d_instantiate(dentry);
 	}
-	d_rehash(dentry);
+	_d_rehash(dentry);
+	spin_unlock(&dentry->d_lock);
+	if (inode)
+		spin_unlock(&inode->i_lock);
 }
 
 /**
