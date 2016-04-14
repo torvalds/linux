@@ -260,6 +260,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	id->pd_gpu_addr = pd_addr;
 
 	list_move_tail(&id->list, &adev->vm_manager.ids_lru);
+	id->last_user = ring;
 	atomic_long_set(&id->owner, (long)vm);
 	vm->ids[ring->idx] = id;
 
@@ -307,13 +308,17 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring,
 
 		trace_amdgpu_vm_flush(pd_addr, ring->idx, vm_id);
 		amdgpu_ring_emit_vm_flush(ring, vm_id, pd_addr);
-		r = amdgpu_fence_emit(ring, &fence);
-		if (r)
-			return r;
 
 		mutex_lock(&adev->vm_manager.lock);
-		fence_put(id->last_flush);
-		id->last_flush = fence;
+		if ((id->pd_gpu_addr == pd_addr) && (id->last_user == ring)) {
+			r = amdgpu_fence_emit(ring, &fence);
+			if (r) {
+				mutex_unlock(&adev->vm_manager.lock);
+				return r;
+			}
+			fence_put(id->last_flush);
+			id->last_flush = fence;
+		}
 		mutex_unlock(&adev->vm_manager.lock);
 	}
 
