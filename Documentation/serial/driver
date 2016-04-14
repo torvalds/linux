@@ -187,7 +187,6 @@ hardware.
 	ctl.
 
 	Locking: caller holds port->mutex
-	This call must not sleep
 
   startup(port)
 	Grab any interrupt resources and initialise any low level driver
