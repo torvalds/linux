@@ -142,6 +142,15 @@ struct x86_cpuinit_ops {
 struct timespec;
 
 /**
+ * struct x86_legacy_features - legacy x86 features
+ *
+ * @rtc: this device has a CMOS real-time clock present
+ */
+struct x86_legacy_features {
+	int rtc;
+};
+
+/**
  * struct x86_platform_ops - platform specific runtime functions
  * @calibrate_tsc:		calibrate TSC
  * @get_wallclock:		get time from HW clock like RTC etc.
@@ -152,6 +161,14 @@ struct timespec;
  * @save_sched_clock_state:	save state for sched_clock() on suspend
  * @restore_sched_clock_state:	restore state for sched_clock() on resume
  * @apic_post_init:		adjust apic if neeeded
+ * @legacy:			legacy features
+ * @set_legacy_features:	override legacy features. Use of this callback
+ * 				is highly discouraged. You should only need
+ * 				this if your hardware platform requires further
+ * 				custom fine tuning far beyong what may be
+ * 				possible in x86_early_init_platform_quirks() by
+ * 				only using the current x86_hardware_subarch
+ * 				semantics.
  */
 struct x86_platform_ops {
 	unsigned long (*calibrate_tsc)(void);
@@ -165,6 +182,8 @@ struct x86_platform_ops {
 	void (*save_sched_clock_state)(void);
 	void (*restore_sched_clock_state)(void);
 	void (*apic_post_init)(void);
+	struct x86_legacy_features legacy;
+	void (*set_legacy_features)(void);
 };
 
 struct pci_dev;
@@ -186,6 +205,8 @@ extern struct x86_cpuinit_ops x86_cpuinit;
 extern struct x86_platform_ops x86_platform;
 extern struct x86_msi_ops x86_msi;
 extern struct x86_io_apic_ops x86_io_apic_ops;
+
+extern void x86_early_init_platform_quirks(void);
 extern void x86_init_noop(void);
 extern void x86_init_uint_noop(unsigned int unused);
 
