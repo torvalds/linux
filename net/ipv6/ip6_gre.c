@@ -598,6 +598,18 @@ static void init_tel_txopt(struct ipv6_tel_txoption *opt, __u8 encap_limit)
 	opt->ops.opt_nflen = 8;
 }
 
+static __sum16 gre6_checksum(struct sk_buff *skb)
+{
+	__wsum csum;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		csum = lco_csum(skb);
+	else
+		csum = skb_checksum(skb, sizeof(struct ipv6hdr),
+				    skb->len - sizeof(struct ipv6hdr), 0);
+	return csum_fold(csum);
+}
+
 static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 			 struct net_device *dev,
 			 __u8 dsfield,
@@ -750,8 +762,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 		}
 		if (tunnel->parms.o_flags&GRE_CSUM) {
 			*ptr = 0;
-			*(__sum16 *)ptr = ip_compute_csum((void *)(ipv6h+1),
-				skb->len - sizeof(struct ipv6hdr));
+			*(__sum16 *)ptr = gre6_checksum(skb);
 		}
 	}
 
@@ -1507,6 +1518,11 @@ static const struct net_device_ops ip6gre_tap_netdev_ops = {
 	.ndo_get_iflink = ip6_tnl_get_iflink,
 };
 
+#define GRE6_FEATURES (NETIF_F_SG |		\
+		       NETIF_F_FRAGLIST |	\
+		       NETIF_F_HIGHDMA |		\
+		       NETIF_F_HW_CSUM)
+
 static void ip6gre_tap_setup(struct net_device *dev)
 {
 
@@ -1539,6 +1555,9 @@ static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
 	nt->dev = dev;
 	nt->net = dev_net(dev);
 	ip6gre_tnl_link_config(nt, !tb[IFLA_MTU]);
+
+	dev->features		|= GRE6_FEATURES;
+	dev->hw_features	|= GRE6_FEATURES;
 
 	/* Can use a lockless transmit, unless we generate output sequences */
 	if (!(nt->parms.o_flags & GRE_SEQ))
