@@ -22,6 +22,7 @@
 #include "util/thread_map.h"
 #include "util/stat.h"
 #include <linux/bitmap.h>
+#include <linux/stringify.h>
 #include "asm/bug.h"
 #include "util/mem-events.h"
 
@@ -2027,6 +2028,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "only consider symbols in these pids"),
 	OPT_STRING(0, "tid", &symbol_conf.tid_list_str, "tid[,tid...]",
 		   "only consider symbols in these tids"),
+	OPT_UINTEGER(0, "max-stack", &scripting_max_stack,
+		     "Set the maximum stack depth when parsing the callchain, "
+		     "anything beyond the specified depth will be ignored. "
+		     "Default: " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
 		    "display extended information from perf.data file"),
 	OPT_BOOLEAN('\0', "show-kernel-path", &symbol_conf.show_kernel_path,
