@@ -8003,13 +8003,6 @@ exit:
 	return ret;
 }
 
-static void rtl8xxxu_disable_device(struct ieee80211_hw *hw)
-{
-	struct rtl8xxxu_priv *priv = hw->priv;
-
-	priv->fops->power_off(priv);
-}
-
 static void rtl8xxxu_cam_write(struct rtl8xxxu_priv *priv,
 			       struct ieee80211_key_conf *key, const u8 *mac)
 {
@@ -9726,12 +9719,13 @@ static void rtl8xxxu_disconnect(struct usb_interface *interface)
 	hw = usb_get_intfdata(interface);
 	priv = hw->priv;
 
-	rtl8xxxu_disable_device(hw);
+	ieee80211_unregister_hw(hw);
+
+	priv->fops->power_off(priv);
+
 	usb_set_intfdata(interface, NULL);
 
 	dev_info(&priv->udev->dev, "disconnecting\n");
-
-	ieee80211_unregister_hw(hw);
 
 	kfree(priv->fw_data);
 	mutex_destroy(&priv->usb_buf_mutex);
