@@ -1651,38 +1651,38 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	switch (device->chipset) {
 	case 0xc0:
 		if (gr->tpc_total == 11) { /* 465, 3/4/4/0, 4 */
-			gr->magic_not_rop_nr = 0x07;
+			gr->screen_tile_row_offset = 0x07;
 		} else
 		if (gr->tpc_total == 14) { /* 470, 3/3/4/4, 5 */
-			gr->magic_not_rop_nr = 0x05;
+			gr->screen_tile_row_offset = 0x05;
 		} else
 		if (gr->tpc_total == 15) { /* 480, 3/4/4/4, 6 */
-			gr->magic_not_rop_nr = 0x06;
+			gr->screen_tile_row_offset = 0x06;
 		}
 		break;
 	case 0xc3: /* 450, 4/0/0/0, 2 */
-		gr->magic_not_rop_nr = 0x03;
+		gr->screen_tile_row_offset = 0x03;
 		break;
 	case 0xc4: /* 460, 3/4/0/0, 4 */
-		gr->magic_not_rop_nr = 0x01;
+		gr->screen_tile_row_offset = 0x01;
 		break;
 	case 0xc1: /* 2/0/0/0, 1 */
-		gr->magic_not_rop_nr = 0x01;
+		gr->screen_tile_row_offset = 0x01;
 		break;
 	case 0xc8: /* 4/4/3/4, 5 */
-		gr->magic_not_rop_nr = 0x06;
+		gr->screen_tile_row_offset = 0x06;
 		break;
 	case 0xce: /* 4/4/0/0, 4 */
-		gr->magic_not_rop_nr = 0x03;
+		gr->screen_tile_row_offset = 0x03;
 		break;
 	case 0xcf: /* 4/0/0/0, 3 */
-		gr->magic_not_rop_nr = 0x03;
+		gr->screen_tile_row_offset = 0x03;
 		break;
 	case 0xd7:
 	case 0xd9: /* 1/0/0/0, 1 */
 	case 0xea: /* gk20a */
 	case 0x12b: /* gm20b */
-		gr->magic_not_rop_nr = 0x01;
+		gr->screen_tile_row_offset = 0x01;
 		break;
 	}
 
@@ -1851,9 +1851,9 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
-			gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
+			  gr->screen_tile_row_offset << 8 | gr->tpc_nr[gpc]);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
-			gr->tpc_total);
+							 gr->tpc_total);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 

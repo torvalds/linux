@@ -108,7 +108,7 @@ struct gf100_gr {
 	u32  size;
 	u32 *data;
 
-	u8 magic_not_rop_nr;
+	u8 screen_tile_row_offset;
 };
 
 int gf100_gr_ctor(const struct gf100_gr_func *, struct nvkm_device *,

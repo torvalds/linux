@@ -267,7 +267,7 @@ gk20a_gr_init(struct gf100_gr *gr)
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
-			  gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
+			  gr->screen_tile_row_offset << 8 | gr->tpc_nr[gpc]);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
 			  gr->tpc_total);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
