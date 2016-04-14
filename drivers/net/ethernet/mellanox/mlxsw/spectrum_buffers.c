@@ -36,6 +36,7 @@
 #include <linux/types.h>
 #include <linux/dcbnl.h>
 #include <linux/if_ether.h>
+#include <linux/list.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -123,6 +124,41 @@ static int mlxsw_sp_sb_pm_write(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	pm->min_buff = min_buff;
 	pm->max_buff = max_buff;
 	return 0;
+}
+
+static int mlxsw_sp_sb_pm_occ_clear(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+				    u8 pool, enum mlxsw_reg_sbxx_dir dir,
+				    struct list_head *bulk_list)
+{
+	char sbpm_pl[MLXSW_REG_SBPM_LEN];
+
+	mlxsw_reg_sbpm_pack(sbpm_pl, local_port, pool, dir, true, 0, 0);
+	return mlxsw_reg_trans_query(mlxsw_sp->core, MLXSW_REG(sbpm), sbpm_pl,
+				     bulk_list, NULL, 0);
+}
+
+static void mlxsw_sp_sb_pm_occ_query_cb(struct mlxsw_core *mlxsw_core,
+					char *sbpm_pl, size_t sbpm_pl_len,
+					unsigned long cb_priv)
+{
+	struct mlxsw_sp_sb_pm *pm = (struct mlxsw_sp_sb_pm *) cb_priv;
+
+	mlxsw_reg_sbpm_unpack(sbpm_pl, &pm->occ.cur, &pm->occ.max);
+}
+
+static int mlxsw_sp_sb_pm_occ_query(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+				    u8 pool, enum mlxsw_reg_sbxx_dir dir,
+				    struct list_head *bulk_list)
+{
+	char sbpm_pl[MLXSW_REG_SBPM_LEN];
+	struct mlxsw_sp_sb_pm *pm;
+
+	pm = mlxsw_sp_sb_pm_get(mlxsw_sp, local_port, pool, dir);
+	mlxsw_reg_sbpm_pack(sbpm_pl, local_port, pool, dir, false, 0, 0);
+	return mlxsw_reg_trans_query(mlxsw_sp->core, MLXSW_REG(sbpm), sbpm_pl,
+				     bulk_list,
+				     mlxsw_sp_sb_pm_occ_query_cb,
+				     (unsigned long) pm);
 }
 
 static const u16 mlxsw_sp_pbs[] = {
@@ -706,4 +742,223 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 	}
 	return mlxsw_sp_sb_cm_write(mlxsw_sp, local_port, pg_buff, dir,
 				    0, max_buff, pool);
+}
+
+#define MASKED_COUNT_MAX \
+	(MLXSW_REG_SBSR_REC_MAX_COUNT / (MLXSW_SP_SB_TC_COUNT * 2))
+
+struct mlxsw_sp_sb_sr_occ_query_cb_ctx {
+	u8 masked_count;
+	u8 local_port_1;
+};
+
+static void mlxsw_sp_sb_sr_occ_query_cb(struct mlxsw_core *mlxsw_core,
+					char *sbsr_pl, size_t sbsr_pl_len,
+					unsigned long cb_priv)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+	struct mlxsw_sp_sb_sr_occ_query_cb_ctx cb_ctx;
+	u8 masked_count;
+	u8 local_port;
+	int rec_index = 0;
+	struct mlxsw_sp_sb_cm *cm;
+	int i;
+
+	memcpy(&cb_ctx, &cb_priv, sizeof(cb_ctx));
+
+	masked_count = 0;
+	for (local_port = cb_ctx.local_port_1;
+	     local_port < MLXSW_PORT_MAX_PORTS; local_port++) {
+		if (!mlxsw_sp->ports[local_port])
+			continue;
+		for (i = 0; i < MLXSW_SP_SB_TC_COUNT; i++) {
+			cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port, i,
+						MLXSW_REG_SBXX_DIR_INGRESS);
+			mlxsw_reg_sbsr_rec_unpack(sbsr_pl, rec_index++,
+						  &cm->occ.cur, &cm->occ.max);
+		}
+		if (++masked_count == cb_ctx.masked_count)
+			break;
+	}
+	masked_count = 0;
+	for (local_port = cb_ctx.local_port_1;
+	     local_port < MLXSW_PORT_MAX_PORTS; local_port++) {
+		if (!mlxsw_sp->ports[local_port])
+			continue;
+		for (i = 0; i < MLXSW_SP_SB_TC_COUNT; i++) {
+			cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port, i,
+						MLXSW_REG_SBXX_DIR_EGRESS);
+			mlxsw_reg_sbsr_rec_unpack(sbsr_pl, rec_index++,
+						  &cm->occ.cur, &cm->occ.max);
+		}
+		if (++masked_count == cb_ctx.masked_count)
+			break;
+	}
+}
+
+int mlxsw_sp_sb_occ_snapshot(struct mlxsw_core *mlxsw_core,
+			     unsigned int sb_index)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+	struct mlxsw_sp_sb_sr_occ_query_cb_ctx cb_ctx;
+	unsigned long cb_priv;
+	LIST_HEAD(bulk_list);
+	char *sbsr_pl;
+	u8 masked_count;
+	u8 local_port_1;
+	u8 local_port = 0;
+	int i;
+	int err;
+	int err2;
+
+	sbsr_pl = kmalloc(MLXSW_REG_SBSR_LEN, GFP_KERNEL);
+	if (!sbsr_pl)
+		return -ENOMEM;
+
+next_batch:
+	local_port++;
+	local_port_1 = local_port;
+	masked_count = 0;
+	mlxsw_reg_sbsr_pack(sbsr_pl, false);
+	for (i = 0; i < MLXSW_SP_SB_TC_COUNT; i++) {
+		mlxsw_reg_sbsr_pg_buff_mask_set(sbsr_pl, i, 1);
+		mlxsw_reg_sbsr_tclass_mask_set(sbsr_pl, i, 1);
+	}
+	for (; local_port < MLXSW_PORT_MAX_PORTS; local_port++) {
+		if (!mlxsw_sp->ports[local_port])
+			continue;
+		mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl, local_port, 1);
+		mlxsw_reg_sbsr_egress_port_mask_set(sbsr_pl, local_port, 1);
+		for (i = 0; i < MLXSW_SP_SB_POOL_COUNT; i++) {
+			err = mlxsw_sp_sb_pm_occ_query(mlxsw_sp, local_port, i,
+						       MLXSW_REG_SBXX_DIR_INGRESS,
+						       &bulk_list);
+			if (err)
+				goto out;
+			err = mlxsw_sp_sb_pm_occ_query(mlxsw_sp, local_port, i,
+						       MLXSW_REG_SBXX_DIR_EGRESS,
+						       &bulk_list);
+			if (err)
+				goto out;
+		}
+		if (++masked_count == MASKED_COUNT_MAX)
+			goto do_query;
+	}
+
+do_query:
+	cb_ctx.masked_count = masked_count;
+	cb_ctx.local_port_1 = local_port_1;
+	memcpy(&cb_priv, &cb_ctx, sizeof(cb_ctx));
+	err = mlxsw_reg_trans_query(mlxsw_core, MLXSW_REG(sbsr), sbsr_pl,
+				    &bulk_list, mlxsw_sp_sb_sr_occ_query_cb,
+				    cb_priv);
+	if (err)
+		goto out;
+	if (local_port < MLXSW_PORT_MAX_PORTS)
+		goto next_batch;
+
+out:
+	err2 = mlxsw_reg_trans_bulk_wait(&bulk_list);
+	if (!err)
+		err = err2;
+	kfree(sbsr_pl);
+	return err;
+}
+
+int mlxsw_sp_sb_occ_max_clear(struct mlxsw_core *mlxsw_core,
+			      unsigned int sb_index)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+	LIST_HEAD(bulk_list);
+	char *sbsr_pl;
+	unsigned int masked_count;
+	u8 local_port = 0;
+	int i;
+	int err;
+	int err2;
+
+	sbsr_pl = kmalloc(MLXSW_REG_SBSR_LEN, GFP_KERNEL);
+	if (!sbsr_pl)
+		return -ENOMEM;
+
+next_batch:
+	local_port++;
+	masked_count = 0;
+	mlxsw_reg_sbsr_pack(sbsr_pl, true);
+	for (i = 0; i < MLXSW_SP_SB_TC_COUNT; i++) {
+		mlxsw_reg_sbsr_pg_buff_mask_set(sbsr_pl, i, 1);
+		mlxsw_reg_sbsr_tclass_mask_set(sbsr_pl, i, 1);
+	}
+	for (; local_port < MLXSW_PORT_MAX_PORTS; local_port++) {
+		if (!mlxsw_sp->ports[local_port])
+			continue;
+		mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl, local_port, 1);
+		mlxsw_reg_sbsr_egress_port_mask_set(sbsr_pl, local_port, 1);
+		for (i = 0; i < MLXSW_SP_SB_POOL_COUNT; i++) {
+			err = mlxsw_sp_sb_pm_occ_clear(mlxsw_sp, local_port, i,
+						       MLXSW_REG_SBXX_DIR_INGRESS,
+						       &bulk_list);
+			if (err)
+				goto out;
+			err = mlxsw_sp_sb_pm_occ_clear(mlxsw_sp, local_port, i,
+						       MLXSW_REG_SBXX_DIR_EGRESS,
+						       &bulk_list);
+			if (err)
+				goto out;
+		}
+		if (++masked_count == MASKED_COUNT_MAX)
+			goto do_query;
+	}
+
+do_query:
+	err = mlxsw_reg_trans_query(mlxsw_core, MLXSW_REG(sbsr), sbsr_pl,
+				    &bulk_list, NULL, 0);
+	if (err)
+		goto out;
+	if (local_port < MLXSW_PORT_MAX_PORTS)
+		goto next_batch;
+
+out:
+	err2 = mlxsw_reg_trans_bulk_wait(&bulk_list);
+	if (!err)
+		err = err2;
+	kfree(sbsr_pl);
+	return err;
+}
+
+int mlxsw_sp_sb_occ_port_pool_get(struct mlxsw_core_port *mlxsw_core_port,
+				  unsigned int sb_index, u16 pool_index,
+				  u32 *p_cur, u32 *p_max)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port =
+			mlxsw_core_port_driver_priv(mlxsw_core_port);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 local_port = mlxsw_sp_port->local_port;
+	u8 pool = pool_get(pool_index);
+	enum mlxsw_reg_sbxx_dir dir = dir_get(pool_index);
+	struct mlxsw_sp_sb_pm *pm = mlxsw_sp_sb_pm_get(mlxsw_sp, local_port,
+						       pool, dir);
+
+	*p_cur = MLXSW_SP_CELLS_TO_BYTES(pm->occ.cur);
+	*p_max = MLXSW_SP_CELLS_TO_BYTES(pm->occ.max);
+	return 0;
+}
+
+int mlxsw_sp_sb_occ_tc_port_bind_get(struct mlxsw_core_port *mlxsw_core_port,
+				     unsigned int sb_index, u16 tc_index,
+				     enum devlink_sb_pool_type pool_type,
+				     u32 *p_cur, u32 *p_max)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port =
+			mlxsw_core_port_driver_priv(mlxsw_core_port);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 local_port = mlxsw_sp_port->local_port;
+	u8 pg_buff = tc_index;
+	enum mlxsw_reg_sbxx_dir dir = pool_type;
+	struct mlxsw_sp_sb_cm *cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port,
+						       pg_buff, dir);
+
+	*p_cur = MLXSW_SP_CELLS_TO_BYTES(cm->occ.cur);
+	*p_max = MLXSW_SP_CELLS_TO_BYTES(cm->occ.max);
+	return 0;
 }

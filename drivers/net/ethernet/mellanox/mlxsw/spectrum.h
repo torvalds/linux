@@ -123,15 +123,22 @@ struct mlxsw_sp_sb_pr {
 	u32 size;
 };
 
+struct mlxsw_cp_sb_occ {
+	u32 cur;
+	u32 max;
+};
+
 struct mlxsw_sp_sb_cm {
 	u32 min_buff;
 	u32 max_buff;
 	u8 pool;
+	struct mlxsw_cp_sb_occ occ;
 };
 
 struct mlxsw_sp_sb_pm {
 	u32 min_buff;
 	u32 max_buff;
+	struct mlxsw_cp_sb_occ occ;
 };
 
 #define MLXSW_SP_SB_POOL_COUNT	4
@@ -328,6 +335,17 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 				 unsigned int sb_index, u16 tc_index,
 				 enum devlink_sb_pool_type pool_type,
 				 u16 pool_index, u32 threshold);
+int mlxsw_sp_sb_occ_snapshot(struct mlxsw_core *mlxsw_core,
+			     unsigned int sb_index);
+int mlxsw_sp_sb_occ_max_clear(struct mlxsw_core *mlxsw_core,
+			      unsigned int sb_index);
+int mlxsw_sp_sb_occ_port_pool_get(struct mlxsw_core_port *mlxsw_core_port,
+				  unsigned int sb_index, u16 pool_index,
+				  u32 *p_cur, u32 *p_max);
+int mlxsw_sp_sb_occ_tc_port_bind_get(struct mlxsw_core_port *mlxsw_core_port,
+				     unsigned int sb_index, u16 tc_index,
+				     enum devlink_sb_pool_type pool_type,
+				     u32 *p_cur, u32 *p_max);
 
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_switchdev_fini(struct mlxsw_sp *mlxsw_sp);
