@@ -3054,6 +3054,7 @@ static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 
 	if (efuse->rf_regulatory & 0x20) {
 		sprintf(priv->chip_name, "8188RU");
+		priv->rtl_chip = RTL8188R;
 		priv->hi_pa = 1;
 	}
 
@@ -4059,11 +4060,8 @@ static int rtl8192cu_init_phy_rf(struct rtl8xxxu_priv *priv)
 	struct rtl8xxxu_rfregval *rftable;
 	int ret;
 
-	if (priv->rtl_chip == RTL8188C) {
-		if (priv->hi_pa)
-			rftable = rtl8188ru_radioa_1t_highpa_table;
-		else
-			rftable = rtl8192cu_radioa_1t_init_table;
+	if (priv->rtl_chip == RTL8188R) {
+		rftable = rtl8188ru_radioa_1t_highpa_table;
 		ret = rtl8xxxu_init_phy_rf(priv, rftable, RF_A);
 	} else if (priv->rf_paths == 1) {
 		rftable = rtl8192cu_radioa_1t_init_table;
@@ -7219,7 +7217,7 @@ static int rtl8192cu_power_on(struct rtl8xxxu_priv *priv)
 	/*
 	 * Workaround for 8188RU LNA power leakage problem.
 	 */
-	if (priv->rtl_chip == RTL8188C && priv->hi_pa) {
+	if (priv->rtl_chip == RTL8188R) {
 		val32 = rtl8xxxu_read32(priv, REG_FPGA0_XCD_RF_PARM);
 		val32 &= ~BIT(1);
 		rtl8xxxu_write32(priv, REG_FPGA0_XCD_RF_PARM, val32);
@@ -7323,7 +7321,7 @@ static void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv)
 	/*
 	 * Workaround for 8188RU LNA power leakage problem.
 	 */
-	if (priv->rtl_chip == RTL8188C && priv->hi_pa) {
+	if (priv->rtl_chip == RTL8188R) {
 		val32 = rtl8xxxu_read32(priv, REG_FPGA0_XCD_RF_PARM);
 		val32 |= BIT(1);
 		rtl8xxxu_write32(priv, REG_FPGA0_XCD_RF_PARM, val32);
