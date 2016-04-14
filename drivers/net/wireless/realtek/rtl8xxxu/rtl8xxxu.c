@@ -5897,8 +5897,6 @@ static void rtl8192eu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 		dev_dbg(dev, "%s: Path A RX IQK failed!\n", __func__);
 
 	if (priv->rf_paths > 1) {
-		dev_warn(dev, "%s: Path B ongoing\n", __func__);
-
 		/* Path A into standby */
 		rtl8xxxu_write32(priv, REG_FPGA0_IQK, 0x00000000);
 		rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_AC, 0x10000);
