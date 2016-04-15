@@ -709,7 +709,7 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
 		}
 
-		if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
+		if (IS_GEN9(dev_priv))
 			gen9_sanitize_power_well_requests(dev_priv, power_well);
 	}
 
