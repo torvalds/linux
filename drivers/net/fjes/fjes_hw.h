@@ -300,6 +300,8 @@ struct fjes_hw {
 	u8 *base;
 
 	struct fjes_hw_info hw_info;
+
+	spinlock_t rx_status_lock; /* spinlock for rx_status */
 };
 
 int fjes_hw_init(struct fjes_hw *);
