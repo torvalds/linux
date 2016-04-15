@@ -3445,11 +3445,11 @@ int drm_mode_addfb2(struct drm_device *dev,
 	if (IS_ERR(fb))
 		return PTR_ERR(fb);
 
-	/* Transfer ownership to the filp for reaping on close */
-
 	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
-	mutex_lock(&file_priv->fbs_lock);
 	r->fb_id = fb->base.id;
+
+	/* Transfer ownership to the filp for reaping on close */
+	mutex_lock(&file_priv->fbs_lock);
 	list_add(&fb->filp_head, &file_priv->fbs);
 	mutex_unlock(&file_priv->fbs_lock);
 
