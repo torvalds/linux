@@ -1603,46 +1603,40 @@ static struct dentry *lookup_slow(const struct qstr *name,
 				  struct dentry *dir,
 				  unsigned int flags)
 {
-	struct dentry *dentry, *old;
+	struct dentry *dentry = ERR_PTR(-ENOENT), *old;
 	struct inode *inode = dir->d_inode;
 
 	inode_lock(inode);
 	/* Don't go there if it's already dead */
-	if (unlikely(IS_DEADDIR(inode))) {
-		inode_unlock(inode);
-		return ERR_PTR(-ENOENT);
-	}
-	dentry = d_lookup(dir, name);
-	if (unlikely(dentry)) {
+	if (unlikely(IS_DEADDIR(inode)))
+		goto out;
+again:
+	dentry = d_alloc_parallel(dir, name);
+	if (IS_ERR(dentry))
+		goto out;
+	if (unlikely(!d_in_lookup(dentry))) {
 		if ((dentry->d_flags & DCACHE_OP_REVALIDATE) &&
 		    !(flags & LOOKUP_NO_REVAL)) {
 			int error = d_revalidate(dentry, flags);
 			if (unlikely(error <= 0)) {
-				if (!error)
+				if (!error) {
 					d_invalidate(dentry);
+					dput(dentry);
+					goto again;
+				}
 				dput(dentry);
 				dentry = ERR_PTR(error);
 			}
 		}
-		if (dentry) {
-			inode_unlock(inode);
-			return dentry;
+	} else {
+		old = inode->i_op->lookup(inode, dentry, flags);
+		d_lookup_done(dentry);
+		if (unlikely(old)) {
+			dput(dentry);
+			dentry = old;
 		}
 	}
-	dentry = d_alloc(dir, name);
-	if (unlikely(!dentry)) {
-		inode_unlock(inode);
-		return ERR_PTR(-ENOMEM);
-	}
-	spin_lock(&dentry->d_lock);
-	dentry->d_flags |= DCACHE_PAR_LOOKUP;
-	spin_unlock(&dentry->d_lock);
-	old = inode->i_op->lookup(inode, dentry, flags);
-	d_lookup_done(dentry);
-	if (unlikely(old)) {
-		dput(dentry);
-		dentry = old;
-	}
+out:
 	inode_unlock(inode);
 	return dentry;
 }
