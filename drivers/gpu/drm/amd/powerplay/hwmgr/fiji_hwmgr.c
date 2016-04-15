@@ -579,6 +579,18 @@ static int fiji_patch_boot_state(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int fiji_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+
+	if (data->soft_pp_table) {
+		kfree(data->soft_pp_table);
+		data->soft_pp_table = NULL;
+	}
+
+	return phm_hwmgr_backend_fini(hwmgr);
+}
+
 static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
@@ -734,7 +746,7 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			data->pcie_lane_cap = (uint32_t)sys_info.value;
 	} else {
 		/* Ignore return value in here, we are cleaning up a mess. */
-		tonga_hwmgr_backend_fini(hwmgr);
+		fiji_hwmgr_backend_fini(hwmgr);
 	}
 
 	return 0;
@@ -5096,18 +5108,34 @@ static int fiji_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 
-	*table = (char *)&data->smc_state_table;
+	if (!data->soft_pp_table) {
+		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+		if (!data->soft_pp_table)
+			return -ENOMEM;
+		memcpy(data->soft_pp_table, hwmgr->soft_pp_table,
+				hwmgr->soft_pp_table_size);
+	}
 
-	return sizeof(struct SMU73_Discrete_DpmTable);
+	*table = (char *)&data->soft_pp_table;
+
+	return hwmgr->soft_pp_table_size;
 }
 
 static int fiji_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 
-	void *table = (void *)&data->smc_state_table;
+	if (!data->soft_pp_table) {
+		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+		if (!data->soft_pp_table)
+			return -ENOMEM;
+	}
 
-	memcpy(table, buf, size);
+	memcpy(data->soft_pp_table, buf, size);
+
+	hwmgr->soft_pp_table = data->soft_pp_table;
+
+	/* TODO: re-init powerplay to implement modified pptable */
 
 	return 0;
 }
@@ -5284,7 +5312,7 @@ bool fiji_check_smc_update_required_for_display_configuration(struct pp_hwmgr *h
 
 static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.backend_init = &fiji_hwmgr_backend_init,
-	.backend_fini = &tonga_hwmgr_backend_fini,
+	.backend_fini = &fiji_hwmgr_backend_fini,
 	.asic_setup = &fiji_setup_asic_task,
 	.dynamic_state_management_enable = &fiji_enable_dpm_tasks,
 	.force_dpm_level = &fiji_dpm_force_dpm_level,
