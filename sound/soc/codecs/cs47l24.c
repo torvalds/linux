@@ -1108,6 +1108,9 @@ static int cs47l24_codec_remove(struct snd_soc_codec *codec)
 	priv->core.arizona->dapm = NULL;
 
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
+
+	arizona_free_spk(codec);
+
 	return 0;
 }
 

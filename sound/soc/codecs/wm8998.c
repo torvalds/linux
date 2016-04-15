@@ -1324,6 +1324,8 @@ static int wm8998_codec_remove(struct snd_soc_codec *codec)
 
 	priv->core.arizona->dapm = NULL;
 
+	arizona_free_spk(codec);
+
 	return 0;
 }
 

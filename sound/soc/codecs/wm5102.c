@@ -1960,6 +1960,8 @@ static int wm5102_codec_remove(struct snd_soc_codec *codec)
 
 	priv->core.arizona->dapm = NULL;
 
+	arizona_free_spk(codec);
+
 	return 0;
 }
 
