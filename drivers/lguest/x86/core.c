@@ -429,8 +429,12 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 			return;
 		break;
 	case 32 ... 255:
+		/* This might be a syscall. */
+		if (could_be_syscall(cpu->regs->trapnum))
+			break;
+
 		/*
-		 * These values mean a real interrupt occurred, in which case
+		 * Other values mean a real interrupt occurred, in which case
 		 * the Host handler has already been run. We just do a
 		 * friendly check if another process should now be run, then
 		 * return to run the Guest again.
