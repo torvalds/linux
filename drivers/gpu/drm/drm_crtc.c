@@ -364,6 +364,11 @@ static struct drm_mode_object *_object_find(struct drm_device *dev,
 	if (obj &&
 	    obj->type == DRM_MODE_OBJECT_BLOB)
 		obj = NULL;
+
+	if (obj && obj->free_cb) {
+		if (!kref_get_unless_zero(&obj->refcount))
+			obj = NULL;
+	}
 	mutex_unlock(&dev->mode_config.idr_mutex);
 
 	return obj;
@@ -495,11 +500,8 @@ struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 
 	mutex_lock(&dev->mode_config.fb_lock);
 	obj = _object_find(dev, id, DRM_MODE_OBJECT_FB);
-	if (obj) {
+	if (obj)
 		fb = obj_to_fb(obj);
-		if (!kref_get_unless_zero(&fb->base.refcount))
-			fb = NULL;
-	}
 	mutex_unlock(&dev->mode_config.fb_lock);
 
 	return fb;
@@ -3474,37 +3476,38 @@ int drm_mode_rmfb(struct drm_device *dev,
 {
 	struct drm_framebuffer *fb = NULL;
 	struct drm_framebuffer *fbl = NULL;
-	struct drm_mode_object *obj;
 	uint32_t *id = data;
 	int found = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
+	fb = drm_framebuffer_lookup(dev, *id);
+	if (!fb)
+		return -ENOENT;
+
 	mutex_lock(&file_priv->fbs_lock);
-	mutex_lock(&dev->mode_config.fb_lock);
-	obj = _object_find(dev, *id, DRM_MODE_OBJECT_FB);
-	if (!obj)
-		goto fail_lookup;
-	fb = obj_to_fb(obj);
 	list_for_each_entry(fbl, &file_priv->fbs, filp_head)
 		if (fb == fbl)
 			found = 1;
-	if (!found)
-		goto fail_lookup;
+	if (!found) {
+		mutex_unlock(&file_priv->fbs_lock);
+		goto fail_unref;
+	}
 
 	list_del_init(&fb->filp_head);
-	mutex_unlock(&dev->mode_config.fb_lock);
 	mutex_unlock(&file_priv->fbs_lock);
 
+	/* we now own the reference that was stored in the fbs list */
+	drm_framebuffer_unreference(fb);
+
+	/* drop the reference we picked up in framebuffer lookup */
 	drm_framebuffer_unreference(fb);
 
 	return 0;
 
-fail_lookup:
-	mutex_unlock(&dev->mode_config.fb_lock);
-	mutex_unlock(&file_priv->fbs_lock);
-
+fail_unref:
+	drm_framebuffer_unreference(fb);
 	return -ENOENT;
 }
 
