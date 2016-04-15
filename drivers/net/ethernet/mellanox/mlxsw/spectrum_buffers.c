@@ -162,16 +162,8 @@ static int mlxsw_sp_sb_pm_occ_query(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 }
 
 static const u16 mlxsw_sp_pbs[] = {
-	2 * MLXSW_SP_BYTES_TO_CELLS(ETH_FRAME_LEN),
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0, /* Unused */
-	2 * MLXSW_SP_BYTES_TO_CELLS(MLXSW_PORT_MAX_MTU),
+	[0] = 2 * MLXSW_SP_BYTES_TO_CELLS(ETH_FRAME_LEN),
+	[9] = 2 * MLXSW_SP_BYTES_TO_CELLS(MLXSW_PORT_MAX_MTU),
 };
 
 #define MLXSW_SP_PBS_LEN ARRAY_SIZE(mlxsw_sp_pbs)
