@@ -323,19 +323,24 @@ static void drm_mode_object_register(struct drm_device *dev,
 }
 
 /**
- * drm_mode_object_put - free a modeset identifer
+ * drm_mode_object_unregister - free a modeset identifer
  * @dev: DRM device
  * @object: object to free
  *
- * Free @id from @dev's unique identifier pool. Note that despite the _get
- * postfix modeset identifiers are _not_ reference counted. Hence don't use this
+ * Free @id from @dev's unique identifier pool.
+ * This function can be called multiple times, and guards against
+ * multiple removals.
+ * These modeset identifiers are _not_ reference counted. Hence don't use this
  * for reference counted modeset objects like framebuffers.
  */
-void drm_mode_object_put(struct drm_device *dev,
+void drm_mode_object_unregister(struct drm_device *dev,
 			 struct drm_mode_object *object)
 {
 	mutex_lock(&dev->mode_config.idr_mutex);
-	idr_remove(&dev->mode_config.crtc_idr, object->id);
+	if (object->id) {
+		idr_remove(&dev->mode_config.crtc_idr, object->id);
+		object->id = 0;
+	}
 	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
@@ -705,7 +710,7 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 				       drm_num_crtcs(dev));
 	}
 	if (!crtc->name) {
-		drm_mode_object_put(dev, &crtc->base);
+		drm_mode_object_unregister(dev, &crtc->base);
 		return -ENOMEM;
 	}
 
@@ -747,7 +752,7 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 
 	drm_modeset_lock_fini(&crtc->mutex);
 
-	drm_mode_object_put(dev, &crtc->base);
+	drm_mode_object_unregister(dev, &crtc->base);
 	list_del(&crtc->head);
 	dev->mode_config.num_crtc--;
 
@@ -972,7 +977,7 @@ out_put_id:
 		ida_remove(&config->connector_ida, connector->connector_id);
 out_put:
 	if (ret)
-		drm_mode_object_put(dev, &connector->base);
+		drm_mode_object_unregister(dev, &connector->base);
 
 out_unlock:
 	drm_modeset_unlock_all(dev);
@@ -1010,7 +1015,7 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		   connector->connector_id);
 
 	kfree(connector->display_info.bus_formats);
-	drm_mode_object_put(dev, &connector->base);
+	drm_mode_object_unregister(dev, &connector->base);
 	kfree(connector->name);
 	connector->name = NULL;
 	list_del(&connector->head);
@@ -1178,7 +1183,7 @@ int drm_encoder_init(struct drm_device *dev,
 
 out_put:
 	if (ret)
-		drm_mode_object_put(dev, &encoder->base);
+		drm_mode_object_unregister(dev, &encoder->base);
 
 out_unlock:
 	drm_modeset_unlock_all(dev);
@@ -1221,7 +1226,7 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 
 	drm_modeset_lock_all(dev);
-	drm_mode_object_put(dev, &encoder->base);
+	drm_mode_object_unregister(dev, &encoder->base);
 	kfree(encoder->name);
 	list_del(&encoder->head);
 	dev->mode_config.num_encoder--;
@@ -1282,7 +1287,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 					    GFP_KERNEL);
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
-		drm_mode_object_put(dev, &plane->base);
+		drm_mode_object_unregister(dev, &plane->base);
 		return -ENOMEM;
 	}
 
@@ -1298,7 +1303,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	}
 	if (!plane->name) {
 		kfree(plane->format_types);
-		drm_mode_object_put(dev, &plane->base);
+		drm_mode_object_unregister(dev, &plane->base);
 		return -ENOMEM;
 	}
 
@@ -1378,7 +1383,7 @@ void drm_plane_cleanup(struct drm_plane *plane)
 
 	drm_modeset_lock_all(dev);
 	kfree(plane->format_types);
-	drm_mode_object_put(dev, &plane->base);
+	drm_mode_object_unregister(dev, &plane->base);
 
 	BUG_ON(list_empty(&plane->head));
 
@@ -4069,7 +4074,7 @@ void drm_property_destroy(struct drm_device *dev, struct drm_property *property)
 
 	if (property->num_values)
 		kfree(property->values);
-	drm_mode_object_put(dev, &property->base);
+	drm_mode_object_unregister(dev, &property->base);
 	list_del(&property->head);
 	kfree(property);
 }
@@ -4347,7 +4352,7 @@ static void drm_property_free_blob(struct kref *kref)
 
 	list_del(&blob->head_global);
 	list_del(&blob->head_file);
-	drm_mode_object_put(blob->dev, &blob->base);
+	drm_mode_object_unregister(blob->dev, &blob->base);
 
 	kfree(blob);
 }

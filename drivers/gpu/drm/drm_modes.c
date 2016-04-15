@@ -98,7 +98,7 @@ void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode)
 	if (!mode)
 		return;
 
-	drm_mode_object_put(dev, &mode->base);
+	drm_mode_object_unregister(dev, &mode->base);
 
 	kfree(mode);
 }
