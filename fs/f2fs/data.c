@@ -992,7 +992,7 @@ submit_and_realloc:
 			if (f2fs_encrypted_inode(inode) &&
 					S_ISREG(inode->i_mode)) {
 
-				ctx = fscrypt_get_ctx(inode);
+				ctx = fscrypt_get_ctx(inode, GFP_NOFS);
 				if (IS_ERR(ctx))
 					goto set_error_page;
 
@@ -1092,14 +1092,24 @@ int do_write_data_page(struct f2fs_io_info *fio)
 	}
 
 	if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode)) {
+		gfp_t gfp_flags = GFP_NOFS;
 
 		/* wait for GCed encrypted page writeback */
 		f2fs_wait_on_encrypted_page_writeback(F2FS_I_SB(inode),
 							fio->old_blkaddr);
-
-		fio->encrypted_page = fscrypt_encrypt_page(inode, fio->page);
+retry_encrypt:
+		fio->encrypted_page = fscrypt_encrypt_page(inode, fio->page,
+								gfp_flags);
 		if (IS_ERR(fio->encrypted_page)) {
 			err = PTR_ERR(fio->encrypted_page);
+			if (err == -ENOMEM) {
+				/* flush pending ios and wait for a while */
+				f2fs_flush_merged_bios(F2FS_I_SB(inode));
+				congestion_wait(BLK_RW_ASYNC, HZ/50);
+				gfp_flags |= __GFP_NOFAIL;
+				err = 0;
+				goto retry_encrypt;
+			}
 			goto out_writepage;
 		}
 	}
