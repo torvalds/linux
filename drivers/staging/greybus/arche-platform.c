@@ -19,6 +19,7 @@
 #include <linux/pm.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/suspend.h>
 #include <linux/time.h>
 #include "arche_platform.h"
 
@@ -56,6 +57,7 @@ struct arche_platform_drvdata {
 	int wake_detect_irq;
 	spinlock_t lock;
 	unsigned long wake_detect_start;
+	struct notifier_block pm_notifier;
 
 	struct device *dev;
 };
@@ -339,6 +341,31 @@ static ssize_t state_show(struct device *dev,
 
 static DEVICE_ATTR_RW(state);
 
+static int arche_platform_pm_notifier(struct notifier_block *notifier,
+				      unsigned long pm_event, void *unused)
+{
+	struct arche_platform_drvdata *arche_pdata =
+		container_of(notifier, struct arche_platform_drvdata,
+			     pm_notifier);
+
+	switch (pm_event) {
+	case PM_SUSPEND_PREPARE:
+		if (arche_pdata->state != ARCHE_PLATFORM_STATE_ACTIVE)
+			return NOTIFY_STOP;
+		device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
+		arche_platform_poweroff_seq(arche_pdata);
+		break;
+	case PM_POST_SUSPEND:
+		arche_platform_coldboot_seq(arche_pdata);
+		assert_wakedetect(arche_pdata);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int arche_platform_probe(struct platform_device *pdev)
 {
 	struct arche_platform_drvdata *arche_pdata;
@@ -474,6 +501,13 @@ static int arche_platform_probe(struct platform_device *pdev)
 
 	assert_wakedetect(arche_pdata);
 
+	arche_pdata->pm_notifier.notifier_call = arche_platform_pm_notifier;
+	ret = register_pm_notifier(&arche_pdata->pm_notifier);
+	if (ret) {
+		dev_err(dev, "failed to register pm notifier %d\n", ret);
+		goto err_populate;
+	}
+
 	dev_info(dev, "Device registered successfully\n");
 	return 0;
 
@@ -497,6 +531,7 @@ static int arche_platform_remove(struct platform_device *pdev)
 {
 	struct arche_platform_drvdata *arche_pdata = platform_get_drvdata(pdev);
 
+	unregister_pm_notifier(&arche_pdata->pm_notifier);
 	device_remove_file(&pdev->dev, &dev_attr_state);
 	device_for_each_child(&pdev->dev, NULL, arche_remove_child);
 	arche_platform_poweroff_seq(arche_pdata);
