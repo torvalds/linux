@@ -549,7 +549,8 @@ static void fjes_raise_intr_rxdata_task(struct work_struct *work)
 		if ((hw->ep_shm_info[epid].tx_status_work ==
 		     FJES_TX_DELAY_SEND_PENDING) &&
 		    (pstatus == EP_PARTNER_SHARED) &&
-		    !(hw->ep_shm_info[epid].rx.info->v1i.rx_status)) {
+		    !(hw->ep_shm_info[epid].rx.info->v1i.rx_status &
+		      FJES_RX_POLL_WORK)) {
 			fjes_hw_raise_interrupt(hw, epid,
 						REG_ICTL_MASK_RX_DATA);
 		}
