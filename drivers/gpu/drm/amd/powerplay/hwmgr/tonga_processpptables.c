@@ -138,12 +138,15 @@ const void *get_powerplay_table(struct pp_hwmgr *hwmgr)
 
 	u16 size;
 	u8 frev, crev;
-	void *table_address;
+	void *table_address = (void *)hwmgr->soft_pp_table;
 
-	table_address = (ATOM_Tonga_POWERPLAYTABLE *)
-		cgs_atom_get_data_table(hwmgr->device, index, &size, &frev, &crev);
-
-	hwmgr->soft_pp_table = table_address;	/*Cache the result in RAM.*/
+	if (!table_address) {
+		table_address = (ATOM_Tonga_POWERPLAYTABLE *)
+				cgs_atom_get_data_table(hwmgr->device,
+						index, &size, &frev, &crev);
+		hwmgr->soft_pp_table = table_address;	/*Cache the result in RAM.*/
+		hwmgr->soft_pp_table_size = size;
+	}
 
 	return table_address;
 }
