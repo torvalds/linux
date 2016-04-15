@@ -34,12 +34,6 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 
-#define PCI_ASLE		0xe4
-#define PCI_ASLS		0xfc
-#define PCI_SWSCI		0xe8
-#define PCI_SWSCI_SCISEL	(1 << 15)
-#define PCI_SWSCI_GSSCIE	(1 << 0)
-
 #define OPREGION_HEADER_OFFSET 0
 #define OPREGION_ACPI_OFFSET   0x100
 #define   ACPI_CLID 0x01ac /* current lid state indicator */
@@ -251,7 +245,7 @@ static int swsci(struct drm_device *dev, u32 function, u32 parm, u32 *parm_out)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct opregion_swsci *swsci = dev_priv->opregion.swsci;
 	u32 main_function, sub_function, scic;
-	u16 pci_swsci;
+	u16 swsci_val;
 	u32 dslp;
 
 	if (!swsci)
@@ -299,16 +293,16 @@ static int swsci(struct drm_device *dev, u32 function, u32 parm, u32 *parm_out)
 	swsci->scic = scic;
 
 	/* Ensure SCI event is selected and event trigger is cleared. */
-	pci_read_config_word(dev->pdev, PCI_SWSCI, &pci_swsci);
-	if (!(pci_swsci & PCI_SWSCI_SCISEL) || (pci_swsci & PCI_SWSCI_GSSCIE)) {
-		pci_swsci |= PCI_SWSCI_SCISEL;
-		pci_swsci &= ~PCI_SWSCI_GSSCIE;
-		pci_write_config_word(dev->pdev, PCI_SWSCI, pci_swsci);
+	pci_read_config_word(dev->pdev, SWSCI, &swsci_val);
+	if (!(swsci_val & SWSCI_SCISEL) || (swsci_val & SWSCI_GSSCIE)) {
+		swsci_val |= SWSCI_SCISEL;
+		swsci_val &= ~SWSCI_GSSCIE;
+		pci_write_config_word(dev->pdev, SWSCI, swsci_val);
 	}
 
 	/* Use event trigger to tell bios to check the mail. */
-	pci_swsci |= PCI_SWSCI_GSSCIE;
-	pci_write_config_word(dev->pdev, PCI_SWSCI, pci_swsci);
+	swsci_val |= SWSCI_GSSCIE;
+	pci_write_config_word(dev->pdev, SWSCI, swsci_val);
 
 	/* Poll for the result. */
 #define C (((scic = swsci->scic) & SWSCI_SCIC_INDICATOR) == 0)
@@ -939,7 +933,7 @@ int intel_opregion_setup(struct drm_device *dev)
 	BUILD_BUG_ON(sizeof(struct opregion_asle) != 0x100);
 	BUILD_BUG_ON(sizeof(struct opregion_asle_ext) != 0x400);
 
-	pci_read_config_dword(dev->pdev, PCI_ASLS, &asls);
+	pci_read_config_dword(dev->pdev, ASLS, &asls);
 	DRM_DEBUG_DRIVER("graphic opregion physical addr: 0x%x\n", asls);
 	if (asls == 0) {
 		DRM_DEBUG_DRIVER("ACPI OpRegion not supported!\n");

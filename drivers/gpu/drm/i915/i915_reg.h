@@ -79,6 +79,16 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 /* PCI config space */
 
+#define MCHBAR_I915 0x44
+#define MCHBAR_I965 0x48
+#define MCHBAR_SIZE (4 * 4096)
+
+#define DEVEN 0x54
+#define   DEVEN_MCHBAR_EN (1 << 28)
+
+#define BSM 0x5c
+#define   BSM_MASK (0xFFFF << 20)
+
 #define HPLLCC	0xc0 /* 85x only */
 #define   GC_CLOCK_CONTROL_MASK		(0x7 << 0)
 #define   GC_CLOCK_133_200		(0 << 0)
@@ -89,6 +99,16 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   GC_CLOCK_133_266_2		(5 << 0)
 #define   GC_CLOCK_166_266		(6 << 0)
 #define   GC_CLOCK_166_250		(7 << 0)
+
+#define I915_GDRST 0xc0 /* PCI config register */
+#define   GRDOM_FULL		(0 << 2)
+#define   GRDOM_RENDER		(1 << 2)
+#define   GRDOM_MEDIA		(3 << 2)
+#define   GRDOM_MASK		(3 << 2)
+#define   GRDOM_RESET_STATUS	(1 << 1)
+#define   GRDOM_RESET_ENABLE	(1 << 0)
+
+#define GCDGMBUS 0xcc
 
 #define GCFGC2	0xda
 #define GCFGC	0xf0 /* 915+ only */
@@ -121,18 +141,16 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   I915_GC_RENDER_CLOCK_166_MHZ	(0 << 0)
 #define   I915_GC_RENDER_CLOCK_200_MHZ	(1 << 0)
 #define   I915_GC_RENDER_CLOCK_333_MHZ	(4 << 0)
-#define GCDGMBUS 0xcc
-#define PCI_LBPC 0xf4 /* legacy/combination backlight modes, also called LBB */
 
+#define ASLE	0xe4
+#define ASLS	0xfc
 
-/* Graphics reset regs */
-#define I915_GDRST 0xc0 /* PCI config register */
-#define  GRDOM_FULL	(0<<2)
-#define  GRDOM_RENDER	(1<<2)
-#define  GRDOM_MEDIA	(3<<2)
-#define  GRDOM_MASK	(3<<2)
-#define  GRDOM_RESET_STATUS (1<<1)
-#define  GRDOM_RESET_ENABLE (1<<0)
+#define SWSCI	0xe8
+#define   SWSCI_SCISEL	(1 << 15)
+#define   SWSCI_GSSCIE	(1 << 0)
+
+#define LBPC 0xf4 /* legacy/combination backlight modes, also called LBB */
+
 
 #define ILK_GDSR _MMIO(MCHBAR_MIRROR_BASE + 0x2ca4)
 #define  ILK_GRDOM_FULL		(0<<1)

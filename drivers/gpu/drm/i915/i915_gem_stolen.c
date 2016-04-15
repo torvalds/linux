@@ -95,9 +95,9 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	u32 base;
 
 	/* Almost universally we can find the Graphics Base of Stolen Memory
-	 * at offset 0x5c in the igfx configuration space. On a few (desktop)
-	 * machines this is also mirrored in the bridge device at different
-	 * locations, or in the MCHBAR.
+	 * at register BSM (0x5c) in the igfx configuration space. On a few
+	 * (desktop) machines this is also mirrored in the bridge device at
+	 * different locations, or in the MCHBAR.
 	 *
 	 * On 865 we just check the TOUD register.
 	 *
@@ -107,9 +107,11 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	 */
 	base = 0;
 	if (INTEL_INFO(dev)->gen >= 3) {
-		/* Read Graphics Base of Stolen Memory directly */
-		pci_read_config_dword(dev->pdev, 0x5c, &base);
-		base &= ~((1<<20) - 1);
+		u32 bsm;
+
+		pci_read_config_dword(dev->pdev, BSM, &bsm);
+
+		base = bsm & BSM_MASK;
 	} else if (IS_I865G(dev)) {
 		u16 toud = 0;
 
