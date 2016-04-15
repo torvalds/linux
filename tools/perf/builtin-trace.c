@@ -1849,7 +1849,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			goto out_put;
 	}
 
-	if (!trace->summary_only)
+	if (!(trace->duration_filter || trace->summary_only))
 		trace__printf_interrupted_entry(trace, sample);
 
 	ttrace->entry_time = sample->time;
