@@ -715,8 +715,11 @@ static int ceph_writepages_start(struct address_space *mapping,
 	     (wbc->sync_mode == WB_SYNC_ALL ? "ALL" : "HOLD"));
 
 	if (ACCESS_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
-		pr_warn("writepage_start %p on forced umount\n", inode);
-		truncate_pagecache(inode, 0);
+		if (ci->i_wrbuffer_ref > 0) {
+			pr_warn_ratelimited(
+				"writepage_start %p %lld forced umount\n",
+				inode, ceph_ino(inode));
+		}
 		mapping_set_error(mapping, -EIO);
 		return -EIO; /* we're in a forced umount, don't write! */
 	}
@@ -1127,6 +1130,7 @@ static int ceph_update_writeable_page(struct file *file,
 			    struct page *page)
 {
 	struct inode *inode = file_inode(file);
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	loff_t page_off = pos & PAGE_MASK;
 	int pos_in_page = pos & ~PAGE_MASK;
@@ -1134,6 +1138,12 @@ static int ceph_update_writeable_page(struct file *file,
 	loff_t i_size;
 	int r;
 	struct ceph_snap_context *snapc, *oldest;
+
+	if (ACCESS_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
+		dout(" page %p forced umount\n", page);
+		unlock_page(page);
+		return -EIO;
+	}
 
 retry_locked:
 	/* writepages currently holds page lock, but if we change that later, */

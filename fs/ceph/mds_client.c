@@ -1120,9 +1120,11 @@ out:
 static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 				  void *arg)
 {
+	struct ceph_fs_client *fsc = (struct ceph_fs_client *)arg;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	LIST_HEAD(to_remove);
-	int drop = 0;
+	bool drop = false;
+	bool invalidate = false;
 
 	dout("removing cap %p, ci is %p, inode is %p\n",
 	     cap, ci, &ci->vfs_inode);
@@ -1130,10 +1132,13 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	__ceph_remove_cap(cap, false);
 	if (!ci->i_auth_cap) {
 		struct ceph_cap_flush *cf;
-		struct ceph_mds_client *mdsc =
-			ceph_sb_to_client(inode->i_sb)->mdsc;
+		struct ceph_mds_client *mdsc = fsc->mdsc;
 
 		ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
+
+		if (ci->i_wrbuffer_ref > 0 &&
+		    ACCESS_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN)
+			invalidate = true;
 
 		while (true) {
 			struct rb_node *n = rb_first(&ci->i_cap_flush_tree);
@@ -1156,7 +1161,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 				inode, ceph_ino(inode));
 			ci->i_dirty_caps = 0;
 			list_del_init(&ci->i_dirty_item);
-			drop = 1;
+			drop = true;
 		}
 		if (!list_empty(&ci->i_flushing_item)) {
 			pr_warn_ratelimited(
@@ -1166,7 +1171,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 			ci->i_flushing_caps = 0;
 			list_del_init(&ci->i_flushing_item);
 			mdsc->num_cap_flushing--;
-			drop = 1;
+			drop = true;
 		}
 		spin_unlock(&mdsc->cap_dirty_lock);
 
@@ -1185,6 +1190,8 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	}
 
 	wake_up_all(&ci->i_cap_wq);
+	if (invalidate)
+		ceph_queue_invalidate(inode);
 	if (drop)
 		iput(inode);
 	return 0;
@@ -1195,12 +1202,13 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
  */
 static void remove_session_caps(struct ceph_mds_session *session)
 {
+	struct ceph_fs_client *fsc = session->s_mdsc->fsc;
+	struct super_block *sb = fsc->sb;
 	dout("remove_session_caps on %p\n", session);
-	iterate_session_caps(session, remove_session_caps_cb, NULL);
+	iterate_session_caps(session, remove_session_caps_cb, fsc);
 
 	spin_lock(&session->s_cap_lock);
 	if (session->s_nr_caps > 0) {
-		struct super_block *sb = session->s_mdsc->fsc->sb;
 		struct inode *inode;
 		struct ceph_cap *cap, *prev = NULL;
 		struct ceph_vino vino;

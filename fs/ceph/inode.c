@@ -1623,10 +1623,21 @@ static void ceph_invalidate_work(struct work_struct *work)
 	struct ceph_inode_info *ci = container_of(work, struct ceph_inode_info,
 						  i_pg_inv_work);
 	struct inode *inode = &ci->vfs_inode;
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	u32 orig_gen;
 	int check = 0;
 
 	mutex_lock(&ci->i_truncate_mutex);
+
+	if (ACCESS_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
+		pr_warn_ratelimited("invalidate_pages %p %lld forced umount\n",
+				    inode, ceph_ino(inode));
+		mapping_set_error(inode->i_mapping, -EIO);
+		truncate_pagecache(inode, 0);
+		mutex_unlock(&ci->i_truncate_mutex);
+		goto out;
+	}
+
 	spin_lock(&ci->i_ceph_lock);
 	dout("invalidate_pages %p gen %d revoking %d\n", inode,
 	     ci->i_rdcache_gen, ci->i_rdcache_revoking);
