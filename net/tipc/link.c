@@ -140,6 +140,7 @@ struct tipc_link {
 	char if_name[TIPC_MAX_IF_NAME];
 	u32 priority;
 	char net_plane;
+	u16 rst_cnt;
 
 	/* Failover/synch */
 	u16 drop_point;
@@ -701,8 +702,6 @@ static void link_profile_stats(struct tipc_link *l)
 
 /* tipc_link_timeout - perform periodic task as instructed from node timeout
  */
-/* tipc_link_timeout - perform periodic task as instructed from node timeout
- */
 int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 {
 	int rc = 0;
@@ -730,7 +729,8 @@ int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 		l->silent_intv_cnt++;
 		break;
 	case LINK_RESET:
-		xmit = true;
+		xmit = l->rst_cnt++ <= 4;
+		xmit |= !(l->rst_cnt % 16);
 		mtyp = RESET_MSG;
 		break;
 	case LINK_ESTABLISHING:
@@ -833,6 +833,7 @@ void tipc_link_reset(struct tipc_link *l)
 	l->rcv_nxt = 1;
 	l->acked = 0;
 	l->silent_intv_cnt = 0;
+	l->rst_cnt = 0;
 	l->stats.recv_info = 0;
 	l->stale_count = 0;
 	l->bc_peer_is_up = false;
