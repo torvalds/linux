@@ -81,6 +81,7 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_ATOMIC |
 			    DRIVER_GEM |
 			    DRIVER_HAVE_IRQ |
+			    DRIVER_RENDER |
 			    DRIVER_PRIME),
 	.lastclose = vc4_lastclose,
 	.irq_handler = vc4_irq,
