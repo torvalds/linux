@@ -443,6 +443,8 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	u32 count, mappable_count, purgeable_count;
 	u64 size, mappable_size, purgeable_size;
+	unsigned long pin_mapped_count = 0, pin_mapped_purgeable_count = 0;
+	u64 pin_mapped_size = 0, pin_mapped_purgeable_size = 0;
 	struct drm_i915_gem_object *obj;
 	struct drm_file *file;
 	struct i915_vma *vma;
@@ -476,6 +478,14 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		size += obj->base.size, ++count;
 		if (obj->madv == I915_MADV_DONTNEED)
 			purgeable_size += obj->base.size, ++purgeable_count;
+		if (obj->mapping) {
+			pin_mapped_count++;
+			pin_mapped_size += obj->base.size;
+			if (obj->pages_pin_count == 0) {
+				pin_mapped_purgeable_count++;
+				pin_mapped_purgeable_size += obj->base.size;
+			}
+		}
 	}
 	seq_printf(m, "%u unbound objects, %llu bytes\n", count, size);
 
@@ -493,6 +503,14 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 			purgeable_size += obj->base.size;
 			++purgeable_count;
 		}
+		if (obj->mapping) {
+			pin_mapped_count++;
+			pin_mapped_size += obj->base.size;
+			if (obj->pages_pin_count == 0) {
+				pin_mapped_purgeable_count++;
+				pin_mapped_purgeable_size += obj->base.size;
+			}
+		}
 	}
 	seq_printf(m, "%u purgeable objects, %llu bytes\n",
 		   purgeable_count, purgeable_size);
@@ -500,6 +518,10 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   mappable_count, mappable_size);
 	seq_printf(m, "%u fault mappable objects, %llu bytes\n",
 		   count, size);
+	seq_printf(m,
+		   "%lu [%lu] pin mapped objects, %llu [%llu] bytes [purgeable]\n",
+		   pin_mapped_count, pin_mapped_purgeable_count,
+		   pin_mapped_size, pin_mapped_purgeable_size);
 
 	seq_printf(m, "%llu [%llu] gtt total\n",
 		   ggtt->base.total, ggtt->mappable_end - ggtt->base.start);
