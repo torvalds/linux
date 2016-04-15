@@ -33,9 +33,9 @@ struct fjes_hw;
 #define EP_BUFFER_SUPPORT_VLAN_MAX 4
 #define EP_BUFFER_INFO_SIZE 4096
 
-#define FJES_DEVICE_RESET_TIMEOUT  ((17 + 1) * 3) /* sec */
-#define FJES_COMMAND_REQ_TIMEOUT  (5 + 1) /* sec */
-#define FJES_COMMAND_REQ_BUFF_TIMEOUT	(8 * 3) /* sec */
+#define FJES_DEVICE_RESET_TIMEOUT  ((17 + 1) * 3 * 8) /* sec */
+#define FJES_COMMAND_REQ_TIMEOUT  ((5 + 1) * 3 * 8) /* sec */
+#define FJES_COMMAND_REQ_BUFF_TIMEOUT	(60 * 3) /* sec */
 #define FJES_COMMAND_EPSTOP_WAIT_TIMEOUT	(1) /* sec */
 
 #define FJES_CMD_REQ_ERR_INFO_PARAM  (0x0001)
