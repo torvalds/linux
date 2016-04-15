@@ -54,6 +54,7 @@ struct instruction {
 	struct symbol *call_dest;
 	struct instruction *jump_dest;
 	struct list_head alts;
+	struct symbol *func;
 };
 
 struct alternative {
@@ -66,7 +67,7 @@ struct objtool_file {
 	struct list_head insn_list;
 	DECLARE_HASHTABLE(insn_hash, 16);
 	struct section *rodata, *whitelist;
-	bool ignore_unreachables;
+	bool ignore_unreachables, c_file;
 };
 
 const char *objname;
@@ -229,7 +230,7 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
 			}
 		}
 
-		if (insn->type == INSN_JUMP_DYNAMIC)
+		if (insn->type == INSN_JUMP_DYNAMIC && list_empty(&insn->alts))
 			/* sibling call */
 			return 0;
 	}
@@ -249,6 +250,7 @@ static int dead_end_function(struct objtool_file *file, struct symbol *func)
 static int decode_instructions(struct objtool_file *file)
 {
 	struct section *sec;
+	struct symbol *func;
 	unsigned long offset;
 	struct instruction *insn;
 	int ret;
@@ -281,6 +283,21 @@ static int decode_instructions(struct objtool_file *file)
 
 			hash_add(file->insn_hash, &insn->hash, insn->offset);
 			list_add_tail(&insn->list, &file->insn_list);
+		}
+
+		list_for_each_entry(func, &sec->symbol_list, list) {
+			if (func->type != STT_FUNC)
+				continue;
+
+			if (!find_insn(file, sec, func->offset)) {
+				WARN("%s(): can't find starting instruction",
+				     func->name);
+				return -1;
+			}
+
+			func_for_each_insn(file, func, insn)
+				if (!insn->func)
+					insn->func = func;
 		}
 	}
 
@@ -824,6 +841,7 @@ static int validate_branch(struct objtool_file *file,
 	struct alternative *alt;
 	struct instruction *insn;
 	struct section *sec;
+	struct symbol *func = NULL;
 	unsigned char state;
 	int ret;
 
@@ -838,6 +856,16 @@ static int validate_branch(struct objtool_file *file,
 	}
 
 	while (1) {
+		if (file->c_file && insn->func) {
+			if (func && func != insn->func) {
+				WARN("%s() falls through to next function %s()",
+				     func->name, insn->func->name);
+				return 1;
+			}
+
+			func = insn->func;
+		}
+
 		if (insn->visited) {
 			if (frame_state(insn->state) != frame_state(state)) {
 				WARN_FUNC("frame pointer state mismatch",
@@ -847,13 +875,6 @@ static int validate_branch(struct objtool_file *file,
 
 			return 0;
 		}
-
-		/*
-		 * Catch a rare case where a noreturn function falls through to
-		 * the next function.
-		 */
-		if (is_fentry_call(insn) && (state & STATE_FENTRY))
-			return 0;
 
 		insn->visited = true;
 		insn->state = state;
@@ -1060,12 +1081,8 @@ static int validate_functions(struct objtool_file *file)
 				continue;
 
 			insn = find_insn(file, sec, func->offset);
-			if (!insn) {
-				WARN("%s(): can't find starting instruction",
-				     func->name);
-				warnings++;
+			if (!insn)
 				continue;
-			}
 
 			ret = validate_branch(file, insn, 0);
 			warnings += ret;
@@ -1162,6 +1179,7 @@ int cmd_check(int argc, const char **argv)
 	file.whitelist = find_section_by_name(file.elf, "__func_stack_frame_non_standard");
 	file.rodata = find_section_by_name(file.elf, ".rodata");
 	file.ignore_unreachables = false;
+	file.c_file = find_section_by_name(file.elf, ".comment");
 
 	ret = decode_sections(&file);
 	if (ret < 0)
