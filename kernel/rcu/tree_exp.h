@@ -562,3 +562,97 @@ void synchronize_sched_expedited(void)
 	rcu_exp_wait_wake(rsp, s);
 }
 EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
+
+#ifdef CONFIG_PREEMPT_RCU
+
+/*
+ * Remote handler for smp_call_function_single().  If there is an
+ * RCU read-side critical section in effect, request that the
+ * next rcu_read_unlock() record the quiescent state up the
+ * ->expmask fields in the rcu_node tree.  Otherwise, immediately
+ * report the quiescent state.
+ */
+static void sync_rcu_exp_handler(void *info)
+{
+	struct rcu_data *rdp;
+	struct rcu_state *rsp = info;
+	struct task_struct *t = current;
+
+	/*
+	 * Within an RCU read-side critical section, request that the next
+	 * rcu_read_unlock() report.  Unless this RCU read-side critical
+	 * section has already blocked, in which case it is already set
+	 * up for the expedited grace period to wait on it.
+	 */
+	if (t->rcu_read_lock_nesting > 0 &&
+	    !t->rcu_read_unlock_special.b.blocked) {
+		t->rcu_read_unlock_special.b.exp_need_qs = true;
+		return;
+	}
+
+	/*
+	 * We are either exiting an RCU read-side critical section (negative
+	 * values of t->rcu_read_lock_nesting) or are not in one at all
+	 * (zero value of t->rcu_read_lock_nesting).  Or we are in an RCU
+	 * read-side critical section that blocked before this expedited
+	 * grace period started.  Either way, we can immediately report
+	 * the quiescent state.
+	 */
+	rdp = this_cpu_ptr(rsp->rda);
+	rcu_report_exp_rdp(rsp, rdp, true);
+}
+
+/**
+ * synchronize_rcu_expedited - Brute-force RCU grace period
+ *
+ * Wait for an RCU-preempt grace period, but expedite it.  The basic
+ * idea is to IPI all non-idle non-nohz online CPUs.  The IPI handler
+ * checks whether the CPU is in an RCU-preempt critical section, and
+ * if so, it sets a flag that causes the outermost rcu_read_unlock()
+ * to report the quiescent state.  On the other hand, if the CPU is
+ * not in an RCU read-side critical section, the IPI handler reports
+ * the quiescent state immediately.
+ *
+ * Although this is a greate improvement over previous expedited
+ * implementations, it is still unfriendly to real-time workloads, so is
+ * thus not recommended for any sort of common-case code.  In fact, if
+ * you are using synchronize_rcu_expedited() in a loop, please restructure
+ * your code to batch your updates, and then Use a single synchronize_rcu()
+ * instead.
+ */
+void synchronize_rcu_expedited(void)
+{
+	struct rcu_state *rsp = rcu_state_p;
+	unsigned long s;
+
+	/* If expedited grace periods are prohibited, fall back to normal. */
+	if (rcu_gp_is_normal()) {
+		wait_rcu_gp(call_rcu);
+		return;
+	}
+
+	s = rcu_exp_gp_seq_snap(rsp);
+	if (exp_funnel_lock(rsp, s))
+		return;  /* Someone else did our work for us. */
+
+	/* Initialize the rcu_node tree in preparation for the wait. */
+	sync_rcu_exp_select_cpus(rsp, sync_rcu_exp_handler);
+
+	/* Wait for ->blkd_tasks lists to drain, then wake everyone up. */
+	rcu_exp_wait_wake(rsp, s);
+}
+EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
+
+#else /* #ifdef CONFIG_PREEMPT_RCU */
+
+/*
+ * Wait for an rcu-preempt grace period, but make it happen quickly.
+ * But because preemptible RCU does not exist, map to rcu-sched.
+ */
+void synchronize_rcu_expedited(void)
+{
+	synchronize_sched_expedited();
+}
+EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
+
+#endif /* #else #ifdef CONFIG_PREEMPT_RCU */
