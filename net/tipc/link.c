@@ -1107,12 +1107,12 @@ static bool tipc_link_release_pkts(struct tipc_link *l, u16 acked)
 	return released;
 }
 
-/* tipc_link_build_ack_msg: prepare link acknowledge message for transmission
+/* tipc_link_build_state_msg: prepare link state message for transmission
  *
  * Note that sending of broadcast ack is coordinated among nodes, to reduce
  * risk of ack storms towards the sender
  */
-int tipc_link_build_ack_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
+int tipc_link_build_state_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
 {
 	if (!l)
 		return 0;
@@ -1222,7 +1222,7 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 		if (!tipc_data_input(l, skb, l->inputq))
 			rc |= tipc_link_input(l, skb, l->inputq);
 		if (unlikely(++l->rcv_unacked >= TIPC_MIN_LINK_WIN))
-			rc |= tipc_link_build_ack_msg(l, xmitq);
+			rc |= tipc_link_build_state_msg(l, xmitq);
 		if (unlikely(rc & ~TIPC_LINK_SND_BC_ACK))
 			break;
 	} while ((skb = __skb_dequeue(defq)));
