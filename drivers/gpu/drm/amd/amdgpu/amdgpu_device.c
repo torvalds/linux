@@ -2134,32 +2134,246 @@ static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
 	return result;
 }
 
+static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
+					size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	ssize_t result = 0;
+	int r;
+
+	if (size & 0x3 || *pos & 0x3)
+		return -EINVAL;
+
+	while (size) {
+		uint32_t value;
+
+		value = RREG32_PCIE(*pos >> 2);
+		r = put_user(value, (uint32_t *)buf);
+		if (r)
+			return r;
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	return result;
+}
+
+static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user *buf,
+					 size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	ssize_t result = 0;
+	int r;
+
+	if (size & 0x3 || *pos & 0x3)
+		return -EINVAL;
+
+	while (size) {
+		uint32_t value;
+
+		r = get_user(value, (uint32_t *)buf);
+		if (r)
+			return r;
+
+		WREG32_PCIE(*pos >> 2, value);
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	return result;
+}
+
+static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
+					size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	ssize_t result = 0;
+	int r;
+
+	if (size & 0x3 || *pos & 0x3)
+		return -EINVAL;
+
+	while (size) {
+		uint32_t value;
+
+		value = RREG32_DIDT(*pos >> 2);
+		r = put_user(value, (uint32_t *)buf);
+		if (r)
+			return r;
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	return result;
+}
+
+static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user *buf,
+					 size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	ssize_t result = 0;
+	int r;
+
+	if (size & 0x3 || *pos & 0x3)
+		return -EINVAL;
+
+	while (size) {
+		uint32_t value;
+
+		r = get_user(value, (uint32_t *)buf);
+		if (r)
+			return r;
+
+		WREG32_DIDT(*pos >> 2, value);
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	return result;
+}
+
+static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
+					size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	ssize_t result = 0;
+	int r;
+
+	if (size & 0x3 || *pos & 0x3)
+		return -EINVAL;
+
+	while (size) {
+		uint32_t value;
+
+		value = RREG32_SMC(*pos >> 2);
+		r = put_user(value, (uint32_t *)buf);
+		if (r)
+			return r;
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	return result;
+}
+
+static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *buf,
+					 size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	ssize_t result = 0;
+	int r;
+
+	if (size & 0x3 || *pos & 0x3)
+		return -EINVAL;
+
+	while (size) {
+		uint32_t value;
+
+		r = get_user(value, (uint32_t *)buf);
+		if (r)
+			return r;
+
+		WREG32_SMC(*pos >> 2, value);
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	return result;
+}
+
 static const struct file_operations amdgpu_debugfs_regs_fops = {
 	.owner = THIS_MODULE,
 	.read = amdgpu_debugfs_regs_read,
 	.write = amdgpu_debugfs_regs_write,
 	.llseek = default_llseek
 };
+static const struct file_operations amdgpu_debugfs_regs_didt_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_debugfs_regs_didt_read,
+	.write = amdgpu_debugfs_regs_didt_write,
+	.llseek = default_llseek
+};
+static const struct file_operations amdgpu_debugfs_regs_pcie_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_debugfs_regs_pcie_read,
+	.write = amdgpu_debugfs_regs_pcie_write,
+	.llseek = default_llseek
+};
+static const struct file_operations amdgpu_debugfs_regs_smc_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_debugfs_regs_smc_read,
+	.write = amdgpu_debugfs_regs_smc_write,
+	.llseek = default_llseek
+};
+
+static const struct file_operations *debugfs_regs[] = {
+	&amdgpu_debugfs_regs_fops,
+	&amdgpu_debugfs_regs_didt_fops,
+	&amdgpu_debugfs_regs_pcie_fops,
+	&amdgpu_debugfs_regs_smc_fops,
+};
+
+static const char *debugfs_regs_names[] = {
+	"amdgpu_regs",
+	"amdgpu_regs_didt",
+	"amdgpu_regs_pcie",
+	"amdgpu_regs_smc",
+};
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 {
 	struct drm_minor *minor = adev->ddev->primary;
 	struct dentry *ent, *root = minor->debugfs_root;
+	unsigned i, j;
 
-	ent = debugfs_create_file("amdgpu_regs", S_IFREG | S_IRUGO, root,
-				  adev, &amdgpu_debugfs_regs_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-	i_size_write(ent->d_inode, adev->rmmio_size);
-	adev->debugfs_regs = ent;
+	for (i = 0; i < ARRAY_SIZE(debugfs_regs); i++) {
+		ent = debugfs_create_file(debugfs_regs_names[i],
+					  S_IFREG | S_IRUGO, root,
+					  adev, debugfs_regs[i]);
+		if (IS_ERR(ent)) {
+			for (j = 0; j < i; j++) {
+				debugfs_remove(adev->debugfs_regs[i]);
+				adev->debugfs_regs[i] = NULL;
+			}
+			return PTR_ERR(ent);
+		}
+
+		if (!i)
+			i_size_write(ent->d_inode, adev->rmmio_size);
+		adev->debugfs_regs[i] = ent;
+	}
 
 	return 0;
 }
 
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev)
 {
-	debugfs_remove(adev->debugfs_regs);
-	adev->debugfs_regs = NULL;
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(debugfs_regs); i++) {
+		if (adev->debugfs_regs[i]) {
+			debugfs_remove(adev->debugfs_regs[i]);
+			adev->debugfs_regs[i] = NULL;
+		}
+	}
 }
 
 int amdgpu_debugfs_init(struct drm_minor *minor)
