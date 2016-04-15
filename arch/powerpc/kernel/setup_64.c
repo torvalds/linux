@@ -69,6 +69,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/hugetlb.h>
 #include <asm/epapr_hcalls.h>
+#include <asm/livepatch.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -667,16 +668,16 @@ static void __init emergency_stack_init(void)
 	limit = min(safe_stack_limit(), ppc64_rma_size);
 
 	for_each_possible_cpu(i) {
-		unsigned long sp;
-		sp  = memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit);
-		sp += THREAD_SIZE;
-		paca[i].emergency_sp = __va(sp);
+		struct thread_info *ti;
+		ti = __va(memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit));
+		klp_init_thread_info(ti);
+		paca[i].emergency_sp = (void *)ti + THREAD_SIZE;
 
 #ifdef CONFIG_PPC_BOOK3S_64
 		/* emergency stack for machine check exception handling. */
-		sp  = memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit);
-		sp += THREAD_SIZE;
-		paca[i].mc_emergency_sp = __va(sp);
+		ti = __va(memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit));
+		klp_init_thread_info(ti);
+		paca[i].mc_emergency_sp = (void *)ti + THREAD_SIZE;
 #endif
 	}
 }
@@ -699,6 +700,8 @@ void __init setup_arch(char **cmdline_p)
 
 	if (ppc_md.panic)
 		setup_panic();
+
+	klp_init_thread_info(&init_thread_info);
 
 	init_mm.start_code = (unsigned long)_stext;
 	init_mm.end_code = (unsigned long) _etext;

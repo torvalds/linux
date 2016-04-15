@@ -86,6 +86,10 @@ int main(void)
 	DEFINE(KSP_LIMIT, offsetof(struct thread_struct, ksp_limit));
 #endif /* CONFIG_PPC64 */
 
+#ifdef CONFIG_LIVEPATCH
+	DEFINE(TI_livepatch_sp, offsetof(struct thread_info, livepatch_sp));
+#endif
+
 	DEFINE(KSP, offsetof(struct thread_struct, ksp));
 	DEFINE(PT_REGS, offsetof(struct thread_struct, regs));
 #ifdef CONFIG_BOOKE

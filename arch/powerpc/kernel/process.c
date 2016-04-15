@@ -55,6 +55,8 @@
 #include <asm/firmware.h>
 #endif
 #include <asm/code-patching.h>
+#include <asm/livepatch.h>
+
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 
@@ -1267,13 +1269,15 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	extern void ret_from_kernel_thread(void);
 	void (*f)(void);
 	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
+	struct thread_info *ti = task_thread_info(p);
+
+	klp_init_thread_info(ti);
 
 	/* Copy registers */
 	sp -= sizeof(struct pt_regs);
 	childregs = (struct pt_regs *) sp;
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
-		struct thread_info *ti = (void *)task_stack_page(p);
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gpr[1] = sp + sizeof(struct pt_regs);
 		/* function */
