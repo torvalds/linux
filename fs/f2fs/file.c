@@ -256,7 +256,9 @@ go_write:
 		goto out;
 	}
 sync_nodes:
-	fsync_node_pages(sbi, ino, &wbc);
+	ret = fsync_node_pages(sbi, ino, &wbc);
+	if (ret)
+		goto out;
 
 	/* if cp_error was enabled, we should avoid infinite loop */
 	if (unlikely(f2fs_cp_error(sbi))) {

@@ -1227,7 +1227,7 @@ int fsync_node_pages(struct f2fs_sb_info *sbi, nid_t ino,
 {
 	pgoff_t index, end;
 	struct pagevec pvec;
-	int nwritten = 0;
+	int ret = 0;
 
 	pagevec_init(&pvec, 0);
 	index = 0;
@@ -1278,21 +1278,20 @@ continue_unlock:
 			if (IS_INODE(page))
 				set_dentry_mark(page,
 						need_dentry_mark(sbi, ino));
-			nwritten++;
 
-			if (NODE_MAPPING(sbi)->a_ops->writepage(page, wbc))
+			ret = NODE_MAPPING(sbi)->a_ops->writepage(page, wbc);
+			if (ret) {
 				unlock_page(page);
-
-			if (--wbc->nr_to_write == 0)
 				break;
+			}
 		}
 		pagevec_release(&pvec);
 		cond_resched();
 
-		if (wbc->nr_to_write == 0)
+		if (ret)
 			break;
 	}
-	return nwritten;
+	return ret ? -EIO: 0;
 }
 
 int sync_node_pages(struct f2fs_sb_info *sbi, struct writeback_control *wbc)
