@@ -47,6 +47,22 @@ config BMC150_MAGN_I2C
 	  To compile this driver as a module, choose M here: the module will be
 	  called bmc150_magn_i2c.
 
+config BMC150_MAGN_SPI
+	tristate "Bosch BMC150 SPI Magnetometer Driver"
+	depends on SPI
+	select BMC150_MAGN
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for the BMC150 magnetometer with
+	  SPI interface.
+
+	  This is a combo module with both accelerometer and magnetometer.
+	  This driver is only implementing magnetometer part, which has
+	  its own address and register map.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called bmc150_magn_spi.
+
 config MAG3110
 	tristate "Freescale MAG3110 3-Axis Magnetometer"
 	depends on I2C
