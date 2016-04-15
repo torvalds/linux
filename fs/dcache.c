@@ -2364,6 +2364,22 @@ void d_rehash(struct dentry * entry)
 }
 EXPORT_SYMBOL(d_rehash);
 
+static inline unsigned start_dir_add(struct inode *dir)
+{
+
+	for (;;) {
+		unsigned n = dir->i_dir_seq;
+		if (!(n & 1) && cmpxchg(&dir->i_dir_seq, n, n + 1) == n)
+			return n;
+		cpu_relax();
+	}
+}
+
+static inline void end_dir_add(struct inode *dir, unsigned n)
+{
+	smp_store_release(&dir->i_dir_seq, n + 2);
+}
+
 void __d_lookup_done(struct dentry *dentry)
 {
 	dentry->d_flags &= ~DCACHE_PAR_LOOKUP;
@@ -2375,9 +2391,14 @@ EXPORT_SYMBOL(__d_lookup_done);
 
 static inline void __d_add(struct dentry *dentry, struct inode *inode)
 {
+	struct inode *dir = NULL;
+	unsigned n;
 	spin_lock(&dentry->d_lock);
-	if (unlikely(d_in_lookup(dentry)))
+	if (unlikely(d_in_lookup(dentry))) {
+		dir = dentry->d_parent->d_inode;
+		n = start_dir_add(dir);
 		__d_lookup_done(dentry);
+	}
 	if (inode) {
 		unsigned add_flags = d_flags_for_inode(inode);
 		hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
@@ -2387,6 +2408,8 @@ static inline void __d_add(struct dentry *dentry, struct inode *inode)
 		__fsnotify_d_instantiate(dentry);
 	}
 	_d_rehash(dentry);
+	if (dir)
+		end_dir_add(dir, n);
 	spin_unlock(&dentry->d_lock);
 	if (inode)
 		spin_unlock(&inode->i_lock);
@@ -2616,6 +2639,8 @@ static void dentry_unlock_for_move(struct dentry *dentry, struct dentry *target)
 static void __d_move(struct dentry *dentry, struct dentry *target,
 		     bool exchange)
 {
+	struct inode *dir = NULL;
+	unsigned n;
 	if (!dentry->d_inode)
 		printk(KERN_WARNING "VFS: moving negative dcache entry\n");
 
@@ -2623,8 +2648,11 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	BUG_ON(d_ancestor(target, dentry));
 
 	dentry_lock_for_move(dentry, target);
-	if (unlikely(d_in_lookup(target)))
+	if (unlikely(d_in_lookup(target))) {
+		dir = target->d_parent->d_inode;
+		n = start_dir_add(dir);
 		__d_lookup_done(target);
+	}
 
 	write_seqcount_begin(&dentry->d_seq);
 	write_seqcount_begin_nested(&target->d_seq, DENTRY_D_LOCK_NESTED);
@@ -2674,6 +2702,8 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	write_seqcount_end(&target->d_seq);
 	write_seqcount_end(&dentry->d_seq);
 
+	if (dir)
+		end_dir_add(dir, n);
 	dentry_unlock_for_move(dentry, target);
 }
 

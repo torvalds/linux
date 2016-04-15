@@ -684,6 +684,7 @@ struct inode {
 		struct block_device	*i_bdev;
 		struct cdev		*i_cdev;
 		char			*i_link;
+		unsigned		i_dir_seq;
 	};
 
 	__u32			i_generation;

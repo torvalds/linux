@@ -531,3 +531,11 @@ in your dentry operations instead.
 	dentry might be yet to be attached to inode, so do _not_ use its ->d_inode
 	in the instances.  Rationale: !@#!@# security_d_instantiate() needs to be
 	called before we attach dentry to inode.
+--
+[mandatory]
+	symlinks are no longer the only inodes that do *not* have i_bdev/i_cdev/
+	i_pipe/i_link union zeroed out at inode eviction.  As the result, you can't
+	assume that non-NULL value in ->i_nlink at ->destroy_inode() implies that
+	it's a symlink.  Checking ->i_mode is really needed now.  In-tree we had
+	to fix shmem_destroy_callback() that used to take that kind of shortcut;
+	watch out, since that shortcut is no longer valid.
