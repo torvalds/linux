@@ -986,26 +986,34 @@ out_unmap:
 	return -1;
 }
 
+unsigned long perf_event_mlock_kb_in_pages(void)
+{
+	unsigned long pages;
+	int max;
+
+	if (sysctl__read_int("kernel/perf_event_mlock_kb", &max) < 0) {
+		/*
+		 * Pick a once upon a time good value, i.e. things look
+		 * strange since we can't read a sysctl value, but lets not
+		 * die yet...
+		 */
+		max = 512;
+	} else {
+		max -= (page_size / 1024);
+	}
+
+	pages = (max * 1024) / page_size;
+	if (!is_power_of_2(pages))
+		pages = rounddown_pow_of_two(pages);
+
+	return pages;
+}
+
 static size_t perf_evlist__mmap_size(unsigned long pages)
 {
-	if (pages == UINT_MAX) {
-		int max;
-
-		if (sysctl__read_int("kernel/perf_event_mlock_kb", &max) < 0) {
-			/*
-			 * Pick a once upon a time good value, i.e. things look
-			 * strange since we can't read a sysctl value, but lets not
-			 * die yet...
-			 */
-			max = 512;
-		} else {
-			max -= (page_size / 1024);
-		}
-
-		pages = (max * 1024) / page_size;
-		if (!is_power_of_2(pages))
-			pages = rounddown_pow_of_two(pages);
-	} else if (!is_power_of_2(pages))
+	if (pages == UINT_MAX)
+		pages = perf_event_mlock_kb_in_pages();
+	else if (!is_power_of_2(pages))
 		return 0;
 
 	return (pages + 1) * page_size;
