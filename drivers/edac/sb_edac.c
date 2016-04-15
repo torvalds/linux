@@ -363,16 +363,6 @@ struct sbridge_pvt {
 	/* Memory type detection */
 	bool			is_mirrored, is_lockstep, is_close_pg;
 
-	/* Fifo double buffers */
-	struct mce		mce_entry[MCE_LOG_LEN];
-	struct mce		mce_outentry[MCE_LOG_LEN];
-
-	/* Fifo in/out counters */
-	unsigned		mce_in, mce_out;
-
-	/* Count indicator to show errors not got */
-	unsigned		mce_overrun;
-
 	/* Memory description */
 	u64			tolm, tohm;
 	struct knl_pvt knl;
@@ -3075,63 +3065,8 @@ err_parsing:
 }
 
 /*
- *	sbridge_check_error	Retrieve and process errors reported by the
- *				hardware. Called by the Core module.
- */
-static void sbridge_check_error(struct mem_ctl_info *mci)
-{
-	struct sbridge_pvt *pvt = mci->pvt_info;
-	int i;
-	unsigned count = 0;
-	struct mce *m;
-
-	/*
-	 * MCE first step: Copy all mce errors into a temporary buffer
-	 * We use a double buffering here, to reduce the risk of
-	 * loosing an error.
-	 */
-	smp_rmb();
-	count = (pvt->mce_out + MCE_LOG_LEN - pvt->mce_in)
-		% MCE_LOG_LEN;
-	if (!count)
-		return;
-
-	m = pvt->mce_outentry;
-	if (pvt->mce_in + count > MCE_LOG_LEN) {
-		unsigned l = MCE_LOG_LEN - pvt->mce_in;
-
-		memcpy(m, &pvt->mce_entry[pvt->mce_in], sizeof(*m) * l);
-		smp_wmb();
-		pvt->mce_in = 0;
-		count -= l;
-		m += l;
-	}
-	memcpy(m, &pvt->mce_entry[pvt->mce_in], sizeof(*m) * count);
-	smp_wmb();
-	pvt->mce_in += count;
-
-	smp_rmb();
-	if (pvt->mce_overrun) {
-		sbridge_printk(KERN_ERR, "Lost %d memory errors\n",
-			      pvt->mce_overrun);
-		smp_wmb();
-		pvt->mce_overrun = 0;
-	}
-
-	/*
-	 * MCE second step: parse errors and display
-	 */
-	for (i = 0; i < count; i++)
-		sbridge_mce_output_error(mci, &pvt->mce_outentry[i]);
-}
-
-/*
- * sbridge_mce_check_error	Replicates mcelog routine to get errors
- *				This routine simply queues mcelog errors, and
- *				return. The error itself should be handled later
- *				by sbridge_check_error.
- * WARNING: As this routine should be called at NMI time, extra care should
- * be taken to avoid deadlocks, and to be as fast as possible.
+ * Check that logging is enabled and that this is the right type
+ * of error for us to handle.
  */
 static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 				   void *data)
@@ -3176,21 +3111,7 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 			  "%u APIC %x\n", mce->cpuvendor, mce->cpuid,
 			  mce->time, mce->socketid, mce->apicid);
 
-	smp_rmb();
-	if ((pvt->mce_out + 1) % MCE_LOG_LEN == pvt->mce_in) {
-		smp_wmb();
-		pvt->mce_overrun++;
-		return NOTIFY_DONE;
-	}
-
-	/* Copy memory error at the ringbuffer */
-	memcpy(&pvt->mce_entry[pvt->mce_out], mce, sizeof(*mce));
-	smp_wmb();
-	pvt->mce_out = (pvt->mce_out + 1) % MCE_LOG_LEN;
-
-	/* Handle fatal errors immediately */
-	if (mce->mcgstatus & 1)
-		sbridge_check_error(mci);
+	sbridge_mce_output_error(mci, mce);
 
 	/* Advice mcelog that the error were handled */
 	return NOTIFY_STOP;
@@ -3275,9 +3196,6 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 	mci->mod_ver = SBRIDGE_REVISION;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
-
-	/* Set the function pointer to an actual operation function */
-	mci->edac_check = sbridge_check_error;
 
 	pvt->info.type = type;
 	switch (type) {
