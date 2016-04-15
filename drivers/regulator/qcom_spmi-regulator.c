@@ -692,7 +692,7 @@ static int spmi_regulator_select_voltage_same_range(struct spmi_regulator *vreg,
 	if (selector >= vreg->set_points->n_voltages)
 		goto different_range;
 
-	return 0;
+	return selector;
 
 different_range:
 	return spmi_regulator_select_voltage(vreg, min_uV, max_uV);
