@@ -442,6 +442,12 @@ config SPI_PIC32
 	help
 	  SPI driver for Microchip PIC32 SPI master controller.
 
+config SPI_PIC32_SQI
+	tristate "Microchip PIC32 Quad SPI driver"
+	depends on MACH_PIC32 || COMPILE_TEST
+	help
+	  SPI driver for PIC32 Quad SPI controller.
+
 config SPI_PL022
 	tristate "ARM AMBA PL022 SSP controller"
 	depends on ARM_AMBA
