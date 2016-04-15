@@ -492,6 +492,35 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba, int *slot_idx,
 	return 0;
 }
 
+static struct
+hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
+{
+	struct hisi_hba *hisi_hba = device->port->ha->lldd_ha;
+	struct hisi_sas_device *sas_dev = NULL;
+	int i, sata_dev = dev_is_sata(device);
+
+	spin_lock(&hisi_hba->lock);
+	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
+		/*
+		 * SATA device id bit0 should be 0
+		 */
+		if (sata_dev && (i & 1))
+			continue;
+		if (hisi_hba->devices[i].dev_type == SAS_PHY_UNUSED) {
+			hisi_hba->devices[i].device_id = i;
+			sas_dev = &hisi_hba->devices[i];
+			sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
+			sas_dev->dev_type = device->dev_type;
+			sas_dev->hisi_hba = hisi_hba;
+			sas_dev->sas_device = device;
+			break;
+		}
+	}
+	spin_unlock(&hisi_hba->lock);
+
+	return sas_dev;
+}
+
 static void config_phy_opt_mode_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
@@ -2195,6 +2224,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.hw_init = hisi_sas_v2_init,
 	.setup_itct = setup_itct_v2_hw,
 	.slot_index_alloc = slot_index_alloc_quirk_v2_hw,
+	.alloc_dev = alloc_dev_quirk_v2_hw,
 	.sl_notify = sl_notify_v2_hw,
 	.get_wideport_bitmap = get_wideport_bitmap_v2_hw,
 	.free_device = free_device_v2_hw,
