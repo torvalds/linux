@@ -173,6 +173,9 @@ static void gmap_free(struct gmap *gmap)
 {
 	struct page *page, *next;
 
+	/* Flush tlb of all gmaps (if not already done for shadows) */
+	if (!(gmap_is_shadow(gmap) && gmap->removed))
+		gmap_flush_tlb(gmap);
 	/* Free all segment & region tables. */
 	list_for_each_entry_safe(page, next, &gmap->crst_list, lru)
 		__free_pages(page, 2);
@@ -226,13 +229,10 @@ void gmap_remove(struct gmap *gmap)
 {
 	struct gmap *sg, *next;
 
-	/* Flush tlb. */
-	gmap_flush_tlb(gmap);
 	/* Remove all shadow gmaps linked to this gmap */
 	if (!list_empty(&gmap->children)) {
 		spin_lock(&gmap->shadow_lock);
 		list_for_each_entry_safe(sg, next, &gmap->children, list) {
-			gmap_flush_tlb(sg);
 			list_del(&sg->list);
 			gmap_put(sg);
 		}
@@ -1360,6 +1360,7 @@ static void gmap_unshadow(struct gmap *sg)
 		return;
 	sg->removed = 1;
 	gmap_call_notifier(sg, 0, -1UL);
+	gmap_flush_tlb(sg);
 	table = (unsigned long *)(sg->asce & _ASCE_ORIGIN);
 	switch (sg->asce & _ASCE_TYPE_MASK) {
 	case _ASCE_TYPE_REGION1:
