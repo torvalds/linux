@@ -135,6 +135,8 @@ static void adf_pf2vf_bh_handler(void *data)
 		dev_dbg(&GET_DEV(accel_dev),
 			"Restarting msg received from PF 0x%x\n", msg);
 
+		clear_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
+
 		stop_data = kzalloc(sizeof(*stop_data), GFP_ATOMIC);
 		if (!stop_data) {
 			dev_err(&GET_DEV(accel_dev),
