@@ -2944,7 +2944,7 @@ int tcp_send_synack(struct sock *sk)
 struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 				struct request_sock *req,
 				struct tcp_fastopen_cookie *foc,
-				bool attach_req)
+				enum tcp_synack_type synack_type)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 	const struct tcp_sock *tp = tcp_sk(sk);
@@ -2964,14 +2964,22 @@ struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 	/* Reserve space for headers. */
 	skb_reserve(skb, MAX_TCP_HEADER);
 
-	if (attach_req) {
+	switch (synack_type) {
+	case TCP_SYNACK_NORMAL:
 		skb_set_owner_w(skb, req_to_sk(req));
-	} else {
+		break;
+	case TCP_SYNACK_COOKIE:
+		/* Under synflood, we do not attach skb to a socket,
+		 * to avoid false sharing.
+		 */
+		break;
+	case TCP_SYNACK_FASTOPEN:
 		/* sk is a const pointer, because we want to express multiple
 		 * cpu might call us concurrently.
 		 * sk->sk_wmem_alloc in an atomic, we can promote to rw.
 		 */
 		skb_set_owner_w(skb, (struct sock *)sk);
+		break;
 	}
 	skb_dst_set(skb, dst);
 
@@ -3516,7 +3524,7 @@ int tcp_rtx_synack(const struct sock *sk, struct request_sock *req)
 	int res;
 
 	tcp_rsk(req)->txhash = net_tx_rndhash();
-	res = af_ops->send_synack(sk, NULL, &fl, req, NULL, true);
+	res = af_ops->send_synack(sk, NULL, &fl, req, NULL, TCP_SYNACK_NORMAL);
 	if (!res) {
 		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPSYNRETRANS);
