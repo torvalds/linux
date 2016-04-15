@@ -7,6 +7,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/suspend.h>
 #include <linux/workqueue.h>
 #include "greybus.h"
 
@@ -16,9 +17,30 @@ struct gb_svc_watchdog {
 	struct delayed_work	work;
 	struct gb_svc		*svc;
 	bool			enabled;
+	struct notifier_block pm_notifier;
 };
 
 static struct delayed_work reset_work;
+
+static int svc_watchdog_pm_notifier(struct notifier_block *notifier,
+				    unsigned long pm_event, void *unused)
+{
+	struct gb_svc_watchdog *watchdog =
+		container_of(notifier, struct gb_svc_watchdog, pm_notifier);
+
+	switch (pm_event) {
+	case PM_SUSPEND_PREPARE:
+		gb_svc_watchdog_disable(watchdog->svc);
+		break;
+	case PM_POST_SUSPEND:
+		gb_svc_watchdog_enable(watchdog->svc);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
 
 static void greybus_reset(struct work_struct *work)
 {
@@ -82,6 +104,7 @@ static void do_work(struct work_struct *work)
 int gb_svc_watchdog_create(struct gb_svc *svc)
 {
 	struct gb_svc_watchdog *watchdog;
+	int retval;
 
 	if (svc->watchdog)
 		return 0;
@@ -95,7 +118,27 @@ int gb_svc_watchdog_create(struct gb_svc *svc)
 	INIT_DELAYED_WORK(&watchdog->work, do_work);
 	svc->watchdog = watchdog;
 
-	return gb_svc_watchdog_enable(svc);
+	watchdog->pm_notifier.notifier_call = svc_watchdog_pm_notifier;
+	retval = register_pm_notifier(&watchdog->pm_notifier);
+	if (retval) {
+		dev_err(&svc->dev, "error registering pm notifier(%d)\n",
+			retval);
+		goto svc_watchdog_create_err;
+	}
+
+	retval = gb_svc_watchdog_enable(svc);
+	if (retval) {
+		dev_err(&svc->dev, "error enabling watchdog (%d)\n", retval);
+		unregister_pm_notifier(&watchdog->pm_notifier);
+		goto svc_watchdog_create_err;
+	}
+	return retval;
+
+svc_watchdog_create_err:
+	svc->watchdog = NULL;
+	kfree(watchdog);
+
+	return retval;
 }
 
 void gb_svc_watchdog_destroy(struct gb_svc *svc)
@@ -105,6 +148,7 @@ void gb_svc_watchdog_destroy(struct gb_svc *svc)
 	if (!watchdog)
 		return;
 
+	unregister_pm_notifier(&watchdog->pm_notifier);
 	gb_svc_watchdog_disable(svc);
 	svc->watchdog = NULL;
 	kfree(watchdog);
