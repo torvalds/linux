@@ -930,43 +930,48 @@ out_delete_session:
 	return status;
 }
 
-static void callchain_debug(void)
+static void callchain_debug(struct callchain_param *callchain)
 {
 	static const char *str[CALLCHAIN_MAX] = { "NONE", "FP", "DWARF", "LBR" };
 
-	pr_debug("callchain: type %s\n", str[callchain_param.record_mode]);
+	pr_debug("callchain: type %s\n", str[callchain->record_mode]);
 
-	if (callchain_param.record_mode == CALLCHAIN_DWARF)
+	if (callchain->record_mode == CALLCHAIN_DWARF)
 		pr_debug("callchain: stack dump size %d\n",
-			 callchain_param.dump_size);
+			 callchain->dump_size);
+}
+
+int record_opts__parse_callchain(struct record_opts *record,
+				 struct callchain_param *callchain,
+				 const char *arg, bool unset)
+{
+	int ret;
+	record->callgraph_set = true;
+	callchain->enabled = !unset;
+
+	/* --no-call-graph */
+	if (unset) {
+		callchain->record_mode = CALLCHAIN_NONE;
+		pr_debug("callchain: disabled\n");
+		return 0;
+	}
+
+	ret = parse_callchain_record_opt(arg, callchain);
+	if (!ret) {
+		/* Enable data address sampling for DWARF unwind. */
+		if (callchain->record_mode == CALLCHAIN_DWARF)
+			record->sample_address = true;
+		callchain_debug(callchain);
+	}
+
+	return ret;
 }
 
 int record_parse_callchain_opt(const struct option *opt,
 			       const char *arg,
 			       int unset)
 {
-	int ret;
-	struct record_opts *record = (struct record_opts *)opt->value;
-
-	record->callgraph_set = true;
-	callchain_param.enabled = !unset;
-
-	/* --no-call-graph */
-	if (unset) {
-		callchain_param.record_mode = CALLCHAIN_NONE;
-		pr_debug("callchain: disabled\n");
-		return 0;
-	}
-
-	ret = parse_callchain_record_opt(arg, &callchain_param);
-	if (!ret) {
-		/* Enable data address sampling for DWARF unwind. */
-		if (callchain_param.record_mode == CALLCHAIN_DWARF)
-			record->sample_address = true;
-		callchain_debug();
-	}
-
-	return ret;
+	return record_opts__parse_callchain(opt->value, &callchain_param, arg, unset);
 }
 
 int record_callchain_opt(const struct option *opt,
@@ -981,7 +986,7 @@ int record_callchain_opt(const struct option *opt,
 	if (callchain_param.record_mode == CALLCHAIN_NONE)
 		callchain_param.record_mode = CALLCHAIN_FP;
 
-	callchain_debug();
+	callchain_debug(&callchain_param);
 	return 0;
 }
 
