@@ -458,21 +458,22 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 {
 	int ret;
 
-	mutex_lock(&dev->mode_config.fb_lock);
 	INIT_LIST_HEAD(&fb->filp_head);
 	fb->dev = dev;
 	fb->funcs = funcs;
 
 	ret = drm_mode_object_get_reg(dev, &fb->base, DRM_MODE_OBJECT_FB,
-				      true, drm_framebuffer_free);
+				      false, drm_framebuffer_free);
 	if (ret)
 		goto out;
 
+	mutex_lock(&dev->mode_config.fb_lock);
 	dev->mode_config.num_fb++;
 	list_add(&fb->head, &dev->mode_config.fb_list);
-out:
-	mutex_unlock(&dev->mode_config.fb_lock);
 
+	drm_mode_object_register(dev, &fb->base);
+	mutex_unlock(&dev->mode_config.fb_lock);
+out:
 	return ret;
 }
 EXPORT_SYMBOL(drm_framebuffer_init);
