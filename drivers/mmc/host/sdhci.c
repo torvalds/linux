@@ -48,7 +48,7 @@ static void sdhci_finish_data(struct sdhci_host *);
 static void sdhci_finish_command(struct sdhci_host *);
 static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode);
 static void sdhci_enable_preset_value(struct sdhci_host *host, bool enable);
-static int sdhci_do_get_cd(struct sdhci_host *host);
+static int sdhci_get_cd(struct mmc_host *mmc);
 
 static void sdhci_dumpregs(struct sdhci_host *host)
 {
@@ -193,7 +193,7 @@ EXPORT_SYMBOL_GPL(sdhci_reset);
 static void sdhci_do_reset(struct sdhci_host *host, u8 mask)
 {
 	if (host->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
-		if (!sdhci_do_get_cd(host))
+		if (!sdhci_get_cd(host->mmc))
 			return;
 	}
 
@@ -1450,11 +1450,11 @@ void sdhci_set_uhs_signaling(struct sdhci_host *host, unsigned timing)
 }
 EXPORT_SYMBOL_GPL(sdhci_set_uhs_signaling);
 
-static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
+static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
+	struct sdhci_host *host = mmc_priv(mmc);
 	unsigned long flags;
 	u8 ctrl;
-	struct mmc_host *mmc = host->mmc;
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -1608,16 +1608,10 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+static int sdhci_get_cd(struct mmc_host *mmc)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
-
-	sdhci_do_set_ios(host, ios);
-}
-
-static int sdhci_do_get_cd(struct sdhci_host *host)
-{
-	int gpio_cd = mmc_gpio_get_cd(host->mmc);
+	int gpio_cd = mmc_gpio_get_cd(mmc);
 
 	if (host->flags & SDHCI_DEVICE_DEAD)
 		return 0;
@@ -1639,13 +1633,6 @@ static int sdhci_do_get_cd(struct sdhci_host *host)
 
 	/* Host native card detect */
 	return !!(sdhci_readl(host, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT);
-}
-
-static int sdhci_get_cd(struct mmc_host *mmc)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-
-	return sdhci_do_get_cd(host);
 }
 
 static int sdhci_check_ro(struct sdhci_host *host)
@@ -1672,8 +1659,9 @@ static int sdhci_check_ro(struct sdhci_host *host)
 
 #define SAMPLE_COUNT	5
 
-static int sdhci_do_get_ro(struct sdhci_host *host)
+static int sdhci_get_ro(struct mmc_host *mmc)
 {
+	struct sdhci_host *host = mmc_priv(mmc);
 	int i, ro_count;
 
 	if (!(host->quirks & SDHCI_QUIRK_UNSTABLE_RO_DETECT))
@@ -1696,13 +1684,6 @@ static void sdhci_hw_reset(struct mmc_host *mmc)
 
 	if (host->ops && host->ops->hw_reset)
 		host->ops->hw_reset(host);
-}
-
-static int sdhci_get_ro(struct mmc_host *mmc)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-
-	return sdhci_do_get_ro(host);
 }
 
 static void sdhci_enable_sdio_irq_nolock(struct sdhci_host *host, int enable)
@@ -1734,10 +1715,10 @@ static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
-						struct mmc_ios *ios)
+static int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
+					     struct mmc_ios *ios)
 {
-	struct mmc_host *mmc = host->mmc;
+	struct sdhci_host *host = mmc_priv(mmc);
 	u16 ctrl;
 	int ret;
 
@@ -1823,17 +1804,6 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 		/* No signal voltage switch required */
 		return 0;
 	}
-}
-
-static int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
-	struct mmc_ios *ios)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-
-	if (host->version < SDHCI_SPEC_300)
-		return 0;
-
-	return sdhci_do_start_signal_voltage_switch(host, ios);
 }
 
 static int sdhci_card_busy(struct mmc_host *mmc)
@@ -2126,7 +2096,7 @@ static void sdhci_card_event(struct mmc_host *mmc)
 	if (host->ops->card_event)
 		host->ops->card_event(host);
 
-	present = sdhci_do_get_cd(host);
+	present = sdhci_get_cd(host->mmc);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -2697,7 +2667,7 @@ int sdhci_resume_host(struct sdhci_host *host)
 		sdhci_init(host, 0);
 		host->pwr = 0;
 		host->clock = 0;
-		sdhci_do_set_ios(host, &host->mmc->ios);
+		sdhci_set_ios(host->mmc, &host->mmc->ios);
 	} else {
 		sdhci_init(host, (host->mmc->pm_flags & MMC_PM_KEEP_POWER));
 		mmiowb();
@@ -2759,8 +2729,8 @@ int sdhci_runtime_resume_host(struct sdhci_host *host)
 	/* Force clock and power re-program */
 	host->pwr = 0;
 	host->clock = 0;
-	sdhci_do_start_signal_voltage_switch(host, &host->mmc->ios);
-	sdhci_do_set_ios(host, &host->mmc->ios);
+	sdhci_start_signal_voltage_switch(host->mmc, &host->mmc->ios);
+	sdhci_set_ios(host->mmc, &host->mmc->ios);
 
 	if ((host_flags & SDHCI_PV_ENABLED) &&
 		!(host->quirks2 & SDHCI_QUIRK2_PRESET_VALUE_BROKEN)) {
