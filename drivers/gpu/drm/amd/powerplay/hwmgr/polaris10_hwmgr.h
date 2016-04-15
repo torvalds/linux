@@ -309,6 +309,9 @@ struct polaris10_hwmgr {
 	uint32_t                           up_hyst;
 	uint32_t disable_dpm_mask;
 	bool apply_optimized_settings;
+
+	/* soft pptable for re-uploading into smu */
+	void *soft_pp_table;
 };
 
 /* To convert to Q8.8 format for firmware */

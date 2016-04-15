@@ -2560,6 +2560,13 @@ int polaris10_reset_asic_tasks(struct pp_hwmgr *hwmgr)
 
 int polaris10_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+
+	if (data->soft_pp_table) {
+		kfree(data->soft_pp_table);
+		data->soft_pp_table = NULL;
+	}
+
 	return phm_hwmgr_backend_fini(hwmgr);
 }
 
@@ -4750,18 +4757,34 @@ static int polaris10_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
-	*table = (char *)&data->smc_state_table;
+	if (!data->soft_pp_table) {
+		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+		if (!data->soft_pp_table)
+			return -ENOMEM;
+		memcpy(data->soft_pp_table, hwmgr->soft_pp_table,
+				hwmgr->soft_pp_table_size);
+	}
 
-	return sizeof(struct SMU74_Discrete_DpmTable);
+	*table = (char *)&data->soft_pp_table;
+
+	return hwmgr->soft_pp_table_size;
 }
 
 static int polaris10_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
-	void *table = (void *)&data->smc_state_table;
+	if (!data->soft_pp_table) {
+		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+		if (!data->soft_pp_table)
+			return -ENOMEM;
+	}
 
-	memcpy(table, buf, size);
+	memcpy(data->soft_pp_table, buf, size);
+
+	hwmgr->soft_pp_table = data->soft_pp_table;
+
+	/* TODO: re-init powerplay to implement modified pptable */
 
 	return 0;
 }
