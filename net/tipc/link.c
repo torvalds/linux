@@ -1140,11 +1140,17 @@ int tipc_link_build_ack_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
 void tipc_link_build_reset_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
 {
 	int mtyp = RESET_MSG;
+	struct sk_buff *skb;
 
 	if (l->state == LINK_ESTABLISHING)
 		mtyp = ACTIVATE_MSG;
 
 	tipc_link_build_proto_msg(l, mtyp, 0, 0, 0, 0, xmitq);
+
+	/* Inform peer that this endpoint is going down if applicable */
+	skb = skb_peek_tail(xmitq);
+	if (skb && (l->state == LINK_RESET))
+		msg_set_peer_stopping(buf_msg(skb), 1);
 }
 
 /* tipc_link_build_nack_msg: prepare link nack message for transmission
@@ -1411,7 +1417,9 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 			l->priority = peers_prio;
 
 		/* ACTIVATE_MSG serves as PEER_RESET if link is already down */
-		if ((mtyp == RESET_MSG) || !link_is_up(l))
+		if (msg_peer_stopping(hdr))
+			rc = tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
+		else if ((mtyp == RESET_MSG) || !link_is_up(l))
 			rc = tipc_link_fsm_evt(l, LINK_PEER_RESET_EVT);
 
 		/* ACTIVATE_MSG takes up link if it was already locally reset */
