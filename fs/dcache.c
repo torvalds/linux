@@ -1987,28 +1987,36 @@ EXPORT_SYMBOL(d_obtain_root);
 struct dentry *d_add_ci(struct dentry *dentry, struct inode *inode,
 			struct qstr *name)
 {
-	struct dentry *found;
-	struct dentry *new;
+	struct dentry *found, *res;
 
 	/*
 	 * First check if a dentry matching the name already exists,
 	 * if not go ahead and create it now.
 	 */
 	found = d_hash_and_lookup(dentry->d_parent, name);
-	if (!found) {
-		new = d_alloc(dentry->d_parent, name);
-		if (!new) {
-			found = ERR_PTR(-ENOMEM);
-		} else {
-			found = d_splice_alias(inode, new);
-			if (found) {
-				dput(new);
-				return found;
-			}
-			return new;
-		}
+	if (found) {
+		iput(inode);
+		return found;
 	}
-	iput(inode);
+	if (d_in_lookup(dentry)) {
+		found = d_alloc_parallel(dentry->d_parent, name,
+					dentry->d_wait);
+		if (IS_ERR(found) || !d_in_lookup(found)) {
+			iput(inode);
+			return found;
+		}
+	} else {
+		found = d_alloc(dentry->d_parent, name);
+		if (!found) {
+			iput(inode);
+			return ERR_PTR(-ENOMEM);
+		} 
+	}
+	res = d_splice_alias(inode, found);
+	if (res) {
+		dput(found);
+		return res;
+	}
 	return found;
 }
 EXPORT_SYMBOL(d_add_ci);
@@ -2391,8 +2399,23 @@ static inline void end_dir_add(struct inode *dir, unsigned n)
 	smp_store_release(&dir->i_dir_seq, n + 2);
 }
 
+static void d_wait_lookup(struct dentry *dentry)
+{
+	if (d_in_lookup(dentry)) {
+		DECLARE_WAITQUEUE(wait, current);
+		add_wait_queue(dentry->d_wait, &wait);
+		do {
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			spin_unlock(&dentry->d_lock);
+			schedule();
+			spin_lock(&dentry->d_lock);
+		} while (d_in_lookup(dentry));
+	}
+}
+
 struct dentry *d_alloc_parallel(struct dentry *parent,
-				const struct qstr *name)
+				const struct qstr *name,
+				wait_queue_head_t *wq)
 {
 	unsigned int len = name->len;
 	unsigned int hash = name->hash;
@@ -2463,18 +2486,47 @@ retry:
 		}
 		dget(dentry);
 		hlist_bl_unlock(b);
-		/* impossible until we actually enable parallel lookups */
-		BUG();
-		/* and this will be "wait for it to stop being in-lookup" */
-		/* this one will be handled in the next commit */
+		/* somebody is doing lookup for it right now; wait for it */
+		spin_lock(&dentry->d_lock);
+		d_wait_lookup(dentry);
+		/*
+		 * it's not in-lookup anymore; in principle we should repeat
+		 * everything from dcache lookup, but it's likely to be what
+		 * d_lookup() would've found anyway.  If it is, just return it;
+		 * otherwise we really have to repeat the whole thing.
+		 */
+		if (unlikely(dentry->d_name.hash != hash))
+			goto mismatch;
+		if (unlikely(dentry->d_parent != parent))
+			goto mismatch;
+		if (unlikely(d_unhashed(dentry)))
+			goto mismatch;
+		if (parent->d_flags & DCACHE_OP_COMPARE) {
+			int tlen = dentry->d_name.len;
+			const char *tname = dentry->d_name.name;
+			if (parent->d_op->d_compare(parent, dentry, tlen, tname, name))
+				goto mismatch;
+		} else {
+			if (unlikely(dentry->d_name.len != len))
+				goto mismatch;
+			if (unlikely(dentry_cmp(dentry, str, len)))
+				goto mismatch;
+		}
+		/* OK, it *is* a hashed match; return it */
+		spin_unlock(&dentry->d_lock);
 		dput(new);
 		return dentry;
 	}
 	/* we can't take ->d_lock here; it's OK, though. */
 	new->d_flags |= DCACHE_PAR_LOOKUP;
+	new->d_wait = wq;
 	hlist_bl_add_head_rcu(&new->d_u.d_in_lookup_hash, b);
 	hlist_bl_unlock(b);
 	return new;
+mismatch:
+	spin_unlock(&dentry->d_lock);
+	dput(dentry);
+	goto retry;
 }
 EXPORT_SYMBOL(d_alloc_parallel);
 
@@ -2485,9 +2537,11 @@ void __d_lookup_done(struct dentry *dentry)
 	hlist_bl_lock(b);
 	dentry->d_flags &= ~DCACHE_PAR_LOOKUP;
 	__hlist_bl_del(&dentry->d_u.d_in_lookup_hash);
+	wake_up_all(dentry->d_wait);
+	dentry->d_wait = NULL;
 	hlist_bl_unlock(b);
 	INIT_HLIST_NODE(&dentry->d_u.d_alias);
-	/* more stuff will land here */
+	INIT_LIST_HEAD(&dentry->d_lru);
 }
 EXPORT_SYMBOL(__d_lookup_done);
 
