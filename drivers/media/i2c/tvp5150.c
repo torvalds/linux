@@ -1161,8 +1161,7 @@ static int tvp5150_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 static int tvp5150_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	tvp5150_write(sd, reg->reg & 0xff, reg->val & 0xff);
-	return 0;
+	return tvp5150_write(sd, reg->reg & 0xff, reg->val & 0xff);
 }
 #endif
 
