@@ -704,37 +704,33 @@ static void link_profile_stats(struct tipc_link *l)
  */
 int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 {
-	int rc = 0;
-	int mtyp = STATE_MSG;
-	bool xmit = false;
-	bool prb = false;
+	int mtyp, rc = 0;
+	bool state = false;
+	bool probe = false;
+	bool setup = false;
 	u16 bc_snt = l->bc_sndlink->snd_nxt - 1;
 	u16 bc_acked = l->bc_rcvlink->acked;
-	bool bc_up = link_is_up(l->bc_rcvlink);
 
 	link_profile_stats(l);
 
 	switch (l->state) {
 	case LINK_ESTABLISHED:
 	case LINK_SYNCHING:
-		if (!l->silent_intv_cnt) {
-			if (bc_up && (bc_acked != bc_snt))
-				xmit = true;
-		} else if (l->silent_intv_cnt <= l->abort_limit) {
-			xmit = true;
-			prb = true;
-		} else {
-			rc |= tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
-		}
-		l->silent_intv_cnt++;
+		if (l->silent_intv_cnt > l->abort_limit)
+			return tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
+		mtyp = STATE_MSG;
+		state = bc_acked != bc_snt;
+		probe = l->silent_intv_cnt;
+		if (probe)
+			l->silent_intv_cnt++;
 		break;
 	case LINK_RESET:
-		xmit = l->rst_cnt++ <= 4;
-		xmit |= !(l->rst_cnt % 16);
+		setup = l->rst_cnt++ <= 4;
+		setup |= !(l->rst_cnt % 16);
 		mtyp = RESET_MSG;
 		break;
 	case LINK_ESTABLISHING:
-		xmit = true;
+		setup = true;
 		mtyp = ACTIVATE_MSG;
 		break;
 	case LINK_PEER_RESET:
@@ -745,8 +741,8 @@ int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 		break;
 	}
 
-	if (xmit)
-		tipc_link_build_proto_msg(l, mtyp, prb, 0, 0, 0, xmitq);
+	if (state || probe || setup)
+		tipc_link_build_proto_msg(l, mtyp, probe, 0, 0, 0, xmitq);
 
 	return rc;
 }
