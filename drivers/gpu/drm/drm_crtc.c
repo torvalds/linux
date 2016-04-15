@@ -389,6 +389,35 @@ struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_mode_object_find);
 
+/* dev->mode_config.fb_lock must be held! */
+static void __drm_framebuffer_unregister(struct drm_device *dev,
+					 struct drm_framebuffer *fb)
+{
+	drm_mode_object_put(dev, &fb->base);
+
+	fb->base.id = 0;
+}
+
+static void drm_framebuffer_free(struct kref *kref)
+{
+	struct drm_framebuffer *fb =
+			container_of(kref, struct drm_framebuffer, refcount);
+	struct drm_device *dev = fb->dev;
+
+	/*
+	 * The lookup idr holds a weak reference, which has not necessarily been
+	 * removed at this point. Check for that.
+	 */
+	mutex_lock(&dev->mode_config.fb_lock);
+	if (fb->base.id) {
+		/* Mark fb as reaped and drop idr ref. */
+		__drm_framebuffer_unregister(dev, fb);
+	}
+	mutex_unlock(&dev->mode_config.fb_lock);
+
+	fb->funcs->destroy(fb);
+}
+
 /**
  * drm_framebuffer_init - initialize a framebuffer
  * @dev: DRM device
@@ -430,35 +459,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(drm_framebuffer_init);
-
-/* dev->mode_config.fb_lock must be held! */
-static void __drm_framebuffer_unregister(struct drm_device *dev,
-					 struct drm_framebuffer *fb)
-{
-	drm_mode_object_put(dev, &fb->base);
-
-	fb->base.id = 0;
-}
-
-static void drm_framebuffer_free(struct kref *kref)
-{
-	struct drm_framebuffer *fb =
-			container_of(kref, struct drm_framebuffer, refcount);
-	struct drm_device *dev = fb->dev;
-
-	/*
-	 * The lookup idr holds a weak reference, which has not necessarily been
-	 * removed at this point. Check for that.
-	 */
-	mutex_lock(&dev->mode_config.fb_lock);
-	if (fb->base.id) {
-		/* Mark fb as reaped and drop idr ref. */
-		__drm_framebuffer_unregister(dev, fb);
-	}
-	mutex_unlock(&dev->mode_config.fb_lock);
-
-	fb->funcs->destroy(fb);
-}
 
 static struct drm_framebuffer *__drm_framebuffer_lookup(struct drm_device *dev,
 							uint32_t id)
