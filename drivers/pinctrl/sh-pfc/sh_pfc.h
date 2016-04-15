@@ -28,6 +28,7 @@ enum {
 #define SH_PFC_PIN_CFG_PULL_UP		(1 << 2)
 #define SH_PFC_PIN_CFG_PULL_DOWN	(1 << 3)
 #define SH_PFC_PIN_CFG_IO_VOLTAGE	(1 << 4)
+#define SH_PFC_PIN_CFG_DRIVE_STRENGTH	(1 << 5)
 #define SH_PFC_PIN_CFG_NO_GPIO		(1 << 31)
 
 struct sh_pfc_pin {
@@ -131,6 +132,21 @@ struct pinmux_cfg_reg {
 		{ var_fw0, var_fwn, 0 }, \
 	.enum_ids = (const u16 [])
 
+struct pinmux_drive_reg_field {
+	u16 pin;
+	u8 offset;
+	u8 size;
+};
+
+struct pinmux_drive_reg {
+	u32 reg;
+	const struct pinmux_drive_reg_field fields[8];
+};
+
+#define PINMUX_DRIVE_REG(name, r) \
+	.reg = r, \
+	.fields =
+
 struct pinmux_data_reg {
 	u32 reg;
 	u8 reg_width;
@@ -199,6 +215,7 @@ struct sh_pfc_soc_info {
 #endif
 
 	const struct pinmux_cfg_reg *cfg_regs;
+	const struct pinmux_drive_reg *drive_regs;
 	const struct pinmux_data_reg *data_regs;
 
 	const u16 *pinmux_data;
@@ -276,7 +293,7 @@ struct sh_pfc_soc_info {
  *   - msel: Module selector
  */
 #define PINMUX_IPSR_MSEL(ipsr, fn, msel)				\
-	PINMUX_DATA(fn##_MARK, FN_##msel, FN_##ipsr, FN_##fn)
+	PINMUX_DATA(fn##_MARK, FN_##msel, FN_##fn, FN_##ipsr)
 
 /*
  * Describe a pinmux configuration for a single-function pin with GPIO
