@@ -62,6 +62,7 @@ void qed_resc_setup(struct qed_dev *cdev);
  * @brief qed_hw_init -
  *
  * @param cdev
+ * @param p_tunn
  * @param b_hw_start
  * @param int_mode - interrupt mode [msix, inta, etc.] to use.
  * @param allow_npar_tx_switch - npar tx switching to be used
@@ -72,6 +73,7 @@ void qed_resc_setup(struct qed_dev *cdev);
  * @return int
  */
 int qed_hw_init(struct qed_dev *cdev,
+		struct qed_tunn_start_params *p_tunn,
 		bool b_hw_start,
 		enum qed_int_mode int_mode,
 		bool allow_npar_tx_switch,

@@ -1884,6 +1884,36 @@ static int qed_stop_txq(struct qed_dev *cdev,
 	return 0;
 }
 
+static int qed_tunn_configure(struct qed_dev *cdev,
+			      struct qed_tunn_params *tunn_params)
+{
+	struct qed_tunn_update_params tunn_info;
+	int i, rc;
+
+	memset(&tunn_info, 0, sizeof(tunn_info));
+	if (tunn_params->update_vxlan_port == 1) {
+		tunn_info.update_vxlan_udp_port = 1;
+		tunn_info.vxlan_udp_port = tunn_params->vxlan_port;
+	}
+
+	if (tunn_params->update_geneve_port == 1) {
+		tunn_info.update_geneve_udp_port = 1;
+		tunn_info.geneve_udp_port = tunn_params->geneve_port;
+	}
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *hwfn = &cdev->hwfns[i];
+
+		rc = qed_sp_pf_update_tunn_cfg(hwfn, &tunn_info,
+					       QED_SPQ_MODE_EBLOCK, NULL);
+
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
 static int qed_configure_filter_rx_mode(struct qed_dev *cdev,
 					enum qed_filter_rx_mode_type type)
 {
@@ -2026,6 +2056,7 @@ static const struct qed_eth_ops qed_eth_ops_pass = {
 	.fastpath_stop = &qed_fastpath_stop,
 	.eth_cqe_completion = &qed_fp_cqe_completion,
 	.get_vport_stats = &qed_get_vport_stats,
+	.tunn_config = &qed_tunn_configure,
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void)

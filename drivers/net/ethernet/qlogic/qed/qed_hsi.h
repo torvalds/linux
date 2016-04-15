@@ -46,7 +46,7 @@ enum common_ramrod_cmd_id {
 	COMMON_RAMROD_PF_STOP /* PF Function Stop Ramrod */,
 	COMMON_RAMROD_RESERVED,
 	COMMON_RAMROD_RESERVED2,
-	COMMON_RAMROD_RESERVED3,
+	COMMON_RAMROD_PF_UPDATE,
 	COMMON_RAMROD_EMPTY,
 	MAX_COMMON_RAMROD_CMD_ID
 };
@@ -624,6 +624,42 @@ struct pf_start_ramrod_data {
 	u8				pri_map_valid;
 	u32				outer_tag;
 	u8				reserved0[4];
+};
+
+/* tunnel configuration */
+struct pf_update_tunnel_config {
+	u8	update_rx_pf_clss;
+	u8	update_tx_pf_clss;
+	u8	set_vxlan_udp_port_flg;
+	u8	set_geneve_udp_port_flg;
+	u8	tx_enable_vxlan;
+	u8	tx_enable_l2geneve;
+	u8	tx_enable_ipgeneve;
+	u8	tx_enable_l2gre;
+	u8	tx_enable_ipgre;
+	u8	tunnel_clss_vxlan;
+	u8	tunnel_clss_l2geneve;
+	u8	tunnel_clss_ipgeneve;
+	u8	tunnel_clss_l2gre;
+	u8	tunnel_clss_ipgre;
+	__le16	vxlan_udp_port;
+	__le16	geneve_udp_port;
+	__le16	reserved[3];
+};
+
+struct pf_update_ramrod_data {
+	u32				reserved[2];
+	u32				reserved_1[6];
+	struct pf_update_tunnel_config	tunnel_config;
+};
+
+/* Tunnel classification scheme */
+enum tunnel_clss {
+	TUNNEL_CLSS_MAC_VLAN = 0,
+	TUNNEL_CLSS_MAC_VNI,
+	TUNNEL_CLSS_INNER_MAC_VLAN,
+	TUNNEL_CLSS_INNER_MAC_VNI,
+	MAX_TUNNEL_CLSS
 };
 
 enum ports_mode {
@@ -1602,6 +1638,19 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn	*p_hwfn,
 			  bool			is_tx_pq,
 			  u16			start_pq,
 			  u16			num_pqs);
+
+void qed_set_vxlan_dest_port(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt  *p_ptt, u16 dest_port);
+void qed_set_vxlan_enable(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, bool vxlan_enable);
+void qed_set_gre_enable(struct qed_hwfn *p_hwfn,
+			struct qed_ptt  *p_ptt, bool eth_gre_enable,
+			bool ip_gre_enable);
+void qed_set_geneve_dest_port(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt, u16 dest_port);
+void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, bool eth_geneve_enable,
+			   bool ip_geneve_enable);
 
 /* Ystorm flow control mode. Use enum fw_flow_ctrl_mode */
 #define YSTORM_FLOW_CONTROL_MODE_OFFSET  (IRO[0].base)

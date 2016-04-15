@@ -52,6 +52,7 @@ int qed_eth_cqe_completion(struct qed_hwfn *p_hwfn,
 
 union ramrod_data {
 	struct pf_start_ramrod_data pf_start;
+	struct pf_update_ramrod_data pf_update;
 	struct rx_queue_start_ramrod_data rx_queue_start;
 	struct rx_queue_update_ramrod_data rx_queue_update;
 	struct rx_queue_stop_ramrod_data rx_queue_stop;
@@ -338,12 +339,14 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
  * to the internal RAM of the UStorm by the Function Start Ramrod.
  *
  * @param p_hwfn
+ * @param p_tunn
  * @param mode
  *
  * @return int
  */
 
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
+		    struct qed_tunn_start_params *p_tunn,
 		    enum qed_mf_mode mode);
 
 /**
@@ -362,4 +365,8 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 
 int qed_sp_pf_stop(struct qed_hwfn *p_hwfn);
 
+int qed_sp_pf_update_tunn_cfg(struct qed_hwfn *p_hwfn,
+			      struct qed_tunn_update_params *p_tunn,
+			      enum spq_mode comp_mode,
+			      struct qed_spq_comp_cb *p_comp_data);
 #endif

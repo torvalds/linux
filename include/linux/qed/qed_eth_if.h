@@ -112,6 +112,13 @@ struct qed_queue_start_common_params {
 	u16 sb_idx;
 };
 
+struct qed_tunn_params {
+	u16 vxlan_port;
+	u8 update_vxlan_port;
+	u16 geneve_port;
+	u8 update_geneve_port;
+};
+
 struct qed_eth_cb_ops {
 	struct qed_common_cb_ops common;
 };
@@ -166,6 +173,9 @@ struct qed_eth_ops {
 
 	void (*get_vport_stats)(struct qed_dev *cdev,
 				struct qed_eth_stats *stats);
+
+	int (*tunn_config)(struct qed_dev *cdev,
+			   struct qed_tunn_params *params);
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void);

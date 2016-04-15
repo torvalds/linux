@@ -74,6 +74,51 @@ struct qed_rt_data {
 	bool	*b_valid;
 };
 
+enum qed_tunn_mode {
+	QED_MODE_L2GENEVE_TUNN,
+	QED_MODE_IPGENEVE_TUNN,
+	QED_MODE_L2GRE_TUNN,
+	QED_MODE_IPGRE_TUNN,
+	QED_MODE_VXLAN_TUNN,
+};
+
+enum qed_tunn_clss {
+	QED_TUNN_CLSS_MAC_VLAN,
+	QED_TUNN_CLSS_MAC_VNI,
+	QED_TUNN_CLSS_INNER_MAC_VLAN,
+	QED_TUNN_CLSS_INNER_MAC_VNI,
+	MAX_QED_TUNN_CLSS,
+};
+
+struct qed_tunn_start_params {
+	unsigned long	tunn_mode;
+	u16		vxlan_udp_port;
+	u16		geneve_udp_port;
+	u8		update_vxlan_udp_port;
+	u8		update_geneve_udp_port;
+	u8		tunn_clss_vxlan;
+	u8		tunn_clss_l2geneve;
+	u8		tunn_clss_ipgeneve;
+	u8		tunn_clss_l2gre;
+	u8		tunn_clss_ipgre;
+};
+
+struct qed_tunn_update_params {
+	unsigned long	tunn_mode_update_mask;
+	unsigned long	tunn_mode;
+	u16		vxlan_udp_port;
+	u16		geneve_udp_port;
+	u8		update_rx_pf_clss;
+	u8		update_tx_pf_clss;
+	u8		update_vxlan_udp_port;
+	u8		update_geneve_udp_port;
+	u8		tunn_clss_vxlan;
+	u8		tunn_clss_l2geneve;
+	u8		tunn_clss_ipgeneve;
+	u8		tunn_clss_l2gre;
+	u8		tunn_clss_ipgre;
+};
+
 /* The PCI personality is not quite synonymous to protocol ID:
  * 1. All personalities need CORE connections
  * 2. The Ethernet personality may support also the RoCE protocol
@@ -430,6 +475,7 @@ struct qed_dev {
 	u8				num_hwfns;
 	struct qed_hwfn			hwfns[MAX_HWFNS_PER_DEVICE];
 
+	unsigned long			tunn_mode;
 	u32				drv_type;
 
 	struct qed_eth_stats		*reset_stats;
