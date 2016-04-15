@@ -3110,6 +3110,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_END()
 	};
 	bool max_stack_user_set = true;
+	bool mmap_pages_user_set = true;
 	const char * const trace_subcommands[] = { "record", NULL };
 	int err;
 	char bf[BUFSIZ];
@@ -3143,6 +3144,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		trace.opts.sample_time = true;
 	}
 
+	if (trace.opts.mmap_pages == UINT_MAX)
+		mmap_pages_user_set = false;
+
 	if (trace.max_stack == UINT_MAX) {
 		trace.max_stack = PERF_MAX_STACK_DEPTH;
 		max_stack_user_set = false;
@@ -3153,8 +3157,12 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		record_opts__parse_callchain(&trace.opts, &callchain_param, "dwarf", false);
 #endif
 
-	if (trace.opts.callgraph_set)
+	if (trace.opts.callgraph_set) {
+		if (!mmap_pages_user_set && geteuid() == 0)
+			trace.opts.mmap_pages = perf_event_mlock_kb_in_pages() * 4;
+
 		symbol_conf.use_callchain = true;
+	}
 
 	if (trace.evlist->nr_entries > 0)
 		evlist__set_evsel_handler(trace.evlist, trace__event_handler);

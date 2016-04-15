@@ -123,6 +123,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
         man pages for details. The ones that are most useful in 'perf trace'
         are 'dwarf' and 'lbr', where available, try: 'perf trace --call-graph dwarf'.
 
+        Using this will, for the root user, bump the value of --mmap-pages to 4
+        times the maximum for non-root users, based on the kernel.perf_event_mlock_kb
+        sysctl. This is done only if the user doesn't specify a --mmap-pages value.
+
 --kernel-syscall-graph::
 	 Show the kernel callchains on the syscall exit path.
 
