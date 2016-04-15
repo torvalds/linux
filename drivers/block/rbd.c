@@ -538,7 +538,6 @@ static int _rbd_dev_v2_snap_size(struct rbd_device *rbd_dev, u64 snap_id,
 				u8 *order, u64 *snap_size);
 static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
 		u64 *snap_features);
-static u64 rbd_snap_id_by_name(struct rbd_device *rbd_dev, const char *name);
 
 static int rbd_open(struct block_device *bdev, fmode_t mode)
 {
@@ -3127,9 +3126,6 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	struct rbd_device *rbd_dev = (struct rbd_device *)data;
 	int ret;
 
-	if (!rbd_dev)
-		return;
-
 	dout("%s: \"%s\" notify_id %llu opcode %u\n", __func__,
 		rbd_dev->header_name, (unsigned long long)notify_id,
 		(unsigned int)opcode);
@@ -3263,6 +3259,9 @@ static void rbd_dev_header_unwatch_sync(struct rbd_device *rbd_dev)
 
 	ceph_osdc_cancel_event(rbd_dev->watch_event);
 	rbd_dev->watch_event = NULL;
+
+	dout("%s flushing notifies\n", __func__);
+	ceph_osdc_flush_notifies(&rbd_dev->rbd_client->client->osdc);
 }
 
 /*
@@ -3642,21 +3641,14 @@ static void rbd_exists_validate(struct rbd_device *rbd_dev)
 static void rbd_dev_update_size(struct rbd_device *rbd_dev)
 {
 	sector_t size;
-	bool removing;
 
 	/*
-	 * Don't hold the lock while doing disk operations,
-	 * or lock ordering will conflict with the bdev mutex via:
-	 * rbd_add() -> blkdev_get() -> rbd_open()
+	 * If EXISTS is not set, rbd_dev->disk may be NULL, so don't
+	 * try to update its size.  If REMOVING is set, updating size
+	 * is just useless work since the device can't be opened.
 	 */
-	spin_lock_irq(&rbd_dev->lock);
-	removing = test_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags);
-	spin_unlock_irq(&rbd_dev->lock);
-	/*
-	 * If the device is being removed, rbd_dev->disk has
-	 * been destroyed, so don't try to update its size
-	 */
-	if (!removing) {
+	if (test_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags) &&
+	    !test_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags)) {
 		size = (sector_t)rbd_dev->mapping.size / SECTOR_SIZE;
 		dout("setting size to %llu sectors", (unsigned long long)size);
 		set_capacity(rbd_dev->disk, size);
@@ -5187,6 +5179,10 @@ out_err:
 	return ret;
 }
 
+/*
+ * rbd_dev->header_rwsem must be locked for write and will be unlocked
+ * upon return.
+ */
 static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 {
 	int ret;
@@ -5195,7 +5191,7 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 
 	ret = rbd_dev_id_get(rbd_dev);
 	if (ret)
-		return ret;
+		goto err_out_unlock;
 
 	BUILD_BUG_ON(DEV_NAME_LEN
 			< sizeof (RBD_DRV_NAME) + MAX_INT_FORMAT_WIDTH);
@@ -5236,8 +5232,9 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 	/* Everything's ready.  Announce the disk to the world. */
 
 	set_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
-	add_disk(rbd_dev->disk);
+	up_write(&rbd_dev->header_rwsem);
 
+	add_disk(rbd_dev->disk);
 	pr_info("%s: added with size 0x%llx\n", rbd_dev->disk->disk_name,
 		(unsigned long long) rbd_dev->mapping.size);
 
@@ -5252,6 +5249,8 @@ err_out_blkdev:
 		unregister_blkdev(rbd_dev->major, rbd_dev->name);
 err_out_id:
 	rbd_dev_id_put(rbd_dev);
+err_out_unlock:
+	up_write(&rbd_dev->header_rwsem);
 	return ret;
 }
 
@@ -5442,6 +5441,7 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	spec = NULL;		/* rbd_dev now owns this */
 	rbd_opts = NULL;	/* rbd_dev now owns this */
 
+	down_write(&rbd_dev->header_rwsem);
 	rc = rbd_dev_image_probe(rbd_dev, 0);
 	if (rc < 0)
 		goto err_out_rbd_dev;
@@ -5471,6 +5471,7 @@ out:
 	return rc;
 
 err_out_rbd_dev:
+	up_write(&rbd_dev->header_rwsem);
 	rbd_dev_destroy(rbd_dev);
 err_out_client:
 	rbd_put_client(rbdc);
@@ -5577,12 +5578,6 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 		return ret;
 
 	rbd_dev_header_unwatch_sync(rbd_dev);
-	/*
-	 * flush remaining watch callbacks - these must be complete
-	 * before the osd_client is shutdown
-	 */
-	dout("%s: flushing notifies", __func__);
-	ceph_osdc_flush_notifies(&rbd_dev->rbd_client->client->osdc);
 
 	/*
 	 * Don't free anything from rbd_dev->disk until after all
