@@ -184,7 +184,9 @@ static inline void devlink_port_split_set(struct devlink_port *devlink_port,
 static inline int devlink_sb_register(struct devlink *devlink,
 				      unsigned int sb_index, u32 size,
 				      u16 ingress_pools_count,
-				      u16 egress_pools_count, u16 tc_count)
+				      u16 egress_pools_count,
+				      u16 ingress_tc_count,
+				      u16 egress_tc_count)
 {
 	return 0;
 }
