@@ -1344,6 +1344,8 @@ struct megasas_ctrl_info {
 #define SCAN_PD_CHANNEL	0x1
 #define SCAN_VD_CHANNEL	0x2
 
+#define MEGASAS_KDUMP_QUEUE_DEPTH               100
+
 enum MR_SCSI_CMD_TYPE {
 	READ_WRITE_LDIO = 0,
 	NON_READ_WRITE_LDIO = 1,

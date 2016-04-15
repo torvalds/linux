@@ -257,6 +257,9 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 		if (!instance->is_rdpq)
 			instance->max_fw_cmds = min_t(u16, instance->max_fw_cmds, 1024);
 
+		if (reset_devices)
+			instance->max_fw_cmds = min(instance->max_fw_cmds,
+						(u16)MEGASAS_KDUMP_QUEUE_DEPTH);
 		/*
 		* Reduce the max supported cmds by 1. This is to ensure that the
 		* reply_q_sz (1 more than the max cmd that driver may send)

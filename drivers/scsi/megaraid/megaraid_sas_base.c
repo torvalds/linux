@@ -5761,13 +5761,6 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		break;
 	}
 
-	instance->system_info_buf = pci_zalloc_consistent(pdev,
-					sizeof(struct MR_DRV_SYSTEM_INFO),
-					&instance->system_info_h);
-
-	if (!instance->system_info_buf)
-		dev_info(&instance->pdev->dev, "Can't allocate system info buffer\n");
-
 	/* Crash dump feature related initialisation*/
 	instance->drv_buf_index = 0;
 	instance->drv_buf_alloc = 0;
@@ -5776,14 +5769,6 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->fw_crash_state = UNAVAILABLE;
 	spin_lock_init(&instance->crashdump_lock);
 	instance->crash_dump_buf = NULL;
-
-	if (!reset_devices)
-		instance->crash_dump_buf = pci_alloc_consistent(pdev,
-						CRASH_DMA_BUF_SIZE,
-						&instance->crash_dump_h);
-	if (!instance->crash_dump_buf)
-		dev_err(&pdev->dev, "Can't allocate Firmware "
-			"crash dump DMA buffer\n");
 
 	megasas_poll_wait_aen = 0;
 	instance->flag_ieee = 0;
@@ -5803,11 +5788,26 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		goto fail_alloc_dma_buf;
 	}
 
-	instance->pd_info = pci_alloc_consistent(pdev,
-		sizeof(struct MR_PD_INFO), &instance->pd_info_h);
+	if (!reset_devices) {
+		instance->system_info_buf = pci_zalloc_consistent(pdev,
+					sizeof(struct MR_DRV_SYSTEM_INFO),
+					&instance->system_info_h);
+		if (!instance->system_info_buf)
+			dev_info(&instance->pdev->dev, "Can't allocate system info buffer\n");
 
-	if (!instance->pd_info)
-		dev_err(&instance->pdev->dev, "Failed to alloc mem for pd_info\n");
+		instance->pd_info = pci_alloc_consistent(pdev,
+			sizeof(struct MR_PD_INFO), &instance->pd_info_h);
+
+		if (!instance->pd_info)
+			dev_err(&instance->pdev->dev, "Failed to alloc mem for pd_info\n");
+
+		instance->crash_dump_buf = pci_alloc_consistent(pdev,
+						CRASH_DMA_BUF_SIZE,
+						&instance->crash_dump_h);
+		if (!instance->crash_dump_buf)
+			dev_err(&pdev->dev, "Can't allocate Firmware "
+				"crash dump DMA buffer\n");
+	}
 
 	/*
 	 * Initialize locks and queues
@@ -7172,6 +7172,16 @@ megasas_aen_polling(struct work_struct *work)
 static int __init megasas_init(void)
 {
 	int rval;
+
+	/*
+	 * Booted in kdump kernel, minimize memory footprints by
+	 * disabling few features
+	 */
+	if (reset_devices) {
+		msix_vectors = 1;
+		rdpq_enable = 0;
+		dual_qdepth_disable = 1;
+	}
 
 	/*
 	 * Announce driver version and other information
