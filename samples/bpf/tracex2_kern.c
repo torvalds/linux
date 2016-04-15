@@ -66,7 +66,7 @@ struct hist_key {
 	char comm[16];
 	u64 pid_tgid;
 	u64 uid_gid;
-	u32 index;
+	u64 index;
 };
 
 struct bpf_map_def SEC("maps") my_hist_map = {
@@ -82,7 +82,7 @@ int bpf_prog3(struct pt_regs *ctx)
 	long write_size = PT_REGS_PARM3(ctx);
 	long init_val = 1;
 	long *value;
-	struct hist_key key = {};
+	struct hist_key key;
 
 	key.index = log2l(write_size);
 	key.pid_tgid = bpf_get_current_pid_tgid();

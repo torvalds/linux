@@ -11,7 +11,7 @@
 #include <linux/version.h>
 #include <linux/sched.h>
 
-#define _(P) ({typeof(P) val = 0; bpf_probe_read(&val, sizeof(val), &P); val;})
+#define _(P) ({typeof(P) val; bpf_probe_read(&val, sizeof(val), &P); val;})
 
 #define MINBLOCK_US	1
 
@@ -61,7 +61,7 @@ SEC("kprobe/try_to_wake_up")
 int waker(struct pt_regs *ctx)
 {
 	struct task_struct *p = (void *) PT_REGS_PARM1(ctx);
-	struct wokeby_t woke = {};
+	struct wokeby_t woke;
 	u32 pid;
 
 	pid = _(p->pid);
@@ -75,17 +75,19 @@ int waker(struct pt_regs *ctx)
 
 static inline int update_counts(void *ctx, u32 pid, u64 delta)
 {
-	struct key_t key = {};
 	struct wokeby_t *woke;
 	u64 zero = 0, *val;
+	struct key_t key;
 
+	__builtin_memset(&key.waker, 0, sizeof(key.waker));
 	bpf_get_current_comm(&key.target, sizeof(key.target));
 	key.tret = bpf_get_stackid(ctx, &stackmap, STACKID_FLAGS);
+	key.wret = 0;
 
 	woke = bpf_map_lookup_elem(&wokeby, &pid);
 	if (woke) {
 		key.wret = woke->ret;
-		__builtin_memcpy(&key.waker, woke->name, TASK_COMM_LEN);
+		__builtin_memcpy(&key.waker, woke->name, sizeof(key.waker));
 		bpf_map_delete_elem(&wokeby, &pid);
 	}
 
