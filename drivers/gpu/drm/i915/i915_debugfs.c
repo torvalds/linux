@@ -89,27 +89,34 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const char *get_pin_flag(struct drm_i915_gem_object *obj)
+static const char get_active_flag(struct drm_i915_gem_object *obj)
 {
-	if (obj->pin_display)
-		return "p";
-	else
-		return " ";
+	return obj->active ? '*' : ' ';
 }
 
-static const char *get_tiling_flag(struct drm_i915_gem_object *obj)
+static const char get_pin_flag(struct drm_i915_gem_object *obj)
+{
+	return obj->pin_display ? 'p' : ' ';
+}
+
+static const char get_tiling_flag(struct drm_i915_gem_object *obj)
 {
 	switch (obj->tiling_mode) {
 	default:
-	case I915_TILING_NONE: return " ";
-	case I915_TILING_X: return "X";
-	case I915_TILING_Y: return "Y";
+	case I915_TILING_NONE: return ' ';
+	case I915_TILING_X: return 'X';
+	case I915_TILING_Y: return 'Y';
 	}
 }
 
-static inline const char *get_global_flag(struct drm_i915_gem_object *obj)
+static inline const char get_global_flag(struct drm_i915_gem_object *obj)
 {
-	return i915_gem_obj_to_ggtt(obj) ? "g" : " ";
+	return i915_gem_obj_to_ggtt(obj) ? 'g' : ' ';
+}
+
+static inline const char get_pin_mapped_flag(struct drm_i915_gem_object *obj)
+{
+	return obj->mapping ? 'M' : ' ';
 }
 
 static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
@@ -136,12 +143,13 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
-	seq_printf(m, "%pK: %s%s%s%s %8zdKiB %02x %02x [ ",
+	seq_printf(m, "%pK: %c%c%c%c%c %8zdKiB %02x %02x [ ",
 		   &obj->base,
-		   obj->active ? "*" : " ",
+		   get_active_flag(obj),
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
 		   get_global_flag(obj),
+		   get_pin_mapped_flag(obj),
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
 		   obj->base.write_domain);
