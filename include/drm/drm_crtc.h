@@ -2605,6 +2605,17 @@ static inline uint32_t drm_color_lut_extract(uint32_t user_input,
 	return clamp_val(val, 0, max);
 }
 
+/**
+ * drm_framebuffer_read_refcount - read the framebuffer reference count.
+ * @fb: framebuffer
+ *
+ * This functions returns the framebuffer's reference count.
+ */
+static inline uint32_t drm_framebuffer_read_refcount(struct drm_framebuffer *fb)
+{
+	return atomic_read(&fb->refcount.refcount);
+}
+
 /* Plane list iterator for legacy (overlay only) planes. */
 #define drm_for_each_legacy_plane(plane, dev) \
 	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head) \

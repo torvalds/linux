@@ -1917,7 +1917,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
                          fbdev_fb->base.depth,
                          fbdev_fb->base.bits_per_pixel,
                          fbdev_fb->base.modifier[0],
-                         atomic_read(&fbdev_fb->base.refcount.refcount));
+                         drm_framebuffer_read_refcount(&fbdev_fb->base));
                describe_obj(m, fbdev_fb->obj);
                seq_putc(m, '\n');
        }
@@ -1935,7 +1935,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 			   fb->base.depth,
 			   fb->base.bits_per_pixel,
 			   fb->base.modifier[0],
-			   atomic_read(&fb->base.refcount.refcount));
+			   drm_framebuffer_read_refcount(&fb->base));
 		describe_obj(m, fb->obj);
 		seq_putc(m, '\n');
 	}

@@ -612,7 +612,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	 * in-use fb with fb-id == 0. Userspace is allowed to shoot its own foot
 	 * in this manner.
 	 */
-	if (atomic_read(&fb->refcount.refcount) > 1) {
+	if (drm_framebuffer_read_refcount(fb) > 1) {
 		drm_modeset_lock_all(dev);
 		/* remove from any CRTC */
 		drm_for_each_crtc(crtc, dev) {
