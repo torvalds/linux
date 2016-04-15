@@ -212,6 +212,9 @@ static const struct file_operations fops = {
 	.release = ec_device_release,
 	.read = ec_device_read,
 	.unlocked_ioctl = ec_device_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = ec_device_ioctl,
+#endif
 };
 
 static void __remove(struct device *dev)
