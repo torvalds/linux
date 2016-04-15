@@ -734,7 +734,8 @@ ENDPROC(__secondary_switched)
 
 	.macro	update_early_cpu_boot_status status, tmp1, tmp2
 	mov	\tmp2, #\status
-	str_l	\tmp2, __early_cpu_boot_status, \tmp1
+	adr_l	\tmp1, __early_cpu_boot_status
+	str	\tmp2, [\tmp1]
 	dmb	sy
 	dc	ivac, \tmp1			// Invalidate potentially stale cache line
 	.endm
