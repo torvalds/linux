@@ -8,7 +8,7 @@ menuconfig ACPI
 	depends on IA64 || X86 || (ARM64 && EXPERT)
 	depends on PCI
 	select PNP
-	default y
+	default y if (IA64 || X86)
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 
 	  Linux requires an ACPI-compliant platform (hardware/firmware),
