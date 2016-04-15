@@ -127,8 +127,10 @@ static int lis3lv02d_acpi_read(struct lis3lv02d *lis3, int reg, u8 *ret)
 	arg0.integer.value = reg;
 
 	status = acpi_evaluate_integer(dev->handle, "ALRD", &args, &lret);
+	if (ACPI_FAILURE(status))
+		return -EINVAL;
 	*ret = lret;
-	return (status != AE_OK) ? -EINVAL : 0;
+	return 0;
 }
 
 /**
