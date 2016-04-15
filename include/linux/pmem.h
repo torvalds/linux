@@ -72,6 +72,18 @@ static inline void arch_invalidate_pmem(void __pmem *addr, size_t size)
 }
 #endif
 
+static inline bool arch_has_pmem_api(void)
+{
+	return IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API);
+}
+
+static inline int default_memcpy_from_pmem(void *dst, void __pmem const *src,
+		size_t size)
+{
+	memcpy(dst, (void __force *) src, size);
+	return 0;
+}
+
 /*
  * memcpy_from_pmem - read from persistent memory with error handling
  * @dst: destination buffer
@@ -83,12 +95,10 @@ static inline void arch_invalidate_pmem(void __pmem *addr, size_t size)
 static inline int memcpy_from_pmem(void *dst, void __pmem const *src,
 		size_t size)
 {
-	return arch_memcpy_from_pmem(dst, src, size);
-}
-
-static inline bool arch_has_pmem_api(void)
-{
-	return IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API);
+	if (arch_has_pmem_api())
+		return arch_memcpy_from_pmem(dst, src, size);
+	else
+		return default_memcpy_from_pmem(dst, src, size);
 }
 
 /**
