@@ -2762,6 +2762,7 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 			dev_warn(&instance->pdev->dev, "Found FW in FAULT state,"
 			       " will reset adapter scsi%d.\n",
 				instance->host->host_no);
+			megasas_complete_cmd_dpc_fusion((unsigned long)instance);
 			retval = 1;
 			goto out;
 		}
@@ -2769,6 +2770,7 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 		if (reason == MFI_IO_TIMEOUT_OCR) {
 			dev_info(&instance->pdev->dev,
 				"MFI IO is timed out, initiating OCR\n");
+			megasas_complete_cmd_dpc_fusion((unsigned long)instance);
 			retval = 1;
 			goto out;
 		}
