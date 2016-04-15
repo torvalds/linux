@@ -187,23 +187,16 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 		 * For SMP, multiple CPUs can race, so we need to do
 		 * this atomically.
 		 */
-#ifdef CONFIG_64BIT
-#define LL_INSN "lld"
-#define SC_INSN "scd"
-#else /* CONFIG_32BIT */
-#define LL_INSN "ll"
-#define SC_INSN "sc"
-#endif
 		unsigned long page_global = _PAGE_GLOBAL;
 		unsigned long tmp;
 
 		__asm__ __volatile__ (
 			"	.set	push\n"
 			"	.set	noreorder\n"
-			"1:	" LL_INSN "	%[tmp], %[buddy]\n"
+			"1:	" __LL "	%[tmp], %[buddy]\n"
 			"	bnez	%[tmp], 2f\n"
 			"	 or	%[tmp], %[tmp], %[global]\n"
-			"	" SC_INSN "	%[tmp], %[buddy]\n"
+			"	" __SC "	%[tmp], %[buddy]\n"
 			"	beqz	%[tmp], 1b\n"
 			"	 nop\n"
 			"2:\n"
