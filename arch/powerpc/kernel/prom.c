@@ -161,11 +161,12 @@ static struct ibm_pa_feature {
 	{0, MMU_FTR_CI_LARGE_PAGE, 0, 0,		1, 2, 0},
 	{CPU_FTR_REAL_LE, 0, PPC_FEATURE_TRUE_LE, 0, 5, 0, 0},
 	/*
-	 * If the kernel doesn't support TM (ie. CONFIG_PPC_TRANSACTIONAL_MEM=n),
-	 * we don't want to turn on CPU_FTR_TM here, so we use CPU_FTR_TM_COMP
-	 * which is 0 if the kernel doesn't support TM.
+	 * If the kernel doesn't support TM (ie CONFIG_PPC_TRANSACTIONAL_MEM=n),
+	 * we don't want to turn on TM here, so we use the *_COMP versions
+	 * which are 0 if the kernel doesn't support TM.
 	 */
-	{CPU_FTR_TM_COMP, 0, 0, 0,		22, 0, 0},
+	{CPU_FTR_TM_COMP, 0, 0,
+	 PPC_FEATURE2_HTM_COMP|PPC_FEATURE2_HTM_NOSC_COMP, 22, 0, 0},
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
