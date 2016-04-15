@@ -235,6 +235,7 @@
 	.macro	ld_b	wd, off, base
 	.set	push
 	.set	mips32r2
+	.set	fp=64
 	.set	msa
 	ld.b	$w\wd, \off(\base)
 	.set	pop
@@ -243,6 +244,7 @@
 	.macro	ld_h	wd, off, base
 	.set	push
 	.set	mips32r2
+	.set	fp=64
 	.set	msa
 	ld.h	$w\wd, \off(\base)
 	.set	pop
@@ -251,6 +253,7 @@
 	.macro	ld_w	wd, off, base
 	.set	push
 	.set	mips32r2
+	.set	fp=64
 	.set	msa
 	ld.w	$w\wd, \off(\base)
 	.set	pop
@@ -268,6 +271,7 @@
 	.macro	st_b	wd, off, base
 	.set	push
 	.set	mips32r2
+	.set	fp=64
 	.set	msa
 	st.b	$w\wd, \off(\base)
 	.set	pop
@@ -276,6 +280,7 @@
 	.macro	st_h	wd, off, base
 	.set	push
 	.set	mips32r2
+	.set	fp=64
 	.set	msa
 	st.h	$w\wd, \off(\base)
 	.set	pop
@@ -284,6 +289,7 @@
 	.macro	st_w	wd, off, base
 	.set	push
 	.set	mips32r2
+	.set	fp=64
 	.set	msa
 	st.w	$w\wd, \off(\base)
 	.set	pop
