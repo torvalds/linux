@@ -3047,7 +3047,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		.show_comm = true,
 		.trace_syscalls = true,
 		.kernel_syscallchains = false,
-		.max_stack = PERF_MAX_STACK_DEPTH,
+		.max_stack = UINT_MAX,
 	};
 	const char *output_name = NULL;
 	const char *ev_qualifier_str = NULL;
@@ -3109,6 +3109,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			"per thread proc mmap processing timeout in ms"),
 	OPT_END()
 	};
+	bool max_stack_user_set = true;
 	const char * const trace_subcommands[] = { "record", NULL };
 	int err;
 	char bf[BUFSIZ];
@@ -3141,6 +3142,16 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		trace.opts.sample_address = true;
 		trace.opts.sample_time = true;
 	}
+
+	if (trace.max_stack == UINT_MAX) {
+		trace.max_stack = PERF_MAX_STACK_DEPTH;
+		max_stack_user_set = false;
+	}
+
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+	if ((trace.min_stack || max_stack_user_set) && !trace.opts.callgraph_set)
+		record_opts__parse_callchain(&trace.opts, &callchain_param, "dwarf", false);
+#endif
 
 	if (trace.opts.callgraph_set)
 		symbol_conf.use_callchain = true;

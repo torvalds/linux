@@ -136,11 +136,17 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
         not limiting, the overhead of callchains needs to be set via the
         knobs in --call-graph dwarf.
 
+        Implies '--call-graph dwarf' when --call-graph not present on the
+        command line, on systems where DWARF unwinding was built in.
+
         Default: 127
 
 --min-stack::
         Set the stack depth limit when parsing the callchain, anything
         below the specified depth will be ignored. Disabled by default.
+
+        Implies '--call-graph dwarf' when --call-graph not present on the
+        command line, on systems where DWARF unwinding was built in.
 
 --proc-map-timeout::
 	When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
