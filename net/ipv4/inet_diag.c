@@ -66,7 +66,7 @@ static void inet_diag_unlock_handler(const struct inet_diag_handler *handler)
 	mutex_unlock(&inet_diag_table_mutex);
 }
 
-static void inet_diag_msg_common_fill(struct inet_diag_msg *r, struct sock *sk)
+void inet_diag_msg_common_fill(struct inet_diag_msg *r, struct sock *sk)
 {
 	r->idiag_family = sk->sk_family;
 
@@ -89,6 +89,7 @@ static void inet_diag_msg_common_fill(struct inet_diag_msg *r, struct sock *sk)
 	r->id.idiag_dst[0] = sk->sk_daddr;
 	}
 }
+EXPORT_SYMBOL_GPL(inet_diag_msg_common_fill);
 
 static size_t inet_sk_attr_size(void)
 {
@@ -104,36 +105,11 @@ static size_t inet_sk_attr_size(void)
 		+ 64;
 }
 
-int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
-		      struct sk_buff *skb, const struct inet_diag_req_v2 *req,
-		      struct user_namespace *user_ns,
-		      u32 portid, u32 seq, u16 nlmsg_flags,
-		      const struct nlmsghdr *unlh)
+int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
+			     struct inet_diag_msg *r, int ext,
+			     struct user_namespace *user_ns)
 {
 	const struct inet_sock *inet = inet_sk(sk);
-	const struct tcp_congestion_ops *ca_ops;
-	const struct inet_diag_handler *handler;
-	int ext = req->idiag_ext;
-	struct inet_diag_msg *r;
-	struct nlmsghdr  *nlh;
-	struct nlattr *attr;
-	void *info = NULL;
-
-	handler = inet_diag_table[req->sdiag_protocol];
-	BUG_ON(!handler);
-
-	nlh = nlmsg_put(skb, portid, seq, unlh->nlmsg_type, sizeof(*r),
-			nlmsg_flags);
-	if (!nlh)
-		return -EMSGSIZE;
-
-	r = nlmsg_data(nlh);
-	BUG_ON(!sk_fullsock(sk));
-
-	inet_diag_msg_common_fill(r, sk);
-	r->idiag_state = sk->sk_state;
-	r->idiag_timer = 0;
-	r->idiag_retrans = 0;
 
 	if (nla_put_u8(skb, INET_DIAG_SHUTDOWN, sk->sk_shutdown))
 		goto errout;
@@ -160,6 +136,45 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 
 	r->idiag_uid = from_kuid_munged(user_ns, sock_i_uid(sk));
 	r->idiag_inode = sock_i_ino(sk);
+
+	return 0;
+errout:
+	return 1;
+}
+EXPORT_SYMBOL_GPL(inet_diag_msg_attrs_fill);
+
+int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
+		      struct sk_buff *skb, const struct inet_diag_req_v2 *req,
+		      struct user_namespace *user_ns,
+		      u32 portid, u32 seq, u16 nlmsg_flags,
+		      const struct nlmsghdr *unlh)
+{
+	const struct tcp_congestion_ops *ca_ops;
+	const struct inet_diag_handler *handler;
+	int ext = req->idiag_ext;
+	struct inet_diag_msg *r;
+	struct nlmsghdr  *nlh;
+	struct nlattr *attr;
+	void *info = NULL;
+
+	handler = inet_diag_table[req->sdiag_protocol];
+	BUG_ON(!handler);
+
+	nlh = nlmsg_put(skb, portid, seq, unlh->nlmsg_type, sizeof(*r),
+			nlmsg_flags);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	r = nlmsg_data(nlh);
+	BUG_ON(!sk_fullsock(sk));
+
+	inet_diag_msg_common_fill(r, sk);
+	r->idiag_state = sk->sk_state;
+	r->idiag_timer = 0;
+	r->idiag_retrans = 0;
+
+	if (inet_diag_msg_attrs_fill(sk, skb, r, ext, user_ns))
+		goto errout;
 
 	if (ext & (1 << (INET_DIAG_MEMINFO - 1))) {
 		struct inet_diag_meminfo minfo = {
