@@ -267,8 +267,12 @@ static int mt6397_probe(struct platform_device *pdev)
 	ret = regmap_read(pmic->regmap, MT6397_CID, &id);
 	if (ret) {
 		dev_err(pmic->dev, "Failed to read chip id: %d\n", ret);
-		goto fail_irq;
+		return ret;
 	}
+
+	pmic->irq = platform_get_irq(pdev, 0);
+	if (pmic->irq <= 0)
+		return pmic->irq;
 
 	switch (id & 0xff) {
 	case MT6323_CID_CODE:
@@ -276,6 +280,10 @@ static int mt6397_probe(struct platform_device *pdev)
 		pmic->int_con[1] = MT6323_INT_CON1;
 		pmic->int_status[0] = MT6323_INT_STATUS0;
 		pmic->int_status[1] = MT6323_INT_STATUS1;
+		ret = mt6397_irq_init(pmic);
+		if (ret)
+			return ret;
+
 		ret = devm_mfd_add_devices(&pdev->dev, -1, mt6323_devs,
 					   ARRAY_SIZE(mt6323_devs), NULL,
 					   0, NULL);
@@ -287,6 +295,10 @@ static int mt6397_probe(struct platform_device *pdev)
 		pmic->int_con[1] = MT6397_INT_CON1;
 		pmic->int_status[0] = MT6397_INT_STATUS0;
 		pmic->int_status[1] = MT6397_INT_STATUS1;
+		ret = mt6397_irq_init(pmic);
+		if (ret)
+			return ret;
+
 		ret = devm_mfd_add_devices(&pdev->dev, -1, mt6397_devs,
 					   ARRAY_SIZE(mt6397_devs), NULL,
 					   0, NULL);
@@ -298,14 +310,6 @@ static int mt6397_probe(struct platform_device *pdev)
 		break;
 	}
 
-	pmic->irq = platform_get_irq(pdev, 0);
-	if (pmic->irq > 0) {
-		ret = mt6397_irq_init(pmic);
-		if (ret)
-			return ret;
-	}
-
-fail_irq:
 	if (ret) {
 		irq_domain_remove(pmic->irq_domain);
 		dev_err(&pdev->dev, "failed to add child devices: %d\n", ret);
