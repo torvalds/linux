@@ -108,6 +108,7 @@ struct trace {
 				proc_getname;
 	} stats;
 	unsigned int		max_stack;
+	unsigned int		min_stack;
 	bool			not_ev_qualifier;
 	bool			live;
 	bool			full_time;
@@ -1849,7 +1850,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			goto out_put;
 	}
 
-	if (!(trace->duration_filter || trace->summary_only))
+	if (!(trace->duration_filter || trace->summary_only || trace->min_stack))
 		trace__printf_interrupted_entry(trace, sample);
 
 	ttrace->entry_time = sample->time;
@@ -1860,7 +1861,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 					   args, trace, thread);
 
 	if (sc->is_exit) {
-		if (!trace->duration_filter && !trace->summary_only) {
+		if (!(trace->duration_filter || trace->summary_only || trace->min_stack)) {
 			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
 			fprintf(trace->output, "%-70s\n", ttrace->entry_str);
 		}
@@ -1880,25 +1881,25 @@ out_put:
 	return err;
 }
 
-static int trace__fprintf_callchain(struct trace *trace, struct perf_evsel *evsel,
-				    struct perf_sample *sample)
+static int trace__resolve_callchain(struct trace *trace, struct perf_evsel *evsel,
+				    struct perf_sample *sample,
+				    struct callchain_cursor *cursor)
 {
 	struct addr_location al;
+
+	if (machine__resolve(trace->host, &al, sample) < 0 ||
+	    thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, trace->max_stack))
+		return -1;
+
+	return 0;
+}
+
+static int trace__fprintf_callchain(struct trace *trace, struct perf_sample *sample)
+{
 	/* TODO: user-configurable print_opts */
 	const unsigned int print_opts = EVSEL__PRINT_SYM |
 				        EVSEL__PRINT_DSO |
 				        EVSEL__PRINT_UNKNOWN_AS_ADDR;
-
-	if (sample->callchain == NULL)
-		return 0;
-
-	if (machine__resolve(trace->host, &al, sample) < 0 ||
-	    thread__resolve_callchain(al.thread, &callchain_cursor, evsel,
-				      sample, NULL, NULL, trace->max_stack)) {
-		pr_err("Problem processing %s callchain, skipping...\n",
-			perf_evsel__name(evsel));
-		return 0;
-	}
 
 	return sample__fprintf_callchain(sample, 38, print_opts, &callchain_cursor, trace->output);
 }
@@ -1910,7 +1911,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	long ret;
 	u64 duration = 0;
 	struct thread *thread;
-	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1;
+	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1, callchain_ret = 0;
 	struct syscall *sc = trace__syscall_info(trace, evsel, id);
 	struct thread_trace *ttrace;
 
@@ -1941,6 +1942,15 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 			goto out;
 	} else if (trace->duration_filter)
 		goto out;
+
+	if (sample->callchain) {
+		callchain_ret = trace__resolve_callchain(trace, evsel, sample, &callchain_cursor);
+		if (callchain_ret == 0) {
+			if (callchain_cursor.nr < trace->min_stack)
+				goto out;
+			callchain_ret = 1;
+		}
+	}
 
 	if (trace->summary_only)
 		goto out;
@@ -1982,7 +1992,10 @@ signed_print:
 
 	fputc('\n', trace->output);
 
-	trace__fprintf_callchain(trace, evsel, sample);
+	if (callchain_ret > 0)
+		trace__fprintf_callchain(trace, sample);
+	else if (callchain_ret < 0)
+		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
 out:
 	ttrace->entry_pending = false;
 	err = 0;
@@ -2131,7 +2144,10 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 
 	fprintf(trace->output, ")\n");
 
-	trace__fprintf_callchain(trace, evsel, sample);
+	if (sample->callchain) {
+		if (trace__resolve_callchain(trace, evsel, sample, &callchain_cursor) == 0)
+			trace__fprintf_callchain(trace, sample);
+	}
 
 	return 0;
 }
@@ -3082,6 +3098,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		     &record_parse_callchain_opt),
 	OPT_BOOLEAN(0, "kernel-syscall-graph", &trace.kernel_syscallchains,
 		    "Show the kernel callchains on the syscall exit path"),
+	OPT_UINTEGER(0, "min-stack", &trace.min_stack,
+		     "Set the minimum stack depth when parsing the callchain, "
+		     "anything below the specified depth will be ignored."),
 	OPT_UINTEGER(0, "max-stack", &trace.max_stack,
 		     "Set the maximum stack depth when parsing the callchain, "
 		     "anything beyond the specified depth will be ignored. "
