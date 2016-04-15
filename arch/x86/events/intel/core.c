@@ -3581,7 +3581,7 @@ __init int intel_pmu_init(void)
 		memcpy(hw_cache_extra_regs, slm_hw_cache_extra_regs,
 		       sizeof(hw_cache_extra_regs));
 
-		intel_pmu_lbr_init_atom();
+		intel_pmu_lbr_init_slm();
 
 		x86_pmu.event_constraints = intel_slm_event_constraints;
 		x86_pmu.pebs_constraints = intel_slm_pebs_event_constraints;
