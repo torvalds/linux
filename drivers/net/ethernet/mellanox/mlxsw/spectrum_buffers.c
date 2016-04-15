@@ -167,6 +167,7 @@ static const u16 mlxsw_sp_pbs[] = {
 };
 
 #define MLXSW_SP_PBS_LEN ARRAY_SIZE(mlxsw_sp_pbs)
+#define MLXSW_SP_PB_UNUSED 8
 
 static int mlxsw_sp_port_pb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
@@ -176,7 +177,7 @@ static int mlxsw_sp_port_pb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_reg_pbmc_pack(pbmc_pl, mlxsw_sp_port->local_port,
 			    0xffff, 0xffff / 2);
 	for (i = 0; i < MLXSW_SP_PBS_LEN; i++) {
-		if (i == 8)
+		if (i == MLXSW_SP_PB_UNUSED)
 			continue;
 		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, i, mlxsw_sp_pbs[i]);
 	}
