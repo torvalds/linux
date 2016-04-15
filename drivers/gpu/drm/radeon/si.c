@@ -4364,6 +4364,10 @@ static bool si_vm_reg_valid(u32 reg)
 	if (reg >= 0x28000)
 		return true;
 
+	/* shader regs are also fine */
+	if (reg >= 0xB000 && reg < 0xC000)
+		return true;
+
 	/* check config regs */
 	switch (reg) {
 	case GRBM_GFX_INDEX:
