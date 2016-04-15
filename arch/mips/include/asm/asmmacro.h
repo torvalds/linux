@@ -393,7 +393,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	LDB_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -402,7 +402,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	LDH_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -411,7 +411,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	LDW_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -420,7 +420,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	LDD_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -429,7 +429,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	STB_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -438,7 +438,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	STH_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -447,7 +447,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	STW_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
@@ -456,7 +456,7 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	addu	$1, \base, \off
+	PTR_ADDU $1, \base, \off
 	.word	STD_MSA_INSN | (\wd << 6)
 	.set	pop
 	.endm
