@@ -179,6 +179,8 @@ void fjes_hw_setup_epbuf(struct epbuf_handler *epbh, u8 *mac_addr, u32 mtu)
 
 	for (i = 0; i < EP_BUFFER_SUPPORT_VLAN_MAX; i++)
 		info->v1i.vlan_id[i] = vlan_id[i];
+
+	info->v1i.rx_status |= FJES_RX_MTU_CHANGING_DONE;
 }
 
 void
@@ -810,7 +812,8 @@ bool fjes_hw_check_mtu(struct epbuf_handler *epbh, u32 mtu)
 {
 	union ep_buffer_info *info = epbh->info;
 
-	return (info->v1i.frame_max == FJES_MTU_TO_FRAME_SIZE(mtu));
+	return ((info->v1i.frame_max == FJES_MTU_TO_FRAME_SIZE(mtu)) &&
+		info->v1i.rx_status & FJES_RX_MTU_CHANGING_DONE);
 }
 
 bool fjes_hw_check_vlan_id(struct epbuf_handler *epbh, u16 vlan_id)
@@ -862,6 +865,9 @@ void fjes_hw_del_vlan_id(struct epbuf_handler *epbh, u16 vlan_id)
 bool fjes_hw_epbuf_rx_is_empty(struct epbuf_handler *epbh)
 {
 	union ep_buffer_info *info = epbh->info;
+
+	if (!(info->v1i.rx_status & FJES_RX_MTU_CHANGING_DONE))
+		return true;
 
 	if (info->v1i.count_max == 0)
 		return true;

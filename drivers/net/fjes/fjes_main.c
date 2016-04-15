@@ -481,6 +481,9 @@ static void fjes_tx_stall_task(struct work_struct *work)
 
 			info = adapter->hw.ep_shm_info[epid].tx.info;
 
+			if (!(info->v1i.rx_status & FJES_RX_MTU_CHANGING_DONE))
+				return;
+
 			if (EP_RING_FULL(info->v1i.head, info->v1i.tail,
 					 info->v1i.count_max)) {
 				all_queue_available = 0;
@@ -760,9 +763,11 @@ fjes_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 
 static int fjes_change_mtu(struct net_device *netdev, int new_mtu)
 {
+	struct fjes_adapter *adapter = netdev_priv(netdev);
 	bool running = netif_running(netdev);
-	int ret = 0;
-	int idx;
+	struct fjes_hw *hw = &adapter->hw;
+	int ret = -EINVAL;
+	int idx, epidx;
 
 	for (idx = 0; fjes_support_mtu[idx] != 0; idx++) {
 		if (new_mtu <= fjes_support_mtu[idx]) {
@@ -770,19 +775,54 @@ static int fjes_change_mtu(struct net_device *netdev, int new_mtu)
 			if (new_mtu == netdev->mtu)
 				return 0;
 
-			if (running)
-				fjes_close(netdev);
-
-			netdev->mtu = new_mtu;
-
-			if (running)
-				ret = fjes_open(netdev);
-
-			return ret;
+			ret = 0;
+			break;
 		}
 	}
 
-	return -EINVAL;
+	if (ret)
+		return ret;
+
+	if (running) {
+		for (epidx = 0; epidx < hw->max_epid; epidx++) {
+			if (epidx == hw->my_epid)
+				continue;
+			hw->ep_shm_info[epidx].tx.info->v1i.rx_status &=
+				~FJES_RX_MTU_CHANGING_DONE;
+		}
+		netif_tx_stop_all_queues(netdev);
+		netif_carrier_off(netdev);
+		cancel_work_sync(&adapter->tx_stall_task);
+		napi_disable(&adapter->napi);
+
+		msleep(1000);
+
+		netif_tx_stop_all_queues(netdev);
+	}
+
+	netdev->mtu = new_mtu;
+
+	if (running) {
+		for (epidx = 0; epidx < hw->max_epid; epidx++) {
+			if (epidx == hw->my_epid)
+				continue;
+
+			local_irq_disable();
+			fjes_hw_setup_epbuf(&hw->ep_shm_info[epidx].tx,
+					    netdev->dev_addr,
+					    netdev->mtu);
+			local_irq_enable();
+
+			hw->ep_shm_info[epidx].tx.info->v1i.rx_status |=
+				FJES_RX_MTU_CHANGING_DONE;
+		}
+
+		netif_tx_wake_all_queues(netdev);
+		netif_carrier_on(netdev);
+		napi_enable(&adapter->napi);
+	}
+
+	return ret;
 }
 
 static int fjes_vlan_rx_add_vid(struct net_device *netdev,
@@ -1204,7 +1244,7 @@ static void fjes_netdev_setup(struct net_device *netdev)
 	netdev->watchdog_timeo = FJES_TX_RETRY_INTERVAL;
 	netdev->netdev_ops = &fjes_netdev_ops;
 	fjes_set_ethtool_ops(netdev);
-	netdev->mtu = fjes_support_mtu[0];
+	netdev->mtu = fjes_support_mtu[3];
 	netdev->flags |= IFF_BROADCAST;
 	netdev->features |= NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_CTAG_FILTER;
 }

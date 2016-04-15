@@ -57,6 +57,7 @@ struct fjes_hw;
 #define FJES_RX_STOP_REQ_DONE		(0x1)
 #define FJES_RX_STOP_REQ_REQUEST	(0x2)
 #define FJES_RX_POLL_WORK		(0x4)
+#define FJES_RX_MTU_CHANGING_DONE	(0x8)
 
 #define EP_BUFFER_SIZE \
 	(((sizeof(union ep_buffer_info) + (128 * (64 * 1024))) \
