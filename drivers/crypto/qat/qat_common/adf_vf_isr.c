@@ -326,7 +326,7 @@ int __init adf_init_vf_wq(void)
 	return !adf_vf_stop_wq ? -EFAULT : 0;
 }
 
-void __exit adf_exit_vf_wq(void)
+void adf_exit_vf_wq(void)
 {
 	if (adf_vf_stop_wq)
 		destroy_workqueue(adf_vf_stop_wq);
