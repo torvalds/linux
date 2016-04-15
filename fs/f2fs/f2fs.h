@@ -159,7 +159,6 @@ struct fsync_inode_entry {
 	struct inode *inode;	/* vfs inode pointer */
 	block_t blkaddr;	/* block address locating the last fsync */
 	block_t last_dentry;	/* block address locating the last dentry */
-	block_t last_inode;	/* block address locating the last inode */
 };
 
 #define nats_in_cursum(jnl)		(le16_to_cpu(jnl->n_nats))
@@ -1784,7 +1783,8 @@ void ra_node_page(struct f2fs_sb_info *, nid_t);
 struct page *get_node_page(struct f2fs_sb_info *, pgoff_t);
 struct page *get_node_page_ra(struct page *, int);
 void sync_inode_page(struct dnode_of_data *);
-int fsync_node_pages(struct f2fs_sb_info *, nid_t, struct writeback_control *);
+int fsync_node_pages(struct f2fs_sb_info *, nid_t, struct writeback_control *,
+								bool);
 int sync_node_pages(struct f2fs_sb_info *, struct writeback_control *);
 bool alloc_nid(struct f2fs_sb_info *, nid_t *);
 void alloc_nid_done(struct f2fs_sb_info *, nid_t);
