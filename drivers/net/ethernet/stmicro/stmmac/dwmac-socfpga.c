@@ -267,12 +267,6 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = socfpga_dwmac_setup(dwmac);
-	if (ret) {
-		dev_err(dev, "couldn't setup SoC glue (%d)\n", ret);
-		return ret;
-	}
-
 	plat_dat->bsp_priv = dwmac;
 	plat_dat->init = socfpga_dwmac_init;
 	plat_dat->exit = socfpga_dwmac_exit;
