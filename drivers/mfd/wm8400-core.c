@@ -35,27 +35,6 @@ static bool wm8400_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-/**
- * wm8400_reg_read - Single register read
- *
- * @wm8400: Pointer to wm8400 control structure
- * @reg:    Register to read
- *
- * @return  Read value
- */
-u16 wm8400_reg_read(struct wm8400 *wm8400, u8 reg)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(wm8400->regmap, reg, &val);
-	if (ret < 0)
-		return ret;
-
-	return val;
-}
-EXPORT_SYMBOL_GPL(wm8400_reg_read);
-
 int wm8400_block_read(struct wm8400 *wm8400, u8 reg, int count, u16 *data)
 {
 	return regmap_bulk_read(wm8400->regmap, reg, data, count);
