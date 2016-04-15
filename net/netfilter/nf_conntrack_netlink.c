@@ -336,7 +336,7 @@ nla_put_failure:
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_LABELS
-static int ctnetlink_label_size(const struct nf_conn *ct)
+static inline int ctnetlink_label_size(const struct nf_conn *ct)
 {
 	struct nf_conn_labels *labels = nf_ct_labels_find(ct);
 
@@ -526,7 +526,7 @@ nla_put_failure:
 	return -1;
 }
 
-static size_t ctnetlink_proto_size(const struct nf_conn *ct)
+static inline size_t ctnetlink_proto_size(const struct nf_conn *ct)
 {
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
@@ -543,7 +543,7 @@ static size_t ctnetlink_proto_size(const struct nf_conn *ct)
 	return len;
 }
 
-static size_t ctnetlink_acct_size(const struct nf_conn *ct)
+static inline size_t ctnetlink_acct_size(const struct nf_conn *ct)
 {
 	if (!nf_ct_ext_exist(ct, NF_CT_EXT_ACCT))
 		return 0;
@@ -553,7 +553,7 @@ static size_t ctnetlink_acct_size(const struct nf_conn *ct)
 	       ;
 }
 
-static int ctnetlink_secctx_size(const struct nf_conn *ct)
+static inline int ctnetlink_secctx_size(const struct nf_conn *ct)
 {
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
 	int len, ret;
@@ -569,7 +569,7 @@ static int ctnetlink_secctx_size(const struct nf_conn *ct)
 #endif
 }
 
-static size_t ctnetlink_timestamp_size(const struct nf_conn *ct)
+static inline size_t ctnetlink_timestamp_size(const struct nf_conn *ct)
 {
 #ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
 	if (!nf_ct_ext_exist(ct, NF_CT_EXT_TSTAMP))
