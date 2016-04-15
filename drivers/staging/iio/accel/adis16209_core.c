@@ -168,6 +168,7 @@ static const struct adis_data adis16209_data = {
 	.diag_stat_reg = ADIS16209_DIAG_STAT,
 
 	.self_test_mask = ADIS16209_MSC_CTRL_SELF_TEST_EN,
+	.self_test_no_autoclear = true,
 	.startup_delay = ADIS16209_STARTUP_DELAY,
 
 	.status_error_msgs = adis16209_status_error_msgs,
