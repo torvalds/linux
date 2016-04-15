@@ -23,7 +23,6 @@
 
 struct vb2_dc_conf {
 	struct device		*dev;
-	struct dma_attrs	attrs;
 };
 
 struct vb2_dc_buf {
@@ -140,8 +139,9 @@ static void vb2_dc_put(void *buf_priv)
 	kfree(buf);
 }
 
-static void *vb2_dc_alloc(void *alloc_ctx, unsigned long size,
-			  enum dma_data_direction dma_dir, gfp_t gfp_flags)
+static void *vb2_dc_alloc(void *alloc_ctx, const struct dma_attrs *attrs,
+			  unsigned long size, enum dma_data_direction dma_dir,
+			  gfp_t gfp_flags)
 {
 	struct vb2_dc_conf *conf = alloc_ctx;
 	struct device *dev = conf->dev;
@@ -151,7 +151,8 @@ static void *vb2_dc_alloc(void *alloc_ctx, unsigned long size,
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
-	buf->attrs = conf->attrs;
+	if (attrs)
+		buf->attrs = *attrs;
 	buf->cookie = dma_alloc_attrs(dev, size, &buf->dma_addr,
 					GFP_KERNEL | gfp_flags, &buf->attrs);
 	if (!buf->cookie) {
@@ -729,8 +730,7 @@ const struct vb2_mem_ops vb2_dma_contig_memops = {
 };
 EXPORT_SYMBOL_GPL(vb2_dma_contig_memops);
 
-void *vb2_dma_contig_init_ctx_attrs(struct device *dev,
-				    struct dma_attrs *attrs)
+void *vb2_dma_contig_init_ctx(struct device *dev)
 {
 	struct vb2_dc_conf *conf;
 
@@ -739,12 +739,10 @@ void *vb2_dma_contig_init_ctx_attrs(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	conf->dev = dev;
-	if (attrs)
-		conf->attrs = *attrs;
 
 	return conf;
 }
-EXPORT_SYMBOL_GPL(vb2_dma_contig_init_ctx_attrs);
+EXPORT_SYMBOL_GPL(vb2_dma_contig_init_ctx);
 
 void vb2_dma_contig_cleanup_ctx(void *alloc_ctx)
 {

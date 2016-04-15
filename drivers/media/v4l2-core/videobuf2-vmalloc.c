@@ -33,8 +33,9 @@ struct vb2_vmalloc_buf {
 
 static void vb2_vmalloc_put(void *buf_priv);
 
-static void *vb2_vmalloc_alloc(void *alloc_ctx, unsigned long size,
-			       enum dma_data_direction dma_dir, gfp_t gfp_flags)
+static void *vb2_vmalloc_alloc(void *alloc_ctx, const struct dma_attrs *attrs,
+			       unsigned long size, enum dma_data_direction dma_dir,
+			       gfp_t gfp_flags)
 {
 	struct vb2_vmalloc_buf *buf;
 

@@ -27,7 +27,6 @@ enum vb2_memory {
 	VB2_MEMORY_DMABUF	= 4,
 };
 
-struct vb2_alloc_ctx;
 struct vb2_fileio_data;
 struct vb2_threadio_data;
 
@@ -93,8 +92,8 @@ struct vb2_threadio_data;
  *				  unmap_dmabuf.
  */
 struct vb2_mem_ops {
-	void		*(*alloc)(void *alloc_ctx, unsigned long size,
-				  enum dma_data_direction dma_dir,
+	void		*(*alloc)(void *alloc_ctx, const struct dma_attrs *attrs,
+				  unsigned long size, enum dma_data_direction dma_dir,
 				  gfp_t gfp_flags);
 	void		(*put)(void *buf_priv);
 	struct dma_buf *(*get_dmabuf)(void *buf_priv, unsigned long flags);
@@ -401,6 +400,7 @@ struct vb2_buf_ops {
  *		caller. For example, for V4L2, it should match
  *		the V4L2_BUF_TYPE_* in include/uapi/linux/videodev2.h
  * @io_modes:	supported io methods (see vb2_io_modes enum)
+ * @dma_attrs:	DMA attributes to use for the DMA. May be NULL.
  * @fileio_read_once:		report EOF after reading the first buffer
  * @fileio_write_immediately:	queue buffer after each write() call
  * @allow_zero_bytesused:	allow bytesused == 0 to be passed to the driver
@@ -467,6 +467,7 @@ struct vb2_buf_ops {
 struct vb2_queue {
 	unsigned int			type;
 	unsigned int			io_modes;
+	const struct dma_attrs		*dma_attrs;
 	unsigned			fileio_read_once:1;
 	unsigned			fileio_write_immediately:1;
 	unsigned			allow_zero_bytesused:1;

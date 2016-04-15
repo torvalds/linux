@@ -99,8 +99,9 @@ static int vb2_dma_sg_alloc_compacted(struct vb2_dma_sg_buf *buf,
 	return 0;
 }
 
-static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size,
-			      enum dma_data_direction dma_dir, gfp_t gfp_flags)
+static void *vb2_dma_sg_alloc(void *alloc_ctx, const struct dma_attrs *dma_attrs,
+			      unsigned long size, enum dma_data_direction dma_dir,
+			      gfp_t gfp_flags)
 {
 	struct vb2_dma_sg_conf *conf = alloc_ctx;
 	struct vb2_dma_sg_buf *buf;
