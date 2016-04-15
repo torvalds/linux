@@ -613,8 +613,7 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	/* One for specifying number of opt args and one for mode */
 	sector_t data_sectors;
 	u32 data_block_size;
-	unsigned int major, minor,
-	no_of_args = VERITY_TABLE_ARGS + 2 + VERITY_TABLE_OPT_FEC_ARGS;
+	unsigned int no_of_args = VERITY_TABLE_ARGS + 2 + VERITY_TABLE_OPT_FEC_ARGS;
 	struct fec_header uninitialized_var(fec);
 	struct fec_ecc_metadata uninitialized_var(ecc);
 	char buf[FEC_ARG_LENGTH], *buf_ptr;
@@ -630,13 +629,11 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	key_id = argv[0];
 	strreplace(argv[0], '#', ' ');
 
-	if (sscanf(argv[1], "%u:%u%c", &major, &minor, &dummy) == 2) {
-		dev = MKDEV(major, minor);
-		if (MAJOR(dev) != major || MINOR(dev) != minor) {
-			DMERR("Incorrect bdev major minor number");
-			handle_error();
-			return -EOVERFLOW;
-		}
+	dev = name_to_dev_t(argv[1]);
+	if (!dev) {
+		DMERR("no dev found for %s", argv[1]);
+		handle_error();
+		return -EINVAL;
 	}
 
 	DMINFO("key:%s dev:%s", argv[0], argv[1]);
