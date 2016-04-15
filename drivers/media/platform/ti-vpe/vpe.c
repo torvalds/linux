@@ -1796,7 +1796,7 @@ static const struct v4l2_ioctl_ops vpe_ioctl_ops = {
  */
 static int vpe_queue_setup(struct vb2_queue *vq,
 			   unsigned int *nbuffers, unsigned int *nplanes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	int i;
 	struct vpe_ctx *ctx = vb2_get_drv_priv(vq);

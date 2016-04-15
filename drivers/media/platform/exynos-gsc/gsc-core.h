@@ -327,7 +327,6 @@ struct gsc_driverdata {
  * @irq_queue:	interrupt handler waitqueue
  * @m2m:	memory-to-memory V4L2 device information
  * @state:	flags used to synchronize m2m and capture mode operation
- * @alloc_ctx:	videobuf2 memory allocator context
  * @vdev:	video device for G-Scaler instance
  */
 struct gsc_dev {

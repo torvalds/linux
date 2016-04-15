@@ -974,7 +974,7 @@ static void return_all_buffers(struct rvin_dev *vin,
 
 static int rvin_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 			    unsigned int *nplanes, unsigned int sizes[],
-			    void *alloc_ctxs[])
+			    struct device *alloc_devs[])
 
 {
 	struct rvin_dev *vin = vb2_get_drv_priv(vq);

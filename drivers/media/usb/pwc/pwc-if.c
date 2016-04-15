@@ -573,7 +573,7 @@ static void pwc_video_release(struct v4l2_device *v)
 
 static int queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 	int size;

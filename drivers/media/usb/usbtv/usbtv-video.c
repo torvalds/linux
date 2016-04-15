@@ -608,7 +608,7 @@ static struct v4l2_file_operations usbtv_fops = {
 
 static int usbtv_queue_setup(struct vb2_queue *vq,
 	unsigned int *nbuffers,
-	unsigned int *nplanes, unsigned int sizes[], void *alloc_ctxs[])
+	unsigned int *nplanes, unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct usbtv *usbtv = vb2_get_drv_priv(vq);
 	unsigned size = USBTV_CHUNK * usbtv->n_chunks * 2 * sizeof(u32);

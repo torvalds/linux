@@ -207,7 +207,7 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 		unsigned long size = PAGE_ALIGN(vb->planes[plane].length);
 
 		mem_priv = call_ptr_memop(vb, alloc,
-				q->alloc_ctx[plane] ? : &q->dev,
+				q->alloc_devs[plane] ? : q->dev,
 				q->dma_attrs, size, dma_dir, q->gfp_flags);
 		if (IS_ERR_OR_NULL(mem_priv))
 			goto free;
@@ -738,7 +738,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	 */
 	num_buffers = min_t(unsigned int, *count, VB2_MAX_FRAME);
 	num_buffers = max_t(unsigned int, num_buffers, q->min_buffers_needed);
-	memset(q->alloc_ctx, 0, sizeof(q->alloc_ctx));
+	memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
 	q->memory = memory;
 
 	/*
@@ -746,7 +746,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	 * Driver also sets the size and allocator context for each plane.
 	 */
 	ret = call_qop(q, queue_setup, q, &num_buffers, &num_planes,
-		       plane_sizes, q->alloc_ctx);
+		       plane_sizes, q->alloc_devs);
 	if (ret)
 		return ret;
 
@@ -779,7 +779,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		num_planes = 0;
 
 		ret = call_qop(q, queue_setup, q, &num_buffers,
-			       &num_planes, plane_sizes, q->alloc_ctx);
+			       &num_planes, plane_sizes, q->alloc_devs);
 
 		if (!ret && allocated_buffers < num_buffers)
 			ret = -ENOMEM;
@@ -845,7 +845,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 	}
 
 	if (!q->num_buffers) {
-		memset(q->alloc_ctx, 0, sizeof(q->alloc_ctx));
+		memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
 		q->memory = memory;
 		q->waiting_for_buffers = !q->is_output;
 	}
@@ -862,7 +862,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 	 * buffer and their sizes are acceptable
 	 */
 	ret = call_qop(q, queue_setup, q, &num_buffers,
-		       &num_planes, plane_sizes, q->alloc_ctx);
+		       &num_planes, plane_sizes, q->alloc_devs);
 	if (ret)
 		return ret;
 
@@ -885,7 +885,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 		 * queue driver has set up
 		 */
 		ret = call_qop(q, queue_setup, q, &num_buffers,
-			       &num_planes, plane_sizes, q->alloc_ctx);
+			       &num_planes, plane_sizes, q->alloc_devs);
 
 		if (!ret && allocated_buffers < num_buffers)
 			ret = -ENOMEM;
@@ -1133,7 +1133,7 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const void *pb)
 
 		/* Acquire each plane's memory */
 		mem_priv = call_ptr_memop(vb, get_userptr,
-				q->alloc_ctx[plane] ? : &q->dev,
+				q->alloc_devs[plane] ? : q->dev,
 				planes[plane].m.userptr,
 				planes[plane].length, dma_dir);
 		if (IS_ERR_OR_NULL(mem_priv)) {
@@ -1258,7 +1258,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const void *pb)
 
 		/* Acquire each plane's memory */
 		mem_priv = call_ptr_memop(vb, attach_dmabuf,
-				q->alloc_ctx[plane] ? : &q->dev,
+				q->alloc_devs[plane] ? : q->dev,
 				dbuf, planes[plane].length, dma_dir);
 		if (IS_ERR(mem_priv)) {
 			dprintk(1, "failed to attach dmabuf\n");

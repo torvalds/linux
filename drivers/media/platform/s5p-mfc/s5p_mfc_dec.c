@@ -890,7 +890,7 @@ static const struct v4l2_ioctl_ops s5p_mfc_dec_ioctl_ops = {
 static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 			unsigned int *buf_count,
 			unsigned int *plane_count, unsigned int psize[],
-			void *allocators[])
+			struct device *alloc_devs[])
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(vq->drv_priv);
 	struct s5p_mfc_dev *dev = ctx->dev;
@@ -931,14 +931,14 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		psize[1] = ctx->chroma_size;
 
 		if (IS_MFCV6_PLUS(dev))
-			allocators[0] = &ctx->dev->mem_dev_l;
+			alloc_devs[0] = ctx->dev->mem_dev_l;
 		else
-			allocators[0] = &ctx->dev->mem_dev_r;
-		allocators[1] = &ctx->dev->mem_dev_l;
+			alloc_devs[0] = ctx->dev->mem_dev_r;
+		alloc_devs[1] = ctx->dev->mem_dev_l;
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE &&
 		   ctx->state == MFCINST_INIT) {
 		psize[0] = ctx->dec_src_buf_size;
-		allocators[0] = &ctx->dev->mem_dev_l;
+		alloc_devs[0] = ctx->dev->mem_dev_l;
 	} else {
 		mfc_err("This video node is dedicated to decoding. Decoding not initialized\n");
 		return -EINVAL;

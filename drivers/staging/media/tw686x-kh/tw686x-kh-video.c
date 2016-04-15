@@ -130,7 +130,7 @@ static void tw686x_get_format(struct tw686x_video_channel *vc,
 
 static int tw686x_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 			      unsigned int *nplanes, unsigned int sizes[],
-			      void *alloc_ctxs[])
+			      struct device *alloc_devs[])
 {
 	struct tw686x_video_channel *vc = vb2_get_drv_priv(vq);
 	unsigned int size = vc->width * vc->height * vc->format->depth / 8;

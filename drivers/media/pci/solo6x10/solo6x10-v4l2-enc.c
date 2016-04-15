@@ -664,7 +664,7 @@ static int solo_ring_thread(void *data)
 static int solo_enc_queue_setup(struct vb2_queue *q,
 				unsigned int *num_buffers,
 				unsigned int *num_planes, unsigned int sizes[],
-				void *alloc_ctxs[])
+				struct device *alloc_devs[])
 {
 	sizes[0] = FRAME_BUF_SIZE;
 	*num_planes = 1;

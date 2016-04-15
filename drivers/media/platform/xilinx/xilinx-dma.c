@@ -318,7 +318,7 @@ static void xvip_dma_complete(void *param)
 static int
 xvip_dma_queue_setup(struct vb2_queue *vq,
 		     unsigned int *nbuffers, unsigned int *nplanes,
-		     unsigned int sizes[], void *alloc_ctxs[])
+		     unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct xvip_dma *dma = vb2_get_drv_priv(vq);
 

@@ -230,7 +230,7 @@ static int vpbe_buffer_prepare(struct vb2_buffer *vb)
 static int
 vpbe_buffer_queue_setup(struct vb2_queue *vq,
 			unsigned int *nbuffers, unsigned int *nplanes,
-			unsigned int sizes[], void *alloc_ctxs[])
+			unsigned int sizes[], struct device *alloc_devs[])
 
 {
 	/* Get the file handle object and layer object */

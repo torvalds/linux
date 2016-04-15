@@ -174,7 +174,7 @@ static void fimc_job_abort(void *priv)
 
 static int fimc_queue_setup(struct vb2_queue *vq,
 			    unsigned int *num_buffers, unsigned int *num_planes,
-			    unsigned int sizes[], void *allocators[])
+			    unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct fimc_ctx *ctx = vb2_get_drv_priv(vq);
 	struct fimc_frame *f;

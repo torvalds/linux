@@ -1091,7 +1091,7 @@ vpfe_g_dv_timings(struct file *file, void *fh,
  * @nbuffers: ptr to number of buffers requested by application
  * @nplanes:: contains number of distinct video planes needed to hold a frame
  * @sizes[]: contains the size (in bytes) of each plane.
- * @alloc_ctxs: ptr to allocation context
+ * @alloc_devs: ptr to allocation context
  *
  * This callback function is called when reqbuf() is called to adjust
  * the buffer nbuffers and buffer size
@@ -1099,7 +1099,7 @@ vpfe_g_dv_timings(struct file *file, void *fh,
 static int
 vpfe_buffer_queue_setup(struct vb2_queue *vq,
 			unsigned int *nbuffers, unsigned int *nplanes,
-			unsigned int sizes[], void *alloc_ctxs[])
+			unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct vpfe_fh *fh = vb2_get_drv_priv(vq);
 	struct vpfe_video_device *video = fh->video;

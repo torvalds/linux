@@ -439,7 +439,7 @@ static void bdisp_ctrls_delete(struct bdisp_ctx *ctx)
 
 static int bdisp_queue_setup(struct vb2_queue *vq,
 			     unsigned int *nb_buf, unsigned int *nb_planes,
-			     unsigned int sizes[], void *alloc_ctxs[])
+			     unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct bdisp_ctx *ctx = vb2_get_drv_priv(vq);
 	struct bdisp_frame *frame = ctx_get_frame(ctx, vq->type);

@@ -533,7 +533,7 @@ struct rcar_vin_cam {
 static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
 				   unsigned int *count,
 				   unsigned int *num_planes,
-				   unsigned int sizes[], void *alloc_ctxs[])
+				   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);

@@ -874,7 +874,7 @@ static const struct v4l2_file_operations mxr_fops = {
 
 static int queue_setup(struct vb2_queue *vq,
 	unsigned int *nbuffers, unsigned int *nplanes, unsigned int sizes[],
-	void *alloc_ctxs[])
+	struct device *alloc_devs[])
 {
 	struct mxr_layer *layer = vb2_get_drv_priv(vq);
 	const struct mxr_format *fmt = layer->fmt;

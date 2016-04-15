@@ -798,7 +798,7 @@ struct vb2_dc_conf {
 
 static int deinterlace_queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct deinterlace_ctx *ctx = vb2_get_drv_priv(vq);
 	struct deinterlace_q_data *q_data;

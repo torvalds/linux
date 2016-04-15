@@ -331,7 +331,7 @@ isp_video_check_format(struct isp_video *video, struct isp_video_fh *vfh)
 
 static int isp_video_queue_setup(struct vb2_queue *queue,
 				 unsigned int *count, unsigned int *num_planes,
-				 unsigned int sizes[], void *alloc_ctxs[])
+				 unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct isp_video_fh *vfh = vb2_get_drv_priv(queue);
 	struct isp_video *video = vfh->video;

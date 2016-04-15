@@ -265,7 +265,7 @@ static void vip_active_buf_next(struct sta2x11_vip *vip)
 /* Videobuf2 Operations */
 static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
-		       unsigned int sizes[], void *alloc_ctxs[])
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct sta2x11_vip *vip = vb2_get_drv_priv(vq);
 

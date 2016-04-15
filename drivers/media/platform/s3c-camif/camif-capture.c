@@ -437,7 +437,7 @@ static void stop_streaming(struct vb2_queue *vq)
 
 static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *num_buffers, unsigned int *num_planes,
-		       unsigned int sizes[], void *allocators[])
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct camif_vp *vp = vb2_get_drv_priv(vq);
 	struct camif_frame *frame = &vp->out_frame;

@@ -865,7 +865,7 @@ static const struct v4l2_ioctl_ops sh_veu_ioctl_ops = {
 
 static int sh_veu_queue_setup(struct vb2_queue *vq,
 			      unsigned int *nbuffers, unsigned int *nplanes,
-			      unsigned int sizes[], void *alloc_ctxs[])
+			      unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct sh_veu_dev *veu = vb2_get_drv_priv(vq);
 	struct sh_veu_vfmt *vfmt = sh_veu_get_vfmt(veu, vq->type);

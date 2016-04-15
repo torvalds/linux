@@ -401,7 +401,7 @@ static const struct tw686x_format *format_by_fourcc(unsigned int fourcc)
 
 static int tw686x_queue_setup(struct vb2_queue *vq,
 			      unsigned int *nbuffers, unsigned int *nplanes,
-			      unsigned int sizes[], void *alloc_ctxs[])
+			      unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct tw686x_video_channel *vc = vb2_get_drv_priv(vq);
 	unsigned int szimage =

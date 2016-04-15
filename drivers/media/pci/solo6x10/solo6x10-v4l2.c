@@ -315,7 +315,7 @@ static void solo_stop_thread(struct solo_dev *solo_dev)
 
 static int solo_queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct solo_dev *solo_dev = vb2_get_drv_priv(q);
 

@@ -213,7 +213,7 @@ put_device:
 
 static int gsc_m2m_queue_setup(struct vb2_queue *vq,
 			unsigned int *num_buffers, unsigned int *num_planes,
-			unsigned int sizes[], void *allocators[])
+			unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct gsc_ctx *ctx = vb2_get_drv_priv(vq);
 	struct gsc_frame *frame;

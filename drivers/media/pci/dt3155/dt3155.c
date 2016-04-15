@@ -133,7 +133,7 @@ static int wait_i2c_reg(void __iomem *addr)
 static int
 dt3155_queue_setup(struct vb2_queue *vq,
 		unsigned int *nbuffers, unsigned int *num_planes,
-		unsigned int sizes[], void *alloc_ctxs[])
+		unsigned int sizes[], struct device *alloc_devs[])
 
 {
 	struct dt3155_priv *pd = vb2_get_drv_priv(vq);

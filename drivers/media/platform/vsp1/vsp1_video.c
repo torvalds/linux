@@ -519,8 +519,8 @@ static void vsp1_video_pipeline_put(struct vsp1_pipeline *pipe)
 
 static int
 vsp1_video_queue_setup(struct vb2_queue *vq,
-		     unsigned int *nbuffers, unsigned int *nplanes,
-		     unsigned int sizes[], void *alloc_ctxs[])
+		       unsigned int *nbuffers, unsigned int *nplanes,
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
 	const struct v4l2_pix_format_mplane *format = &video->rwpf->format;
@@ -530,10 +530,9 @@ vsp1_video_queue_setup(struct vb2_queue *vq,
 		if (*nplanes != format->num_planes)
 			return -EINVAL;
 
-		for (i = 0; i < *nplanes; i++) {
+		for (i = 0; i < *nplanes; i++)
 			if (sizes[i] < format->plane_fmt[i].sizeimage)
 				return -EINVAL;
-		}
 		return 0;
 	}
 
@@ -979,7 +978,6 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 
 	video_set_drvdata(&video->video, video);
 
-	/* ... and the buffers queue... */
 	video->queue.type = video->type;
 	video->queue.io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	video->queue.lock = &video->lock;

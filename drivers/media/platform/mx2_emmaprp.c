@@ -689,7 +689,7 @@ static const struct v4l2_ioctl_ops emmaprp_ioctl_ops = {
  */
 static int emmaprp_queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct emmaprp_ctx *ctx = vb2_get_drv_priv(vq);
 	struct emmaprp_q_data *q_data;

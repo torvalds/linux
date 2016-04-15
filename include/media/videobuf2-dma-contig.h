@@ -26,8 +26,6 @@ vb2_dma_contig_plane_dma_addr(struct vb2_buffer *vb, unsigned int plane_no)
 	return *addr;
 }
 
-void *vb2_dma_contig_init_ctx(struct device *dev);
-void vb2_dma_contig_cleanup_ctx(void *alloc_ctx);
 int vb2_dma_contig_set_max_seg_size(struct device *dev, unsigned int size);
 void vb2_dma_contig_clear_max_seg_size(struct device *dev);
 

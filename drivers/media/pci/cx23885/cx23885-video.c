@@ -335,7 +335,7 @@ static int cx23885_start_video_dma(struct cx23885_dev *dev,
 
 static int queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct cx23885_dev *dev = q->drv_priv;
 

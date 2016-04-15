@@ -853,7 +853,7 @@ int saa7134_ts_buffer_init(struct vb2_buffer *vb2);
 int saa7134_ts_buffer_prepare(struct vb2_buffer *vb2);
 int saa7134_ts_queue_setup(struct vb2_queue *q,
 			   unsigned int *nbuffers, unsigned int *nplanes,
-			   unsigned int sizes[], void *alloc_ctxs[]);
+			   unsigned int sizes[], struct device *alloc_devs[]);
 int saa7134_ts_start_streaming(struct vb2_queue *vq, unsigned int count);
 void saa7134_ts_stop_streaming(struct vb2_queue *vq);
 

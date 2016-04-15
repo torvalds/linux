@@ -201,7 +201,7 @@ static void bcap_free_sensor_formats(struct bcap_device *bcap_dev)
 
 static int bcap_queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct bcap_device *bcap_dev = vb2_get_drv_priv(vq);
 
