@@ -24,7 +24,6 @@
  * Authors:
  *    Jerome Glisse <glisse@freedesktop.org>
  */
-#include <linux/list_sort.h>
 #include <linux/pagemap.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
@@ -527,16 +526,6 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
 	return 0;
 }
 
-static int cmp_size_smaller_first(void *priv, struct list_head *a,
-				  struct list_head *b)
-{
-	struct amdgpu_bo_list_entry *la = list_entry(a, struct amdgpu_bo_list_entry, tv.head);
-	struct amdgpu_bo_list_entry *lb = list_entry(b, struct amdgpu_bo_list_entry, tv.head);
-
-	/* Sort A before B if A is smaller. */
-	return (int)la->robj->tbo.num_pages - (int)lb->robj->tbo.num_pages;
-}
-
 /**
  * cs_parser_fini() - clean parser states
  * @parser:	parser structure holding parsing context.
@@ -552,18 +541,6 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 
 	if (!error) {
 		amdgpu_vm_move_pt_bos_in_lru(parser->adev, &fpriv->vm);
-
-		/* Sort the buffer list from the smallest to largest buffer,
-		 * which affects the order of buffers in the LRU list.
-		 * This assures that the smallest buffers are added first
-		 * to the LRU list, so they are likely to be later evicted
-		 * first, instead of large buffers whose eviction is more
-		 * expensive.
-		 *
-		 * This slightly lowers the number of bytes moved by TTM
-		 * per frame under memory pressure.
-		 */
-		list_sort(NULL, &parser->validated, cmp_size_smaller_first);
 
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 					    &parser->validated,
