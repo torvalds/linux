@@ -2160,40 +2160,56 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
 	struct v4l2_cropcap *p = arg;
-
-	if (ops->vidioc_g_selection) {
-		struct v4l2_selection s = { .type = p->type };
-		int ret;
-
-		/* obtaining bounds */
-		if (V4L2_TYPE_IS_OUTPUT(p->type))
-			s.target = V4L2_SEL_TGT_COMPOSE_BOUNDS;
-		else
-			s.target = V4L2_SEL_TGT_CROP_BOUNDS;
-
-		ret = ops->vidioc_g_selection(file, fh, &s);
-		if (ret)
-			return ret;
-		p->bounds = s.r;
-
-		/* obtaining defrect */
-		if (V4L2_TYPE_IS_OUTPUT(p->type))
-			s.target = V4L2_SEL_TGT_COMPOSE_DEFAULT;
-		else
-			s.target = V4L2_SEL_TGT_CROP_DEFAULT;
-
-		ret = ops->vidioc_g_selection(file, fh, &s);
-		if (ret)
-			return ret;
-		p->defrect = s.r;
-	}
+	struct v4l2_selection s = { .type = p->type };
+	int ret = 0;
 
 	/* setting trivial pixelaspect */
 	p->pixelaspect.numerator = 1;
 	p->pixelaspect.denominator = 1;
 
+	/*
+	 * The determine_valid_ioctls() call already should ensure
+	 * that this can never happen, but just in case...
+	 */
+	if (WARN_ON(!ops->vidioc_cropcap && !ops->vidioc_cropcap))
+		return -ENOTTY;
+
 	if (ops->vidioc_cropcap)
-		return ops->vidioc_cropcap(file, fh, p);
+		ret = ops->vidioc_cropcap(file, fh, p);
+
+	if (!ops->vidioc_g_selection)
+		return ret;
+
+	/*
+	 * Ignore ENOTTY or ENOIOCTLCMD error returns, just use the
+	 * square pixel aspect ratio in that case.
+	 */
+	if (ret && ret != -ENOTTY && ret != -ENOIOCTLCMD)
+		return ret;
+
+	/* Use g_selection() to fill in the bounds and defrect rectangles */
+
+	/* obtaining bounds */
+	if (V4L2_TYPE_IS_OUTPUT(p->type))
+		s.target = V4L2_SEL_TGT_COMPOSE_BOUNDS;
+	else
+		s.target = V4L2_SEL_TGT_CROP_BOUNDS;
+
+	ret = ops->vidioc_g_selection(file, fh, &s);
+	if (ret)
+		return ret;
+	p->bounds = s.r;
+
+	/* obtaining defrect */
+	if (V4L2_TYPE_IS_OUTPUT(p->type))
+		s.target = V4L2_SEL_TGT_COMPOSE_DEFAULT;
+	else
+		s.target = V4L2_SEL_TGT_CROP_DEFAULT;
+
+	ret = ops->vidioc_g_selection(file, fh, &s);
+	if (ret)
+		return ret;
+	p->defrect = s.r;
 
 	return 0;
 }
