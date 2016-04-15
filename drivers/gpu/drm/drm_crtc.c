@@ -275,7 +275,8 @@ EXPORT_SYMBOL(drm_get_format_name);
 static int drm_mode_object_get_reg(struct drm_device *dev,
 				   struct drm_mode_object *obj,
 				   uint32_t obj_type,
-				   bool register_obj)
+				   bool register_obj,
+				   void (*obj_free_cb)(struct kref *kref))
 {
 	int ret;
 
@@ -288,6 +289,10 @@ static int drm_mode_object_get_reg(struct drm_device *dev,
 		 */
 		obj->id = ret;
 		obj->type = obj_type;
+		if (obj_free_cb) {
+			obj->free_cb = obj_free_cb;
+			kref_init(&obj->refcount);
+		}
 	}
 	mutex_unlock(&dev->mode_config.idr_mutex);
 
@@ -311,7 +316,7 @@ static int drm_mode_object_get_reg(struct drm_device *dev,
 int drm_mode_object_get(struct drm_device *dev,
 			struct drm_mode_object *obj, uint32_t obj_type)
 {
-	return drm_mode_object_get_reg(dev, obj, obj_type, true);
+	return drm_mode_object_get_reg(dev, obj, obj_type, true, NULL);
 }
 
 static void drm_mode_object_register(struct drm_device *dev,
@@ -389,10 +394,35 @@ struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_mode_object_find);
 
+void drm_mode_object_unreference(struct drm_mode_object *obj)
+{
+	if (obj->free_cb) {
+		DRM_DEBUG("OBJ ID: %d (%d)\n", obj->id, atomic_read(&obj->refcount.refcount));
+		kref_put(&obj->refcount, obj->free_cb);
+	}
+}
+EXPORT_SYMBOL(drm_mode_object_unreference);
+
+/**
+ * drm_mode_object_reference - incr the fb refcnt
+ * @obj: mode_object
+ *
+ * This function operates only on refcounted objects.
+ * This functions increments the object's refcount.
+ */
+void drm_mode_object_reference(struct drm_mode_object *obj)
+{
+	if (obj->free_cb) {
+		DRM_DEBUG("OBJ ID: %d (%d)\n", obj->id, atomic_read(&obj->refcount.refcount));
+		kref_get(&obj->refcount);
+	}
+}
+EXPORT_SYMBOL(drm_mode_object_reference);
+
 static void drm_framebuffer_free(struct kref *kref)
 {
 	struct drm_framebuffer *fb =
-			container_of(kref, struct drm_framebuffer, refcount);
+			container_of(kref, struct drm_framebuffer, base.refcount);
 	struct drm_device *dev = fb->dev;
 
 	/*
@@ -430,12 +460,12 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 	int ret;
 
 	mutex_lock(&dev->mode_config.fb_lock);
-	kref_init(&fb->refcount);
 	INIT_LIST_HEAD(&fb->filp_head);
 	fb->dev = dev;
 	fb->funcs = funcs;
 
-	ret = drm_mode_object_get(dev, &fb->base, DRM_MODE_OBJECT_FB);
+	ret = drm_mode_object_get_reg(dev, &fb->base, DRM_MODE_OBJECT_FB,
+				      true, drm_framebuffer_free);
 	if (ret)
 		goto out;
 
@@ -482,7 +512,7 @@ struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 	mutex_lock(&dev->mode_config.fb_lock);
 	fb = __drm_framebuffer_lookup(dev, id);
 	if (fb) {
-		if (!kref_get_unless_zero(&fb->refcount))
+		if (!kref_get_unless_zero(&fb->base.refcount))
 			fb = NULL;
 	}
 	mutex_unlock(&dev->mode_config.fb_lock);
@@ -490,32 +520,6 @@ struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 	return fb;
 }
 EXPORT_SYMBOL(drm_framebuffer_lookup);
-
-/**
- * drm_framebuffer_unreference - unref a framebuffer
- * @fb: framebuffer to unref
- *
- * This functions decrements the fb's refcount and frees it if it drops to zero.
- */
-void drm_framebuffer_unreference(struct drm_framebuffer *fb)
-{
-	DRM_DEBUG("%p: FB ID: %d (%d)\n", fb, fb->base.id, atomic_read(&fb->refcount.refcount));
-	kref_put(&fb->refcount, drm_framebuffer_free);
-}
-EXPORT_SYMBOL(drm_framebuffer_unreference);
-
-/**
- * drm_framebuffer_reference - incr the fb refcnt
- * @fb: framebuffer
- *
- * This functions increments the fb's refcount.
- */
-void drm_framebuffer_reference(struct drm_framebuffer *fb)
-{
-	DRM_DEBUG("%p: FB ID: %d (%d)\n", fb, fb->base.id, atomic_read(&fb->refcount.refcount));
-	kref_get(&fb->refcount);
-}
-EXPORT_SYMBOL(drm_framebuffer_reference);
 
 /**
  * drm_framebuffer_unregister_private - unregister a private fb from the lookup idr
@@ -902,7 +906,7 @@ int drm_connector_init(struct drm_device *dev,
 
 	drm_modeset_lock_all(dev);
 
-	ret = drm_mode_object_get_reg(dev, &connector->base, DRM_MODE_OBJECT_CONNECTOR, false);
+	ret = drm_mode_object_get_reg(dev, &connector->base, DRM_MODE_OBJECT_CONNECTOR, false, NULL);
 	if (ret)
 		goto out_unlock;
 
@@ -5971,7 +5975,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	 */
 	WARN_ON(!list_empty(&dev->mode_config.fb_list));
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
-		drm_framebuffer_free(&fb->refcount);
+		drm_framebuffer_free(&fb->base.refcount);
 	}
 
 	ida_destroy(&dev->mode_config.connector_ida);
