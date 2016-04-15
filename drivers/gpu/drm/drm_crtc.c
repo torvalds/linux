@@ -433,9 +433,7 @@ static void drm_framebuffer_free(struct kref *kref)
 	 * The lookup idr holds a weak reference, which has not necessarily been
 	 * removed at this point. Check for that.
 	 */
-	mutex_lock(&dev->mode_config.fb_lock);
 	drm_mode_object_unregister(dev, &fb->base);
-	mutex_unlock(&dev->mode_config.fb_lock);
 
 	fb->funcs->destroy(fb);
 }
@@ -475,9 +473,9 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 	mutex_lock(&dev->mode_config.fb_lock);
 	dev->mode_config.num_fb++;
 	list_add(&fb->head, &dev->mode_config.fb_list);
+	mutex_unlock(&dev->mode_config.fb_lock);
 
 	drm_mode_object_register(dev, &fb->base);
-	mutex_unlock(&dev->mode_config.fb_lock);
 out:
 	return ret;
 }
@@ -498,12 +496,9 @@ struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 	struct drm_mode_object *obj;
 	struct drm_framebuffer *fb = NULL;
 
-	mutex_lock(&dev->mode_config.fb_lock);
 	obj = _object_find(dev, id, DRM_MODE_OBJECT_FB);
 	if (obj)
 		fb = obj_to_fb(obj);
-	mutex_unlock(&dev->mode_config.fb_lock);
-
 	return fb;
 }
 EXPORT_SYMBOL(drm_framebuffer_lookup);
@@ -526,10 +521,8 @@ void drm_framebuffer_unregister_private(struct drm_framebuffer *fb)
 
 	dev = fb->dev;
 
-	mutex_lock(&dev->mode_config.fb_lock);
 	/* Mark fb as reaped and drop idr ref. */
 	drm_mode_object_unregister(dev, &fb->base);
-	mutex_unlock(&dev->mode_config.fb_lock);
 }
 EXPORT_SYMBOL(drm_framebuffer_unregister_private);
 
