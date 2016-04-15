@@ -2211,6 +2211,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 			   (ctrl4a | RTC_CTRL_4A_PAB));
 
 		/* Spin ... we do not switch back to bank0. */
+		while(1);
 		unreachable();
 	}
 }
