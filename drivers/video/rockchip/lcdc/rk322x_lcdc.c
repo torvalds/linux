@@ -364,6 +364,9 @@ static int vop_clk_enable(struct vop_device *vop_dev)
 			clk_prepare_enable(vop_dev->hclk_noc);
 		if (vop_dev->aclk_noc)
 			clk_prepare_enable(vop_dev->aclk_noc);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+		pm_runtime_get_sync(vop_dev->dev);
+#endif
 		spin_lock(&vop_dev->reg_lock);
 		vop_dev->clk_on = 1;
 		spin_unlock(&vop_dev->reg_lock);
@@ -379,6 +382,9 @@ static int vop_clk_disable(struct vop_device *vop_dev)
 		vop_dev->clk_on = 0;
 		spin_unlock(&vop_dev->reg_lock);
 		mdelay(25);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+		pm_runtime_put(vop_dev->dev);
+#endif
 		clk_disable_unprepare(vop_dev->dclk);
 		clk_disable_unprepare(vop_dev->hclk);
 		clk_disable_unprepare(vop_dev->aclk);
@@ -4824,6 +4830,10 @@ static int vop_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vop_dev);
 	vop_dev->dev = dev;
 	vop_parse_dt(vop_dev);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	/* enable power domain */
+	pm_runtime_enable(dev);
+#endif
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	vop_dev->reg_phy_base = res->start;
 	vop_dev->len = resource_size(res);
@@ -4929,6 +4939,9 @@ static void vop_shutdown(struct platform_device *pdev)
 	vop_deint(vop_dev);
 
 	vop_clk_disable(vop_dev);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_disable(vop_dev->dev);
+#endif
 	rk_disp_pwr_disable(dev_drv);
 }
 
