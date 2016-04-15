@@ -76,81 +76,52 @@ static void __crst_table_upgrade(void *arg)
 	__tlb_flush_local();
 }
 
-int crst_table_upgrade(struct mm_struct *mm, unsigned long limit)
+int crst_table_upgrade(struct mm_struct *mm)
 {
 	unsigned long *table, *pgd;
-	unsigned long entry;
-	int flush;
 
-	BUG_ON(limit > TASK_MAX_SIZE);
-	flush = 0;
-repeat:
+	/* upgrade should only happen from 3 to 4 levels */
+	BUG_ON(mm->context.asce_limit != (1UL << 42));
+
 	table = crst_table_alloc(mm);
 	if (!table)
 		return -ENOMEM;
+
 	spin_lock_bh(&mm->page_table_lock);
-	if (mm->context.asce_limit < limit) {
-		pgd = (unsigned long *) mm->pgd;
-		if (mm->context.asce_limit <= (1UL << 31)) {
-			entry = _REGION3_ENTRY_EMPTY;
-			mm->context.asce_limit = 1UL << 42;
-			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
-						_ASCE_USER_BITS |
-						_ASCE_TYPE_REGION3;
-		} else {
-			entry = _REGION2_ENTRY_EMPTY;
-			mm->context.asce_limit = 1UL << 53;
-			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
-						_ASCE_USER_BITS |
-						_ASCE_TYPE_REGION2;
-		}
-		crst_table_init(table, entry);
-		pgd_populate(mm, (pgd_t *) table, (pud_t *) pgd);
-		mm->pgd = (pgd_t *) table;
-		mm->task_size = mm->context.asce_limit;
-		table = NULL;
-		flush = 1;
-	}
+	pgd = (unsigned long *) mm->pgd;
+	crst_table_init(table, _REGION2_ENTRY_EMPTY);
+	pgd_populate(mm, (pgd_t *) table, (pud_t *) pgd);
+	mm->pgd = (pgd_t *) table;
+	mm->context.asce_limit = 1UL << 53;
+	mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+			   _ASCE_USER_BITS | _ASCE_TYPE_REGION2;
+	mm->task_size = mm->context.asce_limit;
 	spin_unlock_bh(&mm->page_table_lock);
-	if (table)
-		crst_table_free(mm, table);
-	if (mm->context.asce_limit < limit)
-		goto repeat;
-	if (flush)
-		on_each_cpu(__crst_table_upgrade, mm, 0);
+
+	on_each_cpu(__crst_table_upgrade, mm, 0);
 	return 0;
 }
 
-void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
+void crst_table_downgrade(struct mm_struct *mm)
 {
 	pgd_t *pgd;
+
+	/* downgrade should only happen from 3 to 2 levels (compat only) */
+	BUG_ON(mm->context.asce_limit != (1UL << 42));
 
 	if (current->active_mm == mm) {
 		clear_user_asce();
 		__tlb_flush_mm(mm);
 	}
-	while (mm->context.asce_limit > limit) {
-		pgd = mm->pgd;
-		switch (pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) {
-		case _REGION_ENTRY_TYPE_R2:
-			mm->context.asce_limit = 1UL << 42;
-			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
-						_ASCE_USER_BITS |
-						_ASCE_TYPE_REGION3;
-			break;
-		case _REGION_ENTRY_TYPE_R3:
-			mm->context.asce_limit = 1UL << 31;
-			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
-						_ASCE_USER_BITS |
-						_ASCE_TYPE_SEGMENT;
-			break;
-		default:
-			BUG();
-		}
-		mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
-		mm->task_size = mm->context.asce_limit;
-		crst_table_free(mm, (unsigned long *) pgd);
-	}
+
+	pgd = mm->pgd;
+	mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
+	mm->context.asce_limit = 1UL << 31;
+	mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+			   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
+	mm->task_size = mm->context.asce_limit;
+	crst_table_free(mm, (unsigned long *) pgd);
+
 	if (current->active_mm == mm)
 		set_user_asce(mm);
 }

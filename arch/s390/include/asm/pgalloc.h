@@ -52,8 +52,8 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 	return _REGION2_ENTRY_EMPTY;
 }
 
-int crst_table_upgrade(struct mm_struct *, unsigned long limit);
-void crst_table_downgrade(struct mm_struct *, unsigned long limit);
+int crst_table_upgrade(struct mm_struct *);
+void crst_table_downgrade(struct mm_struct *);
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
 {
