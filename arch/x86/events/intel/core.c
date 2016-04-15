@@ -3639,6 +3639,7 @@ __init int intel_pmu_init(void)
 
 	case 78: /* 14nm Skylake Mobile */
 	case 94: /* 14nm Skylake Desktop */
+	case 85: /* 14nm Skylake Server */
 		x86_pmu.late_ack = true;
 		memcpy(hw_cache_event_ids, skl_hw_cache_event_ids, sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, skl_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
