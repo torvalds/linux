@@ -155,7 +155,7 @@ static void mon_setup(struct net_device *dev)
 	dev->netdev_ops = &mon_netdev_ops;
 	dev->destructor = free_netdev;
 	ether_setup(dev);
-	dev->tx_queue_len = 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->type = ARPHRD_IEEE80211;
 	/*
 	 * Use a locally administered address (IEEE 802)
