@@ -262,7 +262,7 @@ static int ocfs2_init_locked_inode(struct inode *inode, void *opaque)
 	inode->i_ino = args->fi_ino;
 	OCFS2_I(inode)->ip_blkno = args->fi_blkno;
 	if (args->fi_sysfile_type != 0)
-		lockdep_set_class(&inode->i_mutex,
+		lockdep_set_class(&inode->i_rwsem,
 			&ocfs2_sysfile_lock_key[args->fi_sysfile_type]);
 	if (args->fi_sysfile_type == USER_QUOTA_SYSTEM_INODE ||
 	    args->fi_sysfile_type == GROUP_QUOTA_SYSTEM_INODE ||

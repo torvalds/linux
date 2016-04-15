@@ -539,3 +539,21 @@ in your dentry operations instead.
 	it's a symlink.  Checking ->i_mode is really needed now.  In-tree we had
 	to fix shmem_destroy_callback() that used to take that kind of shortcut;
 	watch out, since that shortcut is no longer valid.
+--
+[mandatory]
+	->i_mutex is replaced with ->i_rwsem now.  inode_lock() et.al. work as
+	they used to - they just take it exclusive.  However, ->lookup() may be
+	called with parent locked shared.  Its instances must not
+		* use d_instantiate) and d_rehash() separately - use d_add() or
+		  d_splice_alias() instead.
+		* use d_rehash() alone - call d_add(new_dentry, NULL) instead.
+		* in the unlikely case when (read-only) access to filesystem
+		  data structures needs exclusion for some reason, arrange it
+		  yourself.  None of the in-tree filesystems needed that.
+		* rely on ->d_parent and ->d_name not changing after dentry has
+		  been fed to d_add() or d_splice_alias().  Again, none of the
+		  in-tree instances relied upon that.
+	We are guaranteed that lookups of the same name in the same directory
+	will not happen in parallel ("same" in the sense of your ->d_compare()).
+	Lookups on different names in the same directory can and do happen in
+	parallel now.

@@ -32,9 +32,10 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 	if (res)
 		goto out;
 
-	res = mutex_lock_killable(&inode->i_mutex);
-	if (res)
-		goto out;
+	inode_lock(inode);
+	// res = mutex_lock_killable(&inode->i_mutex);
+	// if (res)
+	//	goto out;
 
 	res = -ENOENT;
 	if (!IS_DEADDIR(inode)) {

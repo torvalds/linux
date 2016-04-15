@@ -1607,7 +1607,7 @@ static struct dentry *lookup_slow(const struct qstr *name,
 	struct inode *inode = dir->d_inode;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 
-	inode_lock(inode);
+	inode_lock_shared(inode);
 	/* Don't go there if it's already dead */
 	if (unlikely(IS_DEADDIR(inode)))
 		goto out;
@@ -1638,7 +1638,7 @@ again:
 		}
 	}
 out:
-	inode_unlock(inode);
+	inode_unlock_shared(inode);
 	return dentry;
 }
 
