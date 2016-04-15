@@ -653,7 +653,7 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 				&adapter->hw.ep_shm_info[dest_epid].rx, 0)) {
 			/* version is NOT 0 */
 			adapter->stats64.tx_carrier_errors += 1;
-			hw->ep_shm_info[my_epid].net_stats
+			hw->ep_shm_info[dest_epid].net_stats
 						.tx_carrier_errors += 1;
 
 			ret = NETDEV_TX_OK;
@@ -661,9 +661,9 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 				&adapter->hw.ep_shm_info[dest_epid].rx,
 				netdev->mtu)) {
 			adapter->stats64.tx_dropped += 1;
-			hw->ep_shm_info[my_epid].net_stats.tx_dropped += 1;
+			hw->ep_shm_info[dest_epid].net_stats.tx_dropped += 1;
 			adapter->stats64.tx_errors += 1;
-			hw->ep_shm_info[my_epid].net_stats.tx_errors += 1;
+			hw->ep_shm_info[dest_epid].net_stats.tx_errors += 1;
 
 			ret = NETDEV_TX_OK;
 		} else if (vlan &&
@@ -694,10 +694,10 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 					    (long)adapter->tx_start_jiffies) >=
 					    FJES_TX_RETRY_TIMEOUT) {
 					adapter->stats64.tx_fifo_errors += 1;
-					hw->ep_shm_info[my_epid].net_stats
+					hw->ep_shm_info[dest_epid].net_stats
 								.tx_fifo_errors += 1;
 					adapter->stats64.tx_errors += 1;
-					hw->ep_shm_info[my_epid].net_stats
+					hw->ep_shm_info[dest_epid].net_stats
 								.tx_errors += 1;
 
 					ret = NETDEV_TX_OK;
@@ -714,10 +714,10 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			} else {
 				if (!is_multi) {
 					adapter->stats64.tx_packets += 1;
-					hw->ep_shm_info[my_epid].net_stats
+					hw->ep_shm_info[dest_epid].net_stats
 								.tx_packets += 1;
 					adapter->stats64.tx_bytes += len;
-					hw->ep_shm_info[my_epid].net_stats
+					hw->ep_shm_info[dest_epid].net_stats
 								.tx_bytes += len;
 				}
 
