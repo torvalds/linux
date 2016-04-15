@@ -4443,17 +4443,14 @@ int tonga_reset_asic_tasks(struct pp_hwmgr *hwmgr)
 
 int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->dyn_state.vddc_dep_on_dal_pwrl) {
-		kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
-		hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+
+	if (data->soft_pp_table) {
+		kfree(data->soft_pp_table);
+		data->soft_pp_table = NULL;
 	}
 
-	if (NULL != hwmgr->backend) {
-		kfree(hwmgr->backend);
-		hwmgr->backend = NULL;
-	}
-
-	return 0;
+	return phm_hwmgr_backend_fini(hwmgr);
 }
 
 /**
@@ -6058,18 +6055,34 @@ static int tonga_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
 {
 	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
 
-	*table = (char *)&data->smc_state_table;
+	if (!data->soft_pp_table) {
+		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+		if (!data->soft_pp_table)
+			return -ENOMEM;
+		memcpy(data->soft_pp_table, hwmgr->soft_pp_table,
+				hwmgr->soft_pp_table_size);
+	}
 
-	return sizeof(struct SMU72_Discrete_DpmTable);
+	*table = (char *)&data->soft_pp_table;
+
+	return hwmgr->soft_pp_table_size;
 }
 
 static int tonga_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
 {
 	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
 
-	void *table = (void *)&data->smc_state_table;
+	if (!data->soft_pp_table) {
+		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+		if (!data->soft_pp_table)
+			return -ENOMEM;
+	}
 
-	memcpy(table, buf, size);
+	memcpy(data->soft_pp_table, buf, size);
+
+	hwmgr->soft_pp_table = data->soft_pp_table;
+
+	/* TODO: re-init powerplay to implement modified pptable */
 
 	return 0;
 }
