@@ -362,8 +362,7 @@ static struct drm_mode_object *_object_find(struct drm_device *dev,
 		obj = NULL;
 	/* don't leak out unref'd fb's */
 	if (obj &&
-	    (obj->type == DRM_MODE_OBJECT_FB ||
-	     obj->type == DRM_MODE_OBJECT_BLOB))
+	    obj->type == DRM_MODE_OBJECT_BLOB)
 		obj = NULL;
 	mutex_unlock(&dev->mode_config.idr_mutex);
 
@@ -478,23 +477,6 @@ out:
 }
 EXPORT_SYMBOL(drm_framebuffer_init);
 
-static struct drm_framebuffer *__drm_framebuffer_lookup(struct drm_device *dev,
-							uint32_t id)
-{
-	struct drm_mode_object *obj = NULL;
-	struct drm_framebuffer *fb;
-
-	mutex_lock(&dev->mode_config.idr_mutex);
-	obj = idr_find(&dev->mode_config.crtc_idr, id);
-	if (!obj || (obj->type != DRM_MODE_OBJECT_FB) || (obj->id != id))
-		fb = NULL;
-	else
-		fb = obj_to_fb(obj);
-	mutex_unlock(&dev->mode_config.idr_mutex);
-
-	return fb;
-}
-
 /**
  * drm_framebuffer_lookup - look up a drm framebuffer and grab a reference
  * @dev: drm device
@@ -507,11 +489,13 @@ static struct drm_framebuffer *__drm_framebuffer_lookup(struct drm_device *dev,
 struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 					       uint32_t id)
 {
-	struct drm_framebuffer *fb;
+	struct drm_mode_object *obj;
+	struct drm_framebuffer *fb = NULL;
 
 	mutex_lock(&dev->mode_config.fb_lock);
-	fb = __drm_framebuffer_lookup(dev, id);
-	if (fb) {
+	obj = _object_find(dev, id, DRM_MODE_OBJECT_FB);
+	if (obj) {
+		fb = obj_to_fb(obj);
 		if (!kref_get_unless_zero(&fb->base.refcount))
 			fb = NULL;
 	}
@@ -3489,6 +3473,7 @@ int drm_mode_rmfb(struct drm_device *dev,
 {
 	struct drm_framebuffer *fb = NULL;
 	struct drm_framebuffer *fbl = NULL;
+	struct drm_mode_object *obj;
 	uint32_t *id = data;
 	int found = 0;
 
@@ -3497,10 +3482,10 @@ int drm_mode_rmfb(struct drm_device *dev,
 
 	mutex_lock(&file_priv->fbs_lock);
 	mutex_lock(&dev->mode_config.fb_lock);
-	fb = __drm_framebuffer_lookup(dev, *id);
-	if (!fb)
+	obj = _object_find(dev, *id, DRM_MODE_OBJECT_FB);
+	if (!obj)
 		goto fail_lookup;
-
+	fb = obj_to_fb(obj);
 	list_for_each_entry(fbl, &file_priv->fbs, filp_head)
 		if (fb == fbl)
 			found = 1;
