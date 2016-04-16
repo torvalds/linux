@@ -1298,23 +1298,25 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 		nfp_net_rx_give_one(rx_ring, new_skb, new_dma_addr);
 
+		/*         < meta_len >
+		 *  <-- [rx_offset] -->
+		 *  ---------------------------------------------------------
+		 * | [XX] |  metadata  |             packet           | XXXX |
+		 *  ---------------------------------------------------------
+		 *         <---------------- data_len --------------->
+		 *
+		 * The rx_offset is fixed for all packets, the meta_len can vary
+		 * on a packet by packet basis. If rx_offset is set to zero
+		 * (_RX_OFFSET_DYNAMIC) metadata starts at the beginning of the
+		 * buffer and is immediately followed by the packet (no [XX]).
+		 */
 		meta_len = rxd->rxd.meta_len_dd & PCIE_DESC_RX_META_LEN_MASK;
 		data_len = le16_to_cpu(rxd->rxd.data_len);
 
-		if (WARN_ON_ONCE(data_len > nn->fl_bufsz)) {
-			dev_kfree_skb_any(skb);
-			continue;
-		}
-
-		if (nn->rx_offset == NFP_NET_CFG_RX_OFFSET_DYNAMIC) {
-			/* The packet data starts after the metadata */
+		if (nn->rx_offset == NFP_NET_CFG_RX_OFFSET_DYNAMIC)
 			skb_reserve(skb, meta_len);
-		} else {
-			/* The packet data starts at a fixed offset */
+		else
 			skb_reserve(skb, nn->rx_offset);
-		}
-
-		/* Adjust the SKB for the dynamic meta data pre-pended */
 		skb_put(skb, data_len - meta_len);
 
 		nfp_net_set_hash(nn->netdev, skb, rxd);
