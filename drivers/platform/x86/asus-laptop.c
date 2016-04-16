@@ -775,8 +775,10 @@ static int asus_read_brightness(struct backlight_device *bd)
 
 	rv = acpi_evaluate_integer(asus->handle, METHOD_BRIGHTNESS_GET,
 				   NULL, &value);
-	if (ACPI_FAILURE(rv))
+	if (ACPI_FAILURE(rv)) {
 		pr_warn("Error reading brightness\n");
+		return 0;
+	}
 
 	return value;
 }
