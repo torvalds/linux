@@ -3109,7 +3109,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			"per thread proc mmap processing timeout in ms"),
 	OPT_END()
 	};
-	bool max_stack_user_set = true;
+	bool __maybe_unused max_stack_user_set = true;
 	bool mmap_pages_user_set = true;
 	const char * const trace_subcommands[] = { "record", NULL };
 	int err;
