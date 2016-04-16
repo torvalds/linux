@@ -57,10 +57,14 @@ static int net_tx(struct lkl_netdev *nd, void *data, int len)
 	int ret;
 	struct lkl_netdev_tap *nd_tap = (struct lkl_netdev_tap *) nd;
 
-	ret = write(nd_tap->fd, data, len);
-	if (ret <= 0 && errno == EAGAIN)
-		return -1;
-	return 0;
+	do {
+		ret = write(nd_tap->fd, data, len);
+	} while (ret == -1 && errno == EINVAL);
+	if (ret > 0) return 0;
+	if (ret < 0 && errno != EAGAIN) {
+		perror("write to tap fails");
+	}
+	return -1;
 }
 
 static int net_rx(struct lkl_netdev *nd, void *data, int *len)
@@ -68,11 +72,17 @@ static int net_rx(struct lkl_netdev *nd, void *data, int *len)
 	int ret;
 	struct lkl_netdev_tap *nd_tap = (struct lkl_netdev_tap *) nd;
 
-	ret = read(nd_tap->fd, data, *len);
-	if (ret <= 0)
-		return -1;
-	*len = ret;
-	return 0;
+	do {
+		ret = read(nd_tap->fd, data, *len);
+	} while (ret == -1 && errno == EINVAL);
+	if (ret > 0) {
+		*len = ret;
+		return 0; 
+	}
+	if (ret < 0 && errno != EAGAIN) {
+		perror("read from tap fails");
+	}
+	return -1;
 }
 
 static int net_poll(struct lkl_netdev *nd, int events)
@@ -136,7 +146,7 @@ static int net_close(struct lkl_netdev *nd)
 	struct lkl_netdev_tap *nd_tap = container_of(nd, struct lkl_netdev_tap, dev);
 
 	if (nd_tap->eventfd == -1) {
-		// No eventfd support.
+		/* No eventfd support. */
 		return 0;
 	}
 
@@ -228,8 +238,8 @@ struct lkl_netdev *lkl_netdev_tap_create(const char *ifname)
 		free(nd);
 		return NULL;
 	}
-	nd->epoll_rx_fd  = create_epoll_fd(nd->fd, EPOLLIN | EPOLLPRI);
-	// tx is event-triggered to save CPU.
+	/* Making them edge-triggered to save CPU. */
+	nd->epoll_rx_fd  = create_epoll_fd(nd->fd, EPOLLIN | EPOLLPRI | EPOLLET);
 	nd->epoll_tx_fd  = create_epoll_fd(nd->fd, EPOLLOUT | EPOLLET);
 	if (nd->epoll_rx_fd < 0 || nd->epoll_tx_fd < 0) {
 		if (nd->epoll_rx_fd >= 0) close(nd->epoll_rx_fd);
