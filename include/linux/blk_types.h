@@ -268,4 +268,12 @@ static inline unsigned int blk_qc_t_to_tag(blk_qc_t cookie)
 	return cookie & ((1u << BLK_QC_T_SHIFT) - 1);
 }
 
+struct blk_rq_stat {
+	s64 mean;
+	u64 min;
+	u64 max;
+	s64 nr_samples;
+	s64 time;
+};
+
 #endif /* __LINUX_BLK_TYPES_H */
