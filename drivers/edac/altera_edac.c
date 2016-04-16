@@ -649,26 +649,6 @@ static ssize_t altr_edac_device_trig(struct file *file,
 	return count;
 }
 
-/*
- *  Test for memory's ECC dependencies upon entry because platform specific
- *  startup should have initialized the memory and enabled the ECC.
- *  Can't turn on ECC here because accessing un-initialized memory will
- *  cause CE/UE errors possibly causing an ABORT.
- */
-static int altr_check_ecc_deps(struct altr_edac_device_dev *device)
-{
-	void __iomem  *base = device->base;
-	const struct edac_device_prv_data *prv = device->data;
-
-	if (readl(base + prv->ecc_en_ofst) & prv->ecc_enable_mask)
-		return 0;
-
-	edac_printk(KERN_ERR, EDAC_DEVICE,
-		    "%s: No ECC present or ECC disabled.\n",
-		    device->edac_dev_name);
-	return -ENODEV;
-}
-
 static const struct file_operations altr_edac_device_inject_fops = {
 	.open = simple_open,
 	.write = altr_edac_device_trig,
@@ -848,6 +828,25 @@ module_platform_driver(altr_edac_device_driver);
 /*********************** OCRAM EDAC Device Functions *********************/
 
 #ifdef CONFIG_EDAC_ALTERA_OCRAM
+/*
+ *  Test for memory's ECC dependencies upon entry because platform specific
+ *  startup should have initialized the memory and enabled the ECC.
+ *  Can't turn on ECC here because accessing un-initialized memory will
+ *  cause CE/UE errors possibly causing an ABORT.
+ */
+static int altr_check_ecc_deps(struct altr_edac_device_dev *device)
+{
+	void __iomem  *base = device->base;
+	const struct edac_device_prv_data *prv = device->data;
+
+	if (readl(base + prv->ecc_en_ofst) & prv->ecc_enable_mask)
+		return 0;
+
+	edac_printk(KERN_ERR, EDAC_DEVICE,
+		    "%s: No ECC present or ECC disabled.\n",
+		    device->edac_dev_name);
+	return -ENODEV;
+}
 
 static void *ocram_alloc_mem(size_t size, void **other)
 {
@@ -883,6 +882,24 @@ static void ocram_free_mem(void *p, size_t size, void *other)
 	gen_pool_free((struct gen_pool *)other, (u32)p, size);
 }
 
+static irqreturn_t altr_edac_a10_ecc_irq(struct altr_edac_device_dev *dci,
+					 bool sberr)
+{
+	void __iomem  *base = dci->base;
+
+	if (sberr) {
+		writel(ALTR_A10_ECC_SERRPENA,
+		       base + ALTR_A10_ECC_INTSTAT_OFST);
+		edac_device_handle_ce(dci->edac_dev, 0, 0, dci->edac_dev_name);
+	} else {
+		writel(ALTR_A10_ECC_DERRPENA,
+		       base + ALTR_A10_ECC_INTSTAT_OFST);
+		edac_device_handle_ue(dci->edac_dev, 0, 0, dci->edac_dev_name);
+		panic("\nEDAC:ECC_DEVICE[Uncorrectable errors]\n");
+	}
+	return IRQ_HANDLED;
+}
+
 const struct edac_device_prv_data ocramecc_data = {
 	.setup = altr_check_ecc_deps,
 	.ce_clear_mask = (ALTR_OCR_ECC_EN | ALTR_OCR_ECC_SERR),
@@ -898,9 +915,6 @@ const struct edac_device_prv_data ocramecc_data = {
 	.trig_alloc_sz = ALTR_TRIG_OCRAM_BYTE_SIZE,
 	.inject_fops = &altr_edac_device_inject_fops,
 };
-
-static irqreturn_t altr_edac_a10_ecc_irq(struct altr_edac_device_dev *dci,
-					 bool sberr);
 
 const struct edac_device_prv_data a10_ocramecc_data = {
 	.setup = altr_check_ecc_deps,
@@ -1059,24 +1073,6 @@ static ssize_t altr_edac_a10_device_trig(struct file *file,
 	local_irq_restore(flags);
 
 	return count;
-}
-
-static irqreturn_t altr_edac_a10_ecc_irq(struct altr_edac_device_dev *dci,
-					 bool sberr)
-{
-	void __iomem  *base = dci->base;
-
-	if (sberr) {
-		writel(ALTR_A10_ECC_SERRPENA,
-		       base + ALTR_A10_ECC_INTSTAT_OFST);
-		edac_device_handle_ce(dci->edac_dev, 0, 0, dci->edac_dev_name);
-	} else {
-		writel(ALTR_A10_ECC_DERRPENA,
-		       base + ALTR_A10_ECC_INTSTAT_OFST);
-		edac_device_handle_ue(dci->edac_dev, 0, 0, dci->edac_dev_name);
-		panic("\nEDAC:ECC_DEVICE[Uncorrectable errors]\n");
-	}
-	return IRQ_HANDLED;
 }
 
 static irqreturn_t altr_edac_a10_irq_handler(int irq, void *dev_id)
