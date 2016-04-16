@@ -2765,7 +2765,7 @@ static s32 ixgbe_acquire_swfw_sync_x550em_a(struct ixgbe_hw *hw, u32 mask)
 			ixgbe_release_swfw_sync_X540(hw, hmask);
 		if (status != IXGBE_ERR_TOKEN_RETRY)
 			return status;
-		udelay(FW_PHY_TOKEN_DELAY * 1000);
+		msleep(FW_PHY_TOKEN_DELAY);
 	}
 
 	return status;
