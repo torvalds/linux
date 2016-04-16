@@ -351,7 +351,7 @@ static u64 bpf_perf_event_output_tp(u64 r1, u64 r2, u64 index, u64 r4, u64 size)
 	 * from bpf program and contain a pointer to 'struct pt_regs'. Fetch it
 	 * from there and call the same bpf_perf_event_output() helper
 	 */
-	u64 ctx = *(long *)r1;
+	u64 ctx = *(long *)(uintptr_t)r1;
 
 	return bpf_perf_event_output(ctx, r2, index, r4, size);
 }
@@ -369,7 +369,7 @@ static const struct bpf_func_proto bpf_perf_event_output_proto_tp = {
 
 static u64 bpf_get_stackid_tp(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
-	u64 ctx = *(long *)r1;
+	u64 ctx = *(long *)(uintptr_t)r1;
 
 	return bpf_get_stackid(ctx, r2, r3, r4, r5);
 }
