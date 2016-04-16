@@ -469,7 +469,6 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_file_private *ctx = file->driver_priv;
-	struct msm_kms *kms = priv->kms;
 
 	mutex_lock(&dev->struct_mutex);
 	if (ctx == priv->lastctx)
