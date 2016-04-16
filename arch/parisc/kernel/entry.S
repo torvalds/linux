@@ -1970,43 +1970,98 @@ pt_regs_ok:
 	b	intr_restore
 	copy	%r25,%r16
 
-	.import schedule,code
 syscall_do_resched:
-	BL	schedule,%r2
+	load32	syscall_check_resched,%r2 /* if resched, we start over again */
+	load32	schedule,%r19
+	bv	%r0(%r19)		/* jumps to schedule() */
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29		/* Reference param save area */
 #else
 	nop
 #endif
-	b	syscall_check_resched	/* if resched, we start over again */
-	nop
 ENDPROC(syscall_exit)
 
 
 #ifdef CONFIG_FUNCTION_TRACER
+
 	.import ftrace_function_trampoline,code
-ENTRY(_mcount)
-	copy	%r3, %arg2
+	.align L1_CACHE_BYTES
+	.globl mcount
+	.type  mcount, @function
+ENTRY(mcount)
+_mcount:
+	.export _mcount,data
+	.proc
+	.callinfo caller,frame=0
+	.entry
+	/*
+	 * The 64bit mcount() function pointer needs 4 dwords, of which the
+	 * first two are free.  We optimize it here and put 2 instructions for
+	 * calling mcount(), and 2 instructions for ftrace_stub().  That way we
+	 * have all on one L1 cacheline.
+	 */
 	b	ftrace_function_trampoline
-	nop
-ENDPROC(_mcount)
-
-ENTRY(return_to_handler)
-	load32	return_trampoline, %rp
-	copy	%ret0, %arg0
-	copy	%ret1, %arg1
-	b	ftrace_return_to_handler
-	nop
-return_trampoline:
-	copy	%ret0, %rp
-	copy	%r23, %ret0
-	copy	%r24, %ret1
-
-.globl ftrace_stub
+	copy	%r3, %arg2	/* caller original %sp */
 ftrace_stub:
+	.globl ftrace_stub
+        .type  ftrace_stub, @function
+#ifdef CONFIG_64BIT
+	bve	(%rp)
+#else
 	bv	%r0(%rp)
+#endif
 	nop
+#ifdef CONFIG_64BIT
+	.dword mcount
+	.dword 0 /* code in head.S puts value of global gp here */
+#endif
+	.exit
+	.procend
+ENDPROC(mcount)
+
+	.align 8
+	.globl return_to_handler
+	.type  return_to_handler, @function
+ENTRY(return_to_handler)
+	.proc
+	.callinfo caller,frame=FRAME_SIZE
+	.entry
+	.export parisc_return_to_handler,data
+parisc_return_to_handler:
+	copy %r3,%r1
+	STREG %r0,-RP_OFFSET(%sp)	/* store 0 as %rp */
+	copy %sp,%r3
+	STREGM %r1,FRAME_SIZE(%sp)
+	STREG %ret0,8(%r3)
+	STREG %ret1,16(%r3)
+
+#ifdef CONFIG_64BIT
+	loadgp
+#endif
+
+	/* call ftrace_return_to_handler(0) */
+#ifdef CONFIG_64BIT
+	ldo -16(%sp),%ret1		/* Reference param save area */
+#endif
+	BL ftrace_return_to_handler,%r2
+	ldi 0,%r26
+	copy %ret0,%rp
+
+	/* restore original return values */
+	LDREG 8(%r3),%ret0
+	LDREG 16(%r3),%ret1
+
+	/* return from function */
+#ifdef CONFIG_64BIT
+	bve	(%rp)
+#else
+	bv	%r0(%rp)
+#endif
+	LDREGM -FRAME_SIZE(%sp),%r3
+	.exit
+	.procend
 ENDPROC(return_to_handler)
+
 #endif	/* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_IRQSTACKS
