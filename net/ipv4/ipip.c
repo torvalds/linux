@@ -219,9 +219,8 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(skb->protocol != htons(ETH_P_IP)))
 		goto tx_error;
 
-	skb = iptunnel_handle_offloads(skb, SKB_GSO_IPIP);
-	if (IS_ERR(skb))
-		goto out;
+	if (iptunnel_handle_offloads(skb, SKB_GSO_IPIP))
+		goto tx_error;
 
 	skb_set_inner_ipproto(skb, IPPROTO_IPIP);
 
@@ -230,7 +229,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 tx_error:
 	kfree_skb(skb);
-out:
+
 	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
 }

@@ -146,8 +146,8 @@ struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 }
 EXPORT_SYMBOL_GPL(iptunnel_metadata_reply);
 
-struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb,
-					 int gso_type_mask)
+int iptunnel_handle_offloads(struct sk_buff *skb,
+			     int gso_type_mask)
 {
 	int err;
 
@@ -159,9 +159,9 @@ struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb,
 	if (skb_is_gso(skb)) {
 		err = skb_unclone(skb, GFP_ATOMIC);
 		if (unlikely(err))
-			goto error;
+			return err;
 		skb_shinfo(skb)->gso_type |= gso_type_mask;
-		return skb;
+		return 0;
 	}
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
@@ -174,10 +174,7 @@ struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb,
 		skb->encapsulation = 0;
 	}
 
-	return skb;
-error:
-	kfree_skb(skb);
-	return ERR_PTR(err);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(iptunnel_handle_offloads);
 

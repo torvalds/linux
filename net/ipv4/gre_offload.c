@@ -292,6 +292,18 @@ static const struct net_offload gre_offload = {
 
 static int __init gre_offload_init(void)
 {
-	return inet_add_offload(&gre_offload, IPPROTO_GRE);
+	int err;
+
+	err = inet_add_offload(&gre_offload, IPPROTO_GRE);
+#if IS_ENABLED(CONFIG_IPV6)
+	if (err)
+		return err;
+
+	err = inet6_add_offload(&gre_offload, IPPROTO_GRE);
+	if (err)
+		inet_del_offload(&gre_offload, IPPROTO_GRE);
+#endif
+
+	return err;
 }
 device_initcall(gre_offload_init);
