@@ -808,11 +808,6 @@ static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 	a->rx_nohandler = b->rx_nohandler;
 }
 
-static void copy_rtnl_link_stats64(void *v, const struct rtnl_link_stats64 *b)
-{
-	memcpy(v, b, sizeof(*b));
-}
-
 /* All VF info */
 static inline int rtnl_vfinfo_size(const struct net_device *dev,
 				   u32 ext_filter_mask)
@@ -1054,25 +1049,23 @@ static int rtnl_phys_switch_id_fill(struct sk_buff *skb, struct net_device *dev)
 static noinline_for_stack int rtnl_fill_stats(struct sk_buff *skb,
 					      struct net_device *dev)
 {
-	const struct rtnl_link_stats64 *stats;
-	struct rtnl_link_stats64 temp;
+	struct rtnl_link_stats64 *sp;
 	struct nlattr *attr;
-
-	stats = dev_get_stats(dev, &temp);
-
-	attr = nla_reserve(skb, IFLA_STATS,
-			   sizeof(struct rtnl_link_stats));
-	if (!attr)
-		return -EMSGSIZE;
-
-	copy_rtnl_link_stats(nla_data(attr), stats);
 
 	attr = nla_reserve(skb, IFLA_STATS64,
 			   sizeof(struct rtnl_link_stats64));
 	if (!attr)
 		return -EMSGSIZE;
 
-	copy_rtnl_link_stats64(nla_data(attr), stats);
+	sp = nla_data(attr);
+	dev_get_stats(dev, sp);
+
+	attr = nla_reserve(skb, IFLA_STATS,
+			   sizeof(struct rtnl_link_stats));
+	if (!attr)
+		return -EMSGSIZE;
+
+	copy_rtnl_link_stats(nla_data(attr), sp);
 
 	return 0;
 }
