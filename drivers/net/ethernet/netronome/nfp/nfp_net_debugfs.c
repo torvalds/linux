@@ -200,7 +200,7 @@ void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 
 	/* Create queue debugging sub-tree */
 	queues = debugfs_create_dir("queue", nn->debugfs_dir);
-	if (IS_ERR_OR_NULL(nn->debugfs_dir))
+	if (IS_ERR_OR_NULL(queues))
 		return;
 
 	rx = debugfs_create_dir("rx", queues);
