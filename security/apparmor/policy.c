@@ -1187,8 +1187,8 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 			/* parent replaced in this atomic set? */
 			if (newest != parent) {
 				aa_get_profile(newest);
-				aa_put_profile(parent);
 				rcu_assign_pointer(ent->new->parent, newest);
+				aa_put_profile(parent);
 			}
 			/* aafs interface uses replacedby */
 			rcu_assign_pointer(ent->new->replacedby->profile,
