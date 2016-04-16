@@ -187,7 +187,7 @@ static const struct file_operations nfp_tx_q_fops = {
 
 void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 {
-	static struct dentry *queues, *tx, *rx;
+	struct dentry *queues, *tx, *rx;
 	char int_name[16];
 	int i;
 
