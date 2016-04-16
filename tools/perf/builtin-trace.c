@@ -46,21 +46,10 @@
 #include <linux/audit.h>
 #include <sys/ptrace.h>
 #include <linux/random.h>
+#include <linux/stringify.h>
 
 #ifndef O_CLOEXEC
 # define O_CLOEXEC		02000000
-#endif
-
-#ifndef SOCK_DCCP
-# define SOCK_DCCP		6
-#endif
-
-#ifndef SOCK_CLOEXEC
-# define SOCK_CLOEXEC		02000000
-#endif
-
-#ifndef SOCK_NONBLOCK
-# define SOCK_NONBLOCK		00004000
 #endif
 
 #ifndef MSG_CMSG_CLOEXEC
@@ -118,6 +107,8 @@ struct trace {
 		u64		vfs_getname,
 				proc_getname;
 	} stats;
+	unsigned int		max_stack;
+	unsigned int		min_stack;
 	bool			not_ev_qualifier;
 	bool			live;
 	bool			full_time;
@@ -538,53 +529,6 @@ static const char *socket_families[] = {
 };
 static DEFINE_STRARRAY(socket_families);
 
-#ifndef SOCK_TYPE_MASK
-#define SOCK_TYPE_MASK 0xf
-#endif
-
-static size_t syscall_arg__scnprintf_socket_type(char *bf, size_t size,
-						      struct syscall_arg *arg)
-{
-	size_t printed;
-	int type = arg->val,
-	    flags = type & ~SOCK_TYPE_MASK;
-
-	type &= SOCK_TYPE_MASK;
-	/*
- 	 * Can't use a strarray, MIPS may override for ABI reasons.
- 	 */
-	switch (type) {
-#define	P_SK_TYPE(n) case SOCK_##n: printed = scnprintf(bf, size, #n); break;
-	P_SK_TYPE(STREAM);
-	P_SK_TYPE(DGRAM);
-	P_SK_TYPE(RAW);
-	P_SK_TYPE(RDM);
-	P_SK_TYPE(SEQPACKET);
-	P_SK_TYPE(DCCP);
-	P_SK_TYPE(PACKET);
-#undef P_SK_TYPE
-	default:
-		printed = scnprintf(bf, size, "%#x", type);
-	}
-
-#define	P_SK_FLAG(n) \
-	if (flags & SOCK_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "|%s", #n); \
-		flags &= ~SOCK_##n; \
-	}
-
-	P_SK_FLAG(CLOEXEC);
-	P_SK_FLAG(NONBLOCK);
-#undef P_SK_FLAG
-
-	if (flags)
-		printed += scnprintf(bf + printed, size - printed, "|%#x", flags);
-
-	return printed;
-}
-
-#define SCA_SK_TYPE syscall_arg__scnprintf_socket_type
-
 #ifndef MSG_PROBE
 #define MSG_PROBE	     0x10
 #endif
@@ -951,6 +895,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 #include "trace/beauty/mmap.c"
 #include "trace/beauty/mode_t.c"
 #include "trace/beauty/sched_policy.c"
+#include "trace/beauty/socket_type.c"
 #include "trace/beauty/waitid_options.c"
 
 static struct syscall_fmt {
@@ -1905,7 +1850,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			goto out_put;
 	}
 
-	if (!trace->summary_only)
+	if (!(trace->duration_filter || trace->summary_only || trace->min_stack))
 		trace__printf_interrupted_entry(trace, sample);
 
 	ttrace->entry_time = sample->time;
@@ -1916,7 +1861,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 					   args, trace, thread);
 
 	if (sc->is_exit) {
-		if (!trace->duration_filter && !trace->summary_only) {
+		if (!(trace->duration_filter || trace->summary_only || trace->min_stack)) {
 			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
 			fprintf(trace->output, "%-70s\n", ttrace->entry_str);
 		}
@@ -1936,26 +1881,27 @@ out_put:
 	return err;
 }
 
-static int trace__fprintf_callchain(struct trace *trace, struct perf_evsel *evsel,
-				    struct perf_sample *sample)
+static int trace__resolve_callchain(struct trace *trace, struct perf_evsel *evsel,
+				    struct perf_sample *sample,
+				    struct callchain_cursor *cursor)
 {
 	struct addr_location al;
+
+	if (machine__resolve(trace->host, &al, sample) < 0 ||
+	    thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, trace->max_stack))
+		return -1;
+
+	return 0;
+}
+
+static int trace__fprintf_callchain(struct trace *trace, struct perf_sample *sample)
+{
 	/* TODO: user-configurable print_opts */
 	const unsigned int print_opts = EVSEL__PRINT_SYM |
 				        EVSEL__PRINT_DSO |
 				        EVSEL__PRINT_UNKNOWN_AS_ADDR;
 
-	if (sample->callchain == NULL)
-		return 0;
-
-	if (machine__resolve(trace->host, &al, sample) < 0) {
-		pr_err("Problem processing %s callchain, skipping...\n",
-			perf_evsel__name(evsel));
-		return 0;
-	}
-
-	return perf_evsel__fprintf_callchain(evsel, sample, &al, 38, print_opts,
-					     scripting_max_stack, trace->output);
+	return sample__fprintf_callchain(sample, 38, print_opts, &callchain_cursor, trace->output);
 }
 
 static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
@@ -1965,7 +1911,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	long ret;
 	u64 duration = 0;
 	struct thread *thread;
-	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1;
+	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1, callchain_ret = 0;
 	struct syscall *sc = trace__syscall_info(trace, evsel, id);
 	struct thread_trace *ttrace;
 
@@ -1996,6 +1942,15 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 			goto out;
 	} else if (trace->duration_filter)
 		goto out;
+
+	if (sample->callchain) {
+		callchain_ret = trace__resolve_callchain(trace, evsel, sample, &callchain_cursor);
+		if (callchain_ret == 0) {
+			if (callchain_cursor.nr < trace->min_stack)
+				goto out;
+			callchain_ret = 1;
+		}
+	}
 
 	if (trace->summary_only)
 		goto out;
@@ -2037,7 +1992,10 @@ signed_print:
 
 	fputc('\n', trace->output);
 
-	trace__fprintf_callchain(trace, evsel, sample);
+	if (callchain_ret > 0)
+		trace__fprintf_callchain(trace, sample);
+	else if (callchain_ret < 0)
+		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
 out:
 	ttrace->entry_pending = false;
 	err = 0;
@@ -2186,7 +2144,10 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 
 	fprintf(trace->output, ")\n");
 
-	trace__fprintf_callchain(trace, evsel, sample);
+	if (sample->callchain) {
+		if (trace__resolve_callchain(trace, evsel, sample, &callchain_cursor) == 0)
+			trace__fprintf_callchain(trace, sample);
+	}
 
 	return 0;
 }
@@ -3086,6 +3047,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		.show_comm = true,
 		.trace_syscalls = true,
 		.kernel_syscallchains = false,
+		.max_stack = UINT_MAX,
 	};
 	const char *output_name = NULL;
 	const char *ev_qualifier_str = NULL;
@@ -3136,10 +3098,19 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		     &record_parse_callchain_opt),
 	OPT_BOOLEAN(0, "kernel-syscall-graph", &trace.kernel_syscallchains,
 		    "Show the kernel callchains on the syscall exit path"),
+	OPT_UINTEGER(0, "min-stack", &trace.min_stack,
+		     "Set the minimum stack depth when parsing the callchain, "
+		     "anything below the specified depth will be ignored."),
+	OPT_UINTEGER(0, "max-stack", &trace.max_stack,
+		     "Set the maximum stack depth when parsing the callchain, "
+		     "anything beyond the specified depth will be ignored. "
+		     "Default: " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_END()
 	};
+	bool max_stack_user_set = true;
+	bool mmap_pages_user_set = true;
 	const char * const trace_subcommands[] = { "record", NULL };
 	int err;
 	char bf[BUFSIZ];
@@ -3173,8 +3144,25 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		trace.opts.sample_time = true;
 	}
 
-	if (trace.opts.callgraph_set)
+	if (trace.opts.mmap_pages == UINT_MAX)
+		mmap_pages_user_set = false;
+
+	if (trace.max_stack == UINT_MAX) {
+		trace.max_stack = PERF_MAX_STACK_DEPTH;
+		max_stack_user_set = false;
+	}
+
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+	if ((trace.min_stack || max_stack_user_set) && !trace.opts.callgraph_set)
+		record_opts__parse_callchain(&trace.opts, &callchain_param, "dwarf", false);
+#endif
+
+	if (trace.opts.callgraph_set) {
+		if (!mmap_pages_user_set && geteuid() == 0)
+			trace.opts.mmap_pages = perf_event_mlock_kb_in_pages() * 4;
+
 		symbol_conf.use_callchain = true;
+	}
 
 	if (trace.evlist->nr_entries > 0)
 		evlist__set_evsel_handler(trace.evlist, trace__event_handler);

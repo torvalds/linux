@@ -395,16 +395,15 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 #define EVSEL__PRINT_SRCLINE		(1<<5)
 #define EVSEL__PRINT_UNKNOWN_AS_ADDR	(1<<6)
 
-int perf_evsel__fprintf_callchain(struct perf_evsel *evsel,
-				  struct perf_sample *sample,
-				  struct addr_location *al, int left_alignment,
-				  unsigned int print_opts,
-				  unsigned int stack_depth, FILE *fp);
+struct callchain_cursor;
 
-int perf_evsel__fprintf_sym(struct perf_evsel *evsel, struct perf_sample *sample,
-			    struct addr_location *al, int left_alignment,
-			    unsigned int print_opts, unsigned int stack_depth,
-			    FILE *fp);
+int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
+			      unsigned int print_opts,
+			      struct callchain_cursor *cursor, FILE *fp);
+
+int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
+			int left_alignment, unsigned int print_opts,
+			struct callchain_cursor *cursor, FILE *fp);
 
 bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 			  char *msg, size_t msgsize);

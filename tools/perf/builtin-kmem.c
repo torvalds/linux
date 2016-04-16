@@ -375,7 +375,7 @@ static u64 find_callsite(struct perf_evsel *evsel, struct perf_sample *sample)
 	}
 
 	al.thread = machine__findnew_thread(machine, sample->pid, sample->tid);
-	sample__resolve_callchain(sample, NULL, evsel, &al, 16);
+	sample__resolve_callchain(sample, &callchain_cursor, NULL, evsel, &al, 16);
 
 	callchain_cursor_commit(&callchain_cursor);
 	while (true) {

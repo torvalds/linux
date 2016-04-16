@@ -22,6 +22,7 @@
 #include "util/thread_map.h"
 #include "util/stat.h"
 #include <linux/bitmap.h>
+#include <linux/stringify.h>
 #include "asm/bug.h"
 #include "util/mem-events.h"
 
@@ -569,18 +570,23 @@ static void print_sample_bts(struct perf_sample *sample,
 	/* print branch_from information */
 	if (PRINT_FIELD(IP)) {
 		unsigned int print_opts = output[attr->type].print_ip_opts;
+		struct callchain_cursor *cursor = NULL, cursor_callchain;
 
-		if (symbol_conf.use_callchain && sample->callchain) {
-			printf("\n");
-		} else {
-			printf(" ");
+		if (symbol_conf.use_callchain && sample->callchain &&
+		    thread__resolve_callchain(al->thread, &cursor_callchain, evsel,
+					      sample, NULL, NULL, scripting_max_stack) == 0)
+			cursor = &cursor_callchain;
+
+		if (cursor == NULL) {
+			putchar(' ');
 			if (print_opts & EVSEL__PRINT_SRCLINE) {
 				print_srcline_last = true;
 				print_opts &= ~EVSEL__PRINT_SRCLINE;
 			}
-		}
-		perf_evsel__fprintf_sym(evsel, sample, al, 0, print_opts,
-					scripting_max_stack, stdout);
+		} else
+			putchar('\n');
+
+		sample__fprintf_sym(sample, al, 0, print_opts, cursor, stdout);
 	}
 
 	/* print branch_to information */
@@ -783,14 +789,15 @@ static void process_event(struct perf_script *script,
 		printf("%16" PRIu64, sample->weight);
 
 	if (PRINT_FIELD(IP)) {
-		if (!symbol_conf.use_callchain)
-			printf(" ");
-		else
-			printf("\n");
+		struct callchain_cursor *cursor = NULL, cursor_callchain;
 
-		perf_evsel__fprintf_sym(evsel, sample, al, 0,
-					output[attr->type].print_ip_opts,
-					scripting_max_stack, stdout);
+		if (symbol_conf.use_callchain &&
+		    thread__resolve_callchain(al->thread, &cursor_callchain, evsel,
+					      sample, NULL, NULL, scripting_max_stack) == 0)
+			cursor = &cursor_callchain;
+
+		putchar(cursor ? '\n' : ' ');
+		sample__fprintf_sym(sample, al, 0, output[attr->type].print_ip_opts, cursor, stdout);
 	}
 
 	if (PRINT_FIELD(IREGS))
@@ -2021,6 +2028,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "only consider symbols in these pids"),
 	OPT_STRING(0, "tid", &symbol_conf.tid_list_str, "tid[,tid...]",
 		   "only consider symbols in these tids"),
+	OPT_UINTEGER(0, "max-stack", &scripting_max_stack,
+		     "Set the maximum stack depth when parsing the callchain, "
+		     "anything beyond the specified depth will be ignored. "
+		     "Default: " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
 		    "display extended information from perf.data file"),
 	OPT_BOOLEAN('\0', "show-kernel-path", &symbol_conf.show_kernel_path,
