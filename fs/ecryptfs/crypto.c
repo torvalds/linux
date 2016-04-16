@@ -105,19 +105,7 @@ static int ecryptfs_calculate_md5(char *dst,
 	struct crypto_shash *tfm;
 	int rc = 0;
 
-	mutex_lock(&crypt_stat->cs_hash_tfm_mutex);
 	tfm = crypt_stat->hash_tfm;
-	if (!tfm) {
-		tfm = crypto_alloc_shash(ECRYPTFS_DEFAULT_HASH, 0, 0);
-		if (IS_ERR(tfm)) {
-			rc = PTR_ERR(tfm);
-			ecryptfs_printk(KERN_ERR, "Error attempting to "
-					"allocate crypto context; rc = [%d]\n",
-					rc);
-			goto out;
-		}
-		crypt_stat->hash_tfm = tfm;
-	}
 	rc = ecryptfs_hash_digest(tfm, src, len, dst);
 	if (rc) {
 		printk(KERN_ERR
@@ -126,7 +114,6 @@ static int ecryptfs_calculate_md5(char *dst,
 		goto out;
 	}
 out:
-	mutex_unlock(&crypt_stat->cs_hash_tfm_mutex);
 	return rc;
 }
 
@@ -207,16 +194,29 @@ out:
  *
  * Initialize the crypt_stat structure.
  */
-void
-ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
+int ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
 {
+	struct crypto_shash *tfm;
+	int rc;
+
+	tfm = crypto_alloc_shash(ECRYPTFS_DEFAULT_HASH, 0, 0);
+	if (IS_ERR(tfm)) {
+		rc = PTR_ERR(tfm);
+		ecryptfs_printk(KERN_ERR, "Error attempting to "
+				"allocate crypto context; rc = [%d]\n",
+				rc);
+		return rc;
+	}
+
 	memset((void *)crypt_stat, 0, sizeof(struct ecryptfs_crypt_stat));
 	INIT_LIST_HEAD(&crypt_stat->keysig_list);
 	mutex_init(&crypt_stat->keysig_list_mutex);
 	mutex_init(&crypt_stat->cs_mutex);
 	mutex_init(&crypt_stat->cs_tfm_mutex);
-	mutex_init(&crypt_stat->cs_hash_tfm_mutex);
+	crypt_stat->hash_tfm = tfm;
 	crypt_stat->flags |= ECRYPTFS_STRUCT_INITIALIZED;
+
+	return 0;
 }
 
 /**
