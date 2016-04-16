@@ -59,8 +59,8 @@
 			netdev_warn((nn)->netdev, fmt, ## args);	\
 	} while (0)
 
-/* Max time to wait for NFP to respond on updates (in ms) */
-#define NFP_NET_POLL_TIMEOUT	5000
+/* Max time to wait for NFP to respond on updates (in seconds) */
+#define NFP_NET_POLL_TIMEOUT	5
 
 /* Bar allocation */
 #define NFP_NET_CRTL_BAR	0
@@ -447,6 +447,10 @@ static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
  * @shared_name:        Name for shared interrupt
  * @me_freq_mhz:        ME clock_freq (MHz)
  * @reconfig_lock:	Protects HW reconfiguration request regs/machinery
+ * @reconfig_posted:	Pending reconfig bits coming from async sources
+ * @reconfig_timer_active:  Timer for reading reconfiguration results is pending
+ * @reconfig_sync_present:  Some thread is performing synchronous reconfig
+ * @reconfig_timer:	Timer for async reading of reconfig results
  * @link_up:            Is the link up?
  * @link_status_lock:	Protects @link_up and ensures atomicity with BAR reading
  * @rx_coalesce_usecs:      RX interrupt moderation usecs delay parameter
@@ -531,6 +535,10 @@ struct nfp_net {
 	spinlock_t link_status_lock;
 
 	spinlock_t reconfig_lock;
+	u32 reconfig_posted;
+	bool reconfig_timer_active;
+	bool reconfig_sync_present;
+	struct timer_list reconfig_timer;
 
 	u32 rx_coalesce_usecs;
 	u32 rx_coalesce_max_frames;
