@@ -81,14 +81,10 @@
 
 /**
  * @NFP_NET_TXR_MAX:         Maximum number of TX rings
- * @NFP_NET_TXR_MASK:        Mask for TX rings
  * @NFP_NET_RXR_MAX:         Maximum number of RX rings
- * @NFP_NET_RXR_MASK:        Mask for RX rings
  */
 #define NFP_NET_TXR_MAX                 64
-#define NFP_NET_TXR_MASK                (NFP_NET_TXR_MAX - 1)
 #define NFP_NET_RXR_MAX                 64
-#define NFP_NET_RXR_MASK                (NFP_NET_RXR_MAX - 1)
 
 /**
  * Read/Write config words (0x0000 - 0x002c)
