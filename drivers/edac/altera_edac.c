@@ -232,8 +232,8 @@ static unsigned long get_total_mem(void)
 }
 
 static const struct of_device_id altr_sdram_ctrl_of_match[] = {
-	{ .compatible = "altr,sdram-edac", .data = (void *)&c5_data},
-	{ .compatible = "altr,sdram-edac-a10", .data = (void *)&a10_data},
+	{ .compatible = "altr,sdram-edac", .data = &c5_data},
+	{ .compatible = "altr,sdram-edac-a10", .data = &a10_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, altr_sdram_ctrl_of_match);
@@ -705,15 +705,12 @@ static void altr_create_edacdev_dbgfs(struct edac_device_ctl_info *edac_dci,
 
 static const struct of_device_id altr_edac_device_of_match[] = {
 #ifdef CONFIG_EDAC_ALTERA_L2C
-	{ .compatible = "altr,socfpga-l2-ecc", .data = (void *)&l2ecc_data },
-	{ .compatible = "altr,socfpga-a10-l2-ecc",
-	  .data = (void *)&a10_l2ecc_data },
+	{ .compatible = "altr,socfpga-l2-ecc", .data = &l2ecc_data },
+	{ .compatible = "altr,socfpga-a10-l2-ecc", .data = &a10_l2ecc_data },
 #endif
 #ifdef CONFIG_EDAC_ALTERA_OCRAM
-	{ .compatible = "altr,socfpga-ocram-ecc",
-	  .data = (void *)&ocramecc_data },
-	{ .compatible = "altr,socfpga-a10-ocram-ecc",
-	  .data = (void *)&a10_ocramecc_data },
+	{ .compatible = "altr,socfpga-ocram-ecc", .data = &ocramecc_data },
+	{ .compatible = "altr,socfpga-a10-ocram-ecc", .data = &a10_ocramecc_data },
 #endif
 	{},
 };
