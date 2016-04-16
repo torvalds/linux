@@ -1067,7 +1067,7 @@ static int __lookup_replace(struct aa_namespace *ns, const char *hname,
  */
 ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 {
-	const char *ns_name, *name = NULL, *info = NULL;
+	const char *ns_name, *info = NULL;
 	struct aa_namespace *ns = NULL;
 	struct aa_load_ent *ent, *tmp;
 	int op = OP_PROF_REPL;
@@ -1082,18 +1082,15 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 	/* released below */
 	ns = aa_prepare_namespace(ns_name);
 	if (!ns) {
-		info = "failed to prepare namespace";
-		error = -ENOMEM;
-		name = ns_name;
-		goto fail;
+		error = audit_policy(op, GFP_KERNEL, ns_name,
+				     "failed to prepare namespace", -ENOMEM);
+		goto free;
 	}
 
 	mutex_lock(&ns->lock);
 	/* setup parent and ns info */
 	list_for_each_entry(ent, &lh, list) {
 		struct aa_policy *policy;
-
-		name = ent->new->base.hname;
 		error = __lookup_replace(ns, ent->new->base.hname, noreplace,
 					 &ent->old, &info);
 		if (error)
@@ -1121,7 +1118,6 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 			if (!p) {
 				error = -ENOENT;
 				info = "parent does not exist";
-				name = ent->new->base.hname;
 				goto fail_lock;
 			}
 			rcu_assign_pointer(ent->new->parent, aa_get_profile(p));
@@ -1214,9 +1210,22 @@ out:
 
 fail_lock:
 	mutex_unlock(&ns->lock);
-fail:
-	error = audit_policy(op, GFP_KERNEL, name, info, error);
 
+	/* audit cause of failure */
+	op = (!ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
+	audit_policy(op, GFP_KERNEL, ent->new->base.hname, info, error);
+	/* audit status that rest of profiles in the atomic set failed too */
+	info = "valid profile in failed atomic policy load";
+	list_for_each_entry(tmp, &lh, list) {
+		if (tmp == ent) {
+			info = "unchecked profile in failed atomic policy load";
+			/* skip entry that caused failure */
+			continue;
+		}
+		op = (!ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
+		audit_policy(op, GFP_KERNEL, tmp->new->base.hname, info, error);
+	}
+free:
 	list_for_each_entry_safe(ent, tmp, &lh, list) {
 		list_del_init(&ent->list);
 		aa_load_ent_free(ent);
