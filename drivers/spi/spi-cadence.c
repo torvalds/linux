@@ -651,7 +651,7 @@ static int __maybe_unused cdns_spi_resume(struct device *dev)
  *
  * Return:	0 on success and error value on error
  */
-static int cnds_runtime_resume(struct device *dev)
+static int __maybe_unused cnds_runtime_resume(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct cdns_spi *xspi = spi_master_get_devdata(master);
@@ -680,7 +680,7 @@ static int cnds_runtime_resume(struct device *dev)
  *
  * Return:	Always 0
  */
-static int cnds_runtime_suspend(struct device *dev)
+static int __maybe_unused cnds_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct cdns_spi *xspi = spi_master_get_devdata(master);
