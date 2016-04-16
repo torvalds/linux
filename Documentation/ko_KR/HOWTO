@@ -253,8 +253,6 @@ Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, H
     것이다.
   - 이러한 프로세스는 커널이 "준비(ready)"되었다고 여겨질때까지 계속된다.
     프로세스는 대체로 6주간 지속된다.
-  - 각 -rc 배포에 있는 알려진 회귀의 목록들은 다음 URI에 남겨진다.
-    http://kernelnewbies.org/known_regressions
 
 커널 배포에 있어서 언급할만한 가치가 있는 리눅스 커널 메일링 리스트의
 Andrew Morton의 글이 있다.
