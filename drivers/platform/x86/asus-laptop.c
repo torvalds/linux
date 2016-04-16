@@ -948,11 +948,10 @@ static ssize_t sysfs_acpi_set(struct asus_laptop *asus,
 			      const char *method)
 {
 	int rv, value;
-	int out = 0;
 
 	rv = parse_arg(buf, count, &value);
-	if (rv > 0)
-		out = value ? 1 : 0;
+	if (rv <= 0)
+		return rv;
 
 	if (write_acpi_int(asus->handle, method, value))
 		return -ENODEV;
