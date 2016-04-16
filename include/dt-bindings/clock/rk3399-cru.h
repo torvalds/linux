@@ -136,7 +136,7 @@
 #define DCLK_VOP1_DIV			183
 #define DCLK_M0_PERILP			184
 
-#define FCLK_CM0S 			190
+#define FCLK_CM0S			190
 
 /* aclk gates */
 #define ACLK_PERIHP			192
@@ -207,11 +207,11 @@
 #define ACLK_CORE_ADB400_CORE_B_2_CCI500 257
 #define ACLK_ADB400M_PD_CORE_L		258
 #define ACLK_ADB400M_PD_CORE_B		259
-#define ACLK_PERF_CORE_L 		260
-#define ACLK_PERF_CORE_B 		261
-#define ACLK_GIC_PRE	 		262
-#define ACLK_VOP0_PRE	 		263
-#define ACLK_VOP1_PRE	 		264
+#define ACLK_PERF_CORE_L		260
+#define ACLK_PERF_CORE_B		261
+#define ACLK_GIC_PRE			262
+#define ACLK_VOP0_PRE			263
+#define ACLK_VOP1_PRE			264
 
 /* pclk gates */
 #define PCLK_PERIHP			320
@@ -279,12 +279,12 @@
 #define PCLK_EFUSE1024S			382
 #define PCLK_PMU_INTR_ARB		383
 #define PCLK_MAILBOX0			384
-#define PCLK_USBPHY_MUX_G 		385
-#define PCLK_UPHY0_TCPHY_G 		386
-#define PCLK_UPHY0_TCPD_G 		387
-#define PCLK_UPHY1_TCPHY_G 		388
-#define PCLK_UPHY1_TCPD_G 		389
-#define PCLK_ALIVE	 		390
+#define PCLK_USBPHY_MUX_G		385
+#define PCLK_UPHY0_TCPHY_G		386
+#define PCLK_UPHY0_TCPD_G		387
+#define PCLK_UPHY1_TCPHY_G		388
+#define PCLK_UPHY1_TCPD_G		389
+#define PCLK_ALIVE			390
 
 /* hclk gates */
 #define HCLK_PERIHP			448
