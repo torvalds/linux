@@ -1159,7 +1159,7 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 		list_del_init(&ent->list);
 		op = (!ent->old && !ent->rename) ? OP_PROF_LOAD : OP_PROF_REPL;
 
-		audit_policy(op, GFP_ATOMIC, ent->new->base.name, NULL, error);
+		audit_policy(op, GFP_ATOMIC, ent->new->base.hname, NULL, error);
 
 		if (ent->old) {
 			__replace_profile(ent->old, ent->new, 1);
