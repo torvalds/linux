@@ -185,7 +185,7 @@
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1500000>;
 
-		vin-supply = <&ppvar_sys>;
+		pwm-supply = <&ppvar_sys>;
 	};
 
 	ppvar_litcpu: ppvar-litcpu {
@@ -202,7 +202,7 @@
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1500000>;
 
-		vin-supply = <&ppvar_sys>;
+		pwm-supply = <&ppvar_sys>;
 	};
 
 	ppvar_gpu: ppvar-gpu {
@@ -219,7 +219,7 @@
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1500000>;
 
-		vin-supply = <&ppvar_sys>;
+		pwm-supply = <&ppvar_sys>;
 	};
 
 	ppvar_centerlogic: ppvar-centerlogic {
@@ -236,7 +236,7 @@
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1500000>;
 
-		vin-supply = <&ppvar_sys>;
+		pwm-supply = <&ppvar_sys>;
 	};
 
 	/* Schematics call this PPVAR even though it's fixed */
