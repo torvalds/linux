@@ -629,7 +629,7 @@ static int tegra_soctherm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int soctherm_suspend(struct device *dev)
+static int __maybe_unused soctherm_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 
@@ -638,7 +638,7 @@ static int soctherm_suspend(struct device *dev)
 	return 0;
 }
 
-static int soctherm_resume(struct device *dev)
+static int __maybe_unused soctherm_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct tegra_soctherm *tegra = platform_get_drvdata(pdev);
