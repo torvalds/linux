@@ -22,45 +22,25 @@ static struct bio *next_bio(struct bio *bio, int rw, unsigned int nr_pages,
 	return new;
 }
 
-/**
- * blkdev_issue_discard - queue a discard
- * @bdev:	blockdev to issue discard for
- * @sector:	start sector
- * @nr_sects:	number of sectors to discard
- * @gfp_mask:	memory allocation flags (for bio_alloc)
- * @flags:	BLKDEV_IFL_* flags to control behaviour
- *
- * Description:
- *    Issue a discard request for the sectors in question.
- */
-int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags)
+int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp_mask, int type, struct bio **biop)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
-	int type = REQ_WRITE | REQ_DISCARD;
+	struct bio *bio = *biop;
 	unsigned int granularity;
 	int alignment;
-	struct bio *bio = NULL;
-	int ret = 0;
-	struct blk_plug plug;
 
 	if (!q)
 		return -ENXIO;
-
 	if (!blk_queue_discard(q))
+		return -EOPNOTSUPP;
+	if ((type & REQ_SECURE) && !blk_queue_secdiscard(q))
 		return -EOPNOTSUPP;
 
 	/* Zero-sector (unknown) and one-sector granularities are the same.  */
 	granularity = max(q->limits.discard_granularity >> 9, 1U);
 	alignment = (bdev_discard_alignment(bdev) >> 9) % granularity;
 
-	if (flags & BLKDEV_DISCARD_SECURE) {
-		if (!blk_queue_secdiscard(q))
-			return -EOPNOTSUPP;
-		type |= REQ_SECURE;
-	}
-
-	blk_start_plug(&plug);
 	while (nr_sects) {
 		unsigned int req_sects;
 		sector_t end_sect, tmp;
@@ -98,7 +78,38 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		 */
 		cond_resched();
 	}
-	if (bio)
+
+	*biop = bio;
+	return 0;
+}
+EXPORT_SYMBOL(__blkdev_issue_discard);
+
+/**
+ * blkdev_issue_discard - queue a discard
+ * @bdev:	blockdev to issue discard for
+ * @sector:	start sector
+ * @nr_sects:	number of sectors to discard
+ * @gfp_mask:	memory allocation flags (for bio_alloc)
+ * @flags:	BLKDEV_IFL_* flags to control behaviour
+ *
+ * Description:
+ *    Issue a discard request for the sectors in question.
+ */
+int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags)
+{
+	int type = REQ_WRITE | REQ_DISCARD;
+	struct bio *bio = NULL;
+	struct blk_plug plug;
+	int ret;
+
+	if (flags & BLKDEV_DISCARD_SECURE)
+		type |= REQ_SECURE;
+
+	blk_start_plug(&plug);
+	ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, type,
+			&bio);
+	if (!ret && bio)
 		ret = submit_bio_wait(type, bio);
 	blk_finish_plug(&plug);
 
