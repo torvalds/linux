@@ -771,7 +771,7 @@ static int asus_read_brightness(struct backlight_device *bd)
 {
 	struct asus_laptop *asus = bl_get_data(bd);
 	unsigned long long value;
-	acpi_status rv = AE_OK;
+	acpi_status rv;
 
 	rv = acpi_evaluate_integer(asus->handle, METHOD_BRIGHTNESS_GET,
 				   NULL, &value);
@@ -867,7 +867,7 @@ static ssize_t infos_show(struct device *dev, struct device_attribute *attr,
 	int len = 0;
 	unsigned long long temp;
 	char buf[16];		/* enough for all info */
-	acpi_status rv = AE_OK;
+	acpi_status rv;
 
 	/*
 	 * We use the easy way, we don't care of off and count,
@@ -1267,7 +1267,7 @@ static DEVICE_ATTR_RO(ls_value);
 static int asus_gps_status(struct asus_laptop *asus)
 {
 	unsigned long long status;
-	acpi_status rv = AE_OK;
+	acpi_status rv;
 
 	rv = acpi_evaluate_integer(asus->handle, METHOD_GPS_STATUS,
 				   NULL, &status);
