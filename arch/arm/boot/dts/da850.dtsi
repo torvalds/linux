@@ -19,7 +19,7 @@
 			compatible = "ti,cp-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
-			ti,intc-size = <100>;
+			ti,intc-size = <101>;
 			reg = <0xfffee000 0x2000>;
 		};
 	};
