@@ -660,6 +660,23 @@ int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 }
 EXPORT_SYMBOL(mlx5_vector2eqn);
 
+struct mlx5_eq *mlx5_eqn2eq(struct mlx5_core_dev *dev, int eqn)
+{
+	struct mlx5_eq_table *table = &dev->priv.eq_table;
+	struct mlx5_eq *eq;
+
+	spin_lock(&table->lock);
+	list_for_each_entry(eq, &table->comp_eqs_list, list)
+		if (eq->eqn == eqn) {
+			spin_unlock(&table->lock);
+			return eq;
+		}
+
+	spin_unlock(&table->lock);
+
+	return ERR_PTR(-ENOENT);
+}
+
 static void free_comp_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
