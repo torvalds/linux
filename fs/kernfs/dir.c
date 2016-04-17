@@ -153,9 +153,9 @@ static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
 	p = buf + len + nlen;
 	*p = '\0';
 	for (kn = kn_to; kn != common; kn = kn->parent) {
-		nlen = strlen(kn->name);
-		p -= nlen;
-		memcpy(p, kn->name, nlen);
+		size_t tmp = strlen(kn->name);
+		p -= tmp;
+		memcpy(p, kn->name, tmp);
 		*(--p) = '/';
 	}
 
