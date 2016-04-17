@@ -319,6 +319,7 @@ struct iwl_pwr_tx_backoff {
  * @mq_rx_supported: multi-queue rx support
  * @vht_mu_mimo_supported: VHT MU-MIMO support
  * @rf_id: need to read rf_id to determine the firmware image
+ * @integrated: discrete or integrated
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -362,7 +363,8 @@ struct iwl_cfg {
 	    apmg_not_supported:1,
 	    mq_rx_supported:1,
 	    vht_mu_mimo_supported:1,
-	    rf_id:1;
+	    rf_id:1,
+	    integrated:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;

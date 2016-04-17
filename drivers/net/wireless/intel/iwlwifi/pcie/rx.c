@@ -211,12 +211,8 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 	if (trans->cfg->mq_rx_supported)
 		iwl_write32(trans, RFH_Q_FRBDCB_WIDX_TRG(rxq->id),
 			    rxq->write_actual);
-	/*
-	 * write to FH_RSCSR_CHNL0_WPTR register even in MQ as a W/A to
-	 * hardware shadow registers bug - writing to RFH_Q_FRBDCB_WIDX will
-	 * not wake the NIC.
-	 */
-	iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
+	else
+		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
 }
 
 static void iwl_pcie_rxq_check_wrptr(struct iwl_trans *trans)
@@ -764,6 +760,23 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 		iwl_set_bit(trans, CSR_INT_COALESCING, IWL_HOST_INT_OPER_MODE);
 }
 
+void iwl_pcie_enable_rx_wake(struct iwl_trans *trans, bool enable)
+{
+	/*
+	 * Turn on the chicken-bits that cause MAC wakeup for RX-related
+	 * values.
+	 * This costs some power, but needed for W/A 9000 integrated A-step
+	 * bug where shadow registers are not in the retention list and their
+	 * value is lost when NIC powers down
+	 */
+	if (trans->cfg->integrated) {
+		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL,
+			    CSR_MAC_SHADOW_REG_CTRL_RX_WAKE);
+		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTL2,
+			    CSR_MAC_SHADOW_REG_CTL2_RX_WAKE);
+	}
+}
+
 static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -849,6 +862,8 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 
 	/* Set interrupt coalescing timer to default (2048 usecs) */
 	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
+
+	iwl_pcie_enable_rx_wake(trans, true);
 }
 
 static void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
