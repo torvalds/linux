@@ -46,6 +46,9 @@
 
 extern int mlx5_core_debug_mask;
 
+extern struct list_head mlx5_dev_list;
+extern struct mutex mlx5_intf_mutex;
+
 #define mlx5_core_dbg(__dev, format, ...)				\
 	dev_dbg(&(__dev)->pdev->dev, "%s:%s:%d:(pid %d): " format,	\
 		 (__dev)->priv.name, __func__, __LINE__, current->pid,	\
@@ -70,6 +73,9 @@ do {									\
 #define mlx5_core_info(__dev, format, ...)				\
 	dev_info(&(__dev)->pdev->dev, format, ##__VA_ARGS__)
 
+#define mlx5_core_for_each_priv(__priv)					\
+	list_for_each_entry(__priv, &mlx5_dev_list, dev_list)
+
 enum {
 	MLX5_CMD_DATA, /* print command payload only */
 	MLX5_CMD_TIME, /* print command execution time */
@@ -91,6 +97,12 @@ cycle_t mlx5_read_internal_timer(struct mlx5_core_dev *dev);
 u32 mlx5_get_msix_vec(struct mlx5_core_dev *dev, int vecidx);
 struct mlx5_eq *mlx5_eqn2eq(struct mlx5_core_dev *dev, int eqn);
 void mlx5_cq_tasklet_cb(unsigned long data);
+
+void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev);
+void mlx5_lag_remove(struct mlx5_core_dev *dev);
+
+void mlx5_add_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
+void mlx5_remove_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
 
 void mlx5e_init(void);
 void mlx5e_cleanup(void);

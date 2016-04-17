@@ -3369,6 +3369,8 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
 	struct mlx5_eswitch_rep rep;
 
+	mlx5_lag_add(mdev, netdev);
+
 	if (mlx5e_vxlan_allowed(mdev)) {
 		rtnl_lock();
 		udp_tunnel_get_rx_info(netdev);
@@ -3391,6 +3393,7 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 {
 	queue_work(priv->wq, &priv->set_rx_mode_work);
 	mlx5e_disable_async_events(priv);
+	mlx5_lag_remove(priv->mdev);
 }
 
 static const struct mlx5e_profile mlx5e_nic_profile = {

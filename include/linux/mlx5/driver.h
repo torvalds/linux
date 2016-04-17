@@ -477,6 +477,7 @@ struct mlx5_fc_stats {
 };
 
 struct mlx5_eswitch;
+struct mlx5_lag;
 
 struct mlx5_rl_entry {
 	u32                     rate;
@@ -550,6 +551,7 @@ struct mlx5_priv {
 	struct mlx5_flow_steering *steering;
 	struct mlx5_eswitch     *eswitch;
 	struct mlx5_core_sriov	sriov;
+	struct mlx5_lag		*lag;
 	unsigned long		pci_dev_data;
 	struct mlx5_fc_stats		fc_stats;
 	struct mlx5_rl_table            rl_table;
@@ -941,6 +943,8 @@ void *mlx5_get_protocol_dev(struct mlx5_core_dev *mdev, int protocol);
 int mlx5_register_interface(struct mlx5_interface *intf);
 void mlx5_unregister_interface(struct mlx5_interface *intf);
 int mlx5_core_query_vendor_id(struct mlx5_core_dev *mdev, u32 *vendor_id);
+
+bool mlx5_lag_is_active(struct mlx5_core_dev *dev);
 
 struct mlx5_profile {
 	u64	mask;
