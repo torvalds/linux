@@ -79,11 +79,9 @@ static __inline__ void atomic_##op(int i, atomic_t * v)			      \
 }
 
 #define ATOMIC_OP_RETURN(op, c_op, asm_op)				      \
-static __inline__ int atomic_##op##_return(int i, atomic_t * v)		      \
+static __inline__ int atomic_##op##_return_relaxed(int i, atomic_t * v)	      \
 {									      \
 	int result;							      \
-									      \
-	smp_mb__before_llsc();						      \
 									      \
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {			      \
 		int temp;						      \
@@ -125,17 +123,13 @@ static __inline__ int atomic_##op##_return(int i, atomic_t * v)		      \
 		raw_local_irq_restore(flags);				      \
 	}								      \
 									      \
-	smp_llsc_mb();							      \
-									      \
 	return result;							      \
 }
 
 #define ATOMIC_FETCH_OP(op, c_op, asm_op)				      \
-static __inline__ int atomic_fetch_##op(int i, atomic_t * v)		      \
+static __inline__ int atomic_fetch_##op##_relaxed(int i, atomic_t * v)	      \
 {									      \
 	int result;							      \
-									      \
-	smp_mb__before_llsc();						      \
 									      \
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {			      \
 		int temp;						      \
@@ -176,8 +170,6 @@ static __inline__ int atomic_fetch_##op(int i, atomic_t * v)		      \
 		raw_local_irq_restore(flags);				      \
 	}								      \
 									      \
-	smp_llsc_mb();							      \
-									      \
 	return result;							      \
 }
 
@@ -189,6 +181,11 @@ static __inline__ int atomic_fetch_##op(int i, atomic_t * v)		      \
 ATOMIC_OPS(add, +=, addu)
 ATOMIC_OPS(sub, -=, subu)
 
+#define atomic_add_return_relaxed	atomic_add_return_relaxed
+#define atomic_sub_return_relaxed	atomic_sub_return_relaxed
+#define atomic_fetch_add_relaxed	atomic_fetch_add_relaxed
+#define atomic_fetch_sub_relaxed	atomic_fetch_sub_relaxed
+
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, c_op, asm_op)					      \
 	ATOMIC_OP(op, c_op, asm_op)					      \
@@ -197,6 +194,10 @@ ATOMIC_OPS(sub, -=, subu)
 ATOMIC_OPS(and, &=, and)
 ATOMIC_OPS(or, |=, or)
 ATOMIC_OPS(xor, ^=, xor)
+
+#define atomic_fetch_and_relaxed	atomic_fetch_and_relaxed
+#define atomic_fetch_or_relaxed		atomic_fetch_or_relaxed
+#define atomic_fetch_xor_relaxed	atomic_fetch_xor_relaxed
 
 #undef ATOMIC_OPS
 #undef ATOMIC_FETCH_OP
@@ -420,11 +421,9 @@ static __inline__ void atomic64_##op(long i, atomic64_t * v)		      \
 }
 
 #define ATOMIC64_OP_RETURN(op, c_op, asm_op)				      \
-static __inline__ long atomic64_##op##_return(long i, atomic64_t * v)	      \
+static __inline__ long atomic64_##op##_return_relaxed(long i, atomic64_t * v) \
 {									      \
 	long result;							      \
-									      \
-	smp_mb__before_llsc();						      \
 									      \
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {			      \
 		long temp;						      \
@@ -467,17 +466,13 @@ static __inline__ long atomic64_##op##_return(long i, atomic64_t * v)	      \
 		raw_local_irq_restore(flags);				      \
 	}								      \
 									      \
-	smp_llsc_mb();							      \
-									      \
 	return result;							      \
 }
 
 #define ATOMIC64_FETCH_OP(op, c_op, asm_op)				      \
-static __inline__ long atomic64_fetch_##op(long i, atomic64_t * v)	      \
+static __inline__ long atomic64_fetch_##op##_relaxed(long i, atomic64_t * v)  \
 {									      \
 	long result;							      \
-									      \
-	smp_mb__before_llsc();						      \
 									      \
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {			      \
 		long temp;						      \
@@ -519,8 +514,6 @@ static __inline__ long atomic64_fetch_##op(long i, atomic64_t * v)	      \
 		raw_local_irq_restore(flags);				      \
 	}								      \
 									      \
-	smp_llsc_mb();							      \
-									      \
 	return result;							      \
 }
 
@@ -532,6 +525,11 @@ static __inline__ long atomic64_fetch_##op(long i, atomic64_t * v)	      \
 ATOMIC64_OPS(add, +=, daddu)
 ATOMIC64_OPS(sub, -=, dsubu)
 
+#define atomic64_add_return_relaxed	atomic64_add_return_relaxed
+#define atomic64_sub_return_relaxed	atomic64_sub_return_relaxed
+#define atomic64_fetch_add_relaxed	atomic64_fetch_add_relaxed
+#define atomic64_fetch_sub_relaxed	atomic64_fetch_sub_relaxed
+
 #undef ATOMIC64_OPS
 #define ATOMIC64_OPS(op, c_op, asm_op)					      \
 	ATOMIC64_OP(op, c_op, asm_op)					      \
@@ -540,6 +538,10 @@ ATOMIC64_OPS(sub, -=, dsubu)
 ATOMIC64_OPS(and, &=, and)
 ATOMIC64_OPS(or, |=, or)
 ATOMIC64_OPS(xor, ^=, xor)
+
+#define atomic64_fetch_and_relaxed	atomic64_fetch_and_relaxed
+#define atomic64_fetch_or_relaxed	atomic64_fetch_or_relaxed
+#define atomic64_fetch_xor_relaxed	atomic64_fetch_xor_relaxed
 
 #undef ATOMIC64_OPS
 #undef ATOMIC64_FETCH_OP
