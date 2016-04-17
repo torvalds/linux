@@ -3977,7 +3977,6 @@ static const char * const nand_ecc_modes[] = {
 	[NAND_ECC_HW]		= "hw",
 	[NAND_ECC_HW_SYNDROME]	= "hw_syndrome",
 	[NAND_ECC_HW_OOB_FIRST]	= "hw_oob_first",
-	[NAND_ECC_SOFT_BCH]	= "soft_bch",
 };
 
 static int of_get_nand_ecc_mode(struct device_node *np)
@@ -3992,6 +3991,14 @@ static int of_get_nand_ecc_mode(struct device_node *np)
 	for (i = 0; i < ARRAY_SIZE(nand_ecc_modes); i++)
 		if (!strcasecmp(pm, nand_ecc_modes[i]))
 			return i;
+
+	/*
+	 * For backward compatibility we support few obsoleted values that don't
+	 * have their mappings into nand_ecc_modes_t anymore (they were merged
+	 * with other enums).
+	 */
+	if (!strcasecmp(pm, "soft_bch"))
+		return NAND_ECC_SOFT;
 
 	return -ENODEV;
 }
