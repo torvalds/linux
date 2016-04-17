@@ -432,19 +432,20 @@ int tonga_get_evv_voltage(struct pp_hwmgr *hwmgr)
 						}
 					}
 				}
-				PP_ASSERT_WITH_CODE(0 == atomctrl_get_voltage_evv_on_sclk
-						(hwmgr, VOLTAGE_TYPE_VDDGFX, sclk,
-						 virtual_voltage_id, &vddgfx),
-						"Error retrieving EVV voltage value!", continue);
+				if (0 == atomctrl_get_voltage_evv_on_sclk
+				    (hwmgr, VOLTAGE_TYPE_VDDGFX, sclk,
+				     virtual_voltage_id, &vddgfx)) {
+					/* need to make sure vddgfx is less than 2v or else, it could burn the ASIC. */
+					PP_ASSERT_WITH_CODE((vddgfx < 2000 && vddgfx != 0), "Invalid VDDGFX value!", return -1);
 
-				/* need to make sure vddgfx is less than 2v or else, it could burn the ASIC. */
-				PP_ASSERT_WITH_CODE((vddgfx < 2000 && vddgfx != 0), "Invalid VDDGFX value!", return -1);
-
-				/* the voltage should not be zero nor equal to leakage ID */
-				if (vddgfx != 0 && vddgfx != virtual_voltage_id) {
-					data->vddcgfx_leakage.actual_voltage[data->vddcgfx_leakage.count] = vddgfx;
-					data->vddcgfx_leakage.leakage_id[data->vddcgfx_leakage.count] = virtual_voltage_id;
-					data->vddcgfx_leakage.count++;
+					/* the voltage should not be zero nor equal to leakage ID */
+					if (vddgfx != 0 && vddgfx != virtual_voltage_id) {
+						data->vddcgfx_leakage.actual_voltage[data->vddcgfx_leakage.count] = vddgfx;
+						data->vddcgfx_leakage.leakage_id[data->vddcgfx_leakage.count] = virtual_voltage_id;
+						data->vddcgfx_leakage.count++;
+					}
+				} else {
+					printk("Error retrieving EVV voltage value!\n");
 				}
 			}
 		} else {
@@ -452,19 +453,20 @@ int tonga_get_evv_voltage(struct pp_hwmgr *hwmgr)
 			if (0 == tonga_get_sclk_for_voltage_evv(hwmgr,
 						pptable_info->vddc_lookup_table,
 						virtual_voltage_id, &sclk)) {
-				PP_ASSERT_WITH_CODE(0 == atomctrl_get_voltage_evv_on_sclk
-						(hwmgr, VOLTAGE_TYPE_VDDC, sclk,
-						 virtual_voltage_id, &vddc),
-						"Error retrieving EVV voltage value!", continue);
+				if (0 == atomctrl_get_voltage_evv_on_sclk
+				    (hwmgr, VOLTAGE_TYPE_VDDC, sclk,
+				     virtual_voltage_id, &vddc)) {
+					/* need to make sure vddc is less than 2v or else, it could burn the ASIC. */
+					PP_ASSERT_WITH_CODE(vddc < 2000, "Invalid VDDC value!", return -1);
 
-				/* need to make sure vddc is less than 2v or else, it could burn the ASIC. */
-				PP_ASSERT_WITH_CODE(vddc < 2000, "Invalid VDDC value!", return -1);
-
-				/* the voltage should not be zero nor equal to leakage ID */
-				if (vddc != 0 && vddc != virtual_voltage_id) {
-					data->vddc_leakage.actual_voltage[data->vddc_leakage.count] = vddc;
-					data->vddc_leakage.leakage_id[data->vddc_leakage.count] = virtual_voltage_id;
-					data->vddc_leakage.count++;
+					/* the voltage should not be zero nor equal to leakage ID */
+					if (vddc != 0 && vddc != virtual_voltage_id) {
+						data->vddc_leakage.actual_voltage[data->vddc_leakage.count] = vddc;
+						data->vddc_leakage.leakage_id[data->vddc_leakage.count] = virtual_voltage_id;
+						data->vddc_leakage.count++;
+					}
+				} else {
+					printk("Error retrieving EVV voltage value!\n");
 				}
 			}
 		}
