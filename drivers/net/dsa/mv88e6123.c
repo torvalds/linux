@@ -79,8 +79,6 @@ static int mv88e6123_setup(struct dsa_switch *ds)
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
-	ps->ds = ds;
-
 	ret = mv88e6xxx_setup_common(ds);
 	if (ret < 0)
 		return ret;
