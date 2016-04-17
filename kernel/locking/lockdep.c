@@ -1999,6 +1999,7 @@ static inline int get_first_held_lock(struct task_struct *curr,
 	return ++i;
 }
 
+#ifdef CONFIG_DEBUG_LOCKDEP
 /*
  * Returns the next chain_key iteration
  */
@@ -2069,6 +2070,7 @@ static void print_collision(struct task_struct *curr,
 	printk("\nstack backtrace:\n");
 	dump_stack();
 }
+#endif
 
 /*
  * Checks whether the chain and the current held locks are consistent
