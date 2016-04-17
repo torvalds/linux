@@ -187,7 +187,7 @@ static const struct file_operations nfp_tx_q_fops = {
 
 void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 {
-	static struct dentry *queues, *tx, *rx;
+	struct dentry *queues, *tx, *rx;
 	char int_name[16];
 	int i;
 
@@ -200,7 +200,7 @@ void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 
 	/* Create queue debugging sub-tree */
 	queues = debugfs_create_dir("queue", nn->debugfs_dir);
-	if (IS_ERR_OR_NULL(nn->debugfs_dir))
+	if (IS_ERR_OR_NULL(queues))
 		return;
 
 	rx = debugfs_create_dir("rx", queues);
