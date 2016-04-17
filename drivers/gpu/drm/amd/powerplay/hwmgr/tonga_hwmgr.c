@@ -458,8 +458,7 @@ int tonga_get_evv_voltage(struct pp_hwmgr *hwmgr)
 						"Error retrieving EVV voltage value!", continue);
 
 				/* need to make sure vddc is less than 2v or else, it could burn the ASIC. */
-				if (vddc > 2000)
-					printk(KERN_ERR "[ powerplay ] Invalid VDDC value! \n");
+				PP_ASSERT_WITH_CODE(vddc < 2000, "Invalid VDDC value!", return -1);
 
 				/* the voltage should not be zero nor equal to leakage ID */
 				if (vddc != 0 && vddc != virtual_voltage_id) {
