@@ -76,7 +76,6 @@ static inline int mei_cl_hbm_equal(struct mei_cl *cl,
  * @dev: mei device
  * @hdr: message header
  */
-static inline
 void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr)
 {
 	/*
