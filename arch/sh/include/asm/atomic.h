@@ -25,6 +25,8 @@
 #include <asm/atomic-irq.h>
 #endif
 
+#define atomic_fetch_or atomic_fetch_or
+
 #define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
 #define atomic_dec_return(v)		atomic_sub_return(1, (v))
 #define atomic_inc_return(v)		atomic_add_return(1, (v))
