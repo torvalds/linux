@@ -587,6 +587,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	struct sk_buff *tail;
 	u32 reorder = le32_to_cpu(desc->reorder_data);
 	bool amsdu = desc->mac_flags2 & IWL_RX_MPDU_MFLG2_AMSDU;
+	bool last_subframe =
+		desc->amsdu_info & IWL_RX_MPDU_AMSDU_LAST_SUBFRAME;
 	u8 tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
 	u8 sub_frame_idx = desc->amsdu_info &
 			   IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
@@ -651,7 +653,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	/* release immediately if allowed by nssn and no stored frames */
 	if (!buffer->num_stored && ieee80211_sn_less(sn, nssn)) {
 		if (iwl_mvm_is_sn_less(buffer->head_sn, nssn,
-				       buffer->buf_size))
+				       buffer->buf_size) &&
+		   (!amsdu || last_subframe))
 			buffer->head_sn = nssn;
 		/* No need to update AMSDU last SN - we are moving the head */
 		spin_unlock_bh(&buffer->lock);
@@ -685,7 +688,20 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		buffer->last_sub_index = sub_frame_idx;
 	}
 
-	iwl_mvm_release_frames(mvm, sta, napi, buffer, nssn);
+	/*
+	 * We cannot trust NSSN for AMSDU sub-frames that are not the last.
+	 * The reason is that NSSN advances on the first sub-frame, and may
+	 * cause the reorder buffer to advance before all the sub-frames arrive.
+	 * Example: reorder buffer contains SN 0 & 2, and we receive AMSDU with
+	 * SN 1. NSSN for first sub frame will be 3 with the result of driver
+	 * releasing SN 0,1, 2. When sub-frame 1 arrives - reorder buffer is
+	 * already ahead and it will be dropped.
+	 * If the last sub-frame is not on this queue - we will get frame
+	 * release notification with up to date NSSN.
+	 */
+	if (!amsdu || last_subframe)
+		iwl_mvm_release_frames(mvm, sta, napi, buffer, nssn);
+
 	spin_unlock_bh(&buffer->lock);
 	return true;
 
