@@ -51,7 +51,7 @@ static int reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 			return __ret;				\
 	})
 
-static char *mv88e6060_get_name(struct mii_bus *bus, int sw_addr)
+static const char *mv88e6060_get_name(struct mii_bus *bus, int sw_addr)
 {
 	int ret;
 
@@ -69,13 +69,13 @@ static char *mv88e6060_get_name(struct mii_bus *bus, int sw_addr)
 	return NULL;
 }
 
-static char *mv88e6060_drv_probe(struct device *dsa_dev,
-				 struct device *host_dev,
-				 int sw_addr, void **_priv)
+static const char *mv88e6060_drv_probe(struct device *dsa_dev,
+				       struct device *host_dev, int sw_addr,
+				       void **_priv)
 {
 	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
 	struct mv88e6060_priv *priv;
-	char *name;
+	const char *name;
 
 	name = mv88e6060_get_name(bus, sw_addr);
 	if (name) {

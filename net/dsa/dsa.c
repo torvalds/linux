@@ -52,11 +52,11 @@ EXPORT_SYMBOL_GPL(unregister_switch_driver);
 
 static struct dsa_switch_driver *
 dsa_switch_probe(struct device *parent, struct device *host_dev, int sw_addr,
-		 char **_name, void **priv)
+		 const char **_name, void **priv)
 {
 	struct dsa_switch_driver *ret;
 	struct list_head *list;
-	char *name;
+	const char *name;
 
 	ret = NULL;
 	name = NULL;
@@ -383,7 +383,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	struct dsa_switch_driver *drv;
 	struct dsa_switch *ds;
 	int ret;
-	char *name;
+	const char *name;
 	void *priv;
 
 	/*

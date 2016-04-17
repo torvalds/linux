@@ -17,17 +17,37 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
-static const struct mv88e6xxx_switch_id mv88e6131_table[] = {
-	{ PORT_SWITCH_ID_6085, "Marvell 88E6085" },
-	{ PORT_SWITCH_ID_6095, "Marvell 88E6095/88E6095F" },
-	{ PORT_SWITCH_ID_6131, "Marvell 88E6131" },
-	{ PORT_SWITCH_ID_6131_B2, "Marvell 88E6131 (B2)" },
-	{ PORT_SWITCH_ID_6185, "Marvell 88E6185" },
+static const struct mv88e6xxx_info mv88e6131_table[] = {
+	{
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6095,
+		.family = MV88E6XXX_FAMILY_6095,
+		.name = "Marvell 88E6095/88E6095F",
+		.num_databases = 256,
+		.num_ports = 11,
+	}, {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6085,
+		.family = MV88E6XXX_FAMILY_6097,
+		.name = "Marvell 88E6085",
+		.num_databases = 4096,
+		.num_ports = 10,
+	}, {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6131,
+		.family = MV88E6XXX_FAMILY_6185,
+		.name = "Marvell 88E6131",
+		.num_databases = 256,
+		.num_ports = 8,
+	}, {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6185,
+		.family = MV88E6XXX_FAMILY_6185,
+		.name = "Marvell 88E6185",
+		.num_databases = 256,
+		.num_ports = 10,
+	}
 };
 
-static char *mv88e6131_drv_probe(struct device *dsa_dev,
-				 struct device *host_dev,
-				 int sw_addr, void **priv)
+static const char *mv88e6131_drv_probe(struct device *dsa_dev,
+				       struct device *host_dev, int sw_addr,
+				       void **priv)
 {
 	return mv88e6xxx_drv_probe(dsa_dev, host_dev, sw_addr, priv,
 				   mv88e6131_table,
@@ -98,32 +118,13 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 
 static int mv88e6131_setup(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
-
-	ps->ds = ds;
 
 	ret = mv88e6xxx_setup_common(ds);
 	if (ret < 0)
 		return ret;
 
 	mv88e6xxx_ppu_state_init(ds);
-
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6085:
-	case PORT_SWITCH_ID_6185:
-		ps->num_ports = 10;
-		break;
-	case PORT_SWITCH_ID_6095:
-		ps->num_ports = 11;
-		break;
-	case PORT_SWITCH_ID_6131:
-	case PORT_SWITCH_ID_6131_B2:
-		ps->num_ports = 8;
-		break;
-	default:
-		return -ENODEV;
-	}
 
 	ret = mv88e6xxx_switch_reset(ds, false);
 	if (ret < 0)
@@ -140,7 +141,7 @@ static int mv88e6131_port_to_phy_addr(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	if (port >= 0 && port < ps->num_ports)
+	if (port >= 0 && port < ps->info->num_ports)
 		return port;
 
 	return -EINVAL;
