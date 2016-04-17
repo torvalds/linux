@@ -88,29 +88,29 @@ int _atomic_cmpxchg(int *v, int o, int n)
 }
 EXPORT_SYMBOL(_atomic_cmpxchg);
 
-unsigned long _atomic_or(volatile unsigned long *p, unsigned long mask)
+unsigned long _atomic_fetch_or(volatile unsigned long *p, unsigned long mask)
 {
-	return __atomic_or((int *)p, __atomic_setup(p), mask).val;
+	return __atomic_fetch_or((int *)p, __atomic_setup(p), mask).val;
 }
-EXPORT_SYMBOL(_atomic_or);
+EXPORT_SYMBOL(_atomic_fetch_or);
 
-unsigned long _atomic_and(volatile unsigned long *p, unsigned long mask)
+unsigned long _atomic_fetch_and(volatile unsigned long *p, unsigned long mask)
 {
-	return __atomic_and((int *)p, __atomic_setup(p), mask).val;
+	return __atomic_fetch_and((int *)p, __atomic_setup(p), mask).val;
 }
-EXPORT_SYMBOL(_atomic_and);
+EXPORT_SYMBOL(_atomic_fetch_and);
 
-unsigned long _atomic_andn(volatile unsigned long *p, unsigned long mask)
+unsigned long _atomic_fetch_andn(volatile unsigned long *p, unsigned long mask)
 {
-	return __atomic_andn((int *)p, __atomic_setup(p), mask).val;
+	return __atomic_fetch_andn((int *)p, __atomic_setup(p), mask).val;
 }
-EXPORT_SYMBOL(_atomic_andn);
+EXPORT_SYMBOL(_atomic_fetch_andn);
 
-unsigned long _atomic_xor(volatile unsigned long *p, unsigned long mask)
+unsigned long _atomic_fetch_xor(volatile unsigned long *p, unsigned long mask)
 {
-	return __atomic_xor((int *)p, __atomic_setup(p), mask).val;
+	return __atomic_fetch_xor((int *)p, __atomic_setup(p), mask).val;
 }
-EXPORT_SYMBOL(_atomic_xor);
+EXPORT_SYMBOL(_atomic_fetch_xor);
 
 
 long long _atomic64_xchg(long long *v, long long n)
@@ -142,23 +142,23 @@ long long _atomic64_cmpxchg(long long *v, long long o, long long n)
 }
 EXPORT_SYMBOL(_atomic64_cmpxchg);
 
-long long _atomic64_and(long long *v, long long n)
+long long _atomic64_fetch_and(long long *v, long long n)
 {
-	return __atomic64_and(v, __atomic_setup(v), n);
+	return __atomic64_fetch_and(v, __atomic_setup(v), n);
 }
-EXPORT_SYMBOL(_atomic64_and);
+EXPORT_SYMBOL(_atomic64_fetch_and);
 
-long long _atomic64_or(long long *v, long long n)
+long long _atomic64_fetch_or(long long *v, long long n)
 {
-	return __atomic64_or(v, __atomic_setup(v), n);
+	return __atomic64_fetch_or(v, __atomic_setup(v), n);
 }
-EXPORT_SYMBOL(_atomic64_or);
+EXPORT_SYMBOL(_atomic64_fetch_or);
 
-long long _atomic64_xor(long long *v, long long n)
+long long _atomic64_fetch_xor(long long *v, long long n)
 {
-	return __atomic64_xor(v, __atomic_setup(v), n);
+	return __atomic64_fetch_xor(v, __atomic_setup(v), n);
 }
-EXPORT_SYMBOL(_atomic64_xor);
+EXPORT_SYMBOL(_atomic64_fetch_xor);
 
 /*
  * If any of the atomic or futex routines hit a bad address (not in
