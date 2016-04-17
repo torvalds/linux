@@ -168,6 +168,13 @@ static void fsl_dcu_drm_disable_vblank(struct drm_device *dev,
 	regmap_write(fsl_dev->regmap, DCU_INT_MASK, value);
 }
 
+static void fsl_dcu_drm_lastclose(struct drm_device *dev)
+{
+	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
+
+	drm_fbdev_cma_restore_mode(fsl_dev->fbdev);
+}
+
 static const struct file_operations fsl_dcu_drm_fops = {
 	.owner		= THIS_MODULE,
 	.open		= drm_open,
@@ -185,6 +192,7 @@ static const struct file_operations fsl_dcu_drm_fops = {
 static struct drm_driver fsl_dcu_drm_driver = {
 	.driver_features	= DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET
 				| DRIVER_PRIME | DRIVER_ATOMIC,
+	.lastclose		= fsl_dcu_drm_lastclose,
 	.load			= fsl_dcu_load,
 	.unload			= fsl_dcu_unload,
 	.irq_handler		= fsl_dcu_drm_irq,
