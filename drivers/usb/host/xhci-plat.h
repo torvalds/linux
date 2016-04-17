@@ -14,7 +14,7 @@
 #include "xhci.h"	/* for hcd_to_xhci() */
 
 enum xhci_plat_type {
-	XHCI_PLAT_TYPE_MARVELL_ARMADA,
+	XHCI_PLAT_TYPE_MARVELL_ARMADA = 1,
 	XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2,
 	XHCI_PLAT_TYPE_RENESAS_RCAR_GEN3,
 };
