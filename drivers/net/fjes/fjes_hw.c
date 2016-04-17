@@ -179,6 +179,8 @@ void fjes_hw_setup_epbuf(struct epbuf_handler *epbh, u8 *mac_addr, u32 mtu)
 
 	for (i = 0; i < EP_BUFFER_SUPPORT_VLAN_MAX; i++)
 		info->v1i.vlan_id[i] = vlan_id[i];
+
+	info->v1i.rx_status |= FJES_RX_MTU_CHANGING_DONE;
 }
 
 void
@@ -214,6 +216,7 @@ static int fjes_hw_setup(struct fjes_hw *hw)
 	u8 mac[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	struct fjes_device_command_param param;
 	struct ep_share_mem_info *buf_pair;
+	unsigned long flags;
 	size_t mem_size;
 	int result;
 	int epidx;
@@ -262,10 +265,12 @@ static int fjes_hw_setup(struct fjes_hw *hw)
 			if (result)
 				return result;
 
+			spin_lock_irqsave(&hw->rx_status_lock, flags);
 			fjes_hw_setup_epbuf(&buf_pair->tx, mac,
 					    fjes_support_mtu[0]);
 			fjes_hw_setup_epbuf(&buf_pair->rx, mac,
 					    fjes_support_mtu[0]);
+			spin_unlock_irqrestore(&hw->rx_status_lock, flags);
 		}
 	}
 
@@ -327,6 +332,7 @@ int fjes_hw_init(struct fjes_hw *hw)
 	INIT_WORK(&hw->epstop_task, fjes_hw_epstop_task);
 
 	mutex_init(&hw->hw_info.lock);
+	spin_lock_init(&hw->rx_status_lock);
 
 	hw->max_epid = fjes_hw_get_max_epid(hw);
 	hw->my_epid = fjes_hw_get_my_epid(hw);
@@ -734,6 +740,7 @@ fjes_hw_get_partner_ep_status(struct fjes_hw *hw, int epid)
 void fjes_hw_raise_epstop(struct fjes_hw *hw)
 {
 	enum ep_partner_status status;
+	unsigned long flags;
 	int epidx;
 
 	for (epidx = 0; epidx < hw->max_epid; epidx++) {
@@ -753,8 +760,10 @@ void fjes_hw_raise_epstop(struct fjes_hw *hw)
 		set_bit(epidx, &hw->hw_info.buffer_unshare_reserve_bit);
 		set_bit(epidx, &hw->txrx_stop_req_bit);
 
+		spin_lock_irqsave(&hw->rx_status_lock, flags);
 		hw->ep_shm_info[epidx].tx.info->v1i.rx_status |=
 				FJES_RX_STOP_REQ_REQUEST;
+		spin_unlock_irqrestore(&hw->rx_status_lock, flags);
 	}
 }
 
@@ -810,7 +819,8 @@ bool fjes_hw_check_mtu(struct epbuf_handler *epbh, u32 mtu)
 {
 	union ep_buffer_info *info = epbh->info;
 
-	return (info->v1i.frame_max == FJES_MTU_TO_FRAME_SIZE(mtu));
+	return ((info->v1i.frame_max == FJES_MTU_TO_FRAME_SIZE(mtu)) &&
+		info->v1i.rx_status & FJES_RX_MTU_CHANGING_DONE);
 }
 
 bool fjes_hw_check_vlan_id(struct epbuf_handler *epbh, u16 vlan_id)
@@ -862,6 +872,9 @@ void fjes_hw_del_vlan_id(struct epbuf_handler *epbh, u16 vlan_id)
 bool fjes_hw_epbuf_rx_is_empty(struct epbuf_handler *epbh)
 {
 	union ep_buffer_info *info = epbh->info;
+
+	if (!(info->v1i.rx_status & FJES_RX_MTU_CHANGING_DONE))
+		return true;
 
 	if (info->v1i.count_max == 0)
 		return true;
@@ -932,6 +945,7 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 
 	struct fjes_adapter *adapter;
 	struct net_device *netdev;
+	unsigned long flags;
 
 	ulong unshare_bit = 0;
 	ulong share_bit = 0;
@@ -1024,8 +1038,10 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 			continue;
 
 		if (test_bit(epidx, &share_bit)) {
+			spin_lock_irqsave(&hw->rx_status_lock, flags);
 			fjes_hw_setup_epbuf(&hw->ep_shm_info[epidx].tx,
 					    netdev->dev_addr, netdev->mtu);
+			spin_unlock_irqrestore(&hw->rx_status_lock, flags);
 
 			mutex_lock(&hw->hw_info.lock);
 
@@ -1069,10 +1085,14 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 
 			mutex_unlock(&hw->hw_info.lock);
 
-			if (ret == 0)
+			if (ret == 0) {
+				spin_lock_irqsave(&hw->rx_status_lock, flags);
 				fjes_hw_setup_epbuf(
 					&hw->ep_shm_info[epidx].tx,
 					netdev->dev_addr, netdev->mtu);
+				spin_unlock_irqrestore(&hw->rx_status_lock,
+						       flags);
+			}
 		}
 
 		if (test_bit(epidx, &irq_bit)) {
@@ -1080,9 +1100,11 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 						REG_ICTL_MASK_TXRX_STOP_REQ);
 
 			set_bit(epidx, &hw->txrx_stop_req_bit);
+			spin_lock_irqsave(&hw->rx_status_lock, flags);
 			hw->ep_shm_info[epidx].tx.
 				info->v1i.rx_status |=
 					FJES_RX_STOP_REQ_REQUEST;
+			spin_unlock_irqrestore(&hw->rx_status_lock, flags);
 			set_bit(epidx, &hw->hw_info.buffer_unshare_reserve_bit);
 		}
 	}
@@ -1098,6 +1120,7 @@ static void fjes_hw_epstop_task(struct work_struct *work)
 {
 	struct fjes_hw *hw = container_of(work, struct fjes_hw, epstop_task);
 	struct fjes_adapter *adapter = (struct fjes_adapter *)hw->back;
+	unsigned long flags;
 
 	ulong remain_bit;
 	int epid_bit;
@@ -1105,9 +1128,12 @@ static void fjes_hw_epstop_task(struct work_struct *work)
 	while ((remain_bit = hw->epstop_req_bit)) {
 		for (epid_bit = 0; remain_bit; remain_bit >>= 1, epid_bit++) {
 			if (remain_bit & 1) {
+				spin_lock_irqsave(&hw->rx_status_lock, flags);
 				hw->ep_shm_info[epid_bit].
 					tx.info->v1i.rx_status |=
 						FJES_RX_STOP_REQ_DONE;
+				spin_unlock_irqrestore(&hw->rx_status_lock,
+						       flags);
 
 				clear_bit(epid_bit, &hw->epstop_req_bit);
 				set_bit(epid_bit,
