@@ -958,9 +958,12 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 			nand->ecc.strength = 1;
 			break;
 
+		case NAND_ECC_SOFT:
 		case NAND_ECC_SOFT_BCH:
-			dev_info(&pdev->dev, "Using 4-bit SW BCH ECC scheme\n");
-			break;
+			if (nand->ecc.algo == NAND_ECC_BCH) {
+				dev_info(&pdev->dev, "Using 4-bit SW BCH ECC scheme\n");
+				break;
+			}
 
 		default:
 			dev_err(&pdev->dev, "Unsupported ECC mode!\n");
