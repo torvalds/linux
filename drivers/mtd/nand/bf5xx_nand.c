@@ -817,6 +817,7 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 		chip->ecc.write_page_raw = bf5xx_nand_write_page_raw;
 	} else {
 		chip->ecc.mode	    = NAND_ECC_SOFT;
+		chip->ecc.algo	= NAND_ECC_HAMMING;
 	}
 
 	/* scan hardware nand chip and setup mtd info data struct */
