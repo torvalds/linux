@@ -165,6 +165,7 @@ static int thingm_init_led(struct thingm_led *led, const char *color_name,
 	led->ldev.name = led->name;
 	led->ldev.max_brightness = 255;
 	led->ldev.brightness_set_blocking = thingm_led_set;
+	led->ldev.flags = LED_HW_PLUGGABLE;
 	led->rgb = rgb;
 	return devm_led_classdev_register(&rgb->tdev->hdev->dev, &led->ldev);
 }
