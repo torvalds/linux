@@ -3145,7 +3145,6 @@ const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
 	ps->bus = bus;
 	ps->sw_addr = sw_addr;
 	ps->info = info;
-	ps->id = id & 0xfff0;
 
 	*priv = ps;
 
