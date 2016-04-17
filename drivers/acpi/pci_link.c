@@ -848,10 +848,6 @@ bool acpi_isa_irq_available(int irq)
 		    acpi_irq_get_penalty(irq) < PIRQ_PENALTY_ISA_ALWAYS);
 }
 
-void acpi_penalize_sci_irq(int irq, int trigger, int polarity)
-{
-}
-
 /*
  * Over-ride default table to reserve additional IRQs for use by ISA
  * e.g. acpi_irq_isa=5
