@@ -189,8 +189,6 @@ ATOMIC_OPS(sub, -=, sub)
 
 #define atomic_andnot atomic_andnot
 
-#define atomic_fetch_or atomic_fetch_or
-
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, c_op, asm_op)					\
 	ATOMIC_OP(op, c_op, asm_op)					\

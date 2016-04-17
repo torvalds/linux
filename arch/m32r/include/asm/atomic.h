@@ -121,8 +121,6 @@ ATOMIC_OPS(sub)
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_FETCH_OP(op)
 
-#define atomic_fetch_or atomic_fetch_or
-
 ATOMIC_OPS(and)
 ATOMIC_OPS(or)
 ATOMIC_OPS(xor)

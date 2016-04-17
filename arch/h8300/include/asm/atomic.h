@@ -54,8 +54,6 @@ static inline void atomic_##op(int i, atomic_t *v)		\
 ATOMIC_OP_RETURN(add, +=)
 ATOMIC_OP_RETURN(sub, -=)
 
-#define atomic_fetch_or atomic_fetch_or
-
 #define ATOMIC_OPS(op, c_op)					\
 	ATOMIC_OP(op, c_op)					\
 	ATOMIC_FETCH_OP(op, c_op)

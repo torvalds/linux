@@ -74,8 +74,6 @@ static inline void atomic_dec(atomic_t *v)
 #define atomic_dec_and_test(v)		(atomic_sub_return(1, (v)) == 0)
 #define atomic_inc_and_test(v)		(atomic_add_return(1, (v)) == 0)
 
-#define atomic_fetch_or atomic_fetch_or
-
 /*
  * 64-bit atomic ops
  */

@@ -148,8 +148,6 @@ ATOMIC_OPS(sub, -=)
 	ATOMIC_OP(op, c_op)						\
 	ATOMIC_FETCH_OP(op, c_op)
 
-#define atomic_fetch_or atomic_fetch_or
-
 ATOMIC_OPS(and, &=)
 ATOMIC_OPS(or, |=)
 ATOMIC_OPS(xor, ^=)

@@ -137,8 +137,6 @@ ATOMIC_FETCH_OP(and, &)
 #endif
 
 #ifndef atomic_fetch_or
-#define atomic_fetch_or atomic_fetch_or
-
 ATOMIC_FETCH_OP(or, |)
 #endif
 

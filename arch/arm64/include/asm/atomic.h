@@ -128,8 +128,6 @@
 #define __atomic_add_unless(v, a, u)	___atomic_add_unless(v, a, u,)
 #define atomic_andnot			atomic_andnot
 
-#define atomic_fetch_or atomic_fetch_or
-
 /*
  * 64-bit atomic operations.
  */

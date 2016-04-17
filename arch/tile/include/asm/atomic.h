@@ -48,8 +48,6 @@ static inline int atomic_read(const atomic_t *v)
 
 #define atomic_fetch_sub(i, v)		atomic_fetch_add(-(int)(i), (v))
 
-#define atomic_fetch_or atomic_fetch_or
-
 /**
  * atomic_sub - subtract integer from atomic variable
  * @i: integer value to subtract

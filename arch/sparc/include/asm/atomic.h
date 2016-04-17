@@ -5,5 +5,4 @@
 #else
 #include <asm/atomic_32.h>
 #endif
-#define atomic_fetch_or atomic_fetch_or
 #endif

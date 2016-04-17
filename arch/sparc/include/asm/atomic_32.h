@@ -36,8 +36,6 @@ void atomic_set(atomic_t *, int);
 #define atomic_inc(v)		((void)atomic_add_return(        1, (v)))
 #define atomic_dec(v)		((void)atomic_add_return(       -1, (v)))
 
-#define atomic_fetch_or	atomic_fetch_or
-
 #define atomic_and(i, v)	((void)atomic_fetch_and((i), (v)))
 #define atomic_or(i, v)		((void)atomic_fetch_or((i), (v)))
 #define atomic_xor(i, v)	((void)atomic_fetch_xor((i), (v)))

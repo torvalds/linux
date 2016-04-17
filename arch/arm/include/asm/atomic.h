@@ -201,8 +201,6 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 	return val;							\
 }
 
-#define atomic_fetch_or atomic_fetch_or
-
 static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	int ret;

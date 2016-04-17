@@ -66,8 +66,6 @@ ATOMIC_OP_RETURN(add, add, r)
 ATOMIC_FETCH_OP (sub, sub, rKs21)
 ATOMIC_FETCH_OP (add, add, r)
 
-#define atomic_fetch_or atomic_fetch_or
-
 #define ATOMIC_OPS(op, asm_op)						\
 ATOMIC_OP_RETURN(op, asm_op, r)						\
 static inline void atomic_##op(int i, atomic_t *v)			\
