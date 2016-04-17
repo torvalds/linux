@@ -894,9 +894,9 @@ static bool cmd_write_lock(struct dm_cache_metadata *cmd)
 
 static bool cmd_read_lock(struct dm_cache_metadata *cmd)
 {
-	down_write(&cmd->root_lock);
+	down_read(&cmd->root_lock);
 	if (cmd->fail_io) {
-		up_write(&cmd->root_lock);
+		up_read(&cmd->root_lock);
 		return false;
 	}
 	return true;
