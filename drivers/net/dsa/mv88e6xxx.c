@@ -2700,10 +2700,6 @@ int mv88e6xxx_setup_common(struct dsa_switch *ds)
 	ps->ds = ds;
 	mutex_init(&ps->smi_mutex);
 
-	ps->id = mv88e6xxx_reg_read(ds, REG_PORT(0), PORT_SWITCH_ID) & 0xfff0;
-	if (ps->id < 0)
-		return ps->id;
-
 	INIT_WORK(&ps->bridge_work, mv88e6xxx_bridge_work);
 
 	return 0;
@@ -3174,21 +3170,13 @@ int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
 #endif /* CONFIG_NET_DSA_HWMON */
 
 static const char *
-mv88e6xxx_lookup_name(struct mii_bus *bus, int sw_addr,
-		      const struct mv88e6xxx_switch_id *table,
+mv88e6xxx_lookup_name(unsigned int id, const struct mv88e6xxx_switch_id *table,
 		      unsigned int num)
 {
-	int i, ret;
-
-	if (!bus)
-		return NULL;
-
-	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
-	if (ret < 0)
-		return NULL;
+	int i;
 
 	for (i = 0; i < num; ++i)
-		if (table[i].id == (ret & 0xfff0))
+		if (table[i].id == (id & 0xfff0))
 			return table[i].name;
 
 	return NULL;
@@ -3200,23 +3188,38 @@ const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
 				unsigned int num)
 {
 	struct mv88e6xxx_priv_state *ps;
-	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
+	struct mii_bus *bus;
 	const char *name;
+	int id, prod_num, rev;
 
+	bus = dsa_host_dev_to_mii_bus(host_dev);
 	if (!bus)
 		return NULL;
 
-	name = mv88e6xxx_lookup_name(bus, sw_addr, table, num);
-	if (name) {
-		ps = devm_kzalloc(dsa_dev, sizeof(*ps), GFP_KERNEL);
-		if (!ps)
-			return NULL;
-		*priv = ps;
-		ps->bus = dsa_host_dev_to_mii_bus(host_dev);
-		if (!ps->bus)
-			return NULL;
-		ps->sw_addr = sw_addr;
-	}
+	id = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
+	if (id < 0)
+		return NULL;
+
+	prod_num = (id & 0xfff0) >> 4;
+	rev = id & 0x000f;
+
+	name = mv88e6xxx_lookup_name(id, table, num);
+	if (!name)
+		return NULL;
+
+	ps = devm_kzalloc(dsa_dev, sizeof(*ps), GFP_KERNEL);
+	if (!ps)
+		return NULL;
+
+	ps->bus = bus;
+	ps->sw_addr = sw_addr;
+	ps->id = id & 0xfff0;
+
+	*priv = ps;
+
+	dev_info(&ps->bus->dev, "switch 0x%x probed: %s, revision %u\n",
+		 prod_num, name, rev);
+
 	return name;
 }
 
