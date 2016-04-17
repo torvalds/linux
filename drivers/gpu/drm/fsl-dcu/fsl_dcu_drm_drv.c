@@ -23,6 +23,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
 #include "fsl_dcu_drm_crtc.h"
@@ -90,6 +91,9 @@ static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
 
 	return 0;
 done:
+	if (fsl_dev->fbdev)
+		drm_fbdev_cma_fini(fsl_dev->fbdev);
+
 	drm_mode_config_cleanup(dev);
 	drm_vblank_cleanup(dev);
 	drm_irq_uninstall(dev);
@@ -100,6 +104,11 @@ done:
 
 static int fsl_dcu_unload(struct drm_device *dev)
 {
+	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
+
+	if (fsl_dev->fbdev)
+		drm_fbdev_cma_fini(fsl_dev->fbdev);
+
 	drm_mode_config_cleanup(dev);
 	drm_vblank_cleanup(dev);
 	drm_irq_uninstall(dev);
