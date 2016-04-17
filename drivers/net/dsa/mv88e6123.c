@@ -20,12 +20,15 @@
 static const struct mv88e6xxx_info mv88e6123_table[] = {
 	{
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6123,
+		.family = MV88E6XXX_FAMILY_6165,
 		.name = "Marvell 88E6123",
 	}, {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6161,
+		.family = MV88E6XXX_FAMILY_6165,
 		.name = "Marvell 88E6161",
 	}, {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6165,
+		.family = MV88E6XXX_FAMILY_6165,
 		.name = "Marvell 88E6165",
 	}
 };

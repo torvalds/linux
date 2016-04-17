@@ -402,111 +402,56 @@ static bool mv88e6xxx_6065_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6031:
-	case PORT_SWITCH_ID_6061:
-	case PORT_SWITCH_ID_6035:
-	case PORT_SWITCH_ID_6065:
-		return true;
-	}
-	return false;
+	return ps->info->family == MV88E6XXX_FAMILY_6065;
 }
 
 static bool mv88e6xxx_6095_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6092:
-	case PORT_SWITCH_ID_6095:
-		return true;
-	}
-	return false;
+	return ps->info->family == MV88E6XXX_FAMILY_6095;
 }
 
 static bool mv88e6xxx_6097_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6046:
-	case PORT_SWITCH_ID_6085:
-	case PORT_SWITCH_ID_6096:
-	case PORT_SWITCH_ID_6097:
-		return true;
-	}
-	return false;
+	return ps->info->family == MV88E6XXX_FAMILY_6097;
 }
 
 static bool mv88e6xxx_6165_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6123:
-	case PORT_SWITCH_ID_6161:
-	case PORT_SWITCH_ID_6165:
-		return true;
-	}
-	return false;
+	return ps->info->family == MV88E6XXX_FAMILY_6165;
 }
 
 static bool mv88e6xxx_6185_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6121:
-	case PORT_SWITCH_ID_6122:
-	case PORT_SWITCH_ID_6152:
-	case PORT_SWITCH_ID_6155:
-	case PORT_SWITCH_ID_6182:
-	case PORT_SWITCH_ID_6185:
-	case PORT_SWITCH_ID_6108:
-	case PORT_SWITCH_ID_6131:
-		return true;
-	}
-	return false;
+	return ps->info->family == MV88E6XXX_FAMILY_6185;
 }
 
 static bool mv88e6xxx_6320_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6320:
-	case PORT_SWITCH_ID_6321:
-		return true;
-	}
-	return false;
+	return ps->info->family == MV88E6XXX_FAMILY_6320;
 }
 
 static bool mv88e6xxx_6351_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6171:
-	case PORT_SWITCH_ID_6175:
-	case PORT_SWITCH_ID_6350:
-	case PORT_SWITCH_ID_6351:
-		return true;
-	}
-	return false;
+	return ps->info->family == MV88E6XXX_FAMILY_6351;
 }
 
 static bool mv88e6xxx_6352_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6172:
-	case PORT_SWITCH_ID_6176:
-	case PORT_SWITCH_ID_6240:
-	case PORT_SWITCH_ID_6352:
-		return true;
-	}
-	return false;
+	return ps->info->family == MV88E6XXX_FAMILY_6352;
 }
 
 static unsigned int mv88e6xxx_num_databases(struct dsa_switch *ds)
