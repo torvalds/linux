@@ -37,6 +37,13 @@
 #include "eswitch.h"
 #endif
 
+bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
+
+	return !!sriov->num_vfs;
+}
+
 static void enable_vfs(struct mlx5_core_dev *dev, int num_vfs)
 {
 	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
@@ -143,6 +150,11 @@ int mlx5_core_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	mlx5_core_dbg(dev, "requested num_vfs %d\n", num_vfs);
 	if (!mlx5_core_is_pf(dev))
 		return -EPERM;
+
+	if (num_vfs && mlx5_lag_is_active(dev)) {
+		mlx5_core_warn(dev, "can't turn sriov on while LAG is active");
+		return -EINVAL;
+	}
 
 	mlx5_core_cleanup_vfs(dev);
 

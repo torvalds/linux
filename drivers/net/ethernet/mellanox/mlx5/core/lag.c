@@ -201,6 +201,12 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 	mutex_unlock(&lag_mutex);
 
 	if (tracker.is_bonded && !mlx5_lag_is_bonded(ldev)) {
+		if (mlx5_sriov_is_enabled(dev0) ||
+		    mlx5_sriov_is_enabled(dev1)) {
+			mlx5_core_warn(dev0, "LAG is not supported with SRIOV");
+			return;
+		}
+
 		for (i = 0; i < MLX5_MAX_PORTS; i++)
 			mlx5_remove_dev_by_protocol(ldev->pf[i].dev,
 						    MLX5_INTERFACE_PROTOCOL_IB);
