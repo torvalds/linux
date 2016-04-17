@@ -2000,10 +2000,9 @@ lpfc_sli_hbqbuf_get(struct list_head *rb_list)
  * @phba: Pointer to HBA context object.
  * @tag: Tag of the hbq buffer.
  *
- * This function is called with hbalock held. This function searches
- * for the hbq buffer associated with the given tag in the hbq buffer
- * list. If it finds the hbq buffer, it returns the hbq_buffer other wise
- * it returns NULL.
+ * This function searches for the hbq buffer associated with the given tag in
+ * the hbq buffer list. If it finds the hbq buffer, it returns the hbq_buffer
+ * otherwise it returns NULL.
  **/
 static struct hbq_dmabuf *
 lpfc_sli_hbqbuf_find(struct lpfc_hba *phba, uint32_t tag)
@@ -2011,8 +2010,6 @@ lpfc_sli_hbqbuf_find(struct lpfc_hba *phba, uint32_t tag)
 	struct lpfc_dmabuf *d_buf;
 	struct hbq_dmabuf *hbq_buf;
 	uint32_t hbqno;
-
-	lockdep_assert_held(&phba->hbalock);
 
 	hbqno = tag >> 16;
 	if (hbqno >= LPFC_MAX_HBQS)
