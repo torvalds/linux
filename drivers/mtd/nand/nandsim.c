@@ -2339,7 +2339,7 @@ static int __init ns_init_module(void)
 			retval = -EINVAL;
 			goto error;
 		}
-		chip->ecc.mode = NAND_ECC_SOFT_BCH;
+		chip->ecc.mode = NAND_ECC_SOFT;
 		chip->ecc.algo = NAND_ECC_BCH;
 		chip->ecc.size = 512;
 		chip->ecc.strength = bch;

@@ -4183,8 +4183,7 @@ static int nand_set_ecc_soft_ops(struct mtd_info *mtd)
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 
-	if (WARN_ON(ecc->mode != NAND_ECC_SOFT &&
-		    ecc->mode != NAND_ECC_SOFT_BCH))
+	if (WARN_ON(ecc->mode != NAND_ECC_SOFT))
 		return -EINVAL;
 
 	switch (ecc->algo) {
@@ -4331,8 +4330,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	 * If no default placement scheme is given, select an appropriate one.
 	 */
 	if (!mtd->ooblayout &&
-	    !((ecc->mode == NAND_ECC_SOFT || ecc->mode == NAND_ECC_SOFT_BCH) &&
-	       ecc->algo == NAND_ECC_BCH)) {
+	    !(ecc->mode == NAND_ECC_SOFT && ecc->algo == NAND_ECC_BCH)) {
 		switch (mtd->oobsize) {
 		case 8:
 		case 16:
@@ -4426,7 +4424,6 @@ int nand_scan_tail(struct mtd_info *mtd)
 		ecc->algo = NAND_ECC_HAMMING;
 
 	case NAND_ECC_SOFT:
-	case NAND_ECC_SOFT_BCH:
 		ret = nand_set_ecc_soft_ops(mtd);
 		if (ret) {
 			ret = -EINVAL;
@@ -4514,7 +4511,6 @@ int nand_scan_tail(struct mtd_info *mtd)
 	/* Large page NAND with SOFT_ECC should support subpage reads */
 	switch (ecc->mode) {
 	case NAND_ECC_SOFT:
-	case NAND_ECC_SOFT_BCH:
 		if (chip->page_shift > 9)
 			chip->options |= NAND_SUBPAGE_READ;
 		break;
@@ -4614,8 +4610,7 @@ void nand_release(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 
-	if ((chip->ecc.mode == NAND_ECC_SOFT ||
-	     chip->ecc.mode == NAND_ECC_SOFT_BCH) &&
+	if (chip->ecc.mode == NAND_ECC_SOFT &&
 	    chip->ecc.algo == NAND_ECC_BCH)
 		nand_bch_free((struct nand_bch_control *)chip->ecc.priv);
 

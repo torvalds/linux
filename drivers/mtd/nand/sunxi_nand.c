@@ -1612,8 +1612,6 @@ static int sunxi_nand_ecc_init(struct mtd_info *mtd, struct nand_ecc_ctrl *ecc,
 		return -EINVAL;
 
 	switch (ecc->mode) {
-	case NAND_ECC_SOFT_BCH:
-		break;
 	case NAND_ECC_HW:
 		ret = sunxi_nand_hw_ecc_ctrl_init(mtd, ecc, np);
 		if (ret)

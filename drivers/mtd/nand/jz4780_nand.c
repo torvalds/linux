@@ -179,7 +179,6 @@ static int jz4780_nand_init_ecc(struct jz4780_nand_chip *nand, struct device *de
 		chip->ecc.correct = jz4780_nand_ecc_correct;
 		/* fall through */
 	case NAND_ECC_SOFT:
-	case NAND_ECC_SOFT_BCH:
 		dev_info(dev, "using %s (strength %d, size %d, bytes %d)\n",
 			(nfc->bch) ? "hardware BCH" : "software ECC",
 			chip->ecc.strength, chip->ecc.size, chip->ecc.bytes);

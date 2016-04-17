@@ -1625,7 +1625,6 @@ static int mxcnd_probe(struct platform_device *pdev)
 		break;
 
 	case NAND_ECC_SOFT:
-	case NAND_ECC_SOFT_BCH:
 		break;
 
 	default:
