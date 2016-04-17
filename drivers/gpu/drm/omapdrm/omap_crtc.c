@@ -40,6 +40,7 @@ struct omap_crtc {
 
 	bool ignore_digit_sync_lost;
 
+	bool enabled;
 	bool pending;
 	wait_queue_head_t pending_wait;
 };
@@ -136,6 +137,7 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 
 	if (omap_crtc_output[channel]->output_type == OMAP_DISPLAY_TYPE_HDMI) {
 		dispc_mgr_enable(channel, enable);
+		omap_crtc->enabled = enable;
 		return;
 	}
 
@@ -172,6 +174,7 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 	}
 
 	dispc_mgr_enable(channel, enable);
+	omap_crtc->enabled = enable;
 
 	ret = omap_irq_wait(dev, wait, msecs_to_jiffies(100));
 	if (ret) {
@@ -411,18 +414,19 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 		dispc_mgr_set_gamma(omap_crtc->channel, lut, length);
 	}
 
-	if (dispc_mgr_is_enabled(omap_crtc->channel)) {
+	/* Only flush the CRTC if it is currently enabled. */
+	if (!omap_crtc->enabled)
+		return;
 
-		DBG("%s: GO", omap_crtc->name);
+	DBG("%s: GO", omap_crtc->name);
 
-		rmb();
-		WARN_ON(omap_crtc->pending);
-		omap_crtc->pending = true;
-		wmb();
+	rmb();
+	WARN_ON(omap_crtc->pending);
+	omap_crtc->pending = true;
+	wmb();
 
-		dispc_mgr_go(omap_crtc->channel);
-		omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
-	}
+	dispc_mgr_go(omap_crtc->channel);
+	omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
 }
 
 static bool omap_crtc_is_plane_prop(struct drm_crtc *crtc,
