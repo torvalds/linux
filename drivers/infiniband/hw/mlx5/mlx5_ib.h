@@ -356,6 +356,7 @@ enum mlx5_ib_qp_flags {
 	MLX5_IB_QP_SIGNATURE_HANDLING           = 1 << 5,
 	/* QP uses 1 as its source QP number */
 	MLX5_IB_QP_SQPN_QP1			= 1 << 6,
+	MLX5_IB_QP_CAP_SCATTER_FCS		= 1 << 7,
 };
 
 struct mlx5_umr_wr {

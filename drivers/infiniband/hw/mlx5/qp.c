@@ -1028,6 +1028,7 @@ static int get_rq_pas_size(void *qpc)
 static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 				   struct mlx5_ib_rq *rq, void *qpin)
 {
+	struct mlx5_ib_qp *mqp = rq->base.container_mibqp;
 	__be64 *pas;
 	__be64 *qp_pas;
 	void *in;
@@ -1050,6 +1051,9 @@ static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 	MLX5_SET(rqc, rqc, flush_in_error_en, 1);
 	MLX5_SET(rqc, rqc, user_index, MLX5_GET(qpc, qpc, user_index));
 	MLX5_SET(rqc, rqc, cqn, MLX5_GET(qpc, qpc, cqn_rcv));
+
+	if (mqp->flags & MLX5_IB_QP_CAP_SCATTER_FCS)
+		MLX5_SET(rqc, rqc, scatter_fcs, 1);
 
 	wq = MLX5_ADDR_OF(rqc, rqc, wq);
 	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_CYCLIC);
@@ -1136,11 +1140,12 @@ static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	}
 
 	if (qp->rq.wqe_cnt) {
+		rq->base.container_mibqp = qp;
+
 		err = create_raw_packet_qp_rq(dev, rq, in);
 		if (err)
 			goto err_destroy_sq;
 
-		rq->base.container_mibqp = qp;
 
 		err = create_raw_packet_qp_tir(dev, rq, tdn);
 		if (err)
@@ -1251,6 +1256,19 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			mlx5_ib_dbg(dev, "ipoib UD lso qp isn't supported\n");
 			return -EOPNOTSUPP;
 		}
+
+	if (init_attr->create_flags & IB_QP_CREATE_SCATTER_FCS) {
+		if (init_attr->qp_type != IB_QPT_RAW_PACKET) {
+			mlx5_ib_dbg(dev, "Scatter FCS is supported only for Raw Packet QPs");
+			return -EOPNOTSUPP;
+		}
+		if (!MLX5_CAP_GEN(dev->mdev, eth_net_offloads) ||
+		    !MLX5_CAP_ETH(dev->mdev, scatter_fcs)) {
+			mlx5_ib_dbg(dev, "Scatter FCS isn't supported\n");
+			return -EOPNOTSUPP;
+		}
+		qp->flags |= MLX5_IB_QP_CAP_SCATTER_FCS;
+	}
 
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		qp->sq_signal_bits = MLX5_WQE_CTRL_CQ_UPDATE;
