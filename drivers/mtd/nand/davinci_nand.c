@@ -723,8 +723,17 @@ static int nand_davinci_probe(struct platform_device *pdev)
 
 	switch (info->chip.ecc.mode) {
 	case NAND_ECC_NONE:
+		pdata->ecc_bits = 0;
+		break;
 	case NAND_ECC_SOFT:
 		pdata->ecc_bits = 0;
+		/*
+		 * This driver expects Hamming based ECC when ecc_mode is set
+		 * to NAND_ECC_SOFT. Force ecc.algo to NAND_ECC_HAMMING to
+		 * avoid adding an extra ->ecc_algo field to
+		 * davinci_nand_pdata.
+		 */
+		info->chip.ecc.algo = NAND_ECC_HAMMING;
 		break;
 	case NAND_ECC_HW:
 		if (pdata->ecc_bits == 4) {
