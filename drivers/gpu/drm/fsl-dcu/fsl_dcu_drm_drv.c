@@ -91,6 +91,8 @@ static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
 
 	return 0;
 done:
+	drm_kms_helper_poll_fini(dev);
+
 	if (fsl_dev->fbdev)
 		drm_fbdev_cma_fini(fsl_dev->fbdev);
 
@@ -105,6 +107,8 @@ done:
 static int fsl_dcu_unload(struct drm_device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
+
+	drm_kms_helper_poll_fini(dev);
 
 	if (fsl_dev->fbdev)
 		drm_fbdev_cma_fini(fsl_dev->fbdev);
