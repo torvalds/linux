@@ -22,21 +22,25 @@ static const struct mv88e6xxx_info mv88e6131_table[] = {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6095,
 		.family = MV88E6XXX_FAMILY_6095,
 		.name = "Marvell 88E6095/88E6095F",
+		.num_databases = 256,
 		.num_ports = 11,
 	}, {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6085,
 		.family = MV88E6XXX_FAMILY_6097,
 		.name = "Marvell 88E6085",
+		.num_databases = 4096,
 		.num_ports = 10,
 	}, {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6131,
 		.family = MV88E6XXX_FAMILY_6185,
 		.name = "Marvell 88E6131",
+		.num_databases = 256,
 		.num_ports = 8,
 	}, {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6185,
 		.family = MV88E6XXX_FAMILY_6185,
 		.name = "Marvell 88E6185",
+		.num_databases = 256,
 		.num_ports = 10,
 	}
 };

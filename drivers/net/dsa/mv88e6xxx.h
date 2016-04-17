@@ -385,6 +385,7 @@ struct mv88e6xxx_info {
 	enum mv88e6xxx_family family;
 	u16 prod_num;
 	const char *name;
+	unsigned int num_databases;
 	unsigned int num_ports;
 };
 

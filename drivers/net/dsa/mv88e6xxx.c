@@ -458,24 +458,7 @@ static unsigned int mv88e6xxx_num_databases(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	/* The following devices have 4-bit identifiers for 16 databases */
-	if (ps->id == PORT_SWITCH_ID_6061)
-		return 16;
-
-	/* The following devices have 6-bit identifiers for 64 databases */
-	if (ps->id == PORT_SWITCH_ID_6065)
-		return 64;
-
-	/* The following devices have 8-bit identifiers for 256 databases */
-	if (mv88e6xxx_6095_family(ds) || mv88e6xxx_6185_family(ds))
-		return 256;
-
-	/* The following devices have 12-bit identifiers for 4096 databases */
-	if (mv88e6xxx_6097_family(ds) || mv88e6xxx_6165_family(ds) ||
-	    mv88e6xxx_6351_family(ds) || mv88e6xxx_6352_family(ds))
-		return 4096;
-
-	return 0;
+	return ps->info->num_databases;
 }
 
 static bool mv88e6xxx_has_fid_reg(struct dsa_switch *ds)
