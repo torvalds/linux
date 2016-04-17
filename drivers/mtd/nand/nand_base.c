@@ -4337,6 +4337,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		pr_warn("%d byte HW ECC not possible on %d byte page size, fallback to SW ECC\n",
 			ecc->size, mtd->writesize);
 		ecc->mode = NAND_ECC_SOFT;
+		ecc->algo = NAND_ECC_HAMMING;
 
 	case NAND_ECC_SOFT:
 		ecc->calculate = nand_calculate_ecc;
