@@ -321,7 +321,8 @@ brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 	if (pktbuf->len == 0)
 		return -ENODATA;
 
-	*ifp = tmp_if;
+	if (ifp != NULL)
+		*ifp = tmp_if;
 	return 0;
 }
 
