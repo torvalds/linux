@@ -220,6 +220,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_ON_DEMAND_PAGING		= (1 << 31),
 	IB_DEVICE_SG_GAPS_REG			= (1ULL << 32),
 	IB_DEVICE_VIRTUAL_FUNCTION		= ((u64)1 << 33),
+	IB_DEVICE_RAW_SCATTER_FCS		= ((u64)1 << 34),
 };
 
 enum ib_signature_prot_cap {
