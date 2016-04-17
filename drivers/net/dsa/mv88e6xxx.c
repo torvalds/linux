@@ -551,7 +551,7 @@ void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
 		reg |= PORT_PCS_CTRL_DUPLEX_FULL;
 
 	if ((mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds)) &&
-	    (port >= ps->num_ports - 2)) {
+	    (port >= ps->info->num_ports - 2)) {
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID)
 			reg |= PORT_PCS_CTRL_RGMII_DELAY_RXCLK;
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
@@ -1132,7 +1132,7 @@ static int _mv88e6xxx_port_based_vlan_map(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct net_device *bridge = ps->ports[port].bridge_dev;
-	const u16 mask = (1 << ps->num_ports) - 1;
+	const u16 mask = (1 << ps->info->num_ports) - 1;
 	u16 output_ports = 0;
 	int reg;
 	int i;
@@ -1141,7 +1141,7 @@ static int _mv88e6xxx_port_based_vlan_map(struct dsa_switch *ds, int port)
 	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)) {
 		output_ports = mask;
 	} else {
-		for (i = 0; i < ps->num_ports; ++i) {
+		for (i = 0; i < ps->info->num_ports; ++i) {
 			/* allow sending frames to every group member */
 			if (bridge && ps->ports[i].bridge_dev == bridge)
 				output_ports |= BIT(i);
@@ -1282,7 +1282,7 @@ static int _mv88e6xxx_vtu_stu_data_read(struct dsa_switch *ds,
 		regs[i] = ret;
 	}
 
-	for (i = 0; i < ps->num_ports; ++i) {
+	for (i = 0; i < ps->info->num_ports; ++i) {
 		unsigned int shift = (i % 4) * 4 + nibble_offset;
 		u16 reg = regs[i / 4];
 
@@ -1301,7 +1301,7 @@ static int _mv88e6xxx_vtu_stu_data_write(struct dsa_switch *ds,
 	int i;
 	int ret;
 
-	for (i = 0; i < ps->num_ports; ++i) {
+	for (i = 0; i < ps->info->num_ports; ++i) {
 		unsigned int shift = (i % 4) * 4 + nibble_offset;
 		u8 data = entry->data[i];
 
@@ -1633,7 +1633,7 @@ static int _mv88e6xxx_fid_new(struct dsa_switch *ds, u16 *fid)
 	bitmap_zero(fid_bitmap, MV88E6XXX_N_FID);
 
 	/* Set every FID bit used by the (un)bridged ports */
-	for (i = 0; i < ps->num_ports; ++i) {
+	for (i = 0; i < ps->info->num_ports; ++i) {
 		err = _mv88e6xxx_port_fid_get(ds, i, fid);
 		if (err)
 			return err;
@@ -1683,7 +1683,7 @@ static int _mv88e6xxx_vtu_new(struct dsa_switch *ds, u16 vid,
 		return err;
 
 	/* exclude all ports except the CPU and DSA ports */
-	for (i = 0; i < ps->num_ports; ++i)
+	for (i = 0; i < ps->info->num_ports; ++i)
 		vlan.data[i] = dsa_is_cpu_port(ds, i) || dsa_is_dsa_port(ds, i)
 			? GLOBAL_VTU_DATA_MEMBER_TAG_UNMODIFIED
 			: GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
@@ -1772,7 +1772,7 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 		if (vlan.vid > vid_end)
 			break;
 
-		for (i = 0; i < ps->num_ports; ++i) {
+		for (i = 0; i < ps->info->num_ports; ++i) {
 			if (dsa_is_dsa_port(ds, i) || dsa_is_cpu_port(ds, i))
 				continue;
 
@@ -1921,7 +1921,7 @@ static int _mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 
 	/* keep the VLAN unless all ports are excluded */
 	vlan.valid = false;
-	for (i = 0; i < ps->num_ports; ++i) {
+	for (i = 0; i < ps->info->num_ports; ++i) {
 		if (dsa_is_cpu_port(ds, i) || dsa_is_dsa_port(ds, i))
 			continue;
 
@@ -2230,11 +2230,11 @@ int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 	mutex_lock(&ps->smi_mutex);
 
 	/* Get or create the bridge FID and assign it to the port */
-	for (i = 0; i < ps->num_ports; ++i)
+	for (i = 0; i < ps->info->num_ports; ++i)
 		if (ps->ports[i].bridge_dev == bridge)
 			break;
 
-	if (i < ps->num_ports)
+	if (i < ps->info->num_ports)
 		err = _mv88e6xxx_port_fid_get(ds, i, &fid);
 	else
 		err = _mv88e6xxx_fid_new(ds, &fid);
@@ -2248,7 +2248,7 @@ int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 	/* Assign the bridge and remap each port's VLANTable */
 	ps->ports[port].bridge_dev = bridge;
 
-	for (i = 0; i < ps->num_ports; ++i) {
+	for (i = 0; i < ps->info->num_ports; ++i) {
 		if (ps->ports[i].bridge_dev == bridge) {
 			err = _mv88e6xxx_port_based_vlan_map(ds, i);
 			if (err)
@@ -2279,7 +2279,7 @@ void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 	/* Unassign the bridge and remap each port's VLANTable */
 	ps->ports[port].bridge_dev = NULL;
 
-	for (i = 0; i < ps->num_ports; ++i)
+	for (i = 0; i < ps->info->num_ports; ++i)
 		if (i == port || ps->ports[i].bridge_dev == bridge)
 			if (_mv88e6xxx_port_based_vlan_map(ds, i))
 				netdev_warn(ds->ports[i], "failed to remap\n");
@@ -2298,7 +2298,7 @@ static void mv88e6xxx_bridge_work(struct work_struct *work)
 
 	mutex_lock(&ps->smi_mutex);
 
-	for (port = 0; port < ps->num_ports; ++port)
+	for (port = 0; port < ps->info->num_ports; ++port)
 		if (test_and_clear_bit(port, ps->port_state_update_mask) &&
 		    _mv88e6xxx_port_state(ds, port, ps->ports[port].state))
 			netdev_warn(ds->ports[port], "failed to update state to %s\n",
@@ -2630,7 +2630,7 @@ int mv88e6xxx_setup_ports(struct dsa_switch *ds)
 	int ret;
 	int i;
 
-	for (i = 0; i < ps->num_ports; i++) {
+	for (i = 0; i < ps->info->num_ports; i++) {
 		ret = mv88e6xxx_setup_port(ds, i);
 		if (ret < 0)
 			return ret;
@@ -2737,7 +2737,7 @@ int mv88e6xxx_setup_global(struct dsa_switch *ds)
 		err = _mv88e6xxx_reg_write(ds, REG_GLOBAL2, GLOBAL2_TRUNK_MASK,
 					   0x8000 |
 					   (i << GLOBAL2_TRUNK_MASK_NUM_SHIFT) |
-					   ((1 << ps->num_ports) - 1));
+					   ((1 << ps->info->num_ports) - 1));
 		if (err)
 			goto unlock;
 	}
@@ -2790,7 +2790,7 @@ int mv88e6xxx_setup_global(struct dsa_switch *ds)
 		 * ingress rate limit registers to their initial
 		 * state.
 		 */
-		for (i = 0; i < ps->num_ports; i++) {
+		for (i = 0; i < ps->info->num_ports; i++) {
 			err = _mv88e6xxx_reg_write(ds, REG_GLOBAL2,
 						   GLOBAL2_INGRESS_OP,
 						   0x9000 | (i << 8));
@@ -2835,7 +2835,7 @@ int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active)
 	mutex_lock(&ps->smi_mutex);
 
 	/* Set all ports to the disabled state. */
-	for (i = 0; i < ps->num_ports; i++) {
+	for (i = 0; i < ps->info->num_ports; i++) {
 		ret = _mv88e6xxx_reg_read(ds, REG_PORT(i), PORT_CONTROL);
 		if (ret < 0)
 			goto unlock;
@@ -2918,7 +2918,7 @@ static int mv88e6xxx_port_to_phy_addr(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	if (port >= 0 && port < ps->num_ports)
+	if (port >= 0 && port < ps->info->num_ports)
 		return port;
 	return -EINVAL;
 }

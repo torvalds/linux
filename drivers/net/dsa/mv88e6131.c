@@ -22,18 +22,22 @@ static const struct mv88e6xxx_info mv88e6131_table[] = {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6095,
 		.family = MV88E6XXX_FAMILY_6095,
 		.name = "Marvell 88E6095/88E6095F",
+		.num_ports = 11,
 	}, {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6085,
 		.family = MV88E6XXX_FAMILY_6097,
 		.name = "Marvell 88E6085",
+		.num_ports = 10,
 	}, {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6131,
 		.family = MV88E6XXX_FAMILY_6185,
 		.name = "Marvell 88E6131",
+		.num_ports = 8,
 	}, {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6185,
 		.family = MV88E6XXX_FAMILY_6185,
 		.name = "Marvell 88E6185",
+		.num_ports = 10,
 	}
 };
 
@@ -110,7 +114,6 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 
 static int mv88e6131_setup(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
 	ret = mv88e6xxx_setup_common(ds);
@@ -118,21 +121,6 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 		return ret;
 
 	mv88e6xxx_ppu_state_init(ds);
-
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6085:
-	case PORT_SWITCH_ID_6185:
-		ps->num_ports = 10;
-		break;
-	case PORT_SWITCH_ID_6095:
-		ps->num_ports = 11;
-		break;
-	case PORT_SWITCH_ID_6131:
-		ps->num_ports = 8;
-		break;
-	default:
-		return -ENODEV;
-	}
 
 	ret = mv88e6xxx_switch_reset(ds, false);
 	if (ret < 0)
@@ -149,7 +137,7 @@ static int mv88e6131_port_to_phy_addr(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	if (port >= 0 && port < ps->num_ports)
+	if (port >= 0 && port < ps->info->num_ports)
 		return port;
 
 	return -EINVAL;

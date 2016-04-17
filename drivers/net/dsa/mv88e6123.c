@@ -22,14 +22,17 @@ static const struct mv88e6xxx_info mv88e6123_table[] = {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6123,
 		.family = MV88E6XXX_FAMILY_6165,
 		.name = "Marvell 88E6123",
+		.num_ports = 3,
 	}, {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6161,
 		.family = MV88E6XXX_FAMILY_6165,
 		.name = "Marvell 88E6161",
+		.num_ports = 6,
 	}, {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6165,
 		.family = MV88E6XXX_FAMILY_6165,
 		.name = "Marvell 88E6165",
+		.num_ports = 6,
 	}
 };
 
@@ -80,24 +83,11 @@ static int mv88e6123_setup_global(struct dsa_switch *ds)
 
 static int mv88e6123_setup(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
 	ret = mv88e6xxx_setup_common(ds);
 	if (ret < 0)
 		return ret;
-
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6123:
-		ps->num_ports = 3;
-		break;
-	case PORT_SWITCH_ID_6161:
-	case PORT_SWITCH_ID_6165:
-		ps->num_ports = 6;
-		break;
-	default:
-		return -ENODEV;
-	}
 
 	ret = mv88e6xxx_switch_reset(ds, false);
 	if (ret < 0)

@@ -385,6 +385,7 @@ struct mv88e6xxx_info {
 	enum mv88e6xxx_family family;
 	u16 prod_num;
 	const char *name;
+	unsigned int num_ports;
 };
 
 struct mv88e6xxx_atu_entry {
@@ -456,8 +457,6 @@ struct mv88e6xxx_priv_state {
 	struct mutex eeprom_mutex;
 
 	int		id; /* switch product id */
-	int		num_ports;	/* number of switch ports */
-
 	struct mv88e6xxx_priv_port	ports[DSA_MAX_PORTS];
 
 	DECLARE_BITMAP(port_state_update_mask, DSA_MAX_PORTS);
