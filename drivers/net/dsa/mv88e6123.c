@@ -19,14 +19,8 @@
 
 static const struct mv88e6xxx_switch_id mv88e6123_table[] = {
 	{ PORT_SWITCH_ID_6123, "Marvell 88E6123" },
-	{ PORT_SWITCH_ID_6123_A1, "Marvell 88E6123 (A1)" },
-	{ PORT_SWITCH_ID_6123_A2, "Marvell 88E6123 (A2)" },
 	{ PORT_SWITCH_ID_6161, "Marvell 88E6161" },
-	{ PORT_SWITCH_ID_6161_A1, "Marvell 88E6161 (A1)" },
-	{ PORT_SWITCH_ID_6161_A2, "Marvell 88E6161 (A2)" },
 	{ PORT_SWITCH_ID_6165, "Marvell 88E6165" },
-	{ PORT_SWITCH_ID_6165_A1, "Marvell 88E6165 (A1)" },
-	{ PORT_SWITCH_ID_6165_A2, "Marvell 88e6165 (A2)" },
 };
 
 static const char *mv88e6123_drv_probe(struct device *dsa_dev,

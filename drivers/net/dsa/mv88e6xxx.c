@@ -3187,21 +3187,9 @@ mv88e6xxx_lookup_name(struct mii_bus *bus, int sw_addr,
 	if (ret < 0)
 		return NULL;
 
-	/* Look up the exact switch ID */
 	for (i = 0; i < num; ++i)
-		if (table[i].id == ret)
+		if (table[i].id == (ret & 0xfff0))
 			return table[i].name;
-
-	/* Look up only the product number */
-	for (i = 0; i < num; ++i) {
-		if (table[i].id == (ret & PORT_SWITCH_ID_PROD_NUM_MASK)) {
-			dev_warn(&bus->dev,
-				 "unknown revision %d, using base switch 0x%x\n",
-				 ret & PORT_SWITCH_ID_REV_MASK,
-				 ret & PORT_SWITCH_ID_PROD_NUM_MASK);
-			return table[i].name;
-		}
-	}
 
 	return NULL;
 }
