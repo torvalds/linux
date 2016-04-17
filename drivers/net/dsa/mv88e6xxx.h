@@ -462,10 +462,10 @@ struct mv88e6xxx_hw_stat {
 };
 
 int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active);
-char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
-			  int sw_addr, void **priv,
-			  const struct mv88e6xxx_switch_id *table,
-			  unsigned int num);
+const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
+				int sw_addr, void **priv,
+				const struct mv88e6xxx_switch_id *table,
+				unsigned int num);
 
 int mv88e6xxx_setup_ports(struct dsa_switch *ds);
 int mv88e6xxx_setup_common(struct dsa_switch *ds);

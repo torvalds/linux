@@ -3173,9 +3173,10 @@ int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
 }
 #endif /* CONFIG_NET_DSA_HWMON */
 
-static char *mv88e6xxx_lookup_name(struct mii_bus *bus, int sw_addr,
-				   const struct mv88e6xxx_switch_id *table,
-				   unsigned int num)
+static const char *
+mv88e6xxx_lookup_name(struct mii_bus *bus, int sw_addr,
+		      const struct mv88e6xxx_switch_id *table,
+		      unsigned int num)
 {
 	int i, ret;
 
@@ -3205,14 +3206,14 @@ static char *mv88e6xxx_lookup_name(struct mii_bus *bus, int sw_addr,
 	return NULL;
 }
 
-char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
-			  int sw_addr, void **priv,
-			  const struct mv88e6xxx_switch_id *table,
-			  unsigned int num)
+const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
+				int sw_addr, void **priv,
+				const struct mv88e6xxx_switch_id *table,
+				unsigned int num)
 {
 	struct mv88e6xxx_priv_state *ps;
 	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
-	char *name;
+	const char *name;
 
 	if (!bus)
 		return NULL;
