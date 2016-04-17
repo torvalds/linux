@@ -22,13 +22,26 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
-static const struct mv88e6xxx_switch_id mv88e6352_table[] = {
-	{ PORT_SWITCH_ID_6172, "Marvell 88E6172" },
-	{ PORT_SWITCH_ID_6176, "Marvell 88E6176" },
-	{ PORT_SWITCH_ID_6240, "Marvell 88E6240" },
-	{ PORT_SWITCH_ID_6320, "Marvell 88E6320" },
-	{ PORT_SWITCH_ID_6321, "Marvell 88E6321" },
-	{ PORT_SWITCH_ID_6352, "Marvell 88E6352" },
+static const struct mv88e6xxx_info mv88e6352_table[] = {
+	{
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6320,
+		.name = "Marvell 88E6320",
+	}, {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6321,
+		.name = "Marvell 88E6321",
+	}, {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6172,
+		.name = "Marvell 88E6172",
+	}, {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6176,
+		.name = "Marvell 88E6176",
+	}, {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6240,
+		.name = "Marvell 88E6240",
+	}, {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6352,
+		.name = "Marvell 88E6352",
+	}
 };
 
 static const char *mv88e6352_drv_probe(struct device *dsa_dev,

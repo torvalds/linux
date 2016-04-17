@@ -17,10 +17,17 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
-static const struct mv88e6xxx_switch_id mv88e6123_table[] = {
-	{ PORT_SWITCH_ID_6123, "Marvell 88E6123" },
-	{ PORT_SWITCH_ID_6161, "Marvell 88E6161" },
-	{ PORT_SWITCH_ID_6165, "Marvell 88E6165" },
+static const struct mv88e6xxx_info mv88e6123_table[] = {
+	{
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6123,
+		.name = "Marvell 88E6123",
+	}, {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6161,
+		.name = "Marvell 88E6161",
+	}, {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6165,
+		.name = "Marvell 88E6165",
+	}
 };
 
 static const char *mv88e6123_drv_probe(struct device *dsa_dev,

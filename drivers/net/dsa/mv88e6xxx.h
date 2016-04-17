@@ -68,6 +68,23 @@
 #define PORT_PCS_CTRL_UNFORCED		0x03
 #define PORT_PAUSE_CTRL		0x02
 #define PORT_SWITCH_ID		0x03
+#define PORT_SWITCH_ID_PROD_NUM_6085	0x04a
+#define PORT_SWITCH_ID_PROD_NUM_6095	0x095
+#define PORT_SWITCH_ID_PROD_NUM_6131	0x106
+#define PORT_SWITCH_ID_PROD_NUM_6320	0x115
+#define PORT_SWITCH_ID_PROD_NUM_6123	0x121
+#define PORT_SWITCH_ID_PROD_NUM_6161	0x161
+#define PORT_SWITCH_ID_PROD_NUM_6165	0x165
+#define PORT_SWITCH_ID_PROD_NUM_6171	0x171
+#define PORT_SWITCH_ID_PROD_NUM_6172	0x172
+#define PORT_SWITCH_ID_PROD_NUM_6175	0x175
+#define PORT_SWITCH_ID_PROD_NUM_6176	0x176
+#define PORT_SWITCH_ID_PROD_NUM_6185	0x1a7
+#define PORT_SWITCH_ID_PROD_NUM_6240	0x240
+#define PORT_SWITCH_ID_PROD_NUM_6321	0x310
+#define PORT_SWITCH_ID_PROD_NUM_6352	0x352
+#define PORT_SWITCH_ID_PROD_NUM_6350	0x371
+#define PORT_SWITCH_ID_PROD_NUM_6351	0x375
 #define PORT_SWITCH_ID_6031	0x0310
 #define PORT_SWITCH_ID_6035	0x0350
 #define PORT_SWITCH_ID_6046	0x0480
@@ -352,9 +369,9 @@
 
 #define MV88E6XXX_N_FID		4096
 
-struct mv88e6xxx_switch_id {
-	u16 id;
-	char *name;
+struct mv88e6xxx_info {
+	u16 prod_num;
+	const char *name;
 };
 
 struct mv88e6xxx_atu_entry {
@@ -382,6 +399,8 @@ struct mv88e6xxx_priv_port {
 };
 
 struct mv88e6xxx_priv_state {
+	const struct mv88e6xxx_info *info;
+
 	/* The dsa_switch this private structure is related to */
 	struct dsa_switch *ds;
 
@@ -449,7 +468,7 @@ struct mv88e6xxx_hw_stat {
 int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active);
 const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
 				int sw_addr, void **priv,
-				const struct mv88e6xxx_switch_id *table,
+				const struct mv88e6xxx_info *table,
 				unsigned int num);
 
 int mv88e6xxx_setup_ports(struct dsa_switch *ds);
