@@ -97,7 +97,7 @@
 		smsc,irq-push-pull;
 		smsc,force-internal-phy;
 
-		samsung,srom-page-mode = <1>;
+		samsung,srom-page-mode;
 		samsung,srom-timing = <9 12 1 9 1 1>;
 	};
 };
