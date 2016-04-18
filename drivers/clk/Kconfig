@@ -197,6 +197,12 @@ config COMMON_CLK_PXA
 	---help---
 	  Support for the Marvell PXA SoC.
 
+config COMMON_CLK_OXNAS
+	bool "Clock driver for the OXNAS SoC Family"
+	select MFD_SYSCON
+	---help---
+	  Support for the OXNAS SoC Family clocks.
+
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
 source "drivers/clk/mvebu/Kconfig"
