@@ -295,8 +295,7 @@ static unsigned long find_random_addr(unsigned long minimum,
 	return slots_fetch_random();
 }
 
-unsigned char *choose_kernel_location(struct boot_params *boot_params,
-				      unsigned char *input,
+unsigned char *choose_kernel_location(unsigned char *input,
 				      unsigned long input_size,
 				      unsigned char *output,
 				      unsigned long output_size)
@@ -316,7 +315,7 @@ unsigned char *choose_kernel_location(struct boot_params *boot_params,
 	}
 #endif
 
-	boot_params->hdr.loadflags |= KASLR_FLAG;
+	real_mode->hdr.loadflags |= KASLR_FLAG;
 
 	/* Record the various known unsafe memory ranges. */
 	mem_avoid_init((unsigned long)input, input_size,

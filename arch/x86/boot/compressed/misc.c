@@ -428,7 +428,7 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 	 * the entire decompressed kernel plus relocation table, or the
 	 * entire decompressed kernel plus .bss and .brk sections.
 	 */
-	output = choose_kernel_location(real_mode, input_data, input_len, output,
+	output = choose_kernel_location(input_data, input_len, output,
 					output_len > run_size ? output_len
 							      : run_size);
 
