@@ -789,6 +789,8 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 			return ERR_PTR(err_code);
 		}
 	}
+	init_completion(&iwqp->sq_drained);
+	init_completion(&iwqp->rq_drained);
 
 	return &iwqp->ibqp;
 error:
@@ -1582,6 +1584,32 @@ static int i40iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_ne
 }
 
 /**
+ * i40iw_drain_sq - drain the send queue
+ * @ibqp: ib qp pointer
+ */
+static void i40iw_drain_sq(struct ib_qp *ibqp)
+{
+	struct i40iw_qp *iwqp = to_iwqp(ibqp);
+	struct i40iw_sc_qp *qp = &iwqp->sc_qp;
+
+	if (I40IW_RING_MORE_WORK(qp->qp_uk.sq_ring))
+		wait_for_completion(&iwqp->sq_drained);
+}
+
+/**
+ * i40iw_drain_rq - drain the receive queue
+ * @ibqp: ib qp pointer
+ */
+static void i40iw_drain_rq(struct ib_qp *ibqp)
+{
+	struct i40iw_qp *iwqp = to_iwqp(ibqp);
+	struct i40iw_sc_qp *qp = &iwqp->sc_qp;
+
+	if (I40IW_RING_MORE_WORK(qp->qp_uk.rq_ring))
+		wait_for_completion(&iwqp->rq_drained);
+}
+
+/**
  * i40iw_hwreg_mr - send cqp command for memory registration
  * @iwdev: iwarp device
  * @iwmr: iwarp mr pointer
@@ -2218,6 +2246,7 @@ static int i40iw_poll_cq(struct ib_cq *ibcq,
 	enum i40iw_status_code ret;
 	struct i40iw_cq_uk *ukcq;
 	struct i40iw_sc_qp *qp;
+	struct i40iw_qp *iwqp;
 	unsigned long flags;
 
 	iwcq = (struct i40iw_cq *)ibcq;
@@ -2268,6 +2297,13 @@ static int i40iw_poll_cq(struct ib_cq *ibcq,
 		qp = (struct i40iw_sc_qp *)cq_poll_info.qp_handle;
 		entry->qp = (struct ib_qp *)qp->back_qp;
 		entry->src_qp = cq_poll_info.qp_id;
+		iwqp = (struct i40iw_qp *)qp->back_qp;
+		if (iwqp->iwarp_state > I40IW_QP_STATE_RTS) {
+			if (!I40IW_RING_MORE_WORK(qp->qp_uk.sq_ring))
+				complete(&iwqp->sq_drained);
+			if (!I40IW_RING_MORE_WORK(qp->qp_uk.rq_ring))
+				complete(&iwqp->rq_drained);
+		}
 		entry->byte_len = cq_poll_info.bytes_xfered;
 		entry++;
 		cqe_count++;
@@ -2514,6 +2550,8 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.query_device = i40iw_query_device;
 	iwibdev->ibdev.create_ah = i40iw_create_ah;
 	iwibdev->ibdev.destroy_ah = i40iw_destroy_ah;
+	iwibdev->ibdev.drain_sq = i40iw_drain_sq;
+	iwibdev->ibdev.drain_rq = i40iw_drain_rq;
 	iwibdev->ibdev.alloc_mr = i40iw_alloc_mr;
 	iwibdev->ibdev.map_mr_sg = i40iw_map_mr_sg;
 	iwibdev->ibdev.iwcm = kzalloc(sizeof(*iwibdev->ibdev.iwcm), GFP_KERNEL);
