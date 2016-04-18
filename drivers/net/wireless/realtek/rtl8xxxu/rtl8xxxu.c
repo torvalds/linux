@@ -8203,8 +8203,8 @@ static void rtl8xxxu_sw_scan_complete(struct ieee80211_hw *hw,
 	rtl8xxxu_write8(priv, REG_BEACON_CTRL, val8);
 }
 
-static void rtl8723au_update_rate_mask(struct rtl8xxxu_priv *priv,
-				       u32 ramask, int sgi)
+static void rtl8xxxu_update_rate_mask(struct rtl8xxxu_priv *priv,
+				      u32 ramask, int sgi)
 {
 	struct h2c_cmd h2c;
 
@@ -9889,7 +9889,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.disable_rf = rtl8xxxu_gen1_disable_rf,
 	.usb_quirks = rtl8xxxu_gen1_usb_quirks,
 	.set_tx_power = rtl8723a_set_tx_power,
-	.update_rate_mask = rtl8723au_update_rate_mask,
+	.update_rate_mask = rtl8xxxu_update_rate_mask,
 	.report_connect = rtl8xxxu_gen1_report_connect,
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT_0,
@@ -9961,7 +9961,7 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.disable_rf = rtl8xxxu_gen1_disable_rf,
 	.usb_quirks = rtl8xxxu_gen1_usb_quirks,
 	.set_tx_power = rtl8723a_set_tx_power,
-	.update_rate_mask = rtl8723au_update_rate_mask,
+	.update_rate_mask = rtl8xxxu_update_rate_mask,
 	.report_connect = rtl8xxxu_gen1_report_connect,
 	.writeN_block_size = 128,
 	.mbox_ext_reg = REG_HMBOX_EXT_0,
