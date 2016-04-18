@@ -2457,7 +2457,7 @@ static int trace__add_syscall_newtp(struct trace *trace)
 	perf_evlist__add(evlist, sys_enter);
 	perf_evlist__add(evlist, sys_exit);
 
-	if (trace->opts.callgraph_set && !trace->kernel_syscallchains) {
+	if (callchain_param.enabled && !trace->kernel_syscallchains) {
 		/*
 		 * We're interested only in the user space callchain
 		 * leading to the syscall, allow overriding that for
@@ -2546,7 +2546,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	perf_evlist__config(evlist, &trace->opts, NULL);
 
-	if (trace->opts.callgraph_set && trace->syscalls.events.sys_exit) {
+	if (callchain_param.enabled && trace->syscalls.events.sys_exit) {
 		perf_evsel__config_callchain(trace->syscalls.events.sys_exit,
 					     &trace->opts, &callchain_param);
                /*
@@ -3153,11 +3153,11 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
-	if ((trace.min_stack || max_stack_user_set) && !trace.opts.callgraph_set)
+	if ((trace.min_stack || max_stack_user_set) && !callchain_param.enabled)
 		record_opts__parse_callchain(&trace.opts, &callchain_param, "dwarf", false);
 #endif
 
-	if (trace.opts.callgraph_set) {
+	if (callchain_param.enabled) {
 		if (!mmap_pages_user_set && geteuid() == 0)
 			trace.opts.mmap_pages = perf_event_mlock_kb_in_pages() * 4;
 

@@ -1045,18 +1045,17 @@ callchain_opt(const struct option *opt, const char *arg, int unset)
 static int
 parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 {
-	struct record_opts *record = (struct record_opts *)opt->value;
+	struct callchain_param *callchain = opt->value;
 
-	record->callgraph_set = true;
-	callchain_param.enabled = !unset;
-	callchain_param.record_mode = CALLCHAIN_FP;
+	callchain->enabled = !unset;
+	callchain->record_mode = CALLCHAIN_FP;
 
 	/*
 	 * --no-call-graph
 	 */
 	if (unset) {
 		symbol_conf.use_callchain = false;
-		callchain_param.record_mode = CALLCHAIN_NONE;
+		callchain->record_mode = CALLCHAIN_NONE;
 		return 0;
 	}
 
@@ -1162,10 +1161,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "output field(s): overhead, period, sample plus all of sort keys"),
 	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
 		    "Show a column with the number of samples"),
-	OPT_CALLBACK_NOOPT('g', NULL, &top.record_opts,
+	OPT_CALLBACK_NOOPT('g', NULL, &callchain_param,
 			   NULL, "enables call-graph recording and display",
 			   &callchain_opt),
-	OPT_CALLBACK(0, "call-graph", &top.record_opts,
+	OPT_CALLBACK(0, "call-graph", &callchain_param,
 		     "record_mode[,record_size],print_type,threshold[,print_limit],order,sort_key[,branch]",
 		     top_callchain_help, &parse_callchain_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
