@@ -848,8 +848,8 @@
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x30700000 0x10000>;
-				clocks = <&clks IMX7D_CLK_DUMMY>;
-				clock-names = "pxp-axi";
+				clocks = <&clks IMX7D_PXP_IPG_CLK>, <&clks IMX7D_PXP_AXI_CLK>;
+				clock-names = "pxp_ipg", "pxp_axi";
 				status = "disabled";
 			};
 
