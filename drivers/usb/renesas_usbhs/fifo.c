@@ -799,8 +799,10 @@ static int __usbhsf_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
+	struct usbhs_fifo *fifo = usbhs_pipe_to_fifo(pipe);
+	struct dma_chan *chan = usbhsf_dma_chan_get(fifo, pkt);
 
-	return info->dma_map_ctrl(pkt, map);
+	return info->dma_map_ctrl(chan->device->dev, pkt, map);
 }
 
 static void usbhsf_dma_complete(void *arg);

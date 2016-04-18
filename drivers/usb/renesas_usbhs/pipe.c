@@ -655,7 +655,8 @@ static void usbhsp_put_pipe(struct usbhs_pipe *pipe)
 }
 
 void usbhs_pipe_init(struct usbhs_priv *priv,
-		     int (*dma_map_ctrl)(struct usbhs_pkt *pkt, int map))
+		     int (*dma_map_ctrl)(struct device *dma_dev,
+					 struct usbhs_pkt *pkt, int map))
 {
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
 	struct usbhs_pipe *pipe;

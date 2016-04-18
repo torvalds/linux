@@ -191,7 +191,8 @@ static void usbhsg_queue_push(struct usbhsg_uep *uep,
 /*
  *		dma map/unmap
  */
-static int usbhsg_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
+static int usbhsg_dma_map_ctrl(struct device *dma_dev, struct usbhs_pkt *pkt,
+			       int map)
 {
 	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
 	struct usb_request *req = &ureq->req;
