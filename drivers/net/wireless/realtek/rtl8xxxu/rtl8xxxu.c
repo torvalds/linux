@@ -214,6 +214,7 @@ static struct rtl8xxxu_reg8val rtl8192e_mac_init_table[] = {
 	{0xffff, 0xff},
 };
 
+#ifdef CONFIG_RTL8XXXU_UNTESTED
 static struct rtl8xxxu_power_base rtl8188r_power_base = {
 	.reg_0e00 = 0x06080808,
 	.reg_0e04 = 0x00040406,
@@ -257,6 +258,7 @@ static struct rtl8xxxu_power_base rtl8192c_power_base = {
 	.reg_084c = 0x0b0c0d0e,
 	.reg_0868 = 0x01030509,
 };
+#endif
 
 static struct rtl8xxxu_power_base rtl8723a_power_base = {
 	.reg_0e00 = 0x0a0c0c0c,
@@ -1329,6 +1331,7 @@ static struct rtl8xxxu_rfregval rtl8723bu_radioa_1t_init_table[] = {
 	{0xff, 0xffffffff}
 };
 
+#ifdef CONFIG_RTL8XXXU_UNTESTED
 static struct rtl8xxxu_rfregval rtl8192cu_radioa_2t_init_table[] = {
 	{0x00, 0x00030159}, {0x01, 0x00031284},
 	{0x02, 0x00098000}, {0x03, 0x00018c63},
@@ -1577,6 +1580,7 @@ static struct rtl8xxxu_rfregval rtl8188ru_radioa_1t_highpa_table[] = {
 	{0x00, 0x00030159},
 	{0xff, 0xffffffff}
 };
+#endif
 
 static struct rtl8xxxu_rfregval rtl8192eu_radioa_init_table[] = {
 	{0x7f, 0x00000082}, {0x81, 0x0003fc00},
