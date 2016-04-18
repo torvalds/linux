@@ -122,5 +122,15 @@ config TCG_CRB
 	  from within Linux.  To compile this driver as a module, choose
 	  M here; the module will be called tpm_crb.
 
+config TCG_VTPM_PROXY
+	tristate "VTPM Proxy Interface"
+	depends on TCG_TPM
+	---help---
+	  This driver proxies for an emulated TPM (vTPM) running in userspace.
+	  A device /dev/vtpmx is provided that creates a device pair
+	  /dev/vtpmX and a server-side file descriptor on which the vTPM
+	  can receive commands.
+
+
 source "drivers/char/tpm/st33zp24/Kconfig"
 endif # TCG_TPM
