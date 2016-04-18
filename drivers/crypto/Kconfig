@@ -279,6 +279,14 @@ config CRYPTO_DEV_PPC4XX
 	help
 	  This option allows you to have support for AMCC crypto acceleration.
 
+config HW_RANDOM_PPC4XX
+	bool "PowerPC 4xx generic true random number generator support"
+	depends on CRYPTO_DEV_PPC4XX && HW_RANDOM
+	default y
+	---help---
+	 This option provides the kernel-side support for the TRNG hardware
+	 found in the security function of some PowerPC 4xx SoCs.
+
 config CRYPTO_DEV_OMAP_SHAM
 	tristate "Support for OMAP MD5/SHA1/SHA2 hw accelerator"
 	depends on ARCH_OMAP2PLUS
