@@ -72,6 +72,11 @@
 #define TRIGCON				0x1A4
 #define TRGMODE_I80_RGB_ENABLE_I80	(1 << 0)
 #define SWTRGCMD_I80_RGB_ENABLE		(1 << 1)
+/* Exynos3250, 3472, 4415, 5260 5410, 5420 and 5422 only supported. */
+#define HWTRGEN_I80_RGB_ENABLE		(1 << 3)
+#define HWTRGMASK_I80_RGB_ENABLE	(1 << 4)
+/* Exynos3250, 3472, 4415, 5260, 5420 and 5422 only supported. */
+#define HWTRIGEN_PER_RGB_ENABLE		(1 << 31)
 
 /* display mode change control register except exynos4 */
 #define VIDOUT_CON			0x000
@@ -89,12 +94,16 @@
 /* FIMD has totally five hardware windows. */
 #define WINDOWS_NR	5
 
+/* HW trigger flag on i80 panel. */
+#define I80_HW_TRG     (1 << 1)
+
 struct fimd_driver_data {
 	unsigned int timing_base;
 	unsigned int lcdblk_offset;
 	unsigned int lcdblk_vt_shift;
 	unsigned int lcdblk_bypass_shift;
 	unsigned int lcdblk_mic_bypass_shift;
+	unsigned int trg_type;
 
 	unsigned int has_shadowcon:1;
 	unsigned int has_clksel:1;
@@ -103,20 +112,25 @@ struct fimd_driver_data {
 	unsigned int has_vtsel:1;
 	unsigned int has_mic_bypass:1;
 	unsigned int has_dp_clk:1;
+	unsigned int has_hw_trigger:1;
+	unsigned int has_trigger_per_te:1;
 };
 
 static struct fimd_driver_data s3c64xx_fimd_driver_data = {
 	.timing_base = 0x0,
 	.has_clksel = 1,
 	.has_limited_fmt = 1,
+	.has_hw_trigger = 1,
 };
 
 static struct fimd_driver_data exynos3_fimd_driver_data = {
 	.timing_base = 0x20000,
 	.lcdblk_offset = 0x210,
 	.lcdblk_bypass_shift = 1,
+	.trg_type = I80_HW_TRG,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
+	.has_trigger_per_te = 1,
 };
 
 static struct fimd_driver_data exynos4_fimd_driver_data = {
@@ -133,9 +147,11 @@ static struct fimd_driver_data exynos4415_fimd_driver_data = {
 	.lcdblk_offset = 0x210,
 	.lcdblk_vt_shift = 10,
 	.lcdblk_bypass_shift = 1,
+	.trg_type = I80_HW_TRG,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
 	.has_vtsel = 1,
+	.has_trigger_per_te = 1,
 };
 
 static struct fimd_driver_data exynos5_fimd_driver_data = {
@@ -155,11 +171,14 @@ static struct fimd_driver_data exynos5420_fimd_driver_data = {
 	.lcdblk_vt_shift = 24,
 	.lcdblk_bypass_shift = 15,
 	.lcdblk_mic_bypass_shift = 11,
+	.trg_type = I80_HW_TRG,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
 	.has_vtsel = 1,
 	.has_mic_bypass = 1,
 	.has_dp_clk = 1,
+	.has_hw_trigger = 1,
+	.has_trigger_per_te = 1,
 };
 
 struct fimd_context {
@@ -395,6 +414,27 @@ static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
 	return (clkdiv < 0x100) ? clkdiv : 0xff;
 }
 
+static void fimd_setup_trigger(struct fimd_context *ctx)
+{
+	void __iomem *timing_base = ctx->regs + ctx->driver_data->timing_base;
+	u32 trg_type = ctx->driver_data->trg_type;
+	u32 val = readl(timing_base + TRIGCON);
+
+	val &= ~(TRGMODE_I80_RGB_ENABLE_I80);
+
+	if (trg_type == I80_HW_TRG) {
+		if (ctx->driver_data->has_hw_trigger)
+			val |= HWTRGEN_I80_RGB_ENABLE |
+				HWTRGMASK_I80_RGB_ENABLE;
+		if (ctx->driver_data->has_trigger_per_te)
+			val |= HWTRIGEN_PER_RGB_ENABLE;
+	} else {
+		val |= TRGMODE_I80_RGB_ENABLE_I80;
+	}
+
+	writel(val, timing_base + TRIGCON);
+}
+
 static void fimd_commit(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
@@ -489,6 +529,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 	       VIDTCON2_LINEVAL_E(mode->vdisplay - 1) |
 	       VIDTCON2_HOZVAL_E(mode->hdisplay - 1);
 	writel(val, ctx->regs + driver_data->timing_base + VIDTCON2);
+
+	fimd_setup_trigger(ctx);
 
 	/*
 	 * fields of register with prefix '_F' would be updated
@@ -851,10 +893,14 @@ static void fimd_trigger(struct device *dev)
 static void fimd_te_handler(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
+	u32 trg_type = ctx->driver_data->trg_type;
 
 	/* Checks the crtc is detached already from encoder */
 	if (ctx->pipe < 0 || !ctx->drm_dev)
 		return;
+
+	if (trg_type == I80_HW_TRG)
+		goto out;
 
 	/*
 	 * If there is a page flip request, triggers and handles the page flip
@@ -863,6 +909,7 @@ static void fimd_te_handler(struct exynos_drm_crtc *crtc)
 	if (atomic_add_unless(&ctx->win_updated, -1, 0))
 		fimd_trigger(ctx->dev);
 
+out:
 	/* Wakes up vsync event queue */
 	if (atomic_read(&ctx->wait_vsync_event)) {
 		atomic_set(&ctx->wait_vsync_event, 0);
