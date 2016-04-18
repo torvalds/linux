@@ -212,11 +212,7 @@ static int vibra_play(struct input_dev *input, void *data,
 	info->strong_speed = effect->u.rumble.strong_magnitude;
 	info->direction = effect->direction < EFFECT_DIR_180_DEG ? 1 : -1;
 
-	ret = schedule_work(&info->play_work);
-	if (!ret) {
-		dev_info(&input->dev, "work is already on queue\n");
-		return ret;
-	}
+	schedule_work(&info->play_work);
 
 	return 0;
 }
