@@ -437,7 +437,6 @@ void i40iw_free_qp_resources(struct i40iw_device *iwdev,
 	kfree(iwqp->kqp.wrid_mem);
 	iwqp->kqp.wrid_mem = NULL;
 	kfree(iwqp->allocated_buffer);
-	iwqp->allocated_buffer = NULL;
 }
 
 /**
