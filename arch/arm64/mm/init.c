@@ -437,6 +437,8 @@ void __init mem_init(void)
 		MLK_ROUNDUP(__init_begin, __init_end));
 	pr_cont("      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n",
 		MLK_ROUNDUP(_sdata, _edata));
+	pr_cont("       .bss : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+		MLK_ROUNDUP(__bss_start, __bss_stop));
 	pr_cont("    fixed   : 0x%16lx - 0x%16lx   (%6ld KB)\n",
 		MLK(FIXADDR_START, FIXADDR_TOP));
 	pr_cont("    PCI I/O : 0x%16lx - 0x%16lx   (%6ld MB)\n",
