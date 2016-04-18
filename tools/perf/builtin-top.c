@@ -917,15 +917,15 @@ out_err:
 	return -1;
 }
 
-static int perf_top__setup_sample_type(struct perf_top *top __maybe_unused)
+static int callchain_param__setup_sample_type(struct callchain_param *callchain)
 {
 	if (!sort__has_sym) {
-		if (symbol_conf.use_callchain) {
+		if (callchain->enabled) {
 			ui__error("Selected -g but \"sym\" not present in --sort/-s.");
 			return -EINVAL;
 		}
-	} else if (callchain_param.mode != CHAIN_NONE) {
-		if (callchain_register_param(&callchain_param) < 0) {
+	} else if (callchain->mode != CHAIN_NONE) {
+		if (callchain_register_param(callchain) < 0) {
 			ui__error("Can't register callchain params.\n");
 			return -EINVAL;
 		}
@@ -952,7 +952,7 @@ static int __cmd_top(struct perf_top *top)
 			goto out_delete;
 	}
 
-	ret = perf_top__setup_sample_type(top);
+	ret = callchain_param__setup_sample_type(&callchain_param);
 	if (ret)
 		goto out_delete;
 
@@ -1311,7 +1311,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	top.sym_evsel = perf_evlist__first(top.evlist);
 
-	if (!symbol_conf.use_callchain) {
+	if (!callchain_param.enabled) {
 		symbol_conf.cumulate_callchain = false;
 		perf_hpp__cancel_cumulate();
 	}
