@@ -799,7 +799,8 @@ static int uas_slave_alloc(struct scsi_device *sdev)
 
 	sdev->hostdata = devinfo;
 
-	/* USB has unusual DMA-alignment requirements: Although the
+	/*
+	 * USB has unusual DMA-alignment requirements: Although the
 	 * starting address of each scatter-gather element doesn't matter,
 	 * the length of each element except the last must be divisible
 	 * by the Bulk maxpacket value.  There's currently no way to
