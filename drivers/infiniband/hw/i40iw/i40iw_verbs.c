@@ -2148,7 +2148,6 @@ static int i40iw_get_protocol_stats(struct ib_device *ibdev,
 	struct i40iw_dev_hw_stats *hw_stats = &devstat->hw_stats;
 	struct timespec curr_time;
 	static struct timespec last_rd_time = {0, 0};
-	enum i40iw_status_code status = 0;
 	unsigned long flags;
 
 	curr_time = current_kernel_time();
@@ -2161,11 +2160,8 @@ static int i40iw_get_protocol_stats(struct ib_device *ibdev,
 		spin_unlock_irqrestore(&devstat->stats_lock, flags);
 	} else {
 		if (((u64)curr_time.tv_sec - (u64)last_rd_time.tv_sec) > 1)
-			status = i40iw_vchnl_vf_get_pe_stats(dev,
-							     &devstat->hw_stats);
-
-		if (status)
-			return -ENOSYS;
+			if (i40iw_vchnl_vf_get_pe_stats(dev, &devstat->hw_stats))
+				return -ENOSYS;
 	}
 
 	stats->iw.ipInReceives = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP4RXPKTS] +

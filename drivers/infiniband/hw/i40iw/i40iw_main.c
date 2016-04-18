@@ -1528,7 +1528,10 @@ static enum i40iw_status_code i40iw_setup_init_state(struct i40iw_handler *hdl,
 		goto exit;
 	iwdev->obj_next = iwdev->obj_mem;
 	iwdev->push_mode = push_mode;
+
 	init_waitqueue_head(&iwdev->vchnl_waitq);
+	init_waitqueue_head(&dev->vf_reqs);
+
 	status = i40iw_initialize_dev(iwdev, ldev);
 exit:
 	if (status) {
@@ -1707,7 +1710,6 @@ static void i40iw_vf_reset(struct i40e_info *ldev, struct i40e_client *client, u
 	for (i = 0; i < I40IW_MAX_PE_ENABLED_VF_COUNT; i++) {
 		if (!dev->vf_dev[i] || (dev->vf_dev[i]->vf_id != vf_id))
 			continue;
-
 		/* free all resources allocated on behalf of vf */
 		tmp_vfdev = dev->vf_dev[i];
 		spin_lock_irqsave(&dev->dev_pestat.stats_lock, flags);
@@ -1816,8 +1818,6 @@ static int i40iw_virtchnl_receive(struct i40e_info *ldev,
 	dev = &hdl->device.sc_dev;
 	iwdev = dev->back_dev;
 
-	i40iw_debug(dev, I40IW_DEBUG_VIRT, "msg %p, message length %u\n", msg, len);
-
 	if (dev->vchnl_if.vchnl_recv) {
 		ret_code = dev->vchnl_if.vchnl_recv(dev, vf_id, msg, len);
 		if (!dev->is_pf) {
@@ -1826,6 +1826,39 @@ static int i40iw_virtchnl_receive(struct i40e_info *ldev,
 		}
 	}
 	return ret_code;
+}
+
+/**
+ * i40iw_vf_clear_to_send - wait to send virtual channel message
+ * @dev: iwarp device *
+ * Wait for until virtual channel is clear
+ * before sending the next message
+ *
+ * Returns false if error
+ * Returns true if clear to send
+ */
+bool i40iw_vf_clear_to_send(struct i40iw_sc_dev *dev)
+{
+	struct i40iw_device *iwdev;
+	wait_queue_t wait;
+
+	iwdev = dev->back_dev;
+
+	if (!wq_has_sleeper(&dev->vf_reqs) &&
+	    (atomic_read(&iwdev->vchnl_msgs) == 0))
+		return true; /* virtual channel is clear */
+
+	init_wait(&wait);
+	add_wait_queue_exclusive(&dev->vf_reqs, &wait);
+
+	if (!wait_event_timeout(dev->vf_reqs,
+				(atomic_read(&iwdev->vchnl_msgs) == 0),
+				I40IW_VCHNL_EVENT_TIMEOUT))
+		dev->vchnl_up = false;
+
+	remove_wait_queue(&dev->vf_reqs, &wait);
+
+	return dev->vchnl_up;
 }
 
 /**
@@ -1845,18 +1878,16 @@ static enum i40iw_status_code i40iw_virtchnl_send(struct i40iw_sc_dev *dev,
 {
 	struct i40iw_device *iwdev;
 	struct i40e_info *ldev;
-	enum i40iw_status_code ret_code = I40IW_ERR_BAD_PTR;
 
 	if (!dev || !dev->back_dev)
-		return ret_code;
+		return I40IW_ERR_BAD_PTR;
 
 	iwdev = dev->back_dev;
 	ldev = iwdev->ldev;
 
 	if (ldev && ldev->ops && ldev->ops->virtchnl_send)
-		ret_code = ldev->ops->virtchnl_send(ldev, &i40iw_client, vf_id, msg, len);
-
-	return ret_code;
+		return ldev->ops->virtchnl_send(ldev, &i40iw_client, vf_id, msg, len);
+	return I40IW_ERR_BAD_PTR;
 }
 
 /* client interface functions */

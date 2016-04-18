@@ -483,12 +483,13 @@ struct i40iw_sc_dev {
 
 	struct i40iw_hmc_fpm_misc hmc_fpm_misc;
 	u16 qs_handle;
-	u32	debug_mask;
+	u32 debug_mask;
 	u16 exception_lan_queue;
 	u8 hmc_fn_id;
 	bool is_pf;
 	bool vchnl_up;
 	u8 vf_id;
+	wait_queue_head_t vf_reqs;
 	u64 cqp_cmd_stats[OP_SIZE_CQP_STAT_ARRAY];
 	struct i40iw_vchnl_vf_msg_buffer vchnl_vf_msg_buf;
 	u8 hw_rev;

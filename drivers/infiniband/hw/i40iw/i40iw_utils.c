@@ -990,21 +990,24 @@ enum i40iw_status_code i40iw_cqp_commit_fpm_values_cmd(struct i40iw_sc_dev *dev,
 enum i40iw_status_code i40iw_vf_wait_vchnl_resp(struct i40iw_sc_dev *dev)
 {
 	struct i40iw_device *iwdev = dev->back_dev;
-	enum i40iw_status_code err_code = 0;
 	int timeout_ret;
 
 	i40iw_debug(dev, I40IW_DEBUG_VIRT, "%s[%u] dev %p, iwdev %p\n",
 		    __func__, __LINE__, dev, iwdev);
-	atomic_add(2, &iwdev->vchnl_msgs);
+
+	atomic_set(&iwdev->vchnl_msgs, 2);
 	timeout_ret = wait_event_timeout(iwdev->vchnl_waitq,
 					 (atomic_read(&iwdev->vchnl_msgs) == 1),
 					 I40IW_VCHNL_EVENT_TIMEOUT);
 	atomic_dec(&iwdev->vchnl_msgs);
 	if (!timeout_ret) {
 		i40iw_pr_err("virt channel completion timeout = 0x%x\n", timeout_ret);
-		err_code = I40IW_ERR_TIMEOUT;
+		atomic_set(&iwdev->vchnl_msgs, 0);
+		dev->vchnl_up = false;
+		return I40IW_ERR_TIMEOUT;
 	}
-	return err_code;
+	wake_up(&dev->vf_reqs);
+	return 0;
 }
 
 /**
