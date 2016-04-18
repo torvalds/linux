@@ -174,13 +174,13 @@ struct sense_info {
  * struct fw_event_work - firmware event struct
  * @list: link list framework
  * @work: work object (ioc->fault_reset_work_q)
- * @cancel_pending_work: flag set during reset handling
  * @ioc: per adapter object
  * @device_handle: device handle
  * @VF_ID: virtual function id
  * @VP_ID: virtual port id
  * @ignore: flag meaning this event has been marked to ignore
- * @event: firmware event MPI2_EVENT_XXX defined in mpt2_ioc.h
+ * @event: firmware event MPI2_EVENT_XXX defined in mpi2_ioc.h
+ * @refcount: kref for this event
  * @event_data: reply event data payload follows
  *
  * This object stored on ioc->fw_event_list.
@@ -188,8 +188,6 @@ struct sense_info {
 struct fw_event_work {
 	struct list_head	list;
 	struct work_struct	work;
-	u8			cancel_pending_work;
-	struct delayed_work	delayed_work;
 
 	struct MPT3SAS_ADAPTER *ioc;
 	u16			device_handle;
@@ -2804,12 +2802,12 @@ _scsih_fw_event_cleanup_queue(struct MPT3SAS_ADAPTER *ioc)
 		/*
 		 * Wait on the fw_event to complete. If this returns 1, then
 		 * the event was never executed, and we need a put for the
-		 * reference the delayed_work had on the fw_event.
+		 * reference the work had on the fw_event.
 		 *
 		 * If it did execute, we wait for it to finish, and the put will
 		 * happen from _firmware_event_work()
 		 */
-		if (cancel_delayed_work_sync(&fw_event->delayed_work))
+		if (cancel_work_sync(&fw_event->work))
 			fw_event_work_put(fw_event);
 
 		fw_event_work_put(fw_event);
