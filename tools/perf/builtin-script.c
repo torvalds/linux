@@ -791,7 +791,7 @@ static void process_event(struct perf_script *script,
 	if (PRINT_FIELD(IP)) {
 		struct callchain_cursor *cursor = NULL, cursor_callchain;
 
-		if (symbol_conf.use_callchain &&
+		if (symbol_conf.use_callchain && sample->callchain &&
 		    thread__resolve_callchain(al->thread, &cursor_callchain, evsel,
 					      sample, NULL, NULL, scripting_max_stack) == 0)
 			cursor = &cursor_callchain;
