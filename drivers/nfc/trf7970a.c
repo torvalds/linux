@@ -1048,6 +1048,10 @@ static int trf7970a_init(struct trf7970a *trf)
 	if (ret)
 		goto err_out;
 
+	ret = trf7970a_write(trf, TRF7970A_NFC_TARGET_LEVEL, 0);
+	if (ret)
+		goto err_out;
+
 	usleep_range(1000, 2000);
 
 	trf->chip_status_ctrl &= ~TRF7970A_CHIP_STATUS_RF_ON;
