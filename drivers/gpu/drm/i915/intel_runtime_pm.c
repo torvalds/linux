@@ -397,11 +397,6 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_MODESET) |			\
 	BIT(POWER_DOMAIN_AUX_A) |			\
 	BIT(POWER_DOMAIN_INIT))
-#define SKL_DISPLAY_ALWAYS_ON_POWER_DOMAINS (		\
-	(POWER_DOMAIN_MASK & ~(				\
-	SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
-	SKL_DISPLAY_DC_OFF_POWER_DOMAINS)) |		\
-	BIT(POWER_DOMAIN_INIT))
 
 #define BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_TRANSCODER_A) |		\
@@ -423,10 +418,6 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
 	BIT(POWER_DOMAIN_MODESET) |			\
 	BIT(POWER_DOMAIN_AUX_A) |			\
-	BIT(POWER_DOMAIN_INIT))
-#define BXT_DISPLAY_ALWAYS_ON_POWER_DOMAINS (		\
-	(POWER_DOMAIN_MASK & ~(				\
-	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS)) |	\
 	BIT(POWER_DOMAIN_INIT))
 
 static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
@@ -1627,7 +1618,6 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	(POWER_DOMAIN_MASK & ~BDW_ALWAYS_ON_POWER_DOMAINS) |	\
 	BIT(POWER_DOMAIN_INIT))
 
-#define VLV_ALWAYS_ON_POWER_DOMAINS	BIT(POWER_DOMAIN_INIT)
 #define VLV_DISPLAY_POWER_DOMAINS	POWER_DOMAIN_MASK
 
 #define VLV_DPIO_CMN_BC_POWER_DOMAINS (		\
@@ -1725,7 +1715,7 @@ static struct i915_power_well hsw_power_wells[] = {
 	{
 		.name = "always-on",
 		.always_on = 1,
-		.domains = HSW_ALWAYS_ON_POWER_DOMAINS,
+		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 	},
 	{
@@ -1739,7 +1729,7 @@ static struct i915_power_well bdw_power_wells[] = {
 	{
 		.name = "always-on",
 		.always_on = 1,
-		.domains = BDW_ALWAYS_ON_POWER_DOMAINS,
+		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 	},
 	{
@@ -1774,7 +1764,7 @@ static struct i915_power_well vlv_power_wells[] = {
 	{
 		.name = "always-on",
 		.always_on = 1,
-		.domains = VLV_ALWAYS_ON_POWER_DOMAINS,
+		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.data = PUNIT_POWER_WELL_ALWAYS_ON,
 	},
@@ -1832,7 +1822,7 @@ static struct i915_power_well chv_power_wells[] = {
 	{
 		.name = "always-on",
 		.always_on = 1,
-		.domains = VLV_ALWAYS_ON_POWER_DOMAINS,
+		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 	},
 	{
@@ -1876,7 +1866,7 @@ static struct i915_power_well skl_power_wells[] = {
 	{
 		.name = "always-on",
 		.always_on = 1,
-		.domains = SKL_DISPLAY_ALWAYS_ON_POWER_DOMAINS,
+		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.data = SKL_DISP_PW_ALWAYS_ON,
 	},
@@ -1936,7 +1926,7 @@ static struct i915_power_well bxt_power_wells[] = {
 	{
 		.name = "always-on",
 		.always_on = 1,
-		.domains = BXT_DISPLAY_ALWAYS_ON_POWER_DOMAINS,
+		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 	},
 	{
