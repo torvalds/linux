@@ -7200,7 +7200,7 @@ static void vlv_compute_dpll(struct intel_crtc *crtc,
 		pipe_config->dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
 	/* DPLL not used with DSI, but still need the rest set up */
-	if (!intel_pipe_will_have_type(pipe_config, INTEL_OUTPUT_DSI))
+	if (!pipe_config->has_dsi_encoder)
 		pipe_config->dpll_hw_state.dpll |= DPLL_VCO_ENABLE |
 			DPLL_EXT_BUFFER_ENABLE_VLV;
 
@@ -7217,7 +7217,7 @@ static void chv_compute_dpll(struct intel_crtc *crtc,
 		pipe_config->dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
 	/* DPLL not used with DSI, but still need the rest set up */
-	if (!intel_pipe_will_have_type(pipe_config, INTEL_OUTPUT_DSI))
+	if (!pipe_config->has_dsi_encoder)
 		pipe_config->dpll_hw_state.dpll |= DPLL_VCO_ENABLE;
 
 	pipe_config->dpll_hw_state.dpll_md =
