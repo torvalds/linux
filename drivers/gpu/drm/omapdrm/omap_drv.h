@@ -244,10 +244,7 @@ static inline int align_pitch(int pitch, int width, int bpp)
 	int bytespp = (bpp + 7) / 8;
 	/* in case someone tries to feed us a completely bogus stride: */
 	pitch = max(pitch, width * bytespp);
-	/* PVR needs alignment to 8 pixels.. right now that is the most
-	 * restrictive stride requirement..
-	 */
-	return roundup(pitch, 8 * bytespp);
+	return pitch;
 }
 
 /* map crtc to vblank mask */
