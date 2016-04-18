@@ -1352,6 +1352,9 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define OUT_CCIR656_MODE_1              6
 #define OUT_CCIR656_MODE_2              7
 
+#define AFBDC_RGB_COLOR_TRANSFORM	0
+#define AFBDC_YUV_COLOR_TRANSFORM	1
+
 enum cabc_stage_mode {
 	LAST_FRAME_PWM_VAL	= 0x0,
 	CUR_FRAME_PWM_VAL	= 0x1,

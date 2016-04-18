@@ -1336,10 +1336,10 @@ static int vop_init_fbdc_config(struct vop_device *vop_dev, int win_id)
 		return 0;
 	}
 
-	win->area[0].fbdc_mb_width = win->area[0].xact;
+	win->area[0].fbdc_mb_width = win->area[0].xvir;
 	win->area[0].fbdc_mb_height = win->area[0].yact;
 	win->area[0].fbdc_cor_en = 0; /* hreg_block_split */
-	win->area[0].fbdc_fmt_cfg |= 0 << 4;
+	win->area[0].fbdc_fmt_cfg |= AFBDC_YUV_COLOR_TRANSFORM << 4;
 
 	return 0;
 }
