@@ -53,7 +53,7 @@ struct amdgpu_hpd;
 
 #define AMDGPU_MAX_HPD_PINS 6
 #define AMDGPU_MAX_CRTCS 6
-#define AMDGPU_MAX_AFMT_BLOCKS 7
+#define AMDGPU_MAX_AFMT_BLOCKS 9
 
 enum amdgpu_rmx_type {
 	RMX_OFF,
