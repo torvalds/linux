@@ -1599,6 +1599,9 @@ static int rk32_dsi_enable(void)
 	MIPI_DBG("rk32_dsi_enable-------\n");
 	if (!dsi0->clk_on) {
 		dsi0->clk_on = 1;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+		pm_runtime_get_sync(&dsi0->pdev->dev);
+#endif
 		rk_fb_get_prmry_screen(dsi0->screen.screen);
 		dsi0->screen.lcdc_id = dsi0->screen.screen->lcdc_id;
 		rk32_init_phy_mode(dsi0->screen.lcdc_id);
@@ -1638,6 +1641,9 @@ static int rk32_dsi_disable(void)
 		dsi_power_off(0);
 		if (rk_mipi_get_dsi_num() == 2)
 			dsi_power_off(1);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+		pm_runtime_put(&dsi0->pdev->dev);
+#endif
 	}
 	return 0;
 }
@@ -1920,6 +1926,10 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 
 	sprintf(ops->name, "rk_mipi_dsi.%d", dsi->dsi_id);
 	platform_set_drvdata(pdev, dsi);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	/* enable power domain */
+	pm_runtime_enable(&pdev->dev);
+#endif
 
 	register_dsi_ops(dsi->dsi_id, &dsi->ops);
 
@@ -1964,8 +1974,17 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static int rockchip_mipi_remove(struct platform_device *pdev)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_disable(&pdev->dev);
+#endif
+	return 0;
+}
+
 static struct platform_driver rk32_mipi_dsi_driver = {
 	.probe = rk32_mipi_dsi_probe,
+	.remove = rockchip_mipi_remove,
 	.driver = {
 		.name = "rk32-mipi",
 		.owner = THIS_MODULE,
