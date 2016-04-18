@@ -1112,7 +1112,7 @@ struct i40iw_hmc_ops {
 	enum i40iw_status_code (*parse_fpm_query_buf)(u64 *, struct i40iw_hmc_info *,
 						      struct i40iw_hmc_fpm_misc *);
 	enum i40iw_status_code (*configure_iw_fpm)(struct i40iw_sc_dev *, u8);
-	enum i40iw_status_code (*parse_fpm_commit_buf)(u64 *, struct i40iw_hmc_obj_info *);
+	enum i40iw_status_code (*parse_fpm_commit_buf)(u64 *, struct i40iw_hmc_obj_info *, u32 *sd);
 	enum i40iw_status_code (*create_hmc_object)(struct i40iw_sc_dev *dev,
 						    struct i40iw_hmc_create_obj_info *);
 	enum i40iw_status_code (*del_hmc_object)(struct i40iw_sc_dev *dev,
