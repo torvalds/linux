@@ -516,7 +516,7 @@ struct uprobe_xol_ops {
 
 static inline int sizeof_long(void)
 {
-	return is_ia32_task() ? 4 : 8;
+	return in_ia32_syscall() ? 4 : 8;
 }
 
 static int default_pre_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
