@@ -69,6 +69,19 @@ enum omap_channel omap_crtc_channel(struct drm_crtc *crtc)
 	return omap_crtc->channel;
 }
 
+static bool omap_crtc_is_pending(struct drm_crtc *crtc)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	unsigned long flags;
+	bool pending;
+
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	pending = omap_crtc->pending;
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
+	return pending;
+}
+
 int omap_crtc_wait_pending(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -78,7 +91,7 @@ int omap_crtc_wait_pending(struct drm_crtc *crtc)
 	 * a single frame refresh even on slower displays.
 	 */
 	return wait_event_timeout(omap_crtc->pending_wait,
-				  !omap_crtc->pending,
+				  !omap_crtc_is_pending(crtc),
 				  msecs_to_jiffies(250));
 }
 
@@ -296,6 +309,7 @@ static void omap_crtc_vblank_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 	struct omap_crtc *omap_crtc =
 			container_of(irq, struct omap_crtc, vblank_irq);
 	struct drm_device *dev = omap_crtc->base.dev;
+	struct drm_crtc *crtc = &omap_crtc->base;
 
 	if (dispc_mgr_go_busy(omap_crtc->channel))
 		return;
@@ -304,10 +318,10 @@ static void omap_crtc_vblank_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 
 	__omap_irq_unregister(dev, &omap_crtc->vblank_irq);
 
-	rmb();
+	spin_lock(&crtc->dev->event_lock);
 	WARN_ON(!omap_crtc->pending);
 	omap_crtc->pending = false;
-	wmb();
+	spin_unlock(&crtc->dev->event_lock);
 
 	/* wake up userspace */
 	omap_crtc_complete_page_flip(&omap_crtc->base);
@@ -339,10 +353,10 @@ static void omap_crtc_enable(struct drm_crtc *crtc)
 
 	DBG("%s", omap_crtc->name);
 
-	rmb();
+	spin_lock_irq(&crtc->dev->event_lock);
 	WARN_ON(omap_crtc->pending);
 	omap_crtc->pending = true;
-	wmb();
+	spin_unlock_irq(&crtc->dev->event_lock);
 
 	omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
 
@@ -427,16 +441,13 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	DBG("%s: GO", omap_crtc->name);
 
-	rmb();
+	spin_lock_irq(&crtc->dev->event_lock);
 	WARN_ON(omap_crtc->pending);
 	omap_crtc->pending = true;
-	wmb();
 
-	if (crtc->state->event) {
-		spin_lock_irq(&crtc->dev->event_lock);
+	if (crtc->state->event)
 		omap_crtc->event = crtc->state->event;
-		spin_unlock_irq(&crtc->dev->event_lock);
-	}
+	spin_unlock_irq(&crtc->dev->event_lock);
 
 	dispc_mgr_go(omap_crtc->channel);
 	omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
