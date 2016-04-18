@@ -297,9 +297,10 @@ static void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 	}
 
 	/*
-	 * Don't allow RAM to be mapped - this causes problems with ARMv6+
+	 * Don't allow RAM to be mapped with mismatched attributes - this
+	 * causes problems with ARMv6+
 	 */
-	if (WARN_ON(pfn_valid(pfn)))
+	if (WARN_ON(pfn_valid(pfn) && mtype != MT_MEMORY_RW))
 		return NULL;
 
 	area = get_vm_area_caller(size, VM_IOREMAP, caller);
@@ -380,11 +381,15 @@ void __iomem *ioremap(resource_size_t res_cookie, size_t size)
 EXPORT_SYMBOL(ioremap);
 
 void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size)
+	__alias(ioremap_cached);
+
+void __iomem *ioremap_cached(resource_size_t res_cookie, size_t size)
 {
 	return arch_ioremap_caller(res_cookie, size, MT_DEVICE_CACHED,
 				   __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_cache);
+EXPORT_SYMBOL(ioremap_cached);
 
 void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size)
 {
@@ -412,6 +417,13 @@ __arm_ioremap_exec(phys_addr_t phys_addr, size_t size, bool cached)
 
 	return __arm_ioremap_caller(phys_addr, size, mtype,
 			__builtin_return_address(0));
+}
+
+void *arch_memremap_wb(phys_addr_t phys_addr, size_t size)
+{
+	return (__force void *)arch_ioremap_caller(phys_addr, size,
+						   MT_MEMORY_RW,
+						   __builtin_return_address(0));
 }
 
 void __iounmap(volatile void __iomem *io_addr)

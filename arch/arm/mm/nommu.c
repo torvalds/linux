@@ -367,11 +367,15 @@ void __iomem *ioremap(resource_size_t res_cookie, size_t size)
 EXPORT_SYMBOL(ioremap);
 
 void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size)
+	__alias(ioremap_cached);
+
+void __iomem *ioremap_cached(resource_size_t res_cookie, size_t size)
 {
 	return __arm_ioremap_caller(res_cookie, size, MT_DEVICE_CACHED,
 				    __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_cache);
+EXPORT_SYMBOL(ioremap_cached);
 
 void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size)
 {
@@ -379,6 +383,11 @@ void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size)
 				    __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_wc);
+
+void *arch_memremap_wb(phys_addr_t phys_addr, size_t size)
+{
+	return (void *)phys_addr;
+}
 
 void __iounmap(volatile void __iomem *addr)
 {
