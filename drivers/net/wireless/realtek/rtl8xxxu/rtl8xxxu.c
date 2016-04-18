@@ -8266,8 +8266,8 @@ static void rtl8723au_report_connect(struct rtl8xxxu_priv *priv,
 	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.joinbss));
 }
 
-static void rtl8723bu_report_connect(struct rtl8xxxu_priv *priv,
-				     u8 macid, bool connect)
+static void rtl8xxxu_gen2_report_connect(struct rtl8xxxu_priv *priv,
+					 u8 macid, bool connect)
 {
 	struct h2c_cmd h2c;
 
@@ -9926,7 +9926,7 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.usb_quirks = rtl8xxxu_gen2_usb_quirks,
 	.set_tx_power = rtl8723b_set_tx_power,
 	.update_rate_mask = rtl8xxxu_gen2_update_rate_mask,
-	.report_connect = rtl8723bu_report_connect,
+	.report_connect = rtl8xxxu_gen2_report_connect,
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,
@@ -9997,7 +9997,7 @@ static struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.usb_quirks = rtl8xxxu_gen2_usb_quirks,
 	.set_tx_power = rtl8192e_set_tx_power,
 	.update_rate_mask = rtl8xxxu_gen2_update_rate_mask,
-	.report_connect = rtl8723bu_report_connect,
+	.report_connect = rtl8xxxu_gen2_report_connect,
 	.writeN_block_size = 128,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,
