@@ -2345,7 +2345,7 @@ static void rtl8723au_config_channel(struct ieee80211_hw *hw)
 	}
 }
 
-static void rtl8723bu_config_channel(struct ieee80211_hw *hw)
+static void rtl8xxxu_gen2_config_channel(struct ieee80211_hw *hw)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
 	u32 val32, rsr;
@@ -9917,7 +9917,7 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.init_phy_rf = rtl8723bu_init_phy_rf,
 	.phy_init_antenna_selection = rtl8723bu_phy_init_antenna_selection,
 	.phy_iq_calibrate = rtl8723bu_phy_iq_calibrate,
-	.config_channel = rtl8723bu_config_channel,
+	.config_channel = rtl8xxxu_gen2_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc24,
 	.init_aggregation = rtl8723bu_init_aggregation,
 	.init_statistics = rtl8723bu_init_statistics,
@@ -9990,7 +9990,7 @@ static struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.init_phy_bb = rtl8192eu_init_phy_bb,
 	.init_phy_rf = rtl8192eu_init_phy_rf,
 	.phy_iq_calibrate = rtl8192eu_phy_iq_calibrate,
-	.config_channel = rtl8723bu_config_channel,
+	.config_channel = rtl8xxxu_gen2_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc24,
 	.enable_rf = rtl8192e_enable_rf,
 	.disable_rf = rtl8723b_disable_rf,
