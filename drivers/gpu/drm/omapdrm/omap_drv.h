@@ -127,10 +127,6 @@ int omap_gem_resume(struct device *dev);
 
 int omap_irq_enable_vblank(struct drm_device *dev, unsigned int pipe);
 void omap_irq_disable_vblank(struct drm_device *dev, unsigned int pipe);
-void __omap_irq_register(struct drm_device *dev, struct omap_drm_irq *irq);
-void __omap_irq_unregister(struct drm_device *dev, struct omap_drm_irq *irq);
-void omap_irq_register(struct drm_device *dev, struct omap_drm_irq *irq);
-void omap_irq_unregister(struct drm_device *dev, struct omap_drm_irq *irq);
 void omap_drm_irq_uninstall(struct drm_device *dev);
 int omap_drm_irq_install(struct drm_device *dev);
 
