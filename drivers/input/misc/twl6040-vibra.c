@@ -45,7 +45,6 @@
 struct vibra_info {
 	struct device *dev;
 	struct input_dev *input_dev;
-	struct workqueue_struct *workqueue;
 	struct work_struct play_work;
 	struct mutex mutex;
 	int irq;
@@ -213,7 +212,7 @@ static int vibra_play(struct input_dev *input, void *data,
 	info->strong_speed = effect->u.rumble.strong_magnitude;
 	info->direction = effect->direction < EFFECT_DIR_180_DEG ? 1 : -1;
 
-	ret = queue_work(info->workqueue, &info->play_work);
+	ret = schedule_work(&info->play_work);
 	if (!ret) {
 		dev_info(&input->dev, "work is already on queue\n");
 		return ret;
