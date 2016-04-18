@@ -673,10 +673,10 @@ static void dsa_slave_get_ethtool_stats(struct net_device *dev,
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 
-	data[0] = p->dev->stats.tx_packets;
-	data[1] = p->dev->stats.tx_bytes;
-	data[2] = p->dev->stats.rx_packets;
-	data[3] = p->dev->stats.rx_bytes;
+	data[0] = dev->stats.tx_packets;
+	data[1] = dev->stats.tx_bytes;
+	data[2] = dev->stats.rx_packets;
+	data[3] = dev->stats.rx_bytes;
 	if (ds->drv->get_ethtool_stats != NULL)
 		ds->drv->get_ethtool_stats(ds, p->port, data + 4);
 }
@@ -1063,7 +1063,6 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	slave_dev->vlan_features = master->vlan_features;
 
 	p = netdev_priv(slave_dev);
-	p->dev = slave_dev;
 	p->parent = ds;
 	p->port = port;
 
