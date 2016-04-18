@@ -1276,12 +1276,6 @@ int udp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 	{
 		unsigned int amount = first_packet_length(sk);
 
-		if (amount)
-			/*
-			 * We will only return the amount
-			 * of this packet since that is all
-			 * that will be read.
-			 */
 		return put_user(amount, (int __user *)arg);
 	}
 
