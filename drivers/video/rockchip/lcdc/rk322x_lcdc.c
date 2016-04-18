@@ -1306,7 +1306,7 @@ static int vop_axi_gather_cfg(struct vop_device *vop_dev,
 static int vop_fbdc_reg_update(struct vop_device *vop_dev, int win_id)
 {
 	struct rk_lcdc_win *win = vop_dev->driver.win[win_id];
-	u32 val;
+	u64 val;
 
 	val = V_VOP_FBDC_WIN_SEL(win_id) |
 		V_AFBCD_HREG_PIXEL_PACKING_FMT(win->area[0].fbdc_fmt_cfg) |
