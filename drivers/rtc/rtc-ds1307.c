@@ -863,7 +863,7 @@ out:
  * A user-initiated temperature conversion is not started by this function,
  * so the temperature is updated once every 64 seconds.
  */
-static int ds3231_hwmon_read_temp(struct device *dev, s16 *mC)
+static int ds3231_hwmon_read_temp(struct device *dev, s32 *mC)
 {
 	struct ds1307 *ds1307 = dev_get_drvdata(dev);
 	u8 temp_buf[2];
@@ -892,7 +892,7 @@ static ssize_t ds3231_hwmon_show_temp(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int ret;
-	s16 temp;
+	s32 temp;
 
 	ret = ds3231_hwmon_read_temp(dev, &temp);
 	if (ret)
