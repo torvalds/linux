@@ -280,7 +280,6 @@ struct i40e_ring {
 	u16 reg_idx;			/* HW register index of the ring */
 	u16 rx_hdr_len;
 	u16 rx_buf_len;
-	u8  dtype;
 #define I40E_RX_DTYPE_NO_SPLIT      0
 #define I40E_RX_DTYPE_HEADER_SPLIT  1
 #define I40E_RX_DTYPE_SPLIT_ALWAYS  2

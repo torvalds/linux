@@ -268,10 +268,9 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 rx_ring->queue_index,
 			 rx_ring->reg_idx);
 		dev_info(&pf->pdev->dev,
-			 "    rx_rings[%i]: rx_hdr_len = %d, rx_buf_len = %d, dtype = %d\n",
+			 "    rx_rings[%i]: rx_hdr_len = %d, rx_buf_len = %d\n",
 			 i, rx_ring->rx_hdr_len,
-			 rx_ring->rx_buf_len,
-			 rx_ring->dtype);
+			 rx_ring->rx_buf_len);
 		dev_info(&pf->pdev->dev,
 			 "    rx_rings[%i]: next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
 			 i,
@@ -325,9 +324,6 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 i, tx_ring->state,
 			 tx_ring->queue_index,
 			 tx_ring->reg_idx);
-		dev_info(&pf->pdev->dev,
-			 "    tx_rings[%i]: dtype = %d\n",
-			 i, tx_ring->dtype);
 		dev_info(&pf->pdev->dev,
 			 "    tx_rings[%i]: next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
 			 i,
