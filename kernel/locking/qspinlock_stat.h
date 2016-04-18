@@ -191,8 +191,6 @@ static ssize_t qstat_write(struct file *file, const char __user *user_buf,
 
 		for (i = 0 ; i < qstat_num; i++)
 			WRITE_ONCE(ptr[i], 0);
-		for (i = 0 ; i < qstat_num; i++)
-			WRITE_ONCE(ptr[i], 0);
 	}
 	return count;
 }
