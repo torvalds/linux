@@ -516,7 +516,6 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	enum port port;
-	u32 tmp;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -535,11 +534,13 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	msleep(intel_dsi->panel_on_delay);
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		u32 val;
+
 		/* Disable DPOunit clock gating, can stall pipe */
-		tmp = I915_READ(DSPCLK_GATE_D);
-		tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
-		I915_WRITE(DSPCLK_GATE_D, tmp);
+		val = I915_READ(DSPCLK_GATE_D);
+		val |= DPOUNIT_CLOCK_GATE_DISABLE;
+		I915_WRITE(DSPCLK_GATE_D, val);
 	}
 
 	/* put device in ready state */
@@ -677,7 +678,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder)
 
 	intel_dsi_clear_device_ready(encoder);
 
-	if (!IS_BROXTON(dev_priv)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		u32 val;
 
 		val = I915_READ(DSPCLK_GATE_D);
