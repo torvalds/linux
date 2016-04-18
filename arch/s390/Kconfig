@@ -211,7 +211,7 @@ config HAVE_MARCH_Z13_FEATURES
 
 choice
 	prompt "Processor type"
-	default MARCH_Z900
+	default MARCH_Z196
 
 config MARCH_Z900
 	bool "IBM zSeries model z800 and z900"
