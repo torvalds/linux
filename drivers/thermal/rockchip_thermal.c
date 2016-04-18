@@ -405,8 +405,8 @@ static int rk_tsadcv2_code_to_temp(struct chip_tsadc_table table, u32 code,
 			return -EAGAIN;		/* Incorrect reading */
 
 		while (low <= high) {
-			if (code >= table.id[mid - 1].code &&
-			    code < table.id[mid].code)
+			if (code <= table.id[mid].code &&
+			    code > table.id[mid - 1].code)
 				break;
 			else if (code > table.id[mid].code)
 				low = mid + 1;
