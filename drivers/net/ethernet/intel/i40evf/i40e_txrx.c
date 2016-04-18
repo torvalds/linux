@@ -504,22 +504,6 @@ void i40evf_clean_rx_ring(struct i40e_ring *rx_ring)
 	if (!rx_ring->rx_bi)
 		return;
 
-	if (ring_is_ps_enabled(rx_ring)) {
-		int bufsz = ALIGN(rx_ring->rx_hdr_len, 256) * rx_ring->count;
-
-		rx_bi = &rx_ring->rx_bi[0];
-		if (rx_bi->hdr_buf) {
-			dma_free_coherent(dev,
-					  bufsz,
-					  rx_bi->hdr_buf,
-					  rx_bi->dma);
-			for (i = 0; i < rx_ring->count; i++) {
-				rx_bi = &rx_ring->rx_bi[i];
-				rx_bi->dma = 0;
-				rx_bi->hdr_buf = NULL;
-			}
-		}
-	}
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
 		rx_bi = &rx_ring->rx_bi[i];
@@ -1435,10 +1419,7 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 	i40e_for_each_ring(ring, q_vector->rx) {
 		int cleaned;
 
-		if (ring_is_ps_enabled(ring))
-			cleaned = i40e_clean_rx_irq_ps(ring, budget_per_ring);
-		else
-			cleaned = i40e_clean_rx_irq_1buf(ring, budget_per_ring);
+		cleaned = i40e_clean_rx_irq_1buf(ring, budget_per_ring);
 
 		work_done += cleaned;
 		/* if we clean as many as budgeted, we must not be done */

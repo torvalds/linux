@@ -527,11 +527,7 @@ static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
  **/
 static u32 i40evf_get_priv_flags(struct net_device *dev)
 {
-	struct i40evf_adapter *adapter = netdev_priv(dev);
 	u32 ret_flags = 0;
-
-	ret_flags |= adapter->flags & I40EVF_FLAG_RX_PS_ENABLED ?
-		I40EVF_PRIV_FLAGS_PS : 0;
 
 	return ret_flags;
 }
@@ -545,16 +541,6 @@ static int i40evf_set_priv_flags(struct net_device *dev, u32 flags)
 {
 	struct i40evf_adapter *adapter = netdev_priv(dev);
 	bool reset_required = false;
-
-	if ((flags & I40EVF_PRIV_FLAGS_PS) &&
-	    !(adapter->flags & I40EVF_FLAG_RX_PS_ENABLED)) {
-		adapter->flags |= I40EVF_FLAG_RX_PS_ENABLED;
-		reset_required = true;
-	} else if (!(flags & I40EVF_PRIV_FLAGS_PS) &&
-		   (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED)) {
-		adapter->flags &= ~I40EVF_FLAG_RX_PS_ENABLED;
-		reset_required = true;
-	}
 
 	/* if needed, issue reset to cause things to take effect */
 	if (reset_required)

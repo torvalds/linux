@@ -209,8 +209,6 @@ struct i40evf_adapter {
 	u32 flags;
 #define I40EVF_FLAG_RX_CSUM_ENABLED              BIT(0)
 #define I40EVF_FLAG_RX_1BUF_CAPABLE              BIT(1)
-#define I40EVF_FLAG_RX_PS_CAPABLE                BIT(2)
-#define I40EVF_FLAG_RX_PS_ENABLED                BIT(3)
 #define I40EVF_FLAG_IMIR_ENABLED                 BIT(5)
 #define I40EVF_FLAG_MQ_CAPABLE                   BIT(6)
 #define I40EVF_FLAG_NEED_LINK_UPDATE             BIT(7)
