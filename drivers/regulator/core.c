@@ -808,8 +808,6 @@ static int suspend_set_state(struct regulator_dev *rdev,
 /* locks held by caller */
 static int suspend_prepare(struct regulator_dev *rdev, suspend_state_t state)
 {
-	lockdep_assert_held_once(&rdev->mutex);
-
 	if (!rdev->constraints)
 		return -EINVAL;
 
