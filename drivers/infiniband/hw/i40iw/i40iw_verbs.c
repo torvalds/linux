@@ -63,8 +63,8 @@ static int i40iw_query_device(struct ib_device *ibdev,
 	ether_addr_copy((u8 *)&props->sys_image_guid, iwdev->netdev->dev_addr);
 	props->fw_ver = I40IW_FW_VERSION;
 	props->device_cap_flags = iwdev->device_cap_flags;
-	props->vendor_id = iwdev->vendor_id;
-	props->vendor_part_id = iwdev->vendor_part_id;
+	props->vendor_id = iwdev->ldev->pcidev->vendor;
+	props->vendor_part_id = iwdev->ldev->pcidev->device;
 	props->hw_ver = (u32)iwdev->sc_dev.hw_rev;
 	props->max_mr_size = I40IW_MAX_OUTBOUND_MESSAGE_SIZE;
 	props->max_qp = iwdev->max_qp;
