@@ -4595,8 +4595,8 @@ static bool rtl8xxxu_simularity_compare(struct rtl8xxxu_priv *priv,
 	return false;
 }
 
-static bool rtl8723bu_simularity_compare(struct rtl8xxxu_priv *priv,
-					 int result[][8], int c1, int c2)
+static bool rtl8xxxu_gen2_simularity_compare(struct rtl8xxxu_priv *priv,
+					     int result[][8], int c1, int c2)
 {
 	u32 i, j, diff, simubitmap, bound = 0;
 	int candidate[2] = {-1, -1};	/* for path A and path B */
@@ -6237,7 +6237,8 @@ static void rtl8723bu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 		rtl8723bu_phy_iqcalibrate(priv, result, i);
 
 		if (i == 1) {
-			simu = rtl8723bu_simularity_compare(priv, result, 0, 1);
+			simu = rtl8xxxu_gen2_simularity_compare(priv,
+								result, 0, 1);
 			if (simu) {
 				candidate = 0;
 				break;
@@ -6245,13 +6246,15 @@ static void rtl8723bu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 		}
 
 		if (i == 2) {
-			simu = rtl8723bu_simularity_compare(priv, result, 0, 2);
+			simu = rtl8xxxu_gen2_simularity_compare(priv,
+								result, 0, 2);
 			if (simu) {
 				candidate = 0;
 				break;
 			}
 
-			simu = rtl8723bu_simularity_compare(priv, result, 1, 2);
+			simu = rtl8xxxu_gen2_simularity_compare(priv,
+								result, 1, 2);
 			if (simu) {
 				candidate = 1;
 			} else {
@@ -6352,7 +6355,8 @@ static void rtl8192eu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 		rtl8192eu_phy_iqcalibrate(priv, result, i);
 
 		if (i == 1) {
-			simu = rtl8723bu_simularity_compare(priv, result, 0, 1);
+			simu = rtl8xxxu_gen2_simularity_compare(priv,
+								result, 0, 1);
 			if (simu) {
 				candidate = 0;
 				break;
@@ -6360,13 +6364,15 @@ static void rtl8192eu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 		}
 
 		if (i == 2) {
-			simu = rtl8723bu_simularity_compare(priv, result, 0, 2);
+			simu = rtl8xxxu_gen2_simularity_compare(priv,
+								result, 0, 2);
 			if (simu) {
 				candidate = 0;
 				break;
 			}
 
-			simu = rtl8723bu_simularity_compare(priv, result, 1, 2);
+			simu = rtl8xxxu_gen2_simularity_compare(priv,
+								result, 1, 2);
 			if (simu)
 				candidate = 1;
 			else
