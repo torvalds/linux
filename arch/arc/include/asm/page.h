@@ -83,7 +83,9 @@ typedef pte_t * pgtable_t;
 
 #define ARCH_PFN_OFFSET		virt_to_pfn(CONFIG_LINUX_LINK_BASE)
 
+#ifdef CONFIG_FLATMEM
 #define pfn_valid(pfn)		(((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
+#endif
 
 /*
  * __pa, __va, virt_to_page (ALERT: deprecated, don't use them)
@@ -95,9 +97,7 @@ typedef pte_t * pgtable_t;
 #define __pa(vaddr)  ((unsigned long)(vaddr))
 #define __va(paddr)  ((void *)((unsigned long)(paddr)))
 
-#define virt_to_page(kaddr)	\
-	(mem_map + virt_to_pfn((kaddr) - CONFIG_LINUX_LINK_BASE))
-
+#define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define virt_addr_valid(kaddr)  pfn_valid(virt_to_pfn(kaddr))
 
 /* Default Permissions for stack/heaps pages (Non Executable) */
