@@ -328,7 +328,7 @@ static int f7188x_gpio_set_single_ended(struct gpio_chip *chip,
 		data &= ~BIT(offset);
 	else
 		data |= BIT(offset);
-	superio_outb(sio->addr, gpio_data_mode(bank->regbase), data);
+	superio_outb(sio->addr, gpio_out_mode(bank->regbase), data);
 
 	superio_exit(sio->addr);
 	return 0;
