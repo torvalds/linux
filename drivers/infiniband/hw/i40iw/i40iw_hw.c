@@ -467,7 +467,7 @@ int i40iw_manage_apbvt(struct i40iw_device *iwdev, u16 accel_local_port, bool ad
  */
 void i40iw_manage_arp_cache(struct i40iw_device *iwdev,
 			    unsigned char *mac_addr,
-			    __be32 *ip_addr,
+			    u32 *ip_addr,
 			    bool ipv4,
 			    u32 action)
 {
@@ -488,7 +488,7 @@ void i40iw_manage_arp_cache(struct i40iw_device *iwdev,
 		cqp_info->cqp_cmd = OP_ADD_ARP_CACHE_ENTRY;
 		info = &cqp_info->in.u.add_arp_cache_entry.info;
 		memset(info, 0, sizeof(*info));
-		info->arp_index = cpu_to_le32(arp_index);
+		info->arp_index = cpu_to_le16((u16)arp_index);
 		info->permanent = true;
 		ether_addr_copy(info->mac_addr, mac_addr);
 		cqp_info->in.u.add_arp_cache_entry.scratch = (uintptr_t)cqp_request;

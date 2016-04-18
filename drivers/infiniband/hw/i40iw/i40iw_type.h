@@ -890,8 +890,8 @@ struct i40iw_qhash_table_info {
 	u32 qp_num;
 	u32 dest_ip[4];
 	u32 src_ip[4];
-	u32 dest_port;
-	u32 src_port;
+	u16 dest_port;
+	u16 src_port;
 };
 
 struct i40iw_local_mac_ipaddr_entry_info {

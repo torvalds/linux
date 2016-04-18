@@ -391,7 +391,7 @@ void i40iw_flush_wqes(struct i40iw_device *iwdev,
 
 void i40iw_manage_arp_cache(struct i40iw_device *iwdev,
 			    unsigned char *mac_addr,
-			    __be32 *ip_addr,
+			    u32 *ip_addr,
 			    bool ipv4,
 			    u32 action);
 
@@ -549,7 +549,7 @@ enum i40iw_status_code i40iw_hw_flush_wqes(struct i40iw_device *iwdev,
 					   struct i40iw_qp_flush_info *info,
 					   bool wait);
 
-void i40iw_copy_ip_ntohl(u32 *dst, u32 *src);
+void i40iw_copy_ip_ntohl(u32 *dst, __be32 *src);
 struct ib_mr *i40iw_reg_phys_mr(struct ib_pd *ib_pd,
 				u64 addr,
 				u64 size,

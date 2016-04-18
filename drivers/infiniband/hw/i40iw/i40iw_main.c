@@ -1162,7 +1162,7 @@ static void i40iw_add_ipv6_addr(struct i40iw_device *iwdev)
 	struct net_device *ip_dev;
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifp;
-	__be32 local_ipaddr6[4];
+	u32 local_ipaddr6[4];
 
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, ip_dev) {

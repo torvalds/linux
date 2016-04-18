@@ -771,6 +771,7 @@ static void i40iw_build_mpa_v2(struct i40iw_cm_node *cm_node,
 {
 	struct ietf_mpa_v2 *mpa_frame = (struct ietf_mpa_v2 *)start_addr;
 	struct ietf_rtr_msg *rtr_msg = &mpa_frame->rtr_msg;
+	u16 ctrl_ird, ctrl_ord;
 
 	/* initialize the upper 5 bytes of the frame */
 	i40iw_build_mpa_v1(cm_node, start_addr, mpa_key);
@@ -779,38 +780,38 @@ static void i40iw_build_mpa_v2(struct i40iw_cm_node *cm_node,
 
 	/* initialize RTR msg */
 	if (cm_node->mpav2_ird_ord == IETF_NO_IRD_ORD) {
-		rtr_msg->ctrl_ird = IETF_NO_IRD_ORD;
-		rtr_msg->ctrl_ord = IETF_NO_IRD_ORD;
+		ctrl_ird = IETF_NO_IRD_ORD;
+		ctrl_ord = IETF_NO_IRD_ORD;
 	} else {
-		rtr_msg->ctrl_ird = (cm_node->ird_size > IETF_NO_IRD_ORD) ?
+		ctrl_ird = (cm_node->ird_size > IETF_NO_IRD_ORD) ?
 			IETF_NO_IRD_ORD : cm_node->ird_size;
-		rtr_msg->ctrl_ord = (cm_node->ord_size > IETF_NO_IRD_ORD) ?
+		ctrl_ord = (cm_node->ord_size > IETF_NO_IRD_ORD) ?
 			IETF_NO_IRD_ORD : cm_node->ord_size;
 	}
 
-	rtr_msg->ctrl_ird |= IETF_PEER_TO_PEER;
-	rtr_msg->ctrl_ird |= IETF_FLPDU_ZERO_LEN;
+	ctrl_ird |= IETF_PEER_TO_PEER;
+	ctrl_ird |= IETF_FLPDU_ZERO_LEN;
 
 	switch (mpa_key) {
 	case MPA_KEY_REQUEST:
-		rtr_msg->ctrl_ord |= IETF_RDMA0_WRITE;
-		rtr_msg->ctrl_ord |= IETF_RDMA0_READ;
+		ctrl_ord |= IETF_RDMA0_WRITE;
+		ctrl_ord |= IETF_RDMA0_READ;
 		break;
 	case MPA_KEY_REPLY:
 		switch (cm_node->send_rdma0_op) {
 		case SEND_RDMA_WRITE_ZERO:
-			rtr_msg->ctrl_ord |= IETF_RDMA0_WRITE;
+			ctrl_ord |= IETF_RDMA0_WRITE;
 			break;
 		case SEND_RDMA_READ_ZERO:
-			rtr_msg->ctrl_ord |= IETF_RDMA0_READ;
+			ctrl_ord |= IETF_RDMA0_READ;
 			break;
 		}
 		break;
 	default:
 		break;
 	}
-	rtr_msg->ctrl_ird = htons(rtr_msg->ctrl_ird);
-	rtr_msg->ctrl_ord = htons(rtr_msg->ctrl_ord);
+	rtr_msg->ctrl_ird = htons(ctrl_ird);
+	rtr_msg->ctrl_ord = htons(ctrl_ord);
 }
 
 /**
@@ -2160,7 +2161,7 @@ static struct i40iw_cm_node *i40iw_make_cm_node(
 	cm_node->tcp_cntxt.rcv_wnd =
 			I40IW_CM_DEFAULT_RCV_WND_SCALED >> I40IW_CM_DEFAULT_RCV_WND_SCALE;
 	ts = current_kernel_time();
-	cm_node->tcp_cntxt.loc_seq_num = htonl(ts.tv_nsec);
+	cm_node->tcp_cntxt.loc_seq_num = ts.tv_nsec;
 	cm_node->tcp_cntxt.mss = iwdev->mss;
 
 	cm_node->iwdev = iwdev;
@@ -2234,7 +2235,7 @@ static void i40iw_rem_ref_cm_node(struct i40iw_cm_node *cm_node)
 	if (cm_node->listener) {
 		i40iw_dec_refcnt_listen(cm_core, cm_node->listener, 0, true);
 	} else {
-		if (!i40iw_listen_port_in_use(cm_core, htons(cm_node->loc_port)) &&
+		if (!i40iw_listen_port_in_use(cm_core, cm_node->loc_port) &&
 		    cm_node->apbvt_set && cm_node->iwdev) {
 			i40iw_manage_apbvt(cm_node->iwdev,
 					   cm_node->loc_port,
@@ -2921,7 +2922,6 @@ static struct i40iw_cm_node *i40iw_create_cm_node(
 	memcpy(cm_node->pdata_buf, private_data, private_data_len);
 
 	cm_node->state = I40IW_CM_STATE_SYN_SENT;
-
 	return cm_node;
 }
 
@@ -3242,11 +3242,13 @@ static void i40iw_init_tcp_ctx(struct i40iw_cm_node *cm_node,
 
 		tcp_info->dest_ip_addr3 = cpu_to_le32(cm_node->rem_addr[0]);
 		tcp_info->local_ipaddr3 = cpu_to_le32(cm_node->loc_addr[0]);
-		tcp_info->arp_idx = cpu_to_le32(i40iw_arp_table(iwqp->iwdev,
-								&tcp_info->dest_ip_addr3,
-								true,
-								NULL,
-								I40IW_ARP_RESOLVE));
+		tcp_info->arp_idx =
+			cpu_to_le16((u16)i40iw_arp_table(
+							 iwqp->iwdev,
+							 &tcp_info->dest_ip_addr3,
+							 true,
+							 NULL,
+							 I40IW_ARP_RESOLVE));
 	} else {
 		tcp_info->src_port = cpu_to_le16(cm_node->loc_port);
 		tcp_info->dst_port = cpu_to_le16(cm_node->rem_port);
@@ -3258,12 +3260,13 @@ static void i40iw_init_tcp_ctx(struct i40iw_cm_node *cm_node,
 		tcp_info->local_ipaddr1 = cpu_to_le32(cm_node->loc_addr[1]);
 		tcp_info->local_ipaddr2 = cpu_to_le32(cm_node->loc_addr[2]);
 		tcp_info->local_ipaddr3 = cpu_to_le32(cm_node->loc_addr[3]);
-		tcp_info->arp_idx = cpu_to_le32(i40iw_arp_table(
-							iwqp->iwdev,
-							&tcp_info->dest_ip_addr0,
-							false,
-							NULL,
-							I40IW_ARP_RESOLVE));
+		tcp_info->arp_idx =
+			cpu_to_le16((u16)i40iw_arp_table(
+							 iwqp->iwdev,
+							 &tcp_info->dest_ip_addr0,
+							 false,
+							 NULL,
+							 I40IW_ARP_RESOLVE));
 	}
 }
 
@@ -3540,7 +3543,6 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct i40iw_cm_node *cm_node;
 	struct ib_qp_attr attr;
 	int passive_state;
-	struct i40iw_ib_device *iwibdev;
 	struct ib_mr *ibmr;
 	struct i40iw_pd *iwpd;
 	u16 buf_len = 0;
@@ -3603,7 +3605,6 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	     !i40iw_ipv4_is_loopback(cm_node->loc_addr[0], cm_node->rem_addr[0])) ||
 	    (!cm_node->ipv4 &&
 	     !i40iw_ipv6_is_loopback(cm_node->loc_addr, cm_node->rem_addr))) {
-		iwibdev = iwdev->iwibdev;
 		iwpd = iwqp->iwpd;
 		tagged_offset = (uintptr_t)iwqp->ietf_mem.va;
 		ibmr = i40iw_reg_phys_mr(&iwpd->ibpd,

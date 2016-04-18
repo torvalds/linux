@@ -3970,11 +3970,11 @@ enum i40iw_status_code i40iw_process_bh(struct i40iw_sc_dev *dev)
  */
 static u32 i40iw_iwarp_opcode(struct i40iw_aeqe_info *info, u8 *pkt)
 {
-	u16 *mpa;
+	__be16 *mpa;
 	u32 opcode = 0xffffffff;
 
 	if (info->q2_data_written) {
-		mpa = (u16 *)pkt;
+		mpa = (__be16 *)pkt;
 		opcode = ntohs(mpa[1]) & 0xf;
 	}
 	return opcode;
@@ -4036,7 +4036,7 @@ static int i40iw_bld_terminate_hdr(struct i40iw_sc_qp *qp,
 	if (info->q2_data_written) {
 		/* Use data from offending packet to fill in ddp & rdma hdrs */
 		pkt = i40iw_locate_mpa(pkt);
-		ddp_seg_len = ntohs(*(u16 *)pkt);
+		ddp_seg_len = ntohs(*(__be16 *)pkt);
 		if (ddp_seg_len) {
 			copy_len = 2;
 			termhdr->hdrct = DDP_LEN_FLAG;
@@ -4247,13 +4247,13 @@ void i40iw_terminate_connection(struct i40iw_sc_qp *qp, struct i40iw_aeqe_info *
 void i40iw_terminate_received(struct i40iw_sc_qp *qp, struct i40iw_aeqe_info *info)
 {
 	u8 *pkt = qp->q2_buf + Q2_BAD_FRAME_OFFSET;
-	u32 *mpa;
+	__be32 *mpa;
 	u8 ddp_ctl;
 	u8 rdma_ctl;
 	u16 aeq_id = 0;
 	struct i40iw_terminate_hdr *termhdr;
 
-	mpa = (u32 *)i40iw_locate_mpa(pkt);
+	mpa = (__be32 *)i40iw_locate_mpa(pkt);
 	if (info->q2_data_written) {
 		/* did not validate the frame - do it now */
 		ddp_ctl = (ntohl(mpa[0]) >> 8) & 0xff;

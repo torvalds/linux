@@ -59,7 +59,7 @@
  * @action: modify, delete or add
  */
 int i40iw_arp_table(struct i40iw_device *iwdev,
-		    __be32 *ip_addr,
+		    u32 *ip_addr,
 		    bool ipv4,
 		    u8 *mac_addr,
 		    u32 action)
@@ -152,7 +152,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	struct net_device *upper_dev;
 	struct i40iw_device *iwdev;
 	struct i40iw_handler *hdl;
-	__be32 local_ipaddr;
+	u32 local_ipaddr;
 
 	hdl = i40iw_find_netdev(event_netdev);
 	if (!hdl)
@@ -167,11 +167,10 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	switch (event) {
 	case NETDEV_DOWN:
 		if (upper_dev)
-			local_ipaddr =
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address;
+			local_ipaddr = ntohl(
+				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
 		else
-			local_ipaddr = ifa->ifa_address;
-		local_ipaddr = ntohl(local_ipaddr);
+			local_ipaddr = ntohl(ifa->ifa_address);
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       &local_ipaddr,
@@ -180,11 +179,10 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 		return NOTIFY_OK;
 	case NETDEV_UP:
 		if (upper_dev)
-			local_ipaddr =
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address;
+			local_ipaddr = ntohl(
+				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
 		else
-			local_ipaddr = ifa->ifa_address;
-		local_ipaddr = ntohl(local_ipaddr);
+			local_ipaddr = ntohl(ifa->ifa_address);
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       &local_ipaddr,
@@ -194,12 +192,11 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	case NETDEV_CHANGEADDR:
 		/* Add the address to the IP table */
 		if (upper_dev)
-			local_ipaddr =
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address;
+			local_ipaddr = ntohl(
+				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
 		else
-			local_ipaddr = ifa->ifa_address;
+			local_ipaddr = ntohl(ifa->ifa_address);
 
-		local_ipaddr = ntohl(local_ipaddr);
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       &local_ipaddr,
@@ -227,7 +224,7 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 	struct net_device *netdev;
 	struct i40iw_device *iwdev;
 	struct i40iw_handler *hdl;
-	__be32 local_ipaddr6[4];
+	u32 local_ipaddr6[4];
 
 	hdl = i40iw_find_netdev(event_netdev);
 	if (!hdl)
