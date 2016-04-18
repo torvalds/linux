@@ -304,7 +304,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	if (nstreams) {
 		csi_cfg.csi_id = 1;
 		csi_cfg.flags = 0;
-		csi_cfg.num_lanes = 4;
+		csi_cfg.num_lanes = resp->num_lanes;
 		csi_cfg.bus_freq = cpu_to_le32(960000000);
 		csi_cfg.lines_per_second = resp->lines_per_second;
 		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
