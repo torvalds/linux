@@ -881,12 +881,12 @@ static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 	if (!fifo)
 		goto usbhsf_pio_prepare_push;
 
-	if (usbhsf_dma_map(pkt) < 0)
-		goto usbhsf_pio_prepare_push;
-
 	ret = usbhsf_fifo_select(pipe, fifo, 0);
 	if (ret < 0)
-		goto usbhsf_pio_prepare_push_unmap;
+		goto usbhsf_pio_prepare_push;
+
+	if (usbhsf_dma_map(pkt) < 0)
+		goto usbhsf_pio_prepare_push_unselect;
 
 	pkt->trans = len;
 
@@ -896,8 +896,8 @@ static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 
 	return 0;
 
-usbhsf_pio_prepare_push_unmap:
-	usbhsf_dma_unmap(pkt);
+usbhsf_pio_prepare_push_unselect:
+	usbhsf_fifo_unselect(pipe, fifo);
 usbhsf_pio_prepare_push:
 	/*
 	 * change handler to PIO
