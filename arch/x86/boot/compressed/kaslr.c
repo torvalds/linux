@@ -312,7 +312,7 @@ unsigned char *choose_random_location(unsigned char *input,
 				      unsigned long output_size)
 {
 	unsigned long choice = (unsigned long)output;
-	unsigned long random;
+	unsigned long random_addr;
 
 #ifdef CONFIG_HIBERNATION
 	if (!cmdline_find_option_bool("kaslr")) {
@@ -333,17 +333,17 @@ unsigned char *choose_random_location(unsigned char *input,
 		       (unsigned long)output, output_size);
 
 	/* Walk e820 and find a random address. */
-	random = find_random_addr(choice, output_size);
-	if (!random) {
+	random_addr = find_random_addr(choice, output_size);
+	if (!random_addr) {
 		debug_putstr("KASLR could not find suitable E820 region...\n");
 		goto out;
 	}
 
 	/* Always enforce the minimum. */
-	if (random < choice)
+	if (random_addr < choice)
 		goto out;
 
-	choice = random;
+	choice = random_addr;
 out:
 	return (unsigned char *)choice;
 }
