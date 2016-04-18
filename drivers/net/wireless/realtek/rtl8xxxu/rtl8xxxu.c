@@ -2080,7 +2080,7 @@ static void rtl8723bu_write_btreg(struct rtl8xxxu_priv *priv, u8 reg, u8 data)
 	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.bt_mp_oper));
 }
 
-static void rtl8723a_enable_rf(struct rtl8xxxu_priv *priv)
+static void rtl8xxxu_gen1_enable_rf(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
 	u32 val32;
@@ -9885,7 +9885,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.phy_iq_calibrate = rtl8xxxu_gen1_phy_iq_calibrate,
 	.config_channel = rtl8xxxu_gen1_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc16,
-	.enable_rf = rtl8723a_enable_rf,
+	.enable_rf = rtl8xxxu_gen1_enable_rf,
 	.disable_rf = rtl8xxxu_gen1_disable_rf,
 	.usb_quirks = rtl8xxxu_gen1_usb_quirks,
 	.set_tx_power = rtl8xxxu_gen1_set_tx_power,
@@ -9957,7 +9957,7 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.phy_iq_calibrate = rtl8xxxu_gen1_phy_iq_calibrate,
 	.config_channel = rtl8xxxu_gen1_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc16,
-	.enable_rf = rtl8723a_enable_rf,
+	.enable_rf = rtl8xxxu_gen1_enable_rf,
 	.disable_rf = rtl8xxxu_gen1_disable_rf,
 	.usb_quirks = rtl8xxxu_gen1_usb_quirks,
 	.set_tx_power = rtl8xxxu_gen1_set_tx_power,
