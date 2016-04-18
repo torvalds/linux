@@ -106,6 +106,7 @@ u32 i40iw_initialize_hw_resources(struct i40iw_device *iwdev)
 	set_bit(2, iwdev->allocated_pds);
 
 	spin_lock_init(&iwdev->resource_lock);
+	spin_lock_init(&iwdev->qptable_lock);
 	mrdrvbits = 24 - get_count_order(iwdev->max_mr);
 	iwdev->mr_stagmask = ~(((1 << mrdrvbits) - 1) << (32 - mrdrvbits));
 	return 0;
@@ -301,11 +302,15 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 			    "%s ae_id = 0x%x bool qp=%d qp_id = %d\n",
 			    __func__, info->ae_id, info->qp, info->qp_cq_id);
 		if (info->qp) {
+			spin_lock_irqsave(&iwdev->qptable_lock, flags);
 			iwqp = iwdev->qp_table[info->qp_cq_id];
 			if (!iwqp) {
+				spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
 				i40iw_pr_err("qp_id %d is already freed\n", info->qp_cq_id);
 				continue;
 			}
+			i40iw_add_ref(&iwqp->ibqp);
+			spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
 			qp = &iwqp->sc_qp;
 			spin_lock_irqsave(&iwqp->lock, flags);
 			iwqp->hw_tcp_state = info->tcp_state;
@@ -411,6 +416,8 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 				i40iw_terminate_connection(qp, info);
 				break;
 		}
+		if (info->qp)
+			i40iw_rem_ref(&iwqp->ibqp);
 	} while (1);
 
 	if (aeqcnt)

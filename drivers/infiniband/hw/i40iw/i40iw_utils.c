@@ -506,14 +506,19 @@ void i40iw_rem_ref(struct ib_qp *ibqp)
 	struct cqp_commands_info *cqp_info;
 	struct i40iw_device *iwdev;
 	u32 qp_num;
+	unsigned long flags;
 
 	iwqp = to_iwqp(ibqp);
-	if (!atomic_dec_and_test(&iwqp->refcount))
-		return;
-
 	iwdev = iwqp->iwdev;
+	spin_lock_irqsave(&iwdev->qptable_lock, flags);
+	if (!atomic_dec_and_test(&iwqp->refcount)) {
+		spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
+		return;
+	}
+
 	qp_num = iwqp->ibqp.qp_num;
 	iwdev->qp_table[qp_num] = NULL;
+	spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
 	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, false);
 	if (!cqp_request)
 		return;

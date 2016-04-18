@@ -254,6 +254,7 @@ struct i40iw_device {
 	u32 arp_table_size;
 	u32 next_arp_index;
 	spinlock_t resource_lock; /* hw resource access */
+	spinlock_t qptable_lock;
 	u32 vendor_id;
 	u32 vendor_part_id;
 	u32 of_device_registered;
