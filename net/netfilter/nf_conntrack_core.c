@@ -142,12 +142,13 @@ EXPORT_SYMBOL_GPL(nf_conntrack_max);
 DEFINE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
 EXPORT_PER_CPU_SYMBOL(nf_conntrack_untracked);
 
-unsigned int nf_conntrack_hash_rnd __read_mostly;
-EXPORT_SYMBOL_GPL(nf_conntrack_hash_rnd);
+static unsigned int nf_conntrack_hash_rnd __read_mostly;
 
 static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple)
 {
 	unsigned int n;
+
+	get_random_once(&nf_conntrack_hash_rnd, sizeof(nf_conntrack_hash_rnd));
 
 	/* The direction must be ignored, so we hash everything up to the
 	 * destination ports (which is a multiple of 4) and treat the last
@@ -815,21 +816,6 @@ restart:
 	return dropped;
 }
 
-void init_nf_conntrack_hash_rnd(void)
-{
-	unsigned int rand;
-
-	/*
-	 * Why not initialize nf_conntrack_rnd in a "init()" function ?
-	 * Because there isn't enough entropy when system initializing,
-	 * and we initialize it as late as possible.
-	 */
-	do {
-		get_random_bytes(&rand, sizeof(rand));
-	} while (!rand);
-	cmpxchg(&nf_conntrack_hash_rnd, 0, rand);
-}
-
 static struct nf_conn *
 __nf_conntrack_alloc(struct net *net,
 		     const struct nf_conntrack_zone *zone,
@@ -838,12 +824,6 @@ __nf_conntrack_alloc(struct net *net,
 		     gfp_t gfp, u32 hash)
 {
 	struct nf_conn *ct;
-
-	if (unlikely(!nf_conntrack_hash_rnd)) {
-		init_nf_conntrack_hash_rnd();
-		/* recompute the hash as nf_conntrack_hash_rnd is initialized */
-		hash = hash_conntrack_raw(orig);
-	}
 
 	/* We don't want any race condition at early drop stage */
 	atomic_inc(&net->ct.count);
