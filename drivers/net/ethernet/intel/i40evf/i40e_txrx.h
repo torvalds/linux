@@ -259,15 +259,18 @@ struct i40e_rx_queue_stats {
 enum i40e_ring_state_t {
 	__I40E_TX_FDIR_INIT_DONE,
 	__I40E_TX_XPS_INIT_DONE,
-	__I40E_RX_16BYTE_DESC_ENABLED,
 };
 
-#define ring_is_16byte_desc_enabled(ring) \
-	test_bit(__I40E_RX_16BYTE_DESC_ENABLED, &(ring)->state)
-#define set_ring_16byte_desc_enabled(ring) \
-	set_bit(__I40E_RX_16BYTE_DESC_ENABLED, &(ring)->state)
-#define clear_ring_16byte_desc_enabled(ring) \
-	clear_bit(__I40E_RX_16BYTE_DESC_ENABLED, &(ring)->state)
+/* some useful defines for virtchannel interface, which
+ * is the only remaining user of header split
+ */
+#define I40E_RX_DTYPE_NO_SPLIT      0
+#define I40E_RX_DTYPE_HEADER_SPLIT  1
+#define I40E_RX_DTYPE_SPLIT_ALWAYS  2
+#define I40E_RX_SPLIT_L2      0x1
+#define I40E_RX_SPLIT_IP      0x2
+#define I40E_RX_SPLIT_TCP_UDP 0x4
+#define I40E_RX_SPLIT_SCTP    0x8
 
 /* struct that defines a descriptor ring, associated with a VSI */
 struct i40e_ring {
@@ -287,13 +290,6 @@ struct i40e_ring {
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */
 	u16 rx_buf_len;
-#define I40E_RX_DTYPE_NO_SPLIT      0
-#define I40E_RX_DTYPE_HEADER_SPLIT  1
-#define I40E_RX_DTYPE_SPLIT_ALWAYS  2
-#define I40E_RX_SPLIT_L2      0x1
-#define I40E_RX_SPLIT_IP      0x2
-#define I40E_RX_SPLIT_TCP_UDP 0x4
-#define I40E_RX_SPLIT_SCTP    0x8
 
 	/* used in interrupt processing */
 	u16 next_to_use;

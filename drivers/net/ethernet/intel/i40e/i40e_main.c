@@ -2861,14 +2861,12 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	rx_ctx.base = (ring->dma / 128);
 	rx_ctx.qlen = ring->count;
 
-	if (vsi->back->flags & I40E_FLAG_16BYTE_RX_DESC_ENABLED) {
-		set_ring_16byte_desc_enabled(ring);
-		rx_ctx.dsize = 0;
-	} else {
-		rx_ctx.dsize = 1;
-	}
+	/* use 32 byte descriptors */
+	rx_ctx.dsize = 1;
 
-	rx_ctx.dtype = vsi->dtype;
+	/* descriptor type is always zero
+	 * rx_ctx.dtype = 0;
+	 */
 	rx_ctx.hsplit_0 = 0;
 
 	rx_ctx.rxmax = min_t(u16, vsi->max_frame, chain_len * ring->rx_buf_len);
@@ -2948,7 +2946,6 @@ static int i40e_vsi_configure_rx(struct i40e_vsi *vsi)
 		vsi->max_frame = I40E_RXBUFFER_2048;
 
 	vsi->rx_buf_len = I40E_RXBUFFER_2048;
-	vsi->dtype = I40E_RX_DTYPE_NO_SPLIT;
 
 #ifdef I40E_FCOE
 	/* setup rx buffer for FCoE */
@@ -2956,7 +2953,6 @@ static int i40e_vsi_configure_rx(struct i40e_vsi *vsi)
 	    (vsi->back->flags & I40E_FLAG_FCOE_ENABLED)) {
 		vsi->rx_buf_len = I40E_RXBUFFER_3072;
 		vsi->max_frame = I40E_RXBUFFER_3072;
-		vsi->dtype = I40E_RX_DTYPE_NO_SPLIT;
 	}
 
 #endif /* I40E_FCOE */
@@ -7476,10 +7472,6 @@ static int i40e_alloc_rings(struct i40e_vsi *vsi)
 		rx_ring->count = vsi->num_desc;
 		rx_ring->size = 0;
 		rx_ring->dcb_tc = 0;
-		if (pf->flags & I40E_FLAG_16BYTE_RX_DESC_ENABLED)
-			set_ring_16byte_desc_enabled(rx_ring);
-		else
-			clear_ring_16byte_desc_enabled(rx_ring);
 		rx_ring->rx_itr_setting = pf->rx_itr_default;
 		vsi->rx_rings[i] = rx_ring;
 	}
