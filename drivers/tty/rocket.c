@@ -615,7 +615,8 @@ static void rp_do_poll(unsigned long dummy)
  *  the board.  
  *  Inputs:  board, aiop, chan numbers
  */
-static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
+static void __init
+init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 {
 	unsigned rocketMode;
 	struct r_port *info;
