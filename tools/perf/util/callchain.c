@@ -109,6 +109,7 @@ __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 	bool record_opt_set = false;
 	bool try_stack_size = false;
 
+	callchain_param.enabled = true;
 	symbol_conf.use_callchain = true;
 
 	if (!arg)
@@ -117,6 +118,7 @@ __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 	while ((tok = strtok((char *)arg, ",")) != NULL) {
 		if (!strncmp(tok, "none", strlen(tok))) {
 			callchain_param.mode = CHAIN_NONE;
+			callchain_param.enabled = false;
 			symbol_conf.use_callchain = false;
 			return 0;
 		}
