@@ -565,7 +565,24 @@ static const struct scsi_host_template usb_stor_host_template = {
 	/* lots of sg segments can be handled */
 	.sg_tablesize =			SCSI_MAX_SG_CHAIN_SEGMENTS,
 
-	/* limit the total size of a transfer to 120 KB */
+
+	/*
+	 * Limit the total size of a transfer to 120 KB.
+	 *
+	 * Some devices are known to choke with anything larger. It seems like
+	 * the problem stems from the fact that original IDE controllers had
+	 * only an 8-bit register to hold the number of sectors in one transfer
+	 * and even those couldn't handle a full 256 sectors.
+	 *
+	 * Because we want to make sure we interoperate with as many devices as
+	 * possible, we will maintain a 240 sector transfer size limit for USB
+	 * Mass Storage devices.
+	 *
+	 * Tests show that other operating have similar limits with Microsoft
+	 * Windows 7 limiting transfers to 128 sectors for both USB2 and USB3
+	 * and Apple Mac OS X 10.11 limiting transfers to 256 sectors for USB2
+	 * and 2048 for USB3 devices.
+	 */
 	.max_sectors =                  240,
 
 	/* merge commands... this seems to help performance, but
