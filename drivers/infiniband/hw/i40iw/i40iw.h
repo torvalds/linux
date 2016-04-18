@@ -50,8 +50,6 @@
 #include <rdma/ib_pack.h>
 #include <rdma/rdma_cm.h>
 #include <rdma/iw_cm.h>
-#include <rdma/iw_portmap.h>
-#include <rdma/rdma_netlink.h>
 #include <crypto/hash.h>
 
 #include "i40iw_status.h"
