@@ -66,7 +66,7 @@ int cmdline_find_option_bool(const char *option);
 
 
 #if CONFIG_RANDOMIZE_BASE
-/* aslr.c */
+/* kaslr.c */
 unsigned char *choose_kernel_location(struct boot_params *boot_params,
 				      unsigned char *input,
 				      unsigned long input_size,
