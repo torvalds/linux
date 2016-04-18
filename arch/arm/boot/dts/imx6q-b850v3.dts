@@ -51,18 +51,6 @@
 	chosen {
 		stdout-path = &uart3;
 	};
-
-	panel-lvds0 {
-		compatible = "auo,b133htn01";
-		backlight = <&backlight_lvds>;
-		ddc-i2c-bus = <&mux2_i2c2>;
-
-		port {
-			panel_in_lvds0: endpoint {
-				remote-endpoint = <&lvds0_out>;
-			};
-		};
-	};
 };
 
 &ldb {
@@ -77,14 +65,6 @@
 		fsl,data-mapping = "spwg";
 		fsl,data-width = <24>;
 		status = "okay";
-
-		port@4 {
-			reg = <4>;
-
-			lvds0_out: endpoint {
-				remote-endpoint = <&panel_in_lvds0>;
-			};
-		};
 	};
 };
 
