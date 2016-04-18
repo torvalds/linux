@@ -25,7 +25,6 @@
 #include <linux/buffer_head.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
-#include <linux/freezer.h>
 #include <linux/slab.h>
 #include <linux/migrate.h>
 #include <linux/ratelimit.h>
@@ -303,7 +302,7 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 		err = map_private_extent_buffer(buf, offset, 32,
 					&kaddr, &map_start, &map_len);
 		if (err)
-			return 1;
+			return err;
 		cur_len = min(len, map_len - (offset - map_start));
 		crc = btrfs_csum_data(kaddr + offset - map_start,
 				      crc, cur_len);
@@ -313,7 +312,7 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 	if (csum_size > sizeof(inline_result)) {
 		result = kzalloc(csum_size, GFP_NOFS);
 		if (!result)
-			return 1;
+			return -ENOMEM;
 	} else {
 		result = (char *)&inline_result;
 	}
@@ -334,7 +333,7 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 				val, found, btrfs_header_level(buf));
 			if (result != (char *)&inline_result)
 				kfree(result);
-			return 1;
+			return -EUCLEAN;
 		}
 	} else {
 		write_extent_buffer(buf, result, 0, csum_size);
@@ -513,11 +512,21 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 	eb = (struct extent_buffer *)page->private;
 	if (page != eb->pages[0])
 		return 0;
+
 	found_start = btrfs_header_bytenr(eb);
-	if (WARN_ON(found_start != start || !PageUptodate(page)))
-		return 0;
-	csum_tree_block(fs_info, eb, 0);
-	return 0;
+	/*
+	 * Please do not consolidate these warnings into a single if.
+	 * It is useful to know what went wrong.
+	 */
+	if (WARN_ON(found_start != start))
+		return -EUCLEAN;
+	if (WARN_ON(!PageUptodate(page)))
+		return -EUCLEAN;
+
+	ASSERT(memcmp_extent_buffer(eb, fs_info->fsid,
+			btrfs_header_fsid(), BTRFS_FSID_SIZE) == 0);
+
+	return csum_tree_block(fs_info, eb, 0);
 }
 
 static int check_tree_block_fsid(struct btrfs_fs_info *fs_info,
@@ -661,10 +670,8 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 				       eb, found_level);
 
 	ret = csum_tree_block(fs_info, eb, 1);
-	if (ret) {
-		ret = -EIO;
+	if (ret)
 		goto err;
-	}
 
 	/*
 	 * If this is a leaf block and it is corrupt, set the corrupt bit so
@@ -1055,7 +1062,7 @@ static void btree_invalidatepage(struct page *page, unsigned int offset,
 			   (unsigned long long)page_offset(page));
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
-		page_cache_release(page);
+		put_page(page);
 	}
 }
 
@@ -1757,7 +1764,7 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 	if (err)
 		return err;
 
-	bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
+	bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
 	bdi->congested_fn	= btrfs_congested_fn;
 	bdi->congested_data	= info;
 	bdi->capabilities |= BDI_CAP_CGROUP_WRITEBACK;
@@ -1831,7 +1838,7 @@ static int cleaner_kthread(void *arg)
 		 */
 		btrfs_delete_unused_bgs(root->fs_info);
 sleep:
-		if (!try_to_freeze() && !again) {
+		if (!again) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			if (!kthread_should_stop())
 				schedule();
@@ -1921,14 +1928,12 @@ sleep:
 		if (unlikely(test_bit(BTRFS_FS_STATE_ERROR,
 				      &root->fs_info->fs_state)))
 			btrfs_cleanup_transaction(root);
-		if (!try_to_freeze()) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			if (!kthread_should_stop() &&
-			    (!btrfs_transaction_blocked(root->fs_info) ||
-			     cannot_commit))
-				schedule_timeout(delay);
-			__set_current_state(TASK_RUNNING);
-		}
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (!kthread_should_stop() &&
+				(!btrfs_transaction_blocked(root->fs_info) ||
+				 cannot_commit))
+			schedule_timeout(delay);
+		__set_current_state(TASK_RUNNING);
 	} while (!kthread_should_stop());
 	return 0;
 }
@@ -2537,7 +2542,7 @@ int open_ctree(struct super_block *sb,
 		err = ret;
 		goto fail_bdi;
 	}
-	fs_info->dirty_metadata_batch = PAGE_CACHE_SIZE *
+	fs_info->dirty_metadata_batch = PAGE_SIZE *
 					(1 + ilog2(nr_cpu_ids));
 
 	ret = percpu_counter_init(&fs_info->delalloc_bytes, 0, GFP_KERNEL);
@@ -2782,7 +2787,7 @@ int open_ctree(struct super_block *sb,
 	 * flag our filesystem as having big metadata blocks if
 	 * they are bigger than the page size
 	 */
-	if (btrfs_super_nodesize(disk_super) > PAGE_CACHE_SIZE) {
+	if (btrfs_super_nodesize(disk_super) > PAGE_SIZE) {
 		if (!(features & BTRFS_FEATURE_INCOMPAT_BIG_METADATA))
 			printk(KERN_INFO "BTRFS: flagging fs with big metadata feature\n");
 		features |= BTRFS_FEATURE_INCOMPAT_BIG_METADATA;
@@ -2832,7 +2837,7 @@ int open_ctree(struct super_block *sb,
 
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
-				    SZ_4M / PAGE_CACHE_SIZE);
+				    SZ_4M / PAGE_SIZE);
 
 	tree_root->nodesize = nodesize;
 	tree_root->sectorsize = sectorsize;
@@ -4071,9 +4076,9 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 		ret = -EINVAL;
 	}
 	/* Only PAGE SIZE is supported yet */
-	if (sectorsize != PAGE_CACHE_SIZE) {
+	if (sectorsize != PAGE_SIZE) {
 		printk(KERN_ERR "BTRFS: sectorsize %llu not supported yet, only support %lu\n",
-				sectorsize, PAGE_CACHE_SIZE);
+				sectorsize, PAGE_SIZE);
 		ret = -EINVAL;
 	}
 	if (!is_power_of_2(nodesize) || nodesize < sectorsize ||

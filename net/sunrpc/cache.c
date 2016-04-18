@@ -881,7 +881,7 @@ static ssize_t cache_downcall(struct address_space *mapping,
 	char *kaddr;
 	ssize_t ret = -ENOMEM;
 
-	if (count >= PAGE_CACHE_SIZE)
+	if (count >= PAGE_SIZE)
 		goto out_slow;
 
 	page = find_or_create_page(mapping, 0, GFP_KERNEL);
@@ -892,7 +892,7 @@ static ssize_t cache_downcall(struct address_space *mapping,
 	ret = cache_do_downcall(kaddr, buf, count, cd);
 	kunmap(page);
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 	return ret;
 out_slow:
 	return cache_slow_downcall(buf, count, cd);

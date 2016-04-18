@@ -293,8 +293,8 @@ xfs_fs_commit_blocks(
 		 * Make sure reads through the pagecache see the new data.
 		 */
 		error = invalidate_inode_pages2_range(inode->i_mapping,
-					start >> PAGE_CACHE_SHIFT,
-					(end - 1) >> PAGE_CACHE_SHIFT);
+					start >> PAGE_SHIFT,
+					(end - 1) >> PAGE_SHIFT);
 		WARN_ON_ONCE(error);
 
 		error = xfs_iomap_write_unwritten(ip, start, length);

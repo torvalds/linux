@@ -149,7 +149,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	 * page size in question.  So for PMD mappings (which fall on
 	 * bit 23, for 8MB per PMD) we must propagate bit 22 for a
 	 * 4MB huge page.  For huge PUDs (which fall on bit 33, for
-	 * 8GB per PUD), we have to accomodate 256MB and 2GB huge
+	 * 8GB per PUD), we have to accommodate 256MB and 2GB huge
 	 * pages.  So for those we propagate bits 32 to 28.
 	 */
 #define KERN_PGTABLE_WALK(VADDR, REG1, REG2, FAIL_LABEL)	\

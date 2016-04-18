@@ -20,6 +20,7 @@
 #include <linux/pci.h>
 
 #include <asm/mce.h>
+#include <asm/smp.h>
 #include <asm/amd_nb.h>
 #include <asm/irq_vectors.h>
 
@@ -206,7 +207,7 @@ static u32 get_nbc_for_node(int node_id)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 	u32 cores_per_node;
 
-	cores_per_node = c->x86_max_cores / amd_get_nodes_per_socket();
+	cores_per_node = (c->x86_max_cores * smp_num_siblings) / amd_get_nodes_per_socket();
 
 	return cores_per_node * node_id;
 }

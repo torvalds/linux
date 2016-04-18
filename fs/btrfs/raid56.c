@@ -270,7 +270,7 @@ static void cache_rbio_pages(struct btrfs_raid_bio *rbio)
 		s = kmap(rbio->bio_pages[i]);
 		d = kmap(rbio->stripe_pages[i]);
 
-		memcpy(d, s, PAGE_CACHE_SIZE);
+		memcpy(d, s, PAGE_SIZE);
 
 		kunmap(rbio->bio_pages[i]);
 		kunmap(rbio->stripe_pages[i]);
@@ -962,7 +962,7 @@ static struct page *page_in_rbio(struct btrfs_raid_bio *rbio,
  */
 static unsigned long rbio_nr_pages(unsigned long stripe_len, int nr_stripes)
 {
-	return DIV_ROUND_UP(stripe_len, PAGE_CACHE_SIZE) * nr_stripes;
+	return DIV_ROUND_UP(stripe_len, PAGE_SIZE) * nr_stripes;
 }
 
 /*
@@ -1078,7 +1078,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 	u64 disk_start;
 
 	stripe = &rbio->bbio->stripes[stripe_nr];
-	disk_start = stripe->physical + (page_index << PAGE_CACHE_SHIFT);
+	disk_start = stripe->physical + (page_index << PAGE_SHIFT);
 
 	/* if the device is missing, just fail this stripe */
 	if (!stripe->dev->bdev)
@@ -1096,8 +1096,8 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 		if (last_end == disk_start && stripe->dev->bdev &&
 		    !last->bi_error &&
 		    last->bi_bdev == stripe->dev->bdev) {
-			ret = bio_add_page(last, page, PAGE_CACHE_SIZE, 0);
-			if (ret == PAGE_CACHE_SIZE)
+			ret = bio_add_page(last, page, PAGE_SIZE, 0);
+			if (ret == PAGE_SIZE)
 				return 0;
 		}
 	}
@@ -1111,7 +1111,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 	bio->bi_bdev = stripe->dev->bdev;
 	bio->bi_iter.bi_sector = disk_start >> 9;
 
-	bio_add_page(bio, page, PAGE_CACHE_SIZE, 0);
+	bio_add_page(bio, page, PAGE_SIZE, 0);
 	bio_list_add(bio_list, bio);
 	return 0;
 }
@@ -1154,7 +1154,7 @@ static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 	bio_list_for_each(bio, &rbio->bio_list) {
 		start = (u64)bio->bi_iter.bi_sector << 9;
 		stripe_offset = start - rbio->bbio->raid_map[0];
-		page_index = stripe_offset >> PAGE_CACHE_SHIFT;
+		page_index = stripe_offset >> PAGE_SHIFT;
 
 		for (i = 0; i < bio->bi_vcnt; i++) {
 			p = bio->bi_io_vec[i].bv_page;
@@ -1253,7 +1253,7 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 		} else {
 			/* raid5 */
 			memcpy(pointers[nr_data], pointers[0], PAGE_SIZE);
-			run_xor(pointers + 1, nr_data - 1, PAGE_CACHE_SIZE);
+			run_xor(pointers + 1, nr_data - 1, PAGE_SIZE);
 		}
 
 
@@ -1914,7 +1914,7 @@ pstripe:
 			/* Copy parity block into failed block to start with */
 			memcpy(pointers[faila],
 			       pointers[rbio->nr_data],
-			       PAGE_CACHE_SIZE);
+			       PAGE_SIZE);
 
 			/* rearrange the pointer array */
 			p = pointers[faila];
@@ -1923,7 +1923,7 @@ pstripe:
 			pointers[rbio->nr_data - 1] = p;
 
 			/* xor in the rest */
-			run_xor(pointers, rbio->nr_data - 1, PAGE_CACHE_SIZE);
+			run_xor(pointers, rbio->nr_data - 1, PAGE_SIZE);
 		}
 		/* if we're doing this rebuild as part of an rmw, go through
 		 * and set all of our private rbio pages in the
@@ -2250,7 +2250,7 @@ void raid56_add_scrub_pages(struct btrfs_raid_bio *rbio, struct page *page,
 	ASSERT(logical + PAGE_SIZE <= rbio->bbio->raid_map[0] +
 				rbio->stripe_len * rbio->nr_data);
 	stripe_offset = (int)(logical - rbio->bbio->raid_map[0]);
-	index = stripe_offset >> PAGE_CACHE_SHIFT;
+	index = stripe_offset >> PAGE_SHIFT;
 	rbio->bio_pages[index] = page;
 }
 
@@ -2365,14 +2365,14 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 		} else {
 			/* raid5 */
 			memcpy(pointers[nr_data], pointers[0], PAGE_SIZE);
-			run_xor(pointers + 1, nr_data - 1, PAGE_CACHE_SIZE);
+			run_xor(pointers + 1, nr_data - 1, PAGE_SIZE);
 		}
 
 		/* Check scrubbing pairty and repair it */
 		p = rbio_stripe_page(rbio, rbio->scrubp, pagenr);
 		parity = kmap(p);
-		if (memcmp(parity, pointers[rbio->scrubp], PAGE_CACHE_SIZE))
-			memcpy(parity, pointers[rbio->scrubp], PAGE_CACHE_SIZE);
+		if (memcmp(parity, pointers[rbio->scrubp], PAGE_SIZE))
+			memcpy(parity, pointers[rbio->scrubp], PAGE_SIZE);
 		else
 			/* Parity is right, needn't writeback */
 			bitmap_clear(rbio->dbitmap, pagenr, 1);

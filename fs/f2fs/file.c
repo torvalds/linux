@@ -74,11 +74,11 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 		goto mapped;
 
 	/* page is wholly or partially inside EOF */
-	if (((loff_t)(page->index + 1) << PAGE_CACHE_SHIFT) >
+	if (((loff_t)(page->index + 1) << PAGE_SHIFT) >
 						i_size_read(inode)) {
 		unsigned offset;
-		offset = i_size_read(inode) & ~PAGE_CACHE_MASK;
-		zero_user_segment(page, offset, PAGE_CACHE_SIZE);
+		offset = i_size_read(inode) & ~PAGE_MASK;
+		zero_user_segment(page, offset, PAGE_SIZE);
 	}
 	set_page_dirty(page);
 	SetPageUptodate(page);
@@ -346,11 +346,11 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 		goto found;
 	}
 
-	pgofs = (pgoff_t)(offset >> PAGE_CACHE_SHIFT);
+	pgofs = (pgoff_t)(offset >> PAGE_SHIFT);
 
 	dirty = __get_first_dirty_index(inode->i_mapping, pgofs, whence);
 
-	for (; data_ofs < isize; data_ofs = (loff_t)pgofs << PAGE_CACHE_SHIFT) {
+	for (; data_ofs < isize; data_ofs = (loff_t)pgofs << PAGE_SHIFT) {
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		err = get_dnode_of_data(&dn, pgofs, LOOKUP_NODE_RA);
 		if (err && err != -ENOENT) {
@@ -370,7 +370,7 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 		/* find data/hole in dnode block */
 		for (; dn.ofs_in_node < end_offset;
 				dn.ofs_in_node++, pgofs++,
-				data_ofs = (loff_t)pgofs << PAGE_CACHE_SHIFT) {
+				data_ofs = (loff_t)pgofs << PAGE_SHIFT) {
 			block_t blkaddr;
 			blkaddr = datablock_addr(dn.node_page, dn.ofs_in_node);
 
@@ -441,7 +441,7 @@ static int f2fs_file_mmap(struct file *file, struct vm_area_struct *vma)
 static int f2fs_file_open(struct inode *inode, struct file *filp)
 {
 	int ret = generic_file_open(inode, filp);
-	struct inode *dir = filp->f_path.dentry->d_parent->d_inode;
+	struct dentry *dir;
 
 	if (!ret && f2fs_encrypted_inode(inode)) {
 		ret = fscrypt_get_encryption_info(inode);
@@ -450,9 +450,13 @@ static int f2fs_file_open(struct inode *inode, struct file *filp)
 		if (!fscrypt_has_encryption_key(inode))
 			return -ENOKEY;
 	}
-	if (f2fs_encrypted_inode(dir) &&
-			!fscrypt_has_permitted_context(dir, inode))
+	dir = dget_parent(file_dentry(filp));
+	if (f2fs_encrypted_inode(d_inode(dir)) &&
+			!fscrypt_has_permitted_context(d_inode(dir), inode)) {
+		dput(dir);
 		return -EPERM;
+	}
+	dput(dir);
 	return ret;
 }
 
@@ -508,8 +512,8 @@ void truncate_data_blocks(struct dnode_of_data *dn)
 static int truncate_partial_data_page(struct inode *inode, u64 from,
 								bool cache_only)
 {
-	unsigned offset = from & (PAGE_CACHE_SIZE - 1);
-	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+	unsigned offset = from & (PAGE_SIZE - 1);
+	pgoff_t index = from >> PAGE_SHIFT;
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
 
@@ -529,7 +533,7 @@ static int truncate_partial_data_page(struct inode *inode, u64 from,
 		return 0;
 truncate_out:
 	f2fs_wait_on_page_writeback(page, DATA, true);
-	zero_user(page, offset, PAGE_CACHE_SIZE - offset);
+	zero_user(page, offset, PAGE_SIZE - offset);
 	if (!cache_only || !f2fs_encrypted_inode(inode) ||
 					!S_ISREG(inode->i_mode))
 		set_page_dirty(page);
@@ -799,11 +803,11 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	if (ret)
 		return ret;
 
-	pg_start = ((unsigned long long) offset) >> PAGE_CACHE_SHIFT;
-	pg_end = ((unsigned long long) offset + len) >> PAGE_CACHE_SHIFT;
+	pg_start = ((unsigned long long) offset) >> PAGE_SHIFT;
+	pg_end = ((unsigned long long) offset + len) >> PAGE_SHIFT;
 
-	off_start = offset & (PAGE_CACHE_SIZE - 1);
-	off_end = (offset + len) & (PAGE_CACHE_SIZE - 1);
+	off_start = offset & (PAGE_SIZE - 1);
+	off_end = (offset + len) & (PAGE_SIZE - 1);
 
 	if (pg_start == pg_end) {
 		ret = fill_zero(inode, pg_start, off_start,
@@ -813,7 +817,7 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	} else {
 		if (off_start) {
 			ret = fill_zero(inode, pg_start++, off_start,
-						PAGE_CACHE_SIZE - off_start);
+						PAGE_SIZE - off_start);
 			if (ret)
 				return ret;
 		}
@@ -830,8 +834,8 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 
 			f2fs_balance_fs(sbi, true);
 
-			blk_start = (loff_t)pg_start << PAGE_CACHE_SHIFT;
-			blk_end = (loff_t)pg_end << PAGE_CACHE_SHIFT;
+			blk_start = (loff_t)pg_start << PAGE_SHIFT;
+			blk_end = (loff_t)pg_end << PAGE_SHIFT;
 			truncate_inode_pages_range(mapping, blk_start,
 					blk_end - 1);
 
@@ -954,8 +958,8 @@ static int f2fs_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	if (ret)
 		return ret;
 
-	pg_start = offset >> PAGE_CACHE_SHIFT;
-	pg_end = (offset + len) >> PAGE_CACHE_SHIFT;
+	pg_start = offset >> PAGE_SHIFT;
+	pg_end = (offset + len) >> PAGE_SHIFT;
 
 	/* write out all dirty pages from offset */
 	ret = filemap_write_and_wait_range(inode->i_mapping, offset, LLONG_MAX);
@@ -1006,11 +1010,11 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 
 	truncate_pagecache_range(inode, offset, offset + len - 1);
 
-	pg_start = ((unsigned long long) offset) >> PAGE_CACHE_SHIFT;
-	pg_end = ((unsigned long long) offset + len) >> PAGE_CACHE_SHIFT;
+	pg_start = ((unsigned long long) offset) >> PAGE_SHIFT;
+	pg_end = ((unsigned long long) offset + len) >> PAGE_SHIFT;
 
-	off_start = offset & (PAGE_CACHE_SIZE - 1);
-	off_end = (offset + len) & (PAGE_CACHE_SIZE - 1);
+	off_start = offset & (PAGE_SIZE - 1);
+	off_end = (offset + len) & (PAGE_SIZE - 1);
 
 	if (pg_start == pg_end) {
 		ret = fill_zero(inode, pg_start, off_start,
@@ -1024,12 +1028,12 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 	} else {
 		if (off_start) {
 			ret = fill_zero(inode, pg_start++, off_start,
-						PAGE_CACHE_SIZE - off_start);
+						PAGE_SIZE - off_start);
 			if (ret)
 				return ret;
 
 			new_size = max_t(loff_t, new_size,
-					(loff_t)pg_start << PAGE_CACHE_SHIFT);
+					(loff_t)pg_start << PAGE_SHIFT);
 		}
 
 		for (index = pg_start; index < pg_end; index++) {
@@ -1060,7 +1064,7 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 			f2fs_unlock_op(sbi);
 
 			new_size = max_t(loff_t, new_size,
-				(loff_t)(index + 1) << PAGE_CACHE_SHIFT);
+				(loff_t)(index + 1) << PAGE_SHIFT);
 		}
 
 		if (off_end) {
@@ -1117,8 +1121,8 @@ static int f2fs_insert_range(struct inode *inode, loff_t offset, loff_t len)
 
 	truncate_pagecache(inode, offset);
 
-	pg_start = offset >> PAGE_CACHE_SHIFT;
-	pg_end = (offset + len) >> PAGE_CACHE_SHIFT;
+	pg_start = offset >> PAGE_SHIFT;
+	pg_end = (offset + len) >> PAGE_SHIFT;
 	delta = pg_end - pg_start;
 	nrpages = (i_size_read(inode) + PAGE_SIZE - 1) / PAGE_SIZE;
 
@@ -1158,11 +1162,11 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 
 	f2fs_balance_fs(sbi, true);
 
-	pg_start = ((unsigned long long) offset) >> PAGE_CACHE_SHIFT;
-	pg_end = ((unsigned long long) offset + len) >> PAGE_CACHE_SHIFT;
+	pg_start = ((unsigned long long) offset) >> PAGE_SHIFT;
+	pg_end = ((unsigned long long) offset + len) >> PAGE_SHIFT;
 
-	off_start = offset & (PAGE_CACHE_SIZE - 1);
-	off_end = (offset + len) & (PAGE_CACHE_SIZE - 1);
+	off_start = offset & (PAGE_SIZE - 1);
+	off_end = (offset + len) & (PAGE_SIZE - 1);
 
 	f2fs_lock_op(sbi);
 
@@ -1180,12 +1184,12 @@ noalloc:
 		if (pg_start == pg_end)
 			new_size = offset + len;
 		else if (index == pg_start && off_start)
-			new_size = (loff_t)(index + 1) << PAGE_CACHE_SHIFT;
+			new_size = (loff_t)(index + 1) << PAGE_SHIFT;
 		else if (index == pg_end)
-			new_size = ((loff_t)index << PAGE_CACHE_SHIFT) +
+			new_size = ((loff_t)index << PAGE_SHIFT) +
 								off_end;
 		else
-			new_size += PAGE_CACHE_SIZE;
+			new_size += PAGE_SIZE;
 	}
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
@@ -1652,8 +1656,8 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 	if (need_inplace_update(inode))
 		return -EINVAL;
 
-	pg_start = range->start >> PAGE_CACHE_SHIFT;
-	pg_end = (range->start + range->len) >> PAGE_CACHE_SHIFT;
+	pg_start = range->start >> PAGE_SHIFT;
+	pg_end = (range->start + range->len) >> PAGE_SHIFT;
 
 	f2fs_balance_fs(sbi, true);
 
@@ -1770,7 +1774,7 @@ clear_out:
 out:
 	inode_unlock(inode);
 	if (!err)
-		range->len = (u64)total << PAGE_CACHE_SHIFT;
+		range->len = (u64)total << PAGE_SHIFT;
 	return err;
 }
 

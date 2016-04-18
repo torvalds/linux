@@ -355,7 +355,7 @@ static s32 ixgbe_iosf_wait(struct ixgbe_hw *hw, u32 *ctrl)
 		command = IXGBE_READ_REG(hw, IXGBE_SB_IOSF_INDIRECT_CTRL);
 		if (!(command & IXGBE_SB_IOSF_CTRL_BUSY))
 			break;
-		usleep_range(10, 20);
+		udelay(10);
 	}
 	if (ctrl)
 		*ctrl = command;

@@ -43,7 +43,7 @@ enum bh_state_bits {
 			 */
 };
 
-#define MAX_BUF_PER_PAGE (PAGE_CACHE_SIZE / 512)
+#define MAX_BUF_PER_PAGE (PAGE_SIZE / 512)
 
 struct page;
 struct buffer_head;
@@ -263,7 +263,7 @@ void buffer_init(void);
 static inline void attach_page_buffers(struct page *page,
 		struct buffer_head *head)
 {
-	page_cache_get(page);
+	get_page(page);
 	SetPagePrivate(page);
 	set_page_private(page, (unsigned long)head);
 }
