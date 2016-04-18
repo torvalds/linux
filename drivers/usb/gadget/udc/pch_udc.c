@@ -2835,17 +2835,6 @@ static void pch_udc_setup_ep0(struct pch_udc_dev *dev)
 }
 
 /**
- * gadget_release() - Free the gadget driver private data
- * @pdev	reference to struct pci_dev
- */
-static void gadget_release(struct device *pdev)
-{
-	struct pch_udc_dev *dev = dev_get_drvdata(pdev);
-
-	kfree(dev);
-}
-
-/**
  * pch_udc_pcd_reinit() - This API initializes the endpoint structures
  * @dev:	Reference to the driver structure
  */
@@ -3151,8 +3140,7 @@ static int pch_udc_probe(struct pci_dev *pdev,
 
 	/* Put the device in disconnected state till a driver is bound */
 	pch_udc_set_disconnect(dev);
-	retval = usb_add_gadget_udc_release(&pdev->dev, &dev->gadget,
-			gadget_release);
+	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
 	if (retval)
 		goto finished;
 	return 0;
