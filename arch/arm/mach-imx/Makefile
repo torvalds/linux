@@ -90,6 +90,7 @@ obj-$(CONFIG_HAVE_IMX_GPCV2) += gpcv2.o
 obj-$(CONFIG_HAVE_IMX_MMDC) += mmdc.o
 obj-$(CONFIG_HAVE_IMX_DDRC) += ddrc.o
 obj-$(CONFIG_HAVE_IMX_SRC) += src.o
+obj-$(CONFIG_HAVE_IMX_MU) += mu.o
 obj-$(CONFIG_HAVE_IMX_RPMSG) += imx_rpmsg.o
 ifneq ($(CONFIG_SOC_IMX6)$(CONFIG_SOC_IMX7)$(CONFIG_SOC_LS1021A),)
 AFLAGS_headsmp.o :=-Wa,-march=armv7-a
@@ -107,10 +108,10 @@ obj-$(CONFIG_SOC_IMX6SL) += clk-imx6sl.o mach-imx6sl.o lpddr2_freq_imx6.o
 AFLAGS_ddr3_freq_imx6sx.o :=-Wa,-march=armv7-a
 AFLAGS_lpddr2_freq_imx6sx.o :=-Wa,-march=armv7-a
 obj-$(CONFIG_SOC_IMX6SX) += clk-imx6sx.o mach-imx6sx.o ddr3_freq_imx6sx.o \
-			    lpddr2_freq_imx6sx.o mu.o
+			    lpddr2_freq_imx6sx.o
 obj-$(CONFIG_SOC_IMX6UL) += clk-imx6ul.o mach-imx6ul.o ddr3_freq_imx6sx.o \
 			    lpddr2_freq_imx6sx.o
-obj-$(CONFIG_SOC_IMX7D) += clk-imx7d.o mach-imx7d.o mu.o
+obj-$(CONFIG_SOC_IMX7D) += clk-imx7d.o mach-imx7d.o
 
 ifeq ($(CONFIG_SUSPEND),y)
 AFLAGS_suspend-imx6.o :=-Wa,-march=armv7-a

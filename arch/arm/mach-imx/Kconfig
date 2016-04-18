@@ -69,6 +69,9 @@ config HAVE_IMX_AMP
 config HAVE_IMX_DDRC
 	bool
 
+config HAVE_IMX_MU
+	bool
+
 config HAVE_IMX_RPMSG
 	bool
 
@@ -597,6 +600,7 @@ config SOC_IMX6SX
 	select PINCTRL_IMX6SX
 	select HAVE_IMX_AMP
 	select SOC_IMX6
+	select HAVE_IMX_MU
 	select HAVE_IMX_RPMSG
 	select RPMSG
 	select IMX_SEMA4
@@ -639,6 +643,7 @@ config SOC_IMX7D
 	select SOC_IMX7
 	select PCI_DOMAINS if PCI
 	select PINCTRL_IMX7D
+	select HAVE_IMX_MU
 	select HAVE_IMX_RPMSG
 	select RPMSG
 	select KEYBOARD_SNVS_PWRKEY
