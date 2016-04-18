@@ -133,6 +133,11 @@ static int slave_configure(struct scsi_device *sdev)
 		 * let the queue segment size sort out the real limit.
 		 */
 		blk_queue_max_hw_sectors(sdev->request_queue, 0x7FFFFF);
+	} else if (us->pusb_dev->speed >= USB_SPEED_SUPER) {
+		/* USB3 devices will be limited to 2048 sectors. This gives us
+		 * better throughput on most devices.
+		 */
+		blk_queue_max_hw_sectors(sdev->request_queue, 2048);
 	}
 
 	/* Some USB host controllers can't do DMA; they have to use PIO.
