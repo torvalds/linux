@@ -92,6 +92,7 @@ struct i40iw_mr {
 	struct ib_umem *region;
 	u16 type;
 	u32 page_cnt;
+	u32 npages;
 	u32 stag;
 	u64 length;
 	u64 pgaddrmem[MAX_SAVE_PAGE_ADDRS];

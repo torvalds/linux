@@ -1041,6 +1041,9 @@ struct i40iw_priv_qp_ops {
 	void (*qp_send_lsmm_nostag)(struct i40iw_sc_qp *, void *, u32);
 	void (*qp_send_rtt)(struct i40iw_sc_qp *, bool);
 	enum i40iw_status_code (*qp_post_wqe0)(struct i40iw_sc_qp *, u8);
+	enum i40iw_status_code (*iw_mr_fast_register)(struct i40iw_sc_qp *,
+						      struct i40iw_fast_reg_stag_info *,
+						      bool);
 };
 
 struct i40iw_priv_cq_ops {

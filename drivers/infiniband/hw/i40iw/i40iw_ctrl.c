@@ -2909,6 +2909,65 @@ static enum i40iw_status_code i40iw_sc_mw_alloc(
 }
 
 /**
+ * i40iw_sc_mr_fast_register - Posts RDMA fast register mr WR to iwarp qp
+ * @qp: sc qp struct
+ * @info: fast mr info
+ * @post_sq: flag for cqp db to ring
+ */
+enum i40iw_status_code i40iw_sc_mr_fast_register(
+				struct i40iw_sc_qp *qp,
+				struct i40iw_fast_reg_stag_info *info,
+				bool post_sq)
+{
+	u64 temp, header;
+	u64 *wqe;
+	u32 wqe_idx;
+
+	wqe = i40iw_qp_get_next_send_wqe(&qp->qp_uk, &wqe_idx, I40IW_QP_WQE_MIN_SIZE,
+					 0, info->wr_id);
+	if (!wqe)
+		return I40IW_ERR_QP_TOOMANY_WRS_POSTED;
+
+	i40iw_debug(qp->dev, I40IW_DEBUG_MR, "%s: wr_id[%llxh] wqe_idx[%04d] location[%p]\n",
+		    __func__, info->wr_id, wqe_idx,
+		    &qp->qp_uk.sq_wrtrk_array[wqe_idx].wrid);
+	temp = (info->addr_type == I40IW_ADDR_TYPE_VA_BASED) ? (uintptr_t)info->va : info->fbo;
+	set_64bit_val(wqe, 0, temp);
+
+	temp = RS_64(info->first_pm_pbl_index >> 16, I40IWQPSQ_FIRSTPMPBLIDXHI);
+	set_64bit_val(wqe,
+		      8,
+		      LS_64(temp, I40IWQPSQ_FIRSTPMPBLIDXHI) |
+		      LS_64(info->reg_addr_pa >> I40IWQPSQ_PBLADDR_SHIFT, I40IWQPSQ_PBLADDR));
+
+	set_64bit_val(wqe,
+		      16,
+		      info->total_len |
+		      LS_64(info->first_pm_pbl_index, I40IWQPSQ_FIRSTPMPBLIDXLO));
+
+	header = LS_64(info->stag_key, I40IWQPSQ_STAGKEY) |
+		 LS_64(info->stag_idx, I40IWQPSQ_STAGINDEX) |
+		 LS_64(I40IWQP_OP_FAST_REGISTER, I40IWQPSQ_OPCODE) |
+		 LS_64(info->chunk_size, I40IWQPSQ_LPBLSIZE) |
+		 LS_64(info->page_size, I40IWQPSQ_HPAGESIZE) |
+		 LS_64(info->access_rights, I40IWQPSQ_STAGRIGHTS) |
+		 LS_64(info->addr_type, I40IWQPSQ_VABASEDTO) |
+		 LS_64(info->read_fence, I40IWQPSQ_READFENCE) |
+		 LS_64(info->local_fence, I40IWQPSQ_LOCALFENCE) |
+		 LS_64(info->signaled, I40IWQPSQ_SIGCOMPL) |
+		 LS_64(qp->qp_uk.swqe_polarity, I40IWQPSQ_VALID);
+
+	i40iw_insert_wqe_hdr(wqe, header);
+
+	i40iw_debug_buf(qp->dev, I40IW_DEBUG_WQE, "FAST_REG WQE",
+			wqe, I40IW_QP_WQE_MIN_SIZE);
+
+	if (post_sq)
+		i40iw_qp_post_wr(&qp->qp_uk);
+	return 0;
+}
+
+/**
  * i40iw_sc_send_lsmm - send last streaming mode message
  * @qp: sc qp struct
  * @lsmm_buf: buffer with lsmm message
@@ -4559,17 +4618,18 @@ static struct i40iw_pd_ops iw_pd_ops = {
 };
 
 static struct i40iw_priv_qp_ops iw_priv_qp_ops = {
-	i40iw_sc_qp_init,
-	i40iw_sc_qp_create,
-	i40iw_sc_qp_modify,
-	i40iw_sc_qp_destroy,
-	i40iw_sc_qp_flush_wqes,
-	i40iw_sc_qp_upload_context,
-	i40iw_sc_qp_setctx,
-	i40iw_sc_send_lsmm,
-	i40iw_sc_send_lsmm_nostag,
-	i40iw_sc_send_rtt,
-	i40iw_sc_post_wqe0,
+	.qp_init = i40iw_sc_qp_init,
+	.qp_create = i40iw_sc_qp_create,
+	.qp_modify = i40iw_sc_qp_modify,
+	.qp_destroy = i40iw_sc_qp_destroy,
+	.qp_flush_wqes = i40iw_sc_qp_flush_wqes,
+	.qp_upload_context = i40iw_sc_qp_upload_context,
+	.qp_setctx = i40iw_sc_qp_setctx,
+	.qp_send_lsmm = i40iw_sc_send_lsmm,
+	.qp_send_lsmm_nostag = i40iw_sc_send_lsmm_nostag,
+	.qp_send_rtt = i40iw_sc_send_rtt,
+	.qp_post_wqe0 = i40iw_sc_post_wqe0,
+	.iw_mr_fast_register = i40iw_sc_mr_fast_register
 };
 
 static struct i40iw_priv_cq_ops iw_priv_cq_ops = {
