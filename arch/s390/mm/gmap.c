@@ -1631,6 +1631,7 @@ EXPORT_SYMBOL_GPL(gmap_shadow_r3t);
  * @sg: pointer to the shadow guest address space structure
  * @saddr: faulting address in the shadow gmap
  * @sgt: parent gmap address of the segment table to get shadowed
+ * @fake: sgt references contiguous guest memory block, not a sgt
  *
  * Returns: 0 if successfully shadowed or already shadowed, -EAGAIN if the
  * shadow table structure is incomplete, -ENOMEM if out of memory and
@@ -1638,19 +1639,22 @@ EXPORT_SYMBOL_GPL(gmap_shadow_r3t);
  *
  * Called with sg->mm->mmap_sem in read.
  */
-int gmap_shadow_sgt(struct gmap *sg, unsigned long saddr, unsigned long sgt)
+int gmap_shadow_sgt(struct gmap *sg, unsigned long saddr, unsigned long sgt,
+		    int fake)
 {
 	unsigned long raddr, origin, offset, len;
 	unsigned long *s_sgt, *table;
 	struct page *page;
 	int rc;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	BUG_ON(!gmap_is_shadow(sg) || (sgt & _REGION3_ENTRY_LARGE));
 	/* Allocate a shadow segment table */
 	page = alloc_pages(GFP_KERNEL, 2);
 	if (!page)
 		return -ENOMEM;
 	page->index = sgt & _REGION_ENTRY_ORIGIN;
+	if (fake)
+		page->index |= GMAP_SHADOW_FAKE_TABLE;
 	s_sgt = (unsigned long *) page_to_phys(page);
 	/* Install shadow region second table */
 	spin_lock(&sg->guest_table_lock);
@@ -1673,6 +1677,12 @@ int gmap_shadow_sgt(struct gmap *sg, unsigned long saddr, unsigned long sgt)
 	if (sg->edat_level >= 1)
 		*table |= sgt & _REGION_ENTRY_PROTECT;
 	list_add(&page->lru, &sg->crst_list);
+	if (fake) {
+		/* nothing to protect for fake tables */
+		*table &= ~_REGION_ENTRY_INVALID;
+		spin_unlock(&sg->guest_table_lock);
+		return 0;
+	}
 	spin_unlock(&sg->guest_table_lock);
 	/* Make sgt read-only in parent gmap page table */
 	raddr = (saddr & 0xffffffff80000000UL) | _SHADOW_RMAP_REGION3;

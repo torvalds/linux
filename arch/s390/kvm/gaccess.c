@@ -1042,17 +1042,35 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 			return PGM_REGION_THIRD_TRANS;
 		if (rtte.tt != TABLE_TYPE_REGION3)
 			return PGM_TRANSLATION_SPEC;
+		if (rtte.cr && asce.p && sg->edat_level >= 2)
+			return PGM_TRANSLATION_SPEC;
+		if (rtte.fc && sg->edat_level >= 2) {
+			bool prot = rtte.fc1.p;
+
+			*fake = 1;
+			ptr = rtte.fc1.rfaa << 31UL;
+			rtte.val = ptr;
+			rtte.fc0.p = prot;
+			goto shadow_sgt;
+		}
 		if (vaddr.sx01 < rtte.fc0.tf || vaddr.sx01 > rtte.fc0.tl)
 			return PGM_SEGMENT_TRANSLATION;
-		rc = gmap_shadow_sgt(sg, saddr, rtte.val);
+		ptr = rtte.fc0.sto << 12UL;
+shadow_sgt:
+		rc = gmap_shadow_sgt(sg, saddr, rtte.val, *fake);
 		if (rc)
 			return rc;
-		ptr = rtte.fc0.sto * 4096;
 		/* fallthrough */
 	}
 	case ASCE_TYPE_SEGMENT: {
 		union segment_table_entry ste;
 
+		if (*fake) {
+			/* offset in 2G guest memory block */
+			ptr = ptr + ((unsigned long) vaddr.sx << 20UL);
+			ste.val = ptr;
+			goto shadow_pgt;
+		}
 		rc = gmap_read_table(parent, ptr + vaddr.sx * 8, &ste.val);
 		if (rc)
 			return rc;
