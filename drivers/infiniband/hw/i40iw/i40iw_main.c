@@ -1509,6 +1509,7 @@ static enum i40iw_status_code i40iw_setup_init_state(struct i40iw_handler *hdl,
 	    I40IW_HMC_PROFILE_DEFAULT;
 	iwdev->max_rdma_vfs =
 		(iwdev->resource_profile != I40IW_HMC_PROFILE_DEFAULT) ?  max_rdma_vfs : 0;
+	iwdev->max_enabled_vfs = iwdev->max_rdma_vfs;
 	iwdev->netdev = ldev->netdev;
 	hdl->client = client;
 	iwdev->mss = (!ldev->params.mtu) ? I40IW_DEFAULT_MSS : ldev->params.mtu - I40IW_MTU_TO_MSS;
