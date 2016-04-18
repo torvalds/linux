@@ -987,7 +987,8 @@ void verify_local_cpu_capabilities(void)
 
 	verify_local_cpu_features(arm64_features);
 	verify_local_elf_hwcaps(arm64_elf_hwcaps);
-	verify_local_elf_hwcaps(compat_elf_hwcaps);
+	if (system_supports_32bit_el0())
+		verify_local_elf_hwcaps(compat_elf_hwcaps);
 }
 
 static void __init setup_feature_capabilities(void)
@@ -1004,7 +1005,9 @@ void __init setup_cpu_features(void)
 	/* Set the CPU feature capabilies */
 	setup_feature_capabilities();
 	setup_elf_hwcaps(arm64_elf_hwcaps);
-	setup_elf_hwcaps(compat_elf_hwcaps);
+
+	if (system_supports_32bit_el0())
+		setup_elf_hwcaps(compat_elf_hwcaps);
 
 	/* Advertise that we have computed the system capabilities */
 	set_sys_caps_initialised();
