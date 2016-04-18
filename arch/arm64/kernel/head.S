@@ -611,7 +611,7 @@ ENDPROC(el2_setup)
  * Sets the __boot_cpu_mode flag depending on the CPU boot mode passed
  * in x20. See arch/arm64/include/asm/virt.h for more info.
  */
-ENTRY(set_cpu_boot_mode_flag)
+set_cpu_boot_mode_flag:
 	adr_l	x1, __boot_cpu_mode
 	cmp	w20, #BOOT_CPU_MODE_EL2
 	b.ne	1f
@@ -664,7 +664,7 @@ ENTRY(secondary_entry)
 	b	secondary_startup
 ENDPROC(secondary_entry)
 
-ENTRY(secondary_startup)
+secondary_startup:
 	/*
 	 * Common entry point for secondary CPUs.
 	 */
@@ -679,7 +679,7 @@ ENTRY(secondary_startup)
 ENDPROC(secondary_startup)
 0:	.long	(_text - TEXT_OFFSET) - __secondary_switched
 
-ENTRY(__secondary_switched)
+__secondary_switched:
 	adr_l	x5, vectors
 	msr	vbar_el1, x5
 	isb
