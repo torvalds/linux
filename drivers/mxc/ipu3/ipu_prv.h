@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2005-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/fsl_devices.h>
 #include <linux/interrupt.h>
+#include <linux/ipu-v3.h>
 #include <linux/types.h>
 
 #define MXC_IPU_MAX_NUM		2
@@ -93,8 +94,8 @@ struct ipu_soc {
 	ipu_channel_t csi_channel[2];
 	ipu_channel_t using_ic_dirct_ch;
 	unsigned char dc_di_assignment[10];
-	bool sec_chan_en[24];
-	bool thrd_chan_en[24];
+	bool sec_chan_en[IPU_MAX_CH];
+	bool thrd_chan_en[IPU_MAX_CH];
 	bool chan_is_interlaced[52];
 	uint32_t channel_init_mask;
 	uint32_t channel_enable_mask;
