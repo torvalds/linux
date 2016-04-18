@@ -1,3 +1,14 @@
+/*
+ * kaslr.c
+ *
+ * This contains the routines needed to generate a reasonable level of
+ * entropy to choose a randomized kernel base address offset in support
+ * of Kernel Address Space Layout Randomization (KASLR). Additionally
+ * handles walking the physical memory maps (and tracking memory regions
+ * to avoid) in order to select a physical memory location that can
+ * contain the entire properly aligned running kernel image.
+ *
+ */
 #include "misc.h"
 
 #include <asm/msr.h>
@@ -295,7 +306,7 @@ static unsigned long find_random_addr(unsigned long minimum,
 	return slots_fetch_random();
 }
 
-unsigned char *choose_kernel_location(unsigned char *input,
+unsigned char *choose_random_location(unsigned char *input,
 				      unsigned long input_size,
 				      unsigned char *output,
 				      unsigned long output_size)

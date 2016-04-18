@@ -431,7 +431,7 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 	 * the entire decompressed kernel plus relocation table, or the
 	 * entire decompressed kernel plus .bss and .brk sections.
 	 */
-	output = choose_kernel_location(input_data, input_len, output,
+	output = choose_random_location(input_data, input_len, output,
 					output_len > run_size ? output_len
 							      : run_size);
 
