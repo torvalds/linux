@@ -30,6 +30,17 @@ config HID_SENSOR_PRESS
 	  To compile this driver as a module, choose M here: the module
 	  will be called hid-sensor-press.
 
+config HP03
+	tristate "Hope RF HP03 temperature and pressure sensor driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for Hope RF HP03 pressure and
+	  temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hp03.
+
 config MPL115
 	tristate
 
