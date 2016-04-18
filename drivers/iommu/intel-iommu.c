@@ -1489,7 +1489,7 @@ static void iommu_disable_dev_iotlb(struct device_domain_info *info)
 {
 	struct pci_dev *pdev;
 
-	if (dev_is_pci(info->dev))
+	if (!dev_is_pci(info->dev))
 		return;
 
 	pdev = to_pci_dev(info->dev);
@@ -2159,7 +2159,7 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 			sg_res = aligned_nrpages(sg->offset, sg->length);
 			sg->dma_address = ((dma_addr_t)iov_pfn << VTD_PAGE_SHIFT) + sg->offset;
 			sg->dma_length = sg->length;
-			pteval = (sg_phys(sg) & PAGE_MASK) | prot;
+			pteval = page_to_phys(sg_page(sg)) | prot;
 			phys_pfn = pteval >> VTD_PAGE_SHIFT;
 		}
 
@@ -2458,7 +2458,7 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 	}
 
 	/* register PCI DMA alias device */
-	if (req_id != dma_alias && dev_is_pci(dev)) {
+	if (dev_is_pci(dev) && req_id != dma_alias) {
 		tmp = dmar_insert_one_dev_info(iommu, PCI_BUS_NUM(dma_alias),
 					       dma_alias & 0xff, NULL, domain);
 
@@ -3647,7 +3647,7 @@ static void *intel_alloc_coherent(struct device *dev, size_t size,
 			flags |= GFP_DMA32;
 	}
 
-	if (flags & __GFP_WAIT) {
+	if (gfpflags_allow_blocking(flags)) {
 		unsigned int count = size >> PAGE_SHIFT;
 
 		page = dma_alloc_from_contiguous(dev, count, order);
@@ -3704,7 +3704,7 @@ static int intel_nontranslate_map_sg(struct device *hddev,
 
 	for_each_sg(sglist, sg, nelems, i) {
 		BUG_ON(!sg_page(sg));
-		sg->dma_address = sg_phys(sg);
+		sg->dma_address = page_to_phys(sg_page(sg)) + sg->offset;
 		sg->dma_length = sg->length;
 	}
 	return nelems;
@@ -4367,7 +4367,7 @@ int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 				rmrru->devices_cnt);
 			if(ret < 0)
 				return ret;
-		} else if (info->event == BUS_NOTIFY_DEL_DEVICE) {
+		} else if (info->event == BUS_NOTIFY_REMOVED_DEVICE) {
 			dmar_remove_dev_scope(info, rmrr->segment,
 				rmrru->devices, rmrru->devices_cnt);
 		}
@@ -4387,7 +4387,7 @@ int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 				break;
 			else if(ret < 0)
 				return ret;
-		} else if (info->event == BUS_NOTIFY_DEL_DEVICE) {
+		} else if (info->event == BUS_NOTIFY_REMOVED_DEVICE) {
 			if (dmar_remove_dev_scope(info, atsr->segment,
 					atsru->devices, atsru->devices_cnt))
 				break;

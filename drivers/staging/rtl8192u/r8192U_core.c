@@ -1092,10 +1092,17 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static void rtl8192_tx_isr(struct urb *tx_urb)
 {
 	struct sk_buff *skb = (struct sk_buff *)tx_urb->context;
-	struct net_device *dev = (struct net_device *)(skb->cb);
+	struct net_device *dev;
 	struct r8192_priv *priv = NULL;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	u8  queue_index = tcb_desc->queue_index;
+	cb_desc *tcb_desc;
+	u8  queue_index;
+
+	if (!skb)
+		return;
+
+	dev = (struct net_device *)(skb->cb);
+	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	queue_index = tcb_desc->queue_index;
 
 	priv = ieee80211_priv(dev);
 
@@ -1113,11 +1120,9 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 	}
 
 	/* free skb and tx_urb */
-	if (skb != NULL) {
-		dev_kfree_skb_any(skb);
-		usb_free_urb(tx_urb);
-		atomic_dec(&priv->tx_pending[queue_index]);
-	}
+	dev_kfree_skb_any(skb);
+	usb_free_urb(tx_urb);
+	atomic_dec(&priv->tx_pending[queue_index]);
 
 	/*
 	 * Handle HW Beacon:
@@ -1371,7 +1376,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 */
 static u8 MapHwQueueToFirmwareQueue(u8 QueueID)
 {
-	u8 QueueSelect = 0x0;       /* defualt set to */
+	u8 QueueSelect = 0x0;       /* default set to */
 
 	switch (QueueID) {
 	case BE_QUEUE:
@@ -1727,7 +1732,7 @@ static short rtl8192_usb_initendpoints(struct net_device *dev)
 
 	priv->rx_urb = kmalloc(sizeof(struct urb *) * (MAX_RX_URB + 1),
 			       GFP_KERNEL);
-	if (priv->rx_urb == NULL)
+	if (!priv->rx_urb)
 		return -ENOMEM;
 
 #ifndef JACKSON_NEW_RX
@@ -1957,7 +1962,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 		     network->qos_data.param_count)) {
 			network->qos_data.old_param_count =
 				network->qos_data.param_count;
-			queue_work(priv->priv_wq, &priv->qos_activate);
+			schedule_work(&priv->qos_activate);
 			RT_TRACE(COMP_QOS,
 				 "QoS parameters change call qos_activate\n");
 		}
@@ -1966,7 +1971,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 		       &def_qos_parameters, size);
 
 		if ((network->qos_data.active == 1) && (active_network == 1)) {
-			queue_work(priv->priv_wq, &priv->qos_activate);
+			schedule_work(&priv->qos_activate);
 			RT_TRACE(COMP_QOS,
 				 "QoS was disabled call qos_activate\n");
 		}
@@ -1985,7 +1990,7 @@ static int rtl8192_handle_beacon(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	rtl8192_qos_handle_probe_response(priv, 1, network);
-	queue_delayed_work(priv->priv_wq, &priv->update_beacon_wq, 0);
+	schedule_delayed_work(&priv->update_beacon_wq, 0);
 	return 0;
 
 }
@@ -2037,7 +2042,7 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 		 network->flags,
 		 priv->ieee80211->current_network.qos_data.active);
 	if (set_qos_param == 1)
-		queue_work(priv->priv_wq, &priv->qos_activate);
+		schedule_work(&priv->qos_activate);
 
 
 	return 0;
@@ -2382,7 +2387,6 @@ static void rtl8192_init_priv_task(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	priv->priv_wq = create_workqueue(DRV_NAME);
 
 	INIT_WORK(&priv->reset_wq, rtl8192_restart);
 
@@ -3436,8 +3440,7 @@ static void rtl819x_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 
 static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
-	struct delayed_work *dwork = container_of(work,
-						  struct delayed_work, work);
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct r8192_priv *priv = container_of(dwork,
 					       struct r8192_priv, watch_dog_wq);
 	struct net_device *dev = priv->ieee80211->dev;
@@ -3514,7 +3517,7 @@ static void watch_dog_timer_callback(unsigned long data)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)data);
 
-	queue_delayed_work(priv->priv_wq, &priv->watch_dog_wq, 0);
+	schedule_delayed_work(&priv->watch_dog_wq, 0);
 	mod_timer(&priv->watch_dog_timer,
 		  jiffies + msecs_to_jiffies(IEEE80211_WATCH_DOG_TIME));
 }
@@ -4297,7 +4300,7 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 	if (is_cck_rate) {
 		/* (1)Hardware does not provide RSSI for CCK */
 
-		/* (2)PWDB, Average PWDB cacluated by hardware
+		/* (2)PWDB, Average PWDB calculated by hardware
 		 * (for rate adaptive)
 		 */
 		u8 report;
@@ -4398,7 +4401,7 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 		}
 
 
-		/* (2)PWDB, Average PWDB cacluated by hardware
+		/* (2)PWDB, Average PWDB calculated by hardware
 		 * (for rate adaptive)
 		 */
 		rx_pwr_all = (((pofdm_buf->pwdb_all) >> 1) & 0x7f) - 106;
@@ -5018,7 +5021,6 @@ fail2:
 	kfree(priv->pFirmware);
 	priv->pFirmware = NULL;
 	rtl8192_usb_deleteendpoints(dev);
-	destroy_workqueue(priv->priv_wq);
 	mdelay(10);
 fail:
 	free_ieee80211(dev);
@@ -5056,7 +5058,6 @@ static void rtl8192_usb_disconnect(struct usb_interface *intf)
 		kfree(priv->pFirmware);
 		priv->pFirmware = NULL;
 		rtl8192_usb_deleteendpoints(dev);
-		destroy_workqueue(priv->priv_wq);
 		mdelay(10);
 	}
 	free_ieee80211(dev);
@@ -5112,21 +5113,6 @@ static void __exit rtl8192_usb_module_exit(void)
 	usb_deregister(&rtl8192_usb_driver);
 
 	RT_TRACE(COMP_DOWN, "Exiting");
-}
-
-
-void rtl8192_try_wake_queue(struct net_device *dev, int pri)
-{
-	unsigned long flags;
-	short enough_desc;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
-	spin_lock_irqsave(&priv->tx_lock, flags);
-	enough_desc = check_nic_enough_desc(dev, pri);
-	spin_unlock_irqrestore(&priv->tx_lock, flags);
-
-	if (enough_desc)
-		ieee80211_wake_queue(priv->ieee80211);
 }
 
 void EnableHWSecurityConfig8192(struct net_device *dev)

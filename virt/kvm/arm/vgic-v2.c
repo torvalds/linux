@@ -176,6 +176,15 @@ static const struct vgic_ops vgic_v2_ops = {
 
 static struct vgic_params vgic_v2_params;
 
+static void vgic_cpu_init_lrs(void *params)
+{
+	struct vgic_params *vgic = params;
+	int i;
+
+	for (i = 0; i < vgic->nr_lr; i++)
+		writel_relaxed(0, vgic->vctrl_base + GICH_LR0 + (i * 4));
+}
+
 /**
  * vgic_v2_probe - probe for a GICv2 compatible interrupt controller in DT
  * @node:	pointer to the DT node
@@ -257,6 +266,9 @@ int vgic_v2_probe(struct device_node *vgic_node,
 
 	vgic->type = VGIC_V2;
 	vgic->max_gic_vcpus = VGIC_V2_MAX_CPUS;
+
+	on_each_cpu(vgic_cpu_init_lrs, vgic, 1);
+
 	*ops = &vgic_v2_ops;
 	*params = vgic;
 	goto out;

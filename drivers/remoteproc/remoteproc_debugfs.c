@@ -88,8 +88,42 @@ static ssize_t rproc_state_read(struct file *filp, char __user *userbuf,
 	return simple_read_from_buffer(userbuf, count, ppos, buf, i);
 }
 
+static ssize_t rproc_state_write(struct file *filp, const char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	struct rproc *rproc = filp->private_data;
+	char buf[10];
+	int ret;
+
+	if (count > sizeof(buf) || count <= 0)
+		return -EINVAL;
+
+	ret = copy_from_user(buf, userbuf, count);
+	if (ret)
+		return -EFAULT;
+
+	if (buf[count - 1] == '\n')
+		buf[count - 1] = '\0';
+
+	if (!strncmp(buf, "start", count)) {
+		ret = rproc_boot(rproc);
+		if (ret) {
+			dev_err(&rproc->dev, "Boot failed: %d\n", ret);
+			return ret;
+		}
+	} else if (!strncmp(buf, "stop", count)) {
+		rproc_shutdown(rproc);
+	} else {
+		dev_err(&rproc->dev, "Unrecognised option: %s\n", buf);
+		return -EINVAL;
+	}
+
+	return count;
+}
+
 static const struct file_operations rproc_state_ops = {
 	.read = rproc_state_read,
+	.write = rproc_state_write,
 	.open = simple_open,
 	.llseek	= generic_file_llseek,
 };
@@ -156,8 +190,8 @@ rproc_recovery_write(struct file *filp, const char __user *user_buf,
 	char buf[10];
 	int ret;
 
-	if (count > sizeof(buf))
-		return count;
+	if (count < 1 || count > sizeof(buf))
+		return -EINVAL;
 
 	ret = copy_from_user(buf, user_buf, count);
 	if (ret)

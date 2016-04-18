@@ -1,0 +1,6 @@
+config DRM_AMD_POWERPLAY
+	bool  "Enable AMD powerplay component"
+	depends on DRM_AMDGPU
+	default n
+	help
+	  select this option will enable AMD powerplay component.

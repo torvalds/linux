@@ -712,6 +712,8 @@ struct cfg80211_acl_data {
  * @p2p_opp_ps: P2P opportunistic PS
  * @acl: ACL configuration used by the drivers which has support for
  *	MAC address based access control
+ * @pbss: If set, start as a PCP instead of AP. Relevant for DMG
+ *	networks.
  */
 struct cfg80211_ap_settings {
 	struct cfg80211_chan_def chandef;
@@ -730,6 +732,7 @@ struct cfg80211_ap_settings {
 	u8 p2p_ctwindow;
 	bool p2p_opp_ps;
 	const struct cfg80211_acl_data *acl;
+	bool pbss;
 };
 
 /**
@@ -1888,6 +1891,8 @@ struct cfg80211_ibss_params {
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
  * @vht_capa:  VHT Capability overrides
  * @vht_capa_mask: The bits of vht_capa which are to be used.
+ * @pbss: if set, connect to a PCP instead of AP. Valid for DMG
+ *	networks.
  */
 struct cfg80211_connect_params {
 	struct ieee80211_channel *channel;
@@ -1910,6 +1915,7 @@ struct cfg80211_connect_params {
 	struct ieee80211_ht_cap ht_capa_mask;
 	struct ieee80211_vht_cap vht_capa;
 	struct ieee80211_vht_cap vht_capa_mask;
+	bool pbss;
 };
 
 /**
@@ -2321,6 +2327,8 @@ struct cfg80211_qos_map {
  *	the driver, and will be valid until passed to cfg80211_scan_done().
  *	For scan results, call cfg80211_inform_bss(); you can call this outside
  *	the scan/scan_done bracket too.
+ * @abort_scan: Tell the driver to abort an ongoing scan. The driver shall
+ *	indicate the status of the scan through cfg80211_scan_done().
  *
  * @auth: Request to authenticate with the specified peer
  *	(invoked with the wireless_dev mutex held)
@@ -2593,6 +2601,7 @@ struct cfg80211_ops {
 
 	int	(*scan)(struct wiphy *wiphy,
 			struct cfg80211_scan_request *request);
+	void	(*abort_scan)(struct wiphy *wiphy, struct wireless_dev *wdev);
 
 	int	(*auth)(struct wiphy *wiphy, struct net_device *dev,
 			struct cfg80211_auth_request *req);
@@ -3486,6 +3495,7 @@ struct cfg80211_cached_keys;
  *	registered for unexpected class 3 frames (AP mode)
  * @conn: (private) cfg80211 software SME connection state machine data
  * @connect_keys: (private) keys to set after connection is established
+ * @conn_bss_type: connecting/connected BSS type
  * @ibss_fixed: (private) IBSS is using fixed BSSID
  * @ibss_dfs_possible: (private) IBSS may change to a DFS channel
  * @event_list: (private) list for internal event processing
@@ -3516,6 +3526,7 @@ struct wireless_dev {
 	u8 ssid_len, mesh_id_len, mesh_id_up_len;
 	struct cfg80211_conn *conn;
 	struct cfg80211_cached_keys *connect_keys;
+	enum ieee80211_bss_type conn_bss_type;
 
 	struct list_head event_list;
 	spinlock_t event_lock;
@@ -5173,8 +5184,11 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
  * buffer starts, which may be @ielen if the entire (remainder)
  * of the buffer should be used.
  */
-size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
-			  const u8 *ids, int n_ids, size_t offset);
+static inline size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
+					const u8 *ids, int n_ids, size_t offset)
+{
+	return ieee80211_ie_split_ric(ies, ielen, ids, n_ids, NULL, 0, offset);
+}
 
 /**
  * cfg80211_report_wowlan_wakeup - report wakeup from WoWLAN

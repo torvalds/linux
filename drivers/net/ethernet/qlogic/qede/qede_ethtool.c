@@ -217,9 +217,9 @@ static int qede_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct qed_link_params params;
 	u32 speed;
 
-	if (edev->dev_info.common.is_mf) {
+	if (!edev->dev_info.common.is_mf_default) {
 		DP_INFO(edev,
-			"Link parameters can not be changed in MF mode\n");
+			"Link parameters can not be changed in non-default mode\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -322,6 +322,30 @@ static void qede_set_msglevel(struct net_device *ndev, u32 level)
 					 dp_module, dp_level);
 }
 
+static int qede_nway_reset(struct net_device *dev)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_output current_link;
+	struct qed_link_params link_params;
+
+	if (!netif_running(dev))
+		return 0;
+
+	memset(&current_link, 0, sizeof(current_link));
+	edev->ops->common->get_link(edev->cdev, &current_link);
+	if (!current_link.link_up)
+		return 0;
+
+	/* Toggle the link */
+	memset(&link_params, 0, sizeof(link_params));
+	link_params.link_up = false;
+	edev->ops->common->set_link(edev->cdev, &link_params);
+	link_params.link_up = true;
+	edev->ops->common->set_link(edev->cdev, &link_params);
+
+	return 0;
+}
+
 static u32 qede_get_link(struct net_device *dev)
 {
 	struct qede_dev *edev = netdev_priv(dev);
@@ -331,6 +355,106 @@ static u32 qede_get_link(struct net_device *dev)
 	edev->ops->common->get_link(edev->cdev, &current_link);
 
 	return current_link.link_up;
+}
+
+static void qede_get_ringparam(struct net_device *dev,
+			       struct ethtool_ringparam *ering)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	ering->rx_max_pending = NUM_RX_BDS_MAX;
+	ering->rx_pending = edev->q_num_rx_buffers;
+	ering->tx_max_pending = NUM_TX_BDS_MAX;
+	ering->tx_pending = edev->q_num_tx_buffers;
+}
+
+static int qede_set_ringparam(struct net_device *dev,
+			      struct ethtool_ringparam *ering)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+		   "Set ring params command parameters: rx_pending = %d, tx_pending = %d\n",
+		   ering->rx_pending, ering->tx_pending);
+
+	/* Validate legality of configuration */
+	if (ering->rx_pending > NUM_RX_BDS_MAX ||
+	    ering->rx_pending < NUM_RX_BDS_MIN ||
+	    ering->tx_pending > NUM_TX_BDS_MAX ||
+	    ering->tx_pending < NUM_TX_BDS_MIN) {
+		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+			   "Can only support Rx Buffer size [0%08x,...,0x%08x] and Tx Buffer size [0x%08x,...,0x%08x]\n",
+			   NUM_RX_BDS_MIN, NUM_RX_BDS_MAX,
+			   NUM_TX_BDS_MIN, NUM_TX_BDS_MAX);
+		return -EINVAL;
+	}
+
+	/* Change ring size and re-load */
+	edev->q_num_rx_buffers = ering->rx_pending;
+	edev->q_num_tx_buffers = ering->tx_pending;
+
+	if (netif_running(edev->ndev))
+		qede_reload(edev, NULL, NULL);
+
+	return 0;
+}
+
+static void qede_get_pauseparam(struct net_device *dev,
+				struct ethtool_pauseparam *epause)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_output current_link;
+
+	memset(&current_link, 0, sizeof(current_link));
+	edev->ops->common->get_link(edev->cdev, &current_link);
+
+	if (current_link.pause_config & QED_LINK_PAUSE_AUTONEG_ENABLE)
+		epause->autoneg = true;
+	if (current_link.pause_config & QED_LINK_PAUSE_RX_ENABLE)
+		epause->rx_pause = true;
+	if (current_link.pause_config & QED_LINK_PAUSE_TX_ENABLE)
+		epause->tx_pause = true;
+
+	DP_VERBOSE(edev, QED_MSG_DEBUG,
+		   "ethtool_pauseparam: cmd %d  autoneg %d  rx_pause %d  tx_pause %d\n",
+		   epause->cmd, epause->autoneg, epause->rx_pause,
+		   epause->tx_pause);
+}
+
+static int qede_set_pauseparam(struct net_device *dev,
+			       struct ethtool_pauseparam *epause)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_params params;
+	struct qed_link_output current_link;
+
+	if (!edev->dev_info.common.is_mf_default) {
+		DP_INFO(edev,
+			"Pause parameters can not be updated in non-default mode\n");
+		return -EOPNOTSUPP;
+	}
+
+	memset(&current_link, 0, sizeof(current_link));
+	edev->ops->common->get_link(edev->cdev, &current_link);
+
+	memset(&params, 0, sizeof(params));
+	params.override_flags |= QED_LINK_OVERRIDE_PAUSE_CONFIG;
+	if (epause->autoneg) {
+		if (!(current_link.supported_caps & SUPPORTED_Autoneg)) {
+			DP_INFO(edev, "autoneg not supported\n");
+			return -EINVAL;
+		}
+		params.pause_config |= QED_LINK_PAUSE_AUTONEG_ENABLE;
+	}
+	if (epause->rx_pause)
+		params.pause_config |= QED_LINK_PAUSE_RX_ENABLE;
+	if (epause->tx_pause)
+		params.pause_config |= QED_LINK_PAUSE_TX_ENABLE;
+
+	params.link_up = true;
+	edev->ops->common->set_link(edev->cdev, &params);
+
+	return 0;
 }
 
 static void qede_update_mtu(struct qede_dev *edev, union qede_reload_args *args)
@@ -366,17 +490,104 @@ int qede_change_mtu(struct net_device *ndev, int new_mtu)
 	return 0;
 }
 
+static void qede_get_channels(struct net_device *dev,
+			      struct ethtool_channels *channels)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	channels->max_combined = QEDE_MAX_RSS_CNT(edev);
+	channels->combined_count = QEDE_RSS_CNT(edev);
+}
+
+static int qede_set_channels(struct net_device *dev,
+			     struct ethtool_channels *channels)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+		   "set-channels command parameters: rx = %d, tx = %d, other = %d, combined = %d\n",
+		   channels->rx_count, channels->tx_count,
+		   channels->other_count, channels->combined_count);
+
+	/* We don't support separate rx / tx, nor `other' channels. */
+	if (channels->rx_count || channels->tx_count ||
+	    channels->other_count || (channels->combined_count == 0) ||
+	    (channels->combined_count > QEDE_MAX_RSS_CNT(edev))) {
+		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+			   "command parameters not supported\n");
+		return -EINVAL;
+	}
+
+	/* Check if there was a change in the active parameters */
+	if (channels->combined_count == QEDE_RSS_CNT(edev)) {
+		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+			   "No change in active parameters\n");
+		return 0;
+	}
+
+	/* We need the number of queues to be divisible between the hwfns */
+	if (channels->combined_count % edev->dev_info.common.num_hwfns) {
+		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+			   "Number of channels must be divisable by %04x\n",
+			   edev->dev_info.common.num_hwfns);
+		return -EINVAL;
+	}
+
+	/* Set number of queues and reload if necessary */
+	edev->req_rss = channels->combined_count;
+	if (netif_running(dev))
+		qede_reload(edev, NULL, NULL);
+
+	return 0;
+}
+
+static int qede_set_phys_id(struct net_device *dev,
+			    enum ethtool_phys_id_state state)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	u8 led_state = 0;
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		return 1;	/* cycle on/off once per second */
+
+	case ETHTOOL_ID_ON:
+		led_state = QED_LED_MODE_ON;
+		break;
+
+	case ETHTOOL_ID_OFF:
+		led_state = QED_LED_MODE_OFF;
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		led_state = QED_LED_MODE_RESTORE;
+		break;
+	}
+
+	edev->ops->common->set_led(edev->cdev, led_state);
+
+	return 0;
+}
+
 static const struct ethtool_ops qede_ethtool_ops = {
 	.get_settings = qede_get_settings,
 	.set_settings = qede_set_settings,
 	.get_drvinfo = qede_get_drvinfo,
 	.get_msglevel = qede_get_msglevel,
 	.set_msglevel = qede_set_msglevel,
+	.nway_reset = qede_nway_reset,
 	.get_link = qede_get_link,
+	.get_ringparam = qede_get_ringparam,
+	.set_ringparam = qede_set_ringparam,
+	.get_pauseparam = qede_get_pauseparam,
+	.set_pauseparam = qede_set_pauseparam,
 	.get_strings = qede_get_strings,
+	.set_phys_id = qede_set_phys_id,
 	.get_ethtool_stats = qede_get_ethtool_stats,
 	.get_sset_count = qede_get_sset_count,
 
+	.get_channels = qede_get_channels,
+	.set_channels = qede_set_channels,
 };
 
 void qede_set_ethtool_ops(struct net_device *dev)

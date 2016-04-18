@@ -384,7 +384,7 @@ static struct mbox_chan *sti_mbox_xlate(struct mbox_controller *mbox,
 	return chan;
 }
 
-static struct mbox_chan_ops sti_mbox_ops = {
+static const struct mbox_chan_ops sti_mbox_ops = {
 	.startup	= sti_mbox_startup_chan,
 	.shutdown	= sti_mbox_shutdown_chan,
 	.send_data	= sti_mbox_send_data,

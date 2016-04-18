@@ -26,7 +26,7 @@
 #ifndef _EM28XX_H
 #define _EM28XX_H
 
-#define EM28XX_VERSION "0.2.1"
+#define EM28XX_VERSION "0.2.2"
 #define DRIVER_DESC    "Empia em28xx device driver"
 
 #include <linux/workqueue.h>
@@ -40,7 +40,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/i2c/ir-kbd-i2c.h>
 #include <media/rc-core.h>
 #include "tuner-xc2028.h"
 #include "xc5000.h"
@@ -291,15 +291,9 @@ struct em28xx_dmaqueue {
 
 #define MAX_EM28XX_INPUT 4
 enum enum28xx_itype {
-	EM28XX_VMUX_COMPOSITE1 = 1,
-	EM28XX_VMUX_COMPOSITE2,
-	EM28XX_VMUX_COMPOSITE3,
-	EM28XX_VMUX_COMPOSITE4,
+	EM28XX_VMUX_COMPOSITE = 1,
 	EM28XX_VMUX_SVIDEO,
 	EM28XX_VMUX_TELEVISION,
-	EM28XX_VMUX_CABLE,
-	EM28XX_VMUX_DVB,
-	EM28XX_VMUX_DEBUG,
 	EM28XX_RADIO,
 };
 
@@ -558,6 +552,11 @@ struct em28xx_v4l2 {
 	bool top_field;
 	int vbi_read;
 	unsigned int field_count;
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_pad video_pad, vbi_pad;
+	struct media_entity *decoder;
+#endif
 };
 
 struct em28xx_audio {
@@ -718,6 +717,12 @@ struct em28xx {
 	/* Snapshot button input device */
 	char snapshot_button_path[30];	/* path of the input dev */
 	struct input_dev *sbutton_input_dev;
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *media_dev;
+	struct media_entity input_ent[MAX_EM28XX_INPUT];
+	struct media_pad input_pad[MAX_EM28XX_INPUT];
+#endif
 };
 
 #define kref_to_dev(d) container_of(d, struct em28xx, ref)

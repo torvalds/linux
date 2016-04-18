@@ -130,6 +130,10 @@
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x100440A0 0x20>;
 		#power-domain-cells = <0>;
+		clocks = <&clock CLK_FIN_PLL>,
+			 <&clock CLK_MOUT_ACLK200_DISP1_SUB>,
+			 <&clock CLK_MOUT_ACLK300_DISP1_SUB>;
+		clock-names = "oscclk", "clk0", "clk1";
 	};
 
 	clock: clock-controller@10010000 {
@@ -263,6 +267,15 @@
 		clock-names = "mfc";
 		iommus = <&sysmmu_mfc_l>, <&sysmmu_mfc_r>;
 		iommu-names = "left", "right";
+	};
+
+	rotator: rotator@11C00000 {
+		compatible = "samsung,exynos5250-rotator";
+		reg = <0x11C00000 0x64>;
+		interrupts = <0 84 0>;
+		clocks = <&clock CLK_ROTATOR>;
+		clock-names = "rotator";
+		iommus = <&sysmmu_rotator>;
 	};
 
 	tmu: tmu@10060000 {
@@ -661,7 +674,7 @@
 	amba {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "arm,amba-bus";
+		compatible = "simple-bus";
 		interrupt-parent = <&gic>;
 		ranges;
 
@@ -794,7 +807,7 @@
 
 	sss@10830000 {
 		compatible = "samsung,exynos4210-secss";
-		reg = <0x10830000 0x10000>;
+		reg = <0x10830000 0x300>;
 		interrupts = <0 112 0>;
 		clocks = <&clock CLK_SSS>;
 		clock-names = "secss";

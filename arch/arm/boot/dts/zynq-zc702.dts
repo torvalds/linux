@@ -30,7 +30,7 @@
 	};
 
 	chosen {
-		bootargs = "earlyprintk";
+		bootargs = "earlycon";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -43,14 +43,14 @@
 			label = "sw14";
 			gpios = <&gpio0 12 0>;
 			linux,code = <108>; /* down */
-			gpio-key,wakeup;
+			wakeup-source;
 			autorepeat;
 		};
 		sw13 {
 			label = "sw13";
 			gpios = <&gpio0 14 0>;
 			linux,code = <103>; /* up */
-			gpio-key,wakeup;
+			wakeup-source;
 			autorepeat;
 		};
 	};

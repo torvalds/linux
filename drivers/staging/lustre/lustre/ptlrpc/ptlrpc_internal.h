@@ -27,7 +27,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -73,7 +73,6 @@ void ptlrpc_request_handle_notconn(struct ptlrpc_request *);
 void lustre_assert_wire_constants(void);
 int ptlrpc_import_in_recovery(struct obd_import *imp);
 int ptlrpc_set_import_discon(struct obd_import *imp, __u32 conn_cnt);
-void ptlrpc_handle_failed_import(struct obd_import *imp);
 int ptlrpc_replay_next(struct obd_import *imp, int *inflight);
 void ptlrpc_initiate_recovery(struct obd_import *imp);
 
@@ -88,8 +87,6 @@ void ptlrpc_ldebugfs_register_service(struct dentry *debugfs_entry,
 				      struct ptlrpc_service *svc);
 void ptlrpc_lprocfs_unregister_service(struct ptlrpc_service *svc);
 void ptlrpc_lprocfs_rpc_sent(struct ptlrpc_request *req, long amount);
-void ptlrpc_lprocfs_do_request_stat(struct ptlrpc_request *req,
-				     long q_usec, long work_usec);
 
 /* NRS */
 
@@ -104,8 +101,6 @@ struct nrs_core {
 	 * registration/unregistration, and NRS core lprocfs operations.
 	 */
 	struct mutex nrs_mutex;
-	/* XXX: This is just for liblustre. Remove the #if defined directive
-	 * when the * "cfs_" prefix is dropped from cfs_list_head. */
 	/**
 	 * List of all policy descriptors registered with NRS core; protected
 	 * by nrs_core::nrs_mutex.

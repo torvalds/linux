@@ -27,7 +27,7 @@ o The build system shall remain as simple as possible, avoiding any archive or
 o Where possible, any helper functions or other package-wide code shall be
   implemented in header files, avoiding the need to compile intermediate object
   files.
-o External dependendencies shall remain as minimal as possible. Currently gcc
+o External dependencies shall remain as minimal as possible. Currently gcc
   and glibc are the only dependencies.
 o Tests return 0 for success and < 0 for failure.
 

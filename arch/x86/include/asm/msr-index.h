@@ -1,7 +1,12 @@
 #ifndef _ASM_X86_MSR_INDEX_H
 #define _ASM_X86_MSR_INDEX_H
 
-/* CPU model specific register (MSR) numbers */
+/*
+ * CPU model specific register (MSR) numbers.
+ *
+ * Do not add new entries to this file unless the definitions are shared
+ * between multiple compilation units.
+ */
 
 /* x86-64 specific MSRs */
 #define MSR_EFER		0xc0000080 /* extended feature register */
@@ -35,7 +40,7 @@
 #define MSR_IA32_PERFCTR0		0x000000c1
 #define MSR_IA32_PERFCTR1		0x000000c2
 #define MSR_FSB_FREQ			0x000000cd
-#define MSR_NHM_PLATFORM_INFO		0x000000ce
+#define MSR_PLATFORM_INFO		0x000000ce
 
 #define MSR_NHM_SNB_PKG_CST_CFG_CTL	0x000000e2
 #define NHM_C3_AUTO_DEMOTE		(1UL << 25)
@@ -44,7 +49,6 @@
 #define SNB_C1_AUTO_UNDEMOTE		(1UL << 27)
 #define SNB_C3_AUTO_UNDEMOTE		(1UL << 28)
 
-#define MSR_PLATFORM_INFO		0x000000ce
 #define MSR_MTRRcap			0x000000fe
 #define MSR_IA32_BBL_CR_CTL		0x00000119
 #define MSR_IA32_BBL_CR_CTL3		0x0000011e
@@ -163,6 +167,14 @@
 #define MSR_PKG_C9_RESIDENCY		0x00000631
 #define MSR_PKG_C10_RESIDENCY		0x00000632
 
+/* Interrupt Response Limit */
+#define MSR_PKGC3_IRTL			0x0000060a
+#define MSR_PKGC6_IRTL			0x0000060b
+#define MSR_PKGC7_IRTL			0x0000060c
+#define MSR_PKGC8_IRTL			0x00000633
+#define MSR_PKGC9_IRTL			0x00000634
+#define MSR_PKGC10_IRTL			0x00000635
+
 /* Run Time Average Power Limiting (RAPL) Interface */
 
 #define MSR_RAPL_POWER_UNIT		0x00000606
@@ -186,6 +198,7 @@
 #define MSR_PP1_ENERGY_STATUS		0x00000641
 #define MSR_PP1_POLICY			0x00000642
 
+/* Config TDP MSRs */
 #define MSR_CONFIG_TDP_NOMINAL		0x00000648
 #define MSR_CONFIG_TDP_LEVEL_1		0x00000649
 #define MSR_CONFIG_TDP_LEVEL_2		0x0000064A
@@ -206,13 +219,6 @@
 #define MSR_GFX_PERF_LIMIT_REASONS	0x000006B0
 #define MSR_RING_PERF_LIMIT_REASONS	0x000006B1
 
-/* Config TDP MSRs */
-#define MSR_CONFIG_TDP_NOMINAL		0x00000648
-#define MSR_CONFIG_TDP_LEVEL1		0x00000649
-#define MSR_CONFIG_TDP_LEVEL2		0x0000064A
-#define MSR_CONFIG_TDP_CONTROL		0x0000064B
-#define MSR_TURBO_ACTIVATION_RATIO	0x0000064C
-
 /* Hardware P state interface */
 #define MSR_PPERF			0x0000064e
 #define MSR_PERF_LIMIT_REASONS		0x0000064f
@@ -231,10 +237,10 @@
 #define HWP_PACKAGE_LEVEL_REQUEST_BIT	(1<<11)
 
 /* IA32_HWP_CAPABILITIES */
-#define HWP_HIGHEST_PERF(x)		(x & 0xff)
-#define HWP_GUARANTEED_PERF(x)		((x & (0xff << 8)) >>8)
-#define HWP_MOSTEFFICIENT_PERF(x)	((x & (0xff << 16)) >>16)
-#define HWP_LOWEST_PERF(x)		((x & (0xff << 24)) >>24)
+#define HWP_HIGHEST_PERF(x)		(((x) >> 0) & 0xff)
+#define HWP_GUARANTEED_PERF(x)		(((x) >> 8) & 0xff)
+#define HWP_MOSTEFFICIENT_PERF(x)	(((x) >> 16) & 0xff)
+#define HWP_LOWEST_PERF(x)		(((x) >> 24) & 0xff)
 
 /* IA32_HWP_REQUEST */
 #define HWP_MIN_PERF(x) 		(x & 0xff)
@@ -322,6 +328,7 @@
 #define MSR_F15H_PERF_CTR		0xc0010201
 #define MSR_F15H_NB_PERF_CTL		0xc0010240
 #define MSR_F15H_NB_PERF_CTR		0xc0010241
+#define MSR_F15H_IC_CFG			0xc0011021
 
 /* Fam 10h MSRs */
 #define MSR_FAM10H_MMIO_CONF_BASE	0xc0010058

@@ -8,6 +8,8 @@
 
 	aliases {
 		serial0 = &blsp1_uart2;
+		usid0 = &pm8941_0;
+		usid4 = &pm8841_0;
 	};
 
 	chosen {

@@ -517,7 +517,7 @@ static struct uart_ops serial_sprd_ops = {
 };
 
 #ifdef CONFIG_SERIAL_SPRD_CONSOLE
-static inline void wait_for_xmitr(struct uart_port *port)
+static void wait_for_xmitr(struct uart_port *port)
 {
 	unsigned int status, tmout = 10000;
 
@@ -624,8 +624,6 @@ static int __init sprd_early_console_setup(
 	device->con->write = sprd_early_write;
 	return 0;
 }
-
-EARLYCON_DECLARE(sprd_serial, sprd_early_console_setup);
 OF_EARLYCON_DECLARE(sprd_serial, "sprd,sc9836-uart",
 		    sprd_early_console_setup);
 

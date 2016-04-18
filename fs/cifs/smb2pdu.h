@@ -86,6 +86,7 @@
 #define MAX_SMB2_HDR_SIZE 0x78 /* 4 len + 64 hdr + (2*24 wct) + 2 bct + 2 pad */
 
 #define SMB2_PROTO_NUMBER cpu_to_le32(0x424d53fe)
+#define SMB2_TRANSFORM_PROTO_NUM cpu_to_le32(0x424d53fd)
 
 /*
  * SMB2 Header Definition
@@ -102,7 +103,7 @@ struct smb2_hdr {
 	__be32 smb2_buf_length;	/* big endian on wire */
 				/* length is only two or three bytes - with
 				 one or two byte type preceding it that MBZ */
-	__u8   ProtocolId[4];	/* 0xFE 'S' 'M' 'B' */
+	__le32 ProtocolId;	/* 0xFE 'S' 'M' 'B' */
 	__le16 StructureSize;	/* 64 */
 	__le16 CreditCharge;	/* MBZ */
 	__le32 Status;		/* Error from server */
@@ -128,11 +129,10 @@ struct smb2_transform_hdr {
 				 one or two byte type preceding it that MBZ */
 	__u8   ProtocolId[4];	/* 0xFD 'S' 'M' 'B' */
 	__u8   Signature[16];
-	__u8   Nonce[11];
-	__u8   Reserved[5];
+	__u8   Nonce[16];
 	__le32 OriginalMessageSize;
 	__u16  Reserved1;
-	__le16 EncryptionAlgorithm;
+	__le16 Flags; /* EncryptionAlgorithm */
 	__u64  SessionId;
 } __packed;
 
@@ -590,6 +590,44 @@ struct create_durable {
 	} Data;
 } __packed;
 
+/* See MS-SMB2 2.2.13.2.11 */
+/* Flags */
+#define SMB2_DHANDLE_FLAG_PERSISTENT	0x00000002
+struct durable_context_v2 {
+	__le32 Timeout;
+	__le32 Flags;
+	__u64 Reserved;
+	__u8 CreateGuid[16];
+} __packed;
+
+struct create_durable_v2 {
+	struct create_context ccontext;
+	__u8   Name[8];
+	struct durable_context_v2 dcontext;
+} __packed;
+
+/* See MS-SMB2 2.2.13.2.12 */
+struct durable_reconnect_context_v2 {
+	struct {
+		__u64 PersistentFileId;
+		__u64 VolatileFileId;
+	} Fid;
+	__u8 CreateGuid[16];
+	__le32 Flags; /* see above DHANDLE_FLAG_PERSISTENT */
+} __packed;
+
+/* See MS-SMB2 2.2.14.2.12 */
+struct durable_reconnect_context_v2_rsp {
+	__le32 Timeout;
+	__le32 Flags; /* see above DHANDLE_FLAG_PERSISTENT */
+} __packed;
+
+struct create_durable_handle_reconnect_v2 {
+	struct create_context ccontext;
+	__u8   Name[8];
+	struct durable_reconnect_context_v2 dcontext;
+} __packed;
+
 #define COPY_CHUNK_RES_KEY_SIZE	24
 struct resume_key_req {
 	char ResumeKey[COPY_CHUNK_RES_KEY_SIZE];
@@ -642,6 +680,13 @@ struct fsctl_get_integrity_information_rsp {
 
 /* Integrity flags for above */
 #define FSCTL_INTEGRITY_FLAG_CHECKSUM_ENFORCEMENT_OFF	0x00000001
+
+/* See MS-SMB2 2.2.31.3 */
+struct network_resiliency_req {
+	__le32 Timeout;
+	__le32 Reserved;
+} __packed;
+/* There is no buffer for the response ie no struct network_resiliency_rsp */
 
 
 struct validate_negotiate_info_req {

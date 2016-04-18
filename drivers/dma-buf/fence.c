@@ -397,6 +397,104 @@ out:
 }
 EXPORT_SYMBOL(fence_default_wait);
 
+static bool
+fence_test_signaled_any(struct fence **fences, uint32_t count)
+{
+	int i;
+
+	for (i = 0; i < count; ++i) {
+		struct fence *fence = fences[i];
+		if (test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+			return true;
+	}
+	return false;
+}
+
+/**
+ * fence_wait_any_timeout - sleep until any fence gets signaled
+ * or until timeout elapses
+ * @fences:	[in]	array of fences to wait on
+ * @count:	[in]	number of fences to wait on
+ * @intr:	[in]	if true, do an interruptible wait
+ * @timeout:	[in]	timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
+ *
+ * Returns -EINVAL on custom fence wait implementation, -ERESTARTSYS if
+ * interrupted, 0 if the wait timed out, or the remaining timeout in jiffies
+ * on success.
+ *
+ * Synchronous waits for the first fence in the array to be signaled. The
+ * caller needs to hold a reference to all fences in the array, otherwise a
+ * fence might be freed before return, resulting in undefined behavior.
+ */
+signed long
+fence_wait_any_timeout(struct fence **fences, uint32_t count,
+		       bool intr, signed long timeout)
+{
+	struct default_wait_cb *cb;
+	signed long ret = timeout;
+	unsigned i;
+
+	if (WARN_ON(!fences || !count || timeout < 0))
+		return -EINVAL;
+
+	if (timeout == 0) {
+		for (i = 0; i < count; ++i)
+			if (fence_is_signaled(fences[i]))
+				return 1;
+
+		return 0;
+	}
+
+	cb = kcalloc(count, sizeof(struct default_wait_cb), GFP_KERNEL);
+	if (cb == NULL) {
+		ret = -ENOMEM;
+		goto err_free_cb;
+	}
+
+	for (i = 0; i < count; ++i) {
+		struct fence *fence = fences[i];
+
+		if (fence->ops->wait != fence_default_wait) {
+			ret = -EINVAL;
+			goto fence_rm_cb;
+		}
+
+		cb[i].task = current;
+		if (fence_add_callback(fence, &cb[i].base,
+				       fence_default_wait_cb)) {
+			/* This fence is already signaled */
+			goto fence_rm_cb;
+		}
+	}
+
+	while (ret > 0) {
+		if (intr)
+			set_current_state(TASK_INTERRUPTIBLE);
+		else
+			set_current_state(TASK_UNINTERRUPTIBLE);
+
+		if (fence_test_signaled_any(fences, count))
+			break;
+
+		ret = schedule_timeout(ret);
+
+		if (ret > 0 && intr && signal_pending(current))
+			ret = -ERESTARTSYS;
+	}
+
+	__set_current_state(TASK_RUNNING);
+
+fence_rm_cb:
+	while (i-- > 0)
+		fence_remove_callback(fences[i], &cb[i].base);
+
+err_free_cb:
+	kfree(cb);
+
+	return ret;
+}
+EXPORT_SYMBOL(fence_wait_any_timeout);
+
 /**
  * fence_init - Initialize a custom fence.
  * @fence:	[in]	the fence to initialize

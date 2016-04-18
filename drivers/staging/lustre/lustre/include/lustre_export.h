@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -49,62 +49,6 @@
 #include "lprocfs_status.h"
 #include "lustre/lustre_idl.h"
 #include "lustre_dlm.h"
-
-struct mds_client_data;
-struct mdt_client_data;
-struct mds_idmap_table;
-struct mdt_idmap_table;
-
-/**
- * Target-specific export data
- */
-struct tg_export_data {
-	/** Protects led_lcd below */
-	struct mutex		ted_lcd_lock;
-	/** Per-client data for each export */
-	struct lsd_client_data	*ted_lcd;
-	/** Offset of record in last_rcvd file */
-	loff_t			ted_lr_off;
-	/** Client index in last_rcvd file */
-	int			ted_lr_idx;
-};
-
-/**
- * MDT-specific export data
- */
-struct mdt_export_data {
-	struct tg_export_data	med_ted;
-	/** List of all files opened by client on this MDT */
-	struct list_head		med_open_head;
-	spinlock_t		med_open_lock; /* med_open_head, mfd_list */
-	/** Bitmask of all ibit locks this MDT understands */
-	__u64			med_ibits_known;
-	struct mutex		med_idmap_mutex;
-	struct lustre_idmap_table *med_idmap;
-};
-
-struct ec_export_data { /* echo client */
-	struct list_head eced_locks;
-};
-
-/* In-memory access to client data from OST struct */
-/** Filter (oss-side) specific import data */
-struct filter_export_data {
-	struct tg_export_data	fed_ted;
-	spinlock_t		fed_lock;	/**< protects fed_mod_list */
-	long		       fed_dirty;    /* in bytes */
-	long		       fed_grant;    /* in bytes */
-	struct list_head		 fed_mod_list; /* files being modified */
-	int			fed_mod_count;/* items in fed_writing list */
-	long		       fed_pending;  /* bytes just being written */
-	__u32		      fed_group;
-	__u8		       fed_pagesize; /* log2 of client page size */
-};
-
-struct mgs_export_data {
-	struct list_head		med_clients;	/* mgc fs client via this exp */
-	spinlock_t		med_lock;	/* protect med_clients */
-};
 
 enum obd_option {
 	OBD_OPT_FORCE =	 0x0001,
@@ -179,7 +123,8 @@ struct obd_export {
 	 */
 	spinlock_t		  exp_lock;
 	/** Compatibility flags for this export are embedded into
-	 *  exp_connect_data */
+	 *  exp_connect_data
+	 */
 	struct obd_connect_data   exp_connect_data;
 	enum obd_option	   exp_flags;
 	unsigned long	     exp_failed:1,
@@ -200,21 +145,7 @@ struct obd_export {
 	/** blocking dlm lock list, protected by exp_bl_list_lock */
 	struct list_head		exp_bl_list;
 	spinlock_t		  exp_bl_list_lock;
-
-	/** Target specific data */
-	union {
-		struct tg_export_data     eu_target_data;
-		struct mdt_export_data    eu_mdt_data;
-		struct filter_export_data eu_filter_data;
-		struct ec_export_data     eu_ec_data;
-		struct mgs_export_data    eu_mgs_data;
-	} u;
 };
-
-#define exp_target_data u.eu_target_data
-#define exp_mdt_data    u.eu_mdt_data
-#define exp_filter_data u.eu_filter_data
-#define exp_ec_data     u.eu_ec_data
 
 static inline __u64 *exp_connect_flags_ptr(struct obd_export *exp)
 {
@@ -228,7 +159,6 @@ static inline __u64 exp_connect_flags(struct obd_export *exp)
 
 static inline int exp_max_brw_size(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	if (exp_connect_flags(exp) & OBD_CONNECT_BRW_SIZE)
 		return exp->exp_connect_data.ocd_brw_size;
 
@@ -242,19 +172,16 @@ static inline int exp_connect_multibulk(struct obd_export *exp)
 
 static inline int exp_connect_cancelset(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	return !!(exp_connect_flags(exp) & OBD_CONNECT_CANCELSET);
 }
 
 static inline int exp_connect_lru_resize(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	return !!(exp_connect_flags(exp) & OBD_CONNECT_LRU_RESIZE);
 }
 
 static inline int exp_connect_rmtclient(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	return !!(exp_connect_flags(exp) & OBD_CONNECT_RMT_CLIENT);
 }
 
@@ -268,14 +195,11 @@ static inline int client_is_remote(struct obd_export *exp)
 
 static inline int exp_connect_vbr(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
-	LASSERT(exp->exp_connection);
 	return !!(exp_connect_flags(exp) & OBD_CONNECT_VBR);
 }
 
 static inline int exp_connect_som(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	return !!(exp_connect_flags(exp) & OBD_CONNECT_SOM);
 }
 
@@ -288,7 +212,6 @@ static inline int imp_connect_lru_resize(struct obd_import *imp)
 {
 	struct obd_connect_data *ocd;
 
-	LASSERT(imp != NULL);
 	ocd = &imp->imp_connect_data;
 	return !!(ocd->ocd_connect_flags & OBD_CONNECT_LRU_RESIZE);
 }
@@ -300,7 +223,6 @@ static inline int exp_connect_layout(struct obd_export *exp)
 
 static inline bool exp_connect_lvb_type(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	if (exp_connect_flags(exp) & OBD_CONNECT_LVB_TYPE)
 		return true;
 	else
@@ -311,7 +233,6 @@ static inline bool imp_connect_lvb_type(struct obd_import *imp)
 {
 	struct obd_connect_data *ocd;
 
-	LASSERT(imp != NULL);
 	ocd = &imp->imp_connect_data;
 	if (ocd->ocd_connect_flags & OBD_CONNECT_LVB_TYPE)
 		return true;
@@ -331,12 +252,18 @@ static inline bool imp_connect_disp_stripe(struct obd_import *imp)
 {
 	struct obd_connect_data *ocd;
 
-	LASSERT(imp != NULL);
 	ocd = &imp->imp_connect_data;
 	return ocd->ocd_connect_flags & OBD_CONNECT_DISP_STRIPE;
 }
 
 struct obd_export *class_conn2export(struct lustre_handle *conn);
+
+#define KKUC_CT_DATA_MAGIC	0x092013cea
+struct kkuc_ct_data {
+	__u32		kcd_magic;
+	struct obd_uuid	kcd_uuid;
+	__u32		kcd_archive;
+};
 
 /** @} export */
 

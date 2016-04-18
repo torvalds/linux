@@ -14,7 +14,7 @@
 #include <linux/sysfs.h>
 #include <linux/pci.h>
 
-#include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <asm/amd_nb.h>
 #include <asm/smp.h>
 
@@ -444,7 +444,7 @@ static ssize_t store_cache_disable(struct cacheinfo *this_leaf,
 	err = amd_set_l3_disable_slot(nb, cpu, slot, val);
 	if (err) {
 		if (err == -EEXIST)
-			pr_warning("L3 slot %d in use/index already disabled!\n",
+			pr_warn("L3 slot %d in use/index already disabled!\n",
 				   slot);
 		return err;
 	}
@@ -591,7 +591,7 @@ cpuid4_cache_lookup_regs(int index, struct _cpuid4_info_regs *this_leaf)
 	unsigned		edx;
 
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
-		if (cpu_has_topoext)
+		if (boot_cpu_has(X86_FEATURE_TOPOEXT))
 			cpuid_count(0x8000001d, index, &eax.full,
 				    &ebx.full, &ecx.full, &edx);
 		else
@@ -637,7 +637,7 @@ static int find_num_cache_leaves(struct cpuinfo_x86 *c)
 void init_amd_cacheinfo(struct cpuinfo_x86 *c)
 {
 
-	if (cpu_has_topoext) {
+	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		num_cache_leaves = find_num_cache_leaves(c);
 	} else if (c->extended_cpuid_level >= 0x80000006) {
 		if (cpuid_edx(0x80000006) & 0xf000)
@@ -809,7 +809,7 @@ static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
 	struct cacheinfo *this_leaf;
 	int i, sibling;
 
-	if (cpu_has_topoext) {
+	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		unsigned int apicid, nshared, first, last;
 
 		this_leaf = this_cpu_ci->info_list + index;

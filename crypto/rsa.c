@@ -13,6 +13,7 @@
 #include <crypto/internal/rsa.h>
 #include <crypto/internal/akcipher.h>
 #include <crypto/akcipher.h>
+#include <crypto/algapi.h>
 
 /*
  * RSAEP function [RFC3447 sec 5.1.1]
@@ -91,12 +92,6 @@ static int rsa_enc(struct akcipher_request *req)
 		goto err_free_c;
 	}
 
-	if (req->dst_len < mpi_get_size(pkey->n)) {
-		req->dst_len = mpi_get_size(pkey->n);
-		ret = -EOVERFLOW;
-		goto err_free_c;
-	}
-
 	ret = -ENOMEM;
 	m = mpi_read_raw_from_sgl(req->src, req->src_len);
 	if (!m)
@@ -133,12 +128,6 @@ static int rsa_dec(struct akcipher_request *req)
 
 	if (unlikely(!pkey->n || !pkey->d)) {
 		ret = -EINVAL;
-		goto err_free_m;
-	}
-
-	if (req->dst_len < mpi_get_size(pkey->n)) {
-		req->dst_len = mpi_get_size(pkey->n);
-		ret = -EOVERFLOW;
 		goto err_free_m;
 	}
 
@@ -180,12 +169,6 @@ static int rsa_sign(struct akcipher_request *req)
 		goto err_free_s;
 	}
 
-	if (req->dst_len < mpi_get_size(pkey->n)) {
-		req->dst_len = mpi_get_size(pkey->n);
-		ret = -EOVERFLOW;
-		goto err_free_s;
-	}
-
 	ret = -ENOMEM;
 	m = mpi_read_raw_from_sgl(req->src, req->src_len);
 	if (!m)
@@ -222,12 +205,6 @@ static int rsa_verify(struct akcipher_request *req)
 
 	if (unlikely(!pkey->n || !pkey->e)) {
 		ret = -EINVAL;
-		goto err_free_m;
-	}
-
-	if (req->dst_len < mpi_get_size(pkey->n)) {
-		req->dst_len = mpi_get_size(pkey->n);
-		ret = -EOVERFLOW;
 		goto err_free_m;
 	}
 
@@ -339,11 +316,24 @@ static struct akcipher_alg rsa = {
 
 static int rsa_init(void)
 {
-	return crypto_register_akcipher(&rsa);
+	int err;
+
+	err = crypto_register_akcipher(&rsa);
+	if (err)
+		return err;
+
+	err = crypto_register_template(&rsa_pkcs1pad_tmpl);
+	if (err) {
+		crypto_unregister_akcipher(&rsa);
+		return err;
+	}
+
+	return 0;
 }
 
 static void rsa_exit(void)
 {
+	crypto_unregister_template(&rsa_pkcs1pad_tmpl);
 	crypto_unregister_akcipher(&rsa);
 }
 

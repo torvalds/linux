@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -69,10 +69,12 @@ struct osc_io {
 	/** true if this io is lockless. */
 	int		oi_lockless;
 	/** active extents, we know how many bytes is going to be written,
-	 * so having an active extent will prevent it from being fragmented */
+	 * so having an active extent will prevent it from being fragmented
+	 */
 	struct osc_extent *oi_active;
 	/** partially truncated extent, we need to hold this extent to prevent
-	 * page writeback from happening. */
+	 * page writeback from happening.
+	 */
 	struct osc_extent *oi_trunc;
 
 	struct obd_info    oi_info;
@@ -154,7 +156,8 @@ struct osc_object {
 	atomic_t	 oo_nr_writes;
 
 	/** Protect extent tree. Will be used to protect
-	 * oo_{read|write}_pages soon. */
+	 * oo_{read|write}_pages soon.
+	 */
 	spinlock_t	    oo_lock;
 };
 
@@ -472,7 +475,7 @@ static inline struct osc_thread_info *osc_env_info(const struct lu_env *env)
 	struct osc_thread_info *info;
 
 	info = lu_context_key_get(&env->le_ctx, &osc_key);
-	LASSERT(info != NULL);
+	LASSERT(info);
 	return info;
 }
 
@@ -481,7 +484,7 @@ static inline struct osc_session *osc_env_session(const struct lu_env *env)
 	struct osc_session *ses;
 
 	ses = lu_context_key_get(env->le_ses, &osc_session_key);
-	LASSERT(ses != NULL);
+	LASSERT(ses);
 	return ses;
 }
 
@@ -522,7 +525,7 @@ static inline struct cl_object *osc2cl(const struct osc_object *obj)
 	return (struct cl_object *)&obj->oo_cl;
 }
 
-static inline ldlm_mode_t osc_cl_lock2ldlm(enum cl_lock_mode mode)
+static inline enum ldlm_mode osc_cl_lock2ldlm(enum cl_lock_mode mode)
 {
 	LASSERT(mode == CLM_READ || mode == CLM_WRITE || mode == CLM_GROUP);
 	if (mode == CLM_READ)
@@ -533,7 +536,7 @@ static inline ldlm_mode_t osc_cl_lock2ldlm(enum cl_lock_mode mode)
 		return LCK_GROUP;
 }
 
-static inline enum cl_lock_mode osc_ldlm2cl_lock(ldlm_mode_t mode)
+static inline enum cl_lock_mode osc_ldlm2cl_lock(enum ldlm_mode mode)
 {
 	LASSERT(mode == LCK_PR || mode == LCK_PW || mode == LCK_GROUP);
 	if (mode == LCK_PR)
@@ -627,22 +630,26 @@ struct osc_extent {
 			   oe_srvlock:1,
 			   oe_memalloc:1,
 	/** an ACTIVE extent is going to be truncated, so when this extent
-	 * is released, it will turn into TRUNC state instead of CACHE. */
+	 * is released, it will turn into TRUNC state instead of CACHE.
+	 */
 			   oe_trunc_pending:1,
 	/** this extent should be written asap and someone may wait for the
 	 * write to finish. This bit is usually set along with urgent if
 	 * the extent was CACHE state.
 	 * fsync_wait extent can't be merged because new extent region may
-	 * exceed fsync range. */
+	 * exceed fsync range.
+	 */
 			   oe_fsync_wait:1,
 	/** covering lock is being canceled */
 			   oe_hp:1,
 	/** this extent should be written back asap. set if one of pages is
-	 * called by page WB daemon, or sync write or reading requests. */
+	 * called by page WB daemon, or sync write or reading requests.
+	 */
 			   oe_urgent:1;
 	/** how many grants allocated for this extent.
 	 *  Grant allocated for this extent. There is no grant allocated
-	 *  for reading extents and sync write extents. */
+	 *  for reading extents and sync write extents.
+	 */
 	unsigned int       oe_grants;
 	/** # of dirty pages in this extent */
 	unsigned int       oe_nr_pages;
@@ -655,21 +662,25 @@ struct osc_extent {
 	struct osc_page   *oe_next_page;
 	/** start and end index of this extent, include start and end
 	 * themselves. Page offset here is the page index of osc_pages.
-	 * oe_start is used as keyword for red-black tree. */
+	 * oe_start is used as keyword for red-black tree.
+	 */
 	pgoff_t	    oe_start;
 	pgoff_t	    oe_end;
 	/** maximum ending index of this extent, this is limited by
-	 * max_pages_per_rpc, lock extent and chunk size. */
+	 * max_pages_per_rpc, lock extent and chunk size.
+	 */
 	pgoff_t	    oe_max_end;
 	/** waitqueue - for those who want to be notified if this extent's
-	 * state has changed. */
+	 * state has changed.
+	 */
 	wait_queue_head_t	oe_waitq;
 	/** lock covering this extent */
 	struct cl_lock    *oe_osclock;
 	/** terminator of this extent. Must be true if this extent is in IO. */
 	struct task_struct	*oe_owner;
 	/** return value of writeback. If somebody is waiting for this extent,
-	 * this value can be known by outside world. */
+	 * this value can be known by outside world.
+	 */
 	int		oe_rc;
 	/** max pages per rpc when this extent was created */
 	unsigned int       oe_mppr;

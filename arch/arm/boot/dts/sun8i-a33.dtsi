@@ -72,6 +72,41 @@
 			clock-output-names = "pll11";
 		};
 
+		ahb1_gates: clk@01c20060 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun8i-a33-ahb1-gates-clk";
+			reg = <0x01c20060 0x8>;
+			clocks = <&ahb1>;
+			clock-indices = <1>, <5>,
+				        <6>, <8>, <9>,
+				        <10>, <13>, <14>,
+					<19>, <20>,
+					<21>, <24>, <26>,
+					<29>, <32>, <36>,
+					<40>, <44>, <46>,
+					<52>, <53>,
+					<54>, <57>,
+					<58>;
+			clock-output-names = "ahb1_mipidsi", "ahb1_ss",
+					"ahb1_dma","ahb1_mmc0", "ahb1_mmc1",
+					"ahb1_mmc2", "ahb1_nand", "ahb1_sdram",
+					"ahb1_hstimer", "ahb1_spi0",
+					"ahb1_spi1", "ahb1_otg", "ahb1_ehci",
+					"ahb1_ohci", "ahb1_ve", "ahb1_lcd",
+					"ahb1_csi", "ahb1_be",	"ahb1_fe",
+					"ahb1_gpu", "ahb1_msgbox",
+					"ahb1_spinlock", "ahb1_drc",
+					"ahb1_sat";
+		};
+
+		ss_clk: clk@01c2009c {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-mod0-clk";
+			reg = <0x01c2009c 0x4>;
+			clocks = <&osc24M>, <&pll6 0>;
+			clock-output-names = "ss";
+		};
+
 		mbus_clk: clk@01c2015c {
 			#clock-cells = <0>;
 			compatible = "allwinner,sun8i-a23-mbus-clk";
@@ -82,6 +117,16 @@
 	};
 
 	soc@01c00000 {
+		crypto: crypto-engine@01c15000 {
+			compatible = "allwinner,sun4i-a10-crypto";
+			reg = <0x01c15000 0x1000>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ahb1_gates 5>, <&ss_clk>;
+			clock-names = "ahb", "mod";
+			resets = <&ahb1_rst 5>;
+			reset-names = "ahb";
+		};
+
 		usb_otg: usb@01c19000 {
 			compatible = "allwinner,sun8i-a33-musb";
 			reg = <0x01c19000 0x0400>;

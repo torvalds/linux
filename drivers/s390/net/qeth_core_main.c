@@ -2684,8 +2684,6 @@ void qeth_print_status_message(struct qeth_card *card)
 			sprintf(card->info.mcl_level, "%02x%02x",
 				card->info.mcl_level[2],
 				card->info.mcl_level[3]);
-
-			card->info.mcl_level[QETH_MCL_LENGTH] = 0;
 			break;
 		}
 		/* fallthrough */
@@ -5297,10 +5295,10 @@ static int qeth_setassparms_cb(struct qeth_card *card,
 	return 0;
 }
 
-static struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
-						  enum qeth_ipa_funcs ipa_func,
-						  __u16 cmd_code, __u16 len,
-						  enum qeth_prot_versions prot)
+struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
+						 enum qeth_ipa_funcs ipa_func,
+						 __u16 cmd_code, __u16 len,
+						 enum qeth_prot_versions prot)
 {
 	struct qeth_cmd_buffer *iob;
 	struct qeth_ipa_cmd *cmd;
@@ -5319,6 +5317,7 @@ static struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
 
 	return iob;
 }
+EXPORT_SYMBOL_GPL(qeth_get_setassparms_cmd);
 
 int qeth_send_setassparms(struct qeth_card *card,
 			  struct qeth_cmd_buffer *iob, __u16 len, long data,

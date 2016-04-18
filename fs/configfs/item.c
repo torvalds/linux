@@ -182,6 +182,7 @@ void config_group_init(struct config_group *group)
 {
 	config_item_init(&group->cg_item);
 	INIT_LIST_HEAD(&group->cg_children);
+	INIT_LIST_HEAD(&group->default_groups);
 }
 EXPORT_SYMBOL(config_group_init);
 

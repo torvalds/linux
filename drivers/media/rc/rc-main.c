@@ -13,6 +13,7 @@
  */
 
 #include <media/rc-core.h>
+#include <linux/atomic.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -61,7 +62,7 @@ struct rc_map *rc_map_get(const char *name)
 	struct rc_map_list *map;
 
 	map = seek_rc_map(name);
-#ifdef MODULE
+#ifdef CONFIG_MODULES
 	if (!map) {
 		int rc = request_module("%s", name);
 		if (rc < 0) {
@@ -723,6 +724,7 @@ int rc_open(struct rc_dev *rdev)
 		return -EINVAL;
 
 	mutex_lock(&rdev->lock);
+
 	if (!rdev->users++ && rdev->open != NULL)
 		rval = rdev->open(rdev);
 
@@ -777,30 +779,31 @@ static struct class rc_class = {
  * used by the sysfs protocols file. Note that the order
  * of the entries is relevant.
  */
-static struct {
+static const struct {
 	u64	type;
-	char	*name;
+	const char	*name;
+	const char	*module_name;
 } proto_names[] = {
-	{ RC_BIT_NONE,		"none"		},
-	{ RC_BIT_OTHER,		"other"		},
-	{ RC_BIT_UNKNOWN,	"unknown"	},
+	{ RC_BIT_NONE,		"none",		NULL			},
+	{ RC_BIT_OTHER,		"other",	NULL			},
+	{ RC_BIT_UNKNOWN,	"unknown",	NULL			},
 	{ RC_BIT_RC5 |
-	  RC_BIT_RC5X,		"rc-5"		},
-	{ RC_BIT_NEC,		"nec"		},
+	  RC_BIT_RC5X,		"rc-5",		"ir-rc5-decoder"	},
+	{ RC_BIT_NEC,		"nec",		"ir-nec-decoder"	},
 	{ RC_BIT_RC6_0 |
 	  RC_BIT_RC6_6A_20 |
 	  RC_BIT_RC6_6A_24 |
 	  RC_BIT_RC6_6A_32 |
-	  RC_BIT_RC6_MCE,	"rc-6"		},
-	{ RC_BIT_JVC,		"jvc"		},
+	  RC_BIT_RC6_MCE,	"rc-6",		"ir-rc6-decoder"	},
+	{ RC_BIT_JVC,		"jvc",		"ir-jvc-decoder"	},
 	{ RC_BIT_SONY12 |
 	  RC_BIT_SONY15 |
-	  RC_BIT_SONY20,	"sony"		},
-	{ RC_BIT_RC5_SZ,	"rc-5-sz"	},
-	{ RC_BIT_SANYO,		"sanyo"		},
-	{ RC_BIT_SHARP,		"sharp"		},
-	{ RC_BIT_MCE_KBD,	"mce_kbd"	},
-	{ RC_BIT_XMP,		"xmp"		},
+	  RC_BIT_SONY20,	"sony",		"ir-sony-decoder"	},
+	{ RC_BIT_RC5_SZ,	"rc-5-sz",	"ir-rc5-decoder"	},
+	{ RC_BIT_SANYO,		"sanyo",	"ir-sanyo-decoder"	},
+	{ RC_BIT_SHARP,		"sharp",	"ir-sharp-decoder"	},
+	{ RC_BIT_MCE_KBD,	"mce_kbd",	"ir-mce_kbd-decoder"	},
+	{ RC_BIT_XMP,		"xmp",		"ir-xmp-decoder"	},
 };
 
 /**
@@ -871,6 +874,9 @@ static ssize_t show_protocols(struct device *device,
 	/* Device is being removed */
 	if (!dev)
 		return -EINVAL;
+
+	if (!atomic_read(&dev->initialized))
+		return -ERESTARTSYS;
 
 	mutex_lock(&dev->lock);
 
@@ -979,6 +985,48 @@ static int parse_protocol_change(u64 *protocols, const char *buf)
 	return count;
 }
 
+static void ir_raw_load_modules(u64 *protocols)
+
+{
+	u64 available;
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(proto_names); i++) {
+		if (proto_names[i].type == RC_BIT_NONE ||
+		    proto_names[i].type & (RC_BIT_OTHER | RC_BIT_UNKNOWN))
+			continue;
+
+		available = ir_raw_get_allowed_protocols();
+		if (!(*protocols & proto_names[i].type & ~available))
+			continue;
+
+		if (!proto_names[i].module_name) {
+			pr_err("Can't enable IR protocol %s\n",
+			       proto_names[i].name);
+			*protocols &= ~proto_names[i].type;
+			continue;
+		}
+
+		ret = request_module("%s", proto_names[i].module_name);
+		if (ret < 0) {
+			pr_err("Couldn't load IR protocol module %s\n",
+			       proto_names[i].module_name);
+			*protocols &= ~proto_names[i].type;
+			continue;
+		}
+		msleep(20);
+		available = ir_raw_get_allowed_protocols();
+		if (!(*protocols & proto_names[i].type & ~available))
+			continue;
+
+		pr_err("Loaded IR protocol module %s, \
+		       but protocol %s still not available\n",
+		       proto_names[i].module_name,
+		       proto_names[i].name);
+		*protocols &= ~proto_names[i].type;
+	}
+}
+
 /**
  * store_protocols() - changes the current/wakeup IR protocol(s)
  * @device:	the device descriptor
@@ -1010,6 +1058,9 @@ static ssize_t store_protocols(struct device *device,
 	/* Device is being removed */
 	if (!dev)
 		return -EINVAL;
+
+	if (!atomic_read(&dev->initialized))
+		return -ERESTARTSYS;
 
 	if (fattr->type == RC_FILTER_NORMAL) {
 		IR_dprintk(1, "Normal protocol change requested\n");
@@ -1044,6 +1095,9 @@ static ssize_t store_protocols(struct device *device,
 			   (long long)new_protocols);
 		goto out;
 	}
+
+	if (dev->driver_type == RC_DRIVER_IR_RAW)
+		ir_raw_load_modules(&new_protocols);
 
 	if (new_protocols != old_protocols) {
 		*current_protocols = new_protocols;
@@ -1108,12 +1162,16 @@ static ssize_t show_filter(struct device *device,
 	if (!dev)
 		return -EINVAL;
 
+	if (!atomic_read(&dev->initialized))
+		return -ERESTARTSYS;
+
+	mutex_lock(&dev->lock);
+
 	if (fattr->type == RC_FILTER_NORMAL)
 		filter = &dev->scancode_filter;
 	else
 		filter = &dev->scancode_wakeup_filter;
 
-	mutex_lock(&dev->lock);
 	if (fattr->mask)
 		val = filter->mask;
 	else
@@ -1157,6 +1215,9 @@ static ssize_t store_filter(struct device *device,
 	/* Device is being removed */
 	if (!dev)
 		return -EINVAL;
+
+	if (!atomic_read(&dev->initialized))
+		return -ERESTARTSYS;
 
 	ret = kstrtoul(buf, 0, &val);
 	if (ret < 0)
@@ -1362,6 +1423,7 @@ int rc_register_device(struct rc_dev *dev)
 	dev->minor = minor;
 	dev_set_name(&dev->dev, "rc%u", dev->minor);
 	dev_set_drvdata(&dev->dev, dev);
+	atomic_set(&dev->initialized, 0);
 
 	dev->dev.groups = dev->sysfs_groups;
 	dev->sysfs_groups[attr++] = &rc_dev_protocol_attr_grp;
@@ -1372,14 +1434,6 @@ int rc_register_device(struct rc_dev *dev)
 	if (dev->change_wakeup_protocol)
 		dev->sysfs_groups[attr++] = &rc_dev_wakeup_protocol_attr_grp;
 	dev->sysfs_groups[attr++] = NULL;
-
-	/*
-	 * Take the lock here, as the device sysfs node will appear
-	 * when device_add() is called, which may trigger an ir-keytable udev
-	 * rule, which will in turn call show_protocols and access
-	 * dev->enabled_protocols before it has been initialized.
-	 */
-	mutex_lock(&dev->lock);
 
 	rc = device_add(&dev->dev);
 	if (rc)
@@ -1393,16 +1447,6 @@ int rc_register_device(struct rc_dev *dev)
 	memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
 	dev->input_dev->phys = dev->input_phys;
 	dev->input_dev->name = dev->input_name;
-
-	/* input_register_device can call ir_open, so unlock mutex here */
-	mutex_unlock(&dev->lock);
-
-	rc = input_register_device(dev->input_dev);
-
-	mutex_lock(&dev->lock);
-
-	if (rc)
-		goto out_table;
 
 	/*
 	 * Default delay of 250ms is too short for some protocols, especially
@@ -1419,24 +1463,22 @@ int rc_register_device(struct rc_dev *dev)
 	 */
 	dev->input_dev->rep[REP_PERIOD] = 125;
 
+	/* rc_open will be called here */
+	rc = input_register_device(dev->input_dev);
+	if (rc)
+		goto out_table;
+
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
-	printk(KERN_INFO "%s: %s as %s\n",
-		dev_name(&dev->dev),
-		dev->input_name ? dev->input_name : "Unspecified device",
-		path ? path : "N/A");
+	dev_info(&dev->dev, "%s as %s\n",
+		dev->input_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
 	if (dev->driver_type == RC_DRIVER_IR_RAW) {
-		/* Load raw decoders, if they aren't already */
 		if (!raw_init) {
-			IR_dprintk(1, "Loading raw decoders\n");
-			ir_raw_init();
+			request_module_nowait("ir-lirc-codec");
 			raw_init = true;
 		}
-		/* calls ir_register_device so unlock mutex here*/
-		mutex_unlock(&dev->lock);
 		rc = ir_raw_event_register(dev);
-		mutex_lock(&dev->lock);
 		if (rc < 0)
 			goto out_input;
 	}
@@ -1449,6 +1491,9 @@ int rc_register_device(struct rc_dev *dev)
 		dev->enabled_protocols = rc_type;
 	}
 
+	/* Allow the RC sysfs nodes to be accessible */
+	mutex_lock(&dev->lock);
+	atomic_set(&dev->initialized, 1);
 	mutex_unlock(&dev->lock);
 
 	IR_dprintk(1, "Registered rc%u (driver: %s, remote: %s, mode %s)\n",
@@ -1470,7 +1515,6 @@ out_table:
 out_dev:
 	device_del(&dev->dev);
 out_unlock:
-	mutex_unlock(&dev->lock);
 	ida_simple_remove(&rc_ida, minor);
 	return rc;
 }

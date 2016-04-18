@@ -5,3 +5,11 @@ config VFIO_PLATFORM_CALXEDAXGMAC_RESET
 	  Enables the VFIO platform driver to handle reset for Calxeda xgmac
 
 	  If you don't know what to do here, say N.
+
+config VFIO_PLATFORM_AMDXGBE_RESET
+	tristate "VFIO support for AMD XGBE reset"
+	depends on VFIO_PLATFORM
+	help
+	  Enables the VFIO platform driver to handle reset for AMD XGBE
+
+	  If you don't know what to do here, say N.

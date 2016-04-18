@@ -1,12 +1,18 @@
 #ifndef _ASM_X86_JUMP_LABEL_H
 #define _ASM_X86_JUMP_LABEL_H
 
-#ifndef __ASSEMBLY__
-
-#include <linux/stringify.h>
-#include <linux/types.h>
-#include <asm/nops.h>
-#include <asm/asm.h>
+#ifndef HAVE_JUMP_LABEL
+/*
+ * For better or for worse, if jump labels (the gcc extension) are missing,
+ * then the entire static branch patching infrastructure is compiled out.
+ * If that happens, the code in here will malfunction.  Raise a compiler
+ * error instead.
+ *
+ * In theory, jump labels and the static branch patching infrastructure
+ * could be decoupled to fix this.
+ */
+#error asm/jump_label.h included on a non-jump-label kernel
+#endif
 
 #define JUMP_LABEL_NOP_SIZE 5
 
@@ -15,6 +21,14 @@
 #else
 # define STATIC_KEY_INIT_NOP GENERIC_NOP5_ATOMIC
 #endif
+
+#include <asm/asm.h>
+#include <asm/nops.h>
+
+#ifndef __ASSEMBLY__
+
+#include <linux/stringify.h>
+#include <linux/types.h>
 
 static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
@@ -59,5 +73,40 @@ struct jump_entry {
 	jump_label_t key;
 };
 
-#endif  /* __ASSEMBLY__ */
+#else	/* __ASSEMBLY__ */
+
+.macro STATIC_JUMP_IF_TRUE target, key, def
+.Lstatic_jump_\@:
+	.if \def
+	/* Equivalent to "jmp.d32 \target" */
+	.byte		0xe9
+	.long		\target - .Lstatic_jump_after_\@
+.Lstatic_jump_after_\@:
+	.else
+	.byte		STATIC_KEY_INIT_NOP
+	.endif
+	.pushsection __jump_table, "aw"
+	_ASM_ALIGN
+	_ASM_PTR	.Lstatic_jump_\@, \target, \key
+	.popsection
+.endm
+
+.macro STATIC_JUMP_IF_FALSE target, key, def
+.Lstatic_jump_\@:
+	.if \def
+	.byte		STATIC_KEY_INIT_NOP
+	.else
+	/* Equivalent to "jmp.d32 \target" */
+	.byte		0xe9
+	.long		\target - .Lstatic_jump_after_\@
+.Lstatic_jump_after_\@:
+	.endif
+	.pushsection __jump_table, "aw"
+	_ASM_ALIGN
+	_ASM_PTR	.Lstatic_jump_\@, \target, \key + 1
+	.popsection
+.endm
+
+#endif	/* __ASSEMBLY__ */
+
 #endif

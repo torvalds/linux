@@ -50,7 +50,7 @@
 #define MAKE_WORD16(lsb, msb) ((((u16)(msb) << 8) & 0xFF00) | (lsb))
 #define MAKE_WORD32(lsw, msw) ((((u32)(msw) << 16) & 0xFFFF0000) | (lsw))
 
-typedef enum {
+enum connect_status {
 	SUCCESSFUL_STATUSCODE    = 0,
 	UNSPEC_FAIL              = 1,
 	UNSUP_CAP                = 10,
@@ -68,13 +68,6 @@ typedef enum {
 	SHORT_SLOT_UNSUP         = 25,
 	OFDM_DSSS_UNSUP          = 26,
 	CONNECT_STS_FORCE_16_BIT = 0xFFFF
-} tenuConnectSts;
-
-struct wid {
-	u16 id;
-	enum WID_TYPE type;
-	s32 size;
-	s8 *val;
 };
 
 typedef struct {
@@ -83,60 +76,58 @@ typedef struct {
 	s8 as8RSSI[NUM_RSSI];
 } tstrRSSI;
 
-typedef struct {
-	s8 s8rssi;
-	u16 u16CapInfo;
-	u8 au8ssid[MAX_SSID_LEN];
-	u8 u8SsidLen;
-	u8 au8bssid[6];
-	u16 u16BeaconPeriod;
-	u8 u8DtimPeriod;
-	u8 u8channel;
-	unsigned long u32TimeRcvdInScanCached;
-	unsigned long u32TimeRcvdInScan;
-	bool bNewNetwork;
-	u8 u8Found;
-	u32 u32Tsf;
-	u8 *pu8IEs;
-	u16 u16IEsLen;
-	void *pJoinParams;
-	tstrRSSI strRssi;
-	u64 u64Tsf;
-} tstrNetworkInfo;
+struct network_info {
+	s8 rssi;
+	u16 cap_info;
+	u8 ssid[MAX_SSID_LEN];
+	u8 ssid_len;
+	u8 bssid[6];
+	u16 beacon_period;
+	u8 dtim_period;
+	u8 ch;
+	unsigned long time_scan_cached;
+	unsigned long time_scan;
+	bool new_network;
+	u8 found;
+	u32 tsf_lo;
+	u8 *ies;
+	u16 ies_len;
+	void *join_params;
+	tstrRSSI str_rssi;
+	u64 tsf_hi;
+};
 
-typedef struct {
-	u16 u16capability;
-	u16 u16ConnectStatus;
-	u16 u16AssocID;
-	u8 *pu8RespIEs;
-	u16 u16RespIEsLen;
-} tstrConnectRespInfo;
+struct connect_resp_info {
+	u16 capability;
+	u16 status;
+	u16 assoc_id;
+	u8 *ies;
+	u16 ies_len;
+};
 
-typedef struct {
-	u8 au8bssid[6];
-	u8 *pu8ReqIEs;
-	size_t ReqIEsLen;
-	u8 *pu8RespIEs;
-	u16 u16RespIEsLen;
-	u16 u16ConnectStatus;
-} tstrConnectInfo;
+struct connect_info {
+	u8 bssid[6];
+	u8 *req_ies;
+	size_t req_ies_len;
+	u8 *resp_ies;
+	u16 resp_ies_len;
+	u16 status;
+};
 
-typedef struct {
-	u16 u16reason;
+struct disconnect_info {
+	u16 reason;
 	u8 *ie;
 	size_t ie_len;
-} tstrDisconnectNotifInfo;
+};
 
-s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv);
-s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
-s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
-
-s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
-		       tstrConnectRespInfo **ppstrConnectRespInfo);
-s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo);
-
-void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
-void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);
-void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);
-
+s32 wilc_parse_network_info(u8 *msg_buffer,
+			    struct network_info **ret_network_info);
+s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
+			       struct connect_resp_info **ret_connect_resp_info);
+void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,
+				 u32 u32Length);
+void wilc_network_info_received(struct wilc *wilc, u8 *pu8Buffer,
+				u32 u32Length);
+void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
+				   u32 u32Length);
 #endif

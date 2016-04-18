@@ -57,15 +57,6 @@ config SW_SYNC
 	  synchronization.  Useful when there is no hardware primitive backing
 	  the synchronization.
 
-config SW_SYNC_USER
-	bool "Userspace API for SW_SYNC"
-	default n
-	depends on SW_SYNC
-	---help---
-	  Provides a user space API to the sw sync object.
-	  *WARNING* improper use of this can result in deadlocking kernel
-	  drivers from userspace.
-
 source "drivers/staging/android/ion/Kconfig"
 
 endif # if ANDROID

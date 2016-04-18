@@ -22,6 +22,8 @@
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
 				 <&picophyreset STIH407_PICOPHY0_RESET>;
 			reset-names = "global", "port";
+
+			status = "disabled";
 		};
 
 		usb2_picophy2: phy3 {
@@ -31,6 +33,8 @@
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
 				 <&picophyreset STIH407_PICOPHY1_RESET>;
 			reset-names = "global", "port";
+
+			status = "disabled";
 		};
 
 		ohci0: usb@9a03c00 {
@@ -43,6 +47,8 @@
 			reset-names = "power", "softreset";
 			phys = <&usb2_picophy1>;
 			phy-names = "usb";
+
+			status = "disabled";
 		};
 
 		ehci0: usb@9a03e00 {
@@ -57,6 +63,8 @@
 			reset-names = "power", "softreset";
 			phys = <&usb2_picophy1>;
 			phy-names = "usb";
+
+			status = "disabled";
 		};
 
 		ohci1: usb@9a83c00 {
@@ -69,6 +77,8 @@
 			reset-names = "power", "softreset";
 			phys = <&usb2_picophy2>;
 			phy-names = "usb";
+
+			status = "disabled";
 		};
 
 		ehci1: usb@9a83e00 {
@@ -83,19 +93,8 @@
 			reset-names = "power", "softreset";
 			phys = <&usb2_picophy2>;
 			phy-names = "usb";
-		};
 
-		/* Display */
-		vtg_main: sti-vtg-main@8d02800 {
-			compatible = "st,vtg";
-			reg = <0x8d02800 0x200>;
-			interrupts = <GIC_SPI 108 IRQ_TYPE_NONE>;
-		};
-
-		vtg_aux: sti-vtg-aux@8d00200 {
-			compatible = "st,vtg";
-			reg = <0x8d00200 0x100>;
-			interrupts = <GIC_SPI 109 IRQ_TYPE_NONE>;
+			status = "disabled";
 		};
 
 		sti-display-subsystem {

@@ -38,7 +38,7 @@ int ceph_init_dentry(struct dentry *dentry)
 	if (dentry->d_fsdata)
 		return 0;
 
-	di = kmem_cache_alloc(ceph_dentry_cachep, GFP_KERNEL | __GFP_ZERO);
+	di = kmem_cache_zalloc(ceph_dentry_cachep, GFP_KERNEL);
 	if (!di)
 		return -ENOMEM;          /* oh well */
 
@@ -67,23 +67,6 @@ out_unlock:
 	spin_unlock(&dentry->d_lock);
 	return 0;
 }
-
-struct inode *ceph_get_dentry_parent_inode(struct dentry *dentry)
-{
-	struct inode *inode = NULL;
-
-	if (!dentry)
-		return NULL;
-
-	spin_lock(&dentry->d_lock);
-	if (!IS_ROOT(dentry)) {
-		inode = d_inode(dentry->d_parent);
-		ihold(inode);
-	}
-	spin_unlock(&dentry->d_lock);
-	return inode;
-}
-
 
 /*
  * for readdir, we encode the directory frag and offset within that
@@ -146,7 +129,7 @@ static int __dcache_readdir(struct file *file,  struct dir_context *ctx,
 	struct inode *dir = d_inode(parent);
 	struct dentry *dentry, *last = NULL;
 	struct ceph_dentry_info *di;
-	unsigned nsize = PAGE_CACHE_SIZE / sizeof(struct dentry *);
+	unsigned nsize = PAGE_SIZE / sizeof(struct dentry *);
 	int err = 0;
 	loff_t ptr_pos = 0;
 	struct ceph_readdir_cache_control cache_ctl = {};
@@ -171,7 +154,7 @@ static int __dcache_readdir(struct file *file,  struct dir_context *ctx,
 		}
 
 		err = -EAGAIN;
-		pgoff = ptr_pos >> PAGE_CACHE_SHIFT;
+		pgoff = ptr_pos >> PAGE_SHIFT;
 		if (!cache_ctl.page || pgoff != page_index(cache_ctl.page)) {
 			ceph_readdir_cache_release(&cache_ctl);
 			cache_ctl.page = find_lock_page(&dir->i_data, pgoff);
@@ -507,7 +490,7 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int whence)
 	loff_t old_offset = ceph_make_fpos(fi->frag, fi->next_offset);
 	loff_t retval;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	retval = -EINVAL;
 	switch (whence) {
 	case SEEK_CUR:
@@ -542,7 +525,7 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int whence)
 		}
 	}
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return retval;
 }
 
@@ -624,6 +607,7 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
 	int op;
+	int mask;
 	int err;
 
 	dout("lookup %p dentry %p '%pd'\n",
@@ -666,8 +650,12 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_CAST(req);
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
-	/* we only need inode linkage */
-	req->r_args.getattr.mask = cpu_to_le32(CEPH_STAT_CAP_INODE);
+
+	mask = CEPH_STAT_CAP_INODE | CEPH_CAP_AUTH_SHARED;
+	if (ceph_security_xattr_wanted(dir))
+		mask |= CEPH_CAP_XATTR_SHARED;
+	req->r_args.getattr.mask = cpu_to_le32(mask);
+
 	req->r_locked_dir = dir;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
 	err = ceph_handle_snapdir(req, dentry, err);
@@ -1095,6 +1083,7 @@ static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry)
 static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	int valid = 0;
+	struct dentry *parent;
 	struct inode *dir;
 
 	if (flags & LOOKUP_RCU)
@@ -1103,7 +1092,8 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	dout("d_revalidate %p '%pd' inode %p offset %lld\n", dentry,
 	     dentry, d_inode(dentry), ceph_dentry(dentry)->offset);
 
-	dir = ceph_get_dentry_parent_inode(dentry);
+	parent = dget_parent(dentry);
+	dir = d_inode(parent);
 
 	/* always trust cached snapped dentries, snapdir dentry */
 	if (ceph_snap(dir) != CEPH_NOSNAP) {
@@ -1121,13 +1111,48 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 			valid = 1;
 	}
 
+	if (!valid) {
+		struct ceph_mds_client *mdsc =
+			ceph_sb_to_client(dir->i_sb)->mdsc;
+		struct ceph_mds_request *req;
+		int op, mask, err;
+
+		op = ceph_snap(dir) == CEPH_SNAPDIR ?
+			CEPH_MDS_OP_LOOKUPSNAP : CEPH_MDS_OP_LOOKUP;
+		req = ceph_mdsc_create_request(mdsc, op, USE_ANY_MDS);
+		if (!IS_ERR(req)) {
+			req->r_dentry = dget(dentry);
+			req->r_num_caps = 2;
+
+			mask = CEPH_STAT_CAP_INODE | CEPH_CAP_AUTH_SHARED;
+			if (ceph_security_xattr_wanted(dir))
+				mask |= CEPH_CAP_XATTR_SHARED;
+			req->r_args.getattr.mask = mask;
+
+			req->r_locked_dir = dir;
+			err = ceph_mdsc_do_request(mdsc, NULL, req);
+			if (err == 0 || err == -ENOENT) {
+				if (dentry == req->r_dentry) {
+					valid = !d_unhashed(dentry);
+				} else {
+					d_invalidate(req->r_dentry);
+					err = -EAGAIN;
+				}
+			}
+			ceph_mdsc_put_request(req);
+			dout("d_revalidate %p lookup result=%d\n",
+			     dentry, err);
+		}
+	}
+
 	dout("d_revalidate %p %s\n", dentry, valid ? "valid" : "invalid");
 	if (valid) {
 		ceph_dentry_lru_touch(dentry);
 	} else {
 		ceph_dir_clear_complete(dir);
 	}
-	iput(dir);
+
+	dput(parent);
 	return valid;
 }
 

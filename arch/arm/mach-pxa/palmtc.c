@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/input.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
 #include <linux/input/matrix_keypad.h>
@@ -31,13 +32,13 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa25x.h>
+#include "pxa25x.h"
 #include <mach/audio.h>
 #include <mach/palmtc.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/irda-pxaficp.h>
-#include <mach/udc.h>
+#include "udc.h"
 
 #include "generic.h"
 #include "devices.h"
@@ -166,11 +167,14 @@ static inline void palmtc_keys_init(void) {}
  * Backlight
  ******************************************************************************/
 #if defined(CONFIG_BACKLIGHT_PWM) || defined(CONFIG_BACKLIGHT_PWM_MODULE)
+static struct pwm_lookup palmtc_pwm_lookup[] = {
+	PWM_LOOKUP("pxa25x-pwm.1", 0, "pwm-backlight.0", NULL, PALMTC_PERIOD_NS,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data palmtc_backlight_data = {
-	.pwm_id		= 1,
 	.max_brightness	= PALMTC_MAX_INTENSITY,
 	.dft_brightness	= PALMTC_MAX_INTENSITY,
-	.pwm_period_ns	= PALMTC_PERIOD_NS,
 	.enable_gpio	= GPIO_NR_PALMTC_BL_POWER,
 };
 
@@ -184,6 +188,7 @@ static struct platform_device palmtc_backlight = {
 
 static void __init palmtc_pwm_init(void)
 {
+	pwm_add_table(palmtc_pwm_lookup, ARRAY_SIZE(palmtc_pwm_lookup));
 	platform_device_register(&palmtc_backlight);
 }
 #else

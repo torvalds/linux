@@ -34,13 +34,6 @@
  * plus two that support control-OUT tests.  If the optional "autoresume"
  * mode is enabled, it provides good functional coverage for the "USBCV"
  * test harness from USB-IF.
- *
- * Note that because this doesn't queue more than one request at a time,
- * some other function must be used to test queueing logic.  The network
- * link (g_ether) is the best overall option for that, since its TX and RX
- * queues are relatively independent, will receive a range of packet sizes,
- * and can often be made to run out completely.  Those issues are important
- * when stress testing peripheral controller drivers.
  */
 struct f_sourcesink {
 	struct usb_function	function;
@@ -57,6 +50,8 @@ struct f_sourcesink {
 	unsigned isoc_mult;
 	unsigned isoc_maxburst;
 	unsigned buflen;
+	unsigned bulk_qlen;
+	unsigned iso_qlen;
 };
 
 static inline struct f_sourcesink *func_to_ss(struct usb_function *f)
@@ -303,12 +298,6 @@ static inline struct usb_request *ss_alloc_ep_req(struct usb_ep *ep, int len)
 	return alloc_ep_req(ep, len, ss->buflen);
 }
 
-void free_ep_req(struct usb_ep *ep, struct usb_request *req)
-{
-	kfree(req->buf);
-	usb_ep_free_request(ep, req);
-}
-
 static void disable_ep(struct usb_composite_dev *cdev, struct usb_ep *ep)
 {
 	int			value;
@@ -448,7 +437,7 @@ no_iso:
 	ss_iso_sink_desc.bEndpointAddress = fs_iso_sink_desc.bEndpointAddress;
 
 	ret = usb_assign_descriptors(f, fs_source_sink_descs,
-			hs_source_sink_descs, ss_source_sink_descs);
+			hs_source_sink_descs, ss_source_sink_descs, NULL);
 	if (ret)
 		return ret;
 
@@ -595,31 +584,33 @@ static int source_sink_start_ep(struct f_sourcesink *ss, bool is_in,
 {
 	struct usb_ep		*ep;
 	struct usb_request	*req;
-	int			i, size, status;
+	int			i, size, qlen, status = 0;
 
-	for (i = 0; i < 8; i++) {
-		if (is_iso) {
-			switch (speed) {
-			case USB_SPEED_SUPER:
-				size = ss->isoc_maxpacket *
-						(ss->isoc_mult + 1) *
-						(ss->isoc_maxburst + 1);
-				break;
-			case USB_SPEED_HIGH:
-				size = ss->isoc_maxpacket * (ss->isoc_mult + 1);
-				break;
-			default:
-				size = ss->isoc_maxpacket > 1023 ?
-						1023 : ss->isoc_maxpacket;
-				break;
-			}
-			ep = is_in ? ss->iso_in_ep : ss->iso_out_ep;
-			req = ss_alloc_ep_req(ep, size);
-		} else {
-			ep = is_in ? ss->in_ep : ss->out_ep;
-			req = ss_alloc_ep_req(ep, 0);
+	if (is_iso) {
+		switch (speed) {
+		case USB_SPEED_SUPER:
+			size = ss->isoc_maxpacket *
+					(ss->isoc_mult + 1) *
+					(ss->isoc_maxburst + 1);
+			break;
+		case USB_SPEED_HIGH:
+			size = ss->isoc_maxpacket * (ss->isoc_mult + 1);
+			break;
+		default:
+			size = ss->isoc_maxpacket > 1023 ?
+					1023 : ss->isoc_maxpacket;
+			break;
 		}
+		ep = is_in ? ss->iso_in_ep : ss->iso_out_ep;
+		qlen = ss->iso_qlen;
+	} else {
+		ep = is_in ? ss->in_ep : ss->out_ep;
+		qlen = ss->bulk_qlen;
+		size = 0;
+	}
 
+	for (i = 0; i < qlen; i++) {
+		req = ss_alloc_ep_req(ep, size);
 		if (!req)
 			return -ENOMEM;
 
@@ -638,10 +629,8 @@ static int source_sink_start_ep(struct f_sourcesink *ss, bool is_in,
 			      is_iso ? "ISO-" : "", is_in ? "IN" : "OUT",
 			      ep->name, status);
 			free_ep_req(ep, req);
+			return status;
 		}
-
-		if (!is_iso)
-			break;
 	}
 
 	return status;
@@ -869,6 +858,8 @@ static struct usb_function *source_sink_alloc_func(
 	ss->isoc_mult = ss_opts->isoc_mult;
 	ss->isoc_maxburst = ss_opts->isoc_maxburst;
 	ss->buflen = ss_opts->bulk_buflen;
+	ss->bulk_qlen = ss_opts->bulk_qlen;
+	ss->iso_qlen = ss_opts->iso_qlen;
 
 	ss->function.name = "source/sink";
 	ss->function.bind = sourcesink_bind;
@@ -889,9 +880,6 @@ static inline struct f_ss_opts *to_f_ss_opts(struct config_item *item)
 			    func_inst.group);
 }
 
-CONFIGFS_ATTR_STRUCT(f_ss_opts);
-CONFIGFS_ATTR_OPS(f_ss_opts);
-
 static void ss_attr_release(struct config_item *item)
 {
 	struct f_ss_opts *ss_opts = to_f_ss_opts(item);
@@ -901,12 +889,11 @@ static void ss_attr_release(struct config_item *item)
 
 static struct configfs_item_operations ss_item_ops = {
 	.release		= ss_attr_release,
-	.show_attribute		= f_ss_opts_attr_show,
-	.store_attribute	= f_ss_opts_attr_store,
 };
 
-static ssize_t f_ss_opts_pattern_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_pattern_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -916,9 +903,10 @@ static ssize_t f_ss_opts_pattern_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_pattern_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_pattern_store(struct config_item *item,
 				       const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u8 num;
 
@@ -944,13 +932,11 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_pattern =
-	__CONFIGFS_ATTR(pattern, S_IRUGO | S_IWUSR,
-			f_ss_opts_pattern_show,
-			f_ss_opts_pattern_store);
+CONFIGFS_ATTR(f_ss_opts_, pattern);
 
-static ssize_t f_ss_opts_isoc_interval_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_isoc_interval_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -960,9 +946,10 @@ static ssize_t f_ss_opts_isoc_interval_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_isoc_interval_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_isoc_interval_store(struct config_item *item,
 				       const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u8 num;
 
@@ -988,13 +975,11 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_isoc_interval =
-	__CONFIGFS_ATTR(isoc_interval, S_IRUGO | S_IWUSR,
-			f_ss_opts_isoc_interval_show,
-			f_ss_opts_isoc_interval_store);
+CONFIGFS_ATTR(f_ss_opts_, isoc_interval);
 
-static ssize_t f_ss_opts_isoc_maxpacket_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_isoc_maxpacket_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -1004,9 +989,10 @@ static ssize_t f_ss_opts_isoc_maxpacket_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_isoc_maxpacket_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_isoc_maxpacket_store(struct config_item *item,
 				       const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u16 num;
 
@@ -1032,13 +1018,11 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_isoc_maxpacket =
-	__CONFIGFS_ATTR(isoc_maxpacket, S_IRUGO | S_IWUSR,
-			f_ss_opts_isoc_maxpacket_show,
-			f_ss_opts_isoc_maxpacket_store);
+CONFIGFS_ATTR(f_ss_opts_, isoc_maxpacket);
 
-static ssize_t f_ss_opts_isoc_mult_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_isoc_mult_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -1048,9 +1032,10 @@ static ssize_t f_ss_opts_isoc_mult_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_isoc_mult_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_isoc_mult_store(struct config_item *item,
 				       const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u8 num;
 
@@ -1076,13 +1061,11 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_isoc_mult =
-	__CONFIGFS_ATTR(isoc_mult, S_IRUGO | S_IWUSR,
-			f_ss_opts_isoc_mult_show,
-			f_ss_opts_isoc_mult_store);
+CONFIGFS_ATTR(f_ss_opts_, isoc_mult);
 
-static ssize_t f_ss_opts_isoc_maxburst_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_isoc_maxburst_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -1092,9 +1075,10 @@ static ssize_t f_ss_opts_isoc_maxburst_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_isoc_maxburst_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_isoc_maxburst_store(struct config_item *item,
 				       const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u8 num;
 
@@ -1120,13 +1104,11 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_isoc_maxburst =
-	__CONFIGFS_ATTR(isoc_maxburst, S_IRUGO | S_IWUSR,
-			f_ss_opts_isoc_maxburst_show,
-			f_ss_opts_isoc_maxburst_store);
+CONFIGFS_ATTR(f_ss_opts_, isoc_maxburst);
 
-static ssize_t f_ss_opts_bulk_buflen_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_bulk_buflen_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -1136,9 +1118,10 @@ static ssize_t f_ss_opts_bulk_buflen_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_bulk_buflen_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_bulk_buflen_store(struct config_item *item,
 					   const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u32 num;
 
@@ -1159,18 +1142,93 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_bulk_buflen =
-	__CONFIGFS_ATTR(buflen, S_IRUGO | S_IWUSR,
-			f_ss_opts_bulk_buflen_show,
-			f_ss_opts_bulk_buflen_store);
+CONFIGFS_ATTR(f_ss_opts_, bulk_buflen);
+
+static ssize_t f_ss_opts_bulk_qlen_show(struct config_item *item, char *page)
+{
+	struct f_ss_opts *opts = to_f_ss_opts(item);
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = sprintf(page, "%u\n", opts->bulk_qlen);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t f_ss_opts_bulk_qlen_store(struct config_item *item,
+					   const char *page, size_t len)
+{
+	struct f_ss_opts *opts = to_f_ss_opts(item);
+	int ret;
+	u32 num;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
+	}
+
+	ret = kstrtou32(page, 0, &num);
+	if (ret)
+		goto end;
+
+	opts->bulk_qlen = num;
+	ret = len;
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+CONFIGFS_ATTR(f_ss_opts_, bulk_qlen);
+
+static ssize_t f_ss_opts_iso_qlen_show(struct config_item *item, char *page)
+{
+	struct f_ss_opts *opts = to_f_ss_opts(item);
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = sprintf(page, "%u\n", opts->iso_qlen);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t f_ss_opts_iso_qlen_store(struct config_item *item,
+					   const char *page, size_t len)
+{
+	struct f_ss_opts *opts = to_f_ss_opts(item);
+	int ret;
+	u32 num;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
+	}
+
+	ret = kstrtou32(page, 0, &num);
+	if (ret)
+		goto end;
+
+	opts->iso_qlen = num;
+	ret = len;
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+CONFIGFS_ATTR(f_ss_opts_, iso_qlen);
 
 static struct configfs_attribute *ss_attrs[] = {
-	&f_ss_opts_pattern.attr,
-	&f_ss_opts_isoc_interval.attr,
-	&f_ss_opts_isoc_maxpacket.attr,
-	&f_ss_opts_isoc_mult.attr,
-	&f_ss_opts_isoc_maxburst.attr,
-	&f_ss_opts_bulk_buflen.attr,
+	&f_ss_opts_attr_pattern,
+	&f_ss_opts_attr_isoc_interval,
+	&f_ss_opts_attr_isoc_maxpacket,
+	&f_ss_opts_attr_isoc_mult,
+	&f_ss_opts_attr_isoc_maxburst,
+	&f_ss_opts_attr_bulk_buflen,
+	&f_ss_opts_attr_bulk_qlen,
+	&f_ss_opts_attr_iso_qlen,
 	NULL,
 };
 
@@ -1200,6 +1258,8 @@ static struct usb_function_instance *source_sink_alloc_inst(void)
 	ss_opts->isoc_interval = GZERO_ISOC_INTERVAL;
 	ss_opts->isoc_maxpacket = GZERO_ISOC_MAXPACKET;
 	ss_opts->bulk_buflen = GZERO_BULK_BUFLEN;
+	ss_opts->bulk_qlen = GZERO_SS_BULK_QLEN;
+	ss_opts->iso_qlen = GZERO_SS_ISO_QLEN;
 
 	config_group_init_type_name(&ss_opts->func_inst.group, "",
 				    &ss_func_type);

@@ -1,7 +1,7 @@
 /*
  * T1040RDB Device Tree Source
  *
- * Copyright 2014 Freescale Semiconductor Inc.
+ * Copyright 2014 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -38,6 +38,36 @@
 / {
 	model = "fsl,T1040RDB";
 	compatible = "fsl,T1040RDB";
+
+	aliases {
+		phy_sgmii_2 = &phy_sgmii_2;
+	};
+
+	soc@ffe000000 {
+		fman@400000 {
+			ethernet@e0000 {
+				fixed-link = <0 1 1000 0 0>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				fixed-link = <1 1 1000 0 0>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-handle = <&phy_sgmii_2>;
+				phy-connection-type = "sgmii";
+			};
+
+			mdio@fc000 {
+				phy_sgmii_2: ethernet-phy@03 {
+					reg = <0x03>;
+				};
+			};
+		};
+	};
+
 	ifc: localbus@ffe124000 {
 		cpld@3,0 {
 			compatible = "fsl,t1040rdb-cpld";
@@ -45,4 +75,4 @@
 	};
 };
 
-/include/ "t1040si-post.dtsi"
+#include "t1040si-post.dtsi"

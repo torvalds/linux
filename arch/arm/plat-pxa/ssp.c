@@ -34,7 +34,6 @@
 #include <linux/of_device.h>
 
 #include <asm/irq.h>
-#include <mach/hardware.h>
 
 static DEFINE_MUTEX(ssp_lock);
 static LIST_HEAD(ssp_list);

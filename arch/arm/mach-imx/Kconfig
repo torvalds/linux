@@ -1,7 +1,8 @@
 menuconfig ARCH_MXC
-	bool "Freescale i.MX family" if ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
+	bool "Freescale i.MX family"
+	depends on ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
 	select ARCH_REQUIRE_GPIOLIB
-	select ARM_CPU_SUSPEND if PM
+	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CLKSRC_IMX_GPT
 	select GENERIC_IRQ_CHIP
 	select PINCTRL
@@ -510,6 +511,7 @@ config	SOC_IMX53
 
 config SOC_IMX6
 	bool
+	select ARM_CPU_SUSPEND if PM
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 	select ARM_GIC
@@ -560,8 +562,10 @@ config SOC_IMX7D
 	bool "i.MX7 Dual support"
 	select PINCTRL_IMX7D
 	select ARM_GIC
+	select HAVE_ARM_ARCH_TIMER
 	select HAVE_IMX_ANATOP
 	select HAVE_IMX_MMDC
+	select HAVE_IMX_SRC
 	help
 		This enables support for Freescale i.MX7 Dual processor.
 
@@ -596,7 +600,8 @@ choice
 	default VF_USE_ARM_GLOBAL_TIMER
 
 	config VF_USE_ARM_GLOBAL_TIMER
-		bool "Use ARM Global Timer" if ARCH_MULTI_V7
+		bool "Use ARM Global Timer"
+		depends on ARCH_MULTI_V7
 		select ARM_GLOBAL_TIMER
 		select CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 		help

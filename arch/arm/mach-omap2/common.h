@@ -88,8 +88,7 @@ static inline int omap_mux_late_init(void)
 
 extern void omap2_init_common_infrastructure(void);
 
-extern void omap2_sync32k_timer_init(void);
-extern void omap3_sync32k_timer_init(void);
+extern void omap_init_time(void);
 extern void omap3_secure_sync32k_timer_init(void);
 extern void omap3_gptimer_timer_init(void);
 extern void omap4_local_timer_init(void);
@@ -271,7 +270,7 @@ extern u32 omap_read_auxcoreboot0(void);
 
 extern void omap4_cpu_die(unsigned int cpu);
 
-extern struct smp_operations omap4_smp_ops;
+extern const struct smp_operations omap4_smp_ops;
 
 extern void omap5_secondary_startup(void);
 extern void omap5_secondary_hyp_startup(void);

@@ -48,6 +48,7 @@
 #include <asm/syscalls.h>
 #include <asm/debugreg.h>
 #include <asm/switch_to.h>
+#include <asm/xen/hypervisor.h>
 
 asmlinkage extern void ret_from_fork(void);
 
@@ -116,6 +117,8 @@ void __show_regs(struct pt_regs *regs, int all)
 	printk(KERN_DEFAULT "DR0: %016lx DR1: %016lx DR2: %016lx\n", d0, d1, d2);
 	printk(KERN_DEFAULT "DR3: %016lx DR6: %016lx DR7: %016lx\n", d3, d6, d7);
 
+	if (boot_cpu_has(X86_FEATURE_OSPKE))
+		printk(KERN_DEFAULT "PKRU: %08x\n", read_pkru());
 }
 
 void release_thread(struct task_struct *dead_task)
@@ -125,7 +128,7 @@ void release_thread(struct task_struct *dead_task)
 		if (dead_task->mm->context.ldt) {
 			pr_warn("WARNING: dead process %s still has LDT? <%p/%d>\n",
 				dead_task->comm,
-				dead_task->mm->context.ldt,
+				dead_task->mm->context.ldt->entries,
 				dead_task->mm->context.ldt->size);
 			BUG();
 		}
@@ -411,6 +414,17 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		     task_thread_info(prev_p)->flags & _TIF_WORK_CTXSW_PREV))
 		__switch_to_xtra(prev_p, next_p, tss);
 
+#ifdef CONFIG_XEN
+	/*
+	 * On Xen PV, IOPL bits in pt_regs->flags have no effect, and
+	 * current_pt_regs()->flags may not match the current task's
+	 * intended IOPL.  We need to switch it manually.
+	 */
+	if (unlikely(static_cpu_has(X86_FEATURE_XENPV) &&
+		     prev->iopl != next->iopl))
+		xen_set_iopl_mask(next->iopl);
+#endif
+
 	if (static_cpu_has_bug(X86_BUG_SYSRET_SS_ATTRS)) {
 		/*
 		 * AMD CPUs have a misfeature: SYSRET sets the SS selector but
@@ -476,7 +490,7 @@ void set_personality_ia32(bool x32)
 		if (current->mm)
 			current->mm->context.ia32_compat = TIF_X32;
 		current->personality &= ~READ_IMPLIES_EXEC;
-		/* is_compat_task() uses the presence of the x32
+		/* in_compat_syscall() uses the presence of the x32
 		   syscall bit flag to determine compat status */
 		current_thread_info()->status &= ~TS_COMPAT;
 	} else {

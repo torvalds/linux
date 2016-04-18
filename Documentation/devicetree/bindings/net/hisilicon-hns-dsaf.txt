@@ -4,8 +4,6 @@ Required properties:
 - compatible: should be "hisilicon,hns-dsaf-v1" or "hisilicon,hns-dsaf-v2".
   "hisilicon,hns-dsaf-v1" is for hip05.
   "hisilicon,hns-dsaf-v2" is for Hi1610 and Hi1612.
-- dsa-name: dsa fabric name who provide this interface.
-  should be "dsafX", X is the dsaf id.
 - mode: dsa fabric mode string. only support one of dsaf modes like these:
 		"2port-64vf",
 		"6port-16rss",
@@ -26,9 +24,8 @@ Required properties:
 
 Example:
 
-dsa: dsa@c7000000 {
+dsaf0: dsa@c7000000 {
 	compatible = "hisilicon,hns-dsaf-v1";
-	dsa_name = "dsaf0";
 	mode = "6port-16rss";
 	interrupt-parent = <&mbigen_dsa>;
 	reg = <0x0 0xC0000000 0x0 0x420000

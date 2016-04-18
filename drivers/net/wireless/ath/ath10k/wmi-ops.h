@@ -186,6 +186,8 @@ struct wmi_ops {
 							u8 enable,
 							u32 detect_level,
 							u32 detect_margin);
+	int (*get_vdev_subtype)(struct ath10k *ar,
+				enum wmi_vdev_subtype subtype);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -1325,6 +1327,15 @@ ath10k_wmi_pdev_enable_adaptive_cca(struct ath10k *ar, u8 enable,
 
 	return ath10k_wmi_cmd_send(ar, skb,
 				   ar->wmi.cmd->pdev_enable_adaptive_cca_cmdid);
+}
+
+static inline int
+ath10k_wmi_get_vdev_subtype(struct ath10k *ar, enum wmi_vdev_subtype subtype)
+{
+	if (!ar->wmi.ops->get_vdev_subtype)
+		return -EOPNOTSUPP;
+
+	return ar->wmi.ops->get_vdev_subtype(ar, subtype);
 }
 
 #endif

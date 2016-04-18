@@ -47,8 +47,6 @@ struct shmob_drm_connector {
 
 int shmob_drm_crtc_create(struct shmob_drm_device *sdev);
 void shmob_drm_crtc_enable_vblank(struct shmob_drm_device *sdev, bool enable);
-void shmob_drm_crtc_cancel_page_flip(struct shmob_drm_crtc *scrtc,
-				     struct drm_file *file);
 void shmob_drm_crtc_finish_page_flip(struct shmob_drm_crtc *scrtc);
 void shmob_drm_crtc_suspend(struct shmob_drm_crtc *scrtc);
 void shmob_drm_crtc_resume(struct shmob_drm_crtc *scrtc);

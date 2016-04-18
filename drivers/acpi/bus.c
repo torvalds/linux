@@ -180,14 +180,15 @@ static void acpi_print_osc_error(acpi_handle handle,
 	int i;
 
 	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer)))
-		printk(KERN_DEBUG "%s\n", error);
+		printk(KERN_DEBUG "%s: %s\n", context->uuid_str, error);
 	else {
-		printk(KERN_DEBUG "%s:%s\n", (char *)buffer.pointer, error);
+		printk(KERN_DEBUG "%s (%s): %s\n",
+		       (char *)buffer.pointer, context->uuid_str, error);
 		kfree(buffer.pointer);
 	}
-	printk(KERN_DEBUG"_OSC request data:");
+	printk(KERN_DEBUG "_OSC request data:");
 	for (i = 0; i < context->cap.length; i += sizeof(u32))
-		printk("%x ", *((u32 *)(context->cap.pointer + i)));
+		printk(" %x", *((u32 *)(context->cap.pointer + i)));
 	printk("\n");
 }
 
@@ -478,24 +479,38 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
                              Device Matching
    -------------------------------------------------------------------------- */
 
-static struct acpi_device *acpi_primary_dev_companion(struct acpi_device *adev,
-						      const struct device *dev)
+/**
+ * acpi_get_first_physical_node - Get first physical node of an ACPI device
+ * @adev:	ACPI device in question
+ *
+ * Return: First physical node of ACPI device @adev
+ */
+struct device *acpi_get_first_physical_node(struct acpi_device *adev)
 {
 	struct mutex *physical_node_lock = &adev->physical_node_lock;
+	struct device *phys_dev;
 
 	mutex_lock(physical_node_lock);
 	if (list_empty(&adev->physical_node_list)) {
-		adev = NULL;
+		phys_dev = NULL;
 	} else {
 		const struct acpi_device_physical_node *node;
 
 		node = list_first_entry(&adev->physical_node_list,
 					struct acpi_device_physical_node, node);
-		if (node->dev != dev)
-			adev = NULL;
+
+		phys_dev = node->dev;
 	}
 	mutex_unlock(physical_node_lock);
-	return adev;
+	return phys_dev;
+}
+
+static struct acpi_device *acpi_primary_dev_companion(struct acpi_device *adev,
+						      const struct device *dev)
+{
+	const struct device *phys_dev = acpi_get_first_physical_node(adev);
+
+	return phys_dev && phys_dev == dev ? adev : NULL;
 }
 
 /**
@@ -1004,6 +1019,9 @@ static int __init acpi_bus_init(void)
 		goto error1;
 	}
 
+	/* Set capability bits for _OSC under processor scope */
+	acpi_early_processor_osc();
+
 	/*
 	 * _OSC method may exist in module level code,
 	 * so it must be run after ACPI_FULL_INITIALIZATION
@@ -1094,6 +1112,7 @@ static int __init acpi_init(void)
 	acpi_debugfs_init();
 	acpi_sleep_proc_init();
 	acpi_wakeup_device_init();
+	acpi_debugger_init();
 	return 0;
 }
 

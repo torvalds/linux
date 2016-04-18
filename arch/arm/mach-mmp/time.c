@@ -29,14 +29,13 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
-
-#include <mach/addr-map.h>
-#include <mach/regs-timers.h>
-#include <mach/regs-apbc.h>
-#include <mach/irqs.h>
-#include <mach/cputype.h>
 #include <asm/mach/time.h>
 
+#include "addr-map.h"
+#include "regs-timers.h"
+#include "regs-apbc.h"
+#include "irqs.h"
+#include "cputype.h"
 #include "clock.h"
 
 #ifdef CONFIG_CPU_MMP2

@@ -74,7 +74,6 @@ config USB_BCM63XX_UDC
 config USB_FSL_USB2
 	tristate "Freescale Highspeed USB DR Peripheral Controller"
 	depends on FSL_SOC || ARCH_MXC
-	select USB_FSL_MPH_DR_OF if OF
 	help
 	   Some of Freescale PowerPC and i.MX processors have a High Speed
 	   Dual-Role(DR) USB controller, which supports device mode.
@@ -128,6 +127,7 @@ config USB_OMAP
 config USB_PXA25X
 	tristate "PXA 25x or IXP 4xx"
 	depends on (ARCH_PXA && PXA25x) || ARCH_IXP4XX
+	depends on HAS_IOMEM
 	help
 	   Intel's PXA 25x series XScale ARM-5TE processors include
 	   an integrated full speed USB 1.1 device controller.  The
@@ -174,8 +174,20 @@ config USB_RENESAS_USBHS_UDC
 	   dynamically linked module called "renesas_usbhs" and force all
 	   gadget drivers to also be dynamically linked.
 
+config USB_RENESAS_USB3
+	tristate 'Renesas USB3.0 Peripheral controller'
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	   Renesas USB3.0 Peripheral controller is a USB peripheral controller
+	   that supports super, high, and full speed USB 3.0 data transfers.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "renesas_usb3" and force all
+	   gadget drivers to also be dynamically linked.
+
 config USB_PXA27X
 	tristate "PXA 27x"
+	depends on HAS_IOMEM
 	help
 	   Intel's PXA 27x series XScale ARM v5TE processors include
 	   an integrated full speed USB 1.1 device controller.
@@ -233,6 +245,7 @@ config USB_MV_U3D
 
 config USB_M66592
 	tristate "Renesas M66592 USB Peripheral Controller"
+	depends on HAS_IOMEM
 	help
 	   M66592 is a discrete USB peripheral controller chip that
 	   supports both full and high speed USB 2.0 data transfers.
@@ -276,6 +289,7 @@ config USB_FSL_QE
 	   dynamically linked module called "fsl_qe_udc".
 
 config USB_NET2272
+	depends on HAS_IOMEM
 	tristate "PLX NET2272"
 	help
 	  PLX NET2272 is a USB peripheral controller which supports

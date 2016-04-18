@@ -311,6 +311,7 @@ enum {
 
 	__WQ_DRAINING		= 1 << 16, /* internal: workqueue is draining */
 	__WQ_ORDERED		= 1 << 17, /* internal: workqueue is ordered */
+	__WQ_LEGACY		= 1 << 18, /* internal: create*_workqueue() */
 
 	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
 	WQ_MAX_UNBOUND_PER_CPU	= 4,	  /* 4 * #cpus for unbound wq */
@@ -411,12 +412,12 @@ __alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
 	alloc_workqueue(fmt, WQ_UNBOUND | __WQ_ORDERED | (flags), 1, ##args)
 
 #define create_workqueue(name)						\
-	alloc_workqueue("%s", WQ_MEM_RECLAIM, 1, (name))
+	alloc_workqueue("%s", __WQ_LEGACY | WQ_MEM_RECLAIM, 1, (name))
 #define create_freezable_workqueue(name)				\
-	alloc_workqueue("%s", WQ_FREEZABLE | WQ_UNBOUND | WQ_MEM_RECLAIM, \
-			1, (name))
+	alloc_workqueue("%s", __WQ_LEGACY | WQ_FREEZABLE | WQ_UNBOUND |	\
+			WQ_MEM_RECLAIM, 1, (name))
 #define create_singlethread_workqueue(name)				\
-	alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, name)
+	alloc_ordered_workqueue("%s", __WQ_LEGACY | WQ_MEM_RECLAIM, name)
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
@@ -617,5 +618,11 @@ int workqueue_sysfs_register(struct workqueue_struct *wq);
 static inline int workqueue_sysfs_register(struct workqueue_struct *wq)
 { return 0; }
 #endif	/* CONFIG_SYSFS */
+
+#ifdef CONFIG_WQ_WATCHDOG
+void wq_watchdog_touch(int cpu);
+#else	/* CONFIG_WQ_WATCHDOG */
+static inline void wq_watchdog_touch(int cpu) { }
+#endif	/* CONFIG_WQ_WATCHDOG */
 
 #endif

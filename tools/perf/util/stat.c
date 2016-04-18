@@ -97,7 +97,7 @@ void perf_stat_evsel_id_init(struct perf_evsel *evsel)
 	}
 }
 
-void perf_evsel__reset_stat_priv(struct perf_evsel *evsel)
+static void perf_evsel__reset_stat_priv(struct perf_evsel *evsel)
 {
 	int i;
 	struct perf_stat_evsel *ps = evsel->priv;
@@ -108,7 +108,7 @@ void perf_evsel__reset_stat_priv(struct perf_evsel *evsel)
 	perf_stat_evsel_id_init(evsel);
 }
 
-int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
+static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
 {
 	evsel->priv = zalloc(sizeof(struct perf_stat_evsel));
 	if (evsel->priv == NULL)
@@ -117,13 +117,13 @@ int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
 	return 0;
 }
 
-void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
+static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
 {
 	zfree(&evsel->priv);
 }
 
-int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel,
-				      int ncpus, int nthreads)
+static int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel,
+					     int ncpus, int nthreads)
 {
 	struct perf_counts *counts;
 
@@ -134,13 +134,13 @@ int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel,
 	return counts ? 0 : -ENOMEM;
 }
 
-void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel)
+static void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel)
 {
 	perf_counts__delete(evsel->prev_raw_counts);
 	evsel->prev_raw_counts = NULL;
 }
 
-int perf_evsel__alloc_stats(struct perf_evsel *evsel, bool alloc_raw)
+static int perf_evsel__alloc_stats(struct perf_evsel *evsel, bool alloc_raw)
 {
 	int ncpus = perf_evsel__nr_cpus(evsel);
 	int nthreads = thread_map__nr(evsel->threads);
@@ -310,7 +310,16 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	int i, ret;
 
 	aggr->val = aggr->ena = aggr->run = 0;
-	init_stats(ps->res_stats);
+
+	/*
+	 * We calculate counter's data every interval,
+	 * and the display code shows ps->res_stats
+	 * avg value. We need to zero the stats for
+	 * interval mode, otherwise overall avg running
+	 * averages will be shown for each interval.
+	 */
+	if (config->interval)
+		init_stats(ps->res_stats);
 
 	if (counter->per_pkg)
 		zero_per_pkg(counter);
@@ -340,4 +349,66 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	perf_stat__update_shadow_stats(counter, count, 0);
 
 	return 0;
+}
+
+int perf_event__process_stat_event(struct perf_tool *tool __maybe_unused,
+				   union perf_event *event,
+				   struct perf_session *session)
+{
+	struct perf_counts_values count;
+	struct stat_event *st = &event->stat;
+	struct perf_evsel *counter;
+
+	count.val = st->val;
+	count.ena = st->ena;
+	count.run = st->run;
+
+	counter = perf_evlist__id2evsel(session->evlist, st->id);
+	if (!counter) {
+		pr_err("Failed to resolve counter for stat event.\n");
+		return -EINVAL;
+	}
+
+	*perf_counts(counter->counts, st->cpu, st->thread) = count;
+	counter->supported = true;
+	return 0;
+}
+
+size_t perf_event__fprintf_stat(union perf_event *event, FILE *fp)
+{
+	struct stat_event *st = (struct stat_event *) event;
+	size_t ret;
+
+	ret  = fprintf(fp, "\n... id %" PRIu64 ", cpu %d, thread %d\n",
+		       st->id, st->cpu, st->thread);
+	ret += fprintf(fp, "... value %" PRIu64 ", enabled %" PRIu64 ", running %" PRIu64 "\n",
+		       st->val, st->ena, st->run);
+
+	return ret;
+}
+
+size_t perf_event__fprintf_stat_round(union perf_event *event, FILE *fp)
+{
+	struct stat_round_event *rd = (struct stat_round_event *)event;
+	size_t ret;
+
+	ret = fprintf(fp, "\n... time %" PRIu64 ", type %s\n", rd->time,
+		      rd->type == PERF_STAT_ROUND_TYPE__FINAL ? "FINAL" : "INTERVAL");
+
+	return ret;
+}
+
+size_t perf_event__fprintf_stat_config(union perf_event *event, FILE *fp)
+{
+	struct perf_stat_config sc;
+	size_t ret;
+
+	perf_event__read_stat_config(&sc, &event->stat_config);
+
+	ret  = fprintf(fp, "\n");
+	ret += fprintf(fp, "... aggr_mode %d\n", sc.aggr_mode);
+	ret += fprintf(fp, "... scale     %d\n", sc.scale);
+	ret += fprintf(fp, "... interval  %u\n", sc.interval);
+
+	return ret;
 }

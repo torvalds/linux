@@ -18,6 +18,7 @@
 #include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -43,6 +44,7 @@
 struct lpc32xx_clock_event_ddata {
 	struct clock_event_device evtdev;
 	void __iomem *base;
+	u32 ticks_per_jiffy;
 };
 
 /* Needed for the sched clock */
@@ -53,6 +55,15 @@ static u64 notrace lpc32xx_read_sched_clock(void)
 	return readl(clocksource_timer_counter);
 }
 
+static unsigned long lpc32xx_delay_timer_read(void)
+{
+	return readl(clocksource_timer_counter);
+}
+
+static struct delay_timer lpc32xx_delay_timer = {
+	.read_current_timer = lpc32xx_delay_timer_read,
+};
+
 static int lpc32xx_clkevt_next_event(unsigned long delta,
 				     struct clock_event_device *evtdev)
 {
@@ -60,14 +71,13 @@ static int lpc32xx_clkevt_next_event(unsigned long delta,
 		container_of(evtdev, struct lpc32xx_clock_event_ddata, evtdev);
 
 	/*
-	 * Place timer in reset and program the delta in the prescale
-	 * register (PR). When the prescale counter matches the value
-	 * in PR the counter register is incremented and the compare
-	 * match will trigger. After setup the timer is released from
-	 * reset and enabled.
+	 * Place timer in reset and program the delta in the match
+	 * channel 0 (MR0). When the timer counter matches the value
+	 * in MR0 register the match will trigger an interrupt.
+	 * After setup the timer is released from reset and enabled.
 	 */
 	writel_relaxed(LPC32XX_TIMER_TCR_CRST, ddata->base + LPC32XX_TIMER_TCR);
-	writel_relaxed(delta, ddata->base + LPC32XX_TIMER_PR);
+	writel_relaxed(delta, ddata->base + LPC32XX_TIMER_MR0);
 	writel_relaxed(LPC32XX_TIMER_TCR_CEN, ddata->base + LPC32XX_TIMER_TCR);
 
 	return 0;
@@ -86,11 +96,39 @@ static int lpc32xx_clkevt_shutdown(struct clock_event_device *evtdev)
 
 static int lpc32xx_clkevt_oneshot(struct clock_event_device *evtdev)
 {
+	struct lpc32xx_clock_event_ddata *ddata =
+		container_of(evtdev, struct lpc32xx_clock_event_ddata, evtdev);
+
 	/*
 	 * When using oneshot, we must also disable the timer
 	 * to wait for the first call to set_next_event().
 	 */
-	return lpc32xx_clkevt_shutdown(evtdev);
+	writel_relaxed(0, ddata->base + LPC32XX_TIMER_TCR);
+
+	/* Enable interrupt, reset on match and stop on match (MCR). */
+	writel_relaxed(LPC32XX_TIMER_MCR_MR0I | LPC32XX_TIMER_MCR_MR0R |
+		       LPC32XX_TIMER_MCR_MR0S, ddata->base + LPC32XX_TIMER_MCR);
+	return 0;
+}
+
+static int lpc32xx_clkevt_periodic(struct clock_event_device *evtdev)
+{
+	struct lpc32xx_clock_event_ddata *ddata =
+		container_of(evtdev, struct lpc32xx_clock_event_ddata, evtdev);
+
+	/* Enable interrupt and reset on match. */
+	writel_relaxed(LPC32XX_TIMER_MCR_MR0I | LPC32XX_TIMER_MCR_MR0R,
+		       ddata->base + LPC32XX_TIMER_MCR);
+
+	/*
+	 * Place timer in reset and program the delta in the match
+	 * channel 0 (MR0).
+	 */
+	writel_relaxed(LPC32XX_TIMER_TCR_CRST, ddata->base + LPC32XX_TIMER_TCR);
+	writel_relaxed(ddata->ticks_per_jiffy, ddata->base + LPC32XX_TIMER_MR0);
+	writel_relaxed(LPC32XX_TIMER_TCR_CEN, ddata->base + LPC32XX_TIMER_TCR);
+
+	return 0;
 }
 
 static irqreturn_t lpc32xx_clock_event_handler(int irq, void *dev_id)
@@ -108,11 +146,13 @@ static irqreturn_t lpc32xx_clock_event_handler(int irq, void *dev_id)
 static struct lpc32xx_clock_event_ddata lpc32xx_clk_event_ddata = {
 	.evtdev = {
 		.name			= "lpc3220 clockevent",
-		.features		= CLOCK_EVT_FEAT_ONESHOT,
+		.features		= CLOCK_EVT_FEAT_ONESHOT |
+					  CLOCK_EVT_FEAT_PERIODIC,
 		.rating			= 300,
 		.set_next_event		= lpc32xx_clkevt_next_event,
 		.set_state_shutdown	= lpc32xx_clkevt_shutdown,
 		.set_state_oneshot	= lpc32xx_clkevt_oneshot,
+		.set_state_periodic	= lpc32xx_clkevt_periodic,
 	},
 };
 
@@ -125,7 +165,7 @@ static int __init lpc32xx_clocksource_init(struct device_node *np)
 
 	clk = of_clk_get_by_name(np, "timerclk");
 	if (IS_ERR(clk)) {
-		pr_err("clock get failed (%lu)\n", PTR_ERR(clk));
+		pr_err("clock get failed (%ld)\n", PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
 
@@ -162,6 +202,8 @@ static int __init lpc32xx_clocksource_init(struct device_node *np)
 	}
 
 	clocksource_timer_counter = base + LPC32XX_TIMER_TC;
+	lpc32xx_delay_timer.freq = rate;
+	register_current_timer_delay(&lpc32xx_delay_timer);
 	sched_clock_register(lpc32xx_read_sched_clock, 32, rate);
 
 	return 0;
@@ -184,7 +226,7 @@ static int __init lpc32xx_clockevent_init(struct device_node *np)
 
 	clk = of_clk_get_by_name(np, "timerclk");
 	if (IS_ERR(clk)) {
-		pr_err("clock get failed (%lu)\n", PTR_ERR(clk));
+		pr_err("clock get failed (%ld)\n", PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
 
@@ -210,18 +252,16 @@ static int __init lpc32xx_clockevent_init(struct device_node *np)
 
 	/*
 	 * Disable timer and clear any pending interrupt (IR) on match
-	 * channel 0 (MR0). Configure a compare match value of 1 on MR0
-	 * and enable interrupt, reset on match and stop on match (MCR).
+	 * channel 0 (MR0). Clear the prescaler as it's not used.
 	 */
 	writel_relaxed(0, base + LPC32XX_TIMER_TCR);
+	writel_relaxed(0, base + LPC32XX_TIMER_PR);
 	writel_relaxed(0, base + LPC32XX_TIMER_CTCR);
 	writel_relaxed(LPC32XX_TIMER_IR_MR0INT, base + LPC32XX_TIMER_IR);
-	writel_relaxed(1, base + LPC32XX_TIMER_MR0);
-	writel_relaxed(LPC32XX_TIMER_MCR_MR0I | LPC32XX_TIMER_MCR_MR0R |
-		       LPC32XX_TIMER_MCR_MR0S, base + LPC32XX_TIMER_MCR);
 
 	rate = clk_get_rate(clk);
 	lpc32xx_clk_event_ddata.base = base;
+	lpc32xx_clk_event_ddata.ticks_per_jiffy = DIV_ROUND_CLOSEST(rate, HZ);
 	clockevents_config_and_register(&lpc32xx_clk_event_ddata.evtdev,
 					rate, 1, -1);
 

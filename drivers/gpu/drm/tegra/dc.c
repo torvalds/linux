@@ -480,14 +480,12 @@ static const struct drm_plane_funcs tegra_primary_plane_funcs = {
 };
 
 static int tegra_plane_prepare_fb(struct drm_plane *plane,
-				  struct drm_framebuffer *fb,
 				  const struct drm_plane_state *new_state)
 {
 	return 0;
 }
 
 static void tegra_plane_cleanup_fb(struct drm_plane *plane,
-				   struct drm_framebuffer *fb,
 				   const struct drm_plane_state *old_fb)
 {
 }
@@ -662,7 +660,8 @@ static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
 
 	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
 				       &tegra_primary_plane_funcs, formats,
-				       num_formats, DRM_PLANE_TYPE_PRIMARY);
+				       num_formats, DRM_PLANE_TYPE_PRIMARY,
+				       NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
@@ -829,7 +828,8 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 
 	err = drm_universal_plane_init(drm, &plane->base, 1 << dc->pipe,
 				       &tegra_cursor_plane_funcs, formats,
-				       num_formats, DRM_PLANE_TYPE_CURSOR);
+				       num_formats, DRM_PLANE_TYPE_CURSOR,
+				       NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
@@ -892,7 +892,8 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 
 	err = drm_universal_plane_init(drm, &plane->base, 1 << dc->pipe,
 				       &tegra_overlay_plane_funcs, formats,
-				       num_formats, DRM_PLANE_TYPE_OVERLAY);
+				       num_formats, DRM_PLANE_TYPE_OVERLAY,
+				       NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
@@ -980,23 +981,6 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 
 	if (base == bo->paddr + crtc->primary->fb->offsets[0]) {
 		drm_crtc_send_vblank_event(crtc, dc->event);
-		drm_crtc_vblank_put(crtc);
-		dc->event = NULL;
-	}
-
-	spin_unlock_irqrestore(&drm->event_lock, flags);
-}
-
-void tegra_dc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
-{
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-	struct drm_device *drm = crtc->dev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&drm->event_lock, flags);
-
-	if (dc->event && dc->event->base.file_priv == file) {
-		dc->event->base.destroy(&dc->event->base);
 		drm_crtc_vblank_put(crtc);
 		dc->event = NULL;
 	}
@@ -1696,12 +1680,17 @@ static int tegra_dc_debugfs_exit(struct tegra_dc *dc)
 static int tegra_dc_init(struct host1x_client *client)
 {
 	struct drm_device *drm = dev_get_drvdata(client->parent);
+	unsigned long flags = HOST1X_SYNCPT_CLIENT_MANAGED;
 	struct tegra_dc *dc = host1x_client_to_dc(client);
 	struct tegra_drm *tegra = drm->dev_private;
 	struct drm_plane *primary = NULL;
 	struct drm_plane *cursor = NULL;
 	u32 value;
 	int err;
+
+	dc->syncpt = host1x_syncpt_request(dc->dev, flags);
+	if (!dc->syncpt)
+		dev_warn(dc->dev, "failed to allocate syncpoint\n");
 
 	if (tegra->domain) {
 		err = iommu_attach_device(tegra->domain, dc->dev);
@@ -1729,7 +1718,7 @@ static int tegra_dc_init(struct host1x_client *client)
 	}
 
 	err = drm_crtc_init_with_planes(drm, &dc->base, primary, cursor,
-					&tegra_crtc_funcs);
+					&tegra_crtc_funcs, NULL);
 	if (err < 0)
 		goto cleanup;
 
@@ -1849,6 +1838,8 @@ static int tegra_dc_exit(struct host1x_client *client)
 		dc->domain = NULL;
 	}
 
+	host1x_syncpt_free(dc->syncpt);
+
 	return 0;
 }
 
@@ -1947,8 +1938,10 @@ static int tegra_dc_parse_dt(struct tegra_dc *dc)
 		 * cases where only a single display controller is used.
 		 */
 		for_each_matching_node(np, tegra_dc_of_match) {
-			if (np == dc->dev->of_node)
+			if (np == dc->dev->of_node) {
+				of_node_put(np);
 				break;
+			}
 
 			value++;
 		}
@@ -1961,7 +1954,6 @@ static int tegra_dc_parse_dt(struct tegra_dc *dc)
 
 static int tegra_dc_probe(struct platform_device *pdev)
 {
-	unsigned long flags = HOST1X_SYNCPT_CLIENT_MANAGED;
 	const struct of_device_id *id;
 	struct resource *regs;
 	struct tegra_dc *dc;
@@ -2036,10 +2028,6 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	dc->syncpt = host1x_syncpt_request(&pdev->dev, flags);
-	if (!dc->syncpt)
-		dev_warn(&pdev->dev, "failed to allocate syncpoint\n");
-
 	INIT_LIST_HEAD(&dc->client.list);
 	dc->client.ops = &dc_client_ops;
 	dc->client.dev = &pdev->dev;
@@ -2066,8 +2054,6 @@ static int tegra_dc_remove(struct platform_device *pdev)
 {
 	struct tegra_dc *dc = platform_get_drvdata(pdev);
 	int err;
-
-	host1x_syncpt_free(dc->syncpt);
 
 	err = host1x_client_unregister(&dc->client);
 	if (err < 0) {

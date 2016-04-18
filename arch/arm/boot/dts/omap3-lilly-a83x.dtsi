@@ -284,7 +284,7 @@
 };
 
 &mmc1 {
-	cd-gpios = <&gpio4 30 IRQ_TYPE_LEVEL_LOW>;
+	cd-gpios = <&gpio4 30 GPIO_ACTIVE_LOW>;
 	cd-inverted;
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
@@ -314,7 +314,7 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <8 0>;   /* boot6 / gpio_8 */
 		spi-max-frequency = <1000000>;
-		pendown-gpio = <&gpio1 8 0>;
+		pendown-gpio = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		vcc-supply = <&reg_vcc3>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tsc2048_pins>;
@@ -327,7 +327,7 @@
 		ti,pressure-max = /bits/ 16 <255>;
 		ti,swap-xy;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 
@@ -362,7 +362,11 @@
 		<7 0 0x15000000 0x01000000>;
 
 	nand@0,0 {
-		reg = <0 0 4>;	/* CS0, offset 0, IO size 4 */
+		compatible = "ti,omap2-nand";
+		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		nand-bus-width = <16>;
 		ti,nand-ecc-opt = "bch8";
 		/* no elm on omap3 */

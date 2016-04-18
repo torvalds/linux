@@ -77,7 +77,7 @@ config HW_RANDOM_ATMEL
 
 config HW_RANDOM_BCM63XX
 	tristate "Broadcom BCM63xx Random Number Generator support"
-	depends on BCM63XX
+	depends on BCM63XX || BMIPS_GENERIC
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
@@ -372,6 +372,7 @@ config HW_RANDOM_XGENE
 config HW_RANDOM_STM32
 	tristate "STMicroelectronics STM32 random number generator"
 	depends on HW_RANDOM && (ARCH_STM32 || COMPILE_TEST)
+	depends on HAS_IOMEM
 	help
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on STM32 microcontrollers.
@@ -380,6 +381,19 @@ config HW_RANDOM_STM32
 	  module will be called stm32-rng.
 
 	  If unsure, say N.
+
+config HW_RANDOM_PIC32
+	tristate "Microchip PIC32 Random Number Generator support"
+	depends on HW_RANDOM && MACH_PIC32
+	default y
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on a PIC32.
+
+	  To compile this driver as a module, choose M here. the
+	  module will be called pic32-rng.
+
+	  If unsure, say Y.
 
 endif # HW_RANDOM
 

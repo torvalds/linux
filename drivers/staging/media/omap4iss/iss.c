@@ -363,200 +363,6 @@ static irqreturn_t iss_isr(int irq, void *_iss)
 }
 
 /* -----------------------------------------------------------------------------
- * Pipeline power management
- *
- * Entities must be powered up when part of a pipeline that contains at least
- * one open video device node.
- *
- * To achieve this use the entity use_count field to track the number of users.
- * For entities corresponding to video device nodes the use_count field stores
- * the users count of the node. For entities corresponding to subdevs the
- * use_count field stores the total number of users of all video device nodes
- * in the pipeline.
- *
- * The omap4iss_pipeline_pm_use() function must be called in the open() and
- * close() handlers of video device nodes. It increments or decrements the use
- * count of all subdev entities in the pipeline.
- *
- * To react to link management on powered pipelines, the link setup notification
- * callback updates the use count of all entities in the source and sink sides
- * of the link.
- */
-
-/*
- * iss_pipeline_pm_use_count - Count the number of users of a pipeline
- * @entity: The entity
- *
- * Return the total number of users of all video device nodes in the pipeline.
- */
-static int iss_pipeline_pm_use_count(struct media_entity *entity)
-{
-	struct media_entity_graph graph;
-	int use = 0;
-
-	media_entity_graph_walk_start(&graph, entity);
-
-	while ((entity = media_entity_graph_walk_next(&graph))) {
-		if (media_entity_type(entity) == MEDIA_ENT_T_DEVNODE)
-			use += entity->use_count;
-	}
-
-	return use;
-}
-
-/*
- * iss_pipeline_pm_power_one - Apply power change to an entity
- * @entity: The entity
- * @change: Use count change
- *
- * Change the entity use count by @change. If the entity is a subdev update its
- * power state by calling the core::s_power operation when the use count goes
- * from 0 to != 0 or from != 0 to 0.
- *
- * Return 0 on success or a negative error code on failure.
- */
-static int iss_pipeline_pm_power_one(struct media_entity *entity, int change)
-{
-	struct v4l2_subdev *subdev;
-
-	subdev = media_entity_type(entity) == MEDIA_ENT_T_V4L2_SUBDEV
-	       ? media_entity_to_v4l2_subdev(entity) : NULL;
-
-	if (entity->use_count == 0 && change > 0 && subdev) {
-		int ret;
-
-		ret = v4l2_subdev_call(subdev, core, s_power, 1);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
-			return ret;
-	}
-
-	entity->use_count += change;
-	WARN_ON(entity->use_count < 0);
-
-	if (entity->use_count == 0 && change < 0 && subdev)
-		v4l2_subdev_call(subdev, core, s_power, 0);
-
-	return 0;
-}
-
-/*
- * iss_pipeline_pm_power - Apply power change to all entities in a pipeline
- * @entity: The entity
- * @change: Use count change
- *
- * Walk the pipeline to update the use count and the power state of all non-node
- * entities.
- *
- * Return 0 on success or a negative error code on failure.
- */
-static int iss_pipeline_pm_power(struct media_entity *entity, int change)
-{
-	struct media_entity_graph graph;
-	struct media_entity *first = entity;
-	int ret = 0;
-
-	if (!change)
-		return 0;
-
-	media_entity_graph_walk_start(&graph, entity);
-
-	while (!ret && (entity = media_entity_graph_walk_next(&graph)))
-		if (media_entity_type(entity) != MEDIA_ENT_T_DEVNODE)
-			ret = iss_pipeline_pm_power_one(entity, change);
-
-	if (!ret)
-		return 0;
-
-	media_entity_graph_walk_start(&graph, first);
-
-	while ((first = media_entity_graph_walk_next(&graph)) &&
-	       first != entity)
-		if (media_entity_type(first) != MEDIA_ENT_T_DEVNODE)
-			iss_pipeline_pm_power_one(first, -change);
-
-	return ret;
-}
-
-/*
- * omap4iss_pipeline_pm_use - Update the use count of an entity
- * @entity: The entity
- * @use: Use (1) or stop using (0) the entity
- *
- * Update the use count of all entities in the pipeline and power entities on or
- * off accordingly.
- *
- * Return 0 on success or a negative error code on failure. Powering entities
- * off is assumed to never fail. No failure can occur when the use parameter is
- * set to 0.
- */
-int omap4iss_pipeline_pm_use(struct media_entity *entity, int use)
-{
-	int change = use ? 1 : -1;
-	int ret;
-
-	mutex_lock(&entity->parent->graph_mutex);
-
-	/* Apply use count to node. */
-	entity->use_count += change;
-	WARN_ON(entity->use_count < 0);
-
-	/* Apply power change to connected non-nodes. */
-	ret = iss_pipeline_pm_power(entity, change);
-	if (ret < 0)
-		entity->use_count -= change;
-
-	mutex_unlock(&entity->parent->graph_mutex);
-
-	return ret;
-}
-
-/*
- * iss_pipeline_link_notify - Link management notification callback
- * @link: The link
- * @flags: New link flags that will be applied
- *
- * React to link management on powered pipelines by updating the use count of
- * all entities in the source and sink sides of the link. Entities are powered
- * on or off accordingly.
- *
- * Return 0 on success or a negative error code on failure. Powering entities
- * off is assumed to never fail. This function will not fail for disconnection
- * events.
- */
-static int iss_pipeline_link_notify(struct media_link *link, u32 flags,
-				    unsigned int notification)
-{
-	struct media_entity *source = link->source->entity;
-	struct media_entity *sink = link->sink->entity;
-	int source_use = iss_pipeline_pm_use_count(source);
-	int sink_use = iss_pipeline_pm_use_count(sink);
-	int ret;
-
-	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
-	    !(link->flags & MEDIA_LNK_FL_ENABLED)) {
-		/* Powering off entities is assumed to never fail. */
-		iss_pipeline_pm_power(source, -sink_use);
-		iss_pipeline_pm_power(sink, -source_use);
-		return 0;
-	}
-
-	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
-	    (flags & MEDIA_LNK_FL_ENABLED)) {
-		ret = iss_pipeline_pm_power(source, sink_use);
-		if (ret < 0)
-			return ret;
-
-		ret = iss_pipeline_pm_power(sink, source_use);
-		if (ret < 0)
-			iss_pipeline_pm_power(source, -sink_use);
-
-		return ret;
-	}
-
-	return 0;
-}
-
-/* -----------------------------------------------------------------------------
  * Pipeline stream management
  */
 
@@ -590,8 +396,7 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe,
 			break;
 
 		pad = media_entity_remote_pad(pad);
-		if (!pad ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
 		entity = pad->entity;
@@ -601,13 +406,13 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe,
 		subdev = media_entity_to_v4l2_subdev(entity);
 		ret = v4l2_subdev_call(subdev, video, s_stream, 0);
 		if (ret < 0) {
-			dev_dbg(iss->dev, "%s: module stop timeout.\n",
-				subdev->name);
+			dev_warn(iss->dev, "%s: module stop timeout.\n",
+				 subdev->name);
 			/* If the entity failed to stopped, assume it has
 			 * crashed. Mark it as such, the ISS will be reset when
 			 * applications will release it.
 			 */
-			iss->crashed |= 1U << subdev->entity.id;
+			media_entity_enum_set(&iss->crashed, &subdev->entity);
 			failure = -ETIMEDOUT;
 		}
 	}
@@ -642,7 +447,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 	 * pipeline won't start anyway (those entities would then likely fail to
 	 * stop, making the problem worse).
 	 */
-	if (pipe->entities & iss->crashed)
+	if (media_entity_enum_intersects(&pipe->ent_enum, &iss->crashed))
 		return -EIO;
 
 	spin_lock_irqsave(&pipe->lock, flags);
@@ -658,8 +463,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 			break;
 
 		pad = media_entity_remote_pad(pad);
-		if (!pad ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
 		entity = pad->entity;
@@ -763,7 +567,8 @@ static int iss_reset(struct iss_device *iss)
 		return -ETIMEDOUT;
 	}
 
-	iss->crashed = 0;
+	media_entity_enum_zero(&iss->crashed);
+
 	return 0;
 }
 
@@ -1092,7 +897,7 @@ void omap4iss_put(struct iss_device *iss)
 		 * be worth investigating whether resetting the ISP only can't
 		 * fix the problem in some cases.
 		 */
-		if (iss->crashed)
+		if (!media_entity_enum_empty(&iss->crashed))
 			iss_reset(iss);
 		iss_disable_clocks(iss);
 	}
@@ -1183,7 +988,7 @@ static int iss_register_entities(struct iss_device *iss)
 	strlcpy(iss->media_dev.model, "TI OMAP4 ISS",
 		sizeof(iss->media_dev.model));
 	iss->media_dev.hw_revision = iss->revision;
-	iss->media_dev.link_notify = iss_pipeline_link_notify;
+	iss->media_dev.link_notify = v4l2_pipeline_link_notify;
 	ret = media_device_register(&iss->media_dev);
 	if (ret < 0) {
 		dev_err(iss->dev, "Media device registration failed (%d)\n",
@@ -1259,7 +1064,7 @@ static int iss_register_entities(struct iss_device *iss)
 			goto done;
 		}
 
-		ret = media_entity_create_link(&sensor->entity, 0, input, pad,
+		ret = media_create_pad_link(&sensor->entity, 0, input, pad,
 					       flags);
 		if (ret < 0)
 			goto done;
@@ -1273,6 +1078,68 @@ done:
 
 	return ret;
 }
+
+/*
+ * iss_create_links() - Pads links creation for the subdevices
+ * @iss : Pointer to ISS device
+ *
+ * return negative error code or zero on success
+ */
+static int iss_create_links(struct iss_device *iss)
+{
+	int ret;
+
+	ret = omap4iss_csi2_create_links(iss);
+	if (ret < 0) {
+		dev_err(iss->dev, "CSI2 pads links creation failed\n");
+		return ret;
+	}
+
+	ret = omap4iss_ipipeif_create_links(iss);
+	if (ret < 0) {
+		dev_err(iss->dev, "ISP IPIPEIF pads links creation failed\n");
+		return ret;
+	}
+
+	ret = omap4iss_resizer_create_links(iss);
+	if (ret < 0) {
+		dev_err(iss->dev, "ISP RESIZER pads links creation failed\n");
+		return ret;
+	}
+
+	/* Connect the submodules. */
+	ret = media_create_pad_link(
+			&iss->csi2a.subdev.entity, CSI2_PAD_SOURCE,
+			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&iss->csi2b.subdev.entity, CSI2_PAD_SOURCE,
+			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SOURCE_VP,
+			&iss->resizer.subdev.entity, RESIZER_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SOURCE_VP,
+			&iss->ipipe.subdev.entity, IPIPE_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&iss->ipipe.subdev.entity, IPIPE_PAD_SOURCE_VP,
+			&iss->resizer.subdev.entity, RESIZER_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+};
 
 static void iss_cleanup_modules(struct iss_device *iss)
 {
@@ -1316,41 +1183,8 @@ static int iss_initialize_modules(struct iss_device *iss)
 		goto error_resizer;
 	}
 
-	/* Connect the submodules. */
-	ret = media_entity_create_link(
-			&iss->csi2a.subdev.entity, CSI2_PAD_SOURCE,
-			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(
-			&iss->csi2b.subdev.entity, CSI2_PAD_SOURCE,
-			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(
-			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SOURCE_VP,
-			&iss->resizer.subdev.entity, RESIZER_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(
-			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SOURCE_VP,
-			&iss->ipipe.subdev.entity, IPIPE_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(
-			&iss->ipipe.subdev.entity, IPIPE_PAD_SOURCE_VP,
-			&iss->resizer.subdev.entity, RESIZER_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
 	return 0;
 
-error_link:
-	omap4iss_resizer_cleanup(iss);
 error_resizer:
 	omap4iss_ipipe_cleanup(iss);
 error_ipipe:
@@ -1464,17 +1298,26 @@ static int iss_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_modules;
 
+	ret = media_entity_enum_init(&iss->crashed, &iss->media_dev);
+	if (ret)
+		goto error_entities;
+
+	ret = iss_create_links(iss);
+	if (ret < 0)
+		goto error_entities;
+
 	omap4iss_put(iss);
 
 	return 0;
 
+error_entities:
+	iss_unregister_entities(iss);
+	media_entity_enum_cleanup(&iss->crashed);
 error_modules:
 	iss_cleanup_modules(iss);
 error_iss:
 	omap4iss_put(iss);
 error:
-	platform_set_drvdata(pdev, NULL);
-
 	mutex_destroy(&iss->iss_mutex);
 
 	return ret;
@@ -1485,6 +1328,7 @@ static int iss_remove(struct platform_device *pdev)
 	struct iss_device *iss = platform_get_drvdata(pdev);
 
 	iss_unregister_entities(iss);
+	media_entity_enum_cleanup(&iss->crashed);
 	iss_cleanup_modules(iss);
 
 	return 0;

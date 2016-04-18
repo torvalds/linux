@@ -430,7 +430,7 @@ The rationale for using gotos is:
 		return result;
 	}
 
-A common type of bug to be aware of it "one err bugs" which look like this:
+A common type of bug to be aware of is "one err bugs" which look like this:
 
 	err:
 		kfree(foo->bar);
@@ -640,7 +640,7 @@ Things to avoid when using macros:
 		do {					\
 			if (blah(x) < 0)		\
 				return -EBUGGERED;	\
-		} while(0)
+		} while (0)
 
 is a _very_ bad idea.  It looks like a function call but exits the "calling"
 function; don't break the internal parsers of those who will read the code.

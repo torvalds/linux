@@ -12,9 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * File: main_usb.c
  *
@@ -77,10 +74,10 @@ MODULE_PARM_DESC(tx_buffers, "Number of receive usb tx buffers");
 #define LONG_RETRY_DEF     4
 
 /* BasebandType[] baseband type selected
-   0: indicate 802.11a type
-   1: indicate 802.11b type
-   2: indicate 802.11g type
-*/
+ * 0: indicate 802.11a type
+ * 1: indicate 802.11b type
+ * 2: indicate 802.11g type
+ */
 
 #define BBP_TYPE_DEF     2
 
@@ -287,7 +284,8 @@ static int vnt_init_registers(struct vnt_private *priv)
 			calib_rx_iq = priv->eeprom[EEP_OFS_CALIB_RX_IQ];
 			if (calib_tx_iq || calib_tx_dc || calib_rx_iq) {
 				/* CR255, enable TX/RX IQ and
-				   DC compensation mode */
+				 * DC compensation mode
+				 */
 				vnt_control_out_u8(priv,
 						   MESSAGE_REQUEST_BBREG,
 						   0xff,
@@ -309,7 +307,8 @@ static int vnt_init_registers(struct vnt_private *priv)
 						   calib_rx_iq);
 			} else {
 				/* CR255, turn off
-				   BB Calibration compensation */
+				 * BB Calibration compensation
+				 */
 				vnt_control_out_u8(priv,
 						   MESSAGE_REQUEST_BBREG,
 						   0xff,
@@ -432,7 +431,7 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = kmalloc(sizeof(struct vnt_usb_send_context),
 								GFP_KERNEL);
-		if (tx_context == NULL)
+		if (!tx_context)
 			goto free_tx;
 
 		priv->tx_context[ii] = tx_context;
@@ -440,7 +439,7 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 		tx_context->pkt_no = ii;
 
 		/* allocate URBs */
-		tx_context->urb = usb_alloc_urb(0, GFP_ATOMIC);
+		tx_context->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!tx_context->urb) {
 			dev_err(&priv->usb->dev, "alloc tx urb failed\n");
 			goto free_tx;
@@ -462,14 +461,14 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 		rcb->priv = priv;
 
 		/* allocate URBs */
-		rcb->urb = usb_alloc_urb(0, GFP_ATOMIC);
-		if (rcb->urb == NULL) {
+		rcb->urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!rcb->urb) {
 			dev_err(&priv->usb->dev, "Failed to alloc rx urb\n");
 			goto free_rx_tx;
 		}
 
 		rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
-		if (rcb->skb == NULL)
+		if (!rcb->skb)
 			goto free_rx_tx;
 
 		rcb->in_use = false;
@@ -479,14 +478,14 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 			goto free_rx_tx;
 	}
 
-	priv->interrupt_urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (priv->interrupt_urb == NULL) {
+	priv->interrupt_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!priv->interrupt_urb) {
 		dev_err(&priv->usb->dev, "Failed to alloc int urb\n");
 		goto free_rx_tx;
 	}
 
 	priv->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
-	if (priv->int_buf.data_buf == NULL) {
+	if (!priv->int_buf.data_buf) {
 		usb_free_urb(priv->interrupt_urb);
 		goto free_rx_tx;
 	}

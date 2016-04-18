@@ -30,8 +30,68 @@
 	};
 
 	core-module@10000000 {
-		compatible = "arm,core-module-versatile", "syscon";
+		compatible = "arm,core-module-versatile", "syscon", "simple-mfd";
 		reg = <0x10000000 0x200>;
+
+		led@08.0 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x01>;
+			label = "versatile:0";
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
+		};
+		led@08.1 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x02>;
+			label = "versatile:1";
+			linux,default-trigger = "mmc0";
+			default-state = "off";
+		};
+		led@08.2 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x04>;
+			label = "versatile:2";
+			linux,default-trigger = "cpu0";
+			default-state = "off";
+		};
+		led@08.3 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x08>;
+			label = "versatile:3";
+			default-state = "off";
+		};
+		led@08.4 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x10>;
+			label = "versatile:4";
+			default-state = "off";
+		};
+		led@08.5 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x20>;
+			label = "versatile:5";
+			default-state = "off";
+		};
+		led@08.6 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x40>;
+			label = "versatile:6";
+			default-state = "off";
+		};
+		led@08.7 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x80>;
+			label = "versatile:7";
+			default-state = "off";
+		};
 
 		/* OSC1 on AB, OSC4 on PB */
 		osc1: cm_aux_osc@24M {
@@ -88,7 +148,7 @@
 	};
 
 	amba {
-		compatible = "arm,amba-bus";
+		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
@@ -110,7 +170,11 @@
 			interrupt-parent = <&vic>;
 			interrupts = <31>; /* Cascaded to vic */
 			clear-mask = <0xffffffff>;
-			valid-mask = <0xffc203f8>;
+			/*
+			 * Valid interrupt lines mask according to
+			 * table 4-36 page 4-50 of ARM DUI 0225D
+			 */
+			valid-mask = <0x0760031b>;
 		};
 
 		dma@10130000 {
@@ -266,8 +330,8 @@
 			};
 			mmc@5000 {
 				compatible = "arm,pl180", "arm,primecell";
-				reg = < 0x5000 0x1000>;
-				interrupts-extended = <&vic 22 &sic 2>;
+				reg = <0x5000 0x1000>;
+				interrupts-extended = <&vic 22 &sic 1>;
 				clocks = <&xtal24mhz>, <&pclk>;
 				clock-names = "mclk", "apb_pclk";
 			};

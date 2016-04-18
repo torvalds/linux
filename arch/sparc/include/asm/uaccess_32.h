@@ -205,31 +205,6 @@ int __put_user_bad(void);
 	__gu_ret; \
 })
 
-#define __get_user_check_ret(x, addr, size, type, retval) ({ \
-	register unsigned long __gu_val __asm__ ("l1"); \
-	if (__access_ok(addr, size)) { \
-		switch (size) { \
-		case 1: \
-			__get_user_asm_ret(__gu_val, ub, addr, retval); \
-			break; \
-		case 2: \
-			__get_user_asm_ret(__gu_val, uh, addr, retval); \
-			break; \
-		case 4: \
-			__get_user_asm_ret(__gu_val, , addr, retval); \
-			break; \
-		case 8: \
-			__get_user_asm_ret(__gu_val, d, addr, retval); \
-			break; \
-		default: \
-			if (__get_user_bad()) \
-				return retval; \
-		} \
-		x = (__force type) __gu_val; \
-	} else \
-		return retval; \
-})
-
 #define __get_user_nocheck(x, addr, size, type) ({			\
 	register int __gu_ret;						\
 	register unsigned long __gu_val;				\
@@ -245,20 +220,6 @@ int __put_user_bad(void);
 	}								\
 	x = (__force type) __gu_val;					\
 	__gu_ret;							\
-})
-
-#define __get_user_nocheck_ret(x, addr, size, type, retval) ({		\
-	register unsigned long __gu_val __asm__ ("l1");			\
-	switch (size) {							\
-	case 1: __get_user_asm_ret(__gu_val, ub, addr, retval); break;	\
-	case 2: __get_user_asm_ret(__gu_val, uh, addr, retval); break;	\
-	case 4: __get_user_asm_ret(__gu_val, , addr, retval);  break;	\
-	case 8: __get_user_asm_ret(__gu_val, d, addr, retval); break;	\
-	default:							\
-		if (__get_user_bad())					\
-			return retval;					\
-	}								\
-	x = (__force type) __gu_val;					\
 })
 
 #define __get_user_asm(x, size, addr, ret)				\
@@ -280,32 +241,6 @@ __asm__ __volatile__(							\
 		".previous\n\t"						\
 	       : "=&r" (ret), "=&r" (x) : "m" (*__m(addr)),		\
 		 "i" (-EFAULT))
-
-#define __get_user_asm_ret(x, size, addr, retval)			\
-if (__builtin_constant_p(retval) && retval == -EFAULT)			\
-	__asm__ __volatile__(						\
-			"/* Get user asm ret, inline. */\n"		\
-		"1:\t"	"ld"#size " %1, %0\n\n\t"			\
-			".section __ex_table,#alloc\n\t"		\
-			".align	4\n\t"					\
-			".word	1b,__ret_efault\n\n\t"			\
-			".previous\n\t"					\
-		       : "=&r" (x) : "m" (*__m(addr)));			\
-else									\
-	__asm__ __volatile__(						\
-			"/* Get user asm ret, inline. */\n"		\
-		"1:\t"	"ld"#size " %1, %0\n\n\t"			\
-			".section .fixup,#alloc,#execinstr\n\t"		\
-			".align	4\n"					\
-		"3:\n\t"						\
-			"ret\n\t"					\
-			" restore %%g0, %2, %%o0\n\n\t"			\
-			".previous\n\t"					\
-			".section __ex_table,#alloc\n\t"		\
-			".align	4\n\t"					\
-			".word	1b, 3b\n\n\t"				\
-			".previous\n\t"					\
-		       : "=&r" (x) : "m" (*__m(addr)), "i" (retval))
 
 int __get_user_bad(void);
 

@@ -1,11 +1,11 @@
 /*
- *	HP WatchDog Driver
+ *	HPE WatchDog Driver
  *	based on
  *
  *	SoftDog	0.05:	A Software Watchdog Device
  *
- *	(c) Copyright 2007 Hewlett-Packard Development Company, L.P.
- *	Thomas Mingarelli <thomas.mingarelli@hp.com>
+ *	(c) Copyright 2015 Hewlett Packard Enterprise Development LP
+ *	Thomas Mingarelli <thomas.mingarelli@hpe.com>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -37,6 +37,7 @@
 #include <asm/cacheflush.h>
 #endif /* CONFIG_HPWDT_NMI_DECODING */
 #include <asm/nmi.h>
+#include <asm/frame.h>
 
 #define HPWDT_VERSION			"1.3.3"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
@@ -353,10 +354,10 @@ static int detect_cru_service(void)
 
 asm(".text                      \n\t"
     ".align 4                   \n\t"
-    ".globl asminline_call	\n"
+    ".globl asminline_call	\n\t"
+    ".type asminline_call, @function \n\t"
     "asminline_call:            \n\t"
-    "pushq      %rbp            \n\t"
-    "movq       %rsp, %rbp      \n\t"
+    FRAME_BEGIN
     "pushq      %rax            \n\t"
     "pushq      %rbx            \n\t"
     "pushq      %rdx            \n\t"
@@ -386,7 +387,7 @@ asm(".text                      \n\t"
     "popq       %rdx            \n\t"
     "popq       %rbx            \n\t"
     "popq       %rax            \n\t"
-    "leave                      \n\t"
+    FRAME_END
     "ret                        \n\t"
     ".previous");
 
@@ -483,7 +484,7 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 	static int die_nmi_called;
 
 	if (!hpwdt_nmi_decoding)
-		goto out;
+		return NMI_DONE;
 
 	spin_lock_irqsave(&rom_lock, rom_pl);
 	if (!die_nmi_called && !is_icru && !is_uefi)
@@ -496,11 +497,11 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 
 	if (!is_icru && !is_uefi) {
 		if (cmn_regs.u1.ral == 0) {
-			panic("An NMI occurred, "
-				"but unable to determine source.\n");
+			nmi_panic(regs, "An NMI occurred, but unable to determine source.\n");
+			return NMI_HANDLED;
 		}
 	}
-	panic("An NMI occurred. Depending on your system the reason "
+	nmi_panic(regs, "An NMI occurred. Depending on your system the reason "
 		"for the NMI is logged in any one of the following "
 		"resources:\n"
 		"1. Integrated Management Log (IML)\n"
@@ -508,8 +509,7 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 		"3. OA Forward Progress Log\n"
 		"4. iLO Event Log");
 
-out:
-	return NMI_DONE;
+	return NMI_HANDLED;
 }
 #endif /* CONFIG_HPWDT_NMI_DECODING */
 
@@ -580,7 +580,7 @@ static const struct watchdog_info ident = {
 	.options = WDIOF_SETTIMEOUT |
 		   WDIOF_KEEPALIVEPING |
 		   WDIOF_MAGICCLOSE,
-	.identity = "HP iLO2+ HW Watchdog Timer",
+	.identity = "HPE iLO2+ HW Watchdog Timer",
 };
 
 static long hpwdt_ioctl(struct file *file, unsigned int cmd,
@@ -758,7 +758,7 @@ static int hpwdt_init_nmi_decoding(struct pci_dev *dev)
 		goto error2;
 
 	dev_info(&dev->dev,
-			"HP Watchdog Timer Driver: NMI decoding initialized"
+			"HPE Watchdog Timer Driver: NMI decoding initialized"
 			", allow kernel dump: %s (default = 1/ON)\n",
 			(allow_kdump == 0) ? "OFF" : "ON");
 	return 0;
@@ -863,7 +863,7 @@ static int hpwdt_init_one(struct pci_dev *dev,
 		goto error_misc_register;
 	}
 
-	dev_info(&dev->dev, "HP Watchdog Timer Driver: %s"
+	dev_info(&dev->dev, "HPE Watchdog Timer Driver: %s"
 			", timer margin: %d seconds (nowayout=%d).\n",
 			HPWDT_VERSION, soft_margin, nowayout);
 	return 0;

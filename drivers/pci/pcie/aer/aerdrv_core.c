@@ -246,7 +246,7 @@ static int report_error_detected(struct pci_dev *dev, void *data)
 		!dev->driver->err_handler ||
 		!dev->driver->err_handler->error_detected) {
 		if (result_data->state == pci_channel_io_frozen &&
-			!(dev->hdr_type & PCI_HEADER_TYPE_BRIDGE)) {
+			dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
 			/*
 			 * In case of fatal recovery, if one of down-
 			 * stream device has no driver. We might be
@@ -269,7 +269,7 @@ static int report_error_detected(struct pci_dev *dev, void *data)
 		 * without recovery.
 		 */
 
-		if (!(dev->hdr_type & PCI_HEADER_TYPE_BRIDGE))
+		if (dev->hdr_type != PCI_HEADER_TYPE_BRIDGE)
 			vote = PCI_ERS_RESULT_NO_AER_DRIVER;
 		else
 			vote = PCI_ERS_RESULT_NONE;
@@ -369,7 +369,7 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 	else
 		result_data.result = PCI_ERS_RESULT_RECOVERED;
 
-	if (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE) {
+	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
 		/*
 		 * If the error is reported by a bridge, we think this error
 		 * is related to the downstream link of the bridge, so we
@@ -440,7 +440,7 @@ static pci_ers_result_t reset_link(struct pci_dev *dev)
 	pci_ers_result_t status;
 	struct pcie_port_service_driver *driver;
 
-	if (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE) {
+	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
 		/* Reset this port for all subordinates */
 		udev = dev;
 	} else {
@@ -660,7 +660,7 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 			&info->mask);
 		if (!(info->status & ~info->mask))
 			return 0;
-	} else if (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE ||
+	} else if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
 		info->severity == AER_NONFATAL) {
 
 		/* Link is still healthy for IO reads */
@@ -811,8 +811,6 @@ void aer_isr(struct work_struct *work)
 	while (get_e_source(rpc, &e_src))
 		aer_isr_one_error(p_device, &e_src);
 	mutex_unlock(&rpc->rpc_mutex);
-
-	wake_up(&rpc->wait_release);
 }
 
 /**

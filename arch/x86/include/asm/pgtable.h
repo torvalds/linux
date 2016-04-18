@@ -69,9 +69,6 @@ extern struct mm_struct *pgd_page_get_mm(struct page *page);
 #define pmd_clear(pmd)			native_pmd_clear(pmd)
 
 #define pte_update(mm, addr, ptep)              do { } while (0)
-#define pte_update_defer(mm, addr, ptep)        do { } while (0)
-#define pmd_update(mm, addr, ptep)              do { } while (0)
-#define pmd_update_defer(mm, addr, ptep)        do { } while (0)
 
 #define pgd_val(x)	native_pgd_val(x)
 #define __pgd(x)	native_make_pgd(x)
@@ -100,6 +97,20 @@ extern struct mm_struct *pgd_page_get_mm(struct page *page);
 static inline int pte_dirty(pte_t pte)
 {
 	return pte_flags(pte) & _PAGE_DIRTY;
+}
+
+
+static inline u32 read_pkru(void)
+{
+	if (boot_cpu_has(X86_FEATURE_OSPKE))
+		return __read_pkru();
+	return 0;
+}
+
+static inline void write_pkru(u32 pkru)
+{
+	if (boot_cpu_has(X86_FEATURE_OSPKE))
+		__write_pkru(pkru);
 }
 
 static inline int pte_young(pte_t pte)
@@ -165,20 +176,22 @@ static inline int pmd_large(pmd_t pte)
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-static inline int pmd_trans_splitting(pmd_t pmd)
-{
-	return pmd_val(pmd) & _PAGE_SPLITTING;
-}
-
 static inline int pmd_trans_huge(pmd_t pmd)
 {
-	return pmd_val(pmd) & _PAGE_PSE;
+	return (pmd_val(pmd) & (_PAGE_PSE|_PAGE_DEVMAP)) == _PAGE_PSE;
 }
 
 static inline int has_transparent_hugepage(void)
 {
 	return cpu_has_pse;
 }
+
+#ifdef __HAVE_ARCH_PTE_DEVMAP
+static inline int pmd_devmap(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_DEVMAP);
+}
+#endif
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 static inline pte_t pte_set_flags(pte_t pte, pteval_t set)
@@ -255,6 +268,11 @@ static inline pte_t pte_mkspecial(pte_t pte)
 	return pte_set_flags(pte, _PAGE_SPECIAL);
 }
 
+static inline pte_t pte_mkdevmap(pte_t pte)
+{
+	return pte_set_flags(pte, _PAGE_SPECIAL|_PAGE_DEVMAP);
+}
+
 static inline pmd_t pmd_set_flags(pmd_t pmd, pmdval_t set)
 {
 	pmdval_t v = native_pmd_val(pmd);
@@ -274,6 +292,11 @@ static inline pmd_t pmd_mkold(pmd_t pmd)
 	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
 }
 
+static inline pmd_t pmd_mkclean(pmd_t pmd)
+{
+	return pmd_clear_flags(pmd, _PAGE_DIRTY);
+}
+
 static inline pmd_t pmd_wrprotect(pmd_t pmd)
 {
 	return pmd_clear_flags(pmd, _PAGE_RW);
@@ -282,6 +305,11 @@ static inline pmd_t pmd_wrprotect(pmd_t pmd)
 static inline pmd_t pmd_mkdirty(pmd_t pmd)
 {
 	return pmd_set_flags(pmd, _PAGE_DIRTY | _PAGE_SOFT_DIRTY);
+}
+
+static inline pmd_t pmd_mkdevmap(pmd_t pmd)
+{
+	return pmd_set_flags(pmd, _PAGE_DEVMAP);
 }
 
 static inline pmd_t pmd_mkhuge(pmd_t pmd)
@@ -464,6 +492,13 @@ static inline int pte_present(pte_t a)
 {
 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
 }
+
+#ifdef __HAVE_ARCH_PTE_DEVMAP
+static inline int pte_devmap(pte_t a)
+{
+	return (pte_flags(a) & _PAGE_DEVMAP) == _PAGE_DEVMAP;
+}
+#endif
 
 #define pte_accessible pte_accessible
 static inline bool pte_accessible(struct mm_struct *mm, pte_t a)
@@ -731,14 +766,9 @@ static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
  * updates should either be sets, clears, or set_pte_atomic for P->P
  * transitions, which means this hook should only be called for user PTEs.
  * This hook implies a P->P protection or access change has taken place, which
- * requires a subsequent TLB flush.  The notification can optionally be delayed
- * until the TLB flush event by using the pte_update_defer form of the
- * interface, but care must be taken to assure that the flush happens while
- * still holding the same page table lock so that the shadow and primary pages
- * do not become out of sync on SMP.
+ * requires a subsequent TLB flush.
  */
 #define pte_update(mm, addr, ptep)		do { } while (0)
-#define pte_update_defer(mm, addr, ptep)	do { } while (0)
 #endif
 
 /*
@@ -816,10 +846,6 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
 				  unsigned long address, pmd_t *pmdp);
 
 
-#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
-extern void pmdp_splitting_flush(struct vm_area_struct *vma,
-				 unsigned long addr, pmd_t *pmdp);
-
 #define __HAVE_ARCH_PMD_WRITE
 static inline int pmd_write(pmd_t pmd)
 {
@@ -830,9 +856,7 @@ static inline int pmd_write(pmd_t pmd)
 static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm, unsigned long addr,
 				       pmd_t *pmdp)
 {
-	pmd_t pmd = native_pmdp_get_and_clear(pmdp);
-	pmd_update(mm, addr, pmdp);
-	return pmd;
+	return native_pmdp_get_and_clear(pmdp);
 }
 
 #define __HAVE_ARCH_PMDP_SET_WRPROTECT
@@ -840,7 +864,6 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
 				      unsigned long addr, pmd_t *pmdp)
 {
 	clear_bit(_PAGE_BIT_RW, (unsigned long *)pmdp);
-	pmd_update(mm, addr, pmdp);
 }
 
 /*
@@ -901,6 +924,36 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
 	return pte_clear_flags(pte, _PAGE_SWP_SOFT_DIRTY);
 }
 #endif
+
+#define PKRU_AD_BIT 0x1
+#define PKRU_WD_BIT 0x2
+#define PKRU_BITS_PER_PKEY 2
+
+static inline bool __pkru_allows_read(u32 pkru, u16 pkey)
+{
+	int pkru_pkey_bits = pkey * PKRU_BITS_PER_PKEY;
+	return !(pkru & (PKRU_AD_BIT << pkru_pkey_bits));
+}
+
+static inline bool __pkru_allows_write(u32 pkru, u16 pkey)
+{
+	int pkru_pkey_bits = pkey * PKRU_BITS_PER_PKEY;
+	/*
+	 * Access-disable disables writes too so we need to check
+	 * both bits here.
+	 */
+	return !(pkru & ((PKRU_AD_BIT|PKRU_WD_BIT) << pkru_pkey_bits));
+}
+
+static inline u16 pte_flags_pkey(unsigned long pte_flags)
+{
+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+	/* ifdef to avoid doing 59-bit shift on 32-bit values */
+	return (pte_flags & _PAGE_PKEY_MASK) >> _PAGE_BIT_PKEY_BIT0;
+#else
+	return 0;
+#endif
+}
 
 #include <asm-generic/pgtable.h>
 #endif	/* __ASSEMBLY__ */

@@ -21,6 +21,7 @@ platforms += mti-malta
 platforms += mti-sead3
 platforms += netlogic
 platforms += paravirt
+platforms += pic32
 platforms += pistachio
 platforms += pmcs-msp71xx
 platforms += pnx833x
@@ -33,6 +34,7 @@ platforms += sibyte
 platforms += sni
 platforms += txx9
 platforms += vr41xx
+platforms += xilfpga
 
 # include the platform specific files
 include $(patsubst %, $(srctree)/arch/mips/%/Platform, $(platforms))

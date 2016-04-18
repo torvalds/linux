@@ -3,7 +3,8 @@
 #
 
 menuconfig PLAT_SPEAR
-	bool "ST SPEAr Family" if ARCH_MULTI_V7 || ARCH_MULTI_V5
+	bool "ST SPEAr Family"
+	depends on ARCH_MULTI_V7 || ARCH_MULTI_V5
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select CLKSRC_MMIO

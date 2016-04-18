@@ -44,6 +44,10 @@ struct panel_desc {
 
 	unsigned int bpc;
 
+	/**
+	 * @width: width (in millimeters) of the panel's active display area
+	 * @height: height (in millimeters) of the panel's active display area
+	 */
 	struct {
 		unsigned int width;
 		unsigned int height;
@@ -832,6 +836,35 @@ static const struct panel_desc innolux_g121i1_l01 = {
 	},
 };
 
+static const struct drm_display_mode innolux_g121x1_l03_mode = {
+	.clock = 65000,
+	.hdisplay = 1024,
+	.hsync_start = 1024 + 0,
+	.hsync_end = 1024 + 1,
+	.htotal = 1024 + 0 + 1 + 320,
+	.vdisplay = 768,
+	.vsync_start = 768 + 38,
+	.vsync_end = 768 + 38 + 1,
+	.vtotal = 768 + 38 + 1 + 0,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+};
+
+static const struct panel_desc innolux_g121x1_l03 = {
+	.modes = &innolux_g121x1_l03_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 246,
+		.height = 185,
+	},
+	.delay = {
+		.enable = 200,
+		.unprepare = 200,
+		.disable = 400,
+	},
+};
+
 static const struct drm_display_mode innolux_n116bge_mode = {
 	.clock = 76420,
 	.hdisplay = 1366,
@@ -902,6 +935,30 @@ static const struct panel_desc innolux_zj070na_01p = {
 	},
 };
 
+static const struct display_timing kyo_tcg121xglp_timing = {
+	.pixelclock = { 52000000, 65000000, 71000000 },
+	.hactive = { 1024, 1024, 1024 },
+	.hfront_porch = { 2, 2, 2 },
+	.hback_porch = { 2, 2, 2 },
+	.hsync_len = { 86, 124, 244 },
+	.vactive = { 768, 768, 768 },
+	.vfront_porch = { 2, 2, 2 },
+	.vback_porch = { 2, 2, 2 },
+	.vsync_len = { 6, 34, 73 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc kyo_tcg121xglp = {
+	.timings = &kyo_tcg121xglp_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 246,
+		.height = 184,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
 static const struct drm_display_mode lg_lb070wv8_mode = {
 	.clock = 33246,
 	.hdisplay = 800,
@@ -924,6 +981,29 @@ static const struct panel_desc lg_lb070wv8 = {
 		.height = 91,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
+static const struct drm_display_mode lg_lp120up1_mode = {
+	.clock = 162300,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 40,
+	.hsync_end = 1920 + 40 + 40,
+	.htotal = 1920 + 40 + 40+ 80,
+	.vdisplay = 1280,
+	.vsync_start = 1280 + 4,
+	.vsync_end = 1280 + 4 + 4,
+	.vtotal = 1280 + 4 + 4 + 12,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc lg_lp120up1 = {
+	.modes = &lg_lp120up1_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 267,
+		.height = 183,
+	},
 };
 
 static const struct drm_display_mode lg_lp129qe_mode = {
@@ -960,6 +1040,7 @@ static const struct drm_display_mode nec_nl4827hc19_05b_mode = {
 	.vsync_end = 272 + 2 + 4,
 	.vtotal = 272 + 2 + 4 + 2,
 	.vrefresh = 74,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
 static const struct panel_desc nec_nl4827hc19_05b = {
@@ -1023,6 +1104,30 @@ static const struct panel_desc ortustech_com43h4m85ulc = {
 	.size = {
 		.width = 56,
 		.height = 93,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+};
+
+static const struct drm_display_mode qd43003c0_40_mode = {
+	.clock = 9000,
+	.hdisplay = 480,
+	.hsync_start = 480 + 8,
+	.hsync_end = 480 + 8 + 4,
+	.htotal = 480 + 8 + 4 + 39,
+	.vdisplay = 272,
+	.vsync_start = 272 + 4,
+	.vsync_end = 272 + 4 + 10,
+	.vtotal = 272 + 4 + 10 + 2,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc qd43003c0_40 = {
+	.modes = &qd43003c0_40_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 95,
+		.height = 53,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
@@ -1096,6 +1201,42 @@ static const struct panel_desc shelly_sca07010_bfn_lnn = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
+static const struct display_timing urt_umsh_8596md_timing = {
+	.pixelclock = { 33260000, 33260000, 33260000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 41, 41, 41 },
+	.hback_porch = { 216 - 128, 216 - 128, 216 - 128 },
+	.hsync_len = { 71, 128, 128 },
+	.vactive = { 480, 480, 480 },
+	.vfront_porch = { 10, 10, 10 },
+	.vback_porch = { 35 - 2, 35 - 2, 35 - 2 },
+	.vsync_len = { 2, 2, 2 },
+	.flags = DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_NEGEDGE |
+		DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
+};
+
+static const struct panel_desc urt_umsh_8596md_lvds = {
+	.timings = &urt_umsh_8596md_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 152,
+		.height = 91,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
+};
+
+static const struct panel_desc urt_umsh_8596md_parallel = {
+	.timings = &urt_umsh_8596md_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 152,
+		.height = 91,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
 static const struct of_device_id platform_of_match[] = {
 	{
 		.compatible = "ampire,am800480r3tmqwa1h",
@@ -1158,6 +1299,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible ="innolux,g121i1-l01",
 		.data = &innolux_g121i1_l01
 	}, {
+		.compatible = "innolux,g121x1-l03",
+		.data = &innolux_g121x1_l03,
+	}, {
 		.compatible = "innolux,n116bge",
 		.data = &innolux_n116bge,
 	}, {
@@ -1167,8 +1311,14 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "innolux,zj070na-01p",
 		.data = &innolux_zj070na_01p,
 	}, {
+		.compatible = "kyo,tcg121xglp",
+		.data = &kyo_tcg121xglp,
+	}, {
 		.compatible = "lg,lb070wv8",
 		.data = &lg_lb070wv8,
+	}, {
+		.compatible = "lg,lp120up1",
+		.data = &lg_lp120up1,
 	}, {
 		.compatible = "lg,lp129qe",
 		.data = &lg_lp129qe,
@@ -1182,6 +1332,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "ortustech,com43h4m85ulc",
 		.data = &ortustech_com43h4m85ulc,
 	}, {
+		.compatible = "qiaodian,qd43003c0-40",
+		.data = &qd43003c0_40,
+	}, {
 		.compatible = "samsung,ltn101nt05",
 		.data = &samsung_ltn101nt05,
 	}, {
@@ -1190,6 +1343,24 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "shelly,sca07010-bfn-lnn",
 		.data = &shelly_sca07010_bfn_lnn,
+	}, {
+		.compatible = "urt,umsh-8596md-t",
+		.data = &urt_umsh_8596md_parallel,
+	}, {
+		.compatible = "urt,umsh-8596md-1t",
+		.data = &urt_umsh_8596md_parallel,
+	}, {
+		.compatible = "urt,umsh-8596md-7t",
+		.data = &urt_umsh_8596md_parallel,
+	}, {
+		.compatible = "urt,umsh-8596md-11t",
+		.data = &urt_umsh_8596md_lvds,
+	}, {
+		.compatible = "urt,umsh-8596md-19t",
+		.data = &urt_umsh_8596md_lvds,
+	}, {
+		.compatible = "urt,umsh-8596md-20t",
+		.data = &urt_umsh_8596md_parallel,
 	}, {
 		/* sentinel */
 	}
@@ -1259,6 +1430,36 @@ static const struct panel_desc_dsi auo_b080uan01 = {
 		},
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
+};
+
+static const struct drm_display_mode boe_tv080wum_nl0_mode = {
+	.clock = 160000,
+	.hdisplay = 1200,
+	.hsync_start = 1200 + 120,
+	.hsync_end = 1200 + 120 + 20,
+	.htotal = 1200 + 120 + 20 + 21,
+	.vdisplay = 1920,
+	.vsync_start = 1920 + 21,
+	.vsync_end = 1920 + 21 + 3,
+	.vtotal = 1920 + 21 + 3 + 18,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc_dsi boe_tv080wum_nl0 = {
+	.desc = {
+		.modes = &boe_tv080wum_nl0_mode,
+		.num_modes = 1,
+		.size = {
+			.width = 107,
+			.height = 172,
+		},
+	},
+	.flags = MIPI_DSI_MODE_VIDEO |
+		 MIPI_DSI_MODE_VIDEO_BURST |
+		 MIPI_DSI_MODE_VIDEO_SYNC_PULSE,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
 };
@@ -1348,10 +1549,14 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 	.lanes = 4,
 };
 
+
 static const struct of_device_id dsi_of_match[] = {
 	{
 		.compatible = "auo,b080uan01",
 		.data = &auo_b080uan01
+	}, {
+		.compatible = "boe,tv080wum-nl0",
+		.data = &boe_tv080wum_nl0
 	}, {
 		.compatible = "lg,ld070wx3-sl01",
 		.data = &lg_ld070wx3_sl01

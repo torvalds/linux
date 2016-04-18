@@ -235,7 +235,7 @@ static int device_process(struct vim2m_ctx *ctx,
 	out_vb->sequence =
 		get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE)->sequence++;
 	in_vb->sequence = q_data->sequence++;
-	out_vb->timestamp = in_vb->timestamp;
+	out_vb->vb2_buf.timestamp = in_vb->vb2_buf.timestamp;
 
 	if (in_vb->flags & V4L2_BUF_FLAG_TIMECODE)
 		out_vb->timecode = in_vb->timecode;
@@ -710,11 +710,9 @@ static const struct v4l2_ioctl_ops vim2m_ioctl_ops = {
  */
 
 static int vim2m_queue_setup(struct vb2_queue *vq,
-				const void *parg,
 				unsigned int *nbuffers, unsigned int *nplanes,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(vq);
 	struct vim2m_q_data *q_data;
 	unsigned int size, count = *nbuffers;
@@ -723,17 +721,14 @@ static int vim2m_queue_setup(struct vb2_queue *vq,
 
 	size = q_data->width * q_data->height * q_data->fmt->depth >> 3;
 
-	if (fmt) {
-		if (fmt->fmt.pix.sizeimage < size)
-			return -EINVAL;
-		size = fmt->fmt.pix.sizeimage;
-	}
-
 	while (size * count > MEM2MEM_VID_MEM_LIMIT)
 		(count)--;
+	*nbuffers = count;
+
+	if (*nplanes)
+		return sizes[0] < size ? -EINVAL : 0;
 
 	*nplanes = 1;
-	*nbuffers = count;
 	sizes[0] = size;
 
 	/*
@@ -1079,7 +1074,7 @@ static int __init vim2m_init(void)
 	if (ret)
 		platform_device_unregister(&vim2m_pdev);
 
-	return 0;
+	return ret;
 }
 
 module_init(vim2m_init);

@@ -275,8 +275,8 @@ static enum drm_mode_status ch7xxx_mode_valid(struct intel_dvo_device *dvo,
 }
 
 static void ch7xxx_mode_set(struct intel_dvo_device *dvo,
-			    struct drm_display_mode *mode,
-			    struct drm_display_mode *adjusted_mode)
+			    const struct drm_display_mode *mode,
+			    const struct drm_display_mode *adjusted_mode)
 {
 	uint8_t tvco, tpcp, tpd, tlpf, idf;
 
@@ -356,7 +356,7 @@ static void ch7xxx_destroy(struct intel_dvo_device *dvo)
 	}
 }
 
-struct intel_dvo_dev_ops ch7xxx_ops = {
+const struct intel_dvo_dev_ops ch7xxx_ops = {
 	.init = ch7xxx_init,
 	.detect = ch7xxx_detect,
 	.mode_valid = ch7xxx_mode_valid,

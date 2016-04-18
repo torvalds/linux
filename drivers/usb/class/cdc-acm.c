@@ -428,7 +428,8 @@ static void acm_read_bulk_callback(struct urb *urb)
 		set_bit(rb->index, &acm->read_urbs_free);
 		dev_dbg(&acm->data->dev, "%s - non-zero urb status: %d\n",
 							__func__, status);
-		return;
+		if ((status != -ENOENT) || (urb->actual_length == 0))
+			return;
 	}
 
 	usb_mark_last_busy(acm->dev);
@@ -712,9 +713,20 @@ static int acm_tty_write(struct tty_struct *tty,
 	}
 
 	if (acm->susp_count) {
+		if (acm->putbuffer) {
+			/* now to preserve order */
+			usb_anchor_urb(acm->putbuffer->urb, &acm->delayed);
+			acm->putbuffer = NULL;
+		}
 		usb_anchor_urb(wb->urb, &acm->delayed);
 		spin_unlock_irqrestore(&acm->write_lock, flags);
 		return count;
+	} else {
+		if (acm->putbuffer) {
+			/* at this point there is no good way to handle errors */
+			acm_start_wb(acm, acm->putbuffer);
+			acm->putbuffer = NULL;
+		}
 	}
 
 	stat = acm_start_wb(acm, wb);
@@ -723,6 +735,64 @@ static int acm_tty_write(struct tty_struct *tty,
 	if (stat < 0)
 		return stat;
 	return count;
+}
+
+static void acm_tty_flush_chars(struct tty_struct *tty)
+{
+	struct acm *acm = tty->driver_data;
+	struct acm_wb *cur = acm->putbuffer;
+	int err;
+	unsigned long flags;
+
+	if (!cur) /* nothing to do */
+		return;
+
+	acm->putbuffer = NULL;
+	err = usb_autopm_get_interface_async(acm->control);
+	spin_lock_irqsave(&acm->write_lock, flags);
+	if (err < 0) {
+		cur->use = 0;
+		acm->putbuffer = cur;
+		goto out;
+	}
+
+	if (acm->susp_count)
+		usb_anchor_urb(cur->urb, &acm->delayed);
+	else
+		acm_start_wb(acm, cur);
+out:
+	spin_unlock_irqrestore(&acm->write_lock, flags);
+	return;
+}
+
+static int acm_tty_put_char(struct tty_struct *tty, unsigned char ch)
+{
+	struct acm *acm = tty->driver_data;
+	struct acm_wb *cur;
+	int wbn;
+	unsigned long flags;
+
+overflow:
+	cur = acm->putbuffer;
+	if (!cur) {
+		spin_lock_irqsave(&acm->write_lock, flags);
+		wbn = acm_wb_alloc(acm);
+		if (wbn >= 0) {
+			cur = &acm->wb[wbn];
+			acm->putbuffer = cur;
+		}
+		spin_unlock_irqrestore(&acm->write_lock, flags);
+		if (!cur)
+			return 0;
+	}
+
+	if (cur->len == acm->writesize) {
+		acm_tty_flush_chars(tty);
+		goto overflow;
+	}
+
+	cur->buf[cur->len++] = ch;
+	return 1;
 }
 
 static int acm_tty_write_room(struct tty_struct *tty)
@@ -1113,6 +1183,9 @@ static int acm_probe(struct usb_interface *intf,
 	if (quirks == NO_UNION_NORMAL) {
 		data_interface = usb_ifnum_to_if(usb_dev, 1);
 		control_interface = usb_ifnum_to_if(usb_dev, 0);
+		/* we would crash */
+		if (!data_interface || !control_interface)
+			return -ENODEV;
 		goto skip_normal_probe;
 	}
 
@@ -1404,6 +1477,8 @@ made_compressed_probe:
 				usb_sndbulkpipe(usb_dev, epwrite->bEndpointAddress),
 				NULL, acm->writesize, acm_write_bulk, snd);
 		snd->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		if (quirks & SEND_ZERO_PACKET)
+			snd->urb->transfer_flags |= URB_ZERO_PACKET;
 		snd->instance = acm;
 	}
 
@@ -1838,6 +1913,16 @@ static const struct usb_device_id acm_ids[] = {
 	},
 #endif
 
+	/*Samsung phone in firmware update mode */
+	{ USB_DEVICE(0x04e8, 0x685d),
+	.driver_info = IGNORE_DEVICE,
+	},
+
+	/* Exclude Infineon Flash Loader utility */
+	{ USB_DEVICE(0x058b, 0x0041),
+	.driver_info = IGNORE_DEVICE,
+	},
+
 	/* control interfaces without any protocol set */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
 		USB_CDC_PROTO_NONE) },
@@ -1855,6 +1940,10 @@ static const struct usb_device_id acm_ids[] = {
 		USB_CDC_ACM_PROTO_AT_3G) },
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
 		USB_CDC_ACM_PROTO_AT_CDMA) },
+
+	{ USB_DEVICE(0x1519, 0x0452), /* Intel 7260 modem */
+	.driver_info = SEND_ZERO_PACKET,
+	},
 
 	{ }
 };
@@ -1888,6 +1977,8 @@ static const struct tty_operations acm_ops = {
 	.cleanup =		acm_tty_cleanup,
 	.hangup =		acm_tty_hangup,
 	.write =		acm_tty_write,
+	.put_char =		acm_tty_put_char,
+	.flush_chars =		acm_tty_flush_chars,
 	.write_room =		acm_tty_write_room,
 	.ioctl =		acm_tty_ioctl,
 	.throttle =		acm_tty_throttle,

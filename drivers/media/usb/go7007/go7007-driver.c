@@ -466,7 +466,7 @@ static struct go7007_buffer *frame_boundary(struct go7007 *go, struct go7007_buf
 	else
 		go7007_set_motion_regions(go, vb, 0);
 
-	v4l2_get_timestamp(&vb->vb.timestamp);
+	vb->vb.vb2_buf.timestamp = ktime_get_ns();
 	vb_tmp = vb;
 	spin_lock(&go->spinlock);
 	list_del(&vb->list);

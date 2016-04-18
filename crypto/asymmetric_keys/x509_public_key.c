@@ -13,15 +13,11 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/err.h>
-#include <linux/mpi.h>
-#include <linux/asn1_decoder.h>
 #include <keys/asymmetric-subtype.h>
 #include <keys/asymmetric-parser.h>
 #include <keys/system_keyring.h>
 #include <crypto/hash.h>
 #include "asymmetric_keys.h"
-#include "public_key.h"
 #include "x509_parser.h"
 
 static bool use_builtin_keys;
@@ -167,18 +163,20 @@ int x509_get_sig_params(struct x509_certificate *cert)
 
 	if (cert->unsupported_crypto)
 		return -ENOPKG;
-	if (cert->sig.rsa.s)
+	if (cert->sig.s)
 		return 0;
 
-	cert->sig.rsa.s = mpi_read_raw_data(cert->raw_sig, cert->raw_sig_size);
-	if (!cert->sig.rsa.s)
+	cert->sig.s = kmemdup(cert->raw_sig, cert->raw_sig_size,
+			      GFP_KERNEL);
+	if (!cert->sig.s)
 		return -ENOMEM;
-	cert->sig.nr_mpi = 1;
+
+	cert->sig.s_size = cert->raw_sig_size;
 
 	/* Allocate the hashing algorithm we're going to need and find out how
 	 * big the hash operational data will be.
 	 */
-	tfm = crypto_alloc_shash(hash_algo_name[cert->sig.pkey_hash_algo], 0, 0);
+	tfm = crypto_alloc_shash(cert->sig.hash_algo, 0, 0);
 	if (IS_ERR(tfm)) {
 		if (PTR_ERR(tfm) == -ENOENT) {
 			cert->unsupported_crypto = true;
@@ -293,24 +291,20 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	pr_devel("Cert Issuer: %s\n", cert->issuer);
 	pr_devel("Cert Subject: %s\n", cert->subject);
 
-	if (cert->pub->pkey_algo >= PKEY_ALGO__LAST ||
-	    cert->sig.pkey_algo >= PKEY_ALGO__LAST ||
-	    cert->sig.pkey_hash_algo >= PKEY_HASH__LAST ||
-	    !pkey_algo[cert->pub->pkey_algo] ||
-	    !pkey_algo[cert->sig.pkey_algo] ||
-	    !hash_algo_name[cert->sig.pkey_hash_algo]) {
+	if (!cert->pub->pkey_algo ||
+	    !cert->sig.pkey_algo ||
+	    !cert->sig.hash_algo) {
 		ret = -ENOPKG;
 		goto error_free_cert;
 	}
 
-	pr_devel("Cert Key Algo: %s\n", pkey_algo_name[cert->pub->pkey_algo]);
+	pr_devel("Cert Key Algo: %s\n", cert->pub->pkey_algo);
 	pr_devel("Cert Valid period: %lld-%lld\n", cert->valid_from, cert->valid_to);
 	pr_devel("Cert Signature: %s + %s\n",
-		 pkey_algo_name[cert->sig.pkey_algo],
-		 hash_algo_name[cert->sig.pkey_hash_algo]);
+		 cert->sig.pkey_algo,
+		 cert->sig.hash_algo);
 
-	cert->pub->algo = pkey_algo[cert->pub->pkey_algo];
-	cert->pub->id_type = PKEY_ID_X509;
+	cert->pub->id_type = "X509";
 
 	/* Check the signature on the key if it appears to be self-signed */
 	if ((!cert->akid_skid && !cert->akid_id) ||
@@ -321,6 +315,8 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 			goto error_free_cert;
 	} else if (!prep->trusted) {
 		ret = x509_validate_trust(cert, get_system_trusted_keyring());
+		if (ret)
+			ret = x509_validate_trust(cert, get_ima_mok_keyring());
 		if (!ret)
 			prep->trusted = 1;
 	}

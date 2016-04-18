@@ -61,11 +61,13 @@
 			reg = <0x0>;
 			operating-points = <
 				/* kHz    uV */
-				1008000 1075000
-				 816000 1025000
-				 600000 1025000
-				 504000 1000000
-				 312000  975000
+				1416000 1300000
+				1200000 1175000
+				1008000 1125000
+				816000  1125000
+				600000  1100000
+				504000  1100000
+				312000  1075000
 			>;
 			clock-latency = <40000>;
 			clocks = <&cru ARMCLK>;
@@ -103,6 +105,8 @@
 		dma-names = "tx", "rx";
 		clock-names = "i2s_hclk", "i2s_clk";
 		clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>;
+		rockchip,playback-channels = <8>;
+		rockchip,capture-channels = <2>;
 		status = "disabled";
 	};
 
@@ -118,6 +122,8 @@
 		dma-names = "tx", "rx";
 		clock-names = "i2s_hclk", "i2s_clk";
 		clocks = <&cru HCLK_I2S1>, <&cru SCLK_I2S1>;
+		rockchip,playback-channels = <2>;
+		rockchip,capture-channels = <2>;
 		status = "disabled";
 	};
 
@@ -133,6 +139,8 @@
 		dma-names = "tx", "rx";
 		clock-names = "i2s_hclk", "i2s_clk";
 		clocks = <&cru HCLK_I2S2>, <&cru SCLK_I2S2>;
+		rockchip,playback-channels = <2>;
+		rockchip,capture-channels = <2>;
 		status = "disabled";
 	};
 
@@ -153,6 +161,19 @@
 		clock-names = "timer", "pclk";
 	};
 
+	efuse: efuse@20010000 {
+		compatible = "rockchip,rockchip-efuse";
+		reg = <0x20010000 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&cru PCLK_EFUSE>;
+		clock-names = "pclk_efuse";
+
+		cpu_leakage: cpu_leakage {
+			reg = <0x17 0x1>;
+		};
+	};
+
 	timer@20038000 {
 		compatible = "snps,dw-apb-timer-osc";
 		reg = <0x20038000 0x100>;
@@ -169,6 +190,16 @@
 		clock-names = "timer", "pclk";
 	};
 
+	tsadc: tsadc@20060000 {
+		compatible = "rockchip,rk3066-tsadc";
+		reg = <0x20060000 0x100>;
+		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
+		clock-names = "saradc", "apb_pclk";
+		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+		#io-channel-cells = <1>;
+		status = "disabled";
+	};
+
 	usbphy: phy {
 		compatible = "rockchip,rk3066a-usb-phy", "rockchip,rk3288-usb-phy";
 		rockchip,grf = <&grf>;
@@ -181,6 +212,7 @@
 			reg = <0x17c>;
 			clocks = <&cru SCLK_OTGPHY0>;
 			clock-names = "phyclk";
+			#clock-cells = <0>;
 		};
 
 		usbphy1: usb-phy1 {
@@ -188,6 +220,7 @@
 			reg = <0x188>;
 			clocks = <&cru SCLK_OTGPHY1>;
 			clock-names = "phyclk";
+			#clock-cells = <0>;
 		};
 	};
 

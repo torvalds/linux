@@ -215,7 +215,7 @@ static void reclaim_finished_net_peer_reqs(struct drbd_device *device,
 	}
 }
 
-static void drbd_kick_lo_and_reclaim_net(struct drbd_device *device)
+static void drbd_reclaim_net_peer_reqs(struct drbd_device *device)
 {
 	LIST_HEAD(reclaimed);
 	struct drbd_peer_request *peer_req, *t;
@@ -223,9 +223,28 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_device *device)
 	spin_lock_irq(&device->resource->req_lock);
 	reclaim_finished_net_peer_reqs(device, &reclaimed);
 	spin_unlock_irq(&device->resource->req_lock);
-
 	list_for_each_entry_safe(peer_req, t, &reclaimed, w.list)
 		drbd_free_net_peer_req(device, peer_req);
+}
+
+static void conn_reclaim_net_peer_reqs(struct drbd_connection *connection)
+{
+	struct drbd_peer_device *peer_device;
+	int vnr;
+
+	rcu_read_lock();
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
+		if (!atomic_read(&device->pp_in_use_by_net))
+			continue;
+
+		kref_get(&device->kref);
+		rcu_read_unlock();
+		drbd_reclaim_net_peer_reqs(device);
+		kref_put(&device->kref, drbd_destroy_device);
+		rcu_read_lock();
+	}
+	rcu_read_unlock();
 }
 
 /**
@@ -265,10 +284,15 @@ struct page *drbd_alloc_pages(struct drbd_peer_device *peer_device, unsigned int
 	if (atomic_read(&device->pp_in_use) < mxb)
 		page = __drbd_alloc_pages(device, number);
 
+	/* Try to keep the fast path fast, but occasionally we need
+	 * to reclaim the pages we lended to the network stack. */
+	if (page && atomic_read(&device->pp_in_use_by_net) > 512)
+		drbd_reclaim_net_peer_reqs(device);
+
 	while (page == NULL) {
 		prepare_to_wait(&drbd_pp_wait, &wait, TASK_INTERRUPTIBLE);
 
-		drbd_kick_lo_and_reclaim_net(device);
+		drbd_reclaim_net_peer_reqs(device);
 
 		if (atomic_read(&device->pp_in_use) < mxb) {
 			page = __drbd_alloc_pages(device, number);
@@ -357,7 +381,8 @@ drbd_alloc_peer_req(struct drbd_peer_device *peer_device, u64 id, sector_t secto
 	}
 
 	if (has_payload && data_size) {
-		page = drbd_alloc_pages(peer_device, nr_pages, (gfp_mask & __GFP_WAIT));
+		page = drbd_alloc_pages(peer_device, nr_pages,
+					gfpflags_allow_blocking(gfp_mask));
 		if (!page)
 			goto fail;
 	}
@@ -1098,7 +1123,15 @@ randomize:
 		return 0;
 	}
 
-	drbd_thread_start(&connection->asender);
+	drbd_thread_start(&connection->ack_receiver);
+	/* opencoded create_singlethread_workqueue(),
+	 * to be able to use format string arguments */
+	connection->ack_sender =
+		alloc_ordered_workqueue("drbd_as_%s", WQ_MEM_RECLAIM, connection->resource->name);
+	if (!connection->ack_sender) {
+		drbd_err(connection, "Failed to create workqueue ack_sender\n");
+		return 0;
+	}
 
 	mutex_lock(&connection->resource->conf_update);
 	/* The discard_my_data flag is a single-shot modifier to the next
@@ -1177,7 +1210,7 @@ static void drbd_flush(struct drbd_connection *connection)
 	struct drbd_peer_device *peer_device;
 	int vnr;
 
-	if (connection->resource->write_ordering >= WO_bdev_flush) {
+	if (connection->resource->write_ordering >= WO_BDEV_FLUSH) {
 		rcu_read_lock();
 		idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
 			struct drbd_device *device = peer_device->device;
@@ -1202,7 +1235,7 @@ static void drbd_flush(struct drbd_connection *connection)
 				/* would rather check on EOPNOTSUPP, but that is not reliable.
 				 * don't try again for ANY return value != 0
 				 * if (rv == -EOPNOTSUPP) */
-				drbd_bump_write_ordering(connection->resource, NULL, WO_drain_io);
+				drbd_bump_write_ordering(connection->resource, NULL, WO_DRAIN_IO);
 			}
 			put_ldev(device);
 			kref_put(&device->kref, drbd_destroy_device);
@@ -1298,10 +1331,10 @@ max_allowed_wo(struct drbd_backing_dev *bdev, enum write_ordering_e wo)
 
 	dc = rcu_dereference(bdev->disk_conf);
 
-	if (wo == WO_bdev_flush && !dc->disk_flushes)
-		wo = WO_drain_io;
-	if (wo == WO_drain_io && !dc->disk_drain)
-		wo = WO_none;
+	if (wo == WO_BDEV_FLUSH && !dc->disk_flushes)
+		wo = WO_DRAIN_IO;
+	if (wo == WO_DRAIN_IO && !dc->disk_drain)
+		wo = WO_NONE;
 
 	return wo;
 }
@@ -1318,13 +1351,13 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
 	enum write_ordering_e pwo;
 	int vnr;
 	static char *write_ordering_str[] = {
-		[WO_none] = "none",
-		[WO_drain_io] = "drain",
-		[WO_bdev_flush] = "flush",
+		[WO_NONE] = "none",
+		[WO_DRAIN_IO] = "drain",
+		[WO_BDEV_FLUSH] = "flush",
 	};
 
 	pwo = resource->write_ordering;
-	if (wo != WO_bdev_flush)
+	if (wo != WO_BDEV_FLUSH)
 		wo = min(pwo, wo);
 	rcu_read_lock();
 	idr_for_each_entry(&resource->devices, device, vnr) {
@@ -1342,7 +1375,7 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
 	rcu_read_unlock();
 
 	resource->write_ordering = wo;
-	if (pwo != resource->write_ordering || wo == WO_bdev_flush)
+	if (pwo != resource->write_ordering || wo == WO_BDEV_FLUSH)
 		drbd_info(resource, "Method to ensure write ordering: %s\n", write_ordering_str[resource->write_ordering]);
 }
 
@@ -1379,7 +1412,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
 	if (peer_req->flags & EE_IS_TRIM_USE_ZEROOUT) {
 		/* wait for all pending IO completions, before we start
 		 * zeroing things out. */
-		conn_wait_active_ee_empty(first_peer_device(device)->connection);
+		conn_wait_active_ee_empty(peer_req->peer_device->connection);
 		/* add it to the active list now,
 		 * so we can find it to present it in debugfs */
 		peer_req->submit_jif = jiffies;
@@ -1507,12 +1540,6 @@ static void conn_wait_active_ee_empty(struct drbd_connection *connection)
 	rcu_read_unlock();
 }
 
-static struct drbd_peer_device *
-conn_peer_device(struct drbd_connection *connection, int volume_number)
-{
-	return idr_find(&connection->peer_devices, volume_number);
-}
-
 static int receive_Barrier(struct drbd_connection *connection, struct packet_info *pi)
 {
 	int rv;
@@ -1532,7 +1559,7 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
 	 * Therefore we must send the barrier_ack after the barrier request was
 	 * completed. */
 	switch (connection->resource->write_ordering) {
-	case WO_none:
+	case WO_NONE:
 		if (rv == FE_RECYCLED)
 			return 0;
 
@@ -1545,8 +1572,8 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
 			drbd_warn(connection, "Allocation of an epoch failed, slowing down\n");
 			/* Fall through */
 
-	case WO_bdev_flush:
-	case WO_drain_io:
+	case WO_BDEV_FLUSH:
+	case WO_DRAIN_IO:
 		conn_wait_active_ee_empty(connection);
 		drbd_flush(connection);
 
@@ -1600,7 +1627,7 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
 
 	digest_size = 0;
 	if (!trim && peer_device->connection->peer_integrity_tfm) {
-		digest_size = crypto_hash_digestsize(peer_device->connection->peer_integrity_tfm);
+		digest_size = crypto_ahash_digestsize(peer_device->connection->peer_integrity_tfm);
 		/*
 		 * FIXME: Receive the incoming digest into the receive buffer
 		 *	  here, together with its struct p_data?
@@ -1714,7 +1741,7 @@ static int recv_dless_read(struct drbd_peer_device *peer_device, struct drbd_req
 
 	digest_size = 0;
 	if (peer_device->connection->peer_integrity_tfm) {
-		digest_size = crypto_hash_digestsize(peer_device->connection->peer_integrity_tfm);
+		digest_size = crypto_ahash_digestsize(peer_device->connection->peer_integrity_tfm);
 		err = drbd_recv_all_warn(peer_device->connection, dig_in, digest_size);
 		if (err)
 			return err;
@@ -1751,7 +1778,7 @@ static int recv_dless_read(struct drbd_peer_device *peer_device, struct drbd_req
 }
 
 /*
- * e_end_resync_block() is called in asender context via
+ * e_end_resync_block() is called in ack_sender context via
  * drbd_finish_peer_reqs().
  */
 static int e_end_resync_block(struct drbd_work *w, int unused)
@@ -1925,7 +1952,7 @@ static void restart_conflicting_writes(struct drbd_device *device,
 }
 
 /*
- * e_end_block() is called in asender context via drbd_finish_peer_reqs().
+ * e_end_block() is called in ack_sender context via drbd_finish_peer_reqs().
  */
 static int e_end_block(struct drbd_work *w, int cancel)
 {
@@ -1965,7 +1992,7 @@ static int e_end_block(struct drbd_work *w, int cancel)
 	} else
 		D_ASSERT(device, drbd_interval_empty(&peer_req->i));
 
-	drbd_may_finish_epoch(first_peer_device(device)->connection, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
+	drbd_may_finish_epoch(peer_device->connection, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
 
 	return err;
 }
@@ -2097,7 +2124,7 @@ static int wait_for_and_update_peer_seq(struct drbd_peer_device *peer_device, co
 		}
 
 		rcu_read_lock();
-		tp = rcu_dereference(first_peer_device(device)->connection->net_conf)->two_primaries;
+		tp = rcu_dereference(peer_device->connection->net_conf)->two_primaries;
 		rcu_read_unlock();
 
 		if (!tp)
@@ -2216,7 +2243,7 @@ static int handle_write_conflicts(struct drbd_device *device,
 			peer_req->w.cb = superseded ? e_send_superseded :
 						   e_send_retry_write;
 			list_add_tail(&peer_req->w.list, &device->done_ee);
-			wake_asender(connection);
+			queue_work(connection->ack_sender, &peer_req->peer_device->send_acks_work);
 
 			err = -ENOENT;
 			goto out;
@@ -2363,7 +2390,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 	if (dp_flags & DP_SEND_RECEIVE_ACK) {
 		/* I really don't like it that the receiver thread
 		 * sends on the msock, but anyways */
-		drbd_send_ack(first_peer_device(device), P_RECV_ACK, peer_req);
+		drbd_send_ack(peer_device, P_RECV_ACK, peer_req);
 	}
 
 	if (tp) {
@@ -3294,7 +3321,7 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
 	int p_proto, p_discard_my_data, p_two_primaries, cf;
 	struct net_conf *nc, *old_net_conf, *new_net_conf = NULL;
 	char integrity_alg[SHARED_SECRET_MAX] = "";
-	struct crypto_hash *peer_integrity_tfm = NULL;
+	struct crypto_ahash *peer_integrity_tfm = NULL;
 	void *int_dig_in = NULL, *int_dig_vv = NULL;
 
 	p_proto		= be32_to_cpu(p->protocol);
@@ -3375,14 +3402,14 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
 		 * change.
 		 */
 
-		peer_integrity_tfm = crypto_alloc_hash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
+		peer_integrity_tfm = crypto_alloc_ahash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
 		if (!peer_integrity_tfm) {
 			drbd_err(connection, "peer data-integrity-alg %s not supported\n",
 				 integrity_alg);
 			goto disconnect;
 		}
 
-		hash_size = crypto_hash_digestsize(peer_integrity_tfm);
+		hash_size = crypto_ahash_digestsize(peer_integrity_tfm);
 		int_dig_in = kmalloc(hash_size, GFP_KERNEL);
 		int_dig_vv = kmalloc(hash_size, GFP_KERNEL);
 		if (!(int_dig_in && int_dig_vv)) {
@@ -3412,7 +3439,7 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
 	mutex_unlock(&connection->resource->conf_update);
 	mutex_unlock(&connection->data.mutex);
 
-	crypto_free_hash(connection->peer_integrity_tfm);
+	crypto_free_ahash(connection->peer_integrity_tfm);
 	kfree(connection->int_dig_in);
 	kfree(connection->int_dig_vv);
 	connection->peer_integrity_tfm = peer_integrity_tfm;
@@ -3430,7 +3457,7 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
 disconnect_rcu_unlock:
 	rcu_read_unlock();
 disconnect:
-	crypto_free_hash(peer_integrity_tfm);
+	crypto_free_ahash(peer_integrity_tfm);
 	kfree(int_dig_in);
 	kfree(int_dig_vv);
 	conn_request_state(connection, NS(conn, C_DISCONNECTING), CS_HARD);
@@ -3442,15 +3469,15 @@ disconnect:
  * return: NULL (alg name was "")
  *         ERR_PTR(error) if something goes wrong
  *         or the crypto hash ptr, if it worked out ok. */
-static struct crypto_hash *drbd_crypto_alloc_digest_safe(const struct drbd_device *device,
+static struct crypto_ahash *drbd_crypto_alloc_digest_safe(const struct drbd_device *device,
 		const char *alg, const char *name)
 {
-	struct crypto_hash *tfm;
+	struct crypto_ahash *tfm;
 
 	if (!alg[0])
 		return NULL;
 
-	tfm = crypto_alloc_hash(alg, 0, CRYPTO_ALG_ASYNC);
+	tfm = crypto_alloc_ahash(alg, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm)) {
 		drbd_err(device, "Can not allocate \"%s\" as %s (reason: %ld)\n",
 			alg, name, PTR_ERR(tfm));
@@ -3503,8 +3530,8 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
 	struct drbd_device *device;
 	struct p_rs_param_95 *p;
 	unsigned int header_size, data_size, exp_max_sz;
-	struct crypto_hash *verify_tfm = NULL;
-	struct crypto_hash *csums_tfm = NULL;
+	struct crypto_ahash *verify_tfm = NULL;
+	struct crypto_ahash *csums_tfm = NULL;
 	struct net_conf *old_net_conf, *new_net_conf = NULL;
 	struct disk_conf *old_disk_conf = NULL, *new_disk_conf = NULL;
 	const int apv = connection->agreed_pro_version;
@@ -3651,14 +3678,14 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
 			if (verify_tfm) {
 				strcpy(new_net_conf->verify_alg, p->verify_alg);
 				new_net_conf->verify_alg_len = strlen(p->verify_alg) + 1;
-				crypto_free_hash(peer_device->connection->verify_tfm);
+				crypto_free_ahash(peer_device->connection->verify_tfm);
 				peer_device->connection->verify_tfm = verify_tfm;
 				drbd_info(device, "using verify-alg: \"%s\"\n", p->verify_alg);
 			}
 			if (csums_tfm) {
 				strcpy(new_net_conf->csums_alg, p->csums_alg);
 				new_net_conf->csums_alg_len = strlen(p->csums_alg) + 1;
-				crypto_free_hash(peer_device->connection->csums_tfm);
+				crypto_free_ahash(peer_device->connection->csums_tfm);
 				peer_device->connection->csums_tfm = csums_tfm;
 				drbd_info(device, "using csums-alg: \"%s\"\n", p->csums_alg);
 			}
@@ -3702,9 +3729,9 @@ disconnect:
 	mutex_unlock(&connection->resource->conf_update);
 	/* just for completeness: actually not needed,
 	 * as this is not reached if csums_tfm was ok. */
-	crypto_free_hash(csums_tfm);
+	crypto_free_ahash(csums_tfm);
 	/* but free the verify_tfm again, if csums_tfm did not work out */
-	crypto_free_hash(verify_tfm);
+	crypto_free_ahash(verify_tfm);
 	conn_request_state(peer_device->connection, NS(conn, C_DISCONNECTING), CS_HARD);
 	return -EIO;
 }
@@ -4055,7 +4082,7 @@ static int receive_state(struct drbd_connection *connection, struct packet_info 
 	os = ns = drbd_read_state(device);
 	spin_unlock_irq(&device->resource->req_lock);
 
-	/* If some other part of the code (asender thread, timeout)
+	/* If some other part of the code (ack_receiver thread, timeout)
 	 * already decided to close the connection again,
 	 * we must not "re-establish" it here. */
 	if (os.conn <= C_TEAR_DOWN)
@@ -4660,8 +4687,12 @@ static void conn_disconnect(struct drbd_connection *connection)
 	 */
 	conn_request_state(connection, NS(conn, C_NETWORK_FAILURE), CS_HARD);
 
-	/* asender does not clean up anything. it must not interfere, either */
-	drbd_thread_stop(&connection->asender);
+	/* ack_receiver does not clean up anything. it must not interfere, either */
+	drbd_thread_stop(&connection->ack_receiver);
+	if (connection->ack_sender) {
+		destroy_workqueue(connection->ack_sender);
+		connection->ack_sender = NULL;
+	}
 	drbd_free_sock(connection);
 
 	rcu_read_lock();
@@ -4894,14 +4925,13 @@ static int drbd_do_auth(struct drbd_connection *connection)
 {
 	struct drbd_socket *sock;
 	char my_challenge[CHALLENGE_LEN];  /* 64 Bytes... */
-	struct scatterlist sg;
 	char *response = NULL;
 	char *right_response = NULL;
 	char *peers_ch = NULL;
 	unsigned int key_len;
 	char secret[SHARED_SECRET_MAX]; /* 64 byte */
 	unsigned int resp_size;
-	struct hash_desc desc;
+	SHASH_DESC_ON_STACK(desc, connection->cram_hmac_tfm);
 	struct packet_info pi;
 	struct net_conf *nc;
 	int err, rv;
@@ -4914,12 +4944,12 @@ static int drbd_do_auth(struct drbd_connection *connection)
 	memcpy(secret, nc->shared_secret, key_len);
 	rcu_read_unlock();
 
-	desc.tfm = connection->cram_hmac_tfm;
-	desc.flags = 0;
+	desc->tfm = connection->cram_hmac_tfm;
+	desc->flags = 0;
 
-	rv = crypto_hash_setkey(connection->cram_hmac_tfm, (u8 *)secret, key_len);
+	rv = crypto_shash_setkey(connection->cram_hmac_tfm, (u8 *)secret, key_len);
 	if (rv) {
-		drbd_err(connection, "crypto_hash_setkey() failed with %d\n", rv);
+		drbd_err(connection, "crypto_shash_setkey() failed with %d\n", rv);
 		rv = -1;
 		goto fail;
 	}
@@ -4980,7 +5010,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
 		goto fail;
 	}
 
-	resp_size = crypto_hash_digestsize(connection->cram_hmac_tfm);
+	resp_size = crypto_shash_digestsize(connection->cram_hmac_tfm);
 	response = kmalloc(resp_size, GFP_NOIO);
 	if (response == NULL) {
 		drbd_err(connection, "kmalloc of response failed\n");
@@ -4988,10 +5018,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
 		goto fail;
 	}
 
-	sg_init_table(&sg, 1);
-	sg_set_buf(&sg, peers_ch, pi.size);
-
-	rv = crypto_hash_digest(&desc, &sg, sg.length, response);
+	rv = crypto_shash_digest(desc, peers_ch, pi.size, response);
 	if (rv) {
 		drbd_err(connection, "crypto_hash_digest() failed with %d\n", rv);
 		rv = -1;
@@ -5039,9 +5066,8 @@ static int drbd_do_auth(struct drbd_connection *connection)
 		goto fail;
 	}
 
-	sg_set_buf(&sg, my_challenge, CHALLENGE_LEN);
-
-	rv = crypto_hash_digest(&desc, &sg, sg.length, right_response);
+	rv = crypto_shash_digest(desc, my_challenge, CHALLENGE_LEN,
+				 right_response);
 	if (rv) {
 		drbd_err(connection, "crypto_hash_digest() failed with %d\n", rv);
 		rv = -1;
@@ -5060,6 +5086,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
 	kfree(peers_ch);
 	kfree(response);
 	kfree(right_response);
+	shash_desc_zero(desc);
 
 	return rv;
 }
@@ -5430,49 +5457,39 @@ static int got_skip(struct drbd_connection *connection, struct packet_info *pi)
 	return 0;
 }
 
-static int connection_finish_peer_reqs(struct drbd_connection *connection)
-{
-	struct drbd_peer_device *peer_device;
-	int vnr, not_empty = 0;
-
-	do {
-		clear_bit(SIGNAL_ASENDER, &connection->flags);
-		flush_signals(current);
-
-		rcu_read_lock();
-		idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
-			struct drbd_device *device = peer_device->device;
-			kref_get(&device->kref);
-			rcu_read_unlock();
-			if (drbd_finish_peer_reqs(device)) {
-				kref_put(&device->kref, drbd_destroy_device);
-				return 1;
-			}
-			kref_put(&device->kref, drbd_destroy_device);
-			rcu_read_lock();
-		}
-		set_bit(SIGNAL_ASENDER, &connection->flags);
-
-		spin_lock_irq(&connection->resource->req_lock);
-		idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
-			struct drbd_device *device = peer_device->device;
-			not_empty = !list_empty(&device->done_ee);
-			if (not_empty)
-				break;
-		}
-		spin_unlock_irq(&connection->resource->req_lock);
-		rcu_read_unlock();
-	} while (not_empty);
-
-	return 0;
-}
-
-struct asender_cmd {
+struct meta_sock_cmd {
 	size_t pkt_size;
 	int (*fn)(struct drbd_connection *connection, struct packet_info *);
 };
 
-static struct asender_cmd asender_tbl[] = {
+static void set_rcvtimeo(struct drbd_connection *connection, bool ping_timeout)
+{
+	long t;
+	struct net_conf *nc;
+
+	rcu_read_lock();
+	nc = rcu_dereference(connection->net_conf);
+	t = ping_timeout ? nc->ping_timeo : nc->ping_int;
+	rcu_read_unlock();
+
+	t *= HZ;
+	if (ping_timeout)
+		t /= 10;
+
+	connection->meta.socket->sk->sk_rcvtimeo = t;
+}
+
+static void set_ping_timeout(struct drbd_connection *connection)
+{
+	set_rcvtimeo(connection, 1);
+}
+
+static void set_idle_timeout(struct drbd_connection *connection)
+{
+	set_rcvtimeo(connection, 0);
+}
+
+static struct meta_sock_cmd ack_receiver_tbl[] = {
 	[P_PING]	    = { 0, got_Ping },
 	[P_PING_ACK]	    = { 0, got_PingAck },
 	[P_RECV_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
@@ -5492,64 +5509,40 @@ static struct asender_cmd asender_tbl[] = {
 	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), got_BlockAck },
 };
 
-int drbd_asender(struct drbd_thread *thi)
+int drbd_ack_receiver(struct drbd_thread *thi)
 {
 	struct drbd_connection *connection = thi->connection;
-	struct asender_cmd *cmd = NULL;
+	struct meta_sock_cmd *cmd = NULL;
 	struct packet_info pi;
+	unsigned long pre_recv_jif;
 	int rv;
 	void *buf    = connection->meta.rbuf;
 	int received = 0;
 	unsigned int header_size = drbd_header_size(connection);
 	int expect   = header_size;
 	bool ping_timeout_active = false;
-	struct net_conf *nc;
-	int ping_timeo, tcp_cork, ping_int;
 	struct sched_param param = { .sched_priority = 2 };
 
 	rv = sched_setscheduler(current, SCHED_RR, &param);
 	if (rv < 0)
-		drbd_err(connection, "drbd_asender: ERROR set priority, ret=%d\n", rv);
+		drbd_err(connection, "drbd_ack_receiver: ERROR set priority, ret=%d\n", rv);
 
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(thi);
 
-		rcu_read_lock();
-		nc = rcu_dereference(connection->net_conf);
-		ping_timeo = nc->ping_timeo;
-		tcp_cork = nc->tcp_cork;
-		ping_int = nc->ping_int;
-		rcu_read_unlock();
+		conn_reclaim_net_peer_reqs(connection);
 
 		if (test_and_clear_bit(SEND_PING, &connection->flags)) {
 			if (drbd_send_ping(connection)) {
 				drbd_err(connection, "drbd_send_ping has failed\n");
 				goto reconnect;
 			}
-			connection->meta.socket->sk->sk_rcvtimeo = ping_timeo * HZ / 10;
+			set_ping_timeout(connection);
 			ping_timeout_active = true;
 		}
 
-		/* TODO: conditionally cork; it may hurt latency if we cork without
-		   much to send */
-		if (tcp_cork)
-			drbd_tcp_cork(connection->meta.socket);
-		if (connection_finish_peer_reqs(connection)) {
-			drbd_err(connection, "connection_finish_peer_reqs() failed\n");
-			goto reconnect;
-		}
-		/* but unconditionally uncork unless disabled */
-		if (tcp_cork)
-			drbd_tcp_uncork(connection->meta.socket);
-
-		/* short circuit, recv_msg would return EINTR anyways. */
-		if (signal_pending(current))
-			continue;
-
+		pre_recv_jif = jiffies;
 		rv = drbd_recv_short(connection->meta.socket, buf, expect-received, 0);
-		clear_bit(SIGNAL_ASENDER, &connection->flags);
-
-		flush_signals(current);
 
 		/* Note:
 		 * -EINTR	 (on meta) we got a signal
@@ -5561,7 +5554,6 @@ int drbd_asender(struct drbd_thread *thi)
 		 * rv <  expected: "woken" by signal during receive
 		 * rv == 0	 : "connection shut down by peer"
 		 */
-received_more:
 		if (likely(rv > 0)) {
 			received += rv;
 			buf	 += rv;
@@ -5583,8 +5575,7 @@ received_more:
 		} else if (rv == -EAGAIN) {
 			/* If the data socket received something meanwhile,
 			 * that is good enough: peer is still alive. */
-			if (time_after(connection->last_received,
-				jiffies - connection->meta.socket->sk->sk_rcvtimeo))
+			if (time_after(connection->last_received, pre_recv_jif))
 				continue;
 			if (ping_timeout_active) {
 				drbd_err(connection, "PingAck did not arrive in time.\n");
@@ -5593,6 +5584,10 @@ received_more:
 			set_bit(SEND_PING, &connection->flags);
 			continue;
 		} else if (rv == -EINTR) {
+			/* maybe drbd_thread_stop(): the while condition will notice.
+			 * maybe woken for send_ping: we'll send a ping above,
+			 * and change the rcvtimeo */
+			flush_signals(current);
 			continue;
 		} else {
 			drbd_err(connection, "sock_recvmsg returned %d\n", rv);
@@ -5602,8 +5597,8 @@ received_more:
 		if (received == expect && cmd == NULL) {
 			if (decode_header(connection, connection->meta.rbuf, &pi))
 				goto reconnect;
-			cmd = &asender_tbl[pi.cmd];
-			if (pi.cmd >= ARRAY_SIZE(asender_tbl) || !cmd->fn) {
+			cmd = &ack_receiver_tbl[pi.cmd];
+			if (pi.cmd >= ARRAY_SIZE(ack_receiver_tbl) || !cmd->fn) {
 				drbd_err(connection, "Unexpected meta packet %s (0x%04x)\n",
 					 cmdname(pi.cmd), pi.cmd);
 				goto disconnect;
@@ -5626,9 +5621,8 @@ received_more:
 
 			connection->last_received = jiffies;
 
-			if (cmd == &asender_tbl[P_PING_ACK]) {
-				/* restore idle timeout */
-				connection->meta.socket->sk->sk_rcvtimeo = ping_int * HZ;
+			if (cmd == &ack_receiver_tbl[P_PING_ACK]) {
+				set_idle_timeout(connection);
 				ping_timeout_active = false;
 			}
 
@@ -5637,11 +5631,6 @@ received_more:
 			expect	 = header_size;
 			cmd	 = NULL;
 		}
-		if (test_bit(SEND_PING, &connection->flags))
-			continue;
-		rv = drbd_recv_short(connection->meta.socket, buf, expect-received, MSG_DONTWAIT);
-		if (rv > 0)
-			goto received_more;
 	}
 
 	if (0) {
@@ -5653,9 +5642,41 @@ reconnect:
 disconnect:
 		conn_request_state(connection, NS(conn, C_DISCONNECTING), CS_HARD);
 	}
-	clear_bit(SIGNAL_ASENDER, &connection->flags);
 
-	drbd_info(connection, "asender terminated\n");
+	drbd_info(connection, "ack_receiver terminated\n");
 
 	return 0;
+}
+
+void drbd_send_acks_wf(struct work_struct *ws)
+{
+	struct drbd_peer_device *peer_device =
+		container_of(ws, struct drbd_peer_device, send_acks_work);
+	struct drbd_connection *connection = peer_device->connection;
+	struct drbd_device *device = peer_device->device;
+	struct net_conf *nc;
+	int tcp_cork, err;
+
+	rcu_read_lock();
+	nc = rcu_dereference(connection->net_conf);
+	tcp_cork = nc->tcp_cork;
+	rcu_read_unlock();
+
+	if (tcp_cork)
+		drbd_tcp_cork(connection->meta.socket);
+
+	err = drbd_finish_peer_reqs(device);
+	kref_put(&device->kref, drbd_destroy_device);
+	/* get is in drbd_endio_write_sec_final(). That is necessary to keep the
+	   struct work_struct send_acks_work alive, which is in the peer_device object */
+
+	if (err) {
+		conn_request_state(connection, NS(conn, C_NETWORK_FAILURE), CS_HARD);
+		return;
+	}
+
+	if (tcp_cork)
+		drbd_tcp_uncork(connection->meta.socket);
+
+	return;
 }

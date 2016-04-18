@@ -1,0 +1,2 @@
+Partial implementation of various ring layouts, useful to tune virtio design.
+Uses shared memory heavily.

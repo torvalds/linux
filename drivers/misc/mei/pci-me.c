@@ -31,6 +31,7 @@
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
 
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 
 #include <linux/mei.h>
@@ -86,6 +87,9 @@ static const struct pci_device_id mei_me_pci_tbl[] = {
 	{MEI_PCI_DEVICE(MEI_DEV_ID_SPT_2, mei_me_pch8_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_SPT_H, mei_me_pch8_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_SPT_H_2, mei_me_pch8_cfg)},
+
+	{MEI_PCI_DEVICE(MEI_DEV_ID_BXT_M, mei_me_pch8_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_APL_I, mei_me_pch8_cfg)},
 
 	/* required last entry */
 	{0, }
@@ -209,7 +213,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = mei_register(dev, &pdev->dev);
 	if (err)
-		goto release_irq;
+		goto stop;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -230,6 +234,8 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
+stop:
+	mei_stop(dev);
 release_irq:
 	mei_cancel_work(dev);
 	mei_disable_interrupts(dev);
@@ -436,7 +442,7 @@ static inline void mei_me_set_pm_domain(struct mei_device *dev)
 		dev->pg_domain.ops.runtime_resume = mei_me_pm_runtime_resume;
 		dev->pg_domain.ops.runtime_idle = mei_me_pm_runtime_idle;
 
-		pdev->dev.pm_domain = &dev->pg_domain;
+		dev_pm_domain_set(&pdev->dev, &dev->pg_domain);
 	}
 }
 
@@ -448,7 +454,7 @@ static inline void mei_me_set_pm_domain(struct mei_device *dev)
 static inline void mei_me_unset_pm_domain(struct mei_device *dev)
 {
 	/* stop using pm callbacks if any */
-	dev->dev->pm_domain = NULL;
+	dev_pm_domain_set(dev->dev, NULL);
 }
 
 static const struct dev_pm_ops mei_me_pm_ops = {

@@ -61,6 +61,7 @@ struct fib_nh_exception {
 	struct rtable __rcu		*fnhe_rth_input;
 	struct rtable __rcu		*fnhe_rth_output;
 	unsigned long			fnhe_stamp;
+	struct rcu_head			rcu;
 };
 
 struct fnhe_hash_bucket {
@@ -325,7 +326,8 @@ extern u32 fib_multipath_secret __read_mostly;
 
 static inline int fib_multipath_hash(__be32 saddr, __be32 daddr)
 {
-	return jhash_2words(saddr, daddr, fib_multipath_secret) >> 1;
+	return jhash_2words((__force u32)saddr, (__force u32)daddr,
+			    fib_multipath_secret) >> 1;
 }
 
 void fib_select_multipath(struct fib_result *res, int hash);

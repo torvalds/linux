@@ -359,13 +359,6 @@ static void shmob_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 	scrtc->dpms = mode;
 }
 
-static bool shmob_drm_crtc_mode_fixup(struct drm_crtc *crtc,
-				      const struct drm_display_mode *mode,
-				      struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void shmob_drm_crtc_mode_prepare(struct drm_crtc *crtc)
 {
 	shmob_drm_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
@@ -431,32 +424,11 @@ static int shmob_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 
 static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.dpms = shmob_drm_crtc_dpms,
-	.mode_fixup = shmob_drm_crtc_mode_fixup,
 	.prepare = shmob_drm_crtc_mode_prepare,
 	.commit = shmob_drm_crtc_mode_commit,
 	.mode_set = shmob_drm_crtc_mode_set,
 	.mode_set_base = shmob_drm_crtc_mode_set_base,
 };
-
-void shmob_drm_crtc_cancel_page_flip(struct shmob_drm_crtc *scrtc,
-				     struct drm_file *file)
-{
-	struct drm_pending_vblank_event *event;
-	struct drm_device *dev = scrtc->crtc.dev;
-	unsigned long flags;
-
-	/* Destroy the pending vertical blanking event associated with the
-	 * pending page flip, if any, and disable vertical blanking interrupts.
-	 */
-	spin_lock_irqsave(&dev->event_lock, flags);
-	event = scrtc->event;
-	if (event && event->base.file_priv == file) {
-		scrtc->event = NULL;
-		event->base.destroy(&event->base);
-		drm_vblank_put(dev, 0);
-	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
 
 void shmob_drm_crtc_finish_page_flip(struct shmob_drm_crtc *scrtc)
 {
@@ -613,7 +585,7 @@ int shmob_drm_encoder_create(struct shmob_drm_device *sdev)
 	encoder->possible_crtcs = 1;
 
 	ret = drm_encoder_init(sdev->ddev, encoder, &encoder_funcs,
-			       DRM_MODE_ENCODER_LVDS);
+			       DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -738,8 +710,6 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 	ret = drm_mode_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
 		goto err_backlight;
-
-	connector->encoder = encoder;
 
 	drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 	drm_object_property_set_value(&connector->base,

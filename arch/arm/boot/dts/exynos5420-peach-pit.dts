@@ -15,6 +15,7 @@
 #include <dt-bindings/clock/maxim,max77802.h>
 #include <dt-bindings/regulator/maxim,max77802.h>
 #include "exynos5420.dtsi"
+#include "exynos5420-cpus.dtsi"
 
 / {
 	model = "Google Peach Pit Rev 6+";
@@ -64,7 +65,7 @@
 			label = "Power";
 			gpios = <&gpx1 2 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		lid-switch {
@@ -73,7 +74,7 @@
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <0>; /* SW_LID */
 			debounce-interval = <1>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -94,7 +95,7 @@
 		regulator-name = "P5.0V_USB3CON0";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gph0 0 0>;
+		gpio = <&gph0 0 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb300_vbus_en>;
 		enable-active-high;
@@ -105,7 +106,7 @@
 		regulator-name = "P5.0V_USB3CON1";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gph0 1 0>;
+		gpio = <&gph0 1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb301_vbus_en>;
 		enable-active-high;
@@ -143,6 +144,14 @@
 	vdd-supply = <&ldo9_reg>;
 };
 
+&cpu0 {
+	cpu-supply = <&buck2_reg>;
+};
+
+&cpu4 {
+	cpu-supply = <&buck6_reg>;
+};
+
 &dp {
 	status = "okay";
 	pinctrl-names = "default";
@@ -153,7 +162,7 @@
 	samsung,color-depth = <1>;
 	samsung,link-rate = <0x06>;
 	samsung,lane-count = <2>;
-	samsung,hpd-gpio = <&gpx2 6 0>;
+	samsung,hpd-gpio = <&gpx2 6 GPIO_ACTIVE_HIGH>;
 
 	ports {
 		port@0 {
@@ -690,11 +699,9 @@
 &mmc_0 {
 	status = "okay";
 	num-slots = <1>;
-	broken-cd;
 	mmc-hs200-1_8v;
 	cap-mmc-highspeed;
 	non-removable;
-	card-detect-delay = <200>;
 	clock-frequency = <400000000>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <0 4>;
@@ -709,10 +716,9 @@
 &mmc_1 {
 	status = "okay";
 	num-slots = <1>;
-	broken-cd;
+	non-removable;
 	cap-sdio-irq;
 	keep-power-in-suspend;
-	card-detect-delay = <200>;
 	clock-frequency = <400000000>;
 	samsung,dw-mshc-ciu-div = <1>;
 	samsung,dw-mshc-sdr-timing = <0 1>;
@@ -930,7 +936,7 @@
 	status = "okay";
 	num-cs = <1>;
 	samsung,spi-src-clk = <0>;
-	cs-gpios = <&gpb1 2 0>;
+	cs-gpios = <&gpb1 2 GPIO_ACTIVE_HIGH>;
 
 	cros_ec: cros-ec@0 {
 		compatible = "google,cros-ec-spi";
@@ -940,6 +946,7 @@
 		pinctrl-0 = <&ec_spi_cs &ec_irq>;
 		reg = <0>;
 		spi-max-frequency = <3125000>;
+		google,has-vbc-nvram;
 
 		controller-data {
 			samsung,spi-feedback-delay = <1>;

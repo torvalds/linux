@@ -7,6 +7,7 @@
 #include <linux/delay.h>
 #include <linux/of_mdio.h>
 #include <linux/platform_device.h>
+#include <linux/gpio/consumer.h>
 
 #include "emac.h"
 
@@ -93,9 +94,28 @@ static int arc_mdio_write(struct mii_bus *bus, int phy_addr,
 		phy_addr, reg_num, value);
 
 	arc_reg_set(priv, R_MDIO,
-		     0x50020000 | (phy_addr << 23) | (reg_num << 18) | value);
+		    0x50020000 | (phy_addr << 23) | (reg_num << 18) | value);
 
 	return arc_mdio_complete_wait(priv);
+}
+
+/**
+ * arc_mdio_reset
+ * @bus: points to the mii_bus structure
+ * Description: reset the MII bus
+ */
+int arc_mdio_reset(struct mii_bus *bus)
+{
+	struct arc_emac_priv *priv = bus->priv;
+	struct arc_emac_mdio_bus_data *data = &priv->bus_data;
+
+	if (data->reset_gpio) {
+		gpiod_set_value_cansleep(data->reset_gpio, 1);
+		msleep(data->msec);
+		gpiod_set_value_cansleep(data->reset_gpio, 0);
+	}
+
+	return 0;
 }
 
 /**
@@ -109,6 +129,8 @@ static int arc_mdio_write(struct mii_bus *bus, int phy_addr,
  */
 int arc_mdio_probe(struct arc_emac_priv *priv)
 {
+	struct arc_emac_mdio_bus_data *data = &priv->bus_data;
+	struct device_node *np = priv->dev->of_node;
 	struct mii_bus *bus;
 	int error;
 
@@ -122,6 +144,21 @@ int arc_mdio_probe(struct arc_emac_priv *priv)
 	bus->name = "Synopsys MII Bus",
 	bus->read = &arc_mdio_read;
 	bus->write = &arc_mdio_write;
+	bus->reset = &arc_mdio_reset;
+
+	/* optional reset-related properties */
+	data->reset_gpio = devm_gpiod_get_optional(priv->dev, "phy-reset",
+						   GPIOD_OUT_LOW);
+	if (IS_ERR(data->reset_gpio)) {
+		error = PTR_ERR(data->reset_gpio);
+		dev_err(priv->dev, "Failed to request gpio: %d\n", error);
+		return error;
+	}
+
+	of_property_read_u32(np, "phy-reset-duration", &data->msec);
+	/* A sane reset duration should not be longer than 1s */
+	if (data->msec > 1000)
+		data->msec = 1;
 
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", bus->name);
 

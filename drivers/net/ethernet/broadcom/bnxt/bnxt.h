@@ -11,11 +11,11 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"0.1.24"
+#define DRV_MODULE_VERSION	"1.0.0"
 
-#define DRV_VER_MAJ	0
-#define DRV_VER_MIN	1
-#define DRV_VER_UPD	24
+#define DRV_VER_MAJ	1
+#define DRV_VER_MIN	0
+#define DRV_VER_UPD	0
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
@@ -166,9 +166,11 @@ struct rx_cmp {
 #define RX_CMP_HASH_VALID(rxcmp)				\
 	((rxcmp)->rx_cmp_len_flags_type & cpu_to_le32(RX_CMP_FLAGS_RSS_VALID))
 
+#define RSS_PROFILE_ID_MASK	0x1f
+
 #define RX_CMP_HASH_TYPE(rxcmp)					\
-	((le32_to_cpu((rxcmp)->rx_cmp_misc_v1) & RX_CMP_RSS_HASH_TYPE) >>\
-	 RX_CMP_RSS_HASH_TYPE_SHIFT)
+	(((le32_to_cpu((rxcmp)->rx_cmp_misc_v1) & RX_CMP_RSS_HASH_TYPE) >>\
+	  RX_CMP_RSS_HASH_TYPE_SHIFT) & RSS_PROFILE_ID_MASK)
 
 struct rx_cmp_ext {
 	__le32 rx_cmp_flags2;
@@ -282,9 +284,9 @@ struct rx_tpa_start_cmp {
 	 cpu_to_le32(RX_TPA_START_CMP_FLAGS_RSS_VALID))
 
 #define TPA_START_HASH_TYPE(rx_tpa_start)				\
-	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
-	  RX_TPA_START_CMP_RSS_HASH_TYPE) >>				\
-	 RX_TPA_START_CMP_RSS_HASH_TYPE_SHIFT)
+	(((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
+	   RX_TPA_START_CMP_RSS_HASH_TYPE) >>				\
+	  RX_TPA_START_CMP_RSS_HASH_TYPE_SHIFT) & RSS_PROFILE_ID_MASK)
 
 #define TPA_START_AGG_ID(rx_tpa_start)					\
 	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
@@ -409,8 +411,8 @@ struct rx_tpa_end_cmp_ext {
 
 #define BNXT_NUM_TESTS(bp)	0
 
-#define BNXT_DEFAULT_RX_RING_SIZE	1023
-#define BNXT_DEFAULT_TX_RING_SIZE	512
+#define BNXT_DEFAULT_RX_RING_SIZE	511
+#define BNXT_DEFAULT_TX_RING_SIZE	511
 
 #define MAX_TPA		64
 
@@ -475,12 +477,16 @@ struct rx_tpa_end_cmp_ext {
 #define RING_CMP(idx)		((idx) & bp->cp_ring_mask)
 #define NEXT_CMP(idx)		RING_CMP(ADV_RAW_CMP(idx, 1))
 
-#define HWRM_CMD_TIMEOUT		500
+#define BNXT_HWRM_MAX_REQ_LEN		(bp->hwrm_max_req_len)
+#define DFLT_HWRM_CMD_TIMEOUT		500
+#define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
 #define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
 #define HWRM_RESP_ERR_CODE_MASK		0xffff
+#define HWRM_RESP_LEN_OFFSET		4
 #define HWRM_RESP_LEN_MASK		0xffff0000
 #define HWRM_RESP_LEN_SFT		16
 #define HWRM_RESP_VALID_MASK		0xff000000
+#define HWRM_SEQ_ID_INVALID		-1
 #define BNXT_HWRM_REQ_MAX_SIZE		128
 #define BNXT_HWRM_REQS_PER_PAGE		(BNXT_PAGE_SIZE /	\
 					 BNXT_HWRM_REQ_MAX_SIZE)
@@ -521,11 +527,18 @@ struct bnxt_ring_struct {
 
 struct tx_push_bd {
 	__le32			doorbell;
-	struct tx_bd		txbd1;
+	__le32			tx_bd_len_flags_type;
+	u32			tx_bd_opaque;
 	struct tx_bd_ext	txbd2;
 };
 
+struct tx_push_buffer {
+	struct tx_push_bd	push_bd;
+	u32			data[25];
+};
+
 struct bnxt_tx_ring_info {
+	struct bnxt_napi	*bnapi;
 	u16			tx_prod;
 	u16			tx_cons;
 	void __iomem		*tx_doorbell;
@@ -535,8 +548,9 @@ struct bnxt_tx_ring_info {
 
 	dma_addr_t		tx_desc_mapping[MAX_TX_PAGES];
 
-	struct tx_push_bd	*tx_push;
+	struct tx_push_buffer	*tx_push;
 	dma_addr_t		tx_push_mapping;
+	__le64			data_mapping;
 
 #define BNXT_DEV_STATE_CLOSING	0x1
 	u32			dev_state;
@@ -556,6 +570,7 @@ struct bnxt_tpa_info {
 };
 
 struct bnxt_rx_ring_info {
+	struct bnxt_napi	*bnapi;
 	u16			rx_prod;
 	u16			rx_agg_prod;
 	u16			rx_sw_agg_prod;
@@ -602,8 +617,8 @@ struct bnxt_napi {
 
 	int			index;
 	struct bnxt_cp_ring_info	cp_ring;
-	struct bnxt_rx_ring_info	rx_ring;
-	struct bnxt_tx_ring_info	tx_ring;
+	struct bnxt_rx_ring_info	*rx_ring;
+	struct bnxt_tx_ring_info	*tx_ring;
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	atomic_t		poll_state;
@@ -632,19 +647,6 @@ struct bnxt_irq {
 #define HWRM_RING_ALLOC_CMPL	0x8
 
 #define INVALID_STATS_CTX_ID	-1
-
-struct hwrm_cmd_req_hdr {
-#define HWRM_CMPL_RING_MASK	0xffff0000
-#define HWRM_CMPL_RING_SFT	16
-	__le32	cmpl_ring_req_type;
-#define HWRM_SEQ_ID_MASK	0xffff
-#define HWRM_SEQ_ID_INVALID -1
-#define HWRM_RESP_LEN_OFFSET	4
-#define HWRM_TARGET_FID_MASK	0xffff0000
-#define HWRM_TARGET_FID_SFT	16
-	__le32	target_id_seq_id;
-	__le64	resp_addr;
-};
 
 struct bnxt_ring_grp_info {
 	u16	fw_stats_ctx;
@@ -693,6 +695,7 @@ struct bnxt_vf_info {
 	u16	max_cp_rings;
 	u16	max_tx_rings;
 	u16	max_rx_rings;
+	u16	max_hw_ring_grps;
 	u16	max_l2_ctxs;
 	u16	max_irqs;
 	u16	max_vnics;
@@ -720,9 +723,8 @@ struct bnxt_pf_info {
 	u16	max_rsscos_ctxs;
 	u16	max_cp_rings;
 	u16	max_tx_rings; /* HW assigned max tx rings for this PF */
-	u16	max_pf_tx_rings; /* runtime max tx rings owned by PF */
 	u16	max_rx_rings; /* HW assigned max rx rings for this PF */
-	u16	max_pf_rx_rings; /* runtime max rx rings owned by PF */
+	u16	max_hw_ring_grps;
 	u16	max_irqs;
 	u16	max_l2_ctxs;
 	u16	max_vnics;
@@ -756,10 +758,6 @@ struct bnxt_ntuple_filter {
 #define BNXT_FLTR_UPDATE	1
 };
 
-#define BNXT_ALL_COPPER_ETHTOOL_SPEED				\
-	(ADVERTISED_100baseT_Full | ADVERTISED_1000baseT_Full |	\
-	 ADVERTISED_10000baseT_Full)
-
 struct bnxt_link_info {
 	u8			media_type;
 	u8			transceiver;
@@ -779,6 +777,7 @@ struct bnxt_link_info {
 #define BNXT_LINK_PAUSE_RX	PORT_PHY_QCFG_RESP_PAUSE_RX
 #define BNXT_LINK_PAUSE_BOTH	(PORT_PHY_QCFG_RESP_PAUSE_RX | \
 				 PORT_PHY_QCFG_RESP_PAUSE_TX)
+	u8			lp_pause;
 	u8			auto_pause_setting;
 	u8			force_pause_setting;
 	u8			duplex_setting;
@@ -813,6 +812,7 @@ struct bnxt_link_info {
 #define BNXT_LINK_SPEED_MSK_25GB PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_25GB
 #define BNXT_LINK_SPEED_MSK_40GB PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_40GB
 #define BNXT_LINK_SPEED_MSK_50GB PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_50GB
+	u16			lp_auto_link_speeds;
 	u16			auto_link_speed;
 	u16			force_link_speed;
 	u32			preemphasis;
@@ -838,6 +838,10 @@ struct bnxt_queue_info {
 	u8	queue_id;
 	u8	queue_profile;
 };
+
+#define BNXT_GRCPF_REG_WINDOW_BASE_OUT	0x400
+#define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
+#define BNXT_CAG_REG_BASE		0x300000
 
 struct bnxt {
 	void __iomem		*bar0;
@@ -869,6 +873,9 @@ struct bnxt {
 	#define BNXT_FLAG_USING_MSIX	0x40
 	#define BNXT_FLAG_MSIX_CAP	0x80
 	#define BNXT_FLAG_RFS		0x100
+	#define BNXT_FLAG_SHARED_RINGS	0x200
+	#define BNXT_FLAG_PORT_STATS	0x400
+
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
 					    BNXT_FLAG_RFS |		\
 					    BNXT_FLAG_STRIP_VLAN)
@@ -877,6 +884,9 @@ struct bnxt {
 #define BNXT_VF(bp)		((bp)->flags & BNXT_FLAG_VF)
 
 	struct bnxt_napi	**bnapi;
+
+	struct bnxt_rx_ring_info	*rx_ring;
+	struct bnxt_tx_ring_info	*tx_ring;
 
 	u32			rx_buf_size;
 	u32			rx_buf_use_size;	/* useable size */
@@ -907,6 +917,8 @@ struct bnxt {
 	int			cp_nr_rings;
 
 	int			num_stat_ctxs;
+
+	/* grp_info indexed by completion ring index */
 	struct bnxt_ring_grp_info	*grp_info;
 	struct bnxt_vnic_info	*vnic_info;
 	int			nr_vnics;
@@ -915,13 +927,13 @@ struct bnxt {
 	struct bnxt_queue_info	q_info[BNXT_MAX_QUEUE];
 
 	unsigned int		current_interval;
-#define BNXT_TIMER_INTERVAL	(HZ / 2)
+#define BNXT_TIMER_INTERVAL	HZ
 
 	struct timer_list	timer;
 
-	int			state;
-#define BNXT_STATE_CLOSED	0
-#define BNXT_STATE_OPEN		1
+	unsigned long		state;
+#define BNXT_STATE_OPEN		0
+#define BNXT_STATE_IN_SP_TASK	1
 
 	struct bnxt_irq	*irq_tbl;
 	u8			mac_addr[ETH_ALEN];
@@ -935,6 +947,15 @@ struct bnxt {
 	void			*hwrm_dbg_resp_addr;
 	dma_addr_t		hwrm_dbg_resp_dma_addr;
 #define HWRM_DBG_REG_BUF_SIZE	128
+
+	struct rx_port_stats	*hw_rx_port_stats;
+	struct tx_port_stats	*hw_tx_port_stats;
+	dma_addr_t		hw_rx_port_stats_map;
+	dma_addr_t		hw_tx_port_stats_map;
+	int			hw_port_stats_size;
+
+	u16			hwrm_max_req_len;
+	int			hwrm_cmd_timeout;
 	struct mutex		hwrm_cmd_lock;	/* serialize hwrm messages */
 	struct hwrm_ver_get_output	ver_resp;
 #define FW_VER_STR_LEN		32
@@ -946,24 +967,30 @@ struct bnxt {
 	__le16			vxlan_fw_dst_port_id;
 	u8			nge_port_cnt;
 	__le16			nge_fw_dst_port_id;
-	u16			coal_ticks;
-	u16			coal_ticks_irq;
-	u16			coal_bufs;
-	u16			coal_bufs_irq;
+
+	u16			rx_coal_ticks;
+	u16			rx_coal_ticks_irq;
+	u16			rx_coal_bufs;
+	u16			rx_coal_bufs_irq;
+	u16			tx_coal_ticks;
+	u16			tx_coal_ticks_irq;
+	u16			tx_coal_bufs;
+	u16			tx_coal_bufs_irq;
 
 #define BNXT_USEC_TO_COAL_TIMER(x)	((x) * 25 / 2)
-#define BNXT_COAL_TIMER_TO_USEC(x) ((x) * 2 / 25)
 
 	struct work_struct	sp_task;
 	unsigned long		sp_event;
 #define BNXT_RX_MASK_SP_EVENT		0
 #define BNXT_RX_NTP_FLTR_SP_EVENT	1
 #define BNXT_LINK_CHNG_SP_EVENT		2
-#define BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT	4
-#define BNXT_VXLAN_ADD_PORT_SP_EVENT	8
-#define BNXT_VXLAN_DEL_PORT_SP_EVENT	16
-#define BNXT_RESET_TASK_SP_EVENT	32
-#define BNXT_RST_RING_SP_EVENT		64
+#define BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT	3
+#define BNXT_VXLAN_ADD_PORT_SP_EVENT	4
+#define BNXT_VXLAN_DEL_PORT_SP_EVENT	5
+#define BNXT_RESET_TASK_SP_EVENT	6
+#define BNXT_RST_RING_SP_EVENT		7
+#define BNXT_HWRM_PF_UNLOAD_SP_EVENT	8
+#define BNXT_PERIODIC_STATS_SP_EVENT	9
 
 	struct bnxt_pf_info	pf;
 #ifdef CONFIG_BNXT_SRIOV
@@ -1077,10 +1104,12 @@ void bnxt_set_ring_params(struct bnxt *);
 void bnxt_hwrm_cmd_hdr_init(struct bnxt *, void *, u16, u16, u16);
 int _hwrm_send_message(struct bnxt *, void *, u32, int);
 int hwrm_send_message(struct bnxt *, void *, u32, int);
+int hwrm_send_message_silent(struct bnxt *, void *, u32, int);
 int bnxt_hwrm_set_coal(struct bnxt *);
+int bnxt_hwrm_func_qcaps(struct bnxt *);
 int bnxt_hwrm_set_pause(struct bnxt *);
 int bnxt_hwrm_set_link_setting(struct bnxt *, bool);
 int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_close_nic(struct bnxt *, bool, bool);
-void bnxt_get_max_rings(struct bnxt *, int *, int *);
+int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
 #endif

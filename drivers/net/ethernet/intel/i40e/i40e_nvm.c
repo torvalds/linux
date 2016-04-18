@@ -693,10 +693,11 @@ i40e_status i40e_nvmupd_command(struct i40e_hw *hw,
 	/* early check for status command and debug msgs */
 	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, perrno);
 
-	i40e_debug(hw, I40E_DEBUG_NVM, "%s state %d nvm_release_on_hold %d\n",
+	i40e_debug(hw, I40E_DEBUG_NVM, "%s state %d nvm_release_on_hold %d cmd 0x%08x config 0x%08x offset 0x%08x data_size 0x%08x\n",
 		   i40e_nvm_update_state_str[upd_cmd],
 		   hw->nvmupd_state,
-		   hw->aq.nvm_release_on_done);
+		   hw->aq.nvm_release_on_done,
+		   cmd->command, cmd->config, cmd->offset, cmd->data_size);
 
 	if (upd_cmd == I40E_NVMUPD_INVALID) {
 		*perrno = -EFAULT;

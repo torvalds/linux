@@ -82,7 +82,7 @@ int iscsit_tmr_task_warm_reset(
 		pr_err("TMR Opcode TARGET_WARM_RESET authorization"
 			" failed for Initiator Node: %s\n",
 			sess->se_sess->se_node_acl->initiatorname);
-		 return -1;
+		return -1;
 	}
 	/*
 	 * Do the real work in transport_generic_do_tmr().

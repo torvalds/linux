@@ -25,9 +25,12 @@
 #include <sound/soc.h>
 #include "skl.h"
 #include "skl-topology.h"
+#include "skl-sst-dsp.h"
+#include "skl-sst-ipc.h"
 
 #define HDA_MONO 1
 #define HDA_STEREO 2
+#define HDA_QUAD 4
 
 static struct snd_pcm_hardware azx_pcm_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP |
@@ -35,16 +38,20 @@ static struct snd_pcm_hardware azx_pcm_hw = {
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID |
 				 SNDRV_PCM_INFO_PAUSE |
+				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_SYNC_START |
 				 SNDRV_PCM_INFO_HAS_WALL_CLOCK | /* legacy */
 				 SNDRV_PCM_INFO_HAS_LINK_ATIME |
 				 SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
-	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =		SNDRV_PCM_RATE_48000,
-	.rate_min =		48000,
+	.formats =		SNDRV_PCM_FMTBIT_S16_LE |
+				SNDRV_PCM_FMTBIT_S32_LE |
+				SNDRV_PCM_FMTBIT_S24_LE,
+	.rates =		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000 |
+				SNDRV_PCM_RATE_8000,
+	.rate_min =		8000,
 	.rate_max =		48000,
-	.channels_min =		2,
-	.channels_max =		2,
+	.channels_min =		1,
+	.channels_max =		HDA_QUAD,
 	.buffer_bytes_max =	AZX_MAX_BUF_SIZE,
 	.period_bytes_min =	128,
 	.period_bytes_max =	AZX_MAX_BUF_SIZE / 2,
@@ -105,6 +112,31 @@ static enum hdac_ext_stream_type skl_get_host_stream_type(struct hdac_ext_bus *e
 		return HDAC_EXT_STREAM_TYPE_COUPLED;
 }
 
+/*
+ * check if the stream opened is marked as ignore_suspend by machine, if so
+ * then enable suspend_active refcount
+ *
+ * The count supend_active does not need lock as it is used in open/close
+ * and suspend context
+ */
+static void skl_set_suspend_active(struct snd_pcm_substream *substream,
+					 struct snd_soc_dai *dai, bool enable)
+{
+	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
+	struct snd_soc_dapm_widget *w;
+	struct skl *skl = ebus_to_skl(ebus);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		w = dai->playback_widget;
+	else
+		w = dai->capture_widget;
+
+	if (w->ignore_suspend && enable)
+		skl->supend_active++;
+	else if (w->ignore_suspend && !enable)
+		skl->supend_active--;
+}
+
 static int skl_pcm_open(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
@@ -112,12 +144,8 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *stream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct skl_dma_params *dma_params;
-	int ret;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
-	ret = pm_runtime_get_sync(dai->dev);
-	if (ret < 0)
-		return ret;
 
 	stream = snd_hdac_ext_stream_assign(ebus, substream,
 					skl_get_host_stream_type(ebus));
@@ -146,6 +174,7 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 
 	dev_dbg(dai->dev, "stream tag set in dma params=%d\n",
 				 dma_params->stream_tag);
+	skl_set_suspend_active(substream, dai, true);
 	snd_pcm_set_sync(substream);
 
 	return 0;
@@ -177,6 +206,23 @@ static int skl_get_format(struct snd_pcm_substream *substream,
 	return format_val;
 }
 
+static int skl_be_prepare(struct snd_pcm_substream *substream,
+		struct snd_soc_dai *dai)
+{
+	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_sst *ctx = skl->skl_sst;
+	struct skl_module_cfg *mconfig;
+
+	if ((dai->playback_active > 1) || (dai->capture_active > 1))
+		return 0;
+
+	mconfig = skl_tplg_be_get_cpr_module(dai, substream->stream);
+	if (mconfig == NULL)
+		return -EINVAL;
+
+	return skl_dsp_set_dma_control(ctx, mconfig);
+}
+
 static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
@@ -185,10 +231,6 @@ static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 	int err;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
-	if (hdac_stream(stream)->prepared) {
-		dev_dbg(dai->dev, "already stream is prepared - returning\n");
-		return 0;
-	}
 
 	format_val = skl_get_format(substream, dai);
 	dev_dbg(dai->dev, "stream_tag=%d formatvalue=%d\n",
@@ -250,6 +292,7 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	struct skl_dma_params *dma_params = NULL;
+	struct skl *skl = ebus_to_skl(ebus);
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
@@ -261,9 +304,18 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	 * dma_params
 	 */
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
+	skl_set_suspend_active(substream, dai, false);
 
-	pm_runtime_mark_last_busy(dai->dev);
-	pm_runtime_put_autosuspend(dai->dev);
+	/*
+	 * check if close is for "Reference Pin" and set back the
+	 * CGCTL.MISCBDCGE if disabled by driver
+	 */
+	if (!strncmp(dai->name, "Reference Pin", 13) &&
+			skl->skl_sst->miscbdcg_disabled) {
+		skl->skl_sst->enable_miscbdcge(dai->dev, true);
+		skl->skl_sst->miscbdcg_disabled = false;
+	}
+
 	kfree(dma_params);
 }
 
@@ -291,7 +343,53 @@ static int skl_be_hw_params(struct snd_pcm_substream *substream,
 	p_params.ch = params_channels(params);
 	p_params.s_freq = params_rate(params);
 	p_params.stream = substream->stream;
-	skl_tplg_be_update_params(dai, &p_params);
+
+	return skl_tplg_be_update_params(dai, &p_params);
+}
+
+static int skl_decoupled_trigger(struct snd_pcm_substream *substream,
+		int cmd)
+{
+	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_ext_stream *stream;
+	int start;
+	unsigned long cookie;
+	struct hdac_stream *hstr;
+
+	stream = get_hdac_ext_stream(substream);
+	hstr = hdac_stream(stream);
+
+	if (!hstr->prepared)
+		return -EPIPE;
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
+		start = 1;
+		break;
+
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_STOP:
+		start = 0;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&bus->reg_lock, cookie);
+
+	if (start) {
+		snd_hdac_stream_start(hdac_stream(stream), true);
+		snd_hdac_stream_timecounter_init(hstr, 0);
+	} else {
+		snd_hdac_stream_stop(hdac_stream(stream));
+	}
+
+	spin_unlock_irqrestore(&bus->reg_lock, cookie);
 
 	return 0;
 }
@@ -302,23 +400,72 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct skl *skl = get_skl_ctx(dai->dev);
 	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_module_cfg *mconfig;
+	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
+	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
+	int ret;
 
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
 	if (!mconfig)
 		return -EIO;
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
+		skl_pcm_prepare(substream, dai);
+		/*
+		 * enable DMA Resume enable bit for the stream, set the dpib
+		 * & lpib position to resune before starting the DMA
+		 */
+		snd_hdac_ext_stream_drsm_enable(ebus, true,
+					hdac_stream(stream)->index);
+		snd_hdac_ext_stream_set_dpibr(ebus, stream, stream->dpib);
+		snd_hdac_ext_stream_set_lpib(stream, stream->lpib);
+
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		/*
+		 * Start HOST DMA and Start FE Pipe.This is to make sure that
+		 * there are no underrun/overrun in the case when the FE
+		 * pipeline is started but there is a delay in starting the
+		 * DMA channel on the host.
+		 */
+		snd_hdac_ext_stream_decouple(ebus, stream, true);
+		ret = skl_decoupled_trigger(substream, cmd);
+		if (ret < 0)
+			return ret;
 		return skl_run_pipe(ctx, mconfig->pipe);
+		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		return skl_stop_pipe(ctx, mconfig->pipe);
+	case SNDRV_PCM_TRIGGER_STOP:
+		/*
+		 * Stop FE Pipe first and stop DMA. This is to make sure that
+		 * there are no underrun/overrun in the case if there is a delay
+		 * between the two operations.
+		 */
+		ret = skl_stop_pipe(ctx, mconfig->pipe);
+		if (ret < 0)
+			return ret;
+
+		ret = skl_decoupled_trigger(substream, cmd);
+		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND) {
+			/* save the dpib and lpib positions */
+			stream->dpib = readl(ebus->bus.remap_addr +
+					AZX_REG_VS_SDXDPIB_XBASE +
+					(AZX_REG_VS_SDXDPIB_XINTERVAL *
+					hdac_stream(stream)->index));
+
+			stream->lpib = snd_hdac_stream_get_pos_lpib(
+							hdac_stream(stream));
+			snd_hdac_ext_stream_decouple(ebus, stream, false);
+		}
+		break;
 
 	default:
-		return 0;
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 static int skl_link_hw_params(struct snd_pcm_substream *substream,
@@ -328,7 +475,7 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	struct hdac_ext_stream *link_dev;
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct skl_dma_params *dma_params;
+	struct hdac_ext_dma_params *dma_params;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct skl_pipe_params p_params = {0};
 
@@ -340,11 +487,9 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_dai_set_dma_data(dai, substream, (void *)link_dev);
 
 	/* set the stream tag in the codec dai dma params  */
-	dma_params = (struct skl_dma_params *)
-			snd_soc_dai_get_dma_data(codec_dai, substream);
+	dma_params = snd_soc_dai_get_dma_data(codec_dai, substream);
 	if (dma_params)
 		dma_params->stream_tag =  hdac_stream(link_dev)->stream_tag;
-	snd_soc_dai_set_dma_data(codec_dai, substream, (void *)dma_params);
 
 	p_params.s_fmt = snd_pcm_format_width(params_format(params));
 	p_params.ch = params_channels(params);
@@ -352,9 +497,7 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 	p_params.stream = substream->stream;
 	p_params.link_dma_id = hdac_stream(link_dev)->stream_tag - 1;
 
-	skl_tplg_be_update_params(dai, &p_params);
-
-	return 0;
+	return skl_tplg_be_update_params(dai, &p_params);
 }
 
 static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
@@ -369,11 +512,6 @@ static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct hdac_ext_link *link;
 
-	if (link_dev->link_prepared) {
-		dev_dbg(dai->dev, "already stream is prepared - returning\n");
-		return 0;
-	}
-
 	dma_params  = (struct skl_dma_params *)
 			snd_soc_dai_get_dma_data(codec_dai, substream);
 	if (dma_params)
@@ -381,13 +519,14 @@ static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 	dev_dbg(dai->dev, "stream_tag=%d formatvalue=%d codec_dai_name=%s\n",
 			hdac_stream(link_dev)->stream_tag, format_val, codec_dai->name);
 
-	snd_hdac_ext_link_stream_reset(link_dev);
-
-	snd_hdac_ext_link_stream_setup(link_dev, format_val);
-
 	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec->component.name);
 	if (!link)
 		return -EINVAL;
+
+	snd_hdac_ext_bus_link_power_up(link);
+	snd_hdac_ext_link_stream_reset(link_dev);
+
+	snd_hdac_ext_link_stream_setup(link_dev, format_val);
 
 	snd_hdac_ext_link_set_stream_id(link, hdac_stream(link_dev)->stream_tag);
 	link_dev->link_prepared = 1;
@@ -400,12 +539,16 @@ static int skl_link_pcm_trigger(struct snd_pcm_substream *substream,
 {
 	struct hdac_ext_stream *link_dev =
 				snd_soc_dai_get_dma_data(dai, substream);
+	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
+	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 
 	dev_dbg(dai->dev, "In %s cmd=%d\n", __func__, cmd);
 	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_RESUME:
+		skl_link_pcm_prepare(substream, dai);
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-	case SNDRV_PCM_TRIGGER_RESUME:
+		snd_hdac_ext_stream_decouple(ebus, stream, true);
 		snd_hdac_ext_link_stream_start(link_dev);
 		break;
 
@@ -413,6 +556,8 @@ static int skl_link_pcm_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_hdac_ext_link_stream_clear(link_dev);
+		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND)
+			snd_hdac_ext_stream_decouple(ebus, stream, false);
 		break;
 
 	default:
@@ -443,19 +588,6 @@ static int skl_link_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int skl_be_startup(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
-{
-	return pm_runtime_get_sync(dai->dev);
-}
-
-static void skl_be_shutdown(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
-{
-	pm_runtime_mark_last_busy(dai->dev);
-	pm_runtime_put_autosuspend(dai->dev);
-}
-
 static struct snd_soc_dai_ops skl_pcm_dai_ops = {
 	.startup = skl_pcm_open,
 	.shutdown = skl_pcm_close,
@@ -466,24 +598,19 @@ static struct snd_soc_dai_ops skl_pcm_dai_ops = {
 };
 
 static struct snd_soc_dai_ops skl_dmic_dai_ops = {
-	.startup = skl_be_startup,
 	.hw_params = skl_be_hw_params,
-	.shutdown = skl_be_shutdown,
 };
 
 static struct snd_soc_dai_ops skl_be_ssp_dai_ops = {
-	.startup = skl_be_startup,
 	.hw_params = skl_be_hw_params,
-	.shutdown = skl_be_shutdown,
+	.prepare = skl_be_prepare,
 };
 
 static struct snd_soc_dai_ops skl_link_dai_ops = {
-	.startup = skl_be_startup,
 	.prepare = skl_link_pcm_prepare,
 	.hw_params = skl_link_hw_params,
 	.hw_free = skl_link_hw_free,
 	.trigger = skl_link_pcm_trigger,
-	.shutdown = skl_be_shutdown,
 };
 
 static struct snd_soc_dai_driver skl_platform_dai[] = {
@@ -511,7 +638,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.capture = {
 		.stream_name = "Reference Capture",
 		.channels_min = HDA_MONO,
-		.channels_max = HDA_STEREO,
+		.channels_max = HDA_QUAD,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
@@ -538,6 +665,63 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
 },
+{
+	.name = "DMIC Pin",
+	.ops = &skl_pcm_dai_ops,
+	.capture = {
+		.stream_name = "DMIC Capture",
+		.channels_min = HDA_MONO,
+		.channels_max = HDA_QUAD,
+		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+	},
+},
+{
+	.name = "HDMI1 Pin",
+	.ops = &skl_pcm_dai_ops,
+	.playback = {
+		.stream_name = "HDMI1 Playback",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_32000 |	SNDRV_PCM_RATE_44100 |
+			SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |
+			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |
+			SNDRV_PCM_RATE_192000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
+			SNDRV_PCM_FMTBIT_S32_LE,
+	},
+},
+{
+	.name = "HDMI2 Pin",
+	.ops = &skl_pcm_dai_ops,
+	.playback = {
+		.stream_name = "HDMI2 Playback",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_32000 |	SNDRV_PCM_RATE_44100 |
+			SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |
+			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |
+			SNDRV_PCM_RATE_192000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
+			SNDRV_PCM_FMTBIT_S32_LE,
+	},
+},
+{
+	.name = "HDMI3 Pin",
+	.ops = &skl_pcm_dai_ops,
+	.playback = {
+		.stream_name = "HDMI3 Playback",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_32000 |	SNDRV_PCM_RATE_44100 |
+			SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |
+			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |
+			SNDRV_PCM_RATE_192000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
+			SNDRV_PCM_FMTBIT_S32_LE,
+	},
+},
+
 /* BE CPU  Dais */
 {
 	.name = "SSP0 Pin",
@@ -558,14 +742,59 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	},
 },
 {
-	.name = "iDisp Pin",
+	.name = "SSP1 Pin",
+	.ops = &skl_be_ssp_dai_ops,
+	.playback = {
+		.stream_name = "ssp1 Tx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+	.capture = {
+		.stream_name = "ssp1 Rx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+},
+{
+	.name = "iDisp1 Pin",
 	.ops = &skl_link_dai_ops,
 	.playback = {
-		.stream_name = "iDisp Tx",
+		.stream_name = "iDisp1 Tx",
 		.channels_min = HDA_STEREO,
 		.channels_max = HDA_STEREO,
 		.rates = SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE |
+			SNDRV_PCM_FMTBIT_S24_LE,
+	},
+},
+{
+	.name = "iDisp2 Pin",
+	.ops = &skl_link_dai_ops,
+	.playback = {
+		.stream_name = "iDisp2 Tx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|
+			SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE |
+			SNDRV_PCM_FMTBIT_S24_LE,
+	},
+},
+{
+	.name = "iDisp3 Pin",
+	.ops = &skl_link_dai_ops,
+	.playback = {
+		.stream_name = "iDisp3 Tx",
+		.channels_min = HDA_STEREO,
+		.channels_max = HDA_STEREO,
+		.rates = SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|
+			SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE |
+			SNDRV_PCM_FMTBIT_S24_LE,
 	},
 },
 {
@@ -573,8 +802,8 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.ops = &skl_dmic_dai_ops,
 	.capture = {
 		.stream_name = "DMIC01 Rx",
-		.channels_min = HDA_STEREO,
-		.channels_max = HDA_STEREO,
+		.channels_min = HDA_MONO,
+		.channels_max = HDA_QUAD,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
@@ -688,66 +917,15 @@ static int skl_coupled_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int skl_decoupled_trigger(struct snd_pcm_substream *substream,
-		int cmd)
-{
-	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct hdac_ext_stream *stream;
-	int start;
-	unsigned long cookie;
-	struct hdac_stream *hstr;
-
-	dev_dbg(bus->dev, "In %s cmd=%d streamname=%s\n", __func__, cmd, cpu_dai->name);
-
-	stream = get_hdac_ext_stream(substream);
-	hstr = hdac_stream(stream);
-
-	if (!hstr->prepared)
-		return -EPIPE;
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-	case SNDRV_PCM_TRIGGER_RESUME:
-		start = 1;
-		break;
-
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_STOP:
-		start = 0;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&bus->reg_lock, cookie);
-
-	if (start)
-		snd_hdac_stream_start(hdac_stream(stream), true);
-	else
-		snd_hdac_stream_stop(hdac_stream(stream));
-
-	if (start)
-		snd_hdac_stream_timecounter_init(hstr, 0);
-
-	spin_unlock_irqrestore(&bus->reg_lock, cookie);
-
-	return 0;
-}
 static int skl_platform_pcm_trigger(struct snd_pcm_substream *substream,
 					int cmd)
 {
 	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
 
-	if (ebus->ppcap)
-		return skl_decoupled_trigger(substream, cmd);
-	else
+	if (!ebus->ppcap)
 		return skl_coupled_trigger(substream, cmd);
+
+	return 0;
 }
 
 /* calculate runtime delay from LPIB */
@@ -774,6 +952,9 @@ static int skl_get_delay_from_lpib(struct hdac_ext_bus *ebus,
 			delay += hstream->bufsize;
 	}
 
+	if (hstream->bufsize == delay)
+		delay = 0;
+
 	if (delay >= hstream->period_bytes) {
 		dev_info(bus->dev,
 			 "Unstable LPIB (%d >= %d); disabling LPIB delay counting\n",
@@ -789,7 +970,7 @@ static unsigned int skl_get_position(struct hdac_ext_stream *hstream,
 {
 	struct hdac_stream *hstr = hdac_stream(hstream);
 	struct snd_pcm_substream *substream = hstr->substream;
-	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
+	struct hdac_ext_bus *ebus;
 	unsigned int pos;
 	int delay;
 
@@ -800,6 +981,7 @@ static unsigned int skl_get_position(struct hdac_ext_stream *hstream,
 		pos = 0;
 
 	if (substream->runtime) {
+		ebus = get_bus_ctx(substream);
 		delay = skl_get_delay_from_lpib(ebus, hstream, pos)
 						 + codec_delay;
 		substream->runtime->delay += delay;
@@ -941,7 +1123,6 @@ int skl_platform_register(struct device *dev)
 	struct skl *skl = ebus_to_skl(ebus);
 
 	INIT_LIST_HEAD(&skl->ppl_list);
-	INIT_LIST_HEAD(&skl->dapm_path_list);
 
 	ret = snd_soc_register_platform(dev, &skl_platform_drv);
 	if (ret) {

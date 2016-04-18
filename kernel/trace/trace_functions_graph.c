@@ -8,6 +8,7 @@
  */
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
+#include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 
@@ -288,9 +289,6 @@ int __trace_graph_entry(struct trace_array *tr,
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ftrace_graph_ent_entry *entry;
 
-	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
-		return 0;
-
 	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_ENT,
 					  sizeof(*entry), flags, pc);
 	if (!event)
@@ -402,9 +400,6 @@ void __trace_graph_return(struct trace_array *tr,
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ftrace_graph_ret_entry *entry;
-
-	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
-		return;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_RET,
 					  sizeof(*entry), flags, pc);
@@ -1356,7 +1351,7 @@ void graph_trace_open(struct trace_iterator *iter)
  out_err_free:
 	kfree(data);
  out_err:
-	pr_warning("function graph tracer: not enough memory\n");
+	pr_warn("function graph tracer: not enough memory\n");
 }
 
 void graph_trace_close(struct trace_iterator *iter)
@@ -1474,12 +1469,12 @@ static __init int init_graph_trace(void)
 	max_bytes_for_cpu = snprintf(NULL, 0, "%d", nr_cpu_ids - 1);
 
 	if (!register_trace_event(&graph_trace_entry_event)) {
-		pr_warning("Warning: could not register graph trace events\n");
+		pr_warn("Warning: could not register graph trace events\n");
 		return 1;
 	}
 
 	if (!register_trace_event(&graph_trace_ret_event)) {
-		pr_warning("Warning: could not register graph trace events\n");
+		pr_warn("Warning: could not register graph trace events\n");
 		return 1;
 	}
 

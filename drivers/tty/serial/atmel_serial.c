@@ -22,7 +22,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-#include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -155,14 +154,14 @@ struct atmel_uart_port {
 	struct circ_buf		rx_ring;
 
 	struct mctrl_gpios	*gpios;
-	int			gpio_irq[UART_GPIO_MAX];
 	unsigned int		tx_done_mask;
 	u32			fifo_size;
 	u32			rts_high;
 	u32			rts_low;
 	bool			ms_irq_enabled;
-	bool			is_usart;	/* usart or uart */
-	struct timer_list	uart_timer;	/* uart timer */
+	u32			rtor;	/* address of receiver timeout register if it exists */
+	bool			has_hw_timer;
+	struct timer_list	uart_timer;
 
 	bool			suspended;
 	unsigned int		pending;
@@ -190,8 +189,6 @@ static const struct of_device_id atmel_serial_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9260-usart" },
 	{ /* sentinel */ }
 };
-
-MODULE_DEVICE_TABLE(of, atmel_serial_dt_ids);
 #endif
 
 static inline struct atmel_uart_port *
@@ -550,27 +547,21 @@ static void atmel_enable_ms(struct uart_port *port)
 
 	atmel_port->ms_irq_enabled = true;
 
-	if (atmel_port->gpio_irq[UART_GPIO_CTS] >= 0)
-		enable_irq(atmel_port->gpio_irq[UART_GPIO_CTS]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_CTS))
 		ier |= ATMEL_US_CTSIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_DSR] >= 0)
-		enable_irq(atmel_port->gpio_irq[UART_GPIO_DSR]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_DSR))
 		ier |= ATMEL_US_DSRIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_RI] >= 0)
-		enable_irq(atmel_port->gpio_irq[UART_GPIO_RI]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_RI))
 		ier |= ATMEL_US_RIIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_DCD] >= 0)
-		enable_irq(atmel_port->gpio_irq[UART_GPIO_DCD]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_DCD))
 		ier |= ATMEL_US_DCDIC;
 
 	atmel_uart_writel(port, ATMEL_US_IER, ier);
+
+	mctrl_gpio_enable_ms(atmel_port->gpios);
 }
 
 /*
@@ -589,24 +580,18 @@ static void atmel_disable_ms(struct uart_port *port)
 
 	atmel_port->ms_irq_enabled = false;
 
-	if (atmel_port->gpio_irq[UART_GPIO_CTS] >= 0)
-		disable_irq(atmel_port->gpio_irq[UART_GPIO_CTS]);
-	else
+	mctrl_gpio_disable_ms(atmel_port->gpios);
+
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_CTS))
 		idr |= ATMEL_US_CTSIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_DSR] >= 0)
-		disable_irq(atmel_port->gpio_irq[UART_GPIO_DSR]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_DSR))
 		idr |= ATMEL_US_DSRIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_RI] >= 0)
-		disable_irq(atmel_port->gpio_irq[UART_GPIO_RI]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_RI))
 		idr |= ATMEL_US_RIIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_DCD] >= 0)
-		disable_irq(atmel_port->gpio_irq[UART_GPIO_DCD]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_DCD))
 		idr |= ATMEL_US_DCDIC;
 
 	atmel_uart_writel(port, ATMEL_US_IDR, idr);
@@ -1264,7 +1249,6 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	unsigned int status, pending, mask, pass_counter = 0;
-	bool gpio_handled = false;
 
 	spin_lock(&atmel_port->lock_suspended);
 
@@ -1272,24 +1256,6 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id)
 		status = atmel_get_lines_status(port);
 		mask = atmel_uart_readl(port, ATMEL_US_IMR);
 		pending = status & mask;
-		if (!gpio_handled) {
-			/*
-			 * Dealing with GPIO interrupt
-			 */
-			if (irq == atmel_port->gpio_irq[UART_GPIO_CTS])
-				pending |= ATMEL_US_CTSIC;
-
-			if (irq == atmel_port->gpio_irq[UART_GPIO_DSR])
-				pending |= ATMEL_US_DSRIC;
-
-			if (irq == atmel_port->gpio_irq[UART_GPIO_RI])
-				pending |= ATMEL_US_RIIC;
-
-			if (irq == atmel_port->gpio_irq[UART_GPIO_DCD])
-				pending |= ATMEL_US_DCDIC;
-
-			gpio_handled = true;
-		}
 		if (!pending)
 			break;
 
@@ -1745,19 +1711,24 @@ static void atmel_get_ip_name(struct uart_port *port)
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	int name = atmel_uart_readl(port, ATMEL_US_NAME);
 	u32 version;
-	int usart, uart;
-	/* usart and uart ascii */
-	usart = 0x55534152;
-	uart = 0x44424755;
+	u32 usart, dbgu_uart, new_uart;
+	/* ASCII decoding for IP version */
+	usart = 0x55534152;	/* USAR(T) */
+	dbgu_uart = 0x44424755;	/* DBGU */
+	new_uart = 0x55415254;	/* UART */
 
-	atmel_port->is_usart = false;
+	atmel_port->has_hw_timer = false;
 
-	if (name == usart) {
-		dev_dbg(port->dev, "This is usart\n");
-		atmel_port->is_usart = true;
-	} else if (name == uart) {
-		dev_dbg(port->dev, "This is uart\n");
-		atmel_port->is_usart = false;
+	if (name == new_uart) {
+		dev_dbg(port->dev, "Uart with hw timer");
+		atmel_port->has_hw_timer = true;
+		atmel_port->rtor = ATMEL_UA_RTOR;
+	} else if (name == usart) {
+		dev_dbg(port->dev, "Usart\n");
+		atmel_port->has_hw_timer = true;
+		atmel_port->rtor = ATMEL_US_RTOR;
+	} else if (name == dbgu_uart) {
+		dev_dbg(port->dev, "Dbgu or uart without hw timer\n");
 	} else {
 		/* fallback for older SoCs: use version field */
 		version = atmel_uart_readl(port, ATMEL_US_VERSION);
@@ -1765,56 +1736,17 @@ static void atmel_get_ip_name(struct uart_port *port)
 		case 0x302:
 		case 0x10213:
 			dev_dbg(port->dev, "This version is usart\n");
-			atmel_port->is_usart = true;
+			atmel_port->has_hw_timer = true;
+			atmel_port->rtor = ATMEL_US_RTOR;
 			break;
 		case 0x203:
 		case 0x10202:
 			dev_dbg(port->dev, "This version is uart\n");
-			atmel_port->is_usart = false;
 			break;
 		default:
 			dev_err(port->dev, "Not supported ip name nor version, set to uart\n");
 		}
 	}
-}
-
-static void atmel_free_gpio_irq(struct uart_port *port)
-{
-	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	enum mctrl_gpio_idx i;
-
-	for (i = 0; i < UART_GPIO_MAX; i++)
-		if (atmel_port->gpio_irq[i] >= 0)
-			free_irq(atmel_port->gpio_irq[i], port);
-}
-
-static int atmel_request_gpio_irq(struct uart_port *port)
-{
-	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	int *irq = atmel_port->gpio_irq;
-	enum mctrl_gpio_idx i;
-	int err = 0;
-
-	for (i = 0; (i < UART_GPIO_MAX) && !err; i++) {
-		if (irq[i] < 0)
-			continue;
-
-		irq_set_status_flags(irq[i], IRQ_NOAUTOEN);
-		err = request_irq(irq[i], atmel_interrupt, IRQ_TYPE_EDGE_BOTH,
-				  "atmel_serial", port);
-		if (err)
-			dev_err(port->dev, "atmel_startup - Can't get %d irq\n",
-				irq[i]);
-	}
-
-	/*
-	 * If something went wrong, rollback.
-	 */
-	while (err && (--i >= 0))
-		if (irq[i] >= 0)
-			free_irq(irq[i], port);
-
-	return err;
 }
 
 /*
@@ -1845,13 +1777,6 @@ static int atmel_startup(struct uart_port *port)
 		dev_err(port->dev, "atmel_startup - Can't get irq\n");
 		return retval;
 	}
-
-	/*
-	 * Get the GPIO lines IRQ
-	 */
-	retval = atmel_request_gpio_irq(port);
-	if (retval)
-		goto free_irq;
 
 	tasklet_enable(&atmel_port->tasklet);
 
@@ -1916,12 +1841,13 @@ static int atmel_startup(struct uart_port *port)
 
 	if (atmel_use_pdc_rx(port)) {
 		/* set UART timeout */
-		if (!atmel_port->is_usart) {
+		if (!atmel_port->has_hw_timer) {
 			mod_timer(&atmel_port->uart_timer,
 					jiffies + uart_poll_timeout(port));
 		/* set USART timeout */
 		} else {
-			atmel_uart_writel(port, ATMEL_US_RTOR, PDC_RX_TIMEOUT);
+			atmel_uart_writel(port, atmel_port->rtor,
+					  PDC_RX_TIMEOUT);
 			atmel_uart_writel(port, ATMEL_US_CR, ATMEL_US_STTTO);
 
 			atmel_uart_writel(port, ATMEL_US_IER,
@@ -1931,12 +1857,13 @@ static int atmel_startup(struct uart_port *port)
 		atmel_uart_writel(port, ATMEL_PDC_PTCR, ATMEL_PDC_RXTEN);
 	} else if (atmel_use_dma_rx(port)) {
 		/* set UART timeout */
-		if (!atmel_port->is_usart) {
+		if (!atmel_port->has_hw_timer) {
 			mod_timer(&atmel_port->uart_timer,
 					jiffies + uart_poll_timeout(port));
 		/* set USART timeout */
 		} else {
-			atmel_uart_writel(port, ATMEL_US_RTOR, PDC_RX_TIMEOUT);
+			atmel_uart_writel(port, atmel_port->rtor,
+					  PDC_RX_TIMEOUT);
 			atmel_uart_writel(port, ATMEL_US_CR, ATMEL_US_STTTO);
 
 			atmel_uart_writel(port, ATMEL_US_IER,
@@ -1948,11 +1875,6 @@ static int atmel_startup(struct uart_port *port)
 	}
 
 	return 0;
-
-free_irq:
-	free_irq(port->irq, port);
-
-	return retval;
 }
 
 /*
@@ -2018,7 +1940,6 @@ static void atmel_shutdown(struct uart_port *port)
 	 * Free the interrupts
 	 */
 	free_irq(port->irq, port);
-	atmel_free_gpio_irq(port);
 
 	atmel_port->ms_irq_enabled = false;
 
@@ -2565,13 +2486,13 @@ static int __init atmel_console_init(void)
 		struct atmel_uart_data *pdata =
 			dev_get_platdata(&atmel_default_console_device->dev);
 		int id = pdata->num;
-		struct atmel_uart_port *port = &atmel_ports[id];
+		struct atmel_uart_port *atmel_port = &atmel_ports[id];
 
-		port->backup_imr = 0;
-		port->uart.line = id;
+		atmel_port->backup_imr = 0;
+		atmel_port->uart.line = id;
 
 		add_preferred_console(ATMEL_DEVICENAME, id, NULL);
-		ret = atmel_init_port(port, atmel_default_console_device);
+		ret = atmel_init_port(atmel_port, atmel_default_console_device);
 		if (ret)
 			return ret;
 		register_console(&atmel_console);
@@ -2686,43 +2607,23 @@ static int atmel_serial_resume(struct platform_device *pdev)
 #define atmel_serial_resume NULL
 #endif
 
-static int atmel_init_gpios(struct atmel_uart_port *p, struct device *dev)
-{
-	enum mctrl_gpio_idx i;
-	struct gpio_desc *gpiod;
-
-	p->gpios = mctrl_gpio_init_noauto(dev, 0);
-	if (IS_ERR(p->gpios))
-		return PTR_ERR(p->gpios);
-
-	for (i = 0; i < UART_GPIO_MAX; i++) {
-		gpiod = mctrl_gpio_to_gpiod(p->gpios, i);
-		if (gpiod && (gpiod_get_direction(gpiod) == GPIOF_DIR_IN))
-			p->gpio_irq[i] = gpiod_to_irq(gpiod);
-		else
-			p->gpio_irq[i] = -EINVAL;
-	}
-
-	return 0;
-}
-
-static void atmel_serial_probe_fifos(struct atmel_uart_port *port,
+static void atmel_serial_probe_fifos(struct atmel_uart_port *atmel_port,
 				     struct platform_device *pdev)
 {
-	port->fifo_size = 0;
-	port->rts_low = 0;
-	port->rts_high = 0;
+	atmel_port->fifo_size = 0;
+	atmel_port->rts_low = 0;
+	atmel_port->rts_high = 0;
 
 	if (of_property_read_u32(pdev->dev.of_node,
 				 "atmel,fifo-size",
-				 &port->fifo_size))
+				 &atmel_port->fifo_size))
 		return;
 
-	if (!port->fifo_size)
+	if (!atmel_port->fifo_size)
 		return;
 
-	if (port->fifo_size < ATMEL_MIN_FIFO_SIZE) {
-		port->fifo_size = 0;
+	if (atmel_port->fifo_size < ATMEL_MIN_FIFO_SIZE) {
+		atmel_port->fifo_size = 0;
 		dev_err(&pdev->dev, "Invalid FIFO size\n");
 		return;
 	}
@@ -2735,22 +2636,22 @@ static void atmel_serial_probe_fifos(struct atmel_uart_port *port,
 	 * Threshold to a reasonably high value respecting this 16 data
 	 * empirical rule when possible.
 	 */
-	port->rts_high = max_t(int, port->fifo_size >> 1,
-			       port->fifo_size - ATMEL_RTS_HIGH_OFFSET);
-	port->rts_low  = max_t(int, port->fifo_size >> 2,
-			       port->fifo_size - ATMEL_RTS_LOW_OFFSET);
+	atmel_port->rts_high = max_t(int, atmel_port->fifo_size >> 1,
+			       atmel_port->fifo_size - ATMEL_RTS_HIGH_OFFSET);
+	atmel_port->rts_low  = max_t(int, atmel_port->fifo_size >> 2,
+			       atmel_port->fifo_size - ATMEL_RTS_LOW_OFFSET);
 
 	dev_info(&pdev->dev, "Using FIFO (%u data)\n",
-		 port->fifo_size);
+		 atmel_port->fifo_size);
 	dev_dbg(&pdev->dev, "RTS High Threshold : %2u data\n",
-		port->rts_high);
+		atmel_port->rts_high);
 	dev_dbg(&pdev->dev, "RTS Low Threshold  : %2u data\n",
-		port->rts_low);
+		atmel_port->rts_low);
 }
 
 static int atmel_serial_probe(struct platform_device *pdev)
 {
-	struct atmel_uart_port *port;
+	struct atmel_uart_port *atmel_port;
 	struct device_node *np = pdev->dev.of_node;
 	struct atmel_uart_data *pdata = dev_get_platdata(&pdev->dev);
 	void *data;
@@ -2781,91 +2682,101 @@ static int atmel_serial_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	port = &atmel_ports[ret];
-	port->backup_imr = 0;
-	port->uart.line = ret;
-	atmel_serial_probe_fifos(port, pdev);
+	atmel_port = &atmel_ports[ret];
+	atmel_port->backup_imr = 0;
+	atmel_port->uart.line = ret;
+	atmel_serial_probe_fifos(atmel_port, pdev);
 
-	spin_lock_init(&port->lock_suspended);
+	spin_lock_init(&atmel_port->lock_suspended);
 
-	ret = atmel_init_gpios(port, &pdev->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to initialize GPIOs.");
-		goto err_clear_bit;
-	}
-
-	ret = atmel_init_port(port, pdev);
+	ret = atmel_init_port(atmel_port, pdev);
 	if (ret)
 		goto err_clear_bit;
 
-	if (!atmel_use_pdc_rx(&port->uart)) {
+	atmel_port->gpios = mctrl_gpio_init(&atmel_port->uart, 0);
+	if (IS_ERR(atmel_port->gpios)) {
+		ret = PTR_ERR(atmel_port->gpios);
+		goto err_clear_bit;
+	}
+
+	if (!atmel_use_pdc_rx(&atmel_port->uart)) {
 		ret = -ENOMEM;
 		data = kmalloc(sizeof(struct atmel_uart_char)
 				* ATMEL_SERIAL_RINGSIZE, GFP_KERNEL);
 		if (!data)
 			goto err_alloc_ring;
-		port->rx_ring.buf = data;
+		atmel_port->rx_ring.buf = data;
 	}
 
-	rs485_enabled = port->uart.rs485.flags & SER_RS485_ENABLED;
+	rs485_enabled = atmel_port->uart.rs485.flags & SER_RS485_ENABLED;
 
-	ret = uart_add_one_port(&atmel_uart, &port->uart);
+	ret = uart_add_one_port(&atmel_uart, &atmel_port->uart);
 	if (ret)
 		goto err_add_port;
 
 #ifdef CONFIG_SERIAL_ATMEL_CONSOLE
-	if (atmel_is_console_port(&port->uart)
+	if (atmel_is_console_port(&atmel_port->uart)
 			&& ATMEL_CONSOLE_DEVICE->flags & CON_ENABLED) {
 		/*
 		 * The serial core enabled the clock for us, so undo
 		 * the clk_prepare_enable() in atmel_console_setup()
 		 */
-		clk_disable_unprepare(port->clk);
+		clk_disable_unprepare(atmel_port->clk);
 	}
 #endif
 
 	device_init_wakeup(&pdev->dev, 1);
-	platform_set_drvdata(pdev, port);
+	platform_set_drvdata(pdev, atmel_port);
 
 	/*
 	 * The peripheral clock has been disabled by atmel_init_port():
 	 * enable it before accessing I/O registers
 	 */
-	clk_prepare_enable(port->clk);
+	clk_prepare_enable(atmel_port->clk);
 
 	if (rs485_enabled) {
-		atmel_uart_writel(&port->uart, ATMEL_US_MR,
+		atmel_uart_writel(&atmel_port->uart, ATMEL_US_MR,
 				  ATMEL_US_USMODE_NORMAL);
-		atmel_uart_writel(&port->uart, ATMEL_US_CR, ATMEL_US_RTSEN);
+		atmel_uart_writel(&atmel_port->uart, ATMEL_US_CR,
+				  ATMEL_US_RTSEN);
 	}
 
 	/*
 	 * Get port name of usart or uart
 	 */
-	atmel_get_ip_name(&port->uart);
+	atmel_get_ip_name(&atmel_port->uart);
 
 	/*
 	 * The peripheral clock can now safely be disabled till the port
 	 * is used
 	 */
-	clk_disable_unprepare(port->clk);
+	clk_disable_unprepare(atmel_port->clk);
 
 	return 0;
 
 err_add_port:
-	kfree(port->rx_ring.buf);
-	port->rx_ring.buf = NULL;
+	kfree(atmel_port->rx_ring.buf);
+	atmel_port->rx_ring.buf = NULL;
 err_alloc_ring:
-	if (!atmel_is_console_port(&port->uart)) {
-		clk_put(port->clk);
-		port->clk = NULL;
+	if (!atmel_is_console_port(&atmel_port->uart)) {
+		clk_put(atmel_port->clk);
+		atmel_port->clk = NULL;
 	}
 err_clear_bit:
-	clear_bit(port->uart.line, atmel_ports_in_use);
+	clear_bit(atmel_port->uart.line, atmel_ports_in_use);
 err:
 	return ret;
 }
 
+/*
+ * Even if the driver is not modular, it makes sense to be able to
+ * unbind a device: there can be many bound devices, and there are
+ * situations where dynamic binding and unbinding can be useful.
+ *
+ * For example, a connected device can require a specific firmware update
+ * protocol that needs bitbanging on IO lines, but use the regular serial
+ * port in the normal case.
+ */
 static int atmel_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
@@ -2885,6 +2796,7 @@ static int atmel_serial_remove(struct platform_device *pdev)
 	clear_bit(port->line, atmel_ports_in_use);
 
 	clk_put(atmel_port->clk);
+	atmel_port->clk = NULL;
 
 	return ret;
 }
@@ -2895,8 +2807,8 @@ static struct platform_driver atmel_serial_driver = {
 	.suspend	= atmel_serial_suspend,
 	.resume		= atmel_serial_resume,
 	.driver		= {
-		.name	= "atmel_usart",
-		.of_match_table	= of_match_ptr(atmel_serial_dt_ids),
+		.name			= "atmel_usart",
+		.of_match_table		= of_match_ptr(atmel_serial_dt_ids),
 	},
 };
 
@@ -2914,17 +2826,4 @@ static int __init atmel_serial_init(void)
 
 	return ret;
 }
-
-static void __exit atmel_serial_exit(void)
-{
-	platform_driver_unregister(&atmel_serial_driver);
-	uart_unregister_driver(&atmel_uart);
-}
-
-module_init(atmel_serial_init);
-module_exit(atmel_serial_exit);
-
-MODULE_AUTHOR("Rick Bronson");
-MODULE_DESCRIPTION("Atmel AT91 / AT32 serial port driver");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:atmel_usart");
+device_initcall(atmel_serial_init);

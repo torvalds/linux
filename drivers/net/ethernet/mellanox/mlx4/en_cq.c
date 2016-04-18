@@ -155,13 +155,11 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	cq->mcq.comp  = cq->is_tx ? mlx4_en_tx_irq : mlx4_en_rx_irq;
 	cq->mcq.event = mlx4_en_cq_event;
 
-	if (cq->is_tx) {
-		netif_napi_add(cq->dev, &cq->napi, mlx4_en_poll_tx_cq,
-			       NAPI_POLL_WEIGHT);
-	} else {
+	if (cq->is_tx)
+		netif_tx_napi_add(cq->dev, &cq->napi, mlx4_en_poll_tx_cq,
+				  NAPI_POLL_WEIGHT);
+	else
 		netif_napi_add(cq->dev, &cq->napi, mlx4_en_poll_rx_cq, 64);
-		napi_hash_add(&cq->napi);
-	}
 
 	napi_enable(&cq->napi);
 

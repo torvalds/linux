@@ -31,6 +31,7 @@
 #include "ci_dpm.h"
 #include "gfx_v7_0.h"
 #include "atom.h"
+#include "amd_pcie.h"
 #include <linux/seq_file.h>
 
 #include "smu/smu_7_0_1_d.h"
@@ -1395,7 +1396,6 @@ static void ci_thermal_stop_thermal_controller(struct amdgpu_device *adev)
 		ci_fan_ctrl_set_default_mode(adev);
 }
 
-#if 0
 static int ci_read_smc_soft_register(struct amdgpu_device *adev,
 				     u16 reg_offset, u32 *value)
 {
@@ -1405,7 +1405,6 @@ static int ci_read_smc_soft_register(struct amdgpu_device *adev,
 				      pi->soft_regs_start + reg_offset,
 				      value, pi->sram_end);
 }
-#endif
 
 static int ci_write_smc_soft_register(struct amdgpu_device *adev,
 				      u16 reg_offset, u32 value)
@@ -3018,7 +3017,6 @@ static int ci_populate_single_memory_level(struct amdgpu_device *adev,
 						      &memory_level->MinVddcPhases);
 
 	memory_level->EnabledForThrottle = 1;
-	memory_level->EnabledForActivity = 1;
 	memory_level->UpH = 0;
 	memory_level->DownH = 100;
 	memory_level->VoltageDownH = 0;
@@ -3377,7 +3375,6 @@ static int ci_populate_single_graphic_level(struct amdgpu_device *adev,
 	graphic_level->SpllSpreadSpectrum2 = cpu_to_be32(graphic_level->SpllSpreadSpectrum2);
 	graphic_level->CcPwrDynRm = cpu_to_be32(graphic_level->CcPwrDynRm);
 	graphic_level->CcPwrDynRm1 = cpu_to_be32(graphic_level->CcPwrDynRm1);
-	graphic_level->EnabledForActivity = 1;
 
 	return 0;
 }
@@ -3408,6 +3405,7 @@ static int ci_populate_all_graphic_levels(struct amdgpu_device *adev)
 			pi->smc_state_table.GraphicsLevel[i].DisplayWatermark =
 				PPSMC_DISPLAY_WATERMARK_HIGH;
 	}
+	pi->smc_state_table.GraphicsLevel[0].EnabledForActivity = 1;
 
 	pi->smc_state_table.GraphicsDpmLevelCount = (u8)dpm_table->sclk_table.count;
 	pi->dpm_level_enable_mask.sclk_dpm_enable_mask =
@@ -3450,6 +3448,8 @@ static int ci_populate_all_memory_levels(struct amdgpu_device *adev)
 		if (ret)
 			return ret;
 	}
+
+	pi->smc_state_table.MemoryLevel[0].EnabledForActivity = 1;
 
 	if ((dpm_table->mclk_table.count >= 2) &&
 	    ((adev->pdev->device == 0x67B0) || (adev->pdev->device == 0x67B1))) {
@@ -4376,26 +4376,6 @@ static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
 					tmp = (RREG32_SMC(ixTARGET_AND_CURRENT_PROFILE_INDEX) &
 					TARGET_AND_CURRENT_PROFILE_INDEX__CURR_MCLK_INDEX_MASK) >>
 					TARGET_AND_CURRENT_PROFILE_INDEX__CURR_MCLK_INDEX__SHIFT;
-					if (tmp == levels)
-						break;
-					udelay(1);
-				}
-			}
-		}
-		if ((!pi->pcie_dpm_key_disabled) &&
-		    pi->dpm_level_enable_mask.pcie_dpm_enable_mask) {
-			levels = 0;
-			tmp = pi->dpm_level_enable_mask.pcie_dpm_enable_mask;
-			while (tmp >>= 1)
-				levels++;
-			if (levels) {
-				ret = ci_dpm_force_state_pcie(adev, level);
-				if (ret)
-					return ret;
-				for (i = 0; i < adev->usec_timeout; i++) {
-					tmp = (RREG32_SMC(ixTARGET_AND_CURRENT_PROFILE_INDEX_1) &
-					TARGET_AND_CURRENT_PROFILE_INDEX_1__CURR_PCIE_INDEX_MASK) >>
-					TARGET_AND_CURRENT_PROFILE_INDEX_1__CURR_PCIE_INDEX__SHIFT;
 					if (tmp == levels)
 						break;
 					udelay(1);
@@ -5396,30 +5376,6 @@ static int ci_dpm_enable(struct amdgpu_device *adev)
 
 	ci_update_current_ps(adev, boot_ps);
 
-	if (adev->irq.installed &&
-	    amdgpu_is_internal_thermal_sensor(adev->pm.int_thermal_type)) {
-#if 0
-		PPSMC_Result result;
-#endif
-		ret = ci_thermal_set_temperature_range(adev, CISLANDS_TEMP_RANGE_MIN,
-						       CISLANDS_TEMP_RANGE_MAX);
-		if (ret) {
-			DRM_ERROR("ci_thermal_set_temperature_range failed\n");
-			return ret;
-		}
-		amdgpu_irq_get(adev, &adev->pm.dpm.thermal.irq,
-			       AMDGPU_THERMAL_IRQ_LOW_TO_HIGH);
-		amdgpu_irq_get(adev, &adev->pm.dpm.thermal.irq,
-			       AMDGPU_THERMAL_IRQ_HIGH_TO_LOW);
-
-#if 0
-		result = amdgpu_ci_send_msg_to_smc(adev, PPSMC_MSG_EnableThermalInterrupt);
-
-		if (result != PPSMC_Result_OK)
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
-#endif
-	}
-
 	return 0;
 }
 
@@ -5837,18 +5793,16 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 	u8 frev, crev;
 	struct ci_power_info *pi;
 	int ret;
-	u32 mask;
 
 	pi = kzalloc(sizeof(struct ci_power_info), GFP_KERNEL);
 	if (pi == NULL)
 		return -ENOMEM;
 	adev->pm.dpm.priv = pi;
 
-	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
-	if (ret)
-		pi->sys_pcie_mask = 0;
-	else
-		pi->sys_pcie_mask = mask;
+	pi->sys_pcie_mask =
+		(adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK) >>
+		CAIL_PCIE_LINK_SPEED_SUPPORT_SHIFT;
+
 	pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
 
 	pi->pcie_gen_performance.max = AMDGPU_PCIE_GEN1;
@@ -6084,11 +6038,23 @@ ci_dpm_debugfs_print_current_performance_level(struct amdgpu_device *adev,
 	struct amdgpu_ps *rps = &pi->current_rps;
 	u32 sclk = ci_get_average_sclk_freq(adev);
 	u32 mclk = ci_get_average_mclk_freq(adev);
+	u32 activity_percent = 50;
+	int ret;
+
+	ret = ci_read_smc_soft_register(adev, offsetof(SMU7_SoftRegisters, AverageGraphicsA),
+					&activity_percent);
+
+	if (ret == 0) {
+		activity_percent += 0x80;
+		activity_percent >>= 8;
+		activity_percent = activity_percent > 100 ? 100 : activity_percent;
+	}
 
 	seq_printf(m, "uvd %sabled\n", pi->uvd_enabled ? "en" : "dis");
 	seq_printf(m, "vce %sabled\n", rps->vce_active ? "en" : "dis");
 	seq_printf(m, "power level avg    sclk: %u mclk: %u\n",
 		   sclk, mclk);
+	seq_printf(m, "GPU load: %u %%\n", activity_percent);
 }
 
 static void ci_dpm_print_power_state(struct amdgpu_device *adev,
@@ -6569,12 +6535,12 @@ static int ci_dpm_set_interrupt_state(struct amdgpu_device *adev,
 		switch (state) {
 		case AMDGPU_IRQ_STATE_DISABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
+			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		case AMDGPU_IRQ_STATE_ENABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
+			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		default:
@@ -6586,12 +6552,12 @@ static int ci_dpm_set_interrupt_state(struct amdgpu_device *adev,
 		switch (state) {
 		case AMDGPU_IRQ_STATE_DISABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
+			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		case AMDGPU_IRQ_STATE_ENABLE:
 			cg_thermal_int = RREG32_SMC(ixCG_THERMAL_INT);
-			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
+			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
 			WREG32_SMC(ixCG_THERMAL_INT, cg_thermal_int);
 			break;
 		default:

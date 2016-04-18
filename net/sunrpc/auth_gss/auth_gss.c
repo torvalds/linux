@@ -740,7 +740,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 		default:
 			printk(KERN_CRIT "%s: bad return from "
 				"gss_fill_context: %zd\n", __func__, err);
-			BUG();
+			gss_msg->msg.errno = -EIO;
 		}
 		goto err_release_msg;
 	}
@@ -1181,12 +1181,12 @@ static struct rpc_auth *
 gss_create(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
 	struct gss_auth *gss_auth;
-	struct rpc_xprt *xprt = rcu_access_pointer(clnt->cl_xprt);
+	struct rpc_xprt_switch *xps = rcu_access_pointer(clnt->cl_xpi.xpi_xpswitch);
 
 	while (clnt != clnt->cl_parent) {
 		struct rpc_clnt *parent = clnt->cl_parent;
 		/* Find the original parent for this transport */
-		if (rcu_access_pointer(parent->cl_xprt) != xprt)
+		if (rcu_access_pointer(parent->cl_xpi.xpi_xpswitch) != xps)
 			break;
 		clnt = parent;
 	}
@@ -1411,17 +1411,16 @@ gss_key_timeout(struct rpc_cred *rc)
 {
 	struct gss_cred *gss_cred = container_of(rc, struct gss_cred, gc_base);
 	struct gss_cl_ctx *ctx;
-	unsigned long now = jiffies;
-	unsigned long expire;
+	unsigned long timeout = jiffies + (gss_key_expire_timeo * HZ);
+	int ret = 0;
 
 	rcu_read_lock();
 	ctx = rcu_dereference(gss_cred->gc_ctx);
-	if (ctx)
-		expire = ctx->gc_expiry - (gss_key_expire_timeo * HZ);
+	if (!ctx || time_after(timeout, ctx->gc_expiry))
+		ret = -EACCES;
 	rcu_read_unlock();
-	if (!ctx || time_after(now, expire))
-		return -EACCES;
-	return 0;
+
+	return ret;
 }
 
 static int
@@ -1729,8 +1728,8 @@ alloc_enc_pages(struct rpc_rqst *rqstp)
 		return 0;
 	}
 
-	first = snd_buf->page_base >> PAGE_CACHE_SHIFT;
-	last = (snd_buf->page_base + snd_buf->page_len - 1) >> PAGE_CACHE_SHIFT;
+	first = snd_buf->page_base >> PAGE_SHIFT;
+	last = (snd_buf->page_base + snd_buf->page_len - 1) >> PAGE_SHIFT;
 	rqstp->rq_enc_pages_num = last - first + 1 + 1;
 	rqstp->rq_enc_pages
 		= kmalloc(rqstp->rq_enc_pages_num * sizeof(struct page *),
@@ -1776,10 +1775,10 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	status = alloc_enc_pages(rqstp);
 	if (status)
 		return status;
-	first = snd_buf->page_base >> PAGE_CACHE_SHIFT;
+	first = snd_buf->page_base >> PAGE_SHIFT;
 	inpages = snd_buf->pages + first;
 	snd_buf->pages = rqstp->rq_enc_pages;
-	snd_buf->page_base -= first << PAGE_CACHE_SHIFT;
+	snd_buf->page_base -= first << PAGE_SHIFT;
 	/*
 	 * Give the tail its own page, in case we need extra space in the
 	 * head when wrapping:

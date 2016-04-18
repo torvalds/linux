@@ -897,6 +897,10 @@ intel_tv_mode_valid(struct drm_connector *connector,
 {
 	struct intel_tv *intel_tv = intel_attached_tv(connector);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
+	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+
+	if (mode->clock > max_dotclk)
+		return MODE_CLOCK_HIGH;
 
 	/* Ensure TV refresh is close to desired refresh */
 	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode) * 1000)
@@ -1138,13 +1142,13 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder)
 
 	j = 0;
 	for (i = 0; i < 60; i++)
-		I915_WRITE(TV_H_LUMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_H_LUMA(i), tv_mode->filter_table[j++]);
 	for (i = 0; i < 60; i++)
-		I915_WRITE(TV_H_CHROMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_H_CHROMA(i), tv_mode->filter_table[j++]);
 	for (i = 0; i < 43; i++)
-		I915_WRITE(TV_V_LUMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_V_LUMA(i), tv_mode->filter_table[j++]);
 	for (i = 0; i < 43; i++)
-		I915_WRITE(TV_V_CHROMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_V_CHROMA(i), tv_mode->filter_table[j++]);
 	I915_WRITE(TV_DAC, I915_READ(TV_DAC) & TV_DAC_SAVE);
 	I915_WRITE(TV_CTL, tv_ctl);
 }
@@ -1178,10 +1182,9 @@ static int
 intel_tv_detect_type(struct intel_tv *intel_tv,
 		      struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = &intel_tv->base.base;
-	struct drm_crtc *crtc = encoder->crtc;
+	struct drm_crtc *crtc = connector->state->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 tv_ctl, save_tv_ctl;
 	u32 tv_dac, save_tv_dac;
@@ -1230,8 +1233,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	I915_WRITE(TV_DAC, tv_dac);
 	POSTING_READ(TV_DAC);
 
-	intel_wait_for_vblank(intel_tv->base.base.dev,
-			      to_intel_crtc(intel_tv->base.base.crtc)->pipe);
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	type = -1;
 	tv_dac = I915_READ(TV_DAC);
@@ -1261,8 +1263,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	POSTING_READ(TV_CTL);
 
 	/* For unknown reasons the hw barfs if we don't do this vblank wait. */
-	intel_wait_for_vblank(intel_tv->base.base.dev,
-			      to_intel_crtc(intel_tv->base.base.crtc)->pipe);
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	/* Restore interrupt config */
 	if (connector->polled & DRM_CONNECTOR_POLL_HPD) {
@@ -1291,7 +1292,7 @@ static void intel_tv_find_better_format(struct drm_connector *connector)
 		return;
 
 
-	for (i = 0; i < sizeof(tv_modes) / sizeof(*tv_modes); i++) {
+	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
 		tv_mode = tv_modes + i;
 
 		if ((intel_tv->type == DRM_MODE_CONNECTOR_Component) ==
@@ -1420,6 +1421,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 		if (!mode_ptr)
 			continue;
 		strncpy(mode_ptr->name, input->name, DRM_DISPLAY_MODE_LEN);
+		mode_ptr->name[DRM_DISPLAY_MODE_LEN - 1] = '\0';
 
 		mode_ptr->hdisplay = hactive_s;
 		mode_ptr->hsync_start = hactive_s + 1;
@@ -1579,7 +1581,7 @@ intel_tv_init(struct drm_device *dev)
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
 	u32 tv_dac_on, tv_dac_off, save_tv_dac;
-	char *tv_format_names[ARRAY_SIZE(tv_modes)];
+	const char *tv_format_names[ARRAY_SIZE(tv_modes)];
 	int i, initial_mode = 0;
 
 	if ((I915_READ(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
@@ -1645,7 +1647,7 @@ intel_tv_init(struct drm_device *dev)
 			   DRM_MODE_CONNECTOR_SVIDEO);
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_tv_enc_funcs,
-			 DRM_MODE_ENCODER_TVDAC);
+			 DRM_MODE_ENCODER_TVDAC, NULL);
 
 	intel_encoder->compute_config = intel_tv_compute_config;
 	intel_encoder->get_config = intel_tv_get_config;
@@ -1677,7 +1679,7 @@ intel_tv_init(struct drm_device *dev)
 
 	/* Create TV properties then attach current values */
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++)
-		tv_format_names[i] = (char *)tv_modes[i].name;
+		tv_format_names[i] = tv_modes[i].name;
 	drm_mode_create_tv_properties(dev,
 				      ARRAY_SIZE(tv_modes),
 				      tv_format_names);

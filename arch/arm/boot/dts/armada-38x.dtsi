@@ -429,6 +429,27 @@
 				reg = <0x22000 0x1000>;
 			};
 
+			/*
+			 * As a special exception to the "order by
+			 * register address" rule, the eth0 node is
+			 * placed here to ensure that it gets
+			 * registered as the first interface, since
+			 * the network subsystem doesn't allow naming
+			 * interfaces using DT aliases. Without this,
+			 * the ordering of interfaces is different
+			 * from the one used in U-Boot and the
+			 * labeling of interfaces on the boards, which
+			 * is very confusing for users.
+			 */
+			eth0: ethernet@70000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0x70000 0x4000>;
+				interrupts-extended = <&mpic 8>;
+				clocks = <&gateclk 4>;
+				tx-csum-limit = <9800>;
+				status = "disabled";
+			};
+
 			eth1: ethernet@30000 {
 				compatible = "marvell,armada-370-neta";
 				reg = <0x30000 0x4000>;
@@ -493,20 +514,27 @@
 				};
 			};
 
-			eth0: ethernet@70000 {
-				compatible = "marvell,armada-370-neta";
-				reg = <0x70000 0x4000>;
-				interrupts-extended = <&mpic 8>;
-				clocks = <&gateclk 4>;
-				status = "disabled";
-			};
-
 			mdio: mdio@72004 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
 				reg = <0x72004 0x4>;
 				clocks = <&gateclk 4>;
+			};
+
+			crypto@90000 {
+				compatible = "marvell,armada-38x-crypto";
+				reg = <0x90000 0x10000>;
+				reg-names = "regs";
+				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gateclk 23>, <&gateclk 21>,
+					 <&gateclk 14>, <&gateclk 16>;
+				clock-names = "cesa0", "cesa1",
+					      "cesaz0", "cesaz1";
+				marvell,crypto-srams = <&crypto_sram0>,
+						       <&crypto_sram1>;
+				marvell,crypto-sram-size = <0x800>;
 			};
 
 			rtc@a3800 {
@@ -521,6 +549,14 @@
 				reg = <0xa8000 0x2000>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gateclk 15>;
+				status = "disabled";
+			};
+
+			bm: bm@c8000 {
+				compatible = "marvell,armada-380-neta-bm";
+				reg = <0xc8000 0xac>;
+				clocks = <&gateclk 13>;
+				internal-mem = <&bm_bppi>;
 				status = "disabled";
 			};
 
@@ -583,6 +619,35 @@
 				clocks = <&gateclk 10>;
 				status = "disabled";
 			};
+		};
+
+		crypto_sram0: sa-sram0 {
+			compatible = "mmio-sram";
+			reg = <MBUS_ID(0x09, 0x19) 0 0x800>;
+			clocks = <&gateclk 23>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 MBUS_ID(0x09, 0x19) 0 0x800>;
+		};
+
+		crypto_sram1: sa-sram1 {
+			compatible = "mmio-sram";
+			reg = <MBUS_ID(0x09, 0x15) 0 0x800>;
+			clocks = <&gateclk 21>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 MBUS_ID(0x09, 0x15) 0 0x800>;
+		};
+
+		bm_bppi: bm-bppi {
+			compatible = "mmio-sram";
+			reg = <MBUS_ID(0x0c, 0x04) 0 0x100000>;
+			ranges = <0 MBUS_ID(0x0c, 0x04) 0 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&gateclk 13>;
+			no-memory-wc;
+			status = "disabled";
 		};
 	};
 

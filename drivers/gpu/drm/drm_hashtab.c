@@ -198,10 +198,7 @@ EXPORT_SYMBOL(drm_ht_remove_item);
 void drm_ht_remove(struct drm_open_hash *ht)
 {
 	if (ht->table) {
-		if ((PAGE_SIZE / sizeof(*ht->table)) >> ht->order)
-			kfree(ht->table);
-		else
-			vfree(ht->table);
+		kvfree(ht->table);
 		ht->table = NULL;
 	}
 }

@@ -12,6 +12,7 @@
  * max98357a.c -- MAX98357A ALSA SoC Codec driver
  */
 
+#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -123,10 +124,19 @@ static const struct of_device_id max98357a_device_id[] = {
 MODULE_DEVICE_TABLE(of, max98357a_device_id);
 #endif
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id max98357a_acpi_match[] = {
+	{ "MX98357A", 0 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, max98357a_acpi_match);
+#endif
+
 static struct platform_driver max98357a_platform_driver = {
 	.driver = {
 		.name = "max98357a",
 		.of_match_table = of_match_ptr(max98357a_device_id),
+		.acpi_match_table = ACPI_PTR(max98357a_acpi_match),
 	},
 	.probe	= max98357a_platform_probe,
 	.remove = max98357a_platform_remove,

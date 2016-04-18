@@ -858,7 +858,7 @@ static struct platform_device *atari_netusbee_devices[] __initdata = {
 };
 #endif /* CONFIG_ATARI_ETHERNEC */
 
-#ifdef CONFIG_ATARI_SCSI
+#if IS_ENABLED(CONFIG_ATARI_SCSI)
 static const struct resource atari_scsi_st_rsrc[] __initconst = {
 	{
 		.flags = IORESOURCE_IRQ,
@@ -910,7 +910,7 @@ int __init atari_platform_init(void)
 	}
 #endif
 
-#ifdef CONFIG_ATARI_SCSI
+#if IS_ENABLED(CONFIG_ATARI_SCSI)
 	if (ATARIHW_PRESENT(ST_SCSI))
 		platform_device_register_simple("atari_scsi", -1,
 			atari_scsi_st_rsrc, ARRAY_SIZE(atari_scsi_st_rsrc));

@@ -88,14 +88,14 @@ do {								    \
 } while (0)
 
 #ifndef LIBCFS_VMALLOC_SIZE
-#define LIBCFS_VMALLOC_SIZE	(2 << PAGE_CACHE_SHIFT) /* 2 pages */
+#define LIBCFS_VMALLOC_SIZE	(2 << PAGE_SHIFT) /* 2 pages */
 #endif
 
 #define LIBCFS_ALLOC_PRE(size, mask)					    \
 do {									    \
 	LASSERT(!in_interrupt() ||					    \
 		((size) <= LIBCFS_VMALLOC_SIZE &&			    \
-		 ((mask) & __GFP_WAIT) == 0));				    \
+		 !gfpflags_allow_blocking(mask)));			    \
 } while (0)
 
 #define LIBCFS_ALLOC_POST(ptr, size)					    \
@@ -151,16 +151,12 @@ do {									    \
 
 #define LIBCFS_FREE(ptr, size)					  \
 do {								    \
-	int s = (size);						 \
 	if (unlikely((ptr) == NULL)) {				  \
 		CERROR("LIBCFS: free NULL '" #ptr "' (%d bytes) at "    \
-		       "%s:%d\n", s, __FILE__, __LINE__);	       \
+		       "%s:%d\n", (int)(size), __FILE__, __LINE__);	\
 		break;						  \
 	}							       \
-	if (unlikely(s > LIBCFS_VMALLOC_SIZE))			  \
-		vfree(ptr);				    \
-	else							    \
-		kfree(ptr);					  \
+	kvfree(ptr);					  \
 } while (0)
 
 /******************************************************************************/
@@ -184,8 +180,6 @@ int libcfs_debug_init(unsigned long bufsize);
 int libcfs_debug_cleanup(void);
 int libcfs_debug_clear_buffer(void);
 int libcfs_debug_mark_buffer(const char *text);
-
-void libcfs_debug_set_level(unsigned int debug_level);
 
 /*
  * allocate per-cpu-partition data, returned value is an array of pointers,
@@ -392,11 +386,6 @@ int cfs_percpt_atomic_summary(atomic_t **refs);
  * Light-weight trace
  * Support for temporary event tracing with minimal Heisenberg effect.
  * -------------------------------------------------------------------- */
-
-struct libcfs_device_userstate {
-	int	   ldu_memhog_pages;
-	struct page   *ldu_memhog_root_page;
-};
 
 #define MKSTR(ptr) ((ptr)) ? (ptr) : ""
 

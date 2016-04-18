@@ -30,11 +30,6 @@
 #include <generated/utsrelease.h>
 #include "i915_drv.h"
 
-static const char *yesno(int v)
-{
-	return v ? "yes" : "no";
-}
-
 static const char *ring_str(int ring)
 {
 	switch (ring) {
@@ -197,8 +192,9 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  %s [%d]:\n", name, count);
 
 	while (count--) {
-		err_printf(m, "    %08x %8u %02x %02x [ ",
-			   err->gtt_offset,
+		err_printf(m, "    %08x_%08x %8u %02x %02x [ ",
+			   upper_32_bits(err->gtt_offset),
+			   lower_32_bits(err->gtt_offset),
 			   err->size,
 			   err->read_domains,
 			   err->write_domain);
@@ -369,7 +365,22 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	err_printf(m, "Reset count: %u\n", error->reset_count);
 	err_printf(m, "Suspend count: %u\n", error->suspend_count);
 	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
+	err_printf(m, "PCI Revision: 0x%02x\n", dev->pdev->revision);
+	err_printf(m, "PCI Subsystem: %04x:%04x\n",
+		   dev->pdev->subsystem_vendor,
+		   dev->pdev->subsystem_device);
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
+
+	if (HAS_CSR(dev)) {
+		struct intel_csr *csr = &dev_priv->csr;
+
+		err_printf(m, "DMC loaded: %s\n",
+			   yesno(csr->dmc_payload != NULL));
+		err_printf(m, "DMC fw version: %d.%d\n",
+			   CSR_VERSION_MAJOR(csr->version),
+			   CSR_VERSION_MINOR(csr->version));
+	}
+
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
 	if (INTEL_INFO(dev)->gen >= 8) {
@@ -427,15 +438,17 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				err_printf(m, " (submitted by %s [%d])",
 					   error->ring[i].comm,
 					   error->ring[i].pid);
-			err_printf(m, " --- gtt_offset = 0x%08x\n",
-				   obj->gtt_offset);
+			err_printf(m, " --- gtt_offset = 0x%08x %08x\n",
+				   upper_32_bits(obj->gtt_offset),
+				   lower_32_bits(obj->gtt_offset));
 			print_error_obj(m, obj);
 		}
 
 		obj = error->ring[i].wa_batchbuffer;
 		if (obj) {
 			err_printf(m, "%s (w/a) --- gtt_offset = 0x%08x\n",
-				   dev_priv->ring[i].name, obj->gtt_offset);
+				   dev_priv->ring[i].name,
+				   lower_32_bits(obj->gtt_offset));
 			print_error_obj(m, obj);
 		}
 
@@ -454,22 +467,28 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		if ((obj = error->ring[i].ringbuffer)) {
 			err_printf(m, "%s --- ringbuffer = 0x%08x\n",
 				   dev_priv->ring[i].name,
-				   obj->gtt_offset);
+				   lower_32_bits(obj->gtt_offset));
 			print_error_obj(m, obj);
 		}
 
 		if ((obj = error->ring[i].hws_page)) {
-			err_printf(m, "%s --- HW Status = 0x%08x\n",
-				   dev_priv->ring[i].name,
-				   obj->gtt_offset);
+			u64 hws_offset = obj->gtt_offset;
+			u32 *hws_page = &obj->pages[0][0];
+
+			if (i915.enable_execlists) {
+				hws_offset += LRC_PPHWSP_PN * PAGE_SIZE;
+				hws_page = &obj->pages[LRC_PPHWSP_PN][0];
+			}
+			err_printf(m, "%s --- HW Status = 0x%08llx\n",
+				   dev_priv->ring[i].name, hws_offset);
 			offset = 0;
 			for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
 				err_printf(m, "[%04x] %08x %08x %08x %08x\n",
 					   offset,
-					   obj->pages[0][elt],
-					   obj->pages[0][elt+1],
-					   obj->pages[0][elt+2],
-					   obj->pages[0][elt+3]);
+					   hws_page[elt],
+					   hws_page[elt+1],
+					   hws_page[elt+2],
+					   hws_page[elt+3]);
 					offset += 16;
 			}
 		}
@@ -477,13 +496,14 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		if ((obj = error->ring[i].ctx)) {
 			err_printf(m, "%s --- HW Context = 0x%08x\n",
 				   dev_priv->ring[i].name,
-				   obj->gtt_offset);
+				   lower_32_bits(obj->gtt_offset));
 			print_error_obj(m, obj);
 		}
 	}
 
 	if ((obj = error->semaphore_obj)) {
-		err_printf(m, "Semaphore page = 0x%08x\n", obj->gtt_offset);
+		err_printf(m, "Semaphore page = 0x%08x\n",
+			   lower_32_bits(obj->gtt_offset));
 		for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
 			err_printf(m, "[%04x] %08x %08x %08x %08x\n",
 				   elt * 4,
@@ -591,7 +611,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 	int num_pages;
 	bool use_ggtt;
 	int i = 0;
-	u32 reloc_offset;
+	u64 reloc_offset;
 
 	if (src == NULL || src->pages == NULL)
 		return NULL;
@@ -716,7 +736,7 @@ static u32 capture_active_bo(struct drm_i915_error_buffer *err,
 	struct i915_vma *vma;
 	int i = 0;
 
-	list_for_each_entry(vma, head, mm_list) {
+	list_for_each_entry(vma, head, vm_link) {
 		capture_bo(err++, vma);
 		if (++i == count)
 			break;
@@ -739,7 +759,7 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
 		if (err == last)
 			break;
 
-		list_for_each_entry(vma, &obj->vma_list, vma_link)
+		list_for_each_entry(vma, &obj->vma_list, obj_link)
 			if (vma->vm == vm && vma->pin_count > 0)
 				capture_bo(err++, vma);
 	}
@@ -787,20 +807,15 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	int i;
 
 	if (IS_GEN3(dev) || IS_GEN2(dev)) {
-		for (i = 0; i < 8; i++)
-			error->fence[i] = I915_READ(FENCE_REG_830_0 + (i * 4));
-		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-			for (i = 0; i < 8; i++)
-				error->fence[i+8] = I915_READ(FENCE_REG_945_8 +
-							      (i * 4));
-	} else if (IS_GEN5(dev) || IS_GEN4(dev))
-		for (i = 0; i < 16; i++)
-			error->fence[i] = I915_READ64(FENCE_REG_965_0 +
-						      (i * 8));
-	else if (INTEL_INFO(dev)->gen >= 6)
 		for (i = 0; i < dev_priv->num_fence_regs; i++)
-			error->fence[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 +
-						      (i * 8));
+			error->fence[i] = I915_READ(FENCE_REG(i));
+	} else if (IS_GEN5(dev) || IS_GEN4(dev)) {
+		for (i = 0; i < dev_priv->num_fence_regs; i++)
+			error->fence[i] = I915_READ64(FENCE_REG_965_LO(i));
+	} else if (INTEL_INFO(dev)->gen >= 6) {
+		for (i = 0; i < dev_priv->num_fence_regs; i++)
+			error->fence[i] = I915_READ64(FENCE_REG_GEN6_LO(i));
+	}
 }
 
 
@@ -862,7 +877,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (INTEL_INFO(dev)->gen >= 6) {
-		ering->rc_psmi = I915_READ(ring->mmio_base + 0x50);
+		ering->rc_psmi = I915_READ(RING_PSMI_CTL(ring->mmio_base));
 		ering->fault_reg = I915_READ(RING_FAULT_REG(ring));
 		if (INTEL_INFO(dev)->gen >= 8)
 			gen8_record_semaphore_state(dev_priv, error, ring, ering);
@@ -886,7 +901,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 		ering->faddr = I915_READ(DMA_FADD_I8XX);
 		ering->ipeir = I915_READ(IPEIR);
 		ering->ipehr = I915_READ(IPEHR);
-		ering->instdone = I915_READ(INSTDONE);
+		ering->instdone = I915_READ(GEN2_INSTDONE);
 	}
 
 	ering->waiting = waitqueue_active(&ring->irq_queue);
@@ -899,7 +914,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 	ering->ctl = I915_READ_CTL(ring);
 
 	if (I915_NEED_GFX_HWS(dev)) {
-		int mmio;
+		i915_reg_t mmio;
 
 		if (IS_GEN7(dev)) {
 			switch (ring->id) {
@@ -1039,7 +1054,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			if (request)
 				rbuf = request->ctx->engine[ring->id].ringbuf;
 			else
-				rbuf = ring->default_context->engine[ring->id].ringbuf;
+				rbuf = dev_priv->kernel_context->engine[ring->id].ringbuf;
 		} else
 			rbuf = ring->buffer;
 
@@ -1071,6 +1086,25 @@ static void i915_gem_record_rings(struct drm_device *dev,
 		list_for_each_entry(request, &ring->request_list, list) {
 			struct drm_i915_error_request *erq;
 
+			if (count >= error->ring[i].num_requests) {
+				/*
+				 * If the ring request list was changed in
+				 * between the point where the error request
+				 * list was created and dimensioned and this
+				 * point then just exit early to avoid crashes.
+				 *
+				 * We don't need to communicate that the
+				 * request list changed state during error
+				 * state capture and that the error state is
+				 * slightly incorrect as a consequence since we
+				 * are typically only interested in the request
+				 * list state at the point of error state
+				 * capture, not in any changes happening during
+				 * the capture.
+				 */
+				break;
+			}
+
 			erq = &error->ring[i].requests[count++];
 			erq->seqno = request->seqno;
 			erq->jiffies = request->emitted_jiffies;
@@ -1093,12 +1127,12 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 	int i;
 
 	i = 0;
-	list_for_each_entry(vma, &vm->active_list, mm_list)
+	list_for_each_entry(vma, &vm->active_list, vm_link)
 		i++;
 	error->active_bo_count[ndx] = i;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		list_for_each_entry(vma, &obj->vma_list, vma_link)
+		list_for_each_entry(vma, &obj->vma_list, obj_link)
 			if (vma->vm == vm && vma->pin_count > 0)
 				i++;
 	}
@@ -1181,7 +1215,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	if (IS_VALLEYVIEW(dev)) {
 		error->gtier[0] = I915_READ(GTIER);
 		error->ier = I915_READ(VLV_IER);
-		error->forcewake = I915_READ(FORCEWAKE_VLV);
+		error->forcewake = I915_READ_FW(FORCEWAKE_VLV);
 	}
 
 	if (IS_GEN7(dev))
@@ -1193,14 +1227,14 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	}
 
 	if (IS_GEN6(dev)) {
-		error->forcewake = I915_READ(FORCEWAKE);
+		error->forcewake = I915_READ_FW(FORCEWAKE);
 		error->gab_ctl = I915_READ(GAB_CTL);
 		error->gfx_mode = I915_READ(GFX_MODE);
 	}
 
 	/* 2: Registers which belong to multiple generations */
 	if (INTEL_INFO(dev)->gen >= 7)
-		error->forcewake = I915_READ(FORCEWAKE_MT);
+		error->forcewake = I915_READ_FW(FORCEWAKE_MT);
 
 	if (INTEL_INFO(dev)->gen >= 6) {
 		error->derrmr = I915_READ(DERRMR);
@@ -1388,12 +1422,12 @@ void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone)
 	memset(instdone, 0, sizeof(*instdone) * I915_NUM_INSTDONE_REG);
 
 	if (IS_GEN2(dev) || IS_GEN3(dev))
-		instdone[0] = I915_READ(INSTDONE);
+		instdone[0] = I915_READ(GEN2_INSTDONE);
 	else if (IS_GEN4(dev) || IS_GEN5(dev) || IS_GEN6(dev)) {
-		instdone[0] = I915_READ(INSTDONE_I965);
-		instdone[1] = I915_READ(INSTDONE1);
+		instdone[0] = I915_READ(RING_INSTDONE(RENDER_RING_BASE));
+		instdone[1] = I915_READ(GEN4_INSTDONE1);
 	} else if (INTEL_INFO(dev)->gen >= 7) {
-		instdone[0] = I915_READ(GEN7_INSTDONE_1);
+		instdone[0] = I915_READ(RING_INSTDONE(RENDER_RING_BASE));
 		instdone[1] = I915_READ(GEN7_SC_INSTDONE);
 		instdone[2] = I915_READ(GEN7_SAMPLER_INSTDONE);
 		instdone[3] = I915_READ(GEN7_ROW_INSTDONE);

@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,108 +46,90 @@
  */
 
 #include <linux/mm.h>
+#include <linux/sched.h>
 #include <linux/device.h>
+#include <linux/module.h>
 
 #include "hfi.h"
 
-static void __hfi1_release_user_pages(struct page **p, size_t num_pages,
-				      int dirty)
-{
-	size_t i;
-
-	for (i = 0; i < num_pages; i++) {
-		if (dirty)
-			set_page_dirty_lock(p[i]);
-		put_page(p[i]);
-	}
-}
+static unsigned long cache_size = 256;
+module_param(cache_size, ulong, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(cache_size, "Send and receive side cache size limit (in MB)");
 
 /*
- * Call with current->mm->mmap_sem held.
- */
-static int __hfi1_get_user_pages(unsigned long start_page, size_t num_pages,
-				 struct page **p)
-{
-	unsigned long lock_limit;
-	size_t got;
-	int ret;
-
-	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-
-	if (num_pages > lock_limit && !capable(CAP_IPC_LOCK)) {
-		ret = -ENOMEM;
-		goto bail;
-	}
-
-	for (got = 0; got < num_pages; got += ret) {
-		ret = get_user_pages(current, current->mm,
-				     start_page + got * PAGE_SIZE,
-				     num_pages - got, 1, 1,
-				     p + got, NULL);
-		if (ret < 0)
-			goto bail_release;
-	}
-
-	current->mm->pinned_vm += num_pages;
-
-	ret = 0;
-	goto bail;
-
-bail_release:
-	__hfi1_release_user_pages(p, got, 0);
-bail:
-	return ret;
-}
-
-/**
- * hfi1_map_page - a safety wrapper around pci_map_page()
+ * Determine whether the caller can pin pages.
+ *
+ * This function should be used in the implementation of buffer caches.
+ * The cache implementation should call this function prior to attempting
+ * to pin buffer pages in order to determine whether they should do so.
+ * The function computes cache limits based on the configured ulimit and
+ * cache size. Use of this function is especially important for caches
+ * which are not limited in any other way (e.g. by HW resources) and, thus,
+ * could keeping caching buffers.
  *
  */
-dma_addr_t hfi1_map_page(struct pci_dev *hwdev, struct page *page,
-			 unsigned long offset, size_t size, int direction)
+bool hfi1_can_pin_pages(struct hfi1_devdata *dd, u32 nlocked, u32 npages)
 {
-	dma_addr_t phys;
+	unsigned long ulimit = rlimit(RLIMIT_MEMLOCK), pinned, cache_limit,
+		size = (cache_size * (1UL << 20)); /* convert to bytes */
+	unsigned usr_ctxts = dd->num_rcv_contexts - dd->first_user_ctxt;
+	bool can_lock = capable(CAP_IPC_LOCK);
 
-	phys = pci_map_page(hwdev, page, offset, size, direction);
+	/*
+	 * Calculate per-cache size. The calculation below uses only a quarter
+	 * of the available per-context limit. This leaves space for other
+	 * pinning. Should we worry about shared ctxts?
+	 */
+	cache_limit = (ulimit / usr_ctxts) / 4;
 
-	return phys;
+	/* If ulimit isn't set to "unlimited" and is smaller than cache_size. */
+	if (ulimit != (-1UL) && size > cache_limit)
+		size = cache_limit;
+
+	/* Convert to number of pages */
+	size = DIV_ROUND_UP(size, PAGE_SIZE);
+
+	down_read(&current->mm->mmap_sem);
+	pinned = current->mm->pinned_vm;
+	up_read(&current->mm->mmap_sem);
+
+	/* First, check the absolute limit against all pinned pages. */
+	if (pinned + npages >= ulimit && !can_lock)
+		return false;
+
+	return ((nlocked + npages) <= size) || can_lock;
 }
 
-/**
- * hfi1_get_user_pages - lock user pages into memory
- * @start_page: the start page
- * @num_pages: the number of pages
- * @p: the output page structures
- *
- * This function takes a given start page (page aligned user virtual
- * address) and pins it and the following specified number of pages.  For
- * now, num_pages is always 1, but that will probably change at some point
- * (because caller is doing expected sends on a single virtually contiguous
- * buffer, so we can do all pages at once).
- */
-int hfi1_get_user_pages(unsigned long start_page, size_t num_pages,
-			struct page **p)
+int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
+			    struct page **pages)
 {
 	int ret;
+
+	ret = get_user_pages_fast(vaddr, npages, writable, pages);
+	if (ret < 0)
+		return ret;
 
 	down_write(&current->mm->mmap_sem);
-
-	ret = __hfi1_get_user_pages(start_page, num_pages, p);
-
+	current->mm->pinned_vm += ret;
 	up_write(&current->mm->mmap_sem);
 
 	return ret;
 }
 
-void hfi1_release_user_pages(struct page **p, size_t num_pages)
+void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
+			     size_t npages, bool dirty)
 {
-	if (current->mm) /* during close after signal, mm can be NULL */
-		down_write(&current->mm->mmap_sem);
+	size_t i;
 
-	__hfi1_release_user_pages(p, num_pages, 1);
+	for (i = 0; i < npages; i++) {
+		if (dirty)
+			set_page_dirty_lock(p[i]);
+		put_page(p[i]);
+	}
 
-	if (current->mm) {
-		current->mm->pinned_vm -= num_pages;
-		up_write(&current->mm->mmap_sem);
+	if (mm) { /* during close after signal, mm can be NULL */
+		down_write(&mm->mmap_sem);
+		mm->pinned_vm -= npages;
+		up_write(&mm->mmap_sem);
 	}
 }

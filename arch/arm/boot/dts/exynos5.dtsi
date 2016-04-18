@@ -14,6 +14,7 @@
  */
 
 #include "skeleton.dtsi"
+#include "exynos-syscon-restart.dtsi"
 
 / {
 	interrupt-parent = <&gic>;
@@ -28,6 +29,11 @@
 	chipid@10000000 {
 		compatible = "samsung,exynos4210-chipid";
 		reg = <0x10000000 0x100>;
+	};
+
+	sromc@12250000 {
+		compatible = "samsung,exynos-srom";
+		reg = <0x12250000 0x14>;
 	};
 
 	combiner: interrupt-controller@10440000 {

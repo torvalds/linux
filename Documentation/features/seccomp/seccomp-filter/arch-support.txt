@@ -33,7 +33,7 @@
     |          sh: | TODO |
     |       sparc: | TODO |
     |        tile: |  ok  |
-    |          um: | TODO |
+    |          um: |  ok  |
     |   unicore32: | TODO |
     |         x86: |  ok  |
     |      xtensa: | TODO |

@@ -730,7 +730,9 @@ static int au8522_probe(struct i2c_client *client,
 	struct v4l2_ctrl_handler *hdl;
 	struct v4l2_subdev *sd;
 	int instance;
-	struct au8522_config *demod_config;
+#ifdef CONFIG_MEDIA_CONTROLLER
+	int ret;
+#endif
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter,
@@ -754,19 +756,26 @@ static int au8522_probe(struct i2c_client *client,
 		break;
 	}
 
-	demod_config = kzalloc(sizeof(struct au8522_config), GFP_KERNEL);
-	if (demod_config == NULL) {
-		if (instance == 1)
-			kfree(state);
-		return -ENOMEM;
-	}
-	demod_config->demod_address = 0x8e >> 1;
-
-	state->config = demod_config;
+	state->config.demod_address = 0x8e >> 1;
 	state->i2c = client->adapter;
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &au8522_ops);
+#if defined(CONFIG_MEDIA_CONTROLLER)
+
+	state->pads[DEMOD_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
+	state->pads[DEMOD_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	state->pads[DEMOD_PAD_VBI_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	state->pads[DEMOD_PAD_AUDIO_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	sd->entity.function = MEDIA_ENT_F_ATV_DECODER;
+
+	ret = media_entity_pads_init(&sd->entity, ARRAY_SIZE(state->pads),
+				state->pads);
+	if (ret < 0) {
+		v4l_info(client, "failed to initialize media entity!\n");
+		return ret;
+	}
+#endif
 
 	hdl = &state->hdl;
 	v4l2_ctrl_handler_init(hdl, 4);
@@ -784,8 +793,7 @@ static int au8522_probe(struct i2c_client *client,
 		int err = hdl->error;
 
 		v4l2_ctrl_handler_free(hdl);
-		kfree(demod_config);
-		kfree(state);
+		au8522_release_state(state);
 		return err;
 	}
 

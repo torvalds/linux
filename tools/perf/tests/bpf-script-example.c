@@ -1,3 +1,7 @@
+/*
+ * bpf-script-example.c
+ * Test basic LLVM building
+ */
 #ifndef LINUX_VERSION_CODE
 # error Need LINUX_VERSION_CODE
 # error Example: for 4.2 kernel, put 'clang-opt="-DLINUX_VERSION_CODE=0x40200" into llvm section of ~/.perfconfig'

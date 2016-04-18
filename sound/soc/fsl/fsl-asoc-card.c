@@ -28,6 +28,8 @@
 #include "../codecs/wm8962.h"
 #include "../codecs/wm8960.h"
 
+#define CS427x_SYSCLK_MCLK 0
+
 #define RX 0
 #define TX 1
 
@@ -99,12 +101,26 @@ struct fsl_asoc_card_priv {
 /**
  * This dapm route map exsits for DPCM link only.
  * The other routes shall go through Device Tree.
+ *
+ * Note: keep all ASRC routes in the second half
+ *	 to drop them easily for non-ASRC cases.
  */
 static const struct snd_soc_dapm_route audio_map[] = {
-	{"CPU-Playback",  NULL, "ASRC-Playback"},
+	/* 1st half -- Normal DAPM routes */
 	{"Playback",  NULL, "CPU-Playback"},
-	{"ASRC-Capture",  NULL, "CPU-Capture"},
 	{"CPU-Capture",  NULL, "Capture"},
+	/* 2nd half -- ASRC DAPM routes */
+	{"CPU-Playback",  NULL, "ASRC-Playback"},
+	{"ASRC-Capture",  NULL, "CPU-Capture"},
+};
+
+static const struct snd_soc_dapm_route audio_map_ac97[] = {
+	/* 1st half -- Normal DAPM routes */
+	{"Playback",  NULL, "AC97 Playback"},
+	{"AC97 Capture",  NULL, "Capture"},
+	/* 2nd half -- ASRC DAPM routes */
+	{"AC97 Playback",  NULL, "ASRC-Playback"},
+	{"ASRC-Capture",  NULL, "AC97 Capture"},
 };
 
 /* Add all possible widgets into here without being redundant */
@@ -222,12 +238,15 @@ static int fsl_asoc_card_set_bias_level(struct snd_soc_card *card,
 					enum snd_soc_bias_level level)
 {
 	struct fsl_asoc_card_priv *priv = snd_soc_card_get_drvdata(card);
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
 	struct codec_priv *codec_priv = &priv->codec_priv;
 	struct device *dev = card->dev;
 	unsigned int pll_out;
 	int ret;
 
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	codec_dai = rtd->codec_dai;
 	if (dapm->dev != codec_dai->dev)
 		return 0;
 
@@ -414,14 +433,16 @@ static int fsl_asoc_card_audmux_init(struct device_node *np,
 static int fsl_asoc_card_late_probe(struct snd_soc_card *card)
 {
 	struct fsl_asoc_card_priv *priv = snd_soc_card_get_drvdata(card);
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	struct snd_soc_pcm_runtime *rtd = list_first_entry(
+			&card->rtd_list, struct snd_soc_pcm_runtime, list);
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct codec_priv *codec_priv = &priv->codec_priv;
 	struct device *dev = card->dev;
 	int ret;
 
 	if (fsl_asoc_card_is_ac97(priv)) {
 #if IS_ENABLED(CONFIG_SND_AC97_CODEC)
-		struct snd_soc_codec *codec = card->rtd[0].codec;
+		struct snd_soc_codec *codec = rtd->codec;
 		struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
 
 		/*
@@ -516,6 +537,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->cpu_priv.sysclk_dir[RX] = SND_SOC_CLOCK_OUT;
 		priv->cpu_priv.slot_width = 32;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
+	} else if (of_device_is_compatible(np, "fsl,imx-audio-cs427x")) {
+		codec_dai_name = "cs4271-hifi";
+		priv->codec_priv.mclk_id = CS427x_SYSCLK_MCLK;
+		priv->dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
 	} else if (of_device_is_compatible(np, "fsl,imx-audio-sgtl5000")) {
 		codec_dai_name = "sgtl5000";
 		priv->codec_priv.mclk_id = SGTL5000_SYSCLK;
@@ -574,11 +599,16 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	priv->card.dev = &pdev->dev;
 	priv->card.name = priv->name;
 	priv->card.dai_link = priv->dai_link;
-	priv->card.dapm_routes = audio_map;
+	priv->card.dapm_routes = fsl_asoc_card_is_ac97(priv) ?
+				 audio_map_ac97 : audio_map;
 	priv->card.late_probe = fsl_asoc_card_late_probe;
 	priv->card.num_dapm_routes = ARRAY_SIZE(audio_map);
 	priv->card.dapm_widgets = fsl_asoc_card_dapm_widgets;
 	priv->card.num_dapm_widgets = ARRAY_SIZE(fsl_asoc_card_dapm_widgets);
+
+	/* Drop the second half of DAPM routes -- ASRC */
+	if (!asrc_pdev)
+		priv->card.num_dapm_routes /= 2;
 
 	memcpy(priv->dai_link, fsl_asoc_card_dai,
 	       sizeof(struct snd_soc_dai_link) * ARRAY_SIZE(priv->dai_link));
@@ -668,6 +698,7 @@ fail:
 static const struct of_device_id fsl_asoc_card_dt_ids[] = {
 	{ .compatible = "fsl,imx-audio-ac97", },
 	{ .compatible = "fsl,imx-audio-cs42888", },
+	{ .compatible = "fsl,imx-audio-cs427x", },
 	{ .compatible = "fsl,imx-audio-sgtl5000", },
 	{ .compatible = "fsl,imx-audio-wm8962", },
 	{ .compatible = "fsl,imx-audio-wm8960", },

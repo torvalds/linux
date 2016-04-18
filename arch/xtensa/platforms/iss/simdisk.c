@@ -101,7 +101,7 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
 	spin_unlock(&dev->lock);
 }
 
-static void simdisk_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t simdisk_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct simdisk *dev = q->queuedata;
 	struct bio_vec bvec;
@@ -119,6 +119,7 @@ static void simdisk_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	bio_endio(bio);
+	return BLK_QC_T_NONE;
 }
 
 static int simdisk_open(struct block_device *bdev, fmode_t mode)
@@ -226,16 +227,12 @@ static ssize_t proc_read_simdisk(struct file *file, char __user *buf,
 static ssize_t proc_write_simdisk(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
-	char *tmp = kmalloc(count + 1, GFP_KERNEL);
+	char *tmp = memdup_user_nul(buf, count);
 	struct simdisk *dev = PDE_DATA(file_inode(file));
 	int err;
 
-	if (tmp == NULL)
-		return -ENOMEM;
-	if (copy_from_user(tmp, buf, count)) {
-		err = -EFAULT;
-		goto out_free;
-	}
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
 
 	err = simdisk_detach(dev);
 	if (err != 0)
@@ -243,8 +240,6 @@ static ssize_t proc_write_simdisk(struct file *file, const char __user *buf,
 
 	if (count > 0 && tmp[count - 1] == '\n')
 		tmp[count - 1] = 0;
-	else
-		tmp[count] = 0;
 
 	if (tmp[0])
 		err = simdisk_attach(dev, tmp);

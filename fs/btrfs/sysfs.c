@@ -202,6 +202,7 @@ BTRFS_FEAT_ATTR_INCOMPAT(extended_iref, EXTENDED_IREF);
 BTRFS_FEAT_ATTR_INCOMPAT(raid56, RAID56);
 BTRFS_FEAT_ATTR_INCOMPAT(skinny_metadata, SKINNY_METADATA);
 BTRFS_FEAT_ATTR_INCOMPAT(no_holes, NO_HOLES);
+BTRFS_FEAT_ATTR_COMPAT_RO(free_space_tree, FREE_SPACE_TREE);
 
 static struct attribute *btrfs_supported_feature_attrs[] = {
 	BTRFS_FEAT_ATTR_PTR(mixed_backref),
@@ -213,6 +214,7 @@ static struct attribute *btrfs_supported_feature_attrs[] = {
 	BTRFS_FEAT_ATTR_PTR(raid56),
 	BTRFS_FEAT_ATTR_PTR(skinny_metadata),
 	BTRFS_FEAT_ATTR_PTR(no_holes),
+	BTRFS_FEAT_ATTR_PTR(free_space_tree),
 	NULL
 };
 
@@ -778,6 +780,39 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 failure:
 	btrfs_sysfs_remove_mounted(fs_info);
 	return error;
+}
+
+
+/*
+ * Change per-fs features in /sys/fs/btrfs/UUID/features to match current
+ * values in superblock. Call after any changes to incompat/compat_ro flags
+ */
+void btrfs_sysfs_feature_update(struct btrfs_fs_info *fs_info,
+		u64 bit, enum btrfs_feature_set set)
+{
+	struct btrfs_fs_devices *fs_devs;
+	struct kobject *fsid_kobj;
+	u64 features;
+	int ret;
+
+	if (!fs_info)
+		return;
+
+	features = get_features(fs_info, set);
+	ASSERT(bit & supported_feature_masks[set]);
+
+	fs_devs = fs_info->fs_devices;
+	fsid_kobj = &fs_devs->fsid_kobj;
+
+	if (!fsid_kobj->state_initialized)
+		return;
+
+	/*
+	 * FIXME: this is too heavy to update just one value, ideally we'd like
+	 * to use sysfs_update_group but some refactoring is needed first.
+	 */
+	sysfs_remove_group(fsid_kobj, &btrfs_feature_attr_group);
+	ret = sysfs_create_group(fsid_kobj, &btrfs_feature_attr_group);
 }
 
 static int btrfs_init_debugfs(void)

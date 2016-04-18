@@ -811,14 +811,11 @@ repoll:
 			wc->opcode    = IB_WC_MASKED_FETCH_ADD;
 			wc->byte_len  = 8;
 			break;
-		case MLX4_OPCODE_BIND_MW:
-			wc->opcode    = IB_WC_BIND_MW;
-			break;
 		case MLX4_OPCODE_LSO:
 			wc->opcode    = IB_WC_LSO;
 			break;
 		case MLX4_OPCODE_FMR:
-			wc->opcode    = IB_WC_FAST_REG_MR;
+			wc->opcode    = IB_WC_REG_MR;
 			break;
 		case MLX4_OPCODE_LOCAL_INVAL:
 			wc->opcode    = IB_WC_LOCAL_INV;

@@ -77,6 +77,7 @@ struct davinci_mcasp {
 	u32 fifo_base;
 	struct device *dev;
 	struct snd_pcm_substream *substreams[2];
+	unsigned int dai_fmt;
 
 	/* McASP specific data */
 	int	tdm_slots;
@@ -223,8 +224,8 @@ static void mcasp_start_tx(struct davinci_mcasp *mcasp)
 
 	/* wait for XDATA to be cleared */
 	cnt = 0;
-	while (!(mcasp_get_reg(mcasp, DAVINCI_MCASP_TXSTAT_REG) &
-		 ~XRDATA) && (cnt < 100000))
+	while ((mcasp_get_reg(mcasp, DAVINCI_MCASP_TXSTAT_REG) & XRDATA) &&
+	       (cnt < 100000))
 		cnt++;
 
 	/* Release TX state machine */
@@ -398,6 +399,9 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	bool fs_pol_rising;
 	bool inv_fs = false;
 
+	if (!fmt)
+		return 0;
+
 	pm_runtime_get_sync(mcasp->dev);
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
@@ -529,6 +533,8 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG, FSXPOL);
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG, FSRPOL);
 	}
+
+	mcasp->dai_fmt = fmt;
 out:
 	pm_runtime_put(mcasp->dev);
 	return ret;
@@ -681,8 +687,8 @@ static int davinci_mcasp_set_tdm_slot(struct snd_soc_dai *dai,
 	}
 
 	mcasp->tdm_slots = slots;
-	mcasp->tdm_mask[SNDRV_PCM_STREAM_PLAYBACK] = rx_mask;
-	mcasp->tdm_mask[SNDRV_PCM_STREAM_CAPTURE] = tx_mask;
+	mcasp->tdm_mask[SNDRV_PCM_STREAM_PLAYBACK] = tx_mask;
+	mcasp->tdm_mask[SNDRV_PCM_STREAM_CAPTURE] = rx_mask;
 	mcasp->slot_width = slot_width;
 
 	return davinci_mcasp_set_ch_constraints(mcasp);
@@ -908,6 +914,14 @@ static int mcasp_i2s_hw_param(struct davinci_mcasp *mcasp, int stream,
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_RXFMT_REG, busel | RXORD);
 		mcasp_mod_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG,
 			       FSRMOD(total_slots), FSRMOD(0x1FF));
+		/*
+		 * If McASP is set to be TX/RX synchronous and the playback is
+		 * not running already we need to configure the TX slots in
+		 * order to have correct FSX on the bus
+		 */
+		if (mcasp_is_synchronous(mcasp) && !mcasp->channels)
+			mcasp_mod_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG,
+				       FSXMOD(total_slots), FSXMOD(0x1FF));
 	}
 
 	return 0;
@@ -1017,6 +1031,10 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	int channels = params_channels(params);
 	int period_size = params_period_size(params);
 	int ret;
+
+	ret = davinci_mcasp_set_dai_fmt(cpu_dai, mcasp->dai_fmt);
+	if (ret)
+		return ret;
 
 	/*
 	 * If mcasp is BCLK master, and a BCLK divider was not provided by
@@ -1508,6 +1526,8 @@ static int mcasp_reparent_fck(struct platform_device *pdev)
 	parent_name = of_get_property(node, "fck_parent", NULL);
 	if (!parent_name)
 		return 0;
+
+	dev_warn(&pdev->dev, "Update the bindings to use assigned-clocks!\n");
 
 	gfclk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(gfclk)) {

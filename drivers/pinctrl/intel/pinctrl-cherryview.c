@@ -181,8 +181,6 @@ struct chv_pinctrl {
 	struct chv_pin_context *saved_pin_context;
 };
 
-#define gpiochip_to_pinctrl(c) container_of(c, struct chv_pinctrl, chip)
-
 #define ALTERNATE_FUNCTION(p, m, i)		\
 	{					\
 		.pin = (p),			\
@@ -1157,7 +1155,7 @@ static unsigned chv_gpio_offset_to_pin(struct chv_pinctrl *pctrl,
 
 static int chv_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct chv_pinctrl *pctrl = gpiochip_to_pinctrl(chip);
+	struct chv_pinctrl *pctrl = gpiochip_get_data(chip);
 	int pin = chv_gpio_offset_to_pin(pctrl, offset);
 	unsigned long flags;
 	u32 ctrl0, cfg;
@@ -1176,7 +1174,7 @@ static int chv_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void chv_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct chv_pinctrl *pctrl = gpiochip_to_pinctrl(chip);
+	struct chv_pinctrl *pctrl = gpiochip_get_data(chip);
 	unsigned pin = chv_gpio_offset_to_pin(pctrl, offset);
 	unsigned long flags;
 	void __iomem *reg;
@@ -1199,7 +1197,7 @@ static void chv_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int chv_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
-	struct chv_pinctrl *pctrl = gpiochip_to_pinctrl(chip);
+	struct chv_pinctrl *pctrl = gpiochip_get_data(chip);
 	unsigned pin = chv_gpio_offset_to_pin(pctrl, offset);
 	u32 ctrl0, direction;
 	unsigned long flags;
@@ -1240,7 +1238,7 @@ static const struct gpio_chip chv_gpio_chip = {
 static void chv_gpio_irq_ack(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct chv_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
+	struct chv_pinctrl *pctrl = gpiochip_get_data(gc);
 	int pin = chv_gpio_offset_to_pin(pctrl, irqd_to_hwirq(d));
 	u32 intr_line;
 
@@ -1257,7 +1255,7 @@ static void chv_gpio_irq_ack(struct irq_data *d)
 static void chv_gpio_irq_mask_unmask(struct irq_data *d, bool mask)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct chv_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
+	struct chv_pinctrl *pctrl = gpiochip_get_data(gc);
 	int pin = chv_gpio_offset_to_pin(pctrl, irqd_to_hwirq(d));
 	u32 value, intr_line;
 	unsigned long flags;
@@ -1302,7 +1300,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 	 */
 	if (irqd_get_trigger_type(d) == IRQ_TYPE_NONE) {
 		struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-		struct chv_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
+		struct chv_pinctrl *pctrl = gpiochip_get_data(gc);
 		unsigned offset = irqd_to_hwirq(d);
 		int pin = chv_gpio_offset_to_pin(pctrl, offset);
 		irq_flow_handler_t handler;
@@ -1334,7 +1332,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 static int chv_gpio_irq_type(struct irq_data *d, unsigned type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct chv_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
+	struct chv_pinctrl *pctrl = gpiochip_get_data(gc);
 	unsigned offset = irqd_to_hwirq(d);
 	int pin = chv_gpio_offset_to_pin(pctrl, offset);
 	unsigned long flags;
@@ -1407,7 +1405,7 @@ static struct irq_chip chv_gpio_irqchip = {
 static void chv_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
-	struct chv_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
+	struct chv_pinctrl *pctrl = gpiochip_get_data(gc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long pending;
 	u32 intr_line;
@@ -1436,10 +1434,10 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 
 	chip->ngpio = pctrl->community->ngpios;
 	chip->label = dev_name(pctrl->dev);
-	chip->dev = pctrl->dev;
+	chip->parent = pctrl->dev;
 	chip->base = -1;
 
-	ret = gpiochip_add(chip);
+	ret = gpiochip_add_data(chip, pctrl);
 	if (ret) {
 		dev_err(pctrl->dev, "Failed to register gpiochip\n");
 		return ret;

@@ -77,6 +77,12 @@ int snd_hdac_ext_bus_parse_capabilities(struct hdac_ext_bus *ebus)
 			ebus->spbcap = bus->remap_addr + offset;
 			break;
 
+		case AZX_DRSM_CAP_ID:
+			/* DMA resume  capability found, handler function */
+			dev_dbg(bus->dev, "Found DRSM capability\n");
+			ebus->drsmcap = bus->remap_addr + offset;
+			break;
+
 		default:
 			dev_dbg(bus->dev, "Unknown capability %d\n", cur_cap);
 			break;
@@ -240,7 +246,7 @@ static int check_hdac_link_power_active(struct hdac_ext_link *link, bool enable)
 	int mask = (1 << AZX_MLCTL_CPA);
 
 	udelay(3);
-	timeout = 50;
+	timeout = 150;
 
 	do {
 		val = readl(link->ml_addr + AZX_REG_ML_LCTL);
@@ -280,6 +286,27 @@ int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *link)
 	return check_hdac_link_power_active(link, false);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_down);
+
+/**
+ * snd_hdac_ext_bus_link_power_up_all -power up all hda link
+ * @ebus: HD-audio extended bus
+ */
+int snd_hdac_ext_bus_link_power_up_all(struct hdac_ext_bus *ebus)
+{
+	struct hdac_ext_link *hlink = NULL;
+	int ret;
+
+	list_for_each_entry(hlink, &ebus->hlink_list, list) {
+		snd_hdac_updatel(hlink->ml_addr,
+				AZX_REG_ML_LCTL, 0, AZX_MLCTL_SPA);
+		ret = check_hdac_link_power_active(hlink, true);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_up_all);
 
 /**
  * snd_hdac_ext_bus_link_power_down_all -power down all hda link

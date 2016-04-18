@@ -518,7 +518,7 @@ void cx88_wakeup(struct cx88_core *core,
 
 	buf = list_entry(q->active.next,
 			 struct cx88_buffer, list);
-	v4l2_get_timestamp(&buf->vb.timestamp);
+	buf->vb.vb2_buf.timestamp = ktime_get_ns();
 	buf->vb.field = core->field;
 	buf->vb.sequence = q->count++;
 	list_del(&buf->list);

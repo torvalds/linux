@@ -388,7 +388,7 @@ static rx_handler_result_t macvtap_handle_frame(struct sk_buff **pskb)
 		 *        check, we either support them all or none.
 		 */
 		if (skb->ip_summed == CHECKSUM_PARTIAL &&
-		    !(features & NETIF_F_ALL_CSUM) &&
+		    !(features & NETIF_F_CSUM_MASK) &&
 		    skb_checksum_help(skb))
 			goto drop;
 		skb_queue_tail(&q->sk.sk_receive_queue, skb);
@@ -498,7 +498,7 @@ static void macvtap_sock_write_space(struct sock *sk)
 	wait_queue_head_t *wqueue;
 
 	if (!sock_writeable(sk) ||
-	    !test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags))
+	    !test_and_clear_bit(SOCKWQ_ASYNC_NOSPACE, &sk->sk_socket->flags))
 		return;
 
 	wqueue = sk_sleep(sk);
@@ -585,7 +585,7 @@ static unsigned int macvtap_poll(struct file *file, poll_table * wait)
 		mask |= POLLIN | POLLRDNORM;
 
 	if (sock_writeable(&q->sk) ||
-	    (!test_and_set_bit(SOCK_ASYNC_NOSPACE, &q->sock.flags) &&
+	    (!test_and_set_bit(SOCKWQ_ASYNC_NOSPACE, &q->sock.flags) &&
 	     sock_writeable(&q->sk)))
 		mask |= POLLOUT | POLLWRNORM;
 
@@ -760,6 +760,8 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 			macvtap16_to_cpu(q, vnet_hdr.hdr_len) : GOODCOPY_LEN;
 		if (copylen > good_linear)
 			copylen = good_linear;
+		else if (copylen < ETH_HLEN)
+			copylen = ETH_HLEN;
 		linear = copylen;
 		i = *from;
 		iov_iter_advance(&i, copylen);
@@ -769,10 +771,11 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 
 	if (!zerocopy) {
 		copylen = len;
-		if (macvtap16_to_cpu(q, vnet_hdr.hdr_len) > good_linear)
+		linear = macvtap16_to_cpu(q, vnet_hdr.hdr_len);
+		if (linear > good_linear)
 			linear = good_linear;
-		else
-			linear = macvtap16_to_cpu(q, vnet_hdr.hdr_len);
+		else if (linear < ETH_HLEN)
+			linear = ETH_HLEN;
 	}
 
 	skb = macvtap_alloc_skb(&q->sk, MACVTAP_RESERVE, copylen,
@@ -935,6 +938,9 @@ static ssize_t macvtap_do_read(struct macvtap_queue *q,
 		/* Nothing to read, let's sleep */
 		schedule();
 	}
+	if (!noblock)
+		finish_wait(sk_sleep(&q->sk), &wait);
+
 	if (skb) {
 		ret = macvtap_put_user(q, skb, to);
 		if (unlikely(ret < 0))
@@ -942,8 +948,6 @@ static ssize_t macvtap_do_read(struct macvtap_queue *q,
 		else
 			consume_skb(skb);
 	}
-	if (!noblock)
-		finish_wait(sk_sleep(&q->sk), &wait);
 	return ret;
 }
 

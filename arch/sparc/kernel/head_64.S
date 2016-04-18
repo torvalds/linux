@@ -696,14 +696,6 @@ tlb_fixup_done:
 	call	__bzero
 	 sub	%o1, %o0, %o1
 
-#ifdef CONFIG_LOCKDEP
-	/* We have this call this super early, as even prom_init can grab
-	 * spinlocks and thus call into the lockdep code.
-	 */
-	call	lockdep_init
-	 nop
-#endif
-
 	call	prom_init
 	 mov	%l7, %o0			! OpenPROM cif handler
 
@@ -946,6 +938,12 @@ ENTRY(__retl_one)
 	 mov	1, %o0
 ENDPROC(__retl_one)
 
+ENTRY(__retl_one_fp)
+	VISExitHalf
+	retl
+	 mov	1, %o0
+ENDPROC(__retl_one_fp)
+
 ENTRY(__ret_one_asi)
 	wr	%g0, ASI_AIUS, %asi
 	ret
@@ -957,6 +955,13 @@ ENTRY(__retl_one_asi)
 	retl
 	 mov	1, %o0
 ENDPROC(__retl_one_asi)
+
+ENTRY(__retl_one_asi_fp)
+	wr	%g0, ASI_AIUS, %asi
+	VISExitHalf
+	retl
+	 mov	1, %o0
+ENDPROC(__retl_one_asi_fp)
 
 ENTRY(__retl_o1)
 	retl

@@ -49,13 +49,11 @@ enum {
 
 static inline int node_is_left_child(struct interval_node *node)
 {
-	LASSERT(node->in_parent != NULL);
 	return node == node->in_parent->in_left;
 }
 
 static inline int node_is_right_child(struct interval_node *node)
 {
-	LASSERT(node->in_parent != NULL);
 	return node == node->in_parent->in_right;
 }
 
@@ -94,18 +92,6 @@ static inline int extent_equal(struct interval_node_extent *e1,
 			       struct interval_node_extent *e2)
 {
 	return (e1->start == e2->start) && (e1->end == e2->end);
-}
-
-static inline int node_compare(struct interval_node *n1,
-			       struct interval_node *n2)
-{
-	return extent_compare(&n1->in_extent, &n2->in_extent);
-}
-
-static inline int node_equal(struct interval_node *n1,
-			     struct interval_node *n2)
-{
-	return extent_equal(&n1->in_extent, &n2->in_extent);
 }
 
 static inline __u64 max_u64(__u64 x, __u64 y)
@@ -147,7 +133,8 @@ static void __rotate_change_maxhigh(struct interval_node *node,
 
 /* The left rotation "pivots" around the link from node to node->right, and
  * - node will be linked to node->right's left child, and
- * - node->right's left child will be linked to node's right child.  */
+ * - node->right's left child will be linked to node's right child.
+ */
 static void __rotate_left(struct interval_node *node,
 			  struct interval_node **root)
 {
@@ -176,7 +163,8 @@ static void __rotate_left(struct interval_node *node,
 
 /* The right rotation "pivots" around the link from node to node->left, and
  * - node will be linked to node->left's right child, and
- * - node->left's right child will be linked to node's left child.  */
+ * - node->left's right child will be linked to node's left child.
+ */
 static void __rotate_right(struct interval_node *node,
 			   struct interval_node **root)
 {
@@ -278,14 +266,14 @@ struct interval_node *interval_insert(struct interval_node *node,
 	p = root;
 	while (*p) {
 		parent = *p;
-		if (node_equal(parent, node))
+		if (extent_equal(&parent->in_extent, &node->in_extent))
 			return parent;
 
 		/* max_high field must be updated after each iteration */
 		if (parent->in_max_high < interval_high(node))
 			parent->in_max_high = interval_high(node);
 
-		if (node_compare(node, parent) < 0)
+		if (extent_compare(&node->in_extent, &parent->in_extent) < 0)
 			p = &parent->in_left;
 		else
 			p = &parent->in_right;

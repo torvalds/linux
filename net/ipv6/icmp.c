@@ -834,11 +834,6 @@ void icmpv6_flow_init(struct sock *sk, struct flowi6 *fl6,
 	security_sk_classify_flow(sk, flowi6_to_flowi(fl6));
 }
 
-/*
- * Special lock-class for __icmpv6_sk:
- */
-static struct lock_class_key icmpv6_socket_sk_dst_lock_key;
-
 static int __net_init icmpv6_sk_init(struct net *net)
 {
 	struct sock *sk;
@@ -859,15 +854,6 @@ static int __net_init icmpv6_sk_init(struct net *net)
 		}
 
 		net->ipv6.icmp_sk[i] = sk;
-
-		/*
-		 * Split off their lock-class, because sk->sk_dst_lock
-		 * gets used from softirqs, which is safe for
-		 * __icmpv6_sk (because those never get directly used
-		 * via userspace syscalls), but unsafe for normal sockets.
-		 */
-		lockdep_set_class(&sk->sk_dst_lock,
-				  &icmpv6_socket_sk_dst_lock_key);
 
 		/* Enough space for 2 64K ICMP packets, including
 		 * sk_buff struct overhead.

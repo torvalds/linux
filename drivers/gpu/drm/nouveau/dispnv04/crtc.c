@@ -227,13 +227,6 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 	NVWriteVgaCrtc(dev, nv_crtc->index, NV_CIO_CRE_RPC1_INDEX, crtc1A);
 }
 
-static bool
-nv_crtc_mode_fixup(struct drm_crtc *crtc, const struct drm_display_mode *mode,
-		   struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void
 nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 {
@@ -1081,8 +1074,6 @@ nouveau_crtc_set_config(struct drm_mode_set *set)
 }
 
 static const struct drm_crtc_funcs nv04_crtc_funcs = {
-	.save = nv_crtc_save,
-	.restore = nv_crtc_restore,
 	.cursor_set = nv04_crtc_cursor_set,
 	.cursor_move = nv04_crtc_cursor_move,
 	.gamma_set = nv_crtc_gamma_set,
@@ -1095,7 +1086,6 @@ static const struct drm_crtc_helper_funcs nv04_crtc_helper_funcs = {
 	.dpms = nv_crtc_dpms,
 	.prepare = nv_crtc_prepare,
 	.commit = nv_crtc_commit,
-	.mode_fixup = nv_crtc_mode_fixup,
 	.mode_set = nv_crtc_mode_set,
 	.mode_set_base = nv04_crtc_mode_set_base,
 	.mode_set_base_atomic = nv04_crtc_mode_set_base_atomic,
@@ -1122,6 +1112,9 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 
 	nv_crtc->index = crtc_num;
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
+
+	nv_crtc->save = nv_crtc_save;
+	nv_crtc->restore = nv_crtc_restore;
 
 	drm_crtc_init(dev, &nv_crtc->base, &nv04_crtc_funcs);
 	drm_crtc_helper_add(&nv_crtc->base, &nv04_crtc_helper_funcs);

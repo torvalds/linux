@@ -1,41 +1,12 @@
-config WILC1000_DRIVER
-	bool "WILC1000 support (WiFi only)"
-	depends on CFG80211 && WEXT_CORE && INET
+config WILC1000
+	tristate
+	select WIRELESS_EXT
 	---help---
 	  This module only support IEEE 802.11n WiFi.
 
-if WILC1000_DRIVER
-
-config WILC1000
-	tristate
-
-choice
-        prompt "Memory Allocation"
-        default WILC1000_PREALLOCATE_AT_LOADING_DRIVER
-
-config WILC1000_PREALLOCATE_AT_LOADING_DRIVER
-	bool "Preallocate memory at loading driver"
-	---help---
-	  This choice supports static allocation of the memory
-	  for the receive buffer. The driver will allocate the RX buffer
-	  during initial time. The driver will also free the buffer
-	  by calling network device stop.
-
-config WILC1000_DYNAMICALLY_ALLOCATE_MEMROY
-        bool "Dynamically allocate memory in real time"
-        ---help---
-	  This choice supports dynamic allocation of the memory
-	  for the receive buffer. The driver will allocate the RX buffer
-	  when it is required.
-endchoice
-
-choice
-	prompt "Bus Type"
-	default WILC1000_SDIO
-
 config WILC1000_SDIO
-	bool "SDIO support"
-	depends on MMC
+	tristate "Atmel WILC1000 SDIO (WiFi only)"
+	depends on CFG80211 && INET && MMC
 	select WILC1000
 	---help---
 	  This module adds support for the SDIO interface of adapters using
@@ -48,9 +19,9 @@ config WILC1000_SDIO
 	  this if your platform is using the SDIO bus.
 
 config WILC1000_SPI
-	depends on SPI
+	tristate "Atmel WILC1000 SPI (WiFi only)"
+	depends on CFG80211 && INET && SPI
 	select WILC1000
-	bool "SPI support"
 	---help---
 	  This module adds support for the SPI interface of adapters using
 	  WILC1000 chipset. The Atmel WILC1000 has a Serial Peripheral
@@ -59,10 +30,9 @@ config WILC1000_SPI
 	  full-duplex slave synchronous serial interface that is available
 	  immediately following reset when pin 9 (SDIO_SPI_CFG) is tied to
 	  VDDIO. Select this if your platform is using the SPI bus.
-endchoice
 
 config WILC1000_HW_OOB_INTR
-	bool "Use out of band interrupt"
+	bool "WILC1000 out of band interrupt"
 	depends on WILC1000_SDIO
 	default n
 	---help---
@@ -71,5 +41,3 @@ config WILC1000_HW_OOB_INTR
 	  mechanism for SDIO host controllers that don't support SDIO interrupt.
 	  Select this option If the SDIO host controller in your platform
 	  doesn't support SDIO time devision interrupt.
-
-endif

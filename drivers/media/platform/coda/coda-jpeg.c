@@ -178,14 +178,28 @@ int coda_jpeg_write_tables(struct coda_ctx *ctx)
 	return 0;
 }
 
-bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_v4l2_buffer *vb)
+bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb)
 {
-	void *vaddr = vb2_plane_vaddr(&vb->vb2_buf, 0);
-	u16 soi = be16_to_cpup((__be16 *)vaddr);
-	u16 eoi = be16_to_cpup((__be16 *)(vaddr +
-			  vb2_get_plane_payload(&vb->vb2_buf, 0) - 2));
+	void *vaddr = vb2_plane_vaddr(vb, 0);
+	u16 soi, eoi;
+	int len, i;
 
-	return soi == SOI_MARKER && eoi == EOI_MARKER;
+	soi = be16_to_cpup((__be16 *)vaddr);
+	if (soi != SOI_MARKER)
+		return false;
+
+	len = vb2_get_plane_payload(vb, 0);
+	vaddr += len - 2;
+	for (i = 0; i < 32; i++) {
+		eoi = be16_to_cpup((__be16 *)(vaddr - i));
+		if (eoi == EOI_MARKER) {
+			if (i > 0)
+				vb2_set_plane_payload(vb, 0, len - i);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 /*

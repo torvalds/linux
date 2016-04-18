@@ -82,7 +82,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 /* ------------------------------------------------------------------ */
 
-static int queue_setup(struct vb2_queue *q, const void *parg,
+static int queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -1642,7 +1642,8 @@ static int dvb_register(struct cx8802_dev *dev)
 
 	/* register everything */
 	res = vb2_dvb_register_bus(&dev->frontends, THIS_MODULE, dev,
-		&dev->pci->dev, adapter_nr, mfe_shared);
+				   &dev->pci->dev, NULL, adapter_nr,
+				   mfe_shared);
 	if (res)
 		goto frontend_detach;
 	return res;

@@ -727,7 +727,7 @@ int nes_arp_table(struct nes_device *nesdev, u32 ip_addr, u8 *mac_addr, u32 acti
 	if (action == NES_ARP_DELETE) {
 		nes_debug(NES_DBG_NETDEV, "DELETE, arp_index=%d\n", arp_index);
 		nesadapter->arp_table[arp_index].ip_addr = 0;
-		memset(nesadapter->arp_table[arp_index].mac_addr, 0x00, ETH_ALEN);
+		eth_zero_addr(nesadapter->arp_table[arp_index].mac_addr);
 		nes_free_resource(nesadapter, nesadapter->allocated_arps, arp_index);
 		return arp_index;
 	}

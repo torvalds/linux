@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -109,7 +109,7 @@ int obd_connect_flags2str(char *page, int count, __u64 flags, char *sep)
 	__u64 mask = 1;
 	int i, ret = 0;
 
-	for (i = 0; obd_connect_names[i] != NULL; i++, mask <<= 1) {
+	for (i = 0; obd_connect_names[i]; i++, mask <<= 1) {
 		if (flags & mask)
 			ret += snprintf(page + ret, count - ret, "%s%s",
 					ret ? sep : "", obd_connect_names[i]);
@@ -149,10 +149,10 @@ int lprocfs_read_frac_helper(char *buffer, unsigned long count, long val,
 		}
 		/*
 		 * Need to think these cases :
-		 *      1. #echo x.00 > /proc/xxx       output result : x
-		 *      2. #echo x.0x > /proc/xxx       output result : x.0x
-		 *      3. #echo x.x0 > /proc/xxx       output result : x.x
-		 *      4. #echo x.xx > /proc/xxx       output result : x.xx
+		 *      1. #echo x.00 > /sys/xxx       output result : x
+		 *      2. #echo x.0x > /sys/xxx       output result : x.0x
+		 *      3. #echo x.x0 > /sys/xxx       output result : x.x
+		 *      4. #echo x.xx > /sys/xxx       output result : x.xx
 		 *      Only reserved 2 bits fraction.
 		 */
 		for (i = 0; i < (5 - prtn); i++)
@@ -199,7 +199,7 @@ int lprocfs_write_frac_helper(const char __user *buffer, unsigned long count,
 	if (pbuf == end)
 		return -EINVAL;
 
-	if (end != NULL && *end == '.') {
+	if (end && *end == '.') {
 		int temp_val, pow = 1;
 		int i;
 
@@ -247,7 +247,7 @@ struct dentry *ldebugfs_add_simple(struct dentry *root,
 	struct dentry *entry;
 	umode_t mode = 0;
 
-	if (root == NULL || name == NULL || fops == NULL)
+	if (!root || !name || !fops)
 		return ERR_PTR(-EINVAL);
 
 	if (fops->read)
@@ -256,12 +256,12 @@ struct dentry *ldebugfs_add_simple(struct dentry *root,
 		mode |= 0200;
 	entry = debugfs_create_file(name, mode, root, data, fops);
 	if (IS_ERR_OR_NULL(entry)) {
-		CERROR("LprocFS: No memory to create <debugfs> entry %s", name);
+		CERROR("LprocFS: No memory to create <debugfs> entry %s\n", name);
 		return entry ?: ERR_PTR(-ENOMEM);
 	}
 	return entry;
 }
-EXPORT_SYMBOL(ldebugfs_add_simple);
+EXPORT_SYMBOL_GPL(ldebugfs_add_simple);
 
 static struct file_operations lprocfs_generic_fops = { };
 
@@ -272,7 +272,7 @@ int ldebugfs_add_vars(struct dentry *parent,
 	if (IS_ERR_OR_NULL(parent) || IS_ERR_OR_NULL(list))
 		return -EINVAL;
 
-	while (list->name != NULL) {
+	while (list->name) {
 		struct dentry *entry;
 		umode_t mode = 0;
 
@@ -294,14 +294,14 @@ int ldebugfs_add_vars(struct dentry *parent,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(ldebugfs_add_vars);
+EXPORT_SYMBOL_GPL(ldebugfs_add_vars);
 
 void ldebugfs_remove(struct dentry **entryp)
 {
 	debugfs_remove_recursive(*entryp);
 	*entryp = NULL;
 }
-EXPORT_SYMBOL(ldebugfs_remove);
+EXPORT_SYMBOL_GPL(ldebugfs_remove);
 
 struct dentry *ldebugfs_register(const char *name,
 				 struct dentry *parent,
@@ -327,7 +327,7 @@ struct dentry *ldebugfs_register(const char *name,
 out:
 	return entry;
 }
-EXPORT_SYMBOL(ldebugfs_register);
+EXPORT_SYMBOL_GPL(ldebugfs_register);
 
 /* Generic callbacks */
 int lprocfs_rd_uint(struct seq_file *m, void *data)
@@ -491,7 +491,7 @@ int lprocfs_rd_server_uuid(struct seq_file *m, void *data)
 	char *imp_state_name = NULL;
 	int rc;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 	rc = lprocfs_climp_check(obd);
 	if (rc)
 		return rc;
@@ -502,7 +502,7 @@ int lprocfs_rd_server_uuid(struct seq_file *m, void *data)
 		   obd2cli_tgt(obd), imp_state_name,
 		   imp->imp_deactive ? "\tDEACTIVATED" : "");
 
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 
 	return 0;
 }
@@ -514,7 +514,7 @@ int lprocfs_rd_conn_uuid(struct seq_file *m, void *data)
 	struct ptlrpc_connection *conn;
 	int rc;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 
 	rc = lprocfs_climp_check(obd);
 	if (rc)
@@ -526,7 +526,7 @@ int lprocfs_rd_conn_uuid(struct seq_file *m, void *data)
 	else
 		seq_puts(m, "<none>\n");
 
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 
 	return 0;
 }
@@ -543,7 +543,7 @@ void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 
 	memset(cnt, 0, sizeof(*cnt));
 
-	if (stats == NULL) {
+	if (!stats) {
 		/* set count to 1 to avoid divide-by-zero errs in callers */
 		cnt->lc_count = 1;
 		return;
@@ -554,7 +554,7 @@ void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 	num_entry = lprocfs_stats_lock(stats, LPROCFS_GET_NUM_CPU, &flags);
 
 	for (i = 0; i < num_entry; i++) {
-		if (stats->ls_percpu[i] == NULL)
+		if (!stats->ls_percpu[i])
 			continue;
 		percpu_cntr = lprocfs_stats_counter_get(stats, i, idx);
 
@@ -577,7 +577,7 @@ EXPORT_SYMBOL(lprocfs_stats_collect);
 #define flag2str(flag, first)						\
 	do {								\
 		if (imp->imp_##flag)					\
-		     seq_printf(m, "%s" #flag, first ? "" : ", ");	\
+			seq_printf(m, "%s" #flag, first ? "" : ", ");	\
 	} while (0)
 static int obd_import_flags2str(struct obd_import *imp, struct seq_file *m)
 {
@@ -604,16 +604,16 @@ static void obd_connect_seq_flags2str(struct seq_file *m, __u64 flags, char *sep
 	int i;
 	bool first = true;
 
-	for (i = 0; obd_connect_names[i] != NULL; i++, mask <<= 1) {
+	for (i = 0; obd_connect_names[i]; i++, mask <<= 1) {
 		if (flags & mask) {
 			seq_printf(m, "%s%s",
-					first ? sep : "", obd_connect_names[i]);
+				   first ? sep : "", obd_connect_names[i]);
 			first = false;
 		}
 	}
 	if (flags & ~(mask - 1))
 		seq_printf(m, "%sunknown flags %#llx",
-				first ? sep : "", flags & ~(mask - 1));
+			   first ? sep : "", flags & ~(mask - 1));
 }
 
 int lprocfs_rd_import(struct seq_file *m, void *data)
@@ -629,7 +629,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	int				rw	= 0;
 	int				rc;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 	rc = lprocfs_climp_check(obd);
 	if (rc)
 		return rc;
@@ -637,26 +637,27 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	imp = obd->u.cli.cl_import;
 
 	seq_printf(m,
-		     "import:\n"
-		     "    name: %s\n"
-		     "    target: %s\n"
-		     "    state: %s\n"
-		     "    instance: %u\n"
-		     "    connect_flags: [",
-		     obd->obd_name,
-		     obd2cli_tgt(obd),
-		     ptlrpc_import_state_name(imp->imp_state),
-		     imp->imp_connect_data.ocd_instance);
-	obd_connect_seq_flags2str(m, imp->imp_connect_data.ocd_connect_flags, ", ");
+		   "import:\n"
+		   "    name: %s\n"
+		   "    target: %s\n"
+		   "    state: %s\n"
+		   "    instance: %u\n"
+		   "    connect_flags: [ ",
+		   obd->obd_name,
+		   obd2cli_tgt(obd),
+		   ptlrpc_import_state_name(imp->imp_state),
+		   imp->imp_connect_data.ocd_instance);
+	obd_connect_seq_flags2str(m, imp->imp_connect_data.ocd_connect_flags,
+				  ", ");
 	seq_printf(m,
-		      "]\n"
-		      "    import_flags: [");
+		   " ]\n"
+		   "    import_flags: [ ");
 	obd_import_flags2str(imp, m);
 
 	seq_printf(m,
-		      "]\n"
-		      "    connection:\n"
-		      "       failover_nids: [");
+		   " ]\n"
+		   "    connection:\n"
+		   "       failover_nids: [ ");
 	spin_lock(&imp->imp_lock);
 	j = 0;
 	list_for_each_entry(conn, &imp->imp_conn_list, oic_item) {
@@ -665,21 +666,24 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 		seq_printf(m, "%s%s", j ? ", " : "", nidstr);
 		j++;
 	}
-	libcfs_nid2str_r(imp->imp_connection->c_peer.nid,
-			 nidstr, sizeof(nidstr));
+	if (imp->imp_connection)
+		libcfs_nid2str_r(imp->imp_connection->c_peer.nid,
+				 nidstr, sizeof(nidstr));
+	else
+		strncpy(nidstr, "<none>", sizeof(nidstr));
 	seq_printf(m,
-		      "]\n"
-		      "       current_connection: %s\n"
-		      "       connection_attempts: %u\n"
-		      "       generation: %u\n"
-		      "       in-progress_invalidations: %u\n",
-		      imp->imp_connection == NULL ? "<none>" : nidstr,
-		      imp->imp_conn_cnt,
-		      imp->imp_generation,
-		      atomic_read(&imp->imp_inval_count));
+		   " ]\n"
+		   "       current_connection: %s\n"
+		   "       connection_attempts: %u\n"
+		   "       generation: %u\n"
+		   "       in-progress_invalidations: %u\n",
+		   nidstr,
+		   imp->imp_conn_cnt,
+		   imp->imp_generation,
+		   atomic_read(&imp->imp_inval_count));
 	spin_unlock(&imp->imp_lock);
 
-	if (obd->obd_svc_stats == NULL)
+	if (!obd->obd_svc_stats)
 		goto out_climp;
 
 	header = &obd->obd_svc_stats->ls_cnt_header[PTLRPC_REQWAIT_CNTR];
@@ -693,15 +697,15 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	} else
 		ret.lc_sum = 0;
 	seq_printf(m,
-		      "    rpcs:\n"
-		      "       inflight: %u\n"
-		      "       unregistering: %u\n"
-		      "       timeouts: %u\n"
-		      "       avg_waittime: %llu %s\n",
-		      atomic_read(&imp->imp_inflight),
-		      atomic_read(&imp->imp_unregistering),
-		      atomic_read(&imp->imp_timeouts),
-		      ret.lc_sum, header->lc_units);
+		   "    rpcs:\n"
+		   "       inflight: %u\n"
+		   "       unregistering: %u\n"
+		   "       timeouts: %u\n"
+		   "       avg_waittime: %llu %s\n",
+		   atomic_read(&imp->imp_inflight),
+		   atomic_read(&imp->imp_unregistering),
+		   atomic_read(&imp->imp_timeouts),
+		   ret.lc_sum, header->lc_units);
 
 	k = 0;
 	for (j = 0; j < IMP_AT_MAX_PORTALS; j++) {
@@ -711,20 +715,20 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 			  at_get(&imp->imp_at.iat_service_estimate[j]));
 	}
 	seq_printf(m,
-		      "    service_estimates:\n"
-		      "       services: %u sec\n"
-		      "       network: %u sec\n",
-		      k,
-		      at_get(&imp->imp_at.iat_net_latency));
+		   "    service_estimates:\n"
+		   "       services: %u sec\n"
+		   "       network: %u sec\n",
+		   k,
+		   at_get(&imp->imp_at.iat_net_latency));
 
 	seq_printf(m,
-		      "    transactions:\n"
-		      "       last_replay: %llu\n"
-		      "       peer_committed: %llu\n"
-		      "       last_checked: %llu\n",
-		      imp->imp_last_replay_transno,
-		      imp->imp_peer_committed_transno,
-		      imp->imp_last_transno_checked);
+		   "    transactions:\n"
+		   "       last_replay: %llu\n"
+		   "       peer_committed: %llu\n"
+		   "       last_checked: %llu\n",
+		   imp->imp_last_replay_transno,
+		   imp->imp_peer_committed_transno,
+		   imp->imp_last_transno_checked);
 
 	/* avg data rates */
 	for (rw = 0; rw <= 1; rw++) {
@@ -738,10 +742,10 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 			do_div(sum, ret.lc_count);
 			ret.lc_sum = sum;
 			seq_printf(m,
-				      "    %s_data_averages:\n"
-				      "       bytes_per_rpc: %llu\n",
-				      rw ? "write" : "read",
-				      ret.lc_sum);
+				   "    %s_data_averages:\n"
+				   "       bytes_per_rpc: %llu\n",
+				   rw ? "write" : "read",
+				   ret.lc_sum);
 		}
 		k = (int)ret.lc_sum;
 		j = opcode_offset(OST_READ + rw) + EXTRA_MAX_OPCODES;
@@ -754,18 +758,18 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 			do_div(sum, ret.lc_count);
 			ret.lc_sum = sum;
 			seq_printf(m,
-				      "       %s_per_rpc: %llu\n",
-				      header->lc_units, ret.lc_sum);
+				   "       %s_per_rpc: %llu\n",
+				   header->lc_units, ret.lc_sum);
 			j = (int)ret.lc_sum;
 			if (j > 0)
 				seq_printf(m,
-					      "       MB_per_sec: %u.%.02u\n",
-					      k / j, (100 * k / j) % 100);
+					   "       MB_per_sec: %u.%.02u\n",
+					   k / j, (100 * k / j) % 100);
 		}
 	}
 
 out_climp:
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_import);
@@ -776,7 +780,7 @@ int lprocfs_rd_state(struct seq_file *m, void *data)
 	struct obd_import *imp;
 	int j, k, rc;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 	rc = lprocfs_climp_check(obd);
 	if (rc)
 		return rc;
@@ -784,7 +788,7 @@ int lprocfs_rd_state(struct seq_file *m, void *data)
 	imp = obd->u.cli.cl_import;
 
 	seq_printf(m, "current_state: %s\n",
-		     ptlrpc_import_state_name(imp->imp_state));
+		   ptlrpc_import_state_name(imp->imp_state));
 	seq_printf(m, "state_history:\n");
 	k = imp->imp_state_hist_idx;
 	for (j = 0; j < IMP_STATE_HIST_LEN; j++) {
@@ -792,11 +796,11 @@ int lprocfs_rd_state(struct seq_file *m, void *data)
 			&imp->imp_state_hist[(k + j) % IMP_STATE_HIST_LEN];
 		if (ish->ish_state == 0)
 			continue;
-		seq_printf(m, " - [%lld, %s]\n", (s64)ish->ish_time,
+		seq_printf(m, " - [ %lld, %s ]\n", (s64)ish->ish_time,
 			   ptlrpc_import_state_name(ish->ish_state));
 	}
 
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_state);
@@ -822,7 +826,7 @@ int lprocfs_rd_timeouts(struct seq_file *m, void *data)
 	struct dhms ts;
 	int i, rc;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 	rc = lprocfs_climp_check(obd);
 	if (rc)
 		return rc;
@@ -857,7 +861,7 @@ int lprocfs_rd_timeouts(struct seq_file *m, void *data)
 		lprocfs_at_hist_helper(m, &imp->imp_at.iat_service_estimate[i]);
 	}
 
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_timeouts);
@@ -876,7 +880,7 @@ int lprocfs_rd_connect_flags(struct seq_file *m, void *data)
 	seq_printf(m, "flags=%#llx\n", flags);
 	obd_connect_seq_flags2str(m, flags, "\n");
 	seq_printf(m, "\n");
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_connect_flags);
@@ -939,7 +943,7 @@ int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
 
 	return rc;
 }
-EXPORT_SYMBOL(lprocfs_obd_setup);
+EXPORT_SYMBOL_GPL(lprocfs_obd_setup);
 
 int lprocfs_obd_cleanup(struct obd_device *obd)
 {
@@ -954,7 +958,7 @@ int lprocfs_obd_cleanup(struct obd_device *obd)
 
 	return 0;
 }
-EXPORT_SYMBOL(lprocfs_obd_cleanup);
+EXPORT_SYMBOL_GPL(lprocfs_obd_cleanup);
 
 int lprocfs_stats_alloc_one(struct lprocfs_stats *stats, unsigned int cpuid)
 {
@@ -964,12 +968,12 @@ int lprocfs_stats_alloc_one(struct lprocfs_stats *stats, unsigned int cpuid)
 	unsigned long           flags = 0;
 	int                     i;
 
-	LASSERT(stats->ls_percpu[cpuid] == NULL);
+	LASSERT(!stats->ls_percpu[cpuid]);
 	LASSERT((stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) == 0);
 
 	percpusize = lprocfs_stats_counter_size(stats);
 	LIBCFS_ALLOC_ATOMIC(stats->ls_percpu[cpuid], percpusize);
-	if (stats->ls_percpu[cpuid] != NULL) {
+	if (stats->ls_percpu[cpuid]) {
 		rc = 0;
 		if (unlikely(stats->ls_biggest_alloc_num <= cpuid)) {
 			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
@@ -1014,7 +1018,7 @@ struct lprocfs_stats *lprocfs_alloc_stats(unsigned int num,
 
 	/* alloc percpu pointers for all possible cpu slots */
 	LIBCFS_ALLOC(stats, offsetof(typeof(*stats), ls_percpu[num_entry]));
-	if (stats == NULL)
+	if (!stats)
 		return NULL;
 
 	stats->ls_num = num;
@@ -1024,14 +1028,14 @@ struct lprocfs_stats *lprocfs_alloc_stats(unsigned int num,
 	/* alloc num of counter headers */
 	LIBCFS_ALLOC(stats->ls_cnt_header,
 		     stats->ls_num * sizeof(struct lprocfs_counter_header));
-	if (stats->ls_cnt_header == NULL)
+	if (!stats->ls_cnt_header)
 		goto fail;
 
 	if ((flags & LPROCFS_STATS_FLAG_NOPERCPU) != 0) {
 		/* contains only one set counters */
 		percpusize = lprocfs_stats_counter_size(stats);
 		LIBCFS_ALLOC_ATOMIC(stats->ls_percpu[0], percpusize);
-		if (stats->ls_percpu[0] == NULL)
+		if (!stats->ls_percpu[0])
 			goto fail;
 		stats->ls_biggest_alloc_num = 1;
 	} else if ((flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0) {
@@ -1056,7 +1060,7 @@ void lprocfs_free_stats(struct lprocfs_stats **statsh)
 	unsigned int percpusize;
 	unsigned int i;
 
-	if (stats == NULL || stats->ls_num == 0)
+	if (!stats || stats->ls_num == 0)
 		return;
 	*statsh = NULL;
 
@@ -1067,9 +1071,9 @@ void lprocfs_free_stats(struct lprocfs_stats **statsh)
 
 	percpusize = lprocfs_stats_counter_size(stats);
 	for (i = 0; i < num_entry; i++)
-		if (stats->ls_percpu[i] != NULL)
+		if (stats->ls_percpu[i])
 			LIBCFS_FREE(stats->ls_percpu[i], percpusize);
-	if (stats->ls_cnt_header != NULL)
+	if (stats->ls_cnt_header)
 		LIBCFS_FREE(stats->ls_cnt_header, stats->ls_num *
 					sizeof(struct lprocfs_counter_header));
 	LIBCFS_FREE(stats, offsetof(typeof(*stats), ls_percpu[num_entry]));
@@ -1087,7 +1091,7 @@ void lprocfs_clear_stats(struct lprocfs_stats *stats)
 	num_entry = lprocfs_stats_lock(stats, LPROCFS_GET_NUM_CPU, &flags);
 
 	for (i = 0; i < num_entry; i++) {
-		if (stats->ls_percpu[i] == NULL)
+		if (!stats->ls_percpu[i])
 			continue;
 		for (j = 0; j < stats->ls_num; j++) {
 			percpu_cntr = lprocfs_stats_counter_get(stats, i, j);
@@ -1193,7 +1197,7 @@ static int lprocfs_stats_seq_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct file_operations lprocfs_stats_seq_fops = {
+static const struct file_operations lprocfs_stats_seq_fops = {
 	.owner   = THIS_MODULE,
 	.open    = lprocfs_stats_seq_open,
 	.read    = seq_read,
@@ -1203,7 +1207,7 @@ struct file_operations lprocfs_stats_seq_fops = {
 };
 
 int ldebugfs_register_stats(struct dentry *parent, const char *name,
-			   struct lprocfs_stats *stats)
+			    struct lprocfs_stats *stats)
 {
 	struct dentry *entry;
 
@@ -1216,7 +1220,7 @@ int ldebugfs_register_stats(struct dentry *parent, const char *name,
 
 	return 0;
 }
-EXPORT_SYMBOL(ldebugfs_register_stats);
+EXPORT_SYMBOL_GPL(ldebugfs_register_stats);
 
 void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 			  unsigned conf, const char *name, const char *units)
@@ -1227,10 +1231,8 @@ void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 	unsigned int			i;
 	unsigned int			num_cpu;
 
-	LASSERT(stats != NULL);
-
 	header = &stats->ls_cnt_header[index];
-	LASSERTF(header != NULL, "Failed to allocate stats header:[%d]%s/%s\n",
+	LASSERTF(header, "Failed to allocate stats header:[%d]%s/%s\n",
 		 index, name, units);
 
 	header->lc_config = conf;
@@ -1239,7 +1241,7 @@ void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 
 	num_cpu = lprocfs_stats_lock(stats, LPROCFS_GET_NUM_CPU, &flags);
 	for (i = 0; i < num_cpu; ++i) {
-		if (stats->ls_percpu[i] == NULL)
+		if (!stats->ls_percpu[i])
 			continue;
 		percpu_cntr = lprocfs_stats_counter_get(stats, i, index);
 		percpu_cntr->lc_count		= 0;
@@ -1267,7 +1269,7 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 {
 	__s64 ret = 0;
 
-	if (lc == NULL || header == NULL)
+	if (!lc || !header)
 		return 0;
 
 	switch (field) {
@@ -1316,8 +1318,8 @@ int lprocfs_write_u64_helper(const char __user *buffer, unsigned long count,
 }
 EXPORT_SYMBOL(lprocfs_write_u64_helper);
 
-int lprocfs_write_frac_u64_helper(const char *buffer, unsigned long count,
-			      __u64 *val, int mult)
+int lprocfs_write_frac_u64_helper(const char __user *buffer,
+				  unsigned long count, __u64 *val, int mult)
 {
 	char kernbuf[22], *end, *pbuf;
 	__u64 whole, frac = 0, units;
@@ -1357,17 +1359,19 @@ int lprocfs_write_frac_u64_helper(const char *buffer, unsigned long count,
 	}
 
 	units = 1;
-	switch (tolower(*end)) {
-	case 'p':
-		units <<= 10;
-	case 't':
-		units <<= 10;
-	case 'g':
-		units <<= 10;
-	case 'm':
-		units <<= 10;
-	case 'k':
-		units <<= 10;
+	if (end) {
+		switch (tolower(*end)) {
+		case 'p':
+			units <<= 10;
+		case 't':
+			units <<= 10;
+		case 'g':
+			units <<= 10;
+		case 'm':
+			units <<= 10;
+		case 'k':
+			units <<= 10;
+		}
 	}
 	/* Specified units override the multiplier */
 	if (units > 1)
@@ -1409,7 +1413,7 @@ char *lprocfs_find_named_value(const char *buffer, const char *name,
 
 	/* there is no strnstr() in rhel5 and ubuntu kernels */
 	val = lprocfs_strnstr(buffer, name, buflen);
-	if (val == NULL)
+	if (!val)
 		return (char *)buffer;
 
 	val += strlen(name);			     /* skip prefix */
@@ -1426,11 +1430,9 @@ char *lprocfs_find_named_value(const char *buffer, const char *name,
 }
 EXPORT_SYMBOL(lprocfs_find_named_value);
 
-int ldebugfs_seq_create(struct dentry *parent,
-		       const char *name,
-		       umode_t mode,
-		       const struct file_operations *seq_fops,
-		       void *data)
+int ldebugfs_seq_create(struct dentry *parent, const char *name,
+			umode_t mode, const struct file_operations *seq_fops,
+			void *data)
 {
 	struct dentry *entry;
 
@@ -1443,7 +1445,7 @@ int ldebugfs_seq_create(struct dentry *parent,
 
 	return 0;
 }
-EXPORT_SYMBOL(ldebugfs_seq_create);
+EXPORT_SYMBOL_GPL(ldebugfs_seq_create);
 
 int ldebugfs_obd_seq_create(struct obd_device *dev,
 			    const char *name,
@@ -1454,7 +1456,7 @@ int ldebugfs_obd_seq_create(struct obd_device *dev,
 	return ldebugfs_seq_create(dev->obd_debugfs_entry, name,
 				   mode, seq_fops, data);
 }
-EXPORT_SYMBOL(ldebugfs_obd_seq_create);
+EXPORT_SYMBOL_GPL(ldebugfs_obd_seq_create);
 
 void lprocfs_oh_tally(struct obd_histogram *oh, unsigned int value)
 {

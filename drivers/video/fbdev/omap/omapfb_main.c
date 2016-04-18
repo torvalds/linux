@@ -276,11 +276,6 @@ static int _setcolreg(struct fb_info *info, u_int regno, u_int red, u_int green,
 		if (r != 0)
 			break;
 
-		if (regno < 0) {
-			r = -EINVAL;
-			break;
-		}
-
 		if (regno < 16) {
 			u16 pal;
 			pal = ((red >> (16 - var->red.length)) <<
@@ -598,27 +593,6 @@ static int set_fb_var(struct fb_info *fbi,
 	return 0;
 }
 
-
-/* Set rotation (0, 90, 180, 270 degree), and switch to the new mode. */
-static void omapfb_rotate(struct fb_info *fbi, int rotate)
-{
-	struct omapfb_plane_struct *plane = fbi->par;
-	struct omapfb_device *fbdev = plane->fbdev;
-
-	omapfb_rqueue_lock(fbdev);
-	if (rotate != fbi->var.rotate) {
-		struct fb_var_screeninfo *new_var = &fbdev->new_var;
-
-		memcpy(new_var, &fbi->var, sizeof(*new_var));
-		new_var->rotate = rotate;
-		if (set_fb_var(fbi, new_var) == 0 &&
-		    memcmp(new_var, &fbi->var, sizeof(*new_var))) {
-			memcpy(&fbi->var, new_var, sizeof(*new_var));
-			ctrl_change_mode(fbi);
-		}
-	}
-	omapfb_rqueue_unlock(fbdev);
-}
 
 /*
  * Set new x,y offsets in the virtual display for the visible area and switch
@@ -1261,7 +1235,6 @@ static struct fb_ops omapfb_ops = {
 	.fb_ioctl	= omapfb_ioctl,
 	.fb_check_var	= omapfb_check_var,
 	.fb_set_par	= omapfb_set_par,
-	.fb_rotate	= omapfb_rotate,
 	.fb_pan_display = omapfb_pan_display,
 };
 

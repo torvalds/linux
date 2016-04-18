@@ -625,7 +625,7 @@ static void hid_close_report(struct hid_device *device)
 
 static void hid_device_release(struct device *dev)
 {
-	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	struct hid_device *hid = to_hid_device(dev);
 
 	hid_close_report(hid);
 	kfree(hid->dev_rdesc);
@@ -1075,7 +1075,7 @@ static u32 s32ton(__s32 value, unsigned n)
  * Extract/implement a data field from/to a little endian report (bit array).
  *
  * Code sort-of follows HID spec:
- *     http://www.usb.org/developers/devclass_docs/HID1_11.pdf
+ *     http://www.usb.org/developers/hidpage/HID1_11.pdf
  *
  * While the USB HID spec allows unlimited length bit fields in "report
  * descriptors", most devices never use more than 16 bits.
@@ -1083,20 +1083,37 @@ static u32 s32ton(__s32 value, unsigned n)
  * Search linux-kernel and linux-usb-devel archives for "hid-core extract".
  */
 
-__u32 hid_field_extract(const struct hid_device *hid, __u8 *report,
-		     unsigned offset, unsigned n)
+static u32 __extract(u8 *report, unsigned offset, int n)
 {
-	u64 x;
+	unsigned int idx = offset / 8;
+	unsigned int bit_nr = 0;
+	unsigned int bit_shift = offset % 8;
+	int bits_to_copy = 8 - bit_shift;
+	u32 value = 0;
+	u32 mask = n < 32 ? (1U << n) - 1 : ~0U;
 
-	if (n > 32)
+	while (n > 0) {
+		value |= ((u32)report[idx] >> bit_shift) << bit_nr;
+		n -= bits_to_copy;
+		bit_nr += bits_to_copy;
+		bits_to_copy = 8;
+		bit_shift = 0;
+		idx++;
+	}
+
+	return value & mask;
+}
+
+u32 hid_field_extract(const struct hid_device *hid, u8 *report,
+			unsigned offset, unsigned n)
+{
+	if (n > 32) {
 		hid_warn(hid, "hid_field_extract() called with n (%d) > 32! (%s)\n",
 			 n, current->comm);
+		n = 32;
+	}
 
-	report += offset >> 3;  /* adjust byte index */
-	offset &= 7;            /* now only need bit offset into one byte */
-	x = get_unaligned_le64(report);
-	x = (x >> offset) & ((1ULL << n) - 1);  /* extract bit field */
-	return (u32) x;
+	return __extract(report, offset, n);
 }
 EXPORT_SYMBOL_GPL(hid_field_extract);
 
@@ -1106,31 +1123,56 @@ EXPORT_SYMBOL_GPL(hid_field_extract);
  * The data mangled in the bit stream remains in little endian
  * order the whole time. It make more sense to talk about
  * endianness of register values by considering a register
- * a "cached" copy of the little endiad bit stream.
+ * a "cached" copy of the little endian bit stream.
  */
-static void implement(const struct hid_device *hid, __u8 *report,
-		      unsigned offset, unsigned n, __u32 value)
-{
-	u64 x;
-	u64 m = (1ULL << n) - 1;
 
-	if (n > 32)
+static void __implement(u8 *report, unsigned offset, int n, u32 value)
+{
+	unsigned int idx = offset / 8;
+	unsigned int size = offset + n;
+	unsigned int bit_shift = offset % 8;
+	int bits_to_set = 8 - bit_shift;
+	u8 bit_mask = 0xff << bit_shift;
+
+	while (n - bits_to_set >= 0) {
+		report[idx] &= ~bit_mask;
+		report[idx] |= value << bit_shift;
+		value >>= bits_to_set;
+		n -= bits_to_set;
+		bits_to_set = 8;
+		bit_mask = 0xff;
+		bit_shift = 0;
+		idx++;
+	}
+
+	/* last nibble */
+	if (n) {
+		if (size % 8)
+			bit_mask &= (1U << (size % 8)) - 1;
+		report[idx] &= ~bit_mask;
+		report[idx] |= (value << bit_shift) & bit_mask;
+	}
+}
+
+static void implement(const struct hid_device *hid, u8 *report,
+		      unsigned offset, unsigned n, u32 value)
+{
+	u64 m;
+
+	if (n > 32) {
 		hid_warn(hid, "%s() called with n (%d) > 32! (%s)\n",
 			 __func__, n, current->comm);
+		n = 32;
+	}
 
+	m = (1ULL << n) - 1;
 	if (value > m)
 		hid_warn(hid, "%s() called with too large value %d! (%s)\n",
 			 __func__, value, current->comm);
 	WARN_ON(value > m);
 	value &= m;
 
-	report += offset >> 3;
-	offset &= 7;
-
-	x = get_unaligned_le64(report);
-	x &= ~(m << offset);
-	x |= ((u64)value) << offset;
-	put_unaligned_le64(x, report);
+	__implement(report, offset, n, value);
 }
 
 /*
@@ -1251,6 +1293,7 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 		/* Ignore report if ErrorRollOver */
 		if (!(field->flags & HID_MAIN_ITEM_VARIABLE) &&
 		    value[n] >= min && value[n] <= max &&
+		    value[n] - min < field->maxusage &&
 		    field->usage[value[n] - min].hid == HID_UP_KEYBOARD + 1)
 			goto exit;
 	}
@@ -1263,11 +1306,13 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 		}
 
 		if (field->value[n] >= min && field->value[n] <= max
+			&& field->value[n] - min < field->maxusage
 			&& field->usage[field->value[n] - min].hid
 			&& search(value, field->value[n], count))
 				hid_process_event(hid, field, &field->usage[field->value[n] - min], 0, interrupt);
 
 		if (value[n] >= min && value[n] <= max
+			&& value[n] - min < field->maxusage
 			&& field->usage[value[n] - min].hid
 			&& search(field->value, value[n], count))
 				hid_process_event(hid, field, &field->usage[value[n] - min], 1, interrupt);
@@ -1571,8 +1616,8 @@ read_report_descriptor(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr,
 		char *buf, loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct device *dev = kobj_to_dev(kobj);
+	struct hid_device *hdev = to_hid_device(dev);
 
 	if (off >= hdev->rsize)
 		return 0;
@@ -1589,7 +1634,7 @@ static ssize_t
 show_country(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 
 	return sprintf(buf, "%02x\n", hdev->country & 0xff);
 }
@@ -1691,11 +1736,6 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 		hid_warn(hdev,
 			 "can't create sysfs country code attribute err: %d\n", ret);
 
-	ret = device_create_bin_file(&hdev->dev, &dev_bin_attr_report_desc);
-	if (ret)
-		hid_warn(hdev,
-			 "can't create sysfs report descriptor attribute err: %d\n", ret);
-
 	hid_info(hdev, "%s: %s HID v%x.%02x %s [%s] on %s\n",
 		 buf, bus, hdev->version >> 8, hdev->version & 0xff,
 		 type, hdev->name, hdev->phys);
@@ -1707,7 +1747,6 @@ EXPORT_SYMBOL_GPL(hid_connect);
 void hid_disconnect(struct hid_device *hdev)
 {
 	device_remove_file(&hdev->dev, &dev_attr_country);
-	device_remove_bin_file(&hdev->dev, &dev_bin_attr_report_desc);
 	if (hdev->claimed & HID_CLAIMED_INPUT)
 		hidinput_disconnect(hdev);
 	if (hdev->claimed & HID_CLAIMED_HIDDEV)
@@ -1897,11 +1936,13 @@ static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_ELITE_KBD) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_CORDLESS_DESKTOP_LX500) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_EXTREME_3D) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_DUAL_ACTION) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WHEEL) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD_CORD) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2_2) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G29_WHEEL) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G920_WHEEL) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_F3D) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_FFG ) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_FORCE3D_PRO) },
@@ -1924,6 +1965,7 @@ static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROCHIP, USB_DEVICE_ID_PICOLCD) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROCHIP, USB_DEVICE_ID_PICOLCD_BOOTLOADER) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_COMFORT_MOUSE_4500) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_COMFORT_KEYBOARD) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_SIDEWINDER_GV) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_NE4K) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_NE4K_JP) },
@@ -1937,6 +1979,9 @@ static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_TYPE_COVER_PRO_3_2) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_TYPE_COVER_PRO_3_JP) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_TYPE_COVER_3) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_DIGITAL_MEDIA_7K) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_DIGITAL_MEDIA_600) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_DIGITAL_MEDIA_3KV1) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_POWER_COVER) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MONTEREY, USB_DEVICE_ID_GENIUS_KB29E) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MSI, USB_DEVICE_ID_MSI_GT683R_LED_PANEL) },
@@ -2008,6 +2053,7 @@ static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_VAIO_VGX_MOUSE) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_VAIO_VGP_MOUSE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SINO_LITE, USB_DEVICE_ID_SINO_LITE_CONTROLLER) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES, USB_DEVICE_ID_STEELSERIES_SRWS1) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SUNPLUS, USB_DEVICE_ID_SUNPLUS_WDESKTOP) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THINGM, USB_DEVICE_ID_BLINK1) },
@@ -2056,6 +2102,7 @@ static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_NINTENDO, USB_DEVICE_ID_NINTENDO_WIIMOTE) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_NINTENDO, USB_DEVICE_ID_NINTENDO_WIIMOTE2) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_RAZER, USB_DEVICE_ID_RAZER_BLADE_14) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CMEDIA, USB_DEVICE_ID_CM6533) },
 	{ }
 };
 
@@ -2076,7 +2123,7 @@ struct hid_dynid {
 static ssize_t store_new_id(struct device_driver *drv, const char *buf,
 		size_t count)
 {
-	struct hid_driver *hdrv = container_of(drv, struct hid_driver, driver);
+	struct hid_driver *hdrv = to_hid_driver(drv);
 	struct hid_dynid *dynid;
 	__u32 bus, vendor, product;
 	unsigned long driver_data = 0;
@@ -2138,17 +2185,16 @@ static const struct hid_device_id *hid_match_device(struct hid_device *hdev,
 
 static int hid_bus_match(struct device *dev, struct device_driver *drv)
 {
-	struct hid_driver *hdrv = container_of(drv, struct hid_driver, driver);
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_driver *hdrv = to_hid_driver(drv);
+	struct hid_device *hdev = to_hid_device(dev);
 
 	return hid_match_device(hdev, hdrv) != NULL;
 }
 
 static int hid_device_probe(struct device *dev)
 {
-	struct hid_driver *hdrv = container_of(dev->driver,
-			struct hid_driver, driver);
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_driver *hdrv = to_hid_driver(dev->driver);
+	struct hid_device *hdev = to_hid_device(dev);
 	const struct hid_device_id *id;
 	int ret = 0;
 
@@ -2190,7 +2236,7 @@ unlock_driver_lock:
 
 static int hid_device_remove(struct device *dev)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct hid_driver *hdrv;
 	int ret = 0;
 
@@ -2223,12 +2269,9 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 			     char *buf)
 {
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
-	int len;
 
-	len = snprintf(buf, PAGE_SIZE, "hid:b%04Xg%04Xv%08Xp%08X\n",
-		       hdev->bus, hdev->group, hdev->vendor, hdev->product);
-
-	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+	return scnprintf(buf, PAGE_SIZE, "hid:b%04Xg%04Xv%08Xp%08X\n",
+			 hdev->bus, hdev->group, hdev->vendor, hdev->product);
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -2236,11 +2279,19 @@ static struct attribute *hid_dev_attrs[] = {
 	&dev_attr_modalias.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(hid_dev);
+static struct bin_attribute *hid_dev_bin_attrs[] = {
+	&dev_bin_attr_report_desc,
+	NULL
+};
+static const struct attribute_group hid_dev_group = {
+	.attrs = hid_dev_attrs,
+	.bin_attrs = hid_dev_bin_attrs,
+};
+__ATTRIBUTE_GROUPS(hid_dev);
 
 static int hid_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);	
 
 	if (add_uevent_var(env, "HID_ID=%04X:%08X:%08X",
 			hdev->bus, hdev->vendor, hdev->product))
@@ -2408,6 +2459,7 @@ static const struct hid_device_id hid_ignore_list[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROCHIP, USB_DEVICE_ID_PICKIT1) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROCHIP, USB_DEVICE_ID_PICKIT2) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROCHIP, USB_DEVICE_ID_PICK16F1454) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROCHIP, USB_DEVICE_ID_PICK16F1454_V2) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_NATIONAL_SEMICONDUCTOR, USB_DEVICE_ID_N_S_HARMONY) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100 + 20) },
@@ -2615,9 +2667,10 @@ int hid_add_device(struct hid_device *hdev)
 	/*
 	 * Scan generic devices for group information
 	 */
-	if (hid_ignore_special_drivers ||
-	    (!hdev->group &&
-	     !hid_match_id(hdev, hid_have_special_driver))) {
+	if (hid_ignore_special_drivers) {
+		hdev->group = HID_GROUP_GENERIC;
+	} else if (!hdev->group &&
+		   !hid_match_id(hdev, hid_have_special_driver)) {
 		ret = hid_scan_report(hdev);
 		if (ret)
 			hid_warn(hdev, "bad device descriptor (%d)\n", ret);
@@ -2660,6 +2713,7 @@ struct hid_device *hid_allocate_device(void)
 	device_initialize(&hdev->dev);
 	hdev->dev.release = hid_device_release;
 	hdev->dev.bus = &hid_bus_type;
+	device_enable_async_suspend(&hdev->dev);
 
 	hid_close_report(hdev);
 

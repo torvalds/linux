@@ -60,7 +60,9 @@ struct branch {
 	u64 misc;
 };
 
-static size_t intel_bts_info_priv_size(struct auxtrace_record *itr __maybe_unused)
+static size_t
+intel_bts_info_priv_size(struct auxtrace_record *itr __maybe_unused,
+			 struct perf_evlist *evlist __maybe_unused)
 {
 	return INTEL_BTS_AUXTRACE_PRIV_SIZE;
 }
@@ -327,7 +329,7 @@ static int intel_bts_snapshot_start(struct auxtrace_record *itr)
 
 	evlist__for_each(btsr->evlist, evsel) {
 		if (evsel->attr.type == btsr->intel_bts_pmu->type)
-			return perf_evlist__disable_event(btsr->evlist, evsel);
+			return perf_evsel__disable(evsel);
 	}
 	return -EINVAL;
 }
@@ -340,7 +342,7 @@ static int intel_bts_snapshot_finish(struct auxtrace_record *itr)
 
 	evlist__for_each(btsr->evlist, evsel) {
 		if (evsel->attr.type == btsr->intel_bts_pmu->type)
-			return perf_evlist__enable_event(btsr->evlist, evsel);
+			return perf_evsel__enable(evsel);
 	}
 	return -EINVAL;
 }

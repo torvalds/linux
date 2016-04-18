@@ -173,7 +173,7 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 	return (valid) ? MODE_OK : MODE_BAD;
 }
 
-static struct drm_encoder_funcs dw_hdmi_rockchip_encoder_funcs = {
+static const struct drm_encoder_funcs dw_hdmi_rockchip_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
@@ -195,13 +195,16 @@ static void dw_hdmi_rockchip_encoder_mode_set(struct drm_encoder *encoder,
 {
 }
 
-static void dw_hdmi_rockchip_encoder_commit(struct drm_encoder *encoder)
+static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 	u32 val;
 	int mux;
 
-	mux = rockchip_drm_encoder_get_mux_id(hdmi->dev->of_node, encoder);
+	rockchip_drm_crtc_mode_config(encoder->crtc, DRM_MODE_CONNECTOR_HDMIA,
+				      ROCKCHIP_OUT_MODE_AAAA);
+
+	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
 	if (mux)
 		val = HDMI_SEL_VOP_LIT | (HDMI_SEL_VOP_LIT << 16);
 	else
@@ -212,17 +215,10 @@ static void dw_hdmi_rockchip_encoder_commit(struct drm_encoder *encoder)
 		(mux) ? "LIT" : "BIG");
 }
 
-static void dw_hdmi_rockchip_encoder_prepare(struct drm_encoder *encoder)
-{
-	rockchip_drm_crtc_mode_config(encoder->crtc, DRM_MODE_CONNECTOR_HDMIA,
-				      ROCKCHIP_OUT_MODE_AAAA);
-}
-
-static struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_funcs = {
 	.mode_fixup = dw_hdmi_rockchip_encoder_mode_fixup,
 	.mode_set   = dw_hdmi_rockchip_encoder_mode_set,
-	.prepare    = dw_hdmi_rockchip_encoder_prepare,
-	.commit     = dw_hdmi_rockchip_encoder_commit,
+	.enable     = dw_hdmi_rockchip_encoder_enable,
 	.disable    = dw_hdmi_rockchip_encoder_disable,
 };
 
@@ -275,8 +271,6 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	if (!iores)
 		return -ENXIO;
 
-	platform_set_drvdata(pdev, hdmi);
-
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
@@ -295,9 +289,18 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 
 	drm_encoder_helper_add(encoder, &dw_hdmi_rockchip_encoder_helper_funcs);
 	drm_encoder_init(drm, encoder, &dw_hdmi_rockchip_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 
-	return dw_hdmi_bind(dev, master, data, encoder, iores, irq, plat_data);
+	ret = dw_hdmi_bind(dev, master, data, encoder, iores, irq, plat_data);
+
+	/*
+	 * If dw_hdmi_bind() fails we'll never call dw_hdmi_unbind(),
+	 * which would have called the encoder cleanup.  Do it manually.
+	 */
+	if (ret)
+		drm_encoder_cleanup(encoder);
+
+	return ret;
 }
 
 static void dw_hdmi_rockchip_unbind(struct device *dev, struct device *master,

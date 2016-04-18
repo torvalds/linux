@@ -48,10 +48,10 @@ static int squashfs_symlink_readpage(struct file *file, struct page *page)
 	struct inode *inode = page->mapping->host;
 	struct super_block *sb = inode->i_sb;
 	struct squashfs_sb_info *msblk = sb->s_fs_info;
-	int index = page->index << PAGE_CACHE_SHIFT;
+	int index = page->index << PAGE_SHIFT;
 	u64 block = squashfs_i(inode)->start;
 	int offset = squashfs_i(inode)->offset;
-	int length = min_t(int, i_size_read(inode) - index, PAGE_CACHE_SIZE);
+	int length = min_t(int, i_size_read(inode) - index, PAGE_SIZE);
 	int bytes, copied;
 	void *pageaddr;
 	struct squashfs_cache_entry *entry;
@@ -94,7 +94,7 @@ static int squashfs_symlink_readpage(struct file *file, struct page *page)
 		copied = squashfs_copy_data(pageaddr + bytes, entry, offset,
 								length - bytes);
 		if (copied == length - bytes)
-			memset(pageaddr + length, 0, PAGE_CACHE_SIZE - length);
+			memset(pageaddr + length, 0, PAGE_SIZE - length);
 		else
 			block = entry->next_index;
 		kunmap_atomic(pageaddr);
@@ -119,8 +119,7 @@ const struct address_space_operations squashfs_symlink_aops = {
 
 const struct inode_operations squashfs_symlink_inode_ops = {
 	.readlink = generic_readlink,
-	.follow_link = page_follow_link_light,
-	.put_link = page_put_link,
+	.get_link = page_get_link,
 	.getxattr = generic_getxattr,
 	.listxattr = squashfs_listxattr
 };

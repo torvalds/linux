@@ -1206,7 +1206,6 @@ static void dm1105_remove(struct pci_dev *pdev)
 	i2c_del_adapter(&dev->i2c_adap);
 
 	dm1105_hw_exit(dev);
-	synchronize_irq(pdev->irq);
 	free_irq(pdev->irq, dev);
 	pci_iounmap(pdev, dev->io_mem);
 	pci_release_regions(pdev);

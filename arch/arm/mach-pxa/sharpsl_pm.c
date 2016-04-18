@@ -27,10 +27,10 @@
 #include <linux/io.h>
 
 #include <asm/mach-types.h>
-#include <mach/pm.h>
+#include "pm.h"
 #include <mach/pxa2xx-regs.h>
-#include <mach/regs-rtc.h>
-#include <mach/sharpsl_pm.h>
+#include "regs-rtc.h"
+#include "sharpsl_pm.h"
 
 /*
  * Constants

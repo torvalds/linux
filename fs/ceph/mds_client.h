@@ -44,6 +44,7 @@ struct ceph_mds_reply_info_in {
 	u64 inline_version;
 	u32 inline_len;
 	char *inline_data;
+	u32 pool_ns_len;
 };
 
 /*
@@ -96,7 +97,7 @@ struct ceph_mds_reply_info_parsed {
 /*
  * cap releases are batched and sent to the MDS en masse.
  */
-#define CEPH_CAPS_PER_RELEASE ((PAGE_CACHE_SIZE -			\
+#define CEPH_CAPS_PER_RELEASE ((PAGE_SIZE -			\
 				sizeof(struct ceph_mds_cap_release)) /	\
 			       sizeof(struct ceph_mds_cap_item))
 
@@ -235,6 +236,9 @@ struct ceph_mds_request {
 	/* link unsafe requests to parent directory, for fsync */
 	struct inode	*r_unsafe_dir;
 	struct list_head r_unsafe_dir_item;
+
+	/* unsafe requests that modify the target inode */
+	struct list_head r_unsafe_target_item;
 
 	struct ceph_mds_session *r_session;
 

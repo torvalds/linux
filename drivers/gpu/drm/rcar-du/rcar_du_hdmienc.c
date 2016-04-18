@@ -35,7 +35,7 @@ struct rcar_du_hdmienc {
 static void rcar_du_hdmienc_disable(struct drm_encoder *encoder)
 {
 	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
-	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
+	const struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
 
 	if (sfuncs->dpms)
 		sfuncs->dpms(encoder, DRM_MODE_DPMS_OFF);
@@ -50,7 +50,7 @@ static void rcar_du_hdmienc_disable(struct drm_encoder *encoder)
 static void rcar_du_hdmienc_enable(struct drm_encoder *encoder)
 {
 	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
-	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
+	const struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
 
 	if (hdmienc->renc->lvds)
 		rcar_du_lvdsenc_enable(hdmienc->renc->lvds, encoder->crtc,
@@ -67,16 +67,13 @@ static int rcar_du_hdmienc_atomic_check(struct drm_encoder *encoder,
 					struct drm_connector_state *conn_state)
 {
 	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
-	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
+	const struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 	const struct drm_display_mode *mode = &crtc_state->mode;
 
-	/* The internal LVDS encoder has a clock frequency operating range of
-	 * 30MHz to 150MHz. Clamp the clock accordingly.
-	 */
 	if (hdmienc->renc->lvds)
-		adjusted_mode->clock = clamp(adjusted_mode->clock,
-					     30000, 150000);
+		rcar_du_lvdsenc_atomic_check(hdmienc->renc->lvds,
+					     adjusted_mode);
 
 	if (sfuncs->mode_fixup == NULL)
 		return 0;
@@ -89,7 +86,7 @@ static void rcar_du_hdmienc_mode_set(struct drm_encoder *encoder,
 				     struct drm_display_mode *adjusted_mode)
 {
 	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
-	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
+	const struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
 
 	if (sfuncs->mode_set)
 		sfuncs->mode_set(encoder, mode, adjusted_mode);
@@ -134,12 +131,19 @@ int rcar_du_hdmienc_init(struct rcar_du_device *rcdu,
 
 	/* Locate the slave I2C device and driver. */
 	i2c_slave = of_find_i2c_device_by_node(np);
-	if (!i2c_slave || !i2c_get_clientdata(i2c_slave))
+	if (!i2c_slave || !i2c_get_clientdata(i2c_slave)) {
+		dev_dbg(rcdu->dev,
+			"can't get I2C slave for %s, deferring probe\n",
+			of_node_full_name(np));
 		return -EPROBE_DEFER;
+	}
 
 	hdmienc->dev = &i2c_slave->dev;
 
 	if (hdmienc->dev->driver == NULL) {
+		dev_dbg(rcdu->dev,
+			"I2C slave %s not probed yet, deferring probe\n",
+			dev_name(hdmienc->dev));
 		ret = -EPROBE_DEFER;
 		goto error;
 	}
@@ -151,7 +155,7 @@ int rcar_du_hdmienc_init(struct rcar_du_device *rcdu,
 		goto error;
 
 	ret = drm_encoder_init(rcdu->ddev, encoder, &encoder_funcs,
-			       DRM_MODE_ENCODER_TMDS);
+			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret < 0)
 		goto error;
 

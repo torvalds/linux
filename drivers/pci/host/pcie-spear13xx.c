@@ -13,7 +13,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -149,7 +148,6 @@ static int spear13xx_pcie_establish_link(struct pcie_port *pp)
 	struct spear13xx_pcie *spear13xx_pcie = to_spear13xx_pcie(pp);
 	struct pcie_app_reg *app_reg = spear13xx_pcie->app_base;
 	u32 exp_cap_off = EXP_CAP_ID_OFFSET;
-	unsigned int retries;
 
 	if (dw_pcie_link_up(pp)) {
 		dev_err(pp->dev, "link already up\n");
@@ -200,17 +198,7 @@ static int spear13xx_pcie_establish_link(struct pcie_port *pp)
 			| ((u32)1 << REG_TRANSLATION_ENABLE),
 			&app_reg->app_ctrl_0);
 
-	/* check if the link is up or not */
-	for (retries = 0; retries < 10; retries++) {
-		if (dw_pcie_link_up(pp)) {
-			dev_info(pp->dev, "link up\n");
-			return 0;
-		}
-		mdelay(100);
-	}
-
-	dev_err(pp->dev, "link Fail\n");
-	return -EINVAL;
+	return dw_pcie_wait_for_link(pp);
 }
 
 static irqreturn_t spear13xx_pcie_irq_handler(int irq, void *arg)
@@ -279,7 +267,8 @@ static int spear13xx_add_pcie_port(struct pcie_port *pp,
 		return -ENODEV;
 	}
 	ret = devm_request_irq(dev, pp->irq, spear13xx_pcie_irq_handler,
-			       IRQF_SHARED, "spear1340-pcie", pp);
+			       IRQF_SHARED | IRQF_NO_THREAD,
+			       "spear1340-pcie", pp);
 	if (ret) {
 		dev_err(dev, "failed to request irq %d\n", pp->irq);
 		return ret;

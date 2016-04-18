@@ -39,7 +39,7 @@ struct rsc {
 	u32 msr:4;	/* The Master Sample Rate a resource working on */
 	void *ctrl_blk;	/* Chip specific control info block for a resource */
 	struct hw *hw;	/* Chip specific object for hardware access means */
-	struct rsc_ops *ops;	/* Generic resource operations */
+	const struct rsc_ops *ops;	/* Generic resource operations */
 };
 
 struct rsc_ops {

@@ -1,5 +1,5 @@
 /*
- * iosf_mbi.h: Intel OnChip System Fabric MailBox access support
+ * Intel OnChip System Fabric MailBox access support
  */
 
 #ifndef IOSF_MBI_SYMS_H
@@ -16,6 +16,18 @@
 #define MBI_MASK_LO		0x000000FF
 #define MBI_ENABLE		0xF0
 
+/* IOSF SB read/write opcodes */
+#define MBI_MMIO_READ		0x00
+#define MBI_MMIO_WRITE		0x01
+#define MBI_CFG_READ		0x04
+#define MBI_CFG_WRITE		0x05
+#define MBI_CR_READ		0x06
+#define MBI_CR_WRITE		0x07
+#define MBI_REG_READ		0x10
+#define MBI_REG_WRITE		0x11
+#define MBI_ESRAM_READ		0x12
+#define MBI_ESRAM_WRITE		0x13
+
 /* Baytrail available units */
 #define BT_MBI_UNIT_AUNIT	0x00
 #define BT_MBI_UNIT_SMC		0x01
@@ -28,49 +40,12 @@
 #define BT_MBI_UNIT_SATA	0xA3
 #define BT_MBI_UNIT_PCIE	0xA6
 
-/* Baytrail read/write opcodes */
-#define BT_MBI_AUNIT_READ	0x10
-#define BT_MBI_AUNIT_WRITE	0x11
-#define BT_MBI_SMC_READ		0x10
-#define BT_MBI_SMC_WRITE	0x11
-#define BT_MBI_CPU_READ		0x10
-#define BT_MBI_CPU_WRITE	0x11
-#define BT_MBI_BUNIT_READ	0x10
-#define BT_MBI_BUNIT_WRITE	0x11
-#define BT_MBI_PMC_READ		0x06
-#define BT_MBI_PMC_WRITE	0x07
-#define BT_MBI_GFX_READ		0x00
-#define BT_MBI_GFX_WRITE	0x01
-#define BT_MBI_SMIO_READ	0x06
-#define BT_MBI_SMIO_WRITE	0x07
-#define BT_MBI_USB_READ		0x06
-#define BT_MBI_USB_WRITE	0x07
-#define BT_MBI_SATA_READ	0x00
-#define BT_MBI_SATA_WRITE	0x01
-#define BT_MBI_PCIE_READ	0x00
-#define BT_MBI_PCIE_WRITE	0x01
-
 /* Quark available units */
 #define QRK_MBI_UNIT_HBA	0x00
 #define QRK_MBI_UNIT_HB		0x03
 #define QRK_MBI_UNIT_RMU	0x04
 #define QRK_MBI_UNIT_MM		0x05
-#define QRK_MBI_UNIT_MMESRAM	0x05
 #define QRK_MBI_UNIT_SOC	0x31
-
-/* Quark read/write opcodes */
-#define QRK_MBI_HBA_READ	0x10
-#define QRK_MBI_HBA_WRITE	0x11
-#define QRK_MBI_HB_READ		0x10
-#define QRK_MBI_HB_WRITE	0x11
-#define QRK_MBI_RMU_READ	0x10
-#define QRK_MBI_RMU_WRITE	0x11
-#define QRK_MBI_MM_READ		0x10
-#define QRK_MBI_MM_WRITE	0x11
-#define QRK_MBI_MMESRAM_READ	0x12
-#define QRK_MBI_MMESRAM_WRITE	0x13
-#define QRK_MBI_SOC_READ	0x06
-#define QRK_MBI_SOC_WRITE	0x07
 
 #if IS_ENABLED(CONFIG_IOSF_MBI)
 

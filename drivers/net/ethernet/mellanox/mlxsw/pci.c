@@ -215,7 +215,7 @@ mlxsw_pci_queue_elem_info_producer_get(struct mlxsw_pci_queue *q)
 {
 	int index = q->producer_counter & (q->count - 1);
 
-	if ((q->producer_counter - q->consumer_counter) == q->count)
+	if ((u16) (q->producer_counter - q->consumer_counter) == q->count)
 		return NULL;
 	return mlxsw_pci_queue_elem_info_get(q, index);
 }
@@ -384,7 +384,7 @@ static int mlxsw_pci_sdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 
 	/* Set CQ of same number of this SDQ. */
 	mlxsw_cmd_mbox_sw2hw_dq_cq_set(mbox, q->num);
-	mlxsw_cmd_mbox_sw2hw_dq_sdq_tclass_set(mbox, 7);
+	mlxsw_cmd_mbox_sw2hw_dq_sdq_tclass_set(mbox, 3);
 	mlxsw_cmd_mbox_sw2hw_dq_log2_dq_sz_set(mbox, 3); /* 8 pages */
 	for (i = 0; i < MLXSW_PCI_AQ_PAGES; i++) {
 		dma_addr_t mapaddr = __mlxsw_pci_queue_page_get(q, i);
@@ -686,11 +686,15 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	if (q->consumer_counter++ != consumer_counter_limit)
 		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does not match limit in RDQ\n");
 
-	/* We do not support lag now */
-	if (mlxsw_pci_cqe_lag_get(cqe))
-		goto drop;
+	if (mlxsw_pci_cqe_lag_get(cqe)) {
+		rx_info.is_lag = true;
+		rx_info.u.lag_id = mlxsw_pci_cqe_lag_id_get(cqe);
+		rx_info.lag_port_index = mlxsw_pci_cqe_lag_port_index_get(cqe);
+	} else {
+		rx_info.is_lag = false;
+		rx_info.u.sys_port = mlxsw_pci_cqe_system_port_get(cqe);
+	}
 
-	rx_info.sys_port = mlxsw_pci_cqe_system_port_get(cqe);
 	rx_info.trap_id = mlxsw_pci_cqe_trap_id_get(cqe);
 
 	byte_count = mlxsw_pci_cqe_byte_count_get(cqe);
@@ -699,7 +703,6 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	skb_put(skb, byte_count);
 	mlxsw_core_skb_receive(mlxsw_pci->core, skb, &rx_info);
 
-put_new_skb:
 	memset(wqe, 0, q->elem_size);
 	err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info);
 	if (err)
@@ -708,10 +711,6 @@ put_new_skb:
 	q->producer_counter++;
 	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, q);
 	return;
-
-drop:
-	dev_kfree_skb_any(skb);
-	goto put_new_skb;
 }
 
 static char *mlxsw_pci_cq_sw_cqe_get(struct mlxsw_pci_queue *q)
@@ -1682,11 +1681,18 @@ static const struct mlxsw_bus mlxsw_pci_bus = {
 
 static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci)
 {
+	unsigned long end;
+
 	mlxsw_pci_write32(mlxsw_pci, SW_RESET, MLXSW_PCI_SW_RESET_RST_BIT);
-	/* Current firware does not let us know when the reset is done.
-	 * So we just wait here for constant time and hope for the best.
-	 */
-	msleep(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
+	wmb(); /* reset needs to be written before we read control register */
+	end = jiffies + msecs_to_jiffies(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
+	do {
+		u32 val = mlxsw_pci_read32(mlxsw_pci, FW_READY);
+
+		if ((val & MLXSW_PCI_FW_READY_MASK) == MLXSW_PCI_FW_READY_MAGIC)
+			break;
+		cond_resched();
+	} while (time_before(jiffies, end));
 	return 0;
 }
 

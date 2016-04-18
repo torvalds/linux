@@ -314,6 +314,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	bool was_scanning = local->scanning;
 	struct cfg80211_scan_request *scan_req;
 	struct ieee80211_sub_if_data *scan_sdata;
+	struct ieee80211_sub_if_data *sdata;
 
 	lockdep_assert_held(&local->mtx);
 
@@ -373,7 +374,16 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 
 	ieee80211_mlme_notify_scan_completed(local);
 	ieee80211_ibss_notify_scan_completed(local);
-	ieee80211_mesh_notify_scan_completed(local);
+
+	/* Requeue all the work that might have been ignored while
+	 * the scan was in progress; if there was none this will
+	 * just be a no-op for the particular interface.
+	 */
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (ieee80211_sdata_running(sdata))
+			ieee80211_queue_work(&sdata->local->hw, &sdata->work);
+	}
+
 	if (was_scanning)
 		ieee80211_start_next_roc(local);
 }
@@ -597,8 +607,8 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		/* We need to ensure power level is at max for scanning. */
 		ieee80211_hw_config(local, 0);
 
-		if ((req->channels[0]->flags &
-		     IEEE80211_CHAN_NO_IR) ||
+		if ((req->channels[0]->flags & (IEEE80211_CHAN_NO_IR |
+						IEEE80211_CHAN_RADAR)) ||
 		    !req->n_ssids) {
 			next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
 		} else {
@@ -645,7 +655,7 @@ ieee80211_scan_get_channel_time(struct ieee80211_channel *chan)
 	 * TODO: channel switching also consumes quite some time,
 	 * add that delay as well to get a better estimation
 	 */
-	if (chan->flags & IEEE80211_CHAN_NO_IR)
+	if (chan->flags & (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR))
 		return IEEE80211_PASSIVE_CHANNEL_TIME;
 	return IEEE80211_PROBE_DELAY + IEEE80211_CHANNEL_TIME;
 }
@@ -777,7 +787,8 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	 *
 	 * In any case, it is not necessary for a passive scan.
 	 */
-	if (chan->flags & IEEE80211_CHAN_NO_IR || !scan_req->n_ssids) {
+	if ((chan->flags & (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR)) ||
+	    !scan_req->n_ssids) {
 		*next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
 		local->next_scan_state = SCAN_DECISION;
 		return;
@@ -1211,6 +1222,14 @@ void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw)
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	trace_api_sched_scan_stopped(local);
+
+	/*
+	 * this shouldn't really happen, so for simplicity
+	 * simply ignore it, and let mac80211 reconfigure
+	 * the sched scan later on.
+	 */
+	if (local->in_reconfig)
+		return;
 
 	schedule_work(&local->sched_scan_stopped_work);
 }

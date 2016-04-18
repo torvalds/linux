@@ -348,6 +348,11 @@ struct sge {
 #define for_each_ethrxq(sge, iter) \
 	for (iter = 0; iter < (sge)->ethqsets; iter++)
 
+struct hash_mac_addr {
+	struct list_head list;
+	u8 addr[ETH_ALEN];
+};
+
 /*
  * Per-"adapter" (Virtual Function) information.
  */
@@ -381,6 +386,9 @@ struct adapter {
 
 	/* various locks */
 	spinlock_t stats_lock;
+
+	/* list of MAC addresses in MPS Hash */
+	struct list_head mac_hlist;
 };
 
 enum { /* adapter flags */

@@ -61,7 +61,7 @@
  */
 static __u8 df_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
-0x09, 0x04,         /*  Usage (Joystik),                        */
+0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
 0xA1, 0x02,         /*      Collection (Logical),               */
 0x95, 0x01,         /*          Report Count (1),               */
@@ -127,7 +127,7 @@ static __u8 df_rdesc_fixed[] = {
 
 static __u8 dfp_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
-0x09, 0x04,         /*  Usage (Joystik),                        */
+0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
 0xA1, 0x02,         /*      Collection (Logical),               */
 0x95, 0x01,         /*          Report Count (1),               */
@@ -175,7 +175,7 @@ static __u8 dfp_rdesc_fixed[] = {
 
 static __u8 fv_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
-0x09, 0x04,         /*  Usage (Joystik),                        */
+0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
 0xA1, 0x02,         /*      Collection (Logical),               */
 0x95, 0x01,         /*          Report Count (1),               */
@@ -242,7 +242,7 @@ static __u8 fv_rdesc_fixed[] = {
 
 static __u8 momo_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),               */
-0x09, 0x04,         /*  Usage (Joystik),                    */
+0x09, 0x04,         /*  Usage (Joystick),                   */
 0xA1, 0x01,         /*  Collection (Application),           */
 0xA1, 0x02,         /*      Collection (Logical),           */
 0x95, 0x01,         /*          Report Count (1),           */
@@ -288,7 +288,7 @@ static __u8 momo_rdesc_fixed[] = {
 
 static __u8 momo2_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),               */
-0x09, 0x04,         /*  Usage (Joystik),                    */
+0x09, 0x04,         /*  Usage (Joystick),                   */
 0xA1, 0x01,         /*  Collection (Application),           */
 0xA1, 0x02,         /*      Collection (Logical),           */
 0x95, 0x01,         /*          Report Count (1),           */
@@ -665,8 +665,9 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct lg_drv_data *drv_data;
 	int ret;
 
-	/* Only work with the 1st interface (G29 presents multiple) */
-	if (iface_num != 0) {
+	/* G29 only work with the 1st interface */
+	if ((hdev->product == USB_DEVICE_ID_LOGITECH_G29_WHEEL) &&
+	    (iface_num != 0)) {
 		dbg_hid("%s: ignoring ifnum %d\n", __func__, iface_num);
 		return -ENODEV;
 	}

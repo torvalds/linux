@@ -24,7 +24,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/gpio.h>
-#include <asm/qe.h>
+#include <soc/fsl/qe/qe.h>
 #include "fhci.h"
 
 /* virtual root hub specific descriptor */

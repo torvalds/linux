@@ -67,5 +67,11 @@
 #define PIN_INPUT_PULLUP	(PULL_ENA | INPUT_EN | PULL_UP)
 #define PIN_INPUT_PULLDOWN	(PULL_ENA | INPUT_EN)
 
+/*
+ * Macro to allow using the absolute physical address instead of the
+ * padconf registers instead of the offset from padconf base.
+ */
+#define DRA7XX_CORE_IOPAD(pa, val)	(((pa) & 0xffff) - 0x3400) (val)
+
 #endif
 

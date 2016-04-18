@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -120,7 +120,7 @@
 #define AML_CREATE_WORD_FIELD_OP    (u16) 0x8b
 #define AML_CREATE_BYTE_FIELD_OP    (u16) 0x8c
 #define AML_CREATE_BIT_FIELD_OP     (u16) 0x8d
-#define AML_TYPE_OP                 (u16) 0x8e
+#define AML_OBJECT_TYPE_OP          (u16) 0x8e
 #define AML_CREATE_QWORD_FIELD_OP   (u16) 0x8f	/* ACPI 2.0 */
 #define AML_LAND_OP                 (u16) 0x90
 #define AML_LOR_OP                  (u16) 0x91
@@ -238,7 +238,8 @@
 #define ARGP_TERMLIST               0x0F
 #define ARGP_WORDDATA               0x10
 #define ARGP_QWORDDATA              0x11
-#define ARGP_SIMPLENAME             0x12
+#define ARGP_SIMPLENAME             0x12	/* name_string | local_term | arg_term */
+#define ARGP_NAME_OR_REF            0x13	/* For object_type only */
 
 /*
  * Resolved argument types for the AML Interpreter

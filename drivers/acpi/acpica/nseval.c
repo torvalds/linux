@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -135,7 +135,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 
 	/* Get the full pathname to the object, for use in warning messages */
 
-	info->full_pathname = acpi_ns_get_external_pathname(info->node);
+	info->full_pathname = acpi_ns_get_normalized_pathname(info->node, TRUE);
 	if (!info->full_pathname) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -378,8 +378,7 @@ void acpi_ns_exec_module_code_list(void)
 		acpi_ut_remove_reference(prev);
 	}
 
-	ACPI_INFO((AE_INFO,
-		   "Executed %u blocks of module-level executable AML code",
+	ACPI_INFO(("Executed %u blocks of module-level executable AML code",
 		   method_count));
 
 	ACPI_FREE(info);
@@ -418,7 +417,8 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 	 * Get the parent node. We cheat by using the next_object field
 	 * of the method object descriptor.
 	 */
-	parent_node = ACPI_CAST_PTR(struct acpi_namespace_node,
+	parent_node =
+	    ACPI_CAST_PTR(struct acpi_namespace_node,
 				    method_obj->method.next_object);
 	type = acpi_ns_get_type(parent_node);
 
@@ -444,9 +444,9 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 	info->prefix_node = parent_node;
 
 	/*
-	 * Get the currently attached parent object. Add a reference, because the
-	 * ref count will be decreased when the method object is installed to
-	 * the parent node.
+	 * Get the currently attached parent object. Add a reference,
+	 * because the ref count will be decreased when the method object
+	 * is installed to the parent node.
 	 */
 	parent_obj = acpi_ns_get_attached_object(parent_node);
 	if (parent_obj) {
@@ -455,8 +455,8 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 
 	/* Install the method (module-level code) in the parent node */
 
-	status = acpi_ns_attach_object(parent_node, method_obj,
-				       ACPI_TYPE_METHOD);
+	status =
+	    acpi_ns_attach_object(parent_node, method_obj, ACPI_TYPE_METHOD);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}

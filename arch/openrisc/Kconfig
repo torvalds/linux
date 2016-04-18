@@ -29,9 +29,6 @@ config OPENRISC
 config MMU
 	def_bool y
 
-config HAVE_DMA_ATTRS
-	def_bool y
-
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 

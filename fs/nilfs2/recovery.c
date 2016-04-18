@@ -544,14 +544,14 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 				blocksize, page, NULL);
 
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 
 		(*nr_salvaged_blocks)++;
 		goto next;
 
  failed_page:
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 
  failed_inode:
 		printk(KERN_WARNING
@@ -582,7 +582,7 @@ static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
 				 struct nilfs_recovery_info *ri)
 {
 	struct buffer_head *bh_sum = NULL;
-	struct nilfs_segment_summary *sum;
+	struct nilfs_segment_summary *sum = NULL;
 	sector_t pseg_start;
 	sector_t seg_start, seg_end;  /* Starting/ending DBN of full segment */
 	unsigned long nsalvaged_blocks = 0;
@@ -814,7 +814,7 @@ int nilfs_search_super_root(struct the_nilfs *nilfs,
 			    struct nilfs_recovery_info *ri)
 {
 	struct buffer_head *bh_sum = NULL;
-	struct nilfs_segment_summary *sum;
+	struct nilfs_segment_summary *sum = NULL;
 	sector_t pseg_start, pseg_end, sr_pseg_start = 0;
 	sector_t seg_start, seg_end; /* range of full segment (block number) */
 	sector_t b, end;

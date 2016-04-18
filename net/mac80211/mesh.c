@@ -91,11 +91,10 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	if (sdata->vif.bss_conf.basic_rates != basic_rates)
 		return false;
 
-	ieee80211_ht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
-				     ie->ht_operation, &sta_chan_def);
-
-	ieee80211_vht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
-				      ie->vht_operation, &sta_chan_def);
+	cfg80211_chandef_create(&sta_chan_def, sdata->vif.bss_conf.chandef.chan,
+				NL80211_CHAN_NO_HT);
+	ieee80211_chandef_ht_oper(ie->ht_operation, &sta_chan_def);
+	ieee80211_chandef_vht_oper(ie->vht_operation, &sta_chan_def);
 
 	if (!cfg80211_chandef_compatible(&sdata->vif.bss_conf.chandef,
 					 &sta_chan_def))
@@ -1370,17 +1369,6 @@ out:
 	sdata_unlock(sdata);
 }
 
-void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local)
-{
-	struct ieee80211_sub_if_data *sdata;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list)
-		if (ieee80211_vif_is_mesh(&sdata->vif) &&
-		    ieee80211_sdata_running(sdata))
-			ieee80211_queue_work(&local->hw, &sdata->work);
-	rcu_read_unlock();
-}
 
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 {

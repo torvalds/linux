@@ -89,12 +89,8 @@ static int rcar_du_encoder_atomic_check(struct drm_encoder *encoder,
 	/* The flat panel mode is fixed, just copy it to the adjusted mode. */
 	drm_mode_copy(adjusted_mode, panel_mode);
 
-	/* The internal LVDS encoder has a clock frequency operating range of
-	 * 30MHz to 150MHz. Clamp the clock accordingly.
-	 */
 	if (renc->lvds)
-		adjusted_mode->clock = clamp(adjusted_mode->clock,
-					     30000, 150000);
+		rcar_du_lvdsenc_atomic_check(renc->lvds, adjusted_mode);
 
 	return 0;
 }
@@ -173,7 +169,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			goto done;
 	} else {
 		ret = drm_encoder_init(rcdu->ddev, encoder, &encoder_funcs,
-				       encoder_type);
+				       encoder_type, NULL);
 		if (ret < 0)
 			goto done;
 

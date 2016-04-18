@@ -33,4 +33,7 @@ void nft_meta_set_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt);
 
+void nft_meta_set_destroy(const struct nft_ctx *ctx,
+			  const struct nft_expr *expr);
+
 #endif

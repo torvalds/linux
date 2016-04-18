@@ -60,15 +60,19 @@ enum channel_clientstate {
 	CHANNELCLI_DISABLED = 1,	/* client can see channel but is NOT
 					 * allowed to use it unless given TBD
 					 * explicit request (should actually be
-					 * < DETACHED) */
+					 * < DETACHED)
+					 */
 	CHANNELCLI_ATTACHING = 2,	/* legacy EFI client request
-					 * for EFI server to attach */
+					 * for EFI server to attach
+					 */
 	CHANNELCLI_ATTACHED = 3,	/* idle, but client may want
-					 * to use channel any time */
+					 * to use channel any time
+					 */
 	CHANNELCLI_BUSY = 4,	/* client either wants to use or is
-				 * using channel */
-	CHANNELCLI_OWNED = 5	/* "no worries" state - client can
-				 * access channel anytime */
+				 * using channel
+				 */
+	CHANNELCLI_OWNED = 5	/* "no worries" state - client can */
+				/* access channel anytime */
 };
 
 static inline const u8 *
@@ -116,11 +120,13 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 
 /* Values for ULTRA_CHANNEL_PROTOCOL.CliErrorBoot: */
 /* throttling invalid boot channel statetransition error due to client
- * disabled */
+ * disabled
+ */
 #define ULTRA_CLIERRORBOOT_THROTTLEMSG_DISABLED    0x01
 
 /* throttling invalid boot channel statetransition error due to client
- * not attached */
+ * not attached
+ */
 #define ULTRA_CLIERRORBOOT_THROTTLEMSG_NOTATTACHED 0x02
 
 /* throttling invalid boot channel statetransition error due to busy channel */
@@ -128,24 +134,28 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 
 /* Values for ULTRA_CHANNEL_PROTOCOL.CliErrorOS: */
 /* throttling invalid guest OS channel statetransition error due to
- * client disabled */
+ * client disabled
+ */
 #define ULTRA_CLIERROROS_THROTTLEMSG_DISABLED      0x01
 
 /* throttling invalid guest OS channel statetransition error due to
- * client not attached */
+ * client not attached
+ */
 #define ULTRA_CLIERROROS_THROTTLEMSG_NOTATTACHED   0x02
 
 /* throttling invalid guest OS channel statetransition error due to
- * busy channel */
+ * busy channel
+ */
 #define ULTRA_CLIERROROS_THROTTLEMSG_BUSY          0x04
 
 /* Values for ULTRA_CHANNEL_PROTOCOL.Features: This define exists so
-* that windows guest can look at the FeatureFlags in the io channel,
-* and configure the windows driver to use interrupts or not based on
-* this setting.  This flag is set in uislib after the
-* ULTRA_VHBA_init_channel is called.  All feature bits for all
-* channels should be defined here.  The io channel feature bits are
-* defined right here */
+ * that windows guest can look at the FeatureFlags in the io channel,
+ * and configure the windows driver to use interrupts or not based on
+ * this setting.  This flag is set in uislib after the
+ * ULTRA_VHBA_init_channel is called.  All feature bits for all
+ * channels should be defined here.  The io channel feature bits are
+ * defined right here
+ */
 #define ULTRA_IO_DRIVER_ENABLES_INTS (0x1ULL << 1)
 #define ULTRA_IO_CHANNEL_IS_POLLING (0x1ULL << 3)
 #define ULTRA_IO_IOVM_IS_OK_WITH_DRIVER_DISABLING_INTS (0x1ULL << 4)
@@ -156,7 +166,7 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 struct channel_header {
 	u64 signature;		/* Signature */
 	u32 legacy_state;	/* DEPRECATED - being replaced by */
-	/* /              SrvState, CliStateBoot, and CliStateOS below */
+			/* SrvState, CliStateBoot, and CliStateOS below */
 	u32 header_size;	/* sizeof(struct channel_header) */
 	u64 size;		/* Total size of this channel in bytes */
 	u64 features;		/* Flags to modify behavior */
@@ -169,25 +179,32 @@ struct channel_header {
 	uuid_le zone_uuid;	/* Guid of Channel's zone */
 	u32 cli_str_offset;	/* offset from channel header to
 				 * nul-terminated ClientString (0 if
-				 * ClientString not present) */
+				 * ClientString not present)
+				 */
 	u32 cli_state_boot;	/* CHANNEL_CLIENTSTATE of pre-boot
-				 * EFI client of this channel */
+				 * EFI client of this channel
+				 */
 	u32 cmd_state_cli;	/* CHANNEL_COMMANDSTATE (overloaded in
 				 * Windows drivers, see ServerStateUp,
-				 * ServerStateDown, etc) */
+				 * ServerStateDown, etc)
+				 */
 	u32 cli_state_os;	/* CHANNEL_CLIENTSTATE of Guest OS
-				 * client of this channel */
+				 * client of this channel
+				 */
 	u32 ch_characteristic;	/* CHANNEL_CHARACTERISTIC_<xxx> */
 	u32 cmd_state_srv;	/* CHANNEL_COMMANDSTATE (overloaded in
 				 * Windows drivers, see ServerStateUp,
-				 * ServerStateDown, etc) */
+				 * ServerStateDown, etc)
+				 */
 	u32 srv_state;		/* CHANNEL_SERVERSTATE */
 	u8 cli_error_boot;	/* bits to indicate err states for
 				 * boot clients, so err messages can
-				 * be throttled */
+				 * be throttled
+				 */
 	u8 cli_error_os;	/* bits to indicate err states for OS
 				 * clients, so err messages can be
-				 * throttled */
+				 * throttled
+				 */
 	u8 filler[1];		/* Pad out to 128 byte cacheline */
 	/* Please add all new single-byte values below here */
 	u8 recover_channel;
@@ -205,29 +222,33 @@ struct signal_queue_header {
 	u64 features;		/* Flags to modify behavior */
 	u64 num_sent;		/* Total # of signals placed in this queue */
 	u64 num_overflows;	/* Total # of inserts failed due to
-				 * full queue */
+				 * full queue
+				 */
 	u32 signal_size;	/* Total size of a signal for this queue */
 	u32 max_slots;		/* Max # of slots in queue, 1 slot is
-				 * always empty */
+				 * always empty
+				 */
 	u32 max_signals;	/* Max # of signals in queue
-				 * (MaxSignalSlots-1) */
+				 * (MaxSignalSlots-1)
+				 */
 	u32 head;		/* Queue head signal # */
 	/* 2nd cache line */
 	u64 num_received;	/* Total # of signals removed from this queue */
-	u32 tail;		/* Queue tail signal # (on separate
-				 * cache line) */
+	u32 tail;		/* Queue tail signal */
 	u32 reserved1;		/* Reserved field */
 	u64 reserved2;		/* Reserved field */
 	u64 client_queue;
 	u64 num_irq_received;	/* Total # of Interrupts received.  This
-					 * is incremented by the ISR in the
-					 * guest windows driver */
+				 * is incremented by the ISR in the
+				 * guest windows driver
+				 */
 	u64 num_empty;		/* Number of times that visor_signal_remove
-				 * is called and returned Empty
-				 * Status. */
+				 * is called and returned Empty Status.
+				 */
 	u32 errorflags;		/* Error bits set during SignalReinit
 				 * to denote trouble with client's
-				 * fields */
+				 * fields
+				 */
 	u8 filler[12];		/* Pad out to 64 byte cacheline */
 } __packed;
 
@@ -272,8 +293,7 @@ spar_check_channel_client(void __iomem *ch,
 			return 0;
 		}
 	}
-	if (expected_min_bytes > 0) {	/* caller wants us to verify
-					 * channel size */
+	if (expected_min_bytes > 0) {	/* verify channel size */
 		unsigned long long bytes =
 				readq(&((struct channel_header __iomem *)
 					(ch))->size);
@@ -284,8 +304,7 @@ spar_check_channel_client(void __iomem *ch,
 			return 0;
 		}
 	}
-	if (expected_version > 0) {	/* caller wants us to verify
-					 * channel version */
+	if (expected_version > 0) {	/* verify channel version */
 		unsigned long ver = readl(&((struct channel_header __iomem *)
 				    (ch))->version_id);
 		if (ver != expected_version) {
@@ -295,8 +314,7 @@ spar_check_channel_client(void __iomem *ch,
 			return 0;
 		}
 	}
-	if (expected_signature > 0) {	/* caller wants us to verify
-					 * channel signature */
+	if (expected_signature > 0) {	/* verify channel signature */
 		unsigned long long sig =
 				readq(&((struct channel_header __iomem *)
 					(ch))->signature);
@@ -319,8 +337,7 @@ static inline int spar_check_channel_server(uuid_le typeuuid, char *name,
 					    u64 expected_min_bytes,
 					    u64 actual_bytes)
 {
-	if (expected_min_bytes > 0)	/* caller wants us to verify
-					 * channel size */
+	if (expected_min_bytes > 0)	/* verify channel size */
 		if (actual_bytes < expected_min_bytes) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8llx actual=0x%-8.8llx\n",
 			       name, &typeuuid, expected_min_bytes,
@@ -354,7 +371,8 @@ pathname_last_n_nodes(u8 *s, unsigned int n)
 		if (p == s)
 			break;	/* should never happen, unless someone
 				 * is changing the string while we are
-				 * looking at it!! */
+				 * looking at it!!
+				 */
 		if ((*p == '/') || (*p == '\\'))
 			n--;
 	}
@@ -395,7 +413,8 @@ spar_channel_client_acquire_os(void __iomem *ch, u8 *id)
 	if (readl(&hdr->cli_state_os) == CHANNELCLI_OWNED) {
 		if (readb(&hdr->cli_error_os) != 0) {
 			/* we are in an error msg throttling state;
-			 * come out of it */
+			 * come out of it
+			 */
 			pr_info("%s Channel OS client acquire now successful\n",
 				id);
 			writeb(0, &hdr->cli_error_os);
@@ -404,8 +423,9 @@ spar_channel_client_acquire_os(void __iomem *ch, u8 *id)
 	}
 
 	/* We have to do it the "hard way".  We transition to BUSY,
-	* and can use the channel iff our competitor has not also
-	* transitioned to BUSY. */
+	 * and can use the channel iff our competitor has not also
+	 * transitioned to BUSY.
+	 */
 	if (readl(&hdr->cli_state_os) != CHANNELCLI_ATTACHED) {
 		if ((readb(&hdr->cli_error_os)
 		     & ULTRA_CLIERROROS_THROTTLEMSG_NOTATTACHED) == 0) {

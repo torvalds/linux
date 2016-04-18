@@ -23,6 +23,7 @@
 
 #include <linux/types.h>
 #include <linux/etherdevice.h>
+#include <linux/cpumask.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
 #include <linux/pci.h>
@@ -33,7 +34,7 @@
 #include "fm10k_pf.h"
 #include "fm10k_vf.h"
 
-#define FM10K_MAX_JUMBO_FRAME_SIZE	15358	/* Maximum supported size 15K */
+#define FM10K_MAX_JUMBO_FRAME_SIZE	15342	/* Maximum supported size 15K */
 
 #define MAX_QUEUES	FM10K_MAX_QUEUES_PF
 
@@ -66,6 +67,7 @@ struct fm10k_l2_accel {
 enum fm10k_ring_state_t {
 	__FM10K_TX_DETECT_HANG,
 	__FM10K_HANG_CHECK_ARMED,
+	__FM10K_TX_XPS_INIT_DONE,
 };
 
 #define check_for_tx_hang(ring) \
@@ -138,7 +140,7 @@ struct fm10k_ring {
 					 * different for DCB and RSS modes
 					 */
 	u8 qos_pc;			/* priority class of queue */
-	u16 vid;			/* default vlan ID of queue */
+	u16 vid;			/* default VLAN ID of queue */
 	u16 count;			/* amount of descriptors */
 
 	u16 next_to_alloc;
@@ -164,14 +166,20 @@ struct fm10k_ring_container {
 	unsigned int total_packets;	/* total packets processed this int */
 	u16 work_limit;			/* total work allowed per interrupt */
 	u16 itr;			/* interrupt throttle rate value */
+	u8 itr_scale;			/* ITR adjustment based on PCI speed */
 	u8 count;			/* total number of rings in vector */
 };
 
 #define FM10K_ITR_MAX		0x0FFF	/* maximum value for ITR */
 #define FM10K_ITR_10K		100	/* 100us */
 #define FM10K_ITR_20K		50	/* 50us */
+#define FM10K_ITR_40K		25	/* 25us */
 #define FM10K_ITR_ADAPTIVE	0x8000	/* adaptive interrupt moderation flag */
 
+#define ITR_IS_ADAPTIVE(itr) (!!(itr & FM10K_ITR_ADAPTIVE))
+
+#define FM10K_TX_ITR_DEFAULT	FM10K_ITR_40K
+#define FM10K_RX_ITR_DEFAULT	FM10K_ITR_20K
 #define FM10K_ITR_ENABLE	(FM10K_ITR_AUTOMASK | FM10K_ITR_MASK_CLEAR)
 
 static inline struct netdev_queue *txring_txq(const struct fm10k_ring *ring)
@@ -203,6 +211,7 @@ struct fm10k_q_vector {
 	struct fm10k_ring_container rx, tx;
 
 	struct napi_struct napi;
+	cpumask_t affinity_mask;
 	char name[IFNAMSIZ + 9];
 
 #ifdef CONFIG_DEBUG_FS
@@ -413,7 +422,7 @@ static inline u16 fm10k_desc_unused(struct fm10k_ring *ring)
 	 (&(((union fm10k_rx_desc *)((R)->desc))[i]))
 
 #define FM10K_MAX_TXD_PWR	14
-#define FM10K_MAX_DATA_PER_TXD	(1 << FM10K_MAX_TXD_PWR)
+#define FM10K_MAX_DATA_PER_TXD	BIT(FM10K_MAX_TXD_PWR)
 
 /* Tx Descriptors needed, worst case */
 #define TXD_USE_COUNT(S)	DIV_ROUND_UP((S), FM10K_MAX_DATA_PER_TXD)
@@ -434,7 +443,7 @@ union fm10k_ftag_info {
 	struct {
 		/* dglort and sglort combined into a single 32bit desc read */
 		__le32 glort;
-		/* upper 16 bits of vlan are reserved 0 for swpri_type_user */
+		/* upper 16 bits of VLAN are reserved 0 for swpri_type_user */
 		__le32 vlan;
 	} d;
 	struct {
@@ -484,7 +493,7 @@ void fm10k_netpoll(struct net_device *netdev);
 #endif
 
 /* Netdev */
-struct net_device *fm10k_alloc_netdev(void);
+struct net_device *fm10k_alloc_netdev(const struct fm10k_info *info);
 int fm10k_setup_rx_resources(struct fm10k_ring *);
 int fm10k_setup_tx_resources(struct fm10k_ring *);
 void fm10k_free_rx_resources(struct fm10k_ring *);
@@ -551,5 +560,9 @@ int fm10k_get_ts_config(struct net_device *netdev, struct ifreq *ifr);
 int fm10k_set_ts_config(struct net_device *netdev, struct ifreq *ifr);
 
 /* DCB */
+#ifdef CONFIG_DCB
 void fm10k_dcbnl_set_ops(struct net_device *dev);
+#else
+static inline void fm10k_dcbnl_set_ops(struct net_device *dev) {}
+#endif
 #endif /* _FM10K_H_ */

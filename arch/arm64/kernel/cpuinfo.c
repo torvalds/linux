@@ -30,6 +30,7 @@
 #include <linux/seq_file.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
+#include <linux/delay.h>
 
 /*
  * In case the boot CPU is hotpluggable, we record its initial state and
@@ -58,6 +59,8 @@ static const char *const hwcap_str[] = {
 	"sha2",
 	"crc32",
 	"atomics",
+	"fphp",
+	"asimdhp",
 	NULL
 };
 
@@ -111,6 +114,10 @@ static int c_show(struct seq_file *m, void *v)
 		 * "processor".  Give glibc what it expects.
 		 */
 		seq_printf(m, "processor\t: %d\n", i);
+
+		seq_printf(m, "BogoMIPS\t: %lu.%02lu\n",
+			   loops_per_jiffy / (500000UL/HZ),
+			   loops_per_jiffy / (5000UL/HZ) % 100);
 
 		/*
 		 * Dump out the common processor features in a single line.
@@ -205,6 +212,7 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_id_aa64isar1 = read_cpuid(ID_AA64ISAR1_EL1);
 	info->reg_id_aa64mmfr0 = read_cpuid(ID_AA64MMFR0_EL1);
 	info->reg_id_aa64mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
+	info->reg_id_aa64mmfr2 = read_cpuid(ID_AA64MMFR2_EL1);
 	info->reg_id_aa64pfr0 = read_cpuid(ID_AA64PFR0_EL1);
 	info->reg_id_aa64pfr1 = read_cpuid(ID_AA64PFR1_EL1);
 

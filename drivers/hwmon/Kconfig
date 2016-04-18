@@ -321,6 +321,15 @@ config SENSORS_APPLESMC
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of applesmc.
 
+config SENSORS_ARM_SCPI
+	tristate "ARM SCPI Sensors"
+	depends on ARM_SCPI_PROTOCOL
+	depends on THERMAL || !THERMAL_OF
+	help
+	  This driver provides support for temperature, voltage, current
+	  and power sensors available on ARM Ltd's SCP based platforms. The
+	  actual number and type of sensors exported depend on the platform.
+
 config SENSORS_ASB100
 	tristate "Asus ASB100 Bach"
 	depends on X86 && I2C
@@ -676,6 +685,20 @@ config SENSORS_LTC2945
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc2945.
 
+config SENSORS_LTC2990
+	tristate "Linear Technology LTC2990 (current monitoring mode only)"
+	depends on I2C
+	help
+	  If you say yes here you get support for Linear Technology LTC2990
+	  I2C System Monitor. The LTC2990 supports a combination of voltage,
+	  current and temperature monitoring, but in addition to the Vcc supply
+	  voltage and chip temperature, this driver currently only supports
+	  reading two currents by measuring two differential voltages across
+	  series resistors.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2990.
+
 config SENSORS_LTC4151
 	tristate "Linear Technology LTC4151"
 	depends on I2C
@@ -849,16 +872,6 @@ config SENSORS_MAX31790
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called max31790.
-
-config SENSORS_HTU21
-	tristate "Measurement Specialties HTU21D humidity/temperature sensors"
-	depends on I2C
-	help
-	  If you say yes here you get support for the Measurement Specialties
-	  HTU21D humidity and temperature sensors.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called htu21.
 
 config SENSORS_MCP3021
 	tristate "Microchip MCP3021 and compatibles"
@@ -1128,7 +1141,7 @@ config SENSORS_NTC_THERMISTOR
 
 	  Currently, this driver supports
 	  NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473, NCP15WL333,
-	  and NCP03WF104 from Murata and B57330V2103 from EPCOS.
+	  NCP03WF104 and NCP15XH103 from Murata and B57330V2103 from EPCOS.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ntc-thermistor.
@@ -1177,6 +1190,21 @@ config SENSORS_NCT7904
 	  This driver can also be built as a module.  If so, the module
 	  will be called nct7904.
 
+config SENSORS_NSA320
+	tristate "ZyXEL NSA320 and compatible fan speed and temperature sensors"
+	depends on GPIOLIB && OF
+	depends on MACH_KIRKWOOD || COMPILE_TEST
+	help
+	  If you say yes here you get support for hardware monitoring
+	  for the ZyXEL NSA320 Media Server and other compatible devices
+	  (probably the NSA325 and some NSA310 variants).
+
+	  The sensor data is taken from a Holtek HT46R065 microcontroller
+	  connected to GPIO lines.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nsa320-hwmon.
+
 config SENSORS_PCF8591
 	tristate "Philips PCF8591 ADC/DAC"
 	depends on I2C
@@ -1208,6 +1236,7 @@ config SENSORS_PWM_FAN
 config SENSORS_SHT15
 	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."
 	depends on GPIOLIB || COMPILE_TEST
+	select BITREVERSE
 	help
 	  If you say yes here you get support for the Sensiron SHT10, SHT11,
 	  SHT15, SHT71, SHT75 humidity and temperature sensors.
@@ -1463,6 +1492,7 @@ config SENSORS_INA209
 config SENSORS_INA2XX
 	tristate "Texas Instruments INA219 and compatibles"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for INA219, INA220, INA226,
 	  INA230, and INA231 power monitor chips.

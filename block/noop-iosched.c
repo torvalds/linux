@@ -21,10 +21,10 @@ static void noop_merged_requests(struct request_queue *q, struct request *rq,
 static int noop_dispatch(struct request_queue *q, int force)
 {
 	struct noop_data *nd = q->elevator->elevator_data;
+	struct request *rq;
 
-	if (!list_empty(&nd->queue)) {
-		struct request *rq;
-		rq = list_entry(nd->queue.next, struct request, queuelist);
+	rq = list_first_entry_or_null(&nd->queue, struct request, queuelist);
+	if (rq) {
 		list_del_init(&rq->queuelist);
 		elv_dispatch_sort(q, rq);
 		return 1;
@@ -46,7 +46,7 @@ noop_former_request(struct request_queue *q, struct request *rq)
 
 	if (rq->queuelist.prev == &nd->queue)
 		return NULL;
-	return list_entry(rq->queuelist.prev, struct request, queuelist);
+	return list_prev_entry(rq, queuelist);
 }
 
 static struct request *
@@ -56,7 +56,7 @@ noop_latter_request(struct request_queue *q, struct request *rq)
 
 	if (rq->queuelist.next == &nd->queue)
 		return NULL;
-	return list_entry(rq->queuelist.next, struct request, queuelist);
+	return list_next_entry(rq, queuelist);
 }
 
 static int noop_init_queue(struct request_queue *q, struct elevator_type *e)

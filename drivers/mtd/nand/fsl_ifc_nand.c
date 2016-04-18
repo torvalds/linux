@@ -40,7 +40,6 @@ struct fsl_ifc_ctrl;
 
 /* mtd information per set */
 struct fsl_ifc_mtd {
-	struct mtd_info mtd;
 	struct nand_chip chip;
 	struct fsl_ifc_ctrl *ctrl;
 
@@ -230,8 +229,8 @@ static struct nand_bbt_descr bbt_mirror_descr = {
  */
 static void set_addr(struct mtd_info *mtd, int column, int page_addr, int oob)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
 	int buf_num;
@@ -253,8 +252,8 @@ static void set_addr(struct mtd_info *mtd, int column, int page_addr, int oob)
 
 static int is_blank(struct mtd_info *mtd, unsigned int bufnum)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	u8 __iomem *addr = priv->vbase + bufnum * (mtd->writesize * 2);
 	u32 __iomem *mainarea = (u32 __iomem *)addr;
 	u8 __iomem *oob = addr + mtd->writesize;
@@ -292,8 +291,8 @@ static int check_read_ecc(struct mtd_info *mtd, struct fsl_ifc_ctrl *ctrl,
  */
 static void fsl_ifc_run_command(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_nand_ctrl *nctrl = ifc_nand_ctrl;
 	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
@@ -370,7 +369,7 @@ static void fsl_ifc_do_read(struct nand_chip *chip,
 			    int oob,
 			    struct mtd_info *mtd)
 {
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
 
@@ -409,8 +408,8 @@ static void fsl_ifc_do_read(struct nand_chip *chip,
 /* cmdfunc send commands to the IFC NAND Machine */
 static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 			     int column, int page_addr) {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
 
@@ -624,8 +623,8 @@ static void fsl_ifc_select_chip(struct mtd_info *mtd, int chip)
  */
 static void fsl_ifc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	unsigned int bufsize = mtd->writesize + mtd->oobsize;
 
 	if (len <= 0) {
@@ -650,8 +649,8 @@ static void fsl_ifc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
  */
 static uint8_t fsl_ifc_read_byte(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	unsigned int offset;
 
 	/*
@@ -673,8 +672,8 @@ static uint8_t fsl_ifc_read_byte(struct mtd_info *mtd)
  */
 static uint8_t fsl_ifc_read_byte16(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	uint16_t data;
 
 	/*
@@ -696,8 +695,8 @@ static uint8_t fsl_ifc_read_byte16(struct mtd_info *mtd)
  */
 static void fsl_ifc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	int avail;
 
 	if (len < 0) {
@@ -722,7 +721,7 @@ static void fsl_ifc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
  */
 static int fsl_ifc_wait(struct mtd_info *mtd, struct nand_chip *chip)
 {
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
 	u32 nand_fsr;
@@ -751,7 +750,7 @@ static int fsl_ifc_wait(struct mtd_info *mtd, struct nand_chip *chip)
 static int fsl_ifc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			     uint8_t *buf, int oob_required, int page)
 {
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_nand_ctrl *nctrl = ifc_nand_ctrl;
 
@@ -782,8 +781,8 @@ static int fsl_ifc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 static int fsl_ifc_chip_init_tail(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_ifc_mtd *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 
 	dev_dbg(priv->dev, "%s: nand->numchips = %d\n", __func__,
 							chip->numchips);
@@ -877,12 +876,13 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
 	struct nand_chip *chip = &priv->chip;
+	struct mtd_info *mtd = nand_to_mtd(&priv->chip);
 	struct nand_ecclayout *layout;
 	u32 csor;
 
 	/* Fill in fsl_ifc_mtd structure */
-	priv->mtd.priv = chip;
-	priv->mtd.dev.parent = priv->dev;
+	mtd->dev.parent = priv->dev;
+	nand_set_flash_node(chip, priv->dev->of_node);
 
 	/* fill in nand_chip structure */
 	/* set up function call table */
@@ -914,7 +914,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	}
 
 	chip->controller = &ifc_nand_ctrl->controller;
-	chip->priv = priv;
+	nand_set_controller_data(chip, priv);
 
 	chip->ecc.read_page = fsl_ifc_read_page;
 	chip->ecc.write_page = fsl_ifc_write_page;
@@ -993,9 +993,11 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 static int fsl_ifc_chip_remove(struct fsl_ifc_mtd *priv)
 {
-	nand_release(&priv->mtd);
+	struct mtd_info *mtd = nand_to_mtd(&priv->chip);
 
-	kfree(priv->mtd.name);
+	nand_release(mtd);
+
+	kfree(mtd->name);
 
 	if (priv->vbase)
 		iounmap(priv->vbase);
@@ -1030,9 +1032,8 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	int ret;
 	int bank;
 	struct device_node *node = dev->dev.of_node;
-	struct mtd_part_parser_data ppdata;
+	struct mtd_info *mtd;
 
-	ppdata.of_node = dev->dev.of_node;
 	if (!fsl_ifc_ctrl_dev || !fsl_ifc_ctrl_dev->regs)
 		return -ENODEV;
 	ifc = fsl_ifc_ctrl_dev->regs;
@@ -1104,8 +1105,10 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 		  IFC_NAND_EVTER_INTR_FTOERIR_EN |
 		  IFC_NAND_EVTER_INTR_WPERIR_EN,
 		  &ifc->ifc_nand.nand_evter_intr_en);
-	priv->mtd.name = kasprintf(GFP_KERNEL, "%llx.flash", (u64)res.start);
-	if (!priv->mtd.name) {
+
+	mtd = nand_to_mtd(&priv->chip);
+	mtd->name = kasprintf(GFP_KERNEL, "%llx.flash", (u64)res.start);
+	if (!mtd->name) {
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -1114,22 +1117,21 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	if (ret)
 		goto err;
 
-	ret = nand_scan_ident(&priv->mtd, 1, NULL);
+	ret = nand_scan_ident(mtd, 1, NULL);
 	if (ret)
 		goto err;
 
-	ret = fsl_ifc_chip_init_tail(&priv->mtd);
+	ret = fsl_ifc_chip_init_tail(mtd);
 	if (ret)
 		goto err;
 
-	ret = nand_scan_tail(&priv->mtd);
+	ret = nand_scan_tail(mtd);
 	if (ret)
 		goto err;
 
 	/* First look for RedBoot table or partitions on the command
 	 * line, these take precedence over device tree information */
-	mtd_device_parse_register(&priv->mtd, part_probe_types, &ppdata,
-						NULL, 0);
+	mtd_device_parse_register(mtd, part_probe_types, NULL, NULL, 0);
 
 	dev_info(priv->dev, "IFC NAND device at 0x%llx, bank %d\n",
 		 (unsigned long long)res.start, priv->bank);

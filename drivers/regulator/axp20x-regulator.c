@@ -27,8 +27,8 @@
 #define AXP20X_IO_ENABLED		0x03
 #define AXP20X_IO_DISABLED		0x07
 
-#define AXP22X_IO_ENABLED		0x04
-#define AXP22X_IO_DISABLED		0x03
+#define AXP22X_IO_ENABLED		0x03
+#define AXP22X_IO_DISABLED		0x04
 
 #define AXP20X_WORKMODE_DCDC2_MASK	BIT(2)
 #define AXP20X_WORKMODE_DCDC3_MASK	BIT(1)
@@ -39,7 +39,7 @@
 #define AXP_DESC_IO(_family, _id, _match, _supply, _min, _max, _step, _vreg,	\
 		    _vmask, _ereg, _emask, _enable_val, _disable_val)		\
 	[_family##_##_id] = {							\
-		.name		= #_id,						\
+		.name		= (_match),					\
 		.supply_name	= (_supply),					\
 		.of_match	= of_match_ptr(_match),				\
 		.regulators_node = of_match_ptr("regulators"),			\
@@ -61,7 +61,7 @@
 #define AXP_DESC(_family, _id, _match, _supply, _min, _max, _step, _vreg,	\
 		 _vmask, _ereg, _emask) 					\
 	[_family##_##_id] = {							\
-		.name		= #_id,						\
+		.name		= (_match),					\
 		.supply_name	= (_supply),					\
 		.of_match	= of_match_ptr(_match),				\
 		.regulators_node = of_match_ptr("regulators"),			\
@@ -78,21 +78,15 @@
 		.ops		= &axp20x_ops,					\
 	}
 
-#define AXP_DESC_SW(_family, _id, _match, _supply, _min, _max, _step, _vreg,	\
-		    _vmask, _ereg, _emask) 					\
+#define AXP_DESC_SW(_family, _id, _match, _supply, _ereg, _emask)		\
 	[_family##_##_id] = {							\
-		.name		= #_id,						\
+		.name		= (_match),					\
 		.supply_name	= (_supply),					\
 		.of_match	= of_match_ptr(_match),				\
 		.regulators_node = of_match_ptr("regulators"),			\
 		.type		= REGULATOR_VOLTAGE,				\
 		.id		= _family##_##_id,				\
-		.n_voltages	= (((_max) - (_min)) / (_step) + 1),		\
 		.owner		= THIS_MODULE,					\
-		.min_uV		= (_min) * 1000,				\
-		.uV_step	= (_step) * 1000,				\
-		.vsel_reg	= (_vreg),					\
-		.vsel_mask	= (_vmask),					\
 		.enable_reg	= (_ereg),					\
 		.enable_mask	= (_emask),					\
 		.ops		= &axp20x_ops_sw,				\
@@ -100,7 +94,7 @@
 
 #define AXP_DESC_FIXED(_family, _id, _match, _supply, _volt)			\
 	[_family##_##_id] = {							\
-		.name		= #_id,						\
+		.name		= (_match),					\
 		.supply_name	= (_supply),					\
 		.of_match	= of_match_ptr(_match),				\
 		.regulators_node = of_match_ptr("regulators"),			\
@@ -112,39 +106,34 @@
 		.ops		= &axp20x_ops_fixed				\
 	}
 
-#define AXP_DESC_TABLE(_family, _id, _match, _supply, _table, _vreg, _vmask,	\
-		       _ereg, _emask)						\
+#define AXP_DESC_RANGES(_family, _id, _match, _supply, _ranges, _n_voltages,	\
+			_vreg, _vmask, _ereg, _emask)				\
 	[_family##_##_id] = {							\
-		.name		= #_id,						\
+		.name		= (_match),					\
 		.supply_name	= (_supply),					\
 		.of_match	= of_match_ptr(_match),				\
 		.regulators_node = of_match_ptr("regulators"),			\
 		.type		= REGULATOR_VOLTAGE,				\
 		.id		= _family##_##_id,				\
-		.n_voltages	= ARRAY_SIZE(_table),				\
+		.n_voltages	= (_n_voltages),				\
 		.owner		= THIS_MODULE,					\
 		.vsel_reg	= (_vreg),					\
 		.vsel_mask	= (_vmask),					\
 		.enable_reg	= (_ereg),					\
 		.enable_mask	= (_emask),					\
-		.volt_table	= (_table),					\
-		.ops		= &axp20x_ops_table,				\
+		.linear_ranges	= (_ranges),					\
+		.n_linear_ranges = ARRAY_SIZE(_ranges),				\
+		.ops		= &axp20x_ops_range,				\
 	}
-
-static const int axp20x_ldo4_data[] = { 1250000, 1300000, 1400000, 1500000, 1600000,
-					1700000, 1800000, 1900000, 2000000, 2500000,
-					2700000, 2800000, 3000000, 3100000, 3200000,
-					3300000 };
 
 static struct regulator_ops axp20x_ops_fixed = {
 	.list_voltage		= regulator_list_voltage_linear,
 };
 
-static struct regulator_ops axp20x_ops_table = {
+static struct regulator_ops axp20x_ops_range = {
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
-	.list_voltage		= regulator_list_voltage_table,
-	.map_voltage		= regulator_map_voltage_ascend,
+	.list_voltage		= regulator_list_voltage_linear_range,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -160,11 +149,15 @@ static struct regulator_ops axp20x_ops = {
 };
 
 static struct regulator_ops axp20x_ops_sw = {
-	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
-	.list_voltage		= regulator_list_voltage_linear,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
+};
+
+static const struct regulator_linear_range axp20x_ldo4_ranges[] = {
+	REGULATOR_LINEAR_RANGE(1250000, 0x0, 0x0, 0),
+	REGULATOR_LINEAR_RANGE(1300000, 0x1, 0x8, 100000),
+	REGULATOR_LINEAR_RANGE(2500000, 0x9, 0xf, 100000),
 };
 
 static const struct regulator_desc axp20x_regulators[] = {
@@ -177,8 +170,9 @@ static const struct regulator_desc axp20x_regulators[] = {
 		 AXP20X_LDO24_V_OUT, 0xf0, AXP20X_PWR_OUT_CTRL, 0x04),
 	AXP_DESC(AXP20X, LDO3, "ldo3", "ldo3in", 700, 3500, 25,
 		 AXP20X_LDO3_V_OUT, 0x7f, AXP20X_PWR_OUT_CTRL, 0x40),
-	AXP_DESC_TABLE(AXP20X, LDO4, "ldo4", "ldo24in", axp20x_ldo4_data,
-		       AXP20X_LDO24_V_OUT, 0x0f, AXP20X_PWR_OUT_CTRL, 0x08),
+	AXP_DESC_RANGES(AXP20X, LDO4, "ldo4", "ldo24in", axp20x_ldo4_ranges,
+			16, AXP20X_LDO24_V_OUT, 0x0f, AXP20X_PWR_OUT_CTRL,
+			0x08),
 	AXP_DESC_IO(AXP20X, LDO5, "ldo5", "ldo5in", 1800, 3300, 100,
 		    AXP20X_LDO5_V_OUT, 0xf0, AXP20X_GPIO0_CTRL, 0x07,
 		    AXP20X_IO_ENABLED, AXP20X_IO_DISABLED),
@@ -196,8 +190,8 @@ static const struct regulator_desc axp22x_regulators[] = {
 	AXP_DESC(AXP22X, DCDC5, "dcdc5", "vin5", 1000, 2550, 50,
 		 AXP22X_DCDC5_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL1, BIT(5)),
 	/* secondary switchable output of DCDC1 */
-	AXP_DESC_SW(AXP22X, DC1SW, "dc1sw", NULL, 1600, 3400, 100,
-		    AXP22X_DCDC1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(7)),
+	AXP_DESC_SW(AXP22X, DC1SW, "dc1sw", NULL, AXP22X_PWR_OUT_CTRL2,
+		    BIT(7)),
 	/* LDO regulator internally chained to DCDC5 */
 	AXP_DESC(AXP22X, DC5LDO, "dc5ldo", NULL, 700, 1400, 100,
 		 AXP22X_DC5LDO_V_OUT, 0x7, AXP22X_PWR_OUT_CTRL1, BIT(0)),
@@ -244,6 +238,7 @@ static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 		step = 75;
 		break;
 	case AXP221_ID:
+	case AXP223_ID:
 		min = 1800;
 		max = 4050;
 		def = 3000;
@@ -322,6 +317,7 @@ static int axp20x_set_dcdc_workmode(struct regulator_dev *rdev, int id, u32 work
 		break;
 
 	case AXP221_ID:
+	case AXP223_ID:
 		if (id < AXP22X_DCDC1 || id > AXP22X_DCDC5)
 			return -EINVAL;
 
@@ -360,6 +356,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		nregulators = AXP20X_REG_ID_MAX;
 		break;
 	case AXP221_ID:
+	case AXP223_ID:
 		regulators = axp22x_regulators;
 		nregulators = AXP22X_REG_ID_MAX;
 		break;

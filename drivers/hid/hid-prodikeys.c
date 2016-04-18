@@ -103,7 +103,7 @@ MODULE_PARM_DESC(enable, "Enable for the PC-MIDI virtual audio driver");
 static ssize_t show_channel(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	dbg_hid("pcmidi sysfs read channel=%u\n", pk->pm->midi_channel);
@@ -116,7 +116,7 @@ static ssize_t show_channel(struct device *dev,
 static ssize_t store_channel(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	unsigned channel = 0;
@@ -140,7 +140,7 @@ static struct device_attribute *sysfs_device_attr_channel = {
 static ssize_t show_sustain(struct device *dev,
  struct device_attribute *attr, char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	dbg_hid("pcmidi sysfs read sustain=%u\n", pk->pm->midi_sustain);
@@ -153,7 +153,7 @@ static ssize_t show_sustain(struct device *dev,
 static ssize_t store_sustain(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	unsigned sustain = 0;
@@ -179,7 +179,7 @@ static struct device_attribute *sysfs_device_attr_sustain = {
 static ssize_t show_octave(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	dbg_hid("pcmidi sysfs read octave=%d\n", pk->pm->midi_octave);
@@ -192,7 +192,7 @@ static ssize_t show_octave(struct device *dev,
 static ssize_t store_octave(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	int octave = 0;

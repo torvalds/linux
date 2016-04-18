@@ -15,6 +15,7 @@
 #define QTREE_DEL_REWRITE 6
 
 struct dquot;
+struct kqid;
 
 /* Operations */
 struct qtree_fmt_operations {
@@ -34,7 +35,7 @@ struct qtree_mem_dqinfo {
 	unsigned int dqi_entry_size;	/* Size of quota entry in quota file */
 	unsigned int dqi_usable_bs;	/* Space usable in block for quota data */
 	unsigned int dqi_qtree_depth;	/* Precomputed depth of quota tree */
-	struct qtree_fmt_operations *dqi_ops;	/* Operations for entry manipulation */
+	const struct qtree_fmt_operations *dqi_ops; /* Operations for entry manipulation */
 };
 
 int qtree_write_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot);
@@ -52,5 +53,6 @@ static inline int qtree_depth(struct qtree_mem_dqinfo *info)
 		entries *= epb;
 	return i;
 }
+int qtree_get_next_id(struct qtree_mem_dqinfo *info, struct kqid *qid);
 
 #endif /* _LINUX_DQBLK_QTREE_H */

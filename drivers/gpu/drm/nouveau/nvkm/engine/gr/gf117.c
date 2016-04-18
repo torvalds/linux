@@ -135,6 +135,7 @@ gf117_gr = {
 		{ -1, -1, FERMI_B, &gf100_fermi },
 		{ -1, -1, FERMI_C, &gf100_fermi },
 		{ -1, -1, FERMI_COMPUTE_A },
+		{ -1, -1, FERMI_COMPUTE_B },
 		{}
 	}
 };

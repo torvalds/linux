@@ -474,7 +474,7 @@ static int bcm_uart_startup(struct uart_port *port)
 
 	/* register irq and enable rx interrupts */
 	ret = request_irq(port->irq, bcm_uart_interrupt, 0,
-			  bcm_uart_type(port), port);
+			  dev_name(port->dev), port);
 	if (ret)
 		return ret;
 	bcm_uart_writel(port, UART_RX_INT_MASK, UART_IR_REG);
@@ -653,7 +653,7 @@ static struct uart_ops bcm_uart_ops = {
 
 
 #ifdef CONFIG_SERIAL_BCM63XX_CONSOLE
-static inline void wait_for_xmitr(struct uart_port *port)
+static void wait_for_xmitr(struct uart_port *port)
 {
 	unsigned int tmout;
 

@@ -49,7 +49,8 @@
 	};
 
 	choosen {
-		bootargs = "console=ttyS0,115200 earlyprintk";
+		bootargs = "earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	regulators {
@@ -83,17 +84,49 @@
 			gpio = <&portb 12 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
+
+		reg_sdio1_vmmc: regulator@3 {
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-name = "sdio1_vmmc";
+			enable-active-high;
+			regulator-boot-on;
+			gpio = <&portb 21 GPIO_ACTIVE_HIGH>;
+		};
+
+		reg_sdio1_vqmmc: regulator@4 {
+			compatible = "regulator-gpio";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-name = "sdio1_vqmmc";
+			regulator-type = "voltage";
+			enable-active-high;
+			gpios = <&portb 16 GPIO_ACTIVE_HIGH>;
+			states = <3300000 0x1
+				  1800000 0x0>;
+		};
+	};
+};
+
+&soc_pinctrl {
+	sd1gpio_pmux: sd1pwr-pmux {
+		groups = "G23", "G32";
+		function = "gpio";
 	};
 };
 
 &sdhci1 {
-	broken-cd;
-	sdhci,wp-inverted;
+	vmmc-supply = <&reg_sdio1_vmmc>;
+	vqmmc-supply = <&reg_sdio1_vqmmc>;
+	cd-gpios = <&portc 30 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&portd 0 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&sd1gpio_pmux>, <&sd1_pmux>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
 &sdhci2 {
-	broken-cd;
 	bus-width = <8>;
 	non-removable;
 	status = "okay";

@@ -542,39 +542,50 @@ bnad_cq_drop_packet(struct bnad *bnad, struct bna_rcb *rcb,
 }
 
 static void
-bnad_cq_setup_skb_frags(struct bna_rcb *rcb, struct sk_buff *skb,
-			u32 sop_ci, u32 nvecs, u32 last_fraglen)
+bnad_cq_setup_skb_frags(struct bna_ccb *ccb, struct sk_buff *skb, u32 nvecs)
 {
+	struct bna_rcb *rcb;
 	struct bnad *bnad;
-	u32 ci, vec, len, totlen = 0;
 	struct bnad_rx_unmap_q *unmap_q;
-	struct bnad_rx_unmap *unmap;
+	struct bna_cq_entry *cq, *cmpl;
+	u32 ci, pi, totlen = 0;
 
+	cq = ccb->sw_q;
+	pi = ccb->producer_index;
+	cmpl = &cq[pi];
+
+	rcb = bna_is_small_rxq(cmpl->rxq_id) ? ccb->rcb[1] : ccb->rcb[0];
 	unmap_q = rcb->unmap_q;
 	bnad = rcb->bnad;
+	ci = rcb->consumer_index;
 
 	/* prefetch header */
-	prefetch(page_address(unmap_q->unmap[sop_ci].page) +
-			unmap_q->unmap[sop_ci].page_offset);
+	prefetch(page_address(unmap_q->unmap[ci].page) +
+		 unmap_q->unmap[ci].page_offset);
 
-	for (vec = 1, ci = sop_ci; vec <= nvecs; vec++) {
+	while (nvecs--) {
+		struct bnad_rx_unmap *unmap;
+		u32 len;
+
 		unmap = &unmap_q->unmap[ci];
 		BNA_QE_INDX_INC(ci, rcb->q_depth);
 
 		dma_unmap_page(&bnad->pcidev->dev,
-				dma_unmap_addr(&unmap->vector, dma_addr),
-				unmap->vector.len, DMA_FROM_DEVICE);
+			       dma_unmap_addr(&unmap->vector, dma_addr),
+			       unmap->vector.len, DMA_FROM_DEVICE);
 
-		len = (vec == nvecs) ?
-			last_fraglen : unmap->vector.len;
+		len = ntohs(cmpl->length);
 		skb->truesize += unmap->vector.len;
 		totlen += len;
 
 		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
-				unmap->page, unmap->page_offset, len);
+				   unmap->page, unmap->page_offset, len);
 
 		unmap->page = NULL;
 		unmap->vector.len = 0;
+
+		BNA_QE_INDX_INC(pi, ccb->q_depth);
+		cmpl = &cq[pi];
 	}
 
 	skb->len += totlen;
@@ -704,7 +715,7 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 		if (BNAD_RXBUF_IS_SK_BUFF(unmap_q->type))
 			bnad_cq_setup_skb(bnad, skb, unmap, len);
 		else
-			bnad_cq_setup_skb_frags(rcb, skb, sop_ci, nvecs, len);
+			bnad_cq_setup_skb_frags(ccb, skb, nvecs);
 
 		rcb->rxq->rx_packets++;
 		rcb->rxq->rx_bytes += totlen;

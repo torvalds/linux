@@ -105,6 +105,15 @@
 			bitclock-master;
 		};
 	};
+
+	panel: panel {
+		compatible = "nec,nl4827hc19-05b";
+	};
+};
+
+&dcu {
+	fsl,panel = <&panel>;
+	status = "okay";
 };
 
 &dspi1 {
@@ -144,6 +153,19 @@
 
 &i2c0 {
 	status = "okay";
+
+	ina220@40 {
+		compatible = "ti,ina220";
+		reg = <0x40>;
+		shunt-resistor = <1000>;
+	};
+
+	ina220@41 {
+		compatible = "ti,ina220";
+		reg = <0x41>;
+		shunt-resistor = <1000>;
+	};
+
 };
 
 &i2c1 {
@@ -196,6 +218,10 @@
 };
 
 &sai1 {
+	status = "okay";
+};
+
+&sata {
 	status = "okay";
 };
 

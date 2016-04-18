@@ -368,6 +368,7 @@ void __init omap5_map_io(void)
 void __init dra7xx_map_io(void)
 {
 	iotable_init(dra7xx_io_desc, ARRAY_SIZE(dra7xx_io_desc));
+	omap_barriers_init();
 }
 #endif
 /*
@@ -612,8 +613,7 @@ void __init ti814x_init_early(void)
 	ti814x_clockdomains_init();
 	dm814x_hwmod_init();
 	omap_hwmod_init_postsetup();
-	if (of_have_populated_dt())
-		omap_clk_soc_init = dm814x_dt_clk_init;
+	omap_clk_soc_init = dm814x_dt_clk_init;
 }
 
 void __init ti816x_init_early(void)

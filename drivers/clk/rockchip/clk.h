@@ -2,6 +2,9 @@
  * Copyright (c) 2014 MundoReader S.L.
  * Author: Heiko Stuebner <heiko@sntech.de>
  *
+ * Copyright (c) 2015 Rockchip Electronics Co. Ltd.
+ * Author: Xing Zheng <zhengxing@rock-chips.com>
+ *
  * based on
  *
  * samsung/clk.h
@@ -30,7 +33,7 @@ struct clk;
 #define HIWORD_UPDATE(val, mask, shift) \
 		((val) << (shift) | (mask) << ((shift) + 16))
 
-/* register positions shared by RK2928, RK3066 and RK3188 */
+/* register positions shared by RK2928, RK3036, RK3066, RK3188 and RK3228 */
 #define RK2928_PLL_CON(x)		((x) * 0x4)
 #define RK2928_MODE_CON		0x40
 #define RK2928_CLKSEL_CON(x)	((x) * 0x4 + 0x44)
@@ -39,6 +42,22 @@ struct clk;
 #define RK2928_GLB_SRST_SND		0x104
 #define RK2928_SOFTRST_CON(x)	((x) * 0x4 + 0x110)
 #define RK2928_MISC_CON		0x134
+
+#define RK3036_SDMMC_CON0		0x144
+#define RK3036_SDMMC_CON1		0x148
+#define RK3036_SDIO_CON0		0x14c
+#define RK3036_SDIO_CON1		0x150
+#define RK3036_EMMC_CON0		0x154
+#define RK3036_EMMC_CON1		0x158
+
+#define RK3228_GLB_SRST_FST		0x1f0
+#define RK3228_GLB_SRST_SND		0x1f4
+#define RK3228_SDMMC_CON0		0x1c0
+#define RK3228_SDMMC_CON1		0x1c4
+#define RK3228_SDIO_CON0		0x1c8
+#define RK3228_SDIO_CON1		0x1cc
+#define RK3228_EMMC_CON0		0x1d8
+#define RK3228_EMMC_CON1		0x1dc
 
 #define RK3288_PLL_CON(x)		RK2928_PLL_CON(x)
 #define RK3288_MODE_CON			0x50
@@ -74,8 +93,21 @@ struct clk;
 #define RK3368_EMMC_CON1		0x41c
 
 enum rockchip_pll_type {
+	pll_rk3036,
 	pll_rk3066,
 };
+
+#define RK3036_PLL_RATE(_rate, _refdiv, _fbdiv, _postdiv1,	\
+			_postdiv2, _dsmpd, _frac)		\
+{								\
+	.rate	= _rate##U,					\
+	.fbdiv = _fbdiv,					\
+	.postdiv1 = _postdiv1,					\
+	.refdiv = _refdiv,					\
+	.postdiv2 = _postdiv2,					\
+	.dsmpd = _dsmpd,					\
+	.frac = _frac,						\
+}
 
 #define RK3066_PLL_RATE(_rate, _nr, _nf, _no)	\
 {						\
@@ -101,6 +133,13 @@ struct rockchip_pll_rate_table {
 	unsigned int nf;
 	unsigned int no;
 	unsigned int nb;
+	/* for RK3036 */
+	unsigned int fbdiv;
+	unsigned int postdiv1;
+	unsigned int refdiv;
+	unsigned int postdiv2;
+	unsigned int dsmpd;
+	unsigned int frac;
 };
 
 /**
@@ -215,6 +254,7 @@ enum rockchip_clk_branch_type {
 	branch_gate,
 	branch_mmc,
 	branch_inverter,
+	branch_factor,
 };
 
 struct rockchip_clk_branch {
@@ -235,6 +275,7 @@ struct rockchip_clk_branch {
 	int				gate_offset;
 	u8				gate_shift;
 	u8				gate_flags;
+	struct rockchip_clk_branch	*child;
 };
 
 #define COMPOSITE(_id, cname, pnames, f, mo, ms, mw, mf, ds, dw,\
@@ -369,6 +410,24 @@ struct rockchip_clk_branch {
 		.gate_flags	= gf,				\
 	}
 
+#define COMPOSITE_FRACMUX(_id, cname, pname, f, mo, df, go, gs, gf, ch) \
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_fraction_divider,	\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.muxdiv_offset	= mo,				\
+		.div_shift	= 16,				\
+		.div_width	= 16,				\
+		.div_flags	= df,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gs,				\
+		.gate_flags	= gf,				\
+		.child		= ch,				\
+	}
+
 #define MUX(_id, cname, pnames, f, o, s, w, mf)			\
 	{							\
 		.id		= _id,				\
@@ -450,6 +509,33 @@ struct rockchip_clk_branch {
 		.div_flags	= if,				\
 	}
 
+#define FACTOR(_id, cname, pname,  f, fm, fd)			\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_factor,		\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.div_shift	= fm,				\
+		.div_width	= fd,				\
+	}
+
+#define FACTOR_GATE(_id, cname, pname,  f, fm, fd, go, gb, gf)	\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_factor,		\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.div_shift	= fm,				\
+		.div_width	= fd,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gb,				\
+		.gate_flags	= gf,				\
+	}
+
 void rockchip_clk_init(struct device_node *np, void __iomem *base,
 		       unsigned long nr_clks);
 struct regmap *rockchip_clk_get_grf(void);
@@ -464,7 +550,7 @@ void rockchip_clk_register_armclk(unsigned int lookup_id, const char *name,
 			const struct rockchip_cpuclk_rate_table *rates,
 			int nrates);
 void rockchip_clk_protect_critical(const char *const clocks[], int nclocks);
-void rockchip_register_restart_notifier(unsigned int reg);
+void rockchip_register_restart_notifier(unsigned int reg, void (*cb)(void));
 
 #define ROCKCHIP_SOFTRST_HIWORD_MASK	BIT(0)
 

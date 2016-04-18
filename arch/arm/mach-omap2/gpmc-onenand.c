@@ -101,10 +101,8 @@ static void omap2_onenand_set_async_mode(void __iomem *onenand_base)
 
 static void set_onenand_cfg(void __iomem *onenand_base)
 {
-	u32 reg;
+	u32 reg = ONENAND_SYS_CFG1_RDY | ONENAND_SYS_CFG1_INT;
 
-	reg = readw(onenand_base + ONENAND_REG_SYS_CFG1);
-	reg &= ~((0x7 << ONENAND_SYS_CFG1_BRL_SHIFT) | (0x7 << 9));
 	reg |=	(latency << ONENAND_SYS_CFG1_BRL_SHIFT) |
 		ONENAND_SYS_CFG1_BL_16;
 	if (onenand_flags & ONENAND_FLAG_SYNCREAD)
@@ -123,6 +121,7 @@ static void set_onenand_cfg(void __iomem *onenand_base)
 		reg |= ONENAND_SYS_CFG1_VHF;
 	else
 		reg &= ~ONENAND_SYS_CFG1_VHF;
+
 	writew(reg, onenand_base + ONENAND_REG_SYS_CFG1);
 }
 
@@ -149,8 +148,8 @@ static int omap2_onenand_get_freq(struct omap_onenand_platform_data *cfg,
 		freq = 104;
 		break;
 	default:
-		freq = 54;
-		break;
+		pr_err("onenand rate not detected, bad GPMC async timings?\n");
+		freq = 0;
 	}
 
 	return freq;
@@ -271,6 +270,11 @@ static int omap2_onenand_setup_async(void __iomem *onenand_base)
 	struct gpmc_timings t;
 	int ret;
 
+	/*
+	 * Note that we need to keep sync_write set for the call to
+	 * omap2_onenand_set_async_mode() to work to detect the onenand
+	 * supported clock rate for the sync timings.
+	 */
 	if (gpmc_onenand_data->of_node) {
 		gpmc_read_settings_dt(gpmc_onenand_data->of_node,
 				      &onenand_async);
@@ -281,12 +285,10 @@ static int omap2_onenand_setup_async(void __iomem *onenand_base)
 			else
 				gpmc_onenand_data->flags |= ONENAND_SYNC_READ;
 			onenand_async.sync_read = false;
-			onenand_async.sync_write = false;
 		}
 	}
 
-	omap2_onenand_set_async_mode(onenand_base);
-
+	onenand_async.sync_write = true;
 	omap2_onenand_calc_async_timings(&t);
 
 	ret = gpmc_cs_program_settings(gpmc_onenand_data->cs, &onenand_async);
@@ -310,6 +312,8 @@ static int omap2_onenand_setup_sync(void __iomem *onenand_base, int *freq_ptr)
 	if (!freq) {
 		/* Very first call freq is not known */
 		freq = omap2_onenand_get_freq(gpmc_onenand_data, onenand_base);
+		if (!freq)
+			return -ENODEV;
 		set_onenand_cfg(onenand_base);
 	}
 

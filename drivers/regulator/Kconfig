@@ -78,6 +78,15 @@ config REGULATOR_ACT8865
 	  This driver controls a active-semi act8865 voltage output
 	  regulator via I2C bus.
 
+config REGULATOR_ACT8945A
+	tristate "Active-semi ACT8945A voltage regulator"
+	depends on MFD_ACT8945A
+	help
+	  This driver controls a active-semi ACT8945A voltage regulator
+	  via I2C bus. The ACT8945A features three step-down DC/DC converters
+	  and four low-dropout linear regulators, along with a ActivePath
+	  battery charger.
+
 config REGULATOR_AD5398
 	tristate "Analog Devices AD5398/AD5821 regulators"
 	depends on I2C
@@ -261,6 +270,14 @@ config REGULATOR_HI6421
 	  21 general purpose LDOs, 3 dedicated LDOs, and 5 BUCKs. All
 	  of them come with support to either ECO (idle) or sleep mode.
 
+config REGULATOR_HI655X
+	tristate "Hisilicon HI655X PMIC regulators support"
+	depends on ARCH_HISI || COMPILE_TEST
+	depends on MFD_HI655X_PMIC && OF
+	help
+	  This driver provides support for the voltage regulators of the
+	  Hisilicon Hi655x PMIC device.
+
 config REGULATOR_ISL9305
 	tristate "Intersil ISL9305 regulator"
 	depends on I2C
@@ -273,6 +290,15 @@ config REGULATOR_ISL6271A
 	depends on I2C
 	help
 	  This driver supports ISL6271A voltage regulator chip.
+
+config REGULATOR_LM363X
+	tristate "TI LM363X voltage regulators"
+	depends on MFD_TI_LMU
+	help
+	  This driver supports LM3631 and LM3632 voltage regulators for
+	  the LCD bias.
+	  One boost output voltage is configurable and always on.
+	  Other LDOs are used for the display module.
 
 config REGULATOR_LP3971
 	tristate "National Semiconductors LP3971 PMIC regulator driver"
@@ -333,6 +359,15 @@ config REGULATOR_MAX1586
 	  This driver controls a Maxim 1586 or 1587 voltage output
 	  regulator via I2C bus. The provided regulator is suitable
 	  for PXA27x chips to control VCC_CORE and VCC_USIM voltages.
+
+config REGULATOR_MAX77620
+	tristate "Maxim 77620/MAX20024 voltage regulator"
+	depends on MFD_MAX77620
+	help
+	  This driver controls Maxim MAX77620 voltage output regulator
+	  via I2C bus. The provided regulator is suitable for Tegra
+	  chip to control Step-Down DC-DC and LDOs. Say Y here to
+	  enable the regulator driver.
 
 config REGULATOR_MAX8649
 	tristate "Maxim 8649 voltage regulator"
@@ -446,6 +481,7 @@ config REGULATOR_MC13892
 config REGULATOR_MT6311
 	tristate "MediaTek MT6311 PMIC"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  Say y here to select this option to enable the power regulator of
 	  MediaTek MT6311 PMIC.
@@ -503,6 +539,22 @@ config REGULATOR_PFUZE100
 	help
 	  Say y here to support the regulators found on the Freescale
 	  PFUZE100/PFUZE200 PMIC.
+
+config REGULATOR_PV88060
+	tristate "Powerventure Semiconductor PV88060 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support the voltage regulators and convertors
+	  PV88060
+
+config REGULATOR_PV88090
+	tristate "Powerventure Semiconductor PV88090 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support the voltage regulators and convertors
+	  on PV88090
 
 config REGULATOR_PWM
 	tristate "PWM voltage regulator"
@@ -588,10 +640,10 @@ config REGULATOR_S2MPA01
 	 via I2C bus. S2MPA01 has 10 Bucks and 26 LDO outputs.
 
 config REGULATOR_S2MPS11
-	tristate "Samsung S2MPS11/S2MPS13/S2MPS14/S2MPU02 voltage regulator"
+	tristate "Samsung S2MPS11/13/14/15/S2MPU02 voltage regulator"
 	depends on MFD_SEC_CORE
 	help
-	 This driver supports a Samsung S2MPS11/S2MPS13/S2MPS14/S2MPU02 voltage
+	 This driver supports a Samsung S2MPS11/13/14/15/S2MPU02 voltage
 	 output regulator via I2C bus. The chip is comprised of high efficient
 	 Buck converters including Dual-Phase Buck converter, Buck-Boost
 	 converter, various LDOs.
@@ -680,6 +732,13 @@ config REGULATOR_TPS6507X
 	  three step-down converters and two general-purpose LDO voltage regulators.
 	  It supports TI's software based Class-2 SmartReflex implementation.
 
+config REGULATOR_TPS65086
+	tristate "TI TPS65086 Power regulators"
+	depends on MFD_TPS65086
+	help
+	  This driver provides support for the voltage regulators on
+	  TI TPS65086 PMICs.
+
 config REGULATOR_TPS65090
 	tristate "TI TPS65090 Power regulator"
 	depends on MFD_TPS65090
@@ -729,7 +788,7 @@ config REGULATOR_TPS65910
 
 config REGULATOR_TPS65912
 	tristate "TI TPS65912 Power regulator"
-	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
+	depends on MFD_TPS65912
 	help
 	    This driver supports TPS65912 voltage regulator chip.
 

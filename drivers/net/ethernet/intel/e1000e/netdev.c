@@ -1905,29 +1905,14 @@ static irqreturn_t e1000_msix_other(int __always_unused irq, void *data)
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 icr = er32(ICR);
 
-	if (!(icr & E1000_ICR_INT_ASSERTED)) {
-		if (!test_bit(__E1000_DOWN, &adapter->state))
-			ew32(IMS, E1000_IMS_OTHER);
-		return IRQ_NONE;
+	hw->mac.get_link_status = true;
+
+	/* guard against interrupt when we're going down */
+	if (!test_bit(__E1000_DOWN, &adapter->state)) {
+		mod_timer(&adapter->watchdog_timer, jiffies + 1);
+		ew32(IMS, E1000_IMS_OTHER);
 	}
-
-	if (icr & adapter->eiac_mask)
-		ew32(ICS, (icr & adapter->eiac_mask));
-
-	if (icr & E1000_ICR_OTHER) {
-		if (!(icr & E1000_ICR_LSC))
-			goto no_link_interrupt;
-		hw->mac.get_link_status = true;
-		/* guard against interrupt when we're going down */
-		if (!test_bit(__E1000_DOWN, &adapter->state))
-			mod_timer(&adapter->watchdog_timer, jiffies + 1);
-	}
-
-no_link_interrupt:
-	if (!test_bit(__E1000_DOWN, &adapter->state))
-		ew32(IMS, E1000_IMS_LSC | E1000_IMS_OTHER);
 
 	return IRQ_HANDLED;
 }
@@ -1946,6 +1931,9 @@ static irqreturn_t e1000_intr_msix_tx(int __always_unused irq, void *data)
 		/* Ring was not completely cleaned, so fire another interrupt */
 		ew32(ICS, tx_ring->ims_val);
 
+	if (!test_bit(__E1000_DOWN, &adapter->state))
+		ew32(IMS, adapter->tx_ring->ims_val);
+
 	return IRQ_HANDLED;
 }
 
@@ -1959,8 +1947,10 @@ static irqreturn_t e1000_intr_msix_rx(int __always_unused irq, void *data)
 	 * previous interrupt.
 	 */
 	if (rx_ring->set_itr) {
-		writel(1000000000 / (rx_ring->itr_val * 256),
-		       rx_ring->itr_register);
+		u32 itr = rx_ring->itr_val ?
+			  1000000000 / (rx_ring->itr_val * 256) : 0;
+
+		writel(itr, rx_ring->itr_register);
 		rx_ring->set_itr = 0;
 	}
 
@@ -2025,6 +2015,7 @@ static void e1000_configure_msix(struct e1000_adapter *adapter)
 		       hw->hw_addr + E1000_EITR_82574(vector));
 	else
 		writel(1, hw->hw_addr + E1000_EITR_82574(vector));
+	adapter->eiac_mask |= E1000_IMS_OTHER;
 
 	/* Cause Tx interrupts on every write back */
 	ivar |= (1 << 31);
@@ -2032,12 +2023,8 @@ static void e1000_configure_msix(struct e1000_adapter *adapter)
 	ew32(IVAR, ivar);
 
 	/* enable MSI-X PBA support */
-	ctrl_ext = er32(CTRL_EXT);
-	ctrl_ext |= E1000_CTRL_EXT_PBA_CLR;
-
-	/* Auto-Mask Other interrupts upon ICR read */
-	ew32(IAM, ~E1000_EIAC_MASK_82574 | E1000_IMS_OTHER);
-	ctrl_ext |= E1000_CTRL_EXT_EIAME;
+	ctrl_ext = er32(CTRL_EXT) & ~E1000_CTRL_EXT_IAME;
+	ctrl_ext |= E1000_CTRL_EXT_PBA_CLR | E1000_CTRL_EXT_EIAME;
 	ew32(CTRL_EXT, ctrl_ext);
 	e1e_flush();
 }
@@ -2253,7 +2240,7 @@ static void e1000_irq_enable(struct e1000_adapter *adapter)
 
 	if (adapter->msix_entries) {
 		ew32(EIAC_82574, adapter->eiac_mask & E1000_EIAC_MASK_82574);
-		ew32(IMS, adapter->eiac_mask | E1000_IMS_OTHER | E1000_IMS_LSC);
+		ew32(IMS, adapter->eiac_mask | E1000_IMS_LSC);
 	} else if ((hw->mac.type == e1000_pch_lpt) ||
 		   (hw->mac.type == e1000_pch_spt)) {
 		ew32(IMS, IMS_ENABLE_MASK | E1000_IMS_ECCER);
@@ -4144,10 +4131,24 @@ void e1000e_reset(struct e1000_adapter *adapter)
 
 }
 
-int e1000e_up(struct e1000_adapter *adapter)
+/**
+ * e1000e_trigger_lsc - trigger an LSC interrupt
+ * @adapter: 
+ *
+ * Fire a link status change interrupt to start the watchdog.
+ **/
+static void e1000e_trigger_lsc(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 
+	if (adapter->msix_entries)
+		ew32(ICS, E1000_ICS_OTHER);
+	else
+		ew32(ICS, E1000_ICS_LSC);
+}
+
+void e1000e_up(struct e1000_adapter *adapter)
+{
 	/* hardware has been reset, we need to reload some things */
 	e1000_configure(adapter);
 
@@ -4159,13 +4160,7 @@ int e1000e_up(struct e1000_adapter *adapter)
 
 	netif_start_queue(adapter->netdev);
 
-	/* fire a link change interrupt to start the watchdog */
-	if (adapter->msix_entries)
-		ew32(ICS, E1000_ICS_LSC | E1000_ICR_OTHER);
-	else
-		ew32(ICS, E1000_ICS_LSC);
-
-	return 0;
+	e1000e_trigger_lsc(adapter);
 }
 
 static void e1000e_flush_descriptors(struct e1000_adapter *adapter)
@@ -4590,11 +4585,7 @@ static int e1000_open(struct net_device *netdev)
 	hw->mac.get_link_status = true;
 	pm_runtime_put(&pdev->dev);
 
-	/* fire a link status change interrupt to start the watchdog */
-	if (adapter->msix_entries)
-		ew32(ICS, E1000_ICS_LSC | E1000_ICR_OTHER);
-	else
-		ew32(ICS, E1000_ICS_LSC);
+	e1000e_trigger_lsc(adapter);
 
 	return 0;
 
@@ -6631,7 +6622,7 @@ static int e1000e_pm_runtime_resume(struct device *dev)
 		return rc;
 
 	if (netdev->flags & IFF_UP)
-		rc = e1000e_up(adapter);
+		e1000e_up(adapter);
 
 	return rc;
 }
@@ -6822,13 +6813,8 @@ static void e1000_io_resume(struct pci_dev *pdev)
 
 	e1000_init_manageability_pt(adapter);
 
-	if (netif_running(netdev)) {
-		if (e1000e_up(adapter)) {
-			dev_err(&pdev->dev,
-				"can't bring device back up after reset\n");
-			return;
-		}
-	}
+	if (netif_running(netdev))
+		e1000e_up(adapter);
 
 	netif_device_attach(netdev);
 
@@ -7465,6 +7451,11 @@ static const struct pci_device_id e1000_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V), board_pch_spt },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_LM2), board_pch_spt },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V2), board_pch_spt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LBG_I219_LM3), board_pch_spt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_LM4), board_pch_spt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V4), board_pch_spt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_LM5), board_pch_spt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V5), board_pch_spt },
 
 	{ 0, 0, 0, 0, 0, 0, 0 }	/* terminate list */
 };
@@ -7504,14 +7495,11 @@ static struct pci_driver e1000_driver = {
  **/
 static int __init e1000_init_module(void)
 {
-	int ret;
-
 	pr_info("Intel(R) PRO/1000 Network Driver - %s\n",
 		e1000e_driver_version);
 	pr_info("Copyright(c) 1999 - 2015 Intel Corporation.\n");
-	ret = pci_register_driver(&e1000_driver);
 
-	return ret;
+	return pci_register_driver(&e1000_driver);
 }
 module_init(e1000_init_module);
 

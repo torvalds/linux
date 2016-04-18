@@ -18,16 +18,15 @@
 #include <asm/unaligned.h>
 #include <linux/iio/common/st_sensors.h>
 
-
-#define ST_SENSORS_WAI_ADDRESS		0x0f
+#include "st_sensors_core.h"
 
 static inline u32 st_sensors_get_unaligned_le24(const u8 *p)
 {
 	return (s32)((p[0] | p[1] << 8 | p[2] << 16) << 8) >> 8;
 }
 
-static int st_sensors_write_data_with_mask(struct iio_dev *indio_dev,
-						u8 reg_addr, u8 mask, u8 data)
+int st_sensors_write_data_with_mask(struct iio_dev *indio_dev,
+				    u8 reg_addr, u8 mask, u8 data)
 {
 	int err;
 	u8 new_data;

@@ -49,7 +49,7 @@ to this new MFP mechanism, here are several key points:
      internal controllers like PWM, SSP and UART, with 128 internal signals
      which can be routed to external through one or more MFPs (e.g. GPIO<0>
      can be routed through either MFP_PIN_GPIO0 as well as MFP_PIN_GPIO0_2,
-     see arch/arm/mach-pxa/mach/include/mfp-pxa300.h)
+     see arch/arm/mach-pxa/mfp-pxa300.h)
 
   2. Alternate function configuration is removed from this GPIO controller,
      the remaining functions are pure GPIO-specific, i.e.
@@ -76,11 +76,11 @@ For board code writers, here are some guidelines:
 
 1. include ONE of the following header files in your <board>.c:
 
-   - #include <mach/mfp-pxa25x.h>
-   - #include <mach/mfp-pxa27x.h>
-   - #include <mach/mfp-pxa300.h>
-   - #include <mach/mfp-pxa320.h>
-   - #include <mach/mfp-pxa930.h>
+   - #include "mfp-pxa25x.h"
+   - #include "mfp-pxa27x.h"
+   - #include "mfp-pxa300.h"
+   - #include "mfp-pxa320.h"
+   - #include "mfp-pxa930.h"
 
    NOTE: only one file in your <board>.c, depending on the processors used,
    because pin configuration definitions may conflict in these file (i.e.
@@ -203,20 +203,20 @@ make them effective there-after.
     1. Unified pin definitions - enum constants for all configurable pins
     2. processor-neutral bit definitions for a possible MFP configuration
 
-  - arch/arm/mach-pxa/include/mach/mfp-pxa3xx.h
+  - arch/arm/mach-pxa/mfp-pxa3xx.h
 
   for PXA3xx specific MFPR register bit definitions and PXA3xx common pin
   configurations
 
-  - arch/arm/mach-pxa/include/mach/mfp-pxa2xx.h
+  - arch/arm/mach-pxa/mfp-pxa2xx.h
 
   for PXA2xx specific definitions and PXA25x/PXA27x common pin configurations
 
-  - arch/arm/mach-pxa/include/mach/mfp-pxa25x.h
-    arch/arm/mach-pxa/include/mach/mfp-pxa27x.h
-    arch/arm/mach-pxa/include/mach/mfp-pxa300.h
-    arch/arm/mach-pxa/include/mach/mfp-pxa320.h
-    arch/arm/mach-pxa/include/mach/mfp-pxa930.h
+  - arch/arm/mach-pxa/mfp-pxa25x.h
+    arch/arm/mach-pxa/mfp-pxa27x.h
+    arch/arm/mach-pxa/mfp-pxa300.h
+    arch/arm/mach-pxa/mfp-pxa320.h
+    arch/arm/mach-pxa/mfp-pxa930.h
 
   for processor specific definitions
 

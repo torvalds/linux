@@ -6,7 +6,9 @@ used for what purposes, but which don't use an on-flash partition table such
 as RedBoot.
 
 The partition table should be a subnode of the mtd node and should be named
-'partitions'. Partitions are defined in subnodes of the partitions node.
+'partitions'. This node should have the following property:
+- compatible : (required) must be "fixed-partitions"
+Partitions are then defined in subnodes of the partitions node.
 
 For backwards compatibility partitions as direct subnodes of the mtd device are
 supported. This use is discouraged.
@@ -30,12 +32,15 @@ Optional properties:
   partition should only be mounted read-only. This is usually used for flash
   partitions containing early-boot firmware images or data which should not be
   clobbered.
+- lock : Do not unlock the partition at initialization time (not supported on
+  all devices)
 
 Examples:
 
 
 flash@0 {
 	partitions {
+		compatible = "fixed-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -53,6 +58,7 @@ flash@0 {
 
 flash@1 {
 	partitions {
+		compatible = "fixed-partitions";
 		#address-cells = <1>;
 		#size-cells = <2>;
 
@@ -66,6 +72,7 @@ flash@1 {
 
 flash@2 {
 	partitions {
+		compatible = "fixed-partitions";
 		#address-cells = <2>;
 		#size-cells = <2>;
 

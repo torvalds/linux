@@ -89,9 +89,11 @@ static const struct nicvf_stat nicvf_drv_stats[] = {
 	NICVF_DRV_STAT(rx_frames_1518),
 	NICVF_DRV_STAT(rx_frames_jumbo),
 	NICVF_DRV_STAT(rx_drops),
+	NICVF_DRV_STAT(rcv_buffer_alloc_failures),
 	NICVF_DRV_STAT(tx_frames_ok),
 	NICVF_DRV_STAT(tx_tso),
 	NICVF_DRV_STAT(tx_drops),
+	NICVF_DRV_STAT(tx_timeout),
 	NICVF_DRV_STAT(txq_stop),
 	NICVF_DRV_STAT(txq_wake),
 };
@@ -112,6 +114,13 @@ static int nicvf_get_settings(struct net_device *netdev,
 
 	cmd->supported = 0;
 	cmd->transceiver = XCVR_EXTERNAL;
+
+	if (!nic->link_up) {
+		cmd->duplex = DUPLEX_UNKNOWN;
+		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+		return 0;
+	}
+
 	if (nic->speed <= 1000) {
 		cmd->port = PORT_MII;
 		cmd->autoneg = AUTONEG_ENABLE;
@@ -123,6 +132,13 @@ static int nicvf_get_settings(struct net_device *netdev,
 	ethtool_cmd_speed_set(cmd, nic->speed);
 
 	return 0;
+}
+
+static u32 nicvf_get_link(struct net_device *netdev)
+{
+	struct nicvf *nic = netdev_priv(netdev);
+
+	return nic->link_up;
 }
 
 static void nicvf_get_drvinfo(struct net_device *netdev,
@@ -660,7 +676,7 @@ static int nicvf_set_channels(struct net_device *dev,
 
 static const struct ethtool_ops nicvf_ethtool_ops = {
 	.get_settings		= nicvf_get_settings,
-	.get_link		= ethtool_op_get_link,
+	.get_link		= nicvf_get_link,
 	.get_drvinfo		= nicvf_get_drvinfo,
 	.get_msglevel		= nicvf_get_msglevel,
 	.set_msglevel		= nicvf_set_msglevel,

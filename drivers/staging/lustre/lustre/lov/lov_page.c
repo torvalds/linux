@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -57,7 +57,7 @@ static int lov_page_invariant(const struct cl_page_slice *slice)
 	const struct cl_page  *page = slice->cpl_page;
 	const struct cl_page  *sub  = lov_sub_page(slice);
 
-	return ergo(sub != NULL,
+	return ergo(sub,
 		    page->cp_child == sub &&
 		    sub->cp_parent == page &&
 		    page->cp_state == sub->cp_state);
@@ -70,7 +70,7 @@ static void lov_page_fini(const struct lu_env *env,
 
 	LINVRNT(lov_page_invariant(slice));
 
-	if (sub != NULL) {
+	if (sub) {
 		LASSERT(sub->cp_state == CPS_FREEING);
 		lu_ref_del(&sub->cp_reference, "lov", sub->cp_parent);
 		sub->cp_parent = NULL;
@@ -151,7 +151,7 @@ static const struct cl_page_operations lov_page_ops = {
 static void lov_empty_page_fini(const struct lu_env *env,
 				struct cl_page_slice *slice)
 {
-	LASSERT(slice->cpl_page->cp_child == NULL);
+	LASSERT(!slice->cpl_page->cp_child);
 }
 
 int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
@@ -172,8 +172,7 @@ int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	offset = cl_offset(obj, page->cp_index);
 	stripe = lov_stripe_number(loo->lo_lsm, offset);
 	LASSERT(stripe < r0->lo_nr);
-	rc = lov_stripe_offset(loo->lo_lsm, offset, stripe,
-				   &suboff);
+	rc = lov_stripe_offset(loo->lo_lsm, offset, stripe, &suboff);
 	LASSERT(rc == 0);
 
 	lpg->lps_invalid = 1;

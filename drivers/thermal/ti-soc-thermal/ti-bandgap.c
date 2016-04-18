@@ -1265,7 +1265,7 @@ static
 int ti_bandgap_probe(struct platform_device *pdev)
 {
 	struct ti_bandgap *bgp;
-	int clk_rate, ret = 0, i;
+	int clk_rate, ret, i;
 
 	bgp = ti_bandgap_build(pdev);
 	if (IS_ERR(bgp)) {
@@ -1273,6 +1273,10 @@ int ti_bandgap_probe(struct platform_device *pdev)
 		return PTR_ERR(bgp);
 	}
 	bgp->dev = &pdev->dev;
+
+	if (TI_BANDGAP_HAS(bgp, UNRELIABLE))
+		dev_warn(&pdev->dev,
+			 "This OMAP thermal sensor is unreliable. You've been warned\n");
 
 	if (TI_BANDGAP_HAS(bgp, TSHUT)) {
 		ret = ti_bandgap_tshut_init(bgp, pdev);
@@ -1284,16 +1288,14 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	}
 
 	bgp->fclock = clk_get(NULL, bgp->conf->fclock_name);
-	ret = IS_ERR(bgp->fclock);
-	if (ret) {
+	if (IS_ERR(bgp->fclock)) {
 		dev_err(&pdev->dev, "failed to request fclock reference\n");
 		ret = PTR_ERR(bgp->fclock);
 		goto free_irqs;
 	}
 
 	bgp->div_clk = clk_get(NULL, bgp->conf->div_ck_name);
-	ret = IS_ERR(bgp->div_clk);
-	if (ret) {
+	if (IS_ERR(bgp->div_clk)) {
 		dev_err(&pdev->dev, "failed to request div_ts_ck clock ref\n");
 		ret = PTR_ERR(bgp->div_clk);
 		goto free_irqs;
@@ -1310,7 +1312,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 		 * may not be accurate
 		 */
 		val = ti_bandgap_readl(bgp, tsr->bgap_efuse);
-		if (ret || !val)
+		if (!val)
 			dev_info(&pdev->dev,
 				 "Non-trimmed BGAP, Temp not accurate\n");
 	}
@@ -1579,6 +1581,16 @@ static SIMPLE_DEV_PM_OPS(ti_bandgap_dev_pm_ops, ti_bandgap_suspend,
 #endif
 
 static const struct of_device_id of_ti_bandgap_match[] = {
+#ifdef CONFIG_OMAP3_THERMAL
+	{
+		.compatible = "ti,omap34xx-bandgap",
+		.data = (void *)&omap34xx_data,
+	},
+	{
+		.compatible = "ti,omap36xx-bandgap",
+		.data = (void *)&omap36xx_data,
+	},
+#endif
 #ifdef CONFIG_OMAP4_THERMAL
 	{
 		.compatible = "ti,omap4430-bandgap",

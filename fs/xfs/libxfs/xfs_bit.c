@@ -32,13 +32,13 @@ int
 xfs_bitmap_empty(uint *map, uint size)
 {
 	uint i;
-	uint ret = 0;
 
 	for (i = 0; i < size; i++) {
-		ret |= map[i];
+		if (map[i] != 0)
+			return 0;
 	}
 
-	return (ret == 0);
+	return 1;
 }
 
 /*

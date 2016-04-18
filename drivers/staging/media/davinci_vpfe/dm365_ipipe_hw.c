@@ -242,7 +242,7 @@ static int get_ipipe_mode(struct vpfe_ipipe_device *ipipe)
 
 	if (ipipeif_sink == IPIPEIF_INPUT_MEMORY)
 		return IPIPE_MODE_SINGLE_SHOT;
-	else if (ipipeif_sink == IPIPEIF_INPUT_ISIF)
+	if (ipipeif_sink == IPIPEIF_INPUT_ISIF)
 		return IPIPE_MODE_CONTINUOUS;
 
 	return -EINVAL;
@@ -254,7 +254,7 @@ int config_ipipe_hw(struct vpfe_ipipe_device *ipipe)
 	void __iomem *ipipe_base = ipipe->base_addr;
 	struct v4l2_mbus_framefmt *outformat;
 	u32 color_pat;
-	u32 ipipe_mode;
+	int ipipe_mode;
 	u32 data_path;
 
 	/* enable clock to IPIPE */
@@ -682,8 +682,10 @@ ipipe_set_rgb2rgb_regs(void __iomem *base_addr, unsigned int id,
 	ipipe_clock_enable(base_addr);
 
 	if (id == IPIPE_RGB2RGB_2) {
-		/* For second RGB module, gain integer is 3 bits instead
-		of 4, offset has 11 bits insread of 13 */
+		/*
+		 * For second RGB module, gain integer is 3 bits instead
+		 * of 4, offset has 11 bits insread of 13
+		 */
 		offset = RGB2_MUL_BASE;
 		integ_mask = 0x7;
 		offset_mask = RGB2RGB_2_OFST_MASK;
@@ -792,8 +794,10 @@ ipipe_set_3d_lut_regs(void __iomem *base_addr, void __iomem *isp5_base_addr,
 	/* valied table */
 	tbl = lut_3d->table;
 	for (i = 0; i < VPFE_IPIPE_MAX_SIZE_3D_LUT; i++) {
-		/* Each entry has 0-9 (B), 10-19 (G) and
-		20-29 R values */
+		/*
+		 * Each entry has 0-9 (B), 10-19 (G) and
+		 * 20-29 R values
+		 */
 		val = tbl[i].b & D3_LUT_ENTRY_MASK;
 		val |= (tbl[i].g & D3_LUT_ENTRY_MASK) <<
 			 D3_LUT_ENTRY_G_SHIFT;

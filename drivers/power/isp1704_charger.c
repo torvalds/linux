@@ -76,7 +76,7 @@ static inline int isp1704_read(struct isp1704_charger *isp, u32 reg)
 	return usb_phy_io_read(isp->phy, reg);
 }
 
-static inline int isp1704_write(struct isp1704_charger *isp, u32 val, u32 reg)
+static inline int isp1704_write(struct isp1704_charger *isp, u32 reg, u32 val)
 {
 	return usb_phy_io_write(isp->phy, val, reg);
 }
@@ -411,8 +411,10 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	if (np) {
 		int gpio = of_get_named_gpio(np, "nxp,enable-gpio", 0);
 
-		if (gpio < 0)
+		if (gpio < 0) {
+			dev_err(&pdev->dev, "missing DT GPIO nxp,enable-gpio\n");
 			return gpio;
+		}
 
 		pdata = devm_kzalloc(&pdev->dev,
 			sizeof(struct isp1704_charger_data), GFP_KERNEL);
@@ -422,8 +424,10 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 
 		ret = devm_gpio_request_one(&pdev->dev, pdata->enable_gpio,
 					GPIOF_OUT_INIT_HIGH, "isp1704_reset");
-		if (ret)
+		if (ret) {
+			dev_err(&pdev->dev, "gpio request failed\n");
 			goto fail0;
+		}
 	}
 
 	if (!pdata) {
@@ -443,6 +447,7 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 
 	if (IS_ERR(isp->phy)) {
 		ret = PTR_ERR(isp->phy);
+		dev_err(&pdev->dev, "usb_get_phy failed\n");
 		goto fail0;
 	}
 
@@ -452,8 +457,10 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	isp1704_charger_set_power(isp, 1);
 
 	ret = isp1704_test_ulpi(isp);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(&pdev->dev, "isp1704_test_ulpi failed\n");
 		goto fail1;
+	}
 
 	isp->psy_desc.name		= "isp1704";
 	isp->psy_desc.type		= POWER_SUPPLY_TYPE_USB;
@@ -466,6 +473,7 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	isp->psy = power_supply_register(isp->dev, &isp->psy_desc, &psy_cfg);
 	if (IS_ERR(isp->psy)) {
 		ret = PTR_ERR(isp->psy);
+		dev_err(&pdev->dev, "power_supply_register failed\n");
 		goto fail1;
 	}
 
@@ -478,8 +486,10 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	isp->nb.notifier_call = isp1704_notifier_call;
 
 	ret = usb_register_notifier(isp->phy, &isp->nb);
-	if (ret)
+	if (ret) {
+		dev_err(&pdev->dev, "usb_register_notifier failed\n");
 		goto fail2;
+	}
 
 	dev_info(isp->dev, "registered with product id %s\n", isp->model);
 
@@ -526,6 +536,7 @@ static int isp1704_charger_remove(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id omap_isp1704_of_match[] = {
 	{ .compatible = "nxp,isp1704", },
+	{ .compatible = "nxp,isp1707", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_isp1704_of_match);

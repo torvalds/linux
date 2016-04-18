@@ -29,12 +29,16 @@ struct ipu_plane {
 	int			w;
 	int			h;
 
+	unsigned int		u_offset;
+	unsigned int		v_offset;
+	unsigned int		stride[2];
+
 	bool			enabled;
 };
 
 struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 				 int dma, int dp, unsigned int possible_crtcs,
-				 bool priv);
+				 enum drm_plane_type type);
 
 /* Init IDMAC, DMFC, DP */
 int ipu_plane_mode_set(struct ipu_plane *plane, struct drm_crtc *crtc,

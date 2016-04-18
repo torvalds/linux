@@ -191,7 +191,7 @@ static void bdisp_job_finish(struct bdisp_ctx *ctx, int vb_state)
 	dst_vb = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 
 	if (src_vb && dst_vb) {
-		dst_vb->timestamp = src_vb->timestamp;
+		dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
 		dst_vb->timecode = src_vb->timecode;
 		dst_vb->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 		dst_vb->flags |= src_vb->flags &
@@ -297,7 +297,7 @@ static int bdisp_get_bufs(struct bdisp_ctx *ctx)
 	if (ret)
 		return ret;
 
-	dst_vb->timestamp = src_vb->timestamp;
+	dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
 
 	return 0;
 }
@@ -438,11 +438,9 @@ static void bdisp_ctrls_delete(struct bdisp_ctx *ctx)
 }
 
 static int bdisp_queue_setup(struct vb2_queue *vq,
-			     const void *parg,
 			     unsigned int *nb_buf, unsigned int *nb_planes,
 			     unsigned int sizes[], void *allocators[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct bdisp_ctx *ctx = vb2_get_drv_priv(vq);
 	struct bdisp_frame *frame = ctx_get_frame(ctx, vq->type);
 
@@ -455,13 +453,13 @@ static int bdisp_queue_setup(struct vb2_queue *vq,
 		dev_err(ctx->bdisp_dev->dev, "Invalid format\n");
 		return -EINVAL;
 	}
+	allocators[0] = ctx->bdisp_dev->alloc_ctx;
 
-	if (fmt && fmt->fmt.pix.sizeimage < frame->sizeimage)
-		return -EINVAL;
+	if (*nb_planes)
+		return sizes[0] < frame->sizeimage ? -EINVAL : 0;
 
 	*nb_planes = 1;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : frame->sizeimage;
-	allocators[0] = ctx->bdisp_dev->alloc_ctx;
+	sizes[0] = frame->sizeimage;
 
 	return 0;
 }

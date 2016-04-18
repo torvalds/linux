@@ -5,6 +5,7 @@ config MIPS
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
+	select ARCH_USE_BUILTIN_BSWAP
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
@@ -30,7 +31,6 @@ config MIPS
 	select RTC_LIB if !MACH_LOONGSON64
 	select GENERIC_ATOMIC64 if !64BIT
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
-	select HAVE_DMA_ATTRS
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DMA_API_DEBUG
 	select GENERIC_IRQ_PROBE
@@ -60,6 +60,8 @@ config MIPS
 	select SYSCTL_EXCEPTION_TRACE
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select HAVE_IRQ_TIME_ACCOUNTING
+	select GENERIC_TIME_VSYSCALL
+	select ARCH_CLOCKSOURCE_DATA
 
 menu "Machine selection"
 
@@ -149,6 +151,7 @@ config BMIPS_GENERIC
 	select CSRC_R4K
 	select SYNC_R4K
 	select COMMON_CLK
+	select BCM6345_L1_IRQ
 	select BCM7038_L1_IRQ
 	select BCM7120_L2_IRQ
 	select BRCMSTB_L2_IRQ
@@ -167,6 +170,7 @@ config BMIPS_GENERIC
 	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_OHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
 	select USB_OHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Build a generic DT-based kernel image that boots on select
 	  BCM33xx cable modem chips, BCM63xx DSL chips, and BCM7xxx set-top
@@ -324,7 +328,6 @@ config LANTIQ
 	select ARCH_REQUIRE_GPIOLIB
 	select SWAP_IO_SPACE
 	select BOOT_RAW
-	select HAVE_MACH_CLKDEV
 	select CLKDEV_LOOKUP
 	select USE_OF
 	select PINCTRL
@@ -401,6 +404,28 @@ config MACH_PISTACHIO
 	help
 	  This enables support for the IMG Pistachio SoC platform.
 
+config MACH_XILFPGA
+	bool "MIPSfpga Xilinx based boards"
+	select ARCH_REQUIRE_GPIOLIB
+	select BOOT_ELF32
+	select BOOT_RAW
+	select BUILTIN_DTB
+	select CEVT_R4K
+	select COMMON_CLK
+	select CSRC_R4K
+	select IRQ_MIPS_CPU
+	select LIBFDT
+	select MIPS_CPU_SCACHE
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_ZBOOT_UART16550
+	select USE_OF
+	select USE_GENERIC_EARLY_PRINTK_8250
+	help
+	  This enables support for the IMG University Program MIPSfpga platform.
+
 config MIPS_MALTA
 	bool "MIPS Malta board"
 	select ARCH_MAY_HAVE_PC_FDC
@@ -424,6 +449,7 @@ config MIPS_MALTA
 	select MIPS_L1_CACHE_SHIFT_6
 	select PCI_GT64XXX_PCI0
 	select MIPS_MSC
+	select SMP_UP if SMP
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
@@ -449,9 +475,19 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_ZBOOT
 	select USE_OF
 	select ZONE_DMA32 if 64BIT
+	select BUILTIN_DTB
+	select LIBFDT
 	help
 	  This enables support for the MIPS Technologies Malta evaluation
 	  board.
+
+config MACH_PIC32
+	bool "Microchip PIC32 Family"
+	help
+	  This enables support for the Microchip PIC32 family of platforms.
+
+	  Microchip PIC32 is a family of general-purpose 32 bit MIPS core
+	  microcontrollers.
 
 config MIPS_SEAD3
 	bool "MIPS SEAD3 board"
@@ -553,7 +589,6 @@ config RALINK
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MIPS16
 	select SYS_HAS_EARLY_PRINTK
-	select HAVE_MACH_CLKDEV
 	select CLKDEV_LOOKUP
 	select ARCH_HAS_RESET_CONTROLLER
 	select RESET_CONTROLLER
@@ -952,6 +987,7 @@ source "arch/mips/jazz/Kconfig"
 source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lantiq/Kconfig"
 source "arch/mips/lasat/Kconfig"
+source "arch/mips/pic32/Kconfig"
 source "arch/mips/pistachio/Kconfig"
 source "arch/mips/pmcs-msp71xx/Kconfig"
 source "arch/mips/ralink/Kconfig"
@@ -964,6 +1000,7 @@ source "arch/mips/loongson32/Kconfig"
 source "arch/mips/loongson64/Kconfig"
 source "arch/mips/netlogic/Kconfig"
 source "arch/mips/paravirt/Kconfig"
+source "arch/mips/xilfpga/Kconfig"
 
 endmenu
 
@@ -1035,6 +1072,9 @@ config CSRC_R4K
 
 config CSRC_SB1250
 	bool
+
+config MIPS_CLOCK_VSYSCALL
+	def_bool CSRC_R4K || CLKSRC_MIPS_GIC
 
 config GPIO_TXX9
 	select ARCH_REQUIRE_GPIOLIB
@@ -1724,6 +1764,10 @@ config SYS_SUPPORTS_ZBOOT_UART16550
 	bool
 	select SYS_SUPPORTS_ZBOOT
 
+config SYS_SUPPORTS_ZBOOT_UART_PROM
+	bool
+	select SYS_SUPPORTS_ZBOOT
+
 config CPU_LOONGSON2
 	bool
 	select CPU_SUPPORTS_32BIT_KERNEL
@@ -1986,7 +2030,8 @@ config KVM_GUEST
 	bool "KVM Guest Kernel"
 	depends on BROKEN_ON_SMP
 	help
-	  Select this option if building a guest kernel for KVM (Trap & Emulate) mode
+	  Select this option if building a guest kernel for KVM (Trap & Emulate)
+	  mode.
 
 config KVM_GUEST_TIMER_FREQ
 	int "Count/Compare Timer Frequency (MHz)"
@@ -2039,7 +2084,7 @@ config PAGE_SIZE_32KB
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on !CPU_R3000 && !CPU_TX39XX
+	depends on !CPU_R3000 && !CPU_TX39XX && !CPU_R6000
 	help
 	  Using 64kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
@@ -2123,7 +2168,6 @@ config MIPS_MT_SMP
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select SYNC_R4K
-	select MIPS_GIC_IPI
 	select MIPS_MT
 	select SMP
 	select SMP_UP
@@ -2221,7 +2265,6 @@ config MIPS_VPE_APSP_API_MT
 config MIPS_CMP
 	bool "MIPS CMP framework support (DEPRECATED)"
 	depends on SYS_SUPPORTS_MIPS_CMP && !CPU_MIPSR6
-	select MIPS_GIC_IPI
 	select SMP
 	select SYNC_R4K
 	select SYS_SUPPORTS_SMP
@@ -2241,7 +2284,6 @@ config MIPS_CPS
 	select MIPS_CM
 	select MIPS_CPC
 	select MIPS_CPS_PM if HOTPLUG_CPU
-	select MIPS_GIC_IPI
 	select SMP
 	select SYNC_R4K if (CEVT_R4K || CSRC_R4K)
 	select SYS_SUPPORTS_HOTPLUG_CPU
@@ -2257,9 +2299,6 @@ config MIPS_CPS
 config MIPS_CPS_PM
 	depends on MIPS_CPS
 	select MIPS_CPC
-	bool
-
-config MIPS_GIC_IPI
 	bool
 
 config MIPS_CM
@@ -2529,6 +2568,9 @@ choice
 	help
 	 Allows the configuration of the timer frequency.
 
+	config HZ_24
+		bool "24 HZ" if SYS_SUPPORTS_24HZ || SYS_SUPPORTS_ARBIT_HZ
+
 	config HZ_48
 		bool "48 HZ" if SYS_SUPPORTS_48HZ || SYS_SUPPORTS_ARBIT_HZ
 
@@ -2551,6 +2593,9 @@ choice
 		bool "1024 HZ" if SYS_SUPPORTS_1024HZ || SYS_SUPPORTS_ARBIT_HZ
 
 endchoice
+
+config SYS_SUPPORTS_24HZ
+	bool
 
 config SYS_SUPPORTS_48HZ
 	bool
@@ -2575,13 +2620,18 @@ config SYS_SUPPORTS_1024HZ
 
 config SYS_SUPPORTS_ARBIT_HZ
 	bool
-	default y if !SYS_SUPPORTS_48HZ && !SYS_SUPPORTS_100HZ && \
-		     !SYS_SUPPORTS_128HZ && !SYS_SUPPORTS_250HZ && \
-		     !SYS_SUPPORTS_256HZ && !SYS_SUPPORTS_1000HZ && \
+	default y if !SYS_SUPPORTS_24HZ && \
+		     !SYS_SUPPORTS_48HZ && \
+		     !SYS_SUPPORTS_100HZ && \
+		     !SYS_SUPPORTS_128HZ && \
+		     !SYS_SUPPORTS_250HZ && \
+		     !SYS_SUPPORTS_256HZ && \
+		     !SYS_SUPPORTS_1000HZ && \
 		     !SYS_SUPPORTS_1024HZ
 
 config HZ
 	int
+	default 24 if HZ_24
 	default 48 if HZ_48
 	default 100 if HZ_100
 	default 128 if HZ_128
@@ -2685,13 +2735,27 @@ config BUILTIN_DTB
 	bool
 
 choice
-	prompt "Kernel appended dtb support" if OF
+	prompt "Kernel appended dtb support" if USE_OF
 	default MIPS_NO_APPENDED_DTB
 
 	config MIPS_NO_APPENDED_DTB
 		bool "None"
 		help
 		  Do not enable appended dtb support.
+
+	config MIPS_ELF_APPENDED_DTB
+		bool "vmlinux"
+		help
+		  With this option, the boot code will look for a device tree binary
+		  DTB) included in the vmlinux ELF section .appended_dtb. By default
+		  it is empty and the DTB can be appended using binutils command
+		  objcopy:
+
+		    objcopy --update-section .appended_dtb=<filename>.dtb vmlinux
+
+		  This is meant as a backward compatiblity convenience for those
+		  systems with a bootloader that can't be upgraded to accommodate
+		  the documented boot protocol using a device tree.
 
 	config MIPS_RAW_APPENDED_DTB
 		bool "vmlinux.bin"
@@ -2729,6 +2793,25 @@ choice
 		  if you don't intend to always append a DTB.
 endchoice
 
+choice
+	prompt "Kernel command line type" if !CMDLINE_OVERRIDE
+	default MIPS_CMDLINE_FROM_DTB if USE_OF && !ATH79 && !MACH_INGENIC && \
+					 !MIPS_MALTA && !MIPS_SEAD3 && \
+					 !CAVIUM_OCTEON_SOC
+	default MIPS_CMDLINE_FROM_BOOTLOADER
+
+	config MIPS_CMDLINE_FROM_DTB
+		depends on USE_OF
+		bool "Dtb kernel arguments if available"
+
+	config MIPS_CMDLINE_DTB_EXTEND
+		depends on USE_OF
+		bool "Extend dtb kernel arguments with bootloader arguments"
+
+	config MIPS_CMDLINE_FROM_BOOTLOADER
+		bool "Bootloader kernel arguments if available"
+endchoice
+
 endmenu
 
 config LOCKDEP_SUPPORT
@@ -2736,6 +2819,10 @@ config LOCKDEP_SUPPORT
 	default y
 
 config STACKTRACE_SUPPORT
+	bool
+	default y
+
+config HAVE_LATENCYTOP_SUPPORT
 	bool
 	default y
 
@@ -2781,8 +2868,6 @@ config PCI_DOMAINS
 	bool
 
 source "drivers/pci/Kconfig"
-
-source "drivers/pci/pcie/Kconfig"
 
 #
 # ISA support is now enabled via select.  Too many systems still have the one
@@ -2842,8 +2927,6 @@ config ZONE_DMA32
 	bool
 
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 config RAPIDIO
 	tristate "RapidIO support"

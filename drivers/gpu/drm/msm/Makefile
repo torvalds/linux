@@ -12,6 +12,7 @@ msm-y := \
 	hdmi/hdmi_connector.o \
 	hdmi/hdmi_hdcp.o \
 	hdmi/hdmi_i2c.o \
+	hdmi/hdmi_phy.o \
 	hdmi/hdmi_phy_8960.o \
 	hdmi/hdmi_phy_8x60.o \
 	hdmi/hdmi_phy_8x74.o \
@@ -50,10 +51,13 @@ msm-y := \
 	msm_rd.o \
 	msm_ringbuffer.o
 
-msm-$(CONFIG_DRM_MSM_FBDEV) += msm_fbdev.o
+msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += mdp/mdp4/mdp4_lvds_pll.o
+msm-$(CONFIG_COMMON_CLK) += hdmi/hdmi_pll_8960.o
+msm-$(CONFIG_COMMON_CLK) += hdmi/hdmi_phy_8996.o
 
 msm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi.o \
+			mdp/mdp4/mdp4_dsi_encoder.o \
 			dsi/dsi_cfg.o \
 			dsi/dsi_host.o \
 			dsi/dsi_manager.o \
@@ -62,10 +66,12 @@ msm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi.o \
 
 msm-$(CONFIG_DRM_MSM_DSI_28NM_PHY) += dsi/phy/dsi_phy_28nm.o
 msm-$(CONFIG_DRM_MSM_DSI_20NM_PHY) += dsi/phy/dsi_phy_20nm.o
+msm-$(CONFIG_DRM_MSM_DSI_28NM_8960_PHY) += dsi/phy/dsi_phy_28nm_8960.o
 
 ifeq ($(CONFIG_DRM_MSM_DSI_PLL),y)
 msm-y += dsi/pll/dsi_pll.o
 msm-$(CONFIG_DRM_MSM_DSI_28NM_PHY) += dsi/pll/dsi_pll_28nm.o
+msm-$(CONFIG_DRM_MSM_DSI_28NM_8960_PHY) += dsi/pll/dsi_pll_28nm_8960.o
 endif
 
 obj-$(CONFIG_DRM_MSM)	+= msm.o

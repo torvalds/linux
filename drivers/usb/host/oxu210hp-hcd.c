@@ -394,8 +394,7 @@ static void ehci_quiesce(struct oxu_hcd *oxu)
 	u32	temp;
 
 #ifdef DEBUG
-	if (!HC_IS_RUNNING(oxu_to_hcd(oxu)->state))
-		BUG();
+	BUG_ON(!HC_IS_RUNNING(oxu_to_hcd(oxu)->state));
 #endif
 
 	/* wait for any schedule enables/disables to take effect */
@@ -982,7 +981,7 @@ static int qh_schedule(struct oxu_hcd *oxu, struct ehci_qh *qh);
 static unsigned qh_completions(struct oxu_hcd *oxu, struct ehci_qh *qh)
 {
 	struct ehci_qtd *last = NULL, *end = qh->dummy;
-	struct list_head *entry, *tmp;
+	struct ehci_qtd	*qtd, *tmp;
 	int stopped;
 	unsigned count = 0;
 	int do_status = 0;
@@ -1007,12 +1006,10 @@ static unsigned qh_completions(struct oxu_hcd *oxu, struct ehci_qh *qh)
 	 * then let the queue advance.
 	 * if queue is stopped, handles unlinks.
 	 */
-	list_for_each_safe(entry, tmp, &qh->qtd_list) {
-		struct ehci_qtd	*qtd;
+	list_for_each_entry_safe(qtd, tmp, &qh->qtd_list, qtd_list) {
 		struct urb *urb;
 		u32 token = 0;
 
-		qtd = list_entry(entry, struct ehci_qtd, qtd_list);
 		urb = qtd->urb;
 
 		/* Clean up any state from previous QTD ...*/
@@ -1175,14 +1172,11 @@ halt:
  * used for cleanup after errors, before HC sees an URB's TDs.
  */
 static void qtd_list_free(struct oxu_hcd *oxu,
-				struct urb *urb, struct list_head *qtd_list)
+				struct urb *urb, struct list_head *head)
 {
-	struct list_head *entry, *temp;
+	struct ehci_qtd	*qtd, *temp;
 
-	list_for_each_safe(entry, temp, qtd_list) {
-		struct ehci_qtd	*qtd;
-
-		qtd = list_entry(entry, struct ehci_qtd, qtd_list);
+	list_for_each_entry_safe(qtd, temp, head, qtd_list) {
 		list_del(&qtd->qtd_list);
 		oxu_qtd_free(oxu, qtd);
 	}
@@ -1709,9 +1703,8 @@ static void start_unlink_async(struct oxu_hcd *oxu, struct ehci_qh *qh)
 
 #ifdef DEBUG
 	assert_spin_locked(&oxu->lock);
-	if (oxu->reclaim || (qh->qh_state != QH_STATE_LINKED
-				&& qh->qh_state != QH_STATE_UNLINK_WAIT))
-		BUG();
+	BUG_ON(oxu->reclaim || (qh->qh_state != QH_STATE_LINKED
+				&& qh->qh_state != QH_STATE_UNLINK_WAIT));
 #endif
 
 	/* stop async schedule right now? */
@@ -2721,7 +2714,7 @@ static int oxu_run(struct usb_hcd *hcd)
 	 * streaming mappings for I/O buffers, like pci_map_single(),
 	 * can return segments above 4GB, if the device allows.
 	 *
-	 * NOTE:  the dma mask is visible through dma_supported(), so
+	 * NOTE:  the dma mask is visible through dev->dma_mask, so
 	 * drivers can pass this info along ... like NETIF_F_HIGHDMA,
 	 * Scsi_Host.highmem_io, and so forth.  It's readonly to all
 	 * host side drivers though.

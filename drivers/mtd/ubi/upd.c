@@ -193,7 +193,7 @@ int ubi_start_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 	vol->changing_leb = 1;
 	vol->ch_lnum = req->lnum;
 
-	vol->upd_buf = vmalloc(req->bytes);
+	vol->upd_buf = vmalloc(ALIGN((int)req->bytes, ubi->min_io_size));
 	if (!vol->upd_buf)
 		return -ENOMEM;
 

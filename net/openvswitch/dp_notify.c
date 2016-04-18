@@ -58,7 +58,7 @@ void ovs_dp_notify_wq(struct work_struct *work)
 			struct hlist_node *n;
 
 			hlist_for_each_entry_safe(vport, n, &dp->ports[i], dp_hash_node) {
-				if (vport->ops->type != OVS_VPORT_TYPE_NETDEV)
+				if (vport->ops->type == OVS_VPORT_TYPE_INTERNAL)
 					continue;
 
 				if (!(vport->dev->priv_flags & IFF_OVS_DATAPATH))

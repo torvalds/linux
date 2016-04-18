@@ -48,6 +48,7 @@
 #include <linux/uio.h>
 
 #include <asm/uaccess.h>
+#include <asm-generic/sections.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/printk.h>
@@ -232,7 +233,11 @@ struct printk_log {
 	u8 facility;		/* syslog facility */
 	u8 flags:5;		/* internal record flags */
 	u8 level:3;		/* syslog level */
-};
+}
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+__packed __aligned(4)
+#endif
+;
 
 /*
  * The logbuf_lock protects kmsg buffer, indices, counters.  This can be taken
@@ -269,12 +274,11 @@ static u32 clear_idx;
 #define PREFIX_MAX		32
 #define LOG_LINE_MAX		(1024 - PREFIX_MAX)
 
+#define LOG_LEVEL(v)		((v) & 0x07)
+#define LOG_FACILITY(v)		((v) >> 3 & 0xff)
+
 /* record buffer */
-#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
-#define LOG_ALIGN 4
-#else
 #define LOG_ALIGN __alignof__(struct printk_log)
-#endif
 #define __LOG_BUF_LEN (1 << CONFIG_LOG_BUF_SHIFT)
 static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
 static char *log_buf = __log_buf;
@@ -363,16 +367,20 @@ static int logbuf_has_space(u32 msg_size, bool empty)
 
 static int log_make_free_space(u32 msg_size)
 {
-	while (log_first_seq < log_next_seq) {
-		if (logbuf_has_space(msg_size, false))
-			return 0;
+	while (log_first_seq < log_next_seq &&
+	       !logbuf_has_space(msg_size, false)) {
 		/* drop old messages until we have enough contiguous space */
 		log_first_idx = log_next(log_first_idx);
 		log_first_seq++;
 	}
 
+	if (clear_seq < log_first_seq) {
+		clear_seq = log_first_seq;
+		clear_idx = log_first_idx;
+	}
+
 	/* sequence numbers are equal, so the log buffer is empty */
-	if (logbuf_has_space(msg_size, true))
+	if (logbuf_has_space(msg_size, log_first_seq == log_next_seq))
 		return 0;
 
 	return -ENOMEM;
@@ -612,7 +620,6 @@ struct devkmsg_user {
 static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	char *buf, *line;
-	int i;
 	int level = default_message_loglevel;
 	int facility = 1;	/* LOG_USER */
 	size_t len = iov_iter_count(from);
@@ -642,12 +649,13 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 	line = buf;
 	if (line[0] == '<') {
 		char *endp = NULL;
+		unsigned int u;
 
-		i = simple_strtoul(line+1, &endp, 10);
+		u = simple_strtoul(line + 1, &endp, 10);
 		if (endp && endp[0] == '>') {
-			level = i & 7;
-			if (i >> 3)
-				facility = i >> 3;
+			level = LOG_LEVEL(u);
+			if (LOG_FACILITY(u) != 0)
+				facility = LOG_FACILITY(u);
 			endp++;
 			len -= endp - line;
 			line = endp;
@@ -850,6 +858,7 @@ void log_buf_kexec_setup(void)
 	VMCOREINFO_SYMBOL(log_buf);
 	VMCOREINFO_SYMBOL(log_buf_len);
 	VMCOREINFO_SYMBOL(log_first_idx);
+	VMCOREINFO_SYMBOL(clear_idx);
 	VMCOREINFO_SYMBOL(log_next_idx);
 	/*
 	 * Export struct printk_log size and field offsets. User space tools can
@@ -1212,12 +1221,6 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 		u32 idx;
 		enum log_flags prev;
 
-		if (clear_seq < log_first_seq) {
-			/* messages are gone, move to first available one */
-			clear_seq = log_first_seq;
-			clear_idx = log_first_idx;
-		}
-
 		/*
 		 * Find first record that fits, including all following records,
 		 * into the user-provided buffer for this dump.
@@ -1479,58 +1482,6 @@ static void zap_locks(void)
 	sema_init(&console_sem, 1);
 }
 
-/*
- * Check if we have any console that is capable of printing while cpu is
- * booting or shutting down. Requires console_sem.
- */
-static int have_callable_console(void)
-{
-	struct console *con;
-
-	for_each_console(con)
-		if (con->flags & CON_ANYTIME)
-			return 1;
-
-	return 0;
-}
-
-/*
- * Can we actually use the console at this time on this cpu?
- *
- * Console drivers may assume that per-cpu resources have been allocated. So
- * unless they're explicitly marked as being able to cope (CON_ANYTIME) don't
- * call them until this CPU is officially up.
- */
-static inline int can_use_console(unsigned int cpu)
-{
-	return cpu_online(cpu) || have_callable_console();
-}
-
-/*
- * Try to get console ownership to actually show the kernel
- * messages from a 'printk'. Return true (and with the
- * console_lock held, and 'console_locked' set) if it
- * is successful, false otherwise.
- */
-static int console_trylock_for_printk(void)
-{
-	unsigned int cpu = smp_processor_id();
-
-	if (!console_trylock())
-		return 0;
-	/*
-	 * If we can't use the console, we need to release the console
-	 * semaphore by hand to avoid flushing the buffer. We need to hold the
-	 * console semaphore in order to do this test safely.
-	 */
-	if (!can_use_console(cpu)) {
-		console_locked = 0;
-		up_console_sem();
-		return 0;
-	}
-	return 1;
-}
-
 int printk_delay_msec __read_mostly;
 
 static inline void printk_delay(void)
@@ -1657,7 +1608,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 			    const char *dict, size_t dictlen,
 			    const char *fmt, va_list args)
 {
-	static int recursion_bug;
+	static bool recursion_bug;
 	static char textbuf[LOG_LINE_MAX];
 	char *text = textbuf;
 	size_t text_len = 0;
@@ -1677,7 +1628,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 	boot_delay_msec(level);
 	printk_delay();
 
-	/* This stops the holder of console_sem just where we want him */
 	local_irq_save(flags);
 	this_cpu = smp_processor_id();
 
@@ -1693,7 +1643,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 		 * it can be printed at the next appropriate moment:
 		 */
 		if (!oops_in_progress && !lockdep_recursing(current)) {
-			recursion_bug = 1;
+			recursion_bug = true;
 			local_irq_restore(flags);
 			return 0;
 		}
@@ -1701,6 +1651,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 	}
 
 	lockdep_off();
+	/* This stops the holder of console_sem just where we want him */
 	raw_spin_lock(&logbuf_lock);
 	logbuf_cpu = this_cpu;
 
@@ -1708,7 +1659,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 		static const char recursion_msg[] =
 			"BUG: recent printk recursion!";
 
-		recursion_bug = 0;
+		recursion_bug = false;
 		/* emit KERN_CRIT message */
 		printed_len += log_store(0, 2, LOG_PREFIX|LOG_NEWLINE, 0,
 					 NULL, 0, recursion_msg,
@@ -1806,20 +1757,12 @@ asmlinkage int vprintk_emit(int facility, int level,
 	if (!in_sched) {
 		lockdep_off();
 		/*
-		 * Disable preemption to avoid being preempted while holding
-		 * console_sem which would prevent anyone from printing to
-		 * console
-		 */
-		preempt_disable();
-
-		/*
 		 * Try to acquire and then immediately release the console
 		 * semaphore.  The release will print out buffers and wake up
 		 * /dev/kmsg and syslog() users.
 		 */
-		if (console_trylock_for_printk())
+		if (console_trylock())
 			console_unlock();
-		preempt_enable();
 		lockdep_on();
 	}
 
@@ -2170,7 +2113,20 @@ int console_trylock(void)
 		return 0;
 	}
 	console_locked = 1;
-	console_may_schedule = 0;
+	/*
+	 * When PREEMPT_COUNT disabled we can't reliably detect if it's
+	 * safe to schedule (e.g. calling printk while holding a spin_lock),
+	 * because preempt_disable()/preempt_enable() are just barriers there
+	 * and preempt_count() is always 0.
+	 *
+	 * RCU read sections have a separate preemption counter when
+	 * PREEMPT_RCU enabled thus we must take extra care and check
+	 * rcu_preempt_depth(), otherwise RCU read sections modify
+	 * preempt_count().
+	 */
+	console_may_schedule = !oops_in_progress &&
+			preemptible() &&
+			!rcu_preempt_depth();
 	return 1;
 }
 EXPORT_SYMBOL(console_trylock);
@@ -2178,6 +2134,34 @@ EXPORT_SYMBOL(console_trylock);
 int is_console_locked(void)
 {
 	return console_locked;
+}
+
+/*
+ * Check if we have any console that is capable of printing while cpu is
+ * booting or shutting down. Requires console_sem.
+ */
+static int have_callable_console(void)
+{
+	struct console *con;
+
+	for_each_console(con)
+		if ((con->flags & CON_ENABLED) &&
+				(con->flags & CON_ANYTIME))
+			return 1;
+
+	return 0;
+}
+
+/*
+ * Can we actually use the console at this time on this cpu?
+ *
+ * Console drivers may assume that per-cpu resources have been allocated. So
+ * unless they're explicitly marked as being able to cope (CON_ANYTIME) don't
+ * call them until this CPU is officially up.
+ */
+static inline int can_use_console(void)
+{
+	return cpu_online(raw_smp_processor_id()) || have_callable_console();
 }
 
 static void console_cont_flush(char *text, size_t size)
@@ -2230,18 +2214,41 @@ void console_unlock(void)
 	static u64 seen_seq;
 	unsigned long flags;
 	bool wake_klogd = false;
-	bool retry;
+	bool do_cond_resched, retry;
 
 	if (console_suspended) {
 		up_console_sem();
 		return;
 	}
 
+	/*
+	 * Console drivers are called under logbuf_lock, so
+	 * @console_may_schedule should be cleared before; however, we may
+	 * end up dumping a lot of lines, for example, if called from
+	 * console registration path, and should invoke cond_resched()
+	 * between lines if allowable.  Not doing so can cause a very long
+	 * scheduling stall on a slow console leading to RCU stall and
+	 * softlockup warnings which exacerbate the issue with more
+	 * messages practically incapacitating the system.
+	 */
+	do_cond_resched = console_may_schedule;
 	console_may_schedule = 0;
+
+again:
+	/*
+	 * We released the console_sem lock, so we need to recheck if
+	 * cpu is online and (if not) is there at least one CON_ANYTIME
+	 * console.
+	 */
+	if (!can_use_console()) {
+		console_locked = 0;
+		up_console_sem();
+		return;
+	}
 
 	/* flush buffered message fragment immediately to console */
 	console_cont_flush(text, sizeof(text));
-again:
+
 	for (;;) {
 		struct printk_log *msg;
 		size_t ext_len = 0;
@@ -2308,6 +2315,9 @@ skip:
 		call_console_drivers(level, ext_text, ext_len, text, len);
 		start_critical_timings();
 		local_irq_restore(flags);
+
+		if (do_cond_resched)
+			cond_resched();
 	}
 	console_locked = 0;
 
@@ -2372,6 +2382,25 @@ void console_unblank(void)
 	for_each_console(c)
 		if ((c->flags & CON_ENABLED) && c->unblank)
 			c->unblank();
+	console_unlock();
+}
+
+/**
+ * console_flush_on_panic - flush console content on panic
+ *
+ * Immediately output all pending messages no matter what.
+ */
+void console_flush_on_panic(void)
+{
+	/*
+	 * If someone else is holding the console lock, trylock will fail
+	 * and may_schedule may be set.  Ignore and proceed to unlock so
+	 * that messages are flushed out.  As this can be called from any
+	 * context and we don't want to get preempted while flushing,
+	 * ensure may_schedule is cleared.
+	 */
+	console_trylock();
+	console_may_schedule = 0;
 	console_unlock();
 }
 
@@ -2655,13 +2684,36 @@ int unregister_console(struct console *console)
 }
 EXPORT_SYMBOL(unregister_console);
 
+/*
+ * Some boot consoles access data that is in the init section and which will
+ * be discarded after the initcalls have been run. To make sure that no code
+ * will access this data, unregister the boot consoles in a late initcall.
+ *
+ * If for some reason, such as deferred probe or the driver being a loadable
+ * module, the real console hasn't registered yet at this point, there will
+ * be a brief interval in which no messages are logged to the console, which
+ * makes it difficult to diagnose problems that occur during this time.
+ *
+ * To mitigate this problem somewhat, only unregister consoles whose memory
+ * intersects with the init section. Note that code exists elsewhere to get
+ * rid of the boot console as soon as the proper console shows up, so there
+ * won't be side-effects from postponing the removal.
+ */
 static int __init printk_late_init(void)
 {
 	struct console *con;
 
 	for_each_console(con) {
 		if (!keep_bootcon && con->flags & CON_BOOT) {
-			unregister_console(con);
+			/*
+			 * Make sure to unregister boot consoles whose data
+			 * resides in the init section before the init section
+			 * is discarded. Boot consoles whose data will stick
+			 * around will automatically be unregistered when the
+			 * proper console replaces them.
+			 */
+			if (init_section_intersects(con, sizeof(*con)))
+				unregister_console(con);
 		}
 	}
 	hotcpu_notifier(console_cpu_notify, 0);

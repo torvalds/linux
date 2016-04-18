@@ -168,7 +168,8 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		       cmd->command_size))
 		return -EFAULT;
 
-	reloc_info = kmalloc(sizeof(struct qxl_reloc_info) * cmd->relocs_num, GFP_KERNEL);
+	reloc_info = kmalloc_array(cmd->relocs_num,
+				   sizeof(struct qxl_reloc_info), GFP_KERNEL);
 	if (!reloc_info)
 		return -ENOMEM;
 
@@ -422,21 +423,21 @@ static int qxl_alloc_surf_ioctl(struct drm_device *dev, void *data,
 }
 
 const struct drm_ioctl_desc qxl_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(QXL_ALLOC, qxl_alloc_ioctl, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(QXL_ALLOC, qxl_alloc_ioctl, DRM_AUTH),
 
-	DRM_IOCTL_DEF_DRV(QXL_MAP, qxl_map_ioctl, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(QXL_MAP, qxl_map_ioctl, DRM_AUTH),
 
 	DRM_IOCTL_DEF_DRV(QXL_EXECBUFFER, qxl_execbuffer_ioctl,
-							DRM_AUTH|DRM_UNLOCKED),
+							DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(QXL_UPDATE_AREA, qxl_update_area_ioctl,
-							DRM_AUTH|DRM_UNLOCKED),
+							DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(QXL_GETPARAM, qxl_getparam_ioctl,
-							DRM_AUTH|DRM_UNLOCKED),
+							DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(QXL_CLIENTCAP, qxl_clientcap_ioctl,
-							DRM_AUTH|DRM_UNLOCKED),
+							DRM_AUTH),
 
 	DRM_IOCTL_DEF_DRV(QXL_ALLOC_SURF, qxl_alloc_surf_ioctl,
-			  DRM_AUTH|DRM_UNLOCKED),
+			  DRM_AUTH),
 };
 
 int qxl_max_ioctls = ARRAY_SIZE(qxl_ioctls);

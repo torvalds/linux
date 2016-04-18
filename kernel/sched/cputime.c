@@ -5,6 +5,9 @@
 #include <linux/static_key.h>
 #include <linux/context_tracking.h>
 #include "sched.h"
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#endif
 
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
@@ -259,21 +262,21 @@ static __always_inline bool steal_account_process_tick(void)
 #ifdef CONFIG_PARAVIRT
 	if (static_key_false(&paravirt_steal_enabled)) {
 		u64 steal;
-		cputime_t steal_ct;
+		unsigned long steal_jiffies;
 
 		steal = paravirt_steal_clock(smp_processor_id());
 		steal -= this_rq()->prev_steal_time;
 
 		/*
-		 * cputime_t may be less precise than nsecs (eg: if it's
-		 * based on jiffies). Lets cast the result to cputime
+		 * steal is in nsecs but our caller is expecting steal
+		 * time in jiffies. Lets cast the result to jiffies
 		 * granularity and account the rest on the next rounds.
 		 */
-		steal_ct = nsecs_to_cputime(steal);
-		this_rq()->prev_steal_time += cputime_to_nsecs(steal_ct);
+		steal_jiffies = nsecs_to_jiffies(steal);
+		this_rq()->prev_steal_time += jiffies_to_nsecs(steal_jiffies);
 
-		account_steal_time(steal_ct);
-		return steal_ct;
+		account_steal_time(jiffies_to_cputime(steal_jiffies));
+		return steal_jiffies;
 	}
 #endif
 	return false;
@@ -466,7 +469,7 @@ void account_process_tick(struct task_struct *p, int user_tick)
 	cputime_t one_jiffy_scaled = cputime_to_scaled(cputime_one_jiffy);
 	struct rq *rq = this_rq();
 
-	if (vtime_accounting_enabled())
+	if (vtime_accounting_cpu_enabled())
 		return;
 
 	if (sched_clock_irqtime) {
@@ -665,26 +668,25 @@ void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime
 #endif /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-static unsigned long long vtime_delta(struct task_struct *tsk)
+static cputime_t vtime_delta(struct task_struct *tsk)
 {
-	unsigned long long clock;
+	unsigned long now = READ_ONCE(jiffies);
 
-	clock = local_clock();
-	if (clock < tsk->vtime_snap)
+	if (time_before(now, (unsigned long)tsk->vtime_snap))
 		return 0;
 
-	return clock - tsk->vtime_snap;
+	return jiffies_to_cputime(now - tsk->vtime_snap);
 }
 
 static cputime_t get_vtime_delta(struct task_struct *tsk)
 {
-	unsigned long long delta = vtime_delta(tsk);
+	unsigned long now = READ_ONCE(jiffies);
+	unsigned long delta = now - tsk->vtime_snap;
 
-	WARN_ON_ONCE(tsk->vtime_snap_whence == VTIME_SLEEPING);
-	tsk->vtime_snap += delta;
+	WARN_ON_ONCE(tsk->vtime_snap_whence == VTIME_INACTIVE);
+	tsk->vtime_snap = now;
 
-	/* CHECKME: always safe to convert nsecs to cputime? */
-	return nsecs_to_cputime(delta);
+	return jiffies_to_cputime(delta);
 }
 
 static void __vtime_account_system(struct task_struct *tsk)
@@ -696,37 +698,44 @@ static void __vtime_account_system(struct task_struct *tsk)
 
 void vtime_account_system(struct task_struct *tsk)
 {
-	write_seqlock(&tsk->vtime_seqlock);
+	if (!vtime_delta(tsk))
+		return;
+
+	write_seqcount_begin(&tsk->vtime_seqcount);
 	__vtime_account_system(tsk);
-	write_sequnlock(&tsk->vtime_seqlock);
+	write_seqcount_end(&tsk->vtime_seqcount);
 }
 
 void vtime_gen_account_irq_exit(struct task_struct *tsk)
 {
-	write_seqlock(&tsk->vtime_seqlock);
-	__vtime_account_system(tsk);
+	write_seqcount_begin(&tsk->vtime_seqcount);
+	if (vtime_delta(tsk))
+		__vtime_account_system(tsk);
 	if (context_tracking_in_user())
 		tsk->vtime_snap_whence = VTIME_USER;
-	write_sequnlock(&tsk->vtime_seqlock);
+	write_seqcount_end(&tsk->vtime_seqcount);
 }
 
 void vtime_account_user(struct task_struct *tsk)
 {
 	cputime_t delta_cpu;
 
-	write_seqlock(&tsk->vtime_seqlock);
-	delta_cpu = get_vtime_delta(tsk);
+	write_seqcount_begin(&tsk->vtime_seqcount);
 	tsk->vtime_snap_whence = VTIME_SYS;
-	account_user_time(tsk, delta_cpu, cputime_to_scaled(delta_cpu));
-	write_sequnlock(&tsk->vtime_seqlock);
+	if (vtime_delta(tsk)) {
+		delta_cpu = get_vtime_delta(tsk);
+		account_user_time(tsk, delta_cpu, cputime_to_scaled(delta_cpu));
+	}
+	write_seqcount_end(&tsk->vtime_seqcount);
 }
 
 void vtime_user_enter(struct task_struct *tsk)
 {
-	write_seqlock(&tsk->vtime_seqlock);
-	__vtime_account_system(tsk);
+	write_seqcount_begin(&tsk->vtime_seqcount);
+	if (vtime_delta(tsk))
+		__vtime_account_system(tsk);
 	tsk->vtime_snap_whence = VTIME_USER;
-	write_sequnlock(&tsk->vtime_seqlock);
+	write_seqcount_end(&tsk->vtime_seqcount);
 }
 
 void vtime_guest_enter(struct task_struct *tsk)
@@ -738,19 +747,20 @@ void vtime_guest_enter(struct task_struct *tsk)
 	 * synchronization against the reader (task_gtime())
 	 * that can thus safely catch up with a tickless delta.
 	 */
-	write_seqlock(&tsk->vtime_seqlock);
-	__vtime_account_system(tsk);
+	write_seqcount_begin(&tsk->vtime_seqcount);
+	if (vtime_delta(tsk))
+		__vtime_account_system(tsk);
 	current->flags |= PF_VCPU;
-	write_sequnlock(&tsk->vtime_seqlock);
+	write_seqcount_end(&tsk->vtime_seqcount);
 }
 EXPORT_SYMBOL_GPL(vtime_guest_enter);
 
 void vtime_guest_exit(struct task_struct *tsk)
 {
-	write_seqlock(&tsk->vtime_seqlock);
+	write_seqcount_begin(&tsk->vtime_seqcount);
 	__vtime_account_system(tsk);
 	current->flags &= ~PF_VCPU;
-	write_sequnlock(&tsk->vtime_seqlock);
+	write_seqcount_end(&tsk->vtime_seqcount);
 }
 EXPORT_SYMBOL_GPL(vtime_guest_exit);
 
@@ -763,24 +773,26 @@ void vtime_account_idle(struct task_struct *tsk)
 
 void arch_vtime_task_switch(struct task_struct *prev)
 {
-	write_seqlock(&prev->vtime_seqlock);
-	prev->vtime_snap_whence = VTIME_SLEEPING;
-	write_sequnlock(&prev->vtime_seqlock);
+	write_seqcount_begin(&prev->vtime_seqcount);
+	prev->vtime_snap_whence = VTIME_INACTIVE;
+	write_seqcount_end(&prev->vtime_seqcount);
 
-	write_seqlock(&current->vtime_seqlock);
+	write_seqcount_begin(&current->vtime_seqcount);
 	current->vtime_snap_whence = VTIME_SYS;
-	current->vtime_snap = sched_clock_cpu(smp_processor_id());
-	write_sequnlock(&current->vtime_seqlock);
+	current->vtime_snap = jiffies;
+	write_seqcount_end(&current->vtime_seqcount);
 }
 
 void vtime_init_idle(struct task_struct *t, int cpu)
 {
 	unsigned long flags;
 
-	write_seqlock_irqsave(&t->vtime_seqlock, flags);
+	local_irq_save(flags);
+	write_seqcount_begin(&t->vtime_seqcount);
 	t->vtime_snap_whence = VTIME_SYS;
-	t->vtime_snap = sched_clock_cpu(cpu);
-	write_sequnlock_irqrestore(&t->vtime_seqlock, flags);
+	t->vtime_snap = jiffies;
+	write_seqcount_end(&t->vtime_seqcount);
+	local_irq_restore(flags);
 }
 
 cputime_t task_gtime(struct task_struct *t)
@@ -788,14 +800,17 @@ cputime_t task_gtime(struct task_struct *t)
 	unsigned int seq;
 	cputime_t gtime;
 
+	if (!vtime_accounting_enabled())
+		return t->gtime;
+
 	do {
-		seq = read_seqbegin(&t->vtime_seqlock);
+		seq = read_seqcount_begin(&t->vtime_seqcount);
 
 		gtime = t->gtime;
-		if (t->flags & PF_VCPU)
+		if (t->vtime_snap_whence == VTIME_SYS && t->flags & PF_VCPU)
 			gtime += vtime_delta(t);
 
-	} while (read_seqretry(&t->vtime_seqlock, seq));
+	} while (read_seqcount_retry(&t->vtime_seqcount, seq));
 
 	return gtime;
 }
@@ -818,7 +833,7 @@ fetch_task_cputime(struct task_struct *t,
 		*udelta = 0;
 		*sdelta = 0;
 
-		seq = read_seqbegin(&t->vtime_seqlock);
+		seq = read_seqcount_begin(&t->vtime_seqcount);
 
 		if (u_dst)
 			*u_dst = *u_src;
@@ -826,7 +841,7 @@ fetch_task_cputime(struct task_struct *t,
 			*s_dst = *s_src;
 
 		/* Task is sleeping, nothing to add */
-		if (t->vtime_snap_whence == VTIME_SLEEPING ||
+		if (t->vtime_snap_whence == VTIME_INACTIVE ||
 		    is_idle_task(t))
 			continue;
 
@@ -842,13 +857,21 @@ fetch_task_cputime(struct task_struct *t,
 			if (t->vtime_snap_whence == VTIME_SYS)
 				*sdelta = delta;
 		}
-	} while (read_seqretry(&t->vtime_seqlock, seq));
+	} while (read_seqcount_retry(&t->vtime_seqcount, seq));
 }
 
 
 void task_cputime(struct task_struct *t, cputime_t *utime, cputime_t *stime)
 {
 	cputime_t udelta, sdelta;
+
+	if (!vtime_accounting_enabled()) {
+		if (utime)
+			*utime = t->utime;
+		if (stime)
+			*stime = t->stime;
+		return;
+	}
 
 	fetch_task_cputime(t, utime, stime, &t->utime,
 			   &t->stime, &udelta, &sdelta);
@@ -862,6 +885,14 @@ void task_cputime_scaled(struct task_struct *t,
 			 cputime_t *utimescaled, cputime_t *stimescaled)
 {
 	cputime_t udelta, sdelta;
+
+	if (!vtime_accounting_enabled()) {
+		if (utimescaled)
+			*utimescaled = t->utimescaled;
+		if (stimescaled)
+			*stimescaled = t->stimescaled;
+		return;
+	}
 
 	fetch_task_cputime(t, utimescaled, stimescaled,
 			   &t->utimescaled, &t->stimescaled, &udelta, &sdelta);

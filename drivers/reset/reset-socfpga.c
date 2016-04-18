@@ -90,7 +90,7 @@ static int socfpga_reset_status(struct reset_controller_dev *rcdev,
 	return !(reg & BIT(offset));
 }
 
-static struct reset_control_ops socfpga_reset_ops = {
+static const struct reset_control_ops socfpga_reset_ops = {
 	.assert		= socfpga_reset_assert,
 	.deassert	= socfpga_reset_deassert,
 	.status		= socfpga_reset_status,
@@ -133,9 +133,8 @@ static int socfpga_reset_probe(struct platform_device *pdev)
 	data->rcdev.nr_resets = NR_BANKS * BITS_PER_LONG;
 	data->rcdev.ops = &socfpga_reset_ops;
 	data->rcdev.of_node = pdev->dev.of_node;
-	reset_controller_register(&data->rcdev);
 
-	return 0;
+	return reset_controller_register(&data->rcdev);
 }
 
 static int socfpga_reset_remove(struct platform_device *pdev)

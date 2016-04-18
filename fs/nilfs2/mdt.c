@@ -33,6 +33,7 @@
 #include "page.h"
 #include "mdt.h"
 
+#include <trace/events/nilfs2.h>
 
 #define NILFS_MDT_MAX_RA_BLOCKS		(16 - 1)
 
@@ -68,6 +69,9 @@ nilfs_mdt_insert_new_block(struct inode *inode, unsigned long block,
 	set_buffer_uptodate(bh);
 	mark_buffer_dirty(bh);
 	nilfs_mdt_mark_dirty(inode);
+
+	trace_nilfs2_mdt_insert_new_block(inode, inode->i_ino, block);
+
 	return 0;
 }
 
@@ -106,7 +110,7 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
 
  failed_bh:
 	unlock_page(bh->b_page);
-	page_cache_release(bh->b_page);
+	put_page(bh->b_page);
 	brelse(bh);
 
  failed_unlock:
@@ -158,13 +162,15 @@ nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
 	get_bh(bh);
 	submit_bh(mode, bh);
 	ret = 0;
+
+	trace_nilfs2_mdt_submit_block(inode, inode->i_ino, blkoff, mode);
  out:
 	get_bh(bh);
 	*out_bh = bh;
 
  failed_bh:
 	unlock_page(bh->b_page);
-	page_cache_release(bh->b_page);
+	put_page(bh->b_page);
 	brelse(bh);
  failed:
 	return ret;
@@ -357,7 +363,7 @@ int nilfs_mdt_delete_block(struct inode *inode, unsigned long block)
 int nilfs_mdt_forget_block(struct inode *inode, unsigned long block)
 {
 	pgoff_t index = (pgoff_t)block >>
-		(PAGE_CACHE_SHIFT - inode->i_blkbits);
+		(PAGE_SHIFT - inode->i_blkbits);
 	struct page *page;
 	unsigned long first_block;
 	int ret = 0;
@@ -370,7 +376,7 @@ int nilfs_mdt_forget_block(struct inode *inode, unsigned long block)
 	wait_on_page_writeback(page);
 
 	first_block = (unsigned long)index <<
-		(PAGE_CACHE_SHIFT - inode->i_blkbits);
+		(PAGE_SHIFT - inode->i_blkbits);
 	if (page_has_buffers(page)) {
 		struct buffer_head *bh;
 
@@ -379,7 +385,7 @@ int nilfs_mdt_forget_block(struct inode *inode, unsigned long block)
 	}
 	still_dirty = PageDirty(page);
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	if (still_dirty ||
 	    invalidate_inode_pages2_range(inode->i_mapping, index, index) != 0)
@@ -572,7 +578,7 @@ int nilfs_mdt_freeze_buffer(struct inode *inode, struct buffer_head *bh)
 	}
 
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 	return 0;
 }
 
@@ -591,7 +597,7 @@ nilfs_mdt_get_frozen_buffer(struct inode *inode, struct buffer_head *bh)
 			bh_frozen = nilfs_page_get_nth_block(page, n);
 		}
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 	return bh_frozen;
 }

@@ -39,7 +39,7 @@ static inline long do_strncpy_from_user(char *dst, const char __user *src, long 
 		unsigned long c, data;
 
 		/* Fall back to byte-at-a-time if we get a page fault */
-		if (unlikely(__get_user(c,(unsigned long __user *)(src+res))))
+		if (unlikely(unsafe_get_user(c,(unsigned long __user *)(src+res))))
 			break;
 		*(unsigned long *)(dst+res) = c;
 		if (has_zero(c, &data, &constants)) {
@@ -55,7 +55,7 @@ byte_at_a_time:
 	while (max) {
 		char c;
 
-		if (unlikely(__get_user(c,src+res)))
+		if (unlikely(unsafe_get_user(c,src+res)))
 			return -EFAULT;
 		dst[res] = c;
 		if (!c)
@@ -107,7 +107,12 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
 	src_addr = (unsigned long)src;
 	if (likely(src_addr < max_addr)) {
 		unsigned long max = max_addr - src_addr;
-		return do_strncpy_from_user(dst, src, count, max);
+		long retval;
+
+		user_access_begin();
+		retval = do_strncpy_from_user(dst, src, count, max);
+		user_access_end();
+		return retval;
 	}
 	return -EFAULT;
 }

@@ -259,6 +259,14 @@
 		ti,invert-autoidle-bit;
 	};
 
+	mpu_periphclk: mpu_periphclk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_mpu_m2_ck>;
+		clock-mult = <1>;
+		clock-div = <2>;
+	};
+
 	dpll_ddr_ck: dpll_ddr_ck {
 		#clock-cells = <0>;
 		compatible = "ti,am3-dpll-clock";

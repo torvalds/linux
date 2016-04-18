@@ -186,6 +186,23 @@ void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac)
 }
 EXPORT_SYMBOL(bgx_set_lmac_mac);
 
+void bgx_lmac_rx_tx_enable(int node, int bgx_idx, int lmacid, bool enable)
+{
+	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	u64 cfg;
+
+	if (!bgx)
+		return;
+
+	cfg = bgx_reg_read(bgx, lmacid, BGX_CMRX_CFG);
+	if (enable)
+		cfg |= CMR_PKT_RX_EN | CMR_PKT_TX_EN;
+	else
+		cfg &= ~(CMR_PKT_RX_EN | CMR_PKT_TX_EN);
+	bgx_reg_write(bgx, lmacid, BGX_CMRX_CFG, cfg);
+}
+EXPORT_SYMBOL(bgx_lmac_rx_tx_enable);
+
 static void bgx_sgmii_change_link_state(struct lmac *lmac)
 {
 	struct bgx *bgx = lmac->bgx;
@@ -612,6 +629,8 @@ static void bgx_poll_for_link(struct work_struct *work)
 		lmac->last_duplex = 1;
 	} else {
 		lmac->link_up = 0;
+		lmac->last_speed = SPEED_UNKNOWN;
+		lmac->last_duplex = DUPLEX_UNKNOWN;
 	}
 
 	if (lmac->last_link != lmac->link_up) {
@@ -654,8 +673,7 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 	}
 
 	/* Enable lmac */
-	bgx_reg_modify(bgx, lmacid, BGX_CMRX_CFG,
-		       CMR_EN | CMR_PKT_RX_EN | CMR_PKT_TX_EN);
+	bgx_reg_modify(bgx, lmacid, BGX_CMRX_CFG, CMR_EN);
 
 	/* Restore default cfg, incase low level firmware changed it */
 	bgx_reg_write(bgx, lmacid, BGX_CMRX_RX_DMAC_CTL, 0x03);
@@ -695,8 +713,7 @@ static void bgx_lmac_disable(struct bgx *bgx, u8 lmacid)
 	lmac = &bgx->lmac[lmacid];
 	if (lmac->check_link) {
 		/* Destroy work queue */
-		cancel_delayed_work(&lmac->dwork);
-		flush_workqueue(lmac->check_link);
+		cancel_delayed_work_sync(&lmac->dwork);
 		destroy_workqueue(lmac->check_link);
 	}
 
@@ -869,7 +886,8 @@ static void bgx_get_qlm_mode(struct bgx *bgx)
 
 #ifdef CONFIG_ACPI
 
-static int acpi_get_mac_address(struct acpi_device *adev, u8 *dst)
+static int acpi_get_mac_address(struct device *dev, struct acpi_device *adev,
+				u8 *dst)
 {
 	u8 mac[ETH_ALEN];
 	int ret;
@@ -880,9 +898,12 @@ static int acpi_get_mac_address(struct acpi_device *adev, u8 *dst)
 		goto out;
 
 	if (!is_valid_ether_addr(mac)) {
+		dev_err(dev, "MAC address invalid: %pM\n", mac);
 		ret = -EINVAL;
 		goto out;
 	}
+
+	dev_info(dev, "MAC address set to: %pM\n", mac);
 
 	memcpy(dst, mac, ETH_ALEN);
 out:
@@ -894,14 +915,15 @@ static acpi_status bgx_acpi_register_phy(acpi_handle handle,
 					 u32 lvl, void *context, void **rv)
 {
 	struct bgx *bgx = context;
+	struct device *dev = &bgx->pdev->dev;
 	struct acpi_device *adev;
 
 	if (acpi_bus_get_device(handle, &adev))
 		goto out;
 
-	acpi_get_mac_address(adev, bgx->lmac[bgx->lmac_count].mac);
+	acpi_get_mac_address(dev, adev, bgx->lmac[bgx->lmac_count].mac);
 
-	SET_NETDEV_DEV(&bgx->lmac[bgx->lmac_count].netdev, &bgx->pdev->dev);
+	SET_NETDEV_DEV(&bgx->lmac[bgx->lmac_count].netdev, dev);
 
 	bgx->lmac[bgx->lmac_count].lmacid = bgx->lmac_count;
 out:
@@ -951,38 +973,63 @@ static int bgx_init_acpi_phy(struct bgx *bgx)
 
 static int bgx_init_of_phy(struct bgx *bgx)
 {
-	struct device_node *np;
-	struct device_node *np_child;
+	struct fwnode_handle *fwn;
+	struct device_node *node = NULL;
 	u8 lmac = 0;
-	char bgx_sel[5];
-	const char *mac;
 
-	/* Get BGX node from DT */
-	snprintf(bgx_sel, 5, "bgx%d", bgx->bgx_id);
-	np = of_find_node_by_name(NULL, bgx_sel);
-	if (!np)
-		return -ENODEV;
+	device_for_each_child_node(&bgx->pdev->dev, fwn) {
+		struct phy_device *pd;
+		struct device_node *phy_np;
+		const char *mac;
 
-	for_each_child_of_node(np, np_child) {
-		struct device_node *phy_np = of_parse_phandle(np_child,
-							      "phy-handle", 0);
-		if (!phy_np)
-			continue;
-		bgx->lmac[lmac].phydev = of_phy_find_device(phy_np);
+		/* Should always be an OF node.  But if it is not, we
+		 * cannot handle it, so exit the loop.
+		 */
+		node = to_of_node(fwn);
+		if (!node)
+			break;
 
-		mac = of_get_mac_address(np_child);
+		mac = of_get_mac_address(node);
 		if (mac)
 			ether_addr_copy(bgx->lmac[lmac].mac, mac);
 
 		SET_NETDEV_DEV(&bgx->lmac[lmac].netdev, &bgx->pdev->dev);
 		bgx->lmac[lmac].lmacid = lmac;
-		lmac++;
-		if (lmac == MAX_LMAC_PER_BGX) {
-			of_node_put(np_child);
-			break;
+
+		phy_np = of_parse_phandle(node, "phy-handle", 0);
+		/* If there is no phy or defective firmware presents
+		 * this cortina phy, for which there is no driver
+		 * support, ignore it.
+		 */
+		if (phy_np &&
+		    !of_device_is_compatible(phy_np, "cortina,cs4223-slice")) {
+			/* Wait until the phy drivers are available */
+			pd = of_phy_find_device(phy_np);
+			if (!pd)
+				goto defer;
+			bgx->lmac[lmac].phydev = pd;
 		}
+
+		lmac++;
+		if (lmac == MAX_LMAC_PER_BGX)
+			break;
 	}
+	of_node_put(node);
 	return 0;
+
+defer:
+	/* We are bailing out, try not to leak device reference counts
+	 * for phy devices we may have already found.
+	 */
+	while (lmac) {
+		if (bgx->lmac[lmac].phydev) {
+			put_device(&bgx->lmac[lmac].phydev->mdio.dev);
+			bgx->lmac[lmac].phydev = NULL;
+		}
+		lmac--;
+	}
+	of_node_put(node);
+	return -EPROBE_DEFER;
 }
 
 #else

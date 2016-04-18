@@ -277,7 +277,6 @@ static irqreturn_t netup_unidvb_isr(int irq, void *dev_id)
 }
 
 static int netup_unidvb_queue_setup(struct vb2_queue *vq,
-				    const void *parg,
 				    unsigned int *nbuffers,
 				    unsigned int *nplanes,
 				    unsigned int sizes[],
@@ -463,8 +462,8 @@ static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 	}
 
 	if (vb2_dvb_register_bus(&ndev->frontends[num],
-			THIS_MODULE, NULL,
-			&ndev->pci_dev->dev, adapter_nr, 1)) {
+				 THIS_MODULE, NULL,
+				 &ndev->pci_dev->dev, NULL, adapter_nr, 1)) {
 		dev_dbg(&ndev->pci_dev->dev,
 			"%s(): unable to register DVB bus %d\n",
 			__func__, num);
@@ -580,7 +579,7 @@ static void netup_unidvb_dma_worker(struct work_struct *work)
 			dev_dbg(&ndev->pci_dev->dev,
 				"%s(): buffer %p done, size %d\n",
 				__func__, buf, buf->size);
-			v4l2_get_timestamp(&buf->vb.timestamp);
+			buf->vb.vb2_buf.timestamp = ktime_get_ns();
 			vb2_set_plane_payload(&buf->vb.vb2_buf, 0, buf->size);
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		}
@@ -772,10 +771,9 @@ static int netup_unidvb_initdev(struct pci_dev *pci_dev,
 
 	/* allocate device context */
 	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
-
 	if (!ndev)
 		goto dev_alloc_err;
-	memset(ndev, 0, sizeof(*ndev));
+
 	ndev->old_fw = old_firmware;
 	ndev->wq = create_singlethread_workqueue(NETUP_UNIDVB_NAME);
 	if (!ndev->wq) {
@@ -810,7 +808,7 @@ static int netup_unidvb_initdev(struct pci_dev *pci_dev,
 		"%s(): board vendor 0x%x, revision 0x%x\n",
 		__func__, board_vendor, board_revision);
 	pci_set_master(pci_dev);
-	if (!pci_dma_supported(pci_dev, 0xffffffff)) {
+	if (pci_set_dma_mask(pci_dev, 0xffffffff) < 0) {
 		dev_err(&pci_dev->dev,
 			"%s(): 32bit PCI DMA is not supported\n", __func__);
 		goto pci_detect_err;

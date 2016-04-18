@@ -315,6 +315,8 @@ struct vgic_cpu {
 
 	/* Protected by the distributor's irq_phys_map_lock */
 	struct list_head	irq_phys_map_list;
+
+	u64		live_lrs;
 };
 
 #define LR_EMPTY	0xff
@@ -342,10 +344,10 @@ int kvm_vgic_inject_mapped_irq(struct kvm *kvm, int cpuid,
 			       struct irq_phys_map *map, bool level);
 void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg);
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu);
-int kvm_vgic_vcpu_active_irq(struct kvm_vcpu *vcpu);
 struct irq_phys_map *kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu,
 					   int virt_irq, int irq);
 int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, struct irq_phys_map *map);
+bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, struct irq_phys_map *map);
 
 #define irqchip_in_kernel(k)	(!!((k)->arch.vgic.in_kernel))
 #define vgic_initialized(k)	(!!((k)->arch.vgic.nr_cpus))

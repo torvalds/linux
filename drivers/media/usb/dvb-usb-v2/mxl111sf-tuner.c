@@ -36,7 +36,7 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
 struct mxl111sf_tuner_state {
 	struct mxl111sf_state *mxl_state;
 
-	struct mxl111sf_tuner_config *cfg;
+	const struct mxl111sf_tuner_config *cfg;
 
 	enum mxl_if_freq if_freq;
 
@@ -489,8 +489,8 @@ static struct dvb_tuner_ops mxl111sf_tuner_tuner_ops = {
 };
 
 struct dvb_frontend *mxl111sf_tuner_attach(struct dvb_frontend *fe,
-					   struct mxl111sf_state *mxl_state,
-					   struct mxl111sf_tuner_config *cfg)
+				struct mxl111sf_state *mxl_state,
+				const struct mxl111sf_tuner_config *cfg)
 {
 	struct mxl111sf_tuner_state *state = NULL;
 

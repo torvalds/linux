@@ -55,20 +55,18 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 
 	return arm_iommu_attach_device(dev, mapping);
 }
-EXPORT_SYMBOL_GPL(rockchip_drm_dma_attach_device);
 
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev)
 {
 	arm_iommu_detach_device(dev);
 }
-EXPORT_SYMBOL_GPL(rockchip_drm_dma_detach_device);
 
-int rockchip_register_crtc_funcs(struct drm_device *dev,
-				 const struct rockchip_crtc_funcs *crtc_funcs,
-				 int pipe)
+int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
+				 const struct rockchip_crtc_funcs *crtc_funcs)
 {
-	struct rockchip_drm_private *priv = dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
 
 	if (pipe > ROCKCHIP_MAX_CRTC)
 		return -EINVAL;
@@ -77,18 +75,17 @@ int rockchip_register_crtc_funcs(struct drm_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rockchip_register_crtc_funcs);
 
-void rockchip_unregister_crtc_funcs(struct drm_device *dev, int pipe)
+void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 {
-	struct rockchip_drm_private *priv = dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
 
 	if (pipe > ROCKCHIP_MAX_CRTC)
 		return;
 
 	priv->crtc_funcs[pipe] = NULL;
 }
-EXPORT_SYMBOL_GPL(rockchip_unregister_crtc_funcs);
 
 static struct drm_crtc *rockchip_crtc_from_pipe(struct drm_device *drm,
 						int pipe)
@@ -103,7 +100,8 @@ static struct drm_crtc *rockchip_crtc_from_pipe(struct drm_device *drm,
 	return NULL;
 }
 
-static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
+static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev,
+					   unsigned int pipe)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc = rockchip_crtc_from_pipe(dev, pipe);
@@ -115,7 +113,8 @@ static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
-static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev, int pipe)
+static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev,
+					     unsigned int pipe)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc = rockchip_crtc_from_pipe(dev, pipe);
@@ -136,6 +135,9 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 	private = devm_kzalloc(drm_dev->dev, sizeof(*private), GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
+
+	mutex_init(&private->commit.lock);
+	INIT_WORK(&private->commit.work, rockchip_drm_atomic_work);
 
 	drm_dev->dev_private = private;
 
@@ -210,6 +212,8 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 	 */
 	drm_dev->vblank_disable_allowed = true;
 
+	drm_mode_config_reset(drm_dev);
+
 	ret = rockchip_drm_fbdev_init(drm_dev);
 	if (ret)
 		goto err_vblank_cleanup;
@@ -247,6 +251,27 @@ static int rockchip_drm_unload(struct drm_device *drm_dev)
 	return 0;
 }
 
+static void rockchip_drm_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
+						    struct drm_file *file_priv)
+{
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+
+	if (pipe < ROCKCHIP_MAX_CRTC &&
+	    priv->crtc_funcs[pipe] &&
+	    priv->crtc_funcs[pipe]->cancel_pending_vblank)
+		priv->crtc_funcs[pipe]->cancel_pending_vblank(crtc, file_priv);
+}
+
+static void rockchip_drm_preclose(struct drm_device *dev,
+				  struct drm_file *file_priv)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		rockchip_drm_crtc_cancel_pending_vblank(crtc, file_priv);
+}
+
 void rockchip_drm_lastclose(struct drm_device *dev)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
@@ -273,11 +298,13 @@ const struct vm_operations_struct rockchip_drm_vm_ops = {
 };
 
 static struct drm_driver rockchip_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM |
+				  DRIVER_PRIME | DRIVER_ATOMIC,
 	.load			= rockchip_drm_load,
 	.unload			= rockchip_drm_unload,
+	.preclose		= rockchip_drm_preclose,
 	.lastclose		= rockchip_drm_lastclose,
-	.get_vblank_counter	= drm_vblank_count,
+	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= rockchip_drm_crtc_enable_vblank,
 	.disable_vblank		= rockchip_drm_crtc_disable_vblank,
 	.gem_vm_ops		= &rockchip_drm_vm_ops,
@@ -379,36 +406,6 @@ static const struct dev_pm_ops rockchip_drm_pm_ops = {
 				rockchip_drm_sys_resume)
 };
 
-/*
- * @node: device tree node containing encoder input ports
- * @encoder: drm_encoder
- */
-int rockchip_drm_encoder_get_mux_id(struct device_node *node,
-				    struct drm_encoder *encoder)
-{
-	struct device_node *ep;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct of_endpoint endpoint;
-	struct device_node *port;
-	int ret;
-
-	if (!node || !crtc)
-		return -EINVAL;
-
-	for_each_endpoint_of_node(node, ep) {
-		port = of_graph_get_remote_port(ep);
-		of_node_put(port);
-		if (port == crtc->port) {
-			ret = of_graph_parse_endpoint(ep, &endpoint);
-			of_node_put(ep);
-			return ret ?: endpoint.id;
-		}
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(rockchip_drm_encoder_get_mux_id);
-
 static int compare_of(struct device *dev, void *data)
 {
 	struct device_node *np = data;
@@ -447,10 +444,6 @@ static int rockchip_drm_bind(struct device *dev)
 	drm = drm_dev_alloc(&rockchip_drm_driver, dev);
 	if (!drm)
 		return -ENOMEM;
-
-	ret = drm_dev_set_unique(drm, "%s", dev_name(dev));
-	if (ret)
-		goto err_free;
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)

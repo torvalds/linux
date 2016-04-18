@@ -35,8 +35,6 @@
 #include <linux/skbuff.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
-#include <linux/ieee80211.h>
-#include <net/cfg80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -121,10 +119,9 @@ struct wilc_priv {
 	spinlock_t lock;
 	struct net_device *dev;
 	struct napi_struct napi;
-	struct host_if_drv *hWILCWFIDrv;
+	struct host_if_drv *hif_drv;
 	struct host_if_pmkid_attr pmkid_list;
 	struct WILC_WFI_stats netstats;
-	u8 WILC_WFI_wep_default;
 	u8 WILC_WFI_wep_key[4][WLAN_KEY_LEN_WEP104];
 	u8 WILC_WFI_wep_key_len[4];
 	/* The real interface that the monitor is on */
@@ -149,21 +146,30 @@ typedef struct {
 } struct_frame_reg;
 
 struct wilc_vif {
+	u8 idx;
+	u8 iftype;
+	int monitor_flag;
+	int mac_opened;
+	struct_frame_reg g_struct_frame_reg[num_reg_frame];
+	struct net_device_stats netstats;
+	struct wilc *wilc;
 	u8 src_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	struct host_if_drv *hif_drv;
 	struct net_device *ndev;
+	u8 mode;
 };
 
 struct wilc {
+	const struct wilc_hif_func *hif_func;
+	int io_type;
 	int mac_status;
+	int gpio;
 	bool initialized;
-	#if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
-	unsigned short dev_irq_num;
-	#endif
+	int dev_irq_num;
 	int close;
 	u8 vif_num;
-	struct wilc_vif vif[NUM_CONCURRENT_IFC];
+	struct wilc_vif *vif[NUM_CONCURRENT_IFC];
 	u8 open_ifcs;
 
 	struct semaphore txq_add_to_head_cs;
@@ -180,42 +186,53 @@ struct wilc {
 
 	struct task_struct *txq_thread;
 
+	int quit;
+	int cfg_frame_in_use;
+	struct wilc_cfg_frame cfg_frame;
+	u32 cfg_frame_offset;
+	int cfg_seq_no;
+
+	u8 *rx_buffer;
+	u32 rx_buffer_offset;
+	u8 *tx_buffer;
+
+	unsigned long txq_spinlock_flags;
+
+	struct txq_entry_t *txq_head;
+	struct txq_entry_t *txq_tail;
+	int txq_entries;
+	int txq_exit;
+
+	struct rxq_entry_t *rxq_head;
+	struct rxq_entry_t *rxq_tail;
+	int rxq_entries;
+	int rxq_exit;
+
 	unsigned char eth_src_address[NUM_CONCURRENT_IFC][6];
 
 	const struct firmware *firmware;
 
-#ifdef WILC_SDIO
-	struct sdio_func *wilc_sdio_func;
-#else
-	struct spi_device *wilc_spidev;
-#endif
-};
+	struct device *dev;
+	bool suspend_event;
 
-typedef struct {
-	u8 u8IfIdx;
-	u8 iftype;
-	int monitor_flag;
-	int mac_opened;
-	struct_frame_reg g_struct_frame_reg[num_reg_frame];
-	struct net_device *wilc_netdev;
-	struct net_device_stats netstats;
-	struct wilc *wilc;
-} perInterface_wlan_t;
+	struct rf_info dummy_statistics;
+};
 
 struct WILC_WFI_mon_priv {
 	struct net_device *real_ndev;
 };
 
-extern struct wilc *g_linux_wlan;
-extern struct net_device *WILC_WFI_devs[];
-void frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
-void linux_wlan_mac_indicate(struct wilc *wilc, int flag);
-void linux_wlan_rx_complete(void);
-void linux_wlan_dbg(u8 *buff);
-int linux_wlan_lock_timeout(void *vp, u32 timeout);
-void wl_wlan_cleanup(void);
-int wilc_netdev_init(struct wilc **wilc);
+int wilc1000_wlan_init(struct net_device *dev, struct wilc_vif *vif);
+
+void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
+void wilc_mac_indicate(struct wilc *wilc, int flag);
+int wilc_lock_timeout(struct wilc *wilc, void *, u32 timeout);
+void wilc_netdev_cleanup(struct wilc *wilc);
+int wilc_netdev_init(struct wilc **wilc, struct device *, int io_type, int gpio,
+		     const struct wilc_hif_func *ops);
 void wilc1000_wlan_deinit(struct net_device *dev);
 void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
-u16 Set_machw_change_vir_if(struct net_device *dev, bool bValue);
+int wilc_wlan_get_firmware(struct net_device *dev);
+int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode);
+
 #endif

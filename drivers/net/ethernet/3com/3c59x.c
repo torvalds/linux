@@ -907,7 +907,7 @@ static struct eisa_device_id vortex_eisa_ids[] = {
 };
 MODULE_DEVICE_TABLE(eisa, vortex_eisa_ids);
 
-static int __init vortex_eisa_probe(struct device *device)
+static int vortex_eisa_probe(struct device *device)
 {
 	void __iomem *ioaddr;
 	struct eisa_device *edev;
@@ -1601,15 +1601,9 @@ vortex_up(struct net_device *dev)
 				dev->name, media_tbl[dev->if_port].name);
 	}
 
-	init_timer(&vp->timer);
-	vp->timer.expires = RUN_AT(media_tbl[dev->if_port].wait);
-	vp->timer.data = (unsigned long)dev;
-	vp->timer.function = vortex_timer;		/* timer handler */
-	add_timer(&vp->timer);
-
-	init_timer(&vp->rx_oom_timer);
-	vp->rx_oom_timer.data = (unsigned long)dev;
-	vp->rx_oom_timer.function = rx_oom_timer;
+	setup_timer(&vp->timer, vortex_timer, (unsigned long)dev);
+	mod_timer(&vp->timer, RUN_AT(media_tbl[dev->if_port].wait));
+	setup_timer(&vp->rx_oom_timer, rx_oom_timer, (unsigned long)dev);
 
 	if (vortex_debug > 1)
 		pr_debug("%s: Initial media type %s.\n",
@@ -2459,8 +2453,13 @@ boomerang_interrupt(int irq, void *dev_id)
 					struct sk_buff *skb = vp->tx_skbuff[entry];
 #if DO_ZEROCOPY
 					int i;
-					for (i=0; i<=skb_shinfo(skb)->nr_frags; i++)
-							pci_unmap_single(VORTEX_PCI(vp),
+					pci_unmap_single(VORTEX_PCI(vp),
+							le32_to_cpu(vp->tx_ring[entry].frag[0].addr),
+							le32_to_cpu(vp->tx_ring[entry].frag[0].length)&0xFFF,
+							PCI_DMA_TODEVICE);
+
+					for (i=1; i<=skb_shinfo(skb)->nr_frags; i++)
+							pci_unmap_page(VORTEX_PCI(vp),
 											 le32_to_cpu(vp->tx_ring[entry].frag[i].addr),
 											 le32_to_cpu(vp->tx_ring[entry].frag[i].length)&0xFFF,
 											 PCI_DMA_TODEVICE);

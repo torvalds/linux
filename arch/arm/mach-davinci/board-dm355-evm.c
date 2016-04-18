@@ -19,7 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/videodev2.h>
-#include <media/tvp514x.h>
+#include <media/i2c/tvp514x.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
 #include <linux/platform_data/gpio-davinci.h>
@@ -384,9 +384,7 @@ static __init void dm355_evm_init(void)
 	dm355evm_dm9000_rsrc[2].start = gpio_to_irq(1);
 
 	aemif = clk_get(&dm355evm_dm9000.dev, "aemif");
-	if (IS_ERR(aemif))
-		WARN("%s: unable to get AEMIF clock\n", __func__);
-	else
+	if (!WARN(IS_ERR(aemif), "unable to get AEMIF clock\n"))
 		clk_prepare_enable(aemif);
 
 	platform_add_devices(davinci_evm_devices,

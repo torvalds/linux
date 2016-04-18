@@ -35,6 +35,7 @@
 #include <asm/cpu.h>
 #include <asm/reboot.h>
 #include <asm/virtext.h>
+#include <asm/intel_pt.h>
 
 /* Alignment required for elf header segment */
 #define ELF_CORE_HEADER_ALIGN   4096
@@ -56,10 +57,9 @@ struct crash_elf_data {
 	struct kimage *image;
 	/*
 	 * Total number of ram ranges we have after various adjustments for
-	 * GART, crash reserved region etc.
+	 * crash reserved region, etc.
 	 */
 	unsigned int max_nr_ranges;
-	unsigned long gart_start, gart_end;
 
 	/* Pointer to elf header */
 	void *ehdr;
@@ -125,6 +125,11 @@ static void kdump_nmi_callback(int cpu, struct pt_regs *regs)
 	cpu_emergency_vmxoff();
 	cpu_emergency_svm_disable();
 
+	/*
+	 * Disable Intel PT to stop its logging
+	 */
+	cpu_emergency_stop_pt();
+
 	disable_local_APIC();
 }
 
@@ -169,6 +174,11 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 	cpu_emergency_vmxoff();
 	cpu_emergency_svm_disable();
 
+	/*
+	 * Disable Intel PT to stop its logging
+	 */
+	cpu_emergency_stop_pt();
+
 #ifdef CONFIG_X86_IO_APIC
 	/* Prevent crash_kexec() from deadlocking on ioapic_lock. */
 	ioapic_zap_locks();
@@ -190,17 +200,6 @@ static int get_nr_ram_ranges_callback(u64 start, u64 end, void *arg)
 	return 0;
 }
 
-static int get_gart_ranges_callback(u64 start, u64 end, void *arg)
-{
-	struct crash_elf_data *ced = arg;
-
-	ced->gart_start = start;
-	ced->gart_end = end;
-
-	/* Not expecting more than 1 gart aperture */
-	return 1;
-}
-
 
 /* Gather all the required information to prepare elf headers for ram regions */
 static void fill_up_crash_elf_data(struct crash_elf_data *ced,
@@ -214,22 +213,6 @@ static void fill_up_crash_elf_data(struct crash_elf_data *ced,
 				get_nr_ram_ranges_callback);
 
 	ced->max_nr_ranges = nr_ranges;
-
-	/*
-	 * We don't create ELF headers for GART aperture as an attempt
-	 * to dump this memory in second kernel leads to hang/crash.
-	 * If gart aperture is present, one needs to exclude that region
-	 * and that could lead to need of extra phdr.
-	 */
-	walk_iomem_res("GART", IORESOURCE_MEM, 0, -1,
-				ced, get_gart_ranges_callback);
-
-	/*
-	 * If we have gart region, excluding that could potentially split
-	 * a memory range, resulting in extra header. Account for  that.
-	 */
-	if (ced->gart_end)
-		ced->max_nr_ranges++;
 
 	/* Exclusion of crash region could split memory ranges */
 	ced->max_nr_ranges++;
@@ -335,13 +318,6 @@ static int elf_header_exclude_ranges(struct crash_elf_data *ced,
 
 	if (crashk_low_res.end) {
 		ret = exclude_mem_range(cmem, crashk_low_res.start, crashk_low_res.end);
-		if (ret)
-			return ret;
-	}
-
-	/* Exclude GART region */
-	if (ced->gart_end) {
-		ret = exclude_mem_range(cmem, ced->gart_start, ced->gart_end);
 		if (ret)
 			return ret;
 	}
@@ -588,12 +564,12 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 	/* Add ACPI tables */
 	cmd.type = E820_ACPI;
 	flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-	walk_iomem_res("ACPI Tables", flags, 0, -1, &cmd,
+	walk_iomem_res_desc(IORES_DESC_ACPI_TABLES, flags, 0, -1, &cmd,
 		       memmap_entry_callback);
 
 	/* Add ACPI Non-volatile Storage */
 	cmd.type = E820_NVS;
-	walk_iomem_res("ACPI Non-volatile Storage", flags, 0, -1, &cmd,
+	walk_iomem_res_desc(IORES_DESC_ACPI_NV_STORAGE, flags, 0, -1, &cmd,
 			memmap_entry_callback);
 
 	/* Add crashk_low_res region */

@@ -48,10 +48,17 @@
 
 #include <asm/barrier.h>
 
+#ifndef CONFIG_TINY_RCU
 extern int rcu_expedited; /* for sysctl */
+extern int rcu_normal;    /* also for sysctl */
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_TINY_RCU
 /* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
+static inline bool rcu_gp_is_normal(void)  /* Internal RCU use. */
+{
+	return true;
+}
 static inline bool rcu_gp_is_expedited(void)  /* Internal RCU use. */
 {
 	return false;
@@ -65,6 +72,7 @@ static inline void rcu_unexpedite_gp(void)
 {
 }
 #else /* #ifdef CONFIG_TINY_RCU */
+bool rcu_gp_is_normal(void);     /* Internal RCU use. */
 bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
 void rcu_expedite_gp(void);
 void rcu_unexpedite_gp(void);
@@ -321,13 +329,16 @@ static inline int rcu_preempt_depth(void)
 
 /* Internal to kernel */
 void rcu_init(void);
-void rcu_end_inkernel_boot(void);
 void rcu_sched_qs(void);
 void rcu_bh_qs(void);
 void rcu_check_callbacks(int user);
-struct notifier_block;
-int rcu_cpu_notify(struct notifier_block *self,
-		   unsigned long action, void *hcpu);
+void rcu_report_dead(unsigned int cpu);
+
+#ifndef CONFIG_TINY_RCU
+void rcu_end_inkernel_boot(void);
+#else /* #ifndef CONFIG_TINY_RCU */
+static inline void rcu_end_inkernel_boot(void) { }
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_RCU_STALL_COMMON
 void rcu_sysrq_start(void);
@@ -347,8 +358,6 @@ void rcu_user_exit(void);
 #else
 static inline void rcu_user_enter(void) { }
 static inline void rcu_user_exit(void) { }
-static inline void rcu_user_hooks_switch(struct task_struct *prev,
-					 struct task_struct *next) { }
 #endif /* CONFIG_NO_HZ_FULL */
 
 #ifdef CONFIG_RCU_NOCB_CPU
@@ -379,9 +388,9 @@ static inline void rcu_init_nohz(void)
  */
 #define RCU_NONIDLE(a) \
 	do { \
-		rcu_irq_enter(); \
+		rcu_irq_enter_irqson(); \
 		do { a; } while (0); \
-		rcu_irq_exit(); \
+		rcu_irq_exit_irqson(); \
 	} while (0)
 
 /*
@@ -741,7 +750,7 @@ static inline void rcu_preempt_sleep_check(void)
  * The tracing infrastructure traces RCU (we want that), but unfortunately
  * some of the RCU checks causes tracing to lock up the system.
  *
- * The tracing version of rcu_dereference_raw() must not call
+ * The no-tracing version of rcu_dereference_raw() must not call
  * rcu_read_lock_held().
  */
 #define rcu_dereference_raw_notrace(p) __rcu_dereference_check((p), 1, __rcu)

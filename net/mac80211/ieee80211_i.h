@@ -92,7 +92,7 @@ struct ieee80211_fragment_entry {
 	u16 extra_len;
 	u16 last_frag;
 	u8 rx_queue;
-	bool ccmp; /* Whether fragments were encrypted with CCMP */
+	bool check_sequential_pn; /* needed for CCMP/GCMP */
 	u8 last_pn[6]; /* PN of the last fragment if CCMP was used */
 };
 
@@ -325,19 +325,15 @@ struct mesh_preq_queue {
 
 struct ieee80211_roc_work {
 	struct list_head list;
-	struct list_head dependents;
-
-	struct delayed_work work;
 
 	struct ieee80211_sub_if_data *sdata;
 
 	struct ieee80211_channel *chan;
 
 	bool started, abort, hw_begun, notified;
-	bool to_be_freed;
 	bool on_channel;
 
-	unsigned long hw_start_time;
+	unsigned long start_time;
 
 	u32 duration, req_duration;
 	struct sk_buff *frame;
@@ -720,7 +716,6 @@ struct ieee80211_if_mesh {
  *	back to wireless media and to the local net stack.
  * @IEEE80211_SDATA_DISCONNECT_RESUME: Disconnect after resume.
  * @IEEE80211_SDATA_IN_DRIVER: indicates interface was added to driver
- * @IEEE80211_SDATA_MU_MIMO_OWNER: indicates interface owns MU-MIMO capability
  */
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
@@ -728,7 +723,6 @@ enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
 	IEEE80211_SDATA_DISCONNECT_RESUME	= BIT(4),
 	IEEE80211_SDATA_IN_DRIVER		= BIT(5),
-	IEEE80211_SDATA_MU_MIMO_OWNER		= BIT(6),
 };
 
 /**
@@ -808,6 +802,7 @@ enum txq_info_flags {
 struct txq_info {
 	struct sk_buff_head queue;
 	unsigned long flags;
+	unsigned long byte_cnt;
 
 	/* keep last! */
 	struct ieee80211_txq txq;
@@ -1335,6 +1330,7 @@ struct ieee80211_local {
 	/*
 	 * Remain-on-channel support
 	 */
+	struct delayed_work roc_work;
 	struct list_head roc_list;
 	struct work_struct hw_roc_start, hw_roc_done;
 	unsigned long hw_roc_start_time;
@@ -1469,7 +1465,13 @@ ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 {
 	WARN_ON_ONCE(status->flag & RX_FLAG_MACTIME_START &&
 		     status->flag & RX_FLAG_MACTIME_END);
-	return status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END);
+	if (status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END))
+		return true;
+	/* can't handle HT/VHT preamble yet */
+	if (status->flag & RX_FLAG_MACTIME_PLCP_START &&
+	    !(status->flag & (RX_FLAG_HT | RX_FLAG_VHT)))
+		return true;
+	return false;
 }
 
 u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
@@ -1482,6 +1484,10 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u32 changed);
 void ieee80211_configure_filter(struct ieee80211_local *local);
 u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
+
+u64 ieee80211_mgmt_tx_cookie(struct ieee80211_local *local);
+int ieee80211_attach_ack_skb(struct ieee80211_local *local, struct sk_buff *skb,
+			     u64 *cookie, gfp_t gfp);
 
 /* STA code */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);
@@ -1577,16 +1583,22 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_local *local);
 void ieee80211_sched_scan_end(struct ieee80211_local *local);
 void ieee80211_sched_scan_stopped_work(struct work_struct *work);
 
-/* off-channel helpers */
+/* off-channel/mgmt-tx */
 void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local);
 void ieee80211_offchannel_return(struct ieee80211_local *local);
 void ieee80211_roc_setup(struct ieee80211_local *local);
 void ieee80211_start_next_roc(struct ieee80211_local *local);
 void ieee80211_roc_purge(struct ieee80211_local *local,
 			 struct ieee80211_sub_if_data *sdata);
-void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc, bool free);
-void ieee80211_sw_roc_work(struct work_struct *work);
-void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc);
+int ieee80211_remain_on_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
+				struct ieee80211_channel *chan,
+				unsigned int duration, u64 *cookie);
+int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
+				       struct wireless_dev *wdev, u64 cookie);
+int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
+		      struct cfg80211_mgmt_tx_params *params, u64 *cookie);
+int ieee80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
+				  struct wireless_dev *wdev, u64 cookie);
 
 /* channel switch handling */
 void ieee80211_csa_finalize_work(struct work_struct *work);
@@ -1707,12 +1719,18 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta);
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta);
 void ieee80211_sta_set_rx_nss(struct sta_info *sta);
+enum ieee80211_sta_rx_bandwidth
+ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width);
+enum nl80211_chan_width ieee80211_sta_cap_chan_bw(struct sta_info *sta);
+void ieee80211_sta_set_rx_nss(struct sta_info *sta);
+void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
+				 struct ieee80211_mgmt *mgmt);
 u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
                                   struct sta_info *sta, u8 opmode,
-                                  enum ieee80211_band band, bool nss_only);
+				  enum ieee80211_band band);
 void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				 struct sta_info *sta, u8 opmode,
-				 enum ieee80211_band band, bool nss_only);
+				 enum ieee80211_band band);
 void ieee80211_apply_vhtcap_overrides(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_sta_vht_cap *vht_cap);
 void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,
@@ -1822,20 +1840,6 @@ static inline void ieee802_11_parse_elems(const u8 *start, size_t len,
 	ieee802_11_parse_elems_crc(start, len, action, elems, 0, 0);
 }
 
-static inline bool ieee80211_rx_reorder_ready(struct sk_buff_head *frames)
-{
-	struct sk_buff *tail = skb_peek_tail(frames);
-	struct ieee80211_rx_status *status;
-
-	if (!tail)
-		return false;
-
-	status = IEEE80211_SKB_RXCB(tail);
-	if (status->flag & RX_FLAG_AMSDU_MORE)
-		return false;
-
-	return true;
-}
 
 extern const int ieee802_1d_to_ac[8];
 
@@ -1979,12 +1983,10 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo);
 
 /* channel management */
-void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
-				  const struct ieee80211_ht_operation *ht_oper,
-				  struct cfg80211_chan_def *chandef);
-void ieee80211_vht_oper_to_chandef(struct ieee80211_channel *control_chan,
-				   const struct ieee80211_vht_operation *oper,
-				   struct cfg80211_chan_def *chandef);
+bool ieee80211_chandef_ht_oper(const struct ieee80211_ht_operation *ht_oper,
+			       struct cfg80211_chan_def *chandef);
+bool ieee80211_chandef_vht_oper(const struct ieee80211_vht_operation *oper,
+				struct cfg80211_chan_def *chandef);
 u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c);
 
 int __must_check

@@ -35,10 +35,18 @@ struct gen_lun {
 };
 
 struct gen_nvm {
+	struct nvm_dev *dev;
+
 	int nr_luns;
 	struct gen_lun *luns;
+	struct list_head area_list;
 };
 
+struct gennvm_area {
+	struct list_head list;
+	sector_t begin;
+	sector_t end;	/* end is excluded */
+};
 #define gennvm_for_each_lun(bm, lun, i) \
 		for ((i) = 0, lun = &(bm)->luns[0]; \
 			(i) < (bm)->nr_luns; (i)++, lun = &(bm)->luns[(i)])

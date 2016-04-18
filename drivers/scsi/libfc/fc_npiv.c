@@ -25,7 +25,7 @@
 #include <linux/export.h>
 
 /**
- * fc_vport_create() - Create a new NPIV vport instance
+ * libfc_vport_create() - Create a new NPIV vport instance
  * @vport: fc_vport structure from scsi_transport_fc
  * @privsize: driver private data size to allocate along with the Scsi_Host
  */

@@ -19,6 +19,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <asm/facility.h>
+#include <asm/processor.h>
 
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
@@ -51,6 +52,11 @@ do { \
 static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
 {
 	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOPPED;
+}
+
+static inline int is_vcpu_idle(struct kvm_vcpu *vcpu)
+{
+	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_WAIT;
 }
 
 static inline int kvm_is_ucontrol(struct kvm *kvm)
@@ -154,8 +160,8 @@ static inline void kvm_s390_set_psw_cc(struct kvm_vcpu *vcpu, unsigned long cc)
 /* test availability of facility in a kvm instance */
 static inline int test_kvm_facility(struct kvm *kvm, unsigned long nr)
 {
-	return __test_facility(nr, kvm->arch.model.fac->mask) &&
-		__test_facility(nr, kvm->arch.model.fac->list);
+	return __test_facility(nr, kvm->arch.model.fac_mask) &&
+		__test_facility(nr, kvm->arch.model.fac_list);
 }
 
 static inline int set_kvm_facility(u64 *fac_list, unsigned long nr)
@@ -212,8 +218,22 @@ int kvm_s390_reinject_io_int(struct kvm *kvm,
 int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked);
 
 /* implemented in intercept.c */
-void kvm_s390_rewind_psw(struct kvm_vcpu *vcpu, int ilc);
+u8 kvm_s390_get_ilen(struct kvm_vcpu *vcpu);
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
+static inline void kvm_s390_rewind_psw(struct kvm_vcpu *vcpu, int ilen)
+{
+	struct kvm_s390_sie_block *sie_block = vcpu->arch.sie_block;
+
+	sie_block->gpsw.addr = __rewind_psw(sie_block->gpsw, ilen);
+}
+static inline void kvm_s390_forward_psw(struct kvm_vcpu *vcpu, int ilen)
+{
+	kvm_s390_rewind_psw(vcpu, -ilen);
+}
+static inline void kvm_s390_retry_instr(struct kvm_vcpu *vcpu)
+{
+	kvm_s390_rewind_psw(vcpu, kvm_s390_get_ilen(vcpu));
+}
 
 /* implemented in priv.c */
 int is_valid_psw(psw_t *psw);
@@ -248,6 +268,8 @@ int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu);
 unsigned long kvm_s390_fac_list_mask_size(void);
 extern unsigned long kvm_s390_fac_list_mask[];
+void kvm_s390_set_cpu_timer(struct kvm_vcpu *vcpu, __u64 cputm);
+__u64 kvm_s390_get_cpu_timer(struct kvm_vcpu *vcpu);
 
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);
@@ -340,4 +362,11 @@ void kvm_s390_clear_bp_data(struct kvm_vcpu *vcpu);
 void kvm_s390_prepare_debug_exit(struct kvm_vcpu *vcpu);
 void kvm_s390_handle_per_event(struct kvm_vcpu *vcpu);
 
+/* support for Basic/Extended SCA handling */
+static inline union ipte_control *kvm_s390_get_ipte_control(struct kvm *kvm)
+{
+	struct bsca_block *sca = kvm->arch.sca; /* SCA version doesn't matter */
+
+	return &sca->ipte_control;
+}
 #endif

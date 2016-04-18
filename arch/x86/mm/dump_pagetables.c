@@ -89,7 +89,7 @@ static struct addr_marker address_markers[] = {
 	{ 0/* VMALLOC_START */, "vmalloc() Area" },
 	{ 0/*VMALLOC_END*/,     "vmalloc() End" },
 # ifdef CONFIG_HIGHMEM
-	{ 0/*PKMAP_BASE*/,      "Persisent kmap() Area" },
+	{ 0/*PKMAP_BASE*/,      "Persistent kmap() Area" },
 # endif
 	{ 0/*FIXADDR_START*/,   "Fixmap Area" },
 #endif
@@ -358,6 +358,20 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
 #define pgd_none(a)  pud_none(__pud(pgd_val(a)))
 #endif
 
+static inline bool is_hypervisor_range(int idx)
+{
+#ifdef CONFIG_X86_64
+	/*
+	 * ffff800000000000 - ffff87ffffffffff is reserved for
+	 * the hypervisor.
+	 */
+	return	(idx >= pgd_index(__PAGE_OFFSET) - 16) &&
+		(idx <  pgd_index(__PAGE_OFFSET));
+#else
+	return false;
+#endif
+}
+
 static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 				       bool checkwx)
 {
@@ -381,7 +395,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 
 	for (i = 0; i < PTRS_PER_PGD; i++) {
 		st.current_address = normalize_addr(i * PGD_LEVEL_MULT);
-		if (!pgd_none(*start)) {
+		if (!pgd_none(*start) && !is_hypervisor_range(i)) {
 			if (pgd_large(*start) || !pgd_present(*start)) {
 				prot = pgd_flags(*start);
 				note_page(m, &st, __pgprot(prot), 1);
@@ -411,38 +425,15 @@ void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
 {
 	ptdump_walk_pgd_level_core(m, pgd, false);
 }
+EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level);
 
 void ptdump_walk_pgd_level_checkwx(void)
 {
 	ptdump_walk_pgd_level_core(NULL, NULL, true);
 }
 
-#ifdef CONFIG_X86_PTDUMP
-static int ptdump_show(struct seq_file *m, void *v)
+static int __init pt_dump_init(void)
 {
-	ptdump_walk_pgd_level(m, NULL);
-	return 0;
-}
-
-static int ptdump_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, ptdump_show, NULL);
-}
-
-static const struct file_operations ptdump_fops = {
-	.open		= ptdump_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#endif
-
-static int pt_dump_init(void)
-{
-#ifdef CONFIG_X86_PTDUMP
-	struct dentry *pe;
-#endif
-
 #ifdef CONFIG_X86_32
 	/* Not a compile-time constant on x86-32 */
 	address_markers[VMALLOC_START_NR].start_address = VMALLOC_START;
@@ -451,13 +442,6 @@ static int pt_dump_init(void)
 	address_markers[PKMAP_BASE_NR].start_address = PKMAP_BASE;
 # endif
 	address_markers[FIXADDR_START_NR].start_address = FIXADDR_START;
-#endif
-
-#ifdef CONFIG_X86_PTDUMP
-	pe = debugfs_create_file("kernel_page_tables", 0600, NULL, NULL,
-				 &ptdump_fops);
-	if (!pe)
-		return -ENOMEM;
 #endif
 
 	return 0;

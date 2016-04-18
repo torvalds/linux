@@ -395,3 +395,7 @@ ENTRY(sys_call_table)
 	.long sys_sendmmsg
 	.long sys_userfaultfd
 	.long sys_membarrier
+	.long sys_mlock2		/* 375 */
+	.long sys_copy_file_range
+	.long sys_preadv2
+	.long sys_pwritev2

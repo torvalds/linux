@@ -1,0 +1,41 @@
+RT5651 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "realtek,rt5651".
+
+- reg : The I2C address of the device.
+
+Optional properties:
+
+- realtek,in2-differential
+  Boolean. Indicate MIC2 input are differential, rather than single-ended.
+
+- realtek,dmic-en
+  Boolean. true if dmic is used.
+
+Pins on the device (for linking into audio routes) for RT5651:
+
+  * DMIC L1
+  * DMIC R1
+  * IN1P
+  * IN2P
+  * IN2N
+  * IN3P
+  * HPOL
+  * HPOR
+  * LOUTL
+  * LOUTR
+  * PDML
+  * PDMR
+
+Example:
+
+codec: rt5651@1a {
+	compatible = "realtek,rt5651";
+	reg = <0x1a>;
+	realtek,dmic-en = "true";
+	realtek,in2-diff = "false";
+};

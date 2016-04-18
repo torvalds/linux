@@ -12,11 +12,11 @@
  *	"afs@CAMBRIDGE.REDHAT.COM>
  */
 
+#include <crypto/skcipher.h>
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <linux/key-type.h>
-#include <linux/crypto.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <net/sock.h>
@@ -824,7 +824,7 @@ static void rxrpc_free_preparse(struct key_preparsed_payload *prep)
  */
 static int rxrpc_preparse_s(struct key_preparsed_payload *prep)
 {
-	struct crypto_blkcipher *ci;
+	struct crypto_skcipher *ci;
 
 	_enter("%zu", prep->datalen);
 
@@ -833,13 +833,13 @@ static int rxrpc_preparse_s(struct key_preparsed_payload *prep)
 
 	memcpy(&prep->payload.data[2], prep->data, 8);
 
-	ci = crypto_alloc_blkcipher("pcbc(des)", 0, CRYPTO_ALG_ASYNC);
+	ci = crypto_alloc_skcipher("pcbc(des)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(ci)) {
 		_leave(" = %ld", PTR_ERR(ci));
 		return PTR_ERR(ci);
 	}
 
-	if (crypto_blkcipher_setkey(ci, prep->data, 8) < 0)
+	if (crypto_skcipher_setkey(ci, prep->data, 8) < 0)
 		BUG();
 
 	prep->payload.data[0] = ci;
@@ -853,7 +853,7 @@ static int rxrpc_preparse_s(struct key_preparsed_payload *prep)
 static void rxrpc_free_preparse_s(struct key_preparsed_payload *prep)
 {
 	if (prep->payload.data[0])
-		crypto_free_blkcipher(prep->payload.data[0]);
+		crypto_free_skcipher(prep->payload.data[0]);
 }
 
 /*
@@ -870,7 +870,7 @@ static void rxrpc_destroy(struct key *key)
 static void rxrpc_destroy_s(struct key *key)
 {
 	if (key->payload.data[0]) {
-		crypto_free_blkcipher(key->payload.data[0]);
+		crypto_free_skcipher(key->payload.data[0]);
 		key->payload.data[0] = NULL;
 	}
 }
@@ -896,15 +896,9 @@ int rxrpc_request_key(struct rxrpc_sock *rx, char __user *optval, int optlen)
 	if (optlen <= 0 || optlen > PAGE_SIZE - 1)
 		return -EINVAL;
 
-	description = kmalloc(optlen + 1, GFP_KERNEL);
-	if (!description)
-		return -ENOMEM;
-
-	if (copy_from_user(description, optval, optlen)) {
-		kfree(description);
-		return -EFAULT;
-	}
-	description[optlen] = 0;
+	description = memdup_user_nul(optval, optlen);
+	if (IS_ERR(description))
+		return PTR_ERR(description);
 
 	key = request_key(&key_type_rxrpc, description, NULL);
 	if (IS_ERR(key)) {
@@ -933,15 +927,9 @@ int rxrpc_server_keyring(struct rxrpc_sock *rx, char __user *optval,
 	if (optlen <= 0 || optlen > PAGE_SIZE - 1)
 		return -EINVAL;
 
-	description = kmalloc(optlen + 1, GFP_KERNEL);
-	if (!description)
-		return -ENOMEM;
-
-	if (copy_from_user(description, optval, optlen)) {
-		kfree(description);
-		return -EFAULT;
-	}
-	description[optlen] = 0;
+	description = memdup_user_nul(optval, optlen);
+	if (IS_ERR(description))
+		return PTR_ERR(description);
 
 	key = request_key(&key_type_keyring, description, NULL);
 	if (IS_ERR(key)) {

@@ -41,6 +41,9 @@
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+#include <net/addrconf.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
@@ -70,7 +73,7 @@ static const char * const ib_events[] = {
 	[IB_EVENT_GID_CHANGE]		= "GID changed",
 };
 
-const char *ib_event_msg(enum ib_event_type event)
+const char *__attribute_const__ ib_event_msg(enum ib_event_type event)
 {
 	size_t index = event;
 
@@ -104,7 +107,7 @@ static const char * const wc_statuses[] = {
 	[IB_WC_GENERAL_ERR]		= "general error",
 };
 
-const char *ib_wc_status_msg(enum ib_wc_status status)
+const char *__attribute_const__ ib_wc_status_msg(enum ib_wc_status status)
 {
 	size_t index = status;
 
@@ -226,12 +229,6 @@ EXPORT_SYMBOL(rdma_port_get_link_layer);
 struct ib_pd *ib_alloc_pd(struct ib_device *device)
 {
 	struct ib_pd *pd;
-	struct ib_device_attr devattr;
-	int rc;
-
-	rc = ib_query_device(device, &devattr);
-	if (rc)
-		return ERR_PTR(rc);
 
 	pd = device->alloc_pd(device, NULL, NULL);
 	if (IS_ERR(pd))
@@ -242,7 +239,7 @@ struct ib_pd *ib_alloc_pd(struct ib_device *device)
 	pd->local_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
 
-	if (devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
+	if (device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
 		pd->local_dma_lkey = device->local_dma_lkey;
 	else {
 		struct ib_mr *mr;
@@ -308,6 +305,126 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 }
 EXPORT_SYMBOL(ib_create_ah);
 
+static int ib_get_header_version(const union rdma_network_hdr *hdr)
+{
+	const struct iphdr *ip4h = (struct iphdr *)&hdr->roce4grh;
+	struct iphdr ip4h_checked;
+	const struct ipv6hdr *ip6h = (struct ipv6hdr *)&hdr->ibgrh;
+
+	/* If it's IPv6, the version must be 6, otherwise, the first
+	 * 20 bytes (before the IPv4 header) are garbled.
+	 */
+	if (ip6h->version != 6)
+		return (ip4h->version == 4) ? 4 : 0;
+	/* version may be 6 or 4 because the first 20 bytes could be garbled */
+
+	/* RoCE v2 requires no options, thus header length
+	 * must be 5 words
+	 */
+	if (ip4h->ihl != 5)
+		return 6;
+
+	/* Verify checksum.
+	 * We can't write on scattered buffers so we need to copy to
+	 * temp buffer.
+	 */
+	memcpy(&ip4h_checked, ip4h, sizeof(ip4h_checked));
+	ip4h_checked.check = 0;
+	ip4h_checked.check = ip_fast_csum((u8 *)&ip4h_checked, 5);
+	/* if IPv4 header checksum is OK, believe it */
+	if (ip4h->check == ip4h_checked.check)
+		return 4;
+	return 6;
+}
+
+static enum rdma_network_type ib_get_net_type_by_grh(struct ib_device *device,
+						     u8 port_num,
+						     const struct ib_grh *grh)
+{
+	int grh_version;
+
+	if (rdma_protocol_ib(device, port_num))
+		return RDMA_NETWORK_IB;
+
+	grh_version = ib_get_header_version((union rdma_network_hdr *)grh);
+
+	if (grh_version == 4)
+		return RDMA_NETWORK_IPV4;
+
+	if (grh->next_hdr == IPPROTO_UDP)
+		return RDMA_NETWORK_IPV6;
+
+	return RDMA_NETWORK_ROCE_V1;
+}
+
+struct find_gid_index_context {
+	u16 vlan_id;
+	enum ib_gid_type gid_type;
+};
+
+static bool find_gid_index(const union ib_gid *gid,
+			   const struct ib_gid_attr *gid_attr,
+			   void *context)
+{
+	struct find_gid_index_context *ctx =
+		(struct find_gid_index_context *)context;
+
+	if (ctx->gid_type != gid_attr->gid_type)
+		return false;
+
+	if ((!!(ctx->vlan_id != 0xffff) == !is_vlan_dev(gid_attr->ndev)) ||
+	    (is_vlan_dev(gid_attr->ndev) &&
+	     vlan_dev_vlan_id(gid_attr->ndev) != ctx->vlan_id))
+		return false;
+
+	return true;
+}
+
+static int get_sgid_index_from_eth(struct ib_device *device, u8 port_num,
+				   u16 vlan_id, const union ib_gid *sgid,
+				   enum ib_gid_type gid_type,
+				   u16 *gid_index)
+{
+	struct find_gid_index_context context = {.vlan_id = vlan_id,
+						 .gid_type = gid_type};
+
+	return ib_find_gid_by_filter(device, sgid, port_num, find_gid_index,
+				     &context, gid_index);
+}
+
+static int get_gids_from_rdma_hdr(union rdma_network_hdr *hdr,
+				  enum rdma_network_type net_type,
+				  union ib_gid *sgid, union ib_gid *dgid)
+{
+	struct sockaddr_in  src_in;
+	struct sockaddr_in  dst_in;
+	__be32 src_saddr, dst_saddr;
+
+	if (!sgid || !dgid)
+		return -EINVAL;
+
+	if (net_type == RDMA_NETWORK_IPV4) {
+		memcpy(&src_in.sin_addr.s_addr,
+		       &hdr->roce4grh.saddr, 4);
+		memcpy(&dst_in.sin_addr.s_addr,
+		       &hdr->roce4grh.daddr, 4);
+		src_saddr = src_in.sin_addr.s_addr;
+		dst_saddr = dst_in.sin_addr.s_addr;
+		ipv6_addr_set_v4mapped(src_saddr,
+				       (struct in6_addr *)sgid);
+		ipv6_addr_set_v4mapped(dst_saddr,
+				       (struct in6_addr *)dgid);
+		return 0;
+	} else if (net_type == RDMA_NETWORK_IPV6 ||
+		   net_type == RDMA_NETWORK_IB) {
+		*dgid = hdr->ibgrh.dgid;
+		*sgid = hdr->ibgrh.sgid;
+		return 0;
+	} else {
+		return -EINVAL;
+	}
+}
+
 int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		       const struct ib_wc *wc, const struct ib_grh *grh,
 		       struct ib_ah_attr *ah_attr)
@@ -315,24 +432,72 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 	u32 flow_class;
 	u16 gid_index;
 	int ret;
+	enum rdma_network_type net_type = RDMA_NETWORK_IB;
+	enum ib_gid_type gid_type = IB_GID_TYPE_IB;
+	int hoplimit = 0xff;
+	union ib_gid dgid;
+	union ib_gid sgid;
 
 	memset(ah_attr, 0, sizeof *ah_attr);
 	if (rdma_cap_eth_ah(device, port_num)) {
+		if (wc->wc_flags & IB_WC_WITH_NETWORK_HDR_TYPE)
+			net_type = wc->network_hdr_type;
+		else
+			net_type = ib_get_net_type_by_grh(device, port_num, grh);
+		gid_type = ib_network_to_gid_type(net_type);
+	}
+	ret = get_gids_from_rdma_hdr((union rdma_network_hdr *)grh, net_type,
+				     &sgid, &dgid);
+	if (ret)
+		return ret;
+
+	if (rdma_protocol_roce(device, port_num)) {
+		int if_index = 0;
+		u16 vlan_id = wc->wc_flags & IB_WC_WITH_VLAN ?
+				wc->vlan_id : 0xffff;
+		struct net_device *idev;
+		struct net_device *resolved_dev;
+
 		if (!(wc->wc_flags & IB_WC_GRH))
 			return -EPROTOTYPE;
 
-		if (wc->wc_flags & IB_WC_WITH_SMAC &&
-		    wc->wc_flags & IB_WC_WITH_VLAN) {
-			memcpy(ah_attr->dmac, wc->smac, ETH_ALEN);
-			ah_attr->vlan_id = wc->vlan_id;
-		} else {
-			ret = rdma_addr_find_dmac_by_grh(&grh->dgid, &grh->sgid,
-					ah_attr->dmac, &ah_attr->vlan_id);
-			if (ret)
-				return ret;
+		if (!device->get_netdev)
+			return -EOPNOTSUPP;
+
+		idev = device->get_netdev(device, port_num);
+		if (!idev)
+			return -ENODEV;
+
+		ret = rdma_addr_find_l2_eth_by_grh(&dgid, &sgid,
+						   ah_attr->dmac,
+						   wc->wc_flags & IB_WC_WITH_VLAN ?
+						   NULL : &vlan_id,
+						   &if_index, &hoplimit);
+		if (ret) {
+			dev_put(idev);
+			return ret;
 		}
-	} else {
-		ah_attr->vlan_id = 0xffff;
+
+		resolved_dev = dev_get_by_index(&init_net, if_index);
+		if (resolved_dev->flags & IFF_LOOPBACK) {
+			dev_put(resolved_dev);
+			resolved_dev = idev;
+			dev_hold(resolved_dev);
+		}
+		rcu_read_lock();
+		if (resolved_dev != idev && !rdma_is_upper_dev_rcu(idev,
+								   resolved_dev))
+			ret = -EHOSTUNREACH;
+		rcu_read_unlock();
+		dev_put(idev);
+		dev_put(resolved_dev);
+		if (ret)
+			return ret;
+
+		ret = get_sgid_index_from_eth(device, port_num, vlan_id,
+					      &dgid, gid_type, &gid_index);
+		if (ret)
+			return ret;
 	}
 
 	ah_attr->dlid = wc->slid;
@@ -342,17 +507,21 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 
 	if (wc->wc_flags & IB_WC_GRH) {
 		ah_attr->ah_flags = IB_AH_GRH;
-		ah_attr->grh.dgid = grh->sgid;
+		ah_attr->grh.dgid = sgid;
 
-		ret = ib_find_cached_gid(device, &grh->dgid, &port_num,
-					 &gid_index);
-		if (ret)
-			return ret;
+		if (!rdma_cap_eth_ah(device, port_num)) {
+			ret = ib_find_cached_gid_by_port(device, &dgid,
+							 IB_GID_TYPE_IB,
+							 port_num, NULL,
+							 &gid_index);
+			if (ret)
+				return ret;
+		}
 
 		ah_attr->grh.sgid_index = (u8) gid_index;
 		flow_class = be32_to_cpu(grh->version_tclass_flow);
 		ah_attr->grh.flow_label = flow_class & 0xFFFFF;
-		ah_attr->grh.hop_limit = 0xFF;
+		ah_attr->grh.hop_limit = hoplimit;
 		ah_attr->grh.traffic_class = (flow_class >> 20) & 0xFF;
 	}
 	return 0;
@@ -617,9 +786,7 @@ EXPORT_SYMBOL(ib_create_qp);
 static const struct {
 	int			valid;
 	enum ib_qp_attr_mask	req_param[IB_QPT_MAX];
-	enum ib_qp_attr_mask	req_param_add_eth[IB_QPT_MAX];
 	enum ib_qp_attr_mask	opt_param[IB_QPT_MAX];
-	enum ib_qp_attr_mask	opt_param_add_eth[IB_QPT_MAX];
 } qp_state_table[IB_QPS_ERR + 1][IB_QPS_ERR + 1] = {
 	[IB_QPS_RESET] = {
 		[IB_QPS_RESET] = { .valid = 1 },
@@ -700,12 +867,6 @@ static const struct {
 						IB_QP_MAX_DEST_RD_ATOMIC	|
 						IB_QP_MIN_RNR_TIMER),
 			},
-			.req_param_add_eth = {
-				[IB_QPT_RC]  = (IB_QP_SMAC),
-				[IB_QPT_UC]  = (IB_QP_SMAC),
-				[IB_QPT_XRC_INI]  = (IB_QP_SMAC),
-				[IB_QPT_XRC_TGT]  = (IB_QP_SMAC)
-			},
 			.opt_param = {
 				 [IB_QPT_UD]  = (IB_QP_PKEY_INDEX		|
 						 IB_QP_QKEY),
@@ -726,21 +887,7 @@ static const struct {
 				 [IB_QPT_GSI] = (IB_QP_PKEY_INDEX		|
 						 IB_QP_QKEY),
 			 },
-			.opt_param_add_eth = {
-				[IB_QPT_RC]  = (IB_QP_ALT_SMAC			|
-						IB_QP_VID			|
-						IB_QP_ALT_VID),
-				[IB_QPT_UC]  = (IB_QP_ALT_SMAC			|
-						IB_QP_VID			|
-						IB_QP_ALT_VID),
-				[IB_QPT_XRC_INI]  = (IB_QP_ALT_SMAC			|
-						IB_QP_VID			|
-						IB_QP_ALT_VID),
-				[IB_QPT_XRC_TGT]  = (IB_QP_ALT_SMAC			|
-						IB_QP_VID			|
-						IB_QP_ALT_VID)
-			}
-		}
+		},
 	},
 	[IB_QPS_RTR]   = {
 		[IB_QPS_RESET] = { .valid = 1 },
@@ -962,13 +1109,6 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 	req_param = qp_state_table[cur_state][next_state].req_param[type];
 	opt_param = qp_state_table[cur_state][next_state].opt_param[type];
 
-	if (ll == IB_LINK_LAYER_ETHERNET) {
-		req_param |= qp_state_table[cur_state][next_state].
-			req_param_add_eth[type];
-		opt_param |= qp_state_table[cur_state][next_state].
-			opt_param_add_eth[type];
-	}
-
 	if ((mask & req_param) != req_param)
 		return 0;
 
@@ -979,40 +1119,55 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
-int ib_resolve_eth_l2_attrs(struct ib_qp *qp,
-			    struct ib_qp_attr *qp_attr, int *qp_attr_mask)
+int ib_resolve_eth_dmac(struct ib_qp *qp,
+			struct ib_qp_attr *qp_attr, int *qp_attr_mask)
 {
 	int           ret = 0;
-	union ib_gid  sgid;
 
-	if ((*qp_attr_mask & IB_QP_AV)  &&
-	    (rdma_cap_eth_ah(qp->device, qp_attr->ah_attr.port_num))) {
-		ret = ib_query_gid(qp->device, qp_attr->ah_attr.port_num,
-				   qp_attr->ah_attr.grh.sgid_index, &sgid);
-		if (ret)
-			goto out;
+	if (*qp_attr_mask & IB_QP_AV) {
+		if (qp_attr->ah_attr.port_num < rdma_start_port(qp->device) ||
+		    qp_attr->ah_attr.port_num > rdma_end_port(qp->device))
+			return -EINVAL;
+
+		if (!rdma_cap_eth_ah(qp->device, qp_attr->ah_attr.port_num))
+			return 0;
+
 		if (rdma_link_local_addr((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw)) {
-			rdma_get_ll_mac((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw, qp_attr->ah_attr.dmac);
-			rdma_get_ll_mac((struct in6_addr *)sgid.raw, qp_attr->smac);
-			if (!(*qp_attr_mask & IB_QP_VID))
-				qp_attr->vlan_id = rdma_get_vlan_id(&sgid);
+			rdma_get_ll_mac((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw,
+					qp_attr->ah_attr.dmac);
 		} else {
-			ret = rdma_addr_find_dmac_by_grh(&sgid, &qp_attr->ah_attr.grh.dgid,
-					qp_attr->ah_attr.dmac, &qp_attr->vlan_id);
-			if (ret)
+			union ib_gid		sgid;
+			struct ib_gid_attr	sgid_attr;
+			int			ifindex;
+			int			hop_limit;
+
+			ret = ib_query_gid(qp->device,
+					   qp_attr->ah_attr.port_num,
+					   qp_attr->ah_attr.grh.sgid_index,
+					   &sgid, &sgid_attr);
+
+			if (ret || !sgid_attr.ndev) {
+				if (!ret)
+					ret = -ENXIO;
 				goto out;
-			ret = rdma_addr_find_smac_by_sgid(&sgid, qp_attr->smac, NULL);
-			if (ret)
-				goto out;
+			}
+
+			ifindex = sgid_attr.ndev->ifindex;
+
+			ret = rdma_addr_find_l2_eth_by_grh(&sgid,
+							   &qp_attr->ah_attr.grh.dgid,
+							   qp_attr->ah_attr.dmac,
+							   NULL, &ifindex, &hop_limit);
+
+			dev_put(sgid_attr.ndev);
+
+			qp_attr->ah_attr.grh.hop_limit = hop_limit;
 		}
-		*qp_attr_mask |= IB_QP_SMAC;
-		if (qp_attr->vlan_id < 0xFFFF)
-			*qp_attr_mask |= IB_QP_VID;
 	}
 out:
 	return ret;
 }
-EXPORT_SYMBOL(ib_resolve_eth_l2_attrs);
+EXPORT_SYMBOL(ib_resolve_eth_dmac);
 
 
 int ib_modify_qp(struct ib_qp *qp,
@@ -1021,7 +1176,7 @@ int ib_modify_qp(struct ib_qp *qp,
 {
 	int ret;
 
-	ret = ib_resolve_eth_l2_attrs(qp, qp_attr, &qp_attr_mask);
+	ret = ib_resolve_eth_dmac(qp, qp_attr, &qp_attr_mask);
 	if (ret)
 		return ret;
 
@@ -1188,29 +1343,17 @@ struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 		mr->pd      = pd;
 		mr->uobject = NULL;
 		atomic_inc(&pd->usecnt);
-		atomic_set(&mr->usecnt, 0);
 	}
 
 	return mr;
 }
 EXPORT_SYMBOL(ib_get_dma_mr);
 
-int ib_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr)
-{
-	return mr->device->query_mr ?
-		mr->device->query_mr(mr, mr_attr) : -ENOSYS;
-}
-EXPORT_SYMBOL(ib_query_mr);
-
 int ib_dereg_mr(struct ib_mr *mr)
 {
-	struct ib_pd *pd;
+	struct ib_pd *pd = mr->pd;
 	int ret;
 
-	if (atomic_read(&mr->usecnt))
-		return -EBUSY;
-
-	pd = mr->pd;
 	ret = mr->device->dereg_mr(mr);
 	if (!ret)
 		atomic_dec(&pd->usecnt);
@@ -1246,73 +1389,11 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 		mr->pd      = pd;
 		mr->uobject = NULL;
 		atomic_inc(&pd->usecnt);
-		atomic_set(&mr->usecnt, 0);
 	}
 
 	return mr;
 }
 EXPORT_SYMBOL(ib_alloc_mr);
-
-struct ib_fast_reg_page_list *ib_alloc_fast_reg_page_list(struct ib_device *device,
-							  int max_page_list_len)
-{
-	struct ib_fast_reg_page_list *page_list;
-
-	if (!device->alloc_fast_reg_page_list)
-		return ERR_PTR(-ENOSYS);
-
-	page_list = device->alloc_fast_reg_page_list(device, max_page_list_len);
-
-	if (!IS_ERR(page_list)) {
-		page_list->device = device;
-		page_list->max_page_list_len = max_page_list_len;
-	}
-
-	return page_list;
-}
-EXPORT_SYMBOL(ib_alloc_fast_reg_page_list);
-
-void ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list)
-{
-	page_list->device->free_fast_reg_page_list(page_list);
-}
-EXPORT_SYMBOL(ib_free_fast_reg_page_list);
-
-/* Memory windows */
-
-struct ib_mw *ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
-{
-	struct ib_mw *mw;
-
-	if (!pd->device->alloc_mw)
-		return ERR_PTR(-ENOSYS);
-
-	mw = pd->device->alloc_mw(pd, type);
-	if (!IS_ERR(mw)) {
-		mw->device  = pd->device;
-		mw->pd      = pd;
-		mw->uobject = NULL;
-		mw->type    = type;
-		atomic_inc(&pd->usecnt);
-	}
-
-	return mw;
-}
-EXPORT_SYMBOL(ib_alloc_mw);
-
-int ib_dealloc_mw(struct ib_mw *mw)
-{
-	struct ib_pd *pd;
-	int ret;
-
-	pd = mw->pd;
-	ret = mw->device->dealloc_mw(mw);
-	if (!ret)
-		atomic_dec(&pd->usecnt);
-
-	return ret;
-}
-EXPORT_SYMBOL(ib_dealloc_mw);
 
 /* "Fast" memory regions */
 
@@ -1469,3 +1550,316 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 		mr->device->check_mr_status(mr, check_mask, mr_status) : -ENOSYS;
 }
 EXPORT_SYMBOL(ib_check_mr_status);
+
+int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
+			 int state)
+{
+	if (!device->set_vf_link_state)
+		return -ENOSYS;
+
+	return device->set_vf_link_state(device, vf, port, state);
+}
+EXPORT_SYMBOL(ib_set_vf_link_state);
+
+int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
+		     struct ifla_vf_info *info)
+{
+	if (!device->get_vf_config)
+		return -ENOSYS;
+
+	return device->get_vf_config(device, vf, port, info);
+}
+EXPORT_SYMBOL(ib_get_vf_config);
+
+int ib_get_vf_stats(struct ib_device *device, int vf, u8 port,
+		    struct ifla_vf_stats *stats)
+{
+	if (!device->get_vf_stats)
+		return -ENOSYS;
+
+	return device->get_vf_stats(device, vf, port, stats);
+}
+EXPORT_SYMBOL(ib_get_vf_stats);
+
+int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
+		   int type)
+{
+	if (!device->set_vf_guid)
+		return -ENOSYS;
+
+	return device->set_vf_guid(device, vf, port, guid, type);
+}
+EXPORT_SYMBOL(ib_set_vf_guid);
+
+/**
+ * ib_map_mr_sg() - Map the largest prefix of a dma mapped SG list
+ *     and set it the memory region.
+ * @mr:            memory region
+ * @sg:            dma mapped scatterlist
+ * @sg_nents:      number of entries in sg
+ * @page_size:     page vector desired page size
+ *
+ * Constraints:
+ * - The first sg element is allowed to have an offset.
+ * - Each sg element must be aligned to page_size (or physically
+ *   contiguous to the previous element). In case an sg element has a
+ *   non contiguous offset, the mapping prefix will not include it.
+ * - The last sg element is allowed to have length less than page_size.
+ * - If sg_nents total byte length exceeds the mr max_num_sge * page_size
+ *   then only max_num_sg entries will be mapped.
+ * - If the MR was allocated with type IB_MR_TYPE_SG_GAPS_REG, non of these
+ *   constraints holds and the page_size argument is ignored.
+ *
+ * Returns the number of sg elements that were mapped to the memory region.
+ *
+ * After this completes successfully, the  memory region
+ * is ready for registration.
+ */
+int ib_map_mr_sg(struct ib_mr *mr,
+		 struct scatterlist *sg,
+		 int sg_nents,
+		 unsigned int page_size)
+{
+	if (unlikely(!mr->device->map_mr_sg))
+		return -ENOSYS;
+
+	mr->page_size = page_size;
+
+	return mr->device->map_mr_sg(mr, sg, sg_nents);
+}
+EXPORT_SYMBOL(ib_map_mr_sg);
+
+/**
+ * ib_sg_to_pages() - Convert the largest prefix of a sg list
+ *     to a page vector
+ * @mr:            memory region
+ * @sgl:           dma mapped scatterlist
+ * @sg_nents:      number of entries in sg
+ * @set_page:      driver page assignment function pointer
+ *
+ * Core service helper for drivers to convert the largest
+ * prefix of given sg list to a page vector. The sg list
+ * prefix converted is the prefix that meet the requirements
+ * of ib_map_mr_sg.
+ *
+ * Returns the number of sg elements that were assigned to
+ * a page vector.
+ */
+int ib_sg_to_pages(struct ib_mr *mr,
+		   struct scatterlist *sgl,
+		   int sg_nents,
+		   int (*set_page)(struct ib_mr *, u64))
+{
+	struct scatterlist *sg;
+	u64 last_end_dma_addr = 0;
+	unsigned int last_page_off = 0;
+	u64 page_mask = ~((u64)mr->page_size - 1);
+	int i, ret;
+
+	mr->iova = sg_dma_address(&sgl[0]);
+	mr->length = 0;
+
+	for_each_sg(sgl, sg, sg_nents, i) {
+		u64 dma_addr = sg_dma_address(sg);
+		unsigned int dma_len = sg_dma_len(sg);
+		u64 end_dma_addr = dma_addr + dma_len;
+		u64 page_addr = dma_addr & page_mask;
+
+		/*
+		 * For the second and later elements, check whether either the
+		 * end of element i-1 or the start of element i is not aligned
+		 * on a page boundary.
+		 */
+		if (i && (last_page_off != 0 || page_addr != dma_addr)) {
+			/* Stop mapping if there is a gap. */
+			if (last_end_dma_addr != dma_addr)
+				break;
+
+			/*
+			 * Coalesce this element with the last. If it is small
+			 * enough just update mr->length. Otherwise start
+			 * mapping from the next page.
+			 */
+			goto next_page;
+		}
+
+		do {
+			ret = set_page(mr, page_addr);
+			if (unlikely(ret < 0))
+				return i ? : ret;
+next_page:
+			page_addr += mr->page_size;
+		} while (page_addr < end_dma_addr);
+
+		mr->length += dma_len;
+		last_end_dma_addr = end_dma_addr;
+		last_page_off = end_dma_addr & ~page_mask;
+	}
+
+	return i;
+}
+EXPORT_SYMBOL(ib_sg_to_pages);
+
+struct ib_drain_cqe {
+	struct ib_cqe cqe;
+	struct completion done;
+};
+
+static void ib_drain_qp_done(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct ib_drain_cqe *cqe = container_of(wc->wr_cqe, struct ib_drain_cqe,
+						cqe);
+
+	complete(&cqe->done);
+}
+
+/*
+ * Post a WR and block until its completion is reaped for the SQ.
+ */
+static void __ib_drain_sq(struct ib_qp *qp)
+{
+	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
+	struct ib_drain_cqe sdrain;
+	struct ib_send_wr swr = {}, *bad_swr;
+	int ret;
+
+	if (qp->send_cq->poll_ctx == IB_POLL_DIRECT) {
+		WARN_ONCE(qp->send_cq->poll_ctx == IB_POLL_DIRECT,
+			  "IB_POLL_DIRECT poll_ctx not supported for drain\n");
+		return;
+	}
+
+	swr.wr_cqe = &sdrain.cqe;
+	sdrain.cqe.done = ib_drain_qp_done;
+	init_completion(&sdrain.done);
+
+	ret = ib_modify_qp(qp, &attr, IB_QP_STATE);
+	if (ret) {
+		WARN_ONCE(ret, "failed to drain send queue: %d\n", ret);
+		return;
+	}
+
+	ret = ib_post_send(qp, &swr, &bad_swr);
+	if (ret) {
+		WARN_ONCE(ret, "failed to drain send queue: %d\n", ret);
+		return;
+	}
+
+	wait_for_completion(&sdrain.done);
+}
+
+/*
+ * Post a WR and block until its completion is reaped for the RQ.
+ */
+static void __ib_drain_rq(struct ib_qp *qp)
+{
+	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
+	struct ib_drain_cqe rdrain;
+	struct ib_recv_wr rwr = {}, *bad_rwr;
+	int ret;
+
+	if (qp->recv_cq->poll_ctx == IB_POLL_DIRECT) {
+		WARN_ONCE(qp->recv_cq->poll_ctx == IB_POLL_DIRECT,
+			  "IB_POLL_DIRECT poll_ctx not supported for drain\n");
+		return;
+	}
+
+	rwr.wr_cqe = &rdrain.cqe;
+	rdrain.cqe.done = ib_drain_qp_done;
+	init_completion(&rdrain.done);
+
+	ret = ib_modify_qp(qp, &attr, IB_QP_STATE);
+	if (ret) {
+		WARN_ONCE(ret, "failed to drain recv queue: %d\n", ret);
+		return;
+	}
+
+	ret = ib_post_recv(qp, &rwr, &bad_rwr);
+	if (ret) {
+		WARN_ONCE(ret, "failed to drain recv queue: %d\n", ret);
+		return;
+	}
+
+	wait_for_completion(&rdrain.done);
+}
+
+/**
+ * ib_drain_sq() - Block until all SQ CQEs have been consumed by the
+ *		   application.
+ * @qp:            queue pair to drain
+ *
+ * If the device has a provider-specific drain function, then
+ * call that.  Otherwise call the generic drain function
+ * __ib_drain_sq().
+ *
+ * The caller must:
+ *
+ * ensure there is room in the CQ and SQ for the drain work request and
+ * completion.
+ *
+ * allocate the CQ using ib_alloc_cq() and the CQ poll context cannot be
+ * IB_POLL_DIRECT.
+ *
+ * ensure that there are no other contexts that are posting WRs concurrently.
+ * Otherwise the drain is not guaranteed.
+ */
+void ib_drain_sq(struct ib_qp *qp)
+{
+	if (qp->device->drain_sq)
+		qp->device->drain_sq(qp);
+	else
+		__ib_drain_sq(qp);
+}
+EXPORT_SYMBOL(ib_drain_sq);
+
+/**
+ * ib_drain_rq() - Block until all RQ CQEs have been consumed by the
+ *		   application.
+ * @qp:            queue pair to drain
+ *
+ * If the device has a provider-specific drain function, then
+ * call that.  Otherwise call the generic drain function
+ * __ib_drain_rq().
+ *
+ * The caller must:
+ *
+ * ensure there is room in the CQ and RQ for the drain work request and
+ * completion.
+ *
+ * allocate the CQ using ib_alloc_cq() and the CQ poll context cannot be
+ * IB_POLL_DIRECT.
+ *
+ * ensure that there are no other contexts that are posting WRs concurrently.
+ * Otherwise the drain is not guaranteed.
+ */
+void ib_drain_rq(struct ib_qp *qp)
+{
+	if (qp->device->drain_rq)
+		qp->device->drain_rq(qp);
+	else
+		__ib_drain_rq(qp);
+}
+EXPORT_SYMBOL(ib_drain_rq);
+
+/**
+ * ib_drain_qp() - Block until all CQEs have been consumed by the
+ *		   application on both the RQ and SQ.
+ * @qp:            queue pair to drain
+ *
+ * The caller must:
+ *
+ * ensure there is room in the CQ(s), SQ, and RQ for drain work requests
+ * and completions.
+ *
+ * allocate the CQs using ib_alloc_cq() and the CQ poll context cannot be
+ * IB_POLL_DIRECT.
+ *
+ * ensure that there are no other contexts that are posting WRs concurrently.
+ * Otherwise the drain is not guaranteed.
+ */
+void ib_drain_qp(struct ib_qp *qp)
+{
+	ib_drain_sq(qp);
+	ib_drain_rq(qp);
+}
+EXPORT_SYMBOL(ib_drain_qp);

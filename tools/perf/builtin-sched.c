@@ -12,7 +12,7 @@
 #include "util/tool.h"
 #include "util/cloexec.h"
 
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 
 #include "util/debug.h"
@@ -1203,12 +1203,13 @@ static void output_lat_thread(struct perf_sched *sched, struct work_atoms *work_
 
 static int pid_cmp(struct work_atoms *l, struct work_atoms *r)
 {
+	if (l->thread == r->thread)
+		return 0;
 	if (l->thread->tid < r->thread->tid)
 		return -1;
 	if (l->thread->tid > r->thread->tid)
 		return 1;
-
-	return 0;
+	return (int)(l->thread - r->thread);
 }
 
 static int avg_cmp(struct work_atoms *l, struct work_atoms *r)

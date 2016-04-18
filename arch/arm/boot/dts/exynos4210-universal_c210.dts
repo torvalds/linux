@@ -14,6 +14,7 @@
 
 /dts-v1/;
 #include "exynos4210.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Samsung Universal C210 based on Exynos4210 rev0";
@@ -65,7 +66,7 @@
 		regulator-name = "VMEM_VDD_2_8V";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
-		gpio = <&gpe1 3 0>;
+		gpio = <&gpe1 3 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
@@ -73,44 +74,44 @@
 		compatible = "gpio-keys";
 
 		vol-up-key {
-			gpios = <&gpx2 0 1>;
+			gpios = <&gpx2 0 GPIO_ACTIVE_LOW>;
 			linux,code = <115>;
 			label = "volume up";
 			debounce-interval = <1>;
 		};
 
 		vol-down-key {
-			gpios = <&gpx2 1 1>;
+			gpios = <&gpx2 1 GPIO_ACTIVE_LOW>;
 			linux,code = <114>;
 			label = "volume down";
 			debounce-interval = <1>;
 		};
 
 		config-key {
-			gpios = <&gpx2 2 1>;
+			gpios = <&gpx2 2 GPIO_ACTIVE_LOW>;
 			linux,code = <171>;
 			label = "config";
 			debounce-interval = <1>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		camera-key {
-			gpios = <&gpx2 3 1>;
+			gpios = <&gpx2 3 GPIO_ACTIVE_LOW>;
 			linux,code = <212>;
 			label = "camera";
 			debounce-interval = <1>;
 		};
 
 		power-key {
-			gpios = <&gpx2 7 1>;
+			gpios = <&gpx2 7 GPIO_ACTIVE_LOW>;
 			linux,code = <116>;
 			label = "power";
 			debounce-interval = <1>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		ok-key {
-			gpios = <&gpx3 5 1>;
+			gpios = <&gpx3 5 GPIO_ACTIVE_LOW>;
 			linux,code = <352>;
 			label = "ok";
 			debounce-interval = <1>;
@@ -122,7 +123,7 @@
 		regulator-name = "TSP_2_8V";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
-		gpio = <&gpe2 3 0>;
+		gpio = <&gpe2 3 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
@@ -131,17 +132,17 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		gpio-sck = <&gpy3 1 0>;
-		gpio-mosi = <&gpy3 3 0>;
+		gpio-sck = <&gpy3 1 GPIO_ACTIVE_HIGH>;
+		gpio-mosi = <&gpy3 3 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
-		cs-gpios = <&gpy4 3 0>;
+		cs-gpios = <&gpy4 3 GPIO_ACTIVE_HIGH>;
 
 		lcd@0 {
 			compatible = "samsung,ld9040";
 			reg = <0>;
 			vdd3-supply = <&ldo7_reg>;
 			vci-supply = <&ldo17_reg>;
-			reset-gpios = <&gpy4 5 0>;
+			reset-gpios = <&gpy4 5 GPIO_ACTIVE_HIGH>;
 			spi-max-frequency = <1200000>;
 			spi-cpol;
 			spi-cpha;
@@ -218,13 +219,13 @@
 		regulator-name = "HDMI_5V";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gpe0 1 0>;
+		gpio = <&gpe0 1 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
 	hdmi_ddc: i2c-ddc {
 		compatible = "i2c-gpio";
-		gpios = <&gpe4 2 0 &gpe4 3 0>;
+		gpios = <&gpe4 2 GPIO_ACTIVE_HIGH &gpe4 3 GPIO_ACTIVE_HIGH>;
 		i2c-gpio,delay-us = <100>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -248,6 +249,7 @@
 
 &exynos_usbphy {
 	status = "okay";
+	vbus-supply = <&safeout1_reg>;
 };
 
 &fimd {
@@ -267,7 +269,7 @@
 };
 
 &hdmi {
-	hpd-gpio = <&gpx3 7 0>;
+	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd>;
 	hdmi-en-supply = <&hdmi_en>;
@@ -311,7 +313,8 @@
 		compatible = "maxim,max8952";
 		reg = <0x60>;
 
-		max8952,vid-gpios = <&gpx0 3 0>, <&gpx0 4 0>;
+		max8952,vid-gpios = <&gpx0 3 GPIO_ACTIVE_HIGH>,
+				    <&gpx0 4 GPIO_ACTIVE_HIGH>;
 		max8952,default-mode = <0>;
 		max8952,dvs-mode-microvolt = <1250000>, <1200000>,
 						<1050000>, <950000>;
@@ -330,13 +333,13 @@
 		reg = <0x66>;
 
 		max8998,pmic-buck1-default-dvs-idx = <0>;
-		max8998,pmic-buck1-dvs-gpios = <&gpx0 5 0>,
-						<&gpx0 6 0>;
+		max8998,pmic-buck1-dvs-gpios = <&gpx0 5 GPIO_ACTIVE_HIGH>,
+						<&gpx0 6 GPIO_ACTIVE_HIGH>;
 		max8998,pmic-buck1-dvs-voltage = <1100000>, <1000000>,
 						<1100000>, <1000000>;
 
 		max8998,pmic-buck2-default-dvs-idx = <0>;
-		max8998,pmic-buck2-dvs-gpio = <&gpe2 0 0>;
+		max8998,pmic-buck2-dvs-gpio = <&gpe2 0 GPIO_ACTIVE_HIGH>;
 		max8998,pmic-buck2-dvs-voltage = <1200000>, <1100000>;
 
 		regulators {
@@ -486,7 +489,6 @@
 
 			safeout1_reg: ESAFEOUT1 {
 				regulator-name = "SAFEOUT1";
-				regulator-always-on;
 			};
 
 			safeout2_reg: ESAFEOUT2 {
@@ -551,23 +553,31 @@
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4>;
 	pinctrl-names = "default";
 	vmmc-supply = <&ldo5_reg>;
-	cd-gpios = <&gpx3 4 0>;
+	cd-gpios = <&gpx3 4 GPIO_ACTIVE_HIGH>;
 	cd-inverted;
 	status = "okay";
 };
 
 &serial_0 {
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
 };
 
 &serial_1 {
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
 };
 
 &serial_2 {
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
 };
 
 &serial_3 {
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
 };

@@ -75,18 +75,16 @@
  */
 #define CMP_QSIZE		CMP_QUEUE_SIZE2
 #define CMP_QUEUE_LEN		(1ULL << (CMP_QSIZE + 10))
-#define CMP_QUEUE_CQE_THRESH	0
-#define CMP_QUEUE_TIMER_THRESH	220 /* 10usec */
+#define CMP_QUEUE_CQE_THRESH	(NAPI_POLL_WEIGHT / 2)
+#define CMP_QUEUE_TIMER_THRESH	80 /* ~2usec */
 
 #define RBDR_SIZE		RBDR_SIZE0
 #define RCV_BUF_COUNT		(1ULL << (RBDR_SIZE + 13))
 #define MAX_RCV_BUF_COUNT	(1ULL << (RBDR_SIZE6 + 13))
 #define RBDR_THRESH		(RCV_BUF_COUNT / 2)
 #define DMA_BUFFER_LEN		2048 /* In multiples of 128bytes */
-#define RCV_FRAG_LEN	(SKB_DATA_ALIGN(DMA_BUFFER_LEN + NET_SKB_PAD) + \
-			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) + \
-			 (NICVF_RCV_BUF_ALIGN_BYTES * 2))
-#define RCV_DATA_OFFSET		NICVF_RCV_BUF_ALIGN_BYTES
+#define RCV_FRAG_LEN	 (SKB_DATA_ALIGN(DMA_BUFFER_LEN + NET_SKB_PAD) + \
+			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define MAX_CQES_FOR_TX		((SND_QUEUE_LEN / MIN_SQ_DESC_PER_PKT_XMIT) * \
 				 MAX_CQE_PER_PKT_XMIT)
@@ -108,10 +106,6 @@
 #define NICVF_SQ_BASE_ALIGN_BYTES	128  /* 7 bits */
 
 #define NICVF_ALIGNED_ADDR(ADDR, ALIGN_BYTES)	ALIGN(ADDR, ALIGN_BYTES)
-#define NICVF_ADDR_ALIGN_LEN(ADDR, BYTES)\
-	(NICVF_ALIGNED_ADDR(ADDR, BYTES) - BYTES)
-#define NICVF_RCV_BUF_ALIGN_LEN(X)\
-	(NICVF_ALIGNED_ADDR(X, NICVF_RCV_BUF_ALIGN_BYTES) - X)
 
 /* Queue enable/disable */
 #define NICVF_SQ_EN		BIT_ULL(19)
@@ -344,8 +338,7 @@ u64  nicvf_queue_reg_read(struct nicvf *nic,
 /* Stats */
 void nicvf_update_rq_stats(struct nicvf *nic, int rq_idx);
 void nicvf_update_sq_stats(struct nicvf *nic, int sq_idx);
-int nicvf_check_cqe_rx_errs(struct nicvf *nic,
-			    struct cmp_queue *cq, struct cqe_rx_t *cqe_rx);
+int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx);
 int nicvf_check_cqe_tx_errs(struct nicvf *nic,
 			    struct cmp_queue *cq, struct cqe_send_t *cqe_tx);
 #endif /* NICVF_QUEUES_H */

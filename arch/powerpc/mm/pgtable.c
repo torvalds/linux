@@ -179,6 +179,10 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 	 */
 	VM_WARN_ON((pte_val(*ptep) & (_PAGE_PRESENT | _PAGE_USER)) ==
 		(_PAGE_PRESENT | _PAGE_USER));
+	/*
+	 * Add the pte bit when tryint set a pte
+	 */
+	pte = __pte(pte_val(pte) | _PAGE_PTE);
 
 	/* Note: mm->context.id might not yet have been assigned as
 	 * this context might not have been activated yet when this
@@ -239,3 +243,11 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 }
 #endif /* CONFIG_DEBUG_VM */
 
+unsigned long vmalloc_to_phys(void *va)
+{
+	unsigned long pfn = vmalloc_to_pfn(va);
+
+	BUG_ON(!pfn);
+	return __pa(pfn_to_kaddr(pfn)) + offset_in_page(va);
+}
+EXPORT_SYMBOL_GPL(vmalloc_to_phys);

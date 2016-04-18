@@ -36,6 +36,7 @@
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
+#include <linux/usb/of.h>
 
 #include <asm/io.h>
 #include <linux/scatterlist.h>
@@ -49,12 +50,7 @@ const char *usbcore_name = "usbcore";
 
 static bool nousb;	/* Disable USB when built into kernel image */
 
-/* To disable USB, kernel command line is 'nousb' not 'usbcore.nousb' */
-#ifdef MODULE
 module_param(nousb, bool, 0444);
-#else
-core_param(nousb, nousb, bool, 0444);
-#endif
 
 /*
  * for external read access to <nousb>
@@ -246,7 +242,7 @@ static int __each_dev(struct device *dev, void *data)
 	if (!is_usb_device(dev))
 		return 0;
 
-	return arg->fn(container_of(dev, struct usb_device, dev), arg->data);
+	return arg->fn(to_usb_device(dev), arg->data);
 }
 
 /**
@@ -316,7 +312,13 @@ static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static int usb_dev_prepare(struct device *dev)
 {
-	return 0;		/* Implement eventually? */
+	struct usb_device *udev = to_usb_device(dev);
+
+	/* Return 0 if the current wakeup setting is wrong, otherwise 1 */
+	if (udev->do_remote_wakeup != device_may_wakeup(dev))
+		return 0;
+
+	return 1;
 }
 
 static void usb_dev_complete(struct device *dev)
@@ -396,7 +398,7 @@ struct device_type usb_device_type = {
 /* Returns 1 if @usb_bus is WUSB, 0 otherwise */
 static unsigned usb_bus_is_wusb(struct usb_bus *bus)
 {
-	struct usb_hcd *hcd = container_of(bus, struct usb_hcd, self);
+	struct usb_hcd *hcd = bus_to_hcd(bus);
 	return hcd->wireless;
 }
 
@@ -422,6 +424,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	struct usb_device *dev;
 	struct usb_hcd *usb_hcd = bus_to_hcd(bus);
 	unsigned root_hub = 0;
+	unsigned raw_port = port1;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -469,6 +472,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 		dev->route = 0;
 
 		dev->dev.parent = bus->controller;
+		dev->dev.of_node = bus->controller->of_node;
 		dev_set_name(&dev->dev, "usb%d", bus->busnum);
 		root_hub = 1;
 	} else {
@@ -492,6 +496,14 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 
 		dev->dev.parent = &parent->dev;
 		dev_set_name(&dev->dev, "%d-%s", bus->busnum, dev->devpath);
+
+		if (!parent->parent) {
+			/* device under root hub's port */
+			raw_port = usb_hcd_find_raw_port_number(usb_hcd,
+				port1);
+		}
+		dev->dev.of_node = usb_of_get_child_node(parent->dev.of_node,
+				raw_port);
 
 		/* hub driver sets up TT records */
 	}
@@ -1114,6 +1126,7 @@ static void __exit usb_exit(void)
 	bus_unregister(&usb_bus_type);
 	usb_acpi_unregister();
 	usb_debugfs_cleanup();
+	idr_destroy(&usb_bus_idr);
 }
 
 subsys_initcall(usb_init);

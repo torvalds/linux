@@ -93,9 +93,6 @@ static int kernel_init(void *);
 extern void init_IRQ(void);
 extern void fork_init(void);
 extern void radix_tree_init(void);
-#ifndef CONFIG_DEBUG_RODATA
-static inline void mark_rodata_ro(void) { }
-#endif
 
 /*
  * Debug helper: via this flag we know that we are in 'early bootup code'
@@ -164,10 +161,10 @@ static const char *panic_later, *panic_param;
 
 extern const struct obs_kernel_param __setup_start[], __setup_end[];
 
-static int __init obsolete_checksetup(char *line)
+static bool __init obsolete_checksetup(char *line)
 {
 	const struct obs_kernel_param *p;
-	int had_early_param = 0;
+	bool had_early_param = false;
 
 	p = __setup_start;
 	do {
@@ -179,13 +176,13 @@ static int __init obsolete_checksetup(char *line)
 				 * Keep iterating, as we can have early
 				 * params and __setups of same names 8( */
 				if (line[n] == '\0' || line[n] == '=')
-					had_early_param = 1;
+					had_early_param = true;
 			} else if (!p->setup_func) {
 				pr_warn("Parameter %s is obsolete, ignored\n",
 					p->str);
-				return 1;
+				return true;
 			} else if (p->setup_func(line + n))
-				return 1;
+				return true;
 		}
 		p++;
 	} while (p < __setup_end);
@@ -388,7 +385,6 @@ static noinline void __init_refok rest_init(void)
 	int pid;
 
 	rcu_scheduler_starting();
-	smpboot_thread_init();
 	/*
 	 * We need to spawn init first so that it obtains pid 1, however
 	 * the init task will end up wanting to create kthreads, which, if
@@ -452,20 +448,6 @@ void __init parse_early_param(void)
 	done = 1;
 }
 
-/*
- *	Activate the first processor.
- */
-
-static void __init boot_cpu_init(void)
-{
-	int cpu = smp_processor_id();
-	/* Mark the boot cpu "present", "online" etc for SMP and UP case */
-	set_cpu_online(cpu, true);
-	set_cpu_active(cpu, true);
-	set_cpu_present(cpu, true);
-	set_cpu_possible(cpu, true);
-}
-
 void __init __weak smp_setup_processor_id(void)
 {
 }
@@ -499,11 +481,6 @@ asmlinkage __visible void __init start_kernel(void)
 	char *command_line;
 	char *after_dashes;
 
-	/*
-	 * Need to run as early as possible, to initialize the
-	 * lockdep hash:
-	 */
-	lockdep_init();
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
 	debug_objects_early_init();
@@ -530,6 +507,7 @@ asmlinkage __visible void __init start_kernel(void)
 	setup_command_line(command_line);
 	setup_nr_cpu_ids();
 	setup_per_cpu_areas();
+	boot_cpu_state_init();
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 
 	build_all_zonelists(NULL, NULL);
@@ -727,7 +705,6 @@ static int __init initcall_blacklist(char *str)
 
 static bool __init_or_module initcall_blacklisted(initcall_t fn)
 {
-	struct list_head *tmp;
 	struct blacklist_entry *entry;
 	char *fn_name;
 
@@ -735,8 +712,7 @@ static bool __init_or_module initcall_blacklisted(initcall_t fn)
 	if (!fn_name)
 		return false;
 
-	list_for_each(tmp, &blacklisted_initcalls) {
-		entry = list_entry(tmp, struct blacklist_entry, next);
+	list_for_each_entry(entry, &blacklisted_initcalls, next) {
 		if (!strcmp(fn_name, entry->buf)) {
 			pr_debug("initcall %s blacklisted\n", fn_name);
 			kfree(fn_name);
@@ -929,6 +905,28 @@ static int try_to_run_init_process(const char *init_filename)
 
 static noinline void __init kernel_init_freeable(void);
 
+#ifdef CONFIG_DEBUG_RODATA
+static bool rodata_enabled = true;
+static int __init set_debug_rodata(char *str)
+{
+	return strtobool(str, &rodata_enabled);
+}
+__setup("rodata=", set_debug_rodata);
+
+static void mark_readonly(void)
+{
+	if (rodata_enabled)
+		mark_rodata_ro();
+	else
+		pr_info("Kernel memory protection disabled.\n");
+}
+#else
+static inline void mark_readonly(void)
+{
+	pr_warn("This architecture does not have kernel memory protection.\n");
+}
+#endif
+
 static int __ref kernel_init(void *unused)
 {
 	int ret;
@@ -937,11 +935,13 @@ static int __ref kernel_init(void *unused)
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
 	free_initmem();
-	mark_rodata_ro();
+	mark_readonly();
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
 
 	flush_delayed_fput();
+
+	rcu_end_inkernel_boot();
 
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);

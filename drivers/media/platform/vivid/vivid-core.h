@@ -264,6 +264,7 @@ struct vivid_dev {
 	bool				vflip;
 	bool				vbi_cap_interlaced;
 	bool				loop_video;
+	bool				reduced_fps;
 
 	/* Framebuffer */
 	unsigned long			video_pbase;
@@ -285,7 +286,7 @@ struct vivid_dev {
 	bool				dqbuf_error;
 	bool				seq_wrap;
 	bool				time_wrap;
-	__kernel_time_t			time_wrap_offset;
+	u64				time_wrap_offset;
 	unsigned			perc_dropped_buffers;
 	enum vivid_signal_mode		std_signal_mode;
 	unsigned			query_std_last;

@@ -238,7 +238,7 @@ extern void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
 			      struct nfs_pgio_header *hdr,
 			      void (*release)(struct nfs_pgio_header *hdr));
 void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos);
-int nfs_iocounter_wait(struct nfs_io_counter *c);
+int nfs_iocounter_wait(struct nfs_lock_context *l_ctx);
 
 extern const struct nfs_pageio_ops nfs_pgio_rw_ops;
 struct nfs_pgio_header *nfs_pgio_header_alloc(const struct nfs_rw_ops *);
@@ -252,16 +252,16 @@ void nfs_free_request(struct nfs_page *req);
 struct nfs_pgio_mirror *
 nfs_pgio_current_mirror(struct nfs_pageio_descriptor *desc);
 
-static inline void nfs_iocounter_init(struct nfs_io_counter *c)
-{
-	c->flags = 0;
-	atomic_set(&c->io_count, 0);
-}
-
 static inline bool nfs_pgio_has_mirroring(struct nfs_pageio_descriptor *desc)
 {
 	WARN_ON_ONCE(desc->pg_mirror_count < 1);
 	return desc->pg_mirror_count > 1;
+}
+
+static inline bool nfs_match_open_context(const struct nfs_open_context *ctx1,
+		const struct nfs_open_context *ctx2)
+{
+	return ctx1->cred == ctx2->cred && ctx1->state == ctx2->state;
 }
 
 /* nfs2xdr.c */
@@ -358,7 +358,7 @@ int nfs_mknod(struct inode *, struct dentry *, umode_t, dev_t);
 int nfs_rename(struct inode *, struct dentry *, struct inode *, struct dentry *);
 
 /* file.c */
-int nfs_file_fsync_commit(struct file *, loff_t, loff_t, int);
+int nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 loff_t nfs_file_llseek(struct file *, loff_t, int);
 ssize_t nfs_file_read(struct kiocb *, struct iov_iter *);
 ssize_t nfs_file_splice_read(struct file *, loff_t *, struct pipe_inode_info *,
@@ -379,7 +379,8 @@ extern int nfs_drop_inode(struct inode *);
 extern void nfs_clear_inode(struct inode *);
 extern void nfs_evict_inode(struct inode *);
 void nfs_zap_acl_cache(struct inode *inode);
-extern int nfs_wait_bit_killable(struct wait_bit_key *key);
+extern int nfs_wait_bit_killable(struct wait_bit_key *key, int mode);
+extern int nfs_wait_atomic_killable(atomic_t *p);
 
 /* super.c */
 extern const struct super_operations nfs_sops;
@@ -483,7 +484,7 @@ void nfs_retry_commit(struct list_head *page_list,
 		      struct nfs_commit_info *cinfo,
 		      u32 ds_commit_idx);
 void nfs_commitdata_release(struct nfs_commit_data *data);
-void nfs_request_add_commit_list(struct nfs_page *req, struct list_head *dst,
+void nfs_request_add_commit_list(struct nfs_page *req,
 				 struct nfs_commit_info *cinfo);
 void nfs_request_add_commit_list_locked(struct nfs_page *req,
 		struct list_head *dst,
@@ -514,12 +515,7 @@ extern int nfs_sillyrename(struct inode *dir, struct dentry *dentry);
 /* direct.c */
 void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
 			      struct nfs_direct_req *dreq);
-static inline void nfs_inode_dio_wait(struct inode *inode)
-{
-	inode_dio_wait(inode);
-}
 extern ssize_t nfs_dreq_bytes_left(struct nfs_direct_req *dreq);
-extern void nfs_direct_set_resched_writes(struct nfs_direct_req *dreq);
 
 /* nfs4proc.c */
 extern void __nfs4_read_done_cb(struct nfs_pgio_header *);
@@ -642,11 +638,11 @@ unsigned int nfs_page_length(struct page *page)
 
 	if (i_size > 0) {
 		pgoff_t page_index = page_file_index(page);
-		pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+		pgoff_t end_index = (i_size - 1) >> PAGE_SHIFT;
 		if (page_index < end_index)
-			return PAGE_CACHE_SIZE;
+			return PAGE_SIZE;
 		if (page_index == end_index)
-			return ((i_size - 1) & ~PAGE_CACHE_MASK) + 1;
+			return ((i_size - 1) & ~PAGE_MASK) + 1;
 	}
 	return 0;
 }
@@ -696,9 +692,32 @@ static inline u32 nfs_fhandle_hash(const struct nfs_fh *fh)
 {
 	return ~crc32_le(0xFFFFFFFF, &fh->data[0], fh->size);
 }
+static inline u32 nfs_stateid_hash(const nfs4_stateid *stateid)
+{
+	return ~crc32_le(0xFFFFFFFF, &stateid->other[0],
+				NFS4_STATEID_OTHER_SIZE);
+}
 #else
 static inline u32 nfs_fhandle_hash(const struct nfs_fh *fh)
 {
 	return 0;
 }
+static inline u32 nfs_stateid_hash(nfs4_stateid *stateid)
+{
+	return 0;
+}
 #endif
+
+static inline bool nfs_error_is_fatal(int err)
+{
+	switch (err) {
+	case -ERESTARTSYS:
+	case -EIO:
+	case -ENOSPC:
+	case -EROFS:
+	case -E2BIG:
+		return true;
+	default:
+		return false;
+	}
+}

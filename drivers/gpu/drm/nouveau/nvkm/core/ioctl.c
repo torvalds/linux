@@ -34,10 +34,10 @@ nvkm_ioctl_nop(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_ioctl_nop_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "nop size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "nop vers %lld\n", args->v0.version);
 		args->v0.version = NVIF_VERSION_LATEST;
 	}
@@ -52,10 +52,10 @@ nvkm_ioctl_sclass(struct nvkm_object *object, void *data, u32 size)
 		struct nvif_ioctl_sclass_v0 v0;
 	} *args = data;
 	struct nvkm_oclass oclass;
-	int ret, i = 0;
+	int ret = -ENOSYS, i = 0;
 
 	nvif_ioctl(object, "sclass size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, true)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		nvif_ioctl(object, "sclass vers %d count %d\n",
 			   args->v0.version, args->v0.count);
 		if (size != args->v0.count * sizeof(args->v0.oclass[0]))
@@ -86,10 +86,10 @@ nvkm_ioctl_new(struct nvkm_object *parent, void *data, u32 size)
 	struct nvkm_client *client = parent->client;
 	struct nvkm_object *object = NULL;
 	struct nvkm_oclass oclass;
-	int ret, i = 0;
+	int ret = -ENOSYS, i = 0;
 
 	nvif_ioctl(parent, "new size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, true)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		nvif_ioctl(parent, "new vers %d handle %08x class %08x "
 				   "route %02x token %llx object %016llx\n",
 			   args->v0.version, args->v0.handle, args->v0.oclass,
@@ -147,10 +147,10 @@ nvkm_ioctl_del(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_ioctl_del none;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "delete size %d\n", size);
-	if (nvif_unvers(args->none)) {
+	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
 		nvif_ioctl(object, "delete\n");
 		nvkm_object_fini(object, false);
 		nvkm_object_del(&object);
@@ -165,10 +165,10 @@ nvkm_ioctl_mthd(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_ioctl_mthd_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "mthd size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, true)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		nvif_ioctl(object, "mthd vers %d mthd %02x\n",
 			   args->v0.version, args->v0.method);
 		ret = nvkm_object_mthd(object, args->v0.method, data, size);
@@ -189,10 +189,10 @@ nvkm_ioctl_rd(struct nvkm_object *object, void *data, u32 size)
 		u16 b16;
 		u32 b32;
 	} v;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "rd size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "rd vers %d size %d addr %016llx\n",
 			   args->v0.version, args->v0.size, args->v0.addr);
 		switch (args->v0.size) {
@@ -223,10 +223,10 @@ nvkm_ioctl_wr(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_ioctl_wr_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "wr size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object,
 			   "wr vers %d size %d addr %016llx data %08x\n",
 			   args->v0.version, args->v0.size, args->v0.addr,
@@ -251,10 +251,10 @@ nvkm_ioctl_map(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_ioctl_map_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "map size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "map vers %d\n", args->v0.version);
 		ret = nvkm_object_map(object, &args->v0.handle,
 					      &args->v0.length);
@@ -269,10 +269,10 @@ nvkm_ioctl_unmap(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_ioctl_unmap none;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "unmap size %d\n", size);
-	if (nvif_unvers(args->none)) {
+	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
 		nvif_ioctl(object, "unmap\n");
 	}
 
@@ -286,10 +286,10 @@ nvkm_ioctl_ntfy_new(struct nvkm_object *object, void *data, u32 size)
 		struct nvif_ioctl_ntfy_new_v0 v0;
 	} *args = data;
 	struct nvkm_event *event;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "ntfy new size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, true)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		nvif_ioctl(object, "ntfy new vers %d event %02x\n",
 			   args->v0.version, args->v0.event);
 		ret = nvkm_object_ntfy(object, args->v0.event, &event);
@@ -312,10 +312,10 @@ nvkm_ioctl_ntfy_del(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_ioctl_ntfy_del_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "ntfy del size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "ntfy del vers %d index %d\n",
 			   args->v0.version, args->v0.index);
 		ret = nvkm_client_notify_del(client, args->v0.index);
@@ -331,10 +331,10 @@ nvkm_ioctl_ntfy_get(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_ioctl_ntfy_get_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "ntfy get size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "ntfy get vers %d index %d\n",
 			   args->v0.version, args->v0.index);
 		ret = nvkm_client_notify_get(client, args->v0.index);
@@ -350,10 +350,10 @@ nvkm_ioctl_ntfy_put(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct nvif_ioctl_ntfy_put_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "ntfy put size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "ntfy put vers %d index %d\n",
 			   args->v0.version, args->v0.index);
 		ret = nvkm_client_notify_put(client, args->v0.index);
@@ -421,12 +421,12 @@ nvkm_ioctl(struct nvkm_client *client, bool supervisor,
 	union {
 		struct nvif_ioctl_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	client->super = supervisor;
 	nvif_ioctl(object, "size %d\n", size);
 
-	if (nvif_unpack(args->v0, 0, 0, true)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		nvif_ioctl(object,
 			   "vers %d type %02x object %016llx owner %02x\n",
 			   args->v0.version, args->v0.type, args->v0.object,

@@ -19,6 +19,10 @@
 /* dma_addr_t manip */
 #define DMA_LO_LE(x)            cpu_to_le32(lower_32_bits(x))
 #define DMA_HI_LE(x)            cpu_to_le32(upper_32_bits(x))
+#define DMA_REGPAIR_LE(x, val)  do { \
+					(x).hi = DMA_HI_LE((val)); \
+					(x).lo = DMA_LO_LE((val)); \
+				} while (0)
 
 #define HILO_GEN(hi, lo, type)  ((((type)(hi)) << 32) + (lo))
 #define HILO_DMA(hi, lo)        HILO_GEN(hi, lo, dma_addr_t)
@@ -111,7 +115,8 @@ static inline u16 qed_chain_get_elem_left(struct qed_chain *p_chain)
 	used = ((u32)0x10000u + (u32)(p_chain->prod_idx)) -
 		(u32)p_chain->cons_idx;
 	if (p_chain->mode == QED_CHAIN_MODE_NEXT_PTR)
-		used -= (used / p_chain->elem_per_page);
+		used -= p_chain->prod_idx / p_chain->elem_per_page -
+			p_chain->cons_idx / p_chain->elem_per_page;
 
 	return p_chain->capacity - used;
 }

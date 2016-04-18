@@ -156,7 +156,7 @@ struct fb_cursor_user {
 #define FB_EVENT_GET_REQ                0x0D
 /*      Unbind from the console if possible */
 #define FB_EVENT_FB_UNBIND              0x0E
-/*      CONSOLE-SPECIFIC: remap all consoles to new fb - for vga switcheroo */
+/*      CONSOLE-SPECIFIC: remap all consoles to new fb - for vga_switcheroo */
 #define FB_EVENT_REMAP_ALL_CONSOLE      0x0F
 /*      A hardware display blank early change occured */
 #define FB_EARLY_EVENT_BLANK		0x10
@@ -175,9 +175,27 @@ struct fb_blit_caps {
 	u32 flags;
 };
 
+#ifdef CONFIG_FB_NOTIFY
 extern int fb_register_client(struct notifier_block *nb);
 extern int fb_unregister_client(struct notifier_block *nb);
 extern int fb_notifier_call_chain(unsigned long val, void *v);
+#else
+static inline int fb_register_client(struct notifier_block *nb)
+{
+	return 0;
+};
+
+static inline int fb_unregister_client(struct notifier_block *nb)
+{
+	return 0;
+};
+
+static inline int fb_notifier_call_chain(unsigned long val, void *v)
+{
+	return 0;
+};
+#endif
+
 /*
  * Pixmap structure definition
  *
@@ -277,9 +295,6 @@ struct fb_ops {
 
 	/* Draws cursor */
 	int (*fb_cursor) (struct fb_info *info, struct fb_cursor *cursor);
-
-	/* Rotates the display */
-	void (*fb_rotate)(struct fb_info *info, int angle);
 
 	/* wait for blit idle, optional */
 	int (*fb_sync)(struct fb_info *info);

@@ -1,6 +1,7 @@
 #ifndef __UM_ASM_SYSCALL_H
 #define __UM_ASM_SYSCALL_H
 
+#include <asm/syscall-generic.h>
 #include <uapi/linux/audit.h>
 
 typedef asmlinkage long (*sys_call_ptr_t)(unsigned long, unsigned long,

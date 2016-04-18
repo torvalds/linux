@@ -8,6 +8,7 @@
  * option) any later version.
  */
 
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/irqchip/mips-gic.h>
 #include <linux/sched.h>
@@ -37,8 +38,9 @@ static unsigned core_vpe_count(unsigned core)
 	if (!config_enabled(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
 		return 1;
 
-	write_gcr_cl_other(core << CM_GCR_Cx_OTHER_CORENUM_SHF);
+	mips_cm_lock_other(core, 0);
 	cfg = read_gcr_co_config() & CM_GCR_Cx_CONFIG_PVPE_MSK;
+	mips_cm_unlock_other();
 	return (cfg >> CM_GCR_Cx_CONFIG_PVPE_SHF) + 1;
 }
 
@@ -133,11 +135,9 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	/*
 	 * Patch the start of mips_cps_core_entry to provide:
 	 *
-	 * v1 = CM base address
 	 * s0 = kseg0 CCA
 	 */
 	entry_code = (u32 *)&mips_cps_core_entry;
-	UASM_i_LA(&entry_code, 3, (long)mips_cm_base);
 	uasm_i_addiu(&entry_code, 16, 0, cca);
 	blast_dcache_range((unsigned long)&mips_cps_core_entry,
 			   (unsigned long)entry_code);
@@ -190,16 +190,20 @@ err_out:
 
 static void boot_core(unsigned core)
 {
-	u32 access;
+	u32 access, stat, seq_state;
+	unsigned timeout;
 
 	/* Select the appropriate core */
-	write_gcr_cl_other(core << CM_GCR_Cx_OTHER_CORENUM_SHF);
+	mips_cm_lock_other(core, 0);
 
 	/* Set its reset vector */
 	write_gcr_co_reset_base(CKSEG1ADDR((unsigned long)mips_cps_core_entry));
 
 	/* Ensure its coherency is disabled */
 	write_gcr_co_coherence(0);
+
+	/* Start it with the legacy memory map and exception base */
+	write_gcr_co_reset_ext_base(CM_GCR_RESET_EXT_BASE_UEB);
 
 	/* Ensure the core can access the GCRs */
 	access = read_gcr_access();
@@ -210,11 +214,35 @@ static void boot_core(unsigned core)
 		/* Reset the core */
 		mips_cpc_lock_other(core);
 		write_cpc_co_cmd(CPC_Cx_CMD_RESET);
+
+		timeout = 100;
+		while (true) {
+			stat = read_cpc_co_stat_conf();
+			seq_state = stat & CPC_Cx_STAT_CONF_SEQSTATE_MSK;
+
+			/* U6 == coherent execution, ie. the core is up */
+			if (seq_state == CPC_Cx_STAT_CONF_SEQSTATE_U6)
+				break;
+
+			/* Delay a little while before we start warning */
+			if (timeout) {
+				timeout--;
+				mdelay(10);
+				continue;
+			}
+
+			pr_warn("Waiting for core %u to start... STAT_CONF=0x%x\n",
+				core, stat);
+			mdelay(1000);
+		}
+
 		mips_cpc_unlock_other();
 	} else {
 		/* Take the core out of reset */
 		write_gcr_co_reset_release(0);
 	}
+
+	mips_cm_unlock_other();
 
 	/* The core is now powered up */
 	bitmap_set(core_power, core, 1);
@@ -444,8 +472,8 @@ static struct plat_smp_ops cps_smp_ops = {
 	.boot_secondary		= cps_boot_secondary,
 	.init_secondary		= cps_init_secondary,
 	.smp_finish		= cps_smp_finish,
-	.send_ipi_single	= gic_send_ipi_single,
-	.send_ipi_mask		= gic_send_ipi_mask,
+	.send_ipi_single	= mips_smp_send_ipi_single,
+	.send_ipi_mask		= mips_smp_send_ipi_mask,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable		= cps_cpu_disable,
 	.cpu_die		= cps_cpu_die,

@@ -44,7 +44,7 @@ config NFC_MRVL_I2C
 
 config NFC_MRVL_SPI
 	tristate "Marvell NFC-over-SPI driver"
-	depends on NFC_MRVL && SPI
+	depends on NFC_MRVL && NFC_NCI_SPI
 	help
 	  Marvell NFC-over-SPI driver.
 

@@ -27,16 +27,12 @@ static int nf_ct_ipv4_gather_frags(struct net *net, struct sk_buff *skb,
 {
 	int err;
 
-	skb_orphan(skb);
-
 	local_bh_disable();
 	err = ip_defrag(net, skb, user);
 	local_bh_enable();
 
-	if (!err) {
-		ip_send_check(ip_hdr(skb));
+	if (!err)
 		skb->ignore_df = 1;
-	}
 
 	return err;
 }
@@ -67,10 +63,9 @@ static unsigned int ipv4_conntrack_defrag(void *priv,
 					  const struct nf_hook_state *state)
 {
 	struct sock *sk = skb->sk;
-	struct inet_sock *inet = inet_sk(skb->sk);
 
-	if (sk && (sk->sk_family == PF_INET) &&
-	    inet->nodefrag)
+	if (sk && sk_fullsock(sk) && (sk->sk_family == PF_INET) &&
+	    inet_sk(sk)->nodefrag)
 		return NF_ACCEPT;
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)

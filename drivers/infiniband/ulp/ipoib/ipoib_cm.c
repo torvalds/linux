@@ -70,7 +70,6 @@ static struct ib_qp_attr ipoib_cm_err_attr = {
 #define IPOIB_CM_RX_DRAIN_WRID 0xffffffff
 
 static struct ib_send_wr ipoib_cm_rx_drain_wr = {
-	.wr_id = IPOIB_CM_RX_DRAIN_WRID,
 	.opcode = IB_WR_SEND,
 };
 
@@ -223,6 +222,7 @@ static void ipoib_cm_start_rx_drain(struct ipoib_dev_priv *priv)
 	 * error" WC will be immediately generated for each WR we post.
 	 */
 	p = list_entry(priv->cm.rx_flush_list.next, typeof(*p), list);
+	ipoib_cm_rx_drain_wr.wr_id = IPOIB_CM_RX_DRAIN_WRID;
 	if (ib_post_send(p->qp, &ipoib_cm_rx_drain_wr, &bad_wr))
 		ipoib_warn(priv, "failed to post drain wr\n");
 
@@ -700,9 +700,9 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 
 	ipoib_build_sge(priv, tx_req);
 
-	priv->tx_wr.wr_id	= wr_id | IPOIB_OP_CM;
+	priv->tx_wr.wr.wr_id	= wr_id | IPOIB_OP_CM;
 
-	return ib_post_send(tx->qp, &priv->tx_wr, &bad_wr);
+	return ib_post_send(tx->qp, &priv->tx_wr.wr, &bad_wr);
 }
 
 void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_tx *tx)
@@ -710,6 +710,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_tx_buf *tx_req;
 	int rc;
+	unsigned usable_sge = tx->max_send_sge - !!skb_headlen(skb);
 
 	if (unlikely(skb->len > tx->mtu)) {
 		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
@@ -719,7 +720,23 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 		ipoib_cm_skb_too_long(dev, skb, tx->mtu - IPOIB_ENCAP_LEN);
 		return;
 	}
-
+	if (skb_shinfo(skb)->nr_frags > usable_sge) {
+		if (skb_linearize(skb) < 0) {
+			ipoib_warn(priv, "skb could not be linearized\n");
+			++dev->stats.tx_dropped;
+			++dev->stats.tx_errors;
+			dev_kfree_skb_any(skb);
+			return;
+		}
+		/* Does skb_linearize return ok without reducing nr_frags? */
+		if (skb_shinfo(skb)->nr_frags > usable_sge) {
+			ipoib_warn(priv, "too many frags after skb linearize\n");
+			++dev->stats.tx_dropped;
+			++dev->stats.tx_errors;
+			dev_kfree_skb_any(skb);
+			return;
+		}
+	}
 	ipoib_dbg_data(priv, "sending packet: head 0x%x length %d connection 0x%x\n",
 		       tx->tx_head, skb->len, tx->qp->qp_num);
 
@@ -1031,7 +1048,8 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct net_device *dev, struct ipoib_
 	struct ib_qp *tx_qp;
 
 	if (dev->features & NETIF_F_SG)
-		attr.cap.max_send_sge = MAX_SKB_FRAGS + 1;
+		attr.cap.max_send_sge =
+			min_t(u32, priv->ca->attrs.max_sge, MAX_SKB_FRAGS + 1);
 
 	tx_qp = ib_create_qp(priv->pd, &attr);
 	if (PTR_ERR(tx_qp) == -EINVAL) {
@@ -1040,6 +1058,7 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct net_device *dev, struct ipoib_
 		attr.create_flags &= ~IB_QP_CREATE_USE_GFP_NOIO;
 		tx_qp = ib_create_qp(priv->pd, &attr);
 	}
+	tx->max_send_sge = attr.cap.max_send_sge;
 	return tx_qp;
 }
 
@@ -1522,8 +1541,7 @@ static void ipoib_cm_create_srq(struct net_device *dev, int max_sge)
 int ipoib_cm_dev_init(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	int i, ret;
-	struct ib_device_attr attr;
+	int max_srq_sge, i;
 
 	INIT_LIST_HEAD(&priv->cm.passive_ids);
 	INIT_LIST_HEAD(&priv->cm.reap_list);
@@ -1540,19 +1558,13 @@ int ipoib_cm_dev_init(struct net_device *dev)
 
 	skb_queue_head_init(&priv->cm.skb_queue);
 
-	ret = ib_query_device(priv->ca, &attr);
-	if (ret) {
-		printk(KERN_WARNING "ib_query_device() failed with %d\n", ret);
-		return ret;
-	}
+	ipoib_dbg(priv, "max_srq_sge=%d\n", priv->ca->attrs.max_srq_sge);
 
-	ipoib_dbg(priv, "max_srq_sge=%d\n", attr.max_srq_sge);
-
-	attr.max_srq_sge = min_t(int, IPOIB_CM_RX_SG, attr.max_srq_sge);
-	ipoib_cm_create_srq(dev, attr.max_srq_sge);
+	max_srq_sge = min_t(int, IPOIB_CM_RX_SG, priv->ca->attrs.max_srq_sge);
+	ipoib_cm_create_srq(dev, max_srq_sge);
 	if (ipoib_cm_has_srq(dev)) {
-		priv->cm.max_cm_mtu = attr.max_srq_sge * PAGE_SIZE - 0x10;
-		priv->cm.num_frags  = attr.max_srq_sge;
+		priv->cm.max_cm_mtu = max_srq_sge * PAGE_SIZE - 0x10;
+		priv->cm.num_frags  = max_srq_sge;
 		ipoib_dbg(priv, "max_cm_mtu = 0x%x, num_frags=%d\n",
 			  priv->cm.max_cm_mtu, priv->cm.num_frags);
 	} else {

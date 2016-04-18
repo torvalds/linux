@@ -65,7 +65,7 @@ static struct {
 	struct kfifo	  fifo;
 	spinlock_t	  lock;
 	wait_queue_head_t wait;
-	struct timespec	  tstart;
+	struct timespec64 tstart;
 } sctpw;
 
 static __printf(1, 2) void printl(const char *fmt, ...)
@@ -85,7 +85,7 @@ static __printf(1, 2) void printl(const char *fmt, ...)
 static int sctpprobe_open(struct inode *inode, struct file *file)
 {
 	kfifo_reset(&sctpw.fifo);
-	getnstimeofday(&sctpw.tstart);
+	ktime_get_ts64(&sctpw.tstart);
 
 	return 0;
 }
@@ -138,7 +138,7 @@ static sctp_disposition_t jsctp_sf_eat_sack(struct net *net,
 	struct sk_buff *skb = chunk->skb;
 	struct sctp_transport *sp;
 	static __u32 lcwnd = 0;
-	struct timespec now;
+	struct timespec64 now;
 
 	sp = asoc->peer.primary_path;
 
@@ -149,8 +149,8 @@ static sctp_disposition_t jsctp_sf_eat_sack(struct net *net,
 	    (full || sp->cwnd != lcwnd)) {
 		lcwnd = sp->cwnd;
 
-		getnstimeofday(&now);
-		now = timespec_sub(now, sctpw.tstart);
+		ktime_get_ts64(&now);
+		now = timespec64_sub(now, sctpw.tstart);
 
 		printl("%lu.%06lu ", (unsigned long) now.tv_sec,
 		       (unsigned long) now.tv_nsec / NSEC_PER_USEC);

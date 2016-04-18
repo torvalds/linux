@@ -112,20 +112,6 @@ struct fsl_ssi_rxtx_reg_val {
 	struct fsl_ssi_reg_val tx;
 };
 
-static const struct reg_default fsl_ssi_reg_defaults[] = {
-	{0x10, 0x00000000},
-	{0x18, 0x00003003},
-	{0x1c, 0x00000200},
-	{0x20, 0x00000200},
-	{0x24, 0x00040000},
-	{0x28, 0x00040000},
-	{0x38, 0x00000000},
-	{0x48, 0x00000000},
-	{0x4c, 0x00000000},
-	{0x54, 0x00000000},
-	{0x58, 0x00000000},
-};
-
 static bool fsl_ssi_readable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -146,10 +132,26 @@ static bool fsl_ssi_volatile_reg(struct device *dev, unsigned int reg)
 	case CCSR_SSI_SRX1:
 	case CCSR_SSI_SISR:
 	case CCSR_SSI_SFCSR:
+	case CCSR_SSI_SACNT:
 	case CCSR_SSI_SACADD:
 	case CCSR_SSI_SACDAT:
 	case CCSR_SSI_SATAG:
 	case CCSR_SSI_SACCST:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool fsl_ssi_precious_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CCSR_SSI_SRX0:
+	case CCSR_SSI_SRX1:
+	case CCSR_SSI_SISR:
+	case CCSR_SSI_SACADD:
+	case CCSR_SSI_SACDAT:
+	case CCSR_SSI_SATAG:
 		return true;
 	default:
 		return false;
@@ -174,16 +176,17 @@ static const struct regmap_config fsl_ssi_regconfig = {
 	.val_bits = 32,
 	.reg_stride = 4,
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,
-	.reg_defaults = fsl_ssi_reg_defaults,
-	.num_reg_defaults = ARRAY_SIZE(fsl_ssi_reg_defaults),
+	.num_reg_defaults_raw = CCSR_SSI_SACCDIS / sizeof(uint32_t) + 1,
 	.readable_reg = fsl_ssi_readable_reg,
 	.volatile_reg = fsl_ssi_volatile_reg,
+	.precious_reg = fsl_ssi_precious_reg,
 	.writeable_reg = fsl_ssi_writeable_reg,
 	.cache_type = REGCACHE_RBTREE,
 };
 
 struct fsl_ssi_soc_data {
 	bool imx;
+	bool imx21regs; /* imx21-class SSI - no SACC{ST,EN,DIS} regs */
 	bool offline_config;
 	u32 sisr_write_mask;
 };
@@ -239,8 +242,9 @@ struct fsl_ssi_private {
 	unsigned int baudclk_streams;
 	unsigned int bitclk_freq;
 
-	/*regcache for SFCSR*/
+	/* regcache for volatile regs */
 	u32 regcache_sfcsr;
+	u32 regcache_sacnt;
 
 	/* DMA params */
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
@@ -285,6 +289,7 @@ static struct fsl_ssi_soc_data fsl_ssi_mpc8610 = {
 
 static struct fsl_ssi_soc_data fsl_ssi_imx21 = {
 	.imx = true,
+	.imx21regs = true,
 	.offline_config = true,
 	.sisr_write_mask = 0,
 };
@@ -568,8 +573,12 @@ static void fsl_ssi_setup_ac97(struct fsl_ssi_private *ssi_private)
 	 */
 	regmap_write(regs, CCSR_SSI_SACNT,
 			CCSR_SSI_SACNT_AC97EN | CCSR_SSI_SACNT_FV);
-	regmap_write(regs, CCSR_SSI_SACCDIS, 0xff);
-	regmap_write(regs, CCSR_SSI_SACCEN, 0x300);
+
+	/* no SACC{ST,EN,DIS} regs on imx21-class SSI */
+	if (!ssi_private->soc->imx21regs) {
+		regmap_write(regs, CCSR_SSI_SACCDIS, 0xff);
+		regmap_write(regs, CCSR_SSI_SACCEN, 0x300);
+	}
 
 	/*
 	 * Enable SSI, Transmit and Receive. AC97 has to communicate with the
@@ -767,8 +776,7 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
 	struct regmap *regs = ssi_private->regs;
 	unsigned int channels = params_channels(hw_params);
-	unsigned int sample_size =
-		snd_pcm_format_width(params_format(hw_params));
+	unsigned int sample_size = params_width(hw_params);
 	u32 wl = CCSR_SSI_SxCCR_WL(sample_size);
 	int ret;
 	u32 scr_val;
@@ -1380,6 +1388,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *iomem;
 	char name[64];
+	struct regmap_config regconfig = fsl_ssi_regconfig;
 
 	of_id = of_match_device(fsl_ssi_ids, &pdev->dev);
 	if (!of_id || !of_id->data)
@@ -1427,15 +1436,25 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		return PTR_ERR(iomem);
 	ssi_private->ssi_phys = res->start;
 
+	if (ssi_private->soc->imx21regs) {
+		/*
+		 * According to datasheet imx21-class SSI
+		 * don't have SACC{ST,EN,DIS} regs.
+		 */
+		regconfig.max_register = CCSR_SSI_SRMSK;
+		regconfig.num_reg_defaults_raw =
+			CCSR_SSI_SRMSK / sizeof(uint32_t) + 1;
+	}
+
 	ret = of_property_match_string(np, "clock-names", "ipg");
 	if (ret < 0) {
 		ssi_private->has_ipg_clk_name = false;
 		ssi_private->regs = devm_regmap_init_mmio(&pdev->dev, iomem,
-			&fsl_ssi_regconfig);
+			&regconfig);
 	} else {
 		ssi_private->has_ipg_clk_name = true;
 		ssi_private->regs = devm_regmap_init_mmio_clk(&pdev->dev,
-			"ipg", iomem, &fsl_ssi_regconfig);
+			"ipg", iomem, &regconfig);
 	}
 	if (IS_ERR(ssi_private->regs)) {
 		dev_err(&pdev->dev, "Failed to init register map\n");
@@ -1588,6 +1607,8 @@ static int fsl_ssi_suspend(struct device *dev)
 
 	regmap_read(regs, CCSR_SSI_SFCSR,
 			&ssi_private->regcache_sfcsr);
+	regmap_read(regs, CCSR_SSI_SACNT,
+			&ssi_private->regcache_sacnt);
 
 	regcache_cache_only(regs, true);
 	regcache_mark_dirty(regs);
@@ -1606,6 +1627,8 @@ static int fsl_ssi_resume(struct device *dev)
 			CCSR_SSI_SFCSR_RFWM1_MASK | CCSR_SSI_SFCSR_TFWM1_MASK |
 			CCSR_SSI_SFCSR_RFWM0_MASK | CCSR_SSI_SFCSR_TFWM0_MASK,
 			ssi_private->regcache_sfcsr);
+	regmap_write(regs, CCSR_SSI_SACNT,
+			ssi_private->regcache_sacnt);
 
 	return regcache_sync(regs);
 }

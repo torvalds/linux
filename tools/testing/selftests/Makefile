@@ -1,11 +1,14 @@
 TARGETS = breakpoints
+TARGETS += capabilities
 TARGETS += cpu-hotplug
 TARGETS += efivarfs
 TARGETS += exec
 TARGETS += firmware
 TARGETS += ftrace
 TARGETS += futex
+TARGETS += ipc
 TARGETS += kcmp
+TARGETS += lib
 TARGETS += membarrier
 TARGETS += memfd
 TARGETS += memory-hotplug
@@ -13,6 +16,7 @@ TARGETS += mount
 TARGETS += mqueue
 TARGETS += net
 TARGETS += powerpc
+TARGETS += pstore
 TARGETS += ptrace
 TARGETS += seccomp
 TARGETS += size
@@ -64,6 +68,9 @@ clean_hotplug:
 	for TARGET in $(TARGETS_HOTPLUG); do \
 		make -C $$TARGET clean; \
 	done;
+
+run_pstore_crash:
+	make -C pstore run_crash
 
 INSTALL_PATH ?= install
 INSTALL_PATH := $(abspath $(INSTALL_PATH))

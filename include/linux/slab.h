@@ -20,7 +20,7 @@
  * Flags to pass to kmem_cache_create().
  * The ones marked DEBUG are only valid if CONFIG_DEBUG_SLAB is set.
  */
-#define SLAB_DEBUG_FREE		0x00000100UL	/* DEBUG: Perform (expensive) checks on free */
+#define SLAB_CONSISTENCY_CHECKS	0x00000100UL	/* DEBUG: Perform (expensive) checks on alloc/free */
 #define SLAB_RED_ZONE		0x00000400UL	/* DEBUG: Red zone objs in a cache */
 #define SLAB_POISON		0x00000800UL	/* DEBUG: Poison objects */
 #define SLAB_HWCACHE_ALIGN	0x00002000UL	/* Align objs on cache lines */
@@ -85,6 +85,17 @@
 # define SLAB_FAILSLAB		0x02000000UL	/* Fault injection mark */
 #else
 # define SLAB_FAILSLAB		0x00000000UL
+#endif
+#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+# define SLAB_ACCOUNT		0x04000000UL	/* Account to memcg */
+#else
+# define SLAB_ACCOUNT		0x00000000UL
+#endif
+
+#ifdef CONFIG_KASAN
+#define SLAB_KASAN		0x08000000UL
+#else
+#define SLAB_KASAN		0x00000000UL
 #endif
 
 /* The following flags affect the page allocator grouping pages by mobility */
@@ -156,6 +167,24 @@ size_t ksize(const void *);
 #else
 #define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
 #endif
+
+/*
+ * Setting ARCH_SLAB_MINALIGN in arch headers allows a different alignment.
+ * Intended for arches that get misalignment faults even for 64 bit integer
+ * aligned buffers.
+ */
+#ifndef ARCH_SLAB_MINALIGN
+#define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
+#endif
+
+/*
+ * kmalloc and friends return ARCH_KMALLOC_MINALIGN aligned
+ * pointers. kmem_cache_alloc and friends return ARCH_SLAB_MINALIGN
+ * aligned pointers.
+ */
+#define __assume_kmalloc_alignment __assume_aligned(ARCH_KMALLOC_MINALIGN)
+#define __assume_slab_alignment __assume_aligned(ARCH_SLAB_MINALIGN)
+#define __assume_page_alignment __assume_aligned(PAGE_SIZE)
 
 /*
  * Kmalloc array related definitions
@@ -286,23 +315,32 @@ static __always_inline int kmalloc_index(size_t size)
 }
 #endif /* !CONFIG_SLOB */
 
-void *__kmalloc(size_t size, gfp_t flags);
-void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags);
+void *__kmalloc(size_t size, gfp_t flags) __assume_kmalloc_alignment;
+void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags) __assume_slab_alignment;
 void kmem_cache_free(struct kmem_cache *, void *);
 
 /*
- * Bulk allocation and freeing operations. These are accellerated in an
+ * Bulk allocation and freeing operations. These are accelerated in an
  * allocator specific way to avoid taking locks repeatedly or building
  * metadata structures unnecessarily.
  *
  * Note that interrupts must be enabled when calling these functions.
  */
 void kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
-bool kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
+int kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
+
+/*
+ * Caller must not use kfree_bulk() on memory not originally allocated
+ * by kmalloc(), because the SLOB allocator cannot handle this.
+ */
+static __always_inline void kfree_bulk(size_t size, void **p)
+{
+	kmem_cache_free_bulk(NULL, size, p);
+}
 
 #ifdef CONFIG_NUMA
-void *__kmalloc_node(size_t size, gfp_t flags, int node);
-void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+void *__kmalloc_node(size_t size, gfp_t flags, int node) __assume_kmalloc_alignment;
+void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node) __assume_slab_alignment;
 #else
 static __always_inline void *__kmalloc_node(size_t size, gfp_t flags, int node)
 {
@@ -316,12 +354,12 @@ static __always_inline void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t f
 #endif
 
 #ifdef CONFIG_TRACING
-extern void *kmem_cache_alloc_trace(struct kmem_cache *, gfp_t, size_t);
+extern void *kmem_cache_alloc_trace(struct kmem_cache *, gfp_t, size_t) __assume_slab_alignment;
 
 #ifdef CONFIG_NUMA
 extern void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
 					   gfp_t gfpflags,
-					   int node, size_t size);
+					   int node, size_t size) __assume_slab_alignment;
 #else
 static __always_inline void *
 kmem_cache_alloc_node_trace(struct kmem_cache *s,
@@ -338,7 +376,7 @@ static __always_inline void *kmem_cache_alloc_trace(struct kmem_cache *s,
 {
 	void *ret = kmem_cache_alloc(s, flags);
 
-	kasan_kmalloc(s, ret, size);
+	kasan_kmalloc(s, ret, size, flags);
 	return ret;
 }
 
@@ -349,15 +387,15 @@ kmem_cache_alloc_node_trace(struct kmem_cache *s,
 {
 	void *ret = kmem_cache_alloc_node(s, gfpflags, node);
 
-	kasan_kmalloc(s, ret, size);
+	kasan_kmalloc(s, ret, size, gfpflags);
 	return ret;
 }
 #endif /* CONFIG_TRACING */
 
-extern void *kmalloc_order(size_t size, gfp_t flags, unsigned int order);
+extern void *kmalloc_order(size_t size, gfp_t flags, unsigned int order) __assume_page_alignment;
 
 #ifdef CONFIG_TRACING
-extern void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order);
+extern void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order) __assume_page_alignment;
 #else
 static __always_inline void *
 kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
@@ -481,15 +519,6 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 #endif
 	return __kmalloc_node(size, flags, node);
 }
-
-/*
- * Setting ARCH_SLAB_MINALIGN in arch headers allows a different alignment.
- * Intended for arches that get misalignment faults even for 64 bit integer
- * aligned buffers.
- */
-#ifndef ARCH_SLAB_MINALIGN
-#define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
-#endif
 
 struct memcg_cache_array {
 	struct rcu_head rcu;

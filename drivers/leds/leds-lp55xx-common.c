@@ -134,13 +134,14 @@ static struct attribute *lp55xx_led_attrs[] = {
 };
 ATTRIBUTE_GROUPS(lp55xx_led);
 
-static void lp55xx_set_brightness(struct led_classdev *cdev,
+static int lp55xx_set_brightness(struct led_classdev *cdev,
 			     enum led_brightness brightness)
 {
 	struct lp55xx_led *led = cdev_to_lp55xx_led(cdev);
+	struct lp55xx_device_config *cfg = led->chip->cfg;
 
 	led->brightness = (u8)brightness;
-	schedule_work(&led->brightness_work);
+	return cfg->brightness_fn(led);
 }
 
 static int lp55xx_init_led(struct lp55xx_led *led,
@@ -172,7 +173,7 @@ static int lp55xx_init_led(struct lp55xx_led *led,
 		return -EINVAL;
 	}
 
-	led->cdev.brightness_set = lp55xx_set_brightness;
+	led->cdev.brightness_set_blocking = lp55xx_set_brightness;
 	led->cdev.groups = lp55xx_led_groups;
 
 	if (pdata->led_config[chan].name) {
@@ -464,7 +465,7 @@ int lp55xx_register_leds(struct lp55xx_led *led, struct lp55xx_chip *chip)
 	int ret;
 	int i;
 
-	if (!cfg->brightness_work_fn) {
+	if (!cfg->brightness_fn) {
 		dev_err(&chip->cl->dev, "empty brightness configuration\n");
 		return -EINVAL;
 	}
@@ -480,8 +481,6 @@ int lp55xx_register_leds(struct lp55xx_led *led, struct lp55xx_chip *chip)
 		ret = lp55xx_init_led(each, chip, i);
 		if (ret)
 			goto err_init_led;
-
-		INIT_WORK(&each->brightness_work, cfg->brightness_work_fn);
 
 		chip->num_leds++;
 		each->chip = chip;
@@ -507,7 +506,6 @@ void lp55xx_unregister_leds(struct lp55xx_led *led, struct lp55xx_chip *chip)
 	for (i = 0; i < chip->num_leds; i++) {
 		each = led + i;
 		led_classdev_unregister(&each->cdev);
-		flush_work(&each->brightness_work);
 	}
 }
 EXPORT_SYMBOL_GPL(lp55xx_unregister_leds);

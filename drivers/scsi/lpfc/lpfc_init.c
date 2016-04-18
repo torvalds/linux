@@ -1184,8 +1184,10 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++)
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			lpfc_rcv_seq_check_edtov(vports[i]);
+			lpfc_fdmi_num_disc_check(vports[i]);
+		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
 	if ((phba->link_state == LPFC_HBA_ERROR) ||
@@ -1290,6 +1292,10 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 				jiffies +
 				msecs_to_jiffies(1000 * LPFC_HB_MBOX_TIMEOUT));
 		}
+	} else {
+			mod_timer(&phba->hb_tmofunc,
+				jiffies +
+				msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
 	}
 }
 
@@ -2621,7 +2627,6 @@ void
 lpfc_stop_vport_timers(struct lpfc_vport *vport)
 {
 	del_timer_sync(&vport->els_tmofunc);
-	del_timer_sync(&vport->fc_fdmitmo);
 	del_timer_sync(&vport->delayed_disc_tmo);
 	lpfc_can_disctmo(vport);
 	return;
@@ -2855,7 +2860,7 @@ lpfc_online(struct lpfc_hba *phba)
 	}
 
 	vports = lpfc_create_vport_work_array(phba);
-	if (vports != NULL)
+	if (vports != NULL) {
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			struct Scsi_Host *shost;
 			shost = lpfc_shost_from_vport(vports[i]);
@@ -2872,7 +2877,8 @@ lpfc_online(struct lpfc_hba *phba)
 			}
 			spin_unlock_irq(shost->host_lock);
 		}
-		lpfc_destroy_vport_work_array(phba, vports);
+	}
+	lpfc_destroy_vport_work_array(phba, vports);
 
 	lpfc_unblock_mgmt_io(phba);
 	return 0;
@@ -3340,10 +3346,6 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	vport->fc_disctmo.function = lpfc_disc_timeout;
 	vport->fc_disctmo.data = (unsigned long)vport;
 
-	init_timer(&vport->fc_fdmitmo);
-	vport->fc_fdmitmo.function = lpfc_fdmi_tmo;
-	vport->fc_fdmitmo.data = (unsigned long)vport;
-
 	init_timer(&vport->els_tmofunc);
 	vport->els_tmofunc.function = lpfc_els_timeout;
 	vport->els_tmofunc.data = (unsigned long)vport;
@@ -3709,49 +3711,6 @@ lpfc_sli4_parse_latt_type(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_sli4_parse_latt_link_speed - Parse sli4 link-attention link speed
- * @phba: pointer to lpfc hba data structure.
- * @acqe_link: pointer to the async link completion queue entry.
- *
- * This routine is to parse the SLI4 link-attention link speed and translate
- * it into the base driver's link-attention link speed coding.
- *
- * Return: Link-attention link speed in terms of base driver's coding.
- **/
-static uint8_t
-lpfc_sli4_parse_latt_link_speed(struct lpfc_hba *phba,
-				struct lpfc_acqe_link *acqe_link)
-{
-	uint8_t link_speed;
-
-	switch (bf_get(lpfc_acqe_link_speed, acqe_link)) {
-	case LPFC_ASYNC_LINK_SPEED_ZERO:
-	case LPFC_ASYNC_LINK_SPEED_10MBPS:
-	case LPFC_ASYNC_LINK_SPEED_100MBPS:
-		link_speed = LPFC_LINK_SPEED_UNKNOWN;
-		break;
-	case LPFC_ASYNC_LINK_SPEED_1GBPS:
-		link_speed = LPFC_LINK_SPEED_1GHZ;
-		break;
-	case LPFC_ASYNC_LINK_SPEED_10GBPS:
-		link_speed = LPFC_LINK_SPEED_10GHZ;
-		break;
-	case LPFC_ASYNC_LINK_SPEED_20GBPS:
-	case LPFC_ASYNC_LINK_SPEED_25GBPS:
-	case LPFC_ASYNC_LINK_SPEED_40GBPS:
-		link_speed = LPFC_LINK_SPEED_UNKNOWN;
-		break;
-	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0483 Invalid link-attention link speed: x%x\n",
-				bf_get(lpfc_acqe_link_speed, acqe_link));
-		link_speed = LPFC_LINK_SPEED_UNKNOWN;
-		break;
-	}
-	return link_speed;
-}
-
-/**
  * lpfc_sli_port_speed_get - Get sli3 link speed code to link speed
  * @phba: pointer to lpfc hba data structure.
  *
@@ -3767,27 +3726,35 @@ lpfc_sli_port_speed_get(struct lpfc_hba *phba)
 	if (!lpfc_is_link_up(phba))
 		return 0;
 
-	switch (phba->fc_linkspeed) {
-	case LPFC_LINK_SPEED_1GHZ:
-		link_speed = 1000;
-		break;
-	case LPFC_LINK_SPEED_2GHZ:
-		link_speed = 2000;
-		break;
-	case LPFC_LINK_SPEED_4GHZ:
-		link_speed = 4000;
-		break;
-	case LPFC_LINK_SPEED_8GHZ:
-		link_speed = 8000;
-		break;
-	case LPFC_LINK_SPEED_10GHZ:
-		link_speed = 10000;
-		break;
-	case LPFC_LINK_SPEED_16GHZ:
-		link_speed = 16000;
-		break;
-	default:
-		link_speed = 0;
+	if (phba->sli_rev <= LPFC_SLI_REV3) {
+		switch (phba->fc_linkspeed) {
+		case LPFC_LINK_SPEED_1GHZ:
+			link_speed = 1000;
+			break;
+		case LPFC_LINK_SPEED_2GHZ:
+			link_speed = 2000;
+			break;
+		case LPFC_LINK_SPEED_4GHZ:
+			link_speed = 4000;
+			break;
+		case LPFC_LINK_SPEED_8GHZ:
+			link_speed = 8000;
+			break;
+		case LPFC_LINK_SPEED_10GHZ:
+			link_speed = 10000;
+			break;
+		case LPFC_LINK_SPEED_16GHZ:
+			link_speed = 16000;
+			break;
+		default:
+			link_speed = 0;
+		}
+	} else {
+		if (phba->sli4_hba.link_state.logical_speed)
+			link_speed =
+			      phba->sli4_hba.link_state.logical_speed;
+		else
+			link_speed = phba->sli4_hba.link_state.speed;
 	}
 	return link_speed;
 }
@@ -3983,7 +3950,7 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	la->eventTag = acqe_link->event_tag;
 	bf_set(lpfc_mbx_read_top_att_type, la, att_type);
 	bf_set(lpfc_mbx_read_top_link_spd, la,
-	       lpfc_sli4_parse_latt_link_speed(phba, acqe_link));
+	       (bf_get(lpfc_acqe_link_speed, acqe_link)));
 
 	/* Fake the the following irrelvant fields */
 	bf_set(lpfc_mbx_read_top_topology, la, LPFC_TOPOLOGY_PT_PT);
@@ -4113,22 +4080,18 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	char message[128];
 	uint8_t status;
 	uint8_t evt_type;
+	uint8_t operational = 0;
 	struct temp_event temp_event_data;
 	struct lpfc_acqe_misconfigured_event *misconfigured;
 	struct Scsi_Host  *shost;
 
 	evt_type = bf_get(lpfc_trailer_type, acqe_sli);
 
-	/* Special case Lancer */
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
-		 LPFC_SLI_INTF_IF_TYPE_2) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-				"2901 Async SLI event - Event Data1:x%08x Event Data2:"
-				"x%08x SLI Event Type:%d\n",
-				acqe_sli->event_data1, acqe_sli->event_data2,
-				evt_type);
-		return;
-	}
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"2901 Async SLI event - Event Data1:x%08x Event Data2:"
+			"x%08x SLI Event Type:%d\n",
+			acqe_sli->event_data1, acqe_sli->event_data2,
+			evt_type);
 
 	port_name = phba->Port[0];
 	if (port_name == 0x00)
@@ -4174,29 +4137,46 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 		/* fetch the status for this port */
 		switch (phba->sli4_hba.lnk_info.lnk_no) {
 		case LPFC_LINK_NUMBER_0:
-			status = bf_get(lpfc_sli_misconfigured_port0,
+			status = bf_get(lpfc_sli_misconfigured_port0_state,
+					&misconfigured->theEvent);
+			operational = bf_get(lpfc_sli_misconfigured_port0_op,
 					&misconfigured->theEvent);
 			break;
 		case LPFC_LINK_NUMBER_1:
-			status = bf_get(lpfc_sli_misconfigured_port1,
+			status = bf_get(lpfc_sli_misconfigured_port1_state,
+					&misconfigured->theEvent);
+			operational = bf_get(lpfc_sli_misconfigured_port1_op,
 					&misconfigured->theEvent);
 			break;
 		case LPFC_LINK_NUMBER_2:
-			status = bf_get(lpfc_sli_misconfigured_port2,
+			status = bf_get(lpfc_sli_misconfigured_port2_state,
+					&misconfigured->theEvent);
+			operational = bf_get(lpfc_sli_misconfigured_port2_op,
 					&misconfigured->theEvent);
 			break;
 		case LPFC_LINK_NUMBER_3:
-			status = bf_get(lpfc_sli_misconfigured_port3,
+			status = bf_get(lpfc_sli_misconfigured_port3_state,
+					&misconfigured->theEvent);
+			operational = bf_get(lpfc_sli_misconfigured_port3_op,
 					&misconfigured->theEvent);
 			break;
 		default:
-			status = ~LPFC_SLI_EVENT_STATUS_VALID;
-			break;
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"3296 "
+					"LPFC_SLI_EVENT_TYPE_MISCONFIGURED "
+					"event: Invalid link %d",
+					phba->sli4_hba.lnk_info.lnk_no);
+			return;
 		}
+
+		/* Skip if optic state unchanged */
+		if (phba->sli4_hba.lnk_info.optic_state == status)
+			return;
 
 		switch (status) {
 		case LPFC_SLI_EVENT_STATUS_VALID:
-			return; /* no message if the sfp is okay */
+			sprintf(message, "Physical Link is functional");
+			break;
 		case LPFC_SLI_EVENT_STATUS_NOT_PRESENT:
 			sprintf(message, "Optics faulted/incorrectly "
 				"installed/not installed - Reseat optics, "
@@ -4211,15 +4191,26 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			sprintf(message, "Incompatible optics - Replace with "
 				"compatible optics for card to function.");
 			break;
+		case LPFC_SLI_EVENT_STATUS_UNQUALIFIED:
+			sprintf(message, "Unqualified optics - Replace with "
+				"Avago optics for Warranty and Technical "
+				"Support - Link is%s operational",
+				(operational) ? "" : " not");
+			break;
+		case LPFC_SLI_EVENT_STATUS_UNCERTIFIED:
+			sprintf(message, "Uncertified optics - Replace with "
+				"Avago-certified optics to enable link "
+				"operation - Link is%s operational",
+				(operational) ? "" : " not");
+			break;
 		default:
 			/* firmware is reporting a status we don't know about */
 			sprintf(message, "Unknown event status x%02x", status);
 			break;
 		}
-
+		phba->sli4_hba.lnk_info.optic_state = status;
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"3176 Misconfigured Physical Port - "
-				"Port Name %c %s\n", port_name, message);
+				"3176 Port Name %c %s\n", port_name, message);
 		break;
 	case LPFC_SLI_EVENT_TYPE_REMOTE_DPORT:
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -5293,6 +5284,9 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_vfi_blk_list);
 	INIT_LIST_HEAD(&phba->lpfc_vpi_blk_list);
 
+	/* initialize optic_state to 0xFF */
+	phba->sli4_hba.lnk_info.optic_state = 0xff;
+
 	/* Initialize the driver internal SLI layer lists. */
 	lpfc_sli_setup(phba);
 	lpfc_sli_queue_setup(phba);
@@ -6159,6 +6153,20 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	/* Put reference to SCSI host to driver's device private data */
 	pci_set_drvdata(phba->pcidev, shost);
 
+	/*
+	 * At this point we are fully registered with PSA. In addition,
+	 * any initial discovery should be completed.
+	 */
+	vport->load_flag |= FC_ALLOW_FDMI;
+	if (phba->cfg_fdmi_on > LPFC_FDMI_NO_SUPPORT) {
+
+		/* Setup appropriate attribute masks */
+		vport->fdmi_hba_mask = LPFC_FDMI2_HBA_ATTR;
+		if (phba->cfg_fdmi_on == LPFC_FDMI_SMART_SAN)
+			vport->fdmi_port_mask = LPFC_FDMI2_SMART_ATTR;
+		else
+			vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
+	}
 	return 0;
 }
 
@@ -8833,9 +8841,12 @@ found:
 				 * already mapped to this phys_id.
 				 */
 				if (cpup->irq != LPFC_VECTOR_MAP_EMPTY) {
-					chann[saved_chann] =
-						cpup->channel_id;
-					saved_chann++;
+					if (saved_chann <=
+					    LPFC_FCP_IO_CHAN_MAX) {
+						chann[saved_chann] =
+							cpup->channel_id;
+						saved_chann++;
+					}
 					goto out;
 				}
 

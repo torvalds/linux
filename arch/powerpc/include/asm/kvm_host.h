@@ -38,8 +38,7 @@
 
 #define KVM_MAX_VCPUS		NR_CPUS
 #define KVM_MAX_VCORES		NR_CPUS
-#define KVM_USER_MEM_SLOTS 32
-#define KVM_MEM_SLOTS_NUM KVM_USER_MEM_SLOTS
+#define KVM_USER_MEM_SLOTS	512
 
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
@@ -49,6 +48,10 @@
 /* These values are internal and can be increased later */
 #define KVM_NR_IRQCHIPS          1
 #define KVM_IRQCHIP_NUM_PINS     256
+
+/* PPC-specific vcpu->requests bit members */
+#define KVM_REQ_WATCHDOG           8
+#define KVM_REQ_EPR_EXIT           9
 
 #include <linux/mmu_notifier.h>
 
@@ -179,7 +182,10 @@ struct kvmppc_spapr_tce_table {
 	struct list_head list;
 	struct kvm *kvm;
 	u64 liobn;
-	u32 window_size;
+	struct rcu_head rcu;
+	u32 page_shift;
+	u64 offset;		/* in pages */
+	u64 size;		/* window size in pages */
 	struct page *pages[0];
 };
 
@@ -286,7 +292,7 @@ struct kvmppc_vcore {
 	struct list_head runnable_threads;
 	struct list_head preempt_list;
 	spinlock_t lock;
-	wait_queue_head_t wq;
+	struct swait_queue_head wq;
 	spinlock_t stoltb_lock;	/* protects stolen_tb and preempt_tb */
 	u64 stolen_tb;
 	u64 preempt_tb;
@@ -626,7 +632,7 @@ struct kvm_vcpu_arch {
 	u8 prodded;
 	u32 last_inst;
 
-	wait_queue_head_t *wqp;
+	struct swait_queue_head *wqp;
 	struct kvmppc_vcore *vcore;
 	int ret;
 	int trap;

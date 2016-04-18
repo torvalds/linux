@@ -122,7 +122,7 @@ struct sp_node {
 
 struct shared_policy {
 	struct rb_root root;
-	spinlock_t lock;
+	rwlock_t lock;
 };
 
 int vma_dup_policy(struct vm_area_struct *src, struct vm_area_struct *dst);

@@ -86,7 +86,7 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u64 unpacked_lun)
 		se_cmd->lun_ref_active = true;
 
 		if ((se_cmd->data_direction == DMA_TO_DEVICE) &&
-		    (deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)) {
+		    deve->lun_access_ro) {
 			pr_err("TARGET_CORE[%s]: Detected WRITE_PROTECTED LUN"
 				" Access for 0x%08llx\n",
 				se_cmd->se_tfo->get_fabric_name(),
@@ -199,7 +199,7 @@ bool target_lun_is_rdonly(struct se_cmd *cmd)
 
 	rcu_read_lock();
 	deve = target_nacl_find_deve(se_sess->se_node_acl, cmd->orig_fe_lun);
-	ret = (deve && deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY);
+	ret = deve && deve->lun_access_ro;
 	rcu_read_unlock();
 
 	return ret;
@@ -258,22 +258,15 @@ void core_free_device_list_for_node(
 
 void core_update_device_list_access(
 	u64 mapped_lun,
-	u32 lun_access,
+	bool lun_access_ro,
 	struct se_node_acl *nacl)
 {
 	struct se_dev_entry *deve;
 
 	mutex_lock(&nacl->lun_entry_mutex);
 	deve = target_nacl_find_deve(nacl, mapped_lun);
-	if (deve) {
-		if (lun_access & TRANSPORT_LUNFLAGS_READ_WRITE) {
-			deve->lun_flags &= ~TRANSPORT_LUNFLAGS_READ_ONLY;
-			deve->lun_flags |= TRANSPORT_LUNFLAGS_READ_WRITE;
-		} else {
-			deve->lun_flags &= ~TRANSPORT_LUNFLAGS_READ_WRITE;
-			deve->lun_flags |= TRANSPORT_LUNFLAGS_READ_ONLY;
-		}
-	}
+	if (deve)
+		deve->lun_access_ro = lun_access_ro;
 	mutex_unlock(&nacl->lun_entry_mutex);
 }
 
@@ -319,7 +312,7 @@ int core_enable_device_list_for_node(
 	struct se_lun *lun,
 	struct se_lun_acl *lun_acl,
 	u64 mapped_lun,
-	u32 lun_access,
+	bool lun_access_ro,
 	struct se_node_acl *nacl,
 	struct se_portal_group *tpg)
 {
@@ -340,11 +333,7 @@ int core_enable_device_list_for_node(
 	kref_init(&new->pr_kref);
 	init_completion(&new->pr_comp);
 
-	if (lun_access & TRANSPORT_LUNFLAGS_READ_WRITE)
-		new->lun_flags |= TRANSPORT_LUNFLAGS_READ_WRITE;
-	else
-		new->lun_flags |= TRANSPORT_LUNFLAGS_READ_ONLY;
-
+	new->lun_access_ro = lun_access_ro;
 	new->creation_time = get_jiffies_64();
 	new->attach_count++;
 
@@ -433,7 +422,7 @@ void core_disable_device_list_for_node(
 
 	hlist_del_rcu(&orig->link);
 	clear_bit(DEF_PR_REG_ACTIVE, &orig->deve_flags);
-	orig->lun_flags = 0;
+	orig->lun_access_ro = false;
 	orig->creation_time = 0;
 	orig->attach_count--;
 	/*
@@ -558,8 +547,7 @@ int core_dev_add_lun(
 {
 	int rc;
 
-	rc = core_tpg_add_lun(tpg, lun,
-				TRANSPORT_LUNFLAGS_READ_WRITE, dev);
+	rc = core_tpg_add_lun(tpg, lun, false, dev);
 	if (rc < 0)
 		return rc;
 
@@ -635,7 +623,7 @@ int core_dev_add_initiator_node_lun_acl(
 	struct se_portal_group *tpg,
 	struct se_lun_acl *lacl,
 	struct se_lun *lun,
-	u32 lun_access)
+	bool lun_access_ro)
 {
 	struct se_node_acl *nacl = lacl->se_lun_nacl;
 	/*
@@ -647,20 +635,19 @@ int core_dev_add_initiator_node_lun_acl(
 	if (!nacl)
 		return -EINVAL;
 
-	if ((lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) &&
-	    (lun_access & TRANSPORT_LUNFLAGS_READ_WRITE))
-		lun_access = TRANSPORT_LUNFLAGS_READ_ONLY;
+	if (lun->lun_access_ro)
+		lun_access_ro = true;
 
 	lacl->se_lun = lun;
 
 	if (core_enable_device_list_for_node(lun, lacl, lacl->mapped_lun,
-			lun_access, nacl, tpg) < 0)
+			lun_access_ro, nacl, tpg) < 0)
 		return -EINVAL;
 
 	pr_debug("%s_TPG[%hu]_LUN[%llu->%llu] - Added %s ACL for "
 		" InitiatorNode: %s\n", tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun, lacl->mapped_lun,
-		(lun_access & TRANSPORT_LUNFLAGS_READ_WRITE) ? "RW" : "RO",
+		lun_access_ro ? "RO" : "RW",
 		nacl->initiatorname);
 	/*
 	 * Check to see if there are any existing persistent reservation APTPL
@@ -813,6 +800,8 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.unmap_granularity = DA_UNMAP_GRANULARITY_DEFAULT;
 	dev->dev_attrib.unmap_granularity_alignment =
 				DA_UNMAP_GRANULARITY_ALIGNMENT_DEFAULT;
+	dev->dev_attrib.unmap_zeroes_data =
+				DA_UNMAP_ZEROES_DATA_DEFAULT;
 	dev->dev_attrib.max_write_same_len = DA_MAX_WRITE_SAME_LEN;
 
 	xcopy_lun = &dev->xcopy_lun;
@@ -825,6 +814,50 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 
 	return dev;
 }
+
+/*
+ * Check if the underlying struct block_device request_queue supports
+ * the QUEUE_FLAG_DISCARD bit for UNMAP/WRITE_SAME in SCSI + TRIM
+ * in ATA and we need to set TPE=1
+ */
+bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
+				       struct request_queue *q, int block_size)
+{
+	if (!blk_queue_discard(q))
+		return false;
+
+	attrib->max_unmap_lba_count = (q->limits.max_discard_sectors << 9) /
+								block_size;
+	/*
+	 * Currently hardcoded to 1 in Linux/SCSI code..
+	 */
+	attrib->max_unmap_block_desc_count = 1;
+	attrib->unmap_granularity = q->limits.discard_granularity / block_size;
+	attrib->unmap_granularity_alignment = q->limits.discard_alignment /
+								block_size;
+	attrib->unmap_zeroes_data = q->limits.discard_zeroes_data;
+	return true;
+}
+EXPORT_SYMBOL(target_configure_unmap_from_queue);
+
+/*
+ * Convert from blocksize advertised to the initiator to the 512 byte
+ * units unconditionally used by the Linux block layer.
+ */
+sector_t target_to_linux_sector(struct se_device *dev, sector_t lb)
+{
+	switch (dev->dev_attrib.block_size) {
+	case 4096:
+		return lb << 3;
+	case 2048:
+		return lb << 2;
+	case 1024:
+		return lb << 1;
+	default:
+		return lb;
+	}
+}
+EXPORT_SYMBOL(target_to_linux_sector);
 
 int target_configure_device(struct se_device *dev)
 {

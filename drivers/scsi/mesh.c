@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
 #include <linux/spinlock.h>
+#include <linux/pci.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -38,7 +39,6 @@
 #include <asm/processor.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
-#include <asm/pci-bridge.h>
 #include <asm/macio.h>
 
 #include <scsi/scsi.h>

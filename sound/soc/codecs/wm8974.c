@@ -28,6 +28,11 @@
 
 #include "wm8974.h"
 
+struct wm8974_priv {
+	unsigned int mclk;
+	unsigned int fs;
+};
+
 static const struct reg_default wm8974_reg_defaults[] = {
 	{  0, 0x0000 }, {  1, 0x0000 }, {  2, 0x0000 }, {  3, 0x0000 },
 	{  4, 0x0050 }, {  5, 0x0000 }, {  6, 0x0140 }, {  7, 0x0000 },
@@ -379,6 +384,79 @@ static int wm8974_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
+static unsigned int wm8974_get_mclkdiv(unsigned int f_in, unsigned int f_out,
+				       int *mclkdiv)
+{
+	unsigned int ratio = 2 * f_in / f_out;
+
+	if (ratio <= 2) {
+		*mclkdiv = WM8974_MCLKDIV_1;
+		ratio = 2;
+	} else if (ratio == 3) {
+		*mclkdiv = WM8974_MCLKDIV_1_5;
+	} else if (ratio == 4) {
+		*mclkdiv = WM8974_MCLKDIV_2;
+	} else if (ratio <= 6) {
+		*mclkdiv = WM8974_MCLKDIV_3;
+		ratio = 6;
+	} else if (ratio <= 8) {
+		*mclkdiv = WM8974_MCLKDIV_4;
+		ratio = 8;
+	} else if (ratio <= 12) {
+		*mclkdiv = WM8974_MCLKDIV_6;
+		ratio = 12;
+	} else if (ratio <= 16) {
+		*mclkdiv = WM8974_MCLKDIV_8;
+		ratio = 16;
+	} else {
+		*mclkdiv = WM8974_MCLKDIV_12;
+		ratio = 24;
+	}
+
+	return f_out * ratio / 2;
+}
+
+static int wm8974_update_clocks(struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct wm8974_priv *priv = snd_soc_codec_get_drvdata(codec);
+	unsigned int fs256;
+	unsigned int fpll = 0;
+	unsigned int f;
+	int mclkdiv;
+
+	if (!priv->mclk || !priv->fs)
+		return 0;
+
+	fs256 = 256 * priv->fs;
+
+	f = wm8974_get_mclkdiv(priv->mclk, fs256, &mclkdiv);
+
+	if (f != priv->mclk) {
+		/* The PLL performs best around 90MHz */
+		fpll = wm8974_get_mclkdiv(22500000, fs256, &mclkdiv);
+	}
+
+	wm8974_set_dai_pll(dai, 0, 0, priv->mclk, fpll);
+	wm8974_set_dai_clkdiv(dai, WM8974_MCLKDIV, mclkdiv);
+
+	return 0;
+}
+
+static int wm8974_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
+				 unsigned int freq, int dir)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct wm8974_priv *priv = snd_soc_codec_get_drvdata(codec);
+
+	if (dir != SND_SOC_CLOCK_IN)
+		return -EINVAL;
+
+	priv->mclk = freq;
+
+	return wm8974_update_clocks(dai);
+}
+
 static int wm8974_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
@@ -441,8 +519,15 @@ static int wm8974_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct wm8974_priv *priv = snd_soc_codec_get_drvdata(codec);
 	u16 iface = snd_soc_read(codec, WM8974_IFACE) & 0x19f;
 	u16 adn = snd_soc_read(codec, WM8974_ADD) & 0x1f1;
+	int err;
+
+	priv->fs = params_rate(params);
+	err = wm8974_update_clocks(dai);
+	if (err)
+		return err;
 
 	/* bit size */
 	switch (params_width(params)) {
@@ -547,6 +632,7 @@ static const struct snd_soc_dai_ops wm8974_ops = {
 	.set_fmt = wm8974_set_dai_fmt,
 	.set_clkdiv = wm8974_set_dai_clkdiv,
 	.set_pll = wm8974_set_dai_pll,
+	.set_sysclk = wm8974_set_dai_sysclk,
 };
 
 static struct snd_soc_dai_driver wm8974_dai = {
@@ -574,6 +660,7 @@ static const struct regmap_config wm8974_regmap = {
 	.max_register = WM8974_MONOMIX,
 	.reg_defaults = wm8974_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8974_reg_defaults),
+	.cache_type = REGCACHE_FLAT,
 };
 
 static int wm8974_probe(struct snd_soc_codec *codec)
@@ -605,8 +692,15 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8974 = {
 static int wm8974_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
+	struct wm8974_priv *priv;
 	struct regmap *regmap;
 	int ret;
+
+	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	i2c_set_clientdata(i2c, priv);
 
 	regmap = devm_regmap_init_i2c(i2c, &wm8974_regmap);
 	if (IS_ERR(regmap))
@@ -631,9 +725,16 @@ static const struct i2c_device_id wm8974_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8974_i2c_id);
 
+static const struct of_device_id wm8974_of_match[] = {
+       { .compatible = "wlf,wm8974", },
+       { }
+};
+MODULE_DEVICE_TABLE(of, wm8974_of_match);
+
 static struct i2c_driver wm8974_i2c_driver = {
 	.driver = {
 		.name = "wm8974",
+		.of_match_table = wm8974_of_match,
 	},
 	.probe =    wm8974_i2c_probe,
 	.remove =   wm8974_i2c_remove,

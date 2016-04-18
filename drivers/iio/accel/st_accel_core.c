@@ -67,6 +67,8 @@
 #define ST_ACCEL_1_DRDY_IRQ_ADDR		0x22
 #define ST_ACCEL_1_DRDY_IRQ_INT1_MASK		0x10
 #define ST_ACCEL_1_DRDY_IRQ_INT2_MASK		0x08
+#define ST_ACCEL_1_IHL_IRQ_ADDR			0x25
+#define ST_ACCEL_1_IHL_IRQ_MASK			0x02
 #define ST_ACCEL_1_MULTIREAD_BIT		true
 
 /* CUSTOM VALUES FOR SENSOR 2 */
@@ -92,6 +94,8 @@
 #define ST_ACCEL_2_DRDY_IRQ_ADDR		0x22
 #define ST_ACCEL_2_DRDY_IRQ_INT1_MASK		0x02
 #define ST_ACCEL_2_DRDY_IRQ_INT2_MASK		0x10
+#define ST_ACCEL_2_IHL_IRQ_ADDR			0x22
+#define ST_ACCEL_2_IHL_IRQ_MASK			0x80
 #define ST_ACCEL_2_MULTIREAD_BIT		true
 
 /* CUSTOM VALUES FOR SENSOR 3 */
@@ -125,6 +129,8 @@
 #define ST_ACCEL_3_DRDY_IRQ_ADDR		0x23
 #define ST_ACCEL_3_DRDY_IRQ_INT1_MASK		0x80
 #define ST_ACCEL_3_DRDY_IRQ_INT2_MASK		0x00
+#define ST_ACCEL_3_IHL_IRQ_ADDR			0x23
+#define ST_ACCEL_3_IHL_IRQ_MASK			0x40
 #define ST_ACCEL_3_IG1_EN_ADDR			0x23
 #define ST_ACCEL_3_IG1_EN_MASK			0x08
 #define ST_ACCEL_3_MULTIREAD_BIT		false
@@ -169,6 +175,8 @@
 #define ST_ACCEL_5_DRDY_IRQ_ADDR		0x22
 #define ST_ACCEL_5_DRDY_IRQ_INT1_MASK		0x04
 #define ST_ACCEL_5_DRDY_IRQ_INT2_MASK		0x20
+#define ST_ACCEL_5_IHL_IRQ_ADDR			0x22
+#define ST_ACCEL_5_IHL_IRQ_MASK			0x80
 #define ST_ACCEL_5_IG1_EN_ADDR			0x21
 #define ST_ACCEL_5_IG1_EN_MASK			0x08
 #define ST_ACCEL_5_MULTIREAD_BIT		false
@@ -232,6 +240,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			[3] = LSM330DL_ACCEL_DEV_NAME,
 			[4] = LSM330DLC_ACCEL_DEV_NAME,
 			[5] = LSM303AGR_ACCEL_DEV_NAME,
+			[6] = LIS2DH12_ACCEL_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_accel_12bit_channels,
 		.odr = {
@@ -291,6 +300,8 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr = ST_ACCEL_1_DRDY_IRQ_ADDR,
 			.mask_int1 = ST_ACCEL_1_DRDY_IRQ_INT1_MASK,
 			.mask_int2 = ST_ACCEL_1_DRDY_IRQ_INT2_MASK,
+			.addr_ihl = ST_ACCEL_1_IHL_IRQ_ADDR,
+			.mask_ihl = ST_ACCEL_1_IHL_IRQ_MASK,
 		},
 		.multi_read_bit = ST_ACCEL_1_MULTIREAD_BIT,
 		.bootime = 2,
@@ -354,6 +365,8 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr = ST_ACCEL_2_DRDY_IRQ_ADDR,
 			.mask_int1 = ST_ACCEL_2_DRDY_IRQ_INT1_MASK,
 			.mask_int2 = ST_ACCEL_2_DRDY_IRQ_INT2_MASK,
+			.addr_ihl = ST_ACCEL_2_IHL_IRQ_ADDR,
+			.mask_ihl = ST_ACCEL_2_IHL_IRQ_MASK,
 		},
 		.multi_read_bit = ST_ACCEL_2_MULTIREAD_BIT,
 		.bootime = 2,
@@ -429,6 +442,8 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr = ST_ACCEL_3_DRDY_IRQ_ADDR,
 			.mask_int1 = ST_ACCEL_3_DRDY_IRQ_INT1_MASK,
 			.mask_int2 = ST_ACCEL_3_DRDY_IRQ_INT2_MASK,
+			.addr_ihl = ST_ACCEL_3_IHL_IRQ_ADDR,
+			.mask_ihl = ST_ACCEL_3_IHL_IRQ_MASK,
 			.ig1 = {
 				.en_addr = ST_ACCEL_3_IG1_EN_ADDR,
 				.en_mask = ST_ACCEL_3_IG1_EN_MASK,
@@ -536,6 +551,8 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr = ST_ACCEL_5_DRDY_IRQ_ADDR,
 			.mask_int1 = ST_ACCEL_5_DRDY_IRQ_INT1_MASK,
 			.mask_int2 = ST_ACCEL_5_DRDY_IRQ_INT2_MASK,
+			.addr_ihl = ST_ACCEL_5_IHL_IRQ_ADDR,
+			.mask_ihl = ST_ACCEL_5_IHL_IRQ_MASK,
 		},
 		.multi_read_bit = ST_ACCEL_5_MULTIREAD_BIT,
 		.bootime = 2, /* guess */

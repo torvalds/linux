@@ -134,7 +134,6 @@
 
 struct hinfc_host {
 	struct nand_chip	chip;
-	struct mtd_info		mtd;
 	struct device		*dev;
 	void __iomem		*iobase;
 	void __iomem		*mmio;
@@ -189,8 +188,8 @@ static void wait_controller_finished(struct hinfc_host *host)
 
 static void hisi_nfc_dma_transfer(struct hinfc_host *host, int todev)
 {
-	struct mtd_info	*mtd = &host->mtd;
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = &host->chip;
+	struct mtd_info	*mtd = nand_to_mtd(chip);
 	unsigned long val;
 	int ret;
 
@@ -262,7 +261,7 @@ static int hisi_nfc_send_cmd_pageprog(struct hinfc_host *host)
 
 static int hisi_nfc_send_cmd_readstart(struct hinfc_host *host)
 {
-	struct mtd_info	*mtd = &host->mtd;
+	struct mtd_info	*mtd = nand_to_mtd(&host->chip);
 
 	if ((host->addr_value[0] == host->cache_addr_value[0]) &&
 	    (host->addr_value[1] == host->cache_addr_value[1]))
@@ -357,8 +356,8 @@ static int hisi_nfc_send_cmd_reset(struct hinfc_host *host, int chipselect)
 
 static void hisi_nfc_select_chip(struct mtd_info *mtd, int chipselect)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct hinfc_host *host = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	if (chipselect < 0)
 		return;
@@ -368,8 +367,8 @@ static void hisi_nfc_select_chip(struct mtd_info *mtd, int chipselect)
 
 static uint8_t hisi_nfc_read_byte(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct hinfc_host *host = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	if (host->command == NAND_CMD_STATUS)
 		return *(uint8_t *)(host->mmio);
@@ -384,8 +383,8 @@ static uint8_t hisi_nfc_read_byte(struct mtd_info *mtd)
 
 static u16 hisi_nfc_read_word(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct hinfc_host *host = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	host->offset += 2;
 	return *(u16 *)(host->buffer + host->offset - 2);
@@ -394,8 +393,8 @@ static u16 hisi_nfc_read_word(struct mtd_info *mtd)
 static void
 hisi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct hinfc_host *host = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	memcpy(host->buffer + host->offset, buf, len);
 	host->offset += len;
@@ -403,8 +402,8 @@ hisi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 
 static void hisi_nfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct hinfc_host *host = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	memcpy(buf, host->buffer + host->offset, len);
 	host->offset += len;
@@ -412,8 +411,8 @@ static void hisi_nfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 
 static void set_addr(struct mtd_info *mtd, int column, int page_addr)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct hinfc_host *host = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct hinfc_host *host = nand_get_controller_data(chip);
 	unsigned int command = host->command;
 
 	host->addr_cycle    = 0;
@@ -448,8 +447,8 @@ static void set_addr(struct mtd_info *mtd, int column, int page_addr)
 static void hisi_nfc_cmdfunc(struct mtd_info *mtd, unsigned command, int column,
 		int page_addr)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct hinfc_host *host = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct hinfc_host *host = nand_get_controller_data(chip);
 	int is_cache_invalid = 1;
 	unsigned int flag = 0;
 
@@ -543,7 +542,7 @@ static irqreturn_t hinfc_irq_handle(int irq, void *devid)
 static int hisi_nand_read_page_hwecc(struct mtd_info *mtd,
 	struct nand_chip *chip, uint8_t *buf, int oob_required, int page)
 {
-	struct hinfc_host *host = chip->priv;
+	struct hinfc_host *host = nand_get_controller_data(chip);
 	int max_bitflips = 0, stat = 0, stat_max = 0, status_ecc;
 	int stat_1, stat_2;
 
@@ -575,7 +574,7 @@ static int hisi_nand_read_page_hwecc(struct mtd_info *mtd,
 static int hisi_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 				int page)
 {
-	struct hinfc_host *host = chip->priv;
+	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -633,7 +632,6 @@ static void hisi_nfc_host_init(struct hinfc_host *host)
 }
 
 static struct nand_ecclayout nand_ecc_2K_16bits = {
-	.oobavail = 6,
 	.oobfree = { {2, 6} },
 };
 
@@ -643,7 +641,7 @@ static int hisi_nfc_ecc_probe(struct hinfc_host *host)
 	int size, strength, ecc_bits;
 	struct device *dev = host->dev;
 	struct nand_chip *chip = &host->chip;
-	struct mtd_info *mtd = &host->mtd;
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct device_node *np = host->dev->of_node;
 
 	size = of_get_nand_ecc_step_size(np);
@@ -704,7 +702,6 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	struct mtd_info   *mtd;
 	struct resource	  *res;
 	struct device_node *np = dev->of_node;
-	struct mtd_part_parser_data ppdata;
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
@@ -713,7 +710,7 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 	chip = &host->chip;
-	mtd  = &host->mtd;
+	mtd  = nand_to_mtd(chip);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -737,11 +734,11 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 		goto err_res;
 	}
 
-	mtd->priv		= chip;
 	mtd->name		= "hisi_nand";
 	mtd->dev.parent         = &pdev->dev;
 
-	chip->priv		= host;
+	nand_set_controller_data(chip, host);
+	nand_set_flash_node(chip, np);
 	chip->cmdfunc		= hisi_nfc_cmdfunc;
 	chip->select_chip	= hisi_nfc_select_chip;
 	chip->read_byte		= hisi_nfc_read_byte;
@@ -805,8 +802,7 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 		goto err_res;
 	}
 
-	ppdata.of_node = np;
-	ret = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
+	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
 		dev_err(dev, "Err MTD partition=%d\n", ret);
 		goto err_mtd;
@@ -823,7 +819,7 @@ err_res:
 static int hisi_nfc_remove(struct platform_device *pdev)
 {
 	struct hinfc_host *host = platform_get_drvdata(pdev);
-	struct mtd_info *mtd = &host->mtd;
+	struct mtd_info *mtd = nand_to_mtd(&host->chip);
 
 	nand_release(mtd);
 

@@ -329,7 +329,7 @@ InstructionTLBMiss:
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
-#ifdef CONFIG_MODULES
+#if defined(CONFIG_MODULES) || defined (CONFIG_DEBUG_PAGEALLOC)
 	/* Only modules will cause ITLB Misses as we always
 	 * pin the first 8MB of kernel memory */
 	mfspr	r11, SPRN_SRR0	/* Get effective address of fault */
@@ -385,27 +385,26 @@ InstructionTLBMiss:
 
 	. = 0x1200
 DataStoreTLBMiss:
-#ifdef CONFIG_8xx_CPU6
 	mtspr	SPRN_SPRG_SCRATCH2, r3
-#endif
 	EXCEPTION_PROLOG_0
-	mfcr	r10
+	mfcr	r3
 
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
-	mfspr	r11, SPRN_MD_EPN
-	IS_KERNEL(r11, r11)
+	mfspr	r10, SPRN_MD_EPN
+	IS_KERNEL(r11, r10)
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
 	BRANCH_UNLESS_KERNEL(3f)
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
 3:
-	mtcr	r10
-	mfspr	r10, SPRN_MD_EPN
 
 	/* Insert level 1 index */
 	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
 	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r11)	/* Get the level 1 entry */
+	mtcr	r11
+	bt-	28,DTLBMiss8M		/* bit 28 = Large page (8M) */
+	mtcr	r3
 
 	/* We have a pte table, so load fetch the pte from the table.
 	 */
@@ -453,12 +452,33 @@ DataStoreTLBMiss:
 	MTSPR_CPU6(SPRN_MD_RPN, r10, r3)	/* Update TLB entry */
 
 	/* Restore registers */
-#ifdef CONFIG_8xx_CPU6
 	mfspr	r3, SPRN_SPRG_SCRATCH2
-#endif
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
 	EXCEPTION_EPILOG_0
 	rfi
+
+DTLBMiss8M:
+	mtcr	r3
+	ori	r11, r11, MD_SVALID
+	MTSPR_CPU6(SPRN_MD_TWC, r11, r3)
+#ifdef CONFIG_PPC_16K_PAGES
+	/*
+	 * In 16k pages mode, each PGD entry defines a 64M block.
+	 * Here we select the 8M page within the block.
+	 */
+	rlwimi	r11, r10, 0, 0x03800000
+#endif
+	rlwinm	r10, r11, 0, 0xff800000
+	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
+			  _PAGE_PRESENT
+	MTSPR_CPU6(SPRN_MD_RPN, r10, r3)	/* Update TLB entry */
+
+	li	r11, RPN_PATTERN
+	mfspr	r3, SPRN_SPRG_SCRATCH2
+	mtspr	SPRN_DAR, r11	/* Tag DAR */
+	EXCEPTION_EPILOG_0
+	rfi
+
 
 /* This is an instruction TLB error on the MPC8xx.  This could be due
  * to many reasons, such as executing guarded memory or illegal instruction
@@ -537,13 +557,15 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	/* Insert level 1 index */
 3:	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
 	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r11)	/* Get the level 1 entry */
+	mtcr	r11
+	bt	28,200f		/* bit 28 = Large page (8M) */
 	rlwinm	r11, r11,0,0,19	/* Extract page descriptor page address */
 	/* Insert level 2 index */
 	rlwimi	r11, r10, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
 	lwz	r11, 0(r11)	/* Get the pte */
 	/* concat physical page address(r11) and page offset(r10) */
 	rlwimi	r11, r10, 0, 32 - PAGE_SHIFT, 31
-	lwz	r11,0(r11)
+201:	lwz	r11,0(r11)
 /* Check if it really is a dcbx instruction. */
 /* dcbt and dcbtst does not generate DTLB Misses/Errors,
  * no need to include them here */
@@ -561,6 +583,10 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	beq+	142f
 141:	mfspr	r10,SPRN_SPRG_SCRATCH2
 	b	DARFixed	/* Nope, go back to normal TLB processing */
+
+	/* concat physical page address(r11) and page offset(r10) */
+200:	rlwimi	r11, r10, 0, 32 - (PAGE_SHIFT << 1), 31
+	b	201b
 
 144:	mfspr	r10, SPRN_DSISR
 	rlwinm	r10, r10,0,7,5	/* Clear store bit for buggy dcbst insn */
@@ -855,68 +881,6 @@ initial_mmu:
 #endif
 	blr
 
-
-/*
- * Set up to use a given MMU context.
- * r3 is context number, r4 is PGD pointer.
- *
- * We place the physical address of the new task page directory loaded
- * into the MMU base register, and set the ASID compare register with
- * the new "context."
- */
-_GLOBAL(set_context)
-
-#ifdef CONFIG_BDI_SWITCH
-	/* Context switch the PTE pointer for the Abatron BDI2000.
-	 * The PGDIR is passed as second argument.
-	 */
-	lis	r5, KERNELBASE@h
-	lwz	r5, 0xf0(r5)
-	stw	r4, 0x4(r5)
-#endif
-
-	/* Register M_TW will contain base address of level 1 table minus the
-	 * lower part of the kernel PGDIR base address, so that all accesses to
-	 * level 1 table are done relative to lower part of kernel PGDIR base
-	 * address.
-	 */
-	li	r5, (swapper_pg_dir-PAGE_OFFSET)@l
-	sub	r4, r4, r5
-	tophys	(r4, r4)
-#ifdef CONFIG_8xx_CPU6
-	lis	r6, cpu6_errata_word@h
-	ori	r6, r6, cpu6_errata_word@l
-	li	r7, 0x3f80
-	stw	r7, 12(r6)
-	lwz	r7, 12(r6)
-#endif
-	mtspr	SPRN_M_TW, r4		/* Update pointeur to level 1 table */
-#ifdef CONFIG_8xx_CPU6
-	li	r7, 0x3380
-	stw	r7, 12(r6)
-	lwz	r7, 12(r6)
-#endif
-	mtspr	SPRN_M_CASID, r3	/* Update context */
-	SYNC
-	blr
-
-#ifdef CONFIG_8xx_CPU6
-/* It's here because it is unique to the 8xx.
- * It is important we get called with interrupts disabled.  I used to
- * do that, but it appears that all code that calls this already had
- * interrupt disabled.
- */
-	.globl	set_dec_cpu6
-set_dec_cpu6:
-	lis	r7, cpu6_errata_word@h
-	ori	r7, r7, cpu6_errata_word@l
-	li	r4, 0x2c00
-	stw	r4, 8(r7)
-	lwz	r4, 8(r7)
-        mtspr   22, r3		/* Update Decrementer */
-	SYNC
-	blr
-#endif
 
 /*
  * We put a few things here that have to be page-aligned.

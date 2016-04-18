@@ -131,7 +131,7 @@ static const struct reg_default wm8962_reg[] = {
 	{ 15, 0x6243 },   /* R15    - Software Reset */
 
 	{ 17, 0x007B },   /* R17    - ALC1 */
-
+	{ 18, 0x0000 },   /* R18    - ALC2 */
 	{ 19, 0x1C32 },   /* R19    - ALC3 */
 	{ 20, 0x3200 },   /* R20    - Noise Gate */
 	{ 21, 0x00C0 },   /* R21    - Left ADC volume */
@@ -365,8 +365,8 @@ static const struct reg_default wm8962_reg[] = {
 	{ 16924, 0x0059 },   /* R16924 - HDBASS_PG_1 */
 	{ 16925, 0x999A },   /* R16925 - HDBASS_PG_0 */
 
-	{ 17048, 0x0083 },   /* R17408 - HPF_C_1 */
-	{ 17049, 0x98AD },   /* R17409 - HPF_C_0 */
+	{ 17408, 0x0083 },   /* R17408 - HPF_C_1 */
+	{ 17409, 0x98AD },   /* R17409 - HPF_C_0 */
 
 	{ 17920, 0x007F },   /* R17920 - ADCL_RETUNE_C1_1 */
 	{ 17921, 0xFFFF },   /* R17921 - ADCL_RETUNE_C1_0 */
@@ -794,7 +794,6 @@ static bool wm8962_volatile_register(struct device *dev, unsigned int reg)
 	case WM8962_CLOCKING1:
 	case WM8962_CLOCKING2:
 	case WM8962_SOFTWARE_RESET:
-	case WM8962_ALC2:
 	case WM8962_THERMAL_SHUTDOWN_STATUS:
 	case WM8962_ADDITIONAL_CONTROL_4:
 	case WM8962_DC_SERVO_6:
@@ -3380,7 +3379,7 @@ static void wm8962_init_gpio(struct snd_soc_codec *codec)
 
 	wm8962->gpio_chip = wm8962_template_chip;
 	wm8962->gpio_chip.ngpio = WM8962_MAX_GPIO;
-	wm8962->gpio_chip.dev = codec->dev;
+	wm8962->gpio_chip.parent = codec->dev;
 
 	if (pdata->gpio_base)
 		wm8962->gpio_chip.base = pdata->gpio_base;

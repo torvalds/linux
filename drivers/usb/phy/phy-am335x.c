@@ -5,24 +5,25 @@
 #include <linux/usb/usb_phy_generic.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
-#include <linux/regulator/consumer.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/usb/of.h>
 
-#include "am35x-phy-control.h"
+#include "phy-am335x-control.h"
 #include "phy-generic.h"
 
 struct am335x_phy {
 	struct usb_phy_generic usb_phy_gen;
 	struct phy_control *phy_ctrl;
 	int id;
+	enum usb_dr_mode dr_mode;
 };
 
 static int am335x_init(struct usb_phy *phy)
 {
 	struct am335x_phy *am_phy = dev_get_drvdata(phy->dev);
 
-	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, true);
+	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, am_phy->dr_mode, true);
 	return 0;
 }
 
@@ -30,7 +31,7 @@ static void am335x_shutdown(struct usb_phy *phy)
 {
 	struct am335x_phy *am_phy = dev_get_drvdata(phy->dev);
 
-	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, false);
+	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, am_phy->dr_mode, false);
 }
 
 static int am335x_phy_probe(struct platform_device *pdev)
@@ -46,11 +47,14 @@ static int am335x_phy_probe(struct platform_device *pdev)
 	am_phy->phy_ctrl = am335x_get_phy_control(dev);
 	if (!am_phy->phy_ctrl)
 		return -EPROBE_DEFER;
+
 	am_phy->id = of_alias_get_id(pdev->dev.of_node, "phy");
 	if (am_phy->id < 0) {
 		dev_err(&pdev->dev, "Missing PHY id: %d\n", am_phy->id);
 		return am_phy->id;
 	}
+
+	am_phy->dr_mode = of_usb_get_dr_mode_by_phy(pdev->dev.of_node);
 
 	ret = usb_phy_gen_create_phy(dev, &am_phy->usb_phy_gen, NULL);
 	if (ret)
@@ -75,7 +79,7 @@ static int am335x_phy_probe(struct platform_device *pdev)
 	 */
 
 	device_set_wakeup_enable(dev, false);
-	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, false);
+	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, am_phy->dr_mode, false);
 
 	return 0;
 }
@@ -105,7 +109,7 @@ static int am335x_phy_suspend(struct device *dev)
 	if (device_may_wakeup(dev))
 		phy_ctrl_wkup(am_phy->phy_ctrl, am_phy->id, true);
 
-	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, false);
+	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, am_phy->dr_mode, false);
 
 	return 0;
 }
@@ -115,7 +119,7 @@ static int am335x_phy_resume(struct device *dev)
 	struct platform_device	*pdev = to_platform_device(dev);
 	struct am335x_phy	*am_phy = platform_get_drvdata(pdev);
 
-	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, true);
+	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, am_phy->dr_mode, true);
 
 	if (device_may_wakeup(dev))
 		phy_ctrl_wkup(am_phy->phy_ctrl, am_phy->id, false);

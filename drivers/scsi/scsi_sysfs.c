@@ -17,6 +17,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
+#include <scsi/scsi_dh.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_driver.h>
 
@@ -79,6 +80,35 @@ const char *scsi_host_state_name(enum scsi_host_state state)
 	}
 	return name;
 }
+
+#ifdef CONFIG_SCSI_DH
+static const struct {
+	unsigned char	value;
+	char		*name;
+} sdev_access_states[] = {
+	{ SCSI_ACCESS_STATE_OPTIMAL, "active/optimized" },
+	{ SCSI_ACCESS_STATE_ACTIVE, "active/non-optimized" },
+	{ SCSI_ACCESS_STATE_STANDBY, "standby" },
+	{ SCSI_ACCESS_STATE_UNAVAILABLE, "unavailable" },
+	{ SCSI_ACCESS_STATE_LBA, "lba-dependent" },
+	{ SCSI_ACCESS_STATE_OFFLINE, "offline" },
+	{ SCSI_ACCESS_STATE_TRANSITIONING, "transitioning" },
+};
+
+static const char *scsi_access_state_name(unsigned char state)
+{
+	int i;
+	char *name = NULL;
+
+	for (i = 0; i < ARRAY_SIZE(sdev_access_states); i++) {
+		if (sdev_access_states[i].value == state) {
+			name = sdev_access_states[i].name;
+			break;
+		}
+	}
+	return name;
+}
+#endif
 
 static int check_set(unsigned long long *val, char *src)
 {
@@ -198,7 +228,7 @@ show_shost_state(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 /* DEVICE_ATTR(state) clashes with dev_attr_state for sdev */
-struct device_attribute dev_attr_hstate =
+static struct device_attribute dev_attr_hstate =
 	__ATTR(state, S_IRUGO | S_IWUSR, show_shost_state, store_shost_state);
 
 static ssize_t
@@ -373,7 +403,7 @@ static struct attribute *scsi_sysfs_shost_attrs[] = {
 	NULL
 };
 
-struct attribute_group scsi_shost_attr_group = {
+static struct attribute_group scsi_shost_attr_group = {
 	.attrs =	scsi_sysfs_shost_attrs,
 };
 
@@ -760,11 +790,15 @@ show_vpd_##_page(struct file *filp, struct kobject *kobj,	\
 {									\
 	struct device *dev = container_of(kobj, struct device, kobj);	\
 	struct scsi_device *sdev = to_scsi_device(dev);			\
+	int ret;							\
 	if (!sdev->vpd_##_page)						\
 		return -EINVAL;						\
-	return memory_read_from_buffer(buf, count, &off,		\
-				       sdev->vpd_##_page,		\
+	rcu_read_lock();						\
+	ret = memory_read_from_buffer(buf, count, &off,			\
+				      rcu_dereference(sdev->vpd_##_page), \
 				       sdev->vpd_##_page##_len);	\
+	rcu_read_unlock();						\
+	return ret;						\
 }									\
 static struct bin_attribute dev_attr_vpd_##_page = {		\
 	.attr =	{.name = __stringify(vpd_##_page), .mode = S_IRUGO },	\
@@ -774,6 +808,29 @@ static struct bin_attribute dev_attr_vpd_##_page = {		\
 
 sdev_vpd_pg_attr(pg83);
 sdev_vpd_pg_attr(pg80);
+
+static ssize_t show_inquiry(struct file *filep, struct kobject *kobj,
+			    struct bin_attribute *bin_attr,
+			    char *buf, loff_t off, size_t count)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+	if (!sdev->inquiry)
+		return -EINVAL;
+
+	return memory_read_from_buffer(buf, count, &off, sdev->inquiry,
+				       sdev->inquiry_len);
+}
+
+static struct bin_attribute dev_attr_inquiry = {
+	.attr = {
+		.name = "inquiry",
+		.mode = S_IRUGO,
+	},
+	.size = 0,
+	.read = show_inquiry,
+};
 
 static ssize_t
 show_iostat_counterbits(struct device *dev, struct device_attribute *attr,
@@ -878,6 +935,113 @@ static DEVICE_ATTR(queue_depth, S_IRUGO | S_IWUSR, sdev_show_queue_depth,
 		   sdev_store_queue_depth);
 
 static ssize_t
+sdev_show_wwid(struct device *dev, struct device_attribute *attr,
+		    char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	ssize_t count;
+
+	count = scsi_vpd_lun_id(sdev, buf, PAGE_SIZE);
+	if (count > 0) {
+		buf[count] = '\n';
+		count++;
+	}
+	return count;
+}
+static DEVICE_ATTR(wwid, S_IRUGO, sdev_show_wwid, NULL);
+
+#ifdef CONFIG_SCSI_DH
+static ssize_t
+sdev_show_dh_state(struct device *dev, struct device_attribute *attr,
+		   char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+	if (!sdev->handler)
+		return snprintf(buf, 20, "detached\n");
+
+	return snprintf(buf, 20, "%s\n", sdev->handler->name);
+}
+
+static ssize_t
+sdev_store_dh_state(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	int err = -EINVAL;
+
+	if (sdev->sdev_state == SDEV_CANCEL ||
+	    sdev->sdev_state == SDEV_DEL)
+		return -ENODEV;
+
+	if (!sdev->handler) {
+		/*
+		 * Attach to a device handler
+		 */
+		err = scsi_dh_attach(sdev->request_queue, buf);
+	} else if (!strncmp(buf, "activate", 8)) {
+		/*
+		 * Activate a device handler
+		 */
+		if (sdev->handler->activate)
+			err = sdev->handler->activate(sdev, NULL, NULL);
+		else
+			err = 0;
+	} else if (!strncmp(buf, "detach", 6)) {
+		/*
+		 * Detach from a device handler
+		 */
+		sdev_printk(KERN_WARNING, sdev,
+			    "can't detach handler %s.\n",
+			    sdev->handler->name);
+		err = -EINVAL;
+	}
+
+	return err < 0 ? err : count;
+}
+
+static DEVICE_ATTR(dh_state, S_IRUGO | S_IWUSR, sdev_show_dh_state,
+		   sdev_store_dh_state);
+
+static ssize_t
+sdev_show_access_state(struct device *dev,
+		       struct device_attribute *attr,
+		       char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	unsigned char access_state;
+	const char *access_state_name;
+
+	if (!sdev->handler)
+		return -EINVAL;
+
+	access_state = (sdev->access_state & SCSI_ACCESS_STATE_MASK);
+	access_state_name = scsi_access_state_name(access_state);
+
+	return sprintf(buf, "%s\n",
+		       access_state_name ? access_state_name : "unknown");
+}
+static DEVICE_ATTR(access_state, S_IRUGO, sdev_show_access_state, NULL);
+
+static ssize_t
+sdev_show_preferred_path(struct device *dev,
+			 struct device_attribute *attr,
+			 char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+	if (!sdev->handler)
+		return -EINVAL;
+
+	if (sdev->access_state & SCSI_ACCESS_STATE_PREFERRED)
+		return sprintf(buf, "1\n");
+	else
+		return sprintf(buf, "0\n");
+}
+static DEVICE_ATTR(preferred_path, S_IRUGO, sdev_show_preferred_path, NULL);
+#endif
+
+static ssize_t
 sdev_show_queue_ramp_up_period(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -900,7 +1064,7 @@ sdev_store_queue_ramp_up_period(struct device *dev,
 		return -EINVAL;
 
 	sdev->queue_ramp_up_period = msecs_to_jiffies(period);
-	return period;
+	return count;
 }
 
 static DEVICE_ATTR(queue_ramp_up_period, S_IRUGO | S_IWUSR,
@@ -922,7 +1086,31 @@ static umode_t scsi_sdev_attr_is_visible(struct kobject *kobj,
 	    !sdev->host->hostt->change_queue_depth)
 		return 0;
 
+#ifdef CONFIG_SCSI_DH
+	if (attr == &dev_attr_access_state.attr &&
+	    !sdev->handler)
+		return 0;
+	if (attr == &dev_attr_preferred_path.attr &&
+	    !sdev->handler)
+		return 0;
+#endif
 	return attr->mode;
+}
+
+static umode_t scsi_sdev_bin_attr_is_visible(struct kobject *kobj,
+					     struct bin_attribute *attr, int i)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+
+	if (attr == &dev_attr_vpd_pg80 && !sdev->vpd_pg80)
+		return 0;
+
+	if (attr == &dev_attr_vpd_pg83 && !sdev->vpd_pg83)
+		return 0;
+
+	return S_IRUGO;
 }
 
 /* Default template for device attributes.  May NOT be modified */
@@ -946,6 +1134,12 @@ static struct attribute *scsi_sdev_attrs[] = {
 	&dev_attr_modalias.attr,
 	&dev_attr_queue_depth.attr,
 	&dev_attr_queue_type.attr,
+	&dev_attr_wwid.attr,
+#ifdef CONFIG_SCSI_DH
+	&dev_attr_dh_state.attr,
+	&dev_attr_access_state.attr,
+	&dev_attr_preferred_path.attr,
+#endif
 	&dev_attr_queue_ramp_up_period.attr,
 	REF_EVT(media_change),
 	REF_EVT(inquiry_change_reported),
@@ -959,12 +1153,14 @@ static struct attribute *scsi_sdev_attrs[] = {
 static struct bin_attribute *scsi_sdev_bin_attrs[] = {
 	&dev_attr_vpd_pg83,
 	&dev_attr_vpd_pg80,
+	&dev_attr_inquiry,
 	NULL
 };
 static struct attribute_group scsi_sdev_attr_group = {
 	.attrs =	scsi_sdev_attrs,
 	.bin_attrs =	scsi_sdev_bin_attrs,
 	.is_visible =	scsi_sdev_attr_is_visible,
+	.is_bin_visible = scsi_sdev_bin_attr_is_visible,
 };
 
 static const struct attribute_group *scsi_sdev_attr_groups[] = {
@@ -1026,17 +1222,19 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 
 	scsi_autopm_get_device(sdev);
 
+	error = scsi_dh_add_device(sdev);
+	if (error)
+		/*
+		 * device_handler is optional, so any error can be ignored
+		 */
+		sdev_printk(KERN_INFO, sdev,
+				"failed to add device handler: %d\n", error);
+
 	error = device_add(&sdev->sdev_gendev);
 	if (error) {
 		sdev_printk(KERN_INFO, sdev,
 				"failed to add device: %d\n", error);
-		return error;
-	}
-
-	error = scsi_dh_add_device(sdev);
-	if (error) {
-		sdev_printk(KERN_INFO, sdev,
-				"failed to add device handler: %d\n", error);
+		scsi_dh_remove_device(sdev);
 		return error;
 	}
 
@@ -1077,6 +1275,14 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 void __scsi_remove_device(struct scsi_device *sdev)
 {
 	struct device *dev = &sdev->sdev_gendev;
+
+	/*
+	 * This cleanup path is not reentrant and while it is impossible
+	 * to get a new reference with scsi_device_get() someone can still
+	 * hold a previously acquired one.
+	 */
+	if (sdev->sdev_state == SDEV_DEL)
+		return;
 
 	if (sdev->is_visible) {
 		if (scsi_device_set_state(sdev, SDEV_CANCEL) != 0)
@@ -1160,31 +1366,25 @@ static void __scsi_remove_target(struct scsi_target *starget)
 void scsi_remove_target(struct device *dev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
-	struct scsi_target *starget, *last = NULL;
+	struct scsi_target *starget, *last_target = NULL;
 	unsigned long flags;
 
-	/* remove targets being careful to lookup next entry before
-	 * deleting the last
-	 */
+restart:
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_for_each_entry(starget, &shost->__targets, siblings) {
-		if (starget->state == STARGET_DEL)
+		if (starget->state == STARGET_DEL ||
+		    starget == last_target)
 			continue;
 		if (starget->dev.parent == dev || &starget->dev == dev) {
-			/* assuming new targets arrive at the end */
 			kref_get(&starget->reap_ref);
+			last_target = starget;
 			spin_unlock_irqrestore(shost->host_lock, flags);
-			if (last)
-				scsi_target_reap(last);
-			last = starget;
 			__scsi_remove_target(starget);
-			spin_lock_irqsave(shost->host_lock, flags);
+			scsi_target_reap(starget);
+			goto restart;
 		}
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
-
-	if (last)
-		scsi_target_reap(last);
 }
 EXPORT_SYMBOL(scsi_remove_target);
 

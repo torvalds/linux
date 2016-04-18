@@ -95,8 +95,8 @@ static int build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
 	wqe->write.reserved[0] = 0;
 	wqe->write.reserved[1] = 0;
 	wqe->write.reserved[2] = 0;
-	wqe->write.stag_sink = cpu_to_be32(wr->wr.rdma.rkey);
-	wqe->write.to_sink = cpu_to_be64(wr->wr.rdma.remote_addr);
+	wqe->write.stag_sink = cpu_to_be32(rdma_wr(wr)->rkey);
+	wqe->write.to_sink = cpu_to_be64(rdma_wr(wr)->remote_addr);
 
 	if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM) {
 		plen = 4;
@@ -137,8 +137,8 @@ static int build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
 		wqe->read.local_inv = 0;
 	wqe->read.reserved[0] = 0;
 	wqe->read.reserved[1] = 0;
-	wqe->read.rem_stag = cpu_to_be32(wr->wr.rdma.rkey);
-	wqe->read.rem_to = cpu_to_be64(wr->wr.rdma.remote_addr);
+	wqe->read.rem_stag = cpu_to_be32(rdma_wr(wr)->rkey);
+	wqe->read.rem_to = cpu_to_be64(rdma_wr(wr)->remote_addr);
 	wqe->read.local_stag = cpu_to_be32(wr->sg_list[0].lkey);
 	wqe->read.local_len = cpu_to_be32(wr->sg_list[0].length);
 	wqe->read.local_to = cpu_to_be64(wr->sg_list[0].addr);
@@ -146,27 +146,28 @@ static int build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static int build_fastreg(union t3_wr *wqe, struct ib_send_wr *wr,
-				u8 *flit_cnt, int *wr_cnt, struct t3_wq *wq)
+static int build_memreg(union t3_wr *wqe, struct ib_reg_wr *wr,
+			  u8 *flit_cnt, int *wr_cnt, struct t3_wq *wq)
 {
+	struct iwch_mr *mhp = to_iwch_mr(wr->mr);
 	int i;
 	__be64 *p;
 
-	if (wr->wr.fast_reg.page_list_len > T3_MAX_FASTREG_DEPTH)
+	if (mhp->npages > T3_MAX_FASTREG_DEPTH)
 		return -EINVAL;
 	*wr_cnt = 1;
-	wqe->fastreg.stag = cpu_to_be32(wr->wr.fast_reg.rkey);
-	wqe->fastreg.len = cpu_to_be32(wr->wr.fast_reg.length);
-	wqe->fastreg.va_base_hi = cpu_to_be32(wr->wr.fast_reg.iova_start >> 32);
+	wqe->fastreg.stag = cpu_to_be32(wr->key);
+	wqe->fastreg.len = cpu_to_be32(mhp->ibmr.length);
+	wqe->fastreg.va_base_hi = cpu_to_be32(mhp->ibmr.iova >> 32);
 	wqe->fastreg.va_base_lo_fbo =
-				cpu_to_be32(wr->wr.fast_reg.iova_start & 0xffffffff);
+				cpu_to_be32(mhp->ibmr.iova & 0xffffffff);
 	wqe->fastreg.page_type_perms = cpu_to_be32(
-		V_FR_PAGE_COUNT(wr->wr.fast_reg.page_list_len) |
-		V_FR_PAGE_SIZE(wr->wr.fast_reg.page_shift-12) |
+		V_FR_PAGE_COUNT(mhp->npages) |
+		V_FR_PAGE_SIZE(ilog2(wr->mr->page_size) - 12) |
 		V_FR_TYPE(TPT_VATO) |
-		V_FR_PERMS(iwch_ib_to_tpt_access(wr->wr.fast_reg.access_flags)));
+		V_FR_PERMS(iwch_ib_to_tpt_access(wr->access)));
 	p = &wqe->fastreg.pbl_addrs[0];
-	for (i = 0; i < wr->wr.fast_reg.page_list_len; i++, p++) {
+	for (i = 0; i < mhp->npages; i++, p++) {
 
 		/* If we need a 2nd WR, then set it up */
 		if (i == T3_MAX_FASTREG_FRAG) {
@@ -175,14 +176,14 @@ static int build_fastreg(union t3_wr *wqe, struct ib_send_wr *wr,
 				Q_PTR2IDX((wq->wptr+1), wq->size_log2));
 			build_fw_riwrh((void *)wqe, T3_WR_FASTREG, 0,
 			       Q_GENBIT(wq->wptr + 1, wq->size_log2),
-			       0, 1 + wr->wr.fast_reg.page_list_len - T3_MAX_FASTREG_FRAG,
+			       0, 1 + mhp->npages - T3_MAX_FASTREG_FRAG,
 			       T3_EOP);
 
 			p = &wqe->pbl_frag.pbl_addrs[0];
 		}
-		*p = cpu_to_be64((u64)wr->wr.fast_reg.page_list->page_list[i]);
+		*p = cpu_to_be64((u64)mhp->pages[i]);
 	}
-	*flit_cnt = 5 + wr->wr.fast_reg.page_list_len;
+	*flit_cnt = 5 + mhp->npages;
 	if (*flit_cnt > 15)
 		*flit_cnt = 15;
 	return 0;
@@ -414,10 +415,10 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			if (!qhp->wq.oldest_read)
 				qhp->wq.oldest_read = sqp;
 			break;
-		case IB_WR_FAST_REG_MR:
+		case IB_WR_REG_MR:
 			t3_wr_opcode = T3_WR_FASTREG;
-			err = build_fastreg(wqe, wr, &t3_wr_flit_cnt,
-						 &wr_cnt, &qhp->wq);
+			err = build_memreg(wqe, reg_wr(wr), &t3_wr_flit_cnt,
+					   &wr_cnt, &qhp->wq);
 			break;
 		case IB_WR_LOCAL_INV:
 			if (wr->send_flags & IB_SEND_FENCE)
@@ -522,88 +523,6 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 out:
 	if (err)
 		*bad_wr = wr;
-	return err;
-}
-
-int iwch_bind_mw(struct ib_qp *qp,
-			     struct ib_mw *mw,
-			     struct ib_mw_bind *mw_bind)
-{
-	struct iwch_dev *rhp;
-	struct iwch_mw *mhp;
-	struct iwch_qp *qhp;
-	union t3_wr *wqe;
-	u32 pbl_addr;
-	u8 page_size;
-	u32 num_wrs;
-	unsigned long flag;
-	struct ib_sge sgl;
-	int err=0;
-	enum t3_wr_flags t3_wr_flags;
-	u32 idx;
-	struct t3_swsq *sqp;
-
-	qhp = to_iwch_qp(qp);
-	mhp = to_iwch_mw(mw);
-	rhp = qhp->rhp;
-
-	spin_lock_irqsave(&qhp->lock, flag);
-	if (qhp->attr.state > IWCH_QP_STATE_RTS) {
-		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -EINVAL;
-	}
-	num_wrs = Q_FREECNT(qhp->wq.sq_rptr, qhp->wq.sq_wptr,
-			    qhp->wq.sq_size_log2);
-	if (num_wrs == 0) {
-		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -ENOMEM;
-	}
-	idx = Q_PTR2IDX(qhp->wq.wptr, qhp->wq.size_log2);
-	PDBG("%s: idx 0x%0x, mw 0x%p, mw_bind 0x%p\n", __func__, idx,
-	     mw, mw_bind);
-	wqe = (union t3_wr *) (qhp->wq.queue + idx);
-
-	t3_wr_flags = 0;
-	if (mw_bind->send_flags & IB_SEND_SIGNALED)
-		t3_wr_flags = T3_COMPLETION_FLAG;
-
-	sgl.addr = mw_bind->bind_info.addr;
-	sgl.lkey = mw_bind->bind_info.mr->lkey;
-	sgl.length = mw_bind->bind_info.length;
-	wqe->bind.reserved = 0;
-	wqe->bind.type = TPT_VATO;
-
-	/* TBD: check perms */
-	wqe->bind.perms = iwch_ib_to_tpt_bind_access(
-		mw_bind->bind_info.mw_access_flags);
-	wqe->bind.mr_stag = cpu_to_be32(mw_bind->bind_info.mr->lkey);
-	wqe->bind.mw_stag = cpu_to_be32(mw->rkey);
-	wqe->bind.mw_len = cpu_to_be32(mw_bind->bind_info.length);
-	wqe->bind.mw_va = cpu_to_be64(mw_bind->bind_info.addr);
-	err = iwch_sgl2pbl_map(rhp, &sgl, 1, &pbl_addr, &page_size);
-	if (err) {
-		spin_unlock_irqrestore(&qhp->lock, flag);
-		return err;
-	}
-	wqe->send.wrid.id0.hi = qhp->wq.sq_wptr;
-	sqp = qhp->wq.sq + Q_PTR2IDX(qhp->wq.sq_wptr, qhp->wq.sq_size_log2);
-	sqp->wr_id = mw_bind->wr_id;
-	sqp->opcode = T3_BIND_MW;
-	sqp->sq_wptr = qhp->wq.sq_wptr;
-	sqp->complete = 0;
-	sqp->signaled = (mw_bind->send_flags & IB_SEND_SIGNALED);
-	wqe->bind.mr_pbl_addr = cpu_to_be32(pbl_addr);
-	wqe->bind.mr_pagesz = page_size;
-	build_fw_riwrh((void *)wqe, T3_WR_BIND, t3_wr_flags,
-		       Q_GENBIT(qhp->wq.wptr, qhp->wq.size_log2), 0,
-		       sizeof(struct t3_bind_mw_wr) >> 3, T3_SOPEOP);
-	++(qhp->wq.wptr);
-	++(qhp->wq.sq_wptr);
-	spin_unlock_irqrestore(&qhp->lock, flag);
-
-	if (cxio_wq_db_enabled(&qhp->wq))
-		ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
-
 	return err;
 }
 

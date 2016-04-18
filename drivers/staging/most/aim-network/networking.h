@@ -15,9 +15,7 @@
 
 #include "mostcore.h"
 
-
 void most_deliver_netinfo(struct most_interface *iface,
 			  unsigned char link_stat, unsigned char *mac_addr);
-
 
 #endif

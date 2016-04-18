@@ -320,11 +320,6 @@ struct mlx4_en_rx_ring {
 	void *rx_info;
 	unsigned long bytes;
 	unsigned long packets;
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	unsigned long yields;
-	unsigned long misses;
-	unsigned long cleaned;
-#endif
 	unsigned long csum_ok;
 	unsigned long csum_none;
 	unsigned long csum_complete;
@@ -347,18 +342,6 @@ struct mlx4_en_cq {
 	struct mlx4_cqe *buf;
 #define MLX4_EN_OPCODE_ERROR	0x1e
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	unsigned int state;
-#define MLX4_EN_CQ_STATE_IDLE        0
-#define MLX4_EN_CQ_STATE_NAPI     1    /* NAPI owns this CQ */
-#define MLX4_EN_CQ_STATE_POLL     2    /* poll owns this CQ */
-#define MLX4_CQ_LOCKED (MLX4_EN_CQ_STATE_NAPI | MLX4_EN_CQ_STATE_POLL)
-#define MLX4_EN_CQ_STATE_NAPI_YIELD  4    /* NAPI yielded this CQ */
-#define MLX4_EN_CQ_STATE_POLL_YIELD  8    /* poll yielded this CQ */
-#define CQ_YIELD (MLX4_EN_CQ_STATE_NAPI_YIELD | MLX4_EN_CQ_STATE_POLL_YIELD)
-#define CQ_USER_PEND (MLX4_EN_CQ_STATE_POLL | MLX4_EN_CQ_STATE_POLL_YIELD)
-	spinlock_t poll_lock; /* protects from LLS/napi conflicts */
-#endif  /* CONFIG_NET_RX_BUSY_POLL */
 	struct irq_desc *irq_desc;
 };
 
@@ -622,117 +605,9 @@ static inline struct mlx4_cqe *mlx4_en_get_cqe(void *buf, int idx, int cqe_sz)
 	return buf + idx * cqe_sz;
 }
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static inline void mlx4_en_cq_init_lock(struct mlx4_en_cq *cq)
-{
-	spin_lock_init(&cq->poll_lock);
-	cq->state = MLX4_EN_CQ_STATE_IDLE;
-}
-
-/* called from the device poll rutine to get ownership of a cq */
-static inline bool mlx4_en_cq_lock_napi(struct mlx4_en_cq *cq)
-{
-	int rc = true;
-	spin_lock(&cq->poll_lock);
-	if (cq->state & MLX4_CQ_LOCKED) {
-		WARN_ON(cq->state & MLX4_EN_CQ_STATE_NAPI);
-		cq->state |= MLX4_EN_CQ_STATE_NAPI_YIELD;
-		rc = false;
-	} else
-		/* we don't care if someone yielded */
-		cq->state = MLX4_EN_CQ_STATE_NAPI;
-	spin_unlock(&cq->poll_lock);
-	return rc;
-}
-
-/* returns true is someone tried to get the cq while napi had it */
-static inline bool mlx4_en_cq_unlock_napi(struct mlx4_en_cq *cq)
-{
-	int rc = false;
-	spin_lock(&cq->poll_lock);
-	WARN_ON(cq->state & (MLX4_EN_CQ_STATE_POLL |
-			       MLX4_EN_CQ_STATE_NAPI_YIELD));
-
-	if (cq->state & MLX4_EN_CQ_STATE_POLL_YIELD)
-		rc = true;
-	cq->state = MLX4_EN_CQ_STATE_IDLE;
-	spin_unlock(&cq->poll_lock);
-	return rc;
-}
-
-/* called from mlx4_en_low_latency_poll() */
-static inline bool mlx4_en_cq_lock_poll(struct mlx4_en_cq *cq)
-{
-	int rc = true;
-	spin_lock_bh(&cq->poll_lock);
-	if ((cq->state & MLX4_CQ_LOCKED)) {
-		struct net_device *dev = cq->dev;
-		struct mlx4_en_priv *priv = netdev_priv(dev);
-		struct mlx4_en_rx_ring *rx_ring = priv->rx_ring[cq->ring];
-
-		cq->state |= MLX4_EN_CQ_STATE_POLL_YIELD;
-		rc = false;
-		rx_ring->yields++;
-	} else
-		/* preserve yield marks */
-		cq->state |= MLX4_EN_CQ_STATE_POLL;
-	spin_unlock_bh(&cq->poll_lock);
-	return rc;
-}
-
-/* returns true if someone tried to get the cq while it was locked */
-static inline bool mlx4_en_cq_unlock_poll(struct mlx4_en_cq *cq)
-{
-	int rc = false;
-	spin_lock_bh(&cq->poll_lock);
-	WARN_ON(cq->state & (MLX4_EN_CQ_STATE_NAPI));
-
-	if (cq->state & MLX4_EN_CQ_STATE_POLL_YIELD)
-		rc = true;
-	cq->state = MLX4_EN_CQ_STATE_IDLE;
-	spin_unlock_bh(&cq->poll_lock);
-	return rc;
-}
-
-/* true if a socket is polling, even if it did not get the lock */
-static inline bool mlx4_en_cq_busy_polling(struct mlx4_en_cq *cq)
-{
-	WARN_ON(!(cq->state & MLX4_CQ_LOCKED));
-	return cq->state & CQ_USER_PEND;
-}
-#else
-static inline void mlx4_en_cq_init_lock(struct mlx4_en_cq *cq)
-{
-}
-
-static inline bool mlx4_en_cq_lock_napi(struct mlx4_en_cq *cq)
-{
-	return true;
-}
-
-static inline bool mlx4_en_cq_unlock_napi(struct mlx4_en_cq *cq)
-{
-	return false;
-}
-
-static inline bool mlx4_en_cq_lock_poll(struct mlx4_en_cq *cq)
-{
-	return false;
-}
-
-static inline bool mlx4_en_cq_unlock_poll(struct mlx4_en_cq *cq)
-{
-	return false;
-}
-
-static inline bool mlx4_en_cq_busy_polling(struct mlx4_en_cq *cq)
-{
-	return false;
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 #define MLX4_EN_WOL_DO_MODIFY (1ULL << 63)
 
+void mlx4_en_init_ptys2ethtool_map(void);
 void mlx4_en_update_loopback_state(struct net_device *dev,
 				   netdev_features_t features);
 
@@ -798,7 +673,8 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 void mlx4_en_sqp_event(struct mlx4_qp *qp, enum mlx4_event event);
 int mlx4_en_map_buffer(struct mlx4_buf *buf);
 void mlx4_en_unmap_buffer(struct mlx4_buf *buf);
-
+int mlx4_en_change_mcast_lb(struct mlx4_en_priv *priv, struct mlx4_qp *qp,
+			    int loopback);
 void mlx4_en_calc_rx_buf(struct net_device *dev);
 int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv);
 void mlx4_en_release_rss_steer(struct mlx4_en_priv *priv);

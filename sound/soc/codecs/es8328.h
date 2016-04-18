@@ -153,6 +153,7 @@ int es8328_probe(struct device *dev, struct regmap *regmap);
 #define ES8328_DACCONTROL6_CLICKFREE (1 << 3)
 #define ES8328_DACCONTROL6_DAC_INVR (1 << 4)
 #define ES8328_DACCONTROL6_DAC_INVL (1 << 5)
+#define ES8328_DACCONTROL6_DEEMPH_MASK (3 << 6)
 #define ES8328_DACCONTROL6_DEEMPH_OFF (0 << 6)
 #define ES8328_DACCONTROL6_DEEMPH_32k (1 << 6)
 #define ES8328_DACCONTROL6_DEEMPH_44_1k (2 << 6)

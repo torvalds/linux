@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@
  * Option strings:
  *    "f"       - Option has no arguments
  *    "f:"      - Option requires an argument
+ *    "f+"      - Option has an optional argument
  *    "f^"      - Option has optional single-char sub-options
  *    "f|"      - Option has required single-char sub-options
  */
@@ -85,6 +86,7 @@ static int current_char_ptr = 1;
 
 int acpi_getopt_argument(int argc, char **argv)
 {
+
 	acpi_gbl_optind--;
 	current_char_ptr++;
 

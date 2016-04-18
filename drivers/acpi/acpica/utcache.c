@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -245,7 +245,7 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 	acpi_status status;
 	void *object;
 
-	ACPI_FUNCTION_NAME(os_acquire_object);
+	ACPI_FUNCTION_TRACE(os_acquire_object);
 
 	if (!cache) {
 		return_PTR(NULL);

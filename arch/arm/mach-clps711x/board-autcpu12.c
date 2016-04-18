@@ -31,7 +31,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand-gpio.h>
 #include <linux/platform_device.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 
 #include <mach/hardware.h>
 #include <asm/sizes.h>

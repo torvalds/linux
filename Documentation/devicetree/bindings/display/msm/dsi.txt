@@ -14,17 +14,20 @@ Required properties:
 - clocks: device clocks
   See Documentation/devicetree/bindings/clocks/clock-bindings.txt for details.
 - clock-names: the following clocks are required:
-  * "bus_clk"
-  * "byte_clk"
-  * "core_clk"
-  * "core_mmss_clk"
-  * "iface_clk"
   * "mdp_core_clk"
+  * "iface_clk"
+  * "bus_clk"
+  * "core_mmss_clk"
+  * "byte_clk"
   * "pixel_clk"
+  * "core_clk"
+  For DSIv2, we need an additional clock:
+   * "src_clk"
 - vdd-supply: phandle to vdd regulator device node
 - vddio-supply: phandle to vdd-io regulator device node
 - vdda-supply: phandle to vdda regulator device node
 - qcom,dsi-phy: phandle to DSI PHY device node
+- syscon-sfpb: A phandle to mmss_sfpb syscon node (only for DSIv2)
 
 Optional properties:
 - panel@0: Node of panel connected to this DSI controller.
@@ -41,9 +44,34 @@ Optional properties:
 - pinctrl-names: the pin control state names; should contain "default"
 - pinctrl-0: the default pinctrl state (active)
 - pinctrl-n: the "sleep" pinctrl state
-- port: DSI controller output port. This contains one endpoint subnode, with its
-  remote-endpoint set to the phandle of the connected panel's endpoint.
-  See Documentation/devicetree/bindings/graph.txt for device graph info.
+- port: DSI controller output port, containing one endpoint subnode.
+
+  DSI Endpoint properties:
+  - remote-endpoint: set to phandle of the connected panel's endpoint.
+    See Documentation/devicetree/bindings/graph.txt for device graph info.
+  - qcom,data-lane-map: this describes how the logical DSI lanes are mapped
+    to the physical lanes on the given platform. The value contained in
+    index n describes what logical data lane is mapped to the physical data
+    lane n (DATAn, where n lies between 0 and 3).
+
+    For example:
+
+    qcom,data-lane-map = <3 0 1 2>;
+
+    The above mapping describes that the logical data lane DATA3 is mapped to
+    the physical data lane DATA0, logical DATA0 to physical DATA1, logic DATA1
+    to phys DATA2 and logic DATA2 to phys DATA3.
+
+    There are only a limited number of physical to logical mappings possible:
+
+    "0123": Logic 0->Phys 0; Logic 1->Phys 1; Logic 2->Phys 2; Logic 3->Phys 3;
+    "3012": Logic 3->Phys 0; Logic 0->Phys 1; Logic 1->Phys 2; Logic 2->Phys 3;
+    "2301": Logic 2->Phys 0; Logic 3->Phys 1; Logic 0->Phys 2; Logic 1->Phys 3;
+    "1230": Logic 1->Phys 0; Logic 2->Phys 1; Logic 3->Phys 2; Logic 0->Phys 3;
+    "0321": Logic 0->Phys 0; Logic 3->Phys 1; Logic 2->Phys 2; Logic 1->Phys 3;
+    "1032": Logic 1->Phys 0; Logic 0->Phys 1; Logic 3->Phys 2; Logic 2->Phys 3;
+    "2103": Logic 2->Phys 0; Logic 1->Phys 1; Logic 0->Phys 2; Logic 3->Phys 3;
+    "3210": Logic 3->Phys 0; Logic 2->Phys 1; Logic 1->Phys 2; Logic 0->Phys 3;
 
 DSI PHY:
 Required properties:
@@ -51,6 +79,7 @@ Required properties:
   * "qcom,dsi-phy-28nm-hpm"
   * "qcom,dsi-phy-28nm-lp"
   * "qcom,dsi-phy-20nm"
+  * "qcom,dsi-phy-28nm-8960"
 - reg: Physical base address and length of the registers of PLL, PHY and PHY
   regulator
 - reg-names: The names of register regions. The following regions are required:
@@ -127,6 +156,7 @@ Example:
 		port {
 			dsi0_out: endpoint {
 				remote-endpoint = <&panel_in>;
+				lanes = <0 1 2 3>;
 			};
 		};
 	};

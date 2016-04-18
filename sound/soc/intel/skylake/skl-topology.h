@@ -36,6 +36,9 @@
 /* Maximum number of coefficients up down mixer module */
 #define UP_DOWN_MIXER_MAX_COEFF		6
 
+#define MODULE_MAX_IN_PINS	8
+#define MODULE_MAX_OUT_PINS	8
+
 enum skl_channel_index {
 	SKL_CHANNEL_LEFT = 0,
 	SKL_CHANNEL_RIGHT = 1,
@@ -55,12 +58,6 @@ enum skl_bitdepth {
 	SKL_DEPTH_INVALID
 };
 
-enum skl_interleaving {
-	/* [s1_ch1...s1_chN,...,sM_ch1...sM_chN] */
-	SKL_INTERLEAVING_PER_CHANNEL = 0,
-	/* [s1_ch1...sM_ch1,...,s1_chN...sM_chN] */
-	SKL_INTERLEAVING_PER_SAMPLE = 1,
-};
 
 enum skl_s_freq {
 	SKL_FS_8000 = 8000,
@@ -116,6 +113,29 @@ struct skl_cpr_gtw_cfg {
 	u32 config_data[1];
 } __packed;
 
+struct skl_i2s_config_blob {
+	u32 gateway_attrib;
+	u32 tdm_ts_group[8];
+	u32 ssc0;
+	u32 ssc1;
+	u32 sscto;
+	u32 sspsp;
+	u32 sstsa;
+	u32 ssrsa;
+	u32 ssc2;
+	u32 sspsp2;
+	u32 ssc3;
+	u32 ssioc;
+	u32 mdivc;
+	u32 mdivr;
+} __packed;
+
+struct skl_dma_control {
+	u32 node_id;
+	u32 config_length;
+	u32 config_data[1];
+} __packed;
+
 struct skl_cpr_cfg {
 	struct skl_base_cfg base_cfg;
 	struct skl_audio_data_format out_fmt;
@@ -141,6 +161,16 @@ struct skl_up_down_mixer_cfg {
 	u32 coeff_sel;
 	/* Pass the user coeff in this array */
 	s32 coeff[UP_DOWN_MIXER_MAX_COEFF];
+} __packed;
+
+struct skl_algo_cfg {
+	struct skl_base_cfg  base_cfg;
+	char params[0];
+} __packed;
+
+struct skl_base_outfmt_cfg {
+	struct skl_base_cfg base_cfg;
+	struct skl_audio_data_format out_fmt;
 } __packed;
 
 enum skl_dma_type {
@@ -178,21 +208,34 @@ struct skl_module_fmt {
 	u32 bit_depth;
 	u32 valid_bit_depth;
 	u32 ch_cfg;
+	u32 interleaving_style;
+	u32 sample_type;
+	u32 ch_map;
 };
+
+struct skl_module_cfg;
 
 struct skl_module_inst_id {
 	u32 module_id;
 	u32 instance_id;
 };
 
+enum skl_module_pin_state {
+	SKL_PIN_UNBIND = 0,
+	SKL_PIN_BIND_DONE = 1,
+};
+
 struct skl_module_pin {
 	struct skl_module_inst_id id;
-	u8 pin_index;
 	bool is_dynamic;
 	bool in_use;
+	enum skl_module_pin_state pin_state;
+	struct skl_module_cfg *tgt_mcfg;
 };
 
 struct skl_specific_cfg {
+	u32 set_params;
+	u32 param_id;
 	u32 caps_size;
 	u32 *caps;
 };
@@ -238,9 +281,13 @@ enum skl_module_state {
 };
 
 struct skl_module_cfg {
+	char guid[SKL_UUID_STR_SZ];
 	struct skl_module_inst_id id;
-	struct skl_module_fmt in_fmt;
-	struct skl_module_fmt out_fmt;
+	u8 domain;
+	bool homogenous_inputs;
+	bool homogenous_outputs;
+	struct skl_module_fmt in_fmt[MODULE_MAX_IN_PINS];
+	struct skl_module_fmt out_fmt[MODULE_MAX_OUT_PINS];
 	u8 max_in_queue;
 	u8 max_out_queue;
 	u8 in_queue_mask;
@@ -258,6 +305,7 @@ struct skl_module_cfg {
 	u32 params_fixup;
 	u32 converter;
 	u32 vbus_id;
+	u32 mem_pages;
 	struct skl_module_pin *m_in_pin;
 	struct skl_module_pin *m_out_pin;
 	enum skl_module_type m_type;
@@ -267,13 +315,15 @@ struct skl_module_cfg {
 	struct skl_specific_cfg formats_config;
 };
 
-struct skl_pipeline {
-	struct skl_pipe *pipe;
-	struct list_head node;
+struct skl_algo_data {
+	u32 param_id;
+	u32 set_params;
+	u32 max;
+	char *params;
 };
 
-struct skl_dapm_path_list {
-	struct snd_soc_dapm_path *dapm_path;
+struct skl_pipeline {
+	struct skl_pipe *pipe;
 	struct list_head node;
 };
 
@@ -286,6 +336,8 @@ static inline struct skl *get_skl_ctx(struct device *dev)
 
 int skl_tplg_be_update_params(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params);
+int skl_dsp_set_dma_control(struct skl_sst *ctx,
+		struct skl_module_cfg *mconfig);
 void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params, int stream);
 int skl_tplg_init(struct snd_soc_platform *platform,
@@ -305,8 +357,7 @@ int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
 
 int skl_stop_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
 
-int skl_init_module(struct skl_sst *ctx, struct skl_module_cfg *module_config,
-	char *param);
+int skl_init_module(struct skl_sst *ctx, struct skl_module_cfg *module_config);
 
 int skl_bind_modules(struct skl_sst *ctx, struct skl_module_cfg
 	*src_module, struct skl_module_cfg *dst_module);
@@ -314,5 +365,12 @@ int skl_bind_modules(struct skl_sst *ctx, struct skl_module_cfg
 int skl_unbind_modules(struct skl_sst *ctx, struct skl_module_cfg
 	*src_module, struct skl_module_cfg *dst_module);
 
+int skl_set_module_params(struct skl_sst *ctx, u32 *params, int size,
+			u32 param_id, struct skl_module_cfg *mcfg);
+int skl_get_module_params(struct skl_sst *ctx, u32 *params, int size,
+			  u32 param_id, struct skl_module_cfg *mcfg);
+
+struct skl_module_cfg *skl_tplg_be_get_cpr_module(struct snd_soc_dai *dai,
+								int stream);
 enum skl_bitdepth skl_get_bit_depth(int params);
 #endif

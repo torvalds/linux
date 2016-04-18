@@ -75,6 +75,13 @@ config BATTERY_88PM860X
 	help
 	  Say Y here to enable battery monitor for Marvell 88PM860x chip.
 
+config BATTERY_ACT8945A
+	tristate "Active-semi ACT8945A charger driver"
+	depends on MFD_ACT8945A || COMPILE_TEST
+	help
+	  Say Y here to enable support for power supply provided by
+	  Active-semi ActivePath ACT8945A charger.
+
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
 	depends on W1 && W1_SLAVE_DS2760
@@ -160,22 +167,16 @@ config BATTERY_SBS
 config BATTERY_BQ27XXX
 	tristate "BQ27xxx battery driver"
 	help
-	  Say Y here to enable support for batteries with BQ27xxx (I2C/HDQ) chips.
+	  Say Y here to enable support for batteries with BQ27xxx chips.
 
 config BATTERY_BQ27XXX_I2C
-	bool "BQ27xxx I2C support"
+	tristate "BQ27xxx I2C support"
 	depends on BATTERY_BQ27XXX
 	depends on I2C
 	default y
 	help
-	  Say Y here to enable support for batteries with BQ27xxx (I2C) chips.
-
-config BATTERY_BQ27XXX_PLATFORM
-	bool "BQ27xxx HDQ support"
-	depends on BATTERY_BQ27XXX
-	default y
-	help
-	  Say Y here to enable support for batteries with BQ27xxx (HDQ) chips.
+	  Say Y here to enable support for batteries with BQ27xxx chips
+	  connected over an I2C bus.
 
 config BATTERY_DA9030
 	tristate "DA9030 battery driver"
@@ -508,8 +509,7 @@ config AXP20X_POWER
 	  This driver provides support for the power supply features of
 	  AXP20x PMIC.
 
-source "drivers/power/reset/Kconfig"
-
 endif # POWER_SUPPLY
 
+source "drivers/power/reset/Kconfig"
 source "drivers/power/avs/Kconfig"

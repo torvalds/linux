@@ -823,8 +823,10 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 	/* look for the resource table */
 	table = rproc_find_rsc_table(rproc, fw, &tablesz);
-	if (!table)
+	if (!table) {
+		dev_err(dev, "Failed to find resource table\n");
 		goto clean_up;
+	}
 
 	/* Verify that resource table in loaded fw is unchanged */
 	if (rproc->table_csum != crc32(0, table, tablesz)) {
@@ -1478,6 +1480,8 @@ module_init(remoteproc_init);
 
 static void __exit remoteproc_exit(void)
 {
+	ida_destroy(&rproc_dev_index);
+
 	rproc_exit_debugfs();
 }
 module_exit(remoteproc_exit);

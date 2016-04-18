@@ -1,0 +1,20 @@
+MVEBU CPU Config registers
+--------------------------
+
+MVEBU (Marvell SOCs: Armada 370/XP)
+
+Required properties:
+
+- compatible: one of:
+	- "marvell,armada-370-cpu-config"
+	- "marvell,armada-xp-cpu-config"
+
+- reg: Should contain CPU config registers location and length, in
+  their per-CPU variant
+
+Example:
+
+	cpu-config@21000 {
+		compatible = "marvell,armada-xp-cpu-config";
+		reg = <0x21000 0x8>;
+	};

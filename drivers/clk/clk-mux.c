@@ -26,8 +26,6 @@
  * parent - parent is adjustable through clk_set_parent
  */
 
-#define to_clk_mux(_hw) container_of(_hw, struct clk_mux, hw)
-
 static u8 clk_mux_get_parent(struct clk_hw *hw)
 {
 	struct clk_mux *mux = to_clk_mux(hw);
@@ -71,10 +69,9 @@ static int clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	u32 val;
 	unsigned long flags = 0;
 
-	if (mux->table)
+	if (mux->table) {
 		index = mux->table[index];
-
-	else {
+	} else {
 		if (mux->flags & CLK_MUX_INDEX_BIT)
 			index = 1 << index;
 

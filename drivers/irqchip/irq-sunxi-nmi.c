@@ -50,6 +50,12 @@ static struct sunxi_sc_nmi_reg_offs sun6i_reg_offs = {
 	.enable	= 0x34,
 };
 
+static struct sunxi_sc_nmi_reg_offs sun9i_reg_offs = {
+	.ctrl	= 0x00,
+	.pend	= 0x08,
+	.enable	= 0x04,
+};
+
 static inline void sunxi_sc_nmi_write(struct irq_chip_generic *gc, u32 off,
 				      u32 val)
 {
@@ -154,9 +160,9 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 
 	gc = irq_get_domain_generic_chip(domain, 0);
 	gc->reg_base = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (!gc->reg_base) {
+	if (IS_ERR(gc->reg_base)) {
 		pr_err("unable to map resource\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(gc->reg_base);
 		goto fail_irqd_remove;
 	}
 
@@ -207,3 +213,10 @@ static int __init sun7i_sc_nmi_irq_init(struct device_node *node,
 	return sunxi_sc_nmi_irq_init(node, &sun7i_reg_offs);
 }
 IRQCHIP_DECLARE(sun7i_sc_nmi, "allwinner,sun7i-a20-sc-nmi", sun7i_sc_nmi_irq_init);
+
+static int __init sun9i_nmi_irq_init(struct device_node *node,
+				     struct device_node *parent)
+{
+	return sunxi_sc_nmi_irq_init(node, &sun9i_reg_offs);
+}
+IRQCHIP_DECLARE(sun9i_nmi, "allwinner,sun9i-a80-nmi", sun9i_nmi_irq_init);

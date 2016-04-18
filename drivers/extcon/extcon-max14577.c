@@ -150,6 +150,7 @@ enum max14577_muic_acc_type {
 
 static const unsigned int max14577_extcon_cable[] = {
 	EXTCON_USB,
+	EXTCON_CHG_USB_SDP,
 	EXTCON_CHG_USB_DCP,
 	EXTCON_CHG_USB_FAST,
 	EXTCON_CHG_USB_SLOW,
@@ -454,6 +455,8 @@ static int max14577_muic_chg_handler(struct max14577_muic_info *info)
 			return ret;
 
 		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
+		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_DEDICATED_CHG:
 		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_DCP,
@@ -692,7 +695,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	/* Support irq domain for max14577 MUIC device */
 	for (i = 0; i < info->muic_irqs_num; i++) {
 		struct max14577_muic_irq *muic_irq = &info->muic_irqs[i];
-		unsigned int virq = 0;
+		int virq = 0;
 
 		virq = regmap_irq_get_virq(max14577->irq_data, muic_irq->irq);
 		if (virq <= 0)

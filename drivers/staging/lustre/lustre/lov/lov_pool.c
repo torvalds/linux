@@ -64,7 +64,7 @@ void lov_pool_putref(struct pool_desc *pool)
 	if (atomic_dec_and_test(&pool->pool_refcount)) {
 		LASSERT(hlist_unhashed(&pool->pool_hash));
 		LASSERT(list_empty(&pool->pool_list));
-		LASSERT(pool->pool_debugfs_entry == NULL);
+		LASSERT(!pool->pool_debugfs_entry);
 		lov_ost_pool_free(&(pool->pool_rr.lqr_pool));
 		lov_ost_pool_free(&(pool->pool_obds));
 		kfree(pool);
@@ -152,9 +152,8 @@ struct cfs_hash_ops pool_hash_operations = {
 
 };
 
-/* ifdef needed for liblustre support */
 /*
- * pool /proc seq_file methods
+ * pool debugfs seq_file methods
  */
 /*
  * iterator is used to go through the target pool entries
@@ -174,7 +173,7 @@ static void *pool_proc_next(struct seq_file *s, void *v, loff_t *pos)
 	struct pool_iterator *iter = (struct pool_iterator *)s->private;
 	int prev_idx;
 
-	LASSERTF(iter->magic == POOL_IT_MAGIC, "%08X", iter->magic);
+	LASSERTF(iter->magic == POOL_IT_MAGIC, "%08X\n", iter->magic);
 
 	/* test if end of file */
 	if (*pos >= pool_tgt_count(iter->pool))
@@ -204,7 +203,8 @@ static void *pool_proc_start(struct seq_file *s, loff_t *pos)
 	if ((pool_tgt_count(pool) == 0) ||
 	    (*pos >= pool_tgt_count(pool))) {
 		/* iter is not created, so stop() has no way to
-		 * find pool to dec ref */
+		 * find pool to dec ref
+		 */
 		lov_pool_putref(pool);
 		return NULL;
 	}
@@ -217,7 +217,8 @@ static void *pool_proc_start(struct seq_file *s, loff_t *pos)
 	iter->idx = 0;
 
 	/* we use seq_file private field to memorized iterator so
-	 * we can free it at stop() */
+	 * we can free it at stop()
+	 */
 	/* /!\ do not forget to restore it to pool before freeing it */
 	s->private = iter;
 	if (*pos > 0) {
@@ -226,8 +227,8 @@ static void *pool_proc_start(struct seq_file *s, loff_t *pos)
 
 		i = 0;
 		do {
-		     ptr = pool_proc_next(s, &iter, &i);
-		} while ((i < *pos) && (ptr != NULL));
+			ptr = pool_proc_next(s, &iter, &i);
+		} while ((i < *pos) && ptr);
 		return ptr;
 	}
 	return iter;
@@ -239,15 +240,16 @@ static void pool_proc_stop(struct seq_file *s, void *v)
 
 	/* in some cases stop() method is called 2 times, without
 	 * calling start() method (see seq_read() from fs/seq_file.c)
-	 * we have to free only if s->private is an iterator */
+	 * we have to free only if s->private is an iterator
+	 */
 	if ((iter) && (iter->magic == POOL_IT_MAGIC)) {
 		/* we restore s->private so next call to pool_proc_start()
-		 * will work */
+		 * will work
+		 */
 		s->private = iter->pool;
 		lov_pool_putref(iter->pool);
 		kfree(iter);
 	}
-	return;
 }
 
 static int pool_proc_show(struct seq_file *s, void *v)
@@ -255,8 +257,8 @@ static int pool_proc_show(struct seq_file *s, void *v)
 	struct pool_iterator *iter = (struct pool_iterator *)v;
 	struct lov_tgt_desc *tgt;
 
-	LASSERTF(iter->magic == POOL_IT_MAGIC, "%08X", iter->magic);
-	LASSERT(iter->pool != NULL);
+	LASSERTF(iter->magic == POOL_IT_MAGIC, "%08X\n", iter->magic);
+	LASSERT(iter->pool);
 	LASSERT(iter->idx <= pool_tgt_count(iter->pool));
 
 	down_read(&pool_tgt_rw_sem(iter->pool));
@@ -305,7 +307,7 @@ int lov_ost_pool_init(struct ost_pool *op, unsigned int count)
 	init_rwsem(&op->op_rw_sem);
 	op->op_size = count;
 	op->op_array = kcalloc(op->op_size, sizeof(op->op_array[0]), GFP_NOFS);
-	if (op->op_array == NULL) {
+	if (!op->op_array) {
 		op->op_size = 0;
 		return -ENOMEM;
 	}
@@ -325,7 +327,7 @@ int lov_ost_pool_extend(struct ost_pool *op, unsigned int min_count)
 
 	new_size = max(min_count, 2 * op->op_size);
 	new = kcalloc(new_size, sizeof(op->op_array[0]), GFP_NOFS);
-	if (new == NULL)
+	if (!new)
 		return -ENOMEM;
 
 	/* copy old array to new one */
@@ -412,8 +414,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	if (!new_pool)
 		return -ENOMEM;
 
-	strncpy(new_pool->pool_name, poolname, LOV_MAXPOOLNAME);
-	new_pool->pool_name[LOV_MAXPOOLNAME] = '\0';
+	strlcpy(new_pool->pool_name, poolname, sizeof(new_pool->pool_name));
 	new_pool->pool_lobd = obd;
 	/* ref count init to 1 because when created a pool is always used
 	 * up to deletion
@@ -430,8 +431,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 
 	INIT_HLIST_NODE(&new_pool->pool_hash);
 
-	/* we need this assert seq_file is not implemented for liblustre */
-	/* get ref for /proc file */
+	/* get ref for debugfs file */
 	lov_pool_getref(new_pool);
 	new_pool->pool_debugfs_entry = ldebugfs_add_simple(
 						lov->lov_pool_debugfs_entry,
@@ -444,7 +444,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 		lov_pool_putref(new_pool);
 	}
 	CDEBUG(D_INFO, "pool %p - proc %p\n",
-		new_pool, new_pool->pool_debugfs_entry);
+	       new_pool, new_pool->pool_debugfs_entry);
 
 	spin_lock(&obd->obd_dev_lock);
 	list_add_tail(&new_pool->pool_list, &lov->lov_pool_list);
@@ -488,7 +488,7 @@ int lov_pool_del(struct obd_device *obd, char *poolname)
 
 	/* lookup and kill hash reference */
 	pool = cfs_hash_del_key(lov->lov_pools_hash_body, poolname);
-	if (pool == NULL)
+	if (!pool)
 		return -ENOENT;
 
 	if (!IS_ERR_OR_NULL(pool->pool_debugfs_entry)) {
@@ -519,7 +519,7 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 	lov = &(obd->u.lov);
 
 	pool = cfs_hash_lookup(lov->lov_pools_hash_body, poolname);
-	if (pool == NULL)
+	if (!pool)
 		return -ENOENT;
 
 	obd_str2uuid(&ost_uuid, ostname);
@@ -565,7 +565,7 @@ int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname)
 	lov = &(obd->u.lov);
 
 	pool = cfs_hash_lookup(lov->lov_pools_hash_body, poolname);
-	if (pool == NULL)
+	if (!pool)
 		return -ENOENT;
 
 	obd_str2uuid(&ost_uuid, ostname);
@@ -633,12 +633,12 @@ struct pool_desc *lov_find_pool(struct lov_obd *lov, char *poolname)
 	pool = NULL;
 	if (poolname[0] != '\0') {
 		pool = cfs_hash_lookup(lov->lov_pools_hash_body, poolname);
-		if (pool == NULL)
+		if (!pool)
 			CWARN("Request for an unknown pool ("LOV_POOLNAMEF")\n",
 			      poolname);
-		if ((pool != NULL) && (pool_tgt_count(pool) == 0)) {
+		if (pool && (pool_tgt_count(pool) == 0)) {
 			CWARN("Request for an empty pool ("LOV_POOLNAMEF")\n",
-			       poolname);
+			      poolname);
 			/* pool is ignored, so we remove ref on it */
 			lov_pool_putref(pool);
 			pool = NULL;

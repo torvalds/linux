@@ -5,8 +5,18 @@ interface contains.
 
 Required properties:
 - compatible: "renesas,etheravb-r8a7790" if the device is a part of R8A7790 SoC.
+	      "renesas,etheravb-r8a7791" if the device is a part of R8A7791 SoC.
+	      "renesas,etheravb-r8a7792" if the device is a part of R8A7792 SoC.
+	      "renesas,etheravb-r8a7793" if the device is a part of R8A7793 SoC.
 	      "renesas,etheravb-r8a7794" if the device is a part of R8A7794 SoC.
 	      "renesas,etheravb-r8a7795" if the device is a part of R8A7795 SoC.
+	      "renesas,etheravb-rcar-gen2" for generic R-Car Gen 2 compatible interface.
+	      "renesas,etheravb-rcar-gen3" for generic R-Car Gen 3 compatible interface.
+
+	      When compatible with the generic version, nodes must list the
+	      SoC-specific version corresponding to the platform first
+	      followed by the generic version.
+
 - reg: offset and length of (1) the register block and (2) the stream buffer.
 - interrupts: A list of interrupt-specifiers, one for each entry in
 	      interrupt-names.
@@ -37,7 +47,7 @@ Optional properties:
 Example:
 
 	ethernet@e6800000 {
-		compatible = "renesas,etheravb-r8a7795";
+		compatible = "renesas,etheravb-r8a7795", "renesas,etheravb-rcar-gen3";
 		reg = <0 0xe6800000 0 0x800>, <0 0xe6a00000 0 0x10000>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
@@ -72,8 +82,8 @@ Example:
 				  "ch16", "ch17", "ch18", "ch19",
 				  "ch20", "ch21", "ch22", "ch23",
 				  "ch24";
-		clocks = <&mstp8_clks R8A7795_CLK_ETHERAVB>;
-		power-domains = <&cpg_clocks>;
+		clocks = <&cpg CPG_MOD 812>;
+		power-domains = <&cpg>;
 		phy-mode = "rgmii-id";
 		phy-handle = <&phy0>;
 

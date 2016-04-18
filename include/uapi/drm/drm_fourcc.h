@@ -24,7 +24,7 @@
 #ifndef DRM_FOURCC_H
 #define DRM_FOURCC_H
 
-#include <linux/types.h>
+#include "drm.h"
 
 #define fourcc_code(a, b, c, d) ((__u32)(a) | ((__u32)(b) << 8) | \
 				 ((__u32)(c) << 16) | ((__u32)(d) << 24))
@@ -158,7 +158,7 @@
 /* add more to the end as needed */
 
 #define fourcc_mod_code(vendor, val) \
-	((((u64)DRM_FORMAT_MOD_VENDOR_## vendor) << 56) | (val & 0x00ffffffffffffffULL))
+	((((__u64)DRM_FORMAT_MOD_VENDOR_## vendor) << 56) | (val & 0x00ffffffffffffffULL))
 
 /*
  * Format Modifier tokens:
@@ -225,7 +225,7 @@
  * - multiple of 128 pixels for the width
  * - multiple of  32 pixels for the height
  *
- * For more information: see http://linuxtv.org/downloads/v4l-dvb-apis/re32.html
+ * For more information: see https://linuxtv.org/downloads/v4l-dvb-apis/re32.html
  */
 #define DRM_FORMAT_MOD_SAMSUNG_64_32_TILE	fourcc_mod_code(SAMSUNG, 1)
 

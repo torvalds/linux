@@ -204,6 +204,7 @@ enum max77693_muic_acc_type {
 static const unsigned int max77693_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
+	EXTCON_CHG_USB_SDP,
 	EXTCON_CHG_USB_DCP,
 	EXTCON_CHG_USB_FAST,
 	EXTCON_CHG_USB_SLOW,
@@ -512,8 +513,11 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 		break;
 	case MAX77693_MUIC_ADC_AV_CABLE_NOLOAD:		/* Dock-Audio */
 		dock_id = EXTCON_DOCK;
-		if (!attached)
+		if (!attached) {
 			extcon_set_cable_state_(info->edev, EXTCON_USB, false);
+			extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+						false);
+		}
 		break;
 	default:
 		dev_err(info->dev, "failed to detect %s dock device\n",
@@ -601,6 +605,8 @@ static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info)
 		if (ret < 0)
 			return ret;
 		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
+		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+					attached);
 		break;
 	case MAX77693_MUIC_GND_MHL:
 	case MAX77693_MUIC_GND_MHL_VB:
@@ -830,6 +836,8 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			 */
 			extcon_set_cable_state_(info->edev, EXTCON_USB,
 						attached);
+			extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+						attached);
 
 			if (!cable_attached)
 				extcon_set_cable_state_(info->edev, EXTCON_DOCK,
@@ -898,6 +906,8 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 				return ret;
 
 			extcon_set_cable_state_(info->edev, EXTCON_USB,
+						attached);
+			extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
 						attached);
 			break;
 		case MAX77693_CHARGER_TYPE_DEDICATED_CHG:
@@ -1127,11 +1137,11 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	/* Support irq domain for MAX77693 MUIC device */
 	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++) {
 		struct max77693_muic_irq *muic_irq = &muic_irqs[i];
-		unsigned int virq = 0;
+		int virq;
 
 		virq = regmap_irq_get_virq(max77693->irq_data_muic,
 					muic_irq->irq);
-		if (!virq)
+		if (virq <= 0)
 			return -EINVAL;
 		muic_irq->virq = virq;
 

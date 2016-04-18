@@ -1252,9 +1252,9 @@ static s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 			ew32(H2ME, mac_reg);
 		}
 
-		/* Poll up to 100msec for ME to clear ULP_CFG_DONE */
+		/* Poll up to 300msec for ME to clear ULP_CFG_DONE. */
 		while (er32(FWSM) & E1000_FWSM_ULP_CFG_DONE) {
-			if (i++ == 10) {
+			if (i++ == 30) {
 				ret_val = -E1000_ERR_PHY;
 				goto out;
 			}
@@ -1328,6 +1328,8 @@ static s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 		     I218_ULP_CONFIG1_RESET_TO_SMBUS |
 		     I218_ULP_CONFIG1_WOL_HOST |
 		     I218_ULP_CONFIG1_INBAND_EXIT |
+		     I218_ULP_CONFIG1_EN_ULP_LANPHYPC |
+		     I218_ULP_CONFIG1_DIS_CLR_STICKY_ON_PERST |
 		     I218_ULP_CONFIG1_DISABLE_SMB_PERST);
 	e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
 
@@ -1433,6 +1435,18 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 			emi_addr = I217_RX_CONFIG;
 		ret_val = e1000_write_emi_reg_locked(hw, emi_addr, emi_val);
 
+		if (hw->mac.type == e1000_pch_lpt ||
+		    hw->mac.type == e1000_pch_spt) {
+			u16 phy_reg;
+
+			e1e_rphy_locked(hw, I217_PLL_CLOCK_GATE_REG, &phy_reg);
+			phy_reg &= ~I217_PLL_CLOCK_GATE_MASK;
+			if (speed == SPEED_100 || speed == SPEED_10)
+				phy_reg |= 0x3E8;
+			else
+				phy_reg |= 0xFA;
+			e1e_wphy_locked(hw, I217_PLL_CLOCK_GATE_REG, phy_reg);
+		}
 		hw->phy.ops.release(hw);
 
 		if (ret_val)
@@ -1467,6 +1481,18 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 				hw->phy.ops.release(hw);
 				if (ret_val)
 					return ret_val;
+			} else {
+				ret_val = hw->phy.ops.acquire(hw);
+				if (ret_val)
+					return ret_val;
+
+				ret_val = e1e_wphy_locked(hw,
+							  PHY_REG(776, 20),
+							  0xC023);
+				hw->phy.ops.release(hw);
+				if (ret_val)
+					return ret_val;
+
 			}
 		}
 	}
@@ -1984,7 +2010,7 @@ static s32 e1000_check_reset_block_ich8lan(struct e1000_hw *hw)
 	int i = 0;
 
 	while ((blocked = !(er32(FWSM) & E1000_ICH_FWSM_RSPCIPHY)) &&
-	       (i++ < 10))
+	       (i++ < 30))
 		usleep_range(10000, 20000);
 	return blocked ? E1000_BLK_PHY_RESET : 0;
 }
@@ -3093,24 +3119,45 @@ static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	u32 bank1_offset = nvm->flash_bank_size * sizeof(u16);
 	u32 act_offset = E1000_ICH_NVM_SIG_WORD * 2 + 1;
+	u32 nvm_dword = 0;
 	u8 sig_byte = 0;
 	s32 ret_val;
 
 	switch (hw->mac.type) {
-		/* In SPT, read from the CTRL_EXT reg instead of
-		 * accessing the sector valid bits from the nvm
-		 */
 	case e1000_pch_spt:
-		*bank = er32(CTRL_EXT)
-		    & E1000_CTRL_EXT_NVMVS;
-		if ((*bank == 0) || (*bank == 1)) {
-			e_dbg("ERROR: No valid NVM bank present\n");
-			return -E1000_ERR_NVM;
-		} else {
-			*bank = *bank - 2;
+		bank1_offset = nvm->flash_bank_size;
+		act_offset = E1000_ICH_NVM_SIG_WORD;
+
+		/* set bank to 0 in case flash read fails */
+		*bank = 0;
+
+		/* Check bank 0 */
+		ret_val = e1000_read_flash_dword_ich8lan(hw, act_offset,
+							 &nvm_dword);
+		if (ret_val)
+			return ret_val;
+		sig_byte = (u8)((nvm_dword & 0xFF00) >> 8);
+		if ((sig_byte & E1000_ICH_NVM_VALID_SIG_MASK) ==
+		    E1000_ICH_NVM_SIG_VALUE) {
+			*bank = 0;
 			return 0;
 		}
-		break;
+
+		/* Check bank 1 */
+		ret_val = e1000_read_flash_dword_ich8lan(hw, act_offset +
+							 bank1_offset,
+							 &nvm_dword);
+		if (ret_val)
+			return ret_val;
+		sig_byte = (u8)((nvm_dword & 0xFF00) >> 8);
+		if ((sig_byte & E1000_ICH_NVM_VALID_SIG_MASK) ==
+		    E1000_ICH_NVM_SIG_VALUE) {
+			*bank = 1;
+			return 0;
+		}
+
+		e_dbg("ERROR: No valid NVM bank present\n");
+		return -E1000_ERR_NVM;
 	case e1000_ich8lan:
 	case e1000_ich9lan:
 		eecd = er32(EECD);

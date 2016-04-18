@@ -191,7 +191,7 @@ struct fadump_crash_info_header {
 	u64		elfcorehdr_addr;
 	u32		crashing_cpu;
 	struct pt_regs	regs;
-	struct cpumask	cpu_online_mask;
+	struct cpumask	online_mask;
 };
 
 /* Crash memory ranges */

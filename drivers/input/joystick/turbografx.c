@@ -181,6 +181,7 @@ static void tgfx_attach(struct parport *pp)
 	n_buttons = tgfx_cfg[port_idx].args + 1;
 	n_devs = tgfx_cfg[port_idx].nargs - 1;
 
+	memset(&tgfx_parport_cb, 0, sizeof(tgfx_parport_cb));
 	tgfx_parport_cb.flags = PARPORT_FLAG_EXCL;
 
 	pd = parport_register_dev_model(pp, "turbografx", &tgfx_parport_cb,

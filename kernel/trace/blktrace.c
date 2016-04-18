@@ -349,16 +349,10 @@ static ssize_t blk_msg_write(struct file *filp, const char __user *buffer,
 	if (count >= BLK_TN_MAX_MSG)
 		return -EINVAL;
 
-	msg = kmalloc(count + 1, GFP_KERNEL);
-	if (msg == NULL)
-		return -ENOMEM;
+	msg = memdup_user_nul(buffer, count);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	if (copy_from_user(msg, buffer, count)) {
-		kfree(msg);
-		return -EFAULT;
-	}
-
-	msg[count] = '\0';
 	bt = filp->private_data;
 	__trace_note_message(bt, "%s", msg);
 	kfree(msg);
@@ -1443,12 +1437,12 @@ static struct trace_event trace_blk_event = {
 static int __init init_blk_tracer(void)
 {
 	if (!register_trace_event(&trace_blk_event)) {
-		pr_warning("Warning: could not register block events\n");
+		pr_warn("Warning: could not register block events\n");
 		return 1;
 	}
 
 	if (register_tracer(&blk_tracer) != 0) {
-		pr_warning("Warning: could not register the block tracer\n");
+		pr_warn("Warning: could not register the block tracer\n");
 		unregister_trace_event(&trace_blk_event);
 		return 1;
 	}

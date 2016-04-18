@@ -195,8 +195,8 @@ PNAME(mux_hsadcout_p)	= { "hsadc_src", "ext_hsadc" };
 PNAME(mux_edp_24m_p)	= { "ext_edp_24m", "xin24m" };
 PNAME(mux_tspout_p)	= { "cpll", "gpll", "npll", "xin27m" };
 
-PNAME(mux_usbphy480m_p)		= { "sclk_otgphy1", "sclk_otgphy2",
-				    "sclk_otgphy0" };
+PNAME(mux_usbphy480m_p)		= { "sclk_otgphy1_480m", "sclk_otgphy2_480m",
+				    "sclk_otgphy0_480m" };
 PNAME(mux_hsicphy480m_p)	= { "cpll", "gpll", "usbphy480m_src" };
 PNAME(mux_hsicphy12m_p)		= { "hsicphy12m_xin12m", "hsicphy12m_usbphy" };
 
@@ -224,6 +224,38 @@ static struct clk_div_table div_hclk_cpu_t[] = {
 #define DFLAGS CLK_DIVIDER_HIWORD_MASK
 #define GFLAGS (CLK_GATE_HIWORD_MASK | CLK_GATE_SET_TO_DISABLE)
 #define IFLAGS ROCKCHIP_INVERTER_HIWORD_MASK
+
+static struct rockchip_clk_branch rk3288_i2s_fracmux __initdata =
+	MUX(0, "i2s_pre", mux_i2s_pre_p, CLK_SET_RATE_PARENT,
+			RK3288_CLKSEL_CON(4), 8, 2, MFLAGS);
+
+static struct rockchip_clk_branch rk3288_spdif_fracmux __initdata =
+	MUX(0, "spdif_mux", mux_spdif_p, CLK_SET_RATE_PARENT,
+			RK3288_CLKSEL_CON(5), 8, 2, MFLAGS);
+
+static struct rockchip_clk_branch rk3288_spdif_8ch_fracmux __initdata =
+	MUX(0, "spdif_8ch_mux", mux_spdif_8ch_p, CLK_SET_RATE_PARENT,
+			RK3288_CLKSEL_CON(40), 8, 2, MFLAGS);
+
+static struct rockchip_clk_branch rk3288_uart0_fracmux __initdata =
+	MUX(SCLK_UART0, "sclk_uart0", mux_uart0_p, CLK_SET_RATE_PARENT,
+			RK3288_CLKSEL_CON(13), 8, 2, MFLAGS);
+
+static struct rockchip_clk_branch rk3288_uart1_fracmux __initdata =
+	MUX(SCLK_UART1, "sclk_uart1", mux_uart1_p, CLK_SET_RATE_PARENT,
+			RK3288_CLKSEL_CON(14), 8, 2, MFLAGS);
+
+static struct rockchip_clk_branch rk3288_uart2_fracmux __initdata =
+	MUX(SCLK_UART2, "sclk_uart2", mux_uart2_p, CLK_SET_RATE_PARENT,
+			RK3288_CLKSEL_CON(15), 8, 2, MFLAGS);
+
+static struct rockchip_clk_branch rk3288_uart3_fracmux __initdata =
+	MUX(SCLK_UART3, "sclk_uart3", mux_uart3_p, CLK_SET_RATE_PARENT,
+			RK3288_CLKSEL_CON(16), 8, 2, MFLAGS);
+
+static struct rockchip_clk_branch rk3288_uart4_fracmux __initdata =
+	MUX(SCLK_UART4, "sclk_uart4", mux_uart4_p, CLK_SET_RATE_PARENT,
+			RK3288_CLKSEL_CON(3), 8, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	/*
@@ -295,20 +327,21 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 			RK3288_CLKGATE_CON(0), 4, GFLAGS),
 	GATE(0, "c2c_host", "aclk_cpu_src", 0,
 			RK3288_CLKGATE_CON(13), 8, GFLAGS),
-	COMPOSITE_NOMUX(0, "crypto", "aclk_cpu_pre", 0,
+	COMPOSITE_NOMUX(SCLK_CRYPTO, "crypto", "aclk_cpu_pre", 0,
 			RK3288_CLKSEL_CON(26), 6, 2, DFLAGS,
 			RK3288_CLKGATE_CON(5), 4, GFLAGS),
 	GATE(0, "aclk_bus_2pmu", "aclk_cpu_pre", CLK_IGNORE_UNUSED,
 			RK3288_CLKGATE_CON(0), 7, GFLAGS),
 
+	FACTOR(0, "xin12m", "xin24m", 0, 1, 2),
+
 	COMPOSITE(0, "i2s_src", mux_pll_src_cpll_gpll_p, 0,
 			RK3288_CLKSEL_CON(4), 15, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3288_CLKGATE_CON(4), 1, GFLAGS),
-	COMPOSITE_FRAC(0, "i2s_frac", "i2s_src", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(0, "i2s_frac", "i2s_src", CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(8), 0,
-			RK3288_CLKGATE_CON(4), 2, GFLAGS),
-	MUX(0, "i2s_pre", mux_i2s_pre_p, CLK_SET_RATE_PARENT,
-			RK3288_CLKSEL_CON(4), 8, 2, MFLAGS),
+			RK3288_CLKGATE_CON(4), 2, GFLAGS,
+			&rk3288_i2s_fracmux),
 	COMPOSITE_NODIV(SCLK_I2S0_OUT, "i2s0_clkout", mux_i2s_clkout_p, 0,
 			RK3288_CLKSEL_CON(4), 12, 1, MFLAGS,
 			RK3288_CLKGATE_CON(4), 0, GFLAGS),
@@ -317,23 +350,23 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 
 	MUX(0, "spdif_src", mux_pll_src_cpll_gpll_p, 0,
 			RK3288_CLKSEL_CON(5), 15, 1, MFLAGS),
-	COMPOSITE_NOMUX(0, "spdif_pre", "spdif_src", 0,
+	COMPOSITE_NOMUX(0, "spdif_pre", "spdif_src", CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(5), 0, 7, DFLAGS,
 			RK3288_CLKGATE_CON(4), 4, GFLAGS),
-	COMPOSITE_FRAC(0, "spdif_frac", "spdif_src", 0,
+	COMPOSITE_FRACMUX(0, "spdif_frac", "spdif_src", CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(9), 0,
-			RK3288_CLKGATE_CON(4), 5, GFLAGS),
-	COMPOSITE_NODIV(SCLK_SPDIF, "sclk_spdif", mux_spdif_p, 0,
-			RK3288_CLKSEL_CON(5), 8, 2, MFLAGS,
+			RK3288_CLKGATE_CON(4), 5, GFLAGS,
+			&rk3288_spdif_fracmux),
+	GATE(SCLK_SPDIF, "sclk_spdif", "spdif_mux", CLK_SET_RATE_PARENT,
 			RK3288_CLKGATE_CON(4), 6, GFLAGS),
-	COMPOSITE_NOMUX(0, "spdif_8ch_pre", "spdif_src", 0,
+	COMPOSITE_NOMUX(0, "spdif_8ch_pre", "spdif_src", CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(40), 0, 7, DFLAGS,
 			RK3288_CLKGATE_CON(4), 7, GFLAGS),
-	COMPOSITE_FRAC(0, "spdif_8ch_frac", "spdif_8ch_pre", 0,
+	COMPOSITE_FRACMUX(0, "spdif_8ch_frac", "spdif_8ch_pre", CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(41), 0,
-			RK3288_CLKGATE_CON(4), 8, GFLAGS),
-	COMPOSITE_NODIV(SCLK_SPDIF8CH, "sclk_spdif_8ch", mux_spdif_8ch_p, 0,
-			RK3288_CLKSEL_CON(40), 8, 2, MFLAGS,
+			RK3288_CLKGATE_CON(4), 8, GFLAGS,
+			&rk3288_spdif_8ch_fracmux),
+	GATE(SCLK_SPDIF8CH, "sclk_spdif_8ch", "spdif_8ch_mux", CLK_SET_RATE_PARENT,
 			RK3288_CLKGATE_CON(4), 9, GFLAGS),
 
 	GATE(0, "sclk_acc_efuse", "xin24m", 0,
@@ -368,12 +401,10 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	 */
 	GATE(ACLK_VCODEC, "aclk_vcodec", "aclk_vdpu", 0,
 		RK3288_CLKGATE_CON(9), 0, GFLAGS),
-	/*
-	 * We introduce a virtul node of hclk_vodec_pre_v to split one clock
-	 * struct with a gate and a fix divider into two node in software.
-	 */
-	GATE(0, "hclk_vcodec_pre_v", "aclk_vdpu", 0,
+
+	FACTOR_GATE(0, "hclk_vcodec_pre", "aclk_vdpu", 0, 1, 4,
 		RK3288_CLKGATE_CON(3), 10, GFLAGS),
+
 	GATE(HCLK_VCODEC, "hclk_vcodec", "hclk_vcodec_pre", 0,
 		RK3288_CLKGATE_CON(9), 1, GFLAGS),
 
@@ -506,11 +537,11 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 			RK3288_CLKSEL_CON(35), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3288_CLKGATE_CON(4), 10, GFLAGS),
 
-	GATE(SCLK_OTGPHY0, "sclk_otgphy0", "usb480m", CLK_IGNORE_UNUSED,
+	GATE(SCLK_OTGPHY0, "sclk_otgphy0", "xin24m", CLK_IGNORE_UNUSED,
 			RK3288_CLKGATE_CON(13), 4, GFLAGS),
-	GATE(SCLK_OTGPHY1, "sclk_otgphy1", "usb480m", CLK_IGNORE_UNUSED,
+	GATE(SCLK_OTGPHY1, "sclk_otgphy1", "xin24m", CLK_IGNORE_UNUSED,
 			RK3288_CLKGATE_CON(13), 5, GFLAGS),
-	GATE(SCLK_OTGPHY2, "sclk_otgphy2", "usb480m", CLK_IGNORE_UNUSED,
+	GATE(SCLK_OTGPHY2, "sclk_otgphy2", "xin24m", CLK_IGNORE_UNUSED,
 			RK3288_CLKGATE_CON(13), 6, GFLAGS),
 	GATE(SCLK_OTG_ADP, "sclk_otg_adp", "xin32k", CLK_IGNORE_UNUSED,
 			RK3288_CLKGATE_CON(13), 7, GFLAGS),
@@ -536,45 +567,40 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	COMPOSITE(0, "uart0_src", mux_pll_src_cpll_gll_usb_npll_p, 0,
 			RK3288_CLKSEL_CON(13), 13, 2, MFLAGS, 0, 7, DFLAGS,
 			RK3288_CLKGATE_CON(1), 8, GFLAGS),
-	COMPOSITE_FRAC(0, "uart0_frac", "uart0_src", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(0, "uart0_frac", "uart0_src", CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(17), 0,
-			RK3288_CLKGATE_CON(1), 9, GFLAGS),
-	MUX(SCLK_UART0, "sclk_uart0", mux_uart0_p, CLK_SET_RATE_PARENT,
-			RK3288_CLKSEL_CON(13), 8, 2, MFLAGS),
+			RK3288_CLKGATE_CON(1), 9, GFLAGS,
+			&rk3288_uart0_fracmux),
 	MUX(0, "uart_src", mux_pll_src_cpll_gpll_p, 0,
 			RK3288_CLKSEL_CON(13), 15, 1, MFLAGS),
 	COMPOSITE_NOMUX(0, "uart1_src", "uart_src", 0,
 			RK3288_CLKSEL_CON(14), 0, 7, DFLAGS,
 			RK3288_CLKGATE_CON(1), 10, GFLAGS),
-	COMPOSITE_FRAC(0, "uart1_frac", "uart1_src", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(0, "uart1_frac", "uart1_src", CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(18), 0,
-			RK3288_CLKGATE_CON(1), 11, GFLAGS),
-	MUX(SCLK_UART1, "sclk_uart1", mux_uart1_p, CLK_SET_RATE_PARENT,
-			RK3288_CLKSEL_CON(14), 8, 2, MFLAGS),
+			RK3288_CLKGATE_CON(1), 11, GFLAGS,
+			&rk3288_uart1_fracmux),
 	COMPOSITE_NOMUX(0, "uart2_src", "uart_src", 0,
 			RK3288_CLKSEL_CON(15), 0, 7, DFLAGS,
 			RK3288_CLKGATE_CON(1), 12, GFLAGS),
-	COMPOSITE_FRAC(0, "uart2_frac", "uart2_src", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(0, "uart2_frac", "uart2_src", CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(19), 0,
-			RK3288_CLKGATE_CON(1), 13, GFLAGS),
-	MUX(SCLK_UART2, "sclk_uart2", mux_uart2_p, CLK_SET_RATE_PARENT,
-			RK3288_CLKSEL_CON(15), 8, 2, MFLAGS),
+			RK3288_CLKGATE_CON(1), 13, GFLAGS,
+			&rk3288_uart2_fracmux),
 	COMPOSITE_NOMUX(0, "uart3_src", "uart_src", 0,
 			RK3288_CLKSEL_CON(16), 0, 7, DFLAGS,
 			RK3288_CLKGATE_CON(1), 14, GFLAGS),
-	COMPOSITE_FRAC(0, "uart3_frac", "uart3_src", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(0, "uart3_frac", "uart3_src", CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(20), 0,
-			RK3288_CLKGATE_CON(1), 15, GFLAGS),
-	MUX(SCLK_UART3, "sclk_uart3", mux_uart3_p, CLK_SET_RATE_PARENT,
-			RK3288_CLKSEL_CON(16), 8, 2, MFLAGS),
+			RK3288_CLKGATE_CON(1), 15, GFLAGS,
+			&rk3288_uart3_fracmux),
 	COMPOSITE_NOMUX(0, "uart4_src", "uart_src", 0,
 			RK3288_CLKSEL_CON(3), 0, 7, DFLAGS,
 			RK3288_CLKGATE_CON(2), 12, GFLAGS),
-	COMPOSITE_FRAC(0, "uart4_frac", "uart4_src", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(0, "uart4_frac", "uart4_src", CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(7), 0,
-			RK3288_CLKGATE_CON(2), 13, GFLAGS),
-	MUX(SCLK_UART4, "sclk_uart4", mux_uart4_p, CLK_SET_RATE_PARENT,
-			RK3288_CLKSEL_CON(3), 8, 2, MFLAGS),
+			RK3288_CLKGATE_CON(2), 13, GFLAGS,
+			&rk3288_uart4_fracmux),
 
 	COMPOSITE(0, "mac_pll_src", mux_pll_src_npll_cpll_gpll_p, 0,
 			RK3288_CLKSEL_CON(21), 0, 2, MFLAGS, 8, 5, DFLAGS,
@@ -644,10 +670,10 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	GATE(PCLK_PUBL0, "pclk_publ0", "pclk_cpu", 0, RK3288_CLKGATE_CON(10), 15, GFLAGS),
 	GATE(PCLK_DDRUPCTL1, "pclk_ddrupctl1", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 0, GFLAGS),
 	GATE(PCLK_PUBL1, "pclk_publ1", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 1, GFLAGS),
-	GATE(0, "pclk_efuse_1024", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 2, GFLAGS),
+	GATE(PCLK_EFUSE1024, "pclk_efuse_1024", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 2, GFLAGS),
 	GATE(PCLK_TZPC, "pclk_tzpc", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 3, GFLAGS),
 	GATE(PCLK_UART2, "pclk_uart2", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 9, GFLAGS),
-	GATE(0, "pclk_efuse_256", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 10, GFLAGS),
+	GATE(PCLK_EFUSE256, "pclk_efuse_256", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 10, GFLAGS),
 	GATE(PCLK_RKPWM, "pclk_rkpwm", "pclk_cpu", CLK_IGNORE_UNUSED, RK3288_CLKGATE_CON(11), 11, GFLAGS),
 
 	/* ddrctrl [DDR Controller PHY clock] gates */
@@ -709,7 +735,7 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	GATE(SCLK_LCDC_PWM1, "sclk_lcdc_pwm1", "xin24m", 0, RK3288_CLKGATE_CON(13), 11, GFLAGS),
 	GATE(SCLK_PVTM_CORE, "sclk_pvtm_core", "xin24m", 0, RK3288_CLKGATE_CON(5), 9, GFLAGS),
 	GATE(SCLK_PVTM_GPU, "sclk_pvtm_gpu", "xin24m", 0, RK3288_CLKGATE_CON(5), 10, GFLAGS),
-	GATE(0, "sclk_mipidsi_24m", "xin24m", 0, RK3288_CLKGATE_CON(5), 15, GFLAGS),
+	GATE(SCLK_MIPIDSI_24M, "sclk_mipidsi_24m", "xin24m", 0, RK3288_CLKGATE_CON(5), 15, GFLAGS),
 
 	/* sclk_gpu gates */
 	GATE(ACLK_GPU, "aclk_gpu", "sclk_gpu", 0, RK3288_CLKGATE_CON(18), 0, GFLAGS),
@@ -783,10 +809,10 @@ static const char *const rk3288_critical_clocks[] __initconst = {
 	"pclk_pd_pmu",
 };
 
-#ifdef CONFIG_PM_SLEEP
 static void __iomem *rk3288_cru_base;
 
-/* Some CRU registers will be reset in maskrom when the system
+/*
+ * Some CRU registers will be reset in maskrom when the system
  * wakes up from fastboot.
  * So save them before suspend, restore them after resume.
  */
@@ -840,51 +866,27 @@ static void rk3288_clk_resume(void)
 	}
 }
 
+static void rk3288_clk_shutdown(void)
+{
+	writel_relaxed(0xf3030000, rk3288_cru_base + RK3288_MODE_CON);
+}
+
 static struct syscore_ops rk3288_clk_syscore_ops = {
 	.suspend = rk3288_clk_suspend,
 	.resume = rk3288_clk_resume,
 };
 
-static void rk3288_clk_sleep_init(void __iomem *reg_base)
-{
-	rk3288_cru_base = reg_base;
-	register_syscore_ops(&rk3288_clk_syscore_ops);
-}
-
-#else /* CONFIG_PM_SLEEP */
-static void rk3288_clk_sleep_init(void __iomem *reg_base) {}
-#endif
-
 static void __init rk3288_clk_init(struct device_node *np)
 {
-	void __iomem *reg_base;
 	struct clk *clk;
 
-	reg_base = of_iomap(np, 0);
-	if (!reg_base) {
+	rk3288_cru_base = of_iomap(np, 0);
+	if (!rk3288_cru_base) {
 		pr_err("%s: could not map cru region\n", __func__);
 		return;
 	}
 
-	rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
-
-	/* xin12m is created by an cru-internal divider */
-	clk = clk_register_fixed_factor(NULL, "xin12m", "xin24m", 0, 1, 2);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock xin12m: %ld\n",
-			__func__, PTR_ERR(clk));
-
-
-	clk = clk_register_fixed_factor(NULL, "usb480m", "xin24m", 0, 20, 1);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock usb480m: %ld\n",
-			__func__, PTR_ERR(clk));
-
-	clk = clk_register_fixed_factor(NULL, "hclk_vcodec_pre",
-					"hclk_vcodec_pre_v", 0, 1, 4);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock hclk_vcodec_pre: %ld\n",
-			__func__, PTR_ERR(clk));
+	rockchip_clk_init(np, rk3288_cru_base, CLK_NR_CLKS);
 
 	/* Watchdog pclk is controlled by RK3288_SGRF_SOC_CON0[1]. */
 	clk = clk_register_fixed_factor(NULL, "pclk_wdt", "pclk_pd_alive", 0, 1, 1);
@@ -907,10 +909,12 @@ static void __init rk3288_clk_init(struct device_node *np)
 			&rk3288_cpuclk_data, rk3288_cpuclk_rates,
 			ARRAY_SIZE(rk3288_cpuclk_rates));
 
-	rockchip_register_softrst(np, 12, reg_base + RK3288_SOFTRST_CON(0),
+	rockchip_register_softrst(np, 12,
+				  rk3288_cru_base + RK3288_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(RK3288_GLB_SRST_FST);
-	rk3288_clk_sleep_init(reg_base);
+	rockchip_register_restart_notifier(RK3288_GLB_SRST_FST,
+					   rk3288_clk_shutdown);
+	register_syscore_ops(&rk3288_clk_syscore_ops);
 }
 CLK_OF_DECLARE(rk3288_cru, "rockchip,rk3288-cru", rk3288_clk_init);

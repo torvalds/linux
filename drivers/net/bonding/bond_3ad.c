@@ -93,7 +93,8 @@ enum ad_link_speed_type {
 	AD_LINK_SPEED_10000MBPS,
 	AD_LINK_SPEED_20000MBPS,
 	AD_LINK_SPEED_40000MBPS,
-	AD_LINK_SPEED_56000MBPS
+	AD_LINK_SPEED_56000MBPS,
+	AD_LINK_SPEED_100000MBPS,
 };
 
 /* compare MAC addresses */
@@ -258,6 +259,7 @@ static inline int __check_agg_selection_timer(struct port *port)
  *     %AD_LINK_SPEED_20000MBPS
  *     %AD_LINK_SPEED_40000MBPS
  *     %AD_LINK_SPEED_56000MBPS
+ *     %AD_LINK_SPEED_100000MBPS
  */
 static u16 __get_link_speed(struct port *port)
 {
@@ -305,6 +307,10 @@ static u16 __get_link_speed(struct port *port)
 			speed = AD_LINK_SPEED_56000MBPS;
 			break;
 
+		case SPEED_100000:
+			speed = AD_LINK_SPEED_100000MBPS;
+			break;
+
 		default:
 			/* unknown speed value from ethtool. shouldn't happen */
 			speed = 0;
@@ -349,6 +355,14 @@ static u8 __get_duplex(struct port *port)
 		}
 	}
 	return retval;
+}
+
+static void __ad_actor_update_port(struct port *port)
+{
+	const struct bonding *bond = bond_get_bond_by_slave(port->slave);
+
+	port->actor_system = BOND_AD_INFO(bond).system.sys_mac_addr;
+	port->actor_system_priority = BOND_AD_INFO(bond).system.sys_priority;
 }
 
 /* Conversions */
@@ -680,6 +694,9 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 			break;
 		case AD_LINK_SPEED_56000MBPS:
 			bandwidth = aggregator->num_of_ports * 56000;
+			break;
+		case AD_LINK_SPEED_100000MBPS:
+			bandwidth = aggregator->num_of_ports * 100000;
 			break;
 		default:
 			bandwidth = 0; /* to silence the compiler */
@@ -1954,9 +1971,7 @@ void bond_3ad_bind_slave(struct slave *slave)
 		port->actor_admin_port_key = bond->params.ad_user_port_key << 6;
 		ad_update_actor_keys(port, false);
 		/* actor system is the bond's system */
-		port->actor_system = BOND_AD_INFO(bond).system.sys_mac_addr;
-		port->actor_system_priority =
-		    BOND_AD_INFO(bond).system.sys_priority;
+		__ad_actor_update_port(port);
 		/* tx timer(to verify that no more than MAX_TX_IN_SECOND
 		 * lacpdu's are sent in one second)
 		 */
@@ -2135,6 +2150,38 @@ void bond_3ad_unbind_slave(struct slave *slave)
 	port->slave = NULL;
 
 out:
+	spin_unlock_bh(&bond->mode_lock);
+}
+
+/**
+ * bond_3ad_update_ad_actor_settings - reflect change of actor settings to ports
+ * @bond: bonding struct to work on
+ *
+ * If an ad_actor setting gets changed we need to update the individual port
+ * settings so the bond device will use the new values when it gets upped.
+ */
+void bond_3ad_update_ad_actor_settings(struct bonding *bond)
+{
+	struct list_head *iter;
+	struct slave *slave;
+
+	ASSERT_RTNL();
+
+	BOND_AD_INFO(bond).system.sys_priority = bond->params.ad_actor_sys_prio;
+	if (is_zero_ether_addr(bond->params.ad_actor_system))
+		BOND_AD_INFO(bond).system.sys_mac_addr =
+		    *((struct mac_addr *)bond->dev->dev_addr);
+	else
+		BOND_AD_INFO(bond).system.sys_mac_addr =
+		    *((struct mac_addr *)bond->params.ad_actor_system);
+
+	spin_lock_bh(&bond->mode_lock);
+	bond_for_each_slave(bond, slave, iter) {
+		struct port *port = &(SLAVE_AD_INFO(slave))->port;
+
+		__ad_actor_update_port(port);
+		port->ntt = true;
+	}
 	spin_unlock_bh(&bond->mode_lock);
 }
 

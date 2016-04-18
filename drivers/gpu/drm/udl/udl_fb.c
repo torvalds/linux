@@ -33,7 +33,6 @@ module_param(fb_defio, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 struct udl_fbdev {
 	struct drm_fb_helper helper;
 	struct udl_framebuffer ufb;
-	struct list_head fbdev_list;
 	int fb_count;
 };
 
@@ -410,7 +409,6 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 
 	if (ufb->obj->base.import_attach) {
 		ret = dma_buf_begin_cpu_access(ufb->obj->base.import_attach->dmabuf,
-					       0, ufb->obj->base.size,
 					       DMA_FROM_DEVICE);
 		if (ret)
 			goto unlock;
@@ -425,9 +423,8 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	}
 
 	if (ufb->obj->base.import_attach) {
-		dma_buf_end_cpu_access(ufb->obj->base.import_attach->dmabuf,
-				       0, ufb->obj->base.size,
-				       DMA_FROM_DEVICE);
+		ret = dma_buf_end_cpu_access(ufb->obj->base.import_attach->dmabuf,
+					     DMA_FROM_DEVICE);
 	}
 
  unlock:
@@ -456,7 +453,7 @@ static const struct drm_framebuffer_funcs udlfb_funcs = {
 static int
 udl_framebuffer_init(struct drm_device *dev,
 		     struct udl_framebuffer *ufb,
-		     struct drm_mode_fb_cmd2 *mode_cmd,
+		     const struct drm_mode_fb_cmd2 *mode_cmd,
 		     struct udl_gem_object *obj)
 {
 	int ret;
@@ -539,7 +536,7 @@ static int udlfb_create(struct drm_fb_helper *helper,
 out_destroy_fbi:
 	drm_fb_helper_release_fbi(helper);
 out_gfree:
-	drm_gem_object_unreference(&ufbdev->ufb.obj->base);
+	drm_gem_object_unreference_unlocked(&ufbdev->ufb.obj->base);
 out:
 	return ret;
 }
@@ -624,7 +621,7 @@ void udl_fbdev_unplug(struct drm_device *dev)
 struct drm_framebuffer *
 udl_fb_user_fb_create(struct drm_device *dev,
 		   struct drm_file *file,
-		   struct drm_mode_fb_cmd2 *mode_cmd)
+		   const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
 	struct udl_framebuffer *ufb;

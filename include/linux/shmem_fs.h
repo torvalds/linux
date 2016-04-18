@@ -15,10 +15,7 @@ struct shmem_inode_info {
 	unsigned int		seals;		/* shmem seals */
 	unsigned long		flags;
 	unsigned long		alloced;	/* data pages alloced to file */
-	union {
-		unsigned long	swapped;	/* subtotal assigned to swap */
-		char		*symlink;	/* unswappable short symlink */
-	};
+	unsigned long		swapped;	/* subtotal assigned to swap */
 	struct shared_policy	policy;		/* NUMA memory alloc policy */
 	struct list_head	swaplist;	/* chain of maybes on swap */
 	struct simple_xattrs	xattrs;		/* list of xattrs */
@@ -59,6 +56,10 @@ extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 					pgoff_t index, gfp_t gfp_mask);
 extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
 extern int shmem_unuse(swp_entry_t entry, struct page *page);
+
+extern unsigned long shmem_swap_usage(struct vm_area_struct *vma);
+extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
+						pgoff_t start, pgoff_t end);
 
 static inline struct page *shmem_read_mapping_page(
 				struct address_space *mapping, pgoff_t index)

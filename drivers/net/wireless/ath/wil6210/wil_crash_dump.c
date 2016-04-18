@@ -51,8 +51,7 @@ static int wil_fw_get_crash_dump_bounds(struct wil6210_priv *wil,
 	return 0;
 }
 
-static int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest,
-				  u32 size)
+int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size)
 {
 	int i;
 	const struct fw_map *map;

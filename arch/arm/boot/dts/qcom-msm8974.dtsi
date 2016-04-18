@@ -1,6 +1,6 @@
 /dts-v1/;
 
-#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8974.h>
 #include "skeleton.dtsi"
 
@@ -14,8 +14,48 @@
 		#size-cells = <1>;
 		ranges;
 
+		mpss@08000000 {
+			reg = <0x08000000 0x5100000>;
+			no-map;
+		};
+
+		mba@00d100000 {
+			reg = <0x0d100000 0x100000>;
+			no-map;
+		};
+
+		reserved@0d200000 {
+			reg = <0x0d200000 0xa00000>;
+			no-map;
+		};
+
+		adsp@0dc00000 {
+			reg = <0x0dc00000 0x1900000>;
+			no-map;
+		};
+
+		venus@0f500000 {
+			reg = <0x0f500000 0x500000>;
+			no-map;
+		};
+
 		smem_region: smem@fa00000 {
 			reg = <0xfa00000 0x200000>;
+			no-map;
+		};
+
+		tz@0fc00000 {
+			reg = <0x0fc00000 0x160000>;
+			no-map;
+		};
+
+		efs@0fd600000 {
+			reg = <0x0fd60000 0x1a0000>;
+			no-map;
+		};
+
+		unused@0ff00000 {
+			reg = <0x0ff00000 0x10100000>;
 			no-map;
 		};
 	};
@@ -91,6 +131,20 @@
 		interrupts = <1 7 0xf04>;
 	};
 
+	clocks {
+		xo_board {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <19200000>;
+		};
+
+		sleep_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <1 2 0xf08>,
@@ -98,6 +152,82 @@
 			     <1 4 0xf08>,
 			     <1 1 0xf08>;
 		clock-frequency = <19200000>;
+	};
+
+	smem {
+		compatible = "qcom,smem";
+
+		memory-region = <&smem_region>;
+		qcom,rpm-msg-ram = <&rpm_msg_ram>;
+
+		hwlocks = <&tcsr_mutex 3>;
+	};
+
+	smp2p-wcnss {
+		compatible = "qcom,smp2p";
+		qcom,smem = <451>, <431>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <0 143 IRQ_TYPE_EDGE_RISING>;
+
+		qcom,ipc = <&apcs 8 18>;
+
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <4>;
+
+		wcnss_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+
+			#qcom,state-cells = <1>;
+		};
+
+		wcnss_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	smsm {
+		compatible = "qcom,smsm";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,ipc-1 = <&apcs 8 13>;
+		qcom,ipc-2 = <&apcs 8 9>;
+		qcom,ipc-3 = <&apcs 8 19>;
+
+		apps_smsm: apps@0 {
+			reg = <0>;
+
+			#qcom,state-cells = <1>;
+		};
+
+		modem_smsm: modem@1 {
+			reg = <1>;
+			interrupts = <0 26 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		adsp_smsm: adsp@2 {
+			reg = <2>;
+			interrupts = <0 157 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		wcnss_smsm: wcnss@7 {
+			reg = <7>;
+			interrupts = <0 144 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 	};
 
 	soc: soc {
@@ -112,6 +242,11 @@
 			#interrupt-cells = <3>;
 			reg = <0xf9000000 0x1000>,
 			      <0xf9002000 0x1000>;
+		};
+
+		apcs: syscon@f9011000 {
+			compatible = "syscon";
+			reg = <0xf9011000 0x1000>;
 		};
 
 		timer@f9020000 {
@@ -228,6 +363,7 @@
 			compatible = "qcom,gcc-msm8974";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 			reg = <0xfc400000 0x4000>;
 		};
 
@@ -240,6 +376,7 @@
 			compatible = "qcom,mmcc-msm8974";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 			reg = <0xfd8c0000 0x6000>;
 		};
 
@@ -250,13 +387,9 @@
 			#hwlock-cells = <1>;
 		};
 
-		smem@fa00000 {
-			compatible = "qcom,smem";
-
-			memory-region = <&smem_region>;
+		rpm_msg_ram: memory@fc428000 {
+			compatible = "qcom,rpm-msg-ram";
 			reg = <0xfc428000 0x4000>;
-
-			hwlocks = <&tcsr_mutex 3>;
 		};
 
 		blsp1_uart2: serial@f991e000 {
@@ -307,8 +440,19 @@
 			interrupts = <0 208 0>;
 		};
 
+		blsp_i2c8: i2c@f9964000 {
+			status = "disabled";
+			compatible = "qcom,i2c-qup-v2.1.1";
+			reg = <0xf9964000 0x1000>;
+			interrupts = <0 102 IRQ_TYPE_NONE>;
+			clocks = <&gcc GCC_BLSP2_QUP2_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "core", "iface";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		blsp_i2c11: i2c@f9967000 {
-			status = "disable";
+			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9967000 0x1000>;
 			interrupts = <0 105 IRQ_TYPE_NONE>;
@@ -316,6 +460,8 @@
 			clock-names = "core", "iface";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			dmas = <&blsp2_dma 20>, <&blsp2_dma 21>;
+			dma-names = "tx", "rx";
 		};
 
 		spmi_bus: spmi@fc4cf000 {
@@ -332,6 +478,85 @@
 			#size-cells = <0>;
 			interrupt-controller;
 			#interrupt-cells = <4>;
+		};
+
+		blsp2_dma: dma-controller@f9944000 {
+			compatible = "qcom,bam-v1.4.0";
+			reg = <0xf9944000 0x19000>;
+			interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+		};
+	};
+
+	smd {
+		compatible = "qcom,smd";
+
+		rpm {
+			interrupts = <0 168 1>;
+			qcom,ipc = <&apcs 8 0>;
+			qcom,smd-edge = <15>;
+
+			rpm_requests {
+				compatible = "qcom,rpm-msm8974";
+				qcom,smd-channels = "rpm_requests";
+
+				pm8841-regulators {
+					compatible = "qcom,rpm-pm8841-regulators";
+
+					pm8841_s1: s1 {};
+					pm8841_s2: s2 {};
+					pm8841_s3: s3 {};
+					pm8841_s4: s4 {};
+					pm8841_s5: s5 {};
+					pm8841_s6: s6 {};
+					pm8841_s7: s7 {};
+					pm8841_s8: s8 {};
+				};
+
+				pm8941-regulators {
+					compatible = "qcom,rpm-pm8941-regulators";
+
+					pm8941_s1: s1 {};
+					pm8941_s2: s2 {};
+					pm8941_s3: s3 {};
+					pm8941_5v: s4 {};
+
+					pm8941_l1: l1 {};
+					pm8941_l2: l2 {};
+					pm8941_l3: l3 {};
+					pm8941_l4: l4 {};
+					pm8941_l5: l5 {};
+					pm8941_l6: l6 {};
+					pm8941_l7: l7 {};
+					pm8941_l8: l8 {};
+					pm8941_l9: l9 {};
+					pm8941_l10: l10 {};
+					pm8941_l11: l11 {};
+					pm8941_l12: l12 {};
+					pm8941_l13: l13 {};
+					pm8941_l14: l14 {};
+					pm8941_l15: l15 {};
+					pm8941_l16: l16 {};
+					pm8941_l17: l17 {};
+					pm8941_l18: l18 {};
+					pm8941_l19: l19 {};
+					pm8941_l20: l20 {};
+					pm8941_l21: l21 {};
+					pm8941_l22: l22 {};
+					pm8941_l23: l23 {};
+					pm8941_l24: l24 {};
+
+					pm8941_lvs1: lvs1 {};
+					pm8941_lvs2: lvs2 {};
+					pm8941_lvs3: lvs3 {};
+
+					pm8941_5vs1: 5vs1 {};
+					pm8941_5vs2: 5vs2 {};
+				};
+			};
 		};
 	};
 };

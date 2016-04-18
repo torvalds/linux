@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "exynos5440.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "SAMSUNG SSDK5440 board based on EXYNOS5440";
@@ -29,12 +30,12 @@
 };
 
 &pcie_0 {
-	reset-gpio = <&pin_ctrl 5 0>;
+	reset-gpio = <&pin_ctrl 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &pcie_1 {
-	reset-gpio = <&pin_ctrl 22 0>;
+	reset-gpio = <&pin_ctrl 22 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 

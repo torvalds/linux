@@ -28,8 +28,8 @@
 #include <engine/disp.h>
 #include <engine/fifo.h>
 
+#include <nvif/class.h>
 #include <nvif/event.h>
-#include <nvif/ioctl.h>
 
 /*******************************************************************************
  * software context
@@ -143,7 +143,7 @@ static const struct nvkm_sw_func
 gf100_sw = {
 	.chan_new = gf100_sw_chan_new,
 	.sclass = {
-		{ nvkm_nvsw_new, { -1, -1, NVIF_IOCTL_NEW_V0_SW_GF100 } },
+		{ nvkm_nvsw_new, { -1, -1, NVIF_CLASS_SW_GF100 } },
 		{}
 	}
 };

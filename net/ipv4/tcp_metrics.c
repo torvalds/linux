@@ -369,6 +369,7 @@ void tcp_update_metrics(struct sock *sk)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct dst_entry *dst = __sk_dst_get(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct net *net = sock_net(sk);
 	struct tcp_metrics_block *tm;
 	unsigned long rtt;
 	u32 val;
@@ -473,7 +474,7 @@ void tcp_update_metrics(struct sock *sk)
 		if (!tcp_metric_locked(tm, TCP_METRIC_REORDERING)) {
 			val = tcp_metric_get(tm, TCP_METRIC_REORDERING);
 			if (val < tp->reordering &&
-			    tp->reordering != sysctl_tcp_reordering)
+			    tp->reordering != net->ipv4.sysctl_tcp_reordering)
 				tcp_metric_set(tm, TCP_METRIC_REORDERING,
 					       tp->reordering);
 		}
@@ -550,7 +551,7 @@ reset:
 	 */
 	if (crtt > tp->srtt_us) {
 		/* Set RTO like tcp_rtt_estimator(), but from cached RTT. */
-		crtt /= 8 * USEC_PER_MSEC;
+		crtt /= 8 * USEC_PER_SEC / HZ;
 		inet_csk(sk)->icsk_rto = crtt + max(2 * crtt, tcp_rto_min(sk));
 	} else if (tp->srtt_us == 0) {
 		/* RFC6298: 5.7 We've failed to get a valid RTT sample from

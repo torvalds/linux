@@ -11,6 +11,14 @@
 	.text;			\
 	.align 4;
 
+#define EX_ST_FP(x)		\
+98:	x;			\
+	.section __ex_table,"a";\
+	.align 4;		\
+	.word 98b, __retl_one_fp;\
+	.text;			\
+	.align 4;
+
 #define FUNC_NAME		U3copy_to_user
 #define STORE(type,src,addr)	type##a src, [addr] ASI_AIUS
 #define STORE_BLK(src,addr)	stda src, [addr] ASI_BLK_AIUS

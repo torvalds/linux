@@ -51,6 +51,7 @@ struct module;
 struct configfs_item_operations;
 struct configfs_group_operations;
 struct configfs_attribute;
+struct configfs_bin_attribute;
 struct configfs_subsystem;
 
 struct config_item {
@@ -84,6 +85,7 @@ struct config_item_type {
 	struct configfs_item_operations		*ct_item_ops;
 	struct configfs_group_operations	*ct_group_ops;
 	struct configfs_attribute		**ct_attrs;
+	struct configfs_bin_attribute		**ct_bin_attrs;
 };
 
 /**
@@ -94,7 +96,8 @@ struct config_group {
 	struct config_item		cg_item;
 	struct list_head		cg_children;
 	struct configfs_subsystem 	*cg_subsys;
-	struct config_group		**default_groups;
+	struct list_head		default_groups;
+	struct list_head		group_entry;
 };
 
 extern void config_group_init(struct config_group *group);
@@ -121,90 +124,91 @@ extern struct config_item *config_group_find_item(struct config_group *,
 						  const char *);
 
 
+static inline void configfs_add_default_group(struct config_group *new_group,
+		struct config_group *group)
+{
+	list_add_tail(&new_group->group_entry, &group->default_groups);
+}
+
 struct configfs_attribute {
 	const char		*ca_name;
 	struct module 		*ca_owner;
 	umode_t			ca_mode;
+	ssize_t (*show)(struct config_item *, char *);
+	ssize_t (*store)(struct config_item *, const char *, size_t);
 };
 
-/*
- * Users often need to create attribute structures for their configurable
- * attributes, containing a configfs_attribute member and function pointers
- * for the show() and store() operations on that attribute. If they don't
- * need anything else on the extended attribute structure, they can use
- * this macro to define it  The argument _item is the name of the
- * config_item structure.
- */
-#define CONFIGFS_ATTR_STRUCT(_item)					\
-struct _item##_attribute {						\
-	struct configfs_attribute attr;					\
-	ssize_t (*show)(struct _item *, char *);			\
-	ssize_t (*store)(struct _item *, const char *, size_t);		\
+#define CONFIGFS_ATTR(_pfx, _name)			\
+static struct configfs_attribute _pfx##attr_##_name = {	\
+	.ca_name	= __stringify(_name),		\
+	.ca_mode	= S_IRUGO | S_IWUSR,		\
+	.ca_owner	= THIS_MODULE,			\
+	.show		= _pfx##_name##_show,		\
+	.store		= _pfx##_name##_store,		\
 }
 
-/*
- * With the extended attribute structure, users can use this macro
- * (similar to sysfs' __ATTR) to make defining attributes easier.
- * An example:
- * #define MYITEM_ATTR(_name, _mode, _show, _store)	\
- * struct myitem_attribute childless_attr_##_name =	\
- *         __CONFIGFS_ATTR(_name, _mode, _show, _store)
- */
-#define __CONFIGFS_ATTR(_name, _mode, _show, _store)			\
-{									\
-	.attr	= {							\
-			.ca_name = __stringify(_name),			\
-			.ca_mode = _mode,				\
-			.ca_owner = THIS_MODULE,			\
-	},								\
-	.show	= _show,						\
-	.store	= _store,						\
-}
-/* Here is a readonly version, only requiring a show() operation */
-#define __CONFIGFS_ATTR_RO(_name, _show)				\
-{									\
-	.attr	= {							\
-			.ca_name = __stringify(_name),			\
-			.ca_mode = 0444,				\
-			.ca_owner = THIS_MODULE,			\
-	},								\
-	.show	= _show,						\
+#define CONFIGFS_ATTR_RO(_pfx, _name)			\
+static struct configfs_attribute _pfx##attr_##_name = {	\
+	.ca_name	= __stringify(_name),		\
+	.ca_mode	= S_IRUGO,			\
+	.ca_owner	= THIS_MODULE,			\
+	.show		= _pfx##_name##_show,		\
 }
 
-/*
- * With these extended attributes, the simple show_attribute() and
- * store_attribute() operations need to call the show() and store() of the
- * attributes.  This is a common pattern, so we provide a macro to define
- * them.  The argument _item is the name of the config_item structure.
- * This macro expects the attributes to be named "struct <name>_attribute"
- * and the function to_<name>() to exist;
- */
-#define CONFIGFS_ATTR_OPS(_item)					\
-static ssize_t _item##_attr_show(struct config_item *item,		\
-				 struct configfs_attribute *attr,	\
-				 char *page)				\
-{									\
-	struct _item *_item = to_##_item(item);				\
-	struct _item##_attribute *_item##_attr =			\
-		container_of(attr, struct _item##_attribute, attr);	\
-	ssize_t ret = 0;						\
-									\
-	if (_item##_attr->show)						\
-		ret = _item##_attr->show(_item, page);			\
-	return ret;							\
-}									\
-static ssize_t _item##_attr_store(struct config_item *item,		\
-				  struct configfs_attribute *attr,	\
-				  const char *page, size_t count)	\
-{									\
-	struct _item *_item = to_##_item(item);				\
-	struct _item##_attribute *_item##_attr =			\
-		container_of(attr, struct _item##_attribute, attr);	\
-	ssize_t ret = -EINVAL;						\
-									\
-	if (_item##_attr->store)					\
-		ret = _item##_attr->store(_item, page, count);		\
-	return ret;							\
+#define CONFIGFS_ATTR_WO(_pfx, _name)			\
+static struct configfs_attribute _pfx##attr_##_name = {	\
+	.ca_name	= __stringify(_name),		\
+	.ca_mode	= S_IWUSR,			\
+	.ca_owner	= THIS_MODULE,			\
+	.store		= _pfx##_name##_store,		\
+}
+
+struct file;
+struct vm_area_struct;
+
+struct configfs_bin_attribute {
+	struct configfs_attribute cb_attr;	/* std. attribute */
+	void *cb_private;			/* for user       */
+	size_t cb_max_size;			/* max core size  */
+	ssize_t (*read)(struct config_item *, void *, size_t);
+	ssize_t (*write)(struct config_item *, const void *, size_t);
+};
+
+#define CONFIGFS_BIN_ATTR(_pfx, _name, _priv, _maxsz)		\
+static struct configfs_bin_attribute _pfx##attr_##_name = {	\
+	.cb_attr = {						\
+		.ca_name	= __stringify(_name),		\
+		.ca_mode	= S_IRUGO | S_IWUSR,		\
+		.ca_owner	= THIS_MODULE,			\
+	},							\
+	.cb_private	= _priv,				\
+	.cb_max_size	= _maxsz,				\
+	.read		= _pfx##_name##_read,			\
+	.write		= _pfx##_name##_write,			\
+}
+
+#define CONFIGFS_BIN_ATTR_RO(_pfx, _name, _priv, _maxsz)	\
+static struct configfs_bin_attribute _pfx##attr_##_name = {	\
+	.cb_attr = {						\
+		.ca_name	= __stringify(_name),		\
+		.ca_mode	= S_IRUGO,			\
+		.ca_owner	= THIS_MODULE,			\
+	},							\
+	.cb_private	= _priv,				\
+	.cb_max_size	= _maxsz,				\
+	.read		= _pfx##_name##_read,			\
+}
+
+#define CONFIGFS_BIN_ATTR_WO(_pfx, _name, _priv, _maxsz)	\
+static struct configfs_bin_attribute _pfx##attr_##_name = {	\
+	.cb_attr = {						\
+		.ca_name	= __stringify(_name),		\
+		.ca_mode	= S_IWUSR,			\
+		.ca_owner	= THIS_MODULE,			\
+	},							\
+	.cb_private	= _priv,				\
+	.cb_max_size	= _maxsz,				\
+	.write		= _pfx##_name##_write,			\
 }
 
 /*
@@ -223,8 +227,6 @@ static ssize_t _item##_attr_store(struct config_item *item,		\
  */
 struct configfs_item_operations {
 	void (*release)(struct config_item *);
-	ssize_t	(*show_attribute)(struct config_item *, struct configfs_attribute *,char *);
-	ssize_t	(*store_attribute)(struct config_item *,struct configfs_attribute *,const char *, size_t);
 	int (*allow_link)(struct config_item *src, struct config_item *target);
 	int (*drop_link)(struct config_item *src, struct config_item *target);
 };
@@ -252,9 +254,38 @@ static inline struct configfs_subsystem *to_configfs_subsystem(struct config_gro
 int configfs_register_subsystem(struct configfs_subsystem *subsys);
 void configfs_unregister_subsystem(struct configfs_subsystem *subsys);
 
+int configfs_register_group(struct config_group *parent_group,
+			    struct config_group *group);
+void configfs_unregister_group(struct config_group *group);
+
+void configfs_remove_default_groups(struct config_group *group);
+
+struct config_group *
+configfs_register_default_group(struct config_group *parent_group,
+				const char *name,
+				struct config_item_type *item_type);
+void configfs_unregister_default_group(struct config_group *group);
+
 /* These functions can sleep and can alloc with GFP_KERNEL */
 /* WARNING: These cannot be called underneath configfs callbacks!! */
-int configfs_depend_item(struct configfs_subsystem *subsys, struct config_item *target);
-void configfs_undepend_item(struct configfs_subsystem *subsys, struct config_item *target);
+int configfs_depend_item(struct configfs_subsystem *subsys,
+			 struct config_item *target);
+void configfs_undepend_item(struct config_item *target);
+
+/*
+ * These functions can sleep and can alloc with GFP_KERNEL
+ * NOTE: These should be called only underneath configfs callbacks.
+ * NOTE: First parameter is a caller's subsystem, not target's.
+ * WARNING: These cannot be called on newly created item
+ *        (in make_group()/make_item() callback)
+ */
+int configfs_depend_item_unlocked(struct configfs_subsystem *caller_subsys,
+				  struct config_item *target);
+
+
+static inline void configfs_undepend_item_unlocked(struct config_item *target)
+{
+	configfs_undepend_item(target);
+}
 
 #endif /* _CONFIGFS_H_ */

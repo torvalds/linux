@@ -100,8 +100,7 @@ struct xway_stp {
  */
 static void xway_stp_set(struct gpio_chip *gc, unsigned gpio, int val)
 {
-	struct xway_stp *chip =
-		container_of(gc, struct xway_stp, gc);
+	struct xway_stp *chip = gpiochip_get_data(gc);
 
 	if (val)
 		chip->shadow |= BIT(gpio);
@@ -135,11 +134,10 @@ static int xway_stp_dir_out(struct gpio_chip *gc, unsigned gpio, int val)
  */
 static int xway_stp_request(struct gpio_chip *gc, unsigned gpio)
 {
-	struct xway_stp *chip =
-		container_of(gc, struct xway_stp, gc);
+	struct xway_stp *chip = gpiochip_get_data(gc);
 
 	if ((gpio < 8) && (chip->reserved & BIT(gpio))) {
-		dev_err(gc->dev, "GPIO %d is driven by hardware\n", gpio);
+		dev_err(gc->parent, "GPIO %d is driven by hardware\n", gpio);
 		return -ENODEV;
 	}
 
@@ -214,7 +212,7 @@ static int xway_stp_probe(struct platform_device *pdev)
 	if (IS_ERR(chip->virt))
 		return PTR_ERR(chip->virt);
 
-	chip->gc.dev = &pdev->dev;
+	chip->gc.parent = &pdev->dev;
 	chip->gc.label = "stp-xway";
 	chip->gc.direction_output = xway_stp_dir_out;
 	chip->gc.set = xway_stp_set;
@@ -260,7 +258,7 @@ static int xway_stp_probe(struct platform_device *pdev)
 
 	ret = xway_stp_hw_init(chip);
 	if (!ret)
-		ret = gpiochip_add(&chip->gc);
+		ret = devm_gpiochip_add_data(&pdev->dev, &chip->gc, chip);
 
 	if (!ret)
 		dev_info(&pdev->dev, "Init done\n");

@@ -774,7 +774,7 @@ restore_host0:
 	return ret;
 }
 
-bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 iova, u32 len)
+bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_dsi *msm_dsi0 = dsi_mgr_get_dsi(DSI_0);
@@ -784,9 +784,9 @@ bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 iova, u32 len)
 		return false;
 
 	if (IS_SYNC_NEEDED() && msm_dsi0)
-		msm_dsi_host_cmd_xfer_commit(msm_dsi0->host, iova, len);
+		msm_dsi_host_cmd_xfer_commit(msm_dsi0->host, dma_base, len);
 
-	msm_dsi_host_cmd_xfer_commit(host, iova, len);
+	msm_dsi_host_cmd_xfer_commit(host, dma_base, len);
 
 	return true;
 }

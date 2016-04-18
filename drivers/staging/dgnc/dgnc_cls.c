@@ -823,7 +823,7 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 	tail = ch->ch_r_tail;
 
 	/* Store how much space we have left in the queue */
-	qleft = (tail - head - 1);
+	qleft = tail - head - 1;
 	if (qleft < 0)
 		qleft += RQUEUEMASK + 1;
 
@@ -934,7 +934,7 @@ static void cls_flush_uart_write(struct channel_t *ch)
 
 	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_XMIT),
 	       &ch->ch_cls_uart->isr_fcr);
-	udelay(10);
+	usleep_range(10, 20);
 
 	ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 }

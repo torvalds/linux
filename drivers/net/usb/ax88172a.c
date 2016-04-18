@@ -98,7 +98,7 @@ static void ax88172a_status(struct usbnet *dev, struct urb *urb)
 static int ax88172a_init_mdio(struct usbnet *dev)
 {
 	struct ax88172a_private *priv = dev->driver_priv;
-	int ret, i;
+	int ret;
 
 	priv->mdio = mdiobus_alloc();
 	if (!priv->mdio) {
@@ -114,25 +114,15 @@ static int ax88172a_init_mdio(struct usbnet *dev)
 	snprintf(priv->mdio->id, MII_BUS_ID_SIZE, "usb-%03d:%03d",
 		 dev->udev->bus->busnum, dev->udev->devnum);
 
-	priv->mdio->irq = kzalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!priv->mdio->irq) {
-		ret = -ENOMEM;
-		goto mfree;
-	}
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		priv->mdio->irq[i] = PHY_POLL;
-
 	ret = mdiobus_register(priv->mdio);
 	if (ret) {
 		netdev_err(dev->net, "Could not register MDIO bus\n");
-		goto ifree;
+		goto mfree;
 	}
 
 	netdev_info(dev->net, "registered mdio bus %s\n", priv->mdio->id);
 	return 0;
 
-ifree:
-	kfree(priv->mdio->irq);
 mfree:
 	mdiobus_free(priv->mdio);
 	return ret;
@@ -144,7 +134,6 @@ static void ax88172a_remove_mdio(struct usbnet *dev)
 
 	netdev_info(dev->net, "deregistering mdio bus %s\n", priv->mdio->id);
 	mdiobus_unregister(priv->mdio);
-	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 }
 

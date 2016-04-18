@@ -1480,13 +1480,6 @@ static void preview_isr_buffer(struct isp_prev_device *prev)
 	struct isp_buffer *buffer;
 	int restart = 0;
 
-	if (prev->input == PREVIEW_INPUT_MEMORY) {
-		buffer = omap3isp_video_buffer_next(&prev->video_in);
-		if (buffer != NULL)
-			preview_set_inaddr(prev, buffer->dma);
-		pipe->state |= ISP_PIPELINE_IDLE_INPUT;
-	}
-
 	if (prev->output & PREVIEW_OUTPUT_MEMORY) {
 		buffer = omap3isp_video_buffer_next(&prev->video_out);
 		if (buffer != NULL) {
@@ -1494,6 +1487,13 @@ static void preview_isr_buffer(struct isp_prev_device *prev)
 			restart = 1;
 		}
 		pipe->state |= ISP_PIPELINE_IDLE_OUTPUT;
+	}
+
+	if (prev->input == PREVIEW_INPUT_MEMORY) {
+		buffer = omap3isp_video_buffer_next(&prev->video_in);
+		if (buffer != NULL)
+			preview_set_inaddr(prev, buffer->dma);
+		pipe->state |= ISP_PIPELINE_IDLE_INPUT;
 	}
 
 	switch (prev->state) {
@@ -2144,9 +2144,14 @@ static int preview_link_setup(struct media_entity *entity,
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
+	unsigned int index = local->index;
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case PREV_PAD_SINK | MEDIA_ENT_T_DEVNODE:
+	/* FIXME: this is actually a hack! */
+	if (is_media_entity_v4l2_subdev(remote->entity))
+		index |= 2 << 16;
+
+	switch (index) {
+	case PREV_PAD_SINK:
 		/* read from memory */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (prev->input == PREVIEW_INPUT_CCDC)
@@ -2158,7 +2163,7 @@ static int preview_link_setup(struct media_entity *entity,
 		}
 		break;
 
-	case PREV_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	case PREV_PAD_SINK | 2 << 16:
 		/* read from ccdc */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (prev->input == PREVIEW_INPUT_MEMORY)
@@ -2175,7 +2180,7 @@ static int preview_link_setup(struct media_entity *entity,
 	 * Revisit this when it will be implemented, and return -EBUSY for now.
 	 */
 
-	case PREV_PAD_SOURCE | MEDIA_ENT_T_DEVNODE:
+	case PREV_PAD_SOURCE:
 		/* write to memory */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (prev->output & ~PREVIEW_OUTPUT_MEMORY)
@@ -2186,7 +2191,7 @@ static int preview_link_setup(struct media_entity *entity,
 		}
 		break;
 
-	case PREV_PAD_SOURCE | MEDIA_ENT_T_V4L2_SUBDEV:
+	case PREV_PAD_SOURCE | 2 << 16:
 		/* write to resizer */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (prev->output & ~PREVIEW_OUTPUT_RESIZER)
@@ -2282,7 +2287,7 @@ static int preview_init_entities(struct isp_prev_device *prev)
 	pads[PREV_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &preview_media_ops;
-	ret = media_entity_init(me, PREV_PADS_NUM, pads, 0);
+	ret = media_entity_pads_init(me, PREV_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 
@@ -2311,21 +2316,8 @@ static int preview_init_entities(struct isp_prev_device *prev)
 	if (ret < 0)
 		goto error_video_out;
 
-	/* Connect the video nodes to the previewer subdev. */
-	ret = media_entity_create_link(&prev->video_in.video.entity, 0,
-			&prev->subdev.entity, PREV_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(&prev->subdev.entity, PREV_PAD_SOURCE,
-			&prev->video_out.video.entity, 0, 0);
-	if (ret < 0)
-		goto error_link;
-
 	return 0;
 
-error_link:
-	omap3isp_video_cleanup(&prev->video_out);
 error_video_out:
 	omap3isp_video_cleanup(&prev->video_in);
 error_video_in:

@@ -507,34 +507,28 @@ static int rpr0521_probe(struct i2c_client *client,
 		dev_err(&client->dev, "rpr0521 chip init failed\n");
 		return ret;
 	}
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		return ret;
 
 	ret = pm_runtime_set_active(&client->dev);
 	if (ret < 0)
-		goto err_iio_unregister;
+		return ret;
 
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev, RPR0521_SLEEP_DELAY_MS);
 	pm_runtime_use_autosuspend(&client->dev);
 
-	return 0;
-
-err_iio_unregister:
-	iio_device_unregister(indio_dev);
-	return ret;
+	return iio_device_register(indio_dev);
 }
 
 static int rpr0521_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
+	iio_device_unregister(indio_dev);
+
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_put_noidle(&client->dev);
 
-	iio_device_unregister(indio_dev);
 	rpr0521_poweroff(iio_priv(indio_dev));
 
 	return 0;

@@ -54,7 +54,9 @@ static const struct iio_chan_spec acpi_als_channels[] = {
 			.realbits	= 32,
 			.storagebits	= 32,
 		},
-		.info_mask_separate	= BIT(IIO_CHAN_INFO_RAW),
+		/* _RAW is here for backward ABI compatibility */
+		.info_mask_separate	= BIT(IIO_CHAN_INFO_RAW) |
+					  BIT(IIO_CHAN_INFO_PROCESSED),
 	},
 };
 
@@ -152,7 +154,7 @@ static int acpi_als_read_raw(struct iio_dev *indio_dev,
 	s32 temp_val;
 	int ret;
 
-	if (mask != IIO_CHAN_INFO_RAW)
+	if ((mask != IIO_CHAN_INFO_PROCESSED) && (mask != IIO_CHAN_INFO_RAW))
 		return -EINVAL;
 
 	/* we support only illumination (_ALI) so far. */

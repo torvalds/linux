@@ -1,7 +1,10 @@
 * Broadcom iProc PCIe controller with the platform bus interface
 
 Required properties:
-- compatible: Must be "brcm,iproc-pcie"
+- compatible: Must be "brcm,iproc-pcie" for PAXB, or "brcm,iproc-pcie-paxc"
+  for PAXC.  PAXB-based root complex is used for external endpoint devices.
+  PAXC-based root complex is connected to emulated endpoint devices
+  internal to the ASIC
 - reg: base address and length of the PCIe controller I/O register space
 - #interrupt-cells: set to <1>
 - interrupt-map-mask and interrupt-map, standard PCI properties to define the
@@ -32,6 +35,28 @@ Optional:
 - brcm,pcie-ob-oarr-size: Some iProc SoCs need the OARR size bit to be set to
 increase the outbound window size
 
+MSI support (optional):
+
+For older platforms without MSI integrated in the GIC, iProc PCIe core provides
+an event queue based MSI support.  The iProc MSI uses host memories to store
+MSI posted writes in the event queues
+
+- msi-parent: Link to the device node of the MSI controller.  On newer iProc
+platforms, the MSI controller may be gicv2m or gicv3-its.  On older iProc
+platforms without MSI support in its interrupt controller, one may use the
+event queue based MSI support integrated within the iProc PCIe core.
+
+When the iProc event queue based MSI is used, one needs to define the
+following properties in the MSI device node:
+- compatible: Must be "brcm,iproc-msi"
+- msi-controller: claims itself as an MSI controller
+- interrupt-parent: Link to its parent interrupt device
+- interrupts: List of interrupt IDs from its parent interrupt device
+
+Optional properties:
+- brcm,pcie-msi-inten: Needs to be present for some older iProc platforms that
+require the interrupt enable registers to be set explicitly to enable MSI
+
 Example:
 	pcie0: pcie@18012000 {
 		compatible = "brcm,iproc-pcie";
@@ -58,6 +83,19 @@ Example:
 		brcm,pcie-ob-oarr-size;
 		brcm,pcie-ob-axi-offset = <0x00000000>;
 		brcm,pcie-ob-window-size = <256>;
+
+		msi-parent = <&msi0>;
+
+		/* iProc event queue based MSI */
+		msi0: msi@18012000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_NONE>,
+				     <GIC_SPI 97 IRQ_TYPE_NONE>,
+				     <GIC_SPI 98 IRQ_TYPE_NONE>,
+				     <GIC_SPI 99 IRQ_TYPE_NONE>,
+		};
 	};
 
 	pcie1: pcie@18013000 {

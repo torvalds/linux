@@ -39,9 +39,15 @@
 #include <asm/setup.h>
 #include <asm/msr.h>
 
-static unsigned long mc_saved_in_initrd[MAX_UCODE_COUNT];
+/*
+ * Temporary microcode blobs pointers storage. We note here the pointers to
+ * microcode blobs we've got from whatever storage (detached initrd, builtin).
+ * Later on, we put those into final storage mc_saved_data.mc_saved.
+ */
+static unsigned long mc_tmp_ptrs[MAX_UCODE_COUNT];
+
 static struct mc_saved_data {
-	unsigned int mc_saved_count;
+	unsigned int num_saved;
 	struct microcode_intel **mc_saved;
 } mc_saved_data;
 
@@ -78,53 +84,50 @@ load_microcode_early(struct microcode_intel **saved,
 }
 
 static inline void
-copy_initrd_ptrs(struct microcode_intel **mc_saved, unsigned long *initrd,
-		  unsigned long off, int num_saved)
+copy_ptrs(struct microcode_intel **mc_saved, unsigned long *mc_ptrs,
+	  unsigned long off, int num_saved)
 {
 	int i;
 
 	for (i = 0; i < num_saved; i++)
-		mc_saved[i] = (struct microcode_intel *)(initrd[i] + off);
+		mc_saved[i] = (struct microcode_intel *)(mc_ptrs[i] + off);
 }
 
 #ifdef CONFIG_X86_32
 static void
-microcode_phys(struct microcode_intel **mc_saved_tmp,
-	       struct mc_saved_data *mc_saved_data)
+microcode_phys(struct microcode_intel **mc_saved_tmp, struct mc_saved_data *mcs)
 {
 	int i;
 	struct microcode_intel ***mc_saved;
 
-	mc_saved = (struct microcode_intel ***)
-		   __pa_nodebug(&mc_saved_data->mc_saved);
-	for (i = 0; i < mc_saved_data->mc_saved_count; i++) {
+	mc_saved = (struct microcode_intel ***)__pa_nodebug(&mcs->mc_saved);
+
+	for (i = 0; i < mcs->num_saved; i++) {
 		struct microcode_intel *p;
 
-		p = *(struct microcode_intel **)
-			__pa_nodebug(mc_saved_data->mc_saved + i);
+		p = *(struct microcode_intel **)__pa_nodebug(mcs->mc_saved + i);
 		mc_saved_tmp[i] = (struct microcode_intel *)__pa_nodebug(p);
 	}
 }
 #endif
 
 static enum ucode_state
-load_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
-	       unsigned long initrd_start, struct ucode_cpu_info *uci)
+load_microcode(struct mc_saved_data *mcs, unsigned long *mc_ptrs,
+	       unsigned long offset, struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc_saved_tmp[MAX_UCODE_COUNT];
-	unsigned int count = mc_saved_data->mc_saved_count;
+	unsigned int count = mcs->num_saved;
 
-	if (!mc_saved_data->mc_saved) {
-		copy_initrd_ptrs(mc_saved_tmp, initrd, initrd_start, count);
+	if (!mcs->mc_saved) {
+		copy_ptrs(mc_saved_tmp, mc_ptrs, offset, count);
 
 		return load_microcode_early(mc_saved_tmp, count, uci);
 	} else {
 #ifdef CONFIG_X86_32
-		microcode_phys(mc_saved_tmp, mc_saved_data);
+		microcode_phys(mc_saved_tmp, mcs);
 		return load_microcode_early(mc_saved_tmp, count, uci);
 #else
-		return load_microcode_early(mc_saved_data->mc_saved,
-						    count, uci);
+		return load_microcode_early(mcs->mc_saved, count, uci);
 #endif
 	}
 }
@@ -145,10 +148,10 @@ matching_model_microcode(struct microcode_header_intel *mc_header,
 	int ext_sigcount, i;
 	struct extended_signature *ext_sig;
 
-	fam   = __x86_family(sig);
+	fam   = x86_family(sig);
 	model = x86_model(sig);
 
-	fam_ucode   = __x86_family(mc_header->sig);
+	fam_ucode   = x86_family(mc_header->sig);
 	model_ucode = x86_model(mc_header->sig);
 
 	if (fam == fam_ucode && model == model_ucode)
@@ -163,7 +166,7 @@ matching_model_microcode(struct microcode_header_intel *mc_header,
 	ext_sigcount = ext_header->count;
 
 	for (i = 0; i < ext_sigcount; i++) {
-		fam_ucode   = __x86_family(ext_sig->sig);
+		fam_ucode   = x86_family(ext_sig->sig);
 		model_ucode = x86_model(ext_sig->sig);
 
 		if (fam == fam_ucode && model == model_ucode)
@@ -175,25 +178,25 @@ matching_model_microcode(struct microcode_header_intel *mc_header,
 }
 
 static int
-save_microcode(struct mc_saved_data *mc_saved_data,
+save_microcode(struct mc_saved_data *mcs,
 	       struct microcode_intel **mc_saved_src,
-	       unsigned int mc_saved_count)
+	       unsigned int num_saved)
 {
 	int i, j;
 	struct microcode_intel **saved_ptr;
 	int ret;
 
-	if (!mc_saved_count)
+	if (!num_saved)
 		return -EINVAL;
 
 	/*
 	 * Copy new microcode data.
 	 */
-	saved_ptr = kcalloc(mc_saved_count, sizeof(struct microcode_intel *), GFP_KERNEL);
+	saved_ptr = kcalloc(num_saved, sizeof(struct microcode_intel *), GFP_KERNEL);
 	if (!saved_ptr)
 		return -ENOMEM;
 
-	for (i = 0; i < mc_saved_count; i++) {
+	for (i = 0; i < num_saved; i++) {
 		struct microcode_header_intel *mc_hdr;
 		struct microcode_intel *mc;
 		unsigned long size;
@@ -207,20 +210,18 @@ save_microcode(struct mc_saved_data *mc_saved_data,
 		mc_hdr = &mc->hdr;
 		size   = get_totalsize(mc_hdr);
 
-		saved_ptr[i] = kmalloc(size, GFP_KERNEL);
+		saved_ptr[i] = kmemdup(mc, size, GFP_KERNEL);
 		if (!saved_ptr[i]) {
 			ret = -ENOMEM;
 			goto err;
 		}
-
-		memcpy(saved_ptr[i], mc, size);
 	}
 
 	/*
 	 * Point to newly saved microcode.
 	 */
-	mc_saved_data->mc_saved = saved_ptr;
-	mc_saved_data->mc_saved_count = mc_saved_count;
+	mcs->mc_saved  = saved_ptr;
+	mcs->num_saved = num_saved;
 
 	return 0;
 
@@ -284,22 +285,20 @@ static unsigned int _save_mc(struct microcode_intel **mc_saved,
  * BSP can stay in the platform.
  */
 static enum ucode_state __init
-get_matching_model_microcode(int cpu, unsigned long start,
-			     void *data, size_t size,
-			     struct mc_saved_data *mc_saved_data,
-			     unsigned long *mc_saved_in_initrd,
+get_matching_model_microcode(unsigned long start, void *data, size_t size,
+			     struct mc_saved_data *mcs, unsigned long *mc_ptrs,
 			     struct ucode_cpu_info *uci)
 {
-	u8 *ucode_ptr = data;
-	unsigned int leftover = size;
-	enum ucode_state state = UCODE_OK;
-	unsigned int mc_size;
-	struct microcode_header_intel *mc_header;
 	struct microcode_intel *mc_saved_tmp[MAX_UCODE_COUNT];
-	unsigned int mc_saved_count = mc_saved_data->mc_saved_count;
+	struct microcode_header_intel *mc_header;
+	unsigned int num_saved = mcs->num_saved;
+	enum ucode_state state = UCODE_OK;
+	unsigned int leftover = size;
+	u8 *ucode_ptr = data;
+	unsigned int mc_size;
 	int i;
 
-	while (leftover && mc_saved_count < ARRAY_SIZE(mc_saved_tmp)) {
+	while (leftover && num_saved < ARRAY_SIZE(mc_saved_tmp)) {
 
 		if (leftover < sizeof(mc_header))
 			break;
@@ -318,32 +317,31 @@ get_matching_model_microcode(int cpu, unsigned long start,
 		 * the platform, we need to find and save microcode patches
 		 * with the same family and model as the BSP.
 		 */
-		if (matching_model_microcode(mc_header, uci->cpu_sig.sig) !=
-			 UCODE_OK) {
+		if (matching_model_microcode(mc_header, uci->cpu_sig.sig) != UCODE_OK) {
 			ucode_ptr += mc_size;
 			continue;
 		}
 
-		mc_saved_count = _save_mc(mc_saved_tmp, ucode_ptr, mc_saved_count);
+		num_saved = _save_mc(mc_saved_tmp, ucode_ptr, num_saved);
 
 		ucode_ptr += mc_size;
 	}
 
 	if (leftover) {
 		state = UCODE_ERROR;
-		goto out;
+		return state;
 	}
 
-	if (mc_saved_count == 0) {
+	if (!num_saved) {
 		state = UCODE_NFOUND;
-		goto out;
+		return state;
 	}
 
-	for (i = 0; i < mc_saved_count; i++)
-		mc_saved_in_initrd[i] = (unsigned long)mc_saved_tmp[i] - start;
+	for (i = 0; i < num_saved; i++)
+		mc_ptrs[i] = (unsigned long)mc_saved_tmp[i] - start;
 
-	mc_saved_data->mc_saved_count = mc_saved_count;
-out:
+	mcs->num_saved = num_saved;
+
 	return state;
 }
 
@@ -365,7 +363,7 @@ static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 	csig.sig = eax;
 
-	family = __x86_family(csig.sig);
+	family = x86_family(csig.sig);
 	model  = x86_model(csig.sig);
 
 	if ((model >= 5) || (family > 6)) {
@@ -373,7 +371,7 @@ static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 		native_rdmsr(MSR_IA32_PLATFORM_ID, val[0], val[1]);
 		csig.pf = 1 << ((val[1] >> 18) & 7);
 	}
-	native_wrmsr(MSR_IA32_UCODE_REV, 0, 0);
+	native_wrmsrl(MSR_IA32_UCODE_REV, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
 	sync_core();
@@ -396,11 +394,11 @@ static void show_saved_mc(void)
 	unsigned int sig, pf, rev, total_size, data_size, date;
 	struct ucode_cpu_info uci;
 
-	if (mc_saved_data.mc_saved_count == 0) {
+	if (!mc_saved_data.num_saved) {
 		pr_debug("no microcode data saved.\n");
 		return;
 	}
-	pr_debug("Total microcode saved: %d\n", mc_saved_data.mc_saved_count);
+	pr_debug("Total microcode saved: %d\n", mc_saved_data.num_saved);
 
 	collect_cpu_info_early(&uci);
 
@@ -409,7 +407,7 @@ static void show_saved_mc(void)
 	rev = uci.cpu_sig.rev;
 	pr_debug("CPU: sig=0x%x, pf=0x%x, rev=0x%x\n", sig, pf, rev);
 
-	for (i = 0; i < mc_saved_data.mc_saved_count; i++) {
+	for (i = 0; i < mc_saved_data.num_saved; i++) {
 		struct microcode_header_intel *mc_saved_header;
 		struct extended_sigtable *ext_header;
 		int ext_sigcount;
@@ -465,7 +463,7 @@ int save_mc_for_early(u8 *mc)
 {
 	struct microcode_intel *mc_saved_tmp[MAX_UCODE_COUNT];
 	unsigned int mc_saved_count_init;
-	unsigned int mc_saved_count;
+	unsigned int num_saved;
 	struct microcode_intel **mc_saved;
 	int ret = 0;
 	int i;
@@ -476,23 +474,23 @@ int save_mc_for_early(u8 *mc)
 	 */
 	mutex_lock(&x86_cpu_microcode_mutex);
 
-	mc_saved_count_init = mc_saved_data.mc_saved_count;
-	mc_saved_count = mc_saved_data.mc_saved_count;
+	mc_saved_count_init = mc_saved_data.num_saved;
+	num_saved = mc_saved_data.num_saved;
 	mc_saved = mc_saved_data.mc_saved;
 
-	if (mc_saved && mc_saved_count)
+	if (mc_saved && num_saved)
 		memcpy(mc_saved_tmp, mc_saved,
-		       mc_saved_count * sizeof(struct microcode_intel *));
+		       num_saved * sizeof(struct microcode_intel *));
 	/*
 	 * Save the microcode patch mc in mc_save_tmp structure if it's a newer
 	 * version.
 	 */
-	mc_saved_count = _save_mc(mc_saved_tmp, mc, mc_saved_count);
+	num_saved = _save_mc(mc_saved_tmp, mc, num_saved);
 
 	/*
 	 * Save the mc_save_tmp in global mc_saved_data.
 	 */
-	ret = save_microcode(&mc_saved_data, mc_saved_tmp, mc_saved_count);
+	ret = save_microcode(&mc_saved_data, mc_saved_tmp, num_saved);
 	if (ret) {
 		pr_err("Cannot save microcode patch.\n");
 		goto out;
@@ -521,16 +519,12 @@ static bool __init load_builtin_intel_microcode(struct cpio_data *cp)
 {
 #ifdef CONFIG_X86_64
 	unsigned int eax = 0x00000001, ebx, ecx = 0, edx;
-	unsigned int family, model, stepping;
 	char name[30];
 
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 
-	family   = __x86_family(eax);
-	model    = x86_model(eax);
-	stepping = eax & 0xf;
-
-	sprintf(name, "intel-ucode/%02x-%02x-%02x", family, model, stepping);
+	sprintf(name, "intel-ucode/%02x-%02x-%02x",
+		      x86_family(eax), x86_model(eax), x86_stepping(eax));
 
 	return get_builtin_firmware(cp, name);
 #else
@@ -540,7 +534,7 @@ static bool __init load_builtin_intel_microcode(struct cpio_data *cp)
 
 static __initdata char ucode_name[] = "kernel/x86/microcode/GenuineIntel.bin";
 static __init enum ucode_state
-scan_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
+scan_microcode(struct mc_saved_data *mcs, unsigned long *mc_ptrs,
 	       unsigned long start, unsigned long size,
 	       struct ucode_cpu_info *uci)
 {
@@ -555,14 +549,18 @@ scan_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
 	cd.data = NULL;
 	cd.size = 0;
 
-	cd = find_cpio_data(p, (void *)start, size, &offset);
-	if (!cd.data) {
+	/* try built-in microcode if no initrd */
+	if (!size) {
 		if (!load_builtin_intel_microcode(&cd))
+			return UCODE_ERROR;
+	} else {
+		cd = find_cpio_data(p, (void *)start, size, &offset);
+		if (!cd.data)
 			return UCODE_ERROR;
 	}
 
-	return get_matching_model_microcode(0, start, cd.data, cd.size,
-					    mc_saved_data, initrd, uci);
+	return get_matching_model_microcode(start, cd.data, cd.size,
+					    mcs, mc_ptrs, uci);
 }
 
 /*
@@ -571,14 +569,11 @@ scan_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
 static void
 print_ucode_info(struct ucode_cpu_info *uci, unsigned int date)
 {
-	int cpu = smp_processor_id();
-
-	pr_info("CPU%d microcode updated early to revision 0x%x, date = %04x-%02x-%02x\n",
-		cpu,
-		uci->cpu_sig.rev,
-		date & 0xffff,
-		date >> 24,
-		(date >> 16) & 0xff);
+	pr_info_once("microcode updated early to revision 0x%x, date = %04x-%02x-%02x\n",
+		     uci->cpu_sig.rev,
+		     date & 0xffff,
+		     date >> 24,
+		     (date >> 16) & 0xff);
 }
 
 #ifdef CONFIG_X86_32
@@ -607,19 +602,19 @@ void show_ucode_info_early(void)
  */
 static void print_ucode(struct ucode_cpu_info *uci)
 {
-	struct microcode_intel *mc_intel;
+	struct microcode_intel *mc;
 	int *delay_ucode_info_p;
 	int *current_mc_date_p;
 
-	mc_intel = uci->mc;
-	if (mc_intel == NULL)
+	mc = uci->mc;
+	if (!mc)
 		return;
 
 	delay_ucode_info_p = (int *)__pa_nodebug(&delay_ucode_info);
 	current_mc_date_p = (int *)__pa_nodebug(&current_mc_date);
 
 	*delay_ucode_info_p = 1;
-	*current_mc_date_p = mc_intel->hdr.date;
+	*current_mc_date_p = mc->hdr.date;
 }
 #else
 
@@ -634,37 +629,35 @@ static inline void flush_tlb_early(void)
 
 static inline void print_ucode(struct ucode_cpu_info *uci)
 {
-	struct microcode_intel *mc_intel;
+	struct microcode_intel *mc;
 
-	mc_intel = uci->mc;
-	if (mc_intel == NULL)
+	mc = uci->mc;
+	if (!mc)
 		return;
 
-	print_ucode_info(uci, mc_intel->hdr.date);
+	print_ucode_info(uci, mc->hdr.date);
 }
 #endif
 
 static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 {
-	struct microcode_intel *mc_intel;
+	struct microcode_intel *mc;
 	unsigned int val[2];
 
-	mc_intel = uci->mc;
-	if (mc_intel == NULL)
+	mc = uci->mc;
+	if (!mc)
 		return 0;
 
 	/* write microcode via MSR 0x79 */
-	native_wrmsr(MSR_IA32_UCODE_WRITE,
-	      (unsigned long) mc_intel->bits,
-	      (unsigned long) mc_intel->bits >> 16 >> 16);
-	native_wrmsr(MSR_IA32_UCODE_REV, 0, 0);
+	native_wrmsrl(MSR_IA32_UCODE_WRITE, (unsigned long)mc->bits);
+	native_wrmsrl(MSR_IA32_UCODE_REV, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
 	sync_core();
 
 	/* get the current revision from MSR 0x8B */
 	native_rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
-	if (val[1] != mc_intel->hdr.rev)
+	if (val[1] != mc->hdr.rev)
 		return -1;
 
 #ifdef CONFIG_X86_64
@@ -676,25 +669,26 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 	if (early)
 		print_ucode(uci);
 	else
-		print_ucode_info(uci, mc_intel->hdr.date);
+		print_ucode_info(uci, mc->hdr.date);
 
 	return 0;
 }
 
 /*
  * This function converts microcode patch offsets previously stored in
- * mc_saved_in_initrd to pointers and stores the pointers in mc_saved_data.
+ * mc_tmp_ptrs to pointers and stores the pointers in mc_saved_data.
  */
 int __init save_microcode_in_initrd_intel(void)
 {
-	unsigned int count = mc_saved_data.mc_saved_count;
+	unsigned int count = mc_saved_data.num_saved;
 	struct microcode_intel *mc_saved[MAX_UCODE_COUNT];
 	int ret = 0;
 
-	if (count == 0)
+	if (!count)
 		return ret;
 
-	copy_initrd_ptrs(mc_saved, mc_saved_in_initrd, initrd_start, count);
+	copy_ptrs(mc_saved, mc_tmp_ptrs, get_initrd_start(), count);
+
 	ret = save_microcode(&mc_saved_data, mc_saved, count);
 	if (ret)
 		pr_err("Cannot save microcode patches from initrd.\n");
@@ -705,8 +699,7 @@ int __init save_microcode_in_initrd_intel(void)
 }
 
 static void __init
-_load_ucode_intel_bsp(struct mc_saved_data *mc_saved_data,
-		      unsigned long *initrd,
+_load_ucode_intel_bsp(struct mc_saved_data *mcs, unsigned long *mc_ptrs,
 		      unsigned long start, unsigned long size)
 {
 	struct ucode_cpu_info uci;
@@ -714,11 +707,11 @@ _load_ucode_intel_bsp(struct mc_saved_data *mc_saved_data,
 
 	collect_cpu_info_early(&uci);
 
-	ret = scan_microcode(mc_saved_data, initrd, start, size, &uci);
+	ret = scan_microcode(mcs, mc_ptrs, start, size, &uci);
 	if (ret != UCODE_OK)
 		return;
 
-	ret = load_microcode(mc_saved_data, initrd, start, &uci);
+	ret = load_microcode(mcs, mc_ptrs, start, &uci);
 	if (ret != UCODE_OK)
 		return;
 
@@ -732,53 +725,49 @@ void __init load_ucode_intel_bsp(void)
 	struct boot_params *p;
 
 	p	= (struct boot_params *)__pa_nodebug(&boot_params);
-	start	= p->hdr.ramdisk_image;
 	size	= p->hdr.ramdisk_size;
 
-	_load_ucode_intel_bsp(
-			(struct mc_saved_data *)__pa_nodebug(&mc_saved_data),
-			(unsigned long *)__pa_nodebug(&mc_saved_in_initrd),
-			start, size);
-#else
-	start	= boot_params.hdr.ramdisk_image + PAGE_OFFSET;
-	size	= boot_params.hdr.ramdisk_size;
+	/*
+	 * Set start only if we have an initrd image. We cannot use initrd_start
+	 * because it is not set that early yet.
+	 */
+	start	= (size ? p->hdr.ramdisk_image : 0);
 
-	_load_ucode_intel_bsp(&mc_saved_data, mc_saved_in_initrd, start, size);
+	_load_ucode_intel_bsp((struct mc_saved_data *)__pa_nodebug(&mc_saved_data),
+			      (unsigned long *)__pa_nodebug(&mc_tmp_ptrs),
+			      start, size);
+#else
+	size	= boot_params.hdr.ramdisk_size;
+	start	= (size ? boot_params.hdr.ramdisk_image + PAGE_OFFSET : 0);
+
+	_load_ucode_intel_bsp(&mc_saved_data, mc_tmp_ptrs, start, size);
 #endif
 }
 
 void load_ucode_intel_ap(void)
 {
-	struct mc_saved_data *mc_saved_data_p;
+	unsigned long *mcs_tmp_p;
+	struct mc_saved_data *mcs_p;
 	struct ucode_cpu_info uci;
-	unsigned long *mc_saved_in_initrd_p;
-	unsigned long initrd_start_addr;
 	enum ucode_state ret;
 #ifdef CONFIG_X86_32
-	unsigned long *initrd_start_p;
 
-	mc_saved_in_initrd_p =
-		(unsigned long *)__pa_nodebug(mc_saved_in_initrd);
-	mc_saved_data_p = (struct mc_saved_data *)__pa_nodebug(&mc_saved_data);
-	initrd_start_p = (unsigned long *)__pa_nodebug(&initrd_start);
-	initrd_start_addr = (unsigned long)__pa_nodebug(*initrd_start_p);
+	mcs_tmp_p = (unsigned long *)__pa_nodebug(mc_tmp_ptrs);
+	mcs_p = (struct mc_saved_data *)__pa_nodebug(&mc_saved_data);
 #else
-	mc_saved_data_p = &mc_saved_data;
-	mc_saved_in_initrd_p = mc_saved_in_initrd;
-	initrd_start_addr = initrd_start;
+	mcs_tmp_p = mc_tmp_ptrs;
+	mcs_p = &mc_saved_data;
 #endif
 
 	/*
 	 * If there is no valid ucode previously saved in memory, no need to
 	 * update ucode on this AP.
 	 */
-	if (mc_saved_data_p->mc_saved_count == 0)
+	if (!mcs_p->num_saved)
 		return;
 
 	collect_cpu_info_early(&uci);
-	ret = load_microcode(mc_saved_data_p, mc_saved_in_initrd_p,
-			     initrd_start_addr, &uci);
-
+	ret = load_microcode(mcs_p, mcs_tmp_p, get_initrd_start_addr(), &uci);
 	if (ret != UCODE_OK)
 		return;
 
@@ -790,13 +779,13 @@ void reload_ucode_intel(void)
 	struct ucode_cpu_info uci;
 	enum ucode_state ret;
 
-	if (!mc_saved_data.mc_saved_count)
+	if (!mc_saved_data.num_saved)
 		return;
 
 	collect_cpu_info_early(&uci);
 
 	ret = load_microcode_early(mc_saved_data.mc_saved,
-				   mc_saved_data.mc_saved_count, &uci);
+				   mc_saved_data.num_saved, &uci);
 	if (ret != UCODE_OK)
 		return;
 
@@ -829,7 +818,7 @@ static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)
  * return 0 - no update found
  * return 1 - found update
  */
-static int get_matching_mc(struct microcode_intel *mc_intel, int cpu)
+static int get_matching_mc(struct microcode_intel *mc, int cpu)
 {
 	struct cpu_signature cpu_sig;
 	unsigned int csig, cpf, crev;
@@ -840,39 +829,36 @@ static int get_matching_mc(struct microcode_intel *mc_intel, int cpu)
 	cpf = cpu_sig.pf;
 	crev = cpu_sig.rev;
 
-	return has_newer_microcode(mc_intel, csig, cpf, crev);
+	return has_newer_microcode(mc, csig, cpf, crev);
 }
 
 static int apply_microcode_intel(int cpu)
 {
-	struct microcode_intel *mc_intel;
+	struct microcode_intel *mc;
 	struct ucode_cpu_info *uci;
+	struct cpuinfo_x86 *c;
 	unsigned int val[2];
-	int cpu_num = raw_smp_processor_id();
-	struct cpuinfo_x86 *c = &cpu_data(cpu_num);
-
-	uci = ucode_cpu_info + cpu;
-	mc_intel = uci->mc;
 
 	/* We should bind the task to the CPU */
-	BUG_ON(cpu_num != cpu);
+	if (WARN_ON(raw_smp_processor_id() != cpu))
+		return -1;
 
-	if (mc_intel == NULL)
+	uci = ucode_cpu_info + cpu;
+	mc = uci->mc;
+	if (!mc)
 		return 0;
 
 	/*
 	 * Microcode on this CPU could be updated earlier. Only apply the
-	 * microcode patch in mc_intel when it is newer than the one on this
+	 * microcode patch in mc when it is newer than the one on this
 	 * CPU.
 	 */
-	if (get_matching_mc(mc_intel, cpu) == 0)
+	if (!get_matching_mc(mc, cpu))
 		return 0;
 
 	/* write microcode via MSR 0x79 */
-	wrmsr(MSR_IA32_UCODE_WRITE,
-	      (unsigned long) mc_intel->bits,
-	      (unsigned long) mc_intel->bits >> 16 >> 16);
-	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
+	wrmsrl(MSR_IA32_UCODE_WRITE, (unsigned long)mc->bits);
+	wrmsrl(MSR_IA32_UCODE_REV, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
 	sync_core();
@@ -880,16 +866,19 @@ static int apply_microcode_intel(int cpu)
 	/* get the current revision from MSR 0x8B */
 	rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
 
-	if (val[1] != mc_intel->hdr.rev) {
+	if (val[1] != mc->hdr.rev) {
 		pr_err("CPU%d update to revision 0x%x failed\n",
-		       cpu_num, mc_intel->hdr.rev);
+		       cpu, mc->hdr.rev);
 		return -1;
 	}
+
 	pr_info("CPU%d updated to revision 0x%x, date = %04x-%02x-%02x\n",
-		cpu_num, val[1],
-		mc_intel->hdr.date & 0xffff,
-		mc_intel->hdr.date >> 24,
-		(mc_intel->hdr.date >> 16) & 0xff);
+		cpu, val[1],
+		mc->hdr.date & 0xffff,
+		mc->hdr.date >> 24,
+		(mc->hdr.date >> 16) & 0xff);
+
+	c = &cpu_data(cpu);
 
 	uci->cpu_sig.rev = val[1];
 	c->microcode = val[1];

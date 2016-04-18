@@ -64,6 +64,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-mc.h>
 #include <media/v4l2-of.h>
 
 #include "isp.h"
@@ -449,7 +450,7 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 	case CCDC_INPUT_PARALLEL:
 		ispctrl_val |= ISPCTRL_PAR_SER_CLK_SEL_PARALLEL;
 		ispctrl_val |= parcfg->clk_pol << ISPCTRL_PAR_CLK_POL_SHIFT;
-		shift += parcfg->data_lane_shift * 2;
+		shift += parcfg->data_lane_shift;
 		break;
 
 	case CCDC_INPUT_CSI2A:
@@ -657,201 +658,6 @@ static irqreturn_t isp_isr(int irq, void *_isp)
 }
 
 /* -----------------------------------------------------------------------------
- * Pipeline power management
- *
- * Entities must be powered up when part of a pipeline that contains at least
- * one open video device node.
- *
- * To achieve this use the entity use_count field to track the number of users.
- * For entities corresponding to video device nodes the use_count field stores
- * the users count of the node. For entities corresponding to subdevs the
- * use_count field stores the total number of users of all video device nodes
- * in the pipeline.
- *
- * The omap3isp_pipeline_pm_use() function must be called in the open() and
- * close() handlers of video device nodes. It increments or decrements the use
- * count of all subdev entities in the pipeline.
- *
- * To react to link management on powered pipelines, the link setup notification
- * callback updates the use count of all entities in the source and sink sides
- * of the link.
- */
-
-/*
- * isp_pipeline_pm_use_count - Count the number of users of a pipeline
- * @entity: The entity
- *
- * Return the total number of users of all video device nodes in the pipeline.
- */
-static int isp_pipeline_pm_use_count(struct media_entity *entity)
-{
-	struct media_entity_graph graph;
-	int use = 0;
-
-	media_entity_graph_walk_start(&graph, entity);
-
-	while ((entity = media_entity_graph_walk_next(&graph))) {
-		if (media_entity_type(entity) == MEDIA_ENT_T_DEVNODE)
-			use += entity->use_count;
-	}
-
-	return use;
-}
-
-/*
- * isp_pipeline_pm_power_one - Apply power change to an entity
- * @entity: The entity
- * @change: Use count change
- *
- * Change the entity use count by @change. If the entity is a subdev update its
- * power state by calling the core::s_power operation when the use count goes
- * from 0 to != 0 or from != 0 to 0.
- *
- * Return 0 on success or a negative error code on failure.
- */
-static int isp_pipeline_pm_power_one(struct media_entity *entity, int change)
-{
-	struct v4l2_subdev *subdev;
-	int ret;
-
-	subdev = media_entity_type(entity) == MEDIA_ENT_T_V4L2_SUBDEV
-	       ? media_entity_to_v4l2_subdev(entity) : NULL;
-
-	if (entity->use_count == 0 && change > 0 && subdev != NULL) {
-		ret = v4l2_subdev_call(subdev, core, s_power, 1);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
-			return ret;
-	}
-
-	entity->use_count += change;
-	WARN_ON(entity->use_count < 0);
-
-	if (entity->use_count == 0 && change < 0 && subdev != NULL)
-		v4l2_subdev_call(subdev, core, s_power, 0);
-
-	return 0;
-}
-
-/*
- * isp_pipeline_pm_power - Apply power change to all entities in a pipeline
- * @entity: The entity
- * @change: Use count change
- *
- * Walk the pipeline to update the use count and the power state of all non-node
- * entities.
- *
- * Return 0 on success or a negative error code on failure.
- */
-static int isp_pipeline_pm_power(struct media_entity *entity, int change)
-{
-	struct media_entity_graph graph;
-	struct media_entity *first = entity;
-	int ret = 0;
-
-	if (!change)
-		return 0;
-
-	media_entity_graph_walk_start(&graph, entity);
-
-	while (!ret && (entity = media_entity_graph_walk_next(&graph)))
-		if (media_entity_type(entity) != MEDIA_ENT_T_DEVNODE)
-			ret = isp_pipeline_pm_power_one(entity, change);
-
-	if (!ret)
-		return 0;
-
-	media_entity_graph_walk_start(&graph, first);
-
-	while ((first = media_entity_graph_walk_next(&graph))
-	       && first != entity)
-		if (media_entity_type(first) != MEDIA_ENT_T_DEVNODE)
-			isp_pipeline_pm_power_one(first, -change);
-
-	return ret;
-}
-
-/*
- * omap3isp_pipeline_pm_use - Update the use count of an entity
- * @entity: The entity
- * @use: Use (1) or stop using (0) the entity
- *
- * Update the use count of all entities in the pipeline and power entities on or
- * off accordingly.
- *
- * Return 0 on success or a negative error code on failure. Powering entities
- * off is assumed to never fail. No failure can occur when the use parameter is
- * set to 0.
- */
-int omap3isp_pipeline_pm_use(struct media_entity *entity, int use)
-{
-	int change = use ? 1 : -1;
-	int ret;
-
-	mutex_lock(&entity->parent->graph_mutex);
-
-	/* Apply use count to node. */
-	entity->use_count += change;
-	WARN_ON(entity->use_count < 0);
-
-	/* Apply power change to connected non-nodes. */
-	ret = isp_pipeline_pm_power(entity, change);
-	if (ret < 0)
-		entity->use_count -= change;
-
-	mutex_unlock(&entity->parent->graph_mutex);
-
-	return ret;
-}
-
-/*
- * isp_pipeline_link_notify - Link management notification callback
- * @link: The link
- * @flags: New link flags that will be applied
- * @notification: The link's state change notification type (MEDIA_DEV_NOTIFY_*)
- *
- * React to link management on powered pipelines by updating the use count of
- * all entities in the source and sink sides of the link. Entities are powered
- * on or off accordingly.
- *
- * Return 0 on success or a negative error code on failure. Powering entities
- * off is assumed to never fail. This function will not fail for disconnection
- * events.
- */
-static int isp_pipeline_link_notify(struct media_link *link, u32 flags,
-				    unsigned int notification)
-{
-	struct media_entity *source = link->source->entity;
-	struct media_entity *sink = link->sink->entity;
-	int source_use = isp_pipeline_pm_use_count(source);
-	int sink_use = isp_pipeline_pm_use_count(sink);
-	int ret;
-
-	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
-	    !(flags & MEDIA_LNK_FL_ENABLED)) {
-		/* Powering off entities is assumed to never fail. */
-		isp_pipeline_pm_power(source, -sink_use);
-		isp_pipeline_pm_power(sink, -source_use);
-		return 0;
-	}
-
-	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
-		(flags & MEDIA_LNK_FL_ENABLED)) {
-
-		ret = isp_pipeline_pm_power(source, sink_use);
-		if (ret < 0)
-			return ret;
-
-		ret = isp_pipeline_pm_power(sink, source_use);
-		if (ret < 0)
-			isp_pipeline_pm_power(source, -sink_use);
-
-		return ret;
-	}
-
-	return 0;
-}
-
-/* -----------------------------------------------------------------------------
  * Pipeline stream management
  */
 
@@ -881,7 +687,7 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 	 * starting entities if the pipeline won't start anyway (those entities
 	 * would then likely fail to stop, making the problem worse).
 	 */
-	if (pipe->entities & isp->crashed)
+	if (media_entity_enum_intersects(&pipe->ent_enum, &isp->crashed))
 		return -EIO;
 
 	spin_lock_irqsave(&pipe->lock, flags);
@@ -897,8 +703,7 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 			break;
 
 		pad = media_entity_remote_pad(pad);
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
 		entity = pad->entity;
@@ -987,8 +792,7 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 			break;
 
 		pad = media_entity_remote_pad(pad);
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
 		entity = pad->entity;
@@ -1028,7 +832,8 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 			dev_info(isp->dev, "Unable to stop %s\n", subdev->name);
 			isp->stop_failure = true;
 			if (subdev == &isp->isp_prev.subdev)
-				isp->crashed |= 1U << subdev->entity.id;
+				media_entity_enum_set(&isp->crashed,
+						      &subdev->entity);
 			failure = -ETIMEDOUT;
 		}
 	}
@@ -1234,7 +1039,7 @@ static int isp_reset(struct isp_device *isp)
 	}
 
 	isp->stop_failure = false;
-	isp->crashed = 0;
+	media_entity_enum_zero(&isp->crashed);
 	return 0;
 }
 
@@ -1645,7 +1450,8 @@ static void __omap3isp_put(struct isp_device *isp, bool save_ctx)
 		/* Reset the ISP if an entity has failed to stop. This is the
 		 * only way to recover from such conditions.
 		 */
-		if (isp->crashed || isp->stop_failure)
+		if (!media_entity_enum_empty(&isp->crashed) ||
+		    isp->stop_failure)
 			isp_reset(isp);
 		isp_disable_clocks(isp);
 	}
@@ -1792,6 +1598,7 @@ static void isp_unregister_entities(struct isp_device *isp)
 
 	v4l2_device_unregister(&isp->v4l2_dev);
 	media_device_unregister(&isp->media_dev);
+	media_device_cleanup(&isp->media_dev);
 }
 
 static int isp_link_entity(
@@ -1862,7 +1669,7 @@ static int isp_link_entity(
 		return -EINVAL;
 	}
 
-	return media_entity_create_link(entity, i, input, pad, flags);
+	return media_create_pad_link(entity, i, input, pad, flags);
 }
 
 static int isp_register_entities(struct isp_device *isp)
@@ -1873,13 +1680,8 @@ static int isp_register_entities(struct isp_device *isp)
 	strlcpy(isp->media_dev.model, "TI OMAP3 ISP",
 		sizeof(isp->media_dev.model));
 	isp->media_dev.hw_revision = isp->revision;
-	isp->media_dev.link_notify = isp_pipeline_link_notify;
-	ret = media_device_register(&isp->media_dev);
-	if (ret < 0) {
-		dev_err(isp->dev, "%s: Media device registration failed (%d)\n",
-			__func__, ret);
-		return ret;
-	}
+	isp->media_dev.link_notify = v4l2_pipeline_link_notify;
+	media_device_init(&isp->media_dev);
 
 	isp->v4l2_dev.mdev = &isp->media_dev;
 	ret = v4l2_device_register(isp->dev, &isp->v4l2_dev);
@@ -1928,6 +1730,118 @@ done:
 		isp_unregister_entities(isp);
 
 	return ret;
+}
+
+/*
+ * isp_create_links() - Create links for internal and external ISP entities
+ * @isp : Pointer to ISP device
+ *
+ * This function creates all links between ISP internal and external entities.
+ *
+ * Return: A negative error code on failure or zero on success. Possible error
+ * codes are those returned by media_create_pad_link().
+ */
+static int isp_create_links(struct isp_device *isp)
+{
+	int ret;
+
+	/* Create links between entities and video nodes. */
+	ret = media_create_pad_link(
+			&isp->isp_csi2a.subdev.entity, CSI2_PAD_SOURCE,
+			&isp->isp_csi2a.video_out.video.entity, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccp2.video_in.video.entity, 0,
+			&isp->isp_ccp2.subdev.entity, CCP2_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_OF,
+			&isp->isp_ccdc.video_out.video.entity, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_prev.video_in.video.entity, 0,
+			&isp->isp_prev.subdev.entity, PREV_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_prev.subdev.entity, PREV_PAD_SOURCE,
+			&isp->isp_prev.video_out.video.entity, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_res.video_in.video.entity, 0,
+			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_res.subdev.entity, RESZ_PAD_SOURCE,
+			&isp->isp_res.video_out.video.entity, 0, 0);
+
+	if (ret < 0)
+		return ret;
+
+	/* Create links between entities. */
+	ret = media_create_pad_link(
+			&isp->isp_csi2a.subdev.entity, CSI2_PAD_SOURCE,
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccp2.subdev.entity, CCP2_PAD_SOURCE,
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
+			&isp->isp_prev.subdev.entity, PREV_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_OF,
+			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_prev.subdev.entity, PREV_PAD_SOURCE,
+			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
+			&isp->isp_aewb.subdev.entity, 0,
+			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
+			&isp->isp_af.subdev.entity, 0,
+			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
+			&isp->isp_hist.subdev.entity, 0,
+			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static void isp_cleanup_modules(struct isp_device *isp)
@@ -2000,62 +1914,8 @@ static int isp_initialize_modules(struct isp_device *isp)
 		goto error_h3a_af;
 	}
 
-	/* Connect the submodules. */
-	ret = media_entity_create_link(
-			&isp->isp_csi2a.subdev.entity, CSI2_PAD_SOURCE,
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(
-			&isp->isp_ccp2.subdev.entity, CCP2_PAD_SOURCE,
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
-			&isp->isp_prev.subdev.entity, PREV_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_OF,
-			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(
-			&isp->isp_prev.subdev.entity, PREV_PAD_SOURCE,
-			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
-			&isp->isp_aewb.subdev.entity, 0,
-			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
-			&isp->isp_af.subdev.entity, 0,
-			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
-	if (ret < 0)
-		goto error_link;
-
-	ret = media_entity_create_link(
-			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
-			&isp->isp_hist.subdev.entity, 0,
-			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
-	if (ret < 0)
-		goto error_link;
-
 	return 0;
 
-error_link:
-	omap3isp_h3a_af_cleanup(isp);
 error_h3a_af:
 	omap3isp_h3a_aewb_cleanup(isp);
 error_h3a_aewb:
@@ -2149,6 +2009,8 @@ static int isp_remove(struct platform_device *pdev)
 	isp_detach_iommu(isp);
 	__omap3isp_put(isp, false);
 
+	media_entity_enum_cleanup(&isp->crashed);
+
 	return 0;
 }
 
@@ -2164,8 +2026,11 @@ static int isp_of_parse_node(struct device *dev, struct device_node *node,
 	struct isp_bus_cfg *buscfg = &isd->bus;
 	struct v4l2_of_endpoint vep;
 	unsigned int i;
+	int ret;
 
-	v4l2_of_parse_endpoint(node, &vep);
+	ret = v4l2_of_parse_endpoint(node, &vep);
+	if (ret)
+		return ret;
 
 	dev_dbg(dev, "parsing endpoint %s, interface %u\n", node->full_name,
 		vep.base.port);
@@ -2278,28 +2143,43 @@ static int isp_subdev_notifier_bound(struct v4l2_async_notifier *async,
 				     struct v4l2_subdev *subdev,
 				     struct v4l2_async_subdev *asd)
 {
-	struct isp_device *isp = container_of(async, struct isp_device,
-					      notifier);
 	struct isp_async_subdev *isd =
 		container_of(asd, struct isp_async_subdev, asd);
-	int ret;
-
-	ret = isp_link_entity(isp, &subdev->entity, isd->bus.interface);
-	if (ret < 0)
-		return ret;
 
 	isd->sd = subdev;
 	isd->sd->host_priv = &isd->bus;
 
-	return ret;
+	return 0;
 }
 
 static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 {
 	struct isp_device *isp = container_of(async, struct isp_device,
 					      notifier);
+	struct v4l2_device *v4l2_dev = &isp->v4l2_dev;
+	struct v4l2_subdev *sd;
+	struct isp_bus_cfg *bus;
+	int ret;
 
-	return v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
+	ret = media_entity_enum_init(&isp->crashed, &isp->media_dev);
+	if (ret)
+		return ret;
+
+	list_for_each_entry(sd, &v4l2_dev->subdevs, list) {
+		/* Only try to link entities whose interface was set on bound */
+		if (sd->host_priv) {
+			bus = (struct isp_bus_cfg *)sd->host_priv;
+			ret = isp_link_entity(isp, &sd->entity, bus->interface);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	ret = v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
+	if (ret < 0)
+		return ret;
+
+	return media_device_register(&isp->media_dev);
 }
 
 /*
@@ -2442,12 +2322,13 @@ static int isp_probe(struct platform_device *pdev)
 	}
 
 	/* Interrupt */
-	isp->irq_num = platform_get_irq(pdev, 0);
-	if (isp->irq_num <= 0) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret <= 0) {
 		dev_err(isp->dev, "No IRQ resource\n");
 		ret = -ENODEV;
 		goto error_iommu;
 	}
+	isp->irq_num = ret;
 
 	if (devm_request_irq(isp->dev, isp->irq_num, isp_isr, IRQF_SHARED,
 			     "OMAP3 ISP", isp)) {
@@ -2464,6 +2345,10 @@ static int isp_probe(struct platform_device *pdev)
 	ret = isp_register_entities(isp);
 	if (ret < 0)
 		goto error_modules;
+
+	ret = isp_create_links(isp);
+	if (ret < 0)
+		goto error_register_entities;
 
 	isp->notifier.bound = isp_subdev_notifier_bound;
 	isp->notifier.complete = isp_subdev_notifier_complete;
@@ -2509,6 +2394,7 @@ static const struct of_device_id omap3isp_of_table[] = {
 	{ .compatible = "ti,omap3-isp" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, omap3isp_of_table);
 
 static struct platform_driver omap3isp_driver = {
 	.probe = isp_probe,

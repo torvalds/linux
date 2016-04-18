@@ -140,8 +140,8 @@ struct visor_device {
 	struct {
 		int major, minor;
 		void *attr;	/* private use by devmajorminor_attr.c you can
-				   * change this constant to whatever you
-				   * want; */
+				 * change this constant to whatever you want
+				 */
 	} devnodes[5];
 	/* the code will detect and behave appropriately) */
 	struct semaphore visordriver_callback_lock;

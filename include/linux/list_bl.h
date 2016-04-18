@@ -48,7 +48,7 @@ static inline void INIT_HLIST_BL_NODE(struct hlist_bl_node *h)
 
 #define hlist_bl_entry(ptr, type, member) container_of(ptr,type,member)
 
-static inline int hlist_bl_unhashed(const struct hlist_bl_node *h)
+static inline bool  hlist_bl_unhashed(const struct hlist_bl_node *h)
 {
 	return !h->pprev;
 }
@@ -68,9 +68,9 @@ static inline void hlist_bl_set_first(struct hlist_bl_head *h,
 	h->first = (struct hlist_bl_node *)((unsigned long)n | LIST_BL_LOCKMASK);
 }
 
-static inline int hlist_bl_empty(const struct hlist_bl_head *h)
+static inline bool hlist_bl_empty(const struct hlist_bl_head *h)
 {
-	return !((unsigned long)h->first & ~LIST_BL_LOCKMASK);
+	return !((unsigned long)READ_ONCE(h->first) & ~LIST_BL_LOCKMASK);
 }
 
 static inline void hlist_bl_add_head(struct hlist_bl_node *n,

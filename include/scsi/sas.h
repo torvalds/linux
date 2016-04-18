@@ -344,6 +344,43 @@ struct ssp_response_iu {
 	u8     sense_data[0];
 } __attribute__ ((packed));
 
+struct ssp_command_iu {
+	u8     lun[8];
+	u8     _r_a;
+
+	union {
+		struct {
+			u8  attr:3;
+			u8  prio:4;
+			u8  efb:1;
+		};
+		u8 efb_prio_attr;
+	};
+
+	u8    _r_b;
+
+	u8    _r_c:2;
+	u8    add_cdb_len:6;
+
+	u8    cdb[16];
+	u8    add_cdb[0];
+} __attribute__ ((packed));
+
+struct xfer_rdy_iu {
+	__be32 requested_offset;
+	__be32 write_data_len;
+	__be32 _r_a;
+} __attribute__ ((packed));
+
+struct ssp_tmf_iu {
+	u8     lun[8];
+	u16    _r_a;
+	u8     tmf;
+	u8     _r_b;
+	__be16 tag;
+	u8     _r_c[14];
+} __attribute__ ((packed));
+
 /* ---------- SMP ---------- */
 
 struct report_general_resp {
@@ -536,6 +573,43 @@ struct ssp_response_iu {
 
 	u8     resp_data[0];
 	u8     sense_data[0];
+} __attribute__ ((packed));
+
+struct ssp_command_iu {
+	u8     lun[8];
+	u8     _r_a;
+
+	union {
+		struct {
+			u8  efb:1;
+			u8  prio:4;
+			u8  attr:3;
+		};
+		u8 efb_prio_attr;
+	};
+
+	u8    _r_b;
+
+	u8    add_cdb_len:6;
+	u8    _r_c:2;
+
+	u8    cdb[16];
+	u8    add_cdb[0];
+} __attribute__ ((packed));
+
+struct xfer_rdy_iu {
+	__be32 requested_offset;
+	__be32 write_data_len;
+	__be32 _r_a;
+} __attribute__ ((packed));
+
+struct ssp_tmf_iu {
+	u8     lun[8];
+	u16    _r_a;
+	u8     tmf;
+	u8     _r_b;
+	__be16 tag;
+	u8     _r_c[14];
 } __attribute__ ((packed));
 
 /* ---------- SMP ---------- */

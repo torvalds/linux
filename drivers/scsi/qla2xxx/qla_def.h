@@ -259,7 +259,7 @@
 #define LOOP_DOWN_TIME			255	/* 240 */
 #define	LOOP_DOWN_RESET			(LOOP_DOWN_TIME - 30)
 
-#define DEFAULT_OUTSTANDING_COMMANDS	1024
+#define DEFAULT_OUTSTANDING_COMMANDS	4096
 #define MIN_OUTSTANDING_COMMANDS	128
 
 /* ISP request and response entry counts (37-65535) */
@@ -267,11 +267,13 @@
 #define REQUEST_ENTRY_CNT_2200		2048	/* Number of request entries. */
 #define REQUEST_ENTRY_CNT_24XX		2048	/* Number of request entries. */
 #define REQUEST_ENTRY_CNT_83XX		8192	/* Number of request entries. */
+#define RESPONSE_ENTRY_CNT_83XX		4096	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_2100		64	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_2300		512	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_MQ		128	/* Number of response entries.*/
 #define ATIO_ENTRY_CNT_24XX		4096	/* Number of ATIO entries. */
 #define RESPONSE_ENTRY_CNT_FX00		256     /* Number of response entries.*/
+#define EXTENDED_EXCH_ENTRY_CNT		32768   /* Entries for offload case */
 
 struct req_que;
 struct qla_tgt_sess;
@@ -309,6 +311,14 @@ struct srb_cmd {
 /* To identify if a srb is of T10-CRC type. @sp => srb_t pointer */
 #define IS_PROT_IO(sp)	(sp->flags & SRB_CRC_CTX_DSD_VALID)
 
+struct els_logo_payload {
+	uint8_t opcode;
+	uint8_t rsvd[3];
+	uint8_t s_id[3];
+	uint8_t rsvd1[1];
+	uint8_t wwpn[WWN_SIZE];
+};
+
 /*
  * SRB extensions.
  */
@@ -321,6 +331,15 @@ struct srb_iocb {
 #define SRB_LOGIN_SKIP_PRLI	BIT_2
 			uint16_t data[2];
 		} logio;
+		struct {
+#define ELS_DCMD_TIMEOUT 20
+#define ELS_DCMD_LOGO 0x5
+			uint32_t flags;
+			uint32_t els_cmd;
+			struct completion comp;
+			struct els_logo_payload *els_logo_pyld;
+			dma_addr_t els_logo_pyld_dma;
+		} els_logo;
 		struct {
 			/*
 			 * Values for flags field below are as
@@ -382,7 +401,7 @@ struct srb_iocb {
 #define SRB_FXIOCB_DCMD	10
 #define SRB_FXIOCB_BCMD	11
 #define SRB_ABT_CMD	12
-
+#define SRB_ELS_DCMD	13
 
 typedef struct srb {
 	atomic_t ref_count;
@@ -891,6 +910,7 @@ struct mbx_cmd_32 {
 #define MBC_DISABLE_VI			0x24	/* Disable VI operation. */
 #define MBC_ENABLE_VI			0x25	/* Enable VI operation. */
 #define MBC_GET_FIRMWARE_OPTION		0x28	/* Get Firmware Options. */
+#define MBC_GET_MEM_OFFLOAD_CNTRL_STAT	0x34	/* Memory Offload ctrl/Stat*/
 #define MBC_SET_FIRMWARE_OPTION		0x38	/* Set Firmware Options. */
 #define MBC_LOOP_PORT_BYPASS		0x40	/* Loop Port Bypass. */
 #define MBC_LOOP_PORT_ENABLE		0x41	/* Loop Port Enable. */
@@ -1039,6 +1059,12 @@ struct mbx_cmd_32 {
 #define FSTATE_P2P_RCV_UNIDEN_LIP  3
 #define FSTATE_FATAL_ERROR         4
 #define FSTATE_LOOP_BACK_CONN      5
+
+#define QLA27XX_IMG_STATUS_VER_MAJOR   0x01
+#define QLA27XX_IMG_STATUS_VER_MINOR    0x00
+#define QLA27XX_IMG_STATUS_SIGN   0xFACEFADE
+#define QLA27XX_PRIMARY_IMAGE  1
+#define QLA27XX_SECONDARY_IMAGE    2
 
 /*
  * Port Database structure definition
@@ -1228,13 +1254,41 @@ struct link_statistics {
 	uint32_t inval_xmit_word_cnt;
 	uint32_t inval_crc_cnt;
 	uint32_t lip_cnt;
-	uint32_t unused1[0x1a];
+	uint32_t link_up_cnt;
+	uint32_t link_down_loop_init_tmo;
+	uint32_t link_down_los;
+	uint32_t link_down_loss_rcv_clk;
+	uint32_t reserved0[5];
+	uint32_t port_cfg_chg;
+	uint32_t reserved1[11];
+	uint32_t rsp_q_full;
+	uint32_t atio_q_full;
+	uint32_t drop_ae;
+	uint32_t els_proto_err;
+	uint32_t reserved2;
 	uint32_t tx_frames;
 	uint32_t rx_frames;
 	uint32_t discarded_frames;
 	uint32_t dropped_frames;
-	uint32_t unused2[1];
+	uint32_t reserved3;
 	uint32_t nos_rcvd;
+	uint32_t reserved4[4];
+	uint32_t tx_prjt;
+	uint32_t rcv_exfail;
+	uint32_t rcv_abts;
+	uint32_t seq_frm_miss;
+	uint32_t corr_err;
+	uint32_t mb_rqst;
+	uint32_t nport_full;
+	uint32_t eofa;
+	uint32_t reserved5;
+	uint32_t fpm_recv_word_cnt_lo;
+	uint32_t fpm_recv_word_cnt_hi;
+	uint32_t fpm_disc_word_cnt_lo;
+	uint32_t fpm_disc_word_cnt_hi;
+	uint32_t fpm_xmit_word_cnt_lo;
+	uint32_t fpm_xmit_word_cnt_hi;
+	uint32_t reserved6[70];
 };
 
 /*
@@ -2695,11 +2749,16 @@ struct isp_operations {
 
 struct scsi_qla_host;
 
+
+#define QLA83XX_RSPQ_MSIX_ENTRY_NUMBER 1 /* refer to qla83xx_msix_entries */
+
 struct qla_msix_entry {
 	int have_irq;
 	uint32_t vector;
 	uint16_t entry;
 	struct rsp_que *rsp;
+	struct irq_affinity_notify irq_notify;
+	int cpuid;
 };
 
 #define	WATCH_INTERVAL		1       /* number of seconds */
@@ -2904,18 +2963,22 @@ struct qlt_hw_data {
 
 	uint8_t tgt_node_name[WWN_SIZE];
 
+	struct dentry *dfs_tgt_sess;
 	struct list_head q_full_list;
 	uint32_t num_pend_cmds;
 	uint32_t num_qfull_cmds_alloc;
 	uint32_t num_qfull_cmds_dropped;
 	spinlock_t q_full_lock;
 	uint32_t leak_exchg_thresh_hold;
+	spinlock_t sess_lock;
+	int rspq_vector_cpuid;
+	spinlock_t atio_lock ____cacheline_aligned;
 };
 
 #define MAX_QFULL_CMDS_ALLOC	8192
 #define Q_FULL_THRESH_HOLD_PERCENT 90
 #define Q_FULL_THRESH_HOLD(ha) \
-	((ha->fw_xcb_count/100) * Q_FULL_THRESH_HOLD_PERCENT)
+	((ha->cur_fw_xcb_count/100) * Q_FULL_THRESH_HOLD_PERCENT)
 
 #define LEAK_EXCHG_THRESH_HOLD_PERCENT 75	/* 75 percent */
 
@@ -2962,10 +3025,12 @@ struct qla_hw_data {
 		uint32_t	isp82xx_no_md_cap:1;
 		uint32_t	host_shutting_down:1;
 		uint32_t	idc_compl_status:1;
-
 		uint32_t        mr_reset_hdlr_active:1;
 		uint32_t        mr_intr_valid:1;
+
 		uint32_t	fawwpn_enabled:1;
+		uint32_t	exlogins_enabled:1;
+		uint32_t	exchoffld_enabled:1;
 		/* 35 bits */
 	} flags;
 
@@ -3237,6 +3302,21 @@ struct qla_hw_data {
 	void		*async_pd;
 	dma_addr_t	async_pd_dma;
 
+#define ENABLE_EXTENDED_LOGIN	BIT_7
+
+	/* Extended Logins  */
+	void		*exlogin_buf;
+	dma_addr_t	exlogin_buf_dma;
+	int		exlogin_size;
+
+#define ENABLE_EXCHANGE_OFFLD	BIT_2
+
+	/* Exchange Offload */
+	void		*exchoffld_buf;
+	dma_addr_t	exchoffld_buf_dma;
+	int		exchoffld_size;
+	int 		exchoffld_count;
+
 	void		*swl;
 
 	/* These are used by mailbox operations. */
@@ -3279,8 +3359,14 @@ struct qla_hw_data {
 #define RISC_START_ADDRESS_2100 0x1000
 #define RISC_START_ADDRESS_2300 0x800
 #define RISC_START_ADDRESS_2400 0x100000
-	uint16_t	fw_xcb_count;
-	uint16_t	fw_iocb_count;
+
+	uint16_t	orig_fw_tgt_xcb_count;
+	uint16_t	cur_fw_tgt_xcb_count;
+	uint16_t	orig_fw_xcb_count;
+	uint16_t	cur_fw_xcb_count;
+	uint16_t	orig_fw_iocb_count;
+	uint16_t	cur_fw_iocb_count;
+	uint16_t	fw_max_fcf_count;
 
 	uint32_t	fw_shared_ram_start;
 	uint32_t	fw_shared_ram_end;
@@ -3323,6 +3409,9 @@ struct qla_hw_data {
 	uint32_t	chain_offset;
 	struct dentry *dfs_dir;
 	struct dentry *dfs_fce;
+	struct dentry *dfs_tgt_counters;
+	struct dentry *dfs_fw_resource_cnt;
+
 	dma_addr_t	fce_dma;
 	void		*fce;
 	uint32_t	fce_bufs;
@@ -3379,14 +3468,20 @@ struct qla_hw_data {
 	uint32_t        flt_region_flt;
 	uint32_t        flt_region_fdt;
 	uint32_t        flt_region_boot;
+	uint32_t        flt_region_boot_sec;
 	uint32_t        flt_region_fw;
+	uint32_t        flt_region_fw_sec;
 	uint32_t        flt_region_vpd_nvram;
 	uint32_t        flt_region_vpd;
+	uint32_t        flt_region_vpd_sec;
 	uint32_t        flt_region_nvram;
 	uint32_t        flt_region_npiv_conf;
 	uint32_t	flt_region_gold_fw;
 	uint32_t	flt_region_fcp_prio;
 	uint32_t	flt_region_bootload;
+	uint32_t	flt_region_img_status_pri;
+	uint32_t	flt_region_img_status_sec;
+	uint8_t         active_image;
 
 	/* Needed for BEACON */
 	uint16_t        beacon_blink_led;
@@ -3480,6 +3575,18 @@ struct qla_hw_data {
 	int	allow_cna_fw_dump;
 };
 
+struct qla_tgt_counters {
+	uint64_t qla_core_sbt_cmd;
+	uint64_t core_qla_que_buf;
+	uint64_t qla_core_ret_ctio;
+	uint64_t core_qla_snd_status;
+	uint64_t qla_core_ret_sta_ctio;
+	uint64_t core_qla_free_cmd;
+	uint64_t num_q_full_sent;
+	uint64_t num_alloc_iocb_failed;
+	uint64_t num_term_xchg_sent;
+};
+
 /*
  * Qlogic scsi host structure
  */
@@ -3505,6 +3612,7 @@ typedef struct scsi_qla_host {
 		uint32_t	delete_progress:1;
 
 		uint32_t	fw_tgt_reported:1;
+		uint32_t	bbcr_enable:1;
 	} flags;
 
 	atomic_t	loop_state;
@@ -3595,6 +3703,10 @@ typedef struct scsi_qla_host {
 	atomic_t		generation_tick;
 	/* Time when global fcport update has been scheduled */
 	int			total_fcport_update_gen;
+	/* List of pending LOGOs, protected by tgt_mutex */
+	struct list_head	logo_list;
+	/* List of pending PLOGI acks, protected by hw lock */
+	struct list_head	plogi_ack_list;
 
 	uint32_t	vp_abort_cnt;
 
@@ -3632,7 +3744,19 @@ typedef struct scsi_qla_host {
 
 	atomic_t	vref_count;
 	struct qla8044_reset_template reset_tmplt;
+	struct qla_tgt_counters tgt_counters;
+	uint16_t	bbcr;
 } scsi_qla_host_t;
+
+struct qla27xx_image_status {
+	uint8_t image_status_mask;
+	uint16_t generation_number;
+	uint8_t reserved[3];
+	uint8_t ver_minor;
+	uint8_t ver_major;
+	uint32_t checksum;
+	uint32_t signature;
+} __packed;
 
 #define SET_VP_IDX	1
 #define SET_AL_PA	2

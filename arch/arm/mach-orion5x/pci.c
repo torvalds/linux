@@ -19,8 +19,8 @@
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
 #include <plat/addr-map.h>
-#include <mach/orion5x.h>
 #include "common.h"
+#include "orion5x.h"
 
 /*****************************************************************************
  * Orion has one PCIe controller and one PCI controller.

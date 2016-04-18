@@ -20,6 +20,7 @@
 #define _RTW_MLME_EXT_C_
 
 #include <linux/ieee80211.h>
+#include <asm/unaligned.h>
 
 #include <osdep_service.h>
 #include <drv_types.h>
@@ -609,7 +610,7 @@ static void issue_probersp(struct adapter *padapter, unsigned char *da)
 	return;
 }
 
-static int _issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *pssid, u8 *da, int wait_ack)
+static int issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *pssid, u8 *da, bool wait_ack)
 {
 	int ret = _FAIL;
 	struct xmit_frame		*pmgntframe;
@@ -702,22 +703,16 @@ exit:
 	return ret;
 }
 
-static inline void issue_probereq(struct adapter *padapter,
-				  struct ndis_802_11_ssid *pssid, u8 *da)
-{
-	_issue_probereq(padapter, pssid, da, false);
-}
-
 static int issue_probereq_ex(struct adapter *padapter,
 			     struct ndis_802_11_ssid *pssid, u8 *da,
 			     int try_cnt, int wait_ms)
 {
 	int ret;
 	int i = 0;
-	u32 start = jiffies;
+	unsigned long start = jiffies;
 
 	do {
-		ret = _issue_probereq(padapter, pssid, da, wait_ms > 0 ? true : false);
+		ret = issue_probereq(padapter, pssid, da, wait_ms > 0 ? true : false);
 
 		i++;
 
@@ -738,11 +733,13 @@ static int issue_probereq_ex(struct adapter *padapter,
 		if (da)
 			DBG_88E(FUNC_ADPT_FMT" to %pM, ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), da, rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 		else
 			DBG_88E(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 	}
 exit:
 	return ret;
@@ -1031,7 +1028,6 @@ static void issue_assocreq(struct adapter *padapter)
 	unsigned char		*pframe, *p;
 	struct rtw_ieee80211_hdr	*pwlanhdr;
 	__le16 *fctrl;
-	__le16		le_tmp;
 	unsigned int	i, j, ie_len, index = 0;
 	unsigned char	rf_type, bssrate[NumRates], sta_bssrate[NumRates];
 	struct ndis_802_11_var_ie *pIE;
@@ -1077,8 +1073,7 @@ static void issue_assocreq(struct adapter *padapter)
 
 	/* listen interval */
 	/* todo: listen interval for power saving */
-	le_tmp = cpu_to_le16(3);
-	memcpy(pframe , (unsigned char *)&le_tmp, 2);
+	put_unaligned_le16(3, pframe);
 	pframe += 2;
 	pattrib->pktlen += 2;
 
@@ -1299,7 +1294,7 @@ int issue_nulldata(struct adapter *padapter, unsigned char *da, unsigned int pow
 {
 	int ret;
 	int i = 0;
-	u32 start = jiffies;
+	unsigned long start = jiffies;
 	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex    *pnetwork = &(pmlmeinfo->network);
@@ -1329,11 +1324,13 @@ int issue_nulldata(struct adapter *padapter, unsigned char *da, unsigned int pow
 		if (da)
 			DBG_88E(FUNC_ADPT_FMT" to %pM, ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), da, rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 		else
 			DBG_88E(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 	}
 exit:
 	return ret;
@@ -1424,7 +1421,7 @@ int issue_qos_nulldata(struct adapter *padapter, unsigned char *da, u16 tid, int
 {
 	int ret;
 	int i = 0;
-	u32 start = jiffies;
+	unsigned long start = jiffies;
 	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex    *pnetwork = &(pmlmeinfo->network);
@@ -1454,11 +1451,13 @@ int issue_qos_nulldata(struct adapter *padapter, unsigned char *da, u16 tid, int
 		if (da)
 			DBG_88E(FUNC_ADPT_FMT" to %pM, ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), da, rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 		else
 			DBG_88E(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 	}
 exit:
 	return ret;
@@ -1536,7 +1535,7 @@ static int issue_deauth_ex(struct adapter *padapter, u8 *da,
 {
 	int ret;
 	int i = 0;
-	u32 start = jiffies;
+	unsigned long start = jiffies;
 
 	do {
 		ret = _issue_deauth(padapter, da, reason, wait_ms > 0 ? true : false);
@@ -1559,11 +1558,13 @@ static int issue_deauth_ex(struct adapter *padapter, u8 *da,
 		if (da)
 			DBG_88E(FUNC_ADPT_FMT" to %pM, ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), da, rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 		else
 			DBG_88E(FUNC_ADPT_FMT", ch:%u%s, %d/%d in %u ms\n",
 				FUNC_ADPT_ARG(padapter), rtw_get_oper_ch(padapter),
-				ret == _SUCCESS ? ", acked" : "", i, try_cnt, rtw_get_passing_time_ms(start));
+				ret == _SUCCESS ? ", acked" : "", i, try_cnt,
+				jiffies_to_msecs(jiffies - start));
 	}
 exit:
 	return ret;
@@ -1671,7 +1672,6 @@ static void issue_action_BA(struct adapter *padapter, unsigned char *raddr,
 	fctrl = &(pwlanhdr->frame_ctl);
 	*(fctrl) = 0;
 
-	/* memcpy(pwlanhdr->addr1, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN); */
 	memcpy(pwlanhdr->addr1, raddr, ETH_ALEN);
 	memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
 	memcpy(pwlanhdr->addr3, pnetwork->MacAddress, ETH_ALEN);
@@ -1965,7 +1965,7 @@ unsigned int send_beacon(struct adapter *padapter)
 	int	issue = 0;
 	int poll = 0;
 
-	u32 start = jiffies;
+	unsigned long start = jiffies;
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_BCN_VALID, NULL);
 	do {
@@ -1981,13 +1981,16 @@ unsigned int send_beacon(struct adapter *padapter)
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return _FAIL;
 	if (!bxmitok) {
-		DBG_88E("%s fail! %u ms\n", __func__, rtw_get_passing_time_ms(start));
+		DBG_88E("%s fail! %u ms\n", __func__,
+			jiffies_to_msecs(jiffies - start));
 		return _FAIL;
 	} else {
-		u32 passing_time = rtw_get_passing_time_ms(start);
+		u32 passing_time = jiffies_to_msecs(jiffies - start);
 
 		if (passing_time > 100 || issue > 3)
-			DBG_88E("%s success, issue:%d, poll:%d, %u ms\n", __func__, issue, poll, rtw_get_passing_time_ms(start));
+			DBG_88E("%s success, issue:%d, poll:%d, %u ms\n",
+				__func__, issue, poll,
+				jiffies_to_msecs(jiffies - start));
 		return _SUCCESS;
 	}
 }
@@ -2029,24 +2032,28 @@ static void site_survey(struct adapter *padapter)
 			for (i = 0; i < RTW_SSID_SCAN_AMOUNT; i++) {
 				if (pmlmeext->sitesurvey_res.ssid[i].SsidLength) {
 					/* todo: to issue two probe req??? */
-					issue_probereq(padapter, &(pmlmeext->sitesurvey_res.ssid[i]), NULL);
+					issue_probereq(padapter,
+					&(pmlmeext->sitesurvey_res.ssid[i]),
+								NULL, false);
 					/* msleep(SURVEY_TO>>1); */
-					issue_probereq(padapter, &(pmlmeext->sitesurvey_res.ssid[i]), NULL);
+					issue_probereq(padapter,
+					&(pmlmeext->sitesurvey_res.ssid[i]),
+								NULL, false);
 				}
 			}
 
 			if (pmlmeext->sitesurvey_res.scan_mode == SCAN_ACTIVE) {
 				/* todo: to issue two probe req??? */
-				issue_probereq(padapter, NULL, NULL);
+				issue_probereq(padapter, NULL, NULL, false);
 				/* msleep(SURVEY_TO>>1); */
-				issue_probereq(padapter, NULL, NULL);
+				issue_probereq(padapter, NULL, NULL, false);
 			}
 
 			if (pmlmeext->sitesurvey_res.scan_mode == SCAN_ACTIVE) {
 				/* todo: to issue two probe req??? */
-				issue_probereq(padapter, NULL, NULL);
+				issue_probereq(padapter, NULL, NULL, false);
 				/* msleep(SURVEY_TO>>1); */
-				issue_probereq(padapter, NULL, NULL);
+				issue_probereq(padapter, NULL, NULL, false);
 			}
 		}
 
@@ -3644,7 +3651,7 @@ static unsigned int on_action_spct(struct adapter *padapter,
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	u8 *pframe = precv_frame->rx_data;
-	u8 *frame_body = (u8 *)(pframe + sizeof(struct rtw_ieee80211_hdr_3addr));
+	u8 *frame_body = pframe + sizeof(struct rtw_ieee80211_hdr_3addr);
 	u8 category;
 	u8 action;
 
@@ -3731,10 +3738,10 @@ static unsigned int OnAction_back(struct adapter *padapter,
 			memcpy(&(pmlmeinfo->ADDBA_req), &(frame_body[2]), sizeof(struct ADDBA_request));
 			process_addba_req(padapter, (u8 *)&(pmlmeinfo->ADDBA_req), addr);
 
-			if (pmlmeinfo->bAcceptAddbaReq)
-				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_ADDBA_RESP, 0);
-			else
-				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_ADDBA_RESP, 37);/* reject ADDBA Req */
+			/* 37 = reject ADDBA Req */
+			issue_action_BA(padapter, addr,
+					RTW_WLAN_ACTION_ADDBA_RESP,
+					pmlmeinfo->accept_addba_req ? 0 : 37);
 			break;
 		case RTW_WLAN_ACTION_ADDBA_RESP: /* ADDBA response */
 			status = get_unaligned_le16(&frame_body[3]);
@@ -4141,7 +4148,7 @@ int	init_mlme_ext_priv(struct adapter *padapter)
 	pmlmeext->padapter = padapter;
 
 	init_mlme_ext_priv_value(padapter);
-	pmlmeinfo->bAcceptAddbaReq = pregistrypriv->bAcceptAddbaReq;
+	pmlmeinfo->accept_addba_req = pregistrypriv->accept_addba_req;
 
 	init_mlme_ext_timer(padapter);
 
@@ -4820,9 +4827,18 @@ void linked_status_chk(struct adapter *padapter)
 			} else {
 				if (rx_chk != _SUCCESS) {
 					if (pmlmeext->retry == 0) {
-						issue_probereq(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
-						issue_probereq(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
-						issue_probereq(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress);
+						issue_probereq(padapter,
+						&pmlmeinfo->network.Ssid,
+						pmlmeinfo->network.MacAddress,
+									false);
+						issue_probereq(padapter,
+						&pmlmeinfo->network.Ssid,
+						pmlmeinfo->network.MacAddress,
+									false);
+						issue_probereq(padapter,
+						&pmlmeinfo->network.Ssid,
+						pmlmeinfo->network.MacAddress,
+									false);
 					}
 				}
 
@@ -5045,7 +5061,7 @@ u8 createbss_hdl(struct adapter *padapter, u8 *pbuf)
 		/* clear CAM */
 		flush_all_cam_entry(padapter);
 
-		memcpy(pnetwork, pbuf, FIELD_OFFSET(struct wlan_bssid_ex, IELength));
+		memcpy(pnetwork, pbuf, offsetof(struct wlan_bssid_ex, IELength));
 		pnetwork->IELength = ((struct wlan_bssid_ex *)pbuf)->IELength;
 
 		if (pnetwork->IELength > MAX_IE_SZ)/* Check pbuf->IELength */
@@ -5104,7 +5120,7 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 	pmlmeinfo->candidate_tid_bitmap = 0;
 	pmlmeinfo->bwmode_updated = false;
 
-	memcpy(pnetwork, pbuf, FIELD_OFFSET(struct wlan_bssid_ex, IELength));
+	memcpy(pnetwork, pbuf, offsetof(struct wlan_bssid_ex, IELength));
 	pnetwork->IELength = ((struct wlan_bssid_ex *)pbuf)->IELength;
 
 	if (pnetwork->IELength > MAX_IE_SZ)/* Check pbuf->IELength */

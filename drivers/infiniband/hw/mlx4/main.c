@@ -41,6 +41,7 @@
 #include <linux/if_vlan.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>
+#include <net/devlink.h>
 
 #include <rdma/ib_smi.h>
 #include <rdma/ib_user_verbs.h>
@@ -154,9 +155,9 @@ static struct net_device *mlx4_ib_get_netdev(struct ib_device *device, u8 port_n
 	return dev;
 }
 
-static int mlx4_ib_update_gids(struct gid_entry *gids,
-			       struct mlx4_ib_dev *ibdev,
-			       u8 port_num)
+static int mlx4_ib_update_gids_v1(struct gid_entry *gids,
+				  struct mlx4_ib_dev *ibdev,
+				  u8 port_num)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	int err;
@@ -187,6 +188,63 @@ static int mlx4_ib_update_gids(struct gid_entry *gids,
 	return err;
 }
 
+static int mlx4_ib_update_gids_v1_v2(struct gid_entry *gids,
+				     struct mlx4_ib_dev *ibdev,
+				     u8 port_num)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	int err;
+	struct mlx4_dev *dev = ibdev->dev;
+	int i;
+	struct {
+		union ib_gid	gid;
+		__be32		rsrvd1[2];
+		__be16		rsrvd2;
+		u8		type;
+		u8		version;
+		__be32		rsrvd3;
+	} *gid_tbl;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return -ENOMEM;
+
+	gid_tbl = mailbox->buf;
+	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i) {
+		memcpy(&gid_tbl[i].gid, &gids[i].gid, sizeof(union ib_gid));
+		if (gids[i].gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) {
+			gid_tbl[i].version = 2;
+			if (!ipv6_addr_v4mapped((struct in6_addr *)&gids[i].gid))
+				gid_tbl[i].type = 1;
+			else
+				memset(&gid_tbl[i].gid, 0, 12);
+		}
+	}
+
+	err = mlx4_cmd(dev, mailbox->dma,
+		       MLX4_SET_PORT_ROCE_ADDR << 8 | port_num,
+		       1, MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_WRAPPED);
+	if (mlx4_is_bonded(dev))
+		err += mlx4_cmd(dev, mailbox->dma,
+				MLX4_SET_PORT_ROCE_ADDR << 8 | 2,
+				1, MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+				MLX4_CMD_WRAPPED);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+
+static int mlx4_ib_update_gids(struct gid_entry *gids,
+			       struct mlx4_ib_dev *ibdev,
+			       u8 port_num)
+{
+	if (ibdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2)
+		return mlx4_ib_update_gids_v1_v2(gids, ibdev, port_num);
+
+	return mlx4_ib_update_gids_v1(gids, ibdev, port_num);
+}
+
 static int mlx4_ib_add_gid(struct ib_device *device,
 			   u8 port_num,
 			   unsigned int index,
@@ -215,7 +273,8 @@ static int mlx4_ib_add_gid(struct ib_device *device,
 	port_gid_table = &iboe->gids[port_num - 1];
 	spin_lock_bh(&iboe->lock);
 	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i) {
-		if (!memcmp(&port_gid_table->gids[i].gid, gid, sizeof(*gid))) {
+		if (!memcmp(&port_gid_table->gids[i].gid, gid, sizeof(*gid)) &&
+		    (port_gid_table->gids[i].gid_type == attr->gid_type))  {
 			found = i;
 			break;
 		}
@@ -233,6 +292,7 @@ static int mlx4_ib_add_gid(struct ib_device *device,
 			} else {
 				*context = port_gid_table->gids[free].ctx;
 				memcpy(&port_gid_table->gids[free].gid, gid, sizeof(*gid));
+				port_gid_table->gids[free].gid_type = attr->gid_type;
 				port_gid_table->gids[free].ctx->real_index = free;
 				port_gid_table->gids[free].ctx->refcount = 1;
 				hw_update = 1;
@@ -248,8 +308,10 @@ static int mlx4_ib_add_gid(struct ib_device *device,
 		if (!gids) {
 			ret = -ENOMEM;
 		} else {
-			for (i = 0; i < MLX4_MAX_PORT_GIDS; i++)
+			for (i = 0; i < MLX4_MAX_PORT_GIDS; i++) {
 				memcpy(&gids[i].gid, &port_gid_table->gids[i].gid, sizeof(union ib_gid));
+				gids[i].gid_type = port_gid_table->gids[i].gid_type;
+			}
 		}
 	}
 	spin_unlock_bh(&iboe->lock);
@@ -325,6 +387,7 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 	int i;
 	int ret;
 	unsigned long flags;
+	struct ib_gid_attr attr;
 
 	if (port_num > MLX4_MAX_PORTS)
 		return -EINVAL;
@@ -335,9 +398,12 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 	if (!rdma_cap_roce_gid_table(&ibdev->ib_dev, port_num))
 		return index;
 
-	ret = ib_get_cached_gid(&ibdev->ib_dev, port_num, index, &gid);
+	ret = ib_get_cached_gid(&ibdev->ib_dev, port_num, index, &gid, &attr);
 	if (ret)
 		return ret;
+
+	if (attr.ndev)
+		dev_put(attr.ndev);
 
 	if (!memcmp(&gid, &zgid, sizeof(gid)))
 		return -EINVAL;
@@ -346,7 +412,8 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 	port_gid_table = &iboe->gids[port_num - 1];
 
 	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i)
-		if (!memcmp(&port_gid_table->gids[i].gid, &gid, sizeof(gid))) {
+		if (!memcmp(&port_gid_table->gids[i].gid, &gid, sizeof(gid)) &&
+		    attr.gid_type == port_gid_table->gids[i].gid_type) {
 			ctx = port_gid_table->gids[i].ctx;
 			break;
 		}
@@ -442,6 +509,8 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 		props->device_cap_flags |= IB_DEVICE_MANAGED_FLOW_STEERING;
 	}
 
+	props->device_cap_flags |= IB_DEVICE_RAW_IP_CSUM;
+
 	props->vendor_id	   = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;
 	props->vendor_part_id	   = dev->dev->persist->pdev->device;
@@ -454,7 +523,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_qp_wr	   = dev->dev->caps.max_wqes - MLX4_IB_SQ_MAX_SPARE;
 	props->max_sge		   = min(dev->dev->caps.max_sq_sg,
 					 dev->dev->caps.max_rq_sg);
-	props->max_sge_rd = props->max_sge;
+	props->max_sge_rd	   = MLX4_MAX_SGE_RD;
 	props->max_cq		   = dev->dev->quotas.cq;
 	props->max_cqe		   = dev->dev->caps.max_cqes;
 	props->max_mr		   = dev->dev->quotas.mpt;
@@ -754,7 +823,7 @@ static int mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	if (!rdma_cap_roce_gid_table(ibdev, port))
 		return -ENODEV;
 
-	ret = ib_get_cached_gid(ibdev, port, index, gid);
+	ret = ib_get_cached_gid(ibdev, port, index, gid, NULL);
 	if (ret == -EAGAIN) {
 		memcpy(gid, &zgid, sizeof(*gid));
 		return 0;
@@ -1247,6 +1316,22 @@ static int add_gid_entry(struct ib_qp *ibqp, union ib_gid *gid)
 	return 0;
 }
 
+static void mlx4_ib_delete_counters_table(struct mlx4_ib_dev *ibdev,
+					  struct mlx4_ib_counters *ctr_table)
+{
+	struct counter_index *counter, *tmp_count;
+
+	mutex_lock(&ctr_table->mutex);
+	list_for_each_entry_safe(counter, tmp_count, &ctr_table->counters_list,
+				 list) {
+		if (counter->allocated)
+			mlx4_counter_free(ibdev->dev, counter->index);
+		list_del(&counter->list);
+		kfree(counter);
+	}
+	mutex_unlock(&ctr_table->mutex);
+}
+
 int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 		   union ib_gid *gid)
 {
@@ -1559,6 +1644,56 @@ static int mlx4_ib_tunnel_steer_add(struct ib_qp *qp, struct ib_flow_attr *flow_
 	return err;
 }
 
+static int mlx4_ib_add_dont_trap_rule(struct mlx4_dev *dev,
+				      struct ib_flow_attr *flow_attr,
+				      enum mlx4_net_trans_promisc_mode *type)
+{
+	int err = 0;
+
+	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_DMFS_UC_MC_SNIFFER) ||
+	    (dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_STATIC) ||
+	    (flow_attr->num_of_specs > 1) || (flow_attr->priority != 0)) {
+		return -EOPNOTSUPP;
+	}
+
+	if (flow_attr->num_of_specs == 0) {
+		type[0] = MLX4_FS_MC_SNIFFER;
+		type[1] = MLX4_FS_UC_SNIFFER;
+	} else {
+		union ib_flow_spec *ib_spec;
+
+		ib_spec = (union ib_flow_spec *)(flow_attr + 1);
+		if (ib_spec->type !=  IB_FLOW_SPEC_ETH)
+			return -EINVAL;
+
+		/* if all is zero than MC and UC */
+		if (is_zero_ether_addr(ib_spec->eth.mask.dst_mac)) {
+			type[0] = MLX4_FS_MC_SNIFFER;
+			type[1] = MLX4_FS_UC_SNIFFER;
+		} else {
+			u8 mac[ETH_ALEN] = {ib_spec->eth.mask.dst_mac[0] ^ 0x01,
+					    ib_spec->eth.mask.dst_mac[1],
+					    ib_spec->eth.mask.dst_mac[2],
+					    ib_spec->eth.mask.dst_mac[3],
+					    ib_spec->eth.mask.dst_mac[4],
+					    ib_spec->eth.mask.dst_mac[5]};
+
+			/* Above xor was only on MC bit, non empty mask is valid
+			 * only if this bit is set and rest are zero.
+			 */
+			if (!is_zero_ether_addr(&mac[0]))
+				return -EINVAL;
+
+			if (is_multicast_ether_addr(ib_spec->eth.val.dst_mac))
+				type[0] = MLX4_FS_MC_SNIFFER;
+			else
+				type[0] = MLX4_FS_UC_SNIFFER;
+		}
+	}
+
+	return err;
+}
+
 static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 				    struct ib_flow_attr *flow_attr,
 				    int domain)
@@ -1568,6 +1703,10 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 	enum mlx4_net_trans_promisc_mode type[2];
 	struct mlx4_dev *dev = (to_mdev(qp->device))->dev;
 	int is_bonded = mlx4_is_bonded(dev);
+
+	if ((flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP) &&
+	    (flow_attr->type != IB_FLOW_ATTR_NORMAL))
+		return ERR_PTR(-EOPNOTSUPP);
 
 	memset(type, 0, sizeof(type));
 
@@ -1579,7 +1718,19 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 
 	switch (flow_attr->type) {
 	case IB_FLOW_ATTR_NORMAL:
-		type[0] = MLX4_FS_REGULAR;
+		/* If dont trap flag (continue match) is set, under specific
+		 * condition traffic be replicated to given qp,
+		 * without stealing it
+		 */
+		if (unlikely(flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP)) {
+			err = mlx4_ib_add_dont_trap_rule(dev,
+							 flow_attr,
+							 type);
+			if (err)
+				goto err_free;
+		} else {
+			type[0] = MLX4_FS_REGULAR;
+		}
 		break;
 
 	case IB_FLOW_ATTR_ALL_DEFAULT:
@@ -1591,8 +1742,8 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 		break;
 
 	case IB_FLOW_ATTR_SNIFFER:
-		type[0] = MLX4_FS_UC_SNIFFER;
-		type[1] = MLX4_FS_MC_SNIFFER;
+		type[0] = MLX4_FS_MIRROR_RX_PORT;
+		type[1] = MLX4_FS_MIRROR_SX_PORT;
 		break;
 
 	default:
@@ -2101,6 +2252,7 @@ static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
 			       struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
+	struct mlx4_ib_dev *mdev = to_mdev(ibdev);
 	int err;
 
 	err = mlx4_ib_query_port(ibdev, port_num, &attr);
@@ -2110,10 +2262,15 @@ static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
 
-	if (mlx4_ib_port_link_layer(ibdev, port_num) == IB_LINK_LAYER_INFINIBAND)
+	if (mlx4_ib_port_link_layer(ibdev, port_num) == IB_LINK_LAYER_INFINIBAND) {
 		immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
-	else
-		immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+	} else {
+		if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE)
+			immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2)
+			immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE |
+				RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
+	}
 
 	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 
@@ -2131,6 +2288,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	int num_req_counters;
 	int allocated;
 	u32 counter_index;
+	struct counter_index *new_counter_index = NULL;
 
 	pr_info_once("%s", mlx4_ib_version);
 
@@ -2247,8 +2405,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.rereg_user_mr	= mlx4_ib_rereg_user_mr;
 	ibdev->ib_dev.dereg_mr		= mlx4_ib_dereg_mr;
 	ibdev->ib_dev.alloc_mr		= mlx4_ib_alloc_mr;
-	ibdev->ib_dev.alloc_fast_reg_page_list = mlx4_ib_alloc_fast_reg_page_list;
-	ibdev->ib_dev.free_fast_reg_page_list  = mlx4_ib_free_fast_reg_page_list;
+	ibdev->ib_dev.map_mr_sg		= mlx4_ib_map_mr_sg;
 	ibdev->ib_dev.attach_mcast	= mlx4_ib_mcg_attach;
 	ibdev->ib_dev.detach_mcast	= mlx4_ib_mcg_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
@@ -2265,7 +2422,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW ||
 	    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN) {
 		ibdev->ib_dev.alloc_mw = mlx4_ib_alloc_mw;
-		ibdev->ib_dev.bind_mw = mlx4_ib_bind_mw;
 		ibdev->ib_dev.dealloc_mw = mlx4_ib_dealloc_mw;
 
 		ibdev->ib_dev.uverbs_cmd_mask |=
@@ -2293,7 +2449,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	ibdev->ib_dev.uverbs_ex_cmd_mask |=
 		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE) |
-		(1ull << IB_USER_VERBS_EX_CMD_CREATE_CQ);
+		(1ull << IB_USER_VERBS_EX_CMD_CREATE_CQ) |
+		(1ull << IB_USER_VERBS_EX_CMD_CREATE_QP);
 
 	mlx4_ib_alloc_eqs(dev, ibdev);
 
@@ -2301,6 +2458,11 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	if (init_node_data(ibdev))
 		goto err_map;
+
+	for (i = 0; i < ibdev->num_ports; ++i) {
+		mutex_init(&ibdev->counters_table[i].mutex);
+		INIT_LIST_HEAD(&ibdev->counters_table[i].counters_list);
+	}
 
 	num_req_counters = mlx4_is_bonded(dev) ? 1 : ibdev->num_ports;
 	for (i = 0; i < num_req_counters; ++i) {
@@ -2320,15 +2482,34 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			counter_index = mlx4_get_default_counter_index(dev,
 								       i + 1);
 		}
-		ibdev->counters[i].index = counter_index;
-		ibdev->counters[i].allocated = allocated;
+		new_counter_index = kmalloc(sizeof(*new_counter_index),
+					    GFP_KERNEL);
+		if (!new_counter_index) {
+			if (allocated)
+				mlx4_counter_free(ibdev->dev, counter_index);
+			goto err_counter;
+		}
+		new_counter_index->index = counter_index;
+		new_counter_index->allocated = allocated;
+		list_add_tail(&new_counter_index->list,
+			      &ibdev->counters_table[i].counters_list);
+		ibdev->counters_table[i].default_counter = counter_index;
 		pr_info("counter index %d for port %d allocated %d\n",
 			counter_index, i + 1, allocated);
 	}
 	if (mlx4_is_bonded(dev))
 		for (i = 1; i < ibdev->num_ports ; ++i) {
-			ibdev->counters[i].index = ibdev->counters[0].index;
-			ibdev->counters[i].allocated = 0;
+			new_counter_index =
+					kmalloc(sizeof(struct counter_index),
+						GFP_KERNEL);
+			if (!new_counter_index)
+				goto err_counter;
+			new_counter_index->index = counter_index;
+			new_counter_index->allocated = 0;
+			list_add_tail(&new_counter_index->list,
+				      &ibdev->counters_table[i].counters_list);
+			ibdev->counters_table[i].default_counter =
+								counter_index;
 		}
 
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
@@ -2380,12 +2561,19 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (mlx4_ib_init_sriov(ibdev))
 		goto err_mad;
 
-	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE) {
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE ||
+	    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2) {
 		if (!iboe->nb.notifier_call) {
 			iboe->nb.notifier_call = mlx4_ib_netdev_event;
 			err = register_netdevice_notifier(&iboe->nb);
 			if (err) {
 				iboe->nb.notifier_call = NULL;
+				goto err_notif;
+			}
+		}
+		if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2) {
+			err = mlx4_config_roce_v2_port(dev, ROCE_V2_UDP_DPORT);
+			if (err) {
 				goto err_notif;
 			}
 		}
@@ -2398,6 +2586,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	}
 
 	ibdev->ib_active = true;
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
+		devlink_port_type_ib_set(mlx4_get_devlink_port(dev, i),
+					 &ibdev->ib_dev);
 
 	if (mlx4_is_mfunc(ibdev->dev))
 		init_pkeys(ibdev);
@@ -2437,12 +2628,9 @@ err_steer_qp_release:
 		mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
 				      ibdev->steer_qpn_count);
 err_counter:
-	for (i = 0; i < ibdev->num_ports; ++i) {
-		if (ibdev->counters[i].index != -1 &&
-		    ibdev->counters[i].allocated)
-			mlx4_counter_free(ibdev->dev,
-					  ibdev->counters[i].index);
-	}
+	for (i = 0; i < ibdev->num_ports; ++i)
+		mlx4_ib_delete_counters_table(ibdev, &ibdev->counters_table[i]);
+
 err_map:
 	iounmap(ibdev->uar_map);
 
@@ -2525,7 +2713,10 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 {
 	struct mlx4_ib_dev *ibdev = ibdev_ptr;
 	int p;
+	int i;
 
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
+		devlink_port_type_clear(mlx4_get_devlink_port(dev, i));
 	ibdev->ib_active = false;
 	flush_workqueue(wq);
 
@@ -2546,9 +2737,8 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 
 	iounmap(ibdev->uar_map);
 	for (p = 0; p < ibdev->num_ports; ++p)
-		if (ibdev->counters[p].index != -1 &&
-		    ibdev->counters[p].allocated)
-			mlx4_counter_free(ibdev->dev, ibdev->counters[p].index);
+		mlx4_ib_delete_counters_table(ibdev, &ibdev->counters_table[p]);
+
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);
 

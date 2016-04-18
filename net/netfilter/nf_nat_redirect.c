@@ -55,7 +55,7 @@ nf_nat_redirect_ipv4(struct sk_buff *skb,
 
 		rcu_read_lock();
 		indev = __in_dev_get_rcu(skb->dev);
-		if (indev != NULL) {
+		if (indev && indev->ifa_list) {
 			ifa = indev->ifa_list;
 			newdst = ifa->ifa_local;
 		}

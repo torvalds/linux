@@ -27,7 +27,7 @@
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
-#include <media/m52790.h>
+#include <media/i2c/m52790.h>
 #include <media/v4l2-device.h>
 
 MODULE_DESCRIPTION("i2c device driver for m52790 A/V switch");

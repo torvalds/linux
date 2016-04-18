@@ -126,7 +126,7 @@ void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *
 		mad_send_wr = container_of(send_buf,
 					   struct ib_mad_send_wr_private,
 					   send_buf);
-		mad_send_wr->send_wr.wr.ud.port_num = port_num;
+		mad_send_wr->send_wr.port_num = port_num;
 	}
 
 	if (ib_post_send_mad(send_buf, NULL)) {

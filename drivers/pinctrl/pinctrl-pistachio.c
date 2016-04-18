@@ -469,27 +469,27 @@ static const char * const pistachio_mips_pll_lock_groups[] = {
 	"mfio83",
 };
 
-static const char * const pistachio_sys_pll_lock_groups[] = {
+static const char * const pistachio_audio_pll_lock_groups[] = {
 	"mfio84",
 };
 
-static const char * const pistachio_wifi_pll_lock_groups[] = {
+static const char * const pistachio_rpu_v_pll_lock_groups[] = {
 	"mfio85",
 };
 
-static const char * const pistachio_bt_pll_lock_groups[] = {
+static const char * const pistachio_rpu_l_pll_lock_groups[] = {
 	"mfio86",
 };
 
-static const char * const pistachio_rpu_v_pll_lock_groups[] = {
+static const char * const pistachio_sys_pll_lock_groups[] = {
 	"mfio87",
 };
 
-static const char * const pistachio_rpu_l_pll_lock_groups[] = {
+static const char * const pistachio_wifi_pll_lock_groups[] = {
 	"mfio88",
 };
 
-static const char * const pistachio_audio_pll_lock_groups[] = {
+static const char * const pistachio_bt_pll_lock_groups[] = {
 	"mfio89",
 };
 
@@ -559,12 +559,12 @@ enum pistachio_mux_option {
 	PISTACHIO_FUNCTION_DREQ4,
 	PISTACHIO_FUNCTION_DREQ5,
 	PISTACHIO_FUNCTION_MIPS_PLL_LOCK,
+	PISTACHIO_FUNCTION_AUDIO_PLL_LOCK,
+	PISTACHIO_FUNCTION_RPU_V_PLL_LOCK,
+	PISTACHIO_FUNCTION_RPU_L_PLL_LOCK,
 	PISTACHIO_FUNCTION_SYS_PLL_LOCK,
 	PISTACHIO_FUNCTION_WIFI_PLL_LOCK,
 	PISTACHIO_FUNCTION_BT_PLL_LOCK,
-	PISTACHIO_FUNCTION_RPU_V_PLL_LOCK,
-	PISTACHIO_FUNCTION_RPU_L_PLL_LOCK,
-	PISTACHIO_FUNCTION_AUDIO_PLL_LOCK,
 	PISTACHIO_FUNCTION_DEBUG_RAW_CCA_IND,
 	PISTACHIO_FUNCTION_DEBUG_ED_SEC20_CCA_IND,
 	PISTACHIO_FUNCTION_DEBUG_ED_SEC40_CCA_IND,
@@ -620,12 +620,12 @@ static const struct pistachio_function pistachio_functions[] = {
 	FUNCTION(dreq4),
 	FUNCTION(dreq5),
 	FUNCTION(mips_pll_lock),
+	FUNCTION(audio_pll_lock),
+	FUNCTION(rpu_v_pll_lock),
+	FUNCTION(rpu_l_pll_lock),
 	FUNCTION(sys_pll_lock),
 	FUNCTION(wifi_pll_lock),
 	FUNCTION(bt_pll_lock),
-	FUNCTION(rpu_v_pll_lock),
-	FUNCTION(rpu_l_pll_lock),
-	FUNCTION(audio_pll_lock),
 	FUNCTION(debug_raw_cca_ind),
 	FUNCTION(debug_ed_sec20_cca_ind),
 	FUNCTION(debug_ed_sec40_cca_ind),
@@ -842,14 +842,9 @@ static inline void pctl_writel(struct pistachio_pinctrl *pctl, u32 val, u32 reg)
 	writel(val, pctl->base + reg);
 }
 
-static inline struct pistachio_gpio_bank *gc_to_bank(struct gpio_chip *gc)
-{
-	return container_of(gc, struct pistachio_gpio_bank, gpio_chip);
-}
-
 static inline struct pistachio_gpio_bank *irqd_to_bank(struct irq_data *d)
 {
-	return gc_to_bank(irq_data_get_irq_chip_data(d));
+	return gpiochip_get_data(irq_data_get_irq_chip_data(d));
 }
 
 static inline u32 gpio_readl(struct pistachio_gpio_bank *bank, u32 reg)
@@ -992,7 +987,7 @@ static int pistachio_pinmux_enable(struct pinctrl_dev *pctldev,
 
 	range = pinctrl_find_gpio_range_from_pin(pctl->pctldev, pg->pin);
 	if (range)
-		gpio_disable(gc_to_bank(range->gc), pg->pin - range->pin_base);
+		gpio_disable(gpiochip_get_data(range->gc), pg->pin - range->pin_base);
 
 	return 0;
 }
@@ -1173,14 +1168,14 @@ static struct pinctrl_desc pistachio_pinctrl_desc = {
 
 static int pistachio_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
-	struct pistachio_gpio_bank *bank = gc_to_bank(chip);
+	struct pistachio_gpio_bank *bank = gpiochip_get_data(chip);
 
 	return !(gpio_readl(bank, GPIO_OUTPUT_EN) & BIT(offset));
 }
 
 static int pistachio_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct pistachio_gpio_bank *bank = gc_to_bank(chip);
+	struct pistachio_gpio_bank *bank = gpiochip_get_data(chip);
 	u32 reg;
 
 	if (gpio_readl(bank, GPIO_OUTPUT_EN) & BIT(offset))
@@ -1194,7 +1189,7 @@ static int pistachio_gpio_get(struct gpio_chip *chip, unsigned offset)
 static void pistachio_gpio_set(struct gpio_chip *chip, unsigned offset,
 			       int value)
 {
-	struct pistachio_gpio_bank *bank = gc_to_bank(chip);
+	struct pistachio_gpio_bank *bank = gpiochip_get_data(chip);
 
 	gpio_mask_writel(bank, GPIO_OUTPUT, offset, !!value);
 }
@@ -1202,7 +1197,7 @@ static void pistachio_gpio_set(struct gpio_chip *chip, unsigned offset,
 static int pistachio_gpio_direction_input(struct gpio_chip *chip,
 					  unsigned offset)
 {
-	struct pistachio_gpio_bank *bank = gc_to_bank(chip);
+	struct pistachio_gpio_bank *bank = gpiochip_get_data(chip);
 
 	gpio_mask_writel(bank, GPIO_OUTPUT_EN, offset, 0);
 	gpio_enable(bank, offset);
@@ -1213,7 +1208,7 @@ static int pistachio_gpio_direction_input(struct gpio_chip *chip,
 static int pistachio_gpio_direction_output(struct gpio_chip *chip,
 					   unsigned offset, int value)
 {
-	struct pistachio_gpio_bank *bank = gc_to_bank(chip);
+	struct pistachio_gpio_bank *bank = gpiochip_get_data(chip);
 
 	pistachio_gpio_set(chip, offset, value);
 	gpio_mask_writel(bank, GPIO_OUTPUT_EN, offset, 1);
@@ -1303,7 +1298,7 @@ static int pistachio_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 static void pistachio_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
-	struct pistachio_gpio_bank *bank = gc_to_bank(gc);
+	struct pistachio_gpio_bank *bank = gpiochip_get_data(gc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long pending;
 	unsigned int pin;
@@ -1388,9 +1383,9 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 		bank->pctl = pctl;
 		bank->base = pctl->base + GPIO_BANK_BASE(i);
 
-		bank->gpio_chip.dev = pctl->dev;
+		bank->gpio_chip.parent = pctl->dev;
 		bank->gpio_chip.of_node = child;
-		ret = gpiochip_add(&bank->gpio_chip);
+		ret = gpiochip_add_data(&bank->gpio_chip, bank);
 		if (ret < 0) {
 			dev_err(pctl->dev, "Failed to add GPIO chip %u: %d\n",
 				i, ret);

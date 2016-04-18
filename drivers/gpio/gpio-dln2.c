@@ -153,7 +153,7 @@ static int dln2_gpio_pin_set_out_val(struct dln2_gpio *dln2,
 
 static int dln2_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct dln2_gpio *dln2 = container_of(chip, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(chip);
 	struct dln2_gpio_pin req = {
 		.pin = cpu_to_le16(offset),
 	};
@@ -194,14 +194,14 @@ out_disable:
 
 static void dln2_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct dln2_gpio *dln2 = container_of(chip, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(chip);
 
 	dln2_gpio_pin_cmd(dln2, DLN2_GPIO_PIN_DISABLE, offset);
 }
 
 static int dln2_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
-	struct dln2_gpio *dln2 = container_of(chip, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(chip);
 
 	if (test_bit(offset, dln2->output_enabled))
 		return GPIOF_DIR_OUT;
@@ -211,7 +211,7 @@ static int dln2_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 
 static int dln2_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
-	struct dln2_gpio *dln2 = container_of(chip, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(chip);
 	int dir;
 
 	dir = dln2_gpio_get_direction(chip, offset);
@@ -226,7 +226,7 @@ static int dln2_gpio_get(struct gpio_chip *chip, unsigned int offset)
 
 static void dln2_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct dln2_gpio *dln2 = container_of(chip, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(chip);
 
 	dln2_gpio_pin_set_out_val(dln2, offset, value);
 }
@@ -234,7 +234,7 @@ static void dln2_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 static int dln2_gpio_set_direction(struct gpio_chip *chip, unsigned offset,
 				   unsigned dir)
 {
-	struct dln2_gpio *dln2 = container_of(chip, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(chip);
 	struct dln2_gpio_pin_val req = {
 		.pin = cpu_to_le16(offset),
 		.value = dir,
@@ -262,7 +262,7 @@ static int dln2_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int dln2_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 				      int value)
 {
-	struct dln2_gpio *dln2 = container_of(chip, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(chip);
 	int ret;
 
 	ret = dln2_gpio_pin_set_out_val(dln2, offset, value);
@@ -275,7 +275,7 @@ static int dln2_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 static int dln2_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 				  unsigned debounce)
 {
-	struct dln2_gpio *dln2 = container_of(chip, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(chip);
 	__le32 duration = cpu_to_le32(debounce);
 
 	return dln2_transfer_tx(dln2->pdev, DLN2_GPIO_SET_DEBOUNCE,
@@ -302,7 +302,7 @@ static int dln2_gpio_set_event_cfg(struct dln2_gpio *dln2, unsigned pin,
 static void dln2_irq_unmask(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
-	struct dln2_gpio *dln2 = container_of(gc, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(gc);
 	int pin = irqd_to_hwirq(irqd);
 
 	set_bit(pin, dln2->unmasked_irqs);
@@ -311,7 +311,7 @@ static void dln2_irq_unmask(struct irq_data *irqd)
 static void dln2_irq_mask(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
-	struct dln2_gpio *dln2 = container_of(gc, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(gc);
 	int pin = irqd_to_hwirq(irqd);
 
 	clear_bit(pin, dln2->unmasked_irqs);
@@ -320,7 +320,7 @@ static void dln2_irq_mask(struct irq_data *irqd)
 static int dln2_irq_set_type(struct irq_data *irqd, unsigned type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
-	struct dln2_gpio *dln2 = container_of(gc, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(gc);
 	int pin = irqd_to_hwirq(irqd);
 
 	switch (type) {
@@ -349,7 +349,7 @@ static int dln2_irq_set_type(struct irq_data *irqd, unsigned type)
 static void dln2_irq_bus_lock(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
-	struct dln2_gpio *dln2 = container_of(gc, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(gc);
 
 	mutex_lock(&dln2->irq_lock);
 }
@@ -357,7 +357,7 @@ static void dln2_irq_bus_lock(struct irq_data *irqd)
 static void dln2_irq_bus_unlock(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
-	struct dln2_gpio *dln2 = container_of(gc, struct dln2_gpio, gpio);
+	struct dln2_gpio *dln2 = gpiochip_get_data(gc);
 	int pin = irqd_to_hwirq(irqd);
 	int enabled, unmasked;
 	unsigned type;
@@ -377,7 +377,7 @@ static void dln2_irq_bus_unlock(struct irq_data *irqd)
 
 		ret = dln2_gpio_set_event_cfg(dln2, pin, type, 0);
 		if (ret)
-			dev_err(dln2->gpio.dev, "failed to set event\n");
+			dev_err(dln2->gpio.parent, "failed to set event\n");
 	}
 
 	mutex_unlock(&dln2->irq_lock);
@@ -406,19 +406,19 @@ static void dln2_gpio_event(struct platform_device *pdev, u16 echo,
 	struct dln2_gpio *dln2 = platform_get_drvdata(pdev);
 
 	if (len < sizeof(*event)) {
-		dev_err(dln2->gpio.dev, "short event message\n");
+		dev_err(dln2->gpio.parent, "short event message\n");
 		return;
 	}
 
 	pin = le16_to_cpu(event->pin);
 	if (pin >= dln2->gpio.ngpio) {
-		dev_err(dln2->gpio.dev, "out of bounds pin %d\n", pin);
+		dev_err(dln2->gpio.parent, "out of bounds pin %d\n", pin);
 		return;
 	}
 
 	irq = irq_find_mapping(dln2->gpio.irqdomain, pin);
 	if (!irq) {
-		dev_err(dln2->gpio.dev, "pin %d not mapped to IRQ\n", pin);
+		dev_err(dln2->gpio.parent, "pin %d not mapped to IRQ\n", pin);
 		return;
 	}
 
@@ -462,7 +462,7 @@ static int dln2_gpio_probe(struct platform_device *pdev)
 	dln2->pdev = pdev;
 
 	dln2->gpio.label = "dln2";
-	dln2->gpio.dev = dev;
+	dln2->gpio.parent = dev;
 	dln2->gpio.owner = THIS_MODULE;
 	dln2->gpio.base = -1;
 	dln2->gpio.ngpio = pins;
@@ -479,40 +479,32 @@ static int dln2_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dln2);
 
-	ret = gpiochip_add(&dln2->gpio);
+	ret = devm_gpiochip_add_data(dev, &dln2->gpio, dln2);
 	if (ret < 0) {
 		dev_err(dev, "failed to add gpio chip: %d\n", ret);
-		goto out;
+		return ret;
 	}
 
 	ret = gpiochip_irqchip_add(&dln2->gpio, &dln2_gpio_irqchip, 0,
 				   handle_simple_irq, IRQ_TYPE_NONE);
 	if (ret < 0) {
 		dev_err(dev, "failed to add irq chip: %d\n", ret);
-		goto out_gpiochip_remove;
+		return ret;
 	}
 
 	ret = dln2_register_event_cb(pdev, DLN2_GPIO_CONDITION_MET_EV,
 				     dln2_gpio_event);
 	if (ret) {
 		dev_err(dev, "failed to register event cb: %d\n", ret);
-		goto out_gpiochip_remove;
+		return ret;
 	}
 
 	return 0;
-
-out_gpiochip_remove:
-	gpiochip_remove(&dln2->gpio);
-out:
-	return ret;
 }
 
 static int dln2_gpio_remove(struct platform_device *pdev)
 {
-	struct dln2_gpio *dln2 = platform_get_drvdata(pdev);
-
 	dln2_unregister_event_cb(pdev, DLN2_GPIO_CONDITION_MET_EV);
-	gpiochip_remove(&dln2->gpio);
 
 	return 0;
 }

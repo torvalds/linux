@@ -71,12 +71,12 @@ coda_file_write_iter(struct kiocb *iocb, struct iov_iter *to)
 
 	host_file = cfi->cfi_container;
 	file_start_write(host_file);
-	mutex_lock(&coda_inode->i_mutex);
+	inode_lock(coda_inode);
 	ret = vfs_iter_write(cfi->cfi_container, to, &iocb->ki_pos);
 	coda_inode->i_size = file_inode(host_file)->i_size;
 	coda_inode->i_blocks = (coda_inode->i_size + 511) >> 9;
 	coda_inode->i_mtime = coda_inode->i_ctime = CURRENT_TIME_SEC;
-	mutex_unlock(&coda_inode->i_mutex);
+	inode_unlock(coda_inode);
 	file_end_write(host_file);
 	return ret;
 }
@@ -203,7 +203,7 @@ int coda_fsync(struct file *coda_file, loff_t start, loff_t end, int datasync)
 	err = filemap_write_and_wait_range(coda_inode->i_mapping, start, end);
 	if (err)
 		return err;
-	mutex_lock(&coda_inode->i_mutex);
+	inode_lock(coda_inode);
 
 	cfi = CODA_FTOC(coda_file);
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
@@ -212,7 +212,7 @@ int coda_fsync(struct file *coda_file, loff_t start, loff_t end, int datasync)
 	err = vfs_fsync(host_file, datasync);
 	if (!err && !datasync)
 		err = venus_fsync(coda_inode->i_sb, coda_i2f(coda_inode));
-	mutex_unlock(&coda_inode->i_mutex);
+	inode_unlock(coda_inode);
 
 	return err;
 }

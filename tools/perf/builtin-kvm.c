@@ -10,7 +10,7 @@
 #include "util/header.h"
 #include "util/session.h"
 #include "util/intlist.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 #include "util/debug.h"
 #include "util/tool.h"
@@ -30,7 +30,6 @@
 #include <math.h>
 
 #ifdef HAVE_KVM_STAT_SUPPORT
-#include <asm/kvm_perf.h>
 #include "util/kvm-stat.h"
 
 void exit_event_get_key(struct perf_evsel *evsel,
@@ -38,12 +37,12 @@ void exit_event_get_key(struct perf_evsel *evsel,
 			struct event_key *key)
 {
 	key->info = 0;
-	key->key = perf_evsel__intval(evsel, sample, KVM_EXIT_REASON);
+	key->key = perf_evsel__intval(evsel, sample, kvm_exit_reason);
 }
 
 bool kvm_exit_event(struct perf_evsel *evsel)
 {
-	return !strcmp(evsel->name, KVM_EXIT_TRACE);
+	return !strcmp(evsel->name, kvm_exit_trace);
 }
 
 bool exit_event_begin(struct perf_evsel *evsel,
@@ -59,7 +58,7 @@ bool exit_event_begin(struct perf_evsel *evsel,
 
 bool kvm_entry_event(struct perf_evsel *evsel)
 {
-	return !strcmp(evsel->name, KVM_ENTRY_TRACE);
+	return !strcmp(evsel->name, kvm_entry_trace);
 }
 
 bool exit_event_end(struct perf_evsel *evsel,
@@ -91,7 +90,7 @@ void exit_event_decode_key(struct perf_kvm_stat *kvm,
 	const char *exit_reason = get_exit_reason(kvm, key->exit_reasons,
 						  key->key);
 
-	scnprintf(decode, DECODE_STR_LEN, "%s", exit_reason);
+	scnprintf(decode, decode_str_len, "%s", exit_reason);
 }
 
 static bool register_kvm_events_ops(struct perf_kvm_stat *kvm)
@@ -357,7 +356,7 @@ static bool handle_end_event(struct perf_kvm_stat *kvm,
 	time_diff = sample->time - time_begin;
 
 	if (kvm->duration && time_diff > kvm->duration) {
-		char decode[DECODE_STR_LEN];
+		char decode[decode_str_len];
 
 		kvm->events_ops->decode_key(kvm, &event->key, decode);
 		if (!skip_event(decode)) {
@@ -385,7 +384,8 @@ struct vcpu_event_record *per_vcpu_record(struct thread *thread,
 			return NULL;
 		}
 
-		vcpu_record->vcpu_id = perf_evsel__intval(evsel, sample, VCPU_ID);
+		vcpu_record->vcpu_id = perf_evsel__intval(evsel, sample,
+							  vcpu_id_str);
 		thread__set_priv(thread, vcpu_record);
 	}
 
@@ -574,7 +574,7 @@ static void show_timeofday(void)
 
 static void print_result(struct perf_kvm_stat *kvm)
 {
-	char decode[DECODE_STR_LEN];
+	char decode[decode_str_len];
 	struct kvm_event *event;
 	int vcpu = kvm->trace_vcpu;
 
@@ -585,7 +585,7 @@ static void print_result(struct perf_kvm_stat *kvm)
 
 	pr_info("\n\n");
 	print_vcpu_info(kvm);
-	pr_info("%*s ", DECODE_STR_LEN, kvm->events_ops->name);
+	pr_info("%*s ", decode_str_len, kvm->events_ops->name);
 	pr_info("%10s ", "Samples");
 	pr_info("%9s ", "Samples%");
 
@@ -604,7 +604,7 @@ static void print_result(struct perf_kvm_stat *kvm)
 		min = get_event_min(event, vcpu);
 
 		kvm->events_ops->decode_key(kvm, &event->key, decode);
-		pr_info("%*s ", DECODE_STR_LEN, decode);
+		pr_info("%*s ", decode_str_len, decode);
 		pr_info("%10llu ", (unsigned long long)ecount);
 		pr_info("%8.2f%% ", (double)ecount / kvm->total_count * 100);
 		pr_info("%8.2f%% ", (double)etime / kvm->total_time * 100);
@@ -1132,6 +1132,11 @@ exit:
 		_p;			\
 	})
 
+int __weak setup_kvm_events_tp(struct perf_kvm_stat *kvm __maybe_unused)
+{
+	return 0;
+}
+
 static int
 kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 {
@@ -1148,7 +1153,14 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 		NULL
 	};
 	const char * const *events_tp;
+	int ret;
+
 	events_tp_size = 0;
+	ret = setup_kvm_events_tp(kvm);
+	if (ret < 0) {
+		pr_err("Unable to setup the kvm tracepoints\n");
+		return ret;
+	}
 
 	for (events_tp = kvm_events_tp; *events_tp; events_tp++)
 		events_tp_size++;
@@ -1351,7 +1363,6 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	disable_buildid_cache();
 
 	use_browser = 0;
-	setup_browser(false);
 
 	if (argc) {
 		argc = parse_options(argc, argv, live_options,
@@ -1378,6 +1389,12 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	/*
 	 * generate the event list
 	 */
+	err = setup_kvm_events_tp(kvm);
+	if (err < 0) {
+		pr_err("Unable to setup the kvm tracepoints\n");
+		return err;
+	}
+
 	kvm->evlist = kvm_live_event_list();
 	if (kvm->evlist == NULL) {
 		err = -1;
@@ -1409,8 +1426,6 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	err = kvm_events_live_report(kvm);
 
 out:
-	exit_browser(0);
-
 	if (kvm->session)
 		perf_session__delete(kvm->session);
 	kvm->session = NULL;

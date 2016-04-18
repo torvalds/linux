@@ -105,6 +105,7 @@ static struct apic apic_default = {
 
 	.cpu_mask_to_apicid_and		= flat_cpu_mask_to_apicid_and,
 
+	.send_IPI			= default_send_IPI_single,
 	.send_IPI_mask			= default_send_IPI_mask_logical,
 	.send_IPI_mask_allbutself	= default_send_IPI_mask_allbutself_logical,
 	.send_IPI_allbutself		= default_send_IPI_allbutself,

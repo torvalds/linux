@@ -14,8 +14,7 @@
 
 #include <drm/drm_gem.h>
 
-#define to_exynos_gem_obj(x)	container_of(x,\
-			struct exynos_drm_gem_obj, base)
+#define to_exynos_gem(x)	container_of(x, struct exynos_drm_gem, base)
 
 #define IS_NONCONTIG_BUFFER(f)		(f & EXYNOS_BO_NONCONTIG)
 
@@ -44,7 +43,7 @@
  * P.S. this object would be transferred to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
  */
-struct exynos_drm_gem_obj {
+struct exynos_drm_gem {
 	struct drm_gem_object	base;
 	unsigned int		flags;
 	unsigned long		size;
@@ -56,15 +55,13 @@ struct exynos_drm_gem_obj {
 	struct sg_table		*sgt;
 };
 
-struct page **exynos_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
-
 /* destroy a buffer with gem object */
-void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj);
+void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem);
 
 /* create a new buffer with gem object */
-struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
-						unsigned int flags,
-						unsigned long size);
+struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
+					     unsigned int flags,
+					     unsigned long size);
 
 /*
  * request gem object creation and buffer allocation as the size
@@ -73,6 +70,10 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
  */
 int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
+
+/* get fake-offset of gem object that can be used with mmap. */
+int exynos_drm_gem_map_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file_priv);
 
 /*
  * get dma address from gem handle and this function could be used for
@@ -92,10 +93,6 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 					unsigned int gem_handle,
 					struct drm_file *filp);
 
-/* map user space allocated by malloc to pages. */
-int exynos_drm_gem_userptr_ioctl(struct drm_device *dev, void *data,
-				      struct drm_file *file_priv);
-
 /* get buffer information to memory region allocated by gem. */
 int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
@@ -106,7 +103,7 @@ unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
 						struct drm_file *file_priv);
 
 /* free gem object. */
-void exynos_drm_gem_free_object(struct drm_gem_object *gem_obj);
+void exynos_drm_gem_free_object(struct drm_gem_object *obj);
 
 /* create memory region for drm framebuffer. */
 int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
@@ -123,28 +120,6 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 
 /* set vm_flags and we can change the vm attribute to other one at here. */
 int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
-
-static inline int vma_is_io(struct vm_area_struct *vma)
-{
-	return !!(vma->vm_flags & (VM_IO | VM_PFNMAP));
-}
-
-/* get a copy of a virtual memory region. */
-struct vm_area_struct *exynos_gem_get_vma(struct vm_area_struct *vma);
-
-/* release a userspace virtual memory area. */
-void exynos_gem_put_vma(struct vm_area_struct *vma);
-
-/* get pages from user space. */
-int exynos_gem_get_pages_from_userptr(unsigned long start,
-						unsigned int npages,
-						struct page **pages,
-						struct vm_area_struct *vma);
-
-/* drop the reference to pages. */
-void exynos_gem_put_pages_to_userptr(struct page **pages,
-					unsigned int npages,
-					struct vm_area_struct *vma);
 
 /* map sgt with dma region. */
 int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,

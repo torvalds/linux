@@ -18,6 +18,10 @@ static void qla2x00_status_entry(scsi_qla_host_t *, struct rsp_que *, void *);
 static void qla2x00_status_cont_entry(struct rsp_que *, sts_cont_entry_t *);
 static void qla2x00_error_entry(scsi_qla_host_t *, struct rsp_que *,
 	sts_entry_t *);
+static void qla_irq_affinity_notify(struct irq_affinity_notify *,
+    const cpumask_t *);
+static void qla_irq_affinity_release(struct kref *);
+
 
 /**
  * qla2100_intr_handler() - Process interrupts for the ISP2100 and ISP2200.
@@ -930,10 +934,6 @@ skip_rio:
 			break;
 
 global_port_update:
-			/* Port unavailable. */
-			ql_log(ql_log_warn, vha, 0x505e,
-			    "Link is offline.\n");
-
 			if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 				atomic_set(&vha->loop_state, LOOP_DOWN);
 				atomic_set(&vha->loop_down_timer,
@@ -1418,6 +1418,12 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 	case SRB_CT_CMD:
 		type = "ct pass-through";
 		break;
+	case SRB_ELS_DCMD:
+		type = "Driver ELS logo";
+		ql_dbg(ql_dbg_user, vha, 0x5047,
+		    "Completing %s: (%p) type=%d.\n", type, sp, sp->type);
+		sp->done(vha, sp, 0);
+		return;
 	default:
 		ql_dbg(ql_dbg_user, vha, 0x503e,
 		    "Unrecognized SRB: (%p) type=%d.\n", sp, sp->type);
@@ -2542,6 +2548,14 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 	if (!vha->flags.online)
 		return;
 
+	if (rsp->msix->cpuid != smp_processor_id()) {
+		/* if kernel does not notify qla of IRQ's CPU change,
+		 * then set it here.
+		 */
+		rsp->msix->cpuid = smp_processor_id();
+		ha->tgt.rspq_vector_cpuid = rsp->msix->cpuid;
+	}
+
 	while (rsp->ring_ptr->signature != RESPONSE_PROCESSED) {
 		pkt = (struct sts_entry_24xx *)rsp->ring_ptr;
 
@@ -2587,8 +2601,14 @@ process_err:
 			qla24xx_els_ct_entry(vha, rsp->req, pkt, ELS_IOCB_TYPE);
 			break;
 		case ABTS_RECV_24XX:
-			/* ensure that the ATIO queue is empty */
-			qlt_24xx_process_atio_queue(vha);
+			if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+				/* ensure that the ATIO queue is empty */
+				qlt_handle_abts_recv(vha, (response_t *)pkt);
+				break;
+			} else {
+				/* drop through */
+				qlt_24xx_process_atio_queue(vha, 1);
+			}
 		case ABTS_RESP_24XX:
 		case CTIO_TYPE7:
 		case NOTIFY_ACK_TYPE:
@@ -2755,13 +2775,22 @@ qla24xx_intr_handler(int irq, void *dev_id)
 		case INTR_RSP_QUE_UPDATE_83XX:
 			qla24xx_process_response_queue(vha, rsp);
 			break;
-		case INTR_ATIO_QUE_UPDATE:
-			qlt_24xx_process_atio_queue(vha);
+		case INTR_ATIO_QUE_UPDATE:{
+			unsigned long flags2;
+			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
+			qlt_24xx_process_atio_queue(vha, 1);
+			spin_unlock_irqrestore(&ha->tgt.atio_lock, flags2);
 			break;
-		case INTR_ATIO_RSP_QUE_UPDATE:
-			qlt_24xx_process_atio_queue(vha);
+		}
+		case INTR_ATIO_RSP_QUE_UPDATE: {
+			unsigned long flags2;
+			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
+			qlt_24xx_process_atio_queue(vha, 1);
+			spin_unlock_irqrestore(&ha->tgt.atio_lock, flags2);
+
 			qla24xx_process_response_queue(vha, rsp);
 			break;
+		}
 		default:
 			ql_dbg(ql_dbg_async, vha, 0x504f,
 			    "Unrecognized interrupt type (%d).\n", stat * 0xff);
@@ -2920,13 +2949,22 @@ qla24xx_msix_default(int irq, void *dev_id)
 		case INTR_RSP_QUE_UPDATE_83XX:
 			qla24xx_process_response_queue(vha, rsp);
 			break;
-		case INTR_ATIO_QUE_UPDATE:
-			qlt_24xx_process_atio_queue(vha);
+		case INTR_ATIO_QUE_UPDATE:{
+			unsigned long flags2;
+			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
+			qlt_24xx_process_atio_queue(vha, 1);
+			spin_unlock_irqrestore(&ha->tgt.atio_lock, flags2);
 			break;
-		case INTR_ATIO_RSP_QUE_UPDATE:
-			qlt_24xx_process_atio_queue(vha);
+		}
+		case INTR_ATIO_RSP_QUE_UPDATE: {
+			unsigned long flags2;
+			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
+			qlt_24xx_process_atio_queue(vha, 1);
+			spin_unlock_irqrestore(&ha->tgt.atio_lock, flags2);
+
 			qla24xx_process_response_queue(vha, rsp);
 			break;
+		}
 		default:
 			ql_dbg(ql_dbg_async, vha, 0x5051,
 			    "Unrecognized interrupt type (%d).\n", stat & 0xff);
@@ -2973,8 +3011,11 @@ qla24xx_disable_msix(struct qla_hw_data *ha)
 
 	for (i = 0; i < ha->msix_count; i++) {
 		qentry = &ha->msix_entries[i];
-		if (qentry->have_irq)
+		if (qentry->have_irq) {
+			/* un-register irq cpu affinity notification */
+			irq_set_affinity_notifier(qentry->vector, NULL);
 			free_irq(qentry->vector, qentry->rsp);
+		}
 	}
 	pci_disable_msix(ha->pdev);
 	kfree(ha->msix_entries);
@@ -3018,9 +3059,9 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		    "MSI-X: Failed to enable support "
 		    "-- %d/%d\n Retry with %d vectors.\n",
 		    ha->msix_count, ret, ret);
+		ha->msix_count = ret;
+		ha->max_rsp_queues = ha->msix_count - 1;
 	}
-	ha->msix_count = ret;
-	ha->max_rsp_queues = ha->msix_count - 1;
 	ha->msix_entries = kzalloc(sizeof(struct qla_msix_entry) *
 				ha->msix_count, GFP_KERNEL);
 	if (!ha->msix_entries) {
@@ -3037,6 +3078,9 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		qentry->entry = entries[i].entry;
 		qentry->have_irq = 0;
 		qentry->rsp = NULL;
+		qentry->irq_notify.notify  = qla_irq_affinity_notify;
+		qentry->irq_notify.release = qla_irq_affinity_release;
+		qentry->cpuid = -1;
 	}
 
 	/* Enable MSI-X vectors for the base queue */
@@ -3055,6 +3099,18 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		qentry->have_irq = 1;
 		qentry->rsp = rsp;
 		rsp->msix = qentry;
+
+		/* Register for CPU affinity notification. */
+		irq_set_affinity_notifier(qentry->vector, &qentry->irq_notify);
+
+		/* Schedule work (ie. trigger a notification) to read cpu
+		 * mask for this specific irq.
+		 * kref_get is required because
+		* irq_affinity_notify() will do
+		* kref_put().
+		*/
+		kref_get(&qentry->irq_notify.kref);
+		schedule_work(&qentry->irq_notify.work);
 	}
 
 	/*
@@ -3233,4 +3289,48 @@ int qla25xx_request_irq(struct rsp_que *rsp)
 	msix->have_irq = 1;
 	msix->rsp = rsp;
 	return ret;
+}
+
+
+/* irq_set_affinity/irqbalance will trigger notification of cpu mask update */
+static void qla_irq_affinity_notify(struct irq_affinity_notify *notify,
+	const cpumask_t *mask)
+{
+	struct qla_msix_entry *e =
+		container_of(notify, struct qla_msix_entry, irq_notify);
+	struct qla_hw_data *ha;
+	struct scsi_qla_host *base_vha;
+
+	/* user is recommended to set mask to just 1 cpu */
+	e->cpuid = cpumask_first(mask);
+
+	ha = e->rsp->hw;
+	base_vha = pci_get_drvdata(ha->pdev);
+
+	ql_dbg(ql_dbg_init, base_vha, 0xffff,
+	    "%s: host %ld : vector %d cpu %d \n", __func__,
+	    base_vha->host_no, e->vector, e->cpuid);
+
+	if (e->have_irq) {
+		if ((IS_QLA83XX(ha) || IS_QLA27XX(ha)) &&
+		    (e->entry == QLA83XX_RSPQ_MSIX_ENTRY_NUMBER)) {
+			ha->tgt.rspq_vector_cpuid = e->cpuid;
+			ql_dbg(ql_dbg_init, base_vha, 0xffff,
+			    "%s: host%ld: rspq vector %d cpu %d  runtime change\n",
+			    __func__, base_vha->host_no, e->vector, e->cpuid);
+		}
+	}
+}
+
+static void qla_irq_affinity_release(struct kref *ref)
+{
+	struct irq_affinity_notify *notify =
+		container_of(ref, struct irq_affinity_notify, kref);
+	struct qla_msix_entry *e =
+		container_of(notify, struct qla_msix_entry, irq_notify);
+	struct scsi_qla_host *base_vha = pci_get_drvdata(e->rsp->hw->pdev);
+
+	ql_dbg(ql_dbg_init, base_vha, 0xffff,
+	    "%s: host%ld: vector %d cpu %d \n", __func__,
+	    base_vha->host_no, e->vector, e->cpuid);
 }

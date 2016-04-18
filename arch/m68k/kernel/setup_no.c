@@ -68,9 +68,6 @@ void (*mach_power_off)(void);
 #define CPU_NAME	"MC68000"
 #endif
 #endif /* CONFIG_M68000 */
-#ifdef CONFIG_M68360
-#define CPU_NAME	"MC68360"
-#endif
 #ifndef CPU_NAME
 #define	CPU_NAME	"UNKNOWN"
 #endif
@@ -209,10 +206,6 @@ void __init setup_arch(char **cmdline_p)
 #if defined( CONFIG_PILOT ) && defined( CONFIG_M68EZ328 )
 	printk(KERN_INFO "PalmV support by Lineo Inc. <jeff@uclinux.com>\n");
 #endif
-#if defined (CONFIG_M68360)
-	printk(KERN_INFO "QUICC port done by SED Systems <hamilton@sedsystems.ca>,\n");
-	printk(KERN_INFO "based on 2.0.38 port by Lineo Inc. <mleslie@lineo.com>.\n");
-#endif
 #ifdef CONFIG_DRAGEN2
 	printk(KERN_INFO "DragonEngine II board support by Georges Menie\n");
 #endif
@@ -238,11 +231,14 @@ void __init setup_arch(char **cmdline_p)
 	 * Give all the memory to the bootmap allocator, tell it to put the
 	 * boot mem_map at the start of memory.
 	 */
+	min_low_pfn = PFN_DOWN(memory_start);
+	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
+
 	bootmap_size = init_bootmem_node(
 			NODE_DATA(0),
-			memory_start >> PAGE_SHIFT, /* map goes here */
-			PAGE_OFFSET >> PAGE_SHIFT,	/* 0 on coldfire */
-			memory_end >> PAGE_SHIFT);
+			min_low_pfn,		/* map goes here */
+			PFN_DOWN(PAGE_OFFSET),
+			max_pfn);
 	/*
 	 * Free the usable memory, we have to make sure we do not free
 	 * the bootmem bitmap so we then reserve it after freeing it :-)

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -173,9 +173,10 @@ void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
 	info->fully_qualified = FALSE;
 
 	/*
-	 * For the internal name, the required length is 4 bytes per segment, plus
-	 * 1 each for root_prefix, multi_name_prefix_op, segment count, trailing null
-	 * (which is not really needed, but no there's harm in putting it there)
+	 * For the internal name, the required length is 4 bytes per segment,
+	 * plus 1 each for root_prefix, multi_name_prefix_op, segment count,
+	 * trailing null (which is not really needed, but no there's harm in
+	 * putting it there)
 	 *
 	 * strlen() + 1 covers the first name_seg, which has no path separator
 	 */
@@ -699,6 +700,7 @@ acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
 		if (!prefix_node) {
 			*return_node = acpi_gbl_root_node;
 		}
+
 		return_ACPI_STATUS(AE_OK);
 	}
 

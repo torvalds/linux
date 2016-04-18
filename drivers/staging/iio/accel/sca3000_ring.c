@@ -48,7 +48,7 @@ static int sca3000_read_data(struct sca3000_state *st,
 		}
 	};
 	*rx_p = kmalloc(len, GFP_KERNEL);
-	if (*rx_p == NULL) {
+	if (!*rx_p) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
@@ -99,8 +99,7 @@ static int sca3000_read_first_n_hw_rb(struct iio_buffer *r,
 	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_BUF_COUNT, 1);
 	if (ret)
 		goto error_ret;
-	else
-		num_available = st->rx[0];
+	num_available = st->rx[0];
 	/*
 	 * num_available is the total number of samples available
 	 * i.e. number of time points * number of channels.

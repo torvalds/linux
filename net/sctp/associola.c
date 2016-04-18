@@ -383,6 +383,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
 		list_del_rcu(pos);
+		sctp_unhash_transport(transport);
 		sctp_transport_free(transport);
 	}
 
@@ -500,6 +501,8 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 
 	/* Remove this peer from the list. */
 	list_del_rcu(&peer->transports);
+	/* Remove this peer from the transport hashtable */
+	sctp_unhash_transport(peer);
 
 	/* Get the first transport of asoc. */
 	pos = asoc->peer.transport_addr_list.next;
@@ -699,6 +702,8 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	/* Attach the remote transport to our asoc.  */
 	list_add_tail_rcu(&peer->transports, &asoc->peer.transport_addr_list);
 	asoc->peer.transport_count++;
+	/* Add this peer into the transport hashtable */
+	sctp_hash_transport(peer);
 
 	/* If we do not yet have a primary path, set one.  */
 	if (!asoc->peer.primary_path) {
@@ -1258,7 +1263,7 @@ static struct sctp_transport *sctp_trans_elect_best(struct sctp_transport *curr,
 	if (score_curr > score_best)
 		return curr;
 	else if (score_curr == score_best)
-		return sctp_trans_elect_tie(curr, best);
+		return sctp_trans_elect_tie(best, curr);
 	else
 		return best;
 }
@@ -1401,7 +1406,8 @@ void sctp_assoc_sync_pmtu(struct sock *sk, struct sctp_association *asoc)
 	list_for_each_entry(t, &asoc->peer.transport_addr_list,
 				transports) {
 		if (t->pmtu_pending && t->dst) {
-			sctp_transport_update_pmtu(sk, t, dst_mtu(t->dst));
+			sctp_transport_update_pmtu(sk, t,
+						   WORD_TRUNC(dst_mtu(t->dst)));
 			t->pmtu_pending = 0;
 		}
 		if (!pmtu || (t->pathmtu < pmtu))
@@ -1488,7 +1494,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
 
 		asoc->peer.sack_needed = 0;
 
-		sctp_outq_tail(&asoc->outqueue, sack);
+		sctp_outq_tail(&asoc->outqueue, sack, GFP_ATOMIC);
 
 		/* Stop the SACK timer.  */
 		timer = &asoc->timers[SCTP_EVENT_TIMEOUT_SACK];
@@ -1590,7 +1596,7 @@ int sctp_assoc_lookup_laddr(struct sctp_association *asoc,
 /* Set an association id for a given association */
 int sctp_assoc_set_id(struct sctp_association *asoc, gfp_t gfp)
 {
-	bool preload = !!(gfp & __GFP_WAIT);
+	bool preload = gfpflags_allow_blocking(gfp);
 	int ret;
 
 	/* If the id is already assigned, keep it. */

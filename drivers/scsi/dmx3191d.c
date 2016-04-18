@@ -36,17 +36,10 @@
 
 #define DONT_USE_INTR
 
-#define NCR5380_read(reg)		inb(port + reg)
-#define NCR5380_write(reg, value)	outb(value, port + reg)
+#define NCR5380_read(reg)		inb(instance->io_port + reg)
+#define NCR5380_write(reg, value)	outb(value, instance->io_port + reg)
 
 #define NCR5380_implementation_fields	/* none */
-#define NCR5380_local_declare()		unsigned int port
-#define NCR5380_setup(instance)		port = instance->io_port
-
-/*
- * Includes needed for NCR5380.[ch] (XXX: Move them to NCR5380.h)
- */
-#include <linux/delay.h>
 
 #include "NCR5380.h"
 #include "NCR5380.c"
@@ -56,6 +49,7 @@
 
 
 static struct scsi_host_template dmx3191d_driver_template = {
+	.module			= THIS_MODULE,
 	.proc_name		= DMX3191D_DRIVER_NAME,
 	.name			= "Domex DMX3191D",
 	.info			= NCR5380_info,
@@ -67,6 +61,8 @@ static struct scsi_host_template dmx3191d_driver_template = {
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 2,
 	.use_clustering		= DISABLE_CLUSTERING,
+	.cmd_size		= NCR5380_CMD_SIZE,
+	.max_sectors		= 128,
 };
 
 static int dmx3191d_probe_one(struct pci_dev *pdev,
@@ -97,17 +93,25 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 	 */
 	shost->irq = NO_IRQ;
 
-	NCR5380_init(shost, FLAG_NO_PSEUDO_DMA | FLAG_DTC3181E);
+	error = NCR5380_init(shost, FLAG_NO_PSEUDO_DMA);
+	if (error)
+		goto out_host_put;
+
+	NCR5380_maybe_reset_bus(shost);
 
 	pci_set_drvdata(pdev, shost);
 
 	error = scsi_add_host(shost, &pdev->dev);
 	if (error)
-		goto out_release_region;
+		goto out_exit;
 
 	scsi_scan_host(shost);
 	return 0;
 
+out_exit:
+	NCR5380_exit(shost);
+out_host_put:
+	scsi_host_put(shost);
  out_release_region:
 	release_region(io, DMX3191D_REGION_LEN);
  out_disable_device:
@@ -119,15 +123,14 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 static void dmx3191d_remove_one(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	unsigned long io = shost->io_port;
 
 	scsi_remove_host(shost);
 
 	NCR5380_exit(shost);
-
-	release_region(shost->io_port, DMX3191D_REGION_LEN);
-	pci_disable_device(pdev);
-
 	scsi_host_put(shost);
+	release_region(io, DMX3191D_REGION_LEN);
+	pci_disable_device(pdev);
 }
 
 static struct pci_device_id dmx3191d_pci_tbl[] = {

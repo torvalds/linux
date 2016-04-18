@@ -74,7 +74,8 @@
 
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
-			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
 
 		internal-regs {
 			serial@12000 {
@@ -165,6 +166,33 @@
 					compatible = "mx25l25635e", "jedec,spi-nor";
 					reg = <0>; /* Chip select 0 */
 					spi-max-frequency = <50000000>;
+				};
+			};
+
+			nand@d0000 {
+				status = "okay";
+				num-cs = <1>;
+				marvell,nand-keep-config;
+				marvell,nand-enable-arbiter;
+				nand-on-flash-bbt;
+
+				partitions {
+					compatible = "fixed-partitions";
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					partition@0 {
+						label = "U-Boot";
+						reg = <0 0x800000>;
+					};
+					partition@800000 {
+						label = "Linux";
+						reg = <0x800000 0x800000>;
+					};
+					partition@1000000 {
+						label = "Filesystem";
+						reg = <0x1000000 0x3f000000>;
+					};
 				};
 			};
 		};

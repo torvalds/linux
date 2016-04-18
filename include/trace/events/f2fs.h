@@ -52,6 +52,7 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 		{ META_FLUSH,	"META_FLUSH" },				\
 		{ INMEM,	"INMEM" },				\
 		{ INMEM_DROP,	"INMEM_DROP" },				\
+		{ INMEM_REVOKE,	"INMEM_REVOKE" },			\
 		{ IPU,		"IN-PLACE" },				\
 		{ OPU,		"OUT-OF-PLACE" })
 
@@ -727,7 +728,8 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		__field(dev_t, dev)
 		__field(ino_t, ino)
 		__field(pgoff_t, index)
-		__field(block_t, blkaddr)
+		__field(block_t, old_blkaddr)
+		__field(block_t, new_blkaddr)
 		__field(int, rw)
 		__field(int, type)
 	),
@@ -736,16 +738,18 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		__entry->dev		= page->mapping->host->i_sb->s_dev;
 		__entry->ino		= page->mapping->host->i_ino;
 		__entry->index		= page->index;
-		__entry->blkaddr	= fio->blk_addr;
+		__entry->old_blkaddr	= fio->old_blkaddr;
+		__entry->new_blkaddr	= fio->new_blkaddr;
 		__entry->rw		= fio->rw;
 		__entry->type		= fio->type;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
-		"blkaddr = 0x%llx, rw = %s%s, type = %s",
+		"oldaddr = 0x%llx, newaddr = 0x%llx rw = %s%s, type = %s",
 		show_dev_ino(__entry),
 		(unsigned long)__entry->index,
-		(unsigned long long)__entry->blkaddr,
+		(unsigned long long)__entry->old_blkaddr,
+		(unsigned long long)__entry->new_blkaddr,
 		show_bio_type(__entry->rw),
 		show_block_type(__entry->type))
 );
@@ -1263,6 +1267,44 @@ TRACE_EVENT(f2fs_destroy_extent_tree,
 	TP_printk("dev = (%d,%d), ino = %lu, destroyed: node_cnt = %u",
 		show_dev_ino(__entry),
 		__entry->node_cnt)
+);
+
+DECLARE_EVENT_CLASS(f2fs_sync_dirty_inodes,
+
+	TP_PROTO(struct super_block *sb, int type, int count),
+
+	TP_ARGS(sb, type, count),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(int, type)
+		__field(int, count)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->type	= type;
+		__entry->count	= count;
+	),
+
+	TP_printk("dev = (%d,%d), %s, dirty count = %d",
+		show_dev(__entry),
+		show_file_type(__entry->type),
+		__entry->count)
+);
+
+DEFINE_EVENT(f2fs_sync_dirty_inodes, f2fs_sync_dirty_inodes_enter,
+
+	TP_PROTO(struct super_block *sb, int type, int count),
+
+	TP_ARGS(sb, type, count)
+);
+
+DEFINE_EVENT(f2fs_sync_dirty_inodes, f2fs_sync_dirty_inodes_exit,
+
+	TP_PROTO(struct super_block *sb, int type, int count),
+
+	TP_ARGS(sb, type, count)
 );
 
 #endif /* _TRACE_F2FS_H */

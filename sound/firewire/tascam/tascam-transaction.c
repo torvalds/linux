@@ -230,6 +230,7 @@ int snd_tscm_transaction_register(struct snd_tscm *tscm)
 	return err;
 error:
 	fw_core_remove_address_handler(&tscm->async_handler);
+	tscm->async_handler.callback_data = NULL;
 	return err;
 }
 
@@ -276,6 +277,9 @@ void snd_tscm_transaction_unregister(struct snd_tscm *tscm)
 	__be32 reg;
 	unsigned int i;
 
+	if (tscm->async_handler.callback_data == NULL)
+		return;
+
 	/* Turn off FireWire LED. */
 	reg = cpu_to_be32(0x0000008e);
 	snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
@@ -297,6 +301,8 @@ void snd_tscm_transaction_unregister(struct snd_tscm *tscm)
 			   &reg, sizeof(reg), 0);
 
 	fw_core_remove_address_handler(&tscm->async_handler);
+	tscm->async_handler.callback_data = NULL;
+
 	for (i = 0; i < TSCM_MIDI_OUT_PORT_MAX; i++)
 		snd_fw_async_midi_port_destroy(&tscm->out_ports[i]);
 }

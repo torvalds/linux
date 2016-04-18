@@ -415,7 +415,8 @@ static int get_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		get_user(kp->index, &up->index) ||
 		get_user(kp->type, &up->type) ||
 		get_user(kp->flags, &up->flags) ||
-		get_user(kp->memory, &up->memory))
+		get_user(kp->memory, &up->memory) ||
+		get_user(kp->length, &up->length))
 			return -EFAULT;
 
 	if (V4L2_TYPE_IS_OUTPUT(kp->type))
@@ -427,9 +428,6 @@ static int get_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 			return -EFAULT;
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(kp->type)) {
-		if (get_user(kp->length, &up->length))
-			return -EFAULT;
-
 		num_planes = kp->length;
 		if (num_planes == 0) {
 			kp->m.planes = NULL;
@@ -462,16 +460,14 @@ static int get_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 	} else {
 		switch (kp->memory) {
 		case V4L2_MEMORY_MMAP:
-			if (get_user(kp->length, &up->length) ||
-				get_user(kp->m.offset, &up->m.offset))
+			if (get_user(kp->m.offset, &up->m.offset))
 				return -EFAULT;
 			break;
 		case V4L2_MEMORY_USERPTR:
 			{
 			compat_long_t tmp;
 
-			if (get_user(kp->length, &up->length) ||
-			    get_user(tmp, &up->m.userptr))
+			if (get_user(tmp, &up->m.userptr))
 				return -EFAULT;
 
 			kp->m.userptr = (unsigned long)compat_ptr(tmp);
@@ -513,7 +509,8 @@ static int put_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		copy_to_user(&up->timecode, &kp->timecode, sizeof(struct v4l2_timecode)) ||
 		put_user(kp->sequence, &up->sequence) ||
 		put_user(kp->reserved2, &up->reserved2) ||
-		put_user(kp->reserved, &up->reserved))
+		put_user(kp->reserved, &up->reserved) ||
+		put_user(kp->length, &up->length))
 			return -EFAULT;
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(kp->type)) {
@@ -536,13 +533,11 @@ static int put_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 	} else {
 		switch (kp->memory) {
 		case V4L2_MEMORY_MMAP:
-			if (put_user(kp->length, &up->length) ||
-				put_user(kp->m.offset, &up->m.offset))
+			if (put_user(kp->m.offset, &up->m.offset))
 				return -EFAULT;
 			break;
 		case V4L2_MEMORY_USERPTR:
-			if (put_user(kp->length, &up->length) ||
-				put_user(kp->m.userptr, &up->m.userptr))
+			if (put_user(kp->m.userptr, &up->m.userptr))
 				return -EFAULT;
 			break;
 		case V4L2_MEMORY_OVERLAY:
@@ -630,7 +625,7 @@ static inline int put_v4l2_input32(struct v4l2_input *kp, struct v4l2_input32 __
 }
 
 struct v4l2_ext_controls32 {
-	__u32 ctrl_class;
+	__u32 which;
 	__u32 count;
 	__u32 error_idx;
 	__u32 reserved[2];
@@ -673,7 +668,7 @@ static int get_v4l2_ext_controls32(struct v4l2_ext_controls *kp, struct v4l2_ext
 	compat_caddr_t p;
 
 	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_ext_controls32)) ||
-		get_user(kp->ctrl_class, &up->ctrl_class) ||
+		get_user(kp->which, &up->which) ||
 		get_user(kp->count, &up->count) ||
 		get_user(kp->error_idx, &up->error_idx) ||
 		copy_from_user(kp->reserved, up->reserved,
@@ -723,7 +718,7 @@ static int put_v4l2_ext_controls32(struct v4l2_ext_controls *kp, struct v4l2_ext
 	compat_caddr_t p;
 
 	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_ext_controls32)) ||
-		put_user(kp->ctrl_class, &up->ctrl_class) ||
+		put_user(kp->which, &up->which) ||
 		put_user(kp->count, &up->count) ||
 		put_user(kp->error_idx, &up->error_idx) ||
 		copy_to_user(up->reserved, kp->reserved, sizeof(up->reserved)))

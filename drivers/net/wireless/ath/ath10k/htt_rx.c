@@ -536,7 +536,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 
 	size = htt->rx_ring.size * sizeof(htt->rx_ring.paddrs_ring);
 
-	vaddr = dma_alloc_coherent(htt->ar->dev, size, &paddr, GFP_DMA);
+	vaddr = dma_alloc_coherent(htt->ar->dev, size, &paddr, GFP_KERNEL);
 	if (!vaddr)
 		goto err_dma_ring;
 
@@ -545,7 +545,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 
 	vaddr = dma_alloc_coherent(htt->ar->dev,
 				   sizeof(*htt->rx_ring.alloc_idx.vaddr),
-				   &paddr, GFP_DMA);
+				   &paddr, GFP_KERNEL);
 	if (!vaddr)
 		goto err_dma_idx;
 
@@ -674,7 +674,7 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 		rate &= ~RX_PPDU_START_RATE_FLAG;
 
 		sband = &ar->mac.sbands[status->band];
-		status->rate_idx = ath10k_mac_hw_rate_to_idx(sband, rate);
+		status->rate_idx = ath10k_mac_hw_rate_to_idx(sband, rate, cck);
 		break;
 	case HTT_RX_HT:
 	case HTT_RX_HT_WITH_TXBF:
@@ -1114,7 +1114,20 @@ static void ath10k_htt_rx_h_undecap_nwifi(struct ath10k *ar,
 	 */
 
 	/* pull decapped header and copy SA & DA */
-	hdr = (struct ieee80211_hdr *)msdu->data;
+	if ((ar->hw_params.hw_4addr_pad == ATH10K_HW_4ADDR_PAD_BEFORE) &&
+	    ieee80211_has_a4(((struct ieee80211_hdr *)first_hdr)->frame_control)) {
+		/* The QCA99X0 4 address mode pad 2 bytes at the
+		 * beginning of MSDU
+		 */
+		hdr = (struct ieee80211_hdr *)(msdu->data + 2);
+		/* The skb length need be extended 2 as the 2 bytes at the tail
+		 * be excluded due to the padding
+		 */
+		skb_put(msdu, 2);
+	} else {
+		hdr = (struct ieee80211_hdr *)(msdu->data);
+	}
+
 	hdr_len = ath10k_htt_rx_nwifi_hdrlen(ar, hdr);
 	ether_addr_copy(da, ieee80211_get_DA(hdr));
 	ether_addr_copy(sa, ieee80211_get_SA(hdr));
@@ -1998,9 +2011,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_IND:
-		spin_lock_bh(&htt->rx_ring.lock);
-		__skb_queue_tail(&htt->rx_compl_q, skb);
-		spin_unlock_bh(&htt->rx_ring.lock);
+		skb_queue_tail(&htt->rx_compl_q, skb);
 		tasklet_schedule(&htt->txrx_compl_task);
 		return;
 	case HTT_T2H_MSG_TYPE_PEER_MAP: {
@@ -2098,9 +2109,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND: {
-		spin_lock_bh(&htt->rx_ring.lock);
-		__skb_queue_tail(&htt->rx_in_ord_compl_q, skb);
-		spin_unlock_bh(&htt->rx_ring.lock);
+		skb_queue_tail(&htt->rx_in_ord_compl_q, skb);
 		tasklet_schedule(&htt->txrx_compl_task);
 		return;
 	}
@@ -2110,10 +2119,12 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case HTT_T2H_MSG_TYPE_AGGR_CONF:
 		break;
-	case HTT_T2H_MSG_TYPE_EN_STATS:
 	case HTT_T2H_MSG_TYPE_TX_FETCH_IND:
-	case HTT_T2H_MSG_TYPE_TX_FETCH_CONF:
-	case HTT_T2H_MSG_TYPE_TX_LOW_LATENCY_IND:
+	case HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM:
+	case HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND:
+		/* TODO: Implement pull-push logic */
+		break;
+	case HTT_T2H_MSG_TYPE_EN_STATS:
 	default:
 		ath10k_warn(ar, "htt event (%d) not handled\n",
 			    resp->hdr.msg_type);
@@ -2127,28 +2138,58 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ath10k_htt_t2h_msg_handler);
 
+void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
+					     struct sk_buff *skb)
+{
+	trace_ath10k_htt_pktlog(ar, skb->data, skb->len);
+	dev_kfree_skb_any(skb);
+}
+EXPORT_SYMBOL(ath10k_htt_rx_pktlog_completion_handler);
+
 static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 {
 	struct ath10k_htt *htt = (struct ath10k_htt *)ptr;
 	struct ath10k *ar = htt->ar;
+	struct sk_buff_head tx_q;
+	struct sk_buff_head rx_q;
+	struct sk_buff_head rx_ind_q;
 	struct htt_resp *resp;
 	struct sk_buff *skb;
+	unsigned long flags;
 
-	while ((skb = skb_dequeue(&htt->tx_compl_q))) {
+	__skb_queue_head_init(&tx_q);
+	__skb_queue_head_init(&rx_q);
+	__skb_queue_head_init(&rx_ind_q);
+
+	spin_lock_irqsave(&htt->tx_compl_q.lock, flags);
+	skb_queue_splice_init(&htt->tx_compl_q, &tx_q);
+	spin_unlock_irqrestore(&htt->tx_compl_q.lock, flags);
+
+	spin_lock_irqsave(&htt->rx_compl_q.lock, flags);
+	skb_queue_splice_init(&htt->rx_compl_q, &rx_q);
+	spin_unlock_irqrestore(&htt->rx_compl_q.lock, flags);
+
+	spin_lock_irqsave(&htt->rx_in_ord_compl_q.lock, flags);
+	skb_queue_splice_init(&htt->rx_in_ord_compl_q, &rx_ind_q);
+	spin_unlock_irqrestore(&htt->rx_in_ord_compl_q.lock, flags);
+
+	while ((skb = __skb_dequeue(&tx_q))) {
 		ath10k_htt_rx_frm_tx_compl(htt->ar, skb);
 		dev_kfree_skb_any(skb);
 	}
 
-	spin_lock_bh(&htt->rx_ring.lock);
-	while ((skb = __skb_dequeue(&htt->rx_compl_q))) {
+	while ((skb = __skb_dequeue(&rx_q))) {
 		resp = (struct htt_resp *)skb->data;
+		spin_lock_bh(&htt->rx_ring.lock);
 		ath10k_htt_rx_handler(htt, &resp->rx_ind);
+		spin_unlock_bh(&htt->rx_ring.lock);
 		dev_kfree_skb_any(skb);
 	}
 
-	while ((skb = __skb_dequeue(&htt->rx_in_ord_compl_q))) {
+	while ((skb = __skb_dequeue(&rx_ind_q))) {
+		spin_lock_bh(&htt->rx_ring.lock);
 		ath10k_htt_rx_in_ord_ind(ar, skb);
+		spin_unlock_bh(&htt->rx_ring.lock);
 		dev_kfree_skb_any(skb);
 	}
-	spin_unlock_bh(&htt->rx_ring.lock);
 }

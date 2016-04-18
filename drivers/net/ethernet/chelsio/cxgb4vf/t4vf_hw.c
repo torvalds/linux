@@ -120,11 +120,18 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 		1, 1, 3, 5, 10, 10, 20, 50, 100
 	};
 
-	u32 v;
+	u32 v, mbox_data;
 	int i, ms, delay_idx;
 	const __be64 *p;
-	u32 mbox_data = T4VF_MBDATA_BASE_ADDR;
 	u32 mbox_ctl = T4VF_CIM_BASE_ADDR + CIM_VF_EXT_MAILBOX_CTRL;
+
+	/* In T6, mailbox size is changed to 128 bytes to avoid
+	 * invalidating the entire prefetch buffer.
+	 */
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+		mbox_data = T4VF_MBDATA_BASE_ADDR;
+	else
+		mbox_data = T6VF_MBDATA_BASE_ADDR;
 
 	/*
 	 * Commands must be multiples of 16 bytes in length and may not be
@@ -227,23 +234,6 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	 */
 	dump_mbox(adapter, "FW Timeout", mbox_data);
 	return -ETIMEDOUT;
-}
-
-/**
- *	hash_mac_addr - return the hash value of a MAC address
- *	@addr: the 48-bit Ethernet MAC address
- *
- *	Hashes a MAC address according to the hash function used by hardware
- *	inexact (hash) address matching.
- */
-static int hash_mac_addr(const u8 *addr)
-{
-	u32 a = ((u32)addr[0] << 16) | ((u32)addr[1] << 8) | addr[2];
-	u32 b = ((u32)addr[3] << 16) | ((u32)addr[4] << 8) | addr[5];
-	a ^= b;
-	a ^= (a >> 12);
-	a ^= (a >> 6);
-	return a & 0x3f;
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
@@ -425,6 +415,61 @@ int t4vf_set_params(struct adapter *adapter, unsigned int nparams,
 	}
 
 	return t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), NULL);
+}
+
+/**
+ *	t4vf_fl_pkt_align - return the fl packet alignment
+ *	@adapter: the adapter
+ *
+ *	T4 has a single field to specify the packing and padding boundary.
+ *	T5 onwards has separate fields for this and hence the alignment for
+ *	next packet offset is maximum of these two.  And T6 changes the
+ *	Ingress Padding Boundary Shift, so it's all a mess and it's best
+ *	if we put this in low-level Common Code ...
+ *
+ */
+int t4vf_fl_pkt_align(struct adapter *adapter)
+{
+	u32 sge_control, sge_control2;
+	unsigned int ingpadboundary, ingpackboundary, fl_align, ingpad_shift;
+
+	sge_control = adapter->params.sge.sge_control;
+
+	/* T4 uses a single control field to specify both the PCIe Padding and
+	 * Packing Boundary.  T5 introduced the ability to specify these
+	 * separately.  The actual Ingress Packet Data alignment boundary
+	 * within Packed Buffer Mode is the maximum of these two
+	 * specifications.  (Note that it makes no real practical sense to
+	 * have the Pading Boudary be larger than the Packing Boundary but you
+	 * could set the chip up that way and, in fact, legacy T4 code would
+	 * end doing this because it would initialize the Padding Boundary and
+	 * leave the Packing Boundary initialized to 0 (16 bytes).)
+	 * Padding Boundary values in T6 starts from 8B,
+	 * where as it is 32B for T4 and T5.
+	 */
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+		ingpad_shift = INGPADBOUNDARY_SHIFT_X;
+	else
+		ingpad_shift = T6_INGPADBOUNDARY_SHIFT_X;
+
+	ingpadboundary = 1 << (INGPADBOUNDARY_G(sge_control) + ingpad_shift);
+
+	fl_align = ingpadboundary;
+	if (!is_t4(adapter->params.chip)) {
+		/* T5 has a different interpretation of one of the PCIe Packing
+		 * Boundary values.
+		 */
+		sge_control2 = adapter->params.sge.sge_control2;
+		ingpackboundary = INGPACKBOUNDARY_G(sge_control2);
+		if (ingpackboundary == INGPACKBOUNDARY_16B_X)
+			ingpackboundary = 16;
+		else
+			ingpackboundary = 1 << (ingpackboundary +
+						INGPACKBOUNDARY_SHIFT_X);
+
+		fl_align = max(ingpadboundary, ingpackboundary);
+	}
+	return fl_align;
 }
 
 /**
@@ -1254,6 +1299,77 @@ int t4vf_alloc_mac_filt(struct adapter *adapter, unsigned int viid, bool free,
 	 * address arena, return the number of filters actually written.
 	 */
 	if (ret == 0 || ret == -ENOMEM)
+		ret = nfilters;
+	return ret;
+}
+
+/**
+ *	t4vf_free_mac_filt - frees exact-match filters of given MAC addresses
+ *	@adapter: the adapter
+ *	@viid: the VI id
+ *	@naddr: the number of MAC addresses to allocate filters for (up to 7)
+ *	@addr: the MAC address(es)
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Frees the exact-match filter for each of the supplied addresses
+ *
+ *	Returns a negative error number or the number of filters freed.
+ */
+int t4vf_free_mac_filt(struct adapter *adapter, unsigned int viid,
+		       unsigned int naddr, const u8 **addr, bool sleep_ok)
+{
+	int offset, ret = 0;
+	struct fw_vi_mac_cmd cmd;
+	unsigned int nfilters = 0;
+	unsigned int max_naddr = adapter->params.arch.mps_tcam_size;
+	unsigned int rem = naddr;
+
+	if (naddr > max_naddr)
+		return -EINVAL;
+
+	for (offset = 0; offset < (int)naddr ; /**/) {
+		unsigned int fw_naddr = (rem < ARRAY_SIZE(cmd.u.exact) ?
+					 rem : ARRAY_SIZE(cmd.u.exact));
+		size_t len16 = DIV_ROUND_UP(offsetof(struct fw_vi_mac_cmd,
+						     u.exact[fw_naddr]), 16);
+		struct fw_vi_mac_exact *p;
+		int i;
+
+		memset(&cmd, 0, sizeof(cmd));
+		cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				     FW_CMD_REQUEST_F |
+				     FW_CMD_WRITE_F |
+				     FW_CMD_EXEC_V(0) |
+				     FW_VI_MAC_CMD_VIID_V(viid));
+		cmd.freemacs_to_len16 =
+				cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(0) |
+					    FW_CMD_LEN16_V(len16));
+
+		for (i = 0, p = cmd.u.exact; i < (int)fw_naddr; i++, p++) {
+			p->valid_to_idx = cpu_to_be16(
+				FW_VI_MAC_CMD_VALID_F |
+				FW_VI_MAC_CMD_IDX_V(FW_VI_MAC_MAC_BASED_FREE));
+			memcpy(p->macaddr, addr[offset+i], sizeof(p->macaddr));
+		}
+
+		ret = t4vf_wr_mbox_core(adapter, &cmd, sizeof(cmd), &cmd,
+					sleep_ok);
+		if (ret)
+			break;
+
+		for (i = 0, p = cmd.u.exact; i < fw_naddr; i++, p++) {
+			u16 index = FW_VI_MAC_CMD_IDX_G(
+						be16_to_cpu(p->valid_to_idx));
+
+			if (index < max_naddr)
+				nfilters++;
+		}
+
+		offset += fw_naddr;
+		rem -= fw_naddr;
+	}
+
+	if (ret == 0)
 		ret = nfilters;
 	return ret;
 }

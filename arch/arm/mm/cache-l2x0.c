@@ -790,7 +790,7 @@ static const struct l2c_init_data l2c310_init_fns __initconst = {
 };
 
 static int __init __l2c_init(const struct l2c_init_data *data,
-			     u32 aux_val, u32 aux_mask, u32 cache_id)
+			     u32 aux_val, u32 aux_mask, u32 cache_id, bool nosync)
 {
 	struct outer_cache_fns fns;
 	unsigned way_size_bits, ways;
@@ -866,6 +866,10 @@ static int __init __l2c_init(const struct l2c_init_data *data,
 	fns.configure = outer_cache.configure;
 	if (data->fixup)
 		data->fixup(l2x0_base, cache_id, &fns);
+	if (nosync) {
+		pr_info("L2C: disabling outer sync\n");
+		fns.sync = NULL;
+	}
 
 	/*
 	 * Check if l2x0 controller is already enabled.  If we are booting
@@ -925,7 +929,7 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 	if (data->save)
 		data->save(l2x0_base);
 
-	__l2c_init(data, aux_val, aux_mask, cache_id);
+	__l2c_init(data, aux_val, aux_mask, cache_id, false);
 }
 
 #ifdef CONFIG_OF
@@ -1060,6 +1064,18 @@ static void __init l2x0_of_parse(const struct device_node *np,
 		val |= (dirty - 1) << L2X0_AUX_CTRL_DIRTY_LATENCY_SHIFT;
 	}
 
+	if (of_property_read_bool(np, "arm,parity-enable")) {
+		mask &= ~L2C_AUX_CTRL_PARITY_ENABLE;
+		val |= L2C_AUX_CTRL_PARITY_ENABLE;
+	} else if (of_property_read_bool(np, "arm,parity-disable")) {
+		mask &= ~L2C_AUX_CTRL_PARITY_ENABLE;
+	}
+
+	if (of_property_read_bool(np, "arm,shared-override")) {
+		mask &= ~L2C_AUX_CTRL_SHARED_OVERRIDE;
+		val |= L2C_AUX_CTRL_SHARED_OVERRIDE;
+	}
+
 	ret = l2x0_cache_size_of_parse(np, aux_val, aux_mask, &assoc, SZ_256K);
 	if (ret)
 		return;
@@ -1174,6 +1190,14 @@ static void __init l2c310_of_parse(const struct device_node *np,
 	if (of_property_read_bool(np, "arm,shared-override")) {
 		*aux_val |= L2C_AUX_CTRL_SHARED_OVERRIDE;
 		*aux_mask &= ~L2C_AUX_CTRL_SHARED_OVERRIDE;
+	}
+
+	if (of_property_read_bool(np, "arm,parity-enable")) {
+		*aux_val |= L2C_AUX_CTRL_PARITY_ENABLE;
+		*aux_mask &= ~L2C_AUX_CTRL_PARITY_ENABLE;
+	} else if (of_property_read_bool(np, "arm,parity-disable")) {
+		*aux_val &= ~L2C_AUX_CTRL_PARITY_ENABLE;
+		*aux_mask &= ~L2C_AUX_CTRL_PARITY_ENABLE;
 	}
 
 	prefetch = l2x0_saved_regs.prefetch_ctrl;
@@ -1704,6 +1728,7 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 	struct resource res;
 	u32 cache_id, old_aux;
 	u32 cache_level = 2;
+	bool nosync = false;
 
 	np = of_find_matching_node(NULL, l2x0_ids);
 	if (!np)
@@ -1742,6 +1767,8 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 	if (cache_level != 2)
 		pr_err("L2C: device tree specifies invalid cache level\n");
 
+	nosync = of_property_read_bool(np, "arm,outer-sync-disable");
+
 	/* Read back current (default) hardware configuration */
 	if (data->save)
 		data->save(l2x0_base);
@@ -1756,6 +1783,6 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 	else
 		cache_id = readl_relaxed(l2x0_base + L2X0_CACHE_ID);
 
-	return __l2c_init(data, aux_val, aux_mask, cache_id);
+	return __l2c_init(data, aux_val, aux_mask, cache_id, nosync);
 }
 #endif

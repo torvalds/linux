@@ -555,6 +555,8 @@ static int pcc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->min = policy->cpuinfo.min_freq =
 		ioread32(&pcch_hdr->minimum_frequency) * 1000;
 
+	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
+
 	pr_debug("init: policy->max is %d, policy->min is %d\n",
 		policy->max, policy->min);
 out:

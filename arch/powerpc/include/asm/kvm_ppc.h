@@ -165,9 +165,25 @@ extern void kvmppc_map_vrma(struct kvm_vcpu *vcpu,
 extern int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu);
 
 extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
-				struct kvm_create_spapr_tce *args);
+				struct kvm_create_spapr_tce_64 *args);
+extern struct kvmppc_spapr_tce_table *kvmppc_find_table(
+		struct kvm_vcpu *vcpu, unsigned long liobn);
+extern long kvmppc_ioba_validate(struct kvmppc_spapr_tce_table *stt,
+		unsigned long ioba, unsigned long npages);
+extern long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *tt,
+		unsigned long tce);
+extern long kvmppc_gpa_to_ua(struct kvm *kvm, unsigned long gpa,
+		unsigned long *ua, unsigned long **prmap);
+extern void kvmppc_tce_put(struct kvmppc_spapr_tce_table *tt,
+		unsigned long idx, unsigned long tce);
 extern long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 			     unsigned long ioba, unsigned long tce);
+extern long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
+		unsigned long liobn, unsigned long ioba,
+		unsigned long tce_list, unsigned long npages);
+extern long kvmppc_h_stuff_tce(struct kvm_vcpu *vcpu,
+		unsigned long liobn, unsigned long ioba,
+		unsigned long tce_value, unsigned long npages);
 extern long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 			     unsigned long ioba);
 extern struct page *kvm_alloc_hpt(unsigned long nr_pages);
@@ -437,6 +453,8 @@ static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.irq_type == KVMPPC_IRQ_XICS;
 }
+extern void kvmppc_alloc_host_rm_ops(void);
+extern void kvmppc_free_host_rm_ops(void);
 extern void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu);
 extern int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server);
 extern int kvm_vm_ioctl_xics_irq(struct kvm *kvm, struct kvm_irq_level *args);
@@ -445,7 +463,11 @@ extern u64 kvmppc_xics_get_icp(struct kvm_vcpu *vcpu);
 extern int kvmppc_xics_set_icp(struct kvm_vcpu *vcpu, u64 icpval);
 extern int kvmppc_xics_connect_vcpu(struct kvm_device *dev,
 			struct kvm_vcpu *vcpu, u32 cpu);
+extern void kvmppc_xics_ipi_action(void);
+extern int h_ipi_redirect;
 #else
+static inline void kvmppc_alloc_host_rm_ops(void) {};
+static inline void kvmppc_free_host_rm_ops(void) {};
 static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
 	{ return 0; }
 static inline void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu) { }
@@ -458,6 +480,33 @@ static inline int kvm_vm_ioctl_xics_irq(struct kvm *kvm,
 static inline int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
 	{ return 0; }
 #endif
+
+/*
+ * Host-side operations we want to set up while running in real
+ * mode in the guest operating on the xics.
+ * Currently only VCPU wakeup is supported.
+ */
+
+union kvmppc_rm_state {
+	unsigned long raw;
+	struct {
+		u32 in_host;
+		u32 rm_action;
+	};
+};
+
+struct kvmppc_host_rm_core {
+	union kvmppc_rm_state rm_state;
+	void *rm_data;
+	char pad[112];
+};
+
+struct kvmppc_host_rm_ops {
+	struct kvmppc_host_rm_core	*rm_core;
+	void		(*vcpu_kick)(struct kvm_vcpu *vcpu);
+};
+
+extern struct kvmppc_host_rm_ops *kvmppc_host_rm_ops_hv;
 
 static inline unsigned long kvmppc_get_epr(struct kvm_vcpu *vcpu)
 {
@@ -515,7 +564,7 @@ void kvmppc_claim_lpid(long lpid);
 void kvmppc_free_lpid(long lpid);
 void kvmppc_init_lpid(unsigned long nr_lpids);
 
-static inline void kvmppc_mmu_flush_icache(pfn_t pfn)
+static inline void kvmppc_mmu_flush_icache(kvm_pfn_t pfn)
 {
 	struct page *page;
 	/*

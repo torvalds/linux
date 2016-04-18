@@ -377,6 +377,8 @@ static int sst_byt_pcm_probe(struct snd_soc_platform *platform)
 
 	priv_data = devm_kzalloc(platform->dev, sizeof(*priv_data),
 				 GFP_KERNEL);
+	if (!priv_data)
+		return -ENOMEM;
 	priv_data->byt = plat_data->dsp;
 	snd_soc_platform_set_drvdata(platform, priv_data);
 

@@ -282,6 +282,7 @@ static inline void __dlm_set_joining_node(struct dlm_ctxt *dlm,
 #define DLM_LOCK_RES_DROPPING_REF         0x00000040
 #define DLM_LOCK_RES_BLOCK_DIRTY          0x00001000
 #define DLM_LOCK_RES_SETREF_INPROG        0x00002000
+#define DLM_LOCK_RES_RECOVERY_WAITING     0x00004000
 
 /* max milliseconds to wait to sync up a network failure with a node death */
 #define DLM_NODE_DEATH_WAIT_MAX (5 * 1000)
@@ -376,17 +377,6 @@ struct dlm_lock
 		 lksb_kernel_allocated:1;
 };
 
-
-#define DLM_LKSB_UNUSED1           0x01
-#define DLM_LKSB_PUT_LVB           0x02
-#define DLM_LKSB_GET_LVB           0x04
-#define DLM_LKSB_UNUSED2           0x08
-#define DLM_LKSB_UNUSED3           0x10
-#define DLM_LKSB_UNUSED4           0x20
-#define DLM_LKSB_UNUSED5           0x40
-#define DLM_LKSB_UNUSED6           0x80
-
-
 enum dlm_lockres_list {
 	DLM_GRANTED_LIST = 0,
 	DLM_CONVERTING_LIST = 1,
@@ -462,6 +452,7 @@ enum {
 	DLM_QUERY_REGION		= 519,
 	DLM_QUERY_NODEINFO		= 520,
 	DLM_BEGIN_EXIT_DOMAIN_MSG	= 521,
+	DLM_DEREF_LOCKRES_DONE		= 522,
 };
 
 struct dlm_reco_node_data
@@ -556,7 +547,7 @@ struct dlm_master_requery
  * };
  *
  * from ../cluster/tcp.h
- *    NET_MAX_PAYLOAD_BYTES  (4096 - sizeof(net_msg))
+ *    O2NET_MAX_PAYLOAD_BYTES  (4096 - sizeof(net_msg))
  *    (roughly 4080 bytes)
  * and sizeof(dlm_migratable_lockres) = 112 bytes
  * and sizeof(dlm_migratable_lock) = 16 bytes
@@ -597,7 +588,7 @@ struct dlm_migratable_lockres
 
 /* from above, 128 bytes
  * for some undetermined future use */
-#define DLM_MIG_LOCKRES_RESERVED   (NET_MAX_PAYLOAD_BYTES - \
+#define DLM_MIG_LOCKRES_RESERVED   (O2NET_MAX_PAYLOAD_BYTES - \
 				    DLM_MIG_LOCKRES_MAX_LEN)
 
 struct dlm_create_lock
@@ -793,6 +784,20 @@ struct dlm_deref_lockres
 	u8 name[O2NM_MAX_NAME_LEN];
 };
 
+enum {
+	DLM_DEREF_RESPONSE_DONE = 0,
+	DLM_DEREF_RESPONSE_INPROG = 1,
+};
+
+struct dlm_deref_lockres_done {
+	u32 pad1;
+	u16 pad2;
+	u8 node_idx;
+	u8 namelen;
+
+	u8 name[O2NM_MAX_NAME_LEN];
+};
+
 static inline enum dlm_status
 __dlm_lockres_state_to_status(struct dlm_lock_resource *res)
 {
@@ -800,7 +805,8 @@ __dlm_lockres_state_to_status(struct dlm_lock_resource *res)
 
 	assert_spin_locked(&res->spinlock);
 
-	if (res->state & DLM_LOCK_RES_RECOVERING)
+	if (res->state & (DLM_LOCK_RES_RECOVERING|
+			DLM_LOCK_RES_RECOVERY_WAITING))
 		status = DLM_RECOVERING;
 	else if (res->state & DLM_LOCK_RES_MIGRATING)
 		status = DLM_MIGRATING;
@@ -979,6 +985,8 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data,
 void dlm_assert_master_post_handler(int status, void *data, void *ret_data);
 int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 			      void **ret_data);
+int dlm_deref_lockres_done_handler(struct o2net_msg *msg, u32 len, void *data,
+			      void **ret_data);
 int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 				void **ret_data);
 int dlm_mig_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
@@ -1020,6 +1028,7 @@ static inline void __dlm_wait_on_lockres(struct dlm_lock_resource *res)
 {
 	__dlm_wait_on_lockres_flags(res, (DLM_LOCK_RES_IN_PROGRESS|
 				    	  DLM_LOCK_RES_RECOVERING|
+					  DLM_LOCK_RES_RECOVERY_WAITING|
 					  DLM_LOCK_RES_MIGRATING));
 }
 

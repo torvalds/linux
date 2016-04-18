@@ -123,6 +123,7 @@ config MD_RAID456
 	tristate "RAID-4/RAID-5/RAID-6 mode"
 	depends on BLK_DEV_MD
 	select RAID6_PQ
+	select LIBCRC32C
 	select ASYNC_MEMCPY
 	select ASYNC_XOR
 	select ASYNC_PQ
@@ -239,6 +240,16 @@ config DM_BUFIO
 	 as a cache, holding recently-read blocks in memory and performing
 	 delayed writes.
 
+config DM_DEBUG_BLOCK_STACK_TRACING
+       bool "Keep stack trace of persistent data block lock holders"
+       depends on STACKTRACE_SUPPORT && DM_BUFIO
+       select STACKTRACE
+       ---help---
+	 Enable this for messages that may help debug problems with the
+	 block manager locking used by thin provisioning and caching.
+
+	 If unsure, say N.
+
 config DM_BIO_PRISON
        tristate
        depends on BLK_DEV_DM
@@ -293,16 +304,6 @@ config DM_CACHE
          device.  Different 'policy' plugins can be used to change the
          algorithms used to select which blocks are promoted, demoted,
          cleaned etc.  It supports writeback and writethrough modes.
-
-config DM_CACHE_MQ
-       tristate "MQ Cache Policy (EXPERIMENTAL)"
-       depends on DM_CACHE
-       default y
-       ---help---
-         A cache policy that uses a multiqueue ordered by recent hit
-         count to select which blocks should be promoted and demoted.
-         This is meant to be a general purpose policy.  It prioritises
-         reads over writes.
 
 config DM_CACHE_SMQ
        tristate "Stochastic MQ Cache Policy (EXPERIMENTAL)"
@@ -454,6 +455,18 @@ config DM_VERITY
 
 	  To compile this code as a module, choose M here: the module will
 	  be called dm-verity.
+
+	  If unsure, say N.
+
+config DM_VERITY_FEC
+	bool "Verity forward error correction support"
+	depends on DM_VERITY
+	select REED_SOLOMON
+	select REED_SOLOMON_DEC8
+	---help---
+	  Add forward error correction support to dm-verity. This option
+	  makes it possible to use pre-generated error correction data to
+	  recover from corrupted blocks.
 
 	  If unsure, say N.
 

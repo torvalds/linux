@@ -52,6 +52,7 @@ enum vpfe_video_state {
 struct vpfe_pipeline {
 	/* media pipeline */
 	struct media_pipeline		*pipe;
+	struct media_entity_graph	graph;
 	/* state of the pipeline, continuous,
 	 * single-shot or stopped
 	 */

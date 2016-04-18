@@ -253,13 +253,12 @@ static struct gr_dma_desc *gr_alloc_dma_desc(struct gr_ep *ep, gfp_t gfp_flags)
 	dma_addr_t paddr;
 	struct gr_dma_desc *dma_desc;
 
-	dma_desc = dma_pool_alloc(ep->dev->desc_pool, gfp_flags, &paddr);
+	dma_desc = dma_pool_zalloc(ep->dev->desc_pool, gfp_flags, &paddr);
 	if (!dma_desc) {
 		dev_err(ep->dev->dev, "Could not allocate from DMA pool\n");
 		return NULL;
 	}
 
-	memset(dma_desc, 0, sizeof(*dma_desc));
 	dma_desc->paddr = paddr;
 
 	return dma_desc;

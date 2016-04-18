@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -209,6 +209,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			acpi_ut_delete_object_desc(object->method.mutex);
 			object->method.mutex = NULL;
 		}
+
 		if (object->method.node) {
 			object->method.node = NULL;
 		}
@@ -515,8 +516,8 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		}
 
 		/*
-		 * All sub-objects must have their reference count incremented also.
-		 * Different object types have different subobjects.
+		 * All sub-objects must have their reference count incremented
+		 * also. Different object types have different subobjects.
 		 */
 		switch (object->common.type) {
 		case ACPI_TYPE_DEVICE:

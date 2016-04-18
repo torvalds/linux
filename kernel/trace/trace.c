@@ -74,11 +74,6 @@ static struct tracer_opt dummy_tracer_opt[] = {
 	{ }
 };
 
-static struct tracer_flags dummy_tracer_flags = {
-	.val = 0,
-	.opts = dummy_tracer_opt
-};
-
 static int
 dummy_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
@@ -99,8 +94,6 @@ static DEFINE_PER_CPU(bool, trace_cmdline_save);
  * this back to zero.
  */
 static int tracing_disabled = 1;
-
-DEFINE_PER_CPU(int, ftrace_cpu_disabled);
 
 cpumask_var_t __read_mostly	tracing_buffer_mask;
 
@@ -1260,11 +1253,21 @@ int __init register_tracer(struct tracer *type)
 
 	if (!type->set_flag)
 		type->set_flag = &dummy_set_flag;
-	if (!type->flags)
-		type->flags = &dummy_tracer_flags;
-	else
+	if (!type->flags) {
+		/*allocate a dummy tracer_flags*/
+		type->flags = kmalloc(sizeof(*type->flags), GFP_KERNEL);
+		if (!type->flags) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		type->flags->val = 0;
+		type->flags->opts = dummy_tracer_opt;
+	} else
 		if (!type->flags->opts)
 			type->flags->opts = dummy_tracer_opt;
+
+	/* store the tracer for __set_tracer_option */
+	type->flags->trace = type;
 
 	ret = run_tracer_selftest(type);
 	if (ret < 0)
@@ -1661,6 +1664,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 #else
 		TRACE_FLAG_IRQS_NOSUPPORT |
 #endif
+		((pc & NMI_MASK    ) ? TRACE_FLAG_NMI     : 0) |
 		((pc & HARDIRQ_MASK) ? TRACE_FLAG_HARDIRQ : 0) |
 		((pc & SOFTIRQ_MASK) ? TRACE_FLAG_SOFTIRQ : 0) |
 		(tif_need_resched() ? TRACE_FLAG_NEED_RESCHED : 0) |
@@ -1753,7 +1757,7 @@ void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 {
 	__buffer_unlock_commit(buffer, event);
 
-	ftrace_trace_stack(tr, buffer, flags, 6, pc, regs);
+	ftrace_trace_stack(tr, buffer, flags, 0, pc, regs);
 	ftrace_trace_userstack(buffer, flags, pc);
 }
 EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit_regs);
@@ -1774,10 +1778,6 @@ trace_function(struct trace_array *tr,
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct ftrace_entry *entry;
-
-	/* If we are reading the ring buffer, don't trace */
-	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
-		return;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_FN, sizeof(*entry),
 					  flags, pc);
@@ -2077,20 +2077,20 @@ void trace_printk_init_buffers(void)
 
 	/* trace_printk() is for debug use only. Don't use it in production. */
 
-	pr_warning("\n");
-	pr_warning("**********************************************************\n");
-	pr_warning("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("** trace_printk() being used. Allocating extra memory.  **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("** This means that this is a DEBUG kernel and it is     **\n");
-	pr_warning("** unsafe for production use.                           **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("** If you see this message and you are not debugging    **\n");
-	pr_warning("** the kernel, report this immediately to your vendor!  **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
-	pr_warning("**********************************************************\n");
+	pr_warn("\n");
+	pr_warn("**********************************************************\n");
+	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** trace_printk() being used. Allocating extra memory.  **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** This means that this is a DEBUG kernel and it is     **\n");
+	pr_warn("** unsafe for production use.                           **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** If you see this message and you are not debugging    **\n");
+	pr_warn("** the kernel, report this immediately to your vendor!  **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+	pr_warn("**********************************************************\n");
 
 	/* Expand the buffers to set size */
 	tracing_update_buffers();
@@ -3511,7 +3511,7 @@ static int __set_tracer_option(struct trace_array *tr,
 			       struct tracer_flags *tracer_flags,
 			       struct tracer_opt *opts, int neg)
 {
-	struct tracer *trace = tr->current_trace;
+	struct tracer *trace = tracer_flags->trace;
 	int ret;
 
 	ret = trace->set_flag(tr, tracer_flags->val, opts->bit, !neg);
@@ -4107,7 +4107,7 @@ trace_insert_enum_map_file(struct module *mod, struct trace_enum_map **start,
 	 */
 	map_array = kmalloc(sizeof(*map_array) * (len + 2), GFP_KERNEL);
 	if (!map_array) {
-		pr_warning("Unable to allocate trace enum mapping\n");
+		pr_warn("Unable to allocate trace enum mapping\n");
 		return;
 	}
 
@@ -4554,6 +4554,8 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_TRACER_MAX_TRACE
+
 static ssize_t
 tracing_max_lat_read(struct file *filp, char __user *ubuf,
 		     size_t cnt, loff_t *ppos)
@@ -4567,6 +4569,8 @@ tracing_max_lat_write(struct file *filp, const char __user *ubuf,
 {
 	return tracing_nsecs_write(filp->private_data, ubuf, cnt, ppos);
 }
+
+#endif
 
 static int tracing_open_pipe(struct inode *inode, struct file *filp)
 {
@@ -4951,7 +4955,10 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 
 	spd.nr_pages = i;
 
-	ret = splice_to_pipe(pipe, &spd);
+	if (i)
+		ret = splice_to_pipe(pipe, &spd);
+	else
+		ret = 0;
 out:
 	splice_shrink_spd(&spd);
 	return ret;
@@ -5469,12 +5476,14 @@ static const struct file_operations tracing_thresh_fops = {
 	.llseek		= generic_file_llseek,
 };
 
+#ifdef CONFIG_TRACER_MAX_TRACE
 static const struct file_operations tracing_max_lat_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_max_lat_read,
 	.write		= tracing_max_lat_write,
 	.llseek		= generic_file_llseek,
 };
+#endif
 
 static const struct file_operations set_tracer_fops = {
 	.open		= tracing_open_generic,
@@ -6131,7 +6140,7 @@ tracing_init_tracefs_percpu(struct trace_array *tr, long cpu)
 	snprintf(cpu_dir, 30, "cpu%ld", cpu);
 	d_cpu = tracefs_create_dir(cpu_dir, d_percpu);
 	if (!d_cpu) {
-		pr_warning("Could not create tracefs '%s' entry\n", cpu_dir);
+		pr_warn("Could not create tracefs '%s' entry\n", cpu_dir);
 		return;
 	}
 
@@ -6318,7 +6327,7 @@ struct dentry *trace_create_file(const char *name,
 
 	ret = tracefs_create_file(name, mode, parent, data, fops);
 	if (!ret)
-		pr_warning("Could not create tracefs '%s' entry\n", name);
+		pr_warn("Could not create tracefs '%s' entry\n", name);
 
 	return ret;
 }
@@ -6337,7 +6346,7 @@ static struct dentry *trace_options_init_dentry(struct trace_array *tr)
 
 	tr->options = tracefs_create_dir("options", d_tracer);
 	if (!tr->options) {
-		pr_warning("Could not create tracefs directory 'options'\n");
+		pr_warn("Could not create tracefs directory 'options'\n");
 		return NULL;
 	}
 
@@ -6391,11 +6400,8 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 		return;
 
 	for (i = 0; i < tr->nr_topts; i++) {
-		/*
-		 * Check if these flags have already been added.
-		 * Some tracers share flags.
-		 */
-		if (tr->topts[i].tracer->flags == tracer->flags)
+		/* Make sure there's no duplicate flags. */
+		if (WARN_ON_ONCE(tr->topts[i].tracer->flags == tracer->flags))
 			return;
 	}
 
@@ -6847,7 +6853,9 @@ struct dentry *tracing_init_dentry(void)
 	if (tr->dir)
 		return NULL;
 
-	if (WARN_ON(!debugfs_initialized()))
+	if (WARN_ON(!tracefs_initialized()) ||
+		(IS_ENABLED(CONFIG_DEBUG_FS) &&
+		 WARN_ON(!debugfs_initialized())))
 		return ERR_PTR(-ENODEV);
 
 	/*
@@ -7246,8 +7254,8 @@ __init static int tracer_alloc_buffers(void)
 	if (trace_boot_clock) {
 		ret = tracing_set_clock(&global_trace, trace_boot_clock);
 		if (ret < 0)
-			pr_warning("Trace clock %s not defined, going back to default\n",
-				   trace_boot_clock);
+			pr_warn("Trace clock %s not defined, going back to default\n",
+				trace_boot_clock);
 	}
 
 	/*

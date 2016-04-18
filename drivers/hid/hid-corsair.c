@@ -595,6 +595,9 @@ static int corsair_input_mapping(struct hid_device *dev,
 {
 	int gkey;
 
+	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_KEYBOARD)
+		return 0;
+
 	gkey = corsair_usage_to_gkey(usage->hid & HID_USAGE);
 	if (gkey != 0) {
 		hid_map_usage_clear(input, usage, bit, max, EV_KEY,
@@ -655,18 +658,7 @@ static struct hid_driver corsair_driver = {
 	.input_mapping = corsair_input_mapping,
 };
 
-static int __init corsair_init(void)
-{
-	return hid_register_driver(&corsair_driver);
-}
-
-static void corsair_exit(void)
-{
-	hid_unregister_driver(&corsair_driver);
-}
-
-module_init(corsair_init);
-module_exit(corsair_exit);
+module_hid_driver(corsair_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Clement Vuchener");

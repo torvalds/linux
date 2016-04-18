@@ -202,8 +202,10 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 					sbp->namelen,
 					sbp->valuelen,
 					&sbp->name[sbp->namelen]);
-		if (error)
+		if (error) {
+			kmem_free(sbuf);
 			return error;
+		}
 		if (context->seen_enough)
 			break;
 		cursor->offset++;
@@ -454,14 +456,13 @@ xfs_attr3_leaf_list_int(
 				args.rmtblkcnt = xfs_attr3_rmt_blocks(
 							args.dp->i_mount, valuelen);
 				retval = xfs_attr_rmtval_get(&args);
-				if (retval)
-					return retval;
-				retval = context->put_listent(context,
-						entry->flags,
-						name_rmt->name,
-						(int)name_rmt->namelen,
-						valuelen,
-						args.value);
+				if (!retval)
+					retval = context->put_listent(context,
+							entry->flags,
+							name_rmt->name,
+							(int)name_rmt->namelen,
+							valuelen,
+							args.value);
 				kmem_free(args.value);
 			} else {
 				retval = context->put_listent(context,
@@ -511,7 +512,7 @@ xfs_attr_list_int(
 	xfs_inode_t *dp = context->dp;
 	uint		lock_mode;
 
-	XFS_STATS_INC(xs_attr_list);
+	XFS_STATS_INC(dp->i_mount, xs_attr_list);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return -EIO;

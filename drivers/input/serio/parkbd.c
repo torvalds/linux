@@ -145,6 +145,7 @@ static int parkbd_getport(struct parport *pp)
 {
 	struct pardev_cb parkbd_parport_cb;
 
+	memset(&parkbd_parport_cb, 0, sizeof(parkbd_parport_cb));
 	parkbd_parport_cb.irq_func = parkbd_interrupt;
 	parkbd_parport_cb.flags = PARPORT_FLAG_EXCL;
 
@@ -164,7 +165,7 @@ static int parkbd_getport(struct parport *pp)
 	return 0;
 }
 
-static struct serio * __init parkbd_allocate_serio(void)
+static struct serio *parkbd_allocate_serio(void)
 {
 	struct serio *serio;
 

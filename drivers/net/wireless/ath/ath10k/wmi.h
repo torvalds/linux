@@ -175,6 +175,11 @@ enum wmi_service {
 	WMI_SERVICE_AUX_SPECTRAL_INTF,
 	WMI_SERVICE_AUX_CHAN_LOAD_INTF,
 	WMI_SERVICE_BSS_CHANNEL_INFO_64,
+	WMI_SERVICE_EXT_RES_CFG_SUPPORT,
+	WMI_SERVICE_MESH_11S,
+	WMI_SERVICE_MESH_NON_11S,
+	WMI_SERVICE_PEER_STATS,
+	WMI_SERVICE_RESTRT_CHNL_SUPPORT,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -206,6 +211,12 @@ enum wmi_10x_service {
 	WMI_10X_SERVICE_SMART_ANTENNA_HW_SUPPORT,
 	WMI_10X_SERVICE_ATF,
 	WMI_10X_SERVICE_COEX_GPIO,
+	WMI_10X_SERVICE_AUX_SPECTRAL_INTF,
+	WMI_10X_SERVICE_AUX_CHAN_LOAD_INTF,
+	WMI_10X_SERVICE_BSS_CHANNEL_INFO_64,
+	WMI_10X_SERVICE_MESH,
+	WMI_10X_SERVICE_EXT_RES_CFG_SUPPORT,
+	WMI_10X_SERVICE_PEER_STATS,
 };
 
 enum wmi_main_service {
@@ -286,6 +297,11 @@ enum wmi_10_4_service {
 	WMI_10_4_SERVICE_AUX_SPECTRAL_INTF,
 	WMI_10_4_SERVICE_AUX_CHAN_LOAD_INTF,
 	WMI_10_4_SERVICE_BSS_CHANNEL_INFO_64,
+	WMI_10_4_SERVICE_EXT_RES_CFG_SUPPORT,
+	WMI_10_4_SERVICE_MESH_NON_11S,
+	WMI_10_4_SERVICE_RESTRT_CHNL_SUPPORT,
+	WMI_10_4_SERVICE_PEER_STATS,
+	WMI_10_4_SERVICE_MESH_11S,
 };
 
 static inline char *wmi_service_name(int service_id)
@@ -375,6 +391,11 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_AUX_SPECTRAL_INTF);
 	SVCSTR(WMI_SERVICE_AUX_CHAN_LOAD_INTF);
 	SVCSTR(WMI_SERVICE_BSS_CHANNEL_INFO_64);
+	SVCSTR(WMI_SERVICE_EXT_RES_CFG_SUPPORT);
+	SVCSTR(WMI_SERVICE_MESH_11S);
+	SVCSTR(WMI_SERVICE_MESH_NON_11S);
+	SVCSTR(WMI_SERVICE_PEER_STATS);
+	SVCSTR(WMI_SERVICE_RESTRT_CHNL_SUPPORT);
 	default:
 		return NULL;
 	}
@@ -442,6 +463,18 @@ static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_ATF, len);
 	SVCMAP(WMI_10X_SERVICE_COEX_GPIO,
 	       WMI_SERVICE_COEX_GPIO, len);
+	SVCMAP(WMI_10X_SERVICE_AUX_SPECTRAL_INTF,
+	       WMI_SERVICE_AUX_SPECTRAL_INTF, len);
+	SVCMAP(WMI_10X_SERVICE_AUX_CHAN_LOAD_INTF,
+	       WMI_SERVICE_AUX_CHAN_LOAD_INTF, len);
+	SVCMAP(WMI_10X_SERVICE_BSS_CHANNEL_INFO_64,
+	       WMI_SERVICE_BSS_CHANNEL_INFO_64, len);
+	SVCMAP(WMI_10X_SERVICE_MESH,
+	       WMI_SERVICE_MESH_11S, len);
+	SVCMAP(WMI_10X_SERVICE_EXT_RES_CFG_SUPPORT,
+	       WMI_SERVICE_EXT_RES_CFG_SUPPORT, len);
+	SVCMAP(WMI_10X_SERVICE_PEER_STATS,
+	       WMI_SERVICE_PEER_STATS, len);
 }
 
 static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out,
@@ -600,6 +633,16 @@ static inline void wmi_10_4_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_AUX_CHAN_LOAD_INTF, len);
 	SVCMAP(WMI_10_4_SERVICE_BSS_CHANNEL_INFO_64,
 	       WMI_SERVICE_BSS_CHANNEL_INFO_64, len);
+	SVCMAP(WMI_10_4_SERVICE_EXT_RES_CFG_SUPPORT,
+	       WMI_SERVICE_EXT_RES_CFG_SUPPORT, len);
+	SVCMAP(WMI_10_4_SERVICE_MESH_NON_11S,
+	       WMI_SERVICE_MESH_NON_11S, len);
+	SVCMAP(WMI_10_4_SERVICE_RESTRT_CHNL_SUPPORT,
+	       WMI_SERVICE_RESTRT_CHNL_SUPPORT, len);
+	SVCMAP(WMI_10_4_SERVICE_PEER_STATS,
+	       WMI_SERVICE_PEER_STATS, len);
+	SVCMAP(WMI_10_4_SERVICE_MESH_11S,
+	       WMI_SERVICE_MESH_11S, len);
 }
 
 #undef SVCMAP
@@ -1576,6 +1619,9 @@ enum wmi_10_4_cmd_id {
 	WMI_10_4_MU_CAL_START_CMDID,
 	WMI_10_4_SET_CCA_PARAMS_CMDID,
 	WMI_10_4_PDEV_BSS_CHAN_INFO_REQUEST_CMDID,
+	WMI_10_4_EXT_RESOURCE_CFG_CMDID,
+	WMI_10_4_VDEV_SET_IE_CMDID,
+	WMI_10_4_SET_LTEU_CONFIG_CMDID,
 	WMI_10_4_PDEV_UTF_CMDID = WMI_10_4_END_CMDID - 1,
 };
 
@@ -1638,6 +1684,7 @@ enum wmi_10_4_event_id {
 	WMI_10_4_PDEV_TEMPERATURE_EVENTID,
 	WMI_10_4_PDEV_NFCAL_POWER_ALL_CHANNELS_EVENTID,
 	WMI_10_4_PDEV_BSS_CHAN_INFO_EVENTID,
+	WMI_10_4_MU_REPORT_EVENTID,
 	WMI_10_4_PDEV_UTF_EVENTID = WMI_10_4_END_EVENTID - 1,
 };
 
@@ -1771,7 +1818,6 @@ enum wmi_channel_change_cause {
 #define WMI_CHANNEL_CHANGE_CAUSE_CSA (1 << 13)
 
 #define WMI_MAX_SPATIAL_STREAM        3 /* default max ss */
-#define WMI_10_4_MAX_SPATIAL_STREAM   4
 
 /* HT Capabilities*/
 #define WMI_HT_CAP_ENABLED                0x0001   /* HT Enabled/ disabled */
@@ -2388,6 +2434,7 @@ enum wmi_10_2_feature_mask {
 	WMI_10_2_RX_BATCH_MODE = BIT(0),
 	WMI_10_2_ATF_CONFIG    = BIT(1),
 	WMI_10_2_COEX_GPIO     = BIT(3),
+	WMI_10_2_PEER_STATS    = BIT(7),
 };
 
 struct wmi_resource_config_10_2 {
@@ -3650,6 +3697,12 @@ enum wmi_10_4_pdev_param {
 	WMI_10_4_PDEV_PARAM_WAPI_MBSSID_OFFSET,
 	WMI_10_4_PDEV_PARAM_ARP_SRCADDR,
 	WMI_10_4_PDEV_PARAM_ARP_DSTADDR,
+	WMI_10_4_PDEV_PARAM_TXPOWER_DECR_DB,
+	WMI_10_4_PDEV_PARAM_RX_BATCHMODE,
+	WMI_10_4_PDEV_PARAM_PACKET_AGGR_DELAY,
+	WMI_10_4_PDEV_PARAM_ATF_OBSS_NOISE_SCH,
+	WMI_10_4_PDEV_PARAM_ATF_OBSS_NOISE_SCALING_FACTOR,
+	WMI_10_4_PDEV_PARAM_CUST_TXPOWER_SCALE,
 };
 
 struct wmi_pdev_set_param_cmd {
@@ -4192,7 +4245,13 @@ struct wmi_10_2_peer_stats {
 
 struct wmi_10_2_4_peer_stats {
 	struct wmi_10_2_peer_stats common;
-	__le32 unknown_value; /* FIXME: what is this word? */
+	__le32 peer_rssi_changed;
+} __packed;
+
+struct wmi_10_2_4_ext_peer_stats {
+	struct wmi_10_2_peer_stats common;
+	__le32 peer_rssi_changed;
+	__le32 rx_duration;
 } __packed;
 
 struct wmi_10_4_peer_stats {
@@ -4235,10 +4294,40 @@ enum wmi_vdev_type {
 };
 
 enum wmi_vdev_subtype {
-	WMI_VDEV_SUBTYPE_NONE       = 0,
-	WMI_VDEV_SUBTYPE_P2P_DEVICE = 1,
-	WMI_VDEV_SUBTYPE_P2P_CLIENT = 2,
-	WMI_VDEV_SUBTYPE_P2P_GO     = 3,
+	WMI_VDEV_SUBTYPE_NONE,
+	WMI_VDEV_SUBTYPE_P2P_DEVICE,
+	WMI_VDEV_SUBTYPE_P2P_CLIENT,
+	WMI_VDEV_SUBTYPE_P2P_GO,
+	WMI_VDEV_SUBTYPE_PROXY_STA,
+	WMI_VDEV_SUBTYPE_MESH_11S,
+	WMI_VDEV_SUBTYPE_MESH_NON_11S,
+};
+
+enum wmi_vdev_subtype_legacy {
+	WMI_VDEV_SUBTYPE_LEGACY_NONE      = 0,
+	WMI_VDEV_SUBTYPE_LEGACY_P2P_DEV   = 1,
+	WMI_VDEV_SUBTYPE_LEGACY_P2P_CLI   = 2,
+	WMI_VDEV_SUBTYPE_LEGACY_P2P_GO    = 3,
+	WMI_VDEV_SUBTYPE_LEGACY_PROXY_STA = 4,
+};
+
+enum wmi_vdev_subtype_10_2_4 {
+	WMI_VDEV_SUBTYPE_10_2_4_NONE      = 0,
+	WMI_VDEV_SUBTYPE_10_2_4_P2P_DEV   = 1,
+	WMI_VDEV_SUBTYPE_10_2_4_P2P_CLI   = 2,
+	WMI_VDEV_SUBTYPE_10_2_4_P2P_GO    = 3,
+	WMI_VDEV_SUBTYPE_10_2_4_PROXY_STA = 4,
+	WMI_VDEV_SUBTYPE_10_2_4_MESH_11S  = 5,
+};
+
+enum wmi_vdev_subtype_10_4 {
+	WMI_VDEV_SUBTYPE_10_4_NONE         = 0,
+	WMI_VDEV_SUBTYPE_10_4_P2P_DEV      = 1,
+	WMI_VDEV_SUBTYPE_10_4_P2P_CLI      = 2,
+	WMI_VDEV_SUBTYPE_10_4_P2P_GO       = 3,
+	WMI_VDEV_SUBTYPE_10_4_PROXY_STA    = 4,
+	WMI_VDEV_SUBTYPE_10_4_MESH_NON_11S = 5,
+	WMI_VDEV_SUBTYPE_10_4_MESH_11S     = 6,
 };
 
 /* values for vdev_subtype */
@@ -5405,6 +5494,16 @@ struct wmi_host_swba_event {
 	struct wmi_bcn_info bcn_info[0];
 } __packed;
 
+struct wmi_10_2_4_bcn_info {
+	struct wmi_tim_info tim_info;
+	/* The 10.2.4 FW doesn't have p2p NOA info */
+} __packed;
+
+struct wmi_10_2_4_host_swba_event {
+	__le32 vdev_map;
+	struct wmi_10_2_4_bcn_info bcn_info[0];
+} __packed;
+
 /* 16 words = 512 client + 1 word = for guard */
 #define WMI_10_4_TIM_BITMAP_ARRAY_SIZE 17
 
@@ -5641,21 +5740,79 @@ struct wmi_peer_set_q_empty_callback_cmd {
 	__le32 callback_enable;
 } __packed;
 
-#define WMI_PEER_AUTH           0x00000001
-#define WMI_PEER_QOS            0x00000002
-#define WMI_PEER_NEED_PTK_4_WAY 0x00000004
-#define WMI_PEER_NEED_GTK_2_WAY 0x00000010
-#define WMI_PEER_APSD           0x00000800
-#define WMI_PEER_HT             0x00001000
-#define WMI_PEER_40MHZ          0x00002000
-#define WMI_PEER_STBC           0x00008000
-#define WMI_PEER_LDPC           0x00010000
-#define WMI_PEER_DYN_MIMOPS     0x00020000
-#define WMI_PEER_STATIC_MIMOPS  0x00040000
-#define WMI_PEER_SPATIAL_MUX    0x00200000
-#define WMI_PEER_VHT            0x02000000
-#define WMI_PEER_80MHZ          0x04000000
-#define WMI_PEER_VHT_2G         0x08000000
+struct wmi_peer_flags_map {
+	u32 auth;
+	u32 qos;
+	u32 need_ptk_4_way;
+	u32 need_gtk_2_way;
+	u32 apsd;
+	u32 ht;
+	u32 bw40;
+	u32 stbc;
+	u32 ldbc;
+	u32 dyn_mimops;
+	u32 static_mimops;
+	u32 spatial_mux;
+	u32 vht;
+	u32 bw80;
+	u32 vht_2g;
+	u32 pmf;
+};
+
+enum wmi_peer_flags {
+	WMI_PEER_AUTH = 0x00000001,
+	WMI_PEER_QOS = 0x00000002,
+	WMI_PEER_NEED_PTK_4_WAY = 0x00000004,
+	WMI_PEER_NEED_GTK_2_WAY = 0x00000010,
+	WMI_PEER_APSD = 0x00000800,
+	WMI_PEER_HT = 0x00001000,
+	WMI_PEER_40MHZ = 0x00002000,
+	WMI_PEER_STBC = 0x00008000,
+	WMI_PEER_LDPC = 0x00010000,
+	WMI_PEER_DYN_MIMOPS = 0x00020000,
+	WMI_PEER_STATIC_MIMOPS = 0x00040000,
+	WMI_PEER_SPATIAL_MUX = 0x00200000,
+	WMI_PEER_VHT = 0x02000000,
+	WMI_PEER_80MHZ = 0x04000000,
+	WMI_PEER_VHT_2G = 0x08000000,
+	WMI_PEER_PMF = 0x10000000,
+};
+
+enum wmi_10x_peer_flags {
+	WMI_10X_PEER_AUTH = 0x00000001,
+	WMI_10X_PEER_QOS = 0x00000002,
+	WMI_10X_PEER_NEED_PTK_4_WAY = 0x00000004,
+	WMI_10X_PEER_NEED_GTK_2_WAY = 0x00000010,
+	WMI_10X_PEER_APSD = 0x00000800,
+	WMI_10X_PEER_HT = 0x00001000,
+	WMI_10X_PEER_40MHZ = 0x00002000,
+	WMI_10X_PEER_STBC = 0x00008000,
+	WMI_10X_PEER_LDPC = 0x00010000,
+	WMI_10X_PEER_DYN_MIMOPS = 0x00020000,
+	WMI_10X_PEER_STATIC_MIMOPS = 0x00040000,
+	WMI_10X_PEER_SPATIAL_MUX = 0x00200000,
+	WMI_10X_PEER_VHT = 0x02000000,
+	WMI_10X_PEER_80MHZ = 0x04000000,
+};
+
+enum wmi_10_2_peer_flags {
+	WMI_10_2_PEER_AUTH = 0x00000001,
+	WMI_10_2_PEER_QOS = 0x00000002,
+	WMI_10_2_PEER_NEED_PTK_4_WAY = 0x00000004,
+	WMI_10_2_PEER_NEED_GTK_2_WAY = 0x00000010,
+	WMI_10_2_PEER_APSD = 0x00000800,
+	WMI_10_2_PEER_HT = 0x00001000,
+	WMI_10_2_PEER_40MHZ = 0x00002000,
+	WMI_10_2_PEER_STBC = 0x00008000,
+	WMI_10_2_PEER_LDPC = 0x00010000,
+	WMI_10_2_PEER_DYN_MIMOPS = 0x00020000,
+	WMI_10_2_PEER_STATIC_MIMOPS = 0x00040000,
+	WMI_10_2_PEER_SPATIAL_MUX = 0x00200000,
+	WMI_10_2_PEER_VHT = 0x02000000,
+	WMI_10_2_PEER_80MHZ = 0x04000000,
+	WMI_10_2_PEER_VHT_2G = 0x08000000,
+	WMI_10_2_PEER_PMF = 0x10000000,
+};
 
 /*
  * Peer rate capabilities.
@@ -5719,6 +5876,11 @@ struct wmi_10_1_peer_assoc_complete_cmd {
 struct wmi_10_2_peer_assoc_complete_cmd {
 	struct wmi_common_peer_assoc_complete_cmd cmd;
 	__le32 info0; /* WMI_PEER_ASSOC_INFO0_ */
+} __packed;
+
+struct wmi_10_4_peer_assoc_complete_cmd {
+	struct wmi_10_2_peer_assoc_complete_cmd cmd;
+	__le32 peer_bw_rxnss_override;
 } __packed;
 
 struct wmi_peer_assoc_complete_arg {
@@ -6336,5 +6498,7 @@ size_t ath10k_wmi_fw_stats_num_vdevs(struct list_head *head);
 void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 				      struct ath10k_fw_stats *fw_stats,
 				      char *buf);
+int ath10k_wmi_op_get_vdev_subtype(struct ath10k *ar,
+				   enum wmi_vdev_subtype subtype);
 
 #endif /* _WMI_H_ */

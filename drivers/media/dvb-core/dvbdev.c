@@ -34,6 +34,9 @@
 #include <linux/mutex.h>
 #include "dvbdev.h"
 
+/* Due to enum tuner_pad_index */
+#include <media/tuner.h>
+
 static DEFINE_MUTEX(dvbdev_mutex);
 static int dvbdev_debug;
 
@@ -55,7 +58,7 @@ static const char * const dnames[] = {
 #define DVB_MAX_IDS		MAX_DVB_MINORS
 #else
 #define DVB_MAX_IDS		4
-#define nums2minor(num,type,id)	((num << 6) | (id << 4) | type)
+#define nums2minor(num, type, id)	((num << 6) | (id << 4) | type)
 #define MAX_DVB_MINORS		(DVB_MAX_ADAPTERS*64)
 #endif
 
@@ -82,7 +85,7 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 		file->private_data = dvbdev;
 		replace_fops(file, new_fops);
 		if (file->f_op->open)
-			err = file->f_op->open(inode,file);
+			err = file->f_op->open(inode, file);
 		up_read(&minor_rwsem);
 		mutex_unlock(&dvbdev_mutex);
 		return err;
@@ -180,102 +183,255 @@ skip:
 	return -ENFILE;
 }
 
-static void dvb_register_media_device(struct dvb_device *dvbdev,
-				      int type, int minor)
+static void dvb_media_device_free(struct dvb_device *dvbdev)
 {
 #if defined(CONFIG_MEDIA_CONTROLLER_DVB)
-	int ret = 0, npads;
+	if (dvbdev->entity) {
+		media_device_unregister_entity(dvbdev->entity);
+		kfree(dvbdev->entity);
+		kfree(dvbdev->pads);
+		dvbdev->entity = NULL;
+		dvbdev->pads = NULL;
+	}
 
-	if (!dvbdev->adapter->mdev)
-		return;
+	if (dvbdev->tsout_entity) {
+		int i;
 
-	dvbdev->entity = kzalloc(sizeof(*dvbdev->entity), GFP_KERNEL);
-	if (!dvbdev->entity)
-		return;
+		for (i = 0; i < dvbdev->tsout_num_entities; i++) {
+			media_device_unregister_entity(&dvbdev->tsout_entity[i]);
+			kfree(dvbdev->tsout_entity[i].name);
+		}
+		kfree(dvbdev->tsout_entity);
+		kfree(dvbdev->tsout_pads);
+		dvbdev->tsout_entity = NULL;
+		dvbdev->tsout_pads = NULL;
 
-	dvbdev->entity->info.dev.major = DVB_MAJOR;
-	dvbdev->entity->info.dev.minor = minor;
-	dvbdev->entity->name = dvbdev->name;
+		dvbdev->tsout_num_entities = 0;
+	}
+
+	if (dvbdev->intf_devnode) {
+		media_devnode_remove(dvbdev->intf_devnode);
+		dvbdev->intf_devnode = NULL;
+	}
+
+	if (dvbdev->adapter->conn) {
+		media_device_unregister_entity(dvbdev->adapter->conn);
+		dvbdev->adapter->conn = NULL;
+		kfree(dvbdev->adapter->conn_pads);
+		dvbdev->adapter->conn_pads = NULL;
+	}
+#endif
+}
+
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+static int dvb_create_tsout_entity(struct dvb_device *dvbdev,
+				    const char *name, int npads)
+{
+	int i, ret = 0;
+
+	dvbdev->tsout_pads = kcalloc(npads, sizeof(*dvbdev->tsout_pads),
+				     GFP_KERNEL);
+	if (!dvbdev->tsout_pads)
+		return -ENOMEM;
+
+	dvbdev->tsout_entity = kcalloc(npads, sizeof(*dvbdev->tsout_entity),
+				       GFP_KERNEL);
+	if (!dvbdev->tsout_entity)
+		return -ENOMEM;
+
+	dvbdev->tsout_num_entities = npads;
+
+	for (i = 0; i < npads; i++) {
+		struct media_pad *pads = &dvbdev->tsout_pads[i];
+		struct media_entity *entity = &dvbdev->tsout_entity[i];
+
+		entity->name = kasprintf(GFP_KERNEL, "%s #%d", name, i);
+		if (!entity->name)
+			return -ENOMEM;
+
+		entity->function = MEDIA_ENT_F_IO_DTV;
+		pads->flags = MEDIA_PAD_FL_SINK;
+
+		ret = media_entity_pads_init(entity, 1, pads);
+		if (ret < 0)
+			return ret;
+
+		ret = media_device_register_entity(dvbdev->adapter->mdev,
+						   entity);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
+#define DEMUX_TSOUT	"demux-tsout"
+#define DVR_TSOUT	"dvr-tsout"
+
+static int dvb_create_media_entity(struct dvb_device *dvbdev,
+				   int type, int demux_sink_pads)
+{
+	int i, ret, npads;
 
 	switch (type) {
-	case DVB_DEVICE_CA:
-	case DVB_DEVICE_DEMUX:
 	case DVB_DEVICE_FRONTEND:
 		npads = 2;
 		break;
-	case DVB_DEVICE_NET:
-		npads = 0;
+	case DVB_DEVICE_DVR:
+		ret = dvb_create_tsout_entity(dvbdev, DVR_TSOUT,
+					      demux_sink_pads);
+		return ret;
+	case DVB_DEVICE_DEMUX:
+		npads = 1 + demux_sink_pads;
+		ret = dvb_create_tsout_entity(dvbdev, DEMUX_TSOUT,
+					      demux_sink_pads);
+		if (ret < 0)
+			return ret;
 		break;
+	case DVB_DEVICE_CA:
+		npads = 2;
+		break;
+	case DVB_DEVICE_NET:
+		/*
+		 * We should be creating entities for the MPE/ULE
+		 * decapsulation hardware (or software implementation).
+		 *
+		 * However, the number of for the MPE/ULE decaps may not be
+		 * fixed. As we don't have yet dynamic support for PADs at
+		 * the Media Controller, let's not create the decap
+		 * entities yet.
+		 */
+		return 0;
 	default:
-		npads = 1;
+		return 0;
 	}
+
+	dvbdev->entity = kzalloc(sizeof(*dvbdev->entity), GFP_KERNEL);
+	if (!dvbdev->entity)
+		return -ENOMEM;
+
+	dvbdev->entity->name = dvbdev->name;
 
 	if (npads) {
 		dvbdev->pads = kcalloc(npads, sizeof(*dvbdev->pads),
 				       GFP_KERNEL);
-		if (!dvbdev->pads) {
-			kfree(dvbdev->entity);
-			return;
-		}
+		if (!dvbdev->pads)
+			return -ENOMEM;
 	}
 
 	switch (type) {
 	case DVB_DEVICE_FRONTEND:
-		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_FE;
+		dvbdev->entity->function = MEDIA_ENT_F_DTV_DEMOD;
 		dvbdev->pads[0].flags = MEDIA_PAD_FL_SINK;
 		dvbdev->pads[1].flags = MEDIA_PAD_FL_SOURCE;
 		break;
 	case DVB_DEVICE_DEMUX:
-		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_DEMUX;
+		dvbdev->entity->function = MEDIA_ENT_F_TS_DEMUX;
 		dvbdev->pads[0].flags = MEDIA_PAD_FL_SINK;
-		dvbdev->pads[1].flags = MEDIA_PAD_FL_SOURCE;
-		break;
-	case DVB_DEVICE_DVR:
-		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_DVR;
-		dvbdev->pads[0].flags = MEDIA_PAD_FL_SINK;
+		for (i = 1; i < npads; i++)
+			dvbdev->pads[i].flags = MEDIA_PAD_FL_SOURCE;
 		break;
 	case DVB_DEVICE_CA:
-		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_CA;
+		dvbdev->entity->function = MEDIA_ENT_F_DTV_CA;
 		dvbdev->pads[0].flags = MEDIA_PAD_FL_SINK;
 		dvbdev->pads[1].flags = MEDIA_PAD_FL_SOURCE;
 		break;
+	default:
+		/* Should never happen, as the first switch prevents it */
+		kfree(dvbdev->entity);
+		kfree(dvbdev->pads);
+		dvbdev->entity = NULL;
+		dvbdev->pads = NULL;
+		return 0;
+	}
+
+	if (npads) {
+		ret = media_entity_pads_init(dvbdev->entity, npads, dvbdev->pads);
+		if (ret)
+			return ret;
+	}
+	ret = media_device_register_entity(dvbdev->adapter->mdev,
+					   dvbdev->entity);
+	if (ret)
+		return ret;
+
+	printk(KERN_DEBUG "%s: media entity '%s' registered.\n",
+		__func__, dvbdev->entity->name);
+
+	return 0;
+}
+#endif
+
+static int dvb_register_media_device(struct dvb_device *dvbdev,
+				     int type, int minor,
+				     unsigned demux_sink_pads)
+{
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	struct media_link *link;
+	u32 intf_type;
+	int ret;
+
+	if (!dvbdev->adapter->mdev)
+		return 0;
+
+	ret = dvb_create_media_entity(dvbdev, type, demux_sink_pads);
+	if (ret)
+		return ret;
+
+	switch (type) {
+	case DVB_DEVICE_FRONTEND:
+		intf_type = MEDIA_INTF_T_DVB_FE;
+		break;
+	case DVB_DEVICE_DEMUX:
+		intf_type = MEDIA_INTF_T_DVB_DEMUX;
+		break;
+	case DVB_DEVICE_DVR:
+		intf_type = MEDIA_INTF_T_DVB_DVR;
+		break;
+	case DVB_DEVICE_CA:
+		intf_type = MEDIA_INTF_T_DVB_CA;
+		break;
 	case DVB_DEVICE_NET:
-		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_NET;
+		intf_type = MEDIA_INTF_T_DVB_NET;
 		break;
 	default:
-		kfree(dvbdev->entity);
-		dvbdev->entity = NULL;
-		return;
+		return 0;
 	}
 
-	if (npads)
-		ret = media_entity_init(dvbdev->entity, npads, dvbdev->pads, 0);
-	if (!ret)
-		ret = media_device_register_entity(dvbdev->adapter->mdev,
-						   dvbdev->entity);
-	if (ret < 0) {
-		printk(KERN_ERR
-			"%s: media_device_register_entity failed for %s\n",
-			__func__, dvbdev->entity->name);
-		kfree(dvbdev->pads);
-		kfree(dvbdev->entity);
-		dvbdev->entity = NULL;
-		return;
-	}
+	dvbdev->intf_devnode = media_devnode_create(dvbdev->adapter->mdev,
+						    intf_type, 0,
+						    DVB_MAJOR, minor);
 
-	printk(KERN_DEBUG "%s: media device '%s' registered.\n",
-		__func__, dvbdev->entity->name);
+	if (!dvbdev->intf_devnode)
+		return -ENOMEM;
+
+	/*
+	 * Create the "obvious" link, e. g. the ones that represent
+	 * a direct association between an interface and an entity.
+	 * Other links should be created elsewhere, like:
+	 *		DVB FE intf    -> tuner
+	 *		DVB demux intf -> dvr
+	 */
+
+	if (!dvbdev->entity)
+		return 0;
+
+	link = media_create_intf_link(dvbdev->entity, &dvbdev->intf_devnode->intf,
+				      MEDIA_LNK_FL_ENABLED);
+	if (!link)
+		return -ENOMEM;
 #endif
+	return 0;
 }
 
 int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
-			const struct dvb_device *template, void *priv, int type)
+			const struct dvb_device *template, void *priv, int type,
+			int demux_sink_pads)
 {
 	struct dvb_device *dvbdev;
 	struct file_operations *dvbdevfops;
 	struct device *clsdev;
 	int minor;
-	int id;
+	int id, ret;
 
 	mutex_lock(&dvbdev_register_lock);
 
@@ -286,7 +442,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 		return -ENFILE;
 	}
 
-	*pdvbdev = dvbdev = kmalloc(sizeof(struct dvb_device), GFP_KERNEL);
+	*pdvbdev = dvbdev = kzalloc(sizeof(*dvbdev), GFP_KERNEL);
 
 	if (!dvbdev){
 		mutex_unlock(&dvbdev_register_lock);
@@ -335,6 +491,20 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	dvb_minors[minor] = dvbdev;
 	up_write(&minor_rwsem);
 
+	ret = dvb_register_media_device(dvbdev, type, minor, demux_sink_pads);
+	if (ret) {
+		printk(KERN_ERR
+		      "%s: dvb_register_media_device failed to create the mediagraph\n",
+		      __func__);
+
+		dvb_media_device_free(dvbdev);
+		kfree(dvbdevfops);
+		kfree(dvbdev);
+		up_write(&minor_rwsem);
+		mutex_unlock(&dvbdev_register_lock);
+		return ret;
+	}
+
 	mutex_unlock(&dvbdev_register_lock);
 
 	clsdev = device_create(dvb_class, adap->device,
@@ -347,8 +517,6 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	}
 	dprintk(KERN_DEBUG "DVB: register adapter%d/%s%d @ minor: %i (0x%02x)\n",
 		adap->num, dnames[type], id, minor, minor);
-
-	dvb_register_media_device(dvbdev, type, minor);
 
 	return 0;
 }
@@ -364,15 +532,9 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 	dvb_minors[dvbdev->minor] = NULL;
 	up_write(&minor_rwsem);
 
-	device_destroy(dvb_class, MKDEV(DVB_MAJOR, dvbdev->minor));
+	dvb_media_device_free(dvbdev);
 
-#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
-	if (dvbdev->entity) {
-		media_device_unregister_entity(dvbdev->entity);
-		kfree(dvbdev->entity);
-		kfree(dvbdev->pads);
-	}
-#endif
+	device_destroy(dvb_class, MKDEV(DVB_MAJOR, dvbdev->minor));
 
 	list_del (&dvbdev->list_head);
 	kfree (dvbdev->fops);
@@ -382,46 +544,211 @@ EXPORT_SYMBOL(dvb_unregister_device);
 
 
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
-void dvb_create_media_graph(struct dvb_adapter *adap)
+
+static int dvb_create_io_intf_links(struct dvb_adapter *adap,
+				    struct media_interface *intf,
+				    char *name)
 {
 	struct media_device *mdev = adap->mdev;
-	struct media_entity *entity, *tuner = NULL, *fe = NULL;
-	struct media_entity *demux = NULL, *dvr = NULL, *ca = NULL;
-
-	if (!mdev)
-		return;
+	struct media_entity *entity;
+	struct media_link *link;
 
 	media_device_for_each_entity(entity, mdev) {
-		switch (entity->type) {
-		case MEDIA_ENT_T_V4L2_SUBDEV_TUNER:
+		if (entity->function == MEDIA_ENT_F_IO_DTV) {
+			if (strncmp(entity->name, name, strlen(name)))
+				continue;
+			link = media_create_intf_link(entity, intf,
+						      MEDIA_LNK_FL_ENABLED);
+			if (!link)
+				return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
+int dvb_create_media_graph(struct dvb_adapter *adap,
+			   bool create_rf_connector)
+{
+	struct media_device *mdev = adap->mdev;
+	struct media_entity *entity, *tuner = NULL, *demod = NULL, *conn;
+	struct media_entity *demux = NULL, *ca = NULL;
+	struct media_link *link;
+	struct media_interface *intf;
+	unsigned demux_pad = 0;
+	unsigned dvr_pad = 0;
+	unsigned ntuner = 0, ndemod = 0;
+	int ret;
+	static const char *connector_name = "Television";
+
+	if (!mdev)
+		return 0;
+
+	media_device_for_each_entity(entity, mdev) {
+		switch (entity->function) {
+		case MEDIA_ENT_F_TUNER:
 			tuner = entity;
+			ntuner++;
 			break;
-		case MEDIA_ENT_T_DEVNODE_DVB_FE:
-			fe = entity;
+		case MEDIA_ENT_F_DTV_DEMOD:
+			demod = entity;
+			ndemod++;
 			break;
-		case MEDIA_ENT_T_DEVNODE_DVB_DEMUX:
+		case MEDIA_ENT_F_TS_DEMUX:
 			demux = entity;
 			break;
-		case MEDIA_ENT_T_DEVNODE_DVB_DVR:
-			dvr = entity;
-			break;
-		case MEDIA_ENT_T_DEVNODE_DVB_CA:
+		case MEDIA_ENT_F_DTV_CA:
 			ca = entity;
 			break;
 		}
 	}
 
-	if (tuner && fe)
-		media_entity_create_link(tuner, 0, fe, 0, 0);
+	/*
+	 * Prepare to signalize to media_create_pad_links() that multiple
+	 * entities of the same type exists and a 1:n or n:1 links need to be
+	 * created.
+	 * NOTE: if both tuner and demod have multiple instances, it is up
+	 * to the caller driver to create such links.
+	 */
+	if (ntuner > 1)
+		tuner = NULL;
+	if (ndemod > 1)
+		demod = NULL;
 
-	if (fe && demux)
-		media_entity_create_link(fe, 1, demux, 0, MEDIA_LNK_FL_ENABLED);
+	if (create_rf_connector) {
+		conn = kzalloc(sizeof(*conn), GFP_KERNEL);
+		if (!conn)
+			return -ENOMEM;
+		adap->conn = conn;
 
-	if (demux && dvr)
-		media_entity_create_link(demux, 1, dvr, 0, MEDIA_LNK_FL_ENABLED);
+		adap->conn_pads = kzalloc(sizeof(*adap->conn_pads), GFP_KERNEL);
+		if (!adap->conn_pads)
+			return -ENOMEM;
 
-	if (demux && ca)
-		media_entity_create_link(demux, 1, ca, 0, MEDIA_LNK_FL_ENABLED);
+		conn->flags = MEDIA_ENT_FL_CONNECTOR;
+		conn->function = MEDIA_ENT_F_CONN_RF;
+		conn->name = connector_name;
+		adap->conn_pads->flags = MEDIA_PAD_FL_SOURCE;
+
+		ret = media_entity_pads_init(conn, 1, adap->conn_pads);
+		if (ret)
+			return ret;
+
+		ret = media_device_register_entity(mdev, conn);
+		if (ret)
+			return ret;
+
+		if (!ntuner)
+			ret = media_create_pad_links(mdev,
+						     MEDIA_ENT_F_CONN_RF,
+						     conn, 0,
+						     MEDIA_ENT_F_DTV_DEMOD,
+						     demod, 0,
+						     MEDIA_LNK_FL_ENABLED,
+						     false);
+		else
+			ret = media_create_pad_links(mdev,
+						     MEDIA_ENT_F_CONN_RF,
+						     conn, 0,
+						     MEDIA_ENT_F_TUNER,
+						     tuner, TUNER_PAD_RF_INPUT,
+						     MEDIA_LNK_FL_ENABLED,
+						     false);
+		if (ret)
+			return ret;
+	}
+
+	if (ntuner && ndemod) {
+		ret = media_create_pad_links(mdev,
+					     MEDIA_ENT_F_TUNER,
+					     tuner, TUNER_PAD_OUTPUT,
+					     MEDIA_ENT_F_DTV_DEMOD,
+					     demod, 0, MEDIA_LNK_FL_ENABLED,
+					     false);
+		if (ret)
+			return ret;
+	}
+
+	if (ndemod && demux) {
+		ret = media_create_pad_links(mdev,
+					     MEDIA_ENT_F_DTV_DEMOD,
+					     demod, 1,
+					     MEDIA_ENT_F_TS_DEMUX,
+					     demux, 0, MEDIA_LNK_FL_ENABLED,
+					     false);
+		if (ret)
+			return -ENOMEM;
+	}
+	if (demux && ca) {
+		ret = media_create_pad_link(demux, 1, ca,
+					    0, MEDIA_LNK_FL_ENABLED);
+		if (ret)
+			return -ENOMEM;
+	}
+
+	/* Create demux links for each ringbuffer/pad */
+	if (demux) {
+		media_device_for_each_entity(entity, mdev) {
+			if (entity->function == MEDIA_ENT_F_IO_DTV) {
+				if (!strncmp(entity->name, DVR_TSOUT,
+				    strlen(DVR_TSOUT))) {
+					ret = media_create_pad_link(demux,
+								++dvr_pad,
+							    entity, 0, 0);
+					if (ret)
+						return ret;
+				}
+				if (!strncmp(entity->name, DEMUX_TSOUT,
+				    strlen(DEMUX_TSOUT))) {
+					ret = media_create_pad_link(demux,
+							      ++demux_pad,
+							    entity, 0, 0);
+					if (ret)
+						return ret;
+				}
+			}
+		}
+	}
+
+	/* Create interface links for FE->tuner, DVR->demux and CA->ca */
+	media_device_for_each_intf(intf, mdev) {
+		if (intf->type == MEDIA_INTF_T_DVB_CA && ca) {
+			link = media_create_intf_link(ca, intf,
+						      MEDIA_LNK_FL_ENABLED);
+			if (!link)
+				return -ENOMEM;
+		}
+
+		if (intf->type == MEDIA_INTF_T_DVB_FE && tuner) {
+			link = media_create_intf_link(tuner, intf,
+						      MEDIA_LNK_FL_ENABLED);
+			if (!link)
+				return -ENOMEM;
+		}
+#if 0
+		/*
+		 * Indirect link - let's not create yet, as we don't know how
+		 *		   to handle indirect links, nor if this will
+		 *		   actually be needed.
+		 */
+		if (intf->type == MEDIA_INTF_T_DVB_DVR && demux) {
+			link = media_create_intf_link(demux, intf,
+						      MEDIA_LNK_FL_ENABLED);
+			if (!link)
+				return -ENOMEM;
+		}
+#endif
+		if (intf->type == MEDIA_INTF_T_DVB_DVR) {
+			ret = dvb_create_io_intf_links(adap, intf, DVR_TSOUT);
+			if (ret)
+				return ret;
+		}
+		if (intf->type == MEDIA_INTF_T_DVB_DEMUX) {
+			ret = dvb_create_io_intf_links(adap, intf, DEMUX_TSOUT);
+			if (ret)
+				return ret;
+		}
+	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dvb_create_media_graph);
 #endif
@@ -540,7 +867,7 @@ int dvb_usercopy(struct file *file,
 			parg = sbuf;
 		} else {
 			/* too big to allocate from stack */
-			mbuf = kmalloc(_IOC_SIZE(cmd),GFP_KERNEL);
+			mbuf = kmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
 			if (NULL == mbuf)
 				return -ENOMEM;
 			parg = mbuf;

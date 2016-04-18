@@ -95,12 +95,14 @@ int main(void)
 	DEFINE(THREAD_FPSTATE, offsetof(struct thread_struct, fp_state));
 	DEFINE(THREAD_FPSAVEAREA, offsetof(struct thread_struct, fp_save_area));
 	DEFINE(FPSTATE_FPSCR, offsetof(struct thread_fp_state, fpscr));
+	DEFINE(THREAD_LOAD_FP, offsetof(struct thread_struct, load_fp));
 #ifdef CONFIG_ALTIVEC
 	DEFINE(THREAD_VRSTATE, offsetof(struct thread_struct, vr_state));
 	DEFINE(THREAD_VRSAVEAREA, offsetof(struct thread_struct, vr_save_area));
 	DEFINE(THREAD_VRSAVE, offsetof(struct thread_struct, vrsave));
 	DEFINE(THREAD_USED_VR, offsetof(struct thread_struct, used_vr));
 	DEFINE(VRSTATE_VSCR, offsetof(struct thread_vr_state, vscr));
+	DEFINE(THREAD_LOAD_VEC, offsetof(struct thread_struct, load_vec));
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_VSX
 	DEFINE(THREAD_USED_VSR, offsetof(struct thread_struct, used_vsr));
@@ -185,14 +187,16 @@ int main(void)
 	DEFINE(PACAKMSR, offsetof(struct paca_struct, kernel_msr));
 	DEFINE(PACASOFTIRQEN, offsetof(struct paca_struct, soft_enabled));
 	DEFINE(PACAIRQHAPPENED, offsetof(struct paca_struct, irq_happened));
-	DEFINE(PACACONTEXTID, offsetof(struct paca_struct, context.id));
+#ifdef CONFIG_PPC_BOOK3S
+	DEFINE(PACACONTEXTID, offsetof(struct paca_struct, mm_ctx_id));
 #ifdef CONFIG_PPC_MM_SLICES
 	DEFINE(PACALOWSLICESPSIZE, offsetof(struct paca_struct,
-					    context.low_slices_psize));
+					    mm_ctx_low_slices_psize));
 	DEFINE(PACAHIGHSLICEPSIZE, offsetof(struct paca_struct,
-					    context.high_slices_psize));
+					    mm_ctx_high_slices_psize));
 	DEFINE(MMUPSIZEDEFSIZE, sizeof(struct mmu_psize_def));
 #endif /* CONFIG_PPC_MM_SLICES */
+#endif
 
 #ifdef CONFIG_PPC_BOOK3E
 	DEFINE(PACAPGD, offsetof(struct paca_struct, pgd));
@@ -222,7 +226,7 @@ int main(void)
 #ifdef CONFIG_PPC_MM_SLICES
 	DEFINE(MMUPSIZESLLP, offsetof(struct mmu_psize_def, sllp));
 #else
-	DEFINE(PACACONTEXTSLLP, offsetof(struct paca_struct, context.sllp));
+	DEFINE(PACACONTEXTSLLP, offsetof(struct paca_struct, mm_ctx_sllp));
 #endif /* CONFIG_PPC_MM_SLICES */
 	DEFINE(PACA_EXGEN, offsetof(struct paca_struct, exgen));
 	DEFINE(PACA_EXMC, offsetof(struct paca_struct, exmc));
@@ -372,6 +376,7 @@ int main(void)
 	DEFINE(CPU_SPEC_FEATURES, offsetof(struct cpu_spec, cpu_features));
 	DEFINE(CPU_SPEC_SETUP, offsetof(struct cpu_spec, cpu_setup));
 	DEFINE(CPU_SPEC_RESTORE, offsetof(struct cpu_spec, cpu_restore));
+	DEFINE(CPU_DOWN_FLUSH, offsetof(struct cpu_spec, cpu_down_flush));
 
 	DEFINE(pbe_address, offsetof(struct pbe, address));
 	DEFINE(pbe_orig_address, offsetof(struct pbe, orig_address));

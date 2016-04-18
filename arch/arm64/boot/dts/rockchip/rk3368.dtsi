@@ -45,6 +45,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "rockchip,rk3368";
@@ -53,6 +54,7 @@
 	#size-cells = <2>;
 
 	aliases {
+		ethernet0 = &gmac;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -123,6 +125,8 @@
 			reg = <0x0 0x0>;
 			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
+
+			#cooling-cells = <2>; /* min followed by max */
 		};
 
 		cpu_l1: cpu@1 {
@@ -155,6 +159,8 @@
 			reg = <0x0 0x100>;
 			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
+
+			#cooling-cells = <2>; /* min followed by max */
 		};
 
 		cpu_b1: cpu@101 {
@@ -225,8 +231,9 @@
 		compatible = "rockchip,rk3368-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff0c0000 0x0 0x4000>;
 		clock-freq-min-max = <400000 150000000>;
-		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>;
-		clock-names = "biu", "ciu";
+		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
+			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
@@ -248,8 +255,9 @@
 		compatible = "rockchip,rk3368-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff0f0000 0x0 0x4000>;
 		clock-freq-min-max = <400000 150000000>;
-		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>;
-		clock-names = "biu", "ciu";
+		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
+			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
@@ -404,6 +412,27 @@
 		status = "disabled";
 	};
 
+	thermal-zones {
+		#include "rk3368-thermal.dtsi"
+	};
+
+	tsadc: tsadc@ff280000 {
+		compatible = "rockchip,rk3368-tsadc";
+		reg = <0x0 0xff280000 0x0 0x100>;
+		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
+		clock-names = "tsadc", "apb_pclk";
+		resets = <&cru SRST_TSADC>;
+		reset-names = "tsadc-apb";
+		pinctrl-names = "init", "default", "sleep";
+		pinctrl-0 = <&otp_gpio>;
+		pinctrl-1 = <&otp_out>;
+		pinctrl-2 = <&otp_gpio>;
+		#thermal-sensor-cells = <1>;
+		rockchip,hw-tshut-temp = <95000>;
+		status = "disabled";
+	};
+
 	gmac: ethernet@ff290000 {
 		compatible = "rockchip,rk3368-gmac";
 		reg = <0x0 0xff290000 0x0 0x10000>;
@@ -471,6 +500,48 @@
 		status = "disabled";
 	};
 
+	pwm0: pwm@ff680000 {
+		compatible = "rockchip,rk3368-pwm", "rockchip,rk3288-pwm";
+		reg = <0x0 0xff680000 0x0 0x10>;
+		#pwm-cells = <3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm0_pin>;
+		clocks = <&cru PCLK_PWM1>;
+		clock-names = "pwm";
+		status = "disabled";
+	};
+
+	pwm1: pwm@ff680010 {
+		compatible = "rockchip,rk3368-pwm", "rockchip,rk3288-pwm";
+		reg = <0x0 0xff680010 0x0 0x10>;
+		#pwm-cells = <3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm1_pin>;
+		clocks = <&cru PCLK_PWM1>;
+		clock-names = "pwm";
+		status = "disabled";
+	};
+
+	pwm2: pwm@ff680020 {
+		compatible = "rockchip,rk3368-pwm", "rockchip,rk3288-pwm";
+		reg = <0x0 0xff680020 0x0 0x10>;
+		#pwm-cells = <3>;
+		clocks = <&cru PCLK_PWM1>;
+		clock-names = "pwm";
+		status = "disabled";
+	};
+
+	pwm3: pwm@ff680030 {
+		compatible = "rockchip,rk3368-pwm", "rockchip,rk3288-pwm";
+		reg = <0x0 0xff680030 0x0 0x10>;
+		#pwm-cells = <3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm3_pin>;
+		clocks = <&cru PCLK_PWM1>;
+		clock-names = "pwm";
+		status = "disabled";
+	};
+
 	uart2: serial@ff690000 {
 		compatible = "rockchip,rk3368-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xff690000 0x0 0x100>;
@@ -508,6 +579,12 @@
 		clocks = <&cru PCLK_WDT>;
 		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
+	};
+
+	timer@ff810000 {
+		compatible = "rockchip,rk3368-timer", "rockchip,rk3288-timer";
+		reg = <0x0 0xff810000 0x0 0x20>;
+		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	gic: interrupt-controller@ffb71000 {
@@ -712,6 +789,24 @@
 			};
 		};
 
+		pwm0 {
+			pwm0_pin: pwm0-pin {
+				rockchip,pins = <3 8 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		pwm1 {
+			pwm1_pin: pwm1-pin {
+				rockchip,pins = <0 8 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		pwm3 {
+			pwm3_pin: pwm3-pin {
+				rockchip,pins = <3 29 RK_FUNC_3 &pcfg_pull_none>;
+			};
+		};
+
 		sdio0 {
 			sdio0_bus1: sdio0-bus1 {
 				rockchip,pins = <2 28 RK_FUNC_1 &pcfg_pull_up>;
@@ -762,7 +857,7 @@
 				rockchip,pins = <2 10 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
-			sdmmc_cd: sdmcc-cd {
+			sdmmc_cd: sdmmc-cd {
 				rockchip,pins = <2 11 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
@@ -826,6 +921,16 @@
 			};
 			spi2_tx: spi2-tx {
 				rockchip,pins = <0 11 RK_FUNC_2 &pcfg_pull_up>;
+			};
+		};
+
+		tsadc {
+			otp_gpio: otp-gpio {
+				rockchip,pins = <0 10 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
+
+			otp_out: otp-out {
+				rockchip,pins = <0 10 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 

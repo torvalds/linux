@@ -157,9 +157,9 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	clk_set_parent(clks[IMX6UL_PLL7_BYPASS], clks[IMX6UL_CLK_PLL7]);
 
 	clks[IMX6UL_CLK_PLL1_SYS]	= imx_clk_fixed_factor("pll1_sys",	"pll1_bypass", 1, 1);
-	clks[IMX6UL_CLK_PLL2_BUS]	= imx_clk_gate("pll2_bus", 	"pll2_bypass", base + 0x30, 13);
-	clks[IMX6UL_CLK_PLL3_USB_OTG]	= imx_clk_gate("pll3_usb_otg", 	"pll3_bypass", base + 0x10, 13);
-	clks[IMX6UL_CLK_PLL4_AUDIO]	= imx_clk_gate("pll4_audio", 	"pll4_bypass", base + 0x70, 13);
+	clks[IMX6UL_CLK_PLL2_BUS]	= imx_clk_gate("pll2_bus",	"pll2_bypass", base + 0x30, 13);
+	clks[IMX6UL_CLK_PLL3_USB_OTG]	= imx_clk_gate("pll3_usb_otg",	"pll3_bypass", base + 0x10, 13);
+	clks[IMX6UL_CLK_PLL4_AUDIO]	= imx_clk_gate("pll4_audio",	"pll4_bypass", base + 0x70, 13);
 	clks[IMX6UL_CLK_PLL5_VIDEO]	= imx_clk_gate("pll5_video",	"pll5_bypass", base + 0xa0, 13);
 	clks[IMX6UL_CLK_PLL6_ENET]	= imx_clk_gate("pll6_enet",	"pll6_bypass", base + 0xe0, 13);
 	clks[IMX6UL_CLK_PLL7_USB_HOST]	= imx_clk_gate("pll7_usb_host",	"pll7_bypass", base + 0x20, 13);
@@ -196,8 +196,8 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 			base + 0xe0, 2, 2, 0, clk_enet_ref_table, &imx_ccm_lock);
 
 	clks[IMX6UL_CLK_ENET2_REF_125M] = imx_clk_gate("enet_ref_125m", "enet2_ref", base + 0xe0, 20);
-	clks[IMX6UL_CLK_ENET_PTP_REF] 	= imx_clk_fixed_factor("enet_ptp_ref", "pll6_enet", 1, 20);
-	clks[IMX6UL_CLK_ENET_PTP] 	= imx_clk_gate("enet_ptp", "enet_ptp_ref", base + 0xe0, 21);
+	clks[IMX6UL_CLK_ENET_PTP_REF]	= imx_clk_fixed_factor("enet_ptp_ref", "pll6_enet", 1, 20);
+	clks[IMX6UL_CLK_ENET_PTP]	= imx_clk_gate("enet_ptp", "enet_ptp_ref", base + 0xe0, 21);
 
 	clks[IMX6UL_CLK_PLL4_POST_DIV]  = clk_register_divider_table(NULL, "pll4_post_div", "pll4_audio",
 		 CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE, base + 0x70, 19, 2, 0, post_div_table, &imx_ccm_lock);
@@ -210,8 +210,8 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 
 	/*						   name		parent_name	 mult  div */
 	clks[IMX6UL_CLK_PLL2_198M] = imx_clk_fixed_factor("pll2_198m", "pll2_pfd2_396m", 1,	2);
-	clks[IMX6UL_CLK_PLL3_80M]  = imx_clk_fixed_factor("pll3_80m",  "pll3_usb_otg",   1, 	6);
-	clks[IMX6UL_CLK_PLL3_60M]  = imx_clk_fixed_factor("pll3_60m",  "pll3_usb_otg",   1, 	8);
+	clks[IMX6UL_CLK_PLL3_80M]  = imx_clk_fixed_factor("pll3_80m",  "pll3_usb_otg",   1,	6);
+	clks[IMX6UL_CLK_PLL3_60M]  = imx_clk_fixed_factor("pll3_60m",  "pll3_usb_otg",   1,	8);
 	clks[IMX6UL_CLK_GPT_3M]	   = imx_clk_fixed_factor("gpt_3m",	"osc",		 1,	8);
 
 	np = ccm_node;
@@ -219,34 +219,34 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	WARN_ON(!base);
 
 	clks[IMX6UL_CA7_SECONDARY_SEL]	  = imx_clk_mux("ca7_secondary_sel", base + 0xc, 3, 1, ca7_secondary_sels, ARRAY_SIZE(ca7_secondary_sels));
-	clks[IMX6UL_CLK_STEP] 	 	  = imx_clk_mux("step", base + 0x0c, 8, 1, step_sels, ARRAY_SIZE(step_sels));
-	clks[IMX6UL_CLK_PLL1_SW] 	  = imx_clk_mux_flags("pll1_sw",   base + 0x0c, 2,  1, pll1_sw_sels, ARRAY_SIZE(pll1_sw_sels), 0);
+	clks[IMX6UL_CLK_STEP]		  = imx_clk_mux("step", base + 0x0c, 8, 1, step_sels, ARRAY_SIZE(step_sels));
+	clks[IMX6UL_CLK_PLL1_SW]	  = imx_clk_mux_flags("pll1_sw",   base + 0x0c, 2,  1, pll1_sw_sels, ARRAY_SIZE(pll1_sw_sels), 0);
 	clks[IMX6UL_CLK_AXI_ALT_SEL]	  = imx_clk_mux("axi_alt_sel",		base + 0x14, 7,  1, axi_alt_sels, ARRAY_SIZE(axi_alt_sels));
-	clks[IMX6UL_CLK_AXI_SEL] 	  = imx_clk_mux_flags("axi_sel", 	base + 0x14, 6,  1, axi_sels, ARRAY_SIZE(axi_sels), 0);
-	clks[IMX6UL_CLK_PERIPH_PRE] 	  = imx_clk_mux("periph_pre",       base + 0x18, 18, 2, periph_pre_sels, ARRAY_SIZE(periph_pre_sels));
-	clks[IMX6UL_CLK_PERIPH2_PRE] 	  = imx_clk_mux("periph2_pre",      base + 0x18, 21, 2, periph2_pre_sels, ARRAY_SIZE(periph2_pre_sels));
+	clks[IMX6UL_CLK_AXI_SEL]	  = imx_clk_mux_flags("axi_sel",	base + 0x14, 6,  1, axi_sels, ARRAY_SIZE(axi_sels), 0);
+	clks[IMX6UL_CLK_PERIPH_PRE]	  = imx_clk_mux("periph_pre",       base + 0x18, 18, 2, periph_pre_sels, ARRAY_SIZE(periph_pre_sels));
+	clks[IMX6UL_CLK_PERIPH2_PRE]	  = imx_clk_mux("periph2_pre",      base + 0x18, 21, 2, periph2_pre_sels, ARRAY_SIZE(periph2_pre_sels));
 	clks[IMX6UL_CLK_PERIPH_CLK2_SEL]  = imx_clk_mux("periph_clk2_sel",  base + 0x18, 12, 2, periph_clk2_sels, ARRAY_SIZE(periph_clk2_sels));
 	clks[IMX6UL_CLK_PERIPH2_CLK2_SEL] = imx_clk_mux("periph2_clk2_sel", base + 0x18, 20, 1, periph2_clk2_sels, ARRAY_SIZE(periph2_clk2_sels));
-	clks[IMX6UL_CLK_EIM_SLOW_SEL] 	  = imx_clk_mux("eim_slow_sel", base + 0x1c, 29, 2, eim_slow_sels, ARRAY_SIZE(eim_slow_sels));
+	clks[IMX6UL_CLK_EIM_SLOW_SEL]	  = imx_clk_mux("eim_slow_sel", base + 0x1c, 29, 2, eim_slow_sels, ARRAY_SIZE(eim_slow_sels));
 	clks[IMX6UL_CLK_GPMI_SEL]	  = imx_clk_mux("gpmi_sel",     base + 0x1c, 19, 1, gpmi_sels, ARRAY_SIZE(gpmi_sels));
-	clks[IMX6UL_CLK_BCH_SEL]      	  = imx_clk_mux("bch_sel", 	base + 0x1c, 18, 1, bch_sels, ARRAY_SIZE(bch_sels));
+	clks[IMX6UL_CLK_BCH_SEL]	  = imx_clk_mux("bch_sel",	base + 0x1c, 18, 1, bch_sels, ARRAY_SIZE(bch_sels));
 	clks[IMX6UL_CLK_USDHC2_SEL]	  = imx_clk_mux("usdhc2_sel",   base + 0x1c, 17, 1, usdhc_sels, ARRAY_SIZE(usdhc_sels));
 	clks[IMX6UL_CLK_USDHC1_SEL]	  = imx_clk_mux("usdhc1_sel",   base + 0x1c, 16, 1, usdhc_sels, ARRAY_SIZE(usdhc_sels));
-	clks[IMX6UL_CLK_SAI3_SEL]     	  = imx_clk_mux("sai3_sel",     base + 0x1c, 14, 2, sai_sels, ARRAY_SIZE(sai_sels));
+	clks[IMX6UL_CLK_SAI3_SEL]	  = imx_clk_mux("sai3_sel",     base + 0x1c, 14, 2, sai_sels, ARRAY_SIZE(sai_sels));
 	clks[IMX6UL_CLK_SAI2_SEL]         = imx_clk_mux("sai2_sel",     base + 0x1c, 12, 2, sai_sels, ARRAY_SIZE(sai_sels));
-	clks[IMX6UL_CLK_SAI1_SEL]    	  = imx_clk_mux("sai1_sel",     base + 0x1c, 10, 2, sai_sels, ARRAY_SIZE(sai_sels));
-	clks[IMX6UL_CLK_QSPI1_SEL] 	  = imx_clk_mux("qspi1_sel",    base + 0x1c, 7,  3, qspi1_sels, ARRAY_SIZE(qspi1_sels));
-	clks[IMX6UL_CLK_PERCLK_SEL] 	  = imx_clk_mux("perclk_sel",	base + 0x1c, 6,  1, perclk_sels, ARRAY_SIZE(perclk_sels));
-	clks[IMX6UL_CLK_CAN_SEL]      	  = imx_clk_mux("can_sel",	base + 0x20, 8,  2, can_sels, ARRAY_SIZE(can_sels));
+	clks[IMX6UL_CLK_SAI1_SEL]	  = imx_clk_mux("sai1_sel",     base + 0x1c, 10, 2, sai_sels, ARRAY_SIZE(sai_sels));
+	clks[IMX6UL_CLK_QSPI1_SEL]	  = imx_clk_mux("qspi1_sel",    base + 0x1c, 7,  3, qspi1_sels, ARRAY_SIZE(qspi1_sels));
+	clks[IMX6UL_CLK_PERCLK_SEL]	  = imx_clk_mux("perclk_sel",	base + 0x1c, 6,  1, perclk_sels, ARRAY_SIZE(perclk_sels));
+	clks[IMX6UL_CLK_CAN_SEL]	  = imx_clk_mux("can_sel",	base + 0x20, 8,  2, can_sels, ARRAY_SIZE(can_sels));
 	clks[IMX6UL_CLK_UART_SEL]	  = imx_clk_mux("uart_sel",	base + 0x24, 6,  1, uart_sels, ARRAY_SIZE(uart_sels));
 	clks[IMX6UL_CLK_ENFC_SEL]	  = imx_clk_mux("enfc_sel",	base + 0x2c, 15, 3, enfc_sels, ARRAY_SIZE(enfc_sels));
 	clks[IMX6UL_CLK_LDB_DI0_SEL]	  = imx_clk_mux("ldb_di0_sel",	base + 0x2c, 9,  3, ldb_di0_sels, ARRAY_SIZE(ldb_di0_sels));
 	clks[IMX6UL_CLK_SPDIF_SEL]	  = imx_clk_mux("spdif_sel",	base + 0x30, 20, 2, spdif_sels, ARRAY_SIZE(spdif_sels));
-	clks[IMX6UL_CLK_SIM_PRE_SEL] 	  = imx_clk_mux("sim_pre_sel",	base + 0x34, 15, 3, sim_pre_sels, ARRAY_SIZE(sim_pre_sels));
-	clks[IMX6UL_CLK_SIM_SEL]	  = imx_clk_mux("sim_sel", 	base + 0x34, 9, 3, sim_sels, ARRAY_SIZE(sim_sels));
+	clks[IMX6UL_CLK_SIM_PRE_SEL]	  = imx_clk_mux("sim_pre_sel",	base + 0x34, 15, 3, sim_pre_sels, ARRAY_SIZE(sim_pre_sels));
+	clks[IMX6UL_CLK_SIM_SEL]	  = imx_clk_mux("sim_sel",	base + 0x34, 9, 3, sim_sels, ARRAY_SIZE(sim_sels));
 	clks[IMX6UL_CLK_ECSPI_SEL]	  = imx_clk_mux("ecspi_sel",	base + 0x38, 18, 1, ecspi_sels, ARRAY_SIZE(ecspi_sels));
 	clks[IMX6UL_CLK_LCDIF_PRE_SEL]	  = imx_clk_mux("lcdif_pre_sel", base + 0x38, 15, 3, lcdif_pre_sels, ARRAY_SIZE(lcdif_pre_sels));
-	clks[IMX6UL_CLK_LCDIF_SEL]	  = imx_clk_mux("lcdif_sel", 	base + 0x38, 9, 3, lcdif_sels, ARRAY_SIZE(lcdif_sels));
+	clks[IMX6UL_CLK_LCDIF_SEL]	  = imx_clk_mux("lcdif_sel",	base + 0x38, 9, 3, lcdif_sels, ARRAY_SIZE(lcdif_sels));
 
 	clks[IMX6UL_CLK_LDB_DI0_DIV_SEL]  = imx_clk_mux("ldb_di0", base + 0x20, 10, 1, ldb_di0_div_sels, ARRAY_SIZE(ldb_di0_div_sels));
 	clks[IMX6UL_CLK_LDB_DI1_DIV_SEL]  = imx_clk_mux("ldb_di1", base + 0x20, 11, 1, ldb_di1_div_sels, ARRAY_SIZE(ldb_di1_div_sels));
@@ -259,11 +259,11 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	clks[IMX6UL_CLK_PERIPH]  = imx_clk_busy_mux("periph",  base + 0x14, 25, 1, base + 0x48, 5, periph_sels, ARRAY_SIZE(periph_sels));
 	clks[IMX6UL_CLK_PERIPH2] = imx_clk_busy_mux("periph2", base + 0x14, 26, 1, base + 0x48, 3, periph2_sels, ARRAY_SIZE(periph2_sels));
 
-	clks[IMX6UL_CLK_PERIPH_CLK2]	= imx_clk_divider("periph_clk2",   "periph_clk2_sel",  	base + 0x14, 27, 3);
-	clks[IMX6UL_CLK_PERIPH2_CLK2]	= imx_clk_divider("periph2_clk2",  "periph2_clk2_sel", 	base + 0x14, 0,  3);
+	clks[IMX6UL_CLK_PERIPH_CLK2]	= imx_clk_divider("periph_clk2",   "periph_clk2_sel",	base + 0x14, 27, 3);
+	clks[IMX6UL_CLK_PERIPH2_CLK2]	= imx_clk_divider("periph2_clk2",  "periph2_clk2_sel",	base + 0x14, 0,  3);
 	clks[IMX6UL_CLK_IPG]		= imx_clk_divider("ipg",	   "ahb",		base + 0x14, 8,	 2);
 	clks[IMX6UL_CLK_LCDIF_PODF]	= imx_clk_divider("lcdif_podf",	   "lcdif_pred",	base + 0x18, 23, 3);
-	clks[IMX6UL_CLK_QSPI1_PDOF] 	= imx_clk_divider("qspi1_podf",	   "qspi1_sel",		base + 0x1c, 26, 3);
+	clks[IMX6UL_CLK_QSPI1_PDOF]	= imx_clk_divider("qspi1_podf",	   "qspi1_sel",		base + 0x1c, 26, 3);
 	clks[IMX6UL_CLK_EIM_SLOW_PODF]	= imx_clk_divider("eim_slow_podf", "eim_slow_sel",	base + 0x1c, 23, 3);
 	clks[IMX6UL_CLK_PERCLK]		= imx_clk_divider("perclk",	   "perclk_sel",	base + 0x1c, 0,  6);
 	clks[IMX6UL_CLK_CAN_PODF]	= imx_clk_divider("can_podf",	   "can_sel",		base + 0x20, 2,  6);
@@ -287,14 +287,14 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	clks[IMX6UL_CLK_LCDIF_PRED]	= imx_clk_divider("lcdif_pred",	   "lcdif_pre_sel",	base + 0x38, 12, 3);
 	clks[IMX6UL_CLK_CSI_PODF]       = imx_clk_divider("csi_podf",      "csi_sel",           base + 0x3c, 11, 3);
 
-	clks[IMX6UL_CLK_ARM]		= imx_clk_busy_divider("arm", 	    "pll1_sw",	base +	0x10, 0,  3,  base + 0x48, 16);
+	clks[IMX6UL_CLK_ARM]		= imx_clk_busy_divider("arm",	    "pll1_sw",	base +	0x10, 0,  3,  base + 0x48, 16);
 	clks[IMX6UL_CLK_MMDC_PODF]	= imx_clk_busy_divider("mmdc_podf", "periph2",	base +  0x14, 3,  3,  base + 0x48, 2);
 	clks[IMX6UL_CLK_AXI_PODF]	= imx_clk_busy_divider("axi_podf",  "axi_sel",	base +  0x14, 16, 3,  base + 0x48, 0);
 	clks[IMX6UL_CLK_AHB]		= imx_clk_busy_divider("ahb",	    "periph",	base +  0x14, 10, 3,  base + 0x48, 1);
 
 	/* CCGR0 */
-	clks[IMX6UL_CLK_AIPSTZ1]	= imx_clk_gate2("aips_tz1", 	"ahb",		base + 0x68,	0);
-	clks[IMX6UL_CLK_AIPSTZ2]	= imx_clk_gate2("aips_tz2", 	"ahb",		base + 0x68,	2);
+	clks[IMX6UL_CLK_AIPSTZ1]	= imx_clk_gate2("aips_tz1",	"ahb",		base + 0x68,	0);
+	clks[IMX6UL_CLK_AIPSTZ2]	= imx_clk_gate2("aips_tz2",	"ahb",		base + 0x68,	2);
 	clks[IMX6UL_CLK_APBHDMA]	= imx_clk_gate2("apbh_dma",	"bch_podf",	base + 0x68,	4);
 	clks[IMX6UL_CLK_ASRC_IPG]	= imx_clk_gate2_shared("asrc_ipg",	"ahb",	base + 0x68,	6, &share_count_asrc);
 	clks[IMX6UL_CLK_ASRC_MEM]	= imx_clk_gate2_shared("asrc_mem",	"ahb",	base + 0x68,	6, &share_count_asrc);
@@ -302,7 +302,7 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	clks[IMX6UL_CLK_CAAM_ACLK]	= imx_clk_gate2("caam_aclk",	"ahb",		base + 0x68,	10);
 	clks[IMX6UL_CLK_CAAM_IPG]	= imx_clk_gate2("caam_ipg",	"ipg",		base + 0x68,	12);
 	clks[IMX6UL_CLK_CAN1_IPG]	= imx_clk_gate2("can1_ipg",	"ipg",		base + 0x68,	14);
-	clks[IMX6UL_CLK_CAN1_SERIAL]	= imx_clk_gate2("can1_serial",	"can_podf",	base + 0x68, 	16);
+	clks[IMX6UL_CLK_CAN1_SERIAL]	= imx_clk_gate2("can1_serial",	"can_podf",	base + 0x68,	16);
 	clks[IMX6UL_CLK_CAN2_IPG]	= imx_clk_gate2("can2_ipg",	"ipg",		base + 0x68,	18);
 	clks[IMX6UL_CLK_CAN2_SERIAL]	= imx_clk_gate2("can2_serial",	"can_podf",	base + 0x68,	20);
 	clks[IMX6UL_CLK_GPT2_BUS]	= imx_clk_gate2("gpt_bus",	"perclk",	base + 0x68,	24);
@@ -331,7 +331,7 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	clks[IMX6UL_CLK_CSI]		= imx_clk_gate2("csi",		"csi_podf",		base + 0x70,	2);
 	clks[IMX6UL_CLK_I2C1]		= imx_clk_gate2("i2c1",		"perclk",	base + 0x70,	6);
 	clks[IMX6UL_CLK_I2C2]		= imx_clk_gate2("i2c2",		"perclk",	base + 0x70,	8);
-	clks[IMX6UL_CLK_I2C3] 		= imx_clk_gate2("i2c3",		"perclk",	base + 0x70,	10);
+	clks[IMX6UL_CLK_I2C3]		= imx_clk_gate2("i2c3",		"perclk",	base + 0x70,	10);
 	clks[IMX6UL_CLK_OCOTP]		= imx_clk_gate2("ocotp",	"ipg",		base + 0x70,	12);
 	clks[IMX6UL_CLK_IOMUXC]		= imx_clk_gate2("iomuxc",	"lcdif_podf",	base + 0x70,	14);
 	clks[IMX6UL_CLK_LCDIF_APB]	= imx_clk_gate2("lcdif_apb",	"axi",		base + 0x70,	28);
@@ -365,6 +365,7 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	/* CCGR5 */
 	clks[IMX6UL_CLK_ROM]		= imx_clk_gate2("rom",		"ahb",		base + 0x7c,	0);
 	clks[IMX6UL_CLK_SDMA]		= imx_clk_gate2("sdma",		"ahb",		base + 0x7c,	6);
+	clks[IMX6UL_CLK_KPP]		= imx_clk_gate2("kpp",		"ipg",		base + 0x7c,	8);
 	clks[IMX6UL_CLK_WDOG2]		= imx_clk_gate2("wdog2",	"ipg",		base + 0x7c,	10);
 	clks[IMX6UL_CLK_SPBA]		= imx_clk_gate2("spba",		"ipg",		base + 0x7c,	12);
 	clks[IMX6UL_CLK_SPDIF]		= imx_clk_gate2_shared("spdif",		"spdif_podf",	base + 0x7c,	14, &share_count_audio);
@@ -391,17 +392,15 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	clks[IMX6UL_CLK_UART8_IPG]	= imx_clk_gate2("uart8_ipg",	"ipg",		 base + 0x80,	14);
 	clks[IMX6UL_CLK_UART8_SERIAL]	= imx_clk_gate2("uart8_serial", "uart_podf",	 base + 0x80,	14);
 	clks[IMX6UL_CLK_WDOG3]		= imx_clk_gate2("wdog3",	"ipg",		 base + 0x80,	20);
-	clks[IMX6UL_CLK_I2C4]		= imx_clk_gate2("i2c4",		"perclk", 	 base + 0x80,	24);
+	clks[IMX6UL_CLK_I2C4]		= imx_clk_gate2("i2c4",		"perclk",	 base + 0x80,	24);
 	clks[IMX6UL_CLK_PWM5]		= imx_clk_gate2("pwm5",		"perclk",	 base + 0x80,	26);
 	clks[IMX6UL_CLK_PWM6]		= imx_clk_gate2("pwm6",		"perclk",	 base +	0x80,	28);
-	clks[IMX6UL_CLK_PWM7]		= imx_clk_gate2("Pwm7",		"perclk",	 base + 0x80,	30);
+	clks[IMX6UL_CLK_PWM7]		= imx_clk_gate2("pwm7",		"perclk",	 base + 0x80,	30);
 
 	/* mask handshake of mmdc */
 	writel_relaxed(BM_CCM_CCDR_MMDC_CH0_MASK, base + CCDR);
 
-	for (i = 0; i < ARRAY_SIZE(clks); i++)
-		if (IS_ERR(clks[i]))
-			pr_err("i.MX6UL clk %d: register failed with %ld\n", i, PTR_ERR(clks[i]));
+	imx_check_clocks(clks, ARRAY_SIZE(clks));
 
 	clk_data.clks = clks;
 	clk_data.clk_num = ARRAY_SIZE(clks);

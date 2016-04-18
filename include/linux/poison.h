@@ -27,10 +27,18 @@
  * Magic number "tsta" to indicate a static timer initializer
  * for the object debugging code.
  */
-#define TIMER_ENTRY_STATIC	((void *) 0x74737461)
+#define TIMER_ENTRY_STATIC	((void *) 0x300 + POISON_POINTER_DELTA)
 
 /********** mm/debug-pagealloc.c **********/
+#ifdef CONFIG_PAGE_POISONING_ZERO
+#define PAGE_POISON 0x00
+#else
 #define PAGE_POISON 0xaa
+#endif
+
+/********** mm/page_alloc.c ************/
+
+#define TAIL_MAPPING	((void *) 0x400 + POISON_POINTER_DELTA)
 
 /********** mm/slab.c **********/
 /*

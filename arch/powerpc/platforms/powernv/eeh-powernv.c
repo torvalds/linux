@@ -48,8 +48,8 @@ static int pnv_eeh_init(void)
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
 
-	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
-		pr_warn("%s: OPALv3 is required !\n",
+	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
+		pr_warn("%s: OPAL is required !\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -167,42 +167,26 @@ static int pnv_eeh_dbgfs_get(void *data, int offset, u64 *val)
 	return 0;
 }
 
-static int pnv_eeh_outb_dbgfs_set(void *data, u64 val)
-{
-	return pnv_eeh_dbgfs_set(data, 0xD10, val);
-}
+#define PNV_EEH_DBGFS_ENTRY(name, reg)				\
+static int pnv_eeh_dbgfs_set_##name(void *data, u64 val)	\
+{								\
+	return pnv_eeh_dbgfs_set(data, reg, val);		\
+}								\
+								\
+static int pnv_eeh_dbgfs_get_##name(void *data, u64 *val)	\
+{								\
+	return pnv_eeh_dbgfs_get(data, reg, val);		\
+}								\
+								\
+DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_dbgfs_ops_##name,		\
+			pnv_eeh_dbgfs_get_##name,		\
+                        pnv_eeh_dbgfs_set_##name,		\
+			"0x%llx\n")
 
-static int pnv_eeh_outb_dbgfs_get(void *data, u64 *val)
-{
-	return pnv_eeh_dbgfs_get(data, 0xD10, val);
-}
+PNV_EEH_DBGFS_ENTRY(outb, 0xD10);
+PNV_EEH_DBGFS_ENTRY(inbA, 0xD90);
+PNV_EEH_DBGFS_ENTRY(inbB, 0xE10);
 
-static int pnv_eeh_inbA_dbgfs_set(void *data, u64 val)
-{
-	return pnv_eeh_dbgfs_set(data, 0xD90, val);
-}
-
-static int pnv_eeh_inbA_dbgfs_get(void *data, u64 *val)
-{
-	return pnv_eeh_dbgfs_get(data, 0xD90, val);
-}
-
-static int pnv_eeh_inbB_dbgfs_set(void *data, u64 val)
-{
-	return pnv_eeh_dbgfs_set(data, 0xE10, val);
-}
-
-static int pnv_eeh_inbB_dbgfs_get(void *data, u64 *val)
-{
-	return pnv_eeh_dbgfs_get(data, 0xE10, val);
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_outb_dbgfs_ops, pnv_eeh_outb_dbgfs_get,
-			pnv_eeh_outb_dbgfs_set, "0x%llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_inbA_dbgfs_ops, pnv_eeh_inbA_dbgfs_get,
-			pnv_eeh_inbA_dbgfs_set, "0x%llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_inbB_dbgfs_ops, pnv_eeh_inbB_dbgfs_get,
-			pnv_eeh_inbB_dbgfs_set, "0x%llx\n");
 #endif /* CONFIG_DEBUG_FS */
 
 /**
@@ -268,13 +252,13 @@ static int pnv_eeh_post_init(void)
 
 		debugfs_create_file("err_injct_outbound", 0600,
 				    phb->dbgfs, hose,
-				    &pnv_eeh_outb_dbgfs_ops);
+				    &pnv_eeh_dbgfs_ops_outb);
 		debugfs_create_file("err_injct_inboundA", 0600,
 				    phb->dbgfs, hose,
-				    &pnv_eeh_inbA_dbgfs_ops);
+				    &pnv_eeh_dbgfs_ops_inbA);
 		debugfs_create_file("err_injct_inboundB", 0600,
 				    phb->dbgfs, hose,
-				    &pnv_eeh_inbB_dbgfs_ops);
+				    &pnv_eeh_dbgfs_ops_inbB);
 #endif /* CONFIG_DEBUG_FS */
 	}
 
@@ -387,6 +371,7 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	edev->mode	&= 0xFFFFFF00;
 	edev->pcix_cap = pnv_eeh_find_cap(pdn, PCI_CAP_ID_PCIX);
 	edev->pcie_cap = pnv_eeh_find_cap(pdn, PCI_CAP_ID_EXP);
+	edev->af_cap   = pnv_eeh_find_cap(pdn, PCI_CAP_ID_AF);
 	edev->aer_cap  = pnv_eeh_find_ecap(pdn, PCI_EXT_CAP_ID_ERR);
 	if ((edev->class_code >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		edev->mode |= EEH_DEV_BRIDGE;
@@ -444,9 +429,12 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	 * PCI devices of the PE are expected to be removed prior
 	 * to PE reset.
 	 */
-	if (!edev->pe->bus)
+	if (!(edev->pe->state & EEH_PE_PRI_BUS)) {
 		edev->pe->bus = pci_find_bus(hose->global_number,
 					     pdn->busno);
+		if (edev->pe->bus)
+			edev->pe->state |= EEH_PE_PRI_BUS;
+	}
 
 	/*
 	 * Enable EEH explicitly so that we will do EEH check
@@ -892,6 +880,120 @@ void pnv_pci_reset_secondary_bus(struct pci_dev *dev)
 	}
 }
 
+static void pnv_eeh_wait_for_pending(struct pci_dn *pdn, const char *type,
+				     int pos, u16 mask)
+{
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+	int i, status = 0;
+
+	/* Wait for Transaction Pending bit to be cleared */
+	for (i = 0; i < 4; i++) {
+		eeh_ops->read_config(pdn, pos, 2, &status);
+		if (!(status & mask))
+			return;
+
+		msleep((1 << i) * 100);
+	}
+
+	pr_warn("%s: Pending transaction while issuing %sFLR to %04x:%02x:%02x.%01x\n",
+		__func__, type,
+		edev->phb->global_number, pdn->busno,
+		PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
+}
+
+static int pnv_eeh_do_flr(struct pci_dn *pdn, int option)
+{
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+	u32 reg = 0;
+
+	if (WARN_ON(!edev->pcie_cap))
+		return -ENOTTY;
+
+	eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCAP, 4, &reg);
+	if (!(reg & PCI_EXP_DEVCAP_FLR))
+		return -ENOTTY;
+
+	switch (option) {
+	case EEH_RESET_HOT:
+	case EEH_RESET_FUNDAMENTAL:
+		pnv_eeh_wait_for_pending(pdn, "",
+					 edev->pcie_cap + PCI_EXP_DEVSTA,
+					 PCI_EXP_DEVSTA_TRPND);
+		eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				     4, &reg);
+		reg |= PCI_EXP_DEVCTL_BCR_FLR;
+		eeh_ops->write_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				      4, reg);
+		msleep(EEH_PE_RST_HOLD_TIME);
+		break;
+	case EEH_RESET_DEACTIVATE:
+		eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				     4, &reg);
+		reg &= ~PCI_EXP_DEVCTL_BCR_FLR;
+		eeh_ops->write_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				      4, reg);
+		msleep(EEH_PE_RST_SETTLE_TIME);
+		break;
+	}
+
+	return 0;
+}
+
+static int pnv_eeh_do_af_flr(struct pci_dn *pdn, int option)
+{
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+	u32 cap = 0;
+
+	if (WARN_ON(!edev->af_cap))
+		return -ENOTTY;
+
+	eeh_ops->read_config(pdn, edev->af_cap + PCI_AF_CAP, 1, &cap);
+	if (!(cap & PCI_AF_CAP_TP) || !(cap & PCI_AF_CAP_FLR))
+		return -ENOTTY;
+
+	switch (option) {
+	case EEH_RESET_HOT:
+	case EEH_RESET_FUNDAMENTAL:
+		/*
+		 * Wait for Transaction Pending bit to clear. A word-aligned
+		 * test is used, so we use the conrol offset rather than status
+		 * and shift the test bit to match.
+		 */
+		pnv_eeh_wait_for_pending(pdn, "AF",
+					 edev->af_cap + PCI_AF_CTRL,
+					 PCI_AF_STATUS_TP << 8);
+		eeh_ops->write_config(pdn, edev->af_cap + PCI_AF_CTRL,
+				      1, PCI_AF_CTRL_FLR);
+		msleep(EEH_PE_RST_HOLD_TIME);
+		break;
+	case EEH_RESET_DEACTIVATE:
+		eeh_ops->write_config(pdn, edev->af_cap + PCI_AF_CTRL, 1, 0);
+		msleep(EEH_PE_RST_SETTLE_TIME);
+		break;
+	}
+
+	return 0;
+}
+
+static int pnv_eeh_reset_vf_pe(struct eeh_pe *pe, int option)
+{
+	struct eeh_dev *edev;
+	struct pci_dn *pdn;
+	int ret;
+
+	/* The VF PE should have only one child device */
+	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, list);
+	pdn = eeh_dev_to_pdn(edev);
+	if (!pdn)
+		return -ENXIO;
+
+	ret = pnv_eeh_do_flr(pdn, option);
+	if (!ret)
+		return ret;
+
+	return pnv_eeh_do_af_flr(pdn, option);
+}
+
 /**
  * pnv_eeh_reset - Reset the specified PE
  * @pe: EEH PE
@@ -953,7 +1055,9 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 		}
 
 		bus = eeh_pe_bus_get(pe);
-		if (pci_is_root_bus(bus) ||
+		if (pe->type & EEH_PE_VF)
+			ret = pnv_eeh_reset_vf_pe(pe, option);
+		else if (pci_is_root_bus(bus) ||
 			pci_is_root_bus(bus->parent))
 			ret = pnv_eeh_root_reset(hose, option);
 		else
@@ -1090,6 +1194,14 @@ static inline bool pnv_eeh_cfg_blocked(struct pci_dn *pdn)
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
 	if (!edev || !edev->pe)
+		return false;
+
+	/*
+	 * We will issue FLR or AF FLR to all VFs, which are contained
+	 * in VF PE. It relies on the EEH PCI config accessors. So we
+	 * can't block them during the window.
+	 */
+	if (edev->physfn && (edev->pe->state & EEH_PE_RESET))
 		return false;
 
 	if (edev->pe->state & EEH_PE_CFG_BLOCKED)
@@ -1476,6 +1588,65 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 	return ret;
 }
 
+static int pnv_eeh_restore_vf_config(struct pci_dn *pdn)
+{
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+	u32 devctl, cmd, cap2, aer_capctl;
+	int old_mps;
+
+	if (edev->pcie_cap) {
+		/* Restore MPS */
+		old_mps = (ffs(pdn->mps) - 8) << 5;
+		eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				     2, &devctl);
+		devctl &= ~PCI_EXP_DEVCTL_PAYLOAD;
+		devctl |= old_mps;
+		eeh_ops->write_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				      2, devctl);
+
+		/* Disable Completion Timeout */
+		eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCAP2,
+				     4, &cap2);
+		if (cap2 & 0x10) {
+			eeh_ops->read_config(pdn,
+					     edev->pcie_cap + PCI_EXP_DEVCTL2,
+					     4, &cap2);
+			cap2 |= 0x10;
+			eeh_ops->write_config(pdn,
+					      edev->pcie_cap + PCI_EXP_DEVCTL2,
+					      4, cap2);
+		}
+	}
+
+	/* Enable SERR and parity checking */
+	eeh_ops->read_config(pdn, PCI_COMMAND, 2, &cmd);
+	cmd |= (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
+	eeh_ops->write_config(pdn, PCI_COMMAND, 2, cmd);
+
+	/* Enable report various errors */
+	if (edev->pcie_cap) {
+		eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				     2, &devctl);
+		devctl &= ~PCI_EXP_DEVCTL_CERE;
+		devctl |= (PCI_EXP_DEVCTL_NFERE |
+			   PCI_EXP_DEVCTL_FERE |
+			   PCI_EXP_DEVCTL_URRE);
+		eeh_ops->write_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				      2, devctl);
+	}
+
+	/* Enable ECRC generation and check */
+	if (edev->pcie_cap && edev->aer_cap) {
+		eeh_ops->read_config(pdn, edev->aer_cap + PCI_ERR_CAP,
+				     4, &aer_capctl);
+		aer_capctl |= (PCI_ERR_CAP_ECRC_GENE | PCI_ERR_CAP_ECRC_CHKE);
+		eeh_ops->write_config(pdn, edev->aer_cap + PCI_ERR_CAP,
+				      4, aer_capctl);
+	}
+
+	return 0;
+}
+
 static int pnv_eeh_restore_config(struct pci_dn *pdn)
 {
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
@@ -1485,9 +1656,21 @@ static int pnv_eeh_restore_config(struct pci_dn *pdn)
 	if (!edev)
 		return -EEXIST;
 
-	phb = edev->phb->private_data;
-	ret = opal_pci_reinit(phb->opal_id,
-			      OPAL_REINIT_PCI_DEV, edev->config_addr);
+	/*
+	 * We have to restore the PCI config space after reset since the
+	 * firmware can't see SRIOV VFs.
+	 *
+	 * FIXME: The MPS, error routing rules, timeout setting are worthy
+	 * to be exported by firmware in extendible way.
+	 */
+	if (edev->physfn) {
+		ret = pnv_eeh_restore_vf_config(pdn);
+	} else {
+		phb = edev->phb->private_data;
+		ret = opal_pci_reinit(phb->opal_id,
+				      OPAL_REINIT_PCI_DEV, edev->config_addr);
+	}
+
 	if (ret) {
 		pr_warn("%s: Can't reinit PCI dev 0x%x (%lld)\n",
 			__func__, edev->config_addr, ret);
@@ -1515,6 +1698,40 @@ static struct eeh_ops pnv_eeh_ops = {
 	.next_error		= pnv_eeh_next_error,
 	.restore_config		= pnv_eeh_restore_config
 };
+
+void pcibios_bus_add_device(struct pci_dev *pdev)
+{
+	struct pci_dn *pdn = pci_get_pdn(pdev);
+
+	if (!pdev->is_virtfn)
+		return;
+
+	/*
+	 * The following operations will fail if VF's sysfs files
+	 * aren't created or its resources aren't finalized.
+	 */
+	eeh_add_device_early(pdn);
+	eeh_add_device_late(pdev);
+	eeh_sysfs_add_device(pdev);
+}
+
+#ifdef CONFIG_PCI_IOV
+static void pnv_pci_fixup_vf_mps(struct pci_dev *pdev)
+{
+	struct pci_dn *pdn = pci_get_pdn(pdev);
+	int parent_mps;
+
+	if (!pdev->is_virtfn)
+		return;
+
+	/* Synchronize MPS for VF and PF */
+	parent_mps = pcie_get_mps(pdev->physfn);
+	if ((128 << pdev->pcie_mpss) >= parent_mps)
+		pcie_set_mps(pdev, parent_mps);
+	pdn->mps = pcie_get_mps(pdev);
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pnv_pci_fixup_vf_mps);
+#endif /* CONFIG_PCI_IOV */
 
 /**
  * eeh_powernv_init - Register platform dependent EEH operations

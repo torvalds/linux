@@ -36,6 +36,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/if_link.h>
 
 #define DRIVER_NAME "mlx5_core"
 #define DRIVER_VERSION "3.0-1"
@@ -64,6 +65,9 @@ do {									\
 		(__dev)->priv.name, __func__, __LINE__, current->pid,	\
 		##__VA_ARGS__)
 
+#define mlx5_core_info(__dev, format, ...)				\
+	dev_info(&(__dev)->pdev->dev, format, ##__VA_ARGS__)
+
 enum {
 	MLX5_CMD_DATA, /* print command payload only */
 	MLX5_CMD_TIME, /* print command execution time */
@@ -90,6 +94,12 @@ void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 		     unsigned long param);
 void mlx5_enter_error_state(struct mlx5_core_dev *dev);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
+int mlx5_core_sriov_configure(struct pci_dev *dev, int num_vfs);
+int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id);
+int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id);
+int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev);
+cycle_t mlx5_read_internal_timer(struct mlx5_core_dev *dev);
+u32 mlx5_get_msix_vec(struct mlx5_core_dev *dev, int vecidx);
 
 void mlx5e_init(void);
 void mlx5e_cleanup(void);

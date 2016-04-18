@@ -161,9 +161,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 				wdev->needed_headroom;
 	ldev->needed_tailroom = wdev->needed_tailroom;
 
-	lowpan_netdev_setup(ldev, LOWPAN_LLTYPE_IEEE802154);
-
-	ret = register_netdevice(ldev);
+	ret = lowpan_register_netdevice(ldev, LOWPAN_LLTYPE_IEEE802154);
 	if (ret < 0) {
 		dev_put(wdev);
 		return ret;
@@ -180,7 +178,7 @@ static void lowpan_dellink(struct net_device *ldev, struct list_head *head)
 	ASSERT_RTNL();
 
 	wdev->ieee802154_ptr->lowpan_dev = NULL;
-	unregister_netdevice(ldev);
+	lowpan_unregister_netdevice(ldev);
 	dev_put(wdev);
 }
 
@@ -209,7 +207,7 @@ static int lowpan_device_event(struct notifier_block *unused,
 	struct net_device *wdev = netdev_notifier_info_to_dev(ptr);
 
 	if (wdev->type != ARPHRD_IEEE802154)
-		goto out;
+		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -221,11 +219,10 @@ static int lowpan_device_event(struct notifier_block *unused,
 			lowpan_dellink(wdev->ieee802154_ptr->lowpan_dev, NULL);
 		break;
 	default:
-		break;
+		return NOTIFY_DONE;
 	}
 
-out:
-	return NOTIFY_DONE;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block lowpan_dev_notifier = {

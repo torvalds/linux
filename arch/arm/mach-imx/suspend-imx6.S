@@ -79,12 +79,15 @@
 	/* sync L2 cache to drain L2's buffers to DRAM. */
 #ifdef CONFIG_CACHE_L2X0
 	ldr	r11, [r0, #PM_INFO_MX6Q_L2_V_OFFSET]
+	teq	r11, #0
+	beq	6f
 	mov	r6, #0x0
 	str	r6, [r11, #L2X0_CACHE_SYNC]
 1:
 	ldr	r6, [r11, #L2X0_CACHE_SYNC]
 	ands	r6, r6, #0x1
 	bne	1b
+6:
 #endif
 
 	.endm

@@ -11,6 +11,55 @@
 
 #include <uapi/linux/mdio.h>
 
+struct mii_bus;
+
+struct mdio_device {
+	struct device dev;
+
+	const struct dev_pm_ops *pm_ops;
+	struct mii_bus *bus;
+
+	int (*bus_match)(struct device *dev, struct device_driver *drv);
+	void (*device_free)(struct mdio_device *mdiodev);
+	void (*device_remove)(struct mdio_device *mdiodev);
+
+	/* Bus address of the MDIO device (0-31) */
+	int addr;
+	int flags;
+};
+#define to_mdio_device(d) container_of(d, struct mdio_device, dev)
+
+/* struct mdio_driver_common: Common to all MDIO drivers */
+struct mdio_driver_common {
+	struct device_driver driver;
+	int flags;
+};
+#define MDIO_DEVICE_FLAG_PHY		1
+#define to_mdio_common_driver(d) \
+	container_of(d, struct mdio_driver_common, driver)
+
+/* struct mdio_driver: Generic MDIO driver */
+struct mdio_driver {
+	struct mdio_driver_common mdiodrv;
+
+	/*
+	 * Called during discovery.  Used to set
+	 * up device-specific structures, if any
+	 */
+	int (*probe)(struct mdio_device *mdiodev);
+
+	/* Clears up any memory if needed */
+	void (*remove)(struct mdio_device *mdiodev);
+};
+#define to_mdio_driver(d)						\
+	container_of(to_mdio_common_driver(d), struct mdio_driver, mdiodrv)
+
+void mdio_device_free(struct mdio_device *mdiodev);
+struct mdio_device *mdio_device_create(struct mii_bus *bus, int addr);
+int mdio_device_register(struct mdio_device *mdiodev);
+void mdio_device_remove(struct mdio_device *mdiodev);
+int mdio_driver_register(struct mdio_driver *drv);
+void mdio_driver_unregister(struct mdio_driver *drv);
 
 static inline bool mdio_phy_id_is_c45(int phy_id)
 {
@@ -172,5 +221,34 @@ static inline u16 ethtool_adv_to_mmd_eee_adv_t(u32 adv)
 
 	return reg;
 }
+
+int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
+int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum);
+int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
+int mdiobus_write_nested(struct mii_bus *bus, int addr, u32 regnum, u16 val);
+
+int mdiobus_register_device(struct mdio_device *mdiodev);
+int mdiobus_unregister_device(struct mdio_device *mdiodev);
+bool mdiobus_is_registered_device(struct mii_bus *bus, int addr);
+struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr);
+
+/**
+ * module_mdio_driver() - Helper macro for registering mdio drivers
+ *
+ * Helper macro for MDIO drivers which do not do anything special in module
+ * init/exit. Each module may only use this macro once, and calling it
+ * replaces module_init() and module_exit().
+ */
+#define mdio_module_driver(_mdio_driver)				\
+static int __init mdio_module_init(void)				\
+{									\
+	return mdio_driver_register(&_mdio_driver);			\
+}									\
+module_init(mdio_module_init);						\
+static void __exit mdio_module_exit(void)				\
+{									\
+	mdio_driver_unregister(&_mdio_driver);				\
+}									\
+module_exit(mdio_module_exit)
 
 #endif /* __LINUX_MDIO_H__ */

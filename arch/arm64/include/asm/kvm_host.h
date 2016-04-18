@@ -37,10 +37,11 @@
 
 #include <kvm/arm_vgic.h>
 #include <kvm/arm_arch_timer.h>
+#include <kvm/arm_pmu.h>
 
 #define KVM_MAX_VCPUS VGIC_V3_MAX_CPUS
 
-#define KVM_VCPU_MAX_FEATURES 3
+#define KVM_VCPU_MAX_FEATURES 4
 
 int __attribute_const__ kvm_target_cpu(void);
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
@@ -84,6 +85,101 @@ struct kvm_vcpu_fault_info {
 	u64 far_el2;		/* Hyp Fault Address Register */
 	u64 hpfar_el2;		/* Hyp IPA Fault Address Register */
 };
+
+/*
+ * 0 is reserved as an invalid value.
+ * Order should be kept in sync with the save/restore code.
+ */
+enum vcpu_sysreg {
+	__INVALID_SYSREG__,
+	MPIDR_EL1,	/* MultiProcessor Affinity Register */
+	CSSELR_EL1,	/* Cache Size Selection Register */
+	SCTLR_EL1,	/* System Control Register */
+	ACTLR_EL1,	/* Auxiliary Control Register */
+	CPACR_EL1,	/* Coprocessor Access Control */
+	TTBR0_EL1,	/* Translation Table Base Register 0 */
+	TTBR1_EL1,	/* Translation Table Base Register 1 */
+	TCR_EL1,	/* Translation Control Register */
+	ESR_EL1,	/* Exception Syndrome Register */
+	AFSR0_EL1,	/* Auxiliary Fault Status Register 0 */
+	AFSR1_EL1,	/* Auxiliary Fault Status Register 1 */
+	FAR_EL1,	/* Fault Address Register */
+	MAIR_EL1,	/* Memory Attribute Indirection Register */
+	VBAR_EL1,	/* Vector Base Address Register */
+	CONTEXTIDR_EL1,	/* Context ID Register */
+	TPIDR_EL0,	/* Thread ID, User R/W */
+	TPIDRRO_EL0,	/* Thread ID, User R/O */
+	TPIDR_EL1,	/* Thread ID, Privileged */
+	AMAIR_EL1,	/* Aux Memory Attribute Indirection Register */
+	CNTKCTL_EL1,	/* Timer Control Register (EL1) */
+	PAR_EL1,	/* Physical Address Register */
+	MDSCR_EL1,	/* Monitor Debug System Control Register */
+	MDCCINT_EL1,	/* Monitor Debug Comms Channel Interrupt Enable Reg */
+
+	/* Performance Monitors Registers */
+	PMCR_EL0,	/* Control Register */
+	PMSELR_EL0,	/* Event Counter Selection Register */
+	PMEVCNTR0_EL0,	/* Event Counter Register (0-30) */
+	PMEVCNTR30_EL0 = PMEVCNTR0_EL0 + 30,
+	PMCCNTR_EL0,	/* Cycle Counter Register */
+	PMEVTYPER0_EL0,	/* Event Type Register (0-30) */
+	PMEVTYPER30_EL0 = PMEVTYPER0_EL0 + 30,
+	PMCCFILTR_EL0,	/* Cycle Count Filter Register */
+	PMCNTENSET_EL0,	/* Count Enable Set Register */
+	PMINTENSET_EL1,	/* Interrupt Enable Set Register */
+	PMOVSSET_EL0,	/* Overflow Flag Status Set Register */
+	PMSWINC_EL0,	/* Software Increment Register */
+	PMUSERENR_EL0,	/* User Enable Register */
+
+	/* 32bit specific registers. Keep them at the end of the range */
+	DACR32_EL2,	/* Domain Access Control Register */
+	IFSR32_EL2,	/* Instruction Fault Status Register */
+	FPEXC32_EL2,	/* Floating-Point Exception Control Register */
+	DBGVCR32_EL2,	/* Debug Vector Catch Register */
+
+	NR_SYS_REGS	/* Nothing after this line! */
+};
+
+/* 32bit mapping */
+#define c0_MPIDR	(MPIDR_EL1 * 2)	/* MultiProcessor ID Register */
+#define c0_CSSELR	(CSSELR_EL1 * 2)/* Cache Size Selection Register */
+#define c1_SCTLR	(SCTLR_EL1 * 2)	/* System Control Register */
+#define c1_ACTLR	(ACTLR_EL1 * 2)	/* Auxiliary Control Register */
+#define c1_CPACR	(CPACR_EL1 * 2)	/* Coprocessor Access Control */
+#define c2_TTBR0	(TTBR0_EL1 * 2)	/* Translation Table Base Register 0 */
+#define c2_TTBR0_high	(c2_TTBR0 + 1)	/* TTBR0 top 32 bits */
+#define c2_TTBR1	(TTBR1_EL1 * 2)	/* Translation Table Base Register 1 */
+#define c2_TTBR1_high	(c2_TTBR1 + 1)	/* TTBR1 top 32 bits */
+#define c2_TTBCR	(TCR_EL1 * 2)	/* Translation Table Base Control R. */
+#define c3_DACR		(DACR32_EL2 * 2)/* Domain Access Control Register */
+#define c5_DFSR		(ESR_EL1 * 2)	/* Data Fault Status Register */
+#define c5_IFSR		(IFSR32_EL2 * 2)/* Instruction Fault Status Register */
+#define c5_ADFSR	(AFSR0_EL1 * 2)	/* Auxiliary Data Fault Status R */
+#define c5_AIFSR	(AFSR1_EL1 * 2)	/* Auxiliary Instr Fault Status R */
+#define c6_DFAR		(FAR_EL1 * 2)	/* Data Fault Address Register */
+#define c6_IFAR		(c6_DFAR + 1)	/* Instruction Fault Address Register */
+#define c7_PAR		(PAR_EL1 * 2)	/* Physical Address Register */
+#define c7_PAR_high	(c7_PAR + 1)	/* PAR top 32 bits */
+#define c10_PRRR	(MAIR_EL1 * 2)	/* Primary Region Remap Register */
+#define c10_NMRR	(c10_PRRR + 1)	/* Normal Memory Remap Register */
+#define c12_VBAR	(VBAR_EL1 * 2)	/* Vector Base Address Register */
+#define c13_CID		(CONTEXTIDR_EL1 * 2)	/* Context ID Register */
+#define c13_TID_URW	(TPIDR_EL0 * 2)	/* Thread ID, User R/W */
+#define c13_TID_URO	(TPIDRRO_EL0 * 2)/* Thread ID, User R/O */
+#define c13_TID_PRIV	(TPIDR_EL1 * 2)	/* Thread ID, Privileged */
+#define c10_AMAIR0	(AMAIR_EL1 * 2)	/* Aux Memory Attr Indirection Reg */
+#define c10_AMAIR1	(c10_AMAIR0 + 1)/* Aux Memory Attr Indirection Reg */
+#define c14_CNTKCTL	(CNTKCTL_EL1 * 2) /* Timer Control Register (PL1) */
+
+#define cp14_DBGDSCRext	(MDSCR_EL1 * 2)
+#define cp14_DBGBCR0	(DBGBCR0_EL1 * 2)
+#define cp14_DBGBVR0	(DBGBVR0_EL1 * 2)
+#define cp14_DBGBXVR0	(cp14_DBGBVR0 + 1)
+#define cp14_DBGWCR0	(DBGWCR0_EL1 * 2)
+#define cp14_DBGWVR0	(DBGWVR0_EL1 * 2)
+#define cp14_DBGDCCINT	(MDCCINT_EL1 * 2)
+
+#define NR_COPRO_REGS	(NR_SYS_REGS * 2)
 
 struct kvm_cpu_context {
 	struct kvm_regs	gp_regs;
@@ -132,6 +228,7 @@ struct kvm_vcpu_arch {
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;
 	struct arch_timer_cpu timer_cpu;
+	struct kvm_pmu pmu;
 
 	/*
 	 * Anything that is not used directly from assembly code goes
@@ -197,6 +294,12 @@ struct kvm_vcpu_stat {
 	u32 halt_successful_poll;
 	u32 halt_attempted_poll;
 	u32 halt_wakeup;
+	u32 hvc_exit_stat;
+	u64 wfe_exit_stat;
+	u64 wfi_exit_stat;
+	u64 mmio_exit_user;
+	u64 mmio_exit_kernel;
+	u64 exits;
 };
 
 int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init);
@@ -222,7 +325,9 @@ static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 struct kvm_vcpu *kvm_arm_get_running_vcpu(void);
 struct kvm_vcpu * __percpu *kvm_get_running_vcpus(void);
 
-u64 kvm_call_hyp(void *hypfn, ...);
+u64 __kvm_call_hyp(void *hypfn, ...);
+#define kvm_call_hyp(f, ...) __kvm_call_hyp(kvm_ksym_ref(f), ##__VA_ARGS__)
+
 void force_vm_exit(const cpumask_t *mask);
 void kvm_mmu_wp_memory_region(struct kvm *kvm, int slot);
 
@@ -243,8 +348,8 @@ static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
 	 * Call initialization code, and switch to the full blown
 	 * HYP code.
 	 */
-	kvm_call_hyp((void *)boot_pgd_ptr, pgd_ptr,
-		     hyp_stack_ptr, vector_ptr);
+	__kvm_call_hyp((void *)boot_pgd_ptr, pgd_ptr,
+		       hyp_stack_ptr, vector_ptr);
 }
 
 static inline void kvm_arch_hardware_disable(void) {}
@@ -257,5 +362,19 @@ void kvm_arm_init_debug(void);
 void kvm_arm_setup_debug(struct kvm_vcpu *vcpu);
 void kvm_arm_clear_debug(struct kvm_vcpu *vcpu);
 void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu);
+int kvm_arm_vcpu_arch_set_attr(struct kvm_vcpu *vcpu,
+			       struct kvm_device_attr *attr);
+int kvm_arm_vcpu_arch_get_attr(struct kvm_vcpu *vcpu,
+			       struct kvm_device_attr *attr);
+int kvm_arm_vcpu_arch_has_attr(struct kvm_vcpu *vcpu,
+			       struct kvm_device_attr *attr);
+
+static inline void __cpu_init_stage2(void)
+{
+	u32 parange = kvm_call_hyp(__init_stage2_translation);
+
+	WARN_ONCE(parange < 40,
+		  "PARange is %d bits, unsupported configuration!", parange);
+}
 
 #endif /* __ARM64_KVM_HOST_H__ */

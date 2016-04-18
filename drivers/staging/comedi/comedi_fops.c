@@ -686,13 +686,6 @@ static bool __comedi_is_subdevice_running(struct comedi_subdevice *s)
 	return comedi_is_runflags_running(runflags);
 }
 
-static bool comedi_is_subdevice_idle(struct comedi_subdevice *s)
-{
-	unsigned runflags = comedi_get_subdevice_runflags(s);
-
-	return !(runflags & COMEDI_SRF_BUSY_MASK);
-}
-
 bool comedi_can_auto_free_spriv(struct comedi_subdevice *s)
 {
 	unsigned runflags = __comedi_get_subdevice_runflags(s);
@@ -1111,6 +1104,9 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	struct comedi_bufinfo bi;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
+	unsigned int runflags;
+	int retval = 0;
+	bool become_nonbusy = false;
 
 	if (copy_from_user(&bi, arg, sizeof(bi)))
 		return -EFAULT;
@@ -1122,48 +1118,56 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 
 	async = s->async;
 
-	if (!async) {
-		dev_dbg(dev->class_dev,
-			"subdevice does not have async capability\n");
-		bi.buf_write_ptr = 0;
-		bi.buf_read_ptr = 0;
-		bi.buf_write_count = 0;
-		bi.buf_read_count = 0;
-		bi.bytes_read = 0;
-		bi.bytes_written = 0;
-		goto copyback;
-	}
-	if (!s->busy) {
-		bi.bytes_read = 0;
-		bi.bytes_written = 0;
-		goto copyback_position;
-	}
-	if (s->busy != file)
-		return -EACCES;
+	if (!async || s->busy != file)
+		return -EINVAL;
 
-	if (bi.bytes_read && !(async->cmd.flags & CMDF_WRITE)) {
-		bi.bytes_read = comedi_buf_read_alloc(s, bi.bytes_read);
-		comedi_buf_read_free(s, bi.bytes_read);
-
-		if (comedi_is_subdevice_idle(s) &&
-		    comedi_buf_read_n_available(s) == 0) {
-			do_become_nonbusy(dev, s);
+	runflags = comedi_get_subdevice_runflags(s);
+	if (!(async->cmd.flags & CMDF_WRITE)) {
+		/* command was set up in "read" direction */
+		if (bi.bytes_read) {
+			comedi_buf_read_alloc(s, bi.bytes_read);
+			bi.bytes_read = comedi_buf_read_free(s, bi.bytes_read);
 		}
+		/*
+		 * If nothing left to read, and command has stopped, and
+		 * {"read" position not updated or command stopped normally},
+		 * then become non-busy.
+		 */
+		if (comedi_buf_read_n_available(s) == 0 &&
+		    !comedi_is_runflags_running(runflags) &&
+		    (bi.bytes_read == 0 ||
+		     !comedi_is_runflags_in_error(runflags))) {
+			become_nonbusy = true;
+			if (comedi_is_runflags_in_error(runflags))
+				retval = -EPIPE;
+		}
+		bi.bytes_written = 0;
+	} else {
+		/* command was set up in "write" direction */
+		if (!comedi_is_runflags_running(runflags)) {
+			bi.bytes_written = 0;
+			become_nonbusy = true;
+			if (comedi_is_runflags_in_error(runflags))
+				retval = -EPIPE;
+		} else if (bi.bytes_written) {
+			comedi_buf_write_alloc(s, bi.bytes_written);
+			bi.bytes_written =
+			    comedi_buf_write_free(s, bi.bytes_written);
+		}
+		bi.bytes_read = 0;
 	}
 
-	if (bi.bytes_written && (async->cmd.flags & CMDF_WRITE)) {
-		bi.bytes_written =
-		    comedi_buf_write_alloc(s, bi.bytes_written);
-		comedi_buf_write_free(s, bi.bytes_written);
-	}
-
-copyback_position:
 	bi.buf_write_count = async->buf_write_count;
 	bi.buf_write_ptr = async->buf_write_ptr;
 	bi.buf_read_count = async->buf_read_count;
 	bi.buf_read_ptr = async->buf_read_ptr;
 
-copyback:
+	if (become_nonbusy)
+		do_become_nonbusy(dev, s);
+
+	if (retval)
+		return retval;
+
 	if (copy_to_user(arg, &bi, sizeof(bi)))
 		return -EFAULT;
 
@@ -2220,7 +2224,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 		retval = -EFAULT;
 		goto done;
 	}
-	if (size & (~PAGE_MASK)) {
+	if (offset_in_page(size)) {
 		retval = -EFAULT;
 		goto done;
 	}
@@ -2303,11 +2307,13 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 {
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
-	int n, m, count = 0, retval = 0;
+	unsigned int n, m;
+	ssize_t count = 0;
+	int retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	struct comedi_file *cfp = file->private_data;
 	struct comedi_device *dev = cfp->dev;
-	bool on_wait_queue = false;
+	bool become_nonbusy = false;
 	bool attach_locked;
 	unsigned int old_detach_count;
 
@@ -2329,74 +2335,33 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	}
 
 	async = s->async;
-
-	if (!s->busy || !nbytes)
-		goto out;
-	if (s->busy != file) {
-		retval = -EACCES;
-		goto out;
-	}
-	if (!(async->cmd.flags & CMDF_WRITE)) {
+	if (s->busy != file || !(async->cmd.flags & CMDF_WRITE)) {
 		retval = -EINVAL;
 		goto out;
 	}
 
 	add_wait_queue(&async->wait_head, &wait);
-	on_wait_queue = true;
-	while (nbytes > 0 && !retval) {
+	while (count == 0 && !retval) {
 		unsigned runflags;
+		unsigned int wp, n1, n2;
 
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		runflags = comedi_get_subdevice_runflags(s);
 		if (!comedi_is_runflags_running(runflags)) {
-			if (count == 0) {
-				struct comedi_subdevice *new_s;
-
-				if (comedi_is_runflags_in_error(runflags))
-					retval = -EPIPE;
-				else
-					retval = 0;
-				/*
-				 * To avoid deadlock, cannot acquire dev->mutex
-				 * while dev->attach_lock is held.  Need to
-				 * remove task from the async wait queue before
-				 * releasing dev->attach_lock, as it might not
-				 * be valid afterwards.
-				 */
-				remove_wait_queue(&async->wait_head, &wait);
-				on_wait_queue = false;
-				up_read(&dev->attach_lock);
-				attach_locked = false;
-				mutex_lock(&dev->mutex);
-				/*
-				 * Become non-busy unless things have changed
-				 * behind our back.  Checking dev->detach_count
-				 * is unchanged ought to be sufficient (unless
-				 * there have been 2**32 detaches in the
-				 * meantime!), but check the subdevice pointer
-				 * as well just in case.
-				 */
-				new_s = comedi_file_write_subdevice(file);
-				if (dev->attached &&
-				    old_detach_count == dev->detach_count &&
-				    s == new_s && new_s->async == async)
-					do_become_nonbusy(dev, s);
-				mutex_unlock(&dev->mutex);
-			}
+			if (comedi_is_runflags_in_error(runflags))
+				retval = -EPIPE;
+			if (retval || nbytes)
+				become_nonbusy = true;
 			break;
 		}
+		if (nbytes == 0)
+			break;
 
-		n = nbytes;
-
-		m = n;
-		if (async->buf_write_ptr + m > async->prealloc_bufsz)
-			m = async->prealloc_bufsz - async->buf_write_ptr;
+		/* Allocate all free buffer space. */
 		comedi_buf_write_alloc(s, async->prealloc_bufsz);
-		if (m > comedi_buf_write_n_allocated(s))
-			m = comedi_buf_write_n_allocated(s);
-		if (m < n)
-			n = m;
+		m = comedi_buf_write_n_allocated(s);
+		n = min_t(size_t, m, nbytes);
 
 		if (n == 0) {
 			if (file->f_flags & O_NONBLOCK) {
@@ -2408,21 +2373,22 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 				retval = -ERESTARTSYS;
 				break;
 			}
-			if (!s->busy)
-				break;
-			if (s->busy != file) {
-				retval = -EACCES;
-				break;
-			}
-			if (!(async->cmd.flags & CMDF_WRITE)) {
+			if (s->busy != file ||
+			    !(async->cmd.flags & CMDF_WRITE)) {
 				retval = -EINVAL;
 				break;
 			}
 			continue;
 		}
 
-		m = copy_from_user(async->prealloc_buf + async->buf_write_ptr,
-				   buf, n);
+		wp = async->buf_write_ptr;
+		n1 = min(n, async->prealloc_bufsz - wp);
+		n2 = n - n1;
+		m = copy_from_user(async->prealloc_buf + wp, buf, n1);
+		if (m)
+			m += n2;
+		else if (n2)
+			m = copy_from_user(async->prealloc_buf, buf + n1, n2);
 		if (m) {
 			n -= m;
 			retval = -EFAULT;
@@ -2433,12 +2399,38 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		nbytes -= n;
 
 		buf += n;
-		break;		/* makes device work like a pipe */
+	}
+	remove_wait_queue(&async->wait_head, &wait);
+	set_current_state(TASK_RUNNING);
+	if (become_nonbusy && count == 0) {
+		struct comedi_subdevice *new_s;
+
+		/*
+		 * To avoid deadlock, cannot acquire dev->mutex
+		 * while dev->attach_lock is held.
+		 */
+		up_read(&dev->attach_lock);
+		attach_locked = false;
+		mutex_lock(&dev->mutex);
+		/*
+		 * Check device hasn't become detached behind our back.
+		 * Checking dev->detach_count is unchanged ought to be
+		 * sufficient (unless there have been 2**32 detaches in the
+		 * meantime!), but check the subdevice pointer as well just in
+		 * case.
+		 *
+		 * Also check the subdevice is still in a suitable state to
+		 * become non-busy in case it changed behind our back.
+		 */
+		new_s = comedi_file_write_subdevice(file);
+		if (dev->attached && old_detach_count == dev->detach_count &&
+		    s == new_s && new_s->async == async && s->busy == file &&
+		    (async->cmd.flags & CMDF_WRITE) &&
+		    !comedi_is_subdevice_running(s))
+			do_become_nonbusy(dev, s);
+		mutex_unlock(&dev->mutex);
 	}
 out:
-	if (on_wait_queue)
-		remove_wait_queue(&async->wait_head, &wait);
-	set_current_state(TASK_RUNNING);
 	if (attach_locked)
 		up_read(&dev->attach_lock);
 

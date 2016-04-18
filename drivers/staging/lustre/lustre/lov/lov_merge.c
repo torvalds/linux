@@ -27,7 +27,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -129,7 +129,8 @@ int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
 			       "stripe %d KMS %sing %llu->%llu\n",
 			       stripe, kms > loi->loi_kms ? "increase":"shrink",
 			       loi->loi_kms, kms);
-			loi_kms_set(loi, loi->loi_lvb.lvb_size = kms);
+			loi->loi_lvb.lvb_size = kms;
+			loi_kms_set(loi, loi->loi_lvb.lvb_size);
 		}
 		return 0;
 	}

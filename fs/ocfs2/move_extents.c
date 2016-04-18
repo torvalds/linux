@@ -276,7 +276,7 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 	 *	context->data_ac->ac_resv = &OCFS2_I(inode)->ip_la_data_resv;
 	 */
 
-	mutex_lock(&tl_inode->i_mutex);
+	inode_lock(tl_inode);
 
 	if (ocfs2_truncate_log_needs_flush(osb)) {
 		ret = __ocfs2_flush_truncate_log(osb);
@@ -338,7 +338,7 @@ out_commit:
 	ocfs2_commit_trans(osb, handle);
 
 out_unlock_mutex:
-	mutex_unlock(&tl_inode->i_mutex);
+	inode_unlock(tl_inode);
 
 	if (context->data_ac) {
 		ocfs2_free_alloc_context(context->data_ac);
@@ -632,7 +632,7 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 		goto out;
 	}
 
-	mutex_lock(&gb_inode->i_mutex);
+	inode_lock(gb_inode);
 
 	ret = ocfs2_inode_lock(gb_inode, &gb_bh, 1);
 	if (ret) {
@@ -640,7 +640,7 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 		goto out_unlock_gb_mutex;
 	}
 
-	mutex_lock(&tl_inode->i_mutex);
+	inode_lock(tl_inode);
 
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
@@ -708,11 +708,11 @@ out_commit:
 	brelse(gd_bh);
 
 out_unlock_tl_inode:
-	mutex_unlock(&tl_inode->i_mutex);
+	inode_unlock(tl_inode);
 
 	ocfs2_inode_unlock(gb_inode, 1);
 out_unlock_gb_mutex:
-	mutex_unlock(&gb_inode->i_mutex);
+	inode_unlock(gb_inode);
 	brelse(gb_bh);
 	iput(gb_inode);
 
@@ -905,7 +905,7 @@ static int ocfs2_move_extents(struct ocfs2_move_extents_context *context)
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
 		return -EROFS;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	/*
 	 * This prevents concurrent writes from other nodes
@@ -969,7 +969,7 @@ out_inode_unlock:
 out_rw_unlock:
 	ocfs2_rw_unlock(inode, 1);
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	return status;
 }

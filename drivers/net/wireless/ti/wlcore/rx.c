@@ -149,7 +149,6 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	if (desc->packet_class == WL12XX_RX_CLASS_LOGGER) {
 		size_t len = length - sizeof(*desc);
 		wl12xx_copy_fwlog(wl, data + sizeof(*desc), len);
-		wake_up_interruptible(&wl->fwlog_waitq);
 		return 0;
 	}
 

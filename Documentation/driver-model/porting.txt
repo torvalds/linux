@@ -340,8 +340,10 @@ comparison:
 
   int (*match)(struct device * dev, struct device_driver * drv);
 
-match should return '1' if the driver supports the device, and '0'
-otherwise. 
+match should return positive value if the driver supports the device,
+and zero otherwise. It may also return error code (for example
+-EPROBE_DEFER) if determining that given driver supports the device is
+not possible.
 
 When a device is registered, the bus's list of drivers is iterated
 over. bus->match() is called for each one until a match is found. 

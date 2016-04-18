@@ -354,160 +354,16 @@ int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
 	crt->final = shash_async_final;
 	crt->finup = shash_async_finup;
 	crt->digest = shash_async_digest;
+	crt->setkey = shash_async_setkey;
 
-	if (alg->setkey)
-		crt->setkey = shash_async_setkey;
+	crt->has_setkey = alg->setkey != shash_no_setkey;
+
 	if (alg->export)
 		crt->export = shash_async_export;
 	if (alg->import)
 		crt->import = shash_async_import;
 
 	crt->reqsize = sizeof(struct shash_desc) + crypto_shash_descsize(shash);
-
-	return 0;
-}
-
-static int shash_compat_setkey(struct crypto_hash *tfm, const u8 *key,
-			       unsigned int keylen)
-{
-	struct shash_desc **descp = crypto_hash_ctx(tfm);
-	struct shash_desc *desc = *descp;
-
-	return crypto_shash_setkey(desc->tfm, key, keylen);
-}
-
-static int shash_compat_init(struct hash_desc *hdesc)
-{
-	struct shash_desc **descp = crypto_hash_ctx(hdesc->tfm);
-	struct shash_desc *desc = *descp;
-
-	desc->flags = hdesc->flags;
-
-	return crypto_shash_init(desc);
-}
-
-static int shash_compat_update(struct hash_desc *hdesc, struct scatterlist *sg,
-			       unsigned int len)
-{
-	struct shash_desc **descp = crypto_hash_ctx(hdesc->tfm);
-	struct shash_desc *desc = *descp;
-	struct crypto_hash_walk walk;
-	int nbytes;
-
-	for (nbytes = crypto_hash_walk_first_compat(hdesc, &walk, sg, len);
-	     nbytes > 0; nbytes = crypto_hash_walk_done(&walk, nbytes))
-		nbytes = crypto_shash_update(desc, walk.data, nbytes);
-
-	return nbytes;
-}
-
-static int shash_compat_final(struct hash_desc *hdesc, u8 *out)
-{
-	struct shash_desc **descp = crypto_hash_ctx(hdesc->tfm);
-
-	return crypto_shash_final(*descp, out);
-}
-
-static int shash_compat_digest(struct hash_desc *hdesc, struct scatterlist *sg,
-			       unsigned int nbytes, u8 *out)
-{
-	unsigned int offset = sg->offset;
-	int err;
-
-	if (nbytes < min(sg->length, ((unsigned int)(PAGE_SIZE)) - offset)) {
-		struct shash_desc **descp = crypto_hash_ctx(hdesc->tfm);
-		struct shash_desc *desc = *descp;
-		void *data;
-
-		desc->flags = hdesc->flags;
-
-		data = kmap_atomic(sg_page(sg));
-		err = crypto_shash_digest(desc, data + offset, nbytes, out);
-		kunmap_atomic(data);
-		crypto_yield(desc->flags);
-		goto out;
-	}
-
-	err = shash_compat_init(hdesc);
-	if (err)
-		goto out;
-
-	err = shash_compat_update(hdesc, sg, nbytes);
-	if (err)
-		goto out;
-
-	err = shash_compat_final(hdesc, out);
-
-out:
-	return err;
-}
-
-static void crypto_exit_shash_ops_compat(struct crypto_tfm *tfm)
-{
-	struct shash_desc **descp = crypto_tfm_ctx(tfm);
-	struct shash_desc *desc = *descp;
-
-	crypto_free_shash(desc->tfm);
-	kzfree(desc);
-}
-
-static int crypto_init_shash_ops_compat(struct crypto_tfm *tfm)
-{
-	struct hash_tfm *crt = &tfm->crt_hash;
-	struct crypto_alg *calg = tfm->__crt_alg;
-	struct shash_alg *alg = __crypto_shash_alg(calg);
-	struct shash_desc **descp = crypto_tfm_ctx(tfm);
-	struct crypto_shash *shash;
-	struct shash_desc *desc;
-
-	if (!crypto_mod_get(calg))
-		return -EAGAIN;
-
-	shash = crypto_create_tfm(calg, &crypto_shash_type);
-	if (IS_ERR(shash)) {
-		crypto_mod_put(calg);
-		return PTR_ERR(shash);
-	}
-
-	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(shash),
-		       GFP_KERNEL);
-	if (!desc) {
-		crypto_free_shash(shash);
-		return -ENOMEM;
-	}
-
-	*descp = desc;
-	desc->tfm = shash;
-	tfm->exit = crypto_exit_shash_ops_compat;
-
-	crt->init = shash_compat_init;
-	crt->update = shash_compat_update;
-	crt->final  = shash_compat_final;
-	crt->digest = shash_compat_digest;
-	crt->setkey = shash_compat_setkey;
-
-	crt->digestsize = alg->digestsize;
-
-	return 0;
-}
-
-static int crypto_init_shash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
-{
-	switch (mask & CRYPTO_ALG_TYPE_MASK) {
-	case CRYPTO_ALG_TYPE_HASH_MASK:
-		return crypto_init_shash_ops_compat(tfm);
-	}
-
-	return -EINVAL;
-}
-
-static unsigned int crypto_shash_ctxsize(struct crypto_alg *alg, u32 type,
-					 u32 mask)
-{
-	switch (mask & CRYPTO_ALG_TYPE_MASK) {
-	case CRYPTO_ALG_TYPE_HASH_MASK:
-		return sizeof(struct shash_desc *);
-	}
 
 	return 0;
 }
@@ -558,9 +414,7 @@ static void crypto_shash_show(struct seq_file *m, struct crypto_alg *alg)
 }
 
 static const struct crypto_type crypto_shash_type = {
-	.ctxsize = crypto_shash_ctxsize,
 	.extsize = crypto_alg_extsize,
-	.init = crypto_init_shash_ops,
 	.init_tfm = crypto_shash_init_tfm,
 #ifdef CONFIG_PROC_FS
 	.show = crypto_shash_show,

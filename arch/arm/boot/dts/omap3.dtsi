@@ -717,10 +717,14 @@
 			ti,hwmods = "gpmc";
 			reg = <0x6e000000 0x02d0>;
 			interrupts = <20>;
+			dmas = <&sdma 4>;
+			dma-names = "rxtx";
 			gpmc,num-cs = <8>;
 			gpmc,num-waitpins = <4>;
 			#address-cells = <2>;
 			#size-cells = <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		usb_otg_hs: usb_otg_hs@480ab000 {

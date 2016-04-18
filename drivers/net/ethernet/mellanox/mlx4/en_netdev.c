@@ -40,6 +40,7 @@
 #include <net/ip.h>
 #include <net/busy_poll.h>
 #include <net/vxlan.h>
+#include <net/devlink.h>
 
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/device.h>
@@ -69,33 +70,14 @@ int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 	return 0;
 }
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-/* must be called with local_bh_disable()d */
-static int mlx4_en_low_latency_recv(struct napi_struct *napi)
+static int __mlx4_en_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
+			      struct tc_to_netdev *tc)
 {
-	struct mlx4_en_cq *cq = container_of(napi, struct mlx4_en_cq, napi);
-	struct net_device *dev = cq->dev;
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_rx_ring *rx_ring = priv->rx_ring[cq->ring];
-	int done;
+	if (tc->type != TC_SETUP_MQPRIO)
+		return -EINVAL;
 
-	if (!priv->port_up)
-		return LL_FLUSH_FAILED;
-
-	if (!mlx4_en_cq_lock_poll(cq))
-		return LL_FLUSH_BUSY;
-
-	done = mlx4_en_process_rx_cq(dev, cq, 4);
-	if (likely(done))
-		rx_ring->cleaned += done;
-	else
-		rx_ring->misses++;
-
-	mlx4_en_cq_unlock_poll(cq);
-
-	return done;
+	return mlx4_en_setup_tc(dev, tc->tc);
 }
-#endif	/* CONFIG_NET_RX_BUSY_POLL */
 
 #ifdef CONFIG_RFS_ACCEL
 
@@ -1561,8 +1543,6 @@ int mlx4_en_start_port(struct net_device *dev)
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		cq = priv->rx_cq[i];
 
-		mlx4_en_cq_init_lock(cq);
-
 		err = mlx4_en_init_affinity_hint(priv, i);
 		if (err) {
 			en_err(priv, "Failed preparing IRQ affinity hint\n");
@@ -1859,13 +1839,6 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		struct mlx4_en_cq *cq = priv->rx_cq[i];
 
-		local_bh_disable();
-		while (!mlx4_en_cq_lock_napi(cq)) {
-			pr_info("CQ %d locked\n", i);
-			mdelay(1);
-		}
-		local_bh_enable();
-
 		napi_synchronize(&cq->napi);
 		mlx4_en_deactivate_rx_ring(priv, priv->rx_ring[i]);
 		mlx4_en_deactivate_cq(priv, cq);
@@ -2061,8 +2034,11 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	en_dbg(DRV, priv, "Destroying netdev on port:%d\n", priv->port);
 
 	/* Unregister device - this will close the port if it was up */
-	if (priv->registered)
+	if (priv->registered) {
+		devlink_port_type_clear(mlx4_get_devlink_port(mdev->dev,
+							      priv->port));
 		unregister_netdev(dev);
+	}
 
 	if (priv->allocated)
 		mlx4_free_hwq_res(mdev->dev, &priv->res, MLX4_EN_PAGE_SIZE);
@@ -2071,6 +2047,9 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	cancel_delayed_work(&priv->service_task);
 	/* flush any pending task for this netdev */
 	flush_workqueue(mdev->workqueue);
+
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
+		mlx4_en_remove_timestamp(mdev);
 
 	/* Detach the netdev so tasks would not attempt to access it */
 	mutex_lock(&mdev->state_lock);
@@ -2279,7 +2258,7 @@ static int mlx4_en_set_vf_mac(struct net_device *dev, int queue, u8 *mac)
 	struct mlx4_en_dev *mdev = en_priv->mdev;
 	u64 mac_u64 = mlx4_mac_to_u64(mac);
 
-	if (!is_valid_ether_addr(mac))
+	if (is_multicast_ether_addr(mac))
 		return -EINVAL;
 
 	return mlx4_set_vf_mac(mdev->dev, en_priv->port, queue, mac_u64);
@@ -2378,8 +2357,6 @@ out:
 	/* set offloads */
 	priv->dev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
 				      NETIF_F_TSO | NETIF_F_GSO_UDP_TUNNEL;
-	priv->dev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
-	priv->dev->features    |= NETIF_F_GSO_UDP_TUNNEL;
 }
 
 static void mlx4_en_del_vxlan_offloads(struct work_struct *work)
@@ -2390,8 +2367,6 @@ static void mlx4_en_del_vxlan_offloads(struct work_struct *work)
 	/* unset offloads */
 	priv->dev->hw_enc_features &= ~(NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
 				      NETIF_F_TSO | NETIF_F_GSO_UDP_TUNNEL);
-	priv->dev->hw_features &= ~NETIF_F_GSO_UDP_TUNNEL;
-	priv->dev->features    &= ~NETIF_F_GSO_UDP_TUNNEL;
 
 	ret = mlx4_SET_PORT_VXLAN(priv->mdev->dev, priv->port,
 				  VXLAN_STEER_BY_OUTER_MAC, 0);
@@ -2500,12 +2475,9 @@ static const struct net_device_ops mlx4_netdev_ops = {
 #endif
 	.ndo_set_features	= mlx4_en_set_features,
 	.ndo_fix_features	= mlx4_en_fix_features,
-	.ndo_setup_tc		= mlx4_en_setup_tc,
+	.ndo_setup_tc		= __mlx4_en_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= mlx4_en_filter_rfs,
-#endif
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= mlx4_en_low_latency_recv,
 #endif
 	.ndo_get_phys_port_id	= mlx4_en_get_phys_port_id,
 #ifdef CONFIG_MLX4_EN_VXLAN
@@ -2541,7 +2513,7 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 #endif
 	.ndo_set_features	= mlx4_en_set_features,
 	.ndo_fix_features	= mlx4_en_fix_features,
-	.ndo_setup_tc		= mlx4_en_setup_tc,
+	.ndo_setup_tc		= __mlx4_en_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= mlx4_en_filter_rfs,
 #endif
@@ -3017,6 +2989,11 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		priv->rss_hash_fn = ETH_RSS_HASH_TOP;
 	}
 
+	if (mdev->dev->caps.tunnel_offload_mode == MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) {
+		dev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+		dev->features    |= NETIF_F_GSO_UDP_TUNNEL;
+	}
+
 	mdev->pndev[port] = dev;
 	mdev->upper[port] = NULL;
 
@@ -3058,9 +3035,12 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	}
 	queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
 
+	/* Initialize time stamp mechanism */
 	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
-		queue_delayed_work(mdev->workqueue, &priv->service_task,
-				   SERVICE_TASK_DELAY);
+		mlx4_en_init_timestamp(mdev);
+
+	queue_delayed_work(mdev->workqueue, &priv->service_task,
+			   SERVICE_TASK_DELAY);
 
 	mlx4_en_set_stats_bitmap(mdev->dev, &priv->stats_bitmap,
 				 mdev->profile.prof[priv->port].rx_ppp,
@@ -3075,6 +3055,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	}
 
 	priv->registered = 1;
+	devlink_port_type_eth_set(mlx4_get_devlink_port(mdev->dev, priv->port),
+				  dev);
 
 	return 0;
 

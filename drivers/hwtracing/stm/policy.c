@@ -76,9 +76,10 @@ to_stp_policy_node(struct config_item *item)
 		NULL;
 }
 
-static ssize_t stp_policy_node_masters_show(struct stp_policy_node *policy_node,
-					    char *page)
+static ssize_t
+stp_policy_node_masters_show(struct config_item *item, char *page)
 {
+	struct stp_policy_node *policy_node = to_stp_policy_node(item);
 	ssize_t count;
 
 	count = sprintf(page, "%u %u\n", policy_node->first_master,
@@ -88,9 +89,10 @@ static ssize_t stp_policy_node_masters_show(struct stp_policy_node *policy_node,
 }
 
 static ssize_t
-stp_policy_node_masters_store(struct stp_policy_node *policy_node,
-			      const char *page, size_t count)
+stp_policy_node_masters_store(struct config_item *item, const char *page,
+			      size_t count)
 {
+	struct stp_policy_node *policy_node = to_stp_policy_node(item);
 	unsigned int first, last;
 	struct stm_device *stm;
 	char *p = (char *)page;
@@ -123,8 +125,9 @@ unlock:
 }
 
 static ssize_t
-stp_policy_node_channels_show(struct stp_policy_node *policy_node, char *page)
+stp_policy_node_channels_show(struct config_item *item, char *page)
 {
+	struct stp_policy_node *policy_node = to_stp_policy_node(item);
 	ssize_t count;
 
 	count = sprintf(page, "%u %u\n", policy_node->first_channel,
@@ -134,9 +137,10 @@ stp_policy_node_channels_show(struct stp_policy_node *policy_node, char *page)
 }
 
 static ssize_t
-stp_policy_node_channels_store(struct stp_policy_node *policy_node,
-			       const char *page, size_t count)
+stp_policy_node_channels_store(struct config_item *item, const char *page,
+			       size_t count)
 {
+	struct stp_policy_node *policy_node = to_stp_policy_node(item);
 	unsigned int first, last;
 	struct stm_device *stm;
 	char *p = (char *)page;
@@ -171,71 +175,16 @@ static void stp_policy_node_release(struct config_item *item)
 	kfree(to_stp_policy_node(item));
 }
 
-struct stp_policy_node_attribute {
-	struct configfs_attribute	attr;
-	ssize_t (*show)(struct stp_policy_node *, char *);
-	ssize_t (*store)(struct stp_policy_node *, const char *, size_t);
-};
-
-static ssize_t stp_policy_node_attr_show(struct config_item *item,
-					 struct configfs_attribute *attr,
-					 char *page)
-{
-	struct stp_policy_node *policy_node = to_stp_policy_node(item);
-	struct stp_policy_node_attribute *pn_attr =
-		container_of(attr, struct stp_policy_node_attribute, attr);
-	ssize_t count = 0;
-
-	if (pn_attr->show)
-		count = pn_attr->show(policy_node, page);
-
-	return count;
-}
-
-static ssize_t stp_policy_node_attr_store(struct config_item *item,
-					  struct configfs_attribute *attr,
-					  const char *page, size_t len)
-{
-	struct stp_policy_node *policy_node = to_stp_policy_node(item);
-	struct stp_policy_node_attribute *pn_attr =
-		container_of(attr, struct stp_policy_node_attribute, attr);
-	ssize_t count = -EINVAL;
-
-	if (pn_attr->store)
-		count = pn_attr->store(policy_node, page, len);
-
-	return count;
-}
-
 static struct configfs_item_operations stp_policy_node_item_ops = {
 	.release		= stp_policy_node_release,
-	.show_attribute		= stp_policy_node_attr_show,
-	.store_attribute	= stp_policy_node_attr_store,
 };
 
-static struct stp_policy_node_attribute stp_policy_node_attr_range = {
-	.attr	= {
-		.ca_owner = THIS_MODULE,
-		.ca_name = "masters",
-		.ca_mode = S_IRUGO | S_IWUSR,
-	},
-	.show	= stp_policy_node_masters_show,
-	.store	= stp_policy_node_masters_store,
-};
-
-static struct stp_policy_node_attribute stp_policy_node_attr_channels = {
-	.attr	= {
-		.ca_owner = THIS_MODULE,
-		.ca_name = "channels",
-		.ca_mode = S_IRUGO | S_IWUSR,
-	},
-	.show	= stp_policy_node_channels_show,
-	.store	= stp_policy_node_channels_store,
-};
+CONFIGFS_ATTR(stp_policy_node_, masters);
+CONFIGFS_ATTR(stp_policy_node_, channels);
 
 static struct configfs_attribute *stp_policy_node_attrs[] = {
-	&stp_policy_node_attr_range.attr,
-	&stp_policy_node_attr_channels.attr,
+	&stp_policy_node_attr_masters,
+	&stp_policy_node_attr_channels,
 	NULL,
 };
 
@@ -298,20 +247,8 @@ static struct config_item_type stp_policy_node_type = {
 /*
  * Root group: policies.
  */
-static struct configfs_attribute stp_policy_attr_device = {
-	.ca_owner = THIS_MODULE,
-	.ca_name = "device",
-	.ca_mode = S_IRUGO,
-};
-
-static struct configfs_attribute *stp_policy_attrs[] = {
-	&stp_policy_attr_device,
-	NULL,
-};
-
-static ssize_t stp_policy_attr_show(struct config_item *item,
-				    struct configfs_attribute *attr,
-				    char *page)
+static ssize_t stp_policy_device_show(struct config_item *item,
+				      char *page)
 {
 	struct stp_policy *policy = to_stp_policy(item);
 	ssize_t count;
@@ -324,17 +261,28 @@ static ssize_t stp_policy_attr_show(struct config_item *item,
 	return count;
 }
 
+CONFIGFS_ATTR_RO(stp_policy_, device);
+
+static struct configfs_attribute *stp_policy_attrs[] = {
+	&stp_policy_attr_device,
+	NULL,
+};
+
 void stp_policy_unbind(struct stp_policy *policy)
 {
 	struct stm_device *stm = policy->stm;
 
+	/*
+	 * stp_policy_release() will not call here if the policy is already
+	 * unbound; other users should not either, as no link exists between
+	 * this policy and anything else in that case
+	 */
 	if (WARN_ON_ONCE(!policy->stm))
 		return;
 
-	mutex_lock(&stm->policy_mutex);
-	stm->policy = NULL;
-	mutex_unlock(&stm->policy_mutex);
+	lockdep_assert_held(&stm->policy_mutex);
 
+	stm->policy = NULL;
 	policy->stm = NULL;
 
 	stm_put_device(stm);
@@ -343,14 +291,21 @@ void stp_policy_unbind(struct stp_policy *policy)
 static void stp_policy_release(struct config_item *item)
 {
 	struct stp_policy *policy = to_stp_policy(item);
+	struct stm_device *stm = policy->stm;
 
+	/* a policy *can* be unbound and still exist in configfs tree */
+	if (!stm)
+		return;
+
+	mutex_lock(&stm->policy_mutex);
 	stp_policy_unbind(policy);
+	mutex_unlock(&stm->policy_mutex);
+
 	kfree(policy);
 }
 
 static struct configfs_item_operations stp_policy_item_ops = {
 	.release		= stp_policy_release,
-	.show_attribute		= stp_policy_attr_show,
 };
 
 static struct configfs_group_operations stp_policy_group_ops = {
@@ -377,10 +332,11 @@ stp_policies_make(struct config_group *group, const char *name)
 
 	/*
 	 * node must look like <device_name>.<policy_name>, where
-	 * <device_name> is the name of an existing stm device and
-	 * <policy_name> is an arbitrary string
+	 * <device_name> is the name of an existing stm device; may
+	 *               contain dots;
+	 * <policy_name> is an arbitrary string; may not contain dots
 	 */
-	p = strchr(devname, '.');
+	p = strrchr(devname, '.');
 	if (!p) {
 		kfree(devname);
 		return ERR_PTR(-EINVAL);

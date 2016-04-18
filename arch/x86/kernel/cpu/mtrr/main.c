@@ -47,7 +47,7 @@
 #include <linux/smp.h>
 #include <linux/syscore_ops.h>
 
-#include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <asm/e820.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
@@ -300,24 +300,24 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		return error;
 
 	if (type >= MTRR_NUM_TYPES) {
-		pr_warning("mtrr: type: %u invalid\n", type);
+		pr_warn("mtrr: type: %u invalid\n", type);
 		return -EINVAL;
 	}
 
 	/* If the type is WC, check that this processor supports it */
 	if ((type == MTRR_TYPE_WRCOMB) && !have_wrcomb()) {
-		pr_warning("mtrr: your processor doesn't support write-combining\n");
+		pr_warn("mtrr: your processor doesn't support write-combining\n");
 		return -ENOSYS;
 	}
 
 	if (!size) {
-		pr_warning("mtrr: zero sized request\n");
+		pr_warn("mtrr: zero sized request\n");
 		return -EINVAL;
 	}
 
 	if ((base | (base + size - 1)) >>
 	    (boot_cpu_data.x86_phys_bits - PAGE_SHIFT)) {
-		pr_warning("mtrr: base or size exceeds the MTRR width\n");
+		pr_warn("mtrr: base or size exceeds the MTRR width\n");
 		return -EINVAL;
 	}
 
@@ -348,7 +348,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 				} else if (types_compatible(type, ltype))
 					continue;
 			}
-			pr_warning("mtrr: 0x%lx000,0x%lx000 overlaps existing"
+			pr_warn("mtrr: 0x%lx000,0x%lx000 overlaps existing"
 				" 0x%lx000,0x%lx000\n", base, size, lbase,
 				lsize);
 			goto out;
@@ -357,7 +357,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		if (ltype != type) {
 			if (types_compatible(type, ltype))
 				continue;
-			pr_warning("mtrr: type mismatch for %lx000,%lx000 old: %s new: %s\n",
+			pr_warn("mtrr: type mismatch for %lx000,%lx000 old: %s new: %s\n",
 				base, size, mtrr_attrib_to_str(ltype),
 				mtrr_attrib_to_str(type));
 			goto out;
@@ -395,7 +395,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 static int mtrr_check(unsigned long base, unsigned long size)
 {
 	if ((base & (PAGE_SIZE - 1)) || (size & (PAGE_SIZE - 1))) {
-		pr_warning("mtrr: size and base must be multiples of 4 kiB\n");
+		pr_warn("mtrr: size and base must be multiples of 4 kiB\n");
 		pr_debug("mtrr: size: 0x%lx  base: 0x%lx\n", size, base);
 		dump_stack();
 		return -1;
@@ -493,16 +493,16 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 		}
 	}
 	if (reg >= max) {
-		pr_warning("mtrr: register: %d too big\n", reg);
+		pr_warn("mtrr: register: %d too big\n", reg);
 		goto out;
 	}
 	mtrr_if->get(reg, &lbase, &lsize, &ltype);
 	if (lsize < 1) {
-		pr_warning("mtrr: MTRR %d not used\n", reg);
+		pr_warn("mtrr: MTRR %d not used\n", reg);
 		goto out;
 	}
 	if (mtrr_usage_table[reg] < 1) {
-		pr_warning("mtrr: reg: %d has count=0\n", reg);
+		pr_warn("mtrr: reg: %d has count=0\n", reg);
 		goto out;
 	}
 	if (--mtrr_usage_table[reg] < 1)
@@ -682,7 +682,7 @@ void __init mtrr_bp_init(void)
 
 	phys_addr = 32;
 
-	if (cpu_has_mtrr) {
+	if (boot_cpu_has(X86_FEATURE_MTRR)) {
 		mtrr_if = &generic_mtrr_ops;
 		size_or_mask = SIZE_OR_MASK_BITS(36);
 		size_and_mask = 0x00f00000;

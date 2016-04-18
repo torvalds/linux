@@ -362,7 +362,7 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 		fs_subset_out_desc.bEndpointAddress;
 
 	status = usb_assign_descriptors(f, fs_eth_function, hs_eth_function,
-			ss_eth_function);
+			ss_eth_function, NULL);
 	if (status)
 		goto fail;
 
@@ -405,10 +405,10 @@ USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(gether);
 USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(gether);
 
 static struct configfs_attribute *gether_attrs[] = {
-	&f_gether_opts_dev_addr.attr,
-	&f_gether_opts_host_addr.attr,
-	&f_gether_opts_qmult.attr,
-	&f_gether_opts_ifname.attr,
+	&gether_opts_attr_dev_addr,
+	&gether_opts_attr_host_addr,
+	&gether_opts_attr_qmult,
+	&gether_opts_attr_ifname,
 	NULL,
 };
 

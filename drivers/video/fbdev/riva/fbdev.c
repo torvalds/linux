@@ -1765,6 +1765,7 @@ static int riva_get_EDID_i2c(struct fb_info *info)
 	int i;
 
 	NVTRACE_ENTER();
+	par->riva.LockUnlock(&par->riva, 0);
 	riva_create_i2c_busses(par);
 	for (i = 0; i < 3; i++) {
 		if (!par->chan[i].par)

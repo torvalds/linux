@@ -32,7 +32,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/audio.h>
 #include <mach/palmld.h>
 #include <linux/platform_data/mmc-pxamci.h>
@@ -40,7 +40,7 @@
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/keypad-pxa27x.h>
 #include <linux/platform_data/asoc-palm27x.h>
-#include <mach/palm27x.h>
+#include "palm27x.h"
 
 #include "generic.h"
 #include "devices.h"

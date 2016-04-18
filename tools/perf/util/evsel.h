@@ -93,10 +93,8 @@ struct perf_evsel {
 	const char		*unit;
 	struct event_format	*tp_format;
 	off_t			id_offset;
-	union {
-		void		*priv;
-		u64		db_id;
-	};
+	void			*priv;
+	u64			db_id;
 	struct cgroup_sel	*cgrp;
 	void			*handler;
 	struct cpu_map		*cpus;
@@ -227,7 +225,8 @@ int perf_evsel__append_filter(struct perf_evsel *evsel,
 			      const char *op, const char *filter);
 int perf_evsel__apply_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 			     const char *filter);
-int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads);
+int perf_evsel__enable(struct perf_evsel *evsel);
+int perf_evsel__disable(struct perf_evsel *evsel);
 
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
 			     struct cpu_map *cpus);
@@ -363,11 +362,20 @@ static inline bool perf_evsel__is_function_event(struct perf_evsel *evsel)
 #undef FUNCTION_EVENT
 }
 
+static inline bool perf_evsel__is_bpf_output(struct perf_evsel *evsel)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+
+	return (attr->config == PERF_COUNT_SW_BPF_OUTPUT) &&
+		(attr->type == PERF_TYPE_SOFTWARE);
+}
+
 struct perf_attr_details {
 	bool freq;
 	bool verbose;
 	bool event_group;
 	bool force;
+	bool trace_fields;
 };
 
 int perf_evsel__fprintf(struct perf_evsel *evsel,

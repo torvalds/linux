@@ -28,7 +28,6 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 			   struct machine *machine)
 {
 	struct addr_location al;
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread = machine__findnew_thread(machine, sample->pid,
 							sample->tid);
 
@@ -38,7 +37,7 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, &al);
+	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, &al);
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
@@ -76,6 +75,7 @@ struct perf_tool build_id__mark_dso_hit_ops = {
 	.exit	= perf_event__exit_del_thread,
 	.attr		 = perf_event__process_attr,
 	.build_id	 = perf_event__process_build_id,
+	.ordered_events	 = true,
 };
 
 int build_id__sprintf(const u8 *build_id, int len, char *bf)
@@ -90,7 +90,7 @@ int build_id__sprintf(const u8 *build_id, int len, char *bf)
 		bid += 2;
 	}
 
-	return raw - build_id;
+	return (bid - bf) + 1;
 }
 
 int sysfs__sprintf_build_id(const char *root_dir, char *sbuild_id)
@@ -165,6 +165,50 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size)
 	return build_id__filename(build_id_hex, bf, size);
 }
 
+bool dso__build_id_is_kmod(const struct dso *dso, char *bf, size_t size)
+{
+	char *id_name, *ch;
+	struct stat sb;
+
+	id_name = dso__build_id_filename(dso, bf, size);
+	if (!id_name)
+		goto err;
+	if (access(id_name, F_OK))
+		goto err;
+	if (lstat(id_name, &sb) == -1)
+		goto err;
+	if ((size_t)sb.st_size > size - 1)
+		goto err;
+	if (readlink(id_name, bf, size - 1) < 0)
+		goto err;
+
+	bf[sb.st_size] = '\0';
+
+	/*
+	 * link should be:
+	 * ../../lib/modules/4.4.0-rc4/kernel/net/ipv4/netfilter/nf_nat_ipv4.ko/a09fe3eb3147dafa4e3b31dbd6257e4d696bdc92
+	 */
+	ch = strrchr(bf, '/');
+	if (!ch)
+		goto err;
+	if (ch - 3 < bf)
+		goto err;
+
+	return strncmp(".ko", ch - 3, 3) == 0;
+err:
+	/*
+	 * If dso__build_id_filename work, get id_name again,
+	 * because id_name points to bf and is broken.
+	 */
+	if (id_name)
+		id_name = dso__build_id_filename(dso, bf, size);
+	pr_err("Invalid build id: %s\n", id_name ? :
+					 dso->long_name ? :
+					 dso->short_name ? :
+					 "[unknown]");
+	return false;
+}
+
 #define dsos__for_each_with_build_id(pos, head)	\
 	list_for_each_entry(pos, head, node)	\
 		if (!pos->has_build_id)		\
@@ -210,6 +254,7 @@ static int machine__write_buildid_table(struct machine *machine, int fd)
 	dsos__for_each_with_build_id(pos, &machine->dsos.head) {
 		const char *name;
 		size_t name_len;
+		bool in_kernel = false;
 
 		if (!pos->hit)
 			continue;
@@ -226,8 +271,11 @@ static int machine__write_buildid_table(struct machine *machine, int fd)
 			name_len = pos->long_name_len + 1;
 		}
 
+		in_kernel = pos->kernel ||
+				is_kernel_module(name,
+					PERF_RECORD_MISC_CPUMODE_UNKNOWN);
 		err = write_buildid(name, name_len, pos->build_id, machine->pid,
-				    pos->kernel ? kmisc : umisc, fd);
+				    in_kernel ? kmisc : umisc, fd);
 		if (err)
 			break;
 	}

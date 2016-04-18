@@ -84,6 +84,7 @@ kmem_zalloc(size_t size, xfs_km_flags_t flags)
 #define KM_ZONE_HWALIGN	SLAB_HWCACHE_ALIGN
 #define KM_ZONE_RECLAIM	SLAB_RECLAIM_ACCOUNT
 #define KM_ZONE_SPREAD	SLAB_MEM_SPREAD
+#define KM_ZONE_ACCOUNT	SLAB_ACCOUNT
 
 #define kmem_zone	kmem_cache
 #define kmem_zone_t	struct kmem_cache

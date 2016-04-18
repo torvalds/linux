@@ -10,6 +10,8 @@
 #include "thread.h"
 #include "thread_map.h"
 #include "symbol/kallsyms.h"
+#include "asm/bug.h"
+#include "stat.h"
 
 static const char *perf_event__names[] = {
 	[0]					= "TOTAL",
@@ -37,6 +39,12 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_AUXTRACE_INFO]		= "AUXTRACE_INFO",
 	[PERF_RECORD_AUXTRACE]			= "AUXTRACE",
 	[PERF_RECORD_AUXTRACE_ERROR]		= "AUXTRACE_ERROR",
+	[PERF_RECORD_THREAD_MAP]		= "THREAD_MAP",
+	[PERF_RECORD_CPU_MAP]			= "CPU_MAP",
+	[PERF_RECORD_STAT_CONFIG]		= "STAT_CONFIG",
+	[PERF_RECORD_STAT]			= "STAT",
+	[PERF_RECORD_STAT_ROUND]		= "STAT_ROUND",
+	[PERF_RECORD_EVENT_UPDATE]		= "EVENT_UPDATE",
 };
 
 const char *perf_event__name(unsigned int id)
@@ -48,13 +56,22 @@ const char *perf_event__name(unsigned int id)
 	return perf_event__names[id];
 }
 
-static struct perf_sample synth_sample = {
+static int perf_tool__process_synth_event(struct perf_tool *tool,
+					  union perf_event *event,
+					  struct machine *machine,
+					  perf_event__handler_t process)
+{
+	struct perf_sample synth_sample = {
 	.pid	   = -1,
 	.tid	   = -1,
 	.time	   = -1,
 	.stream_id = -1,
 	.cpu	   = -1,
 	.period	   = 1,
+	.cpumode   = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK,
+	};
+
+	return process(tool, event, &synth_sample, machine);
 };
 
 /*
@@ -178,7 +195,7 @@ pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 	if (perf_event__prepare_comm(event, pid, machine, &tgid, &ppid) != 0)
 		return -1;
 
-	if (process(tool, event, &synth_sample, machine) != 0)
+	if (perf_tool__process_synth_event(tool, event, machine, process) != 0)
 		return -1;
 
 	return tgid;
@@ -210,7 +227,7 @@ static int perf_event__synthesize_fork(struct perf_tool *tool,
 
 	event->fork.header.size = (sizeof(event->fork) + machine->id_hdr_size);
 
-	if (process(tool, event, &synth_sample, machine) != 0)
+	if (perf_tool__process_synth_event(tool, event, machine, process) != 0)
 		return -1;
 
 	return 0;
@@ -274,7 +291,7 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 		strcpy(execname, "");
 
 		/* 00400000-0040c000 r-xp 00000000 fd:01 41038  /bin/cat */
-		n = sscanf(bf, "%"PRIx64"-%"PRIx64" %s %"PRIx64" %x:%x %u %s\n",
+		n = sscanf(bf, "%"PRIx64"-%"PRIx64" %s %"PRIx64" %x:%x %u %[^\n]\n",
 		       &event->mmap2.start, &event->mmap2.len, prot,
 		       &event->mmap2.pgoff, &event->mmap2.maj,
 		       &event->mmap2.min,
@@ -336,7 +353,7 @@ out:
 		event->mmap2.pid = tgid;
 		event->mmap2.tid = pid;
 
-		if (process(tool, event, &synth_sample, machine) != 0) {
+		if (perf_tool__process_synth_event(tool, event, machine, process) != 0) {
 			rc = -1;
 			break;
 		}
@@ -394,7 +411,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 
 		memcpy(event->mmap.filename, pos->dso->long_name,
 		       pos->dso->long_name_len + 1);
-		if (process(tool, event, &synth_sample, machine) != 0) {
+		if (perf_tool__process_synth_event(tool, event, machine, process) != 0) {
 			rc = -1;
 			break;
 		}
@@ -464,7 +481,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		/*
 		 * Send the prepared comm event
 		 */
-		if (process(tool, comm_event, &synth_sample, machine) != 0)
+		if (perf_tool__process_synth_event(tool, comm_event, machine, process) != 0)
 			break;
 
 		rc = 0;
@@ -495,7 +512,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 	if (comm_event == NULL)
 		goto out;
 
-	mmap_event = malloc(sizeof(mmap_event->mmap) + machine->id_hdr_size);
+	mmap_event = malloc(sizeof(mmap_event->mmap2) + machine->id_hdr_size);
 	if (mmap_event == NULL)
 		goto out_free_comm;
 
@@ -569,7 +586,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	if (comm_event == NULL)
 		goto out;
 
-	mmap_event = malloc(sizeof(mmap_event->mmap) + machine->id_hdr_size);
+	mmap_event = malloc(sizeof(mmap_event->mmap2) + machine->id_hdr_size);
 	if (mmap_event == NULL)
 		goto out_free_comm;
 
@@ -693,10 +710,278 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	event->mmap.len   = map->end - event->mmap.start;
 	event->mmap.pid   = machine->pid;
 
-	err = process(tool, event, &synth_sample, machine);
+	err = perf_tool__process_synth_event(tool, event, machine, process);
 	free(event);
 
 	return err;
+}
+
+int perf_event__synthesize_thread_map2(struct perf_tool *tool,
+				      struct thread_map *threads,
+				      perf_event__handler_t process,
+				      struct machine *machine)
+{
+	union perf_event *event;
+	int i, err, size;
+
+	size  = sizeof(event->thread_map);
+	size +=	threads->nr * sizeof(event->thread_map.entries[0]);
+
+	event = zalloc(size);
+	if (!event)
+		return -ENOMEM;
+
+	event->header.type = PERF_RECORD_THREAD_MAP;
+	event->header.size = size;
+	event->thread_map.nr = threads->nr;
+
+	for (i = 0; i < threads->nr; i++) {
+		struct thread_map_event_entry *entry = &event->thread_map.entries[i];
+		char *comm = thread_map__comm(threads, i);
+
+		if (!comm)
+			comm = (char *) "";
+
+		entry->pid = thread_map__pid(threads, i);
+		strncpy((char *) &entry->comm, comm, sizeof(entry->comm));
+	}
+
+	err = process(tool, event, NULL, machine);
+
+	free(event);
+	return err;
+}
+
+static void synthesize_cpus(struct cpu_map_entries *cpus,
+			    struct cpu_map *map)
+{
+	int i;
+
+	cpus->nr = map->nr;
+
+	for (i = 0; i < map->nr; i++)
+		cpus->cpu[i] = map->map[i];
+}
+
+static void synthesize_mask(struct cpu_map_mask *mask,
+			    struct cpu_map *map, int max)
+{
+	int i;
+
+	mask->nr = BITS_TO_LONGS(max);
+	mask->long_size = sizeof(long);
+
+	for (i = 0; i < map->nr; i++)
+		set_bit(map->map[i], mask->mask);
+}
+
+static size_t cpus_size(struct cpu_map *map)
+{
+	return sizeof(struct cpu_map_entries) + map->nr * sizeof(u16);
+}
+
+static size_t mask_size(struct cpu_map *map, int *max)
+{
+	int i;
+
+	*max = 0;
+
+	for (i = 0; i < map->nr; i++) {
+		/* bit possition of the cpu is + 1 */
+		int bit = map->map[i] + 1;
+
+		if (bit > *max)
+			*max = bit;
+	}
+
+	return sizeof(struct cpu_map_mask) + BITS_TO_LONGS(*max) * sizeof(long);
+}
+
+void *cpu_map_data__alloc(struct cpu_map *map, size_t *size, u16 *type, int *max)
+{
+	size_t size_cpus, size_mask;
+	bool is_dummy = cpu_map__empty(map);
+
+	/*
+	 * Both array and mask data have variable size based
+	 * on the number of cpus and their actual values.
+	 * The size of the 'struct cpu_map_data' is:
+	 *
+	 *   array = size of 'struct cpu_map_entries' +
+	 *           number of cpus * sizeof(u64)
+	 *
+	 *   mask  = size of 'struct cpu_map_mask' +
+	 *           maximum cpu bit converted to size of longs
+	 *
+	 * and finaly + the size of 'struct cpu_map_data'.
+	 */
+	size_cpus = cpus_size(map);
+	size_mask = mask_size(map, max);
+
+	if (is_dummy || (size_cpus < size_mask)) {
+		*size += size_cpus;
+		*type  = PERF_CPU_MAP__CPUS;
+	} else {
+		*size += size_mask;
+		*type  = PERF_CPU_MAP__MASK;
+	}
+
+	*size += sizeof(struct cpu_map_data);
+	return zalloc(*size);
+}
+
+void cpu_map_data__synthesize(struct cpu_map_data *data, struct cpu_map *map,
+			      u16 type, int max)
+{
+	data->type = type;
+
+	switch (type) {
+	case PERF_CPU_MAP__CPUS:
+		synthesize_cpus((struct cpu_map_entries *) data->data, map);
+		break;
+	case PERF_CPU_MAP__MASK:
+		synthesize_mask((struct cpu_map_mask *) data->data, map, max);
+	default:
+		break;
+	};
+}
+
+static struct cpu_map_event* cpu_map_event__new(struct cpu_map *map)
+{
+	size_t size = sizeof(struct cpu_map_event);
+	struct cpu_map_event *event;
+	int max;
+	u16 type;
+
+	event = cpu_map_data__alloc(map, &size, &type, &max);
+	if (!event)
+		return NULL;
+
+	event->header.type = PERF_RECORD_CPU_MAP;
+	event->header.size = size;
+	event->data.type   = type;
+
+	cpu_map_data__synthesize(&event->data, map, type, max);
+	return event;
+}
+
+int perf_event__synthesize_cpu_map(struct perf_tool *tool,
+				   struct cpu_map *map,
+				   perf_event__handler_t process,
+				   struct machine *machine)
+{
+	struct cpu_map_event *event;
+	int err;
+
+	event = cpu_map_event__new(map);
+	if (!event)
+		return -ENOMEM;
+
+	err = process(tool, (union perf_event *) event, NULL, machine);
+
+	free(event);
+	return err;
+}
+
+int perf_event__synthesize_stat_config(struct perf_tool *tool,
+				       struct perf_stat_config *config,
+				       perf_event__handler_t process,
+				       struct machine *machine)
+{
+	struct stat_config_event *event;
+	int size, i = 0, err;
+
+	size  = sizeof(*event);
+	size += (PERF_STAT_CONFIG_TERM__MAX * sizeof(event->data[0]));
+
+	event = zalloc(size);
+	if (!event)
+		return -ENOMEM;
+
+	event->header.type = PERF_RECORD_STAT_CONFIG;
+	event->header.size = size;
+	event->nr          = PERF_STAT_CONFIG_TERM__MAX;
+
+#define ADD(__term, __val)					\
+	event->data[i].tag = PERF_STAT_CONFIG_TERM__##__term;	\
+	event->data[i].val = __val;				\
+	i++;
+
+	ADD(AGGR_MODE,	config->aggr_mode)
+	ADD(INTERVAL,	config->interval)
+	ADD(SCALE,	config->scale)
+
+	WARN_ONCE(i != PERF_STAT_CONFIG_TERM__MAX,
+		  "stat config terms unbalanced\n");
+#undef ADD
+
+	err = process(tool, (union perf_event *) event, NULL, machine);
+
+	free(event);
+	return err;
+}
+
+int perf_event__synthesize_stat(struct perf_tool *tool,
+				u32 cpu, u32 thread, u64 id,
+				struct perf_counts_values *count,
+				perf_event__handler_t process,
+				struct machine *machine)
+{
+	struct stat_event event;
+
+	event.header.type = PERF_RECORD_STAT;
+	event.header.size = sizeof(event);
+	event.header.misc = 0;
+
+	event.id        = id;
+	event.cpu       = cpu;
+	event.thread    = thread;
+	event.val       = count->val;
+	event.ena       = count->ena;
+	event.run       = count->run;
+
+	return process(tool, (union perf_event *) &event, NULL, machine);
+}
+
+int perf_event__synthesize_stat_round(struct perf_tool *tool,
+				      u64 evtime, u64 type,
+				      perf_event__handler_t process,
+				      struct machine *machine)
+{
+	struct stat_round_event event;
+
+	event.header.type = PERF_RECORD_STAT_ROUND;
+	event.header.size = sizeof(event);
+	event.header.misc = 0;
+
+	event.time = evtime;
+	event.type = type;
+
+	return process(tool, (union perf_event *) &event, NULL, machine);
+}
+
+void perf_event__read_stat_config(struct perf_stat_config *config,
+				  struct stat_config_event *event)
+{
+	unsigned i;
+
+	for (i = 0; i < event->nr; i++) {
+
+		switch (event->data[i].tag) {
+#define CASE(__term, __val)					\
+		case PERF_STAT_CONFIG_TERM__##__term:		\
+			config->__val = event->data[i].val;	\
+			break;
+
+		CASE(AGGR_MODE, aggr_mode)
+		CASE(SCALE,     scale)
+		CASE(INTERVAL,  interval)
+#undef CASE
+		default:
+			pr_warning("unknown stat config term %" PRIu64 "\n",
+				   event->data[i].tag);
+		}
+	}
 }
 
 size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp)
@@ -781,6 +1066,38 @@ size_t perf_event__fprintf_mmap2(union perf_event *event, FILE *fp)
 		       (event->mmap2.prot & PROT_EXEC) ? 'x' : '-',
 		       (event->mmap2.flags & MAP_SHARED) ? 's' : 'p',
 		       event->mmap2.filename);
+}
+
+size_t perf_event__fprintf_thread_map(union perf_event *event, FILE *fp)
+{
+	struct thread_map *threads = thread_map__new_event(&event->thread_map);
+	size_t ret;
+
+	ret = fprintf(fp, " nr: ");
+
+	if (threads)
+		ret += thread_map__fprintf(threads, fp);
+	else
+		ret += fprintf(fp, "failed to get threads from event\n");
+
+	thread_map__put(threads);
+	return ret;
+}
+
+size_t perf_event__fprintf_cpu_map(union perf_event *event, FILE *fp)
+{
+	struct cpu_map *cpus = cpu_map__new_data(&event->cpu_map.data);
+	size_t ret;
+
+	ret = fprintf(fp, " nr: ");
+
+	if (cpus)
+		ret += cpu_map__fprintf(cpus, fp);
+	else
+		ret += fprintf(fp, "failed to get cpumap from event\n");
+
+	cpu_map__put(cpus);
+	return ret;
 }
 
 int perf_event__process_mmap(struct perf_tool *tool __maybe_unused,
@@ -987,12 +1304,9 @@ void thread__find_addr_location(struct thread *thread,
  * Callers need to drop the reference to al->thread, obtained in
  * machine__findnew_thread()
  */
-int perf_event__preprocess_sample(const union perf_event *event,
-				  struct machine *machine,
-				  struct addr_location *al,
-				  struct perf_sample *sample)
+int machine__resolve(struct machine *machine, struct addr_location *al,
+		     struct perf_sample *sample)
 {
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread = machine__findnew_thread(machine, sample->pid,
 							sample->tid);
 
@@ -1007,11 +1321,11 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	 * events, but for older perf.data files there was no such thing, so do
 	 * it now.
 	 */
-	if (cpumode == PERF_RECORD_MISC_KERNEL &&
+	if (sample->cpumode == PERF_RECORD_MISC_KERNEL &&
 	    machine__kernel_map(machine) == NULL)
 		machine__create_kernel_maps(machine);
 
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, al);
+	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, al);
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
@@ -1087,16 +1401,12 @@ bool sample_addr_correlates_sym(struct perf_event_attr *attr)
 	return false;
 }
 
-void perf_event__preprocess_sample_addr(union perf_event *event,
-					struct perf_sample *sample,
-					struct thread *thread,
-					struct addr_location *al)
+void thread__resolve(struct thread *thread, struct addr_location *al,
+		     struct perf_sample *sample)
 {
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->addr, al);
+	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->addr, al);
 	if (!al->map)
-		thread__find_addr_map(thread, cpumode, MAP__VARIABLE,
+		thread__find_addr_map(thread, sample->cpumode, MAP__VARIABLE,
 				      sample->addr, al);
 
 	al->cpu = sample->cpu;

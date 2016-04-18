@@ -11,7 +11,7 @@
 #define WILC_WLAN_IF_H
 
 #include <linux/semaphore.h>
-#include "linux_wlan_common.h"
+#include <linux/netdevice.h>
 
 /********************************************
  *
@@ -50,46 +50,24 @@
  *
  ********************************************/
 
-typedef struct {
+struct sdio_cmd52 {
 	u32 read_write:		1;
 	u32 function:		3;
 	u32 raw:		1;
 	u32 address:		17;
 	u32 data:		8;
-} sdio_cmd52_t;
+};
 
-typedef struct {
-	/* struct { */
+struct sdio_cmd53 {
 	u32 read_write:		1;
 	u32 function:		3;
 	u32 block_mode:		1;
 	u32 increment:		1;
 	u32 address:		17;
 	u32 count:		9;
-	/* } bit; */
 	u8 *buffer;
 	u32 block_size;
-} sdio_cmd53_t;
-
-typedef struct {
-	int io_type;
-	int (*io_init)(void *);
-	void (*io_deinit)(void *);
-	union {
-		struct {
-			int (*sdio_cmd52)(sdio_cmd52_t *);
-			int (*sdio_cmd53)(sdio_cmd53_t *);
-			int (*sdio_set_max_speed)(void);
-			int (*sdio_set_default_speed)(void);
-		} sdio;
-		struct {
-			int (*spi_max_speed)(void);
-			int (*spi_tx)(u8 *, u32);
-			int (*spi_rx)(u8 *, u32);
-			int (*spi_trx)(u8 *, u8 *, u32);
-		} spi;
-	} u;
-} wilc_wlan_io_func_t;
+};
 
 #define WILC_MAC_INDICATE_STATUS	0x1
 #define WILC_MAC_STATUS_INIT		-1
@@ -98,19 +76,10 @@ typedef struct {
 
 #define WILC_MAC_INDICATE_SCAN		0x2
 
-typedef struct {
-	void *os_private;
-} wilc_wlan_os_context_t;
-
-typedef struct {
-	wilc_wlan_os_context_t os_context;
-	wilc_wlan_io_func_t io_func;
-} wilc_wlan_inp_t;
-
 struct tx_complete_data {
 	int size;
 	void *buff;
-	u8 *pBssid;
+	u8 *bssid;
 	struct sk_buff *skb;
 };
 
@@ -123,11 +92,9 @@ typedef void (*wilc_tx_complete_func_t)(void *, int);
  *      Wlan Configuration ID
  *
  ********************************************/
-
+#define WILC_MULTICAST_TABLE_SIZE	8
 #define MAX_SSID_LEN            33
 #define MAX_RATES_SUPPORTED     12
-
-#define INFINITE_SLEEP_TIME	((u32)0xFFFFFFFF)
 
 typedef enum {
 	SUPP_RATES_IE		= 1,
@@ -315,7 +282,7 @@ typedef enum {
 	SW_TRIGGER_ABORT,
 } TX_ABORT_OPTION_T;
 
-enum WID_TYPE {
+enum wid_type {
 	WID_CHAR		= 0,
 	WID_SHORT		= 1,
 	WID_INT			= 2,
@@ -326,6 +293,13 @@ enum WID_TYPE {
 	WID_ADR			= 7,
 	WID_UNDEF		= 8,
 	WID_TYPE_FORCE_32BIT	= 0xFFFFFFFF
+};
+
+struct wid {
+	u16 id;
+	enum wid_type type;
+	s32 size;
+	s8 *val;
 };
 
 typedef enum {
@@ -789,6 +763,7 @@ typedef enum {
 	WID_DEL_BEACON			= 0x00CA,
 
 	WID_LOGTerminal_Switch		= 0x00CD,
+	WID_TX_POWER			= 0x00CE,
 	/*  EMAC Short WID list */
 	/*  RTS Threshold */
 	/*
@@ -860,7 +835,6 @@ typedef enum {
 
 	/* Custom Integer WID list */
 	WID_GET_INACTIVE_TIME		= 0x2084,
-	WID_SET_DRV_HANDLER		= 0X2085,
 	WID_SET_OPERATION_MODE		= 0X2086,
 	/* EMAC String WID list */
 	WID_SSID			= 0x3000,
@@ -893,6 +867,7 @@ typedef enum {
 	WID_MODEL_NAME			= 0x3027, /*Added for CAPI tool */
 	WID_MODEL_NUM			= 0x3028, /*Added for CAPI tool */
 	WID_DEVICE_NAME			= 0x3029, /*Added for CAPI tool */
+	WID_SET_DRV_HANDLER		= 0x3030,
 
 	/* NMAC String WID list */
 	WID_11N_P_ACTION_REQ		= 0x3080,
@@ -937,10 +912,8 @@ typedef enum {
 	WID_MAX				= 0xFFFF
 } WID_T;
 
-int wilc_wlan_init(wilc_wlan_inp_t *inp);
-
-void wilc_bus_set_max_speed(void);
-void wilc_bus_set_default_speed(void);
-u32 wilc_get_chipid(u8 update);
+struct wilc;
+int wilc_wlan_init(struct net_device *dev);
+u32 wilc_get_chipid(struct wilc *wilc, bool update);
 
 #endif

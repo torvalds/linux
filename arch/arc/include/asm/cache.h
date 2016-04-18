@@ -54,6 +54,7 @@ extern char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len);
 extern void read_decode_cache_bcr(void);
 
 extern int ioc_exists;
+extern unsigned long perip_base;
 
 #endif	/* !__ASSEMBLY__ */
 
@@ -62,9 +63,7 @@ extern int ioc_exists;
 #define ARC_REG_IC_IVIC		0x10
 #define ARC_REG_IC_CTRL		0x11
 #define ARC_REG_IC_IVIL		0x19
-#if defined(CONFIG_ARC_MMU_V3) || defined(CONFIG_ARC_MMU_V4)
 #define ARC_REG_IC_PTAG		0x1E
-#endif
 #define ARC_REG_IC_PTAG_HI	0x1F
 
 /* Bit val in IC_CTRL */

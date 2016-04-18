@@ -76,7 +76,7 @@ ssize_t persistent_ram_ecc_string(struct persistent_ram_zone *prz,
 
 struct ramoops_platform_data {
 	unsigned long	mem_size;
-	unsigned long	mem_address;
+	phys_addr_t	mem_address;
 	unsigned int	mem_type;
 	unsigned long	record_size;
 	unsigned long	console_size;

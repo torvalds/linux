@@ -25,15 +25,26 @@
 
 #define ETH_PPE_DUMP_NUM 576
 #define ETH_PPE_STATIC_NUM 12
+
+#define HNS_PPEV2_RSS_IND_TBL_SIZE 256
+#define HNS_PPEV2_RSS_KEY_SIZE 40 /* in bytes or 320 bits */
+#define HNS_PPEV2_RSS_KEY_NUM (HNS_PPEV2_RSS_KEY_SIZE / sizeof(u32))
+
+#define HNS_PPEV2_MAX_FRAME_LEN 0X980
+
 enum ppe_qid_mode {
-	PPE_QID_MODE0 = 0,	/* fixed queue id mode */
-	PPE_QID_MODE1,		/* switch:128VM non switch:6Port/4VM/4TC */
-	PPE_QID_MODE2,		/* switch:32VM/4TC non switch:6Port/16VM */
-	PPE_QID_MODE3,		/* switch:4TC/8TAG non switch:2Port/64VM */
-	PPE_QID_MODE4,		/* switch:8VM/16TAG non switch:2Port/16VM/4TC */
-	PPE_QID_MODE5,		/* non switch:6Port/16TAG */
-	PPE_QID_MODE6,		/* non switch:6Port/2VM/8TC */
-	PPE_QID_MODE7,		/* non switch:2Port/8VM/8TC */
+	PPE_QID_MODE0 = 0, /* fixed queue id mode */
+	PPE_QID_MODE1,	   /* switch:128VM non switch:6Port/4VM/4TC */
+	PPE_QID_MODE2,	   /* switch:32VM/4TC non switch:6Port/16VM */
+	PPE_QID_MODE3,	   /* switch:4TC/8RSS non switch:2Port/64VM */
+	PPE_QID_MODE4,	   /* switch:8VM/16RSS non switch:2Port/16VM/4TC */
+	PPE_QID_MODE5,	   /* switch:16VM/8TC non switch:6Port/16RSS */
+	PPE_QID_MODE6,	   /* switch:32VM/4RSS non switch:6Port/2VM/8TC */
+	PPE_QID_MODE7,	   /* switch:32RSS non switch:2Port/8VM/8TC */
+	PPE_QID_MODE8,	   /* switch:6VM/4TC/4RSS non switch:2Port/16VM/4RSS */
+	PPE_QID_MODE9,	   /* non switch:2Port/32VM/2RSS */
+	PPE_QID_MODE10,	   /* non switch:2Port/32RSS */
+	PPE_QID_MODE11,	   /* non switch:2Port/4TC/16RSS */
 };
 
 enum ppe_port_mode {
@@ -72,6 +83,8 @@ struct hns_ppe_cb {
 	u8 port;			 /* port id in dsaf  */
 	void __iomem *io_base;
 	int virq;
+	u32 rss_indir_table[HNS_PPEV2_RSS_IND_TBL_SIZE]; /*shadow indir tab */
+	u32 rss_key[HNS_PPEV2_RSS_KEY_NUM]; /* rss hash key */
 };
 
 struct ppe_common_cb {
@@ -102,4 +115,9 @@ void hns_ppe_get_regs(struct hns_ppe_cb *ppe_cb, void *data);
 
 void hns_ppe_get_strings(struct hns_ppe_cb *ppe_cb, int stringset, u8 *data);
 void hns_ppe_get_stats(struct hns_ppe_cb *ppe_cb, u64 *data);
+void hns_ppe_set_tso_enable(struct hns_ppe_cb *ppe_cb, u32 value);
+void hns_ppe_set_rss_key(struct hns_ppe_cb *ppe_cb,
+			 const u32 rss_key[HNS_PPEV2_RSS_KEY_NUM]);
+void hns_ppe_set_indir_table(struct hns_ppe_cb *ppe_cb,
+			     const u32 rss_tab[HNS_PPEV2_RSS_IND_TBL_SIZE]);
 #endif /* _HNS_DSAF_PPE_H */

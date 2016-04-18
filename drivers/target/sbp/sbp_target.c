@@ -35,13 +35,9 @@
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_fabric_configfs.h>
-#include <target/configfs_macros.h>
 #include <asm/unaligned.h>
 
 #include "sbp_target.h"
-
-static const struct target_core_fabric_ops sbp_ops;
 
 /* FireWire address region for management and command block address handlers */
 static const struct fw_address_region sbp_register_region = {
@@ -200,44 +196,29 @@ static struct sbp_session *sbp_session_create(
 	struct sbp_session *sess;
 	int ret;
 	char guid_str[17];
-	struct se_node_acl *se_nacl;
+
+	snprintf(guid_str, sizeof(guid_str), "%016llx", guid);
 
 	sess = kmalloc(sizeof(*sess), GFP_KERNEL);
 	if (!sess) {
 		pr_err("failed to allocate session descriptor\n");
 		return ERR_PTR(-ENOMEM);
 	}
+	spin_lock_init(&sess->lock);
+	INIT_LIST_HEAD(&sess->login_list);
+	INIT_DELAYED_WORK(&sess->maint_work, session_maintenance_work);
+	sess->guid = guid;
 
-	sess->se_sess = transport_init_session(TARGET_PROT_NORMAL);
+	sess->se_sess = target_alloc_session(&tpg->se_tpg, 128,
+					     sizeof(struct sbp_target_request),
+					     TARGET_PROT_NORMAL, guid_str,
+					     sess, NULL);
 	if (IS_ERR(sess->se_sess)) {
 		pr_err("failed to init se_session\n");
-
 		ret = PTR_ERR(sess->se_sess);
 		kfree(sess);
 		return ERR_PTR(ret);
 	}
-
-	snprintf(guid_str, sizeof(guid_str), "%016llx", guid);
-
-	se_nacl = core_tpg_check_initiator_node_acl(&tpg->se_tpg, guid_str);
-	if (!se_nacl) {
-		pr_warn("Node ACL not found for %s\n", guid_str);
-
-		transport_free_session(sess->se_sess);
-		kfree(sess);
-
-		return ERR_PTR(-EPERM);
-	}
-
-	sess->se_sess->se_node_acl = se_nacl;
-
-	spin_lock_init(&sess->lock);
-	INIT_LIST_HEAD(&sess->login_list);
-	INIT_DELAYED_WORK(&sess->maint_work, session_maintenance_work);
-
-	sess->guid = guid;
-
-	transport_register_session(&tpg->se_tpg, se_nacl, sess->se_sess, sess);
 
 	return sess;
 }
@@ -912,7 +893,6 @@ static void tgt_agent_process_work(struct work_struct *work)
 					STATUS_BLOCK_SBP_STATUS(
 						SBP_STATUS_REQ_TYPE_NOTSUPP));
 			sbp_send_status(req);
-			sbp_free_request(req);
 			return;
 		case 3: /* Dummy ORB */
 			req->status.status |= cpu_to_be32(
@@ -923,7 +903,6 @@ static void tgt_agent_process_work(struct work_struct *work)
 					STATUS_BLOCK_SBP_STATUS(
 						SBP_STATUS_DUMMY_ORB_COMPLETE));
 			sbp_send_status(req);
-			sbp_free_request(req);
 			return;
 		default:
 			BUG();
@@ -942,6 +921,25 @@ static inline bool tgt_agent_check_active(struct sbp_target_agent *agent)
 	return active;
 }
 
+static struct sbp_target_request *sbp_mgt_get_req(struct sbp_session *sess,
+	struct fw_card *card, u64 next_orb)
+{
+	struct se_session *se_sess = sess->se_sess;
+	struct sbp_target_request *req;
+	int tag;
+
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, GFP_ATOMIC);
+	if (tag < 0)
+		return ERR_PTR(-ENOMEM);
+
+	req = &((struct sbp_target_request *)se_sess->sess_cmd_map)[tag];
+	memset(req, 0, sizeof(*req));
+	req->se_cmd.map_tag = tag;
+	req->se_cmd.tag = next_orb;
+
+	return req;
+}
+
 static void tgt_agent_fetch_work(struct work_struct *work)
 {
 	struct sbp_target_agent *agent =
@@ -953,8 +951,8 @@ static void tgt_agent_fetch_work(struct work_struct *work)
 	u64 next_orb = agent->orb_pointer;
 
 	while (next_orb && tgt_agent_check_active(agent)) {
-		req = kzalloc(sizeof(*req), GFP_KERNEL);
-		if (!req) {
+		req = sbp_mgt_get_req(sess, sess->card, next_orb);
+		if (IS_ERR(req)) {
 			spin_lock_bh(&agent->lock);
 			agent->state = AGENT_STATE_DEAD;
 			spin_unlock_bh(&agent->lock);
@@ -989,7 +987,6 @@ static void tgt_agent_fetch_work(struct work_struct *work)
 			spin_unlock_bh(&agent->lock);
 
 			sbp_send_status(req);
-			sbp_free_request(req);
 			return;
 		}
 
@@ -1236,7 +1233,7 @@ static void sbp_handle_command(struct sbp_target_request *req)
 	req->se_cmd.tag = req->orb_pointer;
 	if (target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
 			      req->sense_buf, unpacked_lun, data_length,
-			      TCM_SIMPLE_TAG, data_dir, 0))
+			      TCM_SIMPLE_TAG, data_dir, TARGET_SCF_ACK_KREF))
 		goto err;
 
 	return;
@@ -1248,7 +1245,6 @@ err:
 		STATUS_BLOCK_LEN(1) |
 		STATUS_BLOCK_SBP_STATUS(SBP_STATUS_UNSPECIFIED_ERROR));
 	sbp_send_status(req);
-	sbp_free_request(req);
 }
 
 /*
@@ -1347,22 +1343,29 @@ static int sbp_rw_data(struct sbp_target_request *req)
 
 static int sbp_send_status(struct sbp_target_request *req)
 {
-	int ret, length;
+	int rc, ret = 0, length;
 	struct sbp_login_descriptor *login = req->login;
 
 	length = (((be32_to_cpu(req->status.status) >> 24) & 0x07) + 1) * 4;
 
-	ret = sbp_run_request_transaction(req, TCODE_WRITE_BLOCK_REQUEST,
+	rc = sbp_run_request_transaction(req, TCODE_WRITE_BLOCK_REQUEST,
 			login->status_fifo_addr, &req->status, length);
-	if (ret != RCODE_COMPLETE) {
-		pr_debug("sbp_send_status: write failed: 0x%x\n", ret);
-		return -EIO;
+	if (rc != RCODE_COMPLETE) {
+		pr_debug("sbp_send_status: write failed: 0x%x\n", rc);
+		ret = -EIO;
+		goto put_ref;
 	}
 
 	pr_debug("sbp_send_status: status write complete for ORB: 0x%llx\n",
 			req->orb_pointer);
-
-	return 0;
+	/*
+	 * Drop the extra ACK_KREF reference taken by target_submit_cmd()
+	 * ahead of sbp_check_stop_free() -> transport_generic_free_cmd()
+	 * final se_cmd->cmd_kref put.
+	 */
+put_ref:
+	target_put_sess_cmd(&req->se_cmd);
+	return ret;
 }
 
 static void sbp_sense_mangle(struct sbp_target_request *req)
@@ -1451,9 +1454,13 @@ static int sbp_send_sense(struct sbp_target_request *req)
 
 static void sbp_free_request(struct sbp_target_request *req)
 {
+	struct se_cmd *se_cmd = &req->se_cmd;
+	struct se_session *se_sess = se_cmd->se_sess;
+
 	kfree(req->pg_tbl);
 	kfree(req->cmd_buf);
-	kfree(req);
+
+	percpu_ida_free(&se_sess->sess_tag_pool, se_cmd->map_tag);
 }
 
 static void sbp_mgt_agent_process(struct work_struct *work)
@@ -1613,7 +1620,6 @@ static void sbp_mgt_agent_rw(struct fw_card *card,
 			rcode = RCODE_CONFLICT_ERROR;
 			goto out;
 		}
-
 		req = kzalloc(sizeof(*req), GFP_ATOMIC);
 		if (!req) {
 			rcode = RCODE_CONFLICT_ERROR;
@@ -1819,8 +1825,7 @@ static int sbp_check_stop_free(struct se_cmd *se_cmd)
 	struct sbp_target_request *req = container_of(se_cmd,
 			struct sbp_target_request, se_cmd);
 
-	transport_generic_free_cmd(&req->se_cmd, 0);
-	return 1;
+	return transport_generic_free_cmd(&req->se_cmd, 0);
 }
 
 static int sbp_count_se_tpg_luns(struct se_portal_group *tpg)
@@ -2111,24 +2116,21 @@ static void sbp_drop_tport(struct se_wwn *wwn)
 	kfree(tport);
 }
 
-static ssize_t sbp_wwn_show_attr_version(
-		struct target_fabric_configfs *tf,
-		char *page)
+static ssize_t sbp_wwn_version_show(struct config_item *item, char *page)
 {
 	return sprintf(page, "FireWire SBP fabric module %s\n", SBP_VERSION);
 }
 
-TF_WWN_ATTR_RO(sbp, version);
+CONFIGFS_ATTR_RO(sbp_wwn_, version);
 
 static struct configfs_attribute *sbp_wwn_attrs[] = {
-	&sbp_wwn_version.attr,
+	&sbp_wwn_attr_version,
 	NULL,
 };
 
-static ssize_t sbp_tpg_show_directory_id(
-		struct se_portal_group *se_tpg,
-		char *page)
+static ssize_t sbp_tpg_directory_id_show(struct config_item *item, char *page)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
 	struct sbp_tport *tport = tpg->tport;
 
@@ -2138,11 +2140,10 @@ static ssize_t sbp_tpg_show_directory_id(
 		return sprintf(page, "%06x\n", tport->directory_id);
 }
 
-static ssize_t sbp_tpg_store_directory_id(
-		struct se_portal_group *se_tpg,
-		const char *page,
-		size_t count)
+static ssize_t sbp_tpg_directory_id_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
 	struct sbp_tport *tport = tpg->tport;
 	unsigned long val;
@@ -2166,20 +2167,18 @@ static ssize_t sbp_tpg_store_directory_id(
 	return count;
 }
 
-static ssize_t sbp_tpg_show_enable(
-		struct se_portal_group *se_tpg,
-		char *page)
+static ssize_t sbp_tpg_enable_show(struct config_item *item, char *page)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
 	struct sbp_tport *tport = tpg->tport;
 	return sprintf(page, "%d\n", tport->enable);
 }
 
-static ssize_t sbp_tpg_store_enable(
-		struct se_portal_group *se_tpg,
-		const char *page,
-		size_t count)
+static ssize_t sbp_tpg_enable_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
 	struct sbp_tport *tport = tpg->tport;
 	unsigned long val;
@@ -2219,29 +2218,28 @@ static ssize_t sbp_tpg_store_enable(
 	return count;
 }
 
-TF_TPG_BASE_ATTR(sbp, directory_id, S_IRUGO | S_IWUSR);
-TF_TPG_BASE_ATTR(sbp, enable, S_IRUGO | S_IWUSR);
+CONFIGFS_ATTR(sbp_tpg_, directory_id);
+CONFIGFS_ATTR(sbp_tpg_, enable);
 
 static struct configfs_attribute *sbp_tpg_base_attrs[] = {
-	&sbp_tpg_directory_id.attr,
-	&sbp_tpg_enable.attr,
+	&sbp_tpg_attr_directory_id,
+	&sbp_tpg_attr_enable,
 	NULL,
 };
 
-static ssize_t sbp_tpg_attrib_show_mgt_orb_timeout(
-		struct se_portal_group *se_tpg,
+static ssize_t sbp_tpg_attrib_mgt_orb_timeout_show(struct config_item *item,
 		char *page)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
 	struct sbp_tport *tport = tpg->tport;
 	return sprintf(page, "%d\n", tport->mgt_orb_timeout);
 }
 
-static ssize_t sbp_tpg_attrib_store_mgt_orb_timeout(
-		struct se_portal_group *se_tpg,
-		const char *page,
-		size_t count)
+static ssize_t sbp_tpg_attrib_mgt_orb_timeout_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
 	struct sbp_tport *tport = tpg->tport;
 	unsigned long val;
@@ -2264,20 +2262,19 @@ static ssize_t sbp_tpg_attrib_store_mgt_orb_timeout(
 	return count;
 }
 
-static ssize_t sbp_tpg_attrib_show_max_reconnect_timeout(
-		struct se_portal_group *se_tpg,
+static ssize_t sbp_tpg_attrib_max_reconnect_timeout_show(struct config_item *item,
 		char *page)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
 	struct sbp_tport *tport = tpg->tport;
 	return sprintf(page, "%d\n", tport->max_reconnect_timeout);
 }
 
-static ssize_t sbp_tpg_attrib_store_max_reconnect_timeout(
-		struct se_portal_group *se_tpg,
-		const char *page,
-		size_t count)
+static ssize_t sbp_tpg_attrib_max_reconnect_timeout_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
 	struct sbp_tport *tport = tpg->tport;
 	unsigned long val;
@@ -2300,20 +2297,19 @@ static ssize_t sbp_tpg_attrib_store_max_reconnect_timeout(
 	return count;
 }
 
-static ssize_t sbp_tpg_attrib_show_max_logins_per_lun(
-		struct se_portal_group *se_tpg,
+static ssize_t sbp_tpg_attrib_max_logins_per_lun_show(struct config_item *item,
 		char *page)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
 	struct sbp_tport *tport = tpg->tport;
 	return sprintf(page, "%d\n", tport->max_logins_per_lun);
 }
 
-static ssize_t sbp_tpg_attrib_store_max_logins_per_lun(
-		struct se_portal_group *se_tpg,
-		const char *page,
-		size_t count)
+static ssize_t sbp_tpg_attrib_max_logins_per_lun_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
 	struct sbp_tport *tport = tpg->tport;
 	unsigned long val;
@@ -2330,14 +2326,14 @@ static ssize_t sbp_tpg_attrib_store_max_logins_per_lun(
 	return count;
 }
 
-TF_TPG_ATTRIB_ATTR(sbp, mgt_orb_timeout, S_IRUGO | S_IWUSR);
-TF_TPG_ATTRIB_ATTR(sbp, max_reconnect_timeout, S_IRUGO | S_IWUSR);
-TF_TPG_ATTRIB_ATTR(sbp, max_logins_per_lun, S_IRUGO | S_IWUSR);
+CONFIGFS_ATTR(sbp_tpg_attrib_, mgt_orb_timeout);
+CONFIGFS_ATTR(sbp_tpg_attrib_, max_reconnect_timeout);
+CONFIGFS_ATTR(sbp_tpg_attrib_, max_logins_per_lun);
 
 static struct configfs_attribute *sbp_tpg_attrib_attrs[] = {
-	&sbp_tpg_attrib_mgt_orb_timeout.attr,
-	&sbp_tpg_attrib_max_reconnect_timeout.attr,
-	&sbp_tpg_attrib_max_logins_per_lun.attr,
+	&sbp_tpg_attrib_attr_mgt_orb_timeout,
+	&sbp_tpg_attrib_attr_max_reconnect_timeout,
+	&sbp_tpg_attrib_attr_max_logins_per_lun,
 	NULL,
 };
 

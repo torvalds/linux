@@ -35,6 +35,7 @@
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_fixed.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -373,6 +374,10 @@ struct amdgpu_crtc {
 	uint32_t crtc_offset;
 	struct drm_gem_object *cursor_bo;
 	uint64_t cursor_addr;
+	int cursor_x;
+	int cursor_y;
+	int cursor_hot_x;
+	int cursor_hot_y;
 	int cursor_width;
 	int cursor_height;
 	int max_cursor_width;
@@ -385,7 +390,6 @@ struct amdgpu_crtc {
 	struct drm_display_mode native_mode;
 	u32 pll_id;
 	/* page flipping */
-	struct workqueue_struct *pflip_queue;
 	struct amdgpu_flip_work *pflip_works;
 	enum amdgpu_flip_status pflip_status;
 	int deferred_flip_completion;
@@ -403,6 +407,7 @@ struct amdgpu_crtc {
 	u32 line_time;
 	u32 wm_low;
 	u32 wm_high;
+	u32 lb_vblank_lead_lines;
 	struct drm_display_mode hw_mode;
 };
 
@@ -524,6 +529,10 @@ struct amdgpu_framebuffer {
 #define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \
 				((em) == ATOM_ENCODER_MODE_DP_MST))
 
+/* Driver internal use only flags of amdgpu_get_crtc_scanoutpos() */
+#define USE_REAL_VBLANKSTART 		(1 << 30)
+#define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
+
 void amdgpu_link_encoder_connector(struct drm_device *dev);
 
 struct drm_connector *
@@ -540,14 +549,14 @@ bool amdgpu_ddc_probe(struct amdgpu_connector *amdgpu_connector, bool use_aux);
 
 void amdgpu_encoder_set_active_device(struct drm_encoder *encoder);
 
-int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
-				      unsigned int flags,
-				      int *vpos, int *hpos, ktime_t *stime,
-				      ktime_t *etime);
+int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
+			       unsigned int flags, int *vpos, int *hpos,
+			       ktime_t *stime, ktime_t *etime,
+			       const struct drm_display_mode *mode);
 
 int amdgpu_framebuffer_init(struct drm_device *dev,
 			     struct amdgpu_framebuffer *rfb,
-			     struct drm_mode_fb_cmd2 *mode_cmd,
+			     const struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj);
 
 int amdgpufb_remove(struct drm_device *dev, struct drm_framebuffer *fb);

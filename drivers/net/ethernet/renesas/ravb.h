@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (C) 2015 Renesas Solutions Corp.
- * Copyright (C) 2015 Cogent Embedded, Inc. <source@cogentembedded.com>
+ * Copyright (C) 2015-2016 Cogent Embedded, Inc. <source@cogentembedded.com>
  *
  * Based on the SuperH Ethernet driver
  *
@@ -206,6 +206,7 @@ enum CCC_BIT {
 	CCC_OPC_RESET	= 0x00000000,
 	CCC_OPC_CONFIG	= 0x00000001,
 	CCC_OPC_OPERATION = 0x00000002,
+	CCC_GAC		= 0x00000080,
 	CCC_DTSR	= 0x00000100,
 	CCC_CSEL	= 0x00030000,
 	CCC_CSEL_HPB	= 0x00010000,
@@ -576,6 +577,9 @@ enum GTI_BIT {
 	GTI_TIV		= 0x0FFFFFFF,
 };
 
+#define GTI_TIV_MAX	GTI_TIV
+#define GTI_TIV_MIN	0x20
+
 /* GIC */
 enum GIC_BIT {
 	GIC_PTCE	= 0x00000001,	/* Undocumented? */
@@ -833,6 +837,8 @@ static inline void ravb_write(struct net_device *ndev, u32 data,
 	iowrite32(data, priv->addr + reg);
 }
 
+void ravb_modify(struct net_device *ndev, enum ravb_reg reg, u32 clear,
+		 u32 set);
 int ravb_wait(struct net_device *ndev, enum ravb_reg reg, u32 mask, u32 value);
 
 irqreturn_t ravb_ptp_interrupt(struct net_device *ndev);

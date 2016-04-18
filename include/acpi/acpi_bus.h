@@ -87,6 +87,8 @@ acpi_evaluate_dsm_typed(acpi_handle handle, const u8 *uuid, int rev, int func,
 	  .package.elements = (eles)			\
 	}
 
+bool acpi_dev_present(const char *hid);
+
 #ifdef CONFIG_ACPI
 
 #include <linux/proc_fs.h>
@@ -390,39 +392,6 @@ struct acpi_data_node {
 	struct completion kobj_done;
 };
 
-static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)
-{
-	bool ret = false;
-
-	if (!adev)
-		return ret;
-
-	/**
-	 * Currently, we only support _CCA=1 (i.e. coherent_dma=1)
-	 * This should be equivalent to specifyig dma-coherent for
-	 * a device in OF.
-	 *
-	 * For the case when _CCA=0 (i.e. coherent_dma=0 && cca_seen=1),
-	 * There are two cases:
-	 * case 1. Do not support and disable DMA.
-	 * case 2. Support but rely on arch-specific cache maintenance for
-	 *         non-coherence DMA operations.
-	 * Currently, we implement case 1 above.
-	 *
-	 * For the case when _CCA is missing (i.e. cca_seen=0) and
-	 * platform specifies ACPI_CCA_REQUIRED, we do not support DMA,
-	 * and fallback to arch-specific default handling.
-	 *
-	 * See acpi_init_coherency() for more info.
-	 */
-	if (adev->flags.coherent_dma) {
-		ret = true;
-		if (coherent)
-			*coherent = adev->flags.coherent_dma;
-	}
-	return ret;
-}
-
 static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 {
 	return fwnode && (fwnode->type == FWNODE_ACPI
@@ -595,6 +564,9 @@ struct acpi_pci_root {
 
 /* helper */
 
+bool acpi_dma_supported(struct acpi_device *adev);
+enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev);
+
 struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 					   u64 address, bool check_children);
 int acpi_is_root_bridge(acpi_handle);
@@ -661,7 +633,9 @@ static inline bool acpi_device_can_wakeup(struct acpi_device *adev)
 
 static inline bool acpi_device_can_poweroff(struct acpi_device *adev)
 {
-	return adev->power.states[ACPI_STATE_D3_COLD].flags.valid;
+	return adev->power.states[ACPI_STATE_D3_COLD].flags.valid ||
+		((acpi_gbl_FADT.header.revision < 6) &&
+		adev->power.states[ACPI_STATE_D3_HOT].flags.explicit_set);
 }
 
 #else	/* CONFIG_ACPI */

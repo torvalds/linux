@@ -128,7 +128,10 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 	if (err)
 		goto out_ino;
 
-	inode->i_flags |= (S_NOCMTIME | S_NOATIME);
+	inode->i_flags |= S_NOCMTIME;
+#ifndef CONFIG_UBIFS_ATIME_SUPPORT
+	inode->i_flags |= S_NOATIME;
+#endif
 	set_nlink(inode, le32_to_cpu(ino->nlink));
 	i_uid_write(inode, le32_to_cpu(ino->uid));
 	i_gid_write(inode, le32_to_cpu(ino->gid));
@@ -2037,7 +2040,6 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	if (c->max_inode_sz > MAX_LFS_FILESIZE)
 		sb->s_maxbytes = c->max_inode_sz = MAX_LFS_FILESIZE;
 	sb->s_op = &ubifs_super_operations;
-	sb->s_xattr = ubifs_xattr_handlers;
 
 	mutex_lock(&c->umount_mutex);
 	err = mount_ubifs(c);
@@ -2139,7 +2141,12 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 		if (err)
 			goto out_deact;
 		/* We do not support atime */
-		sb->s_flags |= MS_ACTIVE | MS_NOATIME;
+		sb->s_flags |= MS_ACTIVE;
+#ifndef CONFIG_UBIFS_ATIME_SUPPORT
+		sb->s_flags |= MS_NOATIME;
+#else
+		ubifs_msg(c, "full atime support is enabled.");
+#endif
 	}
 
 	/* 'fill_super()' opens ubi again so we must close it here */
@@ -2230,19 +2237,19 @@ static int __init ubifs_init(void)
 	BUILD_BUG_ON(UBIFS_COMPR_TYPES_CNT > 4);
 
 	/*
-	 * We require that PAGE_CACHE_SIZE is greater-than-or-equal-to
+	 * We require that PAGE_SIZE is greater-than-or-equal-to
 	 * UBIFS_BLOCK_SIZE. It is assumed that both are powers of 2.
 	 */
-	if (PAGE_CACHE_SIZE < UBIFS_BLOCK_SIZE) {
+	if (PAGE_SIZE < UBIFS_BLOCK_SIZE) {
 		pr_err("UBIFS error (pid %d): VFS page cache size is %u bytes, but UBIFS requires at least 4096 bytes",
-		       current->pid, (unsigned int)PAGE_CACHE_SIZE);
+		       current->pid, (unsigned int)PAGE_SIZE);
 		return -EINVAL;
 	}
 
 	ubifs_inode_slab = kmem_cache_create("ubifs_inode_slab",
 				sizeof(struct ubifs_inode), 0,
-				SLAB_MEM_SPREAD | SLAB_RECLAIM_ACCOUNT,
-				&inode_slab_ctor);
+				SLAB_MEM_SPREAD | SLAB_RECLAIM_ACCOUNT |
+				SLAB_ACCOUNT, &inode_slab_ctor);
 	if (!ubifs_inode_slab)
 		return -ENOMEM;
 

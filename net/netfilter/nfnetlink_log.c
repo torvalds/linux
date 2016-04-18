@@ -293,24 +293,20 @@ nfulnl_set_nlbufsiz(struct nfulnl_instance *inst, u_int32_t nlbufsiz)
 	return status;
 }
 
-static int
+static void
 nfulnl_set_timeout(struct nfulnl_instance *inst, u_int32_t timeout)
 {
 	spin_lock_bh(&inst->lock);
 	inst->flushtimeout = timeout;
 	spin_unlock_bh(&inst->lock);
-
-	return 0;
 }
 
-static int
+static void
 nfulnl_set_qthresh(struct nfulnl_instance *inst, u_int32_t qthresh)
 {
 	spin_lock_bh(&inst->lock);
 	inst->qthreshold = qthresh;
 	spin_unlock_bh(&inst->lock);
-
-	return 0;
 }
 
 static int
@@ -334,14 +330,13 @@ nfulnl_alloc_skb(struct net *net, u32 peer_portid, unsigned int inst_size,
 	 * message.  WARNING: has to be <= 128k due to slab restrictions */
 
 	n = max(inst_size, pkt_size);
-	skb = nfnetlink_alloc_skb(net, n, peer_portid, GFP_ATOMIC);
+	skb = alloc_skb(n, GFP_ATOMIC);
 	if (!skb) {
 		if (n > pkt_size) {
 			/* try to allocate only as much as we need for current
 			 * packet */
 
-			skb = nfnetlink_alloc_skb(net, pkt_size,
-						  peer_portid, GFP_ATOMIC);
+			skb = alloc_skb(pkt_size, GFP_ATOMIC);
 		}
 	}
 
@@ -789,10 +784,9 @@ static struct notifier_block nfulnl_rtnl_notifier = {
 	.notifier_call	= nfulnl_rcv_nl_event,
 };
 
-static int
-nfulnl_recv_unsupp(struct sock *ctnl, struct sk_buff *skb,
-		   const struct nlmsghdr *nlh,
-		   const struct nlattr * const nfqa[])
+static int nfulnl_recv_unsupp(struct net *net, struct sock *ctnl,
+			      struct sk_buff *skb, const struct nlmsghdr *nlh,
+			      const struct nlattr * const nfqa[])
 {
 	return -ENOTSUPP;
 }
@@ -813,19 +807,17 @@ static const struct nla_policy nfula_cfg_policy[NFULA_CFG_MAX+1] = {
 	[NFULA_CFG_FLAGS]	= { .type = NLA_U16 },
 };
 
-static int
-nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
-		   const struct nlmsghdr *nlh,
-		   const struct nlattr * const nfula[])
+static int nfulnl_recv_config(struct net *net, struct sock *ctnl,
+			      struct sk_buff *skb, const struct nlmsghdr *nlh,
+			      const struct nlattr * const nfula[])
 {
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u_int16_t group_num = ntohs(nfmsg->res_id);
 	struct nfulnl_instance *inst;
 	struct nfulnl_msg_config_cmd *cmd = NULL;
-	struct net *net = sock_net(ctnl);
 	struct nfnl_log_net *log = nfnl_log_pernet(net);
 	int ret = 0;
-	u16 flags;
+	u16 flags = 0;
 
 	if (nfula[NFULA_CFG_CMD]) {
 		u_int8_t pf = nfmsg->nfgen_family;
@@ -895,7 +887,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			goto out_put;
 		default:
 			ret = -ENOTSUPP;
-			break;
+			goto out_put;
 		}
 	} else if (!inst) {
 		ret = -ENODEV;
@@ -1064,15 +1056,26 @@ static int __net_init nfnl_log_net_init(struct net *net)
 {
 	unsigned int i;
 	struct nfnl_log_net *log = nfnl_log_pernet(net);
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *proc;
+	kuid_t root_uid;
+	kgid_t root_gid;
+#endif
 
 	for (i = 0; i < INSTANCE_BUCKETS; i++)
 		INIT_HLIST_HEAD(&log->instance_table[i]);
 	spin_lock_init(&log->instances_lock);
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_create("nfnetlink_log", 0440,
-			 net->nf.proc_netfilter, &nful_file_ops))
+	proc = proc_create("nfnetlink_log", 0440,
+			   net->nf.proc_netfilter, &nful_file_ops);
+	if (!proc)
 		return -ENOMEM;
+
+	root_uid = make_kuid(net->user_ns, 0);
+	root_gid = make_kgid(net->user_ns, 0);
+	if (uid_valid(root_uid) && gid_valid(root_gid))
+		proc_set_user(proc, root_uid, root_gid);
 #endif
 	return 0;
 }

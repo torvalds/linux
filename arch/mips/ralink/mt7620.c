@@ -37,8 +37,17 @@
 #define PMU1_CFG		0x8C
 #define DIG_SW_SEL		BIT(25)
 
-/* is this a MT7620 or a MT7628 */
-enum mt762x_soc_type mt762x_soc;
+/* clock scaling */
+#define CLKCFG_FDIV_MASK	0x1f00
+#define CLKCFG_FDIV_USB_VAL	0x0300
+#define CLKCFG_FFRAC_MASK	0x001f
+#define CLKCFG_FFRAC_USB_VAL	0x0003
+
+/* EFUSE bits */
+#define EFUSE_MT7688		0x100000
+
+/* DRAM type bit */
+#define DRAM_TYPE_MT7628_MASK	0x1
 
 /* does the board have sdram or ddram */
 static int dram_type;
@@ -98,31 +107,31 @@ static struct rt2880_pmx_group mt7620a_pinmux_data[] = {
 };
 
 static struct rt2880_pmx_func pwm1_grp_mt7628[] = {
-	FUNC("sdcx", 3, 19, 1),
+	FUNC("sdxc d6", 3, 19, 1),
 	FUNC("utif", 2, 19, 1),
 	FUNC("gpio", 1, 19, 1),
-	FUNC("pwm", 0, 19, 1),
+	FUNC("pwm1", 0, 19, 1),
 };
 
 static struct rt2880_pmx_func pwm0_grp_mt7628[] = {
-	FUNC("sdcx", 3, 18, 1),
+	FUNC("sdxc d7", 3, 18, 1),
 	FUNC("utif", 2, 18, 1),
 	FUNC("gpio", 1, 18, 1),
-	FUNC("pwm", 0, 18, 1),
+	FUNC("pwm0", 0, 18, 1),
 };
 
 static struct rt2880_pmx_func uart2_grp_mt7628[] = {
-	FUNC("sdcx", 3, 20, 2),
+	FUNC("sdxc d5 d4", 3, 20, 2),
 	FUNC("pwm", 2, 20, 2),
 	FUNC("gpio", 1, 20, 2),
-	FUNC("uart", 0, 20, 2),
+	FUNC("uart2", 0, 20, 2),
 };
 
 static struct rt2880_pmx_func uart1_grp_mt7628[] = {
-	FUNC("sdcx", 3, 45, 2),
+	FUNC("sw_r", 3, 45, 2),
 	FUNC("pwm", 2, 45, 2),
 	FUNC("gpio", 1, 45, 2),
-	FUNC("uart", 0, 45, 2),
+	FUNC("uart1", 0, 45, 2),
 };
 
 static struct rt2880_pmx_func i2c_grp_mt7628[] = {
@@ -134,21 +143,21 @@ static struct rt2880_pmx_func i2c_grp_mt7628[] = {
 
 static struct rt2880_pmx_func refclk_grp_mt7628[] = { FUNC("reclk", 0, 36, 1) };
 static struct rt2880_pmx_func perst_grp_mt7628[] = { FUNC("perst", 0, 37, 1) };
-static struct rt2880_pmx_func wdt_grp_mt7628[] = { FUNC("wdt", 0, 15, 38) };
+static struct rt2880_pmx_func wdt_grp_mt7628[] = { FUNC("wdt", 0, 38, 1) };
 static struct rt2880_pmx_func spi_grp_mt7628[] = { FUNC("spi", 0, 7, 4) };
 
 static struct rt2880_pmx_func sd_mode_grp_mt7628[] = {
 	FUNC("jtag", 3, 22, 8),
 	FUNC("utif", 2, 22, 8),
 	FUNC("gpio", 1, 22, 8),
-	FUNC("sdcx", 0, 22, 8),
+	FUNC("sdxc", 0, 22, 8),
 };
 
 static struct rt2880_pmx_func uart0_grp_mt7628[] = {
 	FUNC("-", 3, 12, 2),
 	FUNC("-", 2, 12, 2),
 	FUNC("gpio", 1, 12, 2),
-	FUNC("uart", 0, 12, 2),
+	FUNC("uart0", 0, 12, 2),
 };
 
 static struct rt2880_pmx_func i2s_grp_mt7628[] = {
@@ -162,7 +171,7 @@ static struct rt2880_pmx_func spi_cs1_grp_mt7628[] = {
 	FUNC("-", 3, 6, 1),
 	FUNC("refclk", 2, 6, 1),
 	FUNC("gpio", 1, 6, 1),
-	FUNC("spi", 0, 6, 1),
+	FUNC("spi cs1", 0, 6, 1),
 };
 
 static struct rt2880_pmx_func spis_grp_mt7628[] = {
@@ -179,28 +188,44 @@ static struct rt2880_pmx_func gpio_grp_mt7628[] = {
 	FUNC("gpio", 0, 11, 1),
 };
 
-#define MT7628_GPIO_MODE_MASK	0x3
+static struct rt2880_pmx_func wled_kn_grp_mt7628[] = {
+	FUNC("rsvd", 3, 35, 1),
+	FUNC("rsvd", 2, 35, 1),
+	FUNC("gpio", 1, 35, 1),
+	FUNC("wled_kn", 0, 35, 1),
+};
 
-#define MT7628_GPIO_MODE_PWM1	30
-#define MT7628_GPIO_MODE_PWM0	28
-#define MT7628_GPIO_MODE_UART2	26
-#define MT7628_GPIO_MODE_UART1	24
-#define MT7628_GPIO_MODE_I2C	20
-#define MT7628_GPIO_MODE_REFCLK	18
-#define MT7628_GPIO_MODE_PERST	16
-#define MT7628_GPIO_MODE_WDT	14
-#define MT7628_GPIO_MODE_SPI	12
-#define MT7628_GPIO_MODE_SDMODE	10
-#define MT7628_GPIO_MODE_UART0	8
-#define MT7628_GPIO_MODE_I2S	6
-#define MT7628_GPIO_MODE_CS1	4
-#define MT7628_GPIO_MODE_SPIS	2
-#define MT7628_GPIO_MODE_GPIO	0
+static struct rt2880_pmx_func wled_an_grp_mt7628[] = {
+	FUNC("rsvd", 3, 35, 1),
+	FUNC("rsvd", 2, 35, 1),
+	FUNC("gpio", 1, 35, 1),
+	FUNC("wled_an", 0, 35, 1),
+};
+
+#define MT7628_GPIO_MODE_MASK		0x3
+
+#define MT7628_GPIO_MODE_WLED_KN	48
+#define MT7628_GPIO_MODE_WLED_AN	32
+#define MT7628_GPIO_MODE_PWM1		30
+#define MT7628_GPIO_MODE_PWM0		28
+#define MT7628_GPIO_MODE_UART2		26
+#define MT7628_GPIO_MODE_UART1		24
+#define MT7628_GPIO_MODE_I2C		20
+#define MT7628_GPIO_MODE_REFCLK		18
+#define MT7628_GPIO_MODE_PERST		16
+#define MT7628_GPIO_MODE_WDT		14
+#define MT7628_GPIO_MODE_SPI		12
+#define MT7628_GPIO_MODE_SDMODE		10
+#define MT7628_GPIO_MODE_UART0		8
+#define MT7628_GPIO_MODE_I2S		6
+#define MT7628_GPIO_MODE_CS1		4
+#define MT7628_GPIO_MODE_SPIS		2
+#define MT7628_GPIO_MODE_GPIO		0
 
 static struct rt2880_pmx_group mt7628an_pinmux_data[] = {
 	GRP_G("pmw1", pwm1_grp_mt7628, MT7628_GPIO_MODE_MASK,
 				1, MT7628_GPIO_MODE_PWM1),
-	GRP_G("pmw1", pwm0_grp_mt7628, MT7628_GPIO_MODE_MASK,
+	GRP_G("pmw0", pwm0_grp_mt7628, MT7628_GPIO_MODE_MASK,
 				1, MT7628_GPIO_MODE_PWM0),
 	GRP_G("uart2", uart2_grp_mt7628, MT7628_GPIO_MODE_MASK,
 				1, MT7628_GPIO_MODE_UART2),
@@ -224,8 +249,18 @@ static struct rt2880_pmx_group mt7628an_pinmux_data[] = {
 				1, MT7628_GPIO_MODE_SPIS),
 	GRP_G("gpio", gpio_grp_mt7628, MT7628_GPIO_MODE_MASK,
 				1, MT7628_GPIO_MODE_GPIO),
+	GRP_G("wled_an", wled_an_grp_mt7628, MT7628_GPIO_MODE_MASK,
+				1, MT7628_GPIO_MODE_WLED_AN),
+	GRP_G("wled_kn", wled_kn_grp_mt7628, MT7628_GPIO_MODE_MASK,
+				1, MT7628_GPIO_MODE_WLED_KN),
 	{ 0 }
 };
+
+static inline int is_mt76x8(void)
+{
+	return ralink_soc == MT762X_SOC_MT7628AN ||
+	       ralink_soc == MT762X_SOC_MT7688;
+}
 
 static __init u32
 mt7620_calc_rate(u32 ref_rate, u32 mul, u32 div)
@@ -381,7 +416,7 @@ void __init ralink_clk_init(void)
 #define RINT(x)		((x) / 1000000)
 #define RFRAC(x)	(((x) / 1000) % 1000)
 
-	if (mt762x_soc == MT762X_SOC_MT7628AN) {
+	if (is_mt76x8()) {
 		if (xtal_rate == MHZ(40))
 			cpu_rate = MHZ(580);
 		else
@@ -421,8 +456,25 @@ void __init ralink_clk_init(void)
 	ralink_clk_add("10000100.timer", periph_rate);
 	ralink_clk_add("10000120.watchdog", periph_rate);
 	ralink_clk_add("10000b00.spi", sys_rate);
+	ralink_clk_add("10000b40.spi", sys_rate);
 	ralink_clk_add("10000c00.uartlite", periph_rate);
+	ralink_clk_add("10000d00.uart1", periph_rate);
+	ralink_clk_add("10000e00.uart2", periph_rate);
 	ralink_clk_add("10180000.wmac", xtal_rate);
+
+	if (IS_ENABLED(CONFIG_USB) && !is_mt76x8()) {
+		/*
+		 * When the CPU goes into sleep mode, the BUS clock will be
+		 * too low for USB to function properly. Adjust the busses
+		 * fractional divider to fix this
+		 */
+		u32 val = rt_sysc_r32(SYSC_REG_CPU_SYS_CLKCFG);
+
+		val &= ~(CLKCFG_FDIV_MASK | CLKCFG_FFRAC_MASK);
+		val |= CLKCFG_FDIV_USB_VAL | CLKCFG_FFRAC_USB_VAL;
+
+		rt_sysc_w32(val, SYSC_REG_CPU_SYS_CLKCFG);
+	}
 }
 
 void __init ralink_of_remap(void)
@@ -499,36 +551,44 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 
 	if (n0 == MT7620_CHIP_NAME0 && n1 == MT7620_CHIP_NAME1) {
 		if (bga) {
-			mt762x_soc = MT762X_SOC_MT7620A;
+			ralink_soc = MT762X_SOC_MT7620A;
 			name = "MT7620A";
 			soc_info->compatible = "ralink,mt7620a-soc";
 		} else {
-			mt762x_soc = MT762X_SOC_MT7620N;
+			ralink_soc = MT762X_SOC_MT7620N;
 			name = "MT7620N";
 			soc_info->compatible = "ralink,mt7620n-soc";
-#ifdef CONFIG_PCI
-			panic("mt7620n is only supported for non pci kernels");
-#endif
 		}
 	} else if (n0 == MT7620_CHIP_NAME0 && n1 == MT7628_CHIP_NAME1) {
-		mt762x_soc = MT762X_SOC_MT7628AN;
-		name = "MT7628AN";
+		u32 efuse = __raw_readl(sysc + SYSC_REG_EFUSE_CFG);
+
+		if (efuse & EFUSE_MT7688) {
+			ralink_soc = MT762X_SOC_MT7688;
+			name = "MT7688";
+		} else {
+			ralink_soc = MT762X_SOC_MT7628AN;
+			name = "MT7628AN";
+		}
 		soc_info->compatible = "ralink,mt7628an-soc";
 	} else {
 		panic("mt762x: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
 	}
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
-		"Ralink %s ver:%u eco:%u",
+		"MediaTek %s ver:%u eco:%u",
 		name,
 		(rev >> CHIP_REV_VER_SHIFT) & CHIP_REV_VER_MASK,
 		(rev & CHIP_REV_ECO_MASK));
 
 	cfg0 = __raw_readl(sysc + SYSC_REG_SYSTEM_CONFIG0);
-	dram_type = (cfg0 >> SYSCFG0_DRAM_TYPE_SHIFT) & SYSCFG0_DRAM_TYPE_MASK;
+	if (is_mt76x8())
+		dram_type = cfg0 & DRAM_TYPE_MT7628_MASK;
+	else
+		dram_type = (cfg0 >> SYSCFG0_DRAM_TYPE_SHIFT) &
+			    SYSCFG0_DRAM_TYPE_MASK;
 
 	soc_info->mem_base = MT7620_DRAM_BASE;
-	if (mt762x_soc == MT762X_SOC_MT7628AN)
+	if (is_mt76x8())
 		mt7628_dram_init(soc_info);
 	else
 		mt7620_dram_init(soc_info);
@@ -541,7 +601,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	pr_info("Digital PMU set to %s control\n",
 		(pmu1 & DIG_SW_SEL) ? ("sw") : ("hw"));
 
-	if (mt762x_soc == MT762X_SOC_MT7628AN)
+	if (is_mt76x8())
 		rt2880_pinmux_data = mt7628an_pinmux_data;
 	else
 		rt2880_pinmux_data = mt7620a_pinmux_data;

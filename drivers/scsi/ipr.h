@@ -32,15 +32,15 @@
 #include <linux/libata.h>
 #include <linux/list.h>
 #include <linux/kref.h>
-#include <linux/blk-iopoll.h>
+#include <linux/irq_poll.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.6.2"
-#define IPR_DRIVER_DATE "(June 11, 2015)"
+#define IPR_DRIVER_VERSION "2.6.3"
+#define IPR_DRIVER_DATE "(October 17, 2015)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -216,6 +216,10 @@
 #define IPR_SET_ALL_SUPPORTED_DEVICES			0x80
 #define IPR_IOA_SHUTDOWN				0xF7
 #define	IPR_WR_BUF_DOWNLOAD_AND_SAVE			0x05
+#define IPR_IOA_SERVICE_ACTION				0xD2
+
+/* IOA Service Actions */
+#define IPR_IOA_SA_CHANGE_CACHE_PARAMS			0x14
 
 /*
  * Timeouts
@@ -278,6 +282,9 @@
 #define IPR_IPL_INIT_STAGE_MASK				0xff000000
 #define IPR_IPL_INIT_STAGE_TIME_MASK			0x0000ffff
 #define IPR_PCII_IPL_STAGE_CHANGE			(0x80000000 >> 0)
+
+#define IPR_PCII_MAILBOX_STABLE				(0x80000000 >> 4)
+#define IPR_WAIT_FOR_MAILBOX				(2 * HZ)
 
 #define IPR_PCII_IOA_TRANS_TO_OPER			(0x80000000 >> 0)
 #define IPR_PCII_IOARCB_XFER_FAILED			(0x80000000 >> 3)
@@ -510,7 +517,7 @@ struct ipr_hrr_queue {
 	u8 allow_cmds:1;
 	u8 removing_ioa:1;
 
-	struct blk_iopoll iopoll;
+	struct irq_poll iopoll;
 };
 
 /* Command packet structure */
@@ -845,6 +852,16 @@ struct ipr_inquiry_page0 {
 	u8 len;
 	u8 page[IPR_INQUIRY_PAGE0_ENTRIES];
 }__attribute__((packed));
+
+struct ipr_inquiry_pageC4 {
+	u8 peri_qual_dev_type;
+	u8 page_code;
+	u8 reserved1;
+	u8 len;
+	u8 cache_cap[4];
+#define IPR_CAP_SYNC_CACHE		0x08
+	u8 reserved2[20];
+} __packed;
 
 struct ipr_hostrcb_device_data_entry {
 	struct ipr_vpd vpd;
@@ -1319,6 +1336,7 @@ struct ipr_misc_cbs {
 	struct ipr_inquiry_page0 page0_data;
 	struct ipr_inquiry_page3 page3_data;
 	struct ipr_inquiry_cap cap;
+	struct ipr_inquiry_pageC4 pageC4_data;
 	struct ipr_mode_pages mode_pages;
 	struct ipr_supported_device supp_dev;
 };

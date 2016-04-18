@@ -246,24 +246,24 @@ static void ni_writel(struct comedi_device *dev, uint32_t data, int reg)
 {
 	if (dev->mmio)
 		writel(data, dev->mmio + reg);
-
-	outl(data, dev->iobase + reg);
+	else
+		outl(data, dev->iobase + reg);
 }
 
 static void ni_writew(struct comedi_device *dev, uint16_t data, int reg)
 {
 	if (dev->mmio)
 		writew(data, dev->mmio + reg);
-
-	outw(data, dev->iobase + reg);
+	else
+		outw(data, dev->iobase + reg);
 }
 
 static void ni_writeb(struct comedi_device *dev, uint8_t data, int reg)
 {
 	if (dev->mmio)
 		writeb(data, dev->mmio + reg);
-
-	outb(data, dev->iobase + reg);
+	else
+		outb(data, dev->iobase + reg);
 }
 
 static uint32_t ni_readl(struct comedi_device *dev, int reg)
@@ -579,48 +579,54 @@ static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
 	return 0;
 }
 
-/* negative channel means no channel */
-static inline void ni_set_ai_dma_channel(struct comedi_device *dev, int channel)
+static inline void ni_set_ai_dma_channel(struct comedi_device *dev,
+					 unsigned channel)
 {
-	unsigned bits = 0;
-
-	if (channel >= 0)
-		bits = ni_stc_dma_channel_select_bitfield(channel);
+	unsigned bits = ni_stc_dma_channel_select_bitfield(channel);
 
 	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
 			NI_E_DMA_AI_SEL_MASK, NI_E_DMA_AI_SEL(bits));
 }
 
-/* negative channel means no channel */
-static inline void ni_set_ao_dma_channel(struct comedi_device *dev, int channel)
+static inline void ni_set_ai_dma_no_channel(struct comedi_device *dev)
 {
-	unsigned bits = 0;
+	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG, NI_E_DMA_AI_SEL_MASK, 0);
+}
 
-	if (channel >= 0)
-		bits = ni_stc_dma_channel_select_bitfield(channel);
+static inline void ni_set_ao_dma_channel(struct comedi_device *dev,
+					 unsigned channel)
+{
+	unsigned bits = ni_stc_dma_channel_select_bitfield(channel);
 
 	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
 			NI_E_DMA_AO_SEL_MASK, NI_E_DMA_AO_SEL(bits));
 }
 
-/* negative channel means no channel */
+static inline void ni_set_ao_dma_no_channel(struct comedi_device *dev)
+{
+	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG, NI_E_DMA_AO_SEL_MASK, 0);
+}
+
 static inline void ni_set_gpct_dma_channel(struct comedi_device *dev,
 					   unsigned gpct_index,
-					   int channel)
+					   unsigned channel)
 {
-	unsigned bits = 0;
-
-	if (channel >= 0)
-		bits = ni_stc_dma_channel_select_bitfield(channel);
+	unsigned bits = ni_stc_dma_channel_select_bitfield(channel);
 
 	ni_set_bitfield(dev, NI_E_DMA_G0_G1_SEL_REG,
 			NI_E_DMA_G0_G1_SEL_MASK(gpct_index),
 			NI_E_DMA_G0_G1_SEL(gpct_index, bits));
 }
 
-/* negative mite_channel means no channel */
+static inline void ni_set_gpct_dma_no_channel(struct comedi_device *dev,
+					      unsigned gpct_index)
+{
+	ni_set_bitfield(dev, NI_E_DMA_G0_G1_SEL_REG,
+			NI_E_DMA_G0_G1_SEL_MASK(gpct_index), 0);
+}
+
 static inline void ni_set_cdo_dma_channel(struct comedi_device *dev,
-					  int mite_channel)
+					  unsigned mite_channel)
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
@@ -628,16 +634,26 @@ static inline void ni_set_cdo_dma_channel(struct comedi_device *dev,
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
 	devpriv->cdio_dma_select_reg &= ~NI_M_CDIO_DMA_SEL_CDO_MASK;
-	if (mite_channel >= 0) {
-		/*
-		 * XXX just guessing ni_stc_dma_channel_select_bitfield()
-		 * returns the right bits, under the assumption the cdio dma
-		 * selection works just like ai/ao/gpct.
-		 * Definitely works for dma channels 0 and 1.
-		 */
-		bits = ni_stc_dma_channel_select_bitfield(mite_channel);
-		devpriv->cdio_dma_select_reg |= NI_M_CDIO_DMA_SEL_CDO(bits);
-	}
+	/*
+	 * XXX just guessing ni_stc_dma_channel_select_bitfield()
+	 * returns the right bits, under the assumption the cdio dma
+	 * selection works just like ai/ao/gpct.
+	 * Definitely works for dma channels 0 and 1.
+	 */
+	bits = ni_stc_dma_channel_select_bitfield(mite_channel);
+	devpriv->cdio_dma_select_reg |= NI_M_CDIO_DMA_SEL_CDO(bits);
+	ni_writeb(dev, devpriv->cdio_dma_select_reg, NI_M_CDIO_DMA_SEL_REG);
+	mmiowb();
+	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
+}
+
+static inline void ni_set_cdo_dma_no_channel(struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
+	devpriv->cdio_dma_select_reg &= ~NI_M_CDIO_DMA_SEL_CDO_MASK;
 	ni_writeb(dev, devpriv->cdio_dma_select_reg, NI_M_CDIO_DMA_SEL_REG);
 	mmiowb();
 	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
@@ -745,7 +761,7 @@ static void ni_release_ai_mite_channel(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ai_mite_chan) {
-		ni_set_ai_dma_channel(dev, -1);
+		ni_set_ai_dma_no_channel(dev);
 		mite_release_channel(devpriv->ai_mite_chan);
 		devpriv->ai_mite_chan = NULL;
 	}
@@ -761,7 +777,7 @@ static void ni_release_ao_mite_channel(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ao_mite_chan) {
-		ni_set_ao_dma_channel(dev, -1);
+		ni_set_ao_dma_no_channel(dev);
 		mite_release_channel(devpriv->ao_mite_chan);
 		devpriv->ao_mite_chan = NULL;
 	}
@@ -781,7 +797,7 @@ static void ni_release_gpct_mite_channel(struct comedi_device *dev,
 		struct mite_channel *mite_chan =
 		    devpriv->counter_dev->counters[gpct_index].mite_chan;
 
-		ni_set_gpct_dma_channel(dev, gpct_index, -1);
+		ni_set_gpct_dma_no_channel(dev, gpct_index);
 		ni_tio_set_mite_channel(&devpriv->
 					counter_dev->counters[gpct_index],
 					NULL);
@@ -799,7 +815,7 @@ static void ni_release_cdo_mite_channel(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->cdo_mite_chan) {
-		ni_set_cdo_dma_channel(dev, -1);
+		ni_set_cdo_dma_no_channel(dev);
 		mite_release_channel(devpriv->cdo_mite_chan);
 		devpriv->cdo_mite_chan = NULL;
 	}
@@ -1150,8 +1166,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 			comedi_buf_write_samples(s, &data, 1);
 		}
 	} else {
-		if (n > sizeof(devpriv->ai_fifo_buffer) /
-		    sizeof(devpriv->ai_fifo_buffer[0])) {
+		if (n > ARRAY_SIZE(devpriv->ai_fifo_buffer)) {
 			dev_err(dev->class_dev,
 				"bug! ai_fifo_buffer too small\n");
 			async->events |= COMEDI_CB_ERROR;
@@ -1226,9 +1241,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 			     NISTC_AI_STATUS1_FIFO_E;
 		while (fifo_empty == 0) {
 			for (i = 0;
-			     i <
-			     sizeof(devpriv->ai_fifo_buffer) /
-			     sizeof(devpriv->ai_fifo_buffer[0]); i++) {
+			     i < ARRAY_SIZE(devpriv->ai_fifo_buffer); i++) {
 				fifo_empty = ni_stc_readw(dev,
 							  NISTC_AI_STATUS1_REG) &
 						NISTC_AI_STATUS1_FIFO_E;
@@ -1484,7 +1497,8 @@ static void handle_b_interrupt(struct comedi_device *dev,
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 
-	if (b_status & NISTC_AO_STATUS1_BC_TC)
+	if (s->async->cmd.stop_src != TRIG_NONE &&
+	    b_status & NISTC_AO_STATUS1_BC_TC)
 		s->async->events |= COMEDI_CB_EOA;
 
 #ifndef PCIDMA
@@ -1516,13 +1530,17 @@ static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned short *array = data;
 	unsigned int *larray = data;
 	unsigned int i;
+#ifdef PCIDMA
+	__le16 *barray = data;
+	__le32 *blarray = data;
+#endif
 
 	for (i = 0; i < nsamples; i++) {
 #ifdef PCIDMA
 		if (s->subdev_flags & SDF_LSAMPL)
-			larray[i] = le32_to_cpu(larray[i]);
+			larray[i] = le32_to_cpu(blarray[i]);
 		else
-			array[i] = le16_to_cpu(array[i]);
+			array[i] = le16_to_cpu(barray[i]);
 #endif
 		if (s->subdev_flags & SDF_LSAMPL)
 			larray[i] += devpriv->ai_offset[chan_index];
@@ -2034,13 +2052,13 @@ static int ni_ns_to_timer(const struct comedi_device *dev, unsigned nanosec,
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		divider = (nanosec + devpriv->clock_ns / 2) / devpriv->clock_ns;
+		divider = DIV_ROUND_CLOSEST(nanosec, devpriv->clock_ns);
 		break;
 	case CMDF_ROUND_DOWN:
 		divider = (nanosec) / devpriv->clock_ns;
 		break;
 	case CMDF_ROUND_UP:
-		divider = (nanosec + devpriv->clock_ns - 1) / devpriv->clock_ns;
+		divider = DIV_ROUND_UP(nanosec, devpriv->clock_ns);
 		break;
 	}
 	return divider - 1;
@@ -2051,6 +2069,37 @@ static unsigned ni_timer_to_ns(const struct comedi_device *dev, int timer)
 	struct ni_private *devpriv = dev->private;
 
 	return devpriv->clock_ns * (timer + 1);
+}
+
+static void ni_cmd_set_mite_transfer(struct mite_dma_descriptor_ring *ring,
+				     struct comedi_subdevice *sdev,
+				     const struct comedi_cmd *cmd,
+				     unsigned int max_count) {
+#ifdef PCIDMA
+	unsigned int nbytes = max_count;
+
+	if (cmd->stop_arg > 0 && cmd->stop_arg < max_count)
+		nbytes = cmd->stop_arg;
+	nbytes *= comedi_bytes_per_scan(sdev);
+
+	if (nbytes > sdev->async->prealloc_bufsz) {
+		if (cmd->stop_arg > 0)
+			dev_err(sdev->device->class_dev,
+				"ni_cmd_set_mite_transfer: tried exact data transfer limits greater than buffer size\n");
+
+		/*
+		 * we can only transfer up to the size of the buffer.  In this
+		 * case, the user is expected to continue to write into the
+		 * comedi buffer (already implemented as a ring buffer).
+		 */
+		nbytes = sdev->async->prealloc_bufsz;
+	}
+
+	mite_init_ring_descriptors(ring, sdev, nbytes);
+#else
+	dev_err(sdev->device->class_dev,
+		"ni_cmd_set_mite_transfer: exact data transfer limits not implemented yet without DMA\n");
+#endif
 }
 
 static unsigned ni_min_ai_scan_period_ns(struct comedi_device *dev,
@@ -2408,7 +2457,8 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_stc_writew(dev, mode2, NISTC_AI_MODE2_REG);
 		break;
 	case TRIG_EXT:
-		mode1 |= NISTC_AI_MODE1_CONVERT_SRC(1 + cmd->convert_arg);
+		mode1 |= NISTC_AI_MODE1_CONVERT_SRC(1 +
+						    CR_CHAN(cmd->convert_arg));
 		if ((cmd->convert_arg & CR_INVERT) == 0)
 			mode1 |= NISTC_AI_MODE1_CONVERT_POLARITY;
 		ni_stc_writew(dev, mode1, NISTC_AI_MODE1_REG);
@@ -2574,6 +2624,9 @@ static void ni_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int nsamples = comedi_bytes_to_samples(s, num_bytes);
 	unsigned short *array = data;
 	unsigned int i;
+#ifdef PCIDMA
+	__le16 buf, *barray = data;
+#endif
 
 	for (i = 0; i < nsamples; i++) {
 		unsigned int range = CR_RANGE(cmd->chanlist[chan_index]);
@@ -2586,10 +2639,11 @@ static void ni_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (comedi_range_is_bipolar(s, range))
 			val = comedi_offset_munge(s, val);
 #ifdef PCIDMA
-		val = cpu_to_le16(val);
-#endif
+		buf = cpu_to_le16(val);
+		barray[i] = buf;
+#else
 		array[i] = val;
-
+#endif
 		chan_index++;
 		chan_index %= cmd->chanlist_len;
 	}
@@ -2878,8 +2932,6 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 	ni_stc_writew(dev, NISTC_AO_CMD1_UI_ARM |
 			   NISTC_AO_CMD1_UC_ARM |
 			   NISTC_AO_CMD1_BC_ARM |
-			   NISTC_AO_CMD1_DAC1_UPDATE_MODE |
-			   NISTC_AO_CMD1_DAC0_UPDATE_MODE |
 			   devpriv->ao_cmd1,
 		      NISTC_AO_CMD1_REG);
 
@@ -2889,42 +2941,68 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 	return 0;
 }
 
-static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+/*
+ * begin ni_ao_cmd.
+ * Organized similar to NI-STC and MHDDK examples.
+ * ni_ao_cmd is broken out into configuration sub-routines for clarity.
+ */
+
+static void ni_ao_cmd_personalize(struct comedi_device *dev,
+				  const struct comedi_cmd *cmd)
 {
 	const struct ni_board_struct *board = dev->board_ptr;
-	struct ni_private *devpriv = dev->private;
-	const struct comedi_cmd *cmd = &s->async->cmd;
-	int bits;
-	int i;
-	unsigned trigvar;
-	unsigned val;
-
-	if (dev->irq == 0) {
-		dev_err(dev->class_dev, "cannot run command without an irq\n");
-		return -EIO;
-	}
+	unsigned bits;
 
 	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
 
-	ni_stc_writew(dev, NISTC_AO_CMD1_DISARM, NISTC_AO_CMD1_REG);
+	bits =
+	  /* fast CPU interface--only eseries */
+	  /* ((slow CPU interface) ? 0 : AO_Fast_CPU) | */
+	  NISTC_AO_PERSONAL_BC_SRC_SEL  |
+	  0 /* (use_original_pulse ? 0 : NISTC_AO_PERSONAL_UPDATE_TIMEBASE) */ |
+	  /*
+	   * FIXME:  start setting following bit when appropriate.  Need to
+	   * determine whether board is E4 or E1.
+	   * FROM MHHDK:
+	   * if board is E4 or E1
+	   *   Set bit "NISTC_AO_PERSONAL_UPDATE_PW" to 0
+	   * else
+	   *   set it to 1
+	   */
+	  NISTC_AO_PERSONAL_UPDATE_PW   |
+	  /* FIXME:  when should we set following bit to zero? */
+	  NISTC_AO_PERSONAL_TMRDACWR_PW |
+	  (board->ao_fifo_depth ?
+	    NISTC_AO_PERSONAL_FIFO_ENA : NISTC_AO_PERSONAL_DMA_PIO_CTRL)
+	  ;
+#if 0
+	/*
+	 * FIXME:
+	 * add something like ".has_individual_dacs = 0" to ni_board_struct
+	 * since, as F Hess pointed out, not all in m series have singles.  not
+	 * sure if e-series all have duals...
+	 */
 
-	if (devpriv->is_6xxx) {
-		ni_ao_win_outw(dev, NI611X_AO_MISC_CLEAR_WG,
-			       NI611X_AO_MISC_REG);
+	/*
+	 * F Hess: windows driver does not set NISTC_AO_PERSONAL_NUM_DAC bit for
+	 * 6281, verified with bus analyzer.
+	 */
+	if (devpriv->is_m_series)
+		bits |= NISTC_AO_PERSONAL_NUM_DAC;
+#endif
+	ni_stc_writew(dev, bits, NISTC_AO_PERSONAL_REG);
 
-		bits = 0;
-		for (i = 0; i < cmd->chanlist_len; i++) {
-			int chan;
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
+}
 
-			chan = CR_CHAN(cmd->chanlist[i]);
-			bits |= 1 << chan;
-			ni_ao_win_outw(dev, chan, NI611X_AO_WAVEFORM_GEN_REG);
-		}
-		ni_ao_win_outw(dev, bits, NI611X_AO_TIMED_REG);
-	}
+static void ni_ao_cmd_set_trigger(struct comedi_device *dev,
+				  const struct comedi_cmd *cmd)
+{
+	struct ni_private *devpriv = dev->private;
 
-	ni_ao_config_chanlist(dev, s, cmd->chanlist, cmd->chanlist_len, 1);
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
 
+	/* sync */
 	if (cmd->stop_src == TRIG_NONE) {
 		devpriv->ao_mode1 |= NISTC_AO_MODE1_CONTINUOUS;
 		devpriv->ao_mode1 &= ~NISTC_AO_MODE1_TRIGGER_ONCE;
@@ -2934,134 +3012,289 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
 
-	val = devpriv->ao_trigger_select;
-	switch (cmd->start_src) {
-	case TRIG_INT:
-	case TRIG_NOW:
-		val &= ~(NISTC_AO_TRIG_START1_POLARITY |
-			 NISTC_AO_TRIG_START1_SEL_MASK);
-		val |= NISTC_AO_TRIG_START1_EDGE |
-		       NISTC_AO_TRIG_START1_SYNC;
-		break;
-	case TRIG_EXT:
-		val = NISTC_AO_TRIG_START1_SEL(CR_CHAN(cmd->start_arg) + 1);
-		if (cmd->start_arg & CR_INVERT) {
-			/* 0=active high, 1=active low. see daq-stc 3-24 (p186) */
-			val |= NISTC_AO_TRIG_START1_POLARITY;
+	{
+		unsigned int trigsel = devpriv->ao_trigger_select;
+
+		switch (cmd->start_src) {
+		case TRIG_INT:
+		case TRIG_NOW:
+			trigsel &= ~(NISTC_AO_TRIG_START1_POLARITY |
+				     NISTC_AO_TRIG_START1_SEL_MASK);
+			trigsel |= NISTC_AO_TRIG_START1_EDGE |
+				   NISTC_AO_TRIG_START1_SYNC;
+			break;
+		case TRIG_EXT:
+			trigsel = NISTC_AO_TRIG_START1_SEL(
+					CR_CHAN(cmd->start_arg) + 1);
+			if (cmd->start_arg & CR_INVERT)
+				/*
+				 * 0=active high, 1=active low.
+				 * see daq-stc 3-24 (p186)
+				 */
+				trigsel |= NISTC_AO_TRIG_START1_POLARITY;
+			if (cmd->start_arg & CR_EDGE)
+				/* 0=edge detection disabled, 1=enabled */
+				trigsel |= NISTC_AO_TRIG_START1_EDGE;
+			break;
+		default:
+			BUG();
+			break;
 		}
-		if (cmd->start_arg & CR_EDGE) {
-			/* 0=edge detection disabled, 1=enabled */
-			val |= NISTC_AO_TRIG_START1_EDGE;
-		}
+
+		devpriv->ao_trigger_select = trigsel;
 		ni_stc_writew(dev, devpriv->ao_trigger_select,
 			      NISTC_AO_TRIG_SEL_REG);
-		break;
-	default:
-		BUG();
-		break;
 	}
-	devpriv->ao_trigger_select = val;
-	ni_stc_writew(dev, devpriv->ao_trigger_select, NISTC_AO_TRIG_SEL_REG);
+	/* AO_Delayed_START1 = 0, we do not support delayed start...yet */
 
+	/* sync */
+	/* select DA_START1 as PFI6/AO_START1 when configured as an output */
 	devpriv->ao_mode3 &= ~NISTC_AO_MODE3_TRIG_LEN;
 	ni_stc_writew(dev, devpriv->ao_mode3, NISTC_AO_MODE3_REG);
 
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
+}
+
+static void ni_ao_cmd_set_counters(struct comedi_device *dev,
+				   const struct comedi_cmd *cmd)
+{
+	struct ni_private *devpriv = dev->private;
+	/* Not supporting 'waveform staging' or 'local buffer with pauses' */
+
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
+	/*
+	 * This relies on ao_mode1/(Trigger_Once | Continuous) being set in
+	 * set_trigger above.  It is unclear whether we really need to re-write
+	 * this register with these values.  The mhddk examples for e-series
+	 * show writing this in both places, but the examples for m-series show
+	 * a single write in the set_counters function (here).
+	 */
 	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
+
+	/* sync (upload number of buffer iterations -1) */
+	/* indicate that we want to use BC_Load_A_Register as the source */
 	devpriv->ao_mode2 &= ~NISTC_AO_MODE2_BC_INIT_LOAD_SRC;
 	ni_stc_writew(dev, devpriv->ao_mode2, NISTC_AO_MODE2_REG);
-	if (cmd->stop_src == TRIG_NONE)
-		ni_stc_writel(dev, 0xffffff, NISTC_AO_BC_LOADA_REG);
-	else
-		ni_stc_writel(dev, 0, NISTC_AO_BC_LOADA_REG);
+
+	/*
+	 * if the BC_TC interrupt is still issued in spite of UC, BC, UI
+	 * ignoring BC_TC, then we will need to find a way to ignore that
+	 * interrupt in continuous mode.
+	 */
+	ni_stc_writel(dev, 0, NISTC_AO_BC_LOADA_REG); /* iter once */
+
+	/* sync (issue command to load number of buffer iterations -1) */
 	ni_stc_writew(dev, NISTC_AO_CMD1_BC_LOAD, NISTC_AO_CMD1_REG);
+
+	/* sync (upload number of updates in buffer) */
+	/* indicate that we want to use UC_Load_A_Register as the source */
 	devpriv->ao_mode2 &= ~NISTC_AO_MODE2_UC_INIT_LOAD_SRC;
 	ni_stc_writew(dev, devpriv->ao_mode2, NISTC_AO_MODE2_REG);
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
+
+	/*
+	 * if a user specifies '0', this automatically assumes the entire 24bit
+	 * address space is available for the (multiple iterations of single
+	 * buffer) MISB.  Otherwise, stop_arg specifies the MISB length that
+	 * will be used, regardless of whether we are in continuous mode or not.
+	 * In continuous mode, the output will just iterate indefinitely over
+	 * the MISB.
+	 */
+	{
+		unsigned int stop_arg = cmd->stop_arg > 0 ?
+			(cmd->stop_arg & 0xffffff) : 0xffffff;
+
 		if (devpriv->is_m_series) {
-			/*  this is how the NI example code does it for m-series boards, verified correct with 6259 */
-			ni_stc_writel(dev, cmd->stop_arg - 1,
-				      NISTC_AO_UC_LOADA_REG);
+			/*
+			 * this is how the NI example code does it for m-series
+			 * boards, verified correct with 6259
+			 */
+			ni_stc_writel(dev, stop_arg - 1, NISTC_AO_UC_LOADA_REG);
+
+			/* sync (issue cmd to load number of updates in MISB) */
 			ni_stc_writew(dev, NISTC_AO_CMD1_UC_LOAD,
 				      NISTC_AO_CMD1_REG);
 		} else {
-			ni_stc_writel(dev, cmd->stop_arg,
-				      NISTC_AO_UC_LOADA_REG);
+			ni_stc_writel(dev, stop_arg, NISTC_AO_UC_LOADA_REG);
+
+			/* sync (issue cmd to load number of updates in MISB) */
 			ni_stc_writew(dev, NISTC_AO_CMD1_UC_LOAD,
 				      NISTC_AO_CMD1_REG);
-			ni_stc_writel(dev, cmd->stop_arg - 1,
-				      NISTC_AO_UC_LOADA_REG);
+
+			/*
+			 * sync (upload number of updates-1 in MISB)
+			 * --eseries only?
+			 */
+			ni_stc_writel(dev, stop_arg - 1, NISTC_AO_UC_LOADA_REG);
 		}
-		break;
-	case TRIG_NONE:
-		ni_stc_writel(dev, 0xffffff, NISTC_AO_UC_LOADA_REG);
-		ni_stc_writew(dev, NISTC_AO_CMD1_UC_LOAD, NISTC_AO_CMD1_REG);
-		ni_stc_writel(dev, 0xffffff, NISTC_AO_UC_LOADA_REG);
-		break;
-	default:
-		ni_stc_writel(dev, 0, NISTC_AO_UC_LOADA_REG);
-		ni_stc_writew(dev, NISTC_AO_CMD1_UC_LOAD, NISTC_AO_CMD1_REG);
-		ni_stc_writel(dev, cmd->stop_arg, NISTC_AO_UC_LOADA_REG);
 	}
 
-	devpriv->ao_mode1 &= ~(NISTC_AO_MODE1_UPDATE_SRC_MASK |
-			       NISTC_AO_MODE1_UI_SRC_MASK |
-			       NISTC_AO_MODE1_UPDATE_SRC_POLARITY |
-			       NISTC_AO_MODE1_UI_SRC_POLARITY);
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
+}
+
+static void ni_ao_cmd_set_update(struct comedi_device *dev,
+				 const struct comedi_cmd *cmd)
+{
+	struct ni_private *devpriv = dev->private;
+
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
+
+	/*
+	 * zero out these bit fields to be set below. Does an ao-reset do this
+	 * automatically?
+	 */
+	devpriv->ao_mode1 &= ~(
+	  NISTC_AO_MODE1_UI_SRC_MASK         |
+	  NISTC_AO_MODE1_UI_SRC_POLARITY     |
+	  NISTC_AO_MODE1_UPDATE_SRC_MASK     |
+	  NISTC_AO_MODE1_UPDATE_SRC_POLARITY
+	);
+
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
-		devpriv->ao_cmd2 &= ~NISTC_AO_CMD2_BC_GATE_ENA;
-		trigvar =
-		    ni_ns_to_timer(dev, cmd->scan_begin_arg,
-				   CMDF_ROUND_NEAREST);
-		ni_stc_writel(dev, 1, NISTC_AO_UI_LOADA_REG);
-		ni_stc_writew(dev, NISTC_AO_CMD1_UI_LOAD, NISTC_AO_CMD1_REG);
-		ni_stc_writel(dev, trigvar, NISTC_AO_UI_LOADA_REG);
+		devpriv->ao_cmd2  &= ~NISTC_AO_CMD2_BC_GATE_ENA;
+
+		/*
+		 * NOTE: there are several other ways of configuring internal
+		 * updates, but we'll only support one for now:  using
+		 * AO_IN_TIMEBASE, w/o waveform staging, w/o a delay between
+		 * START1 and first update, and also w/o local buffer mode w/
+		 * pauses.
+		 */
+
+		/*
+		 * This is already done above:
+		 * devpriv->ao_mode1 &= ~(
+		 *   // set UPDATE_Source to UI_TC:
+		 *   NISTC_AO_MODE1_UPDATE_SRC_MASK |
+		 *   // set UPDATE_Source_Polarity to rising (required?)
+		 *   NISTC_AO_MODE1_UPDATE_SRC_POLARITY |
+		 *   // set UI_Source to AO_IN_TIMEBASE1:
+		 *   NISTC_AO_MODE1_UI_SRC_MASK     |
+		 *   // set UI_Source_Polarity to rising (required?)
+		 *   NISTC_AO_MODE1_UI_SRC_POLARITY
+		 * );
+		 */
+
+		/*
+		 * TODO:  use ao_ui_clock_source to allow all possible signals
+		 * to be routed to UI_Source_Select.  See tSTC.h for
+		 * eseries/ni67xx and tMSeries.h for mseries.
+		 */
+
+		{
+			unsigned trigvar = ni_ns_to_timer(dev,
+							  cmd->scan_begin_arg,
+							  CMDF_ROUND_NEAREST);
+
+			/*
+			 * Wait N TB3 ticks after the start trigger before
+			 * clocking(N must be >=2).
+			 */
+			/* following line: 2-1 per STC */
+			ni_stc_writel(dev, 1,           NISTC_AO_UI_LOADA_REG);
+			ni_stc_writew(dev, NISTC_AO_CMD1_UI_LOAD,
+				      NISTC_AO_CMD1_REG);
+			/* following line: N-1 per STC */
+			ni_stc_writel(dev, trigvar - 1, NISTC_AO_UI_LOADA_REG);
+		}
 		break;
 	case TRIG_EXT:
-		devpriv->ao_mode1 |=
-		    NISTC_AO_MODE1_UPDATE_SRC(cmd->scan_begin_arg);
+		/* FIXME:  assert scan_begin_arg != 0, ret failure otherwise */
+		devpriv->ao_cmd2  |= NISTC_AO_CMD2_BC_GATE_ENA;
+		devpriv->ao_mode1 |= NISTC_AO_MODE1_UPDATE_SRC(
+					CR_CHAN(cmd->scan_begin_arg));
 		if (cmd->scan_begin_arg & CR_INVERT)
 			devpriv->ao_mode1 |= NISTC_AO_MODE1_UPDATE_SRC_POLARITY;
-		devpriv->ao_cmd2 |= NISTC_AO_CMD2_BC_GATE_ENA;
 		break;
 	default:
 		BUG();
 		break;
 	}
+
 	ni_stc_writew(dev, devpriv->ao_cmd2, NISTC_AO_CMD2_REG);
 	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
 	devpriv->ao_mode2 &= ~(NISTC_AO_MODE2_UI_RELOAD_MODE(3) |
 			       NISTC_AO_MODE2_UI_INIT_LOAD_SRC);
 	ni_stc_writew(dev, devpriv->ao_mode2, NISTC_AO_MODE2_REG);
 
+	/* Configure DAQ-STC for Timed update mode */
+	devpriv->ao_cmd1 |= NISTC_AO_CMD1_DAC1_UPDATE_MODE |
+			    NISTC_AO_CMD1_DAC0_UPDATE_MODE;
+	/* We are not using UPDATE2-->don't have to set DACx_Source_Select */
+	ni_stc_writew(dev, devpriv->ao_cmd1, NISTC_AO_CMD1_REG);
+
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
+}
+
+static void ni_ao_cmd_set_channels(struct comedi_device *dev,
+				   struct comedi_subdevice *s)
+{
+	struct ni_private *devpriv = dev->private;
+	const struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned bits = 0;
+
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
+
+	if (devpriv->is_6xxx) {
+		unsigned int i;
+
+		bits = 0;
+		for (i = 0; i < cmd->chanlist_len; ++i) {
+			int chan = CR_CHAN(cmd->chanlist[i]);
+
+			bits |= 1 << chan;
+			ni_ao_win_outw(dev, chan, NI611X_AO_WAVEFORM_GEN_REG);
+		}
+		ni_ao_win_outw(dev, bits, NI611X_AO_TIMED_REG);
+	}
+
+	ni_ao_config_chanlist(dev, s, cmd->chanlist, cmd->chanlist_len, 1);
+
 	if (cmd->scan_end_arg > 1) {
 		devpriv->ao_mode1 |= NISTC_AO_MODE1_MULTI_CHAN;
-		ni_stc_writew(dev,
-			      NISTC_AO_OUT_CTRL_CHANS(cmd->scan_end_arg - 1) |
-			      NISTC_AO_OUT_CTRL_UPDATE_SEL_HIGHZ,
-			      NISTC_AO_OUT_CTRL_REG);
-	} else {
-		unsigned bits;
+		bits = NISTC_AO_OUT_CTRL_CHANS(cmd->scan_end_arg - 1)
+				 | NISTC_AO_OUT_CTRL_UPDATE_SEL_HIGHZ;
 
+	} else {
 		devpriv->ao_mode1 &= ~NISTC_AO_MODE1_MULTI_CHAN;
 		bits = NISTC_AO_OUT_CTRL_UPDATE_SEL_HIGHZ;
-		if (devpriv->is_m_series || devpriv->is_6xxx) {
+		if (devpriv->is_m_series | devpriv->is_6xxx)
 			bits |= NISTC_AO_OUT_CTRL_CHANS(0);
-		} else {
-			bits |=
-			    NISTC_AO_OUT_CTRL_CHANS(CR_CHAN(cmd->chanlist[0]));
-		}
-		ni_stc_writew(dev, bits, NISTC_AO_OUT_CTRL_REG);
+		else
+			bits |= NISTC_AO_OUT_CTRL_CHANS(
+					CR_CHAN(cmd->chanlist[0]));
 	}
-	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
 
-	ni_stc_writew(dev, NISTC_AO_CMD1_DAC1_UPDATE_MODE |
-			   NISTC_AO_CMD1_DAC0_UPDATE_MODE,
-		      NISTC_AO_CMD1_REG);
+	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
+	ni_stc_writew(dev, bits,              NISTC_AO_OUT_CTRL_REG);
+
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
+}
+
+static void ni_ao_cmd_set_stop_conditions(struct comedi_device *dev,
+					  const struct comedi_cmd *cmd)
+{
+	struct ni_private *devpriv = dev->private;
+
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
 
 	devpriv->ao_mode3 |= NISTC_AO_MODE3_STOP_ON_OVERRUN_ERR;
 	ni_stc_writew(dev, devpriv->ao_mode3, NISTC_AO_MODE3_REG);
+
+	/*
+	 * Since we are not supporting waveform staging, we ignore these errors:
+	 * NISTC_AO_MODE3_STOP_ON_BC_TC_ERR,
+	 * NISTC_AO_MODE3_STOP_ON_BC_TC_TRIG_ERR
+	 */
+
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
+}
+
+static void ni_ao_cmd_set_fifo_mode(struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
 
 	devpriv->ao_mode2 &= ~NISTC_AO_MODE2_FIFO_MODE_MASK;
 #ifdef PCIDMA
@@ -3069,41 +3302,60 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 #else
 	devpriv->ao_mode2 |= NISTC_AO_MODE2_FIFO_MODE_HF;
 #endif
+	/* NOTE:  this is where use_onboard_memory=True would be implemented */
 	devpriv->ao_mode2 &= ~NISTC_AO_MODE2_FIFO_REXMIT_ENA;
 	ni_stc_writew(dev, devpriv->ao_mode2, NISTC_AO_MODE2_REG);
 
-	bits = NISTC_AO_PERSONAL_BC_SRC_SEL |
-	       NISTC_AO_PERSONAL_UPDATE_PW |
-	       NISTC_AO_PERSONAL_TMRDACWR_PW;
-	if (board->ao_fifo_depth)
-		bits |= NISTC_AO_PERSONAL_FIFO_ENA;
-	else
-		bits |= NISTC_AO_PERSONAL_DMA_PIO_CTRL;
-#if 0
-	/*
-	 * F Hess: windows driver does not set NISTC_AO_PERSONAL_NUM_DAC bit
-	 * for 6281, verified with bus analyzer.
-	 */
-	if (devpriv->is_m_series)
-		bits |= NISTC_AO_PERSONAL_NUM_DAC;
-#endif
-	ni_stc_writew(dev, bits, NISTC_AO_PERSONAL_REG);
-	/*  enable sending of ao dma requests */
+	/* enable sending of ao fifo requests (dma request) */
 	ni_stc_writew(dev, NISTC_AO_START_AOFREQ_ENA, NISTC_AO_START_SEL_REG);
 
 	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		ni_stc_writew(dev, NISTC_INTB_ACK_AO_BC_TC,
-			      NISTC_INTB_ACK_REG);
+	/* we are not supporting boards with virtual fifos */
+}
+
+static void ni_ao_cmd_set_interrupts(struct comedi_device *dev,
+				     struct comedi_subdevice *s)
+{
+	if (s->async->cmd.stop_src == TRIG_COUNT)
 		ni_set_bits(dev, NISTC_INTB_ENA_REG,
 			    NISTC_INTB_ENA_AO_BC_TC, 1);
-	}
 
 	s->async->inttrig = ni_ao_inttrig;
+}
 
+static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	struct ni_private *devpriv = dev->private;
+	const struct comedi_cmd *cmd = &s->async->cmd;
+
+	if (dev->irq == 0) {
+		dev_err(dev->class_dev, "cannot run command without an irq");
+		return -EIO;
+	}
+
+	/* ni_ao_reset should have already been done */
+	ni_ao_cmd_personalize(dev, cmd);
+	/* clearing fifo and preload happens elsewhere */
+
+	ni_ao_cmd_set_trigger(dev, cmd);
+	ni_ao_cmd_set_counters(dev, cmd);
+	ni_ao_cmd_set_update(dev, cmd);
+	ni_ao_cmd_set_channels(dev, s);
+	ni_ao_cmd_set_stop_conditions(dev, cmd);
+	ni_ao_cmd_set_fifo_mode(dev);
+	ni_cmd_set_mite_transfer(devpriv->ao_mite_ring, s, cmd, 0x00ffffff);
+	ni_ao_cmd_set_interrupts(dev, s);
+
+	/*
+	 * arm(ing) and star(ting) happen in ni_ao_inttrig, which _must_ be
+	 * called for ao commands since 1) TRIG_NOW is not supported and 2) DMA
+	 * must be setup and initially written to before arm/start happen.
+	 */
 	return 0;
 }
+
+/* end ni_ao_cmd */
 
 static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_cmd *cmd)
@@ -3163,11 +3415,7 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
-
-	if (cmd->stop_src == TRIG_COUNT)
-		err |= comedi_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
-	else	/* TRIG_NONE */
-		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
+	err |= comedi_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
 
 	if (err)
 		return 3;
@@ -3190,48 +3438,70 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	/* See 3.6.1.2 "Resetting", of DAQ-STC Technical Reference Manual */
+
+	/*
+	 * In the following, the "--sync" comments are meant to denote
+	 * asynchronous boundaries for setting the registers as described in the
+	 * DAQ-STC mostly in the order also described in the DAQ-STC.
+	 */
+
 	struct ni_private *devpriv = dev->private;
 
 	ni_release_ao_mite_channel(dev);
 
+	/* --sync (reset AO) */
+	if (devpriv->is_m_series)
+		/* following example in mhddk for m-series */
+		ni_stc_writew(dev, NISTC_RESET_AO, NISTC_RESET_REG);
+
+	/*--sync (start config) */
 	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
+
+	/*--sync (Disarm) */
 	ni_stc_writew(dev, NISTC_AO_CMD1_DISARM, NISTC_AO_CMD1_REG);
-	ni_set_bits(dev, NISTC_INTB_ENA_REG, ~0, 0);
-	ni_stc_writew(dev, NISTC_AO_PERSONAL_BC_SRC_SEL, NISTC_AO_PERSONAL_REG);
-	ni_stc_writew(dev, NISTC_INTB_ACK_AO_ALL, NISTC_INTB_ACK_REG);
-	ni_stc_writew(dev, NISTC_AO_PERSONAL_BC_SRC_SEL |
-			   NISTC_AO_PERSONAL_UPDATE_PW |
-			   NISTC_AO_PERSONAL_TMRDACWR_PW,
-		      NISTC_AO_PERSONAL_REG);
-	ni_stc_writew(dev, 0, NISTC_AO_OUT_CTRL_REG);
-	ni_stc_writew(dev, 0, NISTC_AO_START_SEL_REG);
-	devpriv->ao_cmd1 = 0;
-	ni_stc_writew(dev, devpriv->ao_cmd1, NISTC_AO_CMD1_REG);
-	devpriv->ao_cmd2 = 0;
-	ni_stc_writew(dev, devpriv->ao_cmd2, NISTC_AO_CMD2_REG);
+
+	/*
+	 * --sync
+	 * (clear bunch of registers--mseries mhddk examples do not include
+	 * this)
+	 */
+	devpriv->ao_cmd1  = 0;
+	devpriv->ao_cmd2  = 0;
 	devpriv->ao_mode1 = 0;
-	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
 	devpriv->ao_mode2 = 0;
-	ni_stc_writew(dev, devpriv->ao_mode2, NISTC_AO_MODE2_REG);
 	if (devpriv->is_m_series)
 		devpriv->ao_mode3 = NISTC_AO_MODE3_LAST_GATE_DISABLE;
 	else
 		devpriv->ao_mode3 = 0;
-	ni_stc_writew(dev, devpriv->ao_mode3, NISTC_AO_MODE3_REG);
 	devpriv->ao_trigger_select = 0;
-	ni_stc_writew(dev, devpriv->ao_trigger_select,
-		      NISTC_AO_TRIG_SEL_REG);
-	if (devpriv->is_6xxx) {
-		unsigned immediate_bits = 0;
-		unsigned i;
 
-		for (i = 0; i < s->n_chan; ++i)
-			immediate_bits |= 1 << i;
-		ni_ao_win_outw(dev, immediate_bits, NI671X_AO_IMMEDIATE_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_PERSONAL_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_CMD1_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_CMD2_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_MODE1_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_MODE2_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_OUT_CTRL_REG);
+	ni_stc_writew(dev, devpriv->ao_mode3, NISTC_AO_MODE3_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_START_SEL_REG);
+	ni_stc_writew(dev, 0, NISTC_AO_TRIG_SEL_REG);
+
+	/*--sync (disable interrupts) */
+	ni_set_bits(dev, NISTC_INTB_ENA_REG, ~0, 0);
+
+	/*--sync (ack) */
+	ni_stc_writew(dev, NISTC_AO_PERSONAL_BC_SRC_SEL, NISTC_AO_PERSONAL_REG);
+	ni_stc_writew(dev, NISTC_INTB_ACK_AO_ALL, NISTC_INTB_ACK_REG);
+
+	/*--not in DAQ-STC.  which doc? */
+	if (devpriv->is_6xxx) {
+		ni_ao_win_outw(dev, (1u << s->n_chan) - 1u,
+			       NI671X_AO_IMMEDIATE_REG);
 		ni_ao_win_outw(dev, NI611X_AO_MISC_CLEAR_WG,
 			       NI611X_AO_MISC_REG);
 	}
 	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
+	/*--end */
 
 	return 0;
 }
@@ -3357,7 +3627,9 @@ static int ni_cdio_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
-	err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
+	err |= comedi_check_trigger_arg_max(&cmd->stop_arg,
+					    s->async->prealloc_bufsz /
+					    comedi_bytes_per_scan(s));
 
 	if (err)
 		return 3;
@@ -3434,6 +3706,7 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 
 static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct ni_private *devpriv = dev->private;
 	const struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned cdo_mode_bits;
 	int retval;
@@ -3457,6 +3730,10 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	retval = ni_request_cdo_mite_channel(dev);
 	if (retval < 0)
 		return retval;
+
+	ni_cmd_set_mite_transfer(devpriv->cdo_mite_ring, s, cmd,
+				 s->async->prealloc_bufsz /
+				 comedi_bytes_per_scan(s));
 
 	s->async->inttrig = ni_cdo_inttrig;
 
@@ -3956,34 +4233,30 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 	case INSN_CONFIG_PWM_OUTPUT:
 		switch (data[1]) {
 		case CMDF_ROUND_NEAREST:
-			up_count =
-			    (data[2] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			up_count = DIV_ROUND_CLOSEST(data[2],
+						     devpriv->clock_ns);
 			break;
 		case CMDF_ROUND_DOWN:
 			up_count = data[2] / devpriv->clock_ns;
 			break;
 		case CMDF_ROUND_UP:
 			up_count =
-			    (data[2] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
+			    DIV_ROUND_UP(data[2], devpriv->clock_ns);
 			break;
 		default:
 			return -EINVAL;
 		}
 		switch (data[3]) {
 		case CMDF_ROUND_NEAREST:
-			down_count =
-			    (data[4] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			down_count = DIV_ROUND_CLOSEST(data[4],
+						       devpriv->clock_ns);
 			break;
 		case CMDF_ROUND_DOWN:
 			down_count = data[4] / devpriv->clock_ns;
 			break;
 		case CMDF_ROUND_UP:
 			down_count =
-			    (data[4] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
+			    DIV_ROUND_UP(data[4], devpriv->clock_ns);
 			break;
 		default:
 			return -EINVAL;
@@ -4020,34 +4293,30 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 	case INSN_CONFIG_PWM_OUTPUT:
 		switch (data[1]) {
 		case CMDF_ROUND_NEAREST:
-			up_count =
-			    (data[2] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			up_count = DIV_ROUND_CLOSEST(data[2],
+						     devpriv->clock_ns);
 			break;
 		case CMDF_ROUND_DOWN:
 			up_count = data[2] / devpriv->clock_ns;
 			break;
 		case CMDF_ROUND_UP:
 			up_count =
-			    (data[2] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
+			    DIV_ROUND_UP(data[2], devpriv->clock_ns);
 			break;
 		default:
 			return -EINVAL;
 		}
 		switch (data[3]) {
 		case CMDF_ROUND_NEAREST:
-			down_count =
-			    (data[4] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			down_count = DIV_ROUND_CLOSEST(data[4],
+						       devpriv->clock_ns);
 			break;
 		case CMDF_ROUND_DOWN:
 			down_count = data[4] / devpriv->clock_ns;
 			break;
 		case CMDF_ROUND_UP:
 			down_count =
-			    (data[4] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
+			    DIV_ROUND_UP(data[4], devpriv->clock_ns);
 			break;
 		default:
 			return -EINVAL;
@@ -4641,9 +4910,9 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 
 	*freq_divider = best_div;
 	*freq_multiplier = best_mult;
-	*actual_period_ns =
-	    (best_period_picosec * fudge_factor_80_to_20Mhz +
-	     (pico_per_nano / 2)) / pico_per_nano;
+	*actual_period_ns = DIV_ROUND_CLOSEST(best_period_picosec *
+					      fudge_factor_80_to_20Mhz,
+					      pico_per_nano);
 	return 0;
 }
 
@@ -5000,7 +5269,6 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	unsigned long flags;
 #ifdef PCIDMA
 	struct ni_private *devpriv = dev->private;
-	struct mite_struct *mite = devpriv->mite;
 #endif
 
 	if (!dev->attached)
@@ -5012,8 +5280,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	a_status = ni_stc_readw(dev, NISTC_AI_STATUS1_REG);
 	b_status = ni_stc_readw(dev, NISTC_AO_STATUS1_REG);
 #ifdef PCIDMA
-	if (mite) {
-		struct ni_private *devpriv = dev->private;
+	if (devpriv->mite) {
 		unsigned long flags_too;
 
 		spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
@@ -5029,7 +5296,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 			ao_mite_status = mite_get_status(devpriv->ao_mite_chan);
 			if (ao_mite_status & CHSR_LINKC)
 				writel(CHOR_CLRLC,
-				       mite->mite_io_addr +
+				       devpriv->mite->mite_io_addr +
 				       MITE_CHOR(devpriv->
 						 ao_mite_chan->channel));
 		}

@@ -65,10 +65,6 @@ static void atl1c_reset_dma_ring(struct atl1c_adapter *adapter);
 static int atl1c_configure(struct atl1c_adapter *adapter);
 static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter);
 
-static const u16 atl1c_pay_load_size[] = {
-	128, 256, 512, 1024, 2048, 4096,
-};
-
 
 static const u32 atl1c_default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 	NETIF_MSG_LINK | NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP;
@@ -1016,13 +1012,12 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 		sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
 		8 * 4;
 
-	ring_header->desc = pci_alloc_consistent(pdev, ring_header->size,
-				&ring_header->dma);
+	ring_header->desc = dma_zalloc_coherent(&pdev->dev, ring_header->size,
+						&ring_header->dma, GFP_KERNEL);
 	if (unlikely(!ring_header->desc)) {
-		dev_err(&pdev->dev, "pci_alloc_consistend failed\n");
+		dev_err(&pdev->dev, "could not get memory for DMA buffer\n");
 		goto err_nomem;
 	}
-	memset(ring_header->desc, 0, ring_header->size);
 	/* init TPD ring */
 
 	tpd_ring[0].dma = roundup(ring_header->dma, 8);

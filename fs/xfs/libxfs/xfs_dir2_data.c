@@ -31,6 +31,7 @@
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
+#include "xfs_log.h"
 
 /*
  * Check the consistency of the data block.
@@ -224,6 +225,8 @@ xfs_dir3_data_verify(
 			return false;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
 			return false;
+		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
+			return false;
 	} else {
 		if (hdr3->magic != cpu_to_be32(XFS_DIR2_DATA_MAGIC))
 			return false;
@@ -302,11 +305,13 @@ xfs_dir3_data_write_verify(
 }
 
 const struct xfs_buf_ops xfs_dir3_data_buf_ops = {
+	.name = "xfs_dir3_data",
 	.verify_read = xfs_dir3_data_read_verify,
 	.verify_write = xfs_dir3_data_write_verify,
 };
 
 static const struct xfs_buf_ops xfs_dir3_data_reada_buf_ops = {
+	.name = "xfs_dir3_data_reada",
 	.verify_read = xfs_dir3_data_reada_verify,
 	.verify_write = xfs_dir3_data_write_verify,
 };

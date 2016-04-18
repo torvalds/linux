@@ -106,7 +106,8 @@ void ocrdma_ring_cq_db(struct ocrdma_dev *, u16 cq_id, bool armed,
 		       bool solicited, u16 cqe_popped);
 
 /* verbs specific mailbox commands */
-int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed);
+int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed,
+			      u8 *lnk_st);
 int ocrdma_query_config(struct ocrdma_dev *,
 			struct ocrdma_mbx_query_config *config);
 
@@ -153,5 +154,6 @@ char *port_speed_string(struct ocrdma_dev *dev);
 void ocrdma_init_service_level(struct ocrdma_dev *);
 void ocrdma_alloc_pd_pool(struct ocrdma_dev *dev);
 void ocrdma_free_pd_range(struct ocrdma_dev *dev);
+void ocrdma_update_link_state(struct ocrdma_dev *dev, u8 lstate);
 
 #endif				/* __OCRDMA_HW_H__ */

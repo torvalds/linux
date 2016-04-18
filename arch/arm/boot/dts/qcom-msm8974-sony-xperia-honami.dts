@@ -1,6 +1,9 @@
 #include "qcom-msm8974.dtsi"
 #include "qcom-pm8841.dtsi"
 #include "qcom-pm8941.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 / {
 	model = "Sony Xperia Z1";
@@ -14,24 +17,403 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		input-name = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys_pin_a>;
+
+		volume-down {
+			label = "volume_down";
+			gpios = <&pm8941_gpios 2 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+
+		camera-snapshot {
+			label = "camera_snapshot";
+			gpios = <&pm8941_gpios 3 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_CAMERA>;
+		};
+
+		camera-focus {
+			label = "camera_focus";
+			gpios = <&pm8941_gpios 4 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_CAMERA_FOCUS>;
+		};
+
+		volume-up {
+			label = "volume_up";
+			gpios = <&pm8941_gpios 5 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+	};
+
 	memory@0 {
 		reg = <0 0x40000000>, <0x40000000 0x40000000>;
 		device_type = "memory";
 	};
+
+	smd {
+		rpm {
+			rpm_requests {
+				pm8841-regulators {
+					s1 {
+						regulator-min-microvolt = <675000>;
+						regulator-max-microvolt = <1050000>;
+					};
+
+					s2 {
+						regulator-min-microvolt = <500000>;
+						regulator-max-microvolt = <1050000>;
+					};
+
+					s3 {
+						regulator-min-microvolt = <500000>;
+						regulator-max-microvolt = <1050000>;
+					};
+
+					s4 {
+						regulator-min-microvolt = <500000>;
+						regulator-max-microvolt = <1050000>;
+					};
+				};
+
+				pm8941-regulators {
+					vdd_l1_l3-supply = <&pm8941_s1>;
+					vdd_l2_lvs1_2_3-supply = <&pm8941_s3>;
+					vdd_l4_l11-supply = <&pm8941_s1>;
+					vdd_l5_l7-supply = <&pm8941_s2>;
+					vdd_l6_l12_l14_l15-supply = <&pm8941_s2>;
+					vdd_l9_l10_l17_l22-supply = <&vreg_boost>;
+					vdd_l13_l20_l23_l24-supply = <&vreg_boost>;
+					vdd_l21-supply = <&vreg_boost>;
+					vin_5vs-supply = <&pm8941_5v>;
+
+					s1 {
+						regulator-min-microvolt = <1300000>;
+						regulator-max-microvolt = <1300000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					s2 {
+						regulator-min-microvolt = <2150000>;
+						regulator-max-microvolt = <2150000>;
+						regulator-boot-on;
+					};
+
+					s3 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					s4 {
+						regulator-min-microvolt = <5000000>;
+						regulator-max-microvolt = <5000000>;
+					};
+
+					l1 {
+						regulator-min-microvolt = <1225000>;
+						regulator-max-microvolt = <1225000>;
+
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					l2 {
+						regulator-min-microvolt = <1200000>;
+						regulator-max-microvolt = <1200000>;
+					};
+
+					l3 {
+						regulator-min-microvolt = <1200000>;
+						regulator-max-microvolt = <1200000>;
+					};
+
+					l4 {
+						regulator-min-microvolt = <1225000>;
+						regulator-max-microvolt = <1225000>;
+					};
+
+					l5 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					l6 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+
+						regulator-boot-on;
+					};
+
+					l7 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+
+						regulator-boot-on;
+					};
+
+					l8 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					l9 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <2950000>;
+					};
+
+					l11 {
+						regulator-min-microvolt = <1300000>;
+						regulator-max-microvolt = <1350000>;
+					};
+
+					l12 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					l13 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <2950000>;
+
+						regulator-boot-on;
+					};
+
+					l14 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					l15 {
+						regulator-min-microvolt = <2050000>;
+						regulator-max-microvolt = <2050000>;
+					};
+
+					l16 {
+						regulator-min-microvolt = <2700000>;
+						regulator-max-microvolt = <2700000>;
+					};
+
+					l17 {
+						regulator-min-microvolt = <2700000>;
+						regulator-max-microvolt = <2700000>;
+					};
+
+					l18 {
+						regulator-min-microvolt = <2850000>;
+						regulator-max-microvolt = <2850000>;
+					};
+
+					l19 {
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					l20 {
+						regulator-min-microvolt = <2950000>;
+						regulator-max-microvolt = <2950000>;
+
+						regulator-allow-set-load;
+						regulator-boot-on;
+						regulator-system-load = <200000>;
+					};
+
+					l21 {
+						regulator-min-microvolt = <2950000>;
+						regulator-max-microvolt = <2950000>;
+
+						regulator-boot-on;
+					};
+
+					l22 {
+						regulator-min-microvolt = <3000000>;
+						regulator-max-microvolt = <3000000>;
+					};
+
+					l23 {
+						regulator-min-microvolt = <2800000>;
+						regulator-max-microvolt = <2800000>;
+					};
+
+					l24 {
+						regulator-min-microvolt = <3075000>;
+						regulator-max-microvolt = <3075000>;
+
+						regulator-boot-on;
+					};
+				};
+			};
+		};
+	};
+
+	vreg_boost: vreg-boost {
+		compatible = "regulator-fixed";
+
+		regulator-name = "vreg-boost";
+		regulator-min-microvolt = <3150000>;
+		regulator-max-microvolt = <3150000>;
+
+		regulator-always-on;
+		regulator-boot-on;
+
+		gpio = <&pm8941_gpios 21 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&boost_bypass_n_pin>;
+     };
 };
 
 &soc {
+	sdhci@f9824900 {
+		status = "ok";
+
+		vmmc-supply = <&pm8941_l20>;
+		vqmmc-supply = <&pm8941_s3>;
+
+		bus-width = <8>;
+		non-removable;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdhc1_pin_a>;
+	};
+
+	sdhci@f98a4900 {
+		status = "ok";
+
+		bus-width = <4>;
+
+		vmmc-supply = <&pm8941_l21>;
+		vqmmc-supply = <&pm8941_l13>;
+
+		cd-gpios = <&msmgpio 62 GPIO_ACTIVE_LOW>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdhc2_pin_a>, <&sdhc2_cd_pin_a>;
+	};
+
 	serial@f991e000 {
 		status = "ok";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&blsp1_uart2_pin_a>;
+	};
+
+	pinctrl@fd510000 {
+		blsp1_uart2_pin_a: blsp1-uart2-pin-active {
+			rx {
+				pins = "gpio5";
+				function = "blsp_uart2";
+
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			tx {
+				pins = "gpio4";
+				function = "blsp_uart2";
+
+				drive-strength = <4>;
+				bias-disable;
+			};
+		};
+
+		sdhc1_pin_a: sdhc1-pin-active {
+			clk {
+				pins = "sdc1_clk";
+				drive-strength = <16>;
+				bias-disable;
+			};
+
+			cmd-data {
+				pins = "sdc1_cmd", "sdc1_data";
+				drive-strength = <10>;
+				bias-pull-up;
+			};
+		};
+
+		sdhc2_cd_pin_a: sdhc2-cd-pin-active {
+			pins = "gpio62";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-disable;
+		 };
+
+		sdhc2_pin_a: sdhc2-pin-active {
+			clk {
+				pins = "sdc2_clk";
+				drive-strength = <10>;
+				bias-disable;
+			};
+
+			cmd-data {
+				pins = "sdc2_cmd", "sdc2_data";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+
 	};
 };
 
 &spmi_bus {
 	pm8941@0 {
+		charger@1000 {
+			qcom,fast-charge-safe-current = <1500000>;
+			qcom,fast-charge-current-limit = <1500000>;
+			qcom,dc-current-limit = <1800000>;
+			qcom,fast-charge-safe-voltage = <4400000>;
+			qcom,fast-charge-high-threshold-voltage = <4350000>;
+			qcom,fast-charge-low-threshold-voltage = <3400000>;
+			qcom,auto-recharge-threshold-voltage = <4200000>;
+			qcom,minimum-input-voltage = <4300000>;
+		};
+
+		gpios@c000 {
+			boost_bypass_n_pin: boost-bypass {
+				pins = "gpio21";
+				function = "normal";
+			};
+
+			gpio_keys_pin_a: gpio-keys-active {
+				pins = "gpio2", "gpio3", "gpio4", "gpio5";
+				function = "normal";
+
+				bias-pull-up;
+				power-source = <PM8941_GPIO_S3>;
+			};
+		};
+
 		coincell@2800 {
 			status = "ok";
 			qcom,rset-ohms = <2100>;
 			qcom,vset-millivolts = <3000>;
+		};
+	};
+
+	pm8941@1 {
+		wled@d800 {
+			status = "ok";
+
+			qcom,cs-out;
+			qcom,current-limit = <20>;
+			qcom,current-boost-limit = <805>;
+			qcom,switching-freq = <1600>;
+			qcom,ovp = <29>;
+			qcom,num-strings = <2>;
 		};
 	};
 };

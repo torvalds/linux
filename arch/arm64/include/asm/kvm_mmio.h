@@ -19,7 +19,6 @@
 #define __ARM64_KVM_MMIO_H__
 
 #include <linux/kvm_host.h>
-#include <asm/kvm_asm.h>
 #include <asm/kvm_arm.h>
 
 /*

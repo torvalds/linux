@@ -541,25 +541,24 @@
  *	@inode points to the inode to use as a reference.
  *	The current task must be the one that nominated @inode.
  *	Return 0 if successful.
- * @kernel_fw_from_file:
- *	Load firmware from userspace (not called for built-in firmware).
- *	@file contains the file structure pointing to the file containing
- *	the firmware to load. This argument will be NULL if the firmware
- *	was loaded via the uevent-triggered blob-based interface exposed
- *	by CONFIG_FW_LOADER_USER_HELPER.
- *	@buf pointer to buffer containing firmware contents.
- *	@size length of the firmware contents.
- *	Return 0 if permission is granted.
  * @kernel_module_request:
  *	Ability to trigger the kernel to automatically upcall to userspace for
  *	userspace to load a kernel module with the given name.
  *	@kmod_name name of the module requested by the kernel
  *	Return 0 if successful.
- * @kernel_module_from_file:
- *	Load a kernel module from userspace.
- *	@file contains the file structure pointing to the file containing
- *	the kernel module to load. If the module is being loaded from a blob,
- *	this argument will be NULL.
+ * @kernel_read_file:
+ *	Read a file specified by userspace.
+ *	@file contains the file structure pointing to the file being read
+ *	by the kernel.
+ *	@id kernel read file identifier
+ *	Return 0 if permission is granted.
+ * @kernel_post_read_file:
+ *	Read a file specified by userspace.
+ *	@file contains the file structure pointing to the file being read
+ *	by the kernel.
+ *	@buf pointer to buffer containing the file contents.
+ *	@size length of the file contents.
+ *	@id kernel read file identifier
  *	Return 0 if permission is granted.
  * @task_fix_setuid:
  *	Update the module's state after setting one or more of the user
@@ -1261,6 +1260,10 @@
  *	audit_rule_init.
  *	@rule contains the allocated rule
  *
+ * @inode_invalidate_secctx:
+ *	Notify the security module that it must revalidate the security context
+ *	of an inode.
+ *
  * @inode_notifysecctx:
  *	Notify the security module of what the security context of an inode
  *	should be.  Initializes the incore security context managed by the
@@ -1413,14 +1416,14 @@ union security_list_options {
 	int (*inode_removexattr)(struct dentry *dentry, const char *name);
 	int (*inode_need_killpriv)(struct dentry *dentry);
 	int (*inode_killpriv)(struct dentry *dentry);
-	int (*inode_getsecurity)(const struct inode *inode, const char *name,
+	int (*inode_getsecurity)(struct inode *inode, const char *name,
 					void **buffer, bool alloc);
 	int (*inode_setsecurity)(struct inode *inode, const char *name,
 					const void *value, size_t size,
 					int flags);
 	int (*inode_listsecurity)(struct inode *inode, char *buffer,
 					size_t buffer_size);
-	void (*inode_getsecid)(const struct inode *inode, u32 *secid);
+	void (*inode_getsecid)(struct inode *inode, u32 *secid);
 
 	int (*file_permission)(struct file *file, int mask);
 	int (*file_alloc_security)(struct file *file);
@@ -1450,9 +1453,11 @@ union security_list_options {
 	void (*cred_transfer)(struct cred *new, const struct cred *old);
 	int (*kernel_act_as)(struct cred *new, u32 secid);
 	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
-	int (*kernel_fw_from_file)(struct file *file, char *buf, size_t size);
 	int (*kernel_module_request)(char *kmod_name);
 	int (*kernel_module_from_file)(struct file *file);
+	int (*kernel_read_file)(struct file *file, enum kernel_read_file_id id);
+	int (*kernel_post_read_file)(struct file *file, char *buf, loff_t size,
+				     enum kernel_read_file_id id);
 	int (*task_fix_setuid)(struct cred *new, const struct cred *old,
 				int flags);
 	int (*task_setpgid)(struct task_struct *p, pid_t pgid);
@@ -1516,6 +1521,7 @@ union security_list_options {
 	int (*secctx_to_secid)(const char *secdata, u32 seclen, u32 *secid);
 	void (*release_secctx)(char *secdata, u32 seclen);
 
+	void (*inode_invalidate_secctx)(struct inode *inode);
 	int (*inode_notifysecctx)(struct inode *inode, void *ctx, u32 ctxlen);
 	int (*inode_setsecctx)(struct dentry *dentry, void *ctx, u32 ctxlen);
 	int (*inode_getsecctx)(struct inode *inode, void **ctx, u32 *ctxlen);
@@ -1710,9 +1716,9 @@ struct security_hook_heads {
 	struct list_head cred_transfer;
 	struct list_head kernel_act_as;
 	struct list_head kernel_create_files_as;
-	struct list_head kernel_fw_from_file;
+	struct list_head kernel_read_file;
+	struct list_head kernel_post_read_file;
 	struct list_head kernel_module_request;
-	struct list_head kernel_module_from_file;
 	struct list_head task_fix_setuid;
 	struct list_head task_setpgid;
 	struct list_head task_getpgid;
@@ -1757,6 +1763,7 @@ struct security_hook_heads {
 	struct list_head secid_to_secctx;
 	struct list_head secctx_to_secid;
 	struct list_head release_secctx;
+	struct list_head inode_invalidate_secctx;
 	struct list_head inode_notifysecctx;
 	struct list_head inode_setsecctx;
 	struct list_head inode_getsecctx;

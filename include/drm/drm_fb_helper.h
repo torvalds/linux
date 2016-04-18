@@ -34,6 +34,11 @@ struct drm_fb_helper;
 
 #include <linux/kgdb.h>
 
+enum mode_set_atomic {
+	LEAVE_ATOMIC_MODE_SET,
+	ENTER_ATOMIC_MODE_SET,
+};
+
 struct drm_fb_offset {
 	int x, y;
 };
@@ -74,25 +79,76 @@ struct drm_fb_helper_surface_size {
 
 /**
  * struct drm_fb_helper_funcs - driver callbacks for the fbdev emulation library
- * @gamma_set: Set the given gamma lut register on the given crtc.
- * @gamma_get: Read the given gamma lut register on the given crtc, used to
- *             save the current lut when force-restoring the fbdev for e.g.
- *             kdbg.
- * @fb_probe: Driver callback to allocate and initialize the fbdev info
- *            structure. Furthermore it also needs to allocate the drm
- *            framebuffer used to back the fbdev.
- * @initial_config: Setup an initial fbdev display configuration
  *
  * Driver callbacks used by the fbdev emulation helper library.
  */
 struct drm_fb_helper_funcs {
+	/**
+	 * @gamma_set:
+	 *
+	 * Set the given gamma LUT register on the given CRTC.
+	 *
+	 * This callback is optional.
+	 *
+	 * FIXME:
+	 *
+	 * This callback is functionally redundant with the core gamma table
+	 * support and simply exists because the fbdev hasn't yet been
+	 * refactored to use the core gamma table interfaces.
+	 */
 	void (*gamma_set)(struct drm_crtc *crtc, u16 red, u16 green,
 			  u16 blue, int regno);
+	/**
+	 * @gamma_get:
+	 *
+	 * Read the given gamma LUT register on the given CRTC, used to save the
+	 * current LUT when force-restoring the fbdev for e.g. kdbg.
+	 *
+	 * This callback is optional.
+	 *
+	 * FIXME:
+	 *
+	 * This callback is functionally redundant with the core gamma table
+	 * support and simply exists because the fbdev hasn't yet been
+	 * refactored to use the core gamma table interfaces.
+	 */
 	void (*gamma_get)(struct drm_crtc *crtc, u16 *red, u16 *green,
 			  u16 *blue, int regno);
 
+	/**
+	 * @fb_probe:
+	 *
+	 * Driver callback to allocate and initialize the fbdev info structure.
+	 * Furthermore it also needs to allocate the DRM framebuffer used to
+	 * back the fbdev.
+	 *
+	 * This callback is mandatory.
+	 *
+	 * RETURNS:
+	 *
+	 * The driver should return 0 on success and a negative error code on
+	 * failure.
+	 */
 	int (*fb_probe)(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes);
+
+	/**
+	 * @initial_config:
+	 *
+	 * Driver callback to setup an initial fbdev display configuration.
+	 * Drivers can use this callback to tell the fbdev emulation what the
+	 * preferred initial configuration is. This is useful to implement
+	 * smooth booting where the fbdev (and subsequently all userspace) never
+	 * changes the mode, but always inherits the existing configuration.
+	 *
+	 * This callback is optional.
+	 *
+	 * RETURNS:
+	 *
+	 * The driver should return true if a suitable initial configuration has
+	 * been filled out and false when the fbdev helper should fall back to
+	 * the default probing logic.
+	 */
 	bool (*initial_config)(struct drm_fb_helper *fb_helper,
 			       struct drm_fb_helper_crtc **crtcs,
 			       struct drm_display_mode **modes,
@@ -104,6 +160,24 @@ struct drm_fb_helper_connector {
 	struct drm_connector *connector;
 };
 
+/**
+ * struct drm_fb_helper - main structure to emulate fbdev on top of KMS
+ * @fb: Scanout framebuffer object
+ * @dev: DRM device
+ * @crtc_count: number of possible CRTCs
+ * @crtc_info: per-CRTC helper state (mode, x/y offset, etc)
+ * @connector_count: number of connected connectors
+ * @connector_info_alloc_count: size of connector_info
+ * @connector_info: array of per-connector information
+ * @funcs: driver callbacks for fb helper
+ * @fbdev: emulated fbdev device info struct
+ * @pseudo_palette: fake palette of 16 colors
+ *
+ * This is the main structure used by the fbdev helpers. Drivers supporting
+ * fbdev emulation should embedded this into their overall driver structure.
+ * Drivers must also fill out a struct &drm_fb_helper_funcs with a few
+ * operations.
+ */
 struct drm_fb_helper {
 	struct drm_framebuffer *fb;
 	struct drm_device *dev;
@@ -115,14 +189,37 @@ struct drm_fb_helper {
 	const struct drm_fb_helper_funcs *funcs;
 	struct fb_info *fbdev;
 	u32 pseudo_palette[17];
+
+	/**
+	 * @kernel_fb_list:
+	 *
+	 * Entry on the global kernel_fb_helper_list, used for kgdb entry/exit.
+	 */
 	struct list_head kernel_fb_list;
 
-	/* we got a hotplug but fbdev wasn't running the console
-	   delay until next set_par */
+	/**
+	 * @delayed_hotplug:
+	 *
+	 * A hotplug was received while fbdev wasn't in control of the DRM
+	 * device, i.e. another KMS master was active. The output configuration
+	 * needs to be reprobe when fbdev is in control again.
+	 */
 	bool delayed_hotplug;
+
+	/**
+	 * @atomic:
+	 *
+	 * Use atomic updates for restore_fbdev_mode(), etc.  This defaults to
+	 * true if driver has DRIVER_ATOMIC feature flag, but drivers can
+	 * override it to true after drm_fb_helper_init() if they support atomic
+	 * modeset but do not yet advertise DRIVER_ATOMIC (note that fb-helper
+	 * does not require ASYNC commits).
+	 */
+	bool atomic;
 };
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
+int drm_fb_helper_modinit(void);
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 			   const struct drm_fb_helper_funcs *funcs);
 int drm_fb_helper_init(struct drm_device *dev,
@@ -136,7 +233,7 @@ int drm_fb_helper_set_par(struct fb_info *info);
 int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 			    struct fb_info *info);
 
-bool drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
+int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
 
 struct fb_info *drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper);
@@ -187,6 +284,11 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_
 int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				       struct drm_connector *connector);
 #else
+static inline int drm_fb_helper_modinit(void)
+{
+	return 0;
+}
+
 static inline void drm_fb_helper_prepare(struct drm_device *dev,
 					struct drm_fb_helper *helper,
 					const struct drm_fb_helper_funcs *funcs)
@@ -226,10 +328,10 @@ static inline int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static inline bool
+static inline int
 drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 {
-	return true;
+	return 0;
 }
 
 static inline struct fb_info *

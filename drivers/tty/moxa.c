@@ -155,7 +155,6 @@ struct mon_str {
 #define LOWWAIT 	2
 #define EMPTYWAIT	3
 
-#define SERIAL_DO_RESTART
 
 #define WAKEUP_CHARS		256
 

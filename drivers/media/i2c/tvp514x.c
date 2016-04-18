@@ -44,7 +44,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-of.h>
 #include <media/v4l2-ctrls.h>
-#include <media/tvp514x.h>
+#include <media/i2c/tvp514x.h>
 #include <media/media-entity.h>
 
 #include "tvp514x_regs.h"
@@ -1001,7 +1001,7 @@ static struct tvp514x_decoder tvp514x_dev = {
 static struct tvp514x_platform_data *
 tvp514x_get_pdata(struct i2c_client *client)
 {
-	struct tvp514x_platform_data *pdata;
+	struct tvp514x_platform_data *pdata = NULL;
 	struct v4l2_of_endpoint bus_cfg;
 	struct device_node *endpoint;
 	unsigned int flags;
@@ -1013,11 +1013,13 @@ tvp514x_get_pdata(struct i2c_client *client)
 	if (!endpoint)
 		return NULL;
 
+	if (v4l2_of_parse_endpoint(endpoint, &bus_cfg))
+		goto done;
+
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		goto done;
 
-	v4l2_of_parse_endpoint(endpoint, &bus_cfg);
 	flags = bus_cfg.bus.parallel.flags;
 
 	if (flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
@@ -1095,9 +1097,9 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	decoder->pad.flags = MEDIA_PAD_FL_SOURCE;
 	decoder->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	decoder->sd.entity.flags |= MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
+	decoder->sd.entity.flags |= MEDIA_ENT_F_ATV_DECODER;
 
-	ret = media_entity_init(&decoder->sd.entity, 1, &decoder->pad, 0);
+	ret = media_entity_pads_init(&decoder->sd.entity, 1, &decoder->pad);
 	if (ret < 0) {
 		v4l2_err(sd, "%s decoder driver failed to register !!\n",
 			 sd->name);

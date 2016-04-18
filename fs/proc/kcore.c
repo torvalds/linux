@@ -552,9 +552,9 @@ static int open_kcore(struct inode *inode, struct file *filp)
 	if (kcore_need_update)
 		kcore_update_ram();
 	if (i_size_read(inode) != proc_root_kcore->size) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		i_size_write(inode, proc_root_kcore->size);
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	}
 	return 0;
 }

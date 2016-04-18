@@ -75,11 +75,26 @@ config SPI_ATMEL
 	  This selects a driver for the Atmel SPI Controller, present on
 	  many AT32 (AVR32) and AT91 (ARM) chips.
 
+config SPI_AU1550
+	tristate "Au1550/Au1200/Au1300 SPI Controller"
+	depends on MIPS_ALCHEMY
+	select SPI_BITBANG
+	help
+	  If you say yes to this option, support will be included for the
+	  PSC SPI controller found on Au1550, Au1200 and Au1300 series.
+
+config SPI_AXI_SPI_ENGINE
+	tristate "Analog Devices AXI SPI Engine controller"
+	depends on HAS_IOMEM
+	help
+	  This enables support for the Analog Devices AXI SPI Engine SPI controller.
+	  It is part of the SPI Engine framework that is used in some Analog Devices
+	  reference designs for FPGAs.
+
 config SPI_BCM2835
 	tristate "BCM2835 SPI controller"
 	depends on GPIOLIB
 	depends on ARCH_BCM2835 || COMPILE_TEST
-	depends on GPIOLIB
 	help
 	  This selects a driver for the Broadcom BCM2835 SPI master.
 
@@ -90,8 +105,7 @@ config SPI_BCM2835
 
 config SPI_BCM2835AUX
 	tristate "BCM2835 SPI auxiliary controller"
-	depends on ARCH_BCM2835 || COMPILE_TEST
-	depends on GPIOLIB
+	depends on (ARCH_BCM2835 && GPIOLIB) || COMPILE_TEST
 	help
 	  This selects a driver for the Broadcom BCM2835 SPI aux master.
 
@@ -117,14 +131,6 @@ config SPI_BFIN_SPORT
 	depends on BLACKFIN
 	help
 	  Enable support for a SPI bus via the Blackfin SPORT peripheral.
-
-config SPI_AU1550
-	tristate "Au1550/Au1200/Au1300 SPI Controller"
-	depends on MIPS_ALCHEMY
-	select SPI_BITBANG
-	help
-	  If you say yes to this option, support will be included for the
-	  PSC SPI controller found on Au1550, Au1200 and Au1300 series.
 
 config SPI_BCM53XX
 	tristate "Broadcom BCM53xx SPI controller"
@@ -196,6 +202,23 @@ config SPI_DAVINCI
 	select SPI_BITBANG
 	help
 	  SPI master controller for DaVinci/DA8x/OMAP-L/AM1x SPI modules.
+
+config SPI_DESIGNWARE
+	tristate "DesignWare SPI controller core support"
+	help
+	  general driver for SPI controller core from DesignWare
+
+config SPI_DW_PCI
+	tristate "PCI interface driver for DW SPI core"
+	depends on SPI_DESIGNWARE && PCI
+
+config SPI_DW_MID_DMA
+	bool "DMA support for DW SPI controller on Intel MID platform"
+	depends on SPI_DW_PCI && DW_DMAC_PCI
+
+config SPI_DW_MMIO
+	tristate "Memory-mapped io interface driver for DW SPI core"
+	depends on SPI_DESIGNWARE
 
 config SPI_DLN2
        tristate "Diolan DLN-2 USB SPI adapter"
@@ -270,6 +293,16 @@ config SPI_LM70_LLP
 	  This driver supports the NS LM70 LLP Evaluation Board,
 	  which interfaces to an LM70 temperature sensor using
 	  a parallel port.
+
+config SPI_LP8841_RTC
+	tristate "ICP DAS LP-8841 SPI Controller for RTC"
+	depends on MACH_PXA27X_DT || COMPILE_TEST
+	help
+	  This driver provides an SPI master device to drive Maxim
+	  DS-1302 real time clock.
+
+	  Say N here unless you plan to run the kernel on an ICP DAS
+	  LP-8x4x industrial computer.
 
 config SPI_MPC52xx
 	tristate "Freescale MPC52xx SPI (non-PSC) controller support"
@@ -346,6 +379,13 @@ config SPI_MT65XX
 	  say Y or M here.If you are not sure, say N.
 	  SPI drivers for Mediatek MT65XX and MT81XX series ARM SoCs.
 
+config SPI_NUC900
+	tristate "Nuvoton NUC900 series SPI"
+	depends on ARCH_W90X900
+	select SPI_BITBANG
+	help
+	  SPI driver for Nuvoton NUC900 series ARM SoCs
+
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
 	depends on GPIOLIB || COMPILE_TEST
@@ -415,10 +455,6 @@ config SPI_PPC4xx
 	help
 	  This selects a driver for the PPC4xx SPI Controller.
 
-config SPI_PXA2XX_DMA
-	def_bool y
-	depends on SPI_PXA2XX
-
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
 	depends on (ARCH_PXA || PCI || ACPI)
@@ -451,7 +487,7 @@ config SPI_RB4XX
 
 config SPI_RSPI
 	tristate "Renesas RSPI/QSPI controller"
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	help
 	  SPI driver for Renesas RSPI and QSPI blocks.
 
@@ -501,7 +537,7 @@ config SPI_SC18IS602
 config SPI_SH_MSIOF
 	tristate "SuperH MSIOF SPI controller"
 	depends on HAVE_CLK && HAS_DMA
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	help
 	  SPI driver for SuperH and SH Mobile MSIOF blocks.
 
@@ -520,7 +556,7 @@ config SPI_SH_SCI
 
 config SPI_SH_HSPI
 	tristate "SuperH HSPI controller"
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	help
 	  SPI driver for SuperH HSPI blocks.
 
@@ -585,7 +621,7 @@ config SPI_TEGRA20_SLINK
 
 config SPI_TOPCLIFF_PCH
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) SPI"
-	depends on PCI && (X86_32 || COMPILE_TEST)
+	depends on PCI && (X86_32 || MIPS || COMPILE_TEST)
 	help
 	  SPI driver for the Topcliff PCH (Platform Controller Hub) SPI bus
 	  used in some x86 embedded processors.
@@ -647,33 +683,9 @@ config SPI_ZYNQMP_GQSPI
 	help
 	  Enables Xilinx GQSPI controller driver for Zynq UltraScale+ MPSoC.
 
-config SPI_NUC900
-	tristate "Nuvoton NUC900 series SPI"
-	depends on ARCH_W90X900
-	select SPI_BITBANG
-	help
-	  SPI driver for Nuvoton NUC900 series ARM SoCs
-
 #
 # Add new SPI master controllers in alphabetical order above this line
 #
-
-config SPI_DESIGNWARE
-	tristate "DesignWare SPI controller core support"
-	help
-	  general driver for SPI controller core from DesignWare
-
-config SPI_DW_PCI
-	tristate "PCI interface driver for DW SPI core"
-	depends on SPI_DESIGNWARE && PCI
-
-config SPI_DW_MID_DMA
-	bool "DMA support for DW SPI controller on Intel MID platform"
-	depends on SPI_DW_PCI && DW_DMAC_PCI
-
-config SPI_DW_MMIO
-	tristate "Memory-mapped io interface driver for DW SPI core"
-	depends on SPI_DESIGNWARE
 
 #
 # There are lots of SPI device types, with sensors and memory
@@ -688,6 +700,15 @@ config SPI_SPIDEV
 
 	  Note that this application programming interface is EXPERIMENTAL
 	  and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.
+
+config SPI_LOOPBACK_TEST
+	tristate "spi loopback test framework support"
+	depends on m
+	help
+	  This enables the SPI loopback testing framework driver
+
+	  primarily used for development of spi_master drivers
+	  and to detect regressions
 
 config SPI_TLE62X0
 	tristate "Infineon TLE62X0 (for power switching)"

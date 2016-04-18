@@ -390,7 +390,7 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 		/* Will be done on the slow path. */
 		return -EAGAIN;
 	}
-	if (stsch_err(schid, &schib)) {
+	if (stsch(schid, &schib)) {
 		/* Subchannel is not provided. */
 		return -ENXIO;
 	}
@@ -702,17 +702,12 @@ css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 		css->global_pgid.pgid_high.ext_cssid.version = 0x80;
 		css->global_pgid.pgid_high.ext_cssid.cssid = css->cssid;
 	} else {
-#ifdef CONFIG_SMP
 		css->global_pgid.pgid_high.cpu_addr = stap();
-#else
-		css->global_pgid.pgid_high.cpu_addr = 0;
-#endif
 	}
 	get_cpu_id(&cpu_id);
 	css->global_pgid.cpu_id = cpu_id.ident;
 	css->global_pgid.cpu_model = cpu_id.machine;
 	css->global_pgid.tod_high = tod_high;
-
 }
 
 static void

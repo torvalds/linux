@@ -35,11 +35,11 @@ void sk_stream_write_space(struct sock *sk)
 
 		rcu_read_lock();
 		wq = rcu_dereference(sk->sk_wq);
-		if (wq_has_sleeper(wq))
+		if (skwq_has_sleeper(wq))
 			wake_up_interruptible_poll(&wq->wait, POLLOUT |
 						POLLWRNORM | POLLWRBAND);
 		if (wq && wq->fasync_list && !(sk->sk_shutdown & SEND_SHUTDOWN))
-			sock_wake_async(sock, SOCK_WAKE_SPACE, POLL_OUT);
+			sock_wake_async(wq, SOCK_WAKE_SPACE, POLL_OUT);
 		rcu_read_unlock();
 	}
 }
@@ -126,7 +126,7 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 		current_timeo = vm_wait = (prandom_u32() % (HZ / 5)) + 2;
 
 	while (1) {
-		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
 		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
@@ -139,7 +139,7 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 		}
 		if (signal_pending(current))
 			goto do_interrupted;
-		clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+		sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 		if (sk_stream_memory_free(sk) && !vm_wait)
 			break;
 

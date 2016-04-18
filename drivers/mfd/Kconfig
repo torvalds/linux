@@ -18,6 +18,17 @@ config MFD_CS5535
 	  This is the core driver for CS5535/CS5536 MFD functions.  This is
           necessary for using the board's GPIO and MFGPT functionality.
 
+config MFD_ACT8945A
+	tristate "Active-semi ACT8945A"
+	select MFD_CORE
+	select REGMAP_I2C
+	depends on I2C && OF
+	help
+	  Support for the ACT8945A PMIC from Active-semi. This device
+	  features three step-down DC/DC converters and four low-dropout
+	  linear regulators, along with a complete ActivePath battery
+	  charger.
+
 config MFD_AS3711
 	bool "AMS AS3711"
 	select MFD_CORE
@@ -91,14 +102,29 @@ config MFD_BCM590XX
 	  Support for the BCM590xx PMUs from Broadcom
 
 config MFD_AXP20X
-	bool "X-Powers AXP20X"
+	tristate
 	select MFD_CORE
-	select REGMAP_I2C
 	select REGMAP_IRQ
-	depends on I2C=y
+
+config MFD_AXP20X_I2C
+	tristate "X-Powers AXP series PMICs with I2C"
+	select MFD_AXP20X
+	select REGMAP_I2C
+	depends on I2C
 	help
-	  If you say Y here you get support for the X-Powers AXP202, AXP209 and
-	  AXP288 power management IC (PMIC).
+	  If you say Y here you get support for the X-Powers AXP series power
+	  management ICs (PMICs) controlled with I2C.
+	  This driver include only the core APIs. You have to select individual
+	  components like regulators or the PEK (Power Enable Key) under the
+	  corresponding menus.
+
+config MFD_AXP20X_RSB
+	tristate "X-Powers AXP series PMICs with RSB"
+	select MFD_AXP20X
+	depends on SUNXI_RSB
+	help
+	  If you say Y here you get support for the X-Powers AXP series power
+	  management ICs (PMICs) controlled with RSB.
 	  This driver include only the core APIs. You have to select individual
 	  components like regulators or the PEK (Power Enable Key) under the
 	  corresponding menus.
@@ -203,7 +229,7 @@ config MFD_DA9062
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
-	depends on I2C=y
+	depends on I2C
 	help
 	  Say yes here for support for the Dialog Semiconductor DA9062 PMIC.
 	  This includes the I2C driver and core APIs.
@@ -211,11 +237,11 @@ config MFD_DA9062
 	  of the device.
 
 config MFD_DA9063
-	bool "Dialog Semiconductor DA9063 PMIC Support"
+	tristate "Dialog Semiconductor DA9063 PMIC Support"
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
-	depends on I2C=y
+	depends on I2C
 	help
 	  Say yes here for support for the Dialog Semiconductor DA9063 PMIC.
 	  This includes the I2C driver and core APIs.
@@ -224,7 +250,7 @@ config MFD_DA9063
 
 config MFD_DA9150
 	tristate "Dialog Semiconductor DA9150 Charger Fuel-Gauge chip"
-	depends on I2C=y
+	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -270,6 +296,15 @@ config MFD_MC13XXX_I2C
 	select MFD_MC13XXX
 	help
 	  Select this if your MC13xxx is connected via an I2C bus.
+
+config MFD_MX25_TSADC
+	tristate "Freescale i.MX25 integrated Touchscreen and ADC unit"
+	select REGMAP_MMIO
+	depends on (SOC_IMX25 && OF) || COMPILE_TEST
+	help
+	  Enable support for the integrated Touchscreen and ADC unit of the
+	  i.MX25 processors. They consist of a conversion queue for general
+	  purpose ADC and a queue for Touchscreens.
 
 config MFD_HI6421_PMIC
 	tristate "HiSilicon Hi6421 PMU/Codec IC"
@@ -445,7 +480,7 @@ config MFD_KEMPLD
 
 config MFD_88PM800
 	tristate "Marvell 88PM800"
-	depends on I2C=y
+	depends on I2C
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select MFD_CORE
@@ -457,7 +492,7 @@ config MFD_88PM800
 
 config MFD_88PM805
 	tristate "Marvell 88PM805"
-	depends on I2C=y
+	depends on I2C
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select MFD_CORE
@@ -493,8 +528,8 @@ config MFD_MAX14577
 	  of the device.
 
 config MFD_MAX77686
-	bool "Maxim Semiconductor MAX77686/802 PMIC Support"
-	depends on I2C=y
+	tristate "Maxim Semiconductor MAX77686/802 PMIC Support"
+	depends on I2C
 	depends on OF
 	select MFD_CORE
 	select REGMAP_I2C
@@ -538,7 +573,7 @@ config MFD_MAX77843
 config MFD_MAX8907
 	tristate "Maxim Semiconductor MAX8907 PMIC Support"
 	select MFD_CORE
-	depends on I2C=y
+	depends on I2C
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	help
@@ -743,7 +778,7 @@ config MFD_RTSX_PCI
 
 config MFD_RT5033
 	tristate "Richtek RT5033 Power Management IC"
-	depends on I2C=y
+	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -1106,6 +1141,19 @@ config TPS6507X
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps6507x.
 
+config MFD_TPS65086
+	tristate "TI TPS65086 Power Management Integrated Chips (PMICs)"
+	select REGMAP
+	select REGMAP_IRQ
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  If you say yes here you get support for the TPS65086 series of
+	  Power Management chips.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
 config TPS65911_COMPARATOR
 	tristate
 
@@ -1181,27 +1229,25 @@ config MFD_TPS65910
 	  Power Management chips.
 
 config MFD_TPS65912
-	bool "TI TPS65912 Power Management chip"
-	depends on GPIOLIB
+	tristate
 	select MFD_CORE
-	help
-	  If you say yes here you get support for the TPS65912 series of
-	  PM chips.
+	select REGMAP
+	select REGMAP_IRQ
 
 config MFD_TPS65912_I2C
-	bool "TI TPS65912 Power Management chip with I2C"
-	select MFD_CORE
+	tristate "TI TPS65912 Power Management chip with I2C"
 	select MFD_TPS65912
-	depends on I2C=y && GPIOLIB
+	select REGMAP_I2C
+	depends on I2C
 	help
 	  If you say yes here you get support for the TPS65912 series of
 	  PM chips with I2C interface.
 
 config MFD_TPS65912_SPI
-	bool "TI TPS65912 Power Management chip with SPI"
-	select MFD_CORE
+	tristate "TI TPS65912 Power Management chip with SPI"
 	select MFD_TPS65912
-	depends on SPI_MASTER && GPIOLIB
+	select REGMAP_SPI
+	depends on SPI_MASTER
 	help
 	  If you say yes here you get support for the TPS65912 series of
 	  PM chips with SPI interface.
@@ -1370,24 +1416,28 @@ config MFD_ARIZONA
 	bool
 
 config MFD_ARIZONA_I2C
-	tristate "Wolfson Microelectronics Arizona platform with I2C"
+	tristate "Cirrus Logic/Wolfson Microelectronics Arizona platform with I2C"
 	select MFD_ARIZONA
-	select MFD_CORE
 	select REGMAP_I2C
 	depends on I2C
 	help
-	  Support for the Wolfson Microelectronics Arizona platform audio SoC
-	  core functionality controlled via I2C.
+	  Support for the Cirrus Logic/Wolfson Microelectronics Arizona platform
+	  audio SoC core functionality controlled via I2C.
 
 config MFD_ARIZONA_SPI
-	tristate "Wolfson Microelectronics Arizona platform with SPI"
+	tristate "Cirrus Logic/Wolfson Microelectronics Arizona platform with SPI"
 	select MFD_ARIZONA
-	select MFD_CORE
 	select REGMAP_SPI
 	depends on SPI_MASTER
 	help
-	  Support for the Wolfson Microelectronics Arizona platform audio SoC
-	  core functionality controlled via I2C.
+	  Support for the Cirrus Logic/Wolfson Microelectronics Arizona platform
+	  audio SoC core functionality controlled via SPI.
+
+config MFD_CS47L24
+	bool "Cirrus Logic CS47L24 and WM1831"
+	depends on MFD_ARIZONA
+	help
+	  Support for Cirrus Logic CS47L24 and WM1831 low power audio SoC
 
 config MFD_WM5102
 	bool "Wolfson Microelectronics WM5102"

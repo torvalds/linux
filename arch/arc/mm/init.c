@@ -51,7 +51,9 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 	int in_use = 0;
 
 	if (!low_mem_sz) {
-		BUG_ON(base != low_mem_start);
+		if (base != low_mem_start)
+			panic("CONFIG_LINUX_LINK_BASE != DT memory { }");
+
 		low_mem_sz = size;
 		in_use = 1;
 	} else {

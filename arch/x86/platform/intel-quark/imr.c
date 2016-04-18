@@ -1,5 +1,5 @@
 /**
- * imr.c
+ * imr.c -- Intel Isolated Memory Region driver
  *
  * Copyright(c) 2013 Intel Corporation.
  * Copyright(c) 2015 Bryan O'Donoghue <pure.logic@nexus-software.ie>
@@ -31,7 +31,6 @@
 #include <linux/debugfs.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/types.h>
 
 struct imr_device {
@@ -111,23 +110,19 @@ static int imr_read(struct imr_device *idev, u32 imr_id, struct imr_regs *imr)
 	u32 reg = imr_id * IMR_NUM_REGS + idev->reg_base;
 	int ret;
 
-	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->addr_lo);
+	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->addr_lo);
 	if (ret)
 		return ret;
 
-	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->addr_hi);
+	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->addr_hi);
 	if (ret)
 		return ret;
 
-	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->rmask);
+	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->rmask);
 	if (ret)
 		return ret;
 
-	return iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->wmask);
+	return iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->wmask);
 }
 
 /**
@@ -139,11 +134,9 @@ static int imr_read(struct imr_device *idev, u32 imr_id, struct imr_regs *imr)
  * @idev:	pointer to imr_device structure.
  * @imr_id:	IMR entry to write.
  * @imr:	IMR structure representing address and access masks.
- * @lock:	indicates if the IMR lock bit should be applied.
  * @return:	0 on success or error code passed from mbi_iosf on failure.
  */
-static int imr_write(struct imr_device *idev, u32 imr_id,
-		     struct imr_regs *imr, bool lock)
+static int imr_write(struct imr_device *idev, u32 imr_id, struct imr_regs *imr)
 {
 	unsigned long flags;
 	u32 reg = imr_id * IMR_NUM_REGS + idev->reg_base;
@@ -151,34 +144,21 @@ static int imr_write(struct imr_device *idev, u32 imr_id,
 
 	local_irq_save(flags);
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE, reg++,
-				imr->addr_lo);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->addr_lo);
 	if (ret)
 		goto failed;
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-				reg++, imr->addr_hi);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->addr_hi);
 	if (ret)
 		goto failed;
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-				reg++, imr->rmask);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->rmask);
 	if (ret)
 		goto failed;
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-				reg++, imr->wmask);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->wmask);
 	if (ret)
 		goto failed;
-
-	/* Lock bit must be set separately to addr_lo address bits. */
-	if (lock) {
-		imr->addr_lo |= IMR_LOCK;
-		ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-					reg - IMR_NUM_REGS, imr->addr_lo);
-		if (ret)
-			goto failed;
-	}
 
 	local_irq_restore(flags);
 	return 0;
@@ -228,11 +208,12 @@ static int imr_dbgfs_state_show(struct seq_file *s, void *unused)
 		if (imr_is_enabled(&imr)) {
 			base = imr_to_phys(imr.addr_lo);
 			end = imr_to_phys(imr.addr_hi) + IMR_MASK;
+			size = end - base + 1;
 		} else {
 			base = 0;
 			end = 0;
+			size = 0;
 		}
-		size = end - base;
 		seq_printf(s, "imr%02i: base=%pa, end=%pa, size=0x%08zx "
 			   "rmask=0x%08x, wmask=0x%08x, %s, %s\n", i,
 			   &base, &end, size, imr.rmask, imr.wmask,
@@ -274,17 +255,6 @@ static int imr_debugfs_register(struct imr_device *idev)
 	idev->file = debugfs_create_file("imr_state", S_IFREG | S_IRUGO, NULL,
 					 idev, &imr_state_ops);
 	return PTR_ERR_OR_ZERO(idev->file);
-}
-
-/**
- * imr_debugfs_unregister - unregister debugfs hooks.
- *
- * @idev:	pointer to imr_device structure.
- * @return:
- */
-static void imr_debugfs_unregister(struct imr_device *idev)
-{
-	debugfs_remove(idev->file);
 }
 
 /**
@@ -341,11 +311,10 @@ static inline int imr_address_overlap(phys_addr_t addr, struct imr_regs *imr)
  * @size:	physical size of region in bytes must be aligned to 1KiB.
  * @read_mask:	read access mask.
  * @write_mask:	write access mask.
- * @lock:	indicates whether or not to permanently lock this region.
  * @return:	zero on success or negative value indicating error.
  */
 int imr_add_range(phys_addr_t base, size_t size,
-		  unsigned int rmask, unsigned int wmask, bool lock)
+		  unsigned int rmask, unsigned int wmask)
 {
 	phys_addr_t end;
 	unsigned int i;
@@ -418,7 +387,7 @@ int imr_add_range(phys_addr_t base, size_t size,
 	imr.rmask = rmask;
 	imr.wmask = wmask;
 
-	ret = imr_write(idev, reg, &imr, lock);
+	ret = imr_write(idev, reg, &imr);
 	if (ret < 0) {
 		/*
 		 * In the highly unlikely event iosf_mbi_write failed
@@ -429,7 +398,7 @@ int imr_add_range(phys_addr_t base, size_t size,
 		imr.addr_hi = 0;
 		imr.rmask = IMR_READ_ACCESS_ALL;
 		imr.wmask = IMR_WRITE_ACCESS_ALL;
-		imr_write(idev, reg, &imr, false);
+		imr_write(idev, reg, &imr);
 	}
 failed:
 	mutex_unlock(&idev->lock);
@@ -525,7 +494,7 @@ static int __imr_remove_range(int reg, phys_addr_t base, size_t size)
 	imr.rmask = IMR_READ_ACCESS_ALL;
 	imr.wmask = IMR_WRITE_ACCESS_ALL;
 
-	ret = imr_write(idev, reg, &imr, false);
+	ret = imr_write(idev, reg, &imr);
 
 failed:
 	mutex_unlock(&idev->lock);
@@ -587,6 +556,7 @@ static void __init imr_fixup_memmap(struct imr_device *idev)
 {
 	phys_addr_t base = virt_to_phys(&_text);
 	size_t size = virt_to_phys(&__end_rodata) - base;
+	unsigned long start, end;
 	int i;
 	int ret;
 
@@ -594,18 +564,24 @@ static void __init imr_fixup_memmap(struct imr_device *idev)
 	for (i = 0; i < idev->max_imr; i++)
 		imr_clear(i);
 
+	start = (unsigned long)_text;
+	end = (unsigned long)__end_rodata - 1;
+
 	/*
-	 * Setup a locked IMR around the physical extent of the kernel
+	 * Setup an unlocked IMR around the physical extent of the kernel
 	 * from the beginning of the .text secton to the end of the
 	 * .rodata section as one physically contiguous block.
+	 *
+	 * We don't round up @size since it is already PAGE_SIZE aligned.
+	 * See vmlinux.lds.S for details.
 	 */
-	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, true);
+	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU);
 	if (ret < 0) {
-		pr_err("unable to setup IMR for kernel: (%p - %p)\n",
-			&_text, &__end_rodata);
+		pr_err("unable to setup IMR for kernel: %zu KiB (%lx - %lx)\n",
+			size / 1024, start, end);
 	} else {
-		pr_info("protecting kernel .text - .rodata: %zu KiB (%p - %p)\n",
-			size / 1024, &_text, &__end_rodata);
+		pr_info("protecting kernel .text - .rodata: %zu KiB (%lx - %lx)\n",
+			size / 1024, start, end);
 	}
 
 }
@@ -614,7 +590,6 @@ static const struct x86_cpu_id imr_ids[] __initconst = {
 	{ X86_VENDOR_INTEL, 5, 9 },	/* Intel Quark SoC X1000. */
 	{}
 };
-MODULE_DEVICE_TABLE(x86cpu, imr_ids);
 
 /**
  * imr_init - entry point for IMR driver.
@@ -640,22 +615,4 @@ static int __init imr_init(void)
 	imr_fixup_memmap(idev);
 	return 0;
 }
-
-/**
- * imr_exit - exit point for IMR code.
- *
- * Deregisters debugfs, leave IMR state as-is.
- *
- * return:
- */
-static void __exit imr_exit(void)
-{
-	imr_debugfs_unregister(&imr_dev);
-}
-
-module_init(imr_init);
-module_exit(imr_exit);
-
-MODULE_AUTHOR("Bryan O'Donoghue <pure.logic@nexus-software.ie>");
-MODULE_DESCRIPTION("Intel Isolated Memory Region driver");
-MODULE_LICENSE("Dual BSD/GPL");
+device_initcall(imr_init);

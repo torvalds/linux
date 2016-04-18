@@ -4,6 +4,7 @@
  *  by the Free Software Foundation.
  *
  *  Copyright (C) 2010 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2013-2015 Lantiq Beteiligungs-GmbH & Co.KG
  */
 
 #include <linux/export.h>
@@ -19,8 +20,11 @@
 #define SOC_TWINPASS	"Twinpass"
 #define SOC_AMAZON_SE	"Amazon_SE"
 #define SOC_AR9		"AR9"
-#define SOC_GR9		"GR9"
-#define SOC_VR9		"VR9"
+#define SOC_GR9		"GRX200"
+#define SOC_VR9		"xRX200"
+#define SOC_VRX220	"xRX220"
+#define SOC_AR10	"xRX300"
+#define SOC_GRX390	"xRX330"
 
 #define COMP_DANUBE	"lantiq,danube"
 #define COMP_TWINPASS	"lantiq,twinpass"
@@ -28,6 +32,8 @@
 #define COMP_AR9	"lantiq,ar9"
 #define COMP_GR9	"lantiq,gr9"
 #define COMP_VR9	"lantiq,vr9"
+#define COMP_AR10	"lantiq,ar10"
+#define COMP_GRX390	"lantiq,grx390"
 
 #define PART_SHIFT	12
 #define PART_MASK	0x0FFFFFFF
@@ -101,11 +107,36 @@ void __init ltq_soc_detect(struct ltq_soc_info *i)
 		i->compatible = COMP_VR9;
 		break;
 
+	case SOC_ID_VRX220:
+		i->name = SOC_VRX220;
+		i->type = SOC_TYPE_VRX220;
+		i->compatible = COMP_VR9;
+		break;
+
 	case SOC_ID_GRX282_2:
 	case SOC_ID_GRX288_2:
 		i->name = SOC_GR9;
 		i->type = SOC_TYPE_VR9_2;
 		i->compatible = COMP_GR9;
+		break;
+
+	case SOC_ID_ARX362:
+	case SOC_ID_ARX368:
+	case SOC_ID_ARX382:
+	case SOC_ID_ARX388:
+	case SOC_ID_URX388:
+		i->name = SOC_AR10;
+		i->type = SOC_TYPE_AR10;
+		i->compatible = COMP_AR10;
+		break;
+
+	case SOC_ID_GRX383:
+	case SOC_ID_GRX369:
+	case SOC_ID_GRX387:
+	case SOC_ID_GRX389:
+		i->name = SOC_GRX390;
+		i->type = SOC_TYPE_GRX390;
+		i->compatible = COMP_GRX390;
 		break;
 
 	default:

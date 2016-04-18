@@ -251,6 +251,10 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->planes = 3;
 		tpg->is_yuv = true;
 		break;
+	case V4L2_PIX_FMT_YUV422M:
+	case V4L2_PIX_FMT_YVU422M:
+		tpg->buffers = 3;
+		/* fall through */
 	case V4L2_PIX_FMT_YUV422P:
 		tpg->vdownsampling[1] = 1;
 		tpg->vdownsampling[2] = 1;
@@ -281,6 +285,16 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->hdownsampling[1] = 1;
 		tpg->hmask[1] = ~1;
 		tpg->planes = 2;
+		tpg->is_yuv = true;
+		break;
+	case V4L2_PIX_FMT_YUV444M:
+	case V4L2_PIX_FMT_YVU444M:
+		tpg->buffers = 3;
+		tpg->planes = 3;
+		tpg->vdownsampling[1] = 1;
+		tpg->vdownsampling[2] = 1;
+		tpg->hdownsampling[1] = 1;
+		tpg->hdownsampling[2] = 1;
 		tpg->is_yuv = true;
 		break;
 	case V4L2_PIX_FMT_NV24:
@@ -368,6 +382,10 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->twopixelsize[0] = 4;
 		tpg->twopixelsize[1] = 4;
 		break;
+	case V4L2_PIX_FMT_YUV444M:
+	case V4L2_PIX_FMT_YVU444M:
+	case V4L2_PIX_FMT_YUV422M:
+	case V4L2_PIX_FMT_YVU422M:
 	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
@@ -933,6 +951,7 @@ static void gen_twopix(struct tpg_data *tpg,
 		buf[0][offset] = r_y;
 		buf[0][offset+1] = r_y == 0xff ? r_y : 0;
 		break;
+	case V4L2_PIX_FMT_YUV422M:
 	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YUV420M:
@@ -947,6 +966,7 @@ static void gen_twopix(struct tpg_data *tpg,
 		buf[1][0] = g_u;
 		buf[2][0] = b_v;
 		break;
+	case V4L2_PIX_FMT_YVU422M:
 	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_YVU420M:
 		buf[0][offset] = r_y;
@@ -986,6 +1006,18 @@ static void gen_twopix(struct tpg_data *tpg,
 		}
 		buf[1][0] = b_v;
 		buf[1][1] = g_u;
+		break;
+
+	case V4L2_PIX_FMT_YUV444M:
+		buf[0][offset] = r_y;
+		buf[1][offset] = g_u;
+		buf[2][offset] = b_v;
+		break;
+
+	case V4L2_PIX_FMT_YVU444M:
+		buf[0][offset] = r_y;
+		buf[1][offset] = b_v;
+		buf[2][offset] = g_u;
 		break;
 
 	case V4L2_PIX_FMT_NV24:

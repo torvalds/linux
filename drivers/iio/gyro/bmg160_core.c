@@ -452,7 +452,7 @@ static int bmg160_get_temp(struct bmg160_data *data, int *val)
 static int bmg160_get_axis(struct bmg160_data *data, int axis, int *val)
 {
 	int ret;
-	unsigned int raw_val;
+	__le16 raw_val;
 
 	mutex_lock(&data->mutex);
 	ret = bmg160_set_power_state(data, true);
@@ -462,7 +462,7 @@ static int bmg160_get_axis(struct bmg160_data *data, int axis, int *val)
 	}
 
 	ret = regmap_bulk_read(data->regmap, BMG160_AXIS_TO_REG(axis), &raw_val,
-			       2);
+			       sizeof(raw_val));
 	if (ret < 0) {
 		dev_err(data->dev, "Error reading axis %d\n", axis);
 		bmg160_set_power_state(data, false);
@@ -470,7 +470,7 @@ static int bmg160_get_axis(struct bmg160_data *data, int axis, int *val)
 		return ret;
 	}
 
-	*val = sign_extend32(raw_val, 15);
+	*val = sign_extend32(le16_to_cpu(raw_val), 15);
 	ret = bmg160_set_power_state(data, false);
 	mutex_unlock(&data->mutex);
 	if (ret < 0)
@@ -733,6 +733,7 @@ static const struct iio_event_spec bmg160_event = {
 		.sign = 's',						\
 		.realbits = 16,					\
 		.storagebits = 16,					\
+		.endianness = IIO_LE,					\
 	},								\
 	.event_spec = &bmg160_event,					\
 	.num_event_specs = 1						\
@@ -780,7 +781,7 @@ static irqreturn_t bmg160_trigger_handler(int irq, void *p)
 			mutex_unlock(&data->mutex);
 			goto err;
 		}
-		data->buffer[i++] = ret;
+		data->buffer[i++] = val;
 	}
 	mutex_unlock(&data->mutex);
 
@@ -1077,25 +1078,23 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		goto err_trigger_unregister;
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(dev, "unable to register iio device\n");
-		goto err_buffer_cleanup;
-	}
-
 	ret = pm_runtime_set_active(dev);
 	if (ret)
-		goto err_iio_unregister;
+		goto err_buffer_cleanup;
 
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev,
 					 BMG160_AUTO_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
 
+	ret = iio_device_register(indio_dev);
+	if (ret < 0) {
+		dev_err(dev, "unable to register iio device\n");
+		goto err_buffer_cleanup;
+	}
+
 	return 0;
 
-err_iio_unregister:
-	iio_device_unregister(indio_dev);
 err_buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
 err_trigger_unregister:
@@ -1113,11 +1112,12 @@ void bmg160_core_remove(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmg160_data *data = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
+
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
 	pm_runtime_put_noidle(dev);
 
-	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 
 	if (data->dready_trig) {

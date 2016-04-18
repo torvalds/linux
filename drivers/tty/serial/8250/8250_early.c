@@ -39,13 +39,17 @@
 
 static unsigned int __init serial8250_early_in(struct uart_port *port, int offset)
 {
+	offset <<= port->regshift;
+
 	switch (port->iotype) {
 	case UPIO_MEM:
 		return readb(port->membase + offset);
+	case UPIO_MEM16:
+		return readw(port->membase + offset);
 	case UPIO_MEM32:
-		return readl(port->membase + (offset << 2));
+		return readl(port->membase + offset);
 	case UPIO_MEM32BE:
-		return ioread32be(port->membase + (offset << 2));
+		return ioread32be(port->membase + offset);
 	case UPIO_PORT:
 		return inb(port->iobase + offset);
 	default:
@@ -55,15 +59,20 @@ static unsigned int __init serial8250_early_in(struct uart_port *port, int offse
 
 static void __init serial8250_early_out(struct uart_port *port, int offset, int value)
 {
+	offset <<= port->regshift;
+
 	switch (port->iotype) {
 	case UPIO_MEM:
 		writeb(value, port->membase + offset);
 		break;
+	case UPIO_MEM16:
+		writew(value, port->membase + offset);
+		break;
 	case UPIO_MEM32:
-		writel(value, port->membase + (offset << 2));
+		writel(value, port->membase + offset);
 		break;
 	case UPIO_MEM32BE:
-		iowrite32be(value, port->membase + (offset << 2));
+		iowrite32be(value, port->membase + offset);
 		break;
 	case UPIO_PORT:
 		outb(value, port->iobase + offset);
@@ -73,22 +82,18 @@ static void __init serial8250_early_out(struct uart_port *port, int offset, int 
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
-static void __init wait_for_xmitr(struct uart_port *port)
+static void __init serial_putc(struct uart_port *port, int c)
 {
 	unsigned int status;
+
+	serial8250_early_out(port, UART_TX, c);
 
 	for (;;) {
 		status = serial8250_early_in(port, UART_LSR);
 		if ((status & BOTH_EMPTY) == BOTH_EMPTY)
-			return;
+			break;
 		cpu_relax();
 	}
-}
-
-static void __init serial_putc(struct uart_port *port, int c)
-{
-	wait_for_xmitr(port);
-	serial8250_early_out(port, UART_TX, c);
 }
 
 static void __init early_serial8250_write(struct console *console,
@@ -96,20 +101,8 @@ static void __init early_serial8250_write(struct console *console,
 {
 	struct earlycon_device *device = console->data;
 	struct uart_port *port = &device->port;
-	unsigned int ier;
-
-	/* Save the IER and disable interrupts preserving the UUE bit */
-	ier = serial8250_early_in(port, UART_IER);
-	if (ier)
-		serial8250_early_out(port, UART_IER, ier & UART_IER_UUE);
 
 	uart_console_write(port, s, count, serial_putc);
-
-	/* Wait for transmitter to become empty and restore the IER */
-	wait_for_xmitr(port);
-
-	if (ier)
-		serial8250_early_out(port, UART_IER, ier);
 }
 
 static void __init init_port(struct earlycon_device *device)
@@ -156,3 +149,25 @@ EARLYCON_DECLARE(uart8250, early_serial8250_setup);
 EARLYCON_DECLARE(uart, early_serial8250_setup);
 OF_EARLYCON_DECLARE(ns16550, "ns16550", early_serial8250_setup);
 OF_EARLYCON_DECLARE(ns16550a, "ns16550a", early_serial8250_setup);
+OF_EARLYCON_DECLARE(uart, "nvidia,tegra20-uart", early_serial8250_setup);
+
+#ifdef CONFIG_SERIAL_8250_OMAP
+
+static int __init early_omap8250_setup(struct earlycon_device *device,
+				       const char *options)
+{
+	struct uart_port *port = &device->port;
+
+	if (!(device->port.membase || device->port.iobase))
+		return -ENODEV;
+
+	port->regshift = 2;
+	device->con->write = early_serial8250_write;
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(omap8250, "ti,omap2-uart", early_omap8250_setup);
+OF_EARLYCON_DECLARE(omap8250, "ti,omap3-uart", early_omap8250_setup);
+OF_EARLYCON_DECLARE(omap8250, "ti,omap4-uart", early_omap8250_setup);
+
+#endif

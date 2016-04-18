@@ -734,7 +734,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	rphy->identify = mpt3sas_port->remote_identify;
 
 	if (mpt3sas_port->remote_identify.device_type == SAS_END_DEVICE) {
-		sas_device = mpt3sas_scsih_sas_device_find_by_sas_address(ioc,
+		sas_device = mpt3sas_get_sdev_by_addr(ioc,
 				    mpt3sas_port->remote_identify.sas_address);
 		if (!sas_device) {
 			dfailprintk(ioc, printk(MPT3SAS_FMT
@@ -750,8 +750,10 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 		    ioc->name, __FILE__, __LINE__, __func__);
 	}
 
-	if (mpt3sas_port->remote_identify.device_type == SAS_END_DEVICE)
+	if (mpt3sas_port->remote_identify.device_type == SAS_END_DEVICE) {
 		sas_device->pend_sas_rphy_add = 0;
+		sas_device_put(sas_device);
+	}
 
 	if ((ioc->logging_level & MPT_DEBUG_TRANSPORT))
 		dev_printk(KERN_INFO, &rphy->dev,
@@ -1324,15 +1326,17 @@ _transport_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
 	int rc;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	sas_device = mpt3sas_scsih_sas_device_find_by_sas_address(ioc,
+	sas_device = __mpt3sas_get_sdev_by_addr(ioc,
 	    rphy->identify.sas_address);
 	if (sas_device) {
 		*identifier = sas_device->enclosure_logical_id;
 		rc = 0;
+		sas_device_put(sas_device);
 	} else {
 		*identifier = 0;
 		rc = -ENXIO;
 	}
+
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 	return rc;
 }
@@ -1352,12 +1356,14 @@ _transport_get_bay_identifier(struct sas_rphy *rphy)
 	int rc;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	sas_device = mpt3sas_scsih_sas_device_find_by_sas_address(ioc,
+	sas_device = __mpt3sas_get_sdev_by_addr(ioc,
 	    rphy->identify.sas_address);
-	if (sas_device)
+	if (sas_device) {
 		rc = sas_device->slot;
-	else
+		sas_device_put(sas_device);
+	} else {
 		rc = -ENXIO;
+	}
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 	return rc;
 }
@@ -1412,7 +1418,6 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 	u32 ioc_state;
 	unsigned long timeleft;
 	void *psge;
-	u32 sgl_flags;
 	u8 issue_reset = 0;
 	void *data_out = NULL;
 	dma_addr_t data_out_dma;
@@ -1501,24 +1506,10 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 	    cpu_to_le16(sizeof(struct phy_error_log_request));
 	psge = &mpi_request->SGL;
 
-	/* WRITE sgel first */
-	sgl_flags = (MPI2_SGE_FLAGS_SIMPLE_ELEMENT |
-	    MPI2_SGE_FLAGS_END_OF_BUFFER | MPI2_SGE_FLAGS_HOST_TO_IOC);
-	sgl_flags = sgl_flags << MPI2_SGE_FLAGS_SHIFT;
-	ioc->base_add_sg_single(psge, sgl_flags |
-	    sizeof(struct phy_control_request), data_out_dma);
-
-	/* incr sgel */
-	psge += ioc->sge_size;
-
-	/* READ sgel last */
-	sgl_flags = (MPI2_SGE_FLAGS_SIMPLE_ELEMENT |
-	    MPI2_SGE_FLAGS_LAST_ELEMENT | MPI2_SGE_FLAGS_END_OF_BUFFER |
-	    MPI2_SGE_FLAGS_END_OF_LIST);
-	sgl_flags = sgl_flags << MPI2_SGE_FLAGS_SHIFT;
-	ioc->base_add_sg_single(psge, sgl_flags |
-	    sizeof(struct phy_control_reply), data_out_dma +
-	    sizeof(struct phy_control_request));
+	ioc->build_sg(ioc, psge, data_out_dma,
+			    sizeof(struct phy_control_request),
+	    data_out_dma + sizeof(struct phy_control_request),
+	    sizeof(struct phy_control_reply));
 
 	dtransportprintk(ioc, pr_info(MPT3SAS_FMT
 		"phy_control - send to sas_addr(0x%016llx), phy(%d), opcode(%d)\n",
@@ -1609,7 +1600,7 @@ _transport_phy_reset(struct sas_phy *phy, int hard_reset)
 		    SMP_PHY_CONTROL_LINK_RESET);
 
 	/* handle hba phys */
-	memset(&mpi_request, 0, sizeof(Mpi2SasIoUnitControlReply_t));
+	memset(&mpi_request, 0, sizeof(Mpi2SasIoUnitControlRequest_t));
 	mpi_request.Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
 	mpi_request.Operation = hard_reset ?
 	    MPI2_SAS_OP_PHY_HARD_RESET : MPI2_SAS_OP_PHY_LINK_RESET;

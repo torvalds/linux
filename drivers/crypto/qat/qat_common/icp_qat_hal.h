@@ -81,6 +81,31 @@ enum hal_ae_csr {
 	LOCAL_CSR_STATUS = 0x180,
 };
 
+enum fcu_csr {
+	FCU_CONTROL           = 0x8c0,
+	FCU_STATUS            = 0x8c4,
+	FCU_STATUS1           = 0x8c8,
+	FCU_DRAM_ADDR_LO      = 0x8cc,
+	FCU_DRAM_ADDR_HI      = 0x8d0,
+	FCU_RAMBASE_ADDR_HI   = 0x8d4,
+	FCU_RAMBASE_ADDR_LO   = 0x8d8
+};
+
+enum fcu_cmd {
+	FCU_CTRL_CMD_NOOP  = 0,
+	FCU_CTRL_CMD_AUTH  = 1,
+	FCU_CTRL_CMD_LOAD  = 2,
+	FCU_CTRL_CMD_START = 3
+};
+
+enum fcu_sts {
+	FCU_STS_NO_STS    = 0,
+	FCU_STS_VERI_DONE = 1,
+	FCU_STS_LOAD_DONE = 2,
+	FCU_STS_VERI_FAIL = 3,
+	FCU_STS_LOAD_FAIL = 4,
+	FCU_STS_BUSY      = 5
+};
 #define UA_ECS                      (0x1 << 31)
 #define ACS_ABO_BITPOS              31
 #define ACS_ACNO                    0x7
@@ -98,6 +123,13 @@ enum hal_ae_csr {
 #define LCS_STATUS          (0x1)
 #define MMC_SHARE_CS_BITPOS         2
 #define GLOBAL_CSR                0xA00
+#define FCU_CTRL_AE_POS     0x8
+#define FCU_AUTH_STS_MASK   0x7
+#define FCU_STS_DONE_POS    0x9
+#define FCU_STS_AUTHFWLD_POS 0X8
+#define FCU_LOADED_AE_POS   0x16
+#define FW_AUTH_WAIT_PERIOD 10
+#define FW_AUTH_MAX_RETRY   300
 
 #define SET_CAP_CSR(handle, csr, val) \
 	ADF_CSR_WR(handle->hal_cap_g_ctl_csr_addr_v, csr, val)
@@ -106,14 +138,14 @@ enum hal_ae_csr {
 #define SET_GLB_CSR(handle, csr, val) SET_CAP_CSR(handle, csr + GLOBAL_CSR, val)
 #define GET_GLB_CSR(handle, csr) GET_CAP_CSR(handle, GLOBAL_CSR + csr)
 #define AE_CSR(handle, ae) \
-	(handle->hal_cap_ae_local_csr_addr_v + \
+	((char __iomem *)handle->hal_cap_ae_local_csr_addr_v + \
 	((ae & handle->hal_handle->ae_mask) << 12))
 #define AE_CSR_ADDR(handle, ae, csr) (AE_CSR(handle, ae) + (0x3ff & csr))
 #define SET_AE_CSR(handle, ae, csr, val) \
 	ADF_CSR_WR(AE_CSR_ADDR(handle, ae, csr), 0, val)
 #define GET_AE_CSR(handle, ae, csr) ADF_CSR_RD(AE_CSR_ADDR(handle, ae, csr), 0)
 #define AE_XFER(handle, ae) \
-	(handle->hal_cap_ae_xfer_csr_addr_v + \
+	((char __iomem *)handle->hal_cap_ae_xfer_csr_addr_v + \
 	((ae & handle->hal_handle->ae_mask) << 12))
 #define AE_XFER_ADDR(handle, ae, reg) (AE_XFER(handle, ae) + \
 	((reg & 0xff) << 2))
@@ -121,5 +153,4 @@ enum hal_ae_csr {
 	ADF_CSR_WR(AE_XFER_ADDR(handle, ae, reg), 0, val)
 #define SRAM_WRITE(handle, addr, val) \
 	ADF_CSR_WR(handle->hal_sram_addr_v, addr, val)
-#define SRAM_READ(handle, addr) ADF_CSR_RD(handle->hal_sram_addr_v, addr)
 #endif

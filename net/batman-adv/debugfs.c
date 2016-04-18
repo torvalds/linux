@@ -1,4 +1,4 @@
-/* Copyright (C) 2010-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -262,6 +262,13 @@ static int batadv_algorithms_open(struct inode *inode, struct file *file)
 	return single_open(file, batadv_algo_seq_print_text, NULL);
 }
 
+static int neighbors_open(struct inode *inode, struct file *file)
+{
+	struct net_device *net_dev = (struct net_device *)inode->i_private;
+
+	return single_open(file, batadv_hardif_neigh_seq_print_text, net_dev);
+}
+
 static int batadv_originators_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
@@ -274,6 +281,8 @@ static int batadv_originators_open(struct inode *inode, struct file *file)
  *  originator table of an hard interface
  * @inode: inode pointer to debugfs file
  * @file: pointer to the seq_file
+ *
+ * Return: 0 on success or negative error number in case of failure
  */
 static int batadv_originators_hardif_open(struct inode *inode,
 					  struct file *file)
@@ -322,6 +331,8 @@ static int batadv_bla_backbone_table_open(struct inode *inode,
  * batadv_dat_cache_open - Prepare file handler for reads from dat_chache
  * @inode: inode which was opened
  * @file: file handle to be initialized
+ *
+ * Return: 0 on success or negative error number in case of failure
  */
 static int batadv_dat_cache_open(struct inode *inode, struct file *file)
 {
@@ -375,6 +386,7 @@ static struct batadv_debuginfo *batadv_general_debuginfos[] = {
 };
 
 /* The following attributes are per soft interface */
+static BATADV_DEBUGINFO(neighbors, S_IRUGO, neighbors_open);
 static BATADV_DEBUGINFO(originators, S_IRUGO, batadv_originators_open);
 static BATADV_DEBUGINFO(gateways, S_IRUGO, batadv_gateways_open);
 static BATADV_DEBUGINFO(transtable_global, S_IRUGO,
@@ -394,6 +406,7 @@ static BATADV_DEBUGINFO(nc_nodes, S_IRUGO, batadv_nc_nodes_open);
 #endif
 
 static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
+	&batadv_debuginfo_neighbors,
 	&batadv_debuginfo_originators,
 	&batadv_debuginfo_gateways,
 	&batadv_debuginfo_transtable_global,
@@ -474,6 +487,8 @@ void batadv_debugfs_destroy(void)
  * batadv_debugfs_add_hardif - creates the base directory for a hard interface
  *  in debugfs.
  * @hard_iface: hard interface which should be added.
+ *
+ * Return: 0 on success or negative error number in case of failure
  */
 int batadv_debugfs_add_hardif(struct batadv_hard_iface *hard_iface)
 {

@@ -1,6 +1,6 @@
 # Makefile for Linux PHY drivers
 
-libphy-objs			:= phy.o phy_device.o mdio_bus.o
+libphy-objs			:= phy.o phy_device.o mdio_bus.o mdio_device.o
 
 obj-$(CONFIG_PHYLIB)		+= libphy.o
 obj-$(CONFIG_AQUANTIA_PHY)	+= aquantia.o
@@ -31,6 +31,8 @@ obj-$(CONFIG_DP83867_PHY)	+= dp83867.o
 obj-$(CONFIG_STE10XP)		+= ste10Xp.o
 obj-$(CONFIG_MICREL_PHY)	+= micrel.o
 obj-$(CONFIG_MDIO_OCTEON)	+= mdio-octeon.o
+obj-$(CONFIG_MDIO_THUNDER)	+= mdio-thunder.o
+obj-$(CONFIG_MDIO_CAVIUM)	+= mdio-cavium.o
 obj-$(CONFIG_MICREL_KS8995MA)	+= spi_ks8995.o
 obj-$(CONFIG_AT803X_PHY)	+= at803x.o
 obj-$(CONFIG_AMD_PHY)		+= amd.o

@@ -28,7 +28,7 @@ const struct file_operations minix_dir_operations = {
 static inline void dir_put_page(struct page *page)
 {
 	kunmap(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 /*
@@ -38,10 +38,10 @@ static inline void dir_put_page(struct page *page)
 static unsigned
 minix_last_byte(struct inode *inode, unsigned long page_nr)
 {
-	unsigned last_byte = PAGE_CACHE_SIZE;
+	unsigned last_byte = PAGE_SIZE;
 
-	if (page_nr == (inode->i_size >> PAGE_CACHE_SHIFT))
-		last_byte = inode->i_size & (PAGE_CACHE_SIZE - 1);
+	if (page_nr == (inode->i_size >> PAGE_SHIFT))
+		last_byte = inode->i_size & (PAGE_SIZE - 1);
 	return last_byte;
 }
 
@@ -92,8 +92,8 @@ static int minix_readdir(struct file *file, struct dir_context *ctx)
 	if (pos >= inode->i_size)
 		return 0;
 
-	offset = pos & ~PAGE_CACHE_MASK;
-	n = pos >> PAGE_CACHE_SHIFT;
+	offset = pos & ~PAGE_MASK;
+	n = pos >> PAGE_SHIFT;
 
 	for ( ; n < npages; n++, offset = 0) {
 		char *p, *kaddr, *limit;
@@ -229,7 +229,7 @@ int minix_add_link(struct dentry *dentry, struct inode *inode)
 		lock_page(page);
 		kaddr = (char*)page_address(page);
 		dir_end = kaddr + minix_last_byte(dir, n);
-		limit = kaddr + PAGE_CACHE_SIZE - sbi->s_dirsize;
+		limit = kaddr + PAGE_SIZE - sbi->s_dirsize;
 		for (p = kaddr; p <= limit; p = minix_next_entry(p, sbi)) {
 			de = (minix_dirent *)p;
 			de3 = (minix3_dirent *)p;
@@ -327,7 +327,7 @@ int minix_make_empty(struct inode *inode, struct inode *dir)
 	}
 
 	kaddr = kmap_atomic(page);
-	memset(kaddr, 0, PAGE_CACHE_SIZE);
+	memset(kaddr, 0, PAGE_SIZE);
 
 	if (sbi->s_version == MINIX_V3) {
 		minix3_dirent *de3 = (minix3_dirent *)kaddr;
@@ -350,7 +350,7 @@ int minix_make_empty(struct inode *inode, struct inode *dir)
 
 	err = dir_commit_chunk(page, 0, 2 * sbi->s_dirsize);
 fail:
-	page_cache_release(page);
+	put_page(page);
 	return err;
 }
 

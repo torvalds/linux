@@ -528,11 +528,12 @@ static void ufs_set_inode_ops(struct inode *inode)
 		inode->i_mapping->a_ops = &ufs_aops;
 	} else if (S_ISLNK(inode->i_mode)) {
 		if (!inode->i_blocks) {
-			inode->i_op = &ufs_fast_symlink_inode_operations;
 			inode->i_link = (char *)UFS_I(inode)->i_u1.i_symlink;
+			inode->i_op = &simple_symlink_inode_operations;
 		} else {
-			inode->i_op = &ufs_symlink_inode_operations;
 			inode->i_mapping->a_ops = &ufs_aops;
+			inode->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(inode);
 		}
 	} else
 		init_special_inode(inode, inode->i_mode,
@@ -1050,13 +1051,13 @@ static int ufs_alloc_lastblock(struct inode *inode, loff_t size)
 	lastfrag--;
 
 	lastpage = ufs_get_locked_page(mapping, lastfrag >>
-				       (PAGE_CACHE_SHIFT - inode->i_blkbits));
+				       (PAGE_SHIFT - inode->i_blkbits));
        if (IS_ERR(lastpage)) {
                err = -EIO;
                goto out;
        }
 
-       end = lastfrag & ((1 << (PAGE_CACHE_SHIFT - inode->i_blkbits)) - 1);
+       end = lastfrag & ((1 << (PAGE_SHIFT - inode->i_blkbits)) - 1);
        bh = page_buffers(lastpage);
        for (i = 0; i < end; ++i)
                bh = bh->b_this_page;

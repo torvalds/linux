@@ -152,8 +152,25 @@
  * refault distance will immediately activate the refaulting page.
  */
 
-static void *pack_shadow(unsigned long eviction, struct zone *zone)
+#define EVICTION_SHIFT	(RADIX_TREE_EXCEPTIONAL_ENTRY + \
+			 ZONES_SHIFT + NODES_SHIFT +	\
+			 MEM_CGROUP_ID_SHIFT)
+#define EVICTION_MASK	(~0UL >> EVICTION_SHIFT)
+
+/*
+ * Eviction timestamps need to be able to cover the full range of
+ * actionable refaults. However, bits are tight in the radix tree
+ * entry, and after storing the identifier for the lruvec there might
+ * not be enough left to represent every single actionable refault. In
+ * that case, we have to sacrifice granularity for distance, and group
+ * evictions into coarser buckets by shaving off lower timestamp bits.
+ */
+static unsigned int bucket_order __read_mostly;
+
+static void *pack_shadow(int memcgid, struct zone *zone, unsigned long eviction)
 {
+	eviction >>= bucket_order;
+	eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
 	eviction = (eviction << NODES_SHIFT) | zone_to_nid(zone);
 	eviction = (eviction << ZONES_SHIFT) | zone_idx(zone);
 	eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
@@ -161,28 +178,100 @@ static void *pack_shadow(unsigned long eviction, struct zone *zone)
 	return (void *)(eviction | RADIX_TREE_EXCEPTIONAL_ENTRY);
 }
 
-static void unpack_shadow(void *shadow,
-			  struct zone **zone,
-			  unsigned long *distance)
+static void unpack_shadow(void *shadow, int *memcgidp, struct zone **zonep,
+			  unsigned long *evictionp)
 {
 	unsigned long entry = (unsigned long)shadow;
-	unsigned long eviction;
-	unsigned long refault;
-	unsigned long mask;
-	int zid, nid;
+	int memcgid, nid, zid;
 
 	entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
 	zid = entry & ((1UL << ZONES_SHIFT) - 1);
 	entry >>= ZONES_SHIFT;
 	nid = entry & ((1UL << NODES_SHIFT) - 1);
 	entry >>= NODES_SHIFT;
-	eviction = entry;
+	memcgid = entry & ((1UL << MEM_CGROUP_ID_SHIFT) - 1);
+	entry >>= MEM_CGROUP_ID_SHIFT;
 
-	*zone = NODE_DATA(nid)->node_zones + zid;
+	*memcgidp = memcgid;
+	*zonep = NODE_DATA(nid)->node_zones + zid;
+	*evictionp = entry << bucket_order;
+}
 
-	refault = atomic_long_read(&(*zone)->inactive_age);
-	mask = ~0UL >> (NODES_SHIFT + ZONES_SHIFT +
-			RADIX_TREE_EXCEPTIONAL_SHIFT);
+/**
+ * workingset_eviction - note the eviction of a page from memory
+ * @mapping: address space the page was backing
+ * @page: the page being evicted
+ *
+ * Returns a shadow entry to be stored in @mapping->page_tree in place
+ * of the evicted @page so that a later refault can be detected.
+ */
+void *workingset_eviction(struct address_space *mapping, struct page *page)
+{
+	struct mem_cgroup *memcg = page_memcg(page);
+	struct zone *zone = page_zone(page);
+	int memcgid = mem_cgroup_id(memcg);
+	unsigned long eviction;
+	struct lruvec *lruvec;
+
+	/* Page is fully exclusive and pins page->mem_cgroup */
+	VM_BUG_ON_PAGE(PageLRU(page), page);
+	VM_BUG_ON_PAGE(page_count(page), page);
+	VM_BUG_ON_PAGE(!PageLocked(page), page);
+
+	lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+	eviction = atomic_long_inc_return(&lruvec->inactive_age);
+	return pack_shadow(memcgid, zone, eviction);
+}
+
+/**
+ * workingset_refault - evaluate the refault of a previously evicted page
+ * @shadow: shadow entry of the evicted page
+ *
+ * Calculates and evaluates the refault distance of the previously
+ * evicted page in the context of the zone it was allocated in.
+ *
+ * Returns %true if the page should be activated, %false otherwise.
+ */
+bool workingset_refault(void *shadow)
+{
+	unsigned long refault_distance;
+	unsigned long active_file;
+	struct mem_cgroup *memcg;
+	unsigned long eviction;
+	struct lruvec *lruvec;
+	unsigned long refault;
+	struct zone *zone;
+	int memcgid;
+
+	unpack_shadow(shadow, &memcgid, &zone, &eviction);
+
+	rcu_read_lock();
+	/*
+	 * Look up the memcg associated with the stored ID. It might
+	 * have been deleted since the page's eviction.
+	 *
+	 * Note that in rare events the ID could have been recycled
+	 * for a new cgroup that refaults a shared page. This is
+	 * impossible to tell from the available data. However, this
+	 * should be a rare and limited disturbance, and activations
+	 * are always speculative anyway. Ultimately, it's the aging
+	 * algorithm's job to shake out the minimum access frequency
+	 * for the active cache.
+	 *
+	 * XXX: On !CONFIG_MEMCG, this will always return NULL; it
+	 * would be better if the root_mem_cgroup existed in all
+	 * configurations instead.
+	 */
+	memcg = mem_cgroup_from_id(memcgid);
+	if (!mem_cgroup_disabled() && !memcg) {
+		rcu_read_unlock();
+		return false;
+	}
+	lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+	refault = atomic_long_read(&lruvec->inactive_age);
+	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE);
+	rcu_read_unlock();
+
 	/*
 	 * The unsigned subtraction here gives an accurate distance
 	 * across inactive_age overflows in most cases.
@@ -199,44 +288,11 @@ static void unpack_shadow(void *shadow,
 	 * inappropriate activation leading to pressure on the active
 	 * list is not a problem.
 	 */
-	*distance = (refault - eviction) & mask;
-}
+	refault_distance = (refault - eviction) & EVICTION_MASK;
 
-/**
- * workingset_eviction - note the eviction of a page from memory
- * @mapping: address space the page was backing
- * @page: the page being evicted
- *
- * Returns a shadow entry to be stored in @mapping->page_tree in place
- * of the evicted @page so that a later refault can be detected.
- */
-void *workingset_eviction(struct address_space *mapping, struct page *page)
-{
-	struct zone *zone = page_zone(page);
-	unsigned long eviction;
-
-	eviction = atomic_long_inc_return(&zone->inactive_age);
-	return pack_shadow(eviction, zone);
-}
-
-/**
- * workingset_refault - evaluate the refault of a previously evicted page
- * @shadow: shadow entry of the evicted page
- *
- * Calculates and evaluates the refault distance of the previously
- * evicted page in the context of the zone it was allocated in.
- *
- * Returns %true if the page should be activated, %false otherwise.
- */
-bool workingset_refault(void *shadow)
-{
-	unsigned long refault_distance;
-	struct zone *zone;
-
-	unpack_shadow(shadow, &zone, &refault_distance);
 	inc_zone_state(zone, WORKINGSET_REFAULT);
 
-	if (refault_distance <= zone_page_state(zone, NR_ACTIVE_FILE)) {
+	if (refault_distance <= active_file) {
 		inc_zone_state(zone, WORKINGSET_ACTIVATE);
 		return true;
 	}
@@ -249,7 +305,22 @@ bool workingset_refault(void *shadow)
  */
 void workingset_activation(struct page *page)
 {
-	atomic_long_inc(&page_zone(page)->inactive_age);
+	struct lruvec *lruvec;
+
+	lock_page_memcg(page);
+	/*
+	 * Filter non-memcg pages here, e.g. unmap can call
+	 * mark_page_accessed() on VDSO pages.
+	 *
+	 * XXX: See workingset_refault() - this should return
+	 * root_mem_cgroup even for !CONFIG_MEMCG.
+	 */
+	if (!mem_cgroup_disabled() && !page_memcg(page))
+		goto out;
+	lruvec = mem_cgroup_zone_lruvec(page_zone(page), page_memcg(page));
+	atomic_long_inc(&lruvec->inactive_age);
+out:
+	unlock_page_memcg(page);
 }
 
 /*
@@ -278,7 +349,13 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
 	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
 	local_irq_enable();
 
-	pages = node_present_pages(sc->nid);
+	if (memcg_kmem_enabled())
+		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
+						     LRU_ALL_FILE);
+	else
+		pages = node_page_state(sc->nid, NR_ACTIVE_FILE) +
+			node_page_state(sc->nid, NR_INACTIVE_FILE);
+
 	/*
 	 * Active cache pages are limited to 50% of memory, and shadow
 	 * entries that represent a refault distance bigger than that
@@ -351,8 +428,8 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 			node->slots[i] = NULL;
 			BUG_ON(node->count < (1U << RADIX_TREE_COUNT_SHIFT));
 			node->count -= 1U << RADIX_TREE_COUNT_SHIFT;
-			BUG_ON(!mapping->nrshadows);
-			mapping->nrshadows--;
+			BUG_ON(!mapping->nrexceptional);
+			mapping->nrexceptional--;
 		}
 	}
 	BUG_ON(node->count);
@@ -387,7 +464,7 @@ static struct shrinker workingset_shadow_shrinker = {
 	.count_objects = count_shadow_nodes,
 	.scan_objects = scan_shadow_nodes,
 	.seeks = DEFAULT_SEEKS,
-	.flags = SHRINKER_NUMA_AWARE,
+	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE,
 };
 
 /*
@@ -398,7 +475,24 @@ static struct lock_class_key shadow_nodes_key;
 
 static int __init workingset_init(void)
 {
+	unsigned int timestamp_bits;
+	unsigned int max_order;
 	int ret;
+
+	BUILD_BUG_ON(BITS_PER_LONG < EVICTION_SHIFT);
+	/*
+	 * Calculate the eviction bucket size to cover the longest
+	 * actionable refault distance, which is currently half of
+	 * memory (totalram_pages/2). However, memory hotplug may add
+	 * some more pages at runtime, so keep working with up to
+	 * double the initial memory by using totalram_pages as-is.
+	 */
+	timestamp_bits = BITS_PER_LONG - EVICTION_SHIFT;
+	max_order = fls_long(totalram_pages - 1);
+	if (max_order > timestamp_bits)
+		bucket_order = max_order - timestamp_bits;
+	printk("workingset: timestamp_bits=%d max_order=%d bucket_order=%u\n",
+	       timestamp_bits, max_order, bucket_order);
 
 	ret = list_lru_init_key(&workingset_shadow_nodes, &shadow_nodes_key);
 	if (ret)

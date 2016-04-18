@@ -76,7 +76,7 @@ Some very frequently asked questions about linuxtv-dvb
 		the TuxBox CVS many interesting DVB applications and the dBox2
 		DVB source
 
-	http://www.linuxtv.org/downloads/	
+	https://linuxtv.org/downloads
 		DVB Swiss Army Knife library and utilities
 
 	http://www.nenie.org/misc/mpsys/

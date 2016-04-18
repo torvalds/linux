@@ -47,7 +47,6 @@
 #include <linux/leds.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/workqueue.h>
 #include <linux/slab.h>
 
 /* LED select registers determine the source that drives LED outputs */
@@ -110,8 +109,6 @@ struct pca955x {
 
 struct pca955x_led {
 	struct pca955x	*pca955x;
-	struct work_struct	work;
-	enum led_brightness	brightness;
 	struct led_classdev	led_cdev;
 	int			led_num;	/* 0 .. 15 potentially */
 	char			name[32];
@@ -193,7 +190,8 @@ static u8 pca955x_read_ls(struct i2c_client *client, int n)
 		pca95xx_num_input_regs(pca955x->chipdef->bits) + 4 + n);
 }
 
-static void pca955x_led_work(struct work_struct *work)
+static int pca955x_led_set(struct led_classdev *led_cdev,
+			    enum led_brightness value)
 {
 	struct pca955x_led *pca955x_led;
 	struct pca955x *pca955x;
@@ -201,7 +199,7 @@ static void pca955x_led_work(struct work_struct *work)
 	int chip_ls;	/* which LSx to use (0-3 potentially) */
 	int ls_led;	/* which set of bits within LSx to use (0-3) */
 
-	pca955x_led = container_of(work, struct pca955x_led, work);
+	pca955x_led = container_of(led_cdev, struct pca955x_led, led_cdev);
 	pca955x = pca955x_led->pca955x;
 
 	chip_ls = pca955x_led->led_num / 4;
@@ -211,7 +209,7 @@ static void pca955x_led_work(struct work_struct *work)
 
 	ls = pca955x_read_ls(pca955x->client, chip_ls);
 
-	switch (pca955x_led->brightness) {
+	switch (value) {
 	case LED_FULL:
 		ls = pca955x_ledsel(ls, ls_led, PCA955X_LS_LED_ON);
 		break;
@@ -230,7 +228,7 @@ static void pca955x_led_work(struct work_struct *work)
 		 * just turning off for all other values.
 		 */
 		pca955x_write_pwm(pca955x->client, 1,
-				255 - pca955x_led->brightness);
+				255 - value);
 		ls = pca955x_ledsel(ls, ls_led, PCA955X_LS_BLINK1);
 		break;
 	}
@@ -238,21 +236,8 @@ static void pca955x_led_work(struct work_struct *work)
 	pca955x_write_ls(pca955x->client, chip_ls, ls);
 
 	mutex_unlock(&pca955x->lock);
-}
 
-static void pca955x_led_set(struct led_classdev *led_cdev, enum led_brightness value)
-{
-	struct pca955x_led *pca955x;
-
-	pca955x = container_of(led_cdev, struct pca955x_led, led_cdev);
-
-	pca955x->brightness = value;
-
-	/*
-	 * Must use workqueue for the actual I/O since I2C operations
-	 * can sleep.
-	 */
-	schedule_work(&pca955x->work);
+	return 0;
 }
 
 static int pca955x_probe(struct i2c_client *client,
@@ -328,9 +313,7 @@ static int pca955x_probe(struct i2c_client *client,
 		}
 
 		pca955x_led->led_cdev.name = pca955x_led->name;
-		pca955x_led->led_cdev.brightness_set = pca955x_led_set;
-
-		INIT_WORK(&pca955x_led->work, pca955x_led_work);
+		pca955x_led->led_cdev.brightness_set_blocking = pca955x_led_set;
 
 		err = led_classdev_register(&client->dev,
 					&pca955x_led->led_cdev);
@@ -355,10 +338,8 @@ static int pca955x_probe(struct i2c_client *client,
 	return 0;
 
 exit:
-	while (i--) {
+	while (i--)
 		led_classdev_unregister(&pca955x->leds[i].led_cdev);
-		cancel_work_sync(&pca955x->leds[i].work);
-	}
 
 	return err;
 }
@@ -368,10 +349,8 @@ static int pca955x_remove(struct i2c_client *client)
 	struct pca955x *pca955x = i2c_get_clientdata(client);
 	int i;
 
-	for (i = 0; i < pca955x->chipdef->bits; i++) {
+	for (i = 0; i < pca955x->chipdef->bits; i++)
 		led_classdev_unregister(&pca955x->leds[i].led_cdev);
-		cancel_work_sync(&pca955x->leds[i].work);
-	}
 
 	return 0;
 }

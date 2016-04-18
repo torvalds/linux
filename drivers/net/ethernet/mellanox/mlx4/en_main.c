@@ -123,6 +123,28 @@ void mlx4_en_update_loopback_state(struct net_device *dev,
 	 */
 	if (mlx4_is_mfunc(priv->mdev->dev) || priv->validate_loopback)
 		priv->flags |= MLX4_EN_FLAG_ENABLE_HW_LOOPBACK;
+
+	mutex_lock(&priv->mdev->state_lock);
+	if (priv->mdev->dev->caps.flags2 &
+	    MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB &&
+	    priv->rss_map.indir_qp.qpn) {
+		int i;
+		int err = 0;
+		int loopback = !!(features & NETIF_F_LOOPBACK);
+
+		for (i = 0; i < priv->rx_ring_num; i++) {
+			int ret;
+
+			ret = mlx4_en_change_mcast_lb(priv,
+						      &priv->rss_map.qps[i],
+						      loopback);
+			if (!err)
+				err = ret;
+		}
+		if (err)
+			mlx4_warn(priv->mdev, "failed to change mcast loopback\n");
+	}
+	mutex_unlock(&priv->mdev->state_lock);
 }
 
 static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
@@ -210,9 +232,6 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 		if (mdev->pndev[i])
 			mlx4_en_destroy_netdev(mdev->pndev[i]);
 
-	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
-		mlx4_en_remove_timestamp(mdev);
-
 	flush_workqueue(mdev->workqueue);
 	destroy_workqueue(mdev->workqueue);
 	(void) mlx4_mr_free(dev, &mdev->mr);
@@ -298,10 +317,6 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH)
 		mdev->port_cnt++;
 
-	/* Initialize time stamp mechanism */
-	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
-		mlx4_en_init_timestamp(mdev);
-
 	/* Set default number of RX rings*/
 	mlx4_en_set_num_rx_rings(mdev);
 
@@ -367,6 +382,7 @@ static void mlx4_en_verify_params(void)
 static int __init mlx4_en_init(void)
 {
 	mlx4_en_verify_params();
+	mlx4_en_init_ptys2ethtool_map();
 
 	return mlx4_register_interface(&mlx4_en_interface);
 }

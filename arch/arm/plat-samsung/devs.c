@@ -36,7 +36,7 @@
 #include <linux/platform_data/s3c-hsotg.h>
 #include <linux/platform_data/dma-s3c24xx.h>
 
-#include <media/s5p_hdmi.h>
+#include <linux/platform_data/media/s5p_hdmi.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -65,6 +65,7 @@
 #include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <plat/usb-phy.h>
 #include <plat/regs-spi.h>
+#include <linux/platform_data/asoc-s3c.h>
 #include <linux/platform_data/spi-s3c64xx.h>
 
 static u64 samsung_device_dma_mask = DMA_BIT_MASK(32);
@@ -74,9 +75,15 @@ static u64 samsung_device_dma_mask = DMA_BIT_MASK(32);
 static struct resource s3c_ac97_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2440_PA_AC97, S3C2440_SZ_AC97),
 	[1] = DEFINE_RES_IRQ(IRQ_S3C244X_AC97),
-	[2] = DEFINE_RES_DMA_NAMED(DMACH_PCM_OUT, "PCM out"),
-	[3] = DEFINE_RES_DMA_NAMED(DMACH_PCM_IN, "PCM in"),
-	[4] = DEFINE_RES_DMA_NAMED(DMACH_MIC_IN, "Mic in"),
+};
+
+static struct s3c_audio_pdata s3c_ac97_pdata = {
+#ifdef CONFIG_S3C24XX_DMAC
+	.dma_filter = s3c24xx_dma_filter,
+#endif
+	.dma_playback = (void *)DMACH_PCM_OUT,
+	.dma_capture = (void *)DMACH_PCM_IN,
+	.dma_capture_mic = (void *)DMACH_MIC_IN,
 };
 
 struct platform_device s3c_device_ac97 = {
@@ -87,6 +94,7 @@ struct platform_device s3c_device_ac97 = {
 	.dev		= {
 		.dma_mask		= &samsung_device_dma_mask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &s3c_ac97_pdata,
 	}
 };
 #endif /* CONFIG_CPU_S3C2440 */
@@ -111,12 +119,12 @@ struct platform_device s3c_device_adc = {
 #if defined(CONFIG_SAMSUNG_DEV_ADC)
 static struct resource s3c_adc_resource[] = {
 	[0] = DEFINE_RES_MEM(SAMSUNG_PA_ADC, SZ_256),
-	[1] = DEFINE_RES_IRQ(IRQ_TC),
-	[2] = DEFINE_RES_IRQ(IRQ_ADC),
+	[1] = DEFINE_RES_IRQ(IRQ_ADC),
+	[2] = DEFINE_RES_IRQ(IRQ_TC),
 };
 
 struct platform_device s3c_device_adc = {
-	.name		= "samsung-adc",
+	.name		= "exynos-adc",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(s3c_adc_resource),
 	.resource	= s3c_adc_resource,
@@ -566,6 +574,14 @@ static struct resource s3c_iis_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C24XX_PA_IIS, S3C24XX_SZ_IIS),
 };
 
+static struct s3c_audio_pdata s3c_iis_platdata = {
+#ifdef CONFIG_S3C24XX_DMAC
+	.dma_filter = s3c24xx_dma_filter,
+#endif
+	.dma_playback = (void *)DMACH_I2S_OUT,
+	.dma_capture = (void *)DMACH_I2S_IN,
+};
+
 struct platform_device s3c_device_iis = {
 	.name		= "s3c24xx-iis",
 	.id		= -1,
@@ -574,6 +590,7 @@ struct platform_device s3c_device_iis = {
 	.dev		= {
 		.dma_mask		= &samsung_device_dma_mask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &s3c_iis_platdata,
 	}
 };
 #endif /* CONFIG_PLAT_S3C24XX */
@@ -705,15 +722,6 @@ static int __init s3c_nand_copy_set(struct s3c2410_nand_set *set)
 		size = sizeof(int) * set->nr_chips;
 		ptr = kmemdup(set->nr_map, size, GFP_KERNEL);
 		set->nr_map = ptr;
-
-		if (!ptr)
-			return -ENOMEM;
-	}
-
-	if (set->ecc_layout) {
-		ptr = kmemdup(set->ecc_layout,
-			      sizeof(struct nand_ecclayout), GFP_KERNEL);
-		set->ecc_layout = ptr;
 
 		if (!ptr)
 			return -ENOMEM;
@@ -939,31 +947,19 @@ void __init s3c24xx_ts_set_platdata(struct s3c2410_ts_mach_info *hard_s3c2410ts_
 #endif /* CONFIG_PLAT_S3C24XX */
 
 #ifdef CONFIG_SAMSUNG_DEV_TS
-static struct resource s3c_ts_resource[] = {
-	[0] = DEFINE_RES_MEM(SAMSUNG_PA_ADC, SZ_256),
-	[1] = DEFINE_RES_IRQ(IRQ_TC),
-};
-
 static struct s3c2410_ts_mach_info default_ts_data __initdata = {
 	.delay			= 10000,
 	.presc			= 49,
 	.oversampling_shift	= 2,
 };
 
-struct platform_device s3c_device_ts = {
-	.name		= "s3c64xx-ts",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(s3c_ts_resource),
-	.resource	= s3c_ts_resource,
-};
-
-void __init s3c24xx_ts_set_platdata(struct s3c2410_ts_mach_info *pd)
+void __init s3c64xx_ts_set_platdata(struct s3c2410_ts_mach_info *pd)
 {
 	if (!pd)
 		pd = &default_ts_data;
 
 	s3c_set_platdata(pd, sizeof(struct s3c2410_ts_mach_info),
-			 &s3c_device_ts);
+			 &s3c_device_adc);
 }
 #endif /* CONFIG_SAMSUNG_DEV_TS */
 
@@ -1100,9 +1096,7 @@ struct platform_device s3c_device_wdt = {
 #ifdef CONFIG_S3C64XX_DEV_SPI0
 static struct resource s3c64xx_spi0_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C_PA_SPI0, SZ_256),
-	[1] = DEFINE_RES_DMA(DMACH_SPI0_TX),
-	[2] = DEFINE_RES_DMA(DMACH_SPI0_RX),
-	[3] = DEFINE_RES_IRQ(IRQ_SPI0),
+	[1] = DEFINE_RES_IRQ(IRQ_SPI0),
 };
 
 struct platform_device s3c64xx_device_spi0 = {
@@ -1130,6 +1124,8 @@ void __init s3c64xx_spi0_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 	pd.num_cs = num_cs;
 	pd.src_clk_nr = src_clk_nr;
 	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi0_cfg_gpio;
+	pd.dma_tx = (void *)DMACH_SPI0_TX;
+	pd.dma_rx = (void *)DMACH_SPI0_RX;
 #if defined(CONFIG_PL330_DMA)
 	pd.filter = pl330_filter;
 #elif defined(CONFIG_S3C64XX_PL080)
@@ -1145,9 +1141,7 @@ void __init s3c64xx_spi0_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 #ifdef CONFIG_S3C64XX_DEV_SPI1
 static struct resource s3c64xx_spi1_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C_PA_SPI1, SZ_256),
-	[1] = DEFINE_RES_DMA(DMACH_SPI1_TX),
-	[2] = DEFINE_RES_DMA(DMACH_SPI1_RX),
-	[3] = DEFINE_RES_IRQ(IRQ_SPI1),
+	[1] = DEFINE_RES_IRQ(IRQ_SPI1),
 };
 
 struct platform_device s3c64xx_device_spi1 = {
@@ -1175,11 +1169,14 @@ void __init s3c64xx_spi1_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 	pd.num_cs = num_cs;
 	pd.src_clk_nr = src_clk_nr;
 	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi1_cfg_gpio;
+	pd.dma_tx = (void *)DMACH_SPI1_TX;
+	pd.dma_rx = (void *)DMACH_SPI1_RX;
 #if defined(CONFIG_PL330_DMA)
 	pd.filter = pl330_filter;
 #elif defined(CONFIG_S3C64XX_PL080)
 	pd.filter = pl08x_filter_id;
 #endif
+
 
 	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi1);
 }
@@ -1188,9 +1185,7 @@ void __init s3c64xx_spi1_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 #ifdef CONFIG_S3C64XX_DEV_SPI2
 static struct resource s3c64xx_spi2_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C_PA_SPI2, SZ_256),
-	[1] = DEFINE_RES_DMA(DMACH_SPI2_TX),
-	[2] = DEFINE_RES_DMA(DMACH_SPI2_RX),
-	[3] = DEFINE_RES_IRQ(IRQ_SPI2),
+	[1] = DEFINE_RES_IRQ(IRQ_SPI2),
 };
 
 struct platform_device s3c64xx_device_spi2 = {
@@ -1218,6 +1213,8 @@ void __init s3c64xx_spi2_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 	pd.num_cs = num_cs;
 	pd.src_clk_nr = src_clk_nr;
 	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi2_cfg_gpio;
+	pd.dma_tx = (void *)DMACH_SPI2_TX;
+	pd.dma_rx = (void *)DMACH_SPI2_RX;
 #if defined(CONFIG_PL330_DMA)
 	pd.filter = pl330_filter;
 #elif defined(CONFIG_S3C64XX_PL080)

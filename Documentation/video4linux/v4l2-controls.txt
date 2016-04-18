@@ -647,7 +647,6 @@ Or you can add specific controls to a handler:
 	volume = v4l2_ctrl_new_std(&video_ctrl_handler, &ops, V4L2_CID_AUDIO_VOLUME, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &ops, V4L2_CID_BRIGHTNESS, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &ops, V4L2_CID_CONTRAST, ...);
-	v4l2_ctrl_add_ctrl(&radio_ctrl_handler, volume);
 
 What you should not do is make two identical controls for two handlers.
 For example:

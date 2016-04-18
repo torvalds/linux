@@ -132,17 +132,17 @@ void start_kernel_secondary(void)
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
 
 	/* Some SMP H/w setup - for each cpu */
-	if (plat_smp_ops.init_irq_cpu)
-		plat_smp_ops.init_irq_cpu(cpu);
+	if (plat_smp_ops.init_per_cpu)
+		plat_smp_ops.init_per_cpu(cpu);
 
-	if (machine_desc->init_cpu_smp)
-		machine_desc->init_cpu_smp(cpu);
+	if (machine_desc->init_per_cpu)
+		machine_desc->init_per_cpu(cpu);
 
 	arc_local_timer_setup();
 
 	local_irq_enable();
 	preempt_disable();
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
 /*
@@ -336,11 +336,8 @@ irqreturn_t do_IPI(int irq, void *dev_id)
 		int rc;
 
 		rc = __do_IPI(msg);
-#ifdef CONFIG_ARC_IPI_DBG
-		/* IPI received but no valid @msg */
 		if (rc)
 			pr_info("IPI with bogus msg %ld in %ld\n", msg, copy);
-#endif
 		pending &= ~(1U << msg);
 	} while (pending);
 

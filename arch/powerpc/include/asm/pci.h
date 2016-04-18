@@ -20,8 +20,6 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 
-#include <asm-generic/pci-dma-compat.h>
-
 /* Return values for pci_controller_ops.probe_mode function */
 #define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
 #define PCI_PROBE_NORMAL	0	/* Do normal PCI probing */
@@ -149,4 +147,8 @@ extern void pcibios_setup_phb_io_space(struct pci_controller *hose);
 extern void pcibios_scan_phb(struct pci_controller *hose);
 
 #endif	/* __KERNEL__ */
+
+extern struct pci_dev *pnv_pci_get_gpu_dev(struct pci_dev *npdev);
+extern struct pci_dev *pnv_pci_get_npu_dev(struct pci_dev *gpdev, int index);
+
 #endif /* __ASM_POWERPC_PCI_H */

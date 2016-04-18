@@ -119,12 +119,18 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 	struct zone *zone;
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
+	int rc;
 
 	pgdata = NODE_DATA(nid);
 
 	start = (unsigned long)__va(start);
-	if (create_section_mapping(start, start + size))
-		return -EINVAL;
+	rc = create_section_mapping(start, start + size);
+	if (rc) {
+		pr_warning(
+			"Unable to create mapping for hot added memory 0x%llx..0x%llx: %d\n",
+			start, start + size, rc);
+		return -EFAULT;
+	}
 
 	/* this should work for most non-highmem platforms */
 	zone = pgdata->node_zones +
@@ -541,7 +547,7 @@ static int __init add_system_ram_resources(void)
 			res->name = "System RAM";
 			res->start = base;
 			res->end = base + size - 1;
-			res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+			res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 			WARN_ON(request_resource(&iomem_resource, res) < 0);
 		}
 	}
@@ -560,11 +566,11 @@ subsys_initcall(add_system_ram_resources);
  */
 int devmem_is_allowed(unsigned long pfn)
 {
+	if (page_is_rtas_user_buf(pfn))
+		return 1;
 	if (iomem_is_exclusive(PFN_PHYS(pfn)))
 		return 0;
 	if (!page_is_ram(pfn))
-		return 1;
-	if (page_is_rtas_user_buf(pfn))
 		return 1;
 	return 0;
 }

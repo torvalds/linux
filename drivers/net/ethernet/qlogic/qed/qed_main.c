@@ -29,10 +29,10 @@
 #include "qed_mcp.h"
 #include "qed_hw.h"
 
-static const char version[] =
-	"QLogic QL4xxx 40G/100G Ethernet Driver qed " DRV_MODULE_VERSION "\n";
+static char version[] =
+	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
 
-MODULE_DESCRIPTION("QLogic 25G/40G/50G/100G Core Module");
+MODULE_DESCRIPTION("QLogic FastLinQ 4xxxx Core Module");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
@@ -44,6 +44,8 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 
 #define QED_FW_FILE_NAME	\
 	"qed/qed_init_values_zipped-" FW_FILE_VERSION ".bin"
+
+MODULE_FIRMWARE(QED_FW_FILE_NAME);
 
 static int __init qed_init(void)
 {
@@ -97,12 +99,15 @@ static void qed_free_pci(struct qed_dev *cdev)
 	pci_disable_device(pdev);
 }
 
+#define PCI_REVISION_ID_ERROR_VAL	0xff
+
 /* Performs PCI initializations as well as initializing PCI-related parameters
  * in the device structrue. Returns 0 in case of success.
  */
 static int qed_init_pci(struct qed_dev *cdev,
 			struct pci_dev *pdev)
 {
+	u8 rev_id;
 	int rc;
 
 	cdev->pdev = pdev;
@@ -136,6 +141,14 @@ static int qed_init_pci(struct qed_dev *cdev,
 		pci_save_state(pdev);
 	}
 
+	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
+	if (rev_id == PCI_REVISION_ID_ERROR_VAL) {
+		DP_NOTICE(cdev,
+			  "Detected PCI device error [rev_id 0x%x]. Probably due to prior indication. Aborting.\n",
+			  rev_id);
+		rc = -ENODEV;
+		goto err2;
+	}
 	if (!pci_is_pcie(pdev)) {
 		DP_NOTICE(cdev, "The bus is not PCI Express\n");
 		rc = -EIO;
@@ -190,7 +203,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 	dev_info->pci_mem_start = cdev->pci_params.mem_start;
 	dev_info->pci_mem_end = cdev->pci_params.mem_end;
 	dev_info->pci_irq = cdev->pci_params.irq;
-	dev_info->is_mf = IS_MF(&cdev->hwfns[0]);
+	dev_info->is_mf_default = IS_MF_DEFAULT(&cdev->hwfns[0]);
 	ether_addr_copy(dev_info->hw_mac, cdev->hwfns[0].hw_info.hw_mac_addr);
 
 	dev_info->fw_major = FW_MAJOR_VERSION;
@@ -476,41 +489,22 @@ static irqreturn_t qed_single_int(int irq, void *dev_instance)
 	return rc;
 }
 
-static int qed_slowpath_irq_req(struct qed_dev *cdev)
+int qed_slowpath_irq_req(struct qed_hwfn *hwfn)
 {
-	int i = 0, rc = 0;
+	struct qed_dev *cdev = hwfn->cdev;
+	int rc = 0;
+	u8 id;
 
 	if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
-		/* Request all the slowpath MSI-X vectors */
-		for (i = 0; i < cdev->num_hwfns; i++) {
-			snprintf(cdev->hwfns[i].name, NAME_SIZE,
-				 "sp-%d-%02x:%02x.%02x",
-				 i, cdev->pdev->bus->number,
-				 PCI_SLOT(cdev->pdev->devfn),
-				 cdev->hwfns[i].abs_pf_id);
-
-			rc = request_irq(cdev->int_params.msix_table[i].vector,
-					 qed_msix_sp_int, 0,
-					 cdev->hwfns[i].name,
-					 cdev->hwfns[i].sp_dpc);
-			if (rc)
-				break;
-
-			DP_VERBOSE(&cdev->hwfns[i],
-				   (NETIF_MSG_INTR | QED_MSG_SP),
+		id = hwfn->my_id;
+		snprintf(hwfn->name, NAME_SIZE, "sp-%d-%02x:%02x.%02x",
+			 id, cdev->pdev->bus->number,
+			 PCI_SLOT(cdev->pdev->devfn), hwfn->abs_pf_id);
+		rc = request_irq(cdev->int_params.msix_table[id].vector,
+				 qed_msix_sp_int, 0, hwfn->name, hwfn->sp_dpc);
+		if (!rc)
+			DP_VERBOSE(hwfn, (NETIF_MSG_INTR | QED_MSG_SP),
 				   "Requested slowpath MSI-X\n");
-		}
-
-		if (i != cdev->num_hwfns) {
-			/* Free already request MSI-X vectors */
-			for (i--; i >= 0; i--) {
-				unsigned int vec =
-					cdev->int_params.msix_table[i].vector;
-				synchronize_irq(vec);
-				free_irq(cdev->int_params.msix_table[i].vector,
-					 cdev->hwfns[i].sp_dpc);
-			}
-		}
 	} else {
 		unsigned long flags = 0;
 
@@ -534,13 +528,17 @@ static void qed_slowpath_irq_free(struct qed_dev *cdev)
 
 	if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
 		for_each_hwfn(cdev, i) {
+			if (!cdev->hwfns[i].b_int_requested)
+				break;
 			synchronize_irq(cdev->int_params.msix_table[i].vector);
 			free_irq(cdev->int_params.msix_table[i].vector,
 				 cdev->hwfns[i].sp_dpc);
 		}
 	} else {
-		free_irq(cdev->pdev->irq, cdev);
+		if (QED_LEADING_HWFN(cdev)->b_int_requested)
+			free_irq(cdev->pdev->irq, cdev);
 	}
+	qed_int_disable_post_isr_release(cdev);
 }
 
 static int qed_nic_stop(struct qed_dev *cdev)
@@ -636,15 +634,18 @@ static int qed_get_int_fp(struct qed_dev *cdev, struct qed_int_info *info)
 static int qed_slowpath_setup_int(struct qed_dev *cdev,
 				  enum qed_int_mode int_mode)
 {
-	int rc, i;
-	u8 num_vectors = 0;
-
+	struct qed_sb_cnt_info sb_cnt_info;
+	int rc;
+	int i;
 	memset(&cdev->int_params, 0, sizeof(struct qed_int_params));
 
 	cdev->int_params.in.int_mode = int_mode;
-	for_each_hwfn(cdev, i)
-		num_vectors +=  qed_int_get_num_sbs(&cdev->hwfns[i], NULL) + 1;
-	cdev->int_params.in.num_vectors = num_vectors;
+	for_each_hwfn(cdev, i) {
+		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
+		qed_int_get_num_sbs(&cdev->hwfns[i], &sb_cnt_info);
+		cdev->int_params.in.num_vectors += sb_cnt_info.sb_cnt;
+		cdev->int_params.in.num_vectors++; /* slowpath */
+	}
 
 	/* We want a minimum of one slowpath and one fastpath vector per hwfn */
 	cdev->int_params.in.min_msix_cnt = cdev->num_hwfns * 2;
@@ -765,16 +766,11 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	if (rc)
 		goto err1;
 
-	/* Request the slowpath IRQ */
-	rc = qed_slowpath_irq_req(cdev);
-	if (rc)
-		goto err2;
-
 	/* Allocate stream for unzipping */
 	rc = qed_alloc_stream_mem(cdev);
 	if (rc) {
 		DP_NOTICE(cdev, "Failed to allocate stream memory\n");
-		goto err3;
+		goto err2;
 	}
 
 	/* Start the slowpath */
@@ -783,7 +779,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	rc = qed_hw_init(cdev, true, cdev->int_params.out.int_mode,
 			 true, data);
 	if (rc)
-		goto err3;
+		goto err2;
 
 	DP_INFO(cdev,
 		"HW initialization and function start completed successfully\n");
@@ -802,12 +798,14 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 		return rc;
 	}
 
+	qed_reset_vport_stats(cdev);
+
 	return 0;
 
-err3:
-	qed_free_stream_mem(cdev);
-	qed_slowpath_irq_free(cdev);
 err2:
+	qed_hw_timers_stop_all(cdev);
+	qed_slowpath_irq_free(cdev);
+	qed_free_stream_mem(cdev);
 	qed_disable_msix(cdev);
 err1:
 	qed_resc_free(cdev);
@@ -1135,6 +1133,23 @@ static int qed_drain(struct qed_dev *cdev)
 	return 0;
 }
 
+static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int status = 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	status = qed_mcp_set_led(hwfn, ptt, mode);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return status;
+}
+
 const struct qed_common_ops qed_common_ops_pass = {
 	.probe = &qed_probe,
 	.remove = &qed_remove,
@@ -1155,6 +1170,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.update_msglvl = &qed_init_dp,
 	.chain_alloc = &qed_chain_alloc,
 	.chain_free = &qed_chain_free,
+	.set_led = &qed_set_led,
 };
 
 u32 qed_get_protocol_version(enum qed_protocol protocol)

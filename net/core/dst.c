@@ -265,7 +265,7 @@ again:
 	lwtstate_put(dst->lwtstate);
 
 	if (dst->flags & DST_METADATA)
-		kfree(dst);
+		metadata_dst_free((struct metadata_dst *)dst);
 	else
 		kmem_cache_free(dst->ops->kmem_cachep, dst);
 
@@ -301,12 +301,13 @@ void dst_release(struct dst_entry *dst)
 {
 	if (dst) {
 		int newrefcnt;
+		unsigned short nocache = dst->flags & DST_NOCACHE;
 
 		newrefcnt = atomic_dec_return(&dst->__refcnt);
 		if (unlikely(newrefcnt < 0))
 			net_warn_ratelimited("%s: dst:%p refcnt:%d\n",
 					     __func__, dst, newrefcnt);
-		if (unlikely(dst->flags & DST_NOCACHE) && !newrefcnt)
+		if (!newrefcnt && unlikely(nocache))
 			call_rcu(&dst->rcu_head, dst_destroy_rcu);
 	}
 }
@@ -393,6 +394,14 @@ struct metadata_dst *metadata_dst_alloc(u8 optslen, gfp_t flags)
 	return md_dst;
 }
 EXPORT_SYMBOL_GPL(metadata_dst_alloc);
+
+void metadata_dst_free(struct metadata_dst *md_dst)
+{
+#ifdef CONFIG_DST_CACHE
+	dst_cache_destroy(&md_dst->u.tun_info.dst_cache);
+#endif
+	kfree(md_dst);
+}
 
 struct metadata_dst __percpu *metadata_dst_alloc_percpu(u8 optslen, gfp_t flags)
 {

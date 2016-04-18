@@ -55,7 +55,6 @@
  */
 #define MMC_BKOPS_MAX_TIMEOUT	(4 * 60 * 1000) /* max time to wait in ms */
 
-static struct workqueue_struct *workqueue;
 static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 
 /*
@@ -66,21 +65,16 @@ static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 bool use_spi_crc = 1;
 module_param(use_spi_crc, bool, 0);
 
-/*
- * Internal function. Schedule delayed work in the MMC work queue.
- */
 static int mmc_schedule_delayed_work(struct delayed_work *work,
 				     unsigned long delay)
 {
-	return queue_delayed_work(workqueue, work, delay);
-}
-
-/*
- * Internal function. Flush all scheduled work from the MMC work queue.
- */
-static void mmc_flush_scheduled_work(void)
-{
-	flush_workqueue(workqueue);
+	/*
+	 * We use the system_freezable_wq, because of two reasons.
+	 * First, it allows several works (not the same work item) to be
+	 * executed simultaneously. Second, the queue becomes frozen when
+	 * userspace becomes frozen during system PM.
+	 */
+	return queue_delayed_work(system_freezable_wq, work, delay);
 }
 
 #ifdef CONFIG_FAIL_MMC_REQUEST
@@ -1039,7 +1033,7 @@ static inline void mmc_set_ios(struct mmc_host *host)
 		"width %u timing %u\n",
 		 mmc_hostname(host), ios->clock, ios->bus_mode,
 		 ios->power_mode, ios->chip_select, ios->vdd,
-		 ios->bus_width, ios->timing);
+		 1 << ios->bus_width, ios->timing);
 
 	host->ops->set_ios(host, ios);
 }
@@ -1085,7 +1079,8 @@ int mmc_execute_tuning(struct mmc_card *card)
 	err = host->ops->execute_tuning(host, opcode);
 
 	if (err)
-		pr_err("%s: tuning execution failed\n", mmc_hostname(host));
+		pr_err("%s: tuning execution failed: %d\n",
+			mmc_hostname(host), err);
 	else
 		mmc_retune_enable(host);
 
@@ -1210,8 +1205,9 @@ EXPORT_SYMBOL(mmc_vddrange_to_ocrmask);
  * @np: The device node need to be parsed.
  * @mask: mask of voltages available for MMC/SD/SDIO
  *
- * 1. Return zero on success.
- * 2. Return negative errno: voltage-range is invalid.
+ * Parse the "voltage-ranges" DT property, returning zero if it is not
+ * found, negative errno if the voltage-range specification is invalid,
+ * or one if the voltage-range is specified and successfully parsed.
  */
 int mmc_of_parse_voltage(struct device_node *np, u32 *mask)
 {
@@ -1220,8 +1216,12 @@ int mmc_of_parse_voltage(struct device_node *np, u32 *mask)
 
 	voltage_ranges = of_get_property(np, "voltage-ranges", &num_ranges);
 	num_ranges = num_ranges / sizeof(*voltage_ranges) / 2;
-	if (!voltage_ranges || !num_ranges) {
-		pr_info("%s: voltage-ranges unspecified\n", np->full_name);
+	if (!voltage_ranges) {
+		pr_debug("%s: voltage-ranges unspecified\n", np->full_name);
+		return 0;
+	}
+	if (!num_ranges) {
+		pr_err("%s: voltage-ranges empty\n", np->full_name);
 		return -EINVAL;
 	}
 
@@ -1240,7 +1240,7 @@ int mmc_of_parse_voltage(struct device_node *np, u32 *mask)
 		*mask |= ocr_mask;
 	}
 
-	return 0;
+	return 1;
 }
 EXPORT_SYMBOL(mmc_of_parse_voltage);
 
@@ -1485,7 +1485,7 @@ int mmc_regulator_get_supply(struct mmc_host *mmc)
 	if (IS_ERR(mmc->supply.vmmc)) {
 		if (PTR_ERR(mmc->supply.vmmc) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(dev, "No vmmc regulator found\n");
+		dev_dbg(dev, "No vmmc regulator found\n");
 	} else {
 		ret = mmc_regulator_get_ocrmask(mmc->supply.vmmc);
 		if (ret > 0)
@@ -1497,7 +1497,7 @@ int mmc_regulator_get_supply(struct mmc_host *mmc)
 	if (IS_ERR(mmc->supply.vqmmc)) {
 		if (PTR_ERR(mmc->supply.vqmmc) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(dev, "No vqmmc regulator found\n");
+		dev_dbg(dev, "No vqmmc regulator found\n");
 	}
 
 	return 0;
@@ -2476,15 +2476,20 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	 * sdio_reset sends CMD52 to reset card.  Since we do not know
 	 * if the card is being re-initialized, just send it.  CMD52
 	 * should be ignored by SD/eMMC cards.
+	 * Skip it if we already know that we do not support SDIO commands
 	 */
-	sdio_reset(host);
+	if (!(host->caps2 & MMC_CAP2_NO_SDIO))
+		sdio_reset(host);
+
 	mmc_go_idle(host);
 
 	mmc_send_if_cond(host, host->ocr_avail);
 
 	/* Order's important: probe SDIO, then SD, then MMC */
-	if (!mmc_attach_sdio(host))
-		return 0;
+	if (!(host->caps2 & MMC_CAP2_NO_SDIO))
+		if (!mmc_attach_sdio(host))
+			return 0;
+
 	if (!mmc_attach_sd(host))
 		return 0;
 	if (!mmc_attach_mmc(host))
@@ -2497,9 +2502,6 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 int _mmc_detect_card_removed(struct mmc_host *host)
 {
 	int ret;
-
-	if (host->caps & MMC_CAP_NONREMOVABLE)
-		return 0;
 
 	if (!host->card || mmc_card_removed(host->card))
 		return 1;
@@ -2536,6 +2538,9 @@ int mmc_detect_card_removed(struct mmc_host *host)
 	if (!card)
 		return 1;
 
+	if (!mmc_card_is_removable(host))
+		return 0;
+
 	ret = mmc_card_removed(card);
 	/*
 	 * The card will be considered unchanged unless we have been asked to
@@ -2567,18 +2572,20 @@ void mmc_rescan(struct work_struct *work)
 		container_of(work, struct mmc_host, detect.work);
 	int i;
 
-	if (host->trigger_card_event && host->ops->card_event) {
-		host->ops->card_event(host);
-		host->trigger_card_event = false;
-	}
-
 	if (host->rescan_disable)
 		return;
 
 	/* If there is a non-removable card registered, only scan once */
-	if ((host->caps & MMC_CAP_NONREMOVABLE) && host->rescan_entered)
+	if (!mmc_card_is_removable(host) && host->rescan_entered)
 		return;
 	host->rescan_entered = 1;
+
+	if (host->trigger_card_event && host->ops->card_event) {
+		mmc_claim_host(host);
+		host->ops->card_event(host);
+		mmc_release_host(host);
+		host->trigger_card_event = false;
+	}
 
 	mmc_bus_get(host);
 
@@ -2586,8 +2593,7 @@ void mmc_rescan(struct work_struct *work)
 	 * if there is a _removable_ card registered, check whether it is
 	 * still present
 	 */
-	if (host->bus_ops && !host->bus_dead
-	    && !(host->caps & MMC_CAP_NONREMOVABLE))
+	if (host->bus_ops && !host->bus_dead && mmc_card_is_removable(host))
 		host->bus_ops->detect(host);
 
 	host->detect_change = 0;
@@ -2611,15 +2617,14 @@ void mmc_rescan(struct work_struct *work)
 	 */
 	mmc_bus_put(host);
 
-	if (!(host->caps & MMC_CAP_NONREMOVABLE) && host->ops->get_cd &&
+	mmc_claim_host(host);
+	if (mmc_card_is_removable(host) && host->ops->get_cd &&
 			host->ops->get_cd(host) == 0) {
-		mmc_claim_host(host);
 		mmc_power_off(host);
 		mmc_release_host(host);
 		goto out;
 	}
 
-	mmc_claim_host(host);
 	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
 		if (!mmc_rescan_try_freq(host, max(freqs[i], host->f_min)))
 			break;
@@ -2663,7 +2668,6 @@ void mmc_stop_host(struct mmc_host *host)
 
 	host->rescan_disable = 1;
 	cancel_delayed_work_sync(&host->detect);
-	mmc_flush_scheduled_work();
 
 	/* clear pm flags now and let card drivers set them as needed */
 	host->pm_flags = 0;
@@ -2759,14 +2763,13 @@ int mmc_flush_cache(struct mmc_card *card)
 }
 EXPORT_SYMBOL(mmc_flush_cache);
 
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 /* Do the card removal on suspend if card is assumed removeable
  * Do that in pm notifier while userspace isn't yet frozen, so we will be able
    to sync the card.
 */
-int mmc_pm_notify(struct notifier_block *notify_block,
-					unsigned long mode, void *unused)
+static int mmc_pm_notify(struct notifier_block *notify_block,
+			unsigned long mode, void *unused)
 {
 	struct mmc_host *host = container_of(
 		notify_block, struct mmc_host, pm_notify);
@@ -2813,6 +2816,17 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 
 	return 0;
 }
+
+void mmc_register_pm_notifier(struct mmc_host *host)
+{
+	host->pm_notify.notifier_call = mmc_pm_notify;
+	register_pm_notifier(&host->pm_notify);
+}
+
+void mmc_unregister_pm_notifier(struct mmc_host *host)
+{
+	unregister_pm_notifier(&host->pm_notify);
+}
 #endif
 
 /**
@@ -2836,13 +2850,9 @@ static int __init mmc_init(void)
 {
 	int ret;
 
-	workqueue = alloc_ordered_workqueue("kmmcd", 0);
-	if (!workqueue)
-		return -ENOMEM;
-
 	ret = mmc_register_bus();
 	if (ret)
-		goto destroy_workqueue;
+		return ret;
 
 	ret = mmc_register_host_class();
 	if (ret)
@@ -2858,9 +2868,6 @@ unregister_host_class:
 	mmc_unregister_host_class();
 unregister_bus:
 	mmc_unregister_bus();
-destroy_workqueue:
-	destroy_workqueue(workqueue);
-
 	return ret;
 }
 
@@ -2869,7 +2876,6 @@ static void __exit mmc_exit(void)
 	sdio_unregister_bus();
 	mmc_unregister_host_class();
 	mmc_unregister_bus();
-	destroy_workqueue(workqueue);
 }
 
 subsys_initcall(mmc_init);

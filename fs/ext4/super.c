@@ -55,7 +55,6 @@
 
 static struct ext4_lazy_init *ext4_li_info;
 static struct mutex ext4_li_mtx;
-static int ext4_mballoc_ready;
 static struct ratelimit_state ext4_mount_msg_ratelimit;
 
 static int ext4_load_journal(struct super_block *, struct ext4_super_block *,
@@ -79,6 +78,36 @@ static int ext4_feature_set_ok(struct super_block *sb, int readonly);
 static void ext4_destroy_lazyinit_thread(void);
 static void ext4_unregister_li_request(struct super_block *sb);
 static void ext4_clear_request_list(void);
+
+/*
+ * Lock ordering
+ *
+ * Note the difference between i_mmap_sem (EXT4_I(inode)->i_mmap_sem) and
+ * i_mmap_rwsem (inode->i_mmap_rwsem)!
+ *
+ * page fault path:
+ * mmap_sem -> sb_start_pagefault -> i_mmap_sem (r) -> transaction start ->
+ *   page lock -> i_data_sem (rw)
+ *
+ * buffered write path:
+ * sb_start_write -> i_mutex -> mmap_sem
+ * sb_start_write -> i_mutex -> transaction start -> page lock ->
+ *   i_data_sem (rw)
+ *
+ * truncate:
+ * sb_start_write -> i_mutex -> EXT4_STATE_DIOREAD_LOCK (w) -> i_mmap_sem (w) ->
+ *   i_mmap_rwsem (w) -> page lock
+ * sb_start_write -> i_mutex -> EXT4_STATE_DIOREAD_LOCK (w) -> i_mmap_sem (w) ->
+ *   transaction start -> i_data_sem (rw)
+ *
+ * direct IO:
+ * sb_start_write -> i_mutex -> EXT4_STATE_DIOREAD_LOCK (r) -> mmap_sem
+ * sb_start_write -> i_mutex -> EXT4_STATE_DIOREAD_LOCK (r) ->
+ *   transaction start -> i_data_sem (rw)
+ *
+ * writepages:
+ * transaction start -> page lock(s) -> i_data_sem (rw)
+ */
 
 #if !defined(CONFIG_EXT2_FS) && !defined(CONFIG_EXT2_FS_MODULE) && defined(CONFIG_EXT4_USE_FOR_EXT2)
 static struct file_system_type ext2_fs_type = {
@@ -814,7 +843,6 @@ static void ext4_put_super(struct super_block *sb)
 	ext4_release_system_zone(sb);
 	ext4_mb_release(sb);
 	ext4_ext_release(sb);
-	ext4_xattr_put_super(sb);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		ext4_clear_feature_journal_needs_recovery(sb);
@@ -914,7 +942,6 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	spin_lock_init(&ei->i_completed_io_lock);
 	ei->i_sync_tid = 0;
 	ei->i_datasync_tid = 0;
-	atomic_set(&ei->i_ioend_count, 0);
 	atomic_set(&ei->i_unwritten, 0);
 	INIT_WORK(&ei->i_rsv_conversion_work, ext4_end_io_rsv_work);
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
@@ -958,6 +985,7 @@ static void init_once(void *foo)
 	INIT_LIST_HEAD(&ei->i_orphan);
 	init_rwsem(&ei->xattr_sem);
 	init_rwsem(&ei->i_data_sem);
+	init_rwsem(&ei->i_mmap_sem);
 	inode_init_once(&ei->vfs_inode);
 }
 
@@ -966,7 +994,7 @@ static int __init init_inodecache(void)
 	ext4_inode_cachep = kmem_cache_create("ext4_inode_cache",
 					     sizeof(struct ext4_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD),
+						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
 	if (ext4_inode_cachep == NULL)
 		return -ENOMEM;
@@ -1061,13 +1089,13 @@ static int bdev_try_to_free_page(struct super_block *sb, struct page *page,
 		return 0;
 	if (journal)
 		return jbd2_journal_try_to_free_buffers(journal, page,
-							wait & ~__GFP_WAIT);
+						wait & ~__GFP_DIRECT_RECLAIM);
 	return try_to_free_buffers(page);
 }
 
 #ifdef CONFIG_QUOTA
-#define QTYPE2NAME(t) ((t) == USRQUOTA ? "user" : "group")
-#define QTYPE2MOPT(on, t) ((t) == USRQUOTA?((on)##USRJQUOTA):((on)##GRPJQUOTA))
+static char *quotatypes[] = INITQFNAMES;
+#define QTYPE2NAME(t) (quotatypes[t])
 
 static int ext4_write_dquot(struct dquot *dquot);
 static int ext4_acquire_dquot(struct dquot *dquot);
@@ -1085,6 +1113,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
 			     unsigned int flags);
 static int ext4_enable_quotas(struct super_block *sb);
+static int ext4_get_next_id(struct super_block *sb, struct kqid *qid);
 
 static struct dquot **ext4_get_dquots(struct inode *inode)
 {
@@ -1100,6 +1129,8 @@ static const struct dquot_operations ext4_quota_operations = {
 	.write_info	= ext4_write_info,
 	.alloc_dquot	= dquot_alloc,
 	.destroy_dquot	= dquot_destroy,
+	.get_projid	= ext4_get_projid,
+	.get_next_id	= ext4_get_next_id,
 };
 
 static const struct quotactl_ops ext4_qctl_operations = {
@@ -1109,7 +1140,8 @@ static const struct quotactl_ops ext4_qctl_operations = {
 	.get_state	= dquot_get_state,
 	.set_info	= dquot_set_dqinfo,
 	.get_dqblk	= dquot_get_dqblk,
-	.set_dqblk	= dquot_set_dqblk
+	.set_dqblk	= dquot_set_dqblk,
+	.get_nextdqblk	= dquot_get_next_dqblk,
 };
 #endif
 
@@ -1292,9 +1324,9 @@ static int set_qf_name(struct super_block *sb, int qtype, substring_t *args)
 		return -1;
 	}
 	if (ext4_has_feature_quota(sb)) {
-		ext4_msg(sb, KERN_ERR, "Cannot set journaled quota options "
-			 "when QUOTA feature is enabled");
-		return -1;
+		ext4_msg(sb, KERN_INFO, "Journaled quota options "
+			 "ignored when QUOTA feature is enabled");
+		return 1;
 	}
 	qname = match_strdup(args);
 	if (!qname) {
@@ -1393,9 +1425,9 @@ static const struct mount_opts {
 	{Opt_err_ro, EXT4_MOUNT_ERRORS_RO, MOPT_SET | MOPT_CLEAR_ERR},
 	{Opt_err_cont, EXT4_MOUNT_ERRORS_CONT, MOPT_SET | MOPT_CLEAR_ERR},
 	{Opt_data_err_abort, EXT4_MOUNT_DATA_ERR_ABORT,
-	 MOPT_NO_EXT2 | MOPT_SET},
+	 MOPT_NO_EXT2},
 	{Opt_data_err_ignore, EXT4_MOUNT_DATA_ERR_ABORT,
-	 MOPT_NO_EXT2 | MOPT_CLEAR},
+	 MOPT_NO_EXT2},
 	{Opt_barrier, EXT4_MOUNT_BARRIER, MOPT_SET},
 	{Opt_nobarrier, EXT4_MOUNT_BARRIER, MOPT_CLEAR},
 	{Opt_noauto_da_alloc, EXT4_MOUNT_NO_AUTO_DA_ALLOC, MOPT_SET},
@@ -1657,18 +1689,26 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 			return -1;
 		}
 		if (ext4_has_feature_quota(sb)) {
-			ext4_msg(sb, KERN_ERR,
-				 "Cannot set journaled quota options "
+			ext4_msg(sb, KERN_INFO,
+				 "Quota format mount options ignored "
 				 "when QUOTA feature is enabled");
-			return -1;
+			return 1;
 		}
 		sbi->s_jquota_fmt = m->mount_opt;
 #endif
-#ifndef CONFIG_FS_DAX
 	} else if (token == Opt_dax) {
+#ifdef CONFIG_FS_DAX
+		ext4_msg(sb, KERN_WARNING,
+		"DAX enabled. Warning: EXPERIMENTAL, use at your own risk");
+			sbi->s_mount_opt |= m->mount_opt;
+#else
 		ext4_msg(sb, KERN_INFO, "dax option not supported");
 		return -1;
 #endif
+	} else if (token == Opt_data_err_abort) {
+		sbi->s_mount_opt |= m->mount_opt;
+	} else if (token == Opt_data_err_ignore) {
+		sbi->s_mount_opt &= ~m->mount_opt;
 	} else {
 		if (!args->from)
 			arg = 1;
@@ -1717,11 +1757,11 @@ static int parse_options(char *options, struct super_block *sb,
 #ifdef CONFIG_QUOTA
 	if (ext4_has_feature_quota(sb) &&
 	    (test_opt(sb, USRQUOTA) || test_opt(sb, GRPQUOTA))) {
-		ext4_msg(sb, KERN_ERR, "Cannot set quota options when QUOTA "
-			 "feature is enabled");
-		return 0;
-	}
-	if (sbi->s_qf_names[USRQUOTA] || sbi->s_qf_names[GRPQUOTA]) {
+		ext4_msg(sb, KERN_INFO, "Quota feature enabled, usrquota and grpquota "
+			 "mount options ignored.");
+		clear_opt(sb, USRQUOTA);
+		clear_opt(sb, GRPQUOTA);
+	} else if (sbi->s_qf_names[USRQUOTA] || sbi->s_qf_names[GRPQUOTA]) {
 		if (test_opt(sb, USRQUOTA) && sbi->s_qf_names[USRQUOTA])
 			clear_opt(sb, USRQUOTA);
 
@@ -1745,7 +1785,7 @@ static int parse_options(char *options, struct super_block *sb,
 		int blocksize =
 			BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
 
-		if (blocksize < PAGE_CACHE_SIZE) {
+		if (blocksize < PAGE_SIZE) {
 			ext4_msg(sb, KERN_ERR, "can't mount with "
 				 "dioread_nolock if block size != PAGE_SIZE");
 			return 0;
@@ -1878,6 +1918,8 @@ static int _ext4_show_options(struct seq_file *seq, struct super_block *sb,
 		SEQ_OPTS_PRINT("init_itable=%u", sbi->s_li_wait_mult);
 	if (nodefs || sbi->s_max_dir_size_kb)
 		SEQ_OPTS_PRINT("max_dir_size_kb=%u", sbi->s_max_dir_size_kb);
+	if (test_opt(sb, DATA_ERR_ABORT))
+		SEQ_OPTS_PUTS("data_err=abort");
 
 	ext4_show_quota_options(seq, sb);
 	return 0;
@@ -2250,10 +2292,10 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 					__func__, inode->i_ino, inode->i_size);
 			jbd_debug(2, "truncating inode %lu to %lld bytes\n",
 				  inode->i_ino, inode->i_size);
-			mutex_lock(&inode->i_mutex);
+			inode_lock(inode);
 			truncate_inode_pages(inode->i_mapping, inode->i_size);
 			ext4_truncate(inode);
-			mutex_unlock(&inode->i_mutex);
+			inode_unlock(inode);
 			nr_truncates++;
 		} else {
 			if (test_opt(sb, DEBUG))
@@ -2519,6 +2561,12 @@ static int ext4_feature_set_ok(struct super_block *sb, int readonly)
 	if (ext4_has_feature_quota(sb) && !readonly) {
 		ext4_msg(sb, KERN_ERR,
 			 "Filesystem with quota feature cannot be mounted RDWR "
+			 "without CONFIG_QUOTA");
+		return 0;
+	}
+	if (ext4_has_feature_project(sb) && !readonly) {
+		ext4_msg(sb, KERN_ERR,
+			 "Filesystem with project quota feature cannot be mounted RDWR "
 			 "without CONFIG_QUOTA");
 		return 0;
 	}
@@ -3650,7 +3698,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		sb->s_qcop = &dquot_quotactl_sysfile_ops;
 	else
 		sb->s_qcop = &ext4_qctl_operations;
-	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
+	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP | QTYPE_MASK_PRJ;
 #endif
 	memcpy(sb->s_uuid, es->s_uuid, sizeof(es->s_uuid));
 
@@ -3754,16 +3802,14 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_journal->j_commit_callback = ext4_journal_commit_callback;
 
 no_journal:
-	if (ext4_mballoc_ready) {
-		sbi->s_mb_cache = ext4_xattr_create_cache(sb->s_id);
-		if (!sbi->s_mb_cache) {
-			ext4_msg(sb, KERN_ERR, "Failed to create an mb_cache");
-			goto failed_mount_wq;
-		}
+	sbi->s_mb_cache = ext4_xattr_create_cache();
+	if (!sbi->s_mb_cache) {
+		ext4_msg(sb, KERN_ERR, "Failed to create an mb_cache");
+		goto failed_mount_wq;
 	}
 
 	if ((DUMMY_ENCRYPTION_ENABLED(sbi) || ext4_has_feature_encrypt(sb)) &&
-	    (blocksize != PAGE_CACHE_SIZE)) {
+	    (blocksize != PAGE_SIZE)) {
 		ext4_msg(sb, KERN_ERR,
 			 "Unsupported blocksize for fs encryption");
 		goto failed_mount_wq;
@@ -3985,6 +4031,10 @@ failed_mount4:
 	if (EXT4_SB(sb)->rsv_conversion_wq)
 		destroy_workqueue(EXT4_SB(sb)->rsv_conversion_wq);
 failed_mount_wq:
+	if (sbi->s_mb_cache) {
+		ext4_xattr_destroy_cache(sbi->s_mb_cache);
+		sbi->s_mb_cache = NULL;
+	}
 	if (sbi->s_journal) {
 		jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
@@ -4786,6 +4836,48 @@ restore_opts:
 	return err;
 }
 
+#ifdef CONFIG_QUOTA
+static int ext4_statfs_project(struct super_block *sb,
+			       kprojid_t projid, struct kstatfs *buf)
+{
+	struct kqid qid;
+	struct dquot *dquot;
+	u64 limit;
+	u64 curblock;
+
+	qid = make_kqid_projid(projid);
+	dquot = dqget(sb, qid);
+	if (IS_ERR(dquot))
+		return PTR_ERR(dquot);
+	spin_lock(&dq_data_lock);
+
+	limit = (dquot->dq_dqb.dqb_bsoftlimit ?
+		 dquot->dq_dqb.dqb_bsoftlimit :
+		 dquot->dq_dqb.dqb_bhardlimit) >> sb->s_blocksize_bits;
+	if (limit && buf->f_blocks > limit) {
+		curblock = dquot->dq_dqb.dqb_curspace >> sb->s_blocksize_bits;
+		buf->f_blocks = limit;
+		buf->f_bfree = buf->f_bavail =
+			(buf->f_blocks > curblock) ?
+			 (buf->f_blocks - curblock) : 0;
+	}
+
+	limit = dquot->dq_dqb.dqb_isoftlimit ?
+		dquot->dq_dqb.dqb_isoftlimit :
+		dquot->dq_dqb.dqb_ihardlimit;
+	if (limit && buf->f_files > limit) {
+		buf->f_files = limit;
+		buf->f_ffree =
+			(buf->f_files > dquot->dq_dqb.dqb_curinodes) ?
+			 (buf->f_files - dquot->dq_dqb.dqb_curinodes) : 0;
+	}
+
+	spin_unlock(&dq_data_lock);
+	dqput(dquot);
+	return 0;
+}
+#endif
+
 static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
@@ -4818,6 +4910,11 @@ static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_fsid.val[0] = fsid & 0xFFFFFFFFUL;
 	buf->f_fsid.val[1] = (fsid >> 32) & 0xFFFFFFFFUL;
 
+#ifdef CONFIG_QUOTA
+	if (ext4_test_inode_flag(dentry->d_inode, EXT4_INODE_PROJINHERIT) &&
+	    sb_has_quota_limits_enabled(sb, PRJQUOTA))
+		ext4_statfs_project(sb, EXT4_I(dentry->d_inode)->i_projid, buf);
+#endif
 	return 0;
 }
 
@@ -4932,6 +5029,20 @@ static int ext4_quota_on_mount(struct super_block *sb, int type)
 					EXT4_SB(sb)->s_jquota_fmt, type);
 }
 
+static void lockdep_set_quota_inode(struct inode *inode, int subclass)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+
+	/* The first argument of lockdep_set_subclass has to be
+	 * *exactly* the same as the argument to init_rwsem() --- in
+	 * this case, in init_once() --- or lockdep gets unhappy
+	 * because the name of the lock is set using the
+	 * stringification of the argument to init_rwsem().
+	 */
+	(void) ei;	/* shut up clang warning if !CONFIG_LOCKDEP */
+	lockdep_set_subclass(&ei->i_data_sem, subclass);
+}
+
 /*
  * Standard function to be called on quota_on
  */
@@ -4971,8 +5082,12 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		if (err)
 			return err;
 	}
-
-	return dquot_quota_on(sb, type, format_id, path);
+	lockdep_set_quota_inode(path->dentry->d_inode, I_DATA_SEM_QUOTA);
+	err = dquot_quota_on(sb, type, format_id, path);
+	if (err)
+		lockdep_set_quota_inode(path->dentry->d_inode,
+					     I_DATA_SEM_NORMAL);
+	return err;
 }
 
 static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
@@ -4982,7 +5097,8 @@ static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
 	struct inode *qf_inode;
 	unsigned long qf_inums[EXT4_MAXQUOTAS] = {
 		le32_to_cpu(EXT4_SB(sb)->s_es->s_usr_quota_inum),
-		le32_to_cpu(EXT4_SB(sb)->s_es->s_grp_quota_inum)
+		le32_to_cpu(EXT4_SB(sb)->s_es->s_grp_quota_inum),
+		le32_to_cpu(EXT4_SB(sb)->s_es->s_prj_quota_inum)
 	};
 
 	BUG_ON(!ext4_has_feature_quota(sb));
@@ -4998,8 +5114,11 @@ static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
 
 	/* Don't account quota for quota files to avoid recursion */
 	qf_inode->i_flags |= S_NOQUOTA;
+	lockdep_set_quota_inode(qf_inode, I_DATA_SEM_QUOTA);
 	err = dquot_enable(qf_inode, type, format_id, flags);
 	iput(qf_inode);
+	if (err)
+		lockdep_set_quota_inode(qf_inode, I_DATA_SEM_NORMAL);
 
 	return err;
 }
@@ -5010,7 +5129,8 @@ static int ext4_enable_quotas(struct super_block *sb)
 	int type, err = 0;
 	unsigned long qf_inums[EXT4_MAXQUOTAS] = {
 		le32_to_cpu(EXT4_SB(sb)->s_es->s_usr_quota_inum),
-		le32_to_cpu(EXT4_SB(sb)->s_es->s_grp_quota_inum)
+		le32_to_cpu(EXT4_SB(sb)->s_es->s_grp_quota_inum),
+		le32_to_cpu(EXT4_SB(sb)->s_es->s_prj_quota_inum)
 	};
 
 	sb_dqopt(sb)->flags |= DQUOT_QUOTA_SYS_FILE;
@@ -5155,6 +5275,17 @@ out:
 	return len;
 }
 
+static int ext4_get_next_id(struct super_block *sb, struct kqid *qid)
+{
+	const struct quota_format_ops	*ops;
+
+	if (!sb_has_quota_loaded(sb, qid->type))
+		return -ESRCH;
+	ops = sb_dqopt(sb)->ops[qid->type];
+	if (!ops || !ops->get_next_id)
+		return -ENOSYS;
+	return dquot_get_next_id(sb, qid);
+}
 #endif
 
 static struct dentry *ext4_mount(struct file_system_type *fs_type, int flags,
@@ -5230,7 +5361,6 @@ MODULE_ALIAS_FS("ext4");
 
 /* Shared across all ext4 file systems */
 wait_queue_head_t ext4__ioend_wq[EXT4_WQ_HASH_SZ];
-struct mutex ext4__aio_mutex[EXT4_WQ_HASH_SZ];
 
 static int __init ext4_init_fs(void)
 {
@@ -5243,10 +5373,8 @@ static int __init ext4_init_fs(void)
 	/* Build-time check for flags consistency */
 	ext4_check_flag_values();
 
-	for (i = 0; i < EXT4_WQ_HASH_SZ; i++) {
-		mutex_init(&ext4__aio_mutex[i]);
+	for (i = 0; i < EXT4_WQ_HASH_SZ; i++)
 		init_waitqueue_head(&ext4__ioend_wq[i]);
-	}
 
 	err = ext4_init_es();
 	if (err)
@@ -5267,8 +5395,6 @@ static int __init ext4_init_fs(void)
 	err = ext4_init_mballoc();
 	if (err)
 		goto out2;
-	else
-		ext4_mballoc_ready = 1;
 	err = init_inodecache();
 	if (err)
 		goto out1;
@@ -5284,7 +5410,6 @@ out:
 	unregister_as_ext3();
 	destroy_inodecache();
 out1:
-	ext4_mballoc_ready = 0;
 	ext4_exit_mballoc();
 out2:
 	ext4_exit_sysfs();

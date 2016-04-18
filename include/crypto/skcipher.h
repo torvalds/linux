@@ -60,6 +60,7 @@ struct crypto_skcipher {
 
 	unsigned int ivsize;
 	unsigned int reqsize;
+	unsigned int keysize;
 
 	struct crypto_tfm base;
 };
@@ -230,6 +231,12 @@ static inline int crypto_has_skcipher(const char *alg_name, u32 type,
 			      crypto_skcipher_mask(mask));
 }
 
+static inline const char *crypto_skcipher_driver_name(
+	struct crypto_skcipher *tfm)
+{
+	return crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
+}
+
 /**
  * crypto_skcipher_ivsize() - obtain IV size
  * @tfm: cipher handle
@@ -303,6 +310,17 @@ static inline int crypto_skcipher_setkey(struct crypto_skcipher *tfm,
 					 const u8 *key, unsigned int keylen)
 {
 	return tfm->setkey(tfm, key, keylen);
+}
+
+static inline bool crypto_skcipher_has_setkey(struct crypto_skcipher *tfm)
+{
+	return tfm->keysize;
+}
+
+static inline unsigned int crypto_skcipher_default_keysize(
+	struct crypto_skcipher *tfm)
+{
+	return tfm->keysize;
 }
 
 /**
@@ -431,6 +449,13 @@ static inline struct skcipher_request *skcipher_request_alloc(
 static inline void skcipher_request_free(struct skcipher_request *req)
 {
 	kzfree(req);
+}
+
+static inline void skcipher_request_zero(struct skcipher_request *req)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+
+	memzero_explicit(req, sizeof(*req) + crypto_skcipher_reqsize(tfm));
 }
 
 /**

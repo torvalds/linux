@@ -159,7 +159,7 @@
 				vin-ldo9-10-supply = <&vdd_5v0_sys>;
 				vin-ldo11-supply = <&vdd_3v3_run>;
 
-				sd0 {
+				vdd_cpu: sd0 {
 					regulator-name = "+VDD_CPU_AP";
 					regulator-min-microvolt = <700000>;
 					regulator-max-microvolt = <1350000>;
@@ -397,6 +397,13 @@
 		non-removable;
 	};
 
+	/* CPU DFLL clock */
+	clock@0,70110000 {
+		status = "disabled";
+		vdd-cpu-supply = <&vdd_cpu>;
+		nvidia,i2c-fs-rate = <400000>;
+	};
+
 	ahub@0,70300000 {
 		i2s@0,70301100 {
 			status = "okay";
@@ -484,6 +491,12 @@
 			reg = <0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
+		};
+	};
+
+	cpus {
+		cpu@0 {
+			vdd-cpu-supply = <&vdd_cpu>;
 		};
 	};
 

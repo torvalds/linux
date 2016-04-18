@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -60,7 +60,7 @@ static inline void lov_sub_exit(struct lov_io_sub *sub)
 static void lov_io_sub_fini(const struct lu_env *env, struct lov_io *lio,
 			    struct lov_io_sub *sub)
 {
-	if (sub->sub_io != NULL) {
+	if (sub->sub_io) {
 		if (sub->sub_io_initialized) {
 			lov_sub_enter(sub);
 			cl_io_fini(sub->sub_env, sub->sub_io);
@@ -74,7 +74,7 @@ static void lov_io_sub_fini(const struct lu_env *env, struct lov_io *lio,
 			kfree(sub->sub_io);
 		sub->sub_io = NULL;
 	}
-	if (sub->sub_env != NULL && !IS_ERR(sub->sub_env)) {
+	if (!IS_ERR_OR_NULL(sub->sub_env)) {
 		if (!sub->sub_borrowed)
 			cl_env_put(sub->sub_env, &sub->sub_refcheck);
 		sub->sub_env = NULL;
@@ -143,11 +143,11 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 	int stripe = sub->sub_stripe;
 	int result;
 
-	LASSERT(sub->sub_io == NULL);
-	LASSERT(sub->sub_env == NULL);
+	LASSERT(!sub->sub_io);
+	LASSERT(!sub->sub_env);
 	LASSERT(sub->sub_stripe < lio->lis_stripe_count);
 
-	if (unlikely(lov_r0(lov)->lo_sub[stripe] == NULL))
+	if (unlikely(!lov_r0(lov)->lo_sub[stripe]))
 		return -EIO;
 
 	result = 0;
@@ -252,7 +252,6 @@ static int lov_page_stripe(const struct cl_page *page)
 	subobj = lu2lovsub(
 		lu_object_locate(page->cp_child->cp_obj->co_lu.lo_header,
 				 &lovsub_device_type));
-	LASSERT(subobj != NULL);
 	return subobj->lso_index;
 }
 
@@ -263,9 +262,9 @@ struct lov_io_sub *lov_page_subio(const struct lu_env *env, struct lov_io *lio,
 	struct cl_page       *page = slice->cpl_page;
 	int stripe;
 
-	LASSERT(lio->lis_cl.cis_io != NULL);
+	LASSERT(lio->lis_cl.cis_io);
 	LASSERT(cl2lov(slice->cpl_obj) == lio->lis_object);
-	LASSERT(lsm != NULL);
+	LASSERT(lsm);
 	LASSERT(lio->lis_nr_subios > 0);
 
 	stripe = lov_page_stripe(page);
@@ -278,7 +277,7 @@ static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
 	struct lov_stripe_md *lsm = lio->lis_object->lo_lsm;
 	int result;
 
-	LASSERT(lio->lis_object != NULL);
+	LASSERT(lio->lis_object);
 
 	/*
 	 * Need to be optimized, we can't afford to allocate a piece of memory
@@ -288,7 +287,7 @@ static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
 		libcfs_kvzalloc(lsm->lsm_stripe_count *
 				sizeof(lio->lis_subs[0]),
 				GFP_NOFS);
-	if (lio->lis_subs != NULL) {
+	if (lio->lis_subs) {
 		lio->lis_nr_subios = lio->lis_stripe_count;
 		lio->lis_single_subio_index = -1;
 		lio->lis_active_subios = 0;
@@ -304,7 +303,6 @@ static void lov_io_slice_init(struct lov_io *lio,
 	io->ci_result = 0;
 	lio->lis_object = obj;
 
-	LASSERT(obj->lo_lsm != NULL);
 	lio->lis_stripe_count = obj->lo_lsm->lsm_stripe_count;
 
 	switch (io->ci_type) {
@@ -358,7 +356,7 @@ static void lov_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 	struct lov_object *lov = cl2lov(ios->cis_obj);
 	int i;
 
-	if (lio->lis_subs != NULL) {
+	if (lio->lis_subs) {
 		for (i = 0; i < lio->lis_nr_subios; i++)
 			lov_io_sub_fini(env, lio, &lio->lis_subs[i]);
 		kvfree(lio->lis_subs);
@@ -395,7 +393,7 @@ static int lov_io_iter_init(const struct lu_env *env,
 					   endpos, &start, &end))
 			continue;
 
-		if (unlikely(lov_r0(lio->lis_object)->lo_sub[stripe] == NULL)) {
+		if (unlikely(!lov_r0(lio->lis_object)->lo_sub[stripe])) {
 			if (ios->cis_io->ci_type == CIT_READ ||
 			    ios->cis_io->ci_type == CIT_WRITE ||
 			    ios->cis_io->ci_type == CIT_FAULT)
@@ -601,13 +599,13 @@ static int lov_io_submit(const struct lu_env *env,
 		return rc;
 	}
 
-	LASSERT(lio->lis_subs != NULL);
+	LASSERT(lio->lis_subs);
 	if (alloc) {
 		stripes_qin =
 			libcfs_kvzalloc(sizeof(*stripes_qin) *
 					lio->lis_nr_subios,
 					GFP_NOFS);
-		if (stripes_qin == NULL)
+		if (!stripes_qin)
 			return -ENOMEM;
 
 		for (stripe = 0; stripe < lio->lis_nr_subios; stripe++)
@@ -949,13 +947,13 @@ int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
 }
 
 int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
-			struct cl_io *io)
+			 struct cl_io *io)
 {
 	struct lov_object *lov = cl2lov(obj);
 	struct lov_io *lio = lov_env_io(env);
 	int result;
 
-	LASSERT(lov->lo_lsm != NULL);
+	LASSERT(lov->lo_lsm);
 	lio->lis_object = lov;
 
 	switch (io->ci_type) {

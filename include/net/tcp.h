@@ -27,7 +27,6 @@
 #include <linux/cache.h>
 #include <linux/percpu.h>
 #include <linux/skbuff.h>
-#include <linux/crypto.h>
 #include <linux/cryptohash.h>
 #include <linux/kref.h>
 #include <linux/ktime.h>
@@ -216,7 +215,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 /* TCP thin-stream limits */
 #define TCP_THIN_LINEAR_RETRIES 6       /* After 6 linear retries, do exp. backoff */
 
-/* TCP initial congestion window as per draft-hkchu-tcpm-initcwnd-01 */
+/* TCP initial congestion window as per rfc6928 */
 #define TCP_INIT_CWND		10
 
 /* Bit Flags for sysctl_tcp_fastopen */
@@ -239,16 +238,6 @@ extern struct inet_timewait_death_row tcp_death_row;
 extern int sysctl_tcp_timestamps;
 extern int sysctl_tcp_window_scaling;
 extern int sysctl_tcp_sack;
-extern int sysctl_tcp_fin_timeout;
-extern int sysctl_tcp_keepalive_time;
-extern int sysctl_tcp_keepalive_probes;
-extern int sysctl_tcp_keepalive_intvl;
-extern int sysctl_tcp_syn_retries;
-extern int sysctl_tcp_synack_retries;
-extern int sysctl_tcp_retries1;
-extern int sysctl_tcp_retries2;
-extern int sysctl_tcp_orphan_retries;
-extern int sysctl_tcp_syncookies;
 extern int sysctl_tcp_fastopen;
 extern int sysctl_tcp_retrans_collapse;
 extern int sysctl_tcp_stdurg;
@@ -277,7 +266,6 @@ extern int sysctl_tcp_thin_dupack;
 extern int sysctl_tcp_early_retrans;
 extern int sysctl_tcp_limit_output_bytes;
 extern int sysctl_tcp_challenge_ack_limit;
-extern unsigned int sysctl_tcp_notsent_lowat;
 extern int sysctl_tcp_min_tso_segs;
 extern int sysctl_tcp_min_rtt_wlen;
 extern int sysctl_tcp_autocorking;
@@ -292,8 +280,9 @@ extern int tcp_memory_pressure;
 /* optimized version of sk_under_memory_pressure() for TCP sockets */
 static inline bool tcp_under_memory_pressure(const struct sock *sk)
 {
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		return !!sk->sk_cgrp->memory_pressure;
+	if (mem_cgroup_sockets_enabled && sk->sk_memcg &&
+	    mem_cgroup_under_socket_pressure(sk->sk_memcg))
+		return true;
 
 	return tcp_memory_pressure;
 }
@@ -449,7 +438,7 @@ const u8 *tcp_parse_md5sig_option(const struct tcphdr *th);
 
 void tcp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 void tcp_v4_mtu_reduced(struct sock *sk);
-void tcp_req_err(struct sock *sk, u32 seq);
+void tcp_req_err(struct sock *sk, u32 seq, bool abort);
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 struct sock *tcp_create_openreq_child(const struct sock *sk,
 				      struct request_sock *req,
@@ -570,6 +559,7 @@ void tcp_rearm_rto(struct sock *sk);
 void tcp_synack_rtt_meas(struct sock *sk, struct request_sock *req);
 void tcp_reset(struct sock *sk);
 void tcp_skb_mark_lost_uncond_verify(struct tcp_sock *tp, struct sk_buff *skb);
+void tcp_fin(struct sock *sk);
 
 /* tcp_timer.c */
 void tcp_init_xmit_timers(struct sock *);
@@ -965,9 +955,11 @@ static inline void tcp_enable_fack(struct tcp_sock *tp)
  */
 static inline void tcp_enable_early_retrans(struct tcp_sock *tp)
 {
+	struct net *net = sock_net((struct sock *)tp);
+
 	tp->do_early_retrans = sysctl_tcp_early_retrans &&
 		sysctl_tcp_early_retrans < 4 && !sysctl_tcp_thin_dupack &&
-		sysctl_tcp_reordering == 3;
+		net->ipv4.sysctl_tcp_reordering == 3;
 }
 
 static inline void tcp_disable_early_retrans(struct tcp_sock *tp)
@@ -1170,6 +1162,8 @@ void tcp_set_state(struct sock *sk, int state);
 
 void tcp_done(struct sock *sk);
 
+int tcp_abort(struct sock *sk, int err);
+
 static inline void tcp_sack_reset(struct tcp_options_received *rx_opt)
 {
 	rx_opt->dsack = 0;
@@ -1223,17 +1217,23 @@ void tcp_enter_memory_pressure(struct sock *sk);
 
 static inline int keepalive_intvl_when(const struct tcp_sock *tp)
 {
-	return tp->keepalive_intvl ? : sysctl_tcp_keepalive_intvl;
+	struct net *net = sock_net((struct sock *)tp);
+
+	return tp->keepalive_intvl ? : net->ipv4.sysctl_tcp_keepalive_intvl;
 }
 
 static inline int keepalive_time_when(const struct tcp_sock *tp)
 {
-	return tp->keepalive_time ? : sysctl_tcp_keepalive_time;
+	struct net *net = sock_net((struct sock *)tp);
+
+	return tp->keepalive_time ? : net->ipv4.sysctl_tcp_keepalive_time;
 }
 
 static inline int keepalive_probes(const struct tcp_sock *tp)
 {
-	return tp->keepalive_probes ? : sysctl_tcp_keepalive_probes;
+	struct net *net = sock_net((struct sock *)tp);
+
+	return tp->keepalive_probes ? : net->ipv4.sysctl_tcp_keepalive_probes;
 }
 
 static inline u32 keepalive_time_elapsed(const struct tcp_sock *tp)
@@ -1246,7 +1246,7 @@ static inline u32 keepalive_time_elapsed(const struct tcp_sock *tp)
 
 static inline int tcp_fin_time(const struct sock *sk)
 {
-	int fin_timeout = tcp_sk(sk)->linger2 ? : sysctl_tcp_fin_timeout;
+	int fin_timeout = tcp_sk(sk)->linger2 ? : sock_net(sk)->ipv4.sysctl_tcp_fin_timeout;
 	const int rto = inet_csk(sk)->icsk_rto;
 
 	if (fin_timeout < (rto << 2) - (rto >> 1))
@@ -1319,9 +1319,6 @@ static inline void tcp_clear_all_retrans_hints(struct tcp_sock *tp)
 	tp->retransmit_skb_hint = NULL;
 }
 
-/* MD5 Signature */
-struct crypto_hash;
-
 union tcp_md5_addr {
 	struct in_addr  a4;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1370,7 +1367,7 @@ union tcp_md5sum_block {
 
 /* - pool: digest algorithm, hash description and scratch buffer */
 struct tcp_md5sig_pool {
-	struct hash_desc	md5_desc;
+	struct ahash_request	*md5_req;
 	union tcp_md5sum_block	md5_blk;
 };
 
@@ -1431,6 +1428,7 @@ void tcp_free_fastopen_req(struct tcp_sock *tp);
 
 extern struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
 int tcp_fastopen_reset_cipher(void *key, unsigned int len);
+void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb);
 struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 			      struct request_sock *req,
 			      struct tcp_fastopen_cookie *foc,
@@ -1618,6 +1616,18 @@ static inline void tcp_highest_sack_combine(struct sock *sk,
 		tcp_sk(sk)->highest_sack = new;
 }
 
+/* This helper checks if socket has IP_TRANSPARENT set */
+static inline bool inet_sk_transparent(const struct sock *sk)
+{
+	switch (sk->sk_state) {
+	case TCP_TIME_WAIT:
+		return inet_twsk(sk)->tw_transparent;
+	case TCP_NEW_SYN_RECV:
+		return inet_rsk(inet_reqsk(sk))->no_srccheck;
+	}
+	return inet_sk(sk)->transparent;
+}
+
 /* Determines whether this is a thin stream (which may suffer from
  * increased latency). Used to trigger latency-reducing mechanisms.
  */
@@ -1667,7 +1677,8 @@ void __tcp_v4_send_check(struct sk_buff *skb, __be32 saddr, __be32 daddr);
 
 static inline u32 tcp_notsent_lowat(const struct tcp_sock *tp)
 {
-	return tp->notsent_lowat ?: sysctl_tcp_notsent_lowat;
+	struct net *net = sock_net((struct sock *)tp);
+	return tp->notsent_lowat ?: net->ipv4.sysctl_tcp_notsent_lowat;
 }
 
 static inline bool tcp_stream_memory_free(const struct sock *sk)
@@ -1799,6 +1810,40 @@ static inline bool skb_is_tcp_pure_ack(const struct sk_buff *skb)
 static inline void skb_set_tcp_pure_ack(struct sk_buff *skb)
 {
 	skb->truesize = 2;
+}
+
+static inline int tcp_inq(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	int answ;
+
+	if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
+		answ = 0;
+	} else if (sock_flag(sk, SOCK_URGINLINE) ||
+		   !tp->urg_data ||
+		   before(tp->urg_seq, tp->copied_seq) ||
+		   !before(tp->urg_seq, tp->rcv_nxt)) {
+
+		answ = tp->rcv_nxt - tp->copied_seq;
+
+		/* Subtract 1, if FIN was received */
+		if (answ && sock_flag(sk, SOCK_DONE))
+			answ--;
+	} else {
+		answ = tp->urg_seq - tp->copied_seq;
+	}
+
+	return answ;
+}
+
+static inline void tcp_segs_in(struct tcp_sock *tp, const struct sk_buff *skb)
+{
+	u16 segs_in;
+
+	segs_in = max_t(u16, 1, skb_shinfo(skb)->gso_segs);
+	tp->segs_in += segs_in;
+	if (skb->len > tcp_hdrlen(skb))
+		tp->data_segs_in += segs_in;
 }
 
 #endif	/* _TCP_H */

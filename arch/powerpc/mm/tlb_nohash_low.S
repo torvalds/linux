@@ -108,7 +108,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 	blr
 2:
 #ifdef CONFIG_PPC_47x
-	oris	r7,r6,0x8000	/* specify way explicitely */
+	oris	r7,r6,0x8000	/* specify way explicitly */
 	clrrwi	r4,r3,12	/* get an EPN for the hashing with V = 0 */
 	ori	r4,r4,PPC47x_TLBE_SIZE
 	tlbwe   r4,r7,0		/* write it */
@@ -149,7 +149,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 	li	r3,-1		/* Current set */
 	lis	r10,tlb_47x_boltmap@h
 	ori	r10,r10,tlb_47x_boltmap@l
-	lis	r7,0x8000	/* Specify way explicitely */
+	lis	r7,0x8000	/* Specify way explicitly */
 
 	b	9f		/* For each set */
 

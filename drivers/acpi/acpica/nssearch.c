@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,7 +105,7 @@ acpi_ns_search_one_scope(u32 target_name,
 	if (ACPI_LV_NAMES & acpi_dbg_level) {
 		char *scope_name;
 
-		scope_name = acpi_ns_get_external_pathname(parent_node);
+		scope_name = acpi_ns_get_normalized_pathname(parent_node, TRUE);
 		if (scope_name) {
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 					  "Searching %s (%p) For [%4.4s] (%s)\n",

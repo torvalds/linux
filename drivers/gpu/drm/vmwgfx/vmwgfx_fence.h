@@ -116,8 +116,6 @@ extern int vmw_fence_obj_unref_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
 extern int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv);
-extern void vmw_event_fence_fpriv_gone(struct vmw_fence_manager *fman,
-				       struct list_head *event_list);
 extern int vmw_event_fence_action_queue(struct drm_file *filee_priv,
 					struct vmw_fence_obj *fence,
 					struct drm_pending_event *event,

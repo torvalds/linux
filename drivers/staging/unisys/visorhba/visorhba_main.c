@@ -167,7 +167,7 @@ static int visor_thread_start(struct visor_thread_info *thrinfo,
 {
 	/* used to stop the thread */
 	init_completion(&thrinfo->has_stopped);
-	thrinfo->task = kthread_run(threadfn, thrcontext, name);
+	thrinfo->task = kthread_run(threadfn, thrcontext, "%s", name);
 	if (IS_ERR(thrinfo->task)) {
 		thrinfo->id = 0;
 		return PTR_ERR(thrinfo->task);
@@ -323,9 +323,9 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 		goto err_del_scsipending_ent;
 
 	if (tasktype == TASK_MGMT_ABORT_TASK)
-		scsicmd->result = (DID_ABORT << 16);
+		scsicmd->result = DID_ABORT << 16;
 	else
-		scsicmd->result = (DID_RESET << 16);
+		scsicmd->result = DID_RESET << 16;
 
 	scsicmd->scsi_done(scsicmd);
 
@@ -453,7 +453,6 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	struct uiscmdrsp *cmdrsp;
 	struct scsi_device *scsidev = scsicmd->device;
 	int insert_location;
-	unsigned char op;
 	unsigned char *cdb = scsicmd->cmnd;
 	struct Scsi_Host *scsihost = scsidev->host;
 	unsigned int i;
@@ -461,7 +460,6 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 		(struct visorhba_devdata *)scsihost->hostdata;
 	struct scatterlist *sg = NULL;
 	struct scatterlist *sglist = NULL;
-	int err = 0;
 
 	if (devdata->serverdown || devdata->serverchangingstate)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
@@ -496,10 +494,8 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	if (cmdrsp->scsi.bufflen > devdata->max_buff_len)
 		devdata->max_buff_len = cmdrsp->scsi.bufflen;
 
-	if (scsi_sg_count(scsicmd) > MAX_PHYS_INFO) {
-		err = SCSI_MLQUEUE_DEVICE_BUSY;
+	if (scsi_sg_count(scsicmd) > MAX_PHYS_INFO)
 		goto err_del_scsipending_ent;
-	}
 
 	/* convert buffer to phys information  */
 	/* buffer is scatterlist - copy it out */
@@ -511,19 +507,17 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	}
 	cmdrsp->scsi.guest_phys_entries = scsi_sg_count(scsicmd);
 
-	op = cdb[0];
 	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
 				       IOCHAN_TO_IOPART,
-				       cmdrsp)) {
+				       cmdrsp))
 		/* queue must be full and we aren't going to wait */
-		err = SCSI_MLQUEUE_DEVICE_BUSY;
 		goto err_del_scsipending_ent;
-	}
+
 	return 0;
 
 err_del_scsipending_ent:
 	del_scsipending_ent(devdata, insert_location);
-	return err;
+	return SCSI_MLQUEUE_DEVICE_BUSY;
 }
 
 /**
@@ -759,11 +753,9 @@ do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 	struct visorhba_devdata *devdata;
 	struct visordisk_info *vdisk;
 	struct scsi_device *scsidev;
-	struct sense_data *sd;
 
 	scsidev = scsicmd->device;
 	memcpy(scsicmd->sense_buffer, cmdrsp->scsi.sensebuf, MAX_SENSE_SIZE);
-	sd = (struct sense_data *)scsicmd->sense_buffer;
 
 	/* Do not log errors for disk-not-present inquiries */
 	if ((cmdrsp->scsi.cmnd[0] == INQUIRY) &&
@@ -1070,7 +1062,7 @@ static int visorhba_resume(struct visor_device *dev,
 		return -EINVAL;
 
 	if (devdata->serverdown && !devdata->serverchangingstate)
-		devdata->serverchangingstate = 1;
+		devdata->serverchangingstate = true;
 
 	visor_thread_start(&devdata->threadinfo, process_incoming_rsps,
 			   devdata, "vhba_incming");

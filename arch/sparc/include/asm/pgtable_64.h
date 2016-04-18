@@ -218,7 +218,7 @@ extern pgprot_t PAGE_KERNEL_LOCKED;
 extern pgprot_t PAGE_COPY;
 extern pgprot_t PAGE_SHARED;
 
-/* XXX This uglyness is for the atyfb driver's sparc mmap() support. XXX */
+/* XXX This ugliness is for the atyfb driver's sparc mmap() support. XXX */
 extern unsigned long _PAGE_IE;
 extern unsigned long _PAGE_E;
 extern unsigned long _PAGE_CACHE;
@@ -681,13 +681,6 @@ static inline unsigned long pmd_trans_huge(pmd_t pmd)
 	return pte_val(pte) & _PAGE_PMD_HUGE;
 }
 
-static inline unsigned long pmd_trans_splitting(pmd_t pmd)
-{
-	pte_t pte = __pte(pmd_val(pmd));
-
-	return pmd_trans_huge(pmd) && pte_special(pte);
-}
-
 #define has_transparent_hugepage() 1
 
 static inline pmd_t pmd_mkold(pmd_t pmd)
@@ -717,6 +710,15 @@ static inline pmd_t pmd_mkdirty(pmd_t pmd)
 	return __pmd(pte_val(pte));
 }
 
+static inline pmd_t pmd_mkclean(pmd_t pmd)
+{
+	pte_t pte = __pte(pmd_val(pmd));
+
+	pte = pte_mkclean(pte);
+
+	return __pmd(pte_val(pte));
+}
+
 static inline pmd_t pmd_mkyoung(pmd_t pmd)
 {
 	pte_t pte = __pte(pmd_val(pmd));
@@ -731,15 +733,6 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
 	pte_t pte = __pte(pmd_val(pmd));
 
 	pte = pte_mkwrite(pte);
-
-	return __pmd(pte_val(pte));
-}
-
-static inline pmd_t pmd_mksplitting(pmd_t pmd)
-{
-	pte_t pte = __pte(pmd_val(pmd));
-
-	pte = pte_mkspecial(pte);
 
 	return __pmd(pte_val(pte));
 }

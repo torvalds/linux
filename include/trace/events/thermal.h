@@ -4,8 +4,21 @@
 #if !defined(_TRACE_THERMAL_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_THERMAL_H
 
+#include <linux/devfreq.h>
 #include <linux/thermal.h>
 #include <linux/tracepoint.h>
+
+TRACE_DEFINE_ENUM(THERMAL_TRIP_CRITICAL);
+TRACE_DEFINE_ENUM(THERMAL_TRIP_HOT);
+TRACE_DEFINE_ENUM(THERMAL_TRIP_PASSIVE);
+TRACE_DEFINE_ENUM(THERMAL_TRIP_ACTIVE);
+
+#define show_tzt_type(type)					\
+	__print_symbolic(type,					\
+			 { THERMAL_TRIP_CRITICAL, "CRITICAL"},	\
+			 { THERMAL_TRIP_HOT,      "HOT"},	\
+			 { THERMAL_TRIP_PASSIVE,  "PASSIVE"},	\
+			 { THERMAL_TRIP_ACTIVE,   "ACTIVE"})
 
 TRACE_EVENT(thermal_temperature,
 
@@ -72,9 +85,9 @@ TRACE_EVENT(thermal_zone_trip,
 		__entry->trip_type = trip_type;
 	),
 
-	TP_printk("thermal_zone=%s id=%d trip=%d trip_type=%d",
+	TP_printk("thermal_zone=%s id=%d trip=%d trip_type=%s",
 		__get_str(thermal_zone), __entry->id, __entry->trip,
-		__entry->trip_type)
+		show_tzt_type(__entry->trip_type))
 );
 
 TRACE_EVENT(thermal_power_cpu_get_power,
@@ -135,6 +148,58 @@ TRACE_EVENT(thermal_power_cpu_limit,
 		__entry->power)
 );
 
+TRACE_EVENT(thermal_power_devfreq_get_power,
+	TP_PROTO(struct thermal_cooling_device *cdev,
+		 struct devfreq_dev_status *status, unsigned long freq,
+		u32 dynamic_power, u32 static_power),
+
+	TP_ARGS(cdev, status,  freq, dynamic_power, static_power),
+
+	TP_STRUCT__entry(
+		__string(type,         cdev->type    )
+		__field(unsigned long, freq          )
+		__field(u32,           load          )
+		__field(u32,           dynamic_power )
+		__field(u32,           static_power  )
+	),
+
+	TP_fast_assign(
+		__assign_str(type, cdev->type);
+		__entry->freq = freq;
+		__entry->load = (100 * status->busy_time) / status->total_time;
+		__entry->dynamic_power = dynamic_power;
+		__entry->static_power = static_power;
+	),
+
+	TP_printk("type=%s freq=%lu load=%u dynamic_power=%u static_power=%u",
+		__get_str(type), __entry->freq,
+		__entry->load, __entry->dynamic_power, __entry->static_power)
+);
+
+TRACE_EVENT(thermal_power_devfreq_limit,
+	TP_PROTO(struct thermal_cooling_device *cdev, unsigned long freq,
+		unsigned long cdev_state, u32 power),
+
+	TP_ARGS(cdev, freq, cdev_state, power),
+
+	TP_STRUCT__entry(
+		__string(type,         cdev->type)
+		__field(unsigned int,  freq      )
+		__field(unsigned long, cdev_state)
+		__field(u32,           power     )
+	),
+
+	TP_fast_assign(
+		__assign_str(type, cdev->type);
+		__entry->freq = freq;
+		__entry->cdev_state = cdev_state;
+		__entry->power = power;
+	),
+
+	TP_printk("type=%s freq=%u cdev_state=%lu power=%u",
+		__get_str(type), __entry->freq, __entry->cdev_state,
+		__entry->power)
+);
 #endif /* _TRACE_THERMAL_H */
 
 /* This part must be outside protection */

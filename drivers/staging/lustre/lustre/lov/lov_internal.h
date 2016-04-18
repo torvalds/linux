@@ -27,7 +27,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -43,7 +43,8 @@
 /* lov_do_div64(a, b) returns a % b, and a = a / b.
  * The 32-bit code is LOV-specific due to knowing about stripe limits in
  * order to reduce the divisor to a 32-bit number.  If the divisor is
- * already a 32-bit value the compiler handles this directly. */
+ * already a 32-bit value the compiler handles this directly.
+ */
 #if BITS_PER_LONG == 64
 # define lov_do_div64(n, base) ({					\
 	uint64_t __base = (base);					\
@@ -92,7 +93,8 @@ struct lov_request_set {
 	atomic_t			set_refcount;
 	struct obd_export		*set_exp;
 	/* XXX: There is @set_exp already, however obd_statfs gets obd_device
-	   only. */
+	 * only.
+	 */
 	struct obd_device		*set_obd;
 	int				set_count;
 	atomic_t			set_completes;
@@ -114,7 +116,6 @@ void lov_finish_set(struct lov_request_set *set);
 
 static inline void lov_get_reqset(struct lov_request_set *set)
 {
-	LASSERT(set != NULL);
 	LASSERT(atomic_read(&set->set_refcount) > 0);
 	atomic_inc(&set->set_refcount);
 }
@@ -137,12 +138,10 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 		      struct ost_lvb *lvb, __u64 *kms_place);
 
 /* lov_offset.c */
-u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size,
-			 int stripeno);
+u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size, int stripeno);
 int lov_stripe_offset(struct lov_stripe_md *lsm, u64 lov_off,
 		      int stripeno, u64 *u64);
-u64 lov_size_to_stripe(struct lov_stripe_md *lsm, u64 file_size,
-			   int stripeno);
+u64 lov_size_to_stripe(struct lov_stripe_md *lsm, u64 file_size, int stripeno);
 int lov_stripe_intersects(struct lov_stripe_md *lsm, int stripeno,
 			  u64 start, u64 end,
 			  u64 *obd_start, u64 *obd_end);
@@ -151,23 +150,10 @@ int lov_stripe_number(struct lov_stripe_md *lsm, u64 lov_off);
 /* lov_qos.c */
 #define LOV_USES_ASSIGNED_STRIPE	0
 #define LOV_USES_DEFAULT_STRIPE	 1
-int qos_add_tgt(struct obd_device *obd, __u32 index);
-int qos_del_tgt(struct obd_device *obd, struct lov_tgt_desc *tgt);
-void qos_shrink_lsm(struct lov_request_set *set);
-int qos_prep_create(struct obd_export *exp, struct lov_request_set *set);
-void qos_update(struct lov_obd *lov);
-void qos_statfs_done(struct lov_obd *lov);
-void qos_statfs_update(struct obd_device *obd, __u64 max_age, int wait);
-int qos_remedy_create(struct lov_request_set *set, struct lov_request *req);
 
 /* lov_request.c */
-void lov_set_add_req(struct lov_request *req, struct lov_request_set *set);
-int lov_set_finished(struct lov_request_set *set, int idempotent);
-void lov_update_set(struct lov_request_set *set,
-		    struct lov_request *req, int rc);
 int lov_update_common_set(struct lov_request_set *set,
 			  struct lov_request *req, int rc);
-int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx);
 int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 			 struct lov_request_set **reqset);
 int lov_fini_getattr_set(struct lov_request_set *set);
@@ -184,8 +170,6 @@ int lov_update_setattr_set(struct lov_request_set *set,
 int lov_fini_setattr_set(struct lov_request_set *set);
 int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 			struct lov_request_set **reqset);
-void lov_update_statfs(struct obd_statfs *osfs, struct obd_statfs *lov_sfs,
-		       int success);
 int lov_fini_statfs(struct obd_device *obd, struct obd_statfs *osfs,
 		    int success);
 int lov_fini_statfs_set(struct lov_request_set *set);
@@ -212,7 +196,7 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmm,
 int lov_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 		 struct lov_mds_md *lmm, int lmm_bytes);
 int lov_getstripe(struct obd_export *exp,
-		  struct lov_stripe_md *lsm, struct lov_user_md *lump);
+		  struct lov_stripe_md *lsm, struct lov_user_md __user *lump);
 int lov_alloc_memmd(struct lov_stripe_md **lsmp, __u16 stripe_count,
 		    int pattern, int magic);
 int lov_free_memmd(struct lov_stripe_md **lsmp);

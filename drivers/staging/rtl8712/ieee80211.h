@@ -12,8 +12,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ * this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
@@ -61,7 +60,6 @@
 #define IEEE_CRYPT_ERR_TX_KEY_SET_FAILED	6
 #define IEEE_CRYPT_ERR_CARD_CONF_FAILED		7
 
-
 #define	IEEE_CRYPT_ALG_NAME_LEN			16
 
 #define WPA_CIPHER_NONE				BIT(0)
@@ -69,8 +67,6 @@
 #define WPA_CIPHER_WEP104			BIT(2)
 #define WPA_CIPHER_TKIP				BIT(3)
 #define WPA_CIPHER_CCMP				BIT(4)
-
-
 
 #define WPA_SELECTOR_LEN			4
 #define RSN_HEADER_LEN				4
@@ -87,7 +83,6 @@ enum NETWORK_TYPE {
 	WIRELESS_11GN		= (WIRELESS_11G | WIRELESS_11N),
 	WIRELESS_11BGN		= (WIRELESS_11B | WIRELESS_11G | WIRELESS_11N),
 };
-
 
 struct ieee_param {
 	u32 cmd;
@@ -161,7 +156,6 @@ struct ieee80211_hdr_3addr {
 	u16 seq_ctl;
 } __packed;
 
-
 struct	ieee80211_hdr_qos {
 	u16 frame_ctl;
 	u16 duration_id;
@@ -190,7 +184,6 @@ struct eapol {
 	u8 type;
 	u16 length;
 } __packed;
-
 
 enum eap_type {
 	EAP_PACKET = 0,
@@ -255,7 +248,6 @@ enum eap_type {
 #define IEEE80211_STYPE_CFPOLL		0x0060
 #define IEEE80211_STYPE_CFACKPOLL	0x0070
 #define IEEE80211_QOS_DATAGRP		0x0080
-#define IEEE80211_QoS_DATAGRP		IEEE80211_QOS_DATAGRP
 
 #define IEEE80211_SCTL_FRAG		0x000F
 #define IEEE80211_SCTL_SEQ		0xFFF0
@@ -305,15 +297,15 @@ struct ieee80211_snap_hdr {
 
 #define WLAN_AUTH_CHALLENGE_LEN 128
 
-#define WLAN_CAPABILITY_BSS (1<<0)
-#define WLAN_CAPABILITY_IBSS (1<<1)
-#define WLAN_CAPABILITY_CF_POLLABLE (1<<2)
-#define WLAN_CAPABILITY_CF_POLL_REQUEST (1<<3)
-#define WLAN_CAPABILITY_PRIVACY (1<<4)
-#define WLAN_CAPABILITY_SHORT_PREAMBLE (1<<5)
-#define WLAN_CAPABILITY_PBCC (1<<6)
-#define WLAN_CAPABILITY_CHANNEL_AGILITY (1<<7)
-#define WLAN_CAPABILITY_SHORT_SLOT (1<<10)
+#define WLAN_CAPABILITY_BSS BIT(0)
+#define WLAN_CAPABILITY_IBSS BIT(1)
+#define WLAN_CAPABILITY_CF_POLLABLE BIT(2)
+#define WLAN_CAPABILITY_CF_POLL_REQUEST BIT(3)
+#define WLAN_CAPABILITY_PRIVACY BIT(4)
+#define WLAN_CAPABILITY_SHORT_PREAMBLE BIT(5)
+#define WLAN_CAPABILITY_PBCC BIT(6)
+#define WLAN_CAPABILITY_CHANNEL_AGILITY BIT(7)
+#define WLAN_CAPABILITY_SHORT_SLOT BIT(10)
 
 /* Information Element IDs */
 #define WLAN_EID_SSID 0
@@ -331,23 +323,20 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_DATA_HDR3_LEN 24
 #define IEEE80211_DATA_HDR4_LEN 30
 
-
-#define IEEE80211_STATMASK_SIGNAL (1<<0)
-#define IEEE80211_STATMASK_RSSI (1<<1)
-#define IEEE80211_STATMASK_NOISE (1<<2)
-#define IEEE80211_STATMASK_RATE (1<<3)
+#define IEEE80211_STATMASK_SIGNAL BIT(0)
+#define IEEE80211_STATMASK_RSSI BIT(1)
+#define IEEE80211_STATMASK_NOISE BIT(2)
+#define IEEE80211_STATMASK_RATE BIT(3)
 #define IEEE80211_STATMASK_WEMASK 0x7
 
+#define IEEE80211_CCK_MODULATION    BIT(0)
+#define IEEE80211_OFDM_MODULATION   BIT(1)
 
-#define IEEE80211_CCK_MODULATION    (1<<0)
-#define IEEE80211_OFDM_MODULATION   (1<<1)
-
-#define IEEE80211_24GHZ_BAND     (1<<0)
-#define IEEE80211_52GHZ_BAND     (1<<1)
+#define IEEE80211_24GHZ_BAND     BIT(0)
+#define IEEE80211_52GHZ_BAND     BIT(1)
 
 #define IEEE80211_CCK_RATE_LEN			4
 #define IEEE80211_NUM_OFDM_RATESLEN	8
-
 
 #define IEEE80211_CCK_RATE_1MB		        0x02
 #define IEEE80211_CCK_RATE_2MB		        0x04
@@ -364,18 +353,18 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_OFDM_RATE_54MB		0x6C
 #define IEEE80211_BASIC_RATE_MASK		0x80
 
-#define IEEE80211_CCK_RATE_1MB_MASK		(1<<0)
-#define IEEE80211_CCK_RATE_2MB_MASK		(1<<1)
-#define IEEE80211_CCK_RATE_5MB_MASK		(1<<2)
-#define IEEE80211_CCK_RATE_11MB_MASK		(1<<3)
-#define IEEE80211_OFDM_RATE_6MB_MASK		(1<<4)
-#define IEEE80211_OFDM_RATE_9MB_MASK		(1<<5)
-#define IEEE80211_OFDM_RATE_12MB_MASK		(1<<6)
-#define IEEE80211_OFDM_RATE_18MB_MASK		(1<<7)
-#define IEEE80211_OFDM_RATE_24MB_MASK		(1<<8)
-#define IEEE80211_OFDM_RATE_36MB_MASK		(1<<9)
-#define IEEE80211_OFDM_RATE_48MB_MASK		(1<<10)
-#define IEEE80211_OFDM_RATE_54MB_MASK		(1<<11)
+#define IEEE80211_CCK_RATE_1MB_MASK		BIT(0)
+#define IEEE80211_CCK_RATE_2MB_MASK		BIT(1)
+#define IEEE80211_CCK_RATE_5MB_MASK		BIT(2)
+#define IEEE80211_CCK_RATE_11MB_MASK		BIT(3)
+#define IEEE80211_OFDM_RATE_6MB_MASK		BIT(4)
+#define IEEE80211_OFDM_RATE_9MB_MASK		BIT(5)
+#define IEEE80211_OFDM_RATE_12MB_MASK		BIT(6)
+#define IEEE80211_OFDM_RATE_18MB_MASK		BIT(7)
+#define IEEE80211_OFDM_RATE_24MB_MASK		BIT(8)
+#define IEEE80211_OFDM_RATE_36MB_MASK		BIT(9)
+#define IEEE80211_OFDM_RATE_48MB_MASK		BIT(10)
+#define IEEE80211_OFDM_RATE_54MB_MASK		BIT(11)
 
 #define IEEE80211_CCK_RATES_MASK	        0x0000000F
 #define IEEE80211_CCK_BASIC_RATES_MASK		(IEEE80211_CCK_RATE_1MB_MASK | \
@@ -400,9 +389,6 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_NUM_OFDM_RATES	    8
 #define IEEE80211_NUM_CCK_RATES	            4
 #define IEEE80211_OFDM_SHIFT_MASK_A         4
-
-
-
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.  Not setting these will not cause
@@ -481,15 +467,15 @@ struct ieee80211_softmac_stats {
 	uint swtxawake;
 };
 
-#define SEC_KEY_1         (1<<0)
-#define SEC_KEY_2         (1<<1)
-#define SEC_KEY_3         (1<<2)
-#define SEC_KEY_4         (1<<3)
-#define SEC_ACTIVE_KEY    (1<<4)
-#define SEC_AUTH_MODE     (1<<5)
-#define SEC_UNICAST_GROUP (1<<6)
-#define SEC_LEVEL         (1<<7)
-#define SEC_ENABLED       (1<<8)
+#define SEC_KEY_1         BIT(0)
+#define SEC_KEY_2         BIT(1)
+#define SEC_KEY_3         BIT(2)
+#define SEC_KEY_4         BIT(3)
+#define SEC_ACTIVE_KEY    BIT(4)
+#define SEC_AUTH_MODE     BIT(5)
+#define SEC_UNICAST_GROUP BIT(6)
+#define SEC_LEVEL         BIT(7)
+#define SEC_ENABLED       BIT(8)
 
 #define SEC_LEVEL_0      0 /* None */
 #define SEC_LEVEL_1      1 /* WEP 40 and 104 bit */
@@ -645,9 +631,9 @@ struct ieee80211_txb {
 
 #define MAX_WPA_IE_LEN 128
 
-#define NETWORK_EMPTY_ESSID (1<<0)
-#define NETWORK_HAS_OFDM    (1<<1)
-#define NETWORK_HAS_CCK     (1<<2)
+#define NETWORK_EMPTY_ESSID BIT(0)
+#define NETWORK_HAS_OFDM    BIT(1)
+#define NETWORK_HAS_CCK     BIT(2)
 
 #define IEEE80211_DTIM_MBCAST 4
 #define IEEE80211_DTIM_UCAST 2
@@ -699,15 +685,15 @@ enum ieee80211_state {
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
 
-#define CFG_IEEE80211_RESERVE_FCS (1<<0)
-#define CFG_IEEE80211_COMPUTE_FCS (1<<1)
+#define CFG_IEEE80211_RESERVE_FCS BIT(0)
+#define CFG_IEEE80211_COMPUTE_FCS BIT(1)
 
 #define MAXTID	16
 
-#define IEEE_A            (1<<0)
-#define IEEE_B            (1<<1)
-#define IEEE_G            (1<<2)
-#define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
+#define IEEE_A            BIT(0)
+#define IEEE_B            BIT(1)
+#define IEEE_G            BIT(2)
+#define IEEE_MODE_MASK    (IEEE_A | IEEE_B | IEEE_G)
 
 static inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
 {
@@ -757,7 +743,7 @@ unsigned char *r8712_get_wpa_ie(unsigned char *pie, int *rsn_ie_len, int limit);
 unsigned char *r8712_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len,
 				 int limit);
 int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
-			int *pairwise_cipher);
+		       int *pairwise_cipher);
 int r8712_parse_wpa2_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 			int *pairwise_cipher);
 int r8712_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,

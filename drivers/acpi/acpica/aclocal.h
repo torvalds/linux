@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,7 @@ union acpi_parse_object;
 #define ACPI_MTX_MEMORY                 5	/* Debug memory tracking lists */
 
 #define ACPI_MAX_MUTEX                  5
-#define ACPI_NUM_MUTEX                  ACPI_MAX_MUTEX+1
+#define ACPI_NUM_MUTEX                  (ACPI_MAX_MUTEX+1)
 
 /* Lock structure for reader/writer interfaces */
 
@@ -103,11 +103,11 @@ struct acpi_rw_lock {
 #define ACPI_LOCK_HARDWARE              1
 
 #define ACPI_MAX_LOCK                   1
-#define ACPI_NUM_LOCK                   ACPI_MAX_LOCK+1
+#define ACPI_NUM_LOCK                   (ACPI_MAX_LOCK+1)
 
 /* This Thread ID means that the mutex is not in use (unlocked) */
 
-#define ACPI_MUTEX_NOT_ACQUIRED         (acpi_thread_id) 0
+#define ACPI_MUTEX_NOT_ACQUIRED         ((acpi_thread_id) 0)
 
 /* This Thread ID means an invalid thread ID */
 
@@ -218,6 +218,13 @@ struct acpi_table_list {
 #define ACPI_ROOT_ORIGIN_UNKNOWN        (0)	/* ~ORIGIN_ALLOCATED */
 #define ACPI_ROOT_ORIGIN_ALLOCATED      (1)
 #define ACPI_ROOT_ALLOW_RESIZE          (2)
+
+/* List to manage incoming ACPI tables */
+
+struct acpi_new_table_desc {
+	struct acpi_table_header *table;
+	struct acpi_new_table_desc *next;
+};
 
 /* Predefined table indexes */
 
@@ -388,7 +395,8 @@ union acpi_predefined_info {
 
 /* Return object auto-repair info */
 
-typedef acpi_status(*acpi_object_converter) (union acpi_operand_object
+typedef acpi_status(*acpi_object_converter) (struct acpi_namespace_node * scope,
+					     union acpi_operand_object
 					     *original_object,
 					     union acpi_operand_object
 					     **converted_object);
@@ -420,6 +428,7 @@ struct acpi_simple_repair_info {
 
 struct acpi_reg_walk_info {
 	acpi_adr_space_type space_id;
+	u32 function;
 	u32 reg_run_count;
 };
 
@@ -861,6 +870,7 @@ struct acpi_parse_state {
 #define ACPI_PARSEOP_CLOSING_PAREN      0x10
 #define ACPI_PARSEOP_COMPOUND           0x20
 #define ACPI_PARSEOP_ASSIGNMENT         0x40
+#define ACPI_PARSEOP_ELSEIF             0x80
 
 /*****************************************************************************
  *

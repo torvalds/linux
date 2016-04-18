@@ -327,11 +327,19 @@ static int netback_probe(struct xenbus_device *dev,
 			goto abort_transaction;
 		}
 
-		/* We support multicast-control. */
+		/* We support dynamic multicast-control. */
 		err = xenbus_printf(xbt, dev->nodename,
 				    "feature-multicast-control", "%d", 1);
 		if (err) {
 			message = "writing feature-multicast-control";
+			goto abort_transaction;
+		}
+
+		err = xenbus_printf(xbt, dev->nodename,
+				    "feature-dynamic-multicast-control",
+				    "%d", 1);
+		if (err) {
+			message = "writing feature-dynamic-multicast-control";
 			goto abort_transaction;
 		}
 
@@ -503,8 +511,6 @@ static void set_backend_state(struct backend_info *be,
 			switch (state) {
 			case XenbusStateInitWait:
 			case XenbusStateConnected:
-				pr_info("%s: prepare for reconnect\n",
-					be->dev->nodename);
 				backend_switch_state(be, XenbusStateInitWait);
 				break;
 			case XenbusStateClosing:
@@ -683,7 +689,8 @@ static void xen_net_rate_changed(struct xenbus_watch *watch,
 	}
 }
 
-static int xen_register_watchers(struct xenbus_device *dev, struct xenvif *vif)
+static int xen_register_credit_watch(struct xenbus_device *dev,
+				     struct xenvif *vif)
 {
 	int err = 0;
 	char *node;
@@ -708,13 +715,82 @@ static int xen_register_watchers(struct xenbus_device *dev, struct xenvif *vif)
 	return err;
 }
 
-static void xen_unregister_watchers(struct xenvif *vif)
+static void xen_unregister_credit_watch(struct xenvif *vif)
 {
 	if (vif->credit_watch.node) {
 		unregister_xenbus_watch(&vif->credit_watch);
 		kfree(vif->credit_watch.node);
 		vif->credit_watch.node = NULL;
 	}
+}
+
+static void xen_mcast_ctrl_changed(struct xenbus_watch *watch,
+				   const char **vec, unsigned int len)
+{
+	struct xenvif *vif = container_of(watch, struct xenvif,
+					  mcast_ctrl_watch);
+	struct xenbus_device *dev = xenvif_to_xenbus_device(vif);
+	int val;
+
+	if (xenbus_scanf(XBT_NIL, dev->otherend,
+			 "request-multicast-control", "%d", &val) < 0)
+		val = 0;
+	vif->multicast_control = !!val;
+}
+
+static int xen_register_mcast_ctrl_watch(struct xenbus_device *dev,
+					 struct xenvif *vif)
+{
+	int err = 0;
+	char *node;
+	unsigned maxlen = strlen(dev->otherend) +
+		sizeof("/request-multicast-control");
+
+	if (vif->mcast_ctrl_watch.node) {
+		pr_err_ratelimited("Watch is already registered\n");
+		return -EADDRINUSE;
+	}
+
+	node = kmalloc(maxlen, GFP_KERNEL);
+	if (!node) {
+		pr_err("Failed to allocate memory for watch\n");
+		return -ENOMEM;
+	}
+	snprintf(node, maxlen, "%s/request-multicast-control",
+		 dev->otherend);
+	vif->mcast_ctrl_watch.node = node;
+	vif->mcast_ctrl_watch.callback = xen_mcast_ctrl_changed;
+	err = register_xenbus_watch(&vif->mcast_ctrl_watch);
+	if (err) {
+		pr_err("Failed to set watcher %s\n",
+		       vif->mcast_ctrl_watch.node);
+		kfree(node);
+		vif->mcast_ctrl_watch.node = NULL;
+		vif->mcast_ctrl_watch.callback = NULL;
+	}
+	return err;
+}
+
+static void xen_unregister_mcast_ctrl_watch(struct xenvif *vif)
+{
+	if (vif->mcast_ctrl_watch.node) {
+		unregister_xenbus_watch(&vif->mcast_ctrl_watch);
+		kfree(vif->mcast_ctrl_watch.node);
+		vif->mcast_ctrl_watch.node = NULL;
+	}
+}
+
+static void xen_register_watchers(struct xenbus_device *dev,
+				  struct xenvif *vif)
+{
+	xen_register_credit_watch(dev, vif);
+	xen_register_mcast_ctrl_watch(dev, vif);
+}
+
+static void xen_unregister_watchers(struct xenvif *vif)
+{
+	xen_unregister_mcast_ctrl_watch(vif);
+	xen_unregister_credit_watch(vif);
 }
 
 static void unregister_hotplug_status_watch(struct backend_info *be)
@@ -1029,11 +1105,6 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 			 "%d", &val) < 0)
 		val = 0;
 	vif->ipv6_csum = !!val;
-
-	if (xenbus_scanf(XBT_NIL, dev->otherend, "request-multicast-control",
-			 "%d", &val) < 0)
-		val = 0;
-	vif->multicast_control = !!val;
 
 	return 0;
 }

@@ -27,7 +27,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -88,7 +88,8 @@ int __llog_ctxt_put(const struct lu_env *env, struct llog_ctxt *ctxt)
 	spin_unlock(&obd->obd_dev_lock);
 
 	/* obd->obd_starting is needed for the case of cleanup
-	 * in error case while obd is starting up. */
+	 * in error case while obd is starting up.
+	 */
 	LASSERTF(obd->obd_starting == 1 ||
 		 obd->obd_stopping == 1 || obd->obd_set_up == 0,
 		 "wrong obd state: %d/%d/%d\n", !!obd->obd_starting,
@@ -110,11 +111,8 @@ int llog_cleanup(const struct lu_env *env, struct llog_ctxt *ctxt)
 	struct obd_llog_group *olg;
 	int rc, idx;
 
-	LASSERT(ctxt != NULL);
-	LASSERT(ctxt != LP_POISON);
-
 	olg = ctxt->loc_olg;
-	LASSERT(olg != NULL);
+	LASSERT(olg);
 	LASSERT(olg != LP_POISON);
 
 	idx = ctxt->loc_idx;
@@ -151,7 +149,7 @@ int llog_setup(const struct lu_env *env, struct obd_device *obd,
 	if (index < 0 || index >= LLOG_MAX_CTXTS)
 		return -EINVAL;
 
-	LASSERT(olg != NULL);
+	LASSERT(olg);
 
 	ctxt = llog_new_ctxt(obd);
 	if (!ctxt)

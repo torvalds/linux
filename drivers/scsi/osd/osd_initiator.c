@@ -170,10 +170,7 @@ static int _osd_get_print_system_info(struct osd_dev *od,
 
 	/* FIXME: Where are the time utilities */
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("CLOCK                  [0x%02x%02x%02x%02x%02x%02x]\n",
-		((char *)pFirst)[0], ((char *)pFirst)[1],
-		((char *)pFirst)[2], ((char *)pFirst)[3],
-		((char *)pFirst)[4], ((char *)pFirst)[5]);
+	OSD_INFO("CLOCK                  [0x%6phN]\n", pFirst);
 
 	if (a < nelem) { /* IBM-OSD-SIM bug, Might not have it */
 		unsigned len = get_attrs[a].len;
@@ -2009,9 +2006,8 @@ EXPORT_SYMBOL(osd_sec_init_nosec_doall_caps);
  */
 void osd_set_caps(struct osd_cdb *cdb, const void *caps)
 {
-	bool is_ver1 = true;
 	/* NOTE: They start at same address */
-	memcpy(&cdb->v1.caps, caps, is_ver1 ? OSDv1_CAP_LEN : OSD_CAP_LEN);
+	memcpy(&cdb->v1.caps, caps, OSDv1_CAP_LEN);
 }
 
 bool osd_is_sec_alldata(struct osd_security_parameters *sec_parms __unused)

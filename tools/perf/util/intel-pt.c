@@ -979,6 +979,7 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 	if (!pt->timeless_decoding)
 		sample.time = tsc_to_perf_time(ptq->timestamp, &pt->tc);
 
+	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.ip = ptq->state->from_ip;
 	sample.pid = ptq->pid;
 	sample.tid = ptq->tid;
@@ -1035,6 +1036,7 @@ static int intel_pt_synth_instruction_sample(struct intel_pt_queue *ptq)
 	if (!pt->timeless_decoding)
 		sample.time = tsc_to_perf_time(ptq->timestamp, &pt->tc);
 
+	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.ip = ptq->state->from_ip;
 	sample.pid = ptq->pid;
 	sample.tid = ptq->tid;
@@ -1092,6 +1094,7 @@ static int intel_pt_synth_transaction_sample(struct intel_pt_queue *ptq)
 	if (!pt->timeless_decoding)
 		sample.time = tsc_to_perf_time(ptq->timestamp, &pt->tc);
 
+	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.ip = ptq->state->from_ip;
 	sample.pid = ptq->pid;
 	sample.tid = ptq->tid;
@@ -1744,7 +1747,7 @@ static void intel_pt_free(struct perf_session *session)
 	auxtrace_heap__free(&pt->heap);
 	intel_pt_free_events(session);
 	session->auxtrace = NULL;
-	thread__delete(pt->unknown_thread);
+	thread__put(pt->unknown_thread);
 	free(pt);
 }
 
@@ -2068,6 +2071,15 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		err = -ENOMEM;
 		goto err_free_queues;
 	}
+
+	/*
+	 * Since this thread will not be kept in any rbtree not in a
+	 * list, initialize its list node so that at thread__put() the
+	 * current thread lifetime assuption is kept and we don't segfault
+	 * at list_del_init().
+	 */
+	INIT_LIST_HEAD(&pt->unknown_thread->node);
+
 	err = thread__set_comm(pt->unknown_thread, "unknown", 0);
 	if (err)
 		goto err_delete_thread;
@@ -2153,7 +2165,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	return 0;
 
 err_delete_thread:
-	thread__delete(pt->unknown_thread);
+	thread__zput(pt->unknown_thread);
 err_free_queues:
 	intel_pt_log_disable();
 	auxtrace_queues__free(&pt->queues);

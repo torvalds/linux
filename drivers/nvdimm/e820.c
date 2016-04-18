@@ -3,6 +3,7 @@
  * Copyright (c) 2015, Intel Corporation.
  */
 #include <linux/platform_device.h>
+#include <linux/memory_hotplug.h>
 #include <linux/libnvdimm.h>
 #include <linux/module.h>
 
@@ -25,6 +26,18 @@ static int e820_pmem_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+static int e820_range_to_nid(resource_size_t addr)
+{
+	return memory_add_physaddr_to_nid(addr);
+}
+#else
+static int e820_range_to_nid(resource_size_t addr)
+{
+	return NUMA_NO_NODE;
+}
+#endif
+
 static int e820_pmem_probe(struct platform_device *pdev)
 {
 	static struct nvdimm_bus_descriptor nd_desc;
@@ -42,13 +55,13 @@ static int e820_pmem_probe(struct platform_device *pdev)
 	for (p = iomem_resource.child; p ; p = p->sibling) {
 		struct nd_region_desc ndr_desc;
 
-		if (strncmp(p->name, "Persistent Memory (legacy)", 26) != 0)
+		if (p->desc != IORES_DESC_PERSISTENT_MEMORY_LEGACY)
 			continue;
 
 		memset(&ndr_desc, 0, sizeof(ndr_desc));
 		ndr_desc.res = p;
 		ndr_desc.attr_groups = e820_pmem_region_attribute_groups;
-		ndr_desc.numa_node = NUMA_NO_NODE;
+		ndr_desc.numa_node = e820_range_to_nid(p->start);
 		set_bit(ND_REGION_PAGEMAP, &ndr_desc.flags);
 		if (!nvdimm_pmem_region_create(nvdimm_bus, &ndr_desc))
 			goto err;

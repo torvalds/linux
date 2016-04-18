@@ -26,7 +26,7 @@
 #include "../../util/evlist.h"
 #include "../../util/evsel.h"
 #include "../../util/cpumap.h"
-#include "../../util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "../../util/parse-events.h"
 #include "../../util/pmu.h"
 #include "../../util/debug.h"
@@ -89,7 +89,7 @@ static int intel_pt_parse_terms_with_default(struct list_head *formats,
 
 	*config = attr.config;
 out_free:
-	parse_events__free_terms(terms);
+	parse_events_terms__delete(terms);
 	return err;
 }
 
@@ -273,7 +273,9 @@ intel_pt_pmu_default_config(struct perf_pmu *intel_pt_pmu)
 	return attr;
 }
 
-static size_t intel_pt_info_priv_size(struct auxtrace_record *itr __maybe_unused)
+static size_t
+intel_pt_info_priv_size(struct auxtrace_record *itr __maybe_unused,
+			struct perf_evlist *evlist __maybe_unused)
 {
 	return INTEL_PT_AUXTRACE_PRIV_SIZE;
 }
@@ -725,7 +727,7 @@ static int intel_pt_snapshot_start(struct auxtrace_record *itr)
 
 	evlist__for_each(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
-			return perf_evlist__disable_event(ptr->evlist, evsel);
+			return perf_evsel__disable(evsel);
 	}
 	return -EINVAL;
 }
@@ -738,7 +740,7 @@ static int intel_pt_snapshot_finish(struct auxtrace_record *itr)
 
 	evlist__for_each(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
-			return perf_evlist__enable_event(ptr->evlist, evsel);
+			return perf_evsel__enable(evsel);
 	}
 	return -EINVAL;
 }

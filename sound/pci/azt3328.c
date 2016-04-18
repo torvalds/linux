@@ -2294,8 +2294,6 @@ snd_azf3328_free(struct snd_azf3328 *chip)
 	snd_azf3328_timer_stop(chip->timer);
 	snd_azf3328_gameport_free(chip);
 
-	if (chip->irq >= 0)
-		synchronize_irq(chip->irq);
 __end_hw:
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);

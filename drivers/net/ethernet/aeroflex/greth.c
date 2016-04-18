@@ -1337,11 +1337,6 @@ static int greth_mdio_init(struct greth_private *greth)
 	greth->mdio->write = greth_mdio_write;
 	greth->mdio->priv = greth;
 
-	greth->mdio->irq = greth->mdio_irqs;
-
-	for (phy = 0; phy < PHY_MAX_ADDR; phy++)
-		greth->mdio->irq[phy] = PHY_POLL;
-
 	ret = mdiobus_register(greth->mdio);
 	if (ret) {
 		goto error;

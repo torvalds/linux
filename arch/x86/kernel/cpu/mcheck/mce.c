@@ -114,7 +114,6 @@ static struct work_struct mce_work;
 static struct irq_work mce_irq_work;
 
 static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
-static int mce_usable_address(struct mce *m);
 
 /*
  * CPU/chipset specific EDAC code can register a notifier call here to print
@@ -475,6 +474,28 @@ static void mce_report_event(struct pt_regs *regs)
 	irq_work_queue(&mce_irq_work);
 }
 
+/*
+ * Check if the address reported by the CPU is in a format we can parse.
+ * It would be possible to add code for most other cases, but all would
+ * be somewhat complicated (e.g. segment offset would require an instruction
+ * parser). So only support physical addresses up to page granuality for now.
+ */
+static int mce_usable_address(struct mce *m)
+{
+	if (!(m->status & MCI_STATUS_MISCV) || !(m->status & MCI_STATUS_ADDRV))
+		return 0;
+
+	/* Checks after this one are Intel-specific: */
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return 1;
+
+	if (MCI_MISC_ADDR_LSB(m->misc) > PAGE_SHIFT)
+		return 0;
+	if (MCI_MISC_ADDR_MODE(m->misc) != MCI_MISC_ADDR_PHYS)
+		return 0;
+	return 1;
+}
+
 static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
 				void *data)
 {
@@ -484,7 +505,7 @@ static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
 	if (!mce)
 		return NOTIFY_DONE;
 
-	if (mce->usable_addr && (mce->severity == MCE_AO_SEVERITY)) {
+	if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
 		pfn = mce->addr >> PAGE_SHIFT;
 		memory_failure(pfn, MCE_VECTOR, 0);
 	}
@@ -522,10 +543,10 @@ static bool memory_error(struct mce *m)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	if (c->x86_vendor == X86_VENDOR_AMD) {
-		/*
-		 * coming soon
-		 */
-		return false;
+		/* ErrCodeExt[20:16] */
+		u8 xec = (m->status >> 16) & 0x1f;
+
+		return (xec == 0x0 || xec == 0x8);
 	} else if (c->x86_vendor == X86_VENDOR_INTEL) {
 		/*
 		 * Intel SDM Volume 3B - 15.9.2 Compound Error Codes
@@ -567,7 +588,7 @@ DEFINE_PER_CPU(unsigned, mce_poll_count);
  */
 bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 {
-	bool error_logged = false;
+	bool error_seen = false;
 	struct mce m;
 	int severity;
 	int i;
@@ -601,6 +622,8 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		    (m.status & (mca_cfg.ser ? MCI_STATUS_S : MCI_STATUS_UC)))
 			continue;
 
+		error_seen = true;
+
 		mce_read_aux(&m, i);
 
 		if (!(flags & MCP_TIMESTAMP))
@@ -608,27 +631,24 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 		severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
 
-		/*
-		 * In the cases where we don't have a valid address after all,
-		 * do not add it into the ring buffer.
-		 */
-		if (severity == MCE_DEFERRED_SEVERITY && memory_error(&m)) {
-			if (m.status & MCI_STATUS_ADDRV) {
+		if (severity == MCE_DEFERRED_SEVERITY && memory_error(&m))
+			if (m.status & MCI_STATUS_ADDRV)
 				m.severity = severity;
-				m.usable_addr = mce_usable_address(&m);
-
-				if (!mce_gen_pool_add(&m))
-					mce_schedule_work();
-			}
-		}
 
 		/*
 		 * Don't get the IP here because it's unlikely to
 		 * have anything to do with the actual error location.
 		 */
-		if (!(flags & MCP_DONTLOG) && !mca_cfg.dont_log_ce) {
-			error_logged = true;
+		if (!(flags & MCP_DONTLOG) && !mca_cfg.dont_log_ce)
 			mce_log(&m);
+		else if (mce_usable_address(&m)) {
+			/*
+			 * Although we skipped logging this, we still want
+			 * to take action. Add to the pool so the registered
+			 * notifiers will see it.
+			 */
+			if (!mce_gen_pool_add(&m))
+				mce_schedule_work();
 		}
 
 		/*
@@ -644,7 +664,7 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 	sync_core();
 
-	return error_logged;
+	return error_seen;
 }
 EXPORT_SYMBOL_GPL(machine_check_poll);
 
@@ -931,23 +951,6 @@ reset:
 	return ret;
 }
 
-/*
- * Check if the address reported by the CPU is in a format we can parse.
- * It would be possible to add code for most other cases, but all would
- * be somewhat complicated (e.g. segment offset would require an instruction
- * parser). So only support physical addresses up to page granuality for now.
- */
-static int mce_usable_address(struct mce *m)
-{
-	if (!(m->status & MCI_STATUS_MISCV) || !(m->status & MCI_STATUS_ADDRV))
-		return 0;
-	if (MCI_MISC_ADDR_LSB(m->misc) > PAGE_SHIFT)
-		return 0;
-	if (MCI_MISC_ADDR_MODE(m->misc) != MCI_MISC_ADDR_PHYS)
-		return 0;
-	return 1;
-}
-
 static void mce_clear_state(unsigned long *toclear)
 {
 	int i;
@@ -956,6 +959,20 @@ static void mce_clear_state(unsigned long *toclear)
 		if (test_bit(i, toclear))
 			mce_wrmsrl(MSR_IA32_MCx_STATUS(i), 0);
 	}
+}
+
+static int do_memory_failure(struct mce *m)
+{
+	int flags = MF_ACTION_REQUIRED;
+	int ret;
+
+	pr_err("Uncorrected hardware memory error in user-access at %llx", m->addr);
+	if (!(m->mcgstatus & MCG_STATUS_RIPV))
+		flags |= MF_MUST_KILL;
+	ret = memory_failure(m->addr >> PAGE_SHIFT, MCE_VECTOR, flags);
+	if (ret)
+		pr_err("Memory error not recovered");
+	return ret;
 }
 
 /*
@@ -995,9 +1012,18 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
 	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
 	char *msg = "Unknown";
-	u64 recover_paddr = ~0ull;
-	int flags = MF_ACTION_REQUIRED;
 	int lmce = 0;
+
+	/* If this CPU is offline, just bail out. */
+	if (cpu_is_offline(smp_processor_id())) {
+		u64 mcgstatus;
+
+		mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
+		if (mcgstatus & MCG_STATUS_RIPV) {
+			mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
+			return;
+		}
+	}
 
 	ist_enter(regs);
 
@@ -1089,7 +1115,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 		/* assuming valid severity level != 0 */
 		m.severity = severity;
-		m.usable_addr = mce_usable_address(&m);
 
 		mce_log(&m);
 
@@ -1123,22 +1148,13 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	}
 
 	/*
-	 * At insane "tolerant" levels we take no action. Otherwise
-	 * we only die if we have no other choice. For less serious
-	 * issues we try to recover, or limit damage to the current
-	 * process.
+	 * If tolerant is at an insane level we drop requests to kill
+	 * processes and continue even when there is no way out.
 	 */
-	if (cfg->tolerant < 3) {
-		if (no_way_out)
-			mce_panic("Fatal machine check on current CPU", &m, msg);
-		if (worst == MCE_AR_SEVERITY) {
-			recover_paddr = m.addr;
-			if (!(m.mcgstatus & MCG_STATUS_RIPV))
-				flags |= MF_MUST_KILL;
-		} else if (kill_it) {
-			force_sig(SIGBUS, current);
-		}
-	}
+	if (cfg->tolerant == 3)
+		kill_it = 0;
+	else if (no_way_out)
+		mce_panic("Fatal machine check on current CPU", &m, msg);
 
 	if (worst > 0)
 		mce_report_event(regs);
@@ -1146,25 +1162,24 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 out:
 	sync_core();
 
-	if (recover_paddr == ~0ull)
-		goto done;
+	if (worst != MCE_AR_SEVERITY && !kill_it)
+		goto out_ist;
 
-	pr_err("Uncorrected hardware memory error in user-access at %llx",
-		 recover_paddr);
-	/*
-	 * We must call memory_failure() here even if the current process is
-	 * doomed. We still need to mark the page as poisoned and alert any
-	 * other users of the page.
-	 */
-	ist_begin_non_atomic(regs);
-	local_irq_enable();
-	if (memory_failure(recover_paddr >> PAGE_SHIFT, MCE_VECTOR, flags) < 0) {
-		pr_err("Memory error not recovered");
-		force_sig(SIGBUS, current);
+	/* Fault was in user mode and we need to take some action */
+	if ((m.cs & 3) == 3) {
+		ist_begin_non_atomic(regs);
+		local_irq_enable();
+
+		if (kill_it || do_memory_failure(&m))
+			force_sig(SIGBUS, current);
+		local_irq_disable();
+		ist_end_non_atomic();
+	} else {
+		if (!fixup_exception(regs, X86_TRAP_MC))
+			mce_panic("Failed kernel mode recovery", &m, NULL);
 	}
-	local_irq_disable();
-	ist_end_non_atomic();
-done:
+
+out_ist:
 	ist_exit(regs);
 }
 EXPORT_SYMBOL_GPL(do_machine_check);
@@ -1563,6 +1578,17 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 
 		if (c->x86 == 6 && c->x86_model == 45)
 			quirk_no_way_out = quirk_sandybridge_ifu;
+		/*
+		 * MCG_CAP.MCG_SER_P is necessary but not sufficient to know
+		 * whether this processor will actually generate recoverable
+		 * machine checks. Check to see if this is an E7 model Xeon.
+		 * We can't do a model number check because E5 and E7 use the
+		 * same model number. E5 doesn't support recovery, E7 does.
+		 */
+		if (mca_cfg.recovery || (mca_cfg.ser &&
+			!strncmp(c->x86_model_id,
+				 "Intel(R) Xeon(R) CPU E7-", 24)))
+			set_cpu_cap(c, X86_FEATURE_MCE_RECOVERY);
 	}
 	if (cfg->monarch_timeout < 0)
 		cfg->monarch_timeout = 0;
@@ -1604,10 +1630,10 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 	case X86_VENDOR_AMD: {
 		u32 ebx = cpuid_ebx(0x80000007);
 
-		mce_amd_feature_init(c);
 		mce_flags.overflow_recov = !!(ebx & BIT(0));
 		mce_flags.succor	 = !!(ebx & BIT(1));
 		mce_flags.smca		 = !!(ebx & BIT(3));
+		mce_amd_feature_init(c);
 
 		break;
 		}
@@ -2015,6 +2041,8 @@ static int __init mcheck_enable(char *str)
 		cfg->bootlog = (str[0] == 'b');
 	else if (!strcmp(str, "bios_cmci_threshold"))
 		cfg->bios_cmci_threshold = true;
+	else if (!strcmp(str, "recovery"))
+		cfg->recovery = true;
 	else if (isdigit(str[0])) {
 		if (get_option(&str, &cfg->tolerant) == 2)
 			get_option(&str, &(cfg->monarch_timeout));

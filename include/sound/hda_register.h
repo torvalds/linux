@@ -93,6 +93,9 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_REG_HSW_EM4			0x100c
 #define AZX_REG_HSW_EM5			0x1010
 
+/* Skylake/Broxton display HD-A controller Extended Mode registers */
+#define AZX_REG_SKL_EM4L		0x1040
+
 /* PCI space */
 #define AZX_PCIREG_TCSEL		0x44
 
@@ -229,6 +232,15 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 
 #define AZX_MLCTL_SPA			(1<<16)
 #define AZX_MLCTL_CPA			23
+
+
+/* registers for DMA Resume Capability Structure */
+#define AZX_DRSM_CAP_ID			0x5
+#define AZX_REG_DRSM_CTL		0x4
+/* Base used to calculate the iterating register offset */
+#define AZX_DRSM_BASE			0x08
+/* Interval used to calculate the iterating register offset */
+#define AZX_DRSM_INTERVAL		0x08
 
 /*
  * helpers to read the stream position

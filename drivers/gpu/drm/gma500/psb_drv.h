@@ -465,6 +465,8 @@ struct drm_psb_private {
 	struct mutex gtt_mutex;
 	struct resource *gtt_mem;	/* Our PCI resource */
 
+	struct mutex mmap_mutex;
+
 	struct psb_mmu_driver *mmu;
 	struct psb_mmu_pd *pf_pd;
 
@@ -651,6 +653,8 @@ struct psb_ops {
 	void (*init_pm)(struct drm_device *dev);
 	int (*save_regs)(struct drm_device *dev);
 	int (*restore_regs)(struct drm_device *dev);
+	void (*save_crtc)(struct drm_crtc *crtc);
+	void (*restore_crtc)(struct drm_crtc *crtc);
 	int (*power_up)(struct drm_device *dev);
 	int (*power_down)(struct drm_device *dev);
 	void (*update_wm)(struct drm_device *dev, struct drm_crtc *crtc);
@@ -687,15 +691,15 @@ extern void psb_irq_turn_off_dpst(struct drm_device *dev);
 extern void psb_irq_uninstall_islands(struct drm_device *dev, int hw_islands);
 extern int psb_vblank_wait2(struct drm_device *dev, unsigned int *sequence);
 extern int psb_vblank_wait(struct drm_device *dev, unsigned int *sequence);
-extern int psb_enable_vblank(struct drm_device *dev, int crtc);
-extern void psb_disable_vblank(struct drm_device *dev, int crtc);
+extern int psb_enable_vblank(struct drm_device *dev, unsigned int pipe);
+extern void psb_disable_vblank(struct drm_device *dev, unsigned int pipe);
 void
 psb_enable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask);
 
 void
 psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask);
 
-extern u32 psb_get_vblank_counter(struct drm_device *dev, int crtc);
+extern u32 psb_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
 
 /* framebuffer.c */
 extern int psbfb_probed(struct drm_device *dev);

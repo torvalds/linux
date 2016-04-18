@@ -64,6 +64,8 @@
 #define	AT91_TWI_IADR		0x000c	/* Internal Address Register */
 
 #define	AT91_TWI_CWGR		0x0010	/* Clock Waveform Generator Reg */
+#define	AT91_TWI_CWGR_HOLD_MAX	0x1f
+#define	AT91_TWI_CWGR_HOLD(x)	(((x) & AT91_TWI_CWGR_HOLD_MAX) << 24)
 
 #define	AT91_TWI_SR		0x0020	/* Status Register */
 #define	AT91_TWI_TXCOMP		BIT(0)	/* Transmission Complete */
@@ -110,6 +112,7 @@ struct at91_twi_pdata {
 	unsigned clk_offset;
 	bool has_unre_flag;
 	bool has_alt_cmd;
+	bool has_hold_field;
 	struct at_dma_slave dma_slave;
 };
 
@@ -187,10 +190,11 @@ static void at91_init_twi_bus(struct at91_twi_dev *dev)
  */
 static void at91_calc_twi_clock(struct at91_twi_dev *dev, int twi_clk)
 {
-	int ckdiv, cdiv, div;
+	int ckdiv, cdiv, div, hold = 0;
 	struct at91_twi_pdata *pdata = dev->pdata;
 	int offset = pdata->clk_offset;
 	int max_ckdiv = pdata->clk_max_div;
+	u32 twd_hold_time_ns = 0;
 
 	div = max(0, (int)DIV_ROUND_UP(clk_get_rate(dev->clk),
 				       2 * twi_clk) - offset);
@@ -204,8 +208,33 @@ static void at91_calc_twi_clock(struct at91_twi_dev *dev, int twi_clk)
 		cdiv = 255;
 	}
 
-	dev->twi_cwgr_reg = (ckdiv << 16) | (cdiv << 8) | cdiv;
-	dev_dbg(dev->dev, "cdiv %d ckdiv %d\n", cdiv, ckdiv);
+	if (pdata->has_hold_field) {
+		of_property_read_u32(dev->dev->of_node, "i2c-sda-hold-time-ns",
+				     &twd_hold_time_ns);
+
+		/*
+		 * hold time = HOLD + 3 x T_peripheral_clock
+		 * Use clk rate in kHz to prevent overflows when computing
+		 * hold.
+		 */
+		hold = DIV_ROUND_UP(twd_hold_time_ns
+				    * (clk_get_rate(dev->clk) / 1000), 1000000);
+		hold -= 3;
+		if (hold < 0)
+			hold = 0;
+		if (hold > AT91_TWI_CWGR_HOLD_MAX) {
+			dev_warn(dev->dev,
+				 "HOLD field set to its maximum value (%d instead of %d)\n",
+				 AT91_TWI_CWGR_HOLD_MAX, hold);
+			hold = AT91_TWI_CWGR_HOLD_MAX;
+		}
+	}
+
+	dev->twi_cwgr_reg = (ckdiv << 16) | (cdiv << 8) | cdiv
+			    | AT91_TWI_CWGR_HOLD(hold);
+
+	dev_dbg(dev->dev, "cdiv %d ckdiv %d hold %d (%d ns)\n",
+		cdiv, ckdiv, hold, twd_hold_time_ns);
 }
 
 static void at91_twi_dma_cleanup(struct at91_twi_dev *dev)
@@ -347,8 +376,14 @@ error:
 
 static void at91_twi_read_next_byte(struct at91_twi_dev *dev)
 {
-	if (!dev->buf_len)
+	/*
+	 * If we are in this case, it means there is garbage data in RHR, so
+	 * delete them.
+	 */
+	if (!dev->buf_len) {
+		at91_twi_read(dev, AT91_TWI_RHR);
 		return;
+	}
 
 	/* 8bit read works with and without FIFO */
 	*dev->buf = readb_relaxed(dev->base + AT91_TWI_RHR);
@@ -465,18 +500,72 @@ static irqreturn_t atmel_twi_interrupt(int irq, void *dev_id)
 
 	if (!irqstatus)
 		return IRQ_NONE;
-	else if (irqstatus & AT91_TWI_RXRDY)
+	/*
+	 * In reception, the behavior of the twi device (before sama5d2) is
+	 * weird. There is some magic about RXRDY flag! When a data has been
+	 * almost received, the reception of a new one is anticipated if there
+	 * is no stop command to send. That is the reason why ask for sending
+	 * the stop command not on the last data but on the second last one.
+	 *
+	 * Unfortunately, we could still have the RXRDY flag set even if the
+	 * transfer is done and we have read the last data. It might happen
+	 * when the i2c slave device sends too quickly data after receiving the
+	 * ack from the master. The data has been almost received before having
+	 * the order to send stop. In this case, sending the stop command could
+	 * cause a RXRDY interrupt with a TXCOMP one. It is better to manage
+	 * the RXRDY interrupt first in order to not keep garbage data in the
+	 * Receive Holding Register for the next transfer.
+	 */
+	if (irqstatus & AT91_TWI_RXRDY)
 		at91_twi_read_next_byte(dev);
-	else if (irqstatus & AT91_TWI_TXRDY)
-		at91_twi_write_next_byte(dev);
 
-	/* catch error flags */
-	dev->transfer_status |= status;
-
+	/*
+	 * When a NACK condition is detected, the I2C controller sets the NACK,
+	 * TXCOMP and TXRDY bits all together in the Status Register (SR).
+	 *
+	 * 1 - Handling NACK errors with CPU write transfer.
+	 *
+	 * In such case, we should not write the next byte into the Transmit
+	 * Holding Register (THR) otherwise the I2C controller would start a new
+	 * transfer and the I2C slave is likely to reply by another NACK.
+	 *
+	 * 2 - Handling NACK errors with DMA write transfer.
+	 *
+	 * By setting the TXRDY bit in the SR, the I2C controller also triggers
+	 * the DMA controller to write the next data into the THR. Then the
+	 * result depends on the hardware version of the I2C controller.
+	 *
+	 * 2a - Without support of the Alternative Command mode.
+	 *
+	 * This is the worst case: the DMA controller is triggered to write the
+	 * next data into the THR, hence starting a new transfer: the I2C slave
+	 * is likely to reply by another NACK.
+	 * Concurrently, this interrupt handler is likely to be called to manage
+	 * the first NACK before the I2C controller detects the second NACK and
+	 * sets once again the NACK bit into the SR.
+	 * When handling the first NACK, this interrupt handler disables the I2C
+	 * controller interruptions, especially the NACK interrupt.
+	 * Hence, the NACK bit is pending into the SR. This is why we should
+	 * read the SR to clear all pending interrupts at the beginning of
+	 * at91_do_twi_transfer() before actually starting a new transfer.
+	 *
+	 * 2b - With support of the Alternative Command mode.
+	 *
+	 * When a NACK condition is detected, the I2C controller also locks the
+	 * THR (and sets the LOCK bit in the SR): even though the DMA controller
+	 * is triggered by the TXRDY bit to write the next data into the THR,
+	 * this data actually won't go on the I2C bus hence a second NACK is not
+	 * generated.
+	 */
 	if (irqstatus & (AT91_TWI_TXCOMP | AT91_TWI_NACK)) {
 		at91_disable_twi_interrupts(dev);
 		complete(&dev->cmd_complete);
+	} else if (irqstatus & AT91_TWI_TXRDY) {
+		at91_twi_write_next_byte(dev);
 	}
+
+	/* catch error flags */
+	dev->transfer_status |= status;
 
 	return IRQ_HANDLED;
 }
@@ -537,6 +626,9 @@ static int at91_do_twi_transfer(struct at91_twi_dev *dev)
 	reinit_completion(&dev->cmd_complete);
 	dev->transfer_status = 0;
 
+	/* Clear pending interrupts, such as NACK. */
+	at91_twi_read(dev, AT91_TWI_SR);
+
 	if (dev->fifo_size) {
 		unsigned fifo_mr = at91_twi_read(dev, AT91_TWI_FMR);
 
@@ -557,11 +649,6 @@ static int at91_do_twi_transfer(struct at91_twi_dev *dev)
 		at91_twi_write(dev, AT91_TWI_IER, AT91_TWI_TXCOMP);
 	} else if (dev->msg->flags & I2C_M_RD) {
 		unsigned start_flags = AT91_TWI_START;
-
-		if (at91_twi_read(dev, AT91_TWI_SR) & AT91_TWI_RXRDY) {
-			dev_err(dev->dev, "RXRDY still set!");
-			at91_twi_read(dev, AT91_TWI_RHR);
-		}
 
 		/* if only one byte is to be read, immediately stop transfer */
 		if (!has_alt_cmd && dev->buf_len <= 1 &&
@@ -739,6 +826,7 @@ static struct at91_twi_pdata at91rm9200_config = {
 	.clk_offset = 3,
 	.has_unre_flag = true,
 	.has_alt_cmd = false,
+	.has_hold_field = false,
 };
 
 static struct at91_twi_pdata at91sam9261_config = {
@@ -746,6 +834,7 @@ static struct at91_twi_pdata at91sam9261_config = {
 	.clk_offset = 4,
 	.has_unre_flag = false,
 	.has_alt_cmd = false,
+	.has_hold_field = false,
 };
 
 static struct at91_twi_pdata at91sam9260_config = {
@@ -753,6 +842,7 @@ static struct at91_twi_pdata at91sam9260_config = {
 	.clk_offset = 4,
 	.has_unre_flag = false,
 	.has_alt_cmd = false,
+	.has_hold_field = false,
 };
 
 static struct at91_twi_pdata at91sam9g20_config = {
@@ -760,6 +850,7 @@ static struct at91_twi_pdata at91sam9g20_config = {
 	.clk_offset = 4,
 	.has_unre_flag = false,
 	.has_alt_cmd = false,
+	.has_hold_field = false,
 };
 
 static struct at91_twi_pdata at91sam9g10_config = {
@@ -767,6 +858,7 @@ static struct at91_twi_pdata at91sam9g10_config = {
 	.clk_offset = 4,
 	.has_unre_flag = false,
 	.has_alt_cmd = false,
+	.has_hold_field = false,
 };
 
 static const struct platform_device_id at91_twi_devtypes[] = {
@@ -796,6 +888,15 @@ static struct at91_twi_pdata at91sam9x5_config = {
 	.clk_offset = 4,
 	.has_unre_flag = false,
 	.has_alt_cmd = false,
+	.has_hold_field = false,
+};
+
+static struct at91_twi_pdata sama5d4_config = {
+	.clk_max_div = 7,
+	.clk_offset = 4,
+	.has_unre_flag = false,
+	.has_alt_cmd = false,
+	.has_hold_field = true,
 };
 
 static struct at91_twi_pdata sama5d2_config = {
@@ -803,6 +904,7 @@ static struct at91_twi_pdata sama5d2_config = {
 	.clk_offset = 4,
 	.has_unre_flag = true,
 	.has_alt_cmd = true,
+	.has_hold_field = true,
 };
 
 static const struct of_device_id atmel_twi_dt_ids[] = {
@@ -824,6 +926,9 @@ static const struct of_device_id atmel_twi_dt_ids[] = {
 	}, {
 		.compatible = "atmel,at91sam9x5-i2c",
 		.data = &at91sam9x5_config,
+	}, {
+		.compatible = "atmel,sama5d4-i2c",
+		.data = &sama5d4_config,
 	}, {
 		.compatible = "atmel,sama5d2-i2c",
 		.data = &sama5d2_config,

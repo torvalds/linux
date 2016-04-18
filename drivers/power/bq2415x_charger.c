@@ -1704,7 +1704,7 @@ error_4:
 error_3:
 	bq2415x_power_supply_exit(bq);
 error_2:
-	if (bq && bq->notify_node)
+	if (bq)
 		of_node_put(bq->notify_node);
 	kfree(name);
 error_1:
@@ -1724,9 +1724,7 @@ static int bq2415x_remove(struct i2c_client *client)
 	if (bq->nb.notifier_call)
 		power_supply_unreg_notifier(&bq->nb);
 
-	if (bq->notify_node)
-		of_node_put(bq->notify_node);
-
+	of_node_put(bq->notify_node);
 	bq2415x_sysfs_exit(bq);
 	bq2415x_power_supply_exit(bq);
 
@@ -1761,6 +1759,7 @@ static const struct i2c_device_id bq2415x_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bq2415x_i2c_id_table);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id bq2415x_i2c_acpi_match[] = {
 	{ "BQ2415X", BQUNKNOWN },
 	{ "BQ241500", BQ24150 },
@@ -1778,10 +1777,31 @@ static const struct acpi_device_id bq2415x_i2c_acpi_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, bq2415x_i2c_acpi_match);
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id bq2415x_of_match_table[] = {
+	{ .compatible = "ti,bq24150" },
+	{ .compatible = "ti,bq24150a" },
+	{ .compatible = "ti,bq24151" },
+	{ .compatible = "ti,bq24151a" },
+	{ .compatible = "ti,bq24152" },
+	{ .compatible = "ti,bq24153" },
+	{ .compatible = "ti,bq24153a" },
+	{ .compatible = "ti,bq24155" },
+	{ .compatible = "ti,bq24156" },
+	{ .compatible = "ti,bq24156a" },
+	{ .compatible = "ti,bq24157s" },
+	{ .compatible = "ti,bq24158" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, bq2415x_of_match_table);
+#endif
 
 static struct i2c_driver bq2415x_driver = {
 	.driver = {
 		.name = "bq2415x-charger",
+		.of_match_table = of_match_ptr(bq2415x_of_match_table),
 		.acpi_match_table = ACPI_PTR(bq2415x_i2c_acpi_match),
 	},
 	.probe = bq2415x_probe,

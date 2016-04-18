@@ -152,20 +152,10 @@ struct omap_hwmod_ocp_if am33xx_cpgmac0__mdio = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_addr_space am33xx_elm_addr_space[] = {
-	{
-		.pa_start	= 0x48080000,
-		.pa_end		= 0x48080000 + SZ_8K - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 struct omap_hwmod_ocp_if am33xx_l4_ls__elm = {
 	.master		= &am33xx_l4_ls_hwmod,
 	.slave		= &am33xx_elm_hwmod,
 	.clk		= "l4ls_gclk",
-	.addr		= am33xx_elm_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -285,20 +275,10 @@ struct omap_hwmod_ocp_if am33xx_epwmss2__ehrpwm2 = {
 };
 
 /* l3s cfg -> gpmc */
-static struct omap_hwmod_addr_space am33xx_gpmc_addr_space[] = {
-	{
-		.pa_start	= 0x50000000,
-		.pa_end		= 0x50000000 + SZ_8K - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 struct omap_hwmod_ocp_if am33xx_l3_s__gpmc = {
 	.master		= &am33xx_l3_s_hwmod,
 	.slave		= &am33xx_gpmc_hwmod,
 	.clk		= "l3s_gclk",
-	.addr		= am33xx_gpmc_addr_space,
 	.user		= OCP_USER_MPU,
 };
 

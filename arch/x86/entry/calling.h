@@ -1,3 +1,5 @@
+#include <linux/jump_label.h>
+
 /*
 
  x86 function call convention, 64-bit:
@@ -199,36 +201,18 @@ For 32-bit we have the following conventions - kernel is built with
 	.byte 0xf1
 	.endm
 
-#else /* CONFIG_X86_64 */
-
-/*
- * For 32bit only simplified versions of SAVE_ALL/RESTORE_ALL. These
- * are different from the entry_32.S versions in not changing the segment
- * registers. So only suitable for in kernel use, not when transitioning
- * from or to user space. The resulting stack frame is not a standard
- * pt_regs frame. The main use case is calling C code from assembler
- * when all the registers need to be preserved.
- */
-
-	.macro SAVE_ALL
-	pushl %eax
-	pushl %ebp
-	pushl %edi
-	pushl %esi
-	pushl %edx
-	pushl %ecx
-	pushl %ebx
-	.endm
-
-	.macro RESTORE_ALL
-	popl %ebx
-	popl %ecx
-	popl %edx
-	popl %esi
-	popl %edi
-	popl %ebp
-	popl %eax
-	.endm
-
 #endif /* CONFIG_X86_64 */
 
+/*
+ * This does 'call enter_from_user_mode' unless we can avoid it based on
+ * kernel config or using the static jump infrastructure.
+ */
+.macro CALL_enter_from_user_mode
+#ifdef CONFIG_CONTEXT_TRACKING
+#ifdef HAVE_JUMP_LABEL
+	STATIC_JUMP_IF_FALSE .Lafter_call_\@, context_tracking_enabled, def=0
+#endif
+	call enter_from_user_mode
+.Lafter_call_\@:
+#endif
+.endm

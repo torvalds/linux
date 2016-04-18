@@ -289,13 +289,13 @@ struct v4l2_subdev_ops {
 然后，你必须用一个唯一的名字初始化 subdev->name，并初始化模块的
 owner 域。若使用 i2c 辅助函数，这些都会帮你处理好。
 
-若需同媒体框架整合，你必须调用 media_entity_init() 初始化 v4l2_subdev
+若需同媒体框架整合，你必须调用 media_entity_pads_init() 初始化 v4l2_subdev
 结构体中的 media_entity 结构体（entity 域）：
 
 	struct media_pad *pads = &my_sd->pads;
 	int err;
 
-	err = media_entity_init(&sd->entity, npads, pads, 0);
+	err = media_entity_pads_init(&sd->entity, npads, pads);
 
 pads 数组必须预先初始化。无须手动设置 media_entity 的 type 和
 name 域，但如有必要，revision 域必须初始化。
@@ -596,13 +596,13 @@ void v4l2_disable_ioctl(struct video_device *vdev, unsigned int cmd);
 v4l2_file_operations 结构体是 file_operations 的一个子集。其主要
 区别在于：因 inode 参数从未被使用，它将被忽略。
 
-如果需要与媒体框架整合，你必须通过调用 media_entity_init() 初始化
+如果需要与媒体框架整合，你必须通过调用 media_entity_pads_init() 初始化
 嵌入在 video_device 结构体中的 media_entity（entity 域）结构体：
 
 	struct media_pad *pad = &my_vdev->pad;
 	int err;
 
-	err = media_entity_init(&vdev->entity, 1, pad, 0);
+	err = media_entity_pads_init(&vdev->entity, 1, pad);
 
 pads 数组必须预先初始化。没有必要手动设置 media_entity 的 type 和
 name 域。

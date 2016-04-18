@@ -21,7 +21,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <crypto/hash_info.h>
+
 #include "ima.h"
 
 /* name for boot aggregate entry */
@@ -116,7 +116,7 @@ int __init ima_init(void)
 	if (!ima_used_chip)
 		pr_info("No TPM chip found, activating TPM-bypass!\n");
 
-	rc = ima_init_keyring(INTEGRITY_KEYRING_IMA);
+	rc = integrity_init_keyring(INTEGRITY_KEYRING_IMA);
 	if (rc)
 		return rc;
 

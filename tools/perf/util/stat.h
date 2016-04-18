@@ -68,21 +68,23 @@ void perf_stat_evsel_id_init(struct perf_evsel *evsel);
 
 extern struct stats walltime_nsecs_stats;
 
+typedef void (*print_metric_t)(void *ctx, const char *color, const char *unit,
+			       const char *fmt, double val);
+typedef void (*new_line_t )(void *ctx);
+
+void perf_stat__init_shadow_stats(void);
 void perf_stat__reset_shadow_stats(void);
 void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
 				    int cpu);
-void perf_stat__print_shadow_stats(FILE *out, struct perf_evsel *evsel,
-				   double avg, int cpu, enum aggr_mode aggr);
+struct perf_stat_output_ctx {
+	void *ctx;
+	print_metric_t print_metric;
+	new_line_t new_line;
+};
 
-void perf_evsel__reset_stat_priv(struct perf_evsel *evsel);
-int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel);
-void perf_evsel__free_stat_priv(struct perf_evsel *evsel);
-
-int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel,
-				      int ncpus, int nthreads);
-void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel);
-
-int perf_evsel__alloc_stats(struct perf_evsel *evsel, bool alloc_raw);
+void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
+				   double avg, int cpu,
+				   struct perf_stat_output_ctx *out);
 
 int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw);
 void perf_evlist__free_stats(struct perf_evlist *evlist);
@@ -90,4 +92,14 @@ void perf_evlist__reset_stats(struct perf_evlist *evlist);
 
 int perf_stat_process_counter(struct perf_stat_config *config,
 			      struct perf_evsel *counter);
+struct perf_tool;
+union perf_event;
+struct perf_session;
+int perf_event__process_stat_event(struct perf_tool *tool,
+				   union perf_event *event,
+				   struct perf_session *session);
+
+size_t perf_event__fprintf_stat(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_stat_round(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_stat_config(union perf_event *event, FILE *fp);
 #endif

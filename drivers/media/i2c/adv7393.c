@@ -31,7 +31,7 @@
 #include <linux/videodev2.h>
 #include <linux/uaccess.h>
 
-#include <media/adv7393.h>
+#include <media/i2c/adv7393.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 

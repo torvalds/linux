@@ -39,11 +39,10 @@ struct llvm_param {
 };
 
 extern struct llvm_param llvm_param;
-extern int perf_llvm_config(const char *var, const char *value);
+int perf_llvm_config(const char *var, const char *value);
 
-extern int llvm__compile_bpf(const char *path, void **p_obj_buf,
-			     size_t *p_obj_buf_sz);
+int llvm__compile_bpf(const char *path, void **p_obj_buf, size_t *p_obj_buf_sz);
 
 /* This function is for test__llvm() use only */
-extern int llvm__search_clang(void);
+int llvm__search_clang(void);
 #endif

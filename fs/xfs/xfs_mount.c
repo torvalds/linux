@@ -47,6 +47,16 @@ static DEFINE_MUTEX(xfs_uuid_table_mutex);
 static int xfs_uuid_table_size;
 static uuid_t *xfs_uuid_table;
 
+void
+xfs_uuid_table_free(void)
+{
+	if (xfs_uuid_table_size == 0)
+		return;
+	kmem_free(xfs_uuid_table);
+	xfs_uuid_table = NULL;
+	xfs_uuid_table_size = 0;
+}
+
 /*
  * See if the UUID is unique among mounted XFS filesystems.
  * Mount fails if UUID is nil or a FS with the same UUID is already mounted.
@@ -161,7 +171,7 @@ xfs_sb_validate_fsb_count(
 	ASSERT(sbp->sb_blocklog >= BBSHIFT);
 
 	/* Limited by ULONG_MAX of page cache index */
-	if (nblocks >> (PAGE_CACHE_SHIFT - sbp->sb_blocklog) > ULONG_MAX)
+	if (nblocks >> (PAGE_SHIFT - sbp->sb_blocklog) > ULONG_MAX)
 		return -EFBIG;
 	return 0;
 }
@@ -175,9 +185,6 @@ xfs_initialize_perag(
 	xfs_agnumber_t	index;
 	xfs_agnumber_t	first_initialised = 0;
 	xfs_perag_t	*pag;
-	xfs_agino_t	agino;
-	xfs_ino_t	ino;
-	xfs_sb_t	*sbp = &mp->m_sb;
 	int		error = -ENOMEM;
 
 	/*
@@ -220,22 +227,7 @@ xfs_initialize_perag(
 		radix_tree_preload_end();
 	}
 
-	/*
-	 * If we mount with the inode64 option, or no inode overflows
-	 * the legacy 32-bit address space clear the inode32 option.
-	 */
-	agino = XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks - 1, 0);
-	ino = XFS_AGINO_TO_INO(mp, agcount - 1, agino);
-
-	if ((mp->m_flags & XFS_MOUNT_SMALL_INUMS) && ino > XFS_MAXINUMBER_32)
-		mp->m_flags |= XFS_MOUNT_32BITINODES;
-	else
-		mp->m_flags &= ~XFS_MOUNT_32BITINODES;
-
-	if (mp->m_flags & XFS_MOUNT_32BITINODES)
-		index = xfs_set_inode32(mp, agcount);
-	else
-		index = xfs_set_inode64(mp, agcount);
+	index = xfs_set_inode_alloc(mp, agcount);
 
 	if (maxagi)
 		*maxagi = index;
@@ -693,9 +685,14 @@ xfs_mountfs(
 	if (error)
 		goto out;
 
-	error = xfs_uuid_mount(mp);
+	error = xfs_sysfs_init(&mp->m_stats.xs_kobj, &xfs_stats_ktype,
+			       &mp->m_kobj, "stats");
 	if (error)
 		goto out_remove_sysfs;
+
+	error = xfs_uuid_mount(mp);
+	if (error)
+		goto out_del_stats;
 
 	/*
 	 * Set the minimum read and write sizes
@@ -850,7 +847,7 @@ xfs_mountfs(
 
 	ASSERT(rip != NULL);
 
-	if (unlikely(!S_ISDIR(rip->i_d.di_mode))) {
+	if (unlikely(!S_ISDIR(VFS_I(rip)->i_mode))) {
 		xfs_warn(mp, "corrupted root inode %llu: not a directory",
 			(unsigned long long)rip->i_ino);
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
@@ -971,6 +968,8 @@ xfs_mountfs(
 	xfs_da_unmount(mp);
  out_remove_uuid:
 	xfs_uuid_unmount(mp);
+ out_del_stats:
+	xfs_sysfs_del(&mp->m_stats.xs_kobj);
  out_remove_sysfs:
 	xfs_sysfs_del(&mp->m_kobj);
  out:
@@ -1047,6 +1046,7 @@ xfs_unmountfs(
 		xfs_warn(mp, "Unable to update superblock counters. "
 				"Freespace may not be correct on next mount.");
 
+
 	xfs_log_unmount(mp);
 	xfs_da_unmount(mp);
 	xfs_uuid_unmount(mp);
@@ -1056,6 +1056,7 @@ xfs_unmountfs(
 #endif
 	xfs_free_perag(mp);
 
+	xfs_sysfs_del(&mp->m_stats.xs_kobj);
 	xfs_sysfs_del(&mp->m_kobj);
 }
 
@@ -1265,7 +1266,7 @@ xfs_getsb(
 	}
 
 	xfs_buf_hold(bp);
-	ASSERT(XFS_BUF_ISDONE(bp));
+	ASSERT(bp->b_flags & XBF_DONE);
 	return bp;
 }
 

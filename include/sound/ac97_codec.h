@@ -417,11 +417,13 @@
 #define AC97_RATES_MIC_ADC	4
 #define AC97_RATES_SPDIF	5
 
+#define AC97_NUM_GPIOS		16
 /*
  *
  */
 
 struct snd_ac97;
+struct snd_ac97_gpio_priv;
 struct snd_pcm_chmap;
 
 struct snd_ac97_build_ops {
@@ -529,6 +531,7 @@ struct snd_ac97 {
 	struct delayed_work power_work;
 #endif
 	struct device dev;
+	struct snd_ac97_gpio_priv *gpio_priv;
 
 	struct snd_pcm_chmap *chmaps[2]; /* channel-maps (optional) */
 };

@@ -38,6 +38,7 @@
 #include "lgdt3305.h"
 #include "zl10353.h"
 #include "s5h1409.h"
+#include "mt2060.h"
 #include "mt352.h"
 #include "mt352_priv.h" /* FIXME */
 #include "tda1002x.h"
@@ -815,6 +816,10 @@ static struct zl10353_config em28xx_zl10353_no_i2c_gate_dev = {
 	.parallel_ts = 1,
 };
 
+static struct mt2060_config em28xx_mt2060_config = {
+	.i2c_address = 0x60,
+};
+
 static struct qt1010_config em28xx_qt1010_config = {
 	.i2c_address = 0x62
 };
@@ -900,6 +905,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 			       struct em28xx *dev, struct device *device)
 {
 	int result;
+	bool create_rf_connector = false;
 
 	mutex_init(&dvb->lock);
 
@@ -911,6 +917,9 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 		       dev->name, result);
 		goto fail_adapter;
 	}
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	dvb->adapter.mdev = dev->media_dev;
+#endif
 
 	/* Ensure all frontends negotiate bus access */
 	dvb->fe[0]->ops.ts_bus_ctrl = em28xx_dvb_bus_ctrl;
@@ -989,8 +998,19 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 
 	/* register network adapter */
 	dvb_net_init(&dvb->adapter, &dvb->net, &dvb->demux.dmx);
+
+	/* If the analog part won't create RF connectors, DVB will do it */
+	if (!dev->has_video || (dev->tuner_type == TUNER_ABSENT))
+		create_rf_connector = true;
+
+	result = dvb_create_media_graph(&dvb->adapter, create_rf_connector);
+	if (result < 0)
+		goto fail_create_graph;
+
 	return 0;
 
+fail_create_graph:
+	dvb_net_release(&dvb->net);
 fail_fe_conn:
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 fail_fe_mem:
@@ -1140,6 +1160,16 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		if (em28xx_attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
 			goto out_free;
+		}
+		break;
+	case EM2870_BOARD_TERRATEC_XS_MT2060:
+		dvb->fe[0] = dvb_attach(zl10353_attach,
+						&em28xx_zl10353_no_i2c_gate_dev,
+						&dev->i2c_adap[dev->def_i2c_bus]);
+		if (dvb->fe[0] != NULL) {
+			dvb_attach(mt2060_attach, dvb->fe[0],
+					&dev->i2c_adap[dev->def_i2c_bus],
+					&em28xx_mt2060_config, 1220);
 		}
 		break;
 	case EM2870_BOARD_KWORLD_355U:
@@ -1641,6 +1671,9 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			memset(&si2157_config, 0, sizeof(si2157_config));
 			si2157_config.fe = dvb->fe[0];
 			si2157_config.if_port = 1;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+			si2157_config.mdev = dev->media_dev;
+#endif
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
 			info.addr = 0x60;
@@ -1702,6 +1735,9 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			memset(&si2157_config, 0, sizeof(si2157_config));
 			si2157_config.fe = dvb->fe[0];
 			si2157_config.if_port = 0;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+			si2157_config.mdev = dev->media_dev;
+#endif
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2146", I2C_NAME_SIZE);
 			info.addr = 0x60;

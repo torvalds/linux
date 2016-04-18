@@ -62,6 +62,12 @@ DAX: File system extensions to bypass the page cache and block layer to
 mmap persistent memory, from a PMEM block device, directly into a
 process address space.
 
+DSM: Device Specific Method: ACPI method to to control specific
+device - in this case the firmware.
+
+DCR: NVDIMM Control Region Structure defined in ACPI 6 Section 5.2.25.5.
+It defines a vendor-id, device-id, and interface format for a given DIMM.
+
 BTT: Block Translation Table: Persistent memory is byte addressable.
 Existing software may have an expectation that the power-fail-atomicity
 of writes is at least one sector, 512 bytes.  The BTT is an indirection
@@ -133,16 +139,16 @@ device driver:
     registered, can be immediately attached to nd_pmem.
 
     2. BLK (nd_blk.ko): This driver performs I/O using a set of platform
-    defined apertures.  A set of apertures will all access just one DIMM.
-    Multiple windows allow multiple concurrent accesses, much like
+    defined apertures.  A set of apertures will access just one DIMM.
+    Multiple windows (apertures) allow multiple concurrent accesses, much like
     tagged-command-queuing, and would likely be used by different threads or
     different CPUs.
 
     The NFIT specification defines a standard format for a BLK-aperture, but
     the spec also allows for vendor specific layouts, and non-NFIT BLK
-    implementations may other designs for BLK I/O.  For this reason "nd_blk"
-    calls back into platform-specific code to perform the I/O.  One such
-    implementation is defined in the "Driver Writer's Guide" and "DSM
+    implementations may have other designs for BLK I/O.  For this reason
+    "nd_blk" calls back into platform-specific code to perform the I/O.
+    One such implementation is defined in the "Driver Writer's Guide" and "DSM
     Interface Example".
 
 
@@ -152,7 +158,7 @@ Why BLK?
 While PMEM provides direct byte-addressable CPU-load/store access to
 NVDIMM storage, it does not provide the best system RAS (recovery,
 availability, and serviceability) model.  An access to a corrupted
-system-physical-address address causes a cpu exception while an access
+system-physical-address address causes a CPU exception while an access
 to a corrupted address through an BLK-aperture causes that block window
 to raise an error status in a register.  The latter is more aligned with
 the standard error model that host-bus-adapter attached disks present.
@@ -162,7 +168,7 @@ data could be interleaved in an opaque hardware specific manner across
 several DIMMs.
 
 PMEM vs BLK
-BLK-apertures solve this RAS problem, but their presence is also the
+BLK-apertures solve these RAS problems, but their presence is also the
 major contributing factor to the complexity of the ND subsystem.  They
 complicate the implementation because PMEM and BLK alias in DPA space.
 Any given DIMM's DPA-range may contribute to one or more
@@ -220,8 +226,8 @@ socket.  Each unique interface (BLK or PMEM) to DPA space is identified
 by a region device with a dynamically assigned id (REGION0 - REGION5).
 
     1. The first portion of DIMM0 and DIMM1 are interleaved as REGION0. A
-    single PMEM namespace is created in the REGION0-SPA-range that spans
-    DIMM0 and DIMM1 with a user-specified name of "pm0.0". Some of that
+    single PMEM namespace is created in the REGION0-SPA-range that spans most
+    of DIMM0 and DIMM1 with a user-specified name of "pm0.0". Some of that
     interleaved system-physical-address range is reclaimed as BLK-aperture
     accessed space starting at DPA-offset (a) into each DIMM.  In that
     reclaimed space we create two BLK-aperture "namespaces" from REGION2 and
@@ -230,13 +236,13 @@ by a region device with a dynamically assigned id (REGION0 - REGION5).
 
     2. In the last portion of DIMM0 and DIMM1 we have an interleaved
     system-physical-address range, REGION1, that spans those two DIMMs as
-    well as DIMM2 and DIMM3.  Some of REGION1 allocated to a PMEM namespace
-    named "pm1.0" the rest is reclaimed in 4 BLK-aperture namespaces (for
+    well as DIMM2 and DIMM3.  Some of REGION1 is allocated to a PMEM namespace
+    named "pm1.0", the rest is reclaimed in 4 BLK-aperture namespaces (for
     each DIMM in the interleave set), "blk2.1", "blk3.1", "blk4.0", and
     "blk5.0".
 
     3. The portion of DIMM2 and DIMM3 that do not participate in the REGION1
-    interleaved system-physical-address range (i.e. the DPA address below
+    interleaved system-physical-address range (i.e. the DPA address past
     offset (b) are also included in the "blk4.0" and "blk5.0" namespaces.
     Note, that this example shows that BLK-aperture namespaces don't need to
     be contiguous in DPA-space.
@@ -252,15 +258,15 @@ LIBNVDIMM Kernel Device Model and LIBNDCTL Userspace API
 
 What follows is a description of the LIBNVDIMM sysfs layout and a
 corresponding object hierarchy diagram as viewed through the LIBNDCTL
-api.  The example sysfs paths and diagrams are relative to the Example
+API.  The example sysfs paths and diagrams are relative to the Example
 NVDIMM Platform which is also the LIBNVDIMM bus used in the LIBNDCTL unit
 test.
 
 LIBNDCTL: Context
-Every api call in the LIBNDCTL library requires a context that holds the
+Every API call in the LIBNDCTL library requires a context that holds the
 logging parameters and other library instance state.  The library is
 based on the libabc template:
-https://git.kernel.org/cgit/linux/kernel/git/kay/libabc.git/
+https://git.kernel.org/cgit/linux/kernel/git/kay/libabc.git
 
 LIBNDCTL: instantiate a new library context example
 
@@ -409,7 +415,7 @@ Bit 31:28 Reserved
 LIBNVDIMM/LIBNDCTL: Region
 ----------------------
 
-A generic REGION device is registered for each PMEM range orBLK-aperture
+A generic REGION device is registered for each PMEM range or BLK-aperture
 set.  Per the example there are 6 regions: 2 PMEM and 4 BLK-aperture
 sets on the "nfit_test.0" bus.  The primary role of regions are to be a
 container of "mappings".  A mapping is a tuple of <DIMM,
@@ -509,7 +515,7 @@ At first glance it seems since NFIT defines just PMEM and BLK interface
 types that we should simply name REGION devices with something derived
 from those type names.  However, the ND subsystem explicitly keeps the
 REGION name generic and expects userspace to always consider the
-region-attributes for 4 reasons:
+region-attributes for four reasons:
 
     1. There are already more than two REGION and "namespace" types.  For
     PMEM there are two subtypes.  As mentioned previously we have PMEM where
@@ -698,8 +704,8 @@ static int configure_namespace(struct ndctl_region *region,
 
 Why the Term "namespace"?
 
-    1. Why not "volume" for instance?  "volume" ran the risk of confusing ND
-    as a volume manager like device-mapper.
+    1. Why not "volume" for instance?  "volume" ran the risk of confusing
+    ND (libnvdimm subsystem) to a volume manager like device-mapper.
 
     2. The term originated to describe the sub-devices that can be created
     within a NVME controller (see the nvme specification:
@@ -774,13 +780,14 @@ block" needs to be destroyed.  Note, that to destroy a BTT the media
 needs to be written in raw mode.  By default, the kernel will autodetect
 the presence of a BTT and disable raw mode.  This autodetect behavior
 can be suppressed by enabling raw mode for the namespace via the
-ndctl_namespace_set_raw_mode() api.
+ndctl_namespace_set_raw_mode() API.
 
 
 Summary LIBNDCTL Diagram
 ------------------------
 
-For the given example above, here is the view of the objects as seen by the LIBNDCTL api:
+For the given example above, here is the view of the objects as seen by the
+LIBNDCTL API:
             +---+
             |CTX|    +---------+   +--------------+  +---------------+
             +-+-+  +-> REGION0 +---> NAMESPACE0.0 +--> PMEM8 "pm0.0" |

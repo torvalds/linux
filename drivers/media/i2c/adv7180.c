@@ -1112,7 +1112,7 @@ static int init_device(struct adv7180_state *state)
 	mutex_lock(&state->mutex);
 
 	adv7180_write(state, ADV7180_REG_PWR_MAN, ADV7180_PWR_MAN_RES);
-	usleep_range(2000, 10000);
+	usleep_range(5000, 10000);
 
 	ret = state->chip_info->init(state);
 	if (ret)
@@ -1213,8 +1213,8 @@ static int adv7180_probe(struct i2c_client *client,
 		goto err_unregister_vpp_client;
 
 	state->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.flags |= MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
-	ret = media_entity_init(&sd->entity, 1, &state->pad, 0);
+	sd->entity.flags |= MEDIA_ENT_F_ATV_DECODER;
+	ret = media_entity_pads_init(&sd->entity, 1, &state->pad);
 	if (ret)
 		goto err_free_ctrl;
 

@@ -17,3 +17,5 @@ obj-$(CONFIG_H8S_SIM) += sim-console.o
 
 obj-$(CONFIG_CPU_H8300H) += ptrace_h.o
 obj-$(CONFIG_CPU_H8S) += ptrace_s.o
+
+obj-$(CONFIG_KGDB) += kgdb.o

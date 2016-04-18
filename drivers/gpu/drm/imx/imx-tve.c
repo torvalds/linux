@@ -286,13 +286,6 @@ static void imx_tve_encoder_dpms(struct drm_encoder *encoder, int mode)
 		dev_err(tve->dev, "failed to disable TVOUT: %d\n", ret);
 }
 
-static bool imx_tve_encoder_mode_fixup(struct drm_encoder *encoder,
-				       const struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void imx_tve_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct imx_tve *tve = enc_to_tve(encoder);
@@ -360,26 +353,25 @@ static void imx_tve_encoder_disable(struct drm_encoder *encoder)
 	tve_disable(tve);
 }
 
-static struct drm_connector_funcs imx_tve_connector_funcs = {
+static const struct drm_connector_funcs imx_tve_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = imx_tve_connector_detect,
 	.destroy = imx_drm_connector_destroy,
 };
 
-static struct drm_connector_helper_funcs imx_tve_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs imx_tve_connector_helper_funcs = {
 	.get_modes = imx_tve_connector_get_modes,
 	.best_encoder = imx_tve_connector_best_encoder,
 	.mode_valid = imx_tve_connector_mode_valid,
 };
 
-static struct drm_encoder_funcs imx_tve_encoder_funcs = {
+static const struct drm_encoder_funcs imx_tve_encoder_funcs = {
 	.destroy = imx_drm_encoder_destroy,
 };
 
-static struct drm_encoder_helper_funcs imx_tve_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs imx_tve_encoder_helper_funcs = {
 	.dpms = imx_tve_encoder_dpms,
-	.mode_fixup = imx_tve_encoder_mode_fixup,
 	.prepare = imx_tve_encoder_prepare,
 	.mode_set = imx_tve_encoder_mode_set,
 	.commit = imx_tve_encoder_commit,
@@ -508,7 +500,7 @@ static int imx_tve_register(struct drm_device *drm, struct imx_tve *tve)
 
 	drm_encoder_helper_add(&tve->encoder, &imx_tve_encoder_helper_funcs);
 	drm_encoder_init(drm, &tve->encoder, &imx_tve_encoder_funcs,
-			 encoder_type);
+			 encoder_type, NULL);
 
 	drm_connector_helper_add(&tve->connector,
 			&imx_tve_connector_helper_funcs);
@@ -721,6 +713,7 @@ static const struct of_device_id imx_tve_dt_ids[] = {
 	{ .compatible = "fsl,imx53-tve", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, imx_tve_dt_ids);
 
 static struct platform_driver imx_tve_driver = {
 	.probe		= imx_tve_probe,

@@ -269,50 +269,8 @@ u8 EFUSE_Read1Byte23a(struct rtw_adapter *Adapter, u16 Address)
 		}
 		data = rtl8723au_read8(Adapter, EFUSE_CTRL);
 		return data;
-	} else
-		return 0xFF;
-}
-
-/* Copy from WMAC fot EFUSE write 1 byte. */
-void EFUSE_Write1Byte(struct rtw_adapter *Adapter, u16 Address, u8 Value)
-{
-	u8	Bytetemp = {0x00};
-	u8	temp = {0x00};
-	u32	k = 0;
-	u16	contentLen = 0;
-
-	EFUSE_GetEfuseDefinition23a(Adapter, EFUSE_WIFI,
-				 TYPE_EFUSE_REAL_CONTENT_LEN,
-				 (void *)&contentLen);
-
-	if (Address < contentLen) { /* E-fuse 512Byte */
-		rtl8723au_write8(Adapter, EFUSE_CTRL, Value);
-
-		/* Write E-fuse Register address bit0~7 */
-		temp = Address & 0xFF;
-		rtl8723au_write8(Adapter, EFUSE_CTRL+1, temp);
-		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+2);
-
-		/* Write E-fuse Register address bit8~9 */
-		temp = ((Address >> 8) & 0x03) | (Bytetemp & 0xFC);
-		rtl8723au_write8(Adapter, EFUSE_CTRL+2, temp);
-
-		/* Write 0x30[31]= 1 */
-		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
-		temp = Bytetemp | 0x80;
-		rtl8723au_write8(Adapter, EFUSE_CTRL+3, temp);
-
-		/* Wait Write-ready (0x30[31]= 0) */
-		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
-		while (Bytetemp & 0x80) {
-			Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
-			k++;
-			if (k == 100) {
-				k = 0;
-				break;
-			}
-		}
 	}
+	return 0xFF;
 }
 
 /* Read one byte from real Efuse. */
@@ -501,7 +459,8 @@ int rtw_BT_efuse_map_read23a(struct rtw_adapter *padapter,
 }
 
 /* Read All Efuse content */
-void Efuse_ReadAllMap(struct rtw_adapter *pAdapter, u8 efuseType, u8 *Efuse)
+static void Efuse_ReadAllMap(struct rtw_adapter *pAdapter, u8 efuseType,
+			     u8 *Efuse)
 {
 	u16	mapLen = 0;
 

@@ -1,0 +1,21 @@
+ifdef CONFIG_UBSAN
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=shift)
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=integer-divide-by-zero)
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=unreachable)
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=vla-bound)
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=null)
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=signed-integer-overflow)
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=bounds)
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=object-size)
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=returns-nonnull-attribute)
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=bool)
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=enum)
+
+ifdef CONFIG_UBSAN_ALIGNMENT
+      CFLAGS_UBSAN += $(call cc-option, -fsanitize=alignment)
+endif
+
+      # -fsanitize=* options makes GCC less smart than usual and
+      # increase number of 'maybe-uninitialized false-positives
+      CFLAGS_UBSAN += $(call cc-option, -Wno-maybe-uninitialized)
+endif

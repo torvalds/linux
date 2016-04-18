@@ -23,6 +23,7 @@
 #include <linux/sched.h>
 #include <linux/file.h>
 #include <linux/list.h>
+#include <linux/fs.h>
 #include <linux/async.h>
 #include <linux/pm.h>
 #include <linux/suspend.h>
@@ -257,7 +258,7 @@ static void __fw_free_buf(struct kref *ref)
 		vunmap(buf->data);
 		for (i = 0; i < buf->nr_pages; i++)
 			__free_page(buf->pages[i]);
-		kfree(buf->pages);
+		vfree(buf->pages);
 	} else
 #endif
 		vfree(buf->data);
@@ -291,40 +292,19 @@ static const char * const fw_path[] = {
 module_param_string(path, fw_path_para, sizeof(fw_path_para), 0644);
 MODULE_PARM_DESC(path, "customized firmware image search path with a higher priority than default path");
 
-static int fw_read_file_contents(struct file *file, struct firmware_buf *fw_buf)
+static void fw_finish_direct_load(struct device *device,
+				  struct firmware_buf *buf)
 {
-	int size;
-	char *buf;
-	int rc;
-
-	if (!S_ISREG(file_inode(file)->i_mode))
-		return -EINVAL;
-	size = i_size_read(file_inode(file));
-	if (size <= 0)
-		return -EINVAL;
-	buf = vmalloc(size);
-	if (!buf)
-		return -ENOMEM;
-	rc = kernel_read(file, 0, buf, size);
-	if (rc != size) {
-		if (rc > 0)
-			rc = -EIO;
-		goto fail;
-	}
-	rc = security_kernel_fw_from_file(file, buf, size);
-	if (rc)
-		goto fail;
-	fw_buf->data = buf;
-	fw_buf->size = size;
-	return 0;
-fail:
-	vfree(buf);
-	return rc;
+	mutex_lock(&fw_lock);
+	set_bit(FW_STATUS_DONE, &buf->status);
+	complete_all(&buf->completion);
+	mutex_unlock(&fw_lock);
 }
 
 static int fw_get_filesystem_firmware(struct device *device,
 				       struct firmware_buf *buf)
 {
+	loff_t size;
 	int i, len;
 	int rc = -ENOENT;
 	char *path;
@@ -334,8 +314,6 @@ static int fw_get_filesystem_firmware(struct device *device,
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(fw_path); i++) {
-		struct file *file;
-
 		/* skip the unset customized path */
 		if (!fw_path[i][0])
 			continue;
@@ -347,27 +325,24 @@ static int fw_get_filesystem_firmware(struct device *device,
 			break;
 		}
 
-		file = filp_open(path, O_RDONLY, 0);
-		if (IS_ERR(file))
+		buf->size = 0;
+		rc = kernel_read_file_from_path(path, &buf->data, &size,
+						INT_MAX, READING_FIRMWARE);
+		if (rc) {
+			if (rc == -ENOENT)
+				dev_dbg(device, "loading %s failed with error %d\n",
+					 path, rc);
+			else
+				dev_warn(device, "loading %s failed with error %d\n",
+					 path, rc);
 			continue;
-		rc = fw_read_file_contents(file, buf);
-		fput(file);
-		if (rc)
-			dev_warn(device, "firmware, attempted to load %s, but failed with error %d\n",
-				path, rc);
-		else
-			break;
+		}
+		dev_dbg(device, "direct-loading %s\n", buf->fw_id);
+		buf->size = size;
+		fw_finish_direct_load(device, buf);
+		break;
 	}
 	__putname(path);
-
-	if (!rc) {
-		dev_dbg(device, "firmware: direct-loading firmware %s\n",
-			buf->fw_id);
-		mutex_lock(&fw_lock);
-		set_bit(FW_STATUS_DONE, &buf->status);
-		complete_all(&buf->completion);
-		mutex_unlock(&fw_lock);
-	}
 
 	return rc;
 }
@@ -660,7 +635,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 		if (!test_bit(FW_STATUS_DONE, &fw_buf->status)) {
 			for (i = 0; i < fw_buf->nr_pages; i++)
 				__free_page(fw_buf->pages[i]);
-			kfree(fw_buf->pages);
+			vfree(fw_buf->pages);
 			fw_buf->pages = NULL;
 			fw_buf->page_array_size = 0;
 			fw_buf->nr_pages = 0;
@@ -685,8 +660,9 @@ static ssize_t firmware_loading_store(struct device *dev,
 				dev_err(dev, "%s: map pages failed\n",
 					__func__);
 			else
-				rc = security_kernel_fw_from_file(NULL,
-						fw_buf->data, fw_buf->size);
+				rc = security_kernel_post_read_file(NULL,
+						fw_buf->data, fw_buf->size,
+						READING_FIRMWARE);
 
 			/*
 			 * Same logic as fw_load_abort, only the DONE bit
@@ -770,8 +746,7 @@ static int fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
 					 buf->page_array_size * 2);
 		struct page **new_pages;
 
-		new_pages = kmalloc(new_array_size * sizeof(void *),
-				    GFP_KERNEL);
+		new_pages = vmalloc(new_array_size * sizeof(void *));
 		if (!new_pages) {
 			fw_load_abort(fw_priv);
 			return -ENOMEM;
@@ -780,7 +755,7 @@ static int fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
 		       buf->page_array_size * sizeof(void *));
 		memset(&new_pages[buf->page_array_size], 0, sizeof(void *) *
 		       (new_array_size - buf->page_array_size));
-		kfree(buf->pages);
+		vfree(buf->pages);
 		buf->pages = new_pages;
 		buf->page_array_size = new_array_size;
 	}
@@ -1051,7 +1026,7 @@ _request_firmware_prepare(struct firmware **firmware_p, const char *name,
 	}
 
 	if (fw_get_builtin_firmware(firmware, name)) {
-		dev_dbg(device, "firmware: using built-in firmware %s\n", name);
+		dev_dbg(device, "using built-in %s\n", name);
 		return 0; /* assigned */
 	}
 
@@ -1118,15 +1093,17 @@ static int
 _request_firmware(const struct firmware **firmware_p, const char *name,
 		  struct device *device, unsigned int opt_flags)
 {
-	struct firmware *fw;
+	struct firmware *fw = NULL;
 	long timeout;
 	int ret;
 
 	if (!firmware_p)
 		return -EINVAL;
 
-	if (!name || name[0] == '\0')
-		return -EINVAL;
+	if (!name || name[0] == '\0') {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = _request_firmware_prepare(&fw, name, device);
 	if (ret <= 0) /* error or already assigned */

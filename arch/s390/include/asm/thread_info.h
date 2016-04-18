@@ -96,6 +96,4 @@ void arch_release_task_struct(struct task_struct *tsk);
 #define _TIF_31BIT		_BITUL(TIF_31BIT)
 #define _TIF_SINGLE_STEP	_BITUL(TIF_SINGLE_STEP)
 
-#define is_32bit_task()		(test_thread_flag(TIF_31BIT))
-
 #endif /* _ASM_THREAD_INFO_H */

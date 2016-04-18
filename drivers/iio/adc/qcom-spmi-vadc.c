@@ -839,8 +839,10 @@ static int vadc_get_dt_data(struct vadc_priv *vadc, struct device_node *node)
 
 	for_each_available_child_of_node(node, child) {
 		ret = vadc_get_dt_channel_data(vadc->dev, &prop, child);
-		if (ret)
+		if (ret) {
+			of_node_put(child);
 			return ret;
+		}
 
 		vadc->chan_props[index] = prop;
 

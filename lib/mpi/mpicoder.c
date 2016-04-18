@@ -128,6 +128,23 @@ leave:
 }
 EXPORT_SYMBOL_GPL(mpi_read_from_buffer);
 
+static int count_lzeros(MPI a)
+{
+	mpi_limb_t alimb;
+	int i, lzeros = 0;
+
+	for (i = a->nlimbs - 1; i >= 0; i--) {
+		alimb = a->d[i];
+		if (alimb == 0) {
+			lzeros += sizeof(mpi_limb_t);
+		} else {
+			lzeros += count_leading_zeros(alimb) / 8;
+			break;
+		}
+	}
+	return lzeros;
+}
+
 /**
  * mpi_read_buffer() - read MPI to a bufer provided by user (msb first)
  *
@@ -135,7 +152,9 @@ EXPORT_SYMBOL_GPL(mpi_read_from_buffer);
  * @buf:	bufer to which the output will be written to. Needs to be at
  *		leaset mpi_get_size(a) long.
  * @buf_len:	size of the buf.
- * @nbytes:	receives the actual length of the data written.
+ * @nbytes:	receives the actual length of the data written on success and
+ *		the data to-be-written on -EOVERFLOW in case buf_len was too
+ *		small.
  * @sign:	if not NULL, it will be set to the sign of a.
  *
  * Return:	0 on success or error code in case of error
@@ -146,21 +165,19 @@ int mpi_read_buffer(MPI a, uint8_t *buf, unsigned buf_len, unsigned *nbytes,
 	uint8_t *p;
 	mpi_limb_t alimb;
 	unsigned int n = mpi_get_size(a);
-	int i, lzeros = 0;
+	int i, lzeros;
 
-	if (buf_len < n || !buf || !nbytes)
+	if (!buf || !nbytes)
 		return -EINVAL;
 
 	if (sign)
 		*sign = a->sign;
 
-	p = (void *)&a->d[a->nlimbs] - 1;
+	lzeros = count_lzeros(a);
 
-	for (i = a->nlimbs * sizeof(alimb) - 1; i >= 0; i--, p--) {
-		if (!*p)
-			lzeros++;
-		else
-			break;
+	if (buf_len < n - lzeros) {
+		*nbytes = n - lzeros;
+		return -EOVERFLOW;
 	}
 
 	p = buf;
@@ -332,7 +349,8 @@ EXPORT_SYMBOL_GPL(mpi_set_buffer);
  * @nbytes:	in/out param - it has the be set to the maximum number of
  *		bytes that can be written to sgl. This has to be at least
  *		the size of the integer a. On return it receives the actual
- *		length of the data written.
+ *		length of the data written on success or the data that would
+ *		be written if buffer was too small.
  * @sign:	if not NULL, it will be set to the sign of a.
  *
  * Return:	0 on success or error code in case of error
@@ -343,21 +361,19 @@ int mpi_write_to_sgl(MPI a, struct scatterlist *sgl, unsigned *nbytes,
 	u8 *p, *p2;
 	mpi_limb_t alimb, alimb2;
 	unsigned int n = mpi_get_size(a);
-	int i, x, y = 0, lzeros = 0, buf_len;
+	int i, x, y = 0, lzeros, buf_len;
 
-	if (!nbytes || *nbytes < n)
+	if (!nbytes)
 		return -EINVAL;
 
 	if (sign)
 		*sign = a->sign;
 
-	p = (void *)&a->d[a->nlimbs] - 1;
+	lzeros = count_lzeros(a);
 
-	for (i = a->nlimbs * sizeof(alimb) - 1; i >= 0; i--, p--) {
-		if (!*p)
-			lzeros++;
-		else
-			break;
+	if (*nbytes < n - lzeros) {
+		*nbytes = n - lzeros;
+		return -EOVERFLOW;
 	}
 
 	*nbytes = n - lzeros;

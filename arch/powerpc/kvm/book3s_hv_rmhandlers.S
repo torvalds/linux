@@ -27,7 +27,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/exception-64s.h>
 #include <asm/kvm_book3s_asm.h>
-#include <asm/mmu-hash64.h>
+#include <asm/book3s/64/mmu-hash.h>
 #include <asm/tm.h>
 
 #define VCPU_GPRS_TM(reg) (((reg) * ULONG_SIZE) + VCPU_GPR_TM)
@@ -1370,6 +1370,20 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	std	r6, VCPU_ACOP(r9)
 	stw	r7, VCPU_GUEST_PID(r9)
 	std	r8, VCPU_WORT(r9)
+	/*
+	 * Restore various registers to 0, where non-zero values
+	 * set by the guest could disrupt the host.
+	 */
+	li	r0, 0
+	mtspr	SPRN_IAMR, r0
+	mtspr	SPRN_CIABR, r0
+	mtspr	SPRN_DAWRX, r0
+	mtspr	SPRN_TCSCR, r0
+	mtspr	SPRN_WORT, r0
+	/* Set MMCRS to 1<<31 to freeze and disable the SPMC counters */
+	li	r0, 1
+	sldi	r0, r0, 31
+	mtspr	SPRN_MMCRS, r0
 8:
 
 	/* Save and reset AMR and UAMOR before turning on the MMU */
@@ -1749,7 +1763,8 @@ kvmppc_hdsi:
 	beq	3f
 	clrrdi	r0, r4, 28
 	PPC_SLBFEE_DOT(R5, R0)		/* if so, look up SLB */
-	bne	1f			/* if no SLB entry found */
+	li	r0, BOOK3S_INTERRUPT_DATA_SEGMENT
+	bne	7f			/* if no SLB entry found */
 4:	std	r4, VCPU_FAULT_DAR(r9)
 	stw	r6, VCPU_FAULT_DSISR(r9)
 
@@ -1768,14 +1783,15 @@ kvmppc_hdsi:
 	cmpdi	r3, -2			/* MMIO emulation; need instr word */
 	beq	2f
 
-	/* Synthesize a DSI for the guest */
+	/* Synthesize a DSI (or DSegI) for the guest */
 	ld	r4, VCPU_FAULT_DAR(r9)
 	mr	r6, r3
-1:	mtspr	SPRN_DAR, r4
+1:	li	r0, BOOK3S_INTERRUPT_DATA_STORAGE
 	mtspr	SPRN_DSISR, r6
+7:	mtspr	SPRN_DAR, r4
 	mtspr	SPRN_SRR0, r10
 	mtspr	SPRN_SRR1, r11
-	li	r10, BOOK3S_INTERRUPT_DATA_STORAGE
+	mr	r10, r0
 	bl	kvmppc_msr_interrupt
 fast_interrupt_c_return:
 6:	ld	r7, VCPU_CTR(r9)
@@ -1823,7 +1839,8 @@ kvmppc_hisi:
 	beq	3f
 	clrrdi	r0, r10, 28
 	PPC_SLBFEE_DOT(R5, R0)		/* if so, look up SLB */
-	bne	1f			/* if no SLB entry found */
+	li	r0, BOOK3S_INTERRUPT_INST_SEGMENT
+	bne	7f			/* if no SLB entry found */
 4:
 	/* Search the hash table. */
 	mr	r3, r9			/* vcpu pointer */
@@ -1840,11 +1857,12 @@ kvmppc_hisi:
 	cmpdi	r3, -1			/* handle in kernel mode */
 	beq	guest_exit_cont
 
-	/* Synthesize an ISI for the guest */
+	/* Synthesize an ISI (or ISegI) for the guest */
 	mr	r11, r3
-1:	mtspr	SPRN_SRR0, r10
+1:	li	r0, BOOK3S_INTERRUPT_INST_STORAGE
+7:	mtspr	SPRN_SRR0, r10
 	mtspr	SPRN_SRR1, r11
-	li	r10, BOOK3S_INTERRUPT_INST_STORAGE
+	mr	r10, r0
 	bl	kvmppc_msr_interrupt
 	b	fast_interrupt_c_return
 
@@ -1924,7 +1942,7 @@ hcall_real_table:
 	.long	DOTSYM(kvmppc_h_clear_ref) - hcall_real_table
 	.long	DOTSYM(kvmppc_h_protect) - hcall_real_table
 	.long	DOTSYM(kvmppc_h_get_tce) - hcall_real_table
-	.long	DOTSYM(kvmppc_h_put_tce) - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_put_tce) - hcall_real_table
 	.long	0		/* 0x24 - H_SET_SPRG0 */
 	.long	DOTSYM(kvmppc_h_set_dabr) - hcall_real_table
 	.long	0		/* 0x2c */
@@ -2002,8 +2020,8 @@ hcall_real_table:
 	.long	0		/* 0x12c */
 	.long	0		/* 0x130 */
 	.long	DOTSYM(kvmppc_h_set_xdabr) - hcall_real_table
-	.long	0		/* 0x138 */
-	.long	0		/* 0x13c */
+	.long	DOTSYM(kvmppc_rm_h_stuff_tce) - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_put_tce_indirect) - hcall_real_table
 	.long	0		/* 0x140 */
 	.long	0		/* 0x144 */
 	.long	0		/* 0x148 */
@@ -2149,7 +2167,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 	/* Emulate H_SET_DABR/X on P8 for the sake of compat mode guests */
 2:	rlwimi	r5, r4, 5, DAWRX_DR | DAWRX_DW
-	rlwimi	r5, r4, 1, DAWRX_WT
+	rlwimi	r5, r4, 2, DAWRX_WT
 	clrrdi	r4, r4, 3
 	std	r4, VCPU_DAWR(r3)
 	std	r5, VCPU_DAWRX(r3)
@@ -2400,6 +2418,8 @@ machine_check_realmode:
 	 * guest as machine check causing guest to crash.
 	 */
 	ld	r11, VCPU_MSR(r9)
+	rldicl.	r0, r11, 64-MSR_HV_LG, 63 /* check if it happened in HV mode */
+	bne	mc_cont			/* if so, exit to host */
 	andi.	r10, r11, MSR_RI	/* check for unrecoverable exception */
 	beq	1f			/* Deliver a machine check to guest */
 	ld	r10, VCPU_PC(r9)

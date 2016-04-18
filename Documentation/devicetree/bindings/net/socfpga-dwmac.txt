@@ -11,6 +11,8 @@ Required properties:
 		  designware version numbers documented in stmmac.txt
  - altr,sysmgr-syscon : Should be the phandle to the system manager node that
    encompasses the glue register, the register offset, and the register shift.
+ - altr,f2h_ptp_ref_clk use f2h_ptp_ref_clk instead of default eosc1 clock
+   for ptp ref clk. This affects all emacs as the clock is common.
 
 Optional properties:
 altr,emac-splitter: Should be the phandle to the emac splitter soft IP node if

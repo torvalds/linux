@@ -697,7 +697,7 @@ int security_inode_killpriv(struct dentry *dentry)
 	return call_int_hook(inode_killpriv, 0, dentry);
 }
 
-int security_inode_getsecurity(const struct inode *inode, const char *name, void **buffer, bool alloc)
+int security_inode_getsecurity(struct inode *inode, const char *name, void **buffer, bool alloc)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
@@ -721,7 +721,7 @@ int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer
 }
 EXPORT_SYMBOL(security_inode_listsecurity);
 
-void security_inode_getsecid(const struct inode *inode, u32 *secid)
+void security_inode_getsecid(struct inode *inode, u32 *secid)
 {
 	call_void_hook(inode_getsecid, inode, secid);
 }
@@ -884,31 +884,33 @@ int security_kernel_create_files_as(struct cred *new, struct inode *inode)
 	return call_int_hook(kernel_create_files_as, 0, new, inode);
 }
 
-int security_kernel_fw_from_file(struct file *file, char *buf, size_t size)
-{
-	int ret;
-
-	ret = call_int_hook(kernel_fw_from_file, 0, file, buf, size);
-	if (ret)
-		return ret;
-	return ima_fw_from_file(file, buf, size);
-}
-EXPORT_SYMBOL_GPL(security_kernel_fw_from_file);
-
 int security_kernel_module_request(char *kmod_name)
 {
 	return call_int_hook(kernel_module_request, 0, kmod_name);
 }
 
-int security_kernel_module_from_file(struct file *file)
+int security_kernel_read_file(struct file *file, enum kernel_read_file_id id)
 {
 	int ret;
 
-	ret = call_int_hook(kernel_module_from_file, 0, file);
+	ret = call_int_hook(kernel_read_file, 0, file, id);
 	if (ret)
 		return ret;
-	return ima_module_check(file);
+	return ima_read_file(file, id);
 }
+EXPORT_SYMBOL_GPL(security_kernel_read_file);
+
+int security_kernel_post_read_file(struct file *file, char *buf, loff_t size,
+				   enum kernel_read_file_id id)
+{
+	int ret;
+
+	ret = call_int_hook(kernel_post_read_file, 0, file, buf, size, id);
+	if (ret)
+		return ret;
+	return ima_post_read_file(file, buf, size, id);
+}
+EXPORT_SYMBOL_GPL(security_kernel_post_read_file);
 
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags)
@@ -1160,6 +1162,12 @@ void security_release_secctx(char *secdata, u32 seclen)
 	call_void_hook(release_secctx, secdata, seclen);
 }
 EXPORT_SYMBOL(security_release_secctx);
+
+void security_inode_invalidate_secctx(struct inode *inode)
+{
+	call_void_hook(inode_invalidate_secctx, inode);
+}
+EXPORT_SYMBOL(security_inode_invalidate_secctx);
 
 int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
 {
@@ -1685,12 +1693,12 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.kernel_act_as),
 	.kernel_create_files_as =
 		LIST_HEAD_INIT(security_hook_heads.kernel_create_files_as),
-	.kernel_fw_from_file =
-		LIST_HEAD_INIT(security_hook_heads.kernel_fw_from_file),
 	.kernel_module_request =
 		LIST_HEAD_INIT(security_hook_heads.kernel_module_request),
-	.kernel_module_from_file =
-		LIST_HEAD_INIT(security_hook_heads.kernel_module_from_file),
+	.kernel_read_file =
+		LIST_HEAD_INIT(security_hook_heads.kernel_read_file),
+	.kernel_post_read_file =
+		LIST_HEAD_INIT(security_hook_heads.kernel_post_read_file),
 	.task_fix_setuid =
 		LIST_HEAD_INIT(security_hook_heads.task_fix_setuid),
 	.task_setpgid =	LIST_HEAD_INIT(security_hook_heads.task_setpgid),
@@ -1763,6 +1771,8 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.secctx_to_secid),
 	.release_secctx =
 		LIST_HEAD_INIT(security_hook_heads.release_secctx),
+	.inode_invalidate_secctx =
+		LIST_HEAD_INIT(security_hook_heads.inode_invalidate_secctx),
 	.inode_notifysecctx =
 		LIST_HEAD_INIT(security_hook_heads.inode_notifysecctx),
 	.inode_setsecctx =

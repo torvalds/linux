@@ -25,71 +25,14 @@
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <linux/power_supply.h>
-#include <linux/vga_switcheroo.h>
 #include <acpi/video.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include "amdgpu.h"
-#include "amdgpu_acpi.h"
+#include "amd_acpi.h"
 #include "atom.h"
 
-#define ACPI_AC_CLASS           "ac_adapter"
-
 extern void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev);
-
-struct atif_verify_interface {
-	u16 size;		/* structure size in bytes (includes size field) */
-	u16 version;		/* version */
-	u32 notification_mask;	/* supported notifications mask */
-	u32 function_bits;	/* supported functions bit vector */
-} __packed;
-
-struct atif_system_params {
-	u16 size;		/* structure size in bytes (includes size field) */
-	u32 valid_mask;		/* valid flags mask */
-	u32 flags;		/* flags */
-	u8 command_code;	/* notify command code */
-} __packed;
-
-struct atif_sbios_requests {
-	u16 size;		/* structure size in bytes (includes size field) */
-	u32 pending;		/* pending sbios requests */
-	u8 panel_exp_mode;	/* panel expansion mode */
-	u8 thermal_gfx;		/* thermal state: target gfx controller */
-	u8 thermal_state;	/* thermal state: state id (0: exit state, non-0: state) */
-	u8 forced_power_gfx;	/* forced power state: target gfx controller */
-	u8 forced_power_state;	/* forced power state: state id */
-	u8 system_power_src;	/* system power source */
-	u8 backlight_level;	/* panel backlight level (0-255) */
-} __packed;
-
-#define ATIF_NOTIFY_MASK	0x3
-#define ATIF_NOTIFY_NONE	0
-#define ATIF_NOTIFY_81		1
-#define ATIF_NOTIFY_N		2
-
-struct atcs_verify_interface {
-	u16 size;		/* structure size in bytes (includes size field) */
-	u16 version;		/* version */
-	u32 function_bits;	/* supported functions bit vector */
-} __packed;
-
-#define ATCS_VALID_FLAGS_MASK	0x3
-
-struct atcs_pref_req_input {
-	u16 size;		/* structure size in bytes (includes size field) */
-	u16 client_id;		/* client id (bit 2-0: func num, 7-3: dev num, 15-8: bus num) */
-	u16 valid_flags_mask;	/* valid flags mask */
-	u16 flags;		/* flags */
-	u8 req_type;		/* request type */
-	u8 perf_req;		/* performance request */
-} __packed;
-
-struct atcs_pref_req_output {
-	u16 size;		/* structure size in bytes (includes size field) */
-	u8 ret_val;		/* return value */
-} __packed;
-
 /* Call the ATIF method
  */
 /**

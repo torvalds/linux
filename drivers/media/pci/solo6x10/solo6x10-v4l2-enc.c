@@ -531,8 +531,7 @@ static int solo_enc_fillbuf(struct solo_enc_dev *solo_enc,
 
 	if (!ret) {
 		vbuf->sequence = solo_enc->sequence++;
-		vbuf->timestamp.tv_sec = vop_sec(vh);
-		vbuf->timestamp.tv_usec = vop_usec(vh);
+		vb->timestamp = ktime_get_ns();
 
 		/* Check for motion flags */
 		if (solo_is_motion_on(solo_enc) && enc_buf->motion) {
@@ -663,7 +662,6 @@ static int solo_ring_thread(void *data)
 }
 
 static int solo_enc_queue_setup(struct vb2_queue *q,
-				const void *parg,
 				unsigned int *num_buffers,
 				unsigned int *num_planes, unsigned int sizes[],
 				void *alloc_ctxs[])
@@ -1297,7 +1295,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	solo_enc->vidq.ops = &solo_enc_video_qops;
 	solo_enc->vidq.mem_ops = &vb2_dma_sg_memops;
 	solo_enc->vidq.drv_priv = solo_enc;
-	solo_enc->vidq.gfp_flags = __GFP_DMA32;
+	solo_enc->vidq.gfp_flags = __GFP_DMA32 | __GFP_KSWAPD_RECLAIM;
 	solo_enc->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	solo_enc->vidq.buf_struct_size = sizeof(struct solo_vb2_buf);
 	solo_enc->vidq.lock = &solo_enc->lock;

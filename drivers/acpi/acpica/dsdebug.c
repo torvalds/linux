@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -161,6 +161,7 @@ acpi_ds_dump_method_stack(acpi_status status,
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "\n**** Exception %s during execution of method ",
 			  acpi_format_exception(status)));
+
 	acpi_ds_print_node_pathname(walk_state->method_node, NULL);
 
 	/* Display stack of executing methods */
@@ -203,8 +204,8 @@ acpi_ds_dump_method_stack(acpi_status status,
 		} else {
 			/*
 			 * This method has called another method
-			 * NOTE: the method call parse subtree is already deleted at this
-			 * point, so we cannot disassemble the method invocation.
+			 * NOTE: the method call parse subtree is already deleted at
+			 * this point, so we cannot disassemble the method invocation.
 			 */
 			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH,
 					      "Call to method "));

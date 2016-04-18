@@ -123,14 +123,15 @@ static int ufs_symlink (struct inode * dir, struct dentry * dentry,
 
 	if (l > UFS_SB(sb)->s_uspi->s_maxsymlinklen) {
 		/* slow symlink */
-		inode->i_op = &ufs_symlink_inode_operations;
+		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &ufs_aops;
 		err = page_symlink(inode, symname, l);
 		if (err)
 			goto out_fail;
 	} else {
 		/* fast symlink */
-		inode->i_op = &ufs_fast_symlink_inode_operations;
+		inode->i_op = &simple_symlink_inode_operations;
 		inode->i_link = (char *)UFS_I(inode)->i_u1.i_symlink;
 		memcpy(inode->i_link, symname, l);
 		inode->i_size = l-1;
@@ -304,7 +305,7 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			ufs_set_link(old_inode, dir_de, dir_page, new_dir, 0);
 		else {
 			kunmap(dir_page);
-			page_cache_release(dir_page);
+			put_page(dir_page);
 		}
 		inode_dec_link_count(old_dir);
 	}
@@ -314,11 +315,11 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 out_dir:
 	if (dir_de) {
 		kunmap(dir_page);
-		page_cache_release(dir_page);
+		put_page(dir_page);
 	}
 out_old:
 	kunmap(old_page);
-	page_cache_release(old_page);
+	put_page(old_page);
 out:
 	return err;
 }

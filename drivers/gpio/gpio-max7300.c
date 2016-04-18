@@ -65,7 +65,6 @@ MODULE_DEVICE_TABLE(i2c, max7300_id);
 static struct i2c_driver max7300_driver = {
 	.driver = {
 		.name = "max7300",
-		.owner = THIS_MODULE,
 	},
 	.probe = max7300_probe,
 	.remove = max7300_remove,

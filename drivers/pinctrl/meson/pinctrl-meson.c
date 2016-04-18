@@ -49,7 +49,6 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/pinctrl/pinconf-generic.h>
@@ -104,15 +103,13 @@ static int meson_get_domain_and_bank(struct meson_pinctrl *pc, unsigned int pin,
 				     struct meson_bank **bank)
 {
 	struct meson_domain *d;
-	int i;
 
-	for (i = 0; i < pc->data->num_domains; i++) {
-		d = &pc->domains[i];
-		if (pin >= d->data->pin_base &&
-		    pin < d->data->pin_base + d->data->num_pins) {
-			*domain = d;
-			return meson_get_bank(d, pin, bank);
-		}
+	d = pc->domain;
+
+	if (pin >= d->data->pin_base &&
+	    pin < d->data->pin_base + d->data->num_pins) {
+		*domain = d;
+		return meson_get_bank(d, pin, bank);
 	}
 
 	return -EINVAL;
@@ -204,7 +201,7 @@ static void meson_pmx_disable_other_groups(struct meson_pinctrl *pc,
 		for (j = 0; j < group->num_pins; j++) {
 			if (group->pins[j] == pin) {
 				/* We have found a group using the pin */
-				domain = &pc->domains[group->domain];
+				domain = pc->domain;
 				regmap_update_bits(domain->reg_mux,
 						   group->reg * 4,
 						   BIT(group->bit), 0);
@@ -219,7 +216,7 @@ static int meson_pmx_set_mux(struct pinctrl_dev *pcdev, unsigned func_num,
 	struct meson_pinctrl *pc = pinctrl_dev_get_drvdata(pcdev);
 	struct meson_pmx_func *func = &pc->data->funcs[func_num];
 	struct meson_pmx_group *group = &pc->data->groups[group_num];
-	struct meson_domain *domain = &pc->domains[group->domain];
+	struct meson_domain *domain = pc->domain;
 	int i, ret = 0;
 
 	dev_dbg(pc->dev, "enable function %s, group %s\n", func->name,
@@ -448,11 +445,6 @@ static const struct pinconf_ops meson_pinconf_ops = {
 	.is_generic		= true,
 };
 
-static inline struct meson_domain *to_meson_domain(struct gpio_chip *chip)
-{
-	return container_of(chip, struct meson_domain, chip);
-}
-
 static int meson_gpio_request(struct gpio_chip *chip, unsigned gpio)
 {
 	return pinctrl_request_gpio(chip->base + gpio);
@@ -460,14 +452,14 @@ static int meson_gpio_request(struct gpio_chip *chip, unsigned gpio)
 
 static void meson_gpio_free(struct gpio_chip *chip, unsigned gpio)
 {
-	struct meson_domain *domain = to_meson_domain(chip);
+	struct meson_domain *domain = gpiochip_get_data(chip);
 
 	pinctrl_free_gpio(domain->data->pin_base + gpio);
 }
 
 static int meson_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 {
-	struct meson_domain *domain = to_meson_domain(chip);
+	struct meson_domain *domain = gpiochip_get_data(chip);
 	unsigned int reg, bit, pin;
 	struct meson_bank *bank;
 	int ret;
@@ -485,7 +477,7 @@ static int meson_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 static int meson_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 				       int value)
 {
-	struct meson_domain *domain = to_meson_domain(chip);
+	struct meson_domain *domain = gpiochip_get_data(chip);
 	unsigned int reg, bit, pin;
 	struct meson_bank *bank;
 	int ret;
@@ -507,7 +499,7 @@ static int meson_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 
 static void meson_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
 {
-	struct meson_domain *domain = to_meson_domain(chip);
+	struct meson_domain *domain = gpiochip_get_data(chip);
 	unsigned int reg, bit, pin;
 	struct meson_bank *bank;
 	int ret;
@@ -524,7 +516,7 @@ static void meson_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
 
 static int meson_gpio_get(struct gpio_chip *chip, unsigned gpio)
 {
-	struct meson_domain *domain = to_meson_domain(chip);
+	struct meson_domain *domain = gpiochip_get_data(chip);
 	unsigned int reg, bit, val, pin;
 	struct meson_bank *bank;
 	int ret;
@@ -542,74 +534,65 @@ static int meson_gpio_get(struct gpio_chip *chip, unsigned gpio)
 
 static const struct of_device_id meson_pinctrl_dt_match[] = {
 	{
-		.compatible = "amlogic,meson8-pinctrl",
-		.data = &meson8_pinctrl_data,
+		.compatible = "amlogic,meson8-cbus-pinctrl",
+		.data = &meson8_cbus_pinctrl_data,
 	},
 	{
-		.compatible = "amlogic,meson8b-pinctrl",
-		.data = &meson8b_pinctrl_data,
+		.compatible = "amlogic,meson8b-cbus-pinctrl",
+		.data = &meson8b_cbus_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson8-aobus-pinctrl",
+		.data = &meson8_aobus_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson8b-aobus-pinctrl",
+		.data = &meson8b_aobus_pinctrl_data,
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, meson_pinctrl_dt_match);
 
 static int meson_gpiolib_register(struct meson_pinctrl *pc)
 {
 	struct meson_domain *domain;
-	int i, ret;
+	int ret;
 
-	for (i = 0; i < pc->data->num_domains; i++) {
-		domain = &pc->domains[i];
+	domain = pc->domain;
 
-		domain->chip.label = domain->data->name;
-		domain->chip.dev = pc->dev;
-		domain->chip.request = meson_gpio_request;
-		domain->chip.free = meson_gpio_free;
-		domain->chip.direction_input = meson_gpio_direction_input;
-		domain->chip.direction_output = meson_gpio_direction_output;
-		domain->chip.get = meson_gpio_get;
-		domain->chip.set = meson_gpio_set;
-		domain->chip.base = domain->data->pin_base;
-		domain->chip.ngpio = domain->data->num_pins;
-		domain->chip.can_sleep = false;
-		domain->chip.of_node = domain->of_node;
-		domain->chip.of_gpio_n_cells = 2;
+	domain->chip.label = domain->data->name;
+	domain->chip.parent = pc->dev;
+	domain->chip.request = meson_gpio_request;
+	domain->chip.free = meson_gpio_free;
+	domain->chip.direction_input = meson_gpio_direction_input;
+	domain->chip.direction_output = meson_gpio_direction_output;
+	domain->chip.get = meson_gpio_get;
+	domain->chip.set = meson_gpio_set;
+	domain->chip.base = domain->data->pin_base;
+	domain->chip.ngpio = domain->data->num_pins;
+	domain->chip.can_sleep = false;
+	domain->chip.of_node = domain->of_node;
+	domain->chip.of_gpio_n_cells = 2;
 
-		ret = gpiochip_add(&domain->chip);
-		if (ret) {
-			dev_err(pc->dev, "can't add gpio chip %s\n",
-				domain->data->name);
-			goto fail;
-		}
+	ret = gpiochip_add_data(&domain->chip, domain);
+	if (ret) {
+		dev_err(pc->dev, "can't add gpio chip %s\n",
+			domain->data->name);
+		goto fail;
+	}
 
-		ret = gpiochip_add_pin_range(&domain->chip, dev_name(pc->dev),
-					     0, domain->data->pin_base,
-					     domain->chip.ngpio);
-		if (ret) {
-			dev_err(pc->dev, "can't add pin range\n");
-			goto fail;
-		}
+	ret = gpiochip_add_pin_range(&domain->chip, dev_name(pc->dev),
+				     0, domain->data->pin_base,
+				     domain->chip.ngpio);
+	if (ret) {
+		dev_err(pc->dev, "can't add pin range\n");
+		goto fail;
 	}
 
 	return 0;
 fail:
-	for (i--; i >= 0; i--)
-		gpiochip_remove(&pc->domains[i].chip);
+	gpiochip_remove(&pc->domain->chip);
 
 	return ret;
-}
-
-static struct meson_domain_data *meson_get_domain_data(struct meson_pinctrl *pc,
-						       struct device_node *np)
-{
-	int i;
-
-	for (i = 0; i < pc->data->num_domains; i++) {
-		if (!strcmp(np->name, pc->data->domain_data[i].name))
-			return &pc->data->domain_data[i];
-	}
-
-	return NULL;
 }
 
 static struct regmap_config meson_regmap_config = {
@@ -648,7 +631,7 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 {
 	struct device_node *np;
 	struct meson_domain *domain;
-	int i = 0, num_domains = 0;
+	int num_domains = 0;
 
 	for_each_child_of_node(node, np) {
 		if (!of_find_property(np, "gpio-controller", NULL))
@@ -656,28 +639,21 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 		num_domains++;
 	}
 
-	if (num_domains != pc->data->num_domains) {
+	if (num_domains != 1) {
 		dev_err(pc->dev, "wrong number of subnodes\n");
 		return -EINVAL;
 	}
 
-	pc->domains = devm_kzalloc(pc->dev, num_domains *
-				   sizeof(struct meson_domain), GFP_KERNEL);
-	if (!pc->domains)
+	pc->domain = devm_kzalloc(pc->dev, sizeof(struct meson_domain), GFP_KERNEL);
+	if (!pc->domain)
 		return -ENOMEM;
+
+	domain = pc->domain;
+	domain->data = pc->data->domain_data;
 
 	for_each_child_of_node(node, np) {
 		if (!of_find_property(np, "gpio-controller", NULL))
 			continue;
-
-		domain = &pc->domains[i];
-
-		domain->data = meson_get_domain_data(pc, np);
-		if (!domain->data) {
-			dev_err(pc->dev, "domain data not found for node %s\n",
-				np->name);
-			return -ENODEV;
-		}
 
 		domain->of_node = np;
 
@@ -704,7 +680,7 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 			return PTR_ERR(domain->reg_gpio);
 		}
 
-		i++;
+		break;
 	}
 
 	return 0;
@@ -723,7 +699,7 @@ static int meson_pinctrl_probe(struct platform_device *pdev)
 
 	pc->dev = dev;
 	match = of_match_node(meson_pinctrl_dt_match, pdev->dev.of_node);
-	pc->data = (struct meson_pinctrl_data *)match->data;
+	pc->data = (struct meson_pinctrl_data *) match->data;
 
 	ret = meson_pinctrl_parse_dt(pc, pdev->dev.of_node);
 	if (ret)
@@ -759,8 +735,4 @@ static struct platform_driver meson_pinctrl_driver = {
 		.of_match_table = meson_pinctrl_dt_match,
 	},
 };
-module_platform_driver(meson_pinctrl_driver);
-
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
-MODULE_DESCRIPTION("Amlogic Meson pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(meson_pinctrl_driver);

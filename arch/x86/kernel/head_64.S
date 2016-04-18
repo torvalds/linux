@@ -38,7 +38,6 @@
 #define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 
 L4_PAGE_OFFSET = pgd_index(__PAGE_OFFSET)
-L3_PAGE_OFFSET = pud_index(__PAGE_OFFSET)
 L4_START_KERNEL = pgd_index(__START_KERNEL_map)
 L3_START_KERNEL = pud_index(__START_KERNEL_map)
 
@@ -65,6 +64,9 @@ startup_64:
 	 * tables and then reload them.
 	 */
 
+	/* Sanitize CPU configuration */
+	call verify_cpu
+
 	/*
 	 * Compute the delta between the address I am compiled to run at and the
 	 * address I am actually running at.
@@ -73,9 +75,7 @@ startup_64:
 	subq	$_text - __START_KERNEL_map, %rbp
 
 	/* Is the address not 2M aligned? */
-	movq	%rbp, %rax
-	andl	$~PMD_PAGE_MASK, %eax
-	testl	%eax, %eax
+	testl	$~PMD_PAGE_MASK, %ebp
 	jnz	bad_address
 
 	/*
@@ -173,6 +173,9 @@ ENTRY(secondary_startup_64)
 	 * to have any identity mapped pages in the kernel page table
 	 * after the boot processor executes this code.
 	 */
+
+	/* Sanitize CPU configuration */
+	call verify_cpu
 
 	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
 1:
@@ -287,6 +290,8 @@ ENTRY(secondary_startup_64)
 	pushq	$__KERNEL_CS	# set correct cs
 	pushq	%rax		# target address in negative space
 	lretq
+
+#include "verify_cpu.S"
 
 #ifdef CONFIG_HOTPLUG_CPU
 /*

@@ -89,6 +89,13 @@
 		pwms = <&pwm0 0 1000000 PWM_POLARITY_INVERTED>;
 	};
 
+	ext_gmac: external-gmac-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+		clock-output-names = "ext_gmac";
+		#clock-cells = <0>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
@@ -103,7 +110,7 @@
 			linux,code = <116>;
 			label = "GPIO Key Power";
 			linux,input-type = <1>;
-			gpio-key,wakeup = <1>;
+			wakeup-source;
 			debounce-interval = <100>;
 		};
 	};
@@ -160,6 +167,10 @@
 	};
 };
 
+&cpu0 {
+	cpu0-supply = <&vdd_cpu>;
+};
+
 &emmc {
 	broken-cd;
 	bus-width = <8>;
@@ -169,11 +180,6 @@
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_pwr &emmc_bus8>;
-	status = "okay";
-};
-
-&hdmi {
-	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
 };
 
@@ -189,6 +195,27 @@
 	status = "okay";
 	vmmc-supply = <&vcc_sd>;
 	vqmmc-supply = <&vccio_sd>;
+};
+
+&gmac {
+	phy-supply = <&vcc_phy>;
+	phy-mode = "rgmii";
+	clock_in_out = "input";
+	snps,reset-gpio = <&gpio4 7 0>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 1000000>;
+	assigned-clocks = <&cru SCLK_MAC>;
+	assigned-clock-parents = <&ext_gmac>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_pins>;
+	tx_delay = <0x30>;
+	rx_delay = <0x10>;
+	status = "ok";
+};
+
+&hdmi {
+	ddc-i2c-bus = <&i2c5>;
+	status = "okay";
 };
 
 &i2c0 {

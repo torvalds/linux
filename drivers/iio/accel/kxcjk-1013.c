@@ -1264,25 +1264,23 @@ static int kxcjk1013_probe(struct i2c_client *client,
 		goto err_trigger_unregister;
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "unable to register iio device\n");
-		goto err_buffer_cleanup;
-	}
-
 	ret = pm_runtime_set_active(&client->dev);
 	if (ret)
-		goto err_iio_unregister;
+		goto err_buffer_cleanup;
 
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev,
 					 KXCJK1013_SLEEP_DELAY_MS);
 	pm_runtime_use_autosuspend(&client->dev);
 
+	ret = iio_device_register(indio_dev);
+	if (ret < 0) {
+		dev_err(&client->dev, "unable to register iio device\n");
+		goto err_buffer_cleanup;
+	}
+
 	return 0;
 
-err_iio_unregister:
-	iio_device_unregister(indio_dev);
 err_buffer_cleanup:
 	if (data->dready_trig)
 		iio_triggered_buffer_cleanup(indio_dev);
@@ -1302,11 +1300,11 @@ static int kxcjk1013_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct kxcjk1013_data *data = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
+
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_put_noidle(&client->dev);
-
-	iio_device_unregister(indio_dev);
 
 	if (data->dready_trig) {
 		iio_triggered_buffer_cleanup(indio_dev);

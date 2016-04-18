@@ -91,17 +91,16 @@ _GLOBAL(mulhdu)
 	addc	r7,r0,r7
 	addze	r4,r4
 1:	beqlr	cr1		/* all done if high part of A is 0 */
-	mr	r10,r3
 	mullw	r9,r3,r5
-	mulhwu	r3,r3,r5
+	mulhwu	r10,r3,r5
 	beq	2f
-	mullw	r0,r10,r6
-	mulhwu	r8,r10,r6
+	mullw	r0,r3,r6
+	mulhwu	r8,r3,r6
 	addc	r7,r0,r7
 	adde	r4,r4,r8
-	addze	r3,r3
+	addze	r10,r10
 2:	addc	r4,r4,r9
-	addze	r3,r3
+	addze	r3,r10
 	blr
 
 /*
@@ -296,12 +295,9 @@ _GLOBAL(real_writeb)
  * Flush instruction cache.
  * This is a no-op on the 601.
  */
+#ifndef CONFIG_PPC_8xx
 _GLOBAL(flush_instruction_cache)
-#if defined(CONFIG_8xx)
-	isync
-	lis	r5, IDC_INVALL@h
-	mtspr	SPRN_IC_CST, r5
-#elif defined(CONFIG_4xx)
+#if defined(CONFIG_4xx)
 #ifdef CONFIG_403GCX
 	li      r3, 512
 	mtctr   r3
@@ -334,9 +330,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_UNIFIED_ID_CACHE)
 	mfspr	r3,SPRN_HID0
 	ori	r3,r3,HID0_ICFI
 	mtspr	SPRN_HID0,r3
-#endif /* CONFIG_8xx/4xx */
+#endif /* CONFIG_4xx */
 	isync
 	blr
+#endif /* CONFIG_PPC_8xx */
 
 /*
  * Write any modified data cache blocks out to memory
@@ -350,10 +347,9 @@ BEGIN_FTR_SECTION
 	PURGE_PREFETCHED_INS
 	blr				/* for 601, do nothing */
 END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
-	li	r5,L1_CACHE_BYTES-1
-	andc	r3,r3,r5
+	rlwinm	r3,r3,0,0,31 - L1_CACHE_SHIFT
 	subf	r4,r3,r4
-	add	r4,r4,r5
+	addi	r4,r4,L1_CACHE_BYTES - 1
 	srwi.	r4,r4,L1_CACHE_SHIFT
 	beqlr
 	mtctr	r4
@@ -376,71 +372,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	sync				/* additional sync needed on g4 */
 	isync
 	blr
-/*
- * Write any modified data cache blocks out to memory.
- * Does not invalidate the corresponding cache lines (especially for
- * any corresponding instruction cache).
- *
- * clean_dcache_range(unsigned long start, unsigned long stop)
- */
-_GLOBAL(clean_dcache_range)
-	li	r5,L1_CACHE_BYTES-1
-	andc	r3,r3,r5
-	subf	r4,r3,r4
-	add	r4,r4,r5
-	srwi.	r4,r4,L1_CACHE_SHIFT
-	beqlr
-	mtctr	r4
-
-1:	dcbst	0,r3
-	addi	r3,r3,L1_CACHE_BYTES
-	bdnz	1b
-	sync				/* wait for dcbst's to get to ram */
-	blr
-
-/*
- * Write any modified data cache blocks out to memory and invalidate them.
- * Does not invalidate the corresponding instruction cache blocks.
- *
- * flush_dcache_range(unsigned long start, unsigned long stop)
- */
-_GLOBAL(flush_dcache_range)
-	li	r5,L1_CACHE_BYTES-1
-	andc	r3,r3,r5
-	subf	r4,r3,r4
-	add	r4,r4,r5
-	srwi.	r4,r4,L1_CACHE_SHIFT
-	beqlr
-	mtctr	r4
-
-1:	dcbf	0,r3
-	addi	r3,r3,L1_CACHE_BYTES
-	bdnz	1b
-	sync				/* wait for dcbst's to get to ram */
-	blr
-
-/*
- * Like above, but invalidate the D-cache.  This is used by the 8xx
- * to invalidate the cache so the PPC core doesn't get stale data
- * from the CPM (no cache snooping here :-).
- *
- * invalidate_dcache_range(unsigned long start, unsigned long stop)
- */
-_GLOBAL(invalidate_dcache_range)
-	li	r5,L1_CACHE_BYTES-1
-	andc	r3,r3,r5
-	subf	r4,r3,r4
-	add	r4,r4,r5
-	srwi.	r4,r4,L1_CACHE_SHIFT
-	beqlr
-	mtctr	r4
-
-1:	dcbi	0,r3
-	addi	r3,r3,L1_CACHE_BYTES
-	bdnz	1b
-	sync				/* wait for dcbi's to get to ram */
-	blr
-
 /*
  * Flush a particular page from the data cache to RAM.
  * Note: this is necessary because the instruction cache does *not*
@@ -517,22 +448,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	isync
 	blr
 #endif /* CONFIG_BOOKE */
-
-/*
- * Clear pages using the dcbz instruction, which doesn't cause any
- * memory traffic (except to write out any cache lines which get
- * displaced).  This only works on cacheable memory.
- *
- * void clear_pages(void *page, int order) ;
- */
-_GLOBAL(clear_pages)
-	li	r0,PAGE_SIZE/L1_CACHE_BYTES
-	slw	r0,r0,r4
-	mtctr	r0
-1:	dcbz	0,r3
-	addi	r3,r3,L1_CACHE_BYTES
-	bdnz	1b
-	blr
 
 /*
  * Copy a whole page.  We use the dcbz instruction on the destination
@@ -743,6 +658,8 @@ relocate_new_kernel:
 	/* Check for 47x cores */
 	mfspr	r3,SPRN_PVR
 	srwi	r3,r3,16
+	cmplwi	cr0,r3,PVR_476FPE@h
+	beq	setup_map_47x
 	cmplwi	cr0,r3,PVR_476@h
 	beq	setup_map_47x
 	cmplwi	cr0,r3,PVR_476_ISS@h

@@ -35,6 +35,11 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 	ret = clk_prepare_enable(tdev->clk);
 	if (ret)
 		goto err_clk;
+	if (tdev->clk_ref) {
+		ret = clk_prepare_enable(tdev->clk_ref);
+		if (ret)
+			goto err_clk_ref;
+	}
 	ret = clk_prepare_enable(tdev->clk_pwr);
 	if (ret)
 		goto err_clk_pwr;
@@ -57,6 +62,9 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 err_clamp:
 	clk_disable_unprepare(tdev->clk_pwr);
 err_clk_pwr:
+	if (tdev->clk_ref)
+		clk_disable_unprepare(tdev->clk_ref);
+err_clk_ref:
 	clk_disable_unprepare(tdev->clk);
 err_clk:
 	regulator_disable(tdev->vdd);
@@ -71,6 +79,8 @@ nvkm_device_tegra_power_down(struct nvkm_device_tegra *tdev)
 	udelay(10);
 
 	clk_disable_unprepare(tdev->clk_pwr);
+	if (tdev->clk_ref)
+		clk_disable_unprepare(tdev->clk_ref);
 	clk_disable_unprepare(tdev->clk);
 	udelay(10);
 
@@ -84,6 +94,9 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 	struct device *dev = &tdev->pdev->dev;
 	unsigned long pgsize_bitmap;
 	int ret;
+
+	if (!tdev->func->iommu_bit)
+		return;
 
 	mutex_init(&tdev->iommu.mutex);
 
@@ -114,7 +127,8 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 			goto free_domain;
 
 		ret = nvkm_mm_init(&tdev->iommu.mm, 0,
-				   (1ULL << 40) >> tdev->iommu.pgshift, 1);
+				   (1ULL << tdev->func->iommu_bit) >>
+				   tdev->iommu.pgshift, 1);
 		if (ret)
 			goto detach_device;
 	}
@@ -237,7 +251,8 @@ nvkm_device_tegra_func = {
 };
 
 int
-nvkm_device_tegra_new(struct platform_device *pdev,
+nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
+		      struct platform_device *pdev,
 		      const char *cfg, const char *dbg,
 		      bool detect, bool mmio, u64 subdev_mask,
 		      struct nvkm_device **pdevice)
@@ -247,31 +262,55 @@ nvkm_device_tegra_new(struct platform_device *pdev,
 
 	if (!(tdev = kzalloc(sizeof(*tdev), GFP_KERNEL)))
 		return -ENOMEM;
-	*pdevice = &tdev->device;
+
+	tdev->func = func;
 	tdev->pdev = pdev;
-	tdev->irq = -1;
 
 	tdev->vdd = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR(tdev->vdd))
-		return PTR_ERR(tdev->vdd);
+	if (IS_ERR(tdev->vdd)) {
+		ret = PTR_ERR(tdev->vdd);
+		goto free;
+	}
 
 	tdev->rst = devm_reset_control_get(&pdev->dev, "gpu");
-	if (IS_ERR(tdev->rst))
-		return PTR_ERR(tdev->rst);
+	if (IS_ERR(tdev->rst)) {
+		ret = PTR_ERR(tdev->rst);
+		goto free;
+	}
 
 	tdev->clk = devm_clk_get(&pdev->dev, "gpu");
-	if (IS_ERR(tdev->clk))
-		return PTR_ERR(tdev->clk);
+	if (IS_ERR(tdev->clk)) {
+		ret = PTR_ERR(tdev->clk);
+		goto free;
+	}
+
+	if (func->require_ref_clk)
+		tdev->clk_ref = devm_clk_get(&pdev->dev, "ref");
+	if (IS_ERR(tdev->clk_ref)) {
+		ret = PTR_ERR(tdev->clk_ref);
+		goto free;
+	}
 
 	tdev->clk_pwr = devm_clk_get(&pdev->dev, "pwr");
-	if (IS_ERR(tdev->clk_pwr))
-		return PTR_ERR(tdev->clk_pwr);
+	if (IS_ERR(tdev->clk_pwr)) {
+		ret = PTR_ERR(tdev->clk_pwr);
+		goto free;
+	}
+
+	/**
+	 * The IOMMU bit defines the upper limit of the GPU-addressable space.
+	 * This will be refined in nouveau_ttm_init but we need to do it early
+	 * for instmem to behave properly
+	 */
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(tdev->func->iommu_bit));
+	if (ret)
+		goto free;
 
 	nvkm_device_tegra_probe_iommu(tdev);
 
 	ret = nvkm_device_tegra_power_up(tdev);
 	if (ret)
-		return ret;
+		goto remove;
 
 	tdev->gpu_speedo = tegra_sku_info.gpu_speedo_value;
 	ret = nvkm_device_ctor(&nvkm_device_tegra_func, NULL, &pdev->dev,
@@ -279,13 +318,24 @@ nvkm_device_tegra_new(struct platform_device *pdev,
 			       cfg, dbg, detect, mmio, subdev_mask,
 			       &tdev->device);
 	if (ret)
-		return ret;
+		goto powerdown;
+
+	*pdevice = &tdev->device;
 
 	return 0;
+
+powerdown:
+	nvkm_device_tegra_power_down(tdev);
+remove:
+	nvkm_device_tegra_remove_iommu(tdev);
+free:
+	kfree(tdev);
+	return ret;
 }
 #else
 int
-nvkm_device_tegra_new(struct platform_device *pdev,
+nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
+		      struct platform_device *pdev,
 		      const char *cfg, const char *dbg,
 		      bool detect, bool mmio, u64 subdev_mask,
 		      struct nvkm_device **pdevice)

@@ -309,7 +309,7 @@ static int eem_bind(struct usb_configuration *c, struct usb_function *f)
 	eem_ss_out_desc.bEndpointAddress = eem_fs_out_desc.bEndpointAddress;
 
 	status = usb_assign_descriptors(f, eem_fs_function, eem_hs_function,
-			eem_ss_function);
+			eem_ss_function, NULL);
 	if (status)
 		goto fail;
 
@@ -545,10 +545,10 @@ USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(eem);
 USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(eem);
 
 static struct configfs_attribute *eem_attrs[] = {
-	&f_eem_opts_dev_addr.attr,
-	&f_eem_opts_host_addr.attr,
-	&f_eem_opts_qmult.attr,
-	&f_eem_opts_ifname.attr,
+	&eem_opts_attr_dev_addr,
+	&eem_opts_attr_host_addr,
+	&eem_opts_attr_qmult,
+	&eem_opts_attr_ifname,
 	NULL,
 };
 

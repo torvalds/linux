@@ -4,15 +4,15 @@
 
 &spmi_bus {
 
-	usid0: pm8916@0 {
-		compatible = "qcom,spmi-pmic";
+	pm8916_0: pm8916@0 {
+		compatible = "qcom,pm8916", "qcom,spmi-pmic";
 		reg = <0x0 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
 		rtc@6000 {
 			compatible = "qcom,pm8941-rtc";
-			reg = <0x6000 0x6100>;
+			reg = <0x6000>;
 			reg-names = "rtc", "alarm";
 			interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
 		};
@@ -27,7 +27,7 @@
 
 		pm8916_gpios: gpios@c000 {
 			compatible = "qcom,pm8916-gpio";
-			reg = <0xc000 0x400>;
+			reg = <0xc000>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupts = <0 0xc0 0 IRQ_TYPE_NONE>,
@@ -38,7 +38,7 @@
 
 		pm8916_mpps: mpps@a000 {
 			compatible = "qcom,pm8916-mpp";
-			reg = <0xa000 0x400>;
+			reg = <0xa000>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupts = <0 0xa0 0 IRQ_TYPE_NONE>,
@@ -49,7 +49,7 @@
 
 		pm8916_temp: temp-alarm@2400 {
 			compatible = "qcom,spmi-temp-alarm";
-			reg = <0x2400 0x100>;
+			reg = <0x2400>;
 			interrupts = <0 0x24 0 IRQ_TYPE_EDGE_RISING>;
 			io-channels = <&pm8916_vadc VADC_DIE_TEMP>;
 			io-channel-names = "thermal";
@@ -58,7 +58,7 @@
 
 		pm8916_vadc: vadc@3100 {
 			compatible = "qcom,spmi-vadc";
-			reg = <0x3100 0x100>;
+			reg = <0x3100>;
 			interrupts = <0x0 0x31 0x0 IRQ_TYPE_EDGE_RISING>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -90,7 +90,7 @@
 		};
 	};
 
-	usid1: pm8916@1 {
+	pm8916_1: pm8916@1 {
 		compatible = "qcom,spmi-pmic";
 		reg = <0x1 SPMI_USID>;
 		#address-cells = <1>;

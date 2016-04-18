@@ -181,7 +181,7 @@ static int stop_urb_transfer(struct au0828_dev *dev)
 static int start_urb_transfer(struct au0828_dev *dev)
 {
 	struct urb *purb;
-	int i, ret = -ENOMEM;
+	int i, ret;
 
 	dprintk(2, "%s()\n", __func__);
 
@@ -194,7 +194,7 @@ static int start_urb_transfer(struct au0828_dev *dev)
 
 		dev->urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!dev->urbs[i])
-			goto err;
+			return -ENOMEM;
 
 		purb = dev->urbs[i];
 
@@ -207,9 +207,10 @@ static int start_urb_transfer(struct au0828_dev *dev)
 		if (!purb->transfer_buffer) {
 			usb_free_urb(purb);
 			dev->urbs[i] = NULL;
+			ret = -ENOMEM;
 			pr_err("%s: failed big buffer allocation, err = %d\n",
 			       __func__, ret);
-			goto err;
+			return ret;
 		}
 
 		purb->status = -EINPROGRESS;
@@ -235,10 +236,7 @@ static int start_urb_transfer(struct au0828_dev *dev)
 	}
 
 	dev->urb_streaming = true;
-	ret = 0;
-
-err:
-	return ret;
+	return 0;
 }
 
 static void au0828_start_transport(struct au0828_dev *dev)
@@ -415,6 +413,11 @@ static int dvb_register(struct au0828_dev *dev)
 		       result);
 		goto fail_adapter;
 	}
+
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	dvb->adapter.mdev = dev->media_dev;
+#endif
+
 	dvb->adapter.priv = dev;
 
 	/* register frontend */
@@ -480,8 +483,15 @@ static int dvb_register(struct au0828_dev *dev)
 
 	dvb->start_count = 0;
 	dvb->stop_count = 0;
+
+	result = dvb_create_media_graph(&dvb->adapter, false);
+	if (result < 0)
+		goto fail_create_graph;
+
 	return 0;
 
+fail_create_graph:
+	dvb_net_release(&dvb->net);
 fail_fe_conn:
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 fail_fe_mem:

@@ -21,11 +21,9 @@
 
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
-#ifdef CONFIG_DRM_MSM_FBDEV
 	struct msm_drm_private *priv = dev->dev_private;
 	if (priv->fbdev)
 		drm_fb_helper_hotplug_event(priv->fbdev);
-#endif
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
@@ -56,14 +54,14 @@ module_param(reglog, bool, 0600);
 #define reglog 0
 #endif
 
-#ifdef CONFIG_DRM_MSM_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 static bool fbdev = true;
 MODULE_PARM_DESC(fbdev, "Enable fbdev compat layer");
 module_param(fbdev, bool, 0600);
 #endif
 
 static char *vram = "16m";
-MODULE_PARM_DESC(vram, "Configure VRAM size (for devices without IOMMU/GPUMMU");
+MODULE_PARM_DESC(vram, "Configure VRAM size (for devices without IOMMU/GPUMMU)");
 module_param(vram, charp, 0);
 
 /*
@@ -198,6 +196,11 @@ static int msm_unload(struct drm_device *dev)
 	}
 
 	drm_kms_helper_poll_fini(dev);
+
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+	if (fbdev && priv->fbdev)
+		msm_fbdev_free(dev);
+#endif
 	drm_mode_config_cleanup(dev);
 	drm_vblank_cleanup(dev);
 
@@ -239,20 +242,9 @@ static int msm_unload(struct drm_device *dev)
 
 static int get_mdp_ver(struct platform_device *pdev)
 {
-#ifdef CONFIG_OF
-	static const struct of_device_id match_types[] = { {
-		.compatible = "qcom,mdss_mdp",
-		.data	= (void	*)5,
-	}, {
-		/* end node */
-	} };
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
-	match = of_match_node(match_types, dev->of_node);
-	if (match)
-		return (int)(unsigned long)match->data;
-#endif
-	return 4;
+
+	return (int) (unsigned long) of_device_get_match_data(dev);
 }
 
 #include <linux/of_address.h>
@@ -260,10 +252,10 @@ static int get_mdp_ver(struct platform_device *pdev)
 static int msm_init_vram(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
+	struct device_node *node;
 	unsigned long size = 0;
 	int ret = 0;
 
-#ifdef CONFIG_OF
 	/* In the device-tree world, we could have a 'memory-region'
 	 * phandle, which gives us a link to our "vram".  Allocating
 	 * is all nicely abstracted behind the dma api, but we need
@@ -280,7 +272,6 @@ static int msm_init_vram(struct drm_device *dev)
 	 *     as corruption on screen before we have a chance to
 	 *     load and do initial modeset)
 	 */
-	struct device_node *node;
 
 	node = of_parse_phandle(dev->dev->of_node, "memory-region", 0);
 	if (node) {
@@ -290,14 +281,12 @@ static int msm_init_vram(struct drm_device *dev)
 			return ret;
 		size = r.end - r.start;
 		DRM_INFO("using VRAM carveout: %lx@%pa\n", size, &r.start);
-	} else
-#endif
 
-	/* if we have no IOMMU, then we need to use carveout allocator.
-	 * Grab the entire CMA chunk carved out in early startup in
-	 * mach-msm:
-	 */
-	if (!iommu_present(&platform_bus_type)) {
+		/* if we have no IOMMU, then we need to use carveout allocator.
+		 * Grab the entire CMA chunk carved out in early startup in
+		 * mach-msm:
+		 */
+	} else if (!iommu_present(&platform_bus_type)) {
 		DRM_INFO("using %s VRAM carveout\n", vram);
 		size = memparse(vram, NULL);
 	}
@@ -423,7 +412,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_reset(dev);
 
-#ifdef CONFIG_DRM_MSM_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (fbdev)
 		priv->fbdev = msm_fbdev_init(dev);
 #endif
@@ -478,9 +467,6 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 	struct msm_file_private *ctx = file->driver_priv;
 	struct msm_kms *kms = priv->kms;
 
-	if (kms)
-		kms->funcs->preclose(kms, file);
-
 	mutex_lock(&dev->struct_mutex);
 	if (ctx == priv->lastctx)
 		priv->lastctx = NULL;
@@ -491,11 +477,9 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 
 static void msm_lastclose(struct drm_device *dev)
 {
-#ifdef CONFIG_DRM_MSM_FBDEV
 	struct msm_drm_private *priv = dev->dev_private;
 	if (priv->fbdev)
 		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
-#endif
 }
 
 static irqreturn_t msm_irq(int irq, void *arg)
@@ -531,24 +515,24 @@ static void msm_irq_uninstall(struct drm_device *dev)
 	kms->funcs->irq_uninstall(kms);
 }
 
-static int msm_enable_vblank(struct drm_device *dev, int crtc_id)
+static int msm_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	if (!kms)
 		return -ENXIO;
-	DBG("dev=%p, crtc=%d", dev, crtc_id);
-	return vblank_ctrl_queue_work(priv, crtc_id, true);
+	DBG("dev=%p, crtc=%u", dev, pipe);
+	return vblank_ctrl_queue_work(priv, pipe, true);
 }
 
-static void msm_disable_vblank(struct drm_device *dev, int crtc_id)
+static void msm_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	if (!kms)
 		return;
-	DBG("dev=%p, crtc=%d", dev, crtc_id);
-	vblank_ctrl_queue_work(priv, crtc_id, false);
+	DBG("dev=%p, crtc=%u", dev, pipe);
+	vblank_ctrl_queue_work(priv, pipe, false);
 }
 
 /*
@@ -932,13 +916,13 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 }
 
 static const struct drm_ioctl_desc msm_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(MSM_GET_PARAM,    msm_ioctl_get_param,    DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_NEW,      msm_ioctl_gem_new,      DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_INFO,     msm_ioctl_gem_info,     DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_PREP, msm_ioctl_gem_cpu_prep, DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_FINI, msm_ioctl_gem_cpu_fini, DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(MSM_GEM_SUBMIT,   msm_ioctl_gem_submit,   DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(MSM_WAIT_FENCE,   msm_ioctl_wait_fence,   DRM_UNLOCKED|DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GET_PARAM,    msm_ioctl_get_param,    DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_NEW,      msm_ioctl_gem_new,      DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_INFO,     msm_ioctl_gem_info,     DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_PREP, msm_ioctl_gem_cpu_prep, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_FINI, msm_ioctl_gem_cpu_fini, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_SUBMIT,   msm_ioctl_gem_submit,   DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_WAIT_FENCE,   msm_ioctl_wait_fence,   DRM_AUTH|DRM_RENDER_ALLOW),
 };
 
 static const struct vm_operations_struct vm_ops = {
@@ -978,7 +962,7 @@ static struct drm_driver msm_driver = {
 	.irq_preinstall     = msm_irq_preinstall,
 	.irq_postinstall    = msm_irq_postinstall,
 	.irq_uninstall      = msm_irq_uninstall,
-	.get_vblank_counter = drm_vblank_count,
+	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank      = msm_enable_vblank,
 	.disable_vblank     = msm_disable_vblank,
 	.gem_free_object    = msm_gem_free_object,
@@ -1039,9 +1023,9 @@ static const struct dev_pm_ops msm_pm_ops = {
  * Componentized driver support:
  */
 
-#ifdef CONFIG_OF
-/* NOTE: the CONFIG_OF case duplicates the same code as exynos or imx
- * (or probably any other).. so probably some room for some helpers
+/*
+ * NOTE: duplication of the same code as exynos or imx (or probably any other).
+ * so probably some room for some helpers
  */
 static int compare_of(struct device *dev, void *data)
 {
@@ -1066,12 +1050,6 @@ static int add_components(struct device *dev, struct component_match **matchptr,
 
 	return 0;
 }
-#else
-static int compare_dev(struct device *dev, void *data)
-{
-	return dev == data;
-}
-#endif
 
 static int msm_drm_bind(struct device *dev)
 {
@@ -1095,35 +1073,9 @@ static const struct component_master_ops msm_drm_ops = {
 static int msm_pdev_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
-#ifdef CONFIG_OF
+
 	add_components(&pdev->dev, &match, "connectors");
 	add_components(&pdev->dev, &match, "gpus");
-#else
-	/* For non-DT case, it kinda sucks.  We don't actually have a way
-	 * to know whether or not we are waiting for certain devices (or if
-	 * they are simply not present).  But for non-DT we only need to
-	 * care about apq8064/apq8060/etc (all mdp4/a3xx):
-	 */
-	static const char *devnames[] = {
-			"hdmi_msm.0", "kgsl-3d0.0",
-	};
-	int i;
-
-	DBG("Adding components..");
-
-	for (i = 0; i < ARRAY_SIZE(devnames); i++) {
-		struct device *dev;
-
-		dev = bus_find_device_by_name(&platform_bus_type,
-				NULL, devnames[i]);
-		if (!dev) {
-			dev_info(&pdev->dev, "still waiting for %s\n", devnames[i]);
-			return -EPROBE_DEFER;
-		}
-
-		component_match_add(&pdev->dev, &match, compare_dev, dev);
-	}
-#endif
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	return component_master_add_with_match(&pdev->dev, &msm_drm_ops, match);
@@ -1142,8 +1094,10 @@ static const struct platform_device_id msm_id[] = {
 };
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,mdp" },      /* mdp4 */
-	{ .compatible = "qcom,mdss_mdp" }, /* mdp5 */
+	{ .compatible = "qcom,mdp4", .data = (void *) 4 },	/* mdp4 */
+	{ .compatible = "qcom,mdp5", .data = (void *) 5 },	/* mdp5 */
+	/* to support downstream DT files */
+	{ .compatible = "qcom,mdss_mdp", .data = (void *) 5 },  /* mdp5 */
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
@@ -1164,7 +1118,7 @@ static int __init msm_drm_register(void)
 	DBG("init");
 	msm_dsi_register();
 	msm_edp_register();
-	hdmi_register();
+	msm_hdmi_register();
 	adreno_register();
 	return platform_driver_register(&msm_platform_driver);
 }
@@ -1173,7 +1127,7 @@ static void __exit msm_drm_unregister(void)
 {
 	DBG("fini");
 	platform_driver_unregister(&msm_platform_driver);
-	hdmi_unregister();
+	msm_hdmi_unregister();
 	adreno_unregister();
 	msm_edp_unregister();
 	msm_dsi_unregister();

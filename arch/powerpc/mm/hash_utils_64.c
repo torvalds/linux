@@ -159,24 +159,41 @@ static struct mmu_psize_def mmu_psize_defaults_gp[] = {
 	},
 };
 
-static unsigned long htab_convert_pte_flags(unsigned long pteflags)
+unsigned long htab_convert_pte_flags(unsigned long pteflags)
 {
-	unsigned long rflags = pteflags & 0x1fa;
+	unsigned long rflags = 0;
 
 	/* _PAGE_EXEC -> NOEXEC */
 	if ((pteflags & _PAGE_EXEC) == 0)
 		rflags |= HPTE_R_N;
-
-	/* PP bits. PAGE_USER is already PP bit 0x2, so we only
-	 * need to add in 0x1 if it's a read-only user page
+	/*
+	 * PP bits:
+	 * Linux uses slb key 0 for kernel and 1 for user.
+	 * kernel areas are mapped with PP=00
+	 * and there is no kernel RO (_PAGE_KERNEL_RO).
+	 * User area is mapped with PP=0x2 for read/write
+	 * or PP=0x3 for read-only (including writeable but clean pages).
 	 */
-	if ((pteflags & _PAGE_USER) && !((pteflags & _PAGE_RW) &&
-					 (pteflags & _PAGE_DIRTY)))
-		rflags |= 1;
+	if (pteflags & _PAGE_USER) {
+		rflags |= 0x2;
+		if (!((pteflags & _PAGE_RW) && (pteflags & _PAGE_DIRTY)))
+			rflags |= 0x1;
+	}
 	/*
 	 * Always add "C" bit for perf. Memory coherence is always enabled
 	 */
-	return rflags | HPTE_R_C | HPTE_R_M;
+	rflags |=  HPTE_R_C | HPTE_R_M;
+	/*
+	 * Add in WIG bits
+	 */
+	if (pteflags & _PAGE_WRITETHRU)
+		rflags |= HPTE_R_W;
+	if (pteflags & _PAGE_NO_CACHE)
+		rflags |= HPTE_R_I;
+	if (pteflags & _PAGE_GUARDED)
+		rflags |= HPTE_R_G;
+
+	return rflags;
 }
 
 int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
@@ -238,36 +255,42 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 
 		if (ret < 0)
 			break;
+
 #ifdef CONFIG_DEBUG_PAGEALLOC
-		if ((paddr >> PAGE_SHIFT) < linear_map_hash_count)
+		if (debug_pagealloc_enabled() &&
+			(paddr >> PAGE_SHIFT) < linear_map_hash_count)
 			linear_map_hash_slots[paddr >> PAGE_SHIFT] = ret | 0x80;
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 	}
 	return ret < 0 ? ret : 0;
 }
 
-#ifdef CONFIG_MEMORY_HOTPLUG
 int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 		      int psize, int ssize)
 {
 	unsigned long vaddr;
 	unsigned int step, shift;
+	int rc;
+	int ret = 0;
 
 	shift = mmu_psize_defs[psize].shift;
 	step = 1 << shift;
 
-	if (!ppc_md.hpte_removebolted) {
-		printk(KERN_WARNING "Platform doesn't implement "
-				"hpte_removebolted\n");
-		return -EINVAL;
+	if (!ppc_md.hpte_removebolted)
+		return -ENODEV;
+
+	for (vaddr = vstart; vaddr < vend; vaddr += step) {
+		rc = ppc_md.hpte_removebolted(vaddr, psize, ssize);
+		if (rc == -ENOENT) {
+			ret = -ENOENT;
+			continue;
+		}
+		if (rc < 0)
+			return rc;
 	}
 
-	for (vaddr = vstart; vaddr < vend; vaddr += step)
-		ppc_md.hpte_removebolted(vaddr, psize, ssize);
-
-	return 0;
+	return ret;
 }
-#endif /* CONFIG_MEMORY_HOTPLUG */
 
 static int __init htab_dt_scan_seg_sizes(unsigned long node,
 					 const char *uname, int depth,
@@ -495,17 +518,17 @@ static void __init htab_init_page_sizes(void)
 	if (mmu_has_feature(MMU_FTR_16M_PAGE))
 		memcpy(mmu_psize_defs, mmu_psize_defaults_gp,
 		       sizeof(mmu_psize_defaults_gp));
- found:
-#ifndef CONFIG_DEBUG_PAGEALLOC
-	/*
-	 * Pick a size for the linear mapping. Currently, we only support
-	 * 16M, 1M and 4K which is the default
-	 */
-	if (mmu_psize_defs[MMU_PAGE_16M].shift)
-		mmu_linear_psize = MMU_PAGE_16M;
-	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
-		mmu_linear_psize = MMU_PAGE_1M;
-#endif /* CONFIG_DEBUG_PAGEALLOC */
+found:
+	if (!debug_pagealloc_enabled()) {
+		/*
+		 * Pick a size for the linear mapping. Currently, we only
+		 * support 16M, 1M and 4K which is the default
+		 */
+		if (mmu_psize_defs[MMU_PAGE_16M].shift)
+			mmu_linear_psize = MMU_PAGE_16M;
+		else if (mmu_psize_defs[MMU_PAGE_1M].shift)
+			mmu_linear_psize = MMU_PAGE_1M;
+	}
 
 #ifdef CONFIG_PPC_64K_PAGES
 	/*
@@ -588,10 +611,28 @@ static int __init htab_dt_scan_pftsize(unsigned long node,
 	return 0;
 }
 
+unsigned htab_shift_for_mem_size(unsigned long mem_size)
+{
+	unsigned memshift = __ilog2(mem_size);
+	unsigned pshift = mmu_psize_defs[mmu_virtual_psize].shift;
+	unsigned pteg_shift;
+
+	/* round mem_size up to next power of 2 */
+	if ((1UL << memshift) < mem_size)
+		memshift += 1;
+
+	/* aim for 2 pages / pteg */
+	pteg_shift = memshift - (pshift + 1);
+
+	/*
+	 * 2^11 PTEGS of 128 bytes each, ie. 2^18 bytes is the minimum htab
+	 * size permitted by the architecture.
+	 */
+	return max(pteg_shift + 7, 18U);
+}
+
 static unsigned long __init htab_get_table_size(void)
 {
-	unsigned long mem_size, rnd_mem_size, pteg_count, psize;
-
 	/* If hash size isn't already provided by the platform, we try to
 	 * retrieve it from the device-tree. If it's not there neither, we
 	 * calculate it now based on the total RAM size
@@ -601,73 +642,32 @@ static unsigned long __init htab_get_table_size(void)
 	if (ppc64_pft_size)
 		return 1UL << ppc64_pft_size;
 
-	/* round mem_size up to next power of 2 */
-	mem_size = memblock_phys_mem_size();
-	rnd_mem_size = 1UL << __ilog2(mem_size);
-	if (rnd_mem_size < mem_size)
-		rnd_mem_size <<= 1;
-
-	/* # pages / 2 */
-	psize = mmu_psize_defs[mmu_virtual_psize].shift;
-	pteg_count = max(rnd_mem_size >> (psize + 1), 1UL << 11);
-
-	return pteg_count << 7;
+	return 1UL << htab_shift_for_mem_size(memblock_phys_mem_size());
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 int create_section_mapping(unsigned long start, unsigned long end)
 {
-	return htab_bolt_mapping(start, end, __pa(start),
-				 pgprot_val(PAGE_KERNEL), mmu_linear_psize,
-				 mmu_kernel_ssize);
+	int rc = htab_bolt_mapping(start, end, __pa(start),
+				   pgprot_val(PAGE_KERNEL), mmu_linear_psize,
+				   mmu_kernel_ssize);
+
+	if (rc < 0) {
+		int rc2 = htab_remove_mapping(start, end, mmu_linear_psize,
+					      mmu_kernel_ssize);
+		BUG_ON(rc2 && (rc2 != -ENOENT));
+	}
+	return rc;
 }
 
 int remove_section_mapping(unsigned long start, unsigned long end)
 {
-	return htab_remove_mapping(start, end, mmu_linear_psize,
-			mmu_kernel_ssize);
+	int rc = htab_remove_mapping(start, end, mmu_linear_psize,
+				     mmu_kernel_ssize);
+	WARN_ON(rc < 0);
+	return rc;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
-
-extern u32 htab_call_hpte_insert1[];
-extern u32 htab_call_hpte_insert2[];
-extern u32 htab_call_hpte_remove[];
-extern u32 htab_call_hpte_updatepp[];
-extern u32 ht64_call_hpte_insert1[];
-extern u32 ht64_call_hpte_insert2[];
-extern u32 ht64_call_hpte_remove[];
-extern u32 ht64_call_hpte_updatepp[];
-
-static void __init htab_finish_init(void)
-{
-#ifdef CONFIG_PPC_64K_PAGES
-	patch_branch(ht64_call_hpte_insert1,
-		ppc_function_entry(ppc_md.hpte_insert),
-		BRANCH_SET_LINK);
-	patch_branch(ht64_call_hpte_insert2,
-		ppc_function_entry(ppc_md.hpte_insert),
-		BRANCH_SET_LINK);
-	patch_branch(ht64_call_hpte_remove,
-		ppc_function_entry(ppc_md.hpte_remove),
-		BRANCH_SET_LINK);
-	patch_branch(ht64_call_hpte_updatepp,
-		ppc_function_entry(ppc_md.hpte_updatepp),
-		BRANCH_SET_LINK);
-#endif /* CONFIG_PPC_64K_PAGES */
-
-	patch_branch(htab_call_hpte_insert1,
-		ppc_function_entry(ppc_md.hpte_insert),
-		BRANCH_SET_LINK);
-	patch_branch(htab_call_hpte_insert2,
-		ppc_function_entry(ppc_md.hpte_insert),
-		BRANCH_SET_LINK);
-	patch_branch(htab_call_hpte_remove,
-		ppc_function_entry(ppc_md.hpte_remove),
-		BRANCH_SET_LINK);
-	patch_branch(htab_call_hpte_updatepp,
-		ppc_function_entry(ppc_md.hpte_updatepp),
-		BRANCH_SET_LINK);
-}
 
 static void __init htab_initialize(void)
 {
@@ -744,10 +744,12 @@ static void __init htab_initialize(void)
 	prot = pgprot_val(PAGE_KERNEL);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	linear_map_hash_count = memblock_end_of_DRAM() >> PAGE_SHIFT;
-	linear_map_hash_slots = __va(memblock_alloc_base(linear_map_hash_count,
-						    1, ppc64_rma_size));
-	memset(linear_map_hash_slots, 0, linear_map_hash_count);
+	if (debug_pagealloc_enabled()) {
+		linear_map_hash_count = memblock_end_of_DRAM() >> PAGE_SHIFT;
+		linear_map_hash_slots = __va(memblock_alloc_base(
+				linear_map_hash_count, 1, ppc64_rma_size));
+		memset(linear_map_hash_slots, 0, linear_map_hash_count);
+	}
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
 	/* On U3 based machines, we need to reserve the DART area and
@@ -815,7 +817,6 @@ static void __init htab_initialize(void)
 					 mmu_linear_psize, mmu_kernel_ssize));
 	}
 
-	htab_finish_init();
 
 	DBG(" <- htab_initialize()\n");
 }
@@ -877,11 +878,11 @@ static unsigned int get_paca_psize(unsigned long addr)
 	unsigned long index, mask_index;
 
 	if (addr < SLICE_LOW_TOP) {
-		lpsizes = get_paca()->context.low_slices_psize;
+		lpsizes = get_paca()->mm_ctx_low_slices_psize;
 		index = GET_LOW_SLICE_INDEX(addr);
 		return (lpsizes >> (index * 4)) & 0xF;
 	}
-	hpsizes = get_paca()->context.high_slices_psize;
+	hpsizes = get_paca()->mm_ctx_high_slices_psize;
 	index = GET_HIGH_SLICE_INDEX(addr);
 	mask_index = index & 0x1;
 	return (hpsizes[index >> 1] >> (mask_index * 4)) & 0xF;
@@ -890,7 +891,7 @@ static unsigned int get_paca_psize(unsigned long addr)
 #else
 unsigned int get_paca_psize(unsigned long addr)
 {
-	return get_paca()->context.user_psize;
+	return get_paca()->mm_ctx_user_psize;
 }
 #endif
 
@@ -906,7 +907,8 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 	slice_set_range_psize(mm, addr, 1, MMU_PAGE_4K);
 	copro_flush_all_slbs(mm);
 	if ((get_paca_psize(addr) != MMU_PAGE_4K) && (current->mm == mm)) {
-		get_paca()->context = mm->context;
+
+		copy_mm_to_paca(&mm->context);
 		slb_flush_and_rebolt();
 	}
 }
@@ -973,7 +975,7 @@ static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
 {
 	if (user_region) {
 		if (psize != get_paca_psize(ea)) {
-			get_paca()->context = mm->context;
+			copy_mm_to_paca(&mm->context);
 			slb_flush_and_rebolt();
 		}
 	} else if (get_paca()->vmalloc_sllp !=
@@ -1148,9 +1150,10 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		}
 	}
 
+#endif /* CONFIG_PPC_64K_PAGES */
+
 	if (current->mm == mm)
 		check_paca_psize(ea, mm, psize, user_region);
-#endif /* CONFIG_PPC_64K_PAGES */
 
 #ifdef CONFIG_PPC_64K_PAGES
 	if (psize == MMU_PAGE_64K)
@@ -1202,6 +1205,35 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
 	return hash_page_mm(mm, ea, access, trap, flags);
 }
 EXPORT_SYMBOL_GPL(hash_page);
+
+int __hash_page(unsigned long ea, unsigned long msr, unsigned long trap,
+		unsigned long dsisr)
+{
+	unsigned long access = _PAGE_PRESENT;
+	unsigned long flags = 0;
+	struct mm_struct *mm = current->mm;
+
+	if (REGION_ID(ea) == VMALLOC_REGION_ID)
+		mm = &init_mm;
+
+	if (dsisr & DSISR_NOHPTE)
+		flags |= HPTE_NOHPTE_UPDATE;
+
+	if (dsisr & DSISR_ISSTORE)
+		access |= _PAGE_RW;
+	/*
+	 * We need to set the _PAGE_USER bit if MSR_PR is set or if we are
+	 * accessing a userspace segment (even from the kernel). We assume
+	 * kernel addresses always have the high bit set.
+	 */
+	if ((msr & MSR_PR) || (REGION_ID(ea) == USER_REGION_ID))
+		access |= _PAGE_USER;
+
+	if (trap == 0x400)
+		access |= _PAGE_EXEC;
+
+	return hash_page_mm(mm, ea, access, trap, flags);
+}
 
 void hash_preload(struct mm_struct *mm, unsigned long ea,
 		  unsigned long access, unsigned long trap)

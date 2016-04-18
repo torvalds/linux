@@ -35,11 +35,12 @@
 #define dev_to_drm_minor(d) dev_get_drvdata((d))
 
 #ifdef CONFIG_PM
-static u32 calc_residency(struct drm_device *dev, const u32 reg)
+static u32 calc_residency(struct drm_device *dev,
+			  i915_reg_t reg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u64 raw_time; /* 32b value may overflow during fixed point math */
-	u64 units = 128ULL, div = 100000ULL, bias = 100ULL;
+	u64 units = 128ULL, div = 100000ULL;
 	u32 ret;
 
 	if (!intel_enable_rc6(dev))
@@ -48,42 +49,20 @@ static u32 calc_residency(struct drm_device *dev, const u32 reg)
 	intel_runtime_pm_get(dev_priv);
 
 	/* On VLV and CHV, residency time is in CZ units rather than 1.28us */
-	if (IS_VALLEYVIEW(dev)) {
-		u32 clk_reg, czcount_30ns;
-
-		if (IS_CHERRYVIEW(dev))
-			clk_reg = CHV_CLK_CTL1;
-		else
-			clk_reg = VLV_CLK_CTL2;
-
-		czcount_30ns = I915_READ(clk_reg) >> CLK_CTL2_CZCOUNT_30NS_SHIFT;
-
-		if (!czcount_30ns) {
-			WARN(!czcount_30ns, "bogus CZ count value");
-			ret = 0;
-			goto out;
-		}
-
-		if (IS_CHERRYVIEW(dev) && czcount_30ns == 1) {
-			/* Special case for 320Mhz */
-			div = 10000000ULL;
-			units = 3125ULL;
-		} else {
-			czcount_30ns += 1;
-			div = 1000000ULL;
-			units = DIV_ROUND_UP_ULL(30ULL * bias, czcount_30ns);
-		}
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+		units = 1;
+		div = dev_priv->czclk_freq;
 
 		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
 			units <<= 8;
-
-		div = div * bias;
+	} else if (IS_BROXTON(dev)) {
+		units = 1;
+		div = 1200;		/* 833.33ns */
 	}
 
 	raw_time = I915_READ(reg) * units;
 	ret = DIV_ROUND_UP_ULL(raw_time, div);
 
-out:
 	intel_runtime_pm_put(dev_priv);
 	return ret;
 }
@@ -185,7 +164,7 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	     struct bin_attribute *attr, char *buf,
 	     loff_t offset, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct drm_minor *dminor = dev_to_drm_minor(dev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
@@ -221,7 +200,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	      struct bin_attribute *attr, char *buf,
 	      loff_t offset, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct drm_minor *dminor = dev_to_drm_minor(dev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
@@ -305,7 +284,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 	intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->rps.hw_lock);
-	if (IS_VALLEYVIEW(dev_priv->dev)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		u32 freq;
 		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		ret = intel_gpu_freq(dev_priv, (freq >> 8) & 0xff);
@@ -542,7 +521,7 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 				loff_t off, size_t count)
 {
 
-	struct device *kdev = container_of(kobj, struct device, kobj);
+	struct device *kdev = kobj_to_dev(kobj);
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct i915_error_state_file_priv error_priv;
@@ -577,7 +556,7 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 				 struct bin_attribute *attr, char *buf,
 				 loff_t off, size_t count)
 {
-	struct device *kdev = container_of(kobj, struct device, kobj);
+	struct device *kdev = kobj_to_dev(kobj);
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	int ret;
@@ -619,7 +598,7 @@ void i915_setup_sysfs(struct drm_device *dev)
 		if (ret)
 			DRM_ERROR("RC6p residency sysfs setup failed\n");
 	}
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		ret = sysfs_merge_group(&dev->primary->kdev->kobj,
 					&media_rc6_attr_group);
 		if (ret)
@@ -640,7 +619,7 @@ void i915_setup_sysfs(struct drm_device *dev)
 	}
 
 	ret = 0;
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		ret = sysfs_create_files(&dev->primary->kdev->kobj, vlv_attrs);
 	else if (INTEL_INFO(dev)->gen >= 6)
 		ret = sysfs_create_files(&dev->primary->kdev->kobj, gen6_attrs);
@@ -656,7 +635,7 @@ void i915_setup_sysfs(struct drm_device *dev)
 void i915_teardown_sysfs(struct drm_device *dev)
 {
 	sysfs_remove_bin_file(&dev->primary->kdev->kobj, &error_state_attr);
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		sysfs_remove_files(&dev->primary->kdev->kobj, vlv_attrs);
 	else
 		sysfs_remove_files(&dev->primary->kdev->kobj, gen6_attrs);

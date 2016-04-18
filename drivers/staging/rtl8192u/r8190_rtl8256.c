@@ -1,12 +1,11 @@
 /*
-  This is part of the rtl8192 driver
-  released under the GPL (See file COPYING for details).
-
-  This files contains programming code for the rtl8256
-  radio frontend.
-
-  *Many* thanks to Realtek Corp. for their great support!
-
+* This is part of the rtl8192 driver
+* released under the GPL (See file COPYING for details).
+*
+* This files contains programming code for the rtl8256
+* radio frontend.
+*
+* *Many* thanks to Realtek Corp. for their great support!
 */
 
 #include "r8192U.h"
@@ -22,7 +21,8 @@
  * Output:      NONE
  * Return:      NONE
  * Note:	8226 support both 20M  and 40 MHz
- *---------------------------------------------------------------------------*/
+ *--------------------------------------------------------------------------
+ */
 void PHY_SetRF8256Bandwidth(struct net_device *dev, HT_CHANNEL_WIDTH Bandwidth)
 {
 	u8	eRFPath;
@@ -83,7 +83,8 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev, HT_CHANNEL_WIDTH Bandwidth)
  * Input:       struct net_device*	dev
  * Output:      NONE
  * Return:      NONE
- *---------------------------------------------------------------------------*/
+ *--------------------------------------------------------------------------
+ */
 void PHY_RF8256_Config(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -100,7 +101,8 @@ void PHY_RF8256_Config(struct net_device *dev)
  * Input:       struct net_device*	dev
  * Output:      NONE
  * Return:      NONE
- *---------------------------------------------------------------------------*/
+ *--------------------------------------------------------------------------
+ */
 void phy_RF8256_Config_ParaFile(struct net_device *dev)
 {
 	u32	u4RegValue = 0;

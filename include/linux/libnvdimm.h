@@ -26,9 +26,8 @@ enum {
 
 	/* need to set a limit somewhere, but yes, this is likely overkill */
 	ND_IOCTL_MAX_BUFLEN = SZ_4M,
-	ND_CMD_MAX_ELEM = 4,
+	ND_CMD_MAX_ELEM = 5,
 	ND_CMD_MAX_ENVELOPE = 16,
-	ND_CMD_ARS_STATUS_MAX = SZ_4K,
 	ND_MAX_MAPPINGS = 32,
 
 	/* region flag indicating to direct-map persistent memory by default */
@@ -49,7 +48,7 @@ struct nvdimm;
 struct nvdimm_bus_descriptor;
 typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
-		unsigned int buf_len);
+		unsigned int buf_len, int *cmd_rc);
 
 struct nd_namespace_label;
 struct nvdimm_drvdata;
@@ -72,6 +71,9 @@ struct nvdimm_bus_descriptor {
 	unsigned long dsm_mask;
 	char *provider_name;
 	ndctl_fn ndctl;
+	int (*flush_probe)(struct nvdimm_bus_descriptor *nd_desc);
+	int (*clear_to_send)(struct nvdimm_bus_descriptor *nd_desc,
+			struct nvdimm *nvdimm, unsigned int cmd);
 };
 
 struct nd_cmd_desc {
@@ -116,6 +118,7 @@ static inline struct nd_blk_region_desc *to_blk_region_desc(
 
 }
 
+int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length);
 struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
 		struct nvdimm_bus_descriptor *nfit_desc, struct module *module);
 #define nvdimm_bus_register(parent, desc) \

@@ -2187,8 +2187,10 @@ void bnx2x_vf_mbx_schedule(struct bnx2x *bp,
 
 	/* Update VFDB with current message and schedule its handling */
 	mutex_lock(&BP_VFDB(bp)->event_mutex);
-	BP_VF_MBX(bp, vf_idx)->vf_addr_hi = vfpf_event->msg_addr_hi;
-	BP_VF_MBX(bp, vf_idx)->vf_addr_lo = vfpf_event->msg_addr_lo;
+	BP_VF_MBX(bp, vf_idx)->vf_addr_hi =
+		le32_to_cpu(vfpf_event->msg_addr_hi);
+	BP_VF_MBX(bp, vf_idx)->vf_addr_lo =
+		le32_to_cpu(vfpf_event->msg_addr_lo);
 	BP_VFDB(bp)->event_occur |= (1ULL << vf_idx);
 	mutex_unlock(&BP_VFDB(bp)->event_mutex);
 

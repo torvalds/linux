@@ -32,6 +32,7 @@
 #include <linux/hardirq.h>
 #include <linux/pstore.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h> /* kvfree() */
 #include <acpi/apei.h>
 
 #include "apei-internal.h"
@@ -532,10 +533,7 @@ retry:
 			return -ENOMEM;
 		memcpy(new_entries, entries,
 		       erst_record_id_cache.len * sizeof(entries[0]));
-		if (erst_record_id_cache.size < PAGE_SIZE)
-			kfree(entries);
-		else
-			vfree(entries);
+		kvfree(entries);
 		erst_record_id_cache.entries = entries = new_entries;
 		erst_record_id_cache.size = new_size;
 	}
@@ -1208,6 +1206,9 @@ static int __init erst_init(void)
 		pr_err(
 		"Failed to allocate %lld bytes for persistent store error log.\n",
 		erst_erange.size);
+
+	/* Cleanup ERST Resources */
+	apei_resources_fini(&erst_resources);
 
 	return 0;
 

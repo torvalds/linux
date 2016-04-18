@@ -46,7 +46,7 @@ static int berlin_reset_reset(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
-static struct reset_control_ops berlin_reset_ops = {
+static const struct reset_control_ops berlin_reset_ops = {
 	.reset	= berlin_reset_reset,
 };
 
@@ -54,9 +54,6 @@ static int berlin_reset_xlate(struct reset_controller_dev *rcdev,
 			      const struct of_phandle_args *reset_spec)
 {
 	unsigned offset, bit;
-
-	if (WARN_ON(reset_spec->args_count != rcdev->of_reset_n_cells))
-		return -EINVAL;
 
 	offset = reset_spec->args[0];
 	bit = reset_spec->args[1];
@@ -87,9 +84,7 @@ static int berlin2_reset_probe(struct platform_device *pdev)
 	priv->rcdev.of_reset_n_cells = 2;
 	priv->rcdev.of_xlate = berlin_reset_xlate;
 
-	reset_controller_register(&priv->rcdev);
-
-	return 0;
+	return reset_controller_register(&priv->rcdev);
 }
 
 static const struct of_device_id berlin_reset_dt_match[] = {

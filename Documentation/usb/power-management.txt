@@ -537,17 +537,18 @@ relevant attribute files are usb2_hardware_lpm and usb3_hardware_lpm.
 		can write y/Y/1 or n/N/0 to the file to	enable/disable
 		USB2 hardware LPM manually. This is for	test purpose mainly.
 
-	power/usb3_hardware_lpm
+	power/usb3_hardware_lpm_u1
+	power/usb3_hardware_lpm_u2
 
 		When a USB 3.0 lpm-capable device is plugged in to a
 		xHCI host which supports link PM, it will check if U1
 		and U2 exit latencies have been set in the BOS
 		descriptor; if the check is is passed and the host
 		supports USB3 hardware LPM, USB3 hardware LPM will be
-		enabled for the device and this file will be created.
-		The file holds a string value (enable or disable)
-		indicating whether or not USB3 hardware LPM is
-		enabled for the device.
+		enabled for the device and these files will be created.
+		The files hold a string value (enable or disable)
+		indicating whether or not USB3 hardware LPM U1 or U2
+		is enabled for the device.
 
 	USB Port Power Control
 	----------------------

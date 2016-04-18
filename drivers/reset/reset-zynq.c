@@ -86,7 +86,7 @@ static int zynq_reset_status(struct reset_controller_dev *rcdev,
 	return !!(reg & BIT(offset));
 }
 
-static struct reset_control_ops zynq_reset_ops = {
+static const struct reset_control_ops zynq_reset_ops = {
 	.assert		= zynq_reset_assert,
 	.deassert	= zynq_reset_deassert,
 	.status		= zynq_reset_status,
@@ -121,9 +121,8 @@ static int zynq_reset_probe(struct platform_device *pdev)
 	priv->rcdev.nr_resets = resource_size(res) / 4 * BITS_PER_LONG;
 	priv->rcdev.ops = &zynq_reset_ops;
 	priv->rcdev.of_node = pdev->dev.of_node;
-	reset_controller_register(&priv->rcdev);
 
-	return 0;
+	return reset_controller_register(&priv->rcdev);
 }
 
 static int zynq_reset_remove(struct platform_device *pdev)

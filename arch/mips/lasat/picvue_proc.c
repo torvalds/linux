@@ -22,7 +22,6 @@
 static DEFINE_MUTEX(pvc_mutex);
 static char pvc_lines[PVC_NLINES][PVC_LINELEN+1];
 static int pvc_linedata[PVC_NLINES];
-static struct proc_dir_entry *pvc_display_dir;
 static char *pvc_linename[PVC_NLINES] = {"line1", "line2"};
 #define DISPLAY_DIR_NAME "display"
 static int scroll_dir, scroll_interval;
@@ -169,22 +168,17 @@ void pvc_proc_timerfunc(unsigned long data)
 
 static void pvc_proc_cleanup(void)
 {
-	int i;
-	for (i = 0; i < PVC_NLINES; i++)
-		remove_proc_entry(pvc_linename[i], pvc_display_dir);
-	remove_proc_entry("scroll", pvc_display_dir);
-	remove_proc_entry(DISPLAY_DIR_NAME, NULL);
-
+	remove_proc_subtree(DISPLAY_DIR_NAME, NULL);
 	del_timer_sync(&timer);
 }
 
 static int __init pvc_proc_init(void)
 {
-	struct proc_dir_entry *proc_entry;
+	struct proc_dir_entry *dir, *proc_entry;
 	int i;
 
-	pvc_display_dir = proc_mkdir(DISPLAY_DIR_NAME, NULL);
-	if (pvc_display_dir == NULL)
+	dir = proc_mkdir(DISPLAY_DIR_NAME, NULL);
+	if (dir == NULL)
 		goto error;
 
 	for (i = 0; i < PVC_NLINES; i++) {
@@ -192,12 +186,12 @@ static int __init pvc_proc_init(void)
 		pvc_linedata[i] = i;
 	}
 	for (i = 0; i < PVC_NLINES; i++) {
-		proc_entry = proc_create_data(pvc_linename[i], 0644, pvc_display_dir,
+		proc_entry = proc_create_data(pvc_linename[i], 0644, dir,
 					&pvc_line_proc_fops, &pvc_linedata[i]);
 		if (proc_entry == NULL)
 			goto error;
 	}
-	proc_entry = proc_create("scroll", 0644, pvc_display_dir,
+	proc_entry = proc_create("scroll", 0644, dir,
 				 &pvc_scroll_proc_fops);
 	if (proc_entry == NULL)
 		goto error;

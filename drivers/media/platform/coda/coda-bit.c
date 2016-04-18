@@ -246,7 +246,7 @@ void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
 
 		/* Drop frames that do not start/end with a SOI/EOI markers */
 		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG &&
-		    !coda_jpeg_check_buffer(ctx, src_buf)) {
+		    !coda_jpeg_check_buffer(ctx, &src_buf->vb2_buf)) {
 			v4l2_err(&ctx->dev->v4l2_dev,
 				 "dropping invalid JPEG frame %d\n",
 				 ctx->qsequence);
@@ -279,7 +279,7 @@ void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
 			if (meta) {
 				meta->sequence = src_buf->sequence;
 				meta->timecode = src_buf->timecode;
-				meta->timestamp = src_buf->timestamp;
+				meta->timestamp = src_buf->vb2_buf.timestamp;
 				meta->start = start;
 				meta->end = ctx->bitstream_fifo.kfifo.in &
 					    ctx->bitstream_fifo.kfifo.mask;
@@ -1342,7 +1342,7 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 
 	/* Calculate bytesused field */
 	if (dst_buf->sequence == 0) {
-		vb2_set_plane_payload(&dst_buf->vb2_buf, 0,
+		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, wr_ptr - start_ptr +
 					ctx->vpu_header_size[0] +
 					ctx->vpu_header_size[1] +
 					ctx->vpu_header_size[2]);
@@ -1364,7 +1364,7 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 		dst_buf->flags &= ~V4L2_BUF_FLAG_KEYFRAME;
 	}
 
-	dst_buf->timestamp = src_buf->timestamp;
+	dst_buf->vb2_buf.timestamp = src_buf->vb2_buf.timestamp;
 	dst_buf->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 	dst_buf->flags |=
 		src_buf->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
@@ -1455,9 +1455,9 @@ static int coda_alloc_bitstream_buffer(struct coda_ctx *ctx,
 		return 0;
 
 	ctx->bitstream.size = roundup_pow_of_two(q_data->sizeimage * 2);
-	ctx->bitstream.vaddr = dma_alloc_writecombine(
-			&ctx->dev->plat_dev->dev, ctx->bitstream.size,
-			&ctx->bitstream.paddr, GFP_KERNEL);
+	ctx->bitstream.vaddr = dma_alloc_wc(&ctx->dev->plat_dev->dev,
+					    ctx->bitstream.size,
+					    &ctx->bitstream.paddr, GFP_KERNEL);
 	if (!ctx->bitstream.vaddr) {
 		v4l2_err(&ctx->dev->v4l2_dev,
 			 "failed to allocate bitstream ringbuffer");
@@ -1474,8 +1474,8 @@ static void coda_free_bitstream_buffer(struct coda_ctx *ctx)
 	if (ctx->bitstream.vaddr == NULL)
 		return;
 
-	dma_free_writecombine(&ctx->dev->plat_dev->dev, ctx->bitstream.size,
-			      ctx->bitstream.vaddr, ctx->bitstream.paddr);
+	dma_free_wc(&ctx->dev->plat_dev->dev, ctx->bitstream.size,
+		    ctx->bitstream.vaddr, ctx->bitstream.paddr);
 	ctx->bitstream.vaddr = NULL;
 	kfifo_init(&ctx->bitstream_fifo, NULL, 0);
 }
@@ -2040,7 +2040,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		dst_buf->flags |= ctx->frame_types[ctx->display_idx];
 		meta = &ctx->frame_metas[ctx->display_idx];
 		dst_buf->timecode = meta->timecode;
-		dst_buf->timestamp = meta->timestamp;
+		dst_buf->vb2_buf.timestamp = meta->timestamp;
 
 		trace_coda_dec_rot_done(ctx, dst_buf, meta);
 

@@ -22,10 +22,9 @@
 
 #define CXLFLASH_NAME		"cxlflash"
 #define CXLFLASH_ADAPTER_NAME	"IBM POWER CXL Flash Adapter"
-#define CXLFLASH_DRIVER_DATE	"(August 13, 2015)"
 
-#define PCI_DEVICE_ID_IBM_CORSA	0x04F0
-#define CXLFLASH_SUBS_DEV_ID	0x04F0
+#define PCI_DEVICE_ID_IBM_CORSA		0x04F0
+#define PCI_DEVICE_ID_IBM_FLASH_GT	0x0600
 
 /* Since there is only one target, make it 0 */
 #define CXLFLASH_TARGET		0
@@ -80,12 +79,11 @@
 #define WWPN_BUF_LEN	(WWPN_LEN + 1)
 
 enum undo_level {
-	RELEASE_CONTEXT = 0,
+	UNDO_NOOP = 0,
 	FREE_IRQ,
 	UNMAP_ONE,
 	UNMAP_TWO,
-	UNMAP_THREE,
-	UNDO_START
+	UNMAP_THREE
 };
 
 struct dev_dependent_vals {

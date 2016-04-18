@@ -64,17 +64,17 @@ config PPC_EMULATED_STATS
 	  emulated.
 
 config CODE_PATCHING_SELFTEST
-	bool "Run self-tests of the code-patching code."
+	bool "Run self-tests of the code-patching code"
 	depends on DEBUG_KERNEL
 	default n
 
 config FTR_FIXUP_SELFTEST
-	bool "Run self-tests of the feature-fixup code."
+	bool "Run self-tests of the feature-fixup code"
 	depends on DEBUG_KERNEL
 	default n
 
 config MSI_BITMAP_SELFTEST
-	bool "Run self-tests of the MSI bitmap code."
+	bool "Run self-tests of the MSI bitmap code"
 	depends on DEBUG_KERNEL
 	default n
 
@@ -334,18 +334,6 @@ config PPC_EARLY_DEBUG_CPM_ADDR
 	  used for early debug output.  Because it is needed before
 	  platform probing is done, all platforms selected must
 	  share the same address.
-
-config STRICT_DEVMEM
-	def_bool y
-	prompt "Filter access to /dev/mem"
-	help
-	  This option restricts access to /dev/mem.  If this option is
-	  disabled, you allow userspace access to all memory, including
-	  kernel and userspace memory. Accidental memory access is likely
-	  to be disastrous.
-	  Memory access is required for experts who want to debug the kernel.
-
-	  If you are unsure, say Y.
 
 config FAIL_IOMMU
 	bool "Fault-injection capability for IOMMU"

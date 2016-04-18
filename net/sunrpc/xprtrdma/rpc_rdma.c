@@ -132,6 +132,33 @@ rpcrdma_tail_pullup(struct xdr_buf *buf)
 	return tlen;
 }
 
+/* Split "vec" on page boundaries into segments. FMR registers pages,
+ * not a byte range. Other modes coalesce these segments into a single
+ * MR when they can.
+ */
+static int
+rpcrdma_convert_kvec(struct kvec *vec, struct rpcrdma_mr_seg *seg,
+		     int n, int nsegs)
+{
+	size_t page_offset;
+	u32 remaining;
+	char *base;
+
+	base = vec->iov_base;
+	page_offset = offset_in_page(base);
+	remaining = vec->iov_len;
+	while (remaining && n < nsegs) {
+		seg[n].mr_page = NULL;
+		seg[n].mr_offset = base;
+		seg[n].mr_len = min_t(u32, PAGE_SIZE - page_offset, remaining);
+		remaining -= seg[n].mr_len;
+		base += seg[n].mr_len;
+		++n;
+		page_offset = 0;
+	}
+	return n;
+}
+
 /*
  * Chunk assembly from upper layer xdr_buf.
  *
@@ -150,11 +177,10 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 	int page_base;
 	struct page **ppages;
 
-	if (pos == 0 && xdrbuf->head[0].iov_len) {
-		seg[n].mr_page = NULL;
-		seg[n].mr_offset = xdrbuf->head[0].iov_base;
-		seg[n].mr_len = xdrbuf->head[0].iov_len;
-		++n;
+	if (pos == 0) {
+		n = rpcrdma_convert_kvec(&xdrbuf->head[0], seg, n, nsegs);
+		if (n == nsegs)
+			return -EIO;
 	}
 
 	len = xdrbuf->page_len;
@@ -192,13 +218,9 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 		 * xdr pad bytes, saving the server an RDMA operation. */
 		if (xdrbuf->tail[0].iov_len < 4 && xprt_rdma_pad_optimize)
 			return n;
+		n = rpcrdma_convert_kvec(&xdrbuf->tail[0], seg, n, nsegs);
 		if (n == nsegs)
-			/* Tail remains, but we're out of segments */
 			return -EIO;
-		seg[n].mr_page = NULL;
-		seg[n].mr_offset = xdrbuf->tail[0].iov_base;
-		seg[n].mr_len = xdrbuf->tail[0].iov_len;
-		++n;
 	}
 
 	return n;
@@ -440,6 +462,11 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	ssize_t hdrlen;
 	enum rpcrdma_chunktype rtype, wtype;
 	struct rpcrdma_msg *headerp;
+
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+	if (test_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state))
+		return rpcrdma_bc_marshal_reply(rqst);
+#endif
 
 	/*
 	 * rpclen gets amount of data in first buffer, which is the
@@ -711,6 +738,37 @@ rpcrdma_connect_worker(struct work_struct *work)
 	spin_unlock_bh(&xprt->transport_lock);
 }
 
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+/* By convention, backchannel calls arrive via rdma_msg type
+ * messages, and never populate the chunk lists. This makes
+ * the RPC/RDMA header small and fixed in size, so it is
+ * straightforward to check the RPC header's direction field.
+ */
+static bool
+rpcrdma_is_bcall(struct rpcrdma_msg *headerp)
+{
+	__be32 *p = (__be32 *)headerp;
+
+	if (headerp->rm_type != rdma_msg)
+		return false;
+	if (headerp->rm_body.rm_chunks[0] != xdr_zero)
+		return false;
+	if (headerp->rm_body.rm_chunks[1] != xdr_zero)
+		return false;
+	if (headerp->rm_body.rm_chunks[2] != xdr_zero)
+		return false;
+
+	/* sanity */
+	if (p[7] != headerp->rm_xid)
+		return false;
+	/* call direction */
+	if (p[8] != cpu_to_be32(RPC_CALL))
+		return false;
+
+	return true;
+}
+#endif	/* CONFIG_SUNRPC_BACKCHANNEL */
+
 /*
  * This function is called when an async event is posted to
  * the connection which changes the connection state. All it
@@ -723,8 +781,8 @@ rpcrdma_conn_func(struct rpcrdma_ep *ep)
 	schedule_delayed_work(&ep->rep_connect_worker, 0);
 }
 
-/*
- * Called as a tasklet to do req/reply match and complete a request
+/* Process received RPC/RDMA messages.
+ *
  * Errors must result in the RPC task either being awakened, or
  * allowed to timeout, to discover the errors at that time.
  */
@@ -737,65 +795,48 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	__be32 *iptr;
-	int rdmalen, status;
+	int rdmalen, status, rmerr;
 	unsigned long cwnd;
-	u32 credits;
 
-	/* Check status. If bad, signal disconnect and return rep to pool */
-	if (rep->rr_len == ~0U) {
-		rpcrdma_recv_buffer_put(rep);
-		if (r_xprt->rx_ep.rep_connected == 1) {
-			r_xprt->rx_ep.rep_connected = -EIO;
-			rpcrdma_conn_func(&r_xprt->rx_ep);
-		}
-		return;
-	}
-	if (rep->rr_len < RPCRDMA_HDRLEN_MIN) {
-		dprintk("RPC:       %s: short/invalid reply\n", __func__);
-		goto repost;
-	}
+	dprintk("RPC:       %s: incoming rep %p\n", __func__, rep);
+
+	if (rep->rr_len == RPCRDMA_BAD_LEN)
+		goto out_badstatus;
+	if (rep->rr_len < RPCRDMA_HDRLEN_ERR)
+		goto out_shortreply;
+
 	headerp = rdmab_to_msg(rep->rr_rdmabuf);
-	if (headerp->rm_vers != rpcrdma_version) {
-		dprintk("RPC:       %s: invalid version %d\n",
-			__func__, be32_to_cpu(headerp->rm_vers));
-		goto repost;
-	}
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+	if (rpcrdma_is_bcall(headerp))
+		goto out_bcall;
+#endif
 
-	/* Get XID and try for a match. */
-	spin_lock(&xprt->transport_lock);
+	/* Match incoming rpcrdma_rep to an rpcrdma_req to
+	 * get context for handling any incoming chunks.
+	 */
+	spin_lock_bh(&xprt->transport_lock);
 	rqst = xprt_lookup_rqst(xprt, headerp->rm_xid);
-	if (rqst == NULL) {
-		spin_unlock(&xprt->transport_lock);
-		dprintk("RPC:       %s: reply 0x%p failed "
-			"to match any request xid 0x%08x len %d\n",
-			__func__, rep, be32_to_cpu(headerp->rm_xid),
-			rep->rr_len);
-repost:
-		r_xprt->rx_stats.bad_reply_count++;
-		if (rpcrdma_ep_post_recv(&r_xprt->rx_ia, &r_xprt->rx_ep, rep))
-			rpcrdma_recv_buffer_put(rep);
+	if (!rqst)
+		goto out_nomatch;
 
-		return;
-	}
-
-	/* get request object */
 	req = rpcr_to_rdmar(rqst);
-	if (req->rl_reply) {
-		spin_unlock(&xprt->transport_lock);
-		dprintk("RPC:       %s: duplicate reply 0x%p to RPC "
-			"request 0x%p: xid 0x%08x\n", __func__, rep, req,
-			be32_to_cpu(headerp->rm_xid));
-		goto repost;
-	}
+	if (req->rl_reply)
+		goto out_duplicate;
 
-	dprintk("RPC:       %s: reply 0x%p completes request 0x%p\n"
-		"                   RPC request 0x%p xid 0x%08x\n",
-			__func__, rep, req, rqst,
-			be32_to_cpu(headerp->rm_xid));
+	/* Sanity checking has passed. We are now committed
+	 * to complete this transaction.
+	 */
+	list_del_init(&rqst->rq_list);
+	spin_unlock_bh(&xprt->transport_lock);
+	dprintk("RPC:       %s: reply %p completes request %p (xid 0x%08x)\n",
+		__func__, rep, req, be32_to_cpu(headerp->rm_xid));
 
 	/* from here on, the reply is no longer an orphan */
 	req->rl_reply = rep;
 	xprt->reestablish_timeout = 0;
+
+	if (headerp->rm_vers != rpcrdma_version)
+		goto out_badversion;
 
 	/* check for expected message types */
 	/* The order of some of these tests is important. */
@@ -857,6 +898,9 @@ repost:
 		status = rdmalen;
 		break;
 
+	case rdma_error:
+		goto out_rdmaerr;
+
 badheader:
 	default:
 		dprintk("%s: invalid rpcrdma reply header (type %d):"
@@ -872,19 +916,97 @@ badheader:
 		break;
 	}
 
-	credits = be32_to_cpu(headerp->rm_credit);
-	if (credits == 0)
-		credits = 1;	/* don't deadlock */
-	else if (credits > r_xprt->rx_buf.rb_max_requests)
-		credits = r_xprt->rx_buf.rb_max_requests;
+out:
+	/* Invalidate and flush the data payloads before waking the
+	 * waiting application. This guarantees the memory region is
+	 * properly fenced from the server before the application
+	 * accesses the data. It also ensures proper send flow
+	 * control: waking the next RPC waits until this RPC has
+	 * relinquished all its Send Queue entries.
+	 */
+	if (req->rl_nchunks)
+		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt, req);
 
+	spin_lock_bh(&xprt->transport_lock);
 	cwnd = xprt->cwnd;
-	xprt->cwnd = credits << RPC_CWNDSHIFT;
+	xprt->cwnd = atomic_read(&r_xprt->rx_buf.rb_credits) << RPC_CWNDSHIFT;
 	if (xprt->cwnd > cwnd)
 		xprt_release_rqst_cong(rqst->rq_task);
 
+	xprt_complete_rqst(rqst->rq_task, status);
+	spin_unlock_bh(&xprt->transport_lock);
 	dprintk("RPC:       %s: xprt_complete_rqst(0x%p, 0x%p, %d)\n",
 			__func__, xprt, rqst, status);
-	xprt_complete_rqst(rqst->rq_task, status);
-	spin_unlock(&xprt->transport_lock);
+	return;
+
+out_badstatus:
+	rpcrdma_recv_buffer_put(rep);
+	if (r_xprt->rx_ep.rep_connected == 1) {
+		r_xprt->rx_ep.rep_connected = -EIO;
+		rpcrdma_conn_func(&r_xprt->rx_ep);
+	}
+	return;
+
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+out_bcall:
+	rpcrdma_bc_receive_call(r_xprt, rep);
+	return;
+#endif
+
+/* If the incoming reply terminated a pending RPC, the next
+ * RPC call will post a replacement receive buffer as it is
+ * being marshaled.
+ */
+out_badversion:
+	dprintk("RPC:       %s: invalid version %d\n",
+		__func__, be32_to_cpu(headerp->rm_vers));
+	status = -EIO;
+	r_xprt->rx_stats.bad_reply_count++;
+	goto out;
+
+out_rdmaerr:
+	rmerr = be32_to_cpu(headerp->rm_body.rm_error.rm_err);
+	switch (rmerr) {
+	case ERR_VERS:
+		pr_err("%s: server reports header version error (%u-%u)\n",
+		       __func__,
+		       be32_to_cpu(headerp->rm_body.rm_error.rm_vers_low),
+		       be32_to_cpu(headerp->rm_body.rm_error.rm_vers_high));
+		break;
+	case ERR_CHUNK:
+		pr_err("%s: server reports header decoding error\n",
+		       __func__);
+		break;
+	default:
+		pr_err("%s: server reports unknown error %d\n",
+		       __func__, rmerr);
+	}
+	status = -EREMOTEIO;
+	r_xprt->rx_stats.bad_reply_count++;
+	goto out;
+
+/* If no pending RPC transaction was matched, post a replacement
+ * receive buffer before returning.
+ */
+out_shortreply:
+	dprintk("RPC:       %s: short/invalid reply\n", __func__);
+	goto repost;
+
+out_nomatch:
+	spin_unlock_bh(&xprt->transport_lock);
+	dprintk("RPC:       %s: no match for incoming xid 0x%08x len %d\n",
+		__func__, be32_to_cpu(headerp->rm_xid),
+		rep->rr_len);
+	goto repost;
+
+out_duplicate:
+	spin_unlock_bh(&xprt->transport_lock);
+	dprintk("RPC:       %s: "
+		"duplicate reply %p to RPC request %p: xid 0x%08x\n",
+		__func__, rep, req, be32_to_cpu(headerp->rm_xid));
+
+repost:
+	r_xprt->rx_stats.bad_reply_count++;
+	if (rpcrdma_ep_post_recv(&r_xprt->rx_ia, &r_xprt->rx_ep, rep))
+		rpcrdma_recv_buffer_put(rep);
 }

@@ -737,8 +737,10 @@ static int ext2_get_blocks(struct inode *inode,
 		 * so that it's not found by another thread before it's
 		 * initialised
 		 */
-		err = dax_clear_blocks(inode, le32_to_cpu(chain[depth-1].key),
-						1 << inode->i_blkbits);
+		err = dax_clear_sectors(inode->i_sb->s_bdev,
+				le32_to_cpu(chain[depth-1].key) <<
+				(inode->i_blkbits - 9),
+				1 << inode->i_blkbits);
 		if (err) {
 			mutex_unlock(&ei->truncate_mutex);
 			goto cleanup;
@@ -874,6 +876,14 @@ ext2_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 static int
 ext2_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
+#ifdef CONFIG_FS_DAX
+	if (dax_mapping(mapping)) {
+		return dax_writeback_mapping_range(mapping,
+						   mapping->host->i_sb->s_bdev,
+						   wbc);
+	}
+#endif
+
 	return mpage_writepages(mapping, wbc, ext2_get_block);
 }
 
@@ -1085,6 +1095,7 @@ static void ext2_free_branches(struct inode *inode, __le32 *p, __le32 *q, int de
 		ext2_free_data(inode, p, q);
 }
 
+/* dax_sem must be held when calling this function */
 static void __ext2_truncate_blocks(struct inode *inode, loff_t offset)
 {
 	__le32 *i_data = EXT2_I(inode)->i_data;
@@ -1099,6 +1110,10 @@ static void __ext2_truncate_blocks(struct inode *inode, loff_t offset)
 	unsigned blocksize;
 	blocksize = inode->i_sb->s_blocksize;
 	iblock = (offset + blocksize-1) >> EXT2_BLOCK_SIZE_BITS(inode->i_sb);
+
+#ifdef CONFIG_FS_DAX
+	WARN_ON(!rwsem_is_locked(&ei->dax_sem));
+#endif
 
 	n = ext2_block_to_path(inode, iblock, offsets, NULL);
 	if (n == 0)
@@ -1185,7 +1200,10 @@ static void ext2_truncate_blocks(struct inode *inode, loff_t offset)
 		return;
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
 		return;
+
+	dax_sem_down_write(EXT2_I(inode));
 	__ext2_truncate_blocks(inode, offset);
+	dax_sem_up_write(EXT2_I(inode));
 }
 
 static int ext2_setsize(struct inode *inode, loff_t newsize)
@@ -1213,8 +1231,10 @@ static int ext2_setsize(struct inode *inode, loff_t newsize)
 	if (error)
 		return error;
 
+	dax_sem_down_write(EXT2_I(inode));
 	truncate_setsize(inode, newsize);
 	__ext2_truncate_blocks(inode, newsize);
+	dax_sem_up_write(EXT2_I(inode));
 
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
 	if (inode_needs_sync(inode)) {
@@ -1286,7 +1306,7 @@ void ext2_set_inode_flags(struct inode *inode)
 		inode->i_flags |= S_NOATIME;
 	if (flags & EXT2_DIRSYNC_FL)
 		inode->i_flags |= S_DIRSYNC;
-	if (test_opt(inode->i_sb, DAX))
+	if (test_opt(inode->i_sb, DAX) && S_ISREG(inode->i_mode))
 		inode->i_flags |= S_DAX;
 }
 
@@ -1410,6 +1430,7 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 				sizeof(ei->i_data) - 1);
 		} else {
 			inode->i_op = &ext2_symlink_inode_operations;
+			inode_nohighmem(inode);
 			if (test_opt(inode->i_sb, NOBH))
 				inode->i_mapping->a_ops = &ext2_nobh_aops;
 			else

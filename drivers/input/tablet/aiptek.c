@@ -1819,6 +1819,14 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	input_set_abs_params(inputdev, ABS_TILT_Y, AIPTEK_TILT_MIN, AIPTEK_TILT_MAX, 0, 0);
 	input_set_abs_params(inputdev, ABS_WHEEL, AIPTEK_WHEEL_MIN, AIPTEK_WHEEL_MAX - 1, 0, 0);
 
+	/* Verify that a device really has an endpoint */
+	if (intf->altsetting[0].desc.bNumEndpoints < 1) {
+		dev_err(&intf->dev,
+			"interface has %d endpoints, but must have minimum 1\n",
+			intf->altsetting[0].desc.bNumEndpoints);
+		err = -EINVAL;
+		goto fail3;
+	}
 	endpoint = &intf->altsetting[0].endpoint[0].desc;
 
 	/* Go set up our URB, which is called when the tablet receives
@@ -1861,6 +1869,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (i == ARRAY_SIZE(speeds)) {
 		dev_info(&intf->dev,
 			 "Aiptek tried all speeds, no sane response\n");
+		err = -EINVAL;
 		goto fail3;
 	}
 

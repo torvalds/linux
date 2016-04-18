@@ -8,16 +8,18 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    364 bytes, from 2015-05-20 20:03:07)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1453 bytes, from 2015-05-20 20:03:07)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    398 bytes, from 2015-09-24 17:25:31)
+- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2016-02-10 17:07:21)
 - /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32901 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  10551 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  14968 bytes, from 2015-05-20 20:12:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  67120 bytes, from 2015-08-14 23:22:03)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (  63785 bytes, from 2015-08-14 18:27:06)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  11518 bytes, from 2016-02-10 21:03:25)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  16166 bytes, from 2016-02-11 21:20:31)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  83967 bytes, from 2016-02-10 17:07:21)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          ( 109916 bytes, from 2016-02-20 18:44:48)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2015-09-24 17:30:00)
 
-Copyright (C) 2013-2015 by the following authors:
+Copyright (C) 2013-2016 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
+- Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -85,6 +87,10 @@ enum adreno_rb_blend_factor {
 	FACTOR_CONSTANT_ALPHA = 14,
 	FACTOR_ONE_MINUS_CONSTANT_ALPHA = 15,
 	FACTOR_SRC_ALPHA_SATURATE = 16,
+	FACTOR_SRC1_COLOR = 20,
+	FACTOR_ONE_MINUS_SRC1_COLOR = 21,
+	FACTOR_SRC1_ALPHA = 22,
+	FACTOR_ONE_MINUS_SRC1_ALPHA = 23,
 };
 
 enum adreno_rb_surface_endian {
@@ -112,6 +118,23 @@ enum adreno_rb_copy_control_mode {
 	RB_COPY_RESOLVE = 1,
 	RB_COPY_CLEAR = 2,
 	RB_COPY_DEPTH_STENCIL = 5,
+};
+
+enum a3xx_rop_code {
+	ROP_CLEAR = 0,
+	ROP_NOR = 1,
+	ROP_AND_INVERTED = 2,
+	ROP_COPY_INVERTED = 3,
+	ROP_AND_REVERSE = 4,
+	ROP_INVERT = 5,
+	ROP_NAND = 7,
+	ROP_AND = 8,
+	ROP_EQUIV = 9,
+	ROP_NOOP = 10,
+	ROP_OR_INVERTED = 11,
+	ROP_OR_REVERSE = 13,
+	ROP_OR = 14,
+	ROP_SET = 15,
 };
 
 enum a3xx_render_mode {

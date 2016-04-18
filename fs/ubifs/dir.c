@@ -449,13 +449,14 @@ static int ubifs_readdir(struct file *file, struct dir_context *ctx)
 	}
 
 out:
+	kfree(file->private_data);
+	file->private_data = NULL;
+
 	if (err != -ENOENT) {
 		ubifs_err(c, "cannot find next direntry, error %d", err);
 		return err;
 	}
 
-	kfree(file->private_data);
-	file->private_data = NULL;
 	/* 2 is a special value indicating that there are no more direntries */
 	ctx->pos = 2;
 	return 0;
@@ -514,8 +515,8 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 	dbg_gen("dent '%pd' to ino %lu (nlink %d) in dir ino %lu",
 		dentry, inode->i_ino,
 		inode->i_nlink, dir->i_ino);
-	ubifs_assert(mutex_is_locked(&dir->i_mutex));
-	ubifs_assert(mutex_is_locked(&inode->i_mutex));
+	ubifs_assert(inode_is_locked(dir));
+	ubifs_assert(inode_is_locked(inode));
 
 	err = dbg_check_synced_i_size(c, inode);
 	if (err)
@@ -571,8 +572,8 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 	dbg_gen("dent '%pd' from ino %lu (nlink %d) in dir ino %lu",
 		dentry, inode->i_ino,
 		inode->i_nlink, dir->i_ino);
-	ubifs_assert(mutex_is_locked(&dir->i_mutex));
-	ubifs_assert(mutex_is_locked(&inode->i_mutex));
+	ubifs_assert(inode_is_locked(dir));
+	ubifs_assert(inode_is_locked(inode));
 	err = dbg_check_synced_i_size(c, inode);
 	if (err)
 		return err;
@@ -660,8 +661,8 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	dbg_gen("directory '%pd', ino %lu in dir ino %lu", dentry,
 		inode->i_ino, dir->i_ino);
-	ubifs_assert(mutex_is_locked(&dir->i_mutex));
-	ubifs_assert(mutex_is_locked(&inode->i_mutex));
+	ubifs_assert(inode_is_locked(dir));
+	ubifs_assert(inode_is_locked(inode));
 	err = check_dir_empty(c, d_inode(dentry));
 	if (err)
 		return err;
@@ -786,9 +787,6 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 	 */
 
 	dbg_gen("dent '%pd' in dir ino %lu", dentry, dir->i_ino);
-
-	if (!new_valid_dev(rdev))
-		return -EINVAL;
 
 	if (S_ISBLK(mode) || S_ISCHR(mode)) {
 		dev = kmalloc(sizeof(union ubifs_dev_desc), GFP_NOFS);
@@ -998,10 +996,10 @@ static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	dbg_gen("dent '%pd' ino %lu in dir ino %lu to dent '%pd' in dir ino %lu",
 		old_dentry, old_inode->i_ino, old_dir->i_ino,
 		new_dentry, new_dir->i_ino);
-	ubifs_assert(mutex_is_locked(&old_dir->i_mutex));
-	ubifs_assert(mutex_is_locked(&new_dir->i_mutex));
+	ubifs_assert(inode_is_locked(old_dir));
+	ubifs_assert(inode_is_locked(new_dir));
 	if (unlink)
-		ubifs_assert(mutex_is_locked(&new_inode->i_mutex));
+		ubifs_assert(inode_is_locked(new_inode));
 
 
 	if (unlink && is_dir) {
@@ -1188,6 +1186,9 @@ const struct inode_operations ubifs_dir_inode_operations = {
 	.getxattr    = ubifs_getxattr,
 	.listxattr   = ubifs_listxattr,
 	.removexattr = ubifs_removexattr,
+#ifdef CONFIG_UBIFS_ATIME_SUPPORT
+	.update_time = ubifs_update_time,
+#endif
 };
 
 const struct file_operations ubifs_dir_operations = {

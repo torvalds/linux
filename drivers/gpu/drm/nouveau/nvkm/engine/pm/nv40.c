@@ -59,9 +59,11 @@ static void
 nv40_perfctr_next(struct nvkm_pm *pm, struct nvkm_perfdom *dom)
 {
 	struct nvkm_device *device = pm->engine.subdev.device;
-	if (pm->sequence != pm->sequence) {
+	struct nv40_pm *nv40pm = container_of(pm, struct nv40_pm, base);
+
+	if (nv40pm->sequence != pm->sequence) {
 		nvkm_wr32(device, 0x400084, 0x00000020);
-		pm->sequence = pm->sequence;
+		nv40pm->sequence = pm->sequence;
 	}
 }
 

@@ -47,6 +47,11 @@ NLS ?=		true
 # cpufreq-bench benchmarking tool
 CPUFREQ_BENCH ?= true
 
+# Do not build libraries, but build the code in statically
+# Libraries are still built, otherwise the Makefile code would
+# be rather ugly.
+export STATIC ?= false
+
 # Prefix to the directories we're installing to
 DESTDIR ?=
 
@@ -161,6 +166,12 @@ ifeq ($(strip $(CPUFREQ_BENCH)),true)
 	COMPILE_BENCH += compile-bench
 endif
 
+ifeq ($(strip $(STATIC)),true)
+        UTIL_OBJS += $(LIB_OBJS)
+        UTIL_HEADERS += $(LIB_HEADERS)
+        UTIL_SRC += $(LIB_SRC)
+endif
+
 CFLAGS += $(WARNINGS)
 
 ifeq ($(strip $(V)),false)
@@ -209,7 +220,11 @@ $(OUTPUT)%.o: %.c
 
 $(OUTPUT)cpupower: $(UTIL_OBJS) $(OUTPUT)libcpupower.so.$(LIB_MAJ)
 	$(ECHO) "  CC      " $@
+ifeq ($(strip $(STATIC)),true)
+	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) $(UTIL_OBJS) -lrt -lpci -L$(OUTPUT) -o $@
+else
 	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) $(UTIL_OBJS) -lcpupower -lrt -lpci -L$(OUTPUT) -o $@
+endif
 	$(QUIET) $(STRIPCMD) $@
 
 $(OUTPUT)po/$(PACKAGE).pot: $(UTIL_SRC)
@@ -291,7 +306,11 @@ install-bench:
 	@#DESTDIR must be set from outside to survive
 	@sbindir=$(sbindir) bindir=$(bindir) docdir=$(docdir) confdir=$(confdir) $(MAKE) -C bench O=$(OUTPUT) install
 
+ifeq ($(strip $(STATIC)),true)
+install: all install-tools install-man $(INSTALL_NLS) $(INSTALL_BENCH)
+else
 install: all install-lib install-tools install-man $(INSTALL_NLS) $(INSTALL_BENCH)
+endif
 
 uninstall:
 	- rm -f $(DESTDIR)${libdir}/libcpupower.*

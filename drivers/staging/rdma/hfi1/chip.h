@@ -1,13 +1,12 @@
 #ifndef _CHIP_H
 #define _CHIP_H
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,8 +18,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -79,8 +76,10 @@
 #define PIO_CMASK 0x7ff	/* counter mask for free and fill counters */
 #define MAX_EAGER_ENTRIES    2048	/* max receive eager entries */
 #define MAX_TID_PAIR_ENTRIES 1024	/* max receive expected pairs */
-/* Virtual? Allocation Unit, defined as AU = 8*2^vAU, 64 bytes, AU is fixed
-   at 64 bytes for all generation one devices */
+/*
+ * Virtual? Allocation Unit, defined as AU = 8*2^vAU, 64 bytes, AU is fixed
+ * at 64 bytes for all generation one devices
+ */
 #define CM_VAU 3
 /* HFI link credit count, AKA receive buffer depth (RBUF_DEPTH) */
 #define CM_GLOBAL_CREDITS 0x940
@@ -93,15 +92,15 @@
 #define TXE_PIO_SEND (TXE + TXE_PIO_SEND_OFFSET)
 
 /* PBC flags */
-#define PBC_INTR		(1ull << 31)
+#define PBC_INTR		BIT_ULL(31)
 #define PBC_DC_INFO_SHIFT	(30)
-#define PBC_DC_INFO		(1ull << PBC_DC_INFO_SHIFT)
-#define PBC_TEST_EBP	(1ull << 29)
-#define PBC_PACKET_BYPASS	(1ull << 28)
-#define PBC_CREDIT_RETURN	(1ull << 25)
-#define PBC_INSERT_BYPASS_ICRC (1ull << 24)
-#define PBC_TEST_BAD_ICRC	(1ull << 23)
-#define PBC_FECN		(1ull << 22)
+#define PBC_DC_INFO		BIT_ULL(PBC_DC_INFO_SHIFT)
+#define PBC_TEST_EBP		BIT_ULL(29)
+#define PBC_PACKET_BYPASS	BIT_ULL(28)
+#define PBC_CREDIT_RETURN	BIT_ULL(25)
+#define PBC_INSERT_BYPASS_ICRC	BIT_ULL(24)
+#define PBC_TEST_BAD_ICRC	BIT_ULL(23)
+#define PBC_FECN		BIT_ULL(22)
 
 /* PbcInsertHcrc field settings */
 #define PBC_IHCRC_LKDETH 0x0	/* insert @ local KDETH offset */
@@ -212,7 +211,7 @@
 #define PLS_CONFIGPHY_DEBOUCE		   0x40
 #define PLS_CONFIGPHY_ESTCOMM		   0x41
 #define PLS_CONFIGPHY_ESTCOMM_TXRX_HUNT	   0x42
-#define PLS_CONFIGPHY_ESTcOMM_LOCAL_COMPLETE   0x43
+#define PLS_CONFIGPHY_ESTCOMM_LOCAL_COMPLETE   0x43
 #define PLS_CONFIGPHY_OPTEQ			   0x44
 #define PLS_CONFIGPHY_OPTEQ_OPTIMIZING	   0x44
 #define PLS_CONFIGPHY_OPTEQ_LOCAL_COMPLETE	   0x45
@@ -235,42 +234,44 @@
 #define HCMD_MISC		   0x05
 #define HCMD_READ_LCB_IDLE_MSG 0x06
 #define HCMD_READ_LCB_CSR      0x07
+#define HCMD_WRITE_LCB_CSR     0x08
 #define HCMD_INTERFACE_TEST	   0xff
 
 /* DC_DC8051_CFG_HOST_CMD_1.RETURN_CODE - 8051 host command return */
 #define HCMD_SUCCESS 2
 
 /* DC_DC8051_DBG_ERR_INFO_SET_BY_8051.ERROR - error flags */
-#define SPICO_ROM_FAILED		    (1 <<  0)
-#define UNKNOWN_FRAME		    (1 <<  1)
-#define TARGET_BER_NOT_MET		    (1 <<  2)
-#define FAILED_SERDES_INTERNAL_LOOPBACK (1 <<  3)
-#define FAILED_SERDES_INIT		    (1 <<  4)
-#define FAILED_LNI_POLLING		    (1 <<  5)
-#define FAILED_LNI_DEBOUNCE		    (1 <<  6)
-#define FAILED_LNI_ESTBCOMM		    (1 <<  7)
-#define FAILED_LNI_OPTEQ		    (1 <<  8)
-#define FAILED_LNI_VERIFY_CAP1	    (1 <<  9)
-#define FAILED_LNI_VERIFY_CAP2	    (1 << 10)
-#define FAILED_LNI_CONFIGLT		    (1 << 11)
+#define SPICO_ROM_FAILED		BIT(0)
+#define UNKNOWN_FRAME			BIT(1)
+#define TARGET_BER_NOT_MET		BIT(2)
+#define FAILED_SERDES_INTERNAL_LOOPBACK	BIT(3)
+#define FAILED_SERDES_INIT		BIT(4)
+#define FAILED_LNI_POLLING		BIT(5)
+#define FAILED_LNI_DEBOUNCE		BIT(6)
+#define FAILED_LNI_ESTBCOMM		BIT(7)
+#define FAILED_LNI_OPTEQ		BIT(8)
+#define FAILED_LNI_VERIFY_CAP1		BIT(9)
+#define FAILED_LNI_VERIFY_CAP2		BIT(10)
+#define FAILED_LNI_CONFIGLT		BIT(11)
+#define HOST_HANDSHAKE_TIMEOUT		BIT(12)
 
 #define FAILED_LNI (FAILED_LNI_POLLING | FAILED_LNI_DEBOUNCE \
 			| FAILED_LNI_ESTBCOMM | FAILED_LNI_OPTEQ \
 			| FAILED_LNI_VERIFY_CAP1 \
 			| FAILED_LNI_VERIFY_CAP2 \
-			| FAILED_LNI_CONFIGLT)
+			| FAILED_LNI_CONFIGLT | HOST_HANDSHAKE_TIMEOUT)
 
 /* DC_DC8051_DBG_ERR_INFO_SET_BY_8051.HOST_MSG - host message flags */
-#define HOST_REQ_DONE	   (1 << 0)
-#define BC_PWR_MGM_MSG	   (1 << 1)
-#define BC_SMA_MSG		   (1 << 2)
-#define BC_BCC_UNKOWN_MSG	   (1 << 3)
-#define BC_IDLE_UNKNOWN_MSG	   (1 << 4)
-#define EXT_DEVICE_CFG_REQ	   (1 << 5)
-#define VERIFY_CAP_FRAME	   (1 << 6)
-#define LINKUP_ACHIEVED	   (1 << 7)
-#define LINK_GOING_DOWN	   (1 << 8)
-#define LINK_WIDTH_DOWNGRADED  (1 << 9)
+#define HOST_REQ_DONE		BIT(0)
+#define BC_PWR_MGM_MSG		BIT(1)
+#define BC_SMA_MSG		BIT(2)
+#define BC_BCC_UNKNOWN_MSG	BIT(3)
+#define BC_IDLE_UNKNOWN_MSG	BIT(4)
+#define EXT_DEVICE_CFG_REQ	BIT(5)
+#define VERIFY_CAP_FRAME	BIT(6)
+#define LINKUP_ACHIEVED		BIT(7)
+#define LINK_GOING_DOWN		BIT(8)
+#define LINK_WIDTH_DOWNGRADED	BIT(9)
 
 /* DC_DC8051_CFG_EXT_DEV_1.REQ_TYPE - 8051 host requests */
 #define HREQ_LOAD_CONFIG	0x01
@@ -334,14 +335,14 @@
  * the CSR fields hold multiples of this value.
  */
 #define RCV_SHIFT 3
-#define RCV_INCREMENT (1 << RCV_SHIFT)
+#define RCV_INCREMENT BIT(RCV_SHIFT)
 
 /*
  * Receive header queue entry increment - the CSR holds multiples of
  * this value.
  */
 #define HDRQ_SIZE_SHIFT 5
-#define HDRQ_INCREMENT (1 << HDRQ_SIZE_SHIFT)
+#define HDRQ_INCREMENT BIT(HDRQ_SIZE_SHIFT)
 
 /*
  * Freeze handling flags
@@ -370,6 +371,9 @@
 #define NUM_LANE_FIELDS    0x8
 
 /* 8051 general register Field IDs */
+#define LINK_OPTIMIZATION_SETTINGS   0x00
+#define LINK_TUNING_PARAMETERS	     0x02
+#define DC_HOST_COMM_SETTINGS	     0x03
 #define TX_SETTINGS		     0x06
 #define VERIFY_CAP_LOCAL_PHY	     0x07
 #define VERIFY_CAP_LOCAL_FABRIC	     0x08
@@ -385,6 +389,10 @@
 #define LAST_REMOTE_STATE_COMPLETE   0x13
 #define LINK_QUALITY_INFO            0x14
 #define REMOTE_DEVICE_ID	     0x15
+
+/* 8051 lane specific register field IDs */
+#define TX_EQ_SETTINGS		0x00
+#define CHANNEL_LOSS_SETTINGS	0x05
 
 /* Lane ID for general configuration registers */
 #define GENERAL_CONFIG 4
@@ -510,8 +518,10 @@ enum {
 #define LCB_CRC_48B			0x2	/* 48b CRC */
 #define LCB_CRC_12B_16B_PER_LANE	0x3	/* 12b-16b per lane CRC */
 
-/* the following enum is (almost) a copy/paste of the definition
- * in the OPA spec, section 20.2.2.6.8 (PortInfo) */
+/*
+ * the following enum is (almost) a copy/paste of the definition
+ * in the OPA spec, section 20.2.2.6.8 (PortInfo)
+ */
 enum {
 	PORT_LTP_CRC_MODE_NONE = 0,
 	PORT_LTP_CRC_MODE_14 = 1, /* 14-bit LTP CRC mode (optional) */
@@ -613,6 +623,8 @@ u64 create_pbc(struct hfi1_pportdata *ppd, u64, int, u32, u32);
 #define NUM_PCIE_SERDES 16	/* number of PCIe serdes on the SBus */
 extern const u8 pcie_serdes_broadcast[];
 extern const u8 pcie_pcs_addrs[2][NUM_PCIE_SERDES];
+extern uint platform_config_load;
+
 /* SBus commands */
 #define RESET_SBUS_RECEIVER 0x20
 #define WRITE_SBUS_RECEIVER 0x21
@@ -628,6 +640,42 @@ int load_firmware(struct hfi1_devdata *dd);
 void dispose_firmware(void);
 int acquire_hw_mutex(struct hfi1_devdata *dd);
 void release_hw_mutex(struct hfi1_devdata *dd);
+
+/*
+ * Bitmask of dynamic access for ASIC block chip resources.  Each HFI has its
+ * own range of bits for the resource so it can clear its own bits on
+ * starting and exiting.  If either HFI has the resource bit set, the
+ * resource is in use.  The separate bit ranges are:
+ *	HFI0 bits  7:0
+ *	HFI1 bits 15:8
+ */
+#define CR_SBUS  0x01	/* SBUS, THERM, and PCIE registers */
+#define CR_EPROM 0x02	/* EEP, GPIO registers */
+#define CR_I2C1  0x04	/* QSFP1_OE register */
+#define CR_I2C2  0x08	/* QSFP2_OE register */
+#define CR_DYN_SHIFT 8	/* dynamic flag shift */
+#define CR_DYN_MASK  ((1ull << CR_DYN_SHIFT) - 1)
+
+/*
+ * Bitmask of static ASIC states these are outside of the dynamic ASIC
+ * block chip resources above.  These are to be set once and never cleared.
+ * Must be holding the SBus dynamic flag when setting.
+ */
+#define CR_THERM_INIT	0x010000
+
+int acquire_chip_resource(struct hfi1_devdata *dd, u32 resource, u32 mswait);
+void release_chip_resource(struct hfi1_devdata *dd, u32 resource);
+bool check_chip_resource(struct hfi1_devdata *dd, u32 resource,
+			 const char *func);
+void init_chip_resources(struct hfi1_devdata *dd);
+void finish_chip_resources(struct hfi1_devdata *dd);
+
+/* ms wait time for access to an SBus resoure */
+#define SBUS_TIMEOUT 4000 /* long enough for a FW download and SBR */
+
+/* ms wait time for a qsfp (i2c) chain to become available */
+#define QSFP_WAIT 20000 /* long enough for FW update to the F4 uc */
+
 void fabric_serdes_reset(struct hfi1_devdata *dd);
 int read_8051_data(struct hfi1_devdata *dd, u32 addr, u32 len, u64 *result);
 
@@ -643,13 +691,17 @@ void handle_verify_cap(struct work_struct *work);
 void handle_freeze(struct work_struct *work);
 void handle_link_up(struct work_struct *work);
 void handle_link_down(struct work_struct *work);
+void handle_8051_request(struct work_struct *work);
 void handle_link_downgrade(struct work_struct *work);
 void handle_link_bounce(struct work_struct *work);
 void handle_sma_message(struct work_struct *work);
+void reset_qsfp(struct hfi1_pportdata *ppd);
+void qsfp_event(struct work_struct *work);
 void start_freeze_handling(struct hfi1_pportdata *ppd, int flags);
 int send_idle_sma(struct hfi1_devdata *dd, u64 message);
+int load_8051_config(struct hfi1_devdata *, u8, u8, u32);
+int read_8051_config(struct hfi1_devdata *, u8, u8, u32 *);
 int start_link(struct hfi1_pportdata *ppd);
-void init_qsfp(struct hfi1_pportdata *ppd);
 int bringup_serdes(struct hfi1_pportdata *ppd);
 void set_intr_state(struct hfi1_devdata *dd, u32 enable);
 void apply_link_downgrade_policy(struct hfi1_pportdata *ppd,
@@ -663,7 +715,6 @@ void get_linkup_link_widths(struct hfi1_pportdata *ppd);
 void read_ltp_rtt(struct hfi1_devdata *dd);
 void clear_linkup_counters(struct hfi1_devdata *dd);
 u32 hdrqempty(struct hfi1_ctxtdata *rcd);
-int is_a0(struct hfi1_devdata *dd);
 int is_ax(struct hfi1_devdata *dd);
 int is_bx(struct hfi1_devdata *dd);
 u32 read_physical_state(struct hfi1_devdata *dd);
@@ -690,6 +741,8 @@ u64 read_dev_cntr(struct hfi1_devdata *dd, int index, int vl);
 u64 write_dev_cntr(struct hfi1_devdata *dd, int index, int vl, u64 data);
 u64 read_port_cntr(struct hfi1_pportdata *ppd, int index, int vl);
 u64 write_port_cntr(struct hfi1_pportdata *ppd, int index, int vl, u64 data);
+u32 read_logical_state(struct hfi1_devdata *dd);
+void force_recv_intr(struct hfi1_ctxtdata *rcd);
 
 /* Per VL indexes */
 enum {
@@ -721,7 +774,6 @@ enum {
 	C_RX_TID_FULL,
 	C_RX_TID_INVALID,
 	C_RX_TID_FLGMS,
-	C_RX_CTX_RHQS,
 	C_RX_CTX_EGRS,
 	C_RCV_TID_FLSMS,
 	C_CCE_PCI_CR_ST,
@@ -786,8 +838,283 @@ enum {
 	C_SW_CPU_RCV_LIM,
 	C_SW_VTX_WAIT,
 	C_SW_PIO_WAIT,
+	C_SW_PIO_DRAIN,
 	C_SW_KMEM_WAIT,
 	C_SW_SEND_SCHED,
+	C_SDMA_DESC_FETCHED_CNT,
+	C_SDMA_INT_CNT,
+	C_SDMA_ERR_CNT,
+	C_SDMA_IDLE_INT_CNT,
+	C_SDMA_PROGRESS_INT_CNT,
+/* MISC_ERR_STATUS */
+	C_MISC_PLL_LOCK_FAIL_ERR,
+	C_MISC_MBIST_FAIL_ERR,
+	C_MISC_INVALID_EEP_CMD_ERR,
+	C_MISC_EFUSE_DONE_PARITY_ERR,
+	C_MISC_EFUSE_WRITE_ERR,
+	C_MISC_EFUSE_READ_BAD_ADDR_ERR,
+	C_MISC_EFUSE_CSR_PARITY_ERR,
+	C_MISC_FW_AUTH_FAILED_ERR,
+	C_MISC_KEY_MISMATCH_ERR,
+	C_MISC_SBUS_WRITE_FAILED_ERR,
+	C_MISC_CSR_WRITE_BAD_ADDR_ERR,
+	C_MISC_CSR_READ_BAD_ADDR_ERR,
+	C_MISC_CSR_PARITY_ERR,
+/* CceErrStatus */
+	/*
+	* A special counter that is the aggregate count
+	* of all the cce_err_status errors.  The remainder
+	* are actual bits in the CceErrStatus register.
+	*/
+	C_CCE_ERR_STATUS_AGGREGATED_CNT,
+	C_CCE_MSIX_CSR_PARITY_ERR,
+	C_CCE_INT_MAP_UNC_ERR,
+	C_CCE_INT_MAP_COR_ERR,
+	C_CCE_MSIX_TABLE_UNC_ERR,
+	C_CCE_MSIX_TABLE_COR_ERR,
+	C_CCE_RXDMA_CONV_FIFO_PARITY_ERR,
+	C_CCE_RCPL_ASYNC_FIFO_PARITY_ERR,
+	C_CCE_SEG_WRITE_BAD_ADDR_ERR,
+	C_CCE_SEG_READ_BAD_ADDR_ERR,
+	C_LA_TRIGGERED,
+	C_CCE_TRGT_CPL_TIMEOUT_ERR,
+	C_PCIC_RECEIVE_PARITY_ERR,
+	C_PCIC_TRANSMIT_BACK_PARITY_ERR,
+	C_PCIC_TRANSMIT_FRONT_PARITY_ERR,
+	C_PCIC_CPL_DAT_Q_UNC_ERR,
+	C_PCIC_CPL_HD_Q_UNC_ERR,
+	C_PCIC_POST_DAT_Q_UNC_ERR,
+	C_PCIC_POST_HD_Q_UNC_ERR,
+	C_PCIC_RETRY_SOT_MEM_UNC_ERR,
+	C_PCIC_RETRY_MEM_UNC_ERR,
+	C_PCIC_N_POST_DAT_Q_PARITY_ERR,
+	C_PCIC_N_POST_H_Q_PARITY_ERR,
+	C_PCIC_CPL_DAT_Q_COR_ERR,
+	C_PCIC_CPL_HD_Q_COR_ERR,
+	C_PCIC_POST_DAT_Q_COR_ERR,
+	C_PCIC_POST_HD_Q_COR_ERR,
+	C_PCIC_RETRY_SOT_MEM_COR_ERR,
+	C_PCIC_RETRY_MEM_COR_ERR,
+	C_CCE_CLI1_ASYNC_FIFO_DBG_PARITY_ERR,
+	C_CCE_CLI1_ASYNC_FIFO_RXDMA_PARITY_ERR,
+	C_CCE_CLI1_ASYNC_FIFO_SDMA_HD_PARITY_ERR,
+	C_CCE_CLI1_ASYNC_FIFO_PIO_CRDT_PARITY_ERR,
+	C_CCE_CLI2_ASYNC_FIFO_PARITY_ERR,
+	C_CCE_CSR_CFG_BUS_PARITY_ERR,
+	C_CCE_CLI0_ASYNC_FIFO_PARTIY_ERR,
+	C_CCE_RSPD_DATA_PARITY_ERR,
+	C_CCE_TRGT_ACCESS_ERR,
+	C_CCE_TRGT_ASYNC_FIFO_PARITY_ERR,
+	C_CCE_CSR_WRITE_BAD_ADDR_ERR,
+	C_CCE_CSR_READ_BAD_ADDR_ERR,
+	C_CCE_CSR_PARITY_ERR,
+/* RcvErrStatus */
+	C_RX_CSR_PARITY_ERR,
+	C_RX_CSR_WRITE_BAD_ADDR_ERR,
+	C_RX_CSR_READ_BAD_ADDR_ERR,
+	C_RX_DMA_CSR_UNC_ERR,
+	C_RX_DMA_DQ_FSM_ENCODING_ERR,
+	C_RX_DMA_EQ_FSM_ENCODING_ERR,
+	C_RX_DMA_CSR_PARITY_ERR,
+	C_RX_RBUF_DATA_COR_ERR,
+	C_RX_RBUF_DATA_UNC_ERR,
+	C_RX_DMA_DATA_FIFO_RD_COR_ERR,
+	C_RX_DMA_DATA_FIFO_RD_UNC_ERR,
+	C_RX_DMA_HDR_FIFO_RD_COR_ERR,
+	C_RX_DMA_HDR_FIFO_RD_UNC_ERR,
+	C_RX_RBUF_DESC_PART2_COR_ERR,
+	C_RX_RBUF_DESC_PART2_UNC_ERR,
+	C_RX_RBUF_DESC_PART1_COR_ERR,
+	C_RX_RBUF_DESC_PART1_UNC_ERR,
+	C_RX_HQ_INTR_FSM_ERR,
+	C_RX_HQ_INTR_CSR_PARITY_ERR,
+	C_RX_LOOKUP_CSR_PARITY_ERR,
+	C_RX_LOOKUP_RCV_ARRAY_COR_ERR,
+	C_RX_LOOKUP_RCV_ARRAY_UNC_ERR,
+	C_RX_LOOKUP_DES_PART2_PARITY_ERR,
+	C_RX_LOOKUP_DES_PART1_UNC_COR_ERR,
+	C_RX_LOOKUP_DES_PART1_UNC_ERR,
+	C_RX_RBUF_NEXT_FREE_BUF_COR_ERR,
+	C_RX_RBUF_NEXT_FREE_BUF_UNC_ERR,
+	C_RX_RBUF_FL_INIT_WR_ADDR_PARITY_ERR,
+	C_RX_RBUF_FL_INITDONE_PARITY_ERR,
+	C_RX_RBUF_FL_WRITE_ADDR_PARITY_ERR,
+	C_RX_RBUF_FL_RD_ADDR_PARITY_ERR,
+	C_RX_RBUF_EMPTY_ERR,
+	C_RX_RBUF_FULL_ERR,
+	C_RX_RBUF_BAD_LOOKUP_ERR,
+	C_RX_RBUF_CTX_ID_PARITY_ERR,
+	C_RX_RBUF_CSR_QEOPDW_PARITY_ERR,
+	C_RX_RBUF_CSR_Q_NUM_OF_PKT_PARITY_ERR,
+	C_RX_RBUF_CSR_Q_T1_PTR_PARITY_ERR,
+	C_RX_RBUF_CSR_Q_HD_PTR_PARITY_ERR,
+	C_RX_RBUF_CSR_Q_VLD_BIT_PARITY_ERR,
+	C_RX_RBUF_CSR_Q_NEXT_BUF_PARITY_ERR,
+	C_RX_RBUF_CSR_Q_ENT_CNT_PARITY_ERR,
+	C_RX_RBUF_CSR_Q_HEAD_BUF_NUM_PARITY_ERR,
+	C_RX_RBUF_BLOCK_LIST_READ_COR_ERR,
+	C_RX_RBUF_BLOCK_LIST_READ_UNC_ERR,
+	C_RX_RBUF_LOOKUP_DES_COR_ERR,
+	C_RX_RBUF_LOOKUP_DES_UNC_ERR,
+	C_RX_RBUF_LOOKUP_DES_REG_UNC_COR_ERR,
+	C_RX_RBUF_LOOKUP_DES_REG_UNC_ERR,
+	C_RX_RBUF_FREE_LIST_COR_ERR,
+	C_RX_RBUF_FREE_LIST_UNC_ERR,
+	C_RX_RCV_FSM_ENCODING_ERR,
+	C_RX_DMA_FLAG_COR_ERR,
+	C_RX_DMA_FLAG_UNC_ERR,
+	C_RX_DC_SOP_EOP_PARITY_ERR,
+	C_RX_RCV_CSR_PARITY_ERR,
+	C_RX_RCV_QP_MAP_TABLE_COR_ERR,
+	C_RX_RCV_QP_MAP_TABLE_UNC_ERR,
+	C_RX_RCV_DATA_COR_ERR,
+	C_RX_RCV_DATA_UNC_ERR,
+	C_RX_RCV_HDR_COR_ERR,
+	C_RX_RCV_HDR_UNC_ERR,
+	C_RX_DC_INTF_PARITY_ERR,
+	C_RX_DMA_CSR_COR_ERR,
+/* SendPioErrStatus */
+	C_PIO_PEC_SOP_HEAD_PARITY_ERR,
+	C_PIO_PCC_SOP_HEAD_PARITY_ERR,
+	C_PIO_LAST_RETURNED_CNT_PARITY_ERR,
+	C_PIO_CURRENT_FREE_CNT_PARITY_ERR,
+	C_PIO_RSVD_31_ERR,
+	C_PIO_RSVD_30_ERR,
+	C_PIO_PPMC_SOP_LEN_ERR,
+	C_PIO_PPMC_BQC_MEM_PARITY_ERR,
+	C_PIO_VL_FIFO_PARITY_ERR,
+	C_PIO_VLF_SOP_PARITY_ERR,
+	C_PIO_VLF_V1_LEN_PARITY_ERR,
+	C_PIO_BLOCK_QW_COUNT_PARITY_ERR,
+	C_PIO_WRITE_QW_VALID_PARITY_ERR,
+	C_PIO_STATE_MACHINE_ERR,
+	C_PIO_WRITE_DATA_PARITY_ERR,
+	C_PIO_HOST_ADDR_MEM_COR_ERR,
+	C_PIO_HOST_ADDR_MEM_UNC_ERR,
+	C_PIO_PKT_EVICT_SM_OR_ARM_SM_ERR,
+	C_PIO_INIT_SM_IN_ERR,
+	C_PIO_PPMC_PBL_FIFO_ERR,
+	C_PIO_CREDIT_RET_FIFO_PARITY_ERR,
+	C_PIO_V1_LEN_MEM_BANK1_COR_ERR,
+	C_PIO_V1_LEN_MEM_BANK0_COR_ERR,
+	C_PIO_V1_LEN_MEM_BANK1_UNC_ERR,
+	C_PIO_V1_LEN_MEM_BANK0_UNC_ERR,
+	C_PIO_SM_PKT_RESET_PARITY_ERR,
+	C_PIO_PKT_EVICT_FIFO_PARITY_ERR,
+	C_PIO_SBRDCTRL_CRREL_FIFO_PARITY_ERR,
+	C_PIO_SBRDCTL_CRREL_PARITY_ERR,
+	C_PIO_PEC_FIFO_PARITY_ERR,
+	C_PIO_PCC_FIFO_PARITY_ERR,
+	C_PIO_SB_MEM_FIFO1_ERR,
+	C_PIO_SB_MEM_FIFO0_ERR,
+	C_PIO_CSR_PARITY_ERR,
+	C_PIO_WRITE_ADDR_PARITY_ERR,
+	C_PIO_WRITE_BAD_CTXT_ERR,
+/* SendDmaErrStatus */
+	C_SDMA_PCIE_REQ_TRACKING_COR_ERR,
+	C_SDMA_PCIE_REQ_TRACKING_UNC_ERR,
+	C_SDMA_CSR_PARITY_ERR,
+	C_SDMA_RPY_TAG_ERR,
+/* SendEgressErrStatus */
+	C_TX_READ_PIO_MEMORY_CSR_UNC_ERR,
+	C_TX_READ_SDMA_MEMORY_CSR_UNC_ERR,
+	C_TX_EGRESS_FIFO_COR_ERR,
+	C_TX_READ_PIO_MEMORY_COR_ERR,
+	C_TX_READ_SDMA_MEMORY_COR_ERR,
+	C_TX_SB_HDR_COR_ERR,
+	C_TX_CREDIT_OVERRUN_ERR,
+	C_TX_LAUNCH_FIFO8_COR_ERR,
+	C_TX_LAUNCH_FIFO7_COR_ERR,
+	C_TX_LAUNCH_FIFO6_COR_ERR,
+	C_TX_LAUNCH_FIFO5_COR_ERR,
+	C_TX_LAUNCH_FIFO4_COR_ERR,
+	C_TX_LAUNCH_FIFO3_COR_ERR,
+	C_TX_LAUNCH_FIFO2_COR_ERR,
+	C_TX_LAUNCH_FIFO1_COR_ERR,
+	C_TX_LAUNCH_FIFO0_COR_ERR,
+	C_TX_CREDIT_RETURN_VL_ERR,
+	C_TX_HCRC_INSERTION_ERR,
+	C_TX_EGRESS_FIFI_UNC_ERR,
+	C_TX_READ_PIO_MEMORY_UNC_ERR,
+	C_TX_READ_SDMA_MEMORY_UNC_ERR,
+	C_TX_SB_HDR_UNC_ERR,
+	C_TX_CREDIT_RETURN_PARITY_ERR,
+	C_TX_LAUNCH_FIFO8_UNC_OR_PARITY_ERR,
+	C_TX_LAUNCH_FIFO7_UNC_OR_PARITY_ERR,
+	C_TX_LAUNCH_FIFO6_UNC_OR_PARITY_ERR,
+	C_TX_LAUNCH_FIFO5_UNC_OR_PARITY_ERR,
+	C_TX_LAUNCH_FIFO4_UNC_OR_PARITY_ERR,
+	C_TX_LAUNCH_FIFO3_UNC_OR_PARITY_ERR,
+	C_TX_LAUNCH_FIFO2_UNC_OR_PARITY_ERR,
+	C_TX_LAUNCH_FIFO1_UNC_OR_PARITY_ERR,
+	C_TX_LAUNCH_FIFO0_UNC_OR_PARITY_ERR,
+	C_TX_SDMA15_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA14_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA13_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA12_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA11_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA10_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA9_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA8_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA7_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA6_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA5_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA4_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA3_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA2_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA1_DISALLOWED_PACKET_ERR,
+	C_TX_SDMA0_DISALLOWED_PACKET_ERR,
+	C_TX_CONFIG_PARITY_ERR,
+	C_TX_SBRD_CTL_CSR_PARITY_ERR,
+	C_TX_LAUNCH_CSR_PARITY_ERR,
+	C_TX_ILLEGAL_CL_ERR,
+	C_TX_SBRD_CTL_STATE_MACHINE_PARITY_ERR,
+	C_TX_RESERVED_10,
+	C_TX_RESERVED_9,
+	C_TX_SDMA_LAUNCH_INTF_PARITY_ERR,
+	C_TX_PIO_LAUNCH_INTF_PARITY_ERR,
+	C_TX_RESERVED_6,
+	C_TX_INCORRECT_LINK_STATE_ERR,
+	C_TX_LINK_DOWN_ERR,
+	C_TX_EGRESS_FIFO_UNDERRUN_OR_PARITY_ERR,
+	C_TX_RESERVED_2,
+	C_TX_PKT_INTEGRITY_MEM_UNC_ERR,
+	C_TX_PKT_INTEGRITY_MEM_COR_ERR,
+/* SendErrStatus */
+	C_SEND_CSR_WRITE_BAD_ADDR_ERR,
+	C_SEND_CSR_READ_BAD_ADD_ERR,
+	C_SEND_CSR_PARITY_ERR,
+/* SendCtxtErrStatus */
+	C_PIO_WRITE_OUT_OF_BOUNDS_ERR,
+	C_PIO_WRITE_OVERFLOW_ERR,
+	C_PIO_WRITE_CROSSES_BOUNDARY_ERR,
+	C_PIO_DISALLOWED_PACKET_ERR,
+	C_PIO_INCONSISTENT_SOP_ERR,
+/*SendDmaEngErrStatus */
+	C_SDMA_HEADER_REQUEST_FIFO_COR_ERR,
+	C_SDMA_HEADER_STORAGE_COR_ERR,
+	C_SDMA_PACKET_TRACKING_COR_ERR,
+	C_SDMA_ASSEMBLY_COR_ERR,
+	C_SDMA_DESC_TABLE_COR_ERR,
+	C_SDMA_HEADER_REQUEST_FIFO_UNC_ERR,
+	C_SDMA_HEADER_STORAGE_UNC_ERR,
+	C_SDMA_PACKET_TRACKING_UNC_ERR,
+	C_SDMA_ASSEMBLY_UNC_ERR,
+	C_SDMA_DESC_TABLE_UNC_ERR,
+	C_SDMA_TIMEOUT_ERR,
+	C_SDMA_HEADER_LENGTH_ERR,
+	C_SDMA_HEADER_ADDRESS_ERR,
+	C_SDMA_HEADER_SELECT_ERR,
+	C_SMDA_RESERVED_9,
+	C_SDMA_PACKET_DESC_OVERFLOW_ERR,
+	C_SDMA_LENGTH_MISMATCH_ERR,
+	C_SDMA_HALT_ERR,
+	C_SDMA_MEM_READ_ERR,
+	C_SDMA_FIRST_DESC_ERR,
+	C_SDMA_TAIL_OUT_OF_BOUNDS_ERR,
+	C_SDMA_TOO_LONG_ERR,
+	C_SDMA_GEN_MISMATCH_ERR,
+	C_SDMA_WRONG_DW_ERR,
 	DEV_CNTR_LAST  /* Must be kept last */
 };
 
@@ -810,6 +1137,7 @@ enum {
 	C_RX_WORDS,
 	C_SW_LINK_DOWN,
 	C_SW_LINK_UP,
+	C_SW_UNKNOWN_FRAME,
 	C_SW_XMIT_DSCD,
 	C_SW_XMIT_DSCD_VL,
 	C_SW_XMIT_CSTR_ERR,
@@ -1006,10 +1334,8 @@ void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		  u32 type, unsigned long pa, u16 order);
 void hfi1_quiet_serdes(struct hfi1_pportdata *ppd);
 void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt);
-u32 hfi1_read_cntrs(struct hfi1_devdata *dd, loff_t pos, char **namep,
-		    u64 **cntrp);
-u32 hfi1_read_portcntrs(struct hfi1_devdata *dd, loff_t pos, u32 port,
-			char **namep, u64 **cntrp);
+u32 hfi1_read_cntrs(struct hfi1_devdata *dd, char **namep, u64 **cntrp);
+u32 hfi1_read_portcntrs(struct hfi1_pportdata *ppd, char **namep, u64 **cntrp);
 u8 hfi1_ibphys_portstate(struct hfi1_pportdata *ppd);
 int hfi1_get_ib_cfg(struct hfi1_pportdata *ppd, int which);
 int hfi1_set_ib_cfg(struct hfi1_pportdata *ppd, int which, u32 val);

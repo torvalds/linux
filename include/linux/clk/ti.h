@@ -23,8 +23,8 @@
  * @mult_div1_reg: register containing the DPLL M and N bitfields
  * @mult_mask: mask of the DPLL M bitfield in @mult_div1_reg
  * @div1_mask: mask of the DPLL N bitfield in @mult_div1_reg
- * @clk_bypass: struct clk pointer to the clock's bypass clock input
- * @clk_ref: struct clk pointer to the clock's reference clock input
+ * @clk_bypass: struct clk_hw pointer to the clock's bypass clock input
+ * @clk_ref: struct clk_hw pointer to the clock's reference clock input
  * @control_reg: register containing the DPLL mode bitfield
  * @enable_mask: mask of the DPLL mode bitfield in @control_reg
  * @last_rounded_rate: cache of the last rate result of omap2_dpll_round_rate()
@@ -69,8 +69,8 @@ struct dpll_data {
 	void __iomem		*mult_div1_reg;
 	u32			mult_mask;
 	u32			div1_mask;
-	struct clk		*clk_bypass;
-	struct clk		*clk_ref;
+	struct clk_hw		*clk_bypass;
+	struct clk_hw		*clk_ref;
 	void __iomem		*control_reg;
 	u32			enable_mask;
 	unsigned long		last_rounded_rate;
@@ -195,6 +195,7 @@ enum {
 	TI_CLKM_PRM,
 	TI_CLKM_SCRM,
 	TI_CLKM_CTRL,
+	TI_CLKM_PLLSS,
 	CLK_MAX_MEMMAPS
 };
 
@@ -286,6 +287,7 @@ struct ti_clk_features {
 #define TI_CLK_DPLL_HAS_FREQSEL			BIT(0)
 #define TI_CLK_DPLL4_DENY_REPROGRAM		BIT(1)
 #define TI_CLK_DISABLE_CLKDM_CONTROL		BIT(2)
+#define TI_CLK_ERRATA_I810			BIT(3)
 
 void ti_clk_setup_features(struct ti_clk_features *features);
 const struct ti_clk_features *ti_clk_get_features(void);

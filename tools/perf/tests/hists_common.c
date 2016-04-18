@@ -100,9 +100,11 @@ struct machine *setup_fake_machine(struct machines *machines)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fake_mmap_info); i++) {
+		struct perf_sample sample = {
+			.cpumode = PERF_RECORD_MISC_USER,
+		};
 		union perf_event fake_mmap_event = {
 			.mmap = {
-				.header = { .misc = PERF_RECORD_MISC_USER, },
 				.pid = fake_mmap_info[i].pid,
 				.tid = fake_mmap_info[i].pid,
 				.start = fake_mmap_info[i].start,
@@ -114,7 +116,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 		strcpy(fake_mmap_event.mmap.filename,
 		       fake_mmap_info[i].filename);
 
-		machine__process_mmap_event(machine, &fake_mmap_event, NULL);
+		machine__process_mmap_event(machine, &fake_mmap_event, &sample);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fake_symbols); i++) {
@@ -150,7 +152,6 @@ struct machine *setup_fake_machine(struct machines *machines)
 out:
 	pr_debug("Not enough memory for machine setup\n");
 	machine__delete_threads(machine);
-	machine__delete(machine);
 	return NULL;
 }
 

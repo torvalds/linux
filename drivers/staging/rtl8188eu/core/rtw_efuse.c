@@ -104,13 +104,11 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	u8 u1temp = 0;
 
 	efuseTbl = kzalloc(EFUSE_MAP_LEN_88E, GFP_KERNEL);
-	if (efuseTbl == NULL) {
-		DBG_88E("%s: alloc efuseTbl fail!\n", __func__);
+	if (!efuseTbl)
 		return;
-	}
 
 	eFuseWord = (u16 **)rtw_malloc2d(EFUSE_MAX_SECTION_88E, EFUSE_MAX_WORD_UNIT, sizeof(u16));
-	if (eFuseWord == NULL) {
+	if (!eFuseWord) {
 		DBG_88E("%s: alloc eFuseWord fail!\n", __func__);
 		goto eFuseWord_failed;
 	}
@@ -224,7 +222,7 @@ static void efuse_read_phymap_from_txpktbuf(
 	)
 {
 	u16 dbg_addr = 0;
-	u32 start  = 0, passing_time = 0;
+	unsigned long start = 0;
 	u8 reg_0x143 = 0;
 	u32 lo32 = 0, hi32 = 0;
 	u16 len = 0, count = 0;
@@ -248,7 +246,7 @@ static void efuse_read_phymap_from_txpktbuf(
 		usb_write8(adapter, REG_TXPKTBUF_DBG, 0);
 		start = jiffies;
 		while (!(reg_0x143 = usb_read8(adapter, REG_TXPKTBUF_DBG)) &&
-		       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
+		       jiffies_to_msecs(jiffies - start) < 1000) {
 			DBG_88E("%s polling reg_0x143:0x%02x, reg_0x106:0x%02x\n", __func__, reg_0x143, usb_read8(adapter, 0x106));
 			usleep_range(1000, 2000);
 		}
@@ -394,7 +392,7 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 	u8 badworden = 0x0F;
 	u8 tmpdata[8];
 
-	memset((void *)tmpdata, 0xff, PGPKT_DATA_SIZE);
+	memset(tmpdata, 0xff, PGPKT_DATA_SIZE);
 
 	if (!(word_en & BIT(0))) {
 		tmpaddr = start_addr;
@@ -495,13 +493,13 @@ int Efuse_PgPacketRead(struct adapter *pAdapter, u8 offset, u8 *data)
 
 	EFUSE_GetEfuseDefinition(pAdapter, EFUSE_WIFI, TYPE_EFUSE_MAX_SECTION, (void *)&max_section);
 
-	if (data == NULL)
+	if (!data)
 		return false;
 	if (offset > max_section)
 		return false;
 
-	memset((void *)data, 0xff, sizeof(u8)*PGPKT_DATA_SIZE);
-	memset((void *)tmpdata, 0xff, sizeof(u8)*PGPKT_DATA_SIZE);
+	memset(data, 0xff, sizeof(u8) * PGPKT_DATA_SIZE);
+	memset(tmpdata, 0xff, sizeof(u8) * PGPKT_DATA_SIZE);
 
 	/*  <Roger_TODO> Efuse has been pre-programmed dummy 5Bytes at the end of Efuse by CP. */
 	/*  Skip dummy parts to prevent unexpected data read from Efuse. */
@@ -572,7 +570,7 @@ static bool hal_EfuseFixHeaderProcess(struct adapter *pAdapter, u8 efuseType, st
 	u16	efuse_addr = *pAddr;
 	u32	PgWriteSuccess = 0;
 
-	memset((void *)originaldata, 0xff, 8);
+	memset(originaldata, 0xff, 8);
 
 	if (Efuse_PgPacketRead(pAdapter, pFixPkt->offset, originaldata)) {
 		/* check if data exist */

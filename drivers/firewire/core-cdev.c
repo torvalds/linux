@@ -221,7 +221,7 @@ struct inbound_phy_packet_event {
 #ifdef CONFIG_COMPAT
 static void __user *u64_to_uptr(u64 value)
 {
-	if (is_compat_task())
+	if (in_compat_syscall())
 		return compat_ptr(value);
 	else
 		return (void __user *)(unsigned long)value;
@@ -229,7 +229,7 @@ static void __user *u64_to_uptr(u64 value)
 
 static u64 uptr_to_u64(void __user *ptr)
 {
-	if (is_compat_task())
+	if (in_compat_syscall())
 		return ptr_to_compat(ptr);
 	else
 		return (u64)(unsigned long)ptr;
@@ -486,7 +486,7 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 static int add_client_resource(struct client *client,
 			       struct client_resource *resource, gfp_t gfp_mask)
 {
-	bool preload = !!(gfp_mask & __GFP_WAIT);
+	bool preload = gfpflags_allow_blocking(gfp_mask);
 	unsigned long flags;
 	int ret;
 

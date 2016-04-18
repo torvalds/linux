@@ -48,8 +48,21 @@ echo "ABCD0123" >"$FW"
 
 NAME=$(basename "$FW")
 
+if printf '\000' >"$DIR"/trigger_request; then
+	echo "$0: empty filename should not succeed" >&2
+	exit 1
+fi
+
+if printf '\000' >"$DIR"/trigger_async_request; then
+	echo "$0: empty filename should not succeed (async)" >&2
+	exit 1
+fi
+
 # Request a firmware that doesn't exist, it should fail.
-echo -n "nope-$NAME" >"$DIR"/trigger_request
+if echo -n "nope-$NAME" >"$DIR"/trigger_request; then
+	echo "$0: firmware shouldn't have loaded" >&2
+	exit 1
+fi
 if diff -q "$FW" /dev/test_firmware >/dev/null ; then
 	echo "$0: firmware was not expected to match" >&2
 	exit 1
@@ -72,6 +85,20 @@ if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
 	exit 1
 else
 	echo "$0: filesystem loading works"
+fi
+
+# Try the asynchronous version too
+if ! echo -n "$NAME" >"$DIR"/trigger_async_request ; then
+	echo "$0: could not trigger async request" >&2
+	exit 1
+fi
+
+# Verify the contents are what we expect.
+if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
+	echo "$0: firmware was not loaded (async)" >&2
+	exit 1
+else
+	echo "$0: async filesystem loading works"
 fi
 
 exit 0

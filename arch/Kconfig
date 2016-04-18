@@ -205,9 +205,6 @@ config HAVE_NMI_WATCHDOG
 config HAVE_ARCH_TRACEHOOK
 	bool
 
-config HAVE_DMA_ATTRS
-	bool
-
 config HAVE_DMA_CONTIGUOUS
 	bool
 
@@ -511,12 +508,86 @@ config ARCH_HAS_ELF_RANDOMIZE
 	  - arch_mmap_rnd()
 	  - arch_randomize_brk()
 
+config HAVE_ARCH_MMAP_RND_BITS
+	bool
+	help
+	  An arch should select this symbol if it supports setting a variable
+	  number of bits for use in establishing the base address for mmap
+	  allocations, has MMU enabled and provides values for both:
+	  - ARCH_MMAP_RND_BITS_MIN
+	  - ARCH_MMAP_RND_BITS_MAX
+
+config ARCH_MMAP_RND_BITS_MIN
+	int
+
+config ARCH_MMAP_RND_BITS_MAX
+	int
+
+config ARCH_MMAP_RND_BITS_DEFAULT
+	int
+
+config ARCH_MMAP_RND_BITS
+	int "Number of bits to use for ASLR of mmap base address" if EXPERT
+	range ARCH_MMAP_RND_BITS_MIN ARCH_MMAP_RND_BITS_MAX
+	default ARCH_MMAP_RND_BITS_DEFAULT if ARCH_MMAP_RND_BITS_DEFAULT
+	default ARCH_MMAP_RND_BITS_MIN
+	depends on HAVE_ARCH_MMAP_RND_BITS
+	help
+	  This value can be used to select the number of bits to use to
+	  determine the random offset to the base address of vma regions
+	  resulting from mmap allocations. This value will be bounded
+	  by the architecture's minimum and maximum supported values.
+
+	  This value can be changed after boot using the
+	  /proc/sys/vm/mmap_rnd_bits tunable
+
+config HAVE_ARCH_MMAP_RND_COMPAT_BITS
+	bool
+	help
+	  An arch should select this symbol if it supports running applications
+	  in compatibility mode, supports setting a variable number of bits for
+	  use in establishing the base address for mmap allocations, has MMU
+	  enabled and provides values for both:
+	  - ARCH_MMAP_RND_COMPAT_BITS_MIN
+	  - ARCH_MMAP_RND_COMPAT_BITS_MAX
+
+config ARCH_MMAP_RND_COMPAT_BITS_MIN
+	int
+
+config ARCH_MMAP_RND_COMPAT_BITS_MAX
+	int
+
+config ARCH_MMAP_RND_COMPAT_BITS_DEFAULT
+	int
+
+config ARCH_MMAP_RND_COMPAT_BITS
+	int "Number of bits to use for ASLR of mmap base address for compatible applications" if EXPERT
+	range ARCH_MMAP_RND_COMPAT_BITS_MIN ARCH_MMAP_RND_COMPAT_BITS_MAX
+	default ARCH_MMAP_RND_COMPAT_BITS_DEFAULT if ARCH_MMAP_RND_COMPAT_BITS_DEFAULT
+	default ARCH_MMAP_RND_COMPAT_BITS_MIN
+	depends on HAVE_ARCH_MMAP_RND_COMPAT_BITS
+	help
+	  This value can be used to select the number of bits to use to
+	  determine the random offset to the base address of vma regions
+	  resulting from mmap allocations for compatible applications This
+	  value will be bounded by the architecture's minimum and maximum
+	  supported values.
+
+	  This value can be changed after boot using the
+	  /proc/sys/vm/mmap_rnd_compat_bits tunable
+
 config HAVE_COPY_THREAD_TLS
 	bool
 	help
 	  Architecture provides copy_thread_tls to accept tls argument via
 	  normal C parameter passing, rather than extracting the syscall
 	  argument from pt_regs.
+
+config HAVE_STACK_VALIDATION
+	bool
+	help
+	  Architecture supports the 'objtool check' host tool command, which
+	  performs compile-time stack metadata validation.
 
 #
 # ABI hall of shame
@@ -562,6 +633,9 @@ config OLD_SIGACTION
 	  compatibility...
 
 config COMPAT_OLD_SIGACTION
+	bool
+
+config ARCH_NO_COHERENT_DMA_MMAP
 	bool
 
 source "kernel/gcov/Kconfig"

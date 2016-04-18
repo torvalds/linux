@@ -1,4 +1,4 @@
-/* Copyright (C) 2013-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2013-2016  B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll <martin@hundeboll.net>
  *
@@ -71,21 +71,21 @@ void batadv_frag_purge_orig(struct batadv_orig_node *orig_node,
 
 	for (i = 0; i < BATADV_FRAG_BUFFER_COUNT; i++) {
 		chain = &orig_node->fragments[i];
-		spin_lock_bh(&orig_node->fragments[i].lock);
+		spin_lock_bh(&chain->lock);
 
 		if (!check_cb || check_cb(chain)) {
-			batadv_frag_clear_chain(&orig_node->fragments[i].head);
-			orig_node->fragments[i].size = 0;
+			batadv_frag_clear_chain(&chain->head);
+			chain->size = 0;
 		}
 
-		spin_unlock_bh(&orig_node->fragments[i].lock);
+		spin_unlock_bh(&chain->lock);
 	}
 }
 
 /**
  * batadv_frag_size_limit - maximum possible size of packet to be fragmented
  *
- * Returns the maximum size of payload that can be fragmented.
+ * Return: the maximum size of payload that can be fragmented.
  */
 static int batadv_frag_size_limit(void)
 {
@@ -107,7 +107,7 @@ static int batadv_frag_size_limit(void)
  *
  * Caller must hold chain->lock.
  *
- * Returns true if chain is empty and caller can just insert the new fragment
+ * Return: true if chain is empty and caller can just insert the new fragment
  * without searching for the right position.
  */
 static bool batadv_frag_init_chain(struct batadv_frag_table_entry *chain,
@@ -136,7 +136,7 @@ static bool batadv_frag_init_chain(struct batadv_frag_table_entry *chain,
  * Insert a new fragment into the reverse ordered chain in the right table
  * entry. The hash table entry is cleared if "old" fragments exist in it.
  *
- * Returns true if skb is buffered, false on error. If the chain has all the
+ * Return: true if skb is buffered, false on error. If the chain has all the
  * fragments needed to merge the packet, the chain is moved to the passed head
  * to avoid locking the chain in the table.
  */
@@ -242,12 +242,11 @@ err:
 /**
  * batadv_frag_merge_packets - merge a chain of fragments
  * @chain: head of chain with fragments
- * @skb: packet with total size of skb after merging
  *
  * Expand the first skb in the chain and copy the content of the remaining
  * skb's into the expanded one. After doing so, clear the chain.
  *
- * Returns the merged skb or NULL on error.
+ * Return: the merged skb or NULL on error.
  */
 static struct sk_buff *
 batadv_frag_merge_packets(struct hlist_head *chain)
@@ -307,6 +306,9 @@ free:
  * There are three possible outcomes: 1) Packet is merged: Return true and
  * set *skb to merged packet; 2) Packet is buffered: Return true and set *skb
  * to NULL; 3) Error: Return false and leave skb as is.
+ *
+ * Return: true when packet is merged or buffered, false when skb is not not
+ * used.
  */
 bool batadv_frag_skb_buffer(struct sk_buff **skb,
 			    struct batadv_orig_node *orig_node_src)
@@ -344,7 +346,7 @@ out_err:
  * will exceed the MTU towards the next-hop. If so, the fragment is forwarded
  * without merging it.
  *
- * Returns true if the fragment is consumed/forwarded, false otherwise.
+ * Return: true if the fragment is consumed/forwarded, false otherwise.
  */
 bool batadv_frag_skb_fwd(struct sk_buff *skb,
 			 struct batadv_hard_iface *recv_if,
@@ -376,16 +378,15 @@ bool batadv_frag_skb_fwd(struct sk_buff *skb,
 				   skb->len + ETH_HLEN);
 
 		packet->ttl--;
-		batadv_send_skb_packet(skb, neigh_node->if_incoming,
-				       neigh_node->addr);
+		batadv_send_unicast_skb(skb, neigh_node);
 		ret = true;
 	}
 
 out:
 	if (orig_node_dst)
-		batadv_orig_node_free_ref(orig_node_dst);
+		batadv_orig_node_put(orig_node_dst);
 	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_put(neigh_node);
 	return ret;
 }
 
@@ -399,7 +400,7 @@ out:
  * passed mtu and the old one with the rest. The new skb contains data from the
  * tail of the old skb.
  *
- * Returns the new fragment, NULL on error.
+ * Return: the new fragment, NULL on error.
  */
 static struct sk_buff *batadv_frag_create(struct sk_buff *skb,
 					  struct batadv_frag_packet *frag_head,
@@ -433,7 +434,7 @@ err:
  * @orig_node: final destination of the created fragments
  * @neigh_node: next-hop of the created fragments
  *
- * Returns true on success, false otherwise.
+ * Return: true on success, false otherwise.
  */
 bool batadv_frag_send_packet(struct sk_buff *skb,
 			     struct batadv_orig_node *orig_node,
@@ -484,8 +485,7 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 		batadv_inc_counter(bat_priv, BATADV_CNT_FRAG_TX);
 		batadv_add_counter(bat_priv, BATADV_CNT_FRAG_TX_BYTES,
 				   skb_fragment->len + ETH_HLEN);
-		batadv_send_skb_packet(skb_fragment, neigh_node->if_incoming,
-				       neigh_node->addr);
+		batadv_send_unicast_skb(skb_fragment, neigh_node);
 		frag_header.no++;
 
 		/* The initial check in this function should cover this case */
@@ -504,13 +504,13 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 	batadv_inc_counter(bat_priv, BATADV_CNT_FRAG_TX);
 	batadv_add_counter(bat_priv, BATADV_CNT_FRAG_TX_BYTES,
 			   skb->len + ETH_HLEN);
-	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	batadv_send_unicast_skb(skb, neigh_node);
 
 	ret = true;
 
 out_err:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 
 	return ret;
 }

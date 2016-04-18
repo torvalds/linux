@@ -23,7 +23,6 @@ struct dma_chan;
 
 /* device.platform_data for SSP controller devices */
 struct pxa2xx_spi_master {
-	u32 clock_enable;
 	u16 num_chipselect;
 	u8 enable_dma;
 

@@ -181,11 +181,17 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			goto err_mutex_unlock;
 		} else if (msg[0].addr == 0x10) {
 			/* method 1 - integrated demod */
-			req.value = (msg[0].buf[0] << 8) | (msg[0].addr << 1);
-			req.index = CMD_DEMOD_RD | dev->page;
-			req.size = msg[1].len;
-			req.data = &msg[1].buf[0];
-			ret = rtl28xxu_ctrl_msg(d, &req);
+			if (msg[0].buf[0] == 0x00) {
+				/* return demod page from driver cache */
+				msg[1].buf[0] = dev->page;
+				ret = 0;
+			} else {
+				req.value = (msg[0].buf[0] << 8) | (msg[0].addr << 1);
+				req.index = CMD_DEMOD_RD | dev->page;
+				req.size = msg[1].len;
+				req.data = &msg[1].buf[0];
+				ret = rtl28xxu_ctrl_msg(d, &req);
+			}
 		} else if (msg[0].len < 2) {
 			/* method 2 - old I2C */
 			req.value = (msg[0].buf[0] << 8) | (msg[0].addr << 1);
@@ -252,6 +258,10 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	} else {
 		ret = -EOPNOTSUPP;
 	}
+
+	/* Retry failed I2C messages */
+	if (ret == -EPIPE)
+		ret = -EAGAIN;
 
 err_mutex_unlock:
 	mutex_unlock(&d->i2c_mutex);
@@ -612,6 +622,10 @@ static int rtl28xxu_identify_state(struct dvb_usb_device *d, const char **name)
 		goto err;
 	}
 	dev_dbg(&d->intf->dev, "chip_id=%u\n", dev->chip_id);
+
+	/* Retry failed I2C messages */
+	d->i2c_adap.retries = 1;
+	d->i2c_adap.timeout = msecs_to_jiffies(10);
 
 	return WARM;
 err:
@@ -1557,19 +1571,19 @@ static int rtl28xxu_frontend_ctrl(struct dvb_frontend *fe, int onoff)
 	if (dev->chip_id == CHIP_ID_RTL2831U)
 		return 0;
 
-	/* control internal demod ADC */
-	if (fe->id == 0 && onoff)
-		val = 0x48; /* enable ADC */
-	else
-		val = 0x00; /* disable ADC */
+	if (fe->id == 0) {
+		/* control internal demod ADC */
+		if (onoff)
+			val = 0x48; /* enable ADC */
+		else
+			val = 0x00; /* disable ADC */
 
-	ret = rtl28xxu_wr_reg_mask(d, SYS_DEMOD_CTL, val, 0x48);
-	if (ret)
-		goto err;
-
-	/* bypass slave demod TS through master demod */
-	if (fe->id == 1 && onoff) {
-		ret = pdata->enable_slave_ts(dev->i2c_client_demod);
+		ret = rtl28xxu_wr_reg_mask(d, SYS_DEMOD_CTL, val, 0x48);
+		if (ret)
+			goto err;
+	} else if (fe->id == 1) {
+		/* bypass slave demod TS through master demod */
+		ret = pdata->slave_ts_ctrl(dev->i2c_client_demod, onoff);
 		if (ret)
 			goto err;
 	}

@@ -43,7 +43,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-dv-timings.h>
-#include <media/adv7842.h>
+#include <media/i2c/adv7842.h>
 
 static int debug;
 module_param(debug, int, 0644);
@@ -155,7 +155,7 @@ static bool adv7842_check_dv_timings(const struct v4l2_dv_timings *t, void *hdl)
 	int i;
 
 	for (i = 0; adv7842_timings_exceptions[i].bt.width; i++)
-		if (v4l2_match_dv_timings(t, adv7842_timings_exceptions + i, 0))
+		if (v4l2_match_dv_timings(t, adv7842_timings_exceptions + i, 0, false))
 			return false;
 	return true;
 }
@@ -1008,7 +1008,7 @@ static int find_and_set_predefined_video_timings(struct v4l2_subdev *sd,
 
 	for (i = 0; predef_vid_timings[i].timings.bt.width; i++) {
 		if (!v4l2_match_dv_timings(timings, &predef_vid_timings[i].timings,
-					  is_digital_input(sd) ? 250000 : 1000000))
+				  is_digital_input(sd) ? 250000 : 1000000, false))
 			continue;
 		/* video std */
 		io_write(sd, 0x00, predef_vid_timings[i].vid_std);
@@ -1359,6 +1359,19 @@ static int adv7842_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
+static int adv7842_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct v4l2_subdev *sd = to_sd(ctrl);
+
+	if (ctrl->id == V4L2_CID_DV_RX_IT_CONTENT_TYPE) {
+		ctrl->val = V4L2_DV_IT_CONTENT_TYPE_NO_ITC;
+		if ((io_read(sd, 0x60) & 1) && (infoframe_read(sd, 0x03) & 0x80))
+			ctrl->val = (infoframe_read(sd, 0x05) >> 4) & 3;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 static inline bool no_power(struct v4l2_subdev *sd)
 {
 	return io_read(sd, 0x0c) & 0x24;
@@ -1659,7 +1672,7 @@ static int adv7842_s_dv_timings(struct v4l2_subdev *sd,
 	if (state->mode == ADV7842_MODE_SDP)
 		return -ENODATA;
 
-	if (v4l2_match_dv_timings(&state->timings, timings, 0)) {
+	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
 		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
 		return 0;
 	}
@@ -3022,6 +3035,7 @@ static int adv7842_subscribe_event(struct v4l2_subdev *sd,
 
 static const struct v4l2_ctrl_ops adv7842_ctrl_ops = {
 	.s_ctrl = adv7842_s_ctrl,
+	.g_volatile_ctrl = adv7842_g_volatile_ctrl,
 };
 
 static const struct v4l2_subdev_core_ops adv7842_core_ops = {
@@ -3196,6 +3210,7 @@ static int adv7842_probe(struct i2c_client *client,
 		V4L2_DV_BT_CEA_640X480P59_94;
 	struct adv7842_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_ctrl_handler *hdl;
+	struct v4l2_ctrl *ctrl;
 	struct v4l2_subdev *sd;
 	u16 rev;
 	int err;
@@ -3261,6 +3276,11 @@ static int adv7842_probe(struct i2c_client *client,
 			  V4L2_CID_SATURATION, 0, 255, 1, 128);
 	v4l2_ctrl_new_std(hdl, &adv7842_ctrl_ops,
 			  V4L2_CID_HUE, 0, 128, 1, 0);
+	ctrl = v4l2_ctrl_new_std_menu(hdl, &adv7842_ctrl_ops,
+			V4L2_CID_DV_RX_IT_CONTENT_TYPE, V4L2_DV_IT_CONTENT_TYPE_NO_ITC,
+			0, V4L2_DV_IT_CONTENT_TYPE_NO_ITC);
+	if (ctrl)
+		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	/* custom controls */
 	state->detect_tx_5v_ctrl = v4l2_ctrl_new_std(hdl, NULL,
@@ -3309,7 +3329,7 @@ static int adv7842_probe(struct i2c_client *client,
 			adv7842_delayed_work_enable_hotplug);
 
 	state->pad.flags = MEDIA_PAD_FL_SOURCE;
-	err = media_entity_init(&sd->entity, 1, &state->pad, 0);
+	err = media_entity_pads_init(&sd->entity, 1, &state->pad);
 	if (err)
 		goto err_work_queues;
 

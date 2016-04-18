@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -262,7 +262,7 @@
 #define ACPI_GET_FUNCTION_NAME          _acpi_function_name
 
 /*
- * The Name parameter should be the procedure name as a quoted string.
+ * The Name parameter should be the procedure name as a non-quoted string.
  * The function name is also used by the function exit macros below.
  * Note: (const char) is used to be compatible with the debug interfaces
  * and macros such as __func__.

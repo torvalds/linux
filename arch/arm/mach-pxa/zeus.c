@@ -38,17 +38,17 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/regs-uart.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/mmc-pxamci.h>
-#include <mach/pxa27x-udc.h>
-#include <mach/udc.h>
+#include "pxa27x-udc.h"
+#include "udc.h"
 #include <linux/platform_data/video-pxafb.h>
-#include <mach/pm.h>
+#include "pm.h"
 #include <mach/audio.h>
 #include <linux/platform_data/pcmcia-pxa2xx_viper.h>
-#include <mach/zeus.h>
+#include "zeus.h"
 #include <mach/smemc.h>
 
 #include "generic.h"
@@ -910,7 +910,7 @@ static void __init zeus_map_io(void)
 	PMCR = PSPR = 0;
 
 	/* enable internal 32.768Khz oscillator (ignore OSCC_OOK) */
-	OSCC |= OSCC_OON;
+	writel(readl(OSCC) | OSCC_OON, OSCC);
 
 	/* Some clock cycles later (from OSCC_ON), programme PCFR (OPDE...).
 	 * float chip selects and PCMCIA */

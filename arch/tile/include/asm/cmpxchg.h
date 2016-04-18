@@ -127,8 +127,6 @@ long long _atomic64_cmpxchg(long long *v, long long o, long long n);
 
 #endif
 
-#define tas(ptr) xchg((ptr), 1)
-
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_TILE_CMPXCHG_H */

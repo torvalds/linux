@@ -1,4 +1,4 @@
-HiSilicon PCIe host bridge DT description
+HiSilicon Hip05 and Hip06 PCIe host bridge DT description
 
 HiSilicon PCIe host controller is based on Designware PCI core.
 It shares common functions with PCIe Designware core driver and inherits
@@ -7,8 +7,8 @@ Documentation/devicetree/bindings/pci/designware-pci.txt.
 
 Additional properties are described here:
 
-Required properties:
-- compatible: Should contain "hisilicon,hip05-pcie".
+Required properties
+- compatible: Should contain "hisilicon,hip05-pcie" or "hisilicon,hip06-pcie".
 - reg: Should contain rc_dbi, config registers location and length.
 - reg-names: Must include the following entries:
   "rc_dbi": controller configuration registers;
@@ -20,7 +20,7 @@ Optional properties:
 - status: Either "ok" or "disabled".
 - dma-coherent: Present if DMA operations are coherent.
 
-Example:
+Hip05 Example (note that Hip06 is the same except compatible):
 	pcie@0xb0080000 {
 		compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
 		reg = <0 0xb0080000 0 0x10000>, <0x220 0x00000000 0 0x2000>;

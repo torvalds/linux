@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk-provider.h>
 #include <linux/reset-controller.h>
+#include <linux/of.h>
 
 #include "common.h"
 #include "clk-rcg.h"
@@ -88,6 +89,91 @@ static void qcom_cc_gdsc_unregister(void *data)
 	gdsc_unregister(data);
 }
 
+/*
+ * Backwards compatibility with old DTs. Register a pass-through factor 1/1
+ * clock to translate 'path' clk into 'name' clk and regsiter the 'path'
+ * clk as a fixed rate clock if it isn't present.
+ */
+static int _qcom_cc_register_board_clk(struct device *dev, const char *path,
+				       const char *name, unsigned long rate,
+				       bool add_factor)
+{
+	struct device_node *node = NULL;
+	struct device_node *clocks_node;
+	struct clk_fixed_factor *factor;
+	struct clk_fixed_rate *fixed;
+	struct clk *clk;
+	struct clk_init_data init_data = { };
+
+	clocks_node = of_find_node_by_path("/clocks");
+	if (clocks_node)
+		node = of_find_node_by_name(clocks_node, path);
+	of_node_put(clocks_node);
+
+	if (!node) {
+		fixed = devm_kzalloc(dev, sizeof(*fixed), GFP_KERNEL);
+		if (!fixed)
+			return -EINVAL;
+
+		fixed->fixed_rate = rate;
+		fixed->hw.init = &init_data;
+
+		init_data.name = path;
+		init_data.ops = &clk_fixed_rate_ops;
+
+		clk = devm_clk_register(dev, &fixed->hw);
+		if (IS_ERR(clk))
+			return PTR_ERR(clk);
+	}
+	of_node_put(node);
+
+	if (add_factor) {
+		factor = devm_kzalloc(dev, sizeof(*factor), GFP_KERNEL);
+		if (!factor)
+			return -EINVAL;
+
+		factor->mult = factor->div = 1;
+		factor->hw.init = &init_data;
+
+		init_data.name = name;
+		init_data.parent_names = &path;
+		init_data.num_parents = 1;
+		init_data.flags = 0;
+		init_data.ops = &clk_fixed_factor_ops;
+
+		clk = devm_clk_register(dev, &factor->hw);
+		if (IS_ERR(clk))
+			return PTR_ERR(clk);
+	}
+
+	return 0;
+}
+
+int qcom_cc_register_board_clk(struct device *dev, const char *path,
+			       const char *name, unsigned long rate)
+{
+	bool add_factor = true;
+	struct device_node *node;
+
+	/* The RPM clock driver will add the factor clock if present */
+	if (IS_ENABLED(CONFIG_QCOM_RPMCC)) {
+		node = of_find_compatible_node(NULL, NULL, "qcom,rpmcc");
+		if (of_device_is_available(node))
+			add_factor = false;
+		of_node_put(node);
+	}
+
+	return _qcom_cc_register_board_clk(dev, path, name, rate, add_factor);
+}
+EXPORT_SYMBOL_GPL(qcom_cc_register_board_clk);
+
+int qcom_cc_register_sleep_clk(struct device *dev)
+{
+	return _qcom_cc_register_board_clk(dev, "sleep_clk", "sleep_clk_src",
+					   32768, true);
+}
+EXPORT_SYMBOL_GPL(qcom_cc_register_sleep_clk);
+
 int qcom_cc_really_probe(struct platform_device *pdev,
 			 const struct qcom_cc_desc *desc, struct regmap *regmap)
 {
@@ -98,6 +184,7 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	struct clk **clks;
 	struct qcom_reset_controller *reset;
 	struct qcom_cc *cc;
+	struct gdsc_desc *scd;
 	size_t num_clks = desc->num_clks;
 	struct clk_regmap **rclks = desc->clks;
 
@@ -126,7 +213,11 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	devm_add_action(dev, qcom_cc_del_clk_provider, pdev->dev.of_node);
+	ret = devm_add_action_or_reset(dev, qcom_cc_del_clk_provider,
+				       pdev->dev.of_node);
+
+	if (ret)
+		return ret;
 
 	reset = &cc->reset;
 	reset->rcdev.of_node = dev->of_node;
@@ -140,17 +231,27 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	devm_add_action(dev, qcom_cc_reset_unregister, &reset->rcdev);
+	ret = devm_add_action_or_reset(dev, qcom_cc_reset_unregister,
+				       &reset->rcdev);
+
+	if (ret)
+		return ret;
 
 	if (desc->gdscs && desc->num_gdscs) {
-		ret = gdsc_register(dev, desc->gdscs, desc->num_gdscs,
-				    &reset->rcdev, regmap);
+		scd = devm_kzalloc(dev, sizeof(*scd), GFP_KERNEL);
+		if (!scd)
+			return -ENOMEM;
+		scd->dev = dev;
+		scd->scs = desc->gdscs;
+		scd->num = desc->num_gdscs;
+		ret = gdsc_register(scd, &reset->rcdev, regmap);
+		if (ret)
+			return ret;
+		ret = devm_add_action_or_reset(dev, qcom_cc_gdsc_unregister,
+					       scd);
 		if (ret)
 			return ret;
 	}
-
-	devm_add_action(dev, qcom_cc_gdsc_unregister, dev);
-
 
 	return 0;
 }

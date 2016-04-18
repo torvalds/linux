@@ -77,6 +77,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_VELOCITY] = "velocity",
 	[IIO_CONCENTRATION] = "concentration",
 	[IIO_RESISTANCE] = "resistance",
+	[IIO_PH] = "ph",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -433,16 +434,15 @@ ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 		scale_db = true;
 	case IIO_VAL_INT_PLUS_MICRO:
 		if (vals[1] < 0)
-			return sprintf(buf, "-%ld.%06u%s\n", abs(vals[0]),
-					-vals[1],
-				scale_db ? " dB" : "");
+			return sprintf(buf, "-%d.%06u%s\n", abs(vals[0]),
+				       -vals[1], scale_db ? " dB" : "");
 		else
 			return sprintf(buf, "%d.%06u%s\n", vals[0], vals[1],
 				scale_db ? " dB" : "");
 	case IIO_VAL_INT_PLUS_NANO:
 		if (vals[1] < 0)
-			return sprintf(buf, "-%ld.%09u\n", abs(vals[0]),
-					-vals[1]);
+			return sprintf(buf, "-%d.%09u\n", abs(vals[0]),
+				       -vals[1]);
 		else
 			return sprintf(buf, "%d.%09u\n", vals[0], vals[1]);
 	case IIO_VAL_FRACTIONAL:
@@ -470,6 +470,7 @@ ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 		return 0;
 	}
 }
+EXPORT_SYMBOL_GPL(iio_format_value);
 
 static ssize_t iio_read_channel_info(struct device *dev,
 				     struct device_attribute *attr,
@@ -511,6 +512,12 @@ int iio_str_to_fixpoint(const char *str, int fract_mult,
 {
 	int i = 0, f = 0;
 	bool integer_part = true, negative = false;
+
+	if (fract_mult == 0) {
+		*fract = 0;
+
+		return kstrtoint(str, 0, integer);
+	}
 
 	if (str[0] == '-') {
 		negative = true;
@@ -571,6 +578,9 @@ static ssize_t iio_write_channel_info(struct device *dev,
 	if (indio_dev->info->write_raw_get_fmt)
 		switch (indio_dev->info->write_raw_get_fmt(indio_dev,
 			this_attr->c, this_attr->address)) {
+		case IIO_VAL_INT:
+			fract_mult = 0;
+			break;
 		case IIO_VAL_INT_PLUS_MICRO:
 			fract_mult = 100000;
 			break;
@@ -655,7 +665,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 			break;
 		case IIO_SEPARATE:
 			if (!chan->indexed) {
-				WARN_ON("Differential channels must be indexed\n");
+				WARN(1, "Differential channels must be indexed\n");
 				ret = -EINVAL;
 				goto error_free_full_postfix;
 			}

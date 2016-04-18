@@ -5,7 +5,7 @@
  * Copyright 2001 Red Hat, Inc.
  * Based on code from mm/memory.c Copyright Linus Torvalds and others.
  *
- * Copyright 2011 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ * Copyright 2011 Red Hat, Inc., Peter Zijlstra
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

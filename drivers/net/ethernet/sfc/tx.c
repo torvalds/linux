@@ -562,13 +562,19 @@ void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 				     efx->n_tx_channels : 0));
 }
 
-int efx_setup_tc(struct net_device *net_dev, u8 num_tc)
+int efx_setup_tc(struct net_device *net_dev, u32 handle, __be16 proto,
+		 struct tc_to_netdev *ntc)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
-	unsigned tc;
+	unsigned tc, num_tc;
 	int rc;
+
+	if (ntc->type != TC_SETUP_MQPRIO)
+		return -EINVAL;
+
+	num_tc = ntc->tc;
 
 	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0 || num_tc > EFX_MAX_TX_TC)
 		return -EINVAL;
@@ -1010,12 +1016,16 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue,
 
 /* Parse the SKB header and initialise state. */
 static int tso_start(struct tso_state *st, struct efx_nic *efx,
+		     struct efx_tx_queue *tx_queue,
 		     const struct sk_buff *skb)
 {
-	bool use_opt_desc = efx_nic_rev(efx) >= EFX_REV_HUNT_A0;
 	struct device *dma_dev = &efx->pci_dev->dev;
 	unsigned int header_len, in_len;
+	bool use_opt_desc = false;
 	dma_addr_t dma_addr;
+
+	if (tx_queue->tso_version == 1)
+		use_opt_desc = true;
 
 	st->ip_off = skb_network_header(skb) - skb->data;
 	st->tcp_off = skb_transport_header(skb) - skb->data;
@@ -1271,7 +1281,7 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 	/* Find the packet protocol and sanity-check it */
 	state.protocol = efx_tso_check_protocol(skb);
 
-	rc = tso_start(&state, efx, skb);
+	rc = tso_start(&state, efx, tx_queue, skb);
 	if (rc)
 		goto mem_err;
 

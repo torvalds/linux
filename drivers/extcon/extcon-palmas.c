@@ -216,9 +216,21 @@ static int palmas_usb_probe(struct platform_device *pdev)
 		return PTR_ERR(palmas_usb->id_gpiod);
 	}
 
+	palmas_usb->vbus_gpiod = devm_gpiod_get_optional(&pdev->dev, "vbus",
+							GPIOD_IN);
+	if (IS_ERR(palmas_usb->vbus_gpiod)) {
+		dev_err(&pdev->dev, "failed to get vbus gpio\n");
+		return PTR_ERR(palmas_usb->vbus_gpiod);
+	}
+
 	if (palmas_usb->enable_id_detection && palmas_usb->id_gpiod) {
 		palmas_usb->enable_id_detection = false;
 		palmas_usb->enable_gpio_id_detection = true;
+	}
+
+	if (palmas_usb->enable_vbus_detection && palmas_usb->vbus_gpiod) {
+		palmas_usb->enable_vbus_detection = false;
+		palmas_usb->enable_gpio_vbus_detection = true;
 	}
 
 	if (palmas_usb->enable_gpio_id_detection) {
@@ -266,7 +278,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 				palmas_usb->id_irq,
 				NULL, palmas_id_irq_handler,
 				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
-				IRQF_ONESHOT | IRQF_EARLY_RESUME,
+				IRQF_ONESHOT,
 				"palmas_usb_id", palmas_usb);
 		if (status < 0) {
 			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
@@ -304,11 +316,44 @@ static int palmas_usb_probe(struct platform_device *pdev)
 				palmas_usb->vbus_irq, NULL,
 				palmas_vbus_irq_handler,
 				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
-				IRQF_ONESHOT | IRQF_EARLY_RESUME,
+				IRQF_ONESHOT,
 				"palmas_usb_vbus", palmas_usb);
 		if (status < 0) {
 			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 					palmas_usb->vbus_irq, status);
+			return status;
+		}
+	} else if (palmas_usb->enable_gpio_vbus_detection) {
+		/* remux GPIO_1 as VBUSDET */
+		status = palmas_update_bits(palmas,
+			PALMAS_PU_PD_OD_BASE,
+			PALMAS_PRIMARY_SECONDARY_PAD1,
+			PALMAS_PRIMARY_SECONDARY_PAD1_GPIO_1_MASK,
+			(1 << PALMAS_PRIMARY_SECONDARY_PAD1_GPIO_1_SHIFT));
+		if (status < 0) {
+			dev_err(&pdev->dev, "can't remux GPIO1\n");
+			return status;
+		}
+
+		palmas_usb->vbus_otg_irq = regmap_irq_get_virq(palmas->irq_data,
+						       PALMAS_VBUS_OTG_IRQ);
+		palmas_usb->gpio_vbus_irq = gpiod_to_irq(palmas_usb->vbus_gpiod);
+		if (palmas_usb->gpio_vbus_irq < 0) {
+			dev_err(&pdev->dev, "failed to get vbus irq\n");
+			return palmas_usb->gpio_vbus_irq;
+		}
+		status = devm_request_threaded_irq(&pdev->dev,
+						palmas_usb->gpio_vbus_irq,
+						NULL,
+						palmas_vbus_irq_handler,
+						IRQF_TRIGGER_FALLING |
+						IRQF_TRIGGER_RISING |
+						IRQF_ONESHOT,
+						"palmas_usb_vbus",
+						palmas_usb);
+		if (status < 0) {
+			dev_err(&pdev->dev,
+				"failed to request handler for vbus irq\n");
 			return status;
 		}
 	}
@@ -337,6 +382,8 @@ static int palmas_usb_suspend(struct device *dev)
 	if (device_may_wakeup(dev)) {
 		if (palmas_usb->enable_vbus_detection)
 			enable_irq_wake(palmas_usb->vbus_irq);
+		if (palmas_usb->enable_gpio_vbus_detection)
+			enable_irq_wake(palmas_usb->gpio_vbus_irq);
 		if (palmas_usb->enable_id_detection)
 			enable_irq_wake(palmas_usb->id_irq);
 		if (palmas_usb->enable_gpio_id_detection)
@@ -352,6 +399,8 @@ static int palmas_usb_resume(struct device *dev)
 	if (device_may_wakeup(dev)) {
 		if (palmas_usb->enable_vbus_detection)
 			disable_irq_wake(palmas_usb->vbus_irq);
+		if (palmas_usb->enable_gpio_vbus_detection)
+			disable_irq_wake(palmas_usb->gpio_vbus_irq);
 		if (palmas_usb->enable_id_detection)
 			disable_irq_wake(palmas_usb->id_irq);
 		if (palmas_usb->enable_gpio_id_detection)

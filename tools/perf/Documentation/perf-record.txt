@@ -207,11 +207,23 @@ comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-
 In per-thread mode with inheritance mode on (default), samples are captured only when
 the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
+-B::
+--no-buildid::
+Do not save the build ids of binaries in the perf.data files. This skips
+post processing after recording, which sometimes makes the final step in
+the recording process to take a long time, as it needs to process all
+events looking for mmap records. The downside is that it can misresolve
+symbols if the workload binaries used when recording get locally rebuilt
+or upgraded, because the only key available in this case is the
+pathname. You can also set the "record.build-id" config variable to
+'skip to have this behaviour permanently.
+
 -N::
 --no-buildid-cache::
 Do not update the buildid cache. This saves some overhead in situations
 where the information in the perf.data file (which includes buildids)
-is sufficient.
+is sufficient.  You can also set the "record.build-id" config variable to
+'no-cache' to have the same effect.
 
 -G name,...::
 --cgroup name,...::
@@ -314,11 +326,26 @@ This option sets the time out limit. The default value is 500 ms.
 Record context switch events i.e. events of type PERF_RECORD_SWITCH or
 PERF_RECORD_SWITCH_CPU_WIDE.
 
---clang-path::
+--clang-path=PATH::
 Path to clang binary to use for compiling BPF scriptlets.
+(enabled when BPF support is on)
 
---clang-opt::
+--clang-opt=OPTIONS::
 Options passed to clang when compiling BPF scriptlets.
+(enabled when BPF support is on)
+
+--vmlinux=PATH::
+Specify vmlinux path which has debuginfo.
+(enabled when BPF prologue is on)
+
+--buildid-all::
+Record build-id of all DSOs regardless whether it's actually hit or not.
+
+--all-kernel::
+Configure all used events to run in kernel space.
+
+--all-user::
+Configure all used events to run in user space.
 
 SEE ALSO
 --------

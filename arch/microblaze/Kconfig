@@ -19,7 +19,6 @@ config MICROBLAZE
 	select HAVE_ARCH_KGDB
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
-	select HAVE_DMA_ATTRS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -65,9 +64,6 @@ config STACKTRACE_SUPPORT
 	def_bool y
 
 config LOCKDEP_SUPPORT
-	def_bool y
-
-config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
 source "init/Kconfig"
@@ -270,6 +266,9 @@ config PCI
 
 config PCI_DOMAINS
 	def_bool PCI
+
+config PCI_DOMAINS_GENERIC
+	def_bool PCI_DOMAINS
 
 config PCI_SYSCALL
 	def_bool PCI

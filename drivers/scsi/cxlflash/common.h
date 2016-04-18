@@ -34,7 +34,6 @@ extern const struct file_operations cxlflash_cxl_fops;
 								   sectors
 								*/
 
-#define NUM_RRQ_ENTRY    16     /* for master issued cmds */
 #define MAX_RHT_PER_CONTEXT (PAGE_SIZE / sizeof(struct sisl_rht_entry))
 
 /* AFU command retry limit */
@@ -48,8 +47,11 @@ extern const struct file_operations cxlflash_cxl_fops;
 							   index derivation
 							 */
 
-#define CXLFLASH_MAX_CMDS               16
+#define CXLFLASH_MAX_CMDS               256
 #define CXLFLASH_MAX_CMDS_PER_LUN       CXLFLASH_MAX_CMDS
+
+/* RRQ for master issued cmds */
+#define NUM_RRQ_ENTRY                   CXLFLASH_MAX_CMDS
 
 
 static inline void check_sizes(void)
@@ -106,7 +108,6 @@ struct cxlflash_cfg {
 	atomic_t scan_host_needed;
 
 	struct cxl_afu *cxl_afu;
-	struct pci_dev *parent_dev;
 
 	atomic_t recovery_threads;
 	struct mutex ctx_recovery_mutex;
@@ -149,7 +150,7 @@ struct afu_cmd {
 struct afu {
 	/* Stuff requiring alignment go first. */
 
-	u64 rrq_entry[NUM_RRQ_ENTRY];	/* 128B RRQ */
+	u64 rrq_entry[NUM_RRQ_ENTRY];	/* 2K RRQ */
 	/*
 	 * Command & data for AFU commands.
 	 */
@@ -164,6 +165,8 @@ struct afu {
 	struct cxlflash_afu_map __iomem *afu_map;	/* entire MMIO map */
 	struct sisl_host_map __iomem *host_map;		/* MC host map */
 	struct sisl_ctrl_map __iomem *ctrl_map;		/* MC control map */
+
+	struct kref mapcount;
 
 	ctx_hndl_t ctx_hndl;	/* master's context handle */
 	u64 *hrrq_start;

@@ -27,7 +27,6 @@
 
 #include "board.h"
 
-
 static struct fb_videomode lcdc0_mode = {
 	.name		= "AMPIER/AM-800480",
 	.xres		= 800,
@@ -97,7 +96,7 @@ static const struct board_staging_dev armadillo800eva_devices[] __initconst = {
 
 static void __init armadillo800eva_init(void)
 {
-	board_staging_gic_setup_xlate("arm,cortex-a9-gic", 32);
+	board_staging_gic_setup_xlate("arm,pl390", 32);
 	board_staging_register_devices(armadillo800eva_devices,
 				       ARRAY_SIZE(armadillo800eva_devices));
 }

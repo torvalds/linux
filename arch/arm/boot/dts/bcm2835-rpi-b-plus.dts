@@ -1,4 +1,5 @@
 /dts-v1/;
+#include "bcm2835.dtsi"
 #include "bcm2835-rpi.dtsi"
 
 / {

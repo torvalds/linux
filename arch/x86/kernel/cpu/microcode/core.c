@@ -43,15 +43,7 @@
 #define MICROCODE_VERSION	"2.01"
 
 static struct microcode_ops	*microcode_ops;
-
 static bool dis_ucode_ldr;
-
-static int __init disable_loader(char *str)
-{
-	dis_ucode_ldr = true;
-	return 1;
-}
-__setup("dis_ucode_ldr", disable_loader);
 
 /*
  * Synchronization.
@@ -81,15 +73,16 @@ struct cpu_info_ctx {
 
 static bool __init check_loader_disabled_bsp(void)
 {
+	static const char *__dis_opt_str = "dis_ucode_ldr";
+
 #ifdef CONFIG_X86_32
 	const char *cmdline = (const char *)__pa_nodebug(boot_command_line);
-	const char *opt	    = "dis_ucode_ldr";
-	const char *option  = (const char *)__pa_nodebug(opt);
+	const char *option  = (const char *)__pa_nodebug(__dis_opt_str);
 	bool *res = (bool *)__pa_nodebug(&dis_ucode_ldr);
 
 #else /* CONFIG_X86_64 */
 	const char *cmdline = boot_command_line;
-	const char *option  = "dis_ucode_ldr";
+	const char *option  = __dis_opt_str;
 	bool *res = &dis_ucode_ldr;
 #endif
 
@@ -129,8 +122,8 @@ void __init load_ucode_bsp(void)
 	if (!have_cpuid_p())
 		return;
 
-	vendor = x86_vendor();
-	family = x86_family();
+	vendor = x86_cpuid_vendor();
+	family = x86_cpuid_family();
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:
@@ -165,8 +158,8 @@ void load_ucode_ap(void)
 	if (!have_cpuid_p())
 		return;
 
-	vendor = x86_vendor();
-	family = x86_family();
+	vendor = x86_cpuid_vendor();
+	family = x86_cpuid_family();
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:
@@ -206,8 +199,8 @@ void reload_early_microcode(void)
 {
 	int vendor, family;
 
-	vendor = x86_vendor();
-	family = x86_family();
+	vendor = x86_cpuid_vendor();
+	family = x86_cpuid_family();
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:
@@ -479,7 +472,7 @@ static enum ucode_state microcode_init_cpu(int cpu, bool refresh_fw)
 	enum ucode_state ustate;
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
-	if (uci && uci->valid)
+	if (uci->valid)
 		return UCODE_OK;
 
 	if (collect_cpu_info(cpu))
@@ -630,7 +623,7 @@ int __init microcode_init(void)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 	int error;
 
-	if (paravirt_enabled() || dis_ucode_ldr)
+	if (dis_ucode_ldr)
 		return -EINVAL;
 
 	if (c->x86_vendor == X86_VENDOR_INTEL)
@@ -698,3 +691,4 @@ int __init microcode_init(void)
 	return error;
 
 }
+late_initcall(microcode_init);

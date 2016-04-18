@@ -358,11 +358,14 @@ error:
  * and any links to the key will be automatically garbage collected after a
  * certain amount of time (/proc/sys/kernel/keys/gc_delay).
  *
+ * Keys with KEY_FLAG_KEEP set should not be revoked.
+ *
  * If successful, 0 is returned.
  */
 long keyctl_revoke_key(key_serial_t id)
 {
 	key_ref_t key_ref;
+	struct key *key;
 	long ret;
 
 	key_ref = lookup_user_key(id, 0, KEY_NEED_WRITE);
@@ -377,8 +380,12 @@ long keyctl_revoke_key(key_serial_t id)
 		}
 	}
 
-	key_revoke(key_ref_to_ptr(key_ref));
+	key = key_ref_to_ptr(key_ref);
 	ret = 0;
+	if (test_bit(KEY_FLAG_KEEP, &key->flags))
+		ret = -EPERM;
+	else
+		key_revoke(key);
 
 	key_ref_put(key_ref);
 error:
@@ -392,11 +399,14 @@ error:
  * The key and any links to the key will be automatically garbage collected
  * immediately.
  *
+ * Keys with KEY_FLAG_KEEP set should not be invalidated.
+ *
  * If successful, 0 is returned.
  */
 long keyctl_invalidate_key(key_serial_t id)
 {
 	key_ref_t key_ref;
+	struct key *key;
 	long ret;
 
 	kenter("%d", id);
@@ -420,8 +430,12 @@ long keyctl_invalidate_key(key_serial_t id)
 	}
 
 invalidate:
-	key_invalidate(key_ref_to_ptr(key_ref));
+	key = key_ref_to_ptr(key_ref);
 	ret = 0;
+	if (test_bit(KEY_FLAG_KEEP, &key->flags))
+		ret = -EPERM;
+	else
+		key_invalidate(key);
 error_put:
 	key_ref_put(key_ref);
 error:
@@ -433,12 +447,13 @@ error:
  * Clear the specified keyring, creating an empty process keyring if one of the
  * special keyring IDs is used.
  *
- * The keyring must grant the caller Write permission for this to work.  If
- * successful, 0 will be returned.
+ * The keyring must grant the caller Write permission and not have
+ * KEY_FLAG_KEEP set for this to work.  If successful, 0 will be returned.
  */
 long keyctl_keyring_clear(key_serial_t ringid)
 {
 	key_ref_t keyring_ref;
+	struct key *keyring;
 	long ret;
 
 	keyring_ref = lookup_user_key(ringid, KEY_LOOKUP_CREATE, KEY_NEED_WRITE);
@@ -460,7 +475,11 @@ long keyctl_keyring_clear(key_serial_t ringid)
 	}
 
 clear:
-	ret = keyring_clear(key_ref_to_ptr(keyring_ref));
+	keyring = key_ref_to_ptr(keyring_ref);
+	if (test_bit(KEY_FLAG_KEEP, &keyring->flags))
+		ret = -EPERM;
+	else
+		ret = keyring_clear(keyring);
 error_put:
 	key_ref_put(keyring_ref);
 error:
@@ -511,11 +530,14 @@ error:
  * itself need not grant the caller anything.  If the last link to a key is
  * removed then that key will be scheduled for destruction.
  *
+ * Keys or keyrings with KEY_FLAG_KEEP set should not be unlinked.
+ *
  * If successful, 0 will be returned.
  */
 long keyctl_keyring_unlink(key_serial_t id, key_serial_t ringid)
 {
 	key_ref_t keyring_ref, key_ref;
+	struct key *keyring, *key;
 	long ret;
 
 	keyring_ref = lookup_user_key(ringid, 0, KEY_NEED_WRITE);
@@ -530,7 +552,13 @@ long keyctl_keyring_unlink(key_serial_t id, key_serial_t ringid)
 		goto error2;
 	}
 
-	ret = key_unlink(key_ref_to_ptr(keyring_ref), key_ref_to_ptr(key_ref));
+	keyring = key_ref_to_ptr(keyring_ref);
+	key = key_ref_to_ptr(key_ref);
+	if (test_bit(KEY_FLAG_KEEP, &keyring->flags) &&
+	    test_bit(KEY_FLAG_KEEP, &key->flags))
+		ret = -EPERM;
+	else
+		ret = key_unlink(keyring, key);
 
 	key_ref_put(key_ref);
 error2:
@@ -751,16 +779,16 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 
 	/* the key is probably readable - now try to read it */
 can_read_key:
-	ret = key_validate(key);
-	if (ret == 0) {
-		ret = -EOPNOTSUPP;
-		if (key->type->read) {
-			/* read the data with the semaphore held (since we
-			 * might sleep) */
-			down_read(&key->sem);
+	ret = -EOPNOTSUPP;
+	if (key->type->read) {
+		/* Read the data with the semaphore held (since we might sleep)
+		 * to protect against the key being updated or revoked.
+		 */
+		down_read(&key->sem);
+		ret = key_validate(key);
+		if (ret == 0)
 			ret = key->type->read(key, buffer, buflen);
-			up_read(&key->sem);
-		}
+		up_read(&key->sem);
 	}
 
 error2:
@@ -1289,6 +1317,8 @@ error:
  * the current time.  The key and any links to the key will be automatically
  * garbage collected after the timeout expires.
  *
+ * Keys with KEY_FLAG_KEEP set should not be timed out.
+ *
  * If successful, 0 is returned.
  */
 long keyctl_set_timeout(key_serial_t id, unsigned timeout)
@@ -1320,10 +1350,13 @@ long keyctl_set_timeout(key_serial_t id, unsigned timeout)
 
 okay:
 	key = key_ref_to_ptr(key_ref);
-	key_set_timeout(key, timeout);
+	ret = 0;
+	if (test_bit(KEY_FLAG_KEEP, &key->flags))
+		ret = -EPERM;
+	else
+		key_set_timeout(key, timeout);
 	key_put(key);
 
-	ret = 0;
 error:
 	return ret;
 }

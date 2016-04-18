@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -113,7 +113,7 @@ static void osc_object_free(const struct lu_env *env, struct lu_object *obj)
 	LASSERT(list_empty(&osc->oo_write_item));
 	LASSERT(list_empty(&osc->oo_read_item));
 
-	LASSERT(osc->oo_root.rb_node == NULL);
+	LASSERT(!osc->oo_root.rb_node);
 	LASSERT(list_empty(&osc->oo_hp_exts));
 	LASSERT(list_empty(&osc->oo_urgent_exts));
 	LASSERT(list_empty(&osc->oo_rpc_exts));
@@ -158,8 +158,8 @@ static int osc_attr_get(const struct lu_env *env, struct cl_object *obj,
 	return 0;
 }
 
-int osc_attr_set(const struct lu_env *env, struct cl_object *obj,
-		 const struct cl_attr *attr, unsigned valid)
+static int osc_attr_set(const struct lu_env *env, struct cl_object *obj,
+			const struct cl_attr *attr, unsigned valid)
 {
 	struct lov_oinfo *oinfo = cl2osc(obj)->oo_oinfo;
 	struct ost_lvb *lvb = &oinfo->loi_lvb;
@@ -255,8 +255,8 @@ struct lu_object *osc_object_alloc(const struct lu_env *env,
 	struct osc_object *osc;
 	struct lu_object *obj;
 
-	osc = kmem_cache_alloc(osc_object_kmem, GFP_NOFS | __GFP_ZERO);
-	if (osc != NULL) {
+	osc = kmem_cache_zalloc(osc_object_kmem, GFP_NOFS);
+	if (osc) {
 		obj = osc2lu(osc);
 		lu_object_init(obj, NULL, dev);
 		osc->oo_cl.co_ops = &osc_ops;

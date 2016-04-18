@@ -21,16 +21,34 @@ extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
 /* #define pgd_populate(mm, pmd, pte)      BUG() */
 
 #ifndef CONFIG_BOOKE
-#define pmd_populate_kernel(mm, pmd, pte)	\
-		(pmd_val(*(pmd)) = __pa(pte) | _PMD_PRESENT)
-#define pmd_populate(mm, pmd, pte)	\
-		(pmd_val(*(pmd)) = (page_to_pfn(pte) << PAGE_SHIFT) | _PMD_PRESENT)
+
+static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp,
+				       pte_t *pte)
+{
+	*pmdp = __pmd(__pa(pte) | _PMD_PRESENT);
+}
+
+static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmdp,
+				pgtable_t pte_page)
+{
+	*pmdp = __pmd((page_to_pfn(pte_page) << PAGE_SHIFT) | _PMD_PRESENT);
+}
+
 #define pmd_pgtable(pmd) pmd_page(pmd)
 #else
-#define pmd_populate_kernel(mm, pmd, pte)	\
-		(pmd_val(*(pmd)) = (unsigned long)pte | _PMD_PRESENT)
-#define pmd_populate(mm, pmd, pte)	\
-		(pmd_val(*(pmd)) = (unsigned long)lowmem_page_address(pte) | _PMD_PRESENT)
+
+static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp,
+				       pte_t *pte)
+{
+	*pmdp = __pmd((unsigned long)pte | _PMD_PRESENT);
+}
+
+static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmdp,
+				pgtable_t pte_page)
+{
+	*pmdp = __pmd((unsigned long)lowmem_page_address(pte_page) | _PMD_PRESENT);
+}
+
 #define pmd_pgtable(pmd) pmd_page(pmd)
 #endif
 

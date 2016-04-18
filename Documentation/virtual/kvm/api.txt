@@ -1451,6 +1451,7 @@ struct kvm_irq_routing_entry {
 		struct kvm_irq_routing_irqchip irqchip;
 		struct kvm_irq_routing_msi msi;
 		struct kvm_irq_routing_s390_adapter adapter;
+		struct kvm_irq_routing_hv_sint hv_sint;
 		__u32 pad[8];
 	} u;
 };
@@ -1459,6 +1460,7 @@ struct kvm_irq_routing_entry {
 #define KVM_IRQ_ROUTING_IRQCHIP 1
 #define KVM_IRQ_ROUTING_MSI 2
 #define KVM_IRQ_ROUTING_S390_ADAPTER 3
+#define KVM_IRQ_ROUTING_HV_SINT 4
 
 No flags are specified so far, the corresponding field must be set to zero.
 
@@ -1482,6 +1484,10 @@ struct kvm_irq_routing_s390_adapter {
 	__u32 adapter_id;
 };
 
+struct kvm_irq_routing_hv_sint {
+	__u32 vcpu;
+	__u32 sint;
+};
 
 4.53 KVM_ASSIGN_SET_MSIX_NR (deprecated)
 
@@ -2501,8 +2507,9 @@ struct kvm_create_device {
 
 4.80 KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR
 
-Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device
-Type: device ioctl, vm ioctl
+Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
+  KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+Type: device ioctl, vm ioctl, vcpu ioctl
 Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
@@ -2527,8 +2534,9 @@ struct kvm_device_attr {
 
 4.81 KVM_HAS_DEVICE_ATTR
 
-Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device
-Type: device ioctl, vm ioctl
+Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
+  KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+Type: device ioctl, vm ioctl, vcpu ioctl
 Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
@@ -2571,6 +2579,8 @@ Possible features:
 	  Depends on KVM_CAP_ARM_EL1_32BIT (arm64 only).
 	- KVM_ARM_VCPU_PSCI_0_2: Emulate PSCI v0.2 for the CPU.
 	  Depends on KVM_CAP_ARM_PSCI_0_2.
+	- KVM_ARM_VCPU_PMU_V3: Emulate PMUv3 for the CPU.
+	  Depends on KVM_CAP_ARM_PMU_V3.
 
 
 4.83 KVM_ARM_PREFERRED_TARGET
@@ -3019,7 +3029,7 @@ len must be a multiple of sizeof(struct kvm_s390_irq). It must be > 0
 and it must not exceed (max_vcpus + 32) * sizeof(struct kvm_s390_irq),
 which is the maximum number of possibly pending cpu-local interrupts.
 
-4.90 KVM_SMI
+4.96 KVM_SMI
 
 Capability: KVM_CAP_X86_SMM
 Architectures: x86
@@ -3028,6 +3038,87 @@ Parameters: none
 Returns: 0 on success, -1 on error
 
 Queues an SMI on the thread's vcpu.
+
+4.97 KVM_CAP_PPC_MULTITCE
+
+Capability: KVM_CAP_PPC_MULTITCE
+Architectures: ppc
+Type: vm
+
+This capability means the kernel is capable of handling hypercalls
+H_PUT_TCE_INDIRECT and H_STUFF_TCE without passing those into the user
+space. This significantly accelerates DMA operations for PPC KVM guests.
+User space should expect that its handlers for these hypercalls
+are not going to be called if user space previously registered LIOBN
+in KVM (via KVM_CREATE_SPAPR_TCE or similar calls).
+
+In order to enable H_PUT_TCE_INDIRECT and H_STUFF_TCE use in the guest,
+user space might have to advertise it for the guest. For example,
+IBM pSeries (sPAPR) guest starts using them if "hcall-multi-tce" is
+present in the "ibm,hypertas-functions" device-tree property.
+
+The hypercalls mentioned above may or may not be processed successfully
+in the kernel based fast path. If they can not be handled by the kernel,
+they will get passed on to user space. So user space still has to have
+an implementation for these despite the in kernel acceleration.
+
+This capability is always enabled.
+
+4.98 KVM_CREATE_SPAPR_TCE_64
+
+Capability: KVM_CAP_SPAPR_TCE_64
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_create_spapr_tce_64 (in)
+Returns: file descriptor for manipulating the created TCE table
+
+This is an extension for KVM_CAP_SPAPR_TCE which only supports 32bit
+windows, described in 4.62 KVM_CREATE_SPAPR_TCE
+
+This capability uses extended struct in ioctl interface:
+
+/* for KVM_CAP_SPAPR_TCE_64 */
+struct kvm_create_spapr_tce_64 {
+	__u64 liobn;
+	__u32 page_shift;
+	__u32 flags;
+	__u64 offset;	/* in pages */
+	__u64 size; 	/* in pages */
+};
+
+The aim of extension is to support an additional bigger DMA window with
+a variable page size.
+KVM_CREATE_SPAPR_TCE_64 receives a 64bit window size, an IOMMU page shift and
+a bus offset of the corresponding DMA window, @size and @offset are numbers
+of IOMMU pages.
+
+@flags are not used at the moment.
+
+The rest of functionality is identical to KVM_CREATE_SPAPR_TCE.
+
+4.98 KVM_REINJECT_CONTROL
+
+Capability: KVM_CAP_REINJECT_CONTROL
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_reinject_control (in)
+Returns: 0 on success,
+         -EFAULT if struct kvm_reinject_control cannot be read,
+         -ENXIO if KVM_CREATE_PIT or KVM_CREATE_PIT2 didn't succeed earlier.
+
+i8254 (PIT) has two modes, reinject and !reinject.  The default is reinject,
+where KVM queues elapsed i8254 ticks and monitors completion of interrupt from
+vector(s) that i8254 injects.  Reinject mode dequeues a tick and injects its
+interrupt whenever there isn't a pending interrupt from i8254.
+!reinject mode injects an interrupt as soon as a tick arrives.
+
+struct kvm_reinject_control {
+	__u8 pit_reinject;
+	__u8 reserved[31];
+};
+
+pit_reinject = 0 (!reinject mode) is recommended, unless running an old
+operating system that uses the PIT for timing (e.g. Linux 2.4.x).
 
 5. The kvm_run structure
 ------------------------
@@ -3330,6 +3421,34 @@ IOAPIC is implemented in userspace (i.e. KVM_CAP_SPLIT_IRQCHIP is enabled);
 the userspace IOAPIC should process the EOI and retrigger the interrupt if
 it is still asserted.  Vector is the LAPIC interrupt vector for which the
 EOI was received.
+
+		struct kvm_hyperv_exit {
+#define KVM_EXIT_HYPERV_SYNIC          1
+#define KVM_EXIT_HYPERV_HCALL          2
+			__u32 type;
+			union {
+				struct {
+					__u32 msr;
+					__u64 control;
+					__u64 evt_page;
+					__u64 msg_page;
+				} synic;
+				struct {
+					__u64 input;
+					__u64 result;
+					__u64 params[2];
+				} hcall;
+			} u;
+		};
+		/* KVM_EXIT_HYPERV */
+                struct kvm_hyperv_exit hyperv;
+Indicates that the VCPU exits into userspace to process some tasks
+related to Hyper-V emulation.
+Valid values for 'type' are:
+	KVM_EXIT_HYPERV_SYNIC -- synchronously notify user-space about
+Hyper-V SynIC state change. Notification is used to remap SynIC
+event/message pages and to enable/disable SynIC messages/events processing
+in userspace.
 
 		/* Fix the size of the union. */
 		char padding[256];
@@ -3685,3 +3804,16 @@ available, means that that the kernel has an implementation of the
 H_RANDOM hypercall backed by a hardware random-number generator.
 If present, the kernel H_RANDOM handler can be enabled for guest use
 with the KVM_CAP_PPC_ENABLE_HCALL capability.
+
+8.2 KVM_CAP_HYPERV_SYNIC
+
+Architectures: x86
+This capability, if KVM_CHECK_EXTENSION indicates that it is
+available, means that that the kernel has an implementation of the
+Hyper-V Synthetic interrupt controller(SynIC). Hyper-V SynIC is
+used to support Windows Hyper-V based guest paravirt drivers(VMBus).
+
+In order to use SynIC, it has to be activated by setting this
+capability via KVM_ENABLE_CAP ioctl on the vcpu fd. Note that this
+will disable the use of APIC hardware virtualization even if supported
+by the CPU, as it's incompatible with SynIC auto-EOI behavior.

@@ -230,6 +230,12 @@ Default is to monitor all CPUS.
 	The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
 	Note that this feature may not be available on all processors.
 
+--raw-trace::
+	When displaying traceevent output, do not use print fmt or plugins.
+
+--hierarchy::
+	Enable hierarchy output.
+
 INTERACTIVE PROMPTING KEYS
 --------------------------
 

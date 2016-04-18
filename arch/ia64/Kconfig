@@ -25,7 +25,6 @@ config IA64
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE if (!ITANIUM)
 	select HAVE_FUNCTION_TRACER
-	select HAVE_DMA_ATTRS
 	select TTY
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
@@ -575,11 +574,7 @@ config PCI_DOMAINS
 config PCI_SYSCALL
 	def_bool PCI
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
 

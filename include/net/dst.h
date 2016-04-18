@@ -322,6 +322,39 @@ static inline void skb_dst_force(struct sk_buff *skb)
 	}
 }
 
+/**
+ * dst_hold_safe - Take a reference on a dst if possible
+ * @dst: pointer to dst entry
+ *
+ * This helper returns false if it could not safely
+ * take a reference on a dst.
+ */
+static inline bool dst_hold_safe(struct dst_entry *dst)
+{
+	if (dst->flags & DST_NOCACHE)
+		return atomic_inc_not_zero(&dst->__refcnt);
+	dst_hold(dst);
+	return true;
+}
+
+/**
+ * skb_dst_force_safe - makes sure skb dst is refcounted
+ * @skb: buffer
+ *
+ * If dst is not yet refcounted and not destroyed, grab a ref on it.
+ */
+static inline void skb_dst_force_safe(struct sk_buff *skb)
+{
+	if (skb_dst_is_noref(skb)) {
+		struct dst_entry *dst = skb_dst(skb);
+
+		if (!dst_hold_safe(dst))
+			dst = NULL;
+
+		skb->_skb_refdst = (unsigned long)dst;
+	}
+}
+
 
 /**
  *	__skb_tunnel_rx - prepare skb for rx reinsert
@@ -363,6 +396,18 @@ static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
 	__skb_tunnel_rx(skb, dev, net);
+}
+
+static inline u32 dst_tclassid(const struct sk_buff *skb)
+{
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	const struct dst_entry *dst;
+
+	dst = skb_dst(skb);
+	if (dst)
+		return dst->tclassid;
+#endif
+	return 0;
 }
 
 int dst_discard_out(struct net *net, struct sock *sk, struct sk_buff *skb);

@@ -66,7 +66,6 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/delay.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -98,7 +97,6 @@
 
 #define NCR5380_queue_command           atari_scsi_queue_command
 #define NCR5380_abort                   atari_scsi_abort
-#define NCR5380_show_info               atari_scsi_show_info
 #define NCR5380_info                    atari_scsi_info
 
 #define NCR5380_dma_read_setup(instance, data, count) \
@@ -161,23 +159,10 @@ static inline unsigned long SCSI_DMA_GETADR(void)
 	return adr;
 }
 
-#define HOSTDATA_DMALEN		(((struct NCR5380_hostdata *) \
-				(atari_scsi_host->hostdata))->dma_len)
-
-/* Time (in jiffies) to wait after a reset; the SCSI standard calls for 250ms,
- * we usually do 0.5s to be on the safe side. But Toshiba CD-ROMs once more
- * need ten times the standard value... */
-#ifndef CONFIG_ATARI_SCSI_TOSHIBA_DELAY
-#define	AFTER_RESET_DELAY	(HZ/2)
-#else
-#define	AFTER_RESET_DELAY	(5*HZ/2)
-#endif
-
 #ifdef REAL_DMA
 static void atari_scsi_fetch_restbytes(void);
 #endif
 
-static struct Scsi_Host *atari_scsi_host;
 static unsigned char (*atari_scsi_reg_read)(unsigned char reg);
 static void (*atari_scsi_reg_write)(unsigned char reg, unsigned char value);
 
@@ -208,12 +193,12 @@ static int setup_cmd_per_lun = -1;
 module_param(setup_cmd_per_lun, int, 0);
 static int setup_sg_tablesize = -1;
 module_param(setup_sg_tablesize, int, 0);
-#ifdef SUPPORT_TAGS
 static int setup_use_tagged_queuing = -1;
 module_param(setup_use_tagged_queuing, int, 0);
-#endif
 static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
+static int setup_toshiba_delay = -1;
+module_param(setup_toshiba_delay, int, 0);
 
 
 #if defined(REAL_DMA)
@@ -273,15 +258,17 @@ static void scsi_dma_buserr(int irq, void *dummy)
 #endif
 
 
-static irqreturn_t scsi_tt_intr(int irq, void *dummy)
+static irqreturn_t scsi_tt_intr(int irq, void *dev)
 {
 #ifdef REAL_DMA
+	struct Scsi_Host *instance = dev;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int dma_stat;
 
 	dma_stat = tt_scsi_dma.dma_ctrl;
 
-	dprintk(NDEBUG_INTR, "scsi%d: NCR5380 interrupt, DMA status = %02x\n",
-		   atari_scsi_host->host_no, dma_stat & 0xff);
+	dsprintk(NDEBUG_INTR, instance, "NCR5380 interrupt, DMA status = %02x\n",
+	         dma_stat & 0xff);
 
 	/* Look if it was the DMA that has interrupted: First possibility
 	 * is that a bus error occurred...
@@ -304,7 +291,8 @@ static irqreturn_t scsi_tt_intr(int irq, void *dummy)
 	 * data reg!
 	 */
 	if ((dma_stat & 0x02) && !(dma_stat & 0x40)) {
-		atari_dma_residual = HOSTDATA_DMALEN - (SCSI_DMA_READ_P(dma_addr) - atari_dma_startaddr);
+		atari_dma_residual = hostdata->dma_len -
+			(SCSI_DMA_READ_P(dma_addr) - atari_dma_startaddr);
 
 		dprintk(NDEBUG_DMA, "SCSI DMA: There are %ld residual bytes.\n",
 			   atari_dma_residual);
@@ -356,15 +344,17 @@ static irqreturn_t scsi_tt_intr(int irq, void *dummy)
 
 #endif /* REAL_DMA */
 
-	NCR5380_intr(irq, dummy);
+	NCR5380_intr(irq, dev);
 
 	return IRQ_HANDLED;
 }
 
 
-static irqreturn_t scsi_falcon_intr(int irq, void *dummy)
+static irqreturn_t scsi_falcon_intr(int irq, void *dev)
 {
 #ifdef REAL_DMA
+	struct Scsi_Host *instance = dev;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int dma_stat;
 
 	/* Turn off DMA and select sector counter register before
@@ -399,7 +389,7 @@ static irqreturn_t scsi_falcon_intr(int irq, void *dummy)
 			printk(KERN_ERR "SCSI DMA error: %ld bytes lost in "
 			       "ST-DMA fifo\n", transferred & 15);
 
-		atari_dma_residual = HOSTDATA_DMALEN - transferred;
+		atari_dma_residual = hostdata->dma_len - transferred;
 		dprintk(NDEBUG_DMA, "SCSI DMA: There are %ld residual bytes.\n",
 			   atari_dma_residual);
 	} else
@@ -411,13 +401,14 @@ static irqreturn_t scsi_falcon_intr(int irq, void *dummy)
 		 * data to the original destination address.
 		 */
 		memcpy(atari_dma_orig_addr, phys_to_virt(atari_dma_startaddr),
-		       HOSTDATA_DMALEN - atari_dma_residual);
+		       hostdata->dma_len - atari_dma_residual);
 		atari_dma_orig_addr = NULL;
 	}
 
 #endif /* REAL_DMA */
 
-	NCR5380_intr(irq, dummy);
+	NCR5380_intr(irq, dev);
+
 	return IRQ_HANDLED;
 }
 
@@ -488,7 +479,7 @@ static int __init atari_scsi_setup(char *str)
 	 * Defaults depend on TT or Falcon, determined at run time.
 	 * Negative values mean don't change.
 	 */
-	int ints[6];
+	int ints[8];
 
 	get_options(str, ARRAY_SIZE(ints), ints);
 
@@ -504,10 +495,11 @@ static int __init atari_scsi_setup(char *str)
 		setup_sg_tablesize = ints[3];
 	if (ints[0] >= 4)
 		setup_hostid = ints[4];
-#ifdef SUPPORT_TAGS
 	if (ints[0] >= 5)
 		setup_use_tagged_queuing = ints[5];
-#endif
+	/* ints[6] (use_pdma) is ignored */
+	if (ints[0] >= 7)
+		setup_toshiba_delay = ints[7];
 
 	return 1;
 }
@@ -515,38 +507,6 @@ static int __init atari_scsi_setup(char *str)
 __setup("atascsi=", atari_scsi_setup);
 #endif /* !MODULE */
 
-
-#ifdef CONFIG_ATARI_SCSI_RESET_BOOT
-static void __init atari_scsi_reset_boot(void)
-{
-	unsigned long end;
-
-	/*
-	 * Do a SCSI reset to clean up the bus during initialization. No messing
-	 * with the queues, interrupts, or locks necessary here.
-	 */
-
-	printk("Atari SCSI: resetting the SCSI bus...");
-
-	/* get in phase */
-	NCR5380_write(TARGET_COMMAND_REG,
-		      PHASE_SR_TO_TCR(NCR5380_read(STATUS_REG)));
-
-	/* assert RST */
-	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_RST);
-	/* The min. reset hold time is 25us, so 40us should be enough */
-	udelay(50);
-	/* reset RST and interrupt */
-	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
-
-	end = jiffies + AFTER_RESET_DELAY;
-	while (time_before(jiffies, end))
-		barrier();
-
-	printk(" done\n");
-}
-#endif
 
 #if defined(REAL_DMA)
 
@@ -815,14 +775,14 @@ static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
 static struct scsi_host_template atari_scsi_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= DRV_MODULE_NAME,
-	.show_info		= atari_scsi_show_info,
 	.name			= "Atari native SCSI",
 	.info			= atari_scsi_info,
 	.queuecommand		= atari_scsi_queue_command,
 	.eh_abort_handler	= atari_scsi_abort,
 	.eh_bus_reset_handler	= atari_scsi_bus_reset,
 	.this_id		= 7,
-	.use_clustering		= DISABLE_CLUSTERING
+	.use_clustering		= DISABLE_CLUSTERING,
+	.cmd_size		= NCR5380_CMD_SIZE,
 };
 
 static int __init atari_scsi_probe(struct platform_device *pdev)
@@ -880,7 +840,7 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 	} else {
 		/* Test if a host id is set in the NVRam */
 		if (ATARIHW_PRESENT(TT_CLK) && nvram_check_checksum()) {
-			unsigned char b = nvram_read_byte(14);
+			unsigned char b = nvram_read_byte(16);
 
 			/* Arbitration enabled? (for TOS)
 			 * If yes, use configured host ID
@@ -915,21 +875,18 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 		error = -ENOMEM;
 		goto fail_alloc;
 	}
-	atari_scsi_host = instance;
-
-#ifdef CONFIG_ATARI_SCSI_RESET_BOOT
-	atari_scsi_reset_boot();
-#endif
 
 	instance->irq = irq->start;
 
 	host_flags |= IS_A_TT() ? 0 : FLAG_LATE_DMA_SETUP;
-
 #ifdef SUPPORT_TAGS
 	host_flags |= setup_use_tagged_queuing > 0 ? FLAG_TAGGED_QUEUING : 0;
 #endif
+	host_flags |= setup_toshiba_delay > 0 ? FLAG_TOSHIBA_DELAY : 0;
 
-	NCR5380_init(instance, host_flags);
+	error = NCR5380_init(instance, host_flags);
+	if (error)
+		goto fail_init;
 
 	if (IS_A_TT()) {
 		error = request_irq(instance->irq, scsi_tt_intr, 0,
@@ -975,6 +932,8 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 #endif
 	}
 
+	NCR5380_maybe_reset_bus(instance);
+
 	error = scsi_add_host(instance, NULL);
 	if (error)
 		goto fail_host;
@@ -989,6 +948,7 @@ fail_host:
 		free_irq(instance->irq, instance);
 fail_irq:
 	NCR5380_exit(instance);
+fail_init:
 	scsi_host_put(instance);
 fail_alloc:
 	if (atari_dma_buffer)

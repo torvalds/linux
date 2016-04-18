@@ -4,11 +4,12 @@
 menuconfig CORESIGHT
 	bool "CoreSight Tracing Support"
 	select ARM_AMBA
+	select PERF_EVENTS
 	help
 	  This framework provides a kernel interface for the CoreSight debug
 	  and trace drivers to register themselves with. It's intended to build
 	  a topological view of the CoreSight components based on a DT
-	  specification and configure the right serie of components when a
+	  specification and configure the right series of components when a
 	  trace source gets enabled.
 
 if CORESIGHT

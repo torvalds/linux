@@ -16,7 +16,6 @@ obj-$(CONFIG_TN3215) += con3215.o
 obj-$(CONFIG_SCLP_TTY) += sclp_tty.o
 obj-$(CONFIG_SCLP_CONSOLE) += sclp_con.o
 obj-$(CONFIG_SCLP_VT220_TTY) += sclp_vt220.o
-obj-$(CONFIG_SCLP_CPI) += sclp_cpi.o
 obj-$(CONFIG_SCLP_ASYNC) += sclp_async.o
 
 obj-$(CONFIG_VMLOGRDR) += vmlogrdr.o
@@ -30,9 +29,7 @@ obj-$(CONFIG_S390_TAPE_3590) += tape_3590.o
 obj-$(CONFIG_MONREADER) += monreader.o
 obj-$(CONFIG_MONWRITER) += monwriter.o
 obj-$(CONFIG_S390_VMUR) += vmur.o
-
-zcore_mod-objs := sclp_sdias.o zcore.o
-obj-$(CONFIG_CRASH_DUMP) += zcore_mod.o
+obj-$(CONFIG_CRASH_DUMP) += sclp_sdias.o zcore.o
 
 hmcdrv-objs := hmcdrv_mod.o hmcdrv_dev.o hmcdrv_ftp.o hmcdrv_cache.o diag_ftp.o sclp_ftp.o
 obj-$(CONFIG_HMC_DRV) += hmcdrv.o

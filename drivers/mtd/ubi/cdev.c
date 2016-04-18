@@ -174,9 +174,9 @@ static int vol_cdev_fsync(struct file *file, loff_t start, loff_t end,
 	struct ubi_device *ubi = desc->vol->ubi;
 	struct inode *inode = file_inode(file);
 	int err;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	err = ubi_sync(ubi->ubi_num);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return err;
 }
 
@@ -949,7 +949,7 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 		if (!req) {
 			err = -ENOMEM;
 			break;
-		};
+		}
 
 		err = copy_from_user(req, argp, sizeof(struct ubi_rnvol_req));
 		if (err) {

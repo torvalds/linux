@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -56,7 +56,6 @@ static int ptl_send_buf(lnet_handle_md_t *mdh, void *base, int len,
 	lnet_md_t md;
 
 	LASSERT(portal != 0);
-	LASSERT(conn != NULL);
 	CDEBUG(D_INFO, "conn=%p id %s\n", conn, libcfs_id2str(conn->c_peer));
 	md.start = base;
 	md.length = len;
@@ -88,7 +87,8 @@ static int ptl_send_buf(lnet_handle_md_t *mdh, void *base, int len,
 		int rc2;
 		/* We're going to get an UNLINK event when I unlink below,
 		 * which will complete just like any other failed send, so
-		 * I fall through and return success here! */
+		 * I fall through and return success here!
+		 */
 		CERROR("LNetPut(%s, %d, %lld) failed: %d\n",
 		       libcfs_id2str(conn->c_peer), portal, xid, rc);
 		rc2 = LNetMDUnlink(*mdh);
@@ -130,7 +130,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	LASSERT(desc->bd_md_count == 0);
 	LASSERT(desc->bd_md_max_brw <= PTLRPC_BULK_OPS_COUNT);
 	LASSERT(desc->bd_iov_count <= PTLRPC_MAX_BRW_PAGES);
-	LASSERT(desc->bd_req != NULL);
+	LASSERT(desc->bd_req);
 	LASSERT(desc->bd_type == BULK_PUT_SINK ||
 		desc->bd_type == BULK_GET_SOURCE);
 
@@ -153,7 +153,8 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	 * using the same RDMA match bits after an error.
 	 *
 	 * For multi-bulk RPCs, rq_xid is the last XID needed for bulks. The
-	 * first bulk XID is power-of-two aligned before rq_xid. LU-1431 */
+	 * first bulk XID is power-of-two aligned before rq_xid. LU-1431
+	 */
 	xid = req->rq_xid & ~((__u64)desc->bd_md_max_brw - 1);
 	LASSERTF(!(desc->bd_registered &&
 		   req->rq_send_state != LUSTRE_IMP_REPLAY) ||
@@ -209,7 +210,8 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	}
 
 	/* Set rq_xid to matchbits of the final bulk so that server can
-	 * infer the number of bulks that were prepared */
+	 * infer the number of bulks that were prepared
+	 */
 	req->rq_xid = --xid;
 	LASSERTF(desc->bd_last_xid == (req->rq_xid & PTLRPC_BULK_OPS_MASK),
 		 "bd_last_xid = x%llu, rq_xid = x%llu\n",
@@ -260,7 +262,8 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 	/* the unlink ensures the callback happens ASAP and is the last
 	 * one.  If it fails, it must be because completion just happened,
 	 * but we must still l_wait_event() in this case to give liblustre
-	 * a chance to run client_bulk_callback() */
+	 * a chance to run client_bulk_callback()
+	 */
 	mdunlink_iterate_helper(desc->bd_mds, desc->bd_md_max_brw);
 
 	if (ptlrpc_client_bulk_active(req) == 0)	/* completed or */
@@ -273,14 +276,15 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 	if (async)
 		return 0;
 
-	if (req->rq_set != NULL)
+	if (req->rq_set)
 		wq = &req->rq_set->set_waitq;
 	else
 		wq = &req->rq_reply_waitq;
 
 	for (;;) {
 		/* Network access will complete in finite time but the HUGE
-		 * timeout lets us CWARN for visibility of sluggish NALs */
+		 * timeout lets us CWARN for visibility of sluggish LNDs
+		 */
 		lwi = LWI_TIMEOUT_INTERVAL(cfs_time_seconds(LONG_UNLINK),
 					   cfs_time_seconds(1), NULL, NULL);
 		rc = l_wait_event(*wq, !ptlrpc_client_bulk_active(req), &lwi);
@@ -305,13 +309,13 @@ static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 				 req->rq_arrival_time.tv_sec, 1);
 
 	if (!(flags & PTLRPC_REPLY_EARLY) &&
-	    (req->rq_type != PTL_RPC_MSG_ERR) &&
-	    (req->rq_reqmsg != NULL) &&
+	    (req->rq_type != PTL_RPC_MSG_ERR) && req->rq_reqmsg &&
 	    !(lustre_msg_get_flags(req->rq_reqmsg) &
 	      (MSG_RESENT | MSG_REPLAY |
 	       MSG_REQ_REPLAY_DONE | MSG_LOCK_REPLAY_DONE))) {
 		/* early replies, errors and recovery requests don't count
-		 * toward our service time estimate */
+		 * toward our service time estimate
+		 */
 		int oldse = at_measured(&svcpt->scp_at_estimate, service_time);
 
 		if (oldse != 0) {
@@ -325,7 +329,8 @@ static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 	lustre_msg_set_service_time(req->rq_repmsg, service_time);
 	/* Report service time estimate for future client reqs, but report 0
 	 * (to be ignored by client) if it's a error reply during recovery.
-	 * (bz15815) */
+	 * (bz15815)
+	 */
 	if (req->rq_type == PTL_RPC_MSG_ERR && !req->rq_export)
 		lustre_msg_set_timeout(req->rq_repmsg, 0);
 	else
@@ -360,10 +365,10 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 	 * target_queue_final_reply().
 	 */
 	LASSERT(req->rq_no_reply == 0);
-	LASSERT(req->rq_reqbuf != NULL);
-	LASSERT(rs != NULL);
+	LASSERT(req->rq_reqbuf);
+	LASSERT(rs);
 	LASSERT((flags & PTLRPC_REPLY_MAYBE_DIFFICULT) || !rs->rs_difficult);
-	LASSERT(req->rq_repmsg != NULL);
+	LASSERT(req->rq_repmsg);
 	LASSERT(req->rq_repmsg == rs->rs_msg);
 	LASSERT(rs->rs_cb_id.cbid_fn == reply_out_callback);
 	LASSERT(rs->rs_cb_id.cbid_arg == rs);
@@ -403,12 +408,12 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 
 	ptlrpc_at_set_reply(req, flags);
 
-	if (req->rq_export == NULL || req->rq_export->exp_connection == NULL)
+	if (!req->rq_export || !req->rq_export->exp_connection)
 		conn = ptlrpc_connection_get(req->rq_peer, req->rq_self, NULL);
 	else
 		conn = ptlrpc_connection_addref(req->rq_export->exp_connection);
 
-	if (unlikely(conn == NULL)) {
+	if (unlikely(!conn)) {
 		CERROR("not replying on NULL connection\n"); /* bug 9635 */
 		return -ENOTCONN;
 	}
@@ -498,14 +503,15 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	LASSERT(request->rq_wait_ctx == 0);
 
 	/* If this is a re-transmit, we're required to have disengaged
-	 * cleanly from the previous attempt */
+	 * cleanly from the previous attempt
+	 */
 	LASSERT(!request->rq_receiving_reply);
 	LASSERT(!((lustre_msg_get_flags(request->rq_reqmsg) & MSG_REPLAY) &&
-		(request->rq_import->imp_state == LUSTRE_IMP_FULL)));
+		  (request->rq_import->imp_state == LUSTRE_IMP_FULL)));
 
-	if (unlikely(obd != NULL && obd->obd_fail)) {
+	if (unlikely(obd && obd->obd_fail)) {
 		CDEBUG(D_HA, "muting rpc for failed imp obd %s\n",
-			obd->obd_name);
+		       obd->obd_name);
 		/* this prevents us from waiting in ptlrpc_queue_wait */
 		spin_lock(&request->rq_lock);
 		request->rq_err = 1;
@@ -535,7 +541,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		goto out;
 
 	/* bulk register should be done after wrap_request() */
-	if (request->rq_bulk != NULL) {
+	if (request->rq_bulk) {
 		rc = ptlrpc_register_bulk(request);
 		if (rc != 0)
 			goto out;
@@ -543,14 +549,15 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 
 	if (!noreply) {
 		LASSERT(request->rq_replen != 0);
-		if (request->rq_repbuf == NULL) {
-			LASSERT(request->rq_repdata == NULL);
-			LASSERT(request->rq_repmsg == NULL);
+		if (!request->rq_repbuf) {
+			LASSERT(!request->rq_repdata);
+			LASSERT(!request->rq_repmsg);
 			rc = sptlrpc_cli_alloc_repbuf(request,
 						      request->rq_replen);
 			if (rc) {
 				/* this prevents us from looping in
-				 * ptlrpc_queue_wait */
+				 * ptlrpc_queue_wait
+				 */
 				spin_lock(&request->rq_lock);
 				request->rq_err = 1;
 				spin_unlock(&request->rq_lock);
@@ -602,7 +609,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		reply_md.eq_handle = ptlrpc_eq_h;
 
 		/* We must see the unlink callback to unset rq_reply_unlink,
-		   so we can't auto-unlink */
+		 * so we can't auto-unlink
+		 */
 		rc = LNetMDAttach(reply_me_h, reply_md, LNET_RETAIN,
 				  &request->rq_reply_md_h);
 		if (rc != 0) {
@@ -623,7 +631,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 
 	/* add references on request for request_out_callback */
 	ptlrpc_request_addref(request);
-	if (obd != NULL && obd->obd_svc_stats != NULL)
+	if (obd && obd->obd_svc_stats)
 		lprocfs_counter_add(obd->obd_svc_stats, PTLRPC_REQACTIVE_CNTR,
 			atomic_read(&request->rq_import->imp_inflight));
 
@@ -632,7 +640,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	ktime_get_real_ts64(&request->rq_arrival_time);
 	request->rq_sent = ktime_get_real_seconds();
 	/* We give the server rq_timeout secs to process the req, and
-	   add the network latency for our local timeout. */
+	 * add the network latency for our local timeout.
+	 */
 	request->rq_deadline = request->rq_sent + request->rq_timeout +
 		ptlrpc_at_get_net_latency(request);
 
@@ -656,7 +665,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
  cleanup_me:
 	/* MEUnlink is safe; the PUT didn't even get off the ground, and
 	 * nobody apart from the PUT's target has the right nid+XID to
-	 * access the reply buffer. */
+	 * access the reply buffer.
+	 */
 	rc2 = LNetMEUnlink(reply_me_h);
 	LASSERT(rc2 == 0);
 	/* UNLINKED callback called synchronously */
@@ -664,7 +674,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 
  cleanup_bulk:
 	/* We do sync unlink here as there was no real transfer here so
-	 * the chance to have long unlink to sluggish net is smaller here. */
+	 * the chance to have long unlink to sluggish net is smaller here.
+	 */
 	ptlrpc_unregister_bulk(request, 0);
  out:
 	if (request->rq_memalloc)
@@ -692,7 +703,8 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 
 	/* NB: CPT affinity service should use new LNet flag LNET_INS_LOCAL,
 	 * which means buffer can only be attached on local CPT, and LND
-	 * threads can find it by grabbing a local lock */
+	 * threads can find it by grabbing a local lock
+	 */
 	rc = LNetMEAttach(service->srv_req_portal,
 			  match_id, 0, ~0, LNET_UNLINK,
 			  rqbd->rqbd_svcpt->scp_cpt >= 0 ?

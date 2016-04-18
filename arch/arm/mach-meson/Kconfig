@@ -1,5 +1,6 @@
 menuconfig ARCH_MESON
-	bool "Amlogic Meson SoCs" if ARCH_MULTI_V7
+	bool "Amlogic Meson SoCs"
+	depends on ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_IRQ_CHIP
 	select ARM_GIC
@@ -16,6 +17,11 @@ config MACH_MESON6
 
 config MACH_MESON8
 	bool "Amlogic Meson8 SoCs support"
+	default ARCH_MESON
+	select MESON6_TIMER
+
+config MACH_MESON8B
+	bool "Amlogic Meson8b SoCs support"
 	default ARCH_MESON
 	select MESON6_TIMER
 

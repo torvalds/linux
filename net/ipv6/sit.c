@@ -201,13 +201,13 @@ static int ipip6_tunnel_create(struct net_device *dev)
 	if ((__force u16)t->parms.i_flags & SIT_ISATAP)
 		dev->priv_flags |= IFF_ISATAP;
 
+	dev->rtnl_link_ops = &sit_link_ops;
+
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto out;
 
 	ipip6_tunnel_clone_6rd(dev, sitn);
-
-	dev->rtnl_link_ops = &sit_link_ops;
 
 	dev_hold(dev);
 
@@ -475,7 +475,7 @@ static void ipip6_tunnel_uninit(struct net_device *dev)
 		ipip6_tunnel_unlink(sitn, tunnel);
 		ipip6_tunnel_del_prl(tunnel, NULL);
 	}
-	ip_tunnel_dst_reset_all(tunnel);
+	dst_cache_reset(&tunnel->dst_cache);
 	dev_put(dev);
 }
 
@@ -681,14 +681,16 @@ static int ipip6_rcv(struct sk_buff *skb)
 		skb->mac_header = skb->network_header;
 		skb_reset_network_header(skb);
 		IPCB(skb)->flags = 0;
-		skb->protocol = htons(ETH_P_IPV6);
+		skb->dev = tunnel->dev;
 
 		if (packet_is_spoofed(skb, iph, tunnel)) {
 			tunnel->dev->stats.rx_errors++;
 			goto out;
 		}
 
-		__skb_tunnel_rx(skb, tunnel->dev, tunnel->net);
+		if (iptunnel_pull_header(skb, 0, htons(ETH_P_IPV6),
+		    !net_eq(tunnel->net, dev_net(tunnel->dev))))
+			goto out;
 
 		err = IP_ECN_decapsulate(iph, skb);
 		if (unlikely(err)) {
@@ -740,7 +742,7 @@ static int ipip_rcv(struct sk_buff *skb)
 
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
 			goto drop;
-		if (iptunnel_pull_header(skb, 0, tpi.proto))
+		if (iptunnel_pull_header(skb, 0, tpi.proto, false))
 			goto drop;
 		return ip_tunnel_rcv(tunnel, skb, &tpi, NULL, log_ecn_error);
 	}
@@ -820,7 +822,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	const struct in6_addr *addr6;
 	int addr_type;
 	u8 ttl;
-	int err;
 	u8 protocol = IPPROTO_IPV6;
 	int t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
@@ -912,7 +913,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		goto tx_error;
 	}
 
-	skb = iptunnel_handle_offloads(skb, false, SKB_GSO_SIT);
+	skb = iptunnel_handle_offloads(skb, SKB_GSO_SIT);
 	if (IS_ERR(skb)) {
 		ip_rt_put(rt);
 		goto out;
@@ -983,10 +984,8 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 
 	skb_set_inner_ipproto(skb, IPPROTO_IPV6);
 
-	err = iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr,
-			    protocol, tos, ttl, df,
-			    !net_eq(tunnel->net, dev_net(dev)));
-	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
+	iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr, protocol, tos, ttl,
+		      df, !net_eq(tunnel->net, dev_net(dev)));
 	return NETDEV_TX_OK;
 
 tx_error_icmp:
@@ -1003,7 +1002,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	const struct iphdr  *tiph = &tunnel->parms.iph;
 
-	skb = iptunnel_handle_offloads(skb, false, SKB_GSO_IPIP);
+	skb = iptunnel_handle_offloads(skb, SKB_GSO_IPIP);
 	if (IS_ERR(skb))
 		goto out;
 
@@ -1096,7 +1095,7 @@ static void ipip6_tunnel_update(struct ip_tunnel *t, struct ip_tunnel_parm *p)
 		t->parms.link = p->link;
 		ipip6_tunnel_bind_dev(t->dev);
 	}
-	ip_tunnel_dst_reset_all(t);
+	dst_cache_reset(&t->dst_cache);
 	netdev_state_change(t->dev);
 }
 
@@ -1127,7 +1126,7 @@ static int ipip6_tunnel_update_6rd(struct ip_tunnel *t,
 	t->ip6rd.relay_prefix = relay_prefix;
 	t->ip6rd.prefixlen = ip6rd->prefixlen;
 	t->ip6rd.relay_prefixlen = ip6rd->relay_prefixlen;
-	ip_tunnel_dst_reset_all(t);
+	dst_cache_reset(&t->dst_cache);
 	netdev_state_change(t->dev);
 	return 0;
 }
@@ -1281,7 +1280,7 @@ ipip6_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			err = ipip6_tunnel_add_prl(t, &prl, cmd == SIOCCHGPRL);
 			break;
 		}
-		ip_tunnel_dst_reset_all(t);
+		dst_cache_reset(&t->dst_cache);
 		netdev_state_change(dev);
 		break;
 
@@ -1342,7 +1341,7 @@ static void ipip6_dev_free(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 
-	free_percpu(tunnel->dst_cache);
+	dst_cache_destroy(&tunnel->dst_cache);
 	free_percpu(dev->tstats);
 	free_netdev(dev);
 }
@@ -1375,6 +1374,7 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 static int ipip6_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
+	int err;
 
 	tunnel->dev = dev;
 	tunnel->net = dev_net(dev);
@@ -1385,10 +1385,10 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 
-	tunnel->dst_cache = alloc_percpu(struct ip_tunnel_dst);
-	if (!tunnel->dst_cache) {
+	err = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
+	if (err) {
 		free_percpu(dev->tstats);
-		return -ENOMEM;
+		return err;
 	}
 
 	return 0;

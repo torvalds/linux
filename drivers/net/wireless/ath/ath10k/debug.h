@@ -37,6 +37,7 @@ enum ath10k_debug_mask {
 	ATH10K_DBG_TESTMODE	= 0x00001000,
 	ATH10K_DBG_WMI_PRINT	= 0x00002000,
 	ATH10K_DBG_PCI_PS	= 0x00004000,
+	ATH10K_DBG_AHB		= 0x00008000,
 	ATH10K_DBG_ANY		= 0xffffffff,
 };
 
@@ -63,6 +64,10 @@ extern unsigned int ath10k_debug_mask;
 __printf(2, 3) void ath10k_info(struct ath10k *ar, const char *fmt, ...);
 __printf(2, 3) void ath10k_err(struct ath10k *ar, const char *fmt, ...);
 __printf(2, 3) void ath10k_warn(struct ath10k *ar, const char *fmt, ...);
+
+void ath10k_debug_print_hwfw_info(struct ath10k *ar);
+void ath10k_debug_print_board_info(struct ath10k *ar);
+void ath10k_debug_print_boot_info(struct ath10k *ar);
 void ath10k_print_driver_info(struct ath10k *ar);
 
 #ifdef CONFIG_ATH10K_DEBUGFS
@@ -149,6 +154,12 @@ ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
 #ifdef CONFIG_MAC80211_DEBUGFS
 void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir);
+void ath10k_sta_update_rx_duration(struct ath10k *ar, struct list_head *peer);
+#else
+static inline void ath10k_sta_update_rx_duration(struct ath10k *ar,
+						 struct list_head *peer)
+{
+}
 #endif /* CONFIG_MAC80211_DEBUGFS */
 
 #ifdef CONFIG_ATH10K_DEBUG

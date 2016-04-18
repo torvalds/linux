@@ -287,7 +287,6 @@ struct o2hb_bio_wait_ctxt {
 static void o2hb_write_timeout(struct work_struct *work)
 {
 	int failed, quorum;
-	unsigned long flags;
 	struct o2hb_region *reg =
 		container_of(work, struct o2hb_region,
 			     hr_write_timeout_work.work);
@@ -297,14 +296,14 @@ static void o2hb_write_timeout(struct work_struct *work)
 	     jiffies_to_msecs(jiffies - reg->hr_last_timeout_start));
 
 	if (o2hb_global_heartbeat_active()) {
-		spin_lock_irqsave(&o2hb_live_lock, flags);
+		spin_lock(&o2hb_live_lock);
 		if (test_bit(reg->hr_region_num, o2hb_quorum_region_bitmap))
 			set_bit(reg->hr_region_num, o2hb_failed_region_bitmap);
 		failed = bitmap_weight(o2hb_failed_region_bitmap,
 					O2NM_MAX_REGIONS);
 		quorum = bitmap_weight(o2hb_quorum_region_bitmap,
 					O2NM_MAX_REGIONS);
-		spin_unlock_irqrestore(&o2hb_live_lock, flags);
+		spin_unlock(&o2hb_live_lock);
 
 		mlog(ML_HEARTBEAT, "Number of regions %d, failed regions %d\n",
 		     quorum, failed);
@@ -418,13 +417,13 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
 	bio->bi_private = wc;
 	bio->bi_end_io = o2hb_bio_end_io;
 
-	vec_start = (cs << bits) % PAGE_CACHE_SIZE;
+	vec_start = (cs << bits) % PAGE_SIZE;
 	while(cs < max_slots) {
 		current_page = cs / spp;
 		page = reg->hr_slot_data[current_page];
 
-		vec_len = min(PAGE_CACHE_SIZE - vec_start,
-			      (max_slots-cs) * (PAGE_CACHE_SIZE/spp) );
+		vec_len = min(PAGE_SIZE - vec_start,
+			      (max_slots-cs) * (PAGE_SIZE/spp) );
 
 		mlog(ML_HB_BIO, "page %d, vec_len = %u, vec_start = %u\n",
 		     current_page, vec_len, vec_start);
@@ -432,7 +431,7 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
 		len = bio_add_page(bio, page, vec_len, vec_start);
 		if (len != vec_len) break;
 
-		cs += vec_len / (PAGE_CACHE_SIZE/spp);
+		cs += vec_len / (PAGE_SIZE/spp);
 		vec_start = 0;
 	}
 
@@ -1254,15 +1253,15 @@ static const struct file_operations o2hb_debug_fops = {
 
 void o2hb_exit(void)
 {
-	kfree(o2hb_db_livenodes);
-	kfree(o2hb_db_liveregions);
-	kfree(o2hb_db_quorumregions);
-	kfree(o2hb_db_failedregions);
 	debugfs_remove(o2hb_debug_failedregions);
 	debugfs_remove(o2hb_debug_quorumregions);
 	debugfs_remove(o2hb_debug_liveregions);
 	debugfs_remove(o2hb_debug_livenodes);
 	debugfs_remove(o2hb_debug_dir);
+	kfree(o2hb_db_livenodes);
+	kfree(o2hb_db_liveregions);
+	kfree(o2hb_db_quorumregions);
+	kfree(o2hb_db_failedregions);
 }
 
 static struct dentry *o2hb_debug_create(const char *name, struct dentry *dir,
@@ -1438,13 +1437,15 @@ static void o2hb_region_release(struct config_item *item)
 
 	kfree(reg->hr_slots);
 
-	kfree(reg->hr_db_regnum);
-	kfree(reg->hr_db_livenodes);
 	debugfs_remove(reg->hr_debug_livenodes);
 	debugfs_remove(reg->hr_debug_regnum);
 	debugfs_remove(reg->hr_debug_elapsed_time);
 	debugfs_remove(reg->hr_debug_pinned);
 	debugfs_remove(reg->hr_debug_dir);
+	kfree(reg->hr_db_livenodes);
+	kfree(reg->hr_db_regnum);
+	kfree(reg->hr_db_elapsed_time);
+	kfree(reg->hr_db_pinned);
 
 	spin_lock(&o2hb_live_lock);
 	list_del(&reg->hr_all_item);
@@ -1480,16 +1481,17 @@ static int o2hb_read_block_input(struct o2hb_region *reg,
 	return 0;
 }
 
-static ssize_t o2hb_region_block_bytes_read(struct o2hb_region *reg,
+static ssize_t o2hb_region_block_bytes_show(struct config_item *item,
 					    char *page)
 {
-	return sprintf(page, "%u\n", reg->hr_block_bytes);
+	return sprintf(page, "%u\n", to_o2hb_region(item)->hr_block_bytes);
 }
 
-static ssize_t o2hb_region_block_bytes_write(struct o2hb_region *reg,
+static ssize_t o2hb_region_block_bytes_store(struct config_item *item,
 					     const char *page,
 					     size_t count)
 {
+	struct o2hb_region *reg = to_o2hb_region(item);
 	int status;
 	unsigned long block_bytes;
 	unsigned int block_bits;
@@ -1508,16 +1510,17 @@ static ssize_t o2hb_region_block_bytes_write(struct o2hb_region *reg,
 	return count;
 }
 
-static ssize_t o2hb_region_start_block_read(struct o2hb_region *reg,
+static ssize_t o2hb_region_start_block_show(struct config_item *item,
 					    char *page)
 {
-	return sprintf(page, "%llu\n", reg->hr_start_block);
+	return sprintf(page, "%llu\n", to_o2hb_region(item)->hr_start_block);
 }
 
-static ssize_t o2hb_region_start_block_write(struct o2hb_region *reg,
+static ssize_t o2hb_region_start_block_store(struct config_item *item,
 					     const char *page,
 					     size_t count)
 {
+	struct o2hb_region *reg = to_o2hb_region(item);
 	unsigned long long tmp;
 	char *p = (char *)page;
 
@@ -1533,16 +1536,16 @@ static ssize_t o2hb_region_start_block_write(struct o2hb_region *reg,
 	return count;
 }
 
-static ssize_t o2hb_region_blocks_read(struct o2hb_region *reg,
-				       char *page)
+static ssize_t o2hb_region_blocks_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d\n", reg->hr_blocks);
+	return sprintf(page, "%d\n", to_o2hb_region(item)->hr_blocks);
 }
 
-static ssize_t o2hb_region_blocks_write(struct o2hb_region *reg,
+static ssize_t o2hb_region_blocks_store(struct config_item *item,
 					const char *page,
 					size_t count)
 {
+	struct o2hb_region *reg = to_o2hb_region(item);
 	unsigned long tmp;
 	char *p = (char *)page;
 
@@ -1561,20 +1564,19 @@ static ssize_t o2hb_region_blocks_write(struct o2hb_region *reg,
 	return count;
 }
 
-static ssize_t o2hb_region_dev_read(struct o2hb_region *reg,
-				    char *page)
+static ssize_t o2hb_region_dev_show(struct config_item *item, char *page)
 {
 	unsigned int ret = 0;
 
-	if (reg->hr_bdev)
-		ret = sprintf(page, "%s\n", reg->hr_dev_name);
+	if (to_o2hb_region(item)->hr_bdev)
+		ret = sprintf(page, "%s\n", to_o2hb_region(item)->hr_dev_name);
 
 	return ret;
 }
 
 static void o2hb_init_region_params(struct o2hb_region *reg)
 {
-	reg->hr_slots_per_page = PAGE_CACHE_SIZE >> reg->hr_block_bits;
+	reg->hr_slots_per_page = PAGE_SIZE >> reg->hr_block_bits;
 	reg->hr_timeout_ms = O2HB_REGION_TIMEOUT_MS;
 
 	mlog(ML_HEARTBEAT, "hr_start_block = %llu, hr_blocks = %u\n",
@@ -1677,10 +1679,11 @@ out:
 }
 
 /* this is acting as commit; we set up all of hr_bdev and hr_task or nothing */
-static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
+static ssize_t o2hb_region_dev_store(struct config_item *item,
 				     const char *page,
 				     size_t count)
 {
+	struct o2hb_region *reg = to_o2hb_region(item);
 	struct task_struct *hb_task;
 	long fd;
 	int sectsize;
@@ -1778,8 +1781,8 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	}
 	++live_threshold;
 	atomic_set(&reg->hr_steady_iterations, live_threshold);
-	/* unsteady_iterations is double the steady_iterations */
-	atomic_set(&reg->hr_unsteady_iterations, (live_threshold << 1));
+	/* unsteady_iterations is triple the steady_iterations */
+	atomic_set(&reg->hr_unsteady_iterations, (live_threshold * 3));
 
 	hb_task = kthread_run(o2hb_thread, reg, "o2hb-%s",
 			      reg->hr_item.ci_name);
@@ -1841,9 +1844,9 @@ out:
 	return ret;
 }
 
-static ssize_t o2hb_region_pid_read(struct o2hb_region *reg,
-                                      char *page)
+static ssize_t o2hb_region_pid_show(struct config_item *item, char *page)
 {
+	struct o2hb_region *reg = to_o2hb_region(item);
 	pid_t pid = 0;
 
 	spin_lock(&o2hb_live_lock);
@@ -1857,92 +1860,23 @@ static ssize_t o2hb_region_pid_read(struct o2hb_region *reg,
 	return sprintf(page, "%u\n", pid);
 }
 
-struct o2hb_region_attribute {
-	struct configfs_attribute attr;
-	ssize_t (*show)(struct o2hb_region *, char *);
-	ssize_t (*store)(struct o2hb_region *, const char *, size_t);
-};
-
-static struct o2hb_region_attribute o2hb_region_attr_block_bytes = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "block_bytes",
-		    .ca_mode = S_IRUGO | S_IWUSR },
-	.show	= o2hb_region_block_bytes_read,
-	.store	= o2hb_region_block_bytes_write,
-};
-
-static struct o2hb_region_attribute o2hb_region_attr_start_block = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "start_block",
-		    .ca_mode = S_IRUGO | S_IWUSR },
-	.show	= o2hb_region_start_block_read,
-	.store	= o2hb_region_start_block_write,
-};
-
-static struct o2hb_region_attribute o2hb_region_attr_blocks = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "blocks",
-		    .ca_mode = S_IRUGO | S_IWUSR },
-	.show	= o2hb_region_blocks_read,
-	.store	= o2hb_region_blocks_write,
-};
-
-static struct o2hb_region_attribute o2hb_region_attr_dev = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "dev",
-		    .ca_mode = S_IRUGO | S_IWUSR },
-	.show	= o2hb_region_dev_read,
-	.store	= o2hb_region_dev_write,
-};
-
-static struct o2hb_region_attribute o2hb_region_attr_pid = {
-       .attr   = { .ca_owner = THIS_MODULE,
-                   .ca_name = "pid",
-                   .ca_mode = S_IRUGO | S_IRUSR },
-       .show   = o2hb_region_pid_read,
-};
+CONFIGFS_ATTR(o2hb_region_, block_bytes);
+CONFIGFS_ATTR(o2hb_region_, start_block);
+CONFIGFS_ATTR(o2hb_region_, blocks);
+CONFIGFS_ATTR(o2hb_region_, dev);
+CONFIGFS_ATTR_RO(o2hb_region_, pid);
 
 static struct configfs_attribute *o2hb_region_attrs[] = {
-	&o2hb_region_attr_block_bytes.attr,
-	&o2hb_region_attr_start_block.attr,
-	&o2hb_region_attr_blocks.attr,
-	&o2hb_region_attr_dev.attr,
-	&o2hb_region_attr_pid.attr,
+	&o2hb_region_attr_block_bytes,
+	&o2hb_region_attr_start_block,
+	&o2hb_region_attr_blocks,
+	&o2hb_region_attr_dev,
+	&o2hb_region_attr_pid,
 	NULL,
 };
 
-static ssize_t o2hb_region_show(struct config_item *item,
-				struct configfs_attribute *attr,
-				char *page)
-{
-	struct o2hb_region *reg = to_o2hb_region(item);
-	struct o2hb_region_attribute *o2hb_region_attr =
-		container_of(attr, struct o2hb_region_attribute, attr);
-	ssize_t ret = 0;
-
-	if (o2hb_region_attr->show)
-		ret = o2hb_region_attr->show(reg, page);
-	return ret;
-}
-
-static ssize_t o2hb_region_store(struct config_item *item,
-				 struct configfs_attribute *attr,
-				 const char *page, size_t count)
-{
-	struct o2hb_region *reg = to_o2hb_region(item);
-	struct o2hb_region_attribute *o2hb_region_attr =
-		container_of(attr, struct o2hb_region_attribute, attr);
-	ssize_t ret = -EINVAL;
-
-	if (o2hb_region_attr->store)
-		ret = o2hb_region_attr->store(reg, page, count);
-	return ret;
-}
-
 static struct configfs_item_operations o2hb_region_item_ops = {
 	.release		= o2hb_region_release,
-	.show_attribute		= o2hb_region_show,
-	.store_attribute	= o2hb_region_store,
 };
 
 static struct config_item_type o2hb_region_type = {
@@ -2137,49 +2071,14 @@ unlock:
 	spin_unlock(&o2hb_live_lock);
 }
 
-struct o2hb_heartbeat_group_attribute {
-	struct configfs_attribute attr;
-	ssize_t (*show)(struct o2hb_heartbeat_group *, char *);
-	ssize_t (*store)(struct o2hb_heartbeat_group *, const char *, size_t);
-};
-
-static ssize_t o2hb_heartbeat_group_show(struct config_item *item,
-					 struct configfs_attribute *attr,
-					 char *page)
-{
-	struct o2hb_heartbeat_group *reg = to_o2hb_heartbeat_group(to_config_group(item));
-	struct o2hb_heartbeat_group_attribute *o2hb_heartbeat_group_attr =
-		container_of(attr, struct o2hb_heartbeat_group_attribute, attr);
-	ssize_t ret = 0;
-
-	if (o2hb_heartbeat_group_attr->show)
-		ret = o2hb_heartbeat_group_attr->show(reg, page);
-	return ret;
-}
-
-static ssize_t o2hb_heartbeat_group_store(struct config_item *item,
-					  struct configfs_attribute *attr,
-					  const char *page, size_t count)
-{
-	struct o2hb_heartbeat_group *reg = to_o2hb_heartbeat_group(to_config_group(item));
-	struct o2hb_heartbeat_group_attribute *o2hb_heartbeat_group_attr =
-		container_of(attr, struct o2hb_heartbeat_group_attribute, attr);
-	ssize_t ret = -EINVAL;
-
-	if (o2hb_heartbeat_group_attr->store)
-		ret = o2hb_heartbeat_group_attr->store(reg, page, count);
-	return ret;
-}
-
-static ssize_t o2hb_heartbeat_group_threshold_show(struct o2hb_heartbeat_group *group,
-						     char *page)
+static ssize_t o2hb_heartbeat_group_threshold_show(struct config_item *item,
+		char *page)
 {
 	return sprintf(page, "%u\n", o2hb_dead_threshold);
 }
 
-static ssize_t o2hb_heartbeat_group_threshold_store(struct o2hb_heartbeat_group *group,
-						    const char *page,
-						    size_t count)
+static ssize_t o2hb_heartbeat_group_threshold_store(struct config_item *item,
+		const char *page, size_t count)
 {
 	unsigned long tmp;
 	char *p = (char *)page;
@@ -2194,17 +2093,15 @@ static ssize_t o2hb_heartbeat_group_threshold_store(struct o2hb_heartbeat_group 
 	return count;
 }
 
-static
-ssize_t o2hb_heartbeat_group_mode_show(struct o2hb_heartbeat_group *group,
-				       char *page)
+static ssize_t o2hb_heartbeat_group_mode_show(struct config_item *item,
+		char *page)
 {
 	return sprintf(page, "%s\n",
 		       o2hb_heartbeat_mode_desc[o2hb_heartbeat_mode]);
 }
 
-static
-ssize_t o2hb_heartbeat_group_mode_store(struct o2hb_heartbeat_group *group,
-					const char *page, size_t count)
+static ssize_t o2hb_heartbeat_group_mode_store(struct config_item *item,
+		const char *page, size_t count)
 {
 	unsigned int i;
 	int ret;
@@ -2229,31 +2126,13 @@ ssize_t o2hb_heartbeat_group_mode_store(struct o2hb_heartbeat_group *group,
 
 }
 
-static struct o2hb_heartbeat_group_attribute o2hb_heartbeat_group_attr_threshold = {
-	.attr	= { .ca_owner = THIS_MODULE,
-		    .ca_name = "dead_threshold",
-		    .ca_mode = S_IRUGO | S_IWUSR },
-	.show	= o2hb_heartbeat_group_threshold_show,
-	.store	= o2hb_heartbeat_group_threshold_store,
-};
-
-static struct o2hb_heartbeat_group_attribute o2hb_heartbeat_group_attr_mode = {
-	.attr   = { .ca_owner = THIS_MODULE,
-		.ca_name = "mode",
-		.ca_mode = S_IRUGO | S_IWUSR },
-	.show   = o2hb_heartbeat_group_mode_show,
-	.store  = o2hb_heartbeat_group_mode_store,
-};
+CONFIGFS_ATTR(o2hb_heartbeat_group_, threshold);
+CONFIGFS_ATTR(o2hb_heartbeat_group_, mode);
 
 static struct configfs_attribute *o2hb_heartbeat_group_attrs[] = {
-	&o2hb_heartbeat_group_attr_threshold.attr,
-	&o2hb_heartbeat_group_attr_mode.attr,
+	&o2hb_heartbeat_group_attr_threshold,
+	&o2hb_heartbeat_group_attr_mode,
 	NULL,
-};
-
-static struct configfs_item_operations o2hb_heartbeat_group_item_ops = {
-	.show_attribute		= o2hb_heartbeat_group_show,
-	.store_attribute	= o2hb_heartbeat_group_store,
 };
 
 static struct configfs_group_operations o2hb_heartbeat_group_group_ops = {
@@ -2263,7 +2142,6 @@ static struct configfs_group_operations o2hb_heartbeat_group_group_ops = {
 
 static struct config_item_type o2hb_heartbeat_group_type = {
 	.ct_group_ops	= &o2hb_heartbeat_group_group_ops,
-	.ct_item_ops	= &o2hb_heartbeat_group_item_ops,
 	.ct_attrs	= o2hb_heartbeat_group_attrs,
 	.ct_owner	= THIS_MODULE,
 };
@@ -2546,11 +2424,10 @@ EXPORT_SYMBOL_GPL(o2hb_check_node_heartbeating);
 int o2hb_check_node_heartbeating_no_sem(u8 node_num)
 {
 	unsigned long testing_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
-	unsigned long flags;
 
-	spin_lock_irqsave(&o2hb_live_lock, flags);
+	spin_lock(&o2hb_live_lock);
 	o2hb_fill_node_map_from_callback(testing_map, sizeof(testing_map));
-	spin_unlock_irqrestore(&o2hb_live_lock, flags);
+	spin_unlock(&o2hb_live_lock);
 	if (!test_bit(node_num, testing_map)) {
 		mlog(ML_HEARTBEAT,
 		     "node (%u) does not have heartbeating enabled.\n",

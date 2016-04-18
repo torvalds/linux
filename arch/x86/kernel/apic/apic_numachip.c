@@ -30,7 +30,7 @@ static unsigned int numachip1_get_apic_id(unsigned long x)
 	unsigned long value;
 	unsigned int id = (x >> 24) & 0xff;
 
-	if (static_cpu_has_safe(X86_FEATURE_NODEID_MSR)) {
+	if (static_cpu_has(X86_FEATURE_NODEID_MSR)) {
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
 		id |= (value << 2) & 0xff00;
 	}
@@ -178,7 +178,7 @@ static void fixup_cpu_id(struct cpuinfo_x86 *c, int node)
 	this_cpu_write(cpu_llc_id, node);
 
 	/* Account for nodes per socket in multi-core-module processors */
-	if (static_cpu_has_safe(X86_FEATURE_NODEID_MSR)) {
+	if (static_cpu_has(X86_FEATURE_NODEID_MSR)) {
 		rdmsrl(MSR_FAM10H_NODE_ID, val);
 		nodes = ((val >> 3) & 7) + 1;
 	}
@@ -193,20 +193,17 @@ static int __init numachip_system_init(void)
 	case 1:
 		init_extra_mapping_uc(NUMACHIP_LCSR_BASE, NUMACHIP_LCSR_SIZE);
 		numachip_apic_icr_write = numachip1_apic_icr_write;
-		x86_init.pci.arch_init = pci_numachip_init;
 		break;
 	case 2:
 		init_extra_mapping_uc(NUMACHIP2_LCSR_BASE, NUMACHIP2_LCSR_SIZE);
 		numachip_apic_icr_write = numachip2_apic_icr_write;
-
-		/* Use MCFG config cycles rather than locked CF8 cycles */
-		raw_pci_ops = &pci_mmcfg;
 		break;
 	default:
 		return 0;
 	}
 
 	x86_cpuinit.fixup_cpu_id = fixup_cpu_id;
+	x86_init.pci.arch_init = pci_numachip_init;
 
 	return 0;
 }
@@ -276,6 +273,7 @@ static const struct apic apic_numachip1 __refconst = {
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
+	.send_IPI			= numachip_send_IPI_one,
 	.send_IPI_mask			= numachip_send_IPI_mask,
 	.send_IPI_mask_allbutself	= numachip_send_IPI_mask_allbutself,
 	.send_IPI_allbutself		= numachip_send_IPI_allbutself,
@@ -327,6 +325,7 @@ static const struct apic apic_numachip2 __refconst = {
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
+	.send_IPI			= numachip_send_IPI_one,
 	.send_IPI_mask			= numachip_send_IPI_mask,
 	.send_IPI_mask_allbutself	= numachip_send_IPI_mask_allbutself,
 	.send_IPI_allbutself		= numachip_send_IPI_allbutself,

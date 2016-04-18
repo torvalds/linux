@@ -9,12 +9,12 @@
 
 #include "ipvlan.h"
 
-void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev)
+static void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev)
 {
 	ipvlan->dev->mtu = dev->mtu - ipvlan->mtu_adj;
 }
 
-void ipvlan_set_port_mode(struct ipvl_port *port, u32 nval)
+static void ipvlan_set_port_mode(struct ipvl_port *port, u16 nval)
 {
 	struct ipvl_dev *ipvlan;
 
@@ -88,7 +88,7 @@ static struct lock_class_key ipvlan_netdev_xmit_lock_key;
 static struct lock_class_key ipvlan_netdev_addr_lock_key;
 
 #define IPVLAN_FEATURES \
-	(NETIF_F_SG | NETIF_F_ALL_CSUM | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST | \
+	(NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST | \
 	 NETIF_F_GSO | NETIF_F_TSO | NETIF_F_UFO | NETIF_F_GSO_ROBUST | \
 	 NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_RXCSUM | \
 	 NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_STAG_FILTER)
@@ -119,6 +119,7 @@ static int ipvlan_init(struct net_device *dev)
 	dev->features = phy_dev->features & IPVLAN_FEATURES;
 	dev->features |= NETIF_F_LLTX;
 	dev->gso_max_size = phy_dev->gso_max_size;
+	dev->gso_max_segs = phy_dev->gso_max_segs;
 	dev->hard_header_len = phy_dev->hard_header_len;
 
 	ipvlan_set_lockdep_class(dev);
@@ -346,12 +347,12 @@ static const struct header_ops ipvlan_header_ops = {
 	.cache_update	= eth_header_cache_update,
 };
 
-static int ipvlan_ethtool_get_settings(struct net_device *dev,
-				       struct ethtool_cmd *cmd)
+static int ipvlan_ethtool_get_link_ksettings(struct net_device *dev,
+					     struct ethtool_link_ksettings *cmd)
 {
 	const struct ipvl_dev *ipvlan = netdev_priv(dev);
 
-	return __ethtool_get_settings(ipvlan->phy_dev, cmd);
+	return __ethtool_get_link_ksettings(ipvlan->phy_dev, cmd);
 }
 
 static void ipvlan_ethtool_get_drvinfo(struct net_device *dev,
@@ -377,7 +378,7 @@ static void ipvlan_ethtool_set_msglevel(struct net_device *dev, u32 value)
 
 static const struct ethtool_ops ipvlan_ethtool_ops = {
 	.get_link	= ethtool_op_get_link,
-	.get_settings	= ipvlan_ethtool_get_settings,
+	.get_link_ksettings	= ipvlan_ethtool_get_link_ksettings,
 	.get_drvinfo	= ipvlan_ethtool_get_drvinfo,
 	.get_msglevel	= ipvlan_ethtool_get_msglevel,
 	.set_msglevel	= ipvlan_ethtool_set_msglevel,
@@ -442,6 +443,7 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	struct ipvl_port *port;
 	struct net_device *phy_dev;
 	int err;
+	u16 mode = IPVLAN_MODE_L3;
 
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
@@ -460,14 +462,15 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 			return err;
 	}
 
-	port = ipvlan_port_get_rtnl(phy_dev);
 	if (data && data[IFLA_IPVLAN_MODE])
-		port->mode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
+		mode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
 
+	port = ipvlan_port_get_rtnl(phy_dev);
 	ipvlan->phy_dev = phy_dev;
 	ipvlan->dev = dev;
 	ipvlan->port = port;
 	ipvlan->sfeatures = IPVLAN_FEATURES;
+	ipvlan_adjust_mtu(ipvlan, phy_dev);
 	INIT_LIST_HEAD(&ipvlan->addrs);
 
 	/* TODO Probably put random address here to be presented to the
@@ -488,6 +491,8 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 		goto ipvlan_destroy_port;
 
 	list_add_tail_rcu(&ipvlan->pnode, &port->ipvlans);
+	ipvlan_set_port_mode(port, mode);
+
 	netif_stacked_transfer_operstate(phy_dev, dev);
 	return 0;
 
@@ -588,6 +593,7 @@ static int ipvlan_device_event(struct notifier_block *unused,
 		list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
 			ipvlan->dev->features = dev->features & IPVLAN_FEATURES;
 			ipvlan->dev->gso_max_size = dev->gso_max_size;
+			ipvlan->dev->gso_max_segs = dev->gso_max_segs;
 			netdev_features_change(ipvlan->dev);
 		}
 		break;

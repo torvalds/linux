@@ -190,6 +190,8 @@ static void host_stop(struct ci_hdrc *ci)
 			(ci->platdata->flags & CI_HDRC_TURN_VBUS_EARLY_ON))
 				regulator_disable(ci->platdata->reg_vbus);
 	}
+	ci->hcd = NULL;
+	ci->otg.host = NULL;
 }
 
 

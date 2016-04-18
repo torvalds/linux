@@ -1226,15 +1226,18 @@ static int miphy28lp_probe(struct platform_device *pdev)
 
 		miphy_phy = devm_kzalloc(&pdev->dev, sizeof(*miphy_phy),
 					 GFP_KERNEL);
-		if (!miphy_phy)
-			return -ENOMEM;
+		if (!miphy_phy) {
+			ret = -ENOMEM;
+			goto put_child;
+		}
 
 		miphy_dev->phys[port] = miphy_phy;
 
 		phy = devm_phy_create(&pdev->dev, child, &miphy28lp_ops);
 		if (IS_ERR(phy)) {
 			dev_err(&pdev->dev, "failed to create PHY\n");
-			return PTR_ERR(phy);
+			ret = PTR_ERR(phy);
+			goto put_child;
 		}
 
 		miphy_dev->phys[port]->phy = phy;
@@ -1242,11 +1245,11 @@ static int miphy28lp_probe(struct platform_device *pdev)
 
 		ret = miphy28lp_of_probe(child, miphy_phy);
 		if (ret)
-			return ret;
+			goto put_child;
 
 		ret = miphy28lp_probe_resets(child, miphy_dev->phys[port]);
 		if (ret)
-			return ret;
+			goto put_child;
 
 		phy_set_drvdata(phy, miphy_dev->phys[port]);
 		port++;
@@ -1255,6 +1258,9 @@ static int miphy28lp_probe(struct platform_device *pdev)
 
 	provider = devm_of_phy_provider_register(&pdev->dev, miphy28lp_xlate);
 	return PTR_ERR_OR_ZERO(provider);
+put_child:
+	of_node_put(child);
+	return ret;
 }
 
 static const struct of_device_id miphy28lp_of_match[] = {

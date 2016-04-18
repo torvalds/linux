@@ -1,12 +1,3 @@
-/*!
- *  @file	host_interface.h
- *  @brief	File containg host interface APIs
- *  @author	zsalah
- *  @sa		host_interface.c
- *  @date	8 March 2012
- *  @version	1.0
- */
-
 #ifndef HOST_INT_H
 #define HOST_INT_H
 
@@ -19,8 +10,12 @@
 #define STATION_MODE	0x02
 #define GO_MODE		0x03
 #define CLIENT_MODE	0x04
+#define ACTION		0xD0
+#define PROBE_REQ	0x40
+#define PROBE_RESP	0x50
 
-
+#define ACTION_FRM_IDX				0
+#define PROBE_REQ_IDX				1
 #define MAX_NUM_STA				9
 #define ACTIVE_SCAN_TIME			10
 #define PASSIVE_SCAN_TIME			1200
@@ -58,11 +53,11 @@
 #define NUM_CONCURRENT_IFC			2
 
 struct rf_info {
-	u8 u8LinkSpeed;
-	s8 s8RSSI;
-	u32 u32TxCount;
-	u32 u32RxCount;
-	u32 u32TxFailureCount;
+	u8 link_speed;
+	s8 rssi;
+	u32 tx_cnt;
+	u32 rx_cnt;
+	u32 tx_fail_cnt;
 };
 
 enum host_if_state {
@@ -101,7 +96,7 @@ enum CURRENT_TXRATE {
 	MBPS_54		= 54
 };
 
-struct cfg_param_val {
+struct cfg_param_attr {
 	u32 flag;
 	u8 ht_enable;
 	u8 bss_type;
@@ -149,8 +144,8 @@ enum cfg_param {
 };
 
 struct found_net_info {
-	u8 au8bssid[6];
-	s8 s8rssi;
+	u8 bssid[6];
+	s8 rssi;
 };
 
 enum scan_event {
@@ -168,79 +163,61 @@ enum conn_event {
 
 enum KEY_TYPE {
 	WEP,
-	WPARxGtk,
-	WPAPtk,
+	WPA_RX_GTK,
+	WPA_PTK,
 	PMKSA,
 };
 
+typedef void (*wilc_scan_result)(enum scan_event, struct network_info *,
+				 void *, void *);
 
-/*Scan callBack function definition*/
-typedef void (*wilc_scan_result)(enum scan_event, tstrNetworkInfo *,
-				  void *, void *);
-
-/*Connect callBack function definition*/
 typedef void (*wilc_connect_result)(enum conn_event,
-				     tstrConnectInfo *,
+				     struct connect_info *,
 				     u8,
-				     tstrDisconnectNotifInfo *,
+				     struct disconnect_info *,
 				     void *);
 
-typedef void (*wilc_remain_on_chan_expired)(void *, u32);  /*Remain on channel expiration callback function*/
-typedef void (*wilc_remain_on_chan_ready)(void *); /*Remain on channel callback function*/
+typedef void (*wilc_remain_on_chan_expired)(void *, u32);
+typedef void (*wilc_remain_on_chan_ready)(void *);
 
-/*!
- *  @struct             rcvd_net_info
- *  @brief		Structure to hold Received Asynchronous Network info
- *  @details
- *  @todo
- *  @sa
- *  @author		Mostafa Abu Bakr
- *  @date		25 March 2012
- *  @version		1.0
- */
 struct rcvd_net_info {
 	u8 *buffer;
 	u32 len;
 };
 
 struct hidden_net_info {
-	u8  *pu8ssid;
-	u8 u8ssidlen;
+	u8  *ssid;
+	u8 ssid_len;
 };
 
 struct hidden_network {
-	struct hidden_net_info *pstrHiddenNetworkInfo;
-	u8 u8ssidnum;
+	struct hidden_net_info *net_info;
+	u8 n_ssids;
 };
 
 struct user_scan_req {
-	/* Scan user call back function */
-	wilc_scan_result pfUserScanResult;
-
-	/* User specific parameter to be delivered through the Scan User Callback function */
-	void *u32UserScanPvoid;
-
-	u32 u32RcvdChCount;
-	struct found_net_info astrFoundNetworkInfo[MAX_NUM_SCANNED_NETWORKS];
+	wilc_scan_result scan_result;
+	void *arg;
+	u32 rcvd_ch_cnt;
+	struct found_net_info net_info[MAX_NUM_SCANNED_NETWORKS];
 };
 
 struct user_conn_req {
-	u8 *pu8bssid;
-	u8 *pu8ssid;
-	u8 u8security;
-	enum AUTHTYPE tenuAuth_type;
-	size_t ssidLen;
-	u8 *pu8ConnReqIEs;
-	size_t ConnReqIEsLen;
-	/* Connect user call back function */
-	wilc_connect_result pfUserConnectResult;
-	bool IsHTCapable;
-	/* User specific parameter to be delivered through the Connect User Callback function */
-	void *u32UserConnectPvoid;
+	u8 *bssid;
+	u8 *ssid;
+	u8 security;
+	enum AUTHTYPE auth_type;
+	size_t ssid_len;
+	u8 *ies;
+	size_t ies_len;
+	wilc_connect_result conn_result;
+	bool ht_capable;
+	void *arg;
 };
 
 struct drv_handler {
 	u32 handler;
+	u8 mac_idx;
 };
 
 struct op_mode {
@@ -256,34 +233,26 @@ struct get_mac_addr {
 };
 
 struct ba_session_info {
-	u8 au8Bssid[ETH_ALEN];
-	u8 u8Ted;
-	u16 u16BufferSize;
-	u16 u16SessionTimeout;
+	u8 bssid[ETH_ALEN];
+	u8 tid;
+	u16 buf_size;
+	u16 time_out;
 };
 
 struct remain_ch {
-	u16 u16Channel;
-	u32 u32duration;
-	wilc_remain_on_chan_expired pRemainOnChanExpired;
-	wilc_remain_on_chan_ready pRemainOnChanReady;
-	void *pVoid;
-	u32 u32ListenSessionID;
+	u16 ch;
+	u32 duration;
+	wilc_remain_on_chan_expired expired;
+	wilc_remain_on_chan_ready ready;
+	void *arg;
+	u32 id;
 };
 
 struct reg_frame {
-	bool bReg;
-	u16 u16FrameType;
-	u8 u8Regid;
+	bool reg;
+	u16 frame_type;
+	u8 reg_id;
 };
-
-
-#define ACTION			0xD0
-#define PROBE_REQ		0x40
-#define PROBE_RESP		0x50
-#define ACTION_FRM_IDX		0
-#define PROBE_REQ_IDX		1
-
 
 enum p2p_listen_state {
 	P2P_IDLE,
@@ -291,840 +260,118 @@ enum p2p_listen_state {
 	P2P_GRP_FORMATION
 };
 
+struct wilc;
 struct host_if_drv {
 	struct user_scan_req usr_scan_req;
 	struct user_conn_req usr_conn_req;
 	struct remain_ch remain_on_ch;
 	u8 remain_on_ch_pending;
-	u64 u64P2p_MgmtTimeout;
-	u8 u8P2PConnect;
+	u64 p2p_timeout;
+	u8 p2p_connect;
 
-	enum host_if_state enuHostIFstate;
+	enum host_if_state hif_state;
 
-	u8 au8AssociatedBSSID[ETH_ALEN];
-	struct cfg_param_val strCfgValues;
-/* semaphores */
-	struct semaphore gtOsCfgValuesSem;
-	struct semaphore hSemTestKeyBlock;
+	u8 assoc_bssid[ETH_ALEN];
+	struct cfg_param_attr cfg_values;
 
-	struct semaphore hSemTestDisconnectBlock;
-	struct semaphore hSemGetRSSI;
-	struct semaphore hSemGetLINKSPEED;
-	struct semaphore hSemGetCHNL;
-	struct semaphore hSemInactiveTime;
-/* timer handlers */
-	struct timer_list hScanTimer;
-	struct timer_list hConnectTimer;
-	struct timer_list hRemainOnChannel;
+	struct mutex cfg_values_lock;
+	struct semaphore sem_test_key_block;
+	struct semaphore sem_test_disconn_block;
+	struct semaphore sem_get_rssi;
+	struct semaphore sem_inactive_time;
+
+	struct timer_list scan_timer;
+	struct timer_list connect_timer;
+	struct timer_list remain_on_ch_timer;
 
 	bool IFC_UP;
 };
 
 struct add_sta_param {
-	u8 au8BSSID[ETH_ALEN];
-	u16 u16AssocID;
-	u8 u8NumRates;
-	const u8 *pu8Rates;
-	bool bIsHTSupported;
-	u16 u16HTCapInfo;
-	u8 u8AmpduParams;
-	u8 au8SuppMCsSet[16];
-	u16 u16HTExtParams;
-	u32 u32TxBeamformingCap;
-	u8 u8ASELCap;
-	u16 u16FlagsMask;               /*<! Determines which of u16FlagsSet were changed>*/
-	u16 u16FlagsSet;                /*<! Decoded according to tenuWILC_StaFlag */
+	u8 bssid[ETH_ALEN];
+	u16 aid;
+	u8 rates_len;
+	const u8 *rates;
+	bool ht_supported;
+	u16 ht_capa_info;
+	u8 ht_ampdu_params;
+	u8 ht_supp_mcs_set[16];
+	u16 ht_ext_params;
+	u32 ht_tx_bf_cap;
+	u8 ht_ante_sel;
+	u16 flags_mask;
+	u16 flags_set;
 };
 
-/*****************************************************************************/
-/*																			 */
-/*							Host Interface API								 */
-/*																			 */
-/*****************************************************************************/
+struct wilc_vif;
+s32 wilc_remove_key(struct host_if_drv *hWFIDrv, const u8 *pu8StaAddress);
+int wilc_remove_wep_key(struct wilc_vif *vif, u8 index);
+int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index);
+int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
+			     u8 index);
+int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
+			    u8 index, u8 mode, enum AUTHTYPE auth_type);
+int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
+		 const u8 *mac_addr, const u8 *rx_mic, const u8 *tx_mic,
+		 u8 mode, u8 cipher_mode, u8 index);
+s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
+			   u32 *pu32InactiveTime);
+int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
+		    u8 index, u32 key_rsc_len, const u8 *key_rsc,
+		    const u8 *rx_mic, const u8 *tx_mic, u8 mode,
+		    u8 cipher_mode);
+int wilc_set_pmkid_info(struct wilc_vif *vif,
+			struct host_if_pmkid_attr *pmkid);
+int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr);
+int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
+		      size_t ssid_len, const u8 *ies, size_t ies_len,
+		      wilc_connect_result connect_result, void *user_arg,
+		      u8 security, enum AUTHTYPE auth_type,
+		      u8 channel, void *join_params);
+int wilc_disconnect(struct wilc_vif *vif, u16 reason_code);
+int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel);
+int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level);
+int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
+	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies,
+	      size_t ies_len, wilc_scan_result scan_result, void *user_arg,
+	      struct hidden_network *hidden_network);
+int wilc_hif_set_cfg(struct wilc_vif *vif,
+		     struct cfg_param_attr *cfg_param);
+int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler);
+int wilc_deinit(struct wilc_vif *vif);
+int wilc_add_beacon(struct wilc_vif *vif, u32 interval, u32 dtim_period,
+		    u32 head_len, u8 *head, u32 tail_len, u8 *tail);
+int wilc_del_beacon(struct wilc_vif *vif);
+int wilc_add_station(struct wilc_vif *vif, struct add_sta_param *sta_param);
+int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN]);
+int wilc_del_station(struct wilc_vif *vif, const u8 *mac_addr);
+int wilc_edit_station(struct wilc_vif *vif,
+		      struct add_sta_param *sta_param);
+int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout);
+int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled,
+				u32 count);
+int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
+int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
+			   u32 duration, u16 chan,
+			   wilc_remain_on_chan_expired expired,
+			   wilc_remain_on_chan_ready ready,
+			   void *user_arg);
+int wilc_listen_state_expired(struct wilc_vif *vif, u32 session_id);
+int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg);
+int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mac_idx);
+int wilc_set_operation_mode(struct wilc_vif *vif, u32 mode);
+int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats);
+void wilc_resolve_disconnect_aberration(struct wilc_vif *vif);
+int wilc_get_vif_idx(struct wilc_vif *vif);
+int wilc_set_tx_power(struct wilc_vif *vif, u8 tx_power);
+int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power);
 
-/**
- *  @brief              removes wpa/wpa2 keys
- *  @details    only in BSS STA mode if External Supplicant support is enabled.
- *                              removes all WPA/WPA2 station key entries from MAC hardware.
- *  @param[in,out] handle to the wifi driver
- *  @param[in]  6 bytes of Station Adress in the station entry table
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_remove_key(struct host_if_drv *hWFIDrv, const u8 *pu8StaAddress);
-/**
- *  @brief              removes WEP key
- *  @details    valid only in BSS STA mode if External Supplicant support is enabled.
- *                              remove a WEP key entry from MAC HW.
- *                              The BSS Station automatically finds the index of the entry using its
- *                              BSS ID and removes that entry from the MAC hardware.
- *  @param[in,out] handle to the wifi driver
- *  @param[in]  6 bytes of Station Adress in the station entry table
- *  @return             Error code indicating success/failure
- *  @note               NO need for the STA add since it is not used for processing
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-int host_int_remove_wep_key(struct host_if_drv *wfi_drv, u8 index);
-/**
- *  @brief              sets WEP deafault key
- *  @details    Sets the index of the WEP encryption key in use,
- *                              in the key table
- *  @param[in,out] handle to the wifi driver
- *  @param[in]  key index ( 0, 1, 2, 3)
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-int host_int_set_wep_default_key(struct host_if_drv *hif_drv, u8 index);
+extern bool wilc_optaining_ip;
+extern u8 wilc_connected_ssid[6];
+extern u8 wilc_multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 
-/**
- *  @brief              sets WEP deafault key
- *  @details    valid only in BSS STA mode if External Supplicant support is enabled.
- *                              sets WEP key entry into MAC hardware when it receives the
- *                              corresponding request from NDIS.
- *  @param[in,out] handle to the wifi driver
- *  @param[in]  message containing WEP Key in the following format
- *|---------------------------------------|
- *|Key ID Value | Key Length |	Key		|
- *|-------------|------------|------------|
- |	1byte	  |		1byte  | Key Length	|
- ||---------------------------------------|
- |
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-int host_int_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
-				 const u8 *key, u8 len, u8 index);
-/**
- *  @brief              host_int_add_wep_key_bss_ap
- *  @details    valid only in AP mode if External Supplicant support is enabled.
- *                              sets WEP key entry into MAC hardware when it receives the
- *                              corresponding request from NDIS.
- *  @param[in,out] handle to the wifi driver
- *
- *
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		mdaftedar
- *  @date		28 Feb 2013
- *  @version		1.0
- */
-int host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
-				const u8 *key, u8 len, u8 index, u8 mode,
-				enum AUTHTYPE auth_type);
-
-/**
- *  @brief              adds ptk Key
- *  @details
- *  @param[in,out] handle to the wifi driver
- *  @param[in]  message containing PTK Key in the following format
- *|-------------------------------------------------------------------------|
- *|Sta Adress | Key Length |	Temporal Key | Rx Michael Key |Tx Michael Key |
- *|-----------|------------|---------------|----------------|---------------|
- |	6 bytes |	1byte	 |   16 bytes	 |	  8 bytes	  |	   8 bytes	  |
- ||-------------------------------------------------------------------------|
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_add_ptk(struct host_if_drv *hWFIDrv, const u8 *pu8Ptk, u8 u8PtkKeylen,
-			     const u8 *mac_addr, const u8 *pu8RxMic, const u8 *pu8TxMic, u8 mode, u8 u8Ciphermode, u8 u8Idx);
-
-/**
- *  @brief              host_int_get_inactive_time
- *  @details
- *  @param[in,out] handle to the wifi driver
- *  @param[in]  message containing inactive time
- *
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		mdaftedar
- *  @date		15 April 2013
- *  @version		1.0
- */
-s32 host_int_get_inactive_time(struct host_if_drv *hWFIDrv, const u8 *mac, u32 *pu32InactiveTime);
-
-/**
- *  @brief              adds Rx GTk Key
- *  @details
- *  @param[in,out] handle to the wifi driver
- *  @param[in]  message containing Rx GTK Key in the following format
- *|----------------------------------------------------------------------------|
- *|Sta Address | Key RSC | KeyID | Key Length | Temporal Key	| Rx Michael Key |
- *|------------|---------|-------|------------|---------------|----------------|
- |	6 bytes	 | 8 byte  |1 byte |  1 byte	|   16 bytes	|	  8 bytes	 |
- ||----------------------------------------------------------------------------|
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_add_rx_gtk(struct host_if_drv *hWFIDrv, const u8 *pu8RxGtk, u8 u8GtkKeylen,
-				u8 u8KeyIdx, u32 u32KeyRSClen, const u8 *KeyRSC,
-				const u8 *pu8RxMic, const u8 *pu8TxMic, u8 mode, u8 u8Ciphermode);
-
-
-/**
- *  @brief              adds Tx GTk Key
- *  @details
- *  @param[in,out] handle to the wifi driver
- *  @param[in]  message containing Tx GTK Key in the following format
- *|----------------------------------------------------|
- | KeyID | Key Length | Temporal Key	| Tx Michael Key |
- ||-------|------------|--------------|----------------|
- ||1 byte |  1 byte	 |   16 bytes	|	  8 bytes	 |
- ||----------------------------------------------------|
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_add_tx_gtk(struct host_if_drv *hWFIDrv, u8 u8KeyLen, u8 *pu8TxGtk, u8 u8KeyIdx);
-
-/**
- *  @brief              caches the pmkid
- *  @details    valid only in BSS STA mode if External Supplicant
- *                              support is enabled. This Function sets the PMKID in firmware
- *                              when host drivr receives the corresponding request from NDIS.
- *                              The firmware then includes theset PMKID in the appropriate
- *                              management frames
- *  @param[in,out] handle to the wifi driver
- *  @param[in]  message containing PMKID Info in the following format
- *|-----------------------------------------------------------------|
- *|NumEntries |	BSSID[1] | PMKID[1] |  ...	| BSSID[K] | PMKID[K] |
- *|-----------|------------|----------|-------|----------|----------|
- |	   1	|		6	 |   16		|  ...	|	 6	   |	16	  |
- ||-----------------------------------------------------------------|
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-
-s32 host_int_set_pmkid_info(struct host_if_drv *hWFIDrv, struct host_if_pmkid_attr *pu8PmkidInfoArray);
-/**
- *  @brief              gets the cached the pmkid info
- *  @details    valid only in BSS STA mode if External Supplicant
- *                              support is enabled. This Function sets the PMKID in firmware
- *                              when host drivr receives the corresponding request from NDIS.
- *                              The firmware then includes theset PMKID in the appropriate
- *                              management frames
- *  @param[in,out] handle to the wifi driver,
- *
- *                                message containing PMKID Info in the following format
- *|-----------------------------------------------------------------|
- *|NumEntries |	BSSID[1] | PMKID[1] |  ...	| BSSID[K] | PMKID[K] |
- *|-----------|------------|----------|-------|----------|----------|
- |	   1	|		6	 |   16		|  ...	|	 6	   |	16	  |
- ||-----------------------------------------------------------------|
- *  @param[in]
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-
-s32 host_int_get_pmkid_info(struct host_if_drv *hWFIDrv, u8 *pu8PmkidInfoArray,
-				    u32 u32PmkidInfoLen);
-
-/**
- *  @brief              sets the pass phrase
- *  @details    AP/STA mode. This function gives the pass phrase used to
- *                              generate the Pre-Shared Key when WPA/WPA2 is enabled
- *                              The length of the field can vary from 8 to 64 bytes,
- *                              the lower layer should get the
- *  @param[in,out] handle to the wifi driver,
- *  @param[in]   String containing PSK
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_set_RSNAConfigPSKPassPhrase(struct host_if_drv *hWFIDrv, u8 *pu8PassPhrase,
-						 u8 u8Psklength);
-/**
- *  @brief              gets the pass phrase
- *  @details    AP/STA mode. This function gets the pass phrase used to
- *                              generate the Pre-Shared Key when WPA/WPA2 is enabled
- *                              The length of the field can vary from 8 to 64 bytes,
- *                              the lower layer should get the
- *  @param[in,out] handle to the wifi driver,
- *                                String containing PSK
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_get_RSNAConfigPSKPassPhrase(struct host_if_drv *hWFIDrv,
-						 u8 *pu8PassPhrase, u8 u8Psklength);
-
-/**
- *  @brief              gets mac address
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		mdaftedar
- *  @date		19 April 2012
- *  @version		1.0
- */
-s32 host_int_get_MacAddress(struct host_if_drv *hWFIDrv, u8 *pu8MacAddress);
-
-/**
- *  @brief              sets mac address
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		mabubakr
- *  @date		16 July 2012
- *  @version		1.0
- */
-s32 host_int_set_MacAddress(struct host_if_drv *hWFIDrv, u8 *pu8MacAddress);
-
-/**
- *  @brief              wait until msg q is empty
- *  @details
- *  @param[in,out]
- *
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		asobhy
- *  @date		19 march 2014
- *  @version		1.0
- */
-int host_int_wait_msg_queue_idle(void);
-
-/**
- *  @brief              sets a start scan request
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *  @param[in]	Scan Source one of the following values
- *                              DEFAULT_SCAN        0
- *                              USER_SCAN           BIT0
- *                              OBSS_PERIODIC_SCAN  BIT1
- *                              OBSS_ONETIME_SCAN   BIT2
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-
-s32 host_int_set_start_scan_req(struct host_if_drv *hWFIDrv, u8 scanSource);
-/**
- *  @brief              gets scan source of the last scan
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *                              Scan Source one of the following values
- *                              DEFAULT_SCAN        0
- *                              USER_SCAN           BIT0
- *                              OBSS_PERIODIC_SCAN  BIT1
- *                              OBSS_ONETIME_SCAN   BIT2
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_get_start_scan_req(struct host_if_drv *hWFIDrv, u8 *pu8ScanSource);
-
-/**
- *  @brief              sets a join request
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *  @param[in]	Index of the bss descriptor
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-
-s32 host_int_set_join_req(struct host_if_drv *hWFIDrv, u8 *pu8bssid,
-				  const u8 *pu8ssid, size_t ssidLen,
-				  const u8 *pu8IEs, size_t IEsLen,
-				  wilc_connect_result pfConnectResult, void *pvUserArg,
-				  u8 u8security, enum AUTHTYPE tenuAuth_type,
-				  u8 u8channel,
-				  void *pJoinParams);
-
-/**
- *  @brief              Flush a join request parameters to FW, but actual connection
- *  @details    The function is called in situation where WILC is connected to AP and
- *                      required to switch to hybrid FW for P2P connection
- *  @param[in] handle to the wifi driver,
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		Amr Abdel-Moghny
- *  @date		19 DEC 2013
- *  @version		8.0
- */
-
-s32 host_int_flush_join_req(struct host_if_drv *hWFIDrv);
-
-
-/**
- *  @brief              disconnects from the currently associated network
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *  @param[in]	Reason Code of the Disconnection
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_disconnect(struct host_if_drv *hWFIDrv, u16 u16ReasonCode);
-
-/**
- *  @brief              disconnects a sta
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *  @param[in]	Association Id of the station to be disconnected
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_disconnect_station(struct host_if_drv *hWFIDrv, u8 assoc_id);
-/**
- *  @brief              gets a Association request info
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *                              Message containg assoc. req info in the following format
- * ------------------------------------------------------------------------
- |                        Management Frame Format                    |
- ||-------------------------------------------------------------------|
- ||Frame Control|Duration|DA|SA|BSSID|Sequence Control|Frame Body|FCS |
- ||-------------|--------|--|--|-----|----------------|----------|----|
- | 2           |2       |6 |6 |6    |		2       |0 - 2312  | 4  |
- ||-------------------------------------------------------------------|
- |                                                                   |
- |             Association Request Frame - Frame Body                |
- ||-------------------------------------------------------------------|
- | Capability Information | Listen Interval | SSID | Supported Rates |
- ||------------------------|-----------------|------|-----------------|
- |			2            |		 2         | 2-34 |		3-10        |
- | ---------------------------------------------------------------------
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-
-s32 host_int_get_assoc_req_info(struct host_if_drv *hWFIDrv, u8 *pu8AssocReqInfo,
-					u32 u32AssocReqInfoLen);
-/**
- *  @brief              gets a Association Response info
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *                              Message containg assoc. resp info
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-
-s32 host_int_get_assoc_res_info(struct host_if_drv *hWFIDrv, u8 *pu8AssocRespInfo,
-					u32 u32MaxAssocRespInfoLen, u32 *pu32RcvdAssocRespInfoLen);
-/**
- *  @brief              gets a Association Response info
- *  @details    Valid only in STA mode. This function gives the RSSI
- *                              values observed in all the channels at the time of scanning.
- *                              The length of the field is 1 greater that the total number of
- *                              channels supported. Byte 0 contains the number of channels while
- *                              each of Byte N contains	the observed RSSI value for the channel index N.
- *  @param[in,out] handle to the wifi driver,
- *                              array of scanned channels' RSSI
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_get_rx_power_level(struct host_if_drv *hWFIDrv, u8 *pu8RxPowerLevel,
-					u32 u32RxPowerLevelLen);
-
-/**
- *  @brief              sets a channel
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *  @param[in]	Index of the channel to be set
- *|-------------------------------------------------------------------|
- |          CHANNEL1      CHANNEL2 ....		             CHANNEL14	|
- |  Input:         1             2					            14	|
- ||-------------------------------------------------------------------|
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-int host_int_set_mac_chnl_num(struct host_if_drv *wfi_drv, u8 channel);
-
-/**
- *  @brief              gets the current channel index
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *                              current channel index
- *|-----------------------------------------------------------------------|
- |          CHANNEL1      CHANNEL2 ....                     CHANNEL14	|
- |  Input:         1             2                                 14	|
- ||-----------------------------------------------------------------------|
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_get_host_chnl_num(struct host_if_drv *hWFIDrv, u8 *pu8ChNo);
-/**
- *  @brief              gets the sta rssi
- *  @details    gets the currently maintained RSSI value for the station.
- *                              The received signal strength value in dB.
- *                              The range of valid values is -128 to 0.
- *  @param[in,out] handle to the wifi driver,
- *                              rssi value in dB
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_get_rssi(struct host_if_drv *hWFIDrv, s8 *ps8Rssi);
-s32 host_int_get_link_speed(struct host_if_drv *hWFIDrv, s8 *ps8lnkspd);
-/**
- *  @brief              scans a set of channels
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *  @param[in]		Scan source
- *                              Scan Type	PASSIVE_SCAN = 0,
- *                                                      ACTIVE_SCAN  = 1
- *                              Channels Array
- *                              Channels Array length
- *                              Scan Callback function
- *                              User Argument to be delivered back through the Scan Cllback function
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_scan(struct host_if_drv *hWFIDrv, u8 u8ScanSource,
-			  u8 u8ScanType, u8 *pu8ChnlFreqList,
-			  u8 u8ChnlListLen, const u8 *pu8IEs,
-			  size_t IEsLen, wilc_scan_result ScanResult,
-			  void *pvUserArg,
-			  struct hidden_network *pstrHiddenNetwork);
-/**
- *  @brief              sets configuration wids values
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *  @param[in]	WID, WID value
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 hif_set_cfg(struct host_if_drv *hWFIDrv, struct cfg_param_val *pstrCfgParamVal);
-
-/**
- *  @brief              gets configuration wids values
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *                              WID value
- *  @param[in]	WID,
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 hif_get_cfg(struct host_if_drv *hWFIDrv, u16 u16WID, u16 *pu16WID_Value);
-/*****************************************************************************/
-/*							Notification Functions							 */
-/*****************************************************************************/
-/**
- *  @brief              host interface initialization function
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_init(struct net_device *dev, struct host_if_drv **phWFIDrv);
-
-/**
- *  @brief              host interface initialization function
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_deinit(struct host_if_drv *hWFIDrv);
-
-
-/*!
- *  @fn		s32 host_int_add_beacon(WILC_WFIDrvHandle hWFIDrv,u8 u8Index)
- *  @brief		Sends a beacon to the firmware to be transmitted over the air
- *  @details
- *  @param[in,out]	hWFIDrv		handle to the wifi driver
- *  @param[in]	u32Interval	Beacon Interval. Period between two successive beacons on air
- *  @param[in]	u32DTIMPeriod DTIM Period. Indicates how many Beacon frames
- *              (including the current frame) appear before the next DTIM
- *  @param[in]	u32Headlen	Length of the head buffer in bytes
- *  @param[in]	pu8Head		Pointer to the beacon's head buffer. Beacon's head
- *		is the part from the beacon's start till the TIM element, NOT including the TIM
- *  @param[in]	u32Taillen	Length of the tail buffer in bytes
- *  @param[in]	pu8Tail		Pointer to the beacon's tail buffer. Beacon's tail
- *		starts just after the TIM inormation element
- *  @return	0 for Success, error otherwise
- *  @todo
- *  @sa
- *  @author		Adham Abozaeid
- *  @date		10 Julys 2012
- *  @version		1.0 Description
- *
- */
-s32 host_int_add_beacon(struct host_if_drv *hWFIDrv, u32 u32Interval,
-				u32 u32DTIMPeriod,
-				u32 u32HeadLen, u8 *pu8Head,
-				u32 u32TailLen, u8 *pu8tail);
-
-
-/*!
- *  @fn		s32 host_int_del_beacon(WILC_WFIDrvHandle hWFIDrv)
- *  @brief		Removes the beacon and stops trawilctting it over the air
- *  @details
- *  @param[in,out]	hWFIDrv		handle to the wifi driver
- *  @return	0 for Success, error otherwise
- *  @todo
- *  @sa
- *  @author		Adham Abozaeid
- *  @date		10 Julys 2012
- *  @version		1.0 Description
- */
-s32 host_int_del_beacon(struct host_if_drv *hWFIDrv);
-
-/*!
- *  @fn		s32 host_int_add_station(WILC_WFIDrvHandle hWFIDrv,
- *					 struct add_sta_param *pstrStaParams)
- *  @brief		Notifies the firmware with a new associated stations
- *  @details
- *  @param[in,out]	hWFIDrv		handle to the wifi driver
- *  @param[in]	pstrStaParams	Station's parameters
- *  @return	0 for Success, error otherwise
- *  @todo
- *  @sa
- *  @author		Adham Abozaeid
- *  @date		12 July 2012
- *  @version		1.0 Description
- */
-s32 host_int_add_station(struct host_if_drv *hWFIDrv,
-			 struct add_sta_param *pstrStaParams);
-
-/*!
- *  @fn		s32 host_int_del_allstation(WILC_WFIDrvHandle hWFIDrv, const u8* pu8MacAddr)
- *  @brief		Deauthenticates clients when group is terminating
- *  @details
- *  @param[in,out]	hWFIDrv		handle to the wifi driver
- *  @param[in]	pu8MacAddr	Station's mac address
- *  @return	0 for Success, error otherwise
- *  @todo
- *  @sa
- *  @author		Mai Daftedar
- *  @date		09 April 2014
- *  @version		1.0 Description
- */
-s32 host_int_del_allstation(struct host_if_drv *hWFIDrv, u8 pu8MacAddr[][ETH_ALEN]);
-
-/*!
- *  @fn		s32 host_int_del_station(WILC_WFIDrvHandle hWFIDrv, u8* pu8MacAddr)
- *  @brief		Notifies the firmware with a new deleted station
- *  @details
- *  @param[in,out]	hWFIDrv		handle to the wifi driver
- *  @param[in]	pu8MacAddr	Station's mac address
- *  @return	0 for Success, error otherwise
- *  @todo
- *  @sa
- *  @author		Adham Abozaeid
- *  @date		15 July 2012
- *  @version		1.0 Description
- */
-s32 host_int_del_station(struct host_if_drv *hWFIDrv, const u8 *pu8MacAddr);
-
-/*!
- *  @fn		s32 host_int_edit_station(WILC_WFIDrvHandle hWFIDrv,
- *					  struct add_sta_param *pstrStaParams)
- *  @brief		Notifies the firmware with new parameters of an already associated station
- *  @details
- *  @param[in,out]	hWFIDrv		handle to the wifi driver
- *  @param[in]	pstrStaParams	Station's parameters
- *  @return	0 for Success, error otherwise
- *  @todo
- *  @sa
- *  @author		Adham Abozaeid
- *  @date		15 July 2012
- *  @version		1.0 Description
- */
-s32 host_int_edit_station(struct host_if_drv *hWFIDrv,
-			  struct add_sta_param *pstrStaParams);
-
-/*!
- *  @fn		s32 host_int_set_power_mgmt(WILC_WFIDrvHandle hWFIDrv, bool bIsEnabled, u32 u32Timeout)
- *  @brief		Set the power management mode to enabled or disabled
- *  @details
- *  @param[in,out]	hWFIDrv		handle to the wifi driver
- *  @param[in]	bIsEnabled	TRUE if enabled, FALSE otherwise
- *  @param[in]	u32Timeout	A timeout value of -1 allows the driver to adjust
- *							the dynamic ps timeout value
- *  @return	0 for Success, error otherwise
- *  @todo
- *  @sa
- *  @author		Adham Abozaeid
- *  @date		24 November 2012
- *  @version		1.0 Description
- */
-s32 host_int_set_power_mgmt(struct host_if_drv *hWFIDrv, bool bIsEnabled, u32 u32Timeout);
-/*  @param[in,out]	hWFIDrv		handle to the wifi driver
- *  @param[in]	bIsEnabled	TRUE if enabled, FALSE otherwise
- *  @param[in]	u8count		count of mac address entries in the filter table
- *
- *  @return	0 for Success, error otherwise
- *  @todo
- *  @sa
- *  @author		Adham Abozaeid
- *  @date		24 November 2012
- *  @version		1.0 Description
- */
-s32 host_int_setup_multicast_filter(struct host_if_drv *hWFIDrv, bool bIsEnabled, u32 u32count);
-/**
- *  @brief           host_int_setup_ipaddress
- *  @details       set IP address on firmware
- *  @param[in]
- *  @return         Error code.
- *  @author		Abdelrahman Sobhy
- *  @date
- *  @version	1.0
- */
-s32 host_int_setup_ipaddress(struct host_if_drv *hWFIDrv, u8 *pu8IPAddr, u8 idx);
-
-
-/**
- *  @brief           host_int_delBASession
- *  @details       Delete single Rx BA session
- *  @param[in]
- *  @return         Error code.
- *  @author		Abdelrahman Sobhy
- *  @date
- *  @version	1.0
- */
-s32 host_int_delBASession(struct host_if_drv *hWFIDrv, char *pBSSID, char TID);
-
-/**
- *  @brief           host_int_delBASession
- *  @details       Delete all Rx BA session
- *  @param[in]
- *  @return         Error code.
- *  @author		Abdelrahman Sobhy
- *  @date
- *  @version	1.0
- */
-s32 host_int_del_All_Rx_BASession(struct host_if_drv *hWFIDrv, char *pBSSID, char TID);
-
-
-/**
- *  @brief           host_int_get_ipaddress
- *  @details       get IP address on firmware
- *  @param[in]
- *  @return         Error code.
- *  @author		Abdelrahman Sobhy
- *  @date
- *  @version	1.0
- */
-s32 host_int_get_ipaddress(struct host_if_drv *hWFIDrv, u8 *pu8IPAddr, u8 idx);
-
-/**
- *  @brief           host_int_remain_on_channel
- *  @details
- *  @param[in]
- *  @return         Error code.
- *  @author
- *  @date
- *  @version	1.0
- */
-s32 host_int_remain_on_channel(struct host_if_drv *hWFIDrv, u32 u32SessionID, u32 u32duration, u16 chan, wilc_remain_on_chan_expired RemainOnChanExpired, wilc_remain_on_chan_ready RemainOnChanReady, void *pvUserArg);
-
-/**
- *  @brief              host_int_ListenStateExpired
- *  @details
- *  @param[in]          Handle to wifi driver
- *                              Duration to remain on channel
- *                              Channel to remain on
- *                              Pointer to fn to be called on receive frames in listen state
- *                              Pointer to remain-on-channel expired fn
- *                              Priv
- *  @return             Error code.
- *  @author
- *  @date
- *  @version		1.0
- */
-s32 host_int_ListenStateExpired(struct host_if_drv *hWFIDrv, u32 u32SessionID);
-
-/**
- *  @brief           host_int_frame_register
- *  @details
- *  @param[in]
- *  @return         Error code.
- *  @author
- *  @date
- *  @version	1.0
- */
-s32 host_int_frame_register(struct host_if_drv *hWFIDrv, u16 u16FrameType, bool bReg);
-/**
- *  @brief           host_int_set_wfi_drv_handler
- *  @details
- *  @param[in]
- *  @return         Error code.
- *  @author
- *  @date
- *  @version	1.0
- */
-int host_int_set_wfi_drv_handler(struct host_if_drv *address);
-int host_int_set_operation_mode(struct host_if_drv *wfi_drv, u32 mode);
-
-static s32 Handle_ScanDone(struct host_if_drv *drvHandler, enum scan_event enuEvent);
-
-void host_int_freeJoinParams(void *pJoinParams);
-
-s32 host_int_get_statistics(struct host_if_drv *hWFIDrv, struct rf_info *pstrStatistics);
+extern int wilc_connecting;
+extern u8 wilc_initialized;
+extern struct timer_list wilc_during_ip_timer;
 
 #endif

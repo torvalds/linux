@@ -1,0 +1,104 @@
+Qualcomm Shared Memory State Machine
+
+The Shared Memory State Machine facilitates broadcasting of single bit state
+information between the processors in a Qualcomm SoC. Each processor is
+assigned 32 bits of state that can be modified. A processor can through a
+matrix of bitmaps signal subscription of notifications upon changes to a
+certain bit owned by a certain remote processor.
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be one of:
+		    "qcom,smsm"
+
+- qcom,ipc-N:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: three entries specifying the outgoing ipc bit used for
+		    signaling the N:th remote processor
+		    - phandle to a syscon node representing the apcs registers
+		    - u32 representing offset to the register within the syscon
+		    - u32 representing the ipc bit within the register
+
+- qcom,local-host:
+	Usage: optional
+	Value type: <u32>
+	Definition: identifier of the local processor in the list of hosts, or
+		    in other words specifier of the column in the subscription
+		    matrix representing the local processor
+		    defaults to host 0
+
+- #address-cells:
+	Usage: required
+	Value type: <u32>
+	Definition: must be 1
+
+- #size-cells:
+	Usage: required
+	Value type: <u32>
+	Definition: must be 0
+
+= SUBNODES
+Each processor's state bits are described by a subnode of the smsm device node.
+Nodes can either be flagged as an interrupt-controller to denote a remote
+processor's state bits or the local processors bits.  The node names are not
+important.
+
+- reg:
+	Usage: required
+	Value type: <u32>
+	Definition: specifies the offset, in words, of the first bit for this
+		    entry
+
+- #qcom,state-cells:
+	Usage: required for local entry
+	Value type: <u32>
+	Definition: must be 1 - denotes bit number
+
+- interrupt-controller:
+	Usage: required for remote entries
+	Value type: <empty>
+	Definition: marks the entry as a interrupt-controller and the state bits
+		    to belong to a remote processor
+
+- #interrupt-cells:
+	Usage: required for remote entries
+	Value type: <u32>
+	Definition: must be 2 - denotes bit number and IRQ flags
+
+- interrupts:
+	Usage: required for remote entries
+	Value type: <prop-encoded-array>
+	Definition: one entry specifying remote IRQ used by the remote processor
+		    to signal changes of its state bits
+
+
+= EXAMPLE
+The following example shows the SMEM setup for controlling properties of the
+wireless processor, defined from the 8974 apps processor's point-of-view. It
+encompasses one outbound entry and the outgoing interrupt for the wireless
+processor.
+
+smsm {
+	compatible = "qcom,smsm";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	qcom,ipc-3 = <&apcs 8 19>;
+
+	apps_smsm: apps@0 {
+		reg = <0>;
+
+		#qcom,state-cells = <1>;
+	};
+
+	wcnss_smsm: wcnss@7 {
+		reg = <7>;
+		interrupts = <0 144 1>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+};

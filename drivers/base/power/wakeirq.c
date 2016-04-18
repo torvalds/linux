@@ -68,6 +68,9 @@ int dev_pm_set_wake_irq(struct device *dev, int irq)
 	struct wake_irq *wirq;
 	int err;
 
+	if (irq < 0)
+		return -EINVAL;
+
 	wirq = kzalloc(sizeof(*wirq), GFP_KERNEL);
 	if (!wirq)
 		return -ENOMEM;
@@ -166,6 +169,9 @@ int dev_pm_set_dedicated_wake_irq(struct device *dev, int irq)
 {
 	struct wake_irq *wirq;
 	int err;
+
+	if (irq < 0)
+		return -EINVAL;
 
 	wirq = kzalloc(sizeof(*wirq), GFP_KERNEL);
 	if (!wirq)

@@ -212,6 +212,14 @@ static struct mfc_control controls[] = {
 		.menu_skip_mask = 0,
 	},
 	{
+		.id = V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME,
+		.type = V4L2_CTRL_TYPE_BUTTON,
+		.minimum = 0,
+		.maximum = 0,
+		.step = 0,
+		.default_value = 0,
+	},
+	{
 		.id = V4L2_CID_MPEG_VIDEO_VBV_SIZE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.minimum = 0,
@@ -769,15 +777,12 @@ static int enc_pre_seq_start(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_buf *dst_mb;
 	unsigned long dst_addr;
 	unsigned int dst_size;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev->irqlock, flags);
 	dst_mb = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf, list);
 	dst_addr = vb2_dma_contig_plane_dma_addr(&dst_mb->b->vb2_buf, 0);
 	dst_size = vb2_plane_size(&dst_mb->b->vb2_buf, 0);
-	s5p_mfc_hw_call_void(dev->mfc_ops, set_enc_stream_buffer, ctx, dst_addr,
+	s5p_mfc_hw_call(dev->mfc_ops, set_enc_stream_buffer, ctx, dst_addr,
 			dst_size);
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 	return 0;
 }
 
@@ -786,11 +791,9 @@ static int enc_post_seq_start(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_enc_params *p = &ctx->enc_params;
 	struct s5p_mfc_buf *dst_mb;
-	unsigned long flags;
 	unsigned int enc_pb_count;
 
 	if (p->seq_hdr_mode == V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE) {
-		spin_lock_irqsave(&dev->irqlock, flags);
 		if (!list_empty(&ctx->dst_queue)) {
 			dst_mb = list_entry(ctx->dst_queue.next,
 					struct s5p_mfc_buf, list);
@@ -802,14 +805,13 @@ static int enc_post_seq_start(struct s5p_mfc_ctx *ctx)
 			vb2_buffer_done(&dst_mb->b->vb2_buf,
 					VB2_BUF_STATE_DONE);
 		}
-		spin_unlock_irqrestore(&dev->irqlock, flags);
 	}
 
 	if (!IS_MFCV6_PLUS(dev)) {
 		ctx->state = MFCINST_RUNNING;
 		if (s5p_mfc_ctx_ready(ctx))
 			set_work_bit_irqsave(ctx);
-		s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 	} else {
 		enc_pb_count = s5p_mfc_hw_call(dev->mfc_ops,
 				get_enc_dpb_count, dev);
@@ -826,25 +828,20 @@ static int enc_pre_frame_start(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf *dst_mb;
 	struct s5p_mfc_buf *src_mb;
-	unsigned long flags;
 	unsigned long src_y_addr, src_c_addr, dst_addr;
 	unsigned int dst_size;
 
-	spin_lock_irqsave(&dev->irqlock, flags);
 	src_mb = list_entry(ctx->src_queue.next, struct s5p_mfc_buf, list);
 	src_y_addr = vb2_dma_contig_plane_dma_addr(&src_mb->b->vb2_buf, 0);
 	src_c_addr = vb2_dma_contig_plane_dma_addr(&src_mb->b->vb2_buf, 1);
-	s5p_mfc_hw_call_void(dev->mfc_ops, set_enc_frame_buffer, ctx,
+	s5p_mfc_hw_call(dev->mfc_ops, set_enc_frame_buffer, ctx,
 							src_y_addr, src_c_addr);
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 
-	spin_lock_irqsave(&dev->irqlock, flags);
 	dst_mb = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf, list);
 	dst_addr = vb2_dma_contig_plane_dma_addr(&dst_mb->b->vb2_buf, 0);
 	dst_size = vb2_plane_size(&dst_mb->b->vb2_buf, 0);
-	s5p_mfc_hw_call_void(dev->mfc_ops, set_enc_stream_buffer, ctx, dst_addr,
+	s5p_mfc_hw_call(dev->mfc_ops, set_enc_stream_buffer, ctx, dst_addr,
 			dst_size);
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 
 	return 0;
 }
@@ -857,7 +854,6 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 	unsigned long mb_y_addr, mb_c_addr;
 	int slice_type;
 	unsigned int strm_size;
-	unsigned long flags;
 
 	slice_type = s5p_mfc_hw_call(dev->mfc_ops, get_enc_slice_type, dev);
 	strm_size = s5p_mfc_hw_call(dev->mfc_ops, get_enc_strm_size, dev);
@@ -865,9 +861,8 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "Encoded stream size: %d\n", strm_size);
 	mfc_debug(2, "Display order: %d\n",
 		  mfc_read(dev, S5P_FIMV_ENC_SI_PIC_CNT));
-	spin_lock_irqsave(&dev->irqlock, flags);
 	if (slice_type >= 0) {
-		s5p_mfc_hw_call_void(dev->mfc_ops, get_enc_frame_buffer, ctx,
+		s5p_mfc_hw_call(dev->mfc_ops, get_enc_frame_buffer, ctx,
 				&enc_y_addr, &enc_c_addr);
 		list_for_each_entry(mb_entry, &ctx->src_queue, list) {
 			mb_y_addr = vb2_dma_contig_plane_dma_addr(
@@ -929,14 +924,13 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 		vb2_set_plane_payload(&mb_entry->b->vb2_buf, 0, strm_size);
 		vb2_buffer_done(&mb_entry->b->vb2_buf, VB2_BUF_STATE_DONE);
 	}
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 	if ((ctx->src_queue_cnt == 0) || (ctx->dst_queue_cnt == 0))
 		clear_work_bit(ctx);
 
 	return 0;
 }
 
-static struct s5p_mfc_codec_ops encoder_codec_ops = {
+static const struct s5p_mfc_codec_ops encoder_codec_ops = {
 	.pre_seq_start		= enc_pre_seq_start,
 	.post_seq_start		= enc_post_seq_start,
 	.pre_frame_start	= enc_pre_frame_start,
@@ -1120,7 +1114,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 			pix_fmt_mp->width, pix_fmt_mp->height,
 			ctx->img_width, ctx->img_height);
 
-		s5p_mfc_hw_call_void(dev->mfc_ops, enc_calc_src_size, ctx);
+		s5p_mfc_hw_call(dev->mfc_ops, enc_calc_src_size, ctx);
 		pix_fmt_mp->plane_fmt[0].sizeimage = ctx->luma_size;
 		pix_fmt_mp->plane_fmt[0].bytesperline = ctx->buf_width;
 		pix_fmt_mp->plane_fmt[1].sizeimage = ctx->chroma_size;
@@ -1178,7 +1172,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		if (reqbufs->count == 0) {
 			mfc_debug(2, "Freeing buffers\n");
 			ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
-			s5p_mfc_hw_call_void(dev->mfc_ops, release_codec_buffers,
+			s5p_mfc_hw_call(dev->mfc_ops, release_codec_buffers,
 					ctx);
 			ctx->output_state = QUEUE_FREE;
 			return ret;
@@ -1436,6 +1430,10 @@ static int s5p_mfc_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE:
 		ctx->force_frame_type = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME:
+		ctx->force_frame_type =
+			V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_I_FRAME;
 		break;
 	case V4L2_CID_MPEG_VIDEO_VBV_SIZE:
 		p->vbv_size = ctrl->val;
@@ -1741,7 +1739,7 @@ static int vidioc_encoder_cmd(struct file *file, void *priv,
 			if (s5p_mfc_ctx_ready(ctx))
 				set_work_bit_irqsave(ctx);
 			spin_unlock_irqrestore(&dev->irqlock, flags);
-			s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+			s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 		} else {
 			mfc_debug(2, "EOS: marking last buffer of stream\n");
 			buf = list_entry(ctx->src_queue.prev,
@@ -1818,7 +1816,6 @@ static int check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 }
 
 static int s5p_mfc_queue_setup(struct vb2_queue *vq,
-			const void *parg,
 			unsigned int *buf_count, unsigned int *plane_count,
 			unsigned int psize[], void *allocators[])
 {
@@ -1969,7 +1966,7 @@ static int s5p_mfc_start_streaming(struct vb2_queue *q, unsigned int count)
 	/* If context is ready then dev = work->data;schedule it to run */
 	if (s5p_mfc_ctx_ready(ctx))
 		set_work_bit_irqsave(ctx);
-	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 
 	return 0;
 }
@@ -1990,15 +1987,13 @@ static void s5p_mfc_stop_streaming(struct vb2_queue *q)
 	ctx->state = MFCINST_FINISHED;
 	spin_lock_irqsave(&dev->irqlock, flags);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue,
-						&ctx->dst_queue, &ctx->vq_dst);
+		s5p_mfc_cleanup_queue(&ctx->dst_queue, &ctx->vq_dst);
 		INIT_LIST_HEAD(&ctx->dst_queue);
 		ctx->dst_queue_cnt = 0;
 	}
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		cleanup_ref_queue(ctx);
-		s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue, &ctx->src_queue,
-				&ctx->vq_src);
+		s5p_mfc_cleanup_queue(&ctx->src_queue, &ctx->vq_src);
 		INIT_LIST_HEAD(&ctx->src_queue);
 		ctx->src_queue_cnt = 0;
 	}
@@ -2038,7 +2033,7 @@ static void s5p_mfc_buf_queue(struct vb2_buffer *vb)
 	}
 	if (s5p_mfc_ctx_ready(ctx))
 		set_work_bit_irqsave(ctx);
-	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 }
 
 static struct vb2_ops s5p_mfc_enc_qops = {
@@ -2052,7 +2047,7 @@ static struct vb2_ops s5p_mfc_enc_qops = {
 	.buf_queue		= s5p_mfc_buf_queue,
 };
 
-struct s5p_mfc_codec_ops *get_enc_codec_ops(void)
+const struct s5p_mfc_codec_ops *get_enc_codec_ops(void)
 {
 	return &encoder_codec_ops;
 }
@@ -2067,7 +2062,7 @@ const struct v4l2_ioctl_ops *get_enc_v4l2_ioctl_ops(void)
 	return &s5p_mfc_enc_ioctl_ops;
 }
 
-#define IS_MFC51_PRIV(x) ((V4L2_CTRL_ID2CLASS(x) == V4L2_CTRL_CLASS_MPEG) \
+#define IS_MFC51_PRIV(x) ((V4L2_CTRL_ID2WHICH(x) == V4L2_CTRL_CLASS_MPEG) \
 						&& V4L2_CTRL_DRIVER_PRIV(x))
 
 int s5p_mfc_enc_ctrls_setup(struct s5p_mfc_ctx *ctx)

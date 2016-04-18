@@ -19,7 +19,8 @@
 #define __VBUSHELPER_H__
 
 /* TARGET_HOSTNAME specified as -DTARGET_HOSTNAME=\"thename\" on the
- * command line */
+ * command line
+ */
 
 #define TARGET_HOSTNAME "linuxguest"
 

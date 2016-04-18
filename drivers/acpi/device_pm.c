@@ -22,6 +22,7 @@
 #include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/pm_qos.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 
 #include "internal.h"
@@ -1059,7 +1060,7 @@ static void acpi_dev_pm_detach(struct device *dev, bool power_off)
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 
 	if (adev && dev->pm_domain == &acpi_general_pm_domain) {
-		dev->pm_domain = NULL;
+		dev_pm_domain_set(dev, NULL);
 		acpi_remove_pm_notifier(adev);
 		if (power_off) {
 			/*
@@ -1111,7 +1112,7 @@ int acpi_dev_pm_attach(struct device *dev, bool power_on)
 		return -EBUSY;
 
 	acpi_add_pm_notifier(adev, dev, acpi_pm_notify_work_func);
-	dev->pm_domain = &acpi_general_pm_domain;
+	dev_pm_domain_set(dev, &acpi_general_pm_domain);
 	if (power_on) {
 		acpi_dev_pm_full_power(adev);
 		acpi_device_wakeup(adev, ACPI_STATE_S0, false);

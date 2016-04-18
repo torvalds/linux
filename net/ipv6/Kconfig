@@ -69,6 +69,7 @@ config INET6_ESP
 	select CRYPTO_CBC
 	select CRYPTO_SHA1
 	select CRYPTO_DES
+	select CRYPTO_ECHAINIV
 	---help---
 	  Support for IPsec ESP.
 
@@ -94,6 +95,7 @@ config IPV6_MIP6
 
 config IPV6_ILA
 	tristate "IPv6: Identifier Locator Addressing (ILA)"
+	depends on NETFILTER
 	select LWTUNNEL
 	---help---
 	  Support for IPv6 Identifier Locator Addressing (ILA).
@@ -205,6 +207,7 @@ config IPV6_NDISC_NODETYPE
 config IPV6_TUNNEL
 	tristate "IPv6: IP-in-IPv6 tunnel (RFC2473)"
 	select INET6_TUNNEL
+	select DST_CACHE
 	---help---
 	  Support for IPv6-in-IPv6 and IPv4-in-IPv6 tunnels described in
 	  RFC 2473.

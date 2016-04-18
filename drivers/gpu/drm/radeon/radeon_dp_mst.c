@@ -89,8 +89,16 @@ static int radeon_dp_mst_set_stream_attrib(struct radeon_encoder *primary,
 	WREG32(NI_DP_MSE_SAT_UPDATE + primary->offset, 1);
 
 	do {
+		unsigned value1, value2;
+		udelay(10);
 		temp = RREG32(NI_DP_MSE_SAT_UPDATE + primary->offset);
-	} while ((temp & 0x1) && retries++ < 10000);
+
+		value1 = temp & NI_DP_MSE_SAT_UPDATE_MASK;
+		value2 = temp & NI_DP_MSE_16_MTP_KEEPOUT;
+
+		if (!value1 && !value2)
+			break;
+	} while (retries++ < 50);
 
 	if (retries == 10000)
 		DRM_ERROR("timed out waitin for SAT update %d\n", primary->offset);
@@ -150,7 +158,7 @@ static int radeon_dp_mst_update_stream_attribs(struct radeon_connector *mst_conn
 	return 0;
 }
 
-static int radeon_dp_mst_set_vcp_size(struct radeon_encoder *mst, uint32_t x, uint32_t y)
+static int radeon_dp_mst_set_vcp_size(struct radeon_encoder *mst, s64 avg_time_slots_per_mtp)
 {
 	struct drm_device *dev = mst->base.dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -158,6 +166,8 @@ static int radeon_dp_mst_set_vcp_size(struct radeon_encoder *mst, uint32_t x, ui
 	uint32_t val, temp;
 	uint32_t offset = radeon_atom_set_enc_offset(mst_enc->fe);
 	int retries = 0;
+	uint32_t x = drm_fixp2int(avg_time_slots_per_mtp);
+	uint32_t y = drm_fixp2int_ceil((avg_time_slots_per_mtp - x) << 26);
 
 	val = NI_DP_MSE_RATE_X(x) | NI_DP_MSE_RATE_Y(y);
 
@@ -165,6 +175,7 @@ static int radeon_dp_mst_set_vcp_size(struct radeon_encoder *mst, uint32_t x, ui
 
 	do {
 		temp = RREG32(NI_DP_MSE_RATE_UPDATE + offset);
+		udelay(10);
 	} while ((temp & 0x1) && (retries++ < 10000));
 
 	if (retries >= 10000)
@@ -246,14 +257,8 @@ radeon_dp_mst_connector_destroy(struct drm_connector *connector)
 	kfree(radeon_connector);
 }
 
-static int radeon_connector_dpms(struct drm_connector *connector, int mode)
-{
-	DRM_DEBUG_KMS("\n");
-	return 0;
-}
-
 static const struct drm_connector_funcs radeon_dp_mst_connector_funcs = {
-	.dpms = radeon_connector_dpms,
+	.dpms = drm_helper_connector_dpms,
 	.detect = radeon_dp_mst_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = radeon_dp_mst_connector_destroy,
@@ -329,7 +334,7 @@ static void radeon_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
 	drm_kms_helper_hotplug_event(dev);
 }
 
-struct drm_dp_mst_topology_cbs mst_cbs = {
+const struct drm_dp_mst_topology_cbs mst_cbs = {
 	.add_connector = radeon_dp_add_mst_connector,
 	.register_connector = radeon_dp_register_mst_connector,
 	.destroy_connector = radeon_dp_destroy_mst_connector,
@@ -394,7 +399,7 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_crtc *crtc;
 	struct radeon_crtc *radeon_crtc;
 	int ret, slots;
-
+	s64 fixed_pbn, fixed_pbn_per_slot, avg_time_slots_per_mtp;
 	if (!ASIC_IS_DCE5(rdev)) {
 		DRM_ERROR("got mst dpms on non-DCE5\n");
 		return;
@@ -456,7 +461,11 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 		mst_enc->enc_active = true;
 		radeon_dp_mst_update_stream_attribs(radeon_connector->mst_port, primary);
-		radeon_dp_mst_set_vcp_size(radeon_encoder, slots, 0);
+
+		fixed_pbn = drm_int2fixp(mst_enc->pbn);
+		fixed_pbn_per_slot = drm_int2fixp(radeon_connector->mst_port->mst_mgr.pbn_div);
+		avg_time_slots_per_mtp = drm_fixp_div(fixed_pbn, fixed_pbn_per_slot);
+		radeon_dp_mst_set_vcp_size(radeon_encoder, avg_time_slots_per_mtp);
 
 		atombios_dig_encoder_setup2(&primary->base, ATOM_ENCODER_CMD_DP_VIDEO_ON, 0,
 					    mst_enc->fe);
@@ -510,6 +519,7 @@ static bool radeon_mst_mode_fixup(struct drm_encoder *encoder,
 {
 	struct radeon_encoder_mst *mst_enc;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_connector_atom_dig *dig_connector;
 	int bpp = 24;
 
 	mst_enc = radeon_encoder->enc_priv;
@@ -523,16 +533,11 @@ static bool radeon_mst_mode_fixup(struct drm_encoder *encoder,
 
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
-	{
-	  struct radeon_connector_atom_dig *dig_connector;
-
-	  dig_connector = mst_enc->connector->con_priv;
-	  dig_connector->dp_lane_count = drm_dp_max_lane_count(dig_connector->dpcd);
-	  dig_connector->dp_clock = radeon_dp_get_max_link_rate(&mst_enc->connector->base,
-								dig_connector->dpcd);
-	  DRM_DEBUG_KMS("dig clock %p %d %d\n", dig_connector,
-			dig_connector->dp_lane_count, dig_connector->dp_clock);
-	}
+	dig_connector = mst_enc->connector->con_priv;
+	dig_connector->dp_lane_count = drm_dp_max_lane_count(dig_connector->dpcd);
+	dig_connector->dp_clock = drm_dp_max_link_rate(dig_connector->dpcd);
+	DRM_DEBUG_KMS("dig clock %p %d %d\n", dig_connector,
+		      dig_connector->dp_lane_count, dig_connector->dp_clock);
 	return true;
 }
 
@@ -641,7 +646,7 @@ radeon_dp_create_fake_mst_encoder(struct radeon_connector *connector)
 	}
 
 	drm_encoder_init(dev, &radeon_encoder->base, &radeon_dp_mst_enc_funcs,
-			 DRM_MODE_ENCODER_DPMST);
+			 DRM_MODE_ENCODER_DPMST, NULL);
 	drm_encoder_helper_add(encoder, &radeon_mst_helper_funcs);
 
 	mst_enc = radeon_encoder->enc_priv;

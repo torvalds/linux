@@ -453,6 +453,7 @@ static int apds9960_set_power_state(struct apds9960_data *data, bool on)
 			usleep_range(data->als_adc_int_us,
 				     APDS9960_MAX_INT_TIME_IN_US);
 	} else {
+		pm_runtime_mark_last_busy(dev);
 		ret = pm_runtime_put_autosuspend(dev);
 	}
 
@@ -768,7 +769,7 @@ static void apds9960_read_gesture_fifo(struct apds9960_data *data)
 	mutex_lock(&data->lock);
 	data->gesture_mode_running = 1;
 
-	while (cnt-- || (cnt = apds9660_fifo_is_empty(data) > 0)) {
+	while (cnt || (cnt = apds9660_fifo_is_empty(data) > 0)) {
 		ret = regmap_bulk_read(data->regmap, APDS9960_REG_GFIFO_BASE,
 				      &data->buffer, 4);
 
@@ -776,6 +777,7 @@ static void apds9960_read_gesture_fifo(struct apds9960_data *data)
 			goto err_read;
 
 		iio_push_to_buffers(data->indio_dev, data->buffer);
+		cnt--;
 	}
 
 err_read:

@@ -70,7 +70,7 @@
 		compatible = "arm,cortex-a9-twd-timer";
 		clocks = <&mpu_periphclk>;
 		reg = <0x48240600 0x20>;
-		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_RAW(3) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_RAW(3) | IRQ_TYPE_EDGE_RISING)>;
 		interrupt-parent = <&gic>;
 	};
 
@@ -348,12 +348,22 @@
 			#interrupt-cells = <2>;
 		};
 
+		elm: elm@48078000 {
+			compatible = "ti,am3352-elm";
+			reg = <0x48078000 0x2000>;
+			interrupts = <4>;
+			ti,hwmods = "elm";
+			status = "disabled";
+		};
+
 		gpmc: gpmc@50000000 {
 			compatible = "ti,omap4430-gpmc";
 			reg = <0x50000000 0x1000>;
 			#address-cells = <2>;
 			#size-cells = <1>;
 			interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&sdma 4>;
+			dma-names = "rxtx";
 			gpmc,num-cs = <8>;
 			gpmc,num-waitpins = <4>;
 			ti,hwmods = "gpmc";

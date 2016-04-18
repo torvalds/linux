@@ -85,3 +85,17 @@ static inline void s3c_pm_arch_update_uart(void __iomem *regs,
 
 static inline void s3c_pm_restored_gpios(void) { }
 static inline void samsung_pm_saved_gpios(void) { }
+
+/* state for IRQs over sleep */
+
+/* default is to allow for EINT0..EINT15, and IRQ_RTC as wakeup sources
+ *
+ * set bit to 1 in allow bitfield to enable the wakeup settings on it
+*/
+#ifdef CONFIG_PM_SLEEP
+#define s3c_irqwake_intallow	(1L << 30 | 0xfL)
+#define s3c_irqwake_eintallow	(0x0000fff0L)
+#else
+#define s3c_irqwake_eintallow 0
+#define s3c_irqwake_intallow  0
+#endif

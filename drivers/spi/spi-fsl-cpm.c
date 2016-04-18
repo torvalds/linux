@@ -16,7 +16,7 @@
  * option) any later version.
  */
 #include <asm/cpm.h>
-#include <asm/qe.h>
+#include <soc/fsl/qe/qe.h>
 #include <linux/dma-mapping.h>
 #include <linux/fsl_devices.h>
 #include <linux/kernel.h>

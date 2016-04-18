@@ -16,6 +16,7 @@
 #include <linux/clockchips.h>
 #include <linux/cpu.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -99,17 +100,17 @@ static void gt_compare_set(unsigned long delta, int periodic)
 
 	counter += delta;
 	ctrl = GT_CONTROL_TIMER_ENABLE;
-	writel(ctrl, gt_base + GT_CONTROL);
-	writel(lower_32_bits(counter), gt_base + GT_COMP0);
-	writel(upper_32_bits(counter), gt_base + GT_COMP1);
+	writel_relaxed(ctrl, gt_base + GT_CONTROL);
+	writel_relaxed(lower_32_bits(counter), gt_base + GT_COMP0);
+	writel_relaxed(upper_32_bits(counter), gt_base + GT_COMP1);
 
 	if (periodic) {
-		writel(delta, gt_base + GT_AUTO_INC);
+		writel_relaxed(delta, gt_base + GT_AUTO_INC);
 		ctrl |= GT_CONTROL_AUTO_INC;
 	}
 
 	ctrl |= GT_CONTROL_COMP_ENABLE | GT_CONTROL_IRQ_ENABLE;
-	writel(ctrl, gt_base + GT_CONTROL);
+	writel_relaxed(ctrl, gt_base + GT_CONTROL);
 }
 
 static int gt_clockevent_shutdown(struct clock_event_device *evt)
@@ -174,6 +175,7 @@ static int gt_clockevents_init(struct clock_event_device *clk)
 	clk->set_state_shutdown = gt_clockevent_shutdown;
 	clk->set_state_periodic = gt_clockevent_set_periodic;
 	clk->set_state_oneshot = gt_clockevent_shutdown;
+	clk->set_state_oneshot_stopped = gt_clockevent_shutdown;
 	clk->set_next_event = gt_clockevent_set_next_event;
 	clk->cpumask = cpumask_of(cpu);
 	clk->rating = 300;
@@ -195,12 +197,23 @@ static cycle_t gt_clocksource_read(struct clocksource *cs)
 	return gt_counter_read();
 }
 
+static void gt_resume(struct clocksource *cs)
+{
+	unsigned long ctrl;
+
+	ctrl = readl(gt_base + GT_CONTROL);
+	if (!(ctrl & GT_CONTROL_TIMER_ENABLE))
+		/* re-enable timer on resume */
+		writel(GT_CONTROL_TIMER_ENABLE, gt_base + GT_CONTROL);
+}
+
 static struct clocksource gt_clocksource = {
 	.name	= "arm_global_timer",
 	.rating	= 300,
 	.read	= gt_clocksource_read,
 	.mask	= CLOCKSOURCE_MASK(64),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+	.resume = gt_resume,
 };
 
 #ifdef CONFIG_CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
@@ -209,6 +222,21 @@ static u64 notrace gt_sched_clock_read(void)
 	return _gt_counter_read();
 }
 #endif
+
+static unsigned long gt_read_long(void)
+{
+	return readl_relaxed(gt_base + GT_COUNTER0);
+}
+
+static struct delay_timer gt_delay_timer = {
+	.read_current_timer = gt_read_long,
+};
+
+static void __init gt_delay_timer_init(void)
+{
+	gt_delay_timer.freq = gt_clk_rate;
+	register_current_timer_delay(&gt_delay_timer);
+}
 
 static void __init gt_clocksource_init(void)
 {
@@ -306,6 +334,7 @@ static void __init global_timer_of_register(struct device_node *np)
 	/* Immediately configure the timer on the boot CPU */
 	gt_clocksource_init();
 	gt_clockevents_init(this_cpu_ptr(gt_evt));
+	gt_delay_timer_init();
 
 	return;
 

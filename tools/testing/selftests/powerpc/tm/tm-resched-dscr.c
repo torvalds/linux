@@ -29,6 +29,7 @@
 #include <asm/tm.h>
 
 #include "utils.h"
+#include "tm.h"
 
 #define TBEGIN          ".long 0x7C00051D ;"
 #define TEND            ".long 0x7C00055D ;"
@@ -41,6 +42,8 @@
 int test_body(void)
 {
 	uint64_t rv, dscr1 = 1, dscr2, texasr;
+
+	SKIP_IF(!have_htm());
 
 	printf("Check DSCR TM context switch: ");
 	fflush(stdout);

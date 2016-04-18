@@ -48,6 +48,9 @@ config COMPAT_NETLINK_MESSAGES
 config NET_INGRESS
 	bool
 
+config NET_EGRESS
+	bool
+
 menu "Networking options"
 
 source "net/packet/Kconfig"
@@ -250,9 +253,17 @@ config XPS
 	depends on SMP
 	default y
 
+config HWBM
+       bool
+
+config SOCK_CGROUP_DATA
+	bool
+	default n
+
 config CGROUP_NET_PRIO
 	bool "Network priority cgroup"
 	depends on CGROUPS
+	select SOCK_CGROUP_DATA
 	---help---
 	  Cgroup subsystem for use in assigning processes to network priorities on
 	  a per-interface basis.
@@ -260,6 +271,7 @@ config CGROUP_NET_PRIO
 config CGROUP_NET_CLASSID
 	bool "Network classid cgroup"
 	depends on CGROUPS
+	select SOCK_CGROUP_DATA
 	---help---
 	  Cgroup subsystem for use as general purpose socket classid marker that is
 	  being used in cls_cgroup and for netfilter matching.
@@ -351,6 +363,7 @@ source "net/can/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
 source "net/rxrpc/Kconfig"
+source "net/kcm/Kconfig"
 
 config FIB_RULES
 	bool
@@ -382,6 +395,26 @@ config LWTUNNEL
 	  tunnels like mpls. There is no netdevice associated with a light
 	  weight tunnel endpoint. Tunnel encapsulation parameters are stored
 	  with light weight tunnel state associated with fib routes.
+
+config DST_CACHE
+	bool
+	default n
+
+config NET_DEVLINK
+	tristate "Network physical/parent device Netlink interface"
+	help
+	  Network physical/parent device Netlink interface provides
+	  infrastructure to support access to physical chip-wide config and
+	  monitoring.
+
+config MAY_USE_DEVLINK
+	tristate
+	default m if NET_DEVLINK=m
+	default y if NET_DEVLINK=y || NET_DEVLINK=n
+	help
+	  Drivers using the devlink infrastructure should have a dependency
+	  on MAY_USE_DEVLINK to ensure they do not cause link errors when
+	  devlink is a loadable module and the driver using it is built-in.
 
 endif   # if NET
 

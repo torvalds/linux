@@ -358,7 +358,7 @@ static int name##_open(struct inode *inode, struct file *file) \
 	return single_open(file, ext4_seq_##name##_show, PDE_DATA(inode)); \
 } \
 \
-const struct file_operations ext4_seq_##name##_fops = { \
+static const struct file_operations ext4_seq_##name##_fops = { \
 	.owner		= THIS_MODULE, \
 	.open		= name##_open, \
 	.read		= seq_read, \

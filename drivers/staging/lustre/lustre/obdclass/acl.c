@@ -104,7 +104,7 @@ static int lustre_posix_acl_xattr_reduce_space(posix_acl_xattr_header **header,
 		return old_size;
 
 	new = kmemdup(*header, new_size, GFP_NOFS);
-	if (unlikely(new == NULL))
+	if (unlikely(!new))
 		return -ENOMEM;
 
 	kfree(*header);
@@ -124,7 +124,7 @@ static int lustre_ext_acl_xattr_reduce_space(ext_acl_xattr_header **header,
 		return 0;
 
 	new = kmemdup(*header, ext_size, GFP_NOFS);
-	if (unlikely(new == NULL))
+	if (unlikely(!new))
 		return -ENOMEM;
 
 	kfree(*header);
@@ -149,7 +149,7 @@ lustre_posix_acl_xattr_2ext(posix_acl_xattr_header *header, int size)
 		count = CFS_ACL_XATTR_COUNT(size, posix_acl_xattr);
 	esize = CFS_ACL_XATTR_SIZE(count, ext_acl_xattr);
 	new = kzalloc(esize, GFP_NOFS);
-	if (unlikely(new == NULL))
+	if (unlikely(!new))
 		return ERR_PTR(-ENOMEM);
 
 	new->a_count = cpu_to_le32(count);
@@ -180,7 +180,7 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, size_t size,
 		return -EINVAL;
 
 	new = kzalloc(size, GFP_NOFS);
-	if (unlikely(new == NULL))
+	if (unlikely(!new))
 		return -ENOMEM;
 
 	new->a_version = cpu_to_le32(CFS_ACL_XATTR_VERSION);
@@ -234,15 +234,6 @@ _out:
 	return size;
 }
 EXPORT_SYMBOL(lustre_posix_acl_xattr_filter);
-
-/*
- * Release the posix ACL space.
- */
-void lustre_posix_acl_xattr_free(posix_acl_xattr_header *header, int size)
-{
-	kfree(header);
-}
-EXPORT_SYMBOL(lustre_posix_acl_xattr_free);
 
 /*
  * Release the extended ACL space.
@@ -309,7 +300,7 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 	ext_size = CFS_ACL_XATTR_SIZE(ext_count, ext_acl_xattr);
 
 	new = kzalloc(ext_size, GFP_NOFS);
-	if (unlikely(new == NULL))
+	if (unlikely(!new))
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0, j = 0; i < posix_count; i++) {

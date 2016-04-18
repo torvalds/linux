@@ -37,7 +37,7 @@
 			label = "aux";
 			linux,code = <169>;
 			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -77,10 +77,10 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi_gpio_pins>;
 
-		gpio-sck = <&gpio1 12 0>;
-		gpio-miso = <&gpio1 18 0>;
-		gpio-mosi = <&gpio1 20 0>;
-		cs-gpios = <&gpio1 19 0>;
+		gpio-sck = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		gpio-miso = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+		gpio-mosi = <&gpio1 20 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio1 19 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
 
 		/* lcd panel */
@@ -118,7 +118,7 @@
 
 	tv_amp: opa362 {
 		compatible = "ti,opa362";
-		enable-gpios = <&gpio1 23 0>;
+		enable-gpios = <&gpio1 23 GPIO_ACTIVE_HIGH>;
 
 		ports {
 			#address-cells = <1>;
@@ -492,7 +492,11 @@
 	ranges = <0 0 0x30000000 0x1000000>; /* CS0: 16MB for NAND */
 
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		nand-bus-width = <16>;
 		ti,nand-ecc-opt = "bch8";
 

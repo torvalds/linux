@@ -7,6 +7,7 @@
 #ifndef _LINUX_NFSD_NFSFH_H
 #define _LINUX_NFSD_NFSFH_H
 
+#include <linux/crc32.h>
 #include <linux/sunrpc/svc.h>
 #include <uapi/linux/nfsd/nfsfh.h>
 
@@ -26,16 +27,16 @@ static inline ino_t u32_to_ino_t(__u32 uino)
  */
 typedef struct svc_fh {
 	struct knfsd_fh		fh_handle;	/* FH data */
+	int			fh_maxsize;	/* max size for fh_handle */
 	struct dentry *		fh_dentry;	/* validated dentry */
 	struct svc_export *	fh_export;	/* export pointer */
-	int			fh_maxsize;	/* max size for fh_handle */
 
-	unsigned char		fh_locked;	/* inode locked by us */
-	unsigned char		fh_want_write;	/* remount protection taken */
+	bool			fh_locked;	/* inode locked by us */
+	bool			fh_want_write;	/* remount protection taken */
 
 #ifdef CONFIG_NFSD_V3
-	unsigned char		fh_post_saved;	/* post-op attrs saved */
-	unsigned char		fh_pre_saved;	/* pre-op attrs saved */
+	bool			fh_post_saved;	/* post-op attrs saved */
+	bool			fh_pre_saved;	/* pre-op attrs saved */
 
 	/* Pre-op attributes saved during fh_lock */
 	__u64			fh_pre_size;	/* size before operation */
@@ -205,6 +206,28 @@ static inline bool fh_fsid_match(struct knfsd_fh *fh1, struct knfsd_fh *fh2)
 	return true;
 }
 
+#ifdef CONFIG_CRC32
+/**
+ * knfsd_fh_hash - calculate the crc32 hash for the filehandle
+ * @fh - pointer to filehandle
+ *
+ * returns a crc32 hash for the filehandle that is compatible with
+ * the one displayed by "wireshark".
+ */
+
+static inline u32
+knfsd_fh_hash(struct knfsd_fh *fh)
+{
+	return ~crc32_le(0xFFFFFFFF, (unsigned char *)&fh->fh_base, fh->fh_size);
+}
+#else
+static inline u32
+knfsd_fh_hash(struct knfsd_fh *fh)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_NFSD_V3
 /*
  * The wcc data stored in current_fh should be cleared
@@ -213,8 +236,8 @@ static inline bool fh_fsid_match(struct knfsd_fh *fh1, struct knfsd_fh *fh2)
 static inline void
 fh_clear_wcc(struct svc_fh *fhp)
 {
-	fhp->fh_post_saved = 0;
-	fhp->fh_pre_saved = 0;
+	fhp->fh_post_saved = false;
+	fhp->fh_pre_saved = false;
 }
 
 /*
@@ -231,7 +254,7 @@ fill_pre_wcc(struct svc_fh *fhp)
 		fhp->fh_pre_ctime = inode->i_ctime;
 		fhp->fh_pre_size  = inode->i_size;
 		fhp->fh_pre_change = inode->i_version;
-		fhp->fh_pre_saved = 1;
+		fhp->fh_pre_saved = true;
 	}
 }
 
@@ -265,9 +288,9 @@ fh_lock_nested(struct svc_fh *fhp, unsigned int subclass)
 	}
 
 	inode = d_inode(dentry);
-	mutex_lock_nested(&inode->i_mutex, subclass);
+	inode_lock_nested(inode, subclass);
 	fill_pre_wcc(fhp);
-	fhp->fh_locked = 1;
+	fhp->fh_locked = true;
 }
 
 static inline void
@@ -284,8 +307,8 @@ fh_unlock(struct svc_fh *fhp)
 {
 	if (fhp->fh_locked) {
 		fill_post_wcc(fhp);
-		mutex_unlock(&d_inode(fhp->fh_dentry)->i_mutex);
-		fhp->fh_locked = 0;
+		inode_unlock(d_inode(fhp->fh_dentry));
+		fhp->fh_locked = false;
 	}
 }
 

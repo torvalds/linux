@@ -50,14 +50,14 @@ extern bool shpchp_debug;
 #define dbg(format, arg...)						\
 do {									\
 	if (shpchp_debug)						\
-		printk(KERN_DEBUG "%s: " format, MY_NAME , ## arg);	\
+		printk(KERN_DEBUG "%s: " format, MY_NAME, ## arg);	\
 } while (0)
 #define err(format, arg...)						\
-	printk(KERN_ERR "%s: " format, MY_NAME , ## arg)
+	printk(KERN_ERR "%s: " format, MY_NAME, ## arg)
 #define info(format, arg...)						\
-	printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
+	printk(KERN_INFO "%s: " format, MY_NAME, ## arg)
 #define warn(format, arg...)						\
-	printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
+	printk(KERN_WARNING "%s: " format, MY_NAME, ## arg)
 
 #define ctrl_dbg(ctrl, format, arg...)					\
 	do {								\
@@ -84,7 +84,7 @@ struct slot {
 	u8 presence_save;
 	u8 pwr_save;
 	struct controller *ctrl;
-	struct hpc_ops *hpc_ops;
+	const struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
 	struct delayed_work work;	/* work for button event */
@@ -106,7 +106,7 @@ struct controller {
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
 	struct list_head slot_list;
-	struct hpc_ops *hpc_ops;
+	const struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u8 slot_device_offset;
 	u32 pcix_misc2_reg;	/* for amd pogo errata */
@@ -295,7 +295,7 @@ static inline void amd_pogo_errata_restore_misc_reg(struct slot *p_slot)
 		pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MEM_BASE_LIMIT_OFFSET, rse_set);
 	}
 	/* restore MiscII register */
-	pci_read_config_dword(p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, &pcix_misc2_temp );
+	pci_read_config_dword(p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, &pcix_misc2_temp);
 
 	if (p_slot->ctrl->pcix_misc2_reg & SERRFATALENABLE_MASK)
 		pcix_misc2_temp |= SERRFATALENABLE_MASK;

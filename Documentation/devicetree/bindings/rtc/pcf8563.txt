@@ -1,0 +1,25 @@
+* Philips PCF8563/Epson RTC8564 Real Time Clock
+
+Philips PCF8563/Epson RTC8564 Real Time Clock
+
+Required properties:
+see: Documentation/devicetree/bindings/i2c/trivial-devices.txt
+
+Optional property:
+- #clock-cells: Should be 0.
+- clock-output-names:
+  overwrite the default clock name "pcf8563-clkout"
+
+Example:
+
+pcf8563: pcf8563@51 {
+	compatible = "nxp,pcf8563";
+	reg = <0x51>;
+	#clock-cells = <0>;
+};
+
+device {
+...
+	clocks = <&pcf8563>;
+...
+};

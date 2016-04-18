@@ -135,6 +135,7 @@ struct dso {
 	pthread_mutex_t	 lock;
 	struct list_head node;
 	struct rb_node	 rb_node;	/* rbtree node sorted by long name */
+	struct rb_root	 *root;		/* root of rbtree that rb_node is in */
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
 	struct {
@@ -161,6 +162,7 @@ struct dso {
 	u8		 loaded;
 	u8		 rel;
 	u8		 build_id[BUILD_ID_SIZE];
+	u64		 text_offset;
 	const char	 *short_name;
 	const char	 *long_name;
 	u16		 long_name_len;
@@ -300,7 +302,7 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
  * TODO
 */
 int dso__data_get_fd(struct dso *dso, struct machine *machine);
-void dso__data_put_fd(struct dso *dso __maybe_unused);
+void dso__data_put_fd(struct dso *dso);
 void dso__data_close(struct dso *dso);
 
 off_t dso__data_size(struct dso *dso, struct machine *machine);

@@ -31,6 +31,7 @@ EXPORT_SYMBOL(contig_page_data);
 unsigned long max_low_pfn;
 unsigned long min_low_pfn;
 unsigned long max_pfn;
+unsigned long long max_possible_pfn;
 
 static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
 					u64 goal, u64 limit)
@@ -287,7 +288,7 @@ static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
 	/*
 	 * Whoops, we cannot satisfy the allocation request.
 	 */
-	printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", size);
+	pr_alert("bootmem alloc of %lu bytes failed!\n", size);
 	panic("Out of memory");
 	return NULL;
 }
@@ -359,7 +360,7 @@ static void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
 	if (ptr)
 		return ptr;
 
-	printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", size);
+	pr_alert("bootmem alloc of %lu bytes failed!\n", size);
 	panic("Out of memory");
 	return NULL;
 }

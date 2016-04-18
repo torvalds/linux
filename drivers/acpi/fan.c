@@ -46,7 +46,7 @@ MODULE_DEVICE_TABLE(acpi, fan_device_ids);
 #ifdef CONFIG_PM_SLEEP
 static int acpi_fan_suspend(struct device *dev);
 static int acpi_fan_resume(struct device *dev);
-static struct dev_pm_ops acpi_fan_pm = {
+static const struct dev_pm_ops acpi_fan_pm = {
 	.resume = acpi_fan_resume,
 	.freeze = acpi_fan_suspend,
 	.thaw = acpi_fan_resume,
@@ -339,7 +339,7 @@ static int acpi_fan_probe(struct platform_device *pdev)
 	} else {
 		result = acpi_device_update_power(device, NULL);
 		if (result) {
-			dev_err(&device->dev, "Setting initial power state\n");
+			dev_err(&device->dev, "Failed to set initial power state\n");
 			goto end;
 		}
 	}

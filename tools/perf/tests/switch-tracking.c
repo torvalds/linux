@@ -305,7 +305,7 @@ out_free_nodes:
  * evsel->system_wide and evsel->tracking flags (respectively) with other events
  * sometimes enabled or disabled.
  */
-int test__switch_tracking(void)
+int test__switch_tracking(int subtest __maybe_unused)
 {
 	const char *sched_switch = "sched:sched_switch";
 	struct switch_tracking switch_tracking = { .tids = NULL, };
@@ -366,7 +366,7 @@ int test__switch_tracking(void)
 
 	/* Third event */
 	if (!perf_evlist__can_select_event(evlist, sched_switch)) {
-		fprintf(stderr, " (no sched_switch)");
+		pr_debug("No sched_switch\n");
 		err = 0;
 		goto out;
 	}
@@ -442,7 +442,7 @@ int test__switch_tracking(void)
 	}
 
 	if (perf_evlist__open(evlist) < 0) {
-		fprintf(stderr, " (not supported)");
+		pr_debug("Not supported\n");
 		err = 0;
 		goto out;
 	}
@@ -455,7 +455,7 @@ int test__switch_tracking(void)
 
 	perf_evlist__enable(evlist);
 
-	err = perf_evlist__disable_event(evlist, cpu_clocks_evsel);
+	err = perf_evsel__disable(cpu_clocks_evsel);
 	if (err) {
 		pr_debug("perf_evlist__disable_event failed!\n");
 		goto out_err;
@@ -474,7 +474,7 @@ int test__switch_tracking(void)
 		goto out_err;
 	}
 
-	err = perf_evlist__disable_event(evlist, cycles_evsel);
+	err = perf_evsel__disable(cycles_evsel);
 	if (err) {
 		pr_debug("perf_evlist__disable_event failed!\n");
 		goto out_err;
@@ -500,7 +500,7 @@ int test__switch_tracking(void)
 		goto out_err;
 	}
 
-	err = perf_evlist__enable_event(evlist, cycles_evsel);
+	err = perf_evsel__enable(cycles_evsel);
 	if (err) {
 		pr_debug("perf_evlist__disable_event failed!\n");
 		goto out_err;

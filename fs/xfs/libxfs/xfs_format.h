@@ -60,6 +60,14 @@ struct xfs_ifork;
 #define	XFS_SB_VERSION_MOREBITSBIT	0x8000
 
 /*
+ * The size of a single extended attribute on disk is limited by
+ * the size of index values within the attribute entries themselves.
+ * These are be16 fields, so we can only support attribute data
+ * sizes up to 2^16 bytes in length.
+ */
+#define XFS_XATTR_SIZE_MAX (1 << 16)
+
+/*
  * Supported feature bit list is just all bits in the versionnum field because
  * we've used them all up and understand them all. Except, of course, for the
  * shared superblock bit, which nobody knows what it does and so is unsupported.
@@ -778,7 +786,7 @@ typedef struct xfs_agfl {
 	__be64		agfl_lsn;
 	__be32		agfl_crc;
 	__be32		agfl_bno[];	/* actually XFS_AGFL_SIZE(mp) */
-} xfs_agfl_t;
+} __attribute__((packed)) xfs_agfl_t;
 
 #define XFS_AGFL_CRC_OFF	offsetof(struct xfs_agfl, agfl_crc)
 
@@ -976,8 +984,6 @@ static inline void xfs_dinode_put_rdev(struct xfs_dinode *dip, xfs_dev_t rdev)
 
 /*
  * Values for di_flags
- * There should be a one-to-one correspondence between these flags and the
- * XFS_XFLAG_s.
  */
 #define XFS_DIFLAG_REALTIME_BIT  0	/* file's blocks come from rt area */
 #define XFS_DIFLAG_PREALLOC_BIT  1	/* file space has been preallocated */
@@ -1016,6 +1022,15 @@ static inline void xfs_dinode_put_rdev(struct xfs_dinode *dip, xfs_dev_t rdev)
 	 XFS_DIFLAG_NOATIME | XFS_DIFLAG_NODUMP | XFS_DIFLAG_RTINHERIT | \
 	 XFS_DIFLAG_PROJINHERIT | XFS_DIFLAG_NOSYMLINKS | XFS_DIFLAG_EXTSIZE | \
 	 XFS_DIFLAG_EXTSZINHERIT | XFS_DIFLAG_NODEFRAG | XFS_DIFLAG_FILESTREAM)
+
+/*
+ * Values for di_flags2 These start by being exposed to userspace in the upper
+ * 16 bits of the XFS_XFLAG_s range.
+ */
+#define XFS_DIFLAG2_DAX_BIT	0	/* use DAX for this inode */
+#define XFS_DIFLAG2_DAX		(1 << XFS_DIFLAG2_DAX_BIT)
+
+#define XFS_DIFLAG2_ANY		(XFS_DIFLAG2_DAX)
 
 /*
  * Inode number format:
@@ -1483,13 +1498,17 @@ struct xfs_acl {
  */
 #define XFS_ACL_MAX_ENTRIES(mp)	\
 	(xfs_sb_version_hascrc(&mp->m_sb) \
-		?  (XATTR_SIZE_MAX - sizeof(struct xfs_acl)) / \
+		?  (XFS_XATTR_SIZE_MAX - sizeof(struct xfs_acl)) / \
 						sizeof(struct xfs_acl_entry) \
 		: 25)
 
-#define XFS_ACL_MAX_SIZE(mp) \
+#define XFS_ACL_SIZE(cnt) \
 	(sizeof(struct xfs_acl) + \
-		sizeof(struct xfs_acl_entry) * XFS_ACL_MAX_ENTRIES((mp)))
+		sizeof(struct xfs_acl_entry) * cnt)
+
+#define XFS_ACL_MAX_SIZE(mp) \
+	XFS_ACL_SIZE(XFS_ACL_MAX_ENTRIES((mp)))
+
 
 /* On-disk XFS extended attribute names */
 #define SGI_ACL_FILE		"SGI_ACL_FILE"

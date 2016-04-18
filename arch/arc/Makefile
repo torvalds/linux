@@ -9,7 +9,11 @@
 UTS_MACHINE := arc
 
 ifeq ($(CROSS_COMPILE),)
+ifndef CONFIG_CPU_BIG_ENDIAN
 CROSS_COMPILE := arc-linux-
+else
+CROSS_COMPILE := arceb-linux-
+endif
 endif
 
 KBUILD_DEFCONFIG := nsim_700_defconfig
@@ -17,6 +21,20 @@ KBUILD_DEFCONFIG := nsim_700_defconfig
 cflags-y	+= -fno-common -pipe -fno-builtin -D__linux__
 cflags-$(CONFIG_ISA_ARCOMPACT)	+= -mA7
 cflags-$(CONFIG_ISA_ARCV2)	+= -mcpu=archs
+
+is_700 = $(shell $(CC) -dM -E - < /dev/null | grep -q "ARC700" && echo 1 || echo 0)
+
+ifdef CONFIG_ISA_ARCOMPACT
+ifeq ($(is_700), 0)
+    $(error Toolchain not configured for ARCompact builds)
+endif
+endif
+
+ifdef CONFIG_ISA_ARCV2
+ifeq ($(is_700), 1)
+    $(error Toolchain not configured for ARCv2 builds)
+endif
+endif
 
 ifdef CONFIG_ARC_CURR_IN_REG
 # For a global register defintion, make sure it gets passed to every file
@@ -58,7 +76,9 @@ endif
 ifndef CONFIG_CC_OPTIMIZE_FOR_SIZE
 # Generic build system uses -O2, we want -O3
 # Note: No need to add to cflags-y as that happens anyways
-ARCH_CFLAGS += -O3
+#
+# Disable the false maybe-uninitialized warings gcc spits out at -O3
+ARCH_CFLAGS += -O3 $(call cc-disable-warning,maybe-uninitialized,)
 endif
 
 # small data is default for elf32 tool-chain. If not usable, disable it
@@ -74,14 +94,10 @@ ldflags-$(CONFIG_CPU_BIG_ENDIAN)	+= -EB
 # --build-id w/o "-marclinux". Default arc-elf32-ld is OK
 ldflags-$(upto_gcc44)			+= -marclinux
 
-ifndef CONFIG_ARC_HAS_HW_MPY
-	cflags-y	+= -mno-mpy
-endif
-
 LIBGCC	:= $(shell $(CC) $(cflags-y) --print-libgcc-file-name)
 
 # Modules with short calls might break for calls into builtin-kernel
-KBUILD_CFLAGS_MODULE	+= -mlong-calls
+KBUILD_CFLAGS_MODULE	+= -mlong-calls -mno-millicode
 
 # Finally dump eveything into kernel build system
 KBUILD_CFLAGS	+= $(cflags-y)

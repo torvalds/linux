@@ -45,7 +45,7 @@
  *     been used to perform kernel mode NEON in the meantime.
  *
  * For (a), we add a 'cpu' field to struct fpsimd_state, which gets updated to
- * the id of the current CPU everytime the state is loaded onto a CPU. For (b),
+ * the id of the current CPU every time the state is loaded onto a CPU. For (b),
  * we add the per-cpu variable 'fpsimd_last_state' (below), which contains the
  * address of the userland FPSIMD state of the task that was loaded onto the CPU
  * the most recently, or NULL if kernel mode NEON has been performed after that.
@@ -289,7 +289,7 @@ static struct notifier_block fpsimd_cpu_pm_notifier_block = {
 	.notifier_call = fpsimd_cpu_pm_notifier,
 };
 
-static void fpsimd_pm_init(void)
+static void __init fpsimd_pm_init(void)
 {
 	cpu_pm_register_notifier(&fpsimd_cpu_pm_notifier_block);
 }

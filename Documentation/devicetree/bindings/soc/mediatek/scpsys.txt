@@ -17,9 +17,21 @@ Required properties:
 - reg: Address range of the SCPSYS unit
 - infracfg: must contain a phandle to the infracfg controller
 - clock, clock-names: clocks according to the common clock binding.
-                      The clocks needed "mm" and "mfg". These are the
-		      clocks which hardware needs to be enabled before
-		      enabling certain power domains.
+                      The clocks needed "mm", "mfg", "venc" and "venc_lt".
+		      These are the clocks which hardware needs to be enabled
+		      before enabling certain power domains.
+
+Optional properties:
+- vdec-supply: Power supply for the vdec power domain
+- venc-supply: Power supply for the venc power domain
+- isp-supply: Power supply for the isp power domain
+- mm-supply: Power supply for the mm power domain
+- venc_lt-supply: Power supply for the venc_lt power domain
+- audio-supply: Power supply for the audio power domain
+- usb-supply: Power supply for the usb power domain
+- mfg_async-supply: Power supply for the mfg_async power domain
+- mfg_2d-supply: Power supply for the mfg_2d power domain
+- mfg-supply: Power supply for the mfg power domain
 
 Example:
 
@@ -30,7 +42,9 @@ Example:
 		infracfg = <&infracfg>;
 		clocks = <&clk26m>,
 			 <&topckgen CLK_TOP_MM_SEL>;
-		clock-names = "mfg", "mm";
+			 <&topckgen CLK_TOP_VENC_SEL>,
+			 <&topckgen CLK_TOP_VENC_LT_SEL>;
+		clock-names = "mfg", "mm", "venc", "venc_lt";
 	};
 
 Example consumer:

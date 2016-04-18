@@ -62,9 +62,6 @@ int sysctl_tcp_tso_win_divisor __read_mostly = 3;
 /* By default, RFC2861 behavior.  */
 int sysctl_tcp_slow_start_after_idle __read_mostly = 1;
 
-unsigned int sysctl_tcp_notsent_lowat __read_mostly = UINT_MAX;
-EXPORT_SYMBOL(sysctl_tcp_notsent_lowat);
-
 static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			   int push_one, gfp_t gfp);
 
@@ -1006,8 +1003,10 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	if (likely(tcb->tcp_flags & TCPHDR_ACK))
 		tcp_event_ack_sent(sk, tcp_skb_pcount(skb));
 
-	if (skb->len != tcp_header_size)
+	if (skb->len != tcp_header_size) {
 		tcp_event_data_sent(tp, sk);
+		tp->data_segs_out += tcp_skb_pcount(skb);
+	}
 
 	if (after(tcb->end_seq, tp->snd_nxt) || tcb->seq == tcb->end_seq)
 		TCP_ADD_STATS(sock_net(sk), TCP_MIB_OUTSEGS,
@@ -2296,7 +2295,7 @@ void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
 		return;
 
 	if (tcp_write_xmit(sk, cur_mss, nonagle, 0,
-			   sk_gfp_atomic(sk, GFP_ATOMIC)))
+			   sk_gfp_mask(sk, GFP_ATOMIC)))
 		tcp_check_probe_timer(sk);
 }
 
@@ -2813,13 +2812,16 @@ begin_fwd:
  */
 void sk_forced_mem_schedule(struct sock *sk, int size)
 {
-	int amt, status;
+	int amt;
 
 	if (size <= sk->sk_forward_alloc)
 		return;
 	amt = sk_mem_pages(size);
 	sk->sk_forward_alloc += amt * SK_MEM_QUANTUM;
-	sk_memory_allocated_add(sk, amt, &status);
+	sk_memory_allocated_add(sk, amt);
+
+	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
+		mem_cgroup_charge_skmem(sk->sk_memcg, amt);
 }
 
 /* Send a FIN. The caller locks the socket for us.
@@ -3150,7 +3152,7 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_fastopen_request *fo = tp->fastopen_req;
-	int syn_loss = 0, space, err = 0, copied;
+	int syn_loss = 0, space, err = 0;
 	unsigned long last_syn_loss = 0;
 	struct sk_buff *syn_data;
 
@@ -3188,17 +3190,18 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 		goto fallback;
 	syn_data->ip_summed = CHECKSUM_PARTIAL;
 	memcpy(syn_data->cb, syn->cb, sizeof(syn->cb));
-	copied = copy_from_iter(skb_put(syn_data, space), space,
-				&fo->data->msg_iter);
-	if (unlikely(!copied)) {
-		kfree_skb(syn_data);
-		goto fallback;
+	if (space) {
+		int copied = copy_from_iter(skb_put(syn_data, space), space,
+					    &fo->data->msg_iter);
+		if (unlikely(!copied)) {
+			kfree_skb(syn_data);
+			goto fallback;
+		}
+		if (copied != space) {
+			skb_trim(syn_data, copied);
+			space = copied;
+		}
 	}
-	if (copied != space) {
-		skb_trim(syn_data, copied);
-		space = copied;
-	}
-
 	/* No more data pending in inet_wait_for_connect() */
 	if (space == fo->size)
 		fo->data = NULL;
@@ -3352,8 +3355,9 @@ void tcp_send_ack(struct sock *sk)
 	 * tcp_transmit_skb() will set the ownership to this
 	 * sock.
 	 */
-	buff = alloc_skb(MAX_TCP_HEADER, sk_gfp_atomic(sk, GFP_ATOMIC));
-	if (!buff) {
+	buff = alloc_skb(MAX_TCP_HEADER,
+			 sk_gfp_mask(sk, GFP_ATOMIC | __GFP_NOWARN));
+	if (unlikely(!buff)) {
 		inet_csk_schedule_ack(sk);
 		inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
@@ -3375,7 +3379,7 @@ void tcp_send_ack(struct sock *sk)
 
 	/* Send it off, this clears delayed acks for us. */
 	skb_mstamp_get(&buff->skb_mstamp);
-	tcp_transmit_skb(sk, buff, 0, sk_gfp_atomic(sk, GFP_ATOMIC));
+	tcp_transmit_skb(sk, buff, 0, (__force gfp_t)0);
 }
 EXPORT_SYMBOL_GPL(tcp_send_ack);
 
@@ -3396,7 +3400,8 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent, int mib)
 	struct sk_buff *skb;
 
 	/* We don't queue it, tcp_transmit_skb() sets ownership. */
-	skb = alloc_skb(MAX_TCP_HEADER, sk_gfp_atomic(sk, GFP_ATOMIC));
+	skb = alloc_skb(MAX_TCP_HEADER,
+			sk_gfp_mask(sk, GFP_ATOMIC | __GFP_NOWARN));
 	if (!skb)
 		return -1;
 
@@ -3409,7 +3414,7 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent, int mib)
 	tcp_init_nondata_skb(skb, tp->snd_una - !urgent, TCPHDR_ACK);
 	skb_mstamp_get(&skb->skb_mstamp);
 	NET_INC_STATS(sock_net(sk), mib);
-	return tcp_transmit_skb(sk, skb, 0, GFP_ATOMIC);
+	return tcp_transmit_skb(sk, skb, 0, (__force gfp_t)0);
 }
 
 void tcp_send_window_probe(struct sock *sk)
@@ -3470,6 +3475,7 @@ void tcp_send_probe0(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct net *net = sock_net(sk);
 	unsigned long probe_max;
 	int err;
 
@@ -3483,7 +3489,7 @@ void tcp_send_probe0(struct sock *sk)
 	}
 
 	if (err <= 0) {
-		if (icsk->icsk_backoff < sysctl_tcp_retries2)
+		if (icsk->icsk_backoff < net->ipv4.sysctl_tcp_retries2)
 			icsk->icsk_backoff++;
 		icsk->icsk_probes_out++;
 		probe_max = TCP_RTO_MAX;

@@ -177,6 +177,7 @@ struct key {
 #define KEY_FLAG_TRUSTED_ONLY	9	/* set if keyring only accepts links to trusted keys */
 #define KEY_FLAG_BUILTIN	10	/* set if key is builtin */
 #define KEY_FLAG_ROOT_CAN_INVAL	11	/* set if key can be invalidated by root without permission */
+#define KEY_FLAG_KEEP		12	/* set if key should not be removed */
 
 	/* the key type and key description string
 	 * - the desc is used to match a key against search criteria
@@ -218,6 +219,7 @@ extern struct key *key_alloc(struct key_type *type,
 #define KEY_ALLOC_QUOTA_OVERRUN	0x0001	/* add to quota, permit even if overrun */
 #define KEY_ALLOC_NOT_IN_QUOTA	0x0002	/* not in quota */
 #define KEY_ALLOC_TRUSTED	0x0004	/* Key should be flagged as trusted */
+#define KEY_ALLOC_BUILT_IN	0x0008	/* Key is built into kernel */
 
 extern void key_revoke(struct key *key);
 extern void key_invalidate(struct key *key);

@@ -502,21 +502,38 @@
 	STREG		\pte,0(\ptp)
 	.endm
 
+	/* We have (depending on the page size):
+	 * - 38 to 52-bit Physical Page Number
+	 * - 12 to 26-bit page offset
+	 */
 	/* bitshift difference between a PFN (based on kernel's PAGE_SIZE)
 	 * to a CPU TLB 4k PFN (4k => 12 bits to shift) */
-	#define PAGE_ADD_SHIFT  (PAGE_SHIFT-12)
+	#define PAGE_ADD_SHIFT		(PAGE_SHIFT-12)
+	#define PAGE_ADD_HUGE_SHIFT	(REAL_HPAGE_SHIFT-12)
 
 	/* Drop prot bits and convert to page addr for iitlbt and idtlbt */
-	.macro		convert_for_tlb_insert20 pte
+	.macro		convert_for_tlb_insert20 pte,tmp
+#ifdef CONFIG_HUGETLB_PAGE
+	copy		\pte,\tmp
+	extrd,u		\tmp,(63-ASM_PFN_PTE_SHIFT)+(63-58)+PAGE_ADD_SHIFT,\
+				64-PAGE_SHIFT-PAGE_ADD_SHIFT,\pte
+
+	depdi		_PAGE_SIZE_ENCODING_DEFAULT,63,\
+				(63-58)+PAGE_ADD_SHIFT,\pte
+	extrd,u,*=	\tmp,_PAGE_HPAGE_BIT+32,1,%r0
+	depdi		_HUGE_PAGE_SIZE_ENCODING_DEFAULT,63,\
+				(63-58)+PAGE_ADD_HUGE_SHIFT,\pte
+#else /* Huge pages disabled */
 	extrd,u		\pte,(63-ASM_PFN_PTE_SHIFT)+(63-58)+PAGE_ADD_SHIFT,\
 				64-PAGE_SHIFT-PAGE_ADD_SHIFT,\pte
 	depdi		_PAGE_SIZE_ENCODING_DEFAULT,63,\
 				(63-58)+PAGE_ADD_SHIFT,\pte
+#endif
 	.endm
 
 	/* Convert the pte and prot to tlb insertion values.  How
 	 * this happens is quite subtle, read below */
-	.macro		make_insert_tlb	spc,pte,prot
+	.macro		make_insert_tlb	spc,pte,prot,tmp
 	space_to_prot   \spc \prot        /* create prot id from space */
 	/* The following is the real subtlety.  This is depositing
 	 * T <-> _PAGE_REFTRAP
@@ -553,7 +570,7 @@
 	depdi		1,12,1,\prot
 
 	/* Drop prot bits and convert to page addr for iitlbt and idtlbt */
-	convert_for_tlb_insert20 \pte
+	convert_for_tlb_insert20 \pte \tmp
 	.endm
 
 	/* Identical macro to make_insert_tlb above, except it
@@ -646,17 +663,12 @@
 
 
 	/*
-	 * Align fault_vector_20 on 4K boundary so that both
-	 * fault_vector_11 and fault_vector_20 are on the
-	 * same page. This is only necessary as long as we
-	 * write protect the kernel text, which we may stop
-	 * doing once we use large page translations to cover
-	 * the static part of the kernel address space.
+	 * Fault_vectors are architecturally required to be aligned on a 2K
+	 * boundary
 	 */
 
 	.text
-
-	.align 4096
+	.align 2048
 
 ENTRY(fault_vector_20)
 	/* First vector is invalid (0) */
@@ -1147,7 +1159,7 @@ dtlb_miss_20w:
 	tlb_lock	spc,ptp,pte,t0,t1,dtlb_check_alias_20w
 	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 	
 	idtlbt          pte,prot
 
@@ -1173,7 +1185,7 @@ nadtlb_miss_20w:
 	tlb_lock	spc,ptp,pte,t0,t1,nadtlb_check_alias_20w
 	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	idtlbt          pte,prot
 
@@ -1267,7 +1279,7 @@ dtlb_miss_20:
 	tlb_lock	spc,ptp,pte,t0,t1,dtlb_check_alias_20
 	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	f_extend	pte,t1
 
@@ -1295,7 +1307,7 @@ nadtlb_miss_20:
 	tlb_lock	spc,ptp,pte,t0,t1,nadtlb_check_alias_20
 	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	f_extend	pte,t1
 	
@@ -1404,7 +1416,7 @@ itlb_miss_20w:
 	tlb_lock	spc,ptp,pte,t0,t1,itlb_fault
 	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 	
 	iitlbt          pte,prot
 
@@ -1428,7 +1440,7 @@ naitlb_miss_20w:
 	tlb_lock	spc,ptp,pte,t0,t1,naitlb_check_alias_20w
 	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	iitlbt          pte,prot
 
@@ -1514,7 +1526,7 @@ itlb_miss_20:
 	tlb_lock	spc,ptp,pte,t0,t1,itlb_fault
 	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	f_extend	pte,t1
 
@@ -1534,7 +1546,7 @@ naitlb_miss_20:
 	tlb_lock	spc,ptp,pte,t0,t1,naitlb_check_alias_20
 	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	f_extend	pte,t1
 
@@ -1566,7 +1578,7 @@ dbit_trap_20w:
 	tlb_lock	spc,ptp,pte,t0,t1,dbit_fault
 	update_dirty	ptp,pte,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 		
 	idtlbt          pte,prot
 
@@ -1610,7 +1622,7 @@ dbit_trap_20:
 	tlb_lock	spc,ptp,pte,t0,t1,dbit_fault
 	update_dirty	ptp,pte,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	f_extend	pte,t1
 	
@@ -1958,43 +1970,98 @@ pt_regs_ok:
 	b	intr_restore
 	copy	%r25,%r16
 
-	.import schedule,code
 syscall_do_resched:
-	BL	schedule,%r2
+	load32	syscall_check_resched,%r2 /* if resched, we start over again */
+	load32	schedule,%r19
+	bv	%r0(%r19)		/* jumps to schedule() */
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29		/* Reference param save area */
 #else
 	nop
 #endif
-	b	syscall_check_resched	/* if resched, we start over again */
-	nop
 ENDPROC(syscall_exit)
 
 
 #ifdef CONFIG_FUNCTION_TRACER
+
 	.import ftrace_function_trampoline,code
-ENTRY(_mcount)
-	copy	%r3, %arg2
+	.align L1_CACHE_BYTES
+	.globl mcount
+	.type  mcount, @function
+ENTRY(mcount)
+_mcount:
+	.export _mcount,data
+	.proc
+	.callinfo caller,frame=0
+	.entry
+	/*
+	 * The 64bit mcount() function pointer needs 4 dwords, of which the
+	 * first two are free.  We optimize it here and put 2 instructions for
+	 * calling mcount(), and 2 instructions for ftrace_stub().  That way we
+	 * have all on one L1 cacheline.
+	 */
 	b	ftrace_function_trampoline
-	nop
-ENDPROC(_mcount)
-
-ENTRY(return_to_handler)
-	load32	return_trampoline, %rp
-	copy	%ret0, %arg0
-	copy	%ret1, %arg1
-	b	ftrace_return_to_handler
-	nop
-return_trampoline:
-	copy	%ret0, %rp
-	copy	%r23, %ret0
-	copy	%r24, %ret1
-
-.globl ftrace_stub
+	copy	%r3, %arg2	/* caller original %sp */
 ftrace_stub:
+	.globl ftrace_stub
+        .type  ftrace_stub, @function
+#ifdef CONFIG_64BIT
+	bve	(%rp)
+#else
 	bv	%r0(%rp)
+#endif
 	nop
+#ifdef CONFIG_64BIT
+	.dword mcount
+	.dword 0 /* code in head.S puts value of global gp here */
+#endif
+	.exit
+	.procend
+ENDPROC(mcount)
+
+	.align 8
+	.globl return_to_handler
+	.type  return_to_handler, @function
+ENTRY(return_to_handler)
+	.proc
+	.callinfo caller,frame=FRAME_SIZE
+	.entry
+	.export parisc_return_to_handler,data
+parisc_return_to_handler:
+	copy %r3,%r1
+	STREG %r0,-RP_OFFSET(%sp)	/* store 0 as %rp */
+	copy %sp,%r3
+	STREGM %r1,FRAME_SIZE(%sp)
+	STREG %ret0,8(%r3)
+	STREG %ret1,16(%r3)
+
+#ifdef CONFIG_64BIT
+	loadgp
+#endif
+
+	/* call ftrace_return_to_handler(0) */
+#ifdef CONFIG_64BIT
+	ldo -16(%sp),%ret1		/* Reference param save area */
+#endif
+	BL ftrace_return_to_handler,%r2
+	ldi 0,%r26
+	copy %ret0,%rp
+
+	/* restore original return values */
+	LDREG 8(%r3),%ret0
+	LDREG 16(%r3),%ret1
+
+	/* return from function */
+#ifdef CONFIG_64BIT
+	bve	(%rp)
+#else
+	bv	%r0(%rp)
+#endif
+	LDREGM -FRAME_SIZE(%sp),%r3
+	.exit
+	.procend
 ENDPROC(return_to_handler)
+
 #endif	/* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_IRQSTACKS

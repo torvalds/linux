@@ -25,7 +25,7 @@ SunXi family
         + Datasheet
           http://dl.linux-sunxi.org/A10s/A10s%20Datasheet%20-%20v1.20%20%282012-03-27%29.pdf
 
-      - Allwinner A13 (sun5i)
+      - Allwinner A13 / R8 (sun5i)
         + Datasheet
 	  http://dl.linux-sunxi.org/A13/A13%20Datasheet%20-%20v1.12%20%282012-03-29%29.pdf
         + User Manual
@@ -72,6 +72,5 @@ SunXi family
 
     * Octa ARM Cortex-A7 based SoCs
       - Allwinner A83T
-        + Not Supported
         + Datasheet
           http://dl.linux-sunxi.org/A83T/A83T_datasheet_Revision_1.1.pdf

@@ -37,7 +37,7 @@
 		regulator-name = "hsusb2_vbus";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&twl_gpio 18 0>;	/* GPIO LEDA */
+		gpio = <&twl_gpio 18 GPIO_ACTIVE_HIGH>;	/* GPIO LEDA */
 		startup-delay-us = <70000>;
 	};
 
@@ -225,7 +225,7 @@
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
 	vmmc_aux-supply = <&vsim>;
-	cd-gpios = <&twl_gpio 0 0>;
+	cd-gpios = <&twl_gpio 0 GPIO_ACTIVE_HIGH>;
 	bus-width = <8>;
 };
 
@@ -275,10 +275,14 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x00000000 0x01000000>;
+	ranges = <0 0 0x30000000 0x01000000>;	/* CS0: 16MB for NAND */
 
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		nand-bus-width = <16>;
 		gpmc,device-width = <2>;	/* GPMC_DEVWIDTH_16BIT */
 		ti,nand-ecc-opt = "sw";

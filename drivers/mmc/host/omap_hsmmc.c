@@ -503,8 +503,11 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 	host->pbias = devm_regulator_get_optional(host->dev, "pbias");
 	if (IS_ERR(host->pbias)) {
 		ret = PTR_ERR(host->pbias);
-		if ((ret != -ENODEV) && host->dev->of_node)
+		if ((ret != -ENODEV) && host->dev->of_node) {
+			dev_err(host->dev,
+			"SD card detect fail? enable CONFIG_REGULATOR_PBIAS\n");
 			return ret;
+		}
 		dev_dbg(host->dev, "unable to get pbias regulator %ld\n",
 			PTR_ERR(host->pbias));
 		host->pbias = NULL;
@@ -2159,7 +2162,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 						 &rx_req, &pdev->dev, "rx");
 
 	if (!host->rx_chan) {
-		dev_err(mmc_dev(host->mmc), "unable to obtain RX DMA engine channel %u\n", rx_req);
+		dev_err(mmc_dev(host->mmc), "unable to obtain RX DMA engine channel\n");
 		ret = -ENXIO;
 		goto err_irq;
 	}
@@ -2169,7 +2172,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 						 &tx_req, &pdev->dev, "tx");
 
 	if (!host->tx_chan) {
-		dev_err(mmc_dev(host->mmc), "unable to obtain TX DMA engine channel %u\n", tx_req);
+		dev_err(mmc_dev(host->mmc), "unable to obtain TX DMA engine channel\n");
 		ret = -ENXIO;
 		goto err_irq;
 	}
@@ -2232,6 +2235,7 @@ err_irq:
 		dma_release_channel(host->tx_chan);
 	if (host->rx_chan)
 		dma_release_channel(host->rx_chan);
+	pm_runtime_dont_use_autosuspend(host->dev);
 	pm_runtime_put_sync(host->dev);
 	pm_runtime_disable(host->dev);
 	if (host->dbclk)
@@ -2250,11 +2254,10 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(host->dev);
 	mmc_remove_host(host->mmc);
 
-	if (host->tx_chan)
-		dma_release_channel(host->tx_chan);
-	if (host->rx_chan)
-		dma_release_channel(host->rx_chan);
+	dma_release_channel(host->tx_chan);
+	dma_release_channel(host->rx_chan);
 
+	pm_runtime_dont_use_autosuspend(host->dev);
 	pm_runtime_put_sync(host->dev);
 	pm_runtime_disable(host->dev);
 	device_init_wakeup(&pdev->dev, false);

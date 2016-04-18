@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -70,6 +67,7 @@
 #include "hfi.h"
 #include "device.h"
 #include "common.h"
+#include "verbs_txreq.h"
 #include "trace.h"
 
 #undef pr_fmt
@@ -78,17 +76,17 @@
 	hfi1_cdbg(SNOOP, fmt, ##__VA_ARGS__)
 
 /* Snoop option mask */
-#define SNOOP_DROP_SEND	(1 << 0)
-#define SNOOP_USE_METADATA	(1 << 1)
+#define SNOOP_DROP_SEND		BIT(0)
+#define SNOOP_USE_METADATA	BIT(1)
+#define SNOOP_SET_VL0TOVL15     BIT(2)
 
 static u8 snoop_flags;
 
 /*
  * Extract packet length from LRH header.
- * Why & 0x7FF? Because len is only 11 bits in case it wasn't 0'd we throw the
- * bogus bits away. This is in Dwords so multiply by 4 to get size in bytes
+ * This is in Dwords so multiply by 4 to get size in bytes
  */
-#define HFI1_GET_PKT_LEN(x)      (((be16_to_cpu((x)->lrh[2]) & 0x7FF)) << 2)
+#define HFI1_GET_PKT_LEN(x)      (((be16_to_cpu((x)->lrh[2]) & 0xFFF)) << 2)
 
 enum hfi1_filter_status {
 	HFI1_FILTER_HIT,
@@ -135,7 +133,7 @@ static struct cdev diagpkt_cdev;
 static struct device *diagpkt_device;
 
 static ssize_t diagpkt_write(struct file *fp, const char __user *data,
-				 size_t count, loff_t *off);
+			     size_t count, loff_t *off);
 
 static const struct file_operations diagpkt_file_ops = {
 	.owner = THIS_MODULE,
@@ -177,37 +175,37 @@ struct hfi1_link_info {
 #define HFI1_SNOOP_IOCGETLINKSTATE \
 	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ)
 #define HFI1_SNOOP_IOCSETLINKSTATE \
-	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ+1)
+	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ + 1)
 #define HFI1_SNOOP_IOCCLEARQUEUE \
-	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ+2)
+	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ + 2)
 #define HFI1_SNOOP_IOCCLEARFILTER \
-	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ+3)
+	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ + 3)
 #define HFI1_SNOOP_IOCSETFILTER \
-	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ+4)
+	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ + 4)
 #define HFI1_SNOOP_IOCGETVERSION \
-	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ+5)
+	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ + 5)
 #define HFI1_SNOOP_IOCSET_OPTS \
-	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ+6)
+	_IO(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ + 6)
 
 /*
  * These offsets +6/+7 could change, but these are already known and used
  * IOCTL numbers so don't change them without a good reason.
  */
 #define HFI1_SNOOP_IOCGETLINKSTATE_EXTRA \
-	_IOWR(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ+6, \
+	_IOWR(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ + 6, \
 		struct hfi1_link_info)
 #define HFI1_SNOOP_IOCSETLINKSTATE_EXTRA \
-	_IOWR(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ+7, \
+	_IOWR(HFI1_SNOOP_IOC_MAGIC, HFI1_SNOOP_IOC_BASE_SEQ + 7, \
 		struct hfi1_link_info)
 
 static int hfi1_snoop_open(struct inode *in, struct file *fp);
 static ssize_t hfi1_snoop_read(struct file *fp, char __user *data,
-				size_t pkt_len, loff_t *off);
+			       size_t pkt_len, loff_t *off);
 static ssize_t hfi1_snoop_write(struct file *fp, const char __user *data,
-				 size_t count, loff_t *off);
+				size_t count, loff_t *off);
 static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg);
 static unsigned int hfi1_snoop_poll(struct file *fp,
-					struct poll_table_struct *wait);
+				    struct poll_table_struct *wait);
 static int hfi1_snoop_release(struct inode *in, struct file *fp);
 
 struct hfi1_packet_filter_command {
@@ -257,7 +255,7 @@ static int hfi1_filter_ib_service_level(void *ibhdr, void *packet_data,
 static int hfi1_filter_ib_pkey(void *ibhdr, void *packet_data, void *value);
 static int hfi1_filter_direction(void *ibhdr, void *packet_data, void *value);
 
-static struct hfi1_filter_array hfi1_filters[] = {
+static const struct hfi1_filter_array hfi1_filters[] = {
 	{ hfi1_filter_lid },
 	{ hfi1_filter_dlid },
 	{ hfi1_filter_mad_mgmt_class },
@@ -323,13 +321,11 @@ static void hfi1_snoop_remove(struct hfi1_devdata *dd)
 
 void hfi1_diag_remove(struct hfi1_devdata *dd)
 {
-
 	hfi1_snoop_remove(dd);
 	if (atomic_dec_and_test(&diagpkt_count))
 		hfi1_cdev_cleanup(&diagpkt_cdev, &diagpkt_device);
 	hfi1_cdev_cleanup(&dd->diag_cdev, &dd->diag_device);
 }
-
 
 /*
  * Allocated structure shared between the credit return mechanism and
@@ -379,6 +375,7 @@ static ssize_t diagpkt_send(struct diag_pkt *dp)
 	pio_release_cb credit_cb = NULL;
 	void *credit_arg = NULL;
 	struct diagpkt_wait *wait = NULL;
+	int trycount = 0;
 
 	dd = hfi1_lookup(dp->unit);
 	if (!dd || !(dd->flags & HFI1_PRESENT) || !dd->kregbase) {
@@ -393,7 +390,7 @@ static ssize_t diagpkt_send(struct diag_pkt *dp)
 
 	if (dp->version != _DIAG_PKT_VERS) {
 		dd_dev_err(dd, "Invalid version %u for diagpkt_write\n",
-			    dp->version);
+			   dp->version);
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -440,7 +437,7 @@ static ssize_t diagpkt_send(struct diag_pkt *dp)
 	}
 
 	if (copy_from_user(tmpbuf,
-			   (const void __user *) (unsigned long) dp->data,
+			   (const void __user *)(unsigned long)dp->data,
 			   dp->len)) {
 		ret = -EFAULT;
 		goto bail;
@@ -493,8 +490,15 @@ static ssize_t diagpkt_send(struct diag_pkt *dp)
 		credit_arg = wait;
 	}
 
+retry:
 	pbuf = sc_buffer_alloc(sc, total_len, credit_cb, credit_arg);
 	if (!pbuf) {
+		if (trycount == 0) {
+			/* force a credit return and try again */
+			sc_return_credits(sc);
+			trycount = 1;
+			goto retry;
+		}
 		/*
 		 * No send buffer means no credit callback.  Undo
 		 * the wait set-up that was done above.  We free wait
@@ -530,9 +534,9 @@ static ssize_t diagpkt_send(struct diag_pkt *dp)
 		 * NOTE: PRC_FILL_ERR is at best informational and cannot
 		 * be depended on.
 		 */
-		if (!ret && (((wait->code & PRC_STATUS_ERR)
-				|| (wait->code & PRC_FILL_ERR)
-				|| (wait->code & PRC_SC_DISABLE))))
+		if (!ret && (((wait->code & PRC_STATUS_ERR) ||
+			      (wait->code & PRC_FILL_ERR) ||
+			      (wait->code & PRC_SC_DISABLE))))
 			ret = -EIO;
 
 		put_diagpkt_wait(wait);	/* finished with the structure */
@@ -545,7 +549,7 @@ bail:
 }
 
 static ssize_t diagpkt_write(struct file *fp, const char __user *data,
-				 size_t count, loff_t *off)
+			     size_t count, loff_t *off)
 {
 	struct hfi1_devdata *dd;
 	struct send_context *sc;
@@ -565,7 +569,7 @@ static ssize_t diagpkt_write(struct file *fp, const char __user *data,
 	*/
 	if (dp.pbc) {
 		dd = hfi1_lookup(dp.unit);
-		if (dd == NULL)
+		if (!dd)
 			return -ENODEV;
 		vl = (dp.pbc >> PBC_VL_SHIFT) & PBC_VL_MASK;
 		sc = dd->vld[vl].sc;
@@ -598,7 +602,7 @@ static int hfi1_snoop_add(struct hfi1_devdata *dd, const char *name)
 	if (ret) {
 		dd_dev_err(dd, "Couldn't create %s device: %d", name, ret);
 		hfi1_cdev_cleanup(&dd->hfi1_snoop.cdev,
-				 &dd->hfi1_snoop.class_dev);
+				  &dd->hfi1_snoop.class_dev);
 	}
 
 	return ret;
@@ -611,7 +615,6 @@ static struct hfi1_devdata *hfi1_dd_from_sc_inode(struct inode *in)
 
 	dd = hfi1_lookup(unit);
 	return dd;
-
 }
 
 /* clear or restore send context integrity checks */
@@ -652,7 +655,7 @@ static int hfi1_snoop_open(struct inode *in, struct file *fp)
 	mutex_lock(&hfi1_mutex);
 
 	dd = hfi1_dd_from_sc_inode(in);
-	if (dd == NULL) {
+	if (!dd) {
 		ret = -ENODEV;
 		goto bail;
 	}
@@ -739,7 +742,7 @@ static int hfi1_snoop_release(struct inode *in, struct file *fp)
 	int mode_flag;
 
 	dd = hfi1_dd_from_sc_inode(in);
-	if (dd == NULL)
+	if (!dd)
 		return -ENODEV;
 
 	spin_lock_irqsave(&dd->hfi1_snoop.snoop_lock, flags);
@@ -794,7 +797,7 @@ static unsigned int hfi1_snoop_poll(struct file *fp,
 	struct hfi1_devdata *dd;
 
 	dd = hfi1_dd_from_sc_inode(fp->f_inode);
-	if (dd == NULL)
+	if (!dd)
 		return -ENODEV;
 
 	spin_lock_irqsave(&dd->hfi1_snoop.snoop_lock, flags);
@@ -805,7 +808,6 @@ static unsigned int hfi1_snoop_poll(struct file *fp,
 
 	spin_unlock_irqrestore(&dd->hfi1_snoop.snoop_lock, flags);
 	return ret;
-
 }
 
 static ssize_t hfi1_snoop_write(struct file *fp, const char __user *data,
@@ -822,7 +824,7 @@ static ssize_t hfi1_snoop_write(struct file *fp, const char __user *data,
 	struct hfi1_pportdata *ppd;
 
 	dd = hfi1_dd_from_sc_inode(fp->f_inode);
-	if (dd == NULL)
+	if (!dd)
 		return -ENODEV;
 
 	ppd = dd->pport;
@@ -847,7 +849,7 @@ static ssize_t hfi1_snoop_write(struct file *fp, const char __user *data,
 		if (copy_from_user(&byte_one, data, 1))
 			return -EINVAL;
 
-		if (copy_from_user(&byte_two, data+1, 1))
+		if (copy_from_user(&byte_two, data + 1, 1))
 			return -EINVAL;
 
 		sc4 = (byte_one >> 4) & 0xf;
@@ -856,7 +858,7 @@ static ssize_t hfi1_snoop_write(struct file *fp, const char __user *data,
 			vl = sc4;
 		} else {
 			sl = (byte_two >> 4) & 0xf;
-			ibp = to_iport(&dd->verbs_dev.ibdev, 1);
+			ibp = to_iport(&dd->verbs_dev.rdi.ibdev, 1);
 			sc5 = ibp->sl_to_sc[sl];
 			vl = sc_to_vlt(dd, sc5);
 			if (vl != sc4) {
@@ -920,7 +922,7 @@ static ssize_t hfi1_snoop_read(struct file *fp, char __user *data,
 	struct hfi1_devdata *dd;
 
 	dd = hfi1_dd_from_sc_inode(fp->f_inode);
-	if (dd == NULL)
+	if (!dd)
 		return -ENODEV;
 
 	spin_lock_irqsave(&dd->hfi1_snoop.snoop_lock, flags);
@@ -946,18 +948,79 @@ static ssize_t hfi1_snoop_read(struct file *fp, char __user *data,
 		spin_unlock_irqrestore(&dd->hfi1_snoop.snoop_lock, flags);
 		if (pkt_len >= packet->total_len) {
 			if (copy_to_user(data, packet->data,
-				packet->total_len))
+					 packet->total_len))
 				ret = -EFAULT;
 			else
 				ret = packet->total_len;
-		} else
+		} else {
 			ret = -EINVAL;
+		}
 
 		kfree(packet);
-	} else
+	} else {
 		spin_unlock_irqrestore(&dd->hfi1_snoop.snoop_lock, flags);
+	}
 
 	return ret;
+}
+
+/**
+ * hfi1_assign_snoop_link_credits -- Set up credits for VL15 and others
+ * @ppd : ptr to hfi1 port data
+ * @value : options from user space
+ *
+ * Assumes the rest of the CM credit registers are zero from a
+ * previous global or credit reset.
+ * Leave shared count at zero for both global and all vls.
+ * In snoop mode ideally we don't use shared credits
+ * Reserve 8.5k for VL15
+ * If total credits less than 8.5kbytes return error.
+ * Divide the rest of the credits across VL0 to VL7 and if
+ * each of these levels has less than 34 credits (at least 2048 + 128 bytes)
+ * return with an error.
+ * The credit registers will be reset to zero on link negotiation or link up
+ * so this function should be activated from user space only if the port has
+ * gone past link negotiation and link up.
+ *
+ * Return -- 0 if successful else error condition
+ *
+ */
+static long hfi1_assign_snoop_link_credits(struct hfi1_pportdata *ppd,
+					   int value)
+{
+#define  OPA_MIN_PER_VL_CREDITS  34  /* 2048 + 128 bytes */
+	struct buffer_control t;
+	int i;
+	struct hfi1_devdata *dd = ppd->dd;
+	u16  total_credits = (value >> 16) & 0xffff;
+	u16  vl15_credits = dd->vl15_init / 2;
+	u16  per_vl_credits;
+	__be16 be_per_vl_credits;
+
+	if (!(ppd->host_link_state & HLS_UP))
+		goto err_exit;
+	if (total_credits  <  vl15_credits)
+		goto err_exit;
+
+	per_vl_credits = (total_credits - vl15_credits) / TXE_NUM_DATA_VL;
+
+	if (per_vl_credits < OPA_MIN_PER_VL_CREDITS)
+		goto err_exit;
+
+	memset(&t, 0, sizeof(t));
+	be_per_vl_credits = cpu_to_be16(per_vl_credits);
+
+	for (i = 0; i < TXE_NUM_DATA_VL; i++)
+		t.vl[i].dedicated = be_per_vl_credits;
+
+	t.vl[15].dedicated  = cpu_to_be16(vl15_credits);
+	return set_buffer_control(ppd, &t);
+
+err_exit:
+	snoop_dbg("port_state = 0x%x, total_credits = %d, vl15_credits = %d",
+		  ppd->host_link_state, total_credits, vl15_credits);
+
+	return -EINVAL;
 }
 
 static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
@@ -966,9 +1029,9 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	void *filter_value = NULL;
 	long ret = 0;
 	int value = 0;
-	u8 physState = 0;
-	u8 linkState = 0;
-	u16 devState = 0;
+	u8 phys_state = 0;
+	u8 link_state = 0;
+	u16 dev_state = 0;
 	unsigned long flags = 0;
 	unsigned long *argp = NULL;
 	struct hfi1_packet_filter_command filter_cmd = {0};
@@ -976,237 +1039,225 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	struct hfi1_pportdata *ppd = NULL;
 	unsigned int index;
 	struct hfi1_link_info link_info;
+	int read_cmd, write_cmd, read_ok, write_ok;
 
 	dd = hfi1_dd_from_sc_inode(fp->f_inode);
-	if (dd == NULL)
+	if (!dd)
 		return -ENODEV;
 
-	spin_lock_irqsave(&dd->hfi1_snoop.snoop_lock, flags);
-
 	mode_flag = dd->hfi1_snoop.mode_flag;
+	read_cmd = _IOC_DIR(cmd) & _IOC_READ;
+	write_cmd = _IOC_DIR(cmd) & _IOC_WRITE;
+	write_ok = access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
+	read_ok = access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
 
-	if (((_IOC_DIR(cmd) & _IOC_READ)
-	    && !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd)))
-	    || ((_IOC_DIR(cmd) & _IOC_WRITE)
-	    && !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd)))) {
-		ret = -EFAULT;
-	} else if (!capable(CAP_SYS_ADMIN)) {
-		ret = -EPERM;
-	} else if ((mode_flag & HFI1_PORT_CAPTURE_MODE) &&
-		   (cmd != HFI1_SNOOP_IOCCLEARQUEUE) &&
-		   (cmd != HFI1_SNOOP_IOCCLEARFILTER) &&
-		   (cmd != HFI1_SNOOP_IOCSETFILTER)) {
+	if ((read_cmd && !write_ok) || (write_cmd && !read_ok))
+		return -EFAULT;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if ((mode_flag & HFI1_PORT_CAPTURE_MODE) &&
+	    (cmd != HFI1_SNOOP_IOCCLEARQUEUE) &&
+	    (cmd != HFI1_SNOOP_IOCCLEARFILTER) &&
+	    (cmd != HFI1_SNOOP_IOCSETFILTER))
 		/* Capture devices are allowed only 3 operations
 		 * 1.Clear capture queue
 		 * 2.Clear capture filter
 		 * 3.Set capture filter
 		 * Other are invalid.
 		 */
-		ret = -EINVAL;
-	} else {
-		switch (cmd) {
-		case HFI1_SNOOP_IOCSETLINKSTATE:
-			snoop_dbg("HFI1_SNOOP_IOCSETLINKSTATE is not valid");
-			ret = -EINVAL;
-			break;
+		return -EINVAL;
 
-		case HFI1_SNOOP_IOCSETLINKSTATE_EXTRA:
-			memset(&link_info, 0, sizeof(link_info));
+	switch (cmd) {
+	case HFI1_SNOOP_IOCSETLINKSTATE_EXTRA:
+		memset(&link_info, 0, sizeof(link_info));
 
-			if (copy_from_user(&link_info,
-				(struct hfi1_link_info __user *)arg,
-				sizeof(link_info)))
-				ret = -EFAULT;
+		if (copy_from_user(&link_info,
+				   (struct hfi1_link_info __user *)arg,
+				   sizeof(link_info)))
+			return -EFAULT;
 
-			value = link_info.port_state;
-			index = link_info.port_number;
-			if (index > dd->num_pports - 1) {
-				ret = -EINVAL;
+		value = link_info.port_state;
+		index = link_info.port_number;
+		if (index > dd->num_pports - 1)
+			return -EINVAL;
+
+		ppd = &dd->pport[index];
+		if (!ppd)
+			return -EINVAL;
+
+		/* What we want to transition to */
+		phys_state = (value >> 4) & 0xF;
+		link_state = value & 0xF;
+		snoop_dbg("Setting link state 0x%x", value);
+
+		switch (link_state) {
+		case IB_PORT_NOP:
+			if (phys_state == 0)
 				break;
-			}
-
-			ppd = &dd->pport[index];
-			if (!ppd) {
-				ret = -EINVAL;
+				/* fall through */
+		case IB_PORT_DOWN:
+			switch (phys_state) {
+			case 0:
+				dev_state = HLS_DN_DOWNDEF;
 				break;
-			}
-
-			/* What we want to transition to */
-			physState = (value >> 4) & 0xF;
-			linkState = value & 0xF;
-			snoop_dbg("Setting link state 0x%x", value);
-
-			switch (linkState) {
-			case IB_PORT_NOP:
-				if (physState == 0)
-					break;
-					/* fall through */
-			case IB_PORT_DOWN:
-				switch (physState) {
-				case 0:
-					devState = HLS_DN_DOWNDEF;
-					break;
-				case 2:
-					devState = HLS_DN_POLL;
-					break;
-				case 3:
-					devState = HLS_DN_DISABLE;
-					break;
-				default:
-					ret = -EINVAL;
-					goto done;
-				}
-				ret = set_link_state(ppd, devState);
+			case 2:
+				dev_state = HLS_DN_POLL;
 				break;
-			case IB_PORT_ARMED:
-				ret = set_link_state(ppd, HLS_UP_ARMED);
-				if (!ret)
-					send_idle_sma(dd, SMA_IDLE_ARM);
-				break;
-			case IB_PORT_ACTIVE:
-				ret = set_link_state(ppd, HLS_UP_ACTIVE);
-				if (!ret)
-					send_idle_sma(dd, SMA_IDLE_ACTIVE);
+			case 3:
+				dev_state = HLS_DN_DISABLE;
 				break;
 			default:
-				ret = -EINVAL;
-				break;
+				return -EINVAL;
 			}
-
-			if (ret)
-				break;
-			/* fall through */
-		case HFI1_SNOOP_IOCGETLINKSTATE:
-		case HFI1_SNOOP_IOCGETLINKSTATE_EXTRA:
-			if (cmd == HFI1_SNOOP_IOCGETLINKSTATE_EXTRA) {
-				memset(&link_info, 0, sizeof(link_info));
-				if (copy_from_user(&link_info,
-					(struct hfi1_link_info __user *)arg,
-					sizeof(link_info)))
-					ret = -EFAULT;
-				index = link_info.port_number;
-			} else {
-				ret = __get_user(index, (int __user *) arg);
-				if (ret !=  0)
-					break;
-			}
-
-			if (index > dd->num_pports - 1) {
-				ret = -EINVAL;
-				break;
-			}
-
-			ppd = &dd->pport[index];
-			if (!ppd) {
-				ret = -EINVAL;
-				break;
-			}
-			value = hfi1_ibphys_portstate(ppd);
-			value <<= 4;
-			value |= driver_lstate(ppd);
-
-			snoop_dbg("Link port | Link State: %d", value);
-
-			if ((cmd == HFI1_SNOOP_IOCGETLINKSTATE_EXTRA) ||
-			    (cmd == HFI1_SNOOP_IOCSETLINKSTATE_EXTRA)) {
-				link_info.port_state = value;
-				link_info.node_guid = cpu_to_be64(ppd->guid);
-				link_info.link_speed_active =
-							ppd->link_speed_active;
-				link_info.link_width_active =
-							ppd->link_width_active;
-				if (copy_to_user(
-					(struct hfi1_link_info __user *)arg,
-					&link_info, sizeof(link_info)))
-					ret = -EFAULT;
-			} else {
-				ret = __put_user(value, (int __user *)arg);
-			}
+			ret = set_link_state(ppd, dev_state);
 			break;
-
-		case HFI1_SNOOP_IOCCLEARQUEUE:
-			snoop_dbg("Clearing snoop queue");
-			drain_snoop_list(&dd->hfi1_snoop.queue);
+		case IB_PORT_ARMED:
+			ret = set_link_state(ppd, HLS_UP_ARMED);
+			if (!ret)
+				send_idle_sma(dd, SMA_IDLE_ARM);
 			break;
-
-		case HFI1_SNOOP_IOCCLEARFILTER:
-			snoop_dbg("Clearing filter");
-			if (dd->hfi1_snoop.filter_callback) {
-				/* Drain packets first */
-				drain_snoop_list(&dd->hfi1_snoop.queue);
-				dd->hfi1_snoop.filter_callback = NULL;
-			}
-			kfree(dd->hfi1_snoop.filter_value);
-			dd->hfi1_snoop.filter_value = NULL;
-			break;
-
-		case HFI1_SNOOP_IOCSETFILTER:
-			snoop_dbg("Setting filter");
-			/* just copy command structure */
-			argp = (unsigned long *)arg;
-			if (copy_from_user(&filter_cmd, (void __user *)argp,
-					     sizeof(filter_cmd))) {
-				ret = -EFAULT;
-				break;
-			}
-			if (filter_cmd.opcode >= HFI1_MAX_FILTERS) {
-				pr_alert("Invalid opcode in request\n");
-				ret = -EINVAL;
-				break;
-			}
-
-			snoop_dbg("Opcode %d Len %d Ptr %p",
-				   filter_cmd.opcode, filter_cmd.length,
-				   filter_cmd.value_ptr);
-
-			filter_value = kcalloc(filter_cmd.length, sizeof(u8),
-					       GFP_KERNEL);
-			if (!filter_value) {
-				pr_alert("Not enough memory\n");
-				ret = -ENOMEM;
-				break;
-			}
-			/* copy remaining data from userspace */
-			if (copy_from_user((u8 *)filter_value,
-					(void __user *)filter_cmd.value_ptr,
-					filter_cmd.length)) {
-				kfree(filter_value);
-				ret = -EFAULT;
-				break;
-			}
-			/* Drain packets first */
-			drain_snoop_list(&dd->hfi1_snoop.queue);
-			dd->hfi1_snoop.filter_callback =
-				hfi1_filters[filter_cmd.opcode].filter;
-			/* just in case we see back to back sets */
-			kfree(dd->hfi1_snoop.filter_value);
-			dd->hfi1_snoop.filter_value = filter_value;
-
-			break;
-		case HFI1_SNOOP_IOCGETVERSION:
-			value = SNOOP_CAPTURE_VERSION;
-			snoop_dbg("Getting version: %d", value);
-			ret = __put_user(value, (int __user *)arg);
-			break;
-		case HFI1_SNOOP_IOCSET_OPTS:
-			snoop_flags = 0;
-			ret = __get_user(value, (int __user *) arg);
-			if (ret != 0)
-				break;
-
-			snoop_dbg("Setting snoop option %d", value);
-			if (value & SNOOP_DROP_SEND)
-				snoop_flags |= SNOOP_DROP_SEND;
-			if (value & SNOOP_USE_METADATA)
-				snoop_flags |= SNOOP_USE_METADATA;
+		case IB_PORT_ACTIVE:
+			ret = set_link_state(ppd, HLS_UP_ACTIVE);
+			if (!ret)
+				send_idle_sma(dd, SMA_IDLE_ACTIVE);
 			break;
 		default:
-			ret = -ENOTTY;
-			break;
+			return -EINVAL;
 		}
+
+		if (ret)
+			break;
+		/* fall through */
+	case HFI1_SNOOP_IOCGETLINKSTATE:
+	case HFI1_SNOOP_IOCGETLINKSTATE_EXTRA:
+		if (cmd == HFI1_SNOOP_IOCGETLINKSTATE_EXTRA) {
+			memset(&link_info, 0, sizeof(link_info));
+			if (copy_from_user(&link_info,
+					   (struct hfi1_link_info __user *)arg,
+					   sizeof(link_info)))
+				return -EFAULT;
+			index = link_info.port_number;
+		} else {
+			ret = __get_user(index, (int __user *)arg);
+			if (ret !=  0)
+				break;
+		}
+
+		if (index > dd->num_pports - 1)
+			return -EINVAL;
+
+		ppd = &dd->pport[index];
+		if (!ppd)
+			return -EINVAL;
+
+		value = hfi1_ibphys_portstate(ppd);
+		value <<= 4;
+		value |= driver_lstate(ppd);
+
+		snoop_dbg("Link port | Link State: %d", value);
+
+		if ((cmd == HFI1_SNOOP_IOCGETLINKSTATE_EXTRA) ||
+		    (cmd == HFI1_SNOOP_IOCSETLINKSTATE_EXTRA)) {
+			link_info.port_state = value;
+			link_info.node_guid = cpu_to_be64(ppd->guid);
+			link_info.link_speed_active =
+						ppd->link_speed_active;
+			link_info.link_width_active =
+						ppd->link_width_active;
+			if (copy_to_user((struct hfi1_link_info __user *)arg,
+					 &link_info, sizeof(link_info)))
+				return -EFAULT;
+		} else {
+			ret = __put_user(value, (int __user *)arg);
+		}
+		break;
+
+	case HFI1_SNOOP_IOCCLEARQUEUE:
+		snoop_dbg("Clearing snoop queue");
+		spin_lock_irqsave(&dd->hfi1_snoop.snoop_lock, flags);
+		drain_snoop_list(&dd->hfi1_snoop.queue);
+		spin_unlock_irqrestore(&dd->hfi1_snoop.snoop_lock, flags);
+		break;
+
+	case HFI1_SNOOP_IOCCLEARFILTER:
+		snoop_dbg("Clearing filter");
+		spin_lock_irqsave(&dd->hfi1_snoop.snoop_lock, flags);
+		if (dd->hfi1_snoop.filter_callback) {
+			/* Drain packets first */
+			drain_snoop_list(&dd->hfi1_snoop.queue);
+			dd->hfi1_snoop.filter_callback = NULL;
+		}
+		kfree(dd->hfi1_snoop.filter_value);
+		dd->hfi1_snoop.filter_value = NULL;
+		spin_unlock_irqrestore(&dd->hfi1_snoop.snoop_lock, flags);
+		break;
+
+	case HFI1_SNOOP_IOCSETFILTER:
+		snoop_dbg("Setting filter");
+		/* just copy command structure */
+		argp = (unsigned long *)arg;
+		if (copy_from_user(&filter_cmd, (void __user *)argp,
+				   sizeof(filter_cmd)))
+			return -EFAULT;
+
+		if (filter_cmd.opcode >= HFI1_MAX_FILTERS) {
+			pr_alert("Invalid opcode in request\n");
+			return -EINVAL;
+		}
+
+		snoop_dbg("Opcode %d Len %d Ptr %p",
+			  filter_cmd.opcode, filter_cmd.length,
+			  filter_cmd.value_ptr);
+
+		filter_value = kcalloc(filter_cmd.length, sizeof(u8),
+				       GFP_KERNEL);
+		if (!filter_value)
+			return -ENOMEM;
+
+		/* copy remaining data from userspace */
+		if (copy_from_user((u8 *)filter_value,
+				   (void __user *)filter_cmd.value_ptr,
+				   filter_cmd.length)) {
+			kfree(filter_value);
+			return -EFAULT;
+		}
+		/* Drain packets first */
+		spin_lock_irqsave(&dd->hfi1_snoop.snoop_lock, flags);
+		drain_snoop_list(&dd->hfi1_snoop.queue);
+		dd->hfi1_snoop.filter_callback =
+			hfi1_filters[filter_cmd.opcode].filter;
+		/* just in case we see back to back sets */
+		kfree(dd->hfi1_snoop.filter_value);
+		dd->hfi1_snoop.filter_value = filter_value;
+		spin_unlock_irqrestore(&dd->hfi1_snoop.snoop_lock, flags);
+		break;
+	case HFI1_SNOOP_IOCGETVERSION:
+		value = SNOOP_CAPTURE_VERSION;
+		snoop_dbg("Getting version: %d", value);
+		ret = __put_user(value, (int __user *)arg);
+		break;
+	case HFI1_SNOOP_IOCSET_OPTS:
+		snoop_flags = 0;
+		ret = __get_user(value, (int __user *)arg);
+		if (ret != 0)
+			break;
+
+		snoop_dbg("Setting snoop option %d", value);
+		if (value & SNOOP_DROP_SEND)
+			snoop_flags |= SNOOP_DROP_SEND;
+		if (value & SNOOP_USE_METADATA)
+			snoop_flags |= SNOOP_USE_METADATA;
+		if (value & (SNOOP_SET_VL0TOVL15)) {
+			ppd = &dd->pport[0];  /* first port will do */
+			ret = hfi1_assign_snoop_link_credits(ppd, value);
+		}
+		break;
+	default:
+		return -ENOTTY;
 	}
-done:
-	spin_unlock_irqrestore(&dd->hfi1_snoop.snoop_lock, flags);
+
 	return ret;
 }
 
@@ -1321,7 +1372,6 @@ static int hfi1_filter_mad_mgmt_class(void *ibhdr, void *packet_data,
 
 static int hfi1_filter_qp_number(void *ibhdr, void *packet_data, void *value)
 {
-
 	struct hfi1_ib_header *hdr;
 	struct hfi1_other_headers *ohdr = NULL;
 	int ret;
@@ -1404,7 +1454,6 @@ static int hfi1_filter_ib_service_level(void *ibhdr, void *packet_data,
 
 static int hfi1_filter_ib_pkey(void *ibhdr, void *packet_data, void *value)
 {
-
 	u32 lnh = 0;
 	struct hfi1_ib_header *hdr;
 	struct hfi1_other_headers *ohdr = NULL;
@@ -1476,15 +1525,13 @@ static struct snoop_packet *allocate_snoop_packet(u32 hdr_len,
 						  u32 data_len,
 						  u32 md_len)
 {
-
 	struct snoop_packet *packet;
 
-	packet = kzalloc(sizeof(struct snoop_packet) + hdr_len + data_len
+	packet = kzalloc(sizeof(*packet) + hdr_len + data_len
 			 + md_len,
 			 GFP_ATOMIC | __GFP_NOWARN);
 	if (likely(packet))
 		INIT_LIST_HEAD(&packet->list);
-
 
 	return packet;
 }
@@ -1542,12 +1589,11 @@ int snoop_recv_handler(struct hfi1_packet *packet)
 		    unlikely(snoop_flags & SNOOP_USE_METADATA))
 			md_len = sizeof(struct capture_md);
 
-
 		s_packet = allocate_snoop_packet(header_size,
 						 tlen - header_size,
 						 md_len);
 
-		if (unlikely(s_packet == NULL)) {
+		if (unlikely(!s_packet)) {
 			dd_dev_warn_ratelimited(ppd->dd, "Unable to allocate snoop/capture packet\n");
 			break;
 		}
@@ -1618,14 +1664,12 @@ int snoop_recv_handler(struct hfi1_packet *packet)
 /*
  * Handle snooping and capturing packets when sdma is being used.
  */
-int snoop_send_dma_handler(struct hfi1_qp *qp, struct ahg_ib_header *ibhdr,
-			   u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			   u32 plen, u32 dwords, u64 pbc)
+int snoop_send_dma_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
+			   u64 pbc)
 {
-	pr_alert("Snooping/Capture of  Send DMA Packets Is Not Supported!\n");
+	pr_alert("Snooping/Capture of Send DMA Packets Is Not Supported!\n");
 	snoop_dbg("Unsupported Operation");
-	return hfi1_verbs_send_dma(qp, ibhdr, hdrwords, ss, len, plen, dwords,
-				  0);
+	return hfi1_verbs_send_dma(qp, ps, 0);
 }
 
 /*
@@ -1633,16 +1677,19 @@ int snoop_send_dma_handler(struct hfi1_qp *qp, struct ahg_ib_header *ibhdr,
  * bypass packets. The only way to send a bypass packet currently is to use the
  * diagpkt interface. When that interface is enable snoop/capture is not.
  */
-int snoop_send_pio_handler(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
-			   u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			   u32 plen, u32 dwords, u64 pbc)
+int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
+			   u64 pbc)
 {
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	u32 hdrwords = qp->s_hdrwords;
+	struct rvt_sge_state *ss = qp->s_cur_sge;
+	u32 len = qp->s_cur_size;
+	u32 dwords = (len + 3) >> 2;
+	u32 plen = hdrwords + dwords + 2; /* includes pbc */
+	struct hfi1_pportdata *ppd = ps->ppd;
 	struct snoop_packet *s_packet = NULL;
-	u32 *hdr = (u32 *)&ahdr->ibh;
+	u32 *hdr = (u32 *)&ps->s_txreq->phdr.hdr;
 	u32 length = 0;
-	struct hfi1_sge_state temp_ss;
+	struct rvt_sge_state temp_ss;
 	void *data = NULL;
 	void *data_start = NULL;
 	int ret;
@@ -1651,7 +1698,7 @@ int snoop_send_pio_handler(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
 	struct capture_md md;
 	u32 vl;
 	u32 hdr_len = hdrwords << 2;
-	u32 tlen = HFI1_GET_PKT_LEN(&ahdr->ibh);
+	u32 tlen = HFI1_GET_PKT_LEN(&ps->s_txreq->phdr.hdr);
 
 	md.u.pbc = 0;
 
@@ -1666,7 +1713,7 @@ int snoop_send_pio_handler(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
 	/* not using ss->total_len as arg 2 b/c that does not count CRC */
 	s_packet = allocate_snoop_packet(hdr_len, tlen - hdr_len, md_len);
 
-	if (unlikely(s_packet == NULL)) {
+	if (unlikely(!s_packet)) {
 		dd_dev_warn_ratelimited(ppd->dd, "Unable to allocate snoop/capture packet\n");
 		goto out;
 	}
@@ -1678,7 +1725,7 @@ int snoop_send_pio_handler(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
 		md.port = 1;
 		md.dir = PKT_DIR_EGRESS;
 		if (likely(pbc == 0)) {
-			vl = be16_to_cpu(ahdr->ibh.lrh[0]) >> 12;
+			vl = be16_to_cpu(ps->s_txreq->phdr.hdr.lrh[0]) >> 12;
 			md.u.pbc = create_pbc(ppd, 0, qp->s_srate, vl, plen);
 		} else {
 			md.u.pbc = 0;
@@ -1740,7 +1787,7 @@ int snoop_send_pio_handler(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
 		ret = HFI1_FILTER_HIT;
 	} else {
 		ret = ppd->dd->hfi1_snoop.filter_callback(
-					&ahdr->ibh,
+					&ps->s_txreq->phdr.hdr,
 					NULL,
 					ppd->dd->hfi1_snoop.filter_value);
 	}
@@ -1772,9 +1819,16 @@ int snoop_send_pio_handler(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
 				spin_unlock_irqrestore(&qp->s_lock, flags);
 			} else if (qp->ibqp.qp_type == IB_QPT_RC) {
 				spin_lock_irqsave(&qp->s_lock, flags);
-				hfi1_rc_send_complete(qp, &ahdr->ibh);
+				hfi1_rc_send_complete(qp,
+						      &ps->s_txreq->phdr.hdr);
 				spin_unlock_irqrestore(&qp->s_lock, flags);
 			}
+
+			/*
+			 * If snoop is dropping the packet we need to put the
+			 * txreq back because no one else will.
+			 */
+			hfi1_put_txreq(ps->s_txreq);
 			return 0;
 		}
 		break;
@@ -1783,8 +1837,7 @@ int snoop_send_pio_handler(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
 		break;
 	}
 out:
-	return hfi1_verbs_send_pio(qp, ahdr, hdrwords, ss, len, plen, dwords,
-				  md.u.pbc);
+	return hfi1_verbs_send_pio(qp, ps, md.u.pbc);
 }
 
 /*
@@ -1836,7 +1889,7 @@ void snoop_inline_pio_send(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 
 		s_packet = allocate_snoop_packet(packet_len, 0, md_len);
 
-		if (unlikely(s_packet == NULL)) {
+		if (unlikely(!s_packet)) {
 			dd_dev_warn_ratelimited(dd, "Unable to allocate snoop/capture packet\n");
 			goto inline_pio_out;
 		}
@@ -1868,5 +1921,4 @@ void snoop_inline_pio_send(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 
 inline_pio_out:
 	pio_copy(dd, pbuf, pbc, from, count);
-
 }

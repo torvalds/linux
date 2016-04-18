@@ -64,7 +64,7 @@ static sint _init_mlme_priv(struct _adapter *padapter)
 	memset(&pmlmepriv->assoc_ssid, 0, sizeof(struct ndis_802_11_ssid));
 	pbuf = kmalloc_array(MAX_BSS_CNT, sizeof(struct wlan_network),
 			     GFP_ATOMIC);
-	if (pbuf == NULL)
+	if (!pbuf)
 		return _FAIL;
 	pmlmepriv->free_bss_buf = pbuf;
 	pnetwork = (struct wlan_network *)pbuf;
@@ -87,16 +87,15 @@ struct wlan_network *_r8712_alloc_network(struct mlme_priv *pmlmepriv)
 	unsigned long irqL;
 	struct wlan_network *pnetwork;
 	struct  __queue *free_queue = &pmlmepriv->free_bss_pool;
-	struct list_head *plist = NULL;
 
-	if (list_empty(&free_queue->queue))
-		return NULL;
 	spin_lock_irqsave(&free_queue->lock, irqL);
-	plist = free_queue->queue.next;
-	pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
-	list_del_init(&pnetwork->list);
-	pnetwork->last_scanned = jiffies;
-	pmlmepriv->num_of_scanned++;
+	pnetwork = list_first_entry_or_null(&free_queue->queue,
+					    struct wlan_network, list);
+	if (pnetwork) {
+		list_del_init(&pnetwork->list);
+		pnetwork->last_scanned = jiffies;
+		pmlmepriv->num_of_scanned++;
+	}
 	spin_unlock_irqrestore(&free_queue->lock, irqL);
 	return pnetwork;
 }
@@ -123,7 +122,7 @@ static void _free_network(struct mlme_priv *pmlmepriv,
 	spin_unlock_irqrestore(&free_queue->lock, irqL);
 }
 
-static void _free_network_nolock(struct mlme_priv *pmlmepriv,
+static void free_network_nolock(struct mlme_priv *pmlmepriv,
 			  struct wlan_network *pnetwork)
 {
 	struct  __queue *free_queue = &pmlmepriv->free_bss_pool;
@@ -232,12 +231,6 @@ void r8712_free_mlme_priv(struct mlme_priv *pmlmepriv)
 static struct	wlan_network *alloc_network(struct mlme_priv *pmlmepriv)
 {
 	return _r8712_alloc_network(pmlmepriv);
-}
-
-static void free_network_nolock(struct mlme_priv *pmlmepriv,
-			 struct wlan_network *pnetwork)
-{
-	_free_network_nolock(pmlmepriv, pnetwork);
 }
 
 void r8712_free_network_queue(struct _adapter *dev)
@@ -475,8 +468,7 @@ static int is_desired_network(struct _adapter *adapter,
 		    pnetwork->network.IELength, wps_ie,
 		    &wps_ielen))
 			return true;
-		else
-			return false;
+		return false;
 	}
 	if ((psecuritypriv->PrivacyAlgrthm != _NO_PRIVACY_) &&
 		    (pnetwork->network.Privacy == 0))
@@ -1209,7 +1201,7 @@ sint r8712_set_auth(struct _adapter *adapter,
 	struct setauth_parm *psetauthparm;
 
 	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
-	if (pcmd == NULL)
+	if (!pcmd)
 		return _FAIL;
 
 	psetauthparm = kzalloc(sizeof(*psetauthparm), GFP_ATOMIC);
@@ -1239,7 +1231,7 @@ sint r8712_set_key(struct _adapter *adapter,
 	sint ret = _SUCCESS;
 
 	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
-	if (pcmd == NULL)
+	if (!pcmd)
 		return _FAIL;
 	psetkeyparm = kzalloc(sizeof(*psetkeyparm), GFP_ATOMIC);
 	if (psetkeyparm == NULL) {

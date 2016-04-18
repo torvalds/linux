@@ -20,8 +20,8 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa320.h>
-#include <mach/mxm8x10.h>
+#include "pxa320.h"
+#include "mxm8x10.h"
 
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
@@ -116,13 +116,11 @@ static struct spi_board_info mcp251x_board_info[] = {
 };
 
 static struct pxa2xx_spi_master pxa_ssp3_spi_master_info = {
-	.clock_enable   = CKEN_SSP3,
 	.num_chipselect = 2,
 	.enable_dma     = 1
 };
 
 static struct pxa2xx_spi_master pxa_ssp4_spi_master_info = {
-	.clock_enable   = CKEN_SSP4,
 	.num_chipselect = 2,
 	.enable_dma     = 1
 };

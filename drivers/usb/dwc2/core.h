@@ -44,6 +44,26 @@
 #include <linux/usb/phy.h>
 #include "hw.h"
 
+/*
+ * Suggested defines for tracers:
+ * - no_printk:    Disable tracing
+ * - pr_info:      Print this info to the console
+ * - trace_printk: Print this info to trace buffer (good for verbose logging)
+ */
+
+#define DWC2_TRACE_SCHEDULER		no_printk
+#define DWC2_TRACE_SCHEDULER_VB		no_printk
+
+/* Detailed scheduler tracing, but won't overwhelm console */
+#define dwc2_sch_dbg(hsotg, fmt, ...)					\
+	DWC2_TRACE_SCHEDULER(pr_fmt("%s: SCH: " fmt),			\
+			     dev_name(hsotg->dev), ##__VA_ARGS__)
+
+/* Verbose scheduler tracing */
+#define dwc2_sch_vdbg(hsotg, fmt, ...)					\
+	DWC2_TRACE_SCHEDULER_VB(pr_fmt("%s: SCH: " fmt),		\
+				dev_name(hsotg->dev), ##__VA_ARGS__)
+
 static inline u32 dwc2_readl(const void __iomem *addr)
 {
 	u32 value = __raw_readl(addr);
@@ -246,6 +266,13 @@ enum dwc2_ep0_state {
  *                      value for this if none is specified.
  *                       0 - Address DMA
  *                       1 - Descriptor DMA (default, if available)
+ * @dma_desc_fs_enable: When DMA mode is enabled, specifies whether to use
+ *                      address DMA mode or descriptor DMA mode for accessing
+ *                      the data FIFOs in Full Speed mode only. The driver
+ *                      will automatically detect the value for this if none is
+ *                      specified.
+ *                       0 - Address DMA
+ *                       1 - Descriptor DMA in FS (default, if available)
  * @speed:              Specifies the maximum speed of operation in host and
  *                      device mode. The actual speed depends on the speed of
  *                      the attached device and the value of phy_type.
@@ -375,6 +402,7 @@ struct dwc2_core_params {
 	int otg_ver;
 	int dma_enable;
 	int dma_desc_enable;
+	int dma_desc_fs_enable;
 	int speed;
 	int enable_dynamic_fifo;
 	int en_multiple_tx_fifo;
@@ -451,15 +479,18 @@ struct dwc2_core_params {
  *                       1 - 16 bits
  *                       2 - 8 or 16 bits
  * @snpsid:             Value from SNPSID register
+ * @dev_ep_dirs:        Direction of device endpoints (GHWCFG1)
  */
 struct dwc2_hw_params {
 	unsigned op_mode:3;
 	unsigned arch:2;
 	unsigned dma_desc_enable:1;
+	unsigned dma_desc_fs_enable:1;
 	unsigned enable_dynamic_fifo:1;
 	unsigned en_multiple_tx_fifo:1;
 	unsigned host_rx_fifo_size:16;
 	unsigned host_nperio_tx_fifo_size:16;
+	unsigned dev_nperio_tx_fifo_size:16;
 	unsigned host_perio_tx_fifo_size:16;
 	unsigned nperio_tx_q_depth:3;
 	unsigned host_perio_tx_q_depth:3;
@@ -476,6 +507,7 @@ struct dwc2_hw_params {
 	unsigned power_optimized:1;
 	unsigned utmi_phy_data_width:2;
 	u32 snpsid;
+	u32 dev_ep_dirs;
 };
 
 /* Size of control and EP0 buffers */
@@ -559,6 +591,84 @@ struct dwc2_hregs_backup {
 	u32 hfir;
 	bool valid;
 };
+
+/*
+ * Constants related to high speed periodic scheduling
+ *
+ * We have a periodic schedule that is DWC2_HS_SCHEDULE_UFRAMES long.  From a
+ * reservation point of view it's assumed that the schedule goes right back to
+ * the beginning after the end of the schedule.
+ *
+ * What does that mean for scheduling things with a long interval?  It means
+ * we'll reserve time for them in every possible microframe that they could
+ * ever be scheduled in.  ...but we'll still only actually schedule them as
+ * often as they were requested.
+ *
+ * We keep our schedule in a "bitmap" structure.  This simplifies having
+ * to keep track of and merge intervals: we just let the bitmap code do most
+ * of the heavy lifting.  In a way scheduling is much like memory allocation.
+ *
+ * We schedule 100us per uframe or 80% of 125us (the maximum amount you're
+ * supposed to schedule for periodic transfers).  That's according to spec.
+ *
+ * Note that though we only schedule 80% of each microframe, the bitmap that we
+ * keep the schedule in is tightly packed (AKA it doesn't have 100us worth of
+ * space for each uFrame).
+ *
+ * Requirements:
+ * - DWC2_HS_SCHEDULE_UFRAMES must even divide 0x4000 (HFNUM_MAX_FRNUM + 1)
+ * - DWC2_HS_SCHEDULE_UFRAMES must be 8 times DWC2_LS_SCHEDULE_FRAMES (probably
+ *   could be any multiple of 8 times DWC2_LS_SCHEDULE_FRAMES, but there might
+ *   be bugs).  The 8 comes from the USB spec: number of microframes per frame.
+ */
+#define DWC2_US_PER_UFRAME		125
+#define DWC2_HS_PERIODIC_US_PER_UFRAME	100
+
+#define DWC2_HS_SCHEDULE_UFRAMES	8
+#define DWC2_HS_SCHEDULE_US		(DWC2_HS_SCHEDULE_UFRAMES * \
+					 DWC2_HS_PERIODIC_US_PER_UFRAME)
+
+/*
+ * Constants related to low speed scheduling
+ *
+ * For high speed we schedule every 1us.  For low speed that's a bit overkill,
+ * so we make up a unit called a "slice" that's worth 25us.  There are 40
+ * slices in a full frame and we can schedule 36 of those (90%) for periodic
+ * transfers.
+ *
+ * Our low speed schedule can be as short as 1 frame or could be longer.  When
+ * we only schedule 1 frame it means that we'll need to reserve a time every
+ * frame even for things that only transfer very rarely, so something that runs
+ * every 2048 frames will get time reserved in every frame.  Our low speed
+ * schedule can be longer and we'll be able to handle more overlap, but that
+ * will come at increased memory cost and increased time to schedule.
+ *
+ * Note: one other advantage of a short low speed schedule is that if we mess
+ * up and miss scheduling we can jump in and use any of the slots that we
+ * happened to reserve.
+ *
+ * With 25 us per slice and 1 frame in the schedule, we only need 4 bytes for
+ * the schedule.  There will be one schedule per TT.
+ *
+ * Requirements:
+ * - DWC2_US_PER_SLICE must evenly divide DWC2_LS_PERIODIC_US_PER_FRAME.
+ */
+#define DWC2_US_PER_SLICE	25
+#define DWC2_SLICES_PER_UFRAME	(DWC2_US_PER_UFRAME / DWC2_US_PER_SLICE)
+
+#define DWC2_ROUND_US_TO_SLICE(us) \
+				(DIV_ROUND_UP((us), DWC2_US_PER_SLICE) * \
+				 DWC2_US_PER_SLICE)
+
+#define DWC2_LS_PERIODIC_US_PER_FRAME \
+				900
+#define DWC2_LS_PERIODIC_SLICES_PER_FRAME \
+				(DWC2_LS_PERIODIC_US_PER_FRAME / \
+				 DWC2_US_PER_SLICE)
+
+#define DWC2_LS_SCHEDULE_FRAMES	1
+#define DWC2_LS_SCHEDULE_SLICES	(DWC2_LS_SCHEDULE_FRAMES * \
+				 DWC2_LS_PERIODIC_SLICES_PER_FRAME)
 
 /**
  * struct dwc2_hsotg - Holds the state of the driver, including the non-periodic
@@ -645,11 +755,14 @@ struct dwc2_hregs_backup {
  *                      periodic_sched_ready because it must be rescheduled for
  *                      the next frame. Otherwise, the item moves to
  *                      periodic_sched_inactive.
+ * @split_order:        List keeping track of channels doing splits, in order.
  * @periodic_usecs:     Total bandwidth claimed so far for periodic transfers.
  *                      This value is in microseconds per (micro)frame. The
  *                      assumption is that all periodic transfers may occur in
  *                      the same (micro)frame.
- * @frame_usecs:        Internal variable used by the microframe scheduler
+ * @hs_periodic_bitmap: Bitmap used by the microframe scheduler any time the
+ *                      host is in high speed mode; low speed schedules are
+ *                      stored elsewhere since we need one per TT.
  * @frame_number:       Frame number read from the core at SOF. The value ranges
  *                      from 0 to HFNUM_MAX_FRNUM.
  * @periodic_qh_count:  Count of periodic QHs, if using several eps. Used for
@@ -676,6 +789,9 @@ struct dwc2_hregs_backup {
  * @otg_port:           OTG port number
  * @frame_list:         Frame list
  * @frame_list_dma:     Frame list DMA address
+ * @frame_list_sz:      Frame list size
+ * @desc_gen_cache:     Kmem cache for generic descriptors
+ * @desc_hsisoc_cache:  Kmem cache for hs isochronous descriptors
  *
  * These are for peripheral mode:
  *
@@ -765,15 +881,19 @@ struct dwc2_hsotg {
 	struct list_head periodic_sched_ready;
 	struct list_head periodic_sched_assigned;
 	struct list_head periodic_sched_queued;
+	struct list_head split_order;
 	u16 periodic_usecs;
-	u16 frame_usecs[8];
+	unsigned long hs_periodic_bitmap[
+		DIV_ROUND_UP(DWC2_HS_SCHEDULE_US, BITS_PER_LONG)];
 	u16 frame_number;
 	u16 periodic_qh_count;
 	bool bus_suspended;
+	bool new_connection;
+
+	u16 last_frame_num;
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 #define FRAME_NUM_ARRAY_SIZE 1000
-	u16 last_frame_num;
 	u16 *frame_num_array;
 	u16 *last_frame_num_array;
 	int frame_num_idx;
@@ -794,6 +914,9 @@ struct dwc2_hsotg {
 	u8 otg_port;
 	u32 *frame_list;
 	dma_addr_t frame_list_dma;
+	u32 frame_list_sz;
+	struct kmem_cache *desc_gen_cache;
+	struct kmem_cache *desc_hsisoc_cache;
 
 #ifdef DEBUG
 	u32 frrem_samples;
@@ -864,32 +987,13 @@ enum dwc2_halt_status {
  * The following functions support initialization of the core driver component
  * and the DWC_otg controller
  */
-extern void dwc2_core_host_init(struct dwc2_hsotg *hsotg);
+extern int dwc2_core_reset(struct dwc2_hsotg *hsotg);
+extern int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg);
 extern int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg);
 extern int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore);
 
-/*
- * Host core Functions.
- * The following functions support managing the DWC_otg controller in host
- * mode.
- */
-extern void dwc2_hc_init(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan);
-extern void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
-			 enum dwc2_halt_status halt_status);
-extern void dwc2_hc_cleanup(struct dwc2_hsotg *hsotg,
-			    struct dwc2_host_chan *chan);
-extern void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
-				   struct dwc2_host_chan *chan);
-extern void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
-					struct dwc2_host_chan *chan);
-extern int dwc2_hc_continue_transfer(struct dwc2_hsotg *hsotg,
-				     struct dwc2_host_chan *chan);
-extern void dwc2_hc_do_ping(struct dwc2_hsotg *hsotg,
-			    struct dwc2_host_chan *chan);
-extern void dwc2_enable_host_interrupts(struct dwc2_hsotg *hsotg);
-extern void dwc2_disable_host_interrupts(struct dwc2_hsotg *hsotg);
+void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg);
 
-extern u32 dwc2_calc_frame_interval(struct dwc2_hsotg *hsotg);
 extern bool dwc2_is_controller_alive(struct dwc2_hsotg *hsotg);
 
 /*
@@ -901,7 +1005,6 @@ extern void dwc2_read_packet(struct dwc2_hsotg *hsotg, u8 *dest, u16 bytes);
 extern void dwc2_flush_tx_fifo(struct dwc2_hsotg *hsotg, const int num);
 extern void dwc2_flush_rx_fifo(struct dwc2_hsotg *hsotg);
 
-extern int dwc2_core_init(struct dwc2_hsotg *hsotg, bool select_phy, int irq);
 extern void dwc2_enable_global_interrupts(struct dwc2_hsotg *hcd);
 extern void dwc2_disable_global_interrupts(struct dwc2_hsotg *hcd);
 
@@ -940,6 +1043,16 @@ extern void dwc2_set_param_dma_enable(struct dwc2_hsotg *hsotg, int val);
  * 1 - DMA Descriptor(default, if available)
  */
 extern void dwc2_set_param_dma_desc_enable(struct dwc2_hsotg *hsotg, int val);
+
+/*
+ * When DMA mode is enabled specifies whether to use
+ * address DMA or DMA Descritor mode with full speed devices
+ * for accessing the data FIFOs in host mode.
+ * 0 - address DMA
+ * 1 - FS DMA Descriptor(default, if available)
+ */
+extern void dwc2_set_param_dma_desc_fs_enable(struct dwc2_hsotg *hsotg,
+					      int val);
 
 /*
  * Specifies the maximum speed of operation in host and device mode.
@@ -1110,6 +1223,31 @@ extern int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
 extern int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg);
 
 /*
+ * The following functions check the controller's OTG operation mode
+ * capability (GHWCFG2.OTG_MODE).
+ *
+ * These functions can be used before the internal hsotg->hw_params
+ * are read in and cached so they always read directly from the
+ * GHWCFG2 register.
+ */
+unsigned dwc2_op_mode(struct dwc2_hsotg *hsotg);
+bool dwc2_hw_is_otg(struct dwc2_hsotg *hsotg);
+bool dwc2_hw_is_host(struct dwc2_hsotg *hsotg);
+bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg);
+
+/*
+ * Returns the mode of operation, host or device
+ */
+static inline int dwc2_is_host_mode(struct dwc2_hsotg *hsotg)
+{
+	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) != 0;
+}
+static inline int dwc2_is_device_mode(struct dwc2_hsotg *hsotg)
+{
+	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
+}
+
+/*
  * Dump core registers and SPRAM
  */
 extern void dwc2_dump_dev_registers(struct dwc2_hsotg *hsotg);
@@ -1133,6 +1271,8 @@ extern void dwc2_hsotg_core_connect(struct dwc2_hsotg *hsotg);
 extern void dwc2_hsotg_disconnect(struct dwc2_hsotg *dwc2);
 extern int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
 #define dwc2_is_device_connected(hsotg) (hsotg->connected)
+int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg);
+int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg);
 #else
 static inline int dwc2_hsotg_remove(struct dwc2_hsotg *dwc2)
 { return 0; }
@@ -1150,20 +1290,37 @@ static inline int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
 							int testmode)
 { return 0; }
 #define dwc2_is_device_connected(hsotg) (0)
+static inline int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
+static inline int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
 #endif
 
 #if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 extern int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg);
-extern void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg);
+extern int dwc2_hcd_get_future_frame_number(struct dwc2_hsotg *hsotg, int us);
+extern void dwc2_hcd_connect(struct dwc2_hsotg *hsotg);
+extern void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg, bool force);
 extern void dwc2_hcd_start(struct dwc2_hsotg *hsotg);
+int dwc2_backup_host_registers(struct dwc2_hsotg *hsotg);
+int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg);
 #else
 static inline int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg)
 { return 0; }
-static inline void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg) {}
+static inline int dwc2_hcd_get_future_frame_number(struct dwc2_hsotg *hsotg,
+						   int us)
+{ return 0; }
+static inline void dwc2_hcd_connect(struct dwc2_hsotg *hsotg) {}
+static inline void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg, bool force) {}
 static inline void dwc2_hcd_start(struct dwc2_hsotg *hsotg) {}
 static inline void dwc2_hcd_remove(struct dwc2_hsotg *hsotg) {}
 static inline int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 { return 0; }
+static inline int dwc2_backup_host_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
+static inline int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
+
 #endif
 
 #endif /* __DWC2_CORE_H__ */

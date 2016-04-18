@@ -1959,6 +1959,12 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 	if (!tun_dst)
 		return -ENOMEM;
 
+	err = dst_cache_init(&tun_dst->u.tun_info.dst_cache, GFP_KERNEL);
+	if (err) {
+		dst_release((struct dst_entry *)tun_dst);
+		return err;
+	}
+
 	a = __add_action(sfa, OVS_KEY_ATTR_TUNNEL_INFO, NULL,
 			 sizeof(*ovs_tun), log);
 	if (IS_ERR(a)) {
@@ -2038,9 +2044,6 @@ static int validate_set(const struct nlattr *a,
 		break;
 
 	case OVS_KEY_ATTR_TUNNEL:
-		if (eth_p_mpls(eth_type))
-			return -EINVAL;
-
 		if (masked)
 			return -EINVAL; /* Masked tunnel set not supported. */
 
@@ -2434,7 +2437,10 @@ static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 		if (!start)
 			return -EMSGSIZE;
 
-		err = ovs_nla_put_tunnel_info(skb, tun_info);
+		err =  ip_tun_to_nlattr(skb, &tun_info->key,
+					ip_tunnel_info_opts(tun_info),
+					tun_info->options_len,
+					ip_tunnel_info_af(tun_info));
 		if (err)
 			return err;
 		nla_nest_end(skb, start);

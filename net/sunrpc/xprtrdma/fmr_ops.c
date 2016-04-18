@@ -80,13 +80,13 @@ fmr_op_init(struct rpcrdma_xprt *r_xprt)
 		if (!r)
 			goto out;
 
-		r->r.fmr.physaddrs = kmalloc(RPCRDMA_MAX_FMR_SGES *
-					     sizeof(u64), GFP_KERNEL);
-		if (!r->r.fmr.physaddrs)
+		r->fmr.physaddrs = kmalloc(RPCRDMA_MAX_FMR_SGES *
+					   sizeof(u64), GFP_KERNEL);
+		if (!r->fmr.physaddrs)
 			goto out_free;
 
-		r->r.fmr.fmr = ib_alloc_fmr(pd, mr_access_flags, &fmr_attr);
-		if (IS_ERR(r->r.fmr.fmr))
+		r->fmr.fmr = ib_alloc_fmr(pd, mr_access_flags, &fmr_attr);
+		if (IS_ERR(r->fmr.fmr))
 			goto out_fmr_err;
 
 		list_add(&r->mw_list, &buf->rb_mws);
@@ -95,9 +95,9 @@ fmr_op_init(struct rpcrdma_xprt *r_xprt)
 	return 0;
 
 out_fmr_err:
-	rc = PTR_ERR(r->r.fmr.fmr);
+	rc = PTR_ERR(r->fmr.fmr);
 	dprintk("RPC:       %s: ib_alloc_fmr status %i\n", __func__, rc);
-	kfree(r->r.fmr.physaddrs);
+	kfree(r->fmr.physaddrs);
 out_free:
 	kfree(r);
 out:
@@ -109,7 +109,7 @@ __fmr_unmap(struct rpcrdma_mw *r)
 {
 	LIST_HEAD(l);
 
-	list_add(&r->r.fmr.fmr->list, &l);
+	list_add(&r->fmr.fmr->list, &l);
 	return ib_unmap_fmr(&l);
 }
 
@@ -148,7 +148,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		nsegs = RPCRDMA_MAX_FMR_SGES;
 	for (i = 0; i < nsegs;) {
 		rpcrdma_map_one(device, seg, direction);
-		mw->r.fmr.physaddrs[i] = seg->mr_dma;
+		mw->fmr.physaddrs[i] = seg->mr_dma;
 		len += seg->mr_len;
 		++seg;
 		++i;
@@ -158,13 +158,13 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 			break;
 	}
 
-	rc = ib_map_phys_fmr(mw->r.fmr.fmr, mw->r.fmr.physaddrs,
+	rc = ib_map_phys_fmr(mw->fmr.fmr, mw->fmr.physaddrs,
 			     i, seg1->mr_dma);
 	if (rc)
 		goto out_maperr;
 
 	seg1->rl_mw = mw;
-	seg1->mr_rkey = mw->r.fmr.fmr->rkey;
+	seg1->mr_rkey = mw->fmr.fmr->rkey;
 	seg1->mr_base = seg1->mr_dma + pageoff;
 	seg1->mr_nsegs = i;
 	seg1->mr_len = len;
@@ -177,6 +177,69 @@ out_maperr:
 	while (i--)
 		rpcrdma_unmap_one(device, --seg);
 	return rc;
+}
+
+static void
+__fmr_dma_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
+{
+	struct ib_device *device = r_xprt->rx_ia.ri_device;
+	struct rpcrdma_mw *mw = seg->rl_mw;
+	int nsegs = seg->mr_nsegs;
+
+	seg->rl_mw = NULL;
+
+	while (nsegs--)
+		rpcrdma_unmap_one(device, seg++);
+
+	rpcrdma_put_mw(r_xprt, mw);
+}
+
+/* Invalidate all memory regions that were registered for "req".
+ *
+ * Sleeps until it is safe for the host CPU to access the
+ * previously mapped memory regions.
+ */
+static void
+fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
+{
+	struct rpcrdma_mr_seg *seg;
+	unsigned int i, nchunks;
+	struct rpcrdma_mw *mw;
+	LIST_HEAD(unmap_list);
+	int rc;
+
+	dprintk("RPC:       %s: req %p\n", __func__, req);
+
+	/* ORDER: Invalidate all of the req's MRs first
+	 *
+	 * ib_unmap_fmr() is slow, so use a single call instead
+	 * of one call per mapped MR.
+	 */
+	for (i = 0, nchunks = req->rl_nchunks; nchunks; nchunks--) {
+		seg = &req->rl_segments[i];
+		mw = seg->rl_mw;
+
+		list_add(&mw->fmr.fmr->list, &unmap_list);
+
+		i += seg->mr_nsegs;
+	}
+	rc = ib_unmap_fmr(&unmap_list);
+	if (rc)
+		pr_warn("%s: ib_unmap_fmr failed (%i)\n", __func__, rc);
+
+	/* ORDER: Now DMA unmap all of the req's MRs, and return
+	 * them to the free MW list.
+	 */
+	for (i = 0, nchunks = req->rl_nchunks; nchunks; nchunks--) {
+		seg = &req->rl_segments[i];
+
+		__fmr_dma_unmap(r_xprt, seg);
+
+		i += seg->mr_nsegs;
+		seg->mr_nsegs = 0;
+	}
+
+	req->rl_nchunks = 0;
 }
 
 /* Use the ib_unmap_fmr() verb to prevent further remote
@@ -218,9 +281,9 @@ fmr_op_destroy(struct rpcrdma_buffer *buf)
 	while (!list_empty(&buf->rb_all)) {
 		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
 		list_del(&r->mw_all);
-		kfree(r->r.fmr.physaddrs);
+		kfree(r->fmr.physaddrs);
 
-		rc = ib_dealloc_fmr(r->r.fmr.fmr);
+		rc = ib_dealloc_fmr(r->fmr.fmr);
 		if (rc)
 			dprintk("RPC:       %s: ib_dealloc_fmr failed %i\n",
 				__func__, rc);
@@ -231,6 +294,7 @@ fmr_op_destroy(struct rpcrdma_buffer *buf)
 
 const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_map				= fmr_op_map,
+	.ro_unmap_sync			= fmr_op_unmap_sync,
 	.ro_unmap			= fmr_op_unmap,
 	.ro_open			= fmr_op_open,
 	.ro_maxpages			= fmr_op_maxpages,

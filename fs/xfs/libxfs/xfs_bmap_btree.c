@@ -461,7 +461,7 @@ xfs_bmbt_alloc_block(
 		 * reservation amount is insufficient then we may fail a
 		 * block allocation here and corrupt the filesystem.
 		 */
-		args.minleft = xfs_trans_get_block_res(args.tp);
+		args.minleft = args.tp->t_blk_res;
 	} else if (cur->bc_private.b.flist->xbf_low) {
 		args.type = XFS_ALLOCTYPE_START_BNO;
 	} else {
@@ -470,7 +470,7 @@ xfs_bmbt_alloc_block(
 
 	args.minlen = args.maxlen = args.prod = 1;
 	args.wasdel = cur->bc_private.b.flags & XFS_BTCUR_BPRV_WASDEL;
-	if (!args.wasdel && xfs_trans_get_block_res(args.tp) == 0) {
+	if (!args.wasdel && args.tp->t_blk_res == 0) {
 		error = -ENOSPC;
 		goto error0;
 	}
@@ -531,7 +531,6 @@ xfs_bmbt_free_block(
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, -1L);
-	xfs_trans_binval(tp, bp);
 	return 0;
 }
 
@@ -720,6 +719,7 @@ xfs_bmbt_write_verify(
 }
 
 const struct xfs_buf_ops xfs_bmbt_buf_ops = {
+	.name = "xfs_bmbt",
 	.verify_read = xfs_bmbt_read_verify,
 	.verify_write = xfs_bmbt_write_verify,
 };

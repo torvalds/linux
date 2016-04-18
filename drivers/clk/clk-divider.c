@@ -28,17 +28,16 @@
  * parent - fixed parent.  No clk_set_parent support
  */
 
-#define to_clk_divider(_hw) container_of(_hw, struct clk_divider, hw)
-
 #define div_mask(width)	((1 << (width)) - 1)
 
-static unsigned int _get_table_maxdiv(const struct clk_div_table *table)
+static unsigned int _get_table_maxdiv(const struct clk_div_table *table,
+				      u8 width)
 {
-	unsigned int maxdiv = 0;
+	unsigned int maxdiv = 0, mask = div_mask(width);
 	const struct clk_div_table *clkt;
 
 	for (clkt = table; clkt->div; clkt++)
-		if (clkt->div > maxdiv)
+		if (clkt->div > maxdiv && clkt->val <= mask)
 			maxdiv = clkt->div;
 	return maxdiv;
 }
@@ -62,7 +61,7 @@ static unsigned int _get_maxdiv(const struct clk_div_table *table, u8 width,
 	if (flags & CLK_DIVIDER_POWER_OF_TWO)
 		return 1 << div_mask(width);
 	if (table)
-		return _get_table_maxdiv(table);
+		return _get_table_maxdiv(table, width);
 	return div_mask(width) + 1;
 }
 
@@ -304,9 +303,8 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	 */
 	maxdiv = min(ULONG_MAX / rate, maxdiv);
 
-	for (i = 1; i <= maxdiv; i = _next_div(table, i, flags)) {
-		if (!_is_valid_div(table, i, flags))
-			continue;
+	for (i = _next_div(table, 0, flags); i <= maxdiv;
+					     i = _next_div(table, i, flags)) {
 		if (rate * i == parent_rate_saved) {
 			/*
 			 * It's the most ideal case if the requested rate can be
@@ -422,6 +420,12 @@ const struct clk_ops clk_divider_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_divider_ops);
 
+const struct clk_ops clk_divider_ro_ops = {
+	.recalc_rate = clk_divider_recalc_rate,
+	.round_rate = clk_divider_round_rate,
+};
+EXPORT_SYMBOL_GPL(clk_divider_ro_ops);
+
 static struct clk *_register_divider(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		void __iomem *reg, u8 shift, u8 width,
@@ -445,7 +449,10 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
-	init.ops = &clk_divider_ops;
+	if (clk_divider_flags & CLK_DIVIDER_READ_ONLY)
+		init.ops = &clk_divider_ro_ops;
+	else
+		init.ops = &clk_divider_ops;
 	init.flags = flags | CLK_IS_BASIC;
 	init.parent_names = (parent_name ? &parent_name: NULL);
 	init.num_parents = (parent_name ? 1 : 0);

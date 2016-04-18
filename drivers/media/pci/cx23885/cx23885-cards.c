@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <media/cx25840.h>
+#include <media/drv-intf/cx25840.h>
 #include <linux/firmware.h>
 #include <misc/altera.h>
 
@@ -715,6 +715,56 @@ struct cx23885_board cx23885_boards[] = {
 		.portb		= CX23885_MPEG_DVB,
 		.portc		= CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_VIEWCAST_260E] = {
+		.name		= "ViewCast 260e",
+		.porta		= CX23885_ANALOG_VIDEO,
+		.force_bff	= 1,
+		.input          = {{
+			.type   = CX23885_VMUX_COMPOSITE1,
+			.vmux   = CX25840_VIN6_CH1,
+			.amux   = CX25840_AUDIO7,
+		}, {
+			.type   = CX23885_VMUX_SVIDEO,
+			.vmux   = CX25840_VIN7_CH3 |
+					CX25840_VIN5_CH1 |
+					CX25840_SVIDEO_ON,
+			.amux   = CX25840_AUDIO7,
+		}, {
+			.type   = CX23885_VMUX_COMPONENT,
+			.vmux   = CX25840_VIN7_CH3 |
+					CX25840_VIN6_CH2 |
+					CX25840_VIN5_CH1 |
+					CX25840_COMPONENT_ON,
+			.amux   = CX25840_AUDIO7,
+		} },
+	},
+	[CX23885_BOARD_VIEWCAST_460E] = {
+		.name		= "ViewCast 460e",
+		.porta		= CX23885_ANALOG_VIDEO,
+		.force_bff	= 1,
+		.input          = {{
+			.type   = CX23885_VMUX_COMPOSITE1,
+			.vmux   = CX25840_VIN4_CH1,
+			.amux   = CX25840_AUDIO7,
+		}, {
+			.type   = CX23885_VMUX_SVIDEO,
+			.vmux   = CX25840_VIN7_CH3 |
+					CX25840_VIN6_CH1 |
+					CX25840_SVIDEO_ON,
+			.amux   = CX25840_AUDIO7,
+		}, {
+			.type   = CX23885_VMUX_COMPONENT,
+			.vmux   = CX25840_VIN7_CH3 |
+					CX25840_VIN6_CH1 |
+					CX25840_VIN5_CH2 |
+					CX25840_COMPONENT_ON,
+			.amux   = CX25840_AUDIO7,
+		}, {
+			.type   = CX23885_VMUX_COMPOSITE2,
+			.vmux   = CX25840_VIN6_CH1,
+			.amux   = CX25840_AUDIO7,
+		} },
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -1002,6 +1052,14 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0xf038,
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR5525,
+	}, {
+		.subvendor = 0x1576,
+		.subdevice = 0x0260,
+		.card      = CX23885_BOARD_VIEWCAST_260E,
+	}, {
+		.subvendor = 0x1576,
+		.subdevice = 0x0460,
+		.card      = CX23885_BOARD_VIEWCAST_460E,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -1032,6 +1090,28 @@ void cx23885_card_list(struct cx23885_dev *dev)
 	for (i = 0; i < cx23885_bcount; i++)
 		printk(KERN_INFO "%s:    card=%d -> %s\n",
 		       dev->name, i, cx23885_boards[i].name);
+}
+
+static void viewcast_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
+{
+	u32 sn;
+
+	/* The serial number record begins with tag 0x59 */
+	if (*(eeprom_data + 0x00) != 0x59) {
+		pr_info("%s() eeprom records are undefined, no serial number\n",
+			__func__);
+		return;
+	}
+
+	sn =	(*(eeprom_data + 0x06) << 24) |
+		(*(eeprom_data + 0x05) << 16) |
+		(*(eeprom_data + 0x04) << 8) |
+		(*(eeprom_data + 0x03));
+
+	pr_info("%s: card '%s' sn# MM%d\n",
+		dev->name,
+		cx23885_boards[dev->board].name,
+		sn);
 }
 
 static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
@@ -1671,6 +1751,12 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx23885_gpio_set(dev, GPIO_8 | GPIO_9);
 		msleep(100);
 		break;
+	case CX23885_BOARD_VIEWCAST_260E:
+	case CX23885_BOARD_VIEWCAST_460E:
+		/* For documentation purposes, it's worth noting that this
+		 * card does not have any GPIO's connected to subcomponents.
+		 */
+		break;
 	}
 }
 
@@ -1917,6 +2003,14 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		if (dev->i2c_bus[0].i2c_rc == 0)
 			hauppauge_eeprom(dev, eeprom+0xc0);
 		break;
+	case CX23885_BOARD_VIEWCAST_260E:
+	case CX23885_BOARD_VIEWCAST_460E:
+		dev->i2c_bus[1].i2c_client.addr = 0xa0 >> 1;
+		tveeprom_read(&dev->i2c_bus[1].i2c_client,
+			      eeprom, sizeof(eeprom));
+		if (dev->i2c_bus[0].i2c_rc == 0)
+			viewcast_eeprom(dev, eeprom);
+		break;
 	}
 
 	switch (dev->board) {
@@ -2120,6 +2214,8 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_DVBSKY_S950:
 	case CX23885_BOARD_DVBSKY_S952:
 	case CX23885_BOARD_DVBSKY_T982:
+	case CX23885_BOARD_VIEWCAST_260E:
+	case CX23885_BOARD_VIEWCAST_460E:
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[2].i2c_adap,
 				"cx25840", 0x88 >> 1, NULL);
@@ -2127,6 +2223,24 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 			dev->sd_cx25840->grp_id = CX23885_HW_AV_CORE;
 			v4l2_subdev_call(dev->sd_cx25840, core, load_fw);
 		}
+		break;
+	}
+
+	switch (dev->board) {
+	case CX23885_BOARD_VIEWCAST_260E:
+		v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_bus[0].i2c_adap,
+				"cs3308", 0x82 >> 1, NULL);
+		break;
+	case CX23885_BOARD_VIEWCAST_460E:
+		/* This cs3308 controls the audio from the breakout cable */
+		v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_bus[0].i2c_adap,
+				"cs3308", 0x80 >> 1, NULL);
+		/* This cs3308 controls the audio from the onboard header */
+		v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_bus[0].i2c_adap,
+				"cs3308", 0x82 >> 1, NULL);
 		break;
 	}
 

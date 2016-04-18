@@ -27,7 +27,7 @@ struct kmem_cache *gfs2_inode_cachep __read_mostly;
 struct kmem_cache *gfs2_bufdata_cachep __read_mostly;
 struct kmem_cache *gfs2_rgrpd_cachep __read_mostly;
 struct kmem_cache *gfs2_quotad_cachep __read_mostly;
-struct kmem_cache *gfs2_rsrv_cachep __read_mostly;
+struct kmem_cache *gfs2_qadata_cachep __read_mostly;
 mempool_t *gfs2_page_pool __read_mostly;
 
 void gfs2_assert_i(struct gfs2_sbd *sdp)

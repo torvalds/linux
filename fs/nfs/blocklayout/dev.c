@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2014 Christoph Hellwig.
+ * Copyright (c) 2014-2016 Christoph Hellwig.
  */
 #include <linux/sunrpc/svc.h>
 #include <linux/blkdev.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_xdr.h>
+#include <linux/pr.h>
 
 #include "blocklayout.h"
 
@@ -21,6 +22,17 @@ bl_free_device(struct pnfs_block_dev *dev)
 			bl_free_device(&dev->children[i]);
 		kfree(dev->children);
 	} else {
+		if (dev->pr_registered) {
+			const struct pr_ops *ops =
+				dev->bdev->bd_disk->fops->pr_ops;
+			int error;
+
+			error = ops->pr_register(dev->bdev, dev->pr_key, 0,
+				false);
+			if (error)
+				pr_err("failed to unregister PR key.\n");
+		}
+
 		if (dev->bdev)
 			blkdev_put(dev->bdev, FMODE_READ | FMODE_WRITE);
 	}
@@ -112,6 +124,24 @@ nfs4_block_decode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 			return -EIO;
 		for (i = 0; i < b->stripe.volumes_count; i++)
 			b->stripe.volumes[i] = be32_to_cpup(p++);
+		break;
+	case PNFS_BLOCK_VOLUME_SCSI:
+		p = xdr_inline_decode(xdr, 4 + 4 + 4);
+		if (!p)
+			return -EIO;
+		b->scsi.code_set = be32_to_cpup(p++);
+		b->scsi.designator_type = be32_to_cpup(p++);
+		b->scsi.designator_len = be32_to_cpup(p++);
+		p = xdr_inline_decode(xdr, b->scsi.designator_len);
+		if (!p)
+			return -EIO;
+		if (b->scsi.designator_len > 256)
+			return -EIO;
+		memcpy(&b->scsi.designator, p, b->scsi.designator_len);
+		p = xdr_inline_decode(xdr, 8);
+		if (!p)
+			return -EIO;
+		p = xdr_decode_hyper(p, &b->scsi.pr_key);
 		break;
 	default:
 		dprintk("unknown volume type!\n");
@@ -216,6 +246,116 @@ bl_parse_simple(struct nfs_server *server, struct pnfs_block_dev *d,
 	return 0;
 }
 
+static bool
+bl_validate_designator(struct pnfs_block_volume *v)
+{
+	switch (v->scsi.designator_type) {
+	case PS_DESIGNATOR_EUI64:
+		if (v->scsi.code_set != PS_CODE_SET_BINARY)
+			return false;
+
+		if (v->scsi.designator_len != 8 &&
+		    v->scsi.designator_len != 10 &&
+		    v->scsi.designator_len != 16)
+			return false;
+
+		return true;
+	case PS_DESIGNATOR_NAA:
+		if (v->scsi.code_set != PS_CODE_SET_BINARY)
+			return false;
+
+		if (v->scsi.designator_len != 8 &&
+		    v->scsi.designator_len != 16)
+			return false;
+
+		return true;
+	case PS_DESIGNATOR_T10:
+	case PS_DESIGNATOR_NAME:
+		pr_err("pNFS: unsupported designator "
+			"(code set %d, type %d, len %d.\n",
+			v->scsi.code_set,
+			v->scsi.designator_type,
+			v->scsi.designator_len);
+		return false;
+	default:
+		pr_err("pNFS: invalid designator "
+			"(code set %d, type %d, len %d.\n",
+			v->scsi.code_set,
+			v->scsi.designator_type,
+			v->scsi.designator_len);
+		return false;
+	}
+}
+
+static int
+bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
+		struct pnfs_block_volume *volumes, int idx, gfp_t gfp_mask)
+{
+	struct pnfs_block_volume *v = &volumes[idx];
+	const struct pr_ops *ops;
+	const char *devname;
+	int error;
+
+	if (!bl_validate_designator(v))
+		return -EINVAL;
+
+	switch (v->scsi.designator_len) {
+	case 8:
+		devname = kasprintf(GFP_KERNEL, "/dev/disk/by-id/wwn-0x%8phN",
+				v->scsi.designator);
+		break;
+	case 12:
+		devname = kasprintf(GFP_KERNEL, "/dev/disk/by-id/wwn-0x%12phN",
+				v->scsi.designator);
+		break;
+	case 16:
+		devname = kasprintf(GFP_KERNEL, "/dev/disk/by-id/wwn-0x%16phN",
+				v->scsi.designator);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	d->bdev = blkdev_get_by_path(devname, FMODE_READ, NULL);
+	if (IS_ERR(d->bdev)) {
+		pr_warn("pNFS: failed to open device %s (%ld)\n",
+			devname, PTR_ERR(d->bdev));
+		kfree(devname);
+		return PTR_ERR(d->bdev);
+	}
+
+	kfree(devname);
+
+	d->len = i_size_read(d->bdev->bd_inode);
+	d->map = bl_map_simple;
+	d->pr_key = v->scsi.pr_key;
+
+	pr_info("pNFS: using block device %s (reservation key 0x%llx)\n",
+		d->bdev->bd_disk->disk_name, d->pr_key);
+
+	ops = d->bdev->bd_disk->fops->pr_ops;
+	if (!ops) {
+		pr_err("pNFS: block device %s does not support reservations.",
+				d->bdev->bd_disk->disk_name);
+		error = -EINVAL;
+		goto out_blkdev_put;
+	}
+
+	error = ops->pr_register(d->bdev, 0, d->pr_key, true);
+	if (error) {
+		pr_err("pNFS: failed to register key for block device %s.",
+				d->bdev->bd_disk->disk_name);
+		goto out_blkdev_put;
+	}
+
+	d->pr_registered = true;
+	return 0;
+
+out_blkdev_put:
+	blkdev_put(d->bdev, FMODE_READ);
+	return error;
+}
+
 static int
 bl_parse_slice(struct nfs_server *server, struct pnfs_block_dev *d,
 		struct pnfs_block_volume *volumes, int idx, gfp_t gfp_mask)
@@ -303,6 +443,8 @@ bl_parse_deviceid(struct nfs_server *server, struct pnfs_block_dev *d,
 		return bl_parse_concat(server, d, volumes, idx, gfp_mask);
 	case PNFS_BLOCK_VOLUME_STRIPE:
 		return bl_parse_stripe(server, d, volumes, idx, gfp_mask);
+	case PNFS_BLOCK_VOLUME_SCSI:
+		return bl_parse_scsi(server, d, volumes, idx, gfp_mask);
 	default:
 		dprintk("unsupported volume type: %d\n", volumes[idx].type);
 		return -EIO;

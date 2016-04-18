@@ -112,18 +112,25 @@ static int kernfs_getlink(struct dentry *dentry, char *path)
 	return error;
 }
 
-static const char *kernfs_iop_follow_link(struct dentry *dentry, void **cookie)
+static const char *kernfs_iop_get_link(struct dentry *dentry,
+				       struct inode *inode,
+				       struct delayed_call *done)
 {
-	int error = -ENOMEM;
-	unsigned long page = get_zeroed_page(GFP_KERNEL);
-	if (!page)
+	char *body;
+	int error;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+	body = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!body)
 		return ERR_PTR(-ENOMEM);
-	error = kernfs_getlink(dentry, (char *)page);
+	error = kernfs_getlink(dentry, body);
 	if (unlikely(error < 0)) {
-		free_page((unsigned long)page);
+		kfree(body);
 		return ERR_PTR(error);
 	}
-	return *cookie = (char *)page;
+	set_delayed_call(done, kfree_link, body);
+	return body;
 }
 
 const struct inode_operations kernfs_symlink_iops = {
@@ -132,8 +139,7 @@ const struct inode_operations kernfs_symlink_iops = {
 	.getxattr	= kernfs_iop_getxattr,
 	.listxattr	= kernfs_iop_listxattr,
 	.readlink	= generic_readlink,
-	.follow_link	= kernfs_iop_follow_link,
-	.put_link	= free_page_put_link,
+	.get_link	= kernfs_iop_get_link,
 	.setattr	= kernfs_iop_setattr,
 	.getattr	= kernfs_iop_getattr,
 	.permission	= kernfs_iop_permission,

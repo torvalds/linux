@@ -902,6 +902,21 @@ static int imxfb_probe(struct platform_device *pdev)
 		goto failed_getclock;
 	}
 
+	/*
+	 * The LCDC controller does not have an enable bit. The
+	 * controller starts directly when the clocks are enabled.
+	 * If the clocks are enabled when the controller is not yet
+	 * programmed with proper register values (enabled at the
+	 * bootloader, for example) then it just goes into some undefined
+	 * state.
+	 * To avoid this issue, let's enable and disable LCDC IPG clock
+	 * so that we force some kind of 'reset' to the LCDC block.
+	 */
+	ret = clk_prepare_enable(fbi->clk_ipg);
+	if (ret)
+		goto failed_getclock;
+	clk_disable_unprepare(fbi->clk_ipg);
+
 	fbi->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(fbi->clk_ahb)) {
 		ret = PTR_ERR(fbi->clk_ahb);
@@ -922,8 +937,8 @@ static int imxfb_probe(struct platform_device *pdev)
 	}
 
 	fbi->map_size = PAGE_ALIGN(info->fix.smem_len);
-	info->screen_base = dma_alloc_writecombine(&pdev->dev, fbi->map_size,
-						   &fbi->map_dma, GFP_KERNEL);
+	info->screen_base = dma_alloc_wc(&pdev->dev, fbi->map_size,
+					 &fbi->map_dma, GFP_KERNEL);
 
 	if (!info->screen_base) {
 		dev_err(&pdev->dev, "Failed to allocate video RAM: %d\n", ret);
@@ -990,8 +1005,8 @@ failed_cmap:
 	if (pdata && pdata->exit)
 		pdata->exit(fbi->pdev);
 failed_platform_init:
-	dma_free_writecombine(&pdev->dev, fbi->map_size, info->screen_base,
-			      fbi->map_dma);
+	dma_free_wc(&pdev->dev, fbi->map_size, info->screen_base,
+		    fbi->map_dma);
 failed_map:
 	iounmap(fbi->regs);
 failed_ioremap:
@@ -1026,8 +1041,8 @@ static int imxfb_remove(struct platform_device *pdev)
 	kfree(info->pseudo_palette);
 	framebuffer_release(info);
 
-	dma_free_writecombine(&pdev->dev, fbi->map_size, info->screen_base,
-			      fbi->map_dma);
+	dma_free_wc(&pdev->dev, fbi->map_size, info->screen_base,
+		    fbi->map_dma);
 
 	iounmap(fbi->regs);
 	release_mem_region(res->start, resource_size(res));

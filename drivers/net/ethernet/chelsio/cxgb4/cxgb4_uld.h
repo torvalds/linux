@@ -40,6 +40,7 @@
 #include <linux/skbuff.h>
 #include <linux/inetdevice.h>
 #include <linux/atomic.h>
+#include "cxgb4.h"
 
 /* CPL message priority levels */
 enum {
@@ -190,6 +191,7 @@ static inline void set_wr_txq(struct sk_buff *skb, int prio, int queue)
 enum cxgb4_uld {
 	CXGB4_ULD_RDMA,
 	CXGB4_ULD_ISCSI,
+	CXGB4_ULD_ISCSIT,
 	CXGB4_ULD_MAX
 };
 
@@ -211,6 +213,7 @@ struct l2t_data;
 struct net_device;
 struct pkt_gl;
 struct tp_tcp_stats;
+struct t4_lro_mgr;
 
 struct cxgb4_range {
 	unsigned int start;
@@ -272,6 +275,10 @@ struct cxgb4_lld_info {
 	unsigned int max_ordird_qp;          /* Max ORD/IRD depth per RDMA QP */
 	unsigned int max_ird_adapter;        /* Max IRD memory per adapter */
 	bool ulptx_memwrite_dsgl;            /* use of T5 DSGL allowed */
+	unsigned int iscsi_tagmask;	     /* iscsi ddp tag mask */
+	unsigned int iscsi_pgsz_order;	     /* iscsi ddp page size orders */
+	unsigned int iscsi_llimit;	     /* chip's iscsi region llimit */
+	void **iscsi_ppm;		     /* iscsi page pod manager */
 	int nodeid;			     /* device numa node id */
 };
 
@@ -282,6 +289,11 @@ struct cxgb4_uld_info {
 			  const struct pkt_gl *gl);
 	int (*state_change)(void *handle, enum cxgb4_state new_state);
 	int (*control)(void *handle, enum cxgb4_control control, ...);
+	int (*lro_rx_handler)(void *handle, const __be64 *rsp,
+			      const struct pkt_gl *gl,
+			      struct t4_lro_mgr *lro_mgr,
+			      struct napi_struct *napi);
+	void (*lro_flush)(struct t4_lro_mgr *);
 };
 
 int cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
@@ -290,6 +302,7 @@ int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
 unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo);
 unsigned int cxgb4_port_chan(const struct net_device *dev);
 unsigned int cxgb4_port_viid(const struct net_device *dev);
+unsigned int cxgb4_tp_smt_idx(enum chip_type chip, unsigned int viid);
 unsigned int cxgb4_port_idx(const struct net_device *dev);
 unsigned int cxgb4_best_mtu(const unsigned short *mtus, unsigned short mtu,
 			    unsigned int *idx);

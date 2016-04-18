@@ -38,7 +38,7 @@ config VIDEO_SH_VOU
 	depends on MEDIA_CAMERA_SUPPORT
 	depends on VIDEO_DEV && I2C && HAS_DMA
 	depends on ARCH_SHMOBILE || COMPILE_TEST
-	select VIDEOBUF_DMA_CONTIG
+	select VIDEOBUF2_DMA_CONTIG
 	help
 	  Support for the Video Output Unit (VOU) on SuperH SoCs.
 
@@ -53,15 +53,6 @@ config VIDEO_VIU
 
 	  Say Y here if you want to enable VIU device on MPC5121e Rev2+.
 	  In doubt, say N.
-
-config VIDEO_TIMBERDALE
-	tristate "Support for timberdale Video In/LogiWIN"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && HAS_DMA
-	depends on (MFD_TIMBERDALE && TIMB_DMA) || COMPILE_TEST
-	select VIDEO_ADV7180
-	select VIDEOBUF_DMA_CONTIG
-	---help---
-	  Add support for the Video In peripherial of the timberdale FPGA.
 
 config VIDEO_M32R_AR
 	tristate "AR devices"
@@ -119,6 +110,19 @@ source "drivers/media/platform/exynos4-is/Kconfig"
 source "drivers/media/platform/s5p-tv/Kconfig"
 source "drivers/media/platform/am437x/Kconfig"
 source "drivers/media/platform/xilinx/Kconfig"
+
+config VIDEO_TI_CAL
+	tristate "TI CAL (Camera Adaptation Layer) driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on SOC_DRA7XX || COMPILE_TEST
+	depends on HAS_DMA
+	select VIDEOBUF2_DMA_CONTIG
+	default n
+	---help---
+	  Support for the TI CAL (Camera Adaptation Layer) block
+	  found on DRA72X SoC.
+	  In TI Technical Reference Manual this module is referred as
+	  Camera Interface Subsystem (CAMSS).
 
 endif # V4L_PLATFORM_DRIVERS
 
@@ -215,8 +219,8 @@ config VIDEO_SAMSUNG_EXYNOS_GSC
 config VIDEO_STI_BDISP
 	tristate "STMicroelectronics BDISP 2D blitter driver"
 	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on HAS_DMA
 	depends on ARCH_STI || COMPILE_TEST
-	depends on HAVE_DMA_ATTRS
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	help

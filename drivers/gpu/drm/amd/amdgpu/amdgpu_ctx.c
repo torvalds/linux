@@ -25,8 +25,7 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 
-int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
-		    struct amdgpu_ctx *ctx)
+static int amdgpu_ctx_init(struct amdgpu_device *adev, struct amdgpu_ctx *ctx)
 {
 	unsigned i, j;
 	int r;
@@ -35,49 +34,53 @@ int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
 	ctx->adev = adev;
 	kref_init(&ctx->refcount);
 	spin_lock_init(&ctx->ring_lock);
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
+	ctx->fences = kcalloc(amdgpu_sched_jobs * AMDGPU_MAX_RINGS,
+			      sizeof(struct fence*), GFP_KERNEL);
+	if (!ctx->fences)
+		return -ENOMEM;
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		ctx->rings[i].sequence = 1;
+		ctx->rings[i].fences = &ctx->fences[amdgpu_sched_jobs * i];
+	}
+	/* create context entity for each ring */
+	for (i = 0; i < adev->num_rings; i++) {
+		struct amdgpu_ring *ring = adev->rings[i];
+		struct amd_sched_rq *rq;
 
-	if (amdgpu_enable_scheduler) {
-		/* create context entity for each ring */
-		for (i = 0; i < adev->num_rings; i++) {
-			struct amd_sched_rq *rq;
-			if (kernel)
-				rq = &adev->rings[i]->sched.kernel_rq;
-			else
-				rq = &adev->rings[i]->sched.sched_rq;
-			r = amd_sched_entity_init(&adev->rings[i]->sched,
-						  &ctx->rings[i].entity,
-						  rq, amdgpu_sched_jobs);
-			if (r)
-				break;
-		}
+		rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
+		r = amd_sched_entity_init(&ring->sched, &ctx->rings[i].entity,
+					  rq, amdgpu_sched_jobs);
+		if (r)
+			break;
+	}
 
-		if (i < adev->num_rings) {
-			for (j = 0; j < i; j++)
-				amd_sched_entity_fini(&adev->rings[j]->sched,
-						      &ctx->rings[j].entity);
-			kfree(ctx);
-			return r;
-		}
+	if (i < adev->num_rings) {
+		for (j = 0; j < i; j++)
+			amd_sched_entity_fini(&adev->rings[j]->sched,
+					      &ctx->rings[j].entity);
+		kfree(ctx->fences);
+		return r;
 	}
 	return 0;
 }
 
-void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
+static void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 {
 	struct amdgpu_device *adev = ctx->adev;
 	unsigned i, j;
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		for (j = 0; j < AMDGPU_CTX_MAX_CS_PENDING; ++j)
-			fence_put(ctx->rings[i].fences[j]);
+	if (!adev)
+		return;
 
-	if (amdgpu_enable_scheduler) {
-		for (i = 0; i < adev->num_rings; i++)
-			amd_sched_entity_fini(&adev->rings[i]->sched,
-					      &ctx->rings[i].entity);
-	}
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
+		for (j = 0; j < amdgpu_sched_jobs; ++j)
+			fence_put(ctx->rings[i].fences[j]);
+	kfree(ctx->fences);
+
+	for (i = 0; i < adev->num_rings; i++)
+		amd_sched_entity_fini(&adev->rings[i]->sched,
+				      &ctx->rings[i].entity);
 }
 
 static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
@@ -100,9 +103,13 @@ static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
 		return r;
 	}
 	*id = (uint32_t)r;
-	r = amdgpu_ctx_init(adev, false, ctx);
+	r = amdgpu_ctx_init(adev, ctx);
+	if (r) {
+		idr_remove(&mgr->ctx_handles, *id);
+		*id = 0;
+		kfree(ctx);
+	}
 	mutex_unlock(&mgr->lock);
-
 	return r;
 }
 
@@ -184,18 +191,18 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 	id = args->in.ctx_id;
 
 	switch (args->in.op) {
-		case AMDGPU_CTX_OP_ALLOC_CTX:
-			r = amdgpu_ctx_alloc(adev, fpriv, &id);
-			args->out.alloc.ctx_id = id;
-			break;
-		case AMDGPU_CTX_OP_FREE_CTX:
-			r = amdgpu_ctx_free(fpriv, id);
-			break;
-		case AMDGPU_CTX_OP_QUERY_STATE:
-			r = amdgpu_ctx_query(adev, fpriv, id, &args->out);
-			break;
-		default:
-			return -EINVAL;
+	case AMDGPU_CTX_OP_ALLOC_CTX:
+		r = amdgpu_ctx_alloc(adev, fpriv, &id);
+		args->out.alloc.ctx_id = id;
+		break;
+	case AMDGPU_CTX_OP_FREE_CTX:
+		r = amdgpu_ctx_free(fpriv, id);
+		break;
+	case AMDGPU_CTX_OP_QUERY_STATE:
+		r = amdgpu_ctx_query(adev, fpriv, id, &args->out);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return r;
@@ -236,7 +243,7 @@ uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
 	unsigned idx = 0;
 	struct fence *other = NULL;
 
-	idx = seq % AMDGPU_CTX_MAX_CS_PENDING;
+	idx = seq & (amdgpu_sched_jobs - 1);
 	other = cring->fences[idx];
 	if (other) {
 		signed long r;
@@ -271,12 +278,12 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 	}
 
 
-	if (seq + AMDGPU_CTX_MAX_CS_PENDING < cring->sequence) {
+	if (seq + amdgpu_sched_jobs < cring->sequence) {
 		spin_unlock(&ctx->ring_lock);
 		return NULL;
 	}
 
-	fence = fence_get(cring->fences[seq % AMDGPU_CTX_MAX_CS_PENDING]);
+	fence = fence_get(cring->fences[seq & (amdgpu_sched_jobs - 1)]);
 	spin_unlock(&ctx->ring_lock);
 
 	return fence;

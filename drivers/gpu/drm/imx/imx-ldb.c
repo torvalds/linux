@@ -19,6 +19,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
@@ -139,13 +140,6 @@ static void imx_ldb_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 }
 
-static bool imx_ldb_encoder_mode_fixup(struct drm_encoder *encoder,
-			   const struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
 		unsigned long serial_clk, unsigned long di_clk)
 {
@@ -215,7 +209,7 @@ static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
-	int mux = imx_drm_encoder_get_mux_id(imx_ldb_ch->child, encoder);
+	int mux = drm_of_encoder_active_port_id(imx_ldb_ch->child, encoder);
 
 	drm_panel_prepare(imx_ldb_ch->panel);
 
@@ -265,7 +259,7 @@ static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
 	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
 	unsigned long serial_clk;
 	unsigned long di_clk = mode->clock * 1000;
-	int mux = imx_drm_encoder_get_mux_id(imx_ldb_ch->child, encoder);
+	int mux = drm_of_encoder_active_port_id(imx_ldb_ch->child, encoder);
 
 	if (mode->clock > 170000) {
 		dev_warn(ldb->dev,
@@ -358,25 +352,24 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 	drm_panel_unprepare(imx_ldb_ch->panel);
 }
 
-static struct drm_connector_funcs imx_ldb_connector_funcs = {
+static const struct drm_connector_funcs imx_ldb_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = imx_ldb_connector_detect,
 	.destroy = imx_drm_connector_destroy,
 };
 
-static struct drm_connector_helper_funcs imx_ldb_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs imx_ldb_connector_helper_funcs = {
 	.get_modes = imx_ldb_connector_get_modes,
 	.best_encoder = imx_ldb_connector_best_encoder,
 };
 
-static struct drm_encoder_funcs imx_ldb_encoder_funcs = {
+static const struct drm_encoder_funcs imx_ldb_encoder_funcs = {
 	.destroy = imx_drm_encoder_destroy,
 };
 
-static struct drm_encoder_helper_funcs imx_ldb_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs imx_ldb_encoder_helper_funcs = {
 	.dpms = imx_ldb_encoder_dpms,
-	.mode_fixup = imx_ldb_encoder_mode_fixup,
 	.prepare = imx_ldb_encoder_prepare,
 	.commit = imx_ldb_encoder_commit,
 	.mode_set = imx_ldb_encoder_mode_set,
@@ -422,7 +415,7 @@ static int imx_ldb_register(struct drm_device *drm,
 	drm_encoder_helper_add(&imx_ldb_ch->encoder,
 			&imx_ldb_encoder_helper_funcs);
 	drm_encoder_init(drm, &imx_ldb_ch->encoder, &imx_ldb_encoder_funcs,
-			 DRM_MODE_ENCODER_LVDS);
+			 DRM_MODE_ENCODER_LVDS, NULL);
 
 	drm_connector_helper_add(&imx_ldb_ch->connector,
 			&imx_ldb_connector_helper_funcs);

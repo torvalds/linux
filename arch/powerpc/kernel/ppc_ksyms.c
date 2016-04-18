@@ -6,7 +6,9 @@
 #include <asm/cacheflush.h>
 #include <asm/epapr_hcalls.h>
 
+#ifdef CONFIG_PPC64
 EXPORT_SYMBOL(flush_dcache_range);
+#endif
 EXPORT_SYMBOL(flush_icache_range);
 
 EXPORT_SYMBOL(empty_zero_page);
@@ -19,23 +21,13 @@ EXPORT_SYMBOL(_mcount);
 #endif
 
 #ifdef CONFIG_PPC_FPU
-EXPORT_SYMBOL(giveup_fpu);
 EXPORT_SYMBOL(load_fp_state);
 EXPORT_SYMBOL(store_fp_state);
 #endif
 
 #ifdef CONFIG_ALTIVEC
-EXPORT_SYMBOL(giveup_altivec);
 EXPORT_SYMBOL(load_vr_state);
 EXPORT_SYMBOL(store_vr_state);
-#endif
-
-#ifdef CONFIG_VSX
-EXPORT_SYMBOL_GPL(__giveup_vsx);
-#endif
-
-#ifdef CONFIG_SPE
-EXPORT_SYMBOL(giveup_spe);
 #endif
 
 #ifdef CONFIG_EPAPR_PARAVIRT

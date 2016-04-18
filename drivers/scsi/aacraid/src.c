@@ -156,8 +156,8 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 				break;
 			if (dev->msi_enabled && dev->max_msix > 1)
 				atomic_dec(&dev->rrq_outstanding[vector_no]);
-			aac_intr_normal(dev, handle-1, 0, isFastResponse, NULL);
 			dev->host_rrq[index++] = 0;
+			aac_intr_normal(dev, handle-1, 0, isFastResponse, NULL);
 			if (index == (vector_no + 1) * dev->vector_cap)
 				index = vector_no * dev->vector_cap;
 			dev->host_rrq_idx[vector_no] = index;
@@ -447,36 +447,24 @@ static int aac_src_deliver_message(struct fib *fib)
 	u32 fibsize;
 	dma_addr_t address;
 	struct aac_fib_xporthdr *pFibX;
+#if !defined(writeq)
+	unsigned long flags;
+#endif
+
 	u16 hdr_size = le16_to_cpu(fib->hw_fib_va->header.Size);
+	u16 vector_no;
 
 	atomic_inc(&q->numpending);
 
 	if (dev->msi_enabled && fib->hw_fib_va->header.Command != AifRequest &&
 	    dev->max_msix > 1) {
-		u_int16_t vector_no, first_choice = 0xffff;
-
-		vector_no = dev->fibs_pushed_no % dev->max_msix;
-		do {
-			vector_no += 1;
-			if (vector_no == dev->max_msix)
-				vector_no = 1;
-			if (atomic_read(&dev->rrq_outstanding[vector_no]) <
-			    dev->vector_cap)
-				break;
-			if (0xffff == first_choice)
-				first_choice = vector_no;
-			else if (vector_no == first_choice)
-				break;
-		} while (1);
-		if (vector_no == first_choice)
-			vector_no = 0;
-		atomic_inc(&dev->rrq_outstanding[vector_no]);
-		if (dev->fibs_pushed_no == 0xffffffff)
-			dev->fibs_pushed_no = 0;
-		else
-			dev->fibs_pushed_no++;
+		vector_no = fib->vector_no;
 		fib->hw_fib_va->header.Handle += (vector_no << 16);
+	} else {
+		vector_no = 0;
 	}
+
+	atomic_inc(&dev->rrq_outstanding[vector_no]);
 
 	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
 		/* Calculate the amount to the fibsize bits */
@@ -511,10 +499,14 @@ static int aac_src_deliver_message(struct fib *fib)
 			return -EINVAL;
 		address |= fibsize;
 	}
-
+#if defined(writeq)
+	src_writeq(dev, MUnit.IQ_L, (u64)address);
+#else
+	spin_lock_irqsave(&fib->dev->iq_lock, flags);
 	src_writel(dev, MUnit.IQ_H, upper_32_bits(address) & 0xffffffff);
 	src_writel(dev, MUnit.IQ_L, address & 0xffffffff);
-
+	spin_unlock_irqrestore(&fib->dev->iq_lock, flags);
+#endif
 	return 0;
 }
 
@@ -726,6 +718,7 @@ int aac_src_init(struct aac_dev *dev)
 	dev->a_ops.adapter_sync_cmd = src_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_src_check_health;
 	dev->a_ops.adapter_restart = aac_src_restart_adapter;
+	dev->a_ops.adapter_start = aac_src_start_adapter;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that we
@@ -741,7 +734,7 @@ int aac_src_init(struct aac_dev *dev)
 	if (dev->comm_interface != AAC_COMM_MESSAGE_TYPE1)
 		goto error_iounmap;
 
-	dev->msi = aac_msi && !pci_enable_msi(dev->pdev);
+	dev->msi = !pci_enable_msi(dev->pdev);
 
 	dev->aac_msix[0].vector_no = 0;
 	dev->aac_msix[0].dev = dev;
@@ -789,9 +782,7 @@ int aac_srcv_init(struct aac_dev *dev)
 	unsigned long status;
 	int restart = 0;
 	int instance = dev->id;
-	int i, j;
 	const char *name = dev->name;
-	int cpu;
 
 	dev->a_ops.adapter_ioremap = aac_srcv_ioremap;
 	dev->a_ops.adapter_comm = aac_src_select_comm;
@@ -892,6 +883,7 @@ int aac_srcv_init(struct aac_dev *dev)
 	dev->a_ops.adapter_sync_cmd = src_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_src_check_health;
 	dev->a_ops.adapter_restart = aac_src_restart_adapter;
+	dev->a_ops.adapter_start = aac_src_start_adapter;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that we
@@ -908,48 +900,10 @@ int aac_srcv_init(struct aac_dev *dev)
 		goto error_iounmap;
 	if (dev->msi_enabled)
 		aac_src_access_devreg(dev, AAC_ENABLE_MSIX);
-	if (!dev->sync_mode && dev->msi_enabled && dev->max_msix > 1) {
-		cpu = cpumask_first(cpu_online_mask);
-		for (i = 0; i < dev->max_msix; i++) {
-			dev->aac_msix[i].vector_no = i;
-			dev->aac_msix[i].dev = dev;
 
-			if (request_irq(dev->msixentry[i].vector,
-					dev->a_ops.adapter_intr,
-					0,
-					"aacraid",
-					&(dev->aac_msix[i]))) {
-				printk(KERN_ERR "%s%d: Failed to register IRQ for vector %d.\n",
-						name, instance, i);
-				for (j = 0 ; j < i ; j++)
-					free_irq(dev->msixentry[j].vector,
-						 &(dev->aac_msix[j]));
-				pci_disable_msix(dev->pdev);
-				goto error_iounmap;
-			}
-			if (irq_set_affinity_hint(
-			   dev->msixentry[i].vector,
-			   get_cpu_mask(cpu))) {
-				printk(KERN_ERR "%s%d: Failed to set IRQ affinity for cpu %d\n",
-						name, instance, cpu);
-			}
-			cpu = cpumask_next(cpu, cpu_online_mask);
-		}
-	} else {
-		dev->aac_msix[0].vector_no = 0;
-		dev->aac_msix[0].dev = dev;
+	if (aac_acquire_irq(dev))
+		goto error_iounmap;
 
-		if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
-				IRQF_SHARED,
-				"aacraid",
-				&(dev->aac_msix[0])) < 0) {
-			if (dev->msi)
-				pci_disable_msi(dev->pdev);
-			printk(KERN_ERR "%s%d: Interrupt unavailable.\n",
-					name, instance);
-			goto error_iounmap;
-		}
-	}
 	dev->dbg_base = dev->base_start;
 	dev->dbg_base_mapped = dev->base;
 	dev->dbg_size = dev->base_size;

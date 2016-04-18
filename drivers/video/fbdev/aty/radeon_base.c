@@ -76,7 +76,6 @@
 
 #ifdef CONFIG_PPC
 
-#include <asm/pci-bridge.h>
 #include "../macmodes.h"
 
 #ifdef CONFIG_BOOTX_TEXT
@@ -276,9 +275,138 @@ static int backlight = 1;
 static int backlight = 0;
 #endif
 
-/*
- * prototypes
+/* Note about this function: we have some rare cases where we must not schedule,
+ * this typically happen with our special "wake up early" hook which allows us to
+ * wake up the graphic chip (and thus get the console back) before everything else
+ * on some machines that support that mechanism. At this point, interrupts are off
+ * and scheduling is not permitted
  */
+void _radeon_msleep(struct radeonfb_info *rinfo, unsigned long ms)
+{
+	if (rinfo->no_schedule || oops_in_progress)
+		mdelay(ms);
+	else
+		msleep(ms);
+}
+
+void radeon_pll_errata_after_index_slow(struct radeonfb_info *rinfo)
+{
+	/* Called if (rinfo->errata & CHIP_ERRATA_PLL_DUMMYREADS) is set */
+	(void)INREG(CLOCK_CNTL_DATA);
+	(void)INREG(CRTC_GEN_CNTL);
+}
+
+void radeon_pll_errata_after_data_slow(struct radeonfb_info *rinfo)
+{
+	if (rinfo->errata & CHIP_ERRATA_PLL_DELAY) {
+		/* we can't deal with posted writes here ... */
+		_radeon_msleep(rinfo, 5);
+	}
+	if (rinfo->errata & CHIP_ERRATA_R300_CG) {
+		u32 save, tmp;
+		save = INREG(CLOCK_CNTL_INDEX);
+		tmp = save & ~(0x3f | PLL_WR_EN);
+		OUTREG(CLOCK_CNTL_INDEX, tmp);
+		tmp = INREG(CLOCK_CNTL_DATA);
+		OUTREG(CLOCK_CNTL_INDEX, save);
+	}
+}
+
+void _OUTREGP(struct radeonfb_info *rinfo, u32 addr, u32 val, u32 mask)
+{
+	unsigned long flags;
+	unsigned int tmp;
+
+	spin_lock_irqsave(&rinfo->reg_lock, flags);
+	tmp = INREG(addr);
+	tmp &= (mask);
+	tmp |= (val);
+	OUTREG(addr, tmp);
+	spin_unlock_irqrestore(&rinfo->reg_lock, flags);
+}
+
+u32 __INPLL(struct radeonfb_info *rinfo, u32 addr)
+{
+	u32 data;
+
+	OUTREG8(CLOCK_CNTL_INDEX, addr & 0x0000003f);
+	radeon_pll_errata_after_index(rinfo);
+	data = INREG(CLOCK_CNTL_DATA);
+	radeon_pll_errata_after_data(rinfo);
+	return data;
+}
+
+void __OUTPLL(struct radeonfb_info *rinfo, unsigned int index, u32 val)
+{
+	OUTREG8(CLOCK_CNTL_INDEX, (index & 0x0000003f) | 0x00000080);
+	radeon_pll_errata_after_index(rinfo);
+	OUTREG(CLOCK_CNTL_DATA, val);
+	radeon_pll_errata_after_data(rinfo);
+}
+
+void __OUTPLLP(struct radeonfb_info *rinfo, unsigned int index,
+			     u32 val, u32 mask)
+{
+	unsigned int tmp;
+
+	tmp  = __INPLL(rinfo, index);
+	tmp &= (mask);
+	tmp |= (val);
+	__OUTPLL(rinfo, index, tmp);
+}
+
+void _radeon_fifo_wait(struct radeonfb_info *rinfo, int entries)
+{
+	int i;
+
+	for (i=0; i<2000000; i++) {
+		if ((INREG(RBBM_STATUS) & 0x7f) >= entries)
+			return;
+		udelay(1);
+	}
+	printk(KERN_ERR "radeonfb: FIFO Timeout !\n");
+}
+
+void radeon_engine_flush(struct radeonfb_info *rinfo)
+{
+	int i;
+
+	/* Initiate flush */
+	OUTREGP(DSTCACHE_CTLSTAT, RB2D_DC_FLUSH_ALL,
+	        ~RB2D_DC_FLUSH_ALL);
+
+	/* Ensure FIFO is empty, ie, make sure the flush commands
+	 * has reached the cache
+	 */
+	_radeon_fifo_wait(rinfo, 64);
+
+	/* Wait for the flush to complete */
+	for (i=0; i < 2000000; i++) {
+		if (!(INREG(DSTCACHE_CTLSTAT) & RB2D_DC_BUSY))
+			return;
+		udelay(1);
+	}
+	printk(KERN_ERR "radeonfb: Flush Timeout !\n");
+}
+
+void _radeon_engine_idle(struct radeonfb_info *rinfo)
+{
+	int i;
+
+	/* ensure FIFO is empty before waiting for idle */
+	_radeon_fifo_wait(rinfo, 64);
+
+	for (i=0; i<2000000; i++) {
+		if (((INREG(RBBM_STATUS) & GUI_ACTIVE)) == 0) {
+			radeon_engine_flush(rinfo);
+			return;
+		}
+		udelay(1);
+	}
+	printk(KERN_ERR "radeonfb: Idle Timeout !\n");
+}
+
+
 
 static void radeon_unmap_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 {

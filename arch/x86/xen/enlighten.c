@@ -32,6 +32,7 @@
 #include <linux/gfp.h>
 #include <linux/memblock.h>
 #include <linux/edd.h>
+#include <linux/frame.h>
 
 #ifdef CONFIG_KEXEC_CORE
 #include <linux/kexec.h>
@@ -351,8 +352,8 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 	*cx &= maskecx;
 	*cx |= setecx;
 	*dx &= maskedx;
-
 }
+STACK_FRAME_NON_STANDARD(xen_cpuid); /* XEN_EMULATE_PREFIX */
 
 static bool __init xen_check_mwait(void)
 {
@@ -415,7 +416,7 @@ static bool __init xen_check_mwait(void)
 
 	set_xen_guest_handle(op.u.set_pminfo.pdc, buf);
 
-	if ((HYPERVISOR_dom0_op(&op) == 0) &&
+	if ((HYPERVISOR_platform_op(&op) == 0) &&
 	    (buf[2] & (ACPI_PDC_C_C1_FFH | ACPI_PDC_C_C2C3_FFH))) {
 		cpuid_leaf5_ecx_val = cx;
 		cpuid_leaf5_edx_val = dx;
@@ -961,7 +962,7 @@ static void xen_load_sp0(struct tss_struct *tss,
 	tss->x86_tss.sp0 = thread->sp0;
 }
 
-static void xen_set_iopl_mask(unsigned mask)
+void xen_set_iopl_mask(unsigned mask)
 {
 	struct physdev_set_iopl set_iopl;
 
@@ -1192,7 +1193,7 @@ static const struct pv_info xen_info __initconst = {
 #ifdef CONFIG_X86_64
 	.extra_user_64bit_cs = FLAT_USER_CS64,
 #endif
-
+	.features = 0,
 	.name = "Xen",
 };
 
@@ -1229,10 +1230,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 
 	.iret = xen_iret,
 #ifdef CONFIG_X86_64
-	.usergs_sysret32 = xen_sysret32,
 	.usergs_sysret64 = xen_sysret64,
-#else
-	.irq_enable_sysexit = xen_sysexit,
 #endif
 
 	.load_tr_desc = paravirt_nop,
@@ -1263,12 +1261,6 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 
 	.start_context_switch = paravirt_start_context_switch,
 	.end_context_switch = xen_end_context_switch,
-};
-
-static const struct pv_apic_ops xen_apic_ops __initconst = {
-#ifdef CONFIG_X86_LOCAL_APIC
-	.startup_ipi_hook = paravirt_nop,
-#endif
 };
 
 static void xen_reboot(int reason)
@@ -1374,7 +1366,7 @@ static void __init xen_boot_params_init_edd(void)
 		info->params.length = sizeof(info->params);
 		set_xen_guest_handle(op.u.firmware_info.u.disk_info.edd_params,
 				     &info->params);
-		ret = HYPERVISOR_dom0_op(&op);
+		ret = HYPERVISOR_platform_op(&op);
 		if (ret)
 			break;
 
@@ -1392,7 +1384,7 @@ static void __init xen_boot_params_init_edd(void)
 	op.u.firmware_info.type = XEN_FW_DISK_MBR_SIGNATURE;
 	for (nr = 0; nr < EDD_MBR_SIG_MAX; nr++) {
 		op.u.firmware_info.index = nr;
-		ret = HYPERVISOR_dom0_op(&op);
+		ret = HYPERVISOR_platform_op(&op);
 		if (ret)
 			break;
 		mbr_signature[nr] = op.u.firmware_info.u.disk_mbr_signature.mbr_signature;
@@ -1535,8 +1527,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
+	if (xen_initial_domain())
+		pv_info.features |= PV_SUPPORTED_RTC;
 	pv_init_ops = xen_init_ops;
-	pv_apic_ops = xen_apic_ops;
 	if (!xen_pvh_domain()) {
 		pv_cpu_ops = xen_cpu_ops;
 
@@ -1662,7 +1655,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	cpu_detect(&new_cpu_data);
 	set_cpu_cap(&new_cpu_data, X86_FEATURE_FPU);
 	new_cpu_data.wp_works_ok = 1;
-	new_cpu_data.x86_capability[0] = cpuid_edx(1);
+	new_cpu_data.x86_capability[CPUID_1_EDX] = cpuid_edx(1);
 #endif
 
 	if (xen_start_info->mod_start) {
@@ -1698,7 +1691,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 		xen_start_info->console.domU.mfn = 0;
 		xen_start_info->console.domU.evtchn = 0;
 
-		if (HYPERVISOR_dom0_op(&op) == 0)
+		if (HYPERVISOR_platform_op(&op) == 0)
 			boot_params.kbd_status = op.u.firmware_info.u.kbd_shift_flags;
 
 		/* Make sure ACS will be enabled */
@@ -1886,8 +1879,10 @@ EXPORT_SYMBOL_GPL(xen_hvm_need_lapic);
 
 static void xen_set_cpu_features(struct cpuinfo_x86 *c)
 {
-	if (xen_pv_domain())
+	if (xen_pv_domain()) {
 		clear_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
+		set_cpu_cap(c, X86_FEATURE_XENPV);
+	}
 }
 
 const struct hypervisor_x86 x86_hyper_xen = {

@@ -415,7 +415,7 @@ static u32 xmitframe_need_length(struct xmit_frame *pxmitframe)
 {
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 
-	u32 len = 0;
+	u32 len;
 
 	/*  no consider fragement */
 	len = pattrib->hdrlen + pattrib->iv_len +
@@ -463,30 +463,26 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	}
 
 	/* 3 1. pick up first frame */
-	do {
-		rtw_free_xmitframe(pxmitpriv, pxmitframe);
+	rtw_free_xmitframe(pxmitpriv, pxmitframe);
 
-		pxmitframe = rtw_dequeue_xframe(pxmitpriv, pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
-		if (pxmitframe == NULL) {
-			/*  no more xmit frame, release xmit buffer */
-			rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
-			return false;
-		}
+	pxmitframe = rtw_dequeue_xframe(pxmitpriv, pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
+	if (pxmitframe == NULL) {
+		/*  no more xmit frame, release xmit buffer */
+		rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
+		return false;
+	}
 
-		pxmitframe->pxmitbuf = pxmitbuf;
-		pxmitframe->buf_addr = pxmitbuf->pbuf;
-		pxmitbuf->priv_data = pxmitframe;
+	pxmitframe->pxmitbuf = pxmitbuf;
+	pxmitframe->buf_addr = pxmitbuf->pbuf;
+	pxmitbuf->priv_data = pxmitframe;
 
-		pxmitframe->agg_num = 1; /*  alloc xmitframe should assign to 1. */
-		pxmitframe->pkt_offset = 1; /*  first frame of aggregation, reserve offset */
+	pxmitframe->agg_num = 1; /*  alloc xmitframe should assign to 1. */
+	pxmitframe->pkt_offset = 1; /*  first frame of aggregation, reserve offset */
 
-		rtw_xmitframe_coalesce(adapt, pxmitframe->pkt, pxmitframe);
+	rtw_xmitframe_coalesce(adapt, pxmitframe->pkt, pxmitframe);
 
-		/*  always return ndis_packet after rtw_xmitframe_coalesce */
-		rtw_os_xmit_complete(adapt, pxmitframe);
-
-		break;
-	} while (1);
+	/*  always return ndis_packet after rtw_xmitframe_coalesce */
+	rtw_os_xmit_complete(adapt, pxmitframe);
 
 	/* 3 2. aggregate same priority and same DA(AP or STA) frames */
 	pfirstframe = pxmitframe;
@@ -618,7 +614,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 
 static s32 xmitframe_direct(struct adapter *adapt, struct xmit_frame *pxmitframe)
 {
-	s32 res = _SUCCESS;
+	s32 res;
 
 	res = rtw_xmitframe_coalesce(adapt, pxmitframe->pkt, pxmitframe);
 	if (res == _SUCCESS)

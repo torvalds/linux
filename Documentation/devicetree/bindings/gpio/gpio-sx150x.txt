@@ -5,7 +5,8 @@ Required properties:
 
 - compatible: should be "semtech,sx1506q",
 			"semtech,sx1508q",
-			"semtech,sx1509q".
+			"semtech,sx1509q",
+			"semtech,sx1502q".
 
 - reg: The I2C slave address for this device.
 

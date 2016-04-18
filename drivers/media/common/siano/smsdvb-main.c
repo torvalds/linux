@@ -617,6 +617,7 @@ static void smsdvb_media_device_unregister(struct smsdvb_client_t *client)
 	if (!coredev->media_dev)
 		return;
 	media_device_unregister(coredev->media_dev);
+	media_device_cleanup(coredev->media_dev);
 	kfree(coredev->media_dev);
 	coredev->media_dev = NULL;
 #endif
@@ -1014,12 +1015,6 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe)
 	}
 }
 
-/* Nothing to do here, as stats are automatically updated */
-static int smsdvb_get_frontend(struct dvb_frontend *fe)
-{
-	return 0;
-}
-
 static int smsdvb_init(struct dvb_frontend *fe)
 {
 	struct smsdvb_client_t *client =
@@ -1068,7 +1063,6 @@ static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.release = smsdvb_release,
 
 	.set_frontend = smsdvb_set_frontend,
-	.get_frontend = smsdvb_get_frontend,
 	.get_tune_settings = smsdvb_get_tune_settings,
 
 	.read_status = smsdvb_read_status,
@@ -1183,7 +1177,11 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	if (smsdvb_debugfs_create(client) < 0)
 		pr_info("failed to create debugfs node\n");
 
-	dvb_create_media_graph(&client->adapter);
+	rc = dvb_create_media_graph(&client->adapter, true);
+	if (rc < 0) {
+		pr_err("dvb_create_media_graph failed %d\n", rc);
+		goto client_error;
+	}
 
 	pr_info("DVB interface registered.\n");
 	return 0;

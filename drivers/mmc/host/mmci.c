@@ -40,7 +40,6 @@
 
 #include <asm/div64.h>
 #include <asm/io.h>
-#include <asm/sizes.h>
 
 #include "mmci.h"
 #include "mmci_qcom_dml.h"
@@ -151,6 +150,7 @@ static struct variant_data variant_nomadik = {
 	.fifosize		= 16 * 4,
 	.fifohalfsize		= 8 * 4,
 	.clkreg			= MCI_CLK_ENABLE,
+	.clkreg_8bit_bus_enable = MCI_ST_8BIT_BUS,
 	.datalength_bits	= 24,
 	.datactrl_mask_sdio	= MCI_ST_DPSM_SDIOEN,
 	.st_sdio		= true,
@@ -1886,7 +1886,7 @@ static struct amba_id mmci_ids[] = {
 	{
 		.id     = 0x00280180,
 		.mask   = 0x00ffffff,
-		.data	= &variant_u300,
+		.data	= &variant_nomadik,
 	},
 	{
 		.id     = 0x00480180,

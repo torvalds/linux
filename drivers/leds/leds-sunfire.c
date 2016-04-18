@@ -234,28 +234,19 @@ static struct platform_driver sunfire_fhc_led_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&sunfire_clockboard_led_driver,
+	&sunfire_fhc_led_driver,
+};
+
 static int __init sunfire_leds_init(void)
 {
-	int err = platform_driver_register(&sunfire_clockboard_led_driver);
-
-	if (err) {
-		pr_err("Could not register clock board LED driver\n");
-		return err;
-	}
-
-	err = platform_driver_register(&sunfire_fhc_led_driver);
-	if (err) {
-		pr_err("Could not register FHC LED driver\n");
-		platform_driver_unregister(&sunfire_clockboard_led_driver);
-	}
-
-	return err;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 static void __exit sunfire_leds_exit(void)
 {
-	platform_driver_unregister(&sunfire_clockboard_led_driver);
-	platform_driver_unregister(&sunfire_fhc_led_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_init(sunfire_leds_init);

@@ -201,7 +201,7 @@ _xfs_buf_alloc(
 	atomic_set(&bp->b_pin_count, 0);
 	init_waitqueue_head(&bp->b_waiters);
 
-	XFS_STATS_INC(xb_create);
+	XFS_STATS_INC(target->bt_mount, xb_create);
 	trace_xfs_buf_init(bp, _RET_IP_);
 
 	return bp;
@@ -354,15 +354,16 @@ retry:
 			 */
 			if (!(++retries % 100))
 				xfs_err(NULL,
-		"possible memory allocation deadlock in %s (mode:0x%x)",
+		"%s(%u) possible memory allocation deadlock in %s (mode:0x%x)",
+					current->comm, current->pid,
 					__func__, gfp_mask);
 
-			XFS_STATS_INC(xb_page_retries);
+			XFS_STATS_INC(bp->b_target->bt_mount, xb_page_retries);
 			congestion_wait(BLK_RW_ASYNC, HZ/50);
 			goto retry;
 		}
 
-		XFS_STATS_INC(xb_page_found);
+		XFS_STATS_INC(bp->b_target->bt_mount, xb_page_found);
 
 		nbytes = min_t(size_t, size, PAGE_SIZE - offset);
 		size -= nbytes;
@@ -516,7 +517,7 @@ _xfs_buf_find(
 		new_bp->b_pag = pag;
 		spin_unlock(&pag->pag_buf_lock);
 	} else {
-		XFS_STATS_INC(xb_miss_locked);
+		XFS_STATS_INC(btp->bt_mount, xb_miss_locked);
 		spin_unlock(&pag->pag_buf_lock);
 		xfs_perag_put(pag);
 	}
@@ -529,11 +530,11 @@ found:
 	if (!xfs_buf_trylock(bp)) {
 		if (flags & XBF_TRYLOCK) {
 			xfs_buf_rele(bp);
-			XFS_STATS_INC(xb_busy_locked);
+			XFS_STATS_INC(btp->bt_mount, xb_busy_locked);
 			return NULL;
 		}
 		xfs_buf_lock(bp);
-		XFS_STATS_INC(xb_get_locked_waited);
+		XFS_STATS_INC(btp->bt_mount, xb_get_locked_waited);
 	}
 
 	/*
@@ -549,7 +550,7 @@ found:
 	}
 
 	trace_xfs_buf_find(bp, flags, _RET_IP_);
-	XFS_STATS_INC(xb_get_locked);
+	XFS_STATS_INC(btp->bt_mount, xb_get_locked);
 	return bp;
 }
 
@@ -603,7 +604,14 @@ found:
 		}
 	}
 
-	XFS_STATS_INC(xb_get);
+	/*
+	 * Clear b_error if this is a lookup from a caller that doesn't expect
+	 * valid data to be found in the buffer.
+	 */
+	if (!(flags & XBF_READ))
+		xfs_buf_ioerror(bp, 0);
+
+	XFS_STATS_INC(target->bt_mount, xb_get);
 	trace_xfs_buf_get(bp, flags, _RET_IP_);
 	return bp;
 }
@@ -642,8 +650,8 @@ xfs_buf_read_map(
 	if (bp) {
 		trace_xfs_buf_read(bp, flags, _RET_IP_);
 
-		if (!XFS_BUF_ISDONE(bp)) {
-			XFS_STATS_INC(xb_get_read);
+		if (!(bp->b_flags & XBF_DONE)) {
+			XFS_STATS_INC(target->bt_mount, xb_get_read);
 			bp->b_ops = ops;
 			_xfs_buf_read(bp, flags);
 		} else if (flags & XBF_ASYNC) {
@@ -1044,7 +1052,7 @@ xfs_buf_ioend_work(
 	xfs_buf_ioend(bp);
 }
 
-void
+static void
 xfs_buf_ioend_async(
 	struct xfs_buf	*bp)
 {
@@ -1519,6 +1527,16 @@ xfs_wait_buftarg(
 	LIST_HEAD(dispose);
 	int loop = 0;
 
+	/*
+	 * We need to flush the buffer workqueue to ensure that all IO
+	 * completion processing is 100% done. Just waiting on buffer locks is
+	 * not sufficient for async IO as the reference count held over IO is
+	 * not released until after the buffer lock is dropped. Hence we need to
+	 * ensure here that all reference counts have been dropped before we
+	 * start walking the LRU list.
+	 */
+	drain_workqueue(btp->bt_mount->m_buf_workqueue);
+
 	/* loop until there is nothing left on the lru list. */
 	while (list_lru_count(&btp->bt_lru)) {
 		list_lru_walk(&btp->bt_lru, xfs_buftarg_wait_rele,
@@ -1631,13 +1649,9 @@ xfs_setsize_buftarg(
 	btp->bt_meta_sectormask = sectorsize - 1;
 
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {
-		char name[BDEVNAME_SIZE];
-
-		bdevname(btp->bt_bdev, name);
-
 		xfs_warn(btp->bt_mount,
-			"Cannot set_blocksize to %u on device %s",
-			sectorsize, name);
+			"Cannot set_blocksize to %u on device %pg",
+			sectorsize, btp->bt_bdev);
 		return -EINVAL;
 	}
 

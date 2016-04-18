@@ -98,7 +98,6 @@ __acquires(bitmap->lock)
 		   bitmap->bp[page].hijacked) {
 		/* somebody beat us to getting the page */
 		kfree(mappage);
-		return 0;
 	} else {
 
 		/* no page was in place and we have one, so install it */
@@ -210,10 +209,6 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 	struct block_device *bdev;
 	struct mddev *mddev = bitmap->mddev;
 	struct bitmap_storage *store = &bitmap->storage;
-	int node_offset = 0;
-
-	if (mddev_is_clustered(bitmap->mddev))
-		node_offset = bitmap->cluster_slot * store->file_pages;
 
 	while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
 		int size = PAGE_SIZE;
@@ -327,7 +322,7 @@ __clear_page_buffers(struct page *page)
 {
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
-	page_cache_release(page);
+	put_page(page);
 }
 static void free_buffers(struct page *page)
 {
@@ -514,8 +509,7 @@ static int bitmap_new_disk_sb(struct bitmap *bitmap)
 	sb->chunksize = cpu_to_le32(chunksize);
 
 	daemon_sleep = bitmap->mddev->bitmap_info.daemon_sleep;
-	if (!daemon_sleep ||
-	    (daemon_sleep < 1) || (daemon_sleep > MAX_SCHEDULE_TIMEOUT)) {
+	if (!daemon_sleep || (daemon_sleep > MAX_SCHEDULE_TIMEOUT)) {
 		printk(KERN_INFO "Choosing daemon_sleep default (5 sec)\n");
 		daemon_sleep = 5 * HZ;
 	}
@@ -1679,6 +1673,9 @@ static void bitmap_free(struct bitmap *bitmap)
 	if (!bitmap) /* there was no bitmap */
 		return;
 
+	if (bitmap->sysfs_can_clear)
+		sysfs_put(bitmap->sysfs_can_clear);
+
 	if (mddev_is_clustered(bitmap->mddev) && bitmap->mddev->cluster_info &&
 		bitmap->cluster_slot == md_cluster_ops->slot_number(bitmap->mddev))
 		md_cluster_stop(bitmap->mddev);
@@ -1718,15 +1715,13 @@ void bitmap_destroy(struct mddev *mddev)
 	if (mddev->thread)
 		mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
 
-	if (bitmap->sysfs_can_clear)
-		sysfs_put(bitmap->sysfs_can_clear);
-
 	bitmap_free(bitmap);
 }
 
 /*
  * initialize the bitmap structure
  * if this returns an error, bitmap_destroy must be called to do clean up
+ * once mddev->bitmap is set
  */
 struct bitmap *bitmap_create(struct mddev *mddev, int slot)
 {
@@ -1871,8 +1866,10 @@ int bitmap_copy_from_slot(struct mddev *mddev, int slot,
 	struct bitmap_counts *counts;
 	struct bitmap *bitmap = bitmap_create(mddev, slot);
 
-	if (IS_ERR(bitmap))
+	if (IS_ERR(bitmap)) {
+		bitmap_free(bitmap);
 		return PTR_ERR(bitmap);
+	}
 
 	rv = bitmap_init_from_disk(bitmap, 0);
 	if (rv)
@@ -2176,14 +2173,14 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 				else {
 					mddev->bitmap = bitmap;
 					rv = bitmap_load(mddev);
-					if (rv) {
-						bitmap_destroy(mddev);
+					if (rv)
 						mddev->bitmap_info.offset = 0;
-					}
 				}
 				mddev->pers->quiesce(mddev, 0);
-				if (rv)
+				if (rv) {
+					bitmap_destroy(mddev);
 					return rv;
+				}
 			}
 		}
 	}

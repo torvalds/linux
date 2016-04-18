@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, 2013, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -58,22 +58,16 @@ struct fld_stats {
 	__u64   fst_inflight;
 };
 
-typedef int (*fld_hash_func_t) (struct lu_client_fld *, __u64);
-
-typedef struct lu_fld_target *
-(*fld_scan_func_t) (struct lu_client_fld *, __u64);
-
 struct lu_fld_hash {
 	const char	      *fh_name;
-	fld_hash_func_t	  fh_hash_func;
-	fld_scan_func_t	  fh_scan_func;
+	int (*fh_hash_func)(struct lu_client_fld *, __u64);
+	struct lu_fld_target *(*fh_scan_func)(struct lu_client_fld *, __u64);
 };
 
 struct fld_cache_entry {
 	struct list_head	       fce_lru;
 	struct list_head	       fce_list;
-	/**
-	 * fld cache entries are sorted on range->lsr_start field. */
+	/** fld cache entries are sorted on range->lsr_start field. */
 	struct lu_seq_range      fce_range;
 };
 
@@ -84,32 +78,25 @@ struct fld_cache {
 	 */
 	rwlock_t		 fci_lock;
 
-	/**
-	 * Cache shrink threshold */
+	/** Cache shrink threshold */
 	int		      fci_threshold;
 
-	/**
-	 * Preferred number of cached entries */
+	/** Preferred number of cached entries */
 	int		      fci_cache_size;
 
-	/**
-	 * Current number of cached entries. Protected by \a fci_lock */
+	/** Current number of cached entries. Protected by \a fci_lock */
 	int		      fci_cache_count;
 
-	/**
-	 * LRU list fld entries. */
+	/** LRU list fld entries. */
 	struct list_head	       fci_lru;
 
-	/**
-	 * sorted fld entries. */
+	/** sorted fld entries. */
 	struct list_head	       fci_entries_head;
 
-	/**
-	 * Cache statistics. */
+	/** Cache statistics. */
 	struct fld_stats	 fci_stat;
 
-	/**
-	 * Cache name used for debug and messages. */
+	/** Cache name used for debug and messages. */
 	char		     fci_name[LUSTRE_MDT_MAXNAMELEN];
 	unsigned int		 fci_no_shrink:1;
 };
@@ -156,20 +143,11 @@ int fld_cache_insert(struct fld_cache *cache,
 struct fld_cache_entry
 *fld_cache_entry_create(const struct lu_seq_range *range);
 
-int fld_cache_insert_nolock(struct fld_cache *cache,
-			    struct fld_cache_entry *f_new);
-void fld_cache_delete(struct fld_cache *cache,
-		      const struct lu_seq_range *range);
-void fld_cache_delete_nolock(struct fld_cache *cache,
-			     const struct lu_seq_range *range);
 int fld_cache_lookup(struct fld_cache *cache,
 		     const u64 seq, struct lu_seq_range *range);
 
 struct fld_cache_entry*
 fld_cache_entry_lookup(struct fld_cache *cache, struct lu_seq_range *range);
-void fld_cache_entry_delete(struct fld_cache *cache,
-			    struct fld_cache_entry *node);
-void fld_dump_cache_entries(struct fld_cache *cache);
 
 struct fld_cache_entry
 *fld_cache_entry_lookup_nolock(struct fld_cache *cache,
@@ -178,7 +156,7 @@ struct fld_cache_entry
 static inline const char *
 fld_target_name(struct lu_fld_target *tar)
 {
-	if (tar->ft_srv != NULL)
+	if (tar->ft_srv)
 		return tar->ft_srv->lsf_name;
 
 	return (const char *)tar->ft_exp->exp_obd->obd_name;

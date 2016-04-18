@@ -112,22 +112,32 @@ static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 	struct musb	*musb = ep->musb;
 	void __iomem	*epio = ep->regs;
 	u16		csr;
-	u16		lastcsr = 0;
 	int		retries = 1000;
 
 	csr = musb_readw(epio, MUSB_TXCSR);
 	while (csr & MUSB_TXCSR_FIFONOTEMPTY) {
-		if (csr != lastcsr)
-			dev_dbg(musb->controller, "Host TX FIFONOTEMPTY csr: %02x\n", csr);
-		lastcsr = csr;
 		csr |= MUSB_TXCSR_FLUSHFIFO | MUSB_TXCSR_TXPKTRDY;
 		musb_writew(epio, MUSB_TXCSR, csr);
 		csr = musb_readw(epio, MUSB_TXCSR);
-		if (WARN(retries-- < 1,
+
+		/*
+		 * FIXME: sometimes the tx fifo flush failed, it has been
+		 * observed during device disconnect on AM335x.
+		 *
+		 * To reproduce the issue, ensure tx urb(s) are queued when
+		 * unplug the usb device which is connected to AM335x usb
+		 * host port.
+		 *
+		 * I found using a usb-ethernet device and running iperf
+		 * (client on AM335x) has very high chance to trigger it.
+		 *
+		 * Better to turn on dev_dbg() in musb_cleanup_urb() with
+		 * CPPI enabled to see the issue when aborting the tx channel.
+		 */
+		if (dev_WARN_ONCE(musb->controller, retries-- < 1,
 				"Could not flush host TX%d fifo: csr: %04x\n",
 				ep->epnum, csr))
 			return;
-		mdelay(1);
 	}
 }
 
@@ -652,7 +662,7 @@ static int musb_tx_dma_set_mode_mentor(struct dma_controller *dma,
 		csr &= ~(MUSB_TXCSR_AUTOSET | MUSB_TXCSR_DMAMODE);
 		csr |= MUSB_TXCSR_DMAENAB; /* against programmer's guide */
 	}
-	channel->desired_mode = mode;
+	channel->desired_mode = *mode;
 	musb_writew(epio, MUSB_TXCSR, csr);
 
 	return 0;
@@ -1993,10 +2003,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 				qh->offset,
 				urb->transfer_buffer_length);
 
-			done = musb_rx_dma_in_inventra_cppi41(c, hw_ep, qh,
-							      urb, xfer_len,
-							      iso_err);
-			if (done)
+			if (musb_rx_dma_in_inventra_cppi41(c, hw_ep, qh, urb,
+							   xfer_len, iso_err))
 				goto finish;
 			else
 				dev_err(musb->controller, "error: rx_dma failed\n");

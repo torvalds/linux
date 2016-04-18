@@ -18,7 +18,7 @@
 /*
  * HIGHMEM API:
  *
- * kmap() API provides sleep semantics hence refered to as "permanent maps"
+ * kmap() API provides sleep semantics hence referred to as "permanent maps"
  * It allows mapping LAST_PKMAP pages, using @last_pkmap_nr as the cursor
  * for book-keeping
  *
@@ -111,7 +111,7 @@ void __kunmap_atomic(void *kv)
 }
 EXPORT_SYMBOL(__kunmap_atomic);
 
-noinline pte_t *alloc_kmap_pgtable(unsigned long kvaddr)
+static noinline pte_t * __init alloc_kmap_pgtable(unsigned long kvaddr)
 {
 	pgd_t *pgd_k;
 	pud_t *pud_k;
@@ -127,7 +127,7 @@ noinline pte_t *alloc_kmap_pgtable(unsigned long kvaddr)
 	return pte_k;
 }
 
-void kmap_init(void)
+void __init kmap_init(void)
 {
 	/* Due to recursive include hell, we can't do this in processor.h */
 	BUILD_BUG_ON(PAGE_OFFSET < (VMALLOC_END + FIXMAP_SIZE + PKMAP_SIZE));

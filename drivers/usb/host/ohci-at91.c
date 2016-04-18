@@ -24,8 +24,6 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 
-#include <asm/gpio.h>
-
 #include "ohci.h"
 
 #define valid_port(index)	((index) >= 0 && (index) < AT91_MAX_USBH_PORTS)
@@ -473,6 +471,8 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
+	pdev->dev.platform_data = pdata;
+
 	if (!of_property_read_u32(np, "num-ports", &ports))
 		pdata->ports = ports;
 
@@ -483,6 +483,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 		 */
 		if (i >= pdata->ports) {
 			pdata->vbus_pin[i] = -EINVAL;
+			pdata->overcurrent_pin[i] = -EINVAL;
 			continue;
 		}
 
@@ -513,10 +514,8 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 	}
 
 	at91_for_each_port(i) {
-		if (i >= pdata->ports) {
-			pdata->overcurrent_pin[i] = -EINVAL;
-			continue;
-		}
+		if (i >= pdata->ports)
+			break;
 
 		pdata->overcurrent_pin[i] =
 			of_get_named_gpio_flags(np, "atmel,oc-gpio", i, &flags);
@@ -552,8 +551,6 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 		}
 	}
 
-	pdev->dev.platform_data = pdata;
-
 	device_init_wakeup(&pdev->dev, 1);
 	return usb_hcd_at91_probe(&ohci_at91_hc_driver, pdev);
 }
@@ -584,9 +581,7 @@ static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-
-static int
+static int __maybe_unused
 ohci_hcd_at91_drv_suspend(struct device *dev)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
@@ -631,7 +626,8 @@ ohci_hcd_at91_drv_suspend(struct device *dev)
 	return ret;
 }
 
-static int ohci_hcd_at91_drv_resume(struct device *dev)
+static int __maybe_unused
+ohci_hcd_at91_drv_resume(struct device *dev)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct ohci_at91_priv *ohci_at91 = hcd_to_ohci_at91_priv(hcd);
@@ -644,7 +640,6 @@ static int ohci_hcd_at91_drv_resume(struct device *dev)
 	ohci_resume(hcd, false);
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(ohci_hcd_at91_pm_ops, ohci_hcd_at91_drv_suspend,
 					ohci_hcd_at91_drv_resume);

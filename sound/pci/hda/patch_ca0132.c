@@ -778,7 +778,8 @@ static const struct hda_pintbl alienware_pincfgs[] = {
 };
 
 static const struct snd_pci_quirk ca0132_quirks[] = {
-	SND_PCI_QUIRK(0x1028, 0x0685, "Alienware 15", QUIRK_ALIENWARE),
+	SND_PCI_QUIRK(0x1028, 0x0685, "Alienware 15 2015", QUIRK_ALIENWARE),
+	SND_PCI_QUIRK(0x1028, 0x0688, "Alienware 17 2015", QUIRK_ALIENWARE),
 	{}
 };
 
@@ -4426,13 +4427,16 @@ static void ca0132_process_dsp_response(struct hda_codec *codec,
 static void hp_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
 {
 	struct ca0132_spec *spec = codec->spec;
+	struct hda_jack_tbl *tbl;
 
 	/* Delay enabling the HP amp, to let the mic-detection
 	 * state machine run.
 	 */
 	cancel_delayed_work_sync(&spec->unsol_hp_work);
 	schedule_delayed_work(&spec->unsol_hp_work, msecs_to_jiffies(500));
-	cb->tbl->block_report = 1;
+	tbl = snd_hda_jack_tbl_get(codec, cb->nid);
+	if (tbl)
+		tbl->block_report = 1;
 }
 
 static void amic_callback(struct hda_codec *codec, struct hda_jack_callback *cb)

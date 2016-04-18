@@ -26,8 +26,8 @@ const char *map_type__name[MAP__NR_TYPES] = {
 static inline int is_anon_memory(const char *filename)
 {
 	return !strcmp(filename, "//anon") ||
-	       !strcmp(filename, "/dev/zero (deleted)") ||
-	       !strcmp(filename, "/anon_hugepage (deleted)");
+	       !strncmp(filename, "/dev/zero", sizeof("/dev/zero") - 1) ||
+	       !strncmp(filename, "/anon_hugepage", sizeof("/anon_hugepage") - 1);
 }
 
 static inline int is_no_dso_memory(const char *filename)
@@ -644,6 +644,12 @@ size_t map_groups__fprintf(struct map_groups *mg, FILE *fp)
 	return printed;
 }
 
+static void __map_groups__insert(struct map_groups *mg, struct map *map)
+{
+	__maps__insert(&mg->maps[map->type], map);
+	map->groups = mg;
+}
+
 static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 {
 	struct rb_root *root;
@@ -682,9 +688,10 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 			}
 
 			before->end = map->start;
-			__maps__insert(maps, before);
+			__map_groups__insert(pos->groups, before);
 			if (verbose >= 2)
 				map__fprintf(before, fp);
+			map__put(before);
 		}
 
 		if (map->end < pos->end) {
@@ -696,9 +703,10 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 			}
 
 			after->start = map->end;
-			__maps__insert(maps, after);
+			__map_groups__insert(pos->groups, after);
 			if (verbose >= 2)
 				map__fprintf(after, fp);
+			map__put(after);
 		}
 put_map:
 		map__put(pos);
@@ -736,6 +744,7 @@ int map_groups__clone(struct map_groups *mg,
 		if (new == NULL)
 			goto out_unlock;
 		map_groups__insert(mg, new);
+		map__put(new);
 	}
 
 	err = 0;

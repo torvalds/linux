@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2014-2016  B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
  *
@@ -30,6 +30,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
@@ -55,7 +56,7 @@
  * Collect multicast addresses of the local multicast listeners
  * on the given soft interface, dev, in the given mcast_list.
  *
- * Returns -ENOMEM on memory allocation error or the number of
+ * Return: -ENOMEM on memory allocation error or the number of
  * items added to the mcast_list otherwise.
  */
 static int batadv_mcast_mla_softif_get(struct net_device *dev,
@@ -87,7 +88,7 @@ static int batadv_mcast_mla_softif_get(struct net_device *dev,
  * @mcast_addr: the multicast address to check
  * @mcast_list: the list with multicast addresses to search in
  *
- * Returns true if the given address is already in the given list.
+ * Return: true if the given address is already in the given list.
  * Otherwise returns false.
  */
 static bool batadv_mcast_mla_is_duplicate(u8 *mcast_addr,
@@ -195,8 +196,9 @@ static void batadv_mcast_mla_tt_add(struct batadv_priv *bat_priv,
  * batadv_mcast_has_bridge - check whether the soft-iface is bridged
  * @bat_priv: the bat priv with all the soft interface information
  *
- * Checks whether there is a bridge on top of our soft interface. Returns
- * true if so, false otherwise.
+ * Checks whether there is a bridge on top of our soft interface.
+ *
+ * Return: true if there is a bridge, false otherwise.
  */
 static bool batadv_mcast_has_bridge(struct batadv_priv *bat_priv)
 {
@@ -218,7 +220,7 @@ static bool batadv_mcast_has_bridge(struct batadv_priv *bat_priv)
  * Updates the own multicast tvlv with our current multicast related settings,
  * capabilities and inabilities.
  *
- * Returns true if the tvlv container is registered afterwards. Otherwise
+ * Return: true if the tvlv container is registered afterwards. Otherwise
  * returns false.
  */
 static bool batadv_mcast_mla_tvlv_update(struct batadv_priv *bat_priv)
@@ -289,8 +291,8 @@ out:
  * Checks whether the given IPv4 packet has the potential to be forwarded with a
  * mode more optimal than classic flooding.
  *
- * If so then returns 0. Otherwise -EINVAL is returned or -ENOMEM in case of
- * memory allocation failure.
+ * Return: If so then 0. Otherwise -EINVAL or -ENOMEM in case of memory
+ * allocation failure.
  */
 static int batadv_mcast_forw_mode_check_ipv4(struct batadv_priv *bat_priv,
 					     struct sk_buff *skb,
@@ -327,8 +329,7 @@ static int batadv_mcast_forw_mode_check_ipv4(struct batadv_priv *bat_priv,
  * Checks whether the given IPv6 packet has the potential to be forwarded with a
  * mode more optimal than classic flooding.
  *
- * If so then returns 0. Otherwise -EINVAL is returned or -ENOMEM if we are out
- * of memory.
+ * Return: If so then 0. Otherwise -EINVAL is or -ENOMEM if we are out of memory
  */
 static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
 					     struct sk_buff *skb,
@@ -366,8 +367,7 @@ static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
  * Checks whether the given multicast ethernet frame has the potential to be
  * forwarded with a mode more optimal than classic flooding.
  *
- * If so then returns 0. Otherwise -EINVAL is returned or -ENOMEM if we are out
- * of memory.
+ * Return: If so then 0. Otherwise -EINVAL is or -ENOMEM if we are out of memory
  */
 static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
 					struct sk_buff *skb,
@@ -398,7 +398,7 @@ static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
  * @bat_priv: the bat priv with all the soft interface information
  * @ethhdr: ethernet header of a packet
  *
- * Returns the number of nodes which want all IPv4 multicast traffic if the
+ * Return: the number of nodes which want all IPv4 multicast traffic if the
  * given ethhdr is from an IPv4 packet or the number of nodes which want all
  * IPv6 traffic if it matches an IPv6 packet.
  */
@@ -421,7 +421,7 @@ static int batadv_mcast_forw_want_all_ip_count(struct batadv_priv *bat_priv,
  * @bat_priv: the bat priv with all the soft interface information
  * @ethhdr: the ether header containing the multicast destination
  *
- * Returns an orig_node matching the multicast address provided by ethhdr
+ * Return: an orig_node matching the multicast address provided by ethhdr
  * via a translation table lookup. This increases the returned nodes refcount.
  */
 static struct batadv_orig_node *
@@ -436,7 +436,7 @@ batadv_mcast_forw_tt_node_get(struct batadv_priv *bat_priv,
  * batadv_mcast_want_forw_ipv4_node_get - get a node with an ipv4 flag
  * @bat_priv: the bat priv with all the soft interface information
  *
- * Returns an orig_node which has the BATADV_MCAST_WANT_ALL_IPV4 flag set and
+ * Return: an orig_node which has the BATADV_MCAST_WANT_ALL_IPV4 flag set and
  * increases its refcount.
  */
 static struct batadv_orig_node *
@@ -448,7 +448,7 @@ batadv_mcast_forw_ipv4_node_get(struct batadv_priv *bat_priv)
 	hlist_for_each_entry_rcu(tmp_orig_node,
 				 &bat_priv->mcast.want_all_ipv4_list,
 				 mcast_want_all_ipv4_node) {
-		if (!atomic_inc_not_zero(&tmp_orig_node->refcount))
+		if (!kref_get_unless_zero(&tmp_orig_node->refcount))
 			continue;
 
 		orig_node = tmp_orig_node;
@@ -463,7 +463,7 @@ batadv_mcast_forw_ipv4_node_get(struct batadv_priv *bat_priv)
  * batadv_mcast_want_forw_ipv6_node_get - get a node with an ipv6 flag
  * @bat_priv: the bat priv with all the soft interface information
  *
- * Returns an orig_node which has the BATADV_MCAST_WANT_ALL_IPV6 flag set
+ * Return: an orig_node which has the BATADV_MCAST_WANT_ALL_IPV6 flag set
  * and increases its refcount.
  */
 static struct batadv_orig_node *
@@ -475,7 +475,7 @@ batadv_mcast_forw_ipv6_node_get(struct batadv_priv *bat_priv)
 	hlist_for_each_entry_rcu(tmp_orig_node,
 				 &bat_priv->mcast.want_all_ipv6_list,
 				 mcast_want_all_ipv6_node) {
-		if (!atomic_inc_not_zero(&tmp_orig_node->refcount))
+		if (!kref_get_unless_zero(&tmp_orig_node->refcount))
 			continue;
 
 		orig_node = tmp_orig_node;
@@ -491,7 +491,7 @@ batadv_mcast_forw_ipv6_node_get(struct batadv_priv *bat_priv)
  * @bat_priv: the bat priv with all the soft interface information
  * @ethhdr: an ethernet header to determine the protocol family from
  *
- * Returns an orig_node which has the BATADV_MCAST_WANT_ALL_IPV4 or
+ * Return: an orig_node which has the BATADV_MCAST_WANT_ALL_IPV4 or
  * BATADV_MCAST_WANT_ALL_IPV6 flag, depending on the provided ethhdr, set and
  * increases its refcount.
  */
@@ -514,7 +514,7 @@ batadv_mcast_forw_ip_node_get(struct batadv_priv *bat_priv,
  * batadv_mcast_want_forw_unsnoop_node_get - get a node with an unsnoopable flag
  * @bat_priv: the bat priv with all the soft interface information
  *
- * Returns an orig_node which has the BATADV_MCAST_WANT_ALL_UNSNOOPABLES flag
+ * Return: an orig_node which has the BATADV_MCAST_WANT_ALL_UNSNOOPABLES flag
  * set and increases its refcount.
  */
 static struct batadv_orig_node *
@@ -526,7 +526,7 @@ batadv_mcast_forw_unsnoop_node_get(struct batadv_priv *bat_priv)
 	hlist_for_each_entry_rcu(tmp_orig_node,
 				 &bat_priv->mcast.want_all_unsnoopables_list,
 				 mcast_want_all_unsnoopables_node) {
-		if (!atomic_inc_not_zero(&tmp_orig_node->refcount))
+		if (!kref_get_unless_zero(&tmp_orig_node->refcount))
 			continue;
 
 		orig_node = tmp_orig_node;
@@ -543,7 +543,7 @@ batadv_mcast_forw_unsnoop_node_get(struct batadv_priv *bat_priv)
  * @skb: The multicast packet to check
  * @orig: an originator to be set to forward the skb to
  *
- * Returns the forwarding mode as enum batadv_forw_mode and in case of
+ * Return: the forwarding mode as enum batadv_forw_mode and in case of
  * BATADV_FORW_SINGLE set the orig to the single originator the skb
  * should be forwarded to.
  */
@@ -802,7 +802,9 @@ void batadv_mcast_free(struct batadv_priv *bat_priv)
 	batadv_tvlv_container_unregister(bat_priv, BATADV_TVLV_MCAST, 1);
 	batadv_tvlv_handler_unregister(bat_priv, BATADV_TVLV_MCAST, 1);
 
+	spin_lock_bh(&bat_priv->tt.commit_lock);
 	batadv_mcast_mla_tt_retract(bat_priv, NULL);
+	spin_unlock_bh(&bat_priv->tt.commit_lock);
 }
 
 /**

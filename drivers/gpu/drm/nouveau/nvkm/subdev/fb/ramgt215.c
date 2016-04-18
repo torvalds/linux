@@ -34,9 +34,6 @@
 #include <subdev/clk/gt215.h>
 #include <subdev/gpio.h>
 
-/* XXX: Remove when memx gains GPIO support */
-extern int nv50_gpio_location(int line, u32 *reg, u32 *shift);
-
 struct gt215_ramfuc {
 	struct ramfuc base;
 	struct ramfuc_reg r_0x001610;
@@ -75,7 +72,7 @@ struct gt215_ramfuc {
 	struct ramfuc_reg r_0x111400;
 	struct ramfuc_reg r_0x611200;
 	struct ramfuc_reg r_mr[4];
-	struct ramfuc_reg r_gpioFBVREF;
+	struct ramfuc_reg r_gpio[4];
 };
 
 struct gt215_ltrain {
@@ -466,24 +463,27 @@ gt215_ram_lock_pll(struct gt215_ramfuc *fuc, struct gt215_clk_info *mclk)
 }
 
 static void
-gt215_ram_fbvref(struct gt215_ramfuc *fuc, u32 val)
+gt215_ram_gpio(struct gt215_ramfuc *fuc, u8 tag, u32 val)
 {
 	struct nvkm_gpio *gpio = fuc->base.fb->subdev.device->gpio;
 	struct dcb_gpio_func func;
 	u32 reg, sh, gpio_val;
 	int ret;
 
-	if (nvkm_gpio_get(gpio, 0, 0x2e, DCB_GPIO_UNUSED) != val) {
-		ret = nvkm_gpio_find(gpio, 0, 0x2e, DCB_GPIO_UNUSED, &func);
+	if (nvkm_gpio_get(gpio, 0, tag, DCB_GPIO_UNUSED) != val) {
+		ret = nvkm_gpio_find(gpio, 0, tag, DCB_GPIO_UNUSED, &func);
 		if (ret)
 			return;
 
-		nv50_gpio_location(func.line, &reg, &sh);
-		gpio_val = ram_rd32(fuc, gpioFBVREF);
+		reg = func.line >> 3;
+		sh = (func.line & 0x7) << 2;
+		gpio_val = ram_rd32(fuc, gpio[reg]);
 		if (gpio_val & (8 << sh))
 			val = !val;
+		if (!(func.log[1] & 1))
+			val = !val;
 
-		ram_mask(fuc, gpioFBVREF, (0x3 << sh), ((val | 0x2) << sh));
+		ram_mask(fuc, gpio[reg], (0x3 << sh), ((val | 0x2) << sh));
 		ram_nsec(fuc, 20000);
 	}
 }
@@ -498,6 +498,7 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
 	struct gt215_clk_info mclk;
+	struct nvkm_gpio *gpio = device->gpio;
 	struct nvkm_ram_data *next;
 	u8  ver, hdr, cnt, len, strap;
 	u32 data;
@@ -642,8 +643,8 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 		break;
 	}
 
-	if (fuc->r_gpioFBVREF.addr && next->bios.timing_10_ODT)
-		gt215_ram_fbvref(fuc, 0);
+	if (next->bios.timing_10_ODT)
+		gt215_ram_gpio(fuc, 0x2e, 1);
 
 	/* Brace RAM for impact */
 	ram_wr32(fuc, 0x1002d4, 0x00000001);
@@ -655,6 +656,23 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 
 	if (device->chipset == 0xa3 && freq <= 500000)
 		ram_mask(fuc, 0x100700, 0x00000006, 0x00000006);
+
+	/* Alter FBVDD/Q, apparently must be done with PLL disabled, thus
+	 * set it to bypass */
+	if (nvkm_gpio_get(gpio, 0, 0x18, DCB_GPIO_UNUSED) ==
+			next->bios.ramcfg_FBVDDQ) {
+		data = ram_rd32(fuc, 0x004000) & 0x9;
+
+		if (data == 0x1)
+			ram_mask(fuc, 0x004000, 0x8, 0x8);
+		if (data & 0x1)
+			ram_mask(fuc, 0x004000, 0x1, 0x0);
+
+		gt215_ram_gpio(fuc, 0x18, !next->bios.ramcfg_FBVDDQ);
+
+		if (data & 0x1)
+			ram_mask(fuc, 0x004000, 0x1, 0x1);
+	}
 
 	/* Fiddle with clocks */
 	/* There's 4 scenario's
@@ -753,39 +771,43 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 	unk71c  = ram_rd32(fuc, 0x10071c) & ~0x00000100;
 	r111100 = ram_rd32(fuc, 0x111100) & ~0x3a800000;
 
-	if (next->bios.ramcfg_10_02_04) {
-		switch (ram->base.type) {
-		case NVKM_RAM_TYPE_DDR3:
-			if (device->chipset != 0xa8)
-				r111100 |= 0x00000004;
-			/* no break */
-		case NVKM_RAM_TYPE_DDR2:
-			r111100 |= 0x08000000;
-			break;
-		default:
-			break;
-		}
+	/* NVA8 seems to skip various bits related to ramcfg_10_02_04 */
+	if (device->chipset == 0xa8) {
+		r111100 |= 0x08000000;
+		if (!next->bios.ramcfg_10_02_04)
+			unk714  |= 0x00000010;
 	} else {
-		switch (ram->base.type) {
-		case NVKM_RAM_TYPE_DDR2:
-			r111100 |= 0x1a800000;
-			unk714  |= 0x00000010;
-			break;
-		case NVKM_RAM_TYPE_DDR3:
-			if (device->chipset == 0xa8) {
-				r111100 |=  0x08000000;
-			} else {
-				r111100 &= ~0x00000004;
-				r111100 |=  0x12800000;
+		if (next->bios.ramcfg_10_02_04) {
+			switch (ram->base.type) {
+			case NVKM_RAM_TYPE_DDR2:
+			case NVKM_RAM_TYPE_DDR3:
+				r111100 &= ~0x00000020;
+				if (next->bios.ramcfg_10_02_10)
+					r111100 |= 0x08000004;
+				else
+					r111100 |= 0x00000024;
+				break;
+			default:
+				break;
 			}
-			unk714  |= 0x00000010;
-			break;
-		case NVKM_RAM_TYPE_GDDR3:
-			r111100 |= 0x30000000;
-			unk714  |= 0x00000020;
-			break;
-		default:
-			break;
+		} else {
+			switch (ram->base.type) {
+			case NVKM_RAM_TYPE_DDR2:
+			case NVKM_RAM_TYPE_DDR3:
+				r111100 &= ~0x00000024;
+				r111100 |=  0x12800000;
+
+				if (next->bios.ramcfg_10_02_10)
+					r111100 |= 0x08000000;
+				unk714  |= 0x00000010;
+				break;
+			case NVKM_RAM_TYPE_GDDR3:
+				r111100 |= 0x30000000;
+				unk714  |= 0x00000020;
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
@@ -809,8 +831,8 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 	ram_mask(fuc, 0x100718, 0xffffffff, unk718);
 	ram_mask(fuc, 0x111100, 0xffffffff, r111100);
 
-	if (fuc->r_gpioFBVREF.addr && !next->bios.timing_10_ODT)
-		gt215_ram_fbvref(fuc, 1);
+	if (!next->bios.timing_10_ODT)
+		gt215_ram_gpio(fuc, 0x2e, 0);
 
 	/* Reset DLL */
 	if (!next->bios.ramcfg_DLLoff)
@@ -919,10 +941,7 @@ gt215_ram_func = {
 int
 gt215_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 {
-	struct nvkm_gpio *gpio = fb->subdev.device->gpio;
-	struct dcb_gpio_func func;
 	struct gt215_ram *ram;
-	u32 reg, shift;
 	int ret, i;
 
 	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
@@ -981,12 +1000,10 @@ gt215_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 		ram->fuc.r_mr[2] = ramfuc_reg(0x1002e0);
 		ram->fuc.r_mr[3] = ramfuc_reg(0x1002e4);
 	}
-
-	ret = nvkm_gpio_find(gpio, 0, 0x2e, DCB_GPIO_UNUSED, &func);
-	if (ret == 0) {
-		nv50_gpio_location(func.line, &reg, &shift);
-		ram->fuc.r_gpioFBVREF = ramfuc_reg(reg);
-	}
+	ram->fuc.r_gpio[0] = ramfuc_reg(0x00e104);
+	ram->fuc.r_gpio[1] = ramfuc_reg(0x00e108);
+	ram->fuc.r_gpio[2] = ramfuc_reg(0x00e120);
+	ram->fuc.r_gpio[3] = ramfuc_reg(0x00e124);
 
 	return 0;
 }

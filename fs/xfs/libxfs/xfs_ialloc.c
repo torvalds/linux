@@ -38,6 +38,7 @@
 #include "xfs_icreate_item.h"
 #include "xfs_icache.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
 
 
 /*
@@ -2402,8 +2403,8 @@ xfs_ialloc_compute_maxlevels(
 
 	maxleafents = (1LL << XFS_INO_AGINO_BITS(mp)) >>
 		XFS_INODES_PER_CHUNK_LOG;
-	minleafrecs = mp->m_alloc_mnr[0];
-	minnoderecs = mp->m_alloc_mnr[1];
+	minleafrecs = mp->m_inobt_mnr[0];
+	minnoderecs = mp->m_inobt_mnr[1];
 	maxblocks = (maxleafents + minleafrecs - 1) / minleafrecs;
 	for (level = 1; maxblocks > 1; level++)
 		maxblocks = (maxblocks + minnoderecs - 1) / minnoderecs;
@@ -2500,9 +2501,14 @@ xfs_agi_verify(
 	struct xfs_mount *mp = bp->b_target->bt_mount;
 	struct xfs_agi	*agi = XFS_BUF_TO_AGI(bp);
 
-	if (xfs_sb_version_hascrc(&mp->m_sb) &&
-	    !uuid_equal(&agi->agi_uuid, &mp->m_sb.sb_meta_uuid))
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		if (!uuid_equal(&agi->agi_uuid, &mp->m_sb.sb_meta_uuid))
 			return false;
+		if (!xfs_log_check_lsn(mp,
+				be64_to_cpu(XFS_BUF_TO_AGI(bp)->agi_lsn)))
+			return false;
+	}
+
 	/*
 	 * Validate the magic number of the agi block.
 	 */
@@ -2566,6 +2572,7 @@ xfs_agi_write_verify(
 }
 
 const struct xfs_buf_ops xfs_agi_buf_ops = {
+	.name = "xfs_agi",
 	.verify_read = xfs_agi_read_verify,
 	.verify_write = xfs_agi_write_verify,
 };

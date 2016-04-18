@@ -766,7 +766,6 @@ xfs_growfs_rt_alloc(
 {
 	xfs_fileoff_t		bno;		/* block number in file */
 	struct xfs_buf		*bp;	/* temporary buffer for zeroing */
-	int			committed;	/* transaction committed flag */
 	xfs_daddr_t		d;		/* disk block address */
 	int			error;		/* error return value */
 	xfs_fsblock_t		firstblock;/* first block allocated in xaction */
@@ -811,7 +810,7 @@ xfs_growfs_rt_alloc(
 		/*
 		 * Free any blocks freed up in the transaction, then commit.
 		 */
-		error = xfs_bmap_finish(&tp, &flist, &committed);
+		error = xfs_bmap_finish(&tp, &flist, NULL);
 		if (error)
 			goto out_bmap_cancel;
 		error = xfs_trans_commit(tp);
@@ -1273,7 +1272,7 @@ xfs_rtpick_extent(
 
 	ASSERT(xfs_isilocked(mp->m_rbmip, XFS_ILOCK_EXCL));
 
-	seqp = (__uint64_t *)&mp->m_rbmip->i_d.di_atime;
+	seqp = (__uint64_t *)&VFS_I(mp->m_rbmip)->i_atime;
 	if (!(mp->m_rbmip->i_d.di_flags & XFS_DIFLAG_NEWRTBM)) {
 		mp->m_rbmip->i_d.di_flags |= XFS_DIFLAG_NEWRTBM;
 		*seqp = 0;

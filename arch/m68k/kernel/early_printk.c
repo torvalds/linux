@@ -20,8 +20,8 @@ asmlinkage void __init debug_cons_nputs(const char *s, unsigned n);
 static void __ref debug_cons_write(struct console *c,
 				   const char *s, unsigned n)
 {
-#if !(defined(CONFIG_SUN3)   || defined(CONFIG_M68360) || \
-      defined(CONFIG_M68000) || defined(CONFIG_COLDFIRE))
+#if !(defined(CONFIG_SUN3) || defined(CONFIG_M68000) || \
+      defined(CONFIG_COLDFIRE))
 	if (MACH_IS_MVME16x)
 		mvme16x_cons_write(c, s, n);
 	else
@@ -52,8 +52,8 @@ early_param("earlyprintk", setup_early_printk);
  * debug_cons_nputs() defined in arch/m68k/kernel/head.S cannot be called
  * after init sections are discarded (for platforms that use it).
  */
-#if !(defined(CONFIG_SUN3)   || defined(CONFIG_M68360) || \
-      defined(CONFIG_M68000) || defined(CONFIG_COLDFIRE))
+#if !(defined(CONFIG_SUN3) || defined(CONFIG_M68000) || \
+      defined(CONFIG_COLDFIRE))
 
 static int __init unregister_early_console(void)
 {

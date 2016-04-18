@@ -36,6 +36,7 @@
  *         = 163840 bytes
  */
 #define MAX_BUF 163840
+#define NAPI_WEIGHT 64
 
 static int visornic_probe(struct visor_device *dev);
 static void visornic_remove(struct visor_device *dev);
@@ -57,8 +58,6 @@ static const struct file_operations debugfs_info_fops = {
 static const struct file_operations debugfs_enable_ints_fops = {
 	.write = enable_ints_write,
 };
-
-static struct workqueue_struct *visornic_timeout_reset_workqueue;
 
 /* GUIDS for director channel type supported by this driver.  */
 static struct visor_channeltype_descriptor visornic_channel_types[] = {
@@ -376,8 +375,8 @@ visornic_serverdown(struct visornic_devdata *devdata,
 			__func__);
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		return -EINVAL;
-	} else
-		spin_unlock_irqrestore(&devdata->priv_lock, flags);
+	}
+	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 	return 0;
 }
 
@@ -761,9 +760,8 @@ static unsigned long devdata_xmits_outstanding(struct visornic_devdata *devdata)
 	if (devdata->chstat.sent_xmit >= devdata->chstat.got_xmit_done)
 		return devdata->chstat.sent_xmit -
 			devdata->chstat.got_xmit_done;
-	else
-		return (ULONG_MAX - devdata->chstat.got_xmit_done
-			+ devdata->chstat.sent_xmit + 1);
+	return (ULONG_MAX - devdata->chstat.got_xmit_done
+		+ devdata->chstat.sent_xmit + 1);
 }
 
 /**
@@ -1028,7 +1026,7 @@ visornic_set_multi(struct net_device *netdev)
 			cmdrsp->net.type = NET_RCV_PROMISC;
 			cmdrsp->net.enbdis.context = netdev;
 			cmdrsp->net.enbdis.enable =
-				(netdev->flags & IFF_PROMISC);
+				netdev->flags & IFF_PROMISC;
 			visorchannel_signalinsert(devdata->dev->visorchannel,
 						  IOCHAN_TO_IOPART,
 						  cmdrsp);
@@ -1069,7 +1067,7 @@ visornic_xmit_timeout(struct net_device *netdev)
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		return;
 	}
-	queue_work(visornic_timeout_reset_workqueue, &devdata->timeout_reset);
+	schedule_work(&devdata->timeout_reset);
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 }
 
@@ -1218,8 +1216,9 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		/* length rcvd is greater than firstfrag in this skb rcv buf  */
 		skb->tail += RCVPOST_BUF_SIZE;	/* amount in skb->data */
 		skb->data_len = skb->len - RCVPOST_BUF_SIZE;	/* amount that
-								   will be in
-								   frag_list */
+								 *  will be in
+								 * frag_list
+								 */
 	} else {
 		/* data fits in this skb - no chaining - do
 		 * PRECAUTIONARY check
@@ -1315,12 +1314,14 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 				}
 				if (found_mc)
 					break;	/* accept packet, dest
-						   matches a multicast
-						   address */
+						 * matches a multicast
+						 * address
+						 */
 			}
 		} else if (skb->pkt_type == PACKET_HOST) {
 			break;	/* accept packet, h_dest must match vnic
-				   mac address */
+				 *  mac address
+				 */
 		} else if (skb->pkt_type == PACKET_OTHERHOST) {
 			/* something is not right */
 			dev_err(&devdata->netdev->dev,
@@ -1363,7 +1364,6 @@ devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 {
 	if (!devdata)
 		return NULL;
-	memset(devdata, '\0', sizeof(struct visornic_devdata));
 	devdata->dev = dev;
 	devdata->incarnation_id = get_jiffies_64();
 	return devdata;
@@ -1613,14 +1613,15 @@ drain_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
  */
 static void
 service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
-		   int *rx_work_done)
+		   int *rx_work_done, int budget)
 {
 	unsigned long flags;
 	struct net_device *netdev;
 
+	while (*rx_work_done < budget) {
 	/* TODO: CLIENT ACQUIRE -- Don't really need this at the
-	 * moment */
-	for (;;) {
+	 * moment
+	 */
 		if (!visorchannel_signalremove(devdata->dev->visorchannel,
 					       IOCHAN_FROM_IOPART,
 					       cmdrsp))
@@ -1709,7 +1710,7 @@ static int visornic_poll(struct napi_struct *napi, int budget)
 	int rx_count = 0;
 
 	send_rcv_posts_if_needed(devdata);
-	service_resp_queue(devdata->cmdrsp, devdata, &rx_count);
+	service_resp_queue(devdata->cmdrsp, devdata, &rx_count, budget);
 
 	/*
 	 * If there aren't any more packets to receive
@@ -1742,7 +1743,6 @@ poll_for_irq(unsigned long v)
 	atomic_set(&devdata->interrupt_rcvd, 0);
 
 	mod_timer(&devdata->irq_poll_timer, msecs_to_jiffies(2));
-
 }
 
 /**
@@ -1769,7 +1769,7 @@ static int visornic_probe(struct visor_device *dev)
 	}
 
 	netdev->netdev_ops = &visornic_dev_ops;
-	netdev->watchdog_timeo = (5 * HZ);
+	netdev->watchdog_timeo = 5 * HZ;
 	SET_NETDEV_DEV(netdev, &dev->device);
 
 	/* Get MAC adddress from channel and read it into the device. */
@@ -1894,6 +1894,16 @@ static int visornic_probe(struct visor_device *dev)
 		goto cleanup_napi_add;
 	}
 
+	/* Let's start our threads to get responses */
+	netif_napi_add(netdev, &devdata->napi, visornic_poll, NAPI_WEIGHT);
+
+	/*
+	 * Note: Interupts have to be enable before the while
+	 * loop below because the napi routine is responsible for
+	 * setting enab_dis_acked
+	 */
+	visorbus_enable_channel_interrupts(dev);
+
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&dev->device,
@@ -1985,7 +1995,7 @@ static void visornic_remove(struct visor_device *dev)
 	}
 
 	/* going_away prevents new items being added to the workqueues */
-	flush_workqueue(visornic_timeout_reset_workqueue);
+	cancel_work_sync(&devdata->timeout_reset);
 
 	debugfs_remove_recursive(devdata->eth_debugfs_dir);
 
@@ -2104,21 +2114,10 @@ static int visornic_init(void)
 	if (!ret)
 		goto cleanup_debugfs;
 
-	/* create workqueue for tx timeout reset */
-	visornic_timeout_reset_workqueue =
-		create_singlethread_workqueue("visornic_timeout_reset");
-	if (!visornic_timeout_reset_workqueue)
-		goto cleanup_workqueue;
-
 	err = visorbus_register_visor_driver(&visornic_driver);
 	if (!err)
 		return 0;
 
-cleanup_workqueue:
-	if (visornic_timeout_reset_workqueue) {
-		flush_workqueue(visornic_timeout_reset_workqueue);
-		destroy_workqueue(visornic_timeout_reset_workqueue);
-	}
 cleanup_debugfs:
 	debugfs_remove_recursive(visornic_debugfs_dir);
 
@@ -2134,10 +2133,6 @@ static void visornic_cleanup(void)
 {
 	visorbus_unregister_visor_driver(&visornic_driver);
 
-	if (visornic_timeout_reset_workqueue) {
-		flush_workqueue(visornic_timeout_reset_workqueue);
-		destroy_workqueue(visornic_timeout_reset_workqueue);
-	}
 	debugfs_remove_recursive(visornic_debugfs_dir);
 }
 

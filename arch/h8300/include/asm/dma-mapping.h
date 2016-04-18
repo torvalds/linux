@@ -8,6 +8,4 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return &h8300_dma_map_ops;
 }
 
-#include <asm-generic/dma-mapping-common.h>
-
 #endif

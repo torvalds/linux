@@ -64,10 +64,10 @@ static void hsu_dma_chan_start(struct hsu_dma_chan *hsuc)
 
 	if (hsuc->direction == DMA_MEM_TO_DEV) {
 		bsr = config->dst_maxburst;
-		mtsr = config->dst_addr_width;
+		mtsr = config->src_addr_width;
 	} else if (hsuc->direction == DMA_DEV_TO_MEM) {
 		bsr = config->src_maxburst;
-		mtsr = config->src_addr_width;
+		mtsr = config->dst_addr_width;
 	}
 
 	hsu_chan_disable(hsuc);
@@ -135,7 +135,7 @@ static u32 hsu_dma_chan_get_sr(struct hsu_dma_chan *hsuc)
 	sr = hsu_chan_readl(hsuc, HSU_CH_SR);
 	spin_unlock_irqrestore(&hsuc->vchan.lock, flags);
 
-	return sr;
+	return sr & ~(HSU_CH_SR_DESCE_ANY | HSU_CH_SR_CDESC_ANY);
 }
 
 irqreturn_t hsu_dma_irq(struct hsu_dma_chip *chip, unsigned short nr)
@@ -228,6 +228,8 @@ static struct dma_async_tx_descriptor *hsu_dma_prep_slave_sg(
 	for_each_sg(sgl, sg, sg_len, i) {
 		desc->sg[i].addr = sg_dma_address(sg);
 		desc->sg[i].len = sg_dma_len(sg);
+
+		desc->length += sg_dma_len(sg);
 	}
 
 	desc->nents = sg_len;
@@ -249,24 +251,16 @@ static void hsu_dma_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&hsuc->vchan.lock, flags);
 }
 
-static size_t hsu_dma_desc_size(struct hsu_dma_desc *desc)
+static size_t hsu_dma_active_desc_size(struct hsu_dma_chan *hsuc)
 {
+	struct hsu_dma_desc *desc = hsuc->desc;
 	size_t bytes = 0;
-	unsigned int i;
+	int i;
 
 	for (i = desc->active; i < desc->nents; i++)
 		bytes += desc->sg[i].len;
 
-	return bytes;
-}
-
-static size_t hsu_dma_active_desc_size(struct hsu_dma_chan *hsuc)
-{
-	struct hsu_dma_desc *desc = hsuc->desc;
-	size_t bytes = hsu_dma_desc_size(desc);
-	int i;
-
-	i = desc->active % HSU_DMA_CHAN_NR_DESC;
+	i = HSU_DMA_CHAN_NR_DESC - 1;
 	do {
 		bytes += hsu_chan_readl(hsuc, HSU_CH_DxTSR(i));
 	} while (--i >= 0);
@@ -294,7 +288,7 @@ static enum dma_status hsu_dma_tx_status(struct dma_chan *chan,
 		dma_set_residue(state, bytes);
 		status = hsuc->desc->status;
 	} else if (vdesc) {
-		bytes = hsu_dma_desc_size(to_hsu_dma_desc(vdesc));
+		bytes = to_hsu_dma_desc(vdesc)->length;
 		dma_set_residue(state, bytes);
 	}
 	spin_unlock_irqrestore(&hsuc->vchan.lock, flags);

@@ -1,7 +1,11 @@
 * Temperature Sensor ADC (TSADC) on rockchip SoCs
 
 Required properties:
-- compatible : "rockchip,rk3288-tsadc"
+- compatible : should be "rockchip,<name>-tsadc"
+   "rockchip,rk3228-tsadc": found on RK3228 SoCs
+   "rockchip,rk3288-tsadc": found on RK3288 SoCs
+   "rockchip,rk3368-tsadc": found on RK3368 SoCs
+   "rockchip,rk3399-tsadc": found on RK3399 SoCs
 - reg : physical base address of the controller and length of memory mapped
 	region.
 - interrupts : The interrupt number to the cpu. The interrupt specifier format
@@ -12,6 +16,11 @@ Required properties:
 - resets : Must contain an entry for each entry in reset-names.
 	   See ../reset/reset.txt for details.
 - reset-names : Must include the name "tsadc-apb".
+- pinctrl-names : The pin control state names;
+- pinctrl-0 : The "init" pinctrl state, it will be set before device probe.
+- pinctrl-1 : The "default" pinctrl state, it will be set after reset the
+	      TSADC controller.
+- pinctrl-2 : The "sleep" pinctrl state, it will be in for suspend.
 - #thermal-sensor-cells : Should be 1. See ./thermal.txt for a description.
 - rockchip,hw-tshut-temp : The hardware-controlled shutdown temperature value.
 - rockchip,hw-tshut-mode : The hardware-controlled shutdown mode 0:CRU 1:GPIO.
@@ -27,8 +36,10 @@ tsadc: tsadc@ff280000 {
 	clock-names = "tsadc", "apb_pclk";
 	resets = <&cru SRST_TSADC>;
 	reset-names = "tsadc-apb";
-	pinctrl-names = "default";
-	pinctrl-0 = <&otp_out>;
+	pinctrl-names = "init", "default", "sleep";
+	pinctrl-0 = <&otp_gpio>;
+	pinctrl-1 = <&otp_out>;
+	pinctrl-2 = <&otp_gpio>;
 	#thermal-sensor-cells = <1>;
 	rockchip,hw-tshut-temp = <95000>;
 	rockchip,hw-tshut-mode = <0>;

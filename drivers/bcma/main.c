@@ -350,7 +350,7 @@ static int bcma_register_devices(struct bcma_bus *bus)
 		bcma_register_core(bus, core);
 	}
 
-#ifdef CONFIG_BCMA_DRIVER_MIPS
+#ifdef CONFIG_BCMA_PFLASH
 	if (bus->drv_cc.pflash.present) {
 		err = platform_device_register(&bcma_pflash_dev);
 		if (err)
@@ -668,11 +668,36 @@ static int bcma_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 			      core->id.rev, core->id.class);
 }
 
+static unsigned int bcma_bus_registered;
+
+/*
+ * If built-in, bus has to be registered early, before any driver calls
+ * bcma_driver_register.
+ * Otherwise registering driver would trigger BUG in driver_register.
+ */
+static int __init bcma_init_bus_register(void)
+{
+	int err;
+
+	if (bcma_bus_registered)
+		return 0;
+
+	err = bus_register(&bcma_bus_type);
+	if (!err)
+		bcma_bus_registered = 1;
+
+	return err;
+}
+#ifndef MODULE
+fs_initcall(bcma_init_bus_register);
+#endif
+
+/* Main initialization has to be done with SPI/mtd/NAND/SPROM available */
 static int __init bcma_modinit(void)
 {
 	int err;
 
-	err = bus_register(&bcma_bus_type);
+	err = bcma_init_bus_register();
 	if (err)
 		return err;
 
@@ -691,7 +716,7 @@ static int __init bcma_modinit(void)
 
 	return err;
 }
-fs_initcall(bcma_modinit);
+module_init(bcma_modinit);
 
 static void __exit bcma_modexit(void)
 {

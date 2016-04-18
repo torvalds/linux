@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
+#include <linux/lockdep.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -674,8 +675,6 @@ lpfc_work_done(struct lpfc_hba *phba)
 				lpfc_mbox_timeout_handler(phba);
 			if (work_port_events & WORKER_FABRIC_BLOCK_TMO)
 				lpfc_unblock_fabric_iocbs(phba);
-			if (work_port_events & WORKER_FDMI_TMO)
-				lpfc_fdmi_timeout_handler(vport);
 			if (work_port_events & WORKER_RAMP_DOWN_QUEUE)
 				lpfc_ramp_down_queue_handler(phba);
 			if (work_port_events & WORKER_DELAYED_DISC_TMO)
@@ -1083,7 +1082,7 @@ out:
 }
 
 
-static void
+void
 lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
@@ -1113,8 +1112,10 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Start discovery by sending a FLOGI. port_state is identically
 	 * LPFC_FLOGI while waiting for FLOGI cmpl
 	 */
-	if (vport->port_state != LPFC_FLOGI || vport->fc_flag & FC_PT2PT_PLOGI)
+	if (vport->port_state != LPFC_FLOGI)
 		lpfc_initial_flogi(vport);
+	else if (vport->fc_flag & FC_PT2PT)
+		lpfc_disc_start(vport);
 	return;
 
 out:
@@ -1314,6 +1315,8 @@ __lpfc_update_fcf_record_pri(struct lpfc_hba *phba, uint16_t fcf_index,
 {
 	struct lpfc_fcf_pri *fcf_pri;
 
+	lockdep_assert_held(&phba->hbalock);
+
 	fcf_pri = &phba->fcf.fcf_pri[fcf_index];
 	fcf_pri->fcf_rec.fcf_index = fcf_index;
 	/* FCF record priority */
@@ -1398,6 +1401,8 @@ __lpfc_update_fcf_record(struct lpfc_hba *phba, struct lpfc_fcf_rec *fcf_rec,
 		       struct fcf_record *new_fcf_record, uint32_t addr_mode,
 		       uint16_t vlan_id, uint32_t flag)
 {
+	lockdep_assert_held(&phba->hbalock);
+
 	/* Copy the fields from the HBA's FCF record */
 	lpfc_copy_fcf_record(fcf_rec, new_fcf_record);
 	/* Update other fields of driver FCF record */
@@ -2963,8 +2968,10 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 
 out_free_mem:
 	mempool_free(mboxq, phba->mbox_mem_pool);
-	lpfc_mbuf_free(phba, dmabuf->virt, dmabuf->phys);
-	kfree(dmabuf);
+	if (dmabuf) {
+		lpfc_mbuf_free(phba, dmabuf->virt, dmabuf->phys);
+		kfree(dmabuf);
+	}
 	return;
 }
 
@@ -3035,19 +3042,22 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	uint32_t fc_flags = 0;
 
 	spin_lock_irq(&phba->hbalock);
-	switch (bf_get(lpfc_mbx_read_top_link_spd, la)) {
-	case LPFC_LINK_SPEED_1GHZ:
-	case LPFC_LINK_SPEED_2GHZ:
-	case LPFC_LINK_SPEED_4GHZ:
-	case LPFC_LINK_SPEED_8GHZ:
-	case LPFC_LINK_SPEED_10GHZ:
-	case LPFC_LINK_SPEED_16GHZ:
-	case LPFC_LINK_SPEED_32GHZ:
-		phba->fc_linkspeed = bf_get(lpfc_mbx_read_top_link_spd, la);
-		break;
-	default:
-		phba->fc_linkspeed = LPFC_LINK_SPEED_UNKNOWN;
-		break;
+	phba->fc_linkspeed = bf_get(lpfc_mbx_read_top_link_spd, la);
+
+	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+		switch (bf_get(lpfc_mbx_read_top_link_spd, la)) {
+		case LPFC_LINK_SPEED_1GHZ:
+		case LPFC_LINK_SPEED_2GHZ:
+		case LPFC_LINK_SPEED_4GHZ:
+		case LPFC_LINK_SPEED_8GHZ:
+		case LPFC_LINK_SPEED_10GHZ:
+		case LPFC_LINK_SPEED_16GHZ:
+		case LPFC_LINK_SPEED_32GHZ:
+			break;
+		default:
+			phba->fc_linkspeed = LPFC_LINK_SPEED_UNKNOWN;
+			break;
+		}
 	}
 
 	if (phba->fc_topology &&
@@ -3448,10 +3458,10 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
 		spin_unlock_irq(shost->host_lock);
-	} else
-		/* Good status, call state machine */
-		lpfc_disc_state_machine(vport, ndlp, pmb,
-				NLP_EVT_CMPL_REG_LOGIN);
+	}
+
+	/* Call state machine */
+	lpfc_disc_state_machine(vport, ndlp, pmb, NLP_EVT_CMPL_REG_LOGIN);
 
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
@@ -5550,15 +5560,15 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			 ndlp->nlp_usg_map, ndlp);
 	/*
 	 * Start issuing Fabric-Device Management Interface (FDMI) command to
-	 * 0xfffffa (FDMI well known port) or Delay issuing FDMI command if
-	 * fdmi-on=2 (supporting RPA/hostnmae)
+	 * 0xfffffa (FDMI well known port).
+	 * DHBA -> DPRT -> RHBA -> RPA  (physical port)
+	 * DPRT -> RPRT (vports)
 	 */
-
-	if (vport->cfg_fdmi_on & LPFC_FDMI_REG_DELAY)
-		mod_timer(&vport->fc_fdmitmo,
-			  jiffies + msecs_to_jiffies(1000 * 60));
+	if (vport->port_type == LPFC_PHYSICAL_PORT)
+		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA, 0);
 	else
-		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA);
+		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DPRT, 0);
+
 
 	/* decrement the node reference count held for this callback
 	 * function.

@@ -1,0 +1,5 @@
+config COMMON_RESET_HI6220
+	tristate "Hi6220 Reset Driver"
+	depends on (ARCH_HISI && RESET_CONTROLLER)
+	help
+	  Build the Hisilicon Hi6220 reset driver.

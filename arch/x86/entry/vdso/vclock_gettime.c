@@ -17,8 +17,10 @@
 #include <asm/vvar.h>
 #include <asm/unistd.h>
 #include <asm/msr.h>
+#include <asm/pvclock.h>
 #include <linux/math64.h>
 #include <linux/time.h>
+#include <linux/kernel.h>
 
 #define gtod (&VVAR(vsyscall_gtod_data))
 
@@ -36,12 +38,12 @@ static notrace cycle_t vread_hpet(void)
 }
 #endif
 
-#ifndef BUILD_VDSO32
+#ifdef CONFIG_PARAVIRT_CLOCK
+extern u8 pvclock_page
+	__attribute__((visibility("hidden")));
+#endif
 
-#include <linux/kernel.h>
-#include <asm/vsyscall.h>
-#include <asm/fixmap.h>
-#include <asm/pvclock.h>
+#ifndef BUILD_VDSO32
 
 notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 {
@@ -60,75 +62,6 @@ notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
 	return ret;
 }
 
-#ifdef CONFIG_PARAVIRT_CLOCK
-
-static notrace const struct pvclock_vsyscall_time_info *get_pvti(int cpu)
-{
-	const struct pvclock_vsyscall_time_info *pvti_base;
-	int idx = cpu / (PAGE_SIZE/PVTI_SIZE);
-	int offset = cpu % (PAGE_SIZE/PVTI_SIZE);
-
-	BUG_ON(PVCLOCK_FIXMAP_BEGIN + idx > PVCLOCK_FIXMAP_END);
-
-	pvti_base = (struct pvclock_vsyscall_time_info *)
-		    __fix_to_virt(PVCLOCK_FIXMAP_BEGIN+idx);
-
-	return &pvti_base[offset];
-}
-
-static notrace cycle_t vread_pvclock(int *mode)
-{
-	const struct pvclock_vsyscall_time_info *pvti;
-	cycle_t ret;
-	u64 last;
-	u32 version;
-	u8 flags;
-	unsigned cpu, cpu1;
-
-
-	/*
-	 * Note: hypervisor must guarantee that:
-	 * 1. cpu ID number maps 1:1 to per-CPU pvclock time info.
-	 * 2. that per-CPU pvclock time info is updated if the
-	 *    underlying CPU changes.
-	 * 3. that version is increased whenever underlying CPU
-	 *    changes.
-	 *
-	 */
-	do {
-		cpu = __getcpu() & VGETCPU_CPU_MASK;
-		/* TODO: We can put vcpu id into higher bits of pvti.version.
-		 * This will save a couple of cycles by getting rid of
-		 * __getcpu() calls (Gleb).
-		 */
-
-		pvti = get_pvti(cpu);
-
-		version = __pvclock_read_cycles(&pvti->pvti, &ret, &flags);
-
-		/*
-		 * Test we're still on the cpu as well as the version.
-		 * We could have been migrated just after the first
-		 * vgetcpu but before fetching the version, so we
-		 * wouldn't notice a version change.
-		 */
-		cpu1 = __getcpu() & VGETCPU_CPU_MASK;
-	} while (unlikely(cpu != cpu1 ||
-			  (pvti->pvti.version & 1) ||
-			  pvti->pvti.version != version));
-
-	if (unlikely(!(flags & PVCLOCK_TSC_STABLE_BIT)))
-		*mode = VCLOCK_NONE;
-
-	/* refer to tsc.c read_tsc() comment for rationale */
-	last = gtod->cycle_last;
-
-	if (likely(ret >= last))
-		return ret;
-
-	return last;
-}
-#endif
 
 #else
 
@@ -162,15 +95,77 @@ notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
 	return ret;
 }
 
+#endif
+
 #ifdef CONFIG_PARAVIRT_CLOCK
+static notrace const struct pvclock_vsyscall_time_info *get_pvti0(void)
+{
+	return (const struct pvclock_vsyscall_time_info *)&pvclock_page;
+}
 
 static notrace cycle_t vread_pvclock(int *mode)
 {
-	*mode = VCLOCK_NONE;
-	return 0;
-}
-#endif
+	const struct pvclock_vcpu_time_info *pvti = &get_pvti0()->pvti;
+	cycle_t ret;
+	u64 tsc, pvti_tsc;
+	u64 last, delta, pvti_system_time;
+	u32 version, pvti_tsc_to_system_mul, pvti_tsc_shift;
 
+	/*
+	 * Note: The kernel and hypervisor must guarantee that cpu ID
+	 * number maps 1:1 to per-CPU pvclock time info.
+	 *
+	 * Because the hypervisor is entirely unaware of guest userspace
+	 * preemption, it cannot guarantee that per-CPU pvclock time
+	 * info is updated if the underlying CPU changes or that that
+	 * version is increased whenever underlying CPU changes.
+	 *
+	 * On KVM, we are guaranteed that pvti updates for any vCPU are
+	 * atomic as seen by *all* vCPUs.  This is an even stronger
+	 * guarantee than we get with a normal seqlock.
+	 *
+	 * On Xen, we don't appear to have that guarantee, but Xen still
+	 * supplies a valid seqlock using the version field.
+	 *
+	 * We only do pvclock vdso timing at all if
+	 * PVCLOCK_TSC_STABLE_BIT is set, and we interpret that bit to
+	 * mean that all vCPUs have matching pvti and that the TSC is
+	 * synced, so we can just look at vCPU 0's pvti.
+	 */
+
+	do {
+		version = pvti->version;
+
+		smp_rmb();
+
+		if (unlikely(!(pvti->flags & PVCLOCK_TSC_STABLE_BIT))) {
+			*mode = VCLOCK_NONE;
+			return 0;
+		}
+
+		tsc = rdtsc_ordered();
+		pvti_tsc_to_system_mul = pvti->tsc_to_system_mul;
+		pvti_tsc_shift = pvti->tsc_shift;
+		pvti_system_time = pvti->system_time;
+		pvti_tsc = pvti->tsc_timestamp;
+
+		/* Make sure that the version double-check is last. */
+		smp_rmb();
+	} while (unlikely((version & 1) || version != pvti->version));
+
+	delta = tsc - pvti_tsc;
+	ret = pvti_system_time +
+		pvclock_scale_delta(delta, pvti_tsc_to_system_mul,
+				    pvti_tsc_shift);
+
+	/* refer to vread_tsc() comment for rationale */
+	last = gtod->cycle_last;
+
+	if (likely(ret >= last))
+		return ret;
+
+	return last;
+}
 #endif
 
 notrace static cycle_t vread_tsc(void)
@@ -183,7 +178,7 @@ notrace static cycle_t vread_tsc(void)
 
 	/*
 	 * GCC likes to generate cmov here, but this branch is extremely
-	 * predictable (it's just a funciton of time and the likely is
+	 * predictable (it's just a function of time and the likely is
 	 * very likely) and there's a data dependence, so force GCC
 	 * to generate a branch instead.  I don't barrier() because
 	 * we don't actually need a barrier, and if this function

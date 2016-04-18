@@ -24,6 +24,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/frame.h>
 #include "glue_helper-asm-avx.S"
 
 .file "serpent-avx-x86_64-asm_64.S"
@@ -681,6 +682,7 @@ ENTRY(serpent_ecb_enc_8way_avx)
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
+	FRAME_BEGIN
 
 	load_8way(%rdx, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
@@ -688,6 +690,7 @@ ENTRY(serpent_ecb_enc_8way_avx)
 
 	store_8way(%rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+	FRAME_END
 	ret;
 ENDPROC(serpent_ecb_enc_8way_avx)
 
@@ -697,6 +700,7 @@ ENTRY(serpent_ecb_dec_8way_avx)
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
+	FRAME_BEGIN
 
 	load_8way(%rdx, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
@@ -704,6 +708,7 @@ ENTRY(serpent_ecb_dec_8way_avx)
 
 	store_8way(%rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
 
+	FRAME_END
 	ret;
 ENDPROC(serpent_ecb_dec_8way_avx)
 
@@ -713,6 +718,7 @@ ENTRY(serpent_cbc_dec_8way_avx)
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
+	FRAME_BEGIN
 
 	load_8way(%rdx, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
@@ -720,6 +726,7 @@ ENTRY(serpent_cbc_dec_8way_avx)
 
 	store_cbc_8way(%rdx, %rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
 
+	FRAME_END
 	ret;
 ENDPROC(serpent_cbc_dec_8way_avx)
 
@@ -730,6 +737,7 @@ ENTRY(serpent_ctr_8way_avx)
 	 *	%rdx: src
 	 *	%rcx: iv (little endian, 128bit)
 	 */
+	FRAME_BEGIN
 
 	load_ctr_8way(%rcx, .Lbswap128_mask, RA1, RB1, RC1, RD1, RA2, RB2, RC2,
 		      RD2, RK0, RK1, RK2);
@@ -738,6 +746,7 @@ ENTRY(serpent_ctr_8way_avx)
 
 	store_ctr_8way(%rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+	FRAME_END
 	ret;
 ENDPROC(serpent_ctr_8way_avx)
 
@@ -748,6 +757,7 @@ ENTRY(serpent_xts_enc_8way_avx)
 	 *	%rdx: src
 	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
 	 */
+	FRAME_BEGIN
 
 	/* regs <= src, dst <= IVs, regs <= regs xor IVs */
 	load_xts_8way(%rcx, %rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2,
@@ -758,6 +768,7 @@ ENTRY(serpent_xts_enc_8way_avx)
 	/* dst <= regs xor IVs(in dst) */
 	store_xts_8way(%rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+	FRAME_END
 	ret;
 ENDPROC(serpent_xts_enc_8way_avx)
 
@@ -768,6 +779,7 @@ ENTRY(serpent_xts_dec_8way_avx)
 	 *	%rdx: src
 	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
 	 */
+	FRAME_BEGIN
 
 	/* regs <= src, dst <= IVs, regs <= regs xor IVs */
 	load_xts_8way(%rcx, %rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2,
@@ -778,5 +790,6 @@ ENTRY(serpent_xts_dec_8way_avx)
 	/* dst <= regs xor IVs(in dst) */
 	store_xts_8way(%rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
 
+	FRAME_END
 	ret;
 ENDPROC(serpent_xts_dec_8way_avx)

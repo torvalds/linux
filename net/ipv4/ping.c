@@ -145,10 +145,12 @@ fail:
 }
 EXPORT_SYMBOL_GPL(ping_get_port);
 
-void ping_hash(struct sock *sk)
+int ping_hash(struct sock *sk)
 {
 	pr_debug("ping_hash(sk->port=%u)\n", inet_sk(sk)->inet_num);
 	BUG(); /* "Please do not press this button again." */
+
+	return 0;
 }
 
 void ping_unhash(struct sock *sk)
@@ -746,8 +748,10 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	if (msg->msg_controllen) {
 		err = ip_cmsg_send(sock_net(sk), msg, &ipc, false);
-		if (err)
+		if (unlikely(err)) {
+			kfree(ipc.opt);
 			return err;
+		}
 		if (ipc.opt)
 			free = 1;
 	}
@@ -1063,6 +1067,7 @@ static struct sock *ping_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 void *ping_seq_start(struct seq_file *seq, loff_t *pos, sa_family_t family)
+	__acquires(ping_table.lock)
 {
 	struct ping_iter_state *state = seq->private;
 	state->bucket = 0;
@@ -1094,6 +1099,7 @@ void *ping_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 EXPORT_SYMBOL_GPL(ping_seq_next);
 
 void ping_seq_stop(struct seq_file *seq, void *v)
+	__releases(ping_table.lock)
 {
 	read_unlock_bh(&ping_table.lock);
 }
@@ -1135,13 +1141,6 @@ static int ping_v4_seq_show(struct seq_file *seq, void *v)
 	seq_pad(seq, '\n');
 	return 0;
 }
-
-static const struct seq_operations ping_v4_seq_ops = {
-	.show		= ping_v4_seq_show,
-	.start		= ping_v4_seq_start,
-	.next		= ping_seq_next,
-	.stop		= ping_seq_stop,
-};
 
 static int ping_seq_open(struct inode *inode, struct file *file)
 {

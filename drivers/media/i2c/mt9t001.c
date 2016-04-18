@@ -21,7 +21,7 @@
 #include <linux/videodev2.h>
 #include <linux/v4l2-mediabus.h>
 
-#include <media/mt9t001.h>
+#include <media/i2c/mt9t001.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
@@ -626,7 +626,7 @@ static int mt9t001_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops mt9t001_ctrl_ops = {
+static const struct v4l2_ctrl_ops mt9t001_ctrl_ops = {
 	.s_ctrl = mt9t001_s_ctrl,
 };
 
@@ -933,7 +933,7 @@ static int mt9t001_probe(struct i2c_client *client,
 	mt9t001->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	mt9t001->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&mt9t001->subdev.entity, 1, &mt9t001->pad, 0);
+	ret = media_entity_pads_init(&mt9t001->subdev.entity, 1, &mt9t001->pad);
 
 done:
 	if (ret < 0) {

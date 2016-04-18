@@ -37,9 +37,10 @@ static inline port_id br_make_port_id(__u8 priority, __u16 port_no)
 void br_init_port(struct net_bridge_port *p)
 {
 	struct switchdev_attr attr = {
+		.orig_dev = p->dev,
 		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
 		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP | SWITCHDEV_F_DEFER,
-		.u.ageing_time = p->br->ageing_time,
+		.u.ageing_time = jiffies_to_clock_t(p->br->ageing_time),
 	};
 	int err;
 
@@ -50,7 +51,7 @@ void br_init_port(struct net_bridge_port *p)
 	p->config_pending = 0;
 
 	err = switchdev_port_attr_set(p->dev, &attr);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		netdev_err(p->dev, "failed to set HW ageing time\n");
 }
 
@@ -101,7 +102,6 @@ void br_stp_enable_port(struct net_bridge_port *p)
 {
 	br_init_port(p);
 	br_port_state_selection(p->br);
-	br_log_state(p);
 	br_ifinfo_notify(RTM_NEWLINK, p);
 }
 
@@ -117,7 +117,6 @@ void br_stp_disable_port(struct net_bridge_port *p)
 	p->topology_change_ack = 0;
 	p->config_pending = 0;
 
-	br_log_state(p);
 	br_ifinfo_notify(RTM_NEWLINK, p);
 
 	del_timer(&p->message_age_timer);
@@ -142,7 +141,10 @@ static void br_stp_start(struct net_bridge *br)
 	char *envp[] = { NULL };
 	struct net_bridge_port *p;
 
-	r = call_usermodehelper(BR_STP_PROG, argv, envp, UMH_WAIT_PROC);
+	if (net_eq(dev_net(br->dev), &init_net))
+		r = call_usermodehelper(BR_STP_PROG, argv, envp, UMH_WAIT_PROC);
+	else
+		r = -ENOENT;
 
 	spin_lock_bh(&br->lock);
 

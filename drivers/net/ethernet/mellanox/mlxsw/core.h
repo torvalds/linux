@@ -112,12 +112,24 @@ int mlxsw_reg_write(struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_reg_info *reg, char *payload);
 
 struct mlxsw_rx_info {
-	u16 sys_port;
+	bool is_lag;
+	union {
+		u16 sys_port;
+		u16 lag_id;
+	} u;
+	u8 lag_port_index;
 	int trap_id;
 };
 
 void mlxsw_core_skb_receive(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 			    struct mlxsw_rx_info *rx_info);
+
+void mlxsw_core_lag_mapping_set(struct mlxsw_core *mlxsw_core,
+				u16 lag_id, u8 port_index, u8 local_port);
+u8 mlxsw_core_lag_mapping_get(struct mlxsw_core *mlxsw_core,
+			      u16 lag_id, u8 port_index);
+void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
+				  u16 lag_id, u8 local_port);
 
 #define MLXSW_CONFIG_PROFILE_SWID_COUNT 8
 
@@ -174,6 +186,8 @@ struct mlxsw_driver {
 	int (*init)(void *driver_priv, struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_bus_info *mlxsw_bus_info);
 	void (*fini)(void *driver_priv);
+	int (*port_split)(void *driver_priv, u8 local_port, unsigned int count);
+	int (*port_unsplit)(void *driver_priv, u8 local_port);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
 	u8 txhdr_len;
@@ -208,5 +222,25 @@ struct mlxsw_bus_info {
 	u8 vsd[MLXSW_CMD_BOARDINFO_VSD_LEN];
 	u8 psid[MLXSW_CMD_BOARDINFO_PSID_LEN];
 };
+
+struct mlxsw_hwmon;
+
+#ifdef CONFIG_MLXSW_CORE_HWMON
+
+int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
+		     const struct mlxsw_bus_info *mlxsw_bus_info,
+		     struct mlxsw_hwmon **p_hwmon);
+void mlxsw_hwmon_fini(struct mlxsw_hwmon *mlxsw_hwmon);
+
+#else
+
+static inline int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
+				   const struct mlxsw_bus_info *mlxsw_bus_info,
+				   struct mlxsw_hwmon **p_hwmon)
+{
+	return 0;
+}
+
+#endif
 
 #endif

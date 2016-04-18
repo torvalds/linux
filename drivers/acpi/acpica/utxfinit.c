@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -147,6 +147,13 @@ acpi_status __init acpi_enable_subsystem(u32 flags)
 
 	ACPI_FUNCTION_TRACE(acpi_enable_subsystem);
 
+	/*
+	 * The early initialization phase is complete. The namespace is loaded,
+	 * and we can now support address spaces other than Memory, I/O, and
+	 * PCI_Config.
+	 */
+	acpi_gbl_early_initialization = FALSE;
+
 #if (!ACPI_REDUCED_HARDWARE)
 
 	/* Enable ACPI mode */
@@ -175,23 +182,7 @@ acpi_status __init acpi_enable_subsystem(u32 flags)
 			return_ACPI_STATUS(status);
 		}
 	}
-#endif				/* !ACPI_REDUCED_HARDWARE */
 
-	/*
-	 * Install the default op_region handlers. These are installed unless
-	 * other handlers have already been installed via the
-	 * install_address_space_handler interface.
-	 */
-	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Installing default address space handlers\n"));
-
-		status = acpi_ev_install_region_handlers();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-#if (!ACPI_REDUCED_HARDWARE)
 	/*
 	 * Initialize ACPI Event handling (Fixed and General Purpose)
 	 *
@@ -254,22 +245,6 @@ acpi_status __init acpi_initialize_objects(u32 flags)
 
 	ACPI_FUNCTION_TRACE(acpi_initialize_objects);
 
-	/*
-	 * Run all _REG methods
-	 *
-	 * Note: Any objects accessed by the _REG methods will be automatically
-	 * initialized, even if they contain executable AML (see the call to
-	 * acpi_ns_initialize_objects below).
-	 */
-	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Executing _REG OpRegion methods\n"));
-
-		status = acpi_ev_initialize_op_regions();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
 #ifdef ACPI_EXEC_APP
 	/*
 	 * This call implements the "initialization file" option for acpi_exec.
@@ -285,33 +260,34 @@ acpi_status __init acpi_initialize_objects(u32 flags)
 	 * outside of any control method is wrapped with a temporary control
 	 * method object and placed on a global list. The methods on this list
 	 * are executed below.
+	 *
+	 * This case executes the module-level code for all tables only after
+	 * all of the tables have been loaded. It is a legacy option and is
+	 * not compatible with other ACPI implementations. See acpi_ns_load_table.
 	 */
-	acpi_ns_exec_module_code_list();
+	if (acpi_gbl_group_module_level_code) {
+		acpi_ns_exec_module_code_list();
 
-	/*
-	 * Initialize the objects that remain uninitialized. This runs the
-	 * executable AML that may be part of the declaration of these objects:
-	 * operation_regions, buffer_fields, Buffers, and Packages.
-	 */
-	if (!(flags & ACPI_NO_OBJECT_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Completing Initialization of ACPI Objects\n"));
-
-		status = acpi_ns_initialize_objects();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+		/*
+		 * Initialize the objects that remain uninitialized. This
+		 * runs the executable AML that may be part of the
+		 * declaration of these objects:
+		 * operation_regions, buffer_fields, Buffers, and Packages.
+		 */
+		if (!(flags & ACPI_NO_OBJECT_INIT)) {
+			status = acpi_ns_initialize_objects();
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
+			}
 		}
 	}
 
 	/*
-	 * Initialize all device objects in the namespace. This runs the device
-	 * _STA and _INI methods.
+	 * Initialize all device/region objects in the namespace. This runs
+	 * the device _STA and _INI methods and region _REG methods.
 	 */
-	if (!(flags & ACPI_NO_DEVICE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Initializing ACPI Devices\n"));
-
-		status = acpi_ns_initialize_devices();
+	if (!(flags & (ACPI_NO_DEVICE_INIT | ACPI_NO_ADDRESS_SPACE_INIT))) {
+		status = acpi_ns_initialize_devices(flags);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}

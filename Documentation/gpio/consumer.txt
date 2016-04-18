@@ -260,7 +260,7 @@ will be driven low.
 
 To summarize:
 
-Function (example)               active-low proporty  physical line
+Function (example)               active-low property  physical line
 gpiod_set_raw_value(desc, 0);        don't care           low
 gpiod_set_raw_value(desc, 1);        don't care           high
 gpiod_set_value(desc, 0);       default (active-high)     low

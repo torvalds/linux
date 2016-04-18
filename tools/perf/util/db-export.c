@@ -333,7 +333,7 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 	    sample_addr_correlates_sym(&evsel->attr)) {
 		struct addr_location addr_al;
 
-		perf_event__preprocess_sample_addr(event, sample, thread, &addr_al);
+		thread__resolve(thread, &addr_al, sample);
 		err = db_ids_from_al(dbe, &addr_al, &es.addr_dso_db_id,
 				     &es.addr_sym_db_id, &es.addr_offset);
 		if (err)

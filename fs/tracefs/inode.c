@@ -84,9 +84,9 @@ static int tracefs_syscall_mkdir(struct inode *inode, struct dentry *dentry, umo
 	 * the files within the tracefs system. It is up to the individual
 	 * mkdir routine to handle races.
 	 */
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	ret = tracefs_ops.mkdir(name);
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	kfree(name);
 
@@ -109,13 +109,13 @@ static int tracefs_syscall_rmdir(struct inode *inode, struct dentry *dentry)
 	 * This time we need to unlock not only the parent (inode) but
 	 * also the directory that is being deleted.
 	 */
-	mutex_unlock(&inode->i_mutex);
-	mutex_unlock(&dentry->d_inode->i_mutex);
+	inode_unlock(inode);
+	inode_unlock(dentry->d_inode);
 
 	ret = tracefs_ops.rmdir(name);
 
-	mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
-	mutex_lock(&dentry->d_inode->i_mutex);
+	inode_lock_nested(inode, I_MUTEX_PARENT);
+	inode_lock(dentry->d_inode);
 
 	kfree(name);
 
@@ -334,7 +334,7 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 	if (!parent)
 		parent = tracefs_mount->mnt_root;
 
-	mutex_lock(&parent->d_inode->i_mutex);
+	inode_lock(parent->d_inode);
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(dentry) && dentry->d_inode) {
 		dput(dentry);
@@ -342,7 +342,7 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 	}
 
 	if (IS_ERR(dentry)) {
-		mutex_unlock(&parent->d_inode->i_mutex);
+		inode_unlock(parent->d_inode);
 		simple_release_fs(&tracefs_mount, &tracefs_mount_count);
 	}
 
@@ -351,7 +351,7 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 
 static struct dentry *failed_creating(struct dentry *dentry)
 {
-	mutex_unlock(&dentry->d_parent->d_inode->i_mutex);
+	inode_unlock(dentry->d_parent->d_inode);
 	dput(dentry);
 	simple_release_fs(&tracefs_mount, &tracefs_mount_count);
 	return NULL;
@@ -359,7 +359,7 @@ static struct dentry *failed_creating(struct dentry *dentry)
 
 static struct dentry *end_creating(struct dentry *dentry)
 {
-	mutex_unlock(&dentry->d_parent->d_inode->i_mutex);
+	inode_unlock(dentry->d_parent->d_inode);
 	return dentry;
 }
 
@@ -544,9 +544,9 @@ void tracefs_remove(struct dentry *dentry)
 	if (!parent || !parent->d_inode)
 		return;
 
-	mutex_lock(&parent->d_inode->i_mutex);
+	inode_lock(parent->d_inode);
 	ret = __tracefs_remove(dentry, parent);
-	mutex_unlock(&parent->d_inode->i_mutex);
+	inode_unlock(parent->d_inode);
 	if (!ret)
 		simple_release_fs(&tracefs_mount, &tracefs_mount_count);
 }
@@ -572,7 +572,7 @@ void tracefs_remove_recursive(struct dentry *dentry)
 
 	parent = dentry;
  down:
-	mutex_lock(&parent->d_inode->i_mutex);
+	inode_lock(parent->d_inode);
  loop:
 	/*
 	 * The parent->d_subdirs is protected by the d_lock. Outside that
@@ -587,7 +587,7 @@ void tracefs_remove_recursive(struct dentry *dentry)
 		/* perhaps simple_empty(child) makes more sense */
 		if (!list_empty(&child->d_subdirs)) {
 			spin_unlock(&parent->d_lock);
-			mutex_unlock(&parent->d_inode->i_mutex);
+			inode_unlock(parent->d_inode);
 			parent = child;
 			goto down;
 		}
@@ -608,10 +608,10 @@ void tracefs_remove_recursive(struct dentry *dentry)
 	}
 	spin_unlock(&parent->d_lock);
 
-	mutex_unlock(&parent->d_inode->i_mutex);
+	inode_unlock(parent->d_inode);
 	child = parent;
 	parent = parent->d_parent;
-	mutex_lock(&parent->d_inode->i_mutex);
+	inode_lock(parent->d_inode);
 
 	if (child != dentry)
 		/* go up */
@@ -619,7 +619,7 @@ void tracefs_remove_recursive(struct dentry *dentry)
 
 	if (!__tracefs_remove(child, parent))
 		simple_release_fs(&tracefs_mount, &tracefs_mount_count);
-	mutex_unlock(&parent->d_inode->i_mutex);
+	inode_unlock(parent->d_inode);
 }
 
 /**

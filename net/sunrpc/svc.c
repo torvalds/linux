@@ -1364,13 +1364,21 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 	memcpy(&rqstp->rq_arg, &req->rq_rcv_buf, sizeof(rqstp->rq_arg));
 	memcpy(&rqstp->rq_res, &req->rq_snd_buf, sizeof(rqstp->rq_res));
 
+	/* Adjust the argument buffer length */
+	rqstp->rq_arg.len = req->rq_private_buf.len;
+	if (rqstp->rq_arg.len <= rqstp->rq_arg.head[0].iov_len) {
+		rqstp->rq_arg.head[0].iov_len = rqstp->rq_arg.len;
+		rqstp->rq_arg.page_len = 0;
+	} else if (rqstp->rq_arg.len <= rqstp->rq_arg.head[0].iov_len +
+			rqstp->rq_arg.page_len)
+		rqstp->rq_arg.page_len = rqstp->rq_arg.len -
+			rqstp->rq_arg.head[0].iov_len;
+	else
+		rqstp->rq_arg.len = rqstp->rq_arg.head[0].iov_len +
+			rqstp->rq_arg.page_len;
+
 	/* reset result send buffer "put" position */
 	resv->iov_len = 0;
-
-	if (rqstp->rq_prot != IPPROTO_TCP) {
-		printk(KERN_ERR "No support for Non-TCP transports!\n");
-		BUG();
-	}
 
 	/*
 	 * Skip the next two words because they've already been

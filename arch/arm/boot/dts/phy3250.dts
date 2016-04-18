@@ -12,7 +12,7 @@
  */
 
 /dts-v1/;
-/include/ "lpc32xx.dtsi"
+#include "lpc32xx.dtsi"
 
 / {
 	model = "PHYTEC phyCORE-LPC3250 board based on NXP LPC3250";
@@ -22,7 +22,38 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0 0x4000000>;
+		reg = <0x80000000 0x4000000>;
+	};
+
+	regulators {
+		backlight_reg: regulator@0 {
+			compatible = "regulator-fixed";
+			regulator-name = "backlight_reg";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			gpio = <&gpio 5 4 0>;
+			enable-active-high;
+			regulator-boot-on;
+		};
+
+		lcd_reg: regulator@1 {
+			compatible = "regulator-fixed";
+			regulator-name = "lcd_reg";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			gpio = <&gpio 5 0 0>;
+			enable-active-high;
+			regulator-boot-on;
+		};
+
+		sd_reg: regulator@2 {
+			compatible = "regulator-fixed";
+			regulator-name = "sd_reg";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			gpio = <&gpio 5 5 0>;
+			enable-active-high;
+		};
 	};
 
 	ahb {
@@ -30,19 +61,6 @@
 			phy-mode = "rmii";
 			use-iram;
 		};
-
-		/* Here, choose exactly one from: ohci, usbd */
-		ohci@31020000 {
-			transceiver = <&isp1301>;
-			status = "okay";
-		};
-
-/*
-		usbd@31020000 {
-			transceiver = <&isp1301>;
-			status = "okay";
-		};
-*/
 
 		clcd@31040000 {
 			status = "okay";
@@ -123,15 +141,6 @@
 				clock-frequency = <100000>;
 			};
 
-			i2cusb: i2c@31020300 {
-				clock-frequency = <100000>;
-
-				isp1301: usb-transceiver@2c {
-					compatible = "nxp,isp1301";
-					reg = <0x2c>;
-				};
-			};
-
 			ssp0: ssp@20084000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -162,6 +171,7 @@
 				cd-gpios = <&gpio 3 1 0>;
 				cd-inverted;
 				bus-width = <4>;
+				vmmc-supply = <&sd_reg>;
 				status = "okay";
 			};
 		};
@@ -198,5 +208,20 @@
 			gpios = <&gpio 5 14 0>; /* GPO_P3 14, GPIO 93, active high */
 			linux,default-trigger = "heartbeat";
 		};
+	};
+};
+
+/* Here, choose exactly one from: ohci, usbd */
+&ohci /* &usbd */ {
+	transceiver = <&isp1301>;
+	status = "okay";
+};
+
+&i2cusb {
+	clock-frequency = <100000>;
+
+	isp1301: usb-transceiver@2c {
+		compatible = "nxp,isp1301";
+		reg = <0x2c>;
 	};
 };

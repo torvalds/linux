@@ -23,10 +23,6 @@
 #include <linux/types.h>
 #define NDIS_OID uint
 
-typedef void (*proc_t)(void *);
-
-#define FIELD_OFFSET(s, field)	((ssize_t)&((s *)(0))->field)
-
 /* port from fw */
 /*  TODO: Macros Below are Sync from SD7-Driver. It is necessary
  * to check correctness */
@@ -45,31 +41,6 @@ typedef void (*proc_t)(void *);
 	(le16_to_cpu(_val))
 #define EF4BYTE(_val)		\
 	(le32_to_cpu(_val))
-
-/* Read data from memory */
-#define READEF1BYTE(_ptr)	\
-	EF1BYTE(*((u8 *)(_ptr)))
-/* Read le16 data from memory and convert to host ordering */
-#define READEF2BYTE(_ptr)	\
-	EF2BYTE(*(_ptr))
-#define READEF4BYTE(_ptr)	\
-	EF4BYTE(*(_ptr))
-
-/* Write data to memory */
-#define WRITEEF1BYTE(_ptr, _val)			\
-	do {						\
-		(*((u8 *)(_ptr))) = EF1BYTE(_val)	\
-	} while (0)
-/* Write le data to memory in host ordering */
-#define WRITEEF2BYTE(_ptr, _val)			\
-	do {						\
-		(*((u16 *)(_ptr))) = EF2BYTE(_val)	\
-	} while (0)
-
-#define WRITEEF4BYTE(_ptr, _val)			\
-	do {						\
-		(*((u32 *)(_ptr))) = EF2BYTE(_val)	\
-	} while (0)
 
 /* Create a bit mask
  * Examples:

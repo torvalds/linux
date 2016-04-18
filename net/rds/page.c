@@ -42,8 +42,8 @@ struct rds_page_remainder {
 	unsigned long	r_offset;
 };
 
-static DEFINE_PER_CPU_SHARED_ALIGNED(struct rds_page_remainder,
-				     rds_page_remainders);
+static
+DEFINE_PER_CPU_SHARED_ALIGNED(struct rds_page_remainder, rds_page_remainders);
 
 /*
  * returns 0 on success or -errno on failure.
@@ -135,8 +135,8 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 			if (rem->r_offset != 0)
 				rds_stats_inc(s_page_remainder_hit);
 
-			rem->r_offset += bytes;
-			if (rem->r_offset == PAGE_SIZE) {
+			rem->r_offset += ALIGN(bytes, 8);
+			if (rem->r_offset >= PAGE_SIZE) {
 				__free_page(rem->r_page);
 				rem->r_page = NULL;
 			}
@@ -179,37 +179,18 @@ out:
 }
 EXPORT_SYMBOL_GPL(rds_page_remainder_alloc);
 
-static int rds_page_remainder_cpu_notify(struct notifier_block *self,
-					 unsigned long action, void *hcpu)
+void rds_page_exit(void)
 {
-	struct rds_page_remainder *rem;
-	long cpu = (long)hcpu;
+	unsigned int cpu;
 
-	rem = &per_cpu(rds_page_remainders, cpu);
+	for_each_possible_cpu(cpu) {
+		struct rds_page_remainder *rem;
 
-	rdsdebug("cpu %ld action 0x%lx\n", cpu, action);
+		rem = &per_cpu(rds_page_remainders, cpu);
+		rdsdebug("cpu %u\n", cpu);
 
-	switch (action) {
-	case CPU_DEAD:
 		if (rem->r_page)
 			__free_page(rem->r_page);
 		rem->r_page = NULL;
-		break;
 	}
-
-	return 0;
-}
-
-static struct notifier_block rds_page_remainder_nb = {
-	.notifier_call = rds_page_remainder_cpu_notify,
-};
-
-void rds_page_exit(void)
-{
-	int i;
-
-	for_each_possible_cpu(i)
-		rds_page_remainder_cpu_notify(&rds_page_remainder_nb,
-					      (unsigned long)CPU_DEAD,
-					      (void *)(long)i);
 }

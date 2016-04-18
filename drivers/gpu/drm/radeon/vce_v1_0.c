@@ -178,12 +178,12 @@ int vce_v1_0_load_fw(struct radeon_device *rdev, uint32_t *data)
 		return -EINVAL;
 	}
 
-	for (i = 0; i < sign->num; ++i) {
-		if (sign->val[i].chip_id == chip_id)
+	for (i = 0; i < le32_to_cpu(sign->num); ++i) {
+		if (le32_to_cpu(sign->val[i].chip_id) == chip_id)
 			break;
 	}
 
-	if (i == sign->num)
+	if (i == le32_to_cpu(sign->num))
 		return -EINVAL;
 
 	data += (256 - 64) / 4;
@@ -191,18 +191,18 @@ int vce_v1_0_load_fw(struct radeon_device *rdev, uint32_t *data)
 	data[1] = sign->val[i].nonce[1];
 	data[2] = sign->val[i].nonce[2];
 	data[3] = sign->val[i].nonce[3];
-	data[4] = sign->len + 64;
+	data[4] = cpu_to_le32(le32_to_cpu(sign->len) + 64);
 
 	memset(&data[5], 0, 44);
 	memcpy(&data[16], &sign[1], rdev->vce_fw->size - sizeof(*sign));
 
-	data += data[4] / 4;
+	data += le32_to_cpu(data[4]) / 4;
 	data[0] = sign->val[i].sigval[0];
 	data[1] = sign->val[i].sigval[1];
 	data[2] = sign->val[i].sigval[2];
 	data[3] = sign->val[i].sigval[3];
 
-	rdev->vce.keyselect = sign->val[i].keyselect;
+	rdev->vce.keyselect = le32_to_cpu(sign->val[i].keyselect);
 
 	return 0;
 }

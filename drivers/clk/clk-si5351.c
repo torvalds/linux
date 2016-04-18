@@ -1091,6 +1091,13 @@ static int si5351_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
 	si5351_set_bits(hwdata->drvdata, SI5351_CLK0_CTRL + hwdata->num,
 			SI5351_CLK_POWERDOWN, 0);
 
+	/*
+	 * Do a pll soft reset on both plls, needed in some cases to get
+	 * all outputs running.
+	 */
+	si5351_reg_write(hwdata->drvdata, SI5351_PLL_RESET,
+			 SI5351_PLL_RESET_A | SI5351_PLL_RESET_B);
+
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: rdiv = %u, parent_rate = %lu, rate = %lu\n",
 		__func__, clk_hw_get_name(hw), (1 << rdiv),
@@ -1488,7 +1495,7 @@ static int si5351_i2c_probe(struct i2c_client *client,
 	if (drvdata->variant == SI5351_VARIANT_B) {
 		init.name = si5351_pll_names[2];
 		init.ops = &si5351_vxco_ops;
-		init.flags = CLK_IS_ROOT;
+		init.flags = 0;
 		init.parent_names = NULL;
 		init.num_parents = 0;
 	} else {

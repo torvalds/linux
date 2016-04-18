@@ -861,10 +861,10 @@ s32 igb_pll_workaround_i210(struct e1000_hw *hw)
 	if (ret_val)
 		nvm_word = E1000_INVM_DEFAULT_AL;
 	tmp_nvm = nvm_word | E1000_INVM_PLL_WO_VAL;
+	igb_write_phy_reg_82580(hw, I347AT4_PAGE_SELECT, E1000_PHY_PLL_FREQ_PAGE);
 	for (i = 0; i < E1000_MAX_PLL_TRIES; i++) {
 		/* check current state directly from internal PHY */
-		igb_read_phy_reg_gs40g(hw, (E1000_PHY_PLL_FREQ_PAGE |
-					 E1000_PHY_PLL_FREQ_REG), &phy_word);
+		igb_read_phy_reg_82580(hw, E1000_PHY_PLL_FREQ_REG, &phy_word);
 		if ((phy_word & E1000_PHY_PLL_UNCONF)
 		    != E1000_PHY_PLL_UNCONF) {
 			ret_val = 0;
@@ -896,7 +896,35 @@ s32 igb_pll_workaround_i210(struct e1000_hw *hw)
 		/* restore WUC register */
 		wr32(E1000_WUC, wuc);
 	}
+	igb_write_phy_reg_82580(hw, I347AT4_PAGE_SELECT, 0);
 	/* restore MDICNFG setting */
 	wr32(E1000_MDICNFG, mdicnfg);
 	return ret_val;
+}
+
+/**
+ *  igb_get_cfg_done_i210 - Read config done bit
+ *  @hw: pointer to the HW structure
+ *
+ *  Read the management control register for the config done bit for
+ *  completion status.  NOTE: silicon which is EEPROM-less will fail trying
+ *  to read the config done bit, so an error is *ONLY* logged and returns
+ *  0.  If we were to return with error, EEPROM-less silicon
+ *  would not be able to be reset or change link.
+ **/
+s32 igb_get_cfg_done_i210(struct e1000_hw *hw)
+{
+	s32 timeout = PHY_CFG_TIMEOUT;
+	u32 mask = E1000_NVM_CFG_DONE_PORT_0;
+
+	while (timeout) {
+		if (rd32(E1000_EEMNGCTL_I210) & mask)
+			break;
+		usleep_range(1000, 2000);
+		timeout--;
+	}
+	if (!timeout)
+		hw_dbg("MNG configuration cycle has not completed.\n");
+
+	return 0;
 }

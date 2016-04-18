@@ -182,6 +182,7 @@ struct efx_tx_buffer {
  *
  * @efx: The associated Efx NIC
  * @queue: DMA queue number
+ * @tso_version: Version of TSO in use for this queue.
  * @channel: The associated channel
  * @core_txq: The networking core TX queue structure
  * @buffer: The software buffer ring
@@ -228,6 +229,7 @@ struct efx_tx_queue {
 	/* Members which don't change on the fast path */
 	struct efx_nic *efx ____cacheline_aligned_in_smp;
 	unsigned queue;
+	unsigned int tso_version;
 	struct efx_channel *channel;
 	struct netdev_queue *core_txq;
 	struct efx_tx_buffer *buffer;
@@ -1502,8 +1504,9 @@ static inline struct efx_rx_buffer *efx_rx_buffer(struct efx_rx_queue *rx_queue,
  * same cycle, the XMAC can miss the IPG altogether.  We work around
  * this by adding a further 16 bytes.
  */
+#define EFX_FRAME_PAD	16
 #define EFX_MAX_FRAME_LEN(mtu) \
-	((((mtu) + ETH_HLEN + VLAN_HLEN + 4/* FCS */ + 7) & ~7) + 16)
+	(ALIGN(((mtu) + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN + EFX_FRAME_PAD), 8))
 
 static inline bool efx_xmit_with_hwtstamp(struct sk_buff *skb)
 {

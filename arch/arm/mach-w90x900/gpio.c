@@ -20,7 +20,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 #include <mach/hardware.h>
 
@@ -30,7 +30,6 @@
 #define GPIO_IN			(0x0C)
 #define GROUPINERV		(0x10)
 #define GPIO_GPIO(Nb)		(0x00000001 << (Nb))
-#define to_nuc900_gpio_chip(c) container_of(c, struct nuc900_gpio_chip, chip)
 
 #define NUC900_GPIO_CHIP(name, base_gpio, nr_gpio)			\
 	{								\
@@ -53,7 +52,7 @@ struct nuc900_gpio_chip {
 
 static int nuc900_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct nuc900_gpio_chip *nuc900_gpio = to_nuc900_gpio_chip(chip);
+	struct nuc900_gpio_chip *nuc900_gpio = gpiochip_get_data(chip);
 	void __iomem *pio = nuc900_gpio->regbase + GPIO_IN;
 	unsigned int regval;
 
@@ -65,7 +64,7 @@ static int nuc900_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void nuc900_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 {
-	struct nuc900_gpio_chip *nuc900_gpio = to_nuc900_gpio_chip(chip);
+	struct nuc900_gpio_chip *nuc900_gpio = gpiochip_get_data(chip);
 	void __iomem *pio = nuc900_gpio->regbase + GPIO_OUT;
 	unsigned int regval;
 	unsigned long flags;
@@ -86,7 +85,7 @@ static void nuc900_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 
 static int nuc900_dir_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct nuc900_gpio_chip *nuc900_gpio = to_nuc900_gpio_chip(chip);
+	struct nuc900_gpio_chip *nuc900_gpio = gpiochip_get_data(chip);
 	void __iomem *pio = nuc900_gpio->regbase + GPIO_DIR;
 	unsigned int regval;
 	unsigned long flags;
@@ -104,7 +103,7 @@ static int nuc900_dir_input(struct gpio_chip *chip, unsigned offset)
 
 static int nuc900_dir_output(struct gpio_chip *chip, unsigned offset, int val)
 {
-	struct nuc900_gpio_chip *nuc900_gpio = to_nuc900_gpio_chip(chip);
+	struct nuc900_gpio_chip *nuc900_gpio = gpiochip_get_data(chip);
 	void __iomem *outreg = nuc900_gpio->regbase + GPIO_OUT;
 	void __iomem *pio = nuc900_gpio->regbase + GPIO_DIR;
 	unsigned int regval;
@@ -149,6 +148,6 @@ void __init nuc900_init_gpio(int nr_group)
 		gpio_chip = &nuc900_gpio[i];
 		spin_lock_init(&gpio_chip->gpio_lock);
 		gpio_chip->regbase = GPIO_BASE + i * GROUPINERV;
-		gpiochip_add(&gpio_chip->chip);
+		gpiochip_add_data(&gpio_chip->chip, gpio_chip);
 	}
 }

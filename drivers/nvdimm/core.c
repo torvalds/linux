@@ -11,6 +11,7 @@
  * General Public License for more details.
  */
 #include <linux/libnvdimm.h>
+#include <linux/badblocks.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
@@ -297,6 +298,15 @@ static int flush_regions_dimms(struct device *dev, void *data)
 static ssize_t wait_probe_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
+	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
+	struct nvdimm_bus_descriptor *nd_desc = nvdimm_bus->nd_desc;
+	int rc;
+
+	if (nd_desc->flush_probe) {
+		rc = nd_desc->flush_probe(nd_desc);
+		if (rc)
+			return rc;
+	}
 	nd_synchronize();
 	device_for_each_child(dev, NULL, flush_regions_dimms);
 	return sprintf(buf, "1\n");
@@ -325,6 +335,7 @@ struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
 	if (!nvdimm_bus)
 		return NULL;
 	INIT_LIST_HEAD(&nvdimm_bus->list);
+	INIT_LIST_HEAD(&nvdimm_bus->poison_list);
 	init_waitqueue_head(&nvdimm_bus->probe_wait);
 	nvdimm_bus->id = ida_simple_get(&nd_ida, 0, 0, GFP_KERNEL);
 	mutex_init(&nvdimm_bus->reconfig_mutex);
@@ -359,6 +370,192 @@ struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
 }
 EXPORT_SYMBOL_GPL(__nvdimm_bus_register);
 
+static void set_badblock(struct badblocks *bb, sector_t s, int num)
+{
+	dev_dbg(bb->dev, "Found a poison range (0x%llx, 0x%llx)\n",
+			(u64) s * 512, (u64) num * 512);
+	/* this isn't an error as the hardware will still throw an exception */
+	if (badblocks_set(bb, s, num, 1))
+		dev_info_once(bb->dev, "%s: failed for sector %llx\n",
+				__func__, (u64) s);
+}
+
+/**
+ * __add_badblock_range() - Convert a physical address range to bad sectors
+ * @bb:		badblocks instance to populate
+ * @ns_offset:	namespace offset where the error range begins (in bytes)
+ * @len:	number of bytes of poison to be added
+ *
+ * This assumes that the range provided with (ns_offset, len) is within
+ * the bounds of physical addresses for this namespace, i.e. lies in the
+ * interval [ns_start, ns_start + ns_size)
+ */
+static void __add_badblock_range(struct badblocks *bb, u64 ns_offset, u64 len)
+{
+	const unsigned int sector_size = 512;
+	sector_t start_sector;
+	u64 num_sectors;
+	u32 rem;
+
+	start_sector = div_u64(ns_offset, sector_size);
+	num_sectors = div_u64_rem(len, sector_size, &rem);
+	if (rem)
+		num_sectors++;
+
+	if (unlikely(num_sectors > (u64)INT_MAX)) {
+		u64 remaining = num_sectors;
+		sector_t s = start_sector;
+
+		while (remaining) {
+			int done = min_t(u64, remaining, INT_MAX);
+
+			set_badblock(bb, s, done);
+			remaining -= done;
+			s += done;
+		}
+	} else
+		set_badblock(bb, start_sector, num_sectors);
+}
+
+static void badblocks_populate(struct list_head *poison_list,
+		struct badblocks *bb, const struct resource *res)
+{
+	struct nd_poison *pl;
+
+	if (list_empty(poison_list))
+		return;
+
+	list_for_each_entry(pl, poison_list, list) {
+		u64 pl_end = pl->start + pl->length - 1;
+
+		/* Discard intervals with no intersection */
+		if (pl_end < res->start)
+			continue;
+		if (pl->start >  res->end)
+			continue;
+		/* Deal with any overlap after start of the namespace */
+		if (pl->start >= res->start) {
+			u64 start = pl->start;
+			u64 len;
+
+			if (pl_end <= res->end)
+				len = pl->length;
+			else
+				len = res->start + resource_size(res)
+					- pl->start;
+			__add_badblock_range(bb, start - res->start, len);
+			continue;
+		}
+		/* Deal with overlap for poison starting before the namespace */
+		if (pl->start < res->start) {
+			u64 len;
+
+			if (pl_end < res->end)
+				len = pl->start + pl->length - res->start;
+			else
+				len = resource_size(res);
+			__add_badblock_range(bb, 0, len);
+		}
+	}
+}
+
+/**
+ * nvdimm_badblocks_populate() - Convert a list of poison ranges to badblocks
+ * @region: parent region of the range to interrogate
+ * @bb: badblocks instance to populate
+ * @res: resource range to consider
+ *
+ * The poison list generated during bus initialization may contain
+ * multiple, possibly overlapping physical address ranges.  Compare each
+ * of these ranges to the resource range currently being initialized,
+ * and add badblocks entries for all matching sub-ranges
+ */
+void nvdimm_badblocks_populate(struct nd_region *nd_region,
+		struct badblocks *bb, const struct resource *res)
+{
+	struct nvdimm_bus *nvdimm_bus;
+	struct list_head *poison_list;
+
+	if (!is_nd_pmem(&nd_region->dev)) {
+		dev_WARN_ONCE(&nd_region->dev, 1,
+				"%s only valid for pmem regions\n", __func__);
+		return;
+	}
+	nvdimm_bus = walk_to_nvdimm_bus(&nd_region->dev);
+	poison_list = &nvdimm_bus->poison_list;
+
+	nvdimm_bus_lock(&nvdimm_bus->dev);
+	badblocks_populate(poison_list, bb, res);
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
+}
+EXPORT_SYMBOL_GPL(nvdimm_badblocks_populate);
+
+static int add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
+{
+	struct nd_poison *pl;
+
+	pl = kzalloc(sizeof(*pl), GFP_KERNEL);
+	if (!pl)
+		return -ENOMEM;
+
+	pl->start = addr;
+	pl->length = length;
+	list_add_tail(&pl->list, &nvdimm_bus->poison_list);
+
+	return 0;
+}
+
+static int bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
+{
+	struct nd_poison *pl;
+
+	if (list_empty(&nvdimm_bus->poison_list))
+		return add_poison(nvdimm_bus, addr, length);
+
+	/*
+	 * There is a chance this is a duplicate, check for those first.
+	 * This will be the common case as ARS_STATUS returns all known
+	 * errors in the SPA space, and we can't query it per region
+	 */
+	list_for_each_entry(pl, &nvdimm_bus->poison_list, list)
+		if (pl->start == addr) {
+			/* If length has changed, update this list entry */
+			if (pl->length != length)
+				pl->length = length;
+			return 0;
+		}
+
+	/*
+	 * If not a duplicate or a simple length update, add the entry as is,
+	 * as any overlapping ranges will get resolved when the list is consumed
+	 * and converted to badblocks
+	 */
+	return add_poison(nvdimm_bus, addr, length);
+}
+
+int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
+{
+	int rc;
+
+	nvdimm_bus_lock(&nvdimm_bus->dev);
+	rc = bus_add_poison(nvdimm_bus, addr, length);
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(nvdimm_bus_add_poison);
+
+static void free_poison_list(struct list_head *poison_list)
+{
+	struct nd_poison *pl, *next;
+
+	list_for_each_entry_safe(pl, next, poison_list, list) {
+		list_del(&pl->list);
+		kfree(pl);
+	}
+	list_del_init(poison_list);
+}
+
 static int child_unregister(struct device *dev, void *data)
 {
 	/*
@@ -385,6 +582,11 @@ void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus)
 
 	nd_synchronize();
 	device_for_each_child(&nvdimm_bus->dev, NULL, child_unregister);
+
+	nvdimm_bus_lock(&nvdimm_bus->dev);
+	free_poison_list(&nvdimm_bus->poison_list);
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
+
 	nvdimm_bus_destroy_ndctl(nvdimm_bus);
 
 	device_unregister(&nvdimm_bus->dev);

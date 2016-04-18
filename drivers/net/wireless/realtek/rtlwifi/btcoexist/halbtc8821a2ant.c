@@ -3393,10 +3393,9 @@ ex_halbtc8821a2ant_display_coex_info(
 		   wifi_dot_11_chnl, bt_hs_on, wifi_hs_chnl);
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		   "\r\n %-35s = %02x %02x %02x ",
+		   "\r\n %-35s = %3ph ",
 		   "H2C Wifi inform bt chnl Info",
-		   coex_dm->wifi_chnl_info[0], coex_dm->wifi_chnl_info[1],
-		   coex_dm->wifi_chnl_info[2]);
+		   coex_dm->wifi_chnl_info);
 
 	btcoexist->btc_get(btcoexist, BTC_GET_S4_WIFI_RSSI, &wifi_rssi);
 	btcoexist->btc_get(btcoexist, BTC_GET_S4_HS_RSSI, &bt_hs_rssi);
@@ -3454,15 +3453,9 @@ ex_halbtc8821a2ant_display_coex_info(
 	for (i = 0; i < BT_INFO_SRC_8821A_2ANT_MAX; i++) {
 		if (coex_sta->bt_info_c2h_cnt[i]) {
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-				   "\r\n %-35s = %02x %02x %02x %02x %02x %02x %02x(%d)",
+				   "\r\n %-35s = %7ph(%d)",
 				   glbt_info_src_8821a_2ant[i],
-				   coex_sta->bt_info_c2h[i][0],
-				   coex_sta->bt_info_c2h[i][1],
-				   coex_sta->bt_info_c2h[i][2],
-				   coex_sta->bt_info_c2h[i][3],
-				   coex_sta->bt_info_c2h[i][4],
-				   coex_sta->bt_info_c2h[i][5],
-				   coex_sta->bt_info_c2h[i][6],
+				   coex_sta->bt_info_c2h[i],
 				   coex_sta->bt_info_c2h_cnt[i]);
 		}
 	}
@@ -3494,11 +3487,9 @@ ex_halbtc8821a2ant_display_coex_info(
 	if (!btcoexist->manual_control) {
 		ps_tdma_case = coex_dm->cur_ps_tdma;
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			   "\r\n %-35s = %02x %02x %02x %02x %02x case-%d",
+			   "\r\n %-35s = %5ph case-%d",
 			   "PS TDMA",
-			   coex_dm->ps_tdma_para[0], coex_dm->ps_tdma_para[1],
-			   coex_dm->ps_tdma_para[2], coex_dm->ps_tdma_para[3],
-			   coex_dm->ps_tdma_para[4], ps_tdma_case);
+			   coex_dm->ps_tdma_para, ps_tdma_case);
 
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 			   "\r\n %-35s = %d/ %d ", "DecBtPwr/ IgnWlanAct",

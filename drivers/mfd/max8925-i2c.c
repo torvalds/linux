@@ -215,7 +215,7 @@ static int max8925_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int max8925_suspend(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct max8925_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)
@@ -225,7 +225,7 @@ static int max8925_suspend(struct device *dev)
 
 static int max8925_resume(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct max8925_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)

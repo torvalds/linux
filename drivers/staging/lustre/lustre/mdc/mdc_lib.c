@@ -27,7 +27,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -41,8 +41,6 @@
 
 static void __mdc_pack_body(struct mdt_body *b, __u32 suppgid)
 {
-	LASSERT(b != NULL);
-
 	b->suppgid = suppgid;
 	b->uid = from_kuid(&init_user_ns, current_uid());
 	b->gid = from_kgid(&init_user_ns, current_gid());
@@ -83,7 +81,6 @@ void mdc_pack_body(struct ptlrpc_request *req, const struct lu_fid *fid,
 {
 	struct mdt_body *b = req_capsule_client_get(&req->rq_pill,
 						    &RMF_MDT_BODY);
-	LASSERT(b != NULL);
 	b->valid = valid;
 	b->eadatasize = ea_size;
 	b->flags = flags;
@@ -323,7 +320,7 @@ void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 		return;
 
 	lum = req_capsule_client_get(&req->rq_pill, &RMF_EADATA);
-	if (ea == NULL) { /* Remove LOV EA */
+	if (!ea) { /* Remove LOV EA */
 		lum->lmm_magic = LOV_USER_MAGIC_V1;
 		lum->lmm_stripe_size = 0;
 		lum->lmm_stripe_count = 0;
@@ -346,7 +343,6 @@ void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 
 	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_unlink));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
-	LASSERT(rec != NULL);
 
 	rec->ul_opcode   = op_data->op_cli_flags & CLI_RM_ENTRY ?
 					REINT_RMENTRY : REINT_UNLINK;
@@ -362,7 +358,7 @@ void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	rec->ul_bias     = op_data->op_bias;
 
 	tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
-	LASSERT(tmp != NULL);
+	LASSERT(tmp);
 	LOGL0(op_data->op_name, op_data->op_namelen, tmp);
 }
 
@@ -373,7 +369,6 @@ void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 
 	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_link));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
-	LASSERT(rec != NULL);
 
 	rec->lk_opcode   = REINT_LINK;
 	rec->lk_fsuid    = op_data->op_fsuid; /* current->fsuid; */
@@ -456,10 +451,9 @@ static void mdc_hsm_release_pack(struct ptlrpc_request *req,
 		struct ldlm_lock *lock;
 
 		data = req_capsule_client_get(&req->rq_pill, &RMF_CLOSE_DATA);
-		LASSERT(data != NULL);
 
 		lock = ldlm_handle2lock(&op_data->op_lease_handle);
-		if (lock != NULL) {
+		if (lock) {
 			data->cd_handle = lock->l_remote_handle;
 			ldlm_lock_put(lock);
 		}
@@ -495,7 +489,8 @@ static int mdc_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 
 /* We record requests in flight in cli->cl_r_in_flight here.
  * There is only one write rpc possible in mdc anyway. If this to change
- * in the future - the code may need to be revisited. */
+ * in the future - the code may need to be revisited.
+ */
 int mdc_enter_request(struct client_obd *cli)
 {
 	int rc = 0;

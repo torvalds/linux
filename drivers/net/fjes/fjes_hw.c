@@ -143,9 +143,7 @@ static int fjes_hw_alloc_epbuf(struct epbuf_handler *epbh)
 
 static void fjes_hw_free_epbuf(struct epbuf_handler *epbh)
 {
-	if (epbh->buffer)
-		vfree(epbh->buffer);
-
+	vfree(epbh->buffer);
 	epbh->buffer = NULL;
 	epbh->size = 0;
 
@@ -601,7 +599,7 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 		FJES_CMD_REQ_RES_CODE_BUSY) &&
 	       (timeout > 0)) {
 		msleep(200 + hw->my_epid * 20);
-			timeout -= (200 + hw->my_epid * 20);
+		timeout -= (200 + hw->my_epid * 20);
 
 		res_buf->unshare_buffer.length = 0;
 		res_buf->unshare_buffer.code = 0;

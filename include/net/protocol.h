@@ -107,7 +107,7 @@ int inet_del_offload(const struct net_offload *prot, unsigned char num);
 void inet_register_protosw(struct inet_protosw *p);
 void inet_unregister_protosw(struct inet_protosw *p);
 
-int  udp_add_offload(struct udp_offload *prot);
+int  udp_add_offload(struct net *net, struct udp_offload *prot);
 void udp_del_offload(struct udp_offload *prot);
 
 #if IS_ENABLED(CONFIG_IPV6)

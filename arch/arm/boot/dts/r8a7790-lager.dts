@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2013-2014 Renesas Solutions Corp.
  * Copyright (C) 2014 Cogent Embedded, Inc.
+ * Copyright (C) 2015-2016 Renesas Electronics Corporation
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -47,13 +48,14 @@
 	compatible = "renesas,lager", "renesas,r8a7790";
 
 	aliases {
-		serial0 = &scifa0;
+		serial0 = &scif0;
 		serial1 = &scifa1;
+		i2c8 = "i2cexio";
 	};
 
 	chosen {
 		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
-		stdout-path = &scifa0;
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory@40000000 {
@@ -77,28 +79,28 @@
 		button@1 {
 			linux,code = <KEY_1>;
 			label = "SW2-1";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 		};
 		button@2 {
 			linux,code = <KEY_2>;
 			label = "SW2-2";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 			gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 		};
 		button@3 {
 			linux,code = <KEY_3>;
 			label = "SW2-3";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 			gpios = <&gpio1 26 GPIO_ACTIVE_LOW>;
 		};
 		button@4 {
 			linux,code = <KEY_4>;
 			label = "SW2-4";
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <20>;
 			gpios = <&gpio1 28 GPIO_ACTIVE_LOW>;
 		};
@@ -174,6 +176,13 @@
 			  1800000 0>;
 	};
 
+	audio_clock: clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <11289600>;
+		clock-output-names = "audio_clock";
+	};
+
 	rsnd_ak4643: sound {
 		compatible = "simple-audio-card";
 
@@ -187,7 +196,7 @@
 
 		sndcodec: simple-audio-card,codec {
 			sound-dai = <&ak4643>;
-			system-clock-frequency = <11289600>;
+			clocks = <&audio_clock>;
 		};
 	};
 
@@ -245,6 +254,23 @@
 		#clock-cells = <0>;
 		clock-frequency = <148500000>;
 	};
+
+	/*
+	 * IIC0/I2C0 is routed to EXIO connector A, pins 114 (SCL) + 116 (SDA) only.
+	 * We use the I2C demuxer, so the desired IP core can be selected at runtime
+	 * depending on the use case (e.g. DMA with IIC0 or slave support with I2C0).
+	 * Note: For testing the I2C slave feature, it is convenient to connect this
+	 * bus with IIC3 on pins 110 (SCL) + 112 (SDA), select I2C0 at runtime, and
+	 * instantiate the slave device at runtime according to the documentation.
+	 * You can then communicate with the slave via IIC3.
+	 */
+	i2cexio: i2c@8 {
+		compatible = "i2c-demux-pinctrl";
+		i2c-parent = <&iic0>, <&i2c0>;
+		i2c-bus-name = "i2c-exio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
 };
 
 &du {
@@ -284,14 +310,22 @@
 };
 
 &pfc {
+	pinctrl-0 = <&scif_clk_pins>;
+	pinctrl-names = "default";
+
 	du_pins: du {
 		renesas,groups = "du_rgb666", "du_sync_1", "du_clk_out_0";
 		renesas,function = "du";
 	};
 
-	scifa0_pins: serial0 {
-		renesas,groups = "scifa0_data";
-		renesas,function = "scifa0";
+	scif0_pins: serial0 {
+		renesas,groups = "scif0_data";
+		renesas,function = "scif0";
+	};
+
+	scif_clk_pins: scif_clk {
+		renesas,groups = "scif_clk";
+		renesas,function = "scif_clk";
 	};
 
 	ether_pins: ether {
@@ -333,6 +367,16 @@
 		renesas,groups = "msiof1_clk", "msiof1_sync", "msiof1_rx",
 				 "msiof1_tx";
 		renesas,function = "msiof1";
+	};
+
+	i2c0_pins: i2c0 {
+		renesas,groups = "i2c0";
+		renesas,function = "i2c0";
+	};
+
+	iic0_pins: iic0 {
+		renesas,groups = "iic0";
+		renesas,function = "iic0";
 	};
 
 	iic1_pins: iic1 {
@@ -427,8 +471,6 @@
 	status = "okay";
 
 	flash: flash@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		compatible = "spansion,s25fl512s", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <30000000>;
@@ -438,25 +480,31 @@
 		spi-cpol;
 		m25p,fast-read;
 
-		partition@0 {
-			label = "loader";
-			reg = <0x00000000 0x00040000>;
-			read-only;
-		};
-		partition@40000 {
-			label = "user";
-			reg = <0x00040000 0x00400000>;
-			read-only;
-		};
-		partition@440000 {
-			label = "flash";
-			reg = <0x00440000 0x03bc0000>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "loader";
+				reg = <0x00000000 0x00040000>;
+				read-only;
+			};
+			partition@40000 {
+				label = "user";
+				reg = <0x00040000 0x00400000>;
+				read-only;
+			};
+			partition@440000 {
+				label = "flash";
+				reg = <0x00440000 0x03bc0000>;
+			};
 		};
 	};
 };
 
-&scifa0 {
-	pinctrl-0 = <&scifa0_pins>;
+&scif0 {
+	pinctrl-0 = <&scif0_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
@@ -466,6 +514,11 @@
 	pinctrl-0 = <&scifa1_pins>;
 	pinctrl-names = "default";
 
+	status = "okay";
+};
+
+&scif_clk {
+	clock-frequency = <14745600>;
 	status = "okay";
 };
 
@@ -508,8 +561,14 @@
 	cpu0-supply = <&vdd_dvfs>;
 };
 
+&i2c0	{
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "i2c-exio";
+};
+
 &iic0	{
-	status = "okay";
+	pinctrl-0 = <&iic0_pins>;
+	pinctrl-names = "i2c-exio";
 };
 
 &iic1	{

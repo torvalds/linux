@@ -708,8 +708,7 @@ static int st_i2c_xfer(struct i2c_adapter *i2c_adap,
 #ifdef CONFIG_PM_SLEEP
 static int st_i2c_suspend(struct device *dev)
 {
-	struct platform_device *pdev =
-		container_of(dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(dev);
 	struct st_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 
 	if (i2c_dev->busy)
@@ -822,7 +821,7 @@ static int st_i2c_probe(struct platform_device *pdev)
 
 	adap = &i2c_dev->adap;
 	i2c_set_adapdata(adap, i2c_dev);
-	snprintf(adap->name, sizeof(adap->name), "ST I2C(0x%pa)", &res->start);
+	snprintf(adap->name, sizeof(adap->name), "ST I2C(%pa)", &res->start);
 	adap->owner = THIS_MODULE;
 	adap->timeout = 2 * HZ;
 	adap->retries = 0;

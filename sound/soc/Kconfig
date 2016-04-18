@@ -6,7 +6,7 @@ menuconfig SND_SOC
 	tristate "ALSA for SoC audio support"
 	select SND_PCM
 	select AC97_BUS if SND_SOC_AC97_BUS
-	select SND_JACK if INPUT=y || INPUT=SND
+	select SND_JACK
 	select REGMAP_I2C if I2C
 	select REGMAP_SPI if SPI_MASTER
 	---help---
@@ -38,6 +38,7 @@ config SND_SOC_TOPOLOGY
 
 # All the supported SoCs
 source "sound/soc/adi/Kconfig"
+source "sound/soc/amd/Kconfig"
 source "sound/soc/atmel/Kconfig"
 source "sound/soc/au1x/Kconfig"
 source "sound/soc/bcm/Kconfig"
@@ -50,6 +51,7 @@ source "sound/soc/jz4740/Kconfig"
 source "sound/soc/nuc900/Kconfig"
 source "sound/soc/omap/Kconfig"
 source "sound/soc/kirkwood/Kconfig"
+source "sound/soc/img/Kconfig"
 source "sound/soc/intel/Kconfig"
 source "sound/soc/mediatek/Kconfig"
 source "sound/soc/mxs/Kconfig"

@@ -1,0 +1,52 @@
+* Samsung Exynos Power Domains
+
+Exynos processors include support for multiple power domains which are used
+to gate power to one or more peripherals on the processor.
+
+Required Properties:
+- compatible: should be one of the following.
+    * samsung,exynos4210-pd - for exynos4210 type power domain.
+- reg: physical base address of the controller and length of memory mapped
+    region.
+- #power-domain-cells: number of cells in power domain specifier;
+    must be 0.
+
+Optional Properties:
+- clocks: List of clock handles. The parent clocks of the input clocks to the
+	devices in this power domain are set to oscclk before power gating
+	and restored back after powering on a domain. This is required for
+	all domains which are powered on and off and not required for unused
+	domains.
+- clock-names: The following clocks can be specified:
+	- oscclk: Oscillator clock.
+	- clkN: Input clocks to the devices in this power domain. These clocks
+		will be reparented to oscclk before swithing power domain off.
+		Their original parent will be brought back after turning on
+		the domain. Maximum of 4 clocks (N = 0 to 3) are supported.
+	- asbN: Clocks required by asynchronous bridges (ASB) present in
+		the power domain. These clock should be enabled during power
+		domain on/off operations.
+- power-domains: phandle pointing to the parent power domain, for more details
+		 see Documentation/devicetree/bindings/power/power_domain.txt
+
+Node of a device using power domains must have a power-domains property
+defined with a phandle to respective power domain.
+
+Example:
+
+	lcd0: power-domain-lcd0 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10023C00 0x10>;
+		#power-domain-cells = <0>;
+	};
+
+	mfc_pd: power-domain@10044060 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10044060 0x20>;
+		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MOUT_USER_ACLK333>;
+		clock-names = "oscclk", "clk0";
+		#power-domain-cells = <0>;
+	};
+
+See Documentation/devicetree/bindings/power/power_domain.txt for description
+of consumer-side bindings.

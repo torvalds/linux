@@ -214,7 +214,7 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, struct qstr *str)
 {
 	struct super_block *sb;
 	struct hfs_find_data fd;
-	struct list_head *pos;
+	struct hfs_readdir_data *rd;
 	int res, type;
 
 	hfs_dbg(CAT_MOD, "delete_cat: %s,%u\n", str ? str->name : NULL, cnid);
@@ -240,9 +240,7 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, struct qstr *str)
 		}
 	}
 
-	list_for_each(pos, &HFS_I(dir)->open_dir_list) {
-		struct hfs_readdir_data *rd =
-			list_entry(pos, struct hfs_readdir_data, list);
+	list_for_each_entry(rd, &HFS_I(dir)->open_dir_list, list) {
 		if (fd.tree->keycmp(fd.search_key, (void *)&rd->key) < 0)
 			rd->file->f_pos--;
 	}

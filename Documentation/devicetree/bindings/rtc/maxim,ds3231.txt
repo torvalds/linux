@@ -1,0 +1,37 @@
+* Maxim DS3231 Real Time Clock
+
+Required properties:
+see: Documentation/devicetree/bindings/i2c/trivial-devices.txt
+
+Optional property:
+- #clock-cells: Should be 1.
+- clock-output-names:
+  overwrite the default clock names "ds3231_clk_sqw" and "ds3231_clk_32khz".
+
+Each clock is assigned an identifier and client nodes can use this identifier
+to specify the clock which they consume. Following indices are allowed:
+    - 0: square-wave output on the SQW pin
+    - 1: square-wave output on the 32kHz pin
+
+- interrupts: rtc alarm/event interrupt. When this property is selected,
+  clock on the SQW pin cannot be used.
+
+Example:
+
+ds3231: ds3231@51 {
+	compatible = "maxim,ds3231";
+	reg = <0x68>;
+	#clock-cells = <1>;
+};
+
+device1 {
+...
+	clocks = <&ds3231 0>;
+...
+};
+
+device2 {
+...
+	clocks = <&ds3231 1>;
+...
+};

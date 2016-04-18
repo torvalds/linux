@@ -1,5 +1,6 @@
 menuconfig ARCH_MEDIATEK
-	bool "Mediatek MT65xx & MT81xx SoC" if ARCH_MULTI_V7
+	bool "Mediatek MT65xx & MT81xx SoC"
+	depends on ARCH_MULTI_V7
 	select ARM_GIC
 	select PINCTRL
 	select MTK_TIMER
@@ -15,6 +16,10 @@ config MACH_MT6589
 
 config MACH_MT6592
 	bool "MediaTek MT6592 SoCs support"
+	default ARCH_MEDIATEK
+
+config MACH_MT7623
+	bool "MediaTek MT7623 SoCs support"
 	default ARCH_MEDIATEK
 
 config MACH_MT8127

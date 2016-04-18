@@ -71,7 +71,7 @@
 		pinctrl-0 = <&pwr_key>;
 
 		button@0 {
-			gpio-key,wakeup = <1>;
+			wakeup-source;
 			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";
 			linux,code = <116>;
@@ -333,6 +333,12 @@
 
 &saradc {
 	vref-supply = <&vcc_18>;
+	status = "okay";
+};
+
+&tsadc {
+	rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+	rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
 	status = "okay";
 };
 

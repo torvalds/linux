@@ -135,6 +135,8 @@ struct qxl_crtc {
 	int index;
 	int cur_x;
 	int cur_y;
+	int hot_spot_x;
+	int hot_spot_y;
 };
 
 struct qxl_output {
@@ -390,7 +392,7 @@ void qxl_fbdev_set_suspend(struct qxl_device *qdev, int state);
 int
 qxl_framebuffer_init(struct drm_device *dev,
 		     struct qxl_framebuffer *rfb,
-		     struct drm_mode_fb_cmd2 *mode_cmd,
+		     const struct drm_mode_fb_cmd2 *mode_cmd,
 		     struct drm_gem_object *obj);
 void qxl_display_read_client_monitors_config(struct qxl_device *qdev);
 void qxl_send_monitors_config(struct qxl_device *qdev);

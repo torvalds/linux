@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,7 @@
 #include "acnamesp.h"
 #include "acparser.h"
 #include "acinterp.h"
+#include "acevents.h"
 #include "acdebug.h"
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
@@ -588,7 +589,7 @@ void acpi_db_display_calling_tree(void)
  *
  * FUNCTION:    acpi_db_display_object_type
  *
- * PARAMETERS:  name            - User entered NS node handle or name
+ * PARAMETERS:  object_arg      - User entered NS node handle
  *
  * RETURN:      None
  *
@@ -596,44 +597,36 @@ void acpi_db_display_calling_tree(void)
  *
  ******************************************************************************/
 
-void acpi_db_display_object_type(char *name)
+void acpi_db_display_object_type(char *object_arg)
 {
-	struct acpi_namespace_node *node;
+	acpi_size arg;
+	acpi_handle handle;
 	struct acpi_device_info *info;
 	acpi_status status;
 	u32 i;
 
-	node = acpi_db_convert_to_node(name);
-	if (!node) {
-		return;
-	}
+	arg = strtoul(object_arg, NULL, 16);
+	handle = ACPI_TO_POINTER(arg);
 
-	status = acpi_get_object_info(ACPI_CAST_PTR(acpi_handle, node), &info);
+	status = acpi_get_object_info(handle, &info);
 	if (ACPI_FAILURE(status)) {
 		acpi_os_printf("Could not get object info, %s\n",
 			       acpi_format_exception(status));
 		return;
 	}
 
-	if (info->valid & ACPI_VALID_ADR) {
-		acpi_os_printf("ADR: %8.8X%8.8X, STA: %8.8X, Flags: %X\n",
-			       ACPI_FORMAT_UINT64(info->address),
-			       info->current_status, info->flags);
-	}
-	if (info->valid & ACPI_VALID_SXDS) {
-		acpi_os_printf("S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X\n",
-			       info->highest_dstates[0],
-			       info->highest_dstates[1],
-			       info->highest_dstates[2],
-			       info->highest_dstates[3]);
-	}
-	if (info->valid & ACPI_VALID_SXWS) {
-		acpi_os_printf
-		    ("S0W-%2.2X S1W-%2.2X S2W-%2.2X S3W-%2.2X S4W-%2.2X\n",
-		     info->lowest_dstates[0], info->lowest_dstates[1],
-		     info->lowest_dstates[2], info->lowest_dstates[3],
-		     info->lowest_dstates[4]);
-	}
+	acpi_os_printf("ADR: %8.8X%8.8X, STA: %8.8X, Flags: %X\n",
+		       ACPI_FORMAT_UINT64(info->address),
+		       info->current_status, info->flags);
+
+	acpi_os_printf("S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X\n",
+		       info->highest_dstates[0], info->highest_dstates[1],
+		       info->highest_dstates[2], info->highest_dstates[3]);
+
+	acpi_os_printf("S0W-%2.2X S1W-%2.2X S2W-%2.2X S3W-%2.2X S4W-%2.2X\n",
+		       info->lowest_dstates[0], info->lowest_dstates[1],
+		       info->lowest_dstates[2], info->lowest_dstates[3],
+		       info->lowest_dstates[4]);
 
 	if (info->valid & ACPI_VALID_HID) {
 		acpi_os_printf("HID: %s\n", info->hardware_id.string);
@@ -641,10 +634,6 @@ void acpi_db_display_object_type(char *name)
 
 	if (info->valid & ACPI_VALID_UID) {
 		acpi_os_printf("UID: %s\n", info->unique_id.string);
-	}
-
-	if (info->valid & ACPI_VALID_SUB) {
-		acpi_os_printf("SUB: %s\n", info->subsystem_id.string);
 	}
 
 	if (info->valid & ACPI_VALID_CID) {
@@ -679,6 +668,12 @@ acpi_db_display_result_object(union acpi_operand_object *obj_desc,
 			      struct acpi_walk_state *walk_state)
 {
 
+#ifndef ACPI_APPLICATION
+	if (acpi_gbl_db_thread_id != acpi_os_get_thread_id()) {
+		return;
+	}
+#endif
+
 	/* Only display if single stepping */
 
 	if (!acpi_gbl_cm_single_step) {
@@ -707,6 +702,12 @@ void
 acpi_db_display_argument_object(union acpi_operand_object *obj_desc,
 				struct acpi_walk_state *walk_state)
 {
+
+#ifndef ACPI_APPLICATION
+	if (acpi_gbl_db_thread_id != acpi_os_get_thread_id()) {
+		return;
+	}
+#endif
 
 	if (!acpi_gbl_cm_single_step) {
 		return;
@@ -951,28 +952,25 @@ void acpi_db_display_handlers(void)
 	if (obj_desc) {
 		for (i = 0; i < ACPI_ARRAY_LENGTH(acpi_gbl_space_id_list); i++) {
 			space_id = acpi_gbl_space_id_list[i];
-			handler_obj = obj_desc->device.handler;
 
 			acpi_os_printf(ACPI_PREDEFINED_PREFIX,
 				       acpi_ut_get_region_name((u8)space_id),
 				       space_id);
 
-			while (handler_obj) {
-				if (acpi_gbl_space_id_list[i] ==
-				    handler_obj->address_space.space_id) {
-					acpi_os_printf
-					    (ACPI_HANDLER_PRESENT_STRING,
-					     (handler_obj->address_space.
-					      handler_flags &
-					      ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)
-					     ? "Default" : "User",
-					     handler_obj->address_space.
-					     handler);
+			handler_obj =
+			    acpi_ev_find_region_handler(space_id,
+							obj_desc->common_notify.
+							handler);
+			if (handler_obj) {
+				acpi_os_printf(ACPI_HANDLER_PRESENT_STRING,
+					       (handler_obj->address_space.
+						handler_flags &
+						ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)
+					       ? "Default" : "User",
+					       handler_obj->address_space.
+					       handler);
 
-					goto found_handler;
-				}
-
-				handler_obj = handler_obj->address_space.next;
+				goto found_handler;
 			}
 
 			/* There is no handler for this space_id */
@@ -984,7 +982,7 @@ found_handler:		;
 
 		/* Find all handlers for user-defined space_IDs */
 
-		handler_obj = obj_desc->device.handler;
+		handler_obj = obj_desc->common_notify.handler;
 		while (handler_obj) {
 			if (handler_obj->address_space.space_id >=
 			    ACPI_USER_REGION_BEGIN) {
@@ -1079,14 +1077,14 @@ acpi_db_display_non_root_handlers(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_external_pathname(node);
+	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
 	if (!pathname) {
 		return (AE_OK);
 	}
 
 	/* Display all handlers associated with this device */
 
-	handler_obj = obj_desc->device.handler;
+	handler_obj = obj_desc->common_notify.handler;
 	while (handler_obj) {
 		acpi_os_printf(ACPI_PREDEFINED_PREFIX,
 			       acpi_ut_get_region_name((u8)handler_obj->

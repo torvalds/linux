@@ -258,6 +258,7 @@ static int proc_readfd_common(struct file *file, struct dir_context *ctx,
 				     name, len, instantiate, p,
 				     (void *)(unsigned long)fd))
 			goto out_fd_loop;
+		cond_resched();
 		rcu_read_lock();
 	}
 	rcu_read_unlock();
@@ -291,11 +292,19 @@ static struct dentry *proc_lookupfd(struct inode *dir, struct dentry *dentry,
  */
 int proc_fd_permission(struct inode *inode, int mask)
 {
-	int rv = generic_permission(inode, mask);
+	struct task_struct *p;
+	int rv;
+
+	rv = generic_permission(inode, mask);
 	if (rv == 0)
-		return 0;
-	if (task_tgid(current) == proc_pid(inode))
+		return rv;
+
+	rcu_read_lock();
+	p = pid_task(proc_pid(inode), PIDTYPE_PID);
+	if (p && same_thread_group(p, current))
 		rv = 0;
+	rcu_read_unlock();
+
 	return rv;
 }
 

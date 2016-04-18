@@ -222,7 +222,7 @@ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
 				goto out_unlock;	/* No processes for this user */
 		}
 		do_each_thread(g, p) {
-			if (uid_eq(task_uid(p), uid))
+			if (uid_eq(task_uid(p), uid) && task_pid_vnr(p))
 				error = set_one_prio(p, niceval, error);
 		} while_each_thread(g, p);
 		if (!uid_eq(uid, cred->uid))
@@ -290,7 +290,7 @@ SYSCALL_DEFINE2(getpriority, int, which, int, who)
 				goto out_unlock;	/* No processes for this user */
 		}
 		do_each_thread(g, p) {
-			if (uid_eq(task_uid(p), uid)) {
+			if (uid_eq(task_uid(p), uid) && task_pid_vnr(p)) {
 				niceval = nice_to_rlimit(task_nice(p));
 				if (niceval > retval)
 					retval = niceval;
@@ -1853,11 +1853,13 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
 		user_auxv[AT_VECTOR_SIZE - 1] = AT_NULL;
 	}
 
-	if (prctl_map.exe_fd != (u32)-1)
+	if (prctl_map.exe_fd != (u32)-1) {
 		error = prctl_set_mm_exe_file(mm, prctl_map.exe_fd);
-	down_read(&mm->mmap_sem);
-	if (error)
-		goto out;
+		if (error)
+			return error;
+	}
+
+	down_write(&mm->mmap_sem);
 
 	/*
 	 * We don't validate if these members are pointing to
@@ -1894,10 +1896,8 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
 	if (prctl_map.auxv_size)
 		memcpy(mm->saved_auxv, user_auxv, sizeof(user_auxv));
 
-	error = 0;
-out:
-	up_read(&mm->mmap_sem);
-	return error;
+	up_write(&mm->mmap_sem);
+	return 0;
 }
 #endif /* CONFIG_CHECKPOINT_RESTORE */
 
@@ -1963,7 +1963,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
 
 	error = -EINVAL;
 
-	down_read(&mm->mmap_sem);
+	down_write(&mm->mmap_sem);
 	vma = find_vma(mm, addr);
 
 	prctl_map.start_code	= mm->start_code;
@@ -2056,7 +2056,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
 
 	error = 0;
 out:
-	up_read(&mm->mmap_sem);
+	up_write(&mm->mmap_sem);
 	return error;
 }
 
@@ -2169,7 +2169,10 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		error = perf_event_task_enable();
 		break;
 	case PR_GET_TIMERSLACK:
-		error = current->timer_slack_ns;
+		if (current->timer_slack_ns > ULONG_MAX)
+			error = ULONG_MAX;
+		else
+			error = current->timer_slack_ns;
 		break;
 	case PR_SET_TIMERSLACK:
 		if (arg2 <= 0)

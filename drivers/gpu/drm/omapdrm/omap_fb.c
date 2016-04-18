@@ -145,6 +145,14 @@ static uint32_t get_linear_addr(struct plane *plane,
 	return plane->paddr + offset;
 }
 
+bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb)
+{
+	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
+	struct plane *plane = &omap_fb->planes[0];
+
+	return omap_gem_flags(plane->bo) & OMAP_BO_TILED;
+}
+
 /* update ovl info for scanout, handles cases of multi-planar fb's, etc.
  */
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
@@ -171,7 +179,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		uint32_t w = win->src_w;
 		uint32_t h = win->src_h;
 
-		switch (win->rotation & 0xf) {
+		switch (win->rotation & DRM_ROTATE_MASK) {
 		default:
 			dev_err(fb->dev->dev, "invalid rotation: %02x",
 					(uint32_t)win->rotation);
@@ -209,7 +217,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		info->rotation_type = OMAP_DSS_ROT_TILER;
 		info->screen_width  = omap_gem_tiled_stride(plane->bo, orient);
 	} else {
-		switch (win->rotation & 0xf) {
+		switch (win->rotation & DRM_ROTATE_MASK) {
 		case 0:
 		case BIT(DRM_ROTATE_0):
 			/* OK */
@@ -364,7 +372,7 @@ void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 #endif
 
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
-		struct drm_file *file, struct drm_mode_fb_cmd2 *mode_cmd)
+		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *bos[4];
 	struct drm_framebuffer *fb;
@@ -386,7 +394,7 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 }
 
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
-		struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos)
+		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos)
 {
 	struct omap_framebuffer *omap_fb = NULL;
 	struct drm_framebuffer *fb = NULL;
@@ -445,6 +453,14 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		if (size > (omap_gem_mmap_size(bos[i]) - mode_cmd->offsets[i])) {
 			dev_err(dev->dev, "provided buffer object is too small! %d < %d\n",
 					bos[i]->size - mode_cmd->offsets[i], size);
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		if (i > 0 && pitch != mode_cmd->pitches[i - 1]) {
+			dev_err(dev->dev,
+				"pitches are not the same between framebuffer planes %d != %d\n",
+				pitch, mode_cmd->pitches[i - 1]);
 			ret = -EINVAL;
 			goto fail;
 		}

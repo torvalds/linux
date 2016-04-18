@@ -26,6 +26,8 @@ struct rcb_common_cb;
 #define HNS_RCB_SERVICE_NW_ENGINE_NUM		DSAF_COMM_CHN
 #define HNS_RCB_DEBUG_NW_ENGINE_NUM		1
 #define HNS_RCB_RING_MAX_BD_PER_PKT		3
+#define HNS_RCB_RING_MAX_TXBD_PER_PKT		3
+#define HNS_RCBV2_RING_MAX_TXBD_PER_PKT		8
 #define HNS_RCB_MAX_PKT_SIZE MAC_MAX_MTU
 
 #define HNS_RCB_RING_MAX_PENDING_BD		1024
@@ -36,7 +38,9 @@ struct rcb_common_cb;
 #define HNS_RCB_MAX_COALESCED_FRAMES		1023
 #define HNS_RCB_MIN_COALESCED_FRAMES		1
 #define HNS_RCB_DEF_COALESCED_FRAMES		50
-#define HNS_RCB_MAX_TIME_OUT			0x500
+#define HNS_RCB_CLK_FREQ_MHZ			350
+#define HNS_RCB_MAX_COALESCED_USECS		0x3ff
+#define HNS_RCB_DEF_COALESCED_USECS		3
 
 #define HNS_RCB_COMMON_ENDIAN			1
 
@@ -51,6 +55,9 @@ struct rcb_common_cb;
 
 #define HNS_DUMP_REG_NUM			500
 #define HNS_STATIC_REG_NUM			12
+
+#define HNS_TSO_MODE_8BD_32K			1
+#define HNS_TSO_MDOE_4BD_16K			0
 
 enum rcb_int_flag {
 	RCB_INT_FLAG_TX = 0x1,
@@ -77,7 +84,7 @@ struct ring_pair_cb {
 
 	int virq[HNS_RCB_IRQ_NUM_PER_QUEUE];
 
-	u8 port_id_in_dsa;
+	u8 port_id_in_comm;
 	u8 used_by_vf;
 
 	struct hns_ring_hw_stats hw_stats;
@@ -92,8 +99,6 @@ struct rcb_common_cb {
 
 	u8 comm_index;
 	u32 ring_num;
-	u32 coalesced_frames; /* frames  threshold of  rx interrupt   */
-	u32 timeout; /* time threshold of  rx interrupt  */
 	u32 desc_num; /*  desc num per queue*/
 
 	struct ring_pair_cb ring_pair_cb[0];
@@ -106,23 +111,28 @@ void hns_rcb_common_free_cfg(struct dsaf_device *dsaf_dev, u32 comm_index);
 int hns_rcb_common_init_hw(struct rcb_common_cb *rcb_common);
 void hns_rcb_start(struct hnae_queue *q, u32 val);
 void hns_rcb_get_cfg(struct rcb_common_cb *rcb_common);
-void hns_rcb_common_init_commit_hw(struct rcb_common_cb *rcb_common);
 void hns_rcb_get_queue_mode(enum dsaf_mode dsaf_mode, int comm_index,
 			    u16 *max_vfn, u16 *max_q_per_vf);
+
+void hns_rcb_common_init_commit_hw(struct rcb_common_cb *rcb_common);
 
 void hns_rcb_ring_enable_hw(struct hnae_queue *q, u32 val);
 void hns_rcb_int_clr_hw(struct hnae_queue *q, u32 flag);
 void hns_rcb_int_ctrl_hw(struct hnae_queue *q, u32 flag, u32 enable);
+void hns_rcbv2_int_ctrl_hw(struct hnae_queue *q, u32 flag, u32 mask);
+void hns_rcbv2_int_clr_hw(struct hnae_queue *q, u32 flag);
+
 void hns_rcb_init_hw(struct ring_pair_cb *ring);
 void hns_rcb_reset_ring_hw(struct hnae_queue *q);
 void hns_rcb_wait_fbd_clean(struct hnae_queue **qs, int q_num, u32 flag);
-
-u32 hns_rcb_get_coalesced_frames(struct dsaf_device *dsaf_dev, int comm_index);
-u32 hns_rcb_get_coalesce_usecs(struct dsaf_device *dsaf_dev, int comm_index);
-void hns_rcb_set_coalesce_usecs(struct dsaf_device *dsaf_dev,
-				int comm_index, u32 timeout);
-int hns_rcb_set_coalesced_frames(struct dsaf_device *dsaf_dev,
-				 int comm_index, u32 coalesce_frames);
+u32 hns_rcb_get_coalesced_frames(
+	struct rcb_common_cb *rcb_common, u32 port_idx);
+u32 hns_rcb_get_coalesce_usecs(
+	struct rcb_common_cb *rcb_common, u32 port_idx);
+int hns_rcb_set_coalesce_usecs(
+	struct rcb_common_cb *rcb_common, u32 port_idx, u32 timeout);
+int hns_rcb_set_coalesced_frames(
+	struct rcb_common_cb *rcb_common, u32 port_idx, u32 coalesced_frames);
 void hns_rcb_update_stats(struct hnae_queue *queue);
 
 void hns_rcb_get_stats(struct hnae_queue *queue, u64 *data);

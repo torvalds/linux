@@ -163,6 +163,9 @@ static inline int ssb_sdio_init(struct ssb_bus *bus)
 
 #ifdef CONFIG_SSB_HOST_SOC
 extern const struct ssb_bus_ops ssb_host_soc_ops;
+
+extern int ssb_host_soc_get_invariants(struct ssb_bus *bus,
+				       struct ssb_init_invariants *iv);
 #endif
 
 /* scan.c */

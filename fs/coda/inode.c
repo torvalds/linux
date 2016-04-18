@@ -74,9 +74,9 @@ static void init_once(void *foo)
 int __init coda_init_inodecache(void)
 {
 	coda_inode_cachep = kmem_cache_create("coda_inode_cache",
-				sizeof(struct coda_inode_info),
-				0, SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
-				init_once);
+				sizeof(struct coda_inode_info), 0,
+				SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
+				SLAB_ACCOUNT, init_once);
 	if (coda_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;

@@ -11,14 +11,9 @@ static __thread struct task_struct current_obj;
 bool debug_locks = true;
 bool debug_locks_silent;
 
-__attribute__((constructor)) static void liblockdep_init(void)
-{
-	lockdep_init();
-}
-
 __attribute__((destructor)) static void liblockdep_exit(void)
 {
-	debug_check_no_locks_held(&current_obj);
+	debug_check_no_locks_held();
 }
 
 struct task_struct *__curr(void)

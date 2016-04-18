@@ -40,11 +40,11 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/soc_camera.h>
-#include <media/sh_mobile_ceu.h>
-#include <media/sh_mobile_csi2.h>
+#include <media/drv-intf/sh_mobile_ceu.h>
+#include <media/drv-intf/sh_mobile_csi2.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-mediabus.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 
 #include "soc_scale_crop.h"
 
@@ -210,42 +210,12 @@ static int sh_mobile_ceu_soft_reset(struct sh_mobile_ceu_dev *pcdev)
  *		  for the current frame format if required
  */
 static int sh_mobile_ceu_videobuf_setup(struct vb2_queue *vq,
-			const void *parg,
 			unsigned int *count, unsigned int *num_planes,
 			unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
-	struct soc_camera_device *icd = container_of(vq,
-			struct soc_camera_device, vb2_vidq);
+	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-
-	if (fmt) {
-		const struct soc_camera_format_xlate *xlate = soc_camera_xlate_by_fourcc(icd,
-								fmt->fmt.pix.pixelformat);
-		unsigned int bytes_per_line;
-		int ret;
-
-		if (!xlate)
-			return -EINVAL;
-
-		ret = soc_mbus_bytes_per_line(fmt->fmt.pix.width,
-					      xlate->host_fmt);
-		if (ret < 0)
-			return ret;
-
-		bytes_per_line = max_t(u32, fmt->fmt.pix.bytesperline, ret);
-
-		ret = soc_mbus_image_size(xlate->host_fmt, bytes_per_line,
-					  fmt->fmt.pix.height);
-		if (ret < 0)
-			return ret;
-
-		sizes[0] = max_t(u32, fmt->fmt.pix.sizeimage, ret);
-	} else {
-		/* Called from VIDIOC_REQBUFS or in compatibility mode */
-		sizes[0] = icd->sizeimage;
-	}
 
 	alloc_ctxs[0] = pcdev->alloc_ctx;
 
@@ -255,8 +225,14 @@ static int sh_mobile_ceu_videobuf_setup(struct vb2_queue *vq,
 	if (!*count)
 		*count = 2;
 
+	/* Called from VIDIOC_REQBUFS or in compatibility mode */
+	if (!*num_planes)
+		sizes[0] = icd->sizeimage;
+	else if (sizes[0] < icd->sizeimage)
+		return -EINVAL;
+
 	/* If *num_planes != 0, we have already verified *count. */
-	if (pcdev->video_limit && !*num_planes) {
+	if (pcdev->video_limit) {
 		size_t size = PAGE_ALIGN(sizes[0]) * *count;
 
 		if (size + pcdev->buf_total > pcdev->video_limit)
@@ -384,8 +360,7 @@ static int sh_mobile_ceu_videobuf_prepare(struct vb2_buffer *vb)
 static void sh_mobile_ceu_videobuf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-	struct soc_camera_device *icd = container_of(vb->vb2_queue,
-			struct soc_camera_device, vb2_vidq);
+	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	struct sh_mobile_ceu_buffer *buf = to_ceu_vb(vbuf);
@@ -436,8 +411,7 @@ error:
 static void sh_mobile_ceu_videobuf_release(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-	struct soc_camera_device *icd = container_of(vb->vb2_queue,
-			struct soc_camera_device, vb2_vidq);
+	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_buffer *buf = to_ceu_vb(vbuf);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
@@ -467,8 +441,7 @@ static void sh_mobile_ceu_videobuf_release(struct vb2_buffer *vb)
 static int sh_mobile_ceu_videobuf_init(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-	struct soc_camera_device *icd = container_of(vb->vb2_queue,
-			struct soc_camera_device, vb2_vidq);
+	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 
@@ -483,7 +456,7 @@ static int sh_mobile_ceu_videobuf_init(struct vb2_buffer *vb)
 
 static void sh_mobile_ceu_stop_streaming(struct vb2_queue *q)
 {
-	struct soc_camera_device *icd = container_of(q, struct soc_camera_device, vb2_vidq);
+	struct soc_camera_device *icd = soc_camera_from_vb2q(q);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	struct list_head *buf_head, *tmp;
@@ -533,7 +506,7 @@ static irqreturn_t sh_mobile_ceu_irq(int irq, void *data)
 		pcdev->active = NULL;
 
 	ret = sh_mobile_ceu_capture(pcdev);
-	v4l2_get_timestamp(&vbuf->timestamp);
+	vbuf->vb2_buf.timestamp = ktime_get_ns();
 	if (!ret) {
 		vbuf->field = pcdev->field;
 		vbuf->sequence = pcdev->sequence++;

@@ -182,6 +182,14 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "iMac9,1"),
 		},
 	},
+	{	/* Handle problems with rebooting on the iMac10,1. */
+		.callback = set_pci_reboot,
+		.ident = "Apple iMac10,1",
+		.matches = {
+		    DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+		    DMI_MATCH(DMI_PRODUCT_NAME, "iMac10,1"),
+		},
+	},
 
 	/* ASRock */
 	{	/* Handle problems with rebooting on ASRock Q1900DC-ITX */
@@ -718,6 +726,7 @@ static int crashing_cpu;
 static nmi_shootdown_cb shootdown_callback;
 
 static atomic_t waiting_for_crash_ipi;
+static int crash_ipi_issued;
 
 static int crash_nmi_callback(unsigned int val, struct pt_regs *regs)
 {
@@ -780,6 +789,9 @@ void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 
 	smp_send_nmi_allbutself();
 
+	/* Kick CPUs looping in NMI context. */
+	WRITE_ONCE(crash_ipi_issued, 1);
+
 	msecs = 1000; /* Wait at most a second for the other cpus to stop */
 	while ((atomic_read(&waiting_for_crash_ipi) > 0) && msecs) {
 		mdelay(1);
@@ -788,9 +800,35 @@ void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 
 	/* Leave the nmi callback set */
 }
+
+/*
+ * Check if the crash dumping IPI got issued and if so, call its callback
+ * directly. This function is used when we have already been in NMI handler.
+ * It doesn't return.
+ */
+void run_crash_ipi_callback(struct pt_regs *regs)
+{
+	if (crash_ipi_issued)
+		crash_nmi_callback(0, regs);
+}
+
+/* Override the weak function in kernel/panic.c */
+void nmi_panic_self_stop(struct pt_regs *regs)
+{
+	while (1) {
+		/* If no CPU is preparing crash dump, we simply loop here. */
+		run_crash_ipi_callback(regs);
+		cpu_relax();
+	}
+}
+
 #else /* !CONFIG_SMP */
 void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 {
 	/* No other CPUs to shoot down */
+}
+
+void run_crash_ipi_callback(struct pt_regs *regs)
+{
 }
 #endif

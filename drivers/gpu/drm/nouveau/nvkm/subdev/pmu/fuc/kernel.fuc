@@ -51,8 +51,7 @@ time_next: .b32 0
 // $r0  - zero
 rd32:
 	nv_iowr(NV_PPWR_MMIO_ADDR, $r14)
-	mov $r13 NV_PPWR_MMIO_CTRL_OP_RD
-	sethi $r13 NV_PPWR_MMIO_CTRL_TRIGGER
+	imm32($r13, NV_PPWR_MMIO_CTRL_OP_RD | NV_PPWR_MMIO_CTRL_TRIGGER)
 	nv_iowr(NV_PPWR_MMIO_CTRL, $r13)
 	rd32_wait:
 		nv_iord($r13, NV_PPWR_MMIO_CTRL)
@@ -70,9 +69,7 @@ rd32:
 wr32:
 	nv_iowr(NV_PPWR_MMIO_ADDR, $r14)
 	nv_iowr(NV_PPWR_MMIO_DATA, $r13)
-	mov $r13 NV_PPWR_MMIO_CTRL_OP_WR
-	or $r13 NV_PPWR_MMIO_CTRL_MASK_B32_0
-	sethi $r13 NV_PPWR_MMIO_CTRL_TRIGGER
+	imm32($r13, NV_PPWR_MMIO_CTRL_OP_WR | NV_PPWR_MMIO_CTRL_MASK_B32_0 | NV_PPWR_MMIO_CTRL_TRIGGER)
 
 #ifdef NVKM_FALCON_MMIO_TRAP
 	push $r13
@@ -215,8 +212,7 @@ intr:
 		bra z #intr_subintr_skip_fifo
 			nv_iord($r12, NV_PPWR_FIFO_INTR)
 			push $r12
-			mov $r14 (PROC_HOST & 0x0000ffff)
-			sethi $r14 (PROC_HOST & 0xffff0000)
+			imm32($r14, PROC_HOST)
 			mov $r13 KMSG_FIFO
 			call(send)
 			pop $r12
@@ -225,17 +221,11 @@ intr:
 		nv_iowr(NV_PPWR_SUBINTR, $r9)
 
 	intr_skip_subintr:
-	and $r9 $r8 NV_PPWR_INTR_PAUSE
-	bra z #intr_skip_pause
-		and $r10 0xffbf
-
-	intr_skip_pause:
-	and $r9 $r8 NV_PPWR_INTR_USER0
-	bra z #intr_skip_user0
-		and $r10 0xffbf
-
-	intr_skip_user0:
+	mov $r9 (NV_PPWR_INTR_USER0 | NV_PPWR_INTR_USER1 | NV_PPWR_INTR_PAUSE)
+	not b32 $r9
+	and $r8 $r9
 	nv_iowr(NV_PPWR_INTR_ACK, $r8)
+
 	pop $r8
 	mov $flags $r8
 	pop $r15
@@ -262,7 +252,7 @@ ticks_from_ns:
 
 	/* try not losing precision (multiply then divide) */
 	imm32($r13, HW_TICKS_PER_US)
-	call #mulu32_32_64
+	call(mulu32_32_64)
 
 	/* use an immeditate, it's ok because HW_TICKS_PER_US < 16 bits */
 	div $r12 $r12 1000
@@ -274,7 +264,7 @@ ticks_from_ns:
 	/* let's divide then multiply, too bad for the precision! */
 	div $r14 $r14 1000
 	imm32($r13, HW_TICKS_PER_US)
-	call #mulu32_32_64
+	call(mulu32_32_64)
 
 	/* this cannot overflow as long as HW_TICKS_PER_US < 1000 */
 
@@ -296,7 +286,7 @@ ticks_from_us:
 
 	/* simply multiply $us by HW_TICKS_PER_US */
 	imm32($r13, HW_TICKS_PER_US)
-	call #mulu32_32_64
+	call(mulu32_32_64)
 	mov b32 $r14 $r12
 
 	/* check if there wasn't any overflow */
@@ -517,14 +507,12 @@ init:
 #ifdef NVKM_FALCON_MMIO_UAS
 	// somehow allows the magic "access mmio via D[]" stuff that's
 	// used by the nv_rd32/nv_wr32 macros to work
-	mov $r1 0x0010
-	sethi $r1 NV_PPWR_UAS_CONFIG_ENABLE
+	imm32($r1, 0x10 | NV_PPWR_UAS_CONFIG_ENABLE)
 	nv_iowrs(NV_PPWR_UAS_CONFIG, $r1)
 #endif
 
 	// route all interrupts except user0/1 and pause to fuc
-	mov $r1 0x00e0
-	sethi $r1 0x00000000
+	imm32($r1, 0xe0)
 	nv_iowr(NV_PPWR_INTR_ROUTE, $r1)
 
 	// enable watchdog and subintr intrs
@@ -535,8 +523,8 @@ init:
 	nv_iowr(NV_PPWR_INTR_EN_SET, $r1)
 
 	// enable interrupts globally
-	mov $r1 #intr
-	sethi $r1 0x00000000
+	imm32($r1, #intr)
+	and $r1 0xffff
 	mov $iv0 $r1
 	bset $flags ie0
 

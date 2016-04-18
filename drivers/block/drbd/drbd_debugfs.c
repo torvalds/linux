@@ -434,12 +434,12 @@ static int drbd_single_open(struct file *file, int (*show)(struct seq_file *, vo
 	if (!parent || d_really_is_negative(parent))
 		goto out;
 	/* serialize with d_delete() */
-	mutex_lock(&d_inode(parent)->i_mutex);
+	inode_lock(d_inode(parent));
 	/* Make sure the object is still alive */
 	if (simple_positive(file->f_path.dentry)
 	&& kref_get_unless_zero(kref))
 		ret = 0;
-	mutex_unlock(&d_inode(parent)->i_mutex);
+	inode_unlock(d_inode(parent));
 	if (!ret) {
 		ret = single_open(file, show, data);
 		if (ret)
@@ -771,6 +771,13 @@ static int device_data_gen_id_show(struct seq_file *m, void *ignored)
 	return 0;
 }
 
+static int device_ed_gen_id_show(struct seq_file *m, void *ignored)
+{
+	struct drbd_device *device = m->private;
+	seq_printf(m, "0x%016llX\n", (unsigned long long)device->ed_uuid);
+	return 0;
+}
+
 #define drbd_debugfs_device_attr(name)						\
 static int device_ ## name ## _open(struct inode *inode, struct file *file)	\
 {										\
@@ -796,6 +803,7 @@ drbd_debugfs_device_attr(oldest_requests)
 drbd_debugfs_device_attr(act_log_extents)
 drbd_debugfs_device_attr(resync_extents)
 drbd_debugfs_device_attr(data_gen_id)
+drbd_debugfs_device_attr(ed_gen_id)
 
 void drbd_debugfs_device_add(struct drbd_device *device)
 {
@@ -839,6 +847,7 @@ void drbd_debugfs_device_add(struct drbd_device *device)
 	DCF(act_log_extents);
 	DCF(resync_extents);
 	DCF(data_gen_id);
+	DCF(ed_gen_id);
 #undef DCF
 	return;
 
@@ -854,6 +863,7 @@ void drbd_debugfs_device_cleanup(struct drbd_device *device)
 	drbd_debugfs_remove(&device->debugfs_vol_act_log_extents);
 	drbd_debugfs_remove(&device->debugfs_vol_resync_extents);
 	drbd_debugfs_remove(&device->debugfs_vol_data_gen_id);
+	drbd_debugfs_remove(&device->debugfs_vol_ed_gen_id);
 	drbd_debugfs_remove(&device->debugfs_vol);
 }
 

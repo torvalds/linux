@@ -367,13 +367,14 @@ beiscsi_set_vlan_tag(struct Scsi_Host *shost,
 		      struct iscsi_iface_param_info *iface_param)
 {
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
-	int ret = 0;
+	int ret;
 
 	/* Get the Interface Handle */
-	if (mgmt_get_all_if_id(phba)) {
+	ret = mgmt_get_all_if_id(phba);
+	if (ret) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : Getting Interface Handle Failed\n");
-		return -EIO;
+		return ret;
 	}
 
 	switch (iface_param->param) {
@@ -464,6 +465,10 @@ beiscsi_set_ipv6(struct Scsi_Host *shost,
 	case ISCSI_NET_PARAM_IPV6_ADDR:
 		ret = mgmt_set_ip(phba, iface_param, NULL,
 				  ISCSI_BOOTPROTO_STATIC);
+		break;
+	case ISCSI_NET_PARAM_VLAN_ENABLED:
+	case ISCSI_NET_PARAM_VLAN_TAG:
+		ret = beiscsi_set_vlan_tag(shost, iface_param);
 		break;
 	default:
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
@@ -730,7 +735,7 @@ static int beiscsi_get_initname(char *buf, struct beiscsi_hba *phba)
 		return -EBUSY;
 	}
 
-	rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	rc = beiscsi_mccq_compl_wait(phba, tag, &wrb, NULL);
 	if (rc) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
@@ -753,7 +758,7 @@ static void beiscsi_get_port_state(struct Scsi_Host *shost)
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	struct iscsi_cls_host *ihost = shost->shost_data;
 
-	ihost->port_state = (phba->state == BE_ADAPTER_LINK_UP) ?
+	ihost->port_state = (phba->state & BE_ADAPTER_LINK_UP) ?
 		ISCSI_PORT_STATE_UP : ISCSI_PORT_STATE_DOWN;
 }
 
@@ -761,34 +766,13 @@ static void beiscsi_get_port_state(struct Scsi_Host *shost)
  * beiscsi_get_port_speed  - Get the Port Speed from Adapter
  * @shost : pointer to scsi_host structure
  *
- * returns Success/Failure
  */
-static int beiscsi_get_port_speed(struct Scsi_Host *shost)
+static void beiscsi_get_port_speed(struct Scsi_Host *shost)
 {
-	int rc;
-	unsigned int tag;
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_ntwk_link_status_resp *resp;
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	struct iscsi_cls_host *ihost = shost->shost_data;
 
-	tag = be_cmd_get_port_speed(phba);
-	if (!tag) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Getting Port Speed Failed\n");
-
-		 return -EBUSY;
-	}
-	rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
-	if (rc) {
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BS_%d : Port Speed MBX Failed\n");
-		return rc;
-	}
-	resp = embedded_payload(wrb);
-
-	switch (resp->mac_speed) {
+	switch (phba->port_speed) {
 	case BE2ISCSI_LINK_SPEED_10MBPS:
 		ihost->port_speed = ISCSI_PORT_SPEED_10MBPS;
 		break;
@@ -801,10 +785,15 @@ static int beiscsi_get_port_speed(struct Scsi_Host *shost)
 	case BE2ISCSI_LINK_SPEED_10GBPS:
 		ihost->port_speed = ISCSI_PORT_SPEED_10GBPS;
 		break;
+	case BE2ISCSI_LINK_SPEED_25GBPS:
+		ihost->port_speed = ISCSI_PORT_SPEED_25GBPS;
+		break;
+	case BE2ISCSI_LINK_SPEED_40GBPS:
+		ihost->port_speed = ISCSI_PORT_SPEED_40GBPS;
+		break;
 	default:
 		ihost->port_speed = ISCSI_PORT_SPEED_UNKNOWN;
 	}
-	return 0;
 }
 
 /**
@@ -854,12 +843,7 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 		status = sprintf(buf, "%s\n", iscsi_get_port_state_name(shost));
 		break;
 	case ISCSI_HOST_PARAM_PORT_SPEED:
-		status = beiscsi_get_port_speed(shost);
-		if (status) {
-			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-				    "BS_%d : Retreiving Port Speed Failed\n");
-			return status;
-		}
+		beiscsi_get_port_speed(shost);
 		status = sprintf(buf, "%s\n", iscsi_get_port_speed_name(shost));
 		break;
 	default:
@@ -1159,7 +1143,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		return -EAGAIN;
 	}
 
-	ret = beiscsi_mccq_compl(phba, tag, NULL, &nonemb_cmd);
+	ret = beiscsi_mccq_compl_wait(phba, tag, NULL, &nonemb_cmd);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
@@ -1292,9 +1276,9 @@ static void beiscsi_flush_cq(struct beiscsi_hba *phba)
 
 	for (i = 0; i < phba->num_cpus; i++) {
 		pbe_eq = &phwi_context->be_eq[i];
-		blk_iopoll_disable(&pbe_eq->iopoll);
-		beiscsi_process_cq(pbe_eq);
-		blk_iopoll_enable(&pbe_eq->iopoll);
+		irq_poll_disable(&pbe_eq->iopoll);
+		beiscsi_process_cq(pbe_eq, BE2_MAX_NUM_CQ_PROC);
+		irq_poll_enable(&pbe_eq->iopoll);
 	}
 }
 
@@ -1318,7 +1302,7 @@ static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
 		ret = -EAGAIN;
 	}
 
-	ret = beiscsi_mccq_compl(phba, tag, NULL, NULL);
+	ret = beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
 
 	/* Flush the CQ entries */
 	beiscsi_flush_cq(phba);
@@ -1393,7 +1377,7 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 			    beiscsi_ep->ep_cid);
 	}
 
-	beiscsi_mccq_compl(phba, tag, NULL, NULL);
+	beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
 	beiscsi_close_conn(beiscsi_ep, tcp_upload_flag);
 free_ep:
 	msleep(BEISCSI_LOGOUT_SYNC_DELAY);

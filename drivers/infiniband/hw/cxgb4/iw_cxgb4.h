@@ -386,6 +386,10 @@ struct c4iw_mr {
 	struct c4iw_dev *rhp;
 	u64 kva;
 	struct tpt_attributes attr;
+	u64 *mpl;
+	dma_addr_t mpl_addr;
+	u32 max_mpl_len;
+	u32 mpl_len;
 };
 
 static inline struct c4iw_mr *to_c4iw_mr(struct ib_mr *ibmr)
@@ -403,20 +407,6 @@ struct c4iw_mw {
 static inline struct c4iw_mw *to_c4iw_mw(struct ib_mw *ibmw)
 {
 	return container_of(ibmw, struct c4iw_mw, ibmw);
-}
-
-struct c4iw_fr_page_list {
-	struct ib_fast_reg_page_list ibpl;
-	DEFINE_DMA_UNMAP_ADDR(mapping);
-	dma_addr_t dma_addr;
-	struct c4iw_dev *dev;
-	int pll_len;
-};
-
-static inline struct c4iw_fr_page_list *to_c4iw_fr_page_list(
-					struct ib_fast_reg_page_list *ibpl)
-{
-	return container_of(ibpl, struct c4iw_fr_page_list, ibpl);
 }
 
 struct c4iw_cq {
@@ -486,6 +476,8 @@ struct c4iw_qp {
 	wait_queue_head_t wait;
 	struct timer_list timer;
 	int sq_sig_all;
+	struct completion rq_drained;
+	struct completion sq_drained;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
@@ -763,7 +755,6 @@ enum c4iw_ep_flags {
 	CLOSE_SENT		= 3,
 	TIMEOUT                 = 4,
 	QP_REFERENCED           = 5,
-	RELEASE_MAPINFO		= 6,
 };
 
 enum c4iw_ep_history {
@@ -800,8 +791,6 @@ struct c4iw_ep_common {
 	struct mutex mutex;
 	struct sockaddr_storage local_addr;
 	struct sockaddr_storage remote_addr;
-	struct sockaddr_storage mapped_local_addr;
-	struct sockaddr_storage mapped_remote_addr;
 	struct c4iw_wr_wait wr_wait;
 	unsigned long flags;
 	unsigned long history;
@@ -852,45 +841,6 @@ struct c4iw_ep {
 	int rcv_win;
 	struct c4iw_ep_stats stats;
 };
-
-static inline void print_addr(struct c4iw_ep_common *epc, const char *func,
-			      const char *msg)
-{
-
-#define SINA(a) (&(((struct sockaddr_in *)(a))->sin_addr.s_addr))
-#define SINP(a) ntohs(((struct sockaddr_in *)(a))->sin_port)
-#define SIN6A(a) (&(((struct sockaddr_in6 *)(a))->sin6_addr))
-#define SIN6P(a) ntohs(((struct sockaddr_in6 *)(a))->sin6_port)
-
-	if (c4iw_debug) {
-		switch (epc->local_addr.ss_family) {
-		case AF_INET:
-			PDBG("%s %s %pI4:%u/%u <-> %pI4:%u/%u\n",
-			     func, msg, SINA(&epc->local_addr),
-			     SINP(&epc->local_addr),
-			     SINP(&epc->mapped_local_addr),
-			     SINA(&epc->remote_addr),
-			     SINP(&epc->remote_addr),
-			     SINP(&epc->mapped_remote_addr));
-			break;
-		case AF_INET6:
-			PDBG("%s %s %pI6:%u/%u <-> %pI6:%u/%u\n",
-			     func, msg, SIN6A(&epc->local_addr),
-			     SIN6P(&epc->local_addr),
-			     SIN6P(&epc->mapped_local_addr),
-			     SIN6A(&epc->remote_addr),
-			     SIN6P(&epc->remote_addr),
-			     SIN6P(&epc->mapped_remote_addr));
-			break;
-		default:
-			break;
-		}
-	}
-#undef SINA
-#undef SINP
-#undef SIN6A
-#undef SIN6P
-}
 
 static inline struct c4iw_ep *to_ep(struct iw_cm_id *cm_id)
 {
@@ -957,8 +907,6 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		      struct ib_send_wr **bad_wr);
 int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		      struct ib_recv_wr **bad_wr);
-int c4iw_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
-		 struct ib_mw_bind *mw_bind);
 int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog);
 int c4iw_destroy_listen(struct iw_cm_id *cm_id);
@@ -966,30 +914,19 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 void c4iw_qp_add_ref(struct ib_qp *qp);
 void c4iw_qp_rem_ref(struct ib_qp *qp);
-void c4iw_free_fastreg_pbl(struct ib_fast_reg_page_list *page_list);
-struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(
-					struct ib_device *device,
-					int page_list_len);
 struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 			    enum ib_mr_type mr_type,
 			    u32 max_num_sg);
+int c4iw_map_mr_sg(struct ib_mr *ibmr,
+		   struct scatterlist *sg,
+		   int sg_nents);
 int c4iw_dealloc_mw(struct ib_mw *mw);
-struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
+struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+			    struct ib_udata *udata);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);
 struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc);
-struct ib_mr *c4iw_register_phys_mem(struct ib_pd *pd,
-					struct ib_phys_buf *buffer_list,
-					int num_phys_buf,
-					int acc,
-					u64 *iova_start);
-int c4iw_reregister_phys_mem(struct ib_mr *mr,
-				     int mr_rereg_mask,
-				     struct ib_pd *pd,
-				     struct ib_phys_buf *buffer_list,
-				     int num_phys_buf,
-				     int acc, u64 *iova_start);
 int c4iw_dereg_mr(struct ib_mr *ib_mr);
 int c4iw_destroy_cq(struct ib_cq *ib_cq);
 struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
@@ -1040,6 +977,8 @@ extern int c4iw_wr_log;
 extern int db_fc_threshold;
 extern int db_coalescing_threshold;
 extern int use_dsgl;
+void c4iw_drain_rq(struct ib_qp *qp);
+void c4iw_drain_sq(struct ib_qp *qp);
 
 
 #endif

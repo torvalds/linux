@@ -229,7 +229,7 @@ config IMX_SDMA
 	  Support the i.MX SDMA engine. This engine is integrated into
 	  Freescale i.MX25/31/35/51/53/6 chips.
 
-config IDMA64
+config INTEL_IDMA64
 	tristate "Intel integrated DMA 64-bit support"
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
@@ -341,12 +341,13 @@ config MV_XOR
 
 config MXS_DMA
 	bool "MXS DMA support"
-	depends on SOC_IMX23 || SOC_IMX28 || SOC_IMX6Q
+	depends on SOC_IMX23 || SOC_IMX28 || SOC_IMX6Q || SOC_IMX6UL
 	select STMP_DEVICE
 	select DMA_ENGINE
 	help
 	  Support the MXS DMA engine. This engine including APBH-DMA
-	  and APBX-DMA is integrated into Freescale i.MX23/28/MX6Q/MX6DL chips.
+	  and APBX-DMA is integrated into Freescale
+	  i.MX23/28/MX6Q/MX6DL/MX6UL chips.
 
 config MX3_IPU
 	bool "MX3x Image Processing Unit support"
@@ -408,15 +409,6 @@ config PXA_DMA
 	  16 to 32 channels for peripheral to memory or memory to memory
 	  transfers.
 
-config QCOM_BAM_DMA
-	tristate "QCOM BAM DMA support"
-	depends on ARCH_QCOM || (COMPILE_TEST && OF && ARM)
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	---help---
-	  Enable support for the QCOM BAM DMA controller.  This controller
-	  provides DMA capabilities for a variety of on-chip devices.
-
 config SIRF_DMA
 	tristate "CSR SiRFprimaII/SiRFmarco DMA support"
 	depends on ARCH_SIRF
@@ -431,8 +423,20 @@ config STE_DMA40
 	help
 	  Support for ST-Ericsson DMA40 controller
 
+config STM32_DMA
+	bool "STMicroelectronics STM32 DMA support"
+	depends on ARCH_STM32
+	select DMA_ENGINE
+	select DMA_OF
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the on-chip DMA controller on STMicroelectronics
+	  STM32 MCUs.
+	  If you have a board based on such a MCU and wish to use DMA say Y or M
+	  here.
+
 config S3C24XX_DMAC
-	tristate "Samsung S3C24XX DMA support"
+	bool "Samsung S3C24XX DMA support"
 	depends on ARCH_S3C24XX
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
@@ -486,7 +490,7 @@ config TI_EDMA
 	depends on ARCH_DAVINCI || ARCH_OMAP || ARCH_KEYSTONE
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
-	select TI_PRIV_EDMA
+	select TI_DMA_CROSSBAR if ARCH_OMAP
 	default n
 	help
 	  Enable support for the TI EDMA controller. This DMA
@@ -526,6 +530,8 @@ config ZX_DMA
 
 # driver files
 source "drivers/dma/bestcomm/Kconfig"
+
+source "drivers/dma/qcom/Kconfig"
 
 source "drivers/dma/dw/Kconfig"
 

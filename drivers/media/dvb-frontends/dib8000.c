@@ -3382,14 +3382,15 @@ static int dib8000_sleep(struct dvb_frontend *fe)
 
 static int dib8000_read_status(struct dvb_frontend *fe, enum fe_status *stat);
 
-static int dib8000_get_frontend(struct dvb_frontend *fe)
+static int dib8000_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *c)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	u16 i, val = 0;
 	enum fe_status stat = 0;
 	u8 index_frontend, sub_index_frontend;
 
-	fe->dtv_property_cache.bandwidth_hz = 6000000;
+	c->bandwidth_hz = 6000000;
 
 	/*
 	 * If called to early, get_frontend makes dib8000_tune to either
@@ -3406,7 +3407,7 @@ static int dib8000_get_frontend(struct dvb_frontend *fe)
 		if (stat&FE_HAS_SYNC) {
 			dprintk("TMCC lock on the slave%i", index_frontend);
 			/* synchronize the cache with the other frontends */
-			state->fe[index_frontend]->ops.get_frontend(state->fe[index_frontend]);
+			state->fe[index_frontend]->ops.get_frontend(state->fe[index_frontend], c);
 			for (sub_index_frontend = 0; (sub_index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[sub_index_frontend] != NULL); sub_index_frontend++) {
 				if (sub_index_frontend != index_frontend) {
 					state->fe[sub_index_frontend]->dtv_property_cache.isdbt_sb_mode = state->fe[index_frontend]->dtv_property_cache.isdbt_sb_mode;
@@ -3426,57 +3427,57 @@ static int dib8000_get_frontend(struct dvb_frontend *fe)
 		}
 	}
 
-	fe->dtv_property_cache.isdbt_sb_mode = dib8000_read_word(state, 508) & 0x1;
+	c->isdbt_sb_mode = dib8000_read_word(state, 508) & 0x1;
 
 	if (state->revision == 0x8090)
 		val = dib8000_read_word(state, 572);
 	else
 		val = dib8000_read_word(state, 570);
-	fe->dtv_property_cache.inversion = (val & 0x40) >> 6;
+	c->inversion = (val & 0x40) >> 6;
 	switch ((val & 0x30) >> 4) {
 	case 1:
-		fe->dtv_property_cache.transmission_mode = TRANSMISSION_MODE_2K;
+		c->transmission_mode = TRANSMISSION_MODE_2K;
 		dprintk("dib8000_get_frontend: transmission mode 2K");
 		break;
 	case 2:
-		fe->dtv_property_cache.transmission_mode = TRANSMISSION_MODE_4K;
+		c->transmission_mode = TRANSMISSION_MODE_4K;
 		dprintk("dib8000_get_frontend: transmission mode 4K");
 		break;
 	case 3:
 	default:
-		fe->dtv_property_cache.transmission_mode = TRANSMISSION_MODE_8K;
+		c->transmission_mode = TRANSMISSION_MODE_8K;
 		dprintk("dib8000_get_frontend: transmission mode 8K");
 		break;
 	}
 
 	switch (val & 0x3) {
 	case 0:
-		fe->dtv_property_cache.guard_interval = GUARD_INTERVAL_1_32;
+		c->guard_interval = GUARD_INTERVAL_1_32;
 		dprintk("dib8000_get_frontend: Guard Interval = 1/32 ");
 		break;
 	case 1:
-		fe->dtv_property_cache.guard_interval = GUARD_INTERVAL_1_16;
+		c->guard_interval = GUARD_INTERVAL_1_16;
 		dprintk("dib8000_get_frontend: Guard Interval = 1/16 ");
 		break;
 	case 2:
 		dprintk("dib8000_get_frontend: Guard Interval = 1/8 ");
-		fe->dtv_property_cache.guard_interval = GUARD_INTERVAL_1_8;
+		c->guard_interval = GUARD_INTERVAL_1_8;
 		break;
 	case 3:
 		dprintk("dib8000_get_frontend: Guard Interval = 1/4 ");
-		fe->dtv_property_cache.guard_interval = GUARD_INTERVAL_1_4;
+		c->guard_interval = GUARD_INTERVAL_1_4;
 		break;
 	}
 
 	val = dib8000_read_word(state, 505);
-	fe->dtv_property_cache.isdbt_partial_reception = val & 1;
-	dprintk("dib8000_get_frontend: partial_reception = %d ", fe->dtv_property_cache.isdbt_partial_reception);
+	c->isdbt_partial_reception = val & 1;
+	dprintk("dib8000_get_frontend: partial_reception = %d ", c->isdbt_partial_reception);
 
 	for (i = 0; i < 3; i++) {
 		int show;
 
 		val = dib8000_read_word(state, 493 + i) & 0x0f;
-		fe->dtv_property_cache.layer[i].segment_count = val;
+		c->layer[i].segment_count = val;
 
 		if (val == 0 || val > 13)
 			show = 0;
@@ -3485,41 +3486,41 @@ static int dib8000_get_frontend(struct dvb_frontend *fe)
 
 		if (show)
 			dprintk("dib8000_get_frontend: Layer %d segments = %d ",
-				i, fe->dtv_property_cache.layer[i].segment_count);
+				i, c->layer[i].segment_count);
 
 		val = dib8000_read_word(state, 499 + i) & 0x3;
 		/* Interleaving can be 0, 1, 2 or 4 */
 		if (val == 3)
 			val = 4;
-		fe->dtv_property_cache.layer[i].interleaving = val;
+		c->layer[i].interleaving = val;
 		if (show)
 			dprintk("dib8000_get_frontend: Layer %d time_intlv = %d ",
-				i, fe->dtv_property_cache.layer[i].interleaving);
+				i, c->layer[i].interleaving);
 
 		val = dib8000_read_word(state, 481 + i);
 		switch (val & 0x7) {
 		case 1:
-			fe->dtv_property_cache.layer[i].fec = FEC_1_2;
+			c->layer[i].fec = FEC_1_2;
 			if (show)
 				dprintk("dib8000_get_frontend: Layer %d Code Rate = 1/2 ", i);
 			break;
 		case 2:
-			fe->dtv_property_cache.layer[i].fec = FEC_2_3;
+			c->layer[i].fec = FEC_2_3;
 			if (show)
 				dprintk("dib8000_get_frontend: Layer %d Code Rate = 2/3 ", i);
 			break;
 		case 3:
-			fe->dtv_property_cache.layer[i].fec = FEC_3_4;
+			c->layer[i].fec = FEC_3_4;
 			if (show)
 				dprintk("dib8000_get_frontend: Layer %d Code Rate = 3/4 ", i);
 			break;
 		case 5:
-			fe->dtv_property_cache.layer[i].fec = FEC_5_6;
+			c->layer[i].fec = FEC_5_6;
 			if (show)
 				dprintk("dib8000_get_frontend: Layer %d Code Rate = 5/6 ", i);
 			break;
 		default:
-			fe->dtv_property_cache.layer[i].fec = FEC_7_8;
+			c->layer[i].fec = FEC_7_8;
 			if (show)
 				dprintk("dib8000_get_frontend: Layer %d Code Rate = 7/8 ", i);
 			break;
@@ -3528,23 +3529,23 @@ static int dib8000_get_frontend(struct dvb_frontend *fe)
 		val = dib8000_read_word(state, 487 + i);
 		switch (val & 0x3) {
 		case 0:
-			fe->dtv_property_cache.layer[i].modulation = DQPSK;
+			c->layer[i].modulation = DQPSK;
 			if (show)
 				dprintk("dib8000_get_frontend: Layer %d DQPSK ", i);
 			break;
 		case 1:
-			fe->dtv_property_cache.layer[i].modulation = QPSK;
+			c->layer[i].modulation = QPSK;
 			if (show)
 				dprintk("dib8000_get_frontend: Layer %d QPSK ", i);
 			break;
 		case 2:
-			fe->dtv_property_cache.layer[i].modulation = QAM_16;
+			c->layer[i].modulation = QAM_16;
 			if (show)
 				dprintk("dib8000_get_frontend: Layer %d QAM16 ", i);
 			break;
 		case 3:
 		default:
-			fe->dtv_property_cache.layer[i].modulation = QAM_64;
+			c->layer[i].modulation = QAM_64;
 			if (show)
 				dprintk("dib8000_get_frontend: Layer %d QAM64 ", i);
 			break;
@@ -3553,16 +3554,16 @@ static int dib8000_get_frontend(struct dvb_frontend *fe)
 
 	/* synchronize the cache with the other frontends */
 	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
-		state->fe[index_frontend]->dtv_property_cache.isdbt_sb_mode = fe->dtv_property_cache.isdbt_sb_mode;
-		state->fe[index_frontend]->dtv_property_cache.inversion = fe->dtv_property_cache.inversion;
-		state->fe[index_frontend]->dtv_property_cache.transmission_mode = fe->dtv_property_cache.transmission_mode;
-		state->fe[index_frontend]->dtv_property_cache.guard_interval = fe->dtv_property_cache.guard_interval;
-		state->fe[index_frontend]->dtv_property_cache.isdbt_partial_reception = fe->dtv_property_cache.isdbt_partial_reception;
+		state->fe[index_frontend]->dtv_property_cache.isdbt_sb_mode = c->isdbt_sb_mode;
+		state->fe[index_frontend]->dtv_property_cache.inversion = c->inversion;
+		state->fe[index_frontend]->dtv_property_cache.transmission_mode = c->transmission_mode;
+		state->fe[index_frontend]->dtv_property_cache.guard_interval = c->guard_interval;
+		state->fe[index_frontend]->dtv_property_cache.isdbt_partial_reception = c->isdbt_partial_reception;
 		for (i = 0; i < 3; i++) {
-			state->fe[index_frontend]->dtv_property_cache.layer[i].segment_count = fe->dtv_property_cache.layer[i].segment_count;
-			state->fe[index_frontend]->dtv_property_cache.layer[i].interleaving = fe->dtv_property_cache.layer[i].interleaving;
-			state->fe[index_frontend]->dtv_property_cache.layer[i].fec = fe->dtv_property_cache.layer[i].fec;
-			state->fe[index_frontend]->dtv_property_cache.layer[i].modulation = fe->dtv_property_cache.layer[i].modulation;
+			state->fe[index_frontend]->dtv_property_cache.layer[i].segment_count = c->layer[i].segment_count;
+			state->fe[index_frontend]->dtv_property_cache.layer[i].interleaving = c->layer[i].interleaving;
+			state->fe[index_frontend]->dtv_property_cache.layer[i].fec = c->layer[i].fec;
+			state->fe[index_frontend]->dtv_property_cache.layer[i].modulation = c->layer[i].modulation;
 		}
 	}
 	return 0;
@@ -3671,7 +3672,7 @@ static int dib8000_set_frontend(struct dvb_frontend *fe)
 			if (state->channel_parameters_set == 0) { /* searching */
 				if ((dib8000_get_status(state->fe[index_frontend]) == FE_STATUS_DEMOD_SUCCESS) || (dib8000_get_status(state->fe[index_frontend]) == FE_STATUS_FFT_SUCCESS)) {
 					dprintk("autosearch succeeded on fe%i", index_frontend);
-					dib8000_get_frontend(state->fe[index_frontend]); /* we read the channel parameters from the frontend which was successful */
+					dib8000_get_frontend(state->fe[index_frontend], c); /* we read the channel parameters from the frontend which was successful */
 					state->channel_parameters_set = 1;
 
 					for (l = 0; (l < MAX_NUMBER_OF_FRONTENDS) && (state->fe[l] != NULL); l++) {
@@ -4516,6 +4517,6 @@ void *dib8000_attach(struct dib8000_ops *ops)
 }
 EXPORT_SYMBOL(dib8000_attach);
 
-MODULE_AUTHOR("Olivier Grenie <Olivier.Grenie@dibcom.fr, " "Patrick Boettcher <pboettcher@dibcom.fr>");
+MODULE_AUTHOR("Olivier Grenie <Olivier.Grenie@parrot.com, Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for the DiBcom 8000 ISDB-T demodulator");
 MODULE_LICENSE("GPL");

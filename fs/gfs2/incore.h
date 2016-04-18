@@ -259,8 +259,8 @@ struct gfs2_holder {
 
 	struct gfs2_glock *gh_gl;
 	struct pid *gh_owner_pid;
-	unsigned int gh_state;
-	unsigned gh_flags;
+	u16 gh_flags;
+	u16 gh_state;
 
 	int gh_error;
 	unsigned long gh_iflags; /* HIF_... */
@@ -269,6 +269,13 @@ struct gfs2_holder {
 
 /* Number of quota types we support */
 #define GFS2_MAXQUOTAS 2
+
+struct gfs2_qadata { /* quota allocation data */
+	/* Quota stuff */
+	struct gfs2_quota_data *qa_qd[2 * GFS2_MAXQUOTAS];
+	struct gfs2_holder qa_qd_ghs[2 * GFS2_MAXQUOTAS];
+	unsigned int qa_qd_num;
+};
 
 /* Resource group multi-block reservation, in order of appearance:
 
@@ -288,11 +295,6 @@ struct gfs2_blkreserv {
 	struct gfs2_rbm rs_rbm;       /* Start of reservation */
 	u32 rs_free;                  /* how many blocks are still free */
 	u64 rs_inum;                  /* Inode number for reservation */
-
-	/* ancillary quota stuff */
-	struct gfs2_quota_data *rs_qa_qd[2 * GFS2_MAXQUOTAS];
-	struct gfs2_holder rs_qa_qd_ghs[2 * GFS2_MAXQUOTAS];
-	unsigned int rs_qa_qd_num;
 };
 
 /*
@@ -326,6 +328,7 @@ enum {
 	GLF_LRU				= 13,
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
+	GLF_INODE_CREATING		= 16, /* Inode creation occurring */
 };
 
 struct gfs2_glock {
@@ -334,9 +337,8 @@ struct gfs2_glock {
 	struct lm_lockname gl_name;
 
 	struct lockref gl_lockref;
-#define gl_spin gl_lockref.lock
 
-	/* State fields protected by gl_spin */
+	/* State fields protected by gl_lockref.lock */
 	unsigned int gl_state:2,	/* Current state */
 		     gl_target:2,	/* Target state */
 		     gl_demote_state:2,	/* State requested by remote node */
@@ -392,7 +394,8 @@ struct gfs2_inode {
 	struct gfs2_glock *i_gl; /* Move into i_gh? */
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
-	struct gfs2_blkreserv *i_res; /* rgrp multi-block reservation */
+	struct gfs2_qadata *i_qadata; /* quota allocation data */
+	struct gfs2_blkreserv i_res; /* rgrp multi-block reservation */
 	struct gfs2_rgrpd *i_rgd;
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
@@ -403,6 +406,7 @@ struct gfs2_inode {
 	u32 i_diskflags;
 	u8 i_height;
 	u8 i_depth;
+	u16 i_rahead;
 };
 
 /*
@@ -559,6 +563,8 @@ struct gfs2_args {
 	unsigned int ar_errors:2;               /* errors=withdraw | panic */
 	unsigned int ar_nobarrier:1;            /* do not send barriers */
 	unsigned int ar_rgrplvb:1;		/* use lvbs for rgrp info */
+	unsigned int ar_loccookie:1;		/* use location based readdir
+						   cookies */
 	int ar_commit;				/* Commit interval */
 	int ar_statfs_quantum;			/* The fast statfs interval */
 	int ar_quota_quantum;			/* The quota interval */
@@ -686,6 +692,7 @@ struct gfs2_sbd {
 	u64 sd_heightsize[GFS2_MAX_META_HEIGHT + 1];
 	u32 sd_max_jheight; /* Max height of journaled file's meta tree */
 	u64 sd_jheightsize[GFS2_MAX_META_HEIGHT + 1];
+	u32 sd_max_dents_per_leaf; /* Max number of dirents in a leaf block */
 
 	struct gfs2_args sd_args;	/* Mount arguments */
 	struct gfs2_tune sd_tune;	/* Filesystem tuning structure */

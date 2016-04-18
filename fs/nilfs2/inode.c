@@ -249,7 +249,7 @@ static int nilfs_set_page_dirty(struct page *page)
 		if (nr_dirty)
 			nilfs_set_file_dirty(inode, nr_dirty);
 	} else if (ret) {
-		unsigned nr_dirty = 1 << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+		unsigned nr_dirty = 1 << (PAGE_SHIFT - inode->i_blkbits);
 
 		nilfs_set_file_dirty(inode, nr_dirty);
 	}
@@ -291,7 +291,7 @@ static int nilfs_write_end(struct file *file, struct address_space *mapping,
 			   struct page *page, void *fsdata)
 {
 	struct inode *inode = mapping->host;
-	unsigned start = pos & (PAGE_CACHE_SIZE - 1);
+	unsigned start = pos & (PAGE_SIZE - 1);
 	unsigned nr_dirty;
 	int err;
 
@@ -356,7 +356,7 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 		goto failed;
 
 	mapping_set_gfp_mask(inode->i_mapping,
-			     mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
+			   mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS));
 
 	root = NILFS_I(dir)->i_root;
 	ii = NILFS_I(inode);
@@ -510,6 +510,7 @@ static int __nilfs_read_inode(struct super_block *sb,
 		inode->i_mapping->a_ops = &nilfs_aops;
 	} else if (S_ISLNK(inode->i_mode)) {
 		inode->i_op = &nilfs_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &nilfs_aops;
 	} else {
 		inode->i_op = &nilfs_special_inode_operations;
@@ -522,7 +523,7 @@ static int __nilfs_read_inode(struct super_block *sb,
 	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	nilfs_set_inode_flags(inode);
 	mapping_set_gfp_mask(inode->i_mapping,
-			     mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
+			   mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS));
 	return 0;
 
  failed_unmap:
@@ -1002,7 +1003,7 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (ret)
 		return ret;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	isize = i_size_read(inode);
 
@@ -1112,6 +1113,6 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (ret == 1)
 		ret = 0;
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return ret;
 }

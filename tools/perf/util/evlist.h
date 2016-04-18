@@ -67,6 +67,7 @@ struct perf_evsel_str_handler {
 
 struct perf_evlist *perf_evlist__new(void);
 struct perf_evlist *perf_evlist__new_default(void);
+struct perf_evlist *perf_evlist__new_dummy(void);
 void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 		       struct thread_map *threads);
 void perf_evlist__exit(struct perf_evlist *evlist);
@@ -80,6 +81,8 @@ int __perf_evlist__add_default_attrs(struct perf_evlist *evlist,
 
 #define perf_evlist__add_default_attrs(evlist, array) \
 	__perf_evlist__add_default_attrs(evlist, array, ARRAY_SIZE(array))
+
+int perf_evlist__add_dummy(struct perf_evlist *evlist);
 
 int perf_evlist__add_newtp(struct perf_evlist *evlist,
 			   const char *sys, const char *name, void *handler);
@@ -97,6 +100,9 @@ perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
 
 void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
 			 int cpu, int thread, u64 id);
+int perf_evlist__id_add_fd(struct perf_evlist *evlist,
+			   struct perf_evsel *evsel,
+			   int cpu, int thread, int fd);
 
 int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
 int perf_evlist__alloc_pollfd(struct perf_evlist *evlist);
@@ -149,10 +155,6 @@ void perf_evlist__disable(struct perf_evlist *evlist);
 void perf_evlist__enable(struct perf_evlist *evlist);
 void perf_evlist__toggle_enable(struct perf_evlist *evlist);
 
-int perf_evlist__disable_event(struct perf_evlist *evlist,
-			       struct perf_evsel *evsel);
-int perf_evlist__enable_event(struct perf_evlist *evlist,
-			      struct perf_evsel *evsel);
 int perf_evlist__enable_event_idx(struct perf_evlist *evlist,
 				  struct perf_evsel *evsel, int idx);
 
@@ -292,4 +294,7 @@ void perf_evlist__set_tracking_event(struct perf_evlist *evlist,
 				     struct perf_evsel *tracking_evsel);
 
 void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr);
+
+struct perf_evsel *
+perf_evlist__find_evsel_by_str(struct perf_evlist *evlist, const char *str);
 #endif /* __PERF_EVLIST_H */

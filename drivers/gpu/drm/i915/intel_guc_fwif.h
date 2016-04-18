@@ -32,17 +32,24 @@
  * EDITING THIS FILE IS THEREFORE NOT RECOMMENDED - YOUR CHANGES MAY BE LOST.
  */
 
-#define GFXCORE_FAMILY_GEN8		11
 #define GFXCORE_FAMILY_GEN9		12
-#define GFXCORE_FAMILY_FORCE_ULONG	0x7fffffff
+#define GFXCORE_FAMILY_UNKNOWN		0x7fffffff
 
-#define GUC_CTX_PRIORITY_CRITICAL	0
+#define GUC_CTX_PRIORITY_KMD_HIGH	0
 #define GUC_CTX_PRIORITY_HIGH		1
-#define GUC_CTX_PRIORITY_NORMAL		2
-#define GUC_CTX_PRIORITY_LOW		3
+#define GUC_CTX_PRIORITY_KMD_NORMAL	2
+#define GUC_CTX_PRIORITY_NORMAL		3
+#define GUC_CTX_PRIORITY_NUM		4
 
 #define GUC_MAX_GPU_CONTEXTS		1024
-#define	GUC_INVALID_CTX_ID		(GUC_MAX_GPU_CONTEXTS + 1)
+#define	GUC_INVALID_CTX_ID		GUC_MAX_GPU_CONTEXTS
+
+#define GUC_RENDER_ENGINE		0
+#define GUC_VIDEO_ENGINE		1
+#define GUC_BLITTER_ENGINE		2
+#define GUC_VIDEOENHANCE_ENGINE		3
+#define GUC_VIDEO_ENGINE2		4
+#define GUC_MAX_ENGINES_NUM		(GUC_VIDEO_ENGINE2 + 1)
 
 /* Work queue item header definitions */
 #define WQ_STATUS_ACTIVE		1
@@ -76,16 +83,20 @@
 #define GUC_CTX_DESC_ATTR_RESET		(1 << 4)
 #define GUC_CTX_DESC_ATTR_WQLOCKED	(1 << 5)
 #define GUC_CTX_DESC_ATTR_PCH		(1 << 6)
+#define GUC_CTX_DESC_ATTR_TERMINATED	(1 << 7)
 
 /* The guc control data is 10 DWORDs */
 #define GUC_CTL_CTXINFO			0
 #define   GUC_CTL_CTXNUM_IN16_SHIFT	0
 #define   GUC_CTL_BASE_ADDR_SHIFT	12
+
 #define GUC_CTL_ARAT_HIGH		1
 #define GUC_CTL_ARAT_LOW		2
+
 #define GUC_CTL_DEVICE_INFO		3
 #define   GUC_CTL_GTTYPE_SHIFT		0
 #define   GUC_CTL_COREFAMILY_SHIFT	7
+
 #define GUC_CTL_LOG_PARAMS		4
 #define   GUC_LOG_VALID			(1 << 0)
 #define   GUC_LOG_NOTIFY_ON_HALF_FULL	(1 << 1)
@@ -97,9 +108,12 @@
 #define   GUC_LOG_ISR_PAGES		3
 #define   GUC_LOG_ISR_SHIFT		9
 #define   GUC_LOG_BUF_ADDR_SHIFT	12
+
 #define GUC_CTL_PAGE_FAULT_CONTROL	5
+
 #define GUC_CTL_WA			6
 #define   GUC_CTL_WA_UK_BY_DRIVER	(1 << 3)
+
 #define GUC_CTL_FEATURE			7
 #define   GUC_CTL_VCS2_ENABLED		(1 << 0)
 #define   GUC_CTL_KERNEL_SUBMISSIONS	(1 << 1)
@@ -108,6 +122,8 @@
 #define   GUC_CTL_DISABLE_SCHEDULER	(1 << 4)
 #define   GUC_CTL_PREEMPTION_LOG	(1 << 5)
 #define   GUC_CTL_ENABLE_SLPC		(1 << 7)
+#define   GUC_CTL_RESET_ON_PREMPT_FAILURE	(1 << 8)
+
 #define GUC_CTL_DEBUG			8
 #define   GUC_LOG_VERBOSITY_SHIFT	0
 #define   GUC_LOG_VERBOSITY_LOW		(0 << GUC_LOG_VERBOSITY_SHIFT)
@@ -117,8 +133,91 @@
 /* Verbosity range-check limits, without the shift */
 #define	  GUC_LOG_VERBOSITY_MIN		0
 #define	  GUC_LOG_VERBOSITY_MAX		3
+#define	  GUC_LOG_VERBOSITY_MASK	0x0000000f
+#define	  GUC_LOG_DESTINATION_MASK	(3 << 4)
+#define   GUC_LOG_DISABLED		(1 << 6)
+#define   GUC_PROFILE_ENABLED		(1 << 7)
+#define   GUC_WQ_TRACK_ENABLED		(1 << 8)
+#define   GUC_ADS_ENABLED		(1 << 9)
+#define   GUC_DEBUG_RESERVED		(1 << 10)
+#define   GUC_ADS_ADDR_SHIFT		11
+#define   GUC_ADS_ADDR_MASK		0xfffff800
 
-#define GUC_CTL_MAX_DWORDS		(GUC_CTL_DEBUG + 1)
+#define GUC_CTL_RSRVD			9
+
+#define GUC_CTL_MAX_DWORDS		(SOFT_SCRATCH_COUNT - 2) /* [1..14] */
+
+/**
+ * DOC: GuC Firmware Layout
+ *
+ * The GuC firmware layout looks like this:
+ *
+ *     +-------------------------------+
+ *     |        guc_css_header         |
+ *     | contains major/minor version  |
+ *     +-------------------------------+
+ *     |             uCode             |
+ *     +-------------------------------+
+ *     |         RSA signature         |
+ *     +-------------------------------+
+ *     |          modulus key          |
+ *     +-------------------------------+
+ *     |          exponent val         |
+ *     +-------------------------------+
+ *
+ * The firmware may or may not have modulus key and exponent data. The header,
+ * uCode and RSA signature are must-have components that will be used by driver.
+ * Length of each components, which is all in dwords, can be found in header.
+ * In the case that modulus and exponent are not present in fw, a.k.a truncated
+ * image, the length value still appears in header.
+ *
+ * Driver will do some basic fw size validation based on the following rules:
+ *
+ * 1. Header, uCode and RSA are must-have components.
+ * 2. All firmware components, if they present, are in the sequence illustrated
+ * in the layout table above.
+ * 3. Length info of each component can be found in header, in dwords.
+ * 4. Modulus and exponent key are not required by driver. They may not appear
+ * in fw. So driver will load a truncated firmware in this case.
+ */
+
+struct guc_css_header {
+	uint32_t module_type;
+	/* header_size includes all non-uCode bits, including css_header, rsa
+	 * key, modulus key and exponent data. */
+	uint32_t header_size_dw;
+	uint32_t header_version;
+	uint32_t module_id;
+	uint32_t module_vendor;
+	union {
+		struct {
+			uint8_t day;
+			uint8_t month;
+			uint16_t year;
+		};
+		uint32_t date;
+	};
+	uint32_t size_dw; /* uCode plus header_size_dw */
+	uint32_t key_size_dw;
+	uint32_t modulus_size_dw;
+	uint32_t exponent_size_dw;
+	union {
+		struct {
+			uint8_t hour;
+			uint8_t min;
+			uint16_t sec;
+		};
+		uint32_t time;
+	};
+
+	char username[8];
+	char buildnumber[12];
+	uint32_t device_id;
+	uint32_t guc_sw_version;
+	uint32_t prod_preprod_fw;
+	uint32_t reserved[12];
+	uint32_t header_info;
+} __packed;
 
 struct guc_doorbell_info {
 	u32 db_status;
@@ -193,7 +292,7 @@ struct guc_context_desc {
 	u64 db_trigger_phy;
 	u16 db_id;
 
-	struct guc_execlist_context lrc[I915_NUM_RINGS];
+	struct guc_execlist_context lrc[GUC_MAX_ENGINES_NUM];
 
 	u8 attribute;
 
@@ -208,10 +307,114 @@ struct guc_context_desc {
 
 	u32 engine_presence;
 
-	u32 reserved0[1];
+	u8 engine_suspended;
+
+	u8 reserved0[3];
 	u64 reserved1[1];
 
 	u64 desc_private;
+} __packed;
+
+#define GUC_FORCEWAKE_RENDER	(1 << 0)
+#define GUC_FORCEWAKE_MEDIA	(1 << 1)
+
+#define GUC_POWER_UNSPECIFIED	0
+#define GUC_POWER_D0		1
+#define GUC_POWER_D1		2
+#define GUC_POWER_D2		3
+#define GUC_POWER_D3		4
+
+/* Scheduling policy settings */
+
+/* Reset engine upon preempt failure */
+#define POLICY_RESET_ENGINE		(1<<0)
+/* Preempt to idle on quantum expiry */
+#define POLICY_PREEMPT_TO_IDLE		(1<<1)
+
+#define POLICY_MAX_NUM_WI		15
+
+struct guc_policy {
+	/* Time for one workload to execute. (in micro seconds) */
+	u32 execution_quantum;
+	u32 reserved1;
+
+	/* Time to wait for a preemption request to completed before issuing a
+	 * reset. (in micro seconds). */
+	u32 preemption_time;
+
+	/* How much time to allow to run after the first fault is observed.
+	 * Then preempt afterwards. (in micro seconds) */
+	u32 fault_time;
+
+	u32 policy_flags;
+	u32 reserved[2];
+} __packed;
+
+struct guc_policies {
+	struct guc_policy policy[GUC_CTX_PRIORITY_NUM][GUC_MAX_ENGINES_NUM];
+
+	/* In micro seconds. How much time to allow before DPC processing is
+	 * called back via interrupt (to prevent DPC queue drain starving).
+	 * Typically 1000s of micro seconds (example only, not granularity). */
+	u32 dpc_promote_time;
+
+	/* Must be set to take these new values. */
+	u32 is_valid;
+
+	/* Max number of WIs to process per call. A large value may keep CS
+	 * idle. */
+	u32 max_num_work_items;
+
+	u32 reserved[19];
+} __packed;
+
+/* GuC MMIO reg state struct */
+
+#define GUC_REGSET_FLAGS_NONE		0x0
+#define GUC_REGSET_POWERCYCLE		0x1
+#define GUC_REGSET_MASKED		0x2
+#define GUC_REGSET_ENGINERESET		0x4
+#define GUC_REGSET_SAVE_DEFAULT_VALUE	0x8
+#define GUC_REGSET_SAVE_CURRENT_VALUE	0x10
+
+#define GUC_REGSET_MAX_REGISTERS	25
+#define GUC_MMIO_WHITE_LIST_START	0x24d0
+#define GUC_MMIO_WHITE_LIST_MAX		12
+#define GUC_S3_SAVE_SPACE_PAGES		10
+
+struct guc_mmio_regset {
+	struct __packed {
+		u32 offset;
+		u32 value;
+		u32 flags;
+	} registers[GUC_REGSET_MAX_REGISTERS];
+
+	u32 values_valid;
+	u32 number_of_registers;
+} __packed;
+
+struct guc_mmio_reg_state {
+	struct guc_mmio_regset global_reg;
+	struct guc_mmio_regset engine_reg[GUC_MAX_ENGINES_NUM];
+
+	/* MMIO registers that are set as non privileged */
+	struct __packed {
+		u32 mmio_start;
+		u32 offsets[GUC_MMIO_WHITE_LIST_MAX];
+		u32 count;
+	} mmio_white_list[GUC_MAX_ENGINES_NUM];
+} __packed;
+
+/* GuC Additional Data Struct */
+
+struct guc_ads {
+	u32 reg_state_addr;
+	u32 reg_state_buffer;
+	u32 golden_context_lrca;
+	u32 scheduler_policies;
+	u32 reserved0[3];
+	u32 eng_state_size[GUC_MAX_ENGINES_NUM];
+	u32 reserved2[4];
 } __packed;
 
 /* This Action will be programmed in C180 - SOFT_SCRATCH_O_REG */
@@ -220,6 +423,8 @@ enum host2guc_action {
 	HOST2GUC_ACTION_SAMPLE_FORCEWAKE = 0x6,
 	HOST2GUC_ACTION_ALLOCATE_DOORBELL = 0x10,
 	HOST2GUC_ACTION_DEALLOCATE_DOORBELL = 0x20,
+	HOST2GUC_ACTION_ENTER_S_STATE = 0x501,
+	HOST2GUC_ACTION_EXIT_S_STATE = 0x502,
 	HOST2GUC_ACTION_SLPC_REQUEST = 0x3003,
 	HOST2GUC_ACTION_LIMIT
 };

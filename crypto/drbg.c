@@ -220,48 +220,6 @@ static inline unsigned short drbg_sec_strength(drbg_flag_t flags)
 }
 
 /*
- * FIPS 140-2 continuous self test
- * The test is performed on the result of one round of the output
- * function. Thus, the function implicitly knows the size of the
- * buffer.
- *
- * @drbg DRBG handle
- * @buf output buffer of random data to be checked
- *
- * return:
- *	true on success
- *	false on error
- */
-static bool drbg_fips_continuous_test(struct drbg_state *drbg,
-				      const unsigned char *buf)
-{
-#ifdef CONFIG_CRYPTO_FIPS
-	int ret = 0;
-	/* skip test if we test the overall system */
-	if (list_empty(&drbg->test_data.list))
-		return true;
-	/* only perform test in FIPS mode */
-	if (0 == fips_enabled)
-		return true;
-	if (!drbg->fips_primed) {
-		/* Priming of FIPS test */
-		memcpy(drbg->prev, buf, drbg_blocklen(drbg));
-		drbg->fips_primed = true;
-		/* return false due to priming, i.e. another round is needed */
-		return false;
-	}
-	ret = memcmp(drbg->prev, buf, drbg_blocklen(drbg));
-	if (!ret)
-		panic("DRBG continuous self test failed\n");
-	memcpy(drbg->prev, buf, drbg_blocklen(drbg));
-	/* the test shall pass when the two compared values are not equal */
-	return ret != 0;
-#else
-	return true;
-#endif /* CONFIG_CRYPTO_FIPS */
-}
-
-/*
  * Convert an integer into a byte representation of this integer.
  * The byte representation is big-endian
  *
@@ -603,11 +561,6 @@ static int drbg_ctr_generate(struct drbg_state *drbg,
 		}
 		outlen = (drbg_blocklen(drbg) < (buflen - len)) ?
 			  drbg_blocklen(drbg) : (buflen - len);
-		if (!drbg_fips_continuous_test(drbg, drbg->scratchpad)) {
-			/* 10.2.1.5.2 step 6 */
-			crypto_inc(drbg->V, drbg_blocklen(drbg));
-			continue;
-		}
 		/* 10.2.1.5.2 step 4.3 */
 		memcpy(buf + len, drbg->scratchpad, outlen);
 		len += outlen;
@@ -626,7 +579,7 @@ out:
 	return len;
 }
 
-static struct drbg_state_ops drbg_ctr_ops = {
+static const struct drbg_state_ops drbg_ctr_ops = {
 	.update		= drbg_ctr_update,
 	.generate	= drbg_ctr_generate,
 	.crypto_init	= drbg_init_sym_kernel,
@@ -733,8 +686,6 @@ static int drbg_hmac_generate(struct drbg_state *drbg,
 			return ret;
 		outlen = (drbg_blocklen(drbg) < (buflen - len)) ?
 			  drbg_blocklen(drbg) : (buflen - len);
-		if (!drbg_fips_continuous_test(drbg, drbg->V))
-			continue;
 
 		/* 10.1.2.5 step 4.2 */
 		memcpy(buf + len, drbg->V, outlen);
@@ -752,7 +703,7 @@ static int drbg_hmac_generate(struct drbg_state *drbg,
 	return len;
 }
 
-static struct drbg_state_ops drbg_hmac_ops = {
+static const struct drbg_state_ops drbg_hmac_ops = {
 	.update		= drbg_hmac_update,
 	.generate	= drbg_hmac_generate,
 	.crypto_init	= drbg_init_hash_kernel,
@@ -963,10 +914,6 @@ static int drbg_hash_hashgen(struct drbg_state *drbg,
 		}
 		outlen = (drbg_blocklen(drbg) < (buflen - len)) ?
 			  drbg_blocklen(drbg) : (buflen - len);
-		if (!drbg_fips_continuous_test(drbg, dst)) {
-			crypto_inc(src, drbg_statelen(drbg));
-			continue;
-		}
 		/* 10.1.1.4 step hashgen 4.2 */
 		memcpy(buf + len, dst, outlen);
 		len += outlen;
@@ -1032,7 +979,7 @@ out:
  * scratchpad usage: as update and generate are used isolated, both
  * can use the scratchpad
  */
-static struct drbg_state_ops drbg_hash_ops = {
+static const struct drbg_state_ops drbg_hash_ops = {
 	.update		= drbg_hash_update,
 	.generate	= drbg_hash_generate,
 	.crypto_init	= drbg_init_hash_kernel,
@@ -1201,11 +1148,6 @@ static inline void drbg_dealloc_state(struct drbg_state *drbg)
 	drbg->reseed_ctr = 0;
 	drbg->d_ops = NULL;
 	drbg->core = NULL;
-#ifdef CONFIG_CRYPTO_FIPS
-	kzfree(drbg->prev);
-	drbg->prev = NULL;
-	drbg->fips_primed = false;
-#endif
 }
 
 /*
@@ -1244,12 +1186,6 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 	drbg->C = kmalloc(drbg_statelen(drbg), GFP_KERNEL);
 	if (!drbg->C)
 		goto err;
-#ifdef CONFIG_CRYPTO_FIPS
-	drbg->prev = kmalloc(drbg_blocklen(drbg), GFP_KERNEL);
-	if (!drbg->prev)
-		goto err;
-	drbg->fips_primed = false;
-#endif
 	/* scratchpad is only generated for CTR and Hash */
 	if (drbg->core->flags & DRBG_HMAC)
 		sb_size = 0;

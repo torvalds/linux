@@ -778,7 +778,6 @@ static irqreturn_t hsw_irq_thread(int irq, void *context)
 	struct sst_hsw *hsw = sst_dsp_get_thread_context(sst);
 	struct sst_generic_ipc *ipc = &hsw->ipc;
 	u32 ipcx, ipcd;
-	int handled;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sst->spinlock, flags);
@@ -790,34 +789,30 @@ static irqreturn_t hsw_irq_thread(int irq, void *context)
 	if (ipcx & SST_IPCX_DONE) {
 
 		/* Handle Immediate reply from DSP Core */
-		handled = hsw_process_reply(hsw, ipcx);
+		hsw_process_reply(hsw, ipcx);
 
-		if (handled > 0) {
-			/* clear DONE bit - tell DSP we have completed */
-			sst_dsp_shim_update_bits_unlocked(sst, SST_IPCX,
-				SST_IPCX_DONE, 0);
+		/* clear DONE bit - tell DSP we have completed */
+		sst_dsp_shim_update_bits_unlocked(sst, SST_IPCX,
+			SST_IPCX_DONE, 0);
 
-			/* unmask Done interrupt */
-			sst_dsp_shim_update_bits_unlocked(sst, SST_IMRX,
-				SST_IMRX_DONE, 0);
-		}
+		/* unmask Done interrupt */
+		sst_dsp_shim_update_bits_unlocked(sst, SST_IMRX,
+			SST_IMRX_DONE, 0);
 	}
 
 	/* new message from DSP */
 	if (ipcd & SST_IPCD_BUSY) {
 
 		/* Handle Notification and Delayed reply from DSP Core */
-		handled = hsw_process_notification(hsw);
+		hsw_process_notification(hsw);
 
 		/* clear BUSY bit and set DONE bit - accept new messages */
-		if (handled > 0) {
-			sst_dsp_shim_update_bits_unlocked(sst, SST_IPCD,
-				SST_IPCD_BUSY | SST_IPCD_DONE, SST_IPCD_DONE);
+		sst_dsp_shim_update_bits_unlocked(sst, SST_IPCD,
+			SST_IPCD_BUSY | SST_IPCD_DONE, SST_IPCD_DONE);
 
-			/* unmask busy interrupt */
-			sst_dsp_shim_update_bits_unlocked(sst, SST_IMRX,
-				SST_IMRX_BUSY, 0);
-		}
+		/* unmask busy interrupt */
+		sst_dsp_shim_update_bits_unlocked(sst, SST_IMRX,
+			SST_IMRX_BUSY, 0);
 	}
 
 	spin_unlock_irqrestore(&sst->spinlock, flags);

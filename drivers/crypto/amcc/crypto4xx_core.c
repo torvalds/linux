@@ -781,6 +781,10 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 
 	/* figure how many gd is needed */
 	num_gd = sg_nents_for_len(src, datalen);
+	if ((int)num_gd < 0) {
+		dev_err(dev->core_dev->device, "Invalid number of src SG.\n");
+		return -EINVAL;
+	}
 	if (num_gd == 1)
 		num_gd = 0;
 

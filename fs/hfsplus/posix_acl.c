@@ -21,10 +21,10 @@ struct posix_acl *hfsplus_get_posix_acl(struct inode *inode, int type)
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		xattr_name = POSIX_ACL_XATTR_ACCESS;
+		xattr_name = XATTR_NAME_POSIX_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
-		xattr_name = POSIX_ACL_XATTR_DEFAULT;
+		xattr_name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
 		return ERR_PTR(-EINVAL);
@@ -66,7 +66,7 @@ int hfsplus_set_posix_acl(struct inode *inode, struct posix_acl *acl,
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		xattr_name = POSIX_ACL_XATTR_ACCESS;
+		xattr_name = XATTR_NAME_POSIX_ACL_ACCESS;
 		if (acl) {
 			err = posix_acl_equiv_mode(acl, &inode->i_mode);
 			if (err < 0)
@@ -76,7 +76,7 @@ int hfsplus_set_posix_acl(struct inode *inode, struct posix_acl *acl,
 		break;
 
 	case ACL_TYPE_DEFAULT:
-		xattr_name = POSIX_ACL_XATTR_DEFAULT;
+		xattr_name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		if (!S_ISDIR(inode->i_mode))
 			return acl ? -EACCES : 0;
 		break;

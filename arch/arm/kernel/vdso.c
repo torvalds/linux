@@ -224,7 +224,7 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
 				       VM_READ | VM_MAYREAD,
 				       &vdso_data_mapping);
 
-	return IS_ERR(vma) ? PTR_ERR(vma) : 0;
+	return PTR_ERR_OR_ZERO(vma);
 }
 
 /* assumes mmap_sem is write-locked */

@@ -67,7 +67,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 	pgd = pgd_offset(mm, addr);
 	pud = pud_offset(pgd, addr);
 	pmd = pmd_offset(pud, addr);
-	pte = pte_alloc_map(mm, NULL, pmd, addr);
+	pte = pte_alloc_map(mm, pmd, addr);
 	pgd->pgd &= ~_PAGE_SZ_MASK;
 	pgd->pgd |= _PAGE_SZHUGE;
 

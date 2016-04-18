@@ -17,8 +17,8 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <mach/orion5x.h>
-#include <mach/bridge-regs.h>
+#include "orion5x.h"
+#include "bridge-regs.h"
 #include "common.h"
 
 /*****************************************************************************

@@ -48,7 +48,7 @@ void dealloc_slot_struct(struct slot *slot)
 }
 
 struct slot *alloc_slot_struct(struct device_node *dn,
-                       int drc_index, char *drc_name, int power_domain)
+		int drc_index, char *drc_name, int power_domain)
 {
 	struct slot *slot;
 

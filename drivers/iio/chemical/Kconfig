@@ -4,6 +4,28 @@
 
 menu "Chemical Sensors"
 
+config ATLAS_PH_SENSOR
+	tristate "Atlas Scientific OEM pH-SM sensor"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select IRQ_WORK
+	help
+	 Say Y here to build I2C interface support for the Atlas
+	 Scientific OEM pH-SM sensor.
+
+	 To compile this driver as module, choose M here: the
+	 module will be called atlas-ph-sensor.
+
+config IAQCORE
+	tristate "AMS iAQ-Core VOC sensors"
+	depends on I2C
+	help
+	  Say Y here to build I2C interface support for the AMS
+	  iAQ-Core Continuous/Pulsed VOC (Volatile Organic Compounds)
+	  sensors
+
 config VZ89X
 	tristate "SGX Sensortech MiCS VZ89X VOC sensor"
 	depends on I2C

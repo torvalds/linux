@@ -59,6 +59,9 @@ struct blk_mq_hw_ctx {
 
 	struct blk_mq_cpu_notifier	cpu_notifier;
 	struct kobject		kobj;
+
+	unsigned long		poll_invoked;
+	unsigned long		poll_success;
 };
 
 struct blk_mq_tag_set {
@@ -97,6 +100,8 @@ typedef void (exit_request_fn)(void *, struct request *, unsigned int,
 typedef void (busy_iter_fn)(struct blk_mq_hw_ctx *, struct request *, void *,
 		bool);
 typedef void (busy_tag_iter_fn)(struct request *, void *, bool);
+typedef int (poll_fn)(struct blk_mq_hw_ctx *, unsigned int);
+
 
 struct blk_mq_ops {
 	/*
@@ -113,6 +118,11 @@ struct blk_mq_ops {
 	 * Called on request timeout
 	 */
 	timeout_fn		*timeout;
+
+	/*
+	 * Called to poll for completion of a specific tag.
+	 */
+	poll_fn			*poll;
 
 	softirq_done_fn		*complete;
 
@@ -178,8 +188,14 @@ void blk_mq_insert_request(struct request *, bool, bool, bool);
 void blk_mq_free_request(struct request *rq);
 void blk_mq_free_hctx_request(struct blk_mq_hw_ctx *, struct request *rq);
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
+
+enum {
+	BLK_MQ_REQ_NOWAIT	= (1 << 0), /* return when out of requests */
+	BLK_MQ_REQ_RESERVED	= (1 << 1), /* allocate from reserved pool */
+};
+
 struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
-		gfp_t gfp, bool reserved);
+		unsigned int flags);
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
 struct cpumask *blk_mq_tags_cpumask(struct blk_mq_tags *tags);
 
@@ -228,6 +244,8 @@ void blk_mq_freeze_queue(struct request_queue *q);
 void blk_mq_unfreeze_queue(struct request_queue *q);
 void blk_mq_freeze_queue_start(struct request_queue *q);
 
+void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);
+
 /*
  * Driver command data is immediately after the request. So subtract request
  * size to get back to the original request, add request size to get the PDU.
@@ -245,22 +263,8 @@ static inline void *blk_mq_rq_to_pdu(struct request *rq)
 	for ((i) = 0; (i) < (q)->nr_hw_queues &&			\
 	     ({ hctx = (q)->queue_hw_ctx[i]; 1; }); (i)++)
 
-#define queue_for_each_ctx(q, ctx, i)					\
-	for ((i) = 0; (i) < (q)->nr_queues &&				\
-	     ({ ctx = per_cpu_ptr((q)->queue_ctx, (i)); 1; }); (i)++)
-
 #define hctx_for_each_ctx(hctx, ctx, i)					\
 	for ((i) = 0; (i) < (hctx)->nr_ctx &&				\
 	     ({ ctx = (hctx)->ctxs[(i)]; 1; }); (i)++)
-
-#define blk_ctx_sum(q, sum)						\
-({									\
-	struct blk_mq_ctx *__x;						\
-	unsigned int __ret = 0, __i;					\
-									\
-	queue_for_each_ctx((q), __x, __i)				\
-		__ret += sum;						\
-	__ret;								\
-})
 
 #endif

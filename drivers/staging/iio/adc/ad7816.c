@@ -296,14 +296,14 @@ static inline ssize_t ad7816_set_oti(struct device *dev,
 		dev_err(dev, "Invalid oti channel id %d.\n", chip->channel_id);
 		return -EINVAL;
 	} else if (chip->channel_id == 0) {
-		if (ret || value < AD7816_BOUND_VALUE_MIN ||
+		if (value < AD7816_BOUND_VALUE_MIN ||
 		    value > AD7816_BOUND_VALUE_MAX)
 			return -EINVAL;
 
 		data = (u8)(value - AD7816_BOUND_VALUE_MIN +
 			AD7816_BOUND_VALUE_BASE);
 	} else {
-		if (ret || value < AD7816_BOUND_VALUE_BASE || value > 255)
+		if (value < AD7816_BOUND_VALUE_BASE || value > 255)
 			return -EINVAL;
 
 		data = (u8)value;
@@ -345,7 +345,7 @@ static int ad7816_probe(struct spi_device *spi_dev)
 {
 	struct ad7816_chip_info *chip;
 	struct iio_dev *indio_dev;
-	unsigned short *pins = spi_dev->dev.platform_data;
+	unsigned short *pins = dev_get_platdata(&spi_dev->dev);
 	int ret = 0;
 	int i;
 

@@ -21,7 +21,7 @@
 #include "util/evsel.h"
 #include "util/annotate.h"
 #include "util/event.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/thread.h"
 #include "util/sort.h"
@@ -47,7 +47,7 @@ struct perf_annotate {
 };
 
 static int perf_evsel__add_sample(struct perf_evsel *evsel,
-				  struct perf_sample *sample __maybe_unused,
+				  struct perf_sample *sample,
 				  struct addr_location *al,
 				  struct perf_annotate *ann)
 {
@@ -72,7 +72,10 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 		return 0;
 	}
 
-	he = __hists__add_entry(hists, al, NULL, NULL, NULL, 1, 1, 0, true);
+	sample->period = 1;
+	sample->weight = 1;
+
+	he = __hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -91,7 +94,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct addr_location al;
 	int ret = 0;
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
+	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -242,7 +245,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			hists__collapse_resort(hists, NULL);
 			/* Don't sort callchain */
 			perf_evsel__reset_sample_bit(pos, CALLCHAIN);
-			hists__output_resort(hists, NULL);
+			perf_evsel__output_resort(pos, NULL);
 
 			if (symbol_conf.event_group &&
 			    !perf_evsel__is_group_leader(pos))
@@ -343,17 +346,18 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		return ret;
 
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
+	if (argc) {
+		/*
+		 * Special case: if there's an argument left then assume that
+		 * it's a symbol filter:
+		 */
+		if (argc > 1)
+			usage_with_options(annotate_usage, options);
 
-	if (annotate.use_stdio)
-		use_browser = 0;
-	else if (annotate.use_tui)
-		use_browser = 1;
-	else if (annotate.use_gtk)
-		use_browser = 2;
+		annotate.sym_hist_filter = argv[0];
+	}
 
 	file.path  = input_name;
-
-	setup_browser(true);
 
 	annotate.session = perf_session__new(&file, false, &annotate.tool);
 	if (annotate.session == NULL)
@@ -366,19 +370,17 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (ret < 0)
 		goto out_delete;
 
-	if (setup_sorting() < 0)
+	if (setup_sorting(NULL) < 0)
 		usage_with_options(annotate_usage, options);
 
-	if (argc) {
-		/*
-		 * Special case: if there's an argument left then assume that
-		 * it's a symbol filter:
-		 */
-		if (argc > 1)
-			usage_with_options(annotate_usage, options);
+	if (annotate.use_stdio)
+		use_browser = 0;
+	else if (annotate.use_tui)
+		use_browser = 1;
+	else if (annotate.use_gtk)
+		use_browser = 2;
 
-		annotate.sym_hist_filter = argv[0];
-	}
+	setup_browser(true);
 
 	ret = __cmd_annotate(&annotate);
 

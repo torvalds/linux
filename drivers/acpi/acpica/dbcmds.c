@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -348,7 +348,7 @@ void acpi_db_display_table_info(char *table_arg)
 		} else {
 			/* If the pointer is null, the table has been unloaded */
 
-			ACPI_INFO((AE_INFO, "%4.4s - Table has been unloaded",
+			ACPI_INFO(("%4.4s - Table has been unloaded",
 				   table_desc->signature.ascii));
 		}
 	}
@@ -798,7 +798,7 @@ acpi_db_device_resources(acpi_handle obj_handle,
 	acpi_status status;
 
 	node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_handle);
-	parent_path = acpi_ns_get_external_pathname(node);
+	parent_path = acpi_ns_get_normalized_pathname(node, TRUE);
 	if (!parent_path) {
 		return (AE_NO_MEMORY);
 	}
@@ -1131,13 +1131,8 @@ void acpi_db_trace(char *enable_arg, char *method_arg, char *once_arg)
 	u32 debug_layer = 0;
 	u32 flags = 0;
 
-	if (enable_arg) {
-		acpi_ut_strupr(enable_arg);
-	}
-
-	if (once_arg) {
-		acpi_ut_strupr(once_arg);
-	}
+	acpi_ut_strupr(enable_arg);
+	acpi_ut_strupr(once_arg);
 
 	if (method_arg) {
 		if (acpi_db_trace_method_name) {

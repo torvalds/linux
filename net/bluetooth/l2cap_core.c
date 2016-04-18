@@ -197,10 +197,20 @@ int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm)
 		chan->sport = psm;
 		err = 0;
 	} else {
-		u16 p;
+		u16 p, start, end, incr;
+
+		if (chan->src_type == BDADDR_BREDR) {
+			start = L2CAP_PSM_DYN_START;
+			end = L2CAP_PSM_AUTO_END;
+			incr = 2;
+		} else {
+			start = L2CAP_PSM_LE_DYN_START;
+			end = L2CAP_PSM_LE_DYN_END;
+			incr = 1;
+		}
 
 		err = -EINVAL;
-		for (p = 0x1001; p < 0x1100; p += 2)
+		for (p = start; p <= end; p += incr)
 			if (!__l2cap_global_chan_by_addr(cpu_to_le16(p), src)) {
 				chan->psm   = cpu_to_le16(p);
 				chan->sport = cpu_to_le16(p);
@@ -239,7 +249,7 @@ static u16 l2cap_alloc_cid(struct l2cap_conn *conn)
 	else
 		dyn_end = L2CAP_CID_DYN_END;
 
-	for (cid = L2CAP_CID_DYN_START; cid < dyn_end; cid++) {
+	for (cid = L2CAP_CID_DYN_START; cid <= dyn_end; cid++) {
 		if (!__l2cap_get_chan_by_scid(conn, cid))
 			return cid;
 	}
@@ -5250,7 +5260,9 @@ static int l2cap_le_connect_rsp(struct l2cap_conn *conn,
 	credits = __le16_to_cpu(rsp->credits);
 	result  = __le16_to_cpu(rsp->result);
 
-	if (result == L2CAP_CR_SUCCESS && (mtu < 23 || mps < 23))
+	if (result == L2CAP_CR_SUCCESS && (mtu < 23 || mps < 23 ||
+					   dcid < L2CAP_CID_DYN_START ||
+					   dcid > L2CAP_CID_LE_DYN_END))
 		return -EPROTO;
 
 	BT_DBG("dcid 0x%4.4x mtu %u mps %u credits %u result 0x%2.2x",
@@ -5270,6 +5282,11 @@ static int l2cap_le_connect_rsp(struct l2cap_conn *conn,
 
 	switch (result) {
 	case L2CAP_CR_SUCCESS:
+		if (__l2cap_get_chan_by_dcid(conn, dcid)) {
+			err = -EBADSLT;
+			break;
+		}
+
 		chan->ident = 0;
 		chan->dcid = dcid;
 		chan->omtu = mtu;
@@ -5437,9 +5454,16 @@ static int l2cap_le_connect_req(struct l2cap_conn *conn,
 		goto response_unlock;
 	}
 
+	/* Check for valid dynamic CID range */
+	if (scid < L2CAP_CID_DYN_START || scid > L2CAP_CID_LE_DYN_END) {
+		result = L2CAP_CR_INVALID_SCID;
+		chan = NULL;
+		goto response_unlock;
+	}
+
 	/* Check if we already have channel with that dcid */
 	if (__l2cap_get_chan_by_dcid(conn, scid)) {
-		result = L2CAP_CR_NO_MEM;
+		result = L2CAP_CR_SCID_IN_USE;
 		chan = NULL;
 		goto response_unlock;
 	}
@@ -6524,8 +6548,6 @@ static int l2cap_rx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
 static int l2cap_stream_rx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
 			   struct sk_buff *skb)
 {
-	int err = 0;
-
 	BT_DBG("chan %p, control %p, skb %p, state %d", chan, control, skb,
 	       chan->rx_state);
 
@@ -6556,7 +6578,7 @@ static int l2cap_stream_rx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
 	chan->last_acked_seq = control->txseq;
 	chan->expected_tx_seq = __next_seq(chan, control->txseq);
 
-	return err;
+	return 0;
 }
 
 static int l2cap_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
@@ -7099,8 +7121,6 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	chan->dcid = cid;
 
 	if (bdaddr_type_is_le(dst_type)) {
-		u8 role;
-
 		/* Convert from L2CAP channel address type to HCI address type
 		 */
 		if (dst_type == BDADDR_LE_PUBLIC)
@@ -7109,14 +7129,15 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 			dst_type = ADDR_LE_DEV_RANDOM;
 
 		if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
-			role = HCI_ROLE_SLAVE;
+			hcon = hci_connect_le(hdev, dst, dst_type,
+					      chan->sec_level,
+					      HCI_LE_CONN_TIMEOUT,
+					      HCI_ROLE_SLAVE);
 		else
-			role = HCI_ROLE_MASTER;
+			hcon = hci_connect_le_scan(hdev, dst, dst_type,
+						   chan->sec_level,
+						   HCI_LE_CONN_TIMEOUT);
 
-		hcon = hci_connect_le_scan(hdev, dst, dst_type,
-					   chan->sec_level,
-					   HCI_LE_CONN_TIMEOUT,
-					   role);
 	} else {
 		u8 auth_type = l2cap_get_auth_type(chan);
 		hcon = hci_connect_acl(hdev, dst, chan->sec_level, auth_type);

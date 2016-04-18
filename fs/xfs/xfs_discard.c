@@ -227,7 +227,7 @@ xfs_discard_extents(
 				GFP_NOFS, 0);
 		if (error && error != -EOPNOTSUPP) {
 			xfs_info(mp,
-	 "discard failed for extent [0x%llu,%u], error %d",
+	 "discard failed for extent [0x%llx,%u], error %d",
 				 (unsigned long long)busyp->bno,
 				 busyp->length,
 				 error);

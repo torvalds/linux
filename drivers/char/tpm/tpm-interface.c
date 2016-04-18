@@ -310,10 +310,12 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip,
 {
 	int duration_idx = TPM_UNDEFINED;
 	int duration = 0;
-	u8 category = (ordinal >> 24) & 0xFF;
 
-	if ((category == TPM_PROTECTED_COMMAND && ordinal < TPM_MAX_ORDINAL) ||
-	    (category == TPM_CONNECTION_COMMAND && ordinal < TSC_MAX_ORDINAL))
+	/*
+	 * We only have a duration table for protected commands, where the upper
+	 * 16 bits are 0. For the few other ordinals the fallback will be used.
+	 */
+	if (ordinal < TPM_MAX_ORDINAL)
 		duration_idx = tpm_ordinal_duration[ordinal];
 
 	if (duration_idx != TPM_UNDEFINED)
@@ -500,6 +502,21 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 	unsigned long old_timeout[4];
 	struct duration_t *duration_cap;
 	ssize_t rc;
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+		/* Fixed timeouts for TPM2 */
+		chip->vendor.timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
+		chip->vendor.timeout_b = msecs_to_jiffies(TPM2_TIMEOUT_B);
+		chip->vendor.timeout_c = msecs_to_jiffies(TPM2_TIMEOUT_C);
+		chip->vendor.timeout_d = msecs_to_jiffies(TPM2_TIMEOUT_D);
+		chip->vendor.duration[TPM_SHORT] =
+		    msecs_to_jiffies(TPM2_DURATION_SHORT);
+		chip->vendor.duration[TPM_MEDIUM] =
+		    msecs_to_jiffies(TPM2_DURATION_MEDIUM);
+		chip->vendor.duration[TPM_LONG] =
+		    msecs_to_jiffies(TPM2_DURATION_LONG);
+		return 0;
+	}
 
 	tpm_cmd.header.in = tpm_getcap_header;
 	tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;

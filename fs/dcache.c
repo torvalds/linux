@@ -269,9 +269,6 @@ static inline int dname_external(const struct dentry *dentry)
 	return dentry->d_name.name != dentry->d_iname;
 }
 
-/*
- * Make sure other CPUs see the inode attached before the type is set.
- */
 static inline void __d_set_inode_and_type(struct dentry *dentry,
 					  struct inode *inode,
 					  unsigned type_flags)
@@ -279,28 +276,18 @@ static inline void __d_set_inode_and_type(struct dentry *dentry,
 	unsigned flags;
 
 	dentry->d_inode = inode;
-	smp_wmb();
 	flags = READ_ONCE(dentry->d_flags);
 	flags &= ~(DCACHE_ENTRY_TYPE | DCACHE_FALLTHRU);
 	flags |= type_flags;
 	WRITE_ONCE(dentry->d_flags, flags);
 }
 
-/*
- * Ideally, we want to make sure that other CPUs see the flags cleared before
- * the inode is detached, but this is really a violation of RCU principles
- * since the ordering suggests we should always set inode before flags.
- *
- * We should instead replace or discard the entire dentry - but that sucks
- * performancewise on mass deletion/rename.
- */
 static inline void __d_clear_type_and_inode(struct dentry *dentry)
 {
 	unsigned flags = READ_ONCE(dentry->d_flags);
 
 	flags &= ~(DCACHE_ENTRY_TYPE | DCACHE_FALLTHRU);
 	WRITE_ONCE(dentry->d_flags, flags);
-	smp_wmb();
 	dentry->d_inode = NULL;
 }
 
@@ -370,9 +357,11 @@ static void dentry_unlink_inode(struct dentry * dentry)
 	__releases(dentry->d_inode->i_lock)
 {
 	struct inode *inode = dentry->d_inode;
+
+	raw_write_seqcount_begin(&dentry->d_seq);
 	__d_clear_type_and_inode(dentry);
 	hlist_del_init(&dentry->d_u.d_alias);
-	dentry_rcuwalk_invalidate(dentry);
+	raw_write_seqcount_end(&dentry->d_seq);
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&inode->i_lock);
 	if (!inode->i_nlink)
@@ -1571,7 +1560,8 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	dentry->d_iname[DNAME_INLINE_LEN-1] = 0;
 	if (name->len > DNAME_INLINE_LEN-1) {
 		size_t size = offsetof(struct external_name, name[1]);
-		struct external_name *p = kmalloc(size + name->len, GFP_KERNEL);
+		struct external_name *p = kmalloc(size + name->len,
+						  GFP_KERNEL_ACCOUNT);
 		if (!p) {
 			kmem_cache_free(dentry_cache, dentry); 
 			return NULL;
@@ -1677,7 +1667,8 @@ void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
 				DCACHE_OP_REVALIDATE	|
 				DCACHE_OP_WEAK_REVALIDATE	|
 				DCACHE_OP_DELETE	|
-				DCACHE_OP_SELECT_INODE));
+				DCACHE_OP_SELECT_INODE	|
+				DCACHE_OP_REAL));
 	dentry->d_op = op;
 	if (!op)
 		return;
@@ -1695,6 +1686,8 @@ void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
 		dentry->d_flags |= DCACHE_OP_PRUNE;
 	if (op->d_select_inode)
 		dentry->d_flags |= DCACHE_OP_SELECT_INODE;
+	if (op->d_real)
+		dentry->d_flags |= DCACHE_OP_REAL;
 
 }
 EXPORT_SYMBOL(d_set_d_op);
@@ -1734,7 +1727,7 @@ static unsigned d_flags_for_inode(struct inode *inode)
 	}
 
 	if (unlikely(!(inode->i_opflags & IOP_NOFOLLOW))) {
-		if (unlikely(inode->i_op->follow_link)) {
+		if (unlikely(inode->i_op->get_link)) {
 			add_flags = DCACHE_SYMLINK_TYPE;
 			goto type_determined;
 		}
@@ -1755,12 +1748,12 @@ static void __d_instantiate(struct dentry *dentry, struct inode *inode)
 	unsigned add_flags = d_flags_for_inode(inode);
 
 	spin_lock(&dentry->d_lock);
-	if (inode)
-		hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
+	hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
+	raw_write_seqcount_begin(&dentry->d_seq);
 	__d_set_inode_and_type(dentry, inode, add_flags);
-	dentry_rcuwalk_invalidate(dentry);
+	raw_write_seqcount_end(&dentry->d_seq);
+	__fsnotify_d_instantiate(dentry);
 	spin_unlock(&dentry->d_lock);
-	fsnotify_d_instantiate(dentry, inode);
 }
 
 /**
@@ -1781,89 +1774,14 @@ static void __d_instantiate(struct dentry *dentry, struct inode *inode)
 void d_instantiate(struct dentry *entry, struct inode * inode)
 {
 	BUG_ON(!hlist_unhashed(&entry->d_u.d_alias));
-	if (inode)
+	if (inode) {
 		spin_lock(&inode->i_lock);
-	__d_instantiate(entry, inode);
-	if (inode)
+		__d_instantiate(entry, inode);
 		spin_unlock(&inode->i_lock);
+	}
 	security_d_instantiate(entry, inode);
 }
 EXPORT_SYMBOL(d_instantiate);
-
-/**
- * d_instantiate_unique - instantiate a non-aliased dentry
- * @entry: dentry to instantiate
- * @inode: inode to attach to this dentry
- *
- * Fill in inode information in the entry. On success, it returns NULL.
- * If an unhashed alias of "entry" already exists, then we return the
- * aliased dentry instead and drop one reference to inode.
- *
- * Note that in order to avoid conflicts with rename() etc, the caller
- * had better be holding the parent directory semaphore.
- *
- * This also assumes that the inode count has been incremented
- * (or otherwise set) by the caller to indicate that it is now
- * in use by the dcache.
- */
-static struct dentry *__d_instantiate_unique(struct dentry *entry,
-					     struct inode *inode)
-{
-	struct dentry *alias;
-	int len = entry->d_name.len;
-	const char *name = entry->d_name.name;
-	unsigned int hash = entry->d_name.hash;
-
-	if (!inode) {
-		__d_instantiate(entry, NULL);
-		return NULL;
-	}
-
-	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
-		/*
-		 * Don't need alias->d_lock here, because aliases with
-		 * d_parent == entry->d_parent are not subject to name or
-		 * parent changes, because the parent inode i_mutex is held.
-		 */
-		if (alias->d_name.hash != hash)
-			continue;
-		if (alias->d_parent != entry->d_parent)
-			continue;
-		if (alias->d_name.len != len)
-			continue;
-		if (dentry_cmp(alias, name, len))
-			continue;
-		__dget(alias);
-		return alias;
-	}
-
-	__d_instantiate(entry, inode);
-	return NULL;
-}
-
-struct dentry *d_instantiate_unique(struct dentry *entry, struct inode *inode)
-{
-	struct dentry *result;
-
-	BUG_ON(!hlist_unhashed(&entry->d_u.d_alias));
-
-	if (inode)
-		spin_lock(&inode->i_lock);
-	result = __d_instantiate_unique(entry, inode);
-	if (inode)
-		spin_unlock(&inode->i_lock);
-
-	if (!result) {
-		security_d_instantiate(entry, inode);
-		return NULL;
-	}
-
-	BUG_ON(!d_unhashed(result));
-	iput(inode);
-	return result;
-}
-
-EXPORT_SYMBOL(d_instantiate_unique);
 
 /**
  * d_instantiate_no_diralias - instantiate a non-aliased dentry
@@ -2445,6 +2363,86 @@ void d_rehash(struct dentry * entry)
 }
 EXPORT_SYMBOL(d_rehash);
 
+
+/* inode->i_lock held if inode is non-NULL */
+
+static inline void __d_add(struct dentry *dentry, struct inode *inode)
+{
+	if (inode) {
+		__d_instantiate(dentry, inode);
+		spin_unlock(&inode->i_lock);
+	}
+	security_d_instantiate(dentry, inode);
+	d_rehash(dentry);
+}
+
+/**
+ * d_add - add dentry to hash queues
+ * @entry: dentry to add
+ * @inode: The inode to attach to this dentry
+ *
+ * This adds the entry to the hash queues and initializes @inode.
+ * The entry was actually filled in earlier during d_alloc().
+ */
+
+void d_add(struct dentry *entry, struct inode *inode)
+{
+	if (inode)
+		spin_lock(&inode->i_lock);
+	__d_add(entry, inode);
+}
+EXPORT_SYMBOL(d_add);
+
+/**
+ * d_exact_alias - find and hash an exact unhashed alias
+ * @entry: dentry to add
+ * @inode: The inode to go with this dentry
+ *
+ * If an unhashed dentry with the same name/parent and desired
+ * inode already exists, hash and return it.  Otherwise, return
+ * NULL.
+ *
+ * Parent directory should be locked.
+ */
+struct dentry *d_exact_alias(struct dentry *entry, struct inode *inode)
+{
+	struct dentry *alias;
+	int len = entry->d_name.len;
+	const char *name = entry->d_name.name;
+	unsigned int hash = entry->d_name.hash;
+
+	spin_lock(&inode->i_lock);
+	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
+		/*
+		 * Don't need alias->d_lock here, because aliases with
+		 * d_parent == entry->d_parent are not subject to name or
+		 * parent changes, because the parent inode i_mutex is held.
+		 */
+		if (alias->d_name.hash != hash)
+			continue;
+		if (alias->d_parent != entry->d_parent)
+			continue;
+		if (alias->d_name.len != len)
+			continue;
+		if (dentry_cmp(alias, name, len))
+			continue;
+		spin_lock(&alias->d_lock);
+		if (!d_unhashed(alias)) {
+			spin_unlock(&alias->d_lock);
+			alias = NULL;
+		} else {
+			__dget_dlock(alias);
+			_d_rehash(alias);
+			spin_unlock(&alias->d_lock);
+		}
+		spin_unlock(&inode->i_lock);
+		return alias;
+	}
+	spin_unlock(&inode->i_lock);
+	return NULL;
+}
+EXPORT_SYMBOL(d_exact_alias);
+
 /**
  * dentry_update_name_case - update case insensitive dentry with a new name
  * @dentry: dentry to be updated
@@ -2461,7 +2459,7 @@ EXPORT_SYMBOL(d_rehash);
  */
 void dentry_update_name_case(struct dentry *dentry, struct qstr *name)
 {
-	BUG_ON(!mutex_is_locked(&dentry->d_parent->d_inode->i_mutex));
+	BUG_ON(!inode_is_locked(dentry->d_parent->d_inode));
 	BUG_ON(dentry->d_name.len != name->len); /* d_lookup gives this */
 
 	spin_lock(&dentry->d_lock);
@@ -2737,7 +2735,7 @@ static int __d_unalias(struct inode *inode,
 	if (!mutex_trylock(&dentry->d_sb->s_vfs_rename_mutex))
 		goto out_err;
 	m1 = &dentry->d_sb->s_vfs_rename_mutex;
-	if (!mutex_trylock(&alias->d_parent->d_inode->i_mutex))
+	if (!inode_trylock(alias->d_parent->d_inode))
 		goto out_err;
 	m2 = &alias->d_parent->d_inode->i_mutex;
 out_unalias:
@@ -2781,10 +2779,9 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 
 	BUG_ON(!d_unhashed(dentry));
 
-	if (!inode) {
-		__d_instantiate(dentry, NULL);
+	if (!inode)
 		goto out;
-	}
+
 	spin_lock(&inode->i_lock);
 	if (S_ISDIR(inode->i_mode)) {
 		struct dentry *new = __d_find_any_alias(inode);
@@ -2818,12 +2815,8 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 			return new;
 		}
 	}
-	/* already taking inode->i_lock, so d_add() by hand */
-	__d_instantiate(dentry, inode);
-	spin_unlock(&inode->i_lock);
 out:
-	security_d_instantiate(dentry, inode);
-	d_rehash(dentry);
+	__d_add(dentry, inode);
 	return NULL;
 }
 EXPORT_SYMBOL(d_splice_alias);
@@ -3303,18 +3296,18 @@ out:
  * @new_dentry: new dentry
  * @old_dentry: old dentry
  *
- * Returns 1 if new_dentry is a subdirectory of the parent (at any depth).
- * Returns 0 otherwise.
+ * Returns true if new_dentry is a subdirectory of the parent (at any depth).
+ * Returns false otherwise.
  * Caller must ensure that "new_dentry" is pinned before calling is_subdir()
  */
   
-int is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
+bool is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 {
-	int result;
+	bool result;
 	unsigned seq;
 
 	if (new_dentry == old_dentry)
-		return 1;
+		return true;
 
 	do {
 		/* for restarting inner loop in case of seq retry */
@@ -3325,9 +3318,9 @@ int is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 		 */
 		rcu_read_lock();
 		if (d_ancestor(old_dentry, new_dentry))
-			result = 1;
+			result = true;
 		else
-			result = 0;
+			result = false;
 		rcu_read_unlock();
 	} while (read_seqretry(&rename_lock, seq));
 
@@ -3415,7 +3408,7 @@ static void __init dcache_init(void)
 	 * of the dcache. 
 	 */
 	dentry_cache = KMEM_CACHE(dentry,
-		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
+		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD|SLAB_ACCOUNT);
 
 	/* Hash may have been set up in dcache_init_early */
 	if (!hashdist)

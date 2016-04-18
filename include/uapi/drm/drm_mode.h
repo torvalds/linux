@@ -27,7 +27,7 @@
 #ifndef _DRM_MODE_H
 #define _DRM_MODE_H
 
-#include <linux/types.h>
+#include "drm.h"
 
 #define DRM_DISPLAY_INFO_LEN	32
 #define DRM_CONNECTOR_NAME_LEN	32
@@ -105,8 +105,16 @@
 
 struct drm_mode_modeinfo {
 	__u32 clock;
-	__u16 hdisplay, hsync_start, hsync_end, htotal, hskew;
-	__u16 vdisplay, vsync_start, vsync_end, vtotal, vscan;
+	__u16 hdisplay;
+	__u16 hsync_start;
+	__u16 hsync_end;
+	__u16 htotal;
+	__u16 hskew;
+	__u16 vdisplay;
+	__u16 vsync_start;
+	__u16 vsync_end;
+	__u16 vtotal;
+	__u16 vscan;
 
 	__u32 vrefresh;
 
@@ -124,8 +132,10 @@ struct drm_mode_card_res {
 	__u32 count_crtcs;
 	__u32 count_connectors;
 	__u32 count_encoders;
-	__u32 min_width, max_width;
-	__u32 min_height, max_height;
+	__u32 min_width;
+	__u32 max_width;
+	__u32 min_height;
+	__u32 max_height;
 };
 
 struct drm_mode_crtc {
@@ -135,7 +145,8 @@ struct drm_mode_crtc {
 	__u32 crtc_id; /**< Id */
 	__u32 fb_id; /**< Id of framebuffer */
 
-	__u32 x, y; /**< Position on the frameuffer */
+	__u32 x; /**< x Position on the framebuffer */
+	__u32 y; /**< y Position on the framebuffer */
 
 	__u32 gamma_size;
 	__u32 mode_valid;
@@ -153,12 +164,16 @@ struct drm_mode_set_plane {
 	__u32 flags; /* see above flags */
 
 	/* Signed dest location allows it to be partially off screen */
-	__s32 crtc_x, crtc_y;
-	__u32 crtc_w, crtc_h;
+	__s32 crtc_x;
+	__s32 crtc_y;
+	__u32 crtc_w;
+	__u32 crtc_h;
 
 	/* Source values are 16.16 fixed point */
-	__u32 src_x, src_y;
-	__u32 src_h, src_w;
+	__u32 src_x;
+	__u32 src_y;
+	__u32 src_h;
+	__u32 src_w;
 };
 
 struct drm_mode_get_plane {
@@ -244,7 +259,8 @@ struct drm_mode_get_connector {
 	__u32 connector_type_id;
 
 	__u32 connection;
-	__u32 mm_width, mm_height; /**< HxW in millimeters */
+	__u32 mm_width;  /**< width in millimeters */
+	__u32 mm_height; /**< height in millimeters */
 	__u32 subpixel;
 
 	__u32 pad;
@@ -327,7 +343,8 @@ struct drm_mode_get_blob {
 
 struct drm_mode_fb_cmd {
 	__u32 fb_id;
-	__u32 width, height;
+	__u32 width;
+	__u32 height;
 	__u32 pitch;
 	__u32 bpp;
 	__u32 depth;
@@ -340,7 +357,8 @@ struct drm_mode_fb_cmd {
 
 struct drm_mode_fb_cmd2 {
 	__u32 fb_id;
-	__u32 width, height;
+	__u32 width;
+	__u32 height;
 	__u32 pixel_format; /* fourcc code from drm_fourcc.h */
 	__u32 flags; /* see above flags */
 
@@ -469,6 +487,21 @@ struct drm_mode_crtc_lut {
 	__u64 blue;
 };
 
+struct drm_color_ctm {
+	/* Conversion matrix in S31.32 format. */
+	__s64 matrix[9];
+};
+
+struct drm_color_lut {
+	/*
+	 * Data is U0.16 fixed point format.
+	 */
+	__u16 red;
+	__u16 green;
+	__u16 blue;
+	__u16 reserved;
+};
+
 #define DRM_MODE_PAGE_FLIP_EVENT 0x01
 #define DRM_MODE_PAGE_FLIP_ASYNC 0x02
 #define DRM_MODE_PAGE_FLIP_FLAGS (DRM_MODE_PAGE_FLIP_EVENT|DRM_MODE_PAGE_FLIP_ASYNC)
@@ -508,14 +541,14 @@ struct drm_mode_crtc_page_flip {
 
 /* create a dumb scanout buffer */
 struct drm_mode_create_dumb {
-	uint32_t height;
-	uint32_t width;
-	uint32_t bpp;
-	uint32_t flags;
+	__u32 height;
+	__u32 width;
+	__u32 bpp;
+	__u32 flags;
 	/* handle, pitch, size will be returned */
-	uint32_t handle;
-	uint32_t pitch;
-	uint64_t size;
+	__u32 handle;
+	__u32 pitch;
+	__u64 size;
 };
 
 /* set up for mmap of a dumb scanout buffer */
@@ -532,7 +565,7 @@ struct drm_mode_map_dumb {
 };
 
 struct drm_mode_destroy_dumb {
-	uint32_t handle;
+	__u32 handle;
 };
 
 /* page-flip flags are valid, plus: */

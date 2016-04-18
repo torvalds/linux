@@ -16,6 +16,7 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/ethtool.h>
@@ -64,6 +65,13 @@ struct dsa_chip_data {
 	 * NULL if there is only one switch chip.
 	 */
 	s8		*rtable;
+
+	/*
+	 * A switch may have a GPIO line tied to its reset pin. Parse
+	 * this from the device tree, and use it before performing
+	 * switch soft reset.
+	 */
+	struct gpio_desc *reset;
 };
 
 struct dsa_platform_data {
@@ -107,13 +115,6 @@ struct dsa_switch_tree {
 	 */
 	s8			cpu_switch;
 	s8			cpu_port;
-
-	/*
-	 * Link state polling.
-	 */
-	int			link_poll_needed;
-	struct work_struct	link_poll_work;
-	struct timer_list	link_poll_timer;
 
 	/*
 	 * Data for the individual switch chips.
@@ -224,11 +225,6 @@ struct dsa_switch_driver {
 			     int regnum, u16 val);
 
 	/*
-	 * Link state polling and IRQ handling.
-	 */
-	void	(*poll_link)(struct dsa_switch *ds);
-
-	/*
 	 * Link state adjustment (called from libphy)
 	 */
 	void	(*adjust_link)(struct dsa_switch *ds, int port,
@@ -300,16 +296,17 @@ struct dsa_switch_driver {
 	/*
 	 * Bridge integration
 	 */
-	int	(*port_join_bridge)(struct dsa_switch *ds, int port,
-				    u32 br_port_mask);
-	int	(*port_leave_bridge)(struct dsa_switch *ds, int port,
-				     u32 br_port_mask);
+	int	(*port_bridge_join)(struct dsa_switch *ds, int port,
+				    struct net_device *bridge);
+	void	(*port_bridge_leave)(struct dsa_switch *ds, int port);
 	int	(*port_stp_update)(struct dsa_switch *ds, int port,
 				   u8 state);
 
 	/*
 	 * VLAN support
 	 */
+	int	(*port_vlan_filtering)(struct dsa_switch *ds, int port,
+				       bool vlan_filtering);
 	int	(*port_vlan_prepare)(struct dsa_switch *ds, int port,
 				     const struct switchdev_obj_port_vlan *vlan,
 				     struct switchdev_trans *trans);
@@ -318,9 +315,9 @@ struct dsa_switch_driver {
 				 struct switchdev_trans *trans);
 	int	(*port_vlan_del)(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_vlan *vlan);
-	int	(*port_pvid_get)(struct dsa_switch *ds, int port, u16 *pvid);
-	int	(*vlan_getnext)(struct dsa_switch *ds, u16 *vid,
-				unsigned long *ports, unsigned long *untagged);
+	int	(*port_vlan_dump)(struct dsa_switch *ds, int port,
+				  struct switchdev_obj_port_vlan *vlan,
+				  int (*cb)(struct switchdev_obj *obj));
 
 	/*
 	 * Forwarding database

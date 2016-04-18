@@ -108,7 +108,6 @@ static u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
 		return _SUCCESS;
 
 	if (!rtl88eu_pwrseqcmdparsing(adapt, PWR_CUT_ALL_MSK,
-				      PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK,
 				      Rtl8188E_NIC_PWR_ON_FLOW)) {
 		DBG_88E(KERN_ERR "%s: run power on flow fail\n", __func__);
 		return _FAIL;
@@ -684,7 +683,7 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	struct hal_data_8188e		*haldata = GET_HAL_DATA(Adapter);
 	struct pwrctrl_priv		*pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct registry_priv	*pregistrypriv = &Adapter->registrypriv;
-	u32 init_start_time = jiffies;
+	unsigned long init_start_time = jiffies;
 
 	#define HAL_INIT_PROFILE_TAG(stage) do {} while (0)
 
@@ -903,7 +902,8 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
 exit:
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_END);
 
-	DBG_88E("%s in %dms\n", __func__, rtw_get_passing_time_ms(init_start_time));
+	DBG_88E("%s in %dms\n", __func__,
+		jiffies_to_msecs(jiffies - init_start_time));
 
 
 	return status;
@@ -925,7 +925,6 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 
 	/*  Run LPS WL RFOFF flow */
 	rtl88eu_pwrseqcmdparsing(Adapter, PWR_CUT_ALL_MSK,
-				 PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK,
 				 Rtl8188E_NIC_LPS_ENTER_FLOW);
 
 	/*  2. 0x1F[7:0] = 0		turn off RF */
@@ -948,7 +947,6 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 
 	/*  Card disable power action flow */
 	rtl88eu_pwrseqcmdparsing(Adapter, PWR_CUT_ALL_MSK,
-				 PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK,
 				 Rtl8188E_NIC_DISABLE_FLOW);
 
 	/*  Reset MCU IO Wrapper */
@@ -1149,14 +1147,15 @@ static void _ReadRFType(struct adapter *Adapter)
 
 static void _ReadAdapterInfo8188EU(struct adapter *Adapter)
 {
-	u32 start = jiffies;
+	unsigned long start = jiffies;
 
 	MSG_88E("====> %s\n", __func__);
 
 	_ReadRFType(Adapter);/* rf_chip -> _InitRFType() */
 	_ReadPROMContent(Adapter);
 
-	MSG_88E("<==== %s in %d ms\n", __func__, rtw_get_passing_time_ms(start));
+	MSG_88E("<==== %s in %d ms\n", __func__,
+		jiffies_to_msecs(jiffies - start));
 }
 
 #define GPIO_DEBUG_PORT_NUM 0

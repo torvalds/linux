@@ -3,6 +3,8 @@ Allwinner sun4i and sun7i SoC PWM controller
 Required properties:
   - compatible: should be one of:
     - "allwinner,sun4i-a10-pwm"
+    - "allwinner,sun5i-a10s-pwm"
+    - "allwinner,sun5i-a13-pwm"
     - "allwinner,sun7i-a20-pwm"
   - reg: physical base address and length of the controller's registers
   - #pwm-cells: should be 3. See pwm.txt in this directory for a description of

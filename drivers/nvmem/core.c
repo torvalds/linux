@@ -38,7 +38,12 @@ struct nvmem_device {
 	int			users;
 	size_t			size;
 	bool			read_only;
+	int			flags;
+	struct bin_attribute	eeprom;
+	struct device		*base_dev;
 };
+
+#define FLAG_COMPAT		BIT(0)
 
 struct nvmem_cell {
 	const char		*name;
@@ -56,19 +61,32 @@ static DEFINE_IDA(nvmem_ida);
 static LIST_HEAD(nvmem_cells);
 static DEFINE_MUTEX(nvmem_cells_mutex);
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+static struct lock_class_key eeprom_lock_key;
+#endif
+
 #define to_nvmem_device(d) container_of(d, struct nvmem_device, dev)
 
 static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 				    struct bin_attribute *attr,
 				    char *buf, loff_t pos, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct nvmem_device *nvmem = to_nvmem_device(dev);
+	struct device *dev;
+	struct nvmem_device *nvmem;
 	int rc;
+
+	if (attr->private)
+		dev = attr->private;
+	else
+		dev = container_of(kobj, struct device, kobj);
+	nvmem = to_nvmem_device(dev);
 
 	/* Stop the user from reading */
 	if (pos >= nvmem->size)
 		return 0;
+
+	if (count < nvmem->word_size)
+		return -EINVAL;
 
 	if (pos + count > nvmem->size)
 		count = nvmem->size - pos;
@@ -87,13 +105,22 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 				     struct bin_attribute *attr,
 				     char *buf, loff_t pos, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct nvmem_device *nvmem = to_nvmem_device(dev);
+	struct device *dev;
+	struct nvmem_device *nvmem;
 	int rc;
+
+	if (attr->private)
+		dev = attr->private;
+	else
+		dev = container_of(kobj, struct device, kobj);
+	nvmem = to_nvmem_device(dev);
 
 	/* Stop the user from writing */
 	if (pos >= nvmem->size)
 		return 0;
+
+	if (count < nvmem->word_size)
+		return -EINVAL;
 
 	if (pos + count > nvmem->size)
 		count = nvmem->size - pos;
@@ -152,6 +179,53 @@ static const struct attribute_group nvmem_bin_ro_group = {
 
 static const struct attribute_group *nvmem_ro_dev_groups[] = {
 	&nvmem_bin_ro_group,
+	NULL,
+};
+
+/* default read/write permissions, root only */
+static struct bin_attribute bin_attr_rw_root_nvmem = {
+	.attr	= {
+		.name	= "nvmem",
+		.mode	= S_IWUSR | S_IRUSR,
+	},
+	.read	= bin_attr_nvmem_read,
+	.write	= bin_attr_nvmem_write,
+};
+
+static struct bin_attribute *nvmem_bin_rw_root_attributes[] = {
+	&bin_attr_rw_root_nvmem,
+	NULL,
+};
+
+static const struct attribute_group nvmem_bin_rw_root_group = {
+	.bin_attrs	= nvmem_bin_rw_root_attributes,
+};
+
+static const struct attribute_group *nvmem_rw_root_dev_groups[] = {
+	&nvmem_bin_rw_root_group,
+	NULL,
+};
+
+/* read only permission, root only */
+static struct bin_attribute bin_attr_ro_root_nvmem = {
+	.attr	= {
+		.name	= "nvmem",
+		.mode	= S_IRUSR,
+	},
+	.read	= bin_attr_nvmem_read,
+};
+
+static struct bin_attribute *nvmem_bin_ro_root_attributes[] = {
+	&bin_attr_ro_root_nvmem,
+	NULL,
+};
+
+static const struct attribute_group nvmem_bin_ro_root_group = {
+	.bin_attrs	= nvmem_bin_ro_root_attributes,
+};
+
+static const struct attribute_group *nvmem_ro_root_dev_groups[] = {
+	&nvmem_bin_ro_root_group,
 	NULL,
 };
 
@@ -288,10 +362,49 @@ static int nvmem_add_cells(struct nvmem_device *nvmem,
 
 	return 0;
 err:
-	while (--i)
+	while (i--)
 		nvmem_cell_drop(cells[i]);
 
+	kfree(cells);
+
 	return rval;
+}
+
+/*
+ * nvmem_setup_compat() - Create an additional binary entry in
+ * drivers sys directory, to be backwards compatible with the older
+ * drivers/misc/eeprom drivers.
+ */
+static int nvmem_setup_compat(struct nvmem_device *nvmem,
+			      const struct nvmem_config *config)
+{
+	int rval;
+
+	if (!config->base_dev)
+		return -EINVAL;
+
+	if (nvmem->read_only)
+		nvmem->eeprom = bin_attr_ro_root_nvmem;
+	else
+		nvmem->eeprom = bin_attr_rw_root_nvmem;
+	nvmem->eeprom.attr.name = "eeprom";
+	nvmem->eeprom.size = nvmem->size;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	nvmem->eeprom.attr.key = &eeprom_lock_key;
+#endif
+	nvmem->eeprom.private = &nvmem->dev;
+	nvmem->base_dev = config->base_dev;
+
+	rval = device_create_bin_file(nvmem->base_dev, &nvmem->eeprom);
+	if (rval) {
+		dev_err(&nvmem->dev,
+			"Failed to create eeprom binary file %d\n", rval);
+		return rval;
+	}
+
+	nvmem->flags |= FLAG_COMPAT;
+
+	return 0;
 }
 
 /**
@@ -347,24 +460,37 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->read_only = of_property_read_bool(np, "read-only") |
 			   config->read_only;
 
-	nvmem->dev.groups = nvmem->read_only ? nvmem_ro_dev_groups :
-					       nvmem_rw_dev_groups;
+	if (config->root_only)
+		nvmem->dev.groups = nvmem->read_only ?
+			nvmem_ro_root_dev_groups :
+			nvmem_rw_root_dev_groups;
+	else
+		nvmem->dev.groups = nvmem->read_only ?
+			nvmem_ro_dev_groups :
+			nvmem_rw_dev_groups;
 
 	device_initialize(&nvmem->dev);
 
 	dev_dbg(&nvmem->dev, "Registering nvmem device %s\n", config->name);
 
 	rval = device_add(&nvmem->dev);
-	if (rval) {
-		ida_simple_remove(&nvmem_ida, nvmem->id);
-		kfree(nvmem);
-		return ERR_PTR(rval);
+	if (rval)
+		goto out;
+
+	if (config->compat) {
+		rval = nvmem_setup_compat(nvmem, config);
+		if (rval)
+			goto out;
 	}
 
 	if (config->cells)
 		nvmem_add_cells(nvmem, config);
 
 	return nvmem;
+out:
+	ida_simple_remove(&nvmem_ida, nvmem->id);
+	kfree(nvmem);
+	return ERR_PTR(rval);
 }
 EXPORT_SYMBOL_GPL(nvmem_register);
 
@@ -383,6 +509,9 @@ int nvmem_unregister(struct nvmem_device *nvmem)
 		return -EBUSY;
 	}
 	mutex_unlock(&nvmem_mutex);
+
+	if (nvmem->flags & FLAG_COMPAT)
+		device_remove_bin_file(nvmem->base_dev, &nvmem->eeprom);
 
 	nvmem_device_remove_all_cells(nvmem);
 	device_del(&nvmem->dev);

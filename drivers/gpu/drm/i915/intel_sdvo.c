@@ -53,7 +53,7 @@
 #define IS_DIGITAL(c) (c->output_flag & (SDVO_TMDS_MASK | SDVO_LVDS_MASK))
 
 
-static const char *tv_format_names[] = {
+static const char * const tv_format_names[] = {
 	"NTSC_M"   , "NTSC_J"  , "NTSC_443",
 	"PAL_B"    , "PAL_D"   , "PAL_G"   ,
 	"PAL_H"    , "PAL_I"   , "PAL_M"   ,
@@ -63,7 +63,7 @@ static const char *tv_format_names[] = {
 	"SECAM_60"
 };
 
-#define TV_FORMAT_NUM  (sizeof(tv_format_names) / sizeof(*tv_format_names))
+#define TV_FORMAT_NUM  ARRAY_SIZE(tv_format_names)
 
 struct intel_sdvo {
 	struct intel_encoder base;
@@ -74,7 +74,7 @@ struct intel_sdvo {
 	struct i2c_adapter ddc;
 
 	/* Register for the SDVO device: SDVOB or SDVOC */
-	uint32_t sdvo_reg;
+	i915_reg_t sdvo_reg;
 
 	/* Active outputs controlled by this SDVO output */
 	uint16_t controlled_output;
@@ -107,6 +107,11 @@ struct intel_sdvo {
 	bool color_range_auto;
 
 	/**
+	 * HDMI user specified aspect ratio
+	 */
+	enum hdmi_picture_aspect aspect_ratio;
+
+	/**
 	 * This is set if we're going to treat the device as TV-out.
 	 *
 	 * While we have these nice friendly flags for output types that ought
@@ -115,8 +120,7 @@ struct intel_sdvo {
 	 */
 	bool is_tv;
 
-	/* On different gens SDVOB is at different places. */
-	bool is_sdvob;
+	enum port port;
 
 	/* This is for current tv format name */
 	int tv_format_index;
@@ -240,7 +244,7 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 	u32 bval = val, cval = val;
 	int i;
 
-	if (intel_sdvo->sdvo_reg == PCH_SDVOB) {
+	if (HAS_PCH_SPLIT(dev_priv)) {
 		I915_WRITE(intel_sdvo->sdvo_reg, val);
 		POSTING_READ(intel_sdvo->sdvo_reg);
 		/*
@@ -254,7 +258,7 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 		return;
 	}
 
-	if (intel_sdvo->sdvo_reg == GEN3_SDVOB)
+	if (intel_sdvo->port == PORT_B)
 		cval = I915_READ(GEN3_SDVOC);
 	else
 		bval = I915_READ(GEN3_SDVOB);
@@ -417,7 +421,7 @@ static const struct _sdvo_cmd_name {
 	SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_DATA),
 };
 
-#define SDVO_NAME(svdo) ((svdo)->is_sdvob ? "SDVOB" : "SDVOC")
+#define SDVO_NAME(svdo) ((svdo)->port == PORT_B ? "SDVOB" : "SDVOC")
 
 static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 				   const void *args, int args_len)
@@ -452,7 +456,7 @@ static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 	DRM_DEBUG_KMS("%s: W: %02X %s\n", SDVO_NAME(intel_sdvo), cmd, buffer);
 }
 
-static const char *cmd_status_names[] = {
+static const char * const cmd_status_names[] = {
 	"Power on",
 	"Success",
 	"Not supported",
@@ -603,11 +607,11 @@ log_fail:
 	return false;
 }
 
-static int intel_sdvo_get_pixel_multiplier(struct drm_display_mode *mode)
+static int intel_sdvo_get_pixel_multiplier(const struct drm_display_mode *adjusted_mode)
 {
-	if (mode->clock >= 100000)
+	if (adjusted_mode->crtc_clock >= 100000)
 		return 1;
-	else if (mode->clock >= 50000)
+	else if (adjusted_mode->crtc_clock >= 50000)
 		return 2;
 	else
 		return 4;
@@ -1181,6 +1185,10 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	if (intel_sdvo->is_tv)
 		i9xx_adjust_sdvo_tv_clock(pipe_config);
 
+	/* Set user selected PAR to incoming mode's member */
+	if (intel_sdvo->is_hdmi)
+		adjusted_mode->picture_aspect_ratio = intel_sdvo->aspect_ratio;
+
 	return true;
 }
 
@@ -1189,8 +1197,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(intel_encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode =
-		&crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 	struct drm_display_mode *mode = &crtc->config->base.mode;
 	struct intel_sdvo *intel_sdvo = to_sdvo(intel_encoder);
 	u32 sdvox;
@@ -1274,14 +1281,10 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 			sdvox |= SDVO_BORDER_ENABLE;
 	} else {
 		sdvox = I915_READ(intel_sdvo->sdvo_reg);
-		switch (intel_sdvo->sdvo_reg) {
-		case GEN3_SDVOB:
+		if (intel_sdvo->port == PORT_B)
 			sdvox &= SDVOB_PRESERVE_MASK;
-			break;
-		case GEN3_SDVOC:
+		else
 			sdvox &= SDVOC_PRESERVE_MASK;
-			break;
-		}
 		sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
 	}
 
@@ -1456,12 +1459,23 @@ static void intel_disable_sdvo(struct intel_encoder *encoder)
 	 * matching DP port to be enabled on transcoder A.
 	 */
 	if (HAS_PCH_IBX(dev_priv) && crtc->pipe == PIPE_B) {
+		/*
+		 * We get CPU/PCH FIFO underruns on the other pipe when
+		 * doing the workaround. Sweep them under the rug.
+		 */
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+
 		temp &= ~SDVO_PIPE_B_SELECT;
 		temp |= SDVO_ENABLE;
 		intel_sdvo_write_sdvox(intel_sdvo, temp);
 
 		temp &= ~SDVO_ENABLE;
 		intel_sdvo_write_sdvox(intel_sdvo, temp);
+
+		intel_wait_for_vblank_if_active(dev_priv->dev, PIPE_A);
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, true);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 	}
 }
 
@@ -1513,6 +1527,7 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
+	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
@@ -1521,6 +1536,9 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_LOW;
 
 	if (intel_sdvo->pixel_clock_max < mode->clock)
+		return MODE_CLOCK_HIGH;
+
+	if (mode->clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
 	if (intel_sdvo->is_lvds) {
@@ -2044,6 +2062,23 @@ intel_sdvo_set_property(struct drm_connector *connector,
 		goto done;
 	}
 
+	if (property == connector->dev->mode_config.aspect_ratio_property) {
+		switch (val) {
+		case DRM_MODE_PICTURE_ASPECT_NONE:
+			intel_sdvo->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
+			break;
+		case DRM_MODE_PICTURE_ASPECT_4_3:
+			intel_sdvo->aspect_ratio = HDMI_PICTURE_ASPECT_4_3;
+			break;
+		case DRM_MODE_PICTURE_ASPECT_16_9:
+			intel_sdvo->aspect_ratio = HDMI_PICTURE_ASPECT_16_9;
+			break;
+		default:
+			return -EINVAL;
+		}
+		goto done;
+	}
+
 #define CHECK_PROPERTY(name, NAME) \
 	if (intel_sdvo_connector->name == property) { \
 		if (intel_sdvo_connector->cur_##name == temp_value) return 0; \
@@ -2222,11 +2257,11 @@ intel_sdvo_guess_ddc_bus(struct intel_sdvo *sdvo)
  */
 static void
 intel_sdvo_select_ddc_bus(struct drm_i915_private *dev_priv,
-			  struct intel_sdvo *sdvo, u32 reg)
+			  struct intel_sdvo *sdvo)
 {
 	struct sdvo_device_mapping *mapping;
 
-	if (sdvo->is_sdvob)
+	if (sdvo->port == PORT_B)
 		mapping = &(dev_priv->sdvo_mappings[0]);
 	else
 		mapping = &(dev_priv->sdvo_mappings[1]);
@@ -2239,12 +2274,12 @@ intel_sdvo_select_ddc_bus(struct drm_i915_private *dev_priv,
 
 static void
 intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
-			  struct intel_sdvo *sdvo, u32 reg)
+			  struct intel_sdvo *sdvo)
 {
 	struct sdvo_device_mapping *mapping;
 	u8 pin;
 
-	if (sdvo->is_sdvob)
+	if (sdvo->port == PORT_B)
 		mapping = &dev_priv->sdvo_mappings[0];
 	else
 		mapping = &dev_priv->sdvo_mappings[1];
@@ -2282,7 +2317,7 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, struct intel_sdvo *sdvo)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct sdvo_device_mapping *my_mapping, *other_mapping;
 
-	if (sdvo->is_sdvob) {
+	if (sdvo->port == PORT_B) {
 		my_mapping = &dev_priv->sdvo_mappings[0];
 		other_mapping = &dev_priv->sdvo_mappings[1];
 	} else {
@@ -2307,7 +2342,7 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, struct intel_sdvo *sdvo)
 	/* No SDVO device info is found for another DVO port,
 	 * so use mapping assumption we had before BIOS parsing.
 	 */
-	if (sdvo->is_sdvob)
+	if (sdvo->port == PORT_B)
 		return 0x70;
 	else
 		return 0x72;
@@ -2383,6 +2418,8 @@ intel_sdvo_add_hdmi_properties(struct intel_sdvo *intel_sdvo,
 		intel_attach_broadcast_rgb_property(&connector->base.base);
 		intel_sdvo->color_range_auto = true;
 	}
+	intel_attach_aspect_ratio_property(&connector->base.base);
+	intel_sdvo->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 }
 
 static struct intel_sdvo_connector *intel_sdvo_connector_alloc(void)
@@ -2912,27 +2949,41 @@ intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
 	return i2c_add_adapter(&sdvo->ddc) == 0;
 }
 
-bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
+static void assert_sdvo_port_valid(const struct drm_i915_private *dev_priv,
+				   enum port port)
+{
+	if (HAS_PCH_SPLIT(dev_priv))
+		WARN_ON(port != PORT_B);
+	else
+		WARN_ON(port != PORT_B && port != PORT_C);
+}
+
+bool intel_sdvo_init(struct drm_device *dev,
+		     i915_reg_t sdvo_reg, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *intel_encoder;
 	struct intel_sdvo *intel_sdvo;
 	int i;
+
+	assert_sdvo_port_valid(dev_priv, port);
+
 	intel_sdvo = kzalloc(sizeof(*intel_sdvo), GFP_KERNEL);
 	if (!intel_sdvo)
 		return false;
 
 	intel_sdvo->sdvo_reg = sdvo_reg;
-	intel_sdvo->is_sdvob = is_sdvob;
+	intel_sdvo->port = port;
 	intel_sdvo->slave_addr = intel_sdvo_get_slave_addr(dev, intel_sdvo) >> 1;
-	intel_sdvo_select_i2c_bus(dev_priv, intel_sdvo, sdvo_reg);
+	intel_sdvo_select_i2c_bus(dev_priv, intel_sdvo);
 	if (!intel_sdvo_init_ddc_proxy(intel_sdvo, dev))
 		goto err_i2c_bus;
 
 	/* encoder type will be decided later */
 	intel_encoder = &intel_sdvo->base;
 	intel_encoder->type = INTEL_OUTPUT_SDVO;
-	drm_encoder_init(dev, &intel_encoder->base, &intel_sdvo_enc_funcs, 0);
+	drm_encoder_init(dev, &intel_encoder->base, &intel_sdvo_enc_funcs, 0,
+			 NULL);
 
 	/* Read the regs to test if we can talk to the device */
 	for (i = 0; i < 0x40; i++) {
@@ -2973,8 +3024,10 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	 * hotplug lines.
 	 */
 	if (intel_sdvo->hotplug_active) {
-		intel_encoder->hpd_pin =
-			intel_sdvo->is_sdvob ?  HPD_SDVO_B : HPD_SDVO_C;
+		if (intel_sdvo->port == PORT_B)
+			intel_encoder->hpd_pin = HPD_SDVO_B;
+		else
+			intel_encoder->hpd_pin = HPD_SDVO_C;
 	}
 
 	/*
@@ -2987,7 +3040,7 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	 */
 	intel_sdvo->base.cloneable = 0;
 
-	intel_sdvo_select_ddc_bus(dev_priv, intel_sdvo, sdvo_reg);
+	intel_sdvo_select_ddc_bus(dev_priv, intel_sdvo);
 
 	/* Set the input timing to the screen. Assume always input 0. */
 	if (!intel_sdvo_set_target_input(intel_sdvo))

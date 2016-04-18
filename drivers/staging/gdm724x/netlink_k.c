@@ -107,11 +107,6 @@ struct sock *netlink_init(int unit,
 	return sock;
 }
 
-void netlink_exit(struct sock *sock)
-{
-	sock_release(sock->sk_socket);
-}
-
 int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 {
 	static u32 seq;

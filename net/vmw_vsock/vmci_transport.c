@@ -842,7 +842,7 @@ static void vmci_transport_peer_detach_cb(u32 sub_id,
 	 * qp_handle.
 	 */
 	if (vmci_handle_is_invalid(e_payload->handle) ||
-	    vmci_handle_is_equal(trans->qp_handle, e_payload->handle))
+	    !vmci_handle_is_equal(trans->qp_handle, e_payload->handle))
 		return;
 
 	/* We don't ask for delayed CBs when we subscribe to this event (we
@@ -1234,7 +1234,7 @@ vmci_transport_recv_connecting_server(struct sock *listener,
 	/* Callers of accept() will be be waiting on the listening socket, not
 	 * the pending socket.
 	 */
-	listener->sk_state_change(listener);
+	listener->sk_data_ready(listener);
 
 	return 0;
 
@@ -2154,7 +2154,7 @@ module_exit(vmci_transport_exit);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMCI transport for Virtual Sockets");
-MODULE_VERSION("1.0.2.0-k");
+MODULE_VERSION("1.0.3.0-k");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("vmware_vsock");
 MODULE_ALIAS_NETPROTO(PF_VSOCK);

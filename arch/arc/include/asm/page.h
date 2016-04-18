@@ -10,11 +10,7 @@
 
 #include <uapi/asm/page.h>
 
-
 #ifndef __ASSEMBLY__
-
-#define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
-#define free_user_page(page, addr)	free_page(addr)
 
 #define clear_page(paddr)		memset((paddr), 0, PAGE_SIZE)
 #define copy_page(to, from)		memcpy((to), (from), PAGE_SIZE)
@@ -76,30 +72,26 @@ typedef unsigned long pgprot_t;
 
 typedef pte_t * pgtable_t;
 
-#define ARCH_PFN_OFFSET     (CONFIG_LINUX_LINK_BASE >> PAGE_SHIFT)
+#define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
 
-#define pfn_valid(pfn)      (((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
+#define ARCH_PFN_OFFSET		virt_to_pfn(CONFIG_LINUX_LINK_BASE)
+
+#define pfn_valid(pfn)		(((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
 
 /*
  * __pa, __va, virt_to_page (ALERT: deprecated, don't use them)
  *
  * These macros have historically been misnamed
  * virt here means link-address/program-address as embedded in object code.
- * So if kernel img is linked at 0x8000_0000 onwards, 0x8010_0000 will be
- * 128th page, and virt_to_page( ) will return the struct page corresp to it.
- * mem_map[ ] is an array of struct page for each page frame in the system
- *
- * Independent of where linux is linked at, link-addr = physical address
- * So the old macro  __pa = vaddr + PAGE_OFFSET - CONFIG_LINUX_LINK_BASE
- * would have been wrong in case kernel is not at 0x8zs
+ * And for ARC, link-addr = physical address
  */
 #define __pa(vaddr)  ((unsigned long)vaddr)
 #define __va(paddr)  ((void *)((unsigned long)(paddr)))
 
 #define virt_to_page(kaddr)	\
-	(mem_map + ((__pa(kaddr) - CONFIG_LINUX_LINK_BASE) >> PAGE_SHIFT))
+	(mem_map + virt_to_pfn((kaddr) - CONFIG_LINUX_LINK_BASE))
 
-#define virt_addr_valid(kaddr)  pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
+#define virt_addr_valid(kaddr)  pfn_valid(virt_to_pfn(kaddr))
 
 /* Default Permissions for stack/heaps pages (Non Executable) */
 #define VM_DATA_DEFAULT_FLAGS   (VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE)

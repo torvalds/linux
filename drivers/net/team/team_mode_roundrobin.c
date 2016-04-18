@@ -58,6 +58,7 @@ static const struct team_mode rr_mode = {
 	.owner		= THIS_MODULE,
 	.priv_size	= sizeof(struct rr_priv),
 	.ops		= &rr_mode_ops,
+	.lag_tx_type	= NETDEV_LAG_TX_TYPE_ROUNDROBIN,
 };
 
 static int __init rr_init_module(void)

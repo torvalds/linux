@@ -77,7 +77,7 @@ static int powernv_get_led_type(const char *led_type_desc)
  * This function is called from work queue task context when ever it gets
  * scheduled. This function can sleep at opal_async_wait_response call.
  */
-static void powernv_led_set(struct powernv_led_data *powernv_led,
+static int powernv_led_set(struct powernv_led_data *powernv_led,
 			    enum led_brightness value)
 {
 	int rc, token;
@@ -99,7 +99,7 @@ static void powernv_led_set(struct powernv_led_data *powernv_led,
 		if (token != -ERESTARTSYS)
 			dev_err(dev, "%s: Couldn't get OPAL async token\n",
 				__func__);
-		return;
+		return token;
 	}
 
 	rc = opal_leds_set_ind(token, powernv_led->loc_code,
@@ -125,6 +125,7 @@ static void powernv_led_set(struct powernv_led_data *powernv_led,
 
 out_token:
 	opal_async_release_token(token);
+	return rc;
 }
 
 /*
@@ -173,20 +174,23 @@ static enum led_brightness powernv_led_get(struct powernv_led_data *powernv_led)
  * LED classdev 'brightness_get' function. This schedules work
  * to update LED state.
  */
-static void powernv_brightness_set(struct led_classdev *led_cdev,
+static int powernv_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness value)
 {
 	struct powernv_led_data *powernv_led =
 		container_of(led_cdev, struct powernv_led_data, cdev);
 	struct powernv_led_common *powernv_led_common = powernv_led->common;
+	int rc;
 
 	/* Do not modify LED in unload path */
 	if (powernv_led_common->led_disabled)
-		return;
+		return 0;
 
 	mutex_lock(&powernv_led_common->lock);
-	powernv_led_set(powernv_led, value);
+	rc = powernv_led_set(powernv_led, value);
 	mutex_unlock(&powernv_led_common->lock);
+
+	return rc;
 }
 
 /* LED classdev 'brightness_get' function */
@@ -227,7 +231,7 @@ static int powernv_led_create(struct device *dev,
 		return -ENOMEM;
 	}
 
-	powernv_led->cdev.brightness_set = powernv_brightness_set;
+	powernv_led->cdev.brightness_set_blocking = powernv_brightness_set;
 	powernv_led->cdev.brightness_get = powernv_brightness_get;
 	powernv_led->cdev.brightness = LED_OFF;
 	powernv_led->cdev.max_brightness = LED_FULL;
@@ -256,8 +260,6 @@ static int powernv_led_classdev(struct platform_device *pdev,
 
 	for_each_child_of_node(led_node, np) {
 		p = of_find_property(np, "led-types", NULL);
-		if (!p)
-			continue;
 
 		while ((cur = of_prop_next_string(p, cur)) != NULL) {
 			powernv_led = devm_kzalloc(dev, sizeof(*powernv_led),

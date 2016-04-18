@@ -1089,6 +1089,7 @@ static inline bool is_new_conn_expected(const struct ip_vs_conn *cp,
 	switch (cp->protocol) {
 	case IPPROTO_TCP:
 		return (cp->state == IP_VS_TCP_S_TIME_WAIT) ||
+		       (cp->state == IP_VS_TCP_S_CLOSE) ||
 			((conn_reuse_mode & 2) &&
 			 (cp->state == IP_VS_TCP_S_FIN_WAIT) &&
 			 (cp->flags & IP_VS_CONN_F_NOOUTPUT));
@@ -1176,6 +1177,7 @@ ip_vs_out(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, in
 	struct ip_vs_protocol *pp;
 	struct ip_vs_proto_data *pd;
 	struct ip_vs_conn *cp;
+	struct sock *sk;
 
 	EnterFunction(11);
 
@@ -1183,13 +1185,12 @@ ip_vs_out(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, in
 	if (skb->ipvs_property)
 		return NF_ACCEPT;
 
+	sk = skb_to_full_sk(skb);
 	/* Bad... Do not break raw sockets */
-	if (unlikely(skb->sk != NULL && hooknum == NF_INET_LOCAL_OUT &&
+	if (unlikely(sk && hooknum == NF_INET_LOCAL_OUT &&
 		     af == AF_INET)) {
-		struct sock *sk = skb->sk;
-		struct inet_sock *inet = inet_sk(skb->sk);
 
-		if (inet && sk->sk_family == PF_INET && inet->nodefrag)
+		if (sk->sk_family == PF_INET && inet_sk(sk)->nodefrag)
 			return NF_ACCEPT;
 	}
 
@@ -1681,6 +1682,7 @@ ip_vs_in(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, int
 	struct ip_vs_conn *cp;
 	int ret, pkts;
 	int conn_reuse_mode;
+	struct sock *sk;
 
 	/* Already marked as IPVS request or reply? */
 	if (skb->ipvs_property)
@@ -1708,12 +1710,11 @@ ip_vs_in(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, int
 	ip_vs_fill_iph_skb(af, skb, false, &iph);
 
 	/* Bad... Do not break raw sockets */
-	if (unlikely(skb->sk != NULL && hooknum == NF_INET_LOCAL_OUT &&
+	sk = skb_to_full_sk(skb);
+	if (unlikely(sk && hooknum == NF_INET_LOCAL_OUT &&
 		     af == AF_INET)) {
-		struct sock *sk = skb->sk;
-		struct inet_sock *inet = inet_sk(skb->sk);
 
-		if (inet && sk->sk_family == PF_INET && inet->nodefrag)
+		if (sk->sk_family == PF_INET && inet_sk(sk)->nodefrag)
 			return NF_ACCEPT;
 	}
 
@@ -1757,15 +1758,34 @@ ip_vs_in(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, int
 	cp = pp->conn_in_get(ipvs, af, skb, &iph);
 
 	conn_reuse_mode = sysctl_conn_reuse_mode(ipvs);
-	if (conn_reuse_mode && !iph.fragoffs &&
-	    is_new_conn(skb, &iph) && cp &&
-	    ((unlikely(sysctl_expire_nodest_conn(ipvs)) && cp->dest &&
-	      unlikely(!atomic_read(&cp->dest->weight))) ||
-	     unlikely(is_new_conn_expected(cp, conn_reuse_mode)))) {
-		if (!atomic_read(&cp->n_control))
-			ip_vs_conn_expire_now(cp);
-		__ip_vs_conn_put(cp);
-		cp = NULL;
+	if (conn_reuse_mode && !iph.fragoffs && is_new_conn(skb, &iph) && cp) {
+		bool uses_ct = false, resched = false;
+
+		if (unlikely(sysctl_expire_nodest_conn(ipvs)) && cp->dest &&
+		    unlikely(!atomic_read(&cp->dest->weight))) {
+			resched = true;
+			uses_ct = ip_vs_conn_uses_conntrack(cp, skb);
+		} else if (is_new_conn_expected(cp, conn_reuse_mode)) {
+			uses_ct = ip_vs_conn_uses_conntrack(cp, skb);
+			if (!atomic_read(&cp->n_control)) {
+				resched = true;
+			} else {
+				/* Do not reschedule controlling connection
+				 * that uses conntrack while it is still
+				 * referenced by controlled connection(s).
+				 */
+				resched = !uses_ct;
+			}
+		}
+
+		if (resched) {
+			if (!atomic_read(&cp->n_control))
+				ip_vs_conn_expire_now(cp);
+			__ip_vs_conn_put(cp);
+			if (uses_ct)
+				return NF_DROP;
+			cp = NULL;
+		}
 	}
 
 	if (unlikely(!cp)) {

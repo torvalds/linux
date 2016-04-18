@@ -200,6 +200,9 @@ static __init int add_rtc_cmos(void)
 	}
 #endif
 
+	if (paravirt_enabled() && !paravirt_has(RTC))
+		return -ENODEV;
+
 	platform_device_register(&rtc_device);
 	dev_info(&rtc_device.dev,
 		 "registered platform RTC device (no PNP device found)\n");

@@ -8,7 +8,7 @@
 #include <linux/tracepoint.h>
 #include <linux/mm.h>
 #include <linux/memcontrol.h>
-#include <trace/events/gfpflags.h>
+#include <trace/events/mmflags.h>
 
 #define RECLAIM_WB_ANON		0x0001u
 #define RECLAIM_WB_FILE		0x0002u
@@ -330,10 +330,9 @@ DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_memcg_isolate,
 
 TRACE_EVENT(mm_vmscan_writepage,
 
-	TP_PROTO(struct page *page,
-		int reclaim_flags),
+	TP_PROTO(struct page *page),
 
-	TP_ARGS(page, reclaim_flags),
+	TP_ARGS(page),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, pfn)
@@ -342,7 +341,7 @@ TRACE_EVENT(mm_vmscan_writepage,
 
 	TP_fast_assign(
 		__entry->pfn = page_to_pfn(page);
-		__entry->reclaim_flags = reclaim_flags;
+		__entry->reclaim_flags = trace_reclaim_flags(page);
 	),
 
 	TP_printk("page=%p pfn=%lu flags=%s",
@@ -353,11 +352,11 @@ TRACE_EVENT(mm_vmscan_writepage,
 
 TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
 
-	TP_PROTO(int nid, int zid,
-			unsigned long nr_scanned, unsigned long nr_reclaimed,
-			int priority, int reclaim_flags),
+	TP_PROTO(struct zone *zone,
+		unsigned long nr_scanned, unsigned long nr_reclaimed,
+		int priority, int file),
 
-	TP_ARGS(nid, zid, nr_scanned, nr_reclaimed, priority, reclaim_flags),
+	TP_ARGS(zone, nr_scanned, nr_reclaimed, priority, file),
 
 	TP_STRUCT__entry(
 		__field(int, nid)
@@ -369,12 +368,12 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
 	),
 
 	TP_fast_assign(
-		__entry->nid = nid;
-		__entry->zid = zid;
+		__entry->nid = zone_to_nid(zone);
+		__entry->zid = zone_idx(zone);
 		__entry->nr_scanned = nr_scanned;
 		__entry->nr_reclaimed = nr_reclaimed;
 		__entry->priority = priority;
-		__entry->reclaim_flags = reclaim_flags;
+		__entry->reclaim_flags = trace_shrink_flags(file);
 	),
 
 	TP_printk("nid=%d zid=%d nr_scanned=%ld nr_reclaimed=%ld priority=%d flags=%s",

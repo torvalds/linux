@@ -216,11 +216,11 @@ r1373f4_fini(struct gk104_ramfuc *fuc)
 	ram_wr32(fuc, 0x1373ec, tmp | (v1 << 16));
 	ram_mask(fuc, 0x1373f0, (~ram->mode & 3), 0x00000000);
 	if (ram->mode == 2) {
-		ram_mask(fuc, 0x1373f4, 0x00000003, 0x000000002);
-		ram_mask(fuc, 0x1373f4, 0x00001100, 0x000000000);
+		ram_mask(fuc, 0x1373f4, 0x00000003, 0x00000002);
+		ram_mask(fuc, 0x1373f4, 0x00001100, 0x00000000);
 	} else {
-		ram_mask(fuc, 0x1373f4, 0x00000003, 0x000000001);
-		ram_mask(fuc, 0x1373f4, 0x00010000, 0x000000000);
+		ram_mask(fuc, 0x1373f4, 0x00000003, 0x00000001);
+		ram_mask(fuc, 0x1373f4, 0x00010000, 0x00000000);
 	}
 	ram_mask(fuc, 0x10f800, 0x00000030, (v0 ^ v1) << 4);
 }
@@ -673,6 +673,25 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
  * DDR3
  ******************************************************************************/
 
+static void
+nvkm_sddr3_dll_reset(struct gk104_ramfuc *fuc)
+{
+	ram_nuke(fuc, mr[0]);
+	ram_mask(fuc, mr[0], 0x100, 0x100);
+	ram_mask(fuc, mr[0], 0x100, 0x000);
+}
+
+static void
+nvkm_sddr3_dll_disable(struct gk104_ramfuc *fuc)
+{
+	u32 mr1_old = ram_rd32(fuc, mr[1]);
+
+	if (!(mr1_old & 0x1)) {
+		ram_mask(fuc, mr[1], 0x1, 0x1);
+		ram_nsec(fuc, 1000);
+	}
+}
+
 static int
 gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 {
@@ -702,6 +721,10 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 		ram_mask(fuc, 0x10f808, 0x04000000, 0x04000000);
 
 	ram_wr32(fuc, 0x10f314, 0x00000001); /* PRECHARGE */
+
+	if (next->bios.ramcfg_DLLoff)
+		nvkm_sddr3_dll_disable(fuc);
+
 	ram_wr32(fuc, 0x10f210, 0x00000000); /* REFRESH_AUTO = 0 */
 	ram_wr32(fuc, 0x10f310, 0x00000001); /* REFRESH */
 	ram_mask(fuc, 0x10f200, 0x80000000, 0x80000000);
@@ -879,17 +902,20 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 	ram_wr32(fuc, 0x10f210, 0x80000000); /* REFRESH_AUTO = 1 */
 	ram_nsec(fuc, 1000);
 
-	ram_nuke(fuc, mr[0]);
-	ram_mask(fuc, mr[0], 0x100, 0x100);
-	ram_mask(fuc, mr[0], 0x100, 0x000);
+	if (!next->bios.ramcfg_DLLoff) {
+		ram_mask(fuc, mr[1], 0x1, 0x0);
+		nvkm_sddr3_dll_reset(fuc);
+	}
 
-	ram_mask(fuc, mr[2], 0xfff, ram->base.mr[2]);
+	ram_mask(fuc, mr[2], 0x00000fff, ram->base.mr[2]);
+	ram_mask(fuc, mr[1], 0xffffffff, ram->base.mr[1]);
 	ram_wr32(fuc, mr[0], ram->base.mr[0]);
 	ram_nsec(fuc, 1000);
 
-	ram_nuke(fuc, mr[0]);
-	ram_mask(fuc, mr[0], 0x100, 0x100);
-	ram_mask(fuc, mr[0], 0x100, 0x000);
+	if (!next->bios.ramcfg_DLLoff) {
+		nvkm_sddr3_dll_reset(fuc);
+		ram_nsec(fuc, 1000);
+	}
 
 	if (vc == 0 && ram_have(fuc, gpio2E)) {
 		u32 temp  = ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[0]);
@@ -945,6 +971,67 @@ gk104_ram_calc_data(struct gk104_ram *ram, u32 khz, struct nvkm_ram_data *data)
 }
 
 static int
+gk104_calc_pll_output(int fN, int M, int N, int P, int clk)
+{
+	return ((clk * N) + (((u16)(fN + 4096) * clk) >> 13)) / (M * P);
+}
+
+static int
+gk104_pll_calc_hiclk(int target_khz, int crystal,
+		int *N1, int *fN1, int *M1, int *P1,
+		int *N2, int *M2, int *P2)
+{
+	int best_clk = 0, best_err = target_khz, p_ref, n_ref;
+	bool upper = false;
+
+	*M1 = 1;
+	/* M has to be 1, otherwise it gets unstable */
+	*M2 = 1;
+	/* can be 1 or 2, sticking with 1 for simplicity */
+	*P2 = 1;
+
+	for (p_ref = 0x7; p_ref >= 0x5; --p_ref) {
+		for (n_ref = 0x25; n_ref <= 0x2b; ++n_ref) {
+			int cur_N, cur_clk, cur_err;
+
+			cur_clk = gk104_calc_pll_output(0, 1, n_ref, p_ref, crystal);
+			cur_N = target_khz / cur_clk;
+			cur_err = target_khz
+				- gk104_calc_pll_output(0xf000, 1, cur_N, 1, cur_clk);
+
+			/* we found a better combination */
+			if (cur_err < best_err) {
+				best_err = cur_err;
+				best_clk = cur_clk;
+				*N2 = cur_N;
+				*N1 = n_ref;
+				*P1 = p_ref;
+				upper = false;
+			}
+
+			cur_N += 1;
+			cur_err = gk104_calc_pll_output(0xf000, 1, cur_N, 1, cur_clk)
+				- target_khz;
+			if (cur_err < best_err) {
+				best_err = cur_err;
+				best_clk = cur_clk;
+				*N2 = cur_N;
+				*N1 = n_ref;
+				*P1 = p_ref;
+				upper = true;
+			}
+		}
+	}
+
+	/* adjust fN to get closer to the target clock */
+	*fN1 = (u16)((((best_err / *N2 * *P2) * (*P1 * *M1)) << 13) / crystal);
+	if (upper)
+		*fN1 = (u16)(1 - *fN1);
+
+	return gk104_calc_pll_output(*fN1, 1, *N1, *P1, crystal);
+}
+
+static int
 gk104_ram_calc_xits(struct gk104_ram *ram, struct nvkm_ram_data *next)
 {
 	struct gk104_ramfuc *fuc = &ram->fuc;
@@ -968,31 +1055,24 @@ gk104_ram_calc_xits(struct gk104_ram *ram, struct nvkm_ram_data *next)
 	 * kepler boards, no idea how/why they're chosen.
 	 */
 	refclk = next->freq;
-	if (ram->mode == 2)
-		refclk = fuc->mempll.refclk;
-
-	/* calculate refpll coefficients */
-	ret = gt215_pll_calc(subdev, &fuc->refpll, refclk, &ram->N1,
-			     &ram->fN1, &ram->M1, &ram->P1);
-	fuc->mempll.refclk = ret;
-	if (ret <= 0) {
-		nvkm_error(subdev, "unable to calc refpll\n");
-		return -EINVAL;
-	}
-
-	/* calculate mempll coefficients, if we're using it */
 	if (ram->mode == 2) {
-		/* post-divider doesn't work... the reg takes the values but
-		 * appears to completely ignore it.  there *is* a bit at
-		 * bit 28 that appears to divide the clock by 2 if set.
-		 */
-		fuc->mempll.min_p = 1;
-		fuc->mempll.max_p = 2;
-
-		ret = gt215_pll_calc(subdev, &fuc->mempll, next->freq,
-				     &ram->N2, NULL, &ram->M2, &ram->P2);
+		ret = gk104_pll_calc_hiclk(next->freq, subdev->device->crystal,
+				&ram->N1, &ram->fN1, &ram->M1, &ram->P1,
+				&ram->N2, &ram->M2, &ram->P2);
+		fuc->mempll.refclk = ret;
 		if (ret <= 0) {
-			nvkm_error(subdev, "unable to calc mempll\n");
+			nvkm_error(subdev, "unable to calc plls\n");
+			return -EINVAL;
+		}
+		nvkm_debug(subdev, "sucessfully calced PLLs for clock %i kHz"
+				" (refclock: %i kHz)\n", next->freq, ret);
+	} else {
+		/* calculate refpll coefficients */
+		ret = gt215_pll_calc(subdev, &fuc->refpll, refclk, &ram->N1,
+				     &ram->fN1, &ram->M1, &ram->P1);
+		fuc->mempll.refclk = ret;
+		if (ret <= 0) {
+			nvkm_error(subdev, "unable to calc refpll\n");
 			return -EINVAL;
 		}
 	}
@@ -1600,6 +1680,7 @@ gk104_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 		break;
 	case NVKM_RAM_TYPE_DDR3:
 		ram->fuc.r_mr[0] = ramfuc_reg(0x10f300);
+		ram->fuc.r_mr[1] = ramfuc_reg(0x10f304);
 		ram->fuc.r_mr[2] = ramfuc_reg(0x10f320);
 		break;
 	default:

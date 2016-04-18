@@ -75,14 +75,14 @@ struct tipc_link_req {
  * tipc_disc_init_msg - initialize a link setup message
  * @net: the applicable net namespace
  * @type: message type (request or response)
- * @b_ptr: ptr to bearer issuing message
+ * @b: ptr to bearer issuing message
  */
 static void tipc_disc_init_msg(struct net *net, struct sk_buff *buf, u32 type,
-			       struct tipc_bearer *b_ptr)
+			       struct tipc_bearer *b)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_msg *msg;
-	u32 dest_domain = b_ptr->domain;
+	u32 dest_domain = b->domain;
 
 	msg = buf_msg(buf);
 	tipc_msg_init(tn->own_addr, msg, LINK_CONFIG, type,
@@ -92,16 +92,16 @@ static void tipc_disc_init_msg(struct net *net, struct sk_buff *buf, u32 type,
 	msg_set_node_capabilities(msg, TIPC_NODE_CAPABILITIES);
 	msg_set_dest_domain(msg, dest_domain);
 	msg_set_bc_netid(msg, tn->net_id);
-	b_ptr->media->addr2msg(msg_media_addr(msg), &b_ptr->addr);
+	b->media->addr2msg(msg_media_addr(msg), &b->addr);
 }
 
 /**
  * disc_dupl_alert - issue node address duplication alert
- * @b_ptr: pointer to bearer detecting duplication
+ * @b: pointer to bearer detecting duplication
  * @node_addr: duplicated node address
  * @media_addr: media address advertised by duplicated node
  */
-static void disc_dupl_alert(struct tipc_bearer *b_ptr, u32 node_addr,
+static void disc_dupl_alert(struct tipc_bearer *b, u32 node_addr,
 			    struct tipc_media_addr *media_addr)
 {
 	char node_addr_str[16];
@@ -111,7 +111,7 @@ static void disc_dupl_alert(struct tipc_bearer *b_ptr, u32 node_addr,
 	tipc_media_addr_printf(media_addr_str, sizeof(media_addr_str),
 			       media_addr);
 	pr_warn("Duplicate %s using %s seen on <%s>\n", node_addr_str,
-		media_addr_str, b_ptr->name);
+		media_addr_str, b->name);
 }
 
 /**
@@ -261,13 +261,13 @@ exit:
 /**
  * tipc_disc_create - create object to send periodic link setup requests
  * @net: the applicable net namespace
- * @b_ptr: ptr to bearer issuing requests
+ * @b: ptr to bearer issuing requests
  * @dest: destination address for request messages
  * @dest_domain: network domain to which links can be established
  *
  * Returns 0 if successful, otherwise -errno.
  */
-int tipc_disc_create(struct net *net, struct tipc_bearer *b_ptr,
+int tipc_disc_create(struct net *net, struct tipc_bearer *b,
 		     struct tipc_media_addr *dest)
 {
 	struct tipc_link_req *req;
@@ -282,17 +282,17 @@ int tipc_disc_create(struct net *net, struct tipc_bearer *b_ptr,
 		return -ENOMEM;
 	}
 
-	tipc_disc_init_msg(net, req->buf, DSC_REQ_MSG, b_ptr);
+	tipc_disc_init_msg(net, req->buf, DSC_REQ_MSG, b);
 	memcpy(&req->dest, dest, sizeof(*dest));
 	req->net = net;
-	req->bearer_id = b_ptr->identity;
-	req->domain = b_ptr->domain;
+	req->bearer_id = b->identity;
+	req->domain = b->domain;
 	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	spin_lock_init(&req->lock);
 	setup_timer(&req->timer, disc_timeout, (unsigned long)req);
 	mod_timer(&req->timer, jiffies + req->timer_intv);
-	b_ptr->link_req = req;
+	b->link_req = req;
 	skb = skb_clone(req->buf, GFP_ATOMIC);
 	if (skb)
 		tipc_bearer_xmit_skb(net, req->bearer_id, skb, &req->dest);
@@ -313,19 +313,19 @@ void tipc_disc_delete(struct tipc_link_req *req)
 /**
  * tipc_disc_reset - reset object to send periodic link setup requests
  * @net: the applicable net namespace
- * @b_ptr: ptr to bearer issuing requests
+ * @b: ptr to bearer issuing requests
  * @dest_domain: network domain to which links can be established
  */
-void tipc_disc_reset(struct net *net, struct tipc_bearer *b_ptr)
+void tipc_disc_reset(struct net *net, struct tipc_bearer *b)
 {
-	struct tipc_link_req *req = b_ptr->link_req;
+	struct tipc_link_req *req = b->link_req;
 	struct sk_buff *skb;
 
 	spin_lock_bh(&req->lock);
-	tipc_disc_init_msg(net, req->buf, DSC_REQ_MSG, b_ptr);
+	tipc_disc_init_msg(net, req->buf, DSC_REQ_MSG, b);
 	req->net = net;
-	req->bearer_id = b_ptr->identity;
-	req->domain = b_ptr->domain;
+	req->bearer_id = b->identity;
+	req->domain = b->domain;
 	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	mod_timer(&req->timer, jiffies + req->timer_intv);

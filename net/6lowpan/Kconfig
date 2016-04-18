@@ -5,12 +5,21 @@ menuconfig 6LOWPAN
 	  This enables IPv6 over Low power Wireless Personal Area Network -
 	  "6LoWPAN" which is supported by IEEE 802.15.4 or Bluetooth stacks.
 
+config 6LOWPAN_DEBUGFS
+	bool "6LoWPAN debugfs support"
+	depends on 6LOWPAN
+	depends on DEBUG_FS
+	---help---
+	  This enables 6LoWPAN debugfs support. For example to manipulate
+	  IPHC context information at runtime.
+
 menuconfig 6LOWPAN_NHC
-	tristate "Next Header Compression Support"
+	tristate "Next Header and Generic Header Compression Support"
 	depends on 6LOWPAN
 	default y
 	---help---
-	  Support for next header compression.
+	  Support for next header and generic header compression defined in
+	  RFC6282 and RFC7400.
 
 if 6LOWPAN_NHC
 
@@ -57,5 +66,39 @@ config 6LOWPAN_NHC_UDP
 	default y
 	---help---
 	  6LoWPAN IPv6 UDP Header compression according to RFC6282.
+
+config 6LOWPAN_GHC_EXT_HDR_HOP
+	tristate "GHC Hop-by-Hop Options Header Support"
+	---help---
+	  6LoWPAN IPv6 Hop-by-Hop option generic header compression according
+	  to RFC7400.
+
+config 6LOWPAN_GHC_UDP
+	tristate "GHC UDP Support"
+	---help---
+	  6LoWPAN IPv6 UDP generic header compression according to RFC7400.
+
+config 6LOWPAN_GHC_ICMPV6
+	tristate "GHC ICMPv6 Support"
+	---help---
+	  6LoWPAN IPv6 ICMPv6 generic header compression according to RFC7400.
+
+config 6LOWPAN_GHC_EXT_HDR_DEST
+	tristate "GHC Destination Options Header Support"
+	---help---
+	  6LoWPAN IPv6 destination option generic header compression according
+	  to RFC7400.
+
+config 6LOWPAN_GHC_EXT_HDR_FRAG
+	tristate "GHC Fragmentation Options Header Support"
+	---help---
+	  6LoWPAN IPv6 fragmentation option generic header compression
+	  according to RFC7400.
+
+config 6LOWPAN_GHC_EXT_HDR_ROUTE
+	tristate "GHC Routing Options Header Support"
+	---help---
+	  6LoWPAN IPv6 routing option generic header compression according
+	  to RFC7400.
 
 endif

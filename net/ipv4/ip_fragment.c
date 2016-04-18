@@ -54,8 +54,6 @@
  * code now. If you change something here, _PLEASE_ update ipv6/reassembly.c
  * as well. Or notify me, at least. --ANK
  */
-
-static int sysctl_ipfrag_max_dist __read_mostly = 64;
 static const char ip_frag_cache_name[] = "ip4-frags";
 
 struct ipfrag_skb_cb
@@ -150,7 +148,7 @@ static void ip4_frag_init(struct inet_frag_queue *q, const void *a)
 	qp->daddr = arg->iph->daddr;
 	qp->vif = arg->vif;
 	qp->user = arg->user;
-	qp->peer = sysctl_ipfrag_max_dist ?
+	qp->peer = q->net->max_dist ?
 		inet_getpeer_v4(net->ipv4.peers, arg->iph->saddr, arg->vif, 1) :
 		NULL;
 }
@@ -275,7 +273,7 @@ static struct ipq *ip_find(struct net *net, struct iphdr *iph,
 static int ip_frag_too_far(struct ipq *qp)
 {
 	struct inet_peer *peer = qp->peer;
-	unsigned int max = sysctl_ipfrag_max_dist;
+	unsigned int max = qp->q.net->max_dist;
 	unsigned int start, end;
 
 	int rc;
@@ -661,6 +659,7 @@ int ip_defrag(struct net *net, struct sk_buff *skb, u32 user)
 	struct ipq *qp;
 
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMREQDS);
+	skb_orphan(skb);
 
 	/* Lookup (or create) queue header */
 	qp = ip_find(net, ip_hdr(skb), user, vif);
@@ -748,6 +747,14 @@ static struct ctl_table ip4_frags_ns_ctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
+	{
+		.procname	= "ipfrag_max_dist",
+		.data		= &init_net.ipv4.frags.max_dist,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero
+	},
 	{ }
 };
 
@@ -760,14 +767,6 @@ static struct ctl_table ip4_frags_ctl_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "ipfrag_max_dist",
-		.data		= &sysctl_ipfrag_max_dist,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero
 	},
 	{ }
 };
@@ -789,10 +788,7 @@ static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 		table[1].data = &net->ipv4.frags.low_thresh;
 		table[1].extra2 = &net->ipv4.frags.high_thresh;
 		table[2].data = &net->ipv4.frags.timeout;
-
-		/* Don't export sysctls to unprivileged users */
-		if (net->user_ns != &init_user_ns)
-			table[0].procname = NULL;
+		table[3].data = &net->ipv4.frags.max_dist;
 	}
 
 	hdr = register_net_sysctl(net, "net/ipv4", table);
@@ -864,6 +860,8 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 	 */
 	net->ipv4.frags.timeout = IP_FRAG_TIME;
 
+	net->ipv4.frags.max_dist = 64;
+
 	res = inet_frags_init_net(&net->ipv4.frags);
 	if (res)
 		return res;
@@ -891,7 +889,6 @@ void __init ipfrag_init(void)
 	ip4_frags.hashfn = ip4_hashfn;
 	ip4_frags.constructor = ip4_frag_init;
 	ip4_frags.destructor = ip4_frag_free;
-	ip4_frags.skb_free = NULL;
 	ip4_frags.qsize = sizeof(struct ipq);
 	ip4_frags.match = ip4_frag_match;
 	ip4_frags.frag_expire = ip_expire;

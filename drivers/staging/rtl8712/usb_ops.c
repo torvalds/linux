@@ -179,22 +179,22 @@ static void usb_intf_hdl_close(u8 *priv)
 
 void r8712_usb_set_intf_funs(struct intf_hdl *pintf_hdl)
 {
-	pintf_hdl->intf_hdl_init = &usb_intf_hdl_init;
-	pintf_hdl->intf_hdl_unload = &usb_intf_hdl_unload;
-	pintf_hdl->intf_hdl_open = &usb_intf_hdl_open;
-	pintf_hdl->intf_hdl_close = &usb_intf_hdl_close;
+	pintf_hdl->intf_hdl_init = usb_intf_hdl_init;
+	pintf_hdl->intf_hdl_unload = usb_intf_hdl_unload;
+	pintf_hdl->intf_hdl_open = usb_intf_hdl_open;
+	pintf_hdl->intf_hdl_close = usb_intf_hdl_close;
 }
 
 void r8712_usb_set_intf_ops(struct _io_ops	*pops)
 {
 	memset((u8 *)pops, 0, sizeof(struct _io_ops));
-	pops->_read8 = &usb_read8;
-	pops->_read16 = &usb_read16;
-	pops->_read32 = &usb_read32;
-	pops->_read_port = &r8712_usb_read_port;
-	pops->_write8 = &usb_write8;
-	pops->_write16 = &usb_write16;
-	pops->_write32 = &usb_write32;
-	pops->_write_mem = &r8712_usb_write_mem;
-	pops->_write_port = &r8712_usb_write_port;
+	pops->_read8 = usb_read8;
+	pops->_read16 = usb_read16;
+	pops->_read32 = usb_read32;
+	pops->_read_port = r8712_usb_read_port;
+	pops->_write8 = usb_write8;
+	pops->_write16 = usb_write16;
+	pops->_write32 = usb_write32;
+	pops->_write_mem = r8712_usb_write_mem;
+	pops->_write_port = r8712_usb_write_port;
 }

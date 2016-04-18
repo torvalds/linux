@@ -206,7 +206,7 @@ void evergreen_hdmi_write_sad_regs(struct drm_encoder *encoder,
  * build a AVI Info Frame
  */
 void evergreen_set_avi_packet(struct radeon_device *rdev, u32 offset,
-    unsigned char *buffer, size_t size)
+			      unsigned char *buffer, size_t size)
 {
 	uint8_t *frame = buffer + 3;
 
@@ -289,6 +289,16 @@ void dce4_dp_audio_set_dto(struct radeon_device *rdev,
 	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
 	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
 	 */
+	if (ASIC_IS_DCE41(rdev)) {
+		unsigned int div = (RREG32(DCE41_DENTIST_DISPCLK_CNTL) &
+			DENTIST_DPREFCLK_WDIVIDER_MASK) >>
+			DENTIST_DPREFCLK_WDIVIDER_SHIFT;
+		div = radeon_audio_decode_dfs_div(div);
+
+		if (div)
+			clock = 100 * clock / div;
+	}
+
 	WREG32(DCCG_AUDIO_DTO1_PHASE, 24000);
 	WREG32(DCCG_AUDIO_DTO1_MODULE, clock);
 }

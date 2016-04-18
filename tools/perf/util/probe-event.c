@@ -1895,9 +1895,8 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 		sym = map__find_symbol(map, addr, NULL);
 	} else {
 		if (tp->symbol && !addr) {
-			ret = kernel_get_symbol_address_by_name(tp->symbol,
-							&addr, true, false);
-			if (ret < 0)
+			if (kernel_get_symbol_address_by_name(tp->symbol,
+						&addr, true, false) < 0)
 				goto out;
 		}
 		if (addr) {
@@ -1905,6 +1904,7 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 			sym = __find_kernel_function(addr, &map);
 		}
 	}
+
 	if (!sym)
 		goto out;
 
@@ -2179,7 +2179,7 @@ static int perf_probe_event__sprintf(const char *group, const char *event,
 		strbuf_addf(result, " in %s", module);
 
 	if (pev->nargs > 0) {
-		strbuf_addstr(result, " with");
+		strbuf_add(result, " with", 5);
 		for (i = 0; i < pev->nargs; i++) {
 			ret = synthesize_perf_probe_arg(&pev->args[i],
 							buf, 128);
@@ -2326,8 +2326,11 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 		goto out;
 
 	if (!allow_suffix) {
-		pr_warning("Error: event \"%s\" already exists. "
-			   "(Use -f to force duplicates.)\n", buf);
+		pr_warning("Error: event \"%s\" already exists.\n"
+			   " Hint: Remove existing event by 'perf probe -d'\n"
+			   "       or force duplicates by 'perf probe -f'\n"
+			   "       or set 'force=yes' in BPF source.\n",
+			   buf);
 		ret = -EEXIST;
 		goto out;
 	}

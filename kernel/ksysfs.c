@@ -20,7 +20,7 @@
 #include <linux/capability.h>
 #include <linux/compiler.h>
 
-#include <linux/rcupdate.h>	/* rcu_expedited */
+#include <linux/rcupdate.h>	/* rcu_expedited and rcu_normal */
 
 #define KERNEL_ATTR_RO(_name) \
 static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
@@ -144,11 +144,12 @@ static ssize_t fscaps_show(struct kobject *kobj,
 }
 KERNEL_ATTR_RO(fscaps);
 
+#ifndef CONFIG_TINY_RCU
 int rcu_expedited;
 static ssize_t rcu_expedited_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", rcu_expedited);
+	return sprintf(buf, "%d\n", READ_ONCE(rcu_expedited));
 }
 static ssize_t rcu_expedited_store(struct kobject *kobj,
 				   struct kobj_attribute *attr,
@@ -160,6 +161,24 @@ static ssize_t rcu_expedited_store(struct kobject *kobj,
 	return count;
 }
 KERNEL_ATTR_RW(rcu_expedited);
+
+int rcu_normal;
+static ssize_t rcu_normal_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", READ_ONCE(rcu_normal));
+}
+static ssize_t rcu_normal_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (kstrtoint(buf, 0, &rcu_normal))
+		return -EINVAL;
+
+	return count;
+}
+KERNEL_ATTR_RW(rcu_normal);
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 /*
  * Make /sys/kernel/notes give the raw contents of our kernel .notes section.
@@ -202,7 +221,10 @@ static struct attribute * kernel_attrs[] = {
 	&kexec_crash_size_attr.attr,
 	&vmcoreinfo_attr.attr,
 #endif
+#ifndef CONFIG_TINY_RCU
 	&rcu_expedited_attr.attr,
+	&rcu_normal_attr.attr,
+#endif
 	NULL
 };
 

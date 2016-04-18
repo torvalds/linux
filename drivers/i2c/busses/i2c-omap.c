@@ -1450,7 +1450,8 @@ omap_i2c_probe(struct platform_device *pdev)
 
 err_unuse_clocks:
 	omap_i2c_write_reg(omap, OMAP_I2C_CON_REG, 0);
-	pm_runtime_put(omap->dev);
+	pm_runtime_dont_use_autosuspend(omap->dev);
+	pm_runtime_put_sync(omap->dev);
 	pm_runtime_disable(&pdev->dev);
 err_free_mem:
 
@@ -1468,6 +1469,7 @@ static int omap_i2c_remove(struct platform_device *pdev)
 		return ret;
 
 	omap_i2c_write_reg(omap, OMAP_I2C_CON_REG, 0);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return 0;

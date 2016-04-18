@@ -824,6 +824,7 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_TURTELIZER_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ USB_DEVICE(RATOC_VENDOR_ID, RATOC_PRODUCT_ID_USB60F) },
+	{ USB_DEVICE(RATOC_VENDOR_ID, RATOC_PRODUCT_ID_SCU18) },
 	{ USB_DEVICE(FTDI_VID, FTDI_REU_TINY_PID) },
 
 	/* Papouch devices based on FTDI chip */
@@ -1003,6 +1004,10 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(FTDI_VID, CHETCO_SEASMART_DISPLAY_PID) },
 	{ USB_DEVICE(FTDI_VID, CHETCO_SEASMART_LITE_PID) },
 	{ USB_DEVICE(FTDI_VID, CHETCO_SEASMART_ANALOG_PID) },
+	/* ICP DAS I-756xU devices */
+	{ USB_DEVICE(ICPDAS_VID, ICPDAS_I7560U_PID) },
+	{ USB_DEVICE(ICPDAS_VID, ICPDAS_I7561U_PID) },
+	{ USB_DEVICE(ICPDAS_VID, ICPDAS_I7563U_PID) },
 	{ }					/* Terminating entry */
 };
 
@@ -1319,11 +1324,11 @@ static __u32 get_ftdi_divisor(struct tty_struct *tty,
 		if (baud <= 3000000) {
 			__u16 product_id = le16_to_cpu(
 				port->serial->dev->descriptor.idProduct);
-			if (((FTDI_NDI_HUC_PID == product_id) ||
-			     (FTDI_NDI_SPECTRA_SCU_PID == product_id) ||
-			     (FTDI_NDI_FUTURE_2_PID == product_id) ||
-			     (FTDI_NDI_FUTURE_3_PID == product_id) ||
-			     (FTDI_NDI_AURORA_SCU_PID == product_id)) &&
+			if (((product_id == FTDI_NDI_HUC_PID)		||
+			     (product_id == FTDI_NDI_SPECTRA_SCU_PID)	||
+			     (product_id == FTDI_NDI_FUTURE_2_PID)	||
+			     (product_id == FTDI_NDI_FUTURE_3_PID)	||
+			     (product_id == FTDI_NDI_AURORA_SCU_PID))	&&
 			    (baud == 19200)) {
 				baud = 1200000;
 			}

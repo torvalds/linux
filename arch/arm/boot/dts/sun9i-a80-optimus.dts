@@ -65,7 +65,7 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_optimus>;
+		pinctrl-0 = <&led_pins_optimus>, <&led_r_pins_optimus>;
 
 		/* The LED names match those found on the board */
 
@@ -74,7 +74,10 @@
 			gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>;
 		};
 
-		/* led3 is on PM15, in R_PIO */
+		led3 {
+			label = "optimus:led3:usr";
+			gpios = <&r_pio 1 15 GPIO_ACTIVE_HIGH>; /* PM15 */
+		};
 
 		led4 {
 			label = "optimus:led4:usr";
@@ -104,17 +107,6 @@
 
 &ehci2 {
 	status = "okay";
-};
-
-&i2c3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c3_pins_a>;
-	status = "okay";
-};
-
-&i2c3_pins_a {
-	/* Enable internal pull-up */
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 };
 
 &ohci0 {
@@ -171,7 +163,13 @@
 	vmmc-supply = <&reg_vcc3v0>;
 	bus-width = <8>;
 	non-removable;
+	cap-mmc-hw-reset;
 	status = "okay";
+};
+
+&mmc2_8bit_pins {
+	/* Increase drive strength for DDR modes */
+	allwinner,drive = <SUN4I_PINCTRL_40_MA>;
 };
 
 &reg_usb1_vbus {
@@ -180,21 +178,27 @@
 	status = "okay";
 };
 
+&r_ir {
+	status = "okay";
+};
+
+&r_pio {
+	led_r_pins_optimus: led-pins@1 {
+		allwinner,pins = "PM15";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+};
+
+&r_rsb {
+	status = "okay";
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
 	status = "okay";
-};
-
-&uart4 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart4_pins_a>;
-	status = "okay";
-};
-
-&uart4_pins_a {
-	/* Enable internal pull-up */
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 };
 
 &usbphy1 {

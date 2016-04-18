@@ -290,7 +290,16 @@ int main(void)
 	DEFINE(ASM_PFN_PTE_SHIFT, PFN_PTE_SHIFT);
 	DEFINE(ASM_PT_INITIAL, PT_INITIAL);
 	BLANK();
+	/* HUGEPAGE_SIZE is only used in vmlinux.lds.S to align kernel text
+	 * and kernel data on physical huge pages */
+#ifdef CONFIG_HUGETLB_PAGE
+	DEFINE(HUGEPAGE_SIZE, 1UL << REAL_HPAGE_SHIFT);
+#else
+	DEFINE(HUGEPAGE_SIZE, PAGE_SIZE);
+#endif
+	BLANK();
 	DEFINE(EXCDATA_IP, offsetof(struct exception_data, fault_ip));
+	DEFINE(EXCDATA_GP, offsetof(struct exception_data, fault_gp));
 	DEFINE(EXCDATA_SPACE, offsetof(struct exception_data, fault_space));
 	DEFINE(EXCDATA_ADDR, offsetof(struct exception_data, fault_addr));
 	BLANK();

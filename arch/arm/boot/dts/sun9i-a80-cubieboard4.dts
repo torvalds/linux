@@ -62,9 +62,31 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins_cubieboard4>;
+
+		green {
+			label = "cubieboard4:green:usr";
+			gpios = <&pio 7 17 GPIO_ACTIVE_HIGH>; /* PH17 */
+		};
+
+		red {
+			label = "cubieboard4:red:usr";
+			gpios = <&pio 7 6 GPIO_ACTIVE_HIGH>; /* PH6 */
+		};
+	};
 };
 
 &pio {
+	led_pins_cubieboard4: led-pins@0 {
+		allwinner,pins = "PH6", "PH17";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
 	mmc0_cd_pin_cubieboard4: mmc0_cd_pin@0 {
 		allwinner,pins = "PH18";
 		allwinner,function = "gpio_in";
@@ -89,6 +111,20 @@
 	vmmc-supply = <&reg_vcc3v0>;
 	bus-width = <8>;
 	non-removable;
+	cap-mmc-hw-reset;
+	status = "okay";
+};
+
+&mmc2_8bit_pins {
+	/* Increase drive strength for DDR modes */
+	allwinner,drive = <SUN4I_PINCTRL_40_MA>;
+};
+
+&r_ir {
+	status = "okay";
+};
+
+&r_rsb {
 	status = "okay";
 };
 

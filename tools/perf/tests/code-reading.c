@@ -293,7 +293,6 @@ static int process_sample_event(struct machine *machine,
 {
 	struct perf_sample sample;
 	struct thread *thread;
-	u8 cpumode;
 	int ret;
 
 	if (perf_evlist__parse_sample(evlist, event, &sample)) {
@@ -307,9 +306,7 @@ static int process_sample_event(struct machine *machine,
 		return -1;
 	}
 
-	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
-	ret = read_object_code(sample.ip, READLEN, cpumode, thread, state);
+	ret = read_object_code(sample.ip, READLEN, sample.cpumode, thread, state);
 	thread__put(thread);
 	return ret;
 }
@@ -433,14 +430,13 @@ enum {
 
 static int do_test_code_reading(bool try_kcore)
 {
-	struct machines machines;
 	struct machine *machine;
 	struct thread *thread;
 	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
-		.freq		     = 4000,
+		.freq		     = 500,
 		.target		     = {
 			.uses_mmap   = true,
 		},
@@ -459,8 +455,7 @@ static int do_test_code_reading(bool try_kcore)
 
 	pid = getpid();
 
-	machines__init(&machines);
-	machine = &machines.host;
+	machine = machine__new_host();
 
 	ret = machine__create_kernel_maps(machine);
 	if (ret < 0) {
@@ -549,12 +544,25 @@ static int do_test_code_reading(bool try_kcore)
 		if (ret < 0) {
 			if (!excl_kernel) {
 				excl_kernel = true;
+				/*
+				 * Both cpus and threads are now owned by evlist
+				 * and will be freed by following perf_evlist__set_maps
+				 * call. Getting refference to keep them alive.
+				 */
+				cpu_map__get(cpus);
+				thread_map__get(threads);
 				perf_evlist__set_maps(evlist, NULL, NULL);
 				perf_evlist__delete(evlist);
 				evlist = NULL;
 				continue;
 			}
-			pr_debug("perf_evlist__open failed\n");
+
+			if (verbose) {
+				char errbuf[512];
+				perf_evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
+				pr_debug("perf_evlist__open() failed!\n%s\n", errbuf);
+			}
+
 			goto out_put;
 		}
 		break;
@@ -594,14 +602,13 @@ out_err:
 		cpu_map__put(cpus);
 		thread_map__put(threads);
 	}
-	machines__destroy_kernel_maps(&machines);
 	machine__delete_threads(machine);
-	machines__exit(&machines);
+	machine__delete(machine);
 
 	return err;
 }
 
-int test__code_reading(void)
+int test__code_reading(int subtest __maybe_unused)
 {
 	int ret;
 
@@ -613,16 +620,16 @@ int test__code_reading(void)
 	case TEST_CODE_READING_OK:
 		return 0;
 	case TEST_CODE_READING_NO_VMLINUX:
-		fprintf(stderr, " (no vmlinux)");
+		pr_debug("no vmlinux\n");
 		return 0;
 	case TEST_CODE_READING_NO_KCORE:
-		fprintf(stderr, " (no kcore)");
+		pr_debug("no kcore\n");
 		return 0;
 	case TEST_CODE_READING_NO_ACCESS:
-		fprintf(stderr, " (no access)");
+		pr_debug("no access\n");
 		return 0;
 	case TEST_CODE_READING_NO_KERNEL_OBJ:
-		fprintf(stderr, " (no kernel obj)");
+		pr_debug("no kernel obj\n");
 		return 0;
 	default:
 		return -1;

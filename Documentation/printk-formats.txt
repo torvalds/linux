@@ -23,6 +23,10 @@ Example:
 
 Reminder: sizeof() result is of type size_t.
 
+The kernel's printf does not support %n. For obvious reasons, floating
+point formats (%e, %f, %g, %a) are also not recognized. Use of any
+unsupported specifier or length qualifier results in a WARN and early
+return from vsnprintf.
 
 Raw pointer value SHOULD be printed with %p. The kernel supports
 the following extended format specifiers for pointer types:
@@ -119,6 +123,7 @@ Raw buffer as an escaped string:
 	If field width is omitted the 1 byte only will be escaped.
 
 Raw buffer as a hex string:
+
 	%*ph	00 01 02  ...  3f
 	%*phC	00:01:02: ... :3f
 	%*phD	00-01-02- ... -3f
@@ -234,6 +239,7 @@ UUID/GUID addresses:
 	Passed by reference.
 
 dentry names:
+
 	%pd{,2,3,4}
 	%pD{,2,3,4}
 
@@ -243,6 +249,12 @@ dentry names:
 	n last components.  %pD does the same thing for struct file.
 
 	Passed by reference.
+
+block_device names:
+
+	%pg	sda, sda1 or loop0p1
+
+	For printing name of block_device pointers.
 
 struct va_format:
 
@@ -255,6 +267,8 @@ struct va_format:
 		const char *fmt;
 		va_list *va;
 	};
+
+	Implements a "recursive vsnprintf".
 
 	Do not use this feature without some mechanism to verify the
 	correctness of the format string and va_list arguments.
@@ -283,6 +297,36 @@ bitmap and its derivatives such as cpumask and nodemask:
 	output the bitmap as range list with field width as the number of bits.
 
 	Passed by reference.
+
+Flags bitfields such as page flags, gfp_flags:
+
+	%pGp	referenced|uptodate|lru|active|private
+	%pGg	GFP_USER|GFP_DMA32|GFP_NOWARN
+	%pGv	read|exec|mayread|maywrite|mayexec|denywrite
+
+	For printing flags bitfields as a collection of symbolic constants that
+	would construct the value. The type of flags is given by the third
+	character. Currently supported are [p]age flags, [v]ma_flags (both
+	expect unsigned long *) and [g]fp_flags (expects gfp_t *). The flag
+	names and print order depends on the particular	type.
+
+	Note that this format should not be used directly in TP_printk() part
+	of a tracepoint. Instead, use the show_*_flags() functions from
+	<trace/events/mmflags.h>.
+
+	Passed by reference.
+
+Network device features:
+
+	%pNF	0x000000000000c000
+
+	For printing netdev_features_t.
+
+	Passed by reference.
+
+If you add other %p extensions, please extend lib/test_printf.c with
+one or more test cases, if at all feasible.
+
 
 Thank you for your cooperation and attention.
 

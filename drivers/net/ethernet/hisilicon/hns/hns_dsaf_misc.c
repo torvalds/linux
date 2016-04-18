@@ -149,7 +149,11 @@ void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val)
 
 	if (port < DSAF_SERVICE_NW_NUM) {
 		reg_val_1  = 0x1 << port;
-		reg_val_2  = 0x1041041 << port;
+		/* there is difference between V1 and V2 in register.*/
+		if (AE_IS_VER1(dsaf_dev->dsaf_ver))
+			reg_val_2  = 0x1041041 << port;
+		else
+			reg_val_2  = 0x2082082 << port;
 
 		if (val == 0) {
 			dsaf_write_reg(dsaf_dev->sc_base,
@@ -240,31 +244,35 @@ void hns_ppe_com_srst(struct ppe_common_cb *ppe_common, u32 val)
  */
 phy_interface_t hns_mac_get_phy_if(struct hns_mac_cb *mac_cb)
 {
-	u32 hilink3_mode;
-	u32 hilink4_mode;
+	u32 mode;
+	u32 reg;
+	u32 shift;
+	bool is_ver1 = AE_IS_VER1(mac_cb->dsaf_dev->dsaf_ver);
 	void __iomem *sys_ctl_vaddr = mac_cb->sys_ctl_vaddr;
-	int dev_id = mac_cb->mac_id;
+	int mac_id = mac_cb->mac_id;
 	phy_interface_t phy_if = PHY_INTERFACE_MODE_NA;
 
-	hilink3_mode = dsaf_read_reg(sys_ctl_vaddr, HNS_MAC_HILINK3_REG);
-	hilink4_mode = dsaf_read_reg(sys_ctl_vaddr, HNS_MAC_HILINK4_REG);
-	if (dev_id >= 0 && dev_id <= 3) {
-		if (hilink4_mode == 0)
-			phy_if = PHY_INTERFACE_MODE_SGMII;
-		else
-			phy_if = PHY_INTERFACE_MODE_XGMII;
-	} else if (dev_id >= 4 && dev_id <= 5) {
-		if (hilink3_mode == 0)
-			phy_if = PHY_INTERFACE_MODE_SGMII;
-		else
-			phy_if = PHY_INTERFACE_MODE_XGMII;
-	} else {
+	if (is_ver1 && (mac_id >= 6 && mac_id <= 7)) {
 		phy_if = PHY_INTERFACE_MODE_SGMII;
+	} else if (mac_id >= 0 && mac_id <= 3) {
+		reg = is_ver1 ? HNS_MAC_HILINK4_REG : HNS_MAC_HILINK4V2_REG;
+		mode = dsaf_read_reg(sys_ctl_vaddr, reg);
+		/* mac_id 0, 1, 2, 3 ---> hilink4 lane 0, 1, 2, 3 */
+		shift = is_ver1 ? 0 : mac_id;
+		if (dsaf_get_bit(mode, shift))
+			phy_if = PHY_INTERFACE_MODE_XGMII;
+		else
+			phy_if = PHY_INTERFACE_MODE_SGMII;
+	} else if (mac_id >= 4 && mac_id <= 7) {
+		reg = is_ver1 ? HNS_MAC_HILINK3_REG : HNS_MAC_HILINK3V2_REG;
+		mode = dsaf_read_reg(sys_ctl_vaddr, reg);
+		/* mac_id 4, 5, 6, 7 ---> hilink3 lane 2, 3, 0, 1 */
+		shift = is_ver1 ? 0 : mac_id <= 5 ? mac_id - 2 : mac_id - 6;
+		if (dsaf_get_bit(mode, shift))
+			phy_if = PHY_INTERFACE_MODE_XGMII;
+		else
+			phy_if = PHY_INTERFACE_MODE_SGMII;
 	}
-
-	dev_dbg(mac_cb->dev,
-		"hilink3_mode=%d, hilink4_mode=%d dev_id=%d, phy_if=%d\n",
-		hilink3_mode, hilink4_mode, dev_id, phy_if);
 	return phy_if;
 }
 

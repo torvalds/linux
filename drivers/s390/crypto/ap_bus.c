@@ -74,6 +74,7 @@ static struct device *ap_root_device = NULL;
 static struct ap_config_info *ap_configuration;
 static DEFINE_SPINLOCK(ap_device_list_lock);
 static LIST_HEAD(ap_device_list);
+static bool initialised;
 
 /*
  * Workqueue timer for bus rescan.
@@ -598,8 +599,10 @@ static enum ap_wait ap_sm_read(struct ap_device *ap_dev)
 	status = ap_sm_recv(ap_dev);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
-		if (ap_dev->queue_count > 0)
+		if (ap_dev->queue_count > 0) {
+			ap_dev->state = AP_STATE_WORKING;
 			return AP_WAIT_AGAIN;
+		}
 		ap_dev->state = AP_STATE_IDLE;
 		return AP_WAIT_NONE;
 	case AP_RESPONSE_NO_PENDING_REPLY:
@@ -1384,6 +1387,9 @@ int ap_driver_register(struct ap_driver *ap_drv, struct module *owner,
 {
 	struct device_driver *drv = &ap_drv->driver;
 
+	if (!initialised)
+		return -ENODEV;
+
 	drv->bus = &ap_bus_type;
 	drv->probe = ap_device_probe;
 	drv->remove = ap_device_remove;
@@ -1808,6 +1814,7 @@ int __init ap_module_init(void)
 		goto out_pm;
 
 	queue_work(system_long_wq, &ap_scan_work);
+	initialised = true;
 
 	return 0;
 
@@ -1837,6 +1844,7 @@ void ap_module_exit(void)
 {
 	int i;
 
+	initialised = false;
 	ap_reset_domain();
 	ap_poll_thread_stop();
 	del_timer_sync(&ap_config_timer);

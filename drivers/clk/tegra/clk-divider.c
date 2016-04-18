@@ -32,7 +32,7 @@
 static int get_div(struct tegra_clk_frac_div *divider, unsigned long rate,
 		   unsigned long parent_rate)
 {
-	s64 divider_ux1 = parent_rate;
+	u64 divider_ux1 = parent_rate;
 	u8 flags = divider->flags;
 	int mul;
 
@@ -54,7 +54,7 @@ static int get_div(struct tegra_clk_frac_div *divider, unsigned long rate,
 
 	divider_ux1 -= mul;
 
-	if (divider_ux1 < 0)
+	if ((s64)divider_ux1 < 0)
 		return 0;
 
 	if (divider_ux1 > get_max_div(divider))

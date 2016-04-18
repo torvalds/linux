@@ -24,9 +24,6 @@
 #ifndef PAS16_H
 #define PAS16_H
 
-#define PDEBUG_INIT	0x1
-#define PDEBUG_TRANSFER 0x2
-
 #define PAS16_DEFAULT_BASE_1  0x388
 #define PAS16_DEFAULT_BASE_2  0x384
 #define PAS16_DEFAULT_BASE_3  0x38c
@@ -98,46 +95,16 @@
 #define OPERATION_MODE_1 0xec03
 #define IO_CONFIG_3 0xf002
 
+#define NCR5380_implementation_fields /* none */
 
-#ifndef ASM
+#define PAS16_io_port(reg) (instance->io_port + pas16_offset[(reg)])
 
-#ifndef CMD_PER_LUN
-#define CMD_PER_LUN 2
-#endif
-
-#ifndef CAN_QUEUE
-#define CAN_QUEUE 32 
-#endif
-
-#define NCR5380_implementation_fields \
-    volatile unsigned short io_port
-
-#define NCR5380_local_declare() \
-    volatile unsigned short io_port
-
-#define NCR5380_setup(instance) \
-    io_port = (instance)->io_port
-
-#define PAS16_io_port(reg) ( io_port + pas16_offset[(reg)] )
-
-#if !(PDEBUG & PDEBUG_TRANSFER) 
 #define NCR5380_read(reg) ( inb(PAS16_io_port(reg)) )
 #define NCR5380_write(reg, value) ( outb((value),PAS16_io_port(reg)) )
-#else
-#define NCR5380_read(reg)						\
-    (((unsigned char) printk("scsi%d : read register %d at io_port %04x\n"\
-    , instance->hostno, (reg), PAS16_io_port(reg))), inb( PAS16_io_port(reg)) )
 
-#define NCR5380_write(reg, value) 					\
-    (printk("scsi%d : write %02x to register %d at io_port %04x\n", 	\
-	    instance->hostno, (value), (reg), PAS16_io_port(reg)),	\
-    outb( (value),PAS16_io_port(reg) ) )
-
-#endif
-
+#define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
 
 #define NCR5380_intr pas16_intr
-#define do_NCR5380_intr do_pas16_intr
 #define NCR5380_queue_command pas16_queue_command
 #define NCR5380_abort pas16_abort
 #define NCR5380_bus_reset pas16_bus_reset
@@ -150,5 +117,4 @@
    
 #define PAS16_IRQS 0xd4a8 
 
-#endif /* ndef ASM */
 #endif /* PAS16_H */

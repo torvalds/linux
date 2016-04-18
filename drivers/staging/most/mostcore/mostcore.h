@@ -60,7 +60,6 @@ enum most_channel_data_type {
 	MOST_CH_SYNC = 1 << 5,
 };
 
-
 enum mbo_status_flags {
 	/* MBO was processed successfully (data was send or received )*/
 	MBO_SUCCESS = 0,
@@ -311,11 +310,11 @@ int most_deregister_aim(struct most_aim *aim);
 struct mbo *most_get_mbo(struct most_interface *iface, int channel_idx,
 			 struct most_aim *);
 void most_put_mbo(struct mbo *mbo);
-int channel_has_mbo(struct most_interface *iface, int channel_idx);
+int channel_has_mbo(struct most_interface *iface, int channel_idx,
+		    struct most_aim *aim);
 int most_start_channel(struct most_interface *iface, int channel_idx,
 		       struct most_aim *);
 int most_stop_channel(struct most_interface *iface, int channel_idx,
 		      struct most_aim *);
-
 
 #endif /* MOST_CORE_H_ */

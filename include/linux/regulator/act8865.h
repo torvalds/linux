@@ -68,12 +68,12 @@ enum {
  * act8865_regulator_data - regulator data
  * @id: regulator id
  * @name: regulator name
- * @platform_data: regulator init data
+ * @init_data: regulator init data
  */
 struct act8865_regulator_data {
 	int id;
 	const char *name;
-	struct regulator_init_data *platform_data;
+	struct regulator_init_data *init_data;
 };
 
 /**

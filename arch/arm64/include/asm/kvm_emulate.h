@@ -26,10 +26,10 @@
 
 #include <asm/esr.h>
 #include <asm/kvm_arm.h>
-#include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 #include <asm/ptrace.h>
 #include <asm/cputype.h>
+#include <asm/virt.h>
 
 unsigned long *vcpu_reg32(const struct kvm_vcpu *vcpu, u8 reg_num);
 unsigned long *vcpu_spsr32(const struct kvm_vcpu *vcpu);
@@ -44,6 +44,8 @@ void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr);
 static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.hcr_el2 = HCR_GUEST_FLAGS;
+	if (is_kernel_in_hyp_mode())
+		vcpu->arch.hcr_el2 |= HCR_E2H;
 	if (test_bit(KVM_ARM_VCPU_EL1_32BIT, vcpu->arch.features))
 		vcpu->arch.hcr_el2 &= ~HCR_RW;
 }
@@ -99,12 +101,22 @@ static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
 	*vcpu_cpsr(vcpu) |= COMPAT_PSR_T_BIT;
 }
 
-static inline unsigned long *vcpu_reg(const struct kvm_vcpu *vcpu, u8 reg_num)
+/*
+ * vcpu_get_reg and vcpu_set_reg should always be passed a register number
+ * coming from a read of ESR_EL2. Otherwise, it may give the wrong result on
+ * AArch32 with banked registers.
+ */
+static inline unsigned long vcpu_get_reg(const struct kvm_vcpu *vcpu,
+					 u8 reg_num)
 {
-	if (vcpu_mode_is_32bit(vcpu))
-		return vcpu_reg32(vcpu, reg_num);
+	return (reg_num == 31) ? 0 : vcpu_gp_regs(vcpu)->regs.regs[reg_num];
+}
 
-	return (unsigned long *)&vcpu_gp_regs(vcpu)->regs.regs[reg_num];
+static inline void vcpu_set_reg(struct kvm_vcpu *vcpu, u8 reg_num,
+				unsigned long val)
+{
+	if (reg_num != 31)
+		vcpu_gp_regs(vcpu)->regs.regs[reg_num] = val;
 }
 
 /* Get vcpu SPSR for current mode */
@@ -118,10 +130,14 @@ static inline unsigned long *vcpu_spsr(const struct kvm_vcpu *vcpu)
 
 static inline bool vcpu_mode_priv(const struct kvm_vcpu *vcpu)
 {
-	u32 mode = *vcpu_cpsr(vcpu) & PSR_MODE_MASK;
+	u32 mode;
 
-	if (vcpu_mode_is_32bit(vcpu))
+	if (vcpu_mode_is_32bit(vcpu)) {
+		mode = *vcpu_cpsr(vcpu) & COMPAT_PSR_MODE_MASK;
 		return mode > COMPAT_PSR_MODE_USR;
+	}
+
+	mode = *vcpu_cpsr(vcpu) & PSR_MODE_MASK;
 
 	return mode != PSR_MODE_EL0t;
 }
@@ -174,6 +190,11 @@ static inline bool kvm_vcpu_dabt_isextabt(const struct kvm_vcpu *vcpu)
 static inline bool kvm_vcpu_dabt_iss1tw(const struct kvm_vcpu *vcpu)
 {
 	return !!(kvm_vcpu_get_hsr(vcpu) & ESR_ELx_S1PTW);
+}
+
+static inline bool kvm_vcpu_dabt_is_cm(const struct kvm_vcpu *vcpu)
+{
+	return !!(kvm_vcpu_get_hsr(vcpu) & ESR_ELx_CM);
 }
 
 static inline int kvm_vcpu_dabt_get_as(const struct kvm_vcpu *vcpu)

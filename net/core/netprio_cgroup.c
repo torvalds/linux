@@ -11,7 +11,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -26,6 +25,12 @@
 #include <net/netprio_cgroup.h>
 
 #include <linux/fdtable.h>
+
+/*
+ * netprio allocates per-net_device priomap array which is indexed by
+ * css->id.  Limiting css ID to 16bits doesn't lose anything.
+ */
+#define NETPRIO_ID_MAX		USHRT_MAX
 
 #define PRIOMAP_MIN_SZ		128
 
@@ -144,6 +149,9 @@ static int cgrp_css_online(struct cgroup_subsys_state *css)
 	struct net_device *dev;
 	int ret = 0;
 
+	if (css->id > NETPRIO_ID_MAX)
+		return -ENOSPC;
+
 	if (!parent_css)
 		return 0;
 
@@ -200,6 +208,8 @@ static ssize_t write_priomap(struct kernfs_open_file *of,
 	if (!dev)
 		return -ENODEV;
 
+	cgroup_sk_alloc_disable();
+
 	rtnl_lock();
 
 	ret = netprio_set_prio(of_css(of), dev, prio);
@@ -213,18 +223,23 @@ static int update_netprio(const void *v, struct file *file, unsigned n)
 {
 	int err;
 	struct socket *sock = sock_from_file(file, &err);
-	if (sock)
-		sock->sk->sk_cgrp_prioidx = (u32)(unsigned long)v;
+	if (sock) {
+		spin_lock(&cgroup_sk_update_lock);
+		sock_cgroup_set_prioidx(&sock->sk->sk_cgrp_data,
+					(unsigned long)v);
+		spin_unlock(&cgroup_sk_update_lock);
+	}
 	return 0;
 }
 
-static void net_prio_attach(struct cgroup_subsys_state *css,
-			    struct cgroup_taskset *tset)
+static void net_prio_attach(struct cgroup_taskset *tset)
 {
 	struct task_struct *p;
-	void *v = (void *)(unsigned long)css->cgroup->id;
+	struct cgroup_subsys_state *css;
 
-	cgroup_taskset_for_each(p, tset) {
+	cgroup_taskset_for_each(p, css, tset) {
+		void *v = (void *)(unsigned long)css->cgroup->id;
+
 		task_lock(p);
 		iterate_fd(p->files, 0, update_netprio, v);
 		task_unlock(p);

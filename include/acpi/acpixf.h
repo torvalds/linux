@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20150930
+#define ACPI_CA_VERSION                 0x20160108
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -190,6 +190,11 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_copy_dsdt_locally, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_do_not_use_xsdt, FALSE);
 
 /*
+ * Optionally support group module level code.
+ */
+ACPI_INIT_GLOBAL(u8, acpi_gbl_group_module_level_code, TRUE);
+
+/*
  * Optionally use 32-bit FADT addresses if and when there is a conflict
  * (address mismatch) between the 32-bit and 64-bit versions of the
  * address. Although ACPICA adheres to the ACPI specification which
@@ -262,6 +267,19 @@ ACPI_INIT_GLOBAL(u32, acpi_gbl_trace_dbg_layer, ACPI_TRACE_LAYER_DEFAULT);
  */
 ACPI_INIT_GLOBAL(u32, acpi_dbg_level, ACPI_DEBUG_DEFAULT);
 ACPI_INIT_GLOBAL(u32, acpi_dbg_layer, 0);
+
+/* Optionally enable timer output with Debug Object output */
+
+ACPI_INIT_GLOBAL(u8, acpi_gbl_display_debug_timer, FALSE);
+
+/*
+ * Debugger command handshake globals. Host OSes need to access these
+ * variables to implement their own command handshake mechanism.
+ */
+#ifdef ACPI_DEBUGGER
+ACPI_INIT_GLOBAL(u8, acpi_gbl_method_executing, FALSE);
+ACPI_GLOBAL(char, acpi_gbl_db_line_buf[ACPI_DB_LINE_BUFFER_SIZE]);
+#endif
 
 /*
  * Other miscellaneous globals
@@ -365,6 +383,29 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 	static ACPI_INLINE prototype {return;}
 
 #endif				/* ACPI_APPLICATION */
+
+/*
+ * Debugger prototypes
+ *
+ * All interfaces used by debugger will be configured
+ * out of the ACPICA build unless the ACPI_DEBUGGER
+ * flag is defined.
+ */
+#ifdef ACPI_DEBUGGER
+#define ACPI_DBR_DEPENDENT_RETURN_OK(prototype) \
+	ACPI_EXTERNAL_RETURN_OK(prototype)
+
+#define ACPI_DBR_DEPENDENT_RETURN_VOID(prototype) \
+	ACPI_EXTERNAL_RETURN_VOID(prototype)
+
+#else
+#define ACPI_DBR_DEPENDENT_RETURN_OK(prototype) \
+	static ACPI_INLINE prototype {return(AE_OK);}
+
+#define ACPI_DBR_DEPENDENT_RETURN_VOID(prototype) \
+	static ACPI_INLINE prototype {return;}
+
+#endif				/* ACPI_DEBUGGER */
 
 /*****************************************************************************
  *
@@ -822,17 +863,9 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status acpi_leave_sleep_state(u8 sleep_state))
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				acpi_set_firmware_waking_vectors
+				acpi_set_firmware_waking_vector
 				(acpi_physical_address physical_address,
 				 acpi_physical_address physical_address64))
-ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				 acpi_set_firmware_waking_vector(u32
-								 physical_address))
-#if ACPI_MACHINE_WIDTH == 64
-ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				acpi_set_firmware_waking_vector64(u64
-								  physical_address))
-#endif
 /*
  * ACPI Timer interfaces
  */
@@ -864,11 +897,9 @@ ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
 				acpi_warning(const char *module_name,
 					     u32 line_number,
 					     const char *format, ...))
-ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
+ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(1)
 				void ACPI_INTERNAL_VAR_XFACE
-				acpi_info(const char *module_name,
-					  u32 line_number,
-					  const char *format, ...))
+				acpi_info(const char *format, ...))
 ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
 				void ACPI_INTERNAL_VAR_XFACE
 				acpi_bios_error(const char *module_name,
@@ -928,6 +959,8 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 					       acpi_object_handler handler,
 					       void **data,
 					       void (*callback)(void *)))
+
+void acpi_run_debugger(char *batch_buffer);
 
 void acpi_set_debugger_thread_id(acpi_thread_id thread_id);
 

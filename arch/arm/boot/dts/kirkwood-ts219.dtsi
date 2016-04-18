@@ -40,7 +40,7 @@
 		};
 		poweroff@12100 {
 			compatible = "qnap,power-off";
-			reg = <0x12000 0x100>;
+			reg = <0x12100 0x100>;
 			clocks = <&gate_clk 7>;
 		};
 		spi@10600 {

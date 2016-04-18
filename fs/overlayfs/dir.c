@@ -167,7 +167,7 @@ static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 	struct dentry *newdentry;
 	int err;
 
-	mutex_lock_nested(&udir->i_mutex, I_MUTEX_PARENT);
+	inode_lock_nested(udir, I_MUTEX_PARENT);
 	newdentry = lookup_one_len(dentry->d_name.name, upperdir,
 				   dentry->d_name.len);
 	err = PTR_ERR(newdentry);
@@ -185,7 +185,7 @@ static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 out_dput:
 	dput(newdentry);
 out_unlock:
-	mutex_unlock(&udir->i_mutex);
+	inode_unlock(udir);
 	return err;
 }
 
@@ -258,9 +258,9 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 	if (err)
 		goto out_cleanup;
 
-	mutex_lock(&opaquedir->d_inode->i_mutex);
+	inode_lock(opaquedir->d_inode);
 	err = ovl_set_attr(opaquedir, &stat);
-	mutex_unlock(&opaquedir->d_inode->i_mutex);
+	inode_unlock(opaquedir->d_inode);
 	if (err)
 		goto out_cleanup;
 
@@ -596,21 +596,25 @@ static int ovl_remove_upper(struct dentry *dentry, bool is_dir)
 {
 	struct dentry *upperdir = ovl_dentry_upper(dentry->d_parent);
 	struct inode *dir = upperdir->d_inode;
-	struct dentry *upper = ovl_dentry_upper(dentry);
+	struct dentry *upper;
 	int err;
 
-	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
+	inode_lock_nested(dir, I_MUTEX_PARENT);
+	upper = lookup_one_len(dentry->d_name.name, upperdir,
+			       dentry->d_name.len);
+	err = PTR_ERR(upper);
+	if (IS_ERR(upper))
+		goto out_unlock;
+
 	err = -ESTALE;
-	if (upper->d_parent == upperdir) {
-		/* Don't let d_delete() think it can reset d_inode */
-		dget(upper);
+	if (upper == ovl_dentry_upper(dentry)) {
 		if (is_dir)
 			err = vfs_rmdir(dir, upper);
 		else
 			err = vfs_unlink(dir, upper, NULL);
-		dput(upper);
 		ovl_dentry_version_inc(dentry->d_parent);
 	}
+	dput(upper);
 
 	/*
 	 * Keeping this dentry hashed would mean having to release
@@ -618,8 +622,10 @@ static int ovl_remove_upper(struct dentry *dentry, bool is_dir)
 	 * sole user of this dentry.  Too tricky...  Just unhash for
 	 * now.
 	 */
-	d_drop(dentry);
-	mutex_unlock(&dir->i_mutex);
+	if (!err)
+		d_drop(dentry);
+out_unlock:
+	inode_unlock(dir);
 
 	return err;
 }
@@ -713,7 +719,6 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 	struct dentry *trap;
 	bool old_opaque;
 	bool new_opaque;
-	bool new_create = false;
 	bool cleanup_whiteout = false;
 	bool overwrite = !(flags & RENAME_EXCHANGE);
 	bool is_dir = d_is_dir(old);
@@ -839,29 +844,38 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 
 	trap = lock_rename(new_upperdir, old_upperdir);
 
-	olddentry = ovl_dentry_upper(old);
-	newdentry = ovl_dentry_upper(new);
-	if (newdentry) {
-		if (opaquedir) {
-			newdentry = opaquedir;
-			opaquedir = NULL;
-		} else {
-			dget(newdentry);
-		}
-	} else {
-		new_create = true;
-		newdentry = lookup_one_len(new->d_name.name, new_upperdir,
-					   new->d_name.len);
-		err = PTR_ERR(newdentry);
-		if (IS_ERR(newdentry))
-			goto out_unlock;
-	}
+
+	olddentry = lookup_one_len(old->d_name.name, old_upperdir,
+				   old->d_name.len);
+	err = PTR_ERR(olddentry);
+	if (IS_ERR(olddentry))
+		goto out_unlock;
 
 	err = -ESTALE;
-	if (olddentry->d_parent != old_upperdir)
-		goto out_dput;
-	if (newdentry->d_parent != new_upperdir)
-		goto out_dput;
+	if (olddentry != ovl_dentry_upper(old))
+		goto out_dput_old;
+
+	newdentry = lookup_one_len(new->d_name.name, new_upperdir,
+				   new->d_name.len);
+	err = PTR_ERR(newdentry);
+	if (IS_ERR(newdentry))
+		goto out_dput_old;
+
+	err = -ESTALE;
+	if (ovl_dentry_upper(new)) {
+		if (opaquedir) {
+			if (newdentry != opaquedir)
+				goto out_dput;
+		} else {
+			if (newdentry != ovl_dentry_upper(new))
+				goto out_dput;
+		}
+	} else {
+		if (!d_is_negative(newdentry) &&
+		    (!new_opaque || !ovl_is_whiteout(newdentry)))
+			goto out_dput;
+	}
+
 	if (olddentry == trap)
 		goto out_dput;
 	if (newdentry == trap)
@@ -903,6 +917,13 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 	if (!overwrite && new_is_dir && !old_opaque && new_opaque)
 		ovl_remove_opaque(newdentry);
 
+	/*
+	 * Old dentry now lives in different location. Dentries in
+	 * lowerstack are stale. We cannot drop them here because
+	 * access to them is lockless. This could be only pure upper
+	 * or opaque directory - numlower is zero. Or upper non-dir
+	 * entry - its pureness is tracked by flag opaque.
+	 */
 	if (old_opaque != new_opaque) {
 		ovl_dentry_set_opaque(old, new_opaque);
 		if (!overwrite)
@@ -917,6 +938,8 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 
 out_dput:
 	dput(newdentry);
+out_dput_old:
+	dput(olddentry);
 out_unlock:
 	unlock_rename(new_upperdir, old_upperdir);
 out_revert_creds:

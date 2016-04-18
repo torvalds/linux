@@ -165,7 +165,7 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 	struct fileIdentDesc *fi = NULL;
 	loff_t f_pos;
 	int block, flen;
-	unsigned char *fname = NULL;
+	unsigned char *fname = NULL, *copy_name = NULL;
 	unsigned char *nameptr;
 	uint8_t lfi;
 	uint16_t liu;
@@ -236,7 +236,15 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 				nameptr = (uint8_t *)(fibh->ebh->b_data +
 						      poffset - lfi);
 			else {
-				nameptr = fname;
+				if (!copy_name) {
+					copy_name = kmalloc(UDF_NAME_LEN,
+							    GFP_NOFS);
+					if (!copy_name) {
+						fi = ERR_PTR(-ENOMEM);
+						goto out_err;
+					}
+				}
+				nameptr = copy_name;
 				memcpy(nameptr, fi->fileIdent + liu,
 					lfi - poffset);
 				memcpy(nameptr + lfi - poffset,
@@ -279,6 +287,7 @@ out_err:
 out_ok:
 	brelse(epos.bh);
 	kfree(fname);
+	kfree(copy_name);
 
 	return fi;
 }
@@ -291,7 +300,7 @@ static struct dentry *udf_lookup(struct inode *dir, struct dentry *dentry,
 	struct udf_fileident_bh fibh;
 	struct fileIdentDesc *fi;
 
-	if (dentry->d_name.len > UDF_NAME_LEN - 2)
+	if (dentry->d_name.len > UDF_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
 #ifdef UDF_RECOVERY
@@ -351,7 +360,7 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 	struct udf_inode_info *dinfo;
 
 	fibh->sbh = fibh->ebh = NULL;
-	name = kmalloc(UDF_NAME_LEN, GFP_NOFS);
+	name = kmalloc(UDF_NAME_LEN_CS0, GFP_NOFS);
 	if (!name) {
 		*err = -ENOMEM;
 		goto out_err;
@@ -362,8 +371,9 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 			*err = -EINVAL;
 			goto out_err;
 		}
-		namelen = udf_put_filename(sb, dentry->d_name.name, name,
-						 dentry->d_name.len);
+		namelen = udf_put_filename(sb, dentry->d_name.name,
+					   dentry->d_name.len,
+					   name, UDF_NAME_LEN_CS0);
 		if (!namelen) {
 			*err = -ENAMETOOLONG;
 			goto out_err;
@@ -914,14 +924,15 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 
 	iinfo = UDF_I(inode);
 	down_write(&iinfo->i_data_sem);
-	name = kmalloc(UDF_NAME_LEN, GFP_NOFS);
+	name = kmalloc(UDF_NAME_LEN_CS0, GFP_NOFS);
 	if (!name) {
 		err = -ENOMEM;
 		goto out_no_entry;
 	}
 
 	inode->i_data.a_ops = &udf_symlink_aops;
-	inode->i_op = &udf_symlink_inode_operations;
+	inode->i_op = &page_symlink_inode_operations;
+	inode_nohighmem(inode);
 
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
 		struct kernel_lb_addr eloc;
@@ -996,8 +1007,9 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 		}
 
 		if (pc->componentType == 5) {
-			namelen = udf_put_filename(sb, compstart, name,
-						   symname - compstart);
+			namelen = udf_put_filename(sb, compstart,
+						   symname - compstart,
+						   name, UDF_NAME_LEN_CS0);
 			if (!namelen)
 				goto out_no_entry;
 
@@ -1343,9 +1355,4 @@ const struct inode_operations udf_dir_inode_operations = {
 	.mknod				= udf_mknod,
 	.rename				= udf_rename,
 	.tmpfile			= udf_tmpfile,
-};
-const struct inode_operations udf_symlink_inode_operations = {
-	.readlink	= generic_readlink,
-	.follow_link	= page_follow_link_light,
-	.put_link	= page_put_link,
 };

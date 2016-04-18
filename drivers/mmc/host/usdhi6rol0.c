@@ -1630,11 +1630,11 @@ static irqreturn_t usdhi6_cd(int irq, void *dev_id)
  */
 static void usdhi6_timeout_work(struct work_struct *work)
 {
-	struct delayed_work *d = container_of(work, struct delayed_work, work);
+	struct delayed_work *d = to_delayed_work(work);
 	struct usdhi6_host *host = container_of(d, struct usdhi6_host, timeout_work);
 	struct mmc_request *mrq = host->mrq;
 	struct mmc_data *data = mrq ? mrq->data : NULL;
-	struct scatterlist *sg = host->sg ?: data->sg;
+	struct scatterlist *sg;
 
 	dev_warn(mmc_dev(host->mmc),
 		 "%s timeout wait %u CMD%d: IRQ 0x%08x:0x%08x, last IRQ 0x%08x\n",
@@ -1666,6 +1666,7 @@ static void usdhi6_timeout_work(struct work_struct *work)
 	case USDHI6_WAIT_FOR_MWRITE:
 	case USDHI6_WAIT_FOR_READ:
 	case USDHI6_WAIT_FOR_WRITE:
+		sg = host->sg ?: data->sg;
 		dev_dbg(mmc_dev(host->mmc),
 			"%c: page #%u @ +0x%zx %ux%u in SG%u. Current SG %u bytes @ %u\n",
 			data->flags & MMC_DATA_READ ? 'R' : 'W', host->page_idx,
@@ -1788,7 +1789,7 @@ static int usdhi6_probe(struct platform_device *pdev)
 	/* Set .max_segs to some random number. Feel free to adjust. */
 	mmc->max_segs = 32;
 	mmc->max_blk_size = 512;
-	mmc->max_req_size = PAGE_CACHE_SIZE * mmc->max_segs;
+	mmc->max_req_size = PAGE_SIZE * mmc->max_segs;
 	mmc->max_blk_count = mmc->max_req_size / mmc->max_blk_size;
 	/*
 	 * Setting .max_seg_size to 1 page would simplify our page-mapping code,

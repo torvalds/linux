@@ -31,7 +31,6 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		enable-method = "brcm,bcm11351-cpu-method";
-		secondary-boot-reg = <0x35004178>;
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
@@ -42,6 +41,7 @@
 		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
+			secondary-boot-reg = <0x35004178>;
 			reg = <1>;
 		};
 	};

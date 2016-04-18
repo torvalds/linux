@@ -50,74 +50,120 @@
 		usbdrdphy1 = &usbdrd_phy1;
 	};
 
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		cpu0: cpu@0 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <0x0>;
-			clock-frequency = <1800000000>;
-			cci-control-port = <&cci_control1>;
+	cluster_a15_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+		opp@1800000000 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <1250000>;
+			clock-latency-ns = <140000>;
 		};
-
-		cpu1: cpu@1 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <0x1>;
-			clock-frequency = <1800000000>;
-			cci-control-port = <&cci_control1>;
+		opp@1700000000 {
+			opp-hz = /bits/ 64 <1700000000>;
+			opp-microvolt = <1212500>;
+			clock-latency-ns = <140000>;
 		};
-
-		cpu2: cpu@2 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <0x2>;
-			clock-frequency = <1800000000>;
-			cci-control-port = <&cci_control1>;
+		opp@1600000000 {
+			opp-hz = /bits/ 64 <1600000000>;
+			opp-microvolt = <1175000>;
+			clock-latency-ns = <140000>;
 		};
-
-		cpu3: cpu@3 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <0x3>;
-			clock-frequency = <1800000000>;
-			cci-control-port = <&cci_control1>;
+		opp@1500000000 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <1137500>;
+			clock-latency-ns = <140000>;
 		};
-
-		cpu4: cpu@100 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a7";
-			reg = <0x100>;
-			clock-frequency = <1000000000>;
-			cci-control-port = <&cci_control0>;
+		opp@1400000000 {
+			opp-hz = /bits/ 64 <1400000000>;
+			opp-microvolt = <1112500>;
+			clock-latency-ns = <140000>;
 		};
-
-		cpu5: cpu@101 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a7";
-			reg = <0x101>;
-			clock-frequency = <1000000000>;
-			cci-control-port = <&cci_control0>;
+		opp@1300000000 {
+			opp-hz = /bits/ 64 <1300000000>;
+			opp-microvolt = <1062500>;
+			clock-latency-ns = <140000>;
 		};
-
-		cpu6: cpu@102 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a7";
-			reg = <0x102>;
-			clock-frequency = <1000000000>;
-			cci-control-port = <&cci_control0>;
+		opp@1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1037500>;
+			clock-latency-ns = <140000>;
 		};
-
-		cpu7: cpu@103 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a7";
-			reg = <0x103>;
-			clock-frequency = <1000000000>;
-			cci-control-port = <&cci_control0>;
+		opp@1100000000 {
+			opp-hz = /bits/ 64 <1100000000>;
+			opp-microvolt = <1012500>;
+			clock-latency-ns = <140000>;
+		};
+		opp@1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = < 987500>;
+			clock-latency-ns = <140000>;
+		};
+		opp@900000000 {
+			opp-hz = /bits/ 64 <900000000>;
+			opp-microvolt = < 962500>;
+			clock-latency-ns = <140000>;
+		};
+		opp@800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = < 937500>;
+			clock-latency-ns = <140000>;
+		};
+		opp@700000000 {
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = < 912500>;
+			clock-latency-ns = <140000>;
 		};
 	};
+
+	cluster_a7_opp_table: opp_table1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+		opp@1300000000 {
+			opp-hz = /bits/ 64 <1300000000>;
+			opp-microvolt = <1275000>;
+			clock-latency-ns = <140000>;
+		};
+		opp@1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1212500>;
+			clock-latency-ns = <140000>;
+		};
+		opp@1100000000 {
+			opp-hz = /bits/ 64 <1100000000>;
+			opp-microvolt = <1162500>;
+			clock-latency-ns = <140000>;
+		};
+		opp@1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <1112500>;
+			clock-latency-ns = <140000>;
+		};
+		opp@900000000 {
+			opp-hz = /bits/ 64 <900000000>;
+			opp-microvolt = <1062500>;
+			clock-latency-ns = <140000>;
+		};
+		opp@800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1025000>;
+			clock-latency-ns = <140000>;
+		};
+		opp@700000000 {
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <975000>;
+			clock-latency-ns = <140000>;
+		};
+		opp@600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <937500>;
+			clock-latency-ns = <140000>;
+		};
+	};
+
+	/*
+	 * The 'cpus' node is not present here but instead it is provided
+	 * by exynos5420-cpus.dtsi or exynos5422-cpus.dtsi.
+	 */
 
 	cci: cci@10d20000 {
 		compatible = "arm,cci-400";
@@ -252,8 +298,10 @@
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044000 0x20>;
 		#power-domain-cells = <0>;
-		clocks = <&clock CLK_GSCL0>, <&clock CLK_GSCL1>;
-		clock-names = "asb0", "asb1";
+		clocks = <&clock CLK_FIN_PLL>,
+			 <&clock CLK_MOUT_USER_ACLK300_GSCL>,
+			 <&clock CLK_GSCL0>, <&clock CLK_GSCL1>;
+		clock-names = "oscclk", "clk0", "asb0", "asb1";
 	};
 
 	isp_pd: power-domain@10044020 {
@@ -327,7 +375,7 @@
 	amba {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "arm,amba-bus";
+		compatible = "simple-bus";
 		interrupt-parent = <&gic>;
 		ranges;
 
@@ -717,6 +765,15 @@
 		iommus = <&sysmmu_tv>;
 	};
 
+	rotator: rotator@11C00000 {
+		compatible = "samsung,exynos5250-rotator";
+		reg = <0x11C00000 0x64>;
+		interrupts = <0 84 0>;
+		clocks = <&clock CLK_ROTATOR>;
+		clock-names = "rotator";
+		iommus = <&sysmmu_rotator>;
+	};
+
 	gsc_0: video-scaler@13e00000 {
 		compatible = "samsung,exynos5-gsc";
 		reg = <0x13e00000 0x1000>;
@@ -850,7 +907,7 @@
 
 	sss: sss@10830000 {
 		compatible = "samsung,exynos4210-secss";
-		reg = <0x10830000 0x10000>;
+		reg = <0x10830000 0x300>;
 		interrupts = <0 112 0>;
 		clocks = <&clock CLK_SSS>;
 		clock-names = "secss";
@@ -1056,6 +1113,16 @@
 		interrupts = <19 6>;
 		clock-names = "sysmmu", "master";
 		clocks = <&clock CLK_SMMU_MSCL2>, <&clock CLK_MSCL2>;
+		#iommu-cells = <0>;
+	};
+
+	sysmmu_rotator: sysmmu@0x11D40000 {
+		compatible = "samsung,exynos-sysmmu";
+		reg = <0x11D40000 0x1000>;
+		interrupt-parent = <&combiner>;
+		interrupts = <4 0>;
+		clock-names = "sysmmu", "master";
+		clocks = <&clock CLK_SMMU_ROTATOR>, <&clock CLK_ROTATOR>;
 		#iommu-cells = <0>;
 	};
 

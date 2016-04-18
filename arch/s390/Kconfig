@@ -10,9 +10,6 @@ config LOCKDEP_SUPPORT
 config STACKTRACE_SUPPORT
 	def_bool y
 
-config HAVE_LATENCYTOP_SUPPORT
-	def_bool y
-
 config RWSEM_GENERIC_SPINLOCK
 	bool
 
@@ -62,10 +59,14 @@ config PCI_QUIRKS
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
+config DEBUG_RODATA
+	def_bool y
+
 config S390
 	def_bool y
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
+	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_SG_CHAIN
@@ -126,6 +127,7 @@ config S390
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DMA_API_DEBUG
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -166,8 +168,7 @@ config SCHED_OMIT_FRAME_POINTER
 
 config PGTABLE_LEVELS
 	int
-	default 4 if 64BIT
-	default 2
+	default 4
 
 source "init/Kconfig"
 
@@ -257,12 +258,12 @@ config MARCH_ZEC12
 	  older machines.
 
 config MARCH_Z13
-	bool "IBM z13"
+	bool "IBM z13s and z13"
 	select HAVE_MARCH_Z13_FEATURES
 	help
-	  Select this to enable optimizations for IBM z13 (2964 series).
-	  The kernel will be slightly faster but will not work on older
-	  machines.
+	  Select this to enable optimizations for IBM z13s and z13 (2965 and
+	  2964 series). The kernel will be slightly faster but will not work on
+	  older machines.
 
 endchoice
 
@@ -390,9 +391,6 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
-config SCHED_SMT
-	def_bool n
-
 # Some NUMA nodes have memory ranges that span
 # other nodes.	Even though a pfn is valid and
 # between a node's start and end pfns, it may not
@@ -403,7 +401,7 @@ config NODES_SPAN_OTHER_NODES
 
 config NUMA
 	bool "NUMA support"
-	depends on SMP && 64BIT && SCHED_TOPOLOGY
+	depends on SMP && SCHED_TOPOLOGY
 	default n
 	help
 	  Enable NUMA support
@@ -462,6 +460,9 @@ config EMU_SIZE
 	  supported.
 
 endmenu
+
+config SCHED_SMT
+	def_bool n
 
 config SCHED_MC
 	def_bool n
@@ -582,7 +583,6 @@ config QDIO
 
 menuconfig PCI
 	bool "PCI support"
-	select HAVE_DMA_ATTRS
 	select PCI_MSI
 	select IOMMU_SUPPORT
 	help
@@ -609,8 +609,6 @@ config PCI_NR_MSI
 	  PCI devices.
 
 source "drivers/pci/Kconfig"
-source "drivers/pci/pcie/Kconfig"
-source "drivers/pci/hotplug/Kconfig"
 
 endif	# PCI
 
@@ -622,10 +620,6 @@ config HAS_IOMEM
 
 config IOMMU_HELPER
 	def_bool PCI
-
-config HAS_DMA
-	def_bool PCI
-	select HAVE_DMA_API_DEBUG
 
 config NEED_SG_DMA_LENGTH
 	def_bool PCI

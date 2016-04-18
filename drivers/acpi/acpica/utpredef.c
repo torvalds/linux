@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -225,8 +225,10 @@ const union acpi_predefined_info *acpi_ut_match_resource_name(char *name)
 {
 	const union acpi_predefined_info *this_name;
 
-	/* Quick check for a predefined name, first character must be underscore */
-
+	/*
+	 * Quick check for a predefined name, first character must
+	 * be underscore
+	 */
 	if (name[0] != '_') {
 		return (NULL);
 	}

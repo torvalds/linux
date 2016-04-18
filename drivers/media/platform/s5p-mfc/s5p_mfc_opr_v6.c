@@ -505,7 +505,7 @@ static int s5p_mfc_set_dec_frame_buffer_v6(struct s5p_mfc_ctx *ctx)
 	}
 
 	writel(ctx->inst_no, mfc_regs->instance_id);
-	s5p_mfc_hw_call_void(dev->mfc_cmds, cmd_host2risc, dev,
+	s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 			S5P_FIMV_CH_INIT_BUFS_V6, NULL);
 
 	mfc_debug(2, "After setting buffers.\n");
@@ -603,7 +603,7 @@ static int s5p_mfc_set_enc_ref_buffer_v6(struct s5p_mfc_ctx *ctx)
 	}
 
 	writel(ctx->inst_no, mfc_regs->instance_id);
-	s5p_mfc_hw_call_void(dev->mfc_cmds, cmd_host2risc, dev,
+	s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 			S5P_FIMV_CH_INIT_BUFS_V6, NULL);
 
 	mfc_debug_leave();
@@ -1378,7 +1378,7 @@ static int s5p_mfc_init_decode_v6(struct s5p_mfc_ctx *ctx)
 	writel(ctx->sei_fp_parse & 0x1, mfc_regs->d_sei_enable);
 
 	writel(ctx->inst_no, mfc_regs->instance_id);
-	s5p_mfc_hw_call_void(dev->mfc_cmds, cmd_host2risc, dev,
+	s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 			S5P_FIMV_CH_SEQ_HEADER_V6, NULL);
 
 	mfc_debug_leave();
@@ -1393,7 +1393,7 @@ static inline void s5p_mfc_set_flush(struct s5p_mfc_ctx *ctx, int flush)
 	if (flush) {
 		dev->curr_ctx = ctx->num;
 		writel(ctx->inst_no, mfc_regs->instance_id);
-		s5p_mfc_hw_call_void(dev->mfc_cmds, cmd_host2risc, dev,
+		s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 				S5P_FIMV_H2R_CMD_FLUSH_V6, NULL);
 	}
 }
@@ -1413,11 +1413,11 @@ static int s5p_mfc_decode_one_frame_v6(struct s5p_mfc_ctx *ctx,
 	 * is the last frame or not. */
 	switch (last_frame) {
 	case 0:
-		s5p_mfc_hw_call_void(dev->mfc_cmds, cmd_host2risc, dev,
+		s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 				S5P_FIMV_CH_FRAME_START_V6, NULL);
 		break;
 	case 1:
-		s5p_mfc_hw_call_void(dev->mfc_cmds, cmd_host2risc, dev,
+		s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 				S5P_FIMV_CH_LAST_FRAME_V6, NULL);
 		break;
 	default:
@@ -1455,7 +1455,7 @@ static int s5p_mfc_init_encode_v6(struct s5p_mfc_ctx *ctx)
 	}
 
 	writel(ctx->inst_no, mfc_regs->instance_id);
-	s5p_mfc_hw_call_void(dev->mfc_cmds, cmd_host2risc, dev,
+	s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 			S5P_FIMV_CH_SEQ_HEADER_V6, NULL);
 
 	return 0;
@@ -1500,35 +1500,11 @@ static int s5p_mfc_encode_one_frame_v6(struct s5p_mfc_ctx *ctx)
 		cmd = S5P_FIMV_CH_LAST_FRAME_V6;
 
 	writel(ctx->inst_no, mfc_regs->instance_id);
-	s5p_mfc_hw_call_void(dev->mfc_cmds, cmd_host2risc, dev, cmd, NULL);
+	s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev, cmd, NULL);
 
 	mfc_debug(2, "--\n");
 
 	return 0;
-}
-
-static inline int s5p_mfc_get_new_ctx(struct s5p_mfc_dev *dev)
-{
-	unsigned long flags;
-	int new_ctx;
-	int cnt;
-
-	spin_lock_irqsave(&dev->condlock, flags);
-	mfc_debug(2, "Previous context: %d (bits %08lx)\n", dev->curr_ctx,
-							dev->ctx_work_bits);
-	new_ctx = (dev->curr_ctx + 1) % MFC_NUM_CONTEXTS;
-	cnt = 0;
-	while (!test_bit(new_ctx, &dev->ctx_work_bits)) {
-		new_ctx = (new_ctx + 1) % MFC_NUM_CONTEXTS;
-		cnt++;
-		if (cnt > MFC_NUM_CONTEXTS) {
-			/* No contexts to run */
-			spin_unlock_irqrestore(&dev->condlock, flags);
-			return -EAGAIN;
-		}
-	}
-	spin_unlock_irqrestore(&dev->condlock, flags);
-	return new_ctx;
 }
 
 static inline void s5p_mfc_run_dec_last_frames(struct s5p_mfc_ctx *ctx)
@@ -1544,7 +1520,6 @@ static inline int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf *temp_vb;
-	unsigned long flags;
 	int last_frame = 0;
 
 	if (ctx->state == MFCINST_FINISHING) {
@@ -1556,11 +1531,9 @@ static inline int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx)
 		return 0;
 	}
 
-	spin_lock_irqsave(&dev->irqlock, flags);
 	/* Frames are being decoded */
 	if (list_empty(&ctx->src_queue)) {
 		mfc_debug(2, "No src buffers.\n");
-		spin_unlock_irqrestore(&dev->irqlock, flags);
 		return -EAGAIN;
 	}
 	/* Get the next source buffer */
@@ -1570,7 +1543,6 @@ static inline int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx)
 		vb2_dma_contig_plane_dma_addr(&temp_vb->b->vb2_buf, 0),
 			ctx->consumed_stream,
 			temp_vb->b->vb2_buf.planes[0].bytesused);
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 
 	dev->curr_ctx = ctx->num;
 	if (temp_vb->b->vb2_buf.planes[0].bytesused == 0) {
@@ -1586,7 +1558,6 @@ static inline int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx)
 static inline int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	unsigned long flags;
 	struct s5p_mfc_buf *dst_mb;
 	struct s5p_mfc_buf *src_mb;
 	unsigned long src_y_addr, src_c_addr, dst_addr;
@@ -1595,17 +1566,13 @@ static inline int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	*/
 	unsigned int dst_size;
 
-	spin_lock_irqsave(&dev->irqlock, flags);
-
 	if (list_empty(&ctx->src_queue) && ctx->state != MFCINST_FINISHING) {
 		mfc_debug(2, "no src buffers.\n");
-		spin_unlock_irqrestore(&dev->irqlock, flags);
 		return -EAGAIN;
 	}
 
 	if (list_empty(&ctx->dst_queue)) {
 		mfc_debug(2, "no dst buffers.\n");
-		spin_unlock_irqrestore(&dev->irqlock, flags);
 		return -EAGAIN;
 	}
 
@@ -1639,8 +1606,6 @@ static inline int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 
 	s5p_mfc_set_enc_stream_buffer_v6(ctx, dst_addr, dst_size);
 
-	spin_unlock_irqrestore(&dev->irqlock, flags);
-
 	dev->curr_ctx = ctx->num;
 	s5p_mfc_encode_one_frame_v6(ctx);
 
@@ -1650,18 +1615,15 @@ static inline int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 static inline void s5p_mfc_run_init_dec(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	unsigned long flags;
 	struct s5p_mfc_buf *temp_vb;
 
 	/* Initializing decoding - parsing header */
-	spin_lock_irqsave(&dev->irqlock, flags);
 	mfc_debug(2, "Preparing to init decoding.\n");
 	temp_vb = list_entry(ctx->src_queue.next, struct s5p_mfc_buf, list);
 	mfc_debug(2, "Header size: %d\n", temp_vb->b->vb2_buf.planes[0].bytesused);
 	s5p_mfc_set_dec_stream_buffer_v6(ctx,
 		vb2_dma_contig_plane_dma_addr(&temp_vb->b->vb2_buf, 0), 0,
 			temp_vb->b->vb2_buf.planes[0].bytesused);
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 	dev->curr_ctx = ctx->num;
 	s5p_mfc_init_decode_v6(ctx);
 }
@@ -1669,18 +1631,14 @@ static inline void s5p_mfc_run_init_dec(struct s5p_mfc_ctx *ctx)
 static inline void s5p_mfc_run_init_enc(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	unsigned long flags;
 	struct s5p_mfc_buf *dst_mb;
 	unsigned long dst_addr;
 	unsigned int dst_size;
-
-	spin_lock_irqsave(&dev->irqlock, flags);
 
 	dst_mb = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf, list);
 	dst_addr = vb2_dma_contig_plane_dma_addr(&dst_mb->b->vb2_buf, 0);
 	dst_size = vb2_plane_size(&dst_mb->b->vb2_buf, 0);
 	s5p_mfc_set_enc_stream_buffer_v6(ctx, dst_addr, dst_size);
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 	dev->curr_ctx = ctx->num;
 	s5p_mfc_init_encode_v6(ctx);
 }
@@ -1846,34 +1804,11 @@ static void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 	}
 }
 
-
-static void s5p_mfc_cleanup_queue_v6(struct list_head *lh, struct vb2_queue *vq)
-{
-	struct s5p_mfc_buf *b;
-	int i;
-
-	while (!list_empty(lh)) {
-		b = list_entry(lh->next, struct s5p_mfc_buf, list);
-		for (i = 0; i < b->b->vb2_buf.num_planes; i++)
-			vb2_set_plane_payload(&b->b->vb2_buf, i, 0);
-		vb2_buffer_done(&b->b->vb2_buf, VB2_BUF_STATE_ERROR);
-		list_del(&b->list);
-	}
-}
-
 static void s5p_mfc_clear_int_flags_v6(struct s5p_mfc_dev *dev)
 {
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
 	writel(0, mfc_regs->risc2host_command);
 	writel(0, mfc_regs->risc2host_int);
-}
-
-static void s5p_mfc_write_info_v6(struct s5p_mfc_ctx *ctx, unsigned int data,
-		unsigned int ofs)
-{
-	s5p_mfc_clock_on();
-	writel(data, (void __iomem *)((unsigned long)ofs));
-	s5p_mfc_clock_off();
 }
 
 static unsigned int
@@ -1942,11 +1877,6 @@ static int s5p_mfc_err_dec_v6(unsigned int err)
 	return (err & S5P_FIMV_ERR_DEC_MASK_V6) >> S5P_FIMV_ERR_DEC_SHIFT_V6;
 }
 
-static int s5p_mfc_err_dspl_v6(unsigned int err)
-{
-	return (err & S5P_FIMV_ERR_DSPL_MASK_V6) >> S5P_FIMV_ERR_DSPL_SHIFT_V6;
-}
-
 static int s5p_mfc_get_img_width_v6(struct s5p_mfc_dev *dev)
 {
 	return readl(dev->mfc_regs->d_display_frame_width);
@@ -1985,27 +1915,6 @@ static int s5p_mfc_get_enc_strm_size_v6(struct s5p_mfc_dev *dev)
 static int s5p_mfc_get_enc_slice_type_v6(struct s5p_mfc_dev *dev)
 {
 	return readl(dev->mfc_regs->e_slice_type);
-}
-
-static int s5p_mfc_get_enc_pic_count_v6(struct s5p_mfc_dev *dev)
-{
-	return readl(dev->mfc_regs->e_picture_count);
-}
-
-static int s5p_mfc_get_sei_avail_status_v6(struct s5p_mfc_ctx *ctx)
-{
-	struct s5p_mfc_dev *dev = ctx->dev;
-	return readl(dev->mfc_regs->d_frame_pack_sei_avail);
-}
-
-static int s5p_mfc_get_mvc_num_views_v6(struct s5p_mfc_dev *dev)
-{
-	return readl(dev->mfc_regs->d_mvc_num_views);
-}
-
-static int s5p_mfc_get_mvc_view_id_v6(struct s5p_mfc_dev *dev)
-{
-	return readl(dev->mfc_regs->d_mvc_view_id);
 }
 
 static unsigned int s5p_mfc_get_pic_type_top_v6(struct s5p_mfc_ctx *ctx)
@@ -2282,20 +2191,11 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v6 = {
 		s5p_mfc_release_dev_context_buffer_v6,
 	.dec_calc_dpb_size = s5p_mfc_dec_calc_dpb_size_v6,
 	.enc_calc_src_size = s5p_mfc_enc_calc_src_size_v6,
-	.set_dec_stream_buffer = s5p_mfc_set_dec_stream_buffer_v6,
-	.set_dec_frame_buffer = s5p_mfc_set_dec_frame_buffer_v6,
 	.set_enc_stream_buffer = s5p_mfc_set_enc_stream_buffer_v6,
 	.set_enc_frame_buffer = s5p_mfc_set_enc_frame_buffer_v6,
 	.get_enc_frame_buffer = s5p_mfc_get_enc_frame_buffer_v6,
-	.set_enc_ref_buffer = s5p_mfc_set_enc_ref_buffer_v6,
-	.init_decode = s5p_mfc_init_decode_v6,
-	.init_encode = s5p_mfc_init_encode_v6,
-	.encode_one_frame = s5p_mfc_encode_one_frame_v6,
 	.try_run = s5p_mfc_try_run_v6,
-	.cleanup_queue = s5p_mfc_cleanup_queue_v6,
 	.clear_int_flags = s5p_mfc_clear_int_flags_v6,
-	.write_info = s5p_mfc_write_info_v6,
-	.read_info = s5p_mfc_read_info_v6,
 	.get_dspl_y_adr = s5p_mfc_get_dspl_y_adr_v6,
 	.get_dec_y_adr = s5p_mfc_get_dec_y_adr_v6,
 	.get_dspl_status = s5p_mfc_get_dspl_status_v6,
@@ -2306,7 +2206,6 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v6 = {
 	.get_int_reason = s5p_mfc_get_int_reason_v6,
 	.get_int_err = s5p_mfc_get_int_err_v6,
 	.err_dec = s5p_mfc_err_dec_v6,
-	.err_dspl = s5p_mfc_err_dspl_v6,
 	.get_img_width = s5p_mfc_get_img_width_v6,
 	.get_img_height = s5p_mfc_get_img_height_v6,
 	.get_dpb_count = s5p_mfc_get_dpb_count_v6,
@@ -2315,10 +2214,6 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v6 = {
 	.get_enc_strm_size = s5p_mfc_get_enc_strm_size_v6,
 	.get_enc_slice_type = s5p_mfc_get_enc_slice_type_v6,
 	.get_enc_dpb_count = s5p_mfc_get_enc_dpb_count_v6,
-	.get_enc_pic_count = s5p_mfc_get_enc_pic_count_v6,
-	.get_sei_avail_status = s5p_mfc_get_sei_avail_status_v6,
-	.get_mvc_num_views = s5p_mfc_get_mvc_num_views_v6,
-	.get_mvc_view_id = s5p_mfc_get_mvc_view_id_v6,
 	.get_pic_type_top = s5p_mfc_get_pic_type_top_v6,
 	.get_pic_type_bot = s5p_mfc_get_pic_type_bot_v6,
 	.get_crop_info_h = s5p_mfc_get_crop_info_h_v6,

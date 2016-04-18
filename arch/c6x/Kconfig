@@ -17,6 +17,7 @@ config C6X
 	select OF_EARLY_FLATTREE
 	select GENERIC_CLOCKEVENTS
 	select MODULES_USE_ELF_RELA
+	select ARCH_NO_COHERENT_DMA_MMAP
 
 config MMU
 	def_bool n
@@ -35,6 +36,7 @@ config GENERIC_HWEIGHT
 
 config GENERIC_BUG
 	def_bool y
+	depends on BUG
 
 config C6X_BIG_KERNEL
 	bool "Build a big kernel"

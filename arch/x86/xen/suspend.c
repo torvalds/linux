@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include <linux/tick.h>
 
+#include <xen/xen.h>
 #include <xen/interface/xen.h>
 #include <xen/grant_table.h>
 #include <xen/events.h>
@@ -33,7 +34,8 @@ static void xen_hvm_post_suspend(int suspend_cancelled)
 {
 #ifdef CONFIG_XEN_PVHVM
 	int cpu;
-	xen_hvm_init_shared_info();
+	if (!suspend_cancelled)
+	    xen_hvm_init_shared_info();
 	xen_callback_vector();
 	xen_unplug_emulated_devices();
 	if (xen_feature(XENFEAT_hvm_safe_pvclock)) {
@@ -68,26 +70,16 @@ static void xen_pv_post_suspend(int suspend_cancelled)
 
 void xen_arch_pre_suspend(void)
 {
-	int cpu;
-
-	for_each_online_cpu(cpu)
-		xen_pmu_finish(cpu);
-
 	if (xen_pv_domain())
 		xen_pv_pre_suspend();
 }
 
 void xen_arch_post_suspend(int cancelled)
 {
-	int cpu;
-
 	if (xen_pv_domain())
 		xen_pv_post_suspend(cancelled);
 	else
 		xen_hvm_post_suspend(cancelled);
-
-	for_each_online_cpu(cpu)
-		xen_pmu_init(cpu);
 }
 
 static void xen_vcpu_notify_restore(void *data)
@@ -106,10 +98,20 @@ static void xen_vcpu_notify_suspend(void *data)
 
 void xen_arch_resume(void)
 {
+	int cpu;
+
 	on_each_cpu(xen_vcpu_notify_restore, NULL, 1);
+
+	for_each_online_cpu(cpu)
+		xen_pmu_init(cpu);
 }
 
 void xen_arch_suspend(void)
 {
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		xen_pmu_finish(cpu);
+
 	on_each_cpu(xen_vcpu_notify_suspend, NULL, 1);
 }

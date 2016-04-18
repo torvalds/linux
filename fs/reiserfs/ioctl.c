@@ -203,7 +203,7 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 	 * __reiserfs_write_begin on that page.  This will force a
 	 * reiserfs_get_block to unpack the tail for us.
 	 */
-	index = inode->i_size >> PAGE_CACHE_SHIFT;
+	index = inode->i_size >> PAGE_SHIFT;
 	mapping = inode->i_mapping;
 	page = grab_cache_page(mapping, index);
 	retval = -ENOMEM;
@@ -221,10 +221,10 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 
 out_unlock:
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	reiserfs_write_unlock(inode->i_sb);
 	return retval;
 }

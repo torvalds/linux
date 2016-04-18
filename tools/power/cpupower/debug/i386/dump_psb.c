@@ -134,7 +134,7 @@ next_one:
 }
 
 static struct option info_opts[] = {
-	{.name = "numpst",	.has_arg=no_argument,	.flag=NULL, .val='n'},
+     {"numpst", no_argument, NULL, 'n'},
 };
 
 void print_help(void)

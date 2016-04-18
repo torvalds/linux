@@ -31,13 +31,8 @@
 #include <linux/iommu.h>
 #include <linux/types.h>
 #include <linux/of_graph.h>
+#include <linux/of_device.h>
 #include <asm/sizes.h>
-
-#ifndef CONFIG_OF
-#include <mach/board.h>
-#include <mach/socinfo.h>
-#include <mach/iommu_domains.h>
-#endif
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
@@ -240,17 +235,18 @@ uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb, int id, int plane);
 struct drm_gem_object *msm_framebuffer_bo(struct drm_framebuffer *fb, int plane);
 const struct msm_format *msm_framebuffer_format(struct drm_framebuffer *fb);
 struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
-		struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
+		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
-		struct drm_file *file, struct drm_mode_fb_cmd2 *mode_cmd);
+		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd);
 
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
+void msm_fbdev_free(struct drm_device *dev);
 
 struct hdmi;
-int hdmi_modeset_init(struct hdmi *hdmi, struct drm_device *dev,
+int msm_hdmi_modeset_init(struct hdmi *hdmi, struct drm_device *dev,
 		struct drm_encoder *encoder);
-void __init hdmi_register(void);
-void __exit hdmi_unregister(void);
+void __init msm_hdmi_register(void);
+void __exit msm_hdmi_unregister(void);
 
 struct msm_edp;
 void __init msm_edp_register(void);

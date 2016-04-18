@@ -35,7 +35,7 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
 struct mxl111sf_demod_state {
 	struct mxl111sf_state *mxl_state;
 
-	struct mxl111sf_demod_config *cfg;
+	const struct mxl111sf_demod_config *cfg;
 
 	struct dvb_frontend fe;
 };
@@ -507,9 +507,9 @@ static int mxl111sf_demod_read_signal_strength(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mxl111sf_demod_get_frontend(struct dvb_frontend *fe)
+static int mxl111sf_demod_get_frontend(struct dvb_frontend *fe,
+				       struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct mxl111sf_demod_state *state = fe->demodulator_priv;
 
 	mxl_dbg("()");
@@ -579,7 +579,7 @@ static struct dvb_frontend_ops mxl111sf_demod_ops = {
 };
 
 struct dvb_frontend *mxl111sf_demod_attach(struct mxl111sf_state *mxl_state,
-					   struct mxl111sf_demod_config *cfg)
+				   const struct mxl111sf_demod_config *cfg)
 {
 	struct mxl111sf_demod_state *state = NULL;
 

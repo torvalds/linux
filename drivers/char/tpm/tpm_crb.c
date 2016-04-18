@@ -34,14 +34,6 @@ enum crb_defaults {
 	CRB_ACPI_START_INDEX = 1,
 };
 
-struct acpi_tpm2 {
-	struct acpi_table_header hdr;
-	u16 platform_class;
-	u16 reserved;
-	u64 control_area_pa;
-	u32 start_method;
-} __packed;
-
 enum crb_ca_request {
 	CRB_CA_REQ_GO_IDLE	= BIT(0),
 	CRB_CA_REQ_CMD_READY	= BIT(1),
@@ -85,6 +77,8 @@ enum crb_flags {
 
 struct crb_priv {
 	unsigned int flags;
+	struct resource res;
+	void __iomem *iobase;
 	struct crb_control_area __iomem *cca;
 	u8 __iomem *cmd;
 	u8 __iomem *rsp;
@@ -97,7 +91,7 @@ static u8 crb_status(struct tpm_chip *chip)
 	struct crb_priv *priv = chip->vendor.priv;
 	u8 sts = 0;
 
-	if ((le32_to_cpu(ioread32(&priv->cca->start)) & CRB_START_INVOKE) !=
+	if ((ioread32(&priv->cca->start) & CRB_START_INVOKE) !=
 	    CRB_START_INVOKE)
 		sts |= CRB_STS_COMPLETE;
 
@@ -113,7 +107,7 @@ static int crb_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	if (count < 6)
 		return -EIO;
 
-	if (le32_to_cpu(ioread32(&priv->cca->sts)) & CRB_CA_STS_ERROR)
+	if (ioread32(&priv->cca->sts) & CRB_CA_STS_ERROR)
 		return -EIO;
 
 	memcpy_fromio(buf, priv->rsp, 6);
@@ -149,11 +143,11 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	struct crb_priv *priv = chip->vendor.priv;
 	int rc = 0;
 
-	if (len > le32_to_cpu(ioread32(&priv->cca->cmd_size))) {
+	if (len > ioread32(&priv->cca->cmd_size)) {
 		dev_err(&chip->dev,
 			"invalid command count value %x %zx\n",
 			(unsigned int) len,
-			(size_t) le32_to_cpu(ioread32(&priv->cca->cmd_size)));
+			(size_t) ioread32(&priv->cca->cmd_size));
 		return -E2BIG;
 	}
 
@@ -189,7 +183,7 @@ static void crb_cancel(struct tpm_chip *chip)
 static bool crb_req_canceled(struct tpm_chip *chip, u8 status)
 {
 	struct crb_priv *priv = chip->vendor.priv;
-	u32 cancel = le32_to_cpu(ioread32(&priv->cca->cancel));
+	u32 cancel = ioread32(&priv->cca->cancel);
 
 	return (cancel & CRB_CANCEL_INVOKE) == CRB_CANCEL_INVOKE;
 }
@@ -204,99 +198,22 @@ static const struct tpm_class_ops tpm_crb = {
 	.req_complete_val = CRB_STS_COMPLETE,
 };
 
-static int crb_acpi_add(struct acpi_device *device)
+static int crb_init(struct acpi_device *device, struct crb_priv *priv)
 {
 	struct tpm_chip *chip;
-	struct acpi_tpm2 *buf;
-	struct crb_priv *priv;
-	struct device *dev = &device->dev;
-	acpi_status status;
-	u32 sm;
-	u64 pa;
 	int rc;
 
-	status = acpi_get_table(ACPI_SIG_TPM2, 1,
-				(struct acpi_table_header **) &buf);
-	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "failed to get TPM2 ACPI table\n");
-		return -ENODEV;
-	}
-
-	/* Should the FIFO driver handle this? */
-	if (buf->start_method == TPM2_START_FIFO)
-		return -ENODEV;
-
-	chip = tpmm_chip_alloc(dev, &tpm_crb);
+	chip = tpmm_chip_alloc(&device->dev, &tpm_crb);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
+	chip->vendor.priv = priv;
+	chip->acpi_dev_handle = device->handle;
 	chip->flags = TPM_CHIP_FLAG_TPM2;
 
-	if (buf->hdr.length < sizeof(struct acpi_tpm2)) {
-		dev_err(dev, "TPM2 ACPI table has wrong size");
-		return -EINVAL;
-	}
-
-	priv = (struct crb_priv *) devm_kzalloc(dev, sizeof(struct crb_priv),
-						GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev, "failed to devm_kzalloc for private data\n");
-		return -ENOMEM;
-	}
-
-	sm = le32_to_cpu(buf->start_method);
-
-	/* The reason for the extra quirk is that the PTT in 4th Gen Core CPUs
-	 * report only ACPI start but in practice seems to require both
-	 * ACPI start and CRB start.
-	 */
-	if (sm == TPM2_START_CRB || sm == TPM2_START_FIFO ||
-	    !strcmp(acpi_device_hid(device), "MSFT0101"))
-		priv->flags |= CRB_FL_CRB_START;
-
-	if (sm == TPM2_START_ACPI || sm == TPM2_START_CRB_WITH_ACPI)
-		priv->flags |= CRB_FL_ACPI_START;
-
-	priv->cca = (struct crb_control_area __iomem *)
-		devm_ioremap_nocache(dev, buf->control_area_pa, 0x1000);
-	if (!priv->cca) {
-		dev_err(dev, "ioremap of the control area failed\n");
-		return -ENOMEM;
-	}
-
-	pa = ((u64) le32_to_cpu(ioread32(&priv->cca->cmd_pa_high)) << 32) |
-		(u64) le32_to_cpu(ioread32(&priv->cca->cmd_pa_low));
-	priv->cmd = devm_ioremap_nocache(dev, pa,
-					 ioread32(&priv->cca->cmd_size));
-	if (!priv->cmd) {
-		dev_err(dev, "ioremap of the command buffer failed\n");
-		return -ENOMEM;
-	}
-
-	memcpy_fromio(&pa, &priv->cca->rsp_pa, 8);
-	pa = le64_to_cpu(pa);
-	priv->rsp = devm_ioremap_nocache(dev, pa,
-					 ioread32(&priv->cca->rsp_size));
-	if (!priv->rsp) {
-		dev_err(dev, "ioremap of the response buffer failed\n");
-		return -ENOMEM;
-	}
-
-	chip->vendor.priv = priv;
-
-	/* Default timeouts and durations */
-	chip->vendor.timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
-	chip->vendor.timeout_b = msecs_to_jiffies(TPM2_TIMEOUT_B);
-	chip->vendor.timeout_c = msecs_to_jiffies(TPM2_TIMEOUT_C);
-	chip->vendor.timeout_d = msecs_to_jiffies(TPM2_TIMEOUT_D);
-	chip->vendor.duration[TPM_SHORT] =
-		msecs_to_jiffies(TPM2_DURATION_SHORT);
-	chip->vendor.duration[TPM_MEDIUM] =
-		msecs_to_jiffies(TPM2_DURATION_MEDIUM);
-	chip->vendor.duration[TPM_LONG] =
-		msecs_to_jiffies(TPM2_DURATION_LONG);
-
-	chip->acpi_dev_handle = device->handle;
+	rc = tpm_get_timeouts(chip);
+	if (rc)
+		return rc;
 
 	rc = tpm2_do_selftest(chip);
 	if (rc)
@@ -305,15 +222,132 @@ static int crb_acpi_add(struct acpi_device *device)
 	return tpm_chip_register(chip);
 }
 
+static int crb_check_resource(struct acpi_resource *ares, void *data)
+{
+	struct crb_priv *priv = data;
+	struct resource res;
+
+	if (acpi_dev_resource_memory(ares, &res)) {
+		priv->res = res;
+		priv->res.name = NULL;
+	}
+
+	return 1;
+}
+
+static void __iomem *crb_map_res(struct device *dev, struct crb_priv *priv,
+				 u64 start, u32 size)
+{
+	struct resource new_res = {
+		.start	= start,
+		.end	= start + size - 1,
+		.flags	= IORESOURCE_MEM,
+	};
+
+	/* Detect a 64 bit address on a 32 bit system */
+	if (start != new_res.start)
+		return ERR_PTR(-EINVAL);
+
+	if (!resource_contains(&priv->res, &new_res))
+		return devm_ioremap_resource(dev, &new_res);
+
+	return priv->iobase + (new_res.start - priv->res.start);
+}
+
+static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
+		      struct acpi_table_tpm2 *buf)
+{
+	struct list_head resources;
+	struct device *dev = &device->dev;
+	u64 pa;
+	int ret;
+
+	INIT_LIST_HEAD(&resources);
+	ret = acpi_dev_get_resources(device, &resources, crb_check_resource,
+				     priv);
+	if (ret < 0)
+		return ret;
+	acpi_dev_free_resource_list(&resources);
+
+	if (resource_type(&priv->res) != IORESOURCE_MEM) {
+		dev_err(dev,
+			FW_BUG "TPM2 ACPI table does not define a memory resource\n");
+		return -EINVAL;
+	}
+
+	priv->iobase = devm_ioremap_resource(dev, &priv->res);
+	if (IS_ERR(priv->iobase))
+		return PTR_ERR(priv->iobase);
+
+	priv->cca = crb_map_res(dev, priv, buf->control_address, 0x1000);
+	if (IS_ERR(priv->cca))
+		return PTR_ERR(priv->cca);
+
+	pa = ((u64) ioread32(&priv->cca->cmd_pa_high) << 32) |
+	      (u64) ioread32(&priv->cca->cmd_pa_low);
+	priv->cmd = crb_map_res(dev, priv, pa, ioread32(&priv->cca->cmd_size));
+	if (IS_ERR(priv->cmd))
+		return PTR_ERR(priv->cmd);
+
+	memcpy_fromio(&pa, &priv->cca->rsp_pa, 8);
+	pa = le64_to_cpu(pa);
+	priv->rsp = crb_map_res(dev, priv, pa, ioread32(&priv->cca->rsp_size));
+	return PTR_ERR_OR_ZERO(priv->rsp);
+}
+
+static int crb_acpi_add(struct acpi_device *device)
+{
+	struct acpi_table_tpm2 *buf;
+	struct crb_priv *priv;
+	struct device *dev = &device->dev;
+	acpi_status status;
+	u32 sm;
+	int rc;
+
+	status = acpi_get_table(ACPI_SIG_TPM2, 1,
+				(struct acpi_table_header **) &buf);
+	if (ACPI_FAILURE(status) || buf->header.length < sizeof(*buf)) {
+		dev_err(dev, FW_BUG "failed to get TPM2 ACPI table\n");
+		return -EINVAL;
+	}
+
+	/* Should the FIFO driver handle this? */
+	sm = buf->start_method;
+	if (sm == ACPI_TPM2_MEMORY_MAPPED)
+		return -ENODEV;
+
+	priv = devm_kzalloc(dev, sizeof(struct crb_priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	/* The reason for the extra quirk is that the PTT in 4th Gen Core CPUs
+	 * report only ACPI start but in practice seems to require both
+	 * ACPI start and CRB start.
+	 */
+	if (sm == ACPI_TPM2_COMMAND_BUFFER || sm == ACPI_TPM2_MEMORY_MAPPED ||
+	    !strcmp(acpi_device_hid(device), "MSFT0101"))
+		priv->flags |= CRB_FL_CRB_START;
+
+	if (sm == ACPI_TPM2_START_METHOD ||
+	    sm == ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD)
+		priv->flags |= CRB_FL_ACPI_START;
+
+	rc = crb_map_io(device, priv, buf);
+	if (rc)
+		return rc;
+
+	return crb_init(device, priv);
+}
+
 static int crb_acpi_remove(struct acpi_device *device)
 {
 	struct device *dev = &device->dev;
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
-	tpm_chip_unregister(chip);
-
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		tpm2_shutdown(chip, TPM2_SU_CLEAR);
+
+	tpm_chip_unregister(chip);
 
 	return 0;
 }

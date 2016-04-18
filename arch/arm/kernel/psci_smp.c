@@ -71,7 +71,7 @@ int psci_cpu_disable(unsigned int cpu)
 	return 0;
 }
 
-void __ref psci_cpu_die(unsigned int cpu)
+void psci_cpu_die(unsigned int cpu)
 {
 	u32 state = PSCI_POWER_STATE_TYPE_POWER_DOWN <<
 		    PSCI_0_2_POWER_STATE_TYPE_SHIFT;
@@ -83,7 +83,7 @@ void __ref psci_cpu_die(unsigned int cpu)
 	panic("psci: cpu %d failed to shutdown\n", cpu);
 }
 
-int __ref psci_cpu_kill(unsigned int cpu)
+int psci_cpu_kill(unsigned int cpu)
 {
 	int err, i;
 
@@ -120,7 +120,7 @@ bool __init psci_smp_available(void)
 	return (psci_ops.cpu_on != NULL);
 }
 
-struct smp_operations __initdata psci_smp_ops = {
+const struct smp_operations psci_smp_ops __initconst = {
 	.smp_boot_secondary	= psci_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable		= psci_cpu_disable,

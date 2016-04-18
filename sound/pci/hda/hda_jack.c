@@ -259,7 +259,7 @@ snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
 		if (!callback)
 			return ERR_PTR(-ENOMEM);
 		callback->func = func;
-		callback->tbl = jack;
+		callback->nid = jack->nid;
 		callback->next = jack->callback;
 		jack->callback = callback;
 	}
@@ -383,7 +383,7 @@ static void hda_free_jack_priv(struct snd_jack *jack)
  * This assigns a jack-detection kctl to the given pin.  The kcontrol
  * will have the given name and index.
  */
-static int __snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
+int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 			  const char *name, bool phantom_jack)
 {
 	struct hda_jack_tbl *jack;
@@ -409,20 +409,6 @@ static int __snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 	snd_jack_report(jack->jack, state ? jack->type : 0);
 
 	return 0;
-}
-
-/**
- * snd_hda_jack_add_kctl - Add a jack kctl for the given pin
- * @codec: the HDA codec
- * @nid: pin NID
- * @name: the name string for the jack ctl
- *
- * This is a simple helper calling __snd_hda_jack_add_kctl().
- */
-int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
-			  const char *name)
-{
-	return __snd_hda_jack_add_kctl(codec, nid, name, false);
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_add_kctl);
 
@@ -451,7 +437,7 @@ static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
 	if (phantom_jack)
 		/* Example final name: "Internal Mic Phantom Jack" */
 		strncat(name, " Phantom", sizeof(name) - strlen(name) - 1);
-	err = __snd_hda_jack_add_kctl(codec, nid, name, phantom_jack);
+	err = snd_hda_jack_add_kctl(codec, nid, name, phantom_jack);
 	if (err < 0)
 		return err;
 

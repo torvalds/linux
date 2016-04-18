@@ -225,5 +225,9 @@ void __init ti_clk_init_features(void)
 	if (omap_rev() == OMAP3430_REV_ES1_0)
 		features.flags |= TI_CLK_DPLL4_DENY_REPROGRAM;
 
+	/* Errata I810 for omap5 / dra7 */
+	if (soc_is_omap54xx() || soc_is_dra7xx())
+		features.flags |= TI_CLK_ERRATA_I810;
+
 	ti_clk_setup_features(&features);
 }

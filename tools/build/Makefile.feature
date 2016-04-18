@@ -7,7 +7,7 @@ endif
 
 feature_check = $(eval $(feature_check_code))
 define feature_check_code
-  feature-$(1) := $(shell $(MAKE) OUTPUT=$(OUTPUT_FEATURES) CFLAGS="$(EXTRA_CFLAGS) $(FEATURE_CHECK_CFLAGS-$(1))" LDFLAGS="$(LDFLAGS) $(FEATURE_CHECK_LDFLAGS-$(1))" -C $(feature_dir) test-$1.bin >/dev/null 2>/dev/null && echo 1 || echo 0)
+  feature-$(1) := $(shell $(MAKE) OUTPUT=$(OUTPUT_FEATURES) CFLAGS="$(EXTRA_CFLAGS) $(FEATURE_CHECK_CFLAGS-$(1))" LDFLAGS="$(LDFLAGS) $(FEATURE_CHECK_LDFLAGS-$(1))" -C $(feature_dir) $(OUTPUT_FEATURES)test-$1.bin >/dev/null 2>/dev/null && echo 1 || echo 0)
 endef
 
 feature_set = $(eval $(feature_set_code))
@@ -27,7 +27,7 @@ endef
 #   the rule that uses them - an example for that is the 'bionic'
 #   feature check. ]
 #
-FEATURE_TESTS ?=			\
+FEATURE_TESTS_BASIC :=			\
 	backtrace			\
 	dwarf				\
 	fortify-source			\
@@ -46,6 +46,7 @@ FEATURE_TESTS ?=			\
 	libpython			\
 	libpython-version		\
 	libslang			\
+	libcrypto			\
 	libunwind			\
 	pthread-attr-setaffinity-np	\
 	stackprotector-all		\
@@ -55,6 +56,25 @@ FEATURE_TESTS ?=			\
 	lzma				\
 	get_cpuid			\
 	bpf
+
+# FEATURE_TESTS_BASIC + FEATURE_TESTS_EXTRA is the complete list
+# of all feature tests
+FEATURE_TESTS_EXTRA :=			\
+	bionic				\
+	compile-32			\
+	compile-x32			\
+	cplus-demangle			\
+	hello				\
+	libbabeltrace			\
+	liberty				\
+	liberty-z			\
+	libunwind-debug-frame
+
+FEATURE_TESTS ?= $(FEATURE_TESTS_BASIC)
+
+ifeq ($(FEATURE_TESTS),all)
+  FEATURE_TESTS := $(FEATURE_TESTS_BASIC) $(FEATURE_TESTS_EXTRA)
+endif
 
 FEATURE_DISPLAY ?=			\
 	dwarf				\
@@ -68,6 +88,7 @@ FEATURE_DISPLAY ?=			\
 	libperl				\
 	libpython			\
 	libslang			\
+	libcrypto			\
 	libunwind			\
 	libdw-dwarf-unwind		\
 	zlib				\
@@ -100,8 +121,15 @@ ifeq ($(feature-all), 1)
   # test-all.c passed - just set all the core feature flags to 1:
   #
   $(foreach feat,$(FEATURE_TESTS),$(call feature_set,$(feat)))
+  #
+  # test-all.c does not comprise these tests, so we need to
+  # for this case to get features proper values
+  #
+  $(call feature_check,compile-32)
+  $(call feature_check,compile-x32)
+  $(call feature_check,bionic)
+  $(call feature_check,libbabeltrace)
 else
-  $(shell $(MAKE) OUTPUT=$(OUTPUT_FEATURES) CFLAGS="$(EXTRA_CFLAGS)" LDFLAGS=$(LDFLAGS) -i -j -C $(feature_dir) $(addsuffix .bin,$(FEATURE_TESTS)) >/dev/null 2>&1)
   $(foreach feat,$(FEATURE_TESTS),$(call feature_check,$(feat)))
 endif
 
@@ -123,13 +151,31 @@ define feature_print_text_code
     MSG = $(shell printf '...%30s: %s' $(1) $(2))
 endef
 
-FEATURE_DUMP_FILENAME = $(OUTPUT)FEATURE-DUMP$(FEATURE_USER)
-FEATURE_DUMP := $(foreach feat,$(FEATURE_DISPLAY),feature-$(feat)($(feature-$(feat))))
-FEATURE_DUMP_FILE := $(shell touch $(FEATURE_DUMP_FILENAME); cat $(FEATURE_DUMP_FILENAME))
+#
+# generates feature value assignment for name, like:
+#   $(call feature_assign,dwarf) == feature-dwarf=1
+#
+feature_assign = feature-$(1)=$(feature-$(1))
 
-ifeq ($(dwarf-post-unwind),1)
-  FEATURE_DUMP += dwarf-post-unwind($(dwarf-post-unwind-text))
-endif
+FEATURE_DUMP_FILENAME = $(OUTPUT)FEATURE-DUMP$(FEATURE_USER)
+FEATURE_DUMP := $(shell touch $(FEATURE_DUMP_FILENAME); cat $(FEATURE_DUMP_FILENAME))
+
+feature_dump_check = $(eval $(feature_dump_check_code))
+define feature_dump_check_code
+  ifeq ($(findstring $(1),$(FEATURE_DUMP)),)
+    $(2) := 1
+  endif
+endef
+
+#
+# First check if any test from FEATURE_DISPLAY
+# and set feature_display := 1 if it does
+$(foreach feat,$(FEATURE_DISPLAY),$(call feature_dump_check,$(call feature_assign,$(feat)),feature_display))
+
+#
+# Now also check if any other test changed,
+# so we force FEATURE-DUMP generation
+$(foreach feat,$(FEATURE_TESTS),$(call feature_dump_check,$(call feature_assign,$(feat)),feature_dump_changed))
 
 # The $(feature_display) controls the default detection message
 # output. It's set if:
@@ -138,13 +184,13 @@ endif
 # - one of the $(FEATURE_DISPLAY) is not detected
 # - VF is enabled
 
-ifneq ("$(FEATURE_DUMP)","$(FEATURE_DUMP_FILE)")
-  $(shell echo "$(FEATURE_DUMP)" > $(FEATURE_DUMP_FILENAME))
-  feature_display := 1
+ifeq ($(feature_dump_changed),1)
+  $(shell rm -f $(FEATURE_DUMP_FILENAME))
+  $(foreach feat,$(FEATURE_TESTS),$(shell echo "$(call feature_assign,$(feat))" >> $(FEATURE_DUMP_FILENAME)))
 endif
 
 feature_display_check = $(eval $(feature_check_display_code))
-define feature_display_check_code
+define feature_check_display_code
   ifneq ($(feature-$(1)), 1)
     feature_display := 1
   endif
@@ -161,11 +207,6 @@ ifeq ($(feature_display),1)
   $(info )
   $(info Auto-detecting system features:)
   $(foreach feat,$(FEATURE_DISPLAY),$(call feature_print_status,$(feat),))
-
-  ifeq ($(dwarf-post-unwind),1)
-    $(call feature_print_text,"DWARF post unwind library", $(dwarf-post-unwind-text))
-  endif
-
   ifneq ($(feature_verbose),1)
     $(info )
   endif

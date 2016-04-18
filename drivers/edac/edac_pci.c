@@ -178,41 +178,6 @@ static void del_edac_pci_from_global_list(struct edac_pci_ctl_info *pci)
 	INIT_LIST_HEAD(&pci->link);
 }
 
-#if 0
-/* Older code, but might use in the future */
-
-/*
- * edac_pci_find()
- * 	Search for an edac_pci_ctl_info structure whose index is 'idx'
- *
- * If found, return a pointer to the structure
- * Else return NULL.
- *
- * Caller must hold pci_ctls_mutex.
- */
-struct edac_pci_ctl_info *edac_pci_find(int idx)
-{
-	struct list_head *item;
-	struct edac_pci_ctl_info *pci;
-
-	/* Iterage over list, looking for exact match of ID */
-	list_for_each(item, &edac_pci_list) {
-		pci = list_entry(item, struct edac_pci_ctl_info, link);
-
-		if (pci->pci_idx >= idx) {
-			if (pci->pci_idx == idx)
-				return pci;
-
-			/* not on list, so terminate early */
-			break;
-		}
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(edac_pci_find);
-#endif
-
 /*
  * edac_pci_workq_function()
  *
@@ -230,81 +195,25 @@ static void edac_pci_workq_function(struct work_struct *work_req)
 
 	mutex_lock(&edac_pci_ctls_mutex);
 
-	if (pci->op_state == OP_RUNNING_POLL) {
-		/* we might be in POLL mode, but there may NOT be a poll func
-		 */
-		if ((pci->edac_check != NULL) && edac_pci_get_check_errors())
-			pci->edac_check(pci);
-
-		/* if we are on a one second period, then use round */
-		msec = edac_pci_get_poll_msec();
-		if (msec == 1000)
-			delay = round_jiffies_relative(msecs_to_jiffies(msec));
-		else
-			delay = msecs_to_jiffies(msec);
-
-		/* Reschedule only if we are in POLL mode */
-		queue_delayed_work(edac_workqueue, &pci->work, delay);
+	if (pci->op_state != OP_RUNNING_POLL) {
+		mutex_unlock(&edac_pci_ctls_mutex);
+		return;
 	}
 
-	mutex_unlock(&edac_pci_ctls_mutex);
-}
+	if (edac_pci_get_check_errors())
+		pci->edac_check(pci);
 
-/*
- * edac_pci_workq_setup()
- * 	initialize a workq item for this edac_pci instance
- * 	passing in the new delay period in msec
- *
- *	locking model:
- *		called when 'edac_pci_ctls_mutex' is locked
- */
-static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
-				 unsigned int msec)
-{
-	edac_dbg(0, "\n");
+	/* if we are on a one second period, then use round */
+	msec = edac_pci_get_poll_msec();
+	if (msec == 1000)
+		delay = round_jiffies_relative(msecs_to_jiffies(msec));
+	else
+		delay = msecs_to_jiffies(msec);
 
-	INIT_DELAYED_WORK(&pci->work, edac_pci_workq_function);
-	queue_delayed_work(edac_workqueue, &pci->work,
-			msecs_to_jiffies(edac_pci_get_poll_msec()));
-}
-
-/*
- * edac_pci_workq_teardown()
- * 	stop the workq processing on this edac_pci instance
- */
-static void edac_pci_workq_teardown(struct edac_pci_ctl_info *pci)
-{
-	int status;
-
-	edac_dbg(0, "\n");
-
-	status = cancel_delayed_work(&pci->work);
-	if (status == 0)
-		flush_workqueue(edac_workqueue);
-}
-
-/*
- * edac_pci_reset_delay_period
- *
- *	called with a new period value for the workq period
- *	a) stop current workq timer
- *	b) restart workq timer with new value
- */
-void edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci,
-				 unsigned long value)
-{
-	edac_dbg(0, "\n");
-
-	edac_pci_workq_teardown(pci);
-
-	/* need to lock for the setup */
-	mutex_lock(&edac_pci_ctls_mutex);
-
-	edac_pci_workq_setup(pci, value);
+	edac_queue_work(&pci->work, delay);
 
 	mutex_unlock(&edac_pci_ctls_mutex);
 }
-EXPORT_SYMBOL_GPL(edac_pci_reset_delay_period);
 
 /*
  * edac_pci_alloc_index: Allocate a unique PCI index number
@@ -349,10 +258,12 @@ int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 		goto fail1;
 	}
 
-	if (pci->edac_check != NULL) {
+	if (pci->edac_check) {
 		pci->op_state = OP_RUNNING_POLL;
 
-		edac_pci_workq_setup(pci, 1000);
+		INIT_DELAYED_WORK(&pci->work, edac_pci_workq_function);
+		edac_queue_work(&pci->work, msecs_to_jiffies(edac_pci_get_poll_msec()));
+
 	} else {
 		pci->op_state = OP_RUNNING_INTERRUPT;
 	}
@@ -410,8 +321,8 @@ struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 
 	mutex_unlock(&edac_pci_ctls_mutex);
 
-	/* stop the workq timer */
-	edac_pci_workq_teardown(pci);
+	if (pci->edac_check)
+		edac_stop_work(&pci->work);
 
 	edac_printk(KERN_INFO, EDAC_PCI,
 		"Removed device %d for %s %s: DEV %s\n",

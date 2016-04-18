@@ -49,12 +49,6 @@ int focaltech_detect(struct psmouse *psmouse, bool set_properties)
 	return 0;
 }
 
-static void focaltech_reset(struct psmouse *psmouse)
-{
-	ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_RESET_DIS);
-	psmouse_reset(psmouse);
-}
-
 #ifdef CONFIG_MOUSE_PS2_FOCALTECH
 
 /*
@@ -300,6 +294,12 @@ static int focaltech_switch_protocol(struct psmouse *psmouse)
 	return 0;
 }
 
+static void focaltech_reset(struct psmouse *psmouse)
+{
+	ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_RESET_DIS);
+	psmouse_reset(psmouse);
+}
+
 static void focaltech_disconnect(struct psmouse *psmouse)
 {
 	focaltech_reset(psmouse);
@@ -456,14 +456,4 @@ fail:
 	kfree(priv);
 	return error;
 }
-
-#else /* CONFIG_MOUSE_PS2_FOCALTECH */
-
-int focaltech_init(struct psmouse *psmouse)
-{
-	focaltech_reset(psmouse);
-
-	return 0;
-}
-
 #endif /* CONFIG_MOUSE_PS2_FOCALTECH */

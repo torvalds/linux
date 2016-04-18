@@ -47,9 +47,6 @@ config STACKTRACE_SUPPORT
 	bool
 	default y
 
-config HAVE_LATENCYTOP_SUPPORT
-	def_bool y
-
 config TRACE_IRQFLAGS_SUPPORT
 	bool
 	default y
@@ -97,6 +94,7 @@ config PPC
 	select OF_RESERVED_MEM
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS if MPROFILE_KERNEL
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select SYSCTL_EXCEPTION_TRACE
@@ -111,7 +109,6 @@ config PPC
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
-	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_OPROFILE
 	select HAVE_DEBUG_KMEMLEAK
@@ -159,7 +156,10 @@ config PPC
 	select EDAC_SUPPORT
 	select EDAC_ATOMIC_SCRUB
 	select ARCH_HAS_DMA_SET_COHERENT_MASK
+	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select HAVE_ARCH_SECCOMP_FILTER
+	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
 
 config GENERIC_CSUM
 	def_bool CPU_LITTLE_ENDIAN
@@ -305,7 +305,7 @@ config ZONE_DMA32
 config PGTABLE_LEVELS
 	int
 	default 2 if !PPC64
-	default 3 if PPC_64K_PAGES
+	default 3 if PPC_64K_PAGES && !PPC_BOOK3S_64
 	default 4
 
 source "init/Kconfig"
@@ -375,6 +375,24 @@ config PPC_TRANSACTIONAL_MEM
        ---help---
          Support user-mode Transactional Memory on POWERPC.
 
+config DISABLE_MPROFILE_KERNEL
+	bool "Disable use of mprofile-kernel for kernel tracing"
+	depends on PPC64 && CPU_LITTLE_ENDIAN
+	default y
+	help
+	  Selecting this options disables use of the mprofile-kernel ABI for
+	  kernel tracing. That will cause options such as live patching
+	  (CONFIG_LIVEPATCH) which depend on CONFIG_DYNAMIC_FTRACE_WITH_REGS to
+	  be disabled also.
+
+	  If you have a toolchain which supports mprofile-kernel, then you can
+	  enable this. Otherwise leave it disabled. If you're not sure, say
+	  "N".
+
+config MPROFILE_KERNEL
+	depends on PPC64 && CPU_LITTLE_ENDIAN
+	def_bool !DISABLE_MPROFILE_KERNEL
+
 config IOMMU_HELPER
 	def_bool PPC64
 
@@ -391,7 +409,7 @@ config SWIOTLB
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
 	depends on SMP && (PPC_PSERIES || \
-	PPC_PMAC || PPC_POWERNV || (PPC_85xx && !PPC_E500MC))
+	PPC_PMAC || PPC_POWERNV || FSL_SOC_BOOKE)
 	---help---
 	  Say Y here to be able to disable and re-enable individual
 	  CPUs at runtime on SMP machines.
@@ -559,6 +577,7 @@ choice
 
 config PPC_4K_PAGES
 	bool "4k page size"
+	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_16K_PAGES
 	bool "16k page size"
@@ -567,6 +586,7 @@ config PPC_16K_PAGES
 config PPC_64K_PAGES
 	bool "64k page size"
 	depends on !PPC_FSL_BOOK3E && (44x || PPC_STD_MMU_64 || PPC_BOOK3E_64)
+	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_256K_PAGES
 	bool "256k page size"
@@ -828,13 +848,9 @@ config PCI_8260
 	select PPC_INDIRECT_PCI
 	default y
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 config HAS_RAPIDIO
 	bool
@@ -1073,8 +1089,6 @@ source "net/Kconfig"
 source "drivers/Kconfig"
 
 source "fs/Kconfig"
-
-source "arch/powerpc/sysdev/qe_lib/Kconfig"
 
 source "lib/Kconfig"
 

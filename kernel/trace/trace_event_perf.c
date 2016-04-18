@@ -1,7 +1,7 @@
 /*
  * trace event based perf event profiling/tracing
  *
- * Copyright (C) 2009 Red Hat Inc, Peter Zijlstra <pzijlstr@redhat.com>
+ * Copyright (C) 2009 Red Hat Inc, Peter Zijlstra
  * Copyright (C) 2009-2010 Frederic Weisbecker <fweisbec@gmail.com>
  */
 
@@ -334,7 +334,7 @@ static int perf_ftrace_function_register(struct perf_event *event)
 {
 	struct ftrace_ops *ops = &event->ftrace_ops;
 
-	ops->flags |= FTRACE_OPS_FL_CONTROL;
+	ops->flags |= FTRACE_OPS_FL_PER_CPU | FTRACE_OPS_FL_RCU;
 	ops->func = perf_ftrace_function_call;
 	return register_ftrace_function(ops);
 }

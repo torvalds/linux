@@ -14,6 +14,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <asm/pgalloc.h>
+#include <asm/gmap.h>
 #include <asm/virtio-ccw.h>
 #include "kvm-s390.h"
 #include "trace.h"
@@ -155,10 +156,8 @@ static int __diag_time_slice_end(struct kvm_vcpu *vcpu)
 
 static int __diag_time_slice_end_directed(struct kvm_vcpu *vcpu)
 {
-	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu *tcpu;
 	int tid;
-	int i;
 
 	tid = vcpu->run->s.regs.gprs[(vcpu->arch.sie_block->ipa & 0xf0) >> 4];
 	vcpu->stat.diagnose_9c++;
@@ -167,12 +166,9 @@ static int __diag_time_slice_end_directed(struct kvm_vcpu *vcpu)
 	if (tid == vcpu->vcpu_id)
 		return 0;
 
-	kvm_for_each_vcpu(i, tcpu, kvm)
-		if (tcpu->vcpu_id == tid) {
-			kvm_vcpu_yield_to(tcpu);
-			break;
-		}
-
+	tcpu = kvm_get_vcpu_by_id(vcpu->kvm, tid);
+	if (tcpu)
+		kvm_vcpu_yield_to(tcpu);
 	return 0;
 }
 

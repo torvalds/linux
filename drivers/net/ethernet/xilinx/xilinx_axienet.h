@@ -385,7 +385,6 @@ struct axidma_bd {
  * @phy_dev:	Pointer to PHY device structure attached to the axienet_local
  * @phy_node:	Pointer to device node structure
  * @mii_bus:	Pointer to MII bus structure
- * @mdio_irqs:	IRQs table for MDIO bus required in mii_bus structure
  * @regs:	Base address for the axienet_local device address space
  * @dma_regs:	Base address for the axidma device address space
  * @dma_err_tasklet: Tasklet structure to process Axi DMA errors
@@ -426,7 +425,6 @@ struct axienet_local {
 
 	/* MDIO bus data */
 	struct mii_bus *mii_bus;	/* MII bus reference */
-	int mdio_irqs[PHY_MAX_ADDR];	/* IRQs table for MDIO bus */
 
 	/* IO registers, dma functions and IRQs */
 	void __iomem *regs;

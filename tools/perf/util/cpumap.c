@@ -5,7 +5,12 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <linux/bitmap.h>
 #include "asm/bug.h"
+
+static int max_cpu_num;
+static int max_node_num;
+static int *cpunode_map;
 
 static struct cpu_map *cpu_map__default_new(void)
 {
@@ -177,6 +182,56 @@ invalid:
 	free(tmp_cpus);
 out:
 	return cpus;
+}
+
+static struct cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
+{
+	struct cpu_map *map;
+
+	map = cpu_map__empty_new(cpus->nr);
+	if (map) {
+		unsigned i;
+
+		for (i = 0; i < cpus->nr; i++) {
+			/*
+			 * Special treatment for -1, which is not real cpu number,
+			 * and we need to use (int) -1 to initialize map[i],
+			 * otherwise it would become 65535.
+			 */
+			if (cpus->cpu[i] == (u16) -1)
+				map->map[i] = -1;
+			else
+				map->map[i] = (int) cpus->cpu[i];
+		}
+	}
+
+	return map;
+}
+
+static struct cpu_map *cpu_map__from_mask(struct cpu_map_mask *mask)
+{
+	struct cpu_map *map;
+	int nr, nbits = mask->nr * mask->long_size * BITS_PER_BYTE;
+
+	nr = bitmap_weight(mask->mask, nbits);
+
+	map = cpu_map__empty_new(nr);
+	if (map) {
+		int cpu, i = 0;
+
+		for_each_set_bit(cpu, mask->mask, nbits)
+			map->map[i++] = cpu;
+	}
+	return map;
+
+}
+
+struct cpu_map *cpu_map__new_data(struct cpu_map_data *data)
+{
+	if (data->type == PERF_CPU_MAP__CPUS)
+		return cpu_map__from_entries((struct cpu_map_entries *)data->data);
+	else
+		return cpu_map__from_mask((struct cpu_map_mask *)data->data);
 }
 
 size_t cpu_map__fprintf(struct cpu_map *map, FILE *fp)
@@ -433,6 +488,32 @@ static void set_max_node_num(void)
 out:
 	if (ret)
 		pr_err("Failed to read max nodes, using default of %d\n", max_node_num);
+}
+
+int cpu__max_node(void)
+{
+	if (unlikely(!max_node_num))
+		set_max_node_num();
+
+	return max_node_num;
+}
+
+int cpu__max_cpu(void)
+{
+	if (unlikely(!max_cpu_num))
+		set_max_cpu_num();
+
+	return max_cpu_num;
+}
+
+int cpu__get_node(int cpu)
+{
+	if (unlikely(cpunode_map == NULL)) {
+		pr_debug("cpu_map not initialized\n");
+		return -1;
+	}
+
+	return cpunode_map[cpu];
 }
 
 static int init_cpunode_map(void)

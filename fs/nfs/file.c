@@ -233,7 +233,7 @@ EXPORT_SYMBOL_GPL(nfs_file_mmap);
  * nfs_file_write() that a write error occurred, and hence cause it to
  * fall back to doing a synchronous write.
  */
-int
+static int
 nfs_file_fsync_commit(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
@@ -263,9 +263,8 @@ nfs_file_fsync_commit(struct file *file, loff_t start, loff_t end, int datasync)
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nfs_file_fsync_commit);
 
-static int
+int
 nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	int ret;
@@ -273,14 +272,16 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 	trace_nfs_fsync_enter(inode);
 
-	nfs_inode_dio_wait(inode);
+	inode_dio_wait(inode);
 	do {
 		ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 		if (ret != 0)
 			break;
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		ret = nfs_file_fsync_commit(file, start, end, datasync);
-		mutex_unlock(&inode->i_mutex);
+		if (!ret)
+			ret = pnfs_sync_inode(inode, !!datasync);
+		inode_unlock(inode);
 		/*
 		 * If nfs_file_fsync_commit detected a server reboot, then
 		 * resend all dirty pages that might have been covered by
@@ -293,6 +294,7 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	trace_nfs_fsync_exit(inode, ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nfs_file_fsync);
 
 /*
  * Decide whether a read/modify/write cycle may be more efficient
@@ -318,7 +320,7 @@ static int nfs_want_read_modify_write(struct file *file, struct page *page,
 			loff_t pos, unsigned len)
 {
 	unsigned int pglen = nfs_page_length(page);
-	unsigned int offset = pos & (PAGE_CACHE_SIZE - 1);
+	unsigned int offset = pos & (PAGE_SIZE - 1);
 	unsigned int end = offset + len;
 
 	if (pnfs_ld_read_whole_page(file->f_mapping->host)) {
@@ -349,7 +351,7 @@ static int nfs_write_begin(struct file *file, struct address_space *mapping,
 			struct page **pagep, void **fsdata)
 {
 	int ret;
-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+	pgoff_t index = pos >> PAGE_SHIFT;
 	struct page *page;
 	int once_thru = 0;
 
@@ -368,7 +370,7 @@ start:
 	/*
 	 * Wait for O_DIRECT to complete
 	 */
-	nfs_inode_dio_wait(mapping->host);
+	inode_dio_wait(mapping->host);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
@@ -378,12 +380,12 @@ start:
 	ret = nfs_flush_incompatible(file, page);
 	if (ret) {
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	} else if (!once_thru &&
 		   nfs_want_read_modify_write(file, page, pos, len)) {
 		once_thru = 1;
 		ret = nfs_readpage(file, page);
-		page_cache_release(page);
+		put_page(page);
 		if (!ret)
 			goto start;
 	}
@@ -394,7 +396,7 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
-	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
+	unsigned offset = pos & (PAGE_SIZE - 1);
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	int status;
 
@@ -411,20 +413,20 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 
 		if (pglen == 0) {
 			zero_user_segments(page, 0, offset,
-					end, PAGE_CACHE_SIZE);
+					end, PAGE_SIZE);
 			SetPageUptodate(page);
 		} else if (end >= pglen) {
-			zero_user_segment(page, end, PAGE_CACHE_SIZE);
+			zero_user_segment(page, end, PAGE_SIZE);
 			if (offset == 0)
 				SetPageUptodate(page);
 		} else
-			zero_user_segment(page, pglen, PAGE_CACHE_SIZE);
+			zero_user_segment(page, pglen, PAGE_SIZE);
 	}
 
 	status = nfs_updatepage(file, page, offset, copied);
 
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	if (status < 0)
 		return status;
@@ -452,7 +454,7 @@ static void nfs_invalidate_page(struct page *page, unsigned int offset,
 	dfprintk(PAGECACHE, "NFS: invalidate_page(%p, %u, %u)\n",
 		 page, offset, length);
 
-	if (offset != 0 || length < PAGE_CACHE_SIZE)
+	if (offset != 0 || length < PAGE_SIZE)
 		return;
 	/* Cancel any unstarted writes on this page */
 	nfs_wb_page_cancel(page_file_mapping(page)->host, page);
@@ -473,8 +475,8 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
 	dfprintk(PAGECACHE, "NFS: release_page(%p)\n", page);
 
 	/* Always try to initiate a 'commit' if relevant, but only
-	 * wait for it if __GFP_WAIT is set.  Even then, only wait 1
-	 * second and only if the 'bdi' is not congested.
+	 * wait for it if the caller allows blocking.  Even then,
+	 * only wait 1 second and only if the 'bdi' is not congested.
 	 * Waiting indefinitely can cause deadlocks when the NFS
 	 * server is on this machine, when a new TCP connection is
 	 * needed and in other rare cases.  There is no particular
@@ -484,7 +486,7 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
 	if (mapping) {
 		struct nfs_server *nfss = NFS_SERVER(mapping->host);
 		nfs_commit_inode(mapping->host, 0);
-		if ((gfp & __GFP_WAIT) &&
+		if (gfpflags_allow_blocking(gfp) &&
 		    !bdi_write_congested(&nfss->backing_dev_info)) {
 			wait_on_page_bit_killable_timeout(page, PG_private,
 							  HZ);
@@ -514,7 +516,7 @@ static void nfs_check_dirty_writeback(struct page *page,
 	 * so it will not block due to pages that will shortly be freeable.
 	 */
 	nfsi = NFS_I(mapping->host);
-	if (test_bit(NFS_INO_COMMIT, &nfsi->flags)) {
+	if (atomic_read(&nfsi->commit_info.rpcs_out)) {
 		*writeback = true;
 		return;
 	}
@@ -545,7 +547,7 @@ static int nfs_launder_page(struct page *page)
 		inode->i_ino, (long long)page_offset(page));
 
 	nfs_fscache_wait_on_page_write(nfsi, page);
-	return nfs_wb_page(inode, page);
+	return nfs_wb_launder_page(inode, page);
 }
 
 static int nfs_swap_activate(struct swap_info_struct *sis, struct file *file,
@@ -756,7 +758,7 @@ do_unlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 
 	l_ctx = nfs_get_lock_context(nfs_file_open_context(filp));
 	if (!IS_ERR(l_ctx)) {
-		status = nfs_iocounter_wait(&l_ctx->io_count);
+		status = nfs_iocounter_wait(l_ctx);
 		nfs_put_lock_context(l_ctx);
 		if (status < 0)
 			return status;

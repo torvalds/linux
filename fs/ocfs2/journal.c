@@ -231,7 +231,7 @@ void ocfs2_recovery_exit(struct ocfs2_super *osb)
 	/* At this point, we know that no more recovery threads can be
 	 * launched, so wait for any recovery completion work to
 	 * complete. */
-	flush_workqueue(ocfs2_wq);
+	flush_workqueue(osb->ocfs2_wq);
 
 	/*
 	 * Now that recovery is shut down, and the osb is about to be
@@ -1042,8 +1042,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 
 //	up_write(&journal->j_trans_barrier);
 done:
-	if (inode)
-		iput(inode);
+	iput(inode);
 }
 
 static void ocfs2_clear_journal_error(struct super_block *sb,
@@ -1327,7 +1326,7 @@ static void ocfs2_queue_recovery_completion(struct ocfs2_journal *journal,
 
 	spin_lock(&journal->j_lock);
 	list_add_tail(&item->lri_list, &journal->j_la_cleanups);
-	queue_work(ocfs2_wq, &journal->j_recovery_work);
+	queue_work(journal->j_osb->ocfs2_wq, &journal->j_recovery_work);
 	spin_unlock(&journal->j_lock);
 }
 
@@ -1687,9 +1686,7 @@ done:
 	if (got_lock)
 		ocfs2_inode_unlock(inode, 1);
 
-	if (inode)
-		iput(inode);
-
+	iput(inode);
 	brelse(bh);
 
 	return status;
@@ -1796,8 +1793,7 @@ static int ocfs2_trylock_journal(struct ocfs2_super *osb,
 
 	ocfs2_inode_unlock(inode, 1);
 bail:
-	if (inode)
-		iput(inode);
+	iput(inode);
 
 	return status;
 }
@@ -1972,7 +1968,7 @@ static void ocfs2_orphan_scan_work(struct work_struct *work)
 	mutex_lock(&os->os_lock);
 	ocfs2_queue_orphan_scan(osb);
 	if (atomic_read(&os->os_state) == ORPHAN_SCAN_ACTIVE)
-		queue_delayed_work(ocfs2_wq, &os->os_orphan_scan_work,
+		queue_delayed_work(osb->ocfs2_wq, &os->os_orphan_scan_work,
 				      ocfs2_orphan_scan_timeout());
 	mutex_unlock(&os->os_lock);
 }
@@ -2012,7 +2008,7 @@ void ocfs2_orphan_scan_start(struct ocfs2_super *osb)
 		atomic_set(&os->os_state, ORPHAN_SCAN_INACTIVE);
 	else {
 		atomic_set(&os->os_state, ORPHAN_SCAN_ACTIVE);
-		queue_delayed_work(ocfs2_wq, &os->os_orphan_scan_work,
+		queue_delayed_work(osb->ocfs2_wq, &os->os_orphan_scan_work,
 				   ocfs2_orphan_scan_timeout());
 	}
 }
@@ -2092,7 +2088,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 		return status;
 	}
 
-	mutex_lock(&orphan_dir_inode->i_mutex);
+	inode_lock(orphan_dir_inode);
 	status = ocfs2_inode_lock(orphan_dir_inode, NULL, 0);
 	if (status < 0) {
 		mlog_errno(status);
@@ -2110,7 +2106,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 out_cluster:
 	ocfs2_inode_unlock(orphan_dir_inode, 0);
 out:
-	mutex_unlock(&orphan_dir_inode->i_mutex);
+	inode_unlock(orphan_dir_inode);
 	iput(orphan_dir_inode);
 	return status;
 }
@@ -2200,7 +2196,7 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 		oi->ip_next_orphan = NULL;
 
 		if (oi->ip_flags & OCFS2_INODE_DIO_ORPHAN_ENTRY) {
-			mutex_lock(&inode->i_mutex);
+			inode_lock(inode);
 			ret = ocfs2_rw_lock(inode, 1);
 			if (ret < 0) {
 				mlog_errno(ret);
@@ -2239,7 +2235,7 @@ unlock_inode:
 unlock_rw:
 			ocfs2_rw_unlock(inode, 1);
 unlock_mutex:
-			mutex_unlock(&inode->i_mutex);
+			inode_unlock(inode);
 
 			/* clear dio flag in ocfs2_inode_info */
 			oi->ip_flags &= ~OCFS2_INODE_DIO_ORPHAN_ENTRY;

@@ -31,6 +31,16 @@ config DRM_PANEL_LG_LG4573
 	  Say Y here if you want to enable support for LG4573 RGB panel.
 	  To compile this driver as a module, choose M here.
 
+config DRM_PANEL_PANASONIC_VVX10F034N00
+	tristate "Panasonic VVX10F034N00 1920x1200 video mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Panasonic VVX10F034N00
+	  WUXGA (1920x1200) Novatek NT1397-based DSI panel as found in some
+	  Xperia Z2 tablets
+
 config DRM_PANEL_SAMSUNG_S6E8AA0
 	tristate "Samsung S6E8AA0 DSI video mode panel"
 	depends on OF
@@ -50,5 +60,14 @@ config DRM_PANEL_SHARP_LQ101R1SX01
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called panel-sharp-lq101r1sx01.
+
+config DRM_PANEL_SHARP_LS043T1LE01
+	tristate "Sharp LS043T1LE01 qHD video mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Sharp LS043T1LE01 qHD
+	  (540x960) DSI panel as found on the Qualcomm APQ8074 Dragonboard
 
 endmenu

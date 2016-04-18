@@ -1,4 +1,4 @@
-/* Copyright (C) 2011-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2016  B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  *
@@ -22,6 +22,7 @@
 
 #include <linux/types.h>
 
+struct net_device;
 struct seq_file;
 struct sk_buff;
 
@@ -42,6 +43,7 @@ int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
 void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
 				    struct batadv_hard_iface *primary_if,
 				    struct batadv_hard_iface *oldif);
+void batadv_bla_status_update(struct net_device *net_dev);
 int batadv_bla_init(struct batadv_priv *bat_priv);
 void batadv_bla_free(struct batadv_priv *bat_priv);
 

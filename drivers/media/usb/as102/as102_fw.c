@@ -198,6 +198,7 @@ int as102_fw_upload(struct as10x_bus_adapter_t *bus_adap)
 	pr_info("%s: firmware: %s loaded with success\n",
 		DRIVER_NAME, fw1);
 	release_firmware(firmware);
+	firmware = NULL;
 
 	/* wait for boot to complete */
 	mdelay(100);

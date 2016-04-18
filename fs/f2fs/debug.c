@@ -38,12 +38,15 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->hit_rbtree = atomic64_read(&sbi->read_hit_rbtree);
 	si->hit_total = si->hit_largest + si->hit_cached + si->hit_rbtree;
 	si->total_ext = atomic64_read(&sbi->total_hit_ext);
-	si->ext_tree = sbi->total_ext_tree;
+	si->ext_tree = atomic_read(&sbi->total_ext_tree);
+	si->zombie_tree = atomic_read(&sbi->total_zombie_tree);
 	si->ext_node = atomic_read(&sbi->total_ext_node);
 	si->ndirty_node = get_pages(sbi, F2FS_DIRTY_NODES);
 	si->ndirty_dent = get_pages(sbi, F2FS_DIRTY_DENTS);
-	si->ndirty_dirs = sbi->n_dirty_dirs;
 	si->ndirty_meta = get_pages(sbi, F2FS_DIRTY_META);
+	si->ndirty_data = get_pages(sbi, F2FS_DIRTY_DATA);
+	si->ndirty_dirs = sbi->ndirty_inode[DIR_INODE];
+	si->ndirty_files = sbi->ndirty_inode[FILE_INODE];
 	si->inmem_pages = get_pages(sbi, F2FS_INMEM_PAGES);
 	si->wb_pages = get_pages(sbi, F2FS_WRITEBACK);
 	si->total_count = (int)sbi->user_block_count / sbi->blocks_per_seg;
@@ -105,7 +108,7 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 
 	bimodal = 0;
 	total_vblocks = 0;
-	blks_per_sec = sbi->segs_per_sec * (1 << sbi->log_blocks_per_seg);
+	blks_per_sec = sbi->segs_per_sec * sbi->blocks_per_seg;
 	hblks_per_sec = blks_per_sec / 2;
 	for (segno = 0; segno < MAIN_SEGS(sbi); segno += sbi->segs_per_sec) {
 		vblocks = get_valid_blocks(sbi, segno, sbi->segs_per_sec);
@@ -161,7 +164,7 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 
 	/* build curseg */
 	si->base_mem += sizeof(struct curseg_info) * NR_CURSEG_TYPE;
-	si->base_mem += PAGE_CACHE_SIZE * NR_CURSEG_TYPE;
+	si->base_mem += PAGE_SIZE * NR_CURSEG_TYPE;
 
 	/* build dirty segmap */
 	si->base_mem += sizeof(struct dirty_seglist_info);
@@ -189,18 +192,18 @@ get_cache:
 	si->cache_mem += NM_I(sbi)->dirty_nat_cnt *
 					sizeof(struct nat_entry_set);
 	si->cache_mem += si->inmem_pages * sizeof(struct inmem_pages);
-	si->cache_mem += sbi->n_dirty_dirs * sizeof(struct inode_entry);
 	for (i = 0; i <= UPDATE_INO; i++)
 		si->cache_mem += sbi->im[i].ino_num * sizeof(struct ino_entry);
-	si->cache_mem += sbi->total_ext_tree * sizeof(struct extent_tree);
+	si->cache_mem += atomic_read(&sbi->total_ext_tree) *
+						sizeof(struct extent_tree);
 	si->cache_mem += atomic_read(&sbi->total_ext_node) *
 						sizeof(struct extent_node);
 
 	si->page_mem = 0;
 	npages = NODE_MAPPING(sbi)->nrpages;
-	si->page_mem += (unsigned long long)npages << PAGE_CACHE_SHIFT;
+	si->page_mem += (unsigned long long)npages << PAGE_SHIFT;
 	npages = META_MAPPING(sbi)->nrpages;
-	si->page_mem += (unsigned long long)npages << PAGE_CACHE_SHIFT;
+	si->page_mem += (unsigned long long)npages << PAGE_SHIFT;
 }
 
 static int stat_show(struct seq_file *s, void *v)
@@ -211,12 +214,10 @@ static int stat_show(struct seq_file *s, void *v)
 
 	mutex_lock(&f2fs_stat_mutex);
 	list_for_each_entry(si, &f2fs_stat_list, stat_list) {
-		char devname[BDEVNAME_SIZE];
-
 		update_general_status(si->sbi);
 
-		seq_printf(s, "\n=====[ partition info(%s). #%d ]=====\n",
-			bdevname(si->sbi->sb->s_bdev, devname), i++);
+		seq_printf(s, "\n=====[ partition info(%pg). #%d ]=====\n",
+			si->sbi->sb->s_bdev, i++);
 		seq_printf(s, "[SB: 1] [CP: 2] [SIT: %d] [NAT: %d] ",
 			   si->sit_area_segs, si->nat_area_segs);
 		seq_printf(s, "[SSA: %d] [MAIN: %d",
@@ -269,7 +270,8 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->dirty_count);
 		seq_printf(s, "  - Prefree: %d\n  - Free: %d (%d)\n\n",
 			   si->prefree_count, si->free_segs, si->free_secs);
-		seq_printf(s, "CP calls: %d\n", si->cp_count);
+		seq_printf(s, "CP calls: %d (BG: %d)\n",
+				si->cp_count, si->bg_cp_count);
 		seq_printf(s, "GC calls: %d (BG: %d)\n",
 			   si->call_count, si->bg_gc);
 		seq_printf(s, "  - data segments : %d (%d)\n",
@@ -290,8 +292,8 @@ static int stat_show(struct seq_file *s, void *v)
 				!si->total_ext ? 0 :
 				div64_u64(si->hit_total * 100, si->total_ext),
 				si->hit_total, si->total_ext);
-		seq_printf(s, "  - Inner Struct Count: tree: %d, node: %d\n",
-				si->ext_tree, si->ext_node);
+		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
+				si->ext_tree, si->zombie_tree, si->ext_node);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
 		seq_printf(s, "  - inmem: %4d, wb: %4d\n",
 			   si->inmem_pages, si->wb_pages);
@@ -299,6 +301,8 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->ndirty_node, si->node_pages);
 		seq_printf(s, "  - dents: %4d in dirs:%4d\n",
 			   si->ndirty_dent, si->ndirty_dirs);
+		seq_printf(s, "  - datas: %4d in files:%4d\n",
+			   si->ndirty_data, si->ndirty_files);
 		seq_printf(s, "  - meta: %4d in %4d\n",
 			   si->ndirty_meta, si->meta_pages);
 		seq_printf(s, "  - NATs: %9d/%9d\n  - SITs: %9d/%9d\n",
@@ -406,20 +410,23 @@ void f2fs_destroy_stats(struct f2fs_sb_info *sbi)
 	kfree(si);
 }
 
-void __init f2fs_create_root_stats(void)
+int __init f2fs_create_root_stats(void)
 {
 	struct dentry *file;
 
 	f2fs_debugfs_root = debugfs_create_dir("f2fs", NULL);
 	if (!f2fs_debugfs_root)
-		return;
+		return -ENOMEM;
 
 	file = debugfs_create_file("status", S_IRUGO, f2fs_debugfs_root,
 			NULL, &stat_fops);
 	if (!file) {
 		debugfs_remove(f2fs_debugfs_root);
 		f2fs_debugfs_root = NULL;
+		return -ENOMEM;
 	}
+
+	return 0;
 }
 
 void f2fs_destroy_root_stats(void)

@@ -1,0 +1,52 @@
+config SND_SOC_IMG
+	bool "Audio support for Imagination Technologies designs"
+	help
+	  Audio support for Imagination Technologies audio hardware
+
+config SND_SOC_IMG_I2S_IN
+	tristate "Imagination I2S Input Device Driver"
+	depends on SND_SOC_IMG
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for I2S in driver for
+	  Imagination Technologies I2S in device.
+
+config SND_SOC_IMG_I2S_OUT
+	tristate "Imagination I2S Output Device Driver"
+	depends on SND_SOC_IMG
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for I2S out driver for
+	  Imagination Technologies I2S out device.
+
+config SND_SOC_IMG_PARALLEL_OUT
+	tristate "Imagination Parallel Output Device Driver"
+	depends on SND_SOC_IMG
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for parallel out driver for
+	  Imagination Technologies parallel out device.
+
+config SND_SOC_IMG_SPDIF_IN
+	tristate "Imagination SPDIF Input Device Driver"
+	depends on SND_SOC_IMG
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for SPDIF input driver for
+	  Imagination Technologies SPDIF input device.
+
+config SND_SOC_IMG_SPDIF_OUT
+	tristate "Imagination SPDIF Output Device Driver"
+	depends on SND_SOC_IMG
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for SPDIF out driver for
+	  Imagination Technologies SPDIF out device.
+
+
+config SND_SOC_IMG_PISTACHIO_INTERNAL_DAC
+	tristate "Support for Pistachio SoC Internal DAC Driver"
+	depends on SND_SOC_IMG
+	help
+	  Say Y or M if you want to add support for Pistachio internal DAC
+	  driver for Imagination Technologies Pistachio internal DAC device.

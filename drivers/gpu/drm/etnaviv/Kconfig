@@ -1,0 +1,20 @@
+
+config DRM_ETNAVIV
+	tristate "ETNAVIV (DRM support for Vivante GPU IP cores)"
+	depends on DRM
+	depends on ARCH_MXC || ARCH_DOVE
+	select SHMEM
+	select TMPFS
+	select IOMMU_API
+	select IOMMU_SUPPORT
+	select WANT_DEV_COREDUMP
+	help
+	  DRM driver for Vivante GPUs.
+
+config DRM_ETNAVIV_REGISTER_LOGGING
+	bool "enable ETNAVIV register logging"
+	depends on DRM_ETNAVIV
+	help
+	  Compile in support for logging register reads/writes in a format
+	  that can be parsed by envytools demsm tool.  If enabled, register
+	  logging can be switched on via etnaviv.reglog=y module param.

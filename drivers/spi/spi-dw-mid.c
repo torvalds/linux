@@ -89,10 +89,10 @@ static void mid_spi_dma_exit(struct dw_spi *dws)
 	if (!dws->dma_inited)
 		return;
 
-	dmaengine_terminate_all(dws->txchan);
+	dmaengine_terminate_sync(dws->txchan);
 	dma_release_channel(dws->txchan);
 
-	dmaengine_terminate_all(dws->rxchan);
+	dmaengine_terminate_sync(dws->rxchan);
 	dma_release_channel(dws->rxchan);
 }
 
@@ -283,7 +283,7 @@ static void mid_spi_dma_stop(struct dw_spi *dws)
 	}
 }
 
-static struct dw_spi_dma_ops mid_dma_ops = {
+static const struct dw_spi_dma_ops mid_dma_ops = {
 	.dma_init	= mid_spi_dma_init,
 	.dma_exit	= mid_spi_dma_exit,
 	.dma_setup	= mid_spi_dma_setup,

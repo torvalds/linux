@@ -1,33 +1,19 @@
-menu "Versatile platform type"
-	depends on ARCH_VERSATILE
-
-config ARCH_VERSATILE_PB
-	bool "Support Versatile Platform Baseboard for ARM926EJ-S"
-	default y
+config ARCH_VERSATILE
+	bool "ARM Ltd. Versatile family"
+	depends on ARCH_MULTI_V5
+	select ARM_AMBA
+	select ARM_TIMER_SP804
+	select ARM_VIC
+	select CLKSRC_VERSATILE
+	select COMMON_CLK_VERSATILE
 	select CPU_ARM926T
+	select ICST
+	select MFD_SYSCON
 	select MIGHT_HAVE_PCI
+	select PLAT_VERSATILE
+	select POWER_RESET
+	select POWER_RESET_VERSATILE
+	select VERSATILE_FPGA_IRQ
 	help
-	  Include support for the ARM(R) Versatile Platform Baseboard
-	  for the ARM926EJ-S.
+	  This enables support for ARM Ltd Versatile board.
 
-config MACH_VERSATILE_AB
-	bool "Support Versatile Application Baseboard for ARM926EJ-S"
-	select CPU_ARM926T
-	help
-	  Include support for the ARM(R) Versatile Application Baseboard
-	  for the ARM926EJ-S.
-
-config MACH_VERSATILE_DT
-	bool "Support Versatile platform from device tree"
-	select CPU_ARM926T
-	select USE_OF
-	help
-	  Include support for the ARM(R) Versatile/PB platform,
-	  using the device tree for discovery
-
-config MACH_VERSATILE_AUTO
-	def_bool y
-	depends on !ARCH_VERSATILE_PB && !MACH_VERSATILE_AB
-	select MACH_VERSATILE_DT
-
-endmenu

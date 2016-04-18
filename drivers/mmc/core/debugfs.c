@@ -170,7 +170,7 @@ static int mmc_ios_show(struct seq_file *s, void *data)
 		str = "invalid";
 		break;
 	}
-	seq_printf(s, "signal voltage:\t%u (%s)\n", ios->chip_select, str);
+	seq_printf(s, "signal voltage:\t%u (%s)\n", ios->signal_voltage, str);
 
 	switch (ios->drv_type) {
 	case MMC_SET_DRIVER_TYPE_A:
@@ -220,7 +220,7 @@ static int mmc_clock_opt_set(void *data, u64 val)
 	struct mmc_host *host = data;
 
 	/* We need this check due to input value is u64 */
-	if (val > host->f_max)
+	if (val != 0 && (val > host->f_max || val < host->f_min))
 		return -EINVAL;
 
 	mmc_claim_host(host);

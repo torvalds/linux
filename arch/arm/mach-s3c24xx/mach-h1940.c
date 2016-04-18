@@ -25,6 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
@@ -469,6 +470,11 @@ static struct s3c24xx_mci_pdata h1940_mmc_cfg __initdata = {
 	.ocr_avail     = MMC_VDD_32_33,
 };
 
+static struct pwm_lookup h1940_pwm_lookup[] = {
+	PWM_LOOKUP("samsung-pwm", 0, "pwm-backlight", NULL, 36296,
+		   PWM_POLARITY_NORMAL),
+};
+
 static int h1940_backlight_init(struct device *dev)
 {
 	gpio_request(S3C2410_GPB(0), "Backlight");
@@ -503,11 +509,8 @@ static void h1940_backlight_exit(struct device *dev)
 
 
 static struct platform_pwm_backlight_data backlight_data = {
-	.pwm_id         = 0,
 	.max_brightness = 100,
 	.dft_brightness = 50,
-	/* tcnt = 0x31 */
-	.pwm_period_ns  = 36296,
 	.enable_gpio    = -1,
 	.init           = h1940_backlight_init,
 	.notify		= h1940_backlight_notify,
@@ -661,7 +664,7 @@ static void __init h1940_map_io(void)
 
 	/* Add latch gpio chip, set latch initial value */
 	h1940_latch_control(0, 0);
-	WARN_ON(gpiochip_add(&h1940_latch_gpiochip));
+	WARN_ON(gpiochip_add_data(&h1940_latch_gpiochip, NULL));
 }
 
 static void __init h1940_init_time(void)
@@ -725,6 +728,7 @@ static void __init h1940_init(void)
 	gpio_request(H1940_LATCH_SD_POWER, "SD power");
 	gpio_direction_output(H1940_LATCH_SD_POWER, 0);
 
+	pwm_add_table(h1940_pwm_lookup, ARRAY_SIZE(h1940_pwm_lookup));
 	platform_add_devices(h1940_devices, ARRAY_SIZE(h1940_devices));
 
 	gpio_request(S3C2410_GPA(1), "Red LED blink");

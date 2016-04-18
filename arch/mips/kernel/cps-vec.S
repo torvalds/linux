@@ -25,14 +25,32 @@
 
 .set noreorder
 
+#ifdef CONFIG_64BIT
+# define STATUS_BITDEPS		ST0_KX
+#else
+# define STATUS_BITDEPS		0
+#endif
+
+#ifdef CONFIG_MIPS_CPS_NS16550
+
+#define DUMP_EXCEP(name)		\
+	PTR_LA	a0, 8f;			\
+	jal	mips_cps_bev_dump;	\
+	 nop;				\
+	TEXT(name)
+
+#else /* !CONFIG_MIPS_CPS_NS16550 */
+
+#define DUMP_EXCEP(name)
+
+#endif /* !CONFIG_MIPS_CPS_NS16550 */
+
 	/*
 	 * Set dest to non-zero if the core supports the MT ASE, else zero. If
 	 * MT is not supported then branch to nomt.
 	 */
 	.macro	has_mt	dest, nomt
-	mfc0	\dest, CP0_CONFIG
-	bgez	\dest, \nomt
-	 mfc0	\dest, CP0_CONFIG, 1
+	mfc0	\dest, CP0_CONFIG, 1
 	bgez	\dest, \nomt
 	 mfc0	\dest, CP0_CONFIG, 2
 	bgez	\dest, \nomt
@@ -47,11 +65,9 @@
 
 LEAF(mips_cps_core_entry)
 	/*
-	 * These first 12 bytes will be patched by cps_smp_setup to load the
-	 * base address of the CM GCRs into register v1 and the CCA to use into
-	 * register s0.
+	 * These first 4 bytes will be patched by cps_smp_setup to load the
+	 * CCA to use into register s0.
 	 */
-	.quad	0
 	.word	0
 
 	/* Check whether we're here due to an NMI */
@@ -71,7 +87,7 @@ not_nmi:
 	mtc0	t0, CP0_CAUSE
 
 	/* Setup Status */
-	li	t0, ST0_CU1 | ST0_CU0
+	li	t0, ST0_CU1 | ST0_CU0 | ST0_BEV | STATUS_BITDEPS
 	mtc0	t0, CP0_STATUS
 
 	/*
@@ -151,6 +167,12 @@ dcache_done:
 	mtc0	t0, CP0_CONFIG
 	ehb
 
+	/* Calculate an uncached address for the CM GCRs */
+	MFC0	v1, CP0_CMGCRBASE
+	PTR_SLL	v1, v1, 4
+	PTR_LI	t0, UNCAC_BASE
+	PTR_ADDU v1, v1, t0
+
 	/* Enter the coherent domain */
 	li	t0, 0xff
 	sw	t0, GCR_CL_COHERENCE_OFS(v1)
@@ -188,36 +210,42 @@ dcache_done:
 
 .org 0x200
 LEAF(excep_tlbfill)
+	DUMP_EXCEP("TLB Fill")
 	b	.
 	 nop
 	END(excep_tlbfill)
 
 .org 0x280
 LEAF(excep_xtlbfill)
+	DUMP_EXCEP("XTLB Fill")
 	b	.
 	 nop
 	END(excep_xtlbfill)
 
 .org 0x300
 LEAF(excep_cache)
+	DUMP_EXCEP("Cache")
 	b	.
 	 nop
 	END(excep_cache)
 
 .org 0x380
 LEAF(excep_genex)
+	DUMP_EXCEP("General")
 	b	.
 	 nop
 	END(excep_genex)
 
 .org 0x400
 LEAF(excep_intex)
+	DUMP_EXCEP("Interrupt")
 	b	.
 	 nop
 	END(excep_intex)
 
 .org 0x480
 LEAF(excep_ejtag)
+	DUMP_EXCEP("EJTAG")
 	PTR_LA	k0, ejtag_debug_handler
 	jr	k0
 	 nop
@@ -229,7 +257,6 @@ LEAF(mips_cps_core_init)
 	has_mt	t0, 3f
 
 	.set	push
-	.set	mips64r2
 	.set	mt
 
 	/* Only allow 1 TC per VPE to execute... */
@@ -348,7 +375,6 @@ LEAF(mips_cps_boot_vpes)
 	 nop
 
 	.set	push
-	.set	mips64r2
 	.set	mt
 
 1:	/* Enter VPE configuration state */

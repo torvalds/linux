@@ -605,7 +605,7 @@ err:
 	return ERR_PTR(ret);
 }
 
-static struct s3c_irq_data init_eint[32] = {
+static struct s3c_irq_data __maybe_unused init_eint[32] = {
 	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
 	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
 	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */

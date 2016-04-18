@@ -110,9 +110,10 @@ extern struct { char _entry[32]; } hypercall_page[];
 	register unsigned long __arg2 asm(__HYPERCALL_ARG2REG) = __arg2; \
 	register unsigned long __arg3 asm(__HYPERCALL_ARG3REG) = __arg3; \
 	register unsigned long __arg4 asm(__HYPERCALL_ARG4REG) = __arg4; \
-	register unsigned long __arg5 asm(__HYPERCALL_ARG5REG) = __arg5;
+	register unsigned long __arg5 asm(__HYPERCALL_ARG5REG) = __arg5; \
+	register void *__sp asm(_ASM_SP);
 
-#define __HYPERCALL_0PARAM	"=r" (__res)
+#define __HYPERCALL_0PARAM	"=r" (__res), "+r" (__sp)
 #define __HYPERCALL_1PARAM	__HYPERCALL_0PARAM, "+r" (__arg1)
 #define __HYPERCALL_2PARAM	__HYPERCALL_1PARAM, "+r" (__arg2)
 #define __HYPERCALL_3PARAM	__HYPERCALL_2PARAM, "+r" (__arg3)
@@ -310,10 +311,10 @@ HYPERVISOR_mca(struct xen_mc *mc_op)
 }
 
 static inline int
-HYPERVISOR_dom0_op(struct xen_platform_op *platform_op)
+HYPERVISOR_platform_op(struct xen_platform_op *op)
 {
-	platform_op->interface_version = XENPF_INTERFACE_VERSION;
-	return _hypercall1(int, dom0_op, platform_op);
+	op->interface_version = XENPF_INTERFACE_VERSION;
+	return _hypercall1(int, platform_op, op);
 }
 
 static inline int

@@ -394,8 +394,8 @@ static bool ivch_get_hw_state(struct intel_dvo_device *dvo)
 }
 
 static void ivch_mode_set(struct intel_dvo_device *dvo,
-			  struct drm_display_mode *mode,
-			  struct drm_display_mode *adjusted_mode)
+			  const struct drm_display_mode *mode,
+			  const struct drm_display_mode *adjusted_mode)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
 	uint16_t vr40 = 0;
@@ -414,16 +414,16 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 	vr40 = (VR40_STALL_ENABLE | VR40_VERTICAL_INTERP_ENABLE |
 		VR40_HORIZONTAL_INTERP_ENABLE);
 
-	if (mode->hdisplay != adjusted_mode->hdisplay ||
-	    mode->vdisplay != adjusted_mode->vdisplay) {
+	if (mode->hdisplay != adjusted_mode->crtc_hdisplay ||
+	    mode->vdisplay != adjusted_mode->crtc_vdisplay) {
 		uint16_t x_ratio, y_ratio;
 
 		vr01 |= VR01_PANEL_FIT_ENABLE;
 		vr40 |= VR40_CLOCK_GATING_ENABLE;
 		x_ratio = (((mode->hdisplay - 1) << 16) /
-			   (adjusted_mode->hdisplay - 1)) >> 2;
+			   (adjusted_mode->crtc_hdisplay - 1)) >> 2;
 		y_ratio = (((mode->vdisplay - 1) << 16) /
-			   (adjusted_mode->vdisplay - 1)) >> 2;
+			   (adjusted_mode->crtc_vdisplay - 1)) >> 2;
 		ivch_write(dvo, VR42, x_ratio);
 		ivch_write(dvo, VR41, y_ratio);
 	} else {
@@ -490,7 +490,7 @@ static void ivch_destroy(struct intel_dvo_device *dvo)
 	}
 }
 
-struct intel_dvo_dev_ops ivch_ops = {
+const struct intel_dvo_dev_ops ivch_ops = {
 	.init = ivch_init,
 	.dpms = ivch_dpms,
 	.get_hw_state = ivch_get_hw_state,

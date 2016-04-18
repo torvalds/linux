@@ -128,7 +128,7 @@ static int wm831x_isink_get_current(struct regulator_dev *rdev)
 	return wm831x_isinkv_values[ret];
 }
 
-static struct regulator_ops wm831x_isink_ops = {
+static const struct regulator_ops wm831x_isink_ops = {
 	.is_enabled = wm831x_isink_is_enabled,
 	.enable = wm831x_isink_enable,
 	.disable = wm831x_isink_disable,

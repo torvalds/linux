@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -314,8 +314,9 @@ static char *acpi_ut_format_number(char *string,
 	if (need_prefix) {
 		string = acpi_ut_bound_string_output(string, end, '0');
 		if (base == 16) {
-			string = acpi_ut_bound_string_output(string, end,
-							     upper ? 'X' : 'x');
+			string =
+			    acpi_ut_bound_string_output(string, end,
+							upper ? 'X' : 'x');
 		}
 	}
 	if (!(type & ACPI_FORMAT_LEFT)) {
@@ -400,6 +401,7 @@ acpi_ut_vsnprintf(char *string,
 			} else {
 				break;
 			}
+
 		} while (1);
 
 		/* Process width */
@@ -429,6 +431,7 @@ acpi_ut_vsnprintf(char *string,
 				++format;
 				precision = va_arg(args, int);
 			}
+
 			if (precision < 0) {
 				precision = 0;
 			}
@@ -488,10 +491,12 @@ acpi_ut_vsnprintf(char *string,
 									' ');
 				}
 			}
+
 			for (i = 0; i < length; ++i) {
 				pos = acpi_ut_bound_string_output(pos, end, *s);
 				++s;
 			}
+
 			while (length < width--) {
 				pos =
 				    acpi_ut_bound_string_output(pos, end, ' ');
@@ -529,9 +534,9 @@ acpi_ut_vsnprintf(char *string,
 			}
 
 			p = va_arg(args, void *);
-			pos = acpi_ut_format_number(pos, end,
-						    ACPI_TO_INTEGER(p), 16,
-						    width, precision, type);
+			pos =
+			    acpi_ut_format_number(pos, end, ACPI_TO_INTEGER(p),
+						  16, width, precision, type);
 			continue;
 
 		default:

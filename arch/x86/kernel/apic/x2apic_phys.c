@@ -36,6 +36,14 @@ static int x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return x2apic_enabled() && (x2apic_phys || x2apic_fadt_phys());
 }
 
+static void x2apic_send_IPI(int cpu, int vector)
+{
+	u32 dest = per_cpu(x86_cpu_to_apicid, cpu);
+
+	x2apic_wrmsr_fence();
+	__x2apic_send_IPI_dest(dest, vector, APIC_DEST_PHYSICAL);
+}
+
 static void
 __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 {
@@ -122,6 +130,7 @@ static struct apic apic_x2apic_phys = {
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
+	.send_IPI			= x2apic_send_IPI,
 	.send_IPI_mask			= x2apic_send_IPI_mask,
 	.send_IPI_mask_allbutself	= x2apic_send_IPI_mask_allbutself,
 	.send_IPI_allbutself		= x2apic_send_IPI_allbutself,

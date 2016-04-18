@@ -224,7 +224,7 @@
 
 		interrupt-parent = <&gpio2>;
 		interrupts = <25 0>;		/* gpio_57 */
-		pendown-gpio = <&gpio2 25 0>;
+		pendown-gpio = <&gpio2 25 GPIO_ACTIVE_HIGH>;
 
 		ti,x-min = /bits/ 16 <0x0>;
 		ti,x-max = /bits/ 16 <0x0fff>;
@@ -238,7 +238,7 @@
 		ti,debounce-tol = /bits/ 16 <10>;
 		ti,debounce-rep = /bits/ 16 <1>;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 
@@ -261,10 +261,14 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x00000000 0x01000000>;
+	ranges = <0 0 0x30000000 0x01000000>;	/* CS0: 16MB for NAND */
 
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>;	/* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		nand-bus-width = <8>;
 		gpmc,device-width = <1>;
 		ti,nand-ecc-opt = "sw";

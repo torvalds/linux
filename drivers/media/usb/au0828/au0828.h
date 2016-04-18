@@ -21,6 +21,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/bitops.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -33,6 +34,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
+#include <media/media-device.h>
 
 /* DVB */
 #include "demux.h"
@@ -75,7 +77,6 @@ enum au0828_itype {
 	AU0828_VMUX_CABLE,
 	AU0828_VMUX_TELEVISION,
 	AU0828_VMUX_DVB,
-	AU0828_VMUX_DEBUG
 };
 
 struct au0828_input {
@@ -93,7 +94,6 @@ struct au0828_board {
 	unsigned char has_ir_i2c:1;
 	unsigned char has_analog:1;
 	struct au0828_input input[AU0828_MAX_INPUT];
-
 };
 
 struct au0828_dvb {
@@ -122,9 +122,9 @@ enum au0828_stream_state {
 
 /* device state */
 enum au0828_dev_state {
-	DEV_INITIALIZED = 0x01,
-	DEV_DISCONNECTED = 0x02,
-	DEV_MISCONFIGURED = 0x04
+	DEV_INITIALIZED = 0,
+	DEV_DISCONNECTED = 1,
+	DEV_MISCONFIGURED = 2
 };
 
 struct au0828_dev;
@@ -248,7 +248,7 @@ struct au0828_dev {
 	int input_type;
 	int std_set_in_tuner_core;
 	unsigned int ctrl_input;
-	enum au0828_dev_state dev_state;
+	long unsigned int dev_state; /* defined at enum au0828_dev_state */;
 	enum au0828_stream_state stream_state;
 	wait_queue_head_t open;
 
@@ -276,6 +276,20 @@ struct au0828_dev {
 	/* Preallocated transfer digital transfer buffers */
 
 	char *dig_transfer_buffer[URB_COUNT];
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *media_dev;
+	struct media_pad video_pad, vbi_pad;
+	struct media_entity *decoder;
+	struct media_entity input_ent[AU0828_MAX_INPUT];
+	struct media_pad input_pad[AU0828_MAX_INPUT];
+	struct media_entity_notify entity_notify;
+	struct media_entity *tuner;
+	struct media_link *active_link;
+	struct media_entity *active_link_owner;
+	struct media_entity *active_source;
+	struct media_entity *active_sink;
+#endif
 };
 
 
@@ -293,6 +307,7 @@ struct au0828_dev {
 /* au0828-core.c */
 extern u32 au0828_read(struct au0828_dev *dev, u16 reg);
 extern u32 au0828_write(struct au0828_dev *dev, u16 reg, u32 val);
+extern void au0828_usb_release(struct au0828_dev *dev);
 extern int au0828_debug;
 
 /* ----------------------------------------------------------- */
@@ -311,16 +326,29 @@ extern int au0828_i2c_unregister(struct au0828_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* au0828-video.c */
-extern int au0828_analog_register(struct au0828_dev *dev,
-			   struct usb_interface *interface);
-extern void au0828_analog_unregister(struct au0828_dev *dev);
 extern int au0828_start_analog_streaming(struct vb2_queue *vq,
 						unsigned int count);
 extern void au0828_stop_vbi_streaming(struct vb2_queue *vq);
 #ifdef CONFIG_VIDEO_AU0828_V4L2
+extern int au0828_v4l2_device_register(struct usb_interface *interface,
+				      struct au0828_dev *dev);
+
+extern int au0828_analog_register(struct au0828_dev *dev,
+			   struct usb_interface *interface);
+extern int au0828_analog_unregister(struct au0828_dev *dev);
+extern void au0828_usb_v4l2_media_release(struct au0828_dev *dev);
 extern void au0828_v4l2_suspend(struct au0828_dev *dev);
 extern void au0828_v4l2_resume(struct au0828_dev *dev);
 #else
+static inline int au0828_v4l2_device_register(struct usb_interface *interface,
+					      struct au0828_dev *dev)
+{ return 0; };
+static inline int au0828_analog_register(struct au0828_dev *dev,
+				     struct usb_interface *interface)
+{ return 0; };
+static inline int au0828_analog_unregister(struct au0828_dev *dev)
+{ return 0; };
+static inline void au0828_usb_v4l2_media_release(struct au0828_dev *dev) { };
 static inline void au0828_v4l2_suspend(struct au0828_dev *dev) { };
 static inline void au0828_v4l2_resume(struct au0828_dev *dev) { };
 #endif

@@ -197,7 +197,7 @@ MODULE_DEVICE_TABLE(i2c, max77843_id);
 
 static int __maybe_unused max77843_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max77693_dev *max77843 = i2c_get_clientdata(i2c);
 
 	disable_irq(max77843->irq);
@@ -209,7 +209,7 @@ static int __maybe_unused max77843_suspend(struct device *dev)
 
 static int __maybe_unused max77843_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max77693_dev *max77843 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))

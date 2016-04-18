@@ -10,24 +10,23 @@
  */
 
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/module.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 
 static int clps711x_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	void __iomem *dat, *dir;
-	struct bgpio_chip *bgc;
+	struct gpio_chip *gc;
 	struct resource *res;
 	int err, id = np ? of_alias_get_id(np, "gpio") : pdev->id;
 
 	if ((id < 0) || (id > 4))
 		return -ENODEV;
 
-	bgc = devm_kzalloc(&pdev->dev, sizeof(*bgc), GFP_KERNEL);
-	if (!bgc)
+	gc = devm_kzalloc(&pdev->dev, sizeof(*gc), GFP_KERNEL);
+	if (!gc)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -43,11 +42,11 @@ static int clps711x_gpio_probe(struct platform_device *pdev)
 	switch (id) {
 	case 3:
 		/* PORTD is inverted logic for direction register */
-		err = bgpio_init(bgc, &pdev->dev, 1, dat, NULL, NULL,
+		err = bgpio_init(gc, &pdev->dev, 1, dat, NULL, NULL,
 				 NULL, dir, 0);
 		break;
 	default:
-		err = bgpio_init(bgc, &pdev->dev, 1, dat, NULL, NULL,
+		err = bgpio_init(gc, &pdev->dev, 1, dat, NULL, NULL,
 				 dir, NULL, 0);
 		break;
 	}
@@ -58,24 +57,17 @@ static int clps711x_gpio_probe(struct platform_device *pdev)
 	switch (id) {
 	case 4:
 		/* PORTE is 3 lines only */
-		bgc->gc.ngpio = 3;
+		gc->ngpio = 3;
 		break;
 	default:
 		break;
 	}
 
-	bgc->gc.base = id * 8;
-	bgc->gc.owner = THIS_MODULE;
-	platform_set_drvdata(pdev, bgc);
+	gc->base = id * 8;
+	gc->owner = THIS_MODULE;
+	platform_set_drvdata(pdev, gc);
 
-	return gpiochip_add(&bgc->gc);
-}
-
-static int clps711x_gpio_remove(struct platform_device *pdev)
-{
-	struct bgpio_chip *bgc = platform_get_drvdata(pdev);
-
-	return bgpio_remove(bgc);
+	return devm_gpiochip_add_data(&pdev->dev, gc, NULL);
 }
 
 static const struct of_device_id __maybe_unused clps711x_gpio_ids[] = {
@@ -90,7 +82,6 @@ static struct platform_driver clps711x_gpio_driver = {
 		.of_match_table	= of_match_ptr(clps711x_gpio_ids),
 	},
 	.probe	= clps711x_gpio_probe,
-	.remove	= clps711x_gpio_remove,
 };
 module_platform_driver(clps711x_gpio_driver);
 

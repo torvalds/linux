@@ -310,6 +310,7 @@ mrf24j40_short_reg_writeable(struct device *dev, unsigned int reg)
 	case REG_TRISGPIO:
 	case REG_GPIO:
 	case REG_RFCTL:
+	case REG_SECCR2:
 	case REG_SLPACK:
 	case REG_BBREG0:
 	case REG_BBREG1:

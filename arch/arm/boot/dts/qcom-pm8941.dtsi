@@ -4,31 +4,52 @@
 
 &spmi_bus {
 
-	usid0: pm8941@0 {
-		compatible ="qcom,spmi-pmic";
+	pm8941_0: pm8941@0 {
+		compatible = "qcom,pm8941", "qcom,spmi-pmic";
 		reg = <0x0 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
 		rtc@6000 {
 			compatible = "qcom,pm8941-rtc";
-			reg = <0x6000 0x100>,
-			      <0x6100 0x100>;
+			reg = <0x6000>,
+			      <0x6100>;
 			reg-names = "rtc", "alarm";
 			interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
 		};
 
 		pwrkey@800 {
 			compatible = "qcom,pm8941-pwrkey";
-			reg = <0x800 0x100>;
+			reg = <0x800>;
 			interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
 			debounce = <15625>;
 			bias-pull-up;
 		};
 
+		charger@1000 {
+			compatible = "qcom,pm8941-charger";
+			reg = <0x1000>;
+			interrupts = <0x0 0x10 7 IRQ_TYPE_EDGE_BOTH>,
+				     <0x0 0x10 5 IRQ_TYPE_EDGE_BOTH>,
+				     <0x0 0x10 4 IRQ_TYPE_EDGE_BOTH>,
+				     <0x0 0x12 1 IRQ_TYPE_EDGE_BOTH>,
+				     <0x0 0x12 0 IRQ_TYPE_EDGE_BOTH>,
+				     <0x0 0x13 2 IRQ_TYPE_EDGE_BOTH>,
+				     <0x0 0x13 1 IRQ_TYPE_EDGE_BOTH>,
+				     <0x0 0x14 1 IRQ_TYPE_EDGE_BOTH>;
+			interrupt-names = "chg-done",
+					  "chg-fast",
+					  "chg-trkl",
+					  "bat-temp-ok",
+					  "bat-present",
+					  "chg-gone",
+					  "usb-valid",
+					  "dc-valid";
+		};
+
 		pm8941_gpios: gpios@c000 {
-			compatible = "qcom,pm8941-gpio";
-			reg = <0xc000 0x2400>;
+			compatible = "qcom,pm8941-gpio", "qcom,spmi-gpio";
+			reg = <0xc000>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupts = <0 0xc0 0 IRQ_TYPE_NONE>,
@@ -70,8 +91,8 @@
 		};
 
 		pm8941_mpps: mpps@a000 {
-			compatible = "qcom,pm8941-mpp";
-			reg = <0xa000 0x800>;
+			compatible = "qcom,pm8941-mpp", "qcom,spmi-mpp";
+			reg = <0xa000>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupts = <0 0xa0 0 IRQ_TYPE_NONE>,
@@ -86,7 +107,7 @@
 
 		pm8941_temp: temp-alarm@2400 {
 			compatible = "qcom,spmi-temp-alarm";
-			reg = <0x2400 0x100>;
+			reg = <0x2400>;
 			interrupts = <0 0x24 0 IRQ_TYPE_EDGE_RISING>;
 			io-channels = <&pm8941_vadc VADC_DIE_TEMP>;
 			io-channel-names = "thermal";
@@ -95,7 +116,7 @@
 
 		pm8941_vadc: vadc@3100 {
 			compatible = "qcom,spmi-vadc";
-			reg = <0x3100 0x100>;
+			reg = <0x3100>;
 			interrupts = <0x0 0x31 0x0 IRQ_TYPE_EDGE_RISING>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -120,8 +141,7 @@
 
 		pm8941_iadc: iadc@3600 {
 			compatible = "qcom,pm8941-iadc", "qcom,spmi-iadc";
-			reg = <0x3600 0x100>,
-				  <0x12f1 0x1>;
+			reg = <0x3600>;
 			interrupts = <0x0 0x36 0x0 IRQ_TYPE_EDGE_RISING>;
 			qcom,external-resistor-micro-ohms = <10000>;
 		};
@@ -133,23 +153,18 @@
 		};
 	};
 
-	usid1: pm8941@1 {
-		compatible = "qcom,spmi-pmic";
+	pm8941_1: pm8941@1 {
+		compatible = "qcom,pm8941", "qcom,spmi-pmic";
 		reg = <0x1 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		wled@d800 {
+		pm8941_wled: wled@d800 {
 			compatible = "qcom,pm8941-wled";
-			reg = <0xd800 0x100>;
+			reg = <0xd800>;
 			label = "backlight";
 
-			qcom,cs-out;
-			qcom,current-limit = <20>;
-			qcom,current-boost-limit = <805>;
-			qcom,switching-freq = <1600>;
-			qcom,ovp = <29>;
-			qcom,num-strings = <2>;
+			status = "disabled";
 		};
 	};
 };

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -247,7 +247,7 @@ acpi_ds_initialize_objects(u32 table_index,
 	/* Summary of objects initialized */
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "Table [%4.4s:%8.8s] (id %.2X) - %4u Objects with %3u Devices, "
+			      "Table [%4.4s: %-8.8s] (id %.2X) - %4u Objects with %3u Devices, "
 			      "%3u Regions, %4u Methods (%u/%u/%u Serial/Non/Cvt)\n",
 			      table->signature, table->oem_table_id, owner_id,
 			      info.object_count, info.device_count,

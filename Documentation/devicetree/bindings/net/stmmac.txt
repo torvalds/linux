@@ -17,18 +17,6 @@ Required properties:
 	The 1st cell is reset pre-delay in micro seconds.
 	The 2nd cell is reset pulse in micro seconds.
 	The 3rd cell is reset post-delay in micro seconds.
-- snps,pbl		Programmable Burst Length
-- snps,fixed-burst	Program the DMA to use the fixed burst mode
-- snps,mixed-burst	Program the DMA to use the mixed burst mode
-- snps,force_thresh_dma_mode	Force DMA to use the threshold mode for
-				both tx and rx
-- snps,force_sf_dma_mode	Force DMA to use the Store and Forward
-				mode for both tx and rx. This flag is
-				ignored if force_thresh_dma_mode is set.
-- snps,multicast-filter-bins:	Number of multicast filter hash bins
-				supported by this device instance
-- snps,perfect-filter-entries:	Number of perfect filter entries supported
-				by this device instance
 
 Optional properties:
 - resets: Should contain a phandle to the STMMAC reset signal, if any
@@ -44,11 +32,42 @@ Optional properties:
   available this clock is used for programming the Timestamp Addend Register.
   If not passed then the system clock will be used and this is fine on some
   platforms.
-- snps,burst_len: The AXI burst lenth value of the AXI BUS MODE register.
 - tx-fifo-depth: See ethernet.txt file in the same directory
 - rx-fifo-depth: See ethernet.txt file in the same directory
+- snps,pbl		Programmable Burst Length
+- snps,aal		Address-Aligned Beats
+- snps,fixed-burst	Program the DMA to use the fixed burst mode
+- snps,mixed-burst	Program the DMA to use the mixed burst mode
+- snps,force_thresh_dma_mode	Force DMA to use the threshold mode for
+				both tx and rx
+- snps,force_sf_dma_mode	Force DMA to use the Store and Forward
+				mode for both tx and rx. This flag is
+				ignored if force_thresh_dma_mode is set.
+- snps,multicast-filter-bins:	Number of multicast filter hash bins
+				supported by this device instance
+- snps,perfect-filter-entries:	Number of perfect filter entries supported
+				by this device instance
+- AXI BUS Mode parameters: below the list of all the parameters to program the
+			   AXI register inside the DMA module:
+	- snps,lpi_en: enable Low Power Interface
+	- snps,xit_frm: unlock on WoL
+	- snps,wr_osr_lmt: max write oustanding req. limit
+	- snps,rd_osr_lmt: max read oustanding req. limit
+	- snps,kbbe: do not cross 1KiB boundary.
+	- snps,axi_all: align address
+	- snps,blen: this is a vector of supported burst length.
+	- snps,fb: fixed-burst
+	- snps,mb: mixed-burst
+	- snps,rb: rebuild INCRx Burst
+- mdio: with compatible = "snps,dwmac-mdio", create and register mdio bus.
 
 Examples:
+
+	stmmac_axi_setup: stmmac-axi-config {
+		snps,wr_osr_lmt = <0xf>;
+		snps,rd_osr_lmt = <0xf>;
+		snps,blen = <256 128 64 32 0 0 0>;
+	};
 
 	gmac0: ethernet@e0800000 {
 		compatible = "st,spear600-gmac";
@@ -65,4 +84,12 @@ Examples:
 		tx-fifo-depth = <16384>;
 		clocks = <&clock>;
 		clock-names = "stmmaceth";
+		snps,axi-config = <&stmmac_axi_setup>;
+		mdio0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,dwmac-mdio";
+			phy1: ethernet-phy@0 {
+			};
+		};
 	};

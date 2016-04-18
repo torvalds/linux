@@ -46,7 +46,7 @@ static int da9210_set_current_limit(struct regulator_dev *rdev, int min_uA,
 				    int max_uA);
 static int da9210_get_current_limit(struct regulator_dev *rdev);
 
-static struct regulator_ops da9210_buck_ops = {
+static const struct regulator_ops da9210_buck_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -132,6 +132,8 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 	if (error < 0)
 		goto error_i2c;
 
+	mutex_lock(&chip->rdev->mutex);
+
 	if (val & DA9210_E_OVCURR) {
 		regulator_notifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_OVER_CURRENT,
@@ -155,6 +157,9 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 					      NULL);
 		handled |= DA9210_E_VMAX;
 	}
+
+	mutex_unlock(&chip->rdev->mutex);
+
 	if (handled) {
 		/* Clear handled events */
 		error = regmap_write(chip->regmap, DA9210_REG_EVENT_B, handled);

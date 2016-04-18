@@ -140,6 +140,7 @@ static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 		panic("Cannot find 'marvell,bootrom' compatible node");
 
 	err = of_address_to_resource(node, 0, &res);
+	of_node_put(node);
 	if (err < 0)
 		panic("Cannot get 'bootrom' node address");
 
@@ -170,7 +171,7 @@ static int armada_xp_cpu_kill(unsigned int cpu)
 }
 #endif
 
-struct smp_operations armada_xp_smp_ops __initdata = {
+const struct smp_operations armada_xp_smp_ops __initconst = {
 	.smp_init_cpus		= armada_xp_smp_init_cpus,
 	.smp_prepare_cpus	= armada_xp_smp_prepare_cpus,
 	.smp_boot_secondary	= armada_xp_boot_secondary,

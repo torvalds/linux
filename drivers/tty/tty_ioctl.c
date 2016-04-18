@@ -216,7 +216,7 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 
 void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 {
-	tty_debug_wait_until_sent(tty, "\n");
+	tty_debug_wait_until_sent(tty, "wait until sent, timeout=%ld\n", timeout);
 
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
@@ -239,18 +239,13 @@ EXPORT_SYMBOL(tty_wait_until_sent);
  *		Termios Helper Methods
  */
 
-static void unset_locked_termios(struct ktermios *termios,
-				 struct ktermios *old,
-				 struct ktermios *locked)
+static void unset_locked_termios(struct tty_struct *tty, struct ktermios *old)
 {
+	struct ktermios *termios = &tty->termios;
+	struct ktermios *locked  = &tty->termios_locked;
 	int	i;
 
 #define NOSET_MASK(x, y, z) (x = ((x) & ~(z)) | ((y) & (z)))
-
-	if (!locked) {
-		printk(KERN_WARNING "Warning?!? termios_locked is NULL.\n");
-		return;
-	}
 
 	NOSET_MASK(termios->c_iflag, old->c_iflag, locked->c_iflag);
 	NOSET_MASK(termios->c_oflag, old->c_oflag, locked->c_oflag);
@@ -463,10 +458,8 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 	if (ifound == -1 && (ibaud != obaud || ibinput))
 		termios->c_cflag |= (BOTHER << IBSHIFT);
 #else
-	if (ifound == -1 || ofound == -1) {
-		printk_once(KERN_WARNING "tty: Unable to return correct "
-			  "speed data as your architecture needs updating.\n");
-	}
+	if (ifound == -1 || ofound == -1)
+		pr_warn_once("tty: Unable to return correct speed data as your architecture needs updating.\n");
 #endif
 }
 EXPORT_SYMBOL_GPL(tty_termios_encode_baud_rate);
@@ -556,7 +549,7 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 	down_write(&tty->termios_rwsem);
 	old_termios = tty->termios;
 	tty->termios = *new_termios;
-	unset_locked_termios(&tty->termios, &old_termios, &tty->termios_locked);
+	unset_locked_termios(tty, &old_termios);
 
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old_termios);
@@ -726,16 +719,16 @@ static int get_sgflags(struct tty_struct *tty)
 {
 	int flags = 0;
 
-	if (!(tty->termios.c_lflag & ICANON)) {
-		if (tty->termios.c_lflag & ISIG)
+	if (!L_ICANON(tty)) {
+		if (L_ISIG(tty))
 			flags |= 0x02;		/* cbreak */
 		else
 			flags |= 0x20;		/* raw */
 	}
-	if (tty->termios.c_lflag & ECHO)
+	if (L_ECHO(tty))
 		flags |= 0x08;			/* echo */
-	if (tty->termios.c_oflag & OPOST)
-		if (tty->termios.c_oflag & ONLCR)
+	if (O_OPOST(tty))
+		if (O_ONLCR(tty))
 			flags |= 0x10;		/* crmod */
 	return flags;
 }
@@ -915,7 +908,7 @@ static int tty_change_softcar(struct tty_struct *tty, int arg)
 	tty->termios.c_cflag |= bit;
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old);
-	if ((tty->termios.c_cflag & CLOCAL) != bit)
+	if (C_CLOCAL(tty) != bit)
 		ret = -EINVAL;
 	up_write(&tty->termios_rwsem);
 	return ret;
@@ -1147,16 +1140,12 @@ int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 			spin_unlock_irq(&tty->flow_lock);
 			break;
 		case TCIOFF:
-			down_read(&tty->termios_rwsem);
 			if (STOP_CHAR(tty) != __DISABLED_CHAR)
 				retval = tty_send_xchar(tty, STOP_CHAR(tty));
-			up_read(&tty->termios_rwsem);
 			break;
 		case TCION:
-			down_read(&tty->termios_rwsem);
 			if (START_CHAR(tty) != __DISABLED_CHAR)
 				retval = tty_send_xchar(tty, START_CHAR(tty));
-			up_read(&tty->termios_rwsem);
 			break;
 		default:
 			return -EINVAL;

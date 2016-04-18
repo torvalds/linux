@@ -56,9 +56,6 @@ MODULE_AUTHOR("Corentin Chary <corentin.chary@gmail.com>, "
 MODULE_DESCRIPTION("Asus Generic WMI Driver");
 MODULE_LICENSE("GPL");
 
-#define to_platform_driver(drv)					\
-	(container_of((drv), struct platform_driver, driver))
-
 #define to_asus_wmi_driver(pdrv)					\
 	(container_of((pdrv), struct asus_wmi_driver, platform_driver))
 
@@ -1320,7 +1317,7 @@ static ssize_t asus_hwmon_temp1(struct device *dev,
 	if (err < 0)
 		return err;
 
-	value = KELVIN_TO_CELSIUS((value & 0xFFFF)) * 1000;
+	value = DECI_KELVIN_TO_CELSIUS((value & 0xFFFF)) * 1000;
 
 	return sprintf(buf, "%d\n", value);
 }
@@ -1682,7 +1679,7 @@ static ssize_t store_sys_wmi(struct asus_wmi *asus, int devid,
 	int rv, err, value;
 
 	value = asus_wmi_get_devstate_simple(asus, devid);
-	if (value == -ENODEV)	/* Check device presence */
+	if (value < 0)
 		return value;
 
 	rv = parse_arg(buf, count, &value);

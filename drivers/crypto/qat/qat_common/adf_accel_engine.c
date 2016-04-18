@@ -78,9 +78,12 @@ int adf_ae_fw_load(struct adf_accel_dev *accel_dev)
 	uof_addr = (void *)loader_data->uof_fw->data;
 	mmp_size = loader_data->mmp_fw->size;
 	mmp_addr = (void *)loader_data->mmp_fw->data;
-	qat_uclo_wr_mimage(loader_data->fw_loader, mmp_addr, mmp_size);
-	if (qat_uclo_map_uof_obj(loader_data->fw_loader, uof_addr, uof_size)) {
-		dev_err(&GET_DEV(accel_dev), "Failed to map UOF\n");
+	if (qat_uclo_wr_mimage(loader_data->fw_loader, mmp_addr, mmp_size)) {
+		dev_err(&GET_DEV(accel_dev), "Failed to load MMP\n");
+		goto out_err;
+	}
+	if (qat_uclo_map_obj(loader_data->fw_loader, uof_addr, uof_size)) {
+		dev_err(&GET_DEV(accel_dev), "Failed to map FW\n");
 		goto out_err;
 	}
 	if (qat_uclo_wr_all_uimage(loader_data->fw_loader)) {

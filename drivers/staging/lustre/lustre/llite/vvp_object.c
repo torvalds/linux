@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -137,7 +137,8 @@ static int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
 		 * page may be stale due to layout change, and the process
 		 * will never be notified.
 		 * This operation is expensive but mmap processes have to pay
-		 * a price themselves. */
+		 * a price themselves.
+		 */
 		unmap_mapping_range(conf->coc_inode->i_mapping,
 				    0, OBD_OBJECT_EOF, 0);
 
@@ -147,7 +148,7 @@ static int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
 	if (conf->coc_opc != OBJECT_CONF_SET)
 		return 0;
 
-	if (conf->u.coc_md != NULL && conf->u.coc_md->lsm != NULL) {
+	if (conf->u.coc_md && conf->u.coc_md->lsm) {
 		CDEBUG(D_VFSTRACE, DFID ": layout version change: %u -> %u\n",
 		       PFID(&lli->lli_fid), lli->lli_layout_gen,
 		       conf->u.coc_md->lsm->lsm_layout_gen);
@@ -186,9 +187,8 @@ struct ccc_object *cl_inode2ccc(struct inode *inode)
 	struct cl_object     *obj = lli->lli_clob;
 	struct lu_object     *lu;
 
-	LASSERT(obj != NULL);
 	lu = lu_object_locate(obj->co_lu.lo_header, &vvp_device_type);
-	LASSERT(lu != NULL);
+	LASSERT(lu);
 	return lu2ccc(lu);
 }
 

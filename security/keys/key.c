@@ -296,6 +296,8 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 		key->flags |= 1 << KEY_FLAG_IN_QUOTA;
 	if (flags & KEY_ALLOC_TRUSTED)
 		key->flags |= 1 << KEY_FLAG_TRUSTED;
+	if (flags & KEY_ALLOC_BUILT_IN)
+		key->flags |= 1 << KEY_FLAG_BUILTIN;
 
 #ifdef KEY_DEBUGGING
 	key->magic = KEY_DEBUG_MAGIC;
@@ -429,8 +431,12 @@ static int __key_instantiate_and_link(struct key *key,
 				awaken = 1;
 
 			/* and link it into the destination keyring */
-			if (keyring)
+			if (keyring) {
+				if (test_bit(KEY_FLAG_KEEP, &keyring->flags))
+					set_bit(KEY_FLAG_KEEP, &key->flags);
+
 				__key_link(key, _edit);
+			}
 
 			/* disable the authorisation key */
 			if (authkey)

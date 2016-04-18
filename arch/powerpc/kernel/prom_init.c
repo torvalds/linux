@@ -389,6 +389,7 @@ static void __init prom_printf(const char *format, ...)
 			break;
 		}
 	}
+	va_end(args);
 }
 
 

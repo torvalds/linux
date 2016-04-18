@@ -39,6 +39,13 @@
 #define VFIO_SPAPR_TCE_v2_IOMMU		7
 
 /*
+ * The No-IOMMU IOMMU offers no translation or isolation for devices and
+ * supports no ioctls outside of VFIO_CHECK_EXTENSION.  Use of VFIO's No-IOMMU
+ * code will taint the host kernel and should be used with extreme caution.
+ */
+#define VFIO_NOIOMMU_IOMMU		8
+
+/*
  * The IOCTL interface is designed for extensibility by embedding the
  * structure length (argsz) and flags into structures passed between
  * kernel and userspace.  We therefore use the _IO() macro for these
@@ -51,6 +58,33 @@
 
 #define VFIO_TYPE	(';')
 #define VFIO_BASE	100
+
+/*
+ * For extension of INFO ioctls, VFIO makes use of a capability chain
+ * designed after PCI/e capabilities.  A flag bit indicates whether
+ * this capability chain is supported and a field defined in the fixed
+ * structure defines the offset of the first capability in the chain.
+ * This field is only valid when the corresponding bit in the flags
+ * bitmap is set.  This offset field is relative to the start of the
+ * INFO buffer, as is the next field within each capability header.
+ * The id within the header is a shared address space per INFO ioctl,
+ * while the version field is specific to the capability id.  The
+ * contents following the header are specific to the capability id.
+ */
+struct vfio_info_cap_header {
+	__u16	id;		/* Identifies capability */
+	__u16	version;	/* Version specific to the capability ID */
+	__u32	next;		/* Offset of next capability */
+};
+
+/*
+ * Callers of INFO ioctls passing insufficiently sized buffers will see
+ * the capability chain flag bit set, a zero value for the first capability
+ * offset (if available within the provided argsz), and argsz will be
+ * updated to report the necessary buffer size.  For compatibility, the
+ * INFO ioctl will not report error in this case, but the capability chain
+ * will not be available.
+ */
 
 /* -------- IOCTLs for VFIO file descriptor (/dev/vfio/vfio) -------- */
 
@@ -187,12 +221,72 @@ struct vfio_region_info {
 #define VFIO_REGION_INFO_FLAG_READ	(1 << 0) /* Region supports read */
 #define VFIO_REGION_INFO_FLAG_WRITE	(1 << 1) /* Region supports write */
 #define VFIO_REGION_INFO_FLAG_MMAP	(1 << 2) /* Region supports mmap */
+#define VFIO_REGION_INFO_FLAG_CAPS	(1 << 3) /* Info supports caps */
 	__u32	index;		/* Region index */
-	__u32	resv;		/* Reserved for alignment */
+	__u32	cap_offset;	/* Offset within info struct of first cap */
 	__u64	size;		/* Region size (bytes) */
 	__u64	offset;		/* Region offset from start of device fd */
 };
 #define VFIO_DEVICE_GET_REGION_INFO	_IO(VFIO_TYPE, VFIO_BASE + 8)
+
+/*
+ * The sparse mmap capability allows finer granularity of specifying areas
+ * within a region with mmap support.  When specified, the user should only
+ * mmap the offset ranges specified by the areas array.  mmaps outside of the
+ * areas specified may fail (such as the range covering a PCI MSI-X table) or
+ * may result in improper device behavior.
+ *
+ * The structures below define version 1 of this capability.
+ */
+#define VFIO_REGION_INFO_CAP_SPARSE_MMAP	1
+
+struct vfio_region_sparse_mmap_area {
+	__u64	offset;	/* Offset of mmap'able area within region */
+	__u64	size;	/* Size of mmap'able area */
+};
+
+struct vfio_region_info_cap_sparse_mmap {
+	struct vfio_info_cap_header header;
+	__u32	nr_areas;
+	__u32	reserved;
+	struct vfio_region_sparse_mmap_area areas[];
+};
+
+/*
+ * The device specific type capability allows regions unique to a specific
+ * device or class of devices to be exposed.  This helps solve the problem for
+ * vfio bus drivers of defining which region indexes correspond to which region
+ * on the device, without needing to resort to static indexes, as done by
+ * vfio-pci.  For instance, if we were to go back in time, we might remove
+ * VFIO_PCI_VGA_REGION_INDEX and let vfio-pci simply define that all indexes
+ * greater than or equal to VFIO_PCI_NUM_REGIONS are device specific and we'd
+ * make a "VGA" device specific type to describe the VGA access space.  This
+ * means that non-VGA devices wouldn't need to waste this index, and thus the
+ * address space associated with it due to implementation of device file
+ * descriptor offsets in vfio-pci.
+ *
+ * The current implementation is now part of the user ABI, so we can't use this
+ * for VGA, but there are other upcoming use cases, such as opregions for Intel
+ * IGD devices and framebuffers for vGPU devices.  We missed VGA, but we'll
+ * use this for future additions.
+ *
+ * The structure below defines version 1 of this capability.
+ */
+#define VFIO_REGION_INFO_CAP_TYPE	2
+
+struct vfio_region_info_cap_type {
+	struct vfio_info_cap_header header;
+	__u32 type;	/* global per bus driver */
+	__u32 subtype;	/* type specific */
+};
+
+#define VFIO_REGION_TYPE_PCI_VENDOR_TYPE	(1 << 31)
+#define VFIO_REGION_TYPE_PCI_VENDOR_MASK	(0xffff)
+
+/* 8086 Vendor sub-types */
+#define VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION	(1)
+#define VFIO_REGION_SUBTYPE_INTEL_IGD_HOST_CFG	(2)
+#define VFIO_REGION_SUBTYPE_INTEL_IGD_LPC_CFG	(3)
 
 /**
  * VFIO_DEVICE_GET_IRQ_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 9,
@@ -329,7 +423,8 @@ enum {
 	 * between described ranges are unimplemented.
 	 */
 	VFIO_PCI_VGA_REGION_INDEX,
-	VFIO_PCI_NUM_REGIONS
+	VFIO_PCI_NUM_REGIONS = 9 /* Fixed user ABI, region indexes >=9 use */
+				 /* device specific cap to define content. */
 };
 
 enum {
@@ -568,8 +663,10 @@ struct vfio_iommu_spapr_tce_create {
 	__u32 flags;
 	/* in */
 	__u32 page_shift;
+	__u32 __resv1;
 	__u64 window_size;
 	__u32 levels;
+	__u32 __resv2;
 	/* out */
 	__u64 start_addr;
 };

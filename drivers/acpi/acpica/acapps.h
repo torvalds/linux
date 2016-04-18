@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,10 +44,12 @@
 #ifndef _ACAPPS
 #define _ACAPPS
 
+#include <stdio.h>
+
 /* Common info for tool signons */
 
 #define ACPICA_NAME                 "Intel ACPI Component Architecture"
-#define ACPICA_COPYRIGHT            "Copyright (c) 2000 - 2015 Intel Corporation"
+#define ACPICA_COPYRIGHT            "Copyright (c) 2000 - 2016 Intel Corporation"
 
 #if ACPI_MACHINE_WIDTH == 64
 #define ACPI_WIDTH          "-64"
@@ -85,10 +87,39 @@
 	acpi_os_printf (description);
 
 #define ACPI_OPTION(name, description) \
-	acpi_os_printf (" %-18s%s\n", name, description);
+	acpi_os_printf (" %-20s%s\n", name, description);
+
+/* Check for unexpected exceptions */
+
+#define ACPI_CHECK_STATUS(name, status, expected) \
+	if (status != expected) \
+	{ \
+		acpi_os_printf ("Unexpected %s from %s (%s-%d)\n", \
+			acpi_format_exception (status), #name, _acpi_module_name, __LINE__); \
+	}
+
+/* Check for unexpected non-AE_OK errors */
+
+#define ACPI_CHECK_OK(name, status)   ACPI_CHECK_STATUS (name, status, AE_OK);
 
 #define FILE_SUFFIX_DISASSEMBLY     "dsl"
 #define FILE_SUFFIX_BINARY_TABLE    ".dat"	/* Needs the dot */
+
+/* acfileio */
+
+acpi_status
+ac_get_all_tables_from_file(char *filename,
+			    u8 get_only_aml_tables,
+			    struct acpi_new_table_desc **return_list_head);
+
+u8 ac_is_file_binary(FILE * file);
+
+acpi_status ac_validate_table_header(FILE * file, long table_offset);
+
+/* Values for get_only_aml_tables */
+
+#define ACPI_GET_ONLY_AML_TABLES    TRUE
+#define ACPI_GET_ALL_TABLES         FALSE
 
 /*
  * getopt
@@ -106,30 +137,6 @@ extern char *acpi_gbl_optarg;
  * cmfsize - Common get file size function
  */
 u32 cm_get_file_size(ACPI_FILE file);
-
-#ifndef ACPI_DUMP_APP
-/*
- * adisasm
- */
-acpi_status
-ad_aml_disassemble(u8 out_to_file,
-		   char *filename, char *prefix, char **out_filename);
-
-void ad_print_statistics(void);
-
-acpi_status ad_find_dsdt(u8 **dsdt_ptr, u32 *dsdt_length);
-
-void ad_dump_tables(void);
-
-acpi_status ad_get_local_tables(void);
-
-acpi_status
-ad_parse_table(struct acpi_table_header *table,
-	       acpi_owner_id * owner_id, u8 load_table, u8 external);
-
-acpi_status ad_display_tables(char *filename, struct acpi_table_header *table);
-
-acpi_status ad_display_statistics(void);
 
 /*
  * adwalk
@@ -168,6 +175,5 @@ char *ad_generate_filename(char *prefix, char *table_id);
 void
 ad_write_table(struct acpi_table_header *table,
 	       u32 length, char *table_name, char *oem_table_id);
-#endif
 
 #endif				/* _ACAPPS */

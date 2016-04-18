@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2002- 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
@@ -45,7 +46,7 @@ static int ptrace_dump_regs(int pid)
  * Signals that are OK to receive in the stub - we'll just continue it.
  * SIGWINCH will happen when UML is inside a detached screen.
  */
-#define STUB_SIG_MASK ((1 << SIGVTALRM) | (1 << SIGWINCH))
+#define STUB_SIG_MASK ((1 << SIGALRM) | (1 << SIGWINCH))
 
 /* Signals that the stub will finish with - anything else is an error */
 #define STUB_DONE_MASK (1 << SIGTRAP)
@@ -137,9 +138,6 @@ static void handle_trap(int pid, struct uml_pt_regs *regs,
 	if ((UPT_IP(regs) >= STUB_START) && (UPT_IP(regs) < STUB_END))
 		fatal_sigsegv();
 
-	/* Mark this as a syscall */
-	UPT_SYSCALL_NR(regs) = PT_SYSCALL_NR(regs->gp);
-
 	if (!local_using_sysemu)
 	{
 		err = ptrace(PTRACE_POKEUSER, pid, PT_SYSCALL_NR_OFFSET,
@@ -179,19 +177,13 @@ extern char __syscall_stub_start[];
 static int userspace_tramp(void *stack)
 {
 	void *addr;
-	int err, fd;
+	int fd;
 	unsigned long long offset;
 
 	ptrace(PTRACE_TRACEME, 0, 0, 0);
 
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGWINCH, SIG_IGN);
-	err = set_interval();
-	if (err) {
-		printk(UM_KERN_ERR "userspace_tramp - setting timer failed, "
-		       "errno = %d\n", err);
-		exit(1);
-	}
 
 	/*
 	 * This has a pte, but it can't be mapped in with the usual
@@ -282,7 +274,7 @@ int start_userspace(unsigned long stub_stack)
 			       "errno = %d\n", errno);
 			goto out_kill;
 		}
-	} while (WIFSTOPPED(status) && (WSTOPSIG(status) == SIGVTALRM));
+	} while (WIFSTOPPED(status) && (WSTOPSIG(status) == SIGALRM));
 
 	if (!WIFSTOPPED(status) || (WSTOPSIG(status) != SIGSTOP)) {
 		err = -EINVAL;
@@ -315,8 +307,6 @@ int start_userspace(unsigned long stub_stack)
 
 void userspace(struct uml_pt_regs *regs)
 {
-	struct itimerval timer;
-	unsigned long long nsecs, now;
 	int err, status, op, pid = userspace_pid[0];
 	/* To prevent races if using_sysemu changes under us.*/
 	int local_using_sysemu;
@@ -325,13 +315,8 @@ void userspace(struct uml_pt_regs *regs)
 	/* Handle any immediate reschedules or signals */
 	interrupt_end();
 
-	if (getitimer(ITIMER_VIRTUAL, &timer))
-		printk(UM_KERN_ERR "Failed to get itimer, errno = %d\n", errno);
-	nsecs = timer.it_value.tv_sec * UM_NSEC_PER_SEC +
-		timer.it_value.tv_usec * UM_NSEC_PER_USEC;
-	nsecs += os_nsecs();
-
 	while (1) {
+
 		/*
 		 * This can legitimately fail if the process loads a
 		 * bogus value into a segment register.  It will
@@ -401,18 +386,7 @@ void userspace(struct uml_pt_regs *regs)
 			case SIGTRAP:
 				relay_signal(SIGTRAP, (struct siginfo *)&si, regs);
 				break;
-			case SIGVTALRM:
-				now = os_nsecs();
-				if (now < nsecs)
-					break;
-				block_signals();
-				(*sig_info[sig])(sig, (struct siginfo *)&si, regs);
-				unblock_signals();
-				nsecs = timer.it_value.tv_sec *
-					UM_NSEC_PER_SEC +
-					timer.it_value.tv_usec *
-					UM_NSEC_PER_USEC;
-				nsecs += os_nsecs();
+			case SIGALRM:
 				break;
 			case SIGIO:
 			case SIGILL:
@@ -460,7 +434,6 @@ __initcall(init_thread_regs);
 
 int copy_context_skas0(unsigned long new_stack, int pid)
 {
-	struct timeval tv = { .tv_sec = 0, .tv_usec = UM_USEC_PER_SEC / UM_HZ };
 	int err;
 	unsigned long current_stack = current_stub_stack();
 	struct stub_data *data = (struct stub_data *) current_stack;
@@ -472,11 +445,10 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	 * prepare offset and fd of child's stack as argument for parent's
 	 * and child's mmap2 calls
 	 */
-	*data = ((struct stub_data) { .offset	= MMAP_OFFSET(new_offset),
-				      .fd	= new_fd,
-				      .timer    = ((struct itimerval)
-					           { .it_value = tv,
-						     .it_interval = tv }) });
+	*data = ((struct stub_data) {
+			.offset	= MMAP_OFFSET(new_offset),
+			.fd     = new_fd
+	});
 
 	err = ptrace_setregs(pid, thread_regs);
 	if (err < 0) {

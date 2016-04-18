@@ -367,8 +367,10 @@ common_exception:
 	s32i	a2, a1, PT_SYSCALL
 	movi	a2, 0
 	s32i	a3, a1, PT_EXCVADDR
+#if XCHAL_HAVE_LOOPS
 	xsr	a2, lcount
 	s32i	a2, a1, PT_LCOUNT
+#endif
 
 	/* It is now save to restore the EXC_TABLE_FIXUP variable. */
 
@@ -429,11 +431,12 @@ common_exception:
 	rsync				# PS.WOE => rsync => overflow
 
 	/* Save lbeg, lend */
-
+#if XCHAL_HAVE_LOOPS
 	rsr	a4, lbeg
 	rsr	a3, lend
 	s32i	a4, a1, PT_LBEG
 	s32i	a3, a1, PT_LEND
+#endif
 
 	/* Save SCOMPARE1 */
 
@@ -540,6 +543,12 @@ common_exception_return:
 #endif
 
 5:
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	_bbci.l	a4, TIF_DB_DISABLED, 7f
+	movi	a4, restore_dbreak
+	callx4	a4
+7:
+#endif
 #ifdef CONFIG_DEBUG_TLB_SANITY
 	l32i	a4, a1, PT_DEPC
 	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 4f
@@ -724,13 +733,14 @@ common_exception_exit:
 	wsr	a3, sar
 
 	/* Restore LBEG, LEND, LCOUNT */
-
+#if XCHAL_HAVE_LOOPS
 	l32i	a2, a1, PT_LBEG
 	l32i	a3, a1, PT_LEND
 	wsr	a2, lbeg
 	l32i	a2, a1, PT_LCOUNT
 	wsr	a3, lend
 	wsr	a2, lcount
+#endif
 
 	/* We control single stepping through the ICOUNTLEVEL register. */
 
@@ -785,39 +795,99 @@ ENTRY(debug_exception)
 
 	movi	a2, 1 << PS_EXCM_BIT
 	or	a2, a0, a2
-	movi	a0, debug_exception	# restore a3, debug jump vector
 	wsr	a2, ps
-	xsr	a0, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 
 	/* Switch to kernel/user stack, restore jump vector, and save a0 */
 
 	bbsi.l	a2, PS_UM_BIT, 2f	# jump if user mode
 
 	addi	a2, a1, -16-PT_SIZE	# assume kernel stack
+3:
+	l32i	a0, a3, DT_DEBUG_SAVE
+	s32i	a1, a2, PT_AREG1
 	s32i	a0, a2, PT_AREG0
 	movi	a0, 0
-	s32i	a1, a2, PT_AREG1
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception
+	xsr	a3, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 	xsr	a0, depc
 	s32i	a3, a2, PT_AREG3
 	s32i	a0, a2, PT_AREG2
 	mov	a1, a2
+
+	/* Debug exception is handled as an exception, so interrupts will
+	 * likely be enabled in the common exception handler. Disable
+	 * preemption if we have HW breakpoints to preserve DEBUGCAUSE.DBNUM
+	 * meaning.
+	 */
+#if defined(CONFIG_PREEMPT_COUNT) && defined(CONFIG_HAVE_HW_BREAKPOINT)
+	GET_THREAD_INFO(a2, a1)
+	l32i	a3, a2, TI_PRE_COUNT
+	addi	a3, a3, 1
+	s32i	a3, a2, TI_PRE_COUNT
+#endif
+
+	rsr	a2, ps
+	bbsi.l	a2, PS_UM_BIT, _user_exception
 	j	_kernel_exception
 
 2:	rsr	a2, excsave1
 	l32i	a2, a2, EXC_TABLE_KSTK	# load kernel stack pointer
-	s32i	a0, a2, PT_AREG0
-	movi	a0, 0
-	s32i	a1, a2, PT_AREG1
-	s32i	a0, a2, PT_DEPC
-	xsr	a0, depc
-	s32i	a3, a2, PT_AREG3
-	s32i	a0, a2, PT_AREG2
-	mov	a1, a2
-	j	_user_exception
+	j	3b
 
-	/* Debug exception while in exception mode. */
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	/* Debug exception while in exception mode. This may happen when
+	 * window overflow/underflow handler or fast exception handler hits
+	 * data breakpoint, in which case save and disable all data
+	 * breakpoints, single-step faulting instruction and restore data
+	 * breakpoints.
+	 */
+1:
+	bbci.l	a0, PS_UM_BIT, 1b	# jump if kernel mode
+
+	rsr	a0, debugcause
+	bbsi.l	a0, DEBUGCAUSE_DBREAK_BIT, .Ldebug_save_dbreak
+
+	.set	_index, 0
+	.rept	XCHAL_NUM_DBREAK
+	l32i	a0, a3, DT_DBREAKC_SAVE + _index * 4
+	wsr	a0, SREG_DBREAKC + _index
+	.set	_index, _index + 1
+	.endr
+
+	l32i	a0, a3, DT_ICOUNT_LEVEL_SAVE
+	wsr	a0, icountlevel
+
+	l32i	a0, a3, DT_ICOUNT_SAVE
+	xsr	a0, icount
+
+	l32i	a0, a3, DT_DEBUG_SAVE
+	xsr	a3, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
+	rfi	XCHAL_DEBUGLEVEL
+
+.Ldebug_save_dbreak:
+	.set	_index, 0
+	.rept	XCHAL_NUM_DBREAK
+	movi	a0, 0
+	xsr	a0, SREG_DBREAKC + _index
+	s32i	a0, a3, DT_DBREAKC_SAVE + _index * 4
+	.set	_index, _index + 1
+	.endr
+
+	movi	a0, XCHAL_EXCM_LEVEL + 1
+	xsr	a0, icountlevel
+	s32i	a0, a3, DT_ICOUNT_LEVEL_SAVE
+
+	movi	a0, 0xfffffffe
+	xsr	a0, icount
+	s32i	a0, a3, DT_ICOUNT_SAVE
+
+	l32i	a0, a3, DT_DEBUG_SAVE
+	xsr	a3, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
+	rfi	XCHAL_DEBUGLEVEL
+#else
+	/* Debug exception while in exception mode. Should not happen. */
 1:	j	1b	// FIXME!!
+#endif
 
 ENDPROC(debug_exception)
 

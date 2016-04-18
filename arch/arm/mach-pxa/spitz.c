@@ -40,15 +40,15 @@
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
 
-#include <mach/pxa27x.h>
-#include <mach/pxa27x-udc.h>
+#include "pxa27x.h"
+#include "pxa27x-udc.h"
 #include <mach/reset.h>
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <mach/spitz.h>
-#include <mach/sharpsl_pm.h>
+#include "sharpsl_pm.h"
 #include <mach/smemc.h>
 
 #include "generic.h"
@@ -201,7 +201,7 @@ static void __init spitz_scoop_init(void)
 }
 
 /* Power control is shared with between one of the CF slots and SD */
-static void spitz_card_pwr_ctrl(uint8_t enable, uint8_t new_cpr)
+static void __maybe_unused spitz_card_pwr_ctrl(uint8_t enable, uint8_t new_cpr)
 {
 	unsigned short cpr;
 	unsigned long flags;

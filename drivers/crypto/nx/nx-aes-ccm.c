@@ -409,7 +409,7 @@ static int ccm_nx_decrypt(struct aead_request   *req,
 		processed += to_process;
 	} while (processed < nbytes);
 
-	rc = memcmp(csbcpb->cpb.aes_ccm.out_pat_or_mac, priv->oauth_tag,
+	rc = crypto_memneq(csbcpb->cpb.aes_ccm.out_pat_or_mac, priv->oauth_tag,
 		    authsize) ? -EBADMSG : 0;
 out:
 	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);

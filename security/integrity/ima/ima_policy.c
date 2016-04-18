@@ -12,11 +12,14 @@
  */
 #include <linux/module.h>
 #include <linux/list.h>
+#include <linux/fs.h>
 #include <linux/security.h>
 #include <linux/magic.h>
 #include <linux/parser.h>
 #include <linux/slab.h>
+#include <linux/rculist.h>
 #include <linux/genhd.h>
+#include <linux/seq_file.h>
 
 #include "ima.h"
 
@@ -38,6 +41,7 @@
 #define AUDIT		0x0040
 
 int ima_policy_flag;
+static int temp_ima_appraise;
 
 #define MAX_LSM_RULES 6
 enum lsm_rule_types { LSM_OBJ_USER, LSM_OBJ_ROLE, LSM_OBJ_TYPE,
@@ -110,6 +114,7 @@ static struct ima_rule_entry default_measurement_rules[] = {
 	 .uid = GLOBAL_ROOT_UID, .flags = IMA_FUNC | IMA_INMASK | IMA_UID},
 	{.action = MEASURE, .func = MODULE_CHECK, .flags = IMA_FUNC},
 	{.action = MEASURE, .func = FIRMWARE_CHECK, .flags = IMA_FUNC},
+	{.action = MEASURE, .func = POLICY_CHECK, .flags = IMA_FUNC},
 };
 
 static struct ima_rule_entry default_appraise_rules[] = {
@@ -124,6 +129,10 @@ static struct ima_rule_entry default_appraise_rules[] = {
 	{.action = DONT_APPRAISE, .fsmagic = SELINUX_MAGIC, .flags = IMA_FSMAGIC},
 	{.action = DONT_APPRAISE, .fsmagic = NSFS_MAGIC, .flags = IMA_FSMAGIC},
 	{.action = DONT_APPRAISE, .fsmagic = CGROUP_SUPER_MAGIC, .flags = IMA_FSMAGIC},
+#ifdef CONFIG_IMA_WRITE_POLICY
+	{.action = APPRAISE, .func = POLICY_CHECK,
+	.flags = IMA_FUNC | IMA_DIGSIG_REQUIRED},
+#endif
 #ifndef CONFIG_IMA_APPRAISE_SIGNED_INIT
 	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID, .flags = IMA_FOWNER},
 #else
@@ -135,11 +144,11 @@ static struct ima_rule_entry default_appraise_rules[] = {
 
 static LIST_HEAD(ima_default_rules);
 static LIST_HEAD(ima_policy_rules);
+static LIST_HEAD(ima_temp_rules);
 static struct list_head *ima_rules;
 
-static DEFINE_MUTEX(ima_rules_mutex);
-
 static int ima_policy __initdata;
+
 static int __init default_measure_policy_setup(char *str)
 {
 	if (ima_policy)
@@ -171,21 +180,18 @@ static int __init default_appraise_policy_setup(char *str)
 __setup("ima_appraise_tcb", default_appraise_policy_setup);
 
 /*
- * Although the IMA policy does not change, the LSM policy can be
- * reloaded, leaving the IMA LSM based rules referring to the old,
- * stale LSM policy.
- *
- * Update the IMA LSM based rules to reflect the reloaded LSM policy.
- * We assume the rules still exist; and BUG_ON() if they don't.
+ * The LSM policy can be reloaded, leaving the IMA LSM based rules referring
+ * to the old, stale LSM policy.  Update the IMA LSM based rules to reflect
+ * the reloaded LSM policy.  We assume the rules still exist; and BUG_ON() if
+ * they don't.
  */
 static void ima_lsm_update_rules(void)
 {
-	struct ima_rule_entry *entry, *tmp;
+	struct ima_rule_entry *entry;
 	int result;
 	int i;
 
-	mutex_lock(&ima_rules_mutex);
-	list_for_each_entry_safe(entry, tmp, &ima_policy_rules, list) {
+	list_for_each_entry(entry, &ima_policy_rules, list) {
 		for (i = 0; i < MAX_LSM_RULES; i++) {
 			if (!entry->lsm[i].rule)
 				continue;
@@ -196,7 +202,6 @@ static void ima_lsm_update_rules(void)
 			BUG_ON(!entry->lsm[i].rule);
 		}
 	}
-	mutex_unlock(&ima_rules_mutex);
 }
 
 /**
@@ -208,8 +213,8 @@ static void ima_lsm_update_rules(void)
  *
  * Returns true on rule match, false on failure.
  */
-static bool ima_match_rules(struct ima_rule_entry *rule,
-			    struct inode *inode, enum ima_hooks func, int mask)
+static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
+			    enum ima_hooks func, int mask)
 {
 	struct task_struct *tsk = current;
 	const struct cred *cred = current_cred();
@@ -290,7 +295,7 @@ retry:
  * In addition to knowing that we need to appraise the file in general,
  * we need to differentiate between calling hooks, for hook specific rules.
  */
-static int get_subaction(struct ima_rule_entry *rule, int func)
+static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
 {
 	if (!(rule->flags & IMA_FUNC))
 		return IMA_FILE_APPRAISE;
@@ -300,13 +305,12 @@ static int get_subaction(struct ima_rule_entry *rule, int func)
 		return IMA_MMAP_APPRAISE;
 	case BPRM_CHECK:
 		return IMA_BPRM_APPRAISE;
-	case MODULE_CHECK:
-		return IMA_MODULE_APPRAISE;
-	case FIRMWARE_CHECK:
-		return IMA_FIRMWARE_APPRAISE;
 	case FILE_CHECK:
-	default:
+	case POST_SETATTR:
 		return IMA_FILE_APPRAISE;
+	case MODULE_CHECK ... MAX_CHECK - 1:
+	default:
+		return IMA_READ_APPRAISE;
 	}
 }
 
@@ -319,9 +323,9 @@ static int get_subaction(struct ima_rule_entry *rule, int func)
  * Measure decision based on func/mask/fsmagic and LSM(subj/obj/type)
  * conditions.
  *
- * (There is no need for locking when walking the policy list,
- * as elements in the list are never deleted, nor does the list
- * change.)
+ * Since the IMA policy may be updated multiple times we need to lock the
+ * list when walking it.  Reads are many orders of magnitude more numerous
+ * than writes so ima_match_policy() is classical RCU candidate.
  */
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		     int flags)
@@ -329,7 +333,8 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 	struct ima_rule_entry *entry;
 	int action = 0, actmask = flags | (flags << 1);
 
-	list_for_each_entry(entry, ima_rules, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(entry, ima_rules, list) {
 
 		if (!(entry->action & actmask))
 			continue;
@@ -351,6 +356,7 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		if (!actmask)
 			break;
 	}
+	rcu_read_unlock();
 
 	return action;
 }
@@ -365,12 +371,12 @@ void ima_update_policy_flag(void)
 {
 	struct ima_rule_entry *entry;
 
-	ima_policy_flag = 0;
 	list_for_each_entry(entry, ima_rules, list) {
 		if (entry->action & IMA_DO_MASK)
 			ima_policy_flag |= entry->action;
 	}
 
+	ima_appraise |= temp_ima_appraise;
 	if (!ima_appraise)
 		ima_policy_flag &= ~IMA_APPRAISE;
 }
@@ -410,21 +416,56 @@ void __init ima_init_policy(void)
 	for (i = 0; i < appraise_entries; i++) {
 		list_add_tail(&default_appraise_rules[i].list,
 			      &ima_default_rules);
+		if (default_appraise_rules[i].func == POLICY_CHECK)
+			temp_ima_appraise |= IMA_APPRAISE_POLICY;
 	}
 
 	ima_rules = &ima_default_rules;
+	ima_update_policy_flag();
+}
+
+/* Make sure we have a valid policy, at least containing some rules. */
+int ima_check_policy(void)
+{
+	if (list_empty(&ima_temp_rules))
+		return -EINVAL;
+	return 0;
 }
 
 /**
  * ima_update_policy - update default_rules with new measure rules
  *
  * Called on file .release to update the default rules with a complete new
- * policy.  Once updated, the policy is locked, no additional rules can be
- * added to the policy.
+ * policy.  What we do here is to splice ima_policy_rules and ima_temp_rules so
+ * they make a queue.  The policy may be updated multiple times and this is the
+ * RCU updater.
+ *
+ * Policy rules are never deleted so ima_policy_flag gets zeroed only once when
+ * we switch from the default policy to user defined.
  */
 void ima_update_policy(void)
 {
-	ima_rules = &ima_policy_rules;
+	struct list_head *first, *last, *policy;
+
+	/* append current policy with the new rules */
+	first = (&ima_temp_rules)->next;
+	last = (&ima_temp_rules)->prev;
+	policy = &ima_policy_rules;
+
+	synchronize_rcu();
+
+	last->next = policy;
+	rcu_assign_pointer(list_next_rcu(policy->prev), first);
+	first->prev = policy->prev;
+	policy->prev = last;
+
+	/* prepare for the next policy rules addition */
+	INIT_LIST_HEAD(&ima_temp_rules);
+
+	if (ima_rules != policy) {
+		ima_policy_flag = 0;
+		ima_rules = policy;
+	}
 	ima_update_policy_flag();
 }
 
@@ -436,8 +477,8 @@ enum {
 	Opt_obj_user, Opt_obj_role, Opt_obj_type,
 	Opt_subj_user, Opt_subj_role, Opt_subj_type,
 	Opt_func, Opt_mask, Opt_fsmagic,
-	Opt_uid, Opt_euid, Opt_fowner,
-	Opt_appraise_type, Opt_fsuuid, Opt_permit_directio
+	Opt_fsuuid, Opt_uid, Opt_euid, Opt_fowner,
+	Opt_appraise_type, Opt_permit_directio
 };
 
 static match_table_t policy_tokens = {
@@ -579,6 +620,14 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				entry->func = MMAP_CHECK;
 			else if (strcmp(args[0].from, "BPRM_CHECK") == 0)
 				entry->func = BPRM_CHECK;
+			else if (strcmp(args[0].from, "KEXEC_KERNEL_CHECK") ==
+				 0)
+				entry->func = KEXEC_KERNEL_CHECK;
+			else if (strcmp(args[0].from, "KEXEC_INITRAMFS_CHECK")
+				 == 0)
+				entry->func = KEXEC_INITRAMFS_CHECK;
+			else if (strcmp(args[0].from, "POLICY_CHECK") == 0)
+				entry->func = POLICY_CHECK;
 			else
 				result = -EINVAL;
 			if (!result)
@@ -734,9 +783,11 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 	if (!result && (entry->action == UNKNOWN))
 		result = -EINVAL;
 	else if (entry->func == MODULE_CHECK)
-		ima_appraise |= IMA_APPRAISE_MODULES;
+		temp_ima_appraise |= IMA_APPRAISE_MODULES;
 	else if (entry->func == FIRMWARE_CHECK)
-		ima_appraise |= IMA_APPRAISE_FIRMWARE;
+		temp_ima_appraise |= IMA_APPRAISE_FIRMWARE;
+	else if (entry->func == POLICY_CHECK)
+		temp_ima_appraise |= IMA_APPRAISE_POLICY;
 	audit_log_format(ab, "res=%d", !result);
 	audit_log_end(ab);
 	return result;
@@ -746,7 +797,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
  * ima_parse_add_rule - add a rule to ima_policy_rules
  * @rule - ima measurement policy rule
  *
- * Uses a mutex to protect the policy list from multiple concurrent writers.
+ * Avoid locking by allowing just one writer at a time in ima_write_policy()
  * Returns the length of the rule parsed, an error code on failure
  */
 ssize_t ima_parse_add_rule(char *rule)
@@ -782,26 +833,253 @@ ssize_t ima_parse_add_rule(char *rule)
 		return result;
 	}
 
-	mutex_lock(&ima_rules_mutex);
-	list_add_tail(&entry->list, &ima_policy_rules);
-	mutex_unlock(&ima_rules_mutex);
+	list_add_tail(&entry->list, &ima_temp_rules);
 
 	return len;
 }
 
-/* ima_delete_rules called to cleanup invalid policy */
+/**
+ * ima_delete_rules() called to cleanup invalid in-flight policy.
+ * We don't need locking as we operate on the temp list, which is
+ * different from the active one.  There is also only one user of
+ * ima_delete_rules() at a time.
+ */
 void ima_delete_rules(void)
 {
 	struct ima_rule_entry *entry, *tmp;
 	int i;
 
-	mutex_lock(&ima_rules_mutex);
-	list_for_each_entry_safe(entry, tmp, &ima_policy_rules, list) {
+	temp_ima_appraise = 0;
+	list_for_each_entry_safe(entry, tmp, &ima_temp_rules, list) {
 		for (i = 0; i < MAX_LSM_RULES; i++)
 			kfree(entry->lsm[i].args_p);
 
 		list_del(&entry->list);
 		kfree(entry);
 	}
-	mutex_unlock(&ima_rules_mutex);
 }
+
+#ifdef	CONFIG_IMA_READ_POLICY
+enum {
+	mask_exec = 0, mask_write, mask_read, mask_append
+};
+
+static char *mask_tokens[] = {
+	"MAY_EXEC",
+	"MAY_WRITE",
+	"MAY_READ",
+	"MAY_APPEND"
+};
+
+enum {
+	func_file = 0, func_mmap, func_bprm,
+	func_module, func_firmware, func_post,
+	func_kexec_kernel, func_kexec_initramfs,
+	func_policy
+};
+
+static char *func_tokens[] = {
+	"FILE_CHECK",
+	"MMAP_CHECK",
+	"BPRM_CHECK",
+	"MODULE_CHECK",
+	"FIRMWARE_CHECK",
+	"KEXEC_KERNEL_CHECK",
+	"KEXEC_INITRAMFS_CHECK",
+	"POLICY_CHECK",
+	"POST_SETATTR"
+};
+
+void *ima_policy_start(struct seq_file *m, loff_t *pos)
+{
+	loff_t l = *pos;
+	struct ima_rule_entry *entry;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(entry, ima_rules, list) {
+		if (!l--) {
+			rcu_read_unlock();
+			return entry;
+		}
+	}
+	rcu_read_unlock();
+	return NULL;
+}
+
+void *ima_policy_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct ima_rule_entry *entry = v;
+
+	rcu_read_lock();
+	entry = list_entry_rcu(entry->list.next, struct ima_rule_entry, list);
+	rcu_read_unlock();
+	(*pos)++;
+
+	return (&entry->list == ima_rules) ? NULL : entry;
+}
+
+void ima_policy_stop(struct seq_file *m, void *v)
+{
+}
+
+#define pt(token)	policy_tokens[token + Opt_err].pattern
+#define mt(token)	mask_tokens[token]
+#define ft(token)	func_tokens[token]
+
+/*
+ * policy_func_show - display the ima_hooks policy rule
+ */
+static void policy_func_show(struct seq_file *m, enum ima_hooks func)
+{
+	char tbuf[64] = {0,};
+
+	switch (func) {
+	case FILE_CHECK:
+		seq_printf(m, pt(Opt_func), ft(func_file));
+		break;
+	case MMAP_CHECK:
+		seq_printf(m, pt(Opt_func), ft(func_mmap));
+		break;
+	case BPRM_CHECK:
+		seq_printf(m, pt(Opt_func), ft(func_bprm));
+		break;
+	case MODULE_CHECK:
+		seq_printf(m, pt(Opt_func), ft(func_module));
+		break;
+	case FIRMWARE_CHECK:
+		seq_printf(m, pt(Opt_func), ft(func_firmware));
+		break;
+	case POST_SETATTR:
+		seq_printf(m, pt(Opt_func), ft(func_post));
+		break;
+	case KEXEC_KERNEL_CHECK:
+		seq_printf(m, pt(Opt_func), ft(func_kexec_kernel));
+		break;
+	case KEXEC_INITRAMFS_CHECK:
+		seq_printf(m, pt(Opt_func), ft(func_kexec_initramfs));
+		break;
+	case POLICY_CHECK:
+		seq_printf(m, pt(Opt_func), ft(func_policy));
+		break;
+	default:
+		snprintf(tbuf, sizeof(tbuf), "%d", func);
+		seq_printf(m, pt(Opt_func), tbuf);
+		break;
+	}
+	seq_puts(m, " ");
+}
+
+int ima_policy_show(struct seq_file *m, void *v)
+{
+	struct ima_rule_entry *entry = v;
+	int i = 0;
+	char tbuf[64] = {0,};
+
+	rcu_read_lock();
+
+	if (entry->action & MEASURE)
+		seq_puts(m, pt(Opt_measure));
+	if (entry->action & DONT_MEASURE)
+		seq_puts(m, pt(Opt_dont_measure));
+	if (entry->action & APPRAISE)
+		seq_puts(m, pt(Opt_appraise));
+	if (entry->action & DONT_APPRAISE)
+		seq_puts(m, pt(Opt_dont_appraise));
+	if (entry->action & AUDIT)
+		seq_puts(m, pt(Opt_audit));
+
+	seq_puts(m, " ");
+
+	if (entry->flags & IMA_FUNC)
+		policy_func_show(m, entry->func);
+
+	if (entry->flags & IMA_MASK) {
+		if (entry->mask & MAY_EXEC)
+			seq_printf(m, pt(Opt_mask), mt(mask_exec));
+		if (entry->mask & MAY_WRITE)
+			seq_printf(m, pt(Opt_mask), mt(mask_write));
+		if (entry->mask & MAY_READ)
+			seq_printf(m, pt(Opt_mask), mt(mask_read));
+		if (entry->mask & MAY_APPEND)
+			seq_printf(m, pt(Opt_mask), mt(mask_append));
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_FSMAGIC) {
+		snprintf(tbuf, sizeof(tbuf), "0x%lx", entry->fsmagic);
+		seq_printf(m, pt(Opt_fsmagic), tbuf);
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_FSUUID) {
+		seq_puts(m, "fsuuid=");
+		for (i = 0; i < ARRAY_SIZE(entry->fsuuid); ++i) {
+			switch (i) {
+			case 4:
+			case 6:
+			case 8:
+			case 10:
+				seq_puts(m, "-");
+			}
+			seq_printf(m, "%x", entry->fsuuid[i]);
+		}
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_UID) {
+		snprintf(tbuf, sizeof(tbuf), "%d", __kuid_val(entry->uid));
+		seq_printf(m, pt(Opt_uid), tbuf);
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_EUID) {
+		snprintf(tbuf, sizeof(tbuf), "%d", __kuid_val(entry->uid));
+		seq_printf(m, pt(Opt_euid), tbuf);
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_FOWNER) {
+		snprintf(tbuf, sizeof(tbuf), "%d", __kuid_val(entry->fowner));
+		seq_printf(m, pt(Opt_fowner), tbuf);
+		seq_puts(m, " ");
+	}
+
+	for (i = 0; i < MAX_LSM_RULES; i++) {
+		if (entry->lsm[i].rule) {
+			switch (i) {
+			case LSM_OBJ_USER:
+				seq_printf(m, pt(Opt_obj_user),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			case LSM_OBJ_ROLE:
+				seq_printf(m, pt(Opt_obj_role),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			case LSM_OBJ_TYPE:
+				seq_printf(m, pt(Opt_obj_type),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			case LSM_SUBJ_USER:
+				seq_printf(m, pt(Opt_subj_user),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			case LSM_SUBJ_ROLE:
+				seq_printf(m, pt(Opt_subj_role),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			case LSM_SUBJ_TYPE:
+				seq_printf(m, pt(Opt_subj_type),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			}
+		}
+	}
+	if (entry->flags & IMA_DIGSIG_REQUIRED)
+		seq_puts(m, "appraise_type=imasig ");
+	if (entry->flags & IMA_PERMIT_DIRECTIO)
+		seq_puts(m, "permit_directio ");
+	rcu_read_unlock();
+	seq_puts(m, "\n");
+	return 0;
+}
+#endif	/* CONFIG_IMA_READ_POLICY */

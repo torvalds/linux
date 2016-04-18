@@ -94,6 +94,8 @@ static int start_ptraced_child(void)
 {
 	int pid, n, status;
 
+	fflush(stdout);
+
 	pid = fork();
 	if (pid == 0)
 		ptrace_child();

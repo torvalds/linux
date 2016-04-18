@@ -64,7 +64,9 @@
 
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xd0000000 0x100000
-			MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000>;
+			MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
+			MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
+			MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000>;
 
 		pcie-controller {
 			status = "okay";
@@ -149,42 +151,43 @@
 				marvell,nand-enable-arbiter;
 				nand-on-flash-bbt;
 
-				partition@0 {
-					label = "u-boot";
-					reg = <0x0000000 0xe0000>;
-					read-only;
-				};
+				partitions {
+					compatible = "fixed-partitions";
+					#address-cells = <1>;
+					#size-cells = <1>;
 
-				partition@e0000 {
-					label = "u-boot-env";
-					reg = <0xe0000 0x20000>;
-					read-only;
-				};
+					partition@0 {
+						label = "u-boot";
+						reg = <0x00000000 0x000e0000>;
+						read-only;
+					};
 
-				partition@100000 {
-					label = "u-boot-env2";
-					reg = <0x100000 0x20000>;
-					read-only;
-				};
+					partition@e0000 {
+						label = "u-boot-env";
+						reg = <0x000e0000 0x00020000>;
+						read-only;
+					};
 
-				partition@120000 {
-					label = "zImage";
-					reg = <0x120000 0x400000>;
-				};
+					partition@100000 {
+						label = "u-boot-env2";
+						reg = <0x00100000 0x00020000>;
+						read-only;
+					};
 
-				partition@520000 {
-					label = "initrd";
-					reg = <0x520000 0x400000>;
-				};
+					partition@120000 {
+						label = "zImage";
+						reg = <0x00120000 0x00400000>;
+					};
 
-				partition@xE00000 {
-					label = "boot";
-					reg = <0xE00000 0x3F200000>;
-				};
+					partition@520000 {
+						label = "initrd";
+						reg = <0x00520000 0x00400000>;
+					};
 
-				partition@flash {
-					label = "flash";
-					reg = <0x0 0x40000000>;
+					partition@e00000 {
+						label = "boot";
+						reg = <0x00e00000 0x3f200000>;
+					};
 				};
 			};
 		};

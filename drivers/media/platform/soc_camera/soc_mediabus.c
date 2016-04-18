@@ -13,7 +13,7 @@
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 
 static const struct soc_mbus_lookup mbus_fmt[] = {
 {

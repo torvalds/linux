@@ -60,10 +60,10 @@ ext4_double_down_write_data_sem(struct inode *first, struct inode *second)
 {
 	if (first < second) {
 		down_write(&EXT4_I(first)->i_data_sem);
-		down_write_nested(&EXT4_I(second)->i_data_sem, SINGLE_DEPTH_NESTING);
+		down_write_nested(&EXT4_I(second)->i_data_sem, I_DATA_SEM_OTHER);
 	} else {
 		down_write(&EXT4_I(second)->i_data_sem);
-		down_write_nested(&EXT4_I(first)->i_data_sem, SINGLE_DEPTH_NESTING);
+		down_write_nested(&EXT4_I(first)->i_data_sem, I_DATA_SEM_OTHER);
 
 	}
 }
@@ -156,7 +156,7 @@ mext_page_double_lock(struct inode *inode1, struct inode *inode2,
 	page[1] = grab_cache_page_write_begin(mapping[1], index2, fl);
 	if (!page[1]) {
 		unlock_page(page[0]);
-		page_cache_release(page[0]);
+		put_page(page[0]);
 		return -ENOMEM;
 	}
 	/*
@@ -192,7 +192,7 @@ mext_page_mkuptodate(struct page *page, unsigned from, unsigned to)
 		create_empty_buffers(page, blocksize, 0);
 
 	head = page_buffers(page);
-	block = (sector_t)page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	block = (sector_t)page->index << (PAGE_SHIFT - inode->i_blkbits);
 	for (bh = head, block_start = 0; bh != head || !block_start;
 	     block++, block_start = block_end, bh = bh->b_this_page) {
 		block_end = block_start + blocksize;
@@ -265,11 +265,12 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	ext4_lblk_t orig_blk_offset, donor_blk_offset;
 	unsigned long blocksize = orig_inode->i_sb->s_blocksize;
 	unsigned int tmp_data_size, data_size, replaced_size;
-	int err2, jblocks, retries = 0;
+	int i, err2, jblocks, retries = 0;
 	int replaced_count = 0;
 	int from = data_offset_in_page << orig_inode->i_blkbits;
-	int blocks_per_page = PAGE_CACHE_SIZE >> orig_inode->i_blkbits;
+	int blocks_per_page = PAGE_SIZE >> orig_inode->i_blkbits;
 	struct super_block *sb = orig_inode->i_sb;
+	struct buffer_head *bh = NULL;
 
 	/*
 	 * It needs twice the amount of ordinary journal buffers because
@@ -380,8 +381,17 @@ data_copy:
 	}
 	/* Perform all necessary steps similar write_begin()/write_end()
 	 * but keeping in mind that i_size will not change */
-	*err = __block_write_begin(pagep[0], from, replaced_size,
-				   ext4_get_block);
+	if (!page_has_buffers(pagep[0]))
+		create_empty_buffers(pagep[0], 1 << orig_inode->i_blkbits, 0);
+	bh = page_buffers(pagep[0]);
+	for (i = 0; i < data_offset_in_page; i++)
+		bh = bh->b_this_page;
+	for (i = 0; i < block_len_in_page; i++) {
+		*err = ext4_get_block(orig_inode, orig_blk_offset + i, bh, 0);
+		if (*err < 0)
+			break;
+		bh = bh->b_this_page;
+	}
 	if (!*err)
 		*err = block_commit_write(pagep[0], from, from + replaced_size);
 
@@ -394,9 +404,9 @@ data_copy:
 
 unlock_pages:
 	unlock_page(pagep[0]);
-	page_cache_release(pagep[0]);
+	put_page(pagep[0]);
 	unlock_page(pagep[1]);
-	page_cache_release(pagep[1]);
+	put_page(pagep[1]);
 stop_journal:
 	ext4_journal_stop(handle);
 	if (*err == -ENOSPC &&
@@ -474,6 +484,13 @@ mext_check_arguments(struct inode *orig_inode,
 		return -EBUSY;
 	}
 
+	if (IS_NOQUOTA(orig_inode) || IS_NOQUOTA(donor_inode)) {
+		ext4_debug("ext4 move extent: The argument files should "
+			"not be quota files [ino:orig %lu, donor %lu]\n",
+			orig_inode->i_ino, donor_inode->i_ino);
+		return -EBUSY;
+	}
+
 	/* Ext4 move extent supports only extent based file */
 	if (!(ext4_test_inode_flag(orig_inode, EXT4_INODE_EXTENTS))) {
 		ext4_debug("ext4 move extent: orig file is not extents "
@@ -544,7 +561,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 	struct inode *orig_inode = file_inode(o_filp);
 	struct inode *donor_inode = file_inode(d_filp);
 	struct ext4_ext_path *path = NULL;
-	int blocks_per_page = PAGE_CACHE_SIZE >> orig_inode->i_blkbits;
+	int blocks_per_page = PAGE_SIZE >> orig_inode->i_blkbits;
 	ext4_lblk_t o_end, o_start = orig_blk;
 	ext4_lblk_t d_start = donor_blk;
 	int ret;
@@ -638,9 +655,9 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 		if (o_end - o_start < cur_len)
 			cur_len = o_end - o_start;
 
-		orig_page_index = o_start >> (PAGE_CACHE_SHIFT -
+		orig_page_index = o_start >> (PAGE_SHIFT -
 					       orig_inode->i_blkbits);
-		donor_page_index = d_start >> (PAGE_CACHE_SHIFT -
+		donor_page_index = d_start >> (PAGE_SHIFT -
 					       donor_inode->i_blkbits);
 		offset_in_page = o_start % blocks_per_page;
 		if (cur_len > blocks_per_page- offset_in_page)

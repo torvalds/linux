@@ -37,7 +37,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/bt819.h>
+#include <media/i2c/bt819.h>
 
 MODULE_DESCRIPTION("Brooktree-819 video decoder driver");
 MODULE_AUTHOR("Mike Bernson & Dave Perks");

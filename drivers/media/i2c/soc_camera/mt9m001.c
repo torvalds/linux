@@ -15,7 +15,7 @@
 #include <linux/module.h>
 
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>
@@ -632,7 +632,7 @@ static struct v4l2_subdev_video_ops mt9m001_subdev_video_ops = {
 	.s_mbus_config	= mt9m001_s_mbus_config,
 };
 
-static struct v4l2_subdev_sensor_ops mt9m001_subdev_sensor_ops = {
+static const struct v4l2_subdev_sensor_ops mt9m001_subdev_sensor_ops = {
 	.g_skip_top_lines	= mt9m001_g_skip_top_lines,
 };
 

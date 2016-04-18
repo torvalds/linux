@@ -22,6 +22,9 @@ thermal_sys-$(CONFIG_CPU_THERMAL)	+= cpu_cooling.o
 # clock cooling
 thermal_sys-$(CONFIG_CLOCK_THERMAL)	+= clock_cooling.o
 
+# devfreq cooling
+thermal_sys-$(CONFIG_DEVFREQ_THERMAL) += devfreq_cooling.o
+
 # platform thermal drivers
 obj-$(CONFIG_QCOM_SPMI_TEMP_ALARM)	+= qcom-spmi-temp-alarm.o
 obj-$(CONFIG_SPEAR_THERMAL)	+= spear_thermal.o
@@ -45,3 +48,4 @@ obj-$(CONFIG_INTEL_PCH_THERMAL)	+= intel_pch_thermal.o
 obj-$(CONFIG_ST_THERMAL)	+= st/
 obj-$(CONFIG_TEGRA_SOCTHERM)	+= tegra_soctherm.o
 obj-$(CONFIG_HISI_THERMAL)     += hisi_thermal.o
+obj-$(CONFIG_MTK_THERMAL)	+= mtk_thermal.o

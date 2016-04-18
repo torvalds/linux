@@ -72,7 +72,7 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	 */
 	peer->rto = msecs_to_jiffies(net->sctp.rto_initial);
 
-	peer->last_time_heard = ktime_get();
+	peer->last_time_heard = ktime_set(0, 0);
 	peer->last_time_ecne_reduced = jiffies;
 
 	peer->param_flags = SPP_HB_DISABLE |
@@ -132,8 +132,6 @@ fail:
  */
 void sctp_transport_free(struct sctp_transport *transport)
 {
-	transport->dead = 1;
-
 	/* Try to delete the heartbeat timer.  */
 	if (del_timer(&transport->hb_timer))
 		sctp_transport_put(transport);
@@ -169,7 +167,7 @@ static void sctp_transport_destroy_rcu(struct rcu_head *head)
  */
 static void sctp_transport_destroy(struct sctp_transport *transport)
 {
-	if (unlikely(!transport->dead)) {
+	if (unlikely(atomic_read(&transport->refcnt))) {
 		WARN(1, "Attempt to destroy undead transport %p!\n", transport);
 		return;
 	}
@@ -228,7 +226,7 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 	}
 
 	if (transport->dst) {
-		transport->pathmtu = dst_mtu(transport->dst);
+		transport->pathmtu = WORD_TRUNC(dst_mtu(transport->dst));
 	} else
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
@@ -282,7 +280,7 @@ void sctp_transport_route(struct sctp_transport *transport,
 		return;
 	}
 	if (transport->dst) {
-		transport->pathmtu = dst_mtu(transport->dst);
+		transport->pathmtu = WORD_TRUNC(dst_mtu(transport->dst));
 
 		/* Initialize sk->sk_rcv_saddr, if the transport is the
 		 * association's active path for getsockname().
@@ -296,9 +294,9 @@ void sctp_transport_route(struct sctp_transport *transport,
 }
 
 /* Hold a reference to a transport.  */
-void sctp_transport_hold(struct sctp_transport *transport)
+int sctp_transport_hold(struct sctp_transport *transport)
 {
-	atomic_inc(&transport->refcnt);
+	return atomic_add_unless(&transport->refcnt, 1, 0);
 }
 
 /* Release a reference to a transport and clean up
@@ -331,7 +329,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 		 * 1/8, rto_alpha would be expressed as 3.
 		 */
 		tp->rttvar = tp->rttvar - (tp->rttvar >> net->sctp.rto_beta)
-			+ (((__u32)abs64((__s64)tp->srtt - (__s64)rtt)) >> net->sctp.rto_beta);
+			+ (((__u32)abs((__s64)tp->srtt - (__s64)rtt)) >> net->sctp.rto_beta);
 		tp->srtt = tp->srtt - (tp->srtt >> net->sctp.rto_alpha)
 			+ (rtt >> net->sctp.rto_alpha);
 	} else {

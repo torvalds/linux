@@ -180,6 +180,7 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	struct sk_buff *skb;
 	u64 mapping[IPOIB_UD_RX_SG];
 	union ib_gid *dgid;
+	union ib_gid *sgid;
 
 	ipoib_dbg_data(priv, "recv completion: id %d, status: %d\n",
 		       wr_id, wc->status);
@@ -202,13 +203,6 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 		priv->rx_ring[wr_id].skb = NULL;
 		return;
 	}
-
-	/*
-	 * Drop packets that this interface sent, ie multicast packets
-	 * that the HCA has replicated.
-	 */
-	if (wc->slid == priv->local_lid && wc->src_qp == priv->qp->qp_num)
-		goto repost;
 
 	memcpy(mapping, priv->rx_ring[wr_id].mapping,
 	       IPOIB_UD_RX_SG * sizeof *mapping);
@@ -239,13 +233,30 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	else
 		skb->pkt_type = PACKET_MULTICAST;
 
+	sgid = &((struct ib_grh *)skb->data)->sgid;
+
+	/*
+	 * Drop packets that this interface sent, ie multicast packets
+	 * that the HCA has replicated.
+	 */
+	if (wc->slid == priv->local_lid && wc->src_qp == priv->qp->qp_num) {
+		int need_repost = 1;
+
+		if ((wc->wc_flags & IB_WC_GRH) &&
+		    sgid->global.interface_id != priv->local_gid.global.interface_id)
+			need_repost = 0;
+
+		if (need_repost) {
+			dev_kfree_skb_any(skb);
+			goto repost;
+		}
+	}
+
 	skb_pull(skb, IB_GRH_BYTES);
 
 	skb->protocol = ((struct ipoib_header *) skb->data)->proto;
 	skb_reset_mac_header(skb);
 	skb_pull(skb, IPOIB_ENCAP_LEN);
-
-	skb->truesize = SKB_TRUESIZE(skb->len);
 
 	++dev->stats.rx_packets;
 	dev->stats.rx_bytes += skb->len;
@@ -518,19 +529,19 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 
 	ipoib_build_sge(priv, tx_req);
 
-	priv->tx_wr.wr_id 	     = wr_id;
-	priv->tx_wr.wr.ud.remote_qpn = qpn;
-	priv->tx_wr.wr.ud.ah 	     = address;
+	priv->tx_wr.wr.wr_id	= wr_id;
+	priv->tx_wr.remote_qpn	= qpn;
+	priv->tx_wr.ah		= address;
 
 	if (head) {
-		priv->tx_wr.wr.ud.mss	 = skb_shinfo(skb)->gso_size;
-		priv->tx_wr.wr.ud.header = head;
-		priv->tx_wr.wr.ud.hlen	 = hlen;
-		priv->tx_wr.opcode	 = IB_WR_LSO;
+		priv->tx_wr.mss		= skb_shinfo(skb)->gso_size;
+		priv->tx_wr.header	= head;
+		priv->tx_wr.hlen	= hlen;
+		priv->tx_wr.wr.opcode	= IB_WR_LSO;
 	} else
-		priv->tx_wr.opcode	 = IB_WR_SEND;
+		priv->tx_wr.wr.opcode	= IB_WR_SEND;
 
-	return ib_post_send(priv->qp, &priv->tx_wr, &bad_wr);
+	return ib_post_send(priv->qp, &priv->tx_wr.wr, &bad_wr);
 }
 
 void ipoib_send(struct net_device *dev, struct sk_buff *skb,
@@ -540,6 +551,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	struct ipoib_tx_buf *tx_req;
 	int hlen, rc;
 	void *phead;
+	unsigned usable_sge = priv->max_send_sge - !!skb_headlen(skb);
 
 	if (skb_is_gso(skb)) {
 		hlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
@@ -563,6 +575,23 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		phead = NULL;
 		hlen  = 0;
 	}
+	if (skb_shinfo(skb)->nr_frags > usable_sge) {
+		if (skb_linearize(skb) < 0) {
+			ipoib_warn(priv, "skb could not be linearized\n");
+			++dev->stats.tx_dropped;
+			++dev->stats.tx_errors;
+			dev_kfree_skb_any(skb);
+			return;
+		}
+		/* Does skb_linearize return ok without reducing nr_frags? */
+		if (skb_shinfo(skb)->nr_frags > usable_sge) {
+			ipoib_warn(priv, "too many frags after skb linearize\n");
+			++dev->stats.tx_dropped;
+			++dev->stats.tx_errors;
+			dev_kfree_skb_any(skb);
+			return;
+		}
+	}
 
 	ipoib_dbg_data(priv, "sending packet, length=%d address=%p qpn=0x%06x\n",
 		       skb->len, address, qpn);
@@ -583,9 +612,9 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	}
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		priv->tx_wr.send_flags |= IB_SEND_IP_CSUM;
+		priv->tx_wr.wr.send_flags |= IB_SEND_IP_CSUM;
 	else
-		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
+		priv->tx_wr.wr.send_flags &= ~IB_SEND_IP_CSUM;
 
 	if (++priv->tx_outstanding == ipoib_sendq_size) {
 		ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");

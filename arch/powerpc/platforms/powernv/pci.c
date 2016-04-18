@@ -1,8 +1,6 @@
 /*
  * Support PCI/PCIe on PowerNV platforms
  *
- * Currently supports only P5IOC2
- *
  * Copyright 2011 Benjamin Herrenschmidt, IBM Corp.
  *
  * This program is free software; you can redistribute it and/or
@@ -382,10 +380,7 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 	 */
 	pe_no = pdn->pe_number;
 	if (pe_no == IODA_INVALID_PE) {
-		if (phb->type == PNV_PHB_P5IOC2)
-			pe_no = 0;
-		else
-			pe_no = phb->ioda.reserved_pe;
+		pe_no = phb->ioda.reserved_pe;
 	}
 
 	/*
@@ -601,6 +596,9 @@ int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 	u64 rpn = __pa(uaddr) >> tbl->it_page_shift;
 	long i;
 
+	if (proto_tce & TCE_PCI_WRITE)
+		proto_tce |= TCE_PCI_READ;
+
 	for (i = 0; i < npages; i++) {
 		unsigned long newtce = proto_tce |
 			((rpn + i) << tbl->it_page_shift);
@@ -621,6 +619,9 @@ int pnv_tce_xchg(struct iommu_table *tbl, long index,
 	unsigned long idx = index - tbl->it_offset;
 
 	BUG_ON(*hpa & ~IOMMU_PAGE_MASK(tbl));
+
+	if (newtce & TCE_PCI_WRITE)
+		newtce |= TCE_PCI_READ;
 
 	oldtce = xchg(pnv_tce(tbl, idx), cpu_to_be64(newtce));
 	*hpa = be64_to_cpu(oldtce) & ~(TCE_PCI_READ | TCE_PCI_WRITE);
@@ -762,6 +763,26 @@ void pnv_pci_dma_dev_setup(struct pci_dev *pdev)
 		phb->dma_dev_setup(phb, pdev);
 }
 
+void pnv_pci_dma_bus_setup(struct pci_bus *bus)
+{
+	struct pci_controller *hose = bus->sysdata;
+	struct pnv_phb *phb = hose->private_data;
+	struct pnv_ioda_pe *pe;
+
+	list_for_each_entry(pe, &phb->ioda.pe_list, list) {
+		if (!(pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)))
+			continue;
+
+		if (!pe->pbus)
+			continue;
+
+		if (bus->number == ((pe->rid >> 8) & 0xFF)) {
+			pe->pbus = bus;
+			break;
+		}
+	}
+}
+
 void pnv_pci_shutdown(void)
 {
 	struct pci_controller *hose;
@@ -781,7 +802,6 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_IBM, 0x3b9, pnv_p7ioc_rc_quirk);
 void __init pnv_pci_init(void)
 {
 	struct device_node *np;
-	bool found_ioda = false;
 
 	pci_add_flags(PCI_CAN_SKIP_ISA_ALIGN);
 
@@ -789,23 +809,18 @@ void __init pnv_pci_init(void)
 	if (!firmware_has_feature(FW_FEATURE_OPAL))
 		return;
 
-	/* Look for IODA IO-Hubs. We don't support mixing IODA
-	 * and p5ioc2 due to the need to change some global
-	 * probing flags
-	 */
+	/* Look for IODA IO-Hubs. */
 	for_each_compatible_node(np, NULL, "ibm,ioda-hub") {
 		pnv_pci_init_ioda_hub(np);
-		found_ioda = true;
 	}
-
-	/* Look for p5ioc2 IO-Hubs */
-	if (!found_ioda)
-		for_each_compatible_node(np, NULL, "ibm,p5ioc2")
-			pnv_pci_init_p5ioc2_hub(np);
 
 	/* Look for ioda2 built-in PHB3's */
 	for_each_compatible_node(np, NULL, "ibm,ioda2-phb")
 		pnv_pci_init_ioda2_phb(np);
+
+	/* Look for NPU PHBs */
+	for_each_compatible_node(np, NULL, "ibm,ioda2-npu-phb")
+		pnv_pci_init_npu_phb(np);
 
 	/* Setup the linkage between OF nodes and PHBs */
 	pci_devs_phb_init();

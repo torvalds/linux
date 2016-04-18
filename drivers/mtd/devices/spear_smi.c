@@ -810,7 +810,6 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
 				 u32 bank, struct device_node *np)
 {
 	struct spear_smi *dev = platform_get_drvdata(pdev);
-	struct mtd_part_parser_data ppdata = {};
 	struct spear_smi_flash_info *flash_info;
 	struct spear_smi_plat_data *pdata;
 	struct spear_snor_flash *flash;
@@ -855,6 +854,7 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
 		flash->mtd.name = flash_devices[flash_index].name;
 
 	flash->mtd.dev.parent = &pdev->dev;
+	mtd_set_of_node(&flash->mtd, np);
 	flash->mtd.type = MTD_NORFLASH;
 	flash->mtd.writesize = 1;
 	flash->mtd.flags = MTD_CAP_NORFLASH;
@@ -881,10 +881,8 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
 		count = flash_info->nr_partitions;
 	}
 #endif
-	ppdata.of_node = np;
 
-	ret = mtd_device_parse_register(&flash->mtd, NULL, &ppdata, parts,
-					count);
+	ret = mtd_device_register(&flash->mtd, parts, count);
 	if (ret) {
 		dev_err(&dev->pdev->dev, "Err MTD partition=%d\n", ret);
 		return ret;

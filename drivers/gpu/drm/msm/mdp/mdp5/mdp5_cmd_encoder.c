@@ -188,13 +188,6 @@ static const struct drm_encoder_funcs mdp5_cmd_encoder_funcs = {
 	.destroy = mdp5_cmd_encoder_destroy,
 };
 
-static bool mdp5_cmd_encoder_mode_fixup(struct drm_encoder *encoder,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
@@ -256,7 +249,6 @@ static void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs mdp5_cmd_encoder_helper_funcs = {
-	.mode_fixup = mdp5_cmd_encoder_mode_fixup,
 	.mode_set = mdp5_cmd_encoder_mode_set,
 	.disable = mdp5_cmd_encoder_disable,
 	.enable = mdp5_cmd_encoder_enable,
@@ -326,7 +318,7 @@ struct drm_encoder *mdp5_cmd_encoder_init(struct drm_device *dev,
 	mdp5_cmd_enc->ctl = ctl;
 
 	drm_encoder_init(dev, encoder, &mdp5_cmd_encoder_funcs,
-			DRM_MODE_ENCODER_DSI);
+			DRM_MODE_ENCODER_DSI, NULL);
 
 	drm_encoder_helper_add(encoder, &mdp5_cmd_encoder_helper_funcs);
 
@@ -340,4 +332,3 @@ fail:
 
 	return ERR_PTR(ret);
 }
-

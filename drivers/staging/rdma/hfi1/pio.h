@@ -1,13 +1,12 @@
 #ifndef _PIO_H
 #define _PIO_H
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,8 +18,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,7 +46,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-
 
 /* send context types */
 #define SC_KERNEL 0
@@ -106,6 +102,7 @@ struct send_context {
 	struct hfi1_devdata *dd;		/* device */
 	void __iomem *base_addr;	/* start of PIO memory */
 	union pio_shadow_ring *sr;	/* shadow ring */
+
 	volatile __le64 *hw_free;	/* HW free counter */
 	struct work_struct halt_work;	/* halted context work queue entry */
 	unsigned long flags;		/* flags */
@@ -130,7 +127,7 @@ struct send_context {
 	spinlock_t credit_ctrl_lock ____cacheline_aligned_in_smp;
 	u64 credit_ctrl;		/* cache for credit control */
 	u32 credit_intr_count;		/* count of credit intr users */
-	atomic_t buffers_allocated;	/* count of buffers allocated */
+	u32 __percpu *buffers_allocated;/* count of buffers allocated */
 	wait_queue_head_t halt_wait;    /* wait until kernel sees interrupt */
 };
 
@@ -165,6 +162,112 @@ struct sc_config_sizes {
 	short int count;
 };
 
+/*
+ * The diagram below details the relationship of the mapping structures
+ *
+ * Since the mapping now allows for non-uniform send contexts per vl, the
+ * number of send contexts for a vl is either the vl_scontexts[vl] or
+ * a computation based on num_kernel_send_contexts/num_vls:
+ *
+ * For example:
+ * nactual = vl_scontexts ? vl_scontexts[vl] : num_kernel_send_contexts/num_vls
+ *
+ * n = roundup to next highest power of 2 using nactual
+ *
+ * In the case where there are num_kernel_send_contexts/num_vls doesn't divide
+ * evenly, the extras are added from the last vl downward.
+ *
+ * For the case where n > nactual, the send contexts are assigned
+ * in a round robin fashion wrapping back to the first send context
+ * for a particular vl.
+ *
+ *               dd->pio_map
+ *                    |                                   pio_map_elem[0]
+ *                    |                                +--------------------+
+ *                    v                                |       mask         |
+ *               pio_vl_map                            |--------------------|
+ *      +--------------------------+                   | ksc[0] -> sc 1     |
+ *      |    list (RCU)            |                   |--------------------|
+ *      |--------------------------|                 ->| ksc[1] -> sc 2     |
+ *      |    mask                  |              --/  |--------------------|
+ *      |--------------------------|            -/     |        *           |
+ *      |    actual_vls (max 8)    |          -/       |--------------------|
+ *      |--------------------------|       --/         | ksc[n] -> sc n     |
+ *      |    vls (max 8)           |     -/            +--------------------+
+ *      |--------------------------|  --/
+ *      |    map[0]                |-/
+ *      |--------------------------|                   +--------------------+
+ *      |    map[1]                |---                |       mask         |
+ *      |--------------------------|   \----           |--------------------|
+ *      |           *              |        \--        | ksc[0] -> sc 1+n   |
+ *      |           *              |           \----   |--------------------|
+ *      |           *              |                \->| ksc[1] -> sc 2+n   |
+ *      |--------------------------|                   |--------------------|
+ *      |   map[vls - 1]           |-                  |         *          |
+ *      +--------------------------+ \-                |--------------------|
+ *                                     \-              | ksc[m] -> sc m+n   |
+ *                                       \             +--------------------+
+ *                                        \-
+ *                                          \
+ *                                           \-        +--------------------+
+ *                                             \-      |       mask         |
+ *                                               \     |--------------------|
+ *                                                \-   | ksc[0] -> sc 1+m+n |
+ *                                                  \- |--------------------|
+ *                                                    >| ksc[1] -> sc 2+m+n |
+ *                                                     |--------------------|
+ *                                                     |         *          |
+ *                                                     |--------------------|
+ *                                                     | ksc[o] -> sc o+m+n |
+ *                                                     +--------------------+
+ *
+ */
+
+/* Initial number of send contexts per VL */
+#define INIT_SC_PER_VL 2
+
+/*
+ * struct pio_map_elem - mapping for a vl
+ * @mask - selector mask
+ * @ksc - array of kernel send contexts for this vl
+ *
+ * The mask is used to "mod" the selector to
+ * produce index into the trailing array of
+ * kscs
+ */
+struct pio_map_elem {
+	u32 mask;
+	struct send_context *ksc[0];
+};
+
+/*
+ * struct pio_vl_map - mapping for a vl
+ * @list - rcu head for free callback
+ * @mask - vl mask to "mod" the vl to produce an index to map array
+ * @actual_vls - number of vls
+ * @vls - numbers of vls rounded to next power of 2
+ * @map - array of pio_map_elem entries
+ *
+ * This is the parent mapping structure. The trailing members of the
+ * struct point to pio_map_elem entries, which in turn point to an
+ * array of kscs for that vl.
+ */
+struct pio_vl_map {
+	struct rcu_head list;
+	u32 mask;
+	u8 actual_vls;
+	u8 vls;
+	struct pio_map_elem *map[0];
+};
+
+int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls,
+		 u8 *vl_scontexts);
+void free_pio_map(struct hfi1_devdata *dd);
+struct send_context *pio_select_send_context_vl(struct hfi1_devdata *dd,
+						u32 selector, u8 vl);
+struct send_context *pio_select_send_context_sc(struct hfi1_devdata *dd,
+						u32 selector, u8 sc5);
+
 /* send context functions */
 int init_credit_return(struct hfi1_devdata *dd);
 void free_credit_return(struct hfi1_devdata *dd);
@@ -183,7 +286,7 @@ void sc_flush(struct send_context *sc);
 void sc_drop(struct send_context *sc);
 void sc_stop(struct send_context *sc, int bit);
 struct pio_buf *sc_buffer_alloc(struct send_context *sc, u32 dw_len,
-			pio_release_cb cb, void *arg);
+				pio_release_cb cb, void *arg);
 void sc_release_update(struct send_context *sc);
 void sc_return_credits(struct send_context *sc);
 void sc_group_release_update(struct hfi1_devdata *dd, u32 hw_context);
@@ -212,12 +315,11 @@ void pio_kernel_unfreeze(struct hfi1_devdata *dd);
 void __cm_reset(struct hfi1_devdata *dd, u64 sendctrl);
 void pio_send_control(struct hfi1_devdata *dd, int op);
 
-
 /* PIO copy routines */
 void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 	      const void *from, size_t count);
 void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
-					const void *from, size_t nbytes);
+			const void *from, size_t nbytes);
 void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes);
 void seg_pio_copy_end(struct pio_buf *pbuf);
 

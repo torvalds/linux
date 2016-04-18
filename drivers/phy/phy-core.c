@@ -275,20 +275,21 @@ EXPORT_SYMBOL_GPL(phy_exit);
 
 int phy_power_on(struct phy *phy)
 {
-	int ret;
+	int ret = 0;
 
 	if (!phy)
-		return 0;
+		goto out;
 
 	if (phy->pwr) {
 		ret = regulator_enable(phy->pwr);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
-		return ret;
+		goto err_pm_sync;
+
 	ret = 0; /* Override possible ret == -ENOTSUPP */
 
 	mutex_lock(&phy->mutex);
@@ -296,19 +297,20 @@ int phy_power_on(struct phy *phy)
 		ret = phy->ops->power_on(phy);
 		if (ret < 0) {
 			dev_err(&phy->dev, "phy poweron failed --> %d\n", ret);
-			goto out;
+			goto err_pwr_on;
 		}
 	}
 	++phy->power_count;
 	mutex_unlock(&phy->mutex);
 	return 0;
 
-out:
+err_pwr_on:
 	mutex_unlock(&phy->mutex);
 	phy_pm_runtime_put_sync(phy);
+err_pm_sync:
 	if (phy->pwr)
 		regulator_disable(phy->pwr);
-
+out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_power_on);
@@ -636,8 +638,9 @@ EXPORT_SYMBOL_GPL(devm_of_phy_get);
  * @np: node containing the phy
  * @index: index of the phy
  *
- * Gets the phy using _of_phy_get(), and associates a device with it using
- * devres. On driver detach, release function is invoked on the devres data,
+ * Gets the phy using _of_phy_get(), then gets a refcount to it,
+ * and associates a device with it using devres. On driver detach,
+ * release function is invoked on the devres data,
  * then, devres data is freed.
  *
  */
@@ -651,12 +654,20 @@ struct phy *devm_of_phy_get_by_index(struct device *dev, struct device_node *np,
 		return ERR_PTR(-ENOMEM);
 
 	phy = _of_phy_get(np, index);
-	if (!IS_ERR(phy)) {
-		*ptr = phy;
-		devres_add(dev, ptr);
-	} else {
+	if (IS_ERR(phy)) {
 		devres_free(ptr);
+		return phy;
 	}
+
+	if (!try_module_get(phy->ops->owner)) {
+		devres_free(ptr);
+		return ERR_PTR(-EPROBE_DEFER);
+	}
+
+	get_device(&phy->dev);
+
+	*ptr = phy;
+	devres_add(dev, ptr);
 
 	return phy;
 }

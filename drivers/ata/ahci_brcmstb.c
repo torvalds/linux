@@ -52,8 +52,10 @@
   #define SATA_TOP_CTRL_2_PHY_GLOBAL_RESET		BIT(14)
  #define SATA_TOP_CTRL_PHY_OFFS				0x8
  #define SATA_TOP_MAX_PHYS				2
-#define SATA_TOP_CTRL_SATA_TP_OUT			0x1c
-#define SATA_TOP_CTRL_CLIENT_INIT_CTRL			0x20
+
+#define SATA_FIRST_PORT_CTRL				0x700
+#define SATA_NEXT_PORT_CTRL_OFFSET			0x80
+#define SATA_PORT_PCTRL6(reg_base)			(reg_base + 0x18)
 
 /* On big-endian MIPS, buses are reversed to big endian, so switch them back */
 #if defined(CONFIG_MIPS) && defined(__BIG_ENDIAN)
@@ -69,14 +71,21 @@
 	(DATA_ENDIAN << DMADESC_ENDIAN_SHIFT) |		\
 	(MMIO_ENDIAN << MMIO_ENDIAN_SHIFT))
 
+enum brcm_ahci_quirks {
+	BRCM_AHCI_QUIRK_NO_NCQ		= BIT(0),
+	BRCM_AHCI_QUIRK_SKIP_PHY_ENABLE	= BIT(1),
+};
+
 struct brcm_ahci_priv {
 	struct device *dev;
 	void __iomem *top_ctrl;
 	u32 port_mask;
+	u32 quirks;
 };
 
 static const struct ata_port_info ahci_brcm_port_info = {
-	.flags		= AHCI_FLAG_COMMON,
+	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_NO_DIPM,
+	.link_flags	= ATA_LFLAG_NO_DB_DELAY,
 	.pio_mask	= ATA_PIO4,
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &ahci_platform_ops,
@@ -107,12 +116,43 @@ static inline void brcm_sata_writereg(u32 val, void __iomem *addr)
 		writel_relaxed(val, addr);
 }
 
+static void brcm_sata_alpm_init(struct ahci_host_priv *hpriv)
+{
+	struct brcm_ahci_priv *priv = hpriv->plat_data;
+	u32 bus_ctrl, port_ctrl, host_caps;
+	int i;
+
+	/* Enable support for ALPM */
+	bus_ctrl = brcm_sata_readreg(priv->top_ctrl +
+				     SATA_TOP_CTRL_BUS_CTRL);
+	brcm_sata_writereg(bus_ctrl | OVERRIDE_HWINIT,
+			   priv->top_ctrl + SATA_TOP_CTRL_BUS_CTRL);
+	host_caps = readl(hpriv->mmio + HOST_CAP);
+	writel(host_caps | HOST_CAP_ALPM, hpriv->mmio);
+	brcm_sata_writereg(bus_ctrl, priv->top_ctrl + SATA_TOP_CTRL_BUS_CTRL);
+
+	/*
+	 * Adjust timeout to allow PLL sufficient time to lock while waking
+	 * up from slumber mode.
+	 */
+	for (i = 0, port_ctrl = SATA_FIRST_PORT_CTRL;
+	     i < SATA_TOP_MAX_PHYS;
+	     i++, port_ctrl += SATA_NEXT_PORT_CTRL_OFFSET) {
+		if (priv->port_mask & BIT(i))
+			writel(0xff1003fc,
+			       hpriv->mmio + SATA_PORT_PCTRL6(port_ctrl));
+	}
+}
+
 static void brcm_sata_phy_enable(struct brcm_ahci_priv *priv, int port)
 {
 	void __iomem *phyctrl = priv->top_ctrl + SATA_TOP_CTRL_PHY_CTRL +
 				(port * SATA_TOP_CTRL_PHY_OFFS);
 	void __iomem *p;
 	u32 reg;
+
+	if (priv->quirks & BRCM_AHCI_QUIRK_SKIP_PHY_ENABLE)
+		return;
 
 	/* clear PHY_DEFAULT_POWER_STATE */
 	p = phyctrl + SATA_TOP_CTRL_PHY_CTRL_1;
@@ -142,6 +182,9 @@ static void brcm_sata_phy_disable(struct brcm_ahci_priv *priv, int port)
 				(port * SATA_TOP_CTRL_PHY_OFFS);
 	void __iomem *p;
 	u32 reg;
+
+	if (priv->quirks & BRCM_AHCI_QUIRK_SKIP_PHY_ENABLE)
+		return;
 
 	/* power-off the PHY digital logic */
 	p = phyctrl + SATA_TOP_CTRL_PHY_CTRL_2;
@@ -230,6 +273,7 @@ static int brcm_ahci_resume(struct device *dev)
 
 	brcm_sata_init(priv);
 	brcm_sata_phys_enable(priv);
+	brcm_sata_alpm_init(hpriv);
 	return ahci_platform_resume(dev);
 }
 #endif
@@ -256,6 +300,11 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->top_ctrl))
 		return PTR_ERR(priv->top_ctrl);
 
+	if (of_device_is_compatible(dev->of_node, "brcm,bcm7425-ahci")) {
+		priv->quirks |= BRCM_AHCI_QUIRK_NO_NCQ;
+		priv->quirks |= BRCM_AHCI_QUIRK_SKIP_PHY_ENABLE;
+	}
+
 	brcm_sata_init(priv);
 
 	priv->port_mask = brcm_ahci_get_portmask(pdev, priv);
@@ -268,10 +317,16 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 	hpriv->plat_data = priv;
+	hpriv->flags = AHCI_HFLAG_WAKE_BEFORE_STOP;
+
+	brcm_sata_alpm_init(hpriv);
 
 	ret = ahci_platform_enable_resources(hpriv);
 	if (ret)
 		return ret;
+
+	if (priv->quirks & BRCM_AHCI_QUIRK_NO_NCQ)
+		hpriv->flags |= AHCI_HFLAG_NO_NCQ;
 
 	ret = ahci_platform_init_host(pdev, hpriv, &ahci_brcm_port_info,
 				      &ahci_platform_sht);
@@ -300,6 +355,7 @@ static int brcm_ahci_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id ahci_of_match[] = {
+	{.compatible = "brcm,bcm7425-ahci"},
 	{.compatible = "brcm,bcm7445-ahci"},
 	{},
 };

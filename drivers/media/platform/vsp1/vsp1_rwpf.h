@@ -19,19 +19,39 @@
 
 #include "vsp1.h"
 #include "vsp1_entity.h"
-#include "vsp1_video.h"
 
 #define RWPF_PAD_SINK				0
 #define RWPF_PAD_SOURCE				1
 
+struct v4l2_ctrl;
+struct vsp1_rwpf;
+struct vsp1_video;
+
+struct vsp1_rwpf_memory {
+	unsigned int num_planes;
+	dma_addr_t addr[3];
+	unsigned int length[3];
+};
+
+struct vsp1_rwpf_operations {
+	void (*set_memory)(struct vsp1_rwpf *rwpf,
+			   struct vsp1_rwpf_memory *mem);
+};
+
 struct vsp1_rwpf {
 	struct vsp1_entity entity;
-	struct vsp1_video video;
 	struct v4l2_ctrl_handler ctrls;
+	struct v4l2_ctrl *alpha;
+
+	struct vsp1_video *video;
+
+	const struct vsp1_rwpf_operations *ops;
 
 	unsigned int max_width;
 	unsigned int max_height;
 
+	struct v4l2_pix_format_mplane format;
+	const struct vsp1_format_info *fmtinfo;
 	struct {
 		unsigned int left;
 		unsigned int top;

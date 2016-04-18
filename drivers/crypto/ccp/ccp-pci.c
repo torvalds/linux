@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *
@@ -44,7 +44,7 @@ static int ccp_get_msix_irqs(struct ccp_device *ccp)
 {
 	struct ccp_pci *ccp_pci = ccp->dev_specific;
 	struct device *dev = ccp->dev;
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct msix_entry msix_entry[MSIX_VECTORS];
 	unsigned int name_len = sizeof(ccp_pci->msix[0].name) - 1;
 	int v, ret;
@@ -59,9 +59,11 @@ static int ccp_get_msix_irqs(struct ccp_device *ccp)
 	ccp_pci->msix_count = ret;
 	for (v = 0; v < ccp_pci->msix_count; v++) {
 		/* Set the interrupt names and request the irqs */
-		snprintf(ccp_pci->msix[v].name, name_len, "ccp-%u", v);
+		snprintf(ccp_pci->msix[v].name, name_len, "%s-%u",
+			 ccp->name, v);
 		ccp_pci->msix[v].vector = msix_entry[v].vector;
-		ret = request_irq(ccp_pci->msix[v].vector, ccp_irq_handler,
+		ret = request_irq(ccp_pci->msix[v].vector,
+				  ccp->vdata->perform->irqhandler,
 				  0, ccp_pci->msix[v].name, dev);
 		if (ret) {
 			dev_notice(dev, "unable to allocate MSI-X IRQ (%d)\n",
@@ -86,7 +88,7 @@ e_irq:
 static int ccp_get_msi_irq(struct ccp_device *ccp)
 {
 	struct device *dev = ccp->dev;
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret;
 
 	ret = pci_enable_msi(pdev);
@@ -94,7 +96,8 @@ static int ccp_get_msi_irq(struct ccp_device *ccp)
 		return ret;
 
 	ccp->irq = pdev->irq;
-	ret = request_irq(ccp->irq, ccp_irq_handler, 0, "ccp", dev);
+	ret = request_irq(ccp->irq, ccp->vdata->perform->irqhandler, 0,
+			  ccp->name, dev);
 	if (ret) {
 		dev_notice(dev, "unable to allocate MSI IRQ (%d)\n", ret);
 		goto e_msi;
@@ -133,7 +136,7 @@ static void ccp_free_irqs(struct ccp_device *ccp)
 {
 	struct ccp_pci *ccp_pci = ccp->dev_specific;
 	struct device *dev = ccp->dev;
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 
 	if (ccp_pci->msix_count) {
 		while (ccp_pci->msix_count--)
@@ -149,7 +152,7 @@ static void ccp_free_irqs(struct ccp_device *ccp)
 static int ccp_find_mmio_area(struct ccp_device *ccp)
 {
 	struct device *dev = ccp->dev;
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	resource_size_t io_len;
 	unsigned long io_flags;
 
@@ -179,6 +182,12 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto e_err;
 
 	ccp->dev_specific = ccp_pci;
+	ccp->vdata = (struct ccp_vdata *)id->driver_data;
+	if (!ccp->vdata || !ccp->vdata->version) {
+		ret = -ENODEV;
+		dev_err(dev, "missing driver data\n");
+		goto e_err;
+	}
 	ccp->get_irq = ccp_get_irqs;
 	ccp->free_irq = ccp_free_irqs;
 
@@ -221,7 +230,7 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev_set_drvdata(dev, ccp);
 
-	ret = ccp_init(ccp);
+	ret = ccp->vdata->perform->init(ccp);
 	if (ret)
 		goto e_iomap;
 
@@ -251,7 +260,7 @@ static void ccp_pci_remove(struct pci_dev *pdev)
 	if (!ccp)
 		return;
 
-	ccp_destroy(ccp);
+	ccp->vdata->perform->destroy(ccp);
 
 	pci_iounmap(pdev, ccp->io_map);
 
@@ -312,7 +321,7 @@ static int ccp_pci_resume(struct pci_dev *pdev)
 #endif
 
 static const struct pci_device_id ccp_pci_table[] = {
-	{ PCI_VDEVICE(AMD, 0x1537), },
+	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&ccpv3 },
 	/* Last entry must be zero */
 	{ 0, }
 };

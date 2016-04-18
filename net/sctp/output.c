@@ -153,7 +153,7 @@ void sctp_packet_free(struct sctp_packet *packet)
  */
 sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 				       struct sctp_chunk *chunk,
-				       int one_packet)
+				       int one_packet, gfp_t gfp)
 {
 	sctp_xmit_t retval;
 	int error = 0;
@@ -163,7 +163,7 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 	switch ((retval = (sctp_packet_append_chunk(packet, chunk)))) {
 	case SCTP_XMIT_PMTU_FULL:
 		if (!packet->has_cookie_echo) {
-			error = sctp_packet_transmit(packet);
+			error = sctp_packet_transmit(packet, gfp);
 			if (error < 0)
 				chunk->skb->sk->sk_err = -error;
 
@@ -376,7 +376,7 @@ static void sctp_packet_set_owner_w(struct sk_buff *skb, struct sock *sk)
  *
  * The return value is a normal kernel error return value.
  */
-int sctp_packet_transmit(struct sctp_packet *packet)
+int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 {
 	struct sctp_transport *tp = packet->transport;
 	struct sctp_association *asoc = tp->asoc;
@@ -401,7 +401,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	sk = chunk->skb->sk;
 
 	/* Allocate the new skb.  */
-	nskb = alloc_skb(packet->size + MAX_HEADER, GFP_ATOMIC);
+	nskb = alloc_skb(packet->size + MAX_HEADER, gfp);
 	if (!nskb)
 		goto nomem;
 
@@ -523,8 +523,8 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 */
 	if (auth)
 		sctp_auth_calculate_hmac(asoc, nskb,
-					(struct sctp_auth_chunk *)auth,
-					GFP_ATOMIC);
+					 (struct sctp_auth_chunk *)auth,
+					 gfp);
 
 	/* 2) Calculate the Adler-32 checksum of the whole packet,
 	 *    including the SCTP common header and all the
@@ -534,7 +534,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 * by CRC32-C as described in <draft-ietf-tsvwg-sctpcsum-02.txt>.
 	 */
 	if (!sctp_checksum_disable) {
-		if (!(dst->dev->features & NETIF_F_SCTP_CSUM) ||
+		if (!(dst->dev->features & NETIF_F_SCTP_CRC) ||
 		    (dst_xfrm(dst) != NULL) || packet->ipfragok) {
 			sh->checksum = sctp_compute_cksum(nskb, 0);
 		} else {
@@ -705,7 +705,8 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 	/* Check whether this chunk and all the rest of pending data will fit
 	 * or delay in hopes of bundling a full sized packet.
 	 */
-	if (chunk->skb->len + q->out_qlen >= transport->pathmtu - packet->overhead)
+	if (chunk->skb->len + q->out_qlen >
+		transport->pathmtu - packet->overhead - sizeof(sctp_data_chunk_t) - 4)
 		/* Enough data queued to fill a packet */
 		return SCTP_XMIT_OK;
 

@@ -339,11 +339,11 @@ int fuse_reverse_inval_inode(struct super_block *sb, u64 nodeid,
 
 	fuse_invalidate_attr(inode);
 	if (offset >= 0) {
-		pg_start = offset >> PAGE_CACHE_SHIFT;
+		pg_start = offset >> PAGE_SHIFT;
 		if (len <= 0)
 			pg_end = -1;
 		else
-			pg_end = (offset + len - 1) >> PAGE_CACHE_SHIFT;
+			pg_end = (offset + len - 1) >> PAGE_SHIFT;
 		invalidate_inode_pages2_range(inode->i_mapping,
 					      pg_start, pg_end);
 	}
@@ -864,7 +864,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		process_init_limits(fc, arg);
 
 		if (arg->minor >= 6) {
-			ra_pages = arg->max_readahead / PAGE_CACHE_SIZE;
+			ra_pages = arg->max_readahead / PAGE_SIZE;
 			if (arg->flags & FUSE_ASYNC_READ)
 				fc->async_read = 1;
 			if (!(arg->flags & FUSE_POSIX_LOCKS))
@@ -901,7 +901,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 			if (arg->time_gran && arg->time_gran <= 1000000000)
 				fc->sb->s_time_gran = arg->time_gran;
 		} else {
-			ra_pages = fc->max_read / PAGE_CACHE_SIZE;
+			ra_pages = fc->max_read / PAGE_SIZE;
 			fc->no_lock = 1;
 			fc->no_flock = 1;
 		}
@@ -922,7 +922,7 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 
 	arg->major = FUSE_KERNEL_VERSION;
 	arg->minor = FUSE_KERNEL_MINOR_VERSION;
-	arg->max_readahead = fc->bdi.ra_pages * PAGE_CACHE_SIZE;
+	arg->max_readahead = fc->bdi.ra_pages * PAGE_SIZE;
 	arg->flags |= FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_ATOMIC_O_TRUNC |
 		FUSE_EXPORT_SUPPORT | FUSE_BIG_WRITES | FUSE_DONT_MASK |
 		FUSE_SPLICE_WRITE | FUSE_SPLICE_MOVE | FUSE_SPLICE_READ |
@@ -955,7 +955,7 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 	int err;
 
 	fc->bdi.name = "fuse";
-	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
+	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_SIZE;
 	/* fuse does it's own writeback accounting */
 	fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB | BDI_CAP_STRICTLIMIT;
 
@@ -1053,8 +1053,8 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 			goto err;
 #endif
 	} else {
-		sb->s_blocksize = PAGE_CACHE_SIZE;
-		sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+		sb->s_blocksize = PAGE_SIZE;
+		sb->s_blocksize_bits = PAGE_SHIFT;
 	}
 	sb->s_magic = FUSE_SUPER_MAGIC;
 	sb->s_op = &fuse_super_operations;
@@ -1255,8 +1255,8 @@ static int __init fuse_fs_init(void)
 	int err;
 
 	fuse_inode_cachep = kmem_cache_create("fuse_inode",
-					      sizeof(struct fuse_inode),
-					      0, SLAB_HWCACHE_ALIGN,
+					      sizeof(struct fuse_inode), 0,
+					      SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
 					      fuse_inode_init_once);
 	err = -ENOMEM;
 	if (!fuse_inode_cachep)

@@ -275,6 +275,7 @@ static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long si
  */
 #define ioremap_cachable(offset, size)					\
 	__ioremap_mode((offset), (size), _page_cachable_default)
+#define ioremap_cache ioremap_cachable
 
 /*
  * These two are MIPS specific ioremap variant.	 ioremap_cacheable_cow

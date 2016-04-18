@@ -25,6 +25,12 @@
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/qed_chain.h>
 
+enum qed_led_mode {
+	QED_LED_MODE_OFF,
+	QED_LED_MODE_ON,
+	QED_LED_MODE_RESTORE
+};
+
 #define DIRECT_REG_WR(reg_addr, val) writel((u32)val, \
 					    (void __iomem *)(reg_addr))
 
@@ -74,7 +80,7 @@ struct qed_dev_info {
 	u8		num_hwfns;
 
 	u8		hw_mac[ETH_ALEN];
-	bool		is_mf;
+	bool		is_mf_default;
 
 	/* FW version */
 	u16		fw_major;
@@ -252,6 +258,17 @@ struct qed_common_ops {
 
 	void		(*chain_free)(struct qed_dev *cdev,
 				      struct qed_chain *p_chain);
+
+/**
+ * @brief set_led - Configure LED mode
+ *
+ * @param cdev
+ * @param mode - LED mode
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*set_led)(struct qed_dev *cdev,
+		       enum qed_led_mode mode);
 };
 
 /**
@@ -343,6 +360,12 @@ enum DP_MODULE {
 	/* to be added...up to 0x8000000 */
 };
 
+enum qed_mf_mode {
+	QED_MF_DEFAULT,
+	QED_MF_OVLAN,
+	QED_MF_NPAR,
+};
+
 struct qed_eth_stats {
 	u64	no_buff_discards;
 	u64	packet_too_big_discard;
@@ -422,6 +445,12 @@ struct qed_eth_stats {
 
 #define RX_PI           0
 #define TX_PI(tc)       (RX_PI + 1 + tc)
+
+struct qed_sb_cnt_info {
+	int	sb_cnt;
+	int	sb_iov_cnt;
+	int	sb_free_blk;
+};
 
 static inline u16 qed_sb_update_sb_idx(struct qed_sb_info *sb_info)
 {

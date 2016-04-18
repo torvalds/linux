@@ -977,13 +977,29 @@ EXPORT_SYMBOL(add_timer);
  */
 void add_timer_on(struct timer_list *timer, int cpu)
 {
-	struct tvec_base *base = per_cpu_ptr(&tvec_bases, cpu);
+	struct tvec_base *new_base = per_cpu_ptr(&tvec_bases, cpu);
+	struct tvec_base *base;
 	unsigned long flags;
 
 	timer_stats_timer_set_start_info(timer);
 	BUG_ON(timer_pending(timer) || !timer->function);
-	spin_lock_irqsave(&base->lock, flags);
-	timer->flags = (timer->flags & ~TIMER_BASEMASK) | cpu;
+
+	/*
+	 * If @timer was on a different CPU, it should be migrated with the
+	 * old base locked to prevent other operations proceeding with the
+	 * wrong base locked.  See lock_timer_base().
+	 */
+	base = lock_timer_base(timer, &flags);
+	if (base != new_base) {
+		timer->flags |= TIMER_MIGRATING;
+
+		spin_unlock(&base->lock);
+		base = new_base;
+		spin_lock(&base->lock);
+		WRITE_ONCE(timer->flags,
+			   (timer->flags & ~TIMER_BASEMASK) | cpu);
+	}
+
 	debug_activate(timer, timer->expires);
 	internal_add_timer(base, timer);
 	spin_unlock_irqrestore(&base->lock, flags);
@@ -1550,6 +1566,17 @@ signed long __sched schedule_timeout_uninterruptible(signed long timeout)
 }
 EXPORT_SYMBOL(schedule_timeout_uninterruptible);
 
+/*
+ * Like schedule_timeout_uninterruptible(), except this task will not contribute
+ * to load average.
+ */
+signed long __sched schedule_timeout_idle(signed long timeout)
+{
+	__set_current_state(TASK_IDLE);
+	return schedule_timeout(timeout);
+}
+EXPORT_SYMBOL(schedule_timeout_idle);
+
 #ifdef CONFIG_HOTPLUG_CPU
 static void migrate_timer_list(struct tvec_base *new_base, struct hlist_head *head)
 {
@@ -1682,10 +1709,10 @@ EXPORT_SYMBOL(msleep_interruptible);
 static void __sched do_usleep_range(unsigned long min, unsigned long max)
 {
 	ktime_t kmin;
-	unsigned long delta;
+	u64 delta;
 
 	kmin = ktime_set(0, min * NSEC_PER_USEC);
-	delta = (max - min) * NSEC_PER_USEC;
+	delta = (u64)(max - min) * NSEC_PER_USEC;
 	schedule_hrtimeout_range(&kmin, delta, HRTIMER_MODE_REL);
 }
 

@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,20 +44,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <linux/pci.h>
 #include <linux/poll.h>
 #include <linux/cdev.h>
-#include <linux/swap.h>
 #include <linux/vmalloc.h>
-#include <linux/highmem.h>
 #include <linux/io.h>
-#include <linux/jiffies.h>
-#include <asm/pgtable.h>
-#include <linux/delay.h>
-#include <linux/export.h>
-#include <linux/module.h>
-#include <linux/cred.h>
-#include <linux/uio.h>
 
 #include "hfi.h"
 #include "pio.h"
@@ -68,7 +55,10 @@
 #include "common.h"
 #include "trace.h"
 #include "user_sdma.h"
+#include "user_exp_rcv.h"
 #include "eprom.h"
+#include "aspm.h"
+#include "mmu_rb.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -105,9 +95,6 @@ static int user_event_ack(struct hfi1_ctxtdata *, int, unsigned long);
 static int set_ctxt_pkey(struct hfi1_ctxtdata *, unsigned, u16);
 static int manage_rcvq(struct hfi1_ctxtdata *, unsigned, int);
 static int vma_fault(struct vm_area_struct *, struct vm_fault *);
-static int exp_tid_setup(struct file *, struct hfi1_tid_info *);
-static int exp_tid_free(struct file *, struct hfi1_tid_info *);
-static void unlock_exp_tids(struct hfi1_ctxtdata *);
 
 static const struct file_operations hfi1_file_ops = {
 	.owner = THIS_MODULE,
@@ -170,21 +157,8 @@ enum mmap_types {
 	HFI1_MMAP_TOKEN_SET(SUBCTXT, subctxt) | \
 	HFI1_MMAP_TOKEN_SET(OFFSET, (offset_in_page(addr))))
 
-#define EXP_TID_SET(field, value)			\
-	(((value) & EXP_TID_TID##field##_MASK) <<	\
-	 EXP_TID_TID##field##_SHIFT)
-#define EXP_TID_CLEAR(tid, field) {					\
-		(tid) &= ~(EXP_TID_TID##field##_MASK <<			\
-			   EXP_TID_TID##field##_SHIFT);			\
-			}
-#define EXP_TID_RESET(tid, field, value) do {				\
-		EXP_TID_CLEAR(tid, field);				\
-		(tid) |= EXP_TID_SET(field, value);			\
-	} while (0)
-
 #define dbg(fmt, ...)				\
 	pr_info(fmt, ##__VA_ARGS__)
-
 
 static inline int is_valid_mmap(u64 token)
 {
@@ -204,10 +178,12 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 			       size_t count, loff_t *offset)
 {
 	const struct hfi1_cmd __user *ucmd;
-	struct hfi1_ctxtdata *uctxt = ctxt_fp(fp);
+	struct hfi1_filedata *fd = fp->private_data;
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_cmd cmd;
 	struct hfi1_user_info uinfo;
 	struct hfi1_tid_info tinfo;
+	unsigned long addr;
 	ssize_t consumed = 0, copy = 0, ret = 0;
 	void *dest = NULL;
 	__u64 user_val = 0;
@@ -239,6 +215,7 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 		break;
 	case HFI1_CMD_TID_UPDATE:
 	case HFI1_CMD_TID_FREE:
+	case HFI1_CMD_TID_INVAL_READ:
 		copy = sizeof(tinfo);
 		dest = &tinfo;
 		break;
@@ -254,12 +231,9 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 		break;
 	case HFI1_CMD_EP_INFO:
 	case HFI1_CMD_EP_ERASE_CHIP:
-	case HFI1_CMD_EP_ERASE_P0:
-	case HFI1_CMD_EP_ERASE_P1:
-	case HFI1_CMD_EP_READ_P0:
-	case HFI1_CMD_EP_READ_P1:
-	case HFI1_CMD_EP_WRITE_P0:
-	case HFI1_CMD_EP_WRITE_P1:
+	case HFI1_CMD_EP_ERASE_RANGE:
+	case HFI1_CMD_EP_READ_RANGE:
+	case HFI1_CMD_EP_WRITE_RANGE:
 		uctxt_required = 0;	/* assigned user context not required */
 		must_be_root = 1;	/* validate user */
 		copy = 0;
@@ -317,9 +291,8 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 			sc_return_credits(uctxt->sc);
 		break;
 	case HFI1_CMD_TID_UPDATE:
-		ret = exp_tid_setup(fp, &tinfo);
+		ret = hfi1_user_exp_rcv_setup(fp, &tinfo);
 		if (!ret) {
-			unsigned long addr;
 			/*
 			 * Copy the number of tidlist entries we used
 			 * and the length of the buffer we registered.
@@ -334,21 +307,38 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 				ret = -EFAULT;
 		}
 		break;
+	case HFI1_CMD_TID_INVAL_READ:
+		ret = hfi1_user_exp_rcv_invalid(fp, &tinfo);
+		if (ret)
+			break;
+		addr = (unsigned long)cmd.addr +
+			offsetof(struct hfi1_tid_info, tidcnt);
+		if (copy_to_user((void __user *)addr, &tinfo.tidcnt,
+				 sizeof(tinfo.tidcnt)))
+			ret = -EFAULT;
+		break;
 	case HFI1_CMD_TID_FREE:
-		ret = exp_tid_free(fp, &tinfo);
+		ret = hfi1_user_exp_rcv_clear(fp, &tinfo);
+		if (ret)
+			break;
+		addr = (unsigned long)cmd.addr +
+			offsetof(struct hfi1_tid_info, tidcnt);
+		if (copy_to_user((void __user *)addr, &tinfo.tidcnt,
+				 sizeof(tinfo.tidcnt)))
+			ret = -EFAULT;
 		break;
 	case HFI1_CMD_RECV_CTRL:
-		ret = manage_rcvq(uctxt, subctxt_fp(fp), (int)user_val);
+		ret = manage_rcvq(uctxt, fd->subctxt, (int)user_val);
 		break;
 	case HFI1_CMD_POLL_TYPE:
 		uctxt->poll_type = (typeof(uctxt->poll_type))user_val;
 		break;
 	case HFI1_CMD_ACK_EVENT:
-		ret = user_event_ack(uctxt, subctxt_fp(fp), user_val);
+		ret = user_event_ack(uctxt, fd->subctxt, user_val);
 		break;
 	case HFI1_CMD_SET_PKEY:
 		if (HFI1_CAP_IS_USET(PKEY_CHECK))
-			ret = set_ctxt_pkey(uctxt, subctxt_fp(fp), user_val);
+			ret = set_ctxt_pkey(uctxt, fd->subctxt, user_val);
 		else
 			ret = -EPERM;
 		break;
@@ -396,8 +386,10 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 				break;
 			}
 			if (dd->flags & HFI1_FORCED_FREEZE) {
-				/* Don't allow context reset if we are into
-				 * forced freeze */
+				/*
+				 * Don't allow context reset if we are into
+				 * forced freeze
+				 */
 				ret = -ENODEV;
 				break;
 			}
@@ -405,21 +397,19 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 			ret = sc_enable(sc);
 			hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_ENB,
 				     uctxt->ctxt);
-		} else
+		} else {
 			ret = sc_restart(sc);
+		}
 		if (!ret)
 			sc_return_credits(sc);
 		break;
 	}
 	case HFI1_CMD_EP_INFO:
 	case HFI1_CMD_EP_ERASE_CHIP:
-	case HFI1_CMD_EP_ERASE_P0:
-	case HFI1_CMD_EP_ERASE_P1:
-	case HFI1_CMD_EP_READ_P0:
-	case HFI1_CMD_EP_READ_P1:
-	case HFI1_CMD_EP_WRITE_P0:
-	case HFI1_CMD_EP_WRITE_P1:
-		ret = handle_eprom_command(&cmd);
+	case HFI1_CMD_EP_ERASE_RANGE:
+	case HFI1_CMD_EP_READ_RANGE:
+	case HFI1_CMD_EP_WRITE_RANGE:
+		ret = handle_eprom_command(fp, &cmd);
 		break;
 	}
 
@@ -431,13 +421,13 @@ bail:
 
 static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 {
-	struct hfi1_user_sdma_pkt_q *pq;
-	struct hfi1_user_sdma_comp_q *cq;
+	struct hfi1_filedata *fd = kiocb->ki_filp->private_data;
+	struct hfi1_user_sdma_pkt_q *pq = fd->pq;
+	struct hfi1_user_sdma_comp_q *cq = fd->cq;
 	int ret = 0, done = 0, reqs = 0;
 	unsigned long dim = from->nr_segs;
 
-	if (!user_sdma_comp_fp(kiocb->ki_filp) ||
-	    !user_sdma_pkt_fp(kiocb->ki_filp)) {
+	if (!cq || !pq) {
 		ret = -EIO;
 		goto done;
 	}
@@ -448,10 +438,7 @@ static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	}
 
 	hfi1_cdbg(SDMA, "SDMA request from %u:%u (%lu)",
-		  ctxt_fp(kiocb->ki_filp)->ctxt, subctxt_fp(kiocb->ki_filp),
-		  dim);
-	pq = user_sdma_pkt_fp(kiocb->ki_filp);
-	cq = user_sdma_comp_fp(kiocb->ki_filp);
+		  fd->uctxt->ctxt, fd->subctxt, dim);
 
 	if (atomic_read(&pq->n_reqs) == pq->n_max_reqs) {
 		ret = -ENOSPC;
@@ -476,7 +463,8 @@ done:
 
 static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 {
-	struct hfi1_ctxtdata *uctxt;
+	struct hfi1_filedata *fd = fp->private_data;
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd;
 	unsigned long flags, pfn;
 	u64 token = vma->vm_pgoff << PAGE_SHIFT,
@@ -486,7 +474,6 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 	int ret = 0;
 	u16 ctxt;
 
-	uctxt = ctxt_fp(fp);
 	if (!is_valid_mmap(token) || !uctxt ||
 	    !(vma->vm_flags & VM_SHARED)) {
 		ret = -EINVAL;
@@ -496,7 +483,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 	ctxt = HFI1_MMAP_TOKEN_GET(CTXT, token);
 	subctxt = HFI1_MMAP_TOKEN_GET(SUBCTXT, token);
 	type = HFI1_MMAP_TOKEN_GET(TYPE, token);
-	if (ctxt != uctxt->ctxt || subctxt != subctxt_fp(fp)) {
+	if (ctxt != uctxt->ctxt || subctxt != fd->subctxt) {
 		ret = -EINVAL;
 		goto done;
 	}
@@ -516,8 +503,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		 * Map only the amount allocated to the context, not the
 		 * entire available context's PIO space.
 		 */
-		memlen = ALIGN(uctxt->sc->credits * PIO_BLOCK_SIZE,
-			       PAGE_SIZE);
+		memlen = PAGE_ALIGN(uctxt->sc->credits * PIO_BLOCK_SIZE);
 		flags &= ~VM_MAYREAD;
 		flags |= VM_DONTCOPY | VM_DONTEXPAND;
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -660,15 +646,14 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		vmf = 1;
 		break;
 	case SDMA_COMP: {
-		struct hfi1_user_sdma_comp_q *cq;
+		struct hfi1_user_sdma_comp_q *cq = fd->cq;
 
-		if (!user_sdma_comp_fp(fp)) {
+		if (!cq) {
 			ret = -EFAULT;
 			goto done;
 		}
-		cq = user_sdma_comp_fp(fp);
 		memaddr = (u64)cq->comps;
-		memlen = ALIGN(sizeof(*cq->comps) * cq->nentries, PAGE_SIZE);
+		memlen = PAGE_ALIGN(sizeof(*cq->comps) * cq->nentries);
 		flags |= VM_IO | VM_DONTEXPAND;
 		vmf = 1;
 		break;
@@ -680,16 +665,16 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 
 	if ((vma->vm_end - vma->vm_start) != memlen) {
 		hfi1_cdbg(PROC, "%u:%u Memory size mismatch %lu:%lu",
-			  uctxt->ctxt, subctxt_fp(fp),
+			  uctxt->ctxt, fd->subctxt,
 			  (vma->vm_end - vma->vm_start), memlen);
 		ret = -EINVAL;
 		goto done;
 	}
 
 	vma->vm_flags = flags;
-	dd_dev_info(dd,
-		    "%s: %u:%u type:%u io/vf:%d/%d, addr:0x%llx, len:%lu(%lu), flags:0x%lx\n",
-		    __func__, ctxt, subctxt, type, mapio, vmf, memaddr, memlen,
+	hfi1_cdbg(PROC,
+		  "%u:%u type:%u io/vf:%d/%d, addr:0x%llx, len:%lu(%lu), flags:0x%lx\n",
+		    ctxt, subctxt, type, mapio, vmf, memaddr, memlen,
 		    vma->vm_end - vma->vm_start, vma->vm_flags);
 	pfn = (unsigned long)(memaddr >> PAGE_SHIFT);
 	if (vmf) {
@@ -730,7 +715,7 @@ static unsigned int hfi1_poll(struct file *fp, struct poll_table_struct *pt)
 	struct hfi1_ctxtdata *uctxt;
 	unsigned pollflag;
 
-	uctxt = ctxt_fp(fp);
+	uctxt = ((struct hfi1_filedata *)fp->private_data)->uctxt;
 	if (!uctxt)
 		pollflag = POLLERR;
 	else if (uctxt->poll_type == HFI1_POLL_TYPE_URGENT)
@@ -761,8 +746,10 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 
 	flush_wc();
 	/* drain user sdma queue */
-	if (fdata->pq)
-		hfi1_user_sdma_free_queues(fdata);
+	hfi1_user_sdma_free_queues(fdata);
+
+	/* release the cpu */
+	hfi1_put_proc_affinity(dd, fdata->rec_cpu_num);
 
 	/*
 	 * Clear any left over, unhandled events so the next process that
@@ -787,6 +774,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_DIS |
 		     HFI1_RCVCTRL_TIDFLOW_DIS |
 		     HFI1_RCVCTRL_INTRAVAIL_DIS |
+		     HFI1_RCVCTRL_TAILUPD_DIS |
 		     HFI1_RCVCTRL_ONE_PKT_EGR_DIS |
 		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
 		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt->ctxt);
@@ -809,14 +797,12 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	uctxt->pionowait = 0;
 	uctxt->event_flags = 0;
 
-	hfi1_clear_tids(uctxt);
+	hfi1_user_exp_rcv_free(fdata);
 	hfi1_clear_ctxt_pkey(dd, uctxt->ctxt);
 
-	if (uctxt->tid_pg_list)
-		unlock_exp_tids(uctxt);
-
 	hfi1_stats.sps_ctxts--;
-	dd->freectxts++;
+	if (++dd->freectxts == dd->num_user_contexts)
+		aspm_enable_all(dd);
 	mutex_unlock(&hfi1_mutex);
 	hfi1_free_ctxtdata(dd, uctxt);
 done:
@@ -858,8 +844,16 @@ static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
 
 	mutex_lock(&hfi1_mutex);
 	/* First, lets check if we need to setup a shared context? */
-	if (uinfo->subctxt_cnt)
+	if (uinfo->subctxt_cnt) {
+		struct hfi1_filedata *fd = fp->private_data;
+
 		ret = find_shared_ctxt(fp, uinfo);
+		if (ret < 0)
+			goto done_unlock;
+		if (ret)
+			fd->rec_cpu_num = hfi1_get_proc_affinity(
+				fd->uctxt->dd, fd->uctxt->numa_id);
+	}
 
 	/*
 	 * We execute the following block if we couldn't find a
@@ -869,9 +863,18 @@ static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
 		i_minor = iminor(file_inode(fp)) - HFI1_USER_MINOR_BASE;
 		ret = get_user_context(fp, uinfo, i_minor - 1, alg);
 	}
+done_unlock:
 	mutex_unlock(&hfi1_mutex);
 done:
 	return ret;
+}
+
+/* return true if the device available for general use */
+static int usable_device(struct hfi1_devdata *dd)
+{
+	struct hfi1_pportdata *ppd = dd->pport;
+
+	return driver_lstate(ppd) == IB_PORT_ACTIVE;
 }
 
 static int get_user_context(struct file *fp, struct hfi1_user_info *uinfo,
@@ -903,7 +906,11 @@ static int get_user_context(struct file *fp, struct hfi1_user_info *uinfo,
 
 			for (dev = 0; dev < devmax; dev++) {
 				pdd = hfi1_lookup(dev);
-				if (pdd && pdd->freectxts &&
+				if (!pdd)
+					continue;
+				if (!usable_device(pdd))
+					continue;
+				if (pdd->freectxts &&
 				    pdd->freectxts > free) {
 					dd = pdd;
 					free = pdd->freectxts;
@@ -912,7 +919,11 @@ static int get_user_context(struct file *fp, struct hfi1_user_info *uinfo,
 		} else {
 			for (dev = 0; dev < devmax; dev++) {
 				pdd = hfi1_lookup(dev);
-				if (pdd && pdd->freectxts) {
+				if (!pdd)
+					continue;
+				if (!usable_device(pdd))
+					continue;
+				if (pdd->freectxts) {
 					dd = pdd;
 					break;
 				}
@@ -930,13 +941,13 @@ static int find_shared_ctxt(struct file *fp,
 {
 	int devmax, ndev, i;
 	int ret = 0;
+	struct hfi1_filedata *fd = fp->private_data;
 
 	devmax = hfi1_count_units(NULL, NULL);
 
 	for (ndev = 0; ndev < devmax; ndev++) {
 		struct hfi1_devdata *dd = hfi1_lookup(ndev);
 
-		/* device portion of usable() */
 		if (!(dd && (dd->flags & HFI1_PRESENT) && dd->kregbase))
 			continue;
 		for (i = dd->first_user_ctxt; i < dd->num_rcv_contexts; i++) {
@@ -959,10 +970,10 @@ static int find_shared_ctxt(struct file *fp,
 				ret = -EINVAL;
 				goto done;
 			}
-			ctxt_fp(fp) = uctxt;
-			subctxt_fp(fp) = uctxt->cnt++;
-			uctxt->subpid[subctxt_fp(fp)] = current->pid;
-			uctxt->active_slaves |= 1 << subctxt_fp(fp);
+			fd->uctxt = uctxt;
+			fd->subctxt  = uctxt->cnt++;
+			uctxt->subpid[fd->subctxt] = current->pid;
+			uctxt->active_slaves |= 1 << fd->subctxt;
 			ret = 1;
 			goto done;
 		}
@@ -975,9 +986,10 @@ done:
 static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 			 struct hfi1_user_info *uinfo)
 {
+	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt;
 	unsigned ctxt;
-	int ret;
+	int ret, numa;
 
 	if (dd->flags & HFI1_FROZEN) {
 		/*
@@ -997,22 +1009,31 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	if (ctxt == dd->num_rcv_contexts)
 		return -EBUSY;
 
-	uctxt = hfi1_create_ctxtdata(dd->pport, ctxt);
+	fd->rec_cpu_num = hfi1_get_proc_affinity(dd, -1);
+	if (fd->rec_cpu_num != -1)
+		numa = cpu_to_node(fd->rec_cpu_num);
+	else
+		numa = numa_node_id();
+	uctxt = hfi1_create_ctxtdata(dd->pport, ctxt, numa);
 	if (!uctxt) {
 		dd_dev_err(dd,
 			   "Unable to allocate ctxtdata memory, failing open\n");
 		return -ENOMEM;
 	}
+	hfi1_cdbg(PROC, "[%u:%u] pid %u assigned to CPU %d (NUMA %u)",
+		  uctxt->ctxt, fd->subctxt, current->pid, fd->rec_cpu_num,
+		  uctxt->numa_id);
+
 	/*
 	 * Allocate and enable a PIO send context.
 	 */
 	uctxt->sc = sc_alloc(dd, SC_USER, uctxt->rcvhdrqentsize,
-			     uctxt->numa_id);
+			     uctxt->dd->node);
 	if (!uctxt->sc)
 		return -ENOMEM;
 
-	dbg("allocated send context %u(%u)\n", uctxt->sc->sw_index,
-		uctxt->sc->hw_context);
+	hfi1_cdbg(PROC, "allocated send context %u(%u)\n", uctxt->sc->sw_index,
+		  uctxt->sc->hw_context);
 	ret = sc_enable(uctxt->sc);
 	if (ret)
 		return ret;
@@ -1022,7 +1043,7 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	 * This has to be done here so the rest of the sub-contexts find the
 	 * proper master.
 	 */
-	if (uinfo->subctxt_cnt && !subctxt_fp(fp)) {
+	if (uinfo->subctxt_cnt && !fd->subctxt) {
 		ret = init_subctxts(uctxt, uinfo);
 		/*
 		 * On error, we don't need to disable and de-allocate the
@@ -1041,8 +1062,13 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	INIT_LIST_HEAD(&uctxt->sdma_queues);
 	spin_lock_init(&uctxt->sdma_qlock);
 	hfi1_stats.sps_ctxts++;
-	dd->freectxts--;
-	ctxt_fp(fp) = uctxt;
+	/*
+	 * Disable ASPM when there are open user/PSM contexts to avoid
+	 * issues with ASPM L1 exit latency
+	 */
+	if (dd->freectxts-- == dd->num_user_contexts)
+		aspm_disable_all(dd);
+	fd->uctxt = uctxt;
 
 	return 0;
 }
@@ -1050,22 +1076,19 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 static int init_subctxts(struct hfi1_ctxtdata *uctxt,
 			 const struct hfi1_user_info *uinfo)
 {
-	int ret = 0;
 	unsigned num_subctxts;
 
 	num_subctxts = uinfo->subctxt_cnt;
-	if (num_subctxts > HFI1_MAX_SHARED_CTXTS) {
-		ret = -EINVAL;
-		goto bail;
-	}
+	if (num_subctxts > HFI1_MAX_SHARED_CTXTS)
+		return -EINVAL;
 
 	uctxt->subctxt_cnt = uinfo->subctxt_cnt;
 	uctxt->subctxt_id = uinfo->subctxt_id;
 	uctxt->active_slaves = 1;
 	uctxt->redirect_seq_cnt = 1;
 	set_bit(HFI1_CTXT_MASTER_UNINIT, &uctxt->event_flags);
-bail:
-	return ret;
+
+	return 0;
 }
 
 static int setup_subctxt(struct hfi1_ctxtdata *uctxt)
@@ -1106,7 +1129,8 @@ static int user_init(struct file *fp)
 {
 	int ret;
 	unsigned int rcvctrl_ops = 0;
-	struct hfi1_ctxtdata *uctxt = ctxt_fp(fp);
+	struct hfi1_filedata *fd = fp->private_data;
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 
 	/* make sure that the context has already been setup */
 	if (!test_bit(HFI1_CTXT_SETUP_DONE, &uctxt->event_flags)) {
@@ -1118,11 +1142,11 @@ static int user_init(struct file *fp)
 	 * Subctxts don't need to initialize anything since master
 	 * has done it.
 	 */
-	if (subctxt_fp(fp)) {
-		ret = wait_event_interruptible(uctxt->wait,
-			!test_bit(HFI1_CTXT_MASTER_UNINIT,
-			&uctxt->event_flags));
-		goto done;
+	if (fd->subctxt) {
+		ret = wait_event_interruptible(uctxt->wait, !test_bit(
+					       HFI1_CTXT_MASTER_UNINIT,
+					       &uctxt->event_flags));
+		goto expected;
 	}
 
 	/* initialize poll variables... */
@@ -1160,8 +1184,16 @@ static int user_init(struct file *fp)
 		rcvctrl_ops |= HFI1_RCVCTRL_NO_EGR_DROP_ENB;
 	if (HFI1_CAP_KGET_MASK(uctxt->flags, NODROP_RHQ_FULL))
 		rcvctrl_ops |= HFI1_RCVCTRL_NO_RHQ_DROP_ENB;
+	/*
+	 * The RcvCtxtCtrl.TailUpd bit has to be explicitly written.
+	 * We can't rely on the correct value to be set from prior
+	 * uses of the chip or ctxt. Therefore, add the rcvctrl op
+	 * for both cases.
+	 */
 	if (HFI1_CAP_KGET_MASK(uctxt->flags, DMA_RTAIL))
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_ENB;
+	else
+		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_DIS;
 	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt->ctxt);
 
 	/* Notify any waiting slaves */
@@ -1169,8 +1201,18 @@ static int user_init(struct file *fp)
 		clear_bit(HFI1_CTXT_MASTER_UNINIT, &uctxt->event_flags);
 		wake_up(&uctxt->wait);
 	}
-	ret = 0;
 
+expected:
+	/*
+	 * Expected receive has to be setup for all processes (including
+	 * shared contexts). However, it has to be done after the master
+	 * context has been fully configured as it depends on the
+	 * eager/expected split of the RcvArray entries.
+	 * Setting it up here ensures that the subcontexts will be waiting
+	 * (due to the above wait_event_interruptible() until the master
+	 * is setup.
+	 */
+	ret = hfi1_user_exp_rcv_init(fp);
 done:
 	return ret;
 }
@@ -1178,8 +1220,8 @@ done:
 static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
 {
 	struct hfi1_ctxt_info cinfo;
-	struct hfi1_ctxtdata *uctxt = ctxt_fp(fp);
 	struct hfi1_filedata *fd = fp->private_data;
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	int ret = 0;
 
 	memset(&cinfo, 0, sizeof(cinfo));
@@ -1189,7 +1231,7 @@ static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
 	cinfo.num_active = hfi1_count_active_units();
 	cinfo.unit = uctxt->dd->unit;
 	cinfo.ctxt = uctxt->ctxt;
-	cinfo.subctxt = subctxt_fp(fp);
+	cinfo.subctxt = fd->subctxt;
 	cinfo.rcvtids = roundup(uctxt->egrbufs.alloced,
 				uctxt->dd->rcv_entries.group_size) +
 		uctxt->expected_count;
@@ -1201,10 +1243,10 @@ static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
 	cinfo.egrtids = uctxt->egrbufs.alloced;
 	cinfo.rcvhdrq_cnt = uctxt->rcvhdrq_cnt;
 	cinfo.rcvhdrq_entsize = uctxt->rcvhdrqentsize << 2;
-	cinfo.sdma_ring_size = user_sdma_comp_fp(fp)->nentries;
+	cinfo.sdma_ring_size = fd->cq->nentries;
 	cinfo.rcvegr_size = uctxt->egrbufs.rcvtid_size;
 
-	trace_hfi1_ctxt_info(uctxt->dd, uctxt->ctxt, subctxt_fp(fp), cinfo);
+	trace_hfi1_ctxt_info(uctxt->dd, uctxt->ctxt, fd->subctxt, cinfo);
 	if (copy_to_user(ubase, &cinfo, sizeof(cinfo)))
 		ret = -EFAULT;
 done:
@@ -1213,7 +1255,8 @@ done:
 
 static int setup_ctxt(struct file *fp)
 {
-	struct hfi1_ctxtdata *uctxt = ctxt_fp(fp);
+	struct hfi1_filedata *fd = fp->private_data;
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	int ret = 0;
 
@@ -1222,7 +1265,7 @@ static int setup_ctxt(struct file *fp)
 	 * programming of eager buffers. This is done if context sharing
 	 * is not requested or by the master process.
 	 */
-	if (!uctxt->subctxt_cnt || !subctxt_fp(fp)) {
+	if (!uctxt->subctxt_cnt || !fd->subctxt) {
 		ret = hfi1_init_ctxt(uctxt->sc);
 		if (ret)
 			goto done;
@@ -1234,51 +1277,11 @@ static int setup_ctxt(struct file *fp)
 		ret = hfi1_setup_eagerbufs(uctxt);
 		if (ret)
 			goto done;
-		if (uctxt->subctxt_cnt && !subctxt_fp(fp)) {
+		if (uctxt->subctxt_cnt && !fd->subctxt) {
 			ret = setup_subctxt(uctxt);
 			if (ret)
 				goto done;
 		}
-		/* Setup Expected Rcv memories */
-		uctxt->tid_pg_list = vzalloc(uctxt->expected_count *
-					     sizeof(struct page **));
-		if (!uctxt->tid_pg_list) {
-			ret = -ENOMEM;
-			goto done;
-		}
-		uctxt->physshadow = vzalloc(uctxt->expected_count *
-					    sizeof(*uctxt->physshadow));
-		if (!uctxt->physshadow) {
-			ret = -ENOMEM;
-			goto done;
-		}
-		/* allocate expected TID map and initialize the cursor */
-		atomic_set(&uctxt->tidcursor, 0);
-		uctxt->numtidgroups = uctxt->expected_count /
-			dd->rcv_entries.group_size;
-		uctxt->tidmapcnt = uctxt->numtidgroups / BITS_PER_LONG +
-			!!(uctxt->numtidgroups % BITS_PER_LONG);
-		uctxt->tidusemap = kzalloc_node(uctxt->tidmapcnt *
-						sizeof(*uctxt->tidusemap),
-						GFP_KERNEL, uctxt->numa_id);
-		if (!uctxt->tidusemap) {
-			ret = -ENOMEM;
-			goto done;
-		}
-		/*
-		 * In case that the number of groups is not a multiple of
-		 * 64 (the number of groups in a tidusemap element), mark
-		 * the extra ones as used. This will effectively make them
-		 * permanently used and should never be assigned. Otherwise,
-		 * the code which checks how many free groups we have will
-		 * get completely confused about the state of the bits.
-		 */
-		if (uctxt->numtidgroups % BITS_PER_LONG)
-			uctxt->tidusemap[uctxt->tidmapcnt - 1] =
-				~((1ULL << (uctxt->numtidgroups %
-					    BITS_PER_LONG)) - 1);
-		trace_hfi1_exp_tid_map(uctxt->ctxt, subctxt_fp(fp), 0,
-				       uctxt->tidusemap, uctxt->tidmapcnt);
 	}
 	ret = hfi1_user_sdma_alloc_queues(uctxt, fp);
 	if (ret)
@@ -1292,7 +1295,8 @@ done:
 static int get_base_info(struct file *fp, void __user *ubase, __u32 len)
 {
 	struct hfi1_base_info binfo;
-	struct hfi1_ctxtdata *uctxt = ctxt_fp(fp);
+	struct hfi1_filedata *fd = fp->private_data;
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	ssize_t sz;
 	unsigned offset;
@@ -1314,50 +1318,50 @@ static int get_base_info(struct file *fp, void __user *ubase, __u32 len)
 	offset = ((u64)uctxt->sc->hw_free -
 		  (u64)dd->cr_base[uctxt->numa_id].va) % PAGE_SIZE;
 	binfo.sc_credits_addr = HFI1_MMAP_TOKEN(PIO_CRED, uctxt->ctxt,
-					       subctxt_fp(fp), offset);
+						fd->subctxt, offset);
 	binfo.pio_bufbase = HFI1_MMAP_TOKEN(PIO_BUFS, uctxt->ctxt,
-					    subctxt_fp(fp),
+					    fd->subctxt,
 					    uctxt->sc->base_addr);
 	binfo.pio_bufbase_sop = HFI1_MMAP_TOKEN(PIO_BUFS_SOP,
 						uctxt->ctxt,
-						subctxt_fp(fp),
+						fd->subctxt,
 						uctxt->sc->base_addr);
 	binfo.rcvhdr_bufbase = HFI1_MMAP_TOKEN(RCV_HDRQ, uctxt->ctxt,
-					       subctxt_fp(fp),
+					       fd->subctxt,
 					       uctxt->rcvhdrq);
 	binfo.rcvegr_bufbase = HFI1_MMAP_TOKEN(RCV_EGRBUF, uctxt->ctxt,
-					       subctxt_fp(fp),
+					       fd->subctxt,
 					       uctxt->egrbufs.rcvtids[0].phys);
 	binfo.sdma_comp_bufbase = HFI1_MMAP_TOKEN(SDMA_COMP, uctxt->ctxt,
-						 subctxt_fp(fp), 0);
+						 fd->subctxt, 0);
 	/*
 	 * user regs are at
 	 * (RXE_PER_CONTEXT_USER + (ctxt * RXE_PER_CONTEXT_SIZE))
 	 */
 	binfo.user_regbase = HFI1_MMAP_TOKEN(UREGS, uctxt->ctxt,
-					    subctxt_fp(fp), 0);
+					    fd->subctxt, 0);
 	offset = offset_in_page((((uctxt->ctxt - dd->first_user_ctxt) *
-		    HFI1_MAX_SHARED_CTXTS) + subctxt_fp(fp)) *
+		    HFI1_MAX_SHARED_CTXTS) + fd->subctxt) *
 		  sizeof(*dd->events));
 	binfo.events_bufbase = HFI1_MMAP_TOKEN(EVENTS, uctxt->ctxt,
-					      subctxt_fp(fp),
+					      fd->subctxt,
 					      offset);
 	binfo.status_bufbase = HFI1_MMAP_TOKEN(STATUS, uctxt->ctxt,
-					      subctxt_fp(fp),
+					      fd->subctxt,
 					      dd->status);
 	if (HFI1_CAP_IS_USET(DMA_RTAIL))
 		binfo.rcvhdrtail_base = HFI1_MMAP_TOKEN(RTAIL, uctxt->ctxt,
-						       subctxt_fp(fp), 0);
+						       fd->subctxt, 0);
 	if (uctxt->subctxt_cnt) {
 		binfo.subctxt_uregbase = HFI1_MMAP_TOKEN(SUBCTXT_UREGS,
 							uctxt->ctxt,
-							subctxt_fp(fp), 0);
+							fd->subctxt, 0);
 		binfo.subctxt_rcvhdrbuf = HFI1_MMAP_TOKEN(SUBCTXT_RCV_HDRQ,
 							 uctxt->ctxt,
-							 subctxt_fp(fp), 0);
+							 fd->subctxt, 0);
 		binfo.subctxt_rcvegrbuf = HFI1_MMAP_TOKEN(SUBCTXT_EGRBUF,
 							 uctxt->ctxt,
-							 subctxt_fp(fp), 0);
+							 fd->subctxt, 0);
 	}
 	sz = (len < sizeof(binfo)) ? len : sizeof(binfo);
 	if (copy_to_user(ubase, &binfo, sz))
@@ -1368,7 +1372,8 @@ static int get_base_info(struct file *fp, void __user *ubase, __u32 len)
 static unsigned int poll_urgent(struct file *fp,
 				struct poll_table_struct *pt)
 {
-	struct hfi1_ctxtdata *uctxt = ctxt_fp(fp);
+	struct hfi1_filedata *fd = fp->private_data;
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	unsigned pollflag;
 
@@ -1390,7 +1395,8 @@ static unsigned int poll_urgent(struct file *fp,
 static unsigned int poll_next(struct file *fp,
 			      struct poll_table_struct *pt)
 {
-	struct hfi1_ctxtdata *uctxt = ctxt_fp(fp);
+	struct hfi1_filedata *fd = fp->private_data;
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	unsigned pollflag;
 
@@ -1401,8 +1407,9 @@ static unsigned int poll_next(struct file *fp,
 		set_bit(HFI1_CTXT_WAITING_RCV, &uctxt->event_flags);
 		hfi1_rcvctrl(dd, HFI1_RCVCTRL_INTRAVAIL_ENB, uctxt->ctxt);
 		pollflag = 0;
-	} else
+	} else {
 		pollflag = POLLIN | POLLRDNORM;
+	}
 	spin_unlock_irq(&dd->uctxt_lock);
 
 	return pollflag;
@@ -1480,8 +1487,9 @@ static int manage_rcvq(struct hfi1_ctxtdata *uctxt, unsigned subctxt,
 		if (uctxt->rcvhdrtail_kvaddr)
 			clear_rcvhdrtail(uctxt);
 		rcvctrl_op = HFI1_RCVCTRL_CTXT_ENB;
-	} else
+	} else {
 		rcvctrl_op = HFI1_RCVCTRL_CTXT_DIS;
+	}
 	hfi1_rcvctrl(dd, rcvctrl_op, uctxt->ctxt);
 	/* always; new head should be equal to new tail; see above */
 bail:
@@ -1512,365 +1520,6 @@ static int user_event_ack(struct hfi1_ctxtdata *uctxt, int subctxt,
 		clear_bit(i, evs);
 	}
 	return 0;
-}
-
-#define num_user_pages(vaddr, len)					\
-	(1 + (((((unsigned long)(vaddr) +				\
-		 (unsigned long)(len) - 1) & PAGE_MASK) -		\
-	       ((unsigned long)vaddr & PAGE_MASK)) >> PAGE_SHIFT))
-
-/**
- * tzcnt - count the number of trailing zeros in a 64bit value
- * @value: the value to be examined
- *
- * Returns the number of trailing least significant zeros in the
- * the input value. If the value is zero, return the number of
- * bits of the value.
- */
-static inline u8 tzcnt(u64 value)
-{
-	return value ? __builtin_ctzl(value) : sizeof(value) * 8;
-}
-
-static inline unsigned num_free_groups(unsigned long map, u16 *start)
-{
-	unsigned free;
-	u16 bitidx = *start;
-
-	if (bitidx >= BITS_PER_LONG)
-		return 0;
-	/* "Turn off" any bits set before our bit index */
-	map &= ~((1ULL << bitidx) - 1);
-	free = tzcnt(map) - bitidx;
-	while (!free && bitidx < BITS_PER_LONG) {
-		/* Zero out the last set bit so we look at the rest */
-		map &= ~(1ULL << bitidx);
-		/*
-		 * Account for the previously checked bits and advance
-		 * the bit index. We don't have to check for bitidx
-		 * getting bigger than BITS_PER_LONG here as it would
-		 * mean extra instructions that we don't need. If it
-		 * did happen, it would push free to a negative value
-		 * which will break the loop.
-		 */
-		free = tzcnt(map) - ++bitidx;
-	}
-	*start = bitidx;
-	return free;
-}
-
-static int exp_tid_setup(struct file *fp, struct hfi1_tid_info *tinfo)
-{
-	int ret = 0;
-	struct hfi1_ctxtdata *uctxt = ctxt_fp(fp);
-	struct hfi1_devdata *dd = uctxt->dd;
-	unsigned tid, mapped = 0, npages, ngroups, exp_groups,
-		tidpairs = uctxt->expected_count / 2;
-	struct page **pages;
-	unsigned long vaddr, tidmap[uctxt->tidmapcnt];
-	dma_addr_t *phys;
-	u32 tidlist[tidpairs], pairidx = 0, tidcursor;
-	u16 useidx, idx, bitidx, tidcnt = 0;
-
-	vaddr = tinfo->vaddr;
-
-	if (offset_in_page(vaddr)) {
-		ret = -EINVAL;
-		goto bail;
-	}
-
-	npages = num_user_pages(vaddr, tinfo->length);
-	if (!npages) {
-		ret = -EINVAL;
-		goto bail;
-	}
-	if (!access_ok(VERIFY_WRITE, (void __user *)vaddr,
-		       npages * PAGE_SIZE)) {
-		dd_dev_err(dd, "Fail vaddr %p, %u pages, !access_ok\n",
-			   (void *)vaddr, npages);
-		ret = -EFAULT;
-		goto bail;
-	}
-
-	memset(tidmap, 0, sizeof(tidmap[0]) * uctxt->tidmapcnt);
-	memset(tidlist, 0, sizeof(tidlist[0]) * tidpairs);
-
-	exp_groups = uctxt->expected_count / dd->rcv_entries.group_size;
-	/* which group set do we look at first? */
-	tidcursor = atomic_read(&uctxt->tidcursor);
-	useidx = (tidcursor >> 16) & 0xffff;
-	bitidx = tidcursor & 0xffff;
-
-	/*
-	 * Keep going until we've mapped all pages or we've exhausted all
-	 * RcvArray entries.
-	 * This iterates over the number of tidmaps + 1
-	 * (idx <= uctxt->tidmapcnt) so we check the bitmap which we
-	 * started from one more time for any free bits before the
-	 * starting point bit.
-	 */
-	for (mapped = 0, idx = 0;
-	     mapped < npages && idx <= uctxt->tidmapcnt;) {
-		u64 i, offset = 0;
-		unsigned free, pinned, pmapped = 0, bits_used;
-		u16 grp;
-
-		/*
-		 * "Reserve" the needed group bits under lock so other
-		 * processes can't step in the middle of it. Once
-		 * reserved, we don't need the lock anymore since we
-		 * are guaranteed the groups.
-		 */
-		spin_lock(&uctxt->exp_lock);
-		if (uctxt->tidusemap[useidx] == -1ULL ||
-		    bitidx >= BITS_PER_LONG) {
-			/* no free groups in the set, use the next */
-			useidx = (useidx + 1) % uctxt->tidmapcnt;
-			idx++;
-			bitidx = 0;
-			spin_unlock(&uctxt->exp_lock);
-			continue;
-		}
-		ngroups = ((npages - mapped) / dd->rcv_entries.group_size) +
-			!!((npages - mapped) % dd->rcv_entries.group_size);
-
-		/*
-		 * If we've gotten here, the current set of groups does have
-		 * one or more free groups.
-		 */
-		free = num_free_groups(uctxt->tidusemap[useidx], &bitidx);
-		if (!free) {
-			/*
-			 * Despite the check above, free could still come back
-			 * as 0 because we don't check the entire bitmap but
-			 * we start from bitidx.
-			 */
-			spin_unlock(&uctxt->exp_lock);
-			continue;
-		}
-		bits_used = min(free, ngroups);
-		tidmap[useidx] |= ((1ULL << bits_used) - 1) << bitidx;
-		uctxt->tidusemap[useidx] |= tidmap[useidx];
-		spin_unlock(&uctxt->exp_lock);
-
-		/*
-		 * At this point, we know where in the map we have free bits.
-		 * properly offset into the various "shadow" arrays and compute
-		 * the RcvArray entry index.
-		 */
-		offset = ((useidx * BITS_PER_LONG) + bitidx) *
-			dd->rcv_entries.group_size;
-		pages = uctxt->tid_pg_list + offset;
-		phys = uctxt->physshadow + offset;
-		tid = uctxt->expected_base + offset;
-
-		/* Calculate how many pages we can pin based on free bits */
-		pinned = min((bits_used * dd->rcv_entries.group_size),
-			     (npages - mapped));
-		/*
-		 * Now that we know how many free RcvArray entries we have,
-		 * we can pin that many user pages.
-		 */
-		ret = hfi1_get_user_pages(vaddr + (mapped * PAGE_SIZE),
-					  pinned, pages);
-		if (ret) {
-			/*
-			 * We can't continue because the pages array won't be
-			 * initialized. This should never happen,
-			 * unless perhaps the user has mpin'ed the pages
-			 * themselves.
-			 */
-			dd_dev_info(dd,
-				    "Failed to lock addr %p, %u pages: errno %d\n",
-				    (void *) vaddr, pinned, -ret);
-			/*
-			 * Let go of the bits that we reserved since we are not
-			 * going to use them.
-			 */
-			spin_lock(&uctxt->exp_lock);
-			uctxt->tidusemap[useidx] &=
-				~(((1ULL << bits_used) - 1) << bitidx);
-			spin_unlock(&uctxt->exp_lock);
-			goto done;
-		}
-		/*
-		 * How many groups do we need based on how many pages we have
-		 * pinned?
-		 */
-		ngroups = (pinned / dd->rcv_entries.group_size) +
-			!!(pinned % dd->rcv_entries.group_size);
-		/*
-		 * Keep programming RcvArray entries for all the <ngroups> free
-		 * groups.
-		 */
-		for (i = 0, grp = 0; grp < ngroups; i++, grp++) {
-			unsigned j;
-			u32 pair_size = 0, tidsize;
-			/*
-			 * This inner loop will program an entire group or the
-			 * array of pinned pages (which ever limit is hit
-			 * first).
-			 */
-			for (j = 0; j < dd->rcv_entries.group_size &&
-				     pmapped < pinned; j++, pmapped++, tid++) {
-				tidsize = PAGE_SIZE;
-				phys[pmapped] = hfi1_map_page(dd->pcidev,
-						   pages[pmapped], 0,
-						   tidsize, PCI_DMA_FROMDEVICE);
-				trace_hfi1_exp_rcv_set(uctxt->ctxt,
-						       subctxt_fp(fp),
-						       tid, vaddr,
-						       phys[pmapped],
-						       pages[pmapped]);
-				/*
-				 * Each RcvArray entry is programmed with one
-				 * page * worth of memory. This will handle
-				 * the 8K MTU as well as anything smaller
-				 * due to the fact that both entries in the
-				 * RcvTidPair are programmed with a page.
-				 * PSM currently does not handle anything
-				 * bigger than 8K MTU, so should we even worry
-				 * about 10K here?
-				 */
-				hfi1_put_tid(dd, tid, PT_EXPECTED,
-					     phys[pmapped],
-					     ilog2(tidsize >> PAGE_SHIFT) + 1);
-				pair_size += tidsize >> PAGE_SHIFT;
-				EXP_TID_RESET(tidlist[pairidx], LEN, pair_size);
-				if (!(tid % 2)) {
-					tidlist[pairidx] |=
-					   EXP_TID_SET(IDX,
-						(tid - uctxt->expected_base)
-						       / 2);
-					tidlist[pairidx] |=
-						EXP_TID_SET(CTRL, 1);
-					tidcnt++;
-				} else {
-					tidlist[pairidx] |=
-						EXP_TID_SET(CTRL, 2);
-					pair_size = 0;
-					pairidx++;
-				}
-			}
-			/*
-			 * We've programmed the entire group (or as much of the
-			 * group as we'll use. Now, it's time to push it out...
-			 */
-			flush_wc();
-		}
-		mapped += pinned;
-		atomic_set(&uctxt->tidcursor,
-			   (((useidx & 0xffffff) << 16) |
-			    ((bitidx + bits_used) & 0xffffff)));
-	}
-	trace_hfi1_exp_tid_map(uctxt->ctxt, subctxt_fp(fp), 0, uctxt->tidusemap,
-			       uctxt->tidmapcnt);
-
-done:
-	/* If we've mapped anything, copy relevant info to user */
-	if (mapped) {
-		if (copy_to_user((void __user *)(unsigned long)tinfo->tidlist,
-				 tidlist, sizeof(tidlist[0]) * tidcnt)) {
-			ret = -EFAULT;
-			goto done;
-		}
-		/* copy TID info to user */
-		if (copy_to_user((void __user *)(unsigned long)tinfo->tidmap,
-				 tidmap, sizeof(tidmap[0]) * uctxt->tidmapcnt))
-			ret = -EFAULT;
-	}
-bail:
-	/*
-	 * Calculate mapped length. New Exp TID protocol does not "unwind" and
-	 * report an error if it can't map the entire buffer. It just reports
-	 * the length that was mapped.
-	 */
-	tinfo->length = mapped * PAGE_SIZE;
-	tinfo->tidcnt = tidcnt;
-	return ret;
-}
-
-static int exp_tid_free(struct file *fp, struct hfi1_tid_info *tinfo)
-{
-	struct hfi1_ctxtdata *uctxt = ctxt_fp(fp);
-	struct hfi1_devdata *dd = uctxt->dd;
-	unsigned long tidmap[uctxt->tidmapcnt];
-	struct page **pages;
-	dma_addr_t *phys;
-	u16 idx, bitidx, tid;
-	int ret = 0;
-
-	if (copy_from_user(&tidmap, (void __user *)(unsigned long)
-			   tinfo->tidmap,
-			   sizeof(tidmap[0]) * uctxt->tidmapcnt)) {
-		ret = -EFAULT;
-		goto done;
-	}
-	for (idx = 0; idx < uctxt->tidmapcnt; idx++) {
-		unsigned long map;
-
-		bitidx = 0;
-		if (!tidmap[idx])
-			continue;
-		map = tidmap[idx];
-		while ((bitidx = tzcnt(map)) < BITS_PER_LONG) {
-			int i, pcount = 0;
-			struct page *pshadow[dd->rcv_entries.group_size];
-			unsigned offset = ((idx * BITS_PER_LONG) + bitidx) *
-				dd->rcv_entries.group_size;
-
-			pages = uctxt->tid_pg_list + offset;
-			phys = uctxt->physshadow + offset;
-			tid = uctxt->expected_base + offset;
-			for (i = 0; i < dd->rcv_entries.group_size;
-			     i++, tid++) {
-				if (pages[i]) {
-					hfi1_put_tid(dd, tid, PT_INVALID,
-						      0, 0);
-					trace_hfi1_exp_rcv_free(uctxt->ctxt,
-								subctxt_fp(fp),
-								tid, phys[i],
-								pages[i]);
-					pci_unmap_page(dd->pcidev, phys[i],
-					      PAGE_SIZE, PCI_DMA_FROMDEVICE);
-					pshadow[pcount] = pages[i];
-					pages[i] = NULL;
-					pcount++;
-					phys[i] = 0;
-				}
-			}
-			flush_wc();
-			hfi1_release_user_pages(pshadow, pcount);
-			clear_bit(bitidx, &uctxt->tidusemap[idx]);
-			map &= ~(1ULL<<bitidx);
-		}
-	}
-	trace_hfi1_exp_tid_map(uctxt->ctxt, subctxt_fp(fp), 1, uctxt->tidusemap,
-			       uctxt->tidmapcnt);
-done:
-	return ret;
-}
-
-static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt)
-{
-	struct hfi1_devdata *dd = uctxt->dd;
-	unsigned tid;
-
-	dd_dev_info(dd, "ctxt %u unlocking any locked expTID pages\n",
-		    uctxt->ctxt);
-	for (tid = 0; tid < uctxt->expected_count; tid++) {
-		struct page *p = uctxt->tid_pg_list[tid];
-		dma_addr_t phys;
-
-		if (!p)
-			continue;
-
-		phys = uctxt->physshadow[tid];
-		uctxt->physshadow[tid] = 0;
-		uctxt->tid_pg_list[tid] = NULL;
-		pci_unmap_page(dd->pcidev, phys, PAGE_SIZE, PCI_DMA_FROMDEVICE);
-		hfi1_release_user_pages(&p, 1);
-	}
 }
 
 static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, unsigned subctxt,
@@ -1941,10 +1590,9 @@ static loff_t ui_lseek(struct file *filp, loff_t offset, int whence)
 	return filp->f_pos;
 }
 
-
 /* NOTE: assumes unsigned long is 8 bytes */
 static ssize_t ui_read(struct file *filp, char __user *buf, size_t count,
-			loff_t *f_pos)
+		       loff_t *f_pos)
 {
 	struct hfi1_devdata *dd = filp->private_data;
 	void __iomem *base = dd->kregbase;
@@ -1980,12 +1628,12 @@ static ssize_t ui_read(struct file *filp, char __user *buf, size_t count,
 		 * them.  These registers are defined as having a read value
 		 * of 0.
 		 */
-		else if (csr_off == ASIC_GPIO_CLEAR
-				|| csr_off == ASIC_GPIO_FORCE
-				|| csr_off == ASIC_QSFP1_CLEAR
-				|| csr_off == ASIC_QSFP1_FORCE
-				|| csr_off == ASIC_QSFP2_CLEAR
-				|| csr_off == ASIC_QSFP2_FORCE)
+		else if (csr_off == ASIC_GPIO_CLEAR ||
+			 csr_off == ASIC_GPIO_FORCE ||
+			 csr_off == ASIC_QSFP1_CLEAR ||
+			 csr_off == ASIC_QSFP1_FORCE ||
+			 csr_off == ASIC_QSFP2_CLEAR ||
+			 csr_off == ASIC_QSFP2_FORCE)
 			data = 0;
 		else if (csr_off >= barlen) {
 			/*

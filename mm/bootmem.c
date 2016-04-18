@@ -33,6 +33,7 @@ EXPORT_SYMBOL(contig_page_data);
 unsigned long max_low_pfn;
 unsigned long min_low_pfn;
 unsigned long max_pfn;
+unsigned long long max_possible_pfn;
 
 bootmem_data_t bootmem_node_data[MAX_NUMNODES] __initdata;
 
@@ -49,8 +50,7 @@ early_param("bootmem_debug", bootmem_debug_setup);
 
 #define bdebug(fmt, args...) ({				\
 	if (unlikely(bootmem_debug))			\
-		printk(KERN_INFO			\
-			"bootmem::%s " fmt,		\
+		pr_info("bootmem::%s " fmt,		\
 			__func__, ## args);		\
 })
 
@@ -679,7 +679,7 @@ static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
 	/*
 	 * Whoops, we cannot satisfy the allocation request.
 	 */
-	printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", size);
+	pr_alert("bootmem alloc of %lu bytes failed!\n", size);
 	panic("Out of memory");
 	return NULL;
 }
@@ -754,7 +754,7 @@ void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
 	if (ptr)
 		return ptr;
 
-	printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", size);
+	pr_alert("bootmem alloc of %lu bytes failed!\n", size);
 	panic("Out of memory");
 	return NULL;
 }

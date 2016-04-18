@@ -56,12 +56,6 @@ struct snd_soc_dobj_widget {
 	unsigned int kcontrol_enum:1;	/* this widget is an enum kcontrol */
 };
 
-/* dynamic PCM DAI object */
-struct snd_soc_dobj_pcm_dai {
-	struct snd_soc_tplg_pcm_dai *pd;
-	unsigned int count;
-};
-
 /* generic dynamic object - all dynamic objects belong to this struct */
 struct snd_soc_dobj {
 	enum snd_soc_dobj_type type;
@@ -71,7 +65,6 @@ struct snd_soc_dobj {
 	union {
 		struct snd_soc_dobj_control control;
 		struct snd_soc_dobj_widget widget;
-		struct snd_soc_dobj_pcm_dai pcm_dai;
 	};
 	void *private; /* core does not touch this */
 };
@@ -92,8 +85,10 @@ struct snd_soc_tplg_kcontrol_ops {
 /* Bytes ext operations, for TLV byte controls */
 struct snd_soc_tplg_bytes_ext_ops {
 	u32 id;
-	int (*get)(unsigned int __user *bytes, unsigned int size);
-	int (*put)(const unsigned int __user *bytes, unsigned int size);
+	int (*get)(struct snd_kcontrol *kcontrol, unsigned int __user *bytes,
+							unsigned int size);
+	int (*put)(struct snd_kcontrol *kcontrol,
+			const unsigned int __user *bytes, unsigned int size);
 };
 
 /*
@@ -124,10 +119,16 @@ struct snd_soc_tplg_ops {
 	int (*widget_unload)(struct snd_soc_component *,
 		struct snd_soc_dobj *);
 
-	/* FE - used for any driver specific init */
-	int (*pcm_dai_load)(struct snd_soc_component *,
-		struct snd_soc_tplg_pcm_dai *pcm_dai, int num_fe);
-	int (*pcm_dai_unload)(struct snd_soc_component *,
+	/* FE DAI - used for any driver specific init */
+	int (*dai_load)(struct snd_soc_component *,
+		struct snd_soc_dai_driver *dai_drv);
+	int (*dai_unload)(struct snd_soc_component *,
+		struct snd_soc_dobj *);
+
+	/* DAI link - used for any driver specific init */
+	int (*link_load)(struct snd_soc_component *,
+		struct snd_soc_dai_link *link);
+	int (*link_unload)(struct snd_soc_component *,
 		struct snd_soc_dobj *);
 
 	/* callback to handle vendor bespoke data */

@@ -90,7 +90,7 @@ static int sys_get_trip_temp(struct thermal_zone_device *tzd, int trip,
 	dts = tzd->devdata;
 	sensors = dts->sensors;
 	mutex_lock(&sensors->dts_update_lock);
-	status = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
+	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			       SOC_DTS_OFFSET_PTPS, &out);
 	mutex_unlock(&sensors->dts_update_lock);
 	if (status)
@@ -124,27 +124,27 @@ static int update_trip_temp(struct intel_soc_dts_sensor_entry *dts,
 
 	temp_out = (sensors->tj_max - temp) / 1000;
 
-	status = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
+	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			       SOC_DTS_OFFSET_PTPS, &store_ptps);
 	if (status)
 		return status;
 
 	out = (store_ptps & ~(0xFF << (thres_index * 8)));
 	out |= (temp_out & 0xFF) << (thres_index * 8);
-	status = iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
+	status = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 				SOC_DTS_OFFSET_PTPS, out);
 	if (status)
 		return status;
 
 	pr_debug("update_trip_temp PTPS = %x\n", out);
-	status = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
+	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			       SOC_DTS_OFFSET_PTMC, &out);
 	if (status)
 		goto err_restore_ptps;
 
 	store_ptmc = out;
 
-	status = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
+	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			       SOC_DTS_TE_AUX0 + thres_index,
 			       &te_out);
 	if (status)
@@ -167,12 +167,12 @@ static int update_trip_temp(struct intel_soc_dts_sensor_entry *dts,
 			out &= ~SOC_DTS_AUX0_ENABLE_BIT;
 		te_out &= ~int_enable_bit;
 	}
-	status = iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
+	status = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 				SOC_DTS_OFFSET_PTMC, out);
 	if (status)
 		goto err_restore_te_out;
 
-	status = iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
+	status = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 				SOC_DTS_TE_AUX0 + thres_index,
 				te_out);
 	if (status)
@@ -182,13 +182,13 @@ static int update_trip_temp(struct intel_soc_dts_sensor_entry *dts,
 
 	return 0;
 err_restore_te_out:
-	iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 		       SOC_DTS_OFFSET_PTMC, store_te_out);
 err_restore_ptmc:
-	iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 		       SOC_DTS_OFFSET_PTMC, store_ptmc);
 err_restore_ptps:
-	iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 		       SOC_DTS_OFFSET_PTPS, store_ptps);
 	/* Nothing we can do if restore fails */
 
@@ -235,7 +235,7 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd,
 
 	dts = tzd->devdata;
 	sensors = dts->sensors;
-	status = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
+	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			       SOC_DTS_OFFSET_TEMP, &out);
 	if (status)
 		return status;
@@ -259,14 +259,14 @@ static int soc_dts_enable(int id)
 	u32 out;
 	int ret;
 
-	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
+	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			    SOC_DTS_OFFSET_ENABLE, &out);
 	if (ret)
 		return ret;
 
 	if (!(out & BIT(id))) {
 		out |= BIT(id);
-		ret = iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
+		ret = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 				     SOC_DTS_OFFSET_ENABLE, out);
 		if (ret)
 			return ret;
@@ -278,7 +278,7 @@ static int soc_dts_enable(int id)
 static void remove_dts_thermal_zone(struct intel_soc_dts_sensor_entry *dts)
 {
 	if (dts) {
-		iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
+		iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 			       SOC_DTS_OFFSET_ENABLE, dts->store_status);
 		thermal_zone_device_unregister(dts->tzone);
 	}
@@ -296,9 +296,8 @@ static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
 	int i;
 
 	/* Store status to restor on exit */
-	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
-			    SOC_DTS_OFFSET_ENABLE,
-			    &dts->store_status);
+	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
+			    SOC_DTS_OFFSET_ENABLE, &dts->store_status);
 	if (ret)
 		goto err_ret;
 
@@ -311,7 +310,7 @@ static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
 	}
 
 	/* Check if the writable trip we provide is not used by BIOS */
-	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
+	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			    SOC_DTS_OFFSET_PTPS, &store_ptps);
 	if (ret)
 		trip_mask = 0;
@@ -374,19 +373,19 @@ void intel_soc_dts_iosf_interrupt_handler(struct intel_soc_dts_sensors *sensors)
 
 	spin_lock_irqsave(&sensors->intr_notify_lock, flags);
 
-	status = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
+	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			       SOC_DTS_OFFSET_PTMC, &ptmc_out);
 	ptmc_out |= SOC_DTS_PTMC_APIC_DEASSERT_BIT;
-	status = iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
+	status = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 				SOC_DTS_OFFSET_PTMC, ptmc_out);
 
-	status = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
+	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			       SOC_DTS_OFFSET_PTTSS, &sticky_out);
 	pr_debug("status %d PTTSS %x\n", status, sticky_out);
 	if (sticky_out & SOC_DTS_TRIP_MASK) {
 		int i;
 		/* reset sticky bit */
-		status = iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
+		status = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 					SOC_DTS_OFFSET_PTTSS, sticky_out);
 		spin_unlock_irqrestore(&sensors->intr_notify_lock, flags);
 

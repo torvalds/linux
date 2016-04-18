@@ -5,7 +5,8 @@
 config NET_VENDOR_HISILICON
 	bool "Hisilicon devices"
 	default y
-	depends on OF && (ARM || ARM64 || COMPILE_TEST)
+	depends on OF && HAS_DMA
+	depends on ARM || ARM64 || COMPILE_TEST
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -24,6 +25,7 @@ config HIX5HD2_GMAC
 
 config HIP04_ETH
 	tristate "HISILICON P04 Ethernet support"
+	depends on HAS_IOMEM	# For MFD_SYSCON
 	select MARVELL_PHY
 	select MFD_SYSCON
 	select HNS_MDIO

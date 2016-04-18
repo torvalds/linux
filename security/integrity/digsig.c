@@ -24,14 +24,21 @@
 static struct key *keyring[INTEGRITY_KEYRING_MAX];
 
 static const char *keyring_name[INTEGRITY_KEYRING_MAX] = {
+#ifndef CONFIG_INTEGRITY_TRUSTED_KEYRING
 	"_evm",
-	"_module",
-#ifndef CONFIG_IMA_TRUSTED_KEYRING
 	"_ima",
 #else
+	".evm",
 	".ima",
 #endif
+	"_module",
 };
+
+#ifdef CONFIG_INTEGRITY_TRUSTED_KEYRING
+static bool init_keyring __initdata = true;
+#else
+static bool init_keyring __initdata;
+#endif
 
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 			    const char *digest, int digestlen)
@@ -67,6 +74,9 @@ int __init integrity_init_keyring(const unsigned int id)
 {
 	const struct cred *cred = current_cred();
 	int err = 0;
+
+	if (!init_keyring)
+		return 0;
 
 	keyring[id] = keyring_alloc(keyring_name[id], KUIDT_INIT(0),
 				    KGIDT_INIT(0), cred,

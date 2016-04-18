@@ -338,7 +338,6 @@ void handle_nested_irq(unsigned int irq)
 	raw_spin_lock_irq(&desc->lock);
 
 	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
-	kstat_incr_irqs_this_cpu(desc);
 
 	action = desc->action;
 	if (unlikely(!action || irqd_irq_disabled(&desc->irq_data))) {
@@ -346,6 +345,7 @@ void handle_nested_irq(unsigned int irq)
 		goto out_unlock;
 	}
 
+	kstat_incr_irqs_this_cpu(desc);
 	irqd_set(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 	raw_spin_unlock_irq(&desc->lock);
 
@@ -412,13 +412,13 @@ void handle_simple_irq(struct irq_desc *desc)
 		goto out_unlock;
 
 	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
-	kstat_incr_irqs_this_cpu(desc);
 
 	if (unlikely(!desc->action || irqd_irq_disabled(&desc->irq_data))) {
 		desc->istate |= IRQS_PENDING;
 		goto out_unlock;
 	}
 
+	kstat_incr_irqs_this_cpu(desc);
 	handle_irq_event(desc);
 
 out_unlock:
@@ -462,7 +462,6 @@ void handle_level_irq(struct irq_desc *desc)
 		goto out_unlock;
 
 	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
-	kstat_incr_irqs_this_cpu(desc);
 
 	/*
 	 * If its disabled or no action available
@@ -473,6 +472,7 @@ void handle_level_irq(struct irq_desc *desc)
 		goto out_unlock;
 	}
 
+	kstat_incr_irqs_this_cpu(desc);
 	handle_irq_event(desc);
 
 	cond_unmask_irq(desc);
@@ -532,7 +532,6 @@ void handle_fasteoi_irq(struct irq_desc *desc)
 		goto out;
 
 	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
-	kstat_incr_irqs_this_cpu(desc);
 
 	/*
 	 * If its disabled or no action available
@@ -544,6 +543,7 @@ void handle_fasteoi_irq(struct irq_desc *desc)
 		goto out;
 	}
 
+	kstat_incr_irqs_this_cpu(desc);
 	if (desc->istate & IRQS_ONESHOT)
 		mask_irq(desc);
 
@@ -950,6 +950,7 @@ void irq_chip_ack_parent(struct irq_data *data)
 	data = data->parent_data;
 	data->chip->irq_ack(data);
 }
+EXPORT_SYMBOL_GPL(irq_chip_ack_parent);
 
 /**
  * irq_chip_mask_parent - Mask the parent interrupt
@@ -960,6 +961,7 @@ void irq_chip_mask_parent(struct irq_data *data)
 	data = data->parent_data;
 	data->chip->irq_mask(data);
 }
+EXPORT_SYMBOL_GPL(irq_chip_mask_parent);
 
 /**
  * irq_chip_unmask_parent - Unmask the parent interrupt
@@ -970,6 +972,7 @@ void irq_chip_unmask_parent(struct irq_data *data)
 	data = data->parent_data;
 	data->chip->irq_unmask(data);
 }
+EXPORT_SYMBOL_GPL(irq_chip_unmask_parent);
 
 /**
  * irq_chip_eoi_parent - Invoke EOI on the parent interrupt
@@ -980,6 +983,7 @@ void irq_chip_eoi_parent(struct irq_data *data)
 	data = data->parent_data;
 	data->chip->irq_eoi(data);
 }
+EXPORT_SYMBOL_GPL(irq_chip_eoi_parent);
 
 /**
  * irq_chip_set_affinity_parent - Set affinity on the parent interrupt
@@ -1015,6 +1019,7 @@ int irq_chip_set_type_parent(struct irq_data *data, unsigned int type)
 
 	return -ENOSYS;
 }
+EXPORT_SYMBOL_GPL(irq_chip_set_type_parent);
 
 /**
  * irq_chip_retrigger_hierarchy - Retrigger an interrupt in hardware

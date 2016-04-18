@@ -29,6 +29,7 @@
 #include <linux/dynamic_debug.h>
 
 #include "internal.h"
+#include "sleep.h"
 
 #define _COMPONENT		ACPI_BUS_COMPONENT
 ACPI_MODULE_NAME("utils");
@@ -199,10 +200,6 @@ acpi_extract_package(union acpi_object *package,
 
 		u8 **pointer = NULL;
 		union acpi_object *element = &(package->package.elements[i]);
-
-		if (!element) {
-			return AE_BAD_DATA;
-		}
 
 		switch (element->type) {
 
@@ -695,7 +692,7 @@ bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, int rev, u64 funcs)
 		mask = obj->integer.value;
 	else if (obj->type == ACPI_TYPE_BUFFER)
 		for (i = 0; i < obj->buffer.length && i < 8; i++)
-			mask |= (((u8)obj->buffer.pointer[i]) << (i * 8));
+			mask |= (((u64)obj->buffer.pointer[i]) << (i * 8));
 	ACPI_FREE(obj);
 
 	/*
@@ -708,6 +705,36 @@ bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, int rev, u64 funcs)
 	return false;
 }
 EXPORT_SYMBOL(acpi_check_dsm);
+
+/**
+ * acpi_dev_present - Detect presence of a given ACPI device in the system.
+ * @hid: Hardware ID of the device.
+ *
+ * Return %true if the device was present at the moment of invocation.
+ * Note that if the device is pluggable, it may since have disappeared.
+ *
+ * For this function to work, acpi_bus_scan() must have been executed
+ * which happens in the subsys_initcall() subsection. Hence, do not
+ * call from a subsys_initcall() or earlier (use acpi_get_devices()
+ * instead). Calling from module_init() is fine (which is synonymous
+ * with device_initcall()).
+ */
+bool acpi_dev_present(const char *hid)
+{
+	struct acpi_device_bus_id *acpi_device_bus_id;
+	bool found = false;
+
+	mutex_lock(&acpi_device_lock);
+	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node)
+		if (!strcmp(acpi_device_bus_id->bus_id, hid)) {
+			found = true;
+			break;
+		}
+	mutex_unlock(&acpi_device_lock);
+
+	return found;
+}
+EXPORT_SYMBOL(acpi_dev_present);
 
 /*
  * acpi_backlight= handling, this is done here rather then in video_detect.c

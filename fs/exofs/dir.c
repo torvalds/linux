@@ -41,16 +41,16 @@ static inline unsigned exofs_chunk_size(struct inode *inode)
 static inline void exofs_put_page(struct page *page)
 {
 	kunmap(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 static unsigned exofs_last_byte(struct inode *inode, unsigned long page_nr)
 {
 	loff_t last_byte = inode->i_size;
 
-	last_byte -= page_nr << PAGE_CACHE_SHIFT;
-	if (last_byte > PAGE_CACHE_SIZE)
-		last_byte = PAGE_CACHE_SIZE;
+	last_byte -= page_nr << PAGE_SHIFT;
+	if (last_byte > PAGE_SIZE)
+		last_byte = PAGE_SIZE;
 	return last_byte;
 }
 
@@ -85,13 +85,13 @@ static void exofs_check_page(struct page *page)
 	unsigned chunk_size = exofs_chunk_size(dir);
 	char *kaddr = page_address(page);
 	unsigned offs, rec_len;
-	unsigned limit = PAGE_CACHE_SIZE;
+	unsigned limit = PAGE_SIZE;
 	struct exofs_dir_entry *p;
 	char *error;
 
 	/* if the page is the last one in the directory */
-	if ((dir->i_size >> PAGE_CACHE_SHIFT) == page->index) {
-		limit = dir->i_size & ~PAGE_CACHE_MASK;
+	if ((dir->i_size >> PAGE_SHIFT) == page->index) {
+		limit = dir->i_size & ~PAGE_MASK;
 		if (limit & (chunk_size - 1))
 			goto Ebadsize;
 		if (!limit)
@@ -138,7 +138,7 @@ bad_entry:
 	EXOFS_ERR(
 		"ERROR [exofs_check_page]: bad entry in directory(0x%lx): %s - "
 		"offset=%lu, inode=0x%llu, rec_len=%d, name_len=%d\n",
-		dir->i_ino, error, (page->index<<PAGE_CACHE_SHIFT)+offs,
+		dir->i_ino, error, (page->index<<PAGE_SHIFT)+offs,
 		_LLU(le64_to_cpu(p->inode_no)),
 		rec_len, p->name_len);
 	goto fail;
@@ -147,7 +147,7 @@ Eend:
 	EXOFS_ERR("ERROR [exofs_check_page]: "
 		"entry in directory(0x%lx) spans the page boundary"
 		"offset=%lu, inode=0x%llx\n",
-		dir->i_ino, (page->index<<PAGE_CACHE_SHIFT)+offs,
+		dir->i_ino, (page->index<<PAGE_SHIFT)+offs,
 		_LLU(le64_to_cpu(p->inode_no)));
 fail:
 	SetPageChecked(page);
@@ -237,8 +237,8 @@ exofs_readdir(struct file *file, struct dir_context *ctx)
 {
 	loff_t pos = ctx->pos;
 	struct inode *inode = file_inode(file);
-	unsigned int offset = pos & ~PAGE_CACHE_MASK;
-	unsigned long n = pos >> PAGE_CACHE_SHIFT;
+	unsigned int offset = pos & ~PAGE_MASK;
+	unsigned long n = pos >> PAGE_SHIFT;
 	unsigned long npages = dir_pages(inode);
 	unsigned chunk_mask = ~(exofs_chunk_size(inode)-1);
 	int need_revalidate = (file->f_version != inode->i_version);
@@ -254,7 +254,7 @@ exofs_readdir(struct file *file, struct dir_context *ctx)
 		if (IS_ERR(page)) {
 			EXOFS_ERR("ERROR: bad page in directory(0x%lx)\n",
 				  inode->i_ino);
-			ctx->pos += PAGE_CACHE_SIZE - offset;
+			ctx->pos += PAGE_SIZE - offset;
 			return PTR_ERR(page);
 		}
 		kaddr = page_address(page);
@@ -262,7 +262,7 @@ exofs_readdir(struct file *file, struct dir_context *ctx)
 			if (offset) {
 				offset = exofs_validate_entry(kaddr, offset,
 								chunk_mask);
-				ctx->pos = (n<<PAGE_CACHE_SHIFT) + offset;
+				ctx->pos = (n<<PAGE_SHIFT) + offset;
 			}
 			file->f_version = inode->i_version;
 			need_revalidate = 0;
@@ -449,7 +449,7 @@ int exofs_add_link(struct dentry *dentry, struct inode *inode)
 		kaddr = page_address(page);
 		dir_end = kaddr + exofs_last_byte(dir, n);
 		de = (struct exofs_dir_entry *)kaddr;
-		kaddr += PAGE_CACHE_SIZE - reclen;
+		kaddr += PAGE_SIZE - reclen;
 		while ((char *)de <= kaddr) {
 			if ((char *)de == dir_end) {
 				name_len = 0;
@@ -602,7 +602,7 @@ int exofs_make_empty(struct inode *inode, struct inode *parent)
 	kunmap_atomic(kaddr);
 	err = exofs_commit_chunk(page, 0, chunk_size);
 fail:
-	page_cache_release(page);
+	put_page(page);
 	return err;
 }
 

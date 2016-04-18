@@ -48,6 +48,7 @@ static const struct of_device_id of_match[];
 #define UART_MCR_MDCE	BIT(7)
 #define UART_MCR_FCM	BIT(6)
 
+#if defined(CONFIG_SERIAL_EARLYCON) && !defined(MODULE)
 static struct earlycon_device *early_device;
 
 static uint8_t __init early_in(struct uart_port *port, int offset)
@@ -140,6 +141,7 @@ OF_EARLYCON_DECLARE(jz4775_uart, "ingenic,jz4775-uart",
 EARLYCON_DECLARE(jz4780_uart, ingenic_early_console_setup);
 OF_EARLYCON_DECLARE(jz4780_uart, "ingenic,jz4780-uart",
 		    ingenic_early_console_setup);
+#endif /* CONFIG_SERIAL_EARLYCON */
 
 static void ingenic_uart_serial_out(struct uart_port *p, int offset, int value)
 {
@@ -152,14 +154,18 @@ static void ingenic_uart_serial_out(struct uart_port *p, int offset, int value)
 		break;
 
 	case UART_IER:
-		/* Enable receive timeout interrupt with the
-		 * receive line status interrupt */
+		/*
+		 * Enable receive timeout interrupt with the receive line
+		 * status interrupt.
+		 */
 		value |= (value & 0x4) << 2;
 		break;
 
 	case UART_MCR:
-		/* If we have enabled modem status IRQs we should enable modem
-		 * mode. */
+		/*
+		 * If we have enabled modem status IRQs we should enable
+		 * modem mode.
+		 */
 		ier = p->serial_in(p, UART_IER);
 
 		if (ier & UART_IER_MSI)

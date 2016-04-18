@@ -6,6 +6,7 @@
 obj-$(CONFIG_MFD_88PM860X)	+= 88pm860x.o
 obj-$(CONFIG_MFD_88PM800)	+= 88pm800.o 88pm80x.o
 obj-$(CONFIG_MFD_88PM805)	+= 88pm805.o 88pm80x.o
+obj-$(CONFIG_MFD_ACT8945A)	+= act8945a.o
 obj-$(CONFIG_MFD_SM501)		+= sm501.o
 obj-$(CONFIG_MFD_ASIC3)		+= asic3.o tmio_core.o
 obj-$(CONFIG_MFD_BCM590XX)	+= bcm590xx.o
@@ -51,6 +52,9 @@ endif
 ifeq ($(CONFIG_MFD_WM8998),y)
 obj-$(CONFIG_MFD_ARIZONA)	+= wm8998-tables.o
 endif
+ifeq ($(CONFIG_MFD_CS47L24),y)
+obj-$(CONFIG_MFD_ARIZONA)	+= cs47l24-tables.o
+endif
 obj-$(CONFIG_MFD_WM8400)	+= wm8400-core.o
 wm831x-objs			:= wm831x-core.o wm831x-irq.o wm831x-otp.o
 wm831x-objs			+= wm831x-auxadc.o
@@ -61,16 +65,17 @@ wm8350-objs			:= wm8350-core.o wm8350-regmap.o wm8350-gpio.o
 wm8350-objs			+= wm8350-irq.o
 obj-$(CONFIG_MFD_WM8350)	+= wm8350.o
 obj-$(CONFIG_MFD_WM8350_I2C)	+= wm8350-i2c.o
-obj-$(CONFIG_MFD_WM8994)	+= wm8994-core.o wm8994-irq.o wm8994-regmap.o
+wm8994-objs			:= wm8994-core.o wm8994-irq.o wm8994-regmap.o
+obj-$(CONFIG_MFD_WM8994)	+= wm8994.o
 
 obj-$(CONFIG_TPS6105X)		+= tps6105x.o
 obj-$(CONFIG_TPS65010)		+= tps65010.o
 obj-$(CONFIG_TPS6507X)		+= tps6507x.o
+obj-$(CONFIG_MFD_TPS65086)	+= tps65086.o
 obj-$(CONFIG_MFD_TPS65217)	+= tps65217.o
 obj-$(CONFIG_MFD_TPS65218)	+= tps65218.o
 obj-$(CONFIG_MFD_TPS65910)	+= tps65910.o
-tps65912-objs                   := tps65912-core.o tps65912-irq.o
-obj-$(CONFIG_MFD_TPS65912)	+= tps65912.o
+obj-$(CONFIG_MFD_TPS65912)	+= tps65912-core.o
 obj-$(CONFIG_MFD_TPS65912_I2C)	+= tps65912-i2c.o
 obj-$(CONFIG_MFD_TPS65912_SPI)  += tps65912-spi.o
 obj-$(CONFIG_MFD_TPS80031)	+= tps80031.o
@@ -80,6 +85,8 @@ obj-$(CONFIG_TWL4030_CORE)	+= twl-core.o twl4030-irq.o twl6030-irq.o
 obj-$(CONFIG_TWL4030_POWER)    += twl4030-power.o
 obj-$(CONFIG_MFD_TWL4030_AUDIO)	+= twl4030-audio.o
 obj-$(CONFIG_TWL6040_CORE)	+= twl6040.o
+
+obj-$(CONFIG_MFD_MX25_TSADC)	+= fsl-imx25-tsadc.o
 
 obj-$(CONFIG_MFD_MC13XXX)	+= mc13xxx-core.o
 obj-$(CONFIG_MFD_MC13XXX_SPI)	+= mc13xxx-spi.o
@@ -107,6 +114,8 @@ obj-$(CONFIG_PMIC_DA9052)	+= da9052-core.o
 obj-$(CONFIG_MFD_DA9052_SPI)	+= da9052-spi.o
 obj-$(CONFIG_MFD_DA9052_I2C)	+= da9052-i2c.o
 obj-$(CONFIG_MFD_AXP20X)	+= axp20x.o
+obj-$(CONFIG_MFD_AXP20X_I2C)	+= axp20x-i2c.o
+obj-$(CONFIG_MFD_AXP20X_RSB)	+= axp20x-rsb.o
 
 obj-$(CONFIG_MFD_LP3943)	+= lp3943.o
 obj-$(CONFIG_MFD_LP8788)	+= lp8788.o lp8788-irq.o

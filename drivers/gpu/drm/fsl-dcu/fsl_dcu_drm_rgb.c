@@ -57,7 +57,7 @@ int fsl_dcu_drm_encoder_create(struct fsl_dcu_drm_device *fsl_dev,
 
 	encoder->possible_crtcs = 1;
 	ret = drm_encoder_init(fsl_dev->drm, encoder, &encoder_funcs,
-			       DRM_MODE_ENCODER_LVDS);
+			       DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret < 0)
 		return ret;
 

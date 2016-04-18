@@ -1,13 +1,12 @@
 #ifndef _QP_H
 #define _QP_H
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,8 +18,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,112 +48,25 @@
  */
 
 #include <linux/hash.h>
+#include <rdma/rdmavt_qp.h>
 #include "verbs.h"
 #include "sdma.h"
 
-#define QPN_MAX                 (1 << 24)
-#define QPNMAP_ENTRIES          (QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
+extern unsigned int hfi1_qp_table_size;
 
 /*
- * QPN-map pages start out as NULL, they get allocated upon
- * first use and are never deallocated. This way,
- * large bitmaps are not allocated unless large numbers of QPs are used.
+ * free_ahg - clear ahg from QP
  */
-struct qpn_map {
-	void *page;
-};
-
-struct hfi1_qpn_table {
-	spinlock_t lock; /* protect changes in this struct */
-	unsigned flags;         /* flags for QP0/1 allocated for each port */
-	u32 last;               /* last QP number allocated */
-	u32 nmaps;              /* size of the map table */
-	u16 limit;
-	u8  incr;
-	/* bit map of free QP numbers other than 0/1 */
-	struct qpn_map map[QPNMAP_ENTRIES];
-};
-
-struct hfi1_qp_ibdev {
-	u32 qp_table_size;
-	u32 qp_table_bits;
-	struct hfi1_qp __rcu **qp_table;
-	spinlock_t qpt_lock;
-	struct hfi1_qpn_table qpn_table;
-};
-
-static inline u32 qpn_hash(struct hfi1_qp_ibdev *dev, u32 qpn)
+static inline void clear_ahg(struct rvt_qp *qp)
 {
-	return hash_32(qpn, dev->qp_table_bits);
-}
+	struct hfi1_qp_priv *priv = qp->priv;
 
-/**
- * hfi1_lookup_qpn - return the QP with the given QPN
- * @ibp: the ibport
- * @qpn: the QP number to look up
- *
- * The caller must hold the rcu_read_lock(), and keep the lock until
- * the returned qp is no longer in use.
- */
-static inline struct hfi1_qp *hfi1_lookup_qpn(struct hfi1_ibport *ibp,
-				u32 qpn) __must_hold(RCU)
-{
-	struct hfi1_qp *qp = NULL;
-
-	if (unlikely(qpn <= 1)) {
-		qp = rcu_dereference(ibp->qp[qpn]);
-	} else {
-		struct hfi1_ibdev *dev = &ppd_from_ibp(ibp)->dd->verbs_dev;
-		u32 n = qpn_hash(dev->qp_dev, qpn);
-
-		for (qp = rcu_dereference(dev->qp_dev->qp_table[n]); qp;
-			qp = rcu_dereference(qp->next))
-			if (qp->ibqp.qp_num == qpn)
-				break;
-	}
-	return qp;
-}
-
-/**
- * clear_ahg - reset ahg status in qp
- * @qp - qp pointer
- */
-static inline void clear_ahg(struct hfi1_qp *qp)
-{
-	qp->s_hdr->ahgcount = 0;
-	qp->s_flags &= ~(HFI1_S_AHG_VALID | HFI1_S_AHG_CLEAR);
-	if (qp->s_sde && qp->s_ahgidx >= 0)
-		sdma_ahg_free(qp->s_sde, qp->s_ahgidx);
+	priv->s_hdr->ahgcount = 0;
+	qp->s_flags &= ~(RVT_S_AHG_VALID | RVT_S_AHG_CLEAR);
+	if (priv->s_sde && qp->s_ahgidx >= 0)
+		sdma_ahg_free(priv->s_sde, qp->s_ahgidx);
 	qp->s_ahgidx = -1;
-	qp->s_sde = NULL;
 }
-
-/**
- * hfi1_error_qp - put a QP into the error state
- * @qp: the QP to put into the error state
- * @err: the receive completion error to signal if a RWQE is active
- *
- * Flushes both send and receive work queues.
- * Returns true if last WQE event should be generated.
- * The QP r_lock and s_lock should be held and interrupts disabled.
- * If we are already in error state, just return.
- */
-int hfi1_error_qp(struct hfi1_qp *qp, enum ib_wc_status err);
-
-/**
- * hfi1_modify_qp - modify the attributes of a queue pair
- * @ibqp: the queue pair who's attributes we're modifying
- * @attr: the new attributes
- * @attr_mask: the mask of attributes to modify
- * @udata: user data for libibverbs.so
- *
- * Returns 0 on success, otherwise returns an errno.
- */
-int hfi1_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-		   int attr_mask, struct ib_udata *udata);
-
-int hfi1_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-		  int attr_mask, struct ib_qp_init_attr *init_attr);
 
 /**
  * hfi1_compute_aeth - compute the AETH (syndrome + MSN)
@@ -164,7 +74,7 @@ int hfi1_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  *
  * Returns the AETH.
  */
-__be32 hfi1_compute_aeth(struct hfi1_qp *qp);
+__be32 hfi1_compute_aeth(struct rvt_qp *qp);
 
 /**
  * hfi1_create_qp - create a queue pair for a device
@@ -180,62 +90,40 @@ struct ib_qp *hfi1_create_qp(struct ib_pd *ibpd,
 			     struct ib_qp_init_attr *init_attr,
 			     struct ib_udata *udata);
 /**
- * hfi1_destroy_qp - destroy a queue pair
- * @ibqp: the queue pair to destroy
- *
- * Returns 0 on success.
- *
- * Note that this can be called while the QP is actively sending or
- * receiving!
- */
-int hfi1_destroy_qp(struct ib_qp *ibqp);
-
-/**
  * hfi1_get_credit - flush the send work queue of a QP
  * @qp: the qp who's send work queue to flush
  * @aeth: the Acknowledge Extended Transport Header
  *
  * The QP s_lock should be held.
  */
-void hfi1_get_credit(struct hfi1_qp *qp, u32 aeth);
+void hfi1_get_credit(struct rvt_qp *qp, u32 aeth);
 
 /**
- * hfi1_qp_init - allocate QP tables
- * @dev: a pointer to the hfi1_ibdev
- */
-int hfi1_qp_init(struct hfi1_ibdev *dev);
-
-/**
- * hfi1_qp_exit - free the QP related structures
- * @dev: a pointer to the hfi1_ibdev
- */
-void hfi1_qp_exit(struct hfi1_ibdev *dev);
-
-/**
- * hfi1_qp_waitup - wake up on the indicated event
+ * hfi1_qp_wakeup - wake up on the indicated event
  * @qp: the QP
  * @flag: flag the qp on which the qp is stalled
  */
-void hfi1_qp_wakeup(struct hfi1_qp *qp, u32 flag);
+void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag);
 
-struct sdma_engine *qp_to_sdma_engine(struct hfi1_qp *qp, u8 sc5);
+struct sdma_engine *qp_to_sdma_engine(struct rvt_qp *qp, u8 sc5);
+struct send_context *qp_to_send_context(struct rvt_qp *qp, u8 sc5);
 
 struct qp_iter;
 
 /**
- * qp_iter_init - wake up on the indicated event
+ * qp_iter_init - initialize the iterator for the qp hash list
  * @dev: the hfi1_ibdev
  */
 struct qp_iter *qp_iter_init(struct hfi1_ibdev *dev);
 
 /**
- * qp_iter_next - wakeup on the indicated event
+ * qp_iter_next - Find the next qp in the hash list
  * @iter: the iterator for the qp hash list
  */
 int qp_iter_next(struct qp_iter *iter);
 
 /**
- * qp_iter_next - wake up on the indicated event
+ * qp_iter_print - print the qp information to seq_file
  * @s: the seq_file to emit the qp information on
  * @iter: the iterator for the qp hash list
  */
@@ -245,6 +133,28 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter);
  * qp_comm_est - handle trap with QP established
  * @qp: the QP
  */
-void qp_comm_est(struct hfi1_qp *qp);
+void qp_comm_est(struct rvt_qp *qp);
 
+void _hfi1_schedule_send(struct rvt_qp *qp);
+void hfi1_schedule_send(struct rvt_qp *qp);
+
+void hfi1_migrate_qp(struct rvt_qp *qp);
+
+/*
+ * Functions provided by hfi1 driver for rdmavt to use
+ */
+void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+		    gfp_t gfp);
+void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
+unsigned free_all_qps(struct rvt_dev_info *rdi);
+void notify_qp_reset(struct rvt_qp *qp);
+int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+		       struct ib_qp_attr *attr);
+void flush_qp_waiters(struct rvt_qp *qp);
+void notify_error_qp(struct rvt_qp *qp);
+void stop_send_queue(struct rvt_qp *qp);
+void quiesce_qp(struct rvt_qp *qp);
+u32 mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu);
+int mtu_to_path_mtu(u32 mtu);
+void hfi1_error_port_qps(struct hfi1_ibport *ibp, u8 sl);
 #endif /* _QP_H */

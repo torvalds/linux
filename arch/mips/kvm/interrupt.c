@@ -128,7 +128,7 @@ int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 		    && (!(kvm_read_c0_guest_status(cop0) & (ST0_EXL | ST0_ERL)))
 		    && (kvm_read_c0_guest_status(cop0) & IE_IRQ5)) {
 			allowed = 1;
-			exccode = T_INT;
+			exccode = EXCCODE_INT;
 		}
 		break;
 
@@ -137,7 +137,7 @@ int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 		    && (!(kvm_read_c0_guest_status(cop0) & (ST0_EXL | ST0_ERL)))
 		    && (kvm_read_c0_guest_status(cop0) & IE_IRQ0)) {
 			allowed = 1;
-			exccode = T_INT;
+			exccode = EXCCODE_INT;
 		}
 		break;
 
@@ -146,7 +146,7 @@ int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 		    && (!(kvm_read_c0_guest_status(cop0) & (ST0_EXL | ST0_ERL)))
 		    && (kvm_read_c0_guest_status(cop0) & IE_IRQ1)) {
 			allowed = 1;
-			exccode = T_INT;
+			exccode = EXCCODE_INT;
 		}
 		break;
 
@@ -155,7 +155,7 @@ int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 		    && (!(kvm_read_c0_guest_status(cop0) & (ST0_EXL | ST0_ERL)))
 		    && (kvm_read_c0_guest_status(cop0) & IE_IRQ2)) {
 			allowed = 1;
-			exccode = T_INT;
+			exccode = EXCCODE_INT;
 		}
 		break;
 

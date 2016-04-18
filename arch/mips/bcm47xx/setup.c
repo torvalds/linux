@@ -101,33 +101,13 @@ static void bcm47xx_machine_halt(void)
 }
 
 #ifdef CONFIG_BCM47XX_SSB
-static int bcm47xx_get_invariants(struct ssb_bus *bus,
-				  struct ssb_init_invariants *iv)
-{
-	char buf[20];
-
-	/* Fill boardinfo structure */
-	memset(&iv->boardinfo, 0 , sizeof(struct ssb_boardinfo));
-
-	bcm47xx_fill_ssb_boardinfo(&iv->boardinfo, NULL);
-
-	memset(&iv->sprom, 0, sizeof(struct ssb_sprom));
-	bcm47xx_fill_sprom(&iv->sprom, NULL, false);
-
-	if (bcm47xx_nvram_getenv("cardbus", buf, sizeof(buf)) >= 0)
-		iv->has_cardbus_slot = !!simple_strtoul(buf, NULL, 10);
-
-	return 0;
-}
-
 static void __init bcm47xx_register_ssb(void)
 {
 	int err;
 	char buf[100];
 	struct ssb_mipscore *mcore;
 
-	err = ssb_bus_ssbbus_register(&bcm47xx_bus.ssb, SSB_ENUM_BASE,
-				      bcm47xx_get_invariants);
+	err = ssb_bus_host_soc_register(&bcm47xx_bus.ssb, SSB_ENUM_BASE);
 	if (err)
 		panic("Failed to initialize SSB bus (err %d)", err);
 

@@ -956,9 +956,14 @@ static int ccp2_link_setup(struct media_entity *entity,
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct isp_ccp2_device *ccp2 = v4l2_get_subdevdata(sd);
+	unsigned int index = local->index;
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case CCP2_PAD_SINK | MEDIA_ENT_T_DEVNODE:
+	/* FIXME: this is actually a hack! */
+	if (is_media_entity_v4l2_subdev(remote->entity))
+		index |= 2 << 16;
+
+	switch (index) {
+	case CCP2_PAD_SINK:
 		/* read from memory */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (ccp2->input == CCP2_INPUT_SENSOR)
@@ -970,7 +975,7 @@ static int ccp2_link_setup(struct media_entity *entity,
 		}
 		break;
 
-	case CCP2_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	case CCP2_PAD_SINK | 2 << 16:
 		/* read from sensor/phy */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (ccp2->input == CCP2_INPUT_MEMORY)
@@ -981,7 +986,7 @@ static int ccp2_link_setup(struct media_entity *entity,
 				ccp2->input = CCP2_INPUT_NONE;
 		} break;
 
-	case CCP2_PAD_SOURCE | MEDIA_ENT_T_V4L2_SUBDEV:
+	case CCP2_PAD_SOURCE | 2 << 16:
 		/* write to video port/ccdc */
 		if (flags & MEDIA_LNK_FL_ENABLED)
 			ccp2->output = CCP2_OUTPUT_CCDC;
@@ -1071,7 +1076,7 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
 	pads[CCP2_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &ccp2_media_ops;
-	ret = media_entity_init(me, CCP2_PADS_NUM, pads, 0);
+	ret = media_entity_pads_init(me, CCP2_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 
@@ -1097,19 +1102,11 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
 
 	ret = omap3isp_video_init(&ccp2->video_in, "CCP2");
 	if (ret < 0)
-		goto error_video;
-
-	/* Connect the video node to the ccp2 subdev. */
-	ret = media_entity_create_link(&ccp2->video_in.video.entity, 0,
-				       &ccp2->subdev.entity, CCP2_PAD_SINK, 0);
-	if (ret < 0)
-		goto error_link;
+		goto error;
 
 	return 0;
 
-error_link:
-	omap3isp_video_cleanup(&ccp2->video_in);
-error_video:
+error:
 	media_entity_cleanup(&ccp2->subdev.entity);
 	return ret;
 }

@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include <subdev/ibus.h>
+#include "priv.h"
 
 static void
 gf100_ibus_intr_hub(struct nvkm_subdev *ibus, int i)
@@ -56,7 +56,7 @@ gf100_ibus_intr_gpc(struct nvkm_subdev *ibus, int i)
 	nvkm_mask(device, 0x128128 + (i * 0x0400), 0x00000200, 0x00000000);
 }
 
-static void
+void
 gf100_ibus_intr(struct nvkm_subdev *ibus)
 {
 	struct nvkm_device *device = ibus->device;
@@ -92,8 +92,21 @@ gf100_ibus_intr(struct nvkm_subdev *ibus)
 	}
 }
 
+static int
+gf100_ibus_init(struct nvkm_subdev *ibus)
+{
+	struct nvkm_device *device = ibus->device;
+	nvkm_mask(device, 0x122310, 0x0003ffff, 0x00000800);
+	nvkm_wr32(device, 0x12232c, 0x00100064);
+	nvkm_wr32(device, 0x122330, 0x00100064);
+	nvkm_wr32(device, 0x122334, 0x00100064);
+	nvkm_mask(device, 0x122348, 0x0003ffff, 0x00000100);
+	return 0;
+}
+
 static const struct nvkm_subdev_func
 gf100_ibus = {
+	.init = gf100_ibus_init,
 	.intr = gf100_ibus_intr,
 };
 

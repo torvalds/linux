@@ -11,6 +11,7 @@
 #include <linux/pm.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/delay.h>
 #include <linux/reset-controller.h>
 
 #include <asm/reboot.h>
@@ -18,8 +19,10 @@
 #include <asm/mach-ralink/ralink_regs.h>
 
 /* Reset Control */
-#define SYSC_REG_RESET_CTRL     0x034
-#define RSTCTL_RESET_SYSTEM     BIT(0)
+#define SYSC_REG_RESET_CTRL	0x034
+
+#define RSTCTL_RESET_PCI	BIT(26)
+#define RSTCTL_RESET_SYSTEM	BIT(0)
 
 static int ralink_assert_device(struct reset_controller_dev *rcdev,
 				unsigned long id)
@@ -83,6 +86,11 @@ void ralink_rst_init(void)
 
 static void ralink_restart(char *command)
 {
+	if (IS_ENABLED(CONFIG_PCI)) {
+		rt_sysc_m32(0, RSTCTL_RESET_PCI, SYSC_REG_RESET_CTRL);
+		mdelay(50);
+	}
+
 	local_irq_disable();
 	rt_sysc_w32(RSTCTL_RESET_SYSTEM, SYSC_REG_RESET_CTRL);
 	unreachable();
@@ -98,7 +106,6 @@ static int __init mips_reboot_setup(void)
 {
 	_machine_restart = ralink_restart;
 	_machine_halt = ralink_halt;
-	pm_power_off = ralink_halt;
 
 	return 0;
 }

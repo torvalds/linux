@@ -70,6 +70,8 @@ nvkm_sddr3_calc(struct nvkm_ram *ram)
 {
 	int CWL, CL, WR, DLL = 0, ODT = 0;
 
+	DLL = !ram->next->bios.ramcfg_DLLoff;
+
 	switch (ram->next->bios.timing_ver) {
 	case 0x10:
 		if (ram->next->bios.timing_hdr < 0x17) {
@@ -79,7 +81,6 @@ nvkm_sddr3_calc(struct nvkm_ram *ram)
 		CWL = ram->next->bios.timing_10_CWL;
 		CL  = ram->next->bios.timing_10_CL;
 		WR  = ram->next->bios.timing_10_WR;
-		DLL = !ram->next->bios.ramcfg_DLLoff;
 		ODT = ram->next->bios.timing_10_ODT;
 		break;
 	case 0x20:
@@ -87,7 +88,6 @@ nvkm_sddr3_calc(struct nvkm_ram *ram)
 		CL  = (ram->next->bios.timing[1] & 0x0000001f) >> 0;
 		WR  = (ram->next->bios.timing[2] & 0x007f0000) >> 16;
 		/* XXX: Get these values from the VBIOS instead */
-		DLL = !(ram->mr[1] & 0x1);
 		ODT =   (ram->mr[1] & 0x004) >> 2 |
 			(ram->mr[1] & 0x040) >> 5 |
 		        (ram->mr[1] & 0x200) >> 7;

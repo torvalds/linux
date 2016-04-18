@@ -11,6 +11,14 @@
 	.text;			\
 	.align 4;
 
+#define EX_LD_FP(x)		\
+98:	x;			\
+	.section __ex_table,"a";\
+	.align 4;		\
+	.word 98b, __retl_one_fp;\
+	.text;			\
+	.align 4;
+
 #define FUNC_NAME		___copy_from_user
 #define LOAD(type,addr,dest)	type##a [addr] %asi, dest
 #define LOAD_BLK(addr,dest)	ldda [addr] ASI_BLK_AIUS, dest

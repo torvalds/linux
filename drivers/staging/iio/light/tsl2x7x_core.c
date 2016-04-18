@@ -296,7 +296,7 @@ static const u8 device_channel_config[] = {
 static int
 tsl2x7x_i2c_read(struct i2c_client *client, u8 reg, u8 *val)
 {
-	int ret = 0;
+	int ret;
 
 	/* select register to write */
 	ret = i2c_smbus_write_byte(client, (TSL2X7X_CMD_REG | reg));
@@ -687,9 +687,9 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 
 	/* Set the gain based on tsl2x7x_settings struct */
 	chip->tsl2x7x_config[TSL2X7X_GAIN] =
-		(chip->tsl2x7x_settings.als_gain |
+		chip->tsl2x7x_settings.als_gain |
 			(TSL2X7X_mA100 | TSL2X7X_DIODE1)
-			| ((chip->tsl2x7x_settings.prox_gain) << 2));
+			| ((chip->tsl2x7x_settings.prox_gain) << 2);
 
 	/* set chip struct re scaling and saturation */
 	chip->als_saturation = als_count * 922; /* 90% of full scale */
@@ -983,7 +983,7 @@ static ssize_t tsl2x7x_als_time_store(struct device *dev,
 
 	result.fract /= 3;
 	chip->tsl2x7x_settings.als_time =
-			(TSL2X7X_MAX_TIMER_CNT - (u8)result.fract);
+			TSL2X7X_MAX_TIMER_CNT - (u8)result.fract;
 
 	dev_info(&chip->client->dev, "%s: als time = %d",
 		__func__, chip->tsl2x7x_settings.als_time);
@@ -1898,7 +1898,7 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 	mutex_init(&chip->prox_mutex);
 
 	chip->tsl2x7x_chip_status = TSL2X7X_CHIP_UNKNOWN;
-	chip->pdata = clientp->dev.platform_data;
+	chip->pdata = dev_get_platdata(&clientp->dev);
 	chip->id = id->driver_data;
 	chip->chip_info =
 		&tsl2x7x_chip_info_tbl[device_channel_config[id->driver_data]];

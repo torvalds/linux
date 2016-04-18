@@ -14,6 +14,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/log2.h>
 #include <linux/mutex.h>
@@ -25,7 +26,7 @@
 #include <linux/v4l2-mediabus.h>
 #include <linux/module.h>
 
-#include <media/mt9v032.h>
+#include <media/i2c/mt9v032.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-of.h>
@@ -251,6 +252,8 @@ struct mt9v032 {
 
 	struct regmap *regmap;
 	struct clk *clk;
+	struct gpio_desc *reset_gpio;
+	struct gpio_desc *standby_gpio;
 
 	struct mt9v032_platform_data *pdata;
 	const struct mt9v032_model_info *model;
@@ -312,15 +315,30 @@ static int mt9v032_power_on(struct mt9v032 *mt9v032)
 	struct regmap *map = mt9v032->regmap;
 	int ret;
 
+	if (mt9v032->reset_gpio)
+		gpiod_set_value_cansleep(mt9v032->reset_gpio, 1);
+
 	ret = clk_set_rate(mt9v032->clk, mt9v032->sysclk);
 	if (ret < 0)
 		return ret;
 
+	/* System clock has to be enabled before releasing the reset */
 	ret = clk_prepare_enable(mt9v032->clk);
 	if (ret)
 		return ret;
 
 	udelay(1);
+
+	if (mt9v032->reset_gpio) {
+		gpiod_set_value_cansleep(mt9v032->reset_gpio, 0);
+
+		/* After releasing reset we need to wait 10 clock cycles
+		 * before accessing the sensor over I2C. As the minimum SYSCLK
+		 * frequency is 13MHz, waiting 1µs will be enough in the worst
+		 * case.
+		 */
+		udelay(1);
+	}
 
 	/* Reset the chip and stop data read out */
 	ret = regmap_write(map, MT9V032_RESET, 1);
@@ -703,7 +721,7 @@ static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops mt9v032_ctrl_ops = {
+static const struct v4l2_ctrl_ops mt9v032_ctrl_ops = {
 	.s_ctrl = mt9v032_s_ctrl,
 };
 
@@ -954,6 +972,16 @@ static int mt9v032_probe(struct i2c_client *client,
 	if (IS_ERR(mt9v032->clk))
 		return PTR_ERR(mt9v032->clk);
 
+	mt9v032->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+						      GPIOD_OUT_HIGH);
+	if (IS_ERR(mt9v032->reset_gpio))
+		return PTR_ERR(mt9v032->reset_gpio);
+
+	mt9v032->standby_gpio = devm_gpiod_get_optional(&client->dev, "standby",
+							GPIOD_OUT_LOW);
+	if (IS_ERR(mt9v032->standby_gpio))
+		return PTR_ERR(mt9v032->standby_gpio);
+
 	mutex_init(&mt9v032->power_lock);
 	mt9v032->pdata = pdata;
 	mt9v032->model = (const void *)did->driver_data;
@@ -1046,7 +1074,7 @@ static int mt9v032_probe(struct i2c_client *client,
 	mt9v032->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	mt9v032->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&mt9v032->subdev.entity, 1, &mt9v032->pad, 0);
+	ret = media_entity_pads_init(&mt9v032->subdev.entity, 1, &mt9v032->pad);
 	if (ret < 0)
 		goto err;
 

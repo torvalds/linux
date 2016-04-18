@@ -14,6 +14,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -23,10 +25,8 @@
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
 
-
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
-
 
 /*
  * The LM70 communicates with a host processor using a 3-wire variant of
@@ -88,7 +88,6 @@ struct spi_lm70llp {
 /* REVISIT : ugly global ; provides "exclusive open" facility */
 static struct spi_lm70llp *lm70llp;
 
-
 /*-------------------------------------------------------------------*/
 
 static inline struct spi_lm70llp *spidev_to_pp(struct spi_device *spi)
@@ -122,12 +121,14 @@ static inline void assertCS(struct spi_lm70llp *pp)
 static inline void clkHigh(struct spi_lm70llp *pp)
 {
 	u8 data = parport_read_data(pp->port);
+
 	parport_write_data(pp->port, data | SCLK);
 }
 
 static inline void clkLow(struct spi_lm70llp *pp)
 {
 	u8 data = parport_read_data(pp->port);
+
 	parport_write_data(pp->port, data & ~SCLK);
 }
 
@@ -166,8 +167,10 @@ static inline void setmosi(struct spi_device *s, int is_on)
 static inline int getmiso(struct spi_device *s)
 {
 	struct spi_lm70llp *pp = spidev_to_pp(s);
-	return ((SIO == (parport_read_status(pp->port) & SIO)) ? 0 : 1 );
+
+	return ((SIO == (parport_read_status(pp->port) & SIO)) ? 0 : 1);
 }
+
 /*--------------------------------------------------------------------*/
 
 #include "spi-bitbang-txrx.h"
@@ -196,11 +199,10 @@ static void spi_lm70llp_attach(struct parport *p)
 	struct spi_lm70llp	*pp;
 	struct spi_master	*master;
 	int			status;
+	struct pardev_cb	lm70llp_cb;
 
 	if (lm70llp) {
-		printk(KERN_WARNING
-			"%s: spi_lm70llp instance already loaded. Aborting.\n",
-			DRVNAME);
+		pr_warn("spi_lm70llp instance already loaded. Aborting.\n");
 		return;
 	}
 
@@ -227,9 +229,11 @@ static void spi_lm70llp_attach(struct parport *p)
 	 * Parport hookup
 	 */
 	pp->port = p;
-	pd = parport_register_device(p, DRVNAME,
-			NULL, NULL, NULL,
-			PARPORT_FLAG_EXCL, pp);
+	memset(&lm70llp_cb, 0, sizeof(lm70llp_cb));
+	lm70llp_cb.private = pp;
+	lm70llp_cb.flags = PARPORT_FLAG_EXCL;
+	pd = parport_register_dev_model(p, DRVNAME, &lm70llp_cb, 0);
+
 	if (!pd) {
 		status = -ENOMEM;
 		goto out_free_master;
@@ -245,9 +249,8 @@ static void spi_lm70llp_attach(struct parport *p)
 	 */
 	status = spi_bitbang_start(&pp->bitbang);
 	if (status < 0) {
-		printk(KERN_WARNING
-			"%s: spi_bitbang_start failed with status %d\n",
-			DRVNAME, status);
+		dev_warn(&pd->dev, "spi_bitbang_start failed with status %d\n",
+			 status);
 		goto out_off_and_release;
 	}
 
@@ -272,9 +275,9 @@ static void spi_lm70llp_attach(struct parport *p)
 	pp->spidev_lm70 = spi_new_device(pp->bitbang.master, &pp->info);
 	if (pp->spidev_lm70)
 		dev_dbg(&pp->spidev_lm70->dev, "spidev_lm70 at %s\n",
-				dev_name(&pp->spidev_lm70->dev));
+			dev_name(&pp->spidev_lm70->dev));
 	else {
-		printk(KERN_WARNING "%s: spi_new_device failed\n", DRVNAME);
+		dev_warn(&pd->dev, "spi_new_device failed\n");
 		status = -ENODEV;
 		goto out_bitbang_stop;
 	}
@@ -293,9 +296,9 @@ out_off_and_release:
 out_parport_unreg:
 	parport_unregister_device(pd);
 out_free_master:
-	(void) spi_master_put(master);
+	spi_master_put(master);
 out_fail:
-	pr_info("%s: spi_lm70llp probe fail, status %d\n", DRVNAME, status);
+	pr_info("spi_lm70llp probe fail, status %d\n", status);
 }
 
 static void spi_lm70llp_detach(struct parport *p)
@@ -314,16 +317,16 @@ static void spi_lm70llp_detach(struct parport *p)
 	parport_release(pp->pd);
 	parport_unregister_device(pp->pd);
 
-	(void) spi_master_put(pp->bitbang.master);
+	spi_master_put(pp->bitbang.master);
 
 	lm70llp = NULL;
 }
 
-
 static struct parport_driver spi_lm70llp_drv = {
 	.name =		DRVNAME,
-	.attach =	spi_lm70llp_attach,
+	.match_port =	spi_lm70llp_attach,
 	.detach =	spi_lm70llp_detach,
+	.devmodel =	true,
 };
 
 static int __init init_spi_lm70llp(void)

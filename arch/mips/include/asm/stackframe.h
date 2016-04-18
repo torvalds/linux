@@ -289,7 +289,7 @@
 		.set	reorder
 		.set	noat
 		mfc0	a0, CP0_STATUS
-		li	v1, 0xff00
+		li	v1, ST0_CU1 | ST0_IM
 		ori	a0, STATMASK
 		xori	a0, STATMASK
 		mtc0	a0, CP0_STATUS
@@ -330,7 +330,7 @@
 		ori	a0, STATMASK
 		xori	a0, STATMASK
 		mtc0	a0, CP0_STATUS
-		li	v1, 0xff00
+		li	v1, ST0_CU1 | ST0_FR | ST0_IM
 		and	a0, v1
 		LONG_L	v0, PT_STATUS(sp)
 		nor	v1, $0, v1

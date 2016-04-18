@@ -5,6 +5,7 @@ comment "USB Host Controller Drivers"
 
 config USB_C67X00_HCD
 	tristate "Cypress C67x00 HCD support"
+	depends on HAS_IOMEM
 	help
 	  The Cypress C67x00 (EZ-Host/EZ-OTG) chips are dual-role
 	  host/peripheral/OTG USB controllers.
@@ -17,6 +18,7 @@ config USB_C67X00_HCD
 
 config USB_XHCI_HCD
 	tristate "xHCI HCD (USB 3.0) support"
+	depends on HAS_DMA && HAS_IOMEM
 	---help---
 	  The eXtensible Host Controller Interface (xHCI) is standard for USB 3.0
 	  "SuperSpeed" host controller hardware.
@@ -41,9 +43,19 @@ config USB_XHCI_PLATFORM
 
 	  If unsure, say N.
 
+config USB_XHCI_MTK
+	tristate "xHCI support for Mediatek MT65xx"
+	select MFD_SYSCON
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	---help---
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in Mediatek MT65xx SoCs.
+	  If unsure, say N.
+
 config USB_XHCI_MVEBU
 	tristate "xHCI support for Marvell Armada 375/38x"
 	select USB_XHCI_PLATFORM
+	depends on HAS_IOMEM
 	depends on ARCH_MVEBU || COMPILE_TEST
 	---help---
 	  Say 'Y' to enable the support for the xHCI host controller
@@ -52,7 +64,7 @@ config USB_XHCI_MVEBU
 config USB_XHCI_RCAR
 	tristate "xHCI support for Renesas R-Car SoCs"
 	select USB_XHCI_PLATFORM
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	---help---
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in Renesas R-Car ARM SoCs.
@@ -61,6 +73,7 @@ endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD
 	tristate "EHCI HCD (USB 2.0) support"
+	depends on HAS_DMA && HAS_IOMEM
 	---help---
 	  The Enhanced Host Controller Interface (EHCI) is standard for USB 2.0
 	  "high speed" (480 Mbit/sec, 60 Mbyte/sec) host controller hardware.
@@ -112,9 +125,6 @@ config USB_EHCI_TT_NEWSCHED
 
 	  If unsure, say Y.
 
-config USB_FSL_MPH_DR_OF
-	tristate
-
 if USB_EHCI_HCD
 
 config USB_EHCI_PCI
@@ -147,7 +157,6 @@ config USB_EHCI_FSL
 	tristate "Support for Freescale PPC on-chip EHCI USB controller"
 	depends on FSL_SOC
 	select USB_EHCI_ROOT_HUB_TT
-	select USB_FSL_MPH_DR_OF if OF
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.
 
@@ -220,6 +229,8 @@ config USB_EHCI_TEGRA
        depends on ARCH_TEGRA
        select USB_EHCI_ROOT_HUB_TT
        select USB_PHY
+	select USB_ULPI
+	select USB_ULPI_VIEWPORT
        help
          This driver enables support for the internal USB Host Controllers
          found in NVIDIA Tegra SoCs. The controllers are EHCI compliant.
@@ -317,6 +328,7 @@ endif # USB_EHCI_HCD
 
 config USB_OXU210HP_HCD
 	tristate "OXU210HP HCD support"
+	depends on HAS_IOMEM
 	---help---
 	  The OXU210HP is an USB host/OTG/device controller. Enable this
 	  option if your board has this chip. If unsure, say N.
@@ -329,6 +341,7 @@ config USB_OXU210HP_HCD
 
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
+	depends on HAS_IOMEM
 	---help---
 	  The ISP1160 and ISP1161 chips are USB host controllers. Enable this
 	  option if your board has this chip. If unsure, say N.
@@ -340,6 +353,7 @@ config USB_ISP116X_HCD
 
 config USB_ISP1362_HCD
 	tristate "ISP1362 HCD support"
+	depends on HAS_IOMEM
 	---help---
 	  Supports the Philips ISP1362 chip as a host controller
 
@@ -350,7 +364,7 @@ config USB_ISP1362_HCD
 
 config USB_FOTG210_HCD
 	tristate "FOTG210 HCD support"
-	depends on USB
+	depends on USB && HAS_DMA && HAS_IOMEM
 	---help---
 	  Faraday FOTG210 is an OTG controller which can be configured as
 	  an USB2.0 host. It is designed to meet USB2.0 EHCI specification
@@ -372,6 +386,7 @@ config USB_MAX3421_HCD
 
 config USB_OHCI_HCD
 	tristate "OHCI HCD (USB 1.1) support"
+	depends on HAS_DMA && HAS_IOMEM
 	---help---
 	  The Open Host Controller Interface (OHCI) is a standard for accessing
 	  USB 1.1 host controller hardware.  It does more in hardware than Intel's
@@ -657,6 +672,7 @@ config USB_U132_HCD
 
 config USB_SL811_HCD
 	tristate "SL811HS HCD support"
+	depends on HAS_IOMEM
 	help
 	  The SL811HS is a single-port USB controller that supports either
 	  host side or peripheral side roles.  Enable this option if your
@@ -688,6 +704,7 @@ config USB_SL811_CS
 
 config USB_R8A66597_HCD
 	tristate "R8A66597 HCD support"
+	depends on HAS_IOMEM
 	help
 	  The R8A66597 is a USB 2.0 host and peripheral controller.
 

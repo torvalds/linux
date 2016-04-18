@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -252,7 +252,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	status = acpi_get_table_by_index(table_index, &table);
 	if (ACPI_SUCCESS(status)) {
-		ACPI_INFO((AE_INFO, "Dynamic OEM Table Load:"));
+		ACPI_INFO(("Dynamic OEM Table Load:"));
 		acpi_tb_print_table_header(0, table);
 	}
 
@@ -358,8 +358,8 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		}
 
 		/*
-		 * If the Region Address and Length have not been previously evaluated,
-		 * evaluate them now and save the results.
+		 * If the Region Address and Length have not been previously
+		 * evaluated, evaluate them now and save the results.
 		 */
 		if (!(obj_desc->common.flags & AOPOBJ_DATA_VALID)) {
 			status = acpi_ds_get_region_arguments(obj_desc);
@@ -454,8 +454,8 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		}
 
 		/*
-		 * Copy the table from the buffer because the buffer could be modified
-		 * or even deleted in the future
+		 * Copy the table from the buffer because the buffer could be
+		 * modified or even deleted in the future
 		 */
 		table = ACPI_ALLOCATE(length);
 		if (!table) {
@@ -472,7 +472,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 	/* Install the new table into the local data structures */
 
-	ACPI_INFO((AE_INFO, "Dynamic OEM Table Load:"));
+	ACPI_INFO(("Dynamic OEM Table Load:"));
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
 	status = acpi_tb_install_standard_table(ACPI_PTR_TO_PHYSADDR(table),

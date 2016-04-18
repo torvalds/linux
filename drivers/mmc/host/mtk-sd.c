@@ -35,6 +35,7 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
 #include <linux/mmc/sdio.h>
+#include <linux/mmc/slot-gpio.h>
 
 #define MAX_BD_NUM          1024
 
@@ -972,7 +973,7 @@ static bool msdc_data_xfer_done(struct msdc_host *host, u32 events,
 		if ((events & MSDC_INT_XFER_COMPL) && (!stop || !stop->error)) {
 			data->bytes_xfered = data->blocks * data->blksz;
 		} else {
-			dev_err(host->dev, "interrupt events: %x\n", events);
+			dev_dbg(host->dev, "interrupt events: %x\n", events);
 			msdc_reset_hw(host);
 			host->error |= REQ_DAT_ERR;
 			data->bytes_xfered = 0;
@@ -982,10 +983,10 @@ static bool msdc_data_xfer_done(struct msdc_host *host, u32 events,
 			else if (events & MSDC_INT_DATCRCERR)
 				data->error = -EILSEQ;
 
-			dev_err(host->dev, "%s: cmd=%d; blocks=%d",
+			dev_dbg(host->dev, "%s: cmd=%d; blocks=%d",
 				__func__, mrq->cmd->opcode, data->blocks);
-			dev_err(host->dev, "data_error=%d xfer_size=%d\n",
-					(int)data->error, data->bytes_xfered);
+			dev_dbg(host->dev, "data_error=%d xfer_size=%d\n",
+				(int)data->error, data->bytes_xfered);
 		}
 
 		msdc_data_xfer_next(host, mrq, data);
@@ -1020,26 +1021,19 @@ static void msdc_set_buswidth(struct msdc_host *host, u32 width)
 static int msdc_ops_switch_volt(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct msdc_host *host = mmc_priv(mmc);
-	int min_uv, max_uv;
 	int ret = 0;
 
 	if (!IS_ERR(mmc->supply.vqmmc)) {
-		if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330) {
-			min_uv = 3300000;
-			max_uv = 3300000;
-		} else if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180) {
-			min_uv = 1800000;
-			max_uv = 1800000;
-		} else {
+		if (ios->signal_voltage != MMC_SIGNAL_VOLTAGE_330 &&
+		    ios->signal_voltage != MMC_SIGNAL_VOLTAGE_180) {
 			dev_err(host->dev, "Unsupported signal voltage!\n");
 			return -EINVAL;
 		}
 
-		ret = regulator_set_voltage(mmc->supply.vqmmc, min_uv, max_uv);
+		ret = mmc_regulator_set_vqmmc(mmc, ios);
 		if (ret) {
-			dev_err(host->dev,
-					"Regulator set error %d: %d - %d\n",
-					ret, min_uv, max_uv);
+			dev_dbg(host->dev, "Regulator set error %d (%d)\n",
+				ret, ios->signal_voltage);
 		} else {
 			/* Apply different pinctrl settings for different signal voltage */
 			if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)
@@ -1276,7 +1270,7 @@ static struct msdc_delay_phase get_best_delay(struct msdc_host *host, u32 delay)
 	int start = 0, len = 0;
 	int start_final = 0, len_final = 0;
 	u8 final_phase = 0xff;
-	struct msdc_delay_phase delay_phase;
+	struct msdc_delay_phase delay_phase = { 0, };
 
 	if (delay == 0) {
 		dev_err(host->dev, "phase error: [map:%x]\n", delay);
@@ -1452,6 +1446,7 @@ static struct mmc_host_ops mt_msdc_ops = {
 	.pre_req = msdc_pre_req,
 	.request = msdc_ops_request,
 	.set_ios = msdc_ops_set_ios,
+	.get_ro = mmc_gpio_get_ro,
 	.start_signal_voltage_switch = msdc_ops_switch_volt,
 	.card_busy = msdc_card_busy,
 	.execute_tuning = msdc_execute_tuning,
@@ -1543,7 +1538,6 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	mmc->f_min = host->src_clk_freq / (4 * 255);
 
 	mmc->caps |= MMC_CAP_ERASE | MMC_CAP_CMD23;
-	mmc->caps |= MMC_CAP_RUNTIME_RESUME;
 	/* MMC core transfer sizes tunable parameters */
 	mmc->max_segs = MAX_BD_NUM;
 	mmc->max_seg_size = BDMA_DESC_BUFLEN;

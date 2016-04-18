@@ -72,16 +72,16 @@ struct zoneref *next_zones_zonelist(struct zoneref *z,
 }
 
 #ifdef CONFIG_ARCH_HAS_HOLES_MEMORYMODEL
-int memmap_valid_within(unsigned long pfn,
+bool memmap_valid_within(unsigned long pfn,
 					struct page *page, struct zone *zone)
 {
 	if (page_to_pfn(page) != pfn)
-		return 0;
+		return false;
 
 	if (page_zone(page) != zone)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
 

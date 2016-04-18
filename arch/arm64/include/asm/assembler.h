@@ -94,12 +94,19 @@
 	dmb	\opt
 	.endm
 
+/*
+ * Emit an entry into the exception table
+ */
+	.macro		_asm_extable, from, to
+	.pushsection	__ex_table, "a"
+	.align		3
+	.long		(\from - .), (\to - .)
+	.popsection
+	.endm
+
 #define USER(l, x...)				\
 9999:	x;					\
-	.section __ex_table,"a";		\
-	.align	3;				\
-	.quad	9999b,l;			\
-	.previous
+	_asm_extable	9999b, l
 
 /*
  * Register aliases.
@@ -193,6 +200,17 @@ lr	.req	x30		// link register
 	str	\src, [\tmp, :lo12:\sym]
 	.endm
 
+	/*
+	 * @sym: The name of the per-cpu variable
+	 * @reg: Result of per_cpu(sym, smp_processor_id())
+	 * @tmp: scratch register
+	 */
+	.macro this_cpu_ptr, sym, reg, tmp
+	adr_l	\reg, \sym
+	mrs	\tmp, tpidr_el1
+	add	\reg, \reg, \tmp
+	.endm
+
 /*
  * Annotate a function as position independent, i.e., safe to be called before
  * the kernel virtual mapping is activated.
@@ -203,5 +221,16 @@ lr	.req	x30		// link register
 	.set	__pi_##x, x;		\
 	.size	__pi_##x, . - x;	\
 	ENDPROC(x)
+
+	/*
+	 * Emit a 64-bit absolute little endian symbol reference in a way that
+	 * ensures that it will be resolved at build time, even when building a
+	 * PIE binary. This requires cooperation from the linker script, which
+	 * must emit the lo32/hi32 halves individually.
+	 */
+	.macro	le64sym, sym
+	.long	\sym\()_lo32
+	.long	\sym\()_hi32
+	.endm
 
 #endif	/* __ASM_ASSEMBLER_H */

@@ -56,6 +56,8 @@ __be32          nfsd4_set_nfs4_label(struct svc_rqst *, struct svc_fh *,
 		    struct xdr_netobj *);
 __be32		nfsd4_vfs_fallocate(struct svc_rqst *, struct svc_fh *,
 				    struct file *, loff_t, loff_t, int);
+__be32		nfsd4_clone_file_range(struct file *, u64, struct file *,
+			u64, u64);
 #endif /* CONFIG_NFSD_V4 */
 __be32		nfsd_create(struct svc_rqst *, struct svc_fh *,
 				char *name, int len, struct iattr *attrs,
@@ -112,14 +114,14 @@ static inline int fh_want_write(struct svc_fh *fh)
 	int ret = mnt_want_write(fh->fh_export->ex_path.mnt);
 
 	if (!ret)
-		fh->fh_want_write = 1;
+		fh->fh_want_write = true;
 	return ret;
 }
 
 static inline void fh_drop_write(struct svc_fh *fh)
 {
 	if (fh->fh_want_write) {
-		fh->fh_want_write = 0;
+		fh->fh_want_write = false;
 		mnt_drop_write(fh->fh_export->ex_path.mnt);
 	}
 }
@@ -135,6 +137,25 @@ static inline int nfsd_create_is_exclusive(int createmode)
 {
 	return createmode == NFS3_CREATE_EXCLUSIVE
 	       || createmode == NFS4_CREATE_EXCLUSIVE4_1;
+}
+
+static inline bool nfsd_eof_on_read(long requested, long read,
+				loff_t offset, loff_t size)
+{
+	/* We assume a short read means eof: */
+	if (requested > read)
+		return true;
+	/*
+	 * A non-short read might also reach end of file.  The spec
+	 * still requires us to set eof in that case.
+	 *
+	 * Further operations may have modified the file size since
+	 * the read, so the following check is not atomic with the read.
+	 * We've only seen that cause a problem for a client in the case
+	 * where the read returned a count of 0 without setting eof.
+	 * That case was fixed by the addition of the above check.
+	 */
+	return (offset + read >= size);
 }
 
 #endif /* LINUX_NFSD_VFS_H */

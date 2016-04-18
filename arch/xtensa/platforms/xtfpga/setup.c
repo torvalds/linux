@@ -63,7 +63,9 @@ void platform_restart(void)
 #if XCHAL_NUM_IBREAK > 0
 			      "wsr	a2, ibreakenable\n\t"
 #endif
+#if XCHAL_HAVE_LOOPS
 			      "wsr	a2, lcount\n\t"
+#endif
 			      "movi	a2, 0x1f\n\t"
 			      "wsr	a2, ps\n\t"
 			      "isync\n\t"
@@ -221,6 +223,7 @@ static struct ethoc_platform_data ethoc_pdata = {
 	 */
 	.hwaddr = { 0x00, 0x50, 0xc2, 0x13, 0x6f, 0 },
 	.phy_id = -1,
+	.big_endian = XCHAL_HAVE_BE,
 };
 
 static struct platform_device ethoc_device = {
@@ -281,7 +284,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.irq		= DUART16552_INTNUM,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 				  UPF_IOREMAP,
-		.iotype		= UPIO_MEM32,
+		.iotype		= XCHAL_HAVE_BE ? UPIO_MEM32BE : UPIO_MEM32,
 		.regshift	= 2,
 		.uartclk	= 0,    /* set in xtavnet_init() */
 	},

@@ -16,7 +16,8 @@
 	compatible = "hisilicon,hi3620-hi4511";
 
 	chosen {
-		bootargs = "console=ttyAMA0,115200 root=/dev/ram0 earlyprintk";
+		bootargs = "root=/dev/ram0";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {

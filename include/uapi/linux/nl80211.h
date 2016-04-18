@@ -820,6 +820,10 @@
  *	as an event to indicate changes for devices with wiphy-specific regdom
  *	management.
  *
+ * @NL80211_CMD_ABORT_SCAN: Stop an ongoing scan. Returns -ENOENT if a scan is
+ *	not running. The driver indicates the status of the scan through
+ *	cfg80211_scan_done().
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1005,6 +1009,8 @@ enum nl80211_commands {
 	NL80211_CMD_TDLS_CANCEL_CHANNEL_SWITCH,
 
 	NL80211_CMD_WIPHY_REG_CHANGE,
+
+	NL80211_CMD_ABORT_SCAN,
 
 	/* add new commands above here */
 
@@ -1721,6 +1727,8 @@ enum nl80211_commands {
  *	underlying device supports these minimal RRM features:
  *		%NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES,
  *		%NL80211_FEATURE_QUIET,
+ *	Or, if global RRM is supported, see:
+ *		%NL80211_EXT_FEATURE_RRM
  *	If this flag is used, driver must add the Power Capabilities IE to the
  *	association request. In addition, it must also set the RRM capability
  *	flag in the association request's Capability Info field.
@@ -1764,8 +1772,9 @@ enum nl80211_commands {
  *	over all channels.
  *
  * @NL80211_ATTR_SCHED_SCAN_DELAY: delay before the first cycle of a
- *	scheduled scan (or a WoWLAN net-detect scan) is started, u32
- *	in seconds.
+ *	scheduled scan is started.  Or the delay before a WoWLAN
+ *	net-detect scan is started, counting from the moment the
+ *	system is suspended.  This value is a u32, in seconds.
 
  * @NL80211_ATTR_REG_INDOOR: flag attribute, if set indicates that the device
  *      is operating in an indoor environment.
@@ -1782,6 +1791,10 @@ enum nl80211_commands {
  *	thus it must not specify the number of iterations, only the interval
  *	between scans. The scan plans are executed sequentially.
  *	Each scan plan is a nested attribute of &enum nl80211_sched_scan_plan.
+ * @NL80211_ATTR_PBSS: flag attribute. If set it means operate
+ *	in a PBSS. Specified in %NL80211_CMD_CONNECT to request
+ *	connecting to a PCP, and in %NL80211_CMD_START_AP to start
+ *	a PCP instead of AP. Relevant for DMG networks only.
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -2156,6 +2169,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL,
 	NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS,
 	NL80211_ATTR_SCHED_SCAN_PLANS,
+
+	NL80211_ATTR_PBSS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -4389,12 +4404,18 @@ enum nl80211_feature_flags {
 /**
  * enum nl80211_ext_feature_index - bit index of extended features.
  * @NL80211_EXT_FEATURE_VHT_IBSS: This driver supports IBSS with VHT datarates.
+ * @NL80211_EXT_FEATURE_RRM: This driver supports RRM. When featured, user can
+ *	can request to use RRM (see %NL80211_ATTR_USE_RRM) with
+ *	%NL80211_CMD_ASSOCIATE and %NL80211_CMD_CONNECT requests, which will set
+ *	the ASSOC_REQ_USE_RRM flag in the association request even if
+ *	NL80211_FEATURE_QUIET is not advertized.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
 enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_VHT_IBSS,
+	NL80211_EXT_FEATURE_RRM,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,

@@ -221,7 +221,6 @@ qmss: qmss@2a40000 {
 		#size-cells = <1>;
 		ranges;
 		pdsp0@0x2a10000 {
-			firmware = "keystone/qmss_pdsp_acc48_k2_le_1_0_0_8.fw";
 			reg = <0x2a10000 0x1000>,
 			      <0x2a0f000 0x100>,
 			      <0x2a0c000 0x3c8>,

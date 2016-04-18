@@ -174,13 +174,13 @@ static ssize_t ata_scsi_park_show(struct device *device,
 	struct ata_port *ap;
 	struct ata_link *link;
 	struct ata_device *dev;
-	unsigned long flags, now;
+	unsigned long now;
 	unsigned int uninitialized_var(msecs);
 	int rc = 0;
 
 	ap = ata_shost_to_port(sdev->host);
 
-	spin_lock_irqsave(ap->lock, flags);
+	spin_lock_irq(ap->lock);
 	dev = ata_scsi_find_dev(ap, sdev);
 	if (!dev) {
 		rc = -ENODEV;
@@ -675,19 +675,18 @@ static int ata_ioc32(struct ata_port *ap)
 int ata_sas_scsi_ioctl(struct ata_port *ap, struct scsi_device *scsidev,
 		     int cmd, void __user *arg)
 {
-	int val = -EINVAL, rc = -EINVAL;
+	unsigned long val;
+	int rc = -EINVAL;
 	unsigned long flags;
 
 	switch (cmd) {
-	case ATA_IOC_GET_IO32:
+	case HDIO_GET_32BIT:
 		spin_lock_irqsave(ap->lock, flags);
 		val = ata_ioc32(ap);
 		spin_unlock_irqrestore(ap->lock, flags);
-		if (copy_to_user(arg, &val, 1))
-			return -EFAULT;
-		return 0;
+		return put_user(val, (unsigned long __user *)arg);
 
-	case ATA_IOC_SET_IO32:
+	case HDIO_SET_32BIT:
 		val = (unsigned long) arg;
 		rc = 0;
 		spin_lock_irqsave(ap->lock, flags);
@@ -3695,9 +3694,6 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		 * automatically deferring requests.
 		 */
 		shost->max_host_blocked = 1;
-
-		if (scsi_init_shared_tag_map(shost, host->n_tags))
-			goto err_add;
 
 		rc = scsi_add_host_with_dma(ap->scsi_host,
 						&ap->tdev, ap->host->dev);

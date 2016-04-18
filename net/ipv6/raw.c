@@ -733,6 +733,7 @@ static int raw6_getfrag(void *from, char *to, int offset, int len, int odd,
 
 static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
+	struct ipv6_txoptions *opt_to_free = NULL;
 	struct ipv6_txoptions opt_space;
 	DECLARE_SOCKADDR(struct sockaddr_in6 *, sin6, msg->msg_name);
 	struct in6_addr *daddr, *final_p, final;
@@ -839,8 +840,10 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if (!(opt->opt_nflen|opt->opt_flen))
 			opt = NULL;
 	}
-	if (!opt)
-		opt = np->opt;
+	if (!opt) {
+		opt = txopt_get(np);
+		opt_to_free = opt;
+		}
 	if (flowlabel)
 		opt = fl6_merge_options(&opt_space, flowlabel, opt);
 	opt = ipv6_fixup_options(&opt_space, opt);
@@ -906,6 +909,7 @@ done:
 	dst_release(dst);
 out:
 	fl6_sock_release(flowlabel);
+	txopt_put(opt_to_free);
 	return err < 0 ? err : len;
 do_confirm:
 	dst_confirm(dst);
@@ -968,6 +972,11 @@ static int do_rawv6_setsockopt(struct sock *sk, int level, int optname,
 		return -EFAULT;
 
 	switch (optname) {
+	case IPV6_HDRINCL:
+		if (sk->sk_type != SOCK_RAW)
+			return -EINVAL;
+		inet_sk(sk)->hdrincl = !!val;
+		return 0;
 	case IPV6_CHECKSUM:
 		if (inet_sk(sk)->inet_num == IPPROTO_ICMPV6 &&
 		    level == IPPROTO_IPV6) {
@@ -1012,7 +1021,8 @@ static int rawv6_setsockopt(struct sock *sk, int level, int optname,
 			return -EOPNOTSUPP;
 		return rawv6_seticmpfilter(sk, level, optname, optval, optlen);
 	case SOL_IPV6:
-		if (optname == IPV6_CHECKSUM)
+		if (optname == IPV6_CHECKSUM ||
+		    optname == IPV6_HDRINCL)
 			break;
 	default:
 		return ipv6_setsockopt(sk, level, optname, optval, optlen);
@@ -1033,7 +1043,8 @@ static int compat_rawv6_setsockopt(struct sock *sk, int level, int optname,
 			return -EOPNOTSUPP;
 		return rawv6_seticmpfilter(sk, level, optname, optval, optlen);
 	case SOL_IPV6:
-		if (optname == IPV6_CHECKSUM)
+		if (optname == IPV6_CHECKSUM ||
+		    optname == IPV6_HDRINCL)
 			break;
 	default:
 		return compat_ipv6_setsockopt(sk, level, optname,
@@ -1053,6 +1064,9 @@ static int do_rawv6_getsockopt(struct sock *sk, int level, int optname,
 		return -EFAULT;
 
 	switch (optname) {
+	case IPV6_HDRINCL:
+		val = inet_sk(sk)->hdrincl;
+		break;
 	case IPV6_CHECKSUM:
 		/*
 		 * We allow getsockopt() for IPPROTO_IPV6-level
@@ -1090,7 +1104,8 @@ static int rawv6_getsockopt(struct sock *sk, int level, int optname,
 			return -EOPNOTSUPP;
 		return rawv6_geticmpfilter(sk, level, optname, optval, optlen);
 	case SOL_IPV6:
-		if (optname == IPV6_CHECKSUM)
+		if (optname == IPV6_CHECKSUM ||
+		    optname == IPV6_HDRINCL)
 			break;
 	default:
 		return ipv6_getsockopt(sk, level, optname, optval, optlen);
@@ -1111,7 +1126,8 @@ static int compat_rawv6_getsockopt(struct sock *sk, int level, int optname,
 			return -EOPNOTSUPP;
 		return rawv6_geticmpfilter(sk, level, optname, optval, optlen);
 	case SOL_IPV6:
-		if (optname == IPV6_CHECKSUM)
+		if (optname == IPV6_CHECKSUM ||
+		    optname == IPV6_HDRINCL)
 			break;
 	default:
 		return compat_ipv6_getsockopt(sk, level, optname,

@@ -9,7 +9,6 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/file.h>
@@ -17,8 +16,6 @@
 #include <linux/err.h>
 #include <keys/user-type.h>
 #include <keys/big_key-type.h>
-
-MODULE_LICENSE("GPL");
 
 /*
  * Layout of key payload words.
@@ -212,18 +209,8 @@ long big_key_read(const struct key *key, char __user *buffer, size_t buflen)
 	return ret;
 }
 
-/*
- * Module stuff
- */
 static int __init big_key_init(void)
 {
 	return register_key_type(&key_type_big_key);
 }
-
-static void __exit big_key_cleanup(void)
-{
-	unregister_key_type(&key_type_big_key);
-}
-
-module_init(big_key_init);
-module_exit(big_key_cleanup);
+device_initcall(big_key_init);

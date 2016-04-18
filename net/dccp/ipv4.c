@@ -204,8 +204,6 @@ void dccp_req_err(struct sock *sk, u64 seq)
 	 * ICMPs are not backlogged, hence we cannot get an established
 	 * socket here.
 	 */
-	WARN_ON(req->sk);
-
 	if (!between48(seq, dccp_rsk(req)->dreq_iss, dccp_rsk(req)->dreq_gss)) {
 		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
 	} else {
@@ -802,7 +800,7 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 	}
 
 lookup:
-	sk = __inet_lookup_skb(&dccp_hashinfo, skb,
+	sk = __inet_lookup_skb(&dccp_hashinfo, skb, __dccp_hdr_len(dh),
 			       dh->dccph_sport, dh->dccph_dport);
 	if (!sk) {
 		dccp_pr_debug("failed to look up flow ID in table and "
@@ -824,26 +822,26 @@ lookup:
 
 	if (sk->sk_state == DCCP_NEW_SYN_RECV) {
 		struct request_sock *req = inet_reqsk(sk);
-		struct sock *nsk = NULL;
+		struct sock *nsk;
 
 		sk = req->rsk_listener;
-		if (likely(sk->sk_state == DCCP_LISTEN)) {
-			nsk = dccp_check_req(sk, skb, req);
-		} else {
+		if (unlikely(sk->sk_state != DCCP_LISTEN)) {
 			inet_csk_reqsk_queue_drop_and_put(sk, req);
 			goto lookup;
 		}
+		sock_hold(sk);
+		nsk = dccp_check_req(sk, skb, req);
 		if (!nsk) {
 			reqsk_put(req);
-			goto discard_it;
+			goto discard_and_relse;
 		}
 		if (nsk == sk) {
-			sock_hold(sk);
 			reqsk_put(req);
 		} else if (dccp_child_process(sk, nsk, skb)) {
 			dccp_v4_ctl_send_reset(sk, skb);
-			goto discard_it;
+			goto discard_and_relse;
 		} else {
+			sock_put(sk);
 			return 0;
 		}
 	}

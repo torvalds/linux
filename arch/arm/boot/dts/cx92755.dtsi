@@ -95,6 +95,13 @@
 		timeout-sec = <15>;
 	};
 
+	pinctrl: pinctrl@f0000e20 {
+		compatible = "cnxt,cx92755-pinctrl";
+		reg = <0xf0000e20 0x100>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
 	uc_regs: syscon@f00003a0 {
 		compatible = "cnxt,cx92755-uc", "syscon";
 		reg = <0xf00003a0 0x10>;

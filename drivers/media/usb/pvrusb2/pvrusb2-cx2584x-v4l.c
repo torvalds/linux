@@ -32,7 +32,7 @@
 
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
-#include <media/cx25840.h>
+#include <media/drv-intf/cx25840.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/errno.h>

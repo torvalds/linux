@@ -57,7 +57,7 @@ static inline int redboot_checksum(struct fis_image_desc *img)
 }
 
 static int parse_redboot_partitions(struct mtd_info *master,
-				    struct mtd_partition **pparts,
+				    const struct mtd_partition **pparts,
 				    struct mtd_part_parser_data *data)
 {
 	int nrparts = 0;
@@ -290,28 +290,13 @@ static int parse_redboot_partitions(struct mtd_info *master,
 }
 
 static struct mtd_part_parser redboot_parser = {
-	.owner = THIS_MODULE,
 	.parse_fn = parse_redboot_partitions,
 	.name = "RedBoot",
 };
+module_mtd_part_parser(redboot_parser);
 
 /* mtd parsers will request the module by parser name */
 MODULE_ALIAS("RedBoot");
-
-static int __init redboot_parser_init(void)
-{
-	register_mtd_parser(&redboot_parser);
-	return 0;
-}
-
-static void __exit redboot_parser_exit(void)
-{
-	deregister_mtd_parser(&redboot_parser);
-}
-
-module_init(redboot_parser_init);
-module_exit(redboot_parser_exit);
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
 MODULE_DESCRIPTION("Parsing code for RedBoot Flash Image System (FIS) tables");

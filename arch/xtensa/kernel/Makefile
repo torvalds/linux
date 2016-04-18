@@ -8,14 +8,15 @@ obj-y := align.o coprocessor.o entry.o irq.o pci-dma.o platform.o process.o \
 	 ptrace.o setup.o signal.o stacktrace.o syscall.o time.o traps.o \
 	 vectors.o
 
-obj-$(CONFIG_KGDB) += xtensa-stub.o
 obj-$(CONFIG_PCI) += pci.o
 obj-$(CONFIG_MODULES) += xtensa_ksyms.o module.o
 obj-$(CONFIG_FUNCTION_TRACER) += mcount.o
 obj-$(CONFIG_SMP) += smp.o mxhead.o
 obj-$(CONFIG_XTENSA_VARIANT_HAVE_PERF_EVENTS) += perf_event.o
+obj-$(CONFIG_HAVE_HW_BREAKPOINT) += hw_breakpoint.o
 
 AFLAGS_head.o += -mtext-section-literals
+AFLAGS_mxhead.o += -mtext-section-literals
 
 # In the Xtensa architecture, assembly generates literals which must always
 # precede the L32R instruction with a relative offset less than 256 kB.

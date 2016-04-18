@@ -26,7 +26,7 @@
 #include "hw.h"
 #include "dma.h"
 
-#define MAX_SCF	1024
+#define MAX_SCF	256
 
 /* provide a lookup table for setting the source address in the base or
  * extended descriptor of an xor or pq descriptor
@@ -120,6 +120,9 @@ ioat_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 	dma_addr_t src = dma_src;
 	size_t total_len = len;
 	int num_descs, idx, i;
+
+	if (test_bit(IOAT_CHAN_DOWN, &ioat_chan->state))
+		return NULL;
 
 	num_descs = ioat_xferlen_to_descs(ioat_chan, len);
 	if (likely(num_descs) &&
@@ -254,6 +257,11 @@ struct dma_async_tx_descriptor *
 ioat_prep_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 	       unsigned int src_cnt, size_t len, unsigned long flags)
 {
+	struct ioatdma_chan *ioat_chan = to_ioat_chan(chan);
+
+	if (test_bit(IOAT_CHAN_DOWN, &ioat_chan->state))
+		return NULL;
+
 	return __ioat_prep_xor_lock(chan, NULL, dest, src, src_cnt, len, flags);
 }
 
@@ -262,6 +270,11 @@ ioat_prep_xor_val(struct dma_chan *chan, dma_addr_t *src,
 		    unsigned int src_cnt, size_t len,
 		    enum sum_check_flags *result, unsigned long flags)
 {
+	struct ioatdma_chan *ioat_chan = to_ioat_chan(chan);
+
+	if (test_bit(IOAT_CHAN_DOWN, &ioat_chan->state))
+		return NULL;
+
 	/* the cleanup routine only sets bits on validate failure, it
 	 * does not clear bits on validate success... so clear it here
 	 */
@@ -574,6 +587,11 @@ ioat_prep_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
 	      unsigned int src_cnt, const unsigned char *scf, size_t len,
 	      unsigned long flags)
 {
+	struct ioatdma_chan *ioat_chan = to_ioat_chan(chan);
+
+	if (test_bit(IOAT_CHAN_DOWN, &ioat_chan->state))
+		return NULL;
+
 	/* specify valid address for disabled result */
 	if (flags & DMA_PREP_PQ_DISABLE_P)
 		dst[0] = dst[1];
@@ -614,6 +632,11 @@ ioat_prep_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 		  unsigned int src_cnt, const unsigned char *scf, size_t len,
 		  enum sum_check_flags *pqres, unsigned long flags)
 {
+	struct ioatdma_chan *ioat_chan = to_ioat_chan(chan);
+
+	if (test_bit(IOAT_CHAN_DOWN, &ioat_chan->state))
+		return NULL;
+
 	/* specify valid address for disabled result */
 	if (flags & DMA_PREP_PQ_DISABLE_P)
 		pq[0] = pq[1];
@@ -638,6 +661,10 @@ ioat_prep_pqxor(struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
 {
 	unsigned char scf[MAX_SCF];
 	dma_addr_t pq[2];
+	struct ioatdma_chan *ioat_chan = to_ioat_chan(chan);
+
+	if (test_bit(IOAT_CHAN_DOWN, &ioat_chan->state))
+		return NULL;
 
 	if (src_cnt > MAX_SCF)
 		return NULL;
@@ -661,6 +688,10 @@ ioat_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
 {
 	unsigned char scf[MAX_SCF];
 	dma_addr_t pq[2];
+	struct ioatdma_chan *ioat_chan = to_ioat_chan(chan);
+
+	if (test_bit(IOAT_CHAN_DOWN, &ioat_chan->state))
+		return NULL;
 
 	if (src_cnt > MAX_SCF)
 		return NULL;
@@ -688,6 +719,9 @@ ioat_prep_interrupt_lock(struct dma_chan *c, unsigned long flags)
 	struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
 	struct ioat_ring_ent *desc;
 	struct ioat_dma_descriptor *hw;
+
+	if (test_bit(IOAT_CHAN_DOWN, &ioat_chan->state))
+		return NULL;
 
 	if (ioat_check_space_lock(ioat_chan, 1) == 0)
 		desc = ioat_get_ring_ent(ioat_chan, ioat_chan->head);

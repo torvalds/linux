@@ -801,7 +801,9 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 								      hw_queue);
 			if (rx_remained_cnt == 0)
 				return;
-
+			buffer_desc = &rtlpci->rx_ring[rxring_idx].buffer_desc[
+				rtlpci->rx_ring[rxring_idx].idx];
+			pdesc = (struct rtl_rx_desc *)skb->data;
 		} else {	/* rx descriptor */
 			pdesc = &rtlpci->rx_ring[rxring_idx].desc[
 				rtlpci->rx_ring[rxring_idx].idx];
@@ -824,13 +826,6 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 		new_skb = dev_alloc_skb(rtlpci->rxbuffersize);
 		if (unlikely(!new_skb))
 			goto no_new;
-		if (rtlpriv->use_new_trx_flow) {
-			buffer_desc =
-			  &rtlpci->rx_ring[rxring_idx].buffer_desc
-				[rtlpci->rx_ring[rxring_idx].idx];
-			/*means rx wifi info*/
-			pdesc = (struct rtl_rx_desc *)skb->data;
-		}
 		memset(&rx_status , 0 , sizeof(rx_status));
 		rtlpriv->cfg->ops->query_rx_desc(hw, &stats,
 						 &rx_status, (u8 *)pdesc, skb);
@@ -860,7 +855,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 		}
 		/* handle command packet here */
 		if (rtlpriv->cfg->ops->rx_command_packet &&
-		    rtlpriv->cfg->ops->rx_command_packet(hw, stats, skb)) {
+		    rtlpriv->cfg->ops->rx_command_packet(hw, &stats, skb)) {
 				dev_kfree_skb_any(skb);
 				goto new_trx_end;
 		}
@@ -2397,7 +2392,6 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 	rtlpriv->cfg->ops->deinit_sw_vars(hw);
 
 	if (rtlpci->irq_alloc) {
-		synchronize_irq(rtlpci->pdev->irq);
 		free_irq(rtlpci->pdev->irq, hw);
 		rtlpci->irq_alloc = 0;
 	}

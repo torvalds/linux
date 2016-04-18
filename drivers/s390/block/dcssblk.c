@@ -17,6 +17,7 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/pfn_t.h>
 #include <asm/extmem.h>
 #include <asm/io.h>
 
@@ -27,9 +28,10 @@
 
 static int dcssblk_open(struct block_device *bdev, fmode_t mode);
 static void dcssblk_release(struct gendisk *disk, fmode_t mode);
-static void dcssblk_make_request(struct request_queue *q, struct bio *bio);
+static blk_qc_t dcssblk_make_request(struct request_queue *q,
+						struct bio *bio);
 static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
-			 void __pmem **kaddr, unsigned long *pfn);
+			 void __pmem **kaddr, pfn_t *pfn);
 
 static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
 
@@ -736,15 +738,15 @@ dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const ch
 	dev_info = dcssblk_get_device_by_name(local_buf);
 	if (dev_info == NULL) {
 		up_write(&dcssblk_devices_sem);
-		pr_warning("Device %s cannot be removed because it is not a "
-			   "known device\n", local_buf);
+		pr_warn("Device %s cannot be removed because it is not a known device\n",
+			local_buf);
 		rc = -ENODEV;
 		goto out_buf;
 	}
 	if (atomic_read(&dev_info->use_count) != 0) {
 		up_write(&dcssblk_devices_sem);
-		pr_warning("Device %s cannot be removed while it is in "
-			   "use\n", local_buf);
+		pr_warn("Device %s cannot be removed while it is in use\n",
+			local_buf);
 		rc = -EBUSY;
 		goto out_buf;
 	}
@@ -815,7 +817,7 @@ dcssblk_release(struct gendisk *disk, fmode_t mode)
 	up_write(&dcssblk_devices_sem);
 }
 
-static void
+static blk_qc_t
 dcssblk_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct dcssblk_dev_info *dev_info;
@@ -848,9 +850,8 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 		case SEG_TYPE_SC:
 			/* cannot write to these segments */
 			if (bio_data_dir(bio) == WRITE) {
-				pr_warning("Writing to %s failed because it "
-					   "is a read-only device\n",
-					   dev_name(&dev_info->dev));
+				pr_warn("Writing to %s failed because it is a read-only device\n",
+					dev_name(&dev_info->dev));
 				goto fail;
 			}
 		}
@@ -874,27 +875,26 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 		bytes_done += bvec.bv_len;
 	}
 	bio_endio(bio);
-	return;
+	return BLK_QC_T_NONE;
 fail:
 	bio_io_error(bio);
+	return BLK_QC_T_NONE;
 }
 
 static long
 dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
-			void __pmem **kaddr, unsigned long *pfn)
+			void __pmem **kaddr, pfn_t *pfn)
 {
 	struct dcssblk_dev_info *dev_info;
 	unsigned long offset, dev_sz;
-	void *addr;
 
 	dev_info = bdev->bd_disk->private_data;
 	if (!dev_info)
 		return -ENODEV;
 	dev_sz = dev_info->end - dev_info->start;
 	offset = secnum * 512;
-	addr = (void *) (dev_info->start + offset);
-	*pfn = virt_to_phys(addr) >> PAGE_SHIFT;
-	*kaddr = (void __pmem *) addr;
+	*kaddr = (void __pmem *) (dev_info->start + offset);
+	*pfn = __pfn_to_pfn_t(PFN_DOWN(dev_info->start + offset), PFN_DEV);
 
 	return dev_sz - offset;
 }

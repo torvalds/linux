@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -72,7 +73,9 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 	si = (const struct acpi_csrt_shared_info *)&grp[1];
 
 	/* Match device by MMIO and IRQ */
-	if (si->mmio_base_low != mem || si->gsi_interrupt != irq)
+	if (si->mmio_base_low != lower_32_bits(mem) ||
+	    si->mmio_base_high != upper_32_bits(mem) ||
+	    si->gsi_interrupt != irq)
 		return 0;
 
 	dev_dbg(&adev->dev, "matches with %.4s%04X (rev %u)\n",
@@ -161,10 +164,8 @@ int acpi_dma_controller_register(struct device *dev,
 		return -EINVAL;
 
 	/* Check if the device was enumerated by ACPI */
-	if (!ACPI_HANDLE(dev))
-		return -EINVAL;
-
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &adev))
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
 		return -EINVAL;
 
 	adma = kzalloc(sizeof(*adma), GFP_KERNEL);
@@ -359,10 +360,11 @@ struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 	int found;
 
 	/* Check if the device was enumerated by ACPI */
-	if (!dev || !ACPI_HANDLE(dev))
+	if (!dev)
 		return ERR_PTR(-ENODEV);
 
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &adev))
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
 		return ERR_PTR(-ENODEV);
 
 	memset(&pdata, 0, sizeof(pdata));
@@ -436,7 +438,7 @@ struct dma_chan *acpi_dma_request_slave_chan_by_name(struct device *dev,
 			return ERR_PTR(-ENODEV);
 	}
 
-	dev_dbg(dev, "found DMA channel \"%s\" at index %d\n", name, index);
+	dev_dbg(dev, "Looking for DMA channel \"%s\" at index %d...\n", name, index);
 	return acpi_dma_request_slave_chan_by_index(dev, index);
 }
 EXPORT_SYMBOL_GPL(acpi_dma_request_slave_chan_by_name);

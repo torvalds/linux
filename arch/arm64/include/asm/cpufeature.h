@@ -29,8 +29,14 @@
 #define ARM64_HAS_PAN				4
 #define ARM64_HAS_LSE_ATOMICS			5
 #define ARM64_WORKAROUND_CAVIUM_23154		6
+#define ARM64_WORKAROUND_834220			7
+#define ARM64_HAS_NO_HW_PREFETCH		8
+#define ARM64_HAS_UAO				9
+#define ARM64_ALT_PAN_NOT_UAO			10
+#define ARM64_HAS_VIRT_HOST_EXTN		11
+#define ARM64_WORKAROUND_CAVIUM_27456		12
 
-#define ARM64_NCAPS				7
+#define ARM64_NCAPS				13
 
 #ifndef __ASSEMBLY__
 
@@ -46,8 +52,12 @@ enum ftr_type {
 #define FTR_STRICT	true	/* SANITY check strict matching required */
 #define FTR_NONSTRICT	false	/* SANITY check ignored */
 
+#define FTR_SIGNED	true	/* Value should be treated as signed */
+#define FTR_UNSIGNED	false	/* Value should be treated as unsigned */
+
 struct arm64_ftr_bits {
-	bool		strict;	  /* CPU Sanity check: strict matching required ? */
+	bool		sign;	/* Value is signed ? */
+	bool		strict;	/* CPU Sanity check: strict matching required ? */
 	enum ftr_type	type;
 	u8		shift;
 	u8		width;
@@ -80,9 +90,10 @@ struct arm64_cpu_capabilities {
 
 		struct {	/* Feature register checking */
 			u32 sys_reg;
-			int field_pos;
-			int min_field_value;
-			int hwcap_type;
+			u8 field_pos;
+			u8 min_field_value;
+			u8 hwcap_type;
+			bool sign;
 			unsigned long hwcap;
 		};
 	};
@@ -112,15 +123,27 @@ static inline void cpus_set_cap(unsigned int num)
 }
 
 static inline int __attribute_const__
-cpuid_feature_extract_field_width(u64 features, int field, int width)
+cpuid_feature_extract_signed_field_width(u64 features, int field, int width)
 {
 	return (s64)(features << (64 - width - field)) >> (64 - width);
 }
 
 static inline int __attribute_const__
-cpuid_feature_extract_field(u64 features, int field)
+cpuid_feature_extract_signed_field(u64 features, int field)
 {
-	return cpuid_feature_extract_field_width(features, field, 4);
+	return cpuid_feature_extract_signed_field_width(features, field, 4);
+}
+
+static inline unsigned int __attribute_const__
+cpuid_feature_extract_unsigned_field_width(u64 features, int field, int width)
+{
+	return (u64)(features << (64 - width - field)) >> (64 - width);
+}
+
+static inline unsigned int __attribute_const__
+cpuid_feature_extract_unsigned_field(u64 features, int field)
+{
+	return cpuid_feature_extract_unsigned_field_width(features, field, 4);
 }
 
 static inline u64 arm64_ftr_mask(struct arm64_ftr_bits *ftrp)
@@ -128,15 +151,23 @@ static inline u64 arm64_ftr_mask(struct arm64_ftr_bits *ftrp)
 	return (u64)GENMASK(ftrp->shift + ftrp->width - 1, ftrp->shift);
 }
 
+static inline int __attribute_const__
+cpuid_feature_extract_field(u64 features, int field, bool sign)
+{
+	return (sign) ?
+		cpuid_feature_extract_signed_field(features, field) :
+		cpuid_feature_extract_unsigned_field(features, field);
+}
+
 static inline s64 arm64_ftr_value(struct arm64_ftr_bits *ftrp, u64 val)
 {
-	return cpuid_feature_extract_field_width(val, ftrp->shift, ftrp->width);
+	return (s64)cpuid_feature_extract_field(val, ftrp->shift, ftrp->sign);
 }
 
 static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)
 {
-	return cpuid_feature_extract_field(mmfr0, ID_AA64MMFR0_BIGENDEL_SHIFT) == 0x1 ||
-		cpuid_feature_extract_field(mmfr0, ID_AA64MMFR0_BIGENDEL0_SHIFT) == 0x1;
+	return cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_BIGENDEL_SHIFT) == 0x1 ||
+		cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_BIGENDEL0_SHIFT) == 0x1;
 }
 
 void __init setup_cpu_features(void);
@@ -145,13 +176,7 @@ void update_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 			    const char *info);
 void check_local_cpu_errata(void);
 
-#ifdef CONFIG_HOTPLUG_CPU
 void verify_local_cpu_capabilities(void);
-#else
-static inline void verify_local_cpu_capabilities(void)
-{
-}
-#endif
 
 u64 read_system_reg(u32 id);
 

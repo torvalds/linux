@@ -12,7 +12,6 @@
 #ifndef __ARCH_ARM_MACH_EXYNOS_COMMON_H
 #define __ARCH_ARM_MACH_EXYNOS_COMMON_H
 
-#include <linux/of.h>
 #include <linux/platform_data/cpuidle-exynos.h>
 
 #define EXYNOS3250_SOC_ID	0xE3472000
@@ -149,7 +148,7 @@ static inline void exynos_pm_init(void) {}
 extern void exynos_cpu_resume(void);
 extern void exynos_cpu_resume_ns(void);
 
-extern struct smp_operations exynos_smp_ops;
+extern const struct smp_operations exynos_smp_ops;
 
 extern void exynos_cpu_power_down(int cpu);
 extern void exynos_cpu_power_up(int cpu);

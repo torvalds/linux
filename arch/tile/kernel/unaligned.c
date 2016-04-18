@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/compat.h>
 #include <linux/prctl.h>
-#include <linux/context_tracking.h>
 #include <asm/cacheflush.h>
 #include <asm/traps.h>
 #include <asm/uaccess.h>
@@ -1449,7 +1448,6 @@ void jit_bundle_gen(struct pt_regs *regs, tilegx_bundle_bits bundle,
 
 void do_unaligned(struct pt_regs *regs, int vecnum)
 {
-	enum ctx_state prev_state = exception_enter();
 	tilegx_bundle_bits __user  *pc;
 	tilegx_bundle_bits bundle;
 	struct thread_info *info = current_thread_info();
@@ -1503,7 +1501,7 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 				*((tilegx_bundle_bits *)(regs->pc)));
 			jit_bundle_gen(regs, bundle, align_ctl);
 		}
-		goto done;
+		return;
 	}
 
 	/*
@@ -1527,7 +1525,7 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 
 		trace_unhandled_signal("unaligned fixup trap", regs, 0, SIGBUS);
 		force_sig_info(info.si_signo, &info, current);
-		goto done;
+		return;
 	}
 
 
@@ -1544,7 +1542,7 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 		trace_unhandled_signal("segfault in unalign fixup", regs,
 				       (unsigned long)info.si_addr, SIGSEGV);
 		force_sig_info(info.si_signo, &info, current);
-		goto done;
+		return;
 	}
 
 	if (!info->unalign_jit_base) {
@@ -1579,7 +1577,7 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 
 		if (IS_ERR((void __force *)user_page)) {
 			pr_err("Out of kernel pages trying do_mmap\n");
-			goto done;
+			return;
 		}
 
 		/* Save the address in the thread_info struct */
@@ -1592,9 +1590,6 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 
 	/* Generate unalign JIT */
 	jit_bundle_gen(regs, GX_INSN_BSWAP(bundle), align_ctl);
-
-done:
-	exception_exit(prev_state);
 }
 
 #endif /* __tilegx__ */

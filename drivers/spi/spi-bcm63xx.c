@@ -207,6 +207,9 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 	u8 clk_cfg, reg;
 	int i;
 
+	/* Default to lowest clock configuration */
+	clk_cfg = SPI_CLK_0_391MHZ;
+
 	/* Find the closest clock configuration */
 	for (i = 0; i < SPI_CLK_MASK; i++) {
 		if (t->speed_hz >= bcm63xx_spi_freq_table[i][0]) {
@@ -214,10 +217,6 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 			break;
 		}
 	}
-
-	/* No matching configuration found, default to lowest */
-	if (i == SPI_CLK_MASK)
-		clk_cfg = SPI_CLK_0_391MHZ;
 
 	/* clear existing clock configuration bits of the register */
 	reg = bcm_spi_readb(bs, SPI_CLK_CFG);
@@ -562,8 +561,8 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 		goto out_clk_disable;
 	}
 
-	dev_info(dev, "at 0x%08x (irq %d, FIFOs size %d)\n",
-		 r->start, irq, bs->fifo_size);
+	dev_info(dev, "at %pr (irq %d, FIFOs size %d)\n",
+		 r, irq, bs->fifo_size);
 
 	return 0;
 

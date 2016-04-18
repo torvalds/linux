@@ -27,7 +27,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -96,14 +96,15 @@ enum {
 	LDLM_CANCEL_SHRINK = 1 << 2, /* Cancel locks from shrinker. */
 	LDLM_CANCEL_LRUR   = 1 << 3, /* Cancel locks from lru resize. */
 	LDLM_CANCEL_NO_WAIT = 1 << 4 /* Cancel locks w/o blocking (neither
-				      * sending nor waiting for any rpcs) */
+				      * sending nor waiting for any rpcs)
+				      */
 };
 
 int ldlm_cancel_lru(struct ldlm_namespace *ns, int nr,
-		    ldlm_cancel_flags_t sync, int flags);
+		    enum ldlm_cancel_flags sync, int flags);
 int ldlm_cancel_lru_local(struct ldlm_namespace *ns,
 			 struct list_head *cancels, int count, int max,
-			 ldlm_cancel_flags_t cancel_flags, int flags);
+			 enum ldlm_cancel_flags cancel_flags, int flags);
 extern int ldlm_enqueue_min;
 
 /* ldlm_resource.c */
@@ -133,11 +134,11 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 		  enum req_location loc, void *data, int size);
 struct ldlm_lock *
 ldlm_lock_create(struct ldlm_namespace *ns, const struct ldlm_res_id *,
-		 ldlm_type_t type, ldlm_mode_t,
+		 enum ldlm_type type, enum ldlm_mode mode,
 		 const struct ldlm_callback_suite *cbs,
 		 void *data, __u32 lvb_len, enum lvb_type lvb_type);
-ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *, struct ldlm_lock **,
-			       void *cookie, __u64 *flags);
+enum ldlm_error ldlm_lock_enqueue(struct ldlm_namespace *, struct ldlm_lock **,
+				  void *cookie, __u64 *flags);
 void ldlm_lock_addref_internal(struct ldlm_lock *, __u32 mode);
 void ldlm_lock_addref_internal_nolock(struct ldlm_lock *, __u32 mode);
 void ldlm_lock_decref_internal(struct ldlm_lock *, __u32 mode);
@@ -154,7 +155,7 @@ int ldlm_bl_to_thread_lock(struct ldlm_namespace *ns, struct ldlm_lock_desc *ld,
 int ldlm_bl_to_thread_list(struct ldlm_namespace *ns,
 			   struct ldlm_lock_desc *ld,
 			   struct list_head *cancels, int count,
-			   ldlm_cancel_flags_t cancel_flags);
+			   enum ldlm_cancel_flags cancel_flags);
 
 void ldlm_handle_bl_callback(struct ldlm_namespace *ns,
 			     struct ldlm_lock_desc *ld, struct ldlm_lock *lock);

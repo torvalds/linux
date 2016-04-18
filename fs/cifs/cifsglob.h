@@ -70,8 +70,10 @@
 #define SERVER_NAME_LENGTH 40
 #define SERVER_NAME_LEN_WITH_NULL     (SERVER_NAME_LENGTH + 1)
 
-/* SMB echo "timeout" -- FIXME: tunable? */
-#define SMB_ECHO_INTERVAL (60 * HZ)
+/* echo interval in seconds */
+#define SMB_ECHO_INTERVAL_MIN 1
+#define SMB_ECHO_INTERVAL_MAX 600
+#define SMB_ECHO_INTERVAL_DEFAULT 60
 
 #include "cifspdu.h"
 
@@ -225,7 +227,7 @@ struct smb_version_operations {
 	void (*print_stats)(struct seq_file *m, struct cifs_tcon *);
 	void (*dump_share_caps)(struct seq_file *, struct cifs_tcon *);
 	/* verify the message */
-	int (*check_message)(char *, unsigned int);
+	int (*check_message)(char *, unsigned int, struct TCP_Server_Info *);
 	bool (*is_oplock_break)(char *, struct TCP_Server_Info *);
 	void (*downgrade_oplock)(struct TCP_Server_Info *,
 					struct cifsInodeInfo *, bool);
@@ -493,7 +495,10 @@ struct smb_vol {
 	bool mfsymlinks:1; /* use Minshall+French Symlinks */
 	bool multiuser:1;
 	bool rwpidforward:1; /* pid forward for read/write operations */
-	bool nosharesock;
+	bool nosharesock:1;
+	bool persistent:1;
+	bool nopersistent:1;
+	bool resilient:1; /* noresilient not required since not fored for CA */
 	unsigned int rsize;
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
@@ -504,6 +509,7 @@ struct smb_vol {
 	struct sockaddr_storage dstaddr; /* destination address */
 	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
 	struct nls_table *local_nls;
+	unsigned int echo_interval; /* echo interval in secs */
 };
 
 #define CIFS_MOUNT_MASK (CIFS_MOUNT_NO_PERM | CIFS_MOUNT_SET_UID | \
@@ -624,7 +630,9 @@ struct TCP_Server_Info {
 #ifdef CONFIG_CIFS_SMB2
 	unsigned int	max_read;
 	unsigned int	max_write;
+	__u8		preauth_hash[512];
 #endif /* CONFIG_CIFS_SMB2 */
+	unsigned long echo_interval;
 };
 
 static inline unsigned int
@@ -706,7 +714,7 @@ compare_mid(__u16 mid, const struct smb_hdr *smb)
  *
  * Note that this might make for "interesting" allocation problems during
  * writeback however as we have to allocate an array of pointers for the
- * pages. A 16M write means ~32kb page array with PAGE_CACHE_SIZE == 4096.
+ * pages. A 16M write means ~32kb page array with PAGE_SIZE == 4096.
  *
  * For reads, there is a similar problem as we need to allocate an array
  * of kvecs to handle the receive, though that should only need to be done
@@ -725,7 +733,7 @@ compare_mid(__u16 mid, const struct smb_hdr *smb)
 
 /*
  * The default wsize is 1M. find_get_pages seems to return a maximum of 256
- * pages in a single call. With PAGE_CACHE_SIZE == 4k, this means we can fill
+ * pages in a single call. With PAGE_SIZE == 4k, this means we can fill
  * a single wsize request with a single call.
  */
 #define CIFS_DEFAULT_IOSIZE (1024 * 1024)
@@ -806,7 +814,10 @@ struct cifs_ses {
 	bool need_reconnect:1; /* connection reset, uid now invalid */
 #ifdef CONFIG_CIFS_SMB2
 	__u16 session_flags;
-	char smb3signingkey[SMB3_SIGN_KEY_SIZE]; /* for signing smb3 packets */
+	__u8 smb3signingkey[SMB3_SIGN_KEY_SIZE];
+	__u8 smb3encryptionkey[SMB3_SIGN_KEY_SIZE];
+	__u8 smb3decryptionkey[SMB3_SIGN_KEY_SIZE];
+	__u8 preauth_hash[512];
 #endif /* CONFIG_CIFS_SMB2 */
 };
 
@@ -895,6 +906,8 @@ struct cifs_tcon {
 	bool broken_posix_open; /* e.g. Samba server versions < 3.3.2, 3.2.9 */
 	bool broken_sparse_sup; /* if server or share does not support sparse */
 	bool need_reconnect:1; /* connection reset, tid now invalid */
+	bool use_resilient:1; /* use resilient instead of durable handles */
+	bool use_persistent:1; /* use persistent instead of durable handles */
 #ifdef CONFIG_CIFS_SMB2
 	bool print:1;		/* set if connection to printer share */
 	bool bad_network_name:1; /* set if ret status STATUS_BAD_NETWORK_NAME */
@@ -1015,6 +1028,7 @@ struct cifs_fid {
 	__u64 persistent_fid;	/* persist file id for smb2 */
 	__u64 volatile_fid;	/* volatile file id for smb2 */
 	__u8 lease_key[SMB2_LEASE_KEY_SIZE];	/* lease key for smb2 */
+	__u8 create_guid[16];
 #endif
 	struct cifs_pending_open *pending_open;
 	unsigned int epoch;
@@ -1582,11 +1596,11 @@ GLOBAL_EXTERN atomic_t midCount;
 
 /* Misc globals */
 GLOBAL_EXTERN bool enable_oplocks; /* enable or disable oplocks */
-GLOBAL_EXTERN unsigned int lookupCacheEnabled;
+GLOBAL_EXTERN bool lookupCacheEnabled;
 GLOBAL_EXTERN unsigned int global_secflags;	/* if on, session setup sent
 				with more secure ntlmssp2 challenge/resp */
 GLOBAL_EXTERN unsigned int sign_CIFS_PDUs;  /* enable smb packet signing */
-GLOBAL_EXTERN unsigned int linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/
+GLOBAL_EXTERN bool linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/
 GLOBAL_EXTERN unsigned int CIFSMaxBufSize;  /* max size not including hdr */
 GLOBAL_EXTERN unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */
 GLOBAL_EXTERN unsigned int cifs_min_small;  /* min size of small buf pool */

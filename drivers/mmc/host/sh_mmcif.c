@@ -397,38 +397,26 @@ static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
 }
 
 static struct dma_chan *
-sh_mmcif_request_dma_one(struct sh_mmcif_host *host,
-			 struct sh_mmcif_plat_data *pdata,
-			 enum dma_transfer_direction direction)
+sh_mmcif_request_dma_pdata(struct sh_mmcif_host *host, uintptr_t slave_id)
 {
-	struct dma_slave_config cfg = { 0, };
-	struct dma_chan *chan;
-	void *slave_data = NULL;
-	struct resource *res;
-	struct device *dev = sh_mmcif_host_to_dev(host);
 	dma_cap_mask_t mask;
-	int ret;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
-
-	if (pdata)
-		slave_data = direction == DMA_MEM_TO_DEV ?
-			(void *)pdata->slave_id_tx :
-			(void *)pdata->slave_id_rx;
-
-	chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
-				slave_data, dev,
-				direction == DMA_MEM_TO_DEV ? "tx" : "rx");
-
-	dev_dbg(dev, "%s: %s: got channel %p\n", __func__,
-		direction == DMA_MEM_TO_DEV ? "TX" : "RX", chan);
-
-	if (!chan)
+	if (slave_id <= 0)
 		return NULL;
 
-	res = platform_get_resource(host->pd, IORESOURCE_MEM, 0);
+	return dma_request_channel(mask, shdma_chan_filter, (void *)slave_id);
+}
 
+static int sh_mmcif_dma_slave_config(struct sh_mmcif_host *host,
+				     struct dma_chan *chan,
+				     enum dma_transfer_direction direction)
+{
+	struct resource *res;
+	struct dma_slave_config cfg = { 0, };
+
+	res = platform_get_resource(host->pd, IORESOURCE_MEM, 0);
 	cfg.direction = direction;
 
 	if (direction == DMA_DEV_TO_MEM) {
@@ -439,38 +427,42 @@ sh_mmcif_request_dma_one(struct sh_mmcif_host *host,
 		cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	}
 
-	ret = dmaengine_slave_config(chan, &cfg);
-	if (ret < 0) {
-		dma_release_channel(chan);
-		return NULL;
-	}
-
-	return chan;
+	return dmaengine_slave_config(chan, &cfg);
 }
 
-static void sh_mmcif_request_dma(struct sh_mmcif_host *host,
-				 struct sh_mmcif_plat_data *pdata)
+static void sh_mmcif_request_dma(struct sh_mmcif_host *host)
 {
 	struct device *dev = sh_mmcif_host_to_dev(host);
 	host->dma_active = false;
 
-	if (pdata) {
-		if (pdata->slave_id_tx <= 0 || pdata->slave_id_rx <= 0)
-			return;
-	} else if (!dev->of_node) {
-		return;
-	}
-
 	/* We can only either use DMA for both Tx and Rx or not use it at all */
-	host->chan_tx = sh_mmcif_request_dma_one(host, pdata, DMA_MEM_TO_DEV);
-	if (!host->chan_tx)
-		return;
+	if (IS_ENABLED(CONFIG_SUPERH) && dev->platform_data) {
+		struct sh_mmcif_plat_data *pdata = dev->platform_data;
 
-	host->chan_rx = sh_mmcif_request_dma_one(host, pdata, DMA_DEV_TO_MEM);
-	if (!host->chan_rx) {
-		dma_release_channel(host->chan_tx);
-		host->chan_tx = NULL;
+		host->chan_tx = sh_mmcif_request_dma_pdata(host,
+							pdata->slave_id_tx);
+		host->chan_rx = sh_mmcif_request_dma_pdata(host,
+							pdata->slave_id_rx);
+	} else {
+		host->chan_tx = dma_request_slave_channel(dev, "tx");
+		host->chan_rx = dma_request_slave_channel(dev, "rx");
 	}
+	dev_dbg(dev, "%s: got channel TX %p RX %p\n", __func__, host->chan_tx,
+		host->chan_rx);
+
+	if (!host->chan_tx || !host->chan_rx ||
+	    sh_mmcif_dma_slave_config(host, host->chan_tx, DMA_MEM_TO_DEV) ||
+	    sh_mmcif_dma_slave_config(host, host->chan_rx, DMA_DEV_TO_MEM))
+		goto error;
+
+	return;
+
+error:
+	if (host->chan_tx)
+		dma_release_channel(host->chan_tx);
+	if (host->chan_rx)
+		dma_release_channel(host->chan_rx);
+	host->chan_tx = host->chan_rx = NULL;
 }
 
 static void sh_mmcif_release_dma(struct sh_mmcif_host *host)
@@ -1102,7 +1094,7 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (ios->power_mode == MMC_POWER_UP) {
 		if (!host->card_present) {
 			/* See if we also get DMA */
-			sh_mmcif_request_dma(host, dev->platform_data);
+			sh_mmcif_request_dma(host);
 			host->card_present = true;
 		}
 		sh_mmcif_set_power(host, ios);
@@ -1403,7 +1395,7 @@ static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
 
 static void sh_mmcif_timeout_work(struct work_struct *work)
 {
-	struct delayed_work *d = container_of(work, struct delayed_work, work);
+	struct delayed_work *d = to_delayed_work(work);
 	struct sh_mmcif_host *host = container_of(d, struct sh_mmcif_host, timeout_work);
 	struct mmc_request *mrq = host->mrq;
 	struct device *dev = sh_mmcif_host_to_dev(host);
@@ -1521,7 +1513,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 		mmc->caps |= pd->caps;
 	mmc->max_segs = 32;
 	mmc->max_blk_size = 512;
-	mmc->max_req_size = PAGE_CACHE_SIZE * mmc->max_segs;
+	mmc->max_req_size = PAGE_SIZE * mmc->max_segs;
 	mmc->max_blk_count = mmc->max_req_size / mmc->max_blk_size;
 	mmc->max_seg_size = mmc->max_req_size;
 

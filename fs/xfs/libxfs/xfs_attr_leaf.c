@@ -41,6 +41,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
 #include "xfs_dir2.h"
+#include "xfs_log.h"
 
 
 /*
@@ -266,6 +267,8 @@ xfs_attr3_leaf_verify(
 			return false;
 		if (be64_to_cpu(hdr3->info.blkno) != bp->b_bn)
 			return false;
+		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->info.lsn)))
+			return false;
 	} else {
 		if (ichdr.magic != XFS_ATTR_LEAF_MAGIC)
 			return false;
@@ -325,6 +328,7 @@ xfs_attr3_leaf_read_verify(
 }
 
 const struct xfs_buf_ops xfs_attr3_leaf_buf_ops = {
+	.name = "xfs_attr3_leaf",
 	.verify_read = xfs_attr3_leaf_read_verify,
 	.verify_write = xfs_attr3_leaf_write_verify,
 };

@@ -45,7 +45,7 @@
 #include "event.h"
 #include "session.h"
 #include "debug.h"
-#include "parse-options.h"
+#include <subcmd/parse-options.h>
 
 #include "intel-pt.h"
 #include "intel-bts.h"
@@ -478,10 +478,11 @@ void auxtrace_heap__pop(struct auxtrace_heap *heap)
 			 heap_array[last].ordinal);
 }
 
-size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr)
+size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr,
+				       struct perf_evlist *evlist)
 {
 	if (itr)
-		return itr->info_priv_size(itr);
+		return itr->info_priv_size(itr, evlist);
 	return 0;
 }
 
@@ -852,7 +853,7 @@ int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
 	int err;
 
 	pr_debug2("Synthesizing auxtrace information\n");
-	priv_size = auxtrace_record__info_priv_size(itr);
+	priv_size = auxtrace_record__info_priv_size(itr, session->evlist);
 	ev = zalloc(sizeof(struct auxtrace_info_event) + priv_size);
 	if (!ev)
 		return -ENOMEM;

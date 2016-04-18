@@ -786,7 +786,7 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 		fs_ecm_notify_desc.bEndpointAddress;
 
 	status = usb_assign_descriptors(f, ecm_fs_function, ecm_hs_function,
-			ecm_ss_function);
+			ecm_ss_function, NULL);
 	if (status)
 		goto fail;
 
@@ -838,10 +838,10 @@ USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(ecm);
 USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(ecm);
 
 static struct configfs_attribute *ecm_attrs[] = {
-	&f_ecm_opts_dev_addr.attr,
-	&f_ecm_opts_host_addr.attr,
-	&f_ecm_opts_qmult.attr,
-	&f_ecm_opts_ifname.attr,
+	&ecm_opts_attr_dev_addr,
+	&ecm_opts_attr_host_addr,
+	&ecm_opts_attr_qmult,
+	&ecm_opts_attr_ifname,
 	NULL,
 };
 

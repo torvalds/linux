@@ -39,7 +39,7 @@
 #include <linux/workqueue.h>
 #include <linux/regmap.h>
 
-#include <media/adv7604.h>
+#include <media/i2c/adv7604.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -207,70 +207,21 @@ static bool adv76xx_has_afe(struct adv76xx_state *state)
 	return state->info->has_afe;
 }
 
-/* Supported CEA and DMT timings */
-static const struct v4l2_dv_timings adv76xx_timings[] = {
-	V4L2_DV_BT_CEA_720X480P59_94,
-	V4L2_DV_BT_CEA_720X576P50,
-	V4L2_DV_BT_CEA_1280X720P24,
-	V4L2_DV_BT_CEA_1280X720P25,
-	V4L2_DV_BT_CEA_1280X720P50,
-	V4L2_DV_BT_CEA_1280X720P60,
-	V4L2_DV_BT_CEA_1920X1080P24,
-	V4L2_DV_BT_CEA_1920X1080P25,
-	V4L2_DV_BT_CEA_1920X1080P30,
-	V4L2_DV_BT_CEA_1920X1080P50,
-	V4L2_DV_BT_CEA_1920X1080P60,
-
-	/* sorted by DMT ID */
-	V4L2_DV_BT_DMT_640X350P85,
-	V4L2_DV_BT_DMT_640X400P85,
-	V4L2_DV_BT_DMT_720X400P85,
-	V4L2_DV_BT_DMT_640X480P60,
-	V4L2_DV_BT_DMT_640X480P72,
-	V4L2_DV_BT_DMT_640X480P75,
-	V4L2_DV_BT_DMT_640X480P85,
-	V4L2_DV_BT_DMT_800X600P56,
-	V4L2_DV_BT_DMT_800X600P60,
-	V4L2_DV_BT_DMT_800X600P72,
-	V4L2_DV_BT_DMT_800X600P75,
-	V4L2_DV_BT_DMT_800X600P85,
-	V4L2_DV_BT_DMT_848X480P60,
-	V4L2_DV_BT_DMT_1024X768P60,
-	V4L2_DV_BT_DMT_1024X768P70,
-	V4L2_DV_BT_DMT_1024X768P75,
-	V4L2_DV_BT_DMT_1024X768P85,
-	V4L2_DV_BT_DMT_1152X864P75,
-	V4L2_DV_BT_DMT_1280X768P60_RB,
-	V4L2_DV_BT_DMT_1280X768P60,
-	V4L2_DV_BT_DMT_1280X768P75,
-	V4L2_DV_BT_DMT_1280X768P85,
-	V4L2_DV_BT_DMT_1280X800P60_RB,
-	V4L2_DV_BT_DMT_1280X800P60,
-	V4L2_DV_BT_DMT_1280X800P75,
-	V4L2_DV_BT_DMT_1280X800P85,
-	V4L2_DV_BT_DMT_1280X960P60,
-	V4L2_DV_BT_DMT_1280X960P85,
-	V4L2_DV_BT_DMT_1280X1024P60,
-	V4L2_DV_BT_DMT_1280X1024P75,
-	V4L2_DV_BT_DMT_1280X1024P85,
-	V4L2_DV_BT_DMT_1360X768P60,
-	V4L2_DV_BT_DMT_1400X1050P60_RB,
-	V4L2_DV_BT_DMT_1400X1050P60,
-	V4L2_DV_BT_DMT_1400X1050P75,
-	V4L2_DV_BT_DMT_1400X1050P85,
-	V4L2_DV_BT_DMT_1440X900P60_RB,
-	V4L2_DV_BT_DMT_1440X900P60,
-	V4L2_DV_BT_DMT_1600X1200P60,
-	V4L2_DV_BT_DMT_1680X1050P60_RB,
-	V4L2_DV_BT_DMT_1680X1050P60,
-	V4L2_DV_BT_DMT_1792X1344P60,
-	V4L2_DV_BT_DMT_1856X1392P60,
-	V4L2_DV_BT_DMT_1920X1200P60_RB,
-	V4L2_DV_BT_DMT_1366X768P60_RB,
-	V4L2_DV_BT_DMT_1366X768P60,
-	V4L2_DV_BT_DMT_1920X1080P60,
-	{ },
+/* Unsupported timings. This device cannot support 720p30. */
+static const struct v4l2_dv_timings adv76xx_timings_exceptions[] = {
+	V4L2_DV_BT_CEA_1280X720P30,
+	{ }
 };
+
+static bool adv76xx_check_dv_timings(const struct v4l2_dv_timings *t, void *hdl)
+{
+	int i;
+
+	for (i = 0; adv76xx_timings_exceptions[i].bt.width; i++)
+		if (v4l2_match_dv_timings(t, adv76xx_timings_exceptions + i, 0, false))
+			return false;
+	return true;
+}
 
 struct adv76xx_video_standards {
 	struct v4l2_dv_timings timings;
@@ -806,6 +757,36 @@ static inline bool is_digital_input(struct v4l2_subdev *sd)
 	       state->selected_input == ADV7604_PAD_HDMI_PORT_D;
 }
 
+static const struct v4l2_dv_timings_cap adv7604_timings_cap_analog = {
+	.type = V4L2_DV_BT_656_1120,
+	/* keep this initialization for compatibility with GCC < 4.4.6 */
+	.reserved = { 0 },
+	V4L2_INIT_BT_TIMINGS(0, 1920, 0, 1200, 25000000, 170000000,
+		V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
+			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
+		V4L2_DV_BT_CAP_PROGRESSIVE | V4L2_DV_BT_CAP_REDUCED_BLANKING |
+			V4L2_DV_BT_CAP_CUSTOM)
+};
+
+static const struct v4l2_dv_timings_cap adv76xx_timings_cap_digital = {
+	.type = V4L2_DV_BT_656_1120,
+	/* keep this initialization for compatibility with GCC < 4.4.6 */
+	.reserved = { 0 },
+	V4L2_INIT_BT_TIMINGS(0, 1920, 0, 1200, 25000000, 225000000,
+		V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
+			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
+		V4L2_DV_BT_CAP_PROGRESSIVE | V4L2_DV_BT_CAP_REDUCED_BLANKING |
+			V4L2_DV_BT_CAP_CUSTOM)
+};
+
+static inline const struct v4l2_dv_timings_cap *
+adv76xx_get_dv_timings_cap(struct v4l2_subdev *sd)
+{
+	return is_digital_input(sd) ? &adv76xx_timings_cap_digital :
+				      &adv7604_timings_cap_analog;
+}
+
+
 /* ----------------------------------------------------------------------- */
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -905,7 +886,7 @@ static int find_and_set_predefined_video_timings(struct v4l2_subdev *sd,
 
 	for (i = 0; predef_vid_timings[i].timings.bt.width; i++) {
 		if (!v4l2_match_dv_timings(timings, &predef_vid_timings[i].timings,
-					is_digital_input(sd) ? 250000 : 1000000))
+				is_digital_input(sd) ? 250000 : 1000000, false))
 			continue;
 		io_write(sd, 0x00, predef_vid_timings[i].vid_std); /* video std */
 		io_write(sd, 0x01, (predef_vid_timings[i].v_freq << 4) +
@@ -1216,6 +1197,20 @@ static int adv76xx_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
+static int adv76xx_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct v4l2_subdev *sd =
+		&container_of(ctrl->handler, struct adv76xx_state, hdl)->sd;
+
+	if (ctrl->id == V4L2_CID_DV_RX_IT_CONTENT_TYPE) {
+		ctrl->val = V4L2_DV_IT_CONTENT_TYPE_NO_ITC;
+		if ((io_read(sd, 0x60) & 1) && (infoframe_read(sd, 0x03) & 0x80))
+			ctrl->val = (infoframe_read(sd, 0x05) >> 4) & 3;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 /* ----------------------------------------------------------------------- */
 
 static inline bool no_power(struct v4l2_subdev *sd)
@@ -1330,17 +1325,23 @@ static int stdi2dv_timings(struct v4l2_subdev *sd,
 	u32 pix_clk;
 	int i;
 
-	for (i = 0; adv76xx_timings[i].bt.height; i++) {
-		if (vtotal(&adv76xx_timings[i].bt) != stdi->lcf + 1)
+	for (i = 0; v4l2_dv_timings_presets[i].bt.width; i++) {
+		const struct v4l2_bt_timings *bt = &v4l2_dv_timings_presets[i].bt;
+
+		if (!v4l2_valid_dv_timings(&v4l2_dv_timings_presets[i],
+					   adv76xx_get_dv_timings_cap(sd),
+					   adv76xx_check_dv_timings, NULL))
 			continue;
-		if (adv76xx_timings[i].bt.vsync != stdi->lcvs)
+		if (vtotal(bt) != stdi->lcf + 1)
+			continue;
+		if (bt->vsync != stdi->lcvs)
 			continue;
 
-		pix_clk = hfreq * htotal(&adv76xx_timings[i].bt);
+		pix_clk = hfreq * htotal(bt);
 
-		if ((pix_clk < adv76xx_timings[i].bt.pixelclock + 1000000) &&
-		    (pix_clk > adv76xx_timings[i].bt.pixelclock - 1000000)) {
-			*timings = adv76xx_timings[i];
+		if ((pix_clk < bt->pixelclock + 1000000) &&
+		    (pix_clk > bt->pixelclock - 1000000)) {
+			*timings = v4l2_dv_timings_presets[i];
 			return 0;
 		}
 	}
@@ -1425,15 +1426,11 @@ static int adv76xx_enum_dv_timings(struct v4l2_subdev *sd,
 {
 	struct adv76xx_state *state = to_state(sd);
 
-	if (timings->index >= ARRAY_SIZE(adv76xx_timings) - 1)
-		return -EINVAL;
-
 	if (timings->pad >= state->source_pad)
 		return -EINVAL;
 
-	memset(timings->reserved, 0, sizeof(timings->reserved));
-	timings->timings = adv76xx_timings[timings->index];
-	return 0;
+	return v4l2_enum_dv_timings_cap(timings,
+		adv76xx_get_dv_timings_cap(sd), adv76xx_check_dv_timings, NULL);
 }
 
 static int adv76xx_dv_timings_cap(struct v4l2_subdev *sd,
@@ -1444,29 +1441,7 @@ static int adv76xx_dv_timings_cap(struct v4l2_subdev *sd,
 	if (cap->pad >= state->source_pad)
 		return -EINVAL;
 
-	cap->type = V4L2_DV_BT_656_1120;
-	cap->bt.max_width = 1920;
-	cap->bt.max_height = 1200;
-	cap->bt.min_pixelclock = 25000000;
-
-	switch (cap->pad) {
-	case ADV76XX_PAD_HDMI_PORT_A:
-	case ADV7604_PAD_HDMI_PORT_B:
-	case ADV7604_PAD_HDMI_PORT_C:
-	case ADV7604_PAD_HDMI_PORT_D:
-		cap->bt.max_pixelclock = 225000000;
-		break;
-	case ADV7604_PAD_VGA_RGB:
-	case ADV7604_PAD_VGA_COMP:
-	default:
-		cap->bt.max_pixelclock = 170000000;
-		break;
-	}
-
-	cap->bt.standards = V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
-			 V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT;
-	cap->bt.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE |
-		V4L2_DV_BT_CAP_REDUCED_BLANKING | V4L2_DV_BT_CAP_CUSTOM;
+	*cap = *adv76xx_get_dv_timings_cap(sd);
 	return 0;
 }
 
@@ -1475,15 +1450,9 @@ static int adv76xx_dv_timings_cap(struct v4l2_subdev *sd,
 static void adv76xx_fill_optional_dv_timings_fields(struct v4l2_subdev *sd,
 		struct v4l2_dv_timings *timings)
 {
-	int i;
-
-	for (i = 0; adv76xx_timings[i].bt.width; i++) {
-		if (v4l2_match_dv_timings(timings, &adv76xx_timings[i],
-					is_digital_input(sd) ? 250000 : 1000000)) {
-			*timings = adv76xx_timings[i];
-			break;
-		}
-	}
+	v4l2_find_dv_timings_cap(timings, adv76xx_get_dv_timings_cap(sd),
+			is_digital_input(sd) ? 250000 : 1000000,
+			adv76xx_check_dv_timings, NULL);
 }
 
 static unsigned int adv7604_read_hdmi_pixelclock(struct v4l2_subdev *sd)
@@ -1644,19 +1613,16 @@ static int adv76xx_s_dv_timings(struct v4l2_subdev *sd,
 	if (!timings)
 		return -EINVAL;
 
-	if (v4l2_match_dv_timings(&state->timings, timings, 0)) {
+	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
 		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
 		return 0;
 	}
 
 	bt = &timings->bt;
 
-	if ((is_analog_input(sd) && bt->pixelclock > 170000000) ||
-			(is_digital_input(sd) && bt->pixelclock > 225000000)) {
-		v4l2_dbg(1, debug, sd, "%s: pixelclock out of range %d\n",
-				__func__, (u32)bt->pixelclock);
+	if (!v4l2_valid_dv_timings(timings, adv76xx_get_dv_timings_cap(sd),
+				   adv76xx_check_dv_timings, NULL))
 		return -ERANGE;
-	}
 
 	adv76xx_fill_optional_dv_timings_fields(sd, timings);
 
@@ -1884,6 +1850,26 @@ static int adv76xx_get_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int adv76xx_get_selection(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_selection *sel)
+{
+	struct adv76xx_state *state = to_state(sd);
+
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+	/* Only CROP, CROP_DEFAULT and CROP_BOUNDS are supported */
+	if (sel->target > V4L2_SEL_TGT_CROP_BOUNDS)
+		return -EINVAL;
+
+	sel->r.left	= 0;
+	sel->r.top	= 0;
+	sel->r.width	= state->timings.bt.width;
+	sel->r.height	= state->timings.bt.height;
+
+	return 0;
+}
+
 static int adv76xx_set_format(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_format *format)
@@ -1960,10 +1946,9 @@ static int adv76xx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	}
 
 	/* tx 5v detect */
-	tx_5v = io_read(sd, 0x70) & info->cable_det_mask;
+	tx_5v = irq_reg_0x70 & info->cable_det_mask;
 	if (tx_5v) {
 		v4l2_dbg(1, debug, sd, "%s: tx_5v: 0x%x\n", __func__, tx_5v);
-		io_write(sd, 0x71, tx_5v);
 		adv76xx_s_detect_tx_5v_ctrl(sd);
 		if (handled)
 			*handled = true;
@@ -2110,7 +2095,8 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		rep_write(sd, 0x76, spa_loc & 0xff);
 		rep_write_clr_set(sd, 0x77, 0x40, (spa_loc & 0x100) >> 2);
 	} else {
-		/* FIXME: Where is the SPA location LSB register ? */
+		/* ADV7612 Software Manual Rev. A, p. 15 */
+		rep_write(sd, 0x70, spa_loc & 0xff);
 		rep_write_clr_set(sd, 0x71, 0x01, (spa_loc & 0x100) >> 8);
 	}
 
@@ -2381,6 +2367,7 @@ static int adv76xx_subscribe_event(struct v4l2_subdev *sd,
 
 static const struct v4l2_ctrl_ops adv76xx_ctrl_ops = {
 	.s_ctrl = adv76xx_s_ctrl,
+	.g_volatile_ctrl = adv76xx_g_volatile_ctrl,
 };
 
 static const struct v4l2_subdev_core_ops adv76xx_core_ops = {
@@ -2404,6 +2391,7 @@ static const struct v4l2_subdev_video_ops adv76xx_video_ops = {
 
 static const struct v4l2_subdev_pad_ops adv76xx_pad_ops = {
 	.enum_mbus_code = adv76xx_enum_mbus_code,
+	.get_selection = adv76xx_get_selection,
 	.get_fmt = adv76xx_get_format,
 	.set_fmt = adv76xx_set_format,
 	.get_edid = adv76xx_get_edid,
@@ -2799,6 +2787,7 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 	struct device_node *endpoint;
 	struct device_node *np;
 	unsigned int flags;
+	int ret;
 	u32 v;
 
 	np = state->i2c_clients[ADV76XX_PAGE_IO]->dev.of_node;
@@ -2808,7 +2797,11 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 	if (!endpoint)
 		return -EINVAL;
 
-	v4l2_of_parse_endpoint(endpoint, &bus_cfg);
+	ret = v4l2_of_parse_endpoint(endpoint, &bus_cfg);
+	if (ret) {
+		of_node_put(endpoint);
+		return ret;
+	}
 
 	if (!of_property_read_u32(endpoint, "default-input", &v))
 		state->pdata.default_input = v;
@@ -3010,6 +3003,7 @@ static int adv76xx_probe(struct i2c_client *client,
 		V4L2_DV_BT_CEA_640X480P59_94;
 	struct adv76xx_state *state;
 	struct v4l2_ctrl_handler *hdl;
+	struct v4l2_ctrl *ctrl;
 	struct v4l2_subdev *sd;
 	unsigned int i;
 	unsigned int val, val2;
@@ -3141,6 +3135,11 @@ static int adv76xx_probe(struct i2c_client *client,
 			V4L2_CID_SATURATION, 0, 255, 1, 128);
 	v4l2_ctrl_new_std(hdl, &adv76xx_ctrl_ops,
 			V4L2_CID_HUE, 0, 128, 1, 0);
+	ctrl = v4l2_ctrl_new_std_menu(hdl, &adv76xx_ctrl_ops,
+			V4L2_CID_DV_RX_IT_CONTENT_TYPE, V4L2_DV_IT_CONTENT_TYPE_NO_ITC,
+			0, V4L2_DV_IT_CONTENT_TYPE_NO_ITC);
+	if (ctrl)
+		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	/* private controls */
 	state->detect_tx_5v_ctrl = v4l2_ctrl_new_std(hdl, NULL,
@@ -3208,8 +3207,8 @@ static int adv76xx_probe(struct i2c_client *client,
 		state->pads[i].flags = MEDIA_PAD_FL_SINK;
 	state->pads[state->source_pad].flags = MEDIA_PAD_FL_SOURCE;
 
-	err = media_entity_init(&sd->entity, state->source_pad + 1,
-				state->pads, 0);
+	err = media_entity_pads_init(&sd->entity, state->source_pad + 1,
+				state->pads);
 	if (err)
 		goto err_work_queues;
 

@@ -28,6 +28,7 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 
 #include <drm/drm_fourcc.h>
 
@@ -57,10 +58,15 @@ EXPORT_SYMBOL_GPL(ipu_srm_dp_sync_update);
 enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc)
 {
 	switch (drm_fourcc) {
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_ABGR1555:
+	case DRM_FORMAT_RGBA5551:
+	case DRM_FORMAT_BGRA5551:
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_BGR565:
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_BGR888:
+	case DRM_FORMAT_ARGB4444:
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_RGBX8888:
@@ -988,11 +994,25 @@ static void platform_device_unregister_children(struct platform_device *pdev)
 struct ipu_platform_reg {
 	struct ipu_client_platformdata pdata;
 	const char *name;
-	int reg_offset;
 };
 
+/* These must be in the order of the corresponding device tree port nodes */
 static const struct ipu_platform_reg client_reg[] = {
 	{
+		.pdata = {
+			.csi = 0,
+			.dma[0] = IPUV3_CHANNEL_CSI0,
+			.dma[1] = -EINVAL,
+		},
+		.name = "imx-ipuv3-camera",
+	}, {
+		.pdata = {
+			.csi = 1,
+			.dma[0] = IPUV3_CHANNEL_CSI1,
+			.dma[1] = -EINVAL,
+		},
+		.name = "imx-ipuv3-camera",
+	}, {
 		.pdata = {
 			.di = 0,
 			.dc = 5,
@@ -1010,22 +1030,6 @@ static const struct ipu_platform_reg client_reg[] = {
 			.dma[1] = -EINVAL,
 		},
 		.name = "imx-ipuv3-crtc",
-	}, {
-		.pdata = {
-			.csi = 0,
-			.dma[0] = IPUV3_CHANNEL_CSI0,
-			.dma[1] = -EINVAL,
-		},
-		.reg_offset = IPU_CM_CSI0_REG_OFS,
-		.name = "imx-ipuv3-camera",
-	}, {
-		.pdata = {
-			.csi = 1,
-			.dma[0] = IPUV3_CHANNEL_CSI1,
-			.dma[1] = -EINVAL,
-		},
-		.reg_offset = IPU_CM_CSI1_REG_OFS,
-		.name = "imx-ipuv3-camera",
 	},
 };
 
@@ -1046,22 +1050,33 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 	for (i = 0; i < ARRAY_SIZE(client_reg); i++) {
 		const struct ipu_platform_reg *reg = &client_reg[i];
 		struct platform_device *pdev;
-		struct resource res;
+		struct device_node *of_node;
 
-		if (reg->reg_offset) {
-			memset(&res, 0, sizeof(res));
-			res.flags = IORESOURCE_MEM;
-			res.start = ipu_base + ipu->devtype->cm_ofs + reg->reg_offset;
-			res.end = res.start + PAGE_SIZE - 1;
-			pdev = platform_device_register_resndata(dev, reg->name,
-				id++, &res, 1, &reg->pdata, sizeof(reg->pdata));
-		} else {
-			pdev = platform_device_register_data(dev, reg->name,
-				id++, &reg->pdata, sizeof(reg->pdata));
+		/* Associate subdevice with the corresponding port node */
+		of_node = of_graph_get_port_by_id(dev->of_node, i);
+		if (!of_node) {
+			dev_info(dev,
+				 "no port@%d node in %s, not using %s%d\n",
+				 i, dev->of_node->full_name,
+				 (i / 2) ? "DI" : "CSI", i % 2);
+			continue;
 		}
 
-		if (IS_ERR(pdev)) {
-			ret = PTR_ERR(pdev);
+		pdev = platform_device_alloc(reg->name, id++);
+		if (!pdev) {
+			ret = -ENOMEM;
+			goto err_register;
+		}
+
+		pdev->dev.of_node = of_node;
+		pdev->dev.parent = dev;
+
+		ret = platform_device_add_data(pdev, &reg->pdata,
+					       sizeof(reg->pdata));
+		if (!ret)
+			ret = platform_device_add(pdev);
+		if (ret) {
+			platform_device_put(pdev);
 			goto err_register;
 		}
 	}
@@ -1277,10 +1292,6 @@ static int ipu_probe(struct platform_device *pdev)
 	ipu->irq_sync = irq_sync;
 	ipu->irq_err = irq_err;
 
-	ret = ipu_irq_init(ipu);
-	if (ret)
-		goto out_failed_irq;
-
 	ret = device_reset(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to reset: %d\n", ret);
@@ -1289,6 +1300,10 @@ static int ipu_probe(struct platform_device *pdev)
 	ret = ipu_memory_reset(ipu);
 	if (ret)
 		goto out_failed_reset;
+
+	ret = ipu_irq_init(ipu);
+	if (ret)
+		goto out_failed_irq;
 
 	/* Set MCU_T to divide MCU access window into 2 */
 	ipu_cm_write(ipu, 0x00400000L | (IPU_MCU_T_DEFAULT << 18),
@@ -1312,9 +1327,9 @@ static int ipu_probe(struct platform_device *pdev)
 failed_add_clients:
 	ipu_submodules_exit(ipu);
 failed_submodules_init:
-out_failed_reset:
 	ipu_irq_exit(ipu);
 out_failed_irq:
+out_failed_reset:
 	clk_disable_unprepare(ipu->clk);
 	return ret;
 }

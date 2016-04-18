@@ -63,13 +63,13 @@ MODULE_LICENSE("GPL");
 MODULE_PARM_DESC(disable, "disable acpiphp driver");
 module_param_named(disable, acpiphp_disabled, bool, 0444);
 
-static int enable_slot		(struct hotplug_slot *slot);
-static int disable_slot		(struct hotplug_slot *slot);
-static int set_attention_status (struct hotplug_slot *slot, u8 value);
-static int get_power_status	(struct hotplug_slot *slot, u8 *value);
-static int get_attention_status (struct hotplug_slot *slot, u8 *value);
-static int get_latch_status	(struct hotplug_slot *slot, u8 *value);
-static int get_adapter_status	(struct hotplug_slot *slot, u8 *value);
+static int enable_slot(struct hotplug_slot *slot);
+static int disable_slot(struct hotplug_slot *slot);
+static int set_attention_status(struct hotplug_slot *slot, u8 value);
+static int get_power_status(struct hotplug_slot *slot, u8 *value);
+static int get_attention_status(struct hotplug_slot *slot, u8 *value);
+static int get_latch_status(struct hotplug_slot *slot, u8 *value);
+static int get_adapter_status(struct hotplug_slot *slot, u8 *value);
 
 static struct hotplug_slot_ops acpi_hotplug_slot_ops = {
 	.enable_slot		= enable_slot,

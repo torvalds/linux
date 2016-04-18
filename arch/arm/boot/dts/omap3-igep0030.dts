@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for IGEP COM MODULE Rev. E (TI OMAP AM/DM37x)
  *
- * Copyright (C) 2012 Javier Martinez Canillas <javier@collabora.co.uk>
+ * Copyright (C) 2012 Javier Martinez Canillas <javier@osg.samsung.com>
  * Copyright (C) 2012 Enric Balletbo i Serra <eballetbo@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,25 +15,17 @@
 	model = "IGEP COM MODULE Rev. E (TI OMAP AM/DM37x)";
 	compatible = "isee,omap3-igep0030", "ti,omap36xx", "ti,omap3";
 
-	/* Regulator to trigger the WIFI_PDN signal of the Wifi module */
-	lbee1usjyc_pdn: lbee1usjyc_pdn {
+	vmmcsdio_fixed: fixedregulator-mmcsdio {
 		compatible = "regulator-fixed";
-		regulator-name = "regulator-lbee1usjyc-pdn";
+		regulator-name = "vmmcsdio_fixed";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio5 10 GPIO_ACTIVE_HIGH>;	/* gpio_138 - WIFI_PDN */
-		startup-delay-us = <10000>;
-		enable-active-high;
 	};
 
-	/* Regulator to trigger the RESET_N_W signal of the Wifi module */
-	lbee1usjyc_reset_n_w: lbee1usjyc_reset_n_w {
-		compatible = "regulator-fixed";
-		regulator-name = "regulator-lbee1usjyc-reset-n-w";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio5 11 GPIO_ACTIVE_HIGH>;	/* gpio_139 - RESET_N_W */
-		enable-active-high;
+	mmc2_pwrseq: mmc2_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpio5 11 GPIO_ACTIVE_LOW>,	/* gpio_139 - RESET_N_W */
+			      <&gpio5 10 GPIO_ACTIVE_LOW>;	/* gpio_138 - WIFI_PDN */
 	};
 };
 
@@ -62,8 +54,8 @@
 &mmc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins &lbee1usjyc_pins>;
-	vmmc-supply = <&lbee1usjyc_pdn>;
-	vmmc_aux-supply = <&lbee1usjyc_reset_n_w>;
+	vmmc-supply = <&vmmcsdio_fixed>;
+	mmc-pwrseq = <&mmc2_pwrseq>;
 	bus-width = <4>;
 	non-removable;
 };

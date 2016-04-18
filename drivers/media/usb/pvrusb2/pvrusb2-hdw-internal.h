@@ -39,8 +39,8 @@
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-io.h"
 #include <media/v4l2-device.h>
-#include <media/cx2341x.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/drv-intf/cx2341x.h>
+#include <media/i2c/ir-kbd-i2c.h>
 #include "pvrusb2-devattr.h"
 
 /* Legal values for PVR2_CID_HSM */

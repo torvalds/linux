@@ -26,7 +26,7 @@
 #include <linux/linkage.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/bootmem.h>
 #include <linux/slab.h>
@@ -39,6 +39,7 @@
 #include <asm/irq.h>
 #include <asm/idle.h>
 #include <asm/io_apic.h>
+#include <asm/i8259.h>
 #include <asm/xen/pci.h>
 #endif
 #include <asm/sync_bitops.h>
@@ -420,7 +421,7 @@ static int __must_check xen_allocate_irq_gsi(unsigned gsi)
 		return xen_allocate_irq_dynamic();
 
 	/* Legacy IRQ descriptors are already allocated by the arch. */
-	if (gsi < NR_IRQS_LEGACY)
+	if (gsi < nr_legacy_irqs())
 		irq = gsi;
 	else
 		irq = irq_alloc_desc_at(gsi, -1);
@@ -446,7 +447,7 @@ static void xen_free_irq(unsigned irq)
 	kfree(info);
 
 	/* Legacy IRQ descriptors are managed by the arch. */
-	if (irq < NR_IRQS_LEGACY)
+	if (irq < nr_legacy_irqs())
 		return;
 
 	irq_free_desc(irq);
@@ -483,9 +484,19 @@ static void eoi_pirq(struct irq_data *data)
 	struct physdev_eoi eoi = { .irq = pirq_from_irq(data->irq) };
 	int rc = 0;
 
-	irq_move_irq(data);
+	if (!VALID_EVTCHN(evtchn))
+		return;
 
-	if (VALID_EVTCHN(evtchn))
+	if (unlikely(irqd_is_setaffinity_pending(data))) {
+		int masked = test_and_set_mask(evtchn);
+
+		clear_evtchn(evtchn);
+
+		irq_move_masked_irq(data);
+
+		if (!masked)
+			unmask_evtchn(evtchn);
+	} else
 		clear_evtchn(evtchn);
 
 	if (pirq_needs_eoi(data->irq)) {
@@ -1356,9 +1367,19 @@ static void ack_dynirq(struct irq_data *data)
 {
 	int evtchn = evtchn_from_irq(data->irq);
 
-	irq_move_irq(data);
+	if (!VALID_EVTCHN(evtchn))
+		return;
 
-	if (VALID_EVTCHN(evtchn))
+	if (unlikely(irqd_is_setaffinity_pending(data))) {
+		int masked = test_and_set_mask(evtchn);
+
+		clear_evtchn(evtchn);
+
+		irq_move_masked_irq(data);
+
+		if (!masked)
+			unmask_evtchn(evtchn);
+	} else
 		clear_evtchn(evtchn);
 }
 

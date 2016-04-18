@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/of.h>
-#include <linux/platform_data/coda.h>
+#include <linux/platform_data/media/coda.h>
 #include <linux/reset.h>
 
 #include <media/v4l2-ctrls.h>
@@ -131,6 +131,7 @@ static const struct coda_codec coda7_codecs[] = {
 	CODA_CODEC(CODA7_MODE_ENCODE_MP4,  V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_MPEG4,  1280, 720),
 	CODA_CODEC(CODA7_MODE_ENCODE_MJPG, V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_JPEG,   8192, 8192),
 	CODA_CODEC(CODA7_MODE_DECODE_H264, V4L2_PIX_FMT_H264,   V4L2_PIX_FMT_YUV420, 1920, 1088),
+	CODA_CODEC(CODA7_MODE_DECODE_MP2,  V4L2_PIX_FMT_MPEG2,  V4L2_PIX_FMT_YUV420, 1920, 1088),
 	CODA_CODEC(CODA7_MODE_DECODE_MP4,  V4L2_PIX_FMT_MPEG4,  V4L2_PIX_FMT_YUV420, 1920, 1088),
 	CODA_CODEC(CODA7_MODE_DECODE_MJPG, V4L2_PIX_FMT_JPEG,   V4L2_PIX_FMT_YUV420, 8192, 8192),
 };
@@ -139,6 +140,7 @@ static const struct coda_codec coda9_codecs[] = {
 	CODA_CODEC(CODA9_MODE_ENCODE_H264, V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_H264,   1920, 1088),
 	CODA_CODEC(CODA9_MODE_ENCODE_MP4,  V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_MPEG4,  1920, 1088),
 	CODA_CODEC(CODA9_MODE_DECODE_H264, V4L2_PIX_FMT_H264,   V4L2_PIX_FMT_YUV420, 1920, 1088),
+	CODA_CODEC(CODA9_MODE_DECODE_MP2,  V4L2_PIX_FMT_MPEG2,  V4L2_PIX_FMT_YUV420, 1920, 1088),
 	CODA_CODEC(CODA9_MODE_DECODE_MP4,  V4L2_PIX_FMT_MPEG4,  V4L2_PIX_FMT_YUV420, 1920, 1088),
 };
 
@@ -187,6 +189,7 @@ static const struct coda_video_device coda_bit_decoder = {
 	.ops = &coda_bit_decode_ops,
 	.src_formats = {
 		V4L2_PIX_FMT_H264,
+		V4L2_PIX_FMT_MPEG2,
 		V4L2_PIX_FMT_MPEG4,
 	},
 	.dst_formats = {
@@ -293,7 +296,8 @@ static void coda_get_max_dimensions(struct coda_dev *dev,
 		*max_h = h;
 }
 
-const struct coda_video_device *to_coda_video_device(struct video_device *vdev)
+static const struct coda_video_device *to_coda_video_device(struct video_device
+							    *vdev)
 {
 	struct coda_dev *dev = video_get_drvdata(vdev);
 	unsigned int i = vdev - dev->vfd;
@@ -469,6 +473,7 @@ static int coda_try_fmt(struct coda_ctx *ctx, const struct coda_codec *codec,
 		/* fallthrough */
 	case V4L2_PIX_FMT_H264:
 	case V4L2_PIX_FMT_MPEG4:
+	case V4L2_PIX_FMT_MPEG2:
 		f->fmt.pix.bytesperline = 0;
 		f->fmt.pix.sizeimage = coda_estimate_sizeimage(ctx,
 							f->fmt.pix.sizeimage,
@@ -920,6 +925,7 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 	.vidioc_expbuf		= v4l2_m2m_ioctl_expbuf,
 	.vidioc_dqbuf		= v4l2_m2m_ioctl_dqbuf,
 	.vidioc_create_bufs	= v4l2_m2m_ioctl_create_bufs,
+	.vidioc_prepare_buf	= v4l2_m2m_ioctl_prepare_buf,
 
 	.vidioc_streamon	= v4l2_m2m_ioctl_streamon,
 	.vidioc_streamoff	= v4l2_m2m_ioctl_streamoff,
@@ -1131,7 +1137,7 @@ static void set_default_params(struct coda_ctx *ctx)
 /*
  * Queue operations
  */
-static int coda_queue_setup(struct vb2_queue *vq, const void *parg,
+static int coda_queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -1250,6 +1256,9 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct vb2_v4l2_buffer *buf;
 	int ret = 0;
 
+	if (count < 1)
+		return -EINVAL;
+
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		if (ctx->inst_type == CODA_INST_DECODER && ctx->use_bit) {
@@ -1262,20 +1271,10 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 				ret = -EINVAL;
 				goto err;
 			}
-		} else {
-			if (count < 1) {
-				ret = -EINVAL;
-				goto err;
-			}
 		}
 
 		ctx->streamon_out = 1;
 	} else {
-		if (count < 1) {
-			ret = -EINVAL;
-			goto err;
-		}
-
 		ctx->streamon_cap = 1;
 	}
 
@@ -1951,15 +1950,75 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	return video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 }
 
+static void coda_copy_firmware(struct coda_dev *dev, const u8 * const buf,
+			       size_t size)
+{
+	u32 *src = (u32 *)buf;
+
+	/* Check if the firmware has a 16-byte Freescale header, skip it */
+	if (buf[0] == 'M' && buf[1] == 'X')
+		src += 4;
+	/*
+	 * Check whether the firmware is in native order or pre-reordered for
+	 * memory access. The first instruction opcode always is 0xe40e.
+	 */
+	if (__le16_to_cpup((__le16 *)src) == 0xe40e) {
+		u32 *dst = dev->codebuf.vaddr;
+		int i;
+
+		/* Firmware in native order, reorder while copying */
+		if (dev->devtype->product == CODA_DX6) {
+			for (i = 0; i < (size - 16) / 4; i++)
+				dst[i] = (src[i] << 16) | (src[i] >> 16);
+		} else {
+			for (i = 0; i < (size - 16) / 4; i += 2) {
+				dst[i] = (src[i + 1] << 16) | (src[i + 1] >> 16);
+				dst[i + 1] = (src[i] << 16) | (src[i] >> 16);
+			}
+		}
+	} else {
+		/* Copy the already reordered firmware image */
+		memcpy(dev->codebuf.vaddr, src, size);
+	}
+}
+
+static void coda_fw_callback(const struct firmware *fw, void *context);
+
+static int coda_firmware_request(struct coda_dev *dev)
+{
+	char *fw = dev->devtype->firmware[dev->firmware];
+
+	dev_dbg(&dev->plat_dev->dev, "requesting firmware '%s' for %s\n", fw,
+		coda_product_name(dev->devtype->product));
+
+	return request_firmware_nowait(THIS_MODULE, true, fw,
+				       &dev->plat_dev->dev, GFP_KERNEL, dev,
+				       coda_fw_callback);
+}
+
 static void coda_fw_callback(const struct firmware *fw, void *context)
 {
 	struct coda_dev *dev = context;
 	struct platform_device *pdev = dev->plat_dev;
 	int i, ret;
 
-	if (!fw) {
+	if (!fw && dev->firmware == 1) {
 		v4l2_err(&dev->v4l2_dev, "firmware request failed\n");
 		goto put_pm;
+	}
+	if (!fw) {
+		dev->firmware = 1;
+		coda_firmware_request(dev);
+		return;
+	}
+	if (dev->firmware == 1) {
+		/*
+		 * Since we can't suppress warnings for failed asynchronous
+		 * firmware requests, report that the fallback firmware was
+		 * found.
+		 */
+		dev_info(&pdev->dev, "Using fallback firmware %s\n",
+			 dev->devtype->firmware[dev->firmware]);
 	}
 
 	/* allocate auxiliary per-device code buffer for the BIT processor */
@@ -1968,8 +2027,7 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 	if (ret < 0)
 		goto put_pm;
 
-	/* Copy the whole firmware image to the code buffer */
-	memcpy(dev->codebuf.vaddr, fw->data, fw->size);
+	coda_copy_firmware(dev, fw->data, fw->size);
 	release_firmware(fw);
 
 	ret = coda_hw_init(dev);
@@ -2020,17 +2078,6 @@ put_pm:
 	pm_runtime_put_sync(&pdev->dev);
 }
 
-static int coda_firmware_request(struct coda_dev *dev)
-{
-	char *fw = dev->devtype->firmware;
-
-	dev_dbg(&dev->plat_dev->dev, "requesting firmware '%s' for %s\n", fw,
-		coda_product_name(dev->devtype->product));
-
-	return request_firmware_nowait(THIS_MODULE, true,
-		fw, &dev->plat_dev->dev, GFP_KERNEL, dev, coda_fw_callback);
-}
-
 enum coda_platform {
 	CODA_IMX27,
 	CODA_IMX53,
@@ -2040,7 +2087,10 @@ enum coda_platform {
 
 static const struct coda_devtype coda_devdata[] = {
 	[CODA_IMX27] = {
-		.firmware     = "v4l-codadx6-imx27.bin",
+		.firmware     = {
+			"vpu_fw_imx27_TO2.bin",
+			"v4l-codadx6-imx27.bin"
+		},
 		.product      = CODA_DX6,
 		.codecs       = codadx6_codecs,
 		.num_codecs   = ARRAY_SIZE(codadx6_codecs),
@@ -2050,7 +2100,10 @@ static const struct coda_devtype coda_devdata[] = {
 		.iram_size    = 0xb000,
 	},
 	[CODA_IMX53] = {
-		.firmware     = "v4l-coda7541-imx53.bin",
+		.firmware     = {
+			"vpu_fw_imx53.bin",
+			"v4l-coda7541-imx53.bin"
+		},
 		.product      = CODA_7541,
 		.codecs       = coda7_codecs,
 		.num_codecs   = ARRAY_SIZE(coda7_codecs),
@@ -2061,7 +2114,10 @@ static const struct coda_devtype coda_devdata[] = {
 		.iram_size    = 0x14000,
 	},
 	[CODA_IMX6Q] = {
-		.firmware     = "v4l-coda960-imx6q.bin",
+		.firmware     = {
+			"vpu_fw_imx6q.bin",
+			"v4l-coda960-imx6q.bin"
+		},
 		.product      = CODA_960,
 		.codecs       = coda9_codecs,
 		.num_codecs   = ARRAY_SIZE(coda9_codecs),
@@ -2072,7 +2128,10 @@ static const struct coda_devtype coda_devdata[] = {
 		.iram_size    = 0x21000,
 	},
 	[CODA_IMX6DL] = {
-		.firmware     = "v4l-coda960-imx6dl.bin",
+		.firmware     = {
+			"vpu_fw_imx6d.bin",
+			"v4l-coda960-imx6dl.bin"
+		},
 		.product      = CODA_960,
 		.codecs       = coda9_codecs,
 		.num_codecs   = ARRAY_SIZE(coda9_codecs),
@@ -2119,14 +2178,12 @@ static int coda_probe(struct platform_device *pdev)
 
 	pdev_id = of_id ? of_id->data : platform_get_device_id(pdev);
 
-	if (of_id) {
+	if (of_id)
 		dev->devtype = of_id->data;
-	} else if (pdev_id) {
+	else if (pdev_id)
 		dev->devtype = &coda_devdata[pdev_id->driver_data];
-	} else {
-		ret = -EINVAL;
-		goto err_v4l2_register;
-	}
+	else
+		return -EINVAL;
 
 	spin_lock_init(&dev->irqlock);
 	INIT_LIST_HEAD(&dev->instances);

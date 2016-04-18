@@ -521,13 +521,7 @@ static void ssip_start_rx(struct hsi_client *cl)
 	 * high transition. Therefore we need to ignore the sencond UP event.
 	 */
 	if ((ssi->main_state != ACTIVE) || (ssi->recv_state == RECV_READY)) {
-		if (ssi->main_state == INIT) {
-			ssi->main_state = HANDSHAKE;
-			spin_unlock(&ssi->lock);
-			ssip_send_bootinfo_req_cmd(cl);
-		} else {
-			spin_unlock(&ssi->lock);
-		}
+		spin_unlock(&ssi->lock);
 		return;
 	}
 	ssip_set_rxstate(ssi, RECV_READY);
@@ -671,6 +665,7 @@ static void ssip_rx_bootinforeq(struct hsi_client *cl, u32 cmd)
 		ssip_error(cl);
 		/* Fall through */
 	case INIT:
+	case HANDSHAKE:
 		spin_lock(&ssi->lock);
 		ssi->main_state = HANDSHAKE;
 		if (!ssi->waketest) {
@@ -687,9 +682,6 @@ static void ssip_rx_bootinforeq(struct hsi_client *cl, u32 cmd)
 		ssip_set_cmd(msg, SSIP_BOOTINFO_RESP_CMD(SSIP_LOCAL_VERID));
 		msg->complete = ssip_release_cmd;
 		hsi_async_write(cl, msg);
-		break;
-	case HANDSHAKE:
-		/* Ignore */
 		break;
 	default:
 		dev_dbg(&cl->device, "Wrong state M(%d)\n", ssi->main_state);
@@ -939,8 +931,10 @@ static int ssip_pn_open(struct net_device *dev)
 		ssi->waketest = 1;
 		ssi_waketest(cl, 1); /* FIXME: To be removed */
 	}
-	ssi->main_state = INIT;
+	ssi->main_state = HANDSHAKE;
 	spin_unlock_bh(&ssi->lock);
+
+	ssip_send_bootinfo_req_cmd(cl);
 
 	return 0;
 }

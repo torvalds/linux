@@ -12,7 +12,7 @@
 #include "util/tool.h"
 #include "util/callchain.h"
 
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 #include "util/data.h"
 #include "util/cpumap.h"
@@ -602,7 +602,7 @@ static int gfpcmp(const void *a, const void *b)
 	return fa->flags - fb->flags;
 }
 
-/* see include/trace/events/gfpflags.h */
+/* see include/trace/events/mmflags.h */
 static const struct {
 	const char *original;
 	const char *compact;
@@ -612,30 +612,39 @@ static const struct {
 	{ "GFP_HIGHUSER",		"HU" },
 	{ "GFP_USER",			"U" },
 	{ "GFP_TEMPORARY",		"TMP" },
+	{ "GFP_KERNEL_ACCOUNT",		"KAC" },
 	{ "GFP_KERNEL",			"K" },
 	{ "GFP_NOFS",			"NF" },
 	{ "GFP_ATOMIC",			"A" },
 	{ "GFP_NOIO",			"NI" },
-	{ "GFP_HIGH",			"H" },
-	{ "GFP_WAIT",			"W" },
-	{ "GFP_IO",			"I" },
-	{ "GFP_COLD",			"CO" },
-	{ "GFP_NOWARN",			"NWR" },
-	{ "GFP_REPEAT",			"R" },
-	{ "GFP_NOFAIL",			"NF" },
-	{ "GFP_NORETRY",		"NR" },
-	{ "GFP_COMP",			"C" },
-	{ "GFP_ZERO",			"Z" },
-	{ "GFP_NOMEMALLOC",		"NMA" },
-	{ "GFP_MEMALLOC",		"MA" },
-	{ "GFP_HARDWALL",		"HW" },
-	{ "GFP_THISNODE",		"TN" },
-	{ "GFP_RECLAIMABLE",		"RC" },
-	{ "GFP_MOVABLE",		"M" },
-	{ "GFP_NOTRACK",		"NT" },
-	{ "GFP_NO_KSWAPD",		"NK" },
-	{ "GFP_OTHER_NODE",		"ON" },
 	{ "GFP_NOWAIT",			"NW" },
+	{ "GFP_DMA",			"D" },
+	{ "__GFP_HIGHMEM",		"HM" },
+	{ "GFP_DMA32",			"D32" },
+	{ "__GFP_HIGH",			"H" },
+	{ "__GFP_ATOMIC",		"_A" },
+	{ "__GFP_IO",			"I" },
+	{ "__GFP_FS",			"F" },
+	{ "__GFP_COLD",			"CO" },
+	{ "__GFP_NOWARN",		"NWR" },
+	{ "__GFP_REPEAT",		"R" },
+	{ "__GFP_NOFAIL",		"NF" },
+	{ "__GFP_NORETRY",		"NR" },
+	{ "__GFP_COMP",			"C" },
+	{ "__GFP_ZERO",			"Z" },
+	{ "__GFP_NOMEMALLOC",		"NMA" },
+	{ "__GFP_MEMALLOC",		"MA" },
+	{ "__GFP_HARDWALL",		"HW" },
+	{ "__GFP_THISNODE",		"TN" },
+	{ "__GFP_RECLAIMABLE",		"RC" },
+	{ "__GFP_MOVABLE",		"M" },
+	{ "__GFP_ACCOUNT",		"AC" },
+	{ "__GFP_NOTRACK",		"NT" },
+	{ "__GFP_WRITE",		"WR" },
+	{ "__GFP_RECLAIM",		"R" },
+	{ "__GFP_DIRECT_RECLAIM",	"DR" },
+	{ "__GFP_KSWAPD_RECLAIM",	"KR" },
+	{ "__GFP_OTHER_NODE",		"ON" },
 };
 
 static size_t max_gfp_len;
@@ -1834,7 +1843,7 @@ static int __cmd_record(int argc, const char **argv)
 	return cmd_record(i, rec_argv, NULL);
 }
 
-static int kmem_config(const char *var, const char *value, void *cb)
+static int kmem_config(const char *var, const char *value, void *cb __maybe_unused)
 {
 	if (!strcmp(var, "kmem.default")) {
 		if (!strcmp(value, "slab"))
@@ -1847,7 +1856,7 @@ static int kmem_config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)

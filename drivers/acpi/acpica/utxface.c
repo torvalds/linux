@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -154,7 +154,6 @@ acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
 	 * Populate the return buffer
 	 */
 	info_ptr = (struct acpi_system_info *)out_buffer->pointer;
-
 	info_ptr->acpi_ca_version = ACPI_CA_VERSION;
 
 	/* System flags (ACPI capabilities) */
@@ -216,7 +215,6 @@ acpi_status acpi_get_statistics(struct acpi_statistics *stats)
 	/* Other counters */
 
 	stats->method_count = acpi_method_count;
-
 	return_ACPI_STATUS(AE_OK);
 }
 

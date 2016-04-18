@@ -21,6 +21,7 @@
 
 #include <crypto/internal/aead.h>
 #include <crypto/aes.h>
+#include <crypto/algapi.h>
 #include <crypto/scatterwalk.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -418,7 +419,7 @@ mac:
 			itag, req->src, req->assoclen + nbytes,
 			crypto_aead_authsize(crypto_aead_reqtfm(req)),
 			SCATTERWALK_FROM_SG);
-		rc = memcmp(itag, otag,
+		rc = crypto_memneq(itag, otag,
 			    crypto_aead_authsize(crypto_aead_reqtfm(req))) ?
 		     -EBADMSG : 0;
 	}

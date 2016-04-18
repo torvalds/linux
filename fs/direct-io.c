@@ -109,6 +109,8 @@ struct dio_submit {
 struct dio {
 	int flags;			/* doesn't change */
 	int rw;
+	blk_qc_t bio_cookie;
+	struct block_device *bio_bdev;
 	struct inode *inode;
 	loff_t i_size;			/* i_size when submitted */
 	dio_iodone_t *end_io;		/* IO completion function */
@@ -170,7 +172,7 @@ static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
 		 */
 		if (dio->page_errors == 0)
 			dio->page_errors = ret;
-		page_cache_get(page);
+		get_page(page);
 		dio->pages[0] = page;
 		sdio->head = 0;
 		sdio->tail = 1;
@@ -251,8 +253,13 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 	if (ret == 0)
 		ret = transferred;
 
-	if (dio->end_io && dio->result)
-		dio->end_io(dio->iocb, offset, transferred, dio->private);
+	if (dio->end_io) {
+		int err;
+
+		err = dio->end_io(dio->iocb, offset, ret, dio->private);
+		if (err)
+			ret = err;
+	}
 
 	if (!(dio->flags & DIO_SKIP_DIO_COUNT))
 		inode_dio_end(dio->inode);
@@ -361,7 +368,7 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
 
 	/*
 	 * bio_alloc() is guaranteed to return a bio when called with
-	 * __GFP_WAIT and we request a valid number of vectors.
+	 * __GFP_RECLAIM and we request a valid number of vectors.
 	 */
 	bio = bio_alloc(GFP_KERNEL, nr_vecs);
 
@@ -397,11 +404,14 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 	if (dio->is_async && dio->rw == READ && dio->should_dirty)
 		bio_set_pages_dirty(bio);
 
-	if (sdio->submit_io)
+	dio->bio_bdev = bio->bi_bdev;
+
+	if (sdio->submit_io) {
 		sdio->submit_io(dio->rw, bio, dio->inode,
 			       sdio->logical_offset_in_bio);
-	else
-		submit_bio(dio->rw, bio);
+		dio->bio_cookie = BLK_QC_T_NONE;
+	} else
+		dio->bio_cookie = submit_bio(dio->rw, bio);
 
 	sdio->bio = NULL;
 	sdio->boundary = 0;
@@ -414,7 +424,7 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 static inline void dio_cleanup(struct dio *dio, struct dio_submit *sdio)
 {
 	while (sdio->head < sdio->tail)
-		page_cache_release(dio->pages[sdio->head++]);
+		put_page(dio->pages[sdio->head++]);
 }
 
 /*
@@ -440,7 +450,9 @@ static struct bio *dio_await_one(struct dio *dio)
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		dio->waiter = current;
 		spin_unlock_irqrestore(&dio->bio_lock, flags);
-		io_schedule();
+		if (!(dio->iocb->ki_flags & IOCB_HIPRI) ||
+		    !blk_poll(bdev_get_queue(dio->bio_bdev), dio->bio_cookie))
+			io_schedule();
 		/* wake up sets us TASK_RUNNING */
 		spin_lock_irqsave(&dio->bio_lock, flags);
 		dio->waiter = NULL;
@@ -466,8 +478,8 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
 		dio->io_error = -EIO;
 
 	if (dio->is_async && dio->rw == READ && dio->should_dirty) {
-		bio_check_pages_dirty(bio);	/* transfers ownership */
 		err = bio->bi_error;
+		bio_check_pages_dirty(bio);	/* transfers ownership */
 	} else {
 		bio_for_each_segment_all(bvec, bio, i) {
 			struct page *page = bvec->bv_page;
@@ -475,7 +487,7 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
 			if (dio->rw == READ && !PageCompound(page) &&
 					dio->should_dirty)
 				set_page_dirty_lock(page);
-			page_cache_release(page);
+			put_page(page);
 		}
 		err = bio->bi_error;
 		bio_put(bio);
@@ -684,7 +696,7 @@ static inline int dio_bio_add_page(struct dio_submit *sdio)
 		 */
 		if ((sdio->cur_page_len + sdio->cur_page_offset) == PAGE_SIZE)
 			sdio->pages_in_io--;
-		page_cache_get(sdio->cur_page);
+		get_page(sdio->cur_page);
 		sdio->final_block_in_bio = sdio->cur_page_block +
 			(sdio->cur_page_len >> sdio->blkbits);
 		ret = 0;
@@ -798,13 +810,13 @@ submit_page_section(struct dio *dio, struct dio_submit *sdio, struct page *page,
 	 */
 	if (sdio->cur_page) {
 		ret = dio_send_cur_page(dio, sdio, map_bh);
-		page_cache_release(sdio->cur_page);
+		put_page(sdio->cur_page);
 		sdio->cur_page = NULL;
 		if (ret)
 			return ret;
 	}
 
-	page_cache_get(page);		/* It is in dio */
+	get_page(page);		/* It is in dio */
 	sdio->cur_page = page;
 	sdio->cur_page_offset = offset;
 	sdio->cur_page_len = len;
@@ -818,7 +830,7 @@ out:
 	if (sdio->boundary) {
 		ret = dio_send_cur_page(dio, sdio, map_bh);
 		dio_bio_submit(dio, sdio);
-		page_cache_release(sdio->cur_page);
+		put_page(sdio->cur_page);
 		sdio->cur_page = NULL;
 	}
 	return ret;
@@ -935,7 +947,7 @@ static int do_direct_IO(struct dio *dio, struct dio_submit *sdio,
 
 				ret = get_more_blocks(dio, sdio, map_bh);
 				if (ret) {
-					page_cache_release(page);
+					put_page(page);
 					goto out;
 				}
 				if (!buffer_mapped(map_bh))
@@ -976,7 +988,7 @@ do_holes:
 
 				/* AKPM: eargh, -ENOTBLK is a hack */
 				if (dio->rw & WRITE) {
-					page_cache_release(page);
+					put_page(page);
 					return -ENOTBLK;
 				}
 
@@ -989,7 +1001,7 @@ do_holes:
 				if (sdio->block_in_file >=
 						i_size_aligned >> blkbits) {
 					/* We hit eof */
-					page_cache_release(page);
+					put_page(page);
 					goto out;
 				}
 				zero_user(page, from, 1 << blkbits);
@@ -1029,7 +1041,7 @@ do_holes:
 						  sdio->next_block_for_io,
 						  map_bh);
 			if (ret) {
-				page_cache_release(page);
+				put_page(page);
 				goto out;
 			}
 			sdio->next_block_for_io += this_chunk_blocks;
@@ -1045,7 +1057,7 @@ next_block:
 		}
 
 		/* Drop the ref which was taken in get_user_pages() */
-		page_cache_release(page);
+		put_page(page);
 	}
 out:
 	return ret;
@@ -1151,16 +1163,26 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 					iocb->ki_filp->f_mapping;
 
 			/* will be released by direct_io_worker */
-			mutex_lock(&inode->i_mutex);
+			inode_lock(inode);
 
 			retval = filemap_write_and_wait_range(mapping, offset,
 							      end - 1);
 			if (retval) {
-				mutex_unlock(&inode->i_mutex);
+				inode_unlock(inode);
 				kmem_cache_free(dio_cache, dio);
 				goto out;
 			}
 		}
+	}
+
+	/* Once we sampled i_size check for reads beyond EOF */
+	dio->i_size = i_size_read(inode);
+	if (iov_iter_rw(iter) == READ && offset >= dio->i_size) {
+		if (dio->flags & DIO_LOCKING)
+			inode_unlock(inode);
+		kmem_cache_free(dio_cache, dio);
+		retval = 0;
+		goto out;
 	}
 
 	/*
@@ -1216,7 +1238,6 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	sdio.next_block_for_io = -1;
 
 	dio->iocb = iocb;
-	dio->i_size = i_size_read(inode);
 
 	spin_lock_init(&dio->bio_lock);
 	dio->refcount = 1;
@@ -1260,7 +1281,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		ret2 = dio_send_cur_page(dio, &sdio, &map_bh);
 		if (retval == 0)
 			retval = ret2;
-		page_cache_release(sdio.cur_page);
+		put_page(sdio.cur_page);
 		sdio.cur_page = NULL;
 	}
 	if (sdio.bio)
@@ -1280,7 +1301,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	 * of protecting us from looking up uninitialized blocks.
 	 */
 	if (iov_iter_rw(iter) == READ && (dio->flags & DIO_LOCKING))
-		mutex_unlock(&dio->inode->i_mutex);
+		inode_unlock(dio->inode);
 
 	/*
 	 * The only time we want to leave bios in flight is when a successful

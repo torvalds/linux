@@ -87,17 +87,6 @@ struct c4iw_debugfs_data {
 	int pos;
 };
 
-/* registered cxgb4 netlink callbacks */
-static struct ibnl_client_cbs c4iw_nl_cb_table[] = {
-	[RDMA_NL_IWPM_REG_PID] = {.dump = iwpm_register_pid_cb},
-	[RDMA_NL_IWPM_ADD_MAPPING] = {.dump = iwpm_add_mapping_cb},
-	[RDMA_NL_IWPM_QUERY_MAPPING] = {.dump = iwpm_add_and_query_mapping_cb},
-	[RDMA_NL_IWPM_HANDLE_ERR] = {.dump = iwpm_mapping_error_cb},
-	[RDMA_NL_IWPM_REMOTE_INFO] = {.dump = iwpm_remote_info_cb},
-	[RDMA_NL_IWPM_MAPINFO] = {.dump = iwpm_mapping_info_cb},
-	[RDMA_NL_IWPM_MAPINFO_NUM] = {.dump = iwpm_ack_mapping_info_cb}
-};
-
 static int count_idrs(int id, void *p, void *data)
 {
 	int *countp = data;
@@ -242,13 +231,13 @@ static int dump_qp(int id, void *p, void *data)
 	if (qp->ep) {
 		if (qp->ep->com.local_addr.ss_family == AF_INET) {
 			struct sockaddr_in *lsin = (struct sockaddr_in *)
-				&qp->ep->com.local_addr;
+				&qp->ep->com.cm_id->local_addr;
 			struct sockaddr_in *rsin = (struct sockaddr_in *)
-				&qp->ep->com.remote_addr;
+				&qp->ep->com.cm_id->remote_addr;
 			struct sockaddr_in *mapped_lsin = (struct sockaddr_in *)
-				&qp->ep->com.mapped_local_addr;
+				&qp->ep->com.cm_id->m_local_addr;
 			struct sockaddr_in *mapped_rsin = (struct sockaddr_in *)
-				&qp->ep->com.mapped_remote_addr;
+				&qp->ep->com.cm_id->m_remote_addr;
 
 			cc = snprintf(qpd->buf + qpd->pos, space,
 				      "rc qp sq id %u rq id %u state %u "
@@ -264,15 +253,15 @@ static int dump_qp(int id, void *p, void *data)
 				      ntohs(mapped_rsin->sin_port));
 		} else {
 			struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
-				&qp->ep->com.local_addr;
+				&qp->ep->com.cm_id->local_addr;
 			struct sockaddr_in6 *rsin6 = (struct sockaddr_in6 *)
-				&qp->ep->com.remote_addr;
+				&qp->ep->com.cm_id->remote_addr;
 			struct sockaddr_in6 *mapped_lsin6 =
 				(struct sockaddr_in6 *)
-				&qp->ep->com.mapped_local_addr;
+				&qp->ep->com.cm_id->m_local_addr;
 			struct sockaddr_in6 *mapped_rsin6 =
 				(struct sockaddr_in6 *)
-				&qp->ep->com.mapped_remote_addr;
+				&qp->ep->com.cm_id->m_remote_addr;
 
 			cc = snprintf(qpd->buf + qpd->pos, space,
 				      "rc qp sq id %u rq id %u state %u "
@@ -315,14 +304,12 @@ static int qp_release(struct inode *inode, struct file *file)
 static int qp_open(struct inode *inode, struct file *file)
 {
 	struct c4iw_debugfs_data *qpd;
-	int ret = 0;
 	int count = 1;
 
 	qpd = kmalloc(sizeof *qpd, GFP_KERNEL);
-	if (!qpd) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!qpd)
+		return -ENOMEM;
+
 	qpd->devp = inode->i_private;
 	qpd->pos = 0;
 
@@ -333,8 +320,8 @@ static int qp_open(struct inode *inode, struct file *file)
 	qpd->bufsize = count * 128;
 	qpd->buf = vmalloc(qpd->bufsize);
 	if (!qpd->buf) {
-		ret = -ENOMEM;
-		goto err1;
+		kfree(qpd);
+		return -ENOMEM;
 	}
 
 	spin_lock_irq(&qpd->devp->lock);
@@ -343,11 +330,7 @@ static int qp_open(struct inode *inode, struct file *file)
 
 	qpd->buf[qpd->pos++] = 0;
 	file->private_data = qpd;
-	goto out;
-err1:
-	kfree(qpd);
-out:
-	return ret;
+	return 0;
 }
 
 static const struct file_operations qp_debugfs_fops = {
@@ -551,13 +534,13 @@ static int dump_ep(int id, void *p, void *data)
 
 	if (ep->com.local_addr.ss_family == AF_INET) {
 		struct sockaddr_in *lsin = (struct sockaddr_in *)
-			&ep->com.local_addr;
+			&ep->com.cm_id->local_addr;
 		struct sockaddr_in *rsin = (struct sockaddr_in *)
-			&ep->com.remote_addr;
+			&ep->com.cm_id->remote_addr;
 		struct sockaddr_in *mapped_lsin = (struct sockaddr_in *)
-			&ep->com.mapped_local_addr;
+			&ep->com.cm_id->m_local_addr;
 		struct sockaddr_in *mapped_rsin = (struct sockaddr_in *)
-			&ep->com.mapped_remote_addr;
+			&ep->com.cm_id->m_remote_addr;
 
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
@@ -575,13 +558,13 @@ static int dump_ep(int id, void *p, void *data)
 			      ntohs(mapped_rsin->sin_port));
 	} else {
 		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
-			&ep->com.local_addr;
+			&ep->com.cm_id->local_addr;
 		struct sockaddr_in6 *rsin6 = (struct sockaddr_in6 *)
-			&ep->com.remote_addr;
+			&ep->com.cm_id->remote_addr;
 		struct sockaddr_in6 *mapped_lsin6 = (struct sockaddr_in6 *)
-			&ep->com.mapped_local_addr;
+			&ep->com.cm_id->m_local_addr;
 		struct sockaddr_in6 *mapped_rsin6 = (struct sockaddr_in6 *)
-			&ep->com.mapped_remote_addr;
+			&ep->com.cm_id->m_remote_addr;
 
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
@@ -616,9 +599,9 @@ static int dump_listen_ep(int id, void *p, void *data)
 
 	if (ep->com.local_addr.ss_family == AF_INET) {
 		struct sockaddr_in *lsin = (struct sockaddr_in *)
-			&ep->com.local_addr;
+			&ep->com.cm_id->local_addr;
 		struct sockaddr_in *mapped_lsin = (struct sockaddr_in *)
-			&ep->com.mapped_local_addr;
+			&ep->com.cm_id->m_local_addr;
 
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p state %d flags 0x%lx stid %d "
@@ -629,9 +612,9 @@ static int dump_listen_ep(int id, void *p, void *data)
 			      ntohs(mapped_lsin->sin_port));
 	} else {
 		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
-			&ep->com.local_addr;
+			&ep->com.cm_id->local_addr;
 		struct sockaddr_in6 *mapped_lsin6 = (struct sockaddr_in6 *)
-			&ep->com.mapped_local_addr;
+			&ep->com.cm_id->m_local_addr;
 
 		cc = snprintf(epd->buf + epd->pos, space,
 			      "ep %p cm_id %p state %d flags 0x%lx stid %d "
@@ -781,8 +764,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		pr_err(MOD "%s: unsupported udb/ucq densities %u/%u\n",
 		       pci_name(rdev->lldi.pdev), rdev->lldi.udb_density,
 		       rdev->lldi.ucq_density);
-		err = -EINVAL;
-		goto err1;
+		return -EINVAL;
 	}
 	if (rdev->lldi.vr->qp.start != rdev->lldi.vr->cq.start ||
 	    rdev->lldi.vr->qp.size != rdev->lldi.vr->cq.size) {
@@ -791,8 +773,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		       pci_name(rdev->lldi.pdev), rdev->lldi.vr->qp.start,
 		       rdev->lldi.vr->qp.size, rdev->lldi.vr->cq.size,
 		       rdev->lldi.vr->cq.size);
-		err = -EINVAL;
-		goto err1;
+		return -EINVAL;
 	}
 
 	rdev->qpmask = rdev->lldi.udb_density - 1;
@@ -809,17 +790,14 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	     rdev->lldi.vr->qp.size,
 	     rdev->lldi.vr->cq.start,
 	     rdev->lldi.vr->cq.size);
-	PDBG("udb len 0x%x udb base %p db_reg %p gts_reg %p "
+	PDBG("udb %pR db_reg %p gts_reg %p "
 	     "qpmask 0x%x cqmask 0x%x\n",
-	     (unsigned)pci_resource_len(rdev->lldi.pdev, 2),
-	     (void *)pci_resource_start(rdev->lldi.pdev, 2),
+		&rdev->lldi.pdev->resource[2],
 	     rdev->lldi.db_reg, rdev->lldi.gts_reg,
 	     rdev->qpmask, rdev->cqmask);
 
-	if (c4iw_num_stags(rdev) == 0) {
-		err = -EINVAL;
-		goto err1;
-	}
+	if (c4iw_num_stags(rdev) == 0)
+		return -EINVAL;
 
 	rdev->stats.pd.total = T4_MAX_NUM_PD;
 	rdev->stats.stag.total = rdev->lldi.vr->stag.size;
@@ -831,29 +809,31 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	err = c4iw_init_resource(rdev, c4iw_num_stags(rdev), T4_MAX_NUM_PD);
 	if (err) {
 		printk(KERN_ERR MOD "error %d initializing resources\n", err);
-		goto err1;
+		return err;
 	}
 	err = c4iw_pblpool_create(rdev);
 	if (err) {
 		printk(KERN_ERR MOD "error %d initializing pbl pool\n", err);
-		goto err2;
+		goto destroy_resource;
 	}
 	err = c4iw_rqtpool_create(rdev);
 	if (err) {
 		printk(KERN_ERR MOD "error %d initializing rqt pool\n", err);
-		goto err3;
+		goto destroy_pblpool;
 	}
 	err = c4iw_ocqp_pool_create(rdev);
 	if (err) {
 		printk(KERN_ERR MOD "error %d initializing ocqp pool\n", err);
-		goto err4;
+		goto destroy_rqtpool;
 	}
 	rdev->status_page = (struct t4_dev_status_page *)
 			    __get_free_page(GFP_KERNEL);
-	if (!rdev->status_page) {
-		pr_err(MOD "error allocating status page\n");
-		goto err4;
-	}
+	if (!rdev->status_page)
+		goto destroy_ocqp_pool;
+	rdev->status_page->qp_start = rdev->lldi.vr->qp.start;
+	rdev->status_page->qp_size = rdev->lldi.vr->qp.size;
+	rdev->status_page->cq_start = rdev->lldi.vr->cq.start;
+	rdev->status_page->cq_size = rdev->lldi.vr->cq.size;
 
 	if (c4iw_wr_log) {
 		rdev->wr_log = kzalloc((1 << c4iw_wr_log_size_order) *
@@ -869,13 +849,14 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->db_off = 0;
 
 	return 0;
-err4:
+destroy_ocqp_pool:
+	c4iw_ocqp_pool_destroy(rdev);
+destroy_rqtpool:
 	c4iw_rqtpool_destroy(rdev);
-err3:
+destroy_pblpool:
 	c4iw_pblpool_destroy(rdev);
-err2:
+destroy_resource:
 	c4iw_destroy_resource(&rdev->resource);
-err1:
 	return err;
 }
 
@@ -962,12 +943,12 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		devp->rdev.lldi.sge_egrstatuspagesize;
 
 	/*
-	 * For T5 devices, we map all of BAR2 with WC.
+	 * For T5/T6 devices, we map all of BAR2 with WC.
 	 * For T4 devices with onchip qp mem, we map only that part
 	 * of BAR2 with WC.
 	 */
 	devp->rdev.bar2_pa = pci_resource_start(devp->rdev.lldi.pdev, 2);
-	if (is_t5(devp->rdev.lldi.adapter_type)) {
+	if (!is_t4(devp->rdev.lldi.adapter_type)) {
 		devp->rdev.bar2_kva = ioremap_wc(devp->rdev.bar2_pa,
 			pci_resource_len(devp->rdev.lldi.pdev, 2));
 		if (!devp->rdev.bar2_kva) {
@@ -1267,11 +1248,9 @@ static int enable_qp_db(int id, void *p, void *data)
 static void resume_rc_qp(struct c4iw_qp *qp)
 {
 	spin_lock(&qp->lock);
-	t4_ring_sq_db(&qp->wq, qp->wq.sq.wq_pidx_inc,
-		      is_t5(qp->rhp->rdev.lldi.adapter_type), NULL);
+	t4_ring_sq_db(&qp->wq, qp->wq.sq.wq_pidx_inc, NULL);
 	qp->wq.sq.wq_pidx_inc = 0;
-	t4_ring_rq_db(&qp->wq, qp->wq.rq.wq_pidx_inc,
-		      is_t5(qp->rhp->rdev.lldi.adapter_type), NULL);
+	t4_ring_rq_db(&qp->wq, qp->wq.rq.wq_pidx_inc, NULL);
 	qp->wq.rq.wq_pidx_inc = 0;
 	spin_unlock(&qp->lock);
 }
@@ -1515,20 +1494,6 @@ static int __init c4iw_init_module(void)
 		printk(KERN_WARNING MOD
 		       "could not create debugfs entry, continuing\n");
 
-	if (ibnl_add_client(RDMA_NL_C4IW, RDMA_NL_IWPM_NUM_OPS,
-			    c4iw_nl_cb_table))
-		pr_err("%s[%u]: Failed to add netlink callback\n"
-		       , __func__, __LINE__);
-
-	err = iwpm_init(RDMA_NL_C4IW);
-	if (err) {
-		pr_err("port mapper initialization failed with %d\n", err);
-		ibnl_remove_client(RDMA_NL_C4IW);
-		c4iw_cm_term();
-		debugfs_remove_recursive(c4iw_debugfs_root);
-		return err;
-	}
-
 	cxgb4_register_uld(CXGB4_ULD_RDMA, &c4iw_uld_info);
 
 	return 0;
@@ -1546,8 +1511,6 @@ static void __exit c4iw_exit_module(void)
 	}
 	mutex_unlock(&dev_mutex);
 	cxgb4_unregister_uld(CXGB4_ULD_RDMA);
-	iwpm_exit(RDMA_NL_C4IW);
-	ibnl_remove_client(RDMA_NL_C4IW);
 	c4iw_cm_term();
 	debugfs_remove_recursive(c4iw_debugfs_root);
 }

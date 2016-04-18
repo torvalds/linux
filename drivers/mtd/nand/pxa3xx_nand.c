@@ -30,11 +30,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_mtd.h>
-
-#if defined(CONFIG_ARM) && (defined(CONFIG_ARCH_PXA) || defined(CONFIG_ARCH_MMP))
-#define ARCH_HAS_DMA
-#endif
-
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
 #define	CHIP_DELAY_TIMEOUT	msecs_to_jiffies(200)
@@ -136,11 +131,23 @@
 #define READ_ID_BYTES		7
 
 /* macros for registers read/write */
-#define nand_writel(info, off, val)	\
-	writel_relaxed((val), (info)->mmio_base + (off))
+#define nand_writel(info, off, val)					\
+	do {								\
+		dev_vdbg(&info->pdev->dev,				\
+			 "%s():%d nand_writel(0x%x, 0x%04x)\n",		\
+			 __func__, __LINE__, (val), (off));		\
+		writel_relaxed((val), (info)->mmio_base + (off));	\
+	} while (0)
 
-#define nand_readl(info, off)		\
-	readl_relaxed((info)->mmio_base + (off))
+#define nand_readl(info, off)						\
+	({								\
+		unsigned int _v;					\
+		_v = readl_relaxed((info)->mmio_base + (off));		\
+		dev_vdbg(&info->pdev->dev,				\
+			 "%s():%d nand_readl(0x%04x) = 0x%x\n",		\
+			 __func__, __LINE__, (off), _v);		\
+		_v;							\
+	})
 
 /* error code and state */
 enum {
@@ -172,7 +179,6 @@ enum pxa3xx_nand_variant {
 
 struct pxa3xx_nand_host {
 	struct nand_chip	chip;
-	struct mtd_info         *mtd;
 	void			*info_data;
 
 	/* page size of attached chip */
@@ -205,7 +211,6 @@ struct pxa3xx_nand_info {
 	struct dma_chan		*dma_chan;
 	dma_cookie_t		dma_cookie;
 	int			drcmr_dat;
-	int			drcmr_cmd;
 
 	unsigned char		*data_buff;
 	unsigned char		*oob_buff;
@@ -228,14 +233,43 @@ struct pxa3xx_nand_info {
 	int			use_spare;	/* use spare ? */
 	int			need_wait;
 
-	unsigned int		data_size;	/* data to be read from FIFO */
-	unsigned int		chunk_size;	/* split commands chunk size */
-	unsigned int		oob_size;
+	/* Amount of real data per full chunk */
+	unsigned int		chunk_size;
+
+	/* Amount of spare data per full chunk */
 	unsigned int		spare_size;
+
+	/* Number of full chunks (i.e chunk_size + spare_size) */
+	unsigned int            nfullchunks;
+
+	/*
+	 * Total number of chunks. If equal to nfullchunks, then there
+	 * are only full chunks. Otherwise, there is one last chunk of
+	 * size (last_chunk_size + last_spare_size)
+	 */
+	unsigned int            ntotalchunks;
+
+	/* Amount of real data in the last chunk */
+	unsigned int		last_chunk_size;
+
+	/* Amount of spare data in the last chunk */
+	unsigned int		last_spare_size;
+
 	unsigned int		ecc_size;
 	unsigned int		ecc_err_cnt;
 	unsigned int		max_bitflips;
 	int 			retcode;
+
+	/*
+	 * Variables only valid during command
+	 * execution. step_chunk_size and step_spare_size is the
+	 * amount of real data and spare data in the current
+	 * chunk. cur_chunk is the current chunk being
+	 * read/programmed.
+	 */
+	unsigned int		step_chunk_size;
+	unsigned int		step_spare_size;
+	unsigned int            cur_chunk;
 
 	/* cached register value */
 	uint32_t		reg_ndcr;
@@ -455,14 +489,15 @@ static int pxa3xx_nand_init_timings_compat(struct pxa3xx_nand_host *host,
 	struct nand_chip *chip = &host->chip;
 	struct pxa3xx_nand_info *info = host->info_data;
 	const struct pxa3xx_nand_flash *f = NULL;
+	struct mtd_info *mtd = nand_to_mtd(&host->chip);
 	int i, id, ntypes;
 
 	ntypes = ARRAY_SIZE(builtin_flash_types);
 
-	chip->cmdfunc(host->mtd, NAND_CMD_READID, 0x00, -1);
+	chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
 
-	id = chip->read_byte(host->mtd);
-	id |= chip->read_byte(host->mtd) << 0x8;
+	id = chip->read_byte(mtd);
+	id |= chip->read_byte(mtd) << 0x8;
 
 	for (i = 0; i < ntypes; i++) {
 		f = &builtin_flash_types[i];
@@ -529,25 +564,6 @@ static int pxa3xx_nand_init(struct pxa3xx_nand_host *host)
 	}
 
 	return 0;
-}
-
-/*
- * Set the data and OOB size, depending on the selected
- * spare and ECC configuration.
- * Only applicable to READ0, READOOB and PAGEPROG commands.
- */
-static void pxa3xx_set_datasize(struct pxa3xx_nand_info *info,
-				struct mtd_info *mtd)
-{
-	int oob_enable = info->reg_ndcr & NDCR_SPARE_EN;
-
-	info->data_size = mtd->writesize;
-	if (!oob_enable)
-		return;
-
-	info->oob_size = info->spare_size;
-	if (!info->use_ecc)
-		info->oob_size += info->ecc_size;
 }
 
 /**
@@ -665,28 +681,28 @@ static void drain_fifo(struct pxa3xx_nand_info *info, void *data, int len)
 
 static void handle_data_pio(struct pxa3xx_nand_info *info)
 {
-	unsigned int do_bytes = min(info->data_size, info->chunk_size);
-
 	switch (info->state) {
 	case STATE_PIO_WRITING:
-		writesl(info->mmio_base + NDDB,
-			info->data_buff + info->data_buff_pos,
-			DIV_ROUND_UP(do_bytes, 4));
+		if (info->step_chunk_size)
+			writesl(info->mmio_base + NDDB,
+				info->data_buff + info->data_buff_pos,
+				DIV_ROUND_UP(info->step_chunk_size, 4));
 
-		if (info->oob_size > 0)
+		if (info->step_spare_size)
 			writesl(info->mmio_base + NDDB,
 				info->oob_buff + info->oob_buff_pos,
-				DIV_ROUND_UP(info->oob_size, 4));
+				DIV_ROUND_UP(info->step_spare_size, 4));
 		break;
 	case STATE_PIO_READING:
-		drain_fifo(info,
-			   info->data_buff + info->data_buff_pos,
-			   DIV_ROUND_UP(do_bytes, 4));
+		if (info->step_chunk_size)
+			drain_fifo(info,
+				   info->data_buff + info->data_buff_pos,
+				   DIV_ROUND_UP(info->step_chunk_size, 4));
 
-		if (info->oob_size > 0)
+		if (info->step_spare_size)
 			drain_fifo(info,
 				   info->oob_buff + info->oob_buff_pos,
-				   DIV_ROUND_UP(info->oob_size, 4));
+				   DIV_ROUND_UP(info->step_spare_size, 4));
 		break;
 	default:
 		dev_err(&info->pdev->dev, "%s: invalid state %d\n", __func__,
@@ -695,9 +711,8 @@ static void handle_data_pio(struct pxa3xx_nand_info *info)
 	}
 
 	/* Update buffer pointers for multi-page read/write */
-	info->data_buff_pos += do_bytes;
-	info->oob_buff_pos += info->oob_size;
-	info->data_size -= do_bytes;
+	info->data_buff_pos += info->step_chunk_size;
+	info->oob_buff_pos += info->step_spare_size;
 }
 
 static void pxa3xx_nand_data_dma_irq(void *data)
@@ -738,8 +753,9 @@ static void start_data_dma(struct pxa3xx_nand_info *info)
 				info->state);
 		BUG();
 	}
-	info->sg.length = info->data_size +
-		(info->oob_size ? info->spare_size + info->ecc_size : 0);
+	info->sg.length = info->chunk_size;
+	if (info->use_spare)
+		info->sg.length += info->spare_size + info->ecc_size;
 	dma_map_sg(info->dma_chan->device->dev, &info->sg, 1, info->dma_dir);
 
 	tx = dmaengine_prep_slave_sg(info->dma_chan, &info->sg, 1, direction,
@@ -895,14 +911,16 @@ static void set_command_address(struct pxa3xx_nand_info *info,
 static void prepare_start_command(struct pxa3xx_nand_info *info, int command)
 {
 	struct pxa3xx_nand_host *host = info->host[info->cs];
-	struct mtd_info *mtd = host->mtd;
+	struct mtd_info *mtd = nand_to_mtd(&host->chip);
 
 	/* reset data and oob column point to handle data */
 	info->buf_start		= 0;
 	info->buf_count		= 0;
-	info->oob_size		= 0;
 	info->data_buff_pos	= 0;
 	info->oob_buff_pos	= 0;
+	info->step_chunk_size   = 0;
+	info->step_spare_size   = 0;
+	info->cur_chunk         = 0;
 	info->use_ecc		= 0;
 	info->use_spare		= 1;
 	info->retcode		= ERR_NONE;
@@ -914,8 +932,6 @@ static void prepare_start_command(struct pxa3xx_nand_info *info, int command)
 	case NAND_CMD_READ0:
 	case NAND_CMD_PAGEPROG:
 		info->use_ecc = 1;
-	case NAND_CMD_READOOB:
-		pxa3xx_set_datasize(info, mtd);
 		break;
 	case NAND_CMD_PARAM:
 		info->use_spare = 0;
@@ -948,7 +964,7 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 	struct mtd_info *mtd;
 
 	host = info->host[info->cs];
-	mtd = host->mtd;
+	mtd = nand_to_mtd(&host->chip);
 	addr_cycle = 0;
 	exec_cmd = 1;
 
@@ -974,6 +990,14 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 		if (command == NAND_CMD_READOOB)
 			info->buf_start += mtd->writesize;
 
+		if (info->cur_chunk < info->nfullchunks) {
+			info->step_chunk_size = info->chunk_size;
+			info->step_spare_size = info->spare_size;
+		} else {
+			info->step_chunk_size = info->last_chunk_size;
+			info->step_spare_size = info->last_spare_size;
+		}
+
 		/*
 		 * Multiple page read needs an 'extended command type' field,
 		 * which is either naked-read or last-read according to the
@@ -985,8 +1009,8 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 			info->ndcb0 |= NDCB0_DBC | (NAND_CMD_READSTART << 8)
 					| NDCB0_LEN_OVRD
 					| NDCB0_EXT_CMD_TYPE(ext_cmd_type);
-			info->ndcb3 = info->chunk_size +
-				      info->oob_size;
+			info->ndcb3 = info->step_chunk_size +
+				info->step_spare_size;
 		}
 
 		set_command_address(info, mtd->writesize, column, page_addr);
@@ -1006,8 +1030,6 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 				| NDCB0_EXT_CMD_TYPE(ext_cmd_type)
 				| addr_cycle
 				| command;
-			/* No data transfer in this case */
-			info->data_size = 0;
 			exec_cmd = 1;
 		}
 		break;
@@ -1017,6 +1039,14 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 					(mtd->writesize + mtd->oobsize))) {
 			exec_cmd = 0;
 			break;
+		}
+
+		if (info->cur_chunk < info->nfullchunks) {
+			info->step_chunk_size = info->chunk_size;
+			info->step_spare_size = info->spare_size;
+		} else {
+			info->step_chunk_size = info->last_chunk_size;
+			info->step_spare_size = info->last_spare_size;
 		}
 
 		/* Second command setting for large pages */
@@ -1029,14 +1059,14 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 			info->ndcb0 |= NDCB0_CMD_TYPE(0x1)
 					| NDCB0_LEN_OVRD
 					| NDCB0_EXT_CMD_TYPE(ext_cmd_type);
-			info->ndcb3 = info->chunk_size +
-				      info->oob_size;
+			info->ndcb3 = info->step_chunk_size +
+				      info->step_spare_size;
 
 			/*
 			 * This is the command dispatch that completes a chunked
 			 * page program operation.
 			 */
-			if (info->data_size == 0) {
+			if (info->cur_chunk == info->ntotalchunks) {
 				info->ndcb0 = NDCB0_CMD_TYPE(0x1)
 					| NDCB0_EXT_CMD_TYPE(ext_cmd_type)
 					| command;
@@ -1063,7 +1093,7 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 				| command;
 		info->ndcb1 = (column & 0xFF);
 		info->ndcb3 = INIT_BUFFER_SIZE;
-		info->data_size = INIT_BUFFER_SIZE;
+		info->step_chunk_size = INIT_BUFFER_SIZE;
 		break;
 
 	case NAND_CMD_READID:
@@ -1073,7 +1103,7 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 				| command;
 		info->ndcb1 = (column & 0xFF);
 
-		info->data_size = 8;
+		info->step_chunk_size = 8;
 		break;
 	case NAND_CMD_STATUS:
 		info->buf_count = 1;
@@ -1081,7 +1111,7 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 				| NDCB0_ADDR_CYC(1)
 				| command;
 
-		info->data_size = 8;
+		info->step_chunk_size = 8;
 		break;
 
 	case NAND_CMD_ERASE1:
@@ -1118,7 +1148,8 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 static void nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			 int column, int page_addr)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct pxa3xx_nand_host *host = nand_get_controller_data(chip);
 	struct pxa3xx_nand_info *info = host->info_data;
 	int exec_cmd;
 
@@ -1166,7 +1197,8 @@ static void nand_cmdfunc_extended(struct mtd_info *mtd,
 				  const unsigned command,
 				  int column, int page_addr)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct pxa3xx_nand_host *host = nand_get_controller_data(chip);
 	struct pxa3xx_nand_info *info = host->info_data;
 	int exec_cmd, ext_cmd_type;
 
@@ -1220,6 +1252,7 @@ static void nand_cmdfunc_extended(struct mtd_info *mtd,
 	init_completion(&info->dev_ready);
 	do {
 		info->state = STATE_PREPARED;
+
 		exec_cmd = prepare_set_command(info, command, ext_cmd_type,
 					       column, page_addr);
 		if (!exec_cmd) {
@@ -1239,22 +1272,30 @@ static void nand_cmdfunc_extended(struct mtd_info *mtd,
 			break;
 		}
 
+		/* Only a few commands need several steps */
+		if (command != NAND_CMD_PAGEPROG &&
+		    command != NAND_CMD_READ0    &&
+		    command != NAND_CMD_READOOB)
+			break;
+
+		info->cur_chunk++;
+
 		/* Check if the sequence is complete */
-		if (info->data_size == 0 && command != NAND_CMD_PAGEPROG)
+		if (info->cur_chunk == info->ntotalchunks && command != NAND_CMD_PAGEPROG)
 			break;
 
 		/*
 		 * After a splitted program command sequence has issued
 		 * the command dispatch, the command sequence is complete.
 		 */
-		if (info->data_size == 0 &&
+		if (info->cur_chunk == (info->ntotalchunks + 1) &&
 		    command == NAND_CMD_PAGEPROG &&
 		    ext_cmd_type == EXT_CMD_TYPE_DISPATCH)
 			break;
 
 		if (command == NAND_CMD_READ0 || command == NAND_CMD_READOOB) {
 			/* Last read: issue a 'last naked read' */
-			if (info->data_size == info->chunk_size)
+			if (info->cur_chunk == info->ntotalchunks - 1)
 				ext_cmd_type = EXT_CMD_TYPE_LAST_RW;
 			else
 				ext_cmd_type = EXT_CMD_TYPE_NAKED_RW;
@@ -1264,7 +1305,7 @@ static void nand_cmdfunc_extended(struct mtd_info *mtd,
 		 * the command dispatch must be issued to complete.
 		 */
 		} else if (command == NAND_CMD_PAGEPROG &&
-			   info->data_size == 0) {
+			   info->cur_chunk == info->ntotalchunks) {
 				ext_cmd_type = EXT_CMD_TYPE_DISPATCH;
 		}
 	} while (1);
@@ -1286,7 +1327,7 @@ static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
 		struct nand_chip *chip, uint8_t *buf, int oob_required,
 		int page)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct pxa3xx_nand_host *host = nand_get_controller_data(chip);
 	struct pxa3xx_nand_info *info = host->info_data;
 
 	chip->read_buf(mtd, buf, mtd->writesize);
@@ -1312,7 +1353,8 @@ static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
 
 static uint8_t pxa3xx_nand_read_byte(struct mtd_info *mtd)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct pxa3xx_nand_host *host = nand_get_controller_data(chip);
 	struct pxa3xx_nand_info *info = host->info_data;
 	char retval = 0xFF;
 
@@ -1325,7 +1367,8 @@ static uint8_t pxa3xx_nand_read_byte(struct mtd_info *mtd)
 
 static u16 pxa3xx_nand_read_word(struct mtd_info *mtd)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct pxa3xx_nand_host *host = nand_get_controller_data(chip);
 	struct pxa3xx_nand_info *info = host->info_data;
 	u16 retval = 0xFFFF;
 
@@ -1338,7 +1381,8 @@ static u16 pxa3xx_nand_read_word(struct mtd_info *mtd)
 
 static void pxa3xx_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct pxa3xx_nand_host *host = nand_get_controller_data(chip);
 	struct pxa3xx_nand_info *info = host->info_data;
 	int real_len = min_t(size_t, len, info->buf_count - info->buf_start);
 
@@ -1349,7 +1393,8 @@ static void pxa3xx_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 static void pxa3xx_nand_write_buf(struct mtd_info *mtd,
 		const uint8_t *buf, int len)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct pxa3xx_nand_host *host = nand_get_controller_data(chip);
 	struct pxa3xx_nand_info *info = host->info_data;
 	int real_len = min_t(size_t, len, info->buf_count - info->buf_start);
 
@@ -1364,7 +1409,8 @@ static void pxa3xx_nand_select_chip(struct mtd_info *mtd, int chip)
 
 static int pxa3xx_nand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct pxa3xx_nand_host *host = nand_get_controller_data(chip);
 	struct pxa3xx_nand_info *info = host->info_data;
 
 	if (info->need_wait) {
@@ -1387,37 +1433,53 @@ static int pxa3xx_nand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 	return NAND_STATUS_READY;
 }
 
-static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info)
+static int pxa3xx_nand_config_ident(struct pxa3xx_nand_info *info)
 {
+	struct pxa3xx_nand_host *host = info->host[info->cs];
 	struct platform_device *pdev = info->pdev;
 	struct pxa3xx_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct pxa3xx_nand_host *host = info->host[info->cs];
-	struct mtd_info *mtd = host->mtd;
-	struct nand_chip *chip = mtd->priv;
+	const struct nand_sdr_timings *timings;
 
-	/* configure default flash values */
+	/* Configure default flash values */
+	info->chunk_size = PAGE_CHUNK_SIZE;
 	info->reg_ndcr = 0x0; /* enable all interrupts */
 	info->reg_ndcr |= (pdata->enable_arbiter) ? NDCR_ND_ARB_EN : 0;
 	info->reg_ndcr |= NDCR_RD_ID_CNT(READ_ID_BYTES);
-	info->reg_ndcr |= NDCR_SPARE_EN; /* enable spare by default */
-	info->reg_ndcr |= (host->col_addr_cycles == 2) ? NDCR_RA_START : 0;
-	info->reg_ndcr |= (chip->page_shift == 6) ? NDCR_PG_PER_BLK : 0;
-	info->reg_ndcr |= (mtd->writesize == 2048) ? NDCR_PAGE_SZ : 0;
+	info->reg_ndcr |= NDCR_SPARE_EN;
 
+	/* use the common timing to make a try */
+	timings = onfi_async_timing_mode_to_sdr_timings(0);
+	if (IS_ERR(timings))
+		return PTR_ERR(timings);
+
+	pxa3xx_nand_set_sdr_timing(host, timings);
 	return 0;
 }
 
-static int pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
+static void pxa3xx_nand_config_tail(struct pxa3xx_nand_info *info)
 {
+	struct pxa3xx_nand_host *host = info->host[info->cs];
+	struct nand_chip *chip = &host->chip;
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
+	info->reg_ndcr |= (host->col_addr_cycles == 2) ? NDCR_RA_START : 0;
+	info->reg_ndcr |= (chip->page_shift == 6) ? NDCR_PG_PER_BLK : 0;
+	info->reg_ndcr |= (mtd->writesize == 2048) ? NDCR_PAGE_SZ : 0;
+}
+
+static void pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
+{
+	struct platform_device *pdev = info->pdev;
+	struct pxa3xx_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	uint32_t ndcr = nand_readl(info, NDCR);
 
 	/* Set an initial chunk size */
 	info->chunk_size = ndcr & NDCR_PAGE_SZ ? 2048 : 512;
 	info->reg_ndcr = ndcr &
 		~(NDCR_INT_MASK | NDCR_ND_ARB_EN | NFCV1_NDCR_ARB_CNTL);
+	info->reg_ndcr |= (pdata->enable_arbiter) ? NDCR_ND_ARB_EN : 0;
 	info->ndtr0cs0 = nand_readl(info, NDTR0CS0);
 	info->ndtr1cs0 = nand_readl(info, NDTR1CS0);
-	return 0;
 }
 
 static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
@@ -1483,37 +1545,13 @@ static void pxa3xx_nand_free_buff(struct pxa3xx_nand_info *info)
 	kfree(info->data_buff);
 }
 
-static int pxa3xx_nand_sensing(struct pxa3xx_nand_host *host)
-{
-	struct pxa3xx_nand_info *info = host->info_data;
-	struct mtd_info *mtd;
-	struct nand_chip *chip;
-	const struct nand_sdr_timings *timings;
-	int ret;
-
-	mtd = info->host[info->cs]->mtd;
-	chip = mtd->priv;
-
-	/* use the common timing to make a try */
-	timings = onfi_async_timing_mode_to_sdr_timings(0);
-	if (IS_ERR(timings))
-		return PTR_ERR(timings);
-
-	pxa3xx_nand_set_sdr_timing(host, timings);
-
-	chip->cmdfunc(mtd, NAND_CMD_RESET, 0, 0);
-	ret = chip->waitfunc(mtd, chip);
-	if (ret & NAND_STATUS_FAIL)
-		return -ENODEV;
-
-	return 0;
-}
-
 static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 			struct nand_ecc_ctrl *ecc,
 			int strength, int ecc_stepsize, int page_size)
 {
 	if (strength == 1 && ecc_stepsize == 512 && page_size == 2048) {
+		info->nfullchunks = 1;
+		info->ntotalchunks = 1;
 		info->chunk_size = 2048;
 		info->spare_size = 40;
 		info->ecc_size = 24;
@@ -1522,6 +1560,8 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->strength = 1;
 
 	} else if (strength == 1 && ecc_stepsize == 512 && page_size == 512) {
+		info->nfullchunks = 1;
+		info->ntotalchunks = 1;
 		info->chunk_size = 512;
 		info->spare_size = 8;
 		info->ecc_size = 8;
@@ -1535,6 +1575,8 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 	 */
 	} else if (strength == 4 && ecc_stepsize == 512 && page_size == 2048) {
 		info->ecc_bch = 1;
+		info->nfullchunks = 1;
+		info->ntotalchunks = 1;
 		info->chunk_size = 2048;
 		info->spare_size = 32;
 		info->ecc_size = 32;
@@ -1545,6 +1587,8 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 
 	} else if (strength == 4 && ecc_stepsize == 512 && page_size == 4096) {
 		info->ecc_bch = 1;
+		info->nfullchunks = 2;
+		info->ntotalchunks = 2;
 		info->chunk_size = 2048;
 		info->spare_size = 32;
 		info->ecc_size = 32;
@@ -1559,8 +1603,12 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 	 */
 	} else if (strength == 8 && ecc_stepsize == 512 && page_size == 4096) {
 		info->ecc_bch = 1;
+		info->nfullchunks = 4;
+		info->ntotalchunks = 5;
 		info->chunk_size = 1024;
 		info->spare_size = 0;
+		info->last_chunk_size = 0;
+		info->last_spare_size = 64;
 		info->ecc_size = 32;
 		ecc->mode = NAND_ECC_HW;
 		ecc->size = info->chunk_size;
@@ -1580,34 +1628,22 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 
 static int pxa3xx_nand_scan(struct mtd_info *mtd)
 {
-	struct pxa3xx_nand_host *host = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct pxa3xx_nand_host *host = nand_get_controller_data(chip);
 	struct pxa3xx_nand_info *info = host->info_data;
 	struct platform_device *pdev = info->pdev;
 	struct pxa3xx_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct nand_chip *chip = mtd->priv;
 	int ret;
 	uint16_t ecc_strength, ecc_step;
 
-	if (pdata->keep_config && !pxa3xx_nand_detect_config(info))
-		goto KEEP_CONFIG;
-
-	/* Set a default chunk size */
-	info->chunk_size = 512;
-
-	ret = pxa3xx_nand_config_flash(info);
-	if (ret)
-		return ret;
-
-	ret = pxa3xx_nand_sensing(host);
-	if (ret) {
-		dev_info(&info->pdev->dev, "There is no chip on cs %d!\n",
-			 info->cs);
-
-		return ret;
+	if (pdata->keep_config) {
+		pxa3xx_nand_detect_config(info);
+	} else {
+		ret = pxa3xx_nand_config_ident(info);
+		if (ret)
+			return ret;
 	}
 
-KEEP_CONFIG:
-	info->reg_ndcr |= (pdata->enable_arbiter) ? NDCR_ND_ARB_EN : 0;
 	if (info->reg_ndcr & NDCR_DWIDTH_M)
 		chip->options |= NAND_BUSWIDTH_16;
 
@@ -1692,11 +1728,16 @@ KEEP_CONFIG:
 		host->row_addr_cycles = 3;
 	else
 		host->row_addr_cycles = 2;
+
+	if (!pdata->keep_config)
+		pxa3xx_nand_config_tail(info);
+
 	return nand_scan_tail(mtd);
 }
 
 static int alloc_nand_resource(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct pxa3xx_nand_platform_data *pdata;
 	struct pxa3xx_nand_info *info;
 	struct pxa3xx_nand_host *host;
@@ -1708,24 +1749,27 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata->num_cs <= 0)
 		return -ENODEV;
-	info = devm_kzalloc(&pdev->dev, sizeof(*info) + (sizeof(*mtd) +
-			    sizeof(*host)) * pdata->num_cs, GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev,
+			    sizeof(*info) + sizeof(*host) * pdata->num_cs,
+			    GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
 	info->pdev = pdev;
 	info->variant = pxa3xx_nand_get_variant(pdev);
 	for (cs = 0; cs < pdata->num_cs; cs++) {
-		mtd = (void *)&info[1] + (sizeof(*mtd) + sizeof(*host)) * cs;
-		chip = (struct nand_chip *)(&mtd[1]);
-		host = (struct pxa3xx_nand_host *)chip;
+		host = (void *)&info[1] + sizeof(*host) * cs;
+		chip = &host->chip;
+		nand_set_controller_data(chip, host);
+		mtd = nand_to_mtd(chip);
 		info->host[cs] = host;
-		host->mtd = mtd;
 		host->cs = cs;
 		host->info_data = info;
-		mtd->priv = host;
 		mtd->dev.parent = &pdev->dev;
+		/* FIXME: all chips use the same device tree partitions */
+		nand_set_flash_node(chip, np);
 
+		nand_set_controller_data(chip, host);
 		chip->ecc.read_page	= pxa3xx_nand_read_page_hwecc;
 		chip->ecc.write_page	= pxa3xx_nand_write_page_hwecc;
 		chip->controller        = &info->controller;
@@ -1750,7 +1794,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	if (use_dma) {
+	if (!np && use_dma) {
 		r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 		if (r == NULL) {
 			dev_err(&pdev->dev,
@@ -1759,15 +1803,6 @@ static int alloc_nand_resource(struct platform_device *pdev)
 			goto fail_disable_clk;
 		}
 		info->drcmr_dat = r->start;
-
-		r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-		if (r == NULL) {
-			dev_err(&pdev->dev,
-				"no resource defined for cmd DMA\n");
-			ret = -ENXIO;
-			goto fail_disable_clk;
-		}
-		info->drcmr_cmd = r->start;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -1845,7 +1880,7 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 	clk_disable_unprepare(info->clk);
 
 	for (cs = 0; cs < pdata->num_cs; cs++)
-		nand_release(info->host[cs]->mtd);
+		nand_release(nand_to_mtd(&info->host[cs]->chip));
 	return 0;
 }
 
@@ -1886,7 +1921,6 @@ static int pxa3xx_nand_probe_dt(struct platform_device *pdev)
 static int pxa3xx_nand_probe(struct platform_device *pdev)
 {
 	struct pxa3xx_nand_platform_data *pdata;
-	struct mtd_part_parser_data ppdata = {};
 	struct pxa3xx_nand_info *info;
 	int ret, cs, probe_success, dma_available;
 
@@ -1917,7 +1951,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	info = platform_get_drvdata(pdev);
 	probe_success = 0;
 	for (cs = 0; cs < pdata->num_cs; cs++) {
-		struct mtd_info *mtd = info->host[cs]->mtd;
+		struct mtd_info *mtd = nand_to_mtd(&info->host[cs]->chip);
 
 		/*
 		 * The mtd name matches the one used in 'mtdparts' kernel
@@ -1933,10 +1967,8 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		ppdata.of_node = pdev->dev.of_node;
-		ret = mtd_device_parse_register(mtd, NULL,
-						&ppdata, pdata->parts[cs],
-						pdata->nr_parts[cs]);
+		ret = mtd_device_register(mtd, pdata->parts[cs],
+					  pdata->nr_parts[cs]);
 		if (!ret)
 			probe_success = 1;
 	}
@@ -1959,12 +1991,18 @@ static int pxa3xx_nand_suspend(struct device *dev)
 		return -EAGAIN;
 	}
 
+	clk_disable(info->clk);
 	return 0;
 }
 
 static int pxa3xx_nand_resume(struct device *dev)
 {
 	struct pxa3xx_nand_info *info = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_enable(info->clk);
+	if (ret < 0)
+		return ret;
 
 	/* We don't want to handle interrupt without calling mtd routine */
 	disable_int(info, NDCR_INT_MASK);

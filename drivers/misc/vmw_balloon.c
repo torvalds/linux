@@ -75,7 +75,7 @@ MODULE_LICENSE("GPL");
 
 /*
  * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We don't
- * allow wait (__GFP_WAIT) for NOSLEEP page allocations. Use
+ * allow wait (__GFP_RECLAIM) for NOSLEEP page allocations. Use
  * __GFP_NOWARN, to suppress page allocation failure warnings.
  */
 #define VMW_PAGE_ALLOC_NOSLEEP		(__GFP_HIGHMEM|__GFP_NOWARN)

@@ -4,8 +4,8 @@ Renesas Sampling Rate Convert Sound Card specifies audio DAI connections of SoC 
 
 Required properties:
 
-- compatible				: "renesas,rsrc-card,<board>"
-					  Examples with soctypes are:
+- compatible				: "renesas,rsrc-card{,<board>}"
+					  Examples with boards are:
 					    - "renesas,rsrc-card"
 					    - "renesas,rsrc-card,lager"
 					    - "renesas,rsrc-card,koelsch"
@@ -30,6 +30,7 @@ Optional subnode properties:
 - frame-inversion			: bool property. Add this if the
 					  dai-link uses frame clock inversion.
 - convert-rate				: platform specified sampling rate convert
+- convert-channels			: platform specified converted channel size (2 - 8 ch)
 - audio-prefix				: see audio-routing
 - audio-routing				: A list of the connections between audio components.
 					  Each entry is a pair of strings, the first being the connection's sink,

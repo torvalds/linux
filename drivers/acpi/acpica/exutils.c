@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -167,8 +167,8 @@ u8 acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
 	if ((acpi_gbl_integer_byte_width == 4) &&
 	    (obj_desc->integer.value > (u64)ACPI_UINT32_MAX)) {
 		/*
-		 * We are executing in a 32-bit ACPI table.
-		 * Truncate the value to 32 bits by zeroing out the upper 32-bit field
+		 * We are executing in a 32-bit ACPI table. Truncate
+		 * the value to 32 bits by zeroing out the upper 32-bit field
 		 */
 		obj_desc->integer.value &= (u64)ACPI_UINT32_MAX;
 		return (TRUE);
@@ -323,7 +323,8 @@ void acpi_ex_eisa_id_to_string(char *out_string, u64 compressed_id)
 
 	if (compressed_id > ACPI_UINT32_MAX) {
 		ACPI_WARNING((AE_INFO,
-			      "Expected EISAID is larger than 32 bits: 0x%8.8X%8.8X, truncating",
+			      "Expected EISAID is larger than 32 bits: "
+			      "0x%8.8X%8.8X, truncating",
 			      ACPI_FORMAT_UINT64(compressed_id)));
 	}
 

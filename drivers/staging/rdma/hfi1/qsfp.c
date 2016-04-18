@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -62,7 +59,7 @@
 #define I2C_MAX_RETRY 4
 
 /*
- * Unlocked i2c write.  Must hold dd->qsfp_i2c_mutex.
+ * Raw i2c write.  No set-up or lock checking.
  */
 static int __i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 		       int offset, void *bp, int len)
@@ -70,14 +67,6 @@ static int __i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 	struct hfi1_devdata *dd = ppd->dd;
 	int ret, cnt;
 	u8 *buff = bp;
-
-	/* Make sure TWSI bus is in sane state. */
-	ret = hfi1_twsi_reset(dd, target);
-	if (ret) {
-		hfi1_dev_porterr(dd, ppd->port,
-				 "I2C interface Reset for write failed\n");
-		return -EIO;
-	}
 
 	cnt = 0;
 	while (cnt < len) {
@@ -99,48 +88,45 @@ static int __i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 	return cnt;
 }
 
+/*
+ * Caller must hold the i2c chain resource.
+ */
 int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	      void *bp, int len)
 {
-	struct hfi1_devdata *dd = ppd->dd;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dd->qsfp_i2c_mutex);
-	if (!ret) {
-		ret = __i2c_write(ppd, target, i2c_addr, offset, bp, len);
-		mutex_unlock(&dd->qsfp_i2c_mutex);
+	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+		return -EACCES;
+
+	/* make sure the TWSI bus is in a sane state */
+	ret = hfi1_twsi_reset(ppd->dd, target);
+	if (ret) {
+		hfi1_dev_porterr(ppd->dd, ppd->port,
+				 "I2C chain %d write interface reset failed\n",
+				 target);
+		return ret;
 	}
 
-	return ret;
+	return __i2c_write(ppd, target, i2c_addr, offset, bp, len);
 }
 
 /*
- * Unlocked i2c read.  Must hold dd->qsfp_i2c_mutex.
+ * Raw i2c read.  No set-up or lock checking.
  */
 static int __i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 		      int offset, void *bp, int len)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	int ret, cnt, pass = 0;
-	int stuck = 0;
-	u8 *buff = bp;
-
-	/* Make sure TWSI bus is in sane state. */
-	ret = hfi1_twsi_reset(dd, target);
-	if (ret) {
-		hfi1_dev_porterr(dd, ppd->port,
-				 "I2C interface Reset for read failed\n");
-		ret = -EIO;
-		stuck = 1;
-		goto exit;
-	}
+	int orig_offset = offset;
 
 	cnt = 0;
 	while (cnt < len) {
 		int rlen = len - cnt;
 
 		ret = hfi1_twsi_blk_rd(dd, target, i2c_addr, offset,
-				       buff + cnt, rlen);
+				       bp + cnt, rlen);
 		/* Some QSFP's fail first try. Retry as experiment */
 		if (ret && cnt == 0 && ++pass < I2C_MAX_RETRY)
 			continue;
@@ -156,14 +142,11 @@ static int __i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 	ret = cnt;
 
 exit:
-	if (stuck)
-		dd_dev_err(dd, "I2C interface bus stuck non-idle\n");
-
-	if (pass >= I2C_MAX_RETRY && ret)
+	if (ret < 0) {
 		hfi1_dev_porterr(dd, ppd->port,
-				 "I2C failed even retrying\n");
-	else if (pass)
-		hfi1_dev_porterr(dd, ppd->port, "I2C retries: %d\n", pass);
+				 "I2C chain %d read failed, addr 0x%x, offset 0x%x, len %d\n",
+				 target, i2c_addr, orig_offset, len);
+	}
 
 	/* Must wait min 20us between qsfp i2c transactions */
 	udelay(20);
@@ -171,21 +154,35 @@ exit:
 	return ret;
 }
 
+/*
+ * Caller must hold the i2c chain resource.
+ */
 int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	     void *bp, int len)
 {
-	struct hfi1_devdata *dd = ppd->dd;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dd->qsfp_i2c_mutex);
-	if (!ret) {
-		ret = __i2c_read(ppd, target, i2c_addr, offset, bp, len);
-		mutex_unlock(&dd->qsfp_i2c_mutex);
+	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+		return -EACCES;
+
+	/* make sure the TWSI bus is in a sane state */
+	ret = hfi1_twsi_reset(ppd->dd, target);
+	if (ret) {
+		hfi1_dev_porterr(ppd->dd, ppd->port,
+				 "I2C chain %d read interface reset failed\n",
+				 target);
+		return ret;
 	}
 
-	return ret;
+	return __i2c_read(ppd, target, i2c_addr, offset, bp, len);
 }
 
+/*
+ * Write page n, offset m of QSFP memory as defined by SFF 8636
+ * by writing @addr = ((256 * n) + m)
+ *
+ * Caller must hold the i2c chain resource.
+ */
 int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	       int len)
 {
@@ -195,50 +192,81 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	int ret;
 	u8 page;
 
-	ret = mutex_lock_interruptible(&ppd->dd->qsfp_i2c_mutex);
-	if (ret)
+	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+		return -EACCES;
+
+	/* make sure the TWSI bus is in a sane state */
+	ret = hfi1_twsi_reset(ppd->dd, target);
+	if (ret) {
+		hfi1_dev_porterr(ppd->dd, ppd->port,
+				 "QSFP chain %d write interface reset failed\n",
+				 target);
 		return ret;
+	}
 
 	while (count < len) {
 		/*
-		 * Set the qsfp page based on a zero-based addresss
+		 * Set the qsfp page based on a zero-based address
 		 * and a page size of QSFP_PAGESIZE bytes.
 		 */
 		page = (u8)(addr / QSFP_PAGESIZE);
 
-		ret = __i2c_write(ppd, target, QSFP_DEV,
-					QSFP_PAGE_SELECT_BYTE_OFFS, &page, 1);
+		ret = __i2c_write(ppd, target, QSFP_DEV | QSFP_OFFSET_SIZE,
+				  QSFP_PAGE_SELECT_BYTE_OFFS, &page, 1);
 		if (ret != 1) {
-			hfi1_dev_porterr(
-			ppd->dd,
-			ppd->port,
-			"can't write QSFP_PAGE_SELECT_BYTE: %d\n", ret);
+			hfi1_dev_porterr(ppd->dd, ppd->port,
+					 "QSFP chain %d can't write QSFP_PAGE_SELECT_BYTE: %d\n",
+					 target, ret);
 			ret = -EIO;
 			break;
 		}
 
-		/* truncate write to end of page if crossing page boundary */
 		offset = addr % QSFP_PAGESIZE;
 		nwrite = len - count;
-		if ((offset + nwrite) > QSFP_PAGESIZE)
-			nwrite = QSFP_PAGESIZE - offset;
+		/* truncate write to boundary if crossing boundary */
+		if (((addr % QSFP_RW_BOUNDARY) + nwrite) > QSFP_RW_BOUNDARY)
+			nwrite = QSFP_RW_BOUNDARY - (addr % QSFP_RW_BOUNDARY);
 
-		ret = __i2c_write(ppd, target, QSFP_DEV, offset, bp + count,
-					nwrite);
-		if (ret <= 0)	/* stop on error or nothing read */
+		ret = __i2c_write(ppd, target, QSFP_DEV | QSFP_OFFSET_SIZE,
+				  offset, bp + count, nwrite);
+		if (ret <= 0)	/* stop on error or nothing written */
 			break;
 
 		count += ret;
 		addr += ret;
 	}
 
-	mutex_unlock(&ppd->dd->qsfp_i2c_mutex);
-
 	if (ret < 0)
 		return ret;
 	return count;
 }
 
+/*
+ * Perform a stand-alone single QSFP write.  Acquire the resource, do the
+ * read, then release the resource.
+ */
+int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
+		   int len)
+{
+	struct hfi1_devdata *dd = ppd->dd;
+	u32 resource = qsfp_resource(dd);
+	int ret;
+
+	ret = acquire_chip_resource(dd, resource, QSFP_WAIT);
+	if (ret)
+		return ret;
+	ret = qsfp_write(ppd, target, addr, bp, len);
+	release_chip_resource(dd, resource);
+
+	return ret;
+}
+
+/*
+ * Access page n, offset m of QSFP memory as defined by SFF 8636
+ * by reading @addr = ((256 * n) + m)
+ *
+ * Caller must hold the i2c chain resource.
+ */
 int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	      int len)
 {
@@ -248,9 +276,17 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	int ret;
 	u8 page;
 
-	ret = mutex_lock_interruptible(&ppd->dd->qsfp_i2c_mutex);
-	if (ret)
+	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+		return -EACCES;
+
+	/* make sure the TWSI bus is in a sane state */
+	ret = hfi1_twsi_reset(ppd->dd, target);
+	if (ret) {
+		hfi1_dev_porterr(ppd->dd, ppd->port,
+				 "QSFP chain %d read interface reset failed\n",
+				 target);
 		return ret;
+	}
 
 	while (count < len) {
 		/*
@@ -258,25 +294,26 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		 * and a page size of QSFP_PAGESIZE bytes.
 		 */
 		page = (u8)(addr / QSFP_PAGESIZE);
-		ret = __i2c_write(ppd, target, QSFP_DEV,
-					QSFP_PAGE_SELECT_BYTE_OFFS, &page, 1);
+		ret = __i2c_write(ppd, target, QSFP_DEV | QSFP_OFFSET_SIZE,
+				  QSFP_PAGE_SELECT_BYTE_OFFS, &page, 1);
 		if (ret != 1) {
-			hfi1_dev_porterr(
-			ppd->dd,
-			ppd->port,
-			"can't write QSFP_PAGE_SELECT_BYTE: %d\n", ret);
+			hfi1_dev_porterr(ppd->dd, ppd->port,
+					 "QSFP chain %d can't write QSFP_PAGE_SELECT_BYTE: %d\n",
+					 target, ret);
 			ret = -EIO;
 			break;
 		}
 
-		/* truncate read to end of page if crossing page boundary */
 		offset = addr % QSFP_PAGESIZE;
 		nread = len - count;
-		if ((offset + nread) > QSFP_PAGESIZE)
-			nread = QSFP_PAGESIZE - offset;
+		/* truncate read to boundary if crossing boundary */
+		if (((addr % QSFP_RW_BOUNDARY) + nread) > QSFP_RW_BOUNDARY)
+			nread = QSFP_RW_BOUNDARY - (addr % QSFP_RW_BOUNDARY);
 
-		ret = __i2c_read(ppd, target, QSFP_DEV, offset, bp + count,
-					nread);
+		/* QSFPs require a 5-10msec delay after write operations */
+		mdelay(5);
+		ret = __i2c_read(ppd, target, QSFP_DEV | QSFP_OFFSET_SIZE,
+				 offset, bp + count, nread);
 		if (ret <= 0)	/* stop on error or nothing read */
 			break;
 
@@ -284,17 +321,40 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		addr += ret;
 	}
 
-	mutex_unlock(&ppd->dd->qsfp_i2c_mutex);
-
 	if (ret < 0)
 		return ret;
 	return count;
 }
 
 /*
+ * Perform a stand-alone single QSFP read.  Acquire the resource, do the
+ * read, then release the resource.
+ */
+int one_qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
+		  int len)
+{
+	struct hfi1_devdata *dd = ppd->dd;
+	u32 resource = qsfp_resource(dd);
+	int ret;
+
+	ret = acquire_chip_resource(dd, resource, QSFP_WAIT);
+	if (ret)
+		return ret;
+	ret = qsfp_read(ppd, target, addr, bp, len);
+	release_chip_resource(dd, resource);
+
+	return ret;
+}
+
+/*
  * This function caches the QSFP memory range in 128 byte chunks.
  * As an example, the next byte after address 255 is byte 128 from
  * upper page 01H (if existing) rather than byte 0 from lower page 00H.
+ * Access page n, offset m of QSFP memory as defined by SFF 8636
+ * in the cache by reading byte ((128 * n) + m)
+ * The calls to qsfp_{read,write} in this function correctly handle the
+ * address map difference between this mapping and the mapping implemented
+ * by those functions
  */
 int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 {
@@ -304,78 +364,83 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 	u8 *cache = &cp->cache[0];
 
 	/* ensure sane contents on invalid reads, for cable swaps */
-	memset(cache, 0, (QSFP_MAX_NUM_PAGES*128));
-	dd_dev_info(ppd->dd, "%s: called\n", __func__);
+	memset(cache, 0, (QSFP_MAX_NUM_PAGES * 128));
+	spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
+	ppd->qsfp_info.cache_valid = 0;
+	spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock, flags);
+
 	if (!qsfp_mod_present(ppd)) {
 		ret = -ENODEV;
-		goto bail;
+		goto bail_no_release;
 	}
 
-	ret = qsfp_read(ppd, target, 0, cache, 256);
-	if (ret != 256) {
+	ret = acquire_chip_resource(ppd->dd, qsfp_resource(ppd->dd), QSFP_WAIT);
+	if (ret)
+		goto bail_no_release;
+
+	ret = qsfp_read(ppd, target, 0, cache, QSFP_PAGESIZE);
+	if (ret != QSFP_PAGESIZE) {
 		dd_dev_info(ppd->dd,
-			"%s: Read of pages 00H failed, expected 256, got %d\n",
-			__func__, ret);
+			    "%s: Page 0 read failed, expected %d, got %d\n",
+			    __func__, QSFP_PAGESIZE, ret);
 		goto bail;
 	}
-
-	if (cache[0] != 0x0C && cache[0] != 0x0D)
-		goto bail;
 
 	/* Is paging enabled? */
 	if (!(cache[2] & 4)) {
-
 		/* Paging enabled, page 03 required */
 		if ((cache[195] & 0xC0) == 0xC0) {
 			/* all */
 			ret = qsfp_read(ppd, target, 384, cache + 256, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 			ret = qsfp_read(ppd, target, 640, cache + 384, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 			ret = qsfp_read(ppd, target, 896, cache + 512, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 		} else if ((cache[195] & 0x80) == 0x80) {
 			/* only page 2 and 3 */
 			ret = qsfp_read(ppd, target, 640, cache + 384, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 			ret = qsfp_read(ppd, target, 896, cache + 512, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 		} else if ((cache[195] & 0x40) == 0x40) {
 			/* only page 1 and 3 */
 			ret = qsfp_read(ppd, target, 384, cache + 256, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 			ret = qsfp_read(ppd, target, 896, cache + 512, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 		} else {
 			/* only page 3 */
 			ret = qsfp_read(ppd, target, 896, cache + 512, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 		}
 	}
+
+	release_chip_resource(ppd->dd, qsfp_resource(ppd->dd));
 
 	spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
 	ppd->qsfp_info.cache_valid = 1;
@@ -385,7 +450,9 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 	return 0;
 
 bail:
-	memset(cache, 0, (QSFP_MAX_NUM_PAGES*128));
+	release_chip_resource(ppd->dd, qsfp_resource(ppd->dd));
+bail_no_release:
+	memset(cache, 0, (QSFP_MAX_NUM_PAGES * 128));
 	return ret;
 }
 
@@ -434,7 +501,7 @@ int get_cable_info(struct hfi1_devdata *dd, u32 port_num, u32 addr, u32 len,
 
 	if (port_num > dd->num_pports || port_num < 1) {
 		dd_dev_info(dd, "%s: Invalid port number %d\n",
-				__func__, port_num);
+			    __func__, port_num);
 		ret = -EINVAL;
 		goto set_zeroes;
 	}
@@ -475,7 +542,7 @@ int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len)
 	u8 *cache = &ppd->qsfp_info.cache[0];
 	u8 bin_buff[QSFP_DUMP_CHUNK];
 	char lenstr[6];
-	int sofar, ret;
+	int sofar;
 	int bidx = 0;
 	u8 *atten = &cache[QSFP_ATTEN_OFFS];
 	u8 *vendor_oui = &cache[QSFP_VOUI_OFFS];
@@ -485,7 +552,6 @@ int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len)
 	lenstr[1] = '\0';
 
 	if (ppd->qsfp_info.cache_valid) {
-
 		if (QSFP_IS_CU(cache[QSFP_MOD_TECH_OFFS]))
 			sprintf(lenstr, "%dM ", cache[QSFP_MOD_LEN_OFFS]);
 
@@ -529,13 +595,12 @@ int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len)
 
 			memcpy(bin_buff, &cache[bidx], QSFP_DUMP_CHUNK);
 			for (iidx = 0; iidx < QSFP_DUMP_CHUNK; ++iidx) {
-				sofar += scnprintf(buf + sofar, len-sofar,
+				sofar += scnprintf(buf + sofar, len - sofar,
 					" %02X", bin_buff[iidx]);
 			}
 			sofar += scnprintf(buf + sofar, len - sofar, "\n");
 			bidx += QSFP_DUMP_CHUNK;
 		}
 	}
-	ret = sofar;
-	return ret;
+	return sofar;
 }

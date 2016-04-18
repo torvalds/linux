@@ -16,10 +16,15 @@
  */
 
 #include "tpm.h"
+#include <crypto/hash_info.h>
 #include <keys/trusted-type.h>
 
 enum tpm2_object_attributes {
-	TPM2_ATTR_USER_WITH_AUTH	= BIT(6),
+	TPM2_OA_USER_WITH_AUTH		= BIT(6),
+};
+
+enum tpm2_session_attributes {
+	TPM2_SA_CONTINUE_SESSION	= BIT(0),
 };
 
 struct tpm2_startup_in {
@@ -103,6 +108,19 @@ struct tpm2_cmd {
 	tpm_cmd_header		header;
 	union tpm2_cmd_params	params;
 } __packed;
+
+struct tpm2_hash {
+	unsigned int crypto_id;
+	unsigned int tpm_id;
+};
+
+static struct tpm2_hash tpm2_hash_map[] = {
+	{HASH_ALGO_SHA1, TPM2_ALG_SHA1},
+	{HASH_ALGO_SHA256, TPM2_ALG_SHA256},
+	{HASH_ALGO_SHA384, TPM2_ALG_SHA384},
+	{HASH_ALGO_SHA512, TPM2_ALG_SHA512},
+	{HASH_ALGO_SM3_256, TPM2_ALG_SM3_256},
+};
 
 /*
  * Array with one entry per ordinal defining the maximum amount
@@ -429,7 +447,19 @@ int tpm2_seal_trusted(struct tpm_chip *chip,
 {
 	unsigned int blob_len;
 	struct tpm_buf buf;
+	u32 hash;
+	int i;
 	int rc;
+
+	for (i = 0; i < ARRAY_SIZE(tpm2_hash_map); i++) {
+		if (options->hash == tpm2_hash_map[i].crypto_id) {
+			hash = tpm2_hash_map[i].tpm_id;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(tpm2_hash_map))
+		return -EINVAL;
 
 	rc = tpm_buf_init(&buf, TPM2_ST_SESSIONS, TPM2_CC_CREATE);
 	if (rc)
@@ -443,20 +473,31 @@ int tpm2_seal_trusted(struct tpm_chip *chip,
 			     TPM_DIGEST_SIZE);
 
 	/* sensitive */
-	tpm_buf_append_u16(&buf, 4 + TPM_DIGEST_SIZE + payload->key_len);
+	tpm_buf_append_u16(&buf, 4 + TPM_DIGEST_SIZE + payload->key_len + 1);
 
 	tpm_buf_append_u16(&buf, TPM_DIGEST_SIZE);
 	tpm_buf_append(&buf, options->blobauth, TPM_DIGEST_SIZE);
-	tpm_buf_append_u16(&buf, payload->key_len);
+	tpm_buf_append_u16(&buf, payload->key_len + 1);
 	tpm_buf_append(&buf, payload->key, payload->key_len);
+	tpm_buf_append_u8(&buf, payload->migratable);
 
 	/* public */
-	tpm_buf_append_u16(&buf, 14);
-
+	tpm_buf_append_u16(&buf, 14 + options->policydigest_len);
 	tpm_buf_append_u16(&buf, TPM2_ALG_KEYEDHASH);
-	tpm_buf_append_u16(&buf, TPM2_ALG_SHA256);
-	tpm_buf_append_u32(&buf, TPM2_ATTR_USER_WITH_AUTH);
-	tpm_buf_append_u16(&buf, 0); /* policy digest size */
+	tpm_buf_append_u16(&buf, hash);
+
+	/* policy */
+	if (options->policydigest_len) {
+		tpm_buf_append_u32(&buf, 0);
+		tpm_buf_append_u16(&buf, options->policydigest_len);
+		tpm_buf_append(&buf, options->policydigest,
+			       options->policydigest_len);
+	} else {
+		tpm_buf_append_u32(&buf, TPM2_OA_USER_WITH_AUTH);
+		tpm_buf_append_u16(&buf, 0);
+	}
+
+	/* public parameters */
 	tpm_buf_append_u16(&buf, TPM2_ALG_NULL);
 	tpm_buf_append_u16(&buf, 0);
 
@@ -487,8 +528,12 @@ int tpm2_seal_trusted(struct tpm_chip *chip,
 out:
 	tpm_buf_destroy(&buf);
 
-	if (rc > 0)
-		rc = -EPERM;
+	if (rc > 0) {
+		if ((rc & TPM2_RC_HASH) == TPM2_RC_HASH)
+			rc = -EINVAL;
+		else
+			rc = -EPERM;
+	}
 
 	return rc;
 }
@@ -573,6 +618,8 @@ static int tpm2_unseal(struct tpm_chip *chip,
 		       u32 blob_handle)
 {
 	struct tpm_buf buf;
+	u16 data_len;
+	u8 *data;
 	int rc;
 
 	rc = tpm_buf_init(&buf, TPM2_ST_SESSIONS, TPM2_CC_UNSEAL);
@@ -580,9 +627,11 @@ static int tpm2_unseal(struct tpm_chip *chip,
 		return rc;
 
 	tpm_buf_append_u32(&buf, blob_handle);
-	tpm2_buf_append_auth(&buf, TPM2_RS_PW,
+	tpm2_buf_append_auth(&buf,
+			     options->policyhandle ?
+			     options->policyhandle : TPM2_RS_PW,
 			     NULL /* nonce */, 0,
-			     0 /* session_attributes */,
+			     TPM2_SA_CONTINUE_SESSION,
 			     options->blobauth /* hmac */,
 			     TPM_DIGEST_SIZE);
 
@@ -591,11 +640,13 @@ static int tpm2_unseal(struct tpm_chip *chip,
 		rc = -EPERM;
 
 	if (!rc) {
-		payload->key_len = be16_to_cpup(
+		data_len = be16_to_cpup(
 			(__be16 *) &buf.data[TPM_HEADER_SIZE + 4]);
+		data = &buf.data[TPM_HEADER_SIZE + 6];
 
-		memcpy(payload->key, &buf.data[TPM_HEADER_SIZE + 6],
-		       payload->key_len);
+		memcpy(payload->key, data, data_len - 1);
+		payload->key_len = data_len - 1;
+		payload->migratable = data[data_len - 1];
 	}
 
 	tpm_buf_destroy(&buf);

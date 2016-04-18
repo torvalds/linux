@@ -13,15 +13,16 @@ static DEFINE_SPINLOCK(clklock);
 
 static void __init h8300_div_clk_setup(struct device_node *node)
 {
-	int num_parents;
+	unsigned int num_parents;
 	struct clk *clk;
 	const char *clk_name = node->name;
 	const char *parent_name;
 	void __iomem *divcr = NULL;
 	int width;
+	int offset;
 
 	num_parents = of_clk_get_parent_count(node);
-	if (num_parents < 1) {
+	if (!num_parents) {
 		pr_err("%s: no parent found", clk_name);
 		return;
 	}
@@ -31,11 +32,14 @@ static void __init h8300_div_clk_setup(struct device_node *node)
 		pr_err("%s: failed to map divide register", clk_name);
 		goto error;
 	}
+	offset = (unsigned long)divcr & 3;
+	offset = (3 - offset) * 8;
+	divcr = (void __iomem *)((unsigned long)divcr & ~3);
 
 	parent_name = of_clk_get_parent_name(node, 0);
 	of_property_read_u32(node, "renesas,width", &width);
 	clk = clk_register_divider(NULL, clk_name, parent_name,
-				   CLK_SET_RATE_GATE, divcr, 0, width,
+				   CLK_SET_RATE_GATE, divcr, offset, width,
 				   CLK_DIVIDER_POWER_OF_TWO, &clklock);
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);

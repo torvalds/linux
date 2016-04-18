@@ -202,6 +202,23 @@ static inline long plpar_pte_read_raw(unsigned long flags, unsigned long ptex,
 }
 
 /*
+ * ptes must be 8*sizeof(unsigned long)
+ */
+static inline long plpar_pte_read_4(unsigned long flags, unsigned long ptex,
+				    unsigned long *ptes)
+
+{
+	long rc;
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE];
+
+	rc = plpar_hcall9(H_READ, retbuf, flags | H_READ_4, ptex);
+
+	memcpy(ptes, retbuf, 8*sizeof(unsigned long));
+
+	return rc;
+}
+
+/*
  * plpar_pte_read_4_raw can be called in real mode.
  * ptes must be 8*sizeof(unsigned long)
  */

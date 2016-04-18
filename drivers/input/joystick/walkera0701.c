@@ -150,7 +150,7 @@ static void walkera0701_irq_handler(void *handler_data)
 		if (w->counter == 24) {	/* full frame */
 			walkera0701_parse_frame(w);
 			w->counter = NO_SYNC;
-			if (abs64(pulse_time - SYNC_PULSE) < RESERVE)	/* new frame sync */
+			if (abs(pulse_time - SYNC_PULSE) < RESERVE)	/* new frame sync */
 				w->counter = 0;
 		} else {
 			if ((pulse_time > (ANALOG_MIN_PULSE - RESERVE)
@@ -161,7 +161,7 @@ static void walkera0701_irq_handler(void *handler_data)
 			} else
 				w->counter = NO_SYNC;
 		}
-	} else if (abs64(pulse_time - SYNC_PULSE - BIN0_PULSE) <
+	} else if (abs(pulse_time - SYNC_PULSE - BIN0_PULSE) <
 				RESERVE + BIN1_PULSE - BIN0_PULSE)	/* frame sync .. */
 		w->counter = 0;
 
@@ -218,6 +218,7 @@ static void walkera0701_attach(struct parport *pp)
 
 	w->parport = pp;
 
+	memset(&walkera0701_parport_cb, 0, sizeof(walkera0701_parport_cb));
 	walkera0701_parport_cb.flags = PARPORT_FLAG_EXCL;
 	walkera0701_parport_cb.irq_func = walkera0701_irq_handler;
 	walkera0701_parport_cb.private = w;

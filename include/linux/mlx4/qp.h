@@ -135,7 +135,10 @@ struct mlx4_rss_context {
 
 struct mlx4_qp_path {
 	u8			fl;
-	u8			vlan_control;
+	union {
+		u8			vlan_control;
+		u8			control;
+	};
 	u8			disable_pkey_check;
 	u8			pkey_index;
 	u8			counter_index;
@@ -156,9 +159,16 @@ struct mlx4_qp_path {
 };
 
 enum { /* fl */
-	MLX4_FL_CV      = 1 << 6,
-	MLX4_FL_ETH_HIDE_CQE_VLAN       = 1 << 2
+	MLX4_FL_CV	= 1 << 6,
+	MLX4_FL_ETH_HIDE_CQE_VLAN	= 1 << 2,
+	MLX4_FL_ETH_SRC_CHECK_MC_LB	= 1 << 1,
+	MLX4_FL_ETH_SRC_CHECK_UC_LB	= 1 << 0,
 };
+
+enum { /* control */
+	MLX4_CTRL_ETH_SRC_CHECK_IF_COUNTER	= 1 << 7,
+};
+
 enum { /* vlan_control */
 	MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED	= 1 << 6,
 	MLX4_VLAN_CTRL_ETH_TX_BLOCK_PRIO_TAGGED	= 1 << 5, /* 802.1p priority tag */
@@ -184,7 +194,7 @@ struct mlx4_qp_context {
 	u8			mtu_msgmax;
 	u8			rq_size_stride;
 	u8			sq_size_stride;
-	u8			rlkey;
+	u8			rlkey_roce_mode;
 	__be32			usr_page;
 	__be32			local_qpn;
 	__be32			remote_qpn;
@@ -194,7 +204,8 @@ struct mlx4_qp_context {
 	u32			reserved1;
 	__be32			next_send_psn;
 	__be32			cqn_send;
-	u32			reserved2[2];
+	__be16                  roce_entropy;
+	__be16                  reserved2[3];
 	__be32			last_acked_psn;
 	__be32			ssn;
 	__be32			params2;
@@ -254,6 +265,8 @@ enum {
 	MLX4_UPD_QP_PATH_MASK_SCHED_QUEUE		= 14 + 32,
 	MLX4_UPD_QP_PATH_MASK_IF_COUNTER_INDEX		= 15 + 32,
 	MLX4_UPD_QP_PATH_MASK_FVL_RX			= 16 + 32,
+	MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_UC_LB	= 18 + 32,
+	MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_MC_LB	= 19 + 32,
 };
 
 enum { /* param3 */
@@ -436,11 +449,13 @@ enum mlx4_update_qp_attr {
 	MLX4_UPDATE_QP_VSD		= 1 << 1,
 	MLX4_UPDATE_QP_RATE_LIMIT	= 1 << 2,
 	MLX4_UPDATE_QP_QOS_VPORT	= 1 << 3,
-	MLX4_UPDATE_QP_SUPPORTED_ATTRS	= (1 << 4) - 1
+	MLX4_UPDATE_QP_ETH_SRC_CHECK_MC_LB      = 1 << 4,
+	MLX4_UPDATE_QP_SUPPORTED_ATTRS	= (1 << 5) - 1
 };
 
 enum mlx4_update_qp_params_flags {
-	MLX4_UPDATE_QP_PARAMS_FLAGS_VSD_ENABLE		= 1 << 0,
+	MLX4_UPDATE_QP_PARAMS_FLAGS_ETH_CHECK_MC_LB     = 1 << 0,
+	MLX4_UPDATE_QP_PARAMS_FLAGS_VSD_ENABLE		= 1 << 1,
 };
 
 struct mlx4_update_qp_params {
@@ -472,5 +487,15 @@ static inline struct mlx4_qp *__mlx4_qp_lookup(struct mlx4_dev *dev, u32 qpn)
 }
 
 void mlx4_qp_remove(struct mlx4_dev *dev, struct mlx4_qp *qp);
+
+static inline u16 folded_qp(u32 q)
+{
+	u16 res;
+
+	res = ((q & 0xff) ^ ((q & 0xff0000) >> 16)) | (q & 0xff00);
+	return res;
+}
+
+u16 mlx4_qp_roce_entropy(struct mlx4_dev *dev, u32 qpn);
 
 #endif /* MLX4_QP_H */

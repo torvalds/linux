@@ -16,15 +16,6 @@
 #include <linux/slab.h>
 #include <linux/bug.h>
 
-/*
- * fsnotify_d_instantiate - instantiate a dentry for inode
- */
-static inline void fsnotify_d_instantiate(struct dentry *dentry,
-					  struct inode *inode)
-{
-	__fsnotify_d_instantiate(dentry, inode);
-}
-
 /* Notify this dentry's parent about a child's events. */
 static inline int fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
 {

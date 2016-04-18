@@ -1023,25 +1023,25 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 		msg->req_type = TIPC_TLV_LINK_NAME;
 		msg->rep_size = ULTRA_STRING_MAX_LEN;
 		msg->rep_type = TIPC_TLV_ULTRA_STRING;
-		dump.dumpit = tipc_nl_link_dump;
+		dump.dumpit = tipc_nl_node_dump_link;
 		dump.format = tipc_nl_compat_link_stat_dump;
 		return tipc_nl_compat_dumpit(&dump, msg);
 	case TIPC_CMD_GET_LINKS:
 		msg->req_type = TIPC_TLV_NET_ADDR;
 		msg->rep_size = ULTRA_STRING_MAX_LEN;
-		dump.dumpit = tipc_nl_link_dump;
+		dump.dumpit = tipc_nl_node_dump_link;
 		dump.format = tipc_nl_compat_link_dump;
 		return tipc_nl_compat_dumpit(&dump, msg);
 	case TIPC_CMD_SET_LINK_TOL:
 	case TIPC_CMD_SET_LINK_PRI:
 	case TIPC_CMD_SET_LINK_WINDOW:
 		msg->req_type =  TIPC_TLV_LINK_CONFIG;
-		doit.doit = tipc_nl_link_set;
+		doit.doit = tipc_nl_node_set_link;
 		doit.transcode = tipc_nl_compat_link_set;
 		return tipc_nl_compat_doit(&doit, msg);
 	case TIPC_CMD_RESET_LINK_STATS:
 		msg->req_type = TIPC_TLV_LINK_NAME;
-		doit.doit = tipc_nl_link_reset_stats;
+		doit.doit = tipc_nl_node_reset_link_stats;
 		doit.transcode = tipc_nl_compat_link_reset_stats;
 		return tipc_nl_compat_doit(&doit, msg);
 	case TIPC_CMD_SHOW_NAME_TABLE:
@@ -1104,8 +1104,8 @@ static int tipc_nl_compat_recv(struct sk_buff *skb, struct genl_info *info)
 	req_nlh = (struct nlmsghdr *)skb->data;
 	msg.req = nlmsg_data(req_nlh) + GENL_HDRLEN + TIPC_GENL_HDRLEN;
 	msg.cmd = req_userhdr->cmd;
-	msg.dst_sk = info->dst_sk;
 	msg.net = genl_info_net(info);
+	msg.dst_sk = skb->sk;
 
 	if ((msg.cmd & 0xC000) && (!netlink_net_capable(skb, CAP_NET_ADMIN))) {
 		msg.rep = tipc_get_err_tlv(TIPC_CFG_NOT_NET_ADMIN);

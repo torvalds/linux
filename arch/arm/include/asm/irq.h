@@ -40,6 +40,11 @@ extern void arch_trigger_all_cpu_backtrace(bool);
 #define arch_trigger_all_cpu_backtrace(x) arch_trigger_all_cpu_backtrace(x)
 #endif
 
+static inline int nr_legacy_irqs(void)
+{
+	return NR_IRQS_LEGACY;
+}
+
 #endif
 
 #endif

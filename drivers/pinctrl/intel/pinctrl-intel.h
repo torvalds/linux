@@ -55,6 +55,8 @@ struct intel_function {
  *                  ACPI).
  * @ie_offset: Register offset of GPI_IE from @regs.
  * @pin_base: Starting pin of pins in this community
+ * @gpp_size: Maximum number of pads in each group, such as PADCFGLOCK,
+ *            HOSTSW_OWN,  GPI_IS, GPI_IE, etc.
  * @npins: Number of pins in this community
  * @regs: Community specific common registers (reserved for core driver)
  * @pad_regs: Community specific pad registers (reserved for core driver)
@@ -68,6 +70,7 @@ struct intel_community {
 	unsigned hostown_offset;
 	unsigned ie_offset;
 	unsigned pin_base;
+	unsigned gpp_size;
 	size_t npins;
 	void __iomem *regs;
 	void __iomem *pad_regs;

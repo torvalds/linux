@@ -171,9 +171,9 @@ typedef struct {
 } mm_context_t;
 #endif /* !__ASSEMBLY__ */
 
-#if (PAGE_SHIFT == 12)
+#if defined(CONFIG_PPC_4K_PAGES)
 #define mmu_virtual_psize	MMU_PAGE_4K
-#elif (PAGE_SHIFT == 14)
+#elif defined(CONFIG_PPC_16K_PAGES)
 #define mmu_virtual_psize	MMU_PAGE_16K
 #else
 #error "Unsupported PAGE_SIZE"

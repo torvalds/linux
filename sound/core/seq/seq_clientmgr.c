@@ -364,6 +364,7 @@ static int snd_seq_open(struct inode *inode, struct file *file)
 	/* fill client data */
 	user->file = file;
 	sprintf(client->name, "Client-%d", c);
+	client->data.user.owner = get_pid(task_pid(current));
 
 	/* make others aware this new client */
 	snd_seq_system_client_ev_client_start(c);
@@ -380,6 +381,7 @@ static int snd_seq_release(struct inode *inode, struct file *file)
 		seq_free_client(client);
 		if (client->data.user.fifo)
 			snd_seq_fifo_delete(&client->data.user.fifo);
+		put_pid(client->data.user.owner);
 		kfree(client);
 	}
 
@@ -678,6 +680,9 @@ static int deliver_to_subscribers(struct snd_seq_client *client,
 	else
 		down_read(&grp->list_mutex);
 	list_for_each_entry(subs, &grp->list_head, src_list) {
+		/* both ports ready? */
+		if (atomic_read(&subs->ref_count) != 2)
+			continue;
 		event->dest = subs->info.dest;
 		if (subs->info.flags & SNDRV_SEQ_PORT_SUBS_TIMESTAMP)
 			/* convert time according to flag with subscription */
@@ -1194,6 +1199,17 @@ static void get_client_info(struct snd_seq_client *cptr,
 	info->event_lost = cptr->event_lost;
 	memcpy(info->event_filter, cptr->event_filter, 32);
 	info->num_ports = cptr->num_ports;
+
+	if (cptr->type == USER_CLIENT)
+		info->pid = pid_vnr(cptr->data.user.owner);
+	else
+		info->pid = -1;
+
+	if (cptr->type == KERNEL_CLIENT)
+		info->card = cptr->data.kernel.card ? cptr->data.kernel.card->number : -1;
+	else
+		info->card = -1;
+
 	memset(info->reserved, 0, sizeof(info->reserved));
 }
 
@@ -1962,7 +1978,7 @@ static int snd_seq_ioctl_remove_events(struct snd_seq_client *client,
 		 * No restrictions so for a user client we can clear
 		 * the whole fifo
 		 */
-		if (client->type == USER_CLIENT)
+		if (client->type == USER_CLIENT && client->data.user.fifo)
 			snd_seq_fifo_clear(client->data.user.fifo);
 	}
 
@@ -2268,6 +2284,7 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 
 	client->accept_input = 1;
 	client->accept_output = 1;
+	client->data.kernel.card = card;
 		
 	va_start(args, name_fmt);
 	vsnprintf(client->name, sizeof(client->name), name_fmt, args);

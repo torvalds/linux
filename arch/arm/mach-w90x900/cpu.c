@@ -33,8 +33,8 @@
 #include <mach/hardware.h>
 #include <mach/regs-serial.h>
 #include <mach/regs-clock.h>
-#include <mach/regs-ebi.h>
-#include <mach/regs-timer.h>
+#include "regs-ebi.h"
+#include "regs-timer.h"
 
 #include "cpu.h"
 #include "clock.h"

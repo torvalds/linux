@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,16 +20,48 @@
 struct device;
 
 /**
- * struct wil_platform_ops - wil platform module callbacks
+ * struct wil_platform_ops - wil platform module calls from this
+ * driver to platform driver
  */
 struct wil_platform_ops {
 	int (*bus_request)(void *handle, uint32_t kbps /* KBytes/Sec */);
 	int (*suspend)(void *handle);
 	int (*resume)(void *handle);
 	void (*uninit)(void *handle);
+	int (*notify_crash)(void *handle);
 };
 
-void *wil_platform_init(struct device *dev, struct wil_platform_ops *ops);
+/**
+ * struct wil_platform_rops - wil platform module callbacks from
+ * platform driver to this driver
+ * @ramdump: store a ramdump from the wil firmware. The platform
+ *	driver may add additional data to the ramdump to
+ *	generate the final crash dump.
+ * @fw_recovery: start a firmware recovery process. Called as
+ *      part of a crash recovery process which may include other
+ *      related platform subsystems.
+ */
+struct wil_platform_rops {
+	int (*ramdump)(void *wil_handle, void *buf, uint32_t size);
+	int (*fw_recovery)(void *wil_handle);
+};
+
+/**
+ * wil_platform_init - initialize the platform driver
+ *
+ * @dev - pointer to the wil6210 device
+ * @ops - structure with platform driver operations. Platform
+ *	driver will fill this structure with function pointers.
+ * @rops - structure with callbacks from platform driver to
+ *	this driver. The platform driver copies the structure to
+ *	its own storage. Can be NULL if this driver does not
+ *	support crash recovery.
+ * @wil_handle - context for this driver that will be passed
+ *      when platform driver invokes one of the callbacks in
+ *      rops. May be NULL if rops is NULL.
+ */
+void *wil_platform_init(struct device *dev, struct wil_platform_ops *ops,
+			const struct wil_platform_rops *rops, void *wil_handle);
 
 int __init wil_platform_modinit(void);
 void wil_platform_modexit(void);

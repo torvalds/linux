@@ -1,5 +1,5 @@
 /*
- * Code for replacing ftrace calls with jumps.
+ * Dynamic function tracing support.
  *
  * Copyright (C) 2007-2008 Steven Rostedt <srostedt@redhat.com>
  *
@@ -81,9 +81,9 @@ within(unsigned long addr, unsigned long start, unsigned long end)
 static unsigned long text_ip_addr(unsigned long ip)
 {
 	/*
-	 * On x86_64, kernel text mappings are mapped read-only with
-	 * CONFIG_DEBUG_RODATA. So we use the kernel identity mapping instead
-	 * of the kernel text mapping to modify the kernel text.
+	 * On x86_64, kernel text mappings are mapped read-only, so we use
+	 * the kernel identity mapping instead of the kernel text mapping
+	 * to modify the kernel text.
 	 *
 	 * For 32bit kernels, these mappings are same and we can use
 	 * kernel identity mapping to modify code.
@@ -105,14 +105,14 @@ ftrace_modify_code_direct(unsigned long ip, unsigned const char *old_code,
 {
 	unsigned char replaced[MCOUNT_INSN_SIZE];
 
+	ftrace_expected = old_code;
+
 	/*
-	 * Note: Due to modules and __init, code can
-	 *  disappear and change, we need to protect against faulting
-	 *  as well as code changing. We do this by using the
-	 *  probe_kernel_* functions.
-	 *
-	 * No real locking needed, this code is run through
-	 * kstop_machine, or before SMP starts.
+	 * Note:
+	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * could cause us to read or write to someplace that could cause harm.
+	 * Carefully read and modify the code with probe_kernel_*(), and make
+	 * sure what we read is what we expected it to be before modifying it.
 	 */
 
 	/* read the text we want to modify */
@@ -153,6 +153,8 @@ int ftrace_make_nop(struct module *mod,
 	 */
 	if (addr == MCOUNT_ADDR)
 		return ftrace_modify_code_direct(rec->ip, old, new);
+
+	ftrace_expected = NULL;
 
 	/* Normal cases use add_brk_on_nop */
 	WARN_ONCE(1, "invalid use of ftrace_make_nop");
@@ -220,6 +222,7 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 				 unsigned long addr)
 {
 	WARN_ON(1);
+	ftrace_expected = NULL;
 	return -EINVAL;
 }
 
@@ -313,6 +316,8 @@ static int add_break(unsigned long ip, const char *old)
 
 	if (probe_kernel_read(replaced, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
+
+	ftrace_expected = old;
 
 	/* Make sure it is what we expect it to be */
 	if (memcmp(replaced, old, MCOUNT_INSN_SIZE) != 0)
@@ -412,6 +417,8 @@ static int remove_breakpoint(struct dyn_ftrace *rec)
 		/* Check both ftrace_addr and ftrace_old_addr */
 		ftrace_addr = ftrace_get_addr_curr(rec);
 		nop = ftrace_call_replace(ip, ftrace_addr);
+
+		ftrace_expected = nop;
 
 		if (memcmp(&ins[1], &nop[1], MCOUNT_INSN_SIZE - 1) != 0)
 			return -EINVAL;
@@ -690,9 +697,8 @@ static inline void tramp_free(void *tramp) { }
 #endif
 
 /* Defined as markers to the end of the ftrace default trampolines */
-extern void ftrace_caller_end(void);
 extern void ftrace_regs_caller_end(void);
-extern void ftrace_return(void);
+extern void ftrace_epilogue(void);
 extern void ftrace_caller_op_ptr(void);
 extern void ftrace_regs_caller_op_ptr(void);
 
@@ -739,7 +745,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 		op_offset = (unsigned long)ftrace_regs_caller_op_ptr;
 	} else {
 		start_offset = (unsigned long)ftrace_caller;
-		end_offset = (unsigned long)ftrace_caller_end;
+		end_offset = (unsigned long)ftrace_epilogue;
 		op_offset = (unsigned long)ftrace_caller_op_ptr;
 	}
 
@@ -747,7 +753,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 
 	/*
 	 * Allocate enough size to store the ftrace_caller code,
-	 * the jmp to ftrace_return, as well as the address of
+	 * the jmp to ftrace_epilogue, as well as the address of
 	 * the ftrace_ops this trampoline is used for.
 	 */
 	trampoline = alloc_tramp(size + MCOUNT_INSN_SIZE + sizeof(void *));
@@ -765,8 +771,8 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 
 	ip = (unsigned long)trampoline + size;
 
-	/* The trampoline ends with a jmp to ftrace_return */
-	jmp = ftrace_jmp_replace(ip, (unsigned long)ftrace_return);
+	/* The trampoline ends with a jmp to ftrace_epilogue */
+	jmp = ftrace_jmp_replace(ip, (unsigned long)ftrace_epilogue);
 	memcpy(trampoline + size, jmp, MCOUNT_INSN_SIZE);
 
 	/*

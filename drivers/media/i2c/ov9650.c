@@ -29,7 +29,7 @@
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
-#include <media/ov9650.h>
+#include <media/i2c/ov9650.h>
 
 static int debug;
 module_param(debug, int, 0644);
@@ -1046,8 +1046,8 @@ static int ov965x_initialize_controls(struct ov965x *ov965x)
 	ctrls->exposure->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	v4l2_ctrl_auto_cluster(3, &ctrls->auto_wb, 0, false);
-	v4l2_ctrl_auto_cluster(3, &ctrls->auto_gain, 0, true);
-	v4l2_ctrl_auto_cluster(3, &ctrls->auto_exp, 1, true);
+	v4l2_ctrl_auto_cluster(2, &ctrls->auto_gain, 0, true);
+	v4l2_ctrl_auto_cluster(2, &ctrls->auto_exp, 1, true);
 	v4l2_ctrl_cluster(2, &ctrls->hflip);
 
 	ov965x->sd.ctrl_handler = hdl;
@@ -1133,7 +1133,7 @@ static int __ov965x_set_frame_interval(struct ov965x *ov965x,
 		if (mbus_fmt->width != iv->size.width ||
 		    mbus_fmt->height != iv->size.height)
 			continue;
-		err = abs64((u64)(iv->interval.numerator * 10000) /
+		err = abs((u64)(iv->interval.numerator * 10000) /
 			    iv->interval.denominator - req_int);
 		if (err < min_err) {
 			fiv = iv;
@@ -1500,8 +1500,8 @@ static int ov965x_probe(struct i2c_client *client,
 		return ret;
 
 	ov965x->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &ov965x->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &ov965x->pad);
 	if (ret < 0)
 		return ret;
 
