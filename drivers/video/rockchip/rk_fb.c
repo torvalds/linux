@@ -3551,10 +3551,10 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		}
 	}
 
-	envp[0] = "switch screen";
+	envp[0] = "switch vop screen";
 	memset(envplcdc, 0, sizeof(envplcdc));
 	memset(envpfbdev, 0, sizeof(envpfbdev));
-	sprintf(envplcdc, "SCREEN=%d,ENABLE=%d", screen->type, enable);
+	sprintf(envplcdc, "SCREEN=%d,ENABLE=%d,VOPID=%d", screen->type, enable, dev_drv->id);
 	sprintf(envpfbdev, "FBDEV=%d", dev_drv->fb_index_base);
 	envp[1] = envplcdc;
 	envp[2] = envpfbdev;
