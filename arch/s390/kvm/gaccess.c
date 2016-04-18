@@ -953,9 +953,11 @@ int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra)
  * @sg: pointer to the shadow guest address space structure
  * @saddr: faulting address in the shadow gmap
  * @pgt: pointer to the page table address result
+ * @fake: pgt references contiguous guest memory block, not a pgtable
  */
 static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
-				  unsigned long *pgt, int *dat_protection)
+				  unsigned long *pgt, int *dat_protection,
+				  int *fake)
 {
 	struct gmap *parent;
 	union asce asce;
@@ -963,6 +965,7 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 	unsigned long ptr;
 	int rc;
 
+	*fake = 0;
 	parent = sg->parent;
 	vaddr.addr = saddr;
 	asce.val = sg->orig_asce;
@@ -1060,10 +1063,20 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 		if (ste.cs && asce.p)
 			return PGM_TRANSLATION_SPEC;
 		*dat_protection = ste.fc0.p;
-		rc = gmap_shadow_pgt(sg, saddr, ste.val);
+		if (ste.fc && sg->edat_level >= 1) {
+			bool prot = ste.fc1.p;
+
+			*fake = 1;
+			ptr = ste.fc1.sfaa << 20UL;
+			ste.val = ptr;
+			ste.fc0.p = prot;
+			goto shadow_pgt;
+		}
+		ptr = ste.fc0.pto << 11UL;
+shadow_pgt:
+		rc = gmap_shadow_pgt(sg, saddr, ste.val, *fake);
 		if (rc)
 			return rc;
-		ptr = ste.fc0.pto * 2048;
 	}
 	}
 	/* Return the parent address of the page table */
@@ -1089,7 +1102,7 @@ int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg,
 	union vaddress vaddr;
 	union page_table_entry pte;
 	unsigned long pgt;
-	int dat_protection;
+	int dat_protection, fake;
 	int rc;
 
 	down_read(&sg->mm->mmap_sem);
@@ -1100,17 +1113,24 @@ int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg,
 	 */
 	ipte_lock(vcpu);
 
-	rc = gmap_shadow_pgt_lookup(sg, saddr, &pgt, &dat_protection);
+	rc = gmap_shadow_pgt_lookup(sg, saddr, &pgt, &dat_protection, &fake);
 	if (rc)
-		rc = kvm_s390_shadow_tables(sg, saddr, &pgt, &dat_protection);
+		rc = kvm_s390_shadow_tables(sg, saddr, &pgt, &dat_protection,
+					    &fake);
 
 	vaddr.addr = saddr;
+	if (fake) {
+		/* offset in 1MB guest memory block */
+		pte.val = pgt + ((unsigned long) vaddr.px << 12UL);
+		goto shadow_page;
+	}
 	if (!rc)
 		rc = gmap_read_table(sg->parent, pgt + vaddr.px * 8, &pte.val);
 	if (!rc && pte.i)
 		rc = PGM_PAGE_TRANSLATION;
-	if (!rc && (pte.z || pte.co))
+	if (!rc && (pte.z || (pte.co && sg->edat_level < 1)))
 		rc = PGM_TRANSLATION_SPEC;
+shadow_page:
 	pte.p |= dat_protection;
 	if (!rc)
 		rc = gmap_shadow_page(sg, saddr, __pte(pte.val));

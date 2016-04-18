@@ -20,6 +20,8 @@
 #include <asm/gmap.h>
 #include <asm/tlb.h>
 
+#define GMAP_SHADOW_FAKE_TABLE 1ULL
+
 /**
  * gmap_alloc - allocate and initialize a guest address space
  * @mm: pointer to the parent mm_struct
@@ -1521,6 +1523,8 @@ int gmap_shadow_r2t(struct gmap *sg, unsigned long saddr, unsigned long r2t)
 	/* mark as invalid as long as the parent table is not protected */
 	*table = (unsigned long) s_r2t | _REGION_ENTRY_LENGTH |
 		 _REGION_ENTRY_TYPE_R1 | _REGION_ENTRY_INVALID;
+	if (sg->edat_level >= 1)
+		*table |= (r2t & _REGION_ENTRY_PROTECT);
 	list_add(&page->lru, &sg->crst_list);
 	spin_unlock(&sg->guest_table_lock);
 	/* Make r2t read-only in parent gmap page table */
@@ -1592,6 +1596,8 @@ int gmap_shadow_r3t(struct gmap *sg, unsigned long saddr, unsigned long r3t)
 	/* mark as invalid as long as the parent table is not protected */
 	*table = (unsigned long) s_r3t | _REGION_ENTRY_LENGTH |
 		 _REGION_ENTRY_TYPE_R2 | _REGION_ENTRY_INVALID;
+	if (sg->edat_level >= 1)
+		*table |= (r3t & _REGION_ENTRY_PROTECT);
 	list_add(&page->lru, &sg->crst_list);
 	spin_unlock(&sg->guest_table_lock);
 	/* Make r3t read-only in parent gmap page table */
@@ -1664,6 +1670,8 @@ int gmap_shadow_sgt(struct gmap *sg, unsigned long saddr, unsigned long sgt)
 	/* mark as invalid as long as the parent table is not protected */
 	*table = (unsigned long) s_sgt | _REGION_ENTRY_LENGTH |
 		 _REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_INVALID;
+	if (sg->edat_level >= 1)
+		*table |= sgt & _REGION_ENTRY_PROTECT;
 	list_add(&page->lru, &sg->crst_list);
 	spin_unlock(&sg->guest_table_lock);
 	/* Make sgt read-only in parent gmap page table */
@@ -1698,6 +1706,7 @@ EXPORT_SYMBOL_GPL(gmap_shadow_sgt);
  * @saddr: the address in the shadow aguest address space
  * @pgt: parent gmap address of the page table to get shadowed
  * @dat_protection: if the pgtable is marked as protected by dat
+ * @fake: pgt references contiguous guest memory block, not a pgtable
  *
  * Returns 0 if the shadow page table was found and -EAGAIN if the page
  * table was not found.
@@ -1705,7 +1714,8 @@ EXPORT_SYMBOL_GPL(gmap_shadow_sgt);
  * Called with sg->mm->mmap_sem in read.
  */
 int gmap_shadow_pgt_lookup(struct gmap *sg, unsigned long saddr,
-			   unsigned long *pgt, int *dat_protection)
+			   unsigned long *pgt, int *dat_protection,
+			   int *fake)
 {
 	unsigned long *table;
 	struct page *page;
@@ -1717,8 +1727,9 @@ int gmap_shadow_pgt_lookup(struct gmap *sg, unsigned long saddr,
 	if (table && !(*table & _SEGMENT_ENTRY_INVALID)) {
 		/* Shadow page tables are full pages (pte+pgste) */
 		page = pfn_to_page(*table >> PAGE_SHIFT);
-		*pgt = page->index;
+		*pgt = page->index & ~GMAP_SHADOW_FAKE_TABLE;
 		*dat_protection = !!(*table & _SEGMENT_ENTRY_PROTECT);
+		*fake = !!(page->index & GMAP_SHADOW_FAKE_TABLE);
 		rc = 0;
 	} else  {
 		rc = -EAGAIN;
@@ -1734,6 +1745,7 @@ EXPORT_SYMBOL_GPL(gmap_shadow_pgt_lookup);
  * @sg: pointer to the shadow guest address space structure
  * @saddr: faulting address in the shadow gmap
  * @pgt: parent gmap address of the page table to get shadowed
+ * @fake: pgt references contiguous guest memory block, not a pgtable
  *
  * Returns 0 if successfully shadowed or already shadowed, -EAGAIN if the
  * shadow table structure is incomplete, -ENOMEM if out of memory,
@@ -1741,19 +1753,22 @@ EXPORT_SYMBOL_GPL(gmap_shadow_pgt_lookup);
  *
  * Called with gmap->mm->mmap_sem in read
  */
-int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt)
+int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt,
+		    int fake)
 {
 	unsigned long raddr, origin;
 	unsigned long *s_pgt, *table;
 	struct page *page;
 	int rc;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	BUG_ON(!gmap_is_shadow(sg) || (pgt & _SEGMENT_ENTRY_LARGE));
 	/* Allocate a shadow page table */
 	page = page_table_alloc_pgste(sg->mm);
 	if (!page)
 		return -ENOMEM;
 	page->index = pgt & _SEGMENT_ENTRY_ORIGIN;
+	if (fake)
+		page->index |= GMAP_SHADOW_FAKE_TABLE;
 	s_pgt = (unsigned long *) page_to_phys(page);
 	/* Install shadow page table */
 	spin_lock(&sg->guest_table_lock);
@@ -1773,6 +1788,12 @@ int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt)
 	*table = (unsigned long) s_pgt | _SEGMENT_ENTRY |
 		 (pgt & _SEGMENT_ENTRY_PROTECT) | _SEGMENT_ENTRY_INVALID;
 	list_add(&page->lru, &sg->pt_list);
+	if (fake) {
+		/* nothing to protect for fake tables */
+		*table &= ~_SEGMENT_ENTRY_INVALID;
+		spin_unlock(&sg->guest_table_lock);
+		return 0;
+	}
 	spin_unlock(&sg->guest_table_lock);
 	/* Make pgt read-only in parent gmap page table (not the pgste) */
 	raddr = (saddr & 0xfffffffffff00000UL) | _SHADOW_RMAP_SEGMENT;

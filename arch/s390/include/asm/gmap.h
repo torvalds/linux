@@ -112,9 +112,10 @@ struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce,
 int gmap_shadow_r2t(struct gmap *sg, unsigned long saddr, unsigned long r2t);
 int gmap_shadow_r3t(struct gmap *sg, unsigned long saddr, unsigned long r3t);
 int gmap_shadow_sgt(struct gmap *sg, unsigned long saddr, unsigned long sgt);
-int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt);
+int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt,
+		    int fake);
 int gmap_shadow_pgt_lookup(struct gmap *sg, unsigned long saddr,
-			   unsigned long *pgt, int *dat_protection);
+			   unsigned long *pgt, int *dat_protection, int *fake);
 int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte);
 
 void gmap_register_pte_notifier(struct gmap_notifier *);
