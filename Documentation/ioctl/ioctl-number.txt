@@ -303,6 +303,7 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:buk@buks.ipn.de>
 0xA0	all	linux/sdp/sdp.h		Industrial Device Project
 					<mailto:kenji@bitgate.com>
+0xA1	0	linux/vtpm_proxy.h	TPM Emulator Proxy Driver
 0xA2	00-0F	arch/tile/include/asm/hardwall.h
 0xA3	80-8F	Port ACL		in development:
 					<mailto:tlewis@mindspring.com>
