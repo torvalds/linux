@@ -156,12 +156,9 @@ SECTIONS
 		*(.altinstr_replacement)
 	}
 	.rela : ALIGN(8) {
-		__reloc_start = .;
 		*(.rela .rela*)
-		__reloc_end = .;
 	}
 	.dynsym : ALIGN(8) {
-		__dynsym_start = .;
 		*(.dynsym)
 	}
 	.dynstr : {
@@ -170,6 +167,10 @@ SECTIONS
 	.hash : {
 		*(.hash)
 	}
+
+	__rela_offset	= ADDR(.rela) - KIMAGE_VADDR;
+	__rela_size	= SIZEOF(.rela);
+	__dynsym_offset	= ADDR(.dynsym) - KIMAGE_VADDR;
 
 	. = ALIGN(SEGMENT_ALIGN);
 	__init_end = .;
