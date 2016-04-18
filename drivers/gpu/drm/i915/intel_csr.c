@@ -467,10 +467,50 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 }
 
 /**
+ * intel_csr_ucode_suspend() - prepare CSR firmware before system suspend
+ * @dev_priv: i915 drm device
+ *
+ * Prepare the DMC firmware before entering system suspend. This includes
+ * flushing pending work items and releasing any resources acquired during
+ * init.
+ */
+void intel_csr_ucode_suspend(struct drm_i915_private *dev_priv)
+{
+	if (!HAS_CSR(dev_priv))
+		return;
+
+	flush_work(&dev_priv->csr.work);
+
+	/* Drop the reference held in case DMC isn't loaded. */
+	if (!dev_priv->csr.dmc_payload)
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+}
+
+/**
+ * intel_csr_ucode_resume() - init CSR firmware during system resume
+ * @dev_priv: i915 drm device
+ *
+ * Reinitialize the DMC firmware during system resume, reacquiring any
+ * resources released in intel_csr_ucode_suspend().
+ */
+void intel_csr_ucode_resume(struct drm_i915_private *dev_priv)
+{
+	if (!HAS_CSR(dev_priv))
+		return;
+
+	/*
+	 * Reacquire the reference to keep RPM disabled in case DMC isn't
+	 * loaded.
+	 */
+	if (!dev_priv->csr.dmc_payload)
+		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+}
+
+/**
  * intel_csr_ucode_fini() - unload the CSR firmware.
  * @dev_priv: i915 drm device.
  *
- * Firmmware unloading includes freeing the internal momory and reset the
+ * Firmmware unloading includes freeing the internal memory and reset the
  * firmware loading status.
  */
 void intel_csr_ucode_fini(struct drm_i915_private *dev_priv)
@@ -478,7 +518,7 @@ void intel_csr_ucode_fini(struct drm_i915_private *dev_priv)
 	if (!HAS_CSR(dev_priv))
 		return;
 
-	flush_work(&dev_priv->csr.work);
+	intel_csr_ucode_suspend(dev_priv);
 
 	kfree(dev_priv->csr.dmc_payload);
 }

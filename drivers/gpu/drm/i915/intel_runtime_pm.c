@@ -809,6 +809,9 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
+	if (!dev_priv->csr.dmc_payload)
+		return;
+
 	if (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC6)
 		skl_enable_dc6(dev_priv);
 	else if (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC5)

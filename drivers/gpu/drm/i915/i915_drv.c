@@ -640,8 +640,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_display_set_init_power(dev_priv, false);
 
-	if (HAS_CSR(dev_priv))
-		flush_work(&dev_priv->csr.work);
+	intel_csr_ucode_suspend(dev_priv);
 
 out:
 	enable_rpm_wakeref_asserts(dev_priv);
@@ -732,6 +731,8 @@ static int i915_drm_resume(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	disable_rpm_wakeref_asserts(dev_priv);
+
+	intel_csr_ucode_resume(dev_priv);
 
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_restore_gtt_mappings(dev);

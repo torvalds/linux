@@ -1275,6 +1275,8 @@ u32 skl_plane_ctl_rotation(unsigned int rotation);
 void intel_csr_ucode_init(struct drm_i915_private *);
 void intel_csr_load_program(struct drm_i915_private *);
 void intel_csr_ucode_fini(struct drm_i915_private *);
+void intel_csr_ucode_suspend(struct drm_i915_private *);
+void intel_csr_ucode_resume(struct drm_i915_private *);
 
 /* intel_dp.c */
 void intel_dp_init(struct drm_device *dev, i915_reg_t output_reg, enum port port);
