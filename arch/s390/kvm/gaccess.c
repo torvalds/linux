@@ -1111,6 +1111,7 @@ int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg,
 		rc = PGM_PAGE_TRANSLATION;
 	if (!rc && (pte.z || pte.co))
 		rc = PGM_TRANSLATION_SPEC;
+	pte.p |= dat_protection;
 	if (!rc)
 		rc = gmap_shadow_page(sg, saddr, __pte(pte.val));
 	ipte_unlock(vcpu);
