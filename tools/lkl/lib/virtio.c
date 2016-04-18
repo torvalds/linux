@@ -60,6 +60,8 @@ static inline void virtio_set_avail_event(struct virtio_queue *q, uint16_t val)
 static inline void virtio_deliver_irq(struct virtio_dev *dev)
 {
 	dev->int_status |= VIRTIO_MMIO_INT_VRING;
+	/* Make sure all memory writes before are visible to the driver. */
+	__sync_synchronize();
 	lkl_trigger_irq(dev->irq);
 }
 
@@ -72,6 +74,13 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 
 	q->used->ring[idx].id = htole16(req->idx);
 	q->used->ring[idx].len = htole16(len);
+	/* Make sure all memory writes before are visible to the driver before
+	 * updating the idx.
+	 * We need it here even we already have one in virtio_deliver_irq()
+	 * because there might already be an driver thread reading the idx and
+	 * dequeuing used buffers.
+	 */
+	__sync_synchronize();
 	q->used->idx = htole16(new);
 
 	/* There are two rings: q->avail and q->used for each of the rx and tx
@@ -193,6 +202,9 @@ void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 	virtio_set_avail_event(q, q->avail->idx);
 
 	while (q->last_avail_idx != le16toh(q->avail->idx)) {
+		/* Make sure following loads happens after loading q->avail->idx.
+		 */
+		__sync_synchronize();
 		if (virtio_process_one(dev, q, q->last_avail_idx) < 0)
 			break;
 	}
