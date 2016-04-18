@@ -47,7 +47,6 @@ struct report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
 	bool			use_tui, use_gtk, use_stdio;
-	bool			dont_use_callchains;
 	bool			show_full_info;
 	bool			show_threads;
 	bool			inverted_callchain;
@@ -247,7 +246,7 @@ static int report__setup_sample_type(struct report *rep)
 				  "you call 'perf record' without -g?\n");
 			return -1;
 		}
-	} else if (!rep->dont_use_callchains &&
+	} else if (!callchain_param.enabled &&
 		   callchain_param.mode != CHAIN_NONE &&
 		   !symbol_conf.use_callchain) {
 			symbol_conf.use_callchain = true;
@@ -599,13 +598,15 @@ static int __cmd_report(struct report *rep)
 static int
 report_parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 {
-	struct report *rep = (struct report *)opt->value;
+	struct callchain_param *callchain = opt->value;
 
+	callchain->enabled = !unset;
 	/*
 	 * --no-call-graph
 	 */
 	if (unset) {
-		rep->dont_use_callchains = true;
+		symbol_conf.use_callchain = false;
+		callchain->mode = CHAIN_NONE;
 		return 0;
 	}
 
@@ -734,7 +735,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,
 		    "Only display entries with parent-match"),
-	OPT_CALLBACK_DEFAULT('g', "call-graph", &report,
+	OPT_CALLBACK_DEFAULT('g', "call-graph", &callchain_param,
 			     "print_type,threshold[,print_limit],order,sort_key[,branch],value",
 			     report_callchain_help, &report_parse_callchain_opt,
 			     callchain_default_opt),
