@@ -2223,7 +2223,7 @@ static int rtl8723b_channel_to_group(int channel)
 	return group;
 }
 
-static void rtl8723au_config_channel(struct ieee80211_hw *hw)
+static void rtl8xxxu_gen1_config_channel(struct ieee80211_hw *hw)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
 	u32 val32, rsr;
@@ -9883,7 +9883,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.init_phy_bb = rtl8723au_init_phy_bb,
 	.init_phy_rf = rtl8723au_init_phy_rf,
 	.phy_iq_calibrate = rtl8723au_phy_iq_calibrate,
-	.config_channel = rtl8723au_config_channel,
+	.config_channel = rtl8xxxu_gen1_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc16,
 	.enable_rf = rtl8723a_enable_rf,
 	.disable_rf = rtl8xxxu_gen1_disable_rf,
@@ -9955,7 +9955,7 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.init_phy_bb = rtl8723au_init_phy_bb,
 	.init_phy_rf = rtl8192cu_init_phy_rf,
 	.phy_iq_calibrate = rtl8723au_phy_iq_calibrate,
-	.config_channel = rtl8723au_config_channel,
+	.config_channel = rtl8xxxu_gen1_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc16,
 	.enable_rf = rtl8723a_enable_rf,
 	.disable_rf = rtl8xxxu_gen1_disable_rf,
