@@ -48,19 +48,6 @@ struct omap_drm_window {
 	uint32_t src_w, src_h;
 };
 
-/* For transiently registering for different DSS irqs that various parts
- * of the KMS code need during setup/configuration.  We these are not
- * necessarily the same as what drm_vblank_get/put() are requesting, and
- * the hysteresis in drm_vblank_put() is not necessarily desirable for
- * internal housekeeping related irq usage.
- */
-struct omap_drm_irq {
-	struct list_head node;
-	uint32_t irqmask;
-	bool registered;
-	void (*irq)(struct omap_drm_irq *irq);
-};
-
 /* For KMS code that needs to wait for a certain # of IRQs:
  */
 struct omap_irq_wait;
@@ -101,8 +88,8 @@ struct omap_drm_private {
 	struct drm_property *zorder_prop;
 
 	/* irq handling: */
-	struct list_head irq_list;    /* list of omap_drm_irq */
-	uint32_t irq_mask;		/* enabled irqs in addition to irq_list */
+	struct list_head wait_list;     /* list of omap_irq_wait */
+	uint32_t irq_mask;		/* enabled irqs in addition to wait_list */
 
 	/* atomic commit */
 	struct {

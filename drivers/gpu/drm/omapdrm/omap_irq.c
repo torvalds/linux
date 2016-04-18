@@ -21,17 +21,23 @@
 
 static DEFINE_SPINLOCK(list_lock);
 
+struct omap_irq_wait {
+	struct list_head node;
+	uint32_t irqmask;
+	int count;
+};
+
 /* call with list_lock and dispc runtime held */
 static void omap_irq_update(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	struct omap_drm_irq *irq;
+	struct omap_irq_wait *wait;
 	uint32_t irqmask = priv->irq_mask;
 
 	assert_spin_locked(&list_lock);
 
-	list_for_each_entry(irq, &priv->irq_list, node)
-		irqmask |= irq->irqmask;
+	list_for_each_entry(wait, &priv->wait_list, node)
+		irqmask |= wait->irqmask;
 
 	DBG("irqmask=%08x", irqmask);
 
@@ -39,61 +45,29 @@ static void omap_irq_update(struct drm_device *dev)
 	dispc_read_irqenable();        /* flush posted write */
 }
 
-static void omap_irq_register(struct drm_device *dev, struct omap_drm_irq *irq)
-{
-	struct omap_drm_private *priv = dev->dev_private;
-	unsigned long flags;
-
-	spin_lock_irqsave(&list_lock, flags);
-
-	if (!WARN_ON(irq->registered)) {
-		irq->registered = true;
-		list_add(&irq->node, &priv->irq_list);
-		omap_irq_update(dev);
-	}
-
-	spin_unlock_irqrestore(&list_lock, flags);
-}
-
-static void omap_irq_unregister(struct drm_device *dev,
-				struct omap_drm_irq *irq)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&list_lock, flags);
-
-	if (!WARN_ON(!irq->registered)) {
-		irq->registered = false;
-		list_del(&irq->node);
-		omap_irq_update(dev);
-	}
-
-	spin_unlock_irqrestore(&list_lock, flags);
-}
-
-struct omap_irq_wait {
-	struct omap_drm_irq irq;
-	int count;
-};
-
 static DECLARE_WAIT_QUEUE_HEAD(wait_event);
 
-static void wait_irq(struct omap_drm_irq *irq)
+static void omap_irq_wait_handler(struct omap_irq_wait *wait)
 {
-	struct omap_irq_wait *wait =
-			container_of(irq, struct omap_irq_wait, irq);
 	wait->count--;
-	wake_up_all(&wait_event);
+	wake_up(&wait_event);
 }
 
 struct omap_irq_wait * omap_irq_wait_init(struct drm_device *dev,
 		uint32_t irqmask, int count)
 {
+	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_irq_wait *wait = kzalloc(sizeof(*wait), GFP_KERNEL);
-	wait->irq.irq = wait_irq;
-	wait->irq.irqmask = irqmask;
+	unsigned long flags;
+
+	wait->irqmask = irqmask;
 	wait->count = count;
-	omap_irq_register(dev, &wait->irq);
+
+	spin_lock_irqsave(&list_lock, flags);
+	list_add(&wait->node, &priv->wait_list);
+	omap_irq_update(dev);
+	spin_unlock_irqrestore(&list_lock, flags);
+
 	return wait;
 }
 
@@ -101,11 +75,16 @@ int omap_irq_wait(struct drm_device *dev, struct omap_irq_wait *wait,
 		unsigned long timeout)
 {
 	int ret = wait_event_timeout(wait_event, (wait->count <= 0), timeout);
-	omap_irq_unregister(dev, &wait->irq);
+	unsigned long flags;
+
+	spin_lock_irqsave(&list_lock, flags);
+	list_del(&wait->node);
+	omap_irq_update(dev);
+	spin_unlock_irqrestore(&list_lock, flags);
+
 	kfree(wait);
-	if (ret == 0)
-		return -1;
-	return 0;
+
+	return ret == 0 ? -1 : 0;
 }
 
 /**
@@ -213,7 +192,7 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	struct omap_drm_private *priv = dev->dev_private;
-	struct omap_drm_irq *handler, *n;
+	struct omap_irq_wait *wait, *n;
 	unsigned long flags;
 	unsigned int id;
 	u32 irqstatus;
@@ -241,12 +220,9 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 	omap_irq_fifo_underflow(priv, irqstatus);
 
 	spin_lock_irqsave(&list_lock, flags);
-	list_for_each_entry_safe(handler, n, &priv->irq_list, node) {
-		if (handler->irqmask & irqstatus) {
-			spin_unlock_irqrestore(&list_lock, flags);
-			handler->irq(handler);
-			spin_lock_irqsave(&list_lock, flags);
-		}
+	list_for_each_entry_safe(wait, n, &priv->wait_list, node) {
+		if (wait->irqmask & irqstatus)
+			omap_irq_wait_handler(wait);
 	}
 	spin_unlock_irqrestore(&list_lock, flags);
 
@@ -275,7 +251,7 @@ int omap_drm_irq_install(struct drm_device *dev)
 	unsigned int i;
 	int ret;
 
-	INIT_LIST_HEAD(&priv->irq_list);
+	INIT_LIST_HEAD(&priv->wait_list);
 
 	priv->irq_mask = DISPC_IRQ_OCP_ERR;
 
