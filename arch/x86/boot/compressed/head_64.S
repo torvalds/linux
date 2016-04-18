@@ -408,7 +408,7 @@ relocated:
 2:
 	
 /*
- * Do the decompression, and jump to the new kernel..
+ * Do the extraction, and jump to the new kernel..
  */
 	pushq	%rsi			/* Save the real mode argument */
 	movq	$z_run_size, %r9	/* size of kernel with .bss and .brk */
@@ -419,7 +419,7 @@ relocated:
 	movl	$z_input_len, %ecx	/* input_len */
 	movq	%rbp, %r8		/* output target address */
 	movq	$z_output_len, %r9	/* decompressed length, end of relocs */
-	call	decompress_kernel	/* returns kernel location in %rax */
+	call	extract_kernel		/* returns kernel location in %rax */
 	popq	%r9
 	popq	%rsi
 

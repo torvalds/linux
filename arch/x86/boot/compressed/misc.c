@@ -1,8 +1,10 @@
 /*
  * misc.c
  *
- * This is a collection of several routines from gzip-1.0.3
- * adapted for Linux.
+ * This is a collection of several routines used to extract the kernel
+ * which includes KASLR relocation, decompression, ELF parsing, and
+ * relocation processing. Additionally included are the screen and serial
+ * output functions and related debugging support functions.
  *
  * malloc by Hannu Savolainen 1993 and Matthias Urlichs 1994
  * puts by Nick Holloway 1993, better puts by Martin Mares 1995
@@ -383,7 +385,7 @@ static void parse_elf(void *output)
 	free(phdrs);
 }
 
-asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
+asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 				  unsigned char *input_data,
 				  unsigned long input_len,
 				  unsigned char *output,
@@ -412,7 +414,7 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 	cols = boot_params->screen_info.orig_video_cols;
 
 	console_init();
-	debug_putstr("early console in decompress_kernel\n");
+	debug_putstr("early console in extract_kernel\n");
 
 	free_mem_ptr     = heap;	/* Heap */
 	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
