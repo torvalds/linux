@@ -335,7 +335,7 @@ __create_page_tables:
 	cmp	x0, x6
 	b.lo	1b
 
-	ldr	x7, =SWAPPER_MM_MMUFLAGS
+	mov	x7, SWAPPER_MM_MMUFLAGS
 
 	/*
 	 * Create the identity mapping.
@@ -391,7 +391,7 @@ __create_page_tables:
 	 * Map the kernel image (starting with PHYS_OFFSET).
 	 */
 	mov	x0, x26				// swapper_pg_dir
-	ldr	x5, =KIMAGE_VADDR
+	mov_q	x5, KIMAGE_VADDR
 	add	x5, x5, x23			// add KASLR displacement
 	create_pgd_entry x0, x5, x3, x6
 	ldr	w6, =kernel_img_size
@@ -604,7 +604,7 @@ ENTRY(secondary_holding_pen)
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
 	bl	set_cpu_boot_mode_flag
 	mrs	x0, mpidr_el1
-	ldr     x1, =MPIDR_HWID_BITMASK
+	mov_q	x1, MPIDR_HWID_BITMASK
 	and	x0, x0, x1
 	adr_l	x3, secondary_holding_pen_release
 pen:	ldr	x4, [x3]
@@ -717,7 +717,7 @@ __primary_switch:
 	ldr	w9, =__rela_offset		// offset to reloc table
 	ldr	w10, =__rela_size		// size of reloc table
 
-	ldr	x11, =KIMAGE_VADDR		// default virtual offset
+	mov_q	x11, KIMAGE_VADDR		// default virtual offset
 	add	x11, x11, x23			// actual virtual offset
 	add	x8, x8, x11			// __va(.dynsym)
 	add	x9, x9, x11			// __va(.rela)
