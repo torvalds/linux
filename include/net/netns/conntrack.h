@@ -94,7 +94,6 @@ struct netns_ct {
 	int			sysctl_checksum;
 
 	unsigned int		htable_size;
-	seqcount_t		generation;
 	struct kmem_cache	*nf_conntrack_cachep;
 	struct hlist_nulls_head	*hash;
 	struct hlist_head	*expect_hash;
