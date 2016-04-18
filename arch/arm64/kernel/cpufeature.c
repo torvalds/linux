@@ -744,7 +744,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.hwcap = cap,					\
 	}
 
-static const struct arm64_cpu_capabilities arm64_hwcaps[] = {
+static const struct arm64_cpu_capabilities arm64_elf_hwcaps[] = {
 	HWCAP_CAP(SYS_ID_AA64ISAR0_EL1, ID_AA64ISAR0_AES_SHIFT, FTR_UNSIGNED, 2, CAP_HWCAP, HWCAP_PMULL),
 	HWCAP_CAP(SYS_ID_AA64ISAR0_EL1, ID_AA64ISAR0_AES_SHIFT, FTR_UNSIGNED, 1, CAP_HWCAP, HWCAP_AES),
 	HWCAP_CAP(SYS_ID_AA64ISAR0_EL1, ID_AA64ISAR0_SHA1_SHIFT, FTR_UNSIGNED, 1, CAP_HWCAP, HWCAP_SHA1),
@@ -765,7 +765,7 @@ static const struct arm64_cpu_capabilities arm64_hwcaps[] = {
 	{},
 };
 
-static void __init cap_set_hwcap(const struct arm64_cpu_capabilities *cap)
+static void __init cap_set_elf_hwcap(const struct arm64_cpu_capabilities *cap)
 {
 	switch (cap->hwcap_type) {
 	case CAP_HWCAP:
@@ -786,7 +786,7 @@ static void __init cap_set_hwcap(const struct arm64_cpu_capabilities *cap)
 }
 
 /* Check if we have a particular HWCAP enabled */
-static bool __maybe_unused cpus_have_hwcap(const struct arm64_cpu_capabilities *cap)
+static bool cpus_have_elf_hwcap(const struct arm64_cpu_capabilities *cap)
 {
 	bool rc;
 
@@ -810,14 +810,14 @@ static bool __maybe_unused cpus_have_hwcap(const struct arm64_cpu_capabilities *
 	return rc;
 }
 
-static void __init setup_cpu_hwcaps(void)
+static void __init setup_elf_hwcaps(void)
 {
 	int i;
-	const struct arm64_cpu_capabilities *hwcaps = arm64_hwcaps;
+	const struct arm64_cpu_capabilities *hwcaps = arm64_elf_hwcaps;
 
 	for (i = 0; hwcaps[i].matches; i++)
 		if (hwcaps[i].matches(&hwcaps[i]))
-			cap_set_hwcap(&hwcaps[i]);
+			cap_set_elf_hwcap(&hwcaps[i]);
 }
 
 void update_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
@@ -955,8 +955,8 @@ void verify_local_cpu_capabilities(void)
 			caps[i].enable(NULL);
 	}
 
-	for (i = 0, caps = arm64_hwcaps; caps[i].matches; i++) {
-		if (!cpus_have_hwcap(&caps[i]))
+	for (i = 0, caps = arm64_elf_hwcaps; caps[i].matches; i++) {
+		if (!cpus_have_elf_hwcap(&caps[i]))
 			continue;
 		if (!feature_matches(__raw_read_system_reg(caps[i].sys_reg), &caps[i])) {
 			pr_crit("CPU%d: missing HWCAP: %s\n",
@@ -979,7 +979,7 @@ void __init setup_cpu_features(void)
 
 	/* Set the CPU feature capabilies */
 	setup_feature_capabilities();
-	setup_cpu_hwcaps();
+	setup_elf_hwcaps();
 
 	/* Advertise that we have computed the system capabilities */
 	set_sys_caps_initialised();
