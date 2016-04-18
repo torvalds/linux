@@ -185,7 +185,7 @@ struct fimd_context {
 	atomic_t			win_updated;
 	atomic_t			triggering;
 
-	struct fimd_driver_data *driver_data;
+	const struct fimd_driver_data *driver_data;
 	struct drm_encoder *encoder;
 	struct exynos_drm_clk		dp_clk;
 };
@@ -222,15 +222,6 @@ static const uint32_t fimd_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 };
-
-static inline struct fimd_driver_data *drm_fimd_get_driver_data(
-	struct platform_device *pdev)
-{
-	const struct of_device_id *of_id =
-			of_match_device(fimd_driver_dt_match, &pdev->dev);
-
-	return (struct fimd_driver_data *)of_id->data;
-}
 
 static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
 {
@@ -408,7 +399,7 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
-	struct fimd_driver_data *driver_data = ctx->driver_data;
+	const struct fimd_driver_data *driver_data = ctx->driver_data;
 	void *timing_base = ctx->regs + driver_data->timing_base;
 	u32 val, clkdiv;
 
@@ -831,7 +822,7 @@ static void fimd_disable(struct exynos_drm_crtc *crtc)
 static void fimd_trigger(struct device *dev)
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
-	struct fimd_driver_data *driver_data = ctx->driver_data;
+	const struct fimd_driver_data *driver_data = ctx->driver_data;
 	void *timing_base = ctx->regs + driver_data->timing_base;
 	u32 reg;
 
@@ -1034,7 +1025,7 @@ static int fimd_probe(struct platform_device *pdev)
 
 	ctx->dev = dev;
 	ctx->suspended = true;
-	ctx->driver_data = drm_fimd_get_driver_data(pdev);
+	ctx->driver_data = of_device_get_match_data(dev);
 
 	if (of_property_read_bool(dev->of_node, "samsung,invert-vden"))
 		ctx->vidcon1 |= VIDCON1_INV_VDEN;
