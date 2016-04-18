@@ -979,8 +979,10 @@ static int __maybe_unused rockchip_thermal_resume(struct device *dev)
 		return error;
 
 	error = clk_enable(thermal->pclk);
-	if (error)
+	if (error) {
+		clk_disable(thermal->clk);
 		return error;
+	}
 
 	rockchip_thermal_reset_controller(thermal->reset);
 
