@@ -125,9 +125,8 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 
-	mode_cmd.pitches[0] = align_pitch(
-			mode_cmd.width * ((sizes->surface_bpp + 7) / 8),
-			mode_cmd.width, sizes->surface_bpp);
+	mode_cmd.pitches[0] = mode_cmd.width *
+		DIV_ROUND_UP(sizes->surface_bpp, 8);
 
 	fbdev->ywrap_enabled = priv->has_dmm && ywrap_enabled;
 	if (fbdev->ywrap_enabled) {

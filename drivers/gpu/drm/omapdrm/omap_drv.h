@@ -239,14 +239,6 @@ struct dma_buf *omap_gem_prime_export(struct drm_device *dev,
 struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 		struct dma_buf *buffer);
 
-static inline int align_pitch(int pitch, int width, int bpp)
-{
-	int bytespp = (bpp + 7) / 8;
-	/* in case someone tries to feed us a completely bogus stride: */
-	pitch = max(pitch, width * bytespp);
-	return pitch;
-}
-
 /* map crtc to vblank mask */
 uint32_t pipe2vbl(struct drm_crtc *crtc);
 struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder);
