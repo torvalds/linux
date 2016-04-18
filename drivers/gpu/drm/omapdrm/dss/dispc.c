@@ -620,6 +620,19 @@ u32 dispc_wb_get_framedone_irq(void)
 	return DISPC_IRQ_FRAMEDONEWB;
 }
 
+void dispc_mgr_enable(enum omap_channel channel, bool enable)
+{
+	mgr_fld_write(channel, DISPC_MGR_FLD_ENABLE, enable);
+	/* flush posted write */
+	mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
+}
+EXPORT_SYMBOL(dispc_mgr_enable);
+
+static bool dispc_mgr_is_enabled(enum omap_channel channel)
+{
+	return !!mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
+}
+
 bool dispc_mgr_go_busy(enum omap_channel channel)
 {
 	return mgr_fld_read(channel, DISPC_MGR_FLD_GO) == 1;
@@ -2900,20 +2913,6 @@ enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel channe
 	return dss_feat_get_supported_outputs(channel);
 }
 EXPORT_SYMBOL(dispc_mgr_get_supported_outputs);
-
-void dispc_mgr_enable(enum omap_channel channel, bool enable)
-{
-	mgr_fld_write(channel, DISPC_MGR_FLD_ENABLE, enable);
-	/* flush posted write */
-	mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
-}
-EXPORT_SYMBOL(dispc_mgr_enable);
-
-bool dispc_mgr_is_enabled(enum omap_channel channel)
-{
-	return !!mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
-}
-EXPORT_SYMBOL(dispc_mgr_is_enabled);
 
 void dispc_wb_enable(bool enable)
 {
