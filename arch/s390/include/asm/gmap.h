@@ -109,8 +109,10 @@ int gmap_read_table(struct gmap *gmap, unsigned long gaddr, unsigned long *val);
 
 struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce,
 			 int edat_level);
-int gmap_shadow_r2t(struct gmap *sg, unsigned long saddr, unsigned long r2t);
-int gmap_shadow_r3t(struct gmap *sg, unsigned long saddr, unsigned long r3t);
+int gmap_shadow_r2t(struct gmap *sg, unsigned long saddr, unsigned long r2t,
+		    int fake);
+int gmap_shadow_r3t(struct gmap *sg, unsigned long saddr, unsigned long r3t,
+		    int fake);
 int gmap_shadow_sgt(struct gmap *sg, unsigned long saddr, unsigned long sgt,
 		    int fake);
 int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt,

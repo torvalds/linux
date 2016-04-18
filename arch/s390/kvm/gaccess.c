@@ -971,9 +971,13 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 	vaddr.addr = saddr;
 	asce.val = sg->orig_asce;
 	ptr = asce.origin * 4096;
+	if (asce.r) {
+		*fake = 1;
+		asce.dt = ASCE_TYPE_REGION1;
+	}
 	switch (asce.dt) {
 	case ASCE_TYPE_REGION1:
-		if (vaddr.rfx01 > asce.tl)
+		if (vaddr.rfx01 > asce.tl && !asce.r)
 			return PGM_REGION_FIRST_TRANS;
 		break;
 	case ASCE_TYPE_REGION2:
@@ -1000,6 +1004,12 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 	case ASCE_TYPE_REGION1: {
 		union region1_table_entry rfte;
 
+		if (*fake) {
+			/* offset in 16EB guest memory block */
+			ptr = ptr + ((unsigned long) vaddr.rsx << 53UL);
+			rfte.val = ptr;
+			goto shadow_r2t;
+		}
 		rc = gmap_read_table(parent, ptr + vaddr.rfx * 8, &rfte.val);
 		if (rc)
 			return rc;
@@ -1011,15 +1021,22 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 			return PGM_REGION_SECOND_TRANS;
 		if (sg->edat_level >= 1)
 			*dat_protection |= rfte.p;
-		rc = gmap_shadow_r2t(sg, saddr, rfte.val);
+		ptr = rfte.rto << 12UL;
+shadow_r2t:
+		rc = gmap_shadow_r2t(sg, saddr, rfte.val, *fake);
 		if (rc)
 			return rc;
-		ptr = rfte.rto * 4096;
 		/* fallthrough */
 	}
 	case ASCE_TYPE_REGION2: {
 		union region2_table_entry rste;
 
+		if (*fake) {
+			/* offset in 8PB guest memory block */
+			ptr = ptr + ((unsigned long) vaddr.rtx << 42UL);
+			rste.val = ptr;
+			goto shadow_r3t;
+		}
 		rc = gmap_read_table(parent, ptr + vaddr.rsx * 8, &rste.val);
 		if (rc)
 			return rc;
@@ -1031,16 +1048,23 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 			return PGM_REGION_THIRD_TRANS;
 		if (sg->edat_level >= 1)
 			*dat_protection |= rste.p;
+		ptr = rste.rto << 12UL;
+shadow_r3t:
 		rste.p |= *dat_protection;
-		rc = gmap_shadow_r3t(sg, saddr, rste.val);
+		rc = gmap_shadow_r3t(sg, saddr, rste.val, *fake);
 		if (rc)
 			return rc;
-		ptr = rste.rto * 4096;
 		/* fallthrough */
 	}
 	case ASCE_TYPE_REGION3: {
 		union region3_table_entry rtte;
 
+		if (*fake) {
+			/* offset in 4TB guest memory block */
+			ptr = ptr + ((unsigned long) vaddr.sx << 31UL);
+			rtte.val = ptr;
+			goto shadow_sgt;
+		}
 		rc = gmap_read_table(parent, ptr + vaddr.rtx * 8, &rtte.val);
 		if (rc)
 			return rc;
