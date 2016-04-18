@@ -1808,7 +1808,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 
 	callchain_cursor_reset(cursor);
 
-	if (has_branch_callstack(evsel)) {
+	if (perf_evsel__has_branch_callstack(evsel)) {
 		err = resolve_lbr_callchain_sample(thread, cursor, sample, parent,
 						   root_al, max_stack);
 		if (err)
