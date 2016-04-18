@@ -3098,7 +3098,8 @@ static void tcp_ack_tstamp(struct sock *sk, struct sk_buff *skb,
 
 	shinfo = skb_shinfo(skb);
 	if ((shinfo->tx_flags & SKBTX_ACK_TSTAMP) &&
-	    between(shinfo->tskey, prior_snd_una, tcp_sk(sk)->snd_una - 1))
+	    !before(shinfo->tskey, prior_snd_una) &&
+	    before(shinfo->tskey, tcp_sk(sk)->snd_una))
 		__skb_tstamp_tx(skb, NULL, sk, SCM_TSTAMP_ACK);
 }
 
