@@ -41,12 +41,12 @@
  */
 
 /dts-v1/;
-#include "rk3399-tb.dtsi"
+#include "rk3399-evb.dtsi"
 #include "rk3399-fb.dtsi"
 
 / {
-	model = "Rockchip monkey";
-	compatible = "rockchip,android", "rockchip,rk3399";
+	model = "Rockchip RK3399 Evaluation Board v1 (Android)";
+	compatible = "rockchip,android", "rockchip,rk3399-evb1", "rockchip,rk3399";
 
 	chosen {
 		bootargs = "console=uart,mmio32,0xff1a0000";

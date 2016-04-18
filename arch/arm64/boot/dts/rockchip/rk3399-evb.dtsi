@@ -44,7 +44,7 @@
 #include "rk3399.dtsi"
 
 / {
-	compatible = "rockchip,tb", "rockchip,rk3399";
+	compatible = "rockchip,evb", "rockchip,rk3399";
 
 	vdd_log: vdd-log {
 		compatible = "pwm-regulator";

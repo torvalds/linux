@@ -41,11 +41,11 @@
  */
 
 /dts-v1/;
-#include "rk3399-tb.dtsi"
+#include "rk3399-evb.dtsi"
 
 / {
-	model = "Rockchip Chrome";
-	compatible ="google,rk3399evb-rev2",  "google,rk3399evb-rev1", "google,rk3399evb-rev0", "rockchip,chrome", "rockchip,rk3399";
+	model = "Rockchip RK3399 Evaluation Board v1 (Chrome OS)";
+	compatible = "google,rk3399evb-rev1", "rockchip,chrome", "rockchip,evb1", "rockchip,rk3399";
 
 	/delete-node/ vdd-log;
 	/delete-node/ vdd-center;
