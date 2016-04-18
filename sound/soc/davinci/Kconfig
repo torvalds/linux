@@ -16,7 +16,11 @@ config SND_EDMA_SOC
 	  - DRA7xx family
 
 config SND_DAVINCI_SOC_I2S
-	tristate
+	tristate "DaVinci Multichannel Buffered Serial Port (McBSP) support"
+	depends on SND_EDMA_SOC
+	help
+	  Say Y or M here if you want to have support for McBSP IP found in
+	  Texas Instruments DaVinci DA850 SoCs.
 
 config SND_DAVINCI_SOC_MCASP
 	tristate "Multichannel Audio Serial Port (McASP) support"
