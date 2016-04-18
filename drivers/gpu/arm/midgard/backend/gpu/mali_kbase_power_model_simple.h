@@ -38,6 +38,6 @@
  */
 int kbase_power_model_simple_init(struct kbase_device *kbdev);
 
-extern struct devfreq_cooling_ops power_model_simple_ops;
+extern struct devfreq_cooling_power power_model_simple_ops;
 
 #endif /* _BASE_POWER_MODEL_SIMPLE_H_ */

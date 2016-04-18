@@ -944,7 +944,7 @@ struct kbase_device {
 	unsigned long current_freq;
 	unsigned long current_voltage;
 #ifdef CONFIG_DEVFREQ_THERMAL
-	struct devfreq_cooling_device *devfreq_cooling;
+	struct thermal_cooling_device *devfreq_cooling;
 #endif
 #endif
 
