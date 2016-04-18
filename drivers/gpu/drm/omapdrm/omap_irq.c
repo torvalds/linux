@@ -245,8 +245,10 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 		struct drm_crtc *crtc = priv->crtcs[id];
 		enum omap_channel channel = omap_crtc_channel(crtc);
 
-		if (irqstatus & pipe2vbl(crtc))
+		if (irqstatus & pipe2vbl(crtc)) {
 			drm_handle_vblank(dev, id);
+			omap_crtc_vblank_irq(crtc);
+		}
 
 		if (irqstatus & dispc_mgr_get_sync_lost_irq(channel))
 			omap_crtc_error_irq(crtc, irqstatus);
