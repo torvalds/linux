@@ -842,10 +842,10 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	    !(dev_priv->suspended_to_idle && dev_priv->csr.dmc_payload))
 		intel_power_domains_init_hw(dev_priv, true);
 
+	enable_rpm_wakeref_asserts(dev_priv);
+
 out:
 	dev_priv->suspended_to_idle = false;
-
-	enable_rpm_wakeref_asserts(dev_priv);
 
 	return ret;
 }
