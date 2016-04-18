@@ -2205,7 +2205,7 @@ static int rtl8723a_channel_to_group(int channel)
 /*
  * Valid for rtl8723bu and rtl8192eu
  */
-static int rtl8723b_channel_to_group(int channel)
+static int rtl8xxxu_gen2_channel_to_group(int channel)
 {
 	int group;
 
@@ -2617,7 +2617,7 @@ rtl8723b_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 	int group, tx_idx;
 
 	tx_idx = 0;
-	group = rtl8723b_channel_to_group(channel);
+	group = rtl8xxxu_gen2_channel_to_group(channel);
 
 	cck = priv->cck_tx_power_index_B[group];
 	val32 = rtl8xxxu_read32(priv, REG_TX_AGC_A_CCK1_MCS32);
@@ -2656,7 +2656,7 @@ rtl8192e_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 	int group, tx_idx;
 
 	tx_idx = 0;
-	group = rtl8723b_channel_to_group(channel);
+	group = rtl8xxxu_gen2_channel_to_group(channel);
 
 	cck = priv->cck_tx_power_index_A[group];
 
