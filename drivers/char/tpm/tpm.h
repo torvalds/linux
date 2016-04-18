@@ -168,9 +168,9 @@ struct tpm_chip {
 
 	struct dentry **bios_dir;
 
-#ifdef CONFIG_ACPI
-	const struct attribute_group *groups[2];
+	const struct attribute_group *groups[3];
 	unsigned int groups_cnt;
+#ifdef CONFIG_ACPI
 	acpi_handle acpi_dev_handle;
 	char ppi_version[TPM_PPI_VERSION_LEN + 1];
 #endif /* CONFIG_ACPI */
@@ -471,7 +471,8 @@ extern dev_t tpm_devt;
 extern const struct file_operations tpm_fops;
 extern struct idr dev_nums_idr;
 
-ssize_t	tpm_getcap(struct device *, __be32, cap_t *, const char *);
+ssize_t tpm_getcap(struct tpm_chip *chip, __be32 subcap_id, cap_t *cap,
+		   const char *desc);
 ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		     size_t bufsiz);
 ssize_t tpm_transmit_cmd(struct tpm_chip *chip, void *cmd, int len,
@@ -496,8 +497,7 @@ extern struct tpm_chip *tpmm_chip_alloc(struct device *pdev,
 extern int tpm_chip_register(struct tpm_chip *chip);
 extern void tpm_chip_unregister(struct tpm_chip *chip);
 
-int tpm_sysfs_add_device(struct tpm_chip *chip);
-void tpm_sysfs_del_device(struct tpm_chip *chip);
+void tpm_sysfs_add_device(struct tpm_chip *chip);
 
 int tpm_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
 

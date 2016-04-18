@@ -170,9 +170,7 @@ struct tpm_chip *tpm_chip_alloc(struct device *dev,
 	chip->dev.class = tpm_class;
 	chip->dev.release = tpm_dev_release;
 	chip->dev.parent = dev;
-#ifdef CONFIG_ACPI
 	chip->dev.groups = chip->groups;
-#endif
 
 	if (chip->dev_num == 0)
 		chip->dev.devt = MKDEV(MISC_MAJOR, TPM_MINOR);
@@ -277,14 +275,10 @@ static void tpm_del_char_device(struct tpm_chip *chip)
 
 static int tpm1_chip_register(struct tpm_chip *chip)
 {
-	int rc;
-
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		return 0;
 
-	rc = tpm_sysfs_add_device(chip);
-	if (rc)
-		return rc;
+	tpm_sysfs_add_device(chip);
 
 	chip->bios_dir = tpm_bios_log_setup(dev_name(&chip->dev));
 
@@ -298,10 +292,50 @@ static void tpm1_chip_unregister(struct tpm_chip *chip)
 
 	if (chip->bios_dir)
 		tpm_bios_log_teardown(chip->bios_dir);
-
-	tpm_sysfs_del_device(chip);
 }
 
+static void tpm_del_legacy_sysfs(struct tpm_chip *chip)
+{
+	struct attribute **i;
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return;
+
+	sysfs_remove_link(&chip->dev.parent->kobj, "ppi");
+
+	for (i = chip->groups[0]->attrs; *i != NULL; ++i)
+		sysfs_remove_link(&chip->dev.parent->kobj, (*i)->name);
+}
+
+/* For compatibility with legacy sysfs paths we provide symlinks from the
+ * parent dev directory to selected names within the tpm chip directory. Old
+ * kernel versions created these files directly under the parent.
+ */
+static int tpm_add_legacy_sysfs(struct tpm_chip *chip)
+{
+	struct attribute **i;
+	int rc;
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return 0;
+
+	rc = __compat_only_sysfs_link_entry_to_kobj(
+		    &chip->dev.parent->kobj, &chip->dev.kobj, "ppi");
+	if (rc && rc != -ENOENT)
+		return rc;
+
+	/* All the names from tpm-sysfs */
+	for (i = chip->groups[0]->attrs; *i != NULL; ++i) {
+		rc = __compat_only_sysfs_link_entry_to_kobj(
+		    &chip->dev.parent->kobj, &chip->dev.kobj, (*i)->name);
+		if (rc) {
+			tpm_del_legacy_sysfs(chip);
+			return rc;
+		}
+	}
+
+	return 0;
+}
 /*
  * tpm_chip_register() - create a character device for the TPM chip
  * @chip: TPM chip to use.
@@ -324,24 +358,20 @@ int tpm_chip_register(struct tpm_chip *chip)
 	tpm_add_ppi(chip);
 
 	rc = tpm_add_char_device(chip);
-	if (rc)
-		goto out_err;
+	if (rc) {
+		tpm1_chip_unregister(chip);
+		return rc;
+	}
 
 	chip->flags |= TPM_CHIP_FLAG_REGISTERED;
 
-	if (!(chip->flags & TPM_CHIP_FLAG_TPM2)) {
-		rc = __compat_only_sysfs_link_entry_to_kobj(
-		    &chip->dev.parent->kobj, &chip->dev.kobj, "ppi");
-		if (rc && rc != -ENOENT) {
-			tpm_chip_unregister(chip);
-			return rc;
-		}
+	rc = tpm_add_legacy_sysfs(chip);
+	if (rc) {
+		tpm_chip_unregister(chip);
+		return rc;
 	}
 
 	return 0;
-out_err:
-	tpm1_chip_unregister(chip);
-	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_chip_register);
 
@@ -363,8 +393,7 @@ void tpm_chip_unregister(struct tpm_chip *chip)
 	if (!(chip->flags & TPM_CHIP_FLAG_REGISTERED))
 		return;
 
-	if (!(chip->flags & TPM_CHIP_FLAG_TPM2))
-		sysfs_remove_link(&chip->dev.parent->kobj, "ppi");
+	tpm_del_legacy_sysfs(chip);
 
 	tpm1_chip_unregister(chip);
 	tpm_del_char_device(chip);
