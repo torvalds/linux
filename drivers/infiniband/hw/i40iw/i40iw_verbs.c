@@ -2049,10 +2049,12 @@ static int i40iw_poll_cq(struct ib_cq *ibcq,
 		}
 		entry->wc_flags = 0;
 		entry->wr_id = cq_poll_info.wr_id;
-		if (!cq_poll_info.error)
-			entry->status = IB_WC_SUCCESS;
-		else
+		if (cq_poll_info.error) {
 			entry->status = IB_WC_WR_FLUSH_ERR;
+			entry->vendor_err = cq_poll_info.major_err << 16 | cq_poll_info.minor_err;
+		} else {
+			entry->status = IB_WC_SUCCESS;
+		}
 
 		switch (cq_poll_info.op_type) {
 		case I40IW_OP_TYPE_RDMA_WRITE:
@@ -2076,8 +2078,6 @@ static int i40iw_poll_cq(struct ib_cq *ibcq,
 			break;
 		}
 
-		entry->vendor_err =
-		    cq_poll_info.major_err << 16 | cq_poll_info.minor_err;
 		entry->ex.imm_data = 0;
 		qp = (struct i40iw_sc_qp *)cq_poll_info.qp_handle;
 		entry->qp = (struct ib_qp *)qp->back_qp;
