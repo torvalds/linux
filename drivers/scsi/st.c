@@ -4941,7 +4941,7 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
  out_unmap:
 	if (res > 0) {
 		for (j=0; j < res; j++)
-			page_cache_release(pages[j]);
+			put_page(pages[j]);
 		res = 0;
 	}
 	kfree(pages);
@@ -4963,7 +4963,7 @@ static int sgl_unmap_user_pages(struct st_buffer *STbp,
 		/* FIXME: cache flush missing for rw==READ
 		 * FIXME: call the correct reference counting function
 		 */
-		page_cache_release(page);
+		put_page(page);
 	}
 	kfree(STbp->mapped_pages);
 	STbp->mapped_pages = NULL;

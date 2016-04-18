@@ -77,7 +77,7 @@ struct screen_info screen_info = {
 };
 
 static void
-prom_console_write(struct console *con, const char *s, unsigned n)
+prom_console_write(struct console *con, const char *s, unsigned int n)
 {
 	prom_write(s, n);
 }

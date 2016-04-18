@@ -189,8 +189,8 @@ static int slimpro_mbox_probe(struct platform_device *pdev)
 	int i;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(struct slimpro_mbox), GFP_KERNEL);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	if (!ctx)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ctx);
 

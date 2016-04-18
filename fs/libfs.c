@@ -25,7 +25,7 @@ int simple_getattr(struct vfsmount *mnt, struct dentry *dentry,
 {
 	struct inode *inode = d_inode(dentry);
 	generic_fillattr(inode, stat);
-	stat->blocks = inode->i_mapping->nrpages << (PAGE_CACHE_SHIFT - 9);
+	stat->blocks = inode->i_mapping->nrpages << (PAGE_SHIFT - 9);
 	return 0;
 }
 EXPORT_SYMBOL(simple_getattr);
@@ -33,7 +33,7 @@ EXPORT_SYMBOL(simple_getattr);
 int simple_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	buf->f_type = dentry->d_sb->s_magic;
-	buf->f_bsize = PAGE_CACHE_SIZE;
+	buf->f_bsize = PAGE_SIZE;
 	buf->f_namelen = NAME_MAX;
 	return 0;
 }
@@ -395,7 +395,7 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 	struct page *page;
 	pgoff_t index;
 
-	index = pos >> PAGE_CACHE_SHIFT;
+	index = pos >> PAGE_SHIFT;
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
@@ -403,10 +403,10 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 
 	*pagep = page;
 
-	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
-		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+	if (!PageUptodate(page) && (len != PAGE_SIZE)) {
+		unsigned from = pos & (PAGE_SIZE - 1);
 
-		zero_user_segments(page, 0, from, from + len, PAGE_CACHE_SIZE);
+		zero_user_segments(page, 0, from, from + len, PAGE_SIZE);
 	}
 	return 0;
 }
@@ -442,7 +442,7 @@ int simple_write_end(struct file *file, struct address_space *mapping,
 
 	/* zero the stale part of the page if we did a short copy */
 	if (copied < len) {
-		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+		unsigned from = pos & (PAGE_SIZE - 1);
 
 		zero_user(page, from + copied, len - copied);
 	}
@@ -458,7 +458,7 @@ int simple_write_end(struct file *file, struct address_space *mapping,
 
 	set_page_dirty(page);
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	return copied;
 }
@@ -477,8 +477,8 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	struct dentry *dentry;
 	int i;
 
-	s->s_blocksize = PAGE_CACHE_SIZE;
-	s->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	s->s_blocksize = PAGE_SIZE;
+	s->s_blocksize_bits = PAGE_SHIFT;
 	s->s_magic = magic;
 	s->s_op = &simple_super_operations;
 	s->s_time_gran = 1;
@@ -994,12 +994,12 @@ int generic_check_addressable(unsigned blocksize_bits, u64 num_blocks)
 {
 	u64 last_fs_block = num_blocks - 1;
 	u64 last_fs_page =
-		last_fs_block >> (PAGE_CACHE_SHIFT - blocksize_bits);
+		last_fs_block >> (PAGE_SHIFT - blocksize_bits);
 
 	if (unlikely(num_blocks == 0))
 		return 0;
 
-	if ((blocksize_bits < 9) || (blocksize_bits > PAGE_CACHE_SHIFT))
+	if ((blocksize_bits < 9) || (blocksize_bits > PAGE_SHIFT))
 		return -EINVAL;
 
 	if ((last_fs_block > (sector_t)(~0ULL) >> (blocksize_bits - 9)) ||

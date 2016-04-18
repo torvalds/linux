@@ -744,11 +744,15 @@ static void acm_tty_flush_chars(struct tty_struct *tty)
 	int err;
 	unsigned long flags;
 
+	if (!cur) /* nothing to do */
+		return;
+
 	acm->putbuffer = NULL;
 	err = usb_autopm_get_interface_async(acm->control);
 	spin_lock_irqsave(&acm->write_lock, flags);
 	if (err < 0) {
 		cur->use = 0;
+		acm->putbuffer = cur;
 		goto out;
 	}
 

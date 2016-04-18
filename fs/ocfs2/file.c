@@ -770,14 +770,14 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
-	unsigned long index = abs_from >> PAGE_CACHE_SHIFT;
+	unsigned long index = abs_from >> PAGE_SHIFT;
 	handle_t *handle;
 	int ret = 0;
 	unsigned zero_from, zero_to, block_start, block_end;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 
 	BUG_ON(abs_from >= abs_to);
-	BUG_ON(abs_to > (((u64)index + 1) << PAGE_CACHE_SHIFT));
+	BUG_ON(abs_to > (((u64)index + 1) << PAGE_SHIFT));
 	BUG_ON(abs_from & (inode->i_blkbits - 1));
 
 	handle = ocfs2_zero_start_ordered_transaction(inode, di_bh);
@@ -794,10 +794,10 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 	}
 
 	/* Get the offsets within the page that we want to zero */
-	zero_from = abs_from & (PAGE_CACHE_SIZE - 1);
-	zero_to = abs_to & (PAGE_CACHE_SIZE - 1);
+	zero_from = abs_from & (PAGE_SIZE - 1);
+	zero_to = abs_to & (PAGE_SIZE - 1);
 	if (!zero_to)
-		zero_to = PAGE_CACHE_SIZE;
+		zero_to = PAGE_SIZE;
 
 	trace_ocfs2_write_zero_page(
 			(unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -851,7 +851,7 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 
 out_unlock:
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 out_commit_trans:
 	if (handle)
 		ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
@@ -959,7 +959,7 @@ static int ocfs2_zero_extend_range(struct inode *inode, u64 range_start,
 	BUG_ON(range_start >= range_end);
 
 	while (zero_pos < range_end) {
-		next_pos = (zero_pos & PAGE_CACHE_MASK) + PAGE_CACHE_SIZE;
+		next_pos = (zero_pos & PAGE_MASK) + PAGE_SIZE;
 		if (next_pos > range_end)
 			next_pos = range_end;
 		rc = ocfs2_write_zero_page(inode, zero_pos, next_pos, di_bh);

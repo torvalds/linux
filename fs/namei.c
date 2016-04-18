@@ -1740,14 +1740,16 @@ static int walk_component(struct nameidata *nd, int flags)
 					  nd->flags);
 		if (IS_ERR(path.dentry))
 			return PTR_ERR(path.dentry);
-		if (unlikely(d_is_negative(path.dentry))) {
-			dput(path.dentry);
-			return -ENOENT;
-		}
+
 		path.mnt = nd->path.mnt;
 		err = follow_managed(&path, nd);
 		if (unlikely(err < 0))
 			return err;
+
+		if (unlikely(d_is_negative(path.dentry))) {
+			path_to_nameidata(&path, nd);
+			return -ENOENT;
+		}
 
 		seq = 0;	/* we are already out of RCU mode */
 		inode = d_backing_inode(path.dentry);

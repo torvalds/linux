@@ -1533,7 +1533,7 @@ static bool elf_fdpic_dump_segments(struct coredump_params *cprm)
 				void *kaddr = kmap(page);
 				res = dump_emit(cprm, kaddr, PAGE_SIZE);
 				kunmap(page);
-				page_cache_release(page);
+				put_page(page);
 			} else {
 				res = dump_skip(cprm, PAGE_SIZE);
 			}

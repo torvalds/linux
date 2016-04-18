@@ -1113,7 +1113,7 @@ static int mgc_import_event(struct obd_device *obd,
 }
 
 enum {
-	CONFIG_READ_NRPAGES_INIT = 1 << (20 - PAGE_CACHE_SHIFT),
+	CONFIG_READ_NRPAGES_INIT = 1 << (20 - PAGE_SHIFT),
 	CONFIG_READ_NRPAGES      = 4
 };
 
@@ -1137,19 +1137,19 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 	LASSERT(cfg->cfg_instance);
 	LASSERT(cfg->cfg_sb == cfg->cfg_instance);
 
-	inst = kzalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
+	inst = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!inst)
 		return -ENOMEM;
 
-	pos = snprintf(inst, PAGE_CACHE_SIZE, "%p", cfg->cfg_instance);
-	if (pos >= PAGE_CACHE_SIZE) {
+	pos = snprintf(inst, PAGE_SIZE, "%p", cfg->cfg_instance);
+	if (pos >= PAGE_SIZE) {
 		kfree(inst);
 		return -E2BIG;
 	}
 
 	++pos;
 	buf   = inst + pos;
-	bufsz = PAGE_CACHE_SIZE - pos;
+	bufsz = PAGE_SIZE - pos;
 
 	while (datalen > 0) {
 		int   entry_len = sizeof(*entry);
@@ -1181,7 +1181,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 		/* Keep this swab for normal mixed endian handling. LU-1644 */
 		if (mne_swab)
 			lustre_swab_mgs_nidtbl_entry(entry);
-		if (entry->mne_length > PAGE_CACHE_SIZE) {
+		if (entry->mne_length > PAGE_SIZE) {
 			CERROR("MNE too large (%u)\n", entry->mne_length);
 			break;
 		}
@@ -1371,7 +1371,7 @@ again:
 	}
 	body->mcb_offset = cfg->cfg_last_idx + 1;
 	body->mcb_type   = cld->cld_type;
-	body->mcb_bits   = PAGE_CACHE_SHIFT;
+	body->mcb_bits   = PAGE_SHIFT;
 	body->mcb_units  = nrpages;
 
 	/* allocate bulk transfer descriptor */
@@ -1383,7 +1383,7 @@ again:
 	}
 
 	for (i = 0; i < nrpages; i++)
-		ptlrpc_prep_bulk_page_pin(desc, pages[i], 0, PAGE_CACHE_SIZE);
+		ptlrpc_prep_bulk_page_pin(desc, pages[i], 0, PAGE_SIZE);
 
 	ptlrpc_request_set_replen(req);
 	rc = ptlrpc_queue_wait(req);
@@ -1411,7 +1411,7 @@ again:
 		goto out;
 	}
 
-	if (ealen > nrpages << PAGE_CACHE_SHIFT) {
+	if (ealen > nrpages << PAGE_SHIFT) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -1439,7 +1439,7 @@ again:
 
 		ptr = kmap(pages[i]);
 		rc2 = mgc_apply_recover_logs(obd, cld, res->mcr_offset, ptr,
-					     min_t(int, ealen, PAGE_CACHE_SIZE),
+					     min_t(int, ealen, PAGE_SIZE),
 					     mne_swab);
 		kunmap(pages[i]);
 		if (rc2 < 0) {
@@ -1448,7 +1448,7 @@ again:
 			break;
 		}
 
-		ealen -= PAGE_CACHE_SIZE;
+		ealen -= PAGE_SIZE;
 	}
 
 out:

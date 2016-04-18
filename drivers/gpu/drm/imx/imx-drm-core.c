@@ -326,7 +326,6 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
 	struct imx_drm_crtc *imx_drm_crtc;
-	int ret;
 
 	/*
 	 * The vblank arrays are dimensioned by MAX_CRTC - we can't
@@ -351,10 +350,6 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 
 	*new_crtc = imx_drm_crtc;
 
-	ret = drm_mode_crtc_set_gamma_size(imx_drm_crtc->crtc, 256);
-	if (ret)
-		goto err_register;
-
 	drm_crtc_helper_add(crtc,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
 
@@ -362,11 +357,6 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs, NULL);
 
 	return 0;
-
-err_register:
-	imxdrm->crtc[--imxdrm->pipes] = NULL;
-	kfree(imx_drm_crtc);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(imx_drm_add_crtc);
 

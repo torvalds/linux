@@ -661,9 +661,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		(u32)(1 << 9)
 #define IXGBE_FLAG2_PTP_PPS_ENABLED		(u32)(1 << 10)
 #define IXGBE_FLAG2_PHY_INTERRUPT		(u32)(1 << 11)
-#ifdef CONFIG_IXGBE_VXLAN
 #define IXGBE_FLAG2_VXLAN_REREG_NEEDED		BIT(12)
-#endif
 #define IXGBE_FLAG2_VLAN_PROMISC		BIT(13)
 
 	/* Tx fast path data */
@@ -674,6 +672,9 @@ struct ixgbe_adapter {
 	/* Rx fast path data */
 	int num_rx_queues;
 	u16 rx_itr_setting;
+
+	/* Port number used to identify VXLAN traffic */
+	__be16 vxlan_port;
 
 	/* TX */
 	struct ixgbe_ring *tx_ring[MAX_TX_QUEUES] ____cacheline_aligned_in_smp;
@@ -782,9 +783,6 @@ struct ixgbe_adapter {
 	u32 timer_event_accumulator;
 	u32 vferr_refcount;
 	struct ixgbe_mac_addr *mac_table;
-#ifdef CONFIG_IXGBE_VXLAN
-	u16 vxlan_port;
-#endif
 	struct kobject *info_kobj;
 #ifdef CONFIG_IXGBE_HWMON
 	struct hwmon_buff *ixgbe_hwmon_buff;
@@ -879,6 +877,8 @@ extern const char ixgbe_driver_version[];
 extern char ixgbe_default_device_descr[];
 #endif /* IXGBE_FCOE */
 
+int ixgbe_open(struct net_device *netdev);
+int ixgbe_close(struct net_device *netdev);
 void ixgbe_up(struct ixgbe_adapter *adapter);
 void ixgbe_down(struct ixgbe_adapter *adapter);
 void ixgbe_reinit_locked(struct ixgbe_adapter *adapter);

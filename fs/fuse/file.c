@@ -348,7 +348,7 @@ static bool fuse_range_is_writeback(struct inode *inode, pgoff_t idx_from,
 		pgoff_t curr_index;
 
 		BUG_ON(req->inode != inode);
-		curr_index = req->misc.write.in.offset >> PAGE_CACHE_SHIFT;
+		curr_index = req->misc.write.in.offset >> PAGE_SHIFT;
 		if (idx_from < curr_index + req->num_pages &&
 		    curr_index <= idx_to) {
 			found = true;
@@ -683,11 +683,11 @@ static void fuse_short_read(struct fuse_req *req, struct inode *inode,
 		 * present there.
 		 */
 		int i;
-		int start_idx = num_read >> PAGE_CACHE_SHIFT;
-		size_t off = num_read & (PAGE_CACHE_SIZE - 1);
+		int start_idx = num_read >> PAGE_SHIFT;
+		size_t off = num_read & (PAGE_SIZE - 1);
 
 		for (i = start_idx; i < req->num_pages; i++) {
-			zero_user_segment(req->pages[i], off, PAGE_CACHE_SIZE);
+			zero_user_segment(req->pages[i], off, PAGE_SIZE);
 			off = 0;
 		}
 	} else {
@@ -704,7 +704,7 @@ static int fuse_do_readpage(struct file *file, struct page *page)
 	struct fuse_req *req;
 	size_t num_read;
 	loff_t pos = page_offset(page);
-	size_t count = PAGE_CACHE_SIZE;
+	size_t count = PAGE_SIZE;
 	u64 attr_ver;
 	int err;
 
@@ -789,7 +789,7 @@ static void fuse_readpages_end(struct fuse_conn *fc, struct fuse_req *req)
 		else
 			SetPageError(page);
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 	if (req->ff)
 		fuse_file_put(req->ff, false);
@@ -800,7 +800,7 @@ static void fuse_send_readpages(struct fuse_req *req, struct file *file)
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fc;
 	loff_t pos = page_offset(req->pages[0]);
-	size_t count = req->num_pages << PAGE_CACHE_SHIFT;
+	size_t count = req->num_pages << PAGE_SHIFT;
 
 	req->out.argpages = 1;
 	req->out.page_zeroing = 1;
@@ -836,7 +836,7 @@ static int fuse_readpages_fill(void *_data, struct page *page)
 
 	if (req->num_pages &&
 	    (req->num_pages == FUSE_MAX_PAGES_PER_REQ ||
-	     (req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_read ||
+	     (req->num_pages + 1) * PAGE_SIZE > fc->max_read ||
 	     req->pages[req->num_pages - 1]->index + 1 != page->index)) {
 		int nr_alloc = min_t(unsigned, data->nr_pages,
 				     FUSE_MAX_PAGES_PER_REQ);
@@ -858,7 +858,7 @@ static int fuse_readpages_fill(void *_data, struct page *page)
 		return -EIO;
 	}
 
-	page_cache_get(page);
+	get_page(page);
 	req->pages[req->num_pages] = page;
 	req->page_descs[req->num_pages].length = PAGE_SIZE;
 	req->num_pages++;
@@ -1003,17 +1003,17 @@ static size_t fuse_send_write_pages(struct fuse_req *req, struct file *file,
 	for (i = 0; i < req->num_pages; i++) {
 		struct page *page = req->pages[i];
 
-		if (!req->out.h.error && !offset && count >= PAGE_CACHE_SIZE)
+		if (!req->out.h.error && !offset && count >= PAGE_SIZE)
 			SetPageUptodate(page);
 
-		if (count > PAGE_CACHE_SIZE - offset)
-			count -= PAGE_CACHE_SIZE - offset;
+		if (count > PAGE_SIZE - offset)
+			count -= PAGE_SIZE - offset;
 		else
 			count = 0;
 		offset = 0;
 
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 
 	return res;
@@ -1024,7 +1024,7 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 			       struct iov_iter *ii, loff_t pos)
 {
 	struct fuse_conn *fc = get_fuse_conn(mapping->host);
-	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
+	unsigned offset = pos & (PAGE_SIZE - 1);
 	size_t count = 0;
 	int err;
 
@@ -1034,8 +1034,8 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 	do {
 		size_t tmp;
 		struct page *page;
-		pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-		size_t bytes = min_t(size_t, PAGE_CACHE_SIZE - offset,
+		pgoff_t index = pos >> PAGE_SHIFT;
+		size_t bytes = min_t(size_t, PAGE_SIZE - offset,
 				     iov_iter_count(ii));
 
 		bytes = min_t(size_t, bytes, fc->max_write - count);
@@ -1059,7 +1059,7 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 		iov_iter_advance(ii, tmp);
 		if (!tmp) {
 			unlock_page(page);
-			page_cache_release(page);
+			put_page(page);
 			bytes = min(bytes, iov_iter_single_seg_count(ii));
 			goto again;
 		}
@@ -1072,7 +1072,7 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 		count += tmp;
 		pos += tmp;
 		offset += tmp;
-		if (offset == PAGE_CACHE_SIZE)
+		if (offset == PAGE_SIZE)
 			offset = 0;
 
 		if (!fc->big_writes)
@@ -1086,8 +1086,8 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 static inline unsigned fuse_wr_pages(loff_t pos, size_t len)
 {
 	return min_t(unsigned,
-		     ((pos + len - 1) >> PAGE_CACHE_SHIFT) -
-		     (pos >> PAGE_CACHE_SHIFT) + 1,
+		     ((pos + len - 1) >> PAGE_SHIFT) -
+		     (pos >> PAGE_SHIFT) + 1,
 		     FUSE_MAX_PAGES_PER_REQ);
 }
 
@@ -1205,8 +1205,8 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			goto out;
 
 		invalidate_mapping_pages(file->f_mapping,
-					 pos >> PAGE_CACHE_SHIFT,
-					 endbyte >> PAGE_CACHE_SHIFT);
+					 pos >> PAGE_SHIFT,
+					 endbyte >> PAGE_SHIFT);
 
 		written += written_buffered;
 		iocb->ki_pos = pos + written_buffered;
@@ -1315,8 +1315,8 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 	size_t nmax = write ? fc->max_write : fc->max_read;
 	loff_t pos = *ppos;
 	size_t count = iov_iter_count(iter);
-	pgoff_t idx_from = pos >> PAGE_CACHE_SHIFT;
-	pgoff_t idx_to = (pos + count - 1) >> PAGE_CACHE_SHIFT;
+	pgoff_t idx_from = pos >> PAGE_SHIFT;
+	pgoff_t idx_to = (pos + count - 1) >> PAGE_SHIFT;
 	ssize_t res = 0;
 	struct fuse_req *req;
 	int err = 0;
@@ -1466,7 +1466,7 @@ __acquires(fc->lock)
 {
 	struct fuse_inode *fi = get_fuse_inode(req->inode);
 	struct fuse_write_in *inarg = &req->misc.write.in;
-	__u64 data_size = req->num_pages * PAGE_CACHE_SIZE;
+	__u64 data_size = req->num_pages * PAGE_SIZE;
 
 	if (!fc->connected)
 		goto out_free;
@@ -1727,7 +1727,7 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
 	list_del(&new_req->writepages_entry);
 	list_for_each_entry(old_req, &fi->writepages, writepages_entry) {
 		BUG_ON(old_req->inode != new_req->inode);
-		curr_index = old_req->misc.write.in.offset >> PAGE_CACHE_SHIFT;
+		curr_index = old_req->misc.write.in.offset >> PAGE_SHIFT;
 		if (curr_index <= page->index &&
 		    page->index < curr_index + old_req->num_pages) {
 			found = true;
@@ -1742,7 +1742,7 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
 	new_req->num_pages = 1;
 	for (tmp = old_req; tmp != NULL; tmp = tmp->misc.write.next) {
 		BUG_ON(tmp->inode != new_req->inode);
-		curr_index = tmp->misc.write.in.offset >> PAGE_CACHE_SHIFT;
+		curr_index = tmp->misc.write.in.offset >> PAGE_SHIFT;
 		if (tmp->num_pages == 1 &&
 		    curr_index == page->index) {
 			old_req = tmp;
@@ -1799,7 +1799,7 @@ static int fuse_writepages_fill(struct page *page,
 
 	if (req && req->num_pages &&
 	    (is_writeback || req->num_pages == FUSE_MAX_PAGES_PER_REQ ||
-	     (req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write ||
+	     (req->num_pages + 1) * PAGE_SIZE > fc->max_write ||
 	     data->orig_pages[req->num_pages - 1]->index + 1 != page->index)) {
 		fuse_writepages_send(data);
 		data->req = NULL;
@@ -1924,7 +1924,7 @@ static int fuse_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, unsigned flags,
 		struct page **pagep, void **fsdata)
 {
-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+	pgoff_t index = pos >> PAGE_SHIFT;
 	struct fuse_conn *fc = get_fuse_conn(file_inode(file));
 	struct page *page;
 	loff_t fsize;
@@ -1938,15 +1938,15 @@ static int fuse_write_begin(struct file *file, struct address_space *mapping,
 
 	fuse_wait_on_page_writeback(mapping->host, page->index);
 
-	if (PageUptodate(page) || len == PAGE_CACHE_SIZE)
+	if (PageUptodate(page) || len == PAGE_SIZE)
 		goto success;
 	/*
 	 * Check if the start this page comes after the end of file, in which
 	 * case the readpage can be optimized away.
 	 */
 	fsize = i_size_read(mapping->host);
-	if (fsize <= (pos & PAGE_CACHE_MASK)) {
-		size_t off = pos & ~PAGE_CACHE_MASK;
+	if (fsize <= (pos & PAGE_MASK)) {
+		size_t off = pos & ~PAGE_MASK;
 		if (off)
 			zero_user_segment(page, 0, off);
 		goto success;
@@ -1960,7 +1960,7 @@ success:
 
 cleanup:
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 error:
 	return err;
 }
@@ -1973,16 +1973,16 @@ static int fuse_write_end(struct file *file, struct address_space *mapping,
 
 	if (!PageUptodate(page)) {
 		/* Zero any unwritten bytes at the end of the page */
-		size_t endoff = (pos + copied) & ~PAGE_CACHE_MASK;
+		size_t endoff = (pos + copied) & ~PAGE_MASK;
 		if (endoff)
-			zero_user_segment(page, endoff, PAGE_CACHE_SIZE);
+			zero_user_segment(page, endoff, PAGE_SIZE);
 		SetPageUptodate(page);
 	}
 
 	fuse_write_update_size(inode, pos + copied);
 	set_page_dirty(page);
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	return copied;
 }
