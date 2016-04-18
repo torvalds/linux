@@ -362,6 +362,60 @@ int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 }
 EXPORT_SYMBOL(phy_ethtool_sset);
 
+int phy_ethtool_ksettings_set(struct phy_device *phydev,
+			      const struct ethtool_link_ksettings *cmd)
+{
+	u8 autoneg = cmd->base.autoneg;
+	u8 duplex = cmd->base.duplex;
+	u32 speed = cmd->base.speed;
+	u32 advertising;
+
+	if (cmd->base.phy_address != phydev->mdio.addr)
+		return -EINVAL;
+
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
+
+	/* We make sure that we don't pass unsupported values in to the PHY */
+	advertising &= phydev->supported;
+
+	/* Verify the settings we care about. */
+	if (autoneg != AUTONEG_ENABLE && autoneg != AUTONEG_DISABLE)
+		return -EINVAL;
+
+	if (autoneg == AUTONEG_ENABLE && advertising == 0)
+		return -EINVAL;
+
+	if (autoneg == AUTONEG_DISABLE &&
+	    ((speed != SPEED_1000 &&
+	      speed != SPEED_100 &&
+	      speed != SPEED_10) ||
+	     (duplex != DUPLEX_HALF &&
+	      duplex != DUPLEX_FULL)))
+		return -EINVAL;
+
+	phydev->autoneg = autoneg;
+
+	phydev->speed = speed;
+
+	phydev->advertising = advertising;
+
+	if (autoneg == AUTONEG_ENABLE)
+		phydev->advertising |= ADVERTISED_Autoneg;
+	else
+		phydev->advertising &= ~ADVERTISED_Autoneg;
+
+	phydev->duplex = duplex;
+
+	phydev->mdix = cmd->base.eth_tp_mdix_ctrl;
+
+	/* Restart the PHY */
+	phy_start_aneg(phydev);
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_ethtool_ksettings_set);
+
 int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 {
 	cmd->supported = phydev->supported;
@@ -384,6 +438,33 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 	return 0;
 }
 EXPORT_SYMBOL(phy_ethtool_gset);
+
+int phy_ethtool_ksettings_get(struct phy_device *phydev,
+			      struct ethtool_link_ksettings *cmd)
+{
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						phydev->supported);
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						phydev->advertising);
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.lp_advertising,
+						phydev->lp_advertising);
+
+	cmd->base.speed = phydev->speed;
+	cmd->base.duplex = phydev->duplex;
+	if (phydev->interface == PHY_INTERFACE_MODE_MOCA)
+		cmd->base.port = PORT_BNC;
+	else
+		cmd->base.port = PORT_MII;
+
+	cmd->base.phy_address = phydev->mdio.addr;
+	cmd->base.autoneg = phydev->autoneg;
+	cmd->base.eth_tp_mdix_ctrl = phydev->mdix;
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_ethtool_ksettings_get);
 
 /**
  * phy_mii_ioctl - generic PHY MII ioctl interface
