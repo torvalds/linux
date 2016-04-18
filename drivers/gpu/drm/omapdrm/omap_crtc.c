@@ -43,6 +43,7 @@ struct omap_crtc {
 	bool enabled;
 	bool pending;
 	wait_queue_head_t pending_wait;
+	struct drm_pending_vblank_event *event;
 };
 
 /* -----------------------------------------------------------------------------
@@ -263,17 +264,17 @@ static const struct dss_mgr_ops mgr_ops = {
 
 static void omap_crtc_complete_page_flip(struct drm_crtc *crtc)
 {
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct drm_pending_vblank_event *event;
 	struct drm_device *dev = crtc->dev;
 	unsigned long flags;
 
-	event = crtc->state->event;
-
-	if (!event)
-		return;
-
 	spin_lock_irqsave(&dev->event_lock, flags);
-	drm_crtc_send_vblank_event(crtc, event);
+	event = omap_crtc->event;
+	omap_crtc->event = NULL;
+
+	if (event)
+		drm_crtc_send_vblank_event(crtc, event);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
@@ -390,12 +391,12 @@ static int omap_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void omap_crtc_atomic_begin(struct drm_crtc *crtc,
-                                  struct drm_crtc_state *old_crtc_state)
+				   struct drm_crtc_state *old_crtc_state)
 {
 }
 
 static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
-                                  struct drm_crtc_state *old_crtc_state)
+				   struct drm_crtc_state *old_crtc_state)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
@@ -430,6 +431,12 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 	WARN_ON(omap_crtc->pending);
 	omap_crtc->pending = true;
 	wmb();
+
+	if (crtc->state->event) {
+		spin_lock_irq(&crtc->dev->event_lock);
+		omap_crtc->event = crtc->state->event;
+		spin_unlock_irq(&crtc->dev->event_lock);
+	}
 
 	dispc_mgr_go(omap_crtc->channel);
 	omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
