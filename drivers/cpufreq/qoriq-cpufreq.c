@@ -333,8 +333,8 @@ static void qoriq_cpufreq_ready(struct cpufreq_policy *policy)
 		cpud->cdev = of_cpufreq_cooling_register(np,
 							 policy->related_cpus);
 
-		if (IS_ERR(cpud->cdev)) {
-			pr_err("Failed to register cooling device cpu%d: %ld\n",
+		if (IS_ERR(cpud->cdev) && PTR_ERR(cpud->cdev) != -ENOSYS) {
+			pr_err("cpu%d is not running as cooling device: %ld\n",
 					policy->cpu, PTR_ERR(cpud->cdev));
 
 			cpud->cdev = NULL;
