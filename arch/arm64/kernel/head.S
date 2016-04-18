@@ -466,9 +466,7 @@ __mmap_switched:
 	str	x15, [x11, x23]
 	b	0b
 
-2:	adr_l	x8, kimage_vaddr		// make relocated kimage_vaddr
-	dc	cvac, x8			// value visible to secondaries
-	dsb	sy				// with MMU off
+2:
 #endif
 
 	adr_l	sp, initial_sp, x4
@@ -672,12 +670,9 @@ secondary_startup:
 	adrp	x26, swapper_pg_dir
 	bl	__cpu_setup			// initialise processor
 
-	ldr	x8, kimage_vaddr
-	ldr	w9, 0f
-	sub	x27, x8, w9, sxtw		// address to jump to after enabling the MMU
+	adr_l	x27, __secondary_switch		// address to jump to after enabling the MMU
 	b	__enable_mmu
 ENDPROC(secondary_startup)
-0:	.long	(_text - TEXT_OFFSET) - __secondary_switched
 
 __secondary_switched:
 	adr_l	x5, vectors
@@ -750,3 +745,8 @@ __no_granule_support:
 	wfe
 	b __no_granule_support
 ENDPROC(__no_granule_support)
+
+__secondary_switch:
+	ldr	x8, =__secondary_switched
+	br	x8
+ENDPROC(__secondary_switch)
