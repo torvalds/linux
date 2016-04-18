@@ -55,7 +55,7 @@ static unsigned long get_random_boot(void)
 	unsigned long hash = 0;
 
 	hash = rotate_xor(hash, build_str, sizeof(build_str));
-	hash = rotate_xor(hash, real_mode, sizeof(*real_mode));
+	hash = rotate_xor(hash, boot_params, sizeof(*boot_params));
 
 	return hash;
 }
@@ -152,16 +152,16 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	mem_avoid[0].size = unsafe_len;
 
 	/* Avoid initrd. */
-	initrd_start  = (u64)real_mode->ext_ramdisk_image << 32;
-	initrd_start |= real_mode->hdr.ramdisk_image;
-	initrd_size  = (u64)real_mode->ext_ramdisk_size << 32;
-	initrd_size |= real_mode->hdr.ramdisk_size;
+	initrd_start  = (u64)boot_params->ext_ramdisk_image << 32;
+	initrd_start |= boot_params->hdr.ramdisk_image;
+	initrd_size  = (u64)boot_params->ext_ramdisk_size << 32;
+	initrd_size |= boot_params->hdr.ramdisk_size;
 	mem_avoid[1].start = initrd_start;
 	mem_avoid[1].size = initrd_size;
 
 	/* Avoid kernel command line. */
-	cmd_line  = (u64)real_mode->ext_cmd_line_ptr << 32;
-	cmd_line |= real_mode->hdr.cmd_line_ptr;
+	cmd_line  = (u64)boot_params->ext_cmd_line_ptr << 32;
+	cmd_line |= boot_params->hdr.cmd_line_ptr;
 	/* Calculate size of cmd_line. */
 	ptr = (char *)(unsigned long)cmd_line;
 	for (cmd_line_size = 0; ptr[cmd_line_size++]; )
@@ -190,7 +190,7 @@ static bool mem_avoid_overlap(struct mem_vector *img)
 	}
 
 	/* Avoid all entries in the setup_data linked list. */
-	ptr = (struct setup_data *)(unsigned long)real_mode->hdr.setup_data;
+	ptr = (struct setup_data *)(unsigned long)boot_params->hdr.setup_data;
 	while (ptr) {
 		struct mem_vector avoid;
 
@@ -288,8 +288,8 @@ static unsigned long find_random_addr(unsigned long minimum,
 	minimum = ALIGN(minimum, CONFIG_PHYSICAL_ALIGN);
 
 	/* Verify potential e820 positions, appending to slots list. */
-	for (i = 0; i < real_mode->e820_entries; i++) {
-		process_e820_entry(&real_mode->e820_map[i], minimum, size);
+	for (i = 0; i < boot_params->e820_entries; i++) {
+		process_e820_entry(&boot_params->e820_map[i], minimum, size);
 	}
 
 	return slots_fetch_random();
@@ -315,7 +315,7 @@ unsigned char *choose_kernel_location(unsigned char *input,
 	}
 #endif
 
-	real_mode->hdr.loadflags |= KASLR_FLAG;
+	boot_params->hdr.loadflags |= KASLR_FLAG;
 
 	/* Record the various known unsafe memory ranges. */
 	mem_avoid_init((unsigned long)input, input_size,

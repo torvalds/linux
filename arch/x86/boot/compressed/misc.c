@@ -114,7 +114,7 @@ static void error(char *m);
 /*
  * This is set up by the setup-routine at boot-time
  */
-struct boot_params *real_mode;		/* Pointer to real-mode data */
+struct boot_params *boot_params;
 
 memptr free_mem_ptr;
 memptr free_mem_end_ptr;
@@ -184,12 +184,12 @@ void __putstr(const char *s)
 		}
 	}
 
-	if (real_mode->screen_info.orig_video_mode == 0 &&
+	if (boot_params->screen_info.orig_video_mode == 0 &&
 	    lines == 0 && cols == 0)
 		return;
 
-	x = real_mode->screen_info.orig_x;
-	y = real_mode->screen_info.orig_y;
+	x = boot_params->screen_info.orig_x;
+	y = boot_params->screen_info.orig_y;
 
 	while ((c = *s++) != '\0') {
 		if (c == '\n') {
@@ -210,8 +210,8 @@ void __putstr(const char *s)
 		}
 	}
 
-	real_mode->screen_info.orig_x = x;
-	real_mode->screen_info.orig_y = y;
+	boot_params->screen_info.orig_x = x;
+	boot_params->screen_info.orig_y = y;
 
 	pos = (x + cols * y) * 2;	/* Update cursor position */
 	outb(14, vidport);
@@ -392,14 +392,15 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 {
 	unsigned char *output_orig = output;
 
-	real_mode = rmode;
+	/* Retain x86 boot parameters pointer passed from startup_32/64. */
+	boot_params = rmode;
 
-	/* Clear it for solely in-kernel use */
-	real_mode->hdr.loadflags &= ~KASLR_FLAG;
+	/* Clear flags intended for solely in-kernel use. */
+	boot_params->hdr.loadflags &= ~KASLR_FLAG;
 
-	sanitize_boot_params(real_mode);
+	sanitize_boot_params(boot_params);
 
-	if (real_mode->screen_info.orig_video_mode == 7) {
+	if (boot_params->screen_info.orig_video_mode == 7) {
 		vidmem = (char *) 0xb0000;
 		vidport = 0x3b4;
 	} else {
@@ -407,8 +408,8 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 		vidport = 0x3d4;
 	}
 
-	lines = real_mode->screen_info.orig_video_lines;
-	cols = real_mode->screen_info.orig_video_cols;
+	lines = boot_params->screen_info.orig_video_lines;
+	cols = boot_params->screen_info.orig_video_cols;
 
 	console_init();
 	debug_putstr("early console in decompress_kernel\n");
