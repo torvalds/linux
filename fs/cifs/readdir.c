@@ -303,7 +303,7 @@ initiate_cifs_search(const unsigned int xid, struct file *file)
 	cifsFile->invalidHandle = true;
 	cifsFile->srch_inf.endOfSearch = false;
 
-	full_path = build_path_from_dentry(file->f_path.dentry);
+	full_path = build_path_from_dentry(file_dentry(file));
 	if (full_path == NULL) {
 		rc = -ENOMEM;
 		goto error_exit;
@@ -762,7 +762,7 @@ static int cifs_filldir(char *find_entry, struct file *file,
 		 */
 		fattr.cf_flags |= CIFS_FATTR_NEED_REVAL;
 
-	cifs_prime_dcache(file->f_path.dentry, &name, &fattr);
+	cifs_prime_dcache(file_dentry(file), &name, &fattr);
 
 	ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
 	return !dir_emit(ctx, name.name, name.len, ino, fattr.cf_dtype);
