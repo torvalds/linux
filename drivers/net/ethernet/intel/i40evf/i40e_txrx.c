@@ -864,7 +864,7 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 				    u16 rx_ptype)
 {
 	struct i40e_rx_ptype_decoded decoded = decode_rx_desc_ptype(rx_ptype);
-	bool ipv4, ipv6, ipv4_tunnel, ipv6_tunnel;
+	bool ipv4, ipv6, tunnel = false;
 
 	skb->ip_summed = CHECKSUM_NONE;
 
@@ -913,14 +913,13 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	 * doesn't make it a hard requirement so if we have validated the
 	 * inner checksum report CHECKSUM_UNNECESSARY.
 	 */
-
-	ipv4_tunnel = (rx_ptype >= I40E_RX_PTYPE_GRENAT4_MAC_PAY3) &&
-		     (rx_ptype <= I40E_RX_PTYPE_GRENAT4_MACVLAN_IPV6_ICMP_PAY4);
-	ipv6_tunnel = (rx_ptype >= I40E_RX_PTYPE_GRENAT6_MAC_PAY3) &&
-		     (rx_ptype <= I40E_RX_PTYPE_GRENAT6_MACVLAN_IPV6_ICMP_PAY4);
+	if (decoded.inner_prot & (I40E_RX_PTYPE_INNER_PROT_TCP |
+				  I40E_RX_PTYPE_INNER_PROT_UDP |
+				  I40E_RX_PTYPE_INNER_PROT_SCTP))
+		tunnel = true;
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	skb->csum_level = ipv4_tunnel || ipv6_tunnel;
+	skb->csum_level = tunnel ? 1 : 0;
 
 	return;
 
