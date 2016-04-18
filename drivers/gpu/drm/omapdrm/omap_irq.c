@@ -44,7 +44,6 @@ static void omap_irq_register(struct drm_device *dev, struct omap_drm_irq *irq)
 	struct omap_drm_private *priv = dev->dev_private;
 	unsigned long flags;
 
-	dispc_runtime_get();
 	spin_lock_irqsave(&list_lock, flags);
 
 	if (!WARN_ON(irq->registered)) {
@@ -54,7 +53,6 @@ static void omap_irq_register(struct drm_device *dev, struct omap_drm_irq *irq)
 	}
 
 	spin_unlock_irqrestore(&list_lock, flags);
-	dispc_runtime_put();
 }
 
 static void omap_irq_unregister(struct drm_device *dev,
@@ -62,7 +60,6 @@ static void omap_irq_unregister(struct drm_device *dev,
 {
 	unsigned long flags;
 
-	dispc_runtime_get();
 	spin_lock_irqsave(&list_lock, flags);
 
 	if (!WARN_ON(!irq->registered)) {
@@ -72,7 +69,6 @@ static void omap_irq_unregister(struct drm_device *dev,
 	}
 
 	spin_unlock_irqrestore(&list_lock, flags);
-	dispc_runtime_put();
 }
 
 struct omap_irq_wait {
