@@ -1869,6 +1869,8 @@ static void hdmi_set_chmap(struct hdac_device *hdac, int pcm_idx,
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_spec_per_pin *per_pin = pcm_idx_to_pin(spec, pcm_idx);
 
+	if (!per_pin)
+		return;
 	mutex_lock(&per_pin->lock);
 	per_pin->chmap_set = true;
 	memcpy(per_pin->chmap, chmap, ARRAY_SIZE(per_pin->chmap));
