@@ -2829,8 +2829,6 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 		I40E_PRIV_FLAGS_FD_ATR : 0;
 	ret_flags |= pf->flags & I40E_FLAG_VEB_STATS_ENABLED ?
 		I40E_PRIV_FLAGS_VEB_STATS : 0;
-	ret_flags |= pf->flags & I40E_FLAG_RX_PS_ENABLED ?
-		I40E_PRIV_FLAGS_PS : 0;
 	ret_flags |= pf->auto_disable_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE ?
 		0 : I40E_PRIV_FLAGS_HW_ATR_EVICT;
 
@@ -2850,23 +2848,6 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	bool reset_required = false;
 
 	/* NOTE: MFP is not settable */
-
-	/* allow the user to control the method of receive
-	 * buffer DMA, whether the packet is split at header
-	 * boundaries into two separate buffers.  In some cases
-	 * one routine or the other will perform better.
-	 */
-	if ((flags & I40E_PRIV_FLAGS_PS) &&
-	    !(pf->flags & I40E_FLAG_RX_PS_ENABLED)) {
-		pf->flags |= I40E_FLAG_RX_PS_ENABLED;
-		pf->flags &= ~I40E_FLAG_RX_1BUF_ENABLED;
-		reset_required = true;
-	} else if (!(flags & I40E_PRIV_FLAGS_PS) &&
-		   (pf->flags & I40E_FLAG_RX_PS_ENABLED)) {
-		pf->flags &= ~I40E_FLAG_RX_PS_ENABLED;
-		pf->flags |= I40E_FLAG_RX_1BUF_ENABLED;
-		reset_required = true;
-	}
 
 	if (flags & I40E_PRIV_FLAGS_LINKPOLL_FLAG)
 		pf->flags |= I40E_FLAG_LINK_POLLING_ENABLED;

@@ -245,16 +245,9 @@ struct i40e_rx_queue_stats {
 enum i40e_ring_state_t {
 	__I40E_TX_FDIR_INIT_DONE,
 	__I40E_TX_XPS_INIT_DONE,
-	__I40E_RX_PS_ENABLED,
 	__I40E_RX_16BYTE_DESC_ENABLED,
 };
 
-#define ring_is_ps_enabled(ring) \
-	test_bit(__I40E_RX_PS_ENABLED, &(ring)->state)
-#define set_ring_ps_enabled(ring) \
-	set_bit(__I40E_RX_PS_ENABLED, &(ring)->state)
-#define clear_ring_ps_enabled(ring) \
-	clear_bit(__I40E_RX_PS_ENABLED, &(ring)->state)
 #define ring_is_16byte_desc_enabled(ring) \
 	test_bit(__I40E_RX_16BYTE_DESC_ENABLED, &(ring)->state)
 #define set_ring_16byte_desc_enabled(ring) \
