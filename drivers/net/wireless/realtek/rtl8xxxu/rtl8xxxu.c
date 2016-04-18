@@ -128,7 +128,7 @@ static struct ieee80211_supported_band rtl8xxxu_supported_band = {
 	.n_bitrates = ARRAY_SIZE(rtl8xxxu_rates),
 };
 
-static struct rtl8xxxu_reg8val rtl8723a_mac_init_table[] = {
+static struct rtl8xxxu_reg8val rtl8xxxu_gen1_mac_init_table[] = {
 	{0x420, 0x80}, {0x423, 0x00}, {0x430, 0x00}, {0x431, 0x00},
 	{0x432, 0x00}, {0x433, 0x01}, {0x434, 0x04}, {0x435, 0x05},
 	{0x436, 0x06}, {0x437, 0x07}, {0x438, 0x00}, {0x439, 0x00},
@@ -9903,7 +9903,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.trxff_boundary = 0x27ff,
 	.pbp_rx = PBP_PAGE_SIZE_128,
 	.pbp_tx = PBP_PAGE_SIZE_128,
-	.mactable = rtl8723a_mac_init_table,
+	.mactable = rtl8xxxu_gen1_mac_init_table,
 };
 
 static struct rtl8xxxu_fileops rtl8723bu_fops = {
@@ -9975,7 +9975,7 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.trxff_boundary = 0x27ff,
 	.pbp_rx = PBP_PAGE_SIZE_128,
 	.pbp_tx = PBP_PAGE_SIZE_128,
-	.mactable = rtl8723a_mac_init_table,
+	.mactable = rtl8xxxu_gen1_mac_init_table,
 };
 
 #endif
