@@ -429,23 +429,22 @@ void __init mem_init(void)
 		MLM(MODULES_VADDR, MODULES_END));
 	pr_cont("    vmalloc : 0x%16lx - 0x%16lx   (%6ld GB)\n",
 		MLG(VMALLOC_START, VMALLOC_END));
-	pr_cont("      .text : 0x%p" " - 0x%p" "   (%6ld KB)\n"
-		"    .rodata : 0x%p" " - 0x%p" "   (%6ld KB)\n"
-		"      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n"
-		"      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n",
-		MLK_ROUNDUP(_text, __start_rodata),
-		MLK_ROUNDUP(__start_rodata, _etext),
-		MLK_ROUNDUP(__init_begin, __init_end),
+	pr_cont("      .text : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+		MLK_ROUNDUP(_text, __start_rodata));
+	pr_cont("    .rodata : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+		MLK_ROUNDUP(__start_rodata, _etext));
+	pr_cont("      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+		MLK_ROUNDUP(__init_begin, __init_end));
+	pr_cont("      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n",
 		MLK_ROUNDUP(_sdata, _edata));
 	pr_cont("    fixed   : 0x%16lx - 0x%16lx   (%6ld KB)\n",
 		MLK(FIXADDR_START, FIXADDR_TOP));
 	pr_cont("    PCI I/O : 0x%16lx - 0x%16lx   (%6ld MB)\n",
 		MLM(PCI_IO_START, PCI_IO_END));
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-	pr_cont("    vmemmap : 0x%16lx - 0x%16lx   (%6ld GB maximum)\n"
-		"              0x%16lx - 0x%16lx   (%6ld MB actual)\n",
-		MLG(VMEMMAP_START,
-		    VMEMMAP_START + VMEMMAP_SIZE),
+	pr_cont("    vmemmap : 0x%16lx - 0x%16lx   (%6ld GB maximum)\n",
+		MLG(VMEMMAP_START, VMEMMAP_START + VMEMMAP_SIZE));
+	pr_cont("              0x%16lx - 0x%16lx   (%6ld MB actual)\n",
 		MLM((unsigned long)phys_to_page(memblock_start_of_DRAM()),
 		    (unsigned long)virt_to_page(high_memory)));
 #endif
