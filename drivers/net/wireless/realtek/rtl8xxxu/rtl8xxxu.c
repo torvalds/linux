@@ -2476,7 +2476,7 @@ static void rtl8xxxu_gen2_config_channel(struct ieee80211_hw *hw)
 }
 
 static void
-rtl8723a_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
+rtl8xxxu_gen1_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 {
 	struct rtl8xxxu_power_base *power_base = priv->power_base;
 	u8 cck[RTL8723A_MAX_RF_PATHS], ofdm[RTL8723A_MAX_RF_PATHS];
@@ -9888,7 +9888,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.enable_rf = rtl8723a_enable_rf,
 	.disable_rf = rtl8xxxu_gen1_disable_rf,
 	.usb_quirks = rtl8xxxu_gen1_usb_quirks,
-	.set_tx_power = rtl8723a_set_tx_power,
+	.set_tx_power = rtl8xxxu_gen1_set_tx_power,
 	.update_rate_mask = rtl8xxxu_update_rate_mask,
 	.report_connect = rtl8xxxu_gen1_report_connect,
 	.writeN_block_size = 1024,
@@ -9960,7 +9960,7 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.enable_rf = rtl8723a_enable_rf,
 	.disable_rf = rtl8xxxu_gen1_disable_rf,
 	.usb_quirks = rtl8xxxu_gen1_usb_quirks,
-	.set_tx_power = rtl8723a_set_tx_power,
+	.set_tx_power = rtl8xxxu_gen1_set_tx_power,
 	.update_rate_mask = rtl8xxxu_update_rate_mask,
 	.report_connect = rtl8xxxu_gen1_report_connect,
 	.writeN_block_size = 128,
