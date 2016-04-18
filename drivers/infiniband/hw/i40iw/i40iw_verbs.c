@@ -526,9 +526,9 @@ static int i40iw_setup_kmode_qp(struct i40iw_device *iwdev,
 	sq_size = i40iw_qp_roundup(ukinfo->sq_size + 1);
 	rq_size = i40iw_qp_roundup(ukinfo->rq_size + 1);
 
-	status = i40iw_get_wqe_shift(sq_size, ukinfo->max_sq_frag_cnt, &sqshift);
+	status = i40iw_get_wqe_shift(sq_size, ukinfo->max_sq_frag_cnt, ukinfo->max_inline_data, &sqshift);
 	if (!status)
-		status = i40iw_get_wqe_shift(rq_size, ukinfo->max_rq_frag_cnt, &rqshift);
+		status = i40iw_get_wqe_shift(rq_size, ukinfo->max_rq_frag_cnt, 0, &rqshift);
 
 	if (status)
 		return -ENOSYS;
@@ -609,6 +609,9 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	if (init_attr->cap.max_inline_data > I40IW_MAX_INLINE_DATA_SIZE)
 		init_attr->cap.max_inline_data = I40IW_MAX_INLINE_DATA_SIZE;
 
+	if (init_attr->cap.max_send_sge > I40IW_MAX_WQ_FRAGMENT_COUNT)
+		init_attr->cap.max_send_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
+
 	memset(&init_info, 0, sizeof(init_info));
 
 	sq_size = init_attr->cap.max_send_wr;
@@ -618,6 +621,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	init_info.qp_uk_init_info.rq_size = rq_size;
 	init_info.qp_uk_init_info.max_sq_frag_cnt = init_attr->cap.max_send_sge;
 	init_info.qp_uk_init_info.max_rq_frag_cnt = init_attr->cap.max_recv_sge;
+	init_info.qp_uk_init_info.max_inline_data = init_attr->cap.max_inline_data;
 
 	mem = kzalloc(sizeof(*iwqp), GFP_KERNEL);
 	if (!mem)
