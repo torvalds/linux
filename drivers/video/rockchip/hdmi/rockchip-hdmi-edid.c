@@ -341,14 +341,23 @@ static void hdmi_edid_parse_yuv420cmdb(unsigned char *buf, int count,
 	struct display_modelist *modelist;
 	int i, j, yuv420_mask = 0, vic;
 
-	for (i = 0; i < count - 1; i++) {
-		EDBG("vic which support yuv420 mode is %x\n", buf[i]);
-		yuv420_mask |= buf[i] << (8 * i);
-	}
-	for (i = 0; i < 32; i++) {
-		if (yuv420_mask & (1 << i)) {
+	if (count == 1) {
+		list_for_each(pos, head) {
+			modelist =
+				list_entry(pos, struct display_modelist, list);
+			vic = modelist->vic | HDMI_VIDEO_YUV420;
+			hdmi_add_vic(vic, head);
+		}
+	} else {
+		for (i = 0; i < count - 1; i++) {
+			EDBG("vic which support yuv420 mode is %x\n", buf[i]);
+			yuv420_mask |= buf[i] << (8 * i);
+		}
+		for (i = 0; i < 32; i++) {
+			if (!(yuv420_mask & (1 << i)))
+				continue;
 			j = 0;
-			for (pos = head->next; pos != (head); pos = pos->next) {
+			list_for_each(pos, head) {
 				if (j++ == i) {
 					modelist =
 				list_entry(pos, struct display_modelist, list);
