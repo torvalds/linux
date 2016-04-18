@@ -102,6 +102,8 @@ enum i40iw_device_capabilities_const {
 
 #define I40IW_STAG_INDEX_FROM_STAG(stag)    (((stag) && 0xFFFFFF00) >> 8)
 
+#define	I40IW_MAX_MR_SIZE	0x10000000000L
+
 struct i40iw_qp_uk;
 struct i40iw_cq_uk;
 struct i40iw_srq_uk;

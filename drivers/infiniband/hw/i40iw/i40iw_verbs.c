@@ -1526,14 +1526,16 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	struct i40iw_mr *iwmr;
 	struct ib_umem *region;
 	struct i40iw_mem_reg_req req;
-	u32 pbl_depth = 0;
+	u64 pbl_depth = 0;
 	u32 stag = 0;
 	u16 access;
-	u32 region_length;
+	u64 region_length;
 	bool use_pbles = false;
 	unsigned long flags;
 	int err = -ENOSYS;
 
+	if (length > I40IW_MAX_MR_SIZE)
+		return ERR_PTR(-EINVAL);
 	region = ib_umem_get(pd->uobject->context, start, length, acc, 0);
 	if (IS_ERR(region))
 		return (struct ib_mr *)region;
@@ -1564,7 +1566,7 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	palloc = &iwpbl->pble_alloc;
 
 	iwmr->type = req.reg_type;
-	iwmr->page_cnt = pbl_depth;
+	iwmr->page_cnt = (u32)pbl_depth;
 
 	switch (req.reg_type) {
 	case IW_MEMREG_TYPE_QP:
