@@ -28,6 +28,7 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -113,8 +114,11 @@ struct tegra_pmc_soc {
 
 /**
  * struct tegra_pmc - NVIDIA Tegra PMC
+ * @dev: pointer to PMC device structure
  * @base: pointer to I/O remapped register region
  * @clk: pointer to pclk clock
+ * @soc: pointer to SoC data structure
+ * @debugfs: pointer to debugfs entry
  * @rate: currently configured rate of pclk
  * @suspend_mode: lowest suspend mode available
  * @cpu_good_time: CPU power good time (in microseconds)
@@ -134,6 +138,7 @@ struct tegra_pmc {
 	struct device *dev;
 	void __iomem *base;
 	struct clk *clk;
+	struct dentry *debugfs;
 
 	const struct tegra_pmc_soc *soc;
 
@@ -170,38 +175,56 @@ static void tegra_pmc_writel(u32 value, unsigned long offset)
 	writel(value, pmc->base + offset);
 }
 
+static inline bool tegra_powergate_state(int id)
+{
+	if (id == TEGRA_POWERGATE_3D && pmc->soc->has_gpu_clamps)
+		return (tegra_pmc_readl(GPU_RG_CNTRL) & 0x1) == 0;
+	else
+		return (tegra_pmc_readl(PWRGATE_STATUS) & BIT(id)) != 0;
+}
+
+static inline bool tegra_powergate_is_valid(int id)
+{
+	return (pmc->soc && pmc->soc->powergates[id]);
+}
+
 /**
  * tegra_powergate_set() - set the state of a partition
  * @id: partition ID
  * @new_state: new state of the partition
  */
-static int tegra_powergate_set(int id, bool new_state)
+static int tegra_powergate_set(unsigned int id, bool new_state)
 {
 	bool status;
+	int err;
+
+	if (id == TEGRA_POWERGATE_3D && pmc->soc->has_gpu_clamps)
+		return -EINVAL;
 
 	mutex_lock(&pmc->powergates_lock);
 
-	status = tegra_pmc_readl(PWRGATE_STATUS) & (1 << id);
-
-	if (status == new_state) {
+	if (tegra_powergate_state(id) == new_state) {
 		mutex_unlock(&pmc->powergates_lock);
 		return 0;
 	}
 
 	tegra_pmc_writel(PWRGATE_TOGGLE_START | id, PWRGATE_TOGGLE);
 
+	err = readx_poll_timeout(tegra_powergate_state, id, status,
+				 status == new_state, 10, 100000);
+
 	mutex_unlock(&pmc->powergates_lock);
 
-	return 0;
+	return err;
 }
 
 /**
  * tegra_powergate_power_on() - power on partition
  * @id: partition ID
  */
-int tegra_powergate_power_on(int id)
+int tegra_powergate_power_on(unsigned int id)
 {
-	if (!pmc->soc || id < 0 || id >= pmc->soc->num_powergates)
+	if (!tegra_powergate_is_valid(id))
 		return -EINVAL;
 
 	return tegra_powergate_set(id, true);
@@ -211,9 +234,9 @@ int tegra_powergate_power_on(int id)
  * tegra_powergate_power_off() - power off partition
  * @id: partition ID
  */
-int tegra_powergate_power_off(int id)
+int tegra_powergate_power_off(unsigned int id)
 {
-	if (!pmc->soc || id < 0 || id >= pmc->soc->num_powergates)
+	if (!tegra_powergate_is_valid(id))
 		return -EINVAL;
 
 	return tegra_powergate_set(id, false);
@@ -224,27 +247,32 @@ EXPORT_SYMBOL(tegra_powergate_power_off);
  * tegra_powergate_is_powered() - check if partition is powered
  * @id: partition ID
  */
-int tegra_powergate_is_powered(int id)
+int tegra_powergate_is_powered(unsigned int id)
 {
-	u32 status;
+	int status;
 
-	if (!pmc->soc || id < 0 || id >= pmc->soc->num_powergates)
+	if (!tegra_powergate_is_valid(id))
 		return -EINVAL;
 
-	status = tegra_pmc_readl(PWRGATE_STATUS) & (1 << id);
-	return !!status;
+	mutex_lock(&pmc->powergates_lock);
+	status = tegra_powergate_state(id);
+	mutex_unlock(&pmc->powergates_lock);
+
+	return status;
 }
 
 /**
  * tegra_powergate_remove_clamping() - remove power clamps for partition
  * @id: partition ID
  */
-int tegra_powergate_remove_clamping(int id)
+int tegra_powergate_remove_clamping(unsigned int id)
 {
 	u32 mask;
 
-	if (!pmc->soc || id < 0 || id >= pmc->soc->num_powergates)
+	if (!tegra_powergate_is_valid(id))
 		return -EINVAL;
+
+	mutex_lock(&pmc->powergates_lock);
 
 	/*
 	 * On Tegra124 and later, the clamps for the GPU are controlled by a
@@ -253,7 +281,7 @@ int tegra_powergate_remove_clamping(int id)
 	if (id == TEGRA_POWERGATE_3D) {
 		if (pmc->soc->has_gpu_clamps) {
 			tegra_pmc_writel(0, GPU_RG_CNTRL);
-			return 0;
+			goto out;
 		}
 	}
 
@@ -270,6 +298,9 @@ int tegra_powergate_remove_clamping(int id)
 
 	tegra_pmc_writel(mask, REMOVE_CLAMPING);
 
+out:
+	mutex_unlock(&pmc->powergates_lock);
+
 	return 0;
 }
 EXPORT_SYMBOL(tegra_powergate_remove_clamping);
@@ -282,7 +313,7 @@ EXPORT_SYMBOL(tegra_powergate_remove_clamping);
  *
  * Must be called with clk disabled, and returns with clk enabled.
  */
-int tegra_powergate_sequence_power_up(int id, struct clk *clk,
+int tegra_powergate_sequence_power_up(unsigned int id, struct clk *clk,
 				      struct reset_control *rst)
 {
 	int ret;
@@ -325,9 +356,9 @@ EXPORT_SYMBOL(tegra_powergate_sequence_power_up);
  * Returns the partition ID corresponding to the CPU partition ID or a
  * negative error code on failure.
  */
-static int tegra_get_cpu_powergate_id(int cpuid)
+static int tegra_get_cpu_powergate_id(unsigned int cpuid)
 {
-	if (pmc->soc && cpuid > 0 && cpuid < pmc->soc->num_cpu_powergates)
+	if (pmc->soc && cpuid < pmc->soc->num_cpu_powergates)
 		return pmc->soc->cpu_powergates[cpuid];
 
 	return -EINVAL;
@@ -337,7 +368,7 @@ static int tegra_get_cpu_powergate_id(int cpuid)
  * tegra_pmc_cpu_is_powered() - check if CPU partition is powered
  * @cpuid: CPU partition ID
  */
-bool tegra_pmc_cpu_is_powered(int cpuid)
+bool tegra_pmc_cpu_is_powered(unsigned int cpuid)
 {
 	int id;
 
@@ -352,7 +383,7 @@ bool tegra_pmc_cpu_is_powered(int cpuid)
  * tegra_pmc_cpu_power_on() - power on CPU partition
  * @cpuid: CPU partition ID
  */
-int tegra_pmc_cpu_power_on(int cpuid)
+int tegra_pmc_cpu_power_on(unsigned int cpuid)
 {
 	int id;
 
@@ -367,7 +398,7 @@ int tegra_pmc_cpu_power_on(int cpuid)
  * tegra_pmc_cpu_remove_clamping() - remove power clamps for CPU partition
  * @cpuid: CPU partition ID
  */
-int tegra_pmc_cpu_remove_clamping(int cpuid)
+int tegra_pmc_cpu_remove_clamping(unsigned int cpuid)
 {
 	int id;
 
@@ -416,16 +447,18 @@ static struct notifier_block tegra_pmc_restart_handler = {
 static int powergate_show(struct seq_file *s, void *data)
 {
 	unsigned int i;
+	int status;
 
 	seq_printf(s, " powergate powered\n");
 	seq_printf(s, "------------------\n");
 
 	for (i = 0; i < pmc->soc->num_powergates; i++) {
-		if (!pmc->soc->powergates[i])
+		status = tegra_powergate_is_powered(i);
+		if (status < 0)
 			continue;
 
 		seq_printf(s, " %9s %7s\n", pmc->soc->powergates[i],
-			   tegra_powergate_is_powered(i) ? "yes" : "no");
+			   status ? "yes" : "no");
 	}
 
 	return 0;
@@ -445,17 +478,15 @@ static const struct file_operations powergate_fops = {
 
 static int tegra_powergate_debugfs_init(void)
 {
-	struct dentry *d;
-
-	d = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
-				&powergate_fops);
-	if (!d)
+	pmc->debugfs = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
+					   &powergate_fops);
+	if (!pmc->debugfs)
 		return -ENOMEM;
 
 	return 0;
 }
 
-static int tegra_io_rail_prepare(int id, unsigned long *request,
+static int tegra_io_rail_prepare(unsigned int id, unsigned long *request,
 				 unsigned long *status, unsigned int *bit)
 {
 	unsigned long rate, value;
@@ -512,15 +543,17 @@ static void tegra_io_rail_unprepare(void)
 	tegra_pmc_writel(DPD_SAMPLE_DISABLE, DPD_SAMPLE);
 }
 
-int tegra_io_rail_power_on(int id)
+int tegra_io_rail_power_on(unsigned int id)
 {
 	unsigned long request, status, value;
 	unsigned int bit, mask;
 	int err;
 
+	mutex_lock(&pmc->powergates_lock);
+
 	err = tegra_io_rail_prepare(id, &request, &status, &bit);
-	if (err < 0)
-		return err;
+	if (err)
+		goto error;
 
 	mask = 1 << bit;
 
@@ -531,27 +564,32 @@ int tegra_io_rail_power_on(int id)
 	tegra_pmc_writel(value, request);
 
 	err = tegra_io_rail_poll(status, mask, 0, 250);
-	if (err < 0) {
+	if (err) {
 		pr_info("tegra_io_rail_poll() failed: %d\n", err);
-		return err;
+		goto error;
 	}
 
 	tegra_io_rail_unprepare();
 
-	return 0;
+error:
+	mutex_unlock(&pmc->powergates_lock);
+
+	return err;
 }
 EXPORT_SYMBOL(tegra_io_rail_power_on);
 
-int tegra_io_rail_power_off(int id)
+int tegra_io_rail_power_off(unsigned int id)
 {
 	unsigned long request, status, value;
 	unsigned int bit, mask;
 	int err;
 
+	mutex_lock(&pmc->powergates_lock);
+
 	err = tegra_io_rail_prepare(id, &request, &status, &bit);
-	if (err < 0) {
+	if (err) {
 		pr_info("tegra_io_rail_prepare() failed: %d\n", err);
-		return err;
+		goto error;
 	}
 
 	mask = 1 << bit;
@@ -563,12 +601,15 @@ int tegra_io_rail_power_off(int id)
 	tegra_pmc_writel(value, request);
 
 	err = tegra_io_rail_poll(status, mask, mask, 250);
-	if (err < 0)
-		return err;
+	if (err)
+		goto error;
 
 	tegra_io_rail_unprepare();
 
-	return 0;
+error:
+	mutex_unlock(&pmc->powergates_lock);
+
+	return err;
 }
 EXPORT_SYMBOL(tegra_io_rail_power_off);
 
@@ -727,7 +768,7 @@ static void tegra_pmc_init(struct tegra_pmc *pmc)
 	tegra_pmc_writel(value, PMC_CNTRL);
 }
 
-void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
+static void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
 {
 	static const char disabled[] = "emergency thermal reset disabled";
 	u32 pmu_addr, ctrl_id, reg_addr, reg_data, pinmux;
@@ -805,7 +846,7 @@ out:
 
 static int tegra_pmc_probe(struct platform_device *pdev)
 {
-	void __iomem *base = pmc->base;
+	void __iomem *base;
 	struct resource *res;
 	int err;
 
@@ -815,11 +856,9 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 	/* take over the memory region from the early initialization */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pmc->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pmc->base))
-		return PTR_ERR(pmc->base);
-
-	iounmap(base);
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	pmc->clk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(pmc->clk)) {
@@ -842,10 +881,16 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 	err = register_restart_handler(&tegra_pmc_restart_handler);
 	if (err) {
+		debugfs_remove(pmc->debugfs);
 		dev_err(&pdev->dev, "unable to register restart handler, %d\n",
 			err);
 		return err;
 	}
+
+	mutex_lock(&pmc->powergates_lock);
+	iounmap(pmc->base);
+	pmc->base = base;
+	mutex_unlock(&pmc->powergates_lock);
 
 	return 0;
 }
@@ -964,7 +1009,6 @@ static const char * const tegra124_powergates[] = {
 	[TEGRA_POWERGATE_VENC] = "venc",
 	[TEGRA_POWERGATE_PCIE] = "pcie",
 	[TEGRA_POWERGATE_VDEC] = "vdec",
-	[TEGRA_POWERGATE_L2] = "l2",
 	[TEGRA_POWERGATE_MPE] = "mpe",
 	[TEGRA_POWERGATE_HEG] = "heg",
 	[TEGRA_POWERGATE_SATA] = "sata",
@@ -1006,17 +1050,13 @@ static const char * const tegra210_powergates[] = {
 	[TEGRA_POWERGATE_3D] = "3d",
 	[TEGRA_POWERGATE_VENC] = "venc",
 	[TEGRA_POWERGATE_PCIE] = "pcie",
-	[TEGRA_POWERGATE_L2] = "l2",
 	[TEGRA_POWERGATE_MPE] = "mpe",
-	[TEGRA_POWERGATE_HEG] = "heg",
 	[TEGRA_POWERGATE_SATA] = "sata",
 	[TEGRA_POWERGATE_CPU1] = "cpu1",
 	[TEGRA_POWERGATE_CPU2] = "cpu2",
 	[TEGRA_POWERGATE_CPU3] = "cpu3",
-	[TEGRA_POWERGATE_CELP] = "celp",
 	[TEGRA_POWERGATE_CPU0] = "cpu0",
 	[TEGRA_POWERGATE_C0NC] = "c0nc",
-	[TEGRA_POWERGATE_C1NC] = "c1nc",
 	[TEGRA_POWERGATE_SOR] = "sor",
 	[TEGRA_POWERGATE_DIS] = "dis",
 	[TEGRA_POWERGATE_DISB] = "disb",
