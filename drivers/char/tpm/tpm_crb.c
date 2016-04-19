@@ -259,7 +259,10 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	struct list_head resources;
 	struct resource io_res;
 	struct device *dev = &device->dev;
-	u64 pa;
+	u64 cmd_pa;
+	u32 cmd_size;
+	u64 rsp_pa;
+	u32 rsp_size;
 	int ret;
 
 	INIT_LIST_HEAD(&resources);
@@ -280,22 +283,36 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 		return PTR_ERR(priv->iobase);
 
 	priv->cca = crb_map_res(dev, priv, &io_res, buf->control_address,
-				0x1000);
+				sizeof(struct crb_control_area));
 	if (IS_ERR(priv->cca))
 		return PTR_ERR(priv->cca);
 
-	pa = ((u64) ioread32(&priv->cca->cmd_pa_high) << 32) |
-	      (u64) ioread32(&priv->cca->cmd_pa_low);
-	priv->cmd = crb_map_res(dev, priv, &io_res, pa,
-				ioread32(&priv->cca->cmd_size));
+	cmd_pa = ((u64) ioread32(&priv->cca->cmd_pa_high) << 32) |
+		  (u64) ioread32(&priv->cca->cmd_pa_low);
+	cmd_size = ioread32(&priv->cca->cmd_size);
+	priv->cmd = crb_map_res(dev, priv, &io_res, cmd_pa, cmd_size);
 	if (IS_ERR(priv->cmd))
 		return PTR_ERR(priv->cmd);
 
-	memcpy_fromio(&pa, &priv->cca->rsp_pa, 8);
-	pa = le64_to_cpu(pa);
-	priv->rsp = crb_map_res(dev, priv, &io_res, pa,
-				ioread32(&priv->cca->rsp_size));
-	return PTR_ERR_OR_ZERO(priv->rsp);
+	memcpy_fromio(&rsp_pa, &priv->cca->rsp_pa, 8);
+	rsp_pa = le64_to_cpu(rsp_pa);
+	rsp_size = ioread32(&priv->cca->rsp_size);
+
+	if (cmd_pa != rsp_pa) {
+		priv->rsp = crb_map_res(dev, priv, &io_res, rsp_pa, rsp_size);
+		return PTR_ERR_OR_ZERO(priv->rsp);
+	}
+
+	/* According to the PTP specification, overlapping command and response
+	 * buffer sizes must be identical.
+	 */
+	if (cmd_size != rsp_size) {
+		dev_err(dev, FW_BUG "overlapping command and response buffer sizes are not identical");
+		return -EINVAL;
+	}
+
+	priv->rsp = priv->cmd;
+	return 0;
 }
 
 static int crb_acpi_add(struct acpi_device *device)
