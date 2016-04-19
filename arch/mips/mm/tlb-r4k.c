@@ -339,10 +339,12 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 #ifdef CONFIG_XPA
 		write_c0_entrylo0(pte_to_entrylo(ptep->pte_high));
-		writex_c0_entrylo0(ptep->pte_low & _PFNX_MASK);
+		if (cpu_has_xpa)
+			writex_c0_entrylo0(ptep->pte_low & _PFNX_MASK);
 		ptep++;
 		write_c0_entrylo1(pte_to_entrylo(ptep->pte_high));
-		writex_c0_entrylo1(ptep->pte_low & _PFNX_MASK);
+		if (cpu_has_xpa)
+			writex_c0_entrylo1(ptep->pte_low & _PFNX_MASK);
 #else
 		write_c0_entrylo0(ptep->pte_high);
 		ptep++;

@@ -1030,17 +1030,21 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
 		UASM_i_MTC0(p, tmp, C0_ENTRYLO0);
 
-		uasm_i_lw(p, tmp, 0, ptep);
-		uasm_i_ext(p, tmp, tmp, 0, 24);
-		uasm_i_mthc0(p, tmp, C0_ENTRYLO0);
+		if (cpu_has_xpa && !mips_xpa_disabled) {
+			uasm_i_lw(p, tmp, 0, ptep);
+			uasm_i_ext(p, tmp, tmp, 0, 24);
+			uasm_i_mthc0(p, tmp, C0_ENTRYLO0);
+		}
 
 		uasm_i_lw(p, tmp, pte_off_odd, ptep); /* odd pte */
 		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
 		UASM_i_MTC0(p, tmp, C0_ENTRYLO1);
 
-		uasm_i_lw(p, tmp, sizeof(pte_t), ptep);
-		uasm_i_ext(p, tmp, tmp, 0, 24);
-		uasm_i_mthc0(p, tmp, C0_ENTRYLO1);
+		if (cpu_has_xpa && !mips_xpa_disabled) {
+			uasm_i_lw(p, tmp, sizeof(pte_t), ptep);
+			uasm_i_ext(p, tmp, tmp, 0, 24);
+			uasm_i_mthc0(p, tmp, C0_ENTRYLO1);
+		}
 		return;
 	}
 
