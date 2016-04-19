@@ -803,8 +803,8 @@ static int thermal_of_populate_trip(struct device_node *np,
  * otherwise, it returns a corresponding ERR_PTR(). Caller must
  * check the return value with help of IS_ERR() helper.
  */
-static struct __thermal_zone *
-thermal_of_build_thermal_zone(struct device_node *np)
+static struct __thermal_zone
+__init *thermal_of_build_thermal_zone(struct device_node *np)
 {
 	struct device_node *child = NULL, *gchild;
 	struct __thermal_zone *tz;
