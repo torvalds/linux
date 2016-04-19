@@ -256,11 +256,13 @@ class ArchPPC(Arch):
         self.ioctl_numbers = IOCTL_NUMBERS
         self.ioctl_numbers['ENABLE'] = 0x20002400
         self.ioctl_numbers['DISABLE'] = 0x20002401
+        self.ioctl_numbers['RESET'] = 0x20002403
 
         # PPC comes in 32 and 64 bit and some generated ioctl
         # numbers depend on the wordsize.
         char_ptr_size = ctypes.sizeof(ctypes.c_char_p)
         self.ioctl_numbers['SET_FILTER'] = 0x80002406 | char_ptr_size << 16
+        self.exit_reasons = {}
 
 class ArchA64(Arch):
     def __init__(self):
