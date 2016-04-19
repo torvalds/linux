@@ -626,7 +626,8 @@ gen9_sanitize_power_well_requests(struct drm_i915_private *dev_priv,
 	 * other request bits to be set, so WARN for those.
 	 */
 	if (power_well_id == SKL_DISP_PW_1 ||
-	    (IS_SKYLAKE(dev_priv) && power_well_id == SKL_DISP_PW_MISC_IO))
+	    ((IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
+	     power_well_id == SKL_DISP_PW_MISC_IO))
 		DRM_DEBUG_DRIVER("Clearing auxiliary requests for %s forced on "
 				 "by DMC\n", power_well->name);
 	else
