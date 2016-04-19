@@ -1598,6 +1598,7 @@ static int soc_tplg_link_create(struct soc_tplg *tplg,
 
 	link->name = pcm->pcm_name;
 	link->stream_name = pcm->pcm_name;
+	link->id = pcm->pcm_id;
 
 	/* pass control to component driver for optional further init */
 	ret = soc_tplg_dai_link_load(tplg, link);

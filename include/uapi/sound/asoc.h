@@ -423,7 +423,7 @@ struct snd_soc_tplg_pcm {
 	__le32 size;		/* in bytes of this structure */
 	char pcm_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	char dai_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
-	__le32 pcm_id;		/* unique ID - used to match */
+	__le32 pcm_id;		/* unique ID - used to match with DAI link */
 	__le32 dai_id;		/* unique ID - used to match */
 	__le32 playback;	/* supports playback mode */
 	__le32 capture;		/* supports capture mode */
