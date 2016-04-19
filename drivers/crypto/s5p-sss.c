@@ -577,7 +577,6 @@ static void s5p_aes_crypt_start(struct s5p_aes_dev *dev, unsigned long mode)
 	return;
 
 outdata_error:
-	s5p_free_sg_cpy(dev, &dev->sg_src_cpy);
 	s5p_unset_indata(dev);
 
 indata_error:
