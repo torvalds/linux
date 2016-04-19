@@ -933,6 +933,10 @@ static int __init __iommu_dma_init(void)
 		ret = register_iommu_dma_ops_notifier(&platform_bus_type);
 	if (!ret)
 		ret = register_iommu_dma_ops_notifier(&amba_bustype);
+#ifdef CONFIG_PCI
+	if (!ret)
+		ret = register_iommu_dma_ops_notifier(&pci_bus_type);
+#endif
 
 	/* handle devices queued before this arch_initcall */
 	if (!ret)
