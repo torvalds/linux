@@ -2381,8 +2381,7 @@ static bool perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 	return true;
 }
 
-static int perf_evlist__add_pgfault(struct perf_evlist *evlist,
-				    u64 config)
+static struct perf_evsel *perf_evsel__new_pgfault(u64 config)
 {
 	struct perf_evsel *evsel;
 	struct perf_event_attr attr = {
@@ -2396,13 +2395,10 @@ static int perf_evlist__add_pgfault(struct perf_evlist *evlist,
 	event_attr_init(&attr);
 
 	evsel = perf_evsel__new(&attr);
-	if (!evsel)
-		return -ENOMEM;
+	if (evsel)
+		evsel->handler = trace__pgfault;
 
-	evsel->handler = trace__pgfault;
-	perf_evlist__add(evlist, evsel);
-
-	return 0;
+	return evsel;
 }
 
 static void trace__handle_event(struct trace *trace, union perf_event *event, struct perf_sample *sample)
@@ -2504,7 +2500,7 @@ out_enomem:
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = trace->evlist;
-	struct perf_evsel *evsel;
+	struct perf_evsel *evsel, *pgfault_maj = NULL, *pgfault_min = NULL;
 	int err = -1, i;
 	unsigned long before;
 	const bool forks = argc > 0;
@@ -2518,14 +2514,19 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (trace->trace_syscalls)
 		trace->vfs_getname = perf_evlist__add_vfs_getname(evlist);
 
-	if ((trace->trace_pgfaults & TRACE_PFMAJ) &&
-	    perf_evlist__add_pgfault(evlist, PERF_COUNT_SW_PAGE_FAULTS_MAJ)) {
-		goto out_error_mem;
+	if ((trace->trace_pgfaults & TRACE_PFMAJ)) {
+		pgfault_maj = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MAJ);
+		if (pgfault_maj == NULL)
+			goto out_error_mem;
+		perf_evlist__add(evlist, pgfault_maj);
 	}
 
-	if ((trace->trace_pgfaults & TRACE_PFMIN) &&
-	    perf_evlist__add_pgfault(evlist, PERF_COUNT_SW_PAGE_FAULTS_MIN))
-		goto out_error_mem;
+	if ((trace->trace_pgfaults & TRACE_PFMIN)) {
+		pgfault_min = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MIN);
+		if (pgfault_min == NULL)
+			goto out_error_mem;
+		perf_evlist__add(evlist, pgfault_min);
+	}
 
 	if (trace->sched &&
 	    perf_evlist__add_newtp(evlist, "sched", "sched_stat_runtime",
