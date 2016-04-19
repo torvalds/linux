@@ -117,73 +117,96 @@ PNAME(mux_aclk_cci_p)				= { "cpll_aclk_cci_src",
 						    "gpll_aclk_cci_src",
 						    "npll_aclk_cci_src",
 						    "vpll_aclk_cci_src" };
-PNAME(mux_cci_trace_p)				= { "cpll_cci_trace", "gpll_cci_trace" };
-PNAME(mux_cs_p)					= { "cpll_cs", "gpll_cs", "npll_cs"};
-PNAME(mux_aclk_perihp_p)			= { "cpll_aclk_perihp_src", "gpll_aclk_perihp_src" };
+PNAME(mux_cci_trace_p)				= { "cpll_cci_trace",
+						    "gpll_cci_trace" };
+PNAME(mux_cs_p)					= { "cpll_cs", "gpll_cs",
+						    "npll_cs"};
+PNAME(mux_aclk_perihp_p)			= { "cpll_aclk_perihp_src",
+						    "gpll_aclk_perihp_src" };
 
 PNAME(mux_pll_src_cpll_gpll_p)			= { "cpll", "gpll" };
 PNAME(mux_pll_src_cpll_gpll_npll_p)		= { "cpll", "gpll", "npll" };
 PNAME(mux_pll_src_cpll_gpll_ppll_p)		= { "cpll", "gpll", "ppll" };
 PNAME(mux_pll_src_cpll_gpll_upll_p)		= { "cpll", "gpll", "upll" };
 PNAME(mux_pll_src_npll_cpll_gpll_p)		= { "npll", "cpll", "gpll" };
-PNAME(mux_pll_src_cpll_gpll_npll_ppll_p)	= { "cpll", "gpll", "npll", "ppll" };
-PNAME(mux_pll_src_cpll_gpll_npll_24m_p)		= { "cpll", "gpll", "npll", "xin24m" };
-PNAME(mux_pll_src_cpll_gpll_npll_usbphy480m_p)	= { "cpll", "gpll", "npll", "clk_usbphy_480m" };
-PNAME(mux_pll_src_ppll_cpll_gpll_npll_p)	= { "ppll", "cpll", "gpll", "npll", "upll" };
-PNAME(mux_pll_src_cpll_gpll_npll_upll_24m_p)	= { "cpll", "gpll", "npll", "upll", "xin24m" };
-PNAME(mux_pll_src_cpll_gpll_npll_ppll_upll_24m_p) = { "cpll", "gpll", "npll", "ppll", "upll", "xin24m" };
+PNAME(mux_pll_src_cpll_gpll_npll_ppll_p)	= { "cpll", "gpll", "npll",
+						    "ppll" };
+PNAME(mux_pll_src_cpll_gpll_npll_24m_p)		= { "cpll", "gpll", "npll",
+						    "xin24m" };
+PNAME(mux_pll_src_cpll_gpll_npll_usbphy480m_p)	= { "cpll", "gpll", "npll",
+						    "clk_usbphy_480m" };
+PNAME(mux_pll_src_ppll_cpll_gpll_npll_p)	= { "ppll", "cpll", "gpll",
+						    "npll", "upll" };
+PNAME(mux_pll_src_cpll_gpll_npll_upll_24m_p)	= { "cpll", "gpll", "npll",
+						    "upll", "xin24m" };
+PNAME(mux_pll_src_cpll_gpll_npll_ppll_upll_24m_p) = { "cpll", "gpll", "npll",
+						    "ppll", "upll", "xin24m" };
 
 PNAME(mux_pll_src_vpll_cpll_gpll_p)		= { "vpll", "cpll", "gpll" };
-PNAME(mux_pll_src_vpll_cpll_gpll_npll_p)	= { "vpll", "cpll", "gpll", "npll" };
-PNAME(mux_pll_src_vpll_cpll_gpll_24m_p)		= { "vpll", "cpll", "gpll", "xin24m" };
+PNAME(mux_pll_src_vpll_cpll_gpll_npll_p)	= { "vpll", "cpll", "gpll",
+						    "npll" };
+PNAME(mux_pll_src_vpll_cpll_gpll_24m_p)		= { "vpll", "cpll", "gpll",
+						    "xin24m" };
 
-PNAME(mux_dclk_vop0_p)				= { "dclk_vop0_div", "dclk_vop0_frac" };
-PNAME(mux_dclk_vop1_p)				= { "dclk_vop1_div", "dclk_vop1_frac" };
+PNAME(mux_dclk_vop0_p)			= { "dclk_vop0_div",
+					    "dclk_vop0_frac" };
+PNAME(mux_dclk_vop1_p)			= { "dclk_vop1_div",
+					    "dclk_vop1_frac" };
 
-PNAME(mux_clk_cif_p)				= { "clk_cifout_div", "xin24m" };
+PNAME(mux_clk_cif_p)			= { "clk_cifout_div", "xin24m" };
 
-PNAME(mux_pll_src_24m_usbphy480m_p)		= { "xin24m", "clk_usbphy_480m" };
-PNAME(mux_pll_src_24m_pciephy_p)		= { "xin24m", "clk_pciephy_ref100m" };
-PNAME(mux_pll_src_24m_32k_cpll_gpll_p)		= { "xin24m", "xin32k", "cpll", "gpll" };
-PNAME(mux_pciecore_cru_phy_p)			= { "clk_pcie_core_cru", "clk_pcie_core_phy" };
+PNAME(mux_pll_src_24m_usbphy480m_p)	= { "xin24m", "clk_usbphy_480m" };
+PNAME(mux_pll_src_24m_pciephy_p)	= { "xin24m", "clk_pciephy_ref100m" };
+PNAME(mux_pll_src_24m_32k_cpll_gpll_p)	= { "xin24m", "xin32k",
+					    "cpll", "gpll" };
+PNAME(mux_pciecore_cru_phy_p)		= { "clk_pcie_core_cru",
+					    "clk_pcie_core_phy" };
 
-PNAME(mux_aclk_emmc_p)				= { "cpll_aclk_emmc_src", "gpll_aclk_emmc_src" };
+PNAME(mux_aclk_emmc_p)			= { "cpll_aclk_emmc_src",
+					    "gpll_aclk_emmc_src" };
 
-PNAME(mux_aclk_perilp0_p)			= { "cpll_aclk_perilp0_src", "gpll_aclk_perilp0_src" };
+PNAME(mux_aclk_perilp0_p)		= { "cpll_aclk_perilp0_src",
+					    "gpll_aclk_perilp0_src" };
 
-PNAME(mux_fclk_cm0s_p)				= { "cpll_fclk_cm0s_src", "gpll_fclk_cm0s_src" };
+PNAME(mux_fclk_cm0s_p)			= { "cpll_fclk_cm0s_src",
+					    "gpll_fclk_cm0s_src" };
 
-PNAME(mux_hclk_perilp1_p)			= { "cpll_hclk_perilp1_src", "gpll_hclk_perilp1_src" };
+PNAME(mux_hclk_perilp1_p)		= { "cpll_hclk_perilp1_src",
+					    "gpll_hclk_perilp1_src" };
 
-PNAME(mux_clk_testout1_p)			= { "clk_testout1_pll_src", "xin24m" };
-PNAME(mux_clk_testout2_p)			= { "clk_testout2_pll_src", "xin24m" };
+PNAME(mux_clk_testout1_p)		= { "clk_testout1_pll_src", "xin24m" };
+PNAME(mux_clk_testout2_p)		= { "clk_testout2_pll_src", "xin24m" };
 
-PNAME(mux_usbphy_480m_p)			= { "clk_usbphy0_480m_src", "clk_usbphy1_480m_src" };
-PNAME(mux_aclk_gmac_p)				= { "cpll_aclk_gmac_src", "gpll_aclk_gmac_src" };
-PNAME(mux_rmii_p)				= { "clk_gmac", "clkin_gmac" };
-PNAME(mux_spdif_p)				= { "clk_spdif_div", "clk_spdif_frac",
-						    "clkin_i2s", "xin12m" };
-PNAME(mux_i2s0_p)				= { "clk_i2s0_div", "clk_i2s0_frac",
-						    "clkin_i2s", "xin12m" };
-PNAME(mux_i2s1_p)				= { "clk_i2s1_div", "clk_i2s1_frac",
-						    "clkin_i2s", "xin12m" };
-PNAME(mux_i2s2_p)				= { "clk_i2s2_div", "clk_i2s2_frac",
-						    "clkin_i2s", "xin12m" };
-PNAME(mux_i2sch_p)				= { "clk_i2s0", "clk_i2s1", "clk_i2s2" };
-PNAME(mux_i2sout_p)				= { "clk_i2sout_src", "xin12m" };
+PNAME(mux_usbphy_480m_p)		= { "clk_usbphy0_480m_src",
+					    "clk_usbphy1_480m_src" };
+PNAME(mux_aclk_gmac_p)			= { "cpll_aclk_gmac_src",
+					    "gpll_aclk_gmac_src" };
+PNAME(mux_rmii_p)			= { "clk_gmac", "clkin_gmac" };
+PNAME(mux_spdif_p)			= { "clk_spdif_div", "clk_spdif_frac",
+					    "clkin_i2s", "xin12m" };
+PNAME(mux_i2s0_p)			= { "clk_i2s0_div", "clk_i2s0_frac",
+					    "clkin_i2s", "xin12m" };
+PNAME(mux_i2s1_p)			= { "clk_i2s1_div", "clk_i2s1_frac",
+					    "clkin_i2s", "xin12m" };
+PNAME(mux_i2s2_p)			= { "clk_i2s2_div", "clk_i2s2_frac",
+					    "clkin_i2s", "xin12m" };
+PNAME(mux_i2sch_p)			= { "clk_i2s0", "clk_i2s1",
+					    "clk_i2s2" };
+PNAME(mux_i2sout_p)			= { "clk_i2sout_src", "xin12m" };
 
-PNAME(mux_uart0_p)				= { "clk_uart0_div", "clk_uart0_frac", "xin24m" };
-PNAME(mux_uart1_p)				= { "clk_uart1_div", "clk_uart1_frac", "xin24m" };
-PNAME(mux_uart2_p)				= { "clk_uart2_div", "clk_uart2_frac", "xin24m" };
-PNAME(mux_uart3_p)				= { "clk_uart3_div", "clk_uart3_frac", "xin24m" };
+PNAME(mux_uart0_p)	= { "clk_uart0_div", "clk_uart0_frac", "xin24m" };
+PNAME(mux_uart1_p)	= { "clk_uart1_div", "clk_uart1_frac", "xin24m" };
+PNAME(mux_uart2_p)	= { "clk_uart2_div", "clk_uart2_frac", "xin24m" };
+PNAME(mux_uart3_p)	= { "clk_uart3_div", "clk_uart3_frac", "xin24m" };
 
 /* PMU CRU parents */
-PNAME(mux_ppll_24m_p)				= { "ppll", "xin24m" };
-PNAME(mux_24m_ppll_p)				= { "xin24m", "ppll" };
-PNAME(mux_fclk_cm0s_pmu_ppll_p)			= { "fclk_cm0s_pmu_ppll_src", "xin24m" };
-PNAME(mux_wifi_pmu_p)				= { "clk_wifi_div", "clk_wifi_frac" };
-PNAME(mux_uart4_pmu_p)				= { "clk_uart4_div", "clk_uart4_frac", "xin24m" };
-PNAME(mux_clk_testout2_2io_p)			= { "clk_testout2", "clk_32k_suspend_pmu" };
+PNAME(mux_ppll_24m_p)		= { "ppll", "xin24m" };
+PNAME(mux_24m_ppll_p)		= { "xin24m", "ppll" };
+PNAME(mux_fclk_cm0s_pmu_ppll_p)	= { "fclk_cm0s_pmu_ppll_src", "xin24m" };
+PNAME(mux_wifi_pmu_p)		= { "clk_wifi_div", "clk_wifi_frac" };
+PNAME(mux_uart4_pmu_p)		= { "clk_uart4_div", "clk_uart4_frac",
+				    "xin24m" };
+PNAME(mux_clk_testout2_2io_p)	= { "clk_testout2", "clk_32k_suspend_pmu" };
 
 static struct rockchip_pll_clock rk3399_pll_clks[] __initdata = {
 	[lpll] = PLL(pll_rk3399, PLL_APLLL, "lpll", mux_pll_p, 0, RK3399_PLL_CON(0),
@@ -1530,7 +1553,7 @@ static void __init rk3399_pmu_clk_init(struct device_node *np)
 				  ARRAY_SIZE(rk3399_clk_pmu_branches));
 
 	rockchip_clk_protect_critical(rk3399_pmucru_critical_clocks,
-				      ARRAY_SIZE(rk3399_pmucru_critical_clocks));
+				  ARRAY_SIZE(rk3399_pmucru_critical_clocks));
 
 	rockchip_register_softrst(np, 2, reg_base + RK3399_PMU_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
