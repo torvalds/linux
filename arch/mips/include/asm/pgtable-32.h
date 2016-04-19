@@ -104,7 +104,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 }
 
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
-#define pte_page(x)		pfn_to_page(pte_pfn(x))
+
 #define pte_pfn(x)		(((unsigned long)((x).pte_high >> _PFN_SHIFT)) | (unsigned long)((x).pte_low << _PAGE_PRESENT_SHIFT))
 static inline pte_t
 pfn_pte(unsigned long pfn, pgprot_t prot)
@@ -120,8 +120,6 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 
 #else
 
-#define pte_page(x)		pfn_to_page(pte_pfn(x))
-
 #ifdef CONFIG_CPU_VR41XX
 #define pte_pfn(x)		((unsigned long)((x).pte >> (PAGE_SHIFT + 2)))
 #define pfn_pte(pfn, prot)	__pte(((pfn) << (PAGE_SHIFT + 2)) | pgprot_val(prot))
@@ -130,6 +128,8 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 #define pfn_pte(pfn, prot)	__pte(((unsigned long long)(pfn) << _PFN_SHIFT) | pgprot_val(prot))
 #endif
 #endif /* defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32) */
+
+#define pte_page(x)		pfn_to_page(pte_pfn(x))
 
 #define __pgd_offset(address)	pgd_index(address)
 #define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
