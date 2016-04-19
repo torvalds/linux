@@ -349,7 +349,7 @@ static void handle_set_operation_mode(struct wilc_vif *vif,
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
 }
 
-static s32 handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
+static void handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -370,12 +370,8 @@ static s32 handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 
 	host_int_get_ipaddress(vif, firmware_ip_addr, idx);
 
-	if (result) {
+	if (result)
 		netdev_err(vif->ndev, "Failed to set IP address\n");
-		return -EINVAL;
-	}
-
-	return result;
 }
 
 static s32 handle_get_ip_address(struct wilc_vif *vif, u8 idx)
