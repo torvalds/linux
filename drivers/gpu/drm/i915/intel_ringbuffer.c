@@ -2490,13 +2490,8 @@ static int __intel_ring_prepare(struct intel_engine_cs *engine, int bytes)
 int intel_ring_begin(struct drm_i915_gem_request *req,
 		     int num_dwords)
 {
-	struct intel_engine_cs *engine;
-	struct drm_i915_private *dev_priv;
+	struct intel_engine_cs *engine = req->engine;
 	int ret;
-
-	WARN_ON(req == NULL);
-	engine = req->engine;
-	dev_priv = req->i915;
 
 	ret = __intel_ring_prepare(engine, num_dwords * sizeof(uint32_t));
 	if (ret)

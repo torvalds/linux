@@ -1444,18 +1444,13 @@ __i915_gem_request_retire__upto(struct drm_i915_gem_request *req)
 int
 i915_wait_request(struct drm_i915_gem_request *req)
 {
-	struct drm_device *dev;
-	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv = req->i915;
 	bool interruptible;
 	int ret;
 
-	BUG_ON(req == NULL);
-
-	dev = req->engine->dev;
-	dev_priv = dev->dev_private;
 	interruptible = dev_priv->mm.interruptible;
 
-	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
+	BUG_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
 	ret = __i915_wait_request(req, interruptible, NULL, NULL);
 	if (ret)
@@ -4355,7 +4350,6 @@ i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
 {
 	struct i915_vma *vma = i915_gem_obj_to_ggtt_view(obj, view);
 
-	BUG_ON(!vma);
 	WARN_ON(vma->pin_count == 0);
 	WARN_ON(!i915_gem_obj_ggtt_bound_view(obj, view));
 

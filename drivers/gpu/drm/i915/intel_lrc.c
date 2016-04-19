@@ -892,8 +892,6 @@ int intel_logical_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 {
 	int ret;
 
-	WARN_ON(req == NULL);
-
 	ret = logical_ring_prepare(req, num_dwords * sizeof(uint32_t));
 	if (ret)
 		return ret;
