@@ -527,13 +527,15 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	indio_dev->info = &press_info;
 	mutex_init(&press_data->tb.buf_lock);
 
-	st_sensors_power_enable(indio_dev);
+	err = st_sensors_power_enable(indio_dev);
+	if (err)
+		return err;
 
 	err = st_sensors_check_device_support(indio_dev,
 					ARRAY_SIZE(st_press_sensors_settings),
 					st_press_sensors_settings);
 	if (err < 0)
-		return err;
+		goto st_press_power_off;
 
 	press_data->num_data_channels = ST_PRESS_NUMBER_DATA_CHANNELS;
 	press_data->multiread_bit = press_data->sensor_settings->multi_read_bit;
@@ -554,11 +556,11 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 
 	err = st_sensors_init_sensor(indio_dev, press_data->dev->platform_data);
 	if (err < 0)
-		return err;
+		goto st_press_power_off;
 
 	err = st_press_allocate_ring(indio_dev);
 	if (err < 0)
-		return err;
+		goto st_press_power_off;
 
 	if (irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
@@ -581,6 +583,8 @@ st_press_device_register_error:
 		st_sensors_deallocate_trigger(indio_dev);
 st_press_probe_trigger_error:
 	st_press_deallocate_ring(indio_dev);
+st_press_power_off:
+	st_sensors_power_disable(indio_dev);
 
 	return err;
 }

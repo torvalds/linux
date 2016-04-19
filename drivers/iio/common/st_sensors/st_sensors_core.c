@@ -228,7 +228,7 @@ int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable)
 }
 EXPORT_SYMBOL(st_sensors_set_axis_enable);
 
-void st_sensors_power_enable(struct iio_dev *indio_dev)
+int st_sensors_power_enable(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *pdata = iio_priv(indio_dev);
 	int err;
@@ -237,18 +237,37 @@ void st_sensors_power_enable(struct iio_dev *indio_dev)
 	pdata->vdd = devm_regulator_get_optional(indio_dev->dev.parent, "vdd");
 	if (!IS_ERR(pdata->vdd)) {
 		err = regulator_enable(pdata->vdd);
-		if (err != 0)
+		if (err != 0) {
 			dev_warn(&indio_dev->dev,
 				 "Failed to enable specified Vdd supply\n");
+			return err;
+		}
+	} else {
+		err = PTR_ERR(pdata->vdd);
+		if (err != -ENODEV)
+			return err;
 	}
 
 	pdata->vdd_io = devm_regulator_get_optional(indio_dev->dev.parent, "vddio");
 	if (!IS_ERR(pdata->vdd_io)) {
 		err = regulator_enable(pdata->vdd_io);
-		if (err != 0)
+		if (err != 0) {
 			dev_warn(&indio_dev->dev,
 				 "Failed to enable specified Vdd_IO supply\n");
+			goto st_sensors_disable_vdd;
+		}
+	} else {
+		err = PTR_ERR(pdata->vdd_io);
+		if (err != -ENODEV)
+			goto st_sensors_disable_vdd;
 	}
+
+	return 0;
+
+st_sensors_disable_vdd:
+	if (!IS_ERR_OR_NULL(pdata->vdd))
+		regulator_disable(pdata->vdd);
+	return err;
 }
 EXPORT_SYMBOL(st_sensors_power_enable);
 
@@ -256,10 +275,10 @@ void st_sensors_power_disable(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *pdata = iio_priv(indio_dev);
 
-	if (!IS_ERR(pdata->vdd))
+	if (!IS_ERR_OR_NULL(pdata->vdd))
 		regulator_disable(pdata->vdd);
 
-	if (!IS_ERR(pdata->vdd_io))
+	if (!IS_ERR_OR_NULL(pdata->vdd_io))
 		regulator_disable(pdata->vdd_io);
 }
 EXPORT_SYMBOL(st_sensors_power_disable);
