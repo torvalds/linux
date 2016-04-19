@@ -1641,15 +1641,17 @@ static void
 iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 	unsigned int mode, unsigned int scratch)
 {
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
 	unsigned int hwmode = mode & (_PAGE_VALID | _PAGE_DIRTY);
+	unsigned int swmode = mode & ~hwmode;
 
 	if (config_enabled(CONFIG_XPA) && !cpu_has_64bits) {
-		uasm_i_lui(p, scratch, (mode >> 16));
+		uasm_i_lui(p, scratch, swmode >> 16);
 		uasm_i_or(p, pte, pte, scratch);
-	} else
-#endif
-	uasm_i_ori(p, pte, pte, mode);
+		BUG_ON(swmode & 0xffff);
+	} else {
+		uasm_i_ori(p, pte, pte, mode);
+	}
+
 #ifdef CONFIG_SMP
 # ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (cpu_has_64bits)
@@ -1668,6 +1670,7 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 		/* no uasm_i_nop needed */
 		uasm_i_ll(p, pte, sizeof(pte_t) / 2, ptr);
 		uasm_i_ori(p, pte, pte, hwmode);
+		BUG_ON(hwmode & ~0xffff);
 		uasm_i_sc(p, pte, sizeof(pte_t) / 2, ptr);
 		uasm_il_beqz(p, r, pte, label_smp_pgtable_change);
 		/* no uasm_i_nop needed */
@@ -1689,6 +1692,7 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 	if (!cpu_has_64bits) {
 		uasm_i_lw(p, pte, sizeof(pte_t) / 2, ptr);
 		uasm_i_ori(p, pte, pte, hwmode);
+		BUG_ON(hwmode & ~0xffff);
 		uasm_i_sw(p, pte, sizeof(pte_t) / 2, ptr);
 		uasm_i_lw(p, pte, 0, ptr);
 	}
