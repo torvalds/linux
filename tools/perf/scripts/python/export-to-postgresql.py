@@ -34,10 +34,9 @@ import datetime
 #
 # ubuntu:
 #
-#	$ sudo apt-get install postgresql
+#	$ sudo apt-get install postgresql python-pyside.qtsql libqt4-sql-psql
 #	$ sudo su - postgres
-#	$ createuser <your user id here>
-#	Shall the new role be a superuser? (y/n) y
+#	$ createuser -s <your user id here>
 #
 # An example of using this script with Intel PT:
 #
