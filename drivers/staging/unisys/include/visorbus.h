@@ -68,8 +68,6 @@ struct visor_driver {
 	const char *name;
 	const char *version;
 	const char *vertag;
-	const char *build_date;
-	const char *build_time;
 	struct module *owner;
 
 	/** Types of channels handled by this driver, ending with 0 GUID.
