@@ -30,7 +30,6 @@
 #include <linux/pm.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
-#include <linux/i2c.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
@@ -287,14 +286,12 @@ static const struct regmap_range_cfg aic32x4_regmap_pages[] = {
 	},
 };
 
-static const struct regmap_config aic32x4_regmap = {
-	.reg_bits = 8,
-	.val_bits = 8,
-
+const struct regmap_config aic32x4_regmap_config = {
 	.max_register = AIC32X4_RMICPGAVOL,
 	.ranges = aic32x4_regmap_pages,
 	.num_ranges = ARRAY_SIZE(aic32x4_regmap_pages),
 };
+EXPORT_SYMBOL(aic32x4_regmap_config);
 
 static inline int aic32x4_get_divs(int mclk, int rate)
 {
@@ -777,24 +774,22 @@ error_ldo:
 	return ret;
 }
 
-static int aic32x4_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+int aic32x4_probe(struct device *dev, struct regmap *regmap)
 {
-	struct aic32x4_pdata *pdata = i2c->dev.platform_data;
 	struct aic32x4_priv *aic32x4;
-	struct device_node *np = i2c->dev.of_node;
+	struct aic32x4_pdata *pdata = dev->platform_data;
+	struct device_node *np = dev->of_node;
 	int ret;
 
-	aic32x4 = devm_kzalloc(&i2c->dev, sizeof(struct aic32x4_priv),
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	aic32x4 = devm_kzalloc(dev, sizeof(struct aic32x4_priv),
 			       GFP_KERNEL);
 	if (aic32x4 == NULL)
 		return -ENOMEM;
 
-	aic32x4->regmap = devm_regmap_init_i2c(i2c, &aic32x4_regmap);
-	if (IS_ERR(aic32x4->regmap))
-		return PTR_ERR(aic32x4->regmap);
-
-	i2c_set_clientdata(i2c, aic32x4);
+	dev_set_drvdata(dev, aic32x4);
 
 	if (pdata) {
 		aic32x4->power_cfg = pdata->power_cfg;
@@ -804,7 +799,7 @@ static int aic32x4_i2c_probe(struct i2c_client *i2c,
 	} else if (np) {
 		ret = aic32x4_parse_dt(aic32x4, np);
 		if (ret) {
-			dev_err(&i2c->dev, "Failed to parse DT node\n");
+			dev_err(dev, "Failed to parse DT node\n");
 			return ret;
 		}
 	} else {
@@ -814,71 +809,48 @@ static int aic32x4_i2c_probe(struct i2c_client *i2c,
 		aic32x4->rstn_gpio = -1;
 	}
 
-	aic32x4->mclk = devm_clk_get(&i2c->dev, "mclk");
+	aic32x4->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(aic32x4->mclk)) {
-		dev_err(&i2c->dev, "Failed getting the mclk. The current implementation does not support the usage of this codec without mclk\n");
+		dev_err(dev, "Failed getting the mclk. The current implementation does not support the usage of this codec without mclk\n");
 		return PTR_ERR(aic32x4->mclk);
 	}
 
 	if (gpio_is_valid(aic32x4->rstn_gpio)) {
-		ret = devm_gpio_request_one(&i2c->dev, aic32x4->rstn_gpio,
+		ret = devm_gpio_request_one(dev, aic32x4->rstn_gpio,
 				GPIOF_OUT_INIT_LOW, "tlv320aic32x4 rstn");
 		if (ret != 0)
 			return ret;
 	}
 
-	ret = aic32x4_setup_regulators(&i2c->dev, aic32x4);
+	ret = aic32x4_setup_regulators(dev, aic32x4);
 	if (ret) {
-		dev_err(&i2c->dev, "Failed to setup regulators\n");
+		dev_err(dev, "Failed to setup regulators\n");
 		return ret;
 	}
 
-	ret = snd_soc_register_codec(&i2c->dev,
+	ret = snd_soc_register_codec(dev,
 			&soc_codec_dev_aic32x4, &aic32x4_dai, 1);
 	if (ret) {
-		dev_err(&i2c->dev, "Failed to register codec\n");
+		dev_err(dev, "Failed to register codec\n");
 		aic32x4_disable_regulators(aic32x4);
 		return ret;
 	}
 
-	i2c_set_clientdata(i2c, aic32x4);
-
 	return 0;
 }
+EXPORT_SYMBOL(aic32x4_probe);
 
-static int aic32x4_i2c_remove(struct i2c_client *client)
+int aic32x4_remove(struct device *dev)
 {
-	struct aic32x4_priv *aic32x4 = i2c_get_clientdata(client);
+	struct aic32x4_priv *aic32x4 = dev_get_drvdata(dev);
 
 	aic32x4_disable_regulators(aic32x4);
 
-	snd_soc_unregister_codec(&client->dev);
+	snd_soc_unregister_codec(dev);
+
 	return 0;
 }
-
-static const struct i2c_device_id aic32x4_i2c_id[] = {
-	{ "tlv320aic32x4", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, aic32x4_i2c_id);
-
-static const struct of_device_id aic32x4_of_id[] = {
-	{ .compatible = "ti,tlv320aic32x4", },
-	{ /* senitel */ }
-};
-MODULE_DEVICE_TABLE(of, aic32x4_of_id);
-
-static struct i2c_driver aic32x4_i2c_driver = {
-	.driver = {
-		.name = "tlv320aic32x4",
-		.of_match_table = aic32x4_of_id,
-	},
-	.probe =    aic32x4_i2c_probe,
-	.remove =   aic32x4_i2c_remove,
-	.id_table = aic32x4_i2c_id,
-};
-
-module_i2c_driver(aic32x4_i2c_driver);
+EXPORT_SYMBOL(aic32x4_remove);
 
 MODULE_DESCRIPTION("ASoC tlv320aic32x4 codec driver");
 MODULE_AUTHOR("Javier Martin <javier.martin@vista-silicon.com>");
