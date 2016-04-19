@@ -192,7 +192,7 @@ static void wcn36xx_smd_set_sta_params(struct wcn36xx *wcn,
 		struct wcn36xx_hal_config_sta_params *sta_params)
 {
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
-	struct wcn36xx_sta *priv_sta = NULL;
+	struct wcn36xx_sta *sta_priv = NULL;
 	if (vif->type == NL80211_IFTYPE_ADHOC ||
 	    vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_MESH_POINT) {
@@ -228,17 +228,17 @@ static void wcn36xx_smd_set_sta_params(struct wcn36xx *wcn,
 	sta_params->p2p = 0;
 
 	if (sta) {
-		priv_sta = (struct wcn36xx_sta *)sta->drv_priv;
+		sta_priv = wcn36xx_sta_to_priv(sta);
 		if (NL80211_IFTYPE_STATION == vif->type)
 			memcpy(&sta_params->bssid, sta->addr, ETH_ALEN);
 		else
 			memcpy(&sta_params->mac, sta->addr, ETH_ALEN);
 		sta_params->wmm_enabled = sta->wme;
 		sta_params->max_sp_len = sta->max_sp;
-		sta_params->aid = priv_sta->aid;
+		sta_params->aid = sta_priv->aid;
 		wcn36xx_smd_set_sta_ht_params(sta, sta_params);
-		memcpy(&sta_params->supported_rates, &priv_sta->supported_rates,
-			sizeof(priv_sta->supported_rates));
+		memcpy(&sta_params->supported_rates, &sta_priv->supported_rates,
+			sizeof(sta_priv->supported_rates));
 	} else {
 		wcn36xx_set_default_rates(&sta_params->supported_rates);
 		wcn36xx_smd_set_sta_default_ht_params(sta_params);
@@ -969,7 +969,7 @@ static int wcn36xx_smd_config_sta_rsp(struct wcn36xx *wcn,
 {
 	struct wcn36xx_hal_config_sta_rsp_msg *rsp;
 	struct config_sta_rsp_params *params;
-	struct wcn36xx_sta *sta_priv = (struct wcn36xx_sta *)sta->drv_priv;
+	struct wcn36xx_sta *sta_priv = wcn36xx_sta_to_priv(sta);
 
 	if (len < sizeof(*rsp))
 		return -EINVAL;

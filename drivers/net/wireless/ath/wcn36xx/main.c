@@ -373,7 +373,7 @@ static void wcn36xx_tx(struct ieee80211_hw *hw,
 	struct wcn36xx_sta *sta_priv = NULL;
 
 	if (control->sta)
-		sta_priv = (struct wcn36xx_sta *)control->sta->drv_priv;
+		sta_priv = wcn36xx_sta_to_priv(control->sta);
 
 	if (wcn36xx_start_tx(wcn, sta_priv, skb))
 		ieee80211_free_txskb(wcn->hw, skb);
@@ -518,7 +518,7 @@ static void wcn36xx_update_allowed_rates(struct ieee80211_sta *sta,
 {
 	int i, size;
 	u16 *rates_table;
-	struct wcn36xx_sta *sta_priv = (struct wcn36xx_sta *)sta->drv_priv;
+	struct wcn36xx_sta *sta_priv = wcn36xx_sta_to_priv(sta);
 	u32 rates = sta->supp_rates[band];
 
 	memset(&sta_priv->supported_rates, 0,
@@ -661,7 +661,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 				rcu_read_unlock();
 				goto out;
 			}
-			sta_priv = (struct wcn36xx_sta *)sta->drv_priv;
+			sta_priv = wcn36xx_sta_to_priv(sta);
 
 			wcn36xx_update_allowed_rates(sta, WCN36XX_BAND(wcn));
 
@@ -791,7 +791,7 @@ static int wcn36xx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct wcn36xx *wcn = hw->priv;
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
-	struct wcn36xx_sta *sta_priv = (struct wcn36xx_sta *)sta->drv_priv;
+	struct wcn36xx_sta *sta_priv = wcn36xx_sta_to_priv(sta);
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac sta add vif %p sta %pM\n",
 		    vif, sta->addr);
 
@@ -816,7 +816,7 @@ static int wcn36xx_sta_remove(struct ieee80211_hw *hw,
 {
 	struct wcn36xx *wcn = hw->priv;
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
-	struct wcn36xx_sta *sta_priv = (struct wcn36xx_sta *)sta->drv_priv;
+	struct wcn36xx_sta *sta_priv = wcn36xx_sta_to_priv(sta);
 
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac sta remove vif %p sta %pM index %d\n",
 		    vif, sta->addr, sta_priv->sta_index);
@@ -858,7 +858,7 @@ static int wcn36xx_ampdu_action(struct ieee80211_hw *hw,
 		    struct ieee80211_ampdu_params *params)
 {
 	struct wcn36xx *wcn = hw->priv;
-	struct wcn36xx_sta *sta_priv = NULL;
+	struct wcn36xx_sta *sta_priv = wcn36xx_sta_to_priv(params->sta);
 	struct ieee80211_sta *sta = params->sta;
 	enum ieee80211_ampdu_mlme_action action = params->action;
 	u16 tid = params->tid;
@@ -866,8 +866,6 @@ static int wcn36xx_ampdu_action(struct ieee80211_hw *hw,
 
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac ampdu action action %d tid %d\n",
 		    action, tid);
-
-	sta_priv = (struct wcn36xx_sta *)sta->drv_priv;
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
