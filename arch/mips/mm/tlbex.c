@@ -1014,26 +1014,22 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 	if (config_enabled(CONFIG_XPA)) {
 		int pte_off_even = sizeof(pte_t) / 2;
 		int pte_off_odd = pte_off_even + sizeof(pte_t);
-		const int scratch = 1; /* Our extra working register */
-
-		uasm_i_addu(p, scratch, 0, ptep);
 
 		uasm_i_lw(p, tmp, pte_off_even, ptep); /* even pte */
 		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
 		UASM_i_MTC0(p, tmp, C0_ENTRYLO0);
 
-		uasm_i_lw(p, ptep, pte_off_odd, ptep); /* odd pte */
-		UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL));
-		UASM_i_MTC0(p, ptep, C0_ENTRYLO1);
-
-		uasm_i_lw(p, tmp, 0, scratch);
-		uasm_i_lw(p, ptep, sizeof(pte_t), scratch);
-		uasm_i_lui(p, scratch, 0xff);
-		uasm_i_ori(p, scratch, scratch, 0xffff);
-		uasm_i_and(p, tmp, scratch, tmp);
-		uasm_i_and(p, ptep, scratch, ptep);
+		uasm_i_lw(p, tmp, 0, ptep);
+		uasm_i_ext(p, tmp, tmp, 0, 24);
 		uasm_i_mthc0(p, tmp, C0_ENTRYLO0);
-		uasm_i_mthc0(p, ptep, C0_ENTRYLO1);
+
+		uasm_i_lw(p, tmp, pte_off_odd, ptep); /* odd pte */
+		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
+		UASM_i_MTC0(p, tmp, C0_ENTRYLO1);
+
+		uasm_i_lw(p, tmp, sizeof(pte_t), ptep);
+		uasm_i_ext(p, tmp, tmp, 0, 24);
+		uasm_i_mthc0(p, tmp, C0_ENTRYLO1);
 		return;
 	}
 
