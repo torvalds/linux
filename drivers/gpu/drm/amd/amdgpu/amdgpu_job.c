@@ -46,7 +46,7 @@ void amdgpu_job_timeout_func(struct work_struct *work)
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
-		     struct amdgpu_job **job)
+		     struct amdgpu_job **job, struct amdgpu_vm *vm)
 {
 	size_t size = sizeof(struct amdgpu_job);
 
@@ -60,6 +60,7 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		return -ENOMEM;
 
 	(*job)->adev = adev;
+	(*job)->vm = vm;
 	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
 	INIT_WORK(&(*job)->base.work_free_job, amdgpu_job_free_handler);
@@ -74,7 +75,7 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 {
 	int r;
 
-	r = amdgpu_job_alloc(adev, 1, job);
+	r = amdgpu_job_alloc(adev, 1, job, NULL);
 	if (r)
 		return r;
 
@@ -138,7 +139,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 static struct fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 {
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
-	struct amdgpu_vm *vm = job->ibs->vm;
+	struct amdgpu_vm *vm = job->vm;
 
 	struct fence *fence = amdgpu_sync_get_fence(&job->sync);
 
@@ -186,7 +187,7 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 
 	trace_amdgpu_sched_run_job(job);
 	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs,
-			       job->sync.last_vm_update, &fence);
+			       job->sync.last_vm_update, job, &fence);
 	if (r) {
 		DRM_ERROR("Error scheduling IBs (%d)\n", r);
 		goto err;

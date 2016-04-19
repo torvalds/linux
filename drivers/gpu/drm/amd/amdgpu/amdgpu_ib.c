@@ -74,7 +74,6 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
 	}
 
-	ib->vm = vm;
 	ib->vm_id = 0;
 
 	return 0;
@@ -117,13 +116,13 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib, struct fen
  */
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		       struct amdgpu_ib *ibs, struct fence *last_vm_update,
-		       struct fence **f)
+		       struct amdgpu_job *job, struct fence **f)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib *ib = &ibs[0];
 	struct amdgpu_ctx *ctx, *old_ctx;
-	struct amdgpu_vm *vm;
 	struct fence *hwf;
+	struct amdgpu_vm *vm = NULL;
 	unsigned i, patch_offset = ~0;
 
 	int r = 0;
@@ -132,7 +131,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return -EINVAL;
 
 	ctx = ibs->ctx;
-	vm = ibs->vm;
+	if (job) /* for domain0 job like ring test, ibs->job is not assigned */
+		vm = job->vm;
 
 	if (!ring->ready) {
 		dev_err(adev->dev, "couldn't schedule ib\n");
@@ -174,14 +174,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	old_ctx = ring->current_ctx;
 	for (i = 0; i < num_ibs; ++i) {
 		ib = &ibs[i];
-
-		if (ib->ctx != ctx || ib->vm != vm) {
-			ring->current_ctx = old_ctx;
-			if (ib->vm_id)
-				amdgpu_vm_reset_id(adev, ib->vm_id);
-			amdgpu_ring_undo(ring);
-			return -EINVAL;
-		}
 		amdgpu_ring_emit_ib(ring, ib);
 		ring->current_ctx = ctx;
 	}

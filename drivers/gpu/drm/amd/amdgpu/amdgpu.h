@@ -740,7 +740,6 @@ struct amdgpu_ib {
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
 	struct amdgpu_user_fence        *user;
-	struct amdgpu_vm		*vm;
 	unsigned			vm_id;
 	uint64_t			vm_pd_addr;
 	struct amdgpu_ctx		*ctx;
@@ -763,7 +762,7 @@ enum amdgpu_ring_type {
 extern const struct amd_sched_backend_ops amdgpu_sched_ops;
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
-		     struct amdgpu_job **job);
+		     struct amdgpu_job **job, struct amdgpu_vm *vm);
 int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 			     struct amdgpu_job **job);
 
@@ -1191,7 +1190,7 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib, struct fence *f);
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		       struct amdgpu_ib *ib, struct fence *last_vm_update,
-		       struct fence **f);
+		       struct amdgpu_job *job, struct fence **f);
 int amdgpu_ib_pool_init(struct amdgpu_device *adev);
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
 int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
@@ -1247,6 +1246,7 @@ struct amdgpu_cs_parser {
 struct amdgpu_job {
 	struct amd_sched_job    base;
 	struct amdgpu_device	*adev;
+	struct amdgpu_vm 	*vm;
 	struct amdgpu_ring	*ring;
 	struct amdgpu_sync	sync;
 	struct amdgpu_ib	*ibs;

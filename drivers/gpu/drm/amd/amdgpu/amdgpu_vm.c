@@ -303,7 +303,8 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring,
 	    pd_addr != AMDGPU_VM_NO_FLUSH || gds_switch_needed))
 		amdgpu_ring_emit_pipeline_sync(ring);
 
-	if (pd_addr != AMDGPU_VM_NO_FLUSH) {
+	if (ring->funcs->emit_vm_flush &&
+	    pd_addr != AMDGPU_VM_NO_FLUSH) {
 		struct fence *fence;
 
 		trace_amdgpu_vm_flush(pd_addr, ring->idx, vm_id);

@@ -120,6 +120,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
+	struct amdgpu_vm *vm = &fpriv->vm;
 	union drm_amdgpu_cs *cs = data;
 	uint64_t *chunk_array_user;
 	uint64_t *chunk_array;
@@ -214,7 +215,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		}
 	}
 
-	ret = amdgpu_job_alloc(p->adev, num_ibs, &p->job);
+	ret = amdgpu_job_alloc(p->adev, num_ibs, &p->job, vm);
 	if (ret)
 		goto free_all_kdata;
 
