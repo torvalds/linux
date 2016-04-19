@@ -715,7 +715,11 @@ EXPORT_SYMBOL(drm_dev_unref);
  *
  * Register the DRM device @dev with the system, advertise device to user-space
  * and start normal device operation. @dev must be allocated via drm_dev_alloc()
- * previously.
+ * previously. Right after drm_dev_register() the driver should call
+ * drm_connector_register_all() to register all connectors in sysfs. This is
+ * a separate call for backward compatibility with drivers still using
+ * the deprecated ->load() callback, where connectors are registered from within
+ * the ->load() callback.
  *
  * Never call this twice on any device!
  *
