@@ -491,7 +491,7 @@ static ssize_t toolaction_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	u8 tool_action;
+	u8 tool_action = 0;
 
 	visorchannel_read(controlvm_channel,
 			  offsetof(struct spar_controlvm_channel_protocol,
@@ -559,7 +559,7 @@ static ssize_t boottotool_store(struct device *dev,
 static ssize_t error_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	u32 error;
+	u32 error = 0;
 
 	visorchannel_read(controlvm_channel,
 			  offsetof(struct spar_controlvm_channel_protocol,
@@ -590,7 +590,7 @@ static ssize_t error_store(struct device *dev, struct device_attribute *attr,
 static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
-	u32 text_id;
+	u32 text_id = 0;
 
 	visorchannel_read
 		(controlvm_channel,
@@ -622,7 +622,7 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 static ssize_t remaining_steps_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	u16 remaining_steps;
+	u16 remaining_steps = 0;
 
 	visorchannel_read(controlvm_channel,
 			  offsetof(struct spar_controlvm_channel_protocol,
