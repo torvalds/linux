@@ -357,7 +357,6 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 
 	info->input_dev->name = "twl6040:vibrator";
 	info->input_dev->id.version = 1;
-	info->input_dev->dev.parent = pdev->dev.parent;
 	info->input_dev->close = twl6040_vibra_close;
 	__set_bit(FF_RUMBLE, info->input_dev->ffbit);
 
