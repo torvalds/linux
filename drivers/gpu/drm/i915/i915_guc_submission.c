@@ -358,12 +358,14 @@ static void guc_init_proc_desc(struct intel_guc *guc,
 static void guc_init_ctx_desc(struct intel_guc *guc,
 			      struct i915_guc_client *client)
 {
+	struct drm_i915_gem_object *client_obj = client->client_obj;
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_engine_cs *engine;
 	struct intel_context *ctx = client->owner;
 	struct guc_context_desc desc;
 	struct sg_table *sg;
 	enum intel_engine_id id;
+	u32 gfx_addr;
 
 	memset(&desc, 0, sizeof(desc));
 
@@ -392,16 +394,17 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		lrc->context_desc = (u32)ctx_desc;
 
 		/* The state page is after PPHWSP */
-		lrc->ring_lcra = i915_gem_obj_ggtt_offset(obj) +
-				LRC_STATE_PN * PAGE_SIZE;
+		gfx_addr = i915_gem_obj_ggtt_offset(obj);
+		lrc->ring_lcra = gfx_addr + LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
 				(engine->guc_id << GUC_ELC_ENGINE_OFFSET);
 
 		obj = ctx->engine[id].ringbuf->obj;
+		gfx_addr = i915_gem_obj_ggtt_offset(obj);
 
-		lrc->ring_begin = i915_gem_obj_ggtt_offset(obj);
-		lrc->ring_end = lrc->ring_begin + obj->base.size - 1;
-		lrc->ring_next_free_location = lrc->ring_begin;
+		lrc->ring_begin = gfx_addr;
+		lrc->ring_end = gfx_addr + obj->base.size - 1;
+		lrc->ring_next_free_location = gfx_addr;
 		lrc->ring_current_tail_pointer_value = 0;
 
 		desc.engines_used |= (1 << engine->guc_id);
@@ -410,22 +413,17 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	WARN_ON(desc.engines_used == 0);
 
 	/*
-	 * The CPU address is only needed at certain points, so kmap_atomic on
-	 * demand instead of storing it in the ctx descriptor.
-	 * XXX: May make debug easier to have it mapped
+	 * The doorbell, process descriptor, and workqueue are all parts
+	 * of the client object, which the GuC will reference via the GGTT
 	 */
-	desc.db_trigger_cpu = 0;
-	desc.db_trigger_uk = client->doorbell_offset +
-		i915_gem_obj_ggtt_offset(client->client_obj);
-	desc.db_trigger_phy = client->doorbell_offset +
-		sg_dma_address(client->client_obj->pages->sgl);
-
-	desc.process_desc = client->proc_desc_offset +
-		i915_gem_obj_ggtt_offset(client->client_obj);
-
-	desc.wq_addr = client->wq_offset +
-		i915_gem_obj_ggtt_offset(client->client_obj);
-
+	gfx_addr = i915_gem_obj_ggtt_offset(client_obj);
+	desc.db_trigger_phy = sg_dma_address(client_obj->pages->sgl) +
+				client->doorbell_offset;
+	desc.db_trigger_cpu = (uintptr_t)client->client_base +
+				client->doorbell_offset;
+	desc.db_trigger_uk = gfx_addr + client->doorbell_offset;
+	desc.process_desc = gfx_addr + client->proc_desc_offset;
+	desc.wq_addr = gfx_addr + client->wq_offset;
 	desc.wq_size = client->wq_size;
 
 	/*
