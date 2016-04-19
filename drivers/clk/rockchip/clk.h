@@ -252,7 +252,7 @@ struct rockchip_cpuclk_rate_table {
 };
 
 /**
- * struct rockchip_cpuclk_reg_data - describes register offsets and masks of the cpuclock
+ * struct rockchip_cpuclk_reg_data - register offsets and masks of the cpuclock
  * @core_reg:		register offset of the core settings register
  * @div_core_shift:	core divider offset used to divide the pll value
  * @div_core_mask:	core divider mask
