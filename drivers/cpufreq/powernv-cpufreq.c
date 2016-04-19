@@ -455,13 +455,15 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 static int powernv_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
 	int base, i;
+	struct kernfs_node *kn;
 
 	base = cpu_first_thread_sibling(policy->cpu);
 
 	for (i = 0; i < threads_per_core; i++)
 		cpumask_set_cpu(base + i, policy->cpus);
 
-	if (!policy->driver_data) {
+	kn = kernfs_find_and_get(policy->kobj.sd, throttle_attr_grp.name);
+	if (!kn) {
 		int ret;
 
 		ret = sysfs_create_group(&policy->kobj, &throttle_attr_grp);
@@ -470,11 +472,8 @@ static int powernv_cpufreq_cpu_init(struct cpufreq_policy *policy)
 				policy->cpu);
 			return ret;
 		}
-		/*
-		 * policy->driver_data is used as a flag for one-time
-		 * creation of throttle sysfs files.
-		 */
-		policy->driver_data = policy;
+	} else {
+		kernfs_put(kn);
 	}
 	return cpufreq_table_validate_and_show(policy, powernv_freqs);
 }
