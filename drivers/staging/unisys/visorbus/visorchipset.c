@@ -59,7 +59,6 @@
  */
 static int visorchipset_major;
 static int visorchipset_visorbusregwait = 1;	/* default is on */
-static int visorchipset_holdchipsetready;
 static unsigned long controlvm_payload_bytes_buffered;
 static u32 dump_vhba_bus;
 
@@ -90,9 +89,6 @@ static unsigned long poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 static unsigned long most_recent_message_jiffies;
 static int visorbusregistered;
 
-#define MAX_CHIPSET_EVENTS 2
-static u8 chipset_events[MAX_CHIPSET_EVENTS] = { 0, 0 };
-
 struct parser_context {
 	unsigned long allocbytes;
 	unsigned long param_bytes;
@@ -107,7 +103,6 @@ static DEFINE_SEMAPHORE(notifier_lock);
 
 static struct cdev file_cdev;
 static struct visorchannel **file_controlvm_channel;
-static struct controlvm_message_header g_chipset_msg_hdr;
 static struct controlvm_message_packet g_devicechangestate_packet;
 
 static LIST_HEAD(bus_info_list);
@@ -274,11 +269,6 @@ static ssize_t remaining_steps_store(struct device *dev,
 				     const char *buf, size_t count);
 static DEVICE_ATTR_RW(remaining_steps);
 
-static ssize_t chipsetready_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count);
-static DEVICE_ATTR_WO(chipsetready);
-
 static ssize_t devicedisabled_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count);
@@ -303,16 +293,6 @@ static struct attribute_group visorchipset_install_group = {
 	.attrs = visorchipset_install_attrs
 };
 
-static struct attribute *visorchipset_guest_attrs[] = {
-	&dev_attr_chipsetready.attr,
-	NULL
-};
-
-static struct attribute_group visorchipset_guest_group = {
-	.name = "guest",
-	.attrs = visorchipset_guest_attrs
-};
-
 static struct attribute *visorchipset_parahotplug_attrs[] = {
 	&dev_attr_devicedisabled.attr,
 	&dev_attr_deviceenabled.attr,
@@ -326,7 +306,6 @@ static struct attribute_group visorchipset_parahotplug_group = {
 
 static const struct attribute_group *visorchipset_dev_groups[] = {
 	&visorchipset_install_group,
-	&visorchipset_guest_group,
 	&visorchipset_parahotplug_group,
 	NULL
 };
@@ -711,26 +690,6 @@ struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
 	return vdev;
 }
 EXPORT_SYMBOL(visorbus_get_device_by_id);
-
-static u8
-check_chipset_events(void)
-{
-	int i;
-	u8 send_msg = 1;
-	/* Check events to determine if response should be sent */
-	for (i = 0; i < MAX_CHIPSET_EVENTS; i++)
-		send_msg &= chipset_events[i];
-	return send_msg;
-}
-
-static void
-clear_chipset_events(void)
-{
-	int i;
-	/* Clear chipset_events */
-	for (i = 0; i < MAX_CHIPSET_EVENTS; i++)
-		chipset_events[i] = 0;
-}
 
 void
 visorchipset_register_busdev(
@@ -1457,14 +1416,8 @@ chipset_ready(struct controlvm_message_header *msg_hdr)
 
 	if (rc != CONTROLVM_RESP_SUCCESS)
 		rc = -rc;
-	if (msg_hdr->flags.response_expected && !visorchipset_holdchipsetready)
+	if (msg_hdr->flags.response_expected)
 		controlvm_respond(msg_hdr, rc);
-	if (msg_hdr->flags.response_expected && visorchipset_holdchipsetready) {
-		/* Send CHIPSET_READY response when all modules have been loaded
-		 * and disks mounted for the partition
-		 */
-		g_chipset_msg_hdr = *msg_hdr;
-	}
 }
 
 static void
@@ -1859,19 +1812,6 @@ controlvm_periodic_work(struct work_struct *work)
 	if (visorchipset_visorbusregwait && !visorbusregistered)
 		goto cleanup;
 
-	/* Check events to determine if response to CHIPSET_READY
-	 * should be sent
-	 */
-	if (visorchipset_holdchipsetready &&
-	    (g_chipset_msg_hdr.id != CONTROLVM_INVALID)) {
-		if (check_chipset_events() == 1) {
-			controlvm_respond(&g_chipset_msg_hdr, 0);
-			clear_chipset_events();
-			memset(&g_chipset_msg_hdr, 0,
-			       sizeof(struct controlvm_message_header));
-		}
-	}
-
 	while (visorchannel_signalremove(controlvm_channel,
 					 CONTROLVM_QUEUE_RESPONSE,
 					 &inmsg))
@@ -2093,25 +2033,6 @@ device_resume_response(struct visor_device *dev_info, int response)
 	dev_info->pending_msg_hdr = NULL;
 }
 
-static ssize_t chipsetready_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	char msgtype[64];
-
-	if (sscanf(buf, "%63s", msgtype) != 1)
-		return -EINVAL;
-
-	if (!strcmp(msgtype, "CALLHOMEDISK_MOUNTED")) {
-		chipset_events[0] = 1;
-		return count;
-	} else if (!strcmp(msgtype, "MODULES_LOADED")) {
-		chipset_events[1] = 1;
-		return count;
-	}
-	return -EINVAL;
-}
-
 /* The parahotplug/devicedisabled interface gets called by our support script
  * when an SR-IOV device has been shut down. The ID is passed to the script
  * and then passed back when the device has been removed.
@@ -2307,8 +2228,6 @@ visorchipset_init(struct acpi_device *acpi_device)
 	if (err < 0)
 		goto error_destroy_payload;
 
-	memset(&g_chipset_msg_hdr, 0, sizeof(struct controlvm_message_header));
-
 	/* if booting in a crash kernel */
 	if (is_kdump_kernel())
 		INIT_DELAYED_WORK(&periodic_controlvm_work,
@@ -2362,8 +2281,6 @@ visorchipset_exit(struct acpi_device *acpi_device)
 
 	cancel_delayed_work_sync(&periodic_controlvm_work);
 	destroy_controlvm_payload_info(&controlvm_payload_info);
-
-	memset(&g_chipset_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
 	visorchannel_destroy(controlvm_channel);
 
@@ -2433,10 +2350,6 @@ MODULE_PARM_DESC(visorchipset_major,
 module_param_named(visorbusregwait, visorchipset_visorbusregwait, int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_visorbusreqwait,
 		 "1 to have the module wait for the visor bus to register");
-module_param_named(holdchipsetready, visorchipset_holdchipsetready,
-		   int, S_IRUGO);
-MODULE_PARM_DESC(visorchipset_holdchipsetready,
-		 "1 to hold response to CHIPSET_READY");
 
 module_init(init_unisys);
 module_exit(exit_unisys);
