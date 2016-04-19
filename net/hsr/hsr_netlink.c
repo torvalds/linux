@@ -24,7 +24,7 @@ static const struct nla_policy hsr_policy[IFLA_HSR_MAX + 1] = {
 	[IFLA_HSR_SLAVE2]		= { .type = NLA_U32 },
 	[IFLA_HSR_MULTICAST_SPEC]	= { .type = NLA_U8 },
 	[IFLA_HSR_VERSION]	= { .type = NLA_U8 },
-	[IFLA_HSR_SUPERVISION_ADDR]	= { .type = NLA_BINARY, .len = ETH_ALEN },
+	[IFLA_HSR_SUPERVISION_ADDR]	= { .len = ETH_ALEN },
 	[IFLA_HSR_SEQ_NR]		= { .type = NLA_U16 },
 };
 
@@ -121,10 +121,9 @@ static struct rtnl_link_ops hsr_link_ops __read_mostly = {
 
 
 /* attribute policy */
-/* NLA_BINARY missing in libnl; use NLA_UNSPEC in userspace instead. */
 static const struct nla_policy hsr_genl_policy[HSR_A_MAX + 1] = {
-	[HSR_A_NODE_ADDR] = { .type = NLA_BINARY, .len = ETH_ALEN },
-	[HSR_A_NODE_ADDR_B] = { .type = NLA_BINARY, .len = ETH_ALEN },
+	[HSR_A_NODE_ADDR] = { .len = ETH_ALEN },
+	[HSR_A_NODE_ADDR_B] = { .len = ETH_ALEN },
 	[HSR_A_IFINDEX] = { .type = NLA_U32 },
 	[HSR_A_IF1_AGE] = { .type = NLA_U32 },
 	[HSR_A_IF2_AGE] = { .type = NLA_U32 },
