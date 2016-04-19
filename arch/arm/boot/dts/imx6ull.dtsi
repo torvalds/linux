@@ -1000,8 +1000,8 @@
 				reg = <0x021cc000 0x4000>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6UL_CLK_PXP>;
-				clock-names = "pxp-axi";
+				clocks = <&clks IMX6UL_CLK_DUMMY>, <&clks IMX6UL_CLK_PXP>;
+				clock-names = "pxp_ipg", "pxp_axi";
 				status = "disabled";
 			};
 
