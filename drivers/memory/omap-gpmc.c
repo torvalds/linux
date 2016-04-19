@@ -27,7 +27,6 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_mtd.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/omap-gpmc.h>
@@ -2066,7 +2065,8 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 
 	if (of_device_is_compatible(child, "ti,omap2-nand")) {
 		/* NAND specific setup */
-		val = of_get_nand_bus_width(child);
+		val = 8;
+		of_property_read_u32(child, "nand-bus-width", &val);
 		switch (val) {
 		case 8:
 			gpmc_s.device_width = GPMC_DEVWIDTH_8BIT;

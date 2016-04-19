@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_mtd.h>
 
 #include <linux/mtd/nand_bch.h>
 #include <linux/platform_data/elm.h>
@@ -1701,19 +1700,13 @@ static int omap_get_dt_info(struct device *dev, struct omap_nand_info *info)
 		for (i = 0; i < ARRAY_SIZE(nand_xfer_types); i++) {
 			if (!strcasecmp(s, nand_xfer_types[i])) {
 				info->xfer_type = i;
-				goto next;
+				return 0;
 			}
 		}
 
 		dev_err(dev, "unrecognized value for ti,nand-xfer-type\n");
 		return -EINVAL;
 	}
-
-next:
-	of_get_nand_on_flash_bbt(child);
-
-	if (of_get_nand_bus_width(child) == 16)
-		info->devsize = NAND_BUSWIDTH_16;
 
 	return 0;
 }
@@ -1810,9 +1803,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	}
 
 	if (info->flash_bbt)
-		nand_chip->bbt_options |= NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
-	else
-		nand_chip->options |= NAND_SKIP_BBTSCAN;
+		nand_chip->bbt_options |= NAND_BBT_USE_FLASH;
 
 	/* scan NAND device connected to chip controller */
 	nand_chip->options |= info->devsize & NAND_BUSWIDTH_16;
@@ -1822,6 +1813,11 @@ static int omap_nand_probe(struct platform_device *pdev)
 		err = -ENXIO;
 		goto return_error;
 	}
+
+	if (nand_chip->bbt_options & NAND_BBT_USE_FLASH)
+		nand_chip->bbt_options |= NAND_BBT_NO_OOB;
+	else
+		nand_chip->options |= NAND_SKIP_BBTSCAN;
 
 	/* re-populate low-level callbacks based on xfer modes */
 	switch (info->xfer_type) {
