@@ -27,6 +27,8 @@ struct iscsit_transport {
 	void (*iscsit_release_cmd)(struct iscsi_conn *, struct iscsi_cmd *);
 	void (*iscsit_get_rx_pdu)(struct iscsi_conn *);
 	int (*iscsit_validate_params)(struct iscsi_conn *);
+	void (*iscsit_get_r2t_ttt)(struct iscsi_conn *, struct iscsi_cmd *,
+				   struct iscsi_r2t *);
 	enum target_prot_op (*iscsit_get_sup_prot_ops)(struct iscsi_conn *);
 };
 

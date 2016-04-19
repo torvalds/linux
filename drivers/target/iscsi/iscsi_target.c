@@ -3039,7 +3039,10 @@ static int iscsit_send_r2t(
 	int_to_scsilun(cmd->se_cmd.orig_fe_lun,
 			(struct scsi_lun *)&hdr->lun);
 	hdr->itt		= cmd->init_task_tag;
-	r2t->targ_xfer_tag	= session_get_next_ttt(conn->sess);
+	if (conn->conn_transport->iscsit_get_r2t_ttt)
+		conn->conn_transport->iscsit_get_r2t_ttt(conn, cmd, r2t);
+	else
+		r2t->targ_xfer_tag = session_get_next_ttt(conn->sess);
 	hdr->ttt		= cpu_to_be32(r2t->targ_xfer_tag);
 	hdr->statsn		= cpu_to_be32(conn->stat_sn);
 	hdr->exp_cmdsn		= cpu_to_be32(conn->sess->exp_cmd_sn);
