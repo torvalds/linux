@@ -32,11 +32,11 @@
  * unpredictable things.  The code (when it is written) to deal with
  * this problem will be in the update_mmu_cache() code for the r4k.
  */
-#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
+#if defined(CONFIG_XPA)
 
 /*
- * Page table bit offsets used for 64 bit physical addressing on MIPS32,
- * for example with Alchemy, Netlogic XLP/XLR or XPA.
+ * Page table bit offsets used for 64 bit physical addressing on
+ * MIPS32r5 with XPA.
  */
 enum pgtable_bits {
 	/* Used by TLB hardware (placed in EntryLo*) */
@@ -58,6 +58,27 @@ enum pgtable_bits {
  * Bits for extended EntryLo0/EntryLo1 registers
  */
 #define _PFNX_MASK		0xffffff
+
+#elif defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
+
+/*
+ * Page table bit offsets used for 36 bit physical addressing on MIPS32,
+ * for example with Alchemy or Netlogic XLP/XLR.
+ */
+enum pgtable_bits {
+	/* Used by TLB hardware (placed in EntryLo*) */
+	_PAGE_GLOBAL_SHIFT,
+	_PAGE_VALID_SHIFT,
+	_PAGE_DIRTY_SHIFT,
+	_CACHE_SHIFT,
+
+	/* Used only by software (masked out before writing EntryLo*) */
+	_PAGE_PRESENT_SHIFT = _CACHE_SHIFT + 3,
+	_PAGE_NO_READ_SHIFT,
+	_PAGE_WRITE_SHIFT,
+	_PAGE_ACCESSED_SHIFT,
+	_PAGE_MODIFIED_SHIFT,
+};
 
 #elif defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 
@@ -116,7 +137,7 @@ enum pgtable_bits {
 #endif
 
 /* Used by TLB hardware (placed in EntryLo*) */
-#if (defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32))
+#if defined(CONFIG_XPA)
 # define _PAGE_NO_EXEC		(1 << _PAGE_NO_EXEC_SHIFT)
 #elif defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
 # define _PAGE_NO_EXEC		(cpu_has_rixi ? (1 << _PAGE_NO_EXEC_SHIFT) : 0)

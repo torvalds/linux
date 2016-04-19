@@ -1011,25 +1011,21 @@ static void build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
 
 static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 {
-	/*
-	 * 64bit address support (36bit on a 32bit CPU) in a 32bit
-	 * Kernel is a special case. Only a few CPUs use it.
-	 */
-	if (config_enabled(CONFIG_PHYS_ADDR_T_64BIT) && !cpu_has_64bits) {
+	if (config_enabled(CONFIG_XPA)) {
 		int pte_off_even = sizeof(pte_t) / 2;
 		int pte_off_odd = pte_off_even + sizeof(pte_t);
-#ifdef CONFIG_XPA
 		const int scratch = 1; /* Our extra working register */
 
 		uasm_i_addu(p, scratch, 0, ptep);
-#endif
+
 		uasm_i_lw(p, tmp, pte_off_even, ptep); /* even pte */
-		uasm_i_lw(p, ptep, pte_off_odd, ptep); /* odd pte */
 		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
-		UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL));
 		UASM_i_MTC0(p, tmp, C0_ENTRYLO0);
+
+		uasm_i_lw(p, ptep, pte_off_odd, ptep); /* odd pte */
+		UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL));
 		UASM_i_MTC0(p, ptep, C0_ENTRYLO1);
-#ifdef CONFIG_XPA
+
 		uasm_i_lw(p, tmp, 0, scratch);
 		uasm_i_lw(p, ptep, sizeof(pte_t), scratch);
 		uasm_i_lui(p, scratch, 0xff);
@@ -1038,7 +1034,22 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 		uasm_i_and(p, ptep, scratch, ptep);
 		uasm_i_mthc0(p, tmp, C0_ENTRYLO0);
 		uasm_i_mthc0(p, ptep, C0_ENTRYLO1);
-#endif
+		return;
+	}
+
+	/*
+	 * 64bit address support (36bit on a 32bit CPU) in a 32bit
+	 * Kernel is a special case. Only a few CPUs use it.
+	 */
+	if (config_enabled(CONFIG_PHYS_ADDR_T_64BIT) && !cpu_has_64bits) {
+		int pte_off_even = sizeof(pte_t) / 2;
+		int pte_off_odd = pte_off_even + sizeof(pte_t);
+
+		uasm_i_lw(p, tmp, pte_off_even, ptep); /* even pte */
+		UASM_i_MTC0(p, tmp, C0_ENTRYLO0);
+
+		uasm_i_lw(p, ptep, pte_off_odd, ptep); /* odd pte */
+		UASM_i_MTC0(p, ptep, C0_ENTRYLO1);
 		return;
 	}
 
@@ -1637,7 +1648,7 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 	unsigned int hwmode = mode & (_PAGE_VALID | _PAGE_DIRTY);
 
-	if (!cpu_has_64bits) {
+	if (config_enabled(CONFIG_XPA) && !cpu_has_64bits) {
 		const int scratch = 1; /* Our extra working register */
 
 		uasm_i_lui(p, scratch, (mode >> 16));
