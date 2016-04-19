@@ -1017,8 +1017,10 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 	/* Allocate memory for receive */
 	recv_buff = kzalloc(FW_DNLD_RX_BUF_SIZE, GFP_KERNEL);
-	if (!recv_buff)
+	if (!recv_buff) {
+		ret = -ENOMEM;
 		goto cleanup;
+	}
 
 	do {
 		/* Send pseudo data to check winner status first */
