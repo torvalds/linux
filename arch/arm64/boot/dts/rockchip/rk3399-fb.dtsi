@@ -137,7 +137,7 @@
 		reset-names = "axi", "ahb", "dclk";
 		rockchip,grf = <&grf>;
 		rockchip,pwr18 = <0>;
-		rockchip,iommu-enabled = <0>;
+		rockchip,iommu-enabled = <1>;
 		power_ctr: power_ctr {
 		/*rockchip,debug = <0>;
 		lcd_en: lcd-en {
@@ -181,7 +181,7 @@
 		reset-names = "axi", "ahb", "dclk";
 		rockchip,grf = <&grf>;
 		rockchip,pwr18 = <0>;
-		rockchip,iommu-enabled = <0>;
+		rockchip,iommu-enabled = <1>;
 		status = "disabled";
 	};
 
