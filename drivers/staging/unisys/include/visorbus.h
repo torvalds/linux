@@ -61,52 +61,55 @@ struct visor_channeltype_descriptor {
 	const char *name;
 };
 
-/** Information provided by each visor driver when it registers with the
- *  visorbus driver.
+/**
+ * struct visor_driver - Information provided by each visor driver when it
+ * registers with the visorbus driver.
+ * @name:		Name of the visor driver.
+ * @version:		The numbered version of the driver (x.x.xxx).
+ * @vertag:		A human readable version string.
+ * @owner:		The module owner.
+ * @channel_types:	Types of channels handled by this driver, ending with
+ *			a zero GUID. Our specialized BUS.match() method knows
+ *			about this list, and uses it to determine whether this
+ *			driver will in fact handle a new device that it has
+ *			detected.
+ * @probe:		Called when a new device comes online, by our probe()
+ *			function specified by driver.probe() (triggered
+ *			ultimately by some call to driver_register(),
+ *			bus_add_driver(), or driver_attach()).
+ * @remove:		Called when a new device is removed, by our remove()
+ *			function specified by driver.remove() (triggered
+ *			ultimately by some call to device_release_driver()).
+ * @channel_interrupt:	Called periodically, whenever there is a possiblity
+ *			that "something interesting" may have happened to the
+ *			channel.
+ * @pause:		Called to initiate a change of the device's state.  If
+ *			the return valu`e is < 0, there was an error and the
+ *			state transition will NOT occur.  If the return value
+ *			is >= 0, then the state transition was INITIATED
+ *			successfully, and complete_func() will be called (or
+ *			was just called) with the final status when either the
+ *			state transition fails or completes successfully.
+ * @resume:		Behaves similar to pause.
+ * @driver:		Private reference to the device driver. For use by bus
+ *			driver only.
+ * @version_attr:	Private version field. For use by bus driver only.
  */
 struct visor_driver {
 	const char *name;
 	const char *version;
 	const char *vertag;
 	struct module *owner;
-
-	/** Types of channels handled by this driver, ending with 0 GUID.
-	 *  Our specialized BUS.match() method knows about this list, and
-	 *  uses it to determine whether this driver will in fact handle a
-	 *  new device that it has detected.
-	 */
 	struct visor_channeltype_descriptor *channel_types;
-
-	/** Called when a new device comes online, by our probe() function
-	 *  specified by driver.probe() (triggered ultimately by some call
-	 *  to driver_register() / bus_add_driver() / driver_attach()).
-	 */
 	int (*probe)(struct visor_device *dev);
-
-	/** Called when a new device is removed, by our remove() function
-	 *  specified by driver.remove() (triggered ultimately by some call
-	 *  to device_release_driver()).
-	 */
 	void (*remove)(struct visor_device *dev);
-
-	/** Called periodically, whenever there is a possibility that
-	 *  "something interesting" may have happened to the channel state.
-	 */
 	void (*channel_interrupt)(struct visor_device *dev);
-
-	/** Called to initiate a change of the device's state.  If the return
-	 *  valu`e is < 0, there was an error and the state transition will NOT
-	 *  occur.  If the return value is >= 0, then the state transition was
-	 *  INITIATED successfully, and complete_func() will be called (or was
-	 *  just called) with the final status when either the state transition
-	 *  fails or completes successfully.
-	 */
 	int (*pause)(struct visor_device *dev,
 		     visorbus_state_complete_func complete_func);
 	int (*resume)(struct visor_device *dev,
 		      visorbus_state_complete_func complete_func);
 
-	/** These fields are for private use by the bus driver only. */
+	/* These fields are for private use by the bus driver only. */
 	struct device_driver driver;
 	struct driver_attribute version_attr;
 };
