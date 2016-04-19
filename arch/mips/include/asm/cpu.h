@@ -394,7 +394,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_MAAR		MBIT_ULL(30)	/* MAAR(I) registers are present */
 #define MIPS_CPU_FRE		MBIT_ULL(31)	/* FRE & UFE bits implemented */
 #define MIPS_CPU_RW_LLB		MBIT_ULL(32)	/* LLADDR/LLB writes are allowed */
-#define MIPS_CPU_XPA		MBIT_ULL(33)	/* CPU supports Extended Physical Addressing */
+#define MIPS_CPU_LPA		MBIT_ULL(33)	/* CPU supports Large Physical Addressing */
 #define MIPS_CPU_CDMM		MBIT_ULL(34)	/* CPU has Common Device Memory Map */
 #define MIPS_CPU_BP_GHIST	MBIT_ULL(35)	/* R12K+ Branch Prediction Global History */
 #define MIPS_CPU_SP		MBIT_ULL(36)	/* Small (1KB) page support */
@@ -403,6 +403,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_NAN_2008	MBIT_ULL(39)	/* 2008 NaN implemented */
 #define MIPS_CPU_VP		MBIT_ULL(40)	/* MIPSr6 Virtual Processors (multi-threading) */
 #define MIPS_CPU_LDPTE		MBIT_ULL(41)	/* CPU has ldpte/lddir instructions */
+#define MIPS_CPU_MVH		MBIT_ULL(42)	/* CPU supports MFHC0/MTHC0 */
 
 /*
  * CPU ASE encodings

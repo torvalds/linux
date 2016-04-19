@@ -145,8 +145,14 @@
 # endif
 #endif
 
+#ifndef cpu_has_lpa
+#define cpu_has_lpa		(cpu_data[0].options & MIPS_CPU_LPA)
+#endif
+#ifndef cpu_has_mvh
+#define cpu_has_mvh		(cpu_data[0].options & MIPS_CPU_MVH)
+#endif
 #ifndef cpu_has_xpa
-#define cpu_has_xpa		(cpu_data[0].options & MIPS_CPU_XPA)
+#define cpu_has_xpa		(cpu_has_lpa && cpu_has_mvh)
 #endif
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)

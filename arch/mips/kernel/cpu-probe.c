@@ -702,6 +702,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_VINT;
 	if (config3 & MIPS_CONF3_VEIC)
 		c->options |= MIPS_CPU_VEIC;
+	if (config3 & MIPS_CONF3_LPA)
+		c->options |= MIPS_CPU_LPA;
 	if (config3 & MIPS_CONF3_MT)
 		c->ases |= MIPS_ASE_MIPSMT;
 	if (config3 & MIPS_CONF3_ULRI)
