@@ -48,10 +48,8 @@ static void inet_diag_msg_sctpasoc_fill(struct inet_diag_msg *r,
 	r->idiag_state = asoc->state;
 	r->idiag_timer = SCTP_EVENT_TIMEOUT_T3_RTX;
 	r->idiag_retrans = asoc->rtx_data_chunks;
-#define EXPIRES_IN_MS(tmo)  DIV_ROUND_UP((tmo - jiffies) * 1000, HZ)
-	r->idiag_expires =
-		EXPIRES_IN_MS(asoc->timeouts[SCTP_EVENT_TIMEOUT_T3_RTX]);
-#undef EXPIRES_IN_MS
+	r->idiag_expires = jiffies_to_msecs(
+		asoc->timeouts[SCTP_EVENT_TIMEOUT_T3_RTX] - jiffies);
 }
 
 static int inet_diag_msg_sctpladdrs_fill(struct sk_buff *skb,
