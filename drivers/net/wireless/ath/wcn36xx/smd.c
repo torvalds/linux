@@ -271,6 +271,16 @@ out:
 	return ret;
 }
 
+static void init_hal_msg(struct wcn36xx_hal_msg_header *hdr,
+			 enum wcn36xx_hal_host_msg_type msg_type,
+			 size_t msg_size)
+{
+	memset(hdr, 0, msg_size + sizeof(*hdr));
+	hdr->msg_type = msg_type;
+	hdr->msg_version = WCN36XX_HAL_MSG_VERSION0;
+	hdr->len = msg_size + sizeof(*hdr);
+}
+
 #define INIT_HAL_MSG(msg_body, type) \
 	do {								\
 		memset(&msg_body, 0, sizeof(msg_body));			\
@@ -2144,6 +2154,46 @@ out:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
 }
+
+int wcn36xx_smd_set_mc_list(struct wcn36xx *wcn,
+			    struct ieee80211_vif *vif,
+			    struct wcn36xx_hal_rcv_flt_mc_addr_list_type *fp)
+{
+	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
+	struct wcn36xx_hal_rcv_flt_pkt_set_mc_list_req_msg *msg_body = NULL;
+	int ret = 0;
+
+	mutex_lock(&wcn->hal_mutex);
+
+	msg_body = (struct wcn36xx_hal_rcv_flt_pkt_set_mc_list_req_msg *)
+		   wcn->hal_buf;
+	init_hal_msg(&msg_body->header, WCN36XX_HAL_8023_MULTICAST_LIST_REQ,
+		     sizeof(msg_body->mc_addr_list));
+
+	/* An empty list means all mc traffic will be received */
+	if (fp)
+		memcpy(&msg_body->mc_addr_list, fp,
+		       sizeof(msg_body->mc_addr_list));
+	else
+		msg_body->mc_addr_list.mc_addr_count = 0;
+
+	msg_body->mc_addr_list.bss_index = vif_priv->bss_index;
+
+	ret = wcn36xx_smd_send_and_wait(wcn, msg_body->header.len);
+	if (ret) {
+		wcn36xx_err("Sending HAL_8023_MULTICAST_LIST failed\n");
+		goto out;
+	}
+	ret = wcn36xx_smd_rsp_status_check(wcn->hal_buf, wcn->hal_rsp_len);
+	if (ret) {
+		wcn36xx_err("HAL_8023_MULTICAST_LIST rsp failed err=%d\n", ret);
+		goto out;
+	}
+out:
+	mutex_unlock(&wcn->hal_mutex);
+	return ret;
+}
+
 static void wcn36xx_smd_rsp_process(struct wcn36xx *wcn, void *buf, size_t len)
 {
 	struct wcn36xx_hal_msg_header *msg_header = buf;
@@ -2185,6 +2235,7 @@ static void wcn36xx_smd_rsp_process(struct wcn36xx *wcn, void *buf, size_t len)
 	case WCN36XX_HAL_UPDATE_SCAN_PARAM_RSP:
 	case WCN36XX_HAL_CH_SWITCH_RSP:
 	case WCN36XX_HAL_FEATURE_CAPS_EXCHANGE_RSP:
+	case WCN36XX_HAL_8023_MULTICAST_LIST_RSP:
 		memcpy(wcn->hal_buf, buf, len);
 		wcn->hal_rsp_len = len;
 		complete(&wcn->hal_rsp_compl);

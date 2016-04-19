@@ -287,6 +287,7 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 	}
 
 	wcn36xx_detect_chip_version(wcn);
+	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_ENABLE_MC_ADDR_LIST, 1);
 
 	/* DMA channel initialization */
 	ret = wcn36xx_dxe_init(wcn);
@@ -354,15 +355,57 @@ static int wcn36xx_config(struct ieee80211_hw *hw, u32 changed)
 	return 0;
 }
 
-#define WCN36XX_SUPPORTED_FILTERS (0)
-
 static void wcn36xx_configure_filter(struct ieee80211_hw *hw,
 				     unsigned int changed,
 				     unsigned int *total, u64 multicast)
 {
+	struct wcn36xx_hal_rcv_flt_mc_addr_list_type *fp;
+	struct wcn36xx *wcn = hw->priv;
+	struct wcn36xx_vif *tmp;
+	struct ieee80211_vif *vif = NULL;
+
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac configure filter\n");
 
-	*total &= WCN36XX_SUPPORTED_FILTERS;
+	*total &= FIF_ALLMULTI;
+
+	fp = (void *)(unsigned long)multicast;
+	list_for_each_entry(tmp, &wcn->vif_list, list) {
+		vif = wcn36xx_priv_to_vif(tmp);
+
+		/* FW handles MC filtering only when connected as STA */
+		if (*total & FIF_ALLMULTI)
+			wcn36xx_smd_set_mc_list(wcn, vif, NULL);
+		else if (NL80211_IFTYPE_STATION == vif->type && tmp->sta_assoc)
+			wcn36xx_smd_set_mc_list(wcn, vif, fp);
+	}
+	kfree(fp);
+}
+
+static u64 wcn36xx_prepare_multicast(struct ieee80211_hw *hw,
+				     struct netdev_hw_addr_list *mc_list)
+{
+	struct wcn36xx_hal_rcv_flt_mc_addr_list_type *fp;
+	struct netdev_hw_addr *ha;
+
+	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac prepare multicast list\n");
+	fp = kzalloc(sizeof(*fp), GFP_ATOMIC);
+	if (!fp) {
+		wcn36xx_err("Out of memory setting filters.\n");
+		return 0;
+	}
+
+	fp->mc_addr_count = 0;
+	/* update multicast filtering parameters */
+	if (netdev_hw_addr_list_count(mc_list) <=
+	    WCN36XX_HAL_MAX_NUM_MULTICAST_ADDRESS) {
+		netdev_hw_addr_list_for_each(ha, mc_list) {
+			memcpy(fp->mc_addr[fp->mc_addr_count],
+					ha->addr, ETH_ALEN);
+			fp->mc_addr_count++;
+		}
+	}
+
+	return (u64)(unsigned long)fp;
 }
 
 static void wcn36xx_tx(struct ieee80211_hw *hw,
@@ -920,6 +963,7 @@ static const struct ieee80211_ops wcn36xx_ops = {
 	.resume			= wcn36xx_resume,
 #endif
 	.config			= wcn36xx_config,
+	.prepare_multicast	= wcn36xx_prepare_multicast,
 	.configure_filter       = wcn36xx_configure_filter,
 	.tx			= wcn36xx_tx,
 	.set_key		= wcn36xx_set_key,

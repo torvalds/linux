@@ -4267,9 +4267,9 @@ struct wcn36xx_hal_rcv_flt_mc_addr_list_type {
 	u8 data_offset;
 
 	u32 mc_addr_count;
-	u8 mc_addr[ETH_ALEN][WCN36XX_HAL_MAX_NUM_MULTICAST_ADDRESS];
+	u8 mc_addr[WCN36XX_HAL_MAX_NUM_MULTICAST_ADDRESS][ETH_ALEN];
 	u8 bss_index;
-};
+} __packed;
 
 struct wcn36xx_hal_set_pkt_filter_rsp_msg {
 	struct wcn36xx_hal_msg_header header;
@@ -4323,7 +4323,7 @@ struct wcn36xx_hal_rcv_flt_pkt_clear_rsp_msg {
 struct wcn36xx_hal_rcv_flt_pkt_set_mc_list_req_msg {
 	struct wcn36xx_hal_msg_header header;
 	struct wcn36xx_hal_rcv_flt_mc_addr_list_type mc_addr_list;
-};
+} __packed;
 
 struct wcn36xx_hal_rcv_flt_pkt_set_mc_list_rsp_msg {
 	struct wcn36xx_hal_msg_header header;
