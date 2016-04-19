@@ -312,22 +312,6 @@ static int wcn36xx_smd_rsp_status_check(void *buf, size_t len)
 	return 0;
 }
 
-static int wcn36xx_smd_rsp_status_check_v2(struct wcn36xx *wcn, void *buf,
-					     size_t len)
-{
-	struct wcn36xx_fw_msg_status_rsp_v2 *rsp;
-
-	if (len < sizeof(struct wcn36xx_hal_msg_header) + sizeof(*rsp))
-		return wcn36xx_smd_rsp_status_check(buf, len);
-
-	rsp = buf + sizeof(struct wcn36xx_hal_msg_header);
-
-	if (WCN36XX_FW_MSG_RESULT_SUCCESS != rsp->status)
-		return rsp->status;
-
-	return 0;
-}
-
 int wcn36xx_smd_load_nv(struct wcn36xx *wcn)
 {
 	struct nv_data *nv_d;
@@ -1647,8 +1631,7 @@ int wcn36xx_smd_remove_bsskey(struct wcn36xx *wcn,
 		wcn36xx_err("Sending hal_remove_bsskey failed\n");
 		goto out;
 	}
-	ret = wcn36xx_smd_rsp_status_check_v2(wcn, wcn->hal_buf,
-					      wcn->hal_rsp_len);
+	ret = wcn36xx_smd_rsp_status_check(wcn->hal_buf, wcn->hal_rsp_len);
 	if (ret) {
 		wcn36xx_err("hal_remove_bsskey response failed err=%d\n", ret);
 		goto out;
