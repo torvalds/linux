@@ -3796,7 +3796,6 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 	uint32_t gt_interrupts[] = {
 		GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
 			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
-			GT_RENDER_L3_PARITY_ERROR_INTERRUPT |
 			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT |
 			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT,
 		GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT |
@@ -3807,6 +3806,9 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 		GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT |
 			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT
 		};
+
+	if (HAS_L3_DPF(dev_priv))
+		gt_interrupts[0] |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
 	dev_priv->pm_irq_mask = 0xffffffff;
 	GEN8_IRQ_INIT_NDX(GT, 0, ~gt_interrupts[0], gt_interrupts[0]);
