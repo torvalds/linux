@@ -1170,6 +1170,7 @@ static int wcn36xx_smd_config_bss_v1(struct wcn36xx *wcn,
 
 static int wcn36xx_smd_config_bss_rsp(struct wcn36xx *wcn,
 				      struct ieee80211_vif *vif,
+				      struct ieee80211_sta *sta,
 				      void *buf,
 				      size_t len)
 {
@@ -1200,9 +1201,10 @@ static int wcn36xx_smd_config_bss_rsp(struct wcn36xx *wcn,
 
 	vif_priv->bss_index = params->bss_index;
 
-	if (vif_priv->sta) {
-		vif_priv->sta->bss_sta_index =  params->bss_sta_index;
-		vif_priv->sta->bss_dpu_desc_index = params->dpu_desc_index;
+	if (sta) {
+		struct wcn36xx_sta *sta_priv = wcn36xx_sta_to_priv(sta);
+		sta_priv->bss_sta_index = params->bss_sta_index;
+		sta_priv->bss_dpu_desc_index = params->dpu_desc_index;
 	}
 
 	vif_priv->self_ucast_dpu_sign = params->ucast_dpu_signature;
@@ -1329,6 +1331,7 @@ int wcn36xx_smd_config_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	}
 	ret = wcn36xx_smd_config_bss_rsp(wcn,
 					 vif,
+					 sta,
 					 wcn->hal_buf,
 					 wcn->hal_rsp_len);
 	if (ret) {
@@ -2058,25 +2061,24 @@ static int wcn36xx_smd_delete_sta_context_ind(struct wcn36xx *wcn,
 {
 	struct wcn36xx_hal_delete_sta_context_ind_msg *rsp = buf;
 	struct wcn36xx_vif *tmp;
-	struct ieee80211_sta *sta = NULL;
+	struct ieee80211_sta *sta;
 
 	if (len != sizeof(*rsp)) {
 		wcn36xx_warn("Corrupted delete sta indication\n");
 		return -EIO;
 	}
 
+	wcn36xx_dbg(WCN36XX_DBG_HAL, "delete station indication %pM index %d\n",
+		    rsp->addr2, rsp->sta_id);
+
 	list_for_each_entry(tmp, &wcn->vif_list, list) {
-		if (sta && (tmp->sta->sta_index == rsp->sta_id)) {
-			sta = container_of((void *)tmp->sta,
-						 struct ieee80211_sta,
-						 drv_priv);
-			wcn36xx_dbg(WCN36XX_DBG_HAL,
-				    "delete station indication %pM index %d\n",
-				    rsp->addr2,
-				    rsp->sta_id);
+		rcu_read_lock();
+		sta = ieee80211_find_sta(wcn36xx_priv_to_vif(tmp), rsp->addr2);
+		if (sta)
 			ieee80211_report_low_ack(sta, 0);
+		rcu_read_unlock();
+		if (sta)
 			return 0;
-		}
 	}
 
 	wcn36xx_warn("STA with addr %pM and index %d not found\n",
