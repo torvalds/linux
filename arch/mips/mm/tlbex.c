@@ -2508,6 +2508,9 @@ void build_tlb_refill_handler(void)
 	 */
 	static int run_once = 0;
 
+	if (config_enabled(CONFIG_XPA) && !cpu_has_rixi)
+		panic("Kernels supporting XPA currently require CPUs with RIXI");
+
 	output_pgtable_bits_defines();
 	check_pabits();
 
