@@ -411,4 +411,14 @@ config QCOM_SPMI_TEMP_ALARM
 	  real time die temperature if an ADC is present or an estimate of the
 	  temperature based upon the over temperature stage value.
 
+config GENERIC_ADC_THERMAL
+	tristate "Generic ADC based thermal sensor"
+	depends on IIO
+	help
+	  This enabled a thermal sysfs driver for the temperature sensor
+	  which is connected to the General Purpose ADC. The ADC channel
+	  is read via IIO framework and the channel information is provided
+	  to this driver. This driver reports the temperature by reading ADC
+	  channel and converts it to temperature based on lookup table.
+
 endif
