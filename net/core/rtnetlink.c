@@ -878,6 +878,9 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(IFNAMSIZ) /* IFLA_QDISC */
 	       + nla_total_size(sizeof(struct rtnl_link_ifmap))
 	       + nla_total_size(sizeof(struct rtnl_link_stats))
+#ifndef HAVE_EFFICIENT_UNALIGNED_ACCESS
+	       + nla_total_size(0) /* IFLA_PAD */
+#endif
 	       + nla_total_size(sizeof(struct rtnl_link_stats64))
 	       + nla_total_size(MAX_ADDR_LEN) /* IFLA_ADDRESS */
 	       + nla_total_size(MAX_ADDR_LEN) /* IFLA_BROADCAST */
@@ -1051,6 +1054,22 @@ static noinline_for_stack int rtnl_fill_stats(struct sk_buff *skb,
 {
 	struct rtnl_link_stats64 *sp;
 	struct nlattr *attr;
+
+#ifndef HAVE_EFFICIENT_UNALIGNED_ACCESS
+	/* IF necessary, add a zero length NOP attribute so that the
+	 * nla_data() of the IFLA_STATS64 will be 64-bit aligned.
+	 *
+	 * The nlattr header is 4 bytes in size, that's why we test
+	 * if the skb->data _is_ aligned.  This NOP attribute, plus
+	 * nlattr header for IFLA_STATS64, will make nla_data() 8-byte
+	 * aligned.
+	 */
+	if (IS_ALIGNED((unsigned long)skb->data, 8)) {
+		attr = nla_reserve(skb, IFLA_PAD, 0);
+		if (!attr)
+			return -EMSGSIZE;
+	}
+#endif
 
 	attr = nla_reserve(skb, IFLA_STATS64,
 			   sizeof(struct rtnl_link_stats64));
