@@ -394,7 +394,6 @@
 			fsl,pins = <
 				MX6UL_PAD_UART1_RTS_B__GPIO1_IO19	0x17059	/* SD1 CD */
 				MX6UL_PAD_UART1_CTS_B__GPIO1_IO18	0x17059	/* SD1 WP */
-				MX6UL_PAD_GPIO1_IO05__USDHC1_VSELECT	0x17059	/* SD1 VSELECT */
 			>;
 		};
 
@@ -812,6 +811,12 @@
 			>;
 		};
 
+		pinctrl_usdhc1_vselect: usdhc1_vselect_grp {
+			fsl,pins = <
+				MX6UL_PAD_GPIO1_IO05__USDHC1_VSELECT	0x17059	/* SD1 VSELECT */
+			>;
+		};
+
 		pinctrl_usdhc2: usdhc2grp {
 			fsl,pins = <
 				MX6UL_PAD_NAND_WE_B__USDHC2_CMD	0x17059
@@ -924,9 +929,9 @@
 
 &usdhc1 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
-	pinctrl-0 = <&pinctrl_usdhc1>;
-	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
-	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
+	pinctrl-0 = <&pinctrl_usdhc1>, <&pinctrl_usdhc1_vselect>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>, <&pinctrl_usdhc1_vselect>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>, <&pinctrl_usdhc1_vselect>;
 	cd-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 	keep-power-in-suspend;

@@ -1,0 +1,60 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/* DTS file for validate USB at i.mx6ull ddr3 arm2 board */
+
+#include "imx6ull-ddr3-arm2.dts"
+
+/ {
+	regulators {
+		reg_usb_otg2_vbus: regulator@3 {
+		compatible = "regulator-fixed";
+		reg = <3>;
+		regulator-name = "usb_otg2_vbus";
+		pinctrl-0 = <&pinctrl_usb_otg2>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		};
+	};
+};
+
+&iomuxc {
+	usbotg2 {
+		pinctrl_usb_otg2_id: usbotg2idgrp {
+			fsl,pins = <
+				MX6UL_PAD_GPIO1_IO05__ANATOP_OTG2_ID	0x17059
+			>;
+		};
+
+		pinctrl_usb_otg2: usbotg2grp {
+			fsl,pins = <
+				MX6UL_PAD_GPIO1_IO09__GPIO1_IO09	0x10b0
+			>;
+		};
+	};
+};
+
+&usbotg2 {
+	vbus-supply = <&reg_usb_otg2_vbus>; /* hardware rework is needed */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb_otg2_id>;
+	srp-disable;
+	hnp-disable;
+	adp-disable;
+	status = "okay";
+};
+
+&usdhc1 {
+	no-1-8-v;
+	vmmc-supply = <>;
+	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
+};
