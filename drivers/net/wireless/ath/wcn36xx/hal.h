@@ -54,6 +54,9 @@
 /* Default Beacon template size */
 #define BEACON_TEMPLATE_SIZE 0x180
 
+/* Minimum PVM size that the FW expects. See comment in smd.c for details. */
+#define TIM_MIN_PVM_SIZE 6
+
 /* Param Change Bitmap sent to HAL */
 #define PARAM_BCN_INTERVAL_CHANGED                      (1 << 0)
 #define PARAM_SHORT_PREAMBLE_CHANGED                 (1 << 1)
