@@ -46,7 +46,7 @@ struct i915_guc_client {
 	uint32_t wq_offset;
 	uint32_t wq_size;
 	uint32_t wq_tail;
-	uint32_t wq_head;
+	uint32_t unused;		/* Was 'wq_head'		*/
 
 	/* GuC submission statistics & status */
 	uint64_t submissions[GUC_MAX_ENGINES_NUM];

@@ -238,9 +238,6 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 			db_exc.cookie = 1;
 	}
 
-	/* Finally, update the cached copy of the GuC's WQ head */
-	gc->wq_head = desc->head;
-
 	return ret;
 }
 
@@ -465,17 +462,10 @@ int i915_guc_wq_check_space(struct i915_guc_client *gc)
 	if (!gc)
 		return 0;
 
-	/* Quickly return if wq space is available since last time we cache the
-	 * head position. */
-	if (CIRC_SPACE(gc->wq_tail, gc->wq_head, gc->wq_size) >= size)
-		return 0;
-
 	desc = gc->client_base + gc->proc_desc_offset;
 
 	while (timeout_counter-- > 0) {
-		gc->wq_head = desc->head;
-
-		if (CIRC_SPACE(gc->wq_tail, gc->wq_head, gc->wq_size) >= size) {
+		if (CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size) >= size) {
 			ret = 0;
 			break;
 		}
@@ -490,11 +480,13 @@ int i915_guc_wq_check_space(struct i915_guc_client *gc)
 static int guc_add_workqueue_item(struct i915_guc_client *gc,
 				  struct drm_i915_gem_request *rq)
 {
+	struct guc_process_desc *desc;
 	struct guc_wq_item *wqi;
 	void *base;
 	u32 tail, wq_len, wq_off, space;
 
-	space = CIRC_SPACE(gc->wq_tail, gc->wq_head, gc->wq_size);
+	desc = gc->client_base + gc->proc_desc_offset;
+	space = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
 	if (WARN_ON(space < sizeof(struct guc_wq_item)))
 		return -ENOSPC; /* shouldn't happen */
 
