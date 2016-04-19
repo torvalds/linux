@@ -1208,8 +1208,8 @@ static int kallsyms__delta(struct map *map, const char *filename, u64 *delta)
 	return 0;
 }
 
-int dso__load_kallsyms(struct dso *dso, const char *filename,
-		       struct map *map, symbol_filter_t filter)
+int __dso__load_kallsyms(struct dso *dso, const char *filename,
+			 struct map *map, bool no_kcore, symbol_filter_t filter)
 {
 	u64 delta = 0;
 
@@ -1230,10 +1230,16 @@ int dso__load_kallsyms(struct dso *dso, const char *filename,
 	else
 		dso->symtab_type = DSO_BINARY_TYPE__KALLSYMS;
 
-	if (!dso__load_kcore(dso, map, filename))
+	if (!no_kcore && !dso__load_kcore(dso, map, filename))
 		return dso__split_kallsyms_for_kcore(dso, map, filter);
 	else
 		return dso__split_kallsyms(dso, map, delta, filter);
+}
+
+int dso__load_kallsyms(struct dso *dso, const char *filename,
+		       struct map *map, symbol_filter_t filter)
+{
+	return __dso__load_kallsyms(dso, filename, map, false, filter);
 }
 
 static int dso__load_perf_map(struct dso *dso, struct map *map,

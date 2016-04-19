@@ -240,6 +240,8 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 		      symbol_filter_t filter);
 int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 			   symbol_filter_t filter);
+int __dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
+			 bool no_kcore, symbol_filter_t filter);
 int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
 		       symbol_filter_t filter);
 

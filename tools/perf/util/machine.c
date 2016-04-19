@@ -908,11 +908,11 @@ int machines__create_kernel_maps(struct machines *machines, pid_t pid)
 	return machine__create_kernel_maps(machine);
 }
 
-int machine__load_kallsyms(struct machine *machine, const char *filename,
-			   enum map_type type, symbol_filter_t filter)
+int __machine__load_kallsyms(struct machine *machine, const char *filename,
+			     enum map_type type, bool no_kcore, symbol_filter_t filter)
 {
 	struct map *map = machine__kernel_map(machine);
-	int ret = dso__load_kallsyms(map->dso, filename, map, filter);
+	int ret = __dso__load_kallsyms(map->dso, filename, map, no_kcore, filter);
 
 	if (ret > 0) {
 		dso__set_loaded(map->dso, type);
@@ -925,6 +925,12 @@ int machine__load_kallsyms(struct machine *machine, const char *filename,
 	}
 
 	return ret;
+}
+
+int machine__load_kallsyms(struct machine *machine, const char *filename,
+			   enum map_type type, symbol_filter_t filter)
+{
+	return __machine__load_kallsyms(machine, filename, type, false, filter);
 }
 
 int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
