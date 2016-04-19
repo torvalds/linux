@@ -225,6 +225,20 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 		};
+
+		spi@29000 {
+			reg = <0x00029000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			spi_nor: spi-nor@0 {
+				compatible = "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <20000000>;
+				linux,part-probe = "ofpart", "bcm47xxpart";
+				status = "disabled";
+			};
+		};
 	};
 
 	lcpll0: lcpll0@1800c100 {
