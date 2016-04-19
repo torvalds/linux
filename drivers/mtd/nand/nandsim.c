@@ -569,7 +569,7 @@ static void nandsim_debugfs_remove(struct nandsim *ns)
  *
  * RETURNS: 0 if success, -ENOMEM if memory alloc fails.
  */
-static int alloc_device(struct nandsim *ns)
+static int __init alloc_device(struct nandsim *ns)
 {
 	struct file *cfile;
 	int i, err;
@@ -654,7 +654,7 @@ static void free_device(struct nandsim *ns)
 	}
 }
 
-static char *get_partition_name(int i)
+static char __init *get_partition_name(int i)
 {
 	return kasprintf(GFP_KERNEL, "NAND simulator partition %d", i);
 }
@@ -664,7 +664,7 @@ static char *get_partition_name(int i)
  *
  * RETURNS: 0 if success, -ERRNO if failure.
  */
-static int init_nandsim(struct mtd_info *mtd)
+static int __init init_nandsim(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim   *ns   = nand_get_controller_data(chip);
