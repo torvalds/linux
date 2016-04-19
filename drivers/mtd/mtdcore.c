@@ -40,6 +40,7 @@
 #include <linux/slab.h>
 #include <linux/reboot.h>
 #include <linux/kconfig.h>
+#include <linux/leds.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -862,6 +863,7 @@ int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 		mtd_erase_callback(instr);
 		return 0;
 	}
+	ledtrig_mtd_activity();
 	return mtd->_erase(mtd, instr);
 }
 EXPORT_SYMBOL_GPL(mtd_erase);
@@ -925,6 +927,7 @@ int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	if (!len)
 		return 0;
 
+	ledtrig_mtd_activity();
 	/*
 	 * In the absence of an error, drivers return a non-negative integer
 	 * representing the maximum number of bitflips that were corrected on
@@ -949,6 +952,7 @@ int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 		return -EROFS;
 	if (!len)
 		return 0;
+	ledtrig_mtd_activity();
 	return mtd->_write(mtd, to, len, retlen, buf);
 }
 EXPORT_SYMBOL_GPL(mtd_write);
@@ -982,6 +986,8 @@ int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 	ops->retlen = ops->oobretlen = 0;
 	if (!mtd->_read_oob)
 		return -EOPNOTSUPP;
+
+	ledtrig_mtd_activity();
 	/*
 	 * In cases where ops->datbuf != NULL, mtd->_read_oob() has semantics
 	 * similar to mtd->_read(), returning a non-negative integer
@@ -996,6 +1002,19 @@ int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 	return ret_code >= mtd->bitflip_threshold ? -EUCLEAN : 0;
 }
 EXPORT_SYMBOL_GPL(mtd_read_oob);
+
+int mtd_write_oob(struct mtd_info *mtd, loff_t to,
+				struct mtd_oob_ops *ops)
+{
+	ops->retlen = ops->oobretlen = 0;
+	if (!mtd->_write_oob)
+		return -EOPNOTSUPP;
+	if (!(mtd->flags & MTD_WRITEABLE))
+		return -EROFS;
+	ledtrig_mtd_activity();
+	return mtd->_write_oob(mtd, to, ops);
+}
+EXPORT_SYMBOL_GPL(mtd_write_oob);
 
 /*
  * Method to access the protection register area, present in some flash
