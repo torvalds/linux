@@ -2222,6 +2222,11 @@ static int trace__pgfault(struct trace *trace,
 	print_location(trace->output, sample, &al, true, false);
 
 	fprintf(trace->output, " (%c%c)\n", map_type, al.level);
+
+	if (sample->callchain) {
+		if (trace__resolve_callchain(trace, evsel, sample, &callchain_cursor) == 0)
+			trace__fprintf_callchain(trace, sample);
+	}
 out:
 	err = 0;
 out_put:
@@ -2547,24 +2552,42 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	perf_evlist__config(evlist, &trace->opts, NULL);
 
-	if (callchain_param.enabled && trace->syscalls.events.sys_exit) {
-		perf_evsel__config_callchain(trace->syscalls.events.sys_exit,
-					     &trace->opts, &callchain_param);
-               /*
-                * Now we have evsels with different sample_ids, use
-                * PERF_SAMPLE_IDENTIFIER to map from sample to evsel
-                * from a fixed position in each ring buffer record.
-                *
-                * As of this the changeset introducing this comment, this
-                * isn't strictly needed, as the fields that can come before
-                * PERF_SAMPLE_ID are all used, but we'll probably disable
-                * some of those for things like copying the payload of
-                * pointer syscall arguments, and for vfs_getname we don't
-                * need PERF_SAMPLE_ADDR and PERF_SAMPLE_IP, so do this
-                * here as a warning we need to use PERF_SAMPLE_IDENTIFIER.
-                */
-		perf_evlist__set_sample_bit(evlist, IDENTIFIER);
-		perf_evlist__reset_sample_bit(evlist, ID);
+	if (callchain_param.enabled) {
+		bool use_identifier = false;
+
+		if (trace->syscalls.events.sys_exit) {
+			perf_evsel__config_callchain(trace->syscalls.events.sys_exit,
+						     &trace->opts, &callchain_param);
+			use_identifier = true;
+		}
+
+		if (pgfault_maj) {
+			perf_evsel__config_callchain(pgfault_maj, &trace->opts, &callchain_param);
+			use_identifier = true;
+		}
+
+		if (pgfault_min) {
+			perf_evsel__config_callchain(pgfault_min, &trace->opts, &callchain_param);
+			use_identifier = true;
+		}
+
+		if (use_identifier) {
+		       /*
+			* Now we have evsels with different sample_ids, use
+			* PERF_SAMPLE_IDENTIFIER to map from sample to evsel
+			* from a fixed position in each ring buffer record.
+			*
+			* As of this the changeset introducing this comment, this
+			* isn't strictly needed, as the fields that can come before
+			* PERF_SAMPLE_ID are all used, but we'll probably disable
+			* some of those for things like copying the payload of
+			* pointer syscall arguments, and for vfs_getname we don't
+			* need PERF_SAMPLE_ADDR and PERF_SAMPLE_IP, so do this
+			* here as a warning we need to use PERF_SAMPLE_IDENTIFIER.
+			*/
+			perf_evlist__set_sample_bit(evlist, IDENTIFIER);
+			perf_evlist__reset_sample_bit(evlist, ID);
+		}
 	}
 
 	signal(SIGCHLD, sig_handler);
