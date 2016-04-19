@@ -3513,7 +3513,8 @@ static int iscsit_send_text_rsp(
 	struct iscsi_text_rsp *hdr = (struct iscsi_text_rsp *)cmd->pdu;
 	int text_length;
 
-	text_length = iscsit_build_text_rsp(cmd, conn, hdr, ISCSI_TCP);
+	text_length = iscsit_build_text_rsp(cmd, conn, hdr,
+				conn->conn_transport->transport_type);
 	if (text_length < 0)
 		return text_length;
 
