@@ -725,6 +725,9 @@ void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool scsi_cmd,
 		iscsit_remove_cmd_from_immediate_queue(cmd, conn);
 		iscsit_remove_cmd_from_response_queue(cmd, conn);
 	}
+
+	if (conn && conn->conn_transport->iscsit_release_cmd)
+		conn->conn_transport->iscsit_release_cmd(conn, cmd);
 }
 
 void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
