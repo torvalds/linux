@@ -584,34 +584,6 @@ static void atmel_hlcdc_dc_unload(struct drm_device *dev)
 	destroy_workqueue(dc->wq);
 }
 
-static int atmel_hlcdc_dc_connector_plug_all(struct drm_device *dev)
-{
-	struct drm_connector *connector, *failed;
-	int ret;
-
-	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		ret = drm_connector_register(connector);
-		if (ret) {
-			failed = connector;
-			goto err;
-		}
-	}
-	mutex_unlock(&dev->mode_config.mutex);
-	return 0;
-
-err:
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (failed == connector)
-			break;
-
-		drm_connector_unregister(connector);
-	}
-	mutex_unlock(&dev->mode_config.mutex);
-
-	return ret;
-}
-
 static void atmel_hlcdc_dc_connector_unplug_all(struct drm_device *dev)
 {
 	mutex_lock(&dev->mode_config.mutex);
@@ -736,7 +708,7 @@ static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unload;
 
-	ret = atmel_hlcdc_dc_connector_plug_all(ddev);
+	ret = drm_connector_register_all(ddev);
 	if (ret)
 		goto err_unregister;
 
