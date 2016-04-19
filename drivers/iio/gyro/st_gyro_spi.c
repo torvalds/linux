@@ -54,6 +54,7 @@ static const struct spi_device_id st_gyro_id_table[] = {
 	{ L3GD20_GYRO_DEV_NAME },
 	{ L3G4IS_GYRO_DEV_NAME },
 	{ LSM330_GYRO_DEV_NAME },
+	{ LSM9DS0_GYRO_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_gyro_id_table);
