@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2013 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2013-2015 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -21,23 +21,72 @@ Required properties:
 - compatible : Should be mali<chip>, replacing digits with x from the back,
 until malit<Major>xx, ending with arm,mali-midgard, the latter not optional.
 - reg : Physical base address of the device and length of the register area.
-- interrupts : Contains the three IRQ lines required by T76x devices
+- interrupts : Contains the three IRQ lines required by T-6xx devices
 - interrupt-names : Contains the names of IRQ resources in the order they were
 provided in the interrupts property. Must contain: "JOB, "MMU", "GPU".
 
+Optional:
 
-Example for a Mali-T76x:
+- clocks : Phandle to clock for the Mali T-6xx device.
+- clock-names : Shall be "clk_mali".
+- mali-supply : Phandle to regulator for the Mali device. Refer to
+Documentation/devicetree/bindings/regulator/regulator.txt for details.
+- operating-points : Refer to Documentation/devicetree/bindings/power/opp.txt
+for details.
+- snoop_enable_smc : SMC function ID to enable CCI snooping on the GPU port(s).
+- snoop_disable_smc : SMC function ID to disable CCI snooping on the GPU port(s).
+- jm_config : For T860/T880. Sets job manager configuration. An array containing:
+	- 1 to override the TIMESTAMP value, 0 otherwise.
+	- 1 to override clock gate, forcing them to be always on, 0 otherwise.
+	- 1 to enable job throttle, limiting the number of cores that can be started
+	  simultaneously, 0 otherwise.
+	- Value between 0 and 63 (including). If job throttle is enabled, this is one
+	  less than the number of cores that can be started simultaneously.
+- power_model : Sets power model parameters. Note that this model was designed for the Juno
+	        platform, and may not be suitable for other platforms. A structure containing :
+	- compatible: Should be arm,mali-simple-power-model
+	- voltage: Voltage at reference point. Specified in mV.
+	- frequency: Frequency at reference point. Specified in MHz.
+	- dynamic-power: Dynamic power at reference frequency and voltage. Specified in mW.
+	- static-power: Static power at reference frequency. Specified in mW.
+	- ts: An array containing coefficients for the temperature scaling factor.
+	  Used as : tsf = ts[3]*T^3 + ts[2]*T^2 + ts[1]*T + ts[0], where T = temperature
+	- thermal-zone: A string identifying the thermal zone used for the GPU
+- system-coherency : Sets the coherency protocol to be used for coherent
+		     accesses made from the GPU.
+		     If not set then no coherency is used.
+	- 0  : ACE-Lite
+	- 1  : ACE
+	- 31 : No coherency
 
-gpu{
-	compatible = "arm,malit764", 
-				 "arm,malit76x", 
-				 "arm,malit7xx", 
-				 "arm,mali-midgard";
-	reg = <0xffa30000 0x10000>;
-	interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>, 
-				 <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>, 
-				 <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
-	interrupt-names = "JOB", 
-					  "MMU", 
-					  "GPU";
+Example for a Mali-T602:
+
+gpu@0xfc010000 {
+	compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
+	reg = <0xfc010000 0x4000>;
+	interrupts = <0 36 4>, <0 37 4>, <0 38 4>;
+	interrupt-names = "JOB", "MMU", "GPU";
+
+	clocks = <&pclk_mali>;
+	clock-names = "clk_mali";
+	mali-supply = <&vdd_mali>;
+	operating-points = <
+		/* KHz   uV */
+		533000 1250000,
+		450000 1150000,
+		400000 1125000,
+		350000 1075000,
+		266000 1025000,
+		160000  925000,
+		100000  912500,
+	>;
+	power_model {
+		compatible = "arm,mali-simple-power-model";
+		voltage = <800>;
+		frequency = <500>;
+		static-power = <500>;
+		dynamic-power = <1500>;
+		ts = <20000 2000 (-20) 2>;
+		thermal-zone = "gpu";
+	};
 };
