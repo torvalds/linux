@@ -358,6 +358,8 @@ gm107_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
 	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
 
+	gr->func->init_rop_active_fbps(gr);
+
 	nvkm_wr32(device, 0x400500, 0x00010001);
 
 	nvkm_wr32(device, 0x400100, 0xffffffff);
@@ -440,6 +442,7 @@ gm107_gr_gpccs_ucode = {
 static const struct gf100_gr_func
 gm107_gr = {
 	.init = gm107_gr_init,
+	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,
 	.gpccs.ucode = &gm107_gr_gpccs_ucode,

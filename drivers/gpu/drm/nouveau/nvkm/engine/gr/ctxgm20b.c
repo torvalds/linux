@@ -62,7 +62,6 @@ gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
 
-	gk104_grctx_generate_rop_active_fbps(gr);
 	nvkm_wr32(device, 0x408908, nvkm_rd32(device, 0x410108) | 0x80000000);
 
 	for (tmp = 0, i = 0; i < gr->gpc_nr; i++)

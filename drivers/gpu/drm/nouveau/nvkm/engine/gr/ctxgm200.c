@@ -45,15 +45,6 @@ gm200_grctx_generate_tpcid(struct gf100_gr *gr)
 	}
 }
 
-static void
-gm200_grctx_generate_rop_active_fbps(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	const u32 fbp_count = nvkm_rd32(device, 0x12006c);
-	nvkm_mask(device, 0x408850, 0x0000000f, fbp_count); /* zrop */
-	nvkm_mask(device, 0x408958, 0x0000000f, fbp_count); /* crop */
-}
-
 void
 gm200_grctx_generate_405b60(struct gf100_gr *gr)
 {
@@ -112,8 +103,6 @@ gm200_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	nvkm_wr32(device, 0x406500, 0x00000000);
 
 	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
-
-	gm200_grctx_generate_rop_active_fbps(gr);
 
 	for (tmp = 0, i = 0; i < gr->gpc_nr; i++)
 		tmp |= ((1 << gr->tpc_nr[i]) - 1) << (i * 4);

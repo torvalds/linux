@@ -179,6 +179,15 @@ gk104_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+void
+gk104_gr_init_rop_active_fbps(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	const u32 fbp_count = nvkm_rd32(device, 0x120074);
+	nvkm_mask(device, 0x408850, 0x0000000f, fbp_count); /* zrop */
+	nvkm_mask(device, 0x408958, 0x0000000f, fbp_count); /* crop */
+}
+
 int
 gk104_gr_init(struct gf100_gr *gr)
 {
@@ -229,6 +238,8 @@ gk104_gr_init(struct gf100_gr *gr)
 
 	nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
 	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
+
+	gr->func->init_rop_active_fbps(gr);
 
 	nvkm_wr32(device, 0x400500, 0x00010001);
 
@@ -312,6 +323,7 @@ gk104_gr_gpccs_ucode = {
 static const struct gf100_gr_func
 gk104_gr = {
 	.init = gk104_gr_init,
+	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
 	.mmio = gk104_gr_pack_mmio,
 	.fecs.ucode = &gk104_gr_fecs_ucode,
 	.gpccs.ucode = &gk104_gr_gpccs_ucode,

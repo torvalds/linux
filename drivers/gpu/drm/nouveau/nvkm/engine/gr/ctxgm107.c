@@ -985,8 +985,6 @@ gm107_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
 
-	gk104_grctx_generate_rop_active_fbps(gr);
-
 	gf100_gr_icmd(gr, grctx->icmd);
 	nvkm_wr32(device, 0x404154, idle_timeout);
 	gf100_gr_mthd(gr, grctx->mthd);

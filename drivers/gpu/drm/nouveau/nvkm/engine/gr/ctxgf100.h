@@ -81,8 +81,6 @@ void gk104_grctx_generate_bundle(struct gf100_grctx *);
 void gk104_grctx_generate_pagepool(struct gf100_grctx *);
 void gk104_grctx_generate_unkn(struct gf100_gr *);
 void gk104_grctx_generate_r418bb8(struct gf100_gr *);
-void gk104_grctx_generate_rop_active_fbps(struct gf100_gr *);
-
 
 void gm107_grctx_generate_bundle(struct gf100_grctx *);
 void gm107_grctx_generate_pagepool(struct gf100_grctx *);
