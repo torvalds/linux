@@ -303,6 +303,7 @@ config GPIO_MPC8XXX
 		   FSL_SOC_BOOKE || PPC_86xx || ARCH_LAYERSCAPE || ARM || \
 		   COMPILE_TEST
 	select GPIO_GENERIC
+	select IRQ_DOMAIN
 	help
 	  Say Y here if you're going to use hardware that connects to the
 	  MPC512x/831x/834x/837x/8572/8610/QorIQ GPIOs.
