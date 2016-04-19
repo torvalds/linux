@@ -79,7 +79,7 @@ config MIPS_ALCHEMY
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_APM_EMULATION
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select SYS_SUPPORTS_ZBOOT
 	select COMMON_CLK
 
@@ -98,7 +98,7 @@ config AR7
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_ZBOOT_UART16550
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select VLYNQ
 	select HAVE_CLK
 	help
@@ -122,11 +122,11 @@ config ATH25
 config ATH79
 	bool "Atheros AR71XX/AR724X/AR913X based boards"
 	select ARCH_HAS_RESET_CONTROLLER
-	select ARCH_REQUIRE_GPIOLIB
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
+	select GPIOLIB
 	select HAVE_CLK
 	select COMMON_CLK
 	select CLKDEV_LOOKUP
@@ -170,7 +170,6 @@ config BMIPS_GENERIC
 	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_OHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
 	select USB_OHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Build a generic DT-based kernel image that boots on select
 	  BCM33xx cable modem chips, BCM63xx DSL chips, and BCM7xxx set-top
@@ -179,7 +178,6 @@ config BMIPS_GENERIC
 
 config BCM47XX
 	bool "Broadcom BCM47XX based boards"
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
@@ -211,7 +209,7 @@ config BCM63XX
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
 	select SWAP_IO_SPACE
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select HAVE_CLK
 	select MIPS_L1_CACHE_SHIFT_4
 	help
@@ -305,7 +303,7 @@ config MACH_INGENIC
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select DMA_NONCOHERENT
 	select IRQ_MIPS_CPU
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select COMMON_CLK
 	select GENERIC_IRQ_CHIP
 	select BUILTIN_DTB
@@ -325,7 +323,7 @@ config LANTIQ
 	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_HAS_EARLY_PRINTK
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select SWAP_IO_SPACE
 	select BOOT_RAW
 	select CLKDEV_LOOKUP
@@ -377,7 +375,6 @@ config MACH_LOONGSON64
 
 config MACH_PISTACHIO
 	bool "IMG Pistachio SoC based boards"
-	select ARCH_REQUIRE_GPIOLIB
 	select BOOT_ELF32
 	select BOOT_RAW
 	select CEVT_R4K
@@ -385,6 +382,7 @@ config MACH_PISTACHIO
 	select COMMON_CLK
 	select CSRC_R4K
 	select DMA_MAYBE_COHERENT
+	select GPIOLIB
 	select IRQ_MIPS_CPU
 	select LIBFDT
 	select MFD_SYSCON
@@ -406,13 +404,13 @@ config MACH_PISTACHIO
 
 config MACH_XILFPGA
 	bool "MIPSfpga Xilinx based boards"
-	select ARCH_REQUIRE_GPIOLIB
 	select BOOT_ELF32
 	select BOOT_RAW
 	select BUILTIN_DTB
 	select CEVT_R4K
 	select COMMON_CLK
 	select CSRC_R4K
+	select GPIOLIB
 	select IRQ_MIPS_CPU
 	select LIBFDT
 	select MIPS_CPU_SCACHE
@@ -536,7 +534,7 @@ config MACH_VR41XX
 	select CSRC_R4K
 	select SYS_HAS_CPU_VR41XX
 	select SYS_SUPPORTS_MIPS16
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 
 config NXP_STB220
 	bool "NXP STB220 board"
@@ -856,7 +854,7 @@ config MIKROTIK_RB532
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SWAP_IO_SPACE
 	select BOOT_RAW
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select MIPS_L1_CACHE_SHIFT_4
 	help
 	  Support the Mikrotik(tm) RouterBoard 532 series,
@@ -879,7 +877,7 @@ config CAVIUM_OCTEON_SOC
 	select HW_HAS_PCI
 	select ZONE_DMA32
 	select HOLES_IN_ZONE
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select LIBFDT
 	select USE_OF
 	select ARCH_SPARSEMEM_ENABLE
@@ -937,7 +935,7 @@ config NLM_XLP_BOARD
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select ARCH_PHYS_ADDR_T_64BIT
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
@@ -1077,7 +1075,7 @@ config MIPS_CLOCK_VSYSCALL
 	def_bool CSRC_R4K || CLKSRC_MIPS_GIC
 
 config GPIO_TXX9
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	bool
 
 config FW_CFE
@@ -1342,7 +1340,7 @@ config CPU_LOONGSON3
 	select CPU_SUPPORTS_HUGEPAGES
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 		The Loongson 3 processor implements the MIPS64R2 instruction
 		set with many extensions.
@@ -1362,7 +1360,7 @@ config CPU_LOONGSON2F
 	bool "Loongson 2F"
 	depends on SYS_HAS_CPU_LOONGSON2F
 	select CPU_LOONGSON2
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  The Loongson 2F processor implements the MIPS III instruction set
 	  with many extensions.
