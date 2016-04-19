@@ -156,7 +156,7 @@ pll_map_reg(struct nvkm_bios *bios, u32 reg, u32 *type, u8 *ver, u8 *len)
 	}
 
 	map = pll_map(bios);
-	while (map->reg) {
+	while (map && map->reg) {
 		if (map->reg == reg && *ver >= 0x20) {
 			u16 addr = (data += hdr);
 			*type = map->type;
@@ -198,7 +198,7 @@ pll_map_type(struct nvkm_bios *bios, u8 type, u32 *reg, u8 *ver, u8 *len)
 	}
 
 	map = pll_map(bios);
-	while (map->reg) {
+	while (map && map->reg) {
 		if (map->type == type && *ver >= 0x20) {
 			u16 addr = (data += hdr);
 			*reg = map->reg;
