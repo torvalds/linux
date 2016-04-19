@@ -128,6 +128,7 @@ struct wcn36xx_vif {
 	u8 dtim_period;
 	enum ani_ed_type encrypt_type;
 	bool is_joining;
+	bool sta_assoc;
 	struct wcn36xx_hal_mac_ssid ssid;
 
 	/* Power management */
