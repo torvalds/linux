@@ -163,6 +163,9 @@ next_pair:
 
 					pr_debug("%#" PRIx64 ": diff name v: %s k: %s\n",
 						 mem_start, sym->name, pair->name);
+				} else {
+					pr_debug("%#" PRIx64 ": diff name v: %s k: %s\n",
+						 mem_start, sym->name, first_pair->name);
 				}
 			}
 		} else
