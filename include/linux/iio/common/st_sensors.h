@@ -251,8 +251,6 @@ struct st_sensor_data {
 
 #ifdef CONFIG_IIO_BUFFER
 irqreturn_t st_sensors_trigger_handler(int irq, void *p);
-
-int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf);
 #endif
 
 #ifdef CONFIG_IIO_TRIGGER
