@@ -930,7 +930,7 @@ static struct snd_soc_component *soc_find_component(
 	return NULL;
 }
 
-static struct snd_soc_dai *snd_soc_find_dai(
+struct snd_soc_dai *snd_soc_find_dai(
 	const struct snd_soc_dai_link_component *dlc)
 {
 	struct snd_soc_component *component;
@@ -959,6 +959,7 @@ static struct snd_soc_dai *snd_soc_find_dai(
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(snd_soc_find_dai);
 
 static bool soc_is_dai_link_bound(struct snd_soc_card *card,
 		struct snd_soc_dai_link *dai_link)
