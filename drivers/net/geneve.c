@@ -733,7 +733,7 @@ static int geneve6_build_skb(struct dst_entry *dst, struct sk_buff *skb,
 		goto free_dst;
 
 	err = udp_tunnel_handle_offloads(skb, udp_sum);
-	if (IS_ERR(skb))
+	if (err)
 		goto free_dst;
 
 	gnvh = (struct genevehdr *)__skb_push(skb, sizeof(*gnvh) + opt_len);
