@@ -49,7 +49,6 @@ enum pgtable_bits {
 
 	/* Used only by software (masked out before writing EntryLo*) */
 	_PAGE_PRESENT_SHIFT = 24,
-	_PAGE_READ_SHIFT,
 	_PAGE_WRITE_SHIFT,
 	_PAGE_ACCESSED_SHIFT,
 	_PAGE_MODIFIED_SHIFT,
@@ -66,7 +65,7 @@ enum pgtable_bits {
 enum pgtable_bits {
 	/* Used only by software (writes to EntryLo ignored) */
 	_PAGE_PRESENT_SHIFT,
-	_PAGE_READ_SHIFT,
+	_PAGE_NO_READ_SHIFT,
 	_PAGE_WRITE_SHIFT,
 	_PAGE_ACCESSED_SHIFT,
 	_PAGE_MODIFIED_SHIFT,
@@ -85,7 +84,7 @@ enum pgtable_bits {
 	/* Used only by software (masked out before writing EntryLo*) */
 	_PAGE_PRESENT_SHIFT,
 #if !defined(CONFIG_CPU_MIPSR2) && !defined(CONFIG_CPU_MIPSR6)
-	_PAGE_READ_SHIFT,
+	_PAGE_NO_READ_SHIFT,
 #endif
 	_PAGE_WRITE_SHIFT,
 	_PAGE_ACCESSED_SHIFT,
@@ -98,7 +97,6 @@ enum pgtable_bits {
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
 	_PAGE_NO_EXEC_SHIFT,
 	_PAGE_NO_READ_SHIFT,
-	_PAGE_READ_SHIFT = _PAGE_NO_READ_SHIFT,
 #endif
 	_PAGE_GLOBAL_SHIFT,
 	_PAGE_VALID_SHIFT,
@@ -110,11 +108,6 @@ enum pgtable_bits {
 
 /* Used only by software */
 #define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
-# define _PAGE_READ		(cpu_has_rixi ? 0 : (1 << _PAGE_READ_SHIFT))
-#else
-# define _PAGE_READ		(1 << _PAGE_READ_SHIFT)
-#endif
 #define _PAGE_WRITE		(1 << _PAGE_WRITE_SHIFT)
 #define _PAGE_ACCESSED		(1 << _PAGE_ACCESSED_SHIFT)
 #define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
@@ -125,11 +118,10 @@ enum pgtable_bits {
 /* Used by TLB hardware (placed in EntryLo*) */
 #if (defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32))
 # define _PAGE_NO_EXEC		(1 << _PAGE_NO_EXEC_SHIFT)
-# define _PAGE_NO_READ		(1 << _PAGE_NO_READ_SHIFT)
 #elif defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
 # define _PAGE_NO_EXEC		(cpu_has_rixi ? (1 << _PAGE_NO_EXEC_SHIFT) : 0)
-# define _PAGE_NO_READ		(cpu_has_rixi ? (1 << _PAGE_NO_READ_SHIFT) : 0)
 #endif
+#define _PAGE_NO_READ		(1 << _PAGE_NO_READ_SHIFT)
 #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
 #define _PAGE_VALID		(1 << _PAGE_VALID_SHIFT)
 #define _PAGE_DIRTY		(1 << _PAGE_DIRTY_SHIFT)
@@ -144,9 +136,6 @@ enum pgtable_bits {
 
 #ifndef _PAGE_NO_EXEC
 #define _PAGE_NO_EXEC		0
-#endif
-#ifndef _PAGE_NO_READ
-#define _PAGE_NO_READ		0
 #endif
 
 #define _PAGE_SILENT_READ	_PAGE_VALID
@@ -245,7 +234,7 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 #define _CACHE_UNCACHED_ACCELERATED	(7<<_CACHE_SHIFT)
 #endif
 
-#define __READABLE	(_PAGE_SILENT_READ | _PAGE_READ | _PAGE_ACCESSED)
+#define __READABLE	(_PAGE_SILENT_READ | _PAGE_ACCESSED)
 #define __WRITEABLE	(_PAGE_SILENT_WRITE | _PAGE_WRITE | _PAGE_MODIFIED)
 
 #define _PAGE_CHG_MASK	(_PAGE_ACCESSED | _PAGE_MODIFIED |	\
