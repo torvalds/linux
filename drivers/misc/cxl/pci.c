@@ -375,8 +375,10 @@ static int init_implementation_adapter_regs(struct cxl *adapter, struct pci_dev 
 		return -ENODEV;
 	}
 
+	psl_dsnctl = 0x0000900000000000ULL; /* pteupd ttype, scdone */
+	psl_dsnctl |= (0x2ULL << (63-38)); /* MMIO hang pulse: 256 us */
 	/* Tell PSL where to route data to */
-	psl_dsnctl = 0x0000900002000000ULL | (chipid << (63-5));
+	psl_dsnctl |= (chipid << (63-5));
 	psl_dsnctl |= (capp_unit_id << (63-13));
 
 	cxl_p1_write(adapter, CXL_PSL_DSNDCTL, psl_dsnctl);
