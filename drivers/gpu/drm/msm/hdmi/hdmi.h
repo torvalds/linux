@@ -196,7 +196,7 @@ void __exit msm_hdmi_phy_driver_unregister(void);
 int msm_hdmi_pll_8960_init(struct platform_device *pdev);
 int msm_hdmi_pll_8996_init(struct platform_device *pdev);
 #else
-static inline int msm_hdmi_pll_8960_init(struct platform_device *pdev);
+static inline int msm_hdmi_pll_8960_init(struct platform_device *pdev)
 {
 	return -ENODEV;
 }

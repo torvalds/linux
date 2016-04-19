@@ -237,7 +237,7 @@ DECLARE_QCA_GPIO_PINS(99);
 		.pins = gpio##id##_pins,		\
 		.npins = (unsigned)ARRAY_SIZE(gpio##id##_pins),	\
 		.funcs = (int[]){			\
-			qca_mux_NA, /* gpio mode */	\
+			qca_mux_gpio, /* gpio mode */	\
 			qca_mux_##f1,			\
 			qca_mux_##f2,			\
 			qca_mux_##f3,			\
@@ -254,11 +254,11 @@ DECLARE_QCA_GPIO_PINS(99);
 			qca_mux_##f14			\
 		},				        \
 		.nfuncs = 15,				\
-		.ctl_reg = 0x1000 + 0x10 * id,		\
-		.io_reg = 0x1004 + 0x10 * id,		\
-		.intr_cfg_reg = 0x1008 + 0x10 * id,	\
-		.intr_status_reg = 0x100c + 0x10 * id,	\
-		.intr_target_reg = 0x400 + 0x4 * id,	\
+		.ctl_reg = 0x0 + 0x1000 * id,		\
+		.io_reg = 0x4 + 0x1000 * id,		\
+		.intr_cfg_reg = 0x8 + 0x1000 * id,	\
+		.intr_status_reg = 0xc + 0x1000 * id,	\
+		.intr_target_reg = 0x8 + 0x1000 * id,	\
 		.mux_bit = 2,			\
 		.pull_bit = 0,			\
 		.drv_bit = 6,			\
@@ -414,7 +414,7 @@ static const struct msm_pinctrl_soc_data ipq4019_pinctrl = {
 	.nfunctions = ARRAY_SIZE(ipq4019_functions),
 	.groups = ipq4019_groups,
 	.ngroups = ARRAY_SIZE(ipq4019_groups),
-	.ngpios = 70,
+	.ngpios = 100,
 };
 
 static int ipq4019_pinctrl_probe(struct platform_device *pdev)

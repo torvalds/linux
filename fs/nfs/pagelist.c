@@ -342,7 +342,7 @@ nfs_create_request(struct nfs_open_context *ctx, struct page *page,
 	 * update_nfs_request below if the region is not locked. */
 	req->wb_page    = page;
 	req->wb_index	= page_file_index(page);
-	page_cache_get(page);
+	get_page(page);
 	req->wb_offset  = offset;
 	req->wb_pgbase	= offset;
 	req->wb_bytes   = count;
@@ -392,7 +392,7 @@ static void nfs_clear_request(struct nfs_page *req)
 	struct nfs_lock_context *l_ctx = req->wb_lock_context;
 
 	if (page != NULL) {
-		page_cache_release(page);
+		put_page(page);
 		req->wb_page = NULL;
 	}
 	if (l_ctx != NULL) {
@@ -904,7 +904,7 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 				return false;
 		} else {
 			if (req->wb_pgbase != 0 ||
-			    prev->wb_pgbase + prev->wb_bytes != PAGE_CACHE_SIZE)
+			    prev->wb_pgbase + prev->wb_bytes != PAGE_SIZE)
 				return false;
 		}
 	}

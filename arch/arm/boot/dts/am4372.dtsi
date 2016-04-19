@@ -207,7 +207,7 @@
 			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
 				   <&edma_tptc2 0>;
 
-			ti,edma-memcpy-channels = <32 33>;
+			ti,edma-memcpy-channels = <58 59>;
 		};
 
 		edma_tptc0: tptc@49800000 {

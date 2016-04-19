@@ -164,7 +164,7 @@ EXPORT_SYMBOL_GPL(xdr_inline_pages);
  * Note: the addresses pgto_base and pgfrom_base are both calculated in
  *       the same way:
  *            if a memory area starts at byte 'base' in page 'pages[i]',
- *            then its address is given as (i << PAGE_CACHE_SHIFT) + base
+ *            then its address is given as (i << PAGE_SHIFT) + base
  * Also note: pgfrom_base must be < pgto_base, but the memory areas
  * 	they point to may overlap.
  */
@@ -181,20 +181,20 @@ _shift_data_right_pages(struct page **pages, size_t pgto_base,
 	pgto_base += len;
 	pgfrom_base += len;
 
-	pgto = pages + (pgto_base >> PAGE_CACHE_SHIFT);
-	pgfrom = pages + (pgfrom_base >> PAGE_CACHE_SHIFT);
+	pgto = pages + (pgto_base >> PAGE_SHIFT);
+	pgfrom = pages + (pgfrom_base >> PAGE_SHIFT);
 
-	pgto_base &= ~PAGE_CACHE_MASK;
-	pgfrom_base &= ~PAGE_CACHE_MASK;
+	pgto_base &= ~PAGE_MASK;
+	pgfrom_base &= ~PAGE_MASK;
 
 	do {
 		/* Are any pointers crossing a page boundary? */
 		if (pgto_base == 0) {
-			pgto_base = PAGE_CACHE_SIZE;
+			pgto_base = PAGE_SIZE;
 			pgto--;
 		}
 		if (pgfrom_base == 0) {
-			pgfrom_base = PAGE_CACHE_SIZE;
+			pgfrom_base = PAGE_SIZE;
 			pgfrom--;
 		}
 
@@ -236,11 +236,11 @@ _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
 	char *vto;
 	size_t copy;
 
-	pgto = pages + (pgbase >> PAGE_CACHE_SHIFT);
-	pgbase &= ~PAGE_CACHE_MASK;
+	pgto = pages + (pgbase >> PAGE_SHIFT);
+	pgbase &= ~PAGE_MASK;
 
 	for (;;) {
-		copy = PAGE_CACHE_SIZE - pgbase;
+		copy = PAGE_SIZE - pgbase;
 		if (copy > len)
 			copy = len;
 
@@ -253,7 +253,7 @@ _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
 			break;
 
 		pgbase += copy;
-		if (pgbase == PAGE_CACHE_SIZE) {
+		if (pgbase == PAGE_SIZE) {
 			flush_dcache_page(*pgto);
 			pgbase = 0;
 			pgto++;
@@ -280,11 +280,11 @@ _copy_from_pages(char *p, struct page **pages, size_t pgbase, size_t len)
 	char *vfrom;
 	size_t copy;
 
-	pgfrom = pages + (pgbase >> PAGE_CACHE_SHIFT);
-	pgbase &= ~PAGE_CACHE_MASK;
+	pgfrom = pages + (pgbase >> PAGE_SHIFT);
+	pgbase &= ~PAGE_MASK;
 
 	do {
-		copy = PAGE_CACHE_SIZE - pgbase;
+		copy = PAGE_SIZE - pgbase;
 		if (copy > len)
 			copy = len;
 
@@ -293,7 +293,7 @@ _copy_from_pages(char *p, struct page **pages, size_t pgbase, size_t len)
 		kunmap_atomic(vfrom);
 
 		pgbase += copy;
-		if (pgbase == PAGE_CACHE_SIZE) {
+		if (pgbase == PAGE_SIZE) {
 			pgbase = 0;
 			pgfrom++;
 		}
@@ -1038,8 +1038,8 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 	if (base < buf->page_len) {
 		subbuf->page_len = min(buf->page_len - base, len);
 		base += buf->page_base;
-		subbuf->page_base = base & ~PAGE_CACHE_MASK;
-		subbuf->pages = &buf->pages[base >> PAGE_CACHE_SHIFT];
+		subbuf->page_base = base & ~PAGE_MASK;
+		subbuf->pages = &buf->pages[base >> PAGE_SHIFT];
 		len -= subbuf->page_len;
 		base = 0;
 	} else {
@@ -1297,9 +1297,9 @@ xdr_xcode_array2(struct xdr_buf *buf, unsigned int base,
 		todo -= avail_here;
 
 		base += buf->page_base;
-		ppages = buf->pages + (base >> PAGE_CACHE_SHIFT);
-		base &= ~PAGE_CACHE_MASK;
-		avail_page = min_t(unsigned int, PAGE_CACHE_SIZE - base,
+		ppages = buf->pages + (base >> PAGE_SHIFT);
+		base &= ~PAGE_MASK;
+		avail_page = min_t(unsigned int, PAGE_SIZE - base,
 					avail_here);
 		c = kmap(*ppages) + base;
 
@@ -1383,7 +1383,7 @@ xdr_xcode_array2(struct xdr_buf *buf, unsigned int base,
 			}
 
 			avail_page = min(avail_here,
-				 (unsigned int) PAGE_CACHE_SIZE);
+				 (unsigned int) PAGE_SIZE);
 		}
 		base = buf->page_len;  /* align to start of tail */
 	}
@@ -1479,9 +1479,9 @@ xdr_process_buf(struct xdr_buf *buf, unsigned int offset, unsigned int len,
 		if (page_len > len)
 			page_len = len;
 		len -= page_len;
-		page_offset = (offset + buf->page_base) & (PAGE_CACHE_SIZE - 1);
-		i = (offset + buf->page_base) >> PAGE_CACHE_SHIFT;
-		thislen = PAGE_CACHE_SIZE - page_offset;
+		page_offset = (offset + buf->page_base) & (PAGE_SIZE - 1);
+		i = (offset + buf->page_base) >> PAGE_SHIFT;
+		thislen = PAGE_SIZE - page_offset;
 		do {
 			if (thislen > page_len)
 				thislen = page_len;
@@ -1492,7 +1492,7 @@ xdr_process_buf(struct xdr_buf *buf, unsigned int offset, unsigned int len,
 			page_len -= thislen;
 			i++;
 			page_offset = 0;
-			thislen = PAGE_CACHE_SIZE;
+			thislen = PAGE_SIZE;
 		} while (page_len != 0);
 		offset = 0;
 	}

@@ -372,8 +372,8 @@ static int ip6_tun_fill_encap_info(struct sk_buff *skb,
 	if (nla_put_be64(skb, LWTUNNEL_IP6_ID, tun_info->key.tun_id) ||
 	    nla_put_in6_addr(skb, LWTUNNEL_IP6_DST, &tun_info->key.u.ipv6.dst) ||
 	    nla_put_in6_addr(skb, LWTUNNEL_IP6_SRC, &tun_info->key.u.ipv6.src) ||
-	    nla_put_u8(skb, LWTUNNEL_IP6_HOPLIMIT, tun_info->key.tos) ||
-	    nla_put_u8(skb, LWTUNNEL_IP6_TC, tun_info->key.ttl) ||
+	    nla_put_u8(skb, LWTUNNEL_IP6_TC, tun_info->key.tos) ||
+	    nla_put_u8(skb, LWTUNNEL_IP6_HOPLIMIT, tun_info->key.ttl) ||
 	    nla_put_be16(skb, LWTUNNEL_IP6_FLAGS, tun_info->key.tun_flags))
 		return -ENOMEM;
 

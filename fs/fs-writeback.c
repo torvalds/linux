@@ -33,7 +33,7 @@
 /*
  * 4MB minimal write chunk size
  */
-#define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_CACHE_SHIFT - 10))
+#define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_SHIFT - 10))
 
 struct wb_completion {
 	atomic_t		cnt;

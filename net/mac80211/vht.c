@@ -319,7 +319,30 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta)
 	return IEEE80211_STA_RX_BW_80;
 }
 
-static enum ieee80211_sta_rx_bandwidth
+enum nl80211_chan_width ieee80211_sta_cap_chan_bw(struct sta_info *sta)
+{
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.vht_cap;
+	u32 cap_width;
+
+	if (!vht_cap->vht_supported) {
+		if (!sta->sta.ht_cap.ht_supported)
+			return NL80211_CHAN_WIDTH_20_NOHT;
+
+		return sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
+				NL80211_CHAN_WIDTH_40 : NL80211_CHAN_WIDTH_20;
+	}
+
+	cap_width = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
+
+	if (cap_width == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ)
+		return NL80211_CHAN_WIDTH_160;
+	else if (cap_width == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
+		return NL80211_CHAN_WIDTH_80P80;
+
+	return NL80211_CHAN_WIDTH_80;
+}
+
+enum ieee80211_sta_rx_bandwidth
 ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width)
 {
 	switch (width) {
@@ -347,10 +370,7 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta)
 
 	bw = ieee80211_sta_cap_rx_bw(sta);
 	bw = min(bw, sta->cur_max_bandwidth);
-
-	/* do not cap the BW of TDLS WIDER_BW peers by the bss */
-	if (!test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW))
-		bw = min(bw, ieee80211_chan_width_to_rx_bw(bss_width));
+	bw = min(bw, ieee80211_chan_width_to_rx_bw(bss_width));
 
 	return bw;
 }

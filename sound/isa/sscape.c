@@ -591,7 +591,7 @@ static int sscape_upload_microcode(struct snd_card *card, int version)
 	}
 	err = upload_dma_data(sscape, init_fw->data, init_fw->size);
 	if (err == 0)
-		snd_printk(KERN_INFO "sscape: MIDI firmware loaded %d KBs\n",
+		snd_printk(KERN_INFO "sscape: MIDI firmware loaded %zu KBs\n",
 				init_fw->size >> 10);
 
 	release_firmware(init_fw);

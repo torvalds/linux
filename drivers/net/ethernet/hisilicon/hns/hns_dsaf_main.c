@@ -2219,17 +2219,17 @@ void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data)
 	/* dsaf onode registers */
 	for (i = 0; i < DSAF_XOD_NUM; i++) {
 		p[311 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_TSA_TC0_TC3_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_TSA_TC0_TC3_CFG_0_REG + i * 0x90);
 		p[319 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_TSA_TC4_TC7_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_TSA_TC4_TC7_CFG_0_REG + i * 0x90);
 		p[327 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_BW_TC0_TC3_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_BW_TC0_TC3_CFG_0_REG + i * 0x90);
 		p[335 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_BW_TC4_TC7_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_BW_TC4_TC7_CFG_0_REG + i * 0x90);
 		p[343 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_BW_OFFSET_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_BW_OFFSET_CFG_0_REG + i * 0x90);
 		p[351 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_TOKEN_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_TOKEN_CFG_0_REG + i * 0x90);
 	}
 
 	p[359] = dsaf_read_dev(ddev, DSAF_XOD_PFS_CFG_0_0_REG + port * 0x90);

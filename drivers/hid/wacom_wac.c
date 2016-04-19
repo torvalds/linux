@@ -2426,6 +2426,17 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 	}
 
 	/*
+	 * Hack for the Bamboo One:
+	 * the device presents a PAD/Touch interface as most Bamboos and even
+	 * sends ghosts PAD data on it. However, later, we must disable this
+	 * ghost interface, and we can not detect it unless we set it here
+	 * to WACOM_DEVICETYPE_PAD or WACOM_DEVICETYPE_TOUCH.
+	 */
+	if (features->type == BAMBOO_PEN &&
+	    features->pktlen == WACOM_PKGLEN_BBTOUCH3)
+		features->device_type |= WACOM_DEVICETYPE_PAD;
+
+	/*
 	 * Raw Wacom-mode pen and touch events both come from interface
 	 * 0, whose HID descriptor has an application usage of 0xFF0D
 	 * (i.e., WACOM_VENDORDEFINED_PEN). We route pen packets back

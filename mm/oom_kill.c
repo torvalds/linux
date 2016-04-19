@@ -547,7 +547,11 @@ static int oom_reaper(void *unused)
 
 static void wake_oom_reaper(struct task_struct *tsk)
 {
-	if (!oom_reaper_th || tsk->oom_reaper_list)
+	if (!oom_reaper_th)
+		return;
+
+	/* tsk is already queued? */
+	if (tsk == oom_reaper_list || tsk->oom_reaper_list)
 		return;
 
 	get_task_struct(tsk);

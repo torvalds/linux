@@ -1369,7 +1369,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 
 		hrtimer_start(&apic->lapic_timer.timer,
 			      ktime_add_ns(now, apic->lapic_timer.period),
-			      HRTIMER_MODE_ABS);
+			      HRTIMER_MODE_ABS_PINNED);
 
 		apic_debug("%s: bus cycle is %" PRId64 "ns, now 0x%016"
 			   PRIx64 ", "
@@ -1402,7 +1402,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 			expire = ktime_add_ns(now, ns);
 			expire = ktime_sub_ns(expire, lapic_timer_advance_ns);
 			hrtimer_start(&apic->lapic_timer.timer,
-				      expire, HRTIMER_MODE_ABS);
+				      expire, HRTIMER_MODE_ABS_PINNED);
 		} else
 			apic_timer_expired(apic);
 
@@ -1868,7 +1868,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	apic->vcpu = vcpu;
 
 	hrtimer_init(&apic->lapic_timer.timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_ABS);
+		     HRTIMER_MODE_ABS_PINNED);
 	apic->lapic_timer.timer.function = apic_timer_fn;
 
 	/*
@@ -2003,7 +2003,7 @@ void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)
 
 	timer = &vcpu->arch.apic->lapic_timer.timer;
 	if (hrtimer_cancel(timer))
-		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
+		hrtimer_start_expires(timer, HRTIMER_MODE_ABS_PINNED);
 }
 
 /*

@@ -424,9 +424,11 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		bo->pin_count = 1;
 		if (gpu_addr != NULL)
 			*gpu_addr = amdgpu_bo_gpu_offset(bo);
-		if (domain == AMDGPU_GEM_DOMAIN_VRAM)
+		if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
 			bo->adev->vram_pin_size += amdgpu_bo_size(bo);
-		else
+			if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+				bo->adev->invisible_pin_size += amdgpu_bo_size(bo);
+		} else
 			bo->adev->gart_pin_size += amdgpu_bo_size(bo);
 	} else {
 		dev_err(bo->adev->dev, "%p pin failed\n", bo);
@@ -456,9 +458,11 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 	}
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
 	if (likely(r == 0)) {
-		if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
+		if (bo->tbo.mem.mem_type == TTM_PL_VRAM) {
 			bo->adev->vram_pin_size -= amdgpu_bo_size(bo);
-		else
+			if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+				bo->adev->invisible_pin_size -= amdgpu_bo_size(bo);
+		} else
 			bo->adev->gart_pin_size -= amdgpu_bo_size(bo);
 	} else {
 		dev_err(bo->adev->dev, "%p validate failed for unpin\n", bo);
@@ -476,6 +480,17 @@ int amdgpu_bo_evict_vram(struct amdgpu_device *adev)
 	return ttm_bo_evict_mm(&adev->mman.bdev, TTM_PL_VRAM);
 }
 
+static const char *amdgpu_vram_names[] = {
+	"UNKNOWN",
+	"GDDR1",
+	"DDR2",
+	"GDDR3",
+	"GDDR4",
+	"GDDR5",
+	"HBM",
+	"DDR3"
+};
+
 int amdgpu_bo_init(struct amdgpu_device *adev)
 {
 	/* Add an MTRR for the VRAM */
@@ -484,8 +499,8 @@ int amdgpu_bo_init(struct amdgpu_device *adev)
 	DRM_INFO("Detected VRAM RAM=%lluM, BAR=%lluM\n",
 		adev->mc.mc_vram_size >> 20,
 		(unsigned long long)adev->mc.aper_size >> 20);
-	DRM_INFO("RAM width %dbits DDR\n",
-			adev->mc.vram_width);
+	DRM_INFO("RAM width %dbits %s\n",
+		 adev->mc.vram_width, amdgpu_vram_names[adev->mc.vram_type]);
 	return amdgpu_ttm_init(adev);
 }
 
@@ -607,6 +622,10 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	offset = bo->mem.start << PAGE_SHIFT;
 	if ((offset + size) <= adev->mc.visible_vram_size)
 		return 0;
+
+	/* Can't move a pinned BO to visible VRAM */
+	if (abo->pin_count > 0)
+		return -EINVAL;
 
 	/* hurrah the memory is not visible ! */
 	amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_VRAM);
