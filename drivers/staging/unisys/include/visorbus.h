@@ -117,25 +117,48 @@ struct visor_driver {
 #define to_visor_driver(x) ((x) ? \
 	(container_of(x, struct visor_driver, driver)) : (NULL))
 
-/** A device type for things "plugged" into the visorbus bus */
+/**
+ * struct visor_device - A device type for things "plugged" into the visorbus
+ * bus
+ * visorchannel:		Points to the channel that the device is
+ *				associated with.
+ * channel_type_guid:		Identifies the channel type to the bus driver.
+ * device:			Device struct meant for use by the bus driver
+ *				only.
+ * list_all:			Used by the bus driver to enumerate devices.
+ * periodic_work:		Device work queue. Private use by bus driver
+ *				only.
+ * being_removed:		Indicates that the device is being removed from
+ *				the bus. Private bus driver use only.
+ * visordriver_callback_lock:	Used by the bus driver to lock when handling
+ *				channel events.
+ * pausing:			Indicates that a change towards a paused state.
+ *				is in progress. Only modified by the bus driver.
+ * resuming:			Indicates that a change towards a running state
+ *				is in progress. Only modified by the bus driver.
+ * chipset_bus_no:		Private field used by the bus driver.
+ * chipset_dev_no:		Private field used the bus driver.
+ * state:			Used to indicate the current state of the
+ *				device.
+ * inst:			Unique GUID for this instance of the device.
+ * name:			Name of the device.
+ * pending_msg_hdr:		For private use by bus driver to respond to
+ *				hypervisor requests.
+ * vbus_hdr_info:		A pointer to header info. Private use by bus
+ *				driver.
+ * partition_uuid:		Indicates client partion id. This should be the
+ *				same across all visor_devices in the current
+ *				guest. Private use by bus driver only.
+ */
 
 struct visor_device {
-	/** visor driver can use the visorchannel member with the functions
-	 *  defined in visorchannel.h to access the channel
-	 */
 	struct visorchannel *visorchannel;
 	uuid_le channel_type_guid;
-
-	/** These fields are for private use by the bus driver only.
-	 *  A notable exception is that the visor driver can use
-	 *  visor_get_drvdata() and visor_set_drvdata() to retrieve or stash
-	 *  private visor driver specific data within the device member.
-	 */
+	/* These fields are for private use by the bus driver only. */
 	struct device device;
 	struct list_head list_all;
 	struct periodic_work *periodic_work;
 	bool being_removed;
-	/* the code will detect and behave appropriately) */
 	struct semaphore visordriver_callback_lock;
 	bool pausing;
 	bool resuming;
