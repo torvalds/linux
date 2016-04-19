@@ -3788,6 +3788,14 @@ a KVM_EXIT_IOAPIC_EOI vmexit will be reported to userspace.
 Fails if VCPU has already been created, or if the irqchip is already in the
 kernel (i.e. KVM_CREATE_IRQCHIP has already been called).
 
+7.6 KVM_CAP_S390_RI
+
+Architectures: s390
+Parameters: none
+
+Allows use of runtime-instrumentation introduced with zEC12 processor.
+Will return -EINVAL if the machine does not support runtime-instrumentation.
+Will return -EBUSY if a VCPU has already been created.
 
 8. Other capabilities.
 ----------------------
