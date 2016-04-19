@@ -771,7 +771,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(16), 1, GFLAGS),
 
 	/* rga */
-	COMPOSITE(0, "clk_rga_core", mux_pll_src_cpll_gpll_npll_ppll_p, 0,
+	COMPOSITE(SCLK_RGA_CORE, "clk_rga_core", mux_pll_src_cpll_gpll_npll_ppll_p, 0,
 			RK3399_CLKSEL_CON(12), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(4), 10, GFLAGS),
 
