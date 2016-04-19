@@ -361,14 +361,7 @@ static int rcar_du_probe(struct platform_device *pdev)
 	if (ret)
 		goto error;
 
-	mutex_lock(&ddev->mode_config.mutex);
-	drm_for_each_connector(connector, ddev) {
-		ret = drm_connector_register(connector);
-		if (ret < 0)
-			break;
-	}
-	mutex_unlock(&ddev->mode_config.mutex);
-
+	ret = drm_connector_register_all(ddev);
 	if (ret < 0)
 		goto error;
 
