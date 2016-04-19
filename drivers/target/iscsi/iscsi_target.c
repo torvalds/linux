@@ -3951,14 +3951,8 @@ int iscsi_target_rx_thread(void *arg)
 	if (rc < 0 || iscsi_target_check_conn_state(conn))
 		return 0;
 
-	if (conn->conn_transport->transport_type == ISCSI_INFINIBAND) {
-		struct completion comp;
-
-		init_completion(&comp);
-		rc = wait_for_completion_interruptible(&comp);
-		if (rc < 0)
-			goto transport_err;
-
+	if (conn->conn_transport->iscsit_get_rx_pdu) {
+		conn->conn_transport->iscsit_get_rx_pdu(conn);
 		goto transport_err;
 	}
 

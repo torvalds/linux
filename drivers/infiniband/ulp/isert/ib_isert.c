@@ -3273,6 +3273,15 @@ static void isert_free_conn(struct iscsi_conn *conn)
 	isert_put_conn(isert_conn);
 }
 
+static void isert_get_rx_pdu(struct iscsi_conn *conn)
+{
+	struct completion comp;
+
+	init_completion(&comp);
+
+	wait_for_completion_interruptible(&comp);
+}
+
 static struct iscsit_transport iser_target_transport = {
 	.name			= "IB/iSER",
 	.transport_type		= ISCSI_INFINIBAND,
@@ -3291,6 +3300,7 @@ static struct iscsit_transport iser_target_transport = {
 	.iscsit_queue_data_in	= isert_put_datain,
 	.iscsit_queue_status	= isert_put_response,
 	.iscsit_aborted_task	= isert_aborted_task,
+	.iscsit_get_rx_pdu	= isert_get_rx_pdu,
 	.iscsit_get_sup_prot_ops = isert_get_sup_prot_ops,
 };
 
