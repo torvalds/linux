@@ -187,7 +187,7 @@
 		};
 
 		gpmi: gpmi-nand@01806000{
-			compatible = "fsl,imx6ul-gpmi-nand";
+			compatible = "fsl,imx6ull-gpmi-nand", "fsl, imx6ul-gpmi-nand";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x01806000 0x2000>, <0x01808000 0x4000>;
