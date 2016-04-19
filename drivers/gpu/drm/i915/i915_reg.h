@@ -7180,6 +7180,7 @@ enum skl_disp_power_wells {
 
 #define GEN9_HALF_SLICE_CHICKEN7	_MMIO(0xe194)
 #define   GEN9_ENABLE_YV12_BUGFIX	(1<<4)
+#define   GEN9_ENABLE_GPGPU_PREEMPTION	(1<<2)
 
 /* Audio */
 #define G4X_AUD_VID_DID			_MMIO(dev_priv->info.display_mmio_offset + 0x62020)

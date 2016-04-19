@@ -959,9 +959,10 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	}
 
 	/* WaEnableYV12BugFixInHalfSliceChicken7:skl,bxt */
-	if (IS_SKL_REVID(dev, SKL_REVID_C0, REVID_FOREVER) || IS_BROXTON(dev))
-		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
-				  GEN9_ENABLE_YV12_BUGFIX);
+	/* WaEnableSamplerGPGPUPreemptionSupport:skl,bxt */
+	WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
+			  GEN9_ENABLE_YV12_BUGFIX |
+			  GEN9_ENABLE_GPGPU_PREEMPTION);
 
 	/* Wa4x4STCOptimizationDisable:skl,bxt */
 	/* WaDisablePartialResolveInVc:skl,bxt */
