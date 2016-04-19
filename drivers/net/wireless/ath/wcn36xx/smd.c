@@ -1380,19 +1380,17 @@ int wcn36xx_smd_send_beacon(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_SEND_BEACON_REQ);
 
-	/* TODO need to find out why this is needed? */
-	msg_body.beacon_length = skb_beacon->len + 6;
+	msg_body.beacon_length = skb_beacon->len;
+	/* TODO need to find out why + 6 is needed */
+	msg_body.beacon_length6 = msg_body.beacon_length + 6;
 
-	if (BEACON_TEMPLATE_SIZE > msg_body.beacon_length) {
-		memcpy(&msg_body.beacon, &skb_beacon->len, sizeof(u32));
-		memcpy(&(msg_body.beacon[4]), skb_beacon->data,
-		       skb_beacon->len);
-	} else {
+	if (msg_body.beacon_length > BEACON_TEMPLATE_SIZE) {
 		wcn36xx_err("Beacon is to big: beacon size=%d\n",
 			      msg_body.beacon_length);
 		ret = -ENOMEM;
 		goto out;
 	}
+	memcpy(msg_body.beacon, skb_beacon->data, skb_beacon->len);
 	memcpy(msg_body.bssid, vif->addr, ETH_ALEN);
 
 	/* TODO need to find out why this is needed? */

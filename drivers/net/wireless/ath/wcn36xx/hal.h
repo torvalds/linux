@@ -2884,11 +2884,14 @@ struct update_beacon_rsp_msg {
 struct wcn36xx_hal_send_beacon_req_msg {
 	struct wcn36xx_hal_msg_header header;
 
+	/* length of the template + 6. Only qcom knows why */
+	u32 beacon_length6;
+
 	/* length of the template. */
 	u32 beacon_length;
 
 	/* Beacon data. */
-	u8 beacon[BEACON_TEMPLATE_SIZE];
+	u8 beacon[BEACON_TEMPLATE_SIZE - sizeof(u32)];
 
 	u8 bssid[ETH_ALEN];
 
