@@ -1,6 +1,5 @@
 config NIOS2
 	def_bool y
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select CLKSRC_OF
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
