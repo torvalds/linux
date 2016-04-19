@@ -229,6 +229,7 @@ fi
 if test $commandcompleted -eq 0 -a -n "$qemu_pid"
 then
 	echo Grace period for qemu job at pid $qemu_pid
+	oldline="`tail $resdir/console.log`"
 	while :
 	do
 		kruntime=`awk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
@@ -238,13 +239,29 @@ then
 		else
 			break
 		fi
-		if test $kruntime -ge $((seconds + $TORTURE_SHUTDOWN_GRACE))
+		must_continue=no
+		newline="`tail $resdir/console.log`"
+		if test "$newline" != "$oldline" && echo $newline | grep -q ' [0-9]\+us : '
+		then
+			must_continue=yes
+		fi
+		last_ts="`tail $resdir/console.log | grep '^\[ *[0-9]\+\.[0-9]\+]' | tail -1 | sed -e 's/^\[ *//' -e 's/\..*$//'`"
+		if test -z "last_ts"
+		then
+			last_ts=0
+		fi
+		if test "$newline" != "$oldline" -a "$last_ts" -lt $((seconds + $TORTURE_SHUTDOWN_GRACE))
+		then
+			must_continue=yes
+		fi
+		if test $must_continue = no -a $kruntime -ge $((seconds + $TORTURE_SHUTDOWN_GRACE))
 		then
 			echo "!!! PID $qemu_pid hung at $kruntime vs. $seconds seconds" >> $resdir/Warnings 2>&1
 			kill -KILL $qemu_pid
 			break
 		fi
-		sleep 1
+		oldline=$newline
+		sleep 10
 	done
 elif test -z "$qemu_pid"
 then
