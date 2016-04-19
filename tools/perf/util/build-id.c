@@ -261,14 +261,14 @@ static int machine__write_buildid_table(struct machine *machine, int fd)
 
 		if (dso__is_vdso(pos)) {
 			name = pos->short_name;
-			name_len = pos->short_name_len + 1;
+			name_len = pos->short_name_len;
 		} else if (dso__is_kcore(pos)) {
 			machine__mmap_name(machine, nm, sizeof(nm));
 			name = nm;
-			name_len = strlen(nm) + 1;
+			name_len = strlen(nm);
 		} else {
 			name = pos->long_name;
-			name_len = pos->long_name_len + 1;
+			name_len = pos->long_name_len;
 		}
 
 		in_kernel = pos->kernel ||
