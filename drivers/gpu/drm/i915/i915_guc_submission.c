@@ -179,15 +179,11 @@ static void guc_init_doorbell(struct intel_guc *guc,
 			      struct i915_guc_client *client)
 {
 	struct guc_doorbell_info *doorbell;
-	void *base;
 
-	base = kmap_atomic(i915_gem_object_get_page(client->client_obj, 0));
-	doorbell = base + client->doorbell_offset;
+	doorbell = client->client_base + client->doorbell_offset;
 
-	doorbell->db_status = 1;
+	doorbell->db_status = GUC_DOORBELL_ENABLED;
 	doorbell->cookie = 0;
-
-	kunmap_atomic(base);
 }
 
 static int guc_ring_doorbell(struct i915_guc_client *gc)
@@ -195,11 +191,9 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 	struct guc_process_desc *desc;
 	union guc_doorbell_qw db_cmp, db_exc, db_ret;
 	union guc_doorbell_qw *db;
-	void *base;
 	int attempt = 2, ret = -EAGAIN;
 
-	base = kmap_atomic(i915_gem_object_get_page(gc->client_obj, 0));
-	desc = base + gc->proc_desc_offset;
+	desc = gc->client_base + gc->proc_desc_offset;
 
 	/* Update the tail so it is visible to GuC */
 	desc->tail = gc->wq_tail;
@@ -215,7 +209,7 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 		db_exc.cookie = 1;
 
 	/* pointer of current doorbell cacheline */
-	db = base + gc->doorbell_offset;
+	db = gc->client_base + gc->doorbell_offset;
 
 	while (attempt--) {
 		/* lets ring the doorbell */
@@ -247,7 +241,6 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 	/* Finally, update the cached copy of the GuC's WQ head */
 	gc->wq_head = desc->head;
 
-	kunmap_atomic(base);
 	return ret;
 }
 
@@ -256,16 +249,12 @@ static void guc_disable_doorbell(struct intel_guc *guc,
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct guc_doorbell_info *doorbell;
-	void *base;
 	i915_reg_t drbreg = GEN8_DRBREGL(client->doorbell_id);
 	int value;
 
-	base = kmap_atomic(i915_gem_object_get_page(client->client_obj, 0));
-	doorbell = base + client->doorbell_offset;
+	doorbell = client->client_base + client->doorbell_offset;
 
-	doorbell->db_status = 0;
-
-	kunmap_atomic(base);
+	doorbell->db_status = GUC_DOORBELL_DISABLED;
 
 	I915_WRITE(drbreg, I915_READ(drbreg) & ~GEN8_DRB_VALID);
 
@@ -341,10 +330,8 @@ static void guc_init_proc_desc(struct intel_guc *guc,
 			       struct i915_guc_client *client)
 {
 	struct guc_process_desc *desc;
-	void *base;
 
-	base = kmap_atomic(i915_gem_object_get_page(client->client_obj, 0));
-	desc = base + client->proc_desc_offset;
+	desc = client->client_base + client->proc_desc_offset;
 
 	memset(desc, 0, sizeof(*desc));
 
@@ -361,8 +348,6 @@ static void guc_init_proc_desc(struct intel_guc *guc,
 	desc->wq_size_bytes = client->wq_size;
 	desc->wq_status = WQ_STATUS_ACTIVE;
 	desc->priority = client->priority;
-
-	kunmap_atomic(base);
 }
 
 /*
@@ -474,7 +459,6 @@ static void guc_fini_ctx_desc(struct intel_guc *guc,
 int i915_guc_wq_check_space(struct i915_guc_client *gc)
 {
 	struct guc_process_desc *desc;
-	void *base;
 	u32 size = sizeof(struct guc_wq_item);
 	int ret = -ETIMEDOUT, timeout_counter = 200;
 
@@ -486,8 +470,7 @@ int i915_guc_wq_check_space(struct i915_guc_client *gc)
 	if (CIRC_SPACE(gc->wq_tail, gc->wq_head, gc->wq_size) >= size)
 		return 0;
 
-	base = kmap_atomic(i915_gem_object_get_page(gc->client_obj, 0));
-	desc = base + gc->proc_desc_offset;
+	desc = gc->client_base + gc->proc_desc_offset;
 
 	while (timeout_counter-- > 0) {
 		gc->wq_head = desc->head;
@@ -500,8 +483,6 @@ int i915_guc_wq_check_space(struct i915_guc_client *gc)
 		if (timeout_counter)
 			usleep_range(1000, 2000);
 	};
-
-	kunmap_atomic(base);
 
 	return ret;
 }
@@ -661,20 +642,27 @@ static void guc_client_free(struct drm_device *dev,
 	if (!client)
 		return;
 
-	if (client->doorbell_id != GUC_INVALID_DOORBELL_ID) {
-		/*
-		 * First disable the doorbell, then tell the GuC we've
-		 * finished with it, finally deallocate it in our bitmap
-		 */
-		guc_disable_doorbell(guc, client);
-		host2guc_release_doorbell(guc, client);
-		release_doorbell(guc, client->doorbell_id);
-	}
-
 	/*
 	 * XXX: wait for any outstanding submissions before freeing memory.
 	 * Be sure to drop any locks
 	 */
+
+	if (client->client_base) {
+		/*
+		 * If we got as far as setting up a doorbell, make sure
+		 * we shut it down before unmapping & deallocating the
+		 * memory. So first disable the doorbell, then tell the
+		 * GuC that we've finished with it, finally deallocate
+		 * it in our bitmap
+		 */
+		if (client->doorbell_id != GUC_INVALID_DOORBELL_ID) {
+			guc_disable_doorbell(guc, client);
+			host2guc_release_doorbell(guc, client);
+			release_doorbell(guc, client->doorbell_id);
+		}
+
+		kunmap(kmap_to_page(client->client_base));
+	}
 
 	gem_release_guc_obj(client->client_obj);
 
@@ -696,7 +684,7 @@ static void guc_client_free(struct drm_device *dev,
  * @ctx:	the context that owns the client (we use the default render
  * 		context)
  *
- * Return:	An i915_guc_client object if success.
+ * Return:	An i915_guc_client object if success, else NULL.
  */
 static struct i915_guc_client *guc_client_alloc(struct drm_device *dev,
 						uint32_t priority,
@@ -728,7 +716,9 @@ static struct i915_guc_client *guc_client_alloc(struct drm_device *dev,
 	if (!obj)
 		goto err;
 
+	/* We'll keep just the first (doorbell/proc) page permanently kmap'd. */
 	client->client_obj = obj;
+	client->client_base = kmap(i915_gem_object_get_page(obj, 0));
 	client->wq_offset = GUC_DB_SIZE;
 	client->wq_size = GUC_WQ_SIZE;
 

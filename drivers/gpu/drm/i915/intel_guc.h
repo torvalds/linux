@@ -31,6 +31,7 @@ struct drm_i915_gem_request;
 
 struct i915_guc_client {
 	struct drm_i915_gem_object *client_obj;
+	void *client_base;		/* first page (only) of above	*/
 	struct intel_context *owner;
 	struct intel_guc *guc;
 	uint32_t priority;
@@ -52,6 +53,7 @@ struct i915_guc_client {
 	uint32_t q_fail;
 	uint32_t b_fail;
 	int retcode;
+	int spare;			/* pad to 32 DWords		*/
 };
 
 enum intel_guc_fw_status {
