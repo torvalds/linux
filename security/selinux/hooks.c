@@ -297,6 +297,13 @@ static struct inode_security_struct *inode_security(struct inode *inode)
 	return inode->i_security;
 }
 
+static struct inode_security_struct *backing_inode_security_novalidate(struct dentry *dentry)
+{
+	struct inode *inode = d_backing_inode(dentry);
+
+	return inode->i_security;
+}
+
 /*
  * Get the security label of a dentry's backing inode.
  */
@@ -686,7 +693,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	struct superblock_security_struct *sbsec = sb->s_security;
 	const char *name = sb->s_type->name;
 	struct dentry *root = sbsec->sb->s_root;
-	struct inode_security_struct *root_isec = backing_inode_security(root);
+	struct inode_security_struct *root_isec;
 	u32 fscontext_sid = 0, context_sid = 0, rootcontext_sid = 0;
 	u32 defcontext_sid = 0;
 	char **mount_options = opts->mnt_opts;
@@ -728,6 +735,8 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	if ((sbsec->flags & SE_SBINITIALIZED) && (sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)
 	    && (num_opts == 0))
 		goto out;
+
+	root_isec = backing_inode_security_novalidate(root);
 
 	/*
 	 * parse the mount options, check if they are valid sids.
@@ -3222,7 +3231,7 @@ out_nofree:
 static int selinux_inode_setsecurity(struct inode *inode, const char *name,
 				     const void *value, size_t size, int flags)
 {
-	struct inode_security_struct *isec = inode_security(inode);
+	struct inode_security_struct *isec = inode_security_novalidate(inode);
 	u32 newsid;
 	int rc;
 
