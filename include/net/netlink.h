@@ -1231,6 +1231,43 @@ static inline int nla_validate_nested(const struct nlattr *start, int maxtype,
 }
 
 /**
+ * nla_align_64bit - 64-bit align the nla_data() of next attribute
+ * @skb: socket buffer the message is stored in
+ * @padattr: attribute type for the padding
+ *
+ * Conditionally emit a padding netlink attribute in order to make
+ * the next attribute we emit have a 64-bit aligned nla_data() area.
+ * This will only be done in architectures which do not have
+ * HAVE_EFFICIENT_UNALIGNED_ACCESS defined.
+ *
+ * Returns zero on success or a negative error code.
+ */
+static inline int nla_align_64bit(struct sk_buff *skb, int padattr)
+{
+#ifndef HAVE_EFFICIENT_UNALIGNED_ACCESS
+	if (IS_ALIGNED((unsigned long)skb->data, 8)) {
+		struct nlattr *attr = nla_reserve(skb, padattr, 0);
+		if (!attr)
+			return -EMSGSIZE;
+	}
+#endif
+	return 0;
+}
+
+/**
+ * nla_total_size_64bit - total length of attribute including padding
+ * @payload: length of payload
+ */
+static inline int nla_total_size_64bit(int payload)
+{
+	return NLA_ALIGN(nla_attr_size(payload))
+#ifndef HAVE_EFFICIENT_UNALIGNED_ACCESS
+		+ NLA_ALIGN(nla_attr_size(0))
+#endif
+		;
+}
+
+/**
  * nla_for_each_attr - iterate over a stream of attributes
  * @pos: loop counter, set to current attribute
  * @head: head of attribute stream
