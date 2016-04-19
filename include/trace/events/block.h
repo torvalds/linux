@@ -667,6 +667,107 @@ TRACE_EVENT(block_rq_remap,
 		  (unsigned long long)__entry->old_sector, __entry->nr_bios)
 );
 
+/**
+ * block_wb_stat - trace stats for blk_wb
+ * @stat: array of read/write stats
+ */
+TRACE_EVENT(block_wb_stat,
+
+	TP_PROTO(struct blk_rq_stat *stat),
+
+	TP_ARGS(stat),
+
+	TP_STRUCT__entry(
+		__field( s64,		rmean		)
+		__field( u64,		rmin		)
+		__field( u64,		rmax		)
+		__field( s64,		rnr_samples	)
+		__field( s64,		rtime		)
+		__field( s64,		wmean		)
+		__field( u64,		wmin		)
+		__field( u64,		wmax		)
+		__field( s64,		wnr_samples	)
+		__field( s64,		wtime		)
+	),
+
+	TP_fast_assign(
+		__entry->rmean		= stat[0].mean;
+		__entry->rmin		= stat[0].min;
+		__entry->rmax		= stat[0].max;
+		__entry->rnr_samples	= stat[0].nr_samples;
+		__entry->wmean		= stat[1].mean;
+		__entry->wmin		= stat[1].min;
+		__entry->wmax		= stat[1].max;
+		__entry->wnr_samples	= stat[1].nr_samples;
+	),
+
+	TP_printk("rmean=%llu, rmin=%llu, rmax=%llu, rsamples=%llu, "
+		  "wmean=%llu, wmin=%llu, wmax=%llu, wsamples=%llu\n",
+		  __entry->rmean, __entry->rmin, __entry->rmax,
+		  __entry->rnr_samples, __entry->wmean, __entry->wmin,
+		  __entry->wmax, __entry->wnr_samples)
+);
+
+/**
+ * block_wb_lat - trace latency event
+ * @lat: latency trigger
+ */
+TRACE_EVENT(block_wb_lat,
+
+	TP_PROTO(unsigned long lat),
+
+	TP_ARGS(lat),
+
+	TP_STRUCT__entry(
+		__field( unsigned long,	lat	)
+	),
+
+	TP_fast_assign(
+		__entry->lat		= lat;
+	),
+
+	TP_printk("latency %llu\n", (unsigned long long) __entry->lat)
+);
+
+/**
+ * block_wb_step - trace wb event step
+ * @msg: context message
+ * @step: the current scale step count
+ * @window: the current monitoring window
+ * @bg: the current background queue limit
+ * @normal: the current normal writeback limit
+ * @max: the current max throughput writeback limit
+ */
+TRACE_EVENT(block_wb_step,
+
+	TP_PROTO(const char *msg, unsigned int step, unsigned long window,
+		 unsigned int bg, unsigned int normal, unsigned int max),
+
+	TP_ARGS(msg, step, window, bg, normal, max),
+
+	TP_STRUCT__entry(
+		__field( const char *,	msg 	)
+		__field( unsigned int,	step	)
+		__field( unsigned long,	window	)
+		__field( unsigned int,	bg 	)
+		__field( unsigned int,	normal	)
+		__field( unsigned int,	max 	)
+	),
+
+	TP_fast_assign(
+		__entry->msg		= msg;
+		__entry->step		= step;
+		__entry->window		= window;
+		__entry->bg		= bg;
+		__entry->normal		= normal;
+		__entry->max		= max;
+	),
+
+	TP_printk("%s: step=%u, window=%lu, background=%u, normal=%u, max=%u\n",
+		  __entry->msg, __entry->step, __entry->window, __entry->bg,
+		  __entry->normal, __entry->max)
+);
+
 #endif /* _TRACE_BLOCK_H */
 
 /* This part must be outside protection */

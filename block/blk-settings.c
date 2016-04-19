@@ -13,6 +13,7 @@
 #include <linux/gfp.h>
 
 #include "blk.h"
+#include "blk-wb.h"
 
 unsigned long blk_max_low_pfn;
 EXPORT_SYMBOL(blk_max_low_pfn);
@@ -840,6 +841,9 @@ EXPORT_SYMBOL_GPL(blk_queue_flush_queueable);
 void blk_set_queue_depth(struct request_queue *q, unsigned int depth)
 {
 	q->queue_depth = depth;
+
+	if (q->rq_wb)
+		blk_wb_update_limits(q->rq_wb);
 }
 EXPORT_SYMBOL(blk_set_queue_depth);
 
