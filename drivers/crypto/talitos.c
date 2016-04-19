@@ -2629,20 +2629,10 @@ struct talitos_crypto_alg {
 	struct talitos_alg_template algt;
 };
 
-static int talitos_cra_init(struct crypto_tfm *tfm)
+static int talitos_init_common(struct talitos_ctx *ctx,
+			       struct talitos_crypto_alg *talitos_alg)
 {
-	struct crypto_alg *alg = tfm->__crt_alg;
-	struct talitos_crypto_alg *talitos_alg;
-	struct talitos_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct talitos_private *priv;
-
-	if ((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_AHASH)
-		talitos_alg = container_of(__crypto_ahash_alg(alg),
-					   struct talitos_crypto_alg,
-					   algt.alg.hash);
-	else
-		talitos_alg = container_of(alg, struct talitos_crypto_alg,
-					   algt.alg.crypto);
 
 	/* update context with ptr to dev */
 	ctx->dev = talitos_alg->dev;
@@ -2661,10 +2651,33 @@ static int talitos_cra_init(struct crypto_tfm *tfm)
 	return 0;
 }
 
+static int talitos_cra_init(struct crypto_tfm *tfm)
+{
+	struct crypto_alg *alg = tfm->__crt_alg;
+	struct talitos_crypto_alg *talitos_alg;
+	struct talitos_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	if ((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_AHASH)
+		talitos_alg = container_of(__crypto_ahash_alg(alg),
+					   struct talitos_crypto_alg,
+					   algt.alg.hash);
+	else
+		talitos_alg = container_of(alg, struct talitos_crypto_alg,
+					   algt.alg.crypto);
+
+	return talitos_init_common(ctx, talitos_alg);
+}
+
 static int talitos_cra_init_aead(struct crypto_aead *tfm)
 {
-	talitos_cra_init(crypto_aead_tfm(tfm));
-	return 0;
+	struct aead_alg *alg = crypto_aead_alg(tfm);
+	struct talitos_crypto_alg *talitos_alg;
+	struct talitos_ctx *ctx = crypto_aead_ctx(tfm);
+
+	talitos_alg = container_of(alg, struct talitos_crypto_alg,
+				   algt.alg.aead);
+
+	return talitos_init_common(ctx, talitos_alg);
 }
 
 static int talitos_cra_init_ahash(struct crypto_tfm *tfm)
