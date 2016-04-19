@@ -596,7 +596,7 @@ static struct snd_soc_dai_driver aic32x4_dai = {
 	.symmetric_rates = 1,
 };
 
-static int aic32x4_probe(struct snd_soc_codec *codec)
+static int aic32x4_codec_probe(struct snd_soc_codec *codec)
 {
 	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
 	u32 tmp_reg;
@@ -655,7 +655,7 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_aic32x4 = {
-	.probe = aic32x4_probe,
+	.probe = aic32x4_codec_probe,
 	.set_bias_level = aic32x4_set_bias_level,
 	.suspend_bias_off = true,
 
