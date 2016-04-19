@@ -1586,6 +1586,7 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	return snd_soc_register_dai(tplg->comp, dai_drv);
 }
 
+/* create the FE DAI link */
 static int soc_tplg_link_create(struct soc_tplg *tplg,
 	struct snd_soc_tplg_pcm *pcm)
 {
@@ -1599,6 +1600,15 @@ static int soc_tplg_link_create(struct soc_tplg *tplg,
 	link->name = pcm->pcm_name;
 	link->stream_name = pcm->pcm_name;
 	link->id = pcm->pcm_id;
+
+	link->cpu_dai_name = pcm->dai_name;
+	link->codec_name = "snd-soc-dummy";
+	link->codec_dai_name = "snd-soc-dummy-dai";
+
+	/* enable DPCM */
+	link->dynamic = 1;
+	link->dpcm_playback = pcm->playback;
+	link->dpcm_capture = pcm->capture;
 
 	/* pass control to component driver for optional further init */
 	ret = soc_tplg_dai_link_load(tplg, link);
