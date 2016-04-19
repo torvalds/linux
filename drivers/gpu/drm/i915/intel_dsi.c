@@ -46,6 +46,14 @@ static const struct {
 	},
 };
 
+/* return pixels equvalent to txbyteclkhs */
+static u16 pixels_from_txbyteclkhs(u16 clk_hs, int bpp, int lane_count,
+			u16 burst_mode_ratio)
+{
+	return DIV_ROUND_UP((clk_hs * lane_count * 8 * 100),
+						(bpp * burst_mode_ratio));
+}
+
 enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt)
 {
 	/* It just so happens the VBT matches register contents. */
@@ -781,9 +789,10 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	struct drm_display_mode *adjusted_mode =
 					&pipe_config->base.adjusted_mode;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	unsigned int lane_count = intel_dsi->lane_count;
 	unsigned int bpp, fmt;
 	enum port port;
-	u16 vfp, vsync, vbp;
+	u16 hactive, hfp, hsync, hbp, vfp, vsync, vbp;
 
 	/*
 	 * Atleast one port is active as encoder->get_config called only if
@@ -808,22 +817,43 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	adjusted_mode->crtc_vtotal =
 				I915_READ(BXT_MIPI_TRANS_VTOTAL(port));
 
+	hactive = adjusted_mode->crtc_hdisplay;
+	hfp = I915_READ(MIPI_HFP_COUNT(port));
+
 	/*
-	 * TODO: Retrieve hfp, hsync and hbp. Adjust them for dual link and
-	 * calculate hsync_start, hsync_end, htotal and hblank_end
+	 * Meaningful for video mode non-burst sync pulse mode only,
+	 * can be zero for non-burst sync events and burst modes
 	 */
+	hsync = I915_READ(MIPI_HSYNC_PADDING_COUNT(port));
+	hbp = I915_READ(MIPI_HBP_COUNT(port));
+
+	/* harizontal values are in terms of high speed byte clock */
+	hfp = pixels_from_txbyteclkhs(hfp, bpp, lane_count,
+						intel_dsi->burst_mode_ratio);
+	hsync = pixels_from_txbyteclkhs(hsync, bpp, lane_count,
+						intel_dsi->burst_mode_ratio);
+	hbp = pixels_from_txbyteclkhs(hbp, bpp, lane_count,
+						intel_dsi->burst_mode_ratio);
+
+	if (intel_dsi->dual_link) {
+		hfp *= 2;
+		hsync *= 2;
+		hbp *= 2;
+	}
 
 	/* vertical values are in terms of lines */
 	vfp = I915_READ(MIPI_VFP_COUNT(port));
 	vsync = I915_READ(MIPI_VSYNC_PADDING_COUNT(port));
 	vbp = I915_READ(MIPI_VBP_COUNT(port));
 
+	adjusted_mode->crtc_htotal = hactive + hfp + hsync + hbp;
+	adjusted_mode->crtc_hsync_start = hfp + adjusted_mode->crtc_hdisplay;
+	adjusted_mode->crtc_hsync_end = hsync + adjusted_mode->crtc_hsync_start;
 	adjusted_mode->crtc_hblank_start = adjusted_mode->crtc_hdisplay;
+	adjusted_mode->crtc_hblank_end = adjusted_mode->crtc_htotal;
 
-	adjusted_mode->crtc_vsync_start =
-				vfp + adjusted_mode->crtc_vdisplay;
-	adjusted_mode->crtc_vsync_end =
-				vsync + adjusted_mode->crtc_vsync_start;
+	adjusted_mode->crtc_vsync_start = vfp + adjusted_mode->crtc_vdisplay;
+	adjusted_mode->crtc_vsync_end = vsync + adjusted_mode->crtc_vsync_start;
 	adjusted_mode->crtc_vblank_start = adjusted_mode->crtc_vdisplay;
 	adjusted_mode->crtc_vblank_end = adjusted_mode->crtc_vtotal;
 }
