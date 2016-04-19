@@ -946,7 +946,6 @@ int record_opts__parse_callchain(struct record_opts *record,
 				 const char *arg, bool unset)
 {
 	int ret;
-	record->callgraph_set = true;
 	callchain->enabled = !unset;
 
 	/* --no-call-graph */
@@ -978,15 +977,14 @@ int record_callchain_opt(const struct option *opt,
 			 const char *arg __maybe_unused,
 			 int unset __maybe_unused)
 {
-	struct record_opts *record = (struct record_opts *)opt->value;
+	struct callchain_param *callchain = opt->value;
 
-	record->callgraph_set = true;
-	callchain_param.enabled = true;
+	callchain->enabled = true;
 
-	if (callchain_param.record_mode == CALLCHAIN_NONE)
-		callchain_param.record_mode = CALLCHAIN_FP;
+	if (callchain->record_mode == CALLCHAIN_NONE)
+		callchain->record_mode = CALLCHAIN_FP;
 
-	callchain_debug(&callchain_param);
+	callchain_debug(callchain);
 	return 0;
 }
 
@@ -1224,7 +1222,7 @@ struct option __record_options[] = {
 		     record__parse_mmap_pages),
 	OPT_BOOLEAN(0, "group", &record.opts.group,
 		    "put the counters into a counter group"),
-	OPT_CALLBACK_NOOPT('g', NULL, &record.opts,
+	OPT_CALLBACK_NOOPT('g', NULL, &callchain_param,
 			   NULL, "enables call-graph recording" ,
 			   &record_callchain_opt),
 	OPT_CALLBACK(0, "call-graph", &record.opts,

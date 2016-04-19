@@ -412,7 +412,7 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 		return -1;
 	}
 	if (stat(filename, &st))
-		memset(&st, 0, sizeof(stat));
+		memset(&st, 0, sizeof(st));
 
 	event->mmap2.header.type = PERF_RECORD_MMAP2;
 	event->mmap2.header.misc = PERF_RECORD_MISC_USER;
@@ -500,7 +500,7 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 	size++; /* for \0 */
 
 	if (stat(filename, &st))
-		memset(&st, 0, sizeof(stat));
+		memset(&st, 0, sizeof(st));
 
 	size = PERF_ALIGN(size, sizeof(u64));
 

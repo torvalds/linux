@@ -54,8 +54,14 @@ int test__vmlinux_matches_kallsyms(int subtest __maybe_unused)
 	 * Step 3:
 	 *
 	 * Load and split /proc/kallsyms into multiple maps, one per module.
+	 * Do not use kcore, as this test was designed before kcore support
+	 * and has parts that only make sense if using the non-kcore code.
+	 * XXX: extend it to stress the kcorre code as well, hint: the list
+	 * of modules extracted from /proc/kcore, in its current form, can't
+	 * be compacted against the list of modules found in the "vmlinux"
+	 * code and with the one got from /proc/modules from the "kallsyms" code.
 	 */
-	if (machine__load_kallsyms(&kallsyms, "/proc/kallsyms", type, NULL) <= 0) {
+	if (__machine__load_kallsyms(&kallsyms, "/proc/kallsyms", type, true, NULL) <= 0) {
 		pr_debug("dso__load_kallsyms ");
 		goto out;
 	}
@@ -157,6 +163,9 @@ next_pair:
 
 					pr_debug("%#" PRIx64 ": diff name v: %s k: %s\n",
 						 mem_start, sym->name, pair->name);
+				} else {
+					pr_debug("%#" PRIx64 ": diff name v: %s k: %s\n",
+						 mem_start, sym->name, first_pair->name);
 				}
 			}
 		} else
