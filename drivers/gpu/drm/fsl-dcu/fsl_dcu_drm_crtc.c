@@ -43,6 +43,8 @@ static void fsl_dcu_drm_disable_crtc(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 
+	drm_crtc_vblank_off(crtc);
+
 	regmap_update_bits(fsl_dev->regmap, DCU_DCU_MODE,
 			   DCU_MODE_DCU_MODE_MASK,
 			   DCU_MODE_DCU_MODE(DCU_MODE_OFF));
@@ -60,6 +62,8 @@ static void fsl_dcu_drm_crtc_enable(struct drm_crtc *crtc)
 			   DCU_MODE_DCU_MODE(DCU_MODE_NORMAL));
 	regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
 		     DCU_UPDATE_MODE_READREG);
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
