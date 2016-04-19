@@ -99,6 +99,12 @@ static const struct gpmi_devdata gpmi_devdata_imx6ul = {
 	.max_chain_delay = 12,
 };
 
+static const struct gpmi_devdata gpmi_devdata_imx6ull = {
+	.type = IS_MX6ULL,
+	.bch_max_ecc_strength = 40,
+	.max_chain_delay = 12,
+};
+
 static irqreturn_t bch_irq(int irq, void *cookie)
 {
 	struct gpmi_nand_data *this = cookie;
@@ -2340,6 +2346,9 @@ static const struct of_device_id gpmi_nand_id_table[] = {
 	}, {
 		.compatible = "fsl,imx7d-gpmi-nand",
 		.data = (void *)&gpmi_devdata_imx7d,
+	}, {
+		.compatible = "fsl,imx6ull-gpmi-nand",
+		.data = (void *)&gpmi_devdata_imx6ull,
 	}, { /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, gpmi_nand_id_table);
