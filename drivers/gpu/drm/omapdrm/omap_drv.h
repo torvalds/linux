@@ -88,7 +88,8 @@ struct omap_drm_private {
 	struct drm_property *zorder_prop;
 
 	/* irq handling: */
-	struct list_head wait_list;     /* list of omap_irq_wait */
+	spinlock_t wait_lock;		/* protects the wait_list */
+	struct list_head wait_list;	/* list of omap_irq_wait */
 	uint32_t irq_mask;		/* enabled irqs in addition to wait_list */
 
 	/* atomic commit */

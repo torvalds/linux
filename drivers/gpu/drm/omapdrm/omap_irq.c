@@ -19,22 +19,21 @@
 
 #include "omap_drv.h"
 
-static DEFINE_SPINLOCK(list_lock);
-
 struct omap_irq_wait {
 	struct list_head node;
+	wait_queue_head_t wq;
 	uint32_t irqmask;
 	int count;
 };
 
-/* call with list_lock and dispc runtime held */
+/* call with wait_lock and dispc runtime held */
 static void omap_irq_update(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_irq_wait *wait;
 	uint32_t irqmask = priv->irq_mask;
 
-	assert_spin_locked(&list_lock);
+	assert_spin_locked(&priv->wait_lock);
 
 	list_for_each_entry(wait, &priv->wait_list, node)
 		irqmask |= wait->irqmask;
@@ -45,12 +44,10 @@ static void omap_irq_update(struct drm_device *dev)
 	dispc_read_irqenable();        /* flush posted write */
 }
 
-static DECLARE_WAIT_QUEUE_HEAD(wait_event);
-
 static void omap_irq_wait_handler(struct omap_irq_wait *wait)
 {
 	wait->count--;
-	wake_up(&wait_event);
+	wake_up(&wait->wq);
 }
 
 struct omap_irq_wait * omap_irq_wait_init(struct drm_device *dev,
@@ -60,13 +57,14 @@ struct omap_irq_wait * omap_irq_wait_init(struct drm_device *dev,
 	struct omap_irq_wait *wait = kzalloc(sizeof(*wait), GFP_KERNEL);
 	unsigned long flags;
 
+	init_waitqueue_head(&wait->wq);
 	wait->irqmask = irqmask;
 	wait->count = count;
 
-	spin_lock_irqsave(&list_lock, flags);
+	spin_lock_irqsave(&priv->wait_lock, flags);
 	list_add(&wait->node, &priv->wait_list);
 	omap_irq_update(dev);
-	spin_unlock_irqrestore(&list_lock, flags);
+	spin_unlock_irqrestore(&priv->wait_lock, flags);
 
 	return wait;
 }
@@ -74,13 +72,16 @@ struct omap_irq_wait * omap_irq_wait_init(struct drm_device *dev,
 int omap_irq_wait(struct drm_device *dev, struct omap_irq_wait *wait,
 		unsigned long timeout)
 {
-	int ret = wait_event_timeout(wait_event, (wait->count <= 0), timeout);
+	struct omap_drm_private *priv = dev->dev_private;
 	unsigned long flags;
+	int ret;
 
-	spin_lock_irqsave(&list_lock, flags);
+	ret = wait_event_timeout(wait->wq, (wait->count <= 0), timeout);
+
+	spin_lock_irqsave(&priv->wait_lock, flags);
 	list_del(&wait->node);
 	omap_irq_update(dev);
-	spin_unlock_irqrestore(&list_lock, flags);
+	spin_unlock_irqrestore(&priv->wait_lock, flags);
 
 	kfree(wait);
 
@@ -108,10 +109,10 @@ int omap_irq_enable_vblank(struct drm_device *dev, unsigned int pipe)
 
 	DBG("dev=%p, crtc=%u", dev, pipe);
 
-	spin_lock_irqsave(&list_lock, flags);
+	spin_lock_irqsave(&priv->wait_lock, flags);
 	priv->irq_mask |= dispc_mgr_get_vsync_irq(omap_crtc_channel(crtc));
 	omap_irq_update(dev);
-	spin_unlock_irqrestore(&list_lock, flags);
+	spin_unlock_irqrestore(&priv->wait_lock, flags);
 
 	return 0;
 }
@@ -133,10 +134,10 @@ void omap_irq_disable_vblank(struct drm_device *dev, unsigned int pipe)
 
 	DBG("dev=%p, crtc=%u", dev, pipe);
 
-	spin_lock_irqsave(&list_lock, flags);
+	spin_lock_irqsave(&priv->wait_lock, flags);
 	priv->irq_mask &= ~dispc_mgr_get_vsync_irq(omap_crtc_channel(crtc));
 	omap_irq_update(dev);
-	spin_unlock_irqrestore(&list_lock, flags);
+	spin_unlock_irqrestore(&priv->wait_lock, flags);
 }
 
 static void omap_irq_fifo_underflow(struct omap_drm_private *priv,
@@ -160,9 +161,9 @@ static void omap_irq_fifo_underflow(struct omap_drm_private *priv,
 		       | DISPC_IRQ_VID3_FIFO_UNDERFLOW;
 	unsigned int i;
 
-	spin_lock(&list_lock);
+	spin_lock(&priv->wait_lock);
 	irqstatus &= priv->irq_mask & mask;
-	spin_unlock(&list_lock);
+	spin_unlock(&priv->wait_lock);
 
 	if (!irqstatus)
 		return;
@@ -219,12 +220,12 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 	omap_irq_ocp_error_handler(irqstatus);
 	omap_irq_fifo_underflow(priv, irqstatus);
 
-	spin_lock_irqsave(&list_lock, flags);
+	spin_lock_irqsave(&priv->wait_lock, flags);
 	list_for_each_entry_safe(wait, n, &priv->wait_list, node) {
 		if (wait->irqmask & irqstatus)
 			omap_irq_wait_handler(wait);
 	}
-	spin_unlock_irqrestore(&list_lock, flags);
+	spin_unlock_irqrestore(&priv->wait_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -251,6 +252,7 @@ int omap_drm_irq_install(struct drm_device *dev)
 	unsigned int i;
 	int ret;
 
+	spin_lock_init(&priv->wait_lock);
 	INIT_LIST_HEAD(&priv->wait_list);
 
 	priv->irq_mask = DISPC_IRQ_OCP_ERR;
