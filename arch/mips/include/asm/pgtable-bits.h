@@ -191,7 +191,6 @@
  */
 
 
-#ifndef __ASSEMBLY__
 /*
  * pte_to_entrylo converts a page table entry (PTE) into a Mips
  * entrylo0/1 value.
@@ -218,7 +217,6 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 
 	return pte_val >> _PAGE_GLOBAL_SHIFT;
 }
-#endif
 
 /*
  * Cache attributes
