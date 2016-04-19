@@ -351,7 +351,7 @@ static void handle_set_operation_mode(struct wilc_vif *vif,
 
 static void handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 {
-	s32 result = 0;
+	int result = 0;
 	struct wid wid;
 	char firmware_ip_addr[4] = {0};
 
