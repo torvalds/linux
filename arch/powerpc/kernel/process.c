@@ -1898,7 +1898,8 @@ unsigned long get_wchan(struct task_struct *p)
 
 	do {
 		sp = *(unsigned long *)sp;
-		if (!validate_sp(sp, p, STACK_FRAME_OVERHEAD))
+		if (!validate_sp(sp, p, STACK_FRAME_OVERHEAD) ||
+		    p->state == TASK_RUNNING)
 			return 0;
 		if (count > 0) {
 			ip = ((unsigned long *)sp)[STACK_FRAME_LR_SAVE];
