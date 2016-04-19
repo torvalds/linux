@@ -8,9 +8,9 @@ gpio-legacy.txt (actually, there is no real mapping possible with the old
 interface; you just fetch an integer from somewhere and request the
 corresponding GPIO.
 
-Platforms that make use of GPIOs must select ARCH_REQUIRE_GPIOLIB (if GPIO usage
-is mandatory) or ARCH_WANT_OPTIONAL_GPIOLIB (if GPIO support can be omitted) in
-their Kconfig. Then, how GPIOs are mapped depends on what the platform uses to
+All platforms can enable the GPIO library, but if the platform strictly
+requires GPIO functionality to be present, it needs to select GPIOLIB from its
+Kconfig. Then, how GPIOs are mapped depends on what the platform uses to
 describe its hardware layout. Currently, mappings can be defined through device
 tree, ACPI, and platform data.
 

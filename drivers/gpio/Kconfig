@@ -10,27 +10,6 @@ config ARCH_HAVE_CUSTOM_GPIO_H
 	  overriding the default implementations.  New uses of this are
 	  strongly discouraged.
 
-config ARCH_WANT_OPTIONAL_GPIOLIB
-	bool
-	help
-	  Select this config option from the architecture Kconfig, if
-	  it is possible to use gpiolib on the architecture, but let the
-	  user decide whether to actually build it or not.
-	  Select this instead of ARCH_REQUIRE_GPIOLIB, if your architecture does
-	  not depend on GPIOs being available, but rather let the user
-	  decide whether he needs it or not.
-
-config ARCH_REQUIRE_GPIOLIB
-	bool
-	select GPIOLIB
-	help
-	  Platforms select gpiolib if they use this infrastructure
-	  for all their GPIOs, usually starting with ones integrated
-	  into SOC processors.
-	  Selecting this from the architecture code will cause the gpiolib
-	  code to always get built in.
-
-
 menuconfig GPIOLIB
 	bool "GPIO Support"
 	select ANON_INODES
