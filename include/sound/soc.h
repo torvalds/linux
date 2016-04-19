@@ -1646,6 +1646,9 @@ int snd_soc_of_get_dai_link_codecs(struct device *dev,
 				   struct device_node *of_node,
 				   struct snd_soc_dai_link *dai_link);
 
+struct snd_soc_dai *snd_soc_find_dai(
+	const struct snd_soc_dai_link_component *dlc);
+
 #include <sound/soc-dai.h>
 
 #ifdef CONFIG_DEBUG_FS
