@@ -42,7 +42,8 @@
  * sometimes without one of those components.
  */
 static struct clk *rockchip_clk_register_branch(const char *name,
-		const char *const *parent_names, u8 num_parents, void __iomem *base,
+		const char *const *parent_names, u8 num_parents,
+		void __iomem *base,
 		int muxdiv_offset, u8 mux_shift, u8 mux_width, u8 mux_flags,
 		u8 div_shift, u8 div_width, u8 div_flags,
 		struct clk_div_table *div_table, int gate_offset,
@@ -139,9 +140,11 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 	pr_debug("%s: event %lu, old_rate %lu, new_rate: %lu\n",
 		 __func__, event, ndata->old_rate, ndata->new_rate);
 	if (event == PRE_RATE_CHANGE) {
-		frac->rate_change_idx = frac->mux_ops->get_parent(&frac_mux->hw);
+		frac->rate_change_idx =
+				frac->mux_ops->get_parent(&frac_mux->hw);
 		if (frac->rate_change_idx != frac->mux_frac_idx) {
-			frac->mux_ops->set_parent(&frac_mux->hw, frac->mux_frac_idx);
+			frac->mux_ops->set_parent(&frac_mux->hw,
+						  frac->mux_frac_idx);
 			frac->rate_change_remuxed = 1;
 		}
 	} else if (event == POST_RATE_CHANGE) {
@@ -152,7 +155,8 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 		 * reaches the mux itself.
 		 */
 		if (frac->rate_change_remuxed) {
-			frac->mux_ops->set_parent(&frac_mux->hw, frac->rate_change_idx);
+			frac->mux_ops->set_parent(&frac_mux->hw,
+						  frac->rate_change_idx);
 			frac->rate_change_remuxed = 0;
 		}
 	}
@@ -326,18 +330,12 @@ struct rockchip_clk_provider * __init rockchip_clk_init(struct device_node *np,
 	int i;
 
 	ctx = kzalloc(sizeof(struct rockchip_clk_provider), GFP_KERNEL);
-	if (!ctx) {
-		pr_err("%s: Could not allocate clock provider context\n",
-			__func__);
+	if (!ctx)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	clk_table = kcalloc(nr_clks, sizeof(struct clk *), GFP_KERNEL);
-	if (!clk_table) {
-		pr_err("%s: Could not allocate clock lookup table\n",
-			__func__);
+	if (!clk_table)
 		goto err_free;
-	}
 
 	for (i = 0; i < nr_clks; ++i)
 		clk_table[i] = ERR_PTR(-ENOENT);
@@ -367,7 +365,8 @@ void __init rockchip_clk_of_add_provider(struct device_node *np,
 struct regmap *rockchip_clk_get_grf(struct rockchip_clk_provider *ctx)
 {
 	if (IS_ERR(ctx->grf))
-		ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node, "rockchip,grf");
+		ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
+							   "rockchip,grf");
 	return ctx->grf;
 }
 
@@ -427,7 +426,8 @@ void __init rockchip_clk_register_branches(
 			if (list->div_table)
 				clk = clk_register_divider_table(NULL,
 					list->name, list->parent_names[0],
-					flags, ctx->reg_base + list->muxdiv_offset,
+					flags,
+					ctx->reg_base + list->muxdiv_offset,
 					list->div_shift, list->div_width,
 					list->div_flags, list->div_table,
 					&ctx->lock);
@@ -441,7 +441,8 @@ void __init rockchip_clk_register_branches(
 		case branch_fraction_divider:
 			clk = rockchip_clk_register_frac_branch(ctx, list->name,
 				list->parent_names, list->num_parents,
-				ctx->reg_base, list->muxdiv_offset, list->div_flags,
+				ctx->reg_base, list->muxdiv_offset,
+				list->div_flags,
 				list->gate_offset, list->gate_shift,
 				list->gate_flags, flags, list->child,
 				&ctx->lock);
@@ -457,7 +458,8 @@ void __init rockchip_clk_register_branches(
 		case branch_composite:
 			clk = rockchip_clk_register_branch(list->name,
 				list->parent_names, list->num_parents,
-				ctx->reg_base, list->muxdiv_offset, list->mux_shift,
+				ctx->reg_base, list->muxdiv_offset,
+				list->mux_shift,
 				list->mux_width, list->mux_flags,
 				list->div_shift, list->div_width,
 				list->div_flags, list->div_table,
@@ -517,8 +519,8 @@ void __init rockchip_clk_register_armclk(struct rockchip_clk_provider *ctx,
 	struct clk *clk;
 
 	clk = rockchip_clk_register_cpuclk(name, parent_names, num_parents,
-					   reg_data, rates, nrates, ctx->reg_base,
-					   &ctx->lock);
+					   reg_data, rates, nrates,
+					   ctx->reg_base, &ctx->lock);
 	if (IS_ERR(clk)) {
 		pr_err("%s: failed to register clock %s: %ld\n",
 		       __func__, name, PTR_ERR(clk));
@@ -560,8 +562,10 @@ static struct notifier_block rockchip_restart_handler = {
 	.priority = 128,
 };
 
-void __init rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
-					       unsigned int reg, void (*cb)(void))
+void __init
+rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
+					       unsigned int reg,
+					       void (*cb)(void))
 {
 	int ret;
 
