@@ -358,7 +358,7 @@ A possible use case is to, given an external event, slice the perf.data file
 that gets then processed, possibly via a perf script, to decide if that
 particular perf.data snapshot should be kept or not.
 
-Implies --timestamp-filename.
+Implies --timestamp-filename, --no-buildid and --no-buildid-cache.
 
 SEE ALSO
 --------

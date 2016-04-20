@@ -1387,8 +1387,36 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 "If some relocation was applied (e.g. kexec) symbols may be misresolved\n"
 "even with a suitable vmlinux or kallsyms file.\n\n");
 
-	if (rec->no_buildid_cache || rec->no_buildid)
+	if (rec->no_buildid_cache || rec->no_buildid) {
 		disable_buildid_cache();
+	} else if (rec->switch_output) {
+		/*
+		 * In 'perf record --switch-output', disable buildid
+		 * generation by default to reduce data file switching
+		 * overhead. Still generate buildid if they are required
+		 * explicitly using
+		 *
+		 *  perf record --signal-trigger --no-no-buildid \
+		 *              --no-no-buildid-cache
+		 *
+		 * Following code equals to:
+		 *
+		 * if ((rec->no_buildid || !rec->no_buildid_set) &&
+		 *     (rec->no_buildid_cache || !rec->no_buildid_cache_set))
+		 *         disable_buildid_cache();
+		 */
+		bool disable = true;
+
+		if (rec->no_buildid_set && !rec->no_buildid)
+			disable = false;
+		if (rec->no_buildid_cache_set && !rec->no_buildid_cache)
+			disable = false;
+		if (disable) {
+			rec->no_buildid = true;
+			rec->no_buildid_cache = true;
+			disable_buildid_cache();
+		}
+	}
 
 	if (rec->evlist->nr_entries == 0 &&
 	    perf_evlist__add_default(rec->evlist) < 0) {
