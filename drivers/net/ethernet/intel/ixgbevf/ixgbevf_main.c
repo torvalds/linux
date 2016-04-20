@@ -62,10 +62,14 @@ static char ixgbevf_copyright[] =
 	"Copyright (c) 2009 - 2015 Intel Corporation.";
 
 static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
-	[board_82599_vf] = &ixgbevf_82599_vf_info,
-	[board_X540_vf]  = &ixgbevf_X540_vf_info,
-	[board_X550_vf]  = &ixgbevf_X550_vf_info,
-	[board_X550EM_x_vf] = &ixgbevf_X550EM_x_vf_info,
+	[board_82599_vf]	= &ixgbevf_82599_vf_info,
+	[board_82599_vf_hv]	= &ixgbevf_82599_vf_hv_info,
+	[board_X540_vf]		= &ixgbevf_X540_vf_info,
+	[board_X540_vf_hv]	= &ixgbevf_X540_vf_hv_info,
+	[board_X550_vf]		= &ixgbevf_X550_vf_info,
+	[board_X550_vf_hv]	= &ixgbevf_X550_vf_hv_info,
+	[board_X550EM_x_vf]	= &ixgbevf_X550EM_x_vf_info,
+	[board_X550EM_x_vf_hv]	= &ixgbevf_X550EM_x_vf_hv_info,
 };
 
 /* ixgbevf_pci_tbl - PCI Device ID Table
@@ -78,9 +82,13 @@ static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
  */
 static const struct pci_device_id ixgbevf_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF), board_82599_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF_HV), board_82599_vf_hv },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF), board_X540_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF_HV), board_X540_vf_hv },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550_VF), board_X550_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550_VF_HV), board_X550_vf_hv },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_VF), board_X550EM_x_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_VF_HV), board_X550EM_x_vf_hv},
 	/* required last entry */
 	{0, }
 };
@@ -1795,7 +1803,10 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 		ixgbevf_setup_vfmrqc(adapter);
 
 	/* notify the PF of our intent to use this size of frame */
-	ixgbevf_rlpml_set_vf(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
+	if (!ixgbevf_on_hyperv(hw))
+		ixgbevf_rlpml_set_vf(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
+	else
+		ixgbevf_hv_rlpml_set_vf(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring
@@ -2056,7 +2067,10 @@ static void ixgbevf_negotiate_api(struct ixgbevf_adapter *adapter)
 	spin_lock_bh(&adapter->mbx_lock);
 
 	while (api[idx] != ixgbe_mbox_api_unknown) {
-		err = hw->mac.ops.negotiate_api_version(hw, api[idx]);
+		if (!ixgbevf_on_hyperv(hw))
+			err = hw->mac.ops.negotiate_api_version(hw, api[idx]);
+		else
+			err = ixgbevf_hv_negotiate_api_version(hw, api[idx]);
 		if (!err)
 			break;
 		idx++;
@@ -3740,7 +3754,10 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	netdev->mtu = new_mtu;
 
 	/* notify the PF of our intent to use this size of frame */
-	ixgbevf_rlpml_set_vf(hw, max_frame);
+	if (!ixgbevf_on_hyperv(hw))
+		ixgbevf_rlpml_set_vf(hw, max_frame);
+	else
+		ixgbevf_hv_rlpml_set_vf(hw, max_frame);
 
 	return 0;
 }

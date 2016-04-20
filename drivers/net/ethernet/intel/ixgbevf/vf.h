@@ -209,6 +209,8 @@ static inline u32 ixgbe_read_reg_array(struct ixgbe_hw *hw, u32 reg,
 #define IXGBE_READ_REG_ARRAY(h, r, o) ixgbe_read_reg_array(h, r, o)
 
 void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size);
+void ixgbevf_hv_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size);
+int ixgbevf_hv_negotiate_api_version(struct ixgbe_hw *hw, int api);
 int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 		       unsigned int *default_tc);
 int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues);
