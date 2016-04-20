@@ -15,6 +15,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/clk/renesas.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/mod_devicetable.h>
@@ -388,6 +389,8 @@ struct cpg_mssr_clk_domain {
 	unsigned int core_pm_clks[0];
 };
 
+static struct cpg_mssr_clk_domain *cpg_mssr_clk_domain;
+
 static bool cpg_mssr_is_pm_clk(const struct of_phandle_args *clkspec,
 			       struct cpg_mssr_clk_domain *pd)
 {
@@ -411,16 +414,19 @@ static bool cpg_mssr_is_pm_clk(const struct of_phandle_args *clkspec,
 	}
 }
 
-static int cpg_mssr_attach_dev(struct generic_pm_domain *genpd,
-			       struct device *dev)
+int cpg_mssr_attach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
-	struct cpg_mssr_clk_domain *pd =
-		container_of(genpd, struct cpg_mssr_clk_domain, genpd);
+	struct cpg_mssr_clk_domain *pd = cpg_mssr_clk_domain;
 	struct device_node *np = dev->of_node;
 	struct of_phandle_args clkspec;
 	struct clk *clk;
 	int i = 0;
 	int error;
+
+	if (!pd) {
+		dev_dbg(dev, "CPG/MSSR clock domain not yet available\n");
+		return -EPROBE_DEFER;
+	}
 
 	while (!of_parse_phandle_with_args(np, "clocks", "#clock-cells", i,
 					   &clkspec)) {
@@ -461,8 +467,7 @@ fail_put:
 	return error;
 }
 
-static void cpg_mssr_detach_dev(struct generic_pm_domain *genpd,
-				struct device *dev)
+void cpg_mssr_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
 	if (!list_empty(&dev->power.subsys_data->clock_list))
 		pm_clk_destroy(dev);
@@ -491,6 +496,7 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 	pm_genpd_init(genpd, &simple_qos_governor, false);
 	genpd->attach_dev = cpg_mssr_attach_dev;
 	genpd->detach_dev = cpg_mssr_detach_dev;
+	cpg_mssr_clk_domain = pd;
 
 	of_genpd_add_provider_simple(np, genpd);
 	return 0;
