@@ -68,4 +68,6 @@ static inline int string_escape_str_any_np(const char *src, char *dst,
 	return string_escape_str(src, dst, sz, ESCAPE_ANY_NP, only);
 }
 
+char *kstrdup_quotable(const char *src, gfp_t gfp);
+
 #endif

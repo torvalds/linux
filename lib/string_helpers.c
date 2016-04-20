@@ -10,6 +10,7 @@
 #include <linux/export.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/string_helpers.h>
 
@@ -534,3 +535,30 @@ int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 	return p - dst;
 }
 EXPORT_SYMBOL(string_escape_mem);
+
+/*
+ * Return an allocated string that has been escaped of special characters
+ * and double quotes, making it safe to log in quotes.
+ */
+char *kstrdup_quotable(const char *src, gfp_t gfp)
+{
+	size_t slen, dlen;
+	char *dst;
+	const int flags = ESCAPE_HEX;
+	const char esc[] = "\f\n\r\t\v\a\e\\\"";
+
+	if (!src)
+		return NULL;
+	slen = strlen(src);
+
+	dlen = string_escape_mem(src, slen, NULL, 0, flags, esc);
+	dst = kmalloc(dlen + 1, gfp);
+	if (!dst)
+		return NULL;
+
+	WARN_ON(string_escape_mem(src, slen, dst, dlen, flags, esc) != dlen);
+	dst[dlen] = '\0';
+
+	return dst;
+}
+EXPORT_SYMBOL_GPL(kstrdup_quotable);
