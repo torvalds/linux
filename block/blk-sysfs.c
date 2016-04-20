@@ -13,6 +13,7 @@
 
 #include "blk.h"
 #include "blk-mq.h"
+#include "blk-wb.h"
 
 struct queue_sysfs_entry {
 	struct attribute attr;
@@ -39,6 +40,19 @@ queue_var_store(unsigned long *var, const char *page, size_t count)
 	*var = v;
 
 	return count;
+}
+
+static ssize_t queue_var_store64(u64 *var, const char *page)
+{
+	int err;
+	u64 v;
+
+	err = kstrtou64(page, 10, &v);
+	if (err < 0)
+		return err;
+
+	*var = v;
+	return 0;
 }
 
 static ssize_t queue_requests_show(struct request_queue *q, char *page)
@@ -347,6 +361,125 @@ static ssize_t queue_poll_store(struct request_queue *q, const char *page,
 	return ret;
 }
 
+static ssize_t queue_wb_stats_show(struct request_queue *q, char *page)
+{
+	struct rq_wb *rwb = q->rq_wb;
+
+	if (!rwb)
+		return -EINVAL;
+
+	return sprintf(page, "background=%d, normal=%d, max=%d, inflight=%d,"
+				" wait=%d, bdp_wait=%d\n", rwb->wb_background,
+					rwb->wb_normal, rwb->wb_max,
+					atomic_read(&rwb->inflight),
+					waitqueue_active(&rwb->wait),
+					atomic_read(rwb->bdp_wait));
+}
+
+static ssize_t queue_wb_win_show(struct request_queue *q, char *page)
+{
+	if (!q->rq_wb)
+		return -EINVAL;
+
+	return sprintf(page, "%llu\n", div_u64(q->rq_wb->win_nsec, 1000));
+}
+
+static ssize_t queue_wb_win_store(struct request_queue *q, const char *page,
+				  size_t count)
+{
+	ssize_t ret;
+	u64 val;
+
+	if (!q->rq_wb)
+		return -EINVAL;
+
+	ret = queue_var_store64(&val, page);
+	if (ret < 0)
+		return ret;
+
+	q->rq_wb->win_nsec = val * 1000ULL;
+	blk_wb_update_limits(q->rq_wb);
+	return count;
+}
+
+static ssize_t queue_wb_lat_show(struct request_queue *q, char *page)
+{
+	if (!q->rq_wb)
+		return -EINVAL;
+
+	return sprintf(page, "%llu\n", div_u64(q->rq_wb->min_lat_nsec, 1000));
+}
+
+static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
+				  size_t count)
+{
+	ssize_t ret;
+	u64 val;
+
+	if (!q->rq_wb)
+		return -EINVAL;
+
+	ret = queue_var_store64(&val, page);
+	if (ret < 0)
+		return ret;
+
+	q->rq_wb->min_lat_nsec = val * 1000ULL;
+	blk_wb_update_limits(q->rq_wb);
+	return count;
+}
+
+static ssize_t queue_wc_show(struct request_queue *q, char *page)
+{
+	if (test_bit(QUEUE_FLAG_WC, &q->queue_flags))
+		return sprintf(page, "write back\n");
+
+	return sprintf(page, "write through\n");
+}
+
+static ssize_t queue_wc_store(struct request_queue *q, const char *page,
+			      size_t count)
+{
+	int set = -1;
+
+	if (!strncmp(page, "write back", 10))
+		set = 1;
+	else if (!strncmp(page, "write through", 13) ||
+		 !strncmp(page, "none", 4))
+		set = 0;
+
+	if (set == -1)
+		return -EINVAL;
+
+	spin_lock_irq(q->queue_lock);
+	if (set)
+		queue_flag_set(QUEUE_FLAG_WC, q);
+	else
+		queue_flag_clear(QUEUE_FLAG_WC, q);
+	spin_unlock_irq(q->queue_lock);
+
+	return count;
+}
+
+static ssize_t print_stat(char *page, struct blk_rq_stat *stat, const char *pre)
+{
+	return sprintf(page, "%s samples=%llu, mean=%lld, min=%lld, max=%lld\n",
+			pre, (long long) stat->nr_samples,
+			(long long) stat->mean, (long long) stat->min,
+			(long long) stat->max);
+}
+
+static ssize_t queue_stats_show(struct request_queue *q, char *page)
+{
+	struct blk_rq_stat stat[2];
+	ssize_t ret;
+
+	blk_queue_stat_get(q, stat);
+
+	ret = print_stat(page, &stat[0], "read :");
+	ret += print_stat(page + ret, &stat[1], "write:");
+	return ret;
+}
+
 static struct queue_sysfs_entry queue_requests_entry = {
 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_requests_show,
@@ -478,6 +611,34 @@ static struct queue_sysfs_entry queue_poll_entry = {
 	.store = queue_poll_store,
 };
 
+static struct queue_sysfs_entry queue_wc_entry = {
+	.attr = {.name = "write_cache", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_wc_show,
+	.store = queue_wc_store,
+};
+
+static struct queue_sysfs_entry queue_stats_entry = {
+	.attr = {.name = "stats", .mode = S_IRUGO },
+	.show = queue_stats_show,
+};
+
+static struct queue_sysfs_entry queue_wb_stats_entry = {
+	.attr = {.name = "wb_stats", .mode = S_IRUGO },
+	.show = queue_wb_stats_show,
+};
+
+static struct queue_sysfs_entry queue_wb_lat_entry = {
+	.attr = {.name = "wb_lat_usec", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_wb_lat_show,
+	.store = queue_wb_lat_store,
+};
+
+static struct queue_sysfs_entry queue_wb_win_entry = {
+	.attr = {.name = "wb_win_usec", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_wb_win_show,
+	.store = queue_wb_win_store,
+};
+
 static struct attribute *default_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
@@ -503,6 +664,11 @@ static struct attribute *default_attrs[] = {
 	&queue_iostats_entry.attr,
 	&queue_random_entry.attr,
 	&queue_poll_entry.attr,
+	&queue_wc_entry.attr,
+	&queue_stats_entry.attr,
+	&queue_wb_stats_entry.attr,
+	&queue_wb_lat_entry.attr,
+	&queue_wb_win_entry.attr,
 	NULL,
 };
 
@@ -655,6 +821,8 @@ int blk_register_queue(struct gendisk *disk)
 
 	if (q->mq_ops)
 		blk_mq_register_disk(disk);
+
+	blk_wb_init(q);
 
 	if (!q->request_fn)
 		return 0;
