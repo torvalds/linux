@@ -668,10 +668,9 @@ static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 		intel_power_domains_suspend(dev_priv);
 
 	ret = 0;
-	if (IS_BROXTON(dev_priv)) {
-		bxt_display_core_uninit(dev_priv);
+	if (IS_BROXTON(dev_priv))
 		bxt_enable_dc9(dev_priv);
-	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_enable_pc8(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		ret = vlv_suspend_complete(dev_priv);
@@ -868,10 +867,9 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_uncore_early_sanitize(dev, true);
 
-	if (IS_BROXTON(dev)) {
+	if (IS_BROXTON(dev))
 		bxt_disable_dc9(dev_priv);
-		bxt_display_core_init(dev_priv, true);
-	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_disable_pc8(dev_priv);
 
 	intel_uncore_sanitize(dev);
