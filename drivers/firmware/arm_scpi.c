@@ -231,6 +231,11 @@ struct sensor_value {
 	__le32 hi_val;
 } __packed;
 
+struct dev_pstate_set {
+	u16 dev_id;
+	u8 pstate;
+} __packed;
+
 static struct scpi_drvinfo *scpi_info;
 
 static int scpi_linux_errmap[SCPI_ERR_MAX] = {
@@ -537,6 +542,29 @@ static int scpi_sensor_get_value(u16 sensor, u64 *val)
 	return ret;
 }
 
+static int scpi_device_get_power_state(u16 dev_id)
+{
+	int ret;
+	u8 pstate;
+	__le16 id = cpu_to_le16(dev_id);
+
+	ret = scpi_send_message(SCPI_CMD_GET_DEVICE_PWR_STATE, &id,
+				sizeof(id), &pstate, sizeof(pstate));
+	return ret ? ret : pstate;
+}
+
+static int scpi_device_set_power_state(u16 dev_id, u8 pstate)
+{
+	int stat;
+	struct dev_pstate_set dev_set = {
+		.dev_id = cpu_to_le16(dev_id),
+		.pstate = pstate,
+	};
+
+	return scpi_send_message(SCPI_CMD_SET_DEVICE_PWR_STATE, &dev_set,
+				 sizeof(dev_set), &stat, sizeof(stat));
+}
+
 static struct scpi_ops scpi_ops = {
 	.get_version = scpi_get_version,
 	.clk_get_range = scpi_clk_get_range,
@@ -548,6 +576,8 @@ static struct scpi_ops scpi_ops = {
 	.sensor_get_capability = scpi_sensor_get_capability,
 	.sensor_get_info = scpi_sensor_get_info,
 	.sensor_get_value = scpi_sensor_get_value,
+	.device_get_power_state = scpi_device_get_power_state,
+	.device_set_power_state = scpi_device_set_power_state,
 };
 
 struct scpi_ops *get_scpi_ops(void)
