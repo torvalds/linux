@@ -46,7 +46,7 @@ struct mite_dma_descriptor_ring {
 
 struct mite_channel {
 	struct mite_struct *mite;
-	unsigned channel;
+	unsigned int channel;
 	int dir;
 	int done;
 	struct mite_dma_descriptor_ring *ring;
@@ -60,7 +60,7 @@ struct mite_struct {
 	struct mite_channel channels[MAX_MITE_DMA_CHANNELS];
 	short channel_allocated[MAX_MITE_DMA_CHANNELS];
 	int num_channels;
-	unsigned fifo_size;
+	unsigned int fifo_size;
 	spinlock_t lock;
 };
 
@@ -80,7 +80,8 @@ void mite_free_ring(struct mite_dma_descriptor_ring *ring);
 struct mite_channel *
 mite_request_channel_in_range(struct mite_struct *mite,
 			      struct mite_dma_descriptor_ring *ring,
-			      unsigned min_channel, unsigned max_channel);
+			      unsigned int min_channel,
+			      unsigned int max_channel);
 static inline struct mite_channel *
 mite_request_channel(struct mite_struct *mite,
 		     struct mite_dma_descriptor_ring *ring)
@@ -91,7 +92,7 @@ mite_request_channel(struct mite_struct *mite,
 
 void mite_release_channel(struct mite_channel *mite_chan);
 
-unsigned mite_dma_tcr(struct mite_channel *mite_chan);
+unsigned int mite_dma_tcr(struct mite_channel *mite_chan);
 void mite_dma_arm(struct mite_channel *mite_chan);
 void mite_dma_disarm(struct mite_channel *mite_chan);
 int mite_sync_input_dma(struct mite_channel *mite_chan,
@@ -103,7 +104,7 @@ u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan);
 u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan);
 u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan);
 u32 mite_bytes_in_transit(struct mite_channel *mite_chan);
-unsigned mite_get_status(struct mite_channel *mite_chan);
+unsigned int mite_get_status(struct mite_channel *mite_chan);
 int mite_done(struct mite_channel *mite_chan);
 
 void mite_prep_dma(struct mite_channel *mite_chan,
@@ -151,9 +152,9 @@ enum MITE_IODWBSR_bits {
 	WENAB = 0x80,		/* window enable */
 };
 
-static inline unsigned MITE_IODWBSR_1_WSIZE_bits(unsigned size)
+static inline unsigned int MITE_IODWBSR_1_WSIZE_bits(unsigned int size)
 {
-	unsigned order = 0;
+	unsigned int order = 0;
 
 	BUG_ON(size == 0);
 	order = ilog2(size);
@@ -291,7 +292,7 @@ static inline int CR_REQS(int source)
 	return (source & 0x7) << 16;
 };
 
-static inline int CR_REQSDRQ(unsigned drq_line)
+static inline int CR_REQSDRQ(unsigned int drq_line)
 {
 	/* This also works on m-series when using channels (drq_line) 4 or 5. */
 	return CR_REQS((drq_line & 0x3) | 0x4);

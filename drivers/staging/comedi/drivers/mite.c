@@ -82,11 +82,12 @@ static void dump_chip_signature(u32 csigr_bits)
 		mite_csigr_wins(csigr_bits), mite_csigr_iowins(csigr_bits));
 }
 
-static unsigned mite_fifo_size(struct mite_struct *mite, unsigned channel)
+static unsigned int mite_fifo_size(struct mite_struct *mite,
+				   unsigned int channel)
 {
-	unsigned fcr_bits = readl(mite->mite_io_addr + MITE_FCR(channel));
-	unsigned empty_count = (fcr_bits >> 16) & 0xff;
-	unsigned full_count = fcr_bits & 0xff;
+	unsigned int fcr_bits = readl(mite->mite_io_addr + MITE_FCR(channel));
+	unsigned int empty_count = (fcr_bits >> 16) & 0xff;
+	unsigned int full_count = fcr_bits & 0xff;
 
 	return empty_count + full_count;
 }
@@ -97,7 +98,7 @@ int mite_setup2(struct comedi_device *dev,
 	unsigned long length;
 	int i;
 	u32 csigr_bits;
-	unsigned unknown_dma_burst_bits;
+	unsigned int unknown_dma_burst_bits;
 
 	pci_set_master(mite->pcidev);
 
@@ -213,11 +214,11 @@ void mite_free_ring(struct mite_dma_descriptor_ring *ring)
 };
 EXPORT_SYMBOL_GPL(mite_free_ring);
 
-struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
-						   struct
-						   mite_dma_descriptor_ring
-						   *ring, unsigned min_channel,
-						   unsigned max_channel)
+struct mite_channel *
+mite_request_channel_in_range(struct mite_struct *mite,
+			      struct mite_dma_descriptor_ring *ring,
+			      unsigned int min_channel,
+			      unsigned int max_channel)
 {
 	int i;
 	unsigned long flags;
@@ -529,7 +530,7 @@ u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan)
 }
 EXPORT_SYMBOL_GPL(mite_bytes_read_from_memory_ub);
 
-unsigned mite_dma_tcr(struct mite_channel *mite_chan)
+unsigned int mite_dma_tcr(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
 
@@ -540,7 +541,7 @@ EXPORT_SYMBOL_GPL(mite_dma_tcr);
 void mite_dma_disarm(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
-	unsigned chor;
+	unsigned int chor;
 
 	/* disarm */
 	chor = CHOR_ABORT;
@@ -632,10 +633,10 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 }
 EXPORT_SYMBOL_GPL(mite_sync_output_dma);
 
-unsigned mite_get_status(struct mite_channel *mite_chan)
+unsigned int mite_get_status(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
-	unsigned status;
+	unsigned int status;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mite->lock, flags);
