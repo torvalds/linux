@@ -51,6 +51,9 @@ config VIDEOMODE_HELPERS
 config HDMI
 	bool
 
+config HDMI_NOTIFIERS
+	bool
+
 if VT
 	source "drivers/video/console/Kconfig"
 endif
