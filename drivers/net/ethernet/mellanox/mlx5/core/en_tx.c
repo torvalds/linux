@@ -54,6 +54,7 @@ void mlx5e_send_nop(struct mlx5e_sq *sq, bool notify_hw)
 
 	sq->skb[pi] = NULL;
 	sq->pc++;
+	sq->stats.nop++;
 
 	if (notify_hw) {
 		cseg->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
@@ -387,7 +388,6 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 			wi = &sq->wqe_info[ci];
 
 			if (unlikely(!skb)) { /* nop */
-				sq->stats.nop++;
 				sqcc++;
 				continue;
 			}
