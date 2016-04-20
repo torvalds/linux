@@ -379,12 +379,13 @@ static inline void rcu_init_nohz(void)
  * in the inner idle loop.
  *
  * This macro provides the way out:  RCU_NONIDLE(do_something_with_RCU())
- * will tell RCU that it needs to pay attending, invoke its argument
- * (in this example, a call to the do_something_with_RCU() function),
+ * will tell RCU that it needs to pay attention, invoke its argument
+ * (in this example, calling the do_something_with_RCU() function),
  * and then tell RCU to go back to ignoring this CPU.  It is permissible
- * to nest RCU_NONIDLE() wrappers, but the nesting level is currently
- * quite limited.  If deeper nesting is required, it will be necessary
- * to adjust DYNTICK_TASK_NESTING_VALUE accordingly.
+ * to nest RCU_NONIDLE() wrappers, but not indefinitely (but the limit is
+ * on the order of a million or so, even on 32-bit systems).  It is
+ * not legal to block within RCU_NONIDLE(), nor is it permissible to
+ * transfer control either into or out of RCU_NONIDLE()'s statement.
  */
 #define RCU_NONIDLE(a) \
 	do { \
