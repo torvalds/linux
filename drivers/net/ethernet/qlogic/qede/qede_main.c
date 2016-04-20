@@ -1069,6 +1069,17 @@ static void qede_gro_receive(struct qede_dev *edev,
 			     struct sk_buff *skb,
 			     u16 vlan_tag)
 {
+	/* FW can send a single MTU sized packet from gro flow
+	 * due to aggregation timeout/last segment etc. which
+	 * is not expected to be a gro packet. If a skb has zero
+	 * frags then simply push it in the stack as non gso skb.
+	 */
+	if (unlikely(!skb->data_len)) {
+		skb_shinfo(skb)->gso_type = 0;
+		skb_shinfo(skb)->gso_size = 0;
+		goto send_skb;
+	}
+
 #ifdef CONFIG_INET
 	if (skb_shinfo(skb)->gso_size) {
 		skb_set_network_header(skb, 0);
@@ -1087,6 +1098,8 @@ static void qede_gro_receive(struct qede_dev *edev,
 		}
 	}
 #endif
+
+send_skb:
 	skb_record_rx_queue(skb, fp->rss_id);
 	qede_skb_receive(edev, fp, skb, vlan_tag);
 }
