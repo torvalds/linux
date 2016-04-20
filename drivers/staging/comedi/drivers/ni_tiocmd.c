@@ -430,7 +430,7 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 	spin_lock_irqsave(&counter->lock, flags);
 	if (counter->mite_chan) {
 		mite_ack_linkc(counter->mite_chan);
-		mite_sync_input_dma(counter->mite_chan, s);
+		mite_sync_dma(counter->mite_chan, s);
 	}
 	spin_unlock_irqrestore(&counter->lock, flags);
 }

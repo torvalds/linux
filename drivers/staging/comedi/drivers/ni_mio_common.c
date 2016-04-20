@@ -890,7 +890,7 @@ static void ni_sync_ai_dma(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ai_mite_chan)
-		mite_sync_input_dma(devpriv->ai_mite_chan, s);
+		mite_sync_dma(devpriv->ai_mite_chan, s);
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
@@ -936,7 +936,7 @@ static void mite_handle_b_linkc(struct mite_struct *mite,
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ao_mite_chan)
-		mite_sync_output_dma(devpriv->ao_mite_chan, s);
+		mite_sync_dma(devpriv->ao_mite_chan, s);
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
@@ -3698,7 +3698,7 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->cdo_mite_chan) {
 		mite_ack_linkc(devpriv->cdo_mite_chan);
-		mite_sync_output_dma(devpriv->cdo_mite_chan, s);
+		mite_sync_dma(devpriv->cdo_mite_chan, s);
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 

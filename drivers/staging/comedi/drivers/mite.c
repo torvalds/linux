@@ -680,8 +680,8 @@ void mite_dma_disarm(struct mite_channel *mite_chan)
 }
 EXPORT_SYMBOL_GPL(mite_dma_disarm);
 
-int mite_sync_input_dma(struct mite_channel *mite_chan,
-			struct comedi_subdevice *s)
+static void mite_sync_input_dma(struct mite_channel *mite_chan,
+				struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	int count;
@@ -697,7 +697,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan,
 		dev_warn(s->device->class_dev,
 			 "mite: DMA overwrite of free area\n");
 		async->events |= COMEDI_CB_OVERFLOW;
-		return -1;
+		return;
 	}
 
 	count = nbytes - async->buf_write_count;
@@ -705,18 +705,15 @@ int mite_sync_input_dma(struct mite_channel *mite_chan,
 	 * it's possible count will be negative due to conservative value
 	 * returned by mite_bytes_written_to_memory_lb
 	 */
-	if (count <= 0)
-		return 0;
-
-	comedi_buf_write_free(s, count);
-	comedi_inc_scan_progress(s, count);
-	async->events |= COMEDI_CB_BLOCK;
-	return 0;
+	if (count > 0) {
+		comedi_buf_write_free(s, count);
+		comedi_inc_scan_progress(s, count);
+		async->events |= COMEDI_CB_BLOCK;
+	}
 }
-EXPORT_SYMBOL_GPL(mite_sync_input_dma);
 
-int mite_sync_output_dma(struct mite_channel *mite_chan,
-			 struct comedi_subdevice *s)
+static void mite_sync_output_dma(struct mite_channel *mite_chan,
+				 struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -739,7 +736,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 	    ((int)(nbytes_ub - old_alloc_count) > 0)) {
 		dev_warn(s->device->class_dev, "mite: DMA underrun\n");
 		async->events |= COMEDI_CB_OVERFLOW;
-		return -1;
+		return;
 	}
 
 	if (finite_regen) {
@@ -749,20 +746,24 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 		 * hence we expect that old_alloc_count will reach a maximum of
 		 * stop_count bytes.
 		 */
-		return 0;
+		return;
 	}
 
 	count = nbytes_lb - async->buf_read_count;
-	if (count <= 0)
-		return 0;
-
-	if (count) {
+	if (count > 0) {
 		comedi_buf_read_free(s, count);
 		async->events |= COMEDI_CB_BLOCK;
 	}
-	return 0;
 }
-EXPORT_SYMBOL_GPL(mite_sync_output_dma);
+
+void mite_sync_dma(struct mite_channel *mite_chan, struct comedi_subdevice *s)
+{
+	if (mite_chan->dir == COMEDI_INPUT)
+		mite_sync_input_dma(mite_chan, s);
+	else
+		mite_sync_output_dma(mite_chan, s);
+}
+EXPORT_SYMBOL_GPL(mite_sync_dma);
 
 static unsigned int mite_get_status(struct mite_channel *mite_chan)
 {
