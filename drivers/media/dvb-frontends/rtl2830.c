@@ -677,9 +677,9 @@ err:
  * adapter lock is already taken by tuner driver.
  * Gate is closed automatically after single I2C transfer.
  */
-static int rtl2830_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
+static int rtl2830_select(struct i2c_mux_core *muxc, u32 chan_id)
 {
-	struct i2c_client *client = mux_priv;
+	struct i2c_client *client = i2c_mux_priv(muxc);
 	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	int ret;
 
@@ -712,7 +712,7 @@ static struct i2c_adapter *rtl2830_get_i2c_adapter(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
-	return dev->adapter;
+	return dev->muxc->adapter[0];
 }
 
 /*
@@ -865,12 +865,16 @@ static int rtl2830_probe(struct i2c_client *client,
 		goto err_regmap_exit;
 
 	/* create muxed i2c adapter for tuner */
-	dev->adapter = i2c_add_mux_adapter(client->adapter, &client->dev,
-			client, 0, 0, 0, rtl2830_select, NULL);
-	if (dev->adapter == NULL) {
-		ret = -ENODEV;
+	dev->muxc = i2c_mux_alloc(client->adapter, &client->dev, 1, 0, 0,
+				  rtl2830_select, NULL);
+	if (!dev->muxc) {
+		ret = -ENOMEM;
 		goto err_regmap_exit;
 	}
+	dev->muxc->priv = client;
+	ret = i2c_mux_add_adapter(dev->muxc, 0, 0, 0);
+	if (ret)
+		goto err_regmap_exit;
 
 	/* create dvb frontend */
 	memcpy(&dev->fe.ops, &rtl2830_ops, sizeof(dev->fe.ops));
@@ -903,7 +907,7 @@ static int rtl2830_remove(struct i2c_client *client)
 	/* stop statistics polling */
 	cancel_delayed_work_sync(&dev->stat_work);
 
-	i2c_del_mux_adapter(dev->adapter);
+	i2c_mux_del_adapters(dev->muxc);
 	regmap_exit(dev->regmap);
 	kfree(dev);
 
