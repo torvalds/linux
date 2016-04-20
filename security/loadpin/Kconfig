@@ -1,0 +1,10 @@
+config SECURITY_LOADPIN
+	bool "Pin load of kernel files (modules, fw, etc) to one filesystem"
+	depends on SECURITY && BLOCK
+	help
+	  Any files read through the kernel file reading interface
+	  (kernel modules, firmware, kexec images, security policy) will
+	  be pinned to the first filesystem used for loading. Any files
+	  that come from other filesystems will be rejected. This is best
+	  used on systems without an initrd that have a root filesystem
+	  backed by a read-only device such as dm-verity or a CDROM.
