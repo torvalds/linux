@@ -1,7 +1,7 @@
 #include "../string.c"
 
 #ifdef CONFIG_X86_32
-void *memcpy(void *dest, const void *src, size_t n)
+void *__memcpy(void *dest, const void *src, size_t n)
 {
 	int d0, d1, d2;
 	asm volatile(
@@ -15,7 +15,7 @@ void *memcpy(void *dest, const void *src, size_t n)
 	return dest;
 }
 #else
-void *memcpy(void *dest, const void *src, size_t n)
+void *__memcpy(void *dest, const void *src, size_t n)
 {
 	long d0, d1, d2;
 	asm volatile(
@@ -38,4 +38,22 @@ void *memset(void *s, int c, size_t n)
 	for (i = 0; i < n; i++)
 		ss[i] = c;
 	return s;
+}
+
+/*
+ * This memcpy is overlap safe (i.e. it is memmove without conflicting
+ * with other definitions of memmove from the various decompressors.
+ */
+void *memcpy(void *dest, const void *src, size_t n)
+{
+	unsigned char *d = dest;
+	const unsigned char *s = src;
+
+	if (d <= s || d - s >= n)
+		return __memcpy(dest, src, n);
+
+	while (n-- > 0)
+		d[n] = s[n];
+
+	return dest;
 }
