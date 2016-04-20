@@ -338,8 +338,8 @@ static int intel_lpss_register_clock(struct intel_lpss *lpss)
 		return 0;
 
 	/* Root clock */
-	clk = clk_register_fixed_rate(NULL, dev_name(lpss->dev), NULL,
-				      CLK_IS_ROOT, lpss->info->clk_rate);
+	clk = clk_register_fixed_rate(NULL, dev_name(lpss->dev), NULL, 0,
+				      lpss->info->clk_rate);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
