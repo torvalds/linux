@@ -108,6 +108,12 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.reg = &reg_set_6050,
 		.config = &chip_config_6050,
 	},
+	{
+		.whoami = INV_MPU9150_WHOAMI_VALUE,
+		.name = "MPU9150",
+		.reg = &reg_set_6050,
+		.config = &chip_config_6050,
+	},
 };
 
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)

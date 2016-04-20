@@ -68,6 +68,7 @@ enum inv_devices {
 	INV_MPU6050,
 	INV_MPU6500,
 	INV_MPU6000,
+	INV_MPU9150,
 	INV_NUM_PARTS
 };
 
@@ -222,6 +223,7 @@ struct inv_mpu6050_state {
 #define INV_MPU6000_WHOAMI_VALUE		0x68
 #define INV_MPU6050_WHOAMI_VALUE		0x68
 #define INV_MPU6500_WHOAMI_VALUE		0x70
+#define INV_MPU9150_WHOAMI_VALUE		0x68
 
 /* scan element definition */
 enum inv_mpu6050_scan {
