@@ -23,6 +23,7 @@ struct gb_spi {
 	u32			rx_xfer_offset;
 	u32			tx_xfer_offset;
 	u32			last_xfer_size;
+	unsigned int		op_timeout;
 	u16			mode;
 	u16			flags;
 	u32			bits_per_word_mask;
@@ -37,6 +38,8 @@ struct gb_spi {
 #define GB_SPI_STATE_OP_READY		((void *)3)
 #define GB_SPI_STATE_OP_DONE		((void *)4)
 #define GB_SPI_STATE_MSG_ERROR		((void *)-1)
+
+#define XFER_TIMEOUT_TOLERANCE		200
 
 static struct spi_master *get_master_from_spi(struct gb_spi *spi)
 {
@@ -95,6 +98,7 @@ static void clean_xfer_state(struct gb_spi *spi)
 	spi->rx_xfer_offset = 0;
 	spi->tx_xfer_offset = 0;
 	spi->last_xfer_size = 0;
+	spi->op_timeout = 0;
 }
 
 static int setup_next_xfer(struct gb_spi *spi, struct spi_message *msg)
@@ -112,6 +116,7 @@ static int setup_next_xfer(struct gb_spi *spi, struct spi_message *msg)
 	    (spi->rx_xfer_offset + spi->last_xfer_size == last_xfer->len)) {
 		spi->tx_xfer_offset = 0;
 		spi->rx_xfer_offset = 0;
+		spi->op_timeout = 0;
 		if (last_xfer == list_last_entry(&msg->transfers,
 						 struct spi_transfer,
 						 transfer_list))
@@ -155,6 +160,7 @@ gb_spi_operation_create(struct gb_spi *spi, struct gb_connection *connection,
 	u32 tx_size = 0, rx_size = 0, count = 0, xfer_len = 0, request_size;
 	u32 tx_xfer_size = 0, rx_xfer_size = 0, len;
 	u32 total_len = 0;
+	unsigned int xfer_timeout;
 	size_t data_max;
 	void *tx_data;
 
@@ -233,6 +239,13 @@ gb_spi_operation_create(struct gb_spi *spi, struct gb_connection *connection,
 			xfer_len = spi->last_xfer_size;
 		else
 			xfer_len = xfer->len;
+
+		/* make sure we do not timeout in a slow transfer */
+		xfer_timeout = xfer_len * 8 * MSEC_PER_SEC / xfer->speed_hz;
+		xfer_timeout += GB_OPERATION_TIMEOUT_DEFAULT;
+
+		if (xfer_timeout > spi->op_timeout)
+			spi->op_timeout = xfer_timeout;
 
 		gb_xfer->speed_hz = cpu_to_le32(xfer->speed_hz);
 		gb_xfer->len = cpu_to_le32(xfer_len);
@@ -322,7 +335,8 @@ static int gb_spi_transfer_one_message(struct spi_master *master,
 			continue;
 		}
 
-		ret = gb_operation_request_send_sync(operation);
+		ret = gb_operation_request_send_sync_timeout(operation,
+							     spi->op_timeout);
 		if (!ret) {
 			response = operation->response->payload;
 			if (response)
