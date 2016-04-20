@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "exynos5420.dtsi"
+#include "exynos5420-cpus.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 
 / {
@@ -87,6 +88,14 @@
 		enable-active-high;
 	};
 
+};
+
+&cpu0 {
+	cpu-supply = <&buck2_reg>;
+};
+
+&cpu4 {
+	cpu-supply = <&buck6_reg>;
 };
 
 &dp {

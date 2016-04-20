@@ -74,11 +74,6 @@ struct scif_copy_work {
 	bool ordered;
 };
 
-#ifndef list_entry_next
-#define list_entry_next(pos, member) \
-	list_entry(pos->member.next, typeof(*pos), member)
-#endif
-
 /**
  * scif_reserve_dma_chan:
  * @ep: Endpoint Descriptor.
@@ -276,13 +271,10 @@ static struct scif_mmu_notif *
 scif_find_mmu_notifier(struct mm_struct *mm, struct scif_endpt_rma_info *rma)
 {
 	struct scif_mmu_notif *mmn;
-	struct list_head *item;
 
-	list_for_each(item, &rma->mmn_list) {
-		mmn = list_entry(item, struct scif_mmu_notif, list);
+	list_for_each_entry(mmn, &rma->mmn_list, list)
 		if (mmn->mm == mm)
 			return mmn;
-	}
 	return NULL;
 }
 
@@ -293,13 +285,12 @@ scif_add_mmu_notifier(struct mm_struct *mm, struct scif_endpt *ep)
 		 = kzalloc(sizeof(*mmn), GFP_KERNEL);
 
 	if (!mmn)
-		return ERR_PTR(ENOMEM);
+		return ERR_PTR(-ENOMEM);
 
 	scif_init_mmu_notifier(mmn, current->mm, ep);
-	if (mmu_notifier_register(&mmn->ep_mmu_notifier,
-				  current->mm)) {
+	if (mmu_notifier_register(&mmn->ep_mmu_notifier, current->mm)) {
 		kfree(mmn);
-		return ERR_PTR(EBUSY);
+		return ERR_PTR(-EBUSY);
 	}
 	list_add(&mmn->list, &ep->rma_info.mmn_list);
 	return mmn;
@@ -851,7 +842,7 @@ static void scif_rma_local_cpu_copy(s64 offset, struct scif_window *window,
 		(window->nr_pages << PAGE_SHIFT);
 	while (rem_len) {
 		if (offset == end_offset) {
-			window = list_entry_next(window, list);
+			window = list_next_entry(window, list);
 			end_offset = window->offset +
 				(window->nr_pages << PAGE_SHIFT);
 		}
@@ -957,7 +948,7 @@ scif_rma_list_dma_copy_unaligned(struct scif_copy_work *work,
 	remaining_len -= tail_len;
 	while (remaining_len) {
 		if (offset == end_offset) {
-			window = list_entry_next(window, list);
+			window = list_next_entry(window, list);
 			end_offset = window->offset +
 				(window->nr_pages << PAGE_SHIFT);
 		}
@@ -1064,7 +1055,7 @@ scif_rma_list_dma_copy_unaligned(struct scif_copy_work *work,
 	}
 	if (tail_len) {
 		if (offset == end_offset) {
-			window = list_entry_next(window, list);
+			window = list_next_entry(window, list);
 			end_offset = window->offset +
 				(window->nr_pages << PAGE_SHIFT);
 		}
@@ -1147,13 +1138,13 @@ static int _scif_rma_list_dma_copy_aligned(struct scif_copy_work *work,
 		(dst_window->nr_pages << PAGE_SHIFT);
 	while (remaining_len) {
 		if (src_offset == end_src_offset) {
-			src_window = list_entry_next(src_window, list);
+			src_window = list_next_entry(src_window, list);
 			end_src_offset = src_window->offset +
 				(src_window->nr_pages << PAGE_SHIFT);
 			scif_init_window_iter(src_window, &src_win_iter);
 		}
 		if (dst_offset == end_dst_offset) {
-			dst_window = list_entry_next(dst_window, list);
+			dst_window = list_next_entry(dst_window, list);
 			end_dst_offset = dst_window->offset +
 				(dst_window->nr_pages << PAGE_SHIFT);
 			scif_init_window_iter(dst_window, &dst_win_iter);
@@ -1314,13 +1305,13 @@ static int scif_rma_list_dma_copy_aligned(struct scif_copy_work *work,
 	remaining_len -= tail_len;
 	while (remaining_len) {
 		if (src_offset == end_src_offset) {
-			src_window = list_entry_next(src_window, list);
+			src_window = list_next_entry(src_window, list);
 			end_src_offset = src_window->offset +
 				(src_window->nr_pages << PAGE_SHIFT);
 			scif_init_window_iter(src_window, &src_win_iter);
 		}
 		if (dst_offset == end_dst_offset) {
-			dst_window = list_entry_next(dst_window, list);
+			dst_window = list_next_entry(dst_window, list);
 			end_dst_offset = dst_window->offset +
 				(dst_window->nr_pages << PAGE_SHIFT);
 			scif_init_window_iter(dst_window, &dst_win_iter);
@@ -1405,9 +1396,9 @@ static int scif_rma_list_dma_copy_aligned(struct scif_copy_work *work,
 	if (remaining_len) {
 		loop_len = remaining_len;
 		if (src_offset == end_src_offset)
-			src_window = list_entry_next(src_window, list);
+			src_window = list_next_entry(src_window, list);
 		if (dst_offset == end_dst_offset)
-			dst_window = list_entry_next(dst_window, list);
+			dst_window = list_next_entry(dst_window, list);
 
 		src_dma_addr = __scif_off_to_dma_addr(src_window, src_offset);
 		dst_dma_addr = __scif_off_to_dma_addr(dst_window, dst_offset);
@@ -1550,12 +1541,12 @@ static int scif_rma_list_cpu_copy(struct scif_copy_work *work)
 			end_dst_offset = dst_window->offset +
 				(dst_window->nr_pages << PAGE_SHIFT);
 			if (src_offset == end_src_offset) {
-				src_window = list_entry_next(src_window, list);
+				src_window = list_next_entry(src_window, list);
 				scif_init_window_iter(src_window,
 						      &src_win_iter);
 			}
 			if (dst_offset == end_dst_offset) {
-				dst_window = list_entry_next(dst_window, list);
+				dst_window = list_next_entry(dst_window, list);
 				scif_init_window_iter(dst_window,
 						      &dst_win_iter);
 			}
@@ -1730,7 +1721,7 @@ static int scif_rma_copy(scif_epd_t epd, off_t loffset, unsigned long addr,
 		mutex_lock(&ep->rma_info.mmn_lock);
 		mmn = scif_find_mmu_notifier(current->mm, &ep->rma_info);
 		if (!mmn)
-			scif_add_mmu_notifier(current->mm, ep);
+			mmn = scif_add_mmu_notifier(current->mm, ep);
 		mutex_unlock(&ep->rma_info.mmn_lock);
 		if (IS_ERR(mmn)) {
 			scif_put_peer_dev(spdev);

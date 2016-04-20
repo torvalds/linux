@@ -537,7 +537,7 @@ static int cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 	return 0;
 }
 
-static int cafe_nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
+static int cafe_nand_block_bad(struct mtd_info *mtd, loff_t ofs)
 {
 	return 0;
 }

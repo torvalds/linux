@@ -265,9 +265,29 @@ struct ida;
 struct device;
 
 /**
+ * struct media_entity_notify - Media Entity Notify
+ *
+ * @list: List head
+ * @notify_data: Input data to invoke the callback
+ * @notify: Callback function pointer
+ *
+ * Drivers may register a callback to take action when
+ * new entities get registered with the media device.
+ */
+struct media_entity_notify {
+	struct list_head list;
+	void *notify_data;
+	void (*notify)(struct media_entity *entity, void *notify_data);
+};
+
+/**
  * struct media_device - Media device
  * @dev:	Parent device
  * @devnode:	Media device node
+ * @driver_name: Optional device driver name. If not set, calls to
+ *		%MEDIA_IOC_DEVICE_INFO will return dev->driver->name.
+ *		This is needed for USB drivers for example, as otherwise
+ *		they'll all appear as if the driver name was "usb".
  * @model:	Device model name
  * @serial:	Device serial number (optional)
  * @bus_info:	Unique and stable device location identifier
@@ -283,8 +303,16 @@ struct device;
  * @interfaces:	List of registered interfaces
  * @pads:	List of registered pads
  * @links:	List of registered links
+ * @entity_notify: List of registered entity_notify callbacks
  * @lock:	Entities list lock
  * @graph_mutex: Entities graph operation lock
+ * @pm_count_walk: Graph walk for power state walk. Access serialised using
+ *		   graph_mutex.
+ *
+ * @source_priv: Driver Private data for enable/disable source handlers
+ * @enable_source: Enable Source Handler function pointer
+ * @disable_source: Disable Source Handler function pointer
+ *
  * @link_notify: Link state change notification callback
  *
  * This structure represents an abstract high-level media device. It allows easy
@@ -296,6 +324,26 @@ struct device;
  *
  * @model is a descriptive model name exported through sysfs. It doesn't have to
  * be unique.
+ *
+ * @enable_source is a handler to find source entity for the
+ * sink entity  and activate the link between them if source
+ * entity is free. Drivers should call this handler before
+ * accessing the source.
+ *
+ * @disable_source is a handler to find source entity for the
+ * sink entity  and deactivate the link between them. Drivers
+ * should call this handler to release the source.
+ *
+ * Note: Bridge driver is expected to implement and set the
+ * handler when media_device is registered or when
+ * bridge driver finds the media_device during probe.
+ * Bridge driver sets source_priv with information
+ * necessary to run enable/disable source handlers.
+ *
+ * Use-case: find tuner entity connected to the decoder
+ * entity and check if it is available, and activate the
+ * the link between them from enable_source and deactivate
+ * from disable_source.
  */
 struct media_device {
 	/* dev->driver_data points to this struct. */
@@ -303,6 +351,7 @@ struct media_device {
 	struct media_devnode devnode;
 
 	char model[32];
+	char driver_name[32];
 	char serial[40];
 	char bus_info[32];
 	u32 hw_revision;
@@ -319,14 +368,27 @@ struct media_device {
 	struct list_head pads;
 	struct list_head links;
 
+	/* notify callback list invoked when a new entity is registered */
+	struct list_head entity_notify;
+
 	/* Protects the graph objects creation/removal */
 	spinlock_t lock;
 	/* Serializes graph operations. */
 	struct mutex graph_mutex;
+	struct media_entity_graph pm_count_walk;
+
+	void *source_priv;
+	int (*enable_source)(struct media_entity *entity,
+			     struct media_pipeline *pipe);
+	void (*disable_source)(struct media_entity *entity);
 
 	int (*link_notify)(struct media_link *link, u32 flags,
 			   unsigned int notification);
 };
+
+/* We don't need to include pci.h or usb.h here */
+struct pci_dev;
+struct usb_device;
 
 #ifdef CONFIG_MEDIA_CONTROLLER
 
@@ -498,6 +560,31 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 void media_device_unregister_entity(struct media_entity *entity);
 
 /**
+ * media_device_register_entity_notify() - Registers a media entity_notify
+ *					   callback
+ *
+ * @mdev:      The media device
+ * @nptr:      The media_entity_notify
+ *
+ * Note: When a new entity is registered, all the registered
+ * media_entity_notify callbacks are invoked.
+ */
+
+int __must_check media_device_register_entity_notify(struct media_device *mdev,
+					struct media_entity_notify *nptr);
+
+/**
+ * media_device_unregister_entity_notify() - Unregister a media entity notify
+ *					     callback
+ *
+ * @mdev:      The media device
+ * @nptr:      The media_entity_notify
+ *
+ */
+void media_device_unregister_entity_notify(struct media_device *mdev,
+					struct media_entity_notify *nptr);
+
+/**
  * media_device_get_devres() -	get media device as device resource
  *				creates if one doesn't exist
  *
@@ -536,6 +623,39 @@ struct media_device *media_device_find_devres(struct device *dev);
 /* Iterate over all links. */
 #define media_device_for_each_link(link, mdev)			\
 	list_for_each_entry(link, &(mdev)->links, graph_obj.list)
+
+/**
+ * media_device_pci_init() - create and initialize a
+ *	struct &media_device from a PCI device.
+ *
+ * @mdev:	pointer to struct &media_device
+ * @pci_dev:	pointer to struct pci_dev
+ * @name:	media device name. If %NULL, the routine will use the default
+ *		name for the pci device, given by pci_name() macro.
+ */
+void media_device_pci_init(struct media_device *mdev,
+			   struct pci_dev *pci_dev,
+			   const char *name);
+/**
+ * __media_device_usb_init() - create and initialize a
+ *	struct &media_device from a PCI device.
+ *
+ * @mdev:	pointer to struct &media_device
+ * @udev:	pointer to struct usb_device
+ * @board_name:	media device name. If %NULL, the routine will use the usb
+ *		product name, if available.
+ * @driver_name: name of the driver. if %NULL, the routine will use the name
+ *		given by udev->dev->driver->name, with is usually the wrong
+ *		thing to do.
+ *
+ * NOTE: It is better to call media_device_usb_init() instead, as
+ * such macro fills driver_name with %KBUILD_MODNAME.
+ */
+void __media_device_usb_init(struct media_device *mdev,
+			     struct usb_device *udev,
+			     const char *board_name,
+			     const char *driver_name);
+
 #else
 static inline int media_device_register(struct media_device *mdev)
 {
@@ -552,6 +672,17 @@ static inline int media_device_register_entity(struct media_device *mdev,
 static inline void media_device_unregister_entity(struct media_entity *entity)
 {
 }
+static inline int media_device_register_entity_notify(
+					struct media_device *mdev,
+					struct media_entity_notify *nptr)
+{
+	return 0;
+}
+static inline void media_device_unregister_entity_notify(
+					struct media_device *mdev,
+					struct media_entity_notify *nptr)
+{
+}
 static inline struct media_device *media_device_get_devres(struct device *dev)
 {
 	return NULL;
@@ -560,5 +691,23 @@ static inline struct media_device *media_device_find_devres(struct device *dev)
 {
 	return NULL;
 }
+
+static inline void media_device_pci_init(struct media_device *mdev,
+					 struct pci_dev *pci_dev,
+					 char *name)
+{
+}
+
+static inline void __media_device_usb_init(struct media_device *mdev,
+					   struct usb_device *udev,
+					   char *board_name,
+					   char *driver_name)
+{
+}
+
 #endif /* CONFIG_MEDIA_CONTROLLER */
+
+#define media_device_usb_init(mdev, udev, name) \
+	__media_device_usb_init(mdev, udev, name, KBUILD_MODNAME)
+
 #endif

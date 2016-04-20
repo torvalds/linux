@@ -88,6 +88,9 @@ static const struct pci_device_id mei_me_pci_tbl[] = {
 	{MEI_PCI_DEVICE(MEI_DEV_ID_SPT_H, mei_me_pch8_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_SPT_H_2, mei_me_pch8_cfg)},
 
+	{MEI_PCI_DEVICE(MEI_DEV_ID_BXT_M, mei_me_pch8_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_APL_I, mei_me_pch8_cfg)},
+
 	/* required last entry */
 	{0, }
 };
@@ -210,7 +213,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = mei_register(dev, &pdev->dev);
 	if (err)
-		goto release_irq;
+		goto stop;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -231,6 +234,8 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
+stop:
+	mei_stop(dev);
 release_irq:
 	mei_cancel_work(dev);
 	mei_disable_interrupts(dev);

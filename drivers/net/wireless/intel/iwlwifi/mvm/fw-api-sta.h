@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -253,8 +255,11 @@ struct iwl_mvm_keyinfo {
 	__le64 hw_tkip_mic_tx_key;
 } __packed;
 
+#define IWL_ADD_STA_STATUS_MASK	0xFF
+#define IWL_ADD_STA_BAID_MASK	0xFF00
+
 /**
- * struct iwl_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
+ * struct iwl_mvm_add_sta_cmd_v7 - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
  * @add_modify: 1: modify existing, 0: add new station
  * @awake_acs:
@@ -290,7 +295,7 @@ struct iwl_mvm_keyinfo {
  * ADD_STA sets up the table entry for one station, either creating a new
  * entry, or modifying a pre-existing one.
  */
-struct iwl_mvm_add_sta_cmd {
+struct iwl_mvm_add_sta_cmd_v7 {
 	u8 add_modify;
 	u8 awake_acs;
 	__le16 tid_disable_tx;
@@ -311,6 +316,68 @@ struct iwl_mvm_add_sta_cmd {
 	__le16 beamform_flags;
 	__le32 tfd_queue_msk;
 } __packed; /* ADD_STA_CMD_API_S_VER_7 */
+
+/**
+ * struct iwl_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
+ * ( REPLY_ADD_STA = 0x18 )
+ * @add_modify: 1: modify existing, 0: add new station
+ * @awake_acs:
+ * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
+ *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
+ * @mac_id_n_color: the Mac context this station belongs to
+ * @addr[ETH_ALEN]: station's MAC address
+ * @sta_id: index of station in uCode's station table
+ * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
+ *	alone. 1 - modify, 0 - don't change.
+ * @station_flags: look at %iwl_sta_flags
+ * @station_flags_msk: what of %station_flags have changed
+ * @add_immediate_ba_tid: tid for which to add block-ack support (Rx)
+ *	Set %STA_MODIFY_ADD_BA_TID to use this field, and also set
+ *	add_immediate_ba_ssn.
+ * @remove_immediate_ba_tid: tid for which to remove block-ack support (Rx)
+ *	Set %STA_MODIFY_REMOVE_BA_TID to use this field
+ * @add_immediate_ba_ssn: ssn for the Rx block-ack session. Used together with
+ *	add_immediate_ba_tid.
+ * @sleep_tx_count: number of packets to transmit to station even though it is
+ *	asleep. Used to synchronise PS-poll and u-APSD responses while ucode
+ *	keeps track of STA sleep state.
+ * @sleep_state_flags: Look at %iwl_sta_sleep_flag.
+ * @assoc_id: assoc_id to be sent in VHT PLCP (9-bit), for grp use 0, for AP
+ *	mac-addr.
+ * @beamform_flags: beam forming controls
+ * @tfd_queue_msk: tfd queues used by this station
+ * @rx_ba_window: aggregation window size
+ *
+ * The device contains an internal table of per-station information, with info
+ * on security keys, aggregation parameters, and Tx rates for initial Tx
+ * attempt and any retries (set by REPLY_TX_LINK_QUALITY_CMD).
+ *
+ * ADD_STA sets up the table entry for one station, either creating a new
+ * entry, or modifying a pre-existing one.
+ */
+struct iwl_mvm_add_sta_cmd {
+	u8 add_modify;
+	u8 awake_acs;
+	__le16 tid_disable_tx;
+	__le32 mac_id_n_color;
+	u8 addr[ETH_ALEN];	/* _STA_ID_MODIFY_INFO_API_S_VER_1 */
+	__le16 reserved2;
+	u8 sta_id;
+	u8 modify_mask;
+	__le16 reserved3;
+	__le32 station_flags;
+	__le32 station_flags_msk;
+	u8 add_immediate_ba_tid;
+	u8 remove_immediate_ba_tid;
+	__le16 add_immediate_ba_ssn;
+	__le16 sleep_tx_count;
+	__le16 sleep_state_flags;
+	__le16 assoc_id;
+	__le16 beamform_flags;
+	__le32 tfd_queue_msk;
+	__le16 rx_ba_window;
+	__le16 reserved;
+} __packed; /* ADD_STA_CMD_API_S_VER_8 */
 
 /**
  * struct iwl_mvm_add_sta_key_cmd - add/modify sta key

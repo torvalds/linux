@@ -155,7 +155,6 @@ static int board_staging_add_dev_domain(struct platform_device *pdev,
 	if (IS_ERR(pd)) {
 		pr_err("Cannot find genpd %s (%ld)\n", domain, PTR_ERR(pd));
 		return PTR_ERR(pd);
-
 	}
 	pr_debug("Found genpd %s for device %s\n", pd->name, pdev->name);
 

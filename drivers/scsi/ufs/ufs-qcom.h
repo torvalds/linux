@@ -241,6 +241,15 @@ struct ufs_qcom_host {
 	struct ufs_qcom_testbus testbus;
 };
 
+static inline u32
+ufs_qcom_get_debug_reg_offset(struct ufs_qcom_host *host, u32 reg)
+{
+	if (host->hw_ver.major <= 0x02)
+		return UFS_CNTLR_2_x_x_VEN_REGS_OFFSET(reg);
+
+	return UFS_CNTLR_3_x_x_VEN_REGS_OFFSET(reg);
+};
+
 #define ufs_qcom_is_link_off(hba) ufshcd_is_link_off(hba)
 #define ufs_qcom_is_link_active(hba) ufshcd_is_link_active(hba)
 #define ufs_qcom_is_link_hibern8(hba) ufshcd_is_link_hibern8(hba)

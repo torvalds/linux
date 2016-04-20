@@ -7,6 +7,7 @@
 #include "sti_awg_utils.h"
 
 #define AWG_OPCODE_OFFSET 10
+#define AWG_MAX_ARG       0x3ff
 
 enum opcode {
 	SET,
@@ -34,6 +35,8 @@ static int awg_generate_instr(enum opcode opcode,
 	/* skip, repeat and replay arg should not exceed 1023.
 	 * If user wants to exceed this value, the instruction should be
 	 * duplicate and arg should be adjust for each duplicated instruction.
+	 *
+	 * mux_sel is used in case of SAV/EAV synchronization.
 	 */
 
 	while (arg_tmp > 0) {
@@ -65,7 +68,7 @@ static int awg_generate_instr(enum opcode opcode,
 
 			mux = 0;
 			data_enable = 0;
-			arg &= (0x3ff);
+			arg &= AWG_MAX_ARG;
 			break;
 		case REPEAT:
 		case REPLAY:
@@ -76,13 +79,13 @@ static int awg_generate_instr(enum opcode opcode,
 
 			mux = 0;
 			data_enable = 0;
-			arg &= (0x3ff);
+			arg &= AWG_MAX_ARG;
 			break;
 		case JUMP:
 			mux = 0;
 			data_enable = 0;
 			arg |= 0x40; /* for jump instruction 7th bit is 1 */
-			arg &= 0x3ff;
+			arg &= AWG_MAX_ARG;
 			break;
 		case STOP:
 			arg = 0;
@@ -110,68 +113,75 @@ static int awg_generate_instr(enum opcode opcode,
 	return 0;
 }
 
-int sti_awg_generate_code_data_enable_mode(
+static int awg_generate_line_signal(
 		struct awg_code_generation_params *fwparams,
 		struct awg_timing *timing)
 {
 	long int val;
-	long int data_en;
+	int ret = 0;
+
+	if (timing->trailing_pixels > 0) {
+		/* skip trailing pixel */
+		val = timing->blanking_level;
+		ret |= awg_generate_instr(RPLSET, val, 0, 0, fwparams);
+
+		val = timing->trailing_pixels - 1;
+		ret |= awg_generate_instr(SKIP, val, 0, 0, fwparams);
+	}
+
+	/* set DE signal high */
+	val = timing->blanking_level;
+	ret |= awg_generate_instr((timing->trailing_pixels > 0) ? SET : RPLSET,
+			val, 0, 1, fwparams);
+
+	if (timing->blanking_pixels > 0) {
+		/* skip the number of active pixel */
+		val = timing->active_pixels - 1;
+		ret |= awg_generate_instr(SKIP, val, 0, 1, fwparams);
+
+		/* set DE signal low */
+		val = timing->blanking_level;
+		ret |= awg_generate_instr(SET, val, 0, 0, fwparams);
+	}
+
+	return ret;
+}
+
+int sti_awg_generate_code_data_enable_mode(
+		struct awg_code_generation_params *fwparams,
+		struct awg_timing *timing)
+{
+	long int val, tmp_val;
 	int ret = 0;
 
 	if (timing->trailing_lines > 0) {
 		/* skip trailing lines */
 		val = timing->blanking_level;
-		data_en = 0;
-		ret |= awg_generate_instr(RPLSET, val, 0, data_en, fwparams);
+		ret |= awg_generate_instr(RPLSET, val, 0, 0, fwparams);
 
 		val = timing->trailing_lines - 1;
-		data_en = 0;
-		ret |= awg_generate_instr(REPLAY, val, 0, data_en, fwparams);
+		ret |= awg_generate_instr(REPLAY, val, 0, 0, fwparams);
 	}
 
-	if (timing->trailing_pixels > 0) {
-		/* skip trailing pixel */
-		val = timing->blanking_level;
-		data_en = 0;
-		ret |= awg_generate_instr(RPLSET, val, 0, data_en, fwparams);
+	tmp_val = timing->active_lines - 1;
 
-		val = timing->trailing_pixels - 1;
-		data_en = 0;
-		ret |= awg_generate_instr(SKIP, val, 0, data_en, fwparams);
+	while (tmp_val > 0) {
+		/* generate DE signal for each line */
+		ret |= awg_generate_line_signal(fwparams, timing);
+		/* replay the sequence as many active lines defined */
+		ret |= awg_generate_instr(REPLAY,
+					  min_t(int, AWG_MAX_ARG, tmp_val),
+					  0, 0, fwparams);
+		tmp_val -= AWG_MAX_ARG;
 	}
-
-	/* set DE signal high */
-	val = timing->blanking_level;
-	data_en = 1;
-	ret |= awg_generate_instr((timing->trailing_pixels > 0) ? SET : RPLSET,
-			val, 0, data_en, fwparams);
-
-	if (timing->blanking_pixels > 0) {
-		/* skip the number of active pixel */
-		val = timing->active_pixels - 1;
-		data_en = 1;
-		ret |= awg_generate_instr(SKIP, val, 0, data_en, fwparams);
-
-		/* set DE signal low */
-		val = timing->blanking_level;
-		data_en = 0;
-		ret |= awg_generate_instr(SET, val, 0, data_en, fwparams);
-	}
-
-	/* replay the sequence as many active lines defined */
-	val = timing->active_lines - 1;
-	data_en = 0;
-	ret |= awg_generate_instr(REPLAY, val, 0, data_en, fwparams);
 
 	if (timing->blanking_lines > 0) {
 		/* skip blanking lines */
 		val = timing->blanking_level;
-		data_en = 0;
-		ret |= awg_generate_instr(RPLSET, val, 0, data_en, fwparams);
+		ret |= awg_generate_instr(RPLSET, val, 0, 0, fwparams);
 
 		val = timing->blanking_lines - 1;
-		data_en = 0;
-		ret |= awg_generate_instr(REPLAY, val, 0, data_en, fwparams);
+		ret |= awg_generate_instr(REPLAY, val, 0, 0, fwparams);
 	}
 
 	return ret;

@@ -99,4 +99,25 @@ static inline unsigned long ppc_global_function_entry(void *func)
 #endif
 }
 
+#ifdef CONFIG_PPC64
+/*
+ * Some instruction encodings commonly used in dynamic ftracing
+ * and function live patching.
+ */
+
+/* This must match the definition of STK_GOT in <asm/ppc_asm.h> */
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+#define R2_STACK_OFFSET         24
+#else
+#define R2_STACK_OFFSET         40
+#endif
+
+#define PPC_INST_LD_TOC		(PPC_INST_LD  | ___PPC_RT(__REG_R2) | \
+				 ___PPC_RA(__REG_R1) | R2_STACK_OFFSET)
+
+/* usually preceded by a mflr r0 */
+#define PPC_INST_STD_LR		(PPC_INST_STD | ___PPC_RS(__REG_R0) | \
+				 ___PPC_RA(__REG_R1) | PPC_LR_STKOFF)
+#endif /* CONFIG_PPC64 */
+
 #endif /* _ASM_POWERPC_CODE_PATCHING_H */

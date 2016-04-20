@@ -109,13 +109,6 @@ static void dw_hdmi_imx_encoder_disable(struct drm_encoder *encoder)
 {
 }
 
-static bool dw_hdmi_imx_encoder_mode_fixup(struct drm_encoder *encoder,
-					   const struct drm_display_mode *mode,
-					   struct drm_display_mode *adj_mode)
-{
-	return true;
-}
-
 static void dw_hdmi_imx_encoder_mode_set(struct drm_encoder *encoder,
 					 struct drm_display_mode *mode,
 					 struct drm_display_mode *adj_mode)
@@ -125,7 +118,7 @@ static void dw_hdmi_imx_encoder_mode_set(struct drm_encoder *encoder,
 static void dw_hdmi_imx_encoder_commit(struct drm_encoder *encoder)
 {
 	struct imx_hdmi *hdmi = container_of(encoder, struct imx_hdmi, encoder);
-	int mux = imx_drm_encoder_get_mux_id(hdmi->dev->of_node, encoder);
+	int mux = drm_of_encoder_active_port_id(hdmi->dev->of_node, encoder);
 
 	regmap_update_bits(hdmi->regmap, IOMUXC_GPR3,
 			   IMX6Q_GPR3_HDMI_MUX_CTL_MASK,
@@ -138,7 +131,6 @@ static void dw_hdmi_imx_encoder_prepare(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {
-	.mode_fixup = dw_hdmi_imx_encoder_mode_fixup,
 	.mode_set   = dw_hdmi_imx_encoder_mode_set,
 	.prepare    = dw_hdmi_imx_encoder_prepare,
 	.commit     = dw_hdmi_imx_encoder_commit,
@@ -233,8 +225,6 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	if (!iores)
 		return -ENXIO;
 
-	platform_set_drvdata(pdev, hdmi);
-
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
@@ -253,7 +243,16 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	drm_encoder_init(drm, encoder, &dw_hdmi_imx_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
-	return dw_hdmi_bind(dev, master, data, encoder, iores, irq, plat_data);
+	ret = dw_hdmi_bind(dev, master, data, encoder, iores, irq, plat_data);
+
+	/*
+	 * If dw_hdmi_bind() fails we'll never call dw_hdmi_unbind(),
+	 * which would have called the encoder cleanup.  Do it manually.
+	 */
+	if (ret)
+		drm_encoder_cleanup(encoder);
+
+	return ret;
 }
 
 static void dw_hdmi_imx_unbind(struct device *dev, struct device *master,

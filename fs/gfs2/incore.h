@@ -328,6 +328,7 @@ enum {
 	GLF_LRU				= 13,
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
+	GLF_INODE_CREATING		= 16, /* Inode creation occurring */
 };
 
 struct gfs2_glock {

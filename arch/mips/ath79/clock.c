@@ -26,8 +26,7 @@
 #include "common.h"
 
 #define AR71XX_BASE_FREQ	40000000
-#define AR724X_BASE_FREQ	5000000
-#define AR913X_BASE_FREQ	5000000
+#define AR724X_BASE_FREQ	40000000
 
 static struct clk *clks[3];
 static struct clk_onecell_data clk_data = {
@@ -103,8 +102,8 @@ static void __init ar724x_clocks_init(void)
 	div = ((pll >> AR724X_PLL_FB_SHIFT) & AR724X_PLL_FB_MASK);
 	freq = div * ref_rate;
 
-	div = ((pll >> AR724X_PLL_REF_DIV_SHIFT) & AR724X_PLL_REF_DIV_MASK);
-	freq *= div;
+	div = ((pll >> AR724X_PLL_REF_DIV_SHIFT) & AR724X_PLL_REF_DIV_MASK) * 2;
+	freq /= div;
 
 	cpu_rate = freq;
 
@@ -112,39 +111,6 @@ static void __init ar724x_clocks_init(void)
 	ddr_rate = freq / div;
 
 	div = (((pll >> AR724X_AHB_DIV_SHIFT) & AR724X_AHB_DIV_MASK) + 1) * 2;
-	ahb_rate = cpu_rate / div;
-
-	ath79_add_sys_clkdev("ref", ref_rate);
-	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
-	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
-	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
-
-	clk_add_alias("wdt", NULL, "ahb", NULL);
-	clk_add_alias("uart", NULL, "ahb", NULL);
-}
-
-static void __init ar913x_clocks_init(void)
-{
-	unsigned long ref_rate;
-	unsigned long cpu_rate;
-	unsigned long ddr_rate;
-	unsigned long ahb_rate;
-	u32 pll;
-	u32 freq;
-	u32 div;
-
-	ref_rate = AR913X_BASE_FREQ;
-	pll = ath79_pll_rr(AR913X_PLL_REG_CPU_CONFIG);
-
-	div = ((pll >> AR913X_PLL_FB_SHIFT) & AR913X_PLL_FB_MASK);
-	freq = div * ref_rate;
-
-	cpu_rate = freq;
-
-	div = ((pll >> AR913X_DDR_DIV_SHIFT) & AR913X_DDR_DIV_MASK) + 1;
-	ddr_rate = freq / div;
-
-	div = (((pll >> AR913X_AHB_DIV_SHIFT) & AR913X_AHB_DIV_MASK) + 1) * 2;
 	ahb_rate = cpu_rate / div;
 
 	ath79_add_sys_clkdev("ref", ref_rate);
@@ -443,10 +409,8 @@ void __init ath79_clocks_init(void)
 {
 	if (soc_is_ar71xx())
 		ar71xx_clocks_init();
-	else if (soc_is_ar724x())
+	else if (soc_is_ar724x() || soc_is_ar913x())
 		ar724x_clocks_init();
-	else if (soc_is_ar913x())
-		ar913x_clocks_init();
 	else if (soc_is_ar933x())
 		ar933x_clocks_init();
 	else if (soc_is_ar934x())

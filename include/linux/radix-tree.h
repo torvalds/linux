@@ -21,6 +21,7 @@
 #ifndef _LINUX_RADIX_TREE_H
 #define _LINUX_RADIX_TREE_H
 
+#include <linux/bitops.h>
 #include <linux/preempt.h>
 #include <linux/types.h>
 #include <linux/bug.h>
@@ -270,8 +271,15 @@ static inline void radix_tree_replace_slot(void **pslot, void *item)
 }
 
 int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
-			struct radix_tree_node **nodep, void ***slotp);
-int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
+			unsigned order, struct radix_tree_node **nodep,
+			void ***slotp);
+int __radix_tree_insert(struct radix_tree_root *, unsigned long index,
+			unsigned order, void *);
+static inline int radix_tree_insert(struct radix_tree_root *root,
+			unsigned long index, void *entry)
+{
+	return __radix_tree_insert(root, index, 0, entry);
+}
 void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
 			  struct radix_tree_node **nodep, void ***slotp);
 void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
@@ -391,6 +399,22 @@ static inline __must_check
 void **radix_tree_iter_retry(struct radix_tree_iter *iter)
 {
 	iter->next_index = iter->index;
+	return NULL;
+}
+
+/**
+ * radix_tree_iter_next - resume iterating when the chunk may be invalid
+ * @iter:	iterator state
+ *
+ * If the iterator needs to release then reacquire a lock, the chunk may
+ * have been invalidated by an insertion or deletion.  Call this function
+ * to continue the iteration from the next index.
+ */
+static inline __must_check
+void **radix_tree_iter_next(struct radix_tree_iter *iter)
+{
+	iter->next_index = iter->index + 1;
+	iter->tags = 0;
 	return NULL;
 }
 

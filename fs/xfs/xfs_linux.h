@@ -135,7 +135,7 @@ typedef __u32			xfs_nlink_t;
  * Size of block device i/o is parameterized here.
  * Currently the system supports page-sized i/o.
  */
-#define	BLKDEV_IOSHIFT		PAGE_CACHE_SHIFT
+#define	BLKDEV_IOSHIFT		PAGE_SHIFT
 #define	BLKDEV_IOSIZE		(1<<BLKDEV_IOSHIFT)
 /* number of BB's per block device block */
 #define	BLKDEV_BB		BTOBB(BLKDEV_IOSIZE)

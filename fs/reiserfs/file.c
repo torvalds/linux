@@ -180,11 +180,11 @@ int reiserfs_commit_page(struct inode *inode, struct page *page,
 	int partial = 0;
 	unsigned blocksize;
 	struct buffer_head *bh, *head;
-	unsigned long i_size_index = inode->i_size >> PAGE_CACHE_SHIFT;
+	unsigned long i_size_index = inode->i_size >> PAGE_SHIFT;
 	int new;
 	int logit = reiserfs_file_data_log(inode);
 	struct super_block *s = inode->i_sb;
-	int bh_per_page = PAGE_CACHE_SIZE / s->s_blocksize;
+	int bh_per_page = PAGE_SIZE / s->s_blocksize;
 	struct reiserfs_transaction_handle th;
 	int ret = 0;
 

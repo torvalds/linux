@@ -242,6 +242,9 @@ nfacct_filter_alloc(const struct nlattr * const attr)
 	if (err < 0)
 		return ERR_PTR(err);
 
+	if (!tb[NFACCT_FILTER_MASK] || !tb[NFACCT_FILTER_VALUE])
+		return ERR_PTR(-EINVAL);
+
 	filter = kzalloc(sizeof(struct nfacct_filter), GFP_KERNEL);
 	if (!filter)
 		return ERR_PTR(-ENOMEM);

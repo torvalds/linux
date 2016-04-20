@@ -225,22 +225,18 @@ static int si2165_writereg32(struct si2165_state *state, const u16 reg, u32 val)
 static int si2165_writereg_mask8(struct si2165_state *state, const u16 reg,
 				 u8 val, u8 mask)
 {
-	int ret;
-	u8 tmp;
-
 	if (mask != 0xff) {
-		ret = si2165_readreg8(state, reg, &tmp);
+		u8 tmp;
+		int ret = si2165_readreg8(state, reg, &tmp);
+
 		if (ret < 0)
-			goto err;
+			return ret;
 
 		val &= mask;
 		tmp &= ~mask;
 		val |= tmp;
 	}
-
-	ret = si2165_writereg8(state, reg, val);
-err:
-	return ret;
+	return si2165_writereg8(state, reg, val);
 }
 
 #define REG16(reg, val) { (reg), (val) & 0xff }, { (reg)+1, (val)>>8 & 0xff }
@@ -825,19 +821,19 @@ static int si2165_set_frontend_dvbt(struct dvb_frontend *fe)
 	struct si2165_state *state = fe->demodulator_priv;
 	u32 dvb_rate = 0;
 	u16 bw10k;
+	u32 bw_hz = p->bandwidth_hz;
 
 	dprintk("%s: called\n", __func__);
 
 	if (!state->has_dvbt)
 		return -EINVAL;
 
-	if (p->bandwidth_hz > 0) {
-		dvb_rate = p->bandwidth_hz * 8 / 7;
-		bw10k = p->bandwidth_hz / 10000;
-	} else {
-		dvb_rate = 8 * 8 / 7;
-		bw10k = 800;
-	}
+	/* no bandwidth auto-detection */
+	if (bw_hz == 0)
+		return -EINVAL;
+
+	dvb_rate = bw_hz * 8 / 7;
+	bw10k = bw_hz / 10000;
 
 	ret = si2165_adjust_pll_divl(state, 12);
 	if (ret < 0)

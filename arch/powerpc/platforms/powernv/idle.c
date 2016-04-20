@@ -35,9 +35,9 @@ int pnv_save_sprs_for_winkle(void)
 	int rc;
 
 	/*
-	 * hid0, hid1, hid4, hid5, hmeer and lpcr values are symmetric accross
+	 * hid0, hid1, hid4, hid5, hmeer and lpcr values are symmetric across
 	 * all cpus at boot. Get these reg values of current cpu and use the
-	 * same accross all cpus.
+	 * same across all cpus.
 	 */
 	uint64_t lpcr_val = mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1;
 	uint64_t hid0_val = mfspr(SPRN_HID0);
@@ -185,7 +185,7 @@ static ssize_t store_fastsleep_workaround_applyonce(struct device *dev,
 	 * fastsleep workaround needs to be left in 'applied' state on all
 	 * the cores. Do this by-
 	 * 1. Patching out the call to 'undo' workaround in fastsleep exit path
-	 * 2. Sending ipi to all the cores which have atleast one online thread
+	 * 2. Sending ipi to all the cores which have at least one online thread
 	 * 3. Patching out the call to 'apply' workaround in fastsleep entry
 	 * path
 	 * There is no need to send ipi to cores which have all threads

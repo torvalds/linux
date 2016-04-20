@@ -360,7 +360,7 @@ static void iuu_led_activity_on(struct urb *urb)
 	int result;
 	char *buf_ptr = port->write_urb->transfer_buffer;
 	*buf_ptr++ = IUU_SET_LED;
-	if (xmas == 1) {
+	if (xmas) {
 		get_random_bytes(buf_ptr, 6);
 		*(buf_ptr+7) = 1;
 	} else {
@@ -380,7 +380,7 @@ static void iuu_led_activity_off(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	int result;
 	char *buf_ptr = port->write_urb->transfer_buffer;
-	if (xmas == 1) {
+	if (xmas) {
 		iuu_rxcmd(urb);
 		return;
 	} else {

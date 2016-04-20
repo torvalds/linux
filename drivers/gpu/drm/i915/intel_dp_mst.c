@@ -184,7 +184,9 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	intel_mst->port = found->port;
 
 	if (intel_dp->active_mst_links == 0) {
-		intel_ddi_clk_select(encoder, intel_crtc->config);
+		intel_prepare_ddi_buffer(&intel_dig_port->base);
+
+		intel_ddi_clk_select(&intel_dig_port->base, intel_crtc->config);
 
 		intel_dp_set_link_params(intel_dp, intel_crtc->config);
 
@@ -369,12 +371,17 @@ static enum drm_mode_status
 intel_dp_mst_mode_valid(struct drm_connector *connector,
 			struct drm_display_mode *mode)
 {
+	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+
 	/* TODO - validate mode against available PBN for link */
 	if (mode->clock < 10000)
 		return MODE_CLOCK_LOW;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return MODE_H_ILLEGAL;
+
+	if (mode->clock > max_dotclk)
+		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
 }
@@ -499,6 +506,8 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_device *dev = connector->dev;
 
+	intel_connector->unregister(intel_connector);
+
 	/* need to nuke the connector */
 	drm_modeset_lock_all(dev);
 	if (connector->state->crtc) {
@@ -512,11 +521,7 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 		WARN(ret, "Disabling mst crtc failed with %i\n", ret);
 	}
-	drm_modeset_unlock_all(dev);
 
-	intel_connector->unregister(intel_connector);
-
-	drm_modeset_lock_all(dev);
 	intel_connector_remove_from_fbdev(intel_connector);
 	drm_connector_cleanup(connector);
 	drm_modeset_unlock_all(dev);

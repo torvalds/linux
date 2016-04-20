@@ -21,6 +21,7 @@
 #include <drm/drm_crtc.h>
 
 struct rcar_du_group;
+struct rcar_du_vsp;
 
 /**
  * struct rcar_du_crtc - the CRTC, representing a DU superposition processor
@@ -33,7 +34,6 @@ struct rcar_du_group;
  * @event: event to post when the pending page flip completes
  * @flip_wait: wait queue used to signal page flip completion
  * @outputs: bitmask of the outputs (enum rcar_du_output) driven by this CRTC
- * @enabled: whether the CRTC is enabled, used to control system resume
  * @group: CRTC group this CRTC belongs to
  */
 struct rcar_du_crtc {
@@ -49,9 +49,9 @@ struct rcar_du_crtc {
 	wait_queue_head_t flip_wait;
 
 	unsigned int outputs;
-	bool enabled;
 
 	struct rcar_du_group *group;
+	struct rcar_du_vsp *vsp;
 };
 
 #define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)
@@ -67,8 +67,6 @@ enum rcar_du_output {
 
 int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index);
 void rcar_du_crtc_enable_vblank(struct rcar_du_crtc *rcrtc, bool enable);
-void rcar_du_crtc_cancel_page_flip(struct rcar_du_crtc *rcrtc,
-				   struct drm_file *file);
 void rcar_du_crtc_suspend(struct rcar_du_crtc *rcrtc);
 void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc);
 

@@ -17,8 +17,7 @@ unsigned char bus_speed_mode
 	/* Enable GPIO 30 & 31 as IIC clock & data */
 	value = PEEK32(GPIO_MUX);
 
-	value = FIELD_SET(value, GPIO_MUX, 30, I2C) |
-			  FIELD_SET(0, GPIO_MUX, 31, I2C);
+	value |= (GPIO_MUX_30 | GPIO_MUX_31);
 	POKE32(GPIO_MUX, value);
 
 	/* Enable Hardware I2C power.
@@ -27,12 +26,10 @@ unsigned char bus_speed_mode
 	enableI2C(1);
 
 	/* Enable the I2C Controller and set the bus speed mode */
-	value = PEEK32(I2C_CTRL);
-	if (bus_speed_mode == 0)
-		value = FIELD_SET(value, I2C_CTRL, MODE, STANDARD);
-	else
-		value = FIELD_SET(value, I2C_CTRL, MODE, FAST);
-	value = FIELD_SET(value, I2C_CTRL, EN, ENABLE);
+	value = PEEK32(I2C_CTRL) & ~(I2C_CTRL_MODE | I2C_CTRL_EN);
+	if (bus_speed_mode)
+		value |= I2C_CTRL_MODE;
+	value |= I2C_CTRL_EN;
 	POKE32(I2C_CTRL, value);
 
 	return 0;
@@ -43,8 +40,7 @@ void sm750_hw_i2c_close(void)
 	unsigned int value;
 
 	/* Disable I2C controller */
-	value = PEEK32(I2C_CTRL);
-	value = FIELD_SET(value, I2C_CTRL, EN, DISABLE);
+	value = PEEK32(I2C_CTRL) & ~I2C_CTRL_EN;
 	POKE32(I2C_CTRL, value);
 
 	/* Disable I2C Power */
@@ -52,8 +48,8 @@ void sm750_hw_i2c_close(void)
 
 	/* Set GPIO 30 & 31 back as GPIO pins */
 	value = PEEK32(GPIO_MUX);
-	value = FIELD_SET(value, GPIO_MUX, 30, GPIO);
-	value = FIELD_SET(value, GPIO_MUX, 31, GPIO);
+	value &= ~GPIO_MUX_30;
+	value &= ~GPIO_MUX_31;
 	POKE32(GPIO_MUX, value);
 }
 
@@ -63,13 +59,11 @@ static long hw_i2c_wait_tx_done(void)
 
 	/* Wait until the transfer is completed. */
 	timeout = HWI2C_WAIT_TIMEOUT;
-	while ((FIELD_GET(PEEK32(I2C_STATUS),
-			  I2C_STATUS, TX) != I2C_STATUS_TX_COMPLETED) &&
-	       (timeout != 0))
+	while (!(PEEK32(I2C_STATUS) & I2C_STATUS_TX) && (timeout != 0))
 		timeout--;
 
 	if (timeout == 0)
-		return (-1);
+		return -1;
 
 	return 0;
 }
@@ -121,14 +115,13 @@ static unsigned int hw_i2c_write_data(
 			POKE32(I2C_DATA0 + i, *buf++);
 
 		/* Start the I2C */
-		POKE32(I2C_CTRL,
-		       FIELD_SET(PEEK32(I2C_CTRL), I2C_CTRL, CTRL, START));
+		POKE32(I2C_CTRL, PEEK32(I2C_CTRL) | I2C_CTRL_CTRL);
 
 		/* Wait until the transfer is completed. */
 		if (hw_i2c_wait_tx_done() != 0)
 			break;
 
-		/* Substract length */
+		/* Subtract length */
 		length -= (count + 1);
 
 		/* Total byte written */
@@ -184,8 +177,7 @@ static unsigned int hw_i2c_read_data(
 		POKE32(I2C_BYTE_COUNT, count);
 
 		/* Start the I2C */
-		POKE32(I2C_CTRL,
-		       FIELD_SET(PEEK32(I2C_CTRL), I2C_CTRL, CTRL, START));
+		POKE32(I2C_CTRL, PEEK32(I2C_CTRL) | I2C_CTRL_CTRL);
 
 		/* Wait until transaction done. */
 		if (hw_i2c_wait_tx_done() != 0)
@@ -195,7 +187,7 @@ static unsigned int hw_i2c_read_data(
 		for (i = 0; i <= count; i++)
 			*buf++ = PEEK32(I2C_DATA0 + i);
 
-		/* Substract length by 16 */
+		/* Subtract length by 16 */
 		length -= (count + 1);
 
 		/* Number of bytes read. */
@@ -256,7 +248,7 @@ int sm750_hw_i2c_write_reg(
 	if (hw_i2c_write_data(addr, 2, value) == 2)
 		return 0;
 
-	return (-1);
+	return -1;
 }
 
 #endif

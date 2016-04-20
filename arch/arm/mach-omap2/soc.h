@@ -181,6 +181,14 @@ static inline int is_ti ##class (void)		\
 	return (GET_TI_CLASS == (id)) ? 1 : 0;	\
 }
 
+#define GET_DRA_CLASS	((omap_rev() >> 24) & 0xff)
+
+#define IS_DRA_CLASS(class, id)				\
+static inline int is_dra ##class (void)			\
+{							\
+	return (GET_DRA_CLASS == (id)) ? 1 : 0;		\
+}
+
 #define GET_OMAP_SUBCLASS	((omap_rev() >> 20) & 0x0fff)
 
 #define IS_OMAP_SUBCLASS(subclass, id)			\
@@ -201,6 +209,12 @@ static inline int is_am ##subclass (void)		\
 	return (GET_OMAP_SUBCLASS == (id)) ? 1 : 0;	\
 }
 
+#define IS_DRA_SUBCLASS(subclass, id)			\
+static inline int is_dra ##subclass (void)		\
+{							\
+	return (GET_OMAP_SUBCLASS == (id)) ? 1 : 0;	\
+}
+
 IS_OMAP_CLASS(24xx, 0x24)
 IS_OMAP_CLASS(34xx, 0x34)
 IS_OMAP_CLASS(44xx, 0x44)
@@ -210,6 +224,7 @@ IS_AM_CLASS(33xx, 0x33)
 IS_AM_CLASS(43xx, 0x43)
 
 IS_TI_CLASS(81xx, 0x81)
+IS_DRA_CLASS(7xx, 0x7)
 
 IS_OMAP_SUBCLASS(242x, 0x242)
 IS_OMAP_SUBCLASS(243x, 0x243)
@@ -224,6 +239,8 @@ IS_TI_SUBCLASS(816x, 0x816)
 IS_TI_SUBCLASS(814x, 0x814)
 IS_AM_SUBCLASS(335x, 0x335)
 IS_AM_SUBCLASS(437x, 0x437)
+IS_DRA_SUBCLASS(75x, 0x75)
+IS_DRA_SUBCLASS(72x, 0x72)
 
 #define soc_is_omap24xx()		0
 #define soc_is_omap242x()		0
@@ -397,9 +414,9 @@ IS_OMAP_TYPE(3430, 0x3430)
 #undef soc_is_dra7xx
 #undef soc_is_dra74x
 #undef soc_is_dra72x
-#define soc_is_dra7xx()	(of_machine_is_compatible("ti,dra7"))
-#define soc_is_dra74x()	(of_machine_is_compatible("ti,dra74"))
-#define soc_is_dra72x()	(of_machine_is_compatible("ti,dra72"))
+#define soc_is_dra7xx()	is_dra7xx()
+#define soc_is_dra74x()	is_dra75x()
+#define soc_is_dra72x()	is_dra72x()
 #endif
 
 /* Various silicon revisions for omap2 */
@@ -472,6 +489,7 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define DRA752_REV_ES2_0	(DRA7XX_CLASS | (0x52 << 16) | (0x20 << 8))
 #define DRA722_REV_ES1_0	(DRA7XX_CLASS | (0x22 << 16) | (0x10 << 8))
 #define DRA722_REV_ES1_0	(DRA7XX_CLASS | (0x22 << 16) | (0x10 << 8))
+#define DRA722_REV_ES2_0	(DRA7XX_CLASS | (0x22 << 16) | (0x20 << 8))
 
 void omap2xxx_check_revision(void);
 void omap3xxx_check_revision(void);

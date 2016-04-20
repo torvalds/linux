@@ -13,6 +13,7 @@
 			interrupts = <25>;
 			#dma-channels = <32>;
 			#dma-cells = <2>;
+			#dma-requests = <75>;
 			status = "okay";
 		};
 

@@ -716,7 +716,6 @@ struct ieee80211_if_mesh {
  *	back to wireless media and to the local net stack.
  * @IEEE80211_SDATA_DISCONNECT_RESUME: Disconnect after resume.
  * @IEEE80211_SDATA_IN_DRIVER: indicates interface was added to driver
- * @IEEE80211_SDATA_MU_MIMO_OWNER: indicates interface owns MU-MIMO capability
  */
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
@@ -724,7 +723,6 @@ enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
 	IEEE80211_SDATA_DISCONNECT_RESUME	= BIT(4),
 	IEEE80211_SDATA_IN_DRIVER		= BIT(5),
-	IEEE80211_SDATA_MU_MIMO_OWNER		= BIT(6),
 };
 
 /**
@@ -804,6 +802,7 @@ enum txq_info_flags {
 struct txq_info {
 	struct sk_buff_head queue;
 	unsigned long flags;
+	unsigned long byte_cnt;
 
 	/* keep last! */
 	struct ieee80211_txq txq;
@@ -1466,7 +1465,13 @@ ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 {
 	WARN_ON_ONCE(status->flag & RX_FLAG_MACTIME_START &&
 		     status->flag & RX_FLAG_MACTIME_END);
-	return status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END);
+	if (status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END))
+		return true;
+	/* can't handle HT/VHT preamble yet */
+	if (status->flag & RX_FLAG_MACTIME_PLCP_START &&
+	    !(status->flag & (RX_FLAG_HT | RX_FLAG_VHT)))
+		return true;
+	return false;
 }
 
 u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
@@ -1714,6 +1719,12 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta);
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta);
 void ieee80211_sta_set_rx_nss(struct sta_info *sta);
+enum ieee80211_sta_rx_bandwidth
+ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width);
+enum nl80211_chan_width ieee80211_sta_cap_chan_bw(struct sta_info *sta);
+void ieee80211_sta_set_rx_nss(struct sta_info *sta);
+void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
+				 struct ieee80211_mgmt *mgmt);
 u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
                                   struct sta_info *sta, u8 opmode,
 				  enum ieee80211_band band);
@@ -1829,20 +1840,6 @@ static inline void ieee802_11_parse_elems(const u8 *start, size_t len,
 	ieee802_11_parse_elems_crc(start, len, action, elems, 0, 0);
 }
 
-static inline bool ieee80211_rx_reorder_ready(struct sk_buff_head *frames)
-{
-	struct sk_buff *tail = skb_peek_tail(frames);
-	struct ieee80211_rx_status *status;
-
-	if (!tail)
-		return false;
-
-	status = IEEE80211_SKB_RXCB(tail);
-	if (status->flag & RX_FLAG_AMSDU_MORE)
-		return false;
-
-	return true;
-}
 
 extern const int ieee802_1d_to_ac[8];
 
@@ -1986,12 +1983,10 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo);
 
 /* channel management */
-void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
-				  const struct ieee80211_ht_operation *ht_oper,
-				  struct cfg80211_chan_def *chandef);
-void ieee80211_vht_oper_to_chandef(struct ieee80211_channel *control_chan,
-				   const struct ieee80211_vht_operation *oper,
-				   struct cfg80211_chan_def *chandef);
+bool ieee80211_chandef_ht_oper(const struct ieee80211_ht_operation *ht_oper,
+			       struct cfg80211_chan_def *chandef);
+bool ieee80211_chandef_vht_oper(const struct ieee80211_vht_operation *oper,
+				struct cfg80211_chan_def *chandef);
 u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c);
 
 int __must_check

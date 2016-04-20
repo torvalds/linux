@@ -576,7 +576,6 @@ static int __init arc_early_console_setup(struct earlycon_device *dev,
 	dev->con->write = arc_early_serial_write;
 	return 0;
 }
-EARLYCON_DECLARE(arc_uart, arc_early_console_setup);
 OF_EARLYCON_DECLARE(arc_uart, "snps,arc-uart", arc_early_console_setup);
 
 #endif	/* CONFIG_SERIAL_ARC_CONSOLE */

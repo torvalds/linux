@@ -146,24 +146,6 @@ gth_master_set(struct gth_device *gth, unsigned int master, int port)
 	iowrite32(val, gth->base + reg);
 }
 
-/*static int gth_master_get(struct gth_device *gth, unsigned int master)
-{
-	unsigned int reg = REG_GTH_SWDEST0 + ((master >> 1) & ~3u);
-	unsigned int shift = (master & 0x7) * 4;
-	u32 val;
-
-	if (master >= 256) {
-		reg = REG_GTH_GSWTDEST;
-		shift = 0;
-	}
-
-	val = ioread32(gth->base + reg);
-	val &= (0xf << shift);
-	val >>= shift;
-
-	return val ? val & 0x7 : -1;
-	}*/
-
 static ssize_t master_attr_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -303,6 +285,10 @@ static int intel_th_gth_reset(struct gth_device *gth)
 	scratchpad = ioread32(gth->base + REG_GTH_SCRPD0);
 	if (scratchpad & SCRPD_DEBUGGER_IN_USE)
 		return -EBUSY;
+
+	/* Always save/restore STH and TU registers in S0ix entry/exit */
+	scratchpad |= SCRPD_STH_IS_ENABLED | SCRPD_TRIGGER_IS_ENABLED;
+	iowrite32(scratchpad, gth->base + REG_GTH_SCRPD0);
 
 	/* output ports */
 	for (port = 0; port < 8; port++) {
@@ -506,6 +492,10 @@ static void intel_th_gth_disable(struct intel_th_device *thdev,
 	if (!count)
 		dev_dbg(&thdev->dev, "timeout waiting for GTH[%d] PLE\n",
 			output->port);
+
+	reg = ioread32(gth->base + REG_GTH_SCRPD0);
+	reg &= ~output->scratchpad;
+	iowrite32(reg, gth->base + REG_GTH_SCRPD0);
 }
 
 /**
@@ -520,7 +510,7 @@ static void intel_th_gth_enable(struct intel_th_device *thdev,
 				struct intel_th_output *output)
 {
 	struct gth_device *gth = dev_get_drvdata(&thdev->dev);
-	u32 scr = 0xfc0000;
+	u32 scr = 0xfc0000, scrpd;
 	int master;
 
 	spin_lock(&gth->gth_lock);
@@ -534,6 +524,10 @@ static void intel_th_gth_enable(struct intel_th_device *thdev,
 
 	output->active = true;
 	spin_unlock(&gth->gth_lock);
+
+	scrpd = ioread32(gth->base + REG_GTH_SCRPD0);
+	scrpd |= output->scratchpad;
+	iowrite32(scrpd, gth->base + REG_GTH_SCRPD0);
 
 	iowrite32(scr, gth->base + REG_GTH_SCR);
 	iowrite32(0, gth->base + REG_GTH_SCR2);

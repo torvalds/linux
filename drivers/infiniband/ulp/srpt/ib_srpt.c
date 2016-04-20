@@ -91,76 +91,32 @@ MODULE_PARM_DESC(srpt_service_guid,
 		 " instead of using the node_guid of the first HCA.");
 
 static struct ib_client srpt_client;
-static void srpt_release_channel(struct srpt_rdma_ch *ch);
+static void srpt_release_cmd(struct se_cmd *se_cmd);
+static void srpt_free_ch(struct kref *kref);
 static int srpt_queue_status(struct se_cmd *cmd);
 static void srpt_recv_done(struct ib_cq *cq, struct ib_wc *wc);
 static void srpt_send_done(struct ib_cq *cq, struct ib_wc *wc);
+static void srpt_process_wait_list(struct srpt_rdma_ch *ch);
 
-/**
- * opposite_dma_dir() - Swap DMA_TO_DEVICE and DMA_FROM_DEVICE.
+/*
+ * The only allowed channel state changes are those that change the channel
+ * state into a state with a higher numerical value. Hence the new > prev test.
  */
-static inline
-enum dma_data_direction opposite_dma_dir(enum dma_data_direction dir)
-{
-	switch (dir) {
-	case DMA_TO_DEVICE:	return DMA_FROM_DEVICE;
-	case DMA_FROM_DEVICE:	return DMA_TO_DEVICE;
-	default:		return dir;
-	}
-}
-
-/**
- * srpt_sdev_name() - Return the name associated with the HCA.
- *
- * Examples are ib0, ib1, ...
- */
-static inline const char *srpt_sdev_name(struct srpt_device *sdev)
-{
-	return sdev->device->name;
-}
-
-static enum rdma_ch_state srpt_get_ch_state(struct srpt_rdma_ch *ch)
-{
-	unsigned long flags;
-	enum rdma_ch_state state;
-
-	spin_lock_irqsave(&ch->spinlock, flags);
-	state = ch->state;
-	spin_unlock_irqrestore(&ch->spinlock, flags);
-	return state;
-}
-
-static enum rdma_ch_state
-srpt_set_ch_state(struct srpt_rdma_ch *ch, enum rdma_ch_state new_state)
+static bool srpt_set_ch_state(struct srpt_rdma_ch *ch, enum rdma_ch_state new)
 {
 	unsigned long flags;
 	enum rdma_ch_state prev;
+	bool changed = false;
 
 	spin_lock_irqsave(&ch->spinlock, flags);
 	prev = ch->state;
-	ch->state = new_state;
-	spin_unlock_irqrestore(&ch->spinlock, flags);
-	return prev;
-}
-
-/**
- * srpt_test_and_set_ch_state() - Test and set the channel state.
- *
- * Returns true if and only if the channel state has been set to the new state.
- */
-static bool
-srpt_test_and_set_ch_state(struct srpt_rdma_ch *ch, enum rdma_ch_state old,
-			   enum rdma_ch_state new)
-{
-	unsigned long flags;
-	enum rdma_ch_state prev;
-
-	spin_lock_irqsave(&ch->spinlock, flags);
-	prev = ch->state;
-	if (prev == old)
+	if (new > prev) {
 		ch->state = new;
+		changed = true;
+	}
 	spin_unlock_irqrestore(&ch->spinlock, flags);
-	return prev == old;
+
+	return changed;
 }
 
 /**
@@ -182,7 +138,7 @@ static void srpt_event_handler(struct ib_event_handler *handler,
 		return;
 
 	pr_debug("ASYNC event= %d on device= %s\n", event->event,
-		 srpt_sdev_name(sdev));
+		 sdev->device->name);
 
 	switch (event->event) {
 	case IB_EVENT_PORT_ERR:
@@ -220,25 +176,39 @@ static void srpt_srq_event(struct ib_event *event, void *ctx)
 	pr_info("SRQ event %d\n", event->event);
 }
 
+static const char *get_ch_state_name(enum rdma_ch_state s)
+{
+	switch (s) {
+	case CH_CONNECTING:
+		return "connecting";
+	case CH_LIVE:
+		return "live";
+	case CH_DISCONNECTING:
+		return "disconnecting";
+	case CH_DRAINING:
+		return "draining";
+	case CH_DISCONNECTED:
+		return "disconnected";
+	}
+	return "???";
+}
+
 /**
  * srpt_qp_event() - QP event callback function.
  */
 static void srpt_qp_event(struct ib_event *event, struct srpt_rdma_ch *ch)
 {
 	pr_debug("QP event %d on cm_id=%p sess_name=%s state=%d\n",
-		 event->event, ch->cm_id, ch->sess_name, srpt_get_ch_state(ch));
+		 event->event, ch->cm_id, ch->sess_name, ch->state);
 
 	switch (event->event) {
 	case IB_EVENT_COMM_EST:
 		ib_cm_notify(ch->cm_id, event->event);
 		break;
 	case IB_EVENT_QP_LAST_WQE_REACHED:
-		if (srpt_test_and_set_ch_state(ch, CH_DRAINING,
-					       CH_RELEASING))
-			srpt_release_channel(ch);
-		else
-			pr_debug("%s: state %d - ignored LAST_WQE.\n",
-				 ch->sess_name, srpt_get_ch_state(ch));
+		pr_debug("%s-%d, state %s: received Last WQE event.\n",
+			 ch->sess_name, ch->qp->qp_num,
+			 get_ch_state_name(ch->state));
 		break;
 	default:
 		pr_err("received unrecognized IB QP event %d\n", event->event);
@@ -281,7 +251,7 @@ static void srpt_get_class_port_info(struct ib_dm_mad *mad)
 	struct ib_class_port_info *cif;
 
 	cif = (struct ib_class_port_info *)mad->data;
-	memset(cif, 0, sizeof *cif);
+	memset(cif, 0, sizeof(*cif));
 	cif->base_version = 1;
 	cif->class_version = 1;
 	cif->resp_time_value = 20;
@@ -340,7 +310,7 @@ static void srpt_get_ioc(struct srpt_port *sport, u32 slot,
 		return;
 	}
 
-	memset(iocp, 0, sizeof *iocp);
+	memset(iocp, 0, sizeof(*iocp));
 	strcpy(iocp->id_string, SRPT_ID_STRING);
 	iocp->guid = cpu_to_be64(srpt_service_guid);
 	iocp->vendor_id = cpu_to_be32(sdev->device->attrs.vendor_id);
@@ -390,7 +360,7 @@ static void srpt_get_svc_entries(u64 ioc_guid,
 	}
 
 	svc_entries = (struct ib_dm_svc_entries *)mad->data;
-	memset(svc_entries, 0, sizeof *svc_entries);
+	memset(svc_entries, 0, sizeof(*svc_entries));
 	svc_entries->service_entries[0].id = cpu_to_be64(ioc_guid);
 	snprintf(svc_entries->service_entries[0].name,
 		 sizeof(svc_entries->service_entries[0].name),
@@ -484,7 +454,7 @@ static void srpt_mad_recv_handler(struct ib_mad_agent *mad_agent,
 	rsp->ah = ah;
 
 	dm_mad = rsp->mad;
-	memcpy(dm_mad, mad_wc->recv_buf.mad, sizeof *dm_mad);
+	memcpy(dm_mad, mad_wc->recv_buf.mad, sizeof(*dm_mad));
 	dm_mad->mad_hdr.method = IB_MGMT_METHOD_GET_RESP;
 	dm_mad->mad_hdr.status = 0;
 
@@ -532,7 +502,7 @@ static int srpt_refresh_port(struct srpt_port *sport)
 	struct ib_port_attr port_attr;
 	int ret;
 
-	memset(&port_modify, 0, sizeof port_modify);
+	memset(&port_modify, 0, sizeof(port_modify));
 	port_modify.set_port_cap_mask = IB_PORT_DEVICE_MGMT_SUP;
 	port_modify.clr_port_cap_mask = 0;
 
@@ -553,7 +523,7 @@ static int srpt_refresh_port(struct srpt_port *sport)
 		goto err_query_port;
 
 	if (!sport->mad_agent) {
-		memset(&reg_req, 0, sizeof reg_req);
+		memset(&reg_req, 0, sizeof(reg_req));
 		reg_req.mgmt_class = IB_MGMT_CLASS_DEVICE_MGMT;
 		reg_req.mgmt_class_version = IB_MGMT_BASE_VERSION;
 		set_bit(IB_MGMT_METHOD_GET, reg_req.method_mask);
@@ -841,6 +811,39 @@ out:
 }
 
 /**
+ * srpt_zerolength_write() - Perform a zero-length RDMA write.
+ *
+ * A quote from the InfiniBand specification: C9-88: For an HCA responder
+ * using Reliable Connection service, for each zero-length RDMA READ or WRITE
+ * request, the R_Key shall not be validated, even if the request includes
+ * Immediate data.
+ */
+static int srpt_zerolength_write(struct srpt_rdma_ch *ch)
+{
+	struct ib_send_wr wr, *bad_wr;
+
+	memset(&wr, 0, sizeof(wr));
+	wr.opcode = IB_WR_RDMA_WRITE;
+	wr.wr_cqe = &ch->zw_cqe;
+	wr.send_flags = IB_SEND_SIGNALED;
+	return ib_post_send(ch->qp, &wr, &bad_wr);
+}
+
+static void srpt_zerolength_write_done(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct srpt_rdma_ch *ch = cq->cq_context;
+
+	if (wc->status == IB_WC_SUCCESS) {
+		srpt_process_wait_list(ch);
+	} else {
+		if (srpt_set_ch_state(ch, CH_DISCONNECTED))
+			schedule_work(&ch->release_work);
+		else
+			WARN_ONCE(1, "%s-%d\n", ch->sess_name, ch->qp->qp_num);
+	}
+}
+
+/**
  * srpt_get_desc_tbl() - Parse the data descriptors of an SRP_CMD request.
  * @ioctx: Pointer to the I/O context associated with the request.
  * @srp_cmd: Pointer to the SRP_CMD request data.
@@ -903,14 +906,14 @@ static int srpt_get_desc_tbl(struct srpt_send_ioctx *ioctx,
 
 		db = (struct srp_direct_buf *)(srp_cmd->add_data
 					       + add_cdb_offset);
-		memcpy(ioctx->rbufs, db, sizeof *db);
+		memcpy(ioctx->rbufs, db, sizeof(*db));
 		*data_len = be32_to_cpu(db->len);
 	} else if (((srp_cmd->buf_fmt & 0xf) == SRP_DATA_DESC_INDIRECT) ||
 		   ((srp_cmd->buf_fmt >> 4) == SRP_DATA_DESC_INDIRECT)) {
 		idb = (struct srp_indirect_buf *)(srp_cmd->add_data
 						  + add_cdb_offset);
 
-		ioctx->n_rbuf = be32_to_cpu(idb->table_desc.len) / sizeof *db;
+		ioctx->n_rbuf = be32_to_cpu(idb->table_desc.len) / sizeof(*db);
 
 		if (ioctx->n_rbuf >
 		    (srp_cmd->data_out_desc_cnt + srp_cmd->data_in_desc_cnt)) {
@@ -929,7 +932,7 @@ static int srpt_get_desc_tbl(struct srpt_send_ioctx *ioctx,
 			ioctx->rbufs = &ioctx->single_rbuf;
 		else {
 			ioctx->rbufs =
-				kmalloc(ioctx->n_rbuf * sizeof *db, GFP_ATOMIC);
+				kmalloc(ioctx->n_rbuf * sizeof(*db), GFP_ATOMIC);
 			if (!ioctx->rbufs) {
 				ioctx->n_rbuf = 0;
 				ret = -ENOMEM;
@@ -938,7 +941,7 @@ static int srpt_get_desc_tbl(struct srpt_send_ioctx *ioctx,
 		}
 
 		db = idb->desc_list;
-		memcpy(ioctx->rbufs, db, ioctx->n_rbuf * sizeof *db);
+		memcpy(ioctx->rbufs, db, ioctx->n_rbuf * sizeof(*db));
 		*data_len = be32_to_cpu(idb->len);
 	}
 out:
@@ -956,7 +959,7 @@ static int srpt_init_ch_qp(struct srpt_rdma_ch *ch, struct ib_qp *qp)
 	struct ib_qp_attr *attr;
 	int ret;
 
-	attr = kzalloc(sizeof *attr, GFP_KERNEL);
+	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 	if (!attr)
 		return -ENOMEM;
 
@@ -1070,7 +1073,7 @@ static void srpt_unmap_sg_to_ib_sge(struct srpt_rdma_ch *ch,
 		dir = ioctx->cmd.data_direction;
 		BUG_ON(dir == DMA_NONE);
 		ib_dma_unmap_sg(ch->sport->sdev->device, sg, ioctx->sg_cnt,
-				opposite_dma_dir(dir));
+				target_reverse_dma_direction(&ioctx->cmd));
 		ioctx->mapped_sg_count = 0;
 	}
 }
@@ -1107,7 +1110,7 @@ static int srpt_map_sg_to_ib_sge(struct srpt_rdma_ch *ch,
 	ioctx->sg_cnt = sg_cnt = cmd->t_data_nents;
 
 	count = ib_dma_map_sg(ch->sport->sdev->device, sg, sg_cnt,
-			      opposite_dma_dir(dir));
+			      target_reverse_dma_direction(cmd));
 	if (unlikely(!count))
 		return -EAGAIN;
 
@@ -1313,10 +1316,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 
 	/*
 	 * If the command is in a state where the target core is waiting for
-	 * the ib_srpt driver, change the state to the next state. Changing
-	 * the state of the command from SRPT_STATE_NEED_DATA to
-	 * SRPT_STATE_DATA_IN ensures that srpt_xmit_response() will call this
-	 * function a second time.
+	 * the ib_srpt driver, change the state to the next state.
 	 */
 
 	spin_lock_irqsave(&ioctx->spinlock, flags);
@@ -1325,24 +1325,16 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 	case SRPT_STATE_NEED_DATA:
 		ioctx->state = SRPT_STATE_DATA_IN;
 		break;
-	case SRPT_STATE_DATA_IN:
 	case SRPT_STATE_CMD_RSP_SENT:
 	case SRPT_STATE_MGMT_RSP_SENT:
 		ioctx->state = SRPT_STATE_DONE;
 		break;
 	default:
+		WARN_ONCE(true, "%s: unexpected I/O context state %d\n",
+			  __func__, state);
 		break;
 	}
 	spin_unlock_irqrestore(&ioctx->spinlock, flags);
-
-	if (state == SRPT_STATE_DONE) {
-		struct srpt_rdma_ch *ch = ioctx->ch;
-
-		BUG_ON(ch->sess == NULL);
-
-		target_put_sess_cmd(&ioctx->cmd);
-		goto out;
-	}
 
 	pr_debug("Aborting cmd with state %d and tag %lld\n", state,
 		 ioctx->cmd.tag);
@@ -1351,19 +1343,16 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 	case SRPT_STATE_NEW:
 	case SRPT_STATE_DATA_IN:
 	case SRPT_STATE_MGMT:
+	case SRPT_STATE_DONE:
 		/*
 		 * Do nothing - defer abort processing until
 		 * srpt_queue_response() is invoked.
 		 */
-		WARN_ON(!transport_check_aborted_status(&ioctx->cmd, false));
 		break;
 	case SRPT_STATE_NEED_DATA:
-		/* DMA_TO_DEVICE (write) - RDMA read error. */
-
-		/* XXX(hch): this is a horrible layering violation.. */
-		spin_lock_irqsave(&ioctx->cmd.t_state_lock, flags);
-		ioctx->cmd.transport_state &= ~CMD_T_ACTIVE;
-		spin_unlock_irqrestore(&ioctx->cmd.t_state_lock, flags);
+		pr_debug("tag %#llx: RDMA read error\n", ioctx->cmd.tag);
+		transport_generic_request_failure(&ioctx->cmd,
+					TCM_CHECK_CONDITION_ABORT_CMD);
 		break;
 	case SRPT_STATE_CMD_RSP_SENT:
 		/*
@@ -1371,18 +1360,16 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		 * not been received in time.
 		 */
 		srpt_unmap_sg_to_ib_sge(ioctx->ch, ioctx);
-		target_put_sess_cmd(&ioctx->cmd);
+		transport_generic_free_cmd(&ioctx->cmd, 0);
 		break;
 	case SRPT_STATE_MGMT_RSP_SENT:
-		srpt_set_cmd_state(ioctx, SRPT_STATE_DONE);
-		target_put_sess_cmd(&ioctx->cmd);
+		transport_generic_free_cmd(&ioctx->cmd, 0);
 		break;
 	default:
 		WARN(1, "Unexpected command state (%d)", state);
 		break;
 	}
 
-out:
 	return state;
 }
 
@@ -1422,9 +1409,14 @@ static void srpt_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 		container_of(wc->wr_cqe, struct srpt_send_ioctx, rdma_cqe);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+		/*
+		 * Note: if an RDMA write error completion is received that
+		 * means that a SEND also has been posted. Defer further
+		 * processing of the associated command until the send error
+		 * completion has been received.
+		 */
 		pr_info("RDMA_WRITE for ioctx 0x%p failed with status %d\n",
 			ioctx, wc->status);
-		srpt_abort_cmd(ioctx);
 	}
 }
 
@@ -1464,7 +1456,7 @@ static int srpt_build_cmd_rsp(struct srpt_rdma_ch *ch,
 	sense_data_len = ioctx->cmd.scsi_sense_length;
 	WARN_ON(sense_data_len > sizeof(ioctx->sense_data));
 
-	memset(srp_rsp, 0, sizeof *srp_rsp);
+	memset(srp_rsp, 0, sizeof(*srp_rsp));
 	srp_rsp->opcode = SRP_RSP;
 	srp_rsp->req_lim_delta =
 		cpu_to_be32(1 + atomic_xchg(&ch->req_lim_delta, 0));
@@ -1514,7 +1506,7 @@ static int srpt_build_tskmgmt_rsp(struct srpt_rdma_ch *ch,
 
 	srp_rsp = ioctx->ioctx.buf;
 	BUG_ON(!srp_rsp);
-	memset(srp_rsp, 0, sizeof *srp_rsp);
+	memset(srp_rsp, 0, sizeof(*srp_rsp));
 
 	srp_rsp->opcode = SRP_RSP;
 	srp_rsp->req_lim_delta =
@@ -1528,80 +1520,6 @@ static int srpt_build_tskmgmt_rsp(struct srpt_rdma_ch *ch,
 	return resp_len;
 }
 
-#define NO_SUCH_LUN ((uint64_t)-1LL)
-
-/*
- * SCSI LUN addressing method. See also SAM-2 and the section about
- * eight byte LUNs.
- */
-enum scsi_lun_addr_method {
-	SCSI_LUN_ADDR_METHOD_PERIPHERAL   = 0,
-	SCSI_LUN_ADDR_METHOD_FLAT         = 1,
-	SCSI_LUN_ADDR_METHOD_LUN          = 2,
-	SCSI_LUN_ADDR_METHOD_EXTENDED_LUN = 3,
-};
-
-/*
- * srpt_unpack_lun() - Convert from network LUN to linear LUN.
- *
- * Convert an 2-byte, 4-byte, 6-byte or 8-byte LUN structure in network byte
- * order (big endian) to a linear LUN. Supports three LUN addressing methods:
- * peripheral, flat and logical unit. See also SAM-2, section 4.9.4 (page 40).
- */
-static uint64_t srpt_unpack_lun(const uint8_t *lun, int len)
-{
-	uint64_t res = NO_SUCH_LUN;
-	int addressing_method;
-
-	if (unlikely(len < 2)) {
-		pr_err("Illegal LUN length %d, expected 2 bytes or more\n",
-		       len);
-		goto out;
-	}
-
-	switch (len) {
-	case 8:
-		if ((*((__be64 *)lun) &
-		     cpu_to_be64(0x0000FFFFFFFFFFFFLL)) != 0)
-			goto out_err;
-		break;
-	case 4:
-		if (*((__be16 *)&lun[2]) != 0)
-			goto out_err;
-		break;
-	case 6:
-		if (*((__be32 *)&lun[2]) != 0)
-			goto out_err;
-		break;
-	case 2:
-		break;
-	default:
-		goto out_err;
-	}
-
-	addressing_method = (*lun) >> 6; /* highest two bits of byte 0 */
-	switch (addressing_method) {
-	case SCSI_LUN_ADDR_METHOD_PERIPHERAL:
-	case SCSI_LUN_ADDR_METHOD_FLAT:
-	case SCSI_LUN_ADDR_METHOD_LUN:
-		res = *(lun + 1) | (((*lun) & 0x3f) << 8);
-		break;
-
-	case SCSI_LUN_ADDR_METHOD_EXTENDED_LUN:
-	default:
-		pr_err("Unimplemented LUN addressing method %u\n",
-		       addressing_method);
-		break;
-	}
-
-out:
-	return res;
-
-out_err:
-	pr_err("Support for multi-level LUNs has not yet been implemented\n");
-	goto out;
-}
-
 static int srpt_check_stop_free(struct se_cmd *cmd)
 {
 	struct srpt_send_ioctx *ioctx = container_of(cmd,
@@ -1613,16 +1531,14 @@ static int srpt_check_stop_free(struct se_cmd *cmd)
 /**
  * srpt_handle_cmd() - Process SRP_CMD.
  */
-static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
-			   struct srpt_recv_ioctx *recv_ioctx,
-			   struct srpt_send_ioctx *send_ioctx)
+static void srpt_handle_cmd(struct srpt_rdma_ch *ch,
+			    struct srpt_recv_ioctx *recv_ioctx,
+			    struct srpt_send_ioctx *send_ioctx)
 {
 	struct se_cmd *cmd;
 	struct srp_cmd *srp_cmd;
-	uint64_t unpacked_lun;
 	u64 data_len;
 	enum dma_data_direction dir;
-	sense_reason_t ret;
 	int rc;
 
 	BUG_ON(!send_ioctx);
@@ -1650,65 +1566,23 @@ static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
 	if (srpt_get_desc_tbl(send_ioctx, srp_cmd, &dir, &data_len)) {
 		pr_err("0x%llx: parsing SRP descriptor table failed.\n",
 		       srp_cmd->tag);
-		ret = TCM_INVALID_CDB_FIELD;
-		goto send_sense;
+		goto release_ioctx;
 	}
 
-	unpacked_lun = srpt_unpack_lun((uint8_t *)&srp_cmd->lun,
-				       sizeof(srp_cmd->lun));
 	rc = target_submit_cmd(cmd, ch->sess, srp_cmd->cdb,
-			&send_ioctx->sense_data[0], unpacked_lun, data_len,
-			TCM_SIMPLE_TAG, dir, TARGET_SCF_ACK_KREF);
+			       &send_ioctx->sense_data[0],
+			       scsilun_to_int(&srp_cmd->lun), data_len,
+			       TCM_SIMPLE_TAG, dir, TARGET_SCF_ACK_KREF);
 	if (rc != 0) {
-		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		goto send_sense;
+		pr_debug("target_submit_cmd() returned %d for tag %#llx\n", rc,
+			 srp_cmd->tag);
+		goto release_ioctx;
 	}
-	return 0;
+	return;
 
-send_sense:
-	transport_send_check_condition_and_sense(cmd, ret, 0);
-	return -1;
-}
-
-/**
- * srpt_rx_mgmt_fn_tag() - Process a task management function by tag.
- * @ch: RDMA channel of the task management request.
- * @fn: Task management function to perform.
- * @req_tag: Tag of the SRP task management request.
- * @mgmt_ioctx: I/O context of the task management request.
- *
- * Returns zero if the target core will process the task management
- * request asynchronously.
- *
- * Note: It is assumed that the initiator serializes tag-based task management
- * requests.
- */
-static int srpt_rx_mgmt_fn_tag(struct srpt_send_ioctx *ioctx, u64 tag)
-{
-	struct srpt_device *sdev;
-	struct srpt_rdma_ch *ch;
-	struct srpt_send_ioctx *target;
-	int ret, i;
-
-	ret = -EINVAL;
-	ch = ioctx->ch;
-	BUG_ON(!ch);
-	BUG_ON(!ch->sport);
-	sdev = ch->sport->sdev;
-	BUG_ON(!sdev);
-	spin_lock_irq(&sdev->spinlock);
-	for (i = 0; i < ch->rq_size; ++i) {
-		target = ch->ioctx_ring[i];
-		if (target->cmd.se_lun == ioctx->cmd.se_lun &&
-		    target->cmd.tag == tag &&
-		    srpt_get_cmd_state(target) != SRPT_STATE_DONE) {
-			ret = 0;
-			/* now let the target core abort &target->cmd; */
-			break;
-		}
-	}
-	spin_unlock_irq(&sdev->spinlock);
-	return ret;
+release_ioctx:
+	send_ioctx->state = SRPT_STATE_DONE;
+	srpt_release_cmd(cmd);
 }
 
 static int srp_tmr_to_tcm(int fn)
@@ -1744,8 +1618,6 @@ static void srpt_handle_tsk_mgmt(struct srpt_rdma_ch *ch,
 	struct srp_tsk_mgmt *srp_tsk;
 	struct se_cmd *cmd;
 	struct se_session *sess = ch->sess;
-	uint64_t unpacked_lun;
-	uint32_t tag = 0;
 	int tcm_tmr;
 	int rc;
 
@@ -1761,26 +1633,10 @@ static void srpt_handle_tsk_mgmt(struct srpt_rdma_ch *ch,
 	srpt_set_cmd_state(send_ioctx, SRPT_STATE_MGMT);
 	send_ioctx->cmd.tag = srp_tsk->tag;
 	tcm_tmr = srp_tmr_to_tcm(srp_tsk->tsk_mgmt_func);
-	if (tcm_tmr < 0) {
-		send_ioctx->cmd.se_tmr_req->response =
-			TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED;
-		goto fail;
-	}
-	unpacked_lun = srpt_unpack_lun((uint8_t *)&srp_tsk->lun,
-				       sizeof(srp_tsk->lun));
-
-	if (srp_tsk->tsk_mgmt_func == SRP_TSK_ABORT_TASK) {
-		rc = srpt_rx_mgmt_fn_tag(send_ioctx, srp_tsk->task_tag);
-		if (rc < 0) {
-			send_ioctx->cmd.se_tmr_req->response =
-					TMR_TASK_DOES_NOT_EXIST;
-			goto fail;
-		}
-		tag = srp_tsk->task_tag;
-	}
-	rc = target_submit_tmr(&send_ioctx->cmd, sess, NULL, unpacked_lun,
-				srp_tsk, tcm_tmr, GFP_KERNEL, tag,
-				TARGET_SCF_ACK_KREF);
+	rc = target_submit_tmr(&send_ioctx->cmd, sess, NULL,
+			       scsilun_to_int(&srp_tsk->lun), srp_tsk, tcm_tmr,
+			       GFP_KERNEL, srp_tsk->task_tag,
+			       TARGET_SCF_ACK_KREF);
 	if (rc != 0) {
 		send_ioctx->cmd.se_tmr_req->response = TMR_FUNCTION_REJECTED;
 		goto fail;
@@ -1800,7 +1656,6 @@ static void srpt_handle_new_iu(struct srpt_rdma_ch *ch,
 			       struct srpt_send_ioctx *send_ioctx)
 {
 	struct srp_cmd *srp_cmd;
-	enum rdma_ch_state ch_state;
 
 	BUG_ON(!ch);
 	BUG_ON(!recv_ioctx);
@@ -1809,13 +1664,12 @@ static void srpt_handle_new_iu(struct srpt_rdma_ch *ch,
 				   recv_ioctx->ioctx.dma, srp_max_req_size,
 				   DMA_FROM_DEVICE);
 
-	ch_state = srpt_get_ch_state(ch);
-	if (unlikely(ch_state == CH_CONNECTING)) {
+	if (unlikely(ch->state == CH_CONNECTING)) {
 		list_add_tail(&recv_ioctx->wait_list, &ch->cmd_wait_list);
 		goto out;
 	}
 
-	if (unlikely(ch_state != CH_LIVE))
+	if (unlikely(ch->state != CH_LIVE))
 		goto out;
 
 	srp_cmd = recv_ioctx->ioctx.buf;
@@ -1878,6 +1732,28 @@ static void srpt_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	}
 }
 
+/*
+ * This function must be called from the context in which RDMA completions are
+ * processed because it accesses the wait list without protection against
+ * access from other threads.
+ */
+static void srpt_process_wait_list(struct srpt_rdma_ch *ch)
+{
+	struct srpt_send_ioctx *ioctx;
+
+	while (!list_empty(&ch->cmd_wait_list) &&
+	       ch->state >= CH_LIVE &&
+	       (ioctx = srpt_get_send_ioctx(ch)) != NULL) {
+		struct srpt_recv_ioctx *recv_ioctx;
+
+		recv_ioctx = list_first_entry(&ch->cmd_wait_list,
+					      struct srpt_recv_ioctx,
+					      wait_list);
+		list_del(&recv_ioctx->wait_list);
+		srpt_handle_new_iu(ch, recv_ioctx, ioctx);
+	}
+}
+
 /**
  * Note: Although this has not yet been observed during tests, at least in
  * theory it is possible that the srpt_get_send_ioctx() call invoked by
@@ -1905,14 +1781,9 @@ static void srpt_send_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	atomic_inc(&ch->sq_wr_avail);
 
-	if (wc->status != IB_WC_SUCCESS) {
+	if (wc->status != IB_WC_SUCCESS)
 		pr_info("sending response for ioctx 0x%p failed"
 			" with status %d\n", ioctx, wc->status);
-
-		atomic_dec(&ch->req_lim);
-		srpt_abort_cmd(ioctx);
-		goto out;
-	}
 
 	if (state != SRPT_STATE_DONE) {
 		srpt_unmap_sg_to_ib_sge(ch, ioctx);
@@ -1922,18 +1793,7 @@ static void srpt_send_done(struct ib_cq *cq, struct ib_wc *wc)
 		       " wr_id = %u.\n", ioctx->ioctx.index);
 	}
 
-out:
-	while (!list_empty(&ch->cmd_wait_list) &&
-	       srpt_get_ch_state(ch) == CH_LIVE &&
-	       (ioctx = srpt_get_send_ioctx(ch)) != NULL) {
-		struct srpt_recv_ioctx *recv_ioctx;
-
-		recv_ioctx = list_first_entry(&ch->cmd_wait_list,
-					      struct srpt_recv_ioctx,
-					      wait_list);
-		list_del(&recv_ioctx->wait_list);
-		srpt_handle_new_iu(ch, recv_ioctx, ioctx);
-	}
+	srpt_process_wait_list(ch);
 }
 
 /**
@@ -1950,7 +1810,7 @@ static int srpt_create_ch_ib(struct srpt_rdma_ch *ch)
 	WARN_ON(ch->rq_size < 1);
 
 	ret = -ENOMEM;
-	qp_init = kzalloc(sizeof *qp_init, GFP_KERNEL);
+	qp_init = kzalloc(sizeof(*qp_init), GFP_KERNEL);
 	if (!qp_init)
 		goto out;
 
@@ -2017,58 +1877,87 @@ static void srpt_destroy_ch_ib(struct srpt_rdma_ch *ch)
 }
 
 /**
- * __srpt_close_ch() - Close an RDMA channel by setting the QP error state.
+ * srpt_close_ch() - Close an RDMA channel.
  *
- * Reset the QP and make sure all resources associated with the channel will
- * be deallocated at an appropriate time.
+ * Make sure all resources associated with the channel will be deallocated at
+ * an appropriate time.
  *
- * Note: The caller must hold ch->sport->sdev->spinlock.
+ * Returns true if and only if the channel state has been modified into
+ * CH_DRAINING.
  */
-static void __srpt_close_ch(struct srpt_rdma_ch *ch)
+static bool srpt_close_ch(struct srpt_rdma_ch *ch)
 {
-	enum rdma_ch_state prev_state;
-	unsigned long flags;
+	int ret;
 
-	spin_lock_irqsave(&ch->spinlock, flags);
-	prev_state = ch->state;
-	switch (prev_state) {
-	case CH_CONNECTING:
-	case CH_LIVE:
-		ch->state = CH_DISCONNECTING;
-		break;
-	default:
-		break;
+	if (!srpt_set_ch_state(ch, CH_DRAINING)) {
+		pr_debug("%s-%d: already closed\n", ch->sess_name,
+			 ch->qp->qp_num);
+		return false;
 	}
-	spin_unlock_irqrestore(&ch->spinlock, flags);
 
-	switch (prev_state) {
-	case CH_CONNECTING:
-		ib_send_cm_rej(ch->cm_id, IB_CM_REJ_NO_RESOURCES, NULL, 0,
-			       NULL, 0);
-		/* fall through */
-	case CH_LIVE:
-		if (ib_send_cm_dreq(ch->cm_id, NULL, 0) < 0)
-			pr_err("sending CM DREQ failed.\n");
-		break;
-	case CH_DISCONNECTING:
-		break;
-	case CH_DRAINING:
-	case CH_RELEASING:
-		break;
+	kref_get(&ch->kref);
+
+	ret = srpt_ch_qp_err(ch);
+	if (ret < 0)
+		pr_err("%s-%d: changing queue pair into error state failed: %d\n",
+		       ch->sess_name, ch->qp->qp_num, ret);
+
+	pr_debug("%s-%d: queued zerolength write\n", ch->sess_name,
+		 ch->qp->qp_num);
+	ret = srpt_zerolength_write(ch);
+	if (ret < 0) {
+		pr_err("%s-%d: queuing zero-length write failed: %d\n",
+		       ch->sess_name, ch->qp->qp_num, ret);
+		if (srpt_set_ch_state(ch, CH_DISCONNECTED))
+			schedule_work(&ch->release_work);
+		else
+			WARN_ON_ONCE(true);
 	}
+
+	kref_put(&ch->kref, srpt_free_ch);
+
+	return true;
 }
 
-/**
- * srpt_close_ch() - Close an RDMA channel.
+/*
+ * Change the channel state into CH_DISCONNECTING. If a channel has not yet
+ * reached the connected state, close it. If a channel is in the connected
+ * state, send a DREQ. If a DREQ has been received, send a DREP. Note: it is
+ * the responsibility of the caller to ensure that this function is not
+ * invoked concurrently with the code that accepts a connection. This means
+ * that this function must either be invoked from inside a CM callback
+ * function or that it must be invoked with the srpt_port.mutex held.
  */
-static void srpt_close_ch(struct srpt_rdma_ch *ch)
+static int srpt_disconnect_ch(struct srpt_rdma_ch *ch)
 {
-	struct srpt_device *sdev;
+	int ret;
 
-	sdev = ch->sport->sdev;
-	spin_lock_irq(&sdev->spinlock);
-	__srpt_close_ch(ch);
-	spin_unlock_irq(&sdev->spinlock);
+	if (!srpt_set_ch_state(ch, CH_DISCONNECTING))
+		return -ENOTCONN;
+
+	ret = ib_send_cm_dreq(ch->cm_id, NULL, 0);
+	if (ret < 0)
+		ret = ib_send_cm_drep(ch->cm_id, NULL, 0);
+
+	if (ret < 0 && srpt_close_ch(ch))
+		ret = 0;
+
+	return ret;
+}
+
+static void __srpt_close_all_ch(struct srpt_device *sdev)
+{
+	struct srpt_rdma_ch *ch;
+
+	lockdep_assert_held(&sdev->mutex);
+
+	list_for_each_entry(ch, &sdev->rch_list, list) {
+		if (srpt_disconnect_ch(ch) >= 0)
+			pr_info("Closing channel %s-%d because target %s has been disabled\n",
+				ch->sess_name, ch->qp->qp_num,
+				sdev->device->name);
+		srpt_close_ch(ch);
+	}
 }
 
 /**
@@ -2076,109 +1965,14 @@ static void srpt_close_ch(struct srpt_rdma_ch *ch)
  */
 static int srpt_shutdown_session(struct se_session *se_sess)
 {
-	struct srpt_rdma_ch *ch = se_sess->fabric_sess_ptr;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ch->spinlock, flags);
-	if (ch->in_shutdown) {
-		spin_unlock_irqrestore(&ch->spinlock, flags);
-		return true;
-	}
-
-	ch->in_shutdown = true;
-	target_sess_cmd_list_set_waiting(se_sess);
-	spin_unlock_irqrestore(&ch->spinlock, flags);
-
-	return true;
+	return 1;
 }
 
-/**
- * srpt_drain_channel() - Drain a channel by resetting the IB queue pair.
- * @cm_id: Pointer to the CM ID of the channel to be drained.
- *
- * Note: Must be called from inside srpt_cm_handler to avoid a race between
- * accessing sdev->spinlock and the call to kfree(sdev) in srpt_remove_one()
- * (the caller of srpt_cm_handler holds the cm_id spinlock; srpt_remove_one()
- * waits until all target sessions for the associated IB device have been
- * unregistered and target session registration involves a call to
- * ib_destroy_cm_id(), which locks the cm_id spinlock and hence waits until
- * this function has finished).
- */
-static void srpt_drain_channel(struct ib_cm_id *cm_id)
+static void srpt_free_ch(struct kref *kref)
 {
-	struct srpt_device *sdev;
-	struct srpt_rdma_ch *ch;
-	int ret;
-	bool do_reset = false;
+	struct srpt_rdma_ch *ch = container_of(kref, struct srpt_rdma_ch, kref);
 
-	WARN_ON_ONCE(irqs_disabled());
-
-	sdev = cm_id->context;
-	BUG_ON(!sdev);
-	spin_lock_irq(&sdev->spinlock);
-	list_for_each_entry(ch, &sdev->rch_list, list) {
-		if (ch->cm_id == cm_id) {
-			do_reset = srpt_test_and_set_ch_state(ch,
-					CH_CONNECTING, CH_DRAINING) ||
-				   srpt_test_and_set_ch_state(ch,
-					CH_LIVE, CH_DRAINING) ||
-				   srpt_test_and_set_ch_state(ch,
-					CH_DISCONNECTING, CH_DRAINING);
-			break;
-		}
-	}
-	spin_unlock_irq(&sdev->spinlock);
-
-	if (do_reset) {
-		if (ch->sess)
-			srpt_shutdown_session(ch->sess);
-
-		ret = srpt_ch_qp_err(ch);
-		if (ret < 0)
-			pr_err("Setting queue pair in error state"
-			       " failed: %d\n", ret);
-	}
-}
-
-/**
- * srpt_find_channel() - Look up an RDMA channel.
- * @cm_id: Pointer to the CM ID of the channel to be looked up.
- *
- * Return NULL if no matching RDMA channel has been found.
- */
-static struct srpt_rdma_ch *srpt_find_channel(struct srpt_device *sdev,
-					      struct ib_cm_id *cm_id)
-{
-	struct srpt_rdma_ch *ch;
-	bool found;
-
-	WARN_ON_ONCE(irqs_disabled());
-	BUG_ON(!sdev);
-
-	found = false;
-	spin_lock_irq(&sdev->spinlock);
-	list_for_each_entry(ch, &sdev->rch_list, list) {
-		if (ch->cm_id == cm_id) {
-			found = true;
-			break;
-		}
-	}
-	spin_unlock_irq(&sdev->spinlock);
-
-	return found ? ch : NULL;
-}
-
-/**
- * srpt_release_channel() - Release channel resources.
- *
- * Schedules the actual release because:
- * - Calling the ib_destroy_cm_id() call from inside an IB CM callback would
- *   trigger a deadlock.
- * - It is not safe to call TCM transport_* functions from interrupt context.
- */
-static void srpt_release_channel(struct srpt_rdma_ch *ch)
-{
-	schedule_work(&ch->release_work);
+	kfree(ch);
 }
 
 static void srpt_release_channel_work(struct work_struct *w)
@@ -2188,8 +1982,8 @@ static void srpt_release_channel_work(struct work_struct *w)
 	struct se_session *se_sess;
 
 	ch = container_of(w, struct srpt_rdma_ch, release_work);
-	pr_debug("ch = %p; ch->sess = %p; release_done = %p\n", ch, ch->sess,
-		 ch->release_done);
+	pr_debug("%s: %s-%d; release_done = %p\n", __func__, ch->sess_name,
+		 ch->qp->qp_num, ch->release_done);
 
 	sdev = ch->sport->sdev;
 	BUG_ON(!sdev);
@@ -2197,6 +1991,7 @@ static void srpt_release_channel_work(struct work_struct *w)
 	se_sess = ch->sess;
 	BUG_ON(!se_sess);
 
+	target_sess_cmd_list_set_waiting(se_sess);
 	target_wait_for_sess_cmds(se_sess);
 
 	transport_deregister_session_configfs(se_sess);
@@ -2211,16 +2006,15 @@ static void srpt_release_channel_work(struct work_struct *w)
 			     ch->sport->sdev, ch->rq_size,
 			     ch->rsp_size, DMA_TO_DEVICE);
 
-	spin_lock_irq(&sdev->spinlock);
-	list_del(&ch->list);
-	spin_unlock_irq(&sdev->spinlock);
-
+	mutex_lock(&sdev->mutex);
+	list_del_init(&ch->list);
 	if (ch->release_done)
 		complete(ch->release_done);
+	mutex_unlock(&sdev->mutex);
 
 	wake_up(&sdev->ch_releaseQ);
 
-	kfree(ch);
+	kref_put(&ch->kref, srpt_free_ch);
 }
 
 /**
@@ -2240,7 +2034,6 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	struct srp_login_rej *rej;
 	struct ib_cm_rep_param *rep_param;
 	struct srpt_rdma_ch *ch, *tmp_ch;
-	struct se_node_acl *se_acl;
 	u32 it_iu_len;
 	int i, ret = 0;
 	unsigned char *p;
@@ -2266,9 +2059,9 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 		be64_to_cpu(*(__be64 *)&sdev->port[param->port - 1].gid.raw[0]),
 		be64_to_cpu(*(__be64 *)&sdev->port[param->port - 1].gid.raw[8]));
 
-	rsp = kzalloc(sizeof *rsp, GFP_KERNEL);
-	rej = kzalloc(sizeof *rej, GFP_KERNEL);
-	rep_param = kzalloc(sizeof *rep_param, GFP_KERNEL);
+	rsp = kzalloc(sizeof(*rsp), GFP_KERNEL);
+	rej = kzalloc(sizeof(*rej), GFP_KERNEL);
+	rep_param = kzalloc(sizeof(*rep_param), GFP_KERNEL);
 
 	if (!rsp || !rej || !rep_param) {
 		ret = -ENOMEM;
@@ -2297,7 +2090,7 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	if ((req->req_flags & SRP_MTCH_ACTION) == SRP_MULTICHAN_SINGLE) {
 		rsp->rsp_flags = SRP_LOGIN_RSP_MULTICHAN_NO_CHAN;
 
-		spin_lock_irq(&sdev->spinlock);
+		mutex_lock(&sdev->mutex);
 
 		list_for_each_entry_safe(ch, tmp_ch, &sdev->rch_list, list) {
 			if (!memcmp(ch->i_port_id, req->initiator_port_id, 16)
@@ -2305,26 +2098,16 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 			    && param->port == ch->sport->port
 			    && param->listen_id == ch->sport->sdev->cm_id
 			    && ch->cm_id) {
-				enum rdma_ch_state ch_state;
-
-				ch_state = srpt_get_ch_state(ch);
-				if (ch_state != CH_CONNECTING
-				    && ch_state != CH_LIVE)
+				if (srpt_disconnect_ch(ch) < 0)
 					continue;
-
-				/* found an existing channel */
-				pr_debug("Found existing channel %s"
-					 " cm_id= %p state= %d\n",
-					 ch->sess_name, ch->cm_id, ch_state);
-
-				__srpt_close_ch(ch);
-
+				pr_info("Relogin - closed existing channel %s\n",
+					ch->sess_name);
 				rsp->rsp_flags =
 					SRP_LOGIN_RSP_MULTICHAN_TERMINATED;
 			}
 		}
 
-		spin_unlock_irq(&sdev->spinlock);
+		mutex_unlock(&sdev->mutex);
 
 	} else
 		rsp->rsp_flags = SRP_LOGIN_RSP_MULTICHAN_MAINTAINED;
@@ -2340,7 +2123,7 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 		goto reject;
 	}
 
-	ch = kzalloc(sizeof *ch, GFP_KERNEL);
+	ch = kzalloc(sizeof(*ch), GFP_KERNEL);
 	if (!ch) {
 		rej->reason = cpu_to_be32(
 			      SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
@@ -2349,11 +2132,14 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 		goto reject;
 	}
 
+	kref_init(&ch->kref);
+	ch->zw_cqe.done = srpt_zerolength_write_done;
 	INIT_WORK(&ch->release_work, srpt_release_channel_work);
 	memcpy(ch->i_port_id, req->initiator_port_id, 16);
 	memcpy(ch->t_port_id, req->target_port_id, 16);
 	ch->sport = &sdev->port[param->port - 1];
 	ch->cm_id = cm_id;
+	cm_id->context = ch;
 	/*
 	 * Avoid QUEUE_FULL conditions by limiting the number of buffers used
 	 * for the SRP protocol to the command queue size.
@@ -2406,19 +2192,12 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	pr_debug("registering session %s\n", ch->sess_name);
 	p = &ch->sess_name[0];
 
-	ch->sess = transport_init_session(TARGET_PROT_NORMAL);
-	if (IS_ERR(ch->sess)) {
-		rej->reason = cpu_to_be32(
-				SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
-		pr_debug("Failed to create session\n");
-		goto destroy_ib;
-	}
-
 try_again:
-	se_acl = core_tpg_get_initiator_node_acl(&sport->port_tpg_1, p);
-	if (!se_acl) {
+	ch->sess = target_alloc_session(&sport->port_tpg_1, 0, 0,
+					TARGET_PROT_NORMAL, p, ch, NULL);
+	if (IS_ERR(ch->sess)) {
 		pr_info("Rejected login because no ACL has been"
-			" configured yet for initiator %s.\n", ch->sess_name);
+			" configured yet for initiator %s.\n", p);
 		/*
 		 * XXX: Hack to retry of ch->i_port_id without leading '0x'
 		 */
@@ -2426,14 +2205,11 @@ try_again:
 			p += 2;
 			goto try_again;
 		}
-		rej->reason = cpu_to_be32(
+		rej->reason = cpu_to_be32((PTR_ERR(ch->sess) == -ENOMEM) ?
+				SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES :
 				SRP_LOGIN_REJ_CHANNEL_LIMIT_REACHED);
-		transport_free_session(ch->sess);
 		goto destroy_ib;
 	}
-	ch->sess->se_node_acl = se_acl;
-
-	transport_register_session(&sport->port_tpg_1, se_acl, ch->sess, ch);
 
 	pr_debug("Establish connection sess=%p name=%s cm_id=%p\n", ch->sess,
 		 ch->sess_name, ch->cm_id);
@@ -2453,7 +2229,7 @@ try_again:
 	/* create cm reply */
 	rep_param->qp_num = ch->qp->qp_num;
 	rep_param->private_data = (void *)rsp;
-	rep_param->private_data_len = sizeof *rsp;
+	rep_param->private_data_len = sizeof(*rsp);
 	rep_param->rnr_retry_count = 7;
 	rep_param->flow_control = 1;
 	rep_param->failover_accepted = 0;
@@ -2468,14 +2244,14 @@ try_again:
 		goto release_channel;
 	}
 
-	spin_lock_irq(&sdev->spinlock);
+	mutex_lock(&sdev->mutex);
 	list_add_tail(&ch->list, &sdev->rch_list);
-	spin_unlock_irq(&sdev->spinlock);
+	mutex_unlock(&sdev->mutex);
 
 	goto out;
 
 release_channel:
-	srpt_set_ch_state(ch, CH_RELEASING);
+	srpt_disconnect_ch(ch);
 	transport_deregister_session_configfs(ch->sess);
 	transport_deregister_session(ch->sess);
 	ch->sess = NULL;
@@ -2497,7 +2273,7 @@ reject:
 				   | SRP_BUF_FORMAT_INDIRECT);
 
 	ib_send_cm_rej(cm_id, IB_CM_REJ_CONSUMER_DEFINED, NULL, 0,
-			     (void *)rej, sizeof *rej);
+			     (void *)rej, sizeof(*rej));
 
 out:
 	kfree(rep_param);
@@ -2507,10 +2283,23 @@ out:
 	return ret;
 }
 
-static void srpt_cm_rej_recv(struct ib_cm_id *cm_id)
+static void srpt_cm_rej_recv(struct srpt_rdma_ch *ch,
+			     enum ib_cm_rej_reason reason,
+			     const u8 *private_data,
+			     u8 private_data_len)
 {
-	pr_info("Received IB REJ for cm_id %p.\n", cm_id);
-	srpt_drain_channel(cm_id);
+	char *priv = NULL;
+	int i;
+
+	if (private_data_len && (priv = kmalloc(private_data_len * 3 + 1,
+						GFP_KERNEL))) {
+		for (i = 0; i < private_data_len; i++)
+			sprintf(priv + 3 * i, " %02x", private_data[i]);
+	}
+	pr_info("Received CM REJ for ch %s-%d; reason %d%s%s.\n",
+		ch->sess_name, ch->qp->qp_num, reason, private_data_len ?
+		"; private data" : "", priv ? priv : " (?)");
+	kfree(priv);
 }
 
 /**
@@ -2519,85 +2308,21 @@ static void srpt_cm_rej_recv(struct ib_cm_id *cm_id)
  * An IB_CM_RTU_RECEIVED message indicates that the connection is established
  * and that the recipient may begin transmitting (RTU = ready to use).
  */
-static void srpt_cm_rtu_recv(struct ib_cm_id *cm_id)
+static void srpt_cm_rtu_recv(struct srpt_rdma_ch *ch)
 {
-	struct srpt_rdma_ch *ch;
 	int ret;
 
-	ch = srpt_find_channel(cm_id->context, cm_id);
-	BUG_ON(!ch);
-
-	if (srpt_test_and_set_ch_state(ch, CH_CONNECTING, CH_LIVE)) {
-		struct srpt_recv_ioctx *ioctx, *ioctx_tmp;
-
+	if (srpt_set_ch_state(ch, CH_LIVE)) {
 		ret = srpt_ch_qp_rts(ch, ch->qp);
 
-		list_for_each_entry_safe(ioctx, ioctx_tmp, &ch->cmd_wait_list,
-					 wait_list) {
-			list_del(&ioctx->wait_list);
-			srpt_handle_new_iu(ch, ioctx, NULL);
-		}
-		if (ret)
+		if (ret == 0) {
+			/* Trigger wait list processing. */
+			ret = srpt_zerolength_write(ch);
+			WARN_ONCE(ret < 0, "%d\n", ret);
+		} else {
 			srpt_close_ch(ch);
+		}
 	}
-}
-
-static void srpt_cm_timewait_exit(struct ib_cm_id *cm_id)
-{
-	pr_info("Received IB TimeWait exit for cm_id %p.\n", cm_id);
-	srpt_drain_channel(cm_id);
-}
-
-static void srpt_cm_rep_error(struct ib_cm_id *cm_id)
-{
-	pr_info("Received IB REP error for cm_id %p.\n", cm_id);
-	srpt_drain_channel(cm_id);
-}
-
-/**
- * srpt_cm_dreq_recv() - Process reception of a DREQ message.
- */
-static void srpt_cm_dreq_recv(struct ib_cm_id *cm_id)
-{
-	struct srpt_rdma_ch *ch;
-	unsigned long flags;
-	bool send_drep = false;
-
-	ch = srpt_find_channel(cm_id->context, cm_id);
-	BUG_ON(!ch);
-
-	pr_debug("cm_id= %p ch->state= %d\n", cm_id, srpt_get_ch_state(ch));
-
-	spin_lock_irqsave(&ch->spinlock, flags);
-	switch (ch->state) {
-	case CH_CONNECTING:
-	case CH_LIVE:
-		send_drep = true;
-		ch->state = CH_DISCONNECTING;
-		break;
-	case CH_DISCONNECTING:
-	case CH_DRAINING:
-	case CH_RELEASING:
-		WARN(true, "unexpected channel state %d\n", ch->state);
-		break;
-	}
-	spin_unlock_irqrestore(&ch->spinlock, flags);
-
-	if (send_drep) {
-		if (ib_send_cm_drep(ch->cm_id, NULL, 0) < 0)
-			pr_err("Sending IB DREP failed.\n");
-		pr_info("Received DREQ and sent DREP for session %s.\n",
-			ch->sess_name);
-	}
-}
-
-/**
- * srpt_cm_drep_recv() - Process reception of a DREP message.
- */
-static void srpt_cm_drep_recv(struct ib_cm_id *cm_id)
-{
-	pr_info("Received InfiniBand DREP message for cm_id %p.\n", cm_id);
-	srpt_drain_channel(cm_id);
 }
 
 /**
@@ -2612,6 +2337,7 @@ static void srpt_cm_drep_recv(struct ib_cm_id *cm_id)
  */
 static int srpt_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 {
+	struct srpt_rdma_ch *ch = cm_id->context;
 	int ret;
 
 	ret = 0;
@@ -2621,32 +2347,39 @@ static int srpt_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 				       event->private_data);
 		break;
 	case IB_CM_REJ_RECEIVED:
-		srpt_cm_rej_recv(cm_id);
+		srpt_cm_rej_recv(ch, event->param.rej_rcvd.reason,
+				 event->private_data,
+				 IB_CM_REJ_PRIVATE_DATA_SIZE);
 		break;
 	case IB_CM_RTU_RECEIVED:
 	case IB_CM_USER_ESTABLISHED:
-		srpt_cm_rtu_recv(cm_id);
+		srpt_cm_rtu_recv(ch);
 		break;
 	case IB_CM_DREQ_RECEIVED:
-		srpt_cm_dreq_recv(cm_id);
+		srpt_disconnect_ch(ch);
 		break;
 	case IB_CM_DREP_RECEIVED:
-		srpt_cm_drep_recv(cm_id);
+		pr_info("Received CM DREP message for ch %s-%d.\n",
+			ch->sess_name, ch->qp->qp_num);
+		srpt_close_ch(ch);
 		break;
 	case IB_CM_TIMEWAIT_EXIT:
-		srpt_cm_timewait_exit(cm_id);
+		pr_info("Received CM TimeWait exit for ch %s-%d.\n",
+			ch->sess_name, ch->qp->qp_num);
+		srpt_close_ch(ch);
 		break;
 	case IB_CM_REP_ERROR:
-		srpt_cm_rep_error(cm_id);
+		pr_info("Received CM REP error for ch %s-%d.\n", ch->sess_name,
+			ch->qp->qp_num);
 		break;
 	case IB_CM_DREQ_ERROR:
-		pr_info("Received IB DREQ ERROR event.\n");
+		pr_info("Received CM DREQ ERROR event.\n");
 		break;
 	case IB_CM_MRA_RECEIVED:
-		pr_info("Received IB MRA event\n");
+		pr_info("Received CM MRA event\n");
 		break;
 	default:
-		pr_err("received unrecognized IB CM event %d\n", event->event);
+		pr_err("received unrecognized CM event %d\n", event->event);
 		break;
 	}
 
@@ -2755,41 +2488,14 @@ static int srpt_write_pending_status(struct se_cmd *se_cmd)
  */
 static int srpt_write_pending(struct se_cmd *se_cmd)
 {
-	struct srpt_rdma_ch *ch;
-	struct srpt_send_ioctx *ioctx;
+	struct srpt_send_ioctx *ioctx =
+		container_of(se_cmd, struct srpt_send_ioctx, cmd);
+	struct srpt_rdma_ch *ch = ioctx->ch;
 	enum srpt_command_state new_state;
-	enum rdma_ch_state ch_state;
-	int ret;
-
-	ioctx = container_of(se_cmd, struct srpt_send_ioctx, cmd);
 
 	new_state = srpt_set_cmd_state(ioctx, SRPT_STATE_NEED_DATA);
 	WARN_ON(new_state == SRPT_STATE_DONE);
-
-	ch = ioctx->ch;
-	BUG_ON(!ch);
-
-	ch_state = srpt_get_ch_state(ch);
-	switch (ch_state) {
-	case CH_CONNECTING:
-		WARN(true, "unexpected channel state %d\n", ch_state);
-		ret = -EINVAL;
-		goto out;
-	case CH_LIVE:
-		break;
-	case CH_DISCONNECTING:
-	case CH_DRAINING:
-	case CH_RELEASING:
-		pr_debug("cmd with tag %lld: channel disconnecting\n",
-			 ioctx->cmd.tag);
-		srpt_set_cmd_state(ioctx, SRPT_STATE_DATA_IN);
-		ret = -EINVAL;
-		goto out;
-	}
-	ret = srpt_xfer_data(ch, ioctx);
-
-out:
-	return ret;
+	return srpt_xfer_data(ch, ioctx);
 }
 
 static u8 tcm_to_srp_tsk_mgmt_status(const int tcm_mgmt_status)
@@ -2920,36 +2626,25 @@ static void srpt_refresh_port_work(struct work_struct *work)
 	srpt_refresh_port(sport);
 }
 
-static int srpt_ch_list_empty(struct srpt_device *sdev)
-{
-	int res;
-
-	spin_lock_irq(&sdev->spinlock);
-	res = list_empty(&sdev->rch_list);
-	spin_unlock_irq(&sdev->spinlock);
-
-	return res;
-}
-
 /**
  * srpt_release_sdev() - Free the channel resources associated with a target.
  */
 static int srpt_release_sdev(struct srpt_device *sdev)
 {
-	struct srpt_rdma_ch *ch, *tmp_ch;
-	int res;
+	int i, res;
 
 	WARN_ON_ONCE(irqs_disabled());
 
 	BUG_ON(!sdev);
 
-	spin_lock_irq(&sdev->spinlock);
-	list_for_each_entry_safe(ch, tmp_ch, &sdev->rch_list, list)
-		__srpt_close_ch(ch);
-	spin_unlock_irq(&sdev->spinlock);
+	mutex_lock(&sdev->mutex);
+	for (i = 0; i < ARRAY_SIZE(sdev->port); i++)
+		sdev->port[i].enabled = false;
+	__srpt_close_all_ch(sdev);
+	mutex_unlock(&sdev->mutex);
 
 	res = wait_event_interruptible(sdev->ch_releaseQ,
-				       srpt_ch_list_empty(sdev));
+				       list_empty_careful(&sdev->rch_list));
 	if (res)
 		pr_err("%s: interrupted.\n", __func__);
 
@@ -3003,14 +2698,14 @@ static void srpt_add_one(struct ib_device *device)
 	pr_debug("device = %p, device->dma_ops = %p\n", device,
 		 device->dma_ops);
 
-	sdev = kzalloc(sizeof *sdev, GFP_KERNEL);
+	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
 	if (!sdev)
 		goto err;
 
 	sdev->device = device;
 	INIT_LIST_HEAD(&sdev->rch_list);
 	init_waitqueue_head(&sdev->ch_releaseQ);
-	spin_lock_init(&sdev->spinlock);
+	mutex_init(&sdev->mutex);
 
 	sdev->pd = ib_alloc_pd(device);
 	if (IS_ERR(sdev->pd))
@@ -3082,7 +2777,7 @@ static void srpt_add_one(struct ib_device *device)
 
 		if (srpt_refresh_port(sport)) {
 			pr_err("MAD registration failed for %s-%d.\n",
-			       srpt_sdev_name(sdev), i);
+			       sdev->device->name, i);
 			goto err_ring;
 		}
 		snprintf(sport->port_guid, sizeof(sport->port_guid),
@@ -3231,24 +2926,26 @@ static void srpt_release_cmd(struct se_cmd *se_cmd)
 static void srpt_close_session(struct se_session *se_sess)
 {
 	DECLARE_COMPLETION_ONSTACK(release_done);
-	struct srpt_rdma_ch *ch;
-	struct srpt_device *sdev;
-	unsigned long res;
+	struct srpt_rdma_ch *ch = se_sess->fabric_sess_ptr;
+	struct srpt_device *sdev = ch->sport->sdev;
+	bool wait;
 
-	ch = se_sess->fabric_sess_ptr;
-	WARN_ON(ch->sess != se_sess);
+	pr_debug("ch %s-%d state %d\n", ch->sess_name, ch->qp->qp_num,
+		 ch->state);
 
-	pr_debug("ch %p state %d\n", ch, srpt_get_ch_state(ch));
-
-	sdev = ch->sport->sdev;
-	spin_lock_irq(&sdev->spinlock);
+	mutex_lock(&sdev->mutex);
 	BUG_ON(ch->release_done);
 	ch->release_done = &release_done;
-	__srpt_close_ch(ch);
-	spin_unlock_irq(&sdev->spinlock);
+	wait = !list_empty(&ch->list);
+	srpt_disconnect_ch(ch);
+	mutex_unlock(&sdev->mutex);
 
-	res = wait_for_completion_timeout(&release_done, 60 * HZ);
-	WARN_ON(res == 0);
+	if (!wait)
+		return;
+
+	while (wait_for_completion_timeout(&release_done, 180 * HZ) == 0)
+		pr_info("%s(%s-%d state %d): still waiting ...\n", __func__,
+			ch->sess_name, ch->qp->qp_num, ch->state);
 }
 
 /**
@@ -3456,6 +3153,8 @@ static ssize_t srpt_tpg_enable_store(struct config_item *item,
 {
 	struct se_portal_group *se_tpg = to_tpg(item);
 	struct srpt_port *sport = container_of(se_tpg, struct srpt_port, port_tpg_1);
+	struct srpt_device *sdev = sport->sdev;
+	struct srpt_rdma_ch *ch;
 	unsigned long tmp;
         int ret;
 
@@ -3469,11 +3168,24 @@ static ssize_t srpt_tpg_enable_store(struct config_item *item,
 		pr_err("Illegal value for srpt_tpg_store_enable: %lu\n", tmp);
 		return -EINVAL;
 	}
-	if (tmp == 1)
-		sport->enabled = true;
-	else
-		sport->enabled = false;
+	if (sport->enabled == tmp)
+		goto out;
+	sport->enabled = tmp;
+	if (sport->enabled)
+		goto out;
 
+	mutex_lock(&sdev->mutex);
+	list_for_each_entry(ch, &sdev->rch_list, list) {
+		if (ch->sport == sport) {
+			pr_debug("%s: ch %p %s-%d\n", __func__, ch,
+				 ch->sess_name, ch->qp->qp_num);
+			srpt_disconnect_ch(ch);
+			srpt_close_ch(ch);
+		}
+	}
+	mutex_unlock(&sdev->mutex);
+
+out:
 	return count;
 }
 
@@ -3565,7 +3277,6 @@ static struct configfs_attribute *srpt_wwn_attrs[] = {
 static const struct target_core_fabric_ops srpt_template = {
 	.module				= THIS_MODULE,
 	.name				= "srpt",
-	.node_acl_size			= sizeof(struct srpt_node_acl),
 	.get_fabric_name		= srpt_get_fabric_name,
 	.tpg_get_wwn			= srpt_get_fabric_wwn,
 	.tpg_get_tag			= srpt_get_tag,

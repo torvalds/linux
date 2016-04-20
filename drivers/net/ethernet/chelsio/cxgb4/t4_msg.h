@@ -51,6 +51,7 @@ enum {
 	CPL_TX_PKT            = 0xE,
 	CPL_L2T_WRITE_REQ     = 0x12,
 	CPL_TID_RELEASE       = 0x1A,
+	CPL_TX_DATA_ISO	      = 0x1F,
 
 	CPL_CLOSE_LISTSRV_RPL = 0x20,
 	CPL_L2T_WRITE_RPL     = 0x23,
@@ -343,6 +344,87 @@ struct cpl_pass_open_rpl {
 	u8 rsvd[3];
 	u8 status;
 };
+
+struct tcp_options {
+	__be16 mss;
+	__u8 wsf;
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u8:4;
+	__u8 unknown:1;
+	__u8:1;
+	__u8 sack:1;
+	__u8 tstamp:1;
+#else
+	__u8 tstamp:1;
+	__u8 sack:1;
+	__u8:1;
+	__u8 unknown:1;
+	__u8:4;
+#endif
+};
+
+struct cpl_pass_accept_req {
+	union opcode_tid ot;
+	__be16 rsvd;
+	__be16 len;
+	__be32 hdr_len;
+	__be16 vlan;
+	__be16 l2info;
+	__be32 tos_stid;
+	struct tcp_options tcpopt;
+};
+
+/* cpl_pass_accept_req.hdr_len fields */
+#define SYN_RX_CHAN_S    0
+#define SYN_RX_CHAN_M    0xF
+#define SYN_RX_CHAN_V(x) ((x) << SYN_RX_CHAN_S)
+#define SYN_RX_CHAN_G(x) (((x) >> SYN_RX_CHAN_S) & SYN_RX_CHAN_M)
+
+#define TCP_HDR_LEN_S    10
+#define TCP_HDR_LEN_M    0x3F
+#define TCP_HDR_LEN_V(x) ((x) << TCP_HDR_LEN_S)
+#define TCP_HDR_LEN_G(x) (((x) >> TCP_HDR_LEN_S) & TCP_HDR_LEN_M)
+
+#define IP_HDR_LEN_S    16
+#define IP_HDR_LEN_M    0x3FF
+#define IP_HDR_LEN_V(x) ((x) << IP_HDR_LEN_S)
+#define IP_HDR_LEN_G(x) (((x) >> IP_HDR_LEN_S) & IP_HDR_LEN_M)
+
+#define ETH_HDR_LEN_S    26
+#define ETH_HDR_LEN_M    0x1F
+#define ETH_HDR_LEN_V(x) ((x) << ETH_HDR_LEN_S)
+#define ETH_HDR_LEN_G(x) (((x) >> ETH_HDR_LEN_S) & ETH_HDR_LEN_M)
+
+/* cpl_pass_accept_req.l2info fields */
+#define SYN_MAC_IDX_S    0
+#define SYN_MAC_IDX_M    0x1FF
+#define SYN_MAC_IDX_V(x) ((x) << SYN_MAC_IDX_S)
+#define SYN_MAC_IDX_G(x) (((x) >> SYN_MAC_IDX_S) & SYN_MAC_IDX_M)
+
+#define SYN_XACT_MATCH_S    9
+#define SYN_XACT_MATCH_V(x) ((x) << SYN_XACT_MATCH_S)
+#define SYN_XACT_MATCH_F    SYN_XACT_MATCH_V(1U)
+
+#define SYN_INTF_S    12
+#define SYN_INTF_M    0xF
+#define SYN_INTF_V(x) ((x) << SYN_INTF_S)
+#define SYN_INTF_G(x) (((x) >> SYN_INTF_S) & SYN_INTF_M)
+
+enum {                     /* TCP congestion control algorithms */
+	CONG_ALG_RENO,
+	CONG_ALG_TAHOE,
+	CONG_ALG_NEWRENO,
+	CONG_ALG_HIGHSPEED
+};
+
+#define CONG_CNTRL_S    14
+#define CONG_CNTRL_M    0x3
+#define CONG_CNTRL_V(x) ((x) << CONG_CNTRL_S)
+#define CONG_CNTRL_G(x) (((x) >> CONG_CNTRL_S) & CONG_CNTRL_M)
+
+#define T5_ISS_S    18
+#define T5_ISS_V(x) ((x) << T5_ISS_S)
+#define T5_ISS_F    T5_ISS_V(1U)
 
 struct cpl_pass_accept_rpl {
 	WR_HDR;
@@ -818,6 +900,110 @@ struct cpl_iscsi_hdr {
 #define ISCSI_DDP_V(x) ((x) << ISCSI_DDP_S)
 #define ISCSI_DDP_F    ISCSI_DDP_V(1U)
 
+struct cpl_rx_data_ddp {
+	union opcode_tid ot;
+	__be16 urg;
+	__be16 len;
+	__be32 seq;
+	union {
+		__be32 nxt_seq;
+		__be32 ddp_report;
+	};
+	__be32 ulp_crc;
+	__be32 ddpvld;
+};
+
+#define cpl_rx_iscsi_ddp cpl_rx_data_ddp
+
+struct cpl_iscsi_data {
+	union opcode_tid ot;
+	__u8 rsvd0[2];
+	__be16 len;
+	__be32 seq;
+	__be16 urg;
+	__u8 rsvd1;
+	__u8 status;
+};
+
+struct cpl_tx_data_iso {
+	__be32 op_to_scsi;
+	__u8   reserved1;
+	__u8   ahs_len;
+	__be16 mpdu;
+	__be32 burst_size;
+	__be32 len;
+	__be32 reserved2_seglen_offset;
+	__be32 datasn_offset;
+	__be32 buffer_offset;
+	__be32 reserved3;
+
+	/* encapsulated CPL_TX_DATA follows here */
+};
+
+/* cpl_tx_data_iso.op_to_scsi fields */
+#define CPL_TX_DATA_ISO_OP_S	24
+#define CPL_TX_DATA_ISO_OP_M	0xff
+#define CPL_TX_DATA_ISO_OP_V(x)	((x) << CPL_TX_DATA_ISO_OP_S)
+#define CPL_TX_DATA_ISO_OP_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_OP_S) & CPL_TX_DATA_ISO_OP_M)
+
+#define CPL_TX_DATA_ISO_FIRST_S		23
+#define CPL_TX_DATA_ISO_FIRST_M		0x1
+#define CPL_TX_DATA_ISO_FIRST_V(x)	((x) << CPL_TX_DATA_ISO_FIRST_S)
+#define CPL_TX_DATA_ISO_FIRST_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_FIRST_S) & CPL_TX_DATA_ISO_FIRST_M)
+#define CPL_TX_DATA_ISO_FIRST_F	CPL_TX_DATA_ISO_FIRST_V(1U)
+
+#define CPL_TX_DATA_ISO_LAST_S		22
+#define CPL_TX_DATA_ISO_LAST_M		0x1
+#define CPL_TX_DATA_ISO_LAST_V(x)	((x) << CPL_TX_DATA_ISO_LAST_S)
+#define CPL_TX_DATA_ISO_LAST_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_LAST_S) & CPL_TX_DATA_ISO_LAST_M)
+#define CPL_TX_DATA_ISO_LAST_F	CPL_TX_DATA_ISO_LAST_V(1U)
+
+#define CPL_TX_DATA_ISO_CPLHDRLEN_S	21
+#define CPL_TX_DATA_ISO_CPLHDRLEN_M	0x1
+#define CPL_TX_DATA_ISO_CPLHDRLEN_V(x)	((x) << CPL_TX_DATA_ISO_CPLHDRLEN_S)
+#define CPL_TX_DATA_ISO_CPLHDRLEN_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_CPLHDRLEN_S) & CPL_TX_DATA_ISO_CPLHDRLEN_M)
+#define CPL_TX_DATA_ISO_CPLHDRLEN_F	CPL_TX_DATA_ISO_CPLHDRLEN_V(1U)
+
+#define CPL_TX_DATA_ISO_HDRCRC_S	20
+#define CPL_TX_DATA_ISO_HDRCRC_M	0x1
+#define CPL_TX_DATA_ISO_HDRCRC_V(x)	((x) << CPL_TX_DATA_ISO_HDRCRC_S)
+#define CPL_TX_DATA_ISO_HDRCRC_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_HDRCRC_S) & CPL_TX_DATA_ISO_HDRCRC_M)
+#define CPL_TX_DATA_ISO_HDRCRC_F	CPL_TX_DATA_ISO_HDRCRC_V(1U)
+
+#define CPL_TX_DATA_ISO_PLDCRC_S	19
+#define CPL_TX_DATA_ISO_PLDCRC_M	0x1
+#define CPL_TX_DATA_ISO_PLDCRC_V(x)	((x) << CPL_TX_DATA_ISO_PLDCRC_S)
+#define CPL_TX_DATA_ISO_PLDCRC_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_PLDCRC_S) & CPL_TX_DATA_ISO_PLDCRC_M)
+#define CPL_TX_DATA_ISO_PLDCRC_F	CPL_TX_DATA_ISO_PLDCRC_V(1U)
+
+#define CPL_TX_DATA_ISO_IMMEDIATE_S	18
+#define CPL_TX_DATA_ISO_IMMEDIATE_M	0x1
+#define CPL_TX_DATA_ISO_IMMEDIATE_V(x)	((x) << CPL_TX_DATA_ISO_IMMEDIATE_S)
+#define CPL_TX_DATA_ISO_IMMEDIATE_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_IMMEDIATE_S) & CPL_TX_DATA_ISO_IMMEDIATE_M)
+#define CPL_TX_DATA_ISO_IMMEDIATE_F	CPL_TX_DATA_ISO_IMMEDIATE_V(1U)
+
+#define CPL_TX_DATA_ISO_SCSI_S		16
+#define CPL_TX_DATA_ISO_SCSI_M		0x3
+#define CPL_TX_DATA_ISO_SCSI_V(x)	((x) << CPL_TX_DATA_ISO_SCSI_S)
+#define CPL_TX_DATA_ISO_SCSI_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_SCSI_S) & CPL_TX_DATA_ISO_SCSI_M)
+
+/* cpl_tx_data_iso.reserved2_seglen_offset fields */
+#define CPL_TX_DATA_ISO_SEGLEN_OFFSET_S		0
+#define CPL_TX_DATA_ISO_SEGLEN_OFFSET_M		0xffffff
+#define CPL_TX_DATA_ISO_SEGLEN_OFFSET_V(x)	\
+	((x) << CPL_TX_DATA_ISO_SEGLEN_OFFSET_S)
+#define CPL_TX_DATA_ISO_SEGLEN_OFFSET_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_SEGLEN_OFFSET_S) & \
+	 CPL_TX_DATA_ISO_SEGLEN_OFFSET_M)
+
 struct cpl_rx_data {
 	union opcode_tid ot;
 	__be16 rsvd;
@@ -853,6 +1039,15 @@ struct cpl_rx_data_ack {
 #define RX_FORCE_ACK_S    28
 #define RX_FORCE_ACK_V(x) ((x) << RX_FORCE_ACK_S)
 #define RX_FORCE_ACK_F    RX_FORCE_ACK_V(1U)
+
+#define RX_DACK_MODE_S    29
+#define RX_DACK_MODE_M    0x3
+#define RX_DACK_MODE_V(x) ((x) << RX_DACK_MODE_S)
+#define RX_DACK_MODE_G(x) (((x) >> RX_DACK_MODE_S) & RX_DACK_MODE_M)
+
+#define RX_DACK_CHANGE_S    31
+#define RX_DACK_CHANGE_V(x) ((x) << RX_DACK_CHANGE_S)
+#define RX_DACK_CHANGE_F    RX_DACK_CHANGE_V(1U)
 
 struct cpl_rx_pkt {
 	struct rss_header rsshdr;
@@ -1021,6 +1216,8 @@ struct cpl_l2t_write_req {
 #define L2T_W_NOREPLY_V(x) ((x) << L2T_W_NOREPLY_S)
 #define L2T_W_NOREPLY_F    L2T_W_NOREPLY_V(1U)
 
+#define CPL_L2T_VLAN_NONE 0xfff
+
 struct cpl_l2t_write_rpl {
 	union opcode_tid ot;
 	u8 status;
@@ -1088,6 +1285,12 @@ struct cpl_fw4_ack {
 	__be64 rsvd1;
 };
 
+enum {
+	CPL_FW4_ACK_FLAGS_SEQVAL	= 0x1,	/* seqn valid */
+	CPL_FW4_ACK_FLAGS_CH		= 0x2,	/* channel change complete */
+	CPL_FW4_ACK_FLAGS_FLOWC		= 0x4,	/* fw_flowc_wr complete */
+};
+
 struct cpl_fw6_msg {
 	u8 opcode;
 	u8 type;
@@ -1112,6 +1315,17 @@ struct cpl_fw6_msg_ofld_connection_wr_rpl {
 	__u8    retval;
 	__u8    rsvd[2];
 };
+
+struct cpl_tx_data {
+	union opcode_tid ot;
+	__be32 len;
+	__be32 rsvd;
+	__be32 flags;
+};
+
+/* cpl_tx_data.flags field */
+#define TX_FORCE_S	13
+#define TX_FORCE_V(x)	((x) << TX_FORCE_S)
 
 enum {
 	ULP_TX_MEM_READ = 2,
@@ -1139,6 +1353,11 @@ struct ulptx_sgl {
 	__be32 len0;
 	__be64 addr0;
 	struct ulptx_sge_pair sge[0];
+};
+
+struct ulptx_idata {
+	__be32 cmd_more;
+	__be32 len;
 };
 
 #define ULPTX_NSGE_S    0

@@ -12,6 +12,7 @@
  *
  */
 
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -42,12 +43,17 @@
 #define SDHCI_MISC_CTRL_ENABLE_SDHCI_SPEC_300	0x20
 #define SDHCI_MISC_CTRL_ENABLE_DDR50		0x200
 
+#define SDHCI_TEGRA_AUTO_CAL_CONFIG		0x1e4
+#define SDHCI_AUTO_CAL_START			BIT(31)
+#define SDHCI_AUTO_CAL_ENABLE			BIT(29)
+
 #define NVQUIRK_FORCE_SDHCI_SPEC_200	BIT(0)
 #define NVQUIRK_ENABLE_BLOCK_GAP_DET	BIT(1)
 #define NVQUIRK_ENABLE_SDHCI_SPEC_300	BIT(2)
 #define NVQUIRK_ENABLE_SDR50		BIT(3)
 #define NVQUIRK_ENABLE_SDR104		BIT(4)
 #define NVQUIRK_ENABLE_DDR50		BIT(5)
+#define NVQUIRK_HAS_PADCALIB		BIT(6)
 
 struct sdhci_tegra_soc_data {
 	const struct sdhci_pltfm_data *pdata;
@@ -58,12 +64,13 @@ struct sdhci_tegra {
 	const struct sdhci_tegra_soc_data *soc_data;
 	struct gpio_desc *power_gpio;
 	bool ddr_signaling;
+	bool pad_calib_required;
 };
 
 static u16 tegra_sdhci_readw(struct sdhci_host *host, int reg)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_tegra *tegra_host = pltfm_host->priv;
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
 	const struct sdhci_tegra_soc_data *soc_data = tegra_host->soc_data;
 
 	if (unlikely((soc_data->nvquirks & NVQUIRK_FORCE_SDHCI_SPEC_200) &&
@@ -99,7 +106,7 @@ static void tegra_sdhci_writew(struct sdhci_host *host, u16 val, int reg)
 static void tegra_sdhci_writel(struct sdhci_host *host, u32 val, int reg)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_tegra *tegra_host = pltfm_host->priv;
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
 	const struct sdhci_tegra_soc_data *soc_data = tegra_host->soc_data;
 
 	/* Seems like we're getting spurious timeout and crc errors, so
@@ -131,7 +138,7 @@ static unsigned int tegra_sdhci_get_ro(struct sdhci_host *host)
 static void tegra_sdhci_reset(struct sdhci_host *host, u8 mask)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_tegra *tegra_host = pltfm_host->priv;
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
 	const struct sdhci_tegra_soc_data *soc_data = tegra_host->soc_data;
 	u32 misc_ctrl, clk_ctrl;
 
@@ -147,10 +154,16 @@ static void tegra_sdhci_reset(struct sdhci_host *host, u8 mask)
 	/* Advertise UHS modes as supported by host */
 	if (soc_data->nvquirks & NVQUIRK_ENABLE_SDR50)
 		misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_SDR50;
+	else
+		misc_ctrl &= ~SDHCI_MISC_CTRL_ENABLE_SDR50;
 	if (soc_data->nvquirks & NVQUIRK_ENABLE_DDR50)
 		misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_DDR50;
+	else
+		misc_ctrl &= ~SDHCI_MISC_CTRL_ENABLE_DDR50;
 	if (soc_data->nvquirks & NVQUIRK_ENABLE_SDR104)
 		misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_SDR104;
+	else
+		misc_ctrl &= ~SDHCI_MISC_CTRL_ENABLE_SDR104;
 	sdhci_writel(host, misc_ctrl, SDHCI_TEGRA_VENDOR_MISC_CTRL);
 
 	clk_ctrl = sdhci_readl(host, SDHCI_TEGRA_VENDOR_CLOCK_CTRL);
@@ -158,6 +171,9 @@ static void tegra_sdhci_reset(struct sdhci_host *host, u8 mask)
 	if (soc_data->nvquirks & SDHCI_MISC_CTRL_ENABLE_SDR50)
 		clk_ctrl |= SDHCI_CLOCK_CTRL_SDR50_TUNING_OVERRIDE;
 	sdhci_writel(host, clk_ctrl, SDHCI_TEGRA_VENDOR_CLOCK_CTRL);
+
+	if (soc_data->nvquirks & NVQUIRK_HAS_PADCALIB)
+		tegra_host->pad_calib_required = true;
 
 	tegra_host->ddr_signaling = false;
 }
@@ -181,27 +197,43 @@ static void tegra_sdhci_set_bus_width(struct sdhci_host *host, int bus_width)
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 }
 
+static void tegra_sdhci_pad_autocalib(struct sdhci_host *host)
+{
+	u32 val;
+
+	mdelay(1);
+
+	val = sdhci_readl(host, SDHCI_TEGRA_AUTO_CAL_CONFIG);
+	val |= SDHCI_AUTO_CAL_ENABLE | SDHCI_AUTO_CAL_START;
+	sdhci_writel(host,val, SDHCI_TEGRA_AUTO_CAL_CONFIG);
+}
+
 static void tegra_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_tegra *tegra_host = pltfm_host->priv;
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
 	unsigned long host_clk;
 
 	if (!clock)
-		return;
+		return sdhci_set_clock(host, clock);
 
 	host_clk = tegra_host->ddr_signaling ? clock * 2 : clock;
 	clk_set_rate(pltfm_host->clk, host_clk);
 	host->max_clk = clk_get_rate(pltfm_host->clk);
 
-	return sdhci_set_clock(host, clock);
+	sdhci_set_clock(host, clock);
+
+	if (tegra_host->pad_calib_required) {
+		tegra_sdhci_pad_autocalib(host);
+		tegra_host->pad_calib_required = false;
+	}
 }
 
 static void tegra_sdhci_set_uhs_signaling(struct sdhci_host *host,
 					  unsigned timing)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_tegra *tegra_host = pltfm_host->priv;
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
 
 	if (timing == MMC_TIMING_UHS_DDR50)
 		tegra_host->ddr_signaling = true;
@@ -264,6 +296,16 @@ static int tegra_sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 	return mmc_send_tuning(host->mmc, opcode, NULL);
 }
 
+static void tegra_sdhci_voltage_switch(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
+	const struct sdhci_tegra_soc_data *soc_data = tegra_host->soc_data;
+
+	if (soc_data->nvquirks & NVQUIRK_HAS_PADCALIB)
+		tegra_host->pad_calib_required = true;
+}
+
 static const struct sdhci_ops tegra_sdhci_ops = {
 	.get_ro     = tegra_sdhci_get_ro,
 	.read_w     = tegra_sdhci_readw,
@@ -273,6 +315,7 @@ static const struct sdhci_ops tegra_sdhci_ops = {
 	.reset      = tegra_sdhci_reset,
 	.platform_execute_tuning = tegra_sdhci_execute_tuning,
 	.set_uhs_signaling = tegra_sdhci_set_uhs_signaling,
+	.voltage_switch = tegra_sdhci_voltage_switch,
 	.get_max_clock = tegra_sdhci_get_max_clock,
 };
 
@@ -306,7 +349,8 @@ static const struct sdhci_tegra_soc_data soc_data_tegra30 = {
 	.pdata = &sdhci_tegra30_pdata,
 	.nvquirks = NVQUIRK_ENABLE_SDHCI_SPEC_300 |
 		    NVQUIRK_ENABLE_SDR50 |
-		    NVQUIRK_ENABLE_SDR104,
+		    NVQUIRK_ENABLE_SDR104 |
+		    NVQUIRK_HAS_PADCALIB,
 };
 
 static const struct sdhci_ops tegra114_sdhci_ops = {
@@ -319,6 +363,7 @@ static const struct sdhci_ops tegra114_sdhci_ops = {
 	.reset      = tegra_sdhci_reset,
 	.platform_execute_tuning = tegra_sdhci_execute_tuning,
 	.set_uhs_signaling = tegra_sdhci_set_uhs_signaling,
+	.voltage_switch = tegra_sdhci_voltage_switch,
 	.get_max_clock = tegra_sdhci_get_max_clock,
 };
 
@@ -335,9 +380,6 @@ static const struct sdhci_pltfm_data sdhci_tegra114_pdata = {
 
 static const struct sdhci_tegra_soc_data soc_data_tegra114 = {
 	.pdata = &sdhci_tegra114_pdata,
-	.nvquirks = NVQUIRK_ENABLE_SDR50 |
-		    NVQUIRK_ENABLE_DDR50 |
-		    NVQUIRK_ENABLE_SDR104,
 };
 
 static const struct sdhci_pltfm_data sdhci_tegra210_pdata = {
@@ -380,20 +422,15 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 		return -EINVAL;
 	soc_data = match->data;
 
-	host = sdhci_pltfm_init(pdev, soc_data->pdata, 0);
+	host = sdhci_pltfm_init(pdev, soc_data->pdata, sizeof(*tegra_host));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 	pltfm_host = sdhci_priv(host);
 
-	tegra_host = devm_kzalloc(&pdev->dev, sizeof(*tegra_host), GFP_KERNEL);
-	if (!tegra_host) {
-		dev_err(mmc_dev(host->mmc), "failed to allocate tegra_host\n");
-		rc = -ENOMEM;
-		goto err_alloc_tegra_host;
-	}
+	tegra_host = sdhci_pltfm_priv(pltfm_host);
 	tegra_host->ddr_signaling = false;
+	tegra_host->pad_calib_required = false;
 	tegra_host->soc_data = soc_data;
-	pltfm_host->priv = tegra_host;
 
 	rc = mmc_of_parse(host->mmc);
 	if (rc)
@@ -429,7 +466,6 @@ err_add_host:
 err_clk_get:
 err_power_req:
 err_parse_dt:
-err_alloc_tegra_host:
 	sdhci_pltfm_free(pdev);
 	return rc;
 }

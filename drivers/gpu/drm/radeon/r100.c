@@ -3732,11 +3732,17 @@ int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
 		goto free_ib;
 	}
-	r = radeon_fence_wait(ib.fence, false);
-	if (r) {
+	r = radeon_fence_wait_timeout(ib.fence, false, usecs_to_jiffies(
+		RADEON_USEC_IB_TEST_TIMEOUT));
+	if (r < 0) {
 		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
 		goto free_ib;
+	} else if (r == 0) {
+		DRM_ERROR("radeon: fence wait timed out.\n");
+		r = -ETIMEDOUT;
+		goto free_ib;
 	}
+	r = 0;
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF) {

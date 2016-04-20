@@ -1620,6 +1620,8 @@ information.</para>
     &sub-y10b;
     &sub-y16;
     &sub-y16-be;
+    &sub-y8i;
+    &sub-y12i;
     &sub-uv8;
     &sub-yuyv;
     &sub-uyvy;
@@ -1628,7 +1630,8 @@ information.</para>
     &sub-y41p;
     &sub-yuv420;
     &sub-yuv420m;
-    &sub-yvu420m;
+    &sub-yuv422m;
+    &sub-yuv444m;
     &sub-yuv410;
     &sub-yuv422p;
     &sub-yuv411p;
@@ -1639,6 +1642,14 @@ information.</para>
     &sub-nv16m;
     &sub-nv24;
     &sub-m420;
+  </section>
+
+  <section id="depth-formats">
+    <title>Depth Formats</title>
+    <para>Depth data provides distance to points, mapped onto the image plane
+    </para>
+
+    &sub-z16;
   </section>
 
   <section>

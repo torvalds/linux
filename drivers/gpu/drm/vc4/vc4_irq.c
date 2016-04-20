@@ -30,6 +30,10 @@
  * disables that specific interrupt, and 0s written are ignored
  * (reading either one returns the set of enabled interrupts).
  *
+ * When we take a binning flush done interrupt, we need to submit the
+ * next frame for binning and move the finished frame to the render
+ * thread.
+ *
  * When we take a render frame interrupt, we need to wake the
  * processes waiting for some frame to be done, and get the next frame
  * submitted ASAP (so the hardware doesn't sit idle when there's work
@@ -44,6 +48,7 @@
 #include "vc4_regs.h"
 
 #define V3D_DRIVER_IRQS (V3D_INT_OUTOMEM | \
+			 V3D_INT_FLDONE | \
 			 V3D_INT_FRDONE)
 
 DECLARE_WAIT_QUEUE_HEAD(render_wait);
@@ -77,7 +82,7 @@ vc4_overflow_mem_work(struct work_struct *work)
 		unsigned long irqflags;
 
 		spin_lock_irqsave(&vc4->job_lock, irqflags);
-		current_exec = vc4_first_job(vc4);
+		current_exec = vc4_first_bin_job(vc4);
 		if (current_exec) {
 			vc4->overflow_mem->seqno = vc4->finished_seqno + 1;
 			list_add_tail(&vc4->overflow_mem->unref_head,
@@ -98,17 +103,43 @@ vc4_overflow_mem_work(struct work_struct *work)
 }
 
 static void
-vc4_irq_finish_job(struct drm_device *dev)
+vc4_irq_finish_bin_job(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_exec_info *exec = vc4_first_job(vc4);
+	struct vc4_exec_info *exec = vc4_first_bin_job(vc4);
+
+	if (!exec)
+		return;
+
+	vc4_move_job_to_render(dev, exec);
+	vc4_submit_next_bin_job(dev);
+}
+
+static void
+vc4_cancel_bin_job(struct drm_device *dev)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_exec_info *exec = vc4_first_bin_job(vc4);
+
+	if (!exec)
+		return;
+
+	list_move_tail(&exec->head, &vc4->bin_job_list);
+	vc4_submit_next_bin_job(dev);
+}
+
+static void
+vc4_irq_finish_render_job(struct drm_device *dev)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_exec_info *exec = vc4_first_render_job(vc4);
 
 	if (!exec)
 		return;
 
 	vc4->finished_seqno++;
 	list_move_tail(&exec->head, &vc4->job_done_list);
-	vc4_submit_next_job(dev);
+	vc4_submit_next_render_job(dev);
 
 	wake_up_all(&vc4->job_wait_queue);
 	schedule_work(&vc4->job_done_work);
@@ -125,9 +156,10 @@ vc4_irq(int irq, void *arg)
 	barrier();
 	intctl = V3D_READ(V3D_INTCTL);
 
-	/* Acknowledge the interrupts we're handling here. The render
-	 * frame done interrupt will be cleared, while OUTOMEM will
-	 * stay high until the underlying cause is cleared.
+	/* Acknowledge the interrupts we're handling here. The binner
+	 * last flush / render frame done interrupt will be cleared,
+	 * while OUTOMEM will stay high until the underlying cause is
+	 * cleared.
 	 */
 	V3D_WRITE(V3D_INTCTL, intctl);
 
@@ -138,9 +170,16 @@ vc4_irq(int irq, void *arg)
 		status = IRQ_HANDLED;
 	}
 
+	if (intctl & V3D_INT_FLDONE) {
+		spin_lock(&vc4->job_lock);
+		vc4_irq_finish_bin_job(dev);
+		spin_unlock(&vc4->job_lock);
+		status = IRQ_HANDLED;
+	}
+
 	if (intctl & V3D_INT_FRDONE) {
 		spin_lock(&vc4->job_lock);
-		vc4_irq_finish_job(dev);
+		vc4_irq_finish_render_job(dev);
 		spin_unlock(&vc4->job_lock);
 		status = IRQ_HANDLED;
 	}
@@ -205,6 +244,7 @@ void vc4_irq_reset(struct drm_device *dev)
 	V3D_WRITE(V3D_INTENA, V3D_DRIVER_IRQS);
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
-	vc4_irq_finish_job(dev);
+	vc4_cancel_bin_job(dev);
+	vc4_irq_finish_render_job(dev);
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 }

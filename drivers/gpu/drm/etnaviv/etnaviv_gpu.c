@@ -628,6 +628,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	/* Now program the hardware */
 	mutex_lock(&gpu->lock);
 	etnaviv_gpu_hw_init(gpu);
+	gpu->exec_state = -1;
 	mutex_unlock(&gpu->lock);
 
 	pm_runtime_mark_last_busy(gpu->dev);
@@ -871,17 +872,13 @@ static void recover_worker(struct work_struct *work)
 		gpu->event[i].fence = NULL;
 		gpu->event[i].used = false;
 		complete(&gpu->event_free);
-		/*
-		 * Decrement the PM count for each stuck event. This is safe
-		 * even in atomic context as we use ASYNC RPM here.
-		 */
-		pm_runtime_put_autosuspend(gpu->dev);
 	}
 	spin_unlock_irqrestore(&gpu->event_spinlock, flags);
 	gpu->completed_fence = gpu->active_fence;
 
 	etnaviv_gpu_hw_init(gpu);
 	gpu->switch_context = true;
+	gpu->exec_state = -1;
 
 	mutex_unlock(&gpu->lock);
 	pm_runtime_mark_last_busy(gpu->dev);
@@ -1106,15 +1103,15 @@ struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu, u32 size,
 	size_t nr_bos)
 {
 	struct etnaviv_cmdbuf *cmdbuf;
-	size_t sz = size_vstruct(nr_bos, sizeof(cmdbuf->bo[0]),
+	size_t sz = size_vstruct(nr_bos, sizeof(cmdbuf->bo_map[0]),
 				 sizeof(*cmdbuf));
 
 	cmdbuf = kzalloc(sz, GFP_KERNEL);
 	if (!cmdbuf)
 		return NULL;
 
-	cmdbuf->vaddr = dma_alloc_writecombine(gpu->dev, size, &cmdbuf->paddr,
-					       GFP_KERNEL);
+	cmdbuf->vaddr = dma_alloc_wc(gpu->dev, size, &cmdbuf->paddr,
+				     GFP_KERNEL);
 	if (!cmdbuf->vaddr) {
 		kfree(cmdbuf);
 		return NULL;
@@ -1128,8 +1125,8 @@ struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu, u32 size,
 
 void etnaviv_gpu_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
 {
-	dma_free_writecombine(cmdbuf->gpu->dev, cmdbuf->size,
-			      cmdbuf->vaddr, cmdbuf->paddr);
+	dma_free_wc(cmdbuf->gpu->dev, cmdbuf->size, cmdbuf->vaddr,
+		    cmdbuf->paddr);
 	kfree(cmdbuf);
 }
 
@@ -1150,14 +1147,23 @@ static void retire_worker(struct work_struct *work)
 		fence_put(cmdbuf->fence);
 
 		for (i = 0; i < cmdbuf->nr_bos; i++) {
-			struct etnaviv_gem_object *etnaviv_obj = cmdbuf->bo[i];
+			struct etnaviv_vram_mapping *mapping = cmdbuf->bo_map[i];
+			struct etnaviv_gem_object *etnaviv_obj = mapping->object;
 
 			atomic_dec(&etnaviv_obj->gpu_active);
 			/* drop the refcount taken in etnaviv_gpu_submit */
-			etnaviv_gem_put_iova(gpu, &etnaviv_obj->base);
+			etnaviv_gem_mapping_unreference(mapping);
 		}
 
 		etnaviv_gpu_cmdbuf_free(cmdbuf);
+		/*
+		 * We need to balance the runtime PM count caused by
+		 * each submission.  Upon submission, we increment
+		 * the runtime PM counter, and allocate one event.
+		 * So here, we put the runtime PM count for each
+		 * completed event.
+		 */
+		pm_runtime_put_autosuspend(gpu->dev);
 	}
 
 	gpu->retired_fence = fence;
@@ -1304,11 +1310,10 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
-		u32 iova;
 
-		/* Each cmdbuf takes a refcount on the iova */
-		etnaviv_gem_get_iova(gpu, &etnaviv_obj->base, &iova);
-		cmdbuf->bo[i] = etnaviv_obj;
+		/* Each cmdbuf takes a refcount on the mapping */
+		etnaviv_gem_mapping_reference(submit->bos[i].mapping);
+		cmdbuf->bo_map[i] = submit->bos[i].mapping;
 		atomic_inc(&etnaviv_obj->gpu_active);
 
 		if (submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE)
@@ -1378,15 +1383,6 @@ static irqreturn_t irq_handler(int irq, void *data)
 				gpu->completed_fence = fence->seqno;
 
 			event_free(gpu, event);
-
-			/*
-			 * We need to balance the runtime PM count caused by
-			 * each submission.  Upon submission, we increment
-			 * the runtime PM counter, and allocate one event.
-			 * So here, we put the runtime PM count for each
-			 * completed event.
-			 */
-			pm_runtime_put_autosuspend(gpu->dev);
 		}
 
 		/* Retire the buffer objects in a work */
@@ -1481,6 +1477,7 @@ static int etnaviv_gpu_hw_resume(struct etnaviv_gpu *gpu)
 	etnaviv_gpu_hw_init(gpu);
 
 	gpu->switch_context = true;
+	gpu->exec_state = -1;
 
 	mutex_unlock(&gpu->lock);
 
@@ -1569,6 +1566,7 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct etnaviv_gpu *gpu;
+	u32 dma_mask;
 	int err = 0;
 
 	gpu = devm_kzalloc(dev, sizeof(*gpu), GFP_KERNEL);
@@ -1579,12 +1577,16 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	mutex_init(&gpu->lock);
 
 	/*
-	 * Set the GPU base address to the start of physical memory.  This
-	 * ensures that if we have up to 2GB, the v1 MMU can address the
-	 * highest memory.  This is important as command buffers may be
-	 * allocated outside of this limit.
+	 * Set the GPU linear window to be at the end of the DMA window, where
+	 * the CMA area is likely to reside. This ensures that we are able to
+	 * map the command buffers while having the linear window overlap as
+	 * much RAM as possible, so we can optimize mappings for other buffers.
 	 */
-	gpu->memory_base = PHYS_OFFSET;
+	dma_mask = (u32)dma_get_required_mask(dev);
+	if (dma_mask < PHYS_OFFSET + SZ_2G)
+		gpu->memory_base = PHYS_OFFSET;
+	else
+		gpu->memory_base = dma_mask - SZ_2G + 1;
 
 	/* Map registers: */
 	gpu->mmio = etnaviv_ioremap(pdev, NULL, dev_name(gpu->dev));

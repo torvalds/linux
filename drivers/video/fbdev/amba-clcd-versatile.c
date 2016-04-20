@@ -154,8 +154,8 @@ int versatile_clcd_setup_dma(struct clcd_fb *fb, unsigned long framesize)
 {
 	dma_addr_t dma;
 
-	fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev, framesize,
-						    &dma, GFP_KERNEL);
+	fb->fb.screen_base = dma_alloc_wc(&fb->dev->dev, framesize, &dma,
+					  GFP_KERNEL);
 	if (!fb->fb.screen_base) {
 		pr_err("CLCD: unable to map framebuffer\n");
 		return -ENOMEM;
@@ -169,14 +169,12 @@ int versatile_clcd_setup_dma(struct clcd_fb *fb, unsigned long framesize)
 
 int versatile_clcd_mmap_dma(struct clcd_fb *fb, struct vm_area_struct *vma)
 {
-	return dma_mmap_writecombine(&fb->dev->dev, vma,
-				     fb->fb.screen_base,
-				     fb->fb.fix.smem_start,
-				     fb->fb.fix.smem_len);
+	return dma_mmap_wc(&fb->dev->dev, vma, fb->fb.screen_base,
+			   fb->fb.fix.smem_start, fb->fb.fix.smem_len);
 }
 
 void versatile_clcd_remove_dma(struct clcd_fb *fb)
 {
-	dma_free_writecombine(&fb->dev->dev, fb->fb.fix.smem_len,
-			      fb->fb.screen_base, fb->fb.fix.smem_start);
+	dma_free_wc(&fb->dev->dev, fb->fb.fix.smem_len, fb->fb.screen_base,
+		    fb->fb.fix.smem_start);
 }

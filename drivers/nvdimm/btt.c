@@ -31,8 +31,6 @@ enum log_ent_request {
 	LOG_OLD_ENT
 };
 
-static int btt_major;
-
 static int arena_read_bytes(struct arena_info *arena, resource_size_t offset,
 		void *buf, size_t n)
 {
@@ -1206,7 +1204,7 @@ static int btt_rw_page(struct block_device *bdev, sector_t sector,
 {
 	struct btt *btt = bdev->bd_disk->private_data;
 
-	btt_do_bvec(btt, NULL, page, PAGE_CACHE_SIZE, 0, rw, sector);
+	btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, rw, sector);
 	page_endio(page, rw & WRITE, 0);
 	return 0;
 }
@@ -1246,7 +1244,6 @@ static int btt_blk_init(struct btt *btt)
 
 	nvdimm_namespace_disk_name(ndns, btt->btt_disk->disk_name);
 	btt->btt_disk->driverfs_dev = &btt->nd_btt->dev;
-	btt->btt_disk->major = btt_major;
 	btt->btt_disk->first_minor = 0;
 	btt->btt_disk->fops = &btt_fops;
 	btt->btt_disk->private_data = btt;
@@ -1423,22 +1420,11 @@ EXPORT_SYMBOL(nvdimm_namespace_detach_btt);
 
 static int __init nd_btt_init(void)
 {
-	int rc;
-
-	btt_major = register_blkdev(0, "btt");
-	if (btt_major < 0)
-		return btt_major;
+	int rc = 0;
 
 	debugfs_root = debugfs_create_dir("btt", NULL);
-	if (IS_ERR_OR_NULL(debugfs_root)) {
+	if (IS_ERR_OR_NULL(debugfs_root))
 		rc = -ENXIO;
-		goto err_debugfs;
-	}
-
-	return 0;
-
- err_debugfs:
-	unregister_blkdev(btt_major, "btt");
 
 	return rc;
 }
@@ -1446,7 +1432,6 @@ static int __init nd_btt_init(void)
 static void __exit nd_btt_exit(void)
 {
 	debugfs_remove_recursive(debugfs_root);
-	unregister_blkdev(btt_major, "btt");
 }
 
 MODULE_ALIAS_ND_DEVICE(ND_DEVICE_BTT);

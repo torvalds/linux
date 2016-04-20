@@ -83,8 +83,8 @@ int _rtw_init_sta_priv23a(struct sta_priv *pstapriv)
 
 int _rtw_free_sta_priv23a(struct sta_priv *pstapriv)
 {
-	struct list_head *phead, *plist, *ptmp;
-	struct sta_info *psta;
+	struct list_head *phead;
+	struct sta_info *psta, *ptmp;
 	struct recv_reorder_ctrl *preorder_ctrl;
 	int index;
 
@@ -93,12 +93,9 @@ int _rtw_free_sta_priv23a(struct sta_priv *pstapriv)
 		spin_lock_bh(&pstapriv->sta_hash_lock);
 		for (index = 0; index < NUM_STA; index++) {
 			phead = &pstapriv->sta_hash[index];
-
-			list_for_each_safe(plist, ptmp, phead) {
+			list_for_each_entry_safe(psta, ptmp, phead, hash_list) {
 				int i;
 
-				psta = container_of(plist, struct sta_info,
-						    hash_list);
 				for (i = 0; i < 16 ; i++) {
 					preorder_ctrl = &psta->recvreorder_ctrl[i];
 					del_timer_sync(&preorder_ctrl->reordering_ctrl_timer);
@@ -203,7 +200,7 @@ int rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	struct hw_xmit *phwxmit;
 	int i;
 
-	if (psta == NULL)
+	if (!psta)
 		goto exit;
 
 	spin_lock_bh(&psta->lock);
@@ -325,8 +322,8 @@ exit:
 /*  free all stainfo which in sta_hash[all] */
 void rtw_free_all_stainfo23a(struct rtw_adapter *padapter)
 {
-	struct list_head *plist, *phead, *ptmp;
-	struct sta_info *psta;
+	struct list_head *phead;
+	struct sta_info *psta, *ptmp;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info *pbcmc_stainfo = rtw_get_bcmc_stainfo23a(padapter);
 	s32 index;
@@ -335,13 +332,9 @@ void rtw_free_all_stainfo23a(struct rtw_adapter *padapter)
 		return;
 
 	spin_lock_bh(&pstapriv->sta_hash_lock);
-
 	for (index = 0; index < NUM_STA; index++) {
 		phead = &pstapriv->sta_hash[index];
-
-		list_for_each_safe(plist, ptmp, phead) {
-			psta = container_of(plist, struct sta_info, hash_list);
-
+		list_for_each_entry_safe(psta, ptmp, phead, hash_list) {
 			if (pbcmc_stainfo != psta)
 				rtw_free_stainfo23a(padapter, psta);
 		}
@@ -352,12 +345,12 @@ void rtw_free_all_stainfo23a(struct rtw_adapter *padapter)
 /* any station allocated can be searched by hash list */
 struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 {
-	struct list_head *plist, *phead;
-	struct sta_info *psta = NULL;
-	u32	index;
+	struct list_head *phead;
+	struct sta_info *pos, *psta = NULL;
+	u32 index;
 	const u8 *addr;
 
-	if (hwaddr == NULL)
+	if (!hwaddr)
 		return NULL;
 
 	if (is_multicast_ether_addr(hwaddr))
@@ -368,11 +361,9 @@ struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 	index = wifi_mac_hash(addr);
 
 	spin_lock_bh(&pstapriv->sta_hash_lock);
-
 	phead = &pstapriv->sta_hash[index];
-
-	list_for_each(plist, phead) {
-		psta = container_of(plist, struct sta_info, hash_list);
+	list_for_each_entry(pos, phead, hash_list) {
+		psta = pos;
 
 		/*  if found the matched address */
 		if (ether_addr_equal(psta->hwaddr, addr))
@@ -392,7 +383,7 @@ int rtw_init_bcmc_stainfo23a(struct rtw_adapter *padapter)
 	int res = _SUCCESS;
 
 	psta = rtw_alloc_stainfo23a(pstapriv, bc_addr, GFP_KERNEL);
-	if (psta == NULL) {
+	if (!psta) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
 			 "rtw_alloc_stainfo23a fail\n");
@@ -418,7 +409,7 @@ bool rtw_access_ctrl23a(struct rtw_adapter *padapter, u8 *mac_addr)
 {
 	bool res = true;
 #ifdef CONFIG_8723AU_AP_MODE
-	struct list_head *plist, *phead;
+	struct list_head *phead;
 	struct rtw_wlan_acl_node *paclnode;
 	bool match = false;
 	struct sta_priv *pstapriv = &padapter->stapriv;
@@ -427,10 +418,7 @@ bool rtw_access_ctrl23a(struct rtw_adapter *padapter, u8 *mac_addr)
 
 	spin_lock_bh(&pacl_node_q->lock);
 	phead = get_list_head(pacl_node_q);
-
-	list_for_each(plist, phead) {
-		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
-
+	list_for_each_entry(paclnode, phead, list) {
 		if (ether_addr_equal(paclnode->addr, mac_addr)) {
 			if (paclnode->valid) {
 				match = true;

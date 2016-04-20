@@ -213,9 +213,7 @@ static void pch_post_disable_crt(struct intel_encoder *encoder)
 
 static void intel_enable_crt(struct intel_encoder *encoder)
 {
-	struct intel_crt *crt = intel_encoder_to_crt(encoder);
-
-	intel_crt_set_dpms(encoder, crt->connector->base.dpms);
+	intel_crt_set_dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
 static enum drm_mode_status
@@ -223,6 +221,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 		     struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
+	int max_dotclk = to_i915(dev)->max_dotclk_freq;
 
 	int max_clock = 0;
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
@@ -236,6 +235,9 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	else
 		max_clock = 400000;
 	if (mode->clock > max_clock)
+		return MODE_CLOCK_HIGH;
+
+	if (mode->clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
 	/* The FDI receiver on LPT only supports 8bpc and only has 2 lanes. */
@@ -476,11 +478,10 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
-intel_crt_load_detect(struct intel_crt *crt)
+intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
 {
 	struct drm_device *dev = crt->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t pipe = to_intel_crtc(crt->base.base.crtc)->pipe;
 	uint32_t save_bclrpat;
 	uint32_t save_vtotal;
 	uint32_t vtotal, vactive;
@@ -649,7 +650,8 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
 		else if (INTEL_INFO(dev)->gen < 4)
-			status = intel_crt_load_detect(crt);
+			status = intel_crt_load_detect(crt,
+				to_intel_crtc(connector->state->crtc)->pipe);
 		else
 			status = connector_status_unknown;
 		intel_release_load_detect_pipe(connector, &tmp, &ctx);

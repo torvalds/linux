@@ -52,8 +52,6 @@
 /* The Quark I2C controller source clock */
 #define INTEL_QUARK_I2C_CLK_HZ	33000000
 
-#define INTEL_QUARK_I2C_NCLK	1
-
 struct intel_quark_mfd {
 	struct pci_dev		*pdev;
 	struct clk		*i2c_clk;
@@ -128,30 +126,24 @@ MODULE_DEVICE_TABLE(pci, intel_quark_mfd_ids);
 static int intel_quark_register_i2c_clk(struct intel_quark_mfd *quark_mfd)
 {
 	struct pci_dev *pdev = quark_mfd->pdev;
-	struct clk_lookup *i2c_clk_lookup;
 	struct clk *i2c_clk;
-	int ret;
-
-	i2c_clk_lookup = devm_kcalloc(&pdev->dev, INTEL_QUARK_I2C_NCLK,
-				      sizeof(*i2c_clk_lookup), GFP_KERNEL);
-	if (!i2c_clk_lookup)
-		return -ENOMEM;
-
-	i2c_clk_lookup[0].dev_id = INTEL_QUARK_I2C_CONTROLLER_CLK;
 
 	i2c_clk = clk_register_fixed_rate(&pdev->dev,
 					  INTEL_QUARK_I2C_CONTROLLER_CLK, NULL,
 					  CLK_IS_ROOT, INTEL_QUARK_I2C_CLK_HZ);
+	if (IS_ERR(i2c_clk))
+		return PTR_ERR(i2c_clk);
 
-	quark_mfd->i2c_clk_lookup = i2c_clk_lookup;
 	quark_mfd->i2c_clk = i2c_clk;
+	quark_mfd->i2c_clk_lookup = clkdev_create(i2c_clk, NULL,
+						INTEL_QUARK_I2C_CONTROLLER_CLK);
 
-	ret = clk_register_clkdevs(i2c_clk, i2c_clk_lookup,
-				   INTEL_QUARK_I2C_NCLK);
-	if (ret)
-		dev_err(&pdev->dev, "Fixed clk register failed: %d\n", ret);
+	if (!quark_mfd->i2c_clk_lookup) {
+		dev_err(&pdev->dev, "Fixed clk register failed\n");
+		return -ENOMEM;
+	}
 
-	return ret;
+	return 0;
 }
 
 static void intel_quark_unregister_i2c_clk(struct pci_dev *pdev)

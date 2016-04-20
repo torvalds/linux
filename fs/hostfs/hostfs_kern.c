@@ -410,12 +410,12 @@ static int hostfs_writepage(struct page *page, struct writeback_control *wbc)
 	struct inode *inode = mapping->host;
 	char *buffer;
 	loff_t base = page_offset(page);
-	int count = PAGE_CACHE_SIZE;
-	int end_index = inode->i_size >> PAGE_CACHE_SHIFT;
+	int count = PAGE_SIZE;
+	int end_index = inode->i_size >> PAGE_SHIFT;
 	int err;
 
 	if (page->index >= end_index)
-		count = inode->i_size & (PAGE_CACHE_SIZE-1);
+		count = inode->i_size & (PAGE_SIZE-1);
 
 	buffer = kmap(page);
 
@@ -447,7 +447,7 @@ static int hostfs_readpage(struct file *file, struct page *page)
 
 	buffer = kmap(page);
 	bytes_read = read_file(FILE_HOSTFS_I(file)->fd, &start, buffer,
-			PAGE_CACHE_SIZE);
+			PAGE_SIZE);
 	if (bytes_read < 0) {
 		ClearPageUptodate(page);
 		SetPageError(page);
@@ -455,7 +455,7 @@ static int hostfs_readpage(struct file *file, struct page *page)
 		goto out;
 	}
 
-	memset(buffer + bytes_read, 0, PAGE_CACHE_SIZE - bytes_read);
+	memset(buffer + bytes_read, 0, PAGE_SIZE - bytes_read);
 
 	ClearPageError(page);
 	SetPageUptodate(page);
@@ -471,7 +471,7 @@ static int hostfs_write_begin(struct file *file, struct address_space *mapping,
 			      loff_t pos, unsigned len, unsigned flags,
 			      struct page **pagep, void **fsdata)
 {
-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+	pgoff_t index = pos >> PAGE_SHIFT;
 
 	*pagep = grab_cache_page_write_begin(mapping, index, flags);
 	if (!*pagep)
@@ -485,14 +485,14 @@ static int hostfs_write_end(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	void *buffer;
-	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+	unsigned from = pos & (PAGE_SIZE - 1);
 	int err;
 
 	buffer = kmap(page);
 	err = write_file(FILE_HOSTFS_I(file)->fd, &pos, buffer + from, copied);
 	kunmap(page);
 
-	if (!PageUptodate(page) && err == PAGE_CACHE_SIZE)
+	if (!PageUptodate(page) && err == PAGE_SIZE)
 		SetPageUptodate(page);
 
 	/*
@@ -502,7 +502,7 @@ static int hostfs_write_end(struct file *file, struct address_space *mapping,
 	if (err > 0 && (pos > inode->i_size))
 		inode->i_size = pos;
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	return err;
 }

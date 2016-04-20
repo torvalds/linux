@@ -797,19 +797,16 @@ max3421_check_unlink(struct usb_hcd *hcd)
 {
 	struct spi_device *spi = to_spi_device(hcd->self.controller);
 	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
-	struct list_head *pos, *upos, *next_upos;
 	struct max3421_ep *max3421_ep;
 	struct usb_host_endpoint *ep;
-	struct urb *urb;
+	struct urb *urb, *next;
 	unsigned long flags;
 	int retval = 0;
 
 	spin_lock_irqsave(&max3421_hcd->lock, flags);
-	list_for_each(pos, &max3421_hcd->ep_list) {
-		max3421_ep = container_of(pos, struct max3421_ep, ep_list);
+	list_for_each_entry(max3421_ep, &max3421_hcd->ep_list, ep_list) {
 		ep = max3421_ep->ep;
-		list_for_each_safe(upos, next_upos, &ep->urb_list) {
-			urb = container_of(upos, struct urb, urb_list);
+		list_for_each_entry_safe(urb, next, &ep->urb_list, urb_list) {
 			if (urb->unlinked) {
 				retval = 1;
 				dev_dbg(&spi->dev, "%s: URB %p unlinked=%d",
@@ -1184,22 +1181,19 @@ dump_eps(struct usb_hcd *hcd)
 	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
 	struct max3421_ep *max3421_ep;
 	struct usb_host_endpoint *ep;
-	struct list_head *pos, *upos;
 	char ubuf[512], *dp, *end;
 	unsigned long flags;
 	struct urb *urb;
 	int epnum, ret;
 
 	spin_lock_irqsave(&max3421_hcd->lock, flags);
-	list_for_each(pos, &max3421_hcd->ep_list) {
-		max3421_ep = container_of(pos, struct max3421_ep, ep_list);
+	list_for_each_entry(max3421_ep, &max3421_hcd->ep_list, ep_list) {
 		ep = max3421_ep->ep;
 
 		dp = ubuf;
 		end = dp + sizeof(ubuf);
 		*dp = '\0';
-		list_for_each(upos, &ep->urb_list) {
-			urb = container_of(upos, struct urb, urb_list);
+		list_for_each_entry(urb, &ep->urb_list, urb_list) {
 			ret = snprintf(dp, end - dp, " %p(%d.%s %d/%d)", urb,
 				       usb_pipetype(urb->pipe),
 				       usb_urb_dir_in(urb) ? "IN" : "OUT",

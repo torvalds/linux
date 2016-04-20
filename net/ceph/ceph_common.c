@@ -361,7 +361,6 @@ ceph_parse_options(char *options, const char *dev_name,
 	opt->osd_keepalive_timeout = CEPH_OSD_KEEPALIVE_DEFAULT;
 	opt->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT;
 	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;
-	opt->monc_ping_timeout = CEPH_MONC_PING_TIMEOUT_DEFAULT;
 
 	/* get mon ip(s) */
 	/* ip1[:port1][,ip2[:port2]...] */
@@ -685,6 +684,9 @@ int __ceph_open_session(struct ceph_client *client, unsigned long started)
 		if (client->auth_err < 0)
 			return client->auth_err;
 	}
+
+	pr_info("client%llu fsid %pU\n", ceph_client_id(client), &client->fsid);
+	ceph_debugfs_client_init(client);
 
 	return 0;
 }

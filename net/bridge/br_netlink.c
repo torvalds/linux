@@ -598,7 +598,6 @@ static int br_set_port_state(struct net_bridge_port *p, u8 state)
 		return -ENETDOWN;
 
 	br_set_state(p, state);
-	br_log_state(p);
 	br_port_state_selection(p->br);
 	return 0;
 }

@@ -87,7 +87,6 @@ int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp);
 * Prism2 data types
 ---------------------------------------------------------------*/
 /* byte area conversion functions*/
-void prism2mgmt_pstr2bytearea(u8 *bytearea, p80211pstrd_t *pstr);
 void prism2mgmt_bytearea2pstr(u8 *bytearea, p80211pstrd_t *pstr, int len);
 
 /* byte string conversion functions*/

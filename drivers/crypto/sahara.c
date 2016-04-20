@@ -182,7 +182,6 @@ struct sahara_sha_reqctx {
 	u8			buf[SAHARA_MAX_SHA_BLOCK_SIZE];
 	u8			rembuf[SAHARA_MAX_SHA_BLOCK_SIZE];
 	u8			context[SHA256_DIGEST_SIZE + 4];
-	struct mutex		mutex;
 	unsigned int		mode;
 	unsigned int		digest_size;
 	unsigned int		context_size;
@@ -1096,7 +1095,6 @@ static int sahara_sha_enqueue(struct ahash_request *req, int last)
 	if (!req->nbytes && !last)
 		return 0;
 
-	mutex_lock(&rctx->mutex);
 	rctx->last = last;
 
 	if (!rctx->active) {
@@ -1109,7 +1107,6 @@ static int sahara_sha_enqueue(struct ahash_request *req, int last)
 	mutex_unlock(&dev->queue_mutex);
 
 	wake_up_process(dev->kthread);
-	mutex_unlock(&rctx->mutex);
 
 	return ret;
 }
@@ -1136,8 +1133,6 @@ static int sahara_sha_init(struct ahash_request *req)
 
 	rctx->context_size = rctx->digest_size + 4;
 	rctx->active = 0;
-
-	mutex_init(&rctx->mutex);
 
 	return 0;
 }
@@ -1167,26 +1162,18 @@ static int sahara_sha_digest(struct ahash_request *req)
 
 static int sahara_sha_export(struct ahash_request *req, void *out)
 {
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct sahara_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct sahara_sha_reqctx *rctx = ahash_request_ctx(req);
 
-	memcpy(out, ctx, sizeof(struct sahara_ctx));
-	memcpy(out + sizeof(struct sahara_sha_reqctx), rctx,
-	       sizeof(struct sahara_sha_reqctx));
+	memcpy(out, rctx, sizeof(struct sahara_sha_reqctx));
 
 	return 0;
 }
 
 static int sahara_sha_import(struct ahash_request *req, const void *in)
 {
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct sahara_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct sahara_sha_reqctx *rctx = ahash_request_ctx(req);
 
-	memcpy(ctx, in, sizeof(struct sahara_ctx));
-	memcpy(rctx, in + sizeof(struct sahara_sha_reqctx),
-	       sizeof(struct sahara_sha_reqctx));
+	memcpy(rctx, in, sizeof(struct sahara_sha_reqctx));
 
 	return 0;
 }
@@ -1272,6 +1259,7 @@ static struct ahash_alg sha_v3_algs[] = {
 	.export		= sahara_sha_export,
 	.import		= sahara_sha_import,
 	.halg.digestsize	= SHA1_DIGEST_SIZE,
+	.halg.statesize         = sizeof(struct sahara_sha_reqctx),
 	.halg.base	= {
 		.cra_name		= "sha1",
 		.cra_driver_name	= "sahara-sha1",
@@ -1299,6 +1287,7 @@ static struct ahash_alg sha_v4_algs[] = {
 	.export		= sahara_sha_export,
 	.import		= sahara_sha_import,
 	.halg.digestsize	= SHA256_DIGEST_SIZE,
+	.halg.statesize         = sizeof(struct sahara_sha_reqctx),
 	.halg.base	= {
 		.cra_name		= "sha256",
 		.cra_driver_name	= "sahara-sha256",

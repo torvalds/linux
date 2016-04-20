@@ -241,7 +241,7 @@ static int usbhsp_pipe_barrier(struct usbhs_pipe *pipe)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	int timeout = 1024;
-	u16 val;
+	u16 mask = usbhs_mod_is_host(priv) ? (CSSTS | PID_MASK) : PID_MASK;
 
 	/*
 	 * make sure....
@@ -265,9 +265,7 @@ static int usbhsp_pipe_barrier(struct usbhs_pipe *pipe)
 	usbhs_pipe_disable(pipe);
 
 	do {
-		val  = usbhsp_pipectrl_get(pipe);
-		val &= CSSTS | PID_MASK;
-		if (!val)
+		if (!(usbhsp_pipectrl_get(pipe) & mask))
 			return 0;
 
 		udelay(10);

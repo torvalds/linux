@@ -233,6 +233,9 @@ Default is to monitor all CPUS.
 --raw-trace::
 	When displaying traceevent output, do not use print fmt or plugins.
 
+--hierarchy::
+	Enable hierarchy output.
+
 INTERACTIVE PROMPTING KEYS
 --------------------------
 

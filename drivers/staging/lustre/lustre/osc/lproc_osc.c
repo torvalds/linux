@@ -162,15 +162,15 @@ static ssize_t max_dirty_mb_store(struct kobject *kobj,
 	if (rc)
 		return rc;
 
-	pages_number *= 1 << (20 - PAGE_CACHE_SHIFT); /* MB -> pages */
+	pages_number *= 1 << (20 - PAGE_SHIFT); /* MB -> pages */
 
 	if (pages_number <= 0 ||
-	    pages_number > OSC_MAX_DIRTY_MB_MAX << (20 - PAGE_CACHE_SHIFT) ||
+	    pages_number > OSC_MAX_DIRTY_MB_MAX << (20 - PAGE_SHIFT) ||
 	    pages_number > totalram_pages / 4) /* 1/4 of RAM */
 		return -ERANGE;
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
-	cli->cl_dirty_max = (u32)(pages_number << PAGE_CACHE_SHIFT);
+	cli->cl_dirty_max = (u32)(pages_number << PAGE_SHIFT);
 	osc_wake_cache_waiters(cli);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
 
@@ -182,7 +182,7 @@ static int osc_cached_mb_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
 	struct client_obd *cli = &dev->u.cli;
-	int shift = 20 - PAGE_CACHE_SHIFT;
+	int shift = 20 - PAGE_SHIFT;
 
 	seq_printf(m,
 		   "used_mb: %d\n"
@@ -211,7 +211,7 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 		return -EFAULT;
 	kernbuf[count] = 0;
 
-	mult = 1 << (20 - PAGE_CACHE_SHIFT);
+	mult = 1 << (20 - PAGE_SHIFT);
 	buffer += lprocfs_find_named_value(kernbuf, "used_mb:", &count) -
 		  kernbuf;
 	rc = lprocfs_write_frac_helper(buffer, count, &pages_number, mult);
@@ -381,7 +381,7 @@ static int osc_checksum_type_seq_show(struct seq_file *m, void *v)
 
 	DECLARE_CKSUM_NAME;
 
-	if (obd == NULL)
+	if (!obd)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(cksum_name); i++) {
@@ -397,8 +397,8 @@ static int osc_checksum_type_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t osc_checksum_type_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					   const char __user *buffer,
+					   size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	int i;
@@ -406,7 +406,7 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 	DECLARE_CKSUM_NAME;
 	char kernbuf[10];
 
-	if (obd == NULL)
+	if (!obd)
 		return 0;
 
 	if (count > sizeof(kernbuf) - 1)
@@ -422,8 +422,8 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 		if (((1 << i) & obd->u.cli.cl_supp_cksum_types) == 0)
 			continue;
 		if (!strcmp(kernbuf, cksum_name[i])) {
-		       obd->u.cli.cl_cksum_type = 1 << i;
-		       return count;
+			obd->u.cli.cl_cksum_type = 1 << i;
+			return count;
 		}
 	}
 	return -EINVAL;
@@ -480,9 +480,19 @@ static ssize_t contention_seconds_store(struct kobject *kobj,
 	struct obd_device *obd = container_of(kobj, struct obd_device,
 					      obd_kobj);
 	struct osc_device *od  = obd2osc_dev(obd);
+	int rc;
+	int val;
 
-	return lprocfs_write_helper(buffer, count, &od->od_contention_time) ?:
-		count;
+	rc = kstrtoint(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	if (val < 0)
+		return -EINVAL;
+
+	od->od_contention_time = val;
+
+	return count;
 }
 LUSTRE_RW_ATTR(contention_seconds);
 
@@ -505,9 +515,16 @@ static ssize_t lockless_truncate_store(struct kobject *kobj,
 	struct obd_device *obd = container_of(kobj, struct obd_device,
 					      obd_kobj);
 	struct osc_device *od  = obd2osc_dev(obd);
+	int rc;
+	unsigned int val;
 
-	return lprocfs_write_helper(buffer, count, &od->od_lockless_truncate) ?:
-		count;
+	rc = kstrtouint(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	od->od_lockless_truncate = val;
+
+	return count;
 }
 LUSTRE_RW_ATTR(lockless_truncate);
 
@@ -552,12 +569,12 @@ static ssize_t max_pages_per_rpc_store(struct kobject *kobj,
 
 	/* if the max_pages is specified in bytes, convert to pages */
 	if (val >= ONE_MB_BRW_SIZE)
-		val >>= PAGE_CACHE_SHIFT;
+		val >>= PAGE_SHIFT;
 
-	chunk_mask = ~((1 << (cli->cl_chunkbits - PAGE_CACHE_SHIFT)) - 1);
+	chunk_mask = ~((1 << (cli->cl_chunkbits - PAGE_SHIFT)) - 1);
 	/* max_pages_per_rpc must be chunk aligned */
 	val = (val + ~chunk_mask) & chunk_mask;
-	if (val == 0 || val > ocd->ocd_brw_size >> PAGE_CACHE_SHIFT) {
+	if (val == 0 || val > ocd->ocd_brw_size >> PAGE_SHIFT) {
 		return -ERANGE;
 	}
 	client_obd_list_lock(&cli->cl_loi_list_lock);
@@ -635,10 +652,10 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
-				 1 << i, r, pct(r, read_tot),
-				 pct(read_cum, read_tot), w,
-				 pct(w, write_tot),
-				 pct(write_cum, write_tot));
+			   1 << i, r, pct(r, read_tot),
+			   pct(read_cum, read_tot), w,
+			   pct(w, write_tot),
+			   pct(write_cum, write_tot));
 		if (read_cum == read_tot && write_cum == write_tot)
 			break;
 	}
@@ -659,10 +676,10 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
-				 i, r, pct(r, read_tot),
-				 pct(read_cum, read_tot), w,
-				 pct(w, write_tot),
-				 pct(write_cum, write_tot));
+			   i, r, pct(r, read_tot),
+			   pct(read_cum, read_tot), w,
+			   pct(w, write_tot),
+			   pct(write_cum, write_tot));
 		if (read_cum == read_tot && write_cum == write_tot)
 			break;
 	}

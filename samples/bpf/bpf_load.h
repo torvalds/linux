@@ -23,5 +23,11 @@ extern int event_fd[MAX_PROGS];
 int load_bpf_file(char *path);
 
 void read_trace_pipe(void);
+struct ksym {
+	long addr;
+	char *name;
+};
 
+int load_kallsyms(void);
+struct ksym *ksym_search(long key);
 #endif

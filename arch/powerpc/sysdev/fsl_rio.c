@@ -606,6 +606,12 @@ int fsl_rio_setup(struct platform_device *dev)
 		if (!port)
 			continue;
 
+		rc = rio_mport_initialize(port);
+		if (rc) {
+			kfree(port);
+			continue;
+		}
+
 		i = *port_index - 1;
 		port->index = (unsigned char)i;
 
@@ -682,12 +688,6 @@ int fsl_rio_setup(struct platform_device *dev)
 		dev_info(&dev->dev, "RapidIO Common Transport System size: %d\n",
 				port->sys_size ? 65536 : 256);
 
-		if (rio_register_mport(port)) {
-			release_resource(&port->iores);
-			kfree(priv);
-			kfree(port);
-			continue;
-		}
 		if (port->host_deviceid >= 0)
 			out_be32(priv->regs_win + RIO_GCCSR, RIO_PORT_GEN_HOST |
 				RIO_PORT_GEN_MASTER | RIO_PORT_GEN_DISCOVERED);
@@ -726,7 +726,14 @@ int fsl_rio_setup(struct platform_device *dev)
 		fsl_rio_inbound_mem_init(priv);
 
 		dbell->mport[i] = port;
+		pw->mport[i] = port;
 
+		if (rio_register_mport(port)) {
+			release_resource(&port->iores);
+			kfree(priv);
+			kfree(port);
+			continue;
+		}
 		active_ports++;
 	}
 

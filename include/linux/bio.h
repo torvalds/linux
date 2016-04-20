@@ -41,7 +41,7 @@
 #endif
 
 #define BIO_MAX_PAGES		256
-#define BIO_MAX_SIZE		(BIO_MAX_PAGES << PAGE_CACHE_SHIFT)
+#define BIO_MAX_SIZE		(BIO_MAX_PAGES << PAGE_SHIFT)
 #define BIO_MAX_SECTORS		(BIO_MAX_SIZE >> 9)
 
 /*
@@ -319,11 +319,6 @@ static inline void bio_get_last_bvec(struct bio *bio, struct bio_vec *bv)
 {
 	struct bvec_iter iter = bio->bi_iter;
 	int idx;
-
-	if (!bio_flagged(bio, BIO_CLONED)) {
-		*bv = bio->bi_io_vec[bio->bi_vcnt - 1];
-		return;
-	}
 
 	if (unlikely(!bio_multiple_segments(bio))) {
 		*bv = bio_iovec(bio);

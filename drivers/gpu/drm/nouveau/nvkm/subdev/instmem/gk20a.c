@@ -228,6 +228,8 @@ gk20a_instobj_release_dma(struct nvkm_memory *memory)
 	struct gk20a_instmem *imem = node->imem;
 	struct nvkm_ltc *ltc = imem->base.subdev.device->ltc;
 
+	/* in case we got a write-combined mapping */
+	wmb();
 	nvkm_ltc_invalidate(ltc);
 }
 

@@ -43,6 +43,7 @@
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
 #include <linux/prefetch.h>
+#include <linux/sctp.h>
 
 #include "igbvf.h"
 
@@ -876,7 +877,6 @@ static irqreturn_t igbvf_msix_other(int irq, void *data)
 
 	adapter->int_counter1++;
 
-	netif_carrier_off(netdev);
 	hw->mac.get_link_status = 1;
 	if (!test_bit(__IGBVF_DOWN, &adapter->state))
 		mod_timer(&adapter->watchdog_timer, jiffies + 1);
@@ -1908,6 +1908,31 @@ static void igbvf_watchdog_task(struct work_struct *work)
 #define IGBVF_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IGBVF_TX_FLAGS_VLAN_SHIFT	16
 
+static void igbvf_tx_ctxtdesc(struct igbvf_ring *tx_ring, u32 vlan_macip_lens,
+			      u32 type_tucmd, u32 mss_l4len_idx)
+{
+	struct e1000_adv_tx_context_desc *context_desc;
+	struct igbvf_buffer *buffer_info;
+	u16 i = tx_ring->next_to_use;
+
+	context_desc = IGBVF_TX_CTXTDESC_ADV(*tx_ring, i);
+	buffer_info = &tx_ring->buffer_info[i];
+
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
+
+	/* set bits to identify this as an advanced context descriptor */
+	type_tucmd |= E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT;
+
+	context_desc->vlan_macip_lens	= cpu_to_le32(vlan_macip_lens);
+	context_desc->seqnum_seed	= 0;
+	context_desc->type_tucmd_mlhl	= cpu_to_le32(type_tucmd);
+	context_desc->mss_l4len_idx	= cpu_to_le32(mss_l4len_idx);
+
+	buffer_info->time_stamp = jiffies;
+	buffer_info->dma = 0;
+}
+
 static int igbvf_tso(struct igbvf_adapter *adapter,
 		     struct igbvf_ring *tx_ring,
 		     struct sk_buff *skb, u32 tx_flags, u8 *hdr_len,
@@ -1987,65 +2012,56 @@ static int igbvf_tso(struct igbvf_adapter *adapter,
 	return true;
 }
 
-static inline bool igbvf_tx_csum(struct igbvf_adapter *adapter,
-				 struct igbvf_ring *tx_ring,
-				 struct sk_buff *skb, u32 tx_flags,
-				 __be16 protocol)
+static inline bool igbvf_ipv6_csum_is_sctp(struct sk_buff *skb)
 {
-	struct e1000_adv_tx_context_desc *context_desc;
-	unsigned int i;
-	struct igbvf_buffer *buffer_info;
-	u32 info = 0, tu_cmd = 0;
+	unsigned int offset = 0;
 
-	if ((skb->ip_summed == CHECKSUM_PARTIAL) ||
-	    (tx_flags & IGBVF_TX_FLAGS_VLAN)) {
-		i = tx_ring->next_to_use;
-		buffer_info = &tx_ring->buffer_info[i];
-		context_desc = IGBVF_TX_CTXTDESC_ADV(*tx_ring, i);
+	ipv6_find_hdr(skb, &offset, IPPROTO_SCTP, NULL, NULL);
 
-		if (tx_flags & IGBVF_TX_FLAGS_VLAN)
-			info |= (tx_flags & IGBVF_TX_FLAGS_VLAN_MASK);
+	return offset == skb_checksum_start_offset(skb);
+}
 
-		info |= (skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT);
-		if (skb->ip_summed == CHECKSUM_PARTIAL)
-			info |= (skb_transport_header(skb) -
-				 skb_network_header(skb));
+static bool igbvf_tx_csum(struct igbvf_ring *tx_ring, struct sk_buff *skb,
+			  u32 tx_flags, __be16 protocol)
+{
+	u32 vlan_macip_lens = 0;
+	u32 type_tucmd = 0;
 
-		context_desc->vlan_macip_lens = cpu_to_le32(info);
-
-		tu_cmd |= (E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT);
-
-		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			switch (protocol) {
-			case htons(ETH_P_IP):
-				tu_cmd |= E1000_ADVTXD_TUCMD_IPV4;
-				if (ip_hdr(skb)->protocol == IPPROTO_TCP)
-					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
-				break;
-			case htons(ETH_P_IPV6):
-				if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
-					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
-				break;
-			default:
-				break;
-			}
-		}
-
-		context_desc->type_tucmd_mlhl = cpu_to_le32(tu_cmd);
-		context_desc->seqnum_seed = 0;
-		context_desc->mss_l4len_idx = 0;
-
-		buffer_info->time_stamp = jiffies;
-		buffer_info->dma = 0;
-		i++;
-		if (i == tx_ring->count)
-			i = 0;
-		tx_ring->next_to_use = i;
-
-		return true;
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+csum_failed:
+		if (!(tx_flags & IGBVF_TX_FLAGS_VLAN))
+			return false;
+		goto no_csum;
 	}
 
-	return false;
+	switch (skb->csum_offset) {
+	case offsetof(struct tcphdr, check):
+		type_tucmd = E1000_ADVTXD_TUCMD_L4T_TCP;
+		/* fall through */
+	case offsetof(struct udphdr, check):
+		break;
+	case offsetof(struct sctphdr, checksum):
+		/* validate that this is actually an SCTP request */
+		if (((protocol == htons(ETH_P_IP)) &&
+		     (ip_hdr(skb)->protocol == IPPROTO_SCTP)) ||
+		    ((protocol == htons(ETH_P_IPV6)) &&
+		     igbvf_ipv6_csum_is_sctp(skb))) {
+			type_tucmd = E1000_ADVTXD_TUCMD_L4T_SCTP;
+			break;
+		}
+	default:
+		skb_checksum_help(skb);
+		goto csum_failed;
+	}
+
+	vlan_macip_lens = skb_checksum_start_offset(skb) -
+			  skb_network_offset(skb);
+no_csum:
+	vlan_macip_lens |= skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT;
+	vlan_macip_lens |= tx_flags & IGBVF_TX_FLAGS_VLAN_MASK;
+
+	igbvf_tx_ctxtdesc(tx_ring, vlan_macip_lens, type_tucmd, 0);
+	return true;
 }
 
 static int igbvf_maybe_stop_tx(struct net_device *netdev, int size)
@@ -2264,7 +2280,7 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	if (tso)
 		tx_flags |= IGBVF_TX_FLAGS_TSO;
-	else if (igbvf_tx_csum(adapter, tx_ring, skb, tx_flags, protocol) &&
+	else if (igbvf_tx_csum(tx_ring, skb, tx_flags, protocol) &&
 		 (skb->ip_summed == CHECKSUM_PARTIAL))
 		tx_flags |= IGBVF_TX_FLAGS_CSUM;
 
@@ -2717,11 +2733,11 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->bd_number = cards_found++;
 
 	netdev->hw_features = NETIF_F_SG |
-			   NETIF_F_IP_CSUM |
-			   NETIF_F_IPV6_CSUM |
-			   NETIF_F_TSO |
-			   NETIF_F_TSO6 |
-			   NETIF_F_RXCSUM;
+			      NETIF_F_TSO |
+			      NETIF_F_TSO6 |
+			      NETIF_F_RXCSUM |
+			      NETIF_F_HW_CSUM |
+			      NETIF_F_SCTP_CRC;
 
 	netdev->features = netdev->hw_features |
 			   NETIF_F_HW_VLAN_CTAG_TX |
@@ -2731,11 +2747,14 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-	netdev->vlan_features |= NETIF_F_TSO;
-	netdev->vlan_features |= NETIF_F_TSO6;
-	netdev->vlan_features |= NETIF_F_IP_CSUM;
-	netdev->vlan_features |= NETIF_F_IPV6_CSUM;
-	netdev->vlan_features |= NETIF_F_SG;
+	netdev->vlan_features |= NETIF_F_SG |
+				 NETIF_F_TSO |
+				 NETIF_F_TSO6 |
+				 NETIF_F_HW_CSUM |
+				 NETIF_F_SCTP_CRC;
+
+	netdev->mpls_features |= NETIF_F_HW_CSUM;
+	netdev->hw_enc_features |= NETIF_F_HW_CSUM;
 
 	/*reset the controller to put the device in a known good state */
 	err = hw->mac.ops.reset_hw(hw);

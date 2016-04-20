@@ -2011,9 +2011,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_IND:
-		spin_lock_bh(&htt->rx_ring.lock);
-		__skb_queue_tail(&htt->rx_compl_q, skb);
-		spin_unlock_bh(&htt->rx_ring.lock);
+		skb_queue_tail(&htt->rx_compl_q, skb);
 		tasklet_schedule(&htt->txrx_compl_task);
 		return;
 	case HTT_T2H_MSG_TYPE_PEER_MAP: {
@@ -2111,9 +2109,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND: {
-		spin_lock_bh(&htt->rx_ring.lock);
-		__skb_queue_tail(&htt->rx_in_ord_compl_q, skb);
-		spin_unlock_bh(&htt->rx_ring.lock);
+		skb_queue_tail(&htt->rx_in_ord_compl_q, skb);
 		tasklet_schedule(&htt->txrx_compl_task);
 		return;
 	}
@@ -2123,10 +2119,12 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case HTT_T2H_MSG_TYPE_AGGR_CONF:
 		break;
-	case HTT_T2H_MSG_TYPE_EN_STATS:
 	case HTT_T2H_MSG_TYPE_TX_FETCH_IND:
-	case HTT_T2H_MSG_TYPE_TX_FETCH_CONF:
-	case HTT_T2H_MSG_TYPE_TX_LOW_LATENCY_IND:
+	case HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM:
+	case HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND:
+		/* TODO: Implement pull-push logic */
+		break;
+	case HTT_T2H_MSG_TYPE_EN_STATS:
 	default:
 		ath10k_warn(ar, "htt event (%d) not handled\n",
 			    resp->hdr.msg_type);
@@ -2143,11 +2141,7 @@ EXPORT_SYMBOL(ath10k_htt_t2h_msg_handler);
 void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
 					     struct sk_buff *skb)
 {
-	struct ath10k_pktlog_10_4_hdr *hdr =
-		(struct ath10k_pktlog_10_4_hdr *)skb->data;
-
-	trace_ath10k_htt_pktlog(ar, hdr->payload,
-				sizeof(*hdr) + __le16_to_cpu(hdr->size));
+	trace_ath10k_htt_pktlog(ar, skb->data, skb->len);
 	dev_kfree_skb_any(skb);
 }
 EXPORT_SYMBOL(ath10k_htt_rx_pktlog_completion_handler);
@@ -2156,24 +2150,46 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 {
 	struct ath10k_htt *htt = (struct ath10k_htt *)ptr;
 	struct ath10k *ar = htt->ar;
+	struct sk_buff_head tx_q;
+	struct sk_buff_head rx_q;
+	struct sk_buff_head rx_ind_q;
 	struct htt_resp *resp;
 	struct sk_buff *skb;
+	unsigned long flags;
 
-	while ((skb = skb_dequeue(&htt->tx_compl_q))) {
+	__skb_queue_head_init(&tx_q);
+	__skb_queue_head_init(&rx_q);
+	__skb_queue_head_init(&rx_ind_q);
+
+	spin_lock_irqsave(&htt->tx_compl_q.lock, flags);
+	skb_queue_splice_init(&htt->tx_compl_q, &tx_q);
+	spin_unlock_irqrestore(&htt->tx_compl_q.lock, flags);
+
+	spin_lock_irqsave(&htt->rx_compl_q.lock, flags);
+	skb_queue_splice_init(&htt->rx_compl_q, &rx_q);
+	spin_unlock_irqrestore(&htt->rx_compl_q.lock, flags);
+
+	spin_lock_irqsave(&htt->rx_in_ord_compl_q.lock, flags);
+	skb_queue_splice_init(&htt->rx_in_ord_compl_q, &rx_ind_q);
+	spin_unlock_irqrestore(&htt->rx_in_ord_compl_q.lock, flags);
+
+	while ((skb = __skb_dequeue(&tx_q))) {
 		ath10k_htt_rx_frm_tx_compl(htt->ar, skb);
 		dev_kfree_skb_any(skb);
 	}
 
-	spin_lock_bh(&htt->rx_ring.lock);
-	while ((skb = __skb_dequeue(&htt->rx_compl_q))) {
+	while ((skb = __skb_dequeue(&rx_q))) {
 		resp = (struct htt_resp *)skb->data;
+		spin_lock_bh(&htt->rx_ring.lock);
 		ath10k_htt_rx_handler(htt, &resp->rx_ind);
+		spin_unlock_bh(&htt->rx_ring.lock);
 		dev_kfree_skb_any(skb);
 	}
 
-	while ((skb = __skb_dequeue(&htt->rx_in_ord_compl_q))) {
+	while ((skb = __skb_dequeue(&rx_ind_q))) {
+		spin_lock_bh(&htt->rx_ring.lock);
 		ath10k_htt_rx_in_ord_ind(ar, skb);
+		spin_unlock_bh(&htt->rx_ring.lock);
 		dev_kfree_skb_any(skb);
 	}
-	spin_unlock_bh(&htt->rx_ring.lock);
 }

@@ -12,18 +12,6 @@ static inline void release_pack_memory(size_t size __maybe_unused,
 {
 }
 
-char *xstrdup(const char *str)
-{
-	char *ret = strdup(str);
-	if (!ret) {
-		release_pack_memory(strlen(str) + 1, -1);
-		ret = strdup(str);
-		if (!ret)
-			die("Out of memory, strdup failed");
-	}
-	return ret;
-}
-
 void *xrealloc(void *ptr, size_t size)
 {
 	void *ret = realloc(ptr, size);

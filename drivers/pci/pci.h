@@ -97,21 +97,22 @@ static inline bool pci_has_subordinate(struct pci_dev *pci_dev)
 struct pci_vpd_ops {
 	ssize_t (*read)(struct pci_dev *dev, loff_t pos, size_t count, void *buf);
 	ssize_t (*write)(struct pci_dev *dev, loff_t pos, size_t count, const void *buf);
-	void (*release)(struct pci_dev *dev);
+	int (*set_size)(struct pci_dev *dev, size_t len);
 };
 
 struct pci_vpd {
-	unsigned int len;
 	const struct pci_vpd_ops *ops;
 	struct bin_attribute *attr; /* descriptor for sysfs VPD entry */
+	struct mutex	lock;
+	unsigned int	len;
+	u16		flag;
+	u8		cap;
+	u8		busy:1;
+	u8		valid:1;
 };
 
-int pci_vpd_pci22_init(struct pci_dev *dev);
-static inline void pci_vpd_release(struct pci_dev *dev)
-{
-	if (dev->vpd)
-		dev->vpd->ops->release(dev);
-}
+int pci_vpd_init(struct pci_dev *dev);
+void pci_vpd_release(struct pci_dev *dev);
 
 /* PCI /proc functions */
 #ifdef CONFIG_PROC_FS

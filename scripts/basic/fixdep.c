@@ -274,7 +274,11 @@ static void do_config_file(const char *filename)
 		perror(filename);
 		exit(2);
 	}
-	fstat(fd, &st);
+	if (fstat(fd, &st) < 0) {
+		fprintf(stderr, "fixdep: error fstat'ing config file: ");
+		perror(filename);
+		exit(2);
+	}
 	if (st.st_size == 0) {
 		close(fd);
 		return;

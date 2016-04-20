@@ -2,7 +2,14 @@
 
 Required properties:
 - compatible: should be one of:
+	"fsl,imx23-usb"
 	"fsl,imx27-usb"
+	"fsl,imx28-usb"
+	"fsl,imx6q-usb"
+	"fsl,imx6sl-usb"
+	"fsl,imx6sx-usb"
+	"fsl,imx6ul-usb"
+	"fsl,imx7d-usb"
 	"lsi,zevio-usb"
 	"qcom,ci-hdrc"
 	"chipidea,usb2"
@@ -53,6 +60,22 @@ Optional properties:
   be specified.
 - phy-clkgate-delay-us: the delay time (us) between putting the PHY into
   low power mode and gating the PHY clock.
+- non-zero-ttctrl-ttha: after setting this property, the value of register
+  ttctrl.ttha will be 0x7f; if not, the value will be 0x0, this is the default
+  value. It needs to be very carefully for setting this property, it is
+  recommended that consult with your IC engineer before setting this value.
+  On the most of chipidea platforms, the "usage_tt" flag at RTL is 0, so this
+  property only affects siTD.
+  If this property is not set, the max packet size is 1023 bytes, and if
+  the total of packet size for pervious transactions are more than 256 bytes,
+  it can't accept any transactions within this frame. The use case is single
+  transaction, but higher frame rate.
+  If this property is set, the max packet size is 188 bytes, it can handle
+  more transactions than above case, it can accept transactions until it
+  considers the left room size within frame is less than 188 bytes, software
+  needs to make sure it does not send more than 90%
+  maximum_periodic_data_per_frame. The use case is multiple transactions, but
+  less frame rate.
 
 i.mx specific properties
 - fsl,usbmisc: phandler of non-core register device, with one

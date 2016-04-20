@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
+#include <linux/lockdep.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -1314,6 +1315,8 @@ __lpfc_update_fcf_record_pri(struct lpfc_hba *phba, uint16_t fcf_index,
 {
 	struct lpfc_fcf_pri *fcf_pri;
 
+	lockdep_assert_held(&phba->hbalock);
+
 	fcf_pri = &phba->fcf.fcf_pri[fcf_index];
 	fcf_pri->fcf_rec.fcf_index = fcf_index;
 	/* FCF record priority */
@@ -1398,6 +1401,8 @@ __lpfc_update_fcf_record(struct lpfc_hba *phba, struct lpfc_fcf_rec *fcf_rec,
 		       struct fcf_record *new_fcf_record, uint32_t addr_mode,
 		       uint16_t vlan_id, uint32_t flag)
 {
+	lockdep_assert_held(&phba->hbalock);
+
 	/* Copy the fields from the HBA's FCF record */
 	lpfc_copy_fcf_record(fcf_rec, new_fcf_record);
 	/* Update other fields of driver FCF record */

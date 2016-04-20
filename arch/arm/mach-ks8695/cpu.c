@@ -34,7 +34,7 @@
 #include <mach/regs-misc.h>
 
 
-static struct __initdata map_desc ks8695_io_desc[] = {
+static struct map_desc ks8695_io_desc[] __initdata = {
 	{
 		.virtual	= (unsigned long)KS8695_IO_VA,
 		.pfn		= __phys_to_pfn(KS8695_IO_PA),

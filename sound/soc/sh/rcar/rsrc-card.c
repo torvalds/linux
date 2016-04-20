@@ -66,12 +66,12 @@ struct rsrc_card_priv {
 	struct snd_soc_dai_link *dai_link;
 	int dai_num;
 	u32 convert_rate;
+	u32 convert_channels;
 };
 
 #define rsrc_priv_to_dev(priv) ((priv)->snd_card.dev)
 #define rsrc_priv_to_link(priv, i) ((priv)->snd_card.dai_link + (i))
 #define rsrc_priv_to_props(priv, i) ((priv)->dai_props + (i))
-#define rsrc_dev_to_of_data(dev) (of_match_device(rsrc_card_of_match, (dev))->data)
 
 static int rsrc_card_startup(struct snd_pcm_substream *substream)
 {
@@ -145,11 +145,16 @@ static int rsrc_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct rsrc_card_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_interval *rate = hw_param_interval(params,
 						      SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_CHANNELS);
 
-	if (!priv->convert_rate)
-		return 0;
+	if (priv->convert_rate)
+		rate->min =
+		rate->max = priv->convert_rate;
 
-	rate->min = rate->max = priv->convert_rate;
+	if (priv->convert_channels)
+		channels->min =
+		channels->max = priv->convert_channels;
 
 	return 0;
 }
@@ -246,7 +251,7 @@ static int rsrc_card_parse_links(struct device_node *np,
 		struct device *dev = rsrc_priv_to_dev(priv);
 		const struct rsrc_card_of_data *of_data;
 
-		of_data = rsrc_dev_to_of_data(dev);
+		of_data = of_device_get_match_data(dev);
 
 		/* FE is dummy */
 		dai_link->cpu_of_node		= NULL;
@@ -396,7 +401,7 @@ static int rsrc_card_parse_of(struct device_node *node,
 			      struct rsrc_card_priv *priv,
 			      struct device *dev)
 {
-	const struct rsrc_card_of_data *of_data = rsrc_dev_to_of_data(dev);
+	const struct rsrc_card_of_data *of_data = of_device_get_match_data(dev);
 	struct rsrc_card_dai *props;
 	struct snd_soc_dai_link *links;
 	int ret;
@@ -437,9 +442,13 @@ static int rsrc_card_parse_of(struct device_node *node,
 	/* sampling rate convert */
 	of_property_read_u32(node, "convert-rate", &priv->convert_rate);
 
-	dev_dbg(dev, "New rsrc-audio-card: %s (%d)\n",
-		priv->snd_card.name ? priv->snd_card.name : "",
-		priv->convert_rate);
+	/* channels transfer */
+	of_property_read_u32(node, "convert-channels", &priv->convert_channels);
+
+	dev_dbg(dev, "New rsrc-audio-card: %s\n",
+		priv->snd_card.name ? priv->snd_card.name : "");
+	dev_dbg(dev, "SRC : convert_rate     %d\n", priv->convert_rate);
+	dev_dbg(dev, "CTU : convert_channels %d\n", priv->convert_channels);
 
 	ret = rsrc_card_dai_link_of(node, priv);
 	if (ret < 0)

@@ -456,7 +456,8 @@
 		};
 
 		pcie@3400000 {
-			compatible = "fsl,ls2080a-pcie", "snps,dw-pcie";
+			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie",
+				     "snps,dw-pcie";
 			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
 			       0x10 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
@@ -479,7 +480,8 @@
 		};
 
 		pcie@3500000 {
-			compatible = "fsl,ls2080a-pcie", "snps,dw-pcie";
+			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie",
+				     "snps,dw-pcie";
 			reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
 			       0x12 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
@@ -502,7 +504,8 @@
 		};
 
 		pcie@3600000 {
-			compatible = "fsl,ls2080a-pcie", "snps,dw-pcie";
+			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie",
+				     "snps,dw-pcie";
 			reg = <0x00 0x03600000 0x0 0x00100000   /* controller registers */
 			       0x14 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
@@ -525,7 +528,8 @@
 		};
 
 		pcie@3700000 {
-			compatible = "fsl,ls2080a-pcie", "snps,dw-pcie";
+			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie",
+				     "snps,dw-pcie";
 			reg = <0x00 0x03700000 0x0 0x00100000   /* controller registers */
 			       0x16 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
@@ -569,6 +573,7 @@
 			reg = <0x0 0x3100000 0x0 0x10000>;
 			interrupts = <0 80 0x4>; /* Level high type */
 			dr_mode = "host";
+			snps,quirk-frame-length-adjustment = <0x20>;
 		};
 
 		usb1: usb3@3110000 {
@@ -577,6 +582,7 @@
 			reg = <0x0 0x3110000 0x0 0x10000>;
 			interrupts = <0 81 0x4>; /* Level high type */
 			dr_mode = "host";
+			snps,quirk-frame-length-adjustment = <0x20>;
 		};
 
 		ccn@4000000 {

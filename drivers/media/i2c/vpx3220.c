@@ -124,7 +124,7 @@ static int vpx3220_fp_write(struct v4l2_subdev *sd, u8 fpaddr, u16 data)
 	return 0;
 }
 
-static u16 vpx3220_fp_read(struct v4l2_subdev *sd, u16 fpaddr)
+static int vpx3220_fp_read(struct v4l2_subdev *sd, u16 fpaddr)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	s16 data;

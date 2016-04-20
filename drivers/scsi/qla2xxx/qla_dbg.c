@@ -11,7 +11,7 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x017f       | 0x0146         |
+ * | Module Init and Probe        |       0x018f       | 0x0146         |
  * |                              |                    | 0x015b-0x0160	|
  * |                              |                    | 0x016e-0x0170  |
  * | Mailbox commands             |       0x1192       |		|
@@ -27,11 +27,12 @@
  * |                              |                    | 0x303a		|
  * | DPC Thread                   |       0x4023       | 0x4002,0x4013  |
  * | Async Events                 |       0x5089       | 0x502b-0x502f  |
+ * |                              |                    | 0x505e         |
  * |                              |                    | 0x5084,0x5075	|
  * |                              |                    | 0x503d,0x5044  |
  * |                              |                    | 0x507b,0x505f	|
  * | Timer Routines               |       0x6012       |                |
- * | User Space Interactions      |       0x70e65      | 0x7018,0x702e  |
+ * | User Space Interactions      |       0x70e3       | 0x7018,0x702e  |
  * |				  |		       | 0x7020,0x7024  |
  * |                              |                    | 0x7039,0x7045  |
  * |                              |                    | 0x7073-0x7075  |
@@ -293,8 +294,8 @@ qla24xx_read_window(struct device_reg_24xx __iomem *reg, uint32_t iobase,
 
 	WRT_REG_DWORD(&reg->iobase_addr, iobase);
 	dmp_reg = &reg->iobase_window;
-	while (count--)
-		*buf++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for ( ; count--; dmp_reg++)
+		*buf++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	return buf;
 }
@@ -456,8 +457,8 @@ qla2xxx_read_window(struct device_reg_2xxx __iomem *reg, uint32_t count,
 {
 	uint16_t __iomem *dmp_reg = &reg->u.isp2300.fb_cmd;
 
-	while (count--)
-		*buf++ = htons(RD_REG_WORD(dmp_reg++));
+	for ( ; count--; dmp_reg++)
+		*buf++ = htons(RD_REG_WORD(dmp_reg));
 }
 
 static inline void *
@@ -732,16 +733,18 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	if (rval == QLA_SUCCESS) {
 		dmp_reg = &reg->flash_address;
-		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++)
-			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++, dmp_reg++)
+			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		dmp_reg = &reg->u.isp2300.req_q_in;
-		for (cnt = 0; cnt < sizeof(fw->risc_host_reg) / 2; cnt++)
-			fw->risc_host_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->risc_host_reg) / 2;
+		    cnt++, dmp_reg++)
+			fw->risc_host_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		dmp_reg = &reg->u.isp2300.mailbox0;
-		for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2;
+		    cnt++, dmp_reg++)
+			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x40);
 		qla2xxx_read_window(reg, 32, fw->resp_dma_reg);
@@ -751,8 +754,9 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x00);
 		dmp_reg = &reg->risc_hw;
-		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++)
-			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2;
+		    cnt++, dmp_reg++)
+			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		WRT_REG_WORD(&reg->pcr, 0x2000);
 		qla2xxx_read_window(reg, 16, fw->risc_gp0_reg);
@@ -895,25 +899,25 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	}
 	if (rval == QLA_SUCCESS) {
 		dmp_reg = &reg->flash_address;
-		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++)
-			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++, dmp_reg++)
+			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		dmp_reg = &reg->u.isp2100.mailbox0;
-		for (cnt = 0; cnt < ha->mbx_count; cnt++) {
+		for (cnt = 0; cnt < ha->mbx_count; cnt++, dmp_reg++) {
 			if (cnt == 8)
 				dmp_reg = &reg->u_end.isp2200.mailbox8;
 
-			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 		}
 
 		dmp_reg = &reg->u.isp2100.unused_2[0];
-		for (cnt = 0; cnt < sizeof(fw->dma_reg) / 2; cnt++)
-			fw->dma_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->dma_reg) / 2; cnt++, dmp_reg++)
+			fw->dma_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x00);
 		dmp_reg = &reg->risc_hw;
-		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++)
-			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++, dmp_reg++)
+			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		WRT_REG_WORD(&reg->pcr, 0x2000);
 		qla2xxx_read_window(reg, 16, fw->risc_gp0_reg);
@@ -1095,8 +1099,8 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++)
-		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
 	WRT_REG_DWORD(&reg->ictrl, 0);
@@ -1128,8 +1132,8 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
+	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, dmp_reg++)
+		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
 	iter_reg = fw->xseq_gp_reg;
@@ -1167,20 +1171,20 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	iter_reg = fw->req0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7200, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->resp0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7300, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->req1_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7400, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Transmit DMA registers. */
 	iter_reg = fw->xmt0_dma_reg;
@@ -1358,8 +1362,10 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	RD_REG_DWORD(&reg->iobase_addr);
 	WRT_REG_DWORD(&reg->iobase_window, 0x01);
 	dmp_reg = &reg->iobase_c4;
-	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg++));
-	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg++));
+	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
+	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
 	fw->pcie_regs[2] = htonl(RD_REG_DWORD(dmp_reg));
 	fw->pcie_regs[3] = htonl(RD_REG_DWORD(&reg->iobase_window));
 
@@ -1368,8 +1374,8 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++)
-		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
 	WRT_REG_DWORD(&reg->ictrl, 0);
@@ -1417,8 +1423,8 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
+	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, mbx_reg++)
+		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
 	iter_reg = fw->xseq_gp_reg;
@@ -1481,20 +1487,20 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	iter_reg = fw->req0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7200, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->resp0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7300, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->req1_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7400, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Transmit DMA registers. */
 	iter_reg = fw->xmt0_dma_reg;
@@ -1679,8 +1685,10 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	RD_REG_DWORD(&reg->iobase_addr);
 	WRT_REG_DWORD(&reg->iobase_window, 0x01);
 	dmp_reg = &reg->iobase_c4;
-	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg++));
-	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg++));
+	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
+	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
 	fw->pcie_regs[2] = htonl(RD_REG_DWORD(dmp_reg));
 	fw->pcie_regs[3] = htonl(RD_REG_DWORD(&reg->iobase_window));
 
@@ -1689,8 +1697,8 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++)
-		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
 	WRT_REG_DWORD(&reg->ictrl, 0);
@@ -1738,8 +1746,8 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
+	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, mbx_reg++)
+		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
 	iter_reg = fw->xseq_gp_reg;
@@ -1802,20 +1810,20 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	iter_reg = fw->req0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7200, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->resp0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7300, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->req1_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7400, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Transmit DMA registers. */
 	iter_reg = fw->xmt0_dma_reg;
@@ -2022,8 +2030,10 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	RD_REG_DWORD(&reg->iobase_addr);
 	WRT_REG_DWORD(&reg->iobase_window, 0x01);
 	dmp_reg = &reg->iobase_c4;
-	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg++));
-	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg++));
+	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
+	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
 	fw->pcie_regs[2] = htonl(RD_REG_DWORD(dmp_reg));
 	fw->pcie_regs[3] = htonl(RD_REG_DWORD(&reg->iobase_window));
 
@@ -2032,8 +2042,8 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++)
-		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
 	WRT_REG_DWORD(&reg->ictrl, 0);
@@ -2081,8 +2091,8 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
+	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, dmp_reg++)
+		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
 	iter_reg = fw->xseq_gp_reg;
@@ -2177,20 +2187,20 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	iter_reg = fw->req0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7200, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->resp0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7300, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->req1_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7400, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Transmit DMA registers. */
 	iter_reg = fw->xmt0_dma_reg;

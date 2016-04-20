@@ -12,7 +12,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#include <linux/clk/shmobile.h>
+#include <linux/clk/renesas.h>
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/of.h>

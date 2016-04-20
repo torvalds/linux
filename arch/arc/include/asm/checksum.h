@@ -70,8 +70,8 @@ ip_fast_csum(const void *iph, unsigned int ihl)
  * SA [4], DA [4], zeroes [1], Proto[1], TCP Seg(hdr+data) Len [2]
  */
 static inline __wsum
-csum_tcpudp_nofold(__be32 saddr, __be32 daddr, unsigned short len,
-		   unsigned short proto, __wsum sum)
+csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
+		   __u8 proto, __wsum sum)
 {
 	__asm__ __volatile__(
 	"	add.f %0, %0, %1	\n"

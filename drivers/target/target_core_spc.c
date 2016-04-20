@@ -997,7 +997,6 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 	int length = 0;
 	int ret;
 	int i;
-	bool read_only = target_lun_is_rdonly(cmd);;
 
 	memset(buf, 0, SE_MODE_PAGE_BUF);
 
@@ -1008,7 +1007,7 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 	length = ten ? 3 : 2;
 
 	/* DEVICE-SPECIFIC PARAMETER */
-	if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) || read_only)
+	if (cmd->se_lun->lun_access_ro || target_lun_is_rdonly(cmd))
 		spc_modesense_write_protect(&buf[length], type);
 
 	/*

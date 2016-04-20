@@ -30,7 +30,7 @@
  * The secondary CPUs check this register from the boot ROM for the jump
  * destination.  After that, it can be reused as a scratch register.
  */
-#define UNIPHIER_SBC_ROM_BOOT_RSV2	0x1208
+#define UNIPHIER_SMPCTRL_ROM_RSV2	0x208
 
 static void __iomem *uniphier_smp_rom_boot_rsv2;
 static unsigned int uniphier_smp_max_cpus;
@@ -98,21 +98,29 @@ static int __init uniphier_smp_prepare_trampoline(unsigned int max_cpus)
 	phys_addr_t rom_rsv2_phys;
 	int ret;
 
-	np = of_find_compatible_node(NULL, NULL,
-				"socionext,uniphier-system-bus-controller");
-	ret = of_address_to_resource(np, 1, &res);
-	if (ret) {
-		pr_err("failed to get resource of system-bus-controller\n");
-		return ret;
+	np = of_find_compatible_node(NULL, NULL, "socionext,uniphier-smpctrl");
+	of_node_put(np);
+	ret = of_address_to_resource(np, 0, &res);
+	if (!ret) {
+		rom_rsv2_phys = res.start + UNIPHIER_SMPCTRL_ROM_RSV2;
+	} else {
+		/* try old binding too */
+		np = of_find_compatible_node(NULL, NULL,
+					     "socionext,uniphier-system-bus-controller");
+		of_node_put(np);
+		ret = of_address_to_resource(np, 1, &res);
+		if (ret) {
+			pr_err("failed to get resource of SMP control\n");
+			return ret;
+		}
+		rom_rsv2_phys = res.start + 0x1000 + UNIPHIER_SMPCTRL_ROM_RSV2;
 	}
-
-	rom_rsv2_phys = res.start + UNIPHIER_SBC_ROM_BOOT_RSV2;
 
 	ret = uniphier_smp_copy_trampoline(rom_rsv2_phys);
 	if (ret)
 		return ret;
 
-	uniphier_smp_rom_boot_rsv2 = ioremap(rom_rsv2_phys, sizeof(SZ_4));
+	uniphier_smp_rom_boot_rsv2 = ioremap(rom_rsv2_phys, SZ_4);
 	if (!uniphier_smp_rom_boot_rsv2) {
 		pr_err("failed to map ROM_BOOT_RSV2 register\n");
 		return -ENOMEM;

@@ -23,6 +23,7 @@
 #include <asm/uaccess.h>
 #include <asm/sclp.h>
 #include <asm/isc.h>
+#include <asm/gmap.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "trace-s390.h"
@@ -182,8 +183,9 @@ static int cpu_timer_interrupts_enabled(struct kvm_vcpu *vcpu)
 
 static int cpu_timer_irq_pending(struct kvm_vcpu *vcpu)
 {
-	return (vcpu->arch.sie_block->cputm >> 63) &&
-	       cpu_timer_interrupts_enabled(vcpu);
+	if (!cpu_timer_interrupts_enabled(vcpu))
+		return 0;
+	return kvm_s390_get_cpu_timer(vcpu) >> 63;
 }
 
 static inline int is_ioirq(unsigned long irq_type)
@@ -333,23 +335,6 @@ static void set_intercept_indicators(struct kvm_vcpu *vcpu)
 	set_intercept_indicators_ext(vcpu);
 	set_intercept_indicators_mchk(vcpu);
 	set_intercept_indicators_stop(vcpu);
-}
-
-static u16 get_ilc(struct kvm_vcpu *vcpu)
-{
-	switch (vcpu->arch.sie_block->icptcode) {
-	case ICPT_INST:
-	case ICPT_INSTPROGI:
-	case ICPT_OPEREXC:
-	case ICPT_PARTEXEC:
-	case ICPT_IOINST:
-		/* last instruction only stored for these icptcodes */
-		return insn_length(vcpu->arch.sie_block->ipa >> 8);
-	case ICPT_PROGI:
-		return vcpu->arch.sie_block->pgmilc;
-	default:
-		return 0;
-	}
 }
 
 static int __must_check __deliver_cpu_timer(struct kvm_vcpu *vcpu)
@@ -588,7 +573,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_pgm_info pgm_info;
 	int rc = 0, nullifying = false;
-	u16 ilc = get_ilc(vcpu);
+	u16 ilen;
 
 	spin_lock(&li->lock);
 	pgm_info = li->irq.pgm;
@@ -596,8 +581,9 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 	memset(&li->irq.pgm, 0, sizeof(pgm_info));
 	spin_unlock(&li->lock);
 
-	VCPU_EVENT(vcpu, 3, "deliver: program irq code 0x%x, ilc:%d",
-		   pgm_info.code, ilc);
+	ilen = pgm_info.flags & KVM_S390_PGM_FLAGS_ILC_MASK;
+	VCPU_EVENT(vcpu, 3, "deliver: program irq code 0x%x, ilen:%d",
+		   pgm_info.code, ilen);
 	vcpu->stat.deliver_program_int++;
 	trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, KVM_S390_PROGRAM_INT,
 					 pgm_info.code, 0);
@@ -681,10 +667,11 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 				   (u8 *) __LC_PER_ACCESS_ID);
 	}
 
-	if (nullifying && vcpu->arch.sie_block->icptcode == ICPT_INST)
-		kvm_s390_rewind_psw(vcpu, ilc);
+	if (nullifying && !(pgm_info.flags & KVM_S390_PGM_FLAGS_NO_REWIND))
+		kvm_s390_rewind_psw(vcpu, ilen);
 
-	rc |= put_guest_lc(vcpu, ilc, (u16 *) __LC_PGM_ILC);
+	/* bit 1+2 of the target are the ilc, so we can directly use ilen */
+	rc |= put_guest_lc(vcpu, ilen, (u16 *) __LC_PGM_ILC);
 	rc |= put_guest_lc(vcpu, vcpu->arch.sie_block->gbea,
 				 (u64 *) __LC_LAST_BREAK);
 	rc |= put_guest_lc(vcpu, pgm_info.code,
@@ -923,9 +910,35 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 	return ckc_irq_pending(vcpu) || cpu_timer_irq_pending(vcpu);
 }
 
+static u64 __calculate_sltime(struct kvm_vcpu *vcpu)
+{
+	u64 now, cputm, sltime = 0;
+
+	if (ckc_interrupts_enabled(vcpu)) {
+		now = kvm_s390_get_tod_clock_fast(vcpu->kvm);
+		sltime = tod_to_ns(vcpu->arch.sie_block->ckc - now);
+		/* already expired or overflow? */
+		if (!sltime || vcpu->arch.sie_block->ckc <= now)
+			return 0;
+		if (cpu_timer_interrupts_enabled(vcpu)) {
+			cputm = kvm_s390_get_cpu_timer(vcpu);
+			/* already expired? */
+			if (cputm >> 63)
+				return 0;
+			return min(sltime, tod_to_ns(cputm));
+		}
+	} else if (cpu_timer_interrupts_enabled(vcpu)) {
+		sltime = kvm_s390_get_cpu_timer(vcpu);
+		/* already expired? */
+		if (sltime >> 63)
+			return 0;
+	}
+	return sltime;
+}
+
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 {
-	u64 now, sltime;
+	u64 sltime;
 
 	vcpu->stat.exit_wait_state++;
 
@@ -938,22 +951,20 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP; /* disabled wait */
 	}
 
-	if (!ckc_interrupts_enabled(vcpu)) {
+	if (!ckc_interrupts_enabled(vcpu) &&
+	    !cpu_timer_interrupts_enabled(vcpu)) {
 		VCPU_EVENT(vcpu, 3, "%s", "enabled wait w/o timer");
 		__set_cpu_idle(vcpu);
 		goto no_timer;
 	}
 
-	now = kvm_s390_get_tod_clock_fast(vcpu->kvm);
-	sltime = tod_to_ns(vcpu->arch.sie_block->ckc - now);
-
-	/* underflow */
-	if (vcpu->arch.sie_block->ckc < now)
+	sltime = __calculate_sltime(vcpu);
+	if (!sltime)
 		return 0;
 
 	__set_cpu_idle(vcpu);
 	hrtimer_start(&vcpu->arch.ckc_timer, ktime_set (0, sltime) , HRTIMER_MODE_REL);
-	VCPU_EVENT(vcpu, 4, "enabled wait via clock comparator: %llu ns", sltime);
+	VCPU_EVENT(vcpu, 4, "enabled wait: %llu ns", sltime);
 no_timer:
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	kvm_vcpu_block(vcpu);
@@ -966,13 +977,13 @@ no_timer:
 
 void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 {
-	if (waitqueue_active(&vcpu->wq)) {
+	if (swait_active(&vcpu->wq)) {
 		/*
 		 * The vcpu gave up the cpu voluntarily, mark it as a good
 		 * yield-candidate.
 		 */
 		vcpu->preempted = true;
-		wake_up_interruptible(&vcpu->wq);
+		swake_up(&vcpu->wq);
 		vcpu->stat.halt_wakeup++;
 	}
 }
@@ -980,18 +991,16 @@ void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
 {
 	struct kvm_vcpu *vcpu;
-	u64 now, sltime;
+	u64 sltime;
 
 	vcpu = container_of(timer, struct kvm_vcpu, arch.ckc_timer);
-	now = kvm_s390_get_tod_clock_fast(vcpu->kvm);
-	sltime = tod_to_ns(vcpu->arch.sie_block->ckc - now);
+	sltime = __calculate_sltime(vcpu);
 
 	/*
 	 * If the monotonic clock runs faster than the tod clock we might be
 	 * woken up too early and have to go back to sleep to avoid deadlocks.
 	 */
-	if (vcpu->arch.sie_block->ckc > now &&
-	    hrtimer_forward_now(timer, ns_to_ktime(sltime)))
+	if (sltime && hrtimer_forward_now(timer, ns_to_ktime(sltime)))
 		return HRTIMER_RESTART;
 	kvm_s390_vcpu_wakeup(vcpu);
 	return HRTIMER_NORESTART;
@@ -1059,8 +1068,16 @@ static int __inject_prog(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_PROGRAM_INT,
 				   irq->u.pgm.code, 0);
 
+	if (!(irq->u.pgm.flags & KVM_S390_PGM_FLAGS_ILC_VALID)) {
+		/* auto detection if no valid ILC was given */
+		irq->u.pgm.flags &= ~KVM_S390_PGM_FLAGS_ILC_MASK;
+		irq->u.pgm.flags |= kvm_s390_get_ilen(vcpu);
+		irq->u.pgm.flags |= KVM_S390_PGM_FLAGS_ILC_VALID;
+	}
+
 	if (irq->u.pgm.code == PGM_PER) {
 		li->irq.pgm.code |= PGM_PER;
+		li->irq.pgm.flags = irq->u.pgm.flags;
 		/* only modify PER related information */
 		li->irq.pgm.per_address = irq->u.pgm.per_address;
 		li->irq.pgm.per_code = irq->u.pgm.per_code;
@@ -1069,6 +1086,7 @@ static int __inject_prog(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	} else if (!(irq->u.pgm.code & PGM_PER)) {
 		li->irq.pgm.code = (li->irq.pgm.code & PGM_PER) |
 				   irq->u.pgm.code;
+		li->irq.pgm.flags = irq->u.pgm.flags;
 		/* only modify non-PER information */
 		li->irq.pgm.trans_exc_code = irq->u.pgm.trans_exc_code;
 		li->irq.pgm.mon_code = irq->u.pgm.mon_code;

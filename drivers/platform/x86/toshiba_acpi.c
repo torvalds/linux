@@ -36,6 +36,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
@@ -117,6 +118,7 @@ MODULE_LICENSE("GPL");
 #define HCI_LCD_BRIGHTNESS		0x002a
 #define HCI_WIRELESS			0x0056
 #define HCI_ACCELEROMETER		0x006d
+#define HCI_COOLING_METHOD		0x007f
 #define HCI_KBD_ILLUMINATION		0x0095
 #define HCI_ECO_MODE			0x0097
 #define HCI_ACCELEROMETER2		0x00a6
@@ -186,6 +188,7 @@ struct toshiba_acpi_dev {
 	int usbsc_bat_level;
 	int usbsc_mode_base;
 	int hotkey_event_type;
+	int max_cooling_method;
 
 	unsigned int illumination_supported:1;
 	unsigned int video_supported:1;
@@ -205,6 +208,7 @@ struct toshiba_acpi_dev {
 	unsigned int panel_power_on_supported:1;
 	unsigned int usb_three_supported:1;
 	unsigned int wwan_supported:1;
+	unsigned int cooling_method_supported:1;
 	unsigned int sysfs_created:1;
 	unsigned int special_functions;
 
@@ -216,6 +220,10 @@ struct toshiba_acpi_dev {
 };
 
 static struct toshiba_acpi_dev *toshiba_acpi;
+
+static bool disable_hotkeys;
+module_param(disable_hotkeys, bool, 0444);
+MODULE_PARM_DESC(disable_hotkeys, "Disables the hotkeys activation");
 
 static const struct acpi_device_id toshiba_device_ids[] = {
 	{"TOS6200", 0},
@@ -1192,6 +1200,53 @@ static int toshiba_wwan_set(struct toshiba_acpi_dev *dev, u32 state)
 		return -ENODEV;
 
 	return out[0] == TOS_SUCCESS ? 0 : -EIO;
+}
+
+/* Cooling Method */
+static void toshiba_cooling_method_available(struct toshiba_acpi_dev *dev)
+{
+	u32 in[TCI_WORDS] = { HCI_GET, HCI_COOLING_METHOD, 0, 0, 0, 0 };
+	u32 out[TCI_WORDS];
+	acpi_status status;
+
+	dev->cooling_method_supported = 0;
+	dev->max_cooling_method = 0;
+
+	status = tci_raw(dev, in, out);
+	if (ACPI_FAILURE(status))
+		pr_err("ACPI call to get Cooling Method failed\n");
+
+	if (out[0] != TOS_SUCCESS && out[0] != TOS_SUCCESS2)
+		return;
+
+	dev->cooling_method_supported = 1;
+	dev->max_cooling_method = out[3];
+}
+
+static int toshiba_cooling_method_get(struct toshiba_acpi_dev *dev, u32 *state)
+{
+	u32 result = hci_read(dev, HCI_COOLING_METHOD, state);
+
+	if (result == TOS_FAILURE)
+		pr_err("ACPI call to get Cooling Method failed\n");
+
+	if (result == TOS_NOT_SUPPORTED)
+		return -ENODEV;
+
+	return (result == TOS_SUCCESS || result == TOS_SUCCESS2) ? 0 : -EIO;
+}
+
+static int toshiba_cooling_method_set(struct toshiba_acpi_dev *dev, u32 state)
+{
+	u32 result = hci_write(dev, HCI_COOLING_METHOD, state);
+
+	if (result == TOS_FAILURE)
+		pr_err("ACPI call to get Cooling Method failed\n");
+
+	if (result == TOS_NOT_SUPPORTED)
+		return -ENODEV;
+
+	return (result == TOS_SUCCESS || result == TOS_SUCCESS2) ? 0 : -EIO;
 }
 
 /* Transflective Backlight */
@@ -2239,6 +2294,54 @@ static ssize_t usb_three_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(usb_three);
 
+static ssize_t cooling_method_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
+	int state;
+	int ret;
+
+	ret = toshiba_cooling_method_get(toshiba, &state);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d %d\n", state, toshiba->max_cooling_method);
+}
+
+static ssize_t cooling_method_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
+	int state;
+	int ret;
+
+	ret = kstrtoint(buf, 0, &state);
+	if (ret)
+		return ret;
+
+	/*
+	 * Check for supported values
+	 * Depending on the laptop model, some only support these two:
+	 * 0 - Maximum Performance
+	 * 1 - Battery Optimized
+	 *
+	 * While some others support all three methods:
+	 * 0 - Maximum Performance
+	 * 1 - Performance
+	 * 2 - Battery Optimized
+	 */
+	if (state < 0 || state > toshiba->max_cooling_method)
+		return -EINVAL;
+
+	ret = toshiba_cooling_method_set(toshiba, state);
+	if (ret)
+		return ret;
+
+	return count;
+}
+static DEVICE_ATTR_RW(cooling_method);
+
 static struct attribute *toshiba_attributes[] = {
 	&dev_attr_version.attr,
 	&dev_attr_fan.attr,
@@ -2255,6 +2358,7 @@ static struct attribute *toshiba_attributes[] = {
 	&dev_attr_kbd_function_keys.attr,
 	&dev_attr_panel_power_on.attr,
 	&dev_attr_usb_three.attr,
+	&dev_attr_cooling_method.attr,
 	NULL,
 };
 
@@ -2289,6 +2393,8 @@ static umode_t toshiba_sysfs_is_visible(struct kobject *kobj,
 		exists = (drv->panel_power_on_supported) ? true : false;
 	else if (attr == &dev_attr_usb_three.attr)
 		exists = (drv->usb_three_supported) ? true : false;
+	else if (attr == &dev_attr_cooling_method.attr)
+		exists = (drv->cooling_method_supported) ? true : false;
 
 	return exists ? attr->mode : 0;
 }
@@ -2591,6 +2697,11 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	acpi_handle ec_handle;
 	int error;
 
+	if (disable_hotkeys) {
+		pr_info("Hotkeys disabled by module parameter\n");
+		return 0;
+	}
+
 	if (wmi_has_guid(TOSHIBA_WMI_EVENT_GUID)) {
 		pr_info("WMI event detected, hotkeys will not be monitored\n");
 		return 0;
@@ -2779,6 +2890,8 @@ static void print_supported_features(struct toshiba_acpi_dev *dev)
 		pr_cont(" usb3");
 	if (dev->wwan_supported)
 		pr_cont(" wwan");
+	if (dev->cooling_method_supported)
+		pr_cont(" cooling-method");
 
 	pr_cont("\n");
 }
@@ -2962,6 +3075,8 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 	toshiba_wwan_available(dev);
 	if (dev->wwan_supported)
 		toshiba_acpi_setup_wwan_rfkill(dev);
+
+	toshiba_cooling_method_available(dev);
 
 	print_supported_features(dev);
 

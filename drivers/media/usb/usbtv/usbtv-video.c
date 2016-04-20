@@ -312,20 +312,24 @@ static void usbtv_image_chunk(struct usbtv *usbtv, __be32 *chunk)
 	usbtv_chunk_to_vbuf(frame, &chunk[1], chunk_no, odd);
 	usbtv->chunks_done++;
 
-	/* Last chunk in a frame, signalling an end */
-	if (odd && chunk_no == usbtv->n_chunks-1) {
-		int size = vb2_plane_size(&buf->vb.vb2_buf, 0);
-		enum vb2_buffer_state state = usbtv->chunks_done ==
-						usbtv->n_chunks ?
-						VB2_BUF_STATE_DONE :
-						VB2_BUF_STATE_ERROR;
+	/* Last chunk in a field */
+	if (chunk_no == usbtv->n_chunks-1) {
+		/* Last chunk in a frame, signalling an end */
+		if (odd && !usbtv->last_odd) {
+			int size = vb2_plane_size(&buf->vb.vb2_buf, 0);
+			enum vb2_buffer_state state = usbtv->chunks_done ==
+				usbtv->n_chunks ?
+				VB2_BUF_STATE_DONE :
+				VB2_BUF_STATE_ERROR;
 
-		buf->vb.field = V4L2_FIELD_INTERLACED;
-		buf->vb.sequence = usbtv->sequence++;
-		buf->vb.vb2_buf.timestamp = ktime_get_ns();
-		vb2_set_plane_payload(&buf->vb.vb2_buf, 0, size);
-		vb2_buffer_done(&buf->vb.vb2_buf, state);
-		list_del(&buf->list);
+			buf->vb.field = V4L2_FIELD_INTERLACED;
+			buf->vb.sequence = usbtv->sequence++;
+			buf->vb.vb2_buf.timestamp = ktime_get_ns();
+			vb2_set_plane_payload(&buf->vb.vb2_buf, 0, size);
+			vb2_buffer_done(&buf->vb.vb2_buf, state);
+			list_del(&buf->list);
+		}
+		usbtv->last_odd = odd;
 	}
 
 	spin_unlock_irqrestore(&usbtv->buflock, flags);
@@ -389,6 +393,10 @@ static struct urb *usbtv_setup_iso_transfer(struct usbtv *usbtv)
 	ip->transfer_flags = URB_ISO_ASAP;
 	ip->transfer_buffer = kzalloc(size * USBTV_ISOC_PACKETS,
 						GFP_KERNEL);
+	if (!ip->transfer_buffer) {
+		usb_free_urb(ip);
+		return NULL;
+	}
 	ip->complete = usbtv_iso_cb;
 	ip->number_of_packets = USBTV_ISOC_PACKETS;
 	ip->transfer_buffer_length = size * USBTV_ISOC_PACKETS;
@@ -639,6 +647,7 @@ static int usbtv_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (usbtv->udev == NULL)
 		return -ENODEV;
 
+	usbtv->last_odd = 1;
 	usbtv->sequence = 0;
 	return usbtv_start(usbtv);
 }

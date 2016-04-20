@@ -69,6 +69,14 @@ report::
 --scale::
 	scale/normalize counter values
 
+-d::
+--detailed::
+	print more detailed statistics, can be specified up to 3 times
+
+	   -d:          detailed events, L1 and LLC data cache
+        -d -d:     more detailed events, dTLB and iTLB events
+     -d -d -d:     very detailed events, adding prefetch events
+
 -r::
 --repeat=<n>::
 	repeat command and print average + stddev (max: 100). 0 means forever.
@@ -138,6 +146,10 @@ perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' -- m
 Print count deltas every N milliseconds (minimum: 10ms)
 The overhead percentage could be high in some cases, for instance with small, sub 100ms intervals.  Use with caution.
 	example: 'perf stat -I 1000 -e cycles -a sleep 5'
+
+--metric-only::
+Only print computed metrics. Print them in a single line.
+Don't show any raw values. Not supported with --per-thread.
 
 --per-socket::
 Aggregate counts per processor socket for system-wide mode measurements.  This
@@ -210,6 +222,29 @@ $ perf stat -- make -j
        27075259  cache misses         #       3.335 M/sec
 
  Wall-clock time elapsed:   719.554352 msecs
+
+CSV FORMAT
+----------
+
+With -x, perf stat is able to output a not-quite-CSV format output
+Commas in the output are not put into "". To make it easy to parse
+it is recommended to use a different character like -x \;
+
+The fields are in this order:
+
+	- optional usec time stamp in fractions of second (with -I xxx)
+	- optional CPU, core, or socket identifier
+	- optional number of logical CPUs aggregated
+	- counter value
+	- unit of the counter value or empty
+	- event name
+	- run time of counter
+	- percentage of measurement time the counter was running
+	- optional variance if multiple values are collected with -r
+	- optional metric value
+	- optional unit of metric
+
+Additional metrics may be printed with all earlier fields being empty.
 
 SEE ALSO
 --------

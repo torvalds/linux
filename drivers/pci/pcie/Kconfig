@@ -44,6 +44,7 @@ config PCIEASPM
 	  /sys/module/pcie_aspm/parameters/policy
 
 	  When in doubt, say Y.
+
 config PCIEASPM_DEBUG
 	bool "Debug PCI Express ASPM"
 	depends on PCIEASPM
@@ -58,20 +59,20 @@ choice
 	depends on PCIEASPM
 
 config PCIEASPM_DEFAULT
-        bool "BIOS default"
+	bool "BIOS default"
 	depends on PCIEASPM
 	help
 	  Use the BIOS defaults for PCI Express ASPM.
 
 config PCIEASPM_POWERSAVE
-        bool "Powersave"
+	bool "Powersave"
 	depends on PCIEASPM
 	help
 	  Enable PCI Express ASPM L0s and L1 where possible, even if the
 	  BIOS did not.
 
 config PCIEASPM_PERFORMANCE
-        bool "Performance"
+	bool "Performance"
 	depends on PCIEASPM
 	help
 	  Disable PCI Express ASPM L0s and L1, even if the BIOS enabled them.

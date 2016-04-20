@@ -32,7 +32,6 @@
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
-#include <net/rtnetlink.h>
 #include <net/route.h>
 #include <net/addrconf.h>
 #include <net/l3mdev.h>
@@ -880,6 +879,24 @@ static int vrf_fillinfo(struct sk_buff *skb,
 	return nla_put_u32(skb, IFLA_VRF_TABLE, vrf->tb_id);
 }
 
+static size_t vrf_get_slave_size(const struct net_device *bond_dev,
+				 const struct net_device *slave_dev)
+{
+	return nla_total_size(sizeof(u32));  /* IFLA_VRF_PORT_TABLE */
+}
+
+static int vrf_fill_slave_info(struct sk_buff *skb,
+			       const struct net_device *vrf_dev,
+			       const struct net_device *slave_dev)
+{
+	struct net_vrf *vrf = netdev_priv(vrf_dev);
+
+	if (nla_put_u32(skb, IFLA_VRF_PORT_TABLE, vrf->tb_id))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
 static const struct nla_policy vrf_nl_policy[IFLA_VRF_MAX + 1] = {
 	[IFLA_VRF_TABLE] = { .type = NLA_U32 },
 };
@@ -892,6 +909,9 @@ static struct rtnl_link_ops vrf_link_ops __read_mostly = {
 	.policy		= vrf_nl_policy,
 	.validate	= vrf_validate,
 	.fill_info	= vrf_fillinfo,
+
+	.get_slave_size  = vrf_get_slave_size,
+	.fill_slave_info = vrf_fill_slave_info,
 
 	.newlink	= vrf_newlink,
 	.dellink	= vrf_dellink,

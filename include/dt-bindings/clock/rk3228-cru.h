@@ -29,6 +29,7 @@
 #define SCLK_SDMMC		68
 #define SCLK_SDIO		69
 #define SCLK_EMMC		71
+#define SCLK_TSADC		72
 #define SCLK_UART0		77
 #define SCLK_UART1		78
 #define SCLK_UART2		79
@@ -49,10 +50,17 @@
 #define SCLK_SDMMC_SAMPLE	118
 #define SCLK_SDIO_SAMPLE	119
 #define SCLK_EMMC_SAMPLE	121
+#define SCLK_VOP		122
+#define SCLK_HDMI_HDCP		123
+
+/* dclk gates */
+#define DCLK_VOP		190
+#define DCLK_HDMI_PHY		191
 
 /* aclk gates */
 #define ACLK_DMAC		194
 #define ACLK_PERI		210
+#define ACLK_VOP		211
 
 /* pclk gates */
 #define PCLK_GPIO0		320
@@ -68,11 +76,15 @@
 #define PCLK_UART0		341
 #define PCLK_UART1		342
 #define PCLK_UART2		343
+#define PCLK_TSADC		344
 #define PCLK_PWM		350
 #define PCLK_TIMER		353
 #define PCLK_PERI		363
+#define PCLK_HDMI_CTRL		364
+#define PCLK_HDMI_PHY		365
 
 /* hclk gates */
+#define HCLK_VOP		452
 #define HCLK_NANDC		453
 #define HCLK_SDMMC		456
 #define HCLK_SDIO		457

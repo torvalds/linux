@@ -61,8 +61,8 @@ static int __init uefi_init(void)
 	char vendor[100] = "unknown";
 	int i, retval;
 
-	efi.systab = early_memremap(efi_system_table,
-				    sizeof(efi_system_table_t));
+	efi.systab = early_memremap_ro(efi_system_table,
+				       sizeof(efi_system_table_t));
 	if (efi.systab == NULL) {
 		pr_warn("Unable to map EFI system table.\n");
 		return -ENOMEM;
@@ -86,8 +86,8 @@ static int __init uefi_init(void)
 			efi.systab->hdr.revision & 0xffff);
 
 	/* Show what we know for posterity */
-	c16 = early_memremap(efi_to_phys(efi.systab->fw_vendor),
-			     sizeof(vendor) * sizeof(efi_char16_t));
+	c16 = early_memremap_ro(efi_to_phys(efi.systab->fw_vendor),
+				sizeof(vendor) * sizeof(efi_char16_t));
 	if (c16) {
 		for (i = 0; i < (int) sizeof(vendor) - 1 && *c16; ++i)
 			vendor[i] = c16[i];
@@ -100,8 +100,8 @@ static int __init uefi_init(void)
 		efi.systab->hdr.revision & 0xffff, vendor);
 
 	table_size = sizeof(efi_config_table_64_t) * efi.systab->nr_tables;
-	config_tables = early_memremap(efi_to_phys(efi.systab->tables),
-				       table_size);
+	config_tables = early_memremap_ro(efi_to_phys(efi.systab->tables),
+					  table_size);
 	if (config_tables == NULL) {
 		pr_warn("Unable to map EFI config table array.\n");
 		retval = -ENOMEM;
@@ -185,7 +185,7 @@ void __init efi_init(void)
 	efi_system_table = params.system_table;
 
 	memmap.phys_map = params.mmap;
-	memmap.map = early_memremap(params.mmap, params.mmap_size);
+	memmap.map = early_memremap_ro(params.mmap, params.mmap_size);
 	if (memmap.map == NULL) {
 		/*
 		* If we are booting via UEFI, the UEFI memory map is the only
@@ -203,7 +203,19 @@ void __init efi_init(void)
 
 	reserve_regions();
 	early_memunmap(memmap.map, params.mmap_size);
-	memblock_mark_nomap(params.mmap & PAGE_MASK,
-			    PAGE_ALIGN(params.mmap_size +
-				       (params.mmap & ~PAGE_MASK)));
+
+	if (IS_ENABLED(CONFIG_ARM)) {
+		/*
+		 * ARM currently does not allow ioremap_cache() to be called on
+		 * memory regions that are covered by struct page. So remove the
+		 * UEFI memory map from the linear mapping.
+		 */
+		memblock_mark_nomap(params.mmap & PAGE_MASK,
+				    PAGE_ALIGN(params.mmap_size +
+					       (params.mmap & ~PAGE_MASK)));
+	} else {
+		memblock_reserve(params.mmap & PAGE_MASK,
+				 PAGE_ALIGN(params.mmap_size +
+					    (params.mmap & ~PAGE_MASK)));
+	}
 }

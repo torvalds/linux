@@ -44,8 +44,8 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Marvell Armada 385 GP";
-	compatible = "marvell,a385-gp", "marvell,armada388", "marvell,armada380";
+	model = "Marvell Armada 388 DB-88F6820-GP";
+	compatible = "marvell,a388-gp", "marvell,armada388", "marvell,armada380";
 
 	chosen {
 		stdout-path = "serial0:115200n8";
@@ -60,7 +60,8 @@
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
 			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
 			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
-			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000>;
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
 
 		internal-regs {
 			spi@10600 {
@@ -133,6 +134,9 @@
 				status = "okay";
 				phy = <&phy1>;
 				phy-mode = "rgmii-id";
+				buffer-manager = <&bm>;
+				bm,pool-long = <2>;
+				bm,pool-short = <3>;
 			};
 
 			/* CON4 */
@@ -152,6 +156,9 @@
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
+				buffer-manager = <&bm>;
+				bm,pool-long = <0>;
+				bm,pool-short = <1>;
 			};
 
 
@@ -184,6 +191,10 @@
 					reg = <1>;
 					target-supply = <&reg_5v_sata1>;
 				};
+			};
+
+			bm@c8000 {
+				status = "okay";
 			};
 
 			sata@e0000 {
@@ -229,15 +240,19 @@
 
 			/* CON5 */
 			usb3@f0000 {
-				vcc-supply = <&reg_usb2_1_vbus>;
+				usb-phy = <&usb2_1_phy>;
 				status = "okay";
 			};
 
 			/* CON7 */
 			usb3@f8000 {
-				vcc-supply = <&reg_usb3_vbus>;
+				usb-phy = <&usb3_phy>;
 				status = "okay";
 			};
+		};
+
+		bm-bppi {
+			status = "okay";
 		};
 
 		pcie-controller {
@@ -273,13 +288,22 @@
 		};
 	};
 
+	usb2_1_phy: usb2_1_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_usb2_1_vbus>;
+	};
+
+	usb3_phy: usb3_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_usb3_vbus>;
+	};
+
 	reg_usb3_vbus: usb3-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb3-vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		regulator-always-on;
 		gpio = <&expander1 15 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -299,7 +323,6 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		regulator-always-on;
 		gpio = <&expander0 4 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -309,7 +332,7 @@
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
-		regulator-always-on;
+		regulator-boot-on;
 		gpio = <&expander0 2 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -318,7 +341,6 @@
 		regulator-name = "v5.0-sata0";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata0>;
 	};
 
@@ -327,7 +349,6 @@
 		regulator-name = "v12.0-sata0";
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata0>;
 	};
 
@@ -337,7 +358,7 @@
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
-		regulator-always-on;
+		regulator-boot-on;
 		gpio = <&expander0 3 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -346,7 +367,6 @@
 		regulator-name = "v5.0-sata1";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata1>;
 	};
 
@@ -355,7 +375,6 @@
 		regulator-name = "v12.0-sata1";
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata1>;
 	};
 
@@ -363,7 +382,7 @@
 		compatible = "regulator-fixed";
 		regulator-name = "pwr_en_sata2";
 		enable-active-high;
-		regulator-always-on;
+		regulator-boot-on;
 		gpio = <&expander0 11 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -372,7 +391,6 @@
 		regulator-name = "v5.0-sata2";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata2>;
 	};
 
@@ -381,7 +399,6 @@
 		regulator-name = "v12.0-sata2";
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata2>;
 	};
 
@@ -389,7 +406,7 @@
 		compatible = "regulator-fixed";
 		regulator-name = "pwr_en_sata3";
 		enable-active-high;
-		regulator-always-on;
+		regulator-boot-on;
 		gpio = <&expander0 12 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -398,7 +415,6 @@
 		regulator-name = "v5.0-sata3";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata3>;
 	};
 
@@ -407,7 +423,6 @@
 		regulator-name = "v12.0-sata3";
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata3>;
 	};
 };

@@ -23,6 +23,7 @@
 #include <asm/types.h>
 
 /* Hyp Configuration Register (HCR) bits */
+#define HCR_E2H		(UL(1) << 34)
 #define HCR_ID		(UL(1) << 33)
 #define HCR_CD		(UL(1) << 32)
 #define HCR_RW_SHIFT	31
@@ -61,7 +62,7 @@
 
 /*
  * The bits we set in HCR:
- * RW:		64bit by default, can be overriden for 32bit VMs
+ * RW:		64bit by default, can be overridden for 32bit VMs
  * TAC:		Trap ACTLR
  * TSC:		Trap SMC
  * TVM:		Trap VM ops (until M+C set in SCTLR_EL1)
@@ -81,7 +82,7 @@
 			 HCR_AMO | HCR_SWIO | HCR_TIDCP | HCR_RW)
 #define HCR_VIRT_EXCP_MASK (HCR_VA | HCR_VI | HCR_VF)
 #define HCR_INT_OVERRIDE   (HCR_FMO | HCR_IMO)
-
+#define HCR_HOST_VHE_FLAGS (HCR_RW | HCR_TGE | HCR_E2H)
 
 /* Hyp System Control Register (SCTLR_EL2) bits */
 #define SCTLR_EL2_EE	(1 << 25)
@@ -123,7 +124,9 @@
 #define VTCR_EL2_SL0_LVL1	(1 << 6)
 #define VTCR_EL2_T0SZ_MASK	0x3f
 #define VTCR_EL2_T0SZ_40B	24
-#define VTCR_EL2_VS		19
+#define VTCR_EL2_VS_SHIFT	19
+#define VTCR_EL2_VS_8BIT	(0 << VTCR_EL2_VS_SHIFT)
+#define VTCR_EL2_VS_16BIT	(1 << VTCR_EL2_VS_SHIFT)
 
 /*
  * We configure the Stage-2 page tables to always restrict the IPA space to be
@@ -148,8 +151,7 @@
  */
 #define VTCR_EL2_FLAGS		(VTCR_EL2_TG0_64K | VTCR_EL2_SH0_INNER | \
 				 VTCR_EL2_ORGN0_WBWA | VTCR_EL2_IRGN0_WBWA | \
-				 VTCR_EL2_SL0_LVL1 | VTCR_EL2_T0SZ_40B | \
-				 VTCR_EL2_RES1)
+				 VTCR_EL2_SL0_LVL1 | VTCR_EL2_RES1)
 #define VTTBR_X		(38 - VTCR_EL2_T0SZ_40B)
 #else
 /*
@@ -160,8 +162,7 @@
  */
 #define VTCR_EL2_FLAGS		(VTCR_EL2_TG0_4K | VTCR_EL2_SH0_INNER | \
 				 VTCR_EL2_ORGN0_WBWA | VTCR_EL2_IRGN0_WBWA | \
-				 VTCR_EL2_SL0_LVL1 | VTCR_EL2_T0SZ_40B | \
-				 VTCR_EL2_RES1)
+				 VTCR_EL2_SL0_LVL1 | VTCR_EL2_RES1)
 #define VTTBR_X		(37 - VTCR_EL2_T0SZ_40B)
 #endif
 
@@ -215,5 +216,8 @@
 	ECN(BREAKPT_LOW), ECN(BREAKPT_CUR), ECN(SOFTSTP_LOW), \
 	ECN(SOFTSTP_CUR), ECN(WATCHPT_LOW), ECN(WATCHPT_CUR), \
 	ECN(BKPT32), ECN(VECTOR32), ECN(BRK64)
+
+#define CPACR_EL1_FPEN		(3 << 20)
+#define CPACR_EL1_TTA		(1 << 28)
 
 #endif /* __ARM64_KVM_ARM_H__ */

@@ -276,7 +276,7 @@ static const struct file_operations fops_wmi_services = {
 	.llseek = default_llseek,
 };
 
-static void ath10k_debug_fw_stats_pdevs_free(struct list_head *head)
+static void ath10k_fw_stats_pdevs_free(struct list_head *head)
 {
 	struct ath10k_fw_stats_pdev *i, *tmp;
 
@@ -286,7 +286,7 @@ static void ath10k_debug_fw_stats_pdevs_free(struct list_head *head)
 	}
 }
 
-static void ath10k_debug_fw_stats_vdevs_free(struct list_head *head)
+static void ath10k_fw_stats_vdevs_free(struct list_head *head)
 {
 	struct ath10k_fw_stats_vdev *i, *tmp;
 
@@ -296,7 +296,7 @@ static void ath10k_debug_fw_stats_vdevs_free(struct list_head *head)
 	}
 }
 
-static void ath10k_debug_fw_stats_peers_free(struct list_head *head)
+static void ath10k_fw_stats_peers_free(struct list_head *head)
 {
 	struct ath10k_fw_stats_peer *i, *tmp;
 
@@ -310,16 +310,16 @@ static void ath10k_debug_fw_stats_reset(struct ath10k *ar)
 {
 	spin_lock_bh(&ar->data_lock);
 	ar->debug.fw_stats_done = false;
-	ath10k_debug_fw_stats_pdevs_free(&ar->debug.fw_stats.pdevs);
-	ath10k_debug_fw_stats_vdevs_free(&ar->debug.fw_stats.vdevs);
-	ath10k_debug_fw_stats_peers_free(&ar->debug.fw_stats.peers);
+	ath10k_fw_stats_pdevs_free(&ar->debug.fw_stats.pdevs);
+	ath10k_fw_stats_vdevs_free(&ar->debug.fw_stats.vdevs);
+	ath10k_fw_stats_peers_free(&ar->debug.fw_stats.peers);
 	spin_unlock_bh(&ar->data_lock);
 }
 
 void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_fw_stats stats = {};
-	bool is_start, is_started, is_end;
+	bool is_start, is_started, is_end, peer_stats_svc;
 	size_t num_peers;
 	size_t num_vdevs;
 	int ret;
@@ -347,8 +347,14 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 	 *     delivered which is treated as end-of-data and is itself discarded
 	 */
 
+	peer_stats_svc = test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map);
+	if (peer_stats_svc)
+		ath10k_sta_update_rx_duration(ar, &stats.peers);
+
 	if (ar->debug.fw_stats_done) {
-		ath10k_warn(ar, "received unsolicited stats update event\n");
+		if (!peer_stats_svc)
+			ath10k_warn(ar, "received unsolicited stats update event\n");
+
 		goto free;
 	}
 
@@ -372,11 +378,13 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 			/* Although this is unlikely impose a sane limit to
 			 * prevent firmware from DoS-ing the host.
 			 */
+			ath10k_fw_stats_peers_free(&ar->debug.fw_stats.peers);
 			ath10k_warn(ar, "dropping fw peer stats\n");
 			goto free;
 		}
 
 		if (num_vdevs >= BITS_PER_LONG) {
+			ath10k_fw_stats_vdevs_free(&ar->debug.fw_stats.vdevs);
 			ath10k_warn(ar, "dropping fw vdev stats\n");
 			goto free;
 		}
@@ -391,9 +399,9 @@ free:
 	/* In some cases lists have been spliced and cleared. Free up
 	 * resources if that is not the case.
 	 */
-	ath10k_debug_fw_stats_pdevs_free(&stats.pdevs);
-	ath10k_debug_fw_stats_vdevs_free(&stats.vdevs);
-	ath10k_debug_fw_stats_peers_free(&stats.peers);
+	ath10k_fw_stats_pdevs_free(&stats.pdevs);
+	ath10k_fw_stats_vdevs_free(&stats.vdevs);
+	ath10k_fw_stats_peers_free(&stats.peers);
 
 	spin_unlock_bh(&ar->data_lock);
 }
@@ -2106,6 +2114,7 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 	struct ath10k *ar = file->private_data;
 	char buf[32];
 	size_t buf_size;
+	int ret = 0;
 	bool val;
 
 	buf_size = min(count, (sizeof(buf) - 1));
@@ -2119,6 +2128,12 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 
 	mutex_lock(&ar->conf_mutex);
 
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_RESTARTED) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
 	if (!(test_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags) ^ val))
 		goto exit;
 
@@ -2127,17 +2142,15 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 	else
 		clear_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags);
 
-	if (ar->state != ATH10K_STATE_ON)
-		goto exit;
-
 	ath10k_info(ar, "restarting firmware due to btcoex change");
 
 	queue_work(ar->workqueue, &ar->restart_work);
+	ret = count;
 
 exit:
 	mutex_unlock(&ar->conf_mutex);
 
-	return count;
+	return ret;
 }
 
 static ssize_t ath10k_read_btcoex(struct file *file, char __user *ubuf,
@@ -2175,9 +2188,6 @@ static ssize_t ath10k_debug_fw_checksums_read(struct file *file,
 		return -ENOMEM;
 
 	mutex_lock(&ar->conf_mutex);
-
-	if (len > buf_len)
-		len = buf_len;
 
 	len += scnprintf(buf + len, buf_len - len,
 			 "firmware-N.bin\t\t%08x\n",

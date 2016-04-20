@@ -93,6 +93,8 @@ struct regulator_linear_range {
  * @get_current_limit: Get the configured limit for a current-limited regulator.
  * @set_input_current_limit: Configure an input limit.
  *
+ * @set_active_discharge: Set active discharge enable/disable of regulators.
+ *
  * @set_mode: Set the configured operating mode for the regulator.
  * @get_mode: Get the configured operating mode for the regulator.
  * @get_status: Return actual (not as-configured) status of regulator, as a
@@ -149,6 +151,7 @@ struct regulator_ops {
 
 	int (*set_input_current_limit) (struct regulator_dev *, int lim_uA);
 	int (*set_over_current_protection) (struct regulator_dev *);
+	int (*set_active_discharge) (struct regulator_dev *, bool enable);
 
 	/* enable/disable regulator */
 	int (*enable) (struct regulator_dev *);
@@ -266,6 +269,14 @@ enum regulator_type {
  * @bypass_mask: Mask for control when using regmap set_bypass
  * @bypass_val_on: Enabling value for control when using regmap set_bypass
  * @bypass_val_off: Disabling value for control when using regmap set_bypass
+ * @active_discharge_off: Enabling value for control when using regmap
+ *			  set_active_discharge
+ * @active_discharge_on: Disabling value for control when using regmap
+ *			 set_active_discharge
+ * @active_discharge_mask: Mask for control when using regmap
+ *			   set_active_discharge
+ * @active_discharge_reg: Register for control when using regmap
+ *			  set_active_discharge
  *
  * @enable_time: Time taken for initial enable of regulator (in uS).
  * @off_on_delay: guard time (in uS), before re-enabling a regulator
@@ -315,6 +326,10 @@ struct regulator_desc {
 	unsigned int bypass_mask;
 	unsigned int bypass_val_on;
 	unsigned int bypass_val_off;
+	unsigned int active_discharge_on;
+	unsigned int active_discharge_off;
+	unsigned int active_discharge_mask;
+	unsigned int active_discharge_reg;
 
 	unsigned int enable_time;
 
@@ -447,6 +462,8 @@ int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 int regulator_set_bypass_regmap(struct regulator_dev *rdev, bool enable);
 int regulator_get_bypass_regmap(struct regulator_dev *rdev, bool *enable);
 
+int regulator_set_active_discharge_regmap(struct regulator_dev *rdev,
+					  bool enable);
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
 
 #endif

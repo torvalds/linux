@@ -63,6 +63,10 @@ bool amdgpu_has_atpx(void) {
 	return amdgpu_atpx_priv.atpx_detected;
 }
 
+bool amdgpu_has_atpx_dgpu_power_cntl(void) {
+	return amdgpu_atpx_priv.atpx.functions.power_cntl;
+}
+
 /**
  * amdgpu_atpx_call - call an ATPX method
  *
@@ -142,10 +146,6 @@ static void amdgpu_atpx_parse_functions(struct amdgpu_atpx_functions *f, u32 mas
  */
 static int amdgpu_atpx_validate(struct amdgpu_atpx *atpx)
 {
-	/* make sure required functions are enabled */
-	/* dGPU power control is required */
-	atpx->functions.power_cntl = true;
-
 	if (atpx->functions.px_params) {
 		union acpi_object *info;
 		struct atpx_px_params output;
@@ -552,13 +552,14 @@ static bool amdgpu_atpx_detect(void)
 void amdgpu_register_atpx_handler(void)
 {
 	bool r;
+	enum vga_switcheroo_handler_flags_t handler_flags = 0;
 
 	/* detect if we have any ATPX + 2 VGA in the system */
 	r = amdgpu_atpx_detect();
 	if (!r)
 		return;
 
-	vga_switcheroo_register_handler(&amdgpu_atpx_handler);
+	vga_switcheroo_register_handler(&amdgpu_atpx_handler, handler_flags);
 }
 
 /**

@@ -116,7 +116,7 @@ static void rockchip_cpuclk_set_dividers(struct rockchip_cpuclk *cpuclk,
 
 		pr_debug("%s: setting reg 0x%x to 0x%x\n",
 			 __func__, clksel->reg, clksel->val);
-		writel(clksel->val , cpuclk->reg_base + clksel->reg);
+		writel(clksel->val, cpuclk->reg_base + clksel->reg);
 	}
 }
 
@@ -290,14 +290,14 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 		pr_err("%s: could not lookup parent clock %s\n",
 		       __func__, parent_names[0]);
 		ret = -EINVAL;
-		goto free_cpuclk;
+		goto free_alt_parent;
 	}
 
 	ret = clk_notifier_register(clk, &cpuclk->clk_nb);
 	if (ret) {
 		pr_err("%s: failed to register clock notifier for %s\n",
 				__func__, name);
-		goto free_cpuclk;
+		goto free_alt_parent;
 	}
 
 	if (nrates > 0) {
@@ -326,6 +326,8 @@ free_rate_table:
 	kfree(cpuclk->rate_table);
 unregister_notifier:
 	clk_notifier_unregister(clk, &cpuclk->clk_nb);
+free_alt_parent:
+	clk_disable_unprepare(cpuclk->alt_parent);
 free_cpuclk:
 	kfree(cpuclk);
 	return ERR_PTR(ret);

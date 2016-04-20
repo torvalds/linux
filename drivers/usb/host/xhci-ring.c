@@ -3558,12 +3558,11 @@ static int count_isoc_trbs_needed(struct xhci_hcd *xhci,
  * zero.  Only xHCI 1.0 host controllers support this field.
  */
 static unsigned int xhci_get_burst_count(struct xhci_hcd *xhci,
-		struct usb_device *udev,
 		struct urb *urb, unsigned int total_packet_count)
 {
 	unsigned int max_burst;
 
-	if (xhci->hci_version < 0x100 || udev->speed != USB_SPEED_SUPER)
+	if (xhci->hci_version < 0x100 || urb->dev->speed < USB_SPEED_SUPER)
 		return 0;
 
 	max_burst = urb->ep->ss_ep_comp.bMaxBurst;
@@ -3579,7 +3578,6 @@ static unsigned int xhci_get_burst_count(struct xhci_hcd *xhci,
  * contain 1 to (bMaxBurst + 1) packets.
  */
 static unsigned int xhci_get_last_burst_packet_count(struct xhci_hcd *xhci,
-		struct usb_device *udev,
 		struct urb *urb, unsigned int total_packet_count)
 {
 	unsigned int max_burst;
@@ -3588,8 +3586,7 @@ static unsigned int xhci_get_last_burst_packet_count(struct xhci_hcd *xhci,
 	if (xhci->hci_version < 0x100)
 		return 0;
 
-	switch (udev->speed) {
-	case USB_SPEED_SUPER:
+	if (urb->dev->speed >= USB_SPEED_SUPER) {
 		/* bMaxBurst is zero based: 0 means 1 packet per burst */
 		max_burst = urb->ep->ss_ep_comp.bMaxBurst;
 		residue = total_packet_count % (max_burst + 1);
@@ -3599,11 +3596,10 @@ static unsigned int xhci_get_last_burst_packet_count(struct xhci_hcd *xhci,
 		if (residue == 0)
 			return max_burst;
 		return residue - 1;
-	default:
-		if (total_packet_count == 0)
-			return 0;
-		return total_packet_count - 1;
 	}
+	if (total_packet_count == 0)
+		return 0;
+	return total_packet_count - 1;
 }
 
 /*
@@ -3714,6 +3710,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	int i, j;
 	bool more_trbs_coming;
 	struct xhci_virt_ep *xep;
+	int frame_id;
 
 	xep = &xhci->devs[slot_id]->eps[ep_index];
 	ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;
@@ -3723,33 +3720,31 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		xhci_dbg(xhci, "Isoc URB with zero packets?\n");
 		return -EINVAL;
 	}
-
 	start_addr = (u64) urb->transfer_dma;
 	start_trb = &ep_ring->enqueue->generic;
 	start_cycle = ep_ring->cycle_state;
 
 	urb_priv = urb->hcpriv;
-	/* Queue the first TRB, even if it's zero-length */
+	/* Queue the TRBs for each TD, even if they are zero-length */
 	for (i = 0; i < num_tds; i++) {
-		unsigned int total_packet_count;
-		unsigned int burst_count;
-		unsigned int residue;
+		unsigned int total_pkt_count, max_pkt;
+		unsigned int burst_count, last_burst_pkt_count;
+		u32 sia_frame_id;
 
 		first_trb = true;
 		running_total = 0;
 		addr = start_addr + urb->iso_frame_desc[i].offset;
 		td_len = urb->iso_frame_desc[i].length;
 		td_remain_len = td_len;
-		total_packet_count = DIV_ROUND_UP(td_len,
-				GET_MAX_PACKET(
-					usb_endpoint_maxp(&urb->ep->desc)));
+		max_pkt = GET_MAX_PACKET(usb_endpoint_maxp(&urb->ep->desc));
+		total_pkt_count = DIV_ROUND_UP(td_len, max_pkt);
+
 		/* A zero-length transfer still involves at least one packet. */
-		if (total_packet_count == 0)
-			total_packet_count++;
-		burst_count = xhci_get_burst_count(xhci, urb->dev, urb,
-				total_packet_count);
-		residue = xhci_get_last_burst_packet_count(xhci,
-				urb->dev, urb, total_packet_count);
+		if (total_pkt_count == 0)
+			total_pkt_count++;
+		burst_count = xhci_get_burst_count(xhci, urb, total_pkt_count);
+		last_burst_pkt_count = xhci_get_last_burst_packet_count(xhci,
+							urb, total_pkt_count);
 
 		trbs_per_td = count_isoc_trbs_needed(xhci, urb, i);
 
@@ -3760,68 +3755,57 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				return ret;
 			goto cleanup;
 		}
-
 		td = urb_priv->td[i];
+
+		/* use SIA as default, if frame id is used overwrite it */
+		sia_frame_id = TRB_SIA;
+		if (!(urb->transfer_flags & URB_ISO_ASAP) &&
+		    HCC_CFC(xhci->hcc_params)) {
+			frame_id = xhci_get_isoc_frame_id(xhci, urb, i);
+			if (frame_id >= 0)
+				sia_frame_id = TRB_FRAME_ID(frame_id);
+		}
+		/*
+		 * Set isoc specific data for the first TRB in a TD.
+		 * Prevent HW from getting the TRBs by keeping the cycle state
+		 * inverted in the first TDs isoc TRB.
+		 */
+		field = TRB_TYPE(TRB_ISOC) |
+			TRB_TLBPC(last_burst_pkt_count) |
+			sia_frame_id |
+			(i ? ep_ring->cycle_state : !start_cycle);
+
+		/* xhci 1.1 with ETE uses TD_Size field for TBC, old is Rsvdz */
+		if (!xep->use_extended_tbc)
+			field |= TRB_TBC(burst_count);
+
+		/* fill the rest of the TRB fields, and remaining normal TRBs */
 		for (j = 0; j < trbs_per_td; j++) {
-			int frame_id = 0;
 			u32 remainder = 0;
-			field = 0;
 
-			if (first_trb) {
-				field = TRB_TBC(burst_count) |
-					TRB_TLBPC(residue);
-				/* Queue the isoc TRB */
-				field |= TRB_TYPE(TRB_ISOC);
-
-				/* Calculate Frame ID and SIA fields */
-				if (!(urb->transfer_flags & URB_ISO_ASAP) &&
-						HCC_CFC(xhci->hcc_params)) {
-					frame_id = xhci_get_isoc_frame_id(xhci,
-									  urb,
-									  i);
-					if (frame_id >= 0)
-						field |= TRB_FRAME_ID(frame_id);
-					else
-						field |= TRB_SIA;
-				} else
-					field |= TRB_SIA;
-
-				if (i == 0) {
-					if (start_cycle == 0)
-						field |= 0x1;
-				} else
-					field |= ep_ring->cycle_state;
-				first_trb = false;
-			} else {
-				/* Queue other normal TRBs */
-				field |= TRB_TYPE(TRB_NORMAL);
-				field |= ep_ring->cycle_state;
-			}
+			/* only first TRB is isoc, overwrite otherwise */
+			if (!first_trb)
+				field = TRB_TYPE(TRB_NORMAL) |
+					ep_ring->cycle_state;
 
 			/* Only set interrupt on short packet for IN EPs */
 			if (usb_urb_dir_in(urb))
 				field |= TRB_ISP;
 
-			/* Chain all the TRBs together; clear the chain bit in
-			 * the last TRB to indicate it's the last TRB in the
-			 * chain.
-			 */
+			/* Set the chain bit for all except the last TRB  */
 			if (j < trbs_per_td - 1) {
-				field |= TRB_CHAIN;
 				more_trbs_coming = true;
+				field |= TRB_CHAIN;
 			} else {
+				more_trbs_coming = false;
 				td->last_trb = ep_ring->enqueue;
 				field |= TRB_IOC;
-				if (xhci->hci_version == 0x100 &&
-						!(xhci->quirks &
-							XHCI_AVOID_BEI)) {
-					/* Set BEI bit except for the last td */
-					if (i < num_tds - 1)
-						field |= TRB_BEI;
-				}
-				more_trbs_coming = false;
+				/* set BEI, except for the last TD */
+				if (xhci->hci_version >= 0x100 &&
+				    !(xhci->quirks & XHCI_AVOID_BEI) &&
+				    i < num_tds - 1)
+					field |= TRB_BEI;
 			}
-
 			/* Calculate TRB length */
 			trb_buff_len = TRB_MAX_BUFF_SIZE -
 				(addr & ((1 << TRB_MAX_BUFF_SHIFT) - 1));
@@ -3834,8 +3818,14 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 						   urb, trbs_per_td - j - 1);
 
 			length_field = TRB_LEN(trb_buff_len) |
-				TRB_TD_SIZE(remainder) |
 				TRB_INTR_TARGET(0);
+
+			/* xhci 1.1 with ETE uses TD Size field for TBC */
+			if (first_trb && xep->use_extended_tbc)
+				length_field |= TRB_TD_SIZE_TBC(burst_count);
+			else
+				length_field |= TRB_TD_SIZE(remainder);
+			first_trb = false;
 
 			queue_trb(xhci, ep_ring, more_trbs_coming,
 				lower_32_bits(addr),
@@ -4014,7 +4004,8 @@ static int queue_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
 	int reserved_trbs = xhci->cmd_ring_reserved_trbs;
 	int ret;
 
-	if (xhci->xhc_state) {
+	if ((xhci->xhc_state & XHCI_STATE_DYING) ||
+		(xhci->xhc_state & XHCI_STATE_HALTED)) {
 		xhci_dbg(xhci, "xHCI dying or halted, can't queue_command\n");
 		return -ESHUTDOWN;
 	}

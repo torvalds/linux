@@ -62,8 +62,8 @@ struct static_lustre_uintvalue_attr {
 };
 
 static ssize_t static_uintvalue_show(struct kobject *kobj,
-				    struct attribute *attr,
-				    char *buf)
+				     struct attribute *attr,
+				     char *buf)
 {
 	struct static_lustre_uintvalue_attr *lattr = (void *)attr;
 
@@ -71,8 +71,8 @@ static ssize_t static_uintvalue_show(struct kobject *kobj,
 }
 
 static ssize_t static_uintvalue_store(struct kobject *kobj,
-				     struct attribute *attr,
-				     const char *buffer, size_t count)
+				      struct attribute *attr,
+				      const char *buffer, size_t count)
 {
 	struct static_lustre_uintvalue_attr *lattr  = (void *)attr;
 	int rc;
@@ -100,7 +100,7 @@ static ssize_t max_dirty_mb_show(struct kobject *kobj, struct attribute *attr,
 				 char *buf)
 {
 	return sprintf(buf, "%ul\n",
-			obd_max_dirty_pages / (1 << (20 - PAGE_CACHE_SHIFT)));
+			obd_max_dirty_pages / (1 << (20 - PAGE_SHIFT)));
 }
 
 static ssize_t max_dirty_mb_store(struct kobject *kobj, struct attribute *attr,
@@ -113,14 +113,14 @@ static ssize_t max_dirty_mb_store(struct kobject *kobj, struct attribute *attr,
 	if (rc)
 		return rc;
 
-	val *= 1 << (20 - PAGE_CACHE_SHIFT); /* convert to pages */
+	val *= 1 << (20 - PAGE_SHIFT); /* convert to pages */
 
 	if (val > ((totalram_pages / 10) * 9)) {
 		/* Somebody wants to assign too much memory to dirty pages */
 		return -EINVAL;
 	}
 
-	if (val < 4 << (20 - PAGE_CACHE_SHIFT)) {
+	if (val < 4 << (20 - PAGE_SHIFT)) {
 		/* Less than 4 Mb for dirty cache is also bad */
 		return -EINVAL;
 	}

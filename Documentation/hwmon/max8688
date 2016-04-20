@@ -13,7 +13,7 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-This driver supports hardware montoring for Maxim MAX8688 Digital Power-Supply
+This driver supports hardware monitoring for Maxim MAX8688 Digital Power-Supply
 Controller/Monitor with PMBus Interface.
 
 The driver is a client driver to the core PMBus driver. Please see

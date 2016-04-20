@@ -38,6 +38,9 @@ Optional properties:
 			  defined or a value in the array is "0" then it is assumed
 			  that the frequency is set by the parent clock or a
 			  fixed rate clock source.
+-lanes-per-direction	: number of lanes available per direction - either 1 or 2.
+			  Note that it is assume same number of lanes is used both
+			  directions at once. If not specified, default is 2 lanes per direction.
 
 Note: If above properties are not defined it can be assumed that the supply
 regulators or clocks are always on.

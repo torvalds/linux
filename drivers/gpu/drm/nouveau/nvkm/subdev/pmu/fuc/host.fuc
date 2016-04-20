@@ -98,8 +98,7 @@ host_send:
 // $r0  - zero
 host_recv:
 	// message from intr handler == HOST->PWR comms pending
-	mov $r1 (PROC_KERN & 0x0000ffff)
-	sethi $r1 (PROC_KERN & 0xffff0000)
+	imm32($r1, PROC_KERN)
 	cmp b32 $r14 $r1
 	bra e #host_send
 

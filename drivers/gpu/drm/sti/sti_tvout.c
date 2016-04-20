@@ -17,6 +17,7 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "sti_crtc.h"
+#include "sti_vtg.h"
 
 /* glue registers */
 #define TVO_CSC_MAIN_M0                  0x000
@@ -85,19 +86,7 @@
 #define TVO_VIP_SEL_INPUT_BYPASSED       1
 
 #define TVO_SYNC_MAIN_VTG_SET_REF        0x00
-#define TVO_SYNC_MAIN_VTG_SET_1          0x01
-#define TVO_SYNC_MAIN_VTG_SET_2          0x02
-#define TVO_SYNC_MAIN_VTG_SET_3          0x03
-#define TVO_SYNC_MAIN_VTG_SET_4          0x04
-#define TVO_SYNC_MAIN_VTG_SET_5          0x05
-#define TVO_SYNC_MAIN_VTG_SET_6          0x06
 #define TVO_SYNC_AUX_VTG_SET_REF         0x10
-#define TVO_SYNC_AUX_VTG_SET_1           0x11
-#define TVO_SYNC_AUX_VTG_SET_2           0x12
-#define TVO_SYNC_AUX_VTG_SET_3           0x13
-#define TVO_SYNC_AUX_VTG_SET_4           0x14
-#define TVO_SYNC_AUX_VTG_SET_5           0x15
-#define TVO_SYNC_AUX_VTG_SET_6           0x16
 
 #define TVO_SYNC_HD_DCS_SHIFT            8
 
@@ -105,6 +94,8 @@
 #define TVO_SYNC_DVO_PAD_VSYNC_SHIFT     16
 
 #define ENCODER_CRTC_MASK                (BIT(0) | BIT(1))
+
+#define TVO_MIN_HD_HEIGHT                720
 
 /* enum listing the supported output data format */
 enum sti_tvout_video_out_type {
@@ -269,6 +260,31 @@ static void tvout_vip_set_in_vid_fmt(struct sti_tvout *tvout,
 }
 
 /**
+ * Set preformatter matrix
+ *
+ * @tvout: tvout structure
+ * @mode: display mode structure
+ */
+static void tvout_preformatter_set_matrix(struct sti_tvout *tvout,
+					  struct drm_display_mode *mode)
+{
+	unsigned int i;
+	const u32 *pf_matrix;
+
+	if (mode->vdisplay >= TVO_MIN_HD_HEIGHT)
+		pf_matrix = rgb_to_ycbcr_709;
+	else
+		pf_matrix = rgb_to_ycbcr_601;
+
+	for (i = 0; i < 8; i++) {
+		tvout_write(tvout, *(pf_matrix + i),
+			    TVO_CSC_MAIN_M0 + (i * 4));
+		tvout_write(tvout, *(pf_matrix + i),
+			    TVO_CSC_AUX_M0 + (i * 4));
+	}
+}
+
+/**
  * Start VIP block for DVO output
  *
  * @tvout: pointer on tvout structure
@@ -280,24 +296,26 @@ static void tvout_dvo_start(struct sti_tvout *tvout, bool main_path)
 	struct device_node *node = tvout->dev->of_node;
 	bool sel_input_logic_inverted = false;
 	u32 tvo_in_vid_format;
-	int val;
+	int val, tmp;
 
 	dev_dbg(tvout->dev, "%s\n", __func__);
 
 	if (main_path) {
 		DRM_DEBUG_DRIVER("main vip for DVO\n");
-		/* Select the input sync for dvo = VTG set 4 */
-		val  = TVO_SYNC_MAIN_VTG_SET_4 << TVO_SYNC_DVO_PAD_VSYNC_SHIFT;
-		val |= TVO_SYNC_MAIN_VTG_SET_4 << TVO_SYNC_DVO_PAD_HSYNC_SHIFT;
-		val |= TVO_SYNC_MAIN_VTG_SET_4;
+		/* Select the input sync for dvo */
+		tmp = TVO_SYNC_MAIN_VTG_SET_REF | VTG_SYNC_ID_DVO;
+		val  = tmp << TVO_SYNC_DVO_PAD_VSYNC_SHIFT;
+		val |= tmp << TVO_SYNC_DVO_PAD_HSYNC_SHIFT;
+		val |= tmp;
 		tvout_write(tvout, val, TVO_DVO_SYNC_SEL);
 		tvo_in_vid_format = TVO_MAIN_IN_VID_FORMAT;
 	} else {
 		DRM_DEBUG_DRIVER("aux vip for DVO\n");
-		/* Select the input sync for dvo = VTG set 4 */
-		val  = TVO_SYNC_AUX_VTG_SET_4 << TVO_SYNC_DVO_PAD_VSYNC_SHIFT;
-		val |= TVO_SYNC_AUX_VTG_SET_4 << TVO_SYNC_DVO_PAD_HSYNC_SHIFT;
-		val |= TVO_SYNC_AUX_VTG_SET_4;
+		/* Select the input sync for dvo */
+		tmp = TVO_SYNC_AUX_VTG_SET_REF | VTG_SYNC_ID_DVO;
+		val  = tmp << TVO_SYNC_DVO_PAD_VSYNC_SHIFT;
+		val |= tmp << TVO_SYNC_DVO_PAD_HSYNC_SHIFT;
+		val |= tmp;
 		tvout_write(tvout, val, TVO_DVO_SYNC_SEL);
 		tvo_in_vid_format = TVO_AUX_IN_VID_FORMAT;
 	}
@@ -308,9 +326,8 @@ static void tvout_dvo_start(struct sti_tvout *tvout, bool main_path)
 				  TVO_VIP_REORDER_Y_G_SEL,
 				  TVO_VIP_REORDER_CB_B_SEL);
 
-	/* Set clipping mode (Limited range RGB/Y) */
-	tvout_vip_set_clip_mode(tvout, TVO_VIP_DVO,
-				TVO_VIP_CLIP_LIMITED_RANGE_RGB_Y);
+	/* Set clipping mode */
+	tvout_vip_set_clip_mode(tvout, TVO_VIP_DVO, TVO_VIP_CLIP_DISABLED);
 
 	/* Set round mode (rounded to 8-bit per component) */
 	tvout_vip_set_rnd(tvout, TVO_VIP_DVO, TVO_VIP_RND_8BIT_ROUNDED);
@@ -345,13 +362,17 @@ static void tvout_hdmi_start(struct sti_tvout *tvout, bool main_path)
 
 	if (main_path) {
 		DRM_DEBUG_DRIVER("main vip for hdmi\n");
-		/* select the input sync for hdmi = VTG set 1 */
-		tvout_write(tvout, TVO_SYNC_MAIN_VTG_SET_1, TVO_HDMI_SYNC_SEL);
+		/* select the input sync for hdmi */
+		tvout_write(tvout,
+			    TVO_SYNC_MAIN_VTG_SET_REF | VTG_SYNC_ID_HDMI,
+			    TVO_HDMI_SYNC_SEL);
 		tvo_in_vid_format = TVO_MAIN_IN_VID_FORMAT;
 	} else {
 		DRM_DEBUG_DRIVER("aux vip for hdmi\n");
-		/* select the input sync for hdmi = VTG set 1 */
-		tvout_write(tvout, TVO_SYNC_AUX_VTG_SET_1, TVO_HDMI_SYNC_SEL);
+		/* select the input sync for hdmi */
+		tvout_write(tvout,
+			    TVO_SYNC_AUX_VTG_SET_REF | VTG_SYNC_ID_HDMI,
+			    TVO_HDMI_SYNC_SEL);
 		tvo_in_vid_format = TVO_AUX_IN_VID_FORMAT;
 	}
 
@@ -361,9 +382,8 @@ static void tvout_hdmi_start(struct sti_tvout *tvout, bool main_path)
 				  TVO_VIP_REORDER_Y_G_SEL,
 				  TVO_VIP_REORDER_CB_B_SEL);
 
-	/* set clipping mode (Limited range RGB/Y) */
-	tvout_vip_set_clip_mode(tvout, TVO_VIP_HDMI,
-			TVO_VIP_CLIP_LIMITED_RANGE_RGB_Y);
+	/* set clipping mode */
+	tvout_vip_set_clip_mode(tvout, TVO_VIP_HDMI, TVO_VIP_CLIP_DISABLED);
 
 	/* set round mode (rounded to 8-bit per component) */
 	tvout_vip_set_rnd(tvout, TVO_VIP_HDMI, TVO_VIP_RND_8BIT_ROUNDED);
@@ -397,13 +417,19 @@ static void tvout_hda_start(struct sti_tvout *tvout, bool main_path)
 	dev_dbg(tvout->dev, "%s\n", __func__);
 
 	if (main_path) {
-		val = TVO_SYNC_MAIN_VTG_SET_2 << TVO_SYNC_HD_DCS_SHIFT;
-		val |= TVO_SYNC_MAIN_VTG_SET_3;
+		DRM_DEBUG_DRIVER("main vip for HDF\n");
+		/* Select the input sync for HD analog and HD DCS */
+		val  = TVO_SYNC_MAIN_VTG_SET_REF | VTG_SYNC_ID_HDDCS;
+		val  = val << TVO_SYNC_HD_DCS_SHIFT;
+		val |= TVO_SYNC_MAIN_VTG_SET_REF | VTG_SYNC_ID_HDF;
 		tvout_write(tvout, val, TVO_HD_SYNC_SEL);
 		tvo_in_vid_format = TVO_MAIN_IN_VID_FORMAT;
 	} else {
-		val = TVO_SYNC_AUX_VTG_SET_2 << TVO_SYNC_HD_DCS_SHIFT;
-		val |= TVO_SYNC_AUX_VTG_SET_3;
+		DRM_DEBUG_DRIVER("aux vip for HDF\n");
+		/* Select the input sync for HD analog and HD DCS */
+		val  = TVO_SYNC_AUX_VTG_SET_REF | VTG_SYNC_ID_HDDCS;
+		val  = val << TVO_SYNC_HD_DCS_SHIFT;
+		val |= TVO_SYNC_AUX_VTG_SET_REF | VTG_SYNC_ID_HDF;
 		tvout_write(tvout, val, TVO_HD_SYNC_SEL);
 		tvo_in_vid_format = TVO_AUX_IN_VID_FORMAT;
 	}
@@ -414,8 +440,8 @@ static void tvout_hda_start(struct sti_tvout *tvout, bool main_path)
 				  TVO_VIP_REORDER_Y_G_SEL,
 				  TVO_VIP_REORDER_CB_B_SEL);
 
-	/* set clipping mode (EAV/SAV clipping) */
-	tvout_vip_set_clip_mode(tvout, TVO_VIP_HDF, TVO_VIP_CLIP_EAV_SAV);
+	/* set clipping mode */
+	tvout_vip_set_clip_mode(tvout, TVO_VIP_HDF, TVO_VIP_CLIP_DISABLED);
 
 	/* set round mode (rounded to 10-bit per component) */
 	tvout_vip_set_rnd(tvout, TVO_VIP_HDF, TVO_VIP_RND_10BIT_ROUNDED);
@@ -436,24 +462,164 @@ static void tvout_hda_start(struct sti_tvout *tvout, bool main_path)
 	tvout_write(tvout, 0, TVO_HD_DAC_CFG_OFF);
 }
 
-static void sti_tvout_encoder_dpms(struct drm_encoder *encoder, int mode)
+#define DBGFS_DUMP(reg) seq_printf(s, "\n  %-25s 0x%08X", #reg, \
+				   readl(tvout->regs + reg))
+
+static void tvout_dbg_vip(struct seq_file *s, int val)
 {
+	int r, g, b, tmp, mask;
+	char *const reorder[] = {"Y_G", "Cb_B", "Cr_R"};
+	char *const clipping[] = {"No", "EAV/SAV", "Limited range RGB/Y",
+				  "Limited range Cb/Cr", "decided by register"};
+	char *const round[] = {"8-bit", "10-bit", "12-bit"};
+	char *const input_sel[] = {"Main (color matrix enabled)",
+				   "Main (color matrix by-passed)",
+				   "", "", "", "", "", "",
+				   "Aux (color matrix enabled)",
+				   "Aux (color matrix by-passed)",
+				   "", "", "", "", "", "Force value"};
+
+	seq_puts(s, "\t");
+	mask = TVO_VIP_REORDER_MASK << TVO_VIP_REORDER_R_SHIFT;
+	r = (val & mask) >> TVO_VIP_REORDER_R_SHIFT;
+	mask = TVO_VIP_REORDER_MASK << TVO_VIP_REORDER_G_SHIFT;
+	g = (val & mask) >> TVO_VIP_REORDER_G_SHIFT;
+	mask = TVO_VIP_REORDER_MASK << TVO_VIP_REORDER_B_SHIFT;
+	b = (val & mask) >> TVO_VIP_REORDER_B_SHIFT;
+	seq_printf(s, "%-24s %s->%s %s->%s %s->%s\n", "Reorder:",
+		   reorder[r], reorder[TVO_VIP_REORDER_CR_R_SEL],
+		   reorder[g], reorder[TVO_VIP_REORDER_Y_G_SEL],
+		   reorder[b], reorder[TVO_VIP_REORDER_CB_B_SEL]);
+	seq_puts(s, "\t\t\t\t\t");
+	mask = TVO_VIP_CLIP_MASK << TVO_VIP_CLIP_SHIFT;
+	tmp = (val & mask) >> TVO_VIP_CLIP_SHIFT;
+	seq_printf(s, "%-24s %s\n", "Clipping:", clipping[tmp]);
+	seq_puts(s, "\t\t\t\t\t");
+	mask = TVO_VIP_RND_MASK << TVO_VIP_RND_SHIFT;
+	tmp = (val & mask) >> TVO_VIP_RND_SHIFT;
+	seq_printf(s, "%-24s input data rounded to %s per component\n",
+		   "Round:", round[tmp]);
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = (val & TVO_VIP_SEL_INPUT_MASK);
+	seq_printf(s, "%-24s %s", "Input selection:", input_sel[tmp]);
 }
 
-static bool sti_tvout_encoder_mode_fixup(struct drm_encoder *encoder,
-				       const struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted_mode)
+static void tvout_dbg_hd_dac_cfg(struct seq_file *s, int val)
 {
-	return true;
+	seq_printf(s, "\t%-24s %s", "HD DAC:",
+		   val & 1 ? "disabled" : "enabled");
+}
+
+static int tvout_dbg_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_tvout *tvout = (struct sti_tvout *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_crtc *crtc;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(s, "TVOUT: (vaddr = 0x%p)", tvout->regs);
+
+	seq_puts(s, "\n\n  HDMI encoder: ");
+	crtc = tvout->hdmi->crtc;
+	if (crtc) {
+		seq_printf(s, "connected to %s path",
+			   sti_crtc_is_main(crtc) ? "main" : "aux");
+		DBGFS_DUMP(TVO_HDMI_SYNC_SEL);
+		DBGFS_DUMP(TVO_VIP_HDMI);
+		tvout_dbg_vip(s, readl(tvout->regs + TVO_VIP_HDMI));
+	} else {
+		seq_puts(s, "disabled");
+	}
+
+	seq_puts(s, "\n\n  DVO encoder: ");
+	crtc = tvout->dvo->crtc;
+	if (crtc) {
+		seq_printf(s, "connected to %s path",
+			   sti_crtc_is_main(crtc) ? "main" : "aux");
+		DBGFS_DUMP(TVO_DVO_SYNC_SEL);
+		DBGFS_DUMP(TVO_DVO_CONFIG);
+		DBGFS_DUMP(TVO_VIP_DVO);
+		tvout_dbg_vip(s, readl(tvout->regs + TVO_VIP_DVO));
+	} else {
+		seq_puts(s, "disabled");
+	}
+
+	seq_puts(s, "\n\n  HDA encoder: ");
+	crtc = tvout->hda->crtc;
+	if (crtc) {
+		seq_printf(s, "connected to %s path",
+			   sti_crtc_is_main(crtc) ? "main" : "aux");
+		DBGFS_DUMP(TVO_HD_SYNC_SEL);
+		DBGFS_DUMP(TVO_HD_DAC_CFG_OFF);
+		tvout_dbg_hd_dac_cfg(s,
+				     readl(tvout->regs + TVO_HD_DAC_CFG_OFF));
+		DBGFS_DUMP(TVO_VIP_HDF);
+		tvout_dbg_vip(s, readl(tvout->regs + TVO_VIP_HDF));
+	} else {
+		seq_puts(s, "disabled");
+	}
+
+	seq_puts(s, "\n\n  main path configuration");
+	DBGFS_DUMP(TVO_CSC_MAIN_M0);
+	DBGFS_DUMP(TVO_CSC_MAIN_M1);
+	DBGFS_DUMP(TVO_CSC_MAIN_M2);
+	DBGFS_DUMP(TVO_CSC_MAIN_M3);
+	DBGFS_DUMP(TVO_CSC_MAIN_M4);
+	DBGFS_DUMP(TVO_CSC_MAIN_M5);
+	DBGFS_DUMP(TVO_CSC_MAIN_M6);
+	DBGFS_DUMP(TVO_CSC_MAIN_M7);
+	DBGFS_DUMP(TVO_MAIN_IN_VID_FORMAT);
+
+	seq_puts(s, "\n\n  auxiliary path configuration");
+	DBGFS_DUMP(TVO_CSC_AUX_M0);
+	DBGFS_DUMP(TVO_CSC_AUX_M2);
+	DBGFS_DUMP(TVO_CSC_AUX_M3);
+	DBGFS_DUMP(TVO_CSC_AUX_M4);
+	DBGFS_DUMP(TVO_CSC_AUX_M5);
+	DBGFS_DUMP(TVO_CSC_AUX_M6);
+	DBGFS_DUMP(TVO_CSC_AUX_M7);
+	DBGFS_DUMP(TVO_AUX_IN_VID_FORMAT);
+	seq_puts(s, "\n");
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static struct drm_info_list tvout_debugfs_files[] = {
+	{ "tvout", tvout_dbg_show, 0, NULL },
+};
+
+static void tvout_debugfs_exit(struct sti_tvout *tvout, struct drm_minor *minor)
+{
+	drm_debugfs_remove_files(tvout_debugfs_files,
+				 ARRAY_SIZE(tvout_debugfs_files),
+				 minor);
+}
+
+static int tvout_debugfs_init(struct sti_tvout *tvout, struct drm_minor *minor)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(tvout_debugfs_files); i++)
+		tvout_debugfs_files[i].data = tvout;
+
+	return drm_debugfs_create_files(tvout_debugfs_files,
+					ARRAY_SIZE(tvout_debugfs_files),
+					minor->debugfs_root, minor);
+}
+
+static void sti_tvout_encoder_dpms(struct drm_encoder *encoder, int mode)
+{
 }
 
 static void sti_tvout_encoder_mode_set(struct drm_encoder *encoder,
 				       struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted_mode)
-{
-}
-
-static void sti_tvout_encoder_prepare(struct drm_encoder *encoder)
 {
 }
 
@@ -469,9 +635,11 @@ static const struct drm_encoder_funcs sti_tvout_encoder_funcs = {
 	.destroy = sti_tvout_encoder_destroy,
 };
 
-static void sti_dvo_encoder_commit(struct drm_encoder *encoder)
+static void sti_dvo_encoder_enable(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
+
+	tvout_preformatter_set_matrix(tvout, &encoder->crtc->mode);
 
 	tvout_dvo_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
@@ -486,10 +654,8 @@ static void sti_dvo_encoder_disable(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs sti_dvo_encoder_helper_funcs = {
 	.dpms = sti_tvout_encoder_dpms,
-	.mode_fixup = sti_tvout_encoder_mode_fixup,
 	.mode_set = sti_tvout_encoder_mode_set,
-	.prepare = sti_tvout_encoder_prepare,
-	.commit = sti_dvo_encoder_commit,
+	.enable = sti_dvo_encoder_enable,
 	.disable = sti_dvo_encoder_disable,
 };
 
@@ -520,9 +686,11 @@ sti_tvout_create_dvo_encoder(struct drm_device *dev,
 	return drm_encoder;
 }
 
-static void sti_hda_encoder_commit(struct drm_encoder *encoder)
+static void sti_hda_encoder_enable(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
+
+	tvout_preformatter_set_matrix(tvout, &encoder->crtc->mode);
 
 	tvout_hda_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
@@ -540,10 +708,8 @@ static void sti_hda_encoder_disable(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs sti_hda_encoder_helper_funcs = {
 	.dpms = sti_tvout_encoder_dpms,
-	.mode_fixup = sti_tvout_encoder_mode_fixup,
 	.mode_set = sti_tvout_encoder_mode_set,
-	.prepare = sti_tvout_encoder_prepare,
-	.commit = sti_hda_encoder_commit,
+	.commit = sti_hda_encoder_enable,
 	.disable = sti_hda_encoder_disable,
 };
 
@@ -572,9 +738,11 @@ static struct drm_encoder *sti_tvout_create_hda_encoder(struct drm_device *dev,
 	return drm_encoder;
 }
 
-static void sti_hdmi_encoder_commit(struct drm_encoder *encoder)
+static void sti_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
+
+	tvout_preformatter_set_matrix(tvout, &encoder->crtc->mode);
 
 	tvout_hdmi_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
@@ -589,10 +757,8 @@ static void sti_hdmi_encoder_disable(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs sti_hdmi_encoder_helper_funcs = {
 	.dpms = sti_tvout_encoder_dpms,
-	.mode_fixup = sti_tvout_encoder_mode_fixup,
 	.mode_set = sti_tvout_encoder_mode_set,
-	.prepare = sti_tvout_encoder_prepare,
-	.commit = sti_hdmi_encoder_commit,
+	.commit = sti_hdmi_encoder_enable,
 	.disable = sti_hdmi_encoder_disable,
 };
 
@@ -638,25 +804,23 @@ static void sti_tvout_destroy_encoders(struct sti_tvout *tvout)
 	if (tvout->hda)
 		drm_encoder_cleanup(tvout->hda);
 	tvout->hda = NULL;
+
+	if (tvout->dvo)
+		drm_encoder_cleanup(tvout->dvo);
+	tvout->dvo = NULL;
 }
 
 static int sti_tvout_bind(struct device *dev, struct device *master, void *data)
 {
 	struct sti_tvout *tvout = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	unsigned int i;
 
 	tvout->drm_dev = drm_dev;
 
-	/* set preformatter matrix */
-	for (i = 0; i < 8; i++) {
-		tvout_write(tvout, rgb_to_ycbcr_601[i],
-			TVO_CSC_MAIN_M0 + (i * 4));
-		tvout_write(tvout, rgb_to_ycbcr_601[i],
-			TVO_CSC_AUX_M0 + (i * 4));
-	}
-
 	sti_tvout_create_encoders(drm_dev, tvout);
+
+	if (tvout_debugfs_init(tvout, drm_dev->primary))
+		DRM_ERROR("TVOUT debugfs setup failed\n");
 
 	return 0;
 }
@@ -665,8 +829,11 @@ static void sti_tvout_unbind(struct device *dev, struct device *master,
 	void *data)
 {
 	struct sti_tvout *tvout = dev_get_drvdata(dev);
+	struct drm_device *drm_dev = data;
 
 	sti_tvout_destroy_encoders(tvout);
+
+	tvout_debugfs_exit(tvout, drm_dev->primary);
 }
 
 static const struct component_ops sti_tvout_ops = {

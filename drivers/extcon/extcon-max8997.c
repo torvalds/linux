@@ -148,6 +148,7 @@ struct max8997_muic_info {
 static const unsigned int max8997_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
+	EXTCON_CHG_USB_SDP,
 	EXTCON_CHG_USB_DCP,
 	EXTCON_CHG_USB_FAST,
 	EXTCON_CHG_USB_SLOW,
@@ -334,6 +335,8 @@ static int max8997_muic_handle_usb(struct max8997_muic_info *info,
 		break;
 	case MAX8997_USB_DEVICE:
 		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
+		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+					attached);
 		break;
 	default:
 		dev_err(info->dev, "failed to detect %s usb cable\n",

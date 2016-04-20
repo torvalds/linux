@@ -28,7 +28,7 @@ struct pefile_context {
 	/* PKCS#7 MS Individual Code Signing content */
 	const void	*digest;		/* Digest */
 	unsigned	digest_len;		/* Digest length */
-	enum hash_algo	digest_algo;		/* Digest algorithm */
+	const char	*digest_algo;		/* Digest algorithm */
 };
 
 #define kenter(FMT, ...)					\

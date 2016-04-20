@@ -1368,6 +1368,16 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 	if (ath9k_hw_mci_is_enabled(ah))
 		ar9003_mci_check_gpm_offset(ah);
 
+	/* DMA HALT added to resolve ar9300 and ar9580 bus error during
+	 * RTC_RC reg read
+	 */
+	if (AR_SREV_9300(ah) || AR_SREV_9580(ah)) {
+		REG_SET_BIT(ah, AR_CFG, AR_CFG_HALT_REQ);
+		ath9k_hw_wait(ah, AR_CFG, AR_CFG_HALT_ACK, AR_CFG_HALT_ACK,
+			      20 * AH_WAIT_TIMEOUT);
+		REG_CLR_BIT(ah, AR_CFG, AR_CFG_HALT_REQ);
+	}
+
 	REG_WRITE(ah, AR_RTC_RC, rst_flags);
 
 	REGWRITE_BUFFER_FLUSH(ah);

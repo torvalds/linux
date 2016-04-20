@@ -7,7 +7,7 @@
 #include <linux/lguest.h>
 #include "../../../drivers/lguest/lg.h"
 
-#define __SYSCALL_I386(nr, sym, compat) [nr] = 1,
+#define __SYSCALL_I386(nr, sym, qual) [nr] = 1,
 static char syscalls[] = {
 #include <asm/syscalls_32.h>
 };
@@ -51,6 +51,11 @@ void foo(void)
 	/* Offset from the sysenter stack to tss.sp0 */
 	DEFINE(TSS_sysenter_sp0, offsetof(struct tss_struct, x86_tss.sp0) -
 	       offsetofend(struct tss_struct, SYSENTER_stack));
+
+	/* Offset from cpu_tss to SYSENTER_stack */
+	OFFSET(CPU_TSS_SYSENTER_stack, tss_struct, SYSENTER_stack);
+	/* Size of SYSENTER_stack */
+	DEFINE(SIZEOF_SYSENTER_stack, sizeof(((struct tss_struct *)0)->SYSENTER_stack));
 
 #if defined(CONFIG_LGUEST) || defined(CONFIG_LGUEST_GUEST) || defined(CONFIG_LGUEST_MODULE)
 	BLANK();

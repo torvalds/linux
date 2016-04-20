@@ -459,8 +459,8 @@ xfs_vn_getattr(
 
 	stat->size = XFS_ISIZE(ip);
 	stat->dev = inode->i_sb->s_dev;
-	stat->mode = ip->i_d.di_mode;
-	stat->nlink = ip->i_d.di_nlink;
+	stat->mode = inode->i_mode;
+	stat->nlink = inode->i_nlink;
 	stat->uid = inode->i_uid;
 	stat->gid = inode->i_gid;
 	stat->ino = ip->i_ino;
@@ -506,9 +506,6 @@ xfs_setattr_mode(
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
-	ip->i_d.di_mode &= S_IFMT;
-	ip->i_d.di_mode |= mode & ~S_IFMT;
-
 	inode->i_mode &= S_IFMT;
 	inode->i_mode |= mode & ~S_IFMT;
 }
@@ -522,21 +519,12 @@ xfs_setattr_time(
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
-	if (iattr->ia_valid & ATTR_ATIME) {
+	if (iattr->ia_valid & ATTR_ATIME)
 		inode->i_atime = iattr->ia_atime;
-		ip->i_d.di_atime.t_sec = iattr->ia_atime.tv_sec;
-		ip->i_d.di_atime.t_nsec = iattr->ia_atime.tv_nsec;
-	}
-	if (iattr->ia_valid & ATTR_CTIME) {
+	if (iattr->ia_valid & ATTR_CTIME)
 		inode->i_ctime = iattr->ia_ctime;
-		ip->i_d.di_ctime.t_sec = iattr->ia_ctime.tv_sec;
-		ip->i_d.di_ctime.t_nsec = iattr->ia_ctime.tv_nsec;
-	}
-	if (iattr->ia_valid & ATTR_MTIME) {
+	if (iattr->ia_valid & ATTR_MTIME)
 		inode->i_mtime = iattr->ia_mtime;
-		ip->i_d.di_mtime.t_sec = iattr->ia_mtime.tv_sec;
-		ip->i_d.di_mtime.t_nsec = iattr->ia_mtime.tv_nsec;
-	}
 }
 
 int
@@ -661,9 +649,9 @@ xfs_setattr_nonsize(
 		 * The set-user-ID and set-group-ID bits of a file will be
 		 * cleared upon successful return from chown()
 		 */
-		if ((ip->i_d.di_mode & (S_ISUID|S_ISGID)) &&
+		if ((inode->i_mode & (S_ISUID|S_ISGID)) &&
 		    !capable(CAP_FSETID))
-			ip->i_d.di_mode &= ~(S_ISUID|S_ISGID);
+			inode->i_mode &= ~(S_ISUID|S_ISGID);
 
 		/*
 		 * Change the ownerships and register quota modifications
@@ -773,7 +761,7 @@ xfs_setattr_size(
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
-	ASSERT(S_ISREG(ip->i_d.di_mode));
+	ASSERT(S_ISREG(inode->i_mode));
 	ASSERT((iattr->ia_valid & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
 		ATTR_MTIME_SET|ATTR_KILL_PRIV|ATTR_TIMES_SET)) == 0);
 
@@ -991,21 +979,13 @@ xfs_vn_update_time(
 	}
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	if (flags & S_CTIME) {
+	if (flags & S_CTIME)
 		inode->i_ctime = *now;
-		ip->i_d.di_ctime.t_sec = (__int32_t)now->tv_sec;
-		ip->i_d.di_ctime.t_nsec = (__int32_t)now->tv_nsec;
-	}
-	if (flags & S_MTIME) {
+	if (flags & S_MTIME)
 		inode->i_mtime = *now;
-		ip->i_d.di_mtime.t_sec = (__int32_t)now->tv_sec;
-		ip->i_d.di_mtime.t_nsec = (__int32_t)now->tv_nsec;
-	}
-	if (flags & S_ATIME) {
+	if (flags & S_ATIME)
 		inode->i_atime = *now;
-		ip->i_d.di_atime.t_sec = (__int32_t)now->tv_sec;
-		ip->i_d.di_atime.t_nsec = (__int32_t)now->tv_nsec;
-	}
+
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_TIMESTAMP);
 	return xfs_trans_commit(tp);
@@ -1205,8 +1185,10 @@ xfs_diflags_to_iflags(
 		inode->i_flags |= S_SYNC;
 	if (flags & XFS_DIFLAG_NOATIME)
 		inode->i_flags |= S_NOATIME;
-	if (ip->i_mount->m_flags & XFS_MOUNT_DAX ||
-	    ip->i_d.di_flags2 & XFS_DIFLAG2_DAX)
+	if (S_ISREG(inode->i_mode) &&
+	    ip->i_mount->m_sb.sb_blocksize == PAGE_SIZE &&
+	    (ip->i_mount->m_flags & XFS_MOUNT_DAX ||
+	     ip->i_d.di_flags2 & XFS_DIFLAG2_DAX))
 		inode->i_flags |= S_DAX;
 }
 
@@ -1232,8 +1214,6 @@ xfs_setup_inode(
 	/* make the inode look hashed for the writeback code */
 	hlist_add_fake(&inode->i_hash);
 
-	inode->i_mode	= ip->i_d.di_mode;
-	set_nlink(inode, ip->i_d.di_nlink);
 	inode->i_uid    = xfs_uid_to_kuid(ip->i_d.di_uid);
 	inode->i_gid    = xfs_gid_to_kgid(ip->i_d.di_gid);
 
@@ -1249,14 +1229,7 @@ xfs_setup_inode(
 		break;
 	}
 
-	inode->i_generation = ip->i_d.di_gen;
 	i_size_write(inode, ip->i_d.di_size);
-	inode->i_atime.tv_sec	= ip->i_d.di_atime.t_sec;
-	inode->i_atime.tv_nsec	= ip->i_d.di_atime.t_nsec;
-	inode->i_mtime.tv_sec	= ip->i_d.di_mtime.t_sec;
-	inode->i_mtime.tv_nsec	= ip->i_d.di_mtime.t_nsec;
-	inode->i_ctime.tv_sec	= ip->i_d.di_ctime.t_sec;
-	inode->i_ctime.tv_nsec	= ip->i_d.di_ctime.t_nsec;
 	xfs_diflags_to_iflags(inode, ip);
 
 	ip->d_ops = ip->i_mount->m_nondir_inode_ops;

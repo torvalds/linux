@@ -47,6 +47,46 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
 #endif
 }
 
+static int num_vma_bound(struct drm_i915_gem_object *obj)
+{
+	struct i915_vma *vma;
+	int count = 0;
+
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		if (drm_mm_node_allocated(&vma->node))
+			count++;
+		if (vma->pin_count)
+			count++;
+	}
+
+	return count;
+}
+
+static bool swap_available(void)
+{
+	return get_nr_swap_pages() > 0;
+}
+
+static bool can_release_pages(struct drm_i915_gem_object *obj)
+{
+	/* Only report true if by unbinding the object and putting its pages
+	 * we can actually make forward progress towards freeing physical
+	 * pages.
+	 *
+	 * If the pages are pinned for any other reason than being bound
+	 * to the GPU, simply unbinding from the GPU is not going to succeed
+	 * in releasing our pin count on the pages themselves.
+	 */
+	if (obj->pages_pin_count != num_vma_bound(obj))
+		return false;
+
+	/* We can only return physical pages to the system if we can either
+	 * discard the contents (because the user has marked them as being
+	 * purgeable) or if we can move their contents out to swap.
+	 */
+	return swap_available() || obj->madv == I915_MADV_DONTNEED;
+}
+
 /**
  * i915_gem_shrink - Shrink buffer object caches
  * @dev_priv: i915 device
@@ -129,11 +169,14 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			if ((flags & I915_SHRINK_ACTIVE) == 0 && obj->active)
 				continue;
 
+			if (!can_release_pages(obj))
+				continue;
+
 			drm_gem_object_reference(&obj->base);
 
 			/* For the unbound phase, this should be a no-op! */
 			list_for_each_entry_safe(vma, v,
-						 &obj->vma_list, vma_link)
+						 &obj->vma_list, obj_link)
 				if (i915_vma_unbind(vma))
 					break;
 
@@ -188,21 +231,6 @@ static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
 	return true;
 }
 
-static int num_vma_bound(struct drm_i915_gem_object *obj)
-{
-	struct i915_vma *vma;
-	int count = 0;
-
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
-		if (drm_mm_node_allocated(&vma->node))
-			count++;
-		if (vma->pin_count)
-			count++;
-	}
-
-	return count;
-}
-
 static unsigned long
 i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 {
@@ -222,7 +250,7 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 			count += obj->base.size >> PAGE_SHIFT;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (!obj->active && obj->pages_pin_count == num_vma_bound(obj))
+		if (!obj->active && can_release_pages(obj))
 			count += obj->base.size >> PAGE_SHIFT;
 	}
 
@@ -339,8 +367,20 @@ void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
 	dev_priv->mm.shrinker.scan_objects = i915_gem_shrinker_scan;
 	dev_priv->mm.shrinker.count_objects = i915_gem_shrinker_count;
 	dev_priv->mm.shrinker.seeks = DEFAULT_SEEKS;
-	register_shrinker(&dev_priv->mm.shrinker);
+	WARN_ON(register_shrinker(&dev_priv->mm.shrinker));
 
 	dev_priv->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
-	register_oom_notifier(&dev_priv->mm.oom_notifier);
+	WARN_ON(register_oom_notifier(&dev_priv->mm.oom_notifier));
+}
+
+/**
+ * i915_gem_shrinker_cleanup - Clean up i915 shrinker
+ * @dev_priv: i915 device
+ *
+ * This function unregisters the i915 shrinker and OOM handler.
+ */
+void i915_gem_shrinker_cleanup(struct drm_i915_private *dev_priv)
+{
+	WARN_ON(unregister_oom_notifier(&dev_priv->mm.oom_notifier));
+	unregister_shrinker(&dev_priv->mm.shrinker);
 }

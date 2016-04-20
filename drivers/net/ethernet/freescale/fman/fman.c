@@ -35,6 +35,7 @@
 #include "fman.h"
 #include "fman_muram.h"
 
+#include <linux/fsl/guts.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -1871,6 +1872,90 @@ err_fm_state:
 	return -EINVAL;
 }
 
+static int fman_reset(struct fman *fman)
+{
+	u32 count;
+	int err = 0;
+
+	if (fman->state->rev_info.major < 6) {
+		iowrite32be(FPM_RSTC_FM_RESET, &fman->fpm_regs->fm_rstc);
+		/* Wait for reset completion */
+		count = 100;
+		do {
+			udelay(1);
+		} while (((ioread32be(&fman->fpm_regs->fm_rstc)) &
+			 FPM_RSTC_FM_RESET) && --count);
+		if (count == 0)
+			err = -EBUSY;
+
+		goto _return;
+	} else {
+		struct device_node *guts_node;
+		struct ccsr_guts __iomem *guts_regs;
+		u32 devdisr2, reg;
+
+		/* Errata A007273 */
+		guts_node =
+			of_find_compatible_node(NULL, NULL,
+						"fsl,qoriq-device-config-2.0");
+		if (!guts_node) {
+			dev_err(fman->dev, "%s: Couldn't find guts node\n",
+				__func__);
+			goto guts_node;
+		}
+
+		guts_regs = of_iomap(guts_node, 0);
+		if (!guts_regs) {
+			dev_err(fman->dev, "%s: Couldn't map %s regs\n",
+				__func__, guts_node->full_name);
+			goto guts_regs;
+		}
+#define FMAN1_ALL_MACS_MASK	0xFCC00000
+#define FMAN2_ALL_MACS_MASK	0x000FCC00
+		/* Read current state */
+		devdisr2 = ioread32be(&guts_regs->devdisr2);
+		if (fman->dts_params.id == 0)
+			reg = devdisr2 & ~FMAN1_ALL_MACS_MASK;
+		else
+			reg = devdisr2 & ~FMAN2_ALL_MACS_MASK;
+
+		/* Enable all MACs */
+		iowrite32be(reg, &guts_regs->devdisr2);
+
+		/* Perform FMan reset */
+		iowrite32be(FPM_RSTC_FM_RESET, &fman->fpm_regs->fm_rstc);
+
+		/* Wait for reset completion */
+		count = 100;
+		do {
+			udelay(1);
+		} while (((ioread32be(&fman->fpm_regs->fm_rstc)) &
+			 FPM_RSTC_FM_RESET) && --count);
+		if (count == 0) {
+			iounmap(guts_regs);
+			of_node_put(guts_node);
+			err = -EBUSY;
+			goto _return;
+		}
+
+		/* Restore devdisr2 value */
+		iowrite32be(devdisr2, &guts_regs->devdisr2);
+
+		iounmap(guts_regs);
+		of_node_put(guts_node);
+
+		goto _return;
+
+guts_regs:
+		of_node_put(guts_node);
+guts_node:
+		dev_dbg(fman->dev, "%s: Didn't perform FManV3 reset due to Errata A007273!\n",
+			__func__);
+	}
+_return:
+	return err;
+}
+
 static int fman_init(struct fman *fman)
 {
 	struct fman_cfg *cfg = NULL;
@@ -1914,22 +1999,9 @@ static int fman_init(struct fman *fman)
 		fman->liodn_base[i] = liodn_base;
 	}
 
-	/* FMan Reset (supported only for FMan V2) */
-	if (fman->state->rev_info.major >= 6) {
-		/* Errata A007273 */
-		dev_dbg(fman->dev, "%s: FManV3 reset is not supported!\n",
-			__func__);
-	} else {
-		iowrite32be(FPM_RSTC_FM_RESET, &fman->fpm_regs->fm_rstc);
-		/* Wait for reset completion */
-		count = 100;
-		do {
-			udelay(1);
-		} while (((ioread32be(&fman->fpm_regs->fm_rstc)) &
-			 FPM_RSTC_FM_RESET) && --count);
-		if (count == 0)
-			return -EBUSY;
-	}
+	err = fman_reset(fman);
+	if (err)
+		return err;
 
 	if (ioread32be(&fman->qmi_regs->fmqm_gs) & QMI_GS_HALT_NOT_BUSY) {
 		resume(fman->fpm_regs);

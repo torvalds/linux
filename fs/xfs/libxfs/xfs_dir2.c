@@ -176,7 +176,7 @@ xfs_dir_isempty(
 {
 	xfs_dir2_sf_hdr_t	*sfp;
 
-	ASSERT(S_ISDIR(dp->i_d.di_mode));
+	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	if (dp->i_d.di_size == 0)	/* might happen during shutdown. */
 		return 1;
 	if (dp->i_d.di_size > XFS_IFORK_DSIZE(dp))
@@ -231,7 +231,7 @@ xfs_dir_init(
 	struct xfs_da_args *args;
 	int		error;
 
-	ASSERT(S_ISDIR(dp->i_d.di_mode));
+	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	error = xfs_dir_ino_validate(tp->t_mountp, pdp->i_ino);
 	if (error)
 		return error;
@@ -266,7 +266,7 @@ xfs_dir_createname(
 	int			rval;
 	int			v;		/* type-checking value */
 
-	ASSERT(S_ISDIR(dp->i_d.di_mode));
+	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	if (inum) {
 		rval = xfs_dir_ino_validate(tp->t_mountp, inum);
 		if (rval)
@@ -364,7 +364,7 @@ xfs_dir_lookup(
 	int		v;		/* type-checking value */
 	int		lock_mode;
 
-	ASSERT(S_ISDIR(dp->i_d.di_mode));
+	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	XFS_STATS_INC(dp->i_mount, xs_dir_lookup);
 
 	/*
@@ -443,7 +443,7 @@ xfs_dir_removename(
 	int		rval;
 	int		v;		/* type-checking value */
 
-	ASSERT(S_ISDIR(dp->i_d.di_mode));
+	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	XFS_STATS_INC(dp->i_mount, xs_dir_remove);
 
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
@@ -505,7 +505,7 @@ xfs_dir_replace(
 	int		rval;
 	int		v;		/* type-checking value */
 
-	ASSERT(S_ISDIR(dp->i_d.di_mode));
+	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 
 	rval = xfs_dir_ino_validate(tp->t_mountp, inum);
 	if (rval)

@@ -278,7 +278,7 @@ static void pnv_npu_disable_bypass(struct pnv_ioda_pe *npe)
 
 /*
  * Enable/disable bypass mode on the NPU. The NPU only supports one
- * window per link, so bypass needs to be explicity enabled or
+ * window per link, so bypass needs to be explicitly enabled or
  * disabled. Unlike for a PHB3 bypass and non-bypass modes can't be
  * active at the same time.
  */

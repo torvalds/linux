@@ -79,8 +79,8 @@ static void *vvp_key_init(const struct lu_context *ctx,
 {
 	struct vvp_thread_info *info;
 
-	info = kmem_cache_alloc(vvp_thread_kmem, GFP_NOFS | __GFP_ZERO);
-	if (info == NULL)
+	info = kmem_cache_zalloc(vvp_thread_kmem, GFP_NOFS);
+	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
 }
@@ -98,8 +98,8 @@ static void *vvp_session_key_init(const struct lu_context *ctx,
 {
 	struct vvp_session *session;
 
-	session = kmem_cache_alloc(vvp_session_kmem, GFP_NOFS | __GFP_ZERO);
-	if (session == NULL)
+	session = kmem_cache_zalloc(vvp_session_kmem, GFP_NOFS);
+	if (!session)
 		session = ERR_PTR(-ENOMEM);
 	return session;
 }
@@ -228,7 +228,7 @@ int cl_sb_fini(struct super_block *sb)
 	if (!IS_ERR(env)) {
 		cld = sbi->ll_cl;
 
-		if (cld != NULL) {
+		if (cld) {
 			cl_stack_fini(env, cld);
 			sbi->ll_cl = NULL;
 			sbi->ll_site = NULL;
@@ -325,11 +325,11 @@ static struct cl_object *vvp_pgcache_obj(const struct lu_env *env,
 
 	cfs_hash_hlist_for_each(dev->ld_site->ls_obj_hash, id->vpi_bucket,
 				vvp_pgcache_obj_get, id);
-	if (id->vpi_obj != NULL) {
+	if (id->vpi_obj) {
 		struct lu_object *lu_obj;
 
 		lu_obj = lu_object_locate(id->vpi_obj, dev->ld_type);
-		if (lu_obj != NULL) {
+		if (lu_obj) {
 			lu_object_ref_add(lu_obj, "dump", current);
 			return lu2cl(lu_obj);
 		}
@@ -355,7 +355,7 @@ static loff_t vvp_pgcache_find(const struct lu_env *env,
 		if (id.vpi_bucket >= CFS_HASH_NHLIST(site->ls_obj_hash))
 			return ~0ULL;
 		clob = vvp_pgcache_obj(env, dev, &id);
-		if (clob != NULL) {
+		if (clob) {
 			struct cl_object_header *hdr;
 			int		      nr;
 			struct cl_page	  *pg;
@@ -443,7 +443,7 @@ static int vvp_pgcache_show(struct seq_file *f, void *v)
 		vvp_pgcache_id_unpack(pos, &id);
 		sbi = f->private;
 		clob = vvp_pgcache_obj(env, &sbi->ll_cl->cd_lu_dev, &id);
-		if (clob != NULL) {
+		if (clob) {
 			hdr = cl_object_header(clob);
 
 			spin_lock(&hdr->coh_page_guard);
@@ -452,7 +452,7 @@ static int vvp_pgcache_show(struct seq_file *f, void *v)
 
 			seq_printf(f, "%8x@"DFID": ",
 				   id.vpi_index, PFID(&hdr->coh_lu.loh_fid));
-			if (page != NULL) {
+			if (page) {
 				vvp_pgcache_page_show(env, f, page);
 				cl_page_put(env, page);
 			} else

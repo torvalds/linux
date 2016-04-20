@@ -244,6 +244,8 @@ void blk_mq_freeze_queue(struct request_queue *q);
 void blk_mq_unfreeze_queue(struct request_queue *q);
 void blk_mq_freeze_queue_start(struct request_queue *q);
 
+void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);
+
 /*
  * Driver command data is immediately after the request. So subtract request
  * size to get back to the original request, add request size to get the PDU.
@@ -261,22 +263,8 @@ static inline void *blk_mq_rq_to_pdu(struct request *rq)
 	for ((i) = 0; (i) < (q)->nr_hw_queues &&			\
 	     ({ hctx = (q)->queue_hw_ctx[i]; 1; }); (i)++)
 
-#define queue_for_each_ctx(q, ctx, i)					\
-	for ((i) = 0; (i) < (q)->nr_queues &&				\
-	     ({ ctx = per_cpu_ptr((q)->queue_ctx, (i)); 1; }); (i)++)
-
 #define hctx_for_each_ctx(hctx, ctx, i)					\
 	for ((i) = 0; (i) < (hctx)->nr_ctx &&				\
 	     ({ ctx = (hctx)->ctxs[(i)]; 1; }); (i)++)
-
-#define blk_ctx_sum(q, sum)						\
-({									\
-	struct blk_mq_ctx *__x;						\
-	unsigned int __ret = 0, __i;					\
-									\
-	queue_for_each_ctx((q), __x, __i)				\
-		__ret += sum;						\
-	__ret;								\
-})
 
 #endif

@@ -68,7 +68,6 @@ config ARCH_NETWINDER
 	select ISA
 	select ISA_DMA
 	select PCI
-	select VIRT_TO_BUS
 	help
 	  Say Y here if you intend to run this kernel on the Rebel.COM
 	  NetWinder.  Information about this machine can be found at:

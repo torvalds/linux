@@ -38,7 +38,7 @@ struct usbhs_pipe {
 #define USBHS_PIPE_FLAGS_IS_DIR_HOST		(1 << 2)
 #define USBHS_PIPE_FLAGS_IS_RUNNING		(1 << 3)
 
-	struct usbhs_pkt_handle *handler;
+	const struct usbhs_pkt_handle *handler;
 
 	void *mod_private;
 };
