@@ -3548,7 +3548,8 @@ static void flush_unmaps(struct deferred_flush_data *flush_data)
 			/* On real hardware multiple invalidations are expensive */
 			if (cap_caching_mode(iommu->cap))
 				iommu_flush_iotlb_psi(iommu, domain,
-					iova->pfn_lo, iova_size(iova),
+					mm_to_dma_pfn(iova->pfn_lo),
+					mm_to_dma_pfn(iova_size(iova)),
 					!freelist, 0);
 			else {
 				mask = ilog2(mm_to_dma_pfn(iova_size(iova)));
