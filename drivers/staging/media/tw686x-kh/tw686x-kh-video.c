@@ -625,7 +625,7 @@ int tw686x_video_irq(struct tw686x_dev *dev)
 	requests = dev->dma_requests;
 	spin_unlock_irqrestore(&dev->irq_lock, flags);
 
-	if (dev->dma_requests & dev->video_active) {
+	if (requests & dev->video_active) {
 		wake_up_interruptible_all(&dev->video_thread_wait);
 		handled = 1;
 	}
