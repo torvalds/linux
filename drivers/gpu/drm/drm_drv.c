@@ -38,13 +38,23 @@
 #include "drm_legacy.h"
 #include "drm_internal.h"
 
-unsigned int drm_debug = 0;	/* bitmask of DRM_UT_x */
+/*
+ * drm_debug: Enable debug output.
+ * Bitmask of DRM_UT_x. See include/drm/drmP.h for details.
+ */
+unsigned int drm_debug = 0;
 EXPORT_SYMBOL(drm_debug);
 
 MODULE_AUTHOR(CORE_AUTHOR);
 MODULE_DESCRIPTION(CORE_DESC);
 MODULE_LICENSE("GPL and additional rights");
-MODULE_PARM_DESC(debug, "Enable debug output");
+MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug category.\n"
+"\t\tBit 0 (0x01) will enable CORE messages (drm core code)\n"
+"\t\tBit 1 (0x02) will enable DRIVER messages (drm controller code)\n"
+"\t\tBit 2 (0x04) will enable KMS messages (modesetting code)\n"
+"\t\tBit 3 (0x08) will enable PRIME messages (prime code)\n"
+"\t\tBit 4 (0x10) will enable ATOMIC messages (atomic code)\n"
+"\t\tBit 5 (0x20) will enable VBL messages (vblank code)");
 module_param_named(debug, drm_debug, int, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);
