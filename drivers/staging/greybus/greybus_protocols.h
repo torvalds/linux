@@ -967,6 +967,18 @@ struct gb_svc_key_event_request {
 #define GB_SVC_KEY_PRESSED     0x01
 } __packed;
 
+#define GB_SVC_PWRMON_MAX_RAIL_COUNT		254
+
+struct gb_svc_pwrmon_rail_count_get_response {
+	__u8	rail_count;
+} __packed;
+
+#define GB_SVC_PWRMON_RAIL_NAME_BUFSIZE		32
+
+struct gb_svc_pwrmon_rail_names_get_response {
+	__u8	name[0][GB_SVC_PWRMON_RAIL_NAME_BUFSIZE];
+} __packed;
+
 #define GB_SVC_PWRMON_TYPE_CURR			0x01
 #define GB_SVC_PWRMON_TYPE_VOL			0x02
 #define GB_SVC_PWRMON_TYPE_PWR			0x03
@@ -975,6 +987,16 @@ struct gb_svc_key_event_request {
 #define GB_SVC_PWRMON_GET_SAMPLE_INVAL		0x01
 #define GB_SVC_PWRMON_GET_SAMPLE_NOSUPP		0x02
 #define GB_SVC_PWRMON_GET_SAMPLE_HWERR		0x03
+
+struct gb_svc_pwrmon_sample_get_request {
+	__u8	rail_id;
+	__u8	measurement_type;
+} __packed;
+
+struct gb_svc_pwrmon_sample_get_response {
+	__u8	result;
+	__le32	measurement;
+} __packed;
 
 struct gb_svc_pwrmon_intf_sample_get_request {
 	__u8	intf_id;

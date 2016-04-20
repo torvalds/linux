@@ -22,6 +22,11 @@ enum gb_svc_state {
 
 struct gb_svc_watchdog;
 
+struct svc_debugfs_pwrmon_rail {
+	u8 id;
+	struct gb_svc *svc;
+};
+
 struct gb_svc {
 	struct device		dev;
 
@@ -40,6 +45,11 @@ struct gb_svc {
 	struct input_dev        *input;
 	char                    *input_phys;
 	struct gb_svc_watchdog	*watchdog;
+
+	struct dentry *debugfs_dentry;
+	struct svc_debugfs_pwrmon_rail *pwrmon_rails;
+	struct gb_svc_pwrmon_rail_names_get_response *rail_names;
+	u8 rail_count;
 };
 #define to_gb_svc(d) container_of(d, struct gb_svc, dev)
 

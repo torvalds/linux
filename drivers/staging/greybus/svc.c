@@ -7,6 +7,7 @@
  * Released under the GPLv2 only.
  */
 
+#include <linux/debugfs.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
 
@@ -98,6 +99,78 @@ static ssize_t watchdog_store(struct device *dev,
 	return len;
 }
 static DEVICE_ATTR_RW(watchdog);
+
+static int gb_svc_pwrmon_rail_count_get(struct gb_svc *svc, u8 *value)
+{
+	struct gb_svc_pwrmon_rail_count_get_response response;
+	int ret;
+
+	ret = gb_operation_sync(svc->connection,
+				GB_SVC_TYPE_PWRMON_RAIL_COUNT_GET, NULL, 0,
+				&response, sizeof(response));
+	if (ret) {
+		dev_err(&svc->dev, "failed to get rail count (%d)\n", ret);
+		return ret;
+	}
+
+	*value = response.rail_count;
+
+	return 0;
+}
+
+static int gb_svc_pwrmon_rail_names_get(struct gb_svc *svc,
+					struct gb_svc_pwrmon_rail_names_get_response *response,
+					size_t bufsize)
+{
+	int ret;
+
+	ret = gb_operation_sync(svc->connection,
+				GB_SVC_TYPE_PWRMON_RAIL_NAMES_GET, NULL, 0,
+				response, bufsize);
+	if (ret) {
+		dev_err(&svc->dev, "failed to get rail names (%d)\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int gb_svc_pwrmon_sample_get(struct gb_svc *svc, u8 rail_id,
+				    u8 measurement_type, u32 *value)
+{
+	struct gb_svc_pwrmon_sample_get_request request;
+	struct gb_svc_pwrmon_sample_get_response response;
+	int ret;
+
+	request.rail_id = rail_id;
+	request.measurement_type = measurement_type;
+
+	ret = gb_operation_sync(svc->connection, GB_SVC_TYPE_PWRMON_SAMPLE_GET,
+				&request, sizeof(request),
+				&response, sizeof(response));
+	if (ret) {
+		dev_err(&svc->dev, "failed to get rail sample (%d)\n", ret);
+		return ret;
+	}
+
+	if (response.result) {
+		dev_err(&svc->dev,
+			"UniPro error while getting rail power sample (%d %d): %d\n",
+			rail_id, measurement_type, response.result);
+		switch (response.result) {
+		case GB_SVC_PWRMON_GET_SAMPLE_INVAL:
+			return -EINVAL;
+		case GB_SVC_PWRMON_GET_SAMPLE_NOSUPP:
+			return -ENOSYS;
+		default:
+			return -EIO;
+		}
+	}
+
+	*value = le32_to_cpu(response.measurement);
+
+	return 0;
+}
 
 int gb_svc_pwrmon_intf_sample_get(struct gb_svc *svc, u8 intf_id,
 				  u8 measurement_type, u32 *value)
@@ -393,6 +466,161 @@ static int gb_svc_version_request(struct gb_operation *op)
 	return 0;
 }
 
+static ssize_t pwr_debugfs_voltage_read(struct file *file, char __user *buf,
+					size_t len, loff_t *offset)
+{
+	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file->f_inode->i_private;
+	struct gb_svc *svc = pwrmon_rails->svc;
+	int ret, desc;
+	u32 value;
+	char buff[16];
+
+	ret = gb_svc_pwrmon_sample_get(svc, pwrmon_rails->id,
+				       GB_SVC_PWRMON_TYPE_VOL, &value);
+	if (ret) {
+		dev_err(&svc->dev,
+			"failed to get voltage sample ret=%d id=%d\n",
+			ret, pwrmon_rails->id);
+		return ret;
+	}
+
+	desc = scnprintf(buff, sizeof(buff), "%u\n", value);
+
+	return simple_read_from_buffer(buf, len, offset, buff, desc);
+}
+
+static ssize_t pwr_debugfs_current_read(struct file *file, char __user *buf,
+					size_t len, loff_t *offset)
+{
+	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file->f_inode->i_private;
+	struct gb_svc *svc = pwrmon_rails->svc;
+	int ret, desc;
+	u32 value;
+	char buff[16];
+
+	ret = gb_svc_pwrmon_sample_get(svc, pwrmon_rails->id,
+				       GB_SVC_PWRMON_TYPE_CURR, &value);
+	if (ret) {
+		dev_err(&svc->dev,
+			"failed to get current sample ret=%d id=%d\n",
+			ret, pwrmon_rails->id);
+		return ret;
+	}
+
+	desc = scnprintf(buff, sizeof(buff), "%u\n", value);
+
+	return simple_read_from_buffer(buf, len, offset, buff, desc);
+}
+
+static ssize_t pwr_debugfs_power_read(struct file *file, char __user *buf,
+				      size_t len, loff_t *offset)
+{
+	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file->f_inode->i_private;
+	struct gb_svc *svc = pwrmon_rails->svc;
+	int ret, desc;
+	u32 value;
+	char buff[16];
+
+	ret = gb_svc_pwrmon_sample_get(svc, pwrmon_rails->id,
+				       GB_SVC_PWRMON_TYPE_PWR, &value);
+	if (ret) {
+		dev_err(&svc->dev, "failed to get power sample ret=%d id=%d\n",
+			ret, pwrmon_rails->id);
+		return ret;
+	}
+
+	desc = scnprintf(buff, sizeof(buff), "%u\n", value);
+
+	return simple_read_from_buffer(buf, len, offset, buff, desc);
+}
+
+static const struct file_operations pwrmon_debugfs_voltage_fops = {
+	.read		= pwr_debugfs_voltage_read,
+};
+
+static const struct file_operations pwrmon_debugfs_current_fops = {
+	.read		= pwr_debugfs_current_read,
+};
+
+static const struct file_operations pwrmon_debugfs_power_fops = {
+	.read		= pwr_debugfs_power_read,
+};
+
+static void svc_pwrmon_debugfs_init(struct gb_svc *svc)
+{
+	int i;
+	size_t bufsize;
+	struct dentry *dent;
+
+	dent = debugfs_create_dir("pwrmon", svc->debugfs_dentry);
+	if (IS_ERR_OR_NULL(dent))
+		return;
+
+	if (gb_svc_pwrmon_rail_count_get(svc, &svc->rail_count))
+		goto err_pwrmon_debugfs;
+
+	if (!svc->rail_count || svc->rail_count > GB_SVC_PWRMON_MAX_RAIL_COUNT)
+		goto err_pwrmon_debugfs;
+
+	bufsize = GB_SVC_PWRMON_RAIL_NAME_BUFSIZE * svc->rail_count;
+
+	svc->rail_names = kzalloc(bufsize, GFP_KERNEL);
+	if (!svc->rail_names)
+		goto err_pwrmon_debugfs;
+
+	svc->pwrmon_rails = kcalloc(svc->rail_count, sizeof(*svc->pwrmon_rails),
+				    GFP_KERNEL);
+	if (!svc->pwrmon_rails)
+		goto err_pwrmon_debugfs_free;
+
+	if (gb_svc_pwrmon_rail_names_get(svc, svc->rail_names, bufsize))
+		goto err_pwrmon_debugfs_free;
+
+	for (i = 0; i < svc->rail_count; i++) {
+		struct dentry *dir;
+		struct svc_debugfs_pwrmon_rail *rail = &svc->pwrmon_rails[i];
+		char fname[GB_SVC_PWRMON_RAIL_NAME_BUFSIZE];
+
+		snprintf(fname, sizeof(fname), "%s",
+			 (char *)&svc->rail_names->name[i]);
+
+		rail->id = i;
+		rail->svc = svc;
+
+		dir = debugfs_create_dir(fname, dent);
+		debugfs_create_file("voltage_now", S_IRUGO, dir, rail,
+				    &pwrmon_debugfs_voltage_fops);
+		debugfs_create_file("current_now", S_IRUGO, dir, rail,
+				    &pwrmon_debugfs_current_fops);
+		debugfs_create_file("power_now", S_IRUGO, dir, rail,
+				    &pwrmon_debugfs_power_fops);
+	};
+	return;
+
+err_pwrmon_debugfs_free:
+	kfree(svc->rail_names);
+	svc->rail_names = NULL;
+
+	kfree(svc->pwrmon_rails);
+	svc->pwrmon_rails = NULL;
+
+err_pwrmon_debugfs:
+	debugfs_remove(dent);
+}
+
+static void svc_debugfs_init(struct gb_svc *svc)
+{
+	svc->debugfs_dentry = debugfs_create_dir(dev_name(&svc->dev),
+						 gb_debugfs_get());
+	svc_pwrmon_debugfs_init(svc);
+}
+
+static void svc_debugfs_exit(struct gb_svc *svc)
+{
+	debugfs_remove_recursive(svc->debugfs_dentry);
+	kfree(svc->rail_names);
+}
+
 static int gb_svc_hello(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
@@ -431,6 +659,8 @@ static int gb_svc_hello(struct gb_operation *op)
 		device_del(&svc->dev);
 		return ret;
 	}
+
+	svc_debugfs_init(svc);
 
 	return 0;
 }
@@ -882,6 +1112,7 @@ void gb_svc_del(struct gb_svc *svc)
 	 * from the request handler.
 	 */
 	if (device_is_registered(&svc->dev)) {
+		svc_debugfs_exit(svc);
 		gb_svc_watchdog_destroy(svc);
 		input_unregister_device(svc->input);
 		device_del(&svc->dev);
