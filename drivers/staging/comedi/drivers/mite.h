@@ -104,49 +104,49 @@ int mite_init_ring_descriptors(struct mite_dma_descriptor_ring *ring,
 			       struct comedi_subdevice *s,
 			       unsigned int nbytes);
 
-enum mite_registers {
-	MITE_IODWBSR = 0xc0,	/* IO Device Window Base Size Register */
-	MITE_IODWBSR_1 = 0xc4,	/* IO Device Window Base Size Register 1 */
-	MITE_IODWCR_1 = 0xf4,
-};
+/*
+ * Mite registers (used outside of the mite driver)
+ */
+#define MITE_IODWBSR		0xc0	/* IO Device Window Base Size */
+#define MITE_IODWBSR_1		0xc4	/* IO Device Window1 Base Size */
+#define WENAB			BIT(7)	/* window enable */
+#define MITE_IODWCR_1		0xf4
 
-enum MITE_IODWBSR_bits {
-	WENAB = 0x80,		/* window enable */
-};
-
-enum CHSR_bits {
-	CHSR_INT = (1 << 31),
-	CHSR_LPAUSES = (1 << 29),
-	CHSR_SARS = (1 << 27),
-	CHSR_DONE = (1 << 25),
-	CHSR_MRDY = (1 << 23),
-	CHSR_DRDY = (1 << 21),
-	CHSR_LINKC = (1 << 19),
-	CHSR_CONTS_RB = (1 << 17),
-	CHSR_ERROR = (1 << 15),
-	CHSR_SABORT = (1 << 14),
-	CHSR_HABORT = (1 << 13),
-	CHSR_STOPS = (1 << 12),
-	CHSR_OPERR_MASK = (3 << 10),
-	CHSR_OPERR_NOERROR = (0 << 10),
-	CHSR_OPERR_FIFOERROR = (1 << 10),
-	CHSR_OPERR_LINKERROR = (1 << 10),	/* ??? */
-	CHSR_XFERR = (1 << 9),
-	CHSR_END = (1 << 8),
-	CHSR_DRQ1 = (1 << 7),
-	CHSR_DRQ0 = (1 << 6),
-	CHSR_LERR_MASK = (3 << 4),
-	CHSR_LBERR = (1 << 4),
-	CHSR_LRERR = (2 << 4),
-	CHSR_LOERR = (3 << 4),
-	CHSR_MERR_MASK = (3 << 2),
-	CHSR_MBERR = (1 << 2),
-	CHSR_MRERR = (2 << 2),
-	CHSR_MOERR = (3 << 2),
-	CHSR_DERR_MASK = (3 << 0),
-	CHSR_DBERR = (1 << 0),
-	CHSR_DRERR = (2 << 0),
-	CHSR_DOERR = (3 << 0),
-};
+#define CHSR_INT		BIT(31)
+#define CHSR_LPAUSES		BIT(29)
+#define CHSR_SARS		BIT(27)
+#define CHSR_DONE		BIT(25)
+#define CHSR_MRDY		BIT(23)
+#define CHSR_DRDY		BIT(21)
+#define CHSR_LINKC		BIT(19)
+#define CHSR_CONTS_RB		BIT(17)
+#define CHSR_ERROR		BIT(15)
+#define CHSR_SABORT		BIT(14)
+#define CHSR_HABORT		BIT(13)
+#define CHSR_STOPS		BIT(12)
+#define CHSR_OPERR(x)		(((x) & 0x3) << 10)
+#define CHSR_OPERR_MASK		CHSR_OPERR(3)
+#define CHSR_OPERR_NOERROR	CHSR_OPERR(0)
+#define CHSR_OPERR_FIFOERROR	CHSR_OPERR(1)
+#define CHSR_OPERR_LINKERROR	CHSR_OPERR(1)	/* ??? */
+#define CHSR_XFERR		BIT(9)
+#define CHSR_END		BIT(8)
+#define CHSR_DRQ1		BIT(7)
+#define CHSR_DRQ0		BIT(6)
+#define CHSR_LERR(x)		(((x) & 0x3) << 4)
+#define CHSR_LERR_MASK		CHSR_LERR(3)
+#define CHSR_LBERR		CHSR_LERR(1)
+#define CHSR_LRERR		CHSR_LERR(2)
+#define CHSR_LOERR		CHSR_LERR(3)
+#define CHSR_MERR(x)		(((x) & 0x3) << 2)
+#define CHSR_MERR_MASK		CHSR_MERR(3)
+#define CHSR_MBERR		CHSR_MERR(1)
+#define CHSR_MRERR		CHSR_MERR(2)
+#define CHSR_MOERR		CHSR_MERR(3)
+#define CHSR_DERR(x)		(((x) & 0x3) << 0)
+#define CHSR_DERR_MASK		CHSR_DERR(3)
+#define CHSR_DBERR		CHSR_DERR(1)
+#define CHSR_DRERR		CHSR_DERR(2)
+#define CHSR_DOERR		CHSR_DERR(3)
 
 #endif
