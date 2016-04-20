@@ -126,7 +126,7 @@ void wm8400_reset_codec_reg_cache(struct wm8400 *wm8400)
 }
 EXPORT_SYMBOL_GPL(wm8400_reset_codec_reg_cache);
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8400_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -165,7 +165,7 @@ static int __init wm8400_module_init(void)
 {
 	int ret = -ENODEV;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8400_i2c_driver);
 	if (ret != 0)
 		pr_err("Failed to register I2C driver: %d\n", ret);
@@ -177,7 +177,7 @@ subsys_initcall(wm8400_module_init);
 
 static void __exit wm8400_module_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8400_i2c_driver);
 #endif
 }
