@@ -412,6 +412,88 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
 }
 EXPORT_SYMBOL_GPL(iio_enum_write);
 
+static const struct iio_mount_matrix iio_mount_idmatrix = {
+	.rotation = {
+		"1", "0", "0",
+		"0", "1", "0",
+		"0", "0", "1"
+	}
+};
+
+static int iio_setup_mount_idmatrix(const struct device *dev,
+				    struct iio_mount_matrix *matrix)
+{
+	*matrix = iio_mount_idmatrix;
+	dev_info(dev, "mounting matrix not found: using identity...\n");
+	return 0;
+}
+
+ssize_t iio_show_mount_matrix(struct iio_dev *indio_dev, uintptr_t priv,
+			      const struct iio_chan_spec *chan, char *buf)
+{
+	const struct iio_mount_matrix *mtx = ((iio_get_mount_matrix_t *)
+					      priv)(indio_dev, chan);
+
+	if (IS_ERR(mtx))
+		return PTR_ERR(mtx);
+
+	if (!mtx)
+		mtx = &iio_mount_idmatrix;
+
+	return snprintf(buf, PAGE_SIZE, "%s, %s, %s; %s, %s, %s; %s, %s, %s\n",
+			mtx->rotation[0], mtx->rotation[1], mtx->rotation[2],
+			mtx->rotation[3], mtx->rotation[4], mtx->rotation[5],
+			mtx->rotation[6], mtx->rotation[7], mtx->rotation[8]);
+}
+EXPORT_SYMBOL_GPL(iio_show_mount_matrix);
+
+/**
+ * of_iio_read_mount_matrix() - retrieve iio device mounting matrix from
+ *                              device-tree "mount-matrix" property
+ * @dev:	device the mounting matrix property is assigned to
+ * @propname:	device specific mounting matrix property name
+ * @matrix:	where to store retrieved matrix
+ *
+ * If device is assigned no mounting matrix property, a default 3x3 identity
+ * matrix will be filled in.
+ *
+ * Return: 0 if success, or a negative error code on failure.
+ */
+#ifdef CONFIG_OF
+int of_iio_read_mount_matrix(const struct device *dev,
+			     const char *propname,
+			     struct iio_mount_matrix *matrix)
+{
+	if (dev->of_node) {
+		int err = of_property_read_string_array(dev->of_node,
+				propname, matrix->rotation,
+				ARRAY_SIZE(iio_mount_idmatrix.rotation));
+
+		if (err == ARRAY_SIZE(iio_mount_idmatrix.rotation))
+			return 0;
+
+		if (err >= 0)
+			/* Invalid number of matrix entries. */
+			return -EINVAL;
+
+		if (err != -EINVAL)
+			/* Invalid matrix declaration format. */
+			return err;
+	}
+
+	/* Matrix was not declared at all: fallback to identity. */
+	return iio_setup_mount_idmatrix(dev, matrix);
+}
+#else
+int of_iio_read_mount_matrix(const struct device *dev,
+			     const char *propname,
+			     struct iio_mount_matrix *matrix)
+{
+	return iio_setup_mount_idmatrix(dev, matrix);
+}
+#endif
+EXPORT_SYMBOL(of_iio_read_mount_matrix);
+
 /**
  * iio_format_value() - Formats a IIO value into its string representation
  * @buf:	The buffer to which the formatted value gets written
