@@ -361,7 +361,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 		if (!obj->base.filp)
 			continue;
 
-		if (obj->pages_pin_count)
+		if (obj->pages_pin_count > num_vma_bound(obj))
 			pinned += obj->base.size;
 		else
 			bound += obj->base.size;
