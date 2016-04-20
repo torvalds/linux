@@ -1778,7 +1778,7 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_DRIVER("DDI PHY %d already enabled, "
 				 "won't reprogram it\n", phy);
 		/* Still read out the GRC value for state verification */
-		if (phy == DPIO_PHY1)
+		if (phy == DPIO_PHY0)
 			dev_priv->bxt_phy_grc = broxton_get_grc(dev_priv, phy);
 
 		return;
