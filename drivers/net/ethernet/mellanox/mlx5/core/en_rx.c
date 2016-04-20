@@ -573,10 +573,6 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	if (unlikely(mlx5e_rx_hw_stamp(tstamp)))
 		mlx5e_fill_hwstamp(tstamp, get_cqe_ts(cqe), skb_hwtstamps(skb));
 
-	mlx5e_handle_csum(netdev, cqe, rq, skb, !!lro_num_seg);
-
-	skb->protocol = eth_type_trans(skb, netdev);
-
 	skb_record_rx_queue(skb, rq->ix);
 
 	if (likely(netdev->features & NETIF_F_RXHASH))
@@ -587,6 +583,9 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 				       be16_to_cpu(cqe->vlan_info));
 
 	skb->mark = be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK;
+
+	mlx5e_handle_csum(netdev, cqe, rq, skb, !!lro_num_seg);
+	skb->protocol = eth_type_trans(skb, netdev);
 }
 
 static inline void mlx5e_complete_rx_cqe(struct mlx5e_rq *rq,
