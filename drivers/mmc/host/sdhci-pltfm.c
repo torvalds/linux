@@ -127,9 +127,6 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 		goto err;
 	}
 
-	if (resource_size(iomem) < 0x100)
-		dev_err(&pdev->dev, "Invalid iomem size!\n");
-
 	host = sdhci_alloc_host(&pdev->dev,
 		sizeof(struct sdhci_pltfm_host) + priv_size);
 
