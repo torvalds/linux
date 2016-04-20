@@ -465,7 +465,7 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 
 	mutex_init(&edev->lock);
 
-	edev->spi = spi_dev_get(spi);
+	edev->spi = spi;
 	edev->pdata = pd;
 
 	edev->size = 128;
