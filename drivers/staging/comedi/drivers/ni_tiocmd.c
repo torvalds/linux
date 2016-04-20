@@ -400,7 +400,6 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 			     struct comedi_subdevice *s)
 {
 	unsigned int cidx = counter->counter_index;
-	unsigned int gpct_mite_status;
 	unsigned long flags;
 	int gate_error;
 	int tc_error;
@@ -429,16 +428,10 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 		break;
 	}
 	spin_lock_irqsave(&counter->lock, flags);
-	if (!counter->mite_chan) {
-		spin_unlock_irqrestore(&counter->lock, flags);
-		return;
+	if (counter->mite_chan) {
+		mite_ack_linkc(counter->mite_chan);
+		mite_sync_input_dma(counter->mite_chan, s);
 	}
-	gpct_mite_status = mite_get_status(counter->mite_chan);
-	if (gpct_mite_status & CHSR_LINKC)
-		writel(CHOR_CLRLC,
-		       counter->mite_chan->mite->mite_io_addr +
-		       MITE_CHOR(counter->mite_chan->channel));
-	mite_sync_input_dma(counter->mite_chan, s);
 	spin_unlock_irqrestore(&counter->lock, flags);
 }
 EXPORT_SYMBOL_GPL(ni_tio_handle_interrupt);

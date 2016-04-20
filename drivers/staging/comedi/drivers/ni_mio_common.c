@@ -3697,13 +3697,7 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->cdo_mite_chan) {
-		unsigned int cdo_mite_status =
-		    mite_get_status(devpriv->cdo_mite_chan);
-		if (cdo_mite_status & CHSR_LINKC) {
-			writel(CHOR_CLRLC,
-			       devpriv->mite->mite_io_addr +
-			       MITE_CHOR(devpriv->cdo_mite_chan->channel));
-		}
+		mite_ack_linkc(devpriv->cdo_mite_chan);
 		mite_sync_output_dma(devpriv->cdo_mite_chan, s);
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -5222,22 +5216,10 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 		unsigned long flags_too;
 
 		spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
-		if (devpriv->ai_mite_chan) {
-			ai_mite_status = mite_get_status(devpriv->ai_mite_chan);
-			if (ai_mite_status & CHSR_LINKC)
-				writel(CHOR_CLRLC,
-				       devpriv->mite->mite_io_addr +
-				       MITE_CHOR(devpriv->
-						 ai_mite_chan->channel));
-		}
-		if (devpriv->ao_mite_chan) {
-			ao_mite_status = mite_get_status(devpriv->ao_mite_chan);
-			if (ao_mite_status & CHSR_LINKC)
-				writel(CHOR_CLRLC,
-				       devpriv->mite->mite_io_addr +
-				       MITE_CHOR(devpriv->
-						 ao_mite_chan->channel));
-		}
+		if (devpriv->ai_mite_chan)
+			ai_mite_status = mite_ack_linkc(devpriv->ai_mite_chan);
+		if (devpriv->ao_mite_chan)
+			ao_mite_status = mite_ack_linkc(devpriv->ao_mite_chan);
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
 	}
 #endif

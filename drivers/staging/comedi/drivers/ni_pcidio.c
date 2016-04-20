@@ -381,12 +381,10 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	struct nidio96_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
-	struct mite_struct *mite = devpriv->mite;
 	unsigned int auxdata;
 	int flags;
 	int status;
 	int work = 0;
-	unsigned int m_status = 0;
 
 	/* interrupcions parasites */
 	if (!dev->attached) {
@@ -401,14 +399,10 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	flags = readb(dev->mmio + Group_1_Flags);
 
 	spin_lock(&devpriv->mite_channel_lock);
-	if (devpriv->di_mite_chan)
-		m_status = mite_get_status(devpriv->di_mite_chan);
+	if (devpriv->di_mite_chan) {
+		unsigned int m_status = mite_ack_linkc(devpriv->di_mite_chan);
 
-	if (m_status & CHSR_INT) {
 		if (m_status & CHSR_LINKC) {
-			writel(CHOR_CLRLC,
-			       mite->mite_io_addr +
-			       MITE_CHOR(devpriv->di_mite_chan->channel));
 			mite_sync_input_dma(devpriv->di_mite_chan, s);
 			/* XXX need to byteswap */
 		}

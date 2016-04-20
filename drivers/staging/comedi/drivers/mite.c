@@ -622,7 +622,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 }
 EXPORT_SYMBOL_GPL(mite_sync_output_dma);
 
-unsigned int mite_get_status(struct mite_channel *mite_chan)
+static unsigned int mite_get_status(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
 	unsigned int status;
@@ -639,7 +639,20 @@ unsigned int mite_get_status(struct mite_channel *mite_chan)
 	spin_unlock_irqrestore(&mite->lock, flags);
 	return status;
 }
-EXPORT_SYMBOL_GPL(mite_get_status);
+
+unsigned int mite_ack_linkc(struct mite_channel *mite_chan)
+{
+	struct mite_struct *mite = mite_chan->mite;
+	unsigned int status;
+
+	status = mite_get_status(mite_chan);
+	if (status & CHSR_LINKC)
+		writel(CHOR_CLRLC,
+		       mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
+
+	return status;
+}
+EXPORT_SYMBOL_GPL(mite_ack_linkc);
 
 int mite_done(struct mite_channel *mite_chan)
 {
