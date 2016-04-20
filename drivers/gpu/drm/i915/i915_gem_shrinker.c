@@ -70,6 +70,10 @@ static bool swap_available(void)
 
 static bool can_release_pages(struct drm_i915_gem_object *obj)
 {
+	/* Only shmemfs objects are backed by swap */
+	if (!obj->base.filp)
+		return false;
+
 	/* Only report true if by unbinding the object and putting its pages
 	 * we can actually make forward progress towards freeing physical
 	 * pages.
@@ -349,18 +353,12 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	 */
 	unbound = bound = unevictable = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
-		if (!obj->base.filp) /* not backed by a freeable object */
-			continue;
-
 		if (!can_release_pages(obj))
 			unevictable += obj->base.size >> PAGE_SHIFT;
 		else
 			unbound += obj->base.size >> PAGE_SHIFT;
 	}
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (!obj->base.filp)
-			continue;
-
 		if (!can_release_pages(obj))
 			unevictable += obj->base.size >> PAGE_SHIFT;
 		else
