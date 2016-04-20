@@ -324,8 +324,6 @@ static void ni_pcidio_release_di_mite_channel(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->di_mite_chan) {
-		mite_dma_disarm(devpriv->di_mite_chan);
-		mite_dma_reset(devpriv->di_mite_chan);
 		mite_release_channel(devpriv->di_mite_chan);
 		devpriv->di_mite_chan = NULL;
 		writeb(primary_DMAChannel_bits(0) |
