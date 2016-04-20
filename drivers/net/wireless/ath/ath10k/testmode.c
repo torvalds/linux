@@ -205,15 +205,15 @@ static int ath10k_tm_fetch_utf_firmware_api_2(struct ath10k *ar,
 
 		switch (ie_id) {
 		case ATH10K_FW_IE_FW_VERSION:
-			if (ie_len > sizeof(ar->testmode.utf_version) - 1)
+			if (ie_len > sizeof(fw_file->fw_version) - 1)
 				break;
 
-			memcpy(ar->testmode.utf_version, data, ie_len);
-			ar->testmode.utf_version[ie_len] = '\0';
+			memcpy(fw_file->fw_version, data, ie_len);
+			fw_file->fw_version[ie_len] = '\0';
 
 			ath10k_dbg(ar, ATH10K_DBG_TESTMODE,
 				   "testmode found fw utf version %s\n",
-				   ar->testmode.utf_version);
+				   fw_file->fw_version);
 			break;
 		case ATH10K_FW_IE_TIMESTAMP:
 			/* ignore timestamp, but don't warn about it either */
@@ -392,8 +392,8 @@ static int ath10k_tm_cmd_utf_start(struct ath10k *ar, struct nlattr *tb[])
 
 	ar->state = ATH10K_STATE_UTF;
 
-	if (strlen(ar->testmode.utf_version) > 0)
-		ver = ar->testmode.utf_version;
+	if (strlen(ar->testmode.utf_mode_fw.fw_file.fw_version) > 0)
+		ver = ar->testmode.utf_mode_fw.fw_file.fw_version;
 	else
 		ver = "API 1";
 

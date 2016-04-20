@@ -630,6 +630,8 @@ enum ath10k_tx_pause_reason {
 struct ath10k_fw_file {
 	const struct firmware *firmware;
 
+	char fw_version[ETHTOOL_FWVERS_LEN];
+
 	const void *firmware_data;
 	size_t firmware_len;
 
@@ -893,7 +895,6 @@ struct ath10k {
 	struct {
 		/* protected by conf_mutex */
 		struct ath10k_fw_components utf_mode_fw;
-		char utf_version[32];
 		DECLARE_BITMAP(orig_fw_features, ATH10K_FW_FEATURE_COUNT);
 		enum ath10k_fw_wmi_op_version orig_wmi_op_version;
 		enum ath10k_fw_wmi_op_version op_version;

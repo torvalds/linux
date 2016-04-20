@@ -1039,15 +1039,15 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
 
 		switch (ie_id) {
 		case ATH10K_FW_IE_FW_VERSION:
-			if (ie_len > sizeof(ar->hw->wiphy->fw_version) - 1)
+			if (ie_len > sizeof(fw_file->fw_version) - 1)
 				break;
 
-			memcpy(ar->hw->wiphy->fw_version, data, ie_len);
-			ar->hw->wiphy->fw_version[ie_len] = '\0';
+			memcpy(fw_file->fw_version, data, ie_len);
+			fw_file->fw_version[ie_len] = '\0';
 
 			ath10k_dbg(ar, ATH10K_DBG_BOOT,
 				   "found fw version %s\n",
-				    ar->hw->wiphy->fw_version);
+				    fw_file->fw_version);
 			break;
 		case ATH10K_FW_IE_TIMESTAMP:
 			if (ie_len != sizeof(u32))
@@ -1865,6 +1865,11 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		ath10k_err(ar, "could not fetch firmware files (%d)\n", ret);
 		goto err_power_down;
 	}
+
+	BUILD_BUG_ON(sizeof(ar->hw->wiphy->fw_version) !=
+		     sizeof(ar->normal_mode_fw.fw_file.fw_version));
+	memcpy(ar->hw->wiphy->fw_version, ar->normal_mode_fw.fw_file.fw_version,
+	       sizeof(ar->hw->wiphy->fw_version));
 
 	ath10k_debug_print_hwfw_info(ar);
 
