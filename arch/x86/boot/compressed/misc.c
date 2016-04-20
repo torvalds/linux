@@ -21,19 +21,19 @@
  * it is not safe to place pointers in static structures.
  */
 
+/* Macros used by the included decompressor code below. */
 #define STATIC		static
 
-#undef memcpy
-
 /*
- * Use a normal definition of memset() from string.c. There are already
+ * Use normal definitions of mem*() from string.c. There are already
  * included header files which expect a definition of memset() and by
  * the time we define memset macro, it is too late.
  */
+#undef memcpy
 #undef memset
 #define memzero(s, n)	memset((s), 0, (n))
 
-
+/* Functions used by the included decompressor code below. */
 static void error(char *m);
 
 /*
