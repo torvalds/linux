@@ -3357,7 +3357,7 @@ static unsigned long intel_alloc_iova(struct device *dev,
 				     struct dmar_domain *domain,
 				     unsigned long nrpages, uint64_t dma_mask)
 {
-	struct iova *iova = NULL;
+	unsigned long iova_pfn = 0;
 
 	/* Restrict dma_mask to the width that the iommu can handle */
 	dma_mask = min_t(uint64_t, DOMAIN_MAX_ADDR(domain->gaw), dma_mask);
@@ -3370,19 +3370,19 @@ static unsigned long intel_alloc_iova(struct device *dev,
 		 * DMA_BIT_MASK(32) and if that fails then try allocating
 		 * from higher range
 		 */
-		iova = alloc_iova(&domain->iovad, nrpages,
-				  IOVA_PFN(DMA_BIT_MASK(32)), 1);
-		if (iova)
-			return iova->pfn_lo;
+		iova_pfn = alloc_iova_fast(&domain->iovad, nrpages,
+					   IOVA_PFN(DMA_BIT_MASK(32)));
+		if (iova_pfn)
+			return iova_pfn;
 	}
-	iova = alloc_iova(&domain->iovad, nrpages, IOVA_PFN(dma_mask), 1);
-	if (unlikely(!iova)) {
+	iova_pfn = alloc_iova_fast(&domain->iovad, nrpages, IOVA_PFN(dma_mask));
+	if (unlikely(!iova_pfn)) {
 		pr_err("Allocating %ld-page iova for %s failed",
 		       nrpages, dev_name(dev));
 		return 0;
 	}
 
-	return iova->pfn_lo;
+	return iova_pfn;
 }
 
 static struct dmar_domain *__get_valid_domain_for_dev(struct device *dev)
@@ -3536,7 +3536,7 @@ static dma_addr_t __intel_map_single(struct device *dev, phys_addr_t paddr,
 
 error:
 	if (iova_pfn)
-		free_iova(&domain->iovad, iova_pfn);
+		free_iova_fast(&domain->iovad, iova_pfn, dma_to_mm_pfn(size));
 	pr_err("Device %s request: %zx@%llx dir %d --- failed\n",
 		dev_name(dev), size, (unsigned long long)paddr, dir);
 	return 0;
@@ -3591,7 +3591,7 @@ static void flush_unmaps(struct deferred_flush_data *flush_data)
 				iommu_flush_dev_iotlb(domain,
 						(uint64_t)iova_pfn << PAGE_SHIFT, mask);
 			}
-			free_iova(&domain->iovad, iova_pfn);
+			free_iova_fast(&domain->iovad, iova_pfn, nrpages);
 			if (freelist)
 				dma_free_pagelist(freelist);
 		}
@@ -3691,7 +3691,7 @@ static void intel_unmap(struct device *dev, dma_addr_t dev_addr, size_t size)
 		iommu_flush_iotlb_psi(iommu, domain, start_pfn,
 				      nrpages, !freelist, 0);
 		/* free iova */
-		free_iova(&domain->iovad, iova_pfn);
+		free_iova_fast(&domain->iovad, iova_pfn, dma_to_mm_pfn(nrpages));
 		dma_free_pagelist(freelist);
 	} else {
 		add_unmap(domain, iova_pfn, nrpages, freelist);
@@ -3849,7 +3849,7 @@ static int intel_map_sg(struct device *dev, struct scatterlist *sglist, int nele
 	if (unlikely(ret)) {
 		dma_pte_free_pagetable(domain, start_vpfn,
 				       start_vpfn + size - 1);
-		free_iova(&domain->iovad, iova_pfn);
+		free_iova_fast(&domain->iovad, iova_pfn, dma_to_mm_pfn(size));
 		return 0;
 	}
 
@@ -4588,6 +4588,28 @@ static struct notifier_block intel_iommu_memory_nb = {
 	.priority = 0
 };
 
+static void free_all_cpu_cached_iovas(unsigned int cpu)
+{
+	int i;
+
+	for (i = 0; i < g_num_of_iommus; i++) {
+		struct intel_iommu *iommu = g_iommus[i];
+		struct dmar_domain *domain;
+		u16 did;
+
+		if (!iommu)
+			continue;
+
+		for (did = 0; did < 0xffff; did++) {
+			domain = get_iommu_domain(iommu, did);
+
+			if (!domain)
+				continue;
+			free_cpu_cached_iovas(cpu, &domain->iovad);
+		}
+	}
+}
+
 static int intel_iommu_cpu_notifier(struct notifier_block *nfb,
 				    unsigned long action, void *v)
 {
@@ -4596,6 +4618,7 @@ static int intel_iommu_cpu_notifier(struct notifier_block *nfb,
 	switch (action) {
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
+		free_all_cpu_cached_iovas(cpu);
 		flush_unmaps_timeout(cpu);
 		break;
 	}
