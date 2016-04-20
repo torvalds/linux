@@ -1337,12 +1337,8 @@ int mei_cl_notify_request(struct mei_cl *cl,
 			mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
-	if (cl->notify_en != request) {
-		mei_io_list_flush(&dev->ctrl_rd_list, cl);
-		mei_io_list_flush(&dev->ctrl_wr_list, cl);
-		if (!cl->status)
-			cl->status = -EFAULT;
-	}
+	if (cl->notify_en != request && !cl->status)
+		cl->status = -EFAULT;
 
 	rets = cl->status;
 
