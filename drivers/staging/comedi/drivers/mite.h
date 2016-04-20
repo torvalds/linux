@@ -92,7 +92,6 @@ mite_request_channel(struct mite_struct *mite,
 
 void mite_release_channel(struct mite_channel *mite_chan);
 
-unsigned int mite_dma_tcr(struct mite_channel *mite_chan);
 void mite_dma_arm(struct mite_channel *mite_chan);
 void mite_dma_disarm(struct mite_channel *mite_chan);
 int mite_sync_input_dma(struct mite_channel *mite_chan,

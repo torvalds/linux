@@ -285,7 +285,6 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 	mmiowb();
 	spin_unlock_irqrestore(&mite->lock, flags);
-	/* mite_dma_tcr(mite, channel); */
 }
 EXPORT_SYMBOL_GPL(mite_dma_arm);
 
@@ -527,14 +526,6 @@ u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan)
 	return mite_device_bytes_transferred(mite_chan) + in_transit_count;
 }
 EXPORT_SYMBOL_GPL(mite_bytes_read_from_memory_ub);
-
-unsigned int mite_dma_tcr(struct mite_channel *mite_chan)
-{
-	struct mite_struct *mite = mite_chan->mite;
-
-	return readl(mite->mite_io_addr + MITE_TCR(mite_chan->channel));
-}
-EXPORT_SYMBOL_GPL(mite_dma_tcr);
 
 void mite_dma_disarm(struct mite_channel *mite_chan)
 {
