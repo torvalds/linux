@@ -488,44 +488,40 @@ u32 mite_bytes_in_transit(struct mite_channel *mite_chan)
 EXPORT_SYMBOL_GPL(mite_bytes_in_transit);
 
 /* returns lower bound for number of bytes transferred from device to memory */
-u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan)
+static u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan)
 {
 	u32 device_byte_count;
 
 	device_byte_count = mite_device_bytes_transferred(mite_chan);
 	return device_byte_count - mite_bytes_in_transit(mite_chan);
 }
-EXPORT_SYMBOL_GPL(mite_bytes_written_to_memory_lb);
 
 /* returns upper bound for number of bytes transferred from device to memory */
-u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan)
+static u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan)
 {
 	u32 in_transit_count;
 
 	in_transit_count = mite_bytes_in_transit(mite_chan);
 	return mite_device_bytes_transferred(mite_chan) - in_transit_count;
 }
-EXPORT_SYMBOL_GPL(mite_bytes_written_to_memory_ub);
 
 /* returns lower bound for number of bytes read from memory to device */
-u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan)
+static u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan)
 {
 	u32 device_byte_count;
 
 	device_byte_count = mite_device_bytes_transferred(mite_chan);
 	return device_byte_count + mite_bytes_in_transit(mite_chan);
 }
-EXPORT_SYMBOL_GPL(mite_bytes_read_from_memory_lb);
 
 /* returns upper bound for number of bytes read from memory to device */
-u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan)
+static u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan)
 {
 	u32 in_transit_count;
 
 	in_transit_count = mite_bytes_in_transit(mite_chan);
 	return mite_device_bytes_transferred(mite_chan) + in_transit_count;
 }
-EXPORT_SYMBOL_GPL(mite_bytes_read_from_memory_ub);
 
 void mite_dma_disarm(struct mite_channel *mite_chan)
 {
