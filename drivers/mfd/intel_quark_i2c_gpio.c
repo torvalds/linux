@@ -130,7 +130,7 @@ static int intel_quark_register_i2c_clk(struct device *dev)
 
 	i2c_clk = clk_register_fixed_rate(dev,
 					  INTEL_QUARK_I2C_CONTROLLER_CLK, NULL,
-					  CLK_IS_ROOT, INTEL_QUARK_I2C_CLK_HZ);
+					  0, INTEL_QUARK_I2C_CLK_HZ);
 	if (IS_ERR(i2c_clk))
 		return PTR_ERR(i2c_clk);
 
