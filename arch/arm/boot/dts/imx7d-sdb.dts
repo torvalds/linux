@@ -277,6 +277,7 @@
 			remote-endpoint = <&ov5640_mipi_ep>;
 			data-lanes = <2>;
 			csis-hs-settle = <13>;
+			csis-clk-settle = <2>;
 			csis-wclk;
 		};
 
