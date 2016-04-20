@@ -1043,7 +1043,7 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 
-	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
+	*(struct net_device **)(skb->cb) = dev;
 	tcb_desc->bTxEnableFwCalcDur = 1;
 	skb_push(skb, priv->ieee80211->tx_headroom);
 	ret = rtl8192_tx(dev, skb);
@@ -1093,7 +1093,7 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 	if (!skb)
 		return;
 
-	dev = (struct net_device *)(skb->cb);
+	dev = *(struct net_device **)(skb->cb);
 	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	queue_index = tcb_desc->queue_index;
 
