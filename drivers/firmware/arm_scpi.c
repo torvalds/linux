@@ -210,10 +210,6 @@ struct dvfs_info {
 	} opps[MAX_DVFS_OPPS];
 } __packed;
 
-struct dvfs_get {
-	u8 index;
-} __packed;
-
 struct dvfs_set {
 	u8 domain;
 	u8 index;
@@ -431,11 +427,11 @@ static int scpi_clk_set_val(u16 clk_id, unsigned long rate)
 static int scpi_dvfs_get_idx(u8 domain)
 {
 	int ret;
-	struct dvfs_get dvfs;
+	u8 dvfs_idx;
 
 	ret = scpi_send_message(SCPI_CMD_GET_DVFS, &domain, sizeof(domain),
-				&dvfs, sizeof(dvfs));
-	return ret ? ret : dvfs.index;
+				&dvfs_idx, sizeof(dvfs_idx));
+	return ret ? ret : dvfs_idx;
 }
 
 static int scpi_dvfs_set_idx(u8 domain, u8 index)
