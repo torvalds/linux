@@ -162,32 +162,44 @@
 			compatible = "simple-bus";
 			ranges = <0x20000000 0x20000000 0x30000000>;
 
+			/*
+			 * ssp0 and spi1 are shared pins;
+			 * enable one in your board dts, as needed.
+			 */
 			ssp0: ssp@20084000 {
 				compatible = "arm,pl022", "arm,primecell";
 				reg = <0x20084000 0x1000>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk LPC32XX_CLK_SSP0>;
 				clock-names = "apb_pclk";
+				status = "disabled";
 			};
 
 			spi1: spi@20088000 {
 				compatible = "nxp,lpc3220-spi";
 				reg = <0x20088000 0x1000>;
 				clocks = <&clk LPC32XX_CLK_SPI1>;
+				status = "disabled";
 			};
 
+			/*
+			 * ssp1 and spi2 are shared pins;
+			 * enable one in your board dts, as needed.
+			 */
 			ssp1: ssp@2008c000 {
 				compatible = "arm,pl022", "arm,primecell";
 				reg = <0x2008c000 0x1000>;
 				interrupts = <21 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk LPC32XX_CLK_SSP1>;
 				clock-names = "apb_pclk";
+				status = "disabled";
 			};
 
 			spi2: spi@20090000 {
 				compatible = "nxp,lpc3220-spi";
 				reg = <0x20090000 0x1000>;
 				clocks = <&clk LPC32XX_CLK_SPI2>;
+				status = "disabled";
 			};
 
 			i2s0: i2s@20094000 {
