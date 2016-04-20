@@ -80,6 +80,7 @@ static int inv_mpu_remove(struct spi_device *spi)
  */
 static const struct spi_device_id inv_mpu_id[] = {
 	{"mpu6000", INV_MPU6000},
+	{"mpu6500", INV_MPU6500},
 	{}
 };
 
