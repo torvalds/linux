@@ -33,8 +33,6 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/bcm-ns2.h>
 
-/memreserve/ 0x84b00000 0x00000008;
-
 / {
 	compatible = "brcm,ns2";
 	interrupt-parent = <&gic>;
@@ -49,8 +47,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 0>;
-			enable-method = "spin-table";
-			cpu-release-addr = <0 0x84b00000>;
+			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
 		};
 
@@ -58,8 +55,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 1>;
-			enable-method = "spin-table";
-			cpu-release-addr = <0 0x84b00000>;
+			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
 		};
 
@@ -67,8 +63,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 2>;
-			enable-method = "spin-table";
-			cpu-release-addr = <0 0x84b00000>;
+			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
 		};
 
@@ -76,14 +71,18 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 3>;
-			enable-method = "spin-table";
-			cpu-release-addr = <0 0x84b00000>;
+			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
 		};
 
 		CLUSTER0_L2: l2-cache@000 {
 			compatible = "cache";
 		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
 	};
 
 	timer {
@@ -250,18 +249,6 @@
 				     <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>;
 			mmu-masters;
-		};
-
-		crmu: crmu@65024000 {
-			compatible = "syscon";
-			reg = <0x65024000 0x100>;
-		};
-
-		reboot@65024000 {
-			compatible ="syscon-reboot";
-			regmap = <&crmu>;
-			offset = <0x90>;
-			mask = <0xfffffffd>;
 		};
 
 		gic: interrupt-controller@65210000 {
