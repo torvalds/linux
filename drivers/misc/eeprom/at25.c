@@ -345,7 +345,7 @@ static int at25_probe(struct spi_device *spi)
 
 	mutex_init(&at25->lock);
 	at25->chip = chip;
-	at25->spi = spi_dev_get(spi);
+	at25->spi = spi;
 	spi_set_drvdata(spi, at25);
 	at25->addrlen = addrlen;
 
