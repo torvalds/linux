@@ -93,11 +93,13 @@ struct inv_mpu6050_chip_config {
 
 /**
  *  struct inv_mpu6050_hw - Other important hardware information.
+ *  @whoami:	Self identification byte from WHO_AM_I register
  *  @name:      name of the chip.
  *  @reg:   register map of the chip.
  *  @config:    configuration of the chip.
  */
 struct inv_mpu6050_hw {
+	u8 whoami;
 	u8 *name;
 	const struct inv_mpu6050_reg_map *reg;
 	const struct inv_mpu6050_chip_config *config;
@@ -214,6 +216,12 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_MAX_FIFO_RATE            1000
 #define INV_MPU6050_MIN_FIFO_RATE            4
 #define INV_MPU6050_ONE_K_HZ                 1000
+
+#define INV_MPU6050_REG_WHOAMI			117
+
+#define INV_MPU6000_WHOAMI_VALUE		0x68
+#define INV_MPU6050_WHOAMI_VALUE		0x68
+#define INV_MPU6500_WHOAMI_VALUE		0x70
 
 /* scan element definition */
 enum inv_mpu6050_scan {

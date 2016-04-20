@@ -91,16 +91,19 @@ static const struct inv_mpu6050_chip_config chip_config_6050 = {
 /* Indexed by enum inv_devices */
 static const struct inv_mpu6050_hw hw_info[] = {
 	{
+		.whoami = INV_MPU6050_WHOAMI_VALUE,
 		.name = "MPU6050",
 		.reg = &reg_set_6050,
 		.config = &chip_config_6050,
 	},
 	{
+		.whoami = INV_MPU6500_WHOAMI_VALUE,
 		.name = "MPU6500",
 		.reg = &reg_set_6500,
 		.config = &chip_config_6050,
 	},
 	{
+		.whoami = INV_MPU6000_WHOAMI_VALUE,
 		.name = "MPU6000",
 		.reg = &reg_set_6050,
 		.config = &chip_config_6050,
@@ -749,6 +752,7 @@ static const struct iio_info mpu_info = {
 static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 {
 	int result;
+	unsigned int regval;
 
 	st->hw  = &hw_info[st->chip_type];
 	st->reg = hw_info[st->chip_type].reg;
@@ -759,6 +763,17 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	if (result)
 		return result;
 	msleep(INV_MPU6050_POWER_UP_TIME);
+
+	/* check chip self-identification */
+	result = regmap_read(st->map, INV_MPU6050_REG_WHOAMI, &regval);
+	if (result)
+		return result;
+	if (regval != st->hw->whoami) {
+		dev_warn(regmap_get_device(st->map),
+				"whoami mismatch got %#02x expected %#02hhx for %s\n",
+				regval, st->hw->whoami, st->hw->name);
+	}
+
 	/*
 	 * toggle power state. After reset, the sleep bit could be on
 	 * or off depending on the OTP settings. Toggling power would
