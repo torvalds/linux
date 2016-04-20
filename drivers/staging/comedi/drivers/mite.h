@@ -337,10 +337,4 @@ enum CHSR_bits {
 	CHSR_DOERR = (3 << 0),
 };
 
-static inline void mite_dma_reset(struct mite_channel *mite_chan)
-{
-	writel(CHOR_DMARESET | CHOR_FRESET,
-	       mite_chan->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
-};
-
 #endif

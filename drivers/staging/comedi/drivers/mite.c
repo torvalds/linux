@@ -51,6 +51,12 @@
 
 #include "mite.h"
 
+static void mite_dma_reset(struct mite_channel *mite_chan)
+{
+	writel(CHOR_DMARESET | CHOR_FRESET,
+	       mite_chan->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
+}
+
 struct mite_struct *mite_alloc(struct pci_dev *pcidev)
 {
 	struct mite_struct *mite;
@@ -387,12 +393,10 @@ EXPORT_SYMBOL_GPL(mite_init_ring_descriptors);
 void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits)
 {
-	unsigned int chor, chcr, mcr, dcr, lkcr;
+	unsigned int chcr, mcr, dcr, lkcr;
 	struct mite_struct *mite = mite_chan->mite;
 
-	/* reset DMA and FIFO */
-	chor = CHOR_DMARESET | CHOR_FRESET;
-	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
+	mite_dma_reset(mite_chan);
 
 	/* short link chaining mode */
 	chcr = CHCR_SET_DMA_IE | CHCR_LINKSHORT | CHCR_SET_DONE_IE |
