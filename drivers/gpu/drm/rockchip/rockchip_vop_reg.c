@@ -279,11 +279,102 @@ static const struct vop_data rk3288_vop = {
 	.win_size = ARRAY_SIZE(rk3288_vop_win_data),
 };
 
+static const struct vop_ctrl rk3399_ctrl_data = {
+	.standby = VOP_REG(RK3399_SYS_CTRL, 0x1, 22),
+	.gate_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 23),
+	.rgb_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 12),
+	.hdmi_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 13),
+	.edp_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 14),
+	.mipi_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 15),
+	.dither_down = VOP_REG(RK3399_DSP_CTRL1, 0xf, 1),
+	.dither_up = VOP_REG(RK3399_DSP_CTRL1, 0x1, 6),
+	.data_blank = VOP_REG(RK3399_DSP_CTRL0, 0x1, 19),
+	.out_mode = VOP_REG(RK3399_DSP_CTRL0, 0xf, 0),
+	.rgb_pin_pol = VOP_REG(RK3399_DSP_CTRL1, 0xf, 16),
+	.hdmi_pin_pol = VOP_REG(RK3399_DSP_CTRL1, 0xf, 20),
+	.edp_pin_pol = VOP_REG(RK3399_DSP_CTRL1, 0xf, 24),
+	.mipi_pin_pol = VOP_REG(RK3399_DSP_CTRL1, 0xf, 28),
+	.htotal_pw = VOP_REG(RK3399_DSP_HTOTAL_HS_END, 0x1fff1fff, 0),
+	.hact_st_end = VOP_REG(RK3399_DSP_HACT_ST_END, 0x1fff1fff, 0),
+	.vtotal_pw = VOP_REG(RK3399_DSP_VTOTAL_VS_END, 0x1fff1fff, 0),
+	.vact_st_end = VOP_REG(RK3399_DSP_VACT_ST_END, 0x1fff1fff, 0),
+	.hpost_st_end = VOP_REG(RK3399_POST_DSP_HACT_INFO, 0x1fff1fff, 0),
+	.vpost_st_end = VOP_REG(RK3399_POST_DSP_VACT_INFO, 0x1fff1fff, 0),
+	.cfg_done = VOP_REG_MASK(RK3399_REG_CFG_DONE, 0x1, 0),
+};
+
+static const int rk3399_vop_intrs[] = {
+	FS_INTR,
+	0, 0,
+	LINE_FLAG_INTR,
+	0,
+	BUS_ERROR_INTR,
+	0, 0, 0, 0, 0, 0, 0,
+	DSP_HOLD_VALID_INTR,
+};
+
+static const struct vop_intr rk3399_vop_intr = {
+	.intrs = rk3399_vop_intrs,
+	.nintrs = ARRAY_SIZE(rk3399_vop_intrs),
+	.status = VOP_REG_MASK(RK3399_INTR_STATUS0, 0xffff, 0),
+	.enable = VOP_REG_MASK(RK3399_INTR_EN0, 0xffff, 0),
+	.clear = VOP_REG_MASK(RK3399_INTR_CLEAR0, 0xffff, 0),
+};
+
+static const struct vop_reg_data rk3399_init_reg_table[] = {
+	{RK3399_SYS_CTRL, 0x2000f800},
+	{RK3399_DSP_CTRL0, 0x00000000},
+	{RK3399_WIN0_CTRL0, 0x00000080},
+	{RK3399_WIN1_CTRL0, 0x00000080},
+	/* TODO: Win2/3 support multiple area function, but we haven't found
+	 * a suitable way to use it yet, so let's just use them as other windows
+	 * with only area 0 enabled.
+	 */
+	{RK3399_WIN2_CTRL0, 0x00000010},
+	{RK3399_WIN3_CTRL0, 0x00000010},
+};
+
+static const struct vop_data rk3399_vop_big = {
+	.init_table = rk3399_init_reg_table,
+	.table_size = ARRAY_SIZE(rk3399_init_reg_table),
+	.intr = &rk3399_vop_intr,
+	.ctrl = &rk3399_ctrl_data,
+	/*
+	 * rk3399 vop big windows register layout is same as rk3288.
+	 */
+	.win = rk3288_vop_win_data,
+	.win_size = ARRAY_SIZE(rk3288_vop_win_data),
+};
+
+static const struct vop_win_data rk3399_vop_lit_win_data[] = {
+	{ .base = 0x00, .phy = &rk3288_win01_data,
+	  .type = DRM_PLANE_TYPE_PRIMARY },
+	{ .base = 0x00, .phy = &rk3288_win23_data,
+	  .type = DRM_PLANE_TYPE_CURSOR},
+};
+
+static const struct vop_data rk3399_vop_lit = {
+	.init_table = rk3399_init_reg_table,
+	.table_size = ARRAY_SIZE(rk3399_init_reg_table),
+	.intr = &rk3399_vop_intr,
+	.ctrl = &rk3399_ctrl_data,
+	/*
+	 * rk3399 vop lit windows register layout is same as rk3288,
+	 * but cut off the win1 and win3 windows.
+	 */
+	.win = rk3399_vop_lit_win_data,
+	.win_size = ARRAY_SIZE(rk3399_vop_lit_win_data),
+};
+
 static const struct of_device_id vop_driver_dt_match[] = {
 	{ .compatible = "rockchip,rk3036-vop",
 	  .data = &rk3036_vop },
 	{ .compatible = "rockchip,rk3288-vop",
 	  .data = &rk3288_vop },
+	{ .compatible = "rockchip,rk3399-vop-big",
+	  .data = &rk3399_vop_big },
+	{ .compatible = "rockchip,rk3399-vop-lit",
+	  .data = &rk3399_vop_lit },
 	{},
 };
 MODULE_DEVICE_TABLE(of, vop_driver_dt_match);
