@@ -46,10 +46,141 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/log2.h>
 
 #include "../comedi_pci.h"
 
 #include "mite.h"
+
+/*
+ * Mite registers
+ */
+#define MITE_UNKNOWN_DMA_BURST_REG	0x28
+#define UNKNOWN_DMA_BURST_ENABLE_BITS	0x600
+
+#define MITE_PCI_CONFIG_OFFSET	0x300
+#define MITE_CSIGR		0x460			/* chip signature */
+#define CSIGR_TO_IOWINS(x)	(((x) >> 29) & 0x7)
+#define CSIGR_TO_WINS(x)	(((x) >> 24) & 0x1f)
+#define CSIGR_TO_WPDEP(x)	(((x) >> 20) & 0x7)
+#define CSIGR_TO_DMAC(x)	(((x) >> 16) & 0xf)
+#define CSIGR_TO_IMODE(x)	(((x) >> 12) & 0x3)	/* pci=0x3 */
+#define CSIGR_TO_MMODE(x)	(((x) >> 8) & 0x3)	/* minimite=1 */
+#define CSIGR_TO_TYPE(x)	(((x) >> 4) & 0xf)	/* mite=0, minimite=1 */
+#define CSIGR_TO_VER(x)		(((x) >> 0) & 0xf)
+
+#define MITE_CHAN(x)		(0x500 + 0x100 * (x))
+#define MITE_CHOR(x)		(0x00 + MITE_CHAN(x))	/* channel operation */
+#define CHOR_DMARESET		BIT(31)
+#define CHOR_SET_SEND_TC	BIT(11)
+#define CHOR_CLR_SEND_TC	BIT(10)
+#define CHOR_SET_LPAUSE		BIT(9)
+#define CHOR_CLR_LPAUSE		BIT(8)
+#define CHOR_CLRDONE		BIT(7)
+#define CHOR_CLRRB		BIT(6)
+#define CHOR_CLRLC		BIT(5)
+#define CHOR_FRESET		BIT(4)
+#define CHOR_ABORT		BIT(3)	/* stop without emptying fifo */
+#define CHOR_STOP		BIT(2)	/* stop after emptying fifo */
+#define CHOR_CONT		BIT(1)
+#define CHOR_START		BIT(0)
+#define MITE_CHCR(x)		(0x04 + MITE_CHAN(x))	/* channel control */
+#define CHCR_SET_DMA_IE		BIT(31)
+#define CHCR_CLR_DMA_IE		BIT(30)
+#define CHCR_SET_LINKP_IE	BIT(29)
+#define CHCR_CLR_LINKP_IE	BIT(28)
+#define CHCR_SET_SAR_IE		BIT(27)
+#define CHCR_CLR_SAR_IE		BIT(26)
+#define CHCR_SET_DONE_IE	BIT(25)
+#define CHCR_CLR_DONE_IE	BIT(24)
+#define CHCR_SET_MRDY_IE	BIT(23)
+#define CHCR_CLR_MRDY_IE	BIT(22)
+#define CHCR_SET_DRDY_IE	BIT(21)
+#define CHCR_CLR_DRDY_IE	BIT(20)
+#define CHCR_SET_LC_IE		BIT(19)
+#define CHCR_CLR_LC_IE		BIT(18)
+#define CHCR_SET_CONT_RB_IE	BIT(17)
+#define CHCR_CLR_CONT_RB_IE	BIT(16)
+#define CHCR_FIFO(x)		(((x) & 0x1) << 15)
+#define CHCR_FIFODIS		CHCR_FIFO(1)
+#define CHCR_FIFO_ON		CHCR_FIFO(0)
+#define CHCR_BURST(x)		(((x) & 0x1) << 14)
+#define CHCR_BURSTEN		CHCR_BURST(1)
+#define CHCR_NO_BURSTEN		CHCR_BURST(0)
+#define CHCR_BYTE_SWAP_DEVICE	BIT(6)
+#define CHCR_BYTE_SWAP_MEMORY	BIT(4)
+#define CHCR_DIR(x)		(((x) & 0x1) << 3)
+#define CHCR_DEV_TO_MEM		CHCR_DIR(1)
+#define CHCR_MEM_TO_DEV		CHCR_DIR(0)
+#define CHCR_MODE(x)		(((x) & 0x7) << 0)
+#define CHCR_NORMAL		CHCR_MODE(0)
+#define CHCR_CONTINUE		CHCR_MODE(1)
+#define CHCR_RINGBUFF		CHCR_MODE(2)
+#define CHCR_LINKSHORT		CHCR_MODE(4)
+#define CHCR_LINKLONG		CHCR_MODE(5)
+#define MITE_TCR(x)		(0x08 + MITE_CHAN(x))	/* transfer count */
+#define MITE_MCR(x)		(0x0c + MITE_CHAN(x))	/* memory config */
+#define MITE_MAR(x)		(0x10 + MITE_CHAN(x))	/* memory address */
+#define MITE_DCR(x)		(0x14 + MITE_CHAN(x))	/* device config */
+#define DCR_NORMAL		BIT(29)
+#define MITE_DAR(x)		(0x18 + MITE_CHAN(x))	/* device address */
+#define MITE_LKCR(x)		(0x1c + MITE_CHAN(x))	/* link config */
+#define MITE_LKAR(x)		(0x20 + MITE_CHAN(x))	/* link address */
+#define MITE_LLKAR(x)		(0x24 + MITE_CHAN(x))	/* see tnt5002 manual */
+#define MITE_BAR(x)		(0x28 + MITE_CHAN(x))	/* base address */
+#define MITE_BCR(x)		(0x2c + MITE_CHAN(x))	/* base count */
+#define MITE_SAR(x)		(0x30 + MITE_CHAN(x))	/* ? address */
+#define MITE_WSCR(x)		(0x34 + MITE_CHAN(x))	/* ? */
+#define MITE_WSER(x)		(0x38 + MITE_CHAN(x))	/* ? */
+#define MITE_CHSR(x)		(0x3c + MITE_CHAN(x))	/* channel status */
+#define MITE_FCR(x)		(0x40 + MITE_CHAN(x))	/* fifo count */
+
+/* common bits for the memory/device/link config registers */
+#define CR_RL(x)		(((x) & 0x7) << 21)
+#define CR_REQS(x)		(((x) & 0x7) << 16)
+#define CR_REQS_MASK		CR_REQS(7)
+#define CR_ASEQ(x)		(((x) & 0x3) << 10)
+#define CR_ASEQDONT		CR_ASEQ(0)
+#define CR_ASEQUP		CR_ASEQ(1)
+#define CR_ASEQDOWN		CR_ASEQ(2)
+#define CR_ASEQ_MASK		CR_ASEQ(3)
+#define CR_PSIZE(x)		(((x) & 0x3) << 8)
+#define CR_PSIZE8		CR_PSIZE(1)
+#define CR_PSIZE16		CR_PSIZE(2)
+#define CR_PSIZE32		CR_PSIZE(3)
+#define CR_PORT(x)		(((x) & 0x3) << 6)
+#define CR_PORTCPU		CR_PORT(0)
+#define CR_PORTIO		CR_PORT(1)
+#define CR_PORTVXI		CR_PORT(2)
+#define CR_PORTMXI		CR_PORT(3)
+#define CR_AMDEVICE		BIT(0)
+
+static unsigned int MITE_IODWBSR_1_WSIZE_bits(unsigned int size)
+{
+	unsigned int order = 0;
+
+	BUG_ON(size == 0);
+	order = ilog2(size);
+	BUG_ON(order < 1);
+	return (order - 1) & 0x1f;
+}
+
+static unsigned int mite_retry_limit(unsigned int retry_limit)
+{
+	unsigned int value = 0;
+
+	if (retry_limit)
+		value = 1 + ilog2(retry_limit);
+	if (value > 0x7)
+		value = 0x7;
+	return CR_RL(value);
+}
+
+static unsigned int mite_drq_reqs(unsigned int drq_line)
+{
+	/* This also works on m-series when using channels (drq_line) 4 or 5. */
+	return CR_REQS((drq_line & 0x3) | 0x4);
+}
 
 static void mite_dma_reset(struct mite_channel *mite_chan)
 {
@@ -78,12 +209,19 @@ EXPORT_SYMBOL_GPL(mite_alloc);
 
 static void dump_chip_signature(u32 csigr_bits)
 {
+	unsigned int wpdep;
+
+	/* get the wpdep bits and convert it to the write port fifo depth */
+	wpdep = CSIGR_TO_WPDEP(csigr_bits);
+	if (wpdep)
+		wpdep = BIT(wpdep);
+
 	pr_info("version = %i, type = %i, mite mode = %i, interface mode = %i\n",
-		mite_csigr_version(csigr_bits), mite_csigr_type(csigr_bits),
-		mite_csigr_mmode(csigr_bits), mite_csigr_imode(csigr_bits));
+		CSIGR_TO_VER(csigr_bits), CSIGR_TO_TYPE(csigr_bits),
+		CSIGR_TO_MMODE(csigr_bits), CSIGR_TO_IMODE(csigr_bits));
 	pr_info("num channels = %i, write post fifo depth = %i, wins = %i, iowins = %i\n",
-		mite_csigr_dmac(csigr_bits), mite_csigr_wpdep(csigr_bits),
-		mite_csigr_wins(csigr_bits), mite_csigr_iowins(csigr_bits));
+		CSIGR_TO_DMAC(csigr_bits), wpdep,
+		CSIGR_TO_WINS(csigr_bits), CSIGR_TO_IOWINS(csigr_bits));
 }
 
 static unsigned int mite_fifo_size(struct mite_struct *mite,
@@ -141,6 +279,10 @@ int mite_setup2(struct comedi_device *dev,
 	 * of 0x61f and bursts worked. 6281 powered up with register value of
 	 * 0x1f and bursts didn't work. The NI windows driver reads the
 	 * register, then does a bitwise-or of 0x600 with it and writes it back.
+	*
+	 * The bits 0x90180700 in MITE_UNKNOWN_DMA_BURST_REG can be
+	 * written and read back.  The bits 0x1f always read as 1.
+	 * The rest always read as zero.
 	 */
 	unknown_dma_burst_bits =
 	    readl(mite->mite_io_addr + MITE_UNKNOWN_DMA_BURST_REG);
@@ -149,7 +291,7 @@ int mite_setup2(struct comedi_device *dev,
 	       mite->mite_io_addr + MITE_UNKNOWN_DMA_BURST_REG);
 
 	csigr_bits = readl(mite->mite_io_addr + MITE_CSIGR);
-	mite->num_channels = mite_csigr_dmac(csigr_bits);
+	mite->num_channels = CSIGR_TO_DMAC(csigr_bits);
 	if (mite->num_channels > MAX_MITE_DMA_CHANNELS) {
 		dev_warn(dev->class_dev,
 			 "mite: bug? chip claims to have %i dma channels. Setting to %i.\n",
@@ -426,7 +568,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 	writel(chcr, mite->mite_io_addr + MITE_CHCR(mite_chan->channel));
 
 	/* to/from memory */
-	mcr = CR_RL(64) | CR_ASEQUP;
+	mcr = mite_retry_limit(64) | CR_ASEQUP;
 	switch (num_memory_bits) {
 	case 8:
 		mcr |= CR_PSIZE8;
@@ -444,8 +586,8 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 	writel(mcr, mite->mite_io_addr + MITE_MCR(mite_chan->channel));
 
 	/* from/to device */
-	dcr = CR_RL(64) | CR_ASEQUP;
-	dcr |= CR_PORTIO | CR_AMDEVICE | CR_REQSDRQ(mite_chan->channel);
+	dcr = mite_retry_limit(64) | CR_ASEQUP;
+	dcr |= CR_PORTIO | CR_AMDEVICE | mite_drq_reqs(mite_chan->channel);
 	switch (num_device_bits) {
 	case 8:
 		dcr |= CR_PSIZE8;
@@ -466,7 +608,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 	writel(0, mite->mite_io_addr + MITE_DAR(mite_chan->channel));
 
 	/* the link is 32bits */
-	lkcr = CR_RL(64) | CR_ASEQUP | CR_PSIZE32;
+	lkcr = mite_retry_limit(64) | CR_ASEQUP | CR_PSIZE32;
 	writel(lkcr, mite->mite_io_addr + MITE_LKCR(mite_chan->channel));
 
 	/* starting address for link chaining */
