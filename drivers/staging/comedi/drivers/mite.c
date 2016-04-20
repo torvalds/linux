@@ -157,12 +157,7 @@
 
 static unsigned int MITE_IODWBSR_1_WSIZE_bits(unsigned int size)
 {
-	unsigned int order = 0;
-
-	BUG_ON(size == 0);
-	order = ilog2(size);
-	BUG_ON(order < 1);
-	return (order - 1) & 0x1f;
+	return (ilog2(size) - 1) & 0x1f;
 }
 
 static unsigned int mite_retry_limit(unsigned int retry_limit)
