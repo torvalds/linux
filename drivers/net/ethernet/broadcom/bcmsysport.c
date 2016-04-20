@@ -873,7 +873,7 @@ static irqreturn_t bcm_sysport_rx_isr(int irq, void *dev_id)
 		if (likely(napi_schedule_prep(&priv->napi))) {
 			/* disable RX interrupts */
 			intrl2_0_mask_set(priv, INTRL2_0_RDMA_MBDONE);
-			__napi_schedule(&priv->napi);
+			__napi_schedule_irqoff(&priv->napi);
 		}
 	}
 
@@ -916,7 +916,7 @@ static irqreturn_t bcm_sysport_tx_isr(int irq, void *dev_id)
 
 		if (likely(napi_schedule_prep(&txr->napi))) {
 			intrl2_1_mask_set(priv, BIT(ring));
-			__napi_schedule(&txr->napi);
+			__napi_schedule_irqoff(&txr->napi);
 		}
 	}
 
