@@ -120,12 +120,19 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 	struct sdhci_host *host;
 	struct resource *iomem;
 	void __iomem *ioaddr;
-	int ret;
+	int irq, ret;
 
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ioaddr = devm_ioremap_resource(&pdev->dev, iomem);
 	if (IS_ERR(ioaddr)) {
 		ret = PTR_ERR(ioaddr);
+		goto err;
+	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "failed to get IRQ number\n");
+		ret = irq;
 		goto err;
 	}
 
@@ -138,6 +145,7 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 	}
 
 	host->ioaddr = ioaddr;
+	host->irq = irq;
 	host->hw_name = dev_name(&pdev->dev);
 	if (pdata && pdata->ops)
 		host->ops = pdata->ops;
@@ -146,13 +154,6 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 	if (pdata) {
 		host->quirks = pdata->quirks;
 		host->quirks2 = pdata->quirks2;
-	}
-
-	host->irq = platform_get_irq(pdev, 0);
-	if (host->irq < 0) {
-		dev_err(&pdev->dev, "failed to get IRQ number\n");
-		ret = host->irq;
-		goto err_request;
 	}
 
 	/*
@@ -165,9 +166,6 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 	platform_set_drvdata(pdev, host);
 
 	return host;
-
-err_request:
-	sdhci_free_host(host);
 err:
 	dev_err(&pdev->dev, "%s failed %d\n", __func__, ret);
 	return ERR_PTR(ret);
