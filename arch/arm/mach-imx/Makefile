@@ -37,6 +37,8 @@ AFLAGS_imx6sx_low_power_idle.o :=-Wa,-march=armv7-a
 obj-$(CONFIG_SOC_IMX6SX) += cpuidle-imx6sx.o imx6sx_low_power_idle.o
 AFLAGS_imx6ul_low_power_idle.o :=-Wa,-march=armv7-a
 obj-$(CONFIG_SOC_IMX6UL) += cpuidle-imx6ul.o imx6ul_low_power_idle.o
+AFLAGS_imx6ull_low_power_idle.o :=-Wa,-march=armv7-a
+obj-$(CONFIG_SOC_IMX6ULL) += imx6ull_low_power_idle.o
 AFLAGS_imx7d_low_power_idle.o :=-Wa,-march=armv7-a
 obj-$(CONFIG_SOC_IMX7D) += cpuidle-imx7d.o imx7d_low_power_idle.o
 endif
