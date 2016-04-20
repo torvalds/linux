@@ -357,6 +357,8 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 			cpu_to_be32(byte_count | MLX5_HW_START_PADDING);
 	}
 
+	rq->handle_rx_cqe = mlx5e_handle_rx_cqe;
+	rq->alloc_wqe = mlx5e_alloc_rx_wqe;
 	rq->pdev    = c->pdev;
 	rq->netdev  = c->netdev;
 	rq->tstamp  = &priv->tstamp;

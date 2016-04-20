@@ -72,6 +72,17 @@
 #define MLX5E_SQ_BF_BUDGET             16
 
 #define MLX5E_NUM_MAIN_GROUPS 9
+#define MLX5E_NET_IP_ALIGN 2
+
+struct mlx5e_tx_wqe {
+	struct mlx5_wqe_ctrl_seg ctrl;
+	struct mlx5_wqe_eth_seg  eth;
+};
+
+struct mlx5e_rx_wqe {
+	struct mlx5_wqe_srq_next_seg  next;
+	struct mlx5_wqe_data_seg      data;
+};
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 #define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
@@ -357,6 +368,12 @@ struct mlx5e_cq {
 	struct mlx5_wq_ctrl        wq_ctrl;
 } ____cacheline_aligned_in_smp;
 
+struct mlx5e_rq;
+typedef void (*mlx5e_fp_handle_rx_cqe)(struct mlx5e_rq *rq,
+				       struct mlx5_cqe64 *cqe);
+typedef int (*mlx5e_fp_alloc_wqe)(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe,
+				  u16 ix);
+
 struct mlx5e_rq {
 	/* data path */
 	struct mlx5_wq_ll      wq;
@@ -368,6 +385,8 @@ struct mlx5e_rq {
 	struct mlx5e_tstamp   *tstamp;
 	struct mlx5e_rq_stats  stats;
 	struct mlx5e_cq        cq;
+	mlx5e_fp_handle_rx_cqe handle_rx_cqe;
+	mlx5e_fp_alloc_wqe     alloc_wqe;
 
 	unsigned long          state;
 	int                    ix;
@@ -588,18 +607,6 @@ struct mlx5e_priv {
 	u16 q_counter;
 };
 
-#define MLX5E_NET_IP_ALIGN 2
-
-struct mlx5e_tx_wqe {
-	struct mlx5_wqe_ctrl_seg ctrl;
-	struct mlx5_wqe_eth_seg  eth;
-};
-
-struct mlx5e_rx_wqe {
-	struct mlx5_wqe_srq_next_seg  next;
-	struct mlx5_wqe_data_seg      data;
-};
-
 enum mlx5e_link_mode {
 	MLX5E_1000BASE_CX_SGMII	 = 0,
 	MLX5E_1000BASE_KX	 = 1,
@@ -642,7 +649,9 @@ void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event);
 int mlx5e_napi_poll(struct napi_struct *napi, int budget);
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
+void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq);
+int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix);
 struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
