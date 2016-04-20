@@ -7865,7 +7865,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 
 int ath10k_wmi_attach(struct ath10k *ar)
 {
-	switch (ar->wmi.op_version) {
+	switch (ar->running_fw->fw_file.wmi_op_version) {
 	case ATH10K_FW_WMI_OP_VERSION_10_4:
 		ar->wmi.ops = &wmi_10_4_ops;
 		ar->wmi.cmd = &wmi_10_4_cmd_map;
@@ -7907,7 +7907,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 	case ATH10K_FW_WMI_OP_VERSION_UNSET:
 	case ATH10K_FW_WMI_OP_VERSION_MAX:
 		ath10k_err(ar, "unsupported WMI op version: %d\n",
-			   ar->wmi.op_version);
+			   ar->running_fw->fw_file.wmi_op_version);
 		return -EINVAL;
 	}
 

@@ -230,9 +230,9 @@ static int ath10k_tm_fetch_utf_firmware_api_2(struct ath10k *ar,
 			if (ie_len != sizeof(u32))
 				break;
 			version = (__le32 *)data;
-			ar->testmode.op_version = le32_to_cpup(version);
+			fw_file->wmi_op_version = le32_to_cpup(version);
 			ath10k_dbg(ar, ATH10K_DBG_TESTMODE, "testmode found fw ie wmi op version %d\n",
-				   ar->testmode.op_version);
+				   fw_file->wmi_op_version);
 			break;
 		default:
 			ath10k_warn(ar, "Unknown testmode FW IE: %u\n",
@@ -283,7 +283,7 @@ static int ath10k_tm_fetch_utf_firmware_api_1(struct ath10k *ar,
 	 * correct WMI interface.
 	 */
 
-	ar->testmode.op_version = ATH10K_FW_WMI_OP_VERSION_10_1;
+	fw_file->wmi_op_version = ATH10K_FW_WMI_OP_VERSION_10_1;
 	fw_file->firmware_data = fw_file->firmware->data;
 	fw_file->firmware_len = fw_file->firmware->size;
 
@@ -363,17 +363,14 @@ static int ath10k_tm_cmd_utf_start(struct ath10k *ar, struct nlattr *tb[])
 	ar->testmode.utf_monitor = true;
 	spin_unlock_bh(&ar->data_lock);
 
-	ar->testmode.orig_wmi_op_version = ar->wmi.op_version;
-	ar->wmi.op_version = ar->testmode.op_version;
-
 	ath10k_dbg(ar, ATH10K_DBG_TESTMODE, "testmode wmi version %d\n",
-		   ar->wmi.op_version);
+		   ar->testmode.utf_mode_fw.fw_file.wmi_op_version);
 
 	ret = ath10k_hif_power_up(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to power up hif (testmode): %d\n", ret);
 		ar->state = ATH10K_STATE_OFF;
-		goto err_fw_features;
+		goto err_release_utf_mode_fw;
 	}
 
 	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_UTF,
@@ -400,9 +397,7 @@ static int ath10k_tm_cmd_utf_start(struct ath10k *ar, struct nlattr *tb[])
 err_power_down:
 	ath10k_hif_power_down(ar);
 
-err_fw_features:
-	ar->wmi.op_version = ar->testmode.orig_wmi_op_version;
-
+err_release_utf_mode_fw:
 	release_firmware(ar->testmode.utf_mode_fw.fw_file.firmware);
 	ar->testmode.utf_mode_fw.fw_file.firmware = NULL;
 

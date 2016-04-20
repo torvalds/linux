@@ -178,7 +178,7 @@ void ath10k_debug_print_boot_info(struct ath10k *ar)
 	ath10k_info(ar, "htt-ver %d.%d wmi-op %d htt-op %d cal %s max-sta %d raw %d hwcrypto %d\n",
 		    ar->htt.target_version_major,
 		    ar->htt.target_version_minor,
-		    ar->wmi.op_version,
+		    ar->normal_mode_fw.fw_file.wmi_op_version,
 		    ar->htt.op_version,
 		    ath10k_cal_mode_str(ar->cal_mode),
 		    ar->max_num_stations,

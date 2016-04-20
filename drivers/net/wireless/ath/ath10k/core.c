@@ -1106,10 +1106,10 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
 
 			version = (__le32 *)data;
 
-			ar->wmi.op_version = le32_to_cpup(version);
+			fw_file->wmi_op_version = le32_to_cpup(version);
 
 			ath10k_dbg(ar, ATH10K_DBG_BOOT, "found fw ie wmi op version %d\n",
-				   ar->wmi.op_version);
+				   fw_file->wmi_op_version);
 			break;
 		case ATH10K_FW_IE_HTT_OP_VERSION:
 			if (ie_len != sizeof(u32))
@@ -1438,9 +1438,9 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		return -EINVAL;
 	}
 
-	if (ar->wmi.op_version >= ATH10K_FW_WMI_OP_VERSION_MAX) {
+	if (fw_file->wmi_op_version >= ATH10K_FW_WMI_OP_VERSION_MAX) {
 		ath10k_err(ar, "unsupported WMI OP version (max %d): %d\n",
-			   ATH10K_FW_WMI_OP_VERSION_MAX, ar->wmi.op_version);
+			   ATH10K_FW_WMI_OP_VERSION_MAX, fw_file->wmi_op_version);
 		return -EINVAL;
 	}
 
@@ -1496,19 +1496,19 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 	/* Backwards compatibility for firmwares without
 	 * ATH10K_FW_IE_WMI_OP_VERSION.
 	 */
-	if (ar->wmi.op_version == ATH10K_FW_WMI_OP_VERSION_UNSET) {
+	if (fw_file->wmi_op_version == ATH10K_FW_WMI_OP_VERSION_UNSET) {
 		if (test_bit(ATH10K_FW_FEATURE_WMI_10X, fw_file->fw_features)) {
 			if (test_bit(ATH10K_FW_FEATURE_WMI_10_2,
 				     fw_file->fw_features))
-				ar->wmi.op_version = ATH10K_FW_WMI_OP_VERSION_10_2;
+				fw_file->wmi_op_version = ATH10K_FW_WMI_OP_VERSION_10_2;
 			else
-				ar->wmi.op_version = ATH10K_FW_WMI_OP_VERSION_10_1;
+				fw_file->wmi_op_version = ATH10K_FW_WMI_OP_VERSION_10_1;
 		} else {
-			ar->wmi.op_version = ATH10K_FW_WMI_OP_VERSION_MAIN;
+			fw_file->wmi_op_version = ATH10K_FW_WMI_OP_VERSION_MAIN;
 		}
 	}
 
-	switch (ar->wmi.op_version) {
+	switch (fw_file->wmi_op_version) {
 	case ATH10K_FW_WMI_OP_VERSION_MAIN:
 		ar->max_num_peers = TARGET_NUM_PEERS;
 		ar->max_num_stations = TARGET_NUM_STATIONS;
@@ -1570,7 +1570,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 	 * ATH10K_FW_IE_HTT_OP_VERSION.
 	 */
 	if (ar->htt.op_version == ATH10K_FW_HTT_OP_VERSION_UNSET) {
-		switch (ar->wmi.op_version) {
+		switch (fw_file->wmi_op_version) {
 		case ATH10K_FW_WMI_OP_VERSION_MAIN:
 			ar->htt.op_version = ATH10K_FW_HTT_OP_VERSION_MAIN;
 			break;

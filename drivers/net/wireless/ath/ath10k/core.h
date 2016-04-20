@@ -139,7 +139,6 @@ struct ath10k_mem_chunk {
 };
 
 struct ath10k_wmi {
-	enum ath10k_fw_wmi_op_version op_version;
 	enum ath10k_htc_ep_id eid;
 	struct completion service_ready;
 	struct completion unified_ready;
@@ -634,6 +633,8 @@ struct ath10k_fw_file {
 
 	DECLARE_BITMAP(fw_features, ATH10K_FW_FEATURE_COUNT);
 
+	enum ath10k_fw_wmi_op_version wmi_op_version;
+
 	const void *firmware_data;
 	size_t firmware_len;
 
@@ -895,8 +896,6 @@ struct ath10k {
 	struct {
 		/* protected by conf_mutex */
 		struct ath10k_fw_components utf_mode_fw;
-		enum ath10k_fw_wmi_op_version orig_wmi_op_version;
-		enum ath10k_fw_wmi_op_version op_version;
 
 		/* protected by data_lock */
 		bool utf_monitor;
