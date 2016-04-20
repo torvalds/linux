@@ -570,12 +570,12 @@ static void print_sample_bts(struct perf_sample *sample,
 	/* print branch_from information */
 	if (PRINT_FIELD(IP)) {
 		unsigned int print_opts = output[attr->type].print_ip_opts;
-		struct callchain_cursor *cursor = NULL, cursor_callchain;
+		struct callchain_cursor *cursor = NULL;
 
 		if (symbol_conf.use_callchain && sample->callchain &&
-		    thread__resolve_callchain(al->thread, &cursor_callchain, evsel,
+		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
 					      sample, NULL, NULL, scripting_max_stack) == 0)
-			cursor = &cursor_callchain;
+			cursor = &callchain_cursor;
 
 		if (cursor == NULL) {
 			putchar(' ');
@@ -789,12 +789,12 @@ static void process_event(struct perf_script *script,
 		printf("%16" PRIu64, sample->weight);
 
 	if (PRINT_FIELD(IP)) {
-		struct callchain_cursor *cursor = NULL, cursor_callchain;
+		struct callchain_cursor *cursor = NULL;
 
 		if (symbol_conf.use_callchain && sample->callchain &&
-		    thread__resolve_callchain(al->thread, &cursor_callchain, evsel,
+		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
 					      sample, NULL, NULL, scripting_max_stack) == 0)
-			cursor = &cursor_callchain;
+			cursor = &callchain_cursor;
 
 		putchar(cursor ? '\n' : ' ');
 		sample__fprintf_sym(sample, al, 0, output[attr->type].print_ip_opts, cursor, stdout);
