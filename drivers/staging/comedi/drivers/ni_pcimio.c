@@ -1061,6 +1061,7 @@ static int pcimio_dio_change(struct comedi_device *dev,
 static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
+	resource_size_t daq_phys_addr;
 	static const int Start_Cal_EEPROM = 0x400;
 	static const unsigned window_size = 10;
 	static const int serial_number_eeprom_offset = 0x4;
@@ -1070,11 +1071,14 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 	unsigned old_iodwcr1_bits;
 	int i;
 
+	/* IO Window 1 needs to be temporarily mapped to read the eeprom */
+	daq_phys_addr = pci_resource_start(devpriv->mite->pcidev, 1);
+
 	old_iodwbsr_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWBSR);
 	old_iodwbsr1_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
 	old_iodwcr1_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWCR_1);
 	writel(0x0, devpriv->mite->mite_io_addr + MITE_IODWBSR);
-	writel(((0x80 | window_size) | devpriv->mite->daq_phys_addr),
+	writel(((0x80 | window_size) | daq_phys_addr),
 	       devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
 	writel(0x1 | old_iodwcr1_bits,
 	       devpriv->mite->mite_io_addr + MITE_IODWCR_1);

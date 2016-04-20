@@ -93,6 +93,7 @@ static unsigned int mite_fifo_size(struct mite_struct *mite,
 int mite_setup2(struct comedi_device *dev,
 		struct mite_struct *mite, bool use_win1)
 {
+	resource_size_t daq_phys_addr;
 	unsigned long length;
 	int i;
 	u32 csigr_bits;
@@ -113,19 +114,19 @@ int mite_setup2(struct comedi_device *dev,
 			"Failed to remap daq io memory address\n");
 		return -ENOMEM;
 	}
-	mite->daq_phys_addr = pci_resource_start(mite->pcidev, 1);
+	daq_phys_addr = pci_resource_start(mite->pcidev, 1);
 	length = pci_resource_len(mite->pcidev, 1);
 
 	if (use_win1) {
 		writel(0, mite->mite_io_addr + MITE_IODWBSR);
 		dev_info(dev->class_dev,
 			 "using I/O Window Base Size register 1\n");
-		writel(mite->daq_phys_addr | WENAB |
+		writel(daq_phys_addr | WENAB |
 		       MITE_IODWBSR_1_WSIZE_bits(length),
 		       mite->mite_io_addr + MITE_IODWBSR_1);
 		writel(0, mite->mite_io_addr + MITE_IODWCR_1);
 	} else {
-		writel(mite->daq_phys_addr | WENAB,
+		writel(daq_phys_addr | WENAB,
 		       mite->mite_io_addr + MITE_IODWBSR);
 	}
 	/*
