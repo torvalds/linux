@@ -146,6 +146,7 @@
 				#size-cells = <0>;
 				num-cs = <1>;
 				cs-gpios = <&gpio 3 5 0>;
+				status = "okay";
 
 				eeprom: at25@0 {
 					pl022,interface = <0>;
