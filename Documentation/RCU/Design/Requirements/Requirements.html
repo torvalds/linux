@@ -2391,6 +2391,41 @@ and <tt>RCU_NONIDLE()</tt> on the other while inspecting
 idle-loop code.
 Steven Rostedt supplied <tt>_rcuidle</tt> event tracing,
 which is used quite heavily in the idle loop.
+However, there are some restrictions on the code placed within
+<tt>RCU_NONIDLE()</tt>:
+
+<ol>
+<li>	Blocking is prohibited.
+	In practice, this is not a serious restriction given that idle
+	tasks are prohibited from blocking to begin with.
+<li>	Although nesting <tt>RCU_NONIDLE()</tt> is permited, they cannot
+	nest indefinitely deeply.
+	However, given that they can be nested on the order of a million
+	deep, even on 32-bit systems, this should not be a serious
+	restriction.
+	This nesting limit would probably be reached long after the
+	compiler OOMed or the stack overflowed.
+<li>	Any code path that enters <tt>RCU_NONIDLE()</tt> must sequence
+	out of that same <tt>RCU_NONIDLE()</tt>.
+	For example, the following is grossly illegal:
+
+	<blockquote>
+	<pre>
+ 1     RCU_NONIDLE({
+ 2       do_something();
+ 3       goto bad_idea;  /* BUG!!! */
+ 4       do_something_else();});
+ 5   bad_idea:
+	</pre>
+	</blockquote>
+
+	<p>
+	It is just as illegal to transfer control into the middle of
+	<tt>RCU_NONIDLE()</tt>'s argument.
+	Yes, in theory, you could transfer in as long as you also
+	transferred out, but in practice you could also expect to get sharply
+	worded review comments.
+</ol>
 
 <p>
 It is similarly socially unacceptable to interrupt an
