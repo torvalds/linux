@@ -40,7 +40,8 @@
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
-#include <linux/regulator/consumer.h>
+
+#include <linux/iio/magnetometer/ak8975.h>
 
 /*
  * Register definitions, as well as various shifts and masks to get at the
@@ -376,6 +377,7 @@ struct ak8975_data {
 	wait_queue_head_t	data_ready_queue;
 	unsigned long		flags;
 	u8			cntl_cache;
+	struct iio_mount_matrix orientation;
 	struct regulator	*vdd;
 };
 
@@ -726,6 +728,18 @@ static int ak8975_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static const struct iio_mount_matrix *
+ak8975_get_mount_matrix(const struct iio_dev *indio_dev,
+			const struct iio_chan_spec *chan)
+{
+	return &((struct ak8975_data *)iio_priv(indio_dev))->orientation;
+}
+
+static const struct iio_chan_spec_ext_info ak8975_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, ak8975_get_mount_matrix),
+	{ },
+};
+
 #define AK8975_CHANNEL(axis, index)					\
 	{								\
 		.type = IIO_MAGN,					\
@@ -740,7 +754,8 @@ static int ak8975_read_raw(struct iio_dev *indio_dev,
 			.realbits = 16,					\
 			.storagebits = 16,				\
 			.endianness = IIO_CPU				\
-		}							\
+		},							\
+		.ext_info = ak8975_ext_info,				\
 	}
 
 static const struct iio_chan_spec ak8975_channels[] = {
@@ -837,10 +852,12 @@ static int ak8975_probe(struct i2c_client *client,
 	int err;
 	const char *name = NULL;
 	enum asahi_compass_chipset chipset;
+	const struct ak8975_platform_data *pdata =
+		dev_get_platdata(&client->dev);
 
 	/* Grab and set up the supplied GPIO. */
-	if (client->dev.platform_data)
-		eoc_gpio = *(int *)(client->dev.platform_data);
+	if (pdata)
+		eoc_gpio = pdata->eoc_gpio;
 	else if (client->dev.of_node)
 		eoc_gpio = of_get_gpio(client->dev.of_node, 0);
 	else
@@ -873,6 +890,15 @@ static int ak8975_probe(struct i2c_client *client,
 	data->client = client;
 	data->eoc_gpio = eoc_gpio;
 	data->eoc_irq = 0;
+
+	if (!pdata) {
+		err = of_iio_read_mount_matrix(&client->dev,
+					       "mount-matrix",
+					       &data->orientation);
+		if (err)
+			return err;
+	} else
+		data->orientation = pdata->orientation;
 
 	/* id will be NULL when enumerated via ACPI */
 	if (id) {
