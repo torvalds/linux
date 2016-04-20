@@ -189,6 +189,7 @@ static const char vport_strings[][ETH_GSTRING_LEN] = {
 	"rx_wqe_err",
 	"rx_mpwqe_filler",
 	"rx_mpwqe_frag",
+	"rx_buff_alloc_err",
 };
 
 struct mlx5e_vport_stats {
@@ -232,8 +233,9 @@ struct mlx5e_vport_stats {
 	u64 rx_wqe_err;
 	u64 rx_mpwqe_filler;
 	u64 rx_mpwqe_frag;
+	u64 rx_buff_alloc_err;
 
-#define NUM_VPORT_COUNTERS     37
+#define NUM_VPORT_COUNTERS     38
 };
 
 static const char pport_strings[][ETH_GSTRING_LEN] = {
@@ -329,6 +331,7 @@ static const char rq_stats_strings[][ETH_GSTRING_LEN] = {
 	"wqe_err",
 	"mpwqe_filler",
 	"mpwqe_frag",
+	"buff_alloc_err",
 };
 
 struct mlx5e_rq_stats {
@@ -341,7 +344,8 @@ struct mlx5e_rq_stats {
 	u64 wqe_err;
 	u64 mpwqe_filler;
 	u64 mpwqe_frag;
-#define NUM_RQ_STATS 9
+	u64 buff_alloc_err;
+#define NUM_RQ_STATS 10
 };
 
 static const char sq_stats_strings[][ETH_GSTRING_LEN] = {

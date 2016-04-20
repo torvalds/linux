@@ -447,9 +447,14 @@ bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 
 	while (!mlx5_wq_ll_is_full(wq)) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(wq, wq->head);
+		int err;
 
-		if (unlikely(rq->alloc_wqe(rq, wqe, wq->head)))
+		err = rq->alloc_wqe(rq, wqe, wq->head);
+		if (unlikely(err)) {
+			if (err != -EBUSY)
+				rq->stats.buff_alloc_err++;
 			break;
+		}
 
 		mlx5_wq_ll_push(wq, be16_to_cpu(wqe->next.next_wqe_index));
 	}
@@ -701,8 +706,10 @@ void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	skb = napi_alloc_skb(rq->cq.napi,
 			     ALIGN(MLX5_MPWRQ_SMALL_PACKET_THRESHOLD,
 				   sizeof(long)));
-	if (unlikely(!skb))
+	if (unlikely(!skb)) {
+		rq->stats.buff_alloc_err++;
 		goto mpwrq_cqe_out;
+	}
 
 	prefetch(skb->data);
 	cqe_bcnt = mpwrq_get_cqe_byte_cnt(cqe);
