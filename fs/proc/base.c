@@ -1819,12 +1819,17 @@ bool proc_fill_cache(struct file *file, struct dir_context *ctx,
 
 	child = d_hash_and_lookup(dir, &qname);
 	if (!child) {
-		child = d_alloc(dir, &qname);
-		if (!child)
+		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
+		child = d_alloc_parallel(dir, &qname, &wq);
+		if (IS_ERR(child))
 			goto end_instantiate;
-		if (instantiate(d_inode(dir), child, task, ptr) < 0) {
-			dput(child);
-			goto end_instantiate;
+		if (d_in_lookup(child)) {
+			int err = instantiate(d_inode(dir), child, task, ptr);
+			d_lookup_done(child);
+			if (err < 0) {
+				dput(child);
+				goto end_instantiate;
+			}
 		}
 	}
 	inode = d_inode(child);
