@@ -926,7 +926,7 @@ static int s3c24xx_i2c_cpufreq_transition(struct notifier_block *nb,
 		i2c_unlock_adapter(&i2c->adap);
 
 		if (ret < 0)
-			dev_err(i2c->dev, "cannot find frequency\n");
+			dev_err(i2c->dev, "cannot find frequency (%d)\n", ret);
 		else
 			dev_info(i2c->dev, "setting freq %d\n", got);
 	}
@@ -977,7 +977,8 @@ static int s3c24xx_i2c_parse_dt_gpio(struct s3c24xx_i2c *i2c)
 
 		ret = gpio_request(gpio, "i2c-bus");
 		if (ret) {
-			dev_err(i2c->dev, "gpio [%d] request failed\n", gpio);
+			dev_err(i2c->dev, "gpio [%d] request failed (%d)\n",
+				gpio, ret);
 			goto free_gpio;
 		}
 	}
