@@ -147,7 +147,6 @@ void mlx5e_completion_event(struct mlx5_core_cq *mcq)
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
 
 	set_bit(MLX5E_CHANNEL_NAPI_SCHED, &cq->channel->flags);
-	barrier();
 	napi_schedule(cq->napi);
 }
 
