@@ -1401,11 +1401,11 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 
 	COMPOSITE_NOMUX(SCLK_I2C4_PMU, "clk_i2c4_pmu", "ppll", 0,
 			RK3399_PMU_CLKSEL_CON(3), 0, 7, DFLAGS,
-			RK3399_PMU_CLKGATE_CON(0), 11, GFLAGS),
+			RK3399_PMU_CLKGATE_CON(0), 10, GFLAGS),
 
 	COMPOSITE_NOMUX(SCLK_I2C8_PMU, "clk_i2c8_pmu", "ppll", 0,
 			RK3399_PMU_CLKSEL_CON(2), 8, 7, DFLAGS,
-			RK3399_PMU_CLKGATE_CON(0), 10, GFLAGS),
+			RK3399_PMU_CLKGATE_CON(0), 11, GFLAGS),
 
 	DIV(0, "clk_32k_suspend_pmu", "xin24m", CLK_IGNORE_UNUSED,
 			RK3399_PMU_CLKSEL_CON(4), 0, 10, DFLAGS),
