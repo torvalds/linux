@@ -158,7 +158,7 @@ PNAME(mux_dclk_vop0_p)			= { "dclk_vop0_div",
 PNAME(mux_dclk_vop1_p)			= { "dclk_vop1_div",
 					    "dclk_vop1_frac" };
 
-PNAME(mux_clk_cif_p)			= { "clk_cifout_div", "xin24m" };
+PNAME(mux_clk_cif_p)			= { "clk_cifout_src", "xin24m" };
 
 PNAME(mux_pll_src_24m_usbphy480m_p)	= { "xin24m", "clk_usbphy_480m" };
 PNAME(mux_pll_src_24m_pciephy_p)	= { "xin24m", "clk_pciephy_ref100m" };
@@ -1254,11 +1254,12 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(27), 6, GFLAGS),
 
 	/* cif */
-	COMPOSITE(0, "clk_cifout_div", mux_pll_src_cpll_gpll_npll_p, 0,
-			RK3399_CLKSEL_CON(56), 6, 2, MFLAGS, 0, 5, DFLAGS,
+	COMPOSITE_NODIV(0, "clk_cifout_src", mux_pll_src_cpll_gpll_npll_p, 0,
+			RK3399_CLKSEL_CON(56), 6, 2, MFLAGS,
 			RK3399_CLKGATE_CON(10), 7, GFLAGS),
-	MUX(SCLK_CIF_OUT, "clk_cifout", mux_clk_cif_p, CLK_SET_RATE_PARENT,
-			RK3399_CLKSEL_CON(56), 5, 1, MFLAGS),
+
+	COMPOSITE_NOGATE(SCLK_CIF_OUT, "clk_cifout", mux_clk_cif_p, 0,
+			 RK3399_CLKSEL_CON(56), 5, 1, MFLAGS, 0, 5, DFLAGS),
 
 	/* gic */
 	COMPOSITE(ACLK_GIC_PRE, "aclk_gic_pre", mux_pll_src_cpll_gpll_p, CLK_IGNORE_UNUSED,
