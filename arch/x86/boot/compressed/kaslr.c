@@ -155,7 +155,7 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 
 	/*
 	 * Avoid the region that is unsafe to overlap during
-	 * decompression (see calculations at top of misc.c).
+	 * decompression (see calculations in ../header.S).
 	 */
 	unsafe_len = (output_size >> 12) + 32768 + 18;
 	unsafe = (unsigned long)input + input_size - unsafe_len;
