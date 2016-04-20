@@ -1250,7 +1250,7 @@ static inline int nla_align_64bit(struct sk_buff *skb, int padattr)
 	 * nlattr header for next attribute, will make nla_data()
 	 * 8-byte aligned.
 	 */
-	if (IS_ALIGNED((unsigned long)skb->data, 8) &&
+	if (IS_ALIGNED((unsigned long)skb_tail_pointer(skb), 8) &&
 	    !nla_reserve(skb, padattr, 0))
 		return -EMSGSIZE;
 #endif
