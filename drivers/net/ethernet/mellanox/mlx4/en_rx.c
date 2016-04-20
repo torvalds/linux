@@ -943,7 +943,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		/* GRO not possible, complete processing here */
 		skb = mlx4_en_rx_skb(priv, rx_desc, frags, length);
 		if (!skb) {
-			priv->stats.rx_dropped++;
+			ring->dropped++;
 			goto next;
 		}
 
