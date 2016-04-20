@@ -933,6 +933,8 @@ void ath10k_core_destroy(struct ath10k *ar);
 void ath10k_core_get_fw_features_str(struct ath10k *ar,
 				     char *buf,
 				     size_t max_len);
+int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
+				     struct ath10k_fw_file *fw_file);
 
 int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		      const struct ath10k_fw_components *fw_components);

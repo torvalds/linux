@@ -976,8 +976,8 @@ success:
 	return 0;
 }
 
-static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
-					    struct ath10k_fw_file *fw_file)
+int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
+				     struct ath10k_fw_file *fw_file)
 {
 	size_t magic_len, len, ie_len;
 	int ie_id, i, index, bit, ret;
