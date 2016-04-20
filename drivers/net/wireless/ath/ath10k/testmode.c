@@ -362,14 +362,8 @@ static int ath10k_tm_cmd_utf_start(struct ath10k *ar, struct nlattr *tb[])
 	spin_lock_bh(&ar->data_lock);
 	ar->testmode.utf_monitor = true;
 	spin_unlock_bh(&ar->data_lock);
-	BUILD_BUG_ON(sizeof(ar->fw_features) !=
-		     sizeof(ar->testmode.orig_fw_features));
 
-	memcpy(ar->testmode.orig_fw_features, ar->fw_features,
-	       sizeof(ar->fw_features));
 	ar->testmode.orig_wmi_op_version = ar->wmi.op_version;
-	memset(ar->fw_features, 0, sizeof(ar->fw_features));
-
 	ar->wmi.op_version = ar->testmode.op_version;
 
 	ath10k_dbg(ar, ATH10K_DBG_TESTMODE, "testmode wmi version %d\n",
@@ -407,9 +401,6 @@ err_power_down:
 	ath10k_hif_power_down(ar);
 
 err_fw_features:
-	/* return the original firmware features */
-	memcpy(ar->fw_features, ar->testmode.orig_fw_features,
-	       sizeof(ar->fw_features));
 	ar->wmi.op_version = ar->testmode.orig_wmi_op_version;
 
 	release_firmware(ar->testmode.utf_mode_fw.fw_file.firmware);
@@ -433,11 +424,6 @@ static void __ath10k_tm_cmd_utf_stop(struct ath10k *ar)
 	ar->testmode.utf_monitor = false;
 
 	spin_unlock_bh(&ar->data_lock);
-
-	/* return the original firmware features */
-	memcpy(ar->fw_features, ar->testmode.orig_fw_features,
-	       sizeof(ar->fw_features));
-	ar->wmi.op_version = ar->testmode.orig_wmi_op_version;
 
 	release_firmware(ar->testmode.utf_mode_fw.fw_file.firmware);
 	ar->testmode.utf_mode_fw.fw_file.firmware = NULL;

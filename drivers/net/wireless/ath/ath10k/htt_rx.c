@@ -966,7 +966,7 @@ static int ath10k_htt_rx_nwifi_hdrlen(struct ath10k *ar,
 	int len = ieee80211_hdrlen(hdr->frame_control);
 
 	if (!test_bit(ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING,
-		      ar->fw_features))
+		      ar->running_fw->fw_file.fw_features))
 		len = round_up(len, 4);
 
 	return len;

@@ -632,6 +632,8 @@ struct ath10k_fw_file {
 
 	char fw_version[ETHTOOL_FWVERS_LEN];
 
+	DECLARE_BITMAP(fw_features, ATH10K_FW_FEATURE_COUNT);
+
 	const void *firmware_data;
 	size_t firmware_len;
 
@@ -674,8 +676,6 @@ struct ath10k {
 	u32 max_spatial_stream;
 	/* protected by conf_mutex */
 	bool ani_enabled;
-
-	DECLARE_BITMAP(fw_features, ATH10K_FW_FEATURE_COUNT);
 
 	bool p2p;
 
@@ -895,7 +895,6 @@ struct ath10k {
 	struct {
 		/* protected by conf_mutex */
 		struct ath10k_fw_components utf_mode_fw;
-		DECLARE_BITMAP(orig_fw_features, ATH10K_FW_FEATURE_COUNT);
 		enum ath10k_fw_wmi_op_version orig_wmi_op_version;
 		enum ath10k_fw_wmi_op_version op_version;
 
