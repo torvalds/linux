@@ -57,12 +57,30 @@
 #define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE                0xa
 #define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xd
 
+#define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW            0x1
+#define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW            0x4
+#define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW            0x6
+
+#define MLX5_MPWRQ_LOG_NUM_STRIDES		11 /* >= 9, HW restriction */
+#define MLX5_MPWRQ_LOG_STRIDE_SIZE		6  /* >= 6, HW restriction */
+#define MLX5_MPWRQ_NUM_STRIDES			BIT(MLX5_MPWRQ_LOG_NUM_STRIDES)
+#define MLX5_MPWRQ_STRIDE_SIZE			BIT(MLX5_MPWRQ_LOG_STRIDE_SIZE)
+#define MLX5_MPWRQ_LOG_WQE_SZ			(MLX5_MPWRQ_LOG_NUM_STRIDES +\
+						 MLX5_MPWRQ_LOG_STRIDE_SIZE)
+#define MLX5_MPWRQ_WQE_PAGE_ORDER  (MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT > 0 ? \
+				    MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT : 0)
+#define MLX5_MPWRQ_PAGES_PER_WQE		BIT(MLX5_MPWRQ_WQE_PAGE_ORDER)
+#define MLX5_MPWRQ_STRIDES_PER_PAGE		(MLX5_MPWRQ_NUM_STRIDES >> \
+						 MLX5_MPWRQ_WQE_PAGE_ORDER)
+#define MLX5_MPWRQ_SMALL_PACKET_THRESHOLD	(128)
+
 #define MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ                 (64 * 1024)
 #define MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC      0x10
 #define MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS      0x20
 #define MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC      0x10
 #define MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS      0x20
 #define MLX5E_PARAMS_DEFAULT_MIN_RX_WQES                0x80
+#define MLX5E_PARAMS_DEFAULT_MIN_RX_WQES_MPW            0x2
 
 #define MLX5E_LOG_INDIR_RQT_SIZE       0x7
 #define MLX5E_INDIR_RQT_SIZE           BIT(MLX5E_LOG_INDIR_RQT_SIZE)
@@ -73,6 +91,38 @@
 
 #define MLX5E_NUM_MAIN_GROUPS 9
 #define MLX5E_NET_IP_ALIGN 2
+
+static inline u16 mlx5_min_rx_wqes(int wq_type, u32 wq_size)
+{
+	switch (wq_type) {
+	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		return min_t(u16, MLX5E_PARAMS_DEFAULT_MIN_RX_WQES_MPW,
+			     wq_size / 2);
+	default:
+		return min_t(u16, MLX5E_PARAMS_DEFAULT_MIN_RX_WQES,
+			     wq_size / 2);
+	}
+}
+
+static inline int mlx5_min_log_rq_size(int wq_type)
+{
+	switch (wq_type) {
+	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		return MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW;
+	default:
+		return MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE;
+	}
+}
+
+static inline int mlx5_max_log_rq_size(int wq_type)
+{
+	switch (wq_type) {
+	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		return MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW;
+	default:
+		return MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE;
+	}
+}
 
 struct mlx5e_tx_wqe {
 	struct mlx5_wqe_ctrl_seg ctrl;
@@ -128,6 +178,7 @@ static const char vport_strings[][ETH_GSTRING_LEN] = {
 	"tx_queue_wake",
 	"tx_queue_dropped",
 	"rx_wqe_err",
+	"rx_mpwqe_filler",
 };
 
 struct mlx5e_vport_stats {
@@ -169,8 +220,9 @@ struct mlx5e_vport_stats {
 	u64 tx_queue_wake;
 	u64 tx_queue_dropped;
 	u64 rx_wqe_err;
+	u64 rx_mpwqe_filler;
 
-#define NUM_VPORT_COUNTERS     35
+#define NUM_VPORT_COUNTERS     36
 };
 
 static const char pport_strings[][ETH_GSTRING_LEN] = {
@@ -263,7 +315,8 @@ static const char rq_stats_strings[][ETH_GSTRING_LEN] = {
 	"csum_sw",
 	"lro_packets",
 	"lro_bytes",
-	"wqe_err"
+	"wqe_err",
+	"mpwqe_filler",
 };
 
 struct mlx5e_rq_stats {
@@ -274,7 +327,8 @@ struct mlx5e_rq_stats {
 	u64 lro_packets;
 	u64 lro_bytes;
 	u64 wqe_err;
-#define NUM_RQ_STATS 7
+	u64 mpwqe_filler;
+#define NUM_RQ_STATS 8
 };
 
 static const char sq_stats_strings[][ETH_GSTRING_LEN] = {
@@ -318,6 +372,7 @@ struct mlx5e_stats {
 
 struct mlx5e_params {
 	u8  log_sq_size;
+	u8  rq_wq_type;
 	u8  log_rq_size;
 	u16 num_channels;
 	u8  num_tc;
@@ -374,11 +429,23 @@ typedef void (*mlx5e_fp_handle_rx_cqe)(struct mlx5e_rq *rq,
 typedef int (*mlx5e_fp_alloc_wqe)(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe,
 				  u16 ix);
 
+struct mlx5e_dma_info {
+	struct page	*page;
+	dma_addr_t	addr;
+};
+
+struct mlx5e_mpw_info {
+	struct mlx5e_dma_info dma_info;
+	u16 consumed_strides;
+	u16 skbs_frags[MLX5_MPWRQ_PAGES_PER_WQE];
+};
+
 struct mlx5e_rq {
 	/* data path */
 	struct mlx5_wq_ll      wq;
 	u32                    wqe_sz;
 	struct sk_buff       **skb;
+	struct mlx5e_mpw_info *wqe_info;
 
 	struct device         *pdev;
 	struct net_device     *netdev;
@@ -393,6 +460,7 @@ struct mlx5e_rq {
 
 	/* control */
 	struct mlx5_wq_ctrl    wq_ctrl;
+	u8                     wq_type;
 	u32                    rqn;
 	struct mlx5e_channel  *channel;
 	struct mlx5e_priv     *priv;
@@ -649,9 +717,12 @@ void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event);
 int mlx5e_napi_poll(struct napi_struct *napi, int budget);
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
+
 void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
+void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq);
 int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix);
+int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix);
 struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
