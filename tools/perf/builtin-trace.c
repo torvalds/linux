@@ -2190,8 +2190,19 @@ static int trace__pgfault(struct trace *trace,
 	char map_type = 'd';
 	struct thread_trace *ttrace;
 	int err = -1;
+	int callchain_ret = 0;
 
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
+
+	if (sample->callchain) {
+		callchain_ret = trace__resolve_callchain(trace, evsel, sample, &callchain_cursor);
+		if (callchain_ret == 0) {
+			if (callchain_cursor.nr < trace->min_stack)
+				goto out_put;
+			callchain_ret = 1;
+		}
+	}
+
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		goto out_put;
@@ -2234,10 +2245,10 @@ static int trace__pgfault(struct trace *trace,
 
 	fprintf(trace->output, " (%c%c)\n", map_type, al.level);
 
-	if (sample->callchain) {
-		if (trace__resolve_callchain(trace, evsel, sample, &callchain_cursor) == 0)
-			trace__fprintf_callchain(trace, sample);
-	}
+	if (callchain_ret > 0)
+		trace__fprintf_callchain(trace, sample);
+	else if (callchain_ret < 0)
+		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
 out:
 	err = 0;
 out_put:
