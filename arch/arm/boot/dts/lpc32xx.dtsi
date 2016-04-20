@@ -173,6 +173,7 @@
 			spi1: spi@20088000 {
 				compatible = "nxp,lpc3220-spi";
 				reg = <0x20088000 0x1000>;
+				clocks = <&clk LPC32XX_CLK_SPI1>;
 			};
 
 			ssp1: ssp@2008c000 {
@@ -186,6 +187,7 @@
 			spi2: spi@20090000 {
 				compatible = "nxp,lpc3220-spi";
 				reg = <0x20090000 0x1000>;
+				clocks = <&clk LPC32XX_CLK_SPI2>;
 			};
 
 			i2s0: i2s@20094000 {
