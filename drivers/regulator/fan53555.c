@@ -68,6 +68,12 @@ enum {
 	FAN53555_CHIP_ID_08 = 8,
 };
 
+/* IC mask revision */
+enum {
+	FAN53555_CHIP_REV_00 = 0x3,
+	FAN53555_CHIP_REV_13 = 0xf,
+};
+
 enum {
 	SILERGY_SYR82X = 8,
 };
@@ -218,6 +224,22 @@ static int fan53555_voltages_setup_fairchild(struct fan53555_device_info *di)
 	/* Init voltage range and step */
 	switch (di->chip_id) {
 	case FAN53555_CHIP_ID_00:
+		switch (di->chip_rev) {
+		case FAN53555_CHIP_REV_00:
+			di->vsel_min = 600000;
+			di->vsel_step = 10000;
+			break;
+		case FAN53555_CHIP_REV_13:
+			di->vsel_min = 800000;
+			di->vsel_step = 10000;
+			break;
+		default:
+			dev_err(di->dev,
+				"Chip ID %d with rev %d not supported!\n",
+				di->chip_id, di->chip_rev);
+			return -EINVAL;
+		}
+		break;
 	case FAN53555_CHIP_ID_01:
 	case FAN53555_CHIP_ID_03:
 	case FAN53555_CHIP_ID_05:
