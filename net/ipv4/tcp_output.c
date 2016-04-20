@@ -2454,6 +2454,8 @@ void tcp_skb_collapse_tstamp(struct sk_buff *skb,
 
 		shinfo->tx_flags |= tsflags;
 		shinfo->tskey = next_shinfo->tskey;
+		TCP_SKB_CB(skb)->txstamp_ack |=
+			TCP_SKB_CB(next_skb)->txstamp_ack;
 	}
 }
 
