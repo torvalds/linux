@@ -1562,7 +1562,6 @@ struct ath10k_htt {
 	u8 target_version_major;
 	u8 target_version_minor;
 	struct completion target_version_received;
-	enum ath10k_fw_htt_op_version op_version;
 	u8 max_num_amsdu;
 	u8 max_num_ampdu;
 

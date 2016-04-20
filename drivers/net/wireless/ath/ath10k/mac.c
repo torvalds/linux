@@ -3359,7 +3359,7 @@ bool ath10k_mac_tx_frm_has_freq(struct ath10k *ar)
 	 */
 	return (ar->htt.target_version_major >= 3 &&
 		ar->htt.target_version_minor >= 4 &&
-		ar->htt.op_version == ATH10K_FW_HTT_OP_VERSION_TLV);
+		ar->running_fw->fw_file.htt_op_version == ATH10K_FW_HTT_OP_VERSION_TLV);
 }
 
 static int ath10k_mac_tx_wmi_mgmt(struct ath10k *ar, struct sk_buff *skb)

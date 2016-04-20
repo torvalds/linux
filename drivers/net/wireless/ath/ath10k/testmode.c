@@ -284,6 +284,7 @@ static int ath10k_tm_fetch_utf_firmware_api_1(struct ath10k *ar,
 	 */
 
 	fw_file->wmi_op_version = ATH10K_FW_WMI_OP_VERSION_10_1;
+	fw_file->htt_op_version = ATH10K_FW_HTT_OP_VERSION_10_1;
 	fw_file->firmware_data = fw_file->firmware->data;
 	fw_file->firmware_len = fw_file->firmware->size;
 

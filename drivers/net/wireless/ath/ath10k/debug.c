@@ -179,7 +179,7 @@ void ath10k_debug_print_boot_info(struct ath10k *ar)
 		    ar->htt.target_version_major,
 		    ar->htt.target_version_minor,
 		    ar->normal_mode_fw.fw_file.wmi_op_version,
-		    ar->htt.op_version,
+		    ar->normal_mode_fw.fw_file.htt_op_version,
 		    ath10k_cal_mode_str(ar->cal_mode),
 		    ar->max_num_stations,
 		    test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags),

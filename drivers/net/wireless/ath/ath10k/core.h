@@ -634,6 +634,7 @@ struct ath10k_fw_file {
 	DECLARE_BITMAP(fw_features, ATH10K_FW_FEATURE_COUNT);
 
 	enum ath10k_fw_wmi_op_version wmi_op_version;
+	enum ath10k_fw_htt_op_version htt_op_version;
 
 	const void *firmware_data;
 	size_t firmware_len;
