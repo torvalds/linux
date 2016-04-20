@@ -36,7 +36,7 @@ struct rtl2832_dev {
 	struct mutex regmap_mutex;
 	struct regmap_config regmap_config;
 	struct regmap *regmap;
-	struct i2c_adapter *i2c_adapter_tuner;
+	struct i2c_mux_core *muxc;
 	struct dvb_frontend fe;
 	enum fe_status fe_status;
 	u64 post_bit_error_prev; /* for old DVBv3 read_ber() calculation */
