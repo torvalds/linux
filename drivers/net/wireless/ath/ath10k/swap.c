@@ -134,27 +134,17 @@ ath10k_swap_code_seg_alloc(struct ath10k *ar, size_t swap_bin_len)
 	return seg_info;
 }
 
-int ath10k_swap_code_seg_configure(struct ath10k *ar,
-				   enum ath10k_swap_code_seg_bin_type type)
+int ath10k_swap_code_seg_configure(struct ath10k *ar)
 {
 	int ret;
 	struct ath10k_swap_code_seg_info *seg_info = NULL;
 
-	switch (type) {
-	case ATH10K_SWAP_CODE_SEG_BIN_TYPE_FW:
-		if (!ar->swap.firmware_swap_code_seg_info)
-			return 0;
-
-		ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot found firmware code swap binary\n");
-		seg_info = ar->swap.firmware_swap_code_seg_info;
-		break;
-	default:
-	case ATH10K_SWAP_CODE_SEG_BIN_TYPE_OTP:
-	case ATH10K_SWAP_CODE_SEG_BIN_TYPE_UTF:
-		ath10k_warn(ar, "ignoring unknown code swap binary type %d\n",
-			    type);
+	if (!ar->swap.firmware_swap_code_seg_info)
 		return 0;
-	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot found firmware code swap binary\n");
+
+	seg_info = ar->swap.firmware_swap_code_seg_info;
 
 	ret = ath10k_bmi_write_memory(ar, seg_info->target_addr,
 				      &seg_info->seg_hw_info,

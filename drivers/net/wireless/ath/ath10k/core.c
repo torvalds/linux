@@ -647,8 +647,7 @@ static int ath10k_download_fw(struct ath10k *ar)
 	data = ar->running_fw->fw_file.firmware_data;
 	data_len = ar->running_fw->fw_file.firmware_len;
 
-	ret = ath10k_swap_code_seg_configure(ar,
-					     ATH10K_SWAP_CODE_SEG_BIN_TYPE_FW);
+	ret = ath10k_swap_code_seg_configure(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to configure fw code swap: %d\n",
 			   ret);
