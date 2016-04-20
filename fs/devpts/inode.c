@@ -395,6 +395,7 @@ static int
 devpts_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct inode *inode;
+	int error;
 
 	s->s_iflags &= ~SB_I_NODEV;
 	s->s_blocksize = 1024;
@@ -403,10 +404,16 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	s->s_op = &devpts_sops;
 	s->s_time_gran = 1;
 
+	error = -ENOMEM;
 	s->s_fs_info = new_pts_fs_info(s);
 	if (!s->s_fs_info)
 		goto fail;
 
+	error = parse_mount_options(data, PARSE_MOUNT, &DEVPTS_SB(s)->mount_opts);
+	if (error)
+		goto fail;
+
+	error = -ENOMEM;
 	inode = new_inode(s);
 	if (!inode)
 		goto fail;
@@ -424,7 +431,7 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	pr_err("get root dentry failed\n");
 
 fail:
-	return -ENOMEM;
+	return error;
 }
 
 /*
@@ -437,12 +444,7 @@ static struct dentry *devpts_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
 	int error;
-	struct pts_mount_opts opts;
 	struct super_block *s;
-
-	error = parse_mount_options(data, PARSE_MOUNT, &opts);
-	if (error)
-		return ERR_PTR(error);
 
 	s = sget(fs_type, NULL, set_anon_super, flags, NULL);
 	if (IS_ERR(s))
@@ -454,8 +456,6 @@ static struct dentry *devpts_mount(struct file_system_type *fs_type,
 			goto out_undo_sget;
 		s->s_flags |= MS_ACTIVE;
 	}
-
-	memcpy(&(DEVPTS_SB(s))->mount_opts, &opts, sizeof(opts));
 
 	error = mknod_ptmx(s);
 	if (error)
