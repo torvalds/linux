@@ -7,7 +7,7 @@ Required properties:
   If this property is selected please make sure MFD_SYSCON config
   is enabled in the defconfig file.
 - clocks:  The clock provided by the SOC to driver the tsc
-- clock-name:  name for the clock
+- clock-names:  name for the clock
 - interrupts: The touchscreen controller's interrupt
 - address-cells: Specify the number of u32 entries needed in child nodes.
   Should set to 1.
