@@ -148,13 +148,8 @@ static int thingm_led_set(struct led_classdev *ldev,
 			  enum led_brightness brightness)
 {
 	struct thingm_led *led = container_of(ldev, struct thingm_led, ldev);
-	int ret;
 
-	ret = thingm_write_color(led->rgb);
-	if (ret)
-		hid_err(led->rgb->tdev->hdev, "failed to write color\n");
-
-	return ret;
+	return thingm_write_color(led->rgb);
 }
 
 static int thingm_init_led(struct thingm_led *led, const char *color_name,
