@@ -7029,8 +7029,19 @@ int register_netdevice(struct net_device *dev)
 	if (!(dev->flags & IFF_LOOPBACK))
 		dev->hw_features |= NETIF_F_NOCACHE_COPY;
 
+	/* If IPv4 TCP segmentation offload is supported we should also
+	 * allow the device to enable segmenting the frame with the option
+	 * of ignoring a static IP ID value.  This doesn't enable the
+	 * feature itself but allows the user to enable it later.
+	 */
 	if (dev->hw_features & NETIF_F_TSO)
 		dev->hw_features |= NETIF_F_TSO_MANGLEID;
+	if (dev->vlan_features & NETIF_F_TSO)
+		dev->vlan_features |= NETIF_F_TSO_MANGLEID;
+	if (dev->mpls_features & NETIF_F_TSO)
+		dev->mpls_features |= NETIF_F_TSO_MANGLEID;
+	if (dev->hw_enc_features & NETIF_F_TSO)
+		dev->hw_enc_features |= NETIF_F_TSO_MANGLEID;
 
 	/* Make NETIF_F_HIGHDMA inheritable to VLAN devices.
 	 */
