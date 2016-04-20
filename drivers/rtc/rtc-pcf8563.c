@@ -533,7 +533,7 @@ static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 
 	init.name = "pcf8563-clkout";
 	init.ops = &pcf8563_clkout_ops;
-	init.flags = CLK_IS_ROOT;
+	init.flags = 0;
 	init.parent_names = NULL;
 	init.num_parents = 0;
 	pcf8563->clkout_hw.init = &init;
