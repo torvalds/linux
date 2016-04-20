@@ -35,8 +35,7 @@ static void amba_register_dummy_clk(void)
 	if (amba_dummy_clk)
 		return;
 
-	amba_dummy_clk = clk_register_fixed_rate(NULL, "apb_pclk", NULL,
-						CLK_IS_ROOT, 0);
+	amba_dummy_clk = clk_register_fixed_rate(NULL, "apb_pclk", NULL, 0, 0);
 	clk_register_clkdev(amba_dummy_clk, "apb_pclk", NULL);
 }
 
