@@ -219,9 +219,8 @@ config PHY_MT65XX_USB3
 	depends on ARCH_MEDIATEK && OF
 	select GENERIC_PHY
 	help
-	  Say 'Y' here to add support for Mediatek USB3.0 PHY driver
-	  for mt65xx SoCs. it supports two usb2.0 ports and
-	  one usb3.0 port.
+	  Say 'Y' here to add support for Mediatek USB3.0 PHY driver,
+	  it supports multiple usb2.0 and usb3.0 ports.
 
 config PHY_HI6220_USB
 	tristate "hi6220 USB PHY support"
