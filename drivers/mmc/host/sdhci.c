@@ -1906,8 +1906,7 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		break;
 
 	case MMC_TIMING_UHS_SDR50:
-		if (host->flags & SDHCI_SDR50_NEEDS_TUNING ||
-		    host->flags & SDHCI_SDR104_NEEDS_TUNING)
+		if (host->flags & SDHCI_SDR50_NEEDS_TUNING)
 			break;
 		/* FALLTHROUGH */
 
@@ -3170,10 +3169,6 @@ int sdhci_add_host(struct sdhci_host *host)
 	/* Does the host need tuning for SDR50? */
 	if (caps[1] & SDHCI_USE_SDR50_TUNING)
 		host->flags |= SDHCI_SDR50_NEEDS_TUNING;
-
-	/* Does the host need tuning for SDR104 / HS200? */
-	if (mmc->caps2 & MMC_CAP2_HS200)
-		host->flags |= SDHCI_SDR104_NEEDS_TUNING;
 
 	/* Driver Type(s) (A, C, D) supported by the host */
 	if (caps[1] & SDHCI_DRIVER_TYPE_A)
