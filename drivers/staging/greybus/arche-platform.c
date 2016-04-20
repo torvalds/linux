@@ -580,11 +580,6 @@ static struct of_device_id arche_platform_of_match[] = {
 	{ },
 };
 
-static struct of_device_id arche_apb_ctrl_of_match[] = {
-	{ .compatible = "usbffff,2", },
-	{ },
-};
-
 static struct of_device_id arche_combined_id[] = {
 	{ .compatible = "google,arche-platform", }, /* Use PID/VID of SVC device */
 	{ .compatible = "usbffff,2", },
@@ -602,16 +597,6 @@ static struct platform_driver arche_platform_device_driver = {
 	}
 };
 
-static struct platform_driver arche_apb_ctrl_device_driver = {
-	.probe		= arche_apb_ctrl_probe,
-	.remove		= arche_apb_ctrl_remove,
-	.driver		= {
-		.name	= "arche-apb-ctrl",
-		.pm	= &arche_apb_ctrl_pm_ops,
-		.of_match_table = arche_apb_ctrl_of_match,
-	}
-};
-
 static int __init arche_init(void)
 {
 	int retval;
@@ -620,7 +605,7 @@ static int __init arche_init(void)
 	if (retval)
 		return retval;
 
-	retval = platform_driver_register(&arche_apb_ctrl_device_driver);
+	retval = arche_apb_init();
 	if (retval)
 		platform_driver_unregister(&arche_platform_device_driver);
 
@@ -630,7 +615,7 @@ module_init(arche_init);
 
 static void __exit arche_exit(void)
 {
-	platform_driver_unregister(&arche_apb_ctrl_device_driver);
+	arche_apb_exit();
 	platform_driver_unregister(&arche_platform_device_driver);
 }
 module_exit(arche_exit);

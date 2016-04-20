@@ -358,7 +358,7 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 	return 0;
 }
 
-int arche_apb_ctrl_probe(struct platform_device *pdev)
+static int arche_apb_ctrl_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct arche_apb_ctrl_drvdata *apb;
@@ -393,7 +393,7 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-int arche_apb_ctrl_remove(struct platform_device *pdev)
+static int arche_apb_ctrl_remove(struct platform_device *pdev)
 {
 	device_remove_file(&pdev->dev, &dev_attr_state);
 	poweroff_seq(pdev);
@@ -430,6 +430,30 @@ static int arche_apb_ctrl_resume(struct device *dev)
 	return 0;
 }
 
-SIMPLE_DEV_PM_OPS(arche_apb_ctrl_pm_ops,
-		  arche_apb_ctrl_suspend,
-		  arche_apb_ctrl_resume);
+static SIMPLE_DEV_PM_OPS(arche_apb_ctrl_pm_ops, arche_apb_ctrl_suspend,
+			 arche_apb_ctrl_resume);
+
+static struct of_device_id arche_apb_ctrl_of_match[] = {
+	{ .compatible = "usbffff,2", },
+	{ },
+};
+
+static struct platform_driver arche_apb_ctrl_device_driver = {
+	.probe		= arche_apb_ctrl_probe,
+	.remove		= arche_apb_ctrl_remove,
+	.driver		= {
+		.name	= "arche-apb-ctrl",
+		.pm	= &arche_apb_ctrl_pm_ops,
+		.of_match_table = arche_apb_ctrl_of_match,
+	}
+};
+
+int __init arche_apb_init(void)
+{
+	return platform_driver_register(&arche_apb_ctrl_device_driver);
+}
+
+void __exit arche_apb_exit(void)
+{
+	platform_driver_unregister(&arche_apb_ctrl_device_driver);
+}

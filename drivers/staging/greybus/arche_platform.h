@@ -18,16 +18,13 @@ enum arche_platform_state {
 };
 
 
-int arche_apb_ctrl_probe(struct platform_device *pdev);
-int arche_apb_ctrl_remove(struct platform_device *pdev);
+int __init arche_apb_init(void);
+void __exit arche_apb_exit(void);
 
 /* Operational states for the APB device */
 int apb_ctrl_coldboot(struct device *dev);
 int apb_ctrl_fw_flashing(struct device *dev);
 int apb_ctrl_standby_boot(struct device *dev);
 void apb_ctrl_poweroff(struct device *dev);
-
-
-extern const struct dev_pm_ops arche_apb_ctrl_pm_ops;
 
 #endif	/* __ARCHE_PLATFORM_H */
