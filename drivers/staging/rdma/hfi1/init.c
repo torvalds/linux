@@ -1007,7 +1007,7 @@ void hfi1_free_devdata(struct hfi1_devdata *dd)
 	free_percpu(dd->rcv_limit);
 	hfi1_dev_affinity_free(dd);
 	free_percpu(dd->send_schedule);
-	ib_dealloc_device(&dd->verbs_dev.rdi.ibdev);
+	rvt_dealloc_device(&dd->verbs_dev.rdi);
 }
 
 /*
@@ -1110,7 +1110,7 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 bail:
 	if (!list_empty(&dd->list))
 		list_del_init(&dd->list);
-	ib_dealloc_device(&dd->verbs_dev.rdi.ibdev);
+	rvt_dealloc_device(&dd->verbs_dev.rdi);
 	return ERR_PTR(ret);
 }
 

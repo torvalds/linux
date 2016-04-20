@@ -106,6 +106,19 @@ struct rvt_dev_info *rvt_alloc_device(size_t size, int nports)
 }
 EXPORT_SYMBOL(rvt_alloc_device);
 
+/**
+ * rvt_dealloc_device - deallocate rdi
+ * @rdi: structure to free
+ *
+ * Free a structure allocated with rvt_alloc_device()
+ */
+void rvt_dealloc_device(struct rvt_dev_info *rdi)
+{
+	kfree(rdi->ports);
+	ib_dealloc_device(&rdi->ibdev);
+}
+EXPORT_SYMBOL(rvt_dealloc_device);
+
 static int rvt_query_device(struct ib_device *ibdev,
 			    struct ib_device_attr *props,
 			    struct ib_udata *uhw)
