@@ -9,6 +9,7 @@
  * for more details.
  */
 
+#include <linux/clk/renesas.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/mm.h>
@@ -217,6 +218,8 @@ static int rcar_sysc_pd_power_on(struct generic_pm_domain *genpd)
 	return rcar_sysc_power_up(&pd->ch);
 }
 
+static bool has_cpg_mstp;
+
 static void __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 {
 	struct generic_pm_domain *genpd = &pd->genpd;
@@ -246,6 +249,18 @@ static void __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 		 */
 		pd->flags |= PD_BUSY;
 		gov = &pm_domain_always_on_gov;
+	}
+
+	if (!(pd->flags & (PD_CPU | PD_SCU))) {
+		/* Enable Clock Domain for I/O devices */
+		genpd->flags = GENPD_FLAG_PM_CLK;
+		if (has_cpg_mstp) {
+			genpd->attach_dev = cpg_mstp_attach_dev;
+			genpd->detach_dev = cpg_mstp_detach_dev;
+		} else {
+			genpd->attach_dev = cpg_mssr_attach_dev;
+			genpd->detach_dev = cpg_mssr_detach_dev;
+		}
 	}
 
 	genpd->power_off = rcar_sysc_pd_power_off;
@@ -293,6 +308,9 @@ static int __init rcar_sysc_pd_init(void)
 		return -ENODEV;
 
 	info = match->data;
+
+	has_cpg_mstp = of_find_compatible_node(NULL, NULL,
+					       "renesas,cpg-mstp-clocks");
 
 	base = of_iomap(np, 0);
 	if (!base) {
