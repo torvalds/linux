@@ -2101,6 +2101,7 @@ static int davinci_emac_remove(struct platform_device *pdev)
 	cpdma_ctlr_destroy(priv->dma);
 
 	unregister_netdev(ndev);
+	pm_runtime_disable(&pdev->dev);
 	free_netdev(ndev);
 
 	return 0;
