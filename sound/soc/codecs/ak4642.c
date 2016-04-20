@@ -608,9 +608,7 @@ static struct clk *ak4642_of_parse_mcko(struct device *dev)
 
 	of_property_read_string(np, "clock-output-names", &clk_name);
 
-	clk = clk_register_fixed_rate(dev, clk_name, parent_clk_name,
-				      (parent_clk_name) ? 0 : CLK_IS_ROOT,
-				      rate);
+	clk = clk_register_fixed_rate(dev, clk_name, parent_clk_name, 0, rate);
 	if (!IS_ERR(clk))
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 
