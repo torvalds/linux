@@ -671,6 +671,7 @@
 #define SRST_P_EDP_CTRL			285
 
 /* cru_softrst_con18 */
+#define SRST_A_GPU			288
 #define SRST_A_GPU_NOC			289
 #define SRST_A_GPU_GRF			290
 #define SRST_PVTM_GPU			291
