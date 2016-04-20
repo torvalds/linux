@@ -1601,6 +1601,9 @@ static int intel_runtime_resume(struct device *device)
 	if (IS_BROXTON(dev)) {
 		bxt_disable_dc9(dev_priv);
 		bxt_display_core_init(dev_priv, true);
+		if (dev_priv->csr.dmc_payload &&
+		    (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC5))
+			gen9_enable_dc5(dev_priv);
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		hsw_disable_pc8(dev_priv);
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {

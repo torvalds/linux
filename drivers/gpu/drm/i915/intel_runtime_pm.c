@@ -582,7 +582,7 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 	assert_csr_loaded(dev_priv);
 }
 
-static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
+void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc5(dev_priv);
 
