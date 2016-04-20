@@ -567,10 +567,9 @@ static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 	drm_modeset_unlock_all(dev);
 }
 
-static int intel_suspend_complete(struct drm_i915_private *dev_priv);
 static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 			      bool rpm_resume);
-static int bxt_resume_prepare(struct drm_i915_private *dev_priv);
+static int vlv_suspend_complete(struct drm_i915_private *dev_priv);
 
 static bool suspend_to_idle(struct drm_i915_private *dev_priv)
 {
@@ -668,7 +667,14 @@ static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 	if (!fw_csr)
 		intel_power_domains_suspend(dev_priv);
 
-	ret = intel_suspend_complete(dev_priv);
+	ret = 0;
+	if (IS_BROXTON(dev_priv)) {
+		bxt_display_core_uninit(dev_priv);
+		bxt_enable_dc9(dev_priv);
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		hsw_enable_pc8(dev_priv);
+	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		ret = vlv_suspend_complete(dev_priv);
 
 	if (ret) {
 		DRM_ERROR("Suspend complete failed: %d\n", ret);
@@ -862,9 +868,10 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_uncore_early_sanitize(dev, true);
 
-	if (IS_BROXTON(dev))
-		ret = bxt_resume_prepare(dev_priv);
-	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	if (IS_BROXTON(dev)) {
+		bxt_disable_dc9(dev_priv);
+		bxt_display_core_init(dev_priv, true);
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_disable_pc8(dev_priv);
 
 	intel_uncore_sanitize(dev);
@@ -1100,29 +1107,6 @@ static int i915_pm_resume(struct device *dev)
 		return 0;
 
 	return i915_drm_resume(drm_dev);
-}
-
-static int hsw_suspend_complete(struct drm_i915_private *dev_priv)
-{
-	hsw_enable_pc8(dev_priv);
-
-	return 0;
-}
-
-static int bxt_suspend_complete(struct drm_i915_private *dev_priv)
-{
-	bxt_display_core_uninit(dev_priv);
-	bxt_enable_dc9(dev_priv);
-
-	return 0;
-}
-
-static int bxt_resume_prepare(struct drm_i915_private *dev_priv)
-{
-	bxt_disable_dc9(dev_priv);
-	bxt_display_core_init(dev_priv, true);
-
-	return 0;
 }
 
 /*
@@ -1530,7 +1514,16 @@ static int intel_runtime_suspend(struct device *device)
 	intel_suspend_gt_powersave(dev);
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
-	ret = intel_suspend_complete(dev_priv);
+	ret = 0;
+	if (IS_BROXTON(dev_priv)) {
+		bxt_display_core_uninit(dev_priv);
+		bxt_enable_dc9(dev_priv);
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
+		hsw_enable_pc8(dev_priv);
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		ret = vlv_suspend_complete(dev_priv);
+	}
+
 	if (ret) {
 		DRM_ERROR("Runtime suspend failed, disabling it (%d)\n", ret);
 		intel_runtime_pm_enable_interrupts(dev_priv);
@@ -1604,12 +1597,14 @@ static int intel_runtime_resume(struct device *device)
 	if (IS_GEN6(dev_priv))
 		intel_init_pch_refclk(dev);
 
-	if (IS_BROXTON(dev))
-		ret = bxt_resume_prepare(dev_priv);
-	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	if (IS_BROXTON(dev)) {
+		bxt_disable_dc9(dev_priv);
+		bxt_display_core_init(dev_priv, true);
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		hsw_disable_pc8(dev_priv);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		ret = vlv_resume_prepare(dev_priv, true);
+	}
 
 	/*
 	 * No point of rolling back things in case of an error, as the best
@@ -1636,26 +1631,6 @@ static int intel_runtime_resume(struct device *device)
 		DRM_ERROR("Runtime resume failed, disabling it (%d)\n", ret);
 	else
 		DRM_DEBUG_KMS("Device resumed\n");
-
-	return ret;
-}
-
-/*
- * This function implements common functionality of runtime and system
- * suspend sequence.
- */
-static int intel_suspend_complete(struct drm_i915_private *dev_priv)
-{
-	int ret;
-
-	if (IS_BROXTON(dev_priv))
-		ret = bxt_suspend_complete(dev_priv);
-	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		ret = hsw_suspend_complete(dev_priv);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		ret = vlv_suspend_complete(dev_priv);
-	else
-		ret = 0;
 
 	return ret;
 }
