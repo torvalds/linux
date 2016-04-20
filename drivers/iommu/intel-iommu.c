@@ -391,6 +391,7 @@ struct dmar_domain {
 					 * domain ids are 16 bit wide according
 					 * to VT-d spec, section 9.3 */
 
+	bool has_iotlb_device;
 	struct list_head devices;	/* all devices' list */
 	struct iova_domain iovad;	/* iova's that belong to this domain */
 
@@ -1464,9 +1465,34 @@ iommu_support_dev_iotlb (struct dmar_domain *domain, struct intel_iommu *iommu,
 	return NULL;
 }
 
+static void domain_update_iotlb(struct dmar_domain *domain)
+{
+	struct device_domain_info *info;
+	bool has_iotlb_device = false;
+
+	assert_spin_locked(&device_domain_lock);
+
+	list_for_each_entry(info, &domain->devices, link) {
+		struct pci_dev *pdev;
+
+		if (!info->dev || !dev_is_pci(info->dev))
+			continue;
+
+		pdev = to_pci_dev(info->dev);
+		if (pdev->ats_enabled) {
+			has_iotlb_device = true;
+			break;
+		}
+	}
+
+	domain->has_iotlb_device = has_iotlb_device;
+}
+
 static void iommu_enable_dev_iotlb(struct device_domain_info *info)
 {
 	struct pci_dev *pdev;
+
+	assert_spin_locked(&device_domain_lock);
 
 	if (!info || !dev_is_pci(info->dev))
 		return;
@@ -1487,6 +1513,7 @@ static void iommu_enable_dev_iotlb(struct device_domain_info *info)
 #endif
 	if (info->ats_supported && !pci_enable_ats(pdev, VTD_PAGE_SHIFT)) {
 		info->ats_enabled = 1;
+		domain_update_iotlb(info->domain);
 		info->ats_qdep = pci_ats_queue_depth(pdev);
 	}
 }
@@ -1494,6 +1521,8 @@ static void iommu_enable_dev_iotlb(struct device_domain_info *info)
 static void iommu_disable_dev_iotlb(struct device_domain_info *info)
 {
 	struct pci_dev *pdev;
+
+	assert_spin_locked(&device_domain_lock);
 
 	if (!dev_is_pci(info->dev))
 		return;
@@ -1503,6 +1532,7 @@ static void iommu_disable_dev_iotlb(struct device_domain_info *info)
 	if (info->ats_enabled) {
 		pci_disable_ats(pdev);
 		info->ats_enabled = 0;
+		domain_update_iotlb(info->domain);
 	}
 #ifdef CONFIG_INTEL_IOMMU_SVM
 	if (info->pri_enabled) {
@@ -1522,6 +1552,9 @@ static void iommu_flush_dev_iotlb(struct dmar_domain *domain,
 	u16 sid, qdep;
 	unsigned long flags;
 	struct device_domain_info *info;
+
+	if (!domain->has_iotlb_device)
+		return;
 
 	spin_lock_irqsave(&device_domain_lock, flags);
 	list_for_each_entry(info, &domain->devices, link) {
@@ -1740,6 +1773,7 @@ static struct dmar_domain *alloc_domain(int flags)
 	memset(domain, 0, sizeof(*domain));
 	domain->nid = -1;
 	domain->flags = flags;
+	domain->has_iotlb_device = false;
 	INIT_LIST_HEAD(&domain->devices);
 
 	return domain;
