@@ -72,7 +72,7 @@
 #define SCLK_MACREF_OUT			106
 #define SCLK_VOP0_PWM			107
 #define SCLK_VOP1_PWM			108
-#define SCLK_RGA			109
+#define SCLK_RGA_CORE			109
 #define SCLK_ISP0			110
 #define SCLK_ISP1			111
 #define SCLK_HDMI_CEC			112
