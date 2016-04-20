@@ -492,10 +492,9 @@ static void gen9_write_dc_state(struct drm_i915_private *dev_priv,
 			      state, rewrites);
 }
 
-static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
+static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
 {
-	uint32_t val;
-	uint32_t mask;
+	u32 mask;
 
 	mask = DC_STATE_EN_UPTO_DC5;
 	if (IS_BROXTON(dev_priv))
@@ -503,10 +502,30 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
 	else
 		mask |= DC_STATE_EN_UPTO_DC6;
 
+	return mask;
+}
+
+void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	val = I915_READ(DC_STATE_EN) & gen9_dc_mask(dev_priv);
+
+	DRM_DEBUG_KMS("Resetting DC state tracking from %02x to %02x\n",
+		      dev_priv->csr.dc_state, val);
+	dev_priv->csr.dc_state = val;
+}
+
+static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
+{
+	uint32_t val;
+	uint32_t mask;
+
 	if (WARN_ON_ONCE(state & ~dev_priv->csr.allowed_dc_mask))
 		state &= dev_priv->csr.allowed_dc_mask;
 
 	val = I915_READ(DC_STATE_EN);
+	mask = gen9_dc_mask(dev_priv);
 	DRM_DEBUG_KMS("Setting DC state from %02x to %02x\n",
 		      val & mask, state);
 

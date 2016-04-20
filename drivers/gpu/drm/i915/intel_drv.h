@@ -1235,6 +1235,7 @@ bool broxton_cdclk_verify_state(struct drm_i915_private *dev_priv);
 void broxton_ddi_phy_init(struct drm_i915_private *dev_priv);
 void broxton_ddi_phy_uninit(struct drm_i915_private *dev_priv);
 void broxton_ddi_phy_verify_state(struct drm_i915_private *dev_priv);
+void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv);
 void bxt_enable_dc9(struct drm_i915_private *dev_priv);
 void bxt_disable_dc9(struct drm_i915_private *dev_priv);
 void skl_init_cdclk(struct drm_i915_private *dev_priv);

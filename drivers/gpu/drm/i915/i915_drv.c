@@ -867,10 +867,13 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_uncore_early_sanitize(dev, true);
 
-	if (IS_BROXTON(dev))
+	if (IS_BROXTON(dev)) {
+		if (!dev_priv->suspended_to_idle)
+			gen9_sanitize_dc_state(dev_priv);
 		bxt_disable_dc9(dev_priv);
-	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		hsw_disable_pc8(dev_priv);
+	}
 
 	intel_uncore_sanitize(dev);
 
