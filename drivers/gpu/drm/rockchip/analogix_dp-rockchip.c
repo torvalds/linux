@@ -125,41 +125,6 @@ rockchip_dp_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 				   const struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
-	struct rockchip_dp_device *dp = to_dp(encoder);
-	int private_flags;
-	int ret;
-
-	/*
-	 * The hardware IC designed that VOP must output the RGB10 video
-	 * format to eDP contoller, and if eDP panel only support RGB8,
-	 * then eDP contoller should cut down the video data, not via VOP
-	 * contoller, that's why we need to hardcode the VOP output mode
-	 * to RGA10 here.
-	 */
-
-	ret = rockchip_drm_encoder_get_mux_id(dp->dev->of_node, encoder);
-	if (ret < 0)
-		return true;
-
-	switch (dp->data->chip_type) {
-	case RK3399_EDP:
-		/*
-		 * For RK3399, VOP Lit must code the out mode to RGB888,
-		 * VOP Big must code the out mode to RGB10.
-		 */
-		if (ret)
-			private_flags = ROCKCHIP_DSP_MODE(eDP, P888);
-		else
-			private_flags = ROCKCHIP_DSP_MODE(eDP, AAAA);
-		break;
-
-	default:
-		private_flags = ROCKCHIP_DSP_MODE(eDP, AAAA);
-		break;
-	}
-
-	adjusted_mode->private_flags = private_flags;
-
 	return true;
 }
 
@@ -199,11 +164,54 @@ static void rockchip_dp_drm_encoder_nop(struct drm_encoder *encoder)
 	/* do nothing */
 }
 
+static int
+rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
+				     struct drm_crtc_state *crtc_state,
+				     struct drm_connector_state *conn_state)
+{
+	struct rockchip_dp_device *dp = to_dp(encoder);
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	int ret;
+
+	/*
+	 * The hardware IC designed that VOP must output the RGB10 video
+	 * format to eDP contoller, and if eDP panel only support RGB8,
+	 * then eDP contoller should cut down the video data, not via VOP
+	 * contoller, that's why we need to hardcode the VOP output mode
+	 * to RGA10 here.
+	 */
+
+	ret = rockchip_drm_encoder_get_mux_id(dp->dev->of_node, encoder);
+	if (ret < 0)
+		return true;
+
+	switch (dp->data->chip_type) {
+	case RK3399_EDP:
+		/*
+		 * For RK3399, VOP Lit must code the out mode to RGB888,
+		 * VOP Big must code the out mode to RGB10.
+		 */
+		if (ret)
+			s->output_mode = ROCKCHIP_OUT_MODE_P888;
+		else
+			s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+		break;
+
+	default:
+		s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+		break;
+	}
+	s->output_type = DRM_MODE_CONNECTOR_eDP;
+
+	return 0;
+}
+
 static struct drm_encoder_helper_funcs rockchip_dp_encoder_helper_funcs = {
 	.mode_fixup = rockchip_dp_drm_encoder_mode_fixup,
 	.mode_set = rockchip_dp_drm_encoder_mode_set,
 	.enable = rockchip_dp_drm_encoder_enable,
 	.disable = rockchip_dp_drm_encoder_nop,
+	.atomic_check = rockchip_dp_drm_encoder_atomic_check,
 };
 
 static void rockchip_dp_drm_encoder_destroy(struct drm_encoder *encoder)

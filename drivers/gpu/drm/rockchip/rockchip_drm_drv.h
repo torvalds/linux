@@ -61,6 +61,15 @@ struct rockchip_atomic_commit {
 	struct mutex lock;
 };
 
+struct rockchip_crtc_state {
+	struct drm_crtc_state base;
+	int output_type;
+	int output_mode;
+};
+
+#define to_rockchip_crtc_state(s) \
+		container_of(s, struct rockchip_crtc_state, base)
+
 /*
  * Rockchip drm_file private structure.
  *

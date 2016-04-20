@@ -186,8 +186,6 @@ dw_hdmi_rockchip_encoder_mode_fixup(struct drm_encoder *encoder,
 				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adj_mode)
 {
-	adj_mode->private_flags = ROCKCHIP_DSP_MODE(HDMIA, AAAA);
-
 	return true;
 }
 
@@ -214,11 +212,25 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 		(mux) ? "LIT" : "BIG");
 }
 
+static int
+dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
+				      struct drm_crtc_state *crtc_state,
+				      struct drm_connector_state *conn_state)
+{
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+
+	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+	s->output_type = DRM_MODE_CONNECTOR_HDMIA;
+
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_funcs = {
 	.mode_fixup = dw_hdmi_rockchip_encoder_mode_fixup,
 	.mode_set   = dw_hdmi_rockchip_encoder_mode_set,
 	.enable     = dw_hdmi_rockchip_encoder_enable,
 	.disable    = dw_hdmi_rockchip_encoder_disable,
+	.atomic_check = dw_hdmi_rockchip_encoder_atomic_check,
 };
 
 static const struct dw_hdmi_plat_data rockchip_hdmi_drv_data = {

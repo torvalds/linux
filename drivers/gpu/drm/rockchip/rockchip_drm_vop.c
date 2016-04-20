@@ -898,6 +898,7 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 static void vop_crtc_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	u16 hsync_len = adjusted_mode->hsync_end - adjusted_mode->hsync_start;
 	u16 hdisplay = adjusted_mode->hdisplay;
@@ -909,9 +910,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	u16 vsync_len = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
 	u16 vact_st = adjusted_mode->vtotal - adjusted_mode->vsync_start;
 	u16 vact_end = vact_st + vdisplay;
-	uint32_t pin_pol, val;
-	int type = ROCKCHIP_OUT_MODE_TYPE(adjusted_mode->private_flags);
-	int out_mode = ROCKCHIP_OUT_MODE(adjusted_mode->private_flags);
+	uint32_t val;
 
 	vop_enable(crtc);
 	/*
@@ -950,32 +949,27 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		vop_dsp_hold_valid_irq_disable(vop);
 	}
 
-	pin_pol = 0x8;
-	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : 1;
-	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : (1 << 1);
-	VOP_CTRL_SET(vop, pin_pol, pin_pol);
-
-	switch(type) {
+	val = 0x8;
+	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : 1;
+	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : (1 << 1);
+	VOP_CTRL_SET(vop, pin_pol, val);
+	switch (s->output_type) {
 	case DRM_MODE_CONNECTOR_LVDS:
 		VOP_CTRL_SET(vop, rgb_en, 1);
-		VOP_CTRL_SET(vop, rgb_pin_pol, pin_pol);
 		break;
 	case DRM_MODE_CONNECTOR_eDP:
-		VOP_CTRL_SET(vop, edp_pin_pol, pin_pol);
 		VOP_CTRL_SET(vop, edp_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
-		VOP_CTRL_SET(vop, hdmi_pin_pol, pin_pol);
 		VOP_CTRL_SET(vop, hdmi_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_DSI:
-		VOP_CTRL_SET(vop, mipi_pin_pol, pin_pol);
 		VOP_CTRL_SET(vop, mipi_en, 1);
 		break;
 	default:
-		DRM_ERROR("unsupport connector_type[%d]\n", type);
+		DRM_ERROR("unsupport connector_type[%d]\n", s->output_type);
 	}
-	VOP_CTRL_SET(vop, out_mode, out_mode);
+	VOP_CTRL_SET(vop, out_mode, s->output_mode);
 
 	VOP_CTRL_SET(vop, htotal_pw, (htotal << 16) | hsync_len);
 	val = hact_st << 16;
@@ -1035,13 +1029,34 @@ static void vop_crtc_destroy(struct drm_crtc *crtc)
 	drm_crtc_cleanup(crtc);
 }
 
+static struct drm_crtc_state *vop_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc_state *rockchip_state;
+
+	rockchip_state = kzalloc(sizeof(*rockchip_state), GFP_KERNEL);
+	if (!rockchip_state)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &rockchip_state->base);
+	return &rockchip_state->base;
+}
+
+static void vop_crtc_destroy_state(struct drm_crtc *crtc,
+				   struct drm_crtc_state *state)
+{
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(state);
+
+	__drm_atomic_helper_crtc_destroy_state(crtc, &s->base);
+	kfree(s);
+}
+
 static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.destroy = vop_crtc_destroy,
 	.reset = drm_atomic_helper_crtc_reset,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.atomic_duplicate_state = vop_crtc_duplicate_state,
+	.atomic_destroy_state = vop_crtc_destroy_state,
 };
 
 static bool vop_win_pending_is_complete(struct vop_win *vop_win)

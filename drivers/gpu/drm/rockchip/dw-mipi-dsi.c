@@ -902,23 +902,6 @@ static bool dw_mipi_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
 					const struct drm_display_mode *mode,
 					struct drm_display_mode *adjusted_mode)
 {
-	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
-
-	switch (dsi->format) {
-	case MIPI_DSI_FMT_RGB888:
-		adjusted_mode->private_flags = ROCKCHIP_DSP_MODE(DSI, P888);
-		break;
-	case MIPI_DSI_FMT_RGB666:
-		adjusted_mode->private_flags = ROCKCHIP_DSP_MODE(DSI, P666);
-		break;
-	case MIPI_DSI_FMT_RGB565:
-		adjusted_mode->private_flags = ROCKCHIP_DSP_MODE(DSI, P565);
-		break;
-	default:
-		WARN_ON(1);
-		return false;
-	}
-
 	return true;
 }
 
@@ -955,12 +938,41 @@ static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
 	dev_dbg(dsi->dev, "vop %s output to dsi0\n", (mux) ? "LIT" : "BIG");
 }
 
+static int
+dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
+				 struct drm_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state)
+{
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
+
+	switch (dsi->format) {
+	case MIPI_DSI_FMT_RGB888:
+		s->output_mode = ROCKCHIP_OUT_MODE_P888;
+		break;
+	case MIPI_DSI_FMT_RGB666:
+		s->output_mode = ROCKCHIP_OUT_MODE_P666;
+		break;
+	case MIPI_DSI_FMT_RGB565:
+		s->output_mode = ROCKCHIP_OUT_MODE_P565;
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	s->output_type = DRM_MODE_CONNECTOR_DSI;
+
+	return 0;
+}
+
 static struct drm_encoder_helper_funcs
 dw_mipi_dsi_encoder_helper_funcs = {
 	.mode_fixup = dw_mipi_dsi_encoder_mode_fixup,
 	.commit = dw_mipi_dsi_encoder_commit,
 	.mode_set = dw_mipi_dsi_encoder_mode_set,
 	.disable = dw_mipi_dsi_encoder_disable,
+	.atomic_check = dw_mipi_dsi_encoder_atomic_check,
 };
 
 static struct drm_encoder_funcs dw_mipi_dsi_encoder_funcs = {
