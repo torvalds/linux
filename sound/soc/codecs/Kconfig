@@ -472,6 +472,7 @@ config SND_SOC_ES8323
 
 config SND_SOC_HDMI_CODEC
 	tristate
+	select HDMI_NOTIFIERS
 	select SND_PCM_ELD
 	select SND_PCM_IEC958
 	select HDMI

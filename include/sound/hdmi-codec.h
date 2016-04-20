@@ -98,6 +98,12 @@ struct hdmi_codec_pdata {
 	void *data;
 };
 
+struct snd_soc_codec;
+struct snd_soc_jack;
+
+int hdmi_codec_set_jack_detect(struct snd_soc_codec *codec,
+			       struct snd_soc_jack *jack);
+
 #define HDMI_CODEC_DRV_NAME "hdmi-audio-codec"
 
 #endif /* __HDMI_CODEC_H__ */
