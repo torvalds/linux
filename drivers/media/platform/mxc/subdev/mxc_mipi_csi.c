@@ -1,7 +1,7 @@
 /*
  * Freescale i.MX7 SoC series MIPI-CSI V3.3 receiver driver
  *
- * Copyright (C) 2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -250,6 +250,7 @@ struct csis_hw_reset {
  * @flags: the state variable for power and streaming control
  * @clock_frequency: device bus clock frequency
  * @hs_settle: HS-RX settle time
+ * @clk_settle: Clk settle time
  * @num_lanes: number of MIPI-CSI data lanes used
  * @max_num_lanes: maximum number of MIPI-CSI data lanes supported
  * @wclk_ext: CSI wrapper clock: 0 - bus clock, 1 - external SCLK_CAM
@@ -277,6 +278,7 @@ struct csi_state {
 
 	u32 clk_frequency;
 	u32 hs_settle;
+	u32 clk_settle;
 	u32 num_lanes;
 	u32 max_num_lanes;
 	u8 wclk_ext;
@@ -468,11 +470,14 @@ static void __mipi_csis_set_format(struct csi_state *state)
 	mipi_csis_write(state, MIPI_CSIS_ISPRESOL_CH0, val);
 }
 
-static void mipi_csis_set_hsync_settle(struct csi_state *state, int settle)
+static void mipi_csis_set_hsync_settle(struct csi_state *state,
+								int hs_settle, int clk_settle)
 {
 	u32 val = mipi_csis_read(state, MIPI_CSIS_DPHYCTRL);
 
-	val = (val & ~MIPI_CSIS_DPHYCTRL_HSS_MASK) | (settle << 24);
+	val = (val & ~MIPI_CSIS_DPHYCTRL_HSS_MASK) |
+				(hs_settle << 24) | (clk_settle << 22);
+
 	mipi_csis_write(state, MIPI_CSIS_DPHYCTRL, val);
 }
 
@@ -487,7 +492,7 @@ static void mipi_csis_set_params(struct csi_state *state)
 
 	__mipi_csis_set_format(state);
 
-	mipi_csis_set_hsync_settle(state, state->hs_settle);
+	mipi_csis_set_hsync_settle(state, state->hs_settle, state->clk_settle);
 
 	val = mipi_csis_read(state, MIPI_CSIS_ISPCONFIG_CH0);
 	if (state->csis_fmt->data_alignment == 32)
@@ -942,6 +947,9 @@ static int mipi_csis_parse_dt(struct platform_device *pdev,
 	/* Get MIPI CSI-2 bus configration from the endpoint node. */
 	of_property_read_u32(node, "csis-hs-settle",
 					&state->hs_settle);
+
+	of_property_read_u32(node, "csis-clk-settle",
+					&state->clk_settle);
 	state->wclk_ext = of_property_read_bool(node,
 					"csis-wclk");
 
@@ -1117,9 +1125,10 @@ static int mipi_csis_probe(struct platform_device *pdev)
 			goto e_sd_host;
 	}
 
-	dev_info(&pdev->dev, "lanes: %d, hs_settle: %d, wclk: %d, freq: %u\n",
-		 state->num_lanes, state->hs_settle, state->wclk_ext,
-		 state->clk_frequency);
+	dev_info(&pdev->dev,
+			"lanes: %d, hs_settle: %d, clk_settle: %d, wclk: %d, freq: %u\n",
+		 state->num_lanes, state->hs_settle, state->clk_settle,
+		 state->wclk_ext, state->clk_frequency);
 	return 0;
 
 e_sd_host:
