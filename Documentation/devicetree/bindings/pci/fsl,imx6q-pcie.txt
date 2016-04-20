@@ -19,6 +19,12 @@ Optional properties:
 - fsl,tx-deemph-gen2-6db: Gen2 (6db) De-emphasis value. Default: 20
 - fsl,tx-swing-full: Gen2 TX SWING FULL value. Default: 127
 - fsl,tx-swing-low: TX launch amplitude swing_low value. Default: 127
+- reset-gpio: Should specify the GPIO for controlling the PCI bus device reset
+  signal. It's not polarity aware and defaults to active-low reset sequence
+  (L=reset state, H=operation state).
+- reset-gpio-active-high: If present then the reset sequence using the GPIO
+  specified in the "reset-gpio" property is reversed (H=reset state,
+  L=operation state).
 
 Additional required properties for imx6sx-pcie:
 - clock names: Must include the following additional entries:
