@@ -19,6 +19,10 @@ Optional properties:
 - fsl,tx-deemph-gen2-6db: Gen2 (6db) De-emphasis value. Default: 20
 - fsl,tx-swing-full: Gen2 TX SWING FULL value. Default: 127
 - fsl,tx-swing-low: TX launch amplitude swing_low value. Default: 127
+- fsl,max-link-speed: Specify PCI gen for link capability. Must be '2' for
+  gen2, otherwise will default to gen1. Note that the IMX6 LVDS clock outputs
+  do not meet gen2 jitter requirements and thus for gen2 capability a gen2
+  compliant clock generator should be used and configured.
 - reset-gpio: Should specify the GPIO for controlling the PCI bus device reset
   signal. It's not polarity aware and defaults to active-low reset sequence
   (L=reset state, H=operation state).
