@@ -84,6 +84,9 @@ static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 		switch (icowi->opcode) {
 		case MLX5_OPCODE_NOP:
 			break;
+		case MLX5_OPCODE_UMR:
+			mlx5e_post_rx_fragmented_mpwqe(&sq->channel->rq);
+			break;
 		default:
 			WARN_ONCE(true,
 				  "mlx5e: Bad OPCODE in ICOSQ WQE info: 0x%x\n",
