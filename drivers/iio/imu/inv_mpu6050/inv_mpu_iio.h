@@ -93,13 +93,11 @@ struct inv_mpu6050_chip_config {
 
 /**
  *  struct inv_mpu6050_hw - Other important hardware information.
- *  @num_reg:	Number of registers on device.
  *  @name:      name of the chip.
  *  @reg:   register map of the chip.
  *  @config:    configuration of the chip.
  */
 struct inv_mpu6050_hw {
-	u8 num_reg;
 	u8 *name;
 	const struct inv_mpu6050_reg_map *reg;
 	const struct inv_mpu6050_chip_config *config;

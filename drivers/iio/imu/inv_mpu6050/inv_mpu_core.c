@@ -91,19 +91,16 @@ static const struct inv_mpu6050_chip_config chip_config_6050 = {
 /* Indexed by enum inv_devices */
 static const struct inv_mpu6050_hw hw_info[] = {
 	{
-		.num_reg = 117,
 		.name = "MPU6050",
 		.reg = &reg_set_6050,
 		.config = &chip_config_6050,
 	},
 	{
-		.num_reg = 117,
 		.name = "MPU6500",
 		.reg = &reg_set_6500,
 		.config = &chip_config_6050,
 	},
 	{
-		.num_reg = 117,
 		.name = "MPU6000",
 		.reg = &reg_set_6050,
 		.config = &chip_config_6050,
