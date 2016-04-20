@@ -29,7 +29,7 @@
 
 /* state struct */
 struct si2168_dev {
-	struct i2c_adapter *adapter;
+	struct i2c_mux_core *muxc;
 	struct dvb_frontend fe;
 	enum fe_delivery_system delivery_system;
 	enum fe_status fe_status;
