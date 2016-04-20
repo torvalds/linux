@@ -708,8 +708,6 @@ struct ath10k {
 
 		struct ath10k_hw_params_fw {
 			const char *dir;
-			const char *fw;
-			const char *otp;
 			const char *board;
 			size_t board_size;
 			size_t board_ext_size;
@@ -720,7 +718,6 @@ struct ath10k {
 	const void *board_data;
 	size_t board_len;
 
-	const struct firmware *otp;
 	const void *otp_data;
 	size_t otp_len;
 

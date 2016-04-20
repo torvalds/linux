@@ -4604,10 +4604,6 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 	ath10k_dbg_dump(ar, ATH10K_DBG_WMI, NULL, "wmi svc: ",
 			arg.service_map, arg.service_map_len);
 
-	/* only manually set fw features when not using FW IE format */
-	if (ar->fw_api == 1 && ar->fw_version_build > 636)
-		set_bit(ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX, ar->fw_features);
-
 	if (ar->num_rf_chains > ar->max_spatial_stream) {
 		ath10k_warn(ar, "hardware advertises support for more spatial streams than it should (%d > %d)\n",
 			    ar->num_rf_chains, ar->max_spatial_stream);

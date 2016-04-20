@@ -63,8 +63,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 2116,
 		.fw = {
 			.dir = QCA988X_HW_2_0_FW_DIR,
-			.fw = QCA988X_HW_2_0_FW_FILE,
-			.otp = QCA988X_HW_2_0_OTP_FILE,
 			.board = QCA988X_HW_2_0_BOARD_DATA_FILE,
 			.board_size = QCA988X_BOARD_DATA_SZ,
 			.board_ext_size = QCA988X_BOARD_EXT_DATA_SZ,
@@ -82,8 +80,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA6174_HW_2_1_FW_DIR,
-			.fw = QCA6174_HW_2_1_FW_FILE,
-			.otp = QCA6174_HW_2_1_OTP_FILE,
 			.board = QCA6174_HW_2_1_BOARD_DATA_FILE,
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
@@ -102,8 +98,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA6174_HW_2_1_FW_DIR,
-			.fw = QCA6174_HW_2_1_FW_FILE,
-			.otp = QCA6174_HW_2_1_OTP_FILE,
 			.board = QCA6174_HW_2_1_BOARD_DATA_FILE,
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
@@ -122,8 +116,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA6174_HW_3_0_FW_DIR,
-			.fw = QCA6174_HW_3_0_FW_FILE,
-			.otp = QCA6174_HW_3_0_OTP_FILE,
 			.board = QCA6174_HW_3_0_BOARD_DATA_FILE,
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
@@ -143,8 +135,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.fw = {
 			/* uses same binaries as hw3.0 */
 			.dir = QCA6174_HW_3_0_FW_DIR,
-			.fw = QCA6174_HW_3_0_FW_FILE,
-			.otp = QCA6174_HW_3_0_OTP_FILE,
 			.board = QCA6174_HW_3_0_BOARD_DATA_FILE,
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
@@ -167,8 +157,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 12064,
 		.fw = {
 			.dir = QCA99X0_HW_2_0_FW_DIR,
-			.fw = QCA99X0_HW_2_0_FW_FILE,
-			.otp = QCA99X0_HW_2_0_OTP_FILE,
 			.board = QCA99X0_HW_2_0_BOARD_DATA_FILE,
 			.board_size = QCA99X0_BOARD_DATA_SZ,
 			.board_ext_size = QCA99X0_BOARD_EXT_DATA_SZ,
@@ -186,8 +174,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA9377_HW_1_0_FW_DIR,
-			.fw = QCA9377_HW_1_0_FW_FILE,
-			.otp = QCA9377_HW_1_0_OTP_FILE,
 			.board = QCA9377_HW_1_0_BOARD_DATA_FILE,
 			.board_size = QCA9377_BOARD_DATA_SZ,
 			.board_ext_size = QCA9377_BOARD_EXT_DATA_SZ,
@@ -205,8 +191,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA9377_HW_1_0_FW_DIR,
-			.fw = QCA9377_HW_1_0_FW_FILE,
-			.otp = QCA9377_HW_1_0_OTP_FILE,
 			.board = QCA9377_HW_1_0_BOARD_DATA_FILE,
 			.board_size = QCA9377_BOARD_DATA_SZ,
 			.board_ext_size = QCA9377_BOARD_EXT_DATA_SZ,
@@ -229,8 +213,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 12064,
 		.fw = {
 			.dir = QCA4019_HW_1_0_FW_DIR,
-			.fw = QCA4019_HW_1_0_FW_FILE,
-			.otp = QCA4019_HW_1_0_OTP_FILE,
 			.board = QCA4019_HW_1_0_BOARD_DATA_FILE,
 			.board_size = QCA4019_BOARD_DATA_SZ,
 			.board_ext_size = QCA4019_BOARD_EXT_DATA_SZ,
@@ -703,9 +685,6 @@ static void ath10k_core_free_board_files(struct ath10k *ar)
 
 static void ath10k_core_free_firmware_files(struct ath10k *ar)
 {
-	if (!IS_ERR(ar->otp))
-		release_firmware(ar->otp);
-
 	if (!IS_ERR(ar->firmware))
 		release_firmware(ar->firmware);
 
@@ -714,7 +693,6 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 
 	ath10k_swap_code_seg_release(ar);
 
-	ar->otp = NULL;
 	ar->otp_data = NULL;
 	ar->otp_len = 0;
 
@@ -1000,50 +978,6 @@ success:
 	return 0;
 }
 
-static int ath10k_core_fetch_firmware_api_1(struct ath10k *ar)
-{
-	int ret = 0;
-
-	if (ar->hw_params.fw.fw == NULL) {
-		ath10k_err(ar, "firmware file not defined\n");
-		return -EINVAL;
-	}
-
-	ar->firmware = ath10k_fetch_fw_file(ar,
-					    ar->hw_params.fw.dir,
-					    ar->hw_params.fw.fw);
-	if (IS_ERR(ar->firmware)) {
-		ret = PTR_ERR(ar->firmware);
-		ath10k_err(ar, "could not fetch firmware (%d)\n", ret);
-		goto err;
-	}
-
-	ar->firmware_data = ar->firmware->data;
-	ar->firmware_len = ar->firmware->size;
-
-	/* OTP may be undefined. If so, don't fetch it at all */
-	if (ar->hw_params.fw.otp == NULL)
-		return 0;
-
-	ar->otp = ath10k_fetch_fw_file(ar,
-				       ar->hw_params.fw.dir,
-				       ar->hw_params.fw.otp);
-	if (IS_ERR(ar->otp)) {
-		ret = PTR_ERR(ar->otp);
-		ath10k_err(ar, "could not fetch otp (%d)\n", ret);
-		goto err;
-	}
-
-	ar->otp_data = ar->otp->data;
-	ar->otp_len = ar->otp->size;
-
-	return 0;
-
-err:
-	ath10k_core_free_firmware_files(ar);
-	return ret;
-}
-
 static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 {
 	size_t magic_len, len, ie_len;
@@ -1253,13 +1187,6 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
 	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API2_FILE);
-	if (ret == 0)
-		goto success;
-
-	ar->fw_api = 1;
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
-
-	ret = ath10k_core_fetch_firmware_api_1(ar);
 	if (ret)
 		return ret;
 
