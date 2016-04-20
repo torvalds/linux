@@ -18,6 +18,11 @@
 
 struct gb_spi {
 	struct gb_connection	*connection;
+	struct spi_transfer	*first_xfer;
+	struct spi_transfer	*last_xfer;
+	u32			rx_xfer_offset;
+	u32			tx_xfer_offset;
+	u32			last_xfer_size;
 	u16			mode;
 	u16			flags;
 	u32			bits_per_word_mask;
@@ -25,6 +30,13 @@ struct gb_spi {
 	u32			min_speed_hz;
 	u32			max_speed_hz;
 };
+
+#define GB_SPI_STATE_MSG_DONE		((void *)0)
+#define GB_SPI_STATE_MSG_IDLE		((void *)1)
+#define GB_SPI_STATE_MSG_RUNNING	((void *)2)
+#define GB_SPI_STATE_OP_READY		((void *)3)
+#define GB_SPI_STATE_OP_DONE		((void *)4)
+#define GB_SPI_STATE_MSG_ERROR		((void *)-1)
 
 static struct spi_master *get_master_from_spi(struct gb_spi *spi)
 {
@@ -76,58 +88,120 @@ static size_t calc_tx_xfer_size(u32 tx_size, u32 count, size_t len,
 	return len;
 }
 
+static void clean_xfer_state(struct gb_spi *spi)
+{
+	spi->first_xfer = NULL;
+	spi->last_xfer = NULL;
+	spi->rx_xfer_offset = 0;
+	spi->tx_xfer_offset = 0;
+	spi->last_xfer_size = 0;
+}
+
+static int setup_next_xfer(struct gb_spi *spi, struct spi_message *msg)
+{
+	struct spi_transfer *last_xfer = spi->last_xfer;
+
+	if (msg->state != GB_SPI_STATE_OP_DONE)
+		return 0;
+
+	/*
+	 * if we transferred all content of the last transfer, reset values and
+	 * check if this was the last transfer in the message
+	 */
+	if ((spi->tx_xfer_offset + spi->last_xfer_size == last_xfer->len) ||
+	    (spi->rx_xfer_offset + spi->last_xfer_size == last_xfer->len)) {
+		spi->tx_xfer_offset = 0;
+		spi->rx_xfer_offset = 0;
+		if (last_xfer == list_last_entry(&msg->transfers,
+						 struct spi_transfer,
+						 transfer_list))
+			msg->state = GB_SPI_STATE_MSG_DONE;
+		else
+			spi->first_xfer = list_next_entry(last_xfer,
+							  transfer_list);
+		return 0;
+	}
+
+	spi->first_xfer = last_xfer;
+	if (last_xfer->tx_buf)
+		spi->tx_xfer_offset += spi->last_xfer_size;
+
+	if (last_xfer->rx_buf)
+		spi->rx_xfer_offset += spi->last_xfer_size;
+
+	return 0;
+}
+
+static struct spi_transfer *get_next_xfer(struct spi_transfer *xfer,
+					  struct spi_message *msg)
+{
+	if (xfer == list_last_entry(&msg->transfers, struct spi_transfer,
+				    transfer_list))
+		return NULL;
+
+	return list_next_entry(xfer, transfer_list);
+}
+
 /* Routines to transfer data */
 static struct gb_operation *
-gb_spi_operation_create(struct gb_connection *connection,
-			struct spi_message *msg, u32 *total_len)
+gb_spi_operation_create(struct gb_spi *spi, struct gb_connection *connection,
+			struct spi_message *msg)
 {
 	struct gb_spi_transfer_request *request;
 	struct spi_device *dev = msg->spi;
 	struct spi_transfer *xfer;
 	struct gb_spi_transfer *gb_xfer;
 	struct gb_operation *operation;
-	struct spi_transfer *last_xfer = NULL;
 	u32 tx_size = 0, rx_size = 0, count = 0, xfer_len = 0, request_size;
-	u32 tx_xfer_size = 0, rx_xfer_size = 0, last_xfer_size = 0;
+	u32 tx_xfer_size = 0, rx_xfer_size = 0, len;
+	u32 total_len = 0;
 	size_t data_max;
 	void *tx_data;
 
 	data_max = gb_operation_get_payload_size_max(connection);
+	xfer = spi->first_xfer;
 
 	/* Find number of transfers queued and tx/rx length in the message */
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+
+	while (msg->state != GB_SPI_STATE_OP_READY) {
+		msg->state = GB_SPI_STATE_MSG_RUNNING;
+		spi->last_xfer = xfer;
+
 		if (!xfer->tx_buf && !xfer->rx_buf) {
 			dev_err(&connection->bundle->dev,
 				"bufferless transfer, length %u\n", xfer->len);
+			msg->state = GB_SPI_STATE_MSG_ERROR;
 			return NULL;
 		}
-		last_xfer = xfer;
 
 		tx_xfer_size = 0;
 		rx_xfer_size = 0;
 
 		if (xfer->tx_buf) {
+			len = xfer->len - spi->tx_xfer_offset;
 			if (!tx_header_fit_operation(tx_size, count, data_max))
 				break;
 			tx_xfer_size = calc_tx_xfer_size(tx_size, count,
-							 xfer->len, data_max);
-			last_xfer_size = tx_xfer_size;
+							 len, data_max);
+			spi->last_xfer_size = tx_xfer_size;
 		}
 
 		if (xfer->rx_buf) {
+			len = xfer->len - spi->rx_xfer_offset;
 			rx_xfer_size = calc_rx_xfer_size(rx_size, &tx_xfer_size,
-							 xfer->len, data_max);
-			last_xfer_size = rx_xfer_size;
+							 len, data_max);
+			spi->last_xfer_size = rx_xfer_size;
 		}
 
 		tx_size += tx_xfer_size;
 		rx_size += rx_xfer_size;
 
-		*total_len += last_xfer_size;
+		total_len += spi->last_xfer_size;
 		count++;
 
-		if (xfer->len != last_xfer_size)
-			break;
+		xfer = get_next_xfer(xfer, msg);
+		if (!xfer || total_len >= data_max)
+			msg->state = GB_SPI_STATE_OP_READY;
 	}
 
 	/*
@@ -153,9 +227,10 @@ gb_spi_operation_create(struct gb_connection *connection,
 	tx_data = gb_xfer + count;	/* place tx data after last gb_xfer */
 
 	/* Fill in the transfers array */
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		if (last_xfer && xfer == last_xfer)
-			xfer_len = last_xfer_size;
+	xfer = spi->first_xfer;
+	while (msg->state != GB_SPI_STATE_OP_DONE) {
+		if (xfer == spi->last_xfer)
+			xfer_len = spi->last_xfer_size;
 		else
 			xfer_len = xfer->len;
 
@@ -168,34 +243,54 @@ gb_spi_operation_create(struct gb_connection *connection,
 		/* Copy tx data */
 		if (xfer->tx_buf) {
 			gb_xfer->rdwr |= GB_SPI_XFER_WRITE;
-			memcpy(tx_data, xfer->tx_buf, xfer_len);
+			memcpy(tx_data, xfer->tx_buf + spi->tx_xfer_offset,
+			       xfer_len);
 			tx_data += xfer_len;
 		}
 
 		if (xfer->rx_buf)
 			gb_xfer->rdwr |= GB_SPI_XFER_READ;
 
-		if (last_xfer && xfer == last_xfer)
-			break;
+		if (xfer == spi->last_xfer) {
+			msg->state = GB_SPI_STATE_OP_DONE;
+			continue;
+		}
 
 		gb_xfer++;
+		xfer = get_next_xfer(xfer, msg);
 	}
+
+	msg->actual_length += total_len;
 
 	return operation;
 }
 
-static void gb_spi_decode_response(struct spi_message *msg,
+static void gb_spi_decode_response(struct gb_spi *spi, struct spi_message *msg,
 				   struct gb_spi_transfer_response *response)
 {
-	struct spi_transfer *xfer;
+	struct spi_transfer *xfer = spi->first_xfer;
 	void *rx_data = response->data;
+	u32 xfer_len;
 
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+	while (xfer) {
 		/* Copy rx data */
 		if (xfer->rx_buf) {
-			memcpy(xfer->rx_buf, rx_data, xfer->len);
-			rx_data += xfer->len;
+			if (xfer == spi->first_xfer)
+				xfer_len = xfer->len - spi->rx_xfer_offset;
+			else if (xfer == spi->last_xfer)
+				xfer_len = spi->last_xfer_size;
+			else
+				xfer_len = xfer->len;
+
+			memcpy(xfer->rx_buf + spi->rx_xfer_offset, rx_data,
+			       xfer_len);
+			rx_data += xfer_len;
 		}
+
+		if (xfer == spi->last_xfer)
+			break;
+
+		xfer = list_next_entry(xfer, transfer_list);
 	}
 }
 
@@ -206,27 +301,45 @@ static int gb_spi_transfer_one_message(struct spi_master *master,
 	struct gb_connection *connection = spi->connection;
 	struct gb_spi_transfer_response *response;
 	struct gb_operation *operation;
-	u32 len = 0;
-	int ret;
+	int ret = 0;
 
-	operation = gb_spi_operation_create(connection, msg, &len);
-	if (!operation)
-		return -ENOMEM;
-
-	ret = gb_operation_request_send_sync(operation);
-	if (!ret) {
-		response = operation->response->payload;
-		if (response)
-			gb_spi_decode_response(msg, response);
-	} else {
-		dev_err(&connection->bundle->dev,
-				"transfer operation failed: %d\n", ret);
+	spi->first_xfer = list_first_entry_or_null(&msg->transfers,
+						   struct spi_transfer,
+						   transfer_list);
+	if (!spi->first_xfer) {
+		ret = -ENOMEM;
+		goto out;
 	}
 
-	gb_operation_put(operation);
+	msg->state = GB_SPI_STATE_MSG_IDLE;
 
-	msg->actual_length = len;
-	msg->status = 0;
+	while (msg->state != GB_SPI_STATE_MSG_DONE &&
+	       msg->state != GB_SPI_STATE_MSG_ERROR) {
+		operation = gb_spi_operation_create(spi, connection, msg);
+		if (!operation) {
+			msg->state = GB_SPI_STATE_MSG_ERROR;
+			ret = -EINVAL;
+			continue;
+		}
+
+		ret = gb_operation_request_send_sync(operation);
+		if (!ret) {
+			response = operation->response->payload;
+			if (response)
+				gb_spi_decode_response(spi, msg, response);
+		} else {
+			dev_err(&connection->bundle->dev,
+				"transfer operation failed: %d\n", ret);
+			msg->state = GB_SPI_STATE_MSG_ERROR;
+		}
+
+		gb_operation_put(operation);
+		setup_next_xfer(spi, msg);
+	}
+
+out:
+	msg->status = ret;
+	clean_xfer_state(spi);
 	spi_finalize_current_message(master);
 
 	return ret;
