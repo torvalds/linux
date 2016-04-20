@@ -33,6 +33,7 @@ struct vop_reg {
 	uint32_t offset;
 	uint32_t shift;
 	uint32_t mask;
+	bool write_mask;
 };
 
 struct vop_ctrl {

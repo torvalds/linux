@@ -23,7 +23,14 @@
 #define VOP_REG(off, _mask, s) \
 		{.offset = off, \
 		 .mask = _mask, \
-		 .shift = s,}
+		 .shift = s, \
+		 .write_mask = false,}
+
+#define VOP_REG_MASK(off, _mask, s) \
+		{.offset = off, \
+		 .mask = _mask, \
+		 .shift = s, \
+		 .write_mask = true,}
 
 static const uint32_t formats_win_full[] = {
 	DRM_FORMAT_XRGB8888,

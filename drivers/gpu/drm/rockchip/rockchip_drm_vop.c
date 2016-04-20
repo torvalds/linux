@@ -36,15 +36,18 @@
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_vop.h"
 
-#define __REG_SET_RELAXED(x, off, mask, shift, v) \
-		vop_mask_write_relaxed(x, off, (mask) << shift, (v) << shift)
-#define __REG_SET_NORMAL(x, off, mask, shift, v) \
-		vop_mask_write(x, off, (mask) << shift, (v) << shift)
+#define __REG_SET_RELAXED(x, off, mask, shift, v, write_mask) \
+		vop_mask_write(x, off, mask, shift, v, write_mask, true)
+
+#define __REG_SET_NORMAL(x, off, mask, shift, v, write_mask) \
+		vop_mask_write(x, off, mask, shift, v, write_mask, false)
 
 #define REG_SET(x, base, reg, v, mode) \
-		__REG_SET_##mode(x, base + reg.offset, reg.mask, reg.shift, v)
+		__REG_SET_##mode(x, base + reg.offset, \
+				 reg.mask, reg.shift, v, reg.write_mask)
 #define REG_SET_MASK(x, base, reg, mask, v, mode) \
-		__REG_SET_##mode(x, base + reg.offset, mask, reg.shift, v)
+		__REG_SET_##mode(x, base + reg.offset, \
+				 mask, reg.shift, v, reg.write_mask)
 
 #define VOP_WIN_SET(x, win, name, v) \
 		REG_SET(x, win->base, win->phy->name, v, RELAXED)
@@ -162,27 +165,25 @@ static inline uint32_t vop_read_reg(struct vop *vop, uint32_t base,
 }
 
 static inline void vop_mask_write(struct vop *vop, uint32_t offset,
-				  uint32_t mask, uint32_t v)
+				  uint32_t mask, uint32_t shift, uint32_t v,
+				  bool write_mask, bool relaxed)
 {
-	if (mask) {
+	if (!mask)
+		return;
+
+	if (write_mask) {
+		v = ((v << shift) & 0xffff) | (mask << (shift + 16));
+	} else {
 		uint32_t cached_val = vop->regsbak[offset >> 2];
 
-		cached_val = (cached_val & ~mask) | v;
-		writel(cached_val, vop->regs + offset);
-		vop->regsbak[offset >> 2] = cached_val;
+		v = (cached_val & ~(mask << shift)) | ((v & mask) << shift);
+		vop->regsbak[offset >> 2] = v;
 	}
-}
 
-static inline void vop_mask_write_relaxed(struct vop *vop, uint32_t offset,
-					  uint32_t mask, uint32_t v)
-{
-	if (mask) {
-		uint32_t cached_val = vop->regsbak[offset >> 2];
-
-		cached_val = (cached_val & ~mask) | v;
-		writel_relaxed(cached_val, vop->regs + offset);
-		vop->regsbak[offset >> 2] = cached_val;
-	}
+	if (relaxed)
+		writel_relaxed(v, vop->regs + offset);
+	else
+		writel(v, vop->regs + offset);
 }
 
 static inline uint32_t vop_get_intr_type(struct vop *vop,
