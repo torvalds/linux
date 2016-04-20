@@ -11,6 +11,7 @@
 * GNU General Public License for more details.
 */
 #include <linux/i2c.h>
+#include <linux/i2c-mux.h>
 #include <linux/kfifo.h>
 #include <linux/spinlock.h>
 #include <linux/iio/iio.h>
@@ -127,7 +128,7 @@ struct inv_mpu6050_state {
 	const struct inv_mpu6050_hw *hw;
 	enum   inv_devices chip_type;
 	spinlock_t time_stamp_lock;
-	struct i2c_adapter *mux_adapter;
+	struct i2c_mux_core *muxc;
 	struct i2c_client *mux_client;
 	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
