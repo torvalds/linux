@@ -255,6 +255,8 @@ int hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct tid_group *grp, *gptr;
 
+	if (!test_bit(HFI1_CTXT_SETUP_DONE, &uctxt->event_flags))
+		return 0;
 	/*
 	 * The notifier would have been removed when the process'es mm
 	 * was freed.

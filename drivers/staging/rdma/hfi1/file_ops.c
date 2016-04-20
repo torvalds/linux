@@ -791,14 +791,15 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 
 	dd->rcd[uctxt->ctxt] = NULL;
+
+	hfi1_user_exp_rcv_free(fdata);
+	hfi1_clear_ctxt_pkey(dd, uctxt->ctxt);
+
 	uctxt->rcvwait_to = 0;
 	uctxt->piowait_to = 0;
 	uctxt->rcvnowait = 0;
 	uctxt->pionowait = 0;
 	uctxt->event_flags = 0;
-
-	hfi1_user_exp_rcv_free(fdata);
-	hfi1_clear_ctxt_pkey(dd, uctxt->ctxt);
 
 	hfi1_stats.sps_ctxts--;
 	if (++dd->freectxts == dd->num_user_contexts)
@@ -1127,27 +1128,13 @@ bail:
 
 static int user_init(struct file *fp)
 {
-	int ret;
 	unsigned int rcvctrl_ops = 0;
 	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 
 	/* make sure that the context has already been setup */
-	if (!test_bit(HFI1_CTXT_SETUP_DONE, &uctxt->event_flags)) {
-		ret = -EFAULT;
-		goto done;
-	}
-
-	/*
-	 * Subctxts don't need to initialize anything since master
-	 * has done it.
-	 */
-	if (fd->subctxt) {
-		ret = wait_event_interruptible(uctxt->wait, !test_bit(
-					       HFI1_CTXT_MASTER_UNINIT,
-					       &uctxt->event_flags));
-		goto expected;
-	}
+	if (!test_bit(HFI1_CTXT_SETUP_DONE, &uctxt->event_flags))
+		return -EFAULT;
 
 	/* initialize poll variables... */
 	uctxt->urgent = 0;
@@ -1202,19 +1189,7 @@ static int user_init(struct file *fp)
 		wake_up(&uctxt->wait);
 	}
 
-expected:
-	/*
-	 * Expected receive has to be setup for all processes (including
-	 * shared contexts). However, it has to be done after the master
-	 * context has been fully configured as it depends on the
-	 * eager/expected split of the RcvArray entries.
-	 * Setting it up here ensures that the subcontexts will be waiting
-	 * (due to the above wait_event_interruptible() until the master
-	 * is setup.
-	 */
-	ret = hfi1_user_exp_rcv_init(fp);
-done:
-	return ret;
+	return 0;
 }
 
 static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
@@ -1261,7 +1236,7 @@ static int setup_ctxt(struct file *fp)
 	int ret = 0;
 
 	/*
-	 * Context should be set up only once (including allocation and
+	 * Context should be set up only once, including allocation and
 	 * programming of eager buffers. This is done if context sharing
 	 * is not requested or by the master process.
 	 */
@@ -1282,8 +1257,27 @@ static int setup_ctxt(struct file *fp)
 			if (ret)
 				goto done;
 		}
+	} else {
+		ret = wait_event_interruptible(uctxt->wait, !test_bit(
+					       HFI1_CTXT_MASTER_UNINIT,
+					       &uctxt->event_flags));
+		if (ret)
+			goto done;
 	}
+
 	ret = hfi1_user_sdma_alloc_queues(uctxt, fp);
+	if (ret)
+		goto done;
+	/*
+	 * Expected receive has to be setup for all processes (including
+	 * shared contexts). However, it has to be done after the master
+	 * context has been fully configured as it depends on the
+	 * eager/expected split of the RcvArray entries.
+	 * Setting it up here ensures that the subcontexts will be waiting
+	 * (due to the above wait_event_interruptible() until the master
+	 * is setup.
+	 */
+	ret = hfi1_user_exp_rcv_init(fp);
 	if (ret)
 		goto done;
 
