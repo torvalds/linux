@@ -2441,8 +2441,8 @@ u32 __tcp_select_window(struct sock *sk)
 	return window;
 }
 
-static void tcp_skb_collapse_tstamp(struct sk_buff *skb,
-				    const struct sk_buff *next_skb)
+void tcp_skb_collapse_tstamp(struct sk_buff *skb,
+			     const struct sk_buff *next_skb)
 {
 	const struct skb_shared_info *next_shinfo = skb_shinfo(next_skb);
 	u8 tsflags = next_shinfo->tx_flags & SKBTX_ANY_TSTAMP;
