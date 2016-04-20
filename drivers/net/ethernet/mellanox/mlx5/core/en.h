@@ -93,7 +93,6 @@
 #define MLX5E_SQ_BF_BUDGET             16
 
 #define MLX5E_NUM_MAIN_GROUPS 9
-#define MLX5E_NET_IP_ALIGN 2
 
 static inline u16 mlx5_min_rx_wqes(int wq_type, u32 wq_size)
 {

@@ -373,8 +373,8 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 		rq->wqe_sz = (priv->params.lro_en) ?
 				priv->params.lro_wqe_sz :
 				MLX5E_SW2HW_MTU(priv->netdev->mtu);
-		rq->wqe_sz = SKB_DATA_ALIGN(rq->wqe_sz + MLX5E_NET_IP_ALIGN);
-		byte_count = rq->wqe_sz - MLX5E_NET_IP_ALIGN;
+		rq->wqe_sz = SKB_DATA_ALIGN(rq->wqe_sz);
+		byte_count = rq->wqe_sz;
 		byte_count |= MLX5_HW_START_PADDING;
 	}
 
