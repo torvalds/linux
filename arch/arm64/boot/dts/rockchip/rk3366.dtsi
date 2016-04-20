@@ -46,6 +46,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/display/rk_fb.h>
+#include <dt-bindings/display/mipi_dsi.h>
 #include <dt-bindings/power/rk3366-power.h>
 #include <dt-bindings/soc/rockchip_boot-mode.h>
 
