@@ -165,6 +165,8 @@ static const struct {
 	},
 };
 
+#define MLX5E_NUM_Q_CNTRS(priv) (NUM_Q_COUNTERS * (!!priv->q_counter))
+
 static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
@@ -172,6 +174,7 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 	switch (sset) {
 	case ETH_SS_STATS:
 		return NUM_VPORT_COUNTERS + NUM_PPORT_COUNTERS +
+		       MLX5E_NUM_Q_CNTRS(priv) +
 		       priv->params.num_channels * NUM_RQ_STATS +
 		       priv->params.num_channels * priv->params.num_tc *
 						   NUM_SQ_STATS;
@@ -199,6 +202,11 @@ static void mlx5e_get_strings(struct net_device *dev,
 		for (i = 0; i < NUM_VPORT_COUNTERS; i++)
 			strcpy(data + (idx++) * ETH_GSTRING_LEN,
 			       vport_strings[i]);
+
+		/* Q counters */
+		for (i = 0; i < MLX5E_NUM_Q_CNTRS(priv); i++)
+			strcpy(data + (idx++) * ETH_GSTRING_LEN,
+			       qcounter_stats_strings[i]);
 
 		/* PPORT counters */
 		for (i = 0; i < NUM_PPORT_COUNTERS; i++)
@@ -239,6 +247,9 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 
 	for (i = 0; i < NUM_VPORT_COUNTERS; i++)
 		data[idx++] = ((u64 *)&priv->stats.vport)[i];
+
+	for (i = 0; i < MLX5E_NUM_Q_CNTRS(priv); i++)
+		data[idx++] = ((u32 *)&priv->stats.qcnt)[i];
 
 	for (i = 0; i < NUM_PPORT_COUNTERS; i++)
 		data[idx++] = be64_to_cpu(((__be64 *)&priv->stats.pport)[i]);
