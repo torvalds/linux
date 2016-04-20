@@ -1116,6 +1116,8 @@ static int cxd2841er_get_carrier_offset_t(struct cxd2841er_priv *priv,
 	*offset = -1 * sign_extend32(
 		((u32)(data[0] & 0x1F) << 24) | ((u32)data[1] << 16) |
 		((u32)data[2] << 8) | (u32)data[3], 29);
+    *offset *= (bandwidth / 1000000);
+    *offset /= 235;
 	return 0;
 }
 
