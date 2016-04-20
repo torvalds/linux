@@ -57,6 +57,7 @@ struct mite_struct {
 	short channel_allocated[MAX_MITE_DMA_CHANNELS];
 	int num_channels;
 	unsigned int fifo_size;
+	/* protects mite_channel from being released by the driver */
 	spinlock_t lock;
 };
 
