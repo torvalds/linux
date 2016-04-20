@@ -383,7 +383,7 @@ static void gb_tty_set_termios(struct tty_struct *tty,
 		send_control(gb_tty, newctrl);
 	}
 
-	if (memcpy(&gb_tty->line_coding, &newline, sizeof(newline))) {
+	if (memcmp(&gb_tty->line_coding, &newline, sizeof(newline))) {
 		memcpy(&gb_tty->line_coding, &newline, sizeof(newline));
 		send_line_coding(gb_tty);
 	}
