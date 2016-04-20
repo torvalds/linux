@@ -727,6 +727,11 @@ static void mei_cl_wake_all(struct mei_cl *cl)
 		cl_dbg(dev, cl, "Waking up waiting for event clients!\n");
 		wake_up_interruptible(&cl->ev_wait);
 	}
+	/* synchronized under device mutex */
+	if (waitqueue_active(&cl->wait)) {
+		cl_dbg(dev, cl, "Waking up ctrl write clients!\n");
+		wake_up_interruptible(&cl->wait);
+	}
 }
 
 /**
@@ -879,12 +884,15 @@ static int __mei_cl_disconnect(struct mei_cl *cl)
 	}
 
 	mutex_unlock(&dev->device_lock);
-	wait_event_timeout(cl->wait, cl->state == MEI_FILE_DISCONNECT_REPLY,
+	wait_event_timeout(cl->wait,
+			   cl->state == MEI_FILE_DISCONNECT_REPLY ||
+			   cl->state == MEI_FILE_DISCONNECTED,
 			   mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
 	rets = cl->status;
-	if (cl->state != MEI_FILE_DISCONNECT_REPLY) {
+	if (cl->state != MEI_FILE_DISCONNECT_REPLY &&
+	    cl->state != MEI_FILE_DISCONNECTED) {
 		cl_dbg(dev, cl, "timeout on disconnect from FW client.\n");
 		rets = -ETIME;
 	}
@@ -1085,6 +1093,7 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 	mutex_unlock(&dev->device_lock);
 	wait_event_timeout(cl->wait,
 			(cl->state == MEI_FILE_CONNECTED ||
+			 cl->state == MEI_FILE_DISCONNECTED ||
 			 cl->state == MEI_FILE_DISCONNECT_REQUIRED ||
 			 cl->state == MEI_FILE_DISCONNECT_REPLY),
 			mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
@@ -1333,8 +1342,9 @@ int mei_cl_notify_request(struct mei_cl *cl,
 	}
 
 	mutex_unlock(&dev->device_lock);
-	wait_event_timeout(cl->wait, cl->notify_en == request,
-			mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
+	wait_event_timeout(cl->wait,
+			   cl->notify_en == request || !mei_cl_is_connected(cl),
+			   mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
 	if (cl->notify_en != request && !cl->status)
