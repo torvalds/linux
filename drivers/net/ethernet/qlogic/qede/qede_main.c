@@ -1041,7 +1041,6 @@ static void qede_gro_ip_csum(struct sk_buff *skb)
 	const struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th;
 
-	skb_set_network_header(skb, 0);
 	skb_set_transport_header(skb, sizeof(struct iphdr));
 	th = tcp_hdr(skb);
 
@@ -1056,7 +1055,6 @@ static void qede_gro_ipv6_csum(struct sk_buff *skb)
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct tcphdr *th;
 
-	skb_set_network_header(skb, 0);
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
 	th = tcp_hdr(skb);
 
@@ -1073,6 +1071,8 @@ static void qede_gro_receive(struct qede_dev *edev,
 {
 #ifdef CONFIG_INET
 	if (skb_shinfo(skb)->gso_size) {
+		skb_set_network_header(skb, 0);
+
 		switch (skb->protocol) {
 		case htons(ETH_P_IP):
 			qede_gro_ip_csum(skb);
