@@ -824,6 +824,29 @@ static const struct panel_desc innolux_at043tn24 = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
+static const struct drm_display_mode innolux_at070tn92_mode = {
+	.clock = 33333,
+	.hdisplay = 800,
+	.hsync_start = 800 + 210,
+	.hsync_end = 800 + 210 + 20,
+	.htotal = 800 + 210 + 20 + 46,
+	.vdisplay = 480,
+	.vsync_start = 480 + 22,
+	.vsync_end = 480 + 22 + 10,
+	.vtotal = 480 + 22 + 23 + 10,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc innolux_at070tn92 = {
+	.modes = &innolux_at070tn92_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 154,
+		.height = 86,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+};
+
 static const struct drm_display_mode innolux_g121i1_l01_mode = {
 	.clock = 71000,
 	.hdisplay = 1280,
@@ -1364,6 +1387,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "innolux,at043tn24",
 		.data = &innolux_at043tn24,
+	}, {
+		.compatible = "innolux,at070tn92",
+		.data = &innolux_at070tn92,
 	}, {
 		.compatible ="innolux,g121i1-l01",
 		.data = &innolux_g121i1_l01
