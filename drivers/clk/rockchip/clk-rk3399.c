@@ -92,13 +92,18 @@ static struct rockchip_pll_rate_table rk3399_pll_rates[] = {
 	RK3036_PLL_RATE( 696000000, 1, 58, 2, 1, 1, 0),
 	RK3036_PLL_RATE( 676000000, 3, 169, 2, 1, 1, 0),
 	RK3036_PLL_RATE( 600000000, 1, 75, 3, 1, 1, 0),
-	RK3036_PLL_RATE( 594000000, 2, 99, 2, 1, 1, 0),
+	RK3036_PLL_RATE( 594000000, 1, 99, 4, 1, 1, 0),
 	RK3036_PLL_RATE( 504000000, 1, 63, 3, 1, 1, 0),
 	RK3036_PLL_RATE( 500000000, 6, 250, 2, 1, 1, 0),
 	RK3036_PLL_RATE( 408000000, 1, 68, 2, 2, 1, 0),
 	RK3036_PLL_RATE( 312000000, 1, 52, 2, 2, 1, 0),
+	RK3036_PLL_RATE( 297000000, 1, 99, 4, 2, 1, 0),
 	RK3036_PLL_RATE( 216000000, 1, 72, 4, 2, 1, 0),
+	RK3036_PLL_RATE( 148500000, 1, 99, 4, 4, 1, 0),
 	RK3036_PLL_RATE(  96000000, 1, 64, 4, 4, 1, 0),
+	RK3036_PLL_RATE(  74250000, 2, 99, 4, 4, 1, 0),
+	RK3036_PLL_RATE(  54000000, 1, 54, 6, 4, 1, 0),
+	RK3036_PLL_RATE(  27000000, 1, 27, 6, 4, 1, 0),
 	{ /* sentinel */ },
 };
 
@@ -359,6 +364,8 @@ static struct rockchip_cpuclk_rate_table rk3399_cpuclkl_rates[] __initdata = {
 	RK3399_CPUCLKL_RATE( 600000000, 1, 3, 3),
 	RK3399_CPUCLKL_RATE( 408000000, 1, 2, 2),
 	RK3399_CPUCLKL_RATE( 312000000, 1, 1, 1),
+	RK3399_CPUCLKL_RATE( 216000000, 1, 1, 1),
+	RK3399_CPUCLKL_RATE(  96000000, 1, 1, 1),
 };
 
 static struct rockchip_cpuclk_rate_table rk3399_cpuclkb_rates[] __initdata = {
@@ -381,6 +388,8 @@ static struct rockchip_cpuclk_rate_table rk3399_cpuclkb_rates[] __initdata = {
 	RK3399_CPUCLKB_RATE( 600000000, 1, 3, 3),
 	RK3399_CPUCLKB_RATE( 408000000, 1, 2, 2),
 	RK3399_CPUCLKB_RATE( 312000000, 1, 1, 1),
+	RK3399_CPUCLKB_RATE( 216000000, 1, 1, 1),
+	RK3399_CPUCLKB_RATE(  96000000, 1, 1, 1),
 };
 
 static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
