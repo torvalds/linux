@@ -500,6 +500,23 @@ record__finish_output(struct record *rec)
 	return;
 }
 
+static int record__synthesize_workload(struct record *rec)
+{
+	struct {
+		struct thread_map map;
+		struct thread_map_data map_data;
+	} thread_map;
+
+	thread_map.map.nr = 1;
+	thread_map.map.map[0].pid = rec->evlist->workload.pid;
+	thread_map.map.map[0].comm = NULL;
+	return perf_event__synthesize_thread_map(&rec->tool, &thread_map.map,
+						 process_synthesized_event,
+						 &rec->session->machines.host,
+						 rec->opts.sample_address,
+						 rec->opts.proc_map_timeout);
+}
+
 static int record__synthesize(struct record *rec);
 
 static int
@@ -532,9 +549,21 @@ record__switch_output(struct record *rec, bool at_exit)
 			file->path, timestamp);
 
 	/* Output tracking events */
-	if (!at_exit)
+	if (!at_exit) {
 		record__synthesize(rec);
 
+		/*
+		 * In 'perf record --switch-output' without -a,
+		 * record__synthesize() in record__switch_output() won't
+		 * generate tracking events because there's no thread_map
+		 * in evlist. Which causes newly created perf.data doesn't
+		 * contain map and comm information.
+		 * Create a fake thread_map and directly call
+		 * perf_event__synthesize_thread_map() for those events.
+		 */
+		if (target__none(&rec->opts.target))
+			record__synthesize_workload(rec);
+	}
 	return fd;
 }
 
