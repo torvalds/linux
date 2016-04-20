@@ -463,8 +463,18 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 			if (!set)
 				return -EINVAL;
 
-			dwc->test_mode_nr = wIndex >> 8;
-			dwc->test_mode = true;
+			switch (wIndex >> 8) {
+			case TEST_J:
+			case TEST_K:
+			case TEST_SE0_NAK:
+			case TEST_PACKET:
+			case TEST_FORCE_EN:
+				dwc->test_mode_nr = wIndex >> 8;
+				dwc->test_mode = true;
+				break;
+			default:
+				return -EINVAL;
+			}
 			break;
 		default:
 			return -EINVAL;
