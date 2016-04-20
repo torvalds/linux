@@ -245,6 +245,19 @@ void cpu_hotplug_done(void)
 	cpuhp_lock_release();
 }
 
+static void _cpu_hotplug_disable(void)
+{
+	cpu_hotplug_disabled++;
+}
+
+static void _cpu_hotplug_enable(void)
+{
+	if (WARN(!cpu_hotplug_disabled, "Unbalanced cpu hotplug enable\n"))
+		return;
+
+	cpu_hotplug_disabled--;
+}
+
 /*
  * Wait for currently running CPU hotplug operations to complete (if any) and
  * disable future CPU hotplug (from sysfs). The 'cpu_add_remove_lock' protects
@@ -255,7 +268,7 @@ void cpu_hotplug_done(void)
 void cpu_hotplug_disable(void)
 {
 	cpu_maps_update_begin();
-	cpu_hotplug_disabled++;
+	_cpu_hotplug_disable();
 	cpu_maps_update_done();
 }
 EXPORT_SYMBOL_GPL(cpu_hotplug_disable);
@@ -263,7 +276,7 @@ EXPORT_SYMBOL_GPL(cpu_hotplug_disable);
 void cpu_hotplug_enable(void)
 {
 	cpu_maps_update_begin();
-	WARN_ON(--cpu_hotplug_disabled < 0);
+	_cpu_hotplug_enable();
 	cpu_maps_update_done();
 }
 EXPORT_SYMBOL_GPL(cpu_hotplug_enable);
@@ -1054,7 +1067,7 @@ int disable_nonboot_cpus(void)
 	 * this even in case of failure as all disable_nonboot_cpus() users are
 	 * supposed to do enable_nonboot_cpus() on the failure path.
 	 */
-	cpu_hotplug_disabled++;
+	_cpu_hotplug_disable();
 
 	cpu_maps_update_done();
 	return error;
@@ -1074,7 +1087,7 @@ void enable_nonboot_cpus(void)
 
 	/* Allow everyone to use the CPU hotplug again */
 	cpu_maps_update_begin();
-	WARN_ON(--cpu_hotplug_disabled < 0);
+	_cpu_hotplug_enable();
 	if (cpumask_empty(frozen_cpus))
 		goto out;
 
