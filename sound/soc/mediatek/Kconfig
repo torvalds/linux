@@ -43,6 +43,7 @@ config SND_SOC_MT8173_RT5650_RT5676
 	depends on SND_SOC_MEDIATEK && I2C
 	select SND_SOC_RT5645
 	select SND_SOC_RT5677
+	select SND_SOC_HDMI_CODEC
 	help
 	  This adds ASoC driver for Mediatek MT8173 boards
 	  with the RT5650 and RT5676 codecs.
