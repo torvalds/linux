@@ -1151,12 +1151,10 @@ static struct clk_init_data ds3231_clks_init[] = {
 	[DS3231_CLK_SQW] = {
 		.name = "ds3231_clk_sqw",
 		.ops = &ds3231_clk_sqw_ops,
-		.flags = CLK_IS_ROOT,
 	},
 	[DS3231_CLK_32KHZ] = {
 		.name = "ds3231_clk_32khz",
 		.ops = &ds3231_clk_32khz_ops,
-		.flags = CLK_IS_ROOT,
 	},
 };
 
