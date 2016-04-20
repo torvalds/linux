@@ -983,18 +983,8 @@ p_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct trace_array *tr = m->private;
 	struct trace_pid_list *pid_list = rcu_dereference_sched(tr->filtered_pids);
-	unsigned long pid = (unsigned long)v;
 
-	(*pos)++;
-
-	/* pid already is +1 of the actual prevous bit */
-	pid = find_next_bit(pid_list->pids, pid_list->pid_max, pid);
-
-	/* Return pid + 1 to allow zero to be represented */
-	if (pid < pid_list->pid_max)
-		return (void *)(pid + 1);
-
-	return NULL;
+	return trace_pid_next(pid_list, v, pos);
 }
 
 static void *p_start(struct seq_file *m, loff_t *pos)
@@ -1002,8 +992,6 @@ static void *p_start(struct seq_file *m, loff_t *pos)
 {
 	struct trace_pid_list *pid_list;
 	struct trace_array *tr = m->private;
-	unsigned long pid;
-	loff_t l = 0;
 
 	/*
 	 * Grab the mutex, to keep calls to p_next() having the same
@@ -1019,15 +1007,7 @@ static void *p_start(struct seq_file *m, loff_t *pos)
 	if (!pid_list)
 		return NULL;
 
-	pid = find_first_bit(pid_list->pids, pid_list->pid_max);
-	if (pid >= pid_list->pid_max)
-		return NULL;
-
-	/* Return pid + 1 so that zero can be the exit value */
-	for (pid++; pid && l < *pos;
-	     pid = (unsigned long)p_next(m, (void *)pid, &l))
-		;
-	return (void *)pid;
+	return trace_pid_start(pid_list, pos);
 }
 
 static void p_stop(struct seq_file *m, void *p)
@@ -1035,14 +1015,6 @@ static void p_stop(struct seq_file *m, void *p)
 {
 	rcu_read_unlock_sched();
 	mutex_unlock(&event_mutex);
-}
-
-static int p_show(struct seq_file *m, void *v)
-{
-	unsigned long pid = (unsigned long)v - 1;
-
-	seq_printf(m, "%lu\n", pid);
-	return 0;
 }
 
 static ssize_t
@@ -1795,7 +1767,7 @@ static const struct seq_operations show_set_event_seq_ops = {
 static const struct seq_operations show_set_pid_seq_ops = {
 	.start = p_start,
 	.next = p_next,
-	.show = p_show,
+	.show = trace_pid_show,
 	.stop = p_stop,
 };
 

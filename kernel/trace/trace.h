@@ -636,6 +636,9 @@ bool trace_ignore_this_task(struct trace_pid_list *filtered_pids,
 void trace_filter_add_remove_task(struct trace_pid_list *pid_list,
 				  struct task_struct *self,
 				  struct task_struct *task);
+void *trace_pid_next(struct trace_pid_list *pid_list, void *v, loff_t *pos);
+void *trace_pid_start(struct trace_pid_list *pid_list, loff_t *pos);
+int trace_pid_show(struct seq_file *m, void *v);
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 void update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu);

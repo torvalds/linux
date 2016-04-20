@@ -397,6 +397,77 @@ void trace_filter_add_remove_task(struct trace_pid_list *pid_list,
 		clear_bit(task->pid, pid_list->pids);
 }
 
+/**
+ * trace_pid_next - Used for seq_file to get to the next pid of a pid_list
+ * @pid_list: The pid list to show
+ * @v: The last pid that was shown (+1 the actual pid to let zero be displayed)
+ * @pos: The position of the file
+ *
+ * This is used by the seq_file "next" operation to iterate the pids
+ * listed in a trace_pid_list structure.
+ *
+ * Returns the pid+1 as we want to display pid of zero, but NULL would
+ * stop the iteration.
+ */
+void *trace_pid_next(struct trace_pid_list *pid_list, void *v, loff_t *pos)
+{
+	unsigned long pid = (unsigned long)v;
+
+	(*pos)++;
+
+	/* pid already is +1 of the actual prevous bit */
+	pid = find_next_bit(pid_list->pids, pid_list->pid_max, pid);
+
+	/* Return pid + 1 to allow zero to be represented */
+	if (pid < pid_list->pid_max)
+		return (void *)(pid + 1);
+
+	return NULL;
+}
+
+/**
+ * trace_pid_start - Used for seq_file to start reading pid lists
+ * @pid_list: The pid list to show
+ * @pos: The position of the file
+ *
+ * This is used by seq_file "start" operation to start the iteration
+ * of listing pids.
+ *
+ * Returns the pid+1 as we want to display pid of zero, but NULL would
+ * stop the iteration.
+ */
+void *trace_pid_start(struct trace_pid_list *pid_list, loff_t *pos)
+{
+	unsigned long pid;
+	loff_t l = 0;
+
+	pid = find_first_bit(pid_list->pids, pid_list->pid_max);
+	if (pid >= pid_list->pid_max)
+		return NULL;
+
+	/* Return pid + 1 so that zero can be the exit value */
+	for (pid++; pid && l < *pos;
+	     pid = (unsigned long)trace_pid_next(pid_list, (void *)pid, &l))
+		;
+	return (void *)pid;
+}
+
+/**
+ * trace_pid_show - show the current pid in seq_file processing
+ * @m: The seq_file structure to write into
+ * @v: A void pointer of the pid (+1) value to display
+ *
+ * Can be directly used by seq_file operations to display the current
+ * pid value.
+ */
+int trace_pid_show(struct seq_file *m, void *v)
+{
+	unsigned long pid = (unsigned long)v - 1;
+
+	seq_printf(m, "%lu\n", pid);
+	return 0;
+}
+
 static cycle_t buffer_ftrace_now(struct trace_buffer *buf, int cpu)
 {
 	u64 ts;
