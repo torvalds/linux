@@ -51,8 +51,6 @@
 
 #include "mite.h"
 
-#define TOP_OF_PAGE(x) ((x)|(~(PAGE_MASK)))
-
 struct mite_struct *mite_alloc(struct pci_dev *pcidev)
 {
 	struct mite_struct *mite;
