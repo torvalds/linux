@@ -106,7 +106,6 @@ int mite_setup2(struct comedi_device *dev,
 			"Failed to remap mite io memory address\n");
 		return -ENOMEM;
 	}
-	mite->mite_phys_addr = pci_resource_start(mite->pcidev, 0);
 
 	dev->mmio = pci_ioremap_bar(mite->pcidev, 1);
 	if (!dev->mmio) {

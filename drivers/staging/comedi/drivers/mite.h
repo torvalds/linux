@@ -54,7 +54,6 @@ struct mite_channel {
 
 struct mite_struct {
 	struct pci_dev *pcidev;
-	resource_size_t mite_phys_addr;
 	void __iomem *mite_io_addr;
 	resource_size_t daq_phys_addr;
 	struct mite_channel channels[MAX_MITE_DMA_CHANNELS];
