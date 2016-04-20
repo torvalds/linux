@@ -314,12 +314,12 @@ unsigned char *choose_random_location(unsigned char *input,
 
 #ifdef CONFIG_HIBERNATION
 	if (!cmdline_find_option_bool("kaslr")) {
-		debug_putstr("KASLR disabled by default...\n");
+		warn("KASLR disabled: 'kaslr' not on cmdline (hibernation selected).");
 		goto out;
 	}
 #else
 	if (cmdline_find_option_bool("nokaslr")) {
-		debug_putstr("KASLR disabled by cmdline...\n");
+		warn("KASLR disabled: 'nokaslr' on cmdline.");
 		goto out;
 	}
 #endif
@@ -333,7 +333,7 @@ unsigned char *choose_random_location(unsigned char *input,
 	/* Walk e820 and find a random address. */
 	random_addr = find_random_addr(choice, output_size);
 	if (!random_addr) {
-		debug_putstr("KASLR could not find suitable E820 region...\n");
+		warn("KASLR disabled: could not find suitable E820 region!");
 		goto out;
 	}
 

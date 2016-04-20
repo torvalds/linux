@@ -166,11 +166,17 @@ void __puthex(unsigned long value)
 	}
 }
 
-static void error(char *x)
+void warn(char *m)
 {
 	error_putstr("\n\n");
-	error_putstr(x);
-	error_putstr("\n\n -- System halted");
+	error_putstr(m);
+	error_putstr("\n\n");
+}
+
+static void error(char *m)
+{
+	warn(m);
+	error_putstr(" -- System halted");
 
 	while (1)
 		asm("hlt");
