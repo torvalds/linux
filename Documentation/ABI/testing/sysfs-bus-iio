@@ -1516,6 +1516,8 @@ Description:
 What:           /sys/bus/iio/devices/iio:deviceX/mount_matrix
 What:           /sys/bus/iio/devices/iio:deviceX/in_mount_matrix
 What:           /sys/bus/iio/devices/iio:deviceX/out_mount_matrix
+What:           /sys/bus/iio/devices/iio:deviceX/in_anglvel_mount_matrix
+What:           /sys/bus/iio/devices/iio:deviceX/in_accel_mount_matrix
 KernelVersion:  4.6
 Contact:        linux-iio@vger.kernel.org
 Description:

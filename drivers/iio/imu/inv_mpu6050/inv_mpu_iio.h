@@ -114,7 +114,8 @@ struct inv_mpu6050_hw {
  *  @hw:		Other hardware-specific information.
  *  @chip_type:		chip type.
  *  @time_stamp_lock:	spin lock to time stamp.
- *  @plat_data:		platform data.
+ *  @plat_data:		platform data (deprecated in favor of @orientation).
+ *  @orientation:	sensor chip orientation relative to main hardware.
  *  @timestamps:        kfifo queue to store time stamp.
  *  @map		regmap pointer.
  *  @irq		interrupt number.
@@ -131,6 +132,7 @@ struct inv_mpu6050_state {
 	struct i2c_client *mux_client;
 	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
+	struct iio_mount_matrix orientation;
 	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
 	struct regmap *map;
 	int irq;
