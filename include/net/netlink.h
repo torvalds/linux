@@ -1238,18 +1238,21 @@ static inline int nla_validate_nested(const struct nlattr *start, int maxtype,
  * Conditionally emit a padding netlink attribute in order to make
  * the next attribute we emit have a 64-bit aligned nla_data() area.
  * This will only be done in architectures which do not have
- * HAVE_EFFICIENT_UNALIGNED_ACCESS defined.
+ * CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS defined.
  *
  * Returns zero on success or a negative error code.
  */
 static inline int nla_align_64bit(struct sk_buff *skb, int padattr)
 {
-#ifndef HAVE_EFFICIENT_UNALIGNED_ACCESS
-	if (IS_ALIGNED((unsigned long)skb->data, 8)) {
-		struct nlattr *attr = nla_reserve(skb, padattr, 0);
-		if (!attr)
-			return -EMSGSIZE;
-	}
+#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+	/* The nlattr header is 4 bytes in size, that's why we test
+	 * if the skb->data _is_ aligned.  This NOP attribute, plus
+	 * nlattr header for next attribute, will make nla_data()
+	 * 8-byte aligned.
+	 */
+	if (IS_ALIGNED((unsigned long)skb->data, 8) &&
+	    !nla_reserve(skb, padattr, 0))
+		return -EMSGSIZE;
 #endif
 	return 0;
 }
@@ -1261,7 +1264,7 @@ static inline int nla_align_64bit(struct sk_buff *skb, int padattr)
 static inline int nla_total_size_64bit(int payload)
 {
 	return NLA_ALIGN(nla_attr_size(payload))
-#ifndef HAVE_EFFICIENT_UNALIGNED_ACCESS
+#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 		+ NLA_ALIGN(nla_attr_size(0))
 #endif
 		;
