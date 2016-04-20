@@ -88,7 +88,14 @@ static const struct inv_mpu6050_chip_config chip_config_6050 = {
 	.accl_fs = INV_MPU6050_FS_02G,
 };
 
+/* Indexed by enum inv_devices */
 static const struct inv_mpu6050_hw hw_info[] = {
+	{
+		.num_reg = 117,
+		.name = "MPU6050",
+		.reg = &reg_set_6050,
+		.config = &chip_config_6050,
+	},
 	{
 		.num_reg = 117,
 		.name = "MPU6500",
@@ -97,7 +104,7 @@ static const struct inv_mpu6050_hw hw_info[] = {
 	},
 	{
 		.num_reg = 117,
-		.name = "MPU6050",
+		.name = "MPU6000",
 		.reg = &reg_set_6050,
 		.config = &chip_config_6050,
 	},
@@ -793,6 +800,12 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	if (!indio_dev)
 		return -ENOMEM;
 
+	BUILD_BUG_ON(ARRAY_SIZE(hw_info) != INV_NUM_PARTS);
+	if (chip_type < 0 || chip_type >= INV_NUM_PARTS) {
+		dev_err(dev, "Bad invensense chip_type=%d name=%s\n",
+				chip_type, name);
+		return -ENODEV;
+	}
 	st = iio_priv(indio_dev);
 	st->chip_type = chip_type;
 	st->powerup_count = 0;

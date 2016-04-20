@@ -208,7 +208,7 @@ static const struct i2c_device_id inv_mpu_id[] = {
 MODULE_DEVICE_TABLE(i2c, inv_mpu_id);
 
 static const struct acpi_device_id inv_acpi_match[] = {
-	{"INVN6500", 0},
+	{"INVN6500", INV_MPU6500},
 	{ },
 };
 
