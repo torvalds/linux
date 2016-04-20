@@ -443,9 +443,17 @@ void intel_prepare_ddi_buffer(struct intel_encoder *encoder)
 	} else if (IS_BROADWELL(dev_priv)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
-		ddi_translations_edp = bdw_ddi_translations_edp;
+
+		if (dev_priv->vbt.edp.low_vswing) {
+			ddi_translations_edp = bdw_ddi_translations_edp;
+			n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_edp);
+		} else {
+			ddi_translations_edp = bdw_ddi_translations_dp;
+			n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
+		}
+
 		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
-		n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_edp);
+
 		n_dp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
 		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
 		hdmi_default_entry = 7;
