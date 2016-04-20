@@ -1122,7 +1122,7 @@ void drm_connector_unregister_all(struct drm_device *dev)
 	struct drm_connector *connector;
 
 	/* FIXME: taking the mode config mutex ends up in a clash with sysfs */
-	drm_for_each_connector(connector, dev)
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		drm_connector_unregister(connector);
 }
 EXPORT_SYMBOL(drm_connector_unregister_all);
