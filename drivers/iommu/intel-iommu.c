@@ -458,15 +458,19 @@ static void flush_unmaps_timeout(unsigned long data);
 
 static DEFINE_TIMER(unmap_timer,  flush_unmaps_timeout, 0, 0);
 
-#define HIGH_WATER_MARK 250
-struct deferred_flush_tables {
-	int next;
-	struct iova *iova[HIGH_WATER_MARK];
-	struct dmar_domain *domain[HIGH_WATER_MARK];
-	struct page *freelist[HIGH_WATER_MARK];
+struct deferred_flush_entry {
+	struct iova *iova;
+	struct dmar_domain *domain;
+	struct page *freelist;
 };
 
-static struct deferred_flush_tables *deferred_flush;
+#define HIGH_WATER_MARK 250
+struct deferred_flush_table {
+	int next;
+	struct deferred_flush_entry entries[HIGH_WATER_MARK];
+};
+
+static struct deferred_flush_table *deferred_flush;
 
 /* bitmap for indexing intel_iommus */
 static int g_num_of_iommus;
@@ -3111,7 +3115,7 @@ static int __init init_dmars(void)
 	}
 
 	deferred_flush = kzalloc(g_num_of_iommus *
-		sizeof(struct deferred_flush_tables), GFP_KERNEL);
+		sizeof(struct deferred_flush_table), GFP_KERNEL);
 	if (!deferred_flush) {
 		ret = -ENOMEM;
 		goto free_g_iommus;
@@ -3518,22 +3522,25 @@ static void flush_unmaps(void)
 					 DMA_TLB_GLOBAL_FLUSH);
 		for (j = 0; j < deferred_flush[i].next; j++) {
 			unsigned long mask;
-			struct iova *iova = deferred_flush[i].iova[j];
-			struct dmar_domain *domain = deferred_flush[i].domain[j];
+			struct deferred_flush_entry *entry =
+						&deferred_flush->entries[j];
+			struct iova *iova = entry->iova;
+			struct dmar_domain *domain = entry->domain;
+			struct page *freelist = entry->freelist;
 
 			/* On real hardware multiple invalidations are expensive */
 			if (cap_caching_mode(iommu->cap))
 				iommu_flush_iotlb_psi(iommu, domain,
 					iova->pfn_lo, iova_size(iova),
-					!deferred_flush[i].freelist[j], 0);
+					!freelist, 0);
 			else {
 				mask = ilog2(mm_to_dma_pfn(iova_size(iova)));
-				iommu_flush_dev_iotlb(deferred_flush[i].domain[j],
+				iommu_flush_dev_iotlb(domain,
 						(uint64_t)iova->pfn_lo << PAGE_SHIFT, mask);
 			}
-			__free_iova(&deferred_flush[i].domain[j]->iovad, iova);
-			if (deferred_flush[i].freelist[j])
-				dma_free_pagelist(deferred_flush[i].freelist[j]);
+			__free_iova(&domain->iovad, iova);
+			if (freelist)
+				dma_free_pagelist(freelist);
 		}
 		deferred_flush[i].next = 0;
 	}
@@ -3553,8 +3560,9 @@ static void flush_unmaps_timeout(unsigned long data)
 static void add_unmap(struct dmar_domain *dom, struct iova *iova, struct page *freelist)
 {
 	unsigned long flags;
-	int next, iommu_id;
+	int entry_id, iommu_id;
 	struct intel_iommu *iommu;
+	struct deferred_flush_entry *entry;
 
 	spin_lock_irqsave(&async_umap_flush_lock, flags);
 	if (list_size == HIGH_WATER_MARK)
@@ -3563,11 +3571,13 @@ static void add_unmap(struct dmar_domain *dom, struct iova *iova, struct page *f
 	iommu = domain_get_iommu(dom);
 	iommu_id = iommu->seq_id;
 
-	next = deferred_flush[iommu_id].next;
-	deferred_flush[iommu_id].domain[next] = dom;
-	deferred_flush[iommu_id].iova[next] = iova;
-	deferred_flush[iommu_id].freelist[next] = freelist;
-	deferred_flush[iommu_id].next++;
+	entry_id = deferred_flush[iommu_id].next;
+	++(deferred_flush[iommu_id].next);
+
+	entry = &deferred_flush[iommu_id].entries[entry_id];
+	entry->domain = dom;
+	entry->iova = iova;
+	entry->freelist = freelist;
 
 	if (!timer_on) {
 		mod_timer(&unmap_timer, jiffies + msecs_to_jiffies(10));
