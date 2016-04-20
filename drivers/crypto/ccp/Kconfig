@@ -4,6 +4,7 @@ config CRYPTO_DEV_CCP_DD
 	default m
 	select HW_RANDOM
 	select DMA_ENGINE
+	select DMADEVICES
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
 	help
