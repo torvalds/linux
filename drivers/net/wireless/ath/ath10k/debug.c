@@ -126,6 +126,7 @@ EXPORT_SYMBOL(ath10k_info);
 
 void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 {
+	const struct firmware *firmware;
 	char fw_features[128] = {};
 	u32 crc = 0;
 
@@ -144,8 +145,9 @@ void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 		    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED),
 		    config_enabled(CONFIG_NL80211_TESTMODE));
 
-	if (ar->firmware)
-		crc = crc32_le(0, ar->firmware->data, ar->firmware->size);
+	firmware = ar->normal_mode_fw.fw_file.firmware;
+	if (firmware)
+		crc = crc32_le(0, firmware->data, firmware->size);
 
 	ath10k_info(ar, "firmware ver %s api %d features %s crc32 %08x\n",
 		    ar->hw->wiphy->fw_version,
@@ -167,7 +169,8 @@ void ath10k_debug_print_board_info(struct ath10k *ar)
 	ath10k_info(ar, "board_file api %d bmi_id %s crc32 %08x",
 		    ar->bd_api,
 		    boardinfo,
-		    crc32_le(0, ar->board->data, ar->board->size));
+		    crc32_le(0, ar->normal_mode_fw.board->data,
+			     ar->normal_mode_fw.board->size));
 }
 
 void ath10k_debug_print_boot_info(struct ath10k *ar)
@@ -2270,23 +2273,28 @@ static ssize_t ath10k_debug_fw_checksums_read(struct file *file,
 
 	len += scnprintf(buf + len, buf_len - len,
 			 "firmware-N.bin\t\t%08x\n",
-			 crc32_le(0, ar->firmware->data, ar->firmware->size));
+			 crc32_le(0, ar->normal_mode_fw.fw_file.firmware->data,
+				  ar->normal_mode_fw.fw_file.firmware->size));
 	len += scnprintf(buf + len, buf_len - len,
 			 "athwlan\t\t\t%08x\n",
-			 crc32_le(0, ar->firmware_data, ar->firmware_len));
+			 crc32_le(0, ar->normal_mode_fw.fw_file.firmware_data,
+				  ar->normal_mode_fw.fw_file.firmware_len));
 	len += scnprintf(buf + len, buf_len - len,
 			 "otp\t\t\t%08x\n",
-			 crc32_le(0, ar->otp_data, ar->otp_len));
+			 crc32_le(0, ar->normal_mode_fw.fw_file.otp_data,
+				  ar->normal_mode_fw.fw_file.otp_len));
 	len += scnprintf(buf + len, buf_len - len,
 			 "codeswap\t\t%08x\n",
-			 crc32_le(0, ar->swap.firmware_codeswap_data,
-				  ar->swap.firmware_codeswap_len));
+			 crc32_le(0, ar->normal_mode_fw.fw_file.codeswap_data,
+				  ar->normal_mode_fw.fw_file.codeswap_len));
 	len += scnprintf(buf + len, buf_len - len,
 			 "board-N.bin\t\t%08x\n",
-			 crc32_le(0, ar->board->data, ar->board->size));
+			 crc32_le(0, ar->normal_mode_fw.board->data,
+				  ar->normal_mode_fw.board->size));
 	len += scnprintf(buf + len, buf_len - len,
 			 "board\t\t\t%08x\n",
-			 crc32_le(0, ar->board_data, ar->board_len));
+			 crc32_le(0, ar->normal_mode_fw.board_data,
+				  ar->normal_mode_fw.board_len));
 
 	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 

@@ -627,6 +627,27 @@ enum ath10k_tx_pause_reason {
 	ATH10K_TX_PAUSE_MAX,
 };
 
+struct ath10k_fw_file {
+	const struct firmware *firmware;
+
+	const void *firmware_data;
+	size_t firmware_len;
+
+	const void *otp_data;
+	size_t otp_len;
+
+	const void *codeswap_data;
+	size_t codeswap_len;
+};
+
+struct ath10k_fw_components {
+	const struct firmware *board;
+	const void *board_data;
+	size_t board_len;
+
+	struct ath10k_fw_file fw_file;
+};
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
@@ -714,23 +735,18 @@ struct ath10k {
 		} fw;
 	} hw_params;
 
-	const struct firmware *board;
-	const void *board_data;
-	size_t board_len;
+	/* contains the firmware images used with ATH10K_FIRMWARE_MODE_NORMAL */
+	struct ath10k_fw_components normal_mode_fw;
 
-	const void *otp_data;
-	size_t otp_len;
-
-	const struct firmware *firmware;
-	const void *firmware_data;
-	size_t firmware_len;
+	/* READ-ONLY images of the running firmware, which can be either
+	 * normal or UTF. Do not modify, release etc!
+	 */
+	const struct ath10k_fw_components *running_fw;
 
 	const struct firmware *pre_cal_file;
 	const struct firmware *cal_file;
 
 	struct {
-		const void *firmware_codeswap_data;
-		size_t firmware_codeswap_len;
 		struct ath10k_swap_code_seg_info *firmware_swap_code_seg_info;
 	} swap;
 
@@ -876,13 +892,12 @@ struct ath10k {
 
 	struct {
 		/* protected by conf_mutex */
-		const struct firmware *utf;
+		struct ath10k_fw_components utf_mode_fw;
 		char utf_version[32];
-		const void *utf_firmware_data;
-		size_t utf_firmware_len;
 		DECLARE_BITMAP(orig_fw_features, ATH10K_FW_FEATURE_COUNT);
 		enum ath10k_fw_wmi_op_version orig_wmi_op_version;
 		enum ath10k_fw_wmi_op_version op_version;
+
 		/* protected by data_lock */
 		bool utf_monitor;
 	} testmode;
@@ -919,7 +934,8 @@ void ath10k_core_get_fw_features_str(struct ath10k *ar,
 				     char *buf,
 				     size_t max_len);
 
-int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode);
+int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
+		      const struct ath10k_fw_components *fw_components);
 int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt);
 void ath10k_core_stop(struct ath10k *ar);
 int ath10k_core_register(struct ath10k *ar, u32 chip_id);

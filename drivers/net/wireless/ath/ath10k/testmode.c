@@ -139,7 +139,8 @@ static int ath10k_tm_cmd_get_version(struct ath10k *ar, struct nlattr *tb[])
 	return cfg80211_testmode_reply(skb);
 }
 
-static int ath10k_tm_fetch_utf_firmware_api_2(struct ath10k *ar)
+static int ath10k_tm_fetch_utf_firmware_api_2(struct ath10k *ar,
+					      struct ath10k_fw_file *fw_file)
 {
 	size_t len, magic_len, ie_len;
 	struct ath10k_fw_ie *hdr;
@@ -152,15 +153,15 @@ static int ath10k_tm_fetch_utf_firmware_api_2(struct ath10k *ar)
 		 ar->hw_params.fw.dir, ATH10K_FW_UTF_API2_FILE);
 
 	/* load utf firmware image */
-	ret = request_firmware(&ar->testmode.utf, filename, ar->dev);
+	ret = request_firmware(&fw_file->firmware, filename, ar->dev);
 	if (ret) {
 		ath10k_warn(ar, "failed to retrieve utf firmware '%s': %d\n",
 			    filename, ret);
 		return ret;
 	}
 
-	data = ar->testmode.utf->data;
-	len = ar->testmode.utf->size;
+	data = fw_file->firmware->data;
+	len = fw_file->firmware->size;
 
 	/* FIXME: call release_firmware() in error cases */
 
@@ -222,8 +223,8 @@ static int ath10k_tm_fetch_utf_firmware_api_2(struct ath10k *ar)
 				   "testmode found fw image ie (%zd B)\n",
 				   ie_len);
 
-			ar->testmode.utf_firmware_data = data;
-			ar->testmode.utf_firmware_len = ie_len;
+			fw_file->firmware_data = data;
+			fw_file->firmware_len = ie_len;
 			break;
 		case ATH10K_FW_IE_WMI_OP_VERSION:
 			if (ie_len != sizeof(u32))
@@ -245,7 +246,7 @@ static int ath10k_tm_fetch_utf_firmware_api_2(struct ath10k *ar)
 		data += ie_len;
 	}
 
-	if (!ar->testmode.utf_firmware_data || !ar->testmode.utf_firmware_len) {
+	if (!fw_file->firmware_data || !fw_file->firmware_len) {
 		ath10k_err(ar, "No ATH10K_FW_IE_FW_IMAGE found\n");
 		ret = -EINVAL;
 		goto err;
@@ -254,12 +255,13 @@ static int ath10k_tm_fetch_utf_firmware_api_2(struct ath10k *ar)
 	return 0;
 
 err:
-	release_firmware(ar->testmode.utf);
+	release_firmware(fw_file->firmware);
 
 	return ret;
 }
 
-static int ath10k_tm_fetch_utf_firmware_api_1(struct ath10k *ar)
+static int ath10k_tm_fetch_utf_firmware_api_1(struct ath10k *ar,
+					      struct ath10k_fw_file *fw_file)
 {
 	char filename[100];
 	int ret;
@@ -268,7 +270,7 @@ static int ath10k_tm_fetch_utf_firmware_api_1(struct ath10k *ar)
 		 ar->hw_params.fw.dir, ATH10K_FW_UTF_FILE);
 
 	/* load utf firmware image */
-	ret = request_firmware(&ar->testmode.utf, filename, ar->dev);
+	ret = request_firmware(&fw_file->firmware, filename, ar->dev);
 	if (ret) {
 		ath10k_warn(ar, "failed to retrieve utf firmware '%s': %d\n",
 			    filename, ret);
@@ -282,29 +284,45 @@ static int ath10k_tm_fetch_utf_firmware_api_1(struct ath10k *ar)
 	 */
 
 	ar->testmode.op_version = ATH10K_FW_WMI_OP_VERSION_10_1;
-	ar->testmode.utf_firmware_data = ar->testmode.utf->data;
-	ar->testmode.utf_firmware_len = ar->testmode.utf->size;
+	fw_file->firmware_data = fw_file->firmware->data;
+	fw_file->firmware_len = fw_file->firmware->size;
 
 	return 0;
 }
 
 static int ath10k_tm_fetch_firmware(struct ath10k *ar)
 {
+	struct ath10k_fw_components *utf_mode_fw;
 	int ret;
 
-	ret = ath10k_tm_fetch_utf_firmware_api_2(ar);
+	ret = ath10k_tm_fetch_utf_firmware_api_2(ar, &ar->testmode.utf_mode_fw.fw_file);
 	if (ret == 0) {
 		ath10k_dbg(ar, ATH10K_DBG_TESTMODE, "testmode using fw utf api 2");
-		return 0;
+		goto out;
 	}
 
-	ret = ath10k_tm_fetch_utf_firmware_api_1(ar);
+	ret = ath10k_tm_fetch_utf_firmware_api_1(ar, &ar->testmode.utf_mode_fw.fw_file);
 	if (ret) {
 		ath10k_err(ar, "failed to fetch utf firmware binary: %d", ret);
 		return ret;
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_TESTMODE, "testmode using utf api 1");
+
+out:
+	utf_mode_fw = &ar->testmode.utf_mode_fw;
+
+	/* Use the same board data file as the normal firmware uses (but
+	 * it's still "owned" by normal_mode_fw so we shouldn't free it.
+	 */
+	utf_mode_fw->board_data = ar->normal_mode_fw.board_data;
+	utf_mode_fw->board_len = ar->normal_mode_fw.board_len;
+
+	if (!utf_mode_fw->fw_file.otp_data) {
+		ath10k_info(ar, "utf.bin didn't contain otp binary, taking it from the normal mode firmware");
+		utf_mode_fw->fw_file.otp_data = ar->normal_mode_fw.fw_file.otp_data;
+		utf_mode_fw->fw_file.otp_len = ar->normal_mode_fw.fw_file.otp_len;
+	}
 
 	return 0;
 }
@@ -329,7 +347,7 @@ static int ath10k_tm_cmd_utf_start(struct ath10k *ar, struct nlattr *tb[])
 		goto err;
 	}
 
-	if (WARN_ON(ar->testmode.utf != NULL)) {
+	if (WARN_ON(ar->testmode.utf_mode_fw.fw_file.firmware != NULL)) {
 		/* utf image is already downloaded, it shouldn't be */
 		ret = -EEXIST;
 		goto err;
@@ -364,7 +382,8 @@ static int ath10k_tm_cmd_utf_start(struct ath10k *ar, struct nlattr *tb[])
 		goto err_fw_features;
 	}
 
-	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_UTF);
+	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_UTF,
+				&ar->testmode.utf_mode_fw);
 	if (ret) {
 		ath10k_err(ar, "failed to start core (testmode): %d\n", ret);
 		ar->state = ATH10K_STATE_OFF;
@@ -393,8 +412,8 @@ err_fw_features:
 	       sizeof(ar->fw_features));
 	ar->wmi.op_version = ar->testmode.orig_wmi_op_version;
 
-	release_firmware(ar->testmode.utf);
-	ar->testmode.utf = NULL;
+	release_firmware(ar->testmode.utf_mode_fw.fw_file.firmware);
+	ar->testmode.utf_mode_fw.fw_file.firmware = NULL;
 
 err:
 	mutex_unlock(&ar->conf_mutex);
@@ -420,8 +439,8 @@ static void __ath10k_tm_cmd_utf_stop(struct ath10k *ar)
 	       sizeof(ar->fw_features));
 	ar->wmi.op_version = ar->testmode.orig_wmi_op_version;
 
-	release_firmware(ar->testmode.utf);
-	ar->testmode.utf = NULL;
+	release_firmware(ar->testmode.utf_mode_fw.fw_file.firmware);
+	ar->testmode.utf_mode_fw.fw_file.firmware = NULL;
 
 	ar->state = ATH10K_STATE_OFF;
 }

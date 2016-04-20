@@ -171,8 +171,13 @@ int ath10k_swap_code_seg_configure(struct ath10k *ar,
 void ath10k_swap_code_seg_release(struct ath10k *ar)
 {
 	ath10k_swap_code_seg_free(ar, ar->swap.firmware_swap_code_seg_info);
-	ar->swap.firmware_codeswap_data = NULL;
-	ar->swap.firmware_codeswap_len = 0;
+
+	/* FIXME: these two assignments look to bein wrong place! Shouldn't
+	 * they be in ath10k_core_free_firmware_files() like the rest?
+	 */
+	ar->normal_mode_fw.fw_file.codeswap_data = NULL;
+	ar->normal_mode_fw.fw_file.codeswap_len = 0;
+
 	ar->swap.firmware_swap_code_seg_info = NULL;
 }
 
@@ -180,20 +185,23 @@ int ath10k_swap_code_seg_init(struct ath10k *ar)
 {
 	int ret;
 	struct ath10k_swap_code_seg_info *seg_info;
+	const void *codeswap_data;
+	size_t codeswap_len;
 
-	if (!ar->swap.firmware_codeswap_len || !ar->swap.firmware_codeswap_data)
+	codeswap_data = ar->normal_mode_fw.fw_file.codeswap_data;
+	codeswap_len = ar->normal_mode_fw.fw_file.codeswap_len;
+
+	if (!codeswap_len || !codeswap_data)
 		return 0;
 
-	seg_info = ath10k_swap_code_seg_alloc(ar,
-					      ar->swap.firmware_codeswap_len);
+	seg_info = ath10k_swap_code_seg_alloc(ar, codeswap_len);
 	if (!seg_info) {
 		ath10k_err(ar, "failed to allocate fw code swap segment\n");
 		return -ENOMEM;
 	}
 
 	ret = ath10k_swap_code_seg_fill(ar, seg_info,
-					ar->swap.firmware_codeswap_data,
-					ar->swap.firmware_codeswap_len);
+					codeswap_data, codeswap_len);
 
 	if (ret) {
 		ath10k_warn(ar, "failed to initialize fw code swap segment: %d\n",

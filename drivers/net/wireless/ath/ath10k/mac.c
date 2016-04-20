@@ -4376,7 +4376,8 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		goto err_off;
 	}
 
-	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL);
+	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL,
+				&ar->normal_mode_fw);
 	if (ret) {
 		ath10k_err(ar, "Could not init core: %d\n", ret);
 		goto err_power_down;

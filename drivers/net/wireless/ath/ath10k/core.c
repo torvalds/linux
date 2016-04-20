@@ -538,7 +538,8 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 
 	address = ar->hw_params.patch_load_addr;
 
-	if (!ar->otp_data || !ar->otp_len) {
+	if (!ar->normal_mode_fw.fw_file.otp_data ||
+	    !ar->normal_mode_fw.fw_file.otp_len) {
 		ath10k_warn(ar,
 			    "failed to retrieve board id because of invalid otp\n");
 		return -ENODATA;
@@ -546,9 +547,11 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
 		   "boot upload otp to 0x%x len %zd for board id\n",
-		   address, ar->otp_len);
+		   address, ar->normal_mode_fw.fw_file.otp_len);
 
-	ret = ath10k_bmi_fast_download(ar, address, ar->otp_data, ar->otp_len);
+	ret = ath10k_bmi_fast_download(ar, address,
+				       ar->normal_mode_fw.fw_file.otp_data,
+				       ar->normal_mode_fw.fw_file.otp_len);
 	if (ret) {
 		ath10k_err(ar, "could not write otp for board id check: %d\n",
 			   ret);
@@ -586,7 +589,9 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 	u32 bmi_otp_exe_param = ar->hw_params.otp_exe_param;
 	int ret;
 
-	ret = ath10k_download_board_data(ar, ar->board_data, ar->board_len);
+	ret = ath10k_download_board_data(ar,
+					 ar->running_fw->board_data,
+					 ar->running_fw->board_len);
 	if (ret) {
 		ath10k_err(ar, "failed to download board data: %d\n", ret);
 		return ret;
@@ -594,16 +599,20 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 
 	/* OTP is optional */
 
-	if (!ar->otp_data || !ar->otp_len) {
+	if (!ar->running_fw->fw_file.otp_data ||
+	    !ar->running_fw->fw_file.otp_len) {
 		ath10k_warn(ar, "Not running otp, calibration will be incorrect (otp-data %p otp_len %zd)!\n",
-			    ar->otp_data, ar->otp_len);
+			    ar->running_fw->fw_file.otp_data,
+			    ar->running_fw->fw_file.otp_len);
 		return 0;
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot upload otp to 0x%x len %zd\n",
-		   address, ar->otp_len);
+		   address, ar->running_fw->fw_file.otp_len);
 
-	ret = ath10k_bmi_fast_download(ar, address, ar->otp_data, ar->otp_len);
+	ret = ath10k_bmi_fast_download(ar, address,
+				       ar->running_fw->fw_file.otp_data,
+				       ar->running_fw->fw_file.otp_len);
 	if (ret) {
 		ath10k_err(ar, "could not write otp (%d)\n", ret);
 		return ret;
@@ -627,46 +636,33 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_download_fw(struct ath10k *ar, enum ath10k_firmware_mode mode)
+static int ath10k_download_fw(struct ath10k *ar)
 {
 	u32 address, data_len;
-	const char *mode_name;
 	const void *data;
 	int ret;
 
 	address = ar->hw_params.patch_load_addr;
 
-	switch (mode) {
-	case ATH10K_FIRMWARE_MODE_NORMAL:
-		data = ar->firmware_data;
-		data_len = ar->firmware_len;
-		mode_name = "normal";
-		ret = ath10k_swap_code_seg_configure(ar,
-						     ATH10K_SWAP_CODE_SEG_BIN_TYPE_FW);
-		if (ret) {
-			ath10k_err(ar, "failed to configure fw code swap: %d\n",
-				   ret);
-			return ret;
-		}
-		break;
-	case ATH10K_FIRMWARE_MODE_UTF:
-		data = ar->testmode.utf_firmware_data;
-		data_len = ar->testmode.utf_firmware_len;
-		mode_name = "utf";
-		break;
-	default:
-		ath10k_err(ar, "unknown firmware mode: %d\n", mode);
-		return -EINVAL;
+	data = ar->running_fw->fw_file.firmware_data;
+	data_len = ar->running_fw->fw_file.firmware_len;
+
+	ret = ath10k_swap_code_seg_configure(ar,
+					     ATH10K_SWAP_CODE_SEG_BIN_TYPE_FW);
+	if (ret) {
+		ath10k_err(ar, "failed to configure fw code swap: %d\n",
+			   ret);
+		return ret;
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
-		   "boot uploading firmware image %p len %d mode %s\n",
-		   data, data_len, mode_name);
+		   "boot uploading firmware image %p len %d\n",
+		   data, data_len);
 
 	ret = ath10k_bmi_fast_download(ar, address, data, data_len);
 	if (ret) {
-		ath10k_err(ar, "failed to download %s firmware: %d\n",
-			   mode_name, ret);
+		ath10k_err(ar, "failed to download firmware: %d\n",
+			   ret);
 		return ret;
 	}
 
@@ -675,30 +671,30 @@ static int ath10k_download_fw(struct ath10k *ar, enum ath10k_firmware_mode mode)
 
 static void ath10k_core_free_board_files(struct ath10k *ar)
 {
-	if (!IS_ERR(ar->board))
-		release_firmware(ar->board);
+	if (!IS_ERR(ar->normal_mode_fw.board))
+		release_firmware(ar->normal_mode_fw.board);
 
-	ar->board = NULL;
-	ar->board_data = NULL;
-	ar->board_len = 0;
+	ar->normal_mode_fw.board = NULL;
+	ar->normal_mode_fw.board_data = NULL;
+	ar->normal_mode_fw.board_len = 0;
 }
 
 static void ath10k_core_free_firmware_files(struct ath10k *ar)
 {
-	if (!IS_ERR(ar->firmware))
-		release_firmware(ar->firmware);
+	if (!IS_ERR(ar->normal_mode_fw.fw_file.firmware))
+		release_firmware(ar->normal_mode_fw.fw_file.firmware);
 
 	if (!IS_ERR(ar->cal_file))
 		release_firmware(ar->cal_file);
 
 	ath10k_swap_code_seg_release(ar);
 
-	ar->otp_data = NULL;
-	ar->otp_len = 0;
+	ar->normal_mode_fw.fw_file.otp_data = NULL;
+	ar->normal_mode_fw.fw_file.otp_len = 0;
 
-	ar->firmware = NULL;
-	ar->firmware_data = NULL;
-	ar->firmware_len = 0;
+	ar->normal_mode_fw.fw_file.firmware = NULL;
+	ar->normal_mode_fw.fw_file.firmware_data = NULL;
+	ar->normal_mode_fw.fw_file.firmware_len = 0;
 
 	ar->cal_file = NULL;
 }
@@ -737,14 +733,14 @@ static int ath10k_core_fetch_board_data_api_1(struct ath10k *ar)
 		return -EINVAL;
 	}
 
-	ar->board = ath10k_fetch_fw_file(ar,
-					 ar->hw_params.fw.dir,
-					 ar->hw_params.fw.board);
-	if (IS_ERR(ar->board))
-		return PTR_ERR(ar->board);
+	ar->normal_mode_fw.board = ath10k_fetch_fw_file(ar,
+							ar->hw_params.fw.dir,
+							ar->hw_params.fw.board);
+	if (IS_ERR(ar->normal_mode_fw.board))
+		return PTR_ERR(ar->normal_mode_fw.board);
 
-	ar->board_data = ar->board->data;
-	ar->board_len = ar->board->size;
+	ar->normal_mode_fw.board_data = ar->normal_mode_fw.board->data;
+	ar->normal_mode_fw.board_len = ar->normal_mode_fw.board->size;
 
 	return 0;
 }
@@ -804,8 +800,8 @@ static int ath10k_core_parse_bd_ie_board(struct ath10k *ar,
 				   "boot found board data for '%s'",
 				   boardname);
 
-			ar->board_data = board_ie_data;
-			ar->board_len = board_ie_len;
+			ar->normal_mode_fw.board_data = board_ie_data;
+			ar->normal_mode_fw.board_len = board_ie_len;
 
 			ret = 0;
 			goto out;
@@ -838,12 +834,14 @@ static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 	const u8 *data;
 	int ret, ie_id;
 
-	ar->board = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir, filename);
-	if (IS_ERR(ar->board))
-		return PTR_ERR(ar->board);
+	ar->normal_mode_fw.board = ath10k_fetch_fw_file(ar,
+							ar->hw_params.fw.dir,
+							filename);
+	if (IS_ERR(ar->normal_mode_fw.board))
+		return PTR_ERR(ar->normal_mode_fw.board);
 
-	data = ar->board->data;
-	len = ar->board->size;
+	data = ar->normal_mode_fw.board->data;
+	len = ar->normal_mode_fw.board->size;
 
 	/* magic has extra null byte padded */
 	magic_len = strlen(ATH10K_BOARD_MAGIC) + 1;
@@ -910,7 +908,7 @@ static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 	}
 
 out:
-	if (!ar->board_data || !ar->board_len) {
+	if (!ar->normal_mode_fw.board_data || !ar->normal_mode_fw.board_len) {
 		ath10k_err(ar,
 			   "failed to fetch board data for %s from %s/%s\n",
 			   boardname, ar->hw_params.fw.dir, filename);
@@ -978,7 +976,8 @@ success:
 	return 0;
 }
 
-static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
+static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
+					    struct ath10k_fw_file *fw_file)
 {
 	size_t magic_len, len, ie_len;
 	int ie_id, i, index, bit, ret;
@@ -987,15 +986,17 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 	__le32 *timestamp, *version;
 
 	/* first fetch the firmware file (firmware-*.bin) */
-	ar->firmware = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir, name);
-	if (IS_ERR(ar->firmware)) {
+	fw_file->firmware = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir,
+						 name);
+	if (IS_ERR(fw_file->firmware)) {
 		ath10k_err(ar, "could not fetch firmware file '%s/%s': %ld\n",
-			   ar->hw_params.fw.dir, name, PTR_ERR(ar->firmware));
-		return PTR_ERR(ar->firmware);
+			   ar->hw_params.fw.dir, name,
+			   PTR_ERR(fw_file->firmware));
+		return PTR_ERR(fw_file->firmware);
 	}
 
-	data = ar->firmware->data;
-	len = ar->firmware->size;
+	data = fw_file->firmware->data;
+	len = fw_file->firmware->size;
 
 	/* magic also includes the null byte, check that as well */
 	magic_len = strlen(ATH10K_FIRMWARE_MAGIC) + 1;
@@ -1086,8 +1087,8 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 				   "found fw image ie (%zd B)\n",
 				   ie_len);
 
-			ar->firmware_data = data;
-			ar->firmware_len = ie_len;
+			fw_file->firmware_data = data;
+			fw_file->firmware_len = ie_len;
 
 			break;
 		case ATH10K_FW_IE_OTP_IMAGE:
@@ -1095,8 +1096,8 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 				   "found otp image ie (%zd B)\n",
 				   ie_len);
 
-			ar->otp_data = data;
-			ar->otp_len = ie_len;
+			fw_file->otp_data = data;
+			fw_file->otp_len = ie_len;
 
 			break;
 		case ATH10K_FW_IE_WMI_OP_VERSION:
@@ -1125,8 +1126,8 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 			ath10k_dbg(ar, ATH10K_DBG_BOOT,
 				   "found fw code swap image ie (%zd B)\n",
 				   ie_len);
-			ar->swap.firmware_codeswap_data = data;
-			ar->swap.firmware_codeswap_len = ie_len;
+			fw_file->codeswap_data = data;
+			fw_file->codeswap_len = ie_len;
 			break;
 		default:
 			ath10k_warn(ar, "Unknown FW IE: %u\n",
@@ -1141,7 +1142,8 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 		data += ie_len;
 	}
 
-	if (!ar->firmware_data || !ar->firmware_len) {
+	if (!fw_file->firmware_data ||
+	    !fw_file->firmware_len) {
 		ath10k_warn(ar, "No ATH10K_FW_IE_FW_IMAGE found from '%s/%s', skipping\n",
 			    ar->hw_params.fw.dir, name);
 		ret = -ENOMEDIUM;
@@ -1165,28 +1167,32 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 	ar->fw_api = 5;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API5_FILE);
+	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API5_FILE,
+					       &ar->normal_mode_fw.fw_file);
 	if (ret == 0)
 		goto success;
 
 	ar->fw_api = 4;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API4_FILE);
+	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API4_FILE,
+					       &ar->normal_mode_fw.fw_file);
 	if (ret == 0)
 		goto success;
 
 	ar->fw_api = 3;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API3_FILE);
+	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API3_FILE,
+					       &ar->normal_mode_fw.fw_file);
 	if (ret == 0)
 		goto success;
 
 	ar->fw_api = 2;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API2_FILE);
+	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API2_FILE,
+					       &ar->normal_mode_fw.fw_file);
 	if (ret)
 		return ret;
 
@@ -1585,7 +1591,8 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 	return 0;
 }
 
-int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
+int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
+		      const struct ath10k_fw_components *fw)
 {
 	int status;
 	u32 val;
@@ -1593,6 +1600,8 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	clear_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
+
+	ar->running_fw = fw;
 
 	ath10k_bmi_start(ar);
 
@@ -1621,7 +1630,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 		}
 	}
 
-	status = ath10k_download_fw(ar, mode);
+	status = ath10k_download_fw(ar);
 	if (status)
 		goto err;
 
@@ -1899,7 +1908,8 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 
 	mutex_lock(&ar->conf_mutex);
 
-	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL);
+	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL,
+				&ar->normal_mode_fw);
 	if (ret) {
 		ath10k_err(ar, "could not init core (%d)\n", ret);
 		goto err_unlock;
