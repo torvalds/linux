@@ -3839,6 +3839,15 @@ T:	git git://github.com/patjak/drm-gma500
 S:	Maintained
 F:	drivers/gpu/drm/gma500/
 
+DRM DRIVER FOR NVIDIA GEFORCE/QUADRO GPUS
+M:	Ben Skeggs <bskeggs@redhat.com>
+L:	dri-devel@lists.freedesktop.org
+L:	nouveau@lists.freedesktop.org
+T:	git git://github.com/skeggsb/linux
+S:	Supported
+F:	drivers/gpu/drm/nouveau/
+F:	include/uapi/drm/nouveau_drm.h
+
 DRM DRIVERS FOR NVIDIA TEGRA
 M:	Thierry Reding <thierry.reding@gmail.com>
 M:	Terje Bergström <tbergstrom@nvidia.com>
