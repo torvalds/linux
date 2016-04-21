@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/uuid.h>
 #include "../common/sst-dsp.h"
 #include "../common/sst-dsp-priv.h"
 #include "../common/sst-ipc.h"
@@ -304,14 +305,16 @@ static int skl_transfer_module(struct sst_dsp *ctx,
 	return ret;
 }
 
-static int skl_load_module(struct sst_dsp *ctx, u16 mod_id, char *guid)
+static int skl_load_module(struct sst_dsp *ctx, u16 mod_id, u8 *guid)
 {
 	struct skl_module_table *module_entry = NULL;
 	int ret = 0;
 	char mod_name[64]; /* guid str = 32 chars + 4 hyphens */
+	uuid_le *uuid_mod;
 
-	snprintf(mod_name, sizeof(mod_name), "%s%s%s",
-			"intel/dsp_fw_", guid, ".bin");
+	uuid_mod = (uuid_le *)guid;
+	snprintf(mod_name, sizeof(mod_name), "%s%pUL%s",
+				"intel/dsp_fw_", uuid_mod, ".bin");
 
 	module_entry = skl_module_get_from_id(ctx, mod_id);
 	if (module_entry == NULL) {
