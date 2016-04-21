@@ -458,7 +458,7 @@ static void hdmi_core_write_avi_infoframe(struct hdmi_core_data *core,
 
 	c = (ptr[1] >> 6) & 0x3;
 	m = (ptr[1] >> 4) & 0x3;
-	r = (ptr[1] >> 0) & 0x3;
+	r = (ptr[1] >> 0) & 0xf;
 
 	itc = (ptr[2] >> 7) & 0x1;
 	ec = (ptr[2] >> 4) & 0x7;
