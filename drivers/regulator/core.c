@@ -1272,6 +1272,55 @@ static void unset_regulator_supplies(struct regulator_dev *rdev)
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
+static ssize_t constraint_flags_read_file(struct file *file,
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	const struct regulator *regulator = file->private_data;
+	const struct regulation_constraints *c = regulator->rdev->constraints;
+	char *buf;
+	ssize_t ret;
+
+	if (!c)
+		return 0;
+
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = snprintf(buf, PAGE_SIZE,
+			"always_on: %u\n"
+			"boot_on: %u\n"
+			"apply_uV: %u\n"
+			"ramp_disable: %u\n"
+			"soft_start: %u\n"
+			"pull_down: %u\n"
+			"over_current_protection: %u\n",
+			c->always_on,
+			c->boot_on,
+			c->apply_uV,
+			c->ramp_disable,
+			c->soft_start,
+			c->pull_down,
+			c->over_current_protection);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	kfree(buf);
+
+	return ret;
+}
+
+#endif
+
+static const struct file_operations constraint_flags_fops = {
+#ifdef CONFIG_DEBUG_FS
+	.open = simple_open,
+	.read = constraint_flags_read_file,
+	.llseek = default_llseek,
+#endif
+};
+
 #define REG_STR_SIZE	64
 
 static struct regulator *create_regulator(struct regulator_dev *rdev,
@@ -1327,6 +1376,9 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 				   &regulator->min_uV);
 		debugfs_create_u32("max_uV", 0444, regulator->debugfs,
 				   &regulator->max_uV);
+		debugfs_create_file("constraint_flags", 0444,
+				    regulator->debugfs, regulator,
+				    &constraint_flags_fops);
 	}
 
 	/*
