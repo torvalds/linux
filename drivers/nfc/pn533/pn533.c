@@ -2016,7 +2016,15 @@ _error:
  */
 void pn533_recv_frame(struct pn533 *dev, struct sk_buff *skb, int status)
 {
+	if (!dev->cmd)
+		goto sched_wq;
+
 	dev->cmd->status = status;
+
+	if (status != 0) {
+		dev_dbg(dev->dev, "%s: Error received: %d\n", __func__, status);
+		goto sched_wq;
+	}
 
 	if (skb == NULL) {
 		pr_err("NULL Frame -> link is dead\n");
