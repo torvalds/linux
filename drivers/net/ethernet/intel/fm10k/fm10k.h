@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -27,9 +27,6 @@
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
 #include <linux/pci.h>
-#include <linux/net_tstamp.h>
-#include <linux/clocksource.h>
-#include <linux/ptp_clock_kernel.h>
 
 #include "fm10k_pf.h"
 #include "fm10k_vf.h"
@@ -333,6 +330,7 @@ struct fm10k_intfc {
 	unsigned long last_reset;
 	unsigned long link_down_event;
 	bool host_ready;
+	bool lport_map_failed;
 
 	u32 reta[FM10K_RETA_SIZE];
 	u32 rssrk[FM10K_RSSRK_SIZE];
@@ -342,22 +340,8 @@ struct fm10k_intfc {
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dbg_intfc;
-
 #endif /* CONFIG_DEBUG_FS */
-	struct ptp_clock_info ptp_caps;
-	struct ptp_clock *ptp_clock;
 
-	struct sk_buff_head ts_tx_skb_queue;
-	u32 tx_hwtstamp_timeouts;
-
-	struct hwtstamp_config ts_config;
-	/* We are unable to actually adjust the clock beyond the frequency
-	 * value.  Once the clock is started there is no resetting it.  As
-	 * such we maintain a separate offset from the actual hardware clock
-	 * to allow for offset adjustment.
-	 */
-	s64 ptp_adjust;
-	rwlock_t systime_lock;
 #ifdef CONFIG_DCB
 	u8 pfc_en;
 #endif
@@ -545,21 +529,6 @@ static inline void fm10k_dbg_intfc_exit(struct fm10k_intfc *interface) {}
 static inline void fm10k_dbg_init(void) {}
 static inline void fm10k_dbg_exit(void) {}
 #endif /* CONFIG_DEBUG_FS */
-
-/* Time Stamping */
-void fm10k_systime_to_hwtstamp(struct fm10k_intfc *interface,
-			       struct skb_shared_hwtstamps *hwtstamp,
-			       u64 systime);
-void fm10k_ts_tx_enqueue(struct fm10k_intfc *interface, struct sk_buff *skb);
-void fm10k_ts_tx_hwtstamp(struct fm10k_intfc *interface, __le16 dglort,
-			  u64 systime);
-void fm10k_ts_reset(struct fm10k_intfc *interface);
-void fm10k_ts_init(struct fm10k_intfc *interface);
-void fm10k_ts_tx_subtask(struct fm10k_intfc *interface);
-void fm10k_ptp_register(struct fm10k_intfc *interface);
-void fm10k_ptp_unregister(struct fm10k_intfc *interface);
-int fm10k_get_ts_config(struct net_device *netdev, struct ifreq *ifr);
-int fm10k_set_ts_config(struct net_device *netdev, struct ifreq *ifr);
 
 /* DCB */
 #ifdef CONFIG_DCB
