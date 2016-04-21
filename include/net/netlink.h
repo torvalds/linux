@@ -244,13 +244,21 @@ int nla_memcpy(void *dest, const struct nlattr *src, int count);
 int nla_memcmp(const struct nlattr *nla, const void *data, size_t size);
 int nla_strcmp(const struct nlattr *nla, const char *str);
 struct nlattr *__nla_reserve(struct sk_buff *skb, int attrtype, int attrlen);
+struct nlattr *__nla_reserve_64bit(struct sk_buff *skb, int attrtype,
+				   int attrlen, int padattr);
 void *__nla_reserve_nohdr(struct sk_buff *skb, int attrlen);
 struct nlattr *nla_reserve(struct sk_buff *skb, int attrtype, int attrlen);
+struct nlattr *nla_reserve_64bit(struct sk_buff *skb, int attrtype,
+				 int attrlen, int padattr);
 void *nla_reserve_nohdr(struct sk_buff *skb, int attrlen);
 void __nla_put(struct sk_buff *skb, int attrtype, int attrlen,
 	       const void *data);
+void __nla_put_64bit(struct sk_buff *skb, int attrtype, int attrlen,
+		     const void *data, int padattr);
 void __nla_put_nohdr(struct sk_buff *skb, int attrlen, const void *data);
 int nla_put(struct sk_buff *skb, int attrtype, int attrlen, const void *data);
+int nla_put_64bit(struct sk_buff *skb, int attrtype, int attrlen,
+		  const void *data, int padattr);
 int nla_put_nohdr(struct sk_buff *skb, int attrlen, const void *data);
 int nla_append(struct sk_buff *skb, int attrlen, const void *data);
 
@@ -1231,6 +1239,27 @@ static inline int nla_validate_nested(const struct nlattr *start, int maxtype,
 }
 
 /**
+ * nla_need_padding_for_64bit - test 64-bit alignment of the next attribute
+ * @skb: socket buffer the message is stored in
+ *
+ * Return true if padding is needed to align the next attribute (nla_data()) to
+ * a 64-bit aligned area.
+ */
+static inline bool nla_need_padding_for_64bit(struct sk_buff *skb)
+{
+#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+	/* The nlattr header is 4 bytes in size, that's why we test
+	 * if the skb->data _is_ aligned.  A NOP attribute, plus
+	 * nlattr header for next attribute, will make nla_data()
+	 * 8-byte aligned.
+	 */
+	if (IS_ALIGNED((unsigned long)skb_tail_pointer(skb), 8))
+		return true;
+#endif
+	return false;
+}
+
+/**
  * nla_align_64bit - 64-bit align the nla_data() of next attribute
  * @skb: socket buffer the message is stored in
  * @padattr: attribute type for the padding
@@ -1244,16 +1273,10 @@ static inline int nla_validate_nested(const struct nlattr *start, int maxtype,
  */
 static inline int nla_align_64bit(struct sk_buff *skb, int padattr)
 {
-#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-	/* The nlattr header is 4 bytes in size, that's why we test
-	 * if the skb->data _is_ aligned.  This NOP attribute, plus
-	 * nlattr header for next attribute, will make nla_data()
-	 * 8-byte aligned.
-	 */
-	if (IS_ALIGNED((unsigned long)skb_tail_pointer(skb), 8) &&
+	if (nla_need_padding_for_64bit(skb) &&
 	    !nla_reserve(skb, padattr, 0))
 		return -EMSGSIZE;
-#endif
+
 	return 0;
 }
 
