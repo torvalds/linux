@@ -947,6 +947,19 @@ int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 }
 EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
 
+static bool dax_range_is_aligned(struct block_device *bdev,
+				 unsigned int offset, unsigned int length)
+{
+	unsigned short sector_size = bdev_logical_block_size(bdev);
+
+	if (!IS_ALIGNED(offset, sector_size))
+		return false;
+	if (!IS_ALIGNED(length, sector_size))
+		return false;
+
+	return true;
+}
+
 int __dax_zero_page_range(struct block_device *bdev, sector_t sector,
 		unsigned int offset, unsigned int length)
 {
@@ -955,11 +968,18 @@ int __dax_zero_page_range(struct block_device *bdev, sector_t sector,
 		.size		= PAGE_SIZE,
 	};
 
-	if (dax_map_atomic(bdev, &dax) < 0)
-		return PTR_ERR(dax.addr);
-	clear_pmem(dax.addr + offset, length);
-	wmb_pmem();
-	dax_unmap_atomic(bdev, &dax);
+	if (dax_range_is_aligned(bdev, offset, length)) {
+		sector_t start_sector = dax.sector + (offset >> 9);
+
+		return blkdev_issue_zeroout(bdev, start_sector,
+				length >> 9, GFP_NOFS, true);
+	} else {
+		if (dax_map_atomic(bdev, &dax) < 0)
+			return PTR_ERR(dax.addr);
+		clear_pmem(dax.addr + offset, length);
+		wmb_pmem();
+		dax_unmap_atomic(bdev, &dax);
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__dax_zero_page_range);
