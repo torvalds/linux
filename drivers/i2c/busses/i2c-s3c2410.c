@@ -1200,6 +1200,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	clk_disable(i2c->clk);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "I2C controller init failed\n");
+		clk_unprepare(i2c->clk);
 		return ret;
 	}
 	/* find the IRQ for this unit (note, this relies on the init call to
