@@ -1535,8 +1535,8 @@ void requeue_futex(struct futex_q *q, struct futex_hash_bucket *hb1,
 	if (likely(&hb1->chain != &hb2->chain)) {
 		plist_del(&q->list, &hb1->chain);
 		hb_waiters_dec(hb1);
-		plist_add(&q->list, &hb2->chain);
 		hb_waiters_inc(hb2);
+		plist_add(&q->list, &hb2->chain);
 		q->lock_ptr = &hb2->lock;
 	}
 	get_futex_key_refs(key2);
