@@ -81,6 +81,12 @@ static int __init arptable_filter_init(void)
 		return ret;
 	}
 
+	ret = arptable_filter_table_init(&init_net);
+	if (ret) {
+		unregister_pernet_subsys(&arptable_filter_net_ops);
+		kfree(arpfilter_ops);
+	}
+
 	return ret;
 }
 
