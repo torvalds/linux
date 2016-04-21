@@ -3970,14 +3970,6 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	if (ret < 0)
 		goto wash;
 
-	ret = device_register(&rdev->dev);
-	if (ret != 0) {
-		put_device(&rdev->dev);
-		goto wash;
-	}
-
-	dev_set_drvdata(&rdev->dev, rdev);
-
 	if (init_data && init_data->supply_regulator)
 		rdev->supply_name = init_data->supply_regulator;
 	else if (regulator_desc->supply_name)
@@ -3997,8 +3989,16 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		}
 	}
 
-	rdev_init_debugfs(rdev);
 	mutex_unlock(&regulator_list_mutex);
+
+	ret = device_register(&rdev->dev);
+	if (ret != 0) {
+		put_device(&rdev->dev);
+		goto unset_supplies;
+	}
+
+	dev_set_drvdata(&rdev->dev, rdev);
+	rdev_init_debugfs(rdev);
 
 	/* try to resolve regulators supply since a new one was registered */
 	class_for_each_device(&regulator_class, NULL, NULL,
@@ -4008,17 +4008,11 @@ regulator_register(const struct regulator_desc *regulator_desc,
 
 unset_supplies:
 	unset_regulator_supplies(rdev);
-	regulator_ena_gpio_free(rdev);
-	device_unregister(&rdev->dev);
-	/* device core frees rdev */
-	goto out;
-
 wash:
 	kfree(rdev->constraints);
 	regulator_ena_gpio_free(rdev);
 clean:
 	kfree(rdev);
-out:
 	mutex_unlock(&regulator_list_mutex);
 	kfree(config);
 	return ERR_PTR(ret);
