@@ -2633,7 +2633,16 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 	schedule_work(&priv->set_rx_mode_work);
 	mlx5e_disable_async_events(priv);
 	flush_scheduled_work();
-	unregister_netdev(netdev);
+	if (test_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &mdev->intf_state)) {
+		netif_device_detach(netdev);
+		mutex_lock(&priv->state_lock);
+		if (test_bit(MLX5E_STATE_OPENED, &priv->state))
+			mlx5e_close_locked(netdev);
+		mutex_unlock(&priv->state_lock);
+	} else {
+		unregister_netdev(netdev);
+	}
+
 	mlx5e_tc_cleanup(priv);
 	mlx5e_vxlan_cleanup(priv);
 	mlx5e_destroy_flow_tables(priv);
@@ -2646,7 +2655,9 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 	mlx5_core_dealloc_transport_domain(priv->mdev, priv->tdn);
 	mlx5_core_dealloc_pd(priv->mdev, priv->pdn);
 	mlx5_unmap_free_uar(priv->mdev, &priv->cq_uar);
-	free_netdev(netdev);
+
+	if (!test_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &mdev->intf_state))
+		free_netdev(netdev);
 }
 
 static void *mlx5e_get_netdev(void *vpriv)
