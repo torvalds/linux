@@ -1104,6 +1104,9 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		if (pkt->len_n_flags == cpu_to_le32(FH_RSCSR_FRAME_INVALID))
 			break;
 
+		WARN_ON((le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_RXQ_MASK) >>
+			FH_RSCSR_RXQ_POS != rxq->id);
+
 		IWL_DEBUG_RX(trans,
 			     "cmd at offset %d: %s (0x%.2x, seq 0x%x)\n",
 			     rxcb._offset,
