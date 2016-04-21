@@ -1989,6 +1989,40 @@ nv117_chipset = {
 };
 
 static const struct nvkm_device_chip
+nv118_chipset = {
+	.name = "GM108",
+	.bar = gf100_bar_new,
+	.bios = nvkm_bios_new,
+	.bus = gf100_bus_new,
+	.clk = gk104_clk_new,
+	.devinit = gm107_devinit_new,
+	.fb = gm107_fb_new,
+	.fuse = gm107_fuse_new,
+	.gpio = gk104_gpio_new,
+	.i2c = gf119_i2c_new,
+	.ibus = gk104_ibus_new,
+	.iccsense = gf100_iccsense_new,
+	.imem = nv50_instmem_new,
+	.ltc = gm107_ltc_new,
+	.mc = gk20a_mc_new,
+	.mmu = gf100_mmu_new,
+	.mxm = nv50_mxm_new,
+	.pci = gk104_pci_new,
+	.pmu = gm107_pmu_new,
+	.therm = gm107_therm_new,
+	.timer = gk20a_timer_new,
+	.top = gk104_top_new,
+	.volt = gk104_volt_new,
+	.ce[0] = gm107_ce_new,
+	.ce[2] = gm107_ce_new,
+	.disp = gm107_disp_new,
+	.dma = gf119_dma_new,
+	.fifo = gm107_fifo_new,
+	.gr = gm107_gr_new,
+	.sw = gf100_sw_new,
+};
+
+static const struct nvkm_device_chip
 nv120_chipset = {
 	.name = "GM200",
 	.bar = gf100_bar_new,
@@ -2537,6 +2571,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x106: device->chip = &nv106_chipset; break;
 		case 0x108: device->chip = &nv108_chipset; break;
 		case 0x117: device->chip = &nv117_chipset; break;
+		case 0x118: device->chip = &nv118_chipset; break;
 		case 0x120: device->chip = &nv120_chipset; break;
 		case 0x124: device->chip = &nv124_chipset; break;
 		case 0x126: device->chip = &nv126_chipset; break;
