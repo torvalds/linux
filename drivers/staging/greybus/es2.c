@@ -695,10 +695,10 @@ static void ap_disconnect(struct usb_interface *interface)
 	struct es2_ap_dev *es2 = usb_get_intfdata(interface);
 	int i;
 
+	gb_hd_del(es2->hd);
+
 	for (i = 0; i < NUM_BULKS; ++i)
 		es2_cport_in_disable(es2, &es2->cport_in[i]);
-
-	gb_hd_del(es2->hd);
 
 	es2_destroy(es2);
 }
