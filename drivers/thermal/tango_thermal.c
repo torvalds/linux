@@ -83,10 +83,7 @@ static int tango_thermal_probe(struct platform_device *pdev)
 	writel(CMD_ON, priv->base + TEMPSI_CMD);
 
 	tzdev = devm_thermal_zone_of_sensor_register(&pdev->dev, 0, priv, &ops);
-	if (IS_ERR(tzdev))
-		return PTR_ERR(tzdev);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(tzdev);
 }
 
 static const struct of_device_id tango_sensor_ids[] = {
