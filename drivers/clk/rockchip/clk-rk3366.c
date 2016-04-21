@@ -104,7 +104,7 @@ PNAME(mux_spdif_8ch_p)		= { "spdif_8ch_pre", "spdif_8ch_frac",
 				    "ext_i2s", "xin12m" };
 PNAME(mux_vip_out_p)		= { "vip_src", "xin24m" };
 PNAME(mux_usb3_suspend_p)	= { "clk_32k", "xin24m" };
-PNAME(mux_usbphy480m_p)		= { "xin24m", "usbotg_out" };
+PNAME(mux_usbphy480m_p)		= { "xin24m", "sclk_otgphy0_480m" };
 PNAME(mux_uart0_p)		= { "uart0_src", "uart0_frac", "xin24m", "xin24m" };
 PNAME(mux_uart2_p)		= { "uart2_src", "xin24m" };
 PNAME(mux_uart3_p)		= { "uart3_src", "uart3_frac", "xin24m", "xin24m"  };
