@@ -644,7 +644,8 @@ struct mlx5_err_cqe {
 };
 
 struct mlx5_cqe64 {
-	u8		rsvd0[4];
+	u8              rsvd0[2];
+	__be16          wqe_id;
 	u8		lro_tcppsh_abort_dupack;
 	u8		lro_min_ttl;
 	__be16		lro_tcp_win;
@@ -694,6 +695,42 @@ static inline u64 get_cqe_ts(struct mlx5_cqe64 *cqe)
 	lo = be32_to_cpu(cqe->timestamp_l);
 
 	return (u64)lo | ((u64)hi << 32);
+}
+
+struct mpwrq_cqe_bc {
+	__be16	filler_consumed_strides;
+	__be16	byte_cnt;
+};
+
+static inline u16 mpwrq_get_cqe_byte_cnt(struct mlx5_cqe64 *cqe)
+{
+	struct mpwrq_cqe_bc *bc = (struct mpwrq_cqe_bc *)&cqe->byte_cnt;
+
+	return be16_to_cpu(bc->byte_cnt);
+}
+
+static inline u16 mpwrq_get_cqe_bc_consumed_strides(struct mpwrq_cqe_bc *bc)
+{
+	return 0x7fff & be16_to_cpu(bc->filler_consumed_strides);
+}
+
+static inline u16 mpwrq_get_cqe_consumed_strides(struct mlx5_cqe64 *cqe)
+{
+	struct mpwrq_cqe_bc *bc = (struct mpwrq_cqe_bc *)&cqe->byte_cnt;
+
+	return mpwrq_get_cqe_bc_consumed_strides(bc);
+}
+
+static inline bool mpwrq_is_filler_cqe(struct mlx5_cqe64 *cqe)
+{
+	struct mpwrq_cqe_bc *bc = (struct mpwrq_cqe_bc *)&cqe->byte_cnt;
+
+	return 0x8000 & be16_to_cpu(bc->filler_consumed_strides);
+}
+
+static inline u16 mpwrq_get_cqe_stride_index(struct mlx5_cqe64 *cqe)
+{
+	return be16_to_cpu(cqe->wqe_counter);
 }
 
 enum {

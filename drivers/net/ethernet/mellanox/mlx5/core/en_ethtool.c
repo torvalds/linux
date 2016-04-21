@@ -165,6 +165,8 @@ static const struct {
 	},
 };
 
+#define MLX5E_NUM_Q_CNTRS(priv) (NUM_Q_COUNTERS * (!!priv->q_counter))
+
 static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
@@ -172,6 +174,7 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 	switch (sset) {
 	case ETH_SS_STATS:
 		return NUM_VPORT_COUNTERS + NUM_PPORT_COUNTERS +
+		       MLX5E_NUM_Q_CNTRS(priv) +
 		       priv->params.num_channels * NUM_RQ_STATS +
 		       priv->params.num_channels * priv->params.num_tc *
 						   NUM_SQ_STATS;
@@ -199,6 +202,11 @@ static void mlx5e_get_strings(struct net_device *dev,
 		for (i = 0; i < NUM_VPORT_COUNTERS; i++)
 			strcpy(data + (idx++) * ETH_GSTRING_LEN,
 			       vport_strings[i]);
+
+		/* Q counters */
+		for (i = 0; i < MLX5E_NUM_Q_CNTRS(priv); i++)
+			strcpy(data + (idx++) * ETH_GSTRING_LEN,
+			       qcounter_stats_strings[i]);
 
 		/* PPORT counters */
 		for (i = 0; i < NUM_PPORT_COUNTERS; i++)
@@ -240,6 +248,9 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 	for (i = 0; i < NUM_VPORT_COUNTERS; i++)
 		data[idx++] = ((u64 *)&priv->stats.vport)[i];
 
+	for (i = 0; i < MLX5E_NUM_Q_CNTRS(priv); i++)
+		data[idx++] = ((u32 *)&priv->stats.qcnt)[i];
+
 	for (i = 0; i < NUM_PPORT_COUNTERS; i++)
 		data[idx++] = be64_to_cpu(((__be64 *)&priv->stats.pport)[i]);
 
@@ -262,8 +273,9 @@ static void mlx5e_get_ringparam(struct net_device *dev,
 				struct ethtool_ringparam *param)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	int rq_wq_type = priv->params.rq_wq_type;
 
-	param->rx_max_pending = 1 << MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE;
+	param->rx_max_pending = 1 << mlx5_max_log_rq_size(rq_wq_type);
 	param->tx_max_pending = 1 << MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE;
 	param->rx_pending     = 1 << priv->params.log_rq_size;
 	param->tx_pending     = 1 << priv->params.log_sq_size;
@@ -274,6 +286,7 @@ static int mlx5e_set_ringparam(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	bool was_opened;
+	int rq_wq_type = priv->params.rq_wq_type;
 	u16 min_rx_wqes;
 	u8 log_rq_size;
 	u8 log_sq_size;
@@ -289,16 +302,16 @@ static int mlx5e_set_ringparam(struct net_device *dev,
 			    __func__);
 		return -EINVAL;
 	}
-	if (param->rx_pending < (1 << MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE)) {
+	if (param->rx_pending < (1 << mlx5_min_log_rq_size(rq_wq_type))) {
 		netdev_info(dev, "%s: rx_pending (%d) < min (%d)\n",
 			    __func__, param->rx_pending,
-			    1 << MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE);
+			    1 << mlx5_min_log_rq_size(rq_wq_type));
 		return -EINVAL;
 	}
-	if (param->rx_pending > (1 << MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE)) {
+	if (param->rx_pending > (1 << mlx5_max_log_rq_size(rq_wq_type))) {
 		netdev_info(dev, "%s: rx_pending (%d) > max (%d)\n",
 			    __func__, param->rx_pending,
-			    1 << MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE);
+			    1 << mlx5_max_log_rq_size(rq_wq_type));
 		return -EINVAL;
 	}
 	if (param->tx_pending < (1 << MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)) {
@@ -316,8 +329,7 @@ static int mlx5e_set_ringparam(struct net_device *dev,
 
 	log_rq_size = order_base_2(param->rx_pending);
 	log_sq_size = order_base_2(param->tx_pending);
-	min_rx_wqes = min_t(u16, param->rx_pending - 1,
-			    MLX5E_PARAMS_DEFAULT_MIN_RX_WQES);
+	min_rx_wqes = mlx5_min_rx_wqes(rq_wq_type, param->rx_pending);
 
 	if (log_rq_size == priv->params.log_rq_size &&
 	    log_sq_size == priv->params.log_sq_size &&
@@ -386,7 +398,7 @@ static int mlx5e_set_channels(struct net_device *dev,
 		mlx5e_close_locked(dev);
 
 	priv->params.num_channels = count;
-	mlx5e_build_default_indir_rqt(priv->params.indirection_rqt,
+	mlx5e_build_default_indir_rqt(priv->mdev, priv->params.indirection_rqt,
 				      MLX5E_INDIR_RQT_SIZE, count);
 
 	if (was_opened)

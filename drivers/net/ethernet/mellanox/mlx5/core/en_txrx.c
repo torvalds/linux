@@ -49,6 +49,60 @@ struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq)
 	return cqe;
 }
 
+static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
+{
+	struct mlx5_wq_cyc *wq;
+	struct mlx5_cqe64 *cqe;
+	struct mlx5e_sq *sq;
+	u16 sqcc;
+
+	cqe = mlx5e_get_cqe(cq);
+	if (likely(!cqe))
+		return;
+
+	sq = container_of(cq, struct mlx5e_sq, cq);
+	wq = &sq->wq;
+
+	/* sq->cc must be updated only after mlx5_cqwq_update_db_record(),
+	 * otherwise a cq overrun may occur
+	 */
+	sqcc = sq->cc;
+
+	do {
+		u16 ci = be16_to_cpu(cqe->wqe_counter) & wq->sz_m1;
+		struct mlx5e_ico_wqe_info *icowi = &sq->ico_wqe_info[ci];
+
+		mlx5_cqwq_pop(&cq->wq);
+		sqcc += icowi->num_wqebbs;
+
+		if (unlikely((cqe->op_own >> 4) != MLX5_CQE_REQ)) {
+			WARN_ONCE(true, "mlx5e: Bad OP in ICOSQ CQE: 0x%x\n",
+				  cqe->op_own);
+			break;
+		}
+
+		switch (icowi->opcode) {
+		case MLX5_OPCODE_NOP:
+			break;
+		case MLX5_OPCODE_UMR:
+			mlx5e_post_rx_fragmented_mpwqe(&sq->channel->rq);
+			break;
+		default:
+			WARN_ONCE(true,
+				  "mlx5e: Bad OPCODE in ICOSQ WQE info: 0x%x\n",
+				  icowi->opcode);
+		}
+
+	} while ((cqe = mlx5e_get_cqe(cq)));
+
+	mlx5_cqwq_update_db_record(&cq->wq);
+
+	/* ensure cq space is freed before enabling more cqes */
+	wmb();
+
+	sq->cc = sqcc;
+}
+
 int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,
@@ -64,6 +118,9 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 
 	work_done = mlx5e_poll_rx_cq(&c->rq.cq, budget);
 	busy |= work_done == budget;
+
+	mlx5e_poll_ico_cq(&c->icosq.cq);
+
 	busy |= mlx5e_post_rx_wqes(&c->rq);
 
 	if (busy)
@@ -80,6 +137,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	for (i = 0; i < c->num_tc; i++)
 		mlx5e_cq_arm(&c->sq[i].cq);
 	mlx5e_cq_arm(&c->rq.cq);
+	mlx5e_cq_arm(&c->icosq.cq);
 
 	return work_done;
 }
@@ -89,7 +147,6 @@ void mlx5e_completion_event(struct mlx5_core_cq *mcq)
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
 
 	set_bit(MLX5E_CHANNEL_NAPI_SCHED, &cq->channel->flags);
-	barrier();
 	napi_schedule(cq->napi);
 }
 
