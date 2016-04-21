@@ -1683,7 +1683,8 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 	}
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(supply), hdata->regul_bulk);
 	if (ret) {
-		DRM_ERROR("failed to get regulators\n");
+		if (ret != -EPROBE_DEFER)
+			DRM_ERROR("failed to get regulators\n");
 		return ret;
 	}
 
@@ -1806,7 +1807,8 @@ static int hdmi_probe(struct platform_device *pdev)
 
 	ret = hdmi_resources_init(hdata);
 	if (ret) {
-		DRM_ERROR("hdmi_resources_init failed\n");
+		if (ret != -EPROBE_DEFER)
+			DRM_ERROR("hdmi_resources_init failed\n");
 		return ret;
 	}
 
