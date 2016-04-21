@@ -65,6 +65,7 @@ static inline int ieee754sp_finite(union ieee754sp x)
 	while ((m >> SP_FBITS) == 0) { m <<= 1; e--; }
 #define SPDNORMX	SPDNORMx(xm, xe)
 #define SPDNORMY	SPDNORMx(ym, ye)
+#define SPDNORMZ	SPDNORMx(zm, ze)
 
 static inline union ieee754sp buildsp(int s, int bx, unsigned m)
 {

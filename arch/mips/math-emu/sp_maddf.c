@@ -36,15 +36,15 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 
 	COMPXSP;
 	COMPYSP;
-	u32 zm; int ze; int zs __maybe_unused; int zc;
+	COMPZSP;
 
 	EXPLODEXSP;
 	EXPLODEYSP;
-	EXPLODESP(z, zc, zs, ze, zm)
+	EXPLODEZSP;
 
 	FLUSHXSP;
 	FLUSHYSP;
-	FLUSHSP(z, zc, zs, ze, zm);
+	FLUSHZSP;
 
 	ieee754_clearcx();
 
@@ -53,7 +53,7 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754sp_nanxcpt(z);
 	case IEEE754_CLASS_DNORM:
-		SPDNORMx(zm, ze);
+		SPDNORMZ;
 	/* QNAN is handled separately below */
 	}
 
