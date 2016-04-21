@@ -3775,9 +3775,9 @@ L:	dri-devel@lists.freedesktop.org
 T:	git git://people.freedesktop.org/~agd5f/linux
 S:	Supported
 F:	drivers/gpu/drm/radeon/
-F:	include/uapi/drm/radeon*
+F:	include/uapi/drm/radeon_drm.h
 F:	drivers/gpu/drm/amd/
-F:	include/uapi/drm/amdgpu*
+F:	include/uapi/drm/amdgpu_drm.h
 
 DRM PANEL DRIVERS
 M:	Thierry Reding <thierry.reding@gmail.com>
