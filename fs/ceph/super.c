@@ -302,6 +302,7 @@ static void destroy_mount_options(struct ceph_mount_options *args)
 {
 	dout("destroy_mount_options %p\n", args);
 	kfree(args->snapdir_name);
+	kfree(args->server_path);
 	kfree(args);
 }
 
@@ -333,14 +334,17 @@ static int compare_mount_options(struct ceph_mount_options *new_fsopt,
 	if (ret)
 		return ret;
 
+	ret = strcmp_null(fsopt1->server_path, fsopt2->server_path);
+	if (ret)
+		return ret;
+
 	return ceph_compare_options(new_opt, fsc->client);
 }
 
 static int parse_mount_options(struct ceph_mount_options **pfsopt,
 			       struct ceph_options **popt,
 			       int flags, char *options,
-			       const char *dev_name,
-			       const char **path)
+			       const char *dev_name)
 {
 	struct ceph_mount_options *fsopt;
 	const char *dev_name_end;
@@ -386,12 +390,13 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 	 */
 	dev_name_end = strchr(dev_name, '/');
 	if (dev_name_end) {
-		/* skip over leading '/' for path */
-		*path = dev_name_end + 1;
+		fsopt->server_path = kstrdup(dev_name_end, GFP_KERNEL);
+		if (!fsopt->server_path) {
+			err = -ENOMEM;
+			goto out;
+		}
 	} else {
-		/* path is empty */
 		dev_name_end = dev_name + strlen(dev_name);
-		*path = dev_name_end;
 	}
 	err = -EINVAL;
 	dev_name_end--;		/* back up to ':' separator */
@@ -401,7 +406,8 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 		goto out;
 	}
 	dout("device name '%.*s'\n", (int)(dev_name_end - dev_name), dev_name);
-	dout("server path '%s'\n", *path);
+	if (fsopt->server_path)
+		dout("server path '%s'\n", fsopt->server_path);
 
 	*popt = ceph_parse_options(options, dev_name, dev_name_end,
 				 parse_fsopt_token, (void *)fsopt);
@@ -793,8 +799,7 @@ out:
 /*
  * mount: join the ceph cluster, and open root directory.
  */
-static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
-		      const char *path)
+static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc)
 {
 	int err;
 	unsigned long started = jiffies;  /* note the start time */
@@ -823,11 +828,12 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
 			goto fail;
 	}
 
-	if (path[0] == 0) {
+	if (!fsc->mount_options->server_path) {
 		root = fsc->sb->s_root;
 		dget(root);
 	} else {
-		dout("mount opening base mountpoint\n");
+		const char *path = fsc->mount_options->server_path + 1;
+		dout("mount opening path %s\n", path);
 		root = open_root_dentry(fsc, path, started);
 		if (IS_ERR(root)) {
 			err = PTR_ERR(root);
@@ -943,7 +949,6 @@ static struct dentry *ceph_mount(struct file_system_type *fs_type,
 	struct dentry *res;
 	int err;
 	int (*compare_super)(struct super_block *, void *) = ceph_compare_super;
-	const char *path = NULL;
 	struct ceph_mount_options *fsopt = NULL;
 	struct ceph_options *opt = NULL;
 
@@ -952,7 +957,7 @@ static struct dentry *ceph_mount(struct file_system_type *fs_type,
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	flags |= MS_POSIXACL;
 #endif
-	err = parse_mount_options(&fsopt, &opt, flags, data, dev_name, &path);
+	err = parse_mount_options(&fsopt, &opt, flags, data, dev_name);
 	if (err < 0) {
 		res = ERR_PTR(err);
 		goto out_final;
@@ -995,7 +1000,7 @@ static struct dentry *ceph_mount(struct file_system_type *fs_type,
 		}
 	}
 
-	res = ceph_real_mount(fsc, path);
+	res = ceph_real_mount(fsc);
 	if (IS_ERR(res))
 		goto out_splat;
 	dout("root %p inode %p ino %llx.%llx\n", res,
