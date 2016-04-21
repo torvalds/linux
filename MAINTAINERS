@@ -3854,6 +3854,11 @@ T:	git git://github.com/patjak/drm-gma500
 S:	Maintained
 F:	drivers/gpu/drm/gma500/
 
+DRM DRIVER FOR INTEL I810 VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/i810/
+F:	include/uapi/drm/i810_drm.h
+
 DRM DRIVER FOR MSM ADRENO GPU
 M:	Rob Clark <robdclark@gmail.com>
 L:	linux-arm-msm@vger.kernel.org
@@ -3887,10 +3892,20 @@ F:	include/linux/host1x.h
 F:	include/uapi/drm/tegra_drm.h
 F:	Documentation/devicetree/bindings/display/tegra/nvidia,tegra20-host1x.txt
 
+DRM DRIVER FOR MATROX G200/G400 GRAPHICS CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/mga/
+F:	include/uapi/drm/mga_drm.h
+
 DRM DRIVER FOR MGA G200 SERVER GRAPHICS CHIPS
 M:	Dave Airlie <airlied@redhat.com>
 S:	Odd Fixes
 F:	drivers/gpu/drm/mgag200/
+
+DRM DRIVER FOR RAGE 128 VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/r128/
+F:	include/uapi/drm/r128_drm.h
 
 DRM DRIVERS FOR RENESAS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -3916,6 +3931,16 @@ S:	Maintained
 F:	drivers/gpu/drm/rockchip/
 F:	Documentation/devicetree/bindings/display/rockchip/
 
+DRM DRIVER FOR SAVAGE VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/savage/
+F:	include/uapi/drm/savage_drm.h
+
+DRM DRIVER FOR SIS VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/sis/
+F:	include/uapi/drm/sis_drm.h
+
 DRM DRIVERS FOR STI
 M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
 M:	Vincent Abriou <vincent.abriou@st.com>
@@ -3924,6 +3949,10 @@ T:	git http://git.linaro.org/people/benjamin.gaignard/kernel.git
 S:	Maintained
 F:	drivers/gpu/drm/sti
 F:	Documentation/devicetree/bindings/display/st,stih4xx.txt
+
+DRM DRIVER FOR TDFX VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/tdfx/
 
 DRM DRIVER FOR USB DISPLAYLINK VIDEO ADAPTERS
 M:	Dave Airlie <airlied@redhat.com>
