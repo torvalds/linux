@@ -479,8 +479,18 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x24F3, 0x0930, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x0000, iwl8265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24FD, 0x0010, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0110, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x1110, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x1010, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0050, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0150, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x9010, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x8110, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x8050, iwl8265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24FD, 0x8010, iwl8265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24FD, 0x0810, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x9110, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x8130, iwl8265_2ac_cfg)},
 
 /* 9000 Series */
 	{IWL_PCI_DEVICE(0x9DF0, 0x2A10, iwl5165_2ac_cfg)},

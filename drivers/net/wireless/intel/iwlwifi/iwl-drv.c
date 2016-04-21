@@ -238,19 +238,6 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%s.ucode",
 		 name_pre, tag);
 
-	/*
-	 * Starting 8000B - FW name format has changed. This overwrites the
-	 * previous name and uses the new format.
-	 */
-	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
-		char rev_step = 'A' + CSR_HW_REV_STEP(drv->trans->hw_rev);
-
-		if (rev_step != 'A')
-			snprintf(drv->firmware_name,
-				 sizeof(drv->firmware_name), "%s%c-%s.ucode",
-				 name_pre, rev_step, tag);
-	}
-
 	IWL_DEBUG_INFO(drv, "attempting to load firmware %s'%s'\n",
 		       (drv->fw_index == UCODE_EXPERIMENTAL_INDEX)
 				? "EXPERIMENTAL " : "",
@@ -1060,11 +1047,18 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		return -EINVAL;
 	}
 
-	if (WARN(fw_has_capa(capa, IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT) &&
-		 !gscan_capa,
-		 "GSCAN is supported but capabilities TLV is unavailable\n"))
+	/*
+	 * If ucode advertises that it supports GSCAN but GSCAN
+	 * capabilities TLV is not present, or if it has an old format,
+	 * warn and continue without GSCAN.
+	 */
+	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT) &&
+	    !gscan_capa) {
+		IWL_DEBUG_INFO(drv,
+			       "GSCAN is supported but capabilities TLV is unavailable\n");
 		__clear_bit((__force long)IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT,
 			    capa->_capa);
+	}
 
 	return 0;
 

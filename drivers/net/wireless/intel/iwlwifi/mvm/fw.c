@@ -144,9 +144,11 @@ void iwl_free_fw_paging(struct iwl_mvm *mvm)
 
 		__free_pages(mvm->fw_paging_db[i].fw_paging_block,
 			     get_order(mvm->fw_paging_db[i].fw_paging_size));
+		mvm->fw_paging_db[i].fw_paging_block = NULL;
 	}
 	kfree(mvm->trans->paging_download_buf);
 	mvm->trans->paging_download_buf = NULL;
+	mvm->trans->paging_db = NULL;
 
 	memset(mvm->fw_paging_db, 0, sizeof(mvm->fw_paging_db));
 }
