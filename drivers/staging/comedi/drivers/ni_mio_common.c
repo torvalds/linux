@@ -1295,11 +1295,6 @@ static void handle_a_interrupt(struct comedi_device *dev,
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-#ifdef PCIDMA
-	if (ai_mite_status & CHSR_LINKC)
-		ni_sync_ai_dma(dev);
-#endif
-
 	/* test for all uncommon interrupt events at the same time */
 	if (status & (NISTC_AI_STATUS1_ERR |
 		      NISTC_AI_STATUS1_SC_TC | NISTC_AI_STATUS1_START1)) {
@@ -5166,9 +5161,12 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 		unsigned int m_status;
 
 		spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
-		if (s_ai && devpriv->ai_mite_chan)
+		if (s_ai && devpriv->ai_mite_chan) {
 			ai_mite_status = mite_ack_linkc(devpriv->ai_mite_chan,
 							s_ai);
+			if (ai_mite_status & CHSR_LINKC)
+				mite_sync_dma(devpriv->ai_mite_chan, s_ai);
+		}
 
 		if (s_ao && devpriv->ao_mite_chan) {
 			m_status = mite_ack_linkc(devpriv->ao_mite_chan, s_ao);
