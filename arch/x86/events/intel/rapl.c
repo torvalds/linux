@@ -787,17 +787,22 @@ static const struct intel_rapl_init_fun skl_rapl_init __initconst = {
 
 static const struct x86_cpu_id rapl_cpu_match[] __initconst = {
 	X86_RAPL_MODEL_MATCH(42, snb_rapl_init),	/* Sandy Bridge */
+	X86_RAPL_MODEL_MATCH(45, snbep_rapl_init),	/* Sandy Bridge-EP */
+
 	X86_RAPL_MODEL_MATCH(58, snb_rapl_init),	/* Ivy Bridge */
-	X86_RAPL_MODEL_MATCH(63, hsx_rapl_init),	/* Haswell-Server */
-	X86_RAPL_MODEL_MATCH(79, hsx_rapl_init),	/* Broadwell-Server */
+	X86_RAPL_MODEL_MATCH(62, snbep_rapl_init),	/* IvyTown */
+
 	X86_RAPL_MODEL_MATCH(60, hsw_rapl_init),	/* Haswell */
+	X86_RAPL_MODEL_MATCH(63, hsx_rapl_init),	/* Haswell-Server */
 	X86_RAPL_MODEL_MATCH(69, hsw_rapl_init),	/* Haswell-Celeron */
 	X86_RAPL_MODEL_MATCH(70, hsw_rapl_init),	/* Haswell GT3e */
+
 	X86_RAPL_MODEL_MATCH(61, hsw_rapl_init),	/* Broadwell */
 	X86_RAPL_MODEL_MATCH(71, hsw_rapl_init),	/* Broadwell-H */
-	X86_RAPL_MODEL_MATCH(45, snbep_rapl_init),	/* Sandy Bridge-EP */
-	X86_RAPL_MODEL_MATCH(62, snbep_rapl_init),	/* IvyTown */
+	X86_RAPL_MODEL_MATCH(79, hsx_rapl_init),	/* Broadwell-Server */
+
 	X86_RAPL_MODEL_MATCH(87, knl_rapl_init),	/* Knights Landing */
+
 	X86_RAPL_MODEL_MATCH(78, skl_rapl_init),	/* Skylake */
 	X86_RAPL_MODEL_MATCH(94, skl_rapl_init),	/* Skylake H/S */
 	{},
