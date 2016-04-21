@@ -109,7 +109,7 @@ static int gb_svc_pwrmon_rail_count_get(struct gb_svc *svc, u8 *value)
 				GB_SVC_TYPE_PWRMON_RAIL_COUNT_GET, NULL, 0,
 				&response, sizeof(response));
 	if (ret) {
-		dev_err(&svc->dev, "failed to get rail count (%d)\n", ret);
+		dev_err(&svc->dev, "failed to get rail count: %d\n", ret);
 		return ret;
 	}
 
@@ -128,7 +128,7 @@ static int gb_svc_pwrmon_rail_names_get(struct gb_svc *svc,
 				GB_SVC_TYPE_PWRMON_RAIL_NAMES_GET, NULL, 0,
 				response, bufsize);
 	if (ret) {
-		dev_err(&svc->dev, "failed to get rail names (%d)\n", ret);
+		dev_err(&svc->dev, "failed to get rail names: %d\n", ret);
 		return ret;
 	}
 
@@ -149,7 +149,7 @@ static int gb_svc_pwrmon_sample_get(struct gb_svc *svc, u8 rail_id,
 				&request, sizeof(request),
 				&response, sizeof(response));
 	if (ret) {
-		dev_err(&svc->dev, "failed to get rail sample (%d)\n", ret);
+		dev_err(&svc->dev, "failed to get rail sample: %d\n", ret);
 		return ret;
 	}
 
@@ -187,7 +187,7 @@ int gb_svc_pwrmon_intf_sample_get(struct gb_svc *svc, u8 intf_id,
 				&request, sizeof(request),
 				&response, sizeof(response));
 	if (ret) {
-		dev_err(&svc->dev, "failed to get intf sample (%d)\n", ret);
+		dev_err(&svc->dev, "failed to get intf sample: %d\n", ret);
 		return ret;
 	}
 
@@ -479,8 +479,8 @@ static ssize_t pwr_debugfs_voltage_read(struct file *file, char __user *buf,
 				       GB_SVC_PWRMON_TYPE_VOL, &value);
 	if (ret) {
 		dev_err(&svc->dev,
-			"failed to get voltage sample ret=%d id=%d\n",
-			ret, pwrmon_rails->id);
+			"failed to get voltage sample %u: %d\n",
+			pwrmon_rails->id, ret);
 		return ret;
 	}
 
@@ -502,8 +502,8 @@ static ssize_t pwr_debugfs_current_read(struct file *file, char __user *buf,
 				       GB_SVC_PWRMON_TYPE_CURR, &value);
 	if (ret) {
 		dev_err(&svc->dev,
-			"failed to get current sample ret=%d id=%d\n",
-			ret, pwrmon_rails->id);
+			"failed to get current sample %u: %d\n",
+			pwrmon_rails->id, ret);
 		return ret;
 	}
 
@@ -524,8 +524,8 @@ static ssize_t pwr_debugfs_power_read(struct file *file, char __user *buf,
 	ret = gb_svc_pwrmon_sample_get(svc, pwrmon_rails->id,
 				       GB_SVC_PWRMON_TYPE_PWR, &value);
 	if (ret) {
-		dev_err(&svc->dev, "failed to get power sample ret=%d id=%d\n",
-			ret, pwrmon_rails->id);
+		dev_err(&svc->dev, "failed to get power sample %u: %d\n",
+			pwrmon_rails->id, ret);
 		return ret;
 	}
 
