@@ -920,13 +920,15 @@ gm107_grctx_generate_attrib(struct gf100_grctx *info)
 			const u32 bs = attrib * gr->ppc_tpc_nr[gpc][ppc];
 			const u32 u = 0x418ea0 + (n * 0x04);
 			const u32 o = PPC_UNIT(gpc, ppc, 0);
+			if (!(gr->ppc_mask[gpc] & (1 << ppc)))
+				continue;
 			mmio_wr32(info, o + 0xc0, bs);
 			mmio_wr32(info, o + 0xf4, bo);
 			bo += grctx->attrib_nr_max * gr->ppc_tpc_nr[gpc][ppc];
 			mmio_wr32(info, o + 0xe4, as);
 			mmio_wr32(info, o + 0xf8, ao);
 			ao += grctx->alpha_nr_max * gr->ppc_tpc_nr[gpc][ppc];
-			mmio_wr32(info, u, ((bs / 3 /*XXX*/) << 16) | bs);
+			mmio_wr32(info, u, ((bs / 3) << 16) | bs);
 		}
 	}
 }
