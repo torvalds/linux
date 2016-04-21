@@ -1060,15 +1060,9 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_TIC_DW2(_i) (0x082B0 + ((_i) * 4))
 #define IXGBE_TDPROBE     0x07F20
 #define IXGBE_TXBUFCTRL   0x0C600
-#define IXGBE_TXBUFDATA0  0x0C610
-#define IXGBE_TXBUFDATA1  0x0C614
-#define IXGBE_TXBUFDATA2  0x0C618
-#define IXGBE_TXBUFDATA3  0x0C61C
+#define IXGBE_TXBUFDATA(_i) (0x0C610 + ((_i) * 4)) /* 4 of these (0-3) */
 #define IXGBE_RXBUFCTRL   0x03600
-#define IXGBE_RXBUFDATA0  0x03610
-#define IXGBE_RXBUFDATA1  0x03614
-#define IXGBE_RXBUFDATA2  0x03618
-#define IXGBE_RXBUFDATA3  0x0361C
+#define IXGBE_RXBUFDATA(_i) (0x03610 + ((_i) * 4)) /* 4 of these (0-3) */
 #define IXGBE_PCIE_DIAG(_i)     (0x11090 + ((_i) * 4)) /* 8 of these */
 #define IXGBE_RFVAL     0x050A4
 #define IXGBE_MDFTC1    0x042B8
