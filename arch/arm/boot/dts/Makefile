@@ -376,6 +376,7 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 dtb-$(CONFIG_SOC_IMX6ULL) += \
 	imx6ull-ddr3-arm2.dtb \
 	imx6ull-ddr3-arm2-adc.dtb \
+	imx6ull-ddr3-arm2-ecspi.dtb \
 	imx6ull-ddr3-arm2-gpmi-weim.dtb \
 	imx6ull-ddr3-arm2-lcdif.dtb \
 	imx6ull-ddr3-arm2-uart2.dtb \
