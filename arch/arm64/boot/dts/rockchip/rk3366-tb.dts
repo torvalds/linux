@@ -814,6 +814,8 @@
 	reset-names = "otg_ahb", "otg_phy", "otg_controller";
 	/* 0 - Normal, 1 - Force Host, 2 - Force Device */
 	rockchip,usb-mode = <0>;
+	assigned-clocks = <&cru SCLK_USBPHY480M>;
+	assigned-clock-parents = <&usbphy0>;
 	status = "okay";
 };
 
