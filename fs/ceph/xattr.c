@@ -886,6 +886,7 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 	struct ceph_mds_request *req;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_pagelist *pagelist = NULL;
+	int op = CEPH_MDS_OP_SETXATTR;
 	int err;
 
 	if (size > 0) {
@@ -899,20 +900,21 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 		if (err)
 			goto out;
 	} else if (!value) {
-		flags |= CEPH_XATTR_REMOVE;
+		if (flags & CEPH_XATTR_REPLACE)
+			op = CEPH_MDS_OP_RMXATTR;
+		else
+			flags |= CEPH_XATTR_REMOVE;
 	}
 
 	dout("setxattr value=%.*s\n", (int)size, value);
 
 	/* do request */
-	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_SETXATTR,
-				       USE_AUTH_MDS);
+	req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto out;
 	}
 
-	req->r_args.setxattr.flags = cpu_to_le32(flags);
 	req->r_path2 = kstrdup(name, GFP_NOFS);
 	if (!req->r_path2) {
 		ceph_mdsc_put_request(req);
@@ -920,8 +922,11 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 		goto out;
 	}
 
-	req->r_pagelist = pagelist;
-	pagelist = NULL;
+	if (op == CEPH_MDS_OP_SETXATTR) {
+		req->r_args.setxattr.flags = cpu_to_le32(flags);
+		req->r_pagelist = pagelist;
+		pagelist = NULL;
+	}
 
 	req->r_inode = inode;
 	ihold(inode);
