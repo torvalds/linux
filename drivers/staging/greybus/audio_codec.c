@@ -17,8 +17,8 @@
 
 static struct gbaudio_codec_info *gbcodec;
 
-struct gbaudio_data_connection *find_data(struct gbaudio_module_info *module,
-					  const char *name)
+static struct gbaudio_data_connection *
+find_data(struct gbaudio_module_info *module, const char *name)
 {
 	struct gbaudio_data_connection *data;
 
@@ -952,7 +952,7 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 }
 EXPORT_SYMBOL(gbaudio_register_module);
 
-void gbaudio_codec_cleanup(struct gbaudio_module_info *module)
+static void gbaudio_codec_cleanup(struct gbaudio_module_info *module)
 {
 	struct gbaudio_data_connection *data;
 	int pb_state = gbcodec->stream[0].state;
