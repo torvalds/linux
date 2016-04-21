@@ -27,6 +27,8 @@
 #ifndef __SIS_DRM_H__
 #define __SIS_DRM_H__
 
+#include "drm.h"
+
 /* SiS specific ioctls */
 #define NOT_USED_0_3
 #define DRM_SIS_FB_ALLOC	0x04
