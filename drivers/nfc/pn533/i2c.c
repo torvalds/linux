@@ -39,6 +39,8 @@ struct pn533_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct pn533 *priv;
 
+	bool aborted;
+
 	int hard_fault;		/*
 				 * < 0 if hardware error occurred (e.g. i2c err)
 				 * and prevents normal operation.
@@ -71,6 +73,8 @@ static int pn533_i2c_send_frame(struct pn533 *dev,
 	if (phy->priv == NULL)
 		phy->priv = dev;
 
+	phy->aborted = false;
+
 	print_hex_dump_debug("PN533_i2c TX: ", DUMP_PREFIX_NONE, 16, 1,
 			     out->data, out->len, false);
 
@@ -93,13 +97,15 @@ static int pn533_i2c_send_frame(struct pn533 *dev,
 
 static void pn533_i2c_abort_cmd(struct pn533 *dev, gfp_t flags)
 {
+	struct pn533_i2c_phy *phy = dev->phy;
+
+	phy->aborted = true;
+
 	/* An ack will cancel the last issued command */
 	pn533_i2c_send_ack(dev, flags);
 
 	/* schedule cmd_complete_work to finish current command execution */
-	if (dev->cmd != NULL)
-		dev->cmd->status = -ENOENT;
-	queue_work(dev->wq, &dev->cmd_complete_work);
+	pn533_recv_frame(phy->priv, NULL, -ENOENT);
 }
 
 static int pn533_i2c_read(struct pn533_i2c_phy *phy, struct sk_buff **skb)
@@ -164,7 +170,8 @@ static irqreturn_t pn533_i2c_irq_thread_fn(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	pn533_recv_frame(phy->priv, skb, 0);
+	if (!phy->aborted)
+		pn533_recv_frame(phy->priv, skb, 0);
 
 	return IRQ_HANDLED;
 }
