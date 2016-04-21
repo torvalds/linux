@@ -48,7 +48,10 @@ do
 				cat $i/Make.oldconfig.err
 			fi
 			parse-build.sh $i/Make.out $configfile
-			parse-torture.sh $i/console.log $configfile
+			if test "$TORTURE_SUITE" != rcuperf
+			then
+				parse-torture.sh $i/console.log $configfile
+			fi
 			parse-console.sh $i/console.log $configfile
 			if test -r $i/Warnings
 			then

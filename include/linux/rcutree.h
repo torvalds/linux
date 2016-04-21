@@ -87,6 +87,8 @@ unsigned long rcu_batches_started_sched(void);
 unsigned long rcu_batches_completed(void);
 unsigned long rcu_batches_completed_bh(void);
 unsigned long rcu_batches_completed_sched(void);
+unsigned long rcu_exp_batches_completed(void);
+unsigned long rcu_exp_batches_completed_sched(void);
 void show_rcu_gp_kthreads(void);
 
 void rcu_force_quiescent_state(void);

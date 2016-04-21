@@ -67,7 +67,7 @@ static int rcu_normal_after_boot;
 module_param(rcu_normal_after_boot, int, 0);
 #endif /* #ifndef CONFIG_TINY_RCU */
 
-#if defined(CONFIG_DEBUG_LOCK_ALLOC) && defined(CONFIG_PREEMPT_COUNT)
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
 /**
  * rcu_read_lock_sched_held() - might we be in RCU-sched read-side critical section?
  *
@@ -111,7 +111,7 @@ int rcu_read_lock_sched_held(void)
 		return 0;
 	if (debug_locks)
 		lockdep_opinion = lock_is_held(&rcu_sched_lock_map);
-	return lockdep_opinion || preempt_count() != 0 || irqs_disabled();
+	return lockdep_opinion || !preemptible();
 }
 EXPORT_SYMBOL(rcu_read_lock_sched_held);
 #endif
