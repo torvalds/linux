@@ -14,8 +14,12 @@
 
 #include "ieee754dp.h"
 
-union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
-				union ieee754dp y)
+enum maddf_flags {
+	maddf_negate_product	= 1 << 0,
+};
+
+static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
+				 union ieee754dp y, enum maddf_flags flags)
 {
 	int re;
 	int rs;
@@ -154,6 +158,8 @@ union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
 
 	re = xe + ye;
 	rs = xs ^ ys;
+	if (flags & maddf_negate_product)
+		rs ^= 1;
 
 	/* shunt to top of word */
 	xm <<= 64 - (DP_FBITS + 1);
@@ -262,4 +268,16 @@ union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
 	}
 
 	return ieee754dp_format(zs, ze, zm);
+}
+
+union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
+				union ieee754dp y)
+{
+	return _dp_maddf(z, x, y, 0);
+}
+
+union ieee754dp ieee754dp_msubf(union ieee754dp z, union ieee754dp x,
+				union ieee754dp y)
+{
+	return _dp_maddf(z, x, y, maddf_negate_product);
 }
