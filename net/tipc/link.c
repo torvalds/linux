@@ -721,8 +721,7 @@ int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 		mtyp = STATE_MSG;
 		state = bc_acked != bc_snt;
 		probe = l->silent_intv_cnt;
-		if (probe)
-			l->silent_intv_cnt++;
+		l->silent_intv_cnt++;
 		break;
 	case LINK_RESET:
 		setup = l->rst_cnt++ <= 4;
