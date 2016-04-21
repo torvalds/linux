@@ -9204,8 +9204,10 @@ int ixgbe_wol_supported(struct ixgbe_adapter *adapter, u16 device_id,
 	case IXGBE_DEV_ID_82599_SFP:
 		/* Only these subdevices could supports WOL */
 		switch (subdevice_id) {
-		case IXGBE_SUBDEV_ID_82599_SFP_WOL0:
 		case IXGBE_SUBDEV_ID_82599_560FLR:
+		case IXGBE_SUBDEV_ID_82599_LOM_SNAP6:
+		case IXGBE_SUBDEV_ID_82599_SFP_WOL0:
+		case IXGBE_SUBDEV_ID_82599_SFP_2OCP:
 			/* only support first port */
 			if (hw->bus.func != 0)
 				break;
@@ -9213,7 +9215,9 @@ int ixgbe_wol_supported(struct ixgbe_adapter *adapter, u16 device_id,
 		case IXGBE_SUBDEV_ID_82599_SFP:
 		case IXGBE_SUBDEV_ID_82599_RNDC:
 		case IXGBE_SUBDEV_ID_82599_ECNA_DP:
-		case IXGBE_SUBDEV_ID_82599_LOM_SFP:
+		case IXGBE_SUBDEV_ID_82599_SFP_1OCP:
+		case IXGBE_SUBDEV_ID_82599_SFP_LOM_OEM1:
+		case IXGBE_SUBDEV_ID_82599_SFP_LOM_OEM2:
 			is_wol_supported = 1;
 			break;
 		}
