@@ -103,6 +103,9 @@ struct tipc_net {
 	spinlock_t nametbl_lock;
 	struct name_table *nametbl;
 
+	/* Name dist queue */
+	struct list_head dist_queue;
+
 	/* Topology subscription server */
 	struct tipc_server *topsrv;
 	atomic_t subscription_count;

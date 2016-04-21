@@ -2981,14 +2981,28 @@ void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q)
 void t4_free_sge_resources(struct adapter *adap)
 {
 	int i;
-	struct sge_eth_rxq *eq = adap->sge.ethrxq;
-	struct sge_eth_txq *etq = adap->sge.ethtxq;
+	struct sge_eth_rxq *eq;
+	struct sge_eth_txq *etq;
+
+	/* stop all Rx queues in order to start them draining */
+	for (i = 0; i < adap->sge.ethqsets; i++) {
+		eq = &adap->sge.ethrxq[i];
+		if (eq->rspq.desc)
+			t4_iq_stop(adap, adap->mbox, adap->pf, 0,
+				   FW_IQ_TYPE_FL_INT_CAP,
+				   eq->rspq.cntxt_id,
+				   eq->fl.size ? eq->fl.cntxt_id : 0xffff,
+				   0xffff);
+	}
 
 	/* clean up Ethernet Tx/Rx queues */
-	for (i = 0; i < adap->sge.ethqsets; i++, eq++, etq++) {
+	for (i = 0; i < adap->sge.ethqsets; i++) {
+		eq = &adap->sge.ethrxq[i];
 		if (eq->rspq.desc)
 			free_rspq_fl(adap, &eq->rspq,
 				     eq->fl.size ? &eq->fl : NULL);
+
+		etq = &adap->sge.ethtxq[i];
 		if (etq->q.desc) {
 			t4_eth_eq_free(adap, adap->mbox, adap->pf, 0,
 				       etq->q.cntxt_id);

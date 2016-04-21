@@ -2194,17 +2194,13 @@ static int sh_eth_set_ringparam(struct net_device *ndev,
 				   __func__);
 			return ret;
 		}
-		ret = sh_eth_dev_init(ndev, false);
+		ret = sh_eth_dev_init(ndev, true);
 		if (ret < 0) {
 			netdev_err(ndev, "%s: sh_eth_dev_init failed.\n",
 				   __func__);
 			return ret;
 		}
 
-		mdp->irq_enabled = true;
-		sh_eth_write(ndev, mdp->cd->eesipr_value, EESIPR);
-		/* Setting the Rx mode will start the Rx process. */
-		sh_eth_write(ndev, EDRRR_R, EDRRR);
 		netif_device_attach(ndev);
 	}
 

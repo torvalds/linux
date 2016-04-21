@@ -276,7 +276,7 @@ static inline int __attribute_const__ cpuid_feature_extract_field(u32 features,
 	int feature = (features >> field) & 15;
 
 	/* feature registers are signed values */
-	if (feature > 8)
+	if (feature > 7)
 		feature -= 16;
 
 	return feature;

@@ -687,8 +687,8 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 	ipcdev.acpi_io_size = size;
 	dev_info(&pdev->dev, "io res: %pR\n", res);
 
-	/* This is index 0 to cover BIOS data register */
 	punit_res = punit_res_array;
+	/* This is index 0 to cover BIOS data register */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_BIOS_DATA_INDEX);
 	if (!res) {
@@ -698,55 +698,51 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 	*punit_res = *res;
 	dev_info(&pdev->dev, "punit BIOS data res: %pR\n", res);
 
+	/* This is index 1 to cover BIOS interface register */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_BIOS_IFACE_INDEX);
 	if (!res) {
 		dev_err(&pdev->dev, "Failed to get res of punit BIOS iface\n");
 		return -ENXIO;
 	}
-	/* This is index 1 to cover BIOS interface register */
 	*++punit_res = *res;
 	dev_info(&pdev->dev, "punit BIOS interface res: %pR\n", res);
 
+	/* This is index 2 to cover ISP data register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_ISP_DATA_INDEX);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get res of punit ISP data\n");
-		return -ENXIO;
+	++punit_res;
+	if (res) {
+		*punit_res = *res;
+		dev_info(&pdev->dev, "punit ISP data res: %pR\n", res);
 	}
-	/* This is index 2 to cover ISP data register */
-	*++punit_res = *res;
-	dev_info(&pdev->dev, "punit ISP data res: %pR\n", res);
 
+	/* This is index 3 to cover ISP interface register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_ISP_IFACE_INDEX);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get res of punit ISP iface\n");
-		return -ENXIO;
+	++punit_res;
+	if (res) {
+		*punit_res = *res;
+		dev_info(&pdev->dev, "punit ISP interface res: %pR\n", res);
 	}
-	/* This is index 3 to cover ISP interface register */
-	*++punit_res = *res;
-	dev_info(&pdev->dev, "punit ISP interface res: %pR\n", res);
 
+	/* This is index 4 to cover GTD data register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_GTD_DATA_INDEX);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get res of punit GTD data\n");
-		return -ENXIO;
+	++punit_res;
+	if (res) {
+		*punit_res = *res;
+		dev_info(&pdev->dev, "punit GTD data res: %pR\n", res);
 	}
-	/* This is index 4 to cover GTD data register */
-	*++punit_res = *res;
-	dev_info(&pdev->dev, "punit GTD data res: %pR\n", res);
 
+	/* This is index 5 to cover GTD interface register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_GTD_IFACE_INDEX);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get res of punit GTD iface\n");
-		return -ENXIO;
+	++punit_res;
+	if (res) {
+		*punit_res = *res;
+		dev_info(&pdev->dev, "punit GTD interface res: %pR\n", res);
 	}
-	/* This is index 5 to cover GTD interface register */
-	*++punit_res = *res;
-	dev_info(&pdev->dev, "punit GTD interface res: %pR\n", res);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_IPC_INDEX);

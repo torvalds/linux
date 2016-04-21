@@ -136,7 +136,6 @@ static bool bcma_is_core_needed_early(u16 core_id)
 	return false;
 }
 
-#if defined(CONFIG_OF) && defined(CONFIG_OF_ADDRESS)
 static struct device_node *bcma_of_find_child_device(struct platform_device *parent,
 						     struct bcma_device *core)
 {
@@ -184,7 +183,7 @@ static unsigned int bcma_of_get_irq(struct platform_device *parent,
 	struct of_phandle_args out_irq;
 	int ret;
 
-	if (!parent || !parent->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF_IRQ) || !parent || !parent->dev.of_node)
 		return 0;
 
 	ret = bcma_of_irq_parse(parent, core, &out_irq, num);
@@ -202,23 +201,15 @@ static void bcma_of_fill_device(struct platform_device *parent,
 {
 	struct device_node *node;
 
+	if (!IS_ENABLED(CONFIG_OF_IRQ))
+		return;
+
 	node = bcma_of_find_child_device(parent, core);
 	if (node)
 		core->dev.of_node = node;
 
 	core->irq = bcma_of_get_irq(parent, core, 0);
 }
-#else
-static void bcma_of_fill_device(struct platform_device *parent,
-				struct bcma_device *core)
-{
-}
-static inline unsigned int bcma_of_get_irq(struct platform_device *parent,
-					   struct bcma_device *core, int num)
-{
-	return 0;
-}
-#endif /* CONFIG_OF */
 
 unsigned int bcma_core_irq(struct bcma_device *core, int num)
 {
