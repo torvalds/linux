@@ -3812,8 +3812,8 @@ L:	dri-devel@lists.freedesktop.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/daeinki/drm-exynos.git
 S:	Supported
 F:	drivers/gpu/drm/exynos/
-F:	include/drm/exynos*
-F:	include/uapi/drm/exynos*
+F:	include/uapi/drm/exynos_drm.h
+F:	Documentation/devicetree/bindings/display/exynos/
 
 DRM DRIVERS FOR FREESCALE DCU
 M:	Stefan Agner <stefan@agner.ch>
