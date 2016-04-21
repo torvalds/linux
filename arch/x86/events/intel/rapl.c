@@ -800,6 +800,7 @@ static const struct x86_cpu_id rapl_cpu_match[] __initconst = {
 	X86_RAPL_MODEL_MATCH(61, hsw_rapl_init),	/* Broadwell */
 	X86_RAPL_MODEL_MATCH(71, hsw_rapl_init),	/* Broadwell-H */
 	X86_RAPL_MODEL_MATCH(79, hsx_rapl_init),	/* Broadwell-Server */
+	X86_RAPL_MODEL_MATCH(86, hsx_rapl_init),	/* Broadwell Xeon D */
 
 	X86_RAPL_MODEL_MATCH(87, knl_rapl_init),	/* Knights Landing */
 
