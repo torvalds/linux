@@ -531,7 +531,6 @@ struct i40e_vsi {
 	u8  *rss_lut_user;  /* User configured lookup table entries */
 
 	u16 max_frame;
-	u16 rx_hdr_len;
 	u16 rx_buf_len;
 	u8  dtype;
 
