@@ -778,9 +778,9 @@ static unsigned int mite_get_status(struct mite_channel *mite_chan)
 	return status;
 }
 
-unsigned int mite_ack_linkc(struct mite_channel *mite_chan,
-			    struct comedi_subdevice *s,
-			    bool sync)
+void mite_ack_linkc(struct mite_channel *mite_chan,
+		    struct comedi_subdevice *s,
+		    bool sync)
 {
 	struct mite_struct *mite = mite_chan->mite;
 	unsigned int status;
@@ -799,8 +799,6 @@ unsigned int mite_ack_linkc(struct mite_channel *mite_chan,
 			"mite: transfer error %08x\n", status);
 		s->async->events |= COMEDI_CB_ERROR;
 	}
-
-	return status;
 }
 EXPORT_SYMBOL_GPL(mite_ack_linkc);
 
