@@ -1276,18 +1276,18 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	default:
 		if (disp->dithering_mode) {
+			nv_connector->dithering_mode = DITHERING_MODE_AUTO;
 			drm_object_attach_property(&connector->base,
 						   disp->dithering_mode,
 						   nv_connector->
 						   dithering_mode);
-			nv_connector->dithering_mode = DITHERING_MODE_AUTO;
 		}
 		if (disp->dithering_depth) {
+			nv_connector->dithering_depth = DITHERING_DEPTH_AUTO;
 			drm_object_attach_property(&connector->base,
 						   disp->dithering_depth,
 						   nv_connector->
 						   dithering_depth);
-			nv_connector->dithering_depth = DITHERING_DEPTH_AUTO;
 		}
 		break;
 	}
