@@ -94,6 +94,9 @@ sudo arp -d 192.168.13.2
 sudo ping -i 0.01 -c 65 192.168.13.2 &
 ${hijack_script} sleep 3
 
+sh ${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_STREAM
+sh ${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_RR
+
 echo "== VDE tests =="
 if [ ! -x "$(which vde_switch)" ]; then
     echo "WARNING: Cannot find a vde_switch executable, skipping VDE tests."
