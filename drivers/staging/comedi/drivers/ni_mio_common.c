@@ -1290,8 +1290,7 @@ static void ack_a_interrupt(struct comedi_device *dev, unsigned short a_status)
 
 static void handle_a_interrupt(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       unsigned short status,
-			       unsigned int ai_mite_status)
+			       unsigned short status)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 
@@ -1304,10 +1303,8 @@ static void handle_a_interrupt(struct comedi_device *dev,
 			 * We probably aren't even running a command now,
 			 * so it's a good idea to be careful.
 			 */
-			if (comedi_is_subdevice_running(s)) {
+			if (comedi_is_subdevice_running(s))
 				s->async->events |= COMEDI_CB_ERROR;
-				comedi_handle_events(dev, s);
-			}
 			return;
 		}
 		if (status & NISTC_AI_STATUS1_ERR) {
@@ -1319,8 +1316,6 @@ static void handle_a_interrupt(struct comedi_device *dev,
 			s->async->events |= COMEDI_CB_ERROR;
 			if (status & NISTC_AI_STATUS1_OVER)
 				s->async->events |= COMEDI_CB_OVERFLOW;
-
-			comedi_handle_events(dev, s);
 			return;
 		}
 		if (status & NISTC_AI_STATUS1_SC_TC) {
@@ -1348,8 +1343,6 @@ static void handle_a_interrupt(struct comedi_device *dev,
 
 	if (status & NISTC_AI_STATUS1_STOP)
 		ni_handle_eos(dev, s);
-
-	comedi_handle_events(dev, s);
 }
 
 static void ack_b_interrupt(struct comedi_device *dev, unsigned short b_status)
@@ -5141,7 +5134,6 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	struct comedi_subdevice *s_ao = dev->write_subdev;
 	unsigned short a_status;
 	unsigned short b_status;
-	unsigned int ai_mite_status = 0;
 	unsigned long flags;
 #ifdef PCIDMA
 	struct ni_private *devpriv = dev->private;
@@ -5162,9 +5154,8 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 
 		spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
 		if (s_ai && devpriv->ai_mite_chan) {
-			ai_mite_status = mite_ack_linkc(devpriv->ai_mite_chan,
-							s_ai);
-			if (ai_mite_status & CHSR_LINKC)
+			m_status = mite_ack_linkc(devpriv->ai_mite_chan, s_ai);
+			if (m_status & CHSR_LINKC)
 				mite_sync_dma(devpriv->ai_mite_chan, s_ai);
 		}
 
@@ -5179,9 +5170,12 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 #endif
 	ack_a_interrupt(dev, a_status);
 	ack_b_interrupt(dev, b_status);
-	if (s_ai &&
-	    ((a_status & NISTC_AI_STATUS1_INTA) || (ai_mite_status & CHSR_INT)))
-		handle_a_interrupt(dev, s_ai, a_status, ai_mite_status);
+	if (s_ai) {
+		if (a_status & NISTC_AI_STATUS1_INTA)
+			handle_a_interrupt(dev, s_ai, a_status);
+		/* handle any interrupt or dma events */
+		comedi_handle_events(dev, s_ai);
+	}
 	if (s_ao) {
 		if (b_status & NISTC_AO_STATUS1_INTB)
 			handle_b_interrupt(dev, s_ao, b_status);
