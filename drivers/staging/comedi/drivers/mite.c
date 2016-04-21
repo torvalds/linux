@@ -133,6 +133,42 @@
 #define MITE_WSCR(x)		(0x34 + MITE_CHAN(x))	/* ? */
 #define MITE_WSER(x)		(0x38 + MITE_CHAN(x))	/* ? */
 #define MITE_CHSR(x)		(0x3c + MITE_CHAN(x))	/* channel status */
+#define CHSR_INT		BIT(31)
+#define CHSR_LPAUSES		BIT(29)
+#define CHSR_SARS		BIT(27)
+#define CHSR_DONE		BIT(25)
+#define CHSR_MRDY		BIT(23)
+#define CHSR_DRDY		BIT(21)
+#define CHSR_LINKC		BIT(19)
+#define CHSR_CONTS_RB		BIT(17)
+#define CHSR_ERROR		BIT(15)
+#define CHSR_SABORT		BIT(14)
+#define CHSR_HABORT		BIT(13)
+#define CHSR_STOPS		BIT(12)
+#define CHSR_OPERR(x)		(((x) & 0x3) << 10)
+#define CHSR_OPERR_MASK		CHSR_OPERR(3)
+#define CHSR_OPERR_NOERROR	CHSR_OPERR(0)
+#define CHSR_OPERR_FIFOERROR	CHSR_OPERR(1)
+#define CHSR_OPERR_LINKERROR	CHSR_OPERR(1)	/* ??? */
+#define CHSR_XFERR		BIT(9)
+#define CHSR_END		BIT(8)
+#define CHSR_DRQ1		BIT(7)
+#define CHSR_DRQ0		BIT(6)
+#define CHSR_LERR(x)		(((x) & 0x3) << 4)
+#define CHSR_LERR_MASK		CHSR_LERR(3)
+#define CHSR_LBERR		CHSR_LERR(1)
+#define CHSR_LRERR		CHSR_LERR(2)
+#define CHSR_LOERR		CHSR_LERR(3)
+#define CHSR_MERR(x)		(((x) & 0x3) << 2)
+#define CHSR_MERR_MASK		CHSR_MERR(3)
+#define CHSR_MBERR		CHSR_MERR(1)
+#define CHSR_MRERR		CHSR_MERR(2)
+#define CHSR_MOERR		CHSR_MERR(3)
+#define CHSR_DERR(x)		(((x) & 0x3) << 0)
+#define CHSR_DERR_MASK		CHSR_DERR(3)
+#define CHSR_DBERR		CHSR_DERR(1)
+#define CHSR_DRERR		CHSR_DERR(2)
+#define CHSR_DOERR		CHSR_DERR(3)
 #define MITE_FCR(x)		(0x40 + MITE_CHAN(x))	/* fifo count */
 
 /* common bits for the memory/device/link config registers */
