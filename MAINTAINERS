@@ -3884,8 +3884,9 @@ R:	Russell King <linux+etnaviv@arm.linux.org.uk>
 R:	Christian Gmeiner <christian.gmeiner@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
-F:	drivers/gpu/drm/etnaviv
-F:	Documentation/devicetree/bindings/display/etnaviv
+F:	drivers/gpu/drm/etnaviv/
+F:	include/uapi/drm/etnaviv_drm.h
+F:	Documentation/devicetree/bindings/display/etnaviv/
 
 DSBR100 USB FM RADIO DRIVER
 M:	Alexey Klimov <klimov.linux@gmail.com>
