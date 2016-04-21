@@ -1276,7 +1276,7 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 {
 	struct mlx5_flow_root_namespace *root_ns = dev->priv.root_ns;
 	int prio;
-	static struct fs_prio *fs_prio;
+	struct fs_prio *fs_prio;
 	struct mlx5_flow_namespace *ns;
 
 	if (!root_ns)
