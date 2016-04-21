@@ -562,7 +562,7 @@ TRACE_EVENT(i915_gem_request_notify,
 	    TP_fast_assign(
 			   __entry->dev = engine->dev->primary->index;
 			   __entry->ring = engine->id;
-			   __entry->seqno = engine->get_seqno(engine, false);
+			   __entry->seqno = engine->get_seqno(engine);
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u",

@@ -315,6 +315,9 @@ static void ddi_get_encoder_port(struct intel_encoder *intel_encoder,
 		*dig_port = enc_to_mst(encoder)->primary;
 		*port = (*dig_port)->port;
 		break;
+	default:
+		WARN(1, "Invalid DDI encoder type %d\n", intel_encoder->type);
+		/* fallthrough and treat as unknown */
 	case INTEL_OUTPUT_DISPLAYPORT:
 	case INTEL_OUTPUT_EDP:
 	case INTEL_OUTPUT_HDMI:
@@ -325,9 +328,6 @@ static void ddi_get_encoder_port(struct intel_encoder *intel_encoder,
 	case INTEL_OUTPUT_ANALOG:
 		*dig_port = NULL;
 		*port = PORT_E;
-		break;
-	default:
-		WARN(1, "Invalid DDI encoder type %d\n", intel_encoder->type);
 		break;
 	}
 }
@@ -629,6 +629,10 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 			break;
 		}
 
+		rx_ctl_val &= ~FDI_RX_ENABLE;
+		I915_WRITE(FDI_RX_CTL(PIPE_A), rx_ctl_val);
+		POSTING_READ(FDI_RX_CTL(PIPE_A));
+
 		temp = I915_READ(DDI_BUF_CTL(PORT_E));
 		temp &= ~DDI_BUF_CTL_ENABLE;
 		I915_WRITE(DDI_BUF_CTL(PORT_E), temp);
@@ -642,10 +646,6 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 		POSTING_READ(DP_TP_CTL(PORT_E));
 
 		intel_wait_ddi_buf_idle(dev_priv, PORT_E);
-
-		rx_ctl_val &= ~FDI_RX_ENABLE;
-		I915_WRITE(FDI_RX_CTL(PIPE_A), rx_ctl_val);
-		POSTING_READ(FDI_RX_CTL(PIPE_A));
 
 		/* Reset FDI_RX_MISC pwrdn lanes */
 		temp = I915_READ(FDI_RX_MISC(PIPE_A));
@@ -1726,18 +1726,31 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 			     enum dpio_phy phy)
 {
 	enum port port;
-	uint32_t val;
+	u32 ports, val;
 
 	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
 	val |= GT_DISPLAY_POWER_ON(phy);
 	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
 
-	/* Considering 10ms timeout until BSpec is updated */
-	if (wait_for(I915_READ(BXT_PORT_CL1CM_DW0(phy)) & PHY_POWER_GOOD, 10))
+	/*
+	 * The PHY registers start out inaccessible and respond to reads with
+	 * all 1s.  Eventually they become accessible as they power up, then
+	 * the reserved bit will give the default 0.  Poll on the reserved bit
+	 * becoming 0 to find when the PHY is accessible.
+	 * HW team confirmed that the time to reach phypowergood status is
+	 * anywhere between 50 us and 100us.
+	 */
+	if (wait_for_us(((I915_READ(BXT_PORT_CL1CM_DW0(phy)) &
+		(PHY_RESERVED | PHY_POWER_GOOD)) == PHY_POWER_GOOD), 100)) {
 		DRM_ERROR("timeout during PHY%d power on\n", phy);
+	}
 
-	for (port =  (phy == DPIO_PHY0 ? PORT_B : PORT_A);
-	     port <= (phy == DPIO_PHY0 ? PORT_C : PORT_A); port++) {
+	if (phy == DPIO_PHY0)
+		ports = BIT(PORT_B) | BIT(PORT_C);
+	else
+		ports = BIT(PORT_A);
+
+	for_each_port_masked(port, ports) {
 		int lane;
 
 		for (lane = 0; lane < 4; lane++) {
@@ -1898,11 +1911,17 @@ void intel_ddi_fdi_disable(struct drm_crtc *crtc)
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
 	uint32_t val;
 
-	intel_ddi_post_disable(intel_encoder);
-
+	/*
+	 * Bspec lists this as both step 13 (before DDI_BUF_CTL disable)
+	 * and step 18 (after clearing PORT_CLK_SEL). Based on a BUN,
+	 * step 13 is the correct place for it. Step 18 is where it was
+	 * originally before the BUN.
+	 */
 	val = I915_READ(FDI_RX_CTL(PIPE_A));
 	val &= ~FDI_RX_ENABLE;
 	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
+
+	intel_ddi_post_disable(intel_encoder);
 
 	val = I915_READ(FDI_RX_MISC(PIPE_A));
 	val &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);

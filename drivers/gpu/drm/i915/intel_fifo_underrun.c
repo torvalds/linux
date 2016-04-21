@@ -333,7 +333,7 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 	old = !intel_crtc->pch_fifo_underrun_disabled;
 	intel_crtc->pch_fifo_underrun_disabled = !enable;
 
-	if (HAS_PCH_IBX(dev_priv->dev))
+	if (HAS_PCH_IBX(dev_priv))
 		ibx_set_fifo_underrun_reporting(dev_priv->dev, pch_transcoder,
 						enable);
 	else
@@ -363,7 +363,7 @@ void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
 		return;
 
 	/* GMCH can't disable fifo underruns, filter them. */
-	if (HAS_GMCH_DISPLAY(dev_priv->dev) &&
+	if (HAS_GMCH_DISPLAY(dev_priv) &&
 	    to_intel_crtc(crtc)->cpu_fifo_underrun_disabled)
 		return;
 

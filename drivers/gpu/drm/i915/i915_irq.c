@@ -1000,6 +1000,7 @@ static void notify_ring(struct intel_engine_cs *engine)
 		return;
 
 	trace_i915_gem_request_notify(engine);
+	engine->user_interrupts++;
 
 	wake_up_all(&engine->irq_queue);
 }
@@ -1218,7 +1219,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 		i915_reg_t reg;
 
 		slice--;
-		if (WARN_ON_ONCE(slice >= NUM_L3_SLICES(dev_priv->dev)))
+		if (WARN_ON_ONCE(slice >= NUM_L3_SLICES(dev_priv)))
 			break;
 
 		dev_priv->l3_parity.which_slice &= ~(1<<slice);
@@ -1257,7 +1258,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 out:
 	WARN_ON(dev_priv->l3_parity.which_slice);
 	spin_lock_irq(&dev_priv->irq_lock);
-	gen5_enable_gt_irq(dev_priv, GT_PARITY_ERROR(dev_priv->dev));
+	gen5_enable_gt_irq(dev_priv, GT_PARITY_ERROR(dev_priv));
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	mutex_unlock(&dev_priv->dev->struct_mutex);
@@ -1323,7 +1324,7 @@ gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
 	if (iir & (GT_RENDER_USER_INTERRUPT << test_shift))
 		notify_ring(engine);
 	if (iir & (GT_CONTEXT_SWITCH_INTERRUPT << test_shift))
-		intel_lrc_irq_handler(engine);
+		tasklet_schedule(&engine->irq_tasklet);
 }
 
 static irqreturn_t gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
@@ -1626,7 +1627,7 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 	if (INTEL_INFO(dev_priv)->gen >= 8)
 		return;
 
-	if (HAS_VEBOX(dev_priv->dev)) {
+	if (HAS_VEBOX(dev_priv)) {
 		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
 			notify_ring(&dev_priv->engine[VECS]);
 
@@ -1828,7 +1829,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(dev_priv);
 
-	for (;;) {
+	do {
 		master_ctl = I915_READ(GEN8_MASTER_IRQ) & ~GEN8_MASTER_IRQ_CONTROL;
 		iir = I915_READ(VLV_IIR);
 
@@ -1856,7 +1857,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 		I915_WRITE(GEN8_MASTER_IRQ, DE_MASTER_IRQ_CONTROL);
 		POSTING_READ(GEN8_MASTER_IRQ);
-	}
+	} while (0);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
@@ -2805,8 +2806,8 @@ static void gen8_disable_vblank(struct drm_device *dev, unsigned int pipe)
 static bool
 ring_idle(struct intel_engine_cs *engine, u32 seqno)
 {
-	return (list_empty(&engine->request_list) ||
-		i915_seqno_passed(seqno, engine->last_submitted_seqno));
+	return i915_seqno_passed(seqno,
+				 READ_ONCE(engine->last_submitted_seqno));
 }
 
 static bool
@@ -2828,7 +2829,7 @@ semaphore_wait_to_signaller_ring(struct intel_engine_cs *engine, u32 ipehr,
 	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 	struct intel_engine_cs *signaller;
 
-	if (INTEL_INFO(dev_priv->dev)->gen >= 8) {
+	if (INTEL_INFO(dev_priv)->gen >= 8) {
 		for_each_engine(signaller, dev_priv) {
 			if (engine == signaller)
 				continue;
@@ -2941,7 +2942,7 @@ static int semaphore_passed(struct intel_engine_cs *engine)
 	if (signaller->hangcheck.deadlock >= I915_NUM_ENGINES)
 		return -1;
 
-	if (i915_seqno_passed(signaller->get_seqno(signaller, false), seqno))
+	if (i915_seqno_passed(signaller->get_seqno(signaller), seqno))
 		return 1;
 
 	/* cursory check for an unkickable deadlock */
@@ -3054,6 +3055,24 @@ ring_stuck(struct intel_engine_cs *engine, u64 acthd)
 	return HANGCHECK_HUNG;
 }
 
+static unsigned kick_waiters(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = to_i915(engine->dev);
+	unsigned user_interrupts = READ_ONCE(engine->user_interrupts);
+
+	if (engine->hangcheck.user_interrupts == user_interrupts &&
+	    !test_and_set_bit(engine->id, &i915->gpu_error.missed_irq_rings)) {
+		if (!(i915->gpu_error.test_irq_rings & intel_engine_flag(engine)))
+			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
+				  engine->name);
+		else
+			DRM_INFO("Fake missed irq on %s\n",
+				 engine->name);
+		wake_up_all(&engine->irq_queue);
+	}
+
+	return user_interrupts;
+}
 /*
  * This is called when the chip hasn't reported back with completed
  * batchbuffers in a long time. We keep track per ring seqno progress and
@@ -3096,29 +3115,33 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	for_each_engine_id(engine, dev_priv, id) {
 		u64 acthd;
 		u32 seqno;
+		unsigned user_interrupts;
 		bool busy = true;
 
 		semaphore_clear_deadlocks(dev_priv);
 
-		seqno = engine->get_seqno(engine, false);
+		/* We don't strictly need an irq-barrier here, as we are not
+		 * serving an interrupt request, be paranoid in case the
+		 * barrier has side-effects (such as preventing a broken
+		 * cacheline snoop) and so be sure that we can see the seqno
+		 * advance. If the seqno should stick, due to a stale
+		 * cacheline, we would erroneously declare the GPU hung.
+		 */
+		if (engine->irq_seqno_barrier)
+			engine->irq_seqno_barrier(engine);
+
 		acthd = intel_ring_get_active_head(engine);
+		seqno = engine->get_seqno(engine);
+
+		/* Reset stuck interrupts between batch advances */
+		user_interrupts = 0;
 
 		if (engine->hangcheck.seqno == seqno) {
 			if (ring_idle(engine, seqno)) {
 				engine->hangcheck.action = HANGCHECK_IDLE;
-
 				if (waitqueue_active(&engine->irq_queue)) {
-					/* Issue a wake-up to catch stuck h/w. */
-					if (!test_and_set_bit(engine->id, &dev_priv->gpu_error.missed_irq_rings)) {
-						if (!(dev_priv->gpu_error.test_irq_rings & intel_engine_flag(engine)))
-							DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
-								  engine->name);
-						else
-							DRM_INFO("Fake missed irq on %s\n",
-								 engine->name);
-						wake_up_all(&engine->irq_queue);
-					}
 					/* Safeguard against driver failure */
+					user_interrupts = kick_waiters(engine);
 					engine->hangcheck.score += BUSY;
 				} else
 					busy = false;
@@ -3169,7 +3192,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 				engine->hangcheck.score = 0;
 
 			/* Clear head and subunit states on seqno movement */
-			engine->hangcheck.acthd = 0;
+			acthd = 0;
 
 			memset(engine->hangcheck.instdone, 0,
 			       sizeof(engine->hangcheck.instdone));
@@ -3177,6 +3200,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 
 		engine->hangcheck.seqno = seqno;
 		engine->hangcheck.acthd = acthd;
+		engine->hangcheck.user_interrupts = user_interrupts;
 		busy_count += busy;
 	}
 
@@ -3500,6 +3524,26 @@ static void bxt_hpd_irq_setup(struct drm_device *dev)
 	hotplug = I915_READ(PCH_PORT_HOTPLUG);
 	hotplug |= PORTC_HOTPLUG_ENABLE | PORTB_HOTPLUG_ENABLE |
 		PORTA_HOTPLUG_ENABLE;
+
+	DRM_DEBUG_KMS("Invert bit setting: hp_ctl:%x hp_port:%x\n",
+		      hotplug, enabled_irqs);
+	hotplug &= ~BXT_DDI_HPD_INVERT_MASK;
+
+	/*
+	 * For BXT invert bit has to be set based on AOB design
+	 * for HPD detection logic, update it based on VBT fields.
+	 */
+
+	if ((enabled_irqs & BXT_DE_PORT_HP_DDIA) &&
+	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_A))
+		hotplug |= BXT_DDIA_HPD_INVERT;
+	if ((enabled_irqs & BXT_DE_PORT_HP_DDIB) &&
+	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_B))
+		hotplug |= BXT_DDIB_HPD_INVERT;
+	if ((enabled_irqs & BXT_DE_PORT_HP_DDIC) &&
+	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_C))
+		hotplug |= BXT_DDIC_HPD_INVERT;
+
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 }
 

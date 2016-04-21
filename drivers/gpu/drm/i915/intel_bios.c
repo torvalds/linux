@@ -1123,7 +1123,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	}
 
 	/* Parse the I_boost config for SKL and above */
-	if (bdb->version >= 196 && (child->common.flags_1 & IBOOST_ENABLE)) {
+	if (bdb->version >= 196 && child->common.iboost) {
 		info->dp_boost_level = translate_iboost(child->common.iboost_level & 0xF);
 		DRM_DEBUG_KMS("VBT (e)DP boost level for port %c: %d\n",
 			      port_name(port), info->dp_boost_level);
@@ -1241,6 +1241,19 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		 */
 		memcpy(child_dev_ptr, p_child,
 		       min_t(size_t, p_defs->child_dev_size, sizeof(*p_child)));
+
+		/*
+		 * copied full block, now init values when they are not
+		 * available in current version
+		 */
+		if (bdb->version < 196) {
+			/* Set default values for bits added from v196 */
+			child_dev_ptr->common.iboost = 0;
+			child_dev_ptr->common.hpd_invert = 0;
+		}
+
+		if (bdb->version < 192)
+			child_dev_ptr->common.lspcon = 0;
 	}
 	return;
 }
@@ -1579,6 +1592,50 @@ bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv,
 		case DVO_PORT_MIPID:
 			DRM_DEBUG_KMS("VBT has unsupported DSI port %c\n",
 				      port_name(dvo_port - DVO_PORT_MIPIA));
+			break;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * intel_bios_is_port_hpd_inverted - is HPD inverted for %port
+ * @dev_priv:	i915 device instance
+ * @port:	port to check
+ *
+ * Return true if HPD should be inverted for %port.
+ */
+bool
+intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	int i;
+
+	if (WARN_ON_ONCE(!IS_BROXTON(dev_priv)))
+		return false;
+
+	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		if (!dev_priv->vbt.child_dev[i].common.hpd_invert)
+			continue;
+
+		switch (dev_priv->vbt.child_dev[i].common.dvo_port) {
+		case DVO_PORT_DPA:
+		case DVO_PORT_HDMIA:
+			if (port == PORT_A)
+				return true;
+			break;
+		case DVO_PORT_DPB:
+		case DVO_PORT_HDMIB:
+			if (port == PORT_B)
+				return true;
+			break;
+		case DVO_PORT_DPC:
+		case DVO_PORT_HDMIC:
+			if (port == PORT_C)
+				return true;
+			break;
+		default:
 			break;
 		}
 	}

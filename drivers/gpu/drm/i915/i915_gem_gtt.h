@@ -42,7 +42,7 @@ typedef uint64_t gen8_pde_t;
 typedef uint64_t gen8_ppgtt_pdpe_t;
 typedef uint64_t gen8_ppgtt_pml4e_t;
 
-#define gtt_total_entries(gtt) ((gtt).base.total >> PAGE_SHIFT)
+#define ggtt_total_entries(ggtt) ((ggtt)->base.total >> PAGE_SHIFT)
 
 /* gen6-hsw has bit 11-4 for physical addr bit 39-32 */
 #define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
@@ -513,10 +513,9 @@ i915_page_dir_dma_addr(const struct i915_hw_ppgtt *ppgtt, const unsigned n)
 		px_dma(ppgtt->base.scratch_pd);
 }
 
-int i915_gem_gtt_init(struct drm_device *dev);
-void i915_gem_init_global_gtt(struct drm_device *dev);
-void i915_global_gtt_cleanup(struct drm_device *dev);
-
+int i915_ggtt_init_hw(struct drm_device *dev);
+void i915_gem_init_ggtt(struct drm_device *dev);
+void i915_ggtt_cleanup_hw(struct drm_device *dev);
 
 int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
 int i915_ppgtt_init_hw(struct drm_device *dev);

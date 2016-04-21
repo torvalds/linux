@@ -360,14 +360,12 @@ static const struct intel_device_info intel_broxton_info = {
 
 static const struct intel_device_info intel_kabylake_info = {
 	BDW_FEATURES,
-	.is_preliminary = 1,
 	.is_kabylake = 1,
 	.gen = 9,
 };
 
 static const struct intel_device_info intel_kabylake_gt3_info = {
 	BDW_FEATURES,
-	.is_preliminary = 1,
 	.is_kabylake = 1,
 	.gen = 9,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
@@ -1402,7 +1400,7 @@ static int vlv_suspend_complete(struct drm_i915_private *dev_priv)
 	if (err)
 		goto err2;
 
-	if (!IS_CHERRYVIEW(dev_priv->dev))
+	if (!IS_CHERRYVIEW(dev_priv))
 		vlv_save_gunit_s0ix_state(dev_priv);
 
 	err = vlv_force_gfx_clock(dev_priv, false);
@@ -1434,7 +1432,7 @@ static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 	 */
 	ret = vlv_force_gfx_clock(dev_priv, true);
 
-	if (!IS_CHERRYVIEW(dev_priv->dev))
+	if (!IS_CHERRYVIEW(dev_priv))
 		vlv_restore_gunit_s0ix_state(dev_priv);
 
 	err = vlv_allow_gt_wake(dev_priv, true);

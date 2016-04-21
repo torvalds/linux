@@ -296,6 +296,7 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 		}
 	}
 	err_printf(m, "  seqno: 0x%08x\n", ring->seqno);
+	err_printf(m, "  last_seqno: 0x%08x\n", ring->last_seqno);
 	err_printf(m, "  waiting: %s\n", yesno(ring->waiting));
 	err_printf(m, "  ring->head: 0x%08x\n", ring->cpu_ring_head);
 	err_printf(m, "  ring->tail: 0x%08x\n", ring->cpu_ring_tail);
@@ -627,6 +628,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			 struct drm_i915_gem_object *src,
 			 struct i915_address_space *vm)
 {
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_error_object *dst;
 	struct i915_vma *vma = NULL;
 	int num_pages;
@@ -653,7 +655,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 		vma = i915_gem_obj_to_ggtt(src);
 	use_ggtt = (src->cache_level == I915_CACHE_NONE &&
 		   vma && (vma->bound & GLOBAL_BIND) &&
-		   reloc_offset + num_pages * PAGE_SIZE <= dev_priv->ggtt.mappable_end);
+		   reloc_offset + num_pages * PAGE_SIZE <= ggtt->mappable_end);
 
 	/* Cannot access stolen address directly, try to use the aperture */
 	if (src->stolen) {
@@ -663,12 +665,13 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			goto unwind;
 
 		reloc_offset = i915_gem_obj_ggtt_offset(src);
-		if (reloc_offset + num_pages * PAGE_SIZE > dev_priv->ggtt.mappable_end)
+		if (reloc_offset + num_pages * PAGE_SIZE > ggtt->mappable_end)
 			goto unwind;
 	}
 
 	/* Cannot access snooped pages through the aperture */
-	if (use_ggtt && src->cache_level != I915_CACHE_NONE && !HAS_LLC(dev_priv->dev))
+	if (use_ggtt && src->cache_level != I915_CACHE_NONE &&
+	    !HAS_LLC(dev_priv))
 		goto unwind;
 
 	dst->page_count = num_pages;
@@ -689,7 +692,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			 * captures what the GPU read.
 			 */
 
-			s = io_mapping_map_atomic_wc(dev_priv->ggtt.mappable,
+			s = io_mapping_map_atomic_wc(ggtt->mappable,
 						     reloc_offset);
 			memcpy_fromio(d, s, PAGE_SIZE);
 			io_mapping_unmap_atomic(s);
@@ -883,7 +886,7 @@ static void gen6_record_semaphore_state(struct drm_i915_private *dev_priv,
 	ering->semaphore_seqno[0] = engine->semaphore.sync_seqno[0];
 	ering->semaphore_seqno[1] = engine->semaphore.sync_seqno[1];
 
-	if (HAS_VEBOX(dev_priv->dev)) {
+	if (HAS_VEBOX(dev_priv)) {
 		ering->semaphore_mboxes[2] =
 			I915_READ(RING_SYNC_2(engine->mmio_base));
 		ering->semaphore_seqno[2] = engine->semaphore.sync_seqno[2];
@@ -928,8 +931,9 @@ static void i915_record_ring_state(struct drm_device *dev,
 
 	ering->waiting = waitqueue_active(&engine->irq_queue);
 	ering->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
-	ering->seqno = engine->get_seqno(engine, false);
 	ering->acthd = intel_ring_get_active_head(engine);
+	ering->seqno = engine->get_seqno(engine);
+	ering->last_seqno = engine->last_submitted_seqno;
 	ering->start = I915_READ_START(engine);
 	ering->head = I915_READ_HEAD(engine);
 	ering->tail = I915_READ_TAIL(engine);
@@ -1015,7 +1019,8 @@ static void i915_gem_record_active_context(struct intel_engine_cs *engine,
 static void i915_gem_record_rings(struct drm_device *dev,
 				  struct drm_i915_error_state *error)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_gem_request *request;
 	int i, count;
 
@@ -1038,7 +1043,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 			vm = request->ctx && request->ctx->ppgtt ?
 				&request->ctx->ppgtt->base :
-				&dev_priv->ggtt.base;
+				&ggtt->base;
 
 			/* We need to copy these to an anonymous buffer
 			 * as the simplest method to avoid being overwritten
@@ -1049,7 +1054,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 							 request->batch_obj,
 							 vm);
 
-			if (HAS_BROKEN_CS_TLB(dev_priv->dev))
+			if (HAS_BROKEN_CS_TLB(dev_priv))
 				error->ring[i].wa_batchbuffer =
 					i915_error_ggtt_object_create(dev_priv,
 							     engine->scratch.obj);

@@ -796,7 +796,9 @@ struct intel_dp {
 	uint32_t DP;
 	int link_rate;
 	uint8_t lane_count;
+	uint8_t sink_count;
 	bool has_audio;
+	bool detect_done;
 	enum hdmi_force_audio force_audio;
 	bool limited_color_range;
 	bool color_range_auto;
@@ -1102,6 +1104,8 @@ void i915_audio_component_init(struct drm_i915_private *dev_priv);
 void i915_audio_component_cleanup(struct drm_i915_private *dev_priv);
 
 /* intel_display.c */
+int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
+		      const char *name, u32 reg, int ref_freq);
 extern const struct drm_plane_funcs intel_plane_funcs;
 void intel_init_display_hooks(struct drm_i915_private *dev_priv);
 unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info);
@@ -1669,7 +1673,7 @@ extern const struct drm_plane_helper_funcs intel_plane_helper_funcs;
 /* intel_color.c */
 void intel_color_init(struct drm_crtc *crtc);
 int intel_color_check(struct drm_crtc *crtc, struct drm_crtc_state *state);
-void intel_color_set_csc(struct drm_crtc *crtc);
-void intel_color_load_luts(struct drm_crtc *crtc);
+void intel_color_set_csc(struct drm_crtc_state *crtc_state);
+void intel_color_load_luts(struct drm_crtc_state *crtc_state);
 
 #endif /* __INTEL_DRV_H__ */

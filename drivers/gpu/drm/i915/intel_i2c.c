@@ -124,7 +124,7 @@ static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
 	u32 val;
 
 	/* When using bit bashing for I2C, this bit needs to be set to 1 */
-	if (!IS_PINEVIEW(dev_priv->dev))
+	if (!IS_PINEVIEW(dev_priv))
 		return;
 
 	val = I915_READ(DSPCLK_GATE_D);
@@ -264,7 +264,7 @@ gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 	u32 gmbus2 = 0;
 	DEFINE_WAIT(wait);
 
-	if (!HAS_GMBUS_IRQ(dev_priv->dev))
+	if (!HAS_GMBUS_IRQ(dev_priv))
 		gmbus4_irq_en = 0;
 
 	/* Important: The hw handles only the first bit, so set only one! Since
@@ -300,7 +300,7 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 
 #define C ((I915_READ_NOTRACE(GMBUS2) & GMBUS_ACTIVE) == 0)
 
-	if (!HAS_GMBUS_IRQ(dev_priv->dev))
+	if (!HAS_GMBUS_IRQ(dev_priv))
 		return wait_for(C, 10);
 
 	/* Important: The hw handles only the first bit, so set only one! */

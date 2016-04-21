@@ -131,6 +131,7 @@
  * preemption, but just sampling the new tail pointer).
  *
  */
+#include <linux/interrupt.h>
 
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
@@ -418,20 +419,18 @@ static void execlists_submit_requests(struct drm_i915_gem_request *rq0,
 {
 	struct drm_i915_private *dev_priv = rq0->i915;
 
-	/* BUG_ON(!irqs_disabled());  */
-
 	execlists_update_context(rq0);
 
 	if (rq1)
 		execlists_update_context(rq1);
 
-	spin_lock(&dev_priv->uncore.lock);
+	spin_lock_irq(&dev_priv->uncore.lock);
 	intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
 
 	execlists_elsp_write(rq0, rq1);
 
 	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
-	spin_unlock(&dev_priv->uncore.lock);
+	spin_unlock_irq(&dev_priv->uncore.lock);
 }
 
 static void execlists_context_unqueue(struct intel_engine_cs *engine)
@@ -538,13 +537,14 @@ get_context_status(struct intel_engine_cs *engine, unsigned int read_pointer,
 
 /**
  * intel_lrc_irq_handler() - handle Context Switch interrupts
- * @ring: Engine Command Streamer to handle.
+ * @engine: Engine Command Streamer to handle.
  *
  * Check the unread Context Status Buffers and manage the submission of new
  * contexts to the ELSP accordingly.
  */
-void intel_lrc_irq_handler(struct intel_engine_cs *engine)
+static void intel_lrc_irq_handler(unsigned long data)
 {
+	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
 	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 	u32 status_pointer;
 	unsigned int read_pointer, write_pointer;
@@ -552,8 +552,7 @@ void intel_lrc_irq_handler(struct intel_engine_cs *engine)
 	unsigned int csb_read = 0, i;
 	unsigned int submit_contexts = 0;
 
-	spin_lock(&dev_priv->uncore.lock);
-	intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	status_pointer = I915_READ_FW(RING_CONTEXT_STATUS_PTR(engine));
 
@@ -578,8 +577,7 @@ void intel_lrc_irq_handler(struct intel_engine_cs *engine)
 		      _MASKED_FIELD(GEN8_CSB_READ_PTR_MASK,
 				    engine->next_context_status_buffer << 8));
 
-	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
-	spin_unlock(&dev_priv->uncore.lock);
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
 	spin_lock(&engine->execlist_lock);
 
@@ -621,7 +619,7 @@ static void execlists_context_queue(struct drm_i915_gem_request *request)
 
 	i915_gem_request_reference(request);
 
-	spin_lock_irq(&engine->execlist_lock);
+	spin_lock_bh(&engine->execlist_lock);
 
 	list_for_each_entry(cursor, &engine->execlist_queue, execlist_link)
 		if (++num_elements > 2)
@@ -646,7 +644,7 @@ static void execlists_context_queue(struct drm_i915_gem_request *request)
 	if (num_elements == 0)
 		execlists_context_unqueue(engine);
 
-	spin_unlock_irq(&engine->execlist_lock);
+	spin_unlock_bh(&engine->execlist_lock);
 }
 
 static int logical_ring_invalidate_all_caches(struct drm_i915_gem_request *req)
@@ -856,11 +854,11 @@ static int logical_ring_prepare(struct drm_i915_gem_request *req, int bytes)
 		if (unlikely(total_bytes > remain_usable)) {
 			/*
 			 * The base request will fit but the reserved space
-			 * falls off the end. So only need to to wait for the
-			 * reserved size after flushing out the remainder.
+			 * falls off the end. So don't need an immediate wrap
+			 * and only need to effectively wait for the reserved
+			 * size space from the start of ringbuffer.
 			 */
 			wait_bytes = remain_actual + ringbuf->reserved_size;
-			need_wrap = true;
 		} else if (total_bytes > ringbuf->space) {
 			/* No wrapping required, just waiting. */
 			wait_bytes = total_bytes;
@@ -1033,9 +1031,9 @@ void intel_execlists_retire_requests(struct intel_engine_cs *engine)
 		return;
 
 	INIT_LIST_HEAD(&retired_list);
-	spin_lock_irq(&engine->execlist_lock);
+	spin_lock_bh(&engine->execlist_lock);
 	list_replace_init(&engine->execlist_retired_req_list, &retired_list);
-	spin_unlock_irq(&engine->execlist_lock);
+	spin_unlock_bh(&engine->execlist_lock);
 
 	list_for_each_entry_safe(req, tmp, &retired_list, execlist_link) {
 		struct intel_context *ctx = req->ctx;
@@ -1450,6 +1448,25 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *engine,
 		wa_ctx_emit(batch, index, MI_NOOP);
 	}
 
+	/* WaClearTdlStateAckDirtyBits:bxt */
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_B0)) {
+		wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(4));
+
+		wa_ctx_emit_reg(batch, index, GEN8_STATE_ACK);
+		wa_ctx_emit(batch, index, _MASKED_BIT_DISABLE(GEN9_SUBSLICE_TDL_ACK_BITS));
+
+		wa_ctx_emit_reg(batch, index, GEN9_STATE_ACK_SLICE1);
+		wa_ctx_emit(batch, index, _MASKED_BIT_DISABLE(GEN9_SUBSLICE_TDL_ACK_BITS));
+
+		wa_ctx_emit_reg(batch, index, GEN9_STATE_ACK_SLICE2);
+		wa_ctx_emit(batch, index, _MASKED_BIT_DISABLE(GEN9_SUBSLICE_TDL_ACK_BITS));
+
+		wa_ctx_emit_reg(batch, index, GEN7_ROW_CHICKEN2);
+		/* dummy write to CS, mask bits are 0 to ensure the register is not modified */
+		wa_ctx_emit(batch, index, 0x0);
+		wa_ctx_emit(batch, index, MI_NOOP);
+	}
+
 	/* WaDisableCtxRestoreArbitration:skl,bxt */
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0) ||
 	    IS_BXT_REVID(dev, 0, BXT_REVID_A1))
@@ -1854,7 +1871,7 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 	return 0;
 }
 
-static u32 gen8_get_seqno(struct intel_engine_cs *engine, bool lazy_coherency)
+static u32 gen8_get_seqno(struct intel_engine_cs *engine)
 {
 	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
 }
@@ -1864,10 +1881,8 @@ static void gen8_set_seqno(struct intel_engine_cs *engine, u32 seqno)
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
 }
 
-static u32 bxt_a_get_seqno(struct intel_engine_cs *engine,
-			   bool lazy_coherency)
+static void bxt_a_seqno_barrier(struct intel_engine_cs *engine)
 {
-
 	/*
 	 * On BXT A steppings there is a HW coherency issue whereby the
 	 * MI_STORE_DATA_IMM storing the completed request's seqno
@@ -1878,11 +1893,7 @@ static u32 bxt_a_get_seqno(struct intel_engine_cs *engine,
 	 * bxt_a_set_seqno(), where we also do a clflush after the write. So
 	 * this clflush in practice becomes an invalidate operation.
 	 */
-
-	if (!lazy_coherency)
-		intel_flush_status_page(engine, I915_GEM_HWS_INDEX);
-
-	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
+	intel_flush_status_page(engine, I915_GEM_HWS_INDEX);
 }
 
 static void bxt_a_set_seqno(struct intel_engine_cs *engine, u32 seqno)
@@ -2016,6 +2027,13 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 	if (!intel_engine_initialized(engine))
 		return;
 
+	/*
+	 * Tasklet cannot be active at this point due intel_mark_active/idle
+	 * so this is just for documentation.
+	 */
+	if (WARN_ON(test_bit(TASKLET_STATE_SCHED, &engine->irq_tasklet.state)))
+		tasklet_kill(&engine->irq_tasklet);
+
 	dev_priv = engine->dev->dev_private;
 
 	if (engine->buffer) {
@@ -2053,12 +2071,11 @@ logical_ring_default_vfuncs(struct drm_device *dev,
 	engine->irq_get = gen8_logical_ring_get_irq;
 	engine->irq_put = gen8_logical_ring_put_irq;
 	engine->emit_bb_start = gen8_emit_bb_start;
+	engine->get_seqno = gen8_get_seqno;
+	engine->set_seqno = gen8_set_seqno;
 	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
-		engine->get_seqno = bxt_a_get_seqno;
+		engine->irq_seqno_barrier = bxt_a_seqno_barrier;
 		engine->set_seqno = bxt_a_set_seqno;
-	} else {
-		engine->get_seqno = gen8_get_seqno;
-		engine->set_seqno = gen8_set_seqno;
 	}
 }
 
@@ -2088,6 +2105,9 @@ logical_ring_init(struct drm_device *dev, struct intel_engine_cs *engine)
 	INIT_LIST_HEAD(&engine->execlist_queue);
 	INIT_LIST_HEAD(&engine->execlist_retired_req_list);
 	spin_lock_init(&engine->execlist_lock);
+
+	tasklet_init(&engine->irq_tasklet,
+		     intel_lrc_irq_handler, (unsigned long)engine);
 
 	logical_ring_init_platform_invariants(engine);
 

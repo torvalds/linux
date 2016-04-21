@@ -89,14 +89,16 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 	if (WARN_ON(pll == NULL))
 		return;
 
+	mutex_lock(&dev_priv->dpll_lock);
 	WARN_ON(!pll->config.crtc_mask);
-	if (pll->active_mask == 0) {
+	if (!pll->active_mask) {
 		DRM_DEBUG_DRIVER("setting up %s\n", pll->name);
 		WARN_ON(pll->on);
 		assert_shared_dpll_disabled(dev_priv, pll);
 
 		pll->funcs.mode_set(dev_priv, pll);
 	}
+	mutex_unlock(&dev_priv->dpll_lock);
 }
 
 /**
@@ -113,14 +115,17 @@ void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 	unsigned crtc_mask = 1 << drm_crtc_index(&crtc->base);
-	unsigned old_mask = pll->active_mask;
+	unsigned old_mask;
 
 	if (WARN_ON(pll == NULL))
 		return;
 
+	mutex_lock(&dev_priv->dpll_lock);
+	old_mask = pll->active_mask;
+
 	if (WARN_ON(!(pll->config.crtc_mask & crtc_mask)) ||
 	    WARN_ON(pll->active_mask & crtc_mask))
-		return;
+		goto out;
 
 	pll->active_mask |= crtc_mask;
 
@@ -131,13 +136,16 @@ void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	if (old_mask) {
 		WARN_ON(!pll->on);
 		assert_shared_dpll_enabled(dev_priv, pll);
-		return;
+		goto out;
 	}
 	WARN_ON(pll->on);
 
 	DRM_DEBUG_KMS("enabling %s\n", pll->name);
 	pll->funcs.enable(dev_priv, pll);
 	pll->on = true;
+
+out:
+	mutex_unlock(&dev_priv->dpll_lock);
 }
 
 void intel_disable_shared_dpll(struct intel_crtc *crtc)
@@ -154,8 +162,9 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	if (pll == NULL)
 		return;
 
+	mutex_lock(&dev_priv->dpll_lock);
 	if (WARN_ON(!(pll->active_mask & crtc_mask)))
-		return;
+		goto out;
 
 	DRM_DEBUG_KMS("disable %s (active %x, on? %d) for crtc %d\n",
 		      pll->name, pll->active_mask, pll->on,
@@ -166,11 +175,14 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 
 	pll->active_mask &= ~crtc_mask;
 	if (pll->active_mask)
-		return;
+		goto out;
 
 	DRM_DEBUG_KMS("disabling %s\n", pll->name);
 	pll->funcs.disable(dev_priv, pll);
 	pll->on = false;
+
+out:
+	mutex_unlock(&dev_priv->dpll_lock);
 }
 
 static struct intel_shared_dpll *
@@ -286,7 +298,7 @@ static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 	u32 val;
 	bool enabled;
 
-	I915_STATE_WARN_ON(!(HAS_PCH_IBX(dev_priv->dev) || HAS_PCH_CPT(dev_priv->dev)));
+	I915_STATE_WARN_ON(!(HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)));
 
 	val = I915_READ(PCH_DREF_CONTROL);
 	enabled = !!(val & (DREF_SSC_SOURCE_MASK | DREF_NONSPREAD_SOURCE_MASK |
@@ -1284,7 +1296,15 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	enum port port = (enum port)pll->id;	/* 1:1 port->PLL mapping */
 
 	temp = I915_READ(BXT_PORT_PLL_ENABLE(port));
-	temp &= ~PORT_PLL_REF_SEL;
+	/*
+	 * Definition of each bit polarity has been changed
+	 * after A1 stepping
+	 */
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
+		temp &= ~PORT_PLL_REF_SEL;
+	else
+		temp |= PORT_PLL_REF_SEL;
+
 	/* Non-SSC reference */
 	I915_WRITE(BXT_PORT_PLL_ENABLE(port), temp);
 
@@ -1750,6 +1770,7 @@ void intel_shared_dpll_init(struct drm_device *dev)
 
 	dev_priv->dpll_mgr = dpll_mgr;
 	dev_priv->num_shared_dpll = i;
+	mutex_init(&dev_priv->dpll_lock);
 
 	BUG_ON(dev_priv->num_shared_dpll > I915_NUM_PLLS);
 

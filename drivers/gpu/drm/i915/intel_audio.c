@@ -373,7 +373,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder)
 	if (WARN_ON(port == PORT_A))
 		return;
 
-	if (HAS_PCH_IBX(dev_priv->dev)) {
+	if (HAS_PCH_IBX(dev_priv)) {
 		aud_config = IBX_AUD_CFG(pipe);
 		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {

@@ -261,9 +261,6 @@ struct old_child_dev_config {
  * versions. Notice that the meaning of the contents contents may still change,
  * but at least the offsets are consistent. */
 
-/* Definitions for flags_1 */
-#define IBOOST_ENABLE (1<<3)
-
 struct common_child_dev_config {
 	u16 handle;
 	u16 device_type;
@@ -272,9 +269,18 @@ struct common_child_dev_config {
 	u8 not_common2[2];
 	u8 ddc_pin;
 	u16 edid_ptr;
-	u8 obsolete;
-	u8 flags_1;
-	u8 not_common3[13];
+	u8 dvo_cfg; /* See DEVICE_CFG_* above */
+	u8 efp_routed:1;
+	u8 lane_reversal:1;
+	u8 lspcon:1;
+	u8 iboost:1;
+	u8 hpd_invert:1;
+	u8 flag_reserved:3;
+	u8 hdmi_support:1;
+	u8 dp_support:1;
+	u8 tmds_support:1;
+	u8 support_reserved:5;
+	u8 not_common3[12];
 	u8 iboost_level;
 } __packed;
 

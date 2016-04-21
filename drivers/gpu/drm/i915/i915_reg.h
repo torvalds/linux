@@ -165,6 +165,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define  GEN6_GRDOM_MEDIA		(1 << 2)
 #define  GEN6_GRDOM_BLT			(1 << 3)
 #define  GEN6_GRDOM_VECS		(1 << 4)
+#define  GEN9_GRDOM_GUC			(1 << 5)
 #define  GEN8_GRDOM_MEDIA2		(1 << 7)
 
 #define RING_PP_DIR_BASE(ring)		_MMIO((ring)->mmio_base+0x228)
@@ -627,6 +628,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   IOSF_PORT_GPIO_SC			0x48
 #define   IOSF_PORT_GPIO_SUS			0xa8
 #define   IOSF_PORT_CCU				0xa9
+#define   CHV_IOSF_PORT_GPIO_N			0x13
+#define   CHV_IOSF_PORT_GPIO_SE			0x48
+#define   CHV_IOSF_PORT_GPIO_E			0xa8
+#define   CHV_IOSF_PORT_GPIO_SW			0xb2
 #define VLV_IOSF_DATA				_MMIO(VLV_DISPLAY_BASE + 0x2104)
 #define VLV_IOSF_ADDR				_MMIO(VLV_DISPLAY_BASE + 0x2108)
 
@@ -791,6 +796,7 @@ enum skl_disp_power_wells {
 #define  DSI_PLL_M1_DIV_SHIFT			0
 #define  DSI_PLL_M1_DIV_MASK			(0x1ff << 0)
 #define CCK_CZ_CLOCK_CONTROL			0x62
+#define CCK_GPLL_CLOCK_CONTROL			0x67
 #define CCK_DISPLAY_CLOCK_CONTROL		0x6b
 #define CCK_DISPLAY_REF_CLOCK_CONTROL		0x6c
 #define  CCK_TRUNK_FORCE_ON			(1 << 17)
@@ -1324,6 +1330,7 @@ enum skl_disp_power_wells {
 #define _PORT_CL1CM_DW0_A		0x162000
 #define _PORT_CL1CM_DW0_BC		0x6C000
 #define   PHY_POWER_GOOD		(1 << 16)
+#define   PHY_RESERVED			(1 << 7)
 #define BXT_PORT_CL1CM_DW0(phy)		_BXT_PHY((phy), _PORT_CL1CM_DW0_BC, \
 							_PORT_CL1CM_DW0_A)
 
@@ -1782,6 +1789,18 @@ enum skl_disp_power_wells {
 #define   GEN6_TD_FOUR_ROW_DISPATCH_DISABLE		(1 << 5)
 #define   GEN9_IZ_HASHING_MASK(slice)			(0x3 << ((slice) * 2))
 #define   GEN9_IZ_HASHING(slice, val)			((val) << ((slice) * 2))
+
+/* WaClearTdlStateAckDirtyBits */
+#define GEN8_STATE_ACK		_MMIO(0x20F0)
+#define GEN9_STATE_ACK_SLICE1	_MMIO(0x20F8)
+#define GEN9_STATE_ACK_SLICE2	_MMIO(0x2100)
+#define   GEN9_STATE_ACK_TDL0 (1 << 12)
+#define   GEN9_STATE_ACK_TDL1 (1 << 13)
+#define   GEN9_STATE_ACK_TDL2 (1 << 14)
+#define   GEN9_STATE_ACK_TDL3 (1 << 15)
+#define   GEN9_SUBSLICE_TDL_ACK_BITS \
+	(GEN9_STATE_ACK_TDL3 | GEN9_STATE_ACK_TDL2 | \
+	 GEN9_STATE_ACK_TDL1 | GEN9_STATE_ACK_TDL0)
 
 #define GFX_MODE	_MMIO(0x2520)
 #define GFX_MODE_GEN7	_MMIO(0x229c)
@@ -4785,6 +4804,10 @@ enum skl_disp_power_wells {
 #define  CBR_PND_DEADLINE_DISABLE	(1<<31)
 #define  CBR_PWM_CLOCK_MUX_SELECT	(1<<30)
 
+#define CBR4_VLV			_MMIO(VLV_DISPLAY_BASE + 0x70450)
+#define  CBR_DPLLBMD_PIPE_C		(1<<29)
+#define  CBR_DPLLBMD_PIPE_B		(1<<18)
+
 /* FIFO watermark sizes etc */
 #define G4X_FIFO_LINE_SIZE	64
 #define I915_FIFO_LINE_SIZE	64
@@ -6185,6 +6208,7 @@ enum skl_disp_power_wells {
 /* digital port hotplug */
 #define PCH_PORT_HOTPLUG		_MMIO(0xc4030)	/* SHOTPLUG_CTL */
 #define  PORTA_HOTPLUG_ENABLE		(1 << 28) /* LPT:LP+ & BXT */
+#define  BXT_DDIA_HPD_INVERT            (1 << 27)
 #define  PORTA_HOTPLUG_STATUS_MASK	(3 << 24) /* SPT+ & BXT */
 #define  PORTA_HOTPLUG_NO_DETECT	(0 << 24) /* SPT+ & BXT */
 #define  PORTA_HOTPLUG_SHORT_DETECT	(1 << 24) /* SPT+ & BXT */
@@ -6200,6 +6224,7 @@ enum skl_disp_power_wells {
 #define  PORTD_HOTPLUG_SHORT_DETECT	(1 << 16)
 #define  PORTD_HOTPLUG_LONG_DETECT	(2 << 16)
 #define  PORTC_HOTPLUG_ENABLE		(1 << 12)
+#define  BXT_DDIC_HPD_INVERT            (1 << 11)
 #define  PORTC_PULSE_DURATION_2ms	(0 << 10) /* pre-LPT */
 #define  PORTC_PULSE_DURATION_4_5ms	(1 << 10) /* pre-LPT */
 #define  PORTC_PULSE_DURATION_6ms	(2 << 10) /* pre-LPT */
@@ -6210,6 +6235,7 @@ enum skl_disp_power_wells {
 #define  PORTC_HOTPLUG_SHORT_DETECT	(1 << 8)
 #define  PORTC_HOTPLUG_LONG_DETECT	(2 << 8)
 #define  PORTB_HOTPLUG_ENABLE		(1 << 4)
+#define  BXT_DDIB_HPD_INVERT            (1 << 3)
 #define  PORTB_PULSE_DURATION_2ms	(0 << 2) /* pre-LPT */
 #define  PORTB_PULSE_DURATION_4_5ms	(1 << 2) /* pre-LPT */
 #define  PORTB_PULSE_DURATION_6ms	(2 << 2) /* pre-LPT */
@@ -6219,6 +6245,9 @@ enum skl_disp_power_wells {
 #define  PORTB_HOTPLUG_NO_DETECT	(0 << 0)
 #define  PORTB_HOTPLUG_SHORT_DETECT	(1 << 0)
 #define  PORTB_HOTPLUG_LONG_DETECT	(2 << 0)
+#define  BXT_DDI_HPD_INVERT_MASK	(BXT_DDIA_HPD_INVERT | \
+					BXT_DDIB_HPD_INVERT | \
+					BXT_DDIC_HPD_INVERT)
 
 #define PCH_PORT_HOTPLUG2		_MMIO(0xc403C)	/* SHOTPLUG_CTL2 SPT+ */
 #define  PORTE_HOTPLUG_ENABLE		(1 << 4)

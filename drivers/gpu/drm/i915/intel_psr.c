@@ -563,7 +563,7 @@ static void intel_psr_work(struct work_struct *work)
 	 * PSR might take some time to get fully disabled
 	 * and be ready for re-enable.
 	 */
-	if (HAS_DDI(dev_priv->dev)) {
+	if (HAS_DDI(dev_priv)) {
 		if (wait_for((I915_READ(EDP_PSR_STATUS_CTL) &
 			      EDP_PSR_STATUS_STATE_MASK) == 0, 50)) {
 			DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");

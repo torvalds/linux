@@ -353,6 +353,24 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
+static int i915_reset_guc(struct drm_i915_private *dev_priv)
+{
+	int ret;
+	u32 guc_status;
+
+	ret = intel_guc_reset(dev_priv);
+	if (ret) {
+		DRM_ERROR("GuC reset failed, ret = %d\n", ret);
+		return ret;
+	}
+
+	guc_status = I915_READ(GUC_STATUS);
+	WARN(!(guc_status & GS_MIA_IN_RESET),
+	     "GuC status: 0x%x, MIA core expected to be in reset\n", guc_status);
+
+	return ret;
+}
+
 /**
  * intel_guc_ucode_load() - load GuC uCode into the device
  * @dev:	drm device
@@ -369,7 +387,7 @@ int intel_guc_ucode_load(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
-	int err = 0;
+	int retries, err = 0;
 
 	if (!i915.enable_guc_submission)
 		return 0;
@@ -417,9 +435,33 @@ int intel_guc_ucode_load(struct drm_device *dev)
 	if (err)
 		goto fail;
 
-	err = guc_ucode_xfer(dev_priv);
-	if (err)
-		goto fail;
+	/*
+	 * WaEnableuKernelHeaderValidFix:skl,bxt
+	 * For BXT, this is only upto B0 but below WA is required for later
+	 * steppings also so this is extended as well.
+	 */
+	/* WaEnableGuCBootHashCheckNotSet:skl,bxt */
+	for (retries = 3; ; ) {
+		/*
+		 * Always reset the GuC just before (re)loading, so
+		 * that the state and timing are fairly predictable
+		 */
+		err = i915_reset_guc(dev_priv);
+		if (err) {
+			DRM_ERROR("GuC reset failed, err %d\n", err);
+			goto fail;
+		}
+
+		err = guc_ucode_xfer(dev_priv);
+		if (!err)
+			break;
+
+		if (--retries == 0)
+			goto fail;
+
+		DRM_INFO("GuC fw load failed, err %d; will reset and "
+			"retry %d more time(s)\n", err, retries);
+	}
 
 	guc_fw->guc_fw_load_status = GUC_FIRMWARE_SUCCESS;
 
@@ -440,6 +482,7 @@ int intel_guc_ucode_load(struct drm_device *dev)
 	return 0;
 
 fail:
+	DRM_ERROR("GuC firmware load failed, err %d\n", err);
 	if (guc_fw->guc_fw_load_status == GUC_FIRMWARE_PENDING)
 		guc_fw->guc_fw_load_status = GUC_FIRMWARE_FAIL;
 
