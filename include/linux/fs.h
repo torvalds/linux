@@ -2600,7 +2600,7 @@ static const char * const kernel_read_file_str[] = {
 	__kernel_read_file_id(__fid_stringify)
 };
 
-static inline const char * const kernel_read_file_id_str(enum kernel_read_file_id id)
+static inline const char *kernel_read_file_id_str(enum kernel_read_file_id id)
 {
 	if (id < 0 || id >= READING_MAX_ID)
 		return kernel_read_file_str[READING_UNKNOWN];
