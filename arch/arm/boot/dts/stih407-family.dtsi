@@ -15,6 +15,36 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gp0_reserved: rproc@40000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x40000000 0x01000000>;
+			no-map;
+		};
+
+		gp1_reserved: rproc@41000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x41000000 0x01000000>;
+			no-map;
+		};
+
+		audio_reserved: rproc@42000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x42000000 0x01000000>;
+			no-map;
+		};
+
+		dmu_reserved: rproc@43000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x43000000 0x01000000>;
+			no-map;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -748,9 +778,9 @@
 			status		= "okay";
 		};
 
-		st231_gp0: remote-processor@40000000 {
+		st231_gp0: remote-processor {
 			compatible	= "st,st231-rproc";
-			reg		= <0x40000000 0x01000000>;
+			memory-region	= <&gp0_reserved>;
 			resets		= <&softreset STIH407_ST231_GP0_SOFTRESET>;
 			reset-names	= "sw_reset";
 			clocks		= <&clk_s_c0_flexgen CLK_ST231_GP_0>;
@@ -758,9 +788,10 @@
 			st,syscfg	= <&syscfg_core 0x22c>;
 		};
 
-		st231_gp1: remote-processor@41000000 {
+
+		st231_gp1: remote-processor {
 			compatible	= "st,st231-rproc";
-			reg		= <0x41000000 0x01000000>;
+			memory-region	= <&gp1_reserved>;
 			resets		= <&softreset STIH407_ST231_GP1_SOFTRESET>;
 			reset-names	= "sw_reset";
 			clocks		= <&clk_s_c0_flexgen CLK_ST231_GP_1>;
@@ -768,9 +799,9 @@
 			st,syscfg	= <&syscfg_core 0x220>;
 		};
 
-		st231_audio: remote-processor@42000000 {
+		st231_audio: remote-processor {
 			compatible	= "st,st231-rproc";
-			reg		= <0x42000000 0x01000000>;
+			memory-region	= <&audio_reserved>;
 			resets		= <&softreset STIH407_ST231_AUD_SOFTRESET>;
 			reset-names	= "sw_reset";
 			clocks		= <&clk_s_c0_flexgen CLK_ST231_AUD_0>;
@@ -778,9 +809,9 @@
 			st,syscfg	= <&syscfg_core 0x228>;
 		};
 
-		st231_dmu: remote-processor@43000000 {
+		st231_dmu: remote-processor {
 			compatible	= "st,st231-rproc";
-			reg		= <0x43000000 0x01000000>;
+			memory-region	= <&dmu_reserved>;
 			resets		= <&softreset STIH407_ST231_DMU_SOFTRESET>;
 			reset-names	= "sw_reset";
 			clocks		= <&clk_s_c0_flexgen CLK_ST231_DMU>;
