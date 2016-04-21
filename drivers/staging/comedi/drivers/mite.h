@@ -93,7 +93,8 @@ void mite_dma_arm(struct mite_channel *mite_chan);
 void mite_dma_disarm(struct mite_channel *mite_chan);
 void mite_sync_dma(struct mite_channel *mite_chan, struct comedi_subdevice *s);
 u32 mite_bytes_in_transit(struct mite_channel *mite_chan);
-unsigned int mite_ack_linkc(struct mite_channel *mite_chan);
+unsigned int mite_ack_linkc(struct mite_channel *mite_chan,
+			    struct comedi_subdevice *s);
 int mite_done(struct mite_channel *mite_chan);
 
 void mite_prep_dma(struct mite_channel *mite_chan,

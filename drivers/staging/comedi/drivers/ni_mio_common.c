@@ -1317,16 +1317,6 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 #ifdef PCIDMA
 	if (ai_mite_status & CHSR_LINKC)
 		ni_sync_ai_dma(dev);
-
-	if (ai_mite_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY |
-			       CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR |
-			       CHSR_SABORT | CHSR_XFERR | CHSR_LERR_MASK)) {
-		dev_err(dev->class_dev,
-			"unknown mite interrupt (ai_mite_status=%08x)\n",
-			ai_mite_status);
-		s->async->events |= COMEDI_CB_ERROR;
-		/* disable_irq(dev->irq); */
-	}
 #endif
 
 	/* test for all uncommon interrupt events at the same time */
@@ -1421,15 +1411,6 @@ static void handle_b_interrupt(struct comedi_device *dev,
 		struct ni_private *devpriv = dev->private;
 
 		mite_handle_b_linkc(devpriv->mite, dev);
-	}
-
-	if (ao_mite_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY |
-			       CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR |
-			       CHSR_SABORT | CHSR_XFERR | CHSR_LERR_MASK)) {
-		dev_err(dev->class_dev,
-			"unknown mite interrupt (ao_mite_status=%08x)\n",
-			ao_mite_status);
-		s->async->events |= COMEDI_CB_ERROR;
 	}
 #endif
 
@@ -3697,7 +3678,7 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->cdo_mite_chan) {
-		mite_ack_linkc(devpriv->cdo_mite_chan);
+		mite_ack_linkc(devpriv->cdo_mite_chan, s);
 		mite_sync_dma(devpriv->cdo_mite_chan, s);
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -5217,9 +5198,11 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 
 		spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
 		if (devpriv->ai_mite_chan)
-			ai_mite_status = mite_ack_linkc(devpriv->ai_mite_chan);
+			ai_mite_status = mite_ack_linkc(devpriv->ai_mite_chan,
+							dev->read_subdev);
 		if (devpriv->ao_mite_chan)
-			ao_mite_status = mite_ack_linkc(devpriv->ao_mite_chan);
+			ao_mite_status = mite_ack_linkc(devpriv->ao_mite_chan,
+							dev->write_subdev);
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
 	}
 #endif

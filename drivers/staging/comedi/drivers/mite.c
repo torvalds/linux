@@ -778,7 +778,8 @@ static unsigned int mite_get_status(struct mite_channel *mite_chan)
 	return status;
 }
 
-unsigned int mite_ack_linkc(struct mite_channel *mite_chan)
+unsigned int mite_ack_linkc(struct mite_channel *mite_chan,
+			    struct comedi_subdevice *s)
 {
 	struct mite_struct *mite = mite_chan->mite;
 	unsigned int status;
@@ -787,6 +788,11 @@ unsigned int mite_ack_linkc(struct mite_channel *mite_chan)
 	if (status & CHSR_LINKC)
 		writel(CHOR_CLRLC,
 		       mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
+	if (status & CHSR_XFERR) {
+		dev_err(s->device->class_dev,
+			"mite: transfer error %08x\n", status);
+		s->async->events |= COMEDI_CB_ERROR;
+	}
 
 	return status;
 }
