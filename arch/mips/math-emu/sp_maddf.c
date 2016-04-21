@@ -214,16 +214,18 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 
 	if (ze > re) {
 		/*
-		 * Have to shift y fraction right to align.
+		 * Have to shift r fraction right to align.
 		 */
 		s = ze - re;
-		SPXSRSYn(s);
+		rm = XSPSRS(rm, s);
+		re += s;
 	} else if (re > ze) {
 		/*
-		 * Have to shift x fraction right to align.
+		 * Have to shift z fraction right to align.
 		 */
 		s = re - ze;
-		SPXSRSYn(s);
+		zm = XSPSRS(zm, s);
+		ze += s;
 	}
 	assert(ze == re);
 	assert(ze <= SP_EMAX);
@@ -236,7 +238,8 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 		zm = zm + rm;
 
 		if (zm >> (SP_FBITS + 1 + 3)) { /* carry out */
-			SPXSRSX1();
+			zm = XSPSRS1(zm);
+			ze++;
 		}
 	} else {
 		if (zm >= rm) {
