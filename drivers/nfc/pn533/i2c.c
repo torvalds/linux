@@ -236,6 +236,8 @@ static int pn533_i2c_remove(struct i2c_client *client)
 
 	pn533_unregister_device(phy->priv);
 
+	free_irq(client->irq, phy);
+
 	return 0;
 }
 
