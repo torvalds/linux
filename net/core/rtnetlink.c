@@ -1051,14 +1051,9 @@ static noinline_for_stack int rtnl_fill_stats(struct sk_buff *skb,
 {
 	struct rtnl_link_stats64 *sp;
 	struct nlattr *attr;
-	int err;
 
-	err = nla_align_64bit(skb, IFLA_PAD);
-	if (err)
-		return err;
-
-	attr = nla_reserve(skb, IFLA_STATS64,
-			   sizeof(struct rtnl_link_stats64));
+	attr = nla_reserve_64bit(skb, IFLA_STATS64,
+				 sizeof(struct rtnl_link_stats64), IFLA_PAD);
 	if (!attr)
 		return -EMSGSIZE;
 
@@ -3469,17 +3464,10 @@ static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 
 	if (filter_mask & IFLA_STATS_FILTER_BIT(IFLA_STATS_LINK_64)) {
 		struct rtnl_link_stats64 *sp;
-		int err;
 
-		/* if necessary, add a zero length NOP attribute so that
-		 * IFLA_STATS_LINK_64 will be 64-bit aligned
-		 */
-		err = nla_align_64bit(skb, IFLA_STATS_UNSPEC);
-		if (err)
-			goto nla_put_failure;
-
-		attr = nla_reserve(skb, IFLA_STATS_LINK_64,
-				   sizeof(struct rtnl_link_stats64));
+		attr = nla_reserve_64bit(skb, IFLA_STATS_LINK_64,
+					 sizeof(struct rtnl_link_stats64),
+					 IFLA_STATS_UNSPEC);
 		if (!attr)
 			goto nla_put_failure;
 
