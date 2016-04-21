@@ -354,7 +354,7 @@ static void init_unity_mappings_for_device(struct device *dev,
 	int devid;
 
 	devid = get_device_id(dev);
-	if (IS_ERR_VALUE(devid))
+	if (devid < 0)
 		return;
 
 	list_for_each_entry(e, &amd_iommu_unity_map, list) {
@@ -376,7 +376,7 @@ static bool check_device(struct device *dev)
 		return false;
 
 	devid = get_device_id(dev);
-	if (IS_ERR_VALUE(devid))
+	if (devid < 0)
 		return false;
 
 	/* Out of our scope? */
@@ -419,7 +419,7 @@ static int iommu_init_device(struct device *dev)
 		return 0;
 
 	devid = get_device_id(dev);
-	if (IS_ERR_VALUE(devid))
+	if (devid < 0)
 		return devid;
 
 	dev_data = find_dev_data(devid);
@@ -447,7 +447,7 @@ static void iommu_ignore_device(struct device *dev)
 	int devid;
 
 	devid = get_device_id(dev);
-	if (IS_ERR_VALUE(devid))
+	if (devid < 0)
 		return;
 
 	alias = amd_iommu_alias_table[devid];
@@ -465,7 +465,7 @@ static void iommu_uninit_device(struct device *dev)
 	struct iommu_dev_data *dev_data;
 
 	devid = get_device_id(dev);
-	if (IS_ERR_VALUE(devid))
+	if (devid < 0)
 		return;
 
 	dev_data = search_dev_data(devid);
@@ -2414,7 +2414,7 @@ static int amd_iommu_add_device(struct device *dev)
 		return 0;
 
 	devid = get_device_id(dev);
-	if (IS_ERR_VALUE(devid))
+	if (devid < 0)
 		return devid;
 
 	iommu = amd_iommu_rlookup_table[devid];
@@ -2460,7 +2460,7 @@ static void amd_iommu_remove_device(struct device *dev)
 		return;
 
 	devid = get_device_id(dev);
-	if (IS_ERR_VALUE(devid))
+	if (devid < 0)
 		return;
 
 	iommu = amd_iommu_rlookup_table[devid];
@@ -3158,7 +3158,7 @@ static void amd_iommu_detach_device(struct iommu_domain *dom,
 		return;
 
 	devid = get_device_id(dev);
-	if (IS_ERR_VALUE(devid))
+	if (devid < 0)
 		return;
 
 	if (dev_data->domain != NULL)
@@ -3280,7 +3280,7 @@ static void amd_iommu_get_dm_regions(struct device *dev,
 	int devid;
 
 	devid = get_device_id(dev);
-	if (IS_ERR_VALUE(devid))
+	if (devid < 0)
 		return;
 
 	list_for_each_entry(entry, &amd_iommu_unity_map, list) {
@@ -3983,7 +3983,7 @@ static struct irq_domain *get_irq_domain(struct irq_alloc_info *info)
 	case X86_IRQ_ALLOC_TYPE_MSI:
 	case X86_IRQ_ALLOC_TYPE_MSIX:
 		devid = get_device_id(&info->msi_dev->dev);
-		if (IS_ERR_VALUE(devid))
+		if (devid < 0)
 			return NULL;
 
 		iommu = amd_iommu_rlookup_table[devid];
