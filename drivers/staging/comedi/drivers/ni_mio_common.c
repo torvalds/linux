@@ -1386,11 +1386,10 @@ static void ack_b_interrupt(struct comedi_device *dev, unsigned short b_status)
 }
 
 static void handle_b_interrupt(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
 			       unsigned short b_status,
 			       unsigned int ao_mite_status)
 {
-	struct comedi_subdevice *s = dev->write_subdev;
-
 	if (b_status == 0xffff)
 		return;
 	if (b_status & NISTC_AO_STATUS1_OVERRUN) {
@@ -5152,6 +5151,7 @@ static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static irqreturn_t ni_E_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct comedi_subdevice *s_ao = dev->write_subdev;
 	unsigned short a_status;
 	unsigned short b_status;
 	unsigned int ai_mite_status = 0;
@@ -5178,12 +5178,11 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 			ai_mite_status = mite_ack_linkc(devpriv->ai_mite_chan,
 							dev->read_subdev);
 
-		if (devpriv->ao_mite_chan) {
+		if (s_ao && devpriv->ao_mite_chan) {
 			ao_mite_status = mite_ack_linkc(devpriv->ao_mite_chan,
-							dev->write_subdev);
+							s_ao);
 			if (ao_mite_status & CHSR_LINKC)
-				mite_sync_dma(devpriv->ao_mite_chan,
-					      dev->write_subdev);
+				mite_sync_dma(devpriv->ao_mite_chan, s_ao);
 		}
 
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
@@ -5193,8 +5192,9 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	ack_b_interrupt(dev, b_status);
 	if ((a_status & NISTC_AI_STATUS1_INTA) || (ai_mite_status & CHSR_INT))
 		handle_a_interrupt(dev, a_status, ai_mite_status);
-	if ((b_status & NISTC_AO_STATUS1_INTB) || (ao_mite_status & CHSR_INT))
-		handle_b_interrupt(dev, b_status, ao_mite_status);
+	if (s_ao &&
+	    ((b_status & NISTC_AO_STATUS1_INTB) || (ao_mite_status & CHSR_INT)))
+		handle_b_interrupt(dev, s_ao, b_status, ao_mite_status);
 	handle_gpct_interrupt(dev, 0);
 	handle_gpct_interrupt(dev, 1);
 #ifdef PCIDMA
