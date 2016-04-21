@@ -3388,7 +3388,7 @@ static int mwifiex_cfg80211_resume(struct wiphy *wiphy)
 		break;
 	case CONTROL_FRAME_MATCHED:
 		break;
-	case	MANAGEMENT_FRAME_MATCHED:
+	case MANAGEMENT_FRAME_MATCHED:
 		break;
 	case GTK_REKEY_FAILURE:
 		if (wiphy->wowlan_config->gtk_rekey_failure)
