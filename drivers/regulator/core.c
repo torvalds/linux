@@ -3842,7 +3842,12 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
 
 static int regulator_register_resolve_supply(struct device *dev, void *data)
 {
-	return regulator_resolve_supply(dev_to_rdev(dev));
+	struct regulator_dev *rdev = dev_to_rdev(dev);
+
+	if (regulator_resolve_supply(rdev))
+		rdev_dbg(rdev, "unable to resolve supply\n");
+
+	return 0;
 }
 
 /**
