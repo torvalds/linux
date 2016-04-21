@@ -101,7 +101,7 @@ static int download_firmware(struct gb_bootrom *bootrom, u8 stage)
 		&connection->bundle->dev);
 	if (rc)
 		dev_err(&connection->bundle->dev,
-			"Firware request for %s has failed : %d",
+			"Firmware request for %s has failed : %d",
 			firmware_name, rc);
 	return rc;
 }
