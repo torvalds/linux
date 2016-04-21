@@ -1404,24 +1404,50 @@ static int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5e_priv *priv)
 	return 0;
 }
 
-static int mlx5e_set_dev_port_mtu(struct net_device *netdev)
+static int mlx5e_set_mtu(struct mlx5e_priv *priv, u16 mtu)
 {
-	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u16 hw_mtu;
+	u16 hw_mtu = MLX5E_SW2HW_MTU(mtu);
 	int err;
 
-	err = mlx5_set_port_mtu(mdev, MLX5E_SW2HW_MTU(netdev->mtu), 1);
+	err = mlx5_set_port_mtu(mdev, hw_mtu, 1);
 	if (err)
 		return err;
 
-	mlx5_query_port_oper_mtu(mdev, &hw_mtu, 1);
+	/* Update vport context MTU */
+	mlx5_modify_nic_vport_mtu(mdev, hw_mtu);
+	return 0;
+}
 
-	if (MLX5E_HW2SW_MTU(hw_mtu) != netdev->mtu)
-		netdev_warn(netdev, "%s: Port MTU %d is different than netdev mtu %d\n",
-			    __func__, MLX5E_HW2SW_MTU(hw_mtu), netdev->mtu);
+static void mlx5e_query_mtu(struct mlx5e_priv *priv, u16 *mtu)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u16 hw_mtu = 0;
+	int err;
 
-	netdev->mtu = MLX5E_HW2SW_MTU(hw_mtu);
+	err = mlx5_query_nic_vport_mtu(mdev, &hw_mtu);
+	if (err || !hw_mtu) /* fallback to port oper mtu */
+		mlx5_query_port_oper_mtu(mdev, &hw_mtu, 1);
+
+	*mtu = MLX5E_HW2SW_MTU(hw_mtu);
+}
+
+static int mlx5e_set_dev_port_mtu(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	u16 mtu;
+	int err;
+
+	err = mlx5e_set_mtu(priv, netdev->mtu);
+	if (err)
+		return err;
+
+	mlx5e_query_mtu(priv, &mtu);
+	if (mtu != netdev->mtu)
+		netdev_warn(netdev, "%s: VPort MTU %d is different than netdev mtu %d\n",
+			    __func__, mtu, netdev->mtu);
+
+	netdev->mtu = mtu;
 	return 0;
 }
 
