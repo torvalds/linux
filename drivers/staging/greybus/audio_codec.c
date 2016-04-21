@@ -898,6 +898,7 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 {
 	int ret;
 	struct snd_soc_codec *codec;
+	struct snd_card *card;
 	struct snd_soc_jack *jack = NULL;
 
 	if (!gbcodec) {
@@ -906,6 +907,9 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 	}
 
 	codec = gbcodec->codec;
+	card = codec->card->snd_card;
+
+	down_write(&card->controls_rwsem);
 	mutex_lock(&gbcodec->lock);
 
 	if (module->num_dais) {
@@ -913,12 +917,14 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 			"%d:DAIs not supported via gbcodec driver\n",
 			module->num_dais);
 		mutex_unlock(&gbcodec->lock);
+		up_write(&card->controls_rwsem);
 		return -EINVAL;
 	}
 
 	ret = gbaudio_init_jack(module, codec);
 	if (ret) {
 		mutex_unlock(&gbcodec->lock);
+		up_write(&card->controls_rwsem);
 		return ret;
 	}
 
@@ -936,7 +942,7 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 	if (codec->card->instantiated) {
 		ret = snd_soc_dapm_new_widgets(&codec->dapm);
 		if (!ret)
-			snd_soc_dapm_link_dai_widgets_component(codec->card,
+			snd_soc_dapm_link_component_dai_widgets(codec->card,
 								&codec->dapm);
 	}
 
@@ -953,6 +959,7 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 	dev_dbg(codec->dev, "Registered %s module\n", module->name);
 
 	mutex_unlock(&gbcodec->lock);
+	up_write(&card->controls_rwsem);
 	return 0;
 }
 EXPORT_SYMBOL(gbaudio_register_module);
@@ -1061,7 +1068,7 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 	if (module->controls) {
 		dev_dbg(codec->dev, "Removing %d controls\n",
 			module->num_controls);
-		soc_remove_codec_controls(codec, module->controls,
+		snd_soc_remove_codec_controls(codec, module->controls,
 					  module->num_controls);
 	}
 	if (module->dapm_widgets) {

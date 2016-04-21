@@ -52,11 +52,9 @@ obj-m += gb-es2.o
 ifeq ($(CONFIG_USB_HSIC_USB3613),y)
  obj-m += gb-arche.o
 endif
-ifeq ($(CONFIG_SND_SOC_DYNAMIC_DAILINK),y)
- obj-m += gb-audio-codec.o
-obj-m += gb-audio-module.o
-endif
 ifeq ($(CONFIG_ARCH_MSM8994),y)
+ obj-m += gb-audio-codec.o
+ obj-m += gb-audio-module.o
  obj-m += gb-camera.o
 endif
 obj-m += gb-audio-gb.o

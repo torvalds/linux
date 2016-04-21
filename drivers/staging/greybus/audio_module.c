@@ -9,7 +9,6 @@
 #include <linux/module.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
-#include <sound/msm-dynamic-dailink.h>
 
 #include "audio_codec.h"
 #include "audio_apbridgea.h"
