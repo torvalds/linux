@@ -927,19 +927,6 @@ static int ni_ai_drain_dma(struct comedi_device *dev)
 	return retval;
 }
 
-static void mite_handle_b_linkc(struct mite_struct *mite,
-				struct comedi_device *dev)
-{
-	struct ni_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->write_subdev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	if (devpriv->ao_mite_chan)
-		mite_sync_dma(devpriv->ao_mite_chan, s);
-	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-}
-
 static int ni_ao_wait_for_dma_load(struct comedi_device *dev)
 {
 	static const int timeout = 10000;
@@ -1403,16 +1390,6 @@ static void handle_b_interrupt(struct comedi_device *dev,
 			       unsigned int ao_mite_status)
 {
 	struct comedi_subdevice *s = dev->write_subdev;
-	/* unsigned short ack=0; */
-
-#ifdef PCIDMA
-	/* Currently, mite.c requires us to handle LINKC */
-	if (ao_mite_status & CHSR_LINKC) {
-		struct ni_private *devpriv = dev->private;
-
-		mite_handle_b_linkc(devpriv->mite, dev);
-	}
-#endif
 
 	if (b_status == 0xffff)
 		return;
@@ -5200,9 +5177,15 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 		if (devpriv->ai_mite_chan)
 			ai_mite_status = mite_ack_linkc(devpriv->ai_mite_chan,
 							dev->read_subdev);
-		if (devpriv->ao_mite_chan)
+
+		if (devpriv->ao_mite_chan) {
 			ao_mite_status = mite_ack_linkc(devpriv->ao_mite_chan,
 							dev->write_subdev);
+			if (ao_mite_status & CHSR_LINKC)
+				mite_sync_dma(devpriv->ao_mite_chan,
+					      dev->write_subdev);
+		}
+
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
 	}
 #endif
