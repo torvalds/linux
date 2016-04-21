@@ -36,16 +36,15 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 
 	COMPXDP;
 	COMPYDP;
-
-	u64 zm; int ze; int zs __maybe_unused; int zc;
+	COMPZDP;
 
 	EXPLODEXDP;
 	EXPLODEYDP;
-	EXPLODEDP(z, zc, zs, ze, zm)
+	EXPLODEZDP;
 
 	FLUSHXDP;
 	FLUSHYDP;
-	FLUSHDP(z, zc, zs, ze, zm);
+	FLUSHZDP;
 
 	ieee754_clearcx();
 
@@ -54,7 +53,7 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754dp_nanxcpt(z);
 	case IEEE754_CLASS_DNORM:
-		DPDNORMx(zm, ze);
+		DPDNORMZ;
 	/* QNAN is handled separately below */
 	}
 
