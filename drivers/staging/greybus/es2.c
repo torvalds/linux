@@ -715,6 +715,11 @@ static void cport_in_callback(struct urb *urb)
 	if (status) {
 		if ((status == -EAGAIN) || (status == -EPROTO))
 			goto exit;
+
+		/* The urb is being unlinked */
+		if (status == -ENOENT || status == -ESHUTDOWN)
+			return;
+
 		dev_err(dev, "urb cport in error %d (dropped)\n", status);
 		return;
 	}
