@@ -165,7 +165,7 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 	ym <<= 64 - (DP_FBITS + 1);
 
 	/*
-	 * Multiply 32 bits xm, ym to give high 32 bits rm with stickness.
+	 * Multiply 64 bits xm, ym to give high 64 bits rm with stickness.
 	 */
 
 	/* 32 * 32 => 64 */
