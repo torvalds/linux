@@ -15,7 +15,6 @@
 #include <linux/kthread.h>
 #include <linux/tracefs.h>
 #include <linux/uaccess.h>
-#include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/sort.h>
@@ -499,9 +498,6 @@ static void ftrace_clear_events(struct trace_array *tr)
 	mutex_unlock(&event_mutex);
 }
 
-/* Shouldn't this be in a header? */
-extern int pid_max;
-
 static void
 event_filter_pid_sched_process_exit(void *data, struct task_struct *task)
 {
@@ -634,8 +630,7 @@ static void __ftrace_clear_event_pids(struct trace_array *tr)
 	/* Wait till all users are no longer using pid filtering */
 	synchronize_sched();
 
-	vfree(pid_list->pids);
-	kfree(pid_list);
+	trace_free_pid_list(pid_list);
 }
 
 static void ftrace_clear_event_pids(struct trace_array *tr)
@@ -1587,13 +1582,7 @@ ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 	struct trace_pid_list *filtered_pids = NULL;
 	struct trace_pid_list *pid_list;
 	struct trace_event_file *file;
-	struct trace_parser parser;
-	unsigned long val;
-	loff_t this_pos;
-	ssize_t read = 0;
-	ssize_t ret = 0;
-	pid_t pid;
-	int nr_pids = 0;
+	ssize_t ret;
 
 	if (!cnt)
 		return 0;
@@ -1602,93 +1591,15 @@ ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 	if (ret < 0)
 		return ret;
 
-	if (trace_parser_get_init(&parser, EVENT_BUF_SIZE + 1))
-		return -ENOMEM;
-
 	mutex_lock(&event_mutex);
+
 	filtered_pids = rcu_dereference_protected(tr->filtered_pids,
 					     lockdep_is_held(&event_mutex));
 
-	/*
-	 * Always recreate a new array. The write is an all or nothing
-	 * operation. Always create a new array when adding new pids by
-	 * the user. If the operation fails, then the current list is
-	 * not modified.
-	 */
-	pid_list = kmalloc(sizeof(*pid_list), GFP_KERNEL);
-	if (!pid_list) {
-		read = -ENOMEM;
+	ret = trace_pid_write(filtered_pids, &pid_list, ubuf, cnt);
+	if (ret < 0)
 		goto out;
-	}
-	pid_list->pid_max = READ_ONCE(pid_max);
-	/* Only truncating will shrink pid_max */
-	if (filtered_pids && filtered_pids->pid_max > pid_list->pid_max)
-		pid_list->pid_max = filtered_pids->pid_max;
-	pid_list->pids = vzalloc((pid_list->pid_max + 7) >> 3);
-	if (!pid_list->pids) {
-		kfree(pid_list);
-		read = -ENOMEM;
-		goto out;
-	}
-	if (filtered_pids) {
-		/* copy the current bits to the new max */
-		pid = find_first_bit(filtered_pids->pids,
-				     filtered_pids->pid_max);
-		while (pid < filtered_pids->pid_max) {
-			set_bit(pid, pid_list->pids);
-			pid = find_next_bit(filtered_pids->pids,
-					    filtered_pids->pid_max,
-					    pid + 1);
-			nr_pids++;
-		}
-	}
 
-	while (cnt > 0) {
-
-		this_pos = 0;
-
-		ret = trace_get_user(&parser, ubuf, cnt, &this_pos);
-		if (ret < 0 || !trace_parser_loaded(&parser))
-			break;
-
-		read += ret;
-		ubuf += ret;
-		cnt -= ret;
-
-		parser.buffer[parser.idx] = 0;
-
-		ret = -EINVAL;
-		if (kstrtoul(parser.buffer, 0, &val))
-			break;
-		if (val >= pid_list->pid_max)
-			break;
-
-		pid = (pid_t)val;
-
-		set_bit(pid, pid_list->pids);
-		nr_pids++;
-
-		trace_parser_clear(&parser);
-		ret = 0;
-	}
-	trace_parser_put(&parser);
-
-	if (ret < 0) {
-		vfree(pid_list->pids);
-		kfree(pid_list);
-		read = ret;
-		goto out;
-	}
-
-	if (!nr_pids) {
-		/* Cleared the list of pids */
-		vfree(pid_list->pids);
-		kfree(pid_list);
-		read = ret;
-		if (!filtered_pids)
-			goto out;
-		pid_list = NULL;
-	}
 	rcu_assign_pointer(tr->filtered_pids, pid_list);
 
 	list_for_each_entry(file, &tr->events, list) {
@@ -1697,10 +1608,8 @@ ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 
 	if (filtered_pids) {
 		synchronize_sched();
-
-		vfree(filtered_pids->pids);
-		kfree(filtered_pids);
-	} else {
+		trace_free_pid_list(filtered_pids);
+	} else if (pid_list) {
 		/*
 		 * Register a probe that is called before all other probes
 		 * to set ignore_pid if next or prev do not match.
@@ -1738,9 +1647,8 @@ ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
  out:
 	mutex_unlock(&event_mutex);
 
-	ret = read;
-	if (read > 0)
-		*ppos += read;
+	if (ret > 0)
+		*ppos += ret;
 
 	return ret;
 }

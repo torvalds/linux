@@ -25,7 +25,7 @@
 #include <linux/hardirq.h>
 #include <linux/linkage.h>
 #include <linux/uaccess.h>
-#include <linux/kprobes.h>
+#include <linux/vmalloc.h>
 #include <linux/ftrace.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
@@ -319,6 +319,12 @@ int call_filter_check_discard(struct trace_event_call *call, void *rec,
 	return 0;
 }
 
+void trace_free_pid_list(struct trace_pid_list *pid_list)
+{
+	vfree(pid_list->pids);
+	kfree(pid_list);
+}
+
 /**
  * trace_find_filtered_pid - check if a pid exists in a filtered_pid list
  * @filtered_pids: The list of pids to check
@@ -466,6 +472,107 @@ int trace_pid_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "%lu\n", pid);
 	return 0;
+}
+
+/* 128 should be much more than enough */
+#define PID_BUF_SIZE		127
+
+int trace_pid_write(struct trace_pid_list *filtered_pids,
+		    struct trace_pid_list **new_pid_list,
+		    const char __user *ubuf, size_t cnt)
+{
+	struct trace_pid_list *pid_list;
+	struct trace_parser parser;
+	unsigned long val;
+	int nr_pids = 0;
+	ssize_t read = 0;
+	ssize_t ret = 0;
+	loff_t pos;
+	pid_t pid;
+
+	if (trace_parser_get_init(&parser, PID_BUF_SIZE + 1))
+		return -ENOMEM;
+
+	/*
+	 * Always recreate a new array. The write is an all or nothing
+	 * operation. Always create a new array when adding new pids by
+	 * the user. If the operation fails, then the current list is
+	 * not modified.
+	 */
+	pid_list = kmalloc(sizeof(*pid_list), GFP_KERNEL);
+	if (!pid_list)
+		return -ENOMEM;
+
+	pid_list->pid_max = READ_ONCE(pid_max);
+
+	/* Only truncating will shrink pid_max */
+	if (filtered_pids && filtered_pids->pid_max > pid_list->pid_max)
+		pid_list->pid_max = filtered_pids->pid_max;
+
+	pid_list->pids = vzalloc((pid_list->pid_max + 7) >> 3);
+	if (!pid_list->pids) {
+		kfree(pid_list);
+		return -ENOMEM;
+	}
+
+	if (filtered_pids) {
+		/* copy the current bits to the new max */
+		pid = find_first_bit(filtered_pids->pids,
+				     filtered_pids->pid_max);
+		while (pid < filtered_pids->pid_max) {
+			set_bit(pid, pid_list->pids);
+			pid = find_next_bit(filtered_pids->pids,
+					    filtered_pids->pid_max,
+					    pid + 1);
+			nr_pids++;
+		}
+	}
+
+	while (cnt > 0) {
+
+		pos = 0;
+
+		ret = trace_get_user(&parser, ubuf, cnt, &pos);
+		if (ret < 0 || !trace_parser_loaded(&parser))
+			break;
+
+		read += ret;
+		ubuf += ret;
+		cnt -= ret;
+
+		parser.buffer[parser.idx] = 0;
+
+		ret = -EINVAL;
+		if (kstrtoul(parser.buffer, 0, &val))
+			break;
+		if (val >= pid_list->pid_max)
+			break;
+
+		pid = (pid_t)val;
+
+		set_bit(pid, pid_list->pids);
+		nr_pids++;
+
+		trace_parser_clear(&parser);
+		ret = 0;
+	}
+	trace_parser_put(&parser);
+
+	if (ret < 0) {
+		trace_free_pid_list(pid_list);
+		return ret;
+	}
+
+	if (!nr_pids) {
+		/* Cleared the list of pids */
+		trace_free_pid_list(pid_list);
+		read = ret;
+		pid_list = NULL;
+	}
+
+	*new_pid_list = pid_list;
+
+	return read;
 }
 
 static cycle_t buffer_ftrace_now(struct trace_buffer *buf, int cpu)
