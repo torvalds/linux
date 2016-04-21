@@ -3632,10 +3632,8 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	if (devpriv->cdo_mite_chan) {
-		mite_ack_linkc(devpriv->cdo_mite_chan, s);
-		mite_sync_dma(devpriv->cdo_mite_chan, s);
-	}
+	if (devpriv->cdo_mite_chan)
+		mite_ack_linkc(devpriv->cdo_mite_chan, s, true);
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 
 	cdio_status = ni_readl(dev, NI_M_CDIO_STATUS_REG);
@@ -5150,21 +5148,12 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 #ifdef PCIDMA
 	if (devpriv->mite) {
 		unsigned long flags_too;
-		unsigned int m_status;
 
 		spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
-		if (s_ai && devpriv->ai_mite_chan) {
-			m_status = mite_ack_linkc(devpriv->ai_mite_chan, s_ai);
-			if (m_status & CHSR_LINKC)
-				mite_sync_dma(devpriv->ai_mite_chan, s_ai);
-		}
-
-		if (s_ao && devpriv->ao_mite_chan) {
-			m_status = mite_ack_linkc(devpriv->ao_mite_chan, s_ao);
-			if (m_status & CHSR_LINKC)
-				mite_sync_dma(devpriv->ao_mite_chan, s_ao);
-		}
-
+		if (s_ai && devpriv->ai_mite_chan)
+			mite_ack_linkc(devpriv->ai_mite_chan, s_ai, false);
+		if (s_ao && devpriv->ao_mite_chan)
+			mite_ack_linkc(devpriv->ao_mite_chan, s_ao, false);
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
 	}
 #endif

@@ -428,10 +428,8 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 		break;
 	}
 	spin_lock_irqsave(&counter->lock, flags);
-	if (counter->mite_chan) {
-		mite_ack_linkc(counter->mite_chan, s);
-		mite_sync_dma(counter->mite_chan, s);
-	}
+	if (counter->mite_chan)
+		mite_ack_linkc(counter->mite_chan, s, true);
 	spin_unlock_irqrestore(&counter->lock, flags);
 }
 EXPORT_SYMBOL_GPL(ni_tio_handle_interrupt);

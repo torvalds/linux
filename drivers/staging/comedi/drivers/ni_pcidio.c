@@ -400,13 +400,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 
 	spin_lock(&devpriv->mite_channel_lock);
 	if (devpriv->di_mite_chan) {
-		unsigned int m_status = mite_ack_linkc(devpriv->di_mite_chan,
-						       s);
-
-		if (m_status & CHSR_LINKC) {
-			mite_sync_dma(devpriv->di_mite_chan, s);
-			/* XXX need to byteswap */
-		}
+		mite_ack_linkc(devpriv->di_mite_chan, s, false);
+		/* XXX need to byteswap sync'ed dma */
 	}
 	spin_unlock(&devpriv->mite_channel_lock);
 
