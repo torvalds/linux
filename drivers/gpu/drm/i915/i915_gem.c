@@ -5278,12 +5278,10 @@ bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
 bool i915_gem_obj_ggtt_bound_view(struct drm_i915_gem_object *o,
 				  const struct i915_ggtt_view *view)
 {
-	struct drm_i915_private *dev_priv = to_i915(o->base.dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, &o->vma_list, obj_link)
-		if (vma->vm == &ggtt->base &&
+		if (vma->is_ggtt &&
 		    i915_ggtt_view_equal(&vma->ggtt_view, view) &&
 		    drm_mm_node_allocated(&vma->node))
 			return true;
