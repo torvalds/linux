@@ -2249,7 +2249,8 @@ static inline unsigned drm_connector_index(struct drm_connector *connector)
 	return connector->connector_id;
 }
 
-/* helper to unregister all connectors from sysfs for device */
+/* helpers to {un}register all connectors from sysfs for device */
+extern int drm_connector_register_all(struct drm_device *dev);
 extern void drm_connector_unregister_all(struct drm_device *dev);
 
 extern int drm_bridge_add(struct drm_bridge *bridge);
@@ -2500,6 +2501,8 @@ extern int drm_edid_header_is_valid(const u8 *raw_edid);
 extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 				 bool *edid_corrupt);
 extern bool drm_edid_is_valid(struct edid *edid);
+extern void drm_edid_get_monitor_name(struct edid *edid, char *name,
+				      int buflen);
 
 extern struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 							 char topology[8]);
@@ -2590,10 +2593,14 @@ static inline struct drm_property *drm_property_find(struct drm_device *dev,
 static inline uint32_t drm_color_lut_extract(uint32_t user_input,
 					     uint32_t bit_precision)
 {
-	uint32_t val = user_input + (1 << (16 - bit_precision - 1));
+	uint32_t val = user_input;
 	uint32_t max = 0xffff >> (16 - bit_precision);
 
-	val >>= 16 - bit_precision;
+	/* Round only if we're not using full precision. */
+	if (bit_precision < 16) {
+		val += 1UL << (16 - bit_precision - 1);
+		val >>= 16 - bit_precision;
+	}
 
 	return clamp_val(val, 0, max);
 }

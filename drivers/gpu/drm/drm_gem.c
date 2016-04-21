@@ -279,7 +279,6 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 int
 drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 {
-	struct drm_device *dev;
 	struct drm_gem_object *obj;
 
 	/* This is gross. The idr system doesn't let us try a delete and
@@ -294,18 +293,19 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 	spin_lock(&filp->table_lock);
 
 	/* Check if we currently have a reference on the object */
-	obj = idr_find(&filp->object_idr, handle);
-	if (obj == NULL) {
-		spin_unlock(&filp->table_lock);
+	obj = idr_replace(&filp->object_idr, NULL, handle);
+	spin_unlock(&filp->table_lock);
+	if (IS_ERR_OR_NULL(obj))
 		return -EINVAL;
-	}
-	dev = obj->dev;
 
-	/* Release reference and decrement refcount. */
+	/* Release driver's reference and decrement refcount. */
+	drm_gem_object_release_handle(handle, obj, filp);
+
+	/* And finally make the handle available for future allocations. */
+	spin_lock(&filp->table_lock);
 	idr_remove(&filp->object_idr, handle);
 	spin_unlock(&filp->table_lock);
 
-	drm_gem_object_release_handle(handle, obj, filp);
 	return 0;
 }
 EXPORT_SYMBOL(drm_gem_handle_delete);

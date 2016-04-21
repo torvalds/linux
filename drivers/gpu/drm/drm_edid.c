@@ -3293,6 +3293,46 @@ monitor_name(struct detailed_timing *t, void *data)
 		*(u8 **)data = t->data.other_data.data.str.str;
 }
 
+static int get_monitor_name(struct edid *edid, char name[13])
+{
+	char *edid_name = NULL;
+	int mnl;
+
+	if (!edid || !name)
+		return 0;
+
+	drm_for_each_detailed_block((u8 *)edid, monitor_name, &edid_name);
+	for (mnl = 0; edid_name && mnl < 13; mnl++) {
+		if (edid_name[mnl] == 0x0a)
+			break;
+
+		name[mnl] = edid_name[mnl];
+	}
+
+	return mnl;
+}
+
+/**
+ * drm_edid_get_monitor_name - fetch the monitor name from the edid
+ * @edid: monitor EDID information
+ * @name: pointer to a character array to hold the name of the monitor
+ * @bufsize: The size of the name buffer (should be at least 14 chars.)
+ *
+ */
+void drm_edid_get_monitor_name(struct edid *edid, char *name, int bufsize)
+{
+	int name_length;
+	char buf[13];
+	
+	if (bufsize <= 0)
+		return;
+
+	name_length = min(get_monitor_name(edid, buf), bufsize - 1);
+	memcpy(name, buf, name_length);
+	name[name_length] = '\0';
+}
+EXPORT_SYMBOL(drm_edid_get_monitor_name);
+
 /**
  * drm_edid_to_eld - build ELD from EDID
  * @connector: connector corresponding to the HDMI/DP sink
@@ -3306,7 +3346,6 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 {
 	uint8_t *eld = connector->eld;
 	u8 *cea;
-	u8 *name;
 	u8 *db;
 	int total_sad_count = 0;
 	int mnl;
@@ -3320,14 +3359,8 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 		return;
 	}
 
-	name = NULL;
-	drm_for_each_detailed_block((u8 *)edid, monitor_name, &name);
-	/* max: 13 bytes EDID, 16 bytes ELD */
-	for (mnl = 0; name && mnl < 13; mnl++) {
-		if (name[mnl] == 0x0a)
-			break;
-		eld[20 + mnl] = name[mnl];
-	}
+	mnl = get_monitor_name(edid, eld + 20);
+
 	eld[4] = (cea[1] << 5) | mnl;
 	DRM_DEBUG_KMS("ELD monitor %s\n", eld + 20);
 

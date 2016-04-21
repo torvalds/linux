@@ -1068,6 +1068,46 @@ void drm_connector_unregister(struct drm_connector *connector)
 EXPORT_SYMBOL(drm_connector_unregister);
 
 /**
+ * drm_connector_register_all - register all connectors
+ * @dev: drm device
+ *
+ * This function registers all connectors in sysfs and other places so that
+ * userspace can start to access them. Drivers can call it after calling
+ * drm_dev_register() to complete the device registration, if they don't call
+ * drm_connector_register() on each connector individually.
+ *
+ * When a device is unplugged and should be removed from userspace access,
+ * call drm_connector_unregister_all(), which is the inverse of this
+ * function.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_connector_register_all(struct drm_device *dev)
+{
+	struct drm_connector *connector;
+	int ret;
+
+	mutex_lock(&dev->mode_config.mutex);
+
+	drm_for_each_connector(connector, dev) {
+		ret = drm_connector_register(connector);
+		if (ret)
+			goto err;
+	}
+
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return 0;
+
+err:
+	mutex_unlock(&dev->mode_config.mutex);
+	drm_connector_unregister_all(dev);
+	return ret;
+}
+EXPORT_SYMBOL(drm_connector_register_all);
+
+/**
  * drm_connector_unregister_all - unregister connector userspace interfaces
  * @dev: drm device
  *
@@ -1082,7 +1122,7 @@ void drm_connector_unregister_all(struct drm_device *dev)
 	struct drm_connector *connector;
 
 	/* FIXME: taking the mode config mutex ends up in a clash with sysfs */
-	drm_for_each_connector(connector, dev)
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		drm_connector_unregister(connector);
 }
 EXPORT_SYMBOL(drm_connector_unregister_all);
@@ -5914,6 +5954,15 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 		drm_property_destroy(dev, property);
 	}
 
+	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
+				 head) {
+		plane->funcs->destroy(plane);
+	}
+
+	list_for_each_entry_safe(crtc, ct, &dev->mode_config.crtc_list, head) {
+		crtc->funcs->destroy(crtc);
+	}
+
 	list_for_each_entry_safe(blob, bt, &dev->mode_config.property_blob_list,
 				 head_global) {
 		drm_property_unreference_blob(blob);
@@ -5930,15 +5979,6 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	WARN_ON(!list_empty(&dev->mode_config.fb_list));
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
 		drm_framebuffer_free(&fb->refcount);
-	}
-
-	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
-				 head) {
-		plane->funcs->destroy(plane);
-	}
-
-	list_for_each_entry_safe(crtc, ct, &dev->mode_config.crtc_list, head) {
-		crtc->funcs->destroy(crtc);
 	}
 
 	ida_destroy(&dev->mode_config.connector_ida);
