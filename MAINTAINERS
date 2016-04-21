@@ -3887,7 +3887,7 @@ M:	Mark Yao <mark.yao@rock-chips.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/rockchip/
-F:	Documentation/devicetree/bindings/display/rockchip*
+F:	Documentation/devicetree/bindings/display/rockchip/
 
 DRM DRIVERS FOR STI
 M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
