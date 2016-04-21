@@ -268,6 +268,9 @@ IIO
   devm_iio_trigger_alloc()
   devm_iio_trigger_free()
 
+INPUT
+  devm_input_allocate_device()
+
 IO region
   devm_release_mem_region()
   devm_release_region()
