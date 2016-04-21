@@ -164,60 +164,6 @@ struct dma_ops_domain {
  *
  ****************************************************************************/
 
-static struct protection_domain *to_pdomain(struct iommu_domain *dom)
-{
-	return container_of(dom, struct protection_domain, domain);
-}
-
-static struct iommu_dev_data *alloc_dev_data(u16 devid)
-{
-	struct iommu_dev_data *dev_data;
-	unsigned long flags;
-
-	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
-	if (!dev_data)
-		return NULL;
-
-	dev_data->devid = devid;
-
-	spin_lock_irqsave(&dev_data_list_lock, flags);
-	list_add_tail(&dev_data->dev_data_list, &dev_data_list);
-	spin_unlock_irqrestore(&dev_data_list_lock, flags);
-
-	return dev_data;
-}
-
-static struct iommu_dev_data *search_dev_data(u16 devid)
-{
-	struct iommu_dev_data *dev_data;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev_data_list_lock, flags);
-	list_for_each_entry(dev_data, &dev_data_list, dev_data_list) {
-		if (dev_data->devid == devid)
-			goto out_unlock;
-	}
-
-	dev_data = NULL;
-
-out_unlock:
-	spin_unlock_irqrestore(&dev_data_list_lock, flags);
-
-	return dev_data;
-}
-
-static struct iommu_dev_data *find_dev_data(u16 devid)
-{
-	struct iommu_dev_data *dev_data;
-
-	dev_data = search_dev_data(devid);
-
-	if (dev_data == NULL)
-		dev_data = alloc_dev_data(devid);
-
-	return dev_data;
-}
-
 static inline int match_hid_uid(struct device *dev,
 				struct acpihid_map_entry *entry)
 {
@@ -270,6 +216,60 @@ static inline int get_device_id(struct device *dev)
 		devid = get_acpihid_device_id(dev, NULL);
 
 	return devid;
+}
+
+static struct protection_domain *to_pdomain(struct iommu_domain *dom)
+{
+	return container_of(dom, struct protection_domain, domain);
+}
+
+static struct iommu_dev_data *alloc_dev_data(u16 devid)
+{
+	struct iommu_dev_data *dev_data;
+	unsigned long flags;
+
+	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
+	if (!dev_data)
+		return NULL;
+
+	dev_data->devid = devid;
+
+	spin_lock_irqsave(&dev_data_list_lock, flags);
+	list_add_tail(&dev_data->dev_data_list, &dev_data_list);
+	spin_unlock_irqrestore(&dev_data_list_lock, flags);
+
+	return dev_data;
+}
+
+static struct iommu_dev_data *search_dev_data(u16 devid)
+{
+	struct iommu_dev_data *dev_data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_data_list_lock, flags);
+	list_for_each_entry(dev_data, &dev_data_list, dev_data_list) {
+		if (dev_data->devid == devid)
+			goto out_unlock;
+	}
+
+	dev_data = NULL;
+
+out_unlock:
+	spin_unlock_irqrestore(&dev_data_list_lock, flags);
+
+	return dev_data;
+}
+
+static struct iommu_dev_data *find_dev_data(u16 devid)
+{
+	struct iommu_dev_data *dev_data;
+
+	dev_data = search_dev_data(devid);
+
+	if (dev_data == NULL)
+		dev_data = alloc_dev_data(devid);
+
+	return dev_data;
 }
 
 static struct iommu_dev_data *get_dev_data(struct device *dev)
