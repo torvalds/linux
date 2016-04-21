@@ -18,6 +18,14 @@ struct callchain_cpus_entries {
 	struct perf_callchain_entry	*cpu_entries[0];
 };
 
+int sysctl_perf_event_max_stack __read_mostly = PERF_MAX_STACK_DEPTH;
+
+static inline size_t perf_callchain_entry__sizeof(void)
+{
+	return (sizeof(struct perf_callchain_entry) +
+		sizeof(__u64) * sysctl_perf_event_max_stack);
+}
+
 static DEFINE_PER_CPU(int, callchain_recursion[PERF_NR_CONTEXTS]);
 static atomic_t nr_callchain_events;
 static DEFINE_MUTEX(callchain_mutex);
@@ -73,7 +81,7 @@ static int alloc_callchain_buffers(void)
 	if (!entries)
 		return -ENOMEM;
 
-	size = sizeof(struct perf_callchain_entry) * PERF_NR_CONTEXTS;
+	size = perf_callchain_entry__sizeof() * PERF_NR_CONTEXTS;
 
 	for_each_possible_cpu(cpu) {
 		entries->cpu_entries[cpu] = kmalloc_node(size, GFP_KERNEL,
@@ -147,7 +155,8 @@ static struct perf_callchain_entry *get_callchain_entry(int *rctx)
 
 	cpu = smp_processor_id();
 
-	return &entries->cpu_entries[cpu][*rctx];
+	return (((void *)entries->cpu_entries[cpu]) +
+		(*rctx * perf_callchain_entry__sizeof()));
 }
 
 static void
@@ -214,4 +223,26 @@ exit_put:
 	put_callchain_entry(rctx);
 
 	return entry;
+}
+
+int perf_event_max_stack_handler(struct ctl_table *table, int write,
+				 void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int new_value = sysctl_perf_event_max_stack, ret;
+	struct ctl_table new_table = *table;
+
+	new_table.data = &new_value;
+	ret = proc_dointvec_minmax(&new_table, write, buffer, lenp, ppos);
+	if (ret || !write)
+		return ret;
+
+	mutex_lock(&callchain_mutex);
+	if (atomic_read(&nr_callchain_events))
+		ret = -EBUSY;
+	else
+		sysctl_perf_event_max_stack = new_value;
+
+	mutex_unlock(&callchain_mutex);
+
+	return ret;
 }
