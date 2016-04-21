@@ -833,15 +833,13 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 
 	/*
 	 * Enable Rx DMA
-	 * Single frame mode
 	 * Rx buffer size 4 or 8k or 12k
 	 * Min RB size 4 or 8
 	 * Drop frames that exceed RB size
 	 * 512 RBDs
 	 */
 	iwl_write_prph_no_grab(trans, RFH_RXF_DMA_CFG,
-			       RFH_DMA_EN_ENABLE_VAL |
-			       rb_size | RFH_RXF_DMA_SINGLE_FRAME_MASK |
+			       RFH_DMA_EN_ENABLE_VAL | rb_size |
 			       RFH_RXF_DMA_MIN_RB_4_8 |
 			       RFH_RXF_DMA_DROP_TOO_LARGE_MASK |
 			       RFH_RXF_DMA_RBDCB_SIZE_512);
