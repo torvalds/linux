@@ -4651,16 +4651,12 @@ struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
 struct i915_vma *i915_gem_obj_to_ggtt_view(struct drm_i915_gem_object *obj,
 					   const struct i915_ggtt_view *view)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_vma *vma;
 
-	BUG_ON(!view);
+	GEM_BUG_ON(!view);
 
 	list_for_each_entry(vma, &obj->vma_list, obj_link)
-		if (vma->vm == &ggtt->base &&
-		    i915_ggtt_view_equal(&vma->ggtt_view, view))
+		if (vma->is_ggtt && i915_ggtt_view_equal(&vma->ggtt_view, view))
 			return vma;
 	return NULL;
 }
