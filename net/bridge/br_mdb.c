@@ -61,6 +61,19 @@ static void __mdb_entry_fill_flags(struct br_mdb_entry *e, unsigned char flags)
 		e->flags |= MDB_FLAGS_OFFLOAD;
 }
 
+static void __mdb_entry_to_br_ip(struct br_mdb_entry *entry, struct br_ip *ip)
+{
+	memset(ip, 0, sizeof(struct br_ip));
+	ip->vid = entry->vid;
+	ip->proto = entry->addr.proto;
+	if (ip->proto == htons(ETH_P_IP))
+		ip->u.ip4 = entry->addr.u.ip4;
+#if IS_ENABLED(CONFIG_IPV6)
+	else
+		ip->u.ip6 = entry->addr.u.ip6;
+#endif
+}
+
 static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *dev)
 {
@@ -509,15 +522,7 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	if (!p || p->br != br || p->state == BR_STATE_DISABLED)
 		return -EINVAL;
 
-	memset(&ip, 0, sizeof(ip));
-	ip.vid = entry->vid;
-	ip.proto = entry->addr.proto;
-	if (ip.proto == htons(ETH_P_IP))
-		ip.u.ip4 = entry->addr.u.ip4;
-#if IS_ENABLED(CONFIG_IPV6)
-	else
-		ip.u.ip6 = entry->addr.u.ip6;
-#endif
+	__mdb_entry_to_br_ip(entry, &ip);
 
 	spin_lock_bh(&br->multicast_lock);
 	ret = br_mdb_add_group(br, p, &ip, entry->state, pg);
@@ -584,15 +589,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 	if (!netif_running(br->dev) || br->multicast_disabled)
 		return -EINVAL;
 
-	memset(&ip, 0, sizeof(ip));
-	ip.vid = entry->vid;
-	ip.proto = entry->addr.proto;
-	if (ip.proto == htons(ETH_P_IP))
-		ip.u.ip4 = entry->addr.u.ip4;
-#if IS_ENABLED(CONFIG_IPV6)
-	else
-		ip.u.ip6 = entry->addr.u.ip6;
-#endif
+	__mdb_entry_to_br_ip(entry, &ip);
 
 	spin_lock_bh(&br->multicast_lock);
 	mdb = mlock_dereference(br->mdb, br);
