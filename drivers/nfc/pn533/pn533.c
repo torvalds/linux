@@ -865,6 +865,7 @@ static int pn533_target_found_type_b(struct nfc_target *nfc_tgt, u8 *tgt_data,
 	return 0;
 }
 
+static void pn533_poll_reset_mod_list(struct pn533 *dev);
 static int pn533_target_found(struct pn533 *dev, u8 tg, u8 *tgdata,
 			      int tgdata_len)
 {
@@ -914,6 +915,7 @@ static int pn533_target_found(struct pn533 *dev, u8 tg, u8 *tgdata,
 
 	dev->tgt_available_prots = nfc_tgt.supported_protocols;
 
+	pn533_poll_reset_mod_list(dev);
 	nfc_targets_found(dev->nfc_dev, &nfc_tgt, 1);
 
 	return 0;
@@ -980,10 +982,8 @@ static int pn533_start_poll_complete(struct pn533 *dev, struct sk_buff *resp)
 		rc = pn533_target_found(dev, tg, tgdata, tgdata_len);
 
 		/* We must stop the poll after a valid target found */
-		if (rc == 0) {
-			pn533_poll_reset_mod_list(dev);
+		if (rc == 0)
 			return 0;
-		}
 	}
 
 	return -EAGAIN;
