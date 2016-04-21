@@ -1677,7 +1677,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			union ieee754sp(*b) (union ieee754sp, union ieee754sp);
 			union ieee754sp(*u) (union ieee754sp);
 		} handler;
-		union ieee754sp fs, ft;
+		union ieee754sp fd, fs, ft;
 
 		switch (MIPSInst_FUNC(ir)) {
 			/* binary ops */
@@ -1948,6 +1948,17 @@ copcsr:
 			rfmt = w_fmt;
 			goto copcsr;
 
+		case fsel_op:
+			if (!cpu_has_mips_r6)
+				return SIGILL;
+
+			SPFROMREG(fd, MIPSInst_FD(ir));
+			if (fd.bits & 0x1)
+				SPFROMREG(rv.s, MIPSInst_FT(ir));
+			else
+				SPFROMREG(rv.s, MIPSInst_FS(ir));
+			break;
+
 		case fcvtl_op:
 			if (!cpu_has_mips_3_4_5_64_r2_r6)
 				return SIGILL;
@@ -1996,7 +2007,7 @@ copcsr:
 	}
 
 	case d_fmt: {
-		union ieee754dp fs, ft;
+		union ieee754dp fd, fs, ft;
 		union {
 			union ieee754dp(*b) (union ieee754dp, union ieee754dp);
 			union ieee754dp(*u) (union ieee754dp);
@@ -2245,6 +2256,17 @@ dcopuop:
 			ieee754_csr.rm = oldrm;
 			rfmt = w_fmt;
 			goto copcsr;
+
+		case fsel_op:
+			if (!cpu_has_mips_r6)
+				return SIGILL;
+
+			DPFROMREG(fd, MIPSInst_FD(ir));
+			if (fd.bits & 0x1)
+				DPFROMREG(rv.d, MIPSInst_FT(ir));
+			else
+				DPFROMREG(rv.d, MIPSInst_FS(ir));
+			break;
 
 		case fcvtl_op:
 			if (!cpu_has_mips_3_4_5_64_r2_r6)
