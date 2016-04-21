@@ -6939,6 +6939,8 @@ MARVELL ARMADA DRM SUPPORT
 M:	Russell King <rmk+kernel@arm.linux.org.uk>
 S:	Maintained
 F:	drivers/gpu/drm/armada/
+F:	include/uapi/drm/armada_drm.h
+F:	Documentation/devicetree/bindings/display/armada/
 
 MARVELL 88E6352 DSA support
 M:	Guenter Roeck <linux@roeck-us.net>
