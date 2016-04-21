@@ -1288,18 +1288,12 @@ static void ack_a_interrupt(struct comedi_device *dev, unsigned short a_status)
 		ni_stc_writew(dev, ack, NISTC_INTA_ACK_REG);
 }
 
-static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
+static void handle_a_interrupt(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       unsigned short status,
 			       unsigned int ai_mite_status)
 {
-	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
-
-	/*
-	 * 67xx boards don't have ai subdevice, but their gpct0 might
-	 * generate an a interrupt.
-	 */
-	if (s->type == COMEDI_SUBD_UNUSED)
-		return;
 
 #ifdef PCIDMA
 	if (ai_mite_status & CHSR_LINKC)
@@ -5148,6 +5142,7 @@ static int ni_gpct_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static irqreturn_t ni_E_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct comedi_subdevice *s_ai = dev->read_subdev;
 	struct comedi_subdevice *s_ao = dev->write_subdev;
 	unsigned short a_status;
 	unsigned short b_status;
@@ -5171,9 +5166,9 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 		unsigned int m_status;
 
 		spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
-		if (devpriv->ai_mite_chan)
+		if (s_ai && devpriv->ai_mite_chan)
 			ai_mite_status = mite_ack_linkc(devpriv->ai_mite_chan,
-							dev->read_subdev);
+							s_ai);
 
 		if (s_ao && devpriv->ao_mite_chan) {
 			m_status = mite_ack_linkc(devpriv->ao_mite_chan, s_ao);
@@ -5186,8 +5181,9 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 #endif
 	ack_a_interrupt(dev, a_status);
 	ack_b_interrupt(dev, b_status);
-	if ((a_status & NISTC_AI_STATUS1_INTA) || (ai_mite_status & CHSR_INT))
-		handle_a_interrupt(dev, a_status, ai_mite_status);
+	if (s_ai &&
+	    ((a_status & NISTC_AI_STATUS1_INTA) || (ai_mite_status & CHSR_INT)))
+		handle_a_interrupt(dev, s_ai, a_status, ai_mite_status);
 	if (s_ao) {
 		if (b_status & NISTC_AO_STATUS1_INTB)
 			handle_b_interrupt(dev, s_ao, b_status);
