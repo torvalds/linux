@@ -1387,8 +1387,7 @@ static void ack_b_interrupt(struct comedi_device *dev, unsigned short b_status)
 
 static void handle_b_interrupt(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       unsigned short b_status,
-			       unsigned int ao_mite_status)
+			       unsigned short b_status)
 {
 	if (b_status == 0xffff)
 		return;
@@ -1417,8 +1416,6 @@ static void handle_b_interrupt(struct comedi_device *dev,
 		}
 	}
 #endif
-
-	comedi_handle_events(dev, s);
 }
 
 static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -5155,7 +5152,6 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	unsigned short a_status;
 	unsigned short b_status;
 	unsigned int ai_mite_status = 0;
-	unsigned int ao_mite_status = 0;
 	unsigned long flags;
 #ifdef PCIDMA
 	struct ni_private *devpriv = dev->private;
@@ -5172,6 +5168,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 #ifdef PCIDMA
 	if (devpriv->mite) {
 		unsigned long flags_too;
+		unsigned int m_status;
 
 		spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
 		if (devpriv->ai_mite_chan)
@@ -5179,9 +5176,8 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 							dev->read_subdev);
 
 		if (s_ao && devpriv->ao_mite_chan) {
-			ao_mite_status = mite_ack_linkc(devpriv->ao_mite_chan,
-							s_ao);
-			if (ao_mite_status & CHSR_LINKC)
+			m_status = mite_ack_linkc(devpriv->ao_mite_chan, s_ao);
+			if (m_status & CHSR_LINKC)
 				mite_sync_dma(devpriv->ao_mite_chan, s_ao);
 		}
 
@@ -5192,9 +5188,12 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	ack_b_interrupt(dev, b_status);
 	if ((a_status & NISTC_AI_STATUS1_INTA) || (ai_mite_status & CHSR_INT))
 		handle_a_interrupt(dev, a_status, ai_mite_status);
-	if (s_ao &&
-	    ((b_status & NISTC_AO_STATUS1_INTB) || (ao_mite_status & CHSR_INT)))
-		handle_b_interrupt(dev, s_ao, b_status, ao_mite_status);
+	if (s_ao) {
+		if (b_status & NISTC_AO_STATUS1_INTB)
+			handle_b_interrupt(dev, s_ao, b_status);
+		/* handle any interrupt or dma events */
+		comedi_handle_events(dev, s_ao);
+	}
 	handle_gpct_interrupt(dev, 0);
 	handle_gpct_interrupt(dev, 1);
 #ifdef PCIDMA
