@@ -131,7 +131,7 @@ int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, cpumask_var_t cpumask)
 
 	opp_table = _find_opp_table(cpu_dev);
 	if (IS_ERR(opp_table)) {
-		ret = -EINVAL;
+		ret = PTR_ERR(opp_table);
 		goto unlock;
 	}
 
