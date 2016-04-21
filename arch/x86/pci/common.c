@@ -673,28 +673,22 @@ int pcibios_add_device(struct pci_dev *dev)
 	return 0;
 }
 
-int pcibios_alloc_irq(struct pci_dev *dev)
-{
-	/*
-	 * If the PCI device was already claimed by core code and has
-	 * MSI enabled, probing of the pcibios IRQ will overwrite
-	 * dev->irq.  So bail out if MSI is already enabled.
-	 */
-	if (pci_dev_msi_enabled(dev))
-		return -EBUSY;
-
-	return pcibios_enable_irq(dev);
-}
-
-void pcibios_free_irq(struct pci_dev *dev)
-{
-	if (pcibios_disable_irq)
-		pcibios_disable_irq(dev);
-}
-
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
-	return pci_enable_resources(dev, mask);
+	int err;
+
+	if ((err = pci_enable_resources(dev, mask)) < 0)
+		return err;
+
+	if (!pci_dev_msi_enabled(dev))
+		return pcibios_enable_irq(dev);
+	return 0;
+}
+
+void pcibios_disable_device (struct pci_dev *dev)
+{
+	if (!pci_dev_msi_enabled(dev) && pcibios_disable_irq)
+		pcibios_disable_irq(dev);
 }
 
 int pci_ext_cfg_avail(void)

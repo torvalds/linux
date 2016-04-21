@@ -2,7 +2,7 @@
  * USB Attached SCSI
  * Note that this is not the same as the USB Mass Storage driver
  *
- * Copyright Hans de Goede <hdegoede@redhat.com> for Red Hat, Inc. 2013 - 2014
+ * Copyright Hans de Goede <hdegoede@redhat.com> for Red Hat, Inc. 2013 - 2016
  * Copyright Matthew Wilcox for Intel Corp, 2010
  * Copyright Sarah Sharp for Intel Corp, 2010
  *
@@ -757,6 +757,17 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	return SUCCESS;
 }
 
+static int uas_target_alloc(struct scsi_target *starget)
+{
+	struct uas_dev_info *devinfo = (struct uas_dev_info *)
+			dev_to_shost(starget->dev.parent)->hostdata;
+
+	if (devinfo->flags & US_FL_NO_REPORT_LUNS)
+		starget->no_report_luns = 1;
+
+	return 0;
+}
+
 static int uas_slave_alloc(struct scsi_device *sdev)
 {
 	struct uas_dev_info *devinfo =
@@ -800,7 +811,6 @@ static int uas_slave_configure(struct scsi_device *sdev)
 	if (devinfo->flags & US_FL_BROKEN_FUA)
 		sdev->broken_fua = 1;
 
-	scsi_change_queue_depth(sdev, devinfo->qdepth - 2);
 	return 0;
 }
 
@@ -808,6 +818,7 @@ static struct scsi_host_template uas_host_template = {
 	.module = THIS_MODULE,
 	.name = "uas",
 	.queuecommand = uas_queuecommand,
+	.target_alloc = uas_target_alloc,
 	.slave_alloc = uas_slave_alloc,
 	.slave_configure = uas_slave_configure,
 	.eh_abort_handler = uas_eh_abort_handler,
@@ -931,6 +942,12 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	result = uas_configure_endpoints(devinfo);
 	if (result)
 		goto set_alt0;
+
+	/*
+	 * 1 tag is reserved for untagged commands +
+	 * 1 tag to avoid off by one errors in some bridge firmwares
+	 */
+	shost->can_queue = devinfo->qdepth - 2;
 
 	usb_set_intfdata(intf, shost);
 	result = scsi_add_host(shost, &intf->dev);

@@ -204,8 +204,6 @@ void dccp_req_err(struct sock *sk, u64 seq)
 	 * ICMPs are not backlogged, hence we cannot get an established
 	 * socket here.
 	 */
-	WARN_ON(req->sk);
-
 	if (!between48(seq, dccp_rsk(req)->dreq_iss, dccp_rsk(req)->dreq_gss)) {
 		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
 	} else {

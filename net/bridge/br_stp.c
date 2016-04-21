@@ -567,6 +567,14 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
 
 }
 
+/* Set time interval that dynamic forwarding entries live
+ * For pure software bridge, allow values outside the 802.1
+ * standard specification for special cases:
+ *  0 - entry never ages (all permanant)
+ *  1 - entry disappears (no persistance)
+ *
+ * Offloaded switch entries maybe more restrictive
+ */
 int br_set_ageing_time(struct net_bridge *br, u32 ageing_time)
 {
 	struct switchdev_attr attr = {
@@ -577,11 +585,8 @@ int br_set_ageing_time(struct net_bridge *br, u32 ageing_time)
 	unsigned long t = clock_t_to_jiffies(ageing_time);
 	int err;
 
-	if (t < BR_MIN_AGEING_TIME || t > BR_MAX_AGEING_TIME)
-		return -ERANGE;
-
 	err = switchdev_port_attr_set(br->dev, &attr);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		return err;
 
 	br->ageing_time = t;

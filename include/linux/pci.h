@@ -989,23 +989,6 @@ static inline int pci_is_managed(struct pci_dev *pdev)
 	return pdev->is_managed;
 }
 
-static inline void pci_set_managed_irq(struct pci_dev *pdev, unsigned int irq)
-{
-	pdev->irq = irq;
-	pdev->irq_managed = 1;
-}
-
-static inline void pci_reset_managed_irq(struct pci_dev *pdev)
-{
-	pdev->irq = 0;
-	pdev->irq_managed = 0;
-}
-
-static inline bool pci_has_managed_irq(struct pci_dev *pdev)
-{
-	return pdev->irq_managed && pdev->irq > 0;
-}
-
 void pci_disable_device(struct pci_dev *dev);
 
 extern unsigned int pcibios_max_latency;

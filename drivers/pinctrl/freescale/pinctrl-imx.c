@@ -726,19 +726,18 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 
 	if (of_property_read_bool(dev_np, "fsl,input-sel")) {
 		np = of_parse_phandle(dev_np, "fsl,input-sel", 0);
-		if (np) {
-			ipctl->input_sel_base = of_iomap(np, 0);
-			if (IS_ERR(ipctl->input_sel_base)) {
-				of_node_put(np);
-				dev_err(&pdev->dev,
-					"iomuxc input select base address not found\n");
-				return PTR_ERR(ipctl->input_sel_base);
-			}
-		} else {
+		if (!np) {
 			dev_err(&pdev->dev, "iomuxc fsl,input-sel property not found\n");
 			return -EINVAL;
 		}
+
+		ipctl->input_sel_base = of_iomap(np, 0);
 		of_node_put(np);
+		if (!ipctl->input_sel_base) {
+			dev_err(&pdev->dev,
+				"iomuxc input select base address not found\n");
+			return -ENOMEM;
+		}
 	}
 
 	imx_pinctrl_desc.name = dev_name(&pdev->dev);

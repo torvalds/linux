@@ -446,8 +446,12 @@ int bpf_prog_create_from_user(struct bpf_prog **pfp, struct sock_fprog *fprog,
 void bpf_prog_destroy(struct bpf_prog *fp);
 
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
+int __sk_attach_filter(struct sock_fprog *fprog, struct sock *sk,
+		       bool locked);
 int sk_attach_bpf(u32 ufd, struct sock *sk);
 int sk_detach_filter(struct sock *sk);
+int __sk_detach_filter(struct sock *sk, bool locked);
+
 int sk_get_filter(struct sock *sk, struct sock_filter __user *filter,
 		  unsigned int len);
 
