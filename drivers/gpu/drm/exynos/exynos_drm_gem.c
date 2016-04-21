@@ -362,12 +362,9 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 	struct drm_exynos_gem_info *args = data;
 	struct drm_gem_object *obj;
 
-	mutex_lock(&dev->struct_mutex);
-
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
-		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
@@ -376,8 +373,7 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 	args->flags = exynos_gem->flags;
 	args->size = exynos_gem->size;
 
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 
 	return 0;
 }
@@ -388,16 +384,12 @@ int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
 {
 	int nents;
 
-	mutex_lock(&drm_dev->struct_mutex);
-
 	nents = dma_map_sg(to_dma_dev(drm_dev), sgt->sgl, sgt->nents, dir);
 	if (!nents) {
 		DRM_ERROR("failed to map sgl with dma.\n");
-		mutex_unlock(&drm_dev->struct_mutex);
 		return nents;
 	}
 
-	mutex_unlock(&drm_dev->struct_mutex);
 	return 0;
 }
 
@@ -458,8 +450,6 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 	struct drm_gem_object *obj;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
-
 	/*
 	 * get offset of memory allocated for drm framebuffer.
 	 * - this callback would be called by user application
@@ -469,16 +459,13 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 	obj = drm_gem_object_lookup(dev, file_priv, handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 	DRM_DEBUG_KMS("offset = 0x%lx\n", (unsigned long)*offset);
 
-	drm_gem_object_unreference(obj);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 	return ret;
 }
 

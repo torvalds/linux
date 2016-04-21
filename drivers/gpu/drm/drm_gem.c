@@ -422,6 +422,10 @@ EXPORT_SYMBOL(drm_gem_handle_create);
  * @obj: obj in question
  *
  * This routine frees fake offsets allocated by drm_gem_create_mmap_offset().
+ *
+ * Note that drm_gem_object_release() already calls this function, so drivers
+ * don't have to take care of releasing the mmap offset themselves when freeing
+ * the GEM object.
  */
 void
 drm_gem_free_mmap_offset(struct drm_gem_object *obj)
@@ -445,6 +449,9 @@ EXPORT_SYMBOL(drm_gem_free_mmap_offset);
  * This routine allocates and attaches a fake offset for @obj, in cases where
  * the virtual size differs from the physical size (ie. obj->size).  Otherwise
  * just use drm_gem_create_mmap_offset().
+ *
+ * This function is idempotent and handles an already allocated mmap offset
+ * transparently. Drivers do not need to check for this case.
  */
 int
 drm_gem_create_mmap_offset_size(struct drm_gem_object *obj, size_t size)
@@ -466,6 +473,9 @@ EXPORT_SYMBOL(drm_gem_create_mmap_offset_size);
  * structures.
  *
  * This routine allocates and attaches a fake offset for @obj.
+ *
+ * Drivers can call drm_gem_free_mmap_offset() before freeing @obj to release
+ * the fake offset again.
  */
 int drm_gem_create_mmap_offset(struct drm_gem_object *obj)
 {
@@ -759,6 +769,13 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 	idr_destroy(&file_private->object_idr);
 }
 
+/**
+ * drm_gem_object_release - release GEM buffer object resources
+ * @obj: GEM buffer object
+ *
+ * This releases any structures and resources used by @obj and is the invers of
+ * drm_gem_object_init().
+ */
 void
 drm_gem_object_release(struct drm_gem_object *obj)
 {

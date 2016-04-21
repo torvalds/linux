@@ -386,8 +386,6 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		}
 	}
 
-	mutex_lock(&dev->struct_mutex);
-
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
@@ -426,8 +424,6 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	mutex_unlock(&dev->struct_mutex);
-
 	if (chan)
 		nouveau_fbcon_accel_init(dev);
 	nouveau_fbcon_zfill(dev, fbcon);
@@ -441,7 +437,6 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	return 0;
 
 out_unlock:
-	mutex_unlock(&dev->struct_mutex);
 	if (chan)
 		nouveau_bo_vma_del(nvbo, &fbcon->nouveau_fb.vma);
 	nouveau_bo_unmap(nvbo);
