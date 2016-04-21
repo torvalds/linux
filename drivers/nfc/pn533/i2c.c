@@ -211,7 +211,8 @@ static int pn533_i2c_probe(struct i2c_client *client,
 				     PN533_NO_TYPE_B_PROTOCOLS,
 				     PN533_PROTO_REQ_ACK_RESP,
 				     phy, &i2c_phy_ops, NULL,
-				     &phy->i2c_dev->dev);
+				     &phy->i2c_dev->dev,
+				     &client->dev);
 
 	if (IS_ERR(priv)) {
 		r = PTR_ERR(priv);

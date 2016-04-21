@@ -2554,7 +2554,8 @@ struct pn533 *pn533_register_device(u32 device_type,
 				void *phy,
 				struct pn533_phy_ops *phy_ops,
 				struct pn533_frame_ops *fops,
-				struct device *dev)
+				struct device *dev,
+				struct device *parent)
 {
 	struct pn533_fw_version fw_ver;
 	struct pn533 *priv;
@@ -2617,6 +2618,7 @@ struct pn533 *pn533_register_device(u32 device_type,
 		goto destroy_wq;
 	}
 
+	nfc_set_parent_dev(priv->nfc_dev, parent);
 	nfc_set_drvdata(priv->nfc_dev, priv);
 
 	rc = nfc_register_device(priv->nfc_dev);

@@ -536,7 +536,7 @@ static int pn533_usb_probe(struct usb_interface *interface,
 
 	priv = pn533_register_device(id->driver_info, protocols, protocol_type,
 					phy, &usb_phy_ops, fops,
-					&phy->udev->dev);
+					&phy->udev->dev, &interface->dev);
 
 	if (IS_ERR(priv)) {
 		rc = PTR_ERR(priv);
@@ -544,7 +544,6 @@ static int pn533_usb_probe(struct usb_interface *interface,
 	}
 
 	phy->priv = priv;
-	nfc_set_parent_dev(priv->nfc_dev, &interface->dev);
 
 	usb_set_intfdata(interface, phy);
 
