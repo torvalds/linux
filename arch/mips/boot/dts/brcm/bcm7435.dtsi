@@ -82,7 +82,7 @@
 		};
 
 		gisb-arb@400000 {
-			compatible = "brcm,bcm7400-gisb-arb";
+			compatible = "brcm,bcm7435-gisb-arb";
 			reg = <0x400000 0xdc>;
 			native-endian;
 			interrupt-parent = <&sun_l2_intc>;

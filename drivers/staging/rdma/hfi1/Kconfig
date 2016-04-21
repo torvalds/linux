@@ -2,6 +2,7 @@ config INFINIBAND_HFI1
 	tristate "Intel OPA Gen1 support"
 	depends on X86_64 && INFINIBAND_RDMAVT
 	select MMU_NOTIFIER
+	select CRC32
 	default m
 	---help---
 	This is a low-level driver for Intel OPA Gen1 adapter.

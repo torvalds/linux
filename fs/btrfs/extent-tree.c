@@ -3452,7 +3452,7 @@ again:
 		num_pages = 1;
 
 	num_pages *= 16;
-	num_pages *= PAGE_CACHE_SIZE;
+	num_pages *= PAGE_SIZE;
 
 	ret = btrfs_check_data_free_space(inode, 0, num_pages);
 	if (ret)
@@ -4639,7 +4639,7 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 	loops = 0;
 	while (delalloc_bytes && loops < 3) {
 		max_reclaim = min(delalloc_bytes, to_reclaim);
-		nr_pages = max_reclaim >> PAGE_CACHE_SHIFT;
+		nr_pages = max_reclaim >> PAGE_SHIFT;
 		btrfs_writeback_inodes_sb_nr(root, nr_pages, items);
 		/*
 		 * We need to wait for the async pages to actually start before
@@ -9386,15 +9386,23 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	u64 dev_min = 1;
 	u64 dev_nr = 0;
 	u64 target;
+	int debug;
 	int index;
 	int full = 0;
 	int ret = 0;
 
+	debug = btrfs_test_opt(root, ENOSPC_DEBUG);
+
 	block_group = btrfs_lookup_block_group(root->fs_info, bytenr);
 
 	/* odd, couldn't find the block group, leave it alone */
-	if (!block_group)
+	if (!block_group) {
+		if (debug)
+			btrfs_warn(root->fs_info,
+				   "can't find block group for bytenr %llu",
+				   bytenr);
 		return -1;
+	}
 
 	min_free = btrfs_block_group_used(&block_group->item);
 
@@ -9448,8 +9456,13 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 		 * this is just a balance, so if we were marked as full
 		 * we know there is no space for a new chunk
 		 */
-		if (full)
+		if (full) {
+			if (debug)
+				btrfs_warn(root->fs_info,
+					"no space to alloc new chunk for block group %llu",
+					block_group->key.objectid);
 			goto out;
+		}
 
 		index = get_block_group_index(block_group);
 	}
@@ -9496,6 +9509,10 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 			ret = -1;
 		}
 	}
+	if (debug && ret == -1)
+		btrfs_warn(root->fs_info,
+			"no space to allocate a new chunk for block group %llu",
+			block_group->key.objectid);
 	mutex_unlock(&root->fs_info->chunk_mutex);
 	btrfs_end_transaction(trans, root);
 out:
