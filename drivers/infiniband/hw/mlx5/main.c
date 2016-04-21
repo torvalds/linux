@@ -405,8 +405,8 @@ static int mlx5_query_hca_port(struct ib_device *ibdev, u8 port,
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_hca_vport_context *rep;
-	int max_mtu;
-	int oper_mtu;
+	u16 max_mtu;
+	u16 oper_mtu;
 	int err;
 	u8 ib_link_width_oper;
 	u8 vl_hw_cap;
