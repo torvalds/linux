@@ -120,6 +120,7 @@ struct gf100_gr_func {
 	int (*init)(struct gf100_gr *);
 	void (*init_gpc_mmu)(struct gf100_gr *);
 	void (*init_rop_active_fbps)(struct gf100_gr *);
+	void (*init_ppc_exceptions)(struct gf100_gr *);
 	void (*set_hww_esr_report_mask)(struct gf100_gr *);
 	const struct gf100_gr_pack *mmio;
 	struct {
@@ -139,6 +140,7 @@ int gf100_gr_rops(struct gf100_gr *);
 
 int gk104_gr_init(struct gf100_gr *);
 void gk104_gr_init_rop_active_fbps(struct gf100_gr *);
+void gk104_gr_init_ppc_exceptions(struct gf100_gr *);
 
 int gk20a_gr_init(struct gf100_gr *);
 

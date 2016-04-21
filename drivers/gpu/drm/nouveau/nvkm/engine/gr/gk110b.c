@@ -104,6 +104,7 @@ static const struct gf100_gr_func
 gk110b_gr = {
 	.init = gk104_gr_init,
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
+	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gk110b_gr_pack_mmio,
 	.fecs.ucode = &gk110_gr_fecs_ucode,
 	.gpccs.ucode = &gk110_gr_gpccs_ucode,

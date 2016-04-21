@@ -68,7 +68,7 @@ gm200_gr_init(struct gf100_gr *gr)
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
-	int gpc, tpc, ppc, rop;
+	int gpc, tpc, rop;
 	int i;
 
 	gr->func->init_gpc_mmu(gr);
@@ -126,9 +126,9 @@ gm200_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x405844, 0x00ffffff);
 	nvkm_mask(device, 0x419cc0, 0x00000008, 0x00000008);
 
+	gr->func->init_ppc_exceptions(gr);
+
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		for (ppc = 0; ppc < gr->ppc_nr[gpc]; ppc++)
-			nvkm_wr32(device, PPC_UNIT(gpc, ppc, 0x038), 0xc0000000);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0420), 0xc0000000);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0900), 0xc0000000);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x1028), 0xc0000000);
@@ -211,6 +211,7 @@ gm200_gr = {
 	.init = gm200_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
 	.init_rop_active_fbps = gm200_gr_init_rop_active_fbps,
+	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gm200_grctx,
