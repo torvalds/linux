@@ -319,6 +319,9 @@ int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, cpumask_var_t cpumask)
 				__func__, cpu);
 			continue;
 		}
+
+		/* Mark opp-table as multiple CPUs are sharing it now */
+		opp_table->shared_opp = true;
 	}
 unlock:
 	mutex_unlock(&opp_table_lock);
