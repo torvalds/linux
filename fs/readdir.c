@@ -24,15 +24,21 @@
 int iterate_dir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
+	bool shared = false;
 	int res = -ENOTDIR;
-	if (!file->f_op->iterate)
+	if (file->f_op->iterate_shared)
+		shared = true;
+	else if (!file->f_op->iterate)
 		goto out;
 
 	res = security_file_permission(file, MAY_READ);
 	if (res)
 		goto out;
 
-	inode_lock(inode);
+	if (shared)
+		inode_lock_shared(inode);
+	else
+		inode_lock(inode);
 	// res = mutex_lock_killable(&inode->i_mutex);
 	// if (res)
 	//	goto out;
@@ -40,12 +46,18 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 	res = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
 		ctx->pos = file->f_pos;
-		res = file->f_op->iterate(file, ctx);
+		if (shared)
+			res = file->f_op->iterate_shared(file, ctx);
+		else
+			res = file->f_op->iterate(file, ctx);
 		file->f_pos = ctx->pos;
 		fsnotify_access(file);
 		file_accessed(file);
 	}
-	inode_unlock(inode);
+	if (shared)
+		inode_unlock_shared(inode);
+	else
+		inode_unlock(inode);
 out:
 	return res;
 }

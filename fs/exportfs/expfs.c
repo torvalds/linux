@@ -312,7 +312,7 @@ static int get_name(const struct path *path, char *name, struct dentry *child)
 		goto out;
 
 	error = -EINVAL;
-	if (!file->f_op->iterate)
+	if (!file->f_op->iterate && !file->f_op->iterate_shared)
 		goto out_close;
 
 	buffer.sequence = 0;

@@ -557,3 +557,21 @@ in your dentry operations instead.
 	will not happen in parallel ("same" in the sense of your ->d_compare()).
 	Lookups on different names in the same directory can and do happen in
 	parallel now.
+--
+[recommended]
+	->iterate_shared() is added; it's a parallel variant of ->iterate().
+	Exclusion on struct file level is still provided (as well as that
+	between it and lseek on the same struct file), but if your directory
+	has been opened several times, you can get these called in parallel.
+	Exclusion between that method and all directory-modifying ones is
+	still provided, of course.
+
+	Often enough ->iterate() can serve as ->iterate_shared() without any
+	changes - it is a read-only operation, after all.  If you have any
+	per-inode or per-dentry in-core data structures modified by ->iterate(),
+	you might need something to serialize the access to them.  If you
+	do dcache pre-seeding, you'll need to switch to d_alloc_parallel() for
+	that; look for in-tree examples.
+
+	Old method is only used if the new one is absent; eventually it will
+	be removed.  Switch while you still can; the old one won't stay.
