@@ -782,7 +782,7 @@ struct vme_dma_list *vme_new_dma_list(struct vme_resource *resource)
 
 	dma_list = kmalloc(sizeof(struct vme_dma_list), GFP_KERNEL);
 	if (dma_list == NULL) {
-		printk(KERN_ERR "Unable to allocate memory for new dma list\n");
+		printk(KERN_ERR "Unable to allocate memory for new DMA list\n");
 		return NULL;
 	}
 	INIT_LIST_HEAD(&dma_list->entries);
@@ -846,7 +846,7 @@ struct vme_dma_attr *vme_dma_pci_attribute(dma_addr_t address)
 
 	pci_attr = kmalloc(sizeof(struct vme_dma_pci), GFP_KERNEL);
 	if (pci_attr == NULL) {
-		printk(KERN_ERR "Unable to allocate memory for pci attributes\n");
+		printk(KERN_ERR "Unable to allocate memory for PCI attributes\n");
 		goto err_pci;
 	}
 
@@ -884,7 +884,7 @@ struct vme_dma_attr *vme_dma_vme_attribute(unsigned long long address,
 
 	vme_attr = kmalloc(sizeof(struct vme_dma_vme), GFP_KERNEL);
 	if (vme_attr == NULL) {
-		printk(KERN_ERR "Unable to allocate memory for vme attributes\n");
+		printk(KERN_ERR "Unable to allocate memory for VME attributes\n");
 		goto err_vme;
 	}
 
@@ -975,8 +975,8 @@ int vme_dma_list_free(struct vme_dma_list *list)
 	}
 
 	/*
-	 * Empty out all of the entries from the dma list. We need to go to the
-	 * low level driver as dma entries are driver specific.
+	 * Empty out all of the entries from the DMA list. We need to go to the
+	 * low level driver as DMA entries are driver specific.
 	 */
 	retval = bridge->dma_list_empty(list);
 	if (retval) {
@@ -1091,7 +1091,7 @@ void vme_irq_handler(struct vme_bridge *bridge, int level, int statid)
 	if (call != NULL)
 		call(level, statid, priv_data);
 	else
-		printk(KERN_WARNING "Spurilous VME interrupt, level:%x, vector:%x\n",
+		printk(KERN_WARNING "Spurious VME interrupt, level:%x, vector:%x\n",
 		       level, statid);
 }
 EXPORT_SYMBOL(vme_irq_handler);
