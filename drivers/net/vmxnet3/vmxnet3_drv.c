@@ -1152,12 +1152,16 @@ vmxnet3_rx_csum(struct vmxnet3_adapter *adapter,
 		union Vmxnet3_GenericDesc *gdesc)
 {
 	if (!gdesc->rcd.cnc && adapter->netdev->features & NETIF_F_RXCSUM) {
-		/* typical case: TCP/UDP over IP and both csums are correct */
-		if ((le32_to_cpu(gdesc->dword[3]) & VMXNET3_RCD_CSUM_OK) ==
-							VMXNET3_RCD_CSUM_OK) {
+		if (gdesc->rcd.v4 &&
+		    (le32_to_cpu(gdesc->dword[3]) &
+		     VMXNET3_RCD_CSUM_OK) == VMXNET3_RCD_CSUM_OK) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			BUG_ON(!(gdesc->rcd.tcp || gdesc->rcd.udp));
-			BUG_ON(!(gdesc->rcd.v4  || gdesc->rcd.v6));
+			BUG_ON(gdesc->rcd.frg);
+		} else if (gdesc->rcd.v6 && (le32_to_cpu(gdesc->dword[3]) &
+					     (1 << VMXNET3_RCD_TUC_SHIFT))) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+			BUG_ON(!(gdesc->rcd.tcp || gdesc->rcd.udp));
 			BUG_ON(gdesc->rcd.frg);
 		} else {
 			if (gdesc->rcd.csum) {
