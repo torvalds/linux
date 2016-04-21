@@ -1,5 +1,5 @@
 /*
- * Google Gru-Kevin Rev 0+ board device tree source
+ * Google Gru-Kevin Rev 2+ board device tree source
  *
  * Copyright 2016 Google, Inc
  *
@@ -54,7 +54,16 @@
 		     "google,kevin-rev7", "google,kevin-rev6",
 		     "google,kevin-rev5", "google,kevin-rev4",
 		     "google,kevin-rev3", "google,kevin-rev2",
-		     "google,kevin-rev1", "google,kevin-rev0",
 		     "google,kevin", "google,veyron", "rockchip,rk3399";
 };
 
+/* PINCTRL: always below everything else */
+
+&pinctrl {
+	pen-eject {
+		pen_eject_l: pen-eject-l {
+			rockchip,pins = <RK_GPIO0 13 RK_FUNC_GPIO
+				&pcfg_pull_up>;
+		};
+	};
+};

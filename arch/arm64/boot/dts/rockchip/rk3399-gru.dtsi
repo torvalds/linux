@@ -129,7 +129,7 @@
 		pinctrl-0 = <&pp3000_en>;
 
 		enable-active-high;
-		gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 
 		regulator-always-on;
 		regulator-boot-on;
@@ -350,7 +350,7 @@
 		regulator-boot-on;
 
 		enable-active-high;
-		gpio = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 2 GPIO_ACTIVE_HIGH>;
 
 		vin-supply = <&pp1800>;
 	};
@@ -364,7 +364,7 @@
 		regulator-always-on;			// TODO: for bringup???
 		regulator-boot-on;			// TODO: for bringup???
 		enable-active-high;
-		gpio = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 4 GPIO_ACTIVE_HIGH>;
 
 		vin-supply = <&pp1800>;
 	};
@@ -707,7 +707,7 @@ ap_i2c_audio: &i2c8 {
 	clock-freq-min-max = <400000 37500000>;
 
 	bus-width = <4>;
-	cd-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
 	disable-wp;
 
 	cap-mmc-highspeed;
@@ -789,7 +789,7 @@ ap_i2c_audio: &i2c8 {
 
 		google,cros-ec-spi-pre-delay = <30>;	// TODO: check
 		interrupt-parent = <&gpio0>;
-		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
 		spi-max-frequency = <3000000>;		// TODO: check; TODO: rx-sample-delay-ns?
 
 		i2c_tunnel: i2c-tunnel {
@@ -953,19 +953,19 @@ ap_i2c_audio: &i2c8 {
 
 	cros-ec {
 		ec_ap_int_l: ec-ap-int-l {
-			rockchip,pins = <0 2 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <RK_GPIO0 1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	discrete-regulators {
 		pp1500_en: pp1500-en {
-			rockchip,pins = <RK_GPIO1 11 RK_FUNC_GPIO
+			rockchip,pins = <RK_GPIO0 10 RK_FUNC_GPIO
 					 &pcfg_pull_none>;
 		};
 
 		pp1800_audio_en: pp1800-audio-en {
-			rockchip,pins = <RK_GPIO0 1 RK_FUNC_GPIO
-					 &pcfg_pull_none>;
+			rockchip,pins = <RK_GPIO0 2 RK_FUNC_GPIO
+					 &pcfg_pull_down>;
 		};
 
 		pp3300_disp_en: pp3300-disp-en {
@@ -974,7 +974,7 @@ ap_i2c_audio: &i2c8 {
 		};
 
 		pp3000_en: pp3000-en {
-			rockchip,pins = <RK_GPIO1 12 RK_FUNC_GPIO
+			rockchip,pins = <RK_GPIO0 12 RK_FUNC_GPIO
 					 &pcfg_pull_none>;
 		};
 
@@ -994,8 +994,8 @@ ap_i2c_audio: &i2c8 {
 		};
 
 		wlan_module_pd_l: wlan-module-pd-l {
-			rockchip,pins = <RK_GPIO0 8 RK_FUNC_GPIO
-					 &pcfg_pull_none>;
+			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO
+					 &pcfg_pull_down>;
 		};
 	};
 
@@ -1053,7 +1053,7 @@ ap_i2c_audio: &i2c8 {
 
 		/* This is where we actually hook up CD; has external pull */
 		sdmmc_cd_gpio: sdmmc-cd-gpio {
-			rockchip,pins = <4 26 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 24 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
