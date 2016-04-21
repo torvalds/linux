@@ -119,8 +119,8 @@ static int gb_svc_pwrmon_rail_count_get(struct gb_svc *svc, u8 *value)
 }
 
 static int gb_svc_pwrmon_rail_names_get(struct gb_svc *svc,
-					struct gb_svc_pwrmon_rail_names_get_response *response,
-					size_t bufsize)
+		struct gb_svc_pwrmon_rail_names_get_response *response,
+		size_t bufsize)
 {
 	int ret;
 
