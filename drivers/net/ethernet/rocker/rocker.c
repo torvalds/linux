@@ -239,6 +239,7 @@ struct rocker {
 	struct {
 		u64 id;
 	} hw;
+	unsigned long ageing_time;
 	spinlock_t cmd_ring_lock;		/* for cmd ring accesses */
 	struct rocker_dma_ring_info cmd_ring;
 	struct rocker_dma_ring_info event_ring;
@@ -3704,7 +3705,7 @@ static void rocker_fdb_cleanup(unsigned long data)
 	struct rocker_port *rocker_port;
 	struct rocker_fdb_tbl_entry *entry;
 	struct hlist_node *tmp;
-	unsigned long next_timer = jiffies + BR_MIN_AGEING_TIME;
+	unsigned long next_timer = jiffies + rocker->ageing_time;
 	unsigned long expires;
 	unsigned long lock_flags;
 	int flags = ROCKER_OP_FLAG_NOWAIT | ROCKER_OP_FLAG_REMOVE |
@@ -4367,8 +4368,12 @@ static int rocker_port_bridge_ageing_time(struct rocker_port *rocker_port,
 					  struct switchdev_trans *trans,
 					  u32 ageing_time)
 {
+	struct rocker *rocker = rocker_port->rocker;
+
 	if (!switchdev_trans_ph_prepare(trans)) {
 		rocker_port->ageing_time = clock_t_to_jiffies(ageing_time);
+		if (rocker_port->ageing_time < rocker->ageing_time)
+			rocker->ageing_time = rocker_port->ageing_time;
 		mod_timer(&rocker_port->rocker->fdb_cleanup_timer, jiffies);
 	}
 
@@ -5206,9 +5211,12 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_init_tbls;
 	}
 
+	rocker->ageing_time = BR_DEFAULT_AGEING_TIME;
 	setup_timer(&rocker->fdb_cleanup_timer, rocker_fdb_cleanup,
 		    (unsigned long) rocker);
 	mod_timer(&rocker->fdb_cleanup_timer, jiffies);
+
+	rocker->ageing_time = BR_DEFAULT_AGEING_TIME;
 
 	err = rocker_probe_ports(rocker);
 	if (err) {
