@@ -690,19 +690,6 @@ static void es2_destroy(struct es2_ap_dev *es2)
 	usb_put_dev(udev);
 }
 
-static void ap_disconnect(struct usb_interface *interface)
-{
-	struct es2_ap_dev *es2 = usb_get_intfdata(interface);
-	int i;
-
-	gb_hd_del(es2->hd);
-
-	for (i = 0; i < NUM_BULKS; ++i)
-		es2_cport_in_disable(es2, &es2->cport_in[i]);
-
-	es2_destroy(es2);
-}
-
 static void cport_in_callback(struct urb *urb)
 {
 	struct gb_host_device *hd = urb->context;
@@ -1081,6 +1068,19 @@ error:
 	es2_destroy(es2);
 
 	return retval;
+}
+
+static void ap_disconnect(struct usb_interface *interface)
+{
+	struct es2_ap_dev *es2 = usb_get_intfdata(interface);
+	int i;
+
+	gb_hd_del(es2->hd);
+
+	for (i = 0; i < NUM_BULKS; ++i)
+		es2_cport_in_disable(es2, &es2->cport_in[i]);
+
+	es2_destroy(es2);
 }
 
 static struct usb_driver es2_ap_driver = {
