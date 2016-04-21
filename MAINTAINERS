@@ -3762,6 +3762,21 @@ F:	drivers/gpu/vga/
 F:	include/drm/
 F:	include/uapi/drm/
 
+DRM DRIVER FOR AST SERVER GRAPHICS CHIPS
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/ast/
+
+DRM DRIVER FOR BOCHS VIRTUAL GPU
+M:	Gerd Hoffmann <kraxel@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/bochs/
+
+DRM DRIVER FOR QEMU'S CIRRUS DEVICE
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/cirrus/
+
 RADEON and AMDGPU DRM DRIVERS
 M:	Alex Deucher <alexander.deucher@amd.com>
 M:	Christian König <christian.koenig@amd.com>
@@ -3872,6 +3887,11 @@ F:	include/linux/host1x.h
 F:	include/uapi/drm/tegra_drm.h
 F:	Documentation/devicetree/bindings/display/tegra/nvidia,tegra20-host1x.txt
 
+DRM DRIVER FOR MGA G200 SERVER GRAPHICS CHIPS
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/mgag200/
+
 DRM DRIVERS FOR RENESAS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	dri-devel@lists.freedesktop.org
@@ -3882,6 +3902,12 @@ F:	drivers/gpu/drm/rcar-du/
 F:	drivers/gpu/drm/shmobile/
 F:	include/linux/platform_data/shmob_drm.h
 F:	Documentation/devicetree/bindings/display/renesas,du.txt
+
+DRM DRIVER FOR QXL VIRTUAL GPU
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/qxl/
+F:	include/uapi/drm/qxl_drm.h
 
 DRM DRIVERS FOR ROCKCHIP
 M:	Mark Yao <mark.yao@rock-chips.com>
@@ -3898,6 +3924,11 @@ T:	git http://git.linaro.org/people/benjamin.gaignard/kernel.git
 S:	Maintained
 F:	drivers/gpu/drm/sti
 F:	Documentation/devicetree/bindings/display/st,stih4xx.txt
+
+DRM DRIVER FOR USB DISPLAYLINK VIDEO ADAPTERS
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/udl/
 
 DRM DRIVERS FOR VIVANTE GPU IP
 M:	Lucas Stach <l.stach@pengutronix.de>
