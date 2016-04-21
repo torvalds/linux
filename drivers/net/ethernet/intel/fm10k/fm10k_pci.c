@@ -2287,8 +2287,10 @@ static void fm10k_io_resume(struct pci_dev *pdev)
 	/* reassociate interrupts */
 	fm10k_mbx_request_irq(interface);
 
+	rtnl_lock();
 	if (netif_running(netdev))
 		err = fm10k_open(netdev);
+	rtnl_unlock();
 
 	/* final check of hardware state before registering the interface */
 	err = err ? : fm10k_hw_ready(interface);
