@@ -83,7 +83,7 @@ static void *workerfn(void *arg)
 	do {
 		int ret;
 	again:
-		ret = futex_lock_pi(w->futex, NULL, 0, futex_flag);
+		ret = futex_lock_pi(w->futex, NULL, futex_flag);
 
 		if (ret) { /* handle lock acquisition */
 			if (!silent)
