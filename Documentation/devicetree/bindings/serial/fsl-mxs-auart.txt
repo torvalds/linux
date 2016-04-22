@@ -19,7 +19,7 @@ Required properties for "alphascale,asm9260-auart":
 	"ahb" - ahb gate.
 
 Optional properties:
-- fsl,uart-has-rtscts : Indicate the UART has RTS and CTS lines
+- uart-has-rtscts : Indicate the UART has RTS and CTS lines
   for hardware flow control,
 	it also means you enable the DMA support for this UART.
 - {rts,cts,dtr,dsr,rng,dcd}-gpios: specify a GPIO for RTS/CTS/DTR/DSR/RI/DCD
