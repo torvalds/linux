@@ -47,7 +47,7 @@ static const struct acpi_gpio_mapping acpi_dwc3_byt_gpios[] = {
 	{ },
 };
 
-static int dwc3_pci_quirks(struct pci_dev *pdev)
+static int dwc3_pci_quirks(struct pci_dev *pdev, struct platform_device *dwc3)
 {
 	if (pdev->vendor == PCI_VENDOR_ID_AMD &&
 	    pdev->device == PCI_DEVICE_ID_AMD_NL_USB) {
@@ -77,8 +77,7 @@ static int dwc3_pci_quirks(struct pci_dev *pdev)
 		pdata.dis_u3_susphy_quirk = true;
 		pdata.dis_u2_susphy_quirk = true;
 
-		return platform_device_add_data(pci_get_drvdata(pdev), &pdata,
-						sizeof(pdata));
+		return platform_device_add_data(dwc3, &pdata, sizeof(pdata));
 	}
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
@@ -123,8 +122,7 @@ static int dwc3_pci_quirks(struct pci_dev *pdev)
 		pdata.has_lpm_erratum = true;
 		pdata.dis_enblslpm_quirk = true;
 
-		return platform_device_add_data(pci_get_drvdata(pdev), &pdata,
-						sizeof(pdata));
+		return platform_device_add_data(dwc3, &pdata, sizeof(pdata));
 	}
 
 	return 0;
@@ -169,12 +167,10 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 		return ret;
 	}
 
-	pci_set_drvdata(pci, dwc3);
-
 	dwc3->dev.parent = dev;
 	ACPI_COMPANION_SET(&dwc3->dev, ACPI_COMPANION(dev));
 
-	ret = dwc3_pci_quirks(pci);
+	ret = dwc3_pci_quirks(pci, dwc3);
 	if (ret)
 		goto err;
 
@@ -184,6 +180,7 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 		goto err;
 	}
 
+	pci_set_drvdata(pci, dwc3);
 	return 0;
 err:
 	platform_device_put(dwc3);
