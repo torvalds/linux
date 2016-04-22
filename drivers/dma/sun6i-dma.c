@@ -281,25 +281,25 @@ static inline int sun6i_dma_cfg_lli(struct sun6i_dma_lli *lli,
 				    dma_addr_t dst, u32 len,
 				    struct dma_slave_config *config)
 {
-	u8 src_width, dst_width, src_burst, dst_burst;
+	s8 src_width, dst_width, src_burst, dst_burst;
 
 	if (!config)
 		return -EINVAL;
 
 	src_burst = convert_burst(config->src_maxburst);
-	if (src_burst)
+	if (src_burst < 0)
 		return src_burst;
 
 	dst_burst = convert_burst(config->dst_maxburst);
-	if (dst_burst)
+	if (dst_burst < 0)
 		return dst_burst;
 
 	src_width = convert_buswidth(config->src_addr_width);
-	if (src_width)
+	if (src_width < 0)
 		return src_width;
 
 	dst_width = convert_buswidth(config->dst_addr_width);
-	if (dst_width)
+	if (dst_width < 0)
 		return dst_width;
 
 	lli->cfg = DMA_CHAN_CFG_SRC_BURST(src_burst) |
