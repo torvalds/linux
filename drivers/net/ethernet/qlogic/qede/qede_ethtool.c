@@ -239,9 +239,9 @@ static int qede_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct qed_link_params params;
 	u32 speed;
 
-	if (!edev->dev_info.common.is_mf_default) {
+	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
 		DP_INFO(edev,
-			"Link parameters can not be changed in non-default mode\n");
+			"Link settings are not allowed to be changed\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -350,6 +350,12 @@ static int qede_nway_reset(struct net_device *dev)
 	struct qed_link_output current_link;
 	struct qed_link_params link_params;
 
+	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
+		DP_INFO(edev,
+			"Link settings are not allowed to be changed\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (!netif_running(dev))
 		return 0;
 
@@ -450,9 +456,9 @@ static int qede_set_pauseparam(struct net_device *dev,
 	struct qed_link_params params;
 	struct qed_link_output current_link;
 
-	if (!edev->dev_info.common.is_mf_default) {
+	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
 		DP_INFO(edev,
-			"Pause parameters can not be updated in non-default mode\n");
+			"Pause settings are not allowed to be changed\n");
 		return -EOPNOTSUPP;
 	}
 

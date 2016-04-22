@@ -915,6 +915,11 @@ static u32 qed_sb_release(struct qed_dev *cdev,
 	return rc;
 }
 
+static bool qed_can_link_change(struct qed_dev *cdev)
+{
+	return true;
+}
+
 static int qed_set_link(struct qed_dev *cdev,
 			struct qed_link_params *params)
 {
@@ -1177,6 +1182,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.sb_release = &qed_sb_release,
 	.simd_handler_config = &qed_simd_handler_config,
 	.simd_handler_clean = &qed_simd_handler_clean,
+	.can_link_change = &qed_can_link_change,
 	.set_link = &qed_set_link,
 	.get_link = &qed_get_current_link,
 	.drain = &qed_drain,

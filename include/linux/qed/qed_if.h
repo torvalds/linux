@@ -211,6 +211,16 @@ struct qed_common_ops {
 
 	void		(*simd_handler_clean)(struct qed_dev *cdev,
 					      int index);
+
+/**
+ * @brief can_link_change - can the instance change the link or not
+ *
+ * @param cdev
+ *
+ * @return true if link-change is allowed, false otherwise.
+ */
+	bool (*can_link_change)(struct qed_dev *cdev);
+
 /**
  * @brief set_link - set links according to params
  *
