@@ -76,8 +76,6 @@ struct nfs4_ff_layout_mirror {
 	u32				fh_versions_cnt;
 	struct nfs_fh			*fh_versions;
 	nfs4_stateid			stateid;
-	u32				uid;
-	u32				gid;
 	struct rpc_cred			*cred;
 	atomic_t			ref;
 	spinlock_t			lock;
