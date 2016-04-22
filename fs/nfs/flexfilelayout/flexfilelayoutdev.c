@@ -433,16 +433,12 @@ ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg, u32 ds_idx,
 		      struct rpc_cred *mdscred)
 {
 	struct nfs4_ff_layout_mirror *mirror = FF_LAYOUT_COMP(lseg, ds_idx);
-	struct rpc_cred *cred = ERR_PTR(-EINVAL);
-
-	if (!nfs4_ff_layout_prepare_ds(lseg, ds_idx, true))
-		goto out;
+	struct rpc_cred *cred;
 
 	if (mirror && mirror->cred)
 		cred = mirror->cred;
 	else
 		cred = mdscred;
-out:
 	return cred;
 }
 
