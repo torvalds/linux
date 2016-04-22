@@ -1083,9 +1083,8 @@
 		pcie_bus_clk: pcie_bus_clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <100000000>;
+			clock-frequency = <0>;
 			clock-output-names = "pcie_bus";
-			status = "disabled";
 		};
 
 		/* External SCIF clock */
@@ -1094,7 +1093,6 @@
 			#clock-cells = <0>;
 			/* This value must be overridden by the board. */
 			clock-frequency = <0>;
-			status = "disabled";
 		};
 
 		/* External USB clock - can be overridden by the board */
@@ -1112,7 +1110,6 @@
 			/* This value must be overridden by the board. */
 			clock-frequency = <0>;
 			clock-output-names = "can_clk";
-			status = "disabled";
 		};
 
 		/* Special CPG clocks */
