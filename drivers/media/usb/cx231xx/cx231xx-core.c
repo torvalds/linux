@@ -752,7 +752,8 @@ EXPORT_SYMBOL_GPL(cx231xx_set_mode);
 int cx231xx_ep5_bulkout(struct cx231xx *dev, u8 *firmware, u16 size)
 {
 	int errCode = 0;
-	int actlen, ret = -ENOMEM;
+	int actlen = -1;
+	int ret = -ENOMEM;
 	u32 *buffer;
 
 	buffer = kzalloc(4096, GFP_KERNEL);
