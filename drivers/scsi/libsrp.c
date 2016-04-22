@@ -125,10 +125,10 @@ int srp_target_alloc(struct srp_target *target, struct device *dev,
 	int err;
 
 	spin_lock_init(&target->lock);
-//	INIT_LIST_HEAD(&target->cmd_queue);
+	INIT_LIST_HEAD(&target->cmd_queue);
 
 	target->dev = dev;
-//	dev_set_drvdata(target->dev, target);
+	dev_set_drvdata(target->dev, target);
 
 	target->srp_iu_size = iu_size;
 	target->rx_ring_size = nr;
@@ -170,7 +170,7 @@ struct iu_entry *srp_iu_get(struct srp_target *target)
 	if (!iue)
 		return iue;
 	iue->target = target;
-//	INIT_LIST_HEAD(&iue->ilist);
+	INIT_LIST_HEAD(&iue->ilist);
 	iue->flags = 0;
 	return iue;
 }
@@ -363,11 +363,12 @@ int srp_transfer_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 }
 EXPORT_SYMBOL_GPL(srp_transfer_data);
 
-int srp_data_length(struct srp_cmd *cmd, enum dma_data_direction dir)
+u64 srp_data_length(struct srp_cmd *cmd, enum dma_data_direction dir)
 {
 	struct srp_direct_buf *md;
 	struct srp_indirect_buf *id;
-	int len = 0, offset = cmd->add_cdb_len & ~3;
+	u64 len = 0;
+	unsigned offset = cmd->add_cdb_len & ~3;
 	u8 fmt;
 
 	if (dir == DMA_TO_DEVICE)
