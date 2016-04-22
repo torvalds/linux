@@ -37,6 +37,7 @@
 #include <linux/freezer.h>
 #include <linux/namei.h>
 #include <linux/random.h>
+#include <linux/xattr.h>
 #include <net/ipv6.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -135,6 +136,7 @@ cifs_read_super(struct super_block *sb)
 
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
+	sb->s_xattr = cifs_xattr_handlers;
 	sb->s_bdi = &cifs_sb->bdi;
 	sb->s_blocksize = CIFS_MAX_MSGSIZE;
 	sb->s_blocksize_bits = 14;	/* default 2**14 = CIFS_MAX_MSGSIZE */
@@ -892,12 +894,10 @@ const struct inode_operations cifs_dir_inode_ops = {
 	.setattr = cifs_setattr,
 	.symlink = cifs_symlink,
 	.mknod   = cifs_mknod,
-#ifdef CONFIG_CIFS_XATTR
-	.setxattr = cifs_setxattr,
-	.getxattr = cifs_getxattr,
+	.setxattr = generic_setxattr,
+	.getxattr = generic_getxattr,
 	.listxattr = cifs_listxattr,
-	.removexattr = cifs_removexattr,
-#endif
+	.removexattr = generic_removexattr,
 };
 
 const struct inode_operations cifs_file_inode_ops = {
@@ -905,12 +905,10 @@ const struct inode_operations cifs_file_inode_ops = {
 	.setattr = cifs_setattr,
 	.getattr = cifs_getattr, /* do we need this anymore? */
 	.permission = cifs_permission,
-#ifdef CONFIG_CIFS_XATTR
-	.setxattr = cifs_setxattr,
-	.getxattr = cifs_getxattr,
+	.setxattr = generic_setxattr,
+	.getxattr = generic_getxattr,
 	.listxattr = cifs_listxattr,
-	.removexattr = cifs_removexattr,
-#endif
+	.removexattr = generic_removexattr,
 };
 
 const struct inode_operations cifs_symlink_inode_ops = {
@@ -920,12 +918,10 @@ const struct inode_operations cifs_symlink_inode_ops = {
 	/* BB add the following two eventually */
 	/* revalidate: cifs_revalidate,
 	   setattr:    cifs_notify_change, *//* BB do we need notify change */
-#ifdef CONFIG_CIFS_XATTR
-	.setxattr = cifs_setxattr,
-	.getxattr = cifs_getxattr,
+	.setxattr = generic_setxattr,
+	.getxattr = generic_getxattr,
 	.listxattr = cifs_listxattr,
-	.removexattr = cifs_removexattr,
-#endif
+	.removexattr = generic_removexattr,
 };
 
 static int cifs_clone_file_range(struct file *src_file, loff_t off,
