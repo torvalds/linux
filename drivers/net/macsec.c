@@ -3147,8 +3147,8 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[])
 	    nla_get_u8(data[IFLA_MACSEC_VALIDATION]) > MACSEC_VALIDATE_MAX)
 		return -EINVAL;
 
-	if ((data[IFLA_MACSEC_PROTECT] &&
-	     nla_get_u8(data[IFLA_MACSEC_PROTECT])) &&
+	if ((data[IFLA_MACSEC_REPLAY_PROTECT] &&
+	     nla_get_u8(data[IFLA_MACSEC_REPLAY_PROTECT])) &&
 	    !data[IFLA_MACSEC_WINDOW])
 		return -EINVAL;
 
