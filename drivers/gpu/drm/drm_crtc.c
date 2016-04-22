@@ -360,10 +360,6 @@ static struct drm_mode_object *_object_find(struct drm_device *dev,
 		obj = NULL;
 	if (obj && obj->id != id)
 		obj = NULL;
-	/* don't leak out unref'd fb's */
-	if (obj &&
-	    obj->type == DRM_MODE_OBJECT_BLOB)
-		obj = NULL;
 
 	if (obj && obj->free_cb) {
 		if (!kref_get_unless_zero(&obj->refcount))
@@ -389,7 +385,6 @@ struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 {
 	struct drm_mode_object *obj = NULL;
 
-	WARN_ON(type == DRM_MODE_OBJECT_BLOB);
 	obj = _object_find(dev, id, type);
 	return obj;
 }
@@ -4259,6 +4254,20 @@ done:
 	return ret;
 }
 
+static void drm_property_free_blob(struct kref *kref)
+{
+	struct drm_property_blob *blob =
+		container_of(kref, struct drm_property_blob, base.refcount);
+
+	mutex_lock(&blob->dev->mode_config.blob_lock);
+	list_del(&blob->head_global);
+	mutex_unlock(&blob->dev->mode_config.blob_lock);
+
+	drm_mode_object_unregister(blob->dev, &blob->base);
+
+	kfree(blob);
+}
+
 /**
  * drm_property_create_blob - Create new blob property
  *
@@ -4296,46 +4305,21 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	if (data)
 		memcpy(blob->data, data, length);
 
-	mutex_lock(&dev->mode_config.blob_lock);
-
-	ret = drm_mode_object_get(dev, &blob->base, DRM_MODE_OBJECT_BLOB);
+	ret = drm_mode_object_get_reg(dev, &blob->base, DRM_MODE_OBJECT_BLOB,
+				      true, drm_property_free_blob);
 	if (ret) {
 		kfree(blob);
-		mutex_unlock(&dev->mode_config.blob_lock);
 		return ERR_PTR(-EINVAL);
 	}
 
-	kref_init(&blob->refcount);
-
+	mutex_lock(&dev->mode_config.blob_lock);
 	list_add_tail(&blob->head_global,
 	              &dev->mode_config.property_blob_list);
-
 	mutex_unlock(&dev->mode_config.blob_lock);
 
 	return blob;
 }
 EXPORT_SYMBOL(drm_property_create_blob);
-
-/**
- * drm_property_free_blob - Blob property destructor
- *
- * Internal free function for blob properties; must not be used directly.
- *
- * @kref: Reference
- */
-static void drm_property_free_blob(struct kref *kref)
-{
-	struct drm_property_blob *blob =
-		container_of(kref, struct drm_property_blob, refcount);
-
-	WARN_ON(!mutex_is_locked(&blob->dev->mode_config.blob_lock));
-
-	list_del(&blob->head_global);
-	list_del(&blob->head_file);
-	drm_mode_object_unregister(blob->dev, &blob->base);
-
-	kfree(blob);
-}
 
 /**
  * drm_property_unreference_blob - Unreference a blob property
@@ -4346,40 +4330,12 @@ static void drm_property_free_blob(struct kref *kref)
  */
 void drm_property_unreference_blob(struct drm_property_blob *blob)
 {
-	struct drm_device *dev;
-
 	if (!blob)
 		return;
 
-	dev = blob->dev;
-
-	DRM_DEBUG("%p: blob ID: %d (%d)\n", blob, blob->base.id, atomic_read(&blob->refcount.refcount));
-
-	if (kref_put_mutex(&blob->refcount, drm_property_free_blob,
-			   &dev->mode_config.blob_lock))
-		mutex_unlock(&dev->mode_config.blob_lock);
-	else
-		might_lock(&dev->mode_config.blob_lock);
+	drm_mode_object_unreference(&blob->base);
 }
 EXPORT_SYMBOL(drm_property_unreference_blob);
-
-/**
- * drm_property_unreference_blob_locked - Unreference a blob property with blob_lock held
- *
- * Drop a reference on a blob property. May free the object. This must be
- * called with blob_lock held.
- *
- * @blob: Pointer to blob property
- */
-static void drm_property_unreference_blob_locked(struct drm_property_blob *blob)
-{
-	if (!blob)
-		return;
-
-	DRM_DEBUG("%p: blob ID: %d (%d)\n", blob, blob->base.id, atomic_read(&blob->refcount.refcount));
-
-	kref_put(&blob->refcount, drm_property_free_blob);
-}
 
 /**
  * drm_property_destroy_user_blobs - destroy all blobs created by this client
@@ -4391,14 +4347,14 @@ void drm_property_destroy_user_blobs(struct drm_device *dev,
 {
 	struct drm_property_blob *blob, *bt;
 
-	mutex_lock(&dev->mode_config.blob_lock);
-
+	/*
+	 * When the file gets released that means no one else can access the
+	 * blob list any more, so no need to grab dev->blob_lock.
+	 */
 	list_for_each_entry_safe(blob, bt, &file_priv->blobs, head_file) {
 		list_del_init(&blob->head_file);
-		drm_property_unreference_blob_locked(blob);
+		drm_property_unreference_blob(blob);
 	}
-
-	mutex_unlock(&dev->mode_config.blob_lock);
 }
 
 /**
@@ -4410,34 +4366,10 @@ void drm_property_destroy_user_blobs(struct drm_device *dev,
  */
 struct drm_property_blob *drm_property_reference_blob(struct drm_property_blob *blob)
 {
-	DRM_DEBUG("%p: blob ID: %d (%d)\n", blob, blob->base.id, atomic_read(&blob->refcount.refcount));
-	kref_get(&blob->refcount);
+	drm_mode_object_reference(&blob->base);
 	return blob;
 }
 EXPORT_SYMBOL(drm_property_reference_blob);
-
-/*
- * Like drm_property_lookup_blob, but does not return an additional reference.
- * Must be called with blob_lock held.
- */
-static struct drm_property_blob *__drm_property_lookup_blob(struct drm_device *dev,
-							    uint32_t id)
-{
-	struct drm_mode_object *obj = NULL;
-	struct drm_property_blob *blob;
-
-	WARN_ON(!mutex_is_locked(&dev->mode_config.blob_lock));
-
-	mutex_lock(&dev->mode_config.idr_mutex);
-	obj = idr_find(&dev->mode_config.crtc_idr, id);
-	if (!obj || (obj->type != DRM_MODE_OBJECT_BLOB) || (obj->id != id))
-		blob = NULL;
-	else
-		blob = obj_to_blob(obj);
-	mutex_unlock(&dev->mode_config.idr_mutex);
-
-	return blob;
-}
 
 /**
  * drm_property_lookup_blob - look up a blob property and take a reference
@@ -4451,16 +4383,12 @@ static struct drm_property_blob *__drm_property_lookup_blob(struct drm_device *d
 struct drm_property_blob *drm_property_lookup_blob(struct drm_device *dev,
 					           uint32_t id)
 {
-	struct drm_property_blob *blob;
+	struct drm_mode_object *obj;
+	struct drm_property_blob *blob = NULL;
 
-	mutex_lock(&dev->mode_config.blob_lock);
-	blob = __drm_property_lookup_blob(dev, id);
-	if (blob) {
-		if (!kref_get_unless_zero(&blob->refcount))
-			blob = NULL;
-	}
-	mutex_unlock(&dev->mode_config.blob_lock);
-
+	obj = _object_find(dev, id, DRM_MODE_OBJECT_BLOB);
+	if (obj)
+		blob = obj_to_blob(obj);
 	return blob;
 }
 EXPORT_SYMBOL(drm_property_lookup_blob);
@@ -4565,26 +4493,21 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
-	mutex_lock(&dev->mode_config.blob_lock);
-	blob = __drm_property_lookup_blob(dev, out_resp->blob_id);
-	if (!blob) {
-		ret = -ENOENT;
-		goto done;
-	}
+	blob = drm_property_lookup_blob(dev, out_resp->blob_id);
+	if (!blob)
+		return -ENOENT;
 
 	if (out_resp->length == blob->length) {
 		blob_ptr = (void __user *)(unsigned long)out_resp->data;
 		if (copy_to_user(blob_ptr, blob->data, blob->length)) {
 			ret = -EFAULT;
-			goto done;
+			goto unref;
 		}
 	}
 	out_resp->length = blob->length;
+unref:
+	drm_property_unreference_blob(blob);
 
-done:
-	mutex_unlock(&dev->mode_config.blob_lock);
-	drm_modeset_unlock_all(dev);
 	return ret;
 }
 
@@ -4663,13 +4586,11 @@ int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	mutex_lock(&dev->mode_config.blob_lock);
-	blob = __drm_property_lookup_blob(dev, out_resp->blob_id);
-	if (!blob) {
-		ret = -ENOENT;
-		goto err;
-	}
+	blob = drm_property_lookup_blob(dev, out_resp->blob_id);
+	if (!blob)
+		return -ENOENT;
 
+	mutex_lock(&dev->mode_config.blob_lock);
 	/* Ensure the property was actually created by this user. */
 	list_for_each_entry(bt, &file_priv->blobs, head_file) {
 		if (bt == blob) {
@@ -4686,13 +4607,18 @@ int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 	/* We must drop head_file here, because we may not be the last
 	 * reference on the blob. */
 	list_del_init(&blob->head_file);
-	drm_property_unreference_blob_locked(blob);
 	mutex_unlock(&dev->mode_config.blob_lock);
+
+	/* One reference from lookup, and one from the filp. */
+	drm_property_unreference_blob(blob);
+	drm_property_unreference_blob(blob);
 
 	return 0;
 
 err:
 	mutex_unlock(&dev->mode_config.blob_lock);
+	drm_property_unreference_blob(blob);
+
 	return ret;
 }
 

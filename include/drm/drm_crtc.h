@@ -250,7 +250,6 @@ struct drm_framebuffer {
 struct drm_property_blob {
 	struct drm_mode_object base;
 	struct drm_device *dev;
-	struct kref refcount;
 	struct list_head head_global;
 	struct list_head head_file;
 	size_t length;
