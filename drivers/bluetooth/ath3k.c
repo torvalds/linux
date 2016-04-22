@@ -206,7 +206,8 @@ static int ath3k_load_firmware(struct usb_device *udev,
 				const struct firmware *firmware)
 {
 	u8 *send_buf;
-	int err, pipe, len, size, sent = 0;
+	int len = 0;
+	int err, pipe, size, sent = 0;
 	int count = firmware->size;
 
 	BT_DBG("udev %p", udev);
@@ -302,7 +303,8 @@ static int ath3k_load_fwfile(struct usb_device *udev,
 		const struct firmware *firmware)
 {
 	u8 *send_buf;
-	int err, pipe, len, size, count, sent = 0;
+	int len = 0;
+	int err, pipe, size, count, sent = 0;
 	int ret;
 
 	count = firmware->size;
