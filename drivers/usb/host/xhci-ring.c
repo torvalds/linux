@@ -373,7 +373,11 @@ static void ring_doorbell_for_active_rings(struct xhci_hcd *xhci,
 	}
 }
 
-static struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
+/* Get the right ring for the given slot_id, ep_index and stream_id.
+ * If the endpoint supports streams, boundary check the URB's stream ID.
+ * If the endpoint doesn't support streams, return the singular endpoint ring.
+ */
+struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		unsigned int stream_id)
 {
@@ -403,17 +407,6 @@ static struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
 			ep->stream_info->num_streams - 1,
 			stream_id);
 	return NULL;
-}
-
-/* Get the right ring for the given URB.
- * If the endpoint supports streams, boundary check the URB's stream ID.
- * If the endpoint doesn't support streams, return the singular endpoint ring.
- */
-static struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
-		struct urb *urb)
-{
-	return xhci_triad_to_transfer_ring(xhci, urb->dev->slot_id,
-		xhci_get_endpoint_index(&urb->ep->desc), urb->stream_id);
 }
 
 /*

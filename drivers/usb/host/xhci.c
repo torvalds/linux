@@ -1459,47 +1459,6 @@ free_priv:
 	return ret;
 }
 
-/* Get the right ring for the given URB.
- * If the endpoint supports streams, boundary check the URB's stream ID.
- * If the endpoint doesn't support streams, return the singular endpoint ring.
- */
-static struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
-		struct urb *urb)
-{
-	unsigned int slot_id;
-	unsigned int ep_index;
-	unsigned int stream_id;
-	struct xhci_virt_ep *ep;
-
-	slot_id = urb->dev->slot_id;
-	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
-	stream_id = urb->stream_id;
-	ep = &xhci->devs[slot_id]->eps[ep_index];
-	/* Common case: no streams */
-	if (!(ep->ep_state & EP_HAS_STREAMS))
-		return ep->ring;
-
-	if (stream_id == 0) {
-		xhci_warn(xhci,
-				"WARN: Slot ID %u, ep index %u has streams, "
-				"but URB has no stream ID.\n",
-				slot_id, ep_index);
-		return NULL;
-	}
-
-	if (stream_id < ep->stream_info->num_streams)
-		return ep->stream_info->stream_rings[stream_id];
-
-	xhci_warn(xhci,
-			"WARN: Slot ID %u, ep index %u has "
-			"stream IDs 1 to %u allocated, "
-			"but stream ID %u is requested.\n",
-			slot_id, ep_index,
-			ep->stream_info->num_streams - 1,
-			stream_id);
-	return NULL;
-}
-
 /*
  * Remove the URB's TD from the endpoint ring.  This may cause the HC to stop
  * USB transfers, potentially stopping in the middle of a TRB buffer.  The HC
