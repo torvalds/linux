@@ -537,7 +537,7 @@ static int ring_desc_ring_alloc(struct pic32_sqi *sqi)
 	}
 
 	/* Prepare BD: chain to next BD(s) */
-	for (i = 0, rdesc = sqi->ring; i < PESQI_BD_COUNT; i++)
+	for (i = 0, rdesc = sqi->ring; i < PESQI_BD_COUNT - 1; i++)
 		bd[i].bd_nextp = rdesc[i + 1].bd_dma;
 	bd[PESQI_BD_COUNT - 1].bd_nextp = 0;
 
