@@ -74,7 +74,7 @@
 };
 
 &edp {
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		edp_out: port@1 {
