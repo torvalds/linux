@@ -2510,12 +2510,9 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_dpms);
  */
 void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc)
 {
-	if (crtc->state) {
-		drm_property_unreference_blob(crtc->state->mode_blob);
-		drm_property_unreference_blob(crtc->state->degamma_lut);
-		drm_property_unreference_blob(crtc->state->ctm);
-		drm_property_unreference_blob(crtc->state->gamma_lut);
-	}
+	if (crtc->state)
+		__drm_atomic_helper_crtc_destroy_state(crtc, crtc->state);
+
 	kfree(crtc->state);
 	crtc->state = kzalloc(sizeof(*crtc->state), GFP_KERNEL);
 
@@ -2621,8 +2618,8 @@ EXPORT_SYMBOL(drm_atomic_helper_crtc_destroy_state);
  */
 void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 {
-	if (plane->state && plane->state->fb)
-		drm_framebuffer_unreference(plane->state->fb);
+	if (plane->state)
+		__drm_atomic_helper_plane_destroy_state(plane, plane->state);
 
 	kfree(plane->state);
 	plane->state = kzalloc(sizeof(*plane->state), GFP_KERNEL);
@@ -2742,6 +2739,10 @@ void drm_atomic_helper_connector_reset(struct drm_connector *connector)
 {
 	struct drm_connector_state *conn_state =
 		kzalloc(sizeof(*conn_state), GFP_KERNEL);
+
+	if (connector->state)
+		__drm_atomic_helper_connector_destroy_state(connector,
+							    connector->state);
 
 	kfree(connector->state);
 	__drm_atomic_helper_connector_reset(connector, conn_state);
