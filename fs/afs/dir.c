@@ -128,7 +128,7 @@ struct afs_lookup_cookie {
 /*
  * check that a directory page is valid
  */
-static inline void afs_dir_check_page(struct inode *dir, struct page *page)
+static inline bool afs_dir_check_page(struct inode *dir, struct page *page)
 {
 	struct afs_dir_page *dbuf;
 	loff_t latter;
@@ -168,11 +168,11 @@ static inline void afs_dir_check_page(struct inode *dir, struct page *page)
 	}
 
 	SetPageChecked(page);
-	return;
+	return true;
 
 error:
-	SetPageChecked(page);
 	SetPageError(page);
+	return false;
 }
 
 /*
@@ -196,10 +196,10 @@ static struct page *afs_dir_get_page(struct inode *dir, unsigned long index,
 	page = read_cache_page(dir->i_mapping, index, afs_page_filler, key);
 	if (!IS_ERR(page)) {
 		kmap(page);
-		if (!PageChecked(page))
-			afs_dir_check_page(dir, page);
-		if (PageError(page))
-			goto fail;
+		if (unlikely(!PageChecked(page))) {
+			if (PageError(page) || !afs_dir_check_page(dir, page))
+				goto fail;
+		}
 	}
 	return page;
 
