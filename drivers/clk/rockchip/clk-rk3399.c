@@ -1077,7 +1077,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE(ACLK_VIO, "aclk_vio", mux_pll_src_cpll_gpll_ppll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(42), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(11), 10, GFLAGS),
-	COMPOSITE_NOMUX(PCLK_VIO, "pclk_vio", "aclk_vio", 0,
+	COMPOSITE_NOMUX(PCLK_VIO, "pclk_vio", "aclk_vio", CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(43), 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(11), 1, GFLAGS),
 
@@ -1534,6 +1534,7 @@ static const char *const rk3399_cru_critical_clocks[] __initconst = {
 	"aclk_dmac1_perilp",
 	"gpll_aclk_perilp0_src",
 	"gpll_aclk_perihp_src",
+	"pclk_vio",
 };
 
 static const char *const rk3399_pmucru_critical_clocks[] __initconst = {
