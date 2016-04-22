@@ -1618,7 +1618,7 @@ void free_fd_percpu(void)
 {
 	int i;
 
-	for (i = 0; i < topo.max_cpu_num; ++i) {
+	for (i = 0; i < topo.max_cpu_num + 1; ++i) {
 		if (fd_percpu[i] != 0)
 			close(fd_percpu[i]);
 	}
@@ -3584,7 +3584,7 @@ void allocate_output_buffer()
 }
 void allocate_fd_percpu(void)
 {
-	fd_percpu = calloc(topo.max_cpu_num, sizeof(int));
+	fd_percpu = calloc(topo.max_cpu_num + 1, sizeof(int));
 	if (fd_percpu == NULL)
 		err(-1, "calloc fd_percpu");
 }
@@ -3594,9 +3594,9 @@ void allocate_irq_buffers(void)
 	if (irq_column_2_cpu == NULL)
 		err(-1, "calloc %d", topo.num_cpus);
 
-	irqs_per_cpu = calloc(topo.max_cpu_num, sizeof(int));
+	irqs_per_cpu = calloc(topo.max_cpu_num + 1, sizeof(int));
 	if (irqs_per_cpu == NULL)
-		err(-1, "calloc %d", topo.max_cpu_num);
+		err(-1, "calloc %d", topo.max_cpu_num + 1);
 }
 void setup_all_buffers(void)
 {
