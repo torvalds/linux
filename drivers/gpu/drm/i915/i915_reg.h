@@ -2964,6 +2964,15 @@ enum skl_disp_power_wells {
 				INTERVAL_1_33_US(us)) : \
 				INTERVAL_1_28_US(us))
 
+#define INTERVAL_1_28_TO_US(interval)  (((interval) << 7) / 100)
+#define INTERVAL_1_33_TO_US(interval)  (((interval) << 2) / 3)
+#define INTERVAL_0_833_TO_US(interval) (((interval) * 5)  / 6)
+#define GT_PM_INTERVAL_TO_US(dev_priv, interval) (IS_GEN9(dev_priv) ? \
+                           (IS_BROXTON(dev_priv) ? \
+                           INTERVAL_0_833_TO_US(interval) : \
+                           INTERVAL_1_33_TO_US(interval)) : \
+                           INTERVAL_1_28_TO_US(interval))
+
 /*
  * Logical Context regs
  */
