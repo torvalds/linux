@@ -109,9 +109,9 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 3) {
 		u32 bsm;
 
-		pci_read_config_dword(dev->pdev, BSM, &bsm);
+		pci_read_config_dword(dev->pdev, INTEL_BSM, &bsm);
 
-		base = bsm & BSM_MASK;
+		base = bsm & INTEL_BSM_MASK;
 	} else if (IS_I865G(dev)) {
 		u16 toud = 0;
 
