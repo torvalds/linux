@@ -1409,7 +1409,6 @@ static int srp_map_sg_fmr(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	struct scatterlist *sg;
 	int i, ret;
 
-	state->desc = req->indirect_desc;
 	state->pages = req->map_page;
 	state->fmr.next = req->fmr_list;
 	state->fmr.end = req->fmr_list + ch->target->cmd_sg_cnt;
