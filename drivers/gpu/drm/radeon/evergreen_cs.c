@@ -3483,6 +3483,27 @@ static int evergreen_vm_packet3_check(struct radeon_device *rdev,
 			}
 		}
 		break;
+	case PACKET3_SET_APPEND_CNT: {
+		uint32_t areg;
+		uint32_t allowed_reg_base;
+
+		if (pkt->count != 2) {
+			DRM_ERROR("bad SET_APPEND_CNT (invalid count)\n");
+			return -EINVAL;
+		}
+
+		allowed_reg_base = GDS_APPEND_COUNT_0;
+		allowed_reg_base -= PACKET3_SET_CONTEXT_REG_START;
+		allowed_reg_base >>= 2;
+
+		areg = idx_value >> 16;
+		if (areg < allowed_reg_base || areg > (allowed_reg_base + 11)) {
+			DRM_ERROR("forbidden register for append cnt 0x%08x at %d\n",
+				  areg, idx);
+			return -EINVAL;
+		}
+		break;
+	}
 	default:
 		return -EINVAL;
 	}
