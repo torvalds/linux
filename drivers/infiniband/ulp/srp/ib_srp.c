@@ -1681,6 +1681,8 @@ map_complete:
 
 unmap:
 	srp_unmap_data(scmnd, ch, req);
+	if (ret == -ENOMEM && req->nmdesc >= target->mr_pool_size)
+		ret = -E2BIG;
 	return ret;
 }
 
