@@ -1622,8 +1622,8 @@ static int macsec_add_rxsa(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	rx_sa = kmalloc(sizeof(*rx_sa), GFP_KERNEL);
-	if (init_rx_sa(rx_sa, nla_data(tb_sa[MACSEC_SA_ATTR_KEY]), secy->key_len,
-		       secy->icv_len)) {
+	if (!rx_sa || init_rx_sa(rx_sa, nla_data(tb_sa[MACSEC_SA_ATTR_KEY]),
+				 secy->key_len, secy->icv_len)) {
 		rtnl_unlock();
 		return -ENOMEM;
 	}
