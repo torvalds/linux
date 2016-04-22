@@ -3729,6 +3729,7 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct sockaddr_in *raddr;
 	struct sockaddr_in6 *laddr6;
 	struct sockaddr_in6 *raddr6;
+	bool qhash_set = false;
 	int apbvt_set = 0;
 	enum i40iw_status_code status;
 
@@ -3787,6 +3788,7 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 					    true);
 		if (status)
 			return -EINVAL;
+		qhash_set = true;
 	}
 	status = i40iw_manage_apbvt(iwdev, cm_info.loc_port, I40IW_MANAGE_APBVT_ADD);
 	if (status) {
@@ -3814,7 +3816,7 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		cm_node->ord_size = 1;
 
 	cm_node->apbvt_set = apbvt_set;
-	cm_node->qhash_set = true;
+	cm_node->qhash_set = qhash_set;
 	iwqp->cm_node = cm_node;
 	cm_node->iwqp = iwqp;
 	iwqp->cm_id = cm_id;
