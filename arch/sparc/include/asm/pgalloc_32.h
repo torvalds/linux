@@ -31,7 +31,7 @@ static inline void pgd_set(pgd_t * pgdp, pmd_t * pmdp)
 {
 	unsigned long pa = __nocache_pa((unsigned long)pmdp);
 
-	set_pte((pte_t *)pgdp, (SRMMU_ET_PTD | (pa >> 4)));
+	set_pte((pte_t *)pgdp, __pte((SRMMU_ET_PTD | (pa >> 4))));
 }
 
 #define pgd_populate(MM, PGD, PMD)      pgd_set(PGD, PMD)

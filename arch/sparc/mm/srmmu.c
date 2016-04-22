@@ -107,7 +107,12 @@ static inline int srmmu_pmd_none(pmd_t pmd)
 
 /* XXX should we hyper_flush_whole_icache here - Anton */
 static inline void srmmu_ctxd_set(ctxd_t *ctxp, pgd_t *pgdp)
-{ set_pte((pte_t *)ctxp, (SRMMU_ET_PTD | (__nocache_pa((unsigned long) pgdp) >> 4))); }
+{
+	pte_t pte;
+
+	pte = __pte((SRMMU_ET_PTD | (__nocache_pa(pgdp) >> 4)));
+	set_pte((pte_t *)ctxp, pte);
+}
 
 void pmd_set(pmd_t *pmdp, pte_t *ptep)
 {
@@ -116,8 +121,8 @@ void pmd_set(pmd_t *pmdp, pte_t *ptep)
 
 	ptp = __nocache_pa((unsigned long) ptep) >> 4;
 	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++) {
-		set_pte((pte_t *)&pmdp->pmdv[i], SRMMU_ET_PTD | ptp);
-		ptp += (SRMMU_REAL_PTRS_PER_PTE*sizeof(pte_t) >> 4);
+		set_pte((pte_t *)&pmdp->pmdv[i], __pte(SRMMU_ET_PTD | ptp));
+		ptp += (SRMMU_REAL_PTRS_PER_PTE * sizeof(pte_t) >> 4);
 	}
 }
 
@@ -128,8 +133,8 @@ void pmd_populate(struct mm_struct *mm, pmd_t *pmdp, struct page *ptep)
 
 	ptp = page_to_pfn(ptep) << (PAGE_SHIFT-4);	/* watch for overflow */
 	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++) {
-		set_pte((pte_t *)&pmdp->pmdv[i], SRMMU_ET_PTD | ptp);
-		ptp += (SRMMU_REAL_PTRS_PER_PTE*sizeof(pte_t) >> 4);
+		set_pte((pte_t *)&pmdp->pmdv[i], __pte(SRMMU_ET_PTD | ptp));
+		ptp += (SRMMU_REAL_PTRS_PER_PTE * sizeof(pte_t) >> 4);
 	}
 }
 
