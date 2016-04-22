@@ -366,11 +366,13 @@ struct cxl_afu_native {
 };
 
 struct cxl_afu_guest {
+	struct cxl_afu *parent;
 	u64 handle;
 	phys_addr_t p2n_phys;
 	u64 p2n_size;
 	int max_ints;
-	struct mutex recovery_lock;
+	bool handle_err;
+	struct delayed_work work_err;
 	int previous_state;
 };
 

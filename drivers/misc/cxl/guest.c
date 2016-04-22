@@ -178,6 +178,9 @@ static int afu_read_error_state(struct cxl_afu *afu, int *state_out)
 	u64 state;
 	int rc = 0;
 
+	if (!afu)
+		return -EIO;
+
 	rc = cxl_h_read_error_state(afu->guest->handle, &state);
 	if (!rc) {
 		WARN_ON(state != H_STATE_NORMAL &&
@@ -833,7 +836,6 @@ static int afu_update_state(struct cxl_afu *afu)
 	switch (cur_state) {
 	case H_STATE_NORMAL:
 		afu->guest->previous_state = cur_state;
-		rc = 1;
 		break;
 
 	case H_STATE_DISABLE:
@@ -849,7 +851,6 @@ static int afu_update_state(struct cxl_afu *afu)
 			pci_error_handlers(afu, CXL_SLOT_RESET_EVENT,
 					pci_channel_io_normal);
 			pci_error_handlers(afu, CXL_RESUME_EVENT, 0);
-			rc = 1;
 		}
 		afu->guest->previous_state = 0;
 		break;
@@ -874,39 +875,30 @@ static int afu_update_state(struct cxl_afu *afu)
 	return rc;
 }
 
-static int afu_do_recovery(struct cxl_afu *afu)
+static void afu_handle_errstate(struct work_struct *work)
 {
-	int rc;
+	struct cxl_afu_guest *afu_guest =
+		container_of(to_delayed_work(work), struct cxl_afu_guest, work_err);
 
-	/* many threads can arrive here, in case of detach_all for example.
-	 * Only one needs to drive the recovery
-	 */
-	if (mutex_trylock(&afu->guest->recovery_lock)) {
-		rc = afu_update_state(afu);
-		mutex_unlock(&afu->guest->recovery_lock);
-		return rc;
-	}
-	return 0;
+	if (!afu_update_state(afu_guest->parent) &&
+	    afu_guest->previous_state == H_STATE_PERM_UNAVAILABLE)
+		return;
+
+	if (afu_guest->handle_err == true)
+		schedule_delayed_work(&afu_guest->work_err,
+				      msecs_to_jiffies(3000));
 }
 
 static bool guest_link_ok(struct cxl *cxl, struct cxl_afu *afu)
 {
 	int state;
 
-	if (afu) {
-		if (afu_read_error_state(afu, &state) ||
-			state != H_STATE_NORMAL) {
-			if (afu_do_recovery(afu) > 0) {
-				/* check again in case we've just fixed it */
-				if (!afu_read_error_state(afu, &state) &&
-					state == H_STATE_NORMAL)
-					return true;
-			}
-			return false;
-		}
+	if (afu && (!afu_read_error_state(afu, &state))) {
+		if (state == H_STATE_NORMAL)
+			return true;
 	}
 
-	return true;
+	return false;
 }
 
 static int afu_properties_look_ok(struct cxl_afu *afu)
@@ -943,8 +935,6 @@ int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_n
 		kfree(afu);
 		return -ENOMEM;
 	}
-
-	mutex_init(&afu->guest->recovery_lock);
 
 	if ((rc = dev_set_name(&afu->dev, "afu%i.%i",
 					  adapter->adapter_num,
@@ -1001,6 +991,15 @@ int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_n
 
 	afu->enabled = true;
 
+	/*
+	 * wake up the cpu periodically to check the state
+	 * of the AFU using "afu" stored in the guest structure.
+	 */
+	afu->guest->parent = afu;
+	afu->guest->handle_err = true;
+	INIT_DELAYED_WORK(&afu->guest->work_err, afu_handle_errstate);
+	schedule_delayed_work(&afu->guest->work_err, msecs_to_jiffies(1000));
+
 	if ((rc = cxl_pci_vphb_add(afu)))
 		dev_info(&afu->dev, "Can't register vPHB\n");
 
@@ -1028,6 +1027,10 @@ void cxl_guest_remove_afu(struct cxl_afu *afu)
 
 	if (!afu)
 		return;
+
+	/* flush and stop pending job */
+	afu->guest->handle_err = false;
+	flush_delayed_work(&afu->guest->work_err);
 
 	cxl_pci_vphb_remove(afu);
 	cxl_sysfs_afu_remove(afu);
