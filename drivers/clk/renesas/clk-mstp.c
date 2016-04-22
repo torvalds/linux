@@ -319,7 +319,7 @@ void __init cpg_mstp_add_clk_domain(struct device_node *np)
 	pd->flags = GENPD_FLAG_PM_CLK;
 	pd->attach_dev = cpg_mstp_attach_dev;
 	pd->detach_dev = cpg_mstp_detach_dev;
-	pm_genpd_init(pd, &simple_qos_governor, false);
+	pm_genpd_init(pd, &pm_domain_always_on_gov, false);
 
 	of_genpd_add_provider_simple(np, pd);
 }
