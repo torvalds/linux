@@ -101,16 +101,13 @@ rockchip_dp_mode_valid(struct analogix_dp_plat_data *plat_data,
 		       struct drm_display_mode *mode)
 {
 	struct drm_display_info *di = &connector->display_info;
-	struct rockchip_dp_device *dp = to_dp(plat_data);
 
-	if (dp->plat_data.dev_type == ROCKCHIP_DP) {
-		if (di->color_formats & DRM_COLOR_FORMAT_YCRCB444 ||
-		    di->color_formats & DRM_COLOR_FORMAT_YCRCB422) {
-			di->color_formats &= ~(DRM_COLOR_FORMAT_YCRCB422 |
-					       DRM_COLOR_FORMAT_YCRCB444);
-			di->color_formats |= DRM_COLOR_FORMAT_RGB444;
-			di->bpc = 8;
-		}
+	if (di->color_formats & DRM_COLOR_FORMAT_YCRCB444 ||
+	    di->color_formats & DRM_COLOR_FORMAT_YCRCB422) {
+		di->color_formats &= ~(DRM_COLOR_FORMAT_YCRCB422 |
+				       DRM_COLOR_FORMAT_YCRCB444);
+		di->color_formats |= DRM_COLOR_FORMAT_RGB444;
+		di->bpc = 8;
 	}
 
 	return MODE_OK;
