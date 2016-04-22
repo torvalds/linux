@@ -72,6 +72,15 @@ static int xhci_plat_setup(struct usb_hcd *hcd)
 			return ret;
 	}
 
+	if (xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_MARVELL_ARMADA)) {
+		struct platform_device *pdev;
+
+		pdev = to_platform_device(hcd->self.controller);
+		ret = xhci_mvebu_mbus_init_quirk(pdev);
+		if (ret)
+			return ret;
+	}
+
 	return xhci_gen_setup(hcd, xhci_plat_quirks);
 }
 
@@ -205,12 +214,6 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		/* Just copy data for now */
 		if (priv_match)
 			*priv = *priv_match;
-	}
-
-	if (xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_MARVELL_ARMADA)) {
-		ret = xhci_mvebu_mbus_init_quirk(pdev);
-		if (ret)
-			goto disable_clk;
 	}
 
 	device_wakeup_enable(hcd->self.controller);
