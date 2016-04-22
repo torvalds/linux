@@ -58,6 +58,21 @@
 		     "google,gru", "rockchip,rk3399";
 };
 
+&ap_i2c_tp {
+	trackpad@4a {
+		compatible = "atmel,maxtouch";
+		reg = <0x4a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&trackpad_int_l>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		linux,gpio-keymap = <KEY_RESERVED
+				     KEY_RESERVED
+				     KEY_RESERVED
+				     BTN_LEFT>;
+	};
+};
+
 /* PINCTRL: always below everything else */
 
 &pinctrl {

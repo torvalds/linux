@@ -42,6 +42,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/pwm/pwm.h>
 #include "rk3399.dtsi"
 
@@ -575,6 +576,8 @@ ap_i2c_ts: &i2c3 {
 };
 
 ap_i2c_tp: &i2c5 {
+	status = "okay";
+
 	/*
 	 * Note strange pullup enable.  Apparently this avoids leakage but
 	 * still allows us to get nice 4.7K pullups for high speed i2c
@@ -583,13 +586,11 @@ ap_i2c_tp: &i2c5 {
 	 */
 	pinctrl-0 = <&i2c5_xfer &ap_i2c_tp_pu_en>;
 
-	status = "okay";
+	clock-frequency = <400000>;
 
-	// TODO: bus speed
-	//       ...with no speed, it should just use 100kHz
-	// TODO: rise / fall times?
-
-	// TODO: Add the proper touchpanel reference...
+	/* These are relatively safe rise/fall times; TODO: measure */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
 };
 
 ap_i2c_audio: &i2c8 {
@@ -1051,9 +1052,13 @@ ap_i2c_audio: &i2c8 {
 		};
 	};
 
-	touchpanel {
+	trackpad {
 		ap_i2c_tp_pu_en: ap-i2c-tp-pu-en {
 			rockchip,pins = <3 12 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+
+		trackpad_int_l: trackpad-int-l {
+			rockchip,pins = <1 4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
