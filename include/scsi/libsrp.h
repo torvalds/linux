@@ -6,12 +6,13 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <scsi/srp.h>
+#include <target/target_core_base.h>
 
 enum srp_task_attributes {
-	SRP_SIMPLE_TASK = 0,
-	SRP_HEAD_TASK = 1,
-	SRP_ORDERED_TASK = 2,
-	SRP_ACA_TASK = 4
+        SRP_SIMPLE_TASK = 0,
+        SRP_HEAD_TASK = 1,
+        SRP_ORDERED_TASK = 2,
+        SRP_ACA_TASK = 4
 };
 
 enum iue_flags {
@@ -35,6 +36,7 @@ struct srp_queue {
 
 struct srp_target {
 	struct Scsi_Host *shost;
+	struct se_device *tgt;
 	struct device *dev;
 
 	spinlock_t lock;
@@ -82,6 +84,6 @@ static inline int srp_cmd_direction(struct srp_cmd *cmd)
 	return (cmd->buf_fmt >> 4) ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 }
 
-extern int srp_data_length(struct srp_cmd *cmd, enum dma_data_direction dir);
+extern u64 srp_data_length(struct srp_cmd *cmd, enum dma_data_direction dir);
 
 #endif
