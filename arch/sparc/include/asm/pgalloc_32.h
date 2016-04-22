@@ -29,7 +29,7 @@ static inline void free_pgd_fast(pgd_t *pgd)
 
 static inline void pgd_set(pgd_t * pgdp, pmd_t * pmdp)
 {
-	unsigned long pa = __nocache_pa((unsigned long)pmdp);
+	unsigned long pa = __nocache_pa(pmdp);
 
 	set_pte((pte_t *)pgdp, __pte((SRMMU_ET_PTD | (pa >> 4))));
 }

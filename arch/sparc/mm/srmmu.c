@@ -119,7 +119,7 @@ void pmd_set(pmd_t *pmdp, pte_t *ptep)
 	unsigned long ptp;	/* Physical address, shifted right by 4 */
 	int i;
 
-	ptp = __nocache_pa((unsigned long) ptep) >> 4;
+	ptp = __nocache_pa(ptep) >> 4;
 	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++) {
 		set_pte((pte_t *)&pmdp->pmdv[i], __pte(SRMMU_ET_PTD | ptp));
 		ptp += (SRMMU_REAL_PTRS_PER_PTE * sizeof(pte_t) >> 4);
@@ -916,7 +916,7 @@ void __init srmmu_paging_init(void)
 
 	/* ctx table has to be physically aligned to its size */
 	srmmu_context_table = __srmmu_get_nocache(num_contexts * sizeof(ctxd_t), num_contexts * sizeof(ctxd_t));
-	srmmu_ctx_table_phys = (ctxd_t *)__nocache_pa((unsigned long)srmmu_context_table);
+	srmmu_ctx_table_phys = (ctxd_t *)__nocache_pa(srmmu_context_table);
 
 	for (i = 0; i < num_contexts; i++)
 		srmmu_ctxd_set((ctxd_t *)__nocache_fix(&srmmu_context_table[i]), srmmu_swapper_pg_dir);
