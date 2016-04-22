@@ -125,6 +125,10 @@ rockchip_dp_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 				   const struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
+	struct rockchip_dp_device *dp = to_dp(encoder);
+	int private_flags;
+	int ret;
+
 	/*
 	 * The hardware IC designed that VOP must output the RGB10 video
 	 * format to eDP contoller, and if eDP panel only support RGB8,
@@ -132,7 +136,29 @@ rockchip_dp_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 	 * contoller, that's why we need to hardcode the VOP output mode
 	 * to RGA10 here.
 	 */
-	adjusted_mode->private_flags = ROCKCHIP_DSP_MODE(eDP, AAAA);
+
+	ret = rockchip_drm_encoder_get_mux_id(dp->dev->of_node, encoder);
+	if (ret < 0)
+		return true;
+
+	switch (dp->data->chip_type) {
+	case RK3399_EDP:
+		/*
+		 * For RK3399, VOP Lit must code the out mode to RGB888,
+		 * VOP Big must code the out mode to RGB10.
+		 */
+		if (ret)
+			private_flags = ROCKCHIP_DSP_MODE(eDP, P888);
+		else
+			private_flags = ROCKCHIP_DSP_MODE(eDP, AAAA);
+		break;
+
+	default:
+		private_flags = ROCKCHIP_DSP_MODE(eDP, AAAA);
+		break;
+	}
+
+	adjusted_mode->private_flags = private_flags;
 
 	return true;
 }
