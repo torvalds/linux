@@ -162,6 +162,17 @@ u64 *i40iw_qp_get_next_send_wqe(struct i40iw_qp_uk *qp,
 		if (!*wqe_idx)
 			qp->swqe_polarity = !qp->swqe_polarity;
 	}
+
+	if (((*wqe_idx & 3) == 1) && (wqe_size == I40IW_WQE_SIZE_64)) {
+		i40iw_nop_1(qp);
+		I40IW_RING_MOVE_HEAD(qp->sq_ring, ret_code);
+		if (ret_code)
+			return NULL;
+		*wqe_idx = I40IW_RING_GETCURRENT_HEAD(qp->sq_ring);
+		if (!*wqe_idx)
+			qp->swqe_polarity = !qp->swqe_polarity;
+	}
+
 	for (i = 0; i < wqe_size / I40IW_QP_WQE_MIN_SIZE; i++) {
 		I40IW_RING_MOVE_HEAD(qp->sq_ring, ret_code);
 		if (ret_code)
@@ -172,8 +183,11 @@ u64 *i40iw_qp_get_next_send_wqe(struct i40iw_qp_uk *qp,
 
 	peek_head = I40IW_RING_GETCURRENT_HEAD(qp->sq_ring);
 	wqe_0 = qp->sq_base[peek_head].elem;
-	if (peek_head & 0x3)
-		wqe_0[3] = LS_64(!qp->swqe_polarity, I40IWQPSQ_VALID);
+
+	if (((peek_head & 3) == 1) || ((peek_head & 3) == 3)) {
+		if (RS_64(wqe_0[3], I40IWQPSQ_VALID) != !qp->swqe_polarity)
+			wqe_0[3] = LS_64(!qp->swqe_polarity, I40IWQPSQ_VALID);
+	}
 
 	qp->sq_wrtrk_array[*wqe_idx].wrid = wr_id;
 	qp->sq_wrtrk_array[*wqe_idx].wr_len = total_size;

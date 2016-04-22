@@ -1512,6 +1512,8 @@ enum i40iw_alignment {
 	I40IW_SD_BUF_ALIGNMENT =	0x100
 };
 
+#define I40IW_WQE_SIZE_64	64
+
 #define I40IW_QP_WQE_MIN_SIZE	32
 #define I40IW_QP_WQE_MAX_SIZE	128
 
