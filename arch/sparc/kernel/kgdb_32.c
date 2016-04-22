@@ -12,9 +12,8 @@
 #include <asm/irq.h>
 #include <asm/cacheflush.h>
 
+#include "kernel.h"
 #include "entry.h"
-
-extern unsigned long trapbase;
 
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
