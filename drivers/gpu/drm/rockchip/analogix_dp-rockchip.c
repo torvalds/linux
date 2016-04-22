@@ -36,7 +36,7 @@
 
 #define to_dp(nm)	container_of(nm, struct rockchip_dp_device, nm)
 
-struct analogix_dp_data {
+struct rockchip_dp_chip_data {
 	u32	lcdsel_grf_reg;
 	u32	lcdsel_big;
 	u32	lcdsel_lit;
@@ -53,7 +53,8 @@ struct rockchip_dp_device {
 	struct regmap            *grf;
 	struct reset_control     *rst;
 
-	const struct analogix_dp_data *data;
+	const struct rockchip_dp_chip_data *data;
+
 	struct analogix_dp_plat_data plat_data;
 };
 
@@ -248,7 +249,7 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 			    void *data)
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
-	const struct analogix_dp_data *dp_data;
+	const struct rockchip_dp_chip_data *dp_data;
 	struct drm_device *drm_dev = data;
 	int ret;
 
@@ -370,14 +371,14 @@ static const struct dev_pm_ops rockchip_dp_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(rockchip_dp_suspend, rockchip_dp_resume)
 };
 
-static const struct analogix_dp_data rk3399_edp = {
+static const struct rockchip_dp_chip_data rk3399_edp = {
 	.lcdsel_grf_reg = 0x6250,
 	.lcdsel_big = 0,
 	.lcdsel_lit = BIT(5),
 	.lcdsel_mask = BIT(21),
 };
 
-static const struct analogix_dp_data rk3288_dp = {
+static const struct rockchip_dp_chip_data rk3288_dp = {
 	.lcdsel_grf_reg = 0x025c,
 	.lcdsel_big = 0,
 	.lcdsel_lit = BIT(5),
