@@ -86,6 +86,14 @@ struct ea_buffer {
 #define EA_MALLOC	0x0008
 
 
+/*
+ * Mapping of on-disk attribute names: for on-disk attribute names with an
+ * unknown prefix (not "system.", "user.", "security.", or "trusted."), the
+ * prefix "os2." is prepended.  On the way back to disk, "os2." prefixes are
+ * stripped and we make sure that the remaining name does not start with one
+ * of the know prefixes.
+ */
+
 static int is_known_namespace(const char *name)
 {
 	if (strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) &&
@@ -97,29 +105,19 @@ static int is_known_namespace(const char *name)
 	return true;
 }
 
-/*
- * These three routines are used to recognize on-disk extended attributes
- * that are in a recognized namespace.  If the attribute is not recognized,
- * "os2." is prepended to the name
- */
-static int is_os2_xattr(struct jfs_ea *ea)
-{
-	return !is_known_namespace(ea->name);
-}
-
 static inline int name_size(struct jfs_ea *ea)
 {
-	if (is_os2_xattr(ea))
-		return ea->namelen + XATTR_OS2_PREFIX_LEN;
-	else
+	if (is_known_namespace(ea->name))
 		return ea->namelen;
+	else
+		return ea->namelen + XATTR_OS2_PREFIX_LEN;
 }
 
 static inline int copy_name(char *buffer, struct jfs_ea *ea)
 {
 	int len = ea->namelen;
 
-	if (is_os2_xattr(ea)) {
+	if (!is_known_namespace(ea->name)) {
 		memcpy(buffer, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN);
 		buffer += XATTR_OS2_PREFIX_LEN;
 		len += XATTR_OS2_PREFIX_LEN;
@@ -669,29 +667,24 @@ static int ea_put(tid_t tid, struct inode *inode, struct ea_buffer *ea_buf,
  * Most of the permission checking is done by xattr_permission in the vfs.
  * We also need to verify that this is a namespace that we recognize.
  */
-static int can_set_xattr(struct inode *inode, const char *name,
-			 const void *value, size_t value_len)
+static bool map_name_to_disk(const char **name)
 {
-	if (!strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN)) {
+	if (!strncmp(*name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN)) {
 		/*
 		 * This makes sure that we aren't trying to set an
 		 * attribute in a different namespace by prefixing it
 		 * with "os2."
 		 */
-		if (is_known_namespace(name + XATTR_OS2_PREFIX_LEN))
-			return -EOPNOTSUPP;
-		return 0;
+		if (is_known_namespace(*name + XATTR_OS2_PREFIX_LEN))
+			return false;
+		*name += XATTR_OS2_PREFIX_LEN;
+		return true;
 	}
 
 	/*
 	 * Don't allow setting an attribute in an unknown namespace.
 	 */
-	if (strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) &&
-	    strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) &&
-	    strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN))
-		return -EOPNOTSUPP;
-
-	return 0;
+	return is_known_namespace(*name);
 }
 
 int __jfs_setxattr(tid_t tid, struct inode *inode, const char *name,
@@ -704,20 +697,9 @@ int __jfs_setxattr(tid_t tid, struct inode *inode, const char *name,
 	int xattr_size;
 	int new_size;
 	int namelen = strlen(name);
-	char *os2name = NULL;
 	int found = 0;
 	int rc;
 	int length;
-
-	if (strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) == 0) {
-		os2name = kmalloc(namelen - XATTR_OS2_PREFIX_LEN + 1,
-				  GFP_KERNEL);
-		if (!os2name)
-			return -ENOMEM;
-		strcpy(os2name, name + XATTR_OS2_PREFIX_LEN);
-		name = os2name;
-		namelen -= XATTR_OS2_PREFIX_LEN;
-	}
 
 	down_write(&JFS_IP(inode)->xattr_sem);
 
@@ -841,8 +823,6 @@ int __jfs_setxattr(tid_t tid, struct inode *inode, const char *name,
       out:
 	up_write(&JFS_IP(inode)->xattr_sem);
 
-	kfree(os2name);
-
 	return rc;
 }
 
@@ -862,8 +842,8 @@ int jfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
 		return generic_setxattr(dentry, name, value, value_len, flags);
 
-	if ((rc = can_set_xattr(inode, name, value, value_len)))
-		return rc;
+	if (!map_name_to_disk(&name))
+		return -EOPNOTSUPP;
 
 	if (value == NULL) {	/* empty EA, do not remove */
 		value = "";
@@ -946,18 +926,8 @@ ssize_t jfs_getxattr(struct dentry *dentry, struct inode *inode,
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
 		return generic_getxattr(dentry, inode, name, data, buf_size);
 
-	if (strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) == 0) {
-		/*
-		 * skip past "os2." prefix
-		 */
-		name += XATTR_OS2_PREFIX_LEN;
-		/*
-		 * Don't allow retrieving properly prefixed attributes
-		 * by prepending them with "os2."
-		 */
-		if (is_known_namespace(name))
-			return -EOPNOTSUPP;
-	}
+	if (!map_name_to_disk(&name))
+		return -EOPNOTSUPP;
 
 	err = __jfs_getxattr(inode, name, data, buf_size);
 
@@ -1042,8 +1012,8 @@ int jfs_removexattr(struct dentry *dentry, const char *name)
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
 		return generic_removexattr(dentry, name);
 
-	if ((rc = can_set_xattr(inode, name, NULL, 0)))
-		return rc;
+	if (!map_name_to_disk(&name))
+		return -EOPNOTSUPP;
 
 	tid = txBegin(inode->i_sb, 0);
 	mutex_lock(&ji->commit_mutex);
