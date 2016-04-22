@@ -86,19 +86,16 @@ static int xhci_plat_start(struct usb_hcd *hcd)
 
 #ifdef CONFIG_OF
 static const struct xhci_plat_priv xhci_plat_marvell_armada = {
-	.type = XHCI_PLAT_TYPE_MARVELL_ARMADA,
 	.init_quirk = xhci_mvebu_mbus_init_quirk,
 };
 
 static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen2 = {
-	.type = XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2,
 	.firmware_name = XHCI_RCAR_FIRMWARE_NAME_V1,
 	.init_quirk = xhci_rcar_init_quirk,
 	.plat_start = xhci_rcar_start,
 };
 
 static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen3 = {
-	.type = XHCI_PLAT_TYPE_RENESAS_RCAR_GEN3,
 	.firmware_name = XHCI_RCAR_FIRMWARE_NAME_V2,
 	.init_quirk = xhci_rcar_init_quirk,
 	.plat_start = xhci_rcar_start,
