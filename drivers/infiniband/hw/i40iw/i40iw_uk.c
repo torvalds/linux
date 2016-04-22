@@ -802,6 +802,10 @@ static enum i40iw_status_code i40iw_cq_poll_completion(struct i40iw_cq_uk *cq,
 	info->is_srq = (bool)RS_64(qword3, I40IWCQ_SRQ);
 
 	qp = (struct i40iw_qp_uk *)(unsigned long)comp_ctx;
+	if (!qp) {
+		ret_code = I40IW_ERR_QUEUE_DESTROYED;
+		goto exit;
+	}
 	wqe_idx = (u32)RS_64(qword3, I40IW_CQ_WQEIDX);
 	info->qp_handle = (i40iw_qp_handle)(unsigned long)qp;
 
@@ -859,6 +863,7 @@ static enum i40iw_status_code i40iw_cq_poll_completion(struct i40iw_cq_uk *cq,
 
 	ret_code = 0;
 
+exit:
 	if (!ret_code &&
 	    (info->comp_status == I40IW_COMPL_STATUS_FLUSHED))
 		if (pring && (I40IW_RING_MORE_WORK(*pring)))

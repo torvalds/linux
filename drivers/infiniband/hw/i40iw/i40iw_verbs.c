@@ -2259,6 +2259,8 @@ static int i40iw_poll_cq(struct ib_cq *ibcq,
 		ret = ukcq->ops.iw_cq_poll_completion(ukcq, &cq_poll_info, true);
 		if (ret == I40IW_ERR_QUEUE_EMPTY) {
 			break;
+		} else if (ret == I40IW_ERR_QUEUE_DESTROYED) {
+			continue;
 		} else if (ret) {
 			if (!cqe_count)
 				cqe_count = -1;
