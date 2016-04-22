@@ -1825,6 +1825,16 @@
 		clocks = <&cru ACLK_GPU>;
 		power-domains = <&power RK3399_PD_GPU>;
 		status = "disabled";
+
+		power_model {
+			compatible = "arm,mali-simple-power-model";
+			voltage = <900>;
+			frequency = <500>;
+			static-power = <500>;
+			dynamic-power = <1500>;
+			ts = <20000 2000 (-20) 2>;
+			thermal-zone = "gpu";
+		};
 	};
 
 	pinctrl: pinctrl {
