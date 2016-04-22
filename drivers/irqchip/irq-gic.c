@@ -55,7 +55,7 @@
 
 static void gic_check_cpu_features(void)
 {
-	WARN_TAINT_ONCE(cpus_have_cap(ARM64_HAS_SYSREG_GIC_CPUIF),
+	WARN_TAINT_ONCE(this_cpu_has_cap(ARM64_HAS_SYSREG_GIC_CPUIF),
 			TAINT_CPU_OUT_OF_SPEC,
 			"GICv3 system registers enabled, broken firmware!\n");
 }
@@ -490,6 +490,7 @@ static void gic_cpu_init(struct gic_chip_data *gic)
 		 * Get what the GIC says our CPU mask is.
 		 */
 		BUG_ON(cpu >= NR_GIC_CPU_IF);
+		gic_check_cpu_features();
 		cpu_mask = gic_get_cpumask(gic);
 		gic_cpu_map[cpu] = cpu_mask;
 
@@ -1020,8 +1021,6 @@ static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 	int gic_irqs, irq_base, i;
 
 	BUG_ON(gic_nr >= CONFIG_ARM_GIC_MAX_NR);
-
-	gic_check_cpu_features();
 
 	gic = &gic_data[gic_nr];
 
