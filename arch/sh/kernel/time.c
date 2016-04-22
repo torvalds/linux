@@ -11,7 +11,6 @@
  * for more details.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/profile.h>
 #include <linux/timex.h>
@@ -83,7 +82,7 @@ static int __init rtc_generic_init(void)
 
 	return PTR_ERR_OR_ZERO(pdev);
 }
-module_init(rtc_generic_init);
+device_initcall(rtc_generic_init);
 
 void (*board_time_init)(void);
 
