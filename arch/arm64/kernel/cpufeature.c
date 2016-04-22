@@ -1010,6 +1010,24 @@ static void __init setup_feature_capabilities(void)
 	enable_cpu_capabilities(arm64_features);
 }
 
+/*
+ * Check if the current CPU has a given feature capability.
+ * Should be called from non-preemptible context.
+ */
+bool this_cpu_has_cap(unsigned int cap)
+{
+	const struct arm64_cpu_capabilities *caps;
+
+	if (WARN_ON(preemptible()))
+		return false;
+
+	for (caps = arm64_features; caps->desc; caps++)
+		if (caps->capability == cap && caps->matches)
+			return caps->matches(caps, SCOPE_LOCAL_CPU);
+
+	return false;
+}
+
 void __init setup_cpu_features(void)
 {
 	u32 cwg;
