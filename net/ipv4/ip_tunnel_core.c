@@ -271,7 +271,8 @@ static int ip_tun_fill_encap_info(struct sk_buff *skb,
 {
 	struct ip_tunnel_info *tun_info = lwt_tun_info(lwtstate);
 
-	if (nla_put_be64(skb, LWTUNNEL_IP_ID, tun_info->key.tun_id) ||
+	if (nla_put_be64(skb, LWTUNNEL_IP_ID, tun_info->key.tun_id,
+			 LWTUNNEL_IP_PAD) ||
 	    nla_put_in_addr(skb, LWTUNNEL_IP_DST, tun_info->key.u.ipv4.dst) ||
 	    nla_put_in_addr(skb, LWTUNNEL_IP_SRC, tun_info->key.u.ipv4.src) ||
 	    nla_put_u8(skb, LWTUNNEL_IP_TOS, tun_info->key.tos) ||
@@ -284,7 +285,7 @@ static int ip_tun_fill_encap_info(struct sk_buff *skb,
 
 static int ip_tun_encap_nlsize(struct lwtunnel_state *lwtstate)
 {
-	return nla_total_size(8)	/* LWTUNNEL_IP_ID */
+	return nla_total_size_64bit(8)	/* LWTUNNEL_IP_ID */
 		+ nla_total_size(4)	/* LWTUNNEL_IP_DST */
 		+ nla_total_size(4)	/* LWTUNNEL_IP_SRC */
 		+ nla_total_size(1)	/* LWTUNNEL_IP_TOS */
@@ -366,7 +367,8 @@ static int ip6_tun_fill_encap_info(struct sk_buff *skb,
 {
 	struct ip_tunnel_info *tun_info = lwt_tun_info(lwtstate);
 
-	if (nla_put_be64(skb, LWTUNNEL_IP6_ID, tun_info->key.tun_id) ||
+	if (nla_put_be64(skb, LWTUNNEL_IP6_ID, tun_info->key.tun_id,
+			 LWTUNNEL_IP6_PAD) ||
 	    nla_put_in6_addr(skb, LWTUNNEL_IP6_DST, &tun_info->key.u.ipv6.dst) ||
 	    nla_put_in6_addr(skb, LWTUNNEL_IP6_SRC, &tun_info->key.u.ipv6.src) ||
 	    nla_put_u8(skb, LWTUNNEL_IP6_TC, tun_info->key.tos) ||
@@ -379,7 +381,7 @@ static int ip6_tun_fill_encap_info(struct sk_buff *skb,
 
 static int ip6_tun_encap_nlsize(struct lwtunnel_state *lwtstate)
 {
-	return nla_total_size(8)	/* LWTUNNEL_IP6_ID */
+	return nla_total_size_64bit(8)	/* LWTUNNEL_IP6_ID */
 		+ nla_total_size(16)	/* LWTUNNEL_IP6_DST */
 		+ nla_total_size(16)	/* LWTUNNEL_IP6_SRC */
 		+ nla_total_size(1)	/* LWTUNNEL_IP6_HOPLIMIT */
