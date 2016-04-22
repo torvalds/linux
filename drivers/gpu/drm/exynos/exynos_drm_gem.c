@@ -547,6 +547,9 @@ int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	obj = vma->vm_private_data;
 
+	if (obj->import_attach)
+		return dma_buf_mmap(obj->dma_buf, vma, 0);
+
 	return exynos_drm_gem_mmap_obj(obj, vma);
 }
 
