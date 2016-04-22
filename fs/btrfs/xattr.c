@@ -237,6 +237,9 @@ int __btrfs_setxattr(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
+	if (btrfs_root_readonly(root))
+		return -EROFS;
+
 	if (trans)
 		return do_setxattr(trans, inode, name, value, size, flags);
 
@@ -431,25 +434,6 @@ const struct xattr_handler *btrfs_xattr_handlers[] = {
 	&btrfs_btrfs_xattr_handler,
 	NULL,
 };
-
-int btrfs_setxattr(struct dentry *dentry, const char *name, const void *value,
-		   size_t size, int flags)
-{
-	struct btrfs_root *root = BTRFS_I(d_inode(dentry))->root;
-
-	if (btrfs_root_readonly(root))
-		return -EROFS;
-	return generic_setxattr(dentry, name, value, size, flags);
-}
-
-int btrfs_removexattr(struct dentry *dentry, const char *name)
-{
-	struct btrfs_root *root = BTRFS_I(d_inode(dentry))->root;
-
-	if (btrfs_root_readonly(root))
-		return -EROFS;
-	return generic_removexattr(dentry, name);
-}
 
 static int btrfs_initxattrs(struct inode *inode,
 			    const struct xattr *xattr_array, void *fs_info)
