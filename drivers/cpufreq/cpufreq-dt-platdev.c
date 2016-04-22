@@ -12,6 +12,11 @@
 #include <linux/platform_device.h>
 
 static const struct of_device_id machines[] __initconst = {
+	{ .compatible = "fsl,imx27", },
+	{ .compatible = "fsl,imx51", },
+	{ .compatible = "fsl,imx53", },
+	{ .compatible = "fsl,imx7d", },
+
 	{ .compatible = "marvell,berlin", },
 
 	{ .compatible = "samsung,exynos3250", },
