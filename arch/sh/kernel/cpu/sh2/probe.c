@@ -57,6 +57,8 @@ void __ref cpu_probe(void)
 	boot_cpu_data.dcache.entry_shift	= 5;
 	boot_cpu_data.dcache.linesz		= 32;
 	boot_cpu_data.dcache.flags		= 0;
+
+	boot_cpu_data.flags |= CPU_HAS_CAS_L;
 #else
 	/*
 	 * SH-2 doesn't have separate caches
