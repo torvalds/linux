@@ -24,8 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/acpi.h>
-
-#include "platform_data.h"
+#include <linux/delay.h>
 
 #define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3		0xabcd
 #define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI	0xabce
@@ -52,33 +51,29 @@ static int dwc3_pci_quirks(struct pci_dev *pdev, struct platform_device *dwc3)
 {
 	if (pdev->vendor == PCI_VENDOR_ID_AMD &&
 	    pdev->device == PCI_DEVICE_ID_AMD_NL_USB) {
-		struct dwc3_platform_data pdata;
+		struct property_entry properties[] = {
+			PROPERTY_ENTRY_BOOL("snps,has-lpm-erratum"),
+			PROPERTY_ENTRY_U8("snps,lpm-nyet-threshold", 0xf),
+			PROPERTY_ENTRY_BOOL("snps,u2exit_lfps_quirk"),
+			PROPERTY_ENTRY_BOOL("snps,u2ss_inp3_quirk"),
+			PROPERTY_ENTRY_BOOL("snps,req_p1p2p3_quirk"),
+			PROPERTY_ENTRY_BOOL("snps,del_p1p2p3_quirk"),
+			PROPERTY_ENTRY_BOOL("snps,del_phy_power_chg_quirk"),
+			PROPERTY_ENTRY_BOOL("snps,lfps_filter_quirk"),
+			PROPERTY_ENTRY_BOOL("snps,rx_detect_poll_quirk"),
+			PROPERTY_ENTRY_BOOL("snps,tx_de_emphasis_quirk"),
+			PROPERTY_ENTRY_U8("snps,tx_de_emphasis", 1),
+			/*
+			 * FIXME these quirks should be removed when AMD NL
+			 * tapes out
+			 */
+			PROPERTY_ENTRY_BOOL("snps,disable_scramble_quirk"),
+			PROPERTY_ENTRY_BOOL("snps,dis_u3_susphy_quirk"),
+			PROPERTY_ENTRY_BOOL("snps,dis_u2_susphy_quirk"),
+			{ },
+		};
 
-		memset(&pdata, 0, sizeof(pdata));
-
-		pdata.has_lpm_erratum = true;
-		pdata.lpm_nyet_threshold = 0xf;
-
-		pdata.u2exit_lfps_quirk = true;
-		pdata.u2ss_inp3_quirk = true;
-		pdata.req_p1p2p3_quirk = true;
-		pdata.del_p1p2p3_quirk = true;
-		pdata.del_phy_power_chg_quirk = true;
-		pdata.lfps_filter_quirk = true;
-		pdata.rx_detect_poll_quirk = true;
-
-		pdata.tx_de_emphasis_quirk = true;
-		pdata.tx_de_emphasis = 1;
-
-		/*
-		 * FIXME these quirks should be removed when AMD NL
-		 * taps out
-		 */
-		pdata.disable_scramble_quirk = true;
-		pdata.dis_u3_susphy_quirk = true;
-		pdata.dis_u2_susphy_quirk = true;
-
-		return platform_device_add_data(dwc3, &pdata, sizeof(pdata));
+		return platform_device_add_properties(dwc3, properties);
 	}
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
@@ -115,15 +110,14 @@ static int dwc3_pci_quirks(struct pci_dev *pdev, struct platform_device *dwc3)
 	    (pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3 ||
 	     pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI ||
 	     pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31)) {
+		struct property_entry properties[] = {
+			PROPERTY_ENTRY_BOOL("snps,usb3_lpm_capable"),
+			PROPERTY_ENTRY_BOOL("snps,has-lpm-erratum"),
+			PROPERTY_ENTRY_BOOL("snps,dis_enblslpm_quirk"),
+			{ },
+		};
 
-		struct dwc3_platform_data pdata;
-
-		memset(&pdata, 0, sizeof(pdata));
-		pdata.usb3_lpm_capable = true;
-		pdata.has_lpm_erratum = true;
-		pdata.dis_enblslpm_quirk = true;
-
-		return platform_device_add_data(dwc3, &pdata, sizeof(pdata));
+		return platform_device_add_properties(dwc3, properties);
 	}
 
 	return 0;
