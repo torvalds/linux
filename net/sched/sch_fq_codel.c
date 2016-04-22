@@ -24,6 +24,8 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/codel.h>
+#include <net/codel_impl.h>
+#include <net/codel_qdisc.h>
 
 /*	Fair Queue CoDel.
  *
