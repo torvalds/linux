@@ -434,15 +434,18 @@ static int setup_header(struct sk_buff *skb, struct net_device *netdev,
 			bdaddr_t *peer_addr, u8 *peer_addr_type)
 {
 	struct in6_addr ipv6_daddr;
+	struct ipv6hdr *hdr;
 	struct lowpan_btle_dev *dev;
 	struct lowpan_peer *peer;
 	bdaddr_t addr, *any = BDADDR_ANY;
 	u8 *daddr = any->b;
 	int err, status = 0;
 
+	hdr = ipv6_hdr(skb);
+
 	dev = lowpan_btle_dev(netdev);
 
-	memcpy(&ipv6_daddr, &lowpan_cb(skb)->addr, sizeof(ipv6_daddr));
+	memcpy(&ipv6_daddr, &hdr->daddr, sizeof(ipv6_daddr));
 
 	if (ipv6_addr_is_multicast(&ipv6_daddr)) {
 		lowpan_cb(skb)->chan = NULL;
@@ -492,14 +495,8 @@ static int header_create(struct sk_buff *skb, struct net_device *netdev,
 			 unsigned short type, const void *_daddr,
 			 const void *_saddr, unsigned int len)
 {
-	struct ipv6hdr *hdr;
-
 	if (type != ETH_P_IPV6)
 		return -EINVAL;
-
-	hdr = ipv6_hdr(skb);
-
-	memcpy(&lowpan_cb(skb)->addr, &hdr->daddr, sizeof(struct in6_addr));
 
 	return 0;
 }
