@@ -380,10 +380,9 @@ static struct drm_mode_object *_object_find(struct drm_device *dev,
  * @id: id of the mode object
  * @type: type of the mode object
  *
- * Note that framebuffers cannot be looked up with this functions - since those
- * are reference counted, they need special treatment.  Even with
- * DRM_MODE_OBJECT_ANY (although that will simply return NULL
- * rather than WARN_ON()).
+ * This function is used to look up a modeset object. It will acquire a
+ * reference for reference counted objects. This reference must be dropped again
+ * by callind drm_mode_object_unreference().
  */
 struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 		uint32_t id, uint32_t type)
@@ -398,6 +397,14 @@ struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_mode_object_find);
 
+/**
+ * drm_mode_object_unreference - decr the object refcnt
+ * @obj: mode_object
+ *
+ * This functions decrements the object's refcount if it is a refcounted modeset
+ * object. It is a no-op on any other object. This is used to drop references
+ * acquired with drm_mode_object_reference().
+ */
 void drm_mode_object_unreference(struct drm_mode_object *obj)
 {
 	if (obj->free_cb) {
@@ -408,11 +415,12 @@ void drm_mode_object_unreference(struct drm_mode_object *obj)
 EXPORT_SYMBOL(drm_mode_object_unreference);
 
 /**
- * drm_mode_object_reference - incr the fb refcnt
+ * drm_mode_object_reference - incr the object refcnt
  * @obj: mode_object
  *
- * This function operates only on refcounted objects.
- * This functions increments the object's refcount.
+ * This functions increments the object's refcount if it is a refcounted modeset
+ * object. It is a no-op on any other object. References should be dropped again
+ * by calling drm_mode_object_unreference().
  */
 void drm_mode_object_reference(struct drm_mode_object *obj)
 {
