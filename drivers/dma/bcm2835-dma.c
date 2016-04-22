@@ -974,7 +974,7 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 
 		/* legacy device tree case handling */
 		dev_warn_once(&pdev->dev,
-			      "missing interrupts-names property in device tree - legacy interpretation is used");
+			      "missing interrupt-names property in device tree - legacy interpretation is used\n");
 		/*
 		 * in case of channel >= 11
 		 * use the 11th interrupt and that is shared
