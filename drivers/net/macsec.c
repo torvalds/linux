@@ -880,12 +880,12 @@ static struct sk_buff *macsec_decrypt(struct sk_buff *skb,
 	macsec_skb_cb(skb)->valid = false;
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	req = aead_request_alloc(rx_sa->key.tfm, GFP_ATOMIC);
 	if (!req) {
 		kfree_skb(skb);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	hdr = (struct macsec_eth_header *)skb->data;
@@ -905,7 +905,7 @@ static struct sk_buff *macsec_decrypt(struct sk_buff *skb,
 		skb = skb_unshare(skb, GFP_ATOMIC);
 		if (!skb) {
 			aead_request_free(req);
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 		}
 	} else {
 		/* integrity only: all headers + data authenticated */
@@ -921,14 +921,14 @@ static struct sk_buff *macsec_decrypt(struct sk_buff *skb,
 	dev_hold(dev);
 	ret = crypto_aead_decrypt(req);
 	if (ret == -EINPROGRESS) {
-		return NULL;
+		return ERR_PTR(ret);
 	} else if (ret != 0) {
 		/* decryption/authentication failed
 		 * 10.6 if validateFrames is disabled, deliver anyway
 		 */
 		if (ret != -EBADMSG) {
 			kfree_skb(skb);
-			skb = NULL;
+			skb = ERR_PTR(ret);
 		}
 	} else {
 		macsec_skb_cb(skb)->valid = true;
@@ -1146,8 +1146,10 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 	    secy->validate_frames != MACSEC_VALIDATE_DISABLED)
 		skb = macsec_decrypt(skb, dev, rx_sa, sci, secy);
 
-	if (!skb) {
-		macsec_rxsa_put(rx_sa);
+	if (IS_ERR(skb)) {
+		/* the decrypt callback needs the reference */
+		if (PTR_ERR(skb) != -EINPROGRESS)
+			macsec_rxsa_put(rx_sa);
 		rcu_read_unlock();
 		*pskb = NULL;
 		return RX_HANDLER_CONSUMED;
