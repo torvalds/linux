@@ -38,6 +38,13 @@ struct rpc_cred *rpc_lookup_cred(void)
 }
 EXPORT_SYMBOL_GPL(rpc_lookup_cred);
 
+struct rpc_cred *
+rpc_lookup_generic_cred(struct auth_cred *acred, int flags, gfp_t gfp)
+{
+	return rpcauth_lookup_credcache(&generic_auth, acred, flags, gfp);
+}
+EXPORT_SYMBOL_GPL(rpc_lookup_generic_cred);
+
 struct rpc_cred *rpc_lookup_cred_nonblock(void)
 {
 	return rpcauth_lookupcred(&generic_auth, RPCAUTH_LOOKUP_RCU);
