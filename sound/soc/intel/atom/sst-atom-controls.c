@@ -195,7 +195,7 @@ static int sst_check_and_send_slot_map(struct sst_data *drv, struct snd_kcontrol
 
 	if (e->w && e->w->power)
 		ret = sst_send_slot_map(drv);
-	else
+	else if (!e->w)
 		dev_err(&drv->pdev->dev, "Slot control: %s doesn't have DAPM widget!!!\n",
 				kcontrol->id.name);
 	return ret;
