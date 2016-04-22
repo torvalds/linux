@@ -1180,6 +1180,10 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 			return ret;
 	}
 
+	/* WaProgramL3SqcReg1DefaultForPerf:bxt */
+	if (IS_BXT_REVID(dev, BXT_REVID_B0, REVID_FOREVER))
+		I915_WRITE(GEN8_L3SQCREG1, BXT_WA_L3SQCREG1_DEFAULT);
+
 	return 0;
 }
 
