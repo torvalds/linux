@@ -375,6 +375,7 @@ enum fuse_opcode {
 	FUSE_READDIRPLUS   = 44,
 	FUSE_RENAME2       = 45,
 	FUSE_LSEEK         = 46,
+	FUSE_CANONICAL_PATH= 2016,
 
 	/* CUSE specific operations */
 	CUSE_INIT          = 4096,
