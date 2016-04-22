@@ -213,6 +213,9 @@ struct fuse_out {
 
 	/** Array of arguments */
 	struct fuse_arg args[2];
+
+	/* Path used for completing d_canonical_path */
+	struct path *canonical_path;
 };
 
 /** FUSE page descriptor */
@@ -235,6 +238,9 @@ struct fuse_args {
 		unsigned argvar:1;
 		unsigned numargs;
 		struct fuse_arg args[2];
+
+		/* Path used for completing d_canonical_path */
+		struct path *canonical_path;
 	} out;
 };
 

@@ -281,10 +281,49 @@ static void fuse_dentry_release(struct dentry *dentry)
 	kfree_rcu(fd, rcu);
 }
 
+/*
+ * Get the canonical path. Since we must translate to a path, this must be done
+ * in the context of the userspace daemon, however, the userspace daemon cannot
+ * look up paths on its own. Instead, we handle the lookup as a special case
+ * inside of the write request.
+ */
+static void fuse_dentry_canonical_path(const struct path *path,
+				       struct path *canonical_path)
+{
+	struct inode *inode = d_inode(path->dentry);
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	FUSE_ARGS(args);
+	char *path_name;
+	int err;
+
+	path_name = (char *)__get_free_page(GFP_KERNEL);
+	if (!path_name)
+		goto default_path;
+
+	args.in.h.opcode = FUSE_CANONICAL_PATH;
+	args.in.h.nodeid = get_node_id(inode);
+	args.in.numargs = 0;
+	args.out.numargs = 1;
+	args.out.args[0].size = PATH_MAX;
+	args.out.args[0].value = path_name;
+	args.out.argvar = 1;
+	args.out.canonical_path = canonical_path;
+
+	err = fuse_simple_request(fc, &args);
+	free_page((unsigned long)path_name);
+	if (err > 0)
+		return;
+default_path:
+	canonical_path->dentry = path->dentry;
+	canonical_path->mnt = path->mnt;
+	path_get(canonical_path);
+}
+
 const struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 	.d_init		= fuse_dentry_init,
 	.d_release	= fuse_dentry_release,
+	.d_canonical_path = fuse_dentry_canonical_path,
 };
 
 const struct dentry_operations fuse_root_dentry_operations = {
