@@ -1315,9 +1315,6 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 
 	WARN_ON_ONCE(!dev->use_fast_reg);
 
-	if (sg_nents == 0)
-		return 0;
-
 	if (sg_nents == 1 && target->global_mr) {
 		srp_map_desc(state, sg_dma_address(state->sg),
 			     sg_dma_len(state->sg),
@@ -1438,6 +1435,9 @@ static int srp_map_sg_fr(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	state->fr.next = req->fr_list;
 	state->fr.end = req->fr_list + ch->target->cmd_sg_cnt;
 	state->sg = scat;
+
+	if (count == 0)
+		return 0;
 
 	while (count) {
 		int i, n;
