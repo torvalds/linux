@@ -797,11 +797,11 @@ out:
 }
 
 /**
- *  ixgbevf_rlpml_set_vf - Set the maximum receive packet length
+ *  ixgbevf_set_rlpml_vf - Set the maximum receive packet length
  *  @hw: pointer to the HW structure
  *  @max_size: value to assign to max frame size
  **/
-void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
+static void ixgbevf_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
 {
 	u32 msgbuf[2];
 
@@ -811,12 +811,12 @@ void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
 }
 
 /**
- * ixgbevf_hv_rlpml_set_vf - Set the maximum receive packet length
+ * ixgbevf_hv_set_rlpml_vf - Set the maximum receive packet length
  * @hw: pointer to the HW structure
  * @max_size: value to assign to max frame size
  * Hyper-V variant.
  **/
-void ixgbevf_hv_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
+static void ixgbevf_hv_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
 {
 	u32 reg;
 
@@ -864,12 +864,12 @@ static int ixgbevf_negotiate_api_version_vf(struct ixgbe_hw *hw, int api)
 }
 
 /**
- *  ixgbevf_hv_negotiate_api_version - Negotiate supported API version
+ *  ixgbevf_hv_negotiate_api_version_vf - Negotiate supported API version
  *  @hw: pointer to the HW structure
  *  @api: integer containing requested API version
  *  Hyper-V version - only ixgbe_mbox_api_10 supported.
  **/
-int ixgbevf_hv_negotiate_api_version(struct ixgbe_hw *hw, int api)
+static int ixgbevf_hv_negotiate_api_version_vf(struct ixgbe_hw *hw, int api)
 {
 	/* Hyper-V only supports api version ixgbe_mbox_api_10 */
 	if (api != ixgbe_mbox_api_10)
@@ -950,6 +950,7 @@ static const struct ixgbe_mac_operations ixgbevf_mac_ops = {
 	.update_xcast_mode	= ixgbevf_update_xcast_mode,
 	.set_uc_addr		= ixgbevf_set_uc_addr_vf,
 	.set_vfta		= ixgbevf_set_vfta_vf,
+	.set_rlpml		= ixgbevf_set_rlpml_vf,
 };
 
 static const struct ixgbe_mac_operations ixgbevf_hv_mac_ops = {
@@ -960,11 +961,13 @@ static const struct ixgbe_mac_operations ixgbevf_hv_mac_ops = {
 	.stop_adapter		= ixgbevf_stop_hw_vf,
 	.setup_link		= ixgbevf_setup_mac_link_vf,
 	.check_link		= ixgbevf_hv_check_mac_link_vf,
+	.negotiate_api_version	= ixgbevf_hv_negotiate_api_version_vf,
 	.set_rar		= ixgbevf_hv_set_rar_vf,
 	.update_mc_addr_list	= ixgbevf_hv_update_mc_addr_list_vf,
 	.update_xcast_mode	= ixgbevf_hv_update_xcast_mode,
 	.set_uc_addr		= ixgbevf_hv_set_uc_addr_vf,
 	.set_vfta		= ixgbevf_hv_set_vfta_vf,
+	.set_rlpml		= ixgbevf_hv_set_rlpml_vf,
 };
 
 const struct ixgbevf_info ixgbevf_82599_vf_info = {
@@ -1006,8 +1009,3 @@ const struct ixgbevf_info ixgbevf_X550EM_x_vf_hv_info = {
 	.mac = ixgbe_mac_X550EM_x_vf,
 	.mac_ops = &ixgbevf_hv_mac_ops,
 };
-
-bool ixgbevf_on_hyperv(struct ixgbe_hw *hw)
-{
-	return hw->mbx.ops.check_for_msg == NULL;
-}

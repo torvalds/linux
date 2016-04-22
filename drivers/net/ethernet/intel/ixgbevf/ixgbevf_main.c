@@ -1809,10 +1809,7 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 		ixgbevf_setup_vfmrqc(adapter);
 
 	/* notify the PF of our intent to use this size of frame */
-	if (!ixgbevf_on_hyperv(hw))
-		ixgbevf_rlpml_set_vf(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
-	else
-		ixgbevf_hv_rlpml_set_vf(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
+	hw->mac.ops.set_rlpml(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring
@@ -2073,10 +2070,7 @@ static void ixgbevf_negotiate_api(struct ixgbevf_adapter *adapter)
 	spin_lock_bh(&adapter->mbx_lock);
 
 	while (api[idx] != ixgbe_mbox_api_unknown) {
-		if (!ixgbevf_on_hyperv(hw))
-			err = hw->mac.ops.negotiate_api_version(hw, api[idx]);
-		else
-			err = ixgbevf_hv_negotiate_api_version(hw, api[idx]);
+		err = hw->mac.ops.negotiate_api_version(hw, api[idx]);
 		if (!err)
 			break;
 		idx++;
@@ -3760,10 +3754,7 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	netdev->mtu = new_mtu;
 
 	/* notify the PF of our intent to use this size of frame */
-	if (!ixgbevf_on_hyperv(hw))
-		ixgbevf_rlpml_set_vf(hw, max_frame);
-	else
-		ixgbevf_hv_rlpml_set_vf(hw, max_frame);
+	hw->mac.ops.set_rlpml(hw, max_frame);
 
 	return 0;
 }
