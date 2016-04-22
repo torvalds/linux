@@ -1079,7 +1079,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
 		break;
 	case KVM_CAP_MIPS_FPU:
-		r = !!cpu_has_fpu;
+		/* We don't handle systems with inconsistent cpu_has_fpu */
+		r = !!raw_cpu_has_fpu;
 		break;
 	case KVM_CAP_MIPS_MSA:
 		/*
