@@ -520,8 +520,6 @@ static int i40iw_setup_kmode_qp(struct i40iw_device *iwdev,
 	enum i40iw_status_code status;
 	struct i40iw_qp_uk_init_info *ukinfo = &info->qp_uk_init_info;
 
-	ukinfo->max_sq_frag_cnt = I40IW_MAX_WQ_FRAGMENT_COUNT;
-
 	sq_size = i40iw_qp_roundup(ukinfo->sq_size + 1);
 	rq_size = i40iw_qp_roundup(ukinfo->rq_size + 1);
 
