@@ -56,6 +56,9 @@ static enum i40iw_status_code i40iw_nop_1(struct i40iw_qp_uk *qp)
 
 	wqe_idx = I40IW_RING_GETCURRENT_HEAD(qp->sq_ring);
 	wqe = qp->sq_base[wqe_idx].elem;
+
+	qp->sq_wrtrk_array[wqe_idx].wqe_size = I40IW_QP_WQE_MIN_SIZE;
+
 	peek_head = (qp->sq_ring.head + 1) % qp->sq_ring.size;
 	wqe_0 = qp->sq_base[peek_head].elem;
 	if (peek_head)
