@@ -1,5 +1,5 @@
 /*
- * Google Gru-Kevin Rev 2+ board device tree source
+ * Google Gru-Kevin Rev 0 board device tree source
  *
  * Copyright 2016 Google, Inc
  *
@@ -46,24 +46,55 @@
 #include "rk3399-gru.dtsi"
 
 / {
-	model = "Google Kevin";
-	compatible = "google,kevin-rev15", "google,kevin-rev14",
-		     "google,kevin-rev13", "google,kevin-rev12",
-		     "google,kevin-rev11", "google,kevin-rev10",
-		     "google,kevin-rev9", "google,kevin-rev8",
-		     "google,kevin-rev7", "google,kevin-rev6",
-		     "google,kevin-rev5", "google,kevin-rev4",
-		     "google,kevin-rev3", "google,kevin-rev2",
+	model = "Google Kevin Rev 0";
+	compatible = "google,kevin-rev0",
 		     "google,kevin", "google,veyron", "rockchip,rk3399";
 };
 
-/* PINCTRL: always below everything else */
+&pp3000 {
+	gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+};
 
-&pinctrl {
-	pen-eject {
-		pen_eject_l: pen-eject-l {
-			rockchip,pins = <RK_GPIO0 13 RK_FUNC_GPIO
-				&pcfg_pull_up>;
-		};
-	};
+&pp1800_audio {
+	gpio = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+};
+
+&pp1800_pcie {
+	gpio = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+};
+
+&sdmmc {
+	cd-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
+};
+
+&cros_ec {
+	interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+};
+
+&ec_ap_int_l {
+	rockchip,pins = <0 2 RK_FUNC_GPIO &pcfg_pull_up>;
+};
+
+&pp1500_en {
+	rockchip,pins = <RK_GPIO1 11 RK_FUNC_GPIO &pcfg_pull_none>;
+};
+
+&pp1800_audio_en {
+	rockchip,pins = <RK_GPIO0 1 RK_FUNC_GPIO
+			 &pcfg_pull_none>;
+};
+
+&pp3000_en {
+	rockchip,pins = <RK_GPIO1 12 RK_FUNC_GPIO
+			 &pcfg_pull_none>;
+};
+
+&wlan_module_pd_l {
+	rockchip,pins = <RK_GPIO0 8 RK_FUNC_GPIO
+			 &pcfg_pull_none>;
+};
+
+/* This is where we actually hook up CD; has external pull */
+&sdmmc_cd_gpio {
+	rockchip,pins = <4 26 RK_FUNC_GPIO &pcfg_pull_none>;
 };
