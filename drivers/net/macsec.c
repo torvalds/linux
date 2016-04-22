@@ -1161,7 +1161,8 @@ deliver:
 			    macsec_extra_len(macsec_skb_cb(skb)->has_sci));
 	macsec_reset_skb(skb, secy->netdev);
 
-	macsec_rxsa_put(rx_sa);
+	if (rx_sa)
+		macsec_rxsa_put(rx_sa);
 	count_rx(dev, skb->len);
 
 	rcu_read_unlock();
