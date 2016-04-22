@@ -746,7 +746,8 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	     nla_put_u8(skb, L2TP_ATTR_USING_IPSEC, 1)) ||
 #endif
 	    (session->reorder_timeout &&
-	     nla_put_msecs(skb, L2TP_ATTR_RECV_TIMEOUT, session->reorder_timeout)))
+	     nla_put_msecs(skb, L2TP_ATTR_RECV_TIMEOUT,
+			   session->reorder_timeout, L2TP_ATTR_PAD)))
 		goto nla_put_failure;
 
 	nest = nla_nest_start(skb, L2TP_ATTR_STATS);
