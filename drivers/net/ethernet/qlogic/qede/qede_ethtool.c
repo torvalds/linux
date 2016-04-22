@@ -116,6 +116,15 @@ static const struct {
 
 #define QEDE_NUM_STATS	ARRAY_SIZE(qede_stats_arr)
 
+enum {
+	QEDE_PRI_FLAG_CMT,
+	QEDE_PRI_FLAG_LEN,
+};
+
+static const char qede_private_arr[QEDE_PRI_FLAG_LEN][ETH_GSTRING_LEN] = {
+	"Coupled-Function",
+};
+
 static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 {
 	int i, j, k;
@@ -138,6 +147,10 @@ static void qede_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		qede_get_strings_stats(edev, buf);
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(buf, qede_private_arr,
+		       ETH_GSTRING_LEN * QEDE_PRI_FLAG_LEN);
 		break;
 	default:
 		DP_VERBOSE(edev, QED_MSG_DEBUG,
@@ -177,12 +190,21 @@ static int qede_get_sset_count(struct net_device *dev, int stringset)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		return num_stats + QEDE_NUM_RQSTATS;
+	case ETH_SS_PRIV_FLAGS:
+		return QEDE_PRI_FLAG_LEN;
 
 	default:
 		DP_VERBOSE(edev, QED_MSG_DEBUG,
 			   "Unsupported stringset 0x%08x\n", stringset);
 		return -EINVAL;
 	}
+}
+
+static u32 qede_get_priv_flags(struct net_device *dev)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	return (!!(edev->dev_info.common.num_hwfns > 1)) << QEDE_PRI_FLAG_CMT;
 }
 
 static int qede_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -814,6 +836,7 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_strings = qede_get_strings,
 	.set_phys_id = qede_set_phys_id,
 	.get_ethtool_stats = qede_get_ethtool_stats,
+	.get_priv_flags = qede_get_priv_flags,
 	.get_sset_count = qede_get_sset_count,
 	.get_rxnfc = qede_get_rxnfc,
 	.set_rxnfc = qede_set_rxnfc,
