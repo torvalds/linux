@@ -378,28 +378,6 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
-				struct sg_table *sgt,
-				enum dma_data_direction dir)
-{
-	int nents;
-
-	nents = dma_map_sg(to_dma_dev(drm_dev), sgt->sgl, sgt->nents, dir);
-	if (!nents) {
-		DRM_ERROR("failed to map sgl with dma.\n");
-		return nents;
-	}
-
-	return 0;
-}
-
-void exynos_gem_unmap_sgt_from_dma(struct drm_device *drm_dev,
-				struct sg_table *sgt,
-				enum dma_data_direction dir)
-{
-	dma_unmap_sg(to_dma_dev(drm_dev), sgt->sgl, sgt->nents, dir);
-}
-
 void exynos_drm_gem_free_object(struct drm_gem_object *obj)
 {
 	exynos_drm_gem_destroy(to_exynos_gem(obj));
