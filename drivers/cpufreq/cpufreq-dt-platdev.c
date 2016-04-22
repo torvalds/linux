@@ -28,6 +28,11 @@ static const struct of_device_id machines[] __initconst = {
 	{ .compatible = "samsung,exynos5420", },
 	{ .compatible = "samsung,exynos5800", },
 #endif
+
+	{ .compatible = "ti,omap2", },
+	{ .compatible = "ti,omap3", },
+	{ .compatible = "ti,omap4", },
+	{ .compatible = "ti,omap5", },
 };
 
 static int __init cpufreq_dt_platdev_init(void)
