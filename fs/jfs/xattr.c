@@ -663,30 +663,6 @@ static int ea_put(tid_t tid, struct inode *inode, struct ea_buffer *ea_buf,
 	return 0;
 }
 
-/*
- * Most of the permission checking is done by xattr_permission in the vfs.
- * We also need to verify that this is a namespace that we recognize.
- */
-static bool map_name_to_disk(const char **name)
-{
-	if (!strncmp(*name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN)) {
-		/*
-		 * This makes sure that we aren't trying to set an
-		 * attribute in a different namespace by prefixing it
-		 * with "os2."
-		 */
-		if (is_known_namespace(*name + XATTR_OS2_PREFIX_LEN))
-			return false;
-		*name += XATTR_OS2_PREFIX_LEN;
-		return true;
-	}
-
-	/*
-	 * Don't allow setting an attribute in an unknown namespace.
-	 */
-	return is_known_namespace(*name);
-}
-
 int __jfs_setxattr(tid_t tid, struct inode *inode, const char *name,
 		   const void *value, size_t value_len, int flags)
 {
@@ -826,42 +802,6 @@ int __jfs_setxattr(tid_t tid, struct inode *inode, const char *name,
 	return rc;
 }
 
-int jfs_setxattr(struct dentry *dentry, const char *name, const void *value,
-		 size_t value_len, int flags)
-{
-	struct inode *inode = d_inode(dentry);
-	struct jfs_inode_info *ji = JFS_IP(inode);
-	int rc;
-	tid_t tid;
-
-	/*
-	 * If this is a request for a synthetic attribute in the system.*
-	 * namespace use the generic infrastructure to resolve a handler
-	 * for it via sb->s_xattr.
-	 */
-	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
-		return generic_setxattr(dentry, name, value, value_len, flags);
-
-	if (!map_name_to_disk(&name))
-		return -EOPNOTSUPP;
-
-	if (value == NULL) {	/* empty EA, do not remove */
-		value = "";
-		value_len = 0;
-	}
-
-	tid = txBegin(inode->i_sb, 0);
-	mutex_lock(&ji->commit_mutex);
-	rc = __jfs_setxattr(tid, d_inode(dentry), name, value, value_len,
-			    flags);
-	if (!rc)
-		rc = txCommit(tid, 1, &inode, 0);
-	txEnd(tid);
-	mutex_unlock(&ji->commit_mutex);
-
-	return rc;
-}
-
 ssize_t __jfs_getxattr(struct inode *inode, const char *name, void *data,
 		       size_t buf_size)
 {
@@ -911,27 +851,6 @@ ssize_t __jfs_getxattr(struct inode *inode, const char *name, void *data,
 	up_read(&JFS_IP(inode)->xattr_sem);
 
 	return size;
-}
-
-ssize_t jfs_getxattr(struct dentry *dentry, struct inode *inode,
-		     const char *name, void *data, size_t buf_size)
-{
-	int err;
-
-	/*
-	 * If this is a request for a synthetic attribute in the system.*
-	 * namespace use the generic infrastructure to resolve a handler
-	 * for it via sb->s_xattr.
-	 */
-	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
-		return generic_getxattr(dentry, inode, name, data, buf_size);
-
-	if (!map_name_to_disk(&name))
-		return -EOPNOTSUPP;
-
-	err = __jfs_getxattr(inode, name, data, buf_size);
-
-	return err;
 }
 
 /*
@@ -997,27 +916,16 @@ ssize_t jfs_listxattr(struct dentry * dentry, char *data, size_t buf_size)
 	return size;
 }
 
-int jfs_removexattr(struct dentry *dentry, const char *name)
+static int __jfs_xattr_set(struct inode *inode, const char *name,
+			   const void *value, size_t size, int flags)
 {
-	struct inode *inode = d_inode(dentry);
 	struct jfs_inode_info *ji = JFS_IP(inode);
-	int rc;
 	tid_t tid;
-
-	/*
-	 * If this is a request for a synthetic attribute in the system.*
-	 * namespace use the generic infrastructure to resolve a handler
-	 * for it via sb->s_xattr.
-	 */
-	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
-		return generic_removexattr(dentry, name);
-
-	if (!map_name_to_disk(&name))
-		return -EOPNOTSUPP;
+	int rc;
 
 	tid = txBegin(inode->i_sb, 0);
 	mutex_lock(&ji->commit_mutex);
-	rc = __jfs_setxattr(tid, d_inode(dentry), name, NULL, 0, XATTR_REPLACE);
+	rc = __jfs_setxattr(tid, inode, name, value, size, flags);
 	if (!rc)
 		rc = txCommit(tid, 1, &inode, 0);
 	txEnd(tid);
@@ -1026,15 +934,77 @@ int jfs_removexattr(struct dentry *dentry, const char *name)
 	return rc;
 }
 
-/*
- * List of handlers for synthetic system.* attributes.  All real ondisk
- * attributes are handled directly.
- */
+static int jfs_xattr_get(const struct xattr_handler *handler,
+			 struct dentry *unused, struct inode *inode,
+			 const char *name, void *value, size_t size)
+{
+	name = xattr_full_name(handler, name);
+	return __jfs_getxattr(inode, name, value, size);
+}
+
+static int jfs_xattr_set(const struct xattr_handler *handler,
+			 struct dentry *dentry, const char *name,
+			 const void *value, size_t size, int flags)
+{
+	struct inode *inode = d_inode(dentry);
+
+	name = xattr_full_name(handler, name);
+	return __jfs_xattr_set(inode, name, value, size, flags);
+}
+
+static int jfs_xattr_get_os2(const struct xattr_handler *handler,
+			     struct dentry *unused, struct inode *inode,
+			     const char *name, void *value, size_t size)
+{
+	if (is_known_namespace(name))
+		return -EOPNOTSUPP;
+	return __jfs_getxattr(inode, name, value, size);
+}
+
+static int jfs_xattr_set_os2(const struct xattr_handler *handler,
+			     struct dentry *dentry, const char *name,
+			     const void *value, size_t size, int flags)
+{
+	struct inode *inode = d_inode(dentry);
+
+	if (is_known_namespace(name))
+		return -EOPNOTSUPP;
+	return __jfs_xattr_set(inode, name, value, size, flags);
+}
+
+static const struct xattr_handler jfs_user_xattr_handler = {
+	.prefix = XATTR_USER_PREFIX,
+	.get = jfs_xattr_get,
+	.set = jfs_xattr_set,
+};
+
+static const struct xattr_handler jfs_os2_xattr_handler = {
+	.prefix = XATTR_OS2_PREFIX,
+	.get = jfs_xattr_get_os2,
+	.set = jfs_xattr_set_os2,
+};
+
+static const struct xattr_handler jfs_security_xattr_handler = {
+	.prefix = XATTR_SECURITY_PREFIX,
+	.get = jfs_xattr_get,
+	.set = jfs_xattr_set,
+};
+
+static const struct xattr_handler jfs_trusted_xattr_handler = {
+	.prefix = XATTR_TRUSTED_PREFIX,
+	.get = jfs_xattr_get,
+	.set = jfs_xattr_set,
+};
+
 const struct xattr_handler *jfs_xattr_handlers[] = {
 #ifdef CONFIG_JFS_POSIX_ACL
 	&posix_acl_access_xattr_handler,
 	&posix_acl_default_xattr_handler,
 #endif
+	&jfs_os2_xattr_handler,
+	&jfs_user_xattr_handler,
+	&jfs_security_xattr_handler,
+	&jfs_trusted_xattr_handler,
 	NULL,
 };
 
