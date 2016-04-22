@@ -319,7 +319,7 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	int cpu;
 	int pc;
 
-	if (!ftrace_trace_task(current))
+	if (!ftrace_trace_task(tr))
 		return 0;
 
 	/* trace it when it is-nested-in or is a function enabled. */

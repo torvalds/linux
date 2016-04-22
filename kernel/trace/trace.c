@@ -7233,6 +7233,7 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 	for_each_tracing_cpu(cpu)
 		tracing_init_tracefs_percpu(tr, cpu);
 
+	ftrace_init_tracefs(tr, d_tracer);
 }
 
 static struct vfsmount *trace_automount(void *ingore)
