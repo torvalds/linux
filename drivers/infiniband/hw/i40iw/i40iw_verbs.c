@@ -74,7 +74,7 @@ static int i40iw_query_device(struct ib_device *ibdev,
 	props->max_cqe = iwdev->max_cqe;
 	props->max_mr = iwdev->max_mr;
 	props->max_pd = iwdev->max_pd;
-	props->max_sge_rd = 1;
+	props->max_sge_rd = I40IW_MAX_SGE_RD;
 	props->max_qp_rd_atom = I40IW_MAX_IRD_SIZE;
 	props->max_qp_init_rd_atom = props->max_qp_rd_atom;
 	props->atomic_cap = IB_ATOMIC_NONE;
@@ -2117,6 +2117,10 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			inv_stag = true;
 			/* fall-through*/
 		case IB_WR_RDMA_READ:
+			if (ib_wr->num_sge > I40IW_MAX_SGE_RD) {
+				err = -EINVAL;
+				break;
+			}
 			info.op_type = I40IW_OP_TYPE_RDMA_READ;
 			info.op.rdma_read.rem_addr.tag_off = rdma_wr(ib_wr)->remote_addr;
 			info.op.rdma_read.rem_addr.stag = rdma_wr(ib_wr)->rkey;
