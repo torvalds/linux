@@ -1796,6 +1796,11 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 		req_payload.start_slot = cur_slots;
 		if (mgr->proposed_vcpis[i]) {
 			port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
+			port = drm_dp_get_validated_port_ref(mgr, port);
+			if (!port) {
+				mutex_unlock(&mgr->payload_lock);
+				return -EINVAL;
+			}
 			req_payload.num_slots = mgr->proposed_vcpis[i]->num_slots;
 			req_payload.vcpi = mgr->proposed_vcpis[i]->vcpi;
 		} else {
@@ -1823,6 +1828,9 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 			mgr->payloads[i].payload_state = req_payload.payload_state;
 		}
 		cur_slots += req_payload.num_slots;
+
+		if (port)
+			drm_dp_put_port(port);
 	}
 
 	for (i = 0; i < mgr->max_payloads; i++) {
