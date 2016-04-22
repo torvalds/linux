@@ -1398,7 +1398,7 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 	/*
 	 * If the last entry of the MR wasn't a full page, then we need to
 	 * close it out and start a new one -- we can only merge at page
-	 * boundries.
+	 * boundaries.
 	 */
 	ret = 0;
 	if (len != dev->mr_page_size)
