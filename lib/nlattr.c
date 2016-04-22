@@ -359,10 +359,11 @@ EXPORT_SYMBOL(__nla_reserve);
  * @skb: socket buffer to reserve room on
  * @attrtype: attribute type
  * @attrlen: length of attribute payload
+ * @padattr: attribute type for the padding
  *
  * Adds a netlink attribute header to a socket buffer and reserves
  * room for the payload but does not copy it. It also ensure that this
- * attribute will be 64-bit aign.
+ * attribute will have a 64-bit aligned nla_data() area.
  *
  * The caller is responsible to ensure that the skb provides enough
  * tailroom for the attribute header and payload.
@@ -424,10 +425,11 @@ EXPORT_SYMBOL(nla_reserve);
  * @skb: socket buffer to reserve room on
  * @attrtype: attribute type
  * @attrlen: length of attribute payload
+ * @padattr: attribute type for the padding
  *
  * Adds a netlink attribute header to a socket buffer and reserves
  * room for the payload but does not copy it. It also ensure that this
- * attribute will be 64-bit aign.
+ * attribute will have a 64-bit aligned nla_data() area.
  *
  * Returns NULL if the tailroom of the skb is insufficient to store
  * the attribute header and payload.
@@ -493,6 +495,7 @@ EXPORT_SYMBOL(__nla_put);
  * @attrtype: attribute type
  * @attrlen: length of attribute payload
  * @data: head of attribute payload
+ * @padattr: attribute type for the padding
  *
  * The caller is responsible to ensure that the skb provides enough
  * tailroom for the attribute header and payload.
@@ -551,6 +554,7 @@ EXPORT_SYMBOL(nla_put);
  * @attrtype: attribute type
  * @attrlen: length of attribute payload
  * @data: head of attribute payload
+ * @padattr: attribute type for the padding
  *
  * Returns -EMSGSIZE if the tailroom of the skb is insufficient to store
  * the attribute header and payload.
