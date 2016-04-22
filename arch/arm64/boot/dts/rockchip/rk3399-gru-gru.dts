@@ -55,7 +55,7 @@
 		     "google,gru-rev5", "google,gru-rev4",
 		     "google,gru-rev3", "google,gru-rev2",
 		     "google,gru-rev1", "google,gru-rev0",
-		     "google,gru", "google,veyron", "rockchip,rk3399";
+		     "google,gru", "rockchip,rk3399";
 
 	// TODO: Model:
 	// - pp1200_mipi_cam

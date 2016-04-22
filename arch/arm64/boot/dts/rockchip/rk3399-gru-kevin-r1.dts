@@ -55,7 +55,7 @@
 		     "google,kevin-rev5", "google,kevin-rev4",
 		     "google,kevin-rev3", "google,kevin-rev2",
 		     "google,kevin-rev1", "google,kevin",
-		     "google,veyron", "rockchip,rk3399";
+		     "google,gru", "rockchip,rk3399";
 };
 
 /* PINCTRL: always below everything else */

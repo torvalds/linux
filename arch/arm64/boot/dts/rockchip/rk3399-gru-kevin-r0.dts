@@ -48,7 +48,7 @@
 / {
 	model = "Google Kevin Rev 0";
 	compatible = "google,kevin-rev0",
-		     "google,kevin", "google,veyron", "rockchip,rk3399";
+		     "google,kevin", "google,gru", "rockchip,rk3399";
 };
 
 &pp3000 {
