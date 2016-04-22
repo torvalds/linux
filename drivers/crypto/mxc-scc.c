@@ -616,7 +616,7 @@ static struct mxc_scc_crypto_tmpl *scc_crypto_algs[] = {
 
 static int mxc_scc_crypto_register(struct mxc_scc *scc)
 {
-	unsigned int i;
+	int i;
 	int err = 0;
 
 	for (i = 0; i < ARRAY_SIZE(scc_crypto_algs); i++) {
@@ -629,7 +629,7 @@ static int mxc_scc_crypto_register(struct mxc_scc *scc)
 	return 0;
 
 err_out:
-	for (; i > 0; i--)
+	while (--i >= 0)
 		crypto_unregister_alg(&scc_crypto_algs[i]->alg);
 
 	return err;
