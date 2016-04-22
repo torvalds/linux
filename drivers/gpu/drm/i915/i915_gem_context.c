@@ -178,7 +178,7 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	obj = i915_gem_alloc_object(dev, size);
+	obj = i915_gem_object_create(dev, size);
 	if (obj == NULL)
 		return ERR_PTR(-ENOMEM);
 

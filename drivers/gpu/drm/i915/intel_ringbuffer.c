@@ -671,7 +671,7 @@ intel_init_pipe_control(struct intel_engine_cs *engine)
 
 	WARN_ON(engine->scratch.obj);
 
-	engine->scratch.obj = i915_gem_alloc_object(engine->dev, 4096);
+	engine->scratch.obj = i915_gem_object_create(engine->dev, 4096);
 	if (engine->scratch.obj == NULL) {
 		DRM_ERROR("Failed to allocate seqno page\n");
 		ret = -ENOMEM;
@@ -2026,7 +2026,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 		unsigned flags;
 		int ret;
 
-		obj = i915_gem_alloc_object(engine->dev, 4096);
+		obj = i915_gem_object_create(engine->dev, 4096);
 		if (obj == NULL) {
 			DRM_ERROR("Failed to allocate status page\n");
 			return -ENOMEM;
@@ -2167,7 +2167,7 @@ static int intel_alloc_ringbuffer_obj(struct drm_device *dev,
 	if (!HAS_LLC(dev))
 		obj = i915_gem_object_create_stolen(dev, ringbuf->size);
 	if (obj == NULL)
-		obj = i915_gem_alloc_object(dev, ringbuf->size);
+		obj = i915_gem_object_create(dev, ringbuf->size);
 	if (obj == NULL)
 		return -ENOMEM;
 
@@ -2780,7 +2780,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 
 	if (INTEL_INFO(dev)->gen >= 8) {
 		if (i915_semaphore_is_enabled(dev)) {
-			obj = i915_gem_alloc_object(dev, 4096);
+			obj = i915_gem_object_create(dev, 4096);
 			if (obj == NULL) {
 				DRM_ERROR("Failed to allocate semaphore bo. Disabling semaphores\n");
 				i915.semaphores = 0;
@@ -2889,7 +2889,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 
 	/* Workaround batchbuffer to combat CS tlb bug. */
 	if (HAS_BROKEN_CS_TLB(dev)) {
-		obj = i915_gem_alloc_object(dev, I830_WA_SIZE);
+		obj = i915_gem_object_create(dev, I830_WA_SIZE);
 		if (obj == NULL) {
 			DRM_ERROR("Failed to allocate batch bo\n");
 			return -ENOMEM;

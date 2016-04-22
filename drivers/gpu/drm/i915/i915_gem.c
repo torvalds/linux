@@ -381,7 +381,7 @@ i915_gem_create(struct drm_file *file,
 		return -EINVAL;
 
 	/* Allocate the new object */
-	obj = i915_gem_alloc_object(dev, size);
+	obj = i915_gem_object_create(dev, size);
 	if (obj == NULL)
 		return -ENOMEM;
 
@@ -4495,7 +4495,7 @@ static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
 	.put_pages = i915_gem_object_put_pages_gtt,
 };
 
-struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
+struct drm_i915_gem_object *i915_gem_object_create(struct drm_device *dev,
 						  size_t size)
 {
 	struct drm_i915_gem_object *obj;
@@ -5364,7 +5364,7 @@ i915_gem_object_create_from_data(struct drm_device *dev,
 	size_t bytes;
 	int ret;
 
-	obj = i915_gem_alloc_object(dev, round_up(size, PAGE_SIZE));
+	obj = i915_gem_object_create(dev, round_up(size, PAGE_SIZE));
 	if (IS_ERR_OR_NULL(obj))
 		return obj;
 

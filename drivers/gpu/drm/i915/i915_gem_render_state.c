@@ -57,7 +57,7 @@ static int render_state_init(struct render_state *so, struct drm_device *dev)
 	if (so->rodata->batch_items * 4 > 4096)
 		return -EINVAL;
 
-	so->obj = i915_gem_alloc_object(dev, 4096);
+	so->obj = i915_gem_object_create(dev, 4096);
 	if (so->obj == NULL)
 		return -ENOMEM;
 

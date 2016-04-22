@@ -587,7 +587,7 @@ static struct drm_i915_gem_object *gem_allocate_guc_obj(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
-	obj = i915_gem_alloc_object(dev, size);
+	obj = i915_gem_object_create(dev, size);
 	if (!obj)
 		return NULL;
 

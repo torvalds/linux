@@ -134,7 +134,7 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 	if (obj == NULL) {
 		int ret;
 
-		obj = i915_gem_alloc_object(pool->dev, size);
+		obj = i915_gem_object_create(pool->dev, size);
 		if (obj == NULL)
 			return ERR_PTR(-ENOMEM);
 
