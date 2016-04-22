@@ -297,7 +297,6 @@ static int rcar_du_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct rcar_du_device *rcdu;
-	struct drm_connector *connector;
 	struct drm_device *ddev;
 	struct resource *mem;
 	int ret;
