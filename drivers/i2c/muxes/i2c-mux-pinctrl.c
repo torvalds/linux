@@ -172,13 +172,13 @@ static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 	for (i = 0; i < mux->pdata->bus_count; i++) {
 		mux->states[i] = pinctrl_lookup_state(mux->pinctrl,
 						mux->pdata->pinctrl_states[i]);
-			if (IS_ERR(mux->states[i])) {
-				ret = PTR_ERR(mux->states[i]);
-				dev_err(&pdev->dev,
-					"Cannot look up pinctrl state %s: %d\n",
-					mux->pdata->pinctrl_states[i], ret);
-				goto err;
-			}
+		if (IS_ERR(mux->states[i])) {
+			ret = PTR_ERR(mux->states[i]);
+			dev_err(&pdev->dev,
+				"Cannot look up pinctrl state %s: %d\n",
+				mux->pdata->pinctrl_states[i], ret);
+			goto err;
+		}
 	}
 	if (mux->pdata->pinctrl_state_idle) {
 		mux->state_idle = pinctrl_lookup_state(mux->pinctrl,
