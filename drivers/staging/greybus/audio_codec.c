@@ -7,6 +7,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 #include <uapi/linux/input.h>
@@ -388,6 +389,8 @@ static int gbcodec_startup(struct snd_pcm_substream *substream,
 	codec->stream[substream->stream].state = state;
 	codec->stream[substream->stream].dai_name = dai->name;
 	mutex_unlock(&codec->lock);
+	/* to prevent suspend in case of active audio */
+	pm_stay_awake(dai->dev);
 
 	return ret;
 }
@@ -470,6 +473,7 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 	codec->stream[substream->stream].state = state;
 	codec->stream[substream->stream].dai_name = NULL;
 	mutex_unlock(&codec->lock);
+	pm_relax(dai->dev);
 	return;
 }
 
@@ -1094,7 +1098,7 @@ static int gbcodec_probe(struct snd_soc_codec *codec)
 	snd_soc_codec_set_drvdata(codec, info);
 	gbcodec = info;
 
-	/* Empty function for now */
+        device_init_wakeup(codec->dev, 1);
 	return 0;
 }
 
