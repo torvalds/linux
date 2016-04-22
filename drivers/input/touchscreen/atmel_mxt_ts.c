@@ -1801,14 +1801,21 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 	u32 info_crc, config_crc, calculated_crc;
 	u16 crc_start = 0;
 
-	cfg.raw = fw->data;
+	/* Make zero terminated copy of the OBP_RAW file */
+	cfg.raw = kzalloc(fw->size + 1, GFP_KERNEL);
+	if (!cfg.raw)
+		return -ENOMEM;
+
+	memcpy(cfg.raw, fw->data, fw->size);
+	cfg.raw[fw->size] = '\0';
 	cfg.raw_size = fw->size;
 
 	mxt_update_crc(data, MXT_COMMAND_REPORTALL, 1);
 
 	if (strncmp(cfg.raw, MXT_CFG_MAGIC, strlen(MXT_CFG_MAGIC))) {
 		dev_err(dev, "Unrecognised config file\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto release_raw;
 	}
 
 	cfg.raw_pos = strlen(MXT_CFG_MAGIC);
@@ -1820,7 +1827,8 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 			     &offset);
 		if (ret != 1) {
 			dev_err(dev, "Bad format\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto release_raw;
 		}
 
 		cfg.raw_pos += offset;
@@ -1828,26 +1836,30 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 
 	if (cfg.info.family_id != data->info->family_id) {
 		dev_err(dev, "Family ID mismatch!\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto release_raw;
 	}
 
 	if (cfg.info.variant_id != data->info->variant_id) {
 		dev_err(dev, "Variant ID mismatch!\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto release_raw;
 	}
 
 	/* Read CRCs */
 	ret = sscanf(cfg.raw + cfg.raw_pos, "%x%n", &info_crc, &offset);
 	if (ret != 1) {
 		dev_err(dev, "Bad format: failed to parse Info CRC\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto release_raw;
 	}
 	cfg.raw_pos += offset;
 
 	ret = sscanf(cfg.raw + cfg.raw_pos, "%x%n", &config_crc, &offset);
 	if (ret != 1) {
 		dev_err(dev, "Bad format: failed to parse Config CRC\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto release_raw;
 	}
 	cfg.raw_pos += offset;
 
@@ -1880,8 +1892,10 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 			MXT_INFO_CHECKSUM_SIZE;
 	cfg.mem_size = data->mem_size - cfg.start_ofs;
 	cfg.mem = kzalloc(cfg.mem_size, GFP_KERNEL);
-	if (!cfg.mem)
-		return -ENOMEM;
+	if (!cfg.mem) {
+		ret = -ENOMEM;
+		goto release_raw;
+	}
 
 	ret = mxt_prepare_cfg_mem(data, &cfg);
 	if (ret)
@@ -1924,6 +1938,8 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 	/* T7 config may have changed */
 	mxt_init_t7_power_cfg(data);
 
+release_raw:
+	kfree(cfg.raw);
 release_mem:
 	kfree(cfg.mem);
 	return ret;
