@@ -170,12 +170,13 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	}
 
 	pci_set_drvdata(pci, dwc3);
-	ret = dwc3_pci_quirks(pci);
-	if (ret)
-		goto err;
 
 	dwc3->dev.parent = dev;
 	ACPI_COMPANION_SET(&dwc3->dev, ACPI_COMPANION(dev));
+
+	ret = dwc3_pci_quirks(pci);
+	if (ret)
+		goto err;
 
 	ret = platform_device_add(dwc3);
 	if (ret) {
