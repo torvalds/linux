@@ -14,6 +14,7 @@
 #include <linux/sched/signal.h>
 #include <linux/uio.h>
 #include <linux/miscdevice.h>
+#include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/slab.h>
@@ -1907,6 +1908,14 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 	else
 		err = copy_out_args(cs, req->args, nbytes);
 	fuse_copy_finish(cs);
+
+	if (!err && req->in.h.opcode == FUSE_CANONICAL_PATH) {
+		char *path = (char *)req->args->out_args[0].value;
+
+		path[req->args->out_args[0].size - 1] = 0;
+		req->out.h.error =
+			kern_path(path, 0, req->args->canonical_path);
+	}
 
 	spin_lock(&fpq->lock);
 	clear_bit(FR_LOCKED, &req->flags);
