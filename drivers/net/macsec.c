@@ -2826,7 +2826,7 @@ static void macsec_free_netdev(struct net_device *dev)
 static void macsec_setup(struct net_device *dev)
 {
 	ether_setup(dev);
-	dev->tx_queue_len = 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->netdev_ops = &macsec_netdev_ops;
 	dev->destructor = macsec_free_netdev;
 
