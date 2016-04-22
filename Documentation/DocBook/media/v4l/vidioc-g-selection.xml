@@ -50,12 +50,6 @@
   <refsect1>
     <title>Description</title>
 
-    <note>
-      <title>Experimental</title>
-      <para>This is an <link linkend="experimental"> experimental </link>
-      interface and may change in the future.</para>
-    </note>
-
     <para>The ioctls are used to query and configure selection rectangles.</para>
 
 <para>To query the cropping (composing) rectangle set &v4l2-selection;

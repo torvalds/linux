@@ -2686,49 +2686,11 @@ and may change in the future.</para>
 
       <itemizedlist>
         <listitem>
-	  <para>Video Output Overlay (OSD) Interface, <xref
-	    linkend="osd" />.</para>
-        </listitem>
-        <listitem>
 	  <para>&VIDIOC-DBG-G-REGISTER; and &VIDIOC-DBG-S-REGISTER;
 ioctls.</para>
         </listitem>
         <listitem>
 	  <para>&VIDIOC-DBG-G-CHIP-INFO; ioctl.</para>
-        </listitem>
-        <listitem>
-	  <para>&VIDIOC-ENUM-DV-TIMINGS;, &VIDIOC-QUERY-DV-TIMINGS; and
-	  &VIDIOC-DV-TIMINGS-CAP; ioctls.</para>
-        </listitem>
-        <listitem>
-	  <para>Flash API. <xref linkend="flash-controls" /></para>
-        </listitem>
-        <listitem>
-	  <para>&VIDIOC-CREATE-BUFS; and &VIDIOC-PREPARE-BUF; ioctls.</para>
-        </listitem>
-        <listitem>
-	  <para>Selection API. <xref linkend="selection-api" /></para>
-        </listitem>
-        <listitem>
-	  <para>Sub-device selection API: &VIDIOC-SUBDEV-G-SELECTION;
-	  and &VIDIOC-SUBDEV-S-SELECTION; ioctls.</para>
-        </listitem>
-        <listitem>
-	  <para>Support for frequency band enumeration: &VIDIOC-ENUM-FREQ-BANDS; ioctl.</para>
-        </listitem>
-        <listitem>
-	  <para>Vendor and device specific media bus pixel formats.
-	    <xref linkend="v4l2-mbus-vendor-spec-fmts" />.</para>
-        </listitem>
-        <listitem>
-	  <para>Importing DMABUF file descriptors as a new IO method described
-	  in <xref linkend="dmabuf" />.</para>
-        </listitem>
-        <listitem>
-	  <para>Exporting DMABUF files using &VIDIOC-EXPBUF; ioctl.</para>
-        </listitem>
-        <listitem>
-	  <para>Software Defined Radio (SDR) Interface, <xref linkend="sdr" />.</para>
         </listitem>
       </itemizedlist>
     </section>

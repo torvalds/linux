@@ -49,12 +49,6 @@
   <refsect1>
     <title>Description</title>
 
-    <note>
-      <title>Experimental</title>
-      <para>This is an <link linkend="experimental"> experimental </link>
-      interface and may change in the future.</para>
-    </note>
-
     <para>While some DV receivers or transmitters support a wide range of timings, others
 support only a limited number of timings. With this ioctl applications can enumerate a list
 of known supported timings. Call &VIDIOC-DV-TIMINGS-CAP; to check if it also supports other
