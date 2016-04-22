@@ -453,12 +453,28 @@ int snd_hdac_regmap_write_raw(struct hdac_device *codec, unsigned int reg,
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_write_raw);
 
 static int reg_raw_read(struct hdac_device *codec, unsigned int reg,
-			unsigned int *val)
+			unsigned int *val, bool uncached)
 {
-	if (!codec->regmap)
+	if (uncached || !codec->regmap)
 		return hda_reg_read(codec, reg, val);
 	else
 		return regmap_read(codec->regmap, reg, val);
+}
+
+static int __snd_hdac_regmap_read_raw(struct hdac_device *codec,
+				      unsigned int reg, unsigned int *val,
+				      bool uncached)
+{
+	int err;
+
+	err = reg_raw_read(codec, reg, val, uncached);
+	if (err == -EAGAIN) {
+		err = snd_hdac_power_up_pm(codec);
+		if (!err)
+			err = reg_raw_read(codec, reg, val, uncached);
+		snd_hdac_power_down_pm(codec);
+	}
+	return err;
 }
 
 /**
@@ -472,18 +488,18 @@ static int reg_raw_read(struct hdac_device *codec, unsigned int reg,
 int snd_hdac_regmap_read_raw(struct hdac_device *codec, unsigned int reg,
 			     unsigned int *val)
 {
-	int err;
-
-	err = reg_raw_read(codec, reg, val);
-	if (err == -EAGAIN) {
-		err = snd_hdac_power_up_pm(codec);
-		if (!err)
-			err = reg_raw_read(codec, reg, val);
-		snd_hdac_power_down_pm(codec);
-	}
-	return err;
+	return __snd_hdac_regmap_read_raw(codec, reg, val, false);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_read_raw);
+
+/* Works like snd_hdac_regmap_read_raw(), but this doesn't read from the
+ * cache but always via hda verbs.
+ */
+int snd_hdac_regmap_read_raw_uncached(struct hdac_device *codec,
+				      unsigned int reg, unsigned int *val)
+{
+	return __snd_hdac_regmap_read_raw(codec, reg, val, true);
+}
 
 /**
  * snd_hdac_regmap_update_raw - update a pseudo register with power mgmt
