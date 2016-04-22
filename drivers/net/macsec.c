@@ -1627,6 +1627,7 @@ static int macsec_add_rxsa(struct sk_buff *skb, struct genl_info *info)
 	rx_sa = kmalloc(sizeof(*rx_sa), GFP_KERNEL);
 	if (!rx_sa || init_rx_sa(rx_sa, nla_data(tb_sa[MACSEC_SA_ATTR_KEY]),
 				 secy->key_len, secy->icv_len)) {
+		kfree(rx_sa);
 		rtnl_unlock();
 		return -ENOMEM;
 	}
@@ -1771,6 +1772,7 @@ static int macsec_add_txsa(struct sk_buff *skb, struct genl_info *info)
 	tx_sa = kmalloc(sizeof(*tx_sa), GFP_KERNEL);
 	if (!tx_sa || init_tx_sa(tx_sa, nla_data(tb_sa[MACSEC_SA_ATTR_KEY]),
 				 secy->key_len, secy->icv_len)) {
+		kfree(tx_sa);
 		rtnl_unlock();
 		return -ENOMEM;
 	}
