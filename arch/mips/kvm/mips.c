@@ -1556,8 +1556,10 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 
 		/* Disable MSA & FPU */
 		disable_msa();
-		if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU)
+		if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU) {
 			clear_c0_status(ST0_CU1 | ST0_FR);
+			disable_fpu_hazard();
+		}
 		vcpu->arch.fpu_inuse &= ~(KVM_MIPS_FPU_FPU | KVM_MIPS_FPU_MSA);
 	} else if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU) {
 		set_c0_status(ST0_CU1);
@@ -1568,6 +1570,7 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 
 		/* Disable FPU */
 		clear_c0_status(ST0_CU1 | ST0_FR);
+		disable_fpu_hazard();
 	}
 	preempt_enable();
 }
