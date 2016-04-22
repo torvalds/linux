@@ -826,6 +826,12 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	if (smmu_domain->smmu)
 		goto out_unlock;
 
+	/* We're bypassing these SIDs, so don't allocate an actual context */
+	if (domain->type == IOMMU_DOMAIN_DMA) {
+		smmu_domain->smmu = smmu;
+		goto out_unlock;
+	}
+
 	/*
 	 * Mapping the requested stage onto what we support is surprisingly
 	 * complicated, mainly because the spec allows S1+S2 SMMUs without
@@ -948,7 +954,7 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 	void __iomem *cb_base;
 	int irq;
 
-	if (!smmu)
+	if (!smmu || domain->type == IOMMU_DOMAIN_DMA)
 		return;
 
 	/*
@@ -1089,17 +1095,19 @@ static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 
+	/*
+	 * FIXME: This won't be needed once we have IOMMU-backed DMA ops
+	 * for all devices behind the SMMU. Note that we need to take
+	 * care configuring SMRs for devices both a platform_device and
+	 * and a PCI device (i.e. a PCI host controller)
+	 */
+	if (smmu_domain->domain.type == IOMMU_DOMAIN_DMA)
+		return 0;
+
 	/* Devices in an IOMMU group may already be configured */
 	ret = arm_smmu_master_configure_smrs(smmu, cfg);
 	if (ret)
 		return ret == -EEXIST ? 0 : ret;
-
-	/*
-	 * FIXME: This won't be needed once we have IOMMU-backed DMA ops
-	 * for all devices behind the SMMU.
-	 */
-	if (smmu_domain->domain.type == IOMMU_DOMAIN_DMA)
-		return 0;
 
 	for (i = 0; i < cfg->num_streamids; ++i) {
 		u32 idx, s2cr;
