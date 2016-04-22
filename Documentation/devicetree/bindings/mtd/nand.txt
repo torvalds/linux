@@ -20,8 +20,10 @@ Optional NAND controller properties
 Optional NAND chip properties:
 
 - nand-ecc-mode : String, operation mode of the NAND ecc mode.
-  Supported values are: "none", "soft", "hw", "hw_syndrome", "hw_oob_first",
-  "soft_bch".
+		  Supported values are: "none", "soft", "hw", "hw_syndrome",
+		  "hw_oob_first".
+		  Deprecated values:
+		  "soft_bch": use "soft" and nand-ecc-algo instead
 - nand-ecc-algo: string, algorithm of NAND ECC.
 		 Supported values are: "hamming", "bch".
 - nand-bus-width : 8 or 16 bus width if not present 8
