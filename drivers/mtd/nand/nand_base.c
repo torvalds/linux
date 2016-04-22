@@ -4003,17 +4003,23 @@ static int of_get_nand_ecc_mode(struct device_node *np)
 	return -ENODEV;
 }
 
+static const char * const nand_ecc_algos[] = {
+	[NAND_ECC_HAMMING]	= "hamming",
+	[NAND_ECC_BCH]		= "bch",
+};
+
 static int of_get_nand_ecc_algo(struct device_node *np)
 {
 	const char *pm;
-	int err;
+	int err, i;
 
-	/*
-	 * TODO: Read ECC algo OF property and map it to enum nand_ecc_algo.
-	 * It's not implemented yet as currently NAND subsystem ignores
-	 * algorithm explicitly set this way. Once it's handled we should
-	 * document & support new property.
-	 */
+	err = of_property_read_string(np, "nand-ecc-algo", &pm);
+	if (!err) {
+		for (i = NAND_ECC_HAMMING; i < ARRAY_SIZE(nand_ecc_algos); i++)
+			if (!strcasecmp(pm, nand_ecc_algos[i]))
+				return i;
+		return -ENODEV;
+	}
 
 	/*
 	 * For backward compatibility we also read "nand-ecc-mode" checking
