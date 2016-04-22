@@ -712,11 +712,12 @@
 				map0 {
 					trip = <&cpu_alert0>;
 					cooling-device =
-						<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu_alert1>;
 					cooling-device =
+						<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
