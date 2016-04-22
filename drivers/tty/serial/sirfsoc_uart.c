@@ -1293,7 +1293,8 @@ static int sirfsoc_uart_probe(struct platform_device *pdev)
 	sirfport->uart_reg = (struct sirfsoc_uart_register *)match->data;
 
 	sirfport->hw_flow_ctrl =
-		of_property_read_bool(np, "sirf,uart-has-rtscts");
+		of_property_read_bool(np, "uart-has-rtscts") ||
+		of_property_read_bool(np, "sirf,uart-has-rtscts") /* deprecated */;
 	if (of_device_is_compatible(np, "sirf,prima2-uart") ||
 		of_device_is_compatible(np, "sirf,atlas7-uart"))
 		sirfport->uart_reg->uart_type = SIRF_REAL_UART;
