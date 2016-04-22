@@ -962,6 +962,20 @@ static int qed_set_link(struct qed_dev *cdev,
 	}
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_FORCED_SPEED)
 		link_params->speed.forced_speed = params->forced_speed;
+	if (params->override_flags & QED_LINK_OVERRIDE_PAUSE_CONFIG) {
+		if (params->pause_config & QED_LINK_PAUSE_AUTONEG_ENABLE)
+			link_params->pause.autoneg = true;
+		else
+			link_params->pause.autoneg = false;
+		if (params->pause_config & QED_LINK_PAUSE_RX_ENABLE)
+			link_params->pause.forced_rx = true;
+		else
+			link_params->pause.forced_rx = false;
+		if (params->pause_config & QED_LINK_PAUSE_TX_ENABLE)
+			link_params->pause.forced_tx = true;
+		else
+			link_params->pause.forced_tx = false;
+	}
 
 	rc = qed_mcp_set_link(hwfn, ptt, params->link_up);
 
