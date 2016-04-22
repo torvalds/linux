@@ -107,7 +107,8 @@ u32 i40iw_initialize_hw_resources(struct i40iw_device *iwdev)
 
 	spin_lock_init(&iwdev->resource_lock);
 	spin_lock_init(&iwdev->qptable_lock);
-	mrdrvbits = 24 - get_count_order(iwdev->max_mr);
+	/* stag index mask has a minimum of 14 bits */
+	mrdrvbits = 24 - max(get_count_order(iwdev->max_mr), 14);
 	iwdev->mr_stagmask = ~(((1 << mrdrvbits) - 1) << (32 - mrdrvbits));
 	return 0;
 }
