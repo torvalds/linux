@@ -210,18 +210,21 @@ static int mxc_scc_ablkcipher_req_init(struct ablkcipher_request *req,
 				       struct mxc_scc_ctx *ctx)
 {
 	struct mxc_scc *scc = ctx->scc;
+	int nents;
 
-	ctx->src_nents = sg_nents_for_len(req->src, req->nbytes);
-	if (ctx->src_nents < 0) {
+	nents = sg_nents_for_len(req->src, req->nbytes);
+	if (nents < 0) {
 		dev_err(scc->dev, "Invalid number of src SC");
-		return ctx->src_nents;
+		return nents;
 	}
+	ctx->src_nents = nents;
 
-	ctx->dst_nents = sg_nents_for_len(req->dst, req->nbytes);
-	if (ctx->dst_nents < 0) {
+	nents = sg_nents_for_len(req->dst, req->nbytes);
+	if (nents < 0) {
 		dev_err(scc->dev, "Invalid number of dst SC");
-		return ctx->dst_nents;
+		return nents;
 	}
+	ctx->dst_nents = nents;
 
 	ctx->size = 0;
 	ctx->offset = 0;
