@@ -495,9 +495,10 @@ static int apds9960_read_raw(struct iio_dev *indio_dev,
 		case IIO_INTENSITY:
 			ret = regmap_bulk_read(data->regmap, chan->address,
 					       &buf, 2);
-			if (!ret)
+			if (!ret) {
 				ret = IIO_VAL_INT;
-			*val = le16_to_cpu(buf);
+				*val = le16_to_cpu(buf);
+			}
 			break;
 		default:
 			ret = -EINVAL;
