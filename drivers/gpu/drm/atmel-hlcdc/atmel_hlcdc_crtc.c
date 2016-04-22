@@ -391,12 +391,11 @@ void atmel_hlcdc_crtc_reset(struct drm_crtc *crtc)
 {
 	struct atmel_hlcdc_crtc_state *state;
 
-	if (crtc->state && crtc->state->mode_blob)
-		drm_property_unreference_blob(crtc->state->mode_blob);
-
 	if (crtc->state) {
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
 		state = drm_crtc_state_to_atmel_hlcdc_crtc_state(crtc->state);
 		kfree(state);
+		crtc->state = NULL;
 	}
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
