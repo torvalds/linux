@@ -367,43 +367,55 @@ exit:
 	return err;
 }
 
-static void s5p_aes_tx(struct s5p_aes_dev *dev)
+/*
+ * Returns true if new transmitting (output) data is ready and its
+ * address+length have to be written to device (by calling
+ * s5p_set_dma_outdata()). False otherwise.
+ */
+static bool s5p_aes_tx(struct s5p_aes_dev *dev)
 {
 	int err = 0;
+	bool ret = false;
 
 	s5p_unset_outdata(dev);
 
 	if (!sg_is_last(dev->sg_dst)) {
 		err = s5p_set_outdata(dev, sg_next(dev->sg_dst));
-		if (err) {
+		if (err)
 			s5p_aes_complete(dev, err);
-			return;
-		}
-
-		s5p_set_dma_outdata(dev, dev->sg_dst);
+		else
+			ret = true;
 	} else {
 		s5p_aes_complete(dev, err);
 
 		dev->busy = true;
 		tasklet_schedule(&dev->tasklet);
 	}
+
+	return ret;
 }
 
-static void s5p_aes_rx(struct s5p_aes_dev *dev)
+/*
+ * Returns true if new receiving (input) data is ready and its
+ * address+length have to be written to device (by calling
+ * s5p_set_dma_indata()). False otherwise.
+ */
+static bool s5p_aes_rx(struct s5p_aes_dev *dev)
 {
 	int err;
+	bool ret = false;
 
 	s5p_unset_indata(dev);
 
 	if (!sg_is_last(dev->sg_src)) {
 		err = s5p_set_indata(dev, sg_next(dev->sg_src));
-		if (err) {
+		if (err)
 			s5p_aes_complete(dev, err);
-			return;
-		}
-
-		s5p_set_dma_indata(dev, dev->sg_src);
+		else
+			ret = true;
 	}
+
+	return ret;
 }
 
 static irqreturn_t s5p_aes_interrupt(int irq, void *dev_id)
@@ -412,16 +424,29 @@ static irqreturn_t s5p_aes_interrupt(int irq, void *dev_id)
 	struct s5p_aes_dev     *dev  = platform_get_drvdata(pdev);
 	uint32_t                status;
 	unsigned long           flags;
+	bool			set_dma_tx = false;
+	bool			set_dma_rx = false;
 
 	spin_lock_irqsave(&dev->lock, flags);
 
 	status = SSS_READ(dev, FCINTSTAT);
 	if (status & SSS_FCINTSTAT_BRDMAINT)
-		s5p_aes_rx(dev);
+		set_dma_rx = s5p_aes_rx(dev);
 	if (status & SSS_FCINTSTAT_BTDMAINT)
-		s5p_aes_tx(dev);
+		set_dma_tx = s5p_aes_tx(dev);
 
 	SSS_WRITE(dev, FCINTPEND, status);
+
+	/*
+	 * Writing length of DMA block (either receiving or transmitting)
+	 * will start the operation immediately, so this should be done
+	 * at the end (even after clearing pending interrupts to not miss the
+	 * interrupt).
+	 */
+	if (set_dma_tx)
+		s5p_set_dma_outdata(dev, dev->sg_dst);
+	if (set_dma_rx)
+		s5p_set_dma_indata(dev, dev->sg_src);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
