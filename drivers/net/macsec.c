@@ -2232,7 +2232,8 @@ static int nla_put_secy(struct macsec_secy *secy, struct sk_buff *skb)
 		return 1;
 
 	if (nla_put_sci(skb, MACSEC_SECY_ATTR_SCI, secy->sci) ||
-	    nla_put_u64(skb, MACSEC_SECY_ATTR_CIPHER_SUITE, DEFAULT_CIPHER_ID) ||
+	    nla_put_u64(skb, MACSEC_SECY_ATTR_CIPHER_SUITE,
+			MACSEC_DEFAULT_CIPHER_ID) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_ICV_LEN, secy->icv_len) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_OPER, secy->operational) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_PROTECT, secy->protect_frames) ||
@@ -3096,7 +3097,7 @@ unregister:
 
 static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[])
 {
-	u64 csid = DEFAULT_CIPHER_ID;
+	u64 csid = MACSEC_DEFAULT_CIPHER_ID;
 	u8 icv_len = DEFAULT_ICV_LEN;
 	int flag;
 	bool es, scb, sci;
@@ -3111,8 +3112,8 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[])
 		icv_len = nla_get_u8(data[IFLA_MACSEC_ICV_LEN]);
 
 	switch (csid) {
-	case DEFAULT_CIPHER_ID:
-	case DEFAULT_CIPHER_ALT:
+	case MACSEC_DEFAULT_CIPHER_ID:
+	case MACSEC_DEFAULT_CIPHER_ALT:
 		if (icv_len < MACSEC_MIN_ICV_LEN ||
 		    icv_len > MACSEC_MAX_ICV_LEN)
 			return -EINVAL;
@@ -3185,7 +3186,8 @@ static int macsec_fill_info(struct sk_buff *skb,
 
 	if (nla_put_sci(skb, IFLA_MACSEC_SCI, secy->sci) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ICV_LEN, secy->icv_len) ||
-	    nla_put_u64(skb, IFLA_MACSEC_CIPHER_SUITE, DEFAULT_CIPHER_ID) ||
+	    nla_put_u64(skb, IFLA_MACSEC_CIPHER_SUITE,
+			MACSEC_DEFAULT_CIPHER_ID) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ENCODING_SA, tx_sc->encoding_sa) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ENCRYPT, tx_sc->encrypt) ||
 	    nla_put_u8(skb, IFLA_MACSEC_PROTECT, secy->protect_frames) ||
