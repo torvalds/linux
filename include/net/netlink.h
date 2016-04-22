@@ -878,14 +878,16 @@ static inline int nla_put_net64(struct sk_buff *skb, int attrtype, __be64 value)
 }
 
 /**
- * nla_put_le64 - Add a __le64 netlink attribute to a socket buffer
+ * nla_put_le64 - Add a __le64 netlink attribute to a socket buffer and align it
  * @skb: socket buffer to add attribute to
  * @attrtype: attribute type
  * @value: numeric value
+ * @padattr: attribute type for the padding
  */
-static inline int nla_put_le64(struct sk_buff *skb, int attrtype, __le64 value)
+static inline int nla_put_le64(struct sk_buff *skb, int attrtype, __le64 value,
+			       int padattr)
 {
-	return nla_put(skb, attrtype, sizeof(__le64), &value);
+	return nla_put_64bit(skb, attrtype, sizeof(__le64), &value, padattr);
 }
 
 /**
