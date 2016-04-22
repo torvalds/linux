@@ -12,6 +12,18 @@
 #include <linux/platform_device.h>
 
 static const struct of_device_id machines[] __initconst = {
+	{ .compatible = "allwinner,sun4i-a10", },
+	{ .compatible = "allwinner,sun5i-a10s", },
+	{ .compatible = "allwinner,sun5i-a13", },
+	{ .compatible = "allwinner,sun5i-r8", },
+	{ .compatible = "allwinner,sun6i-a31", },
+	{ .compatible = "allwinner,sun6i-a31s", },
+	{ .compatible = "allwinner,sun7i-a20", },
+	{ .compatible = "allwinner,sun8i-a23", },
+	{ .compatible = "allwinner,sun8i-a33", },
+	{ .compatible = "allwinner,sun8i-a83t", },
+	{ .compatible = "allwinner,sun8i-h3", },
+
 	{ .compatible = "fsl,imx27", },
 	{ .compatible = "fsl,imx51", },
 	{ .compatible = "fsl,imx53", },
