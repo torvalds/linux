@@ -1112,7 +1112,7 @@ static struct scsi_cmnd *srp_claim_req(struct srp_rdma_ch *ch,
 }
 
 /**
- * srp_free_req() - Unmap data and add request to the free request list.
+ * srp_free_req() - Unmap data and adjust ch->req_lim.
  * @ch:     SRP RDMA channel.
  * @req:    Request to be freed.
  * @scmnd:  SCSI command associated with @req.
