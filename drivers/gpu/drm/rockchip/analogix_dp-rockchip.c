@@ -36,11 +36,17 @@
 
 #define to_dp(nm)	container_of(nm, struct rockchip_dp_device, nm)
 
+enum rockchip_dp_chip_type {
+	RK3288_DP,
+	RK3399_EDP,
+};
+
 struct rockchip_dp_chip_data {
 	u32	lcdsel_grf_reg;
 	u32	lcdsel_big;
 	u32	lcdsel_lit;
 	u32	lcdsel_mask;
+	u32	chip_type;
 };
 
 struct rockchip_dp_device {
@@ -376,6 +382,7 @@ static const struct rockchip_dp_chip_data rk3399_edp = {
 	.lcdsel_big = 0,
 	.lcdsel_lit = BIT(5),
 	.lcdsel_mask = BIT(21),
+	.chip_type = RK3399_EDP,
 };
 
 static const struct rockchip_dp_chip_data rk3288_dp = {
@@ -383,6 +390,7 @@ static const struct rockchip_dp_chip_data rk3288_dp = {
 	.lcdsel_big = 0,
 	.lcdsel_lit = BIT(5),
 	.lcdsel_mask = BIT(21),
+	.chip_type = RK3288_DP,
 };
 
 static const struct of_device_id rockchip_dp_dt_ids[] = {
