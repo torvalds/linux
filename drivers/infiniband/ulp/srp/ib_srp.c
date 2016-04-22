@@ -1428,8 +1428,6 @@ static int srp_map_sg_fmr(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	if (ret)
 		return ret;
 
-	req->nmdesc = state->nmdesc;
-
 	return 0;
 }
 
@@ -1454,8 +1452,6 @@ static int srp_map_sg_fr(struct srp_map_state *state, struct srp_rdma_ch *ch,
 			state->sg = sg_next(state->sg);
 	}
 
-	req->nmdesc = state->nmdesc;
-
 	return 0;
 }
 
@@ -1474,8 +1470,6 @@ static int srp_map_sg_dma(struct srp_map_state *state, struct srp_rdma_ch *ch,
 			     ib_sg_dma_len(dev->dev, sg),
 			     target->global_mr->rkey);
 	}
-
-	req->nmdesc = state->nmdesc;
 
 	return 0;
 }
@@ -1610,11 +1604,14 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 
 	memset(&state, 0, sizeof(state));
 	if (dev->use_fast_reg)
-		srp_map_sg_fr(&state, ch, req, scat, count);
+		ret = srp_map_sg_fr(&state, ch, req, scat, count);
 	else if (dev->use_fmr)
-		srp_map_sg_fmr(&state, ch, req, scat, count);
+		ret = srp_map_sg_fmr(&state, ch, req, scat, count);
 	else
-		srp_map_sg_dma(&state, ch, req, scat, count);
+		ret = srp_map_sg_dma(&state, ch, req, scat, count);
+	req->nmdesc = state.nmdesc;
+	if (ret < 0)
+		goto unmap;
 
 	/* We've mapped the request, now pull as much of the indirect
 	 * descriptor table as we can into the command buffer. If this
@@ -1637,7 +1634,8 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 						!target->allow_ext_sg)) {
 		shost_printk(KERN_ERR, target->scsi_host,
 			     "Could not fit S/G list into SRP_CMD\n");
-		return -EIO;
+		ret = -EIO;
+		goto unmap;
 	}
 
 	count = min(state.ndesc, target->cmd_sg_cnt);
@@ -1655,7 +1653,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 		ret = srp_map_idb(ch, req, state.gen.next, state.gen.end,
 				  idb_len, &idb_rkey);
 		if (ret < 0)
-			return ret;
+			goto unmap;
 		req->nmdesc++;
 	} else {
 		idb_rkey = cpu_to_be32(target->global_mr->rkey);
@@ -1681,6 +1679,10 @@ map_complete:
 		cmd->buf_fmt = fmt;
 
 	return len;
+
+unmap:
+	srp_unmap_data(scmnd, ch, req);
+	return ret;
 }
 
 /*
