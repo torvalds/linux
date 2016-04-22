@@ -2000,6 +2000,77 @@ static inline int get_first_held_lock(struct task_struct *curr,
 }
 
 /*
+ * Returns the next chain_key iteration
+ */
+static u64 print_chain_key_iteration(int class_idx, u64 chain_key)
+{
+	u64 new_chain_key = iterate_chain_key(chain_key, class_idx);
+
+	printk(" class_idx:%d -> chain_key:%016Lx",
+		class_idx,
+		(unsigned long long)new_chain_key);
+	return new_chain_key;
+}
+
+static void
+print_chain_keys_held_locks(struct task_struct *curr, struct held_lock *hlock_next)
+{
+	struct held_lock *hlock;
+	u64 chain_key = 0;
+	int depth = curr->lockdep_depth;
+	int i;
+
+	printk("depth: %u\n", depth + 1);
+	for (i = get_first_held_lock(curr, hlock_next); i < depth; i++) {
+		hlock = curr->held_locks + i;
+		chain_key = print_chain_key_iteration(hlock->class_idx, chain_key);
+
+		print_lock(hlock);
+	}
+
+	print_chain_key_iteration(hlock_next->class_idx, chain_key);
+	print_lock(hlock_next);
+}
+
+static void print_chain_keys_chain(struct lock_chain *chain)
+{
+	int i;
+	u64 chain_key = 0;
+	int class_id;
+
+	printk("depth: %u\n", chain->depth);
+	for (i = 0; i < chain->depth; i++) {
+		class_id = chain_hlocks[chain->base + i];
+		chain_key = print_chain_key_iteration(class_id + 1, chain_key);
+
+		print_lock_name(lock_classes + class_id);
+		printk("\n");
+	}
+}
+
+static void print_collision(struct task_struct *curr,
+			struct held_lock *hlock_next,
+			struct lock_chain *chain)
+{
+	printk("\n");
+	printk("======================\n");
+	printk("[chain_key collision ]\n");
+	print_kernel_ident();
+	printk("----------------------\n");
+	printk("%s/%d: ", current->comm, task_pid_nr(current));
+	printk("Hash chain already cached but the contents don't match!\n");
+
+	printk("Held locks:");
+	print_chain_keys_held_locks(curr, hlock_next);
+
+	printk("Locks in cached chain:");
+	print_chain_keys_chain(chain);
+
+	printk("\nstack backtrace:\n");
+	dump_stack();
+}
+
+/*
  * Checks whether the chain and the current held locks are consistent
  * in depth and also in content. If they are not it most likely means
  * that there was a collision during the calculation of the chain_key.
@@ -2014,14 +2085,18 @@ static int check_no_collision(struct task_struct *curr,
 
 	i = get_first_held_lock(curr, hlock);
 
-	if (DEBUG_LOCKS_WARN_ON(chain->depth != curr->lockdep_depth - (i - 1)))
+	if (DEBUG_LOCKS_WARN_ON(chain->depth != curr->lockdep_depth - (i - 1))) {
+		print_collision(curr, hlock, chain);
 		return 0;
+	}
 
 	for (j = 0; j < chain->depth - 1; j++, i++) {
 		id = curr->held_locks[i].class_idx - 1;
 
-		if (DEBUG_LOCKS_WARN_ON(chain_hlocks[chain->base + j] != id))
+		if (DEBUG_LOCKS_WARN_ON(chain_hlocks[chain->base + j] != id)) {
+			print_collision(curr, hlock, chain);
 			return 0;
+		}
 	}
 #endif
 	return 1;

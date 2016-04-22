@@ -198,19 +198,11 @@ int stmmac_mdio_register(struct net_device *ndev)
 	struct mii_bus *new_bus;
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
-	int addr, found;
 	struct device_node *mdio_node = priv->plat->mdio_node;
+	int addr, found;
 
 	if (!mdio_bus_data)
 		return 0;
-
-	if (IS_ENABLED(CONFIG_OF)) {
-		if (mdio_node) {
-			netdev_dbg(ndev, "FOUND MDIO subnode\n");
-		} else {
-			netdev_warn(ndev, "No MDIO subnode found\n");
-		}
-	}
 
 	new_bus = mdiobus_alloc();
 	if (new_bus == NULL)

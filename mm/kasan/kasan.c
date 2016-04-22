@@ -498,7 +498,7 @@ void kasan_slab_free(struct kmem_cache *cache, void *object)
 		struct kasan_alloc_meta *alloc_info =
 			get_alloc_info(cache, object);
 		alloc_info->state = KASAN_STATE_FREE;
-		set_track(&free_info->track);
+		set_track(&free_info->track, GFP_NOWAIT);
 	}
 #endif
 
