@@ -202,6 +202,7 @@ struct srp_target_port {
 	char			target_name[32];
 	unsigned int		scsi_id;
 	unsigned int		sg_tablesize;
+	int			mr_pool_size;
 	int			queue_size;
 	int			req_ring_size;
 	int			comp_vector;
