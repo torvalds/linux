@@ -223,6 +223,8 @@ static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
 	struct amdgpu_bo *rbo = container_of(bo, struct amdgpu_bo, tbo);
 
+	if (amdgpu_ttm_tt_get_usermm(bo->ttm))
+		return -EPERM;
 	return drm_vma_node_verify_access(&rbo->gem_base.vma_node, filp);
 }
 
