@@ -1572,6 +1572,11 @@ static int bgmac_probe(struct bcma_device *core)
 		dev_warn(&core->dev, "Using random MAC: %pM\n", mac);
 	}
 
+	/* This (reset &) enable is not preset in specs or reference driver but
+	 * Broadcom does it in arch PCI code when enabling fake PCI device.
+	 */
+	bcma_core_enable(core, 0);
+
 	/* Allocation and references */
 	net_dev = alloc_etherdev(sizeof(*bgmac));
 	if (!net_dev)

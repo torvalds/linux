@@ -1223,18 +1223,32 @@ s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
 		if (err)
 			return err;
 
-		/* verify upper 16 bits are zero */
-		if (vid >> 16)
-			return FM10K_ERR_PARAM;
-
 		set = !(vid & FM10K_VLAN_CLEAR);
 		vid &= ~FM10K_VLAN_CLEAR;
 
-		err = fm10k_iov_select_vid(vf_info, (u16)vid);
-		if (err < 0)
-			return err;
+		/* if the length field has been set, this is a multi-bit
+		 * update request. For multi-bit requests, simply disallow
+		 * them when the pf_vid has been set. In this case, the PF
+		 * should have already cleared the VLAN_TABLE, and if we
+		 * allowed them, it could allow a rogue VF to receive traffic
+		 * on a VLAN it was not assigned. In the single-bit case, we
+		 * need to modify requests for VLAN 0 to use the default PF or
+		 * SW vid when assigned.
+		 */
 
-		vid = err;
+		if (vid >> 16) {
+			/* prevent multi-bit requests when PF has
+			 * administratively set the VLAN for this VF
+			 */
+			if (vf_info->pf_vid)
+				return FM10K_ERR_PARAM;
+		} else {
+			err = fm10k_iov_select_vid(vf_info, (u16)vid);
+			if (err < 0)
+				return err;
+
+			vid = err;
+		}
 
 		/* update VSI info for VF in regards to VLAN table */
 		err = hw->mac.ops.update_vlan(hw, vid, vf_info->vsi, set);
