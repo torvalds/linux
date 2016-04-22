@@ -73,10 +73,7 @@ static int xhci_plat_setup(struct usb_hcd *hcd)
 	}
 
 	if (xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_MARVELL_ARMADA)) {
-		struct platform_device *pdev;
-
-		pdev = to_platform_device(hcd->self.controller);
-		ret = xhci_mvebu_mbus_init_quirk(pdev);
+		ret = xhci_mvebu_mbus_init_quirk(hcd);
 		if (ret)
 			return ret;
 	}
