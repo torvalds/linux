@@ -1534,6 +1534,15 @@ static int srp_map_idb(struct srp_rdma_ch *ch, struct srp_request *req,
 	return 0;
 }
 
+/**
+ * srp_map_data() - map SCSI data buffer onto an SRP request
+ * @scmnd: SCSI command to map
+ * @ch: SRP RDMA channel
+ * @req: SRP request
+ *
+ * Returns the length in bytes of the SRP_CMD IU or a negative value if
+ * mapping failed.
+ */
 static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 			struct srp_request *req)
 {
