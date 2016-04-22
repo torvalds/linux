@@ -1559,29 +1559,8 @@ static loff_t ui_lseek(struct file *filp, loff_t offset, int whence)
 {
 	struct hfi1_devdata *dd = filp->private_data;
 
-	switch (whence) {
-	case SEEK_SET:
-		break;
-	case SEEK_CUR:
-		offset += filp->f_pos;
-		break;
-	case SEEK_END:
-		offset = ((dd->kregend - dd->kregbase) + DC8051_DATA_MEM_SIZE) -
-			offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (offset < 0)
-		return -EINVAL;
-
-	if (offset >= (dd->kregend - dd->kregbase) + DC8051_DATA_MEM_SIZE)
-		return -EINVAL;
-
-	filp->f_pos = offset;
-
-	return filp->f_pos;
+	return fixed_size_llseek(filp, offset, whence,
+		(dd->kregend - dd->kregbase) + DC8051_DATA_MEM_SIZE);
 }
 
 /* NOTE: assumes unsigned long is 8 bytes */
