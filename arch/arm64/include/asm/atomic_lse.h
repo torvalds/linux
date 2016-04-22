@@ -26,54 +26,25 @@
 #endif
 
 #define __LL_SC_ATOMIC(op)	__LL_SC_CALL(atomic_##op)
-
-static inline void atomic_andnot(int i, atomic_t *v)
-{
-	register int w0 asm ("w0") = i;
-	register atomic_t *x1 asm ("x1") = v;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(__LL_SC_ATOMIC(andnot),
-	"	stclr	%w[i], %[v]\n")
-	: [i] "+r" (w0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+#define ATOMIC_OP(op, asm_op)						\
+static inline void atomic_##op(int i, atomic_t *v)			\
+{									\
+	register int w0 asm ("w0") = i;					\
+	register atomic_t *x1 asm ("x1") = v;				\
+									\
+	asm volatile(ARM64_LSE_ATOMIC_INSN(__LL_SC_ATOMIC(op),		\
+"	" #asm_op "	%w[i], %[v]\n")					\
+	: [i] "+r" (w0), [v] "+Q" (v->counter)				\
+	: "r" (x1)							\
+	: __LL_SC_CLOBBERS);						\
 }
 
-static inline void atomic_or(int i, atomic_t *v)
-{
-	register int w0 asm ("w0") = i;
-	register atomic_t *x1 asm ("x1") = v;
+ATOMIC_OP(andnot, stclr)
+ATOMIC_OP(or, stset)
+ATOMIC_OP(xor, steor)
+ATOMIC_OP(add, stadd)
 
-	asm volatile(ARM64_LSE_ATOMIC_INSN(__LL_SC_ATOMIC(or),
-	"	stset	%w[i], %[v]\n")
-	: [i] "+r" (w0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: __LL_SC_CLOBBERS);
-}
-
-static inline void atomic_xor(int i, atomic_t *v)
-{
-	register int w0 asm ("w0") = i;
-	register atomic_t *x1 asm ("x1") = v;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(__LL_SC_ATOMIC(xor),
-	"	steor	%w[i], %[v]\n")
-	: [i] "+r" (w0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: __LL_SC_CLOBBERS);
-}
-
-static inline void atomic_add(int i, atomic_t *v)
-{
-	register int w0 asm ("w0") = i;
-	register atomic_t *x1 asm ("x1") = v;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(__LL_SC_ATOMIC(add),
-	"	stadd	%w[i], %[v]\n")
-	: [i] "+r" (w0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: __LL_SC_CLOBBERS);
-}
+#undef ATOMIC_OP
 
 #define ATOMIC_OP_ADD_RETURN(name, mb, cl...)				\
 static inline int atomic_add_return##name(int i, atomic_t *v)		\
@@ -167,54 +138,25 @@ ATOMIC_OP_SUB_RETURN(        , al, "memory")
 #undef __LL_SC_ATOMIC
 
 #define __LL_SC_ATOMIC64(op)	__LL_SC_CALL(atomic64_##op)
-
-static inline void atomic64_andnot(long i, atomic64_t *v)
-{
-	register long x0 asm ("x0") = i;
-	register atomic64_t *x1 asm ("x1") = v;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(__LL_SC_ATOMIC64(andnot),
-	"	stclr	%[i], %[v]\n")
-	: [i] "+r" (x0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+#define ATOMIC64_OP(op, asm_op)						\
+static inline void atomic64_##op(long i, atomic64_t *v)			\
+{									\
+	register long x0 asm ("x0") = i;				\
+	register atomic64_t *x1 asm ("x1") = v;				\
+									\
+	asm volatile(ARM64_LSE_ATOMIC_INSN(__LL_SC_ATOMIC64(op),	\
+"	" #asm_op "	%[i], %[v]\n")					\
+	: [i] "+r" (x0), [v] "+Q" (v->counter)				\
+	: "r" (x1)							\
+	: __LL_SC_CLOBBERS);						\
 }
 
-static inline void atomic64_or(long i, atomic64_t *v)
-{
-	register long x0 asm ("x0") = i;
-	register atomic64_t *x1 asm ("x1") = v;
+ATOMIC64_OP(andnot, stclr)
+ATOMIC64_OP(or, stset)
+ATOMIC64_OP(xor, steor)
+ATOMIC64_OP(add, stadd)
 
-	asm volatile(ARM64_LSE_ATOMIC_INSN(__LL_SC_ATOMIC64(or),
-	"	stset	%[i], %[v]\n")
-	: [i] "+r" (x0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: __LL_SC_CLOBBERS);
-}
-
-static inline void atomic64_xor(long i, atomic64_t *v)
-{
-	register long x0 asm ("x0") = i;
-	register atomic64_t *x1 asm ("x1") = v;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(__LL_SC_ATOMIC64(xor),
-	"	steor	%[i], %[v]\n")
-	: [i] "+r" (x0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: __LL_SC_CLOBBERS);
-}
-
-static inline void atomic64_add(long i, atomic64_t *v)
-{
-	register long x0 asm ("x0") = i;
-	register atomic64_t *x1 asm ("x1") = v;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(__LL_SC_ATOMIC64(add),
-	"	stadd	%[i], %[v]\n")
-	: [i] "+r" (x0), [v] "+Q" (v->counter)
-	: "r" (x1)
-	: __LL_SC_CLOBBERS);
-}
+#undef ATOMIC64_OP
 
 #define ATOMIC64_OP_ADD_RETURN(name, mb, cl...)				\
 static inline long atomic64_add_return##name(long i, atomic64_t *v)	\
