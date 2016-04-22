@@ -305,9 +305,12 @@ int ff_layout_track_ds_error(struct nfs4_flexfile_layout *flo,
 static struct rpc_cred *
 ff_layout_get_mirror_cred(struct nfs4_ff_layout_mirror *mirror, u32 iomode)
 {
-	struct rpc_cred *cred, **pcred;
+	struct rpc_cred *cred, __rcu **pcred;
 
-	pcred = &mirror->cred;
+	if (iomode == IOMODE_READ)
+		pcred = &mirror->ro_cred;
+	else
+		pcred = &mirror->rw_cred;
 
 	rcu_read_lock();
 	do {

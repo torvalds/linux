@@ -213,10 +213,16 @@ static struct nfs4_ff_layout_mirror *ff_layout_alloc_mirror(gfp_t gfp_flags)
 
 static void ff_layout_free_mirror(struct nfs4_ff_layout_mirror *mirror)
 {
+	struct rpc_cred	*cred;
+
 	ff_layout_remove_mirror(mirror);
 	kfree(mirror->fh_versions);
-	if (mirror->cred)
-		put_rpccred(mirror->cred);
+	cred = rcu_access_pointer(mirror->ro_cred);
+	if (cred)
+		put_rpccred(cred);
+	cred = rcu_access_pointer(mirror->rw_cred);
+	if (cred)
+		put_rpccred(cred);
 	nfs4_ff_layout_put_deviceid(mirror->mirror_ds);
 	kfree(mirror);
 }
@@ -410,7 +416,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		struct nfs4_deviceid devid;
 		struct nfs4_deviceid_node *idnode;
 		struct auth_cred acred = { .group_info = ff_zero_group };
-		struct rpc_cred	*cred;
+		struct rpc_cred	__rcu *cred;
 		u32 ds_count, fh_count, id;
 		int j;
 
@@ -501,23 +507,33 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		acred.gid = make_kgid(&init_user_ns, id);
 
 		/* find the cred for it */
-		cred = rpc_lookup_generic_cred(&acred, 0, gfp_flags);
+		rcu_assign_pointer(cred, rpc_lookup_generic_cred(&acred, 0, gfp_flags));
 		if (IS_ERR(cred)) {
 			rc = PTR_ERR(cred);
 			goto out_err_free;
 		}
 
-		rcu_assign_pointer(fls->mirror_array[i]->cred, cred);
+		if (lgr->range.iomode == IOMODE_READ)
+			rcu_assign_pointer(fls->mirror_array[i]->ro_cred, cred);
+		else
+			rcu_assign_pointer(fls->mirror_array[i]->rw_cred, cred);
 
 		mirror = ff_layout_add_mirror(lh, fls->mirror_array[i]);
 		if (mirror != fls->mirror_array[i]) {
 			/* swap cred ptrs so free_mirror will clean up old */
-			fls->mirror_array[i]->cred = xchg(&mirror->cred, cred);
+			if (lgr->range.iomode == IOMODE_READ) {
+				cred = xchg(&mirror->ro_cred, cred);
+				rcu_assign_pointer(fls->mirror_array[i]->ro_cred, cred);
+			} else {
+				cred = xchg(&mirror->rw_cred, cred);
+				rcu_assign_pointer(fls->mirror_array[i]->rw_cred, cred);
+			}
 			ff_layout_free_mirror(fls->mirror_array[i]);
 			fls->mirror_array[i] = mirror;
 		}
 
-		dprintk("%s: uid %u gid %u\n", __func__,
+		dprintk("%s: iomode %s uid %u gid %u\n", __func__,
+			lgr->range.iomode == IOMODE_READ ? "READ" : "RW",
 			from_kuid(&init_user_ns, acred.uid),
 			from_kgid(&init_user_ns, acred.gid));
 	}
