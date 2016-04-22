@@ -338,6 +338,25 @@ static int ff_layout_update_mirror_cred(struct nfs4_ff_layout_mirror *mirror,
 	return 0;
 }
 
+static struct rpc_cred *
+ff_layout_get_mirror_cred(struct nfs4_ff_layout_mirror *mirror, u32 iomode)
+{
+	struct rpc_cred *cred, **pcred;
+
+	pcred = &mirror->cred;
+
+	rcu_read_lock();
+	do {
+		cred = rcu_dereference(*pcred);
+		if (!cred)
+			break;
+
+		cred = get_rpccred_rcu(cred);
+	} while(!cred);
+	rcu_read_unlock();
+	return cred;
+}
+
 struct nfs_fh *
 nfs4_ff_layout_select_ds_fh(struct pnfs_layout_segment *lseg, u32 mirror_idx)
 {
@@ -435,10 +454,13 @@ ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg, u32 ds_idx,
 	struct nfs4_ff_layout_mirror *mirror = FF_LAYOUT_COMP(lseg, ds_idx);
 	struct rpc_cred *cred;
 
-	if (mirror && mirror->cred)
-		cred = mirror->cred;
-	else
-		cred = mdscred;
+	if (mirror) {
+		cred = ff_layout_get_mirror_cred(mirror, lseg->pls_range.iomode);
+		if (!cred)
+			cred = get_rpccred(mdscred);
+	} else {
+		cred = get_rpccred(mdscred);
+	}
 	return cred;
 }
 

@@ -1712,7 +1712,7 @@ ff_layout_read_pagelist(struct nfs_pgio_header *hdr)
 		goto out_failed;
 
 	ds_cred = ff_layout_get_ds_cred(lseg, idx, hdr->cred);
-	if (IS_ERR(ds_cred))
+	if (!ds_cred)
 		goto out_failed;
 
 	vers = nfs4_ff_layout_ds_version(lseg, idx);
@@ -1737,7 +1737,7 @@ ff_layout_read_pagelist(struct nfs_pgio_header *hdr)
 			  vers == 3 ? &ff_layout_read_call_ops_v3 :
 				      &ff_layout_read_call_ops_v4,
 			  0, RPC_TASK_SOFTCONN);
-
+	put_rpccred(ds_cred);
 	return PNFS_ATTEMPTED;
 
 out_failed:
@@ -1769,7 +1769,7 @@ ff_layout_write_pagelist(struct nfs_pgio_header *hdr, int sync)
 		return PNFS_NOT_ATTEMPTED;
 
 	ds_cred = ff_layout_get_ds_cred(lseg, idx, hdr->cred);
-	if (IS_ERR(ds_cred))
+	if (!ds_cred)
 		return PNFS_NOT_ATTEMPTED;
 
 	vers = nfs4_ff_layout_ds_version(lseg, idx);
@@ -1798,6 +1798,7 @@ ff_layout_write_pagelist(struct nfs_pgio_header *hdr, int sync)
 			  vers == 3 ? &ff_layout_write_call_ops_v3 :
 				      &ff_layout_write_call_ops_v4,
 			  sync, RPC_TASK_SOFTCONN);
+	put_rpccred(ds_cred);
 	return PNFS_ATTEMPTED;
 }
 
@@ -1824,7 +1825,7 @@ static int ff_layout_initiate_commit(struct nfs_commit_data *data, int how)
 	struct rpc_clnt *ds_clnt;
 	struct rpc_cred *ds_cred;
 	u32 idx;
-	int vers;
+	int vers, ret;
 	struct nfs_fh *fh;
 
 	idx = calc_ds_index_from_commit(lseg, data->ds_commit_index);
@@ -1838,7 +1839,7 @@ static int ff_layout_initiate_commit(struct nfs_commit_data *data, int how)
 		goto out_err;
 
 	ds_cred = ff_layout_get_ds_cred(lseg, idx, data->cred);
-	if (IS_ERR(ds_cred))
+	if (!ds_cred)
 		goto out_err;
 
 	vers = nfs4_ff_layout_ds_version(lseg, idx);
@@ -1854,10 +1855,12 @@ static int ff_layout_initiate_commit(struct nfs_commit_data *data, int how)
 	if (fh)
 		data->args.fh = fh;
 
-	return nfs_initiate_commit(ds_clnt, data, ds->ds_clp->rpc_ops,
+	ret = nfs_initiate_commit(ds_clnt, data, ds->ds_clp->rpc_ops,
 				   vers == 3 ? &ff_layout_commit_call_ops_v3 :
 					       &ff_layout_commit_call_ops_v4,
 				   how, RPC_TASK_SOFTCONN);
+	put_rpccred(ds_cred);
+	return ret;
 out_err:
 	pnfs_generic_prepare_to_resend_writes(data);
 	pnfs_generic_commit_release(data);
