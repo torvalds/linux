@@ -235,6 +235,8 @@ static int radeon_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
 	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
 
+	if (radeon_ttm_tt_has_userptr(bo->ttm))
+		return -EPERM;
 	return drm_vma_node_verify_access(&rbo->gem_base.vma_node, filp);
 }
 

@@ -2634,8 +2634,9 @@ struct drm_i915_cmd_table {
 
 /* WaRsDisableCoarsePowerGating:skl,bxt */
 #define NEEDS_WaRsDisableCoarsePowerGating(dev) (IS_BXT_REVID(dev, 0, BXT_REVID_A1) || \
-						 ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) && \
-						  IS_SKL_REVID(dev, 0, SKL_REVID_F0)))
+						 IS_SKL_GT3(dev) || \
+						 IS_SKL_GT4(dev))
+
 /*
  * dp aux and gmbus irq on gen4 seems to be able to generate legacy interrupts
  * even when in MSI mode. This results in spurious interrupt warnings if the
