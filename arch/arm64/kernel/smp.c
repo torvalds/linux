@@ -689,33 +689,18 @@ void __init smp_init_cpus(void)
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	int err;
-	unsigned int cpu, ncores = num_possible_cpus();
+	unsigned int cpu;
 
 	init_cpu_topology();
 
 	smp_store_cpu_info(smp_processor_id());
 
 	/*
-	 * are we trying to boot more cores than exist?
-	 */
-	if (max_cpus > ncores)
-		max_cpus = ncores;
-
-	/* Don't bother if we're effectively UP */
-	if (max_cpus <= 1)
-		return;
-
-	/*
 	 * Initialise the present map (which describes the set of CPUs
 	 * actually populated at the present time) and release the
 	 * secondaries from the bootloader.
-	 *
-	 * Make sure we online at most (max_cpus - 1) additional CPUs.
 	 */
-	max_cpus--;
 	for_each_possible_cpu(cpu) {
-		if (max_cpus == 0)
-			break;
 
 		if (cpu == smp_processor_id())
 			continue;
@@ -728,7 +713,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 			continue;
 
 		set_cpu_present(cpu, true);
-		max_cpus--;
 	}
 }
 
