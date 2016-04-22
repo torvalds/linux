@@ -2271,6 +2271,8 @@ static int dump_secy(struct macsec_secy *secy, struct net_device *dev,
 	if (!hdr)
 		return -EMSGSIZE;
 
+	genl_dump_check_consistent(cb, hdr, &macsec_fam);
+
 	if (nla_put_u32(skb, MACSEC_ATTR_IFINDEX, dev->ifindex))
 		goto nla_put_failure;
 
@@ -2439,6 +2441,8 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int macsec_generation = 1; /* protected by RTNL */
+
 static int macsec_dump_txsc(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
@@ -2449,6 +2453,9 @@ static int macsec_dump_txsc(struct sk_buff *skb, struct netlink_callback *cb)
 
 	d = 0;
 	rtnl_lock();
+
+	cb->seq = macsec_generation;
+
 	for_each_netdev(net, dev) {
 		struct macsec_secy *secy;
 
@@ -2920,6 +2927,8 @@ static void macsec_dellink(struct net_device *dev, struct list_head *head)
 	struct net_device *real_dev = macsec->real_dev;
 	struct macsec_rxh_data *rxd = macsec_data_rtnl(real_dev);
 
+	macsec_generation++;
+
 	unregister_netdevice_queue(dev, head);
 	list_del_rcu(&macsec->secys);
 	if (list_empty(&rxd->secys))
@@ -3065,6 +3074,8 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 	err = register_macsec_dev(real_dev, dev);
 	if (err < 0)
 		goto del_dev;
+
+	macsec_generation++;
 
 	dev_hold(real_dev);
 
