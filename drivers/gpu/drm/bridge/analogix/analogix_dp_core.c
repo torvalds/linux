@@ -1222,9 +1222,9 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 	struct video_info *video_info = &dp->video_info;
 
 	switch (dp->plat_data->dev_type) {
-	case RK3288_DP:
+	case ROCKCHIP_DP:
 		/*
-		 * Like Rk3288 DisplayPort TRM indicate that "Main link
+		 * Like ROCKCHIP DisplayPort TRM indicate that "Main link
 		 * containing 4 physical lanes of 2.7/1.62 Gbps/lane".
 		 */
 		video_info->max_link_rate = 0x0A;

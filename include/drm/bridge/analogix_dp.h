@@ -15,7 +15,7 @@
 
 enum analogix_dp_devtype {
 	EXYNOS_DP,
-	RK3288_DP,
+	ROCKCHIP_DP,
 };
 
 struct analogix_dp_plat_data {

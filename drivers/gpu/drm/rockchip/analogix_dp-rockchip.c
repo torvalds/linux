@@ -103,7 +103,7 @@ rockchip_dp_mode_valid(struct analogix_dp_plat_data *plat_data,
 	struct drm_display_info *di = &connector->display_info;
 	struct rockchip_dp_device *dp = to_dp(plat_data);
 
-	if (dp->plat_data.dev_type == RK3288_DP) {
+	if (dp->plat_data.dev_type == ROCKCHIP_DP) {
 		if (di->color_formats & DRM_COLOR_FORMAT_YCRCB444 ||
 		    di->color_formats & DRM_COLOR_FORMAT_YCRCB422) {
 			di->color_formats &= ~(DRM_COLOR_FORMAT_YCRCB422 |
@@ -281,7 +281,7 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 
 	dp->plat_data.encoder = &dp->encoder;
 
-	dp->plat_data.dev_type = RK3288_DP;
+	dp->plat_data.dev_type = ROCKCHIP_DP;
 	dp->plat_data.power_on = rockchip_dp_poweron;
 	dp->plat_data.power_off = rockchip_dp_powerdown;
 	dp->plat_data.mode_valid = rockchip_dp_mode_valid;
