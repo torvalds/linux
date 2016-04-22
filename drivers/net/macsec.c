@@ -2931,8 +2931,10 @@ static void macsec_dellink(struct net_device *dev, struct list_head *head)
 
 	unregister_netdevice_queue(dev, head);
 	list_del_rcu(&macsec->secys);
-	if (list_empty(&rxd->secys))
+	if (list_empty(&rxd->secys)) {
 		netdev_rx_handler_unregister(real_dev);
+		kfree(rxd);
+	}
 
 	macsec_del_dev(macsec);
 }
@@ -2954,8 +2956,10 @@ static int register_macsec_dev(struct net_device *real_dev,
 
 		err = netdev_rx_handler_register(real_dev, macsec_handle_frame,
 						 rxd);
-		if (err < 0)
+		if (err < 0) {
+			kfree(rxd);
 			return err;
+		}
 	}
 
 	list_add_tail_rcu(&macsec->secys, &rxd->secys);
