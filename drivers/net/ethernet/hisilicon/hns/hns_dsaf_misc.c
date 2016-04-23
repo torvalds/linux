@@ -135,11 +135,7 @@ void hns_dsaf_xge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val)
 		return;
 
 	reg_val |= RESET_REQ_OR_DREQ;
-
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
-		reg_val |= 0x2082082 << port;
-	else
-		reg_val |= 0x2082082 << (dsaf_dev->reset_offset + 6);
+	reg_val |= 0x2082082 << dsaf_dev->mac_cb[port]->port_rst_off;
 
 	if (val == 0)
 		reg_addr = DSAF_SUB_SC_XGE_RESET_REQ_REG;
@@ -158,11 +154,8 @@ void hns_dsaf_xge_core_srst_by_port(struct dsaf_device *dsaf_dev,
 	if (port >= DSAF_XGE_NUM)
 		return;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
-		reg_val |= XGMAC_TRX_CORE_SRST_M << port;
-	else
-		reg_val |= XGMAC_TRX_CORE_SRST_M <<
-			(dsaf_dev->reset_offset + 6);
+	reg_val |= XGMAC_TRX_CORE_SRST_M
+		<< dsaf_dev->mac_cb[port]->port_rst_off;
 
 	if (val == 0)
 		reg_addr = DSAF_SUB_SC_XGE_RESET_REQ_REG;
@@ -176,17 +169,19 @@ void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val)
 {
 	u32 reg_val_1;
 	u32 reg_val_2;
+	u32 port_rst_off;
 
 	if (port >= DSAF_GE_NUM)
 		return;
 
 	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
 		reg_val_1  = 0x1 << port;
+		port_rst_off = dsaf_dev->mac_cb[port]->port_rst_off;
 		/* there is difference between V1 and V2 in register.*/
 		if (AE_IS_VER1(dsaf_dev->dsaf_ver))
-			reg_val_2  = 0x1041041 << port;
+			reg_val_2  = 0x1041041 << port_rst_off;
 		else
-			reg_val_2  = 0x2082082 << port;
+			reg_val_2  = 0x2082082 << port_rst_off;
 
 		if (val == 0) {
 			dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_GE_RESET_REQ1_REG,
@@ -226,11 +221,7 @@ void hns_ppe_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val)
 	u32 reg_val = 0;
 	u32 reg_addr;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
-		reg_val |= RESET_REQ_OR_DREQ << port;
-	else
-		reg_val |= RESET_REQ_OR_DREQ <<
-			(dsaf_dev->reset_offset + 6);
+	reg_val |= RESET_REQ_OR_DREQ <<	dsaf_dev->mac_cb[port]->port_rst_off;
 
 	if (val == 0)
 		reg_addr = DSAF_SUB_SC_PPE_RESET_REQ_REG;

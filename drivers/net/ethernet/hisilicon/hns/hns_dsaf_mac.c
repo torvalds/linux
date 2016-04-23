@@ -664,6 +664,7 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 
 	mac_cb->max_frm = MAC_DEFAULT_MTU;
 	mac_cb->tx_pause_frm_time = MAC_DEFAULT_PAUSE_TIME;
+	mac_cb->port_rst_off = mac_cb->mac_id;
 
 	/* if the dsaf node doesn't contain a port subnode, get phy-handle
 	 * from dsaf node
@@ -692,6 +693,15 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 		return -EINVAL;
 	}
 	mac_cb->serdes_ctrl = syscon;
+
+	ret = fwnode_property_read_u32(mac_cb->fw_port,
+				       "port-rst-offset",
+				       &mac_cb->port_rst_off);
+	if (ret) {
+		dev_dbg(mac_cb->dev,
+			"mac%d port-rst-offset not found, use default value.\n",
+			mac_cb->mac_id);
+	}
 
 	syscon = syscon_node_to_regmap(
 			of_parse_phandle(to_of_node(mac_cb->fw_port),
