@@ -36,6 +36,7 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 	int ret, i;
 	u32 desc_num;
 	u32 buf_size;
+	u32 reset_offset = 0;
 	const char *mode_str;
 	struct device_node *np = dsaf_dev->dev->of_node;
 
@@ -118,6 +119,13 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 		goto unmap_base_addr;
 	}
 	dsaf_dev->desc_num = desc_num;
+
+	ret = of_property_read_u32(np, "reset-field-offset", &reset_offset);
+	if (ret < 0) {
+		dev_dbg(dsaf_dev->dev,
+			"get reset-field-offset fail, ret=%d!\r\n", ret);
+	}
+	dsaf_dev->reset_offset = reset_offset;
 
 	ret = of_property_read_u32(np, "buf-size", &buf_size);
 	if (ret < 0) {

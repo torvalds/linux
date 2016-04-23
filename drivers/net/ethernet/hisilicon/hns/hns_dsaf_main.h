@@ -281,6 +281,7 @@ struct dsaf_device {
 
 	u32 desc_num; /*  desc num per queue*/
 	u32 buf_size; /*  ring buffer size */
+	u32 reset_offset; /* reset field offset in sub sysctrl */
 	int buf_size_type; /* ring buffer size-type */
 	enum dsaf_mode dsaf_mode;	 /* dsaf mode  */
 	enum hal_dsaf_mode dsaf_en;
