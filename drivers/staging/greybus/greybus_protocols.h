@@ -805,6 +805,7 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_MODULE_INSERTED		0x1f
 #define GB_SVC_TYPE_MODULE_REMOVED		0x20
 #define GB_SVC_TYPE_INTF_ACTIVATE		0x27
+#define GB_SVC_TYPE_INTF_MAILBOX_EVENT		0x29
 
 /*
  * SVC version request/response has the same payload as
@@ -1037,6 +1038,18 @@ struct gb_svc_intf_activate_request {
 struct gb_svc_intf_activate_response {
 	__u8	intf_type;
 } __packed;
+
+#define GB_SVC_INTF_MAILBOX_NONE		0x00
+#define GB_SVC_INTF_MAILBOX_AP			0x01
+#define GB_SVC_INTF_MAILBOX_GREYBUS		0x02
+
+struct gb_svc_intf_mailbox_event_request {
+	__u8	intf_id;
+	__le16	result_code;
+	__le32	mailbox;
+} __packed;
+/* intf_mailbox_event response has no payload */
+
 
 /* RAW */
 

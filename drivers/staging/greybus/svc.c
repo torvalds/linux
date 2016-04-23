@@ -695,6 +695,27 @@ static int gb_svc_hello(struct gb_operation *op)
 	return 0;
 }
 
+static struct gb_interface *gb_svc_interface_lookup(struct gb_svc *svc,
+							u8 intf_id)
+{
+	struct gb_host_device *hd = svc->hd;
+	struct gb_module *module;
+	size_t num_interfaces;
+	u8 module_id;
+
+	list_for_each_entry(module, &hd->modules, hd_node) {
+		module_id = module->module_id;
+		num_interfaces = module->num_interfaces;
+
+		if (intf_id >= module_id &&
+				intf_id < module_id + num_interfaces) {
+			return module->interfaces[intf_id - module_id];
+		}
+	}
+
+	return NULL;
+}
+
 static struct gb_module *gb_svc_module_lookup(struct gb_svc *svc, u8 module_id)
 {
 	struct gb_host_device *hd = svc->hd;
@@ -874,6 +895,58 @@ static void gb_svc_process_module_removed(struct gb_operation *operation)
 	gb_module_put(module);
 }
 
+static void gb_svc_process_intf_mailbox_event(struct gb_operation *operation)
+{
+	struct gb_svc_intf_mailbox_event_request *request;
+	struct gb_connection *connection = operation->connection;
+	struct gb_svc *svc = gb_connection_get_data(connection);
+	struct gb_interface *intf;
+	u8 intf_id;
+	u16 result_code;
+	u32 mailbox;
+
+	/* The request message size has already been verified. */
+	request = operation->request->payload;
+	intf_id = request->intf_id;
+	result_code = le16_to_cpu(request->result_code);
+	mailbox = le32_to_cpu(request->mailbox);
+
+	dev_dbg(&svc->dev, "%s - id = %u, result = 0x%04x, mailbox = 0x%08x\n",
+			__func__, intf_id, result_code, mailbox);
+
+	intf = gb_svc_interface_lookup(svc, intf_id);
+	if (!intf) {
+		dev_warn(&svc->dev, "unexpected mailbox event %u\n", intf_id);
+		return;
+	}
+
+	if (result_code) {
+		dev_warn(&svc->dev,
+				"mailbox event %u with UniPro error: 0x%04x\n",
+				intf_id, result_code);
+		goto err_disable_interface;
+	}
+
+	if (mailbox != GB_SVC_INTF_MAILBOX_GREYBUS) {
+		dev_warn(&svc->dev,
+				"mailbox event %u with unexected value: 0x%08x\n",
+				intf_id, mailbox);
+		goto err_disable_interface;
+	}
+
+	dev_info(&svc->dev, "mode switch detected on interface %u\n", intf_id);
+
+	gb_svc_intf_reenable(svc, intf);
+
+	return;
+
+err_disable_interface:
+	mutex_lock(&intf->mutex);
+	gb_interface_disable(intf);
+	gb_interface_deactivate(intf);
+	mutex_unlock(&intf->mutex);
+}
+
 static void gb_svc_process_deferred_request(struct work_struct *work)
 {
 	struct gb_svc_deferred_request *dr;
@@ -898,6 +971,9 @@ static void gb_svc_process_deferred_request(struct work_struct *work)
 		break;
 	case GB_SVC_TYPE_MODULE_REMOVED:
 		gb_svc_process_module_removed(operation);
+		break;
+	case GB_SVC_TYPE_INTF_MAILBOX_EVENT:
+		gb_svc_process_intf_mailbox_event(operation);
 		break;
 	default:
 		dev_err(&svc->dev, "bad deferred request type: 0x%02x\n", type);
@@ -1077,6 +1153,24 @@ static int gb_svc_module_removed_recv(struct gb_operation *op)
 	return gb_svc_queue_deferred_request(op);
 }
 
+static int gb_svc_intf_mailbox_event_recv(struct gb_operation *op)
+{
+	struct gb_svc *svc = gb_connection_get_data(op->connection);
+	struct gb_svc_intf_mailbox_event_request *request;
+
+	if (op->request->payload_size < sizeof(*request)) {
+		dev_warn(&svc->dev, "short mailbox request received (%zu < %zu)\n",
+				op->request->payload_size, sizeof(*request));
+		return -EINVAL;
+	}
+
+	request = op->request->payload;
+
+	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, request->intf_id);
+
+	return gb_svc_queue_deferred_request(op);
+}
+
 static int gb_svc_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
@@ -1138,6 +1232,8 @@ static int gb_svc_request_handler(struct gb_operation *op)
 		return gb_svc_module_inserted_recv(op);
 	case GB_SVC_TYPE_MODULE_REMOVED:
 		return gb_svc_module_removed_recv(op);
+	case GB_SVC_TYPE_INTF_MAILBOX_EVENT:
+		return gb_svc_intf_mailbox_event_recv(op);
 	default:
 		dev_warn(&svc->dev, "unsupported request 0x%02x\n", type);
 		return -EINVAL;
