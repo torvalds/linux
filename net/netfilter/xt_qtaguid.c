@@ -1689,7 +1689,7 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	/* default: Fall through and do UID releated work */
 	}
 
-	sk = skb->sk;
+	sk = skb_to_full_sk(skb);
 	/*
 	 * When in TCP_TIME_WAIT the sk is not a "struct sock" but
 	 * "struct inet_timewait_sock" which is missing fields.
