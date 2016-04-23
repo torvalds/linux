@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -37,8 +38,12 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 	u32 desc_num;
 	u32 buf_size;
 	u32 reset_offset = 0;
+	u32 res_idx = 0;
 	const char *mode_str;
+	struct regmap *syscon;
+	struct resource *res;
 	struct device_node *np = dsaf_dev->dev->of_node;
+	struct platform_device *pdev = to_platform_device(dsaf_dev->dev);
 
 	if (of_device_is_compatible(np, "hisilicon,hns-dsaf-v1"))
 		dsaf_dev->dsaf_ver = AE_VERSION_1;
@@ -75,41 +80,67 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 	else
 		dsaf_dev->dsaf_tc_mode = HRD_DSAF_4TC_MODE;
 
-	dsaf_dev->sc_base = of_iomap(np, 0);
-	if (!dsaf_dev->sc_base) {
-		dev_err(dsaf_dev->dev,
-			"%s of_iomap 0 fail!\n", dsaf_dev->ae_dev.name);
-		ret = -ENOMEM;
-		goto unmap_base_addr;
+	syscon = syscon_node_to_regmap(
+			of_parse_phandle(np, "subctrl-syscon", 0));
+	if (IS_ERR_OR_NULL(syscon)) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, res_idx++);
+		if (!res) {
+			dev_err(dsaf_dev->dev, "subctrl info is needed!\n");
+			return -ENOMEM;
+		}
+		dsaf_dev->sc_base = devm_ioremap_resource(&pdev->dev, res);
+		if (!dsaf_dev->sc_base) {
+			dev_err(dsaf_dev->dev, "subctrl can not map!\n");
+			return -ENOMEM;
+		}
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, res_idx++);
+		if (!res) {
+			dev_err(dsaf_dev->dev, "serdes-ctrl info is needed!\n");
+			return -ENOMEM;
+		}
+		dsaf_dev->sds_base = devm_ioremap_resource(&pdev->dev, res);
+		if (!dsaf_dev->sds_base) {
+			dev_err(dsaf_dev->dev, "serdes-ctrl can not map!\n");
+			return -ENOMEM;
+		}
+	} else {
+		dsaf_dev->sub_ctrl = syscon;
 	}
 
-	dsaf_dev->sds_base = of_iomap(np, 1);
-	if (!dsaf_dev->sds_base) {
-		dev_err(dsaf_dev->dev,
-			"%s of_iomap 1 fail!\n", dsaf_dev->ae_dev.name);
-		ret = -ENOMEM;
-		goto unmap_base_addr;
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ppe-base");
+	if (!res) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, res_idx++);
+		if (!res) {
+			dev_err(dsaf_dev->dev, "ppe-base info is needed!\n");
+			return -ENOMEM;
+		}
 	}
-
-	dsaf_dev->ppe_base = of_iomap(np, 2);
+	dsaf_dev->ppe_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!dsaf_dev->ppe_base) {
-		dev_err(dsaf_dev->dev,
-			"%s of_iomap 2 fail!\n", dsaf_dev->ae_dev.name);
-		ret = -ENOMEM;
-		goto unmap_base_addr;
+		dev_err(dsaf_dev->dev, "ppe-base resource can not map!\n");
+		return -ENOMEM;
 	}
+	dsaf_dev->ppe_paddr = res->start;
 
-	dsaf_dev->io_base = of_iomap(np, 3);
-	if (!dsaf_dev->io_base) {
-		dev_err(dsaf_dev->dev,
-			"%s of_iomap 3 fail!\n", dsaf_dev->ae_dev.name);
-		ret = -ENOMEM;
-		goto unmap_base_addr;
+	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   "dsaf-base");
+		if (!res) {
+			res = platform_get_resource(pdev, IORESOURCE_MEM,
+						    res_idx);
+			if (!res) {
+				dev_err(dsaf_dev->dev,
+					"dsaf-base info is needed!\n");
+				return -ENOMEM;
+			}
+		}
+		dsaf_dev->io_base = devm_ioremap_resource(&pdev->dev, res);
+		if (!dsaf_dev->io_base) {
+			dev_err(dsaf_dev->dev, "dsaf-base resource can not map!\n");
+			return -ENOMEM;
+		}
 	}
-
-	dsaf_dev->cpld_base = of_iomap(np, 4);
-	if (!dsaf_dev->cpld_base)
-		dev_dbg(dsaf_dev->dev, "NO CPLD ADDR");
 
 	ret = of_property_read_u32(np, "desc-num", &desc_num);
 	if (ret < 0 || desc_num < HNS_DSAF_MIN_DESC_CNT ||
@@ -725,7 +756,7 @@ void hns_dsaf_set_promisc_mode(struct dsaf_device *dsaf_dev, u32 en)
 void hns_dsaf_set_inner_lb(struct dsaf_device *dsaf_dev, u32 mac_id, u32 en)
 {
 	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
-	    dsaf_dev->mac_cb[mac_id].mac_type == HNAE_PORT_DEBUG)
+	    dsaf_dev->mac_cb[mac_id]->mac_type == HNAE_PORT_DEBUG)
 		return;
 
 	dsaf_set_dev_bit(dsaf_dev, DSAFV2_SERDES_LBK_0_REG + 4 * mac_id,

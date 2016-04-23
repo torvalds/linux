@@ -37,50 +37,35 @@ static struct dsaf_device *hns_ae_get_dsaf_dev(struct hnae_ae_dev *dev)
 static struct hns_ppe_cb *hns_get_ppe_cb(struct hnae_handle *handle)
 {
 	int ppe_index;
-	int ppe_common_index;
 	struct ppe_common_cb *ppe_comm;
 	struct  hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
 
-	if (vf_cb->port_index < DSAF_SERVICE_PORT_NUM_PER_DSAF) {
-		ppe_index = vf_cb->port_index;
-		ppe_common_index = 0;
-	} else {
-		ppe_index = 0;
-		ppe_common_index =
-			vf_cb->port_index - DSAF_SERVICE_PORT_NUM_PER_DSAF + 1;
-	}
-	ppe_comm = vf_cb->dsaf_dev->ppe_common[ppe_common_index];
+	ppe_comm = vf_cb->dsaf_dev->ppe_common[0];
+	ppe_index = vf_cb->port_index;
+
 	return &ppe_comm->ppe_cb[ppe_index];
 }
 
 static int hns_ae_get_q_num_per_vf(
 	struct dsaf_device *dsaf_dev, int port)
 {
-	int common_idx = hns_dsaf_get_comm_idx_by_port(port);
-
-	return dsaf_dev->rcb_common[common_idx]->max_q_per_vf;
+	return dsaf_dev->rcb_common[0]->max_q_per_vf;
 }
 
 static int hns_ae_get_vf_num_per_port(
 	struct dsaf_device *dsaf_dev, int port)
 {
-	int common_idx = hns_dsaf_get_comm_idx_by_port(port);
-
-	return dsaf_dev->rcb_common[common_idx]->max_vfn;
+	return dsaf_dev->rcb_common[0]->max_vfn;
 }
 
 static struct ring_pair_cb *hns_ae_get_base_ring_pair(
 	struct dsaf_device *dsaf_dev, int port)
 {
-	int common_idx = hns_dsaf_get_comm_idx_by_port(port);
-	struct rcb_common_cb *rcb_comm = dsaf_dev->rcb_common[common_idx];
+	struct rcb_common_cb *rcb_comm = dsaf_dev->rcb_common[0];
 	int q_num = rcb_comm->max_q_per_vf;
 	int vf_num = rcb_comm->max_vfn;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
-		return &rcb_comm->ring_pair_cb[port * q_num * vf_num];
-	else
-		return &rcb_comm->ring_pair_cb[0];
+	return &rcb_comm->ring_pair_cb[port * q_num * vf_num];
 }
 
 static struct ring_pair_cb *hns_ae_get_ring_pair(struct hnae_queue *q)
@@ -143,7 +128,7 @@ struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 
 	vf_cb->dsaf_dev = dsaf_dev;
 	vf_cb->port_index = port_id;
-	vf_cb->mac_cb = &dsaf_dev->mac_cb[port_id];
+	vf_cb->mac_cb = dsaf_dev->mac_cb[port_id];
 
 	ae_handle->phy_if = vf_cb->mac_cb->phy_if;
 	ae_handle->phy_node = vf_cb->mac_cb->phy_node;
@@ -299,11 +284,8 @@ static void hns_ae_reset(struct hnae_handle *handle)
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
 
 	if (vf_cb->mac_cb->mac_type == HNAE_PORT_DEBUG) {
-		u8 ppe_common_index =
-			vf_cb->port_index - DSAF_SERVICE_PORT_NUM_PER_DSAF + 1;
-
 		hns_mac_reset(vf_cb->mac_cb);
-		hns_ppe_reset_common(vf_cb->dsaf_dev, ppe_common_index);
+		hns_ppe_reset_common(vf_cb->dsaf_dev, 0);
 	}
 }
 
@@ -702,7 +684,6 @@ int hns_ae_cpld_set_led_id(struct hnae_handle *handle,
 void hns_ae_get_regs(struct hnae_handle *handle, void *data)
 {
 	u32 *p = data;
-	u32 rcb_com_idx;
 	int i;
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
 	struct hns_ppe_cb *ppe_cb = hns_get_ppe_cb(handle);
@@ -710,8 +691,7 @@ void hns_ae_get_regs(struct hnae_handle *handle, void *data)
 	hns_ppe_get_regs(ppe_cb, p);
 	p += hns_ppe_get_regs_count();
 
-	rcb_com_idx = hns_dsaf_get_comm_idx_by_port(vf_cb->port_index);
-	hns_rcb_get_common_regs(vf_cb->dsaf_dev->rcb_common[rcb_com_idx], p);
+	hns_rcb_get_common_regs(vf_cb->dsaf_dev->rcb_common[0], p);
 	p += hns_rcb_get_common_regs_count();
 
 	for (i = 0; i < handle->q_num; i++) {

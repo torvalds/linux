@@ -12,6 +12,26 @@
 #include "hns_dsaf_ppe.h"
 #include "hns_dsaf_reg.h"
 
+static void dsaf_write_sub(struct dsaf_device *dsaf_dev, u32 reg, u32 val)
+{
+	if (dsaf_dev->sub_ctrl)
+		dsaf_write_syscon(dsaf_dev->sub_ctrl, reg, val);
+	else
+		dsaf_write_reg(dsaf_dev->sc_base, reg, val);
+}
+
+static u32 dsaf_read_sub(struct dsaf_device *dsaf_dev, u32 reg)
+{
+	u32 ret;
+
+	if (dsaf_dev->sub_ctrl)
+		ret = dsaf_read_syscon(dsaf_dev->sub_ctrl, reg);
+	else
+		ret = dsaf_read_reg(dsaf_dev->sc_base, reg);
+
+	return ret;
+}
+
 void hns_cpld_set_led(struct hns_mac_cb *mac_cb, int link_status,
 		      u16 speed, int data)
 {
@@ -95,10 +115,8 @@ void hns_dsaf_rst(struct dsaf_device *dsaf_dev, u32 val)
 		nt_reg_addr = DSAF_SUB_SC_NT_RESET_DREQ_REG;
 	}
 
-	dsaf_write_reg(dsaf_dev->sc_base, xbar_reg_addr,
-		       RESET_REQ_OR_DREQ);
-	dsaf_write_reg(dsaf_dev->sc_base, nt_reg_addr,
-		       RESET_REQ_OR_DREQ);
+	dsaf_write_sub(dsaf_dev, xbar_reg_addr, RESET_REQ_OR_DREQ);
+	dsaf_write_sub(dsaf_dev, nt_reg_addr, RESET_REQ_OR_DREQ);
 }
 
 void hns_dsaf_xge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val)
@@ -121,7 +139,7 @@ void hns_dsaf_xge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val)
 	else
 		reg_addr = DSAF_SUB_SC_XGE_RESET_DREQ_REG;
 
-	dsaf_write_reg(dsaf_dev->sc_base, reg_addr, reg_val);
+	dsaf_write_sub(dsaf_dev, reg_addr, reg_val);
 }
 
 void hns_dsaf_xge_core_srst_by_port(struct dsaf_device *dsaf_dev,
@@ -144,7 +162,7 @@ void hns_dsaf_xge_core_srst_by_port(struct dsaf_device *dsaf_dev,
 	else
 		reg_addr = DSAF_SUB_SC_XGE_RESET_DREQ_REG;
 
-	dsaf_write_reg(dsaf_dev->sc_base, reg_addr, reg_val);
+	dsaf_write_sub(dsaf_dev, reg_addr, reg_val);
 }
 
 void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val)
@@ -164,20 +182,16 @@ void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val)
 			reg_val_2  = 0x2082082 << port;
 
 		if (val == 0) {
-			dsaf_write_reg(dsaf_dev->sc_base,
-				       DSAF_SUB_SC_GE_RESET_REQ1_REG,
+			dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_GE_RESET_REQ1_REG,
 				       reg_val_1);
 
-			dsaf_write_reg(dsaf_dev->sc_base,
-				       DSAF_SUB_SC_GE_RESET_REQ0_REG,
+			dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_GE_RESET_REQ0_REG,
 				       reg_val_2);
 		} else {
-			dsaf_write_reg(dsaf_dev->sc_base,
-				       DSAF_SUB_SC_GE_RESET_DREQ0_REG,
+			dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_GE_RESET_DREQ0_REG,
 				       reg_val_2);
 
-			dsaf_write_reg(dsaf_dev->sc_base,
-				       DSAF_SUB_SC_GE_RESET_DREQ1_REG,
+			dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_GE_RESET_DREQ1_REG,
 				       reg_val_1);
 		}
 	} else {
@@ -185,20 +199,16 @@ void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val)
 		reg_val_2 = 0x100 << dsaf_dev->reset_offset;
 
 		if (val == 0) {
-			dsaf_write_reg(dsaf_dev->sc_base,
-				       DSAF_SUB_SC_GE_RESET_REQ1_REG,
+			dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_GE_RESET_REQ1_REG,
 				       reg_val_1);
 
-			dsaf_write_reg(dsaf_dev->sc_base,
-				       DSAF_SUB_SC_PPE_RESET_REQ_REG,
+			dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_PPE_RESET_REQ_REG,
 				       reg_val_2);
 		} else {
-			dsaf_write_reg(dsaf_dev->sc_base,
-				       DSAF_SUB_SC_GE_RESET_DREQ1_REG,
+			dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_GE_RESET_DREQ1_REG,
 				       reg_val_1);
 
-			dsaf_write_reg(dsaf_dev->sc_base,
-				       DSAF_SUB_SC_PPE_RESET_DREQ_REG,
+			dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_PPE_RESET_DREQ_REG,
 				       reg_val_2);
 		}
 	}
@@ -220,7 +230,7 @@ void hns_ppe_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val)
 	else
 		reg_addr = DSAF_SUB_SC_PPE_RESET_DREQ_REG;
 
-	dsaf_write_reg(dsaf_dev->sc_base, reg_addr, reg_val);
+	dsaf_write_sub(dsaf_dev, reg_addr, reg_val);
 }
 
 void hns_ppe_com_srst(struct ppe_common_cb *ppe_common, u32 val)
@@ -245,7 +255,7 @@ void hns_ppe_com_srst(struct ppe_common_cb *ppe_common, u32 val)
 			reg_addr = DSAF_SUB_SC_PPE_RESET_DREQ_REG;
 	}
 
-	dsaf_write_reg(dsaf_dev->sc_base, reg_addr, reg_val);
+	dsaf_write_sub(dsaf_dev, reg_addr, reg_val);
 }
 
 /**
@@ -260,7 +270,6 @@ phy_interface_t hns_mac_get_phy_if(struct hns_mac_cb *mac_cb)
 	u32 shift;
 	u32 phy_offset;
 	bool is_ver1 = AE_IS_VER1(mac_cb->dsaf_dev->dsaf_ver);
-	void __iomem *sys_ctl_vaddr = mac_cb->sys_ctl_vaddr;
 	int mac_id = mac_cb->mac_id;
 	phy_interface_t phy_if = PHY_INTERFACE_MODE_NA;
 
@@ -269,7 +278,7 @@ phy_interface_t hns_mac_get_phy_if(struct hns_mac_cb *mac_cb)
 	} else if (mac_id >= 0 && mac_id <= 3 &&
 		   !HNS_DSAF_IS_DEBUG(mac_cb->dsaf_dev)) {
 		reg = is_ver1 ? HNS_MAC_HILINK4_REG : HNS_MAC_HILINK4V2_REG;
-		mode = dsaf_read_reg(sys_ctl_vaddr, reg);
+		mode = dsaf_read_sub(mac_cb->dsaf_dev, reg);
 		/* mac_id 0, 1, 2, 3 ---> hilink4 lane 0, 1, 2, 3 */
 		shift = is_ver1 ? 0 : mac_id;
 		if (dsaf_get_bit(mode, shift))
@@ -278,7 +287,7 @@ phy_interface_t hns_mac_get_phy_if(struct hns_mac_cb *mac_cb)
 			phy_if = PHY_INTERFACE_MODE_SGMII;
 	} else {
 		reg = is_ver1 ? HNS_MAC_HILINK3_REG : HNS_MAC_HILINK3V2_REG;
-		mode = dsaf_read_reg(sys_ctl_vaddr, reg);
+		mode = dsaf_read_sub(mac_cb->dsaf_dev, reg);
 		/* mac_id 4, 5,---> hilink3 lane 2, 3
 		 * debug port 0(6), 1(7) ---> hilink3 lane 0, 1
 		 */
@@ -328,7 +337,14 @@ int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, u8 en)
 				pr_info("no sfp in this eth\n");
 	}
 
-	dsaf_set_reg_field(base_addr, reg_offset, 1ull << 10, 10, !!en);
+	if (mac_cb->serdes_ctrl) {
+		u32 origin = dsaf_read_syscon(mac_cb->serdes_ctrl, reg_offset);
+
+		dsaf_set_field(origin, 1ull << 10, 10, !!en);
+		dsaf_write_syscon(mac_cb->serdes_ctrl, reg_offset, origin);
+	} else {
+		dsaf_set_reg_field(base_addr, reg_offset, 1ull << 10, 10, !!en);
+	}
 
 	return 0;
 }

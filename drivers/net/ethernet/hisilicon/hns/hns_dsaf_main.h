@@ -278,6 +278,8 @@ struct dsaf_device {
 	u8 __iomem *ppe_base;
 	u8 __iomem *io_base;
 	u8 __iomem *cpld_base;
+	struct regmap *sub_ctrl;
+	phys_addr_t ppe_paddr;
 
 	u32 desc_num; /*  desc num per queue*/
 	u32 buf_size; /*  ring buffer size */
@@ -290,7 +292,7 @@ struct dsaf_device {
 
 	struct ppe_common_cb *ppe_common[DSAF_COMM_DEV_NUM];
 	struct rcb_common_cb *rcb_common[DSAF_COMM_DEV_NUM];
-	struct hns_mac_cb *mac_cb;
+	struct hns_mac_cb *mac_cb[DSAF_MAX_PORT_NUM];
 
 	struct dsaf_hw_stats hw_stats[DSAF_NODE_NUM];
 	struct dsaf_int_stat int_stat;
@@ -360,14 +362,6 @@ static inline void hns_dsaf_tbl_line_addr_cfg(struct dsaf_device *dsaf_dev,
 	dsaf_set_dev_field(dsaf_dev, DSAF_TBL_LINE_ADDR_0_REG,
 			   DSAF_TBL_LINE_ADDR_M, DSAF_TBL_LINE_ADDR_S,
 			   tab_line_addr);
-}
-
-static inline int hns_dsaf_get_comm_idx_by_port(int port)
-{
-	if ((port < DSAF_COMM_CHN) || (port == DSAF_MAX_PORT_NUM_PER_CHIP))
-		return 0;
-	else
-		return (port - DSAF_COMM_CHN + 1);
 }
 
 static inline struct hnae_vf_cb *hns_ae_get_vf_cb(

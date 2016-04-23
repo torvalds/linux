@@ -430,17 +430,8 @@ static void hns_rcb_ring_pair_get_cfg(struct ring_pair_cb *ring_pair_cb)
 static int hns_rcb_get_port_in_comm(
 	struct rcb_common_cb *rcb_common, int ring_idx)
 {
-	int port;
-	int q_num;
 
-	if (!HNS_DSAF_IS_DEBUG(rcb_common->dsaf_dev)) {
-		q_num = (int)rcb_common->max_q_per_vf * rcb_common->max_vfn;
-		port = ring_idx / q_num;
-	} else {
-		port = 0; /* config debug-ports port_id_in_comm to 0*/
-	}
-
-	return port;
+	return ring_idx / (rcb_common->max_q_per_vf * rcb_common->max_vfn);
 }
 
 #define SERVICE_RING_IRQ_IDX(v1) \
@@ -658,42 +649,18 @@ int hns_rcb_get_ring_num(struct dsaf_device *dsaf_dev)
 	}
 }
 
-void __iomem *hns_rcb_common_get_vaddr(struct dsaf_device *dsaf_dev,
-				       int comm_index)
+void __iomem *hns_rcb_common_get_vaddr(struct rcb_common_cb *rcb_common)
 {
-	void __iomem *base_addr;
+	struct dsaf_device *dsaf_dev = rcb_common->dsaf_dev;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
-		base_addr = dsaf_dev->ppe_base + RCB_COMMON_REG_OFFSET;
-	else
-		base_addr = dsaf_dev->sds_base
-			+ (comm_index - 1) * HNS_DSAF_DEBUG_NW_REG_OFFSET
-			+ RCB_COMMON_REG_OFFSET;
-
-	return base_addr;
+	return dsaf_dev->ppe_base + RCB_COMMON_REG_OFFSET;
 }
 
-static phys_addr_t hns_rcb_common_get_paddr(struct dsaf_device *dsaf_dev,
-					    int comm_index)
+static phys_addr_t hns_rcb_common_get_paddr(struct rcb_common_cb *rcb_common)
 {
-	struct device_node *np = dsaf_dev->dev->of_node;
-	phys_addr_t phy_addr;
-	const __be32 *tmp_addr;
-	u64 addr_offset = 0;
-	u64 size = 0;
-	int index = 0;
+	struct dsaf_device *dsaf_dev = rcb_common->dsaf_dev;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
-		index    = 2;
-		addr_offset = RCB_COMMON_REG_OFFSET;
-	} else {
-		index    = 1;
-		addr_offset = (comm_index - 1) * HNS_DSAF_DEBUG_NW_REG_OFFSET +
-				RCB_COMMON_REG_OFFSET;
-	}
-	tmp_addr  = of_get_address(np, index, &size, NULL);
-	phy_addr  = of_translate_address(np, tmp_addr);
-	return phy_addr + addr_offset;
+	return dsaf_dev->ppe_paddr + RCB_COMMON_REG_OFFSET;
 }
 
 int hns_rcb_common_get_cfg(struct dsaf_device *dsaf_dev,
@@ -722,8 +689,8 @@ int hns_rcb_common_get_cfg(struct dsaf_device *dsaf_dev,
 	rcb_common->max_vfn = max_vfn;
 	rcb_common->max_q_per_vf = max_q_per_vf;
 
-	rcb_common->io_base = hns_rcb_common_get_vaddr(dsaf_dev, comm_index);
-	rcb_common->phy_base = hns_rcb_common_get_paddr(dsaf_dev, comm_index);
+	rcb_common->io_base = hns_rcb_common_get_vaddr(rcb_common);
+	rcb_common->phy_base = hns_rcb_common_get_paddr(rcb_common);
 
 	dsaf_dev->rcb_common[comm_index] = rcb_common;
 	return 0;
