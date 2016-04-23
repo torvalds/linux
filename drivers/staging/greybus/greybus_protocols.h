@@ -802,6 +802,8 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_PWRMON_RAIL_NAMES_GET	0x15
 #define GB_SVC_TYPE_PWRMON_SAMPLE_GET		0x16
 #define GB_SVC_TYPE_PWRMON_INTF_SAMPLE_GET	0x17
+#define GB_SVC_TYPE_MODULE_INSERTED		0x1f
+#define GB_SVC_TYPE_MODULE_REMOVED		0x20
 #define GB_SVC_TYPE_INTF_ACTIVATE		0x27
 
 /*
@@ -1008,6 +1010,20 @@ struct gb_svc_pwrmon_intf_sample_get_response {
 	__u8	result;
 	__le32	measurement;
 } __packed;
+
+#define GB_SVC_MODULE_INSERTED_FLAG_NO_PRIMARY	0x0001
+
+struct gb_svc_module_inserted_request {
+	__u8	primary_intf_id;
+	__u8	intf_count;
+	__le16	flags;
+} __packed;
+/* module_inserted response has no payload */
+
+struct gb_svc_module_removed_request {
+	__u8	primary_intf_id;
+} __packed;
+/* module_removed response has no payload */
 
 struct gb_svc_intf_activate_request {
 	__u8	intf_id;

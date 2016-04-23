@@ -798,6 +798,82 @@ static void gb_svc_process_intf_hot_unplug(struct gb_operation *operation)
 	gb_module_put(module);
 }
 
+static void gb_svc_process_module_inserted(struct gb_operation *operation)
+{
+	struct gb_svc_module_inserted_request *request;
+	struct gb_connection *connection = operation->connection;
+	struct gb_svc *svc = gb_connection_get_data(connection);
+	struct gb_host_device *hd = svc->hd;
+	struct gb_module *module;
+	size_t num_interfaces;
+	u8 module_id;
+	u16 flags;
+	int ret;
+
+	/* The request message size has already been verified. */
+	request = operation->request->payload;
+	module_id = request->primary_intf_id;
+	num_interfaces = request->intf_count;
+	flags = le16_to_cpu(request->flags);
+
+	dev_dbg(&svc->dev, "%s - id = %u, num_interfaces = %zu, flags = 0x%04x\n",
+			__func__, module_id, num_interfaces, flags);
+
+	if (flags & GB_SVC_MODULE_INSERTED_FLAG_NO_PRIMARY) {
+		dev_warn(&svc->dev, "no primary interface detected on module %u\n",
+				module_id);
+	}
+
+	module = gb_svc_module_lookup(svc, module_id);
+	if (module) {
+		dev_warn(&svc->dev, "unexpected module-inserted event %u\n",
+				module_id);
+		return;
+	}
+
+	module = gb_module_create(hd, module_id, num_interfaces);
+	if (!module) {
+		dev_err(&svc->dev, "failed to create module\n");
+		return;
+	}
+
+	ret = gb_module_add(module);
+	if (ret) {
+		gb_module_put(module);
+		return;
+	}
+
+	list_add(&module->hd_node, &hd->modules);
+}
+
+static void gb_svc_process_module_removed(struct gb_operation *operation)
+{
+	struct gb_svc_module_removed_request *request;
+	struct gb_connection *connection = operation->connection;
+	struct gb_svc *svc = gb_connection_get_data(connection);
+	struct gb_module *module;
+	u8 module_id;
+
+	/* The request message size has already been verified. */
+	request = operation->request->payload;
+	module_id = request->primary_intf_id;
+
+	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, module_id);
+
+	module = gb_svc_module_lookup(svc, module_id);
+	if (!module) {
+		dev_warn(&svc->dev, "unexpected module-removed event %u\n",
+				module_id);
+		return;
+	}
+
+	module->disconnected = true;
+
+	gb_module_del(module);
+	list_del(&module->hd_node);
+	gb_module_put(module);
+}
+
 static void gb_svc_process_deferred_request(struct work_struct *work)
 {
 	struct gb_svc_deferred_request *dr;
@@ -816,6 +892,12 @@ static void gb_svc_process_deferred_request(struct work_struct *work)
 		break;
 	case GB_SVC_TYPE_INTF_HOT_UNPLUG:
 		gb_svc_process_intf_hot_unplug(operation);
+		break;
+	case GB_SVC_TYPE_MODULE_INSERTED:
+		gb_svc_process_module_inserted(operation);
+		break;
+	case GB_SVC_TYPE_MODULE_REMOVED:
+		gb_svc_process_module_removed(operation);
 		break;
 	default:
 		dev_err(&svc->dev, "bad deferred request type: 0x%02x\n", type);
@@ -957,6 +1039,44 @@ static int gb_svc_key_event_recv(struct gb_operation *op)
 	return 0;
 }
 
+static int gb_svc_module_inserted_recv(struct gb_operation *op)
+{
+	struct gb_svc *svc = gb_connection_get_data(op->connection);
+	struct gb_svc_module_inserted_request *request;
+
+	if (op->request->payload_size < sizeof(*request)) {
+		dev_warn(&svc->dev, "short module-inserted request received (%zu < %zu)\n",
+				op->request->payload_size, sizeof(*request));
+		return -EINVAL;
+	}
+
+	request = op->request->payload;
+
+	dev_dbg(&svc->dev, "%s - id = %u\n", __func__,
+			request->primary_intf_id);
+
+	return gb_svc_queue_deferred_request(op);
+}
+
+static int gb_svc_module_removed_recv(struct gb_operation *op)
+{
+	struct gb_svc *svc = gb_connection_get_data(op->connection);
+	struct gb_svc_module_removed_request *request;
+
+	if (op->request->payload_size < sizeof(*request)) {
+		dev_warn(&svc->dev, "short module-removed request received (%zu < %zu)\n",
+				op->request->payload_size, sizeof(*request));
+		return -EINVAL;
+	}
+
+	request = op->request->payload;
+
+	dev_dbg(&svc->dev, "%s - id = %u\n", __func__,
+			request->primary_intf_id);
+
+	return gb_svc_queue_deferred_request(op);
+}
+
 static int gb_svc_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
@@ -1014,6 +1134,10 @@ static int gb_svc_request_handler(struct gb_operation *op)
 		return gb_svc_intf_reset_recv(op);
 	case GB_SVC_TYPE_KEY_EVENT:
 		return gb_svc_key_event_recv(op);
+	case GB_SVC_TYPE_MODULE_INSERTED:
+		return gb_svc_module_inserted_recv(op);
+	case GB_SVC_TYPE_MODULE_REMOVED:
+		return gb_svc_module_removed_recv(op);
 	default:
 		dev_warn(&svc->dev, "unsupported request 0x%02x\n", type);
 		return -EINVAL;
