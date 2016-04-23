@@ -409,6 +409,8 @@ int gb_interface_activate(struct gb_interface *intf)
 	if (ret)
 		return ret;
 
+	intf->active = true;
+
 	return 0;
 }
 
@@ -419,7 +421,12 @@ int gb_interface_activate(struct gb_interface *intf)
  */
 void gb_interface_deactivate(struct gb_interface *intf)
 {
+	if (!intf->active)
+		return;
+
 	gb_interface_route_destroy(intf);
+
+	intf->active = false;
 }
 
 /*

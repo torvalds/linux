@@ -43,6 +43,7 @@ struct gb_interface {
 
 	bool disconnected;
 	bool ejected;
+	bool active;
 	bool enabled;
 };
 #define to_gb_interface(d) container_of(d, struct gb_interface, dev)
