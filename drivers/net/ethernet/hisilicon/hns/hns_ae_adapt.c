@@ -29,25 +29,6 @@ static struct hns_mac_cb *hns_get_mac_cb(struct hnae_handle *handle)
 	return vf_cb->mac_cb;
 }
 
-/**
- * hns_ae_map_eport_to_dport - translate enet port id to dsaf port id
- * @port_id: enet port id
- *: debug port 0-1, service port 2 -7 (dsaf mode only 2)
- * return: dsaf port id
- *: service ports 0 - 5, debug port 6-7
- **/
-static int hns_ae_map_eport_to_dport(u32 port_id)
-{
-	int port_index;
-
-	if (port_id < DSAF_DEBUG_NW_NUM)
-		port_index = port_id + DSAF_SERVICE_PORT_NUM_PER_DSAF;
-	else
-		port_index = port_id - DSAF_DEBUG_NW_NUM;
-
-	return port_index;
-}
-
 static struct dsaf_device *hns_ae_get_dsaf_dev(struct hnae_ae_dev *dev)
 {
 	return container_of(dev, struct dsaf_device, ae_dev);
@@ -110,7 +91,6 @@ static struct ring_pair_cb *hns_ae_get_ring_pair(struct hnae_queue *q)
 struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 				      u32 port_id)
 {
-	int port_idx;
 	int vfnum_per_port;
 	int qnum_per_vf;
 	int i;
@@ -120,11 +100,10 @@ struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 	struct hnae_vf_cb *vf_cb;
 
 	dsaf_dev = hns_ae_get_dsaf_dev(dev);
-	port_idx = hns_ae_map_eport_to_dport(port_id);
 
-	ring_pair_cb = hns_ae_get_base_ring_pair(dsaf_dev, port_idx);
-	vfnum_per_port = hns_ae_get_vf_num_per_port(dsaf_dev, port_idx);
-	qnum_per_vf = hns_ae_get_q_num_per_vf(dsaf_dev, port_idx);
+	ring_pair_cb = hns_ae_get_base_ring_pair(dsaf_dev, port_id);
+	vfnum_per_port = hns_ae_get_vf_num_per_port(dsaf_dev, port_id);
+	qnum_per_vf = hns_ae_get_q_num_per_vf(dsaf_dev, port_id);
 
 	vf_cb = kzalloc(sizeof(*vf_cb) +
 			qnum_per_vf * sizeof(struct hnae_queue *), GFP_KERNEL);
@@ -163,14 +142,14 @@ struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 	}
 
 	vf_cb->dsaf_dev = dsaf_dev;
-	vf_cb->port_index = port_idx;
-	vf_cb->mac_cb = &dsaf_dev->mac_cb[port_idx];
+	vf_cb->port_index = port_id;
+	vf_cb->mac_cb = &dsaf_dev->mac_cb[port_id];
 
 	ae_handle->phy_if = vf_cb->mac_cb->phy_if;
 	ae_handle->phy_node = vf_cb->mac_cb->phy_node;
 	ae_handle->if_support = vf_cb->mac_cb->if_support;
 	ae_handle->port_type = vf_cb->mac_cb->mac_type;
-	ae_handle->dport_id = port_idx;
+	ae_handle->dport_id = port_id;
 
 	return ae_handle;
 vf_id_err:
