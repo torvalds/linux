@@ -546,7 +546,7 @@ static const struct file_operations pwrmon_debugfs_power_fops = {
 	.read		= pwr_debugfs_power_read,
 };
 
-static void svc_pwrmon_debugfs_init(struct gb_svc *svc)
+static void gb_svc_pwrmon_debugfs_init(struct gb_svc *svc)
 {
 	int i;
 	size_t bufsize;
@@ -608,14 +608,14 @@ err_pwrmon_debugfs:
 	debugfs_remove(dent);
 }
 
-static void svc_debugfs_init(struct gb_svc *svc)
+static void gb_svc_debugfs_init(struct gb_svc *svc)
 {
 	svc->debugfs_dentry = debugfs_create_dir(dev_name(&svc->dev),
 						 gb_debugfs_get());
-	svc_pwrmon_debugfs_init(svc);
+	gb_svc_pwrmon_debugfs_init(svc);
 }
 
-static void svc_debugfs_exit(struct gb_svc *svc)
+static void gb_svc_debugfs_exit(struct gb_svc *svc)
 {
 	debugfs_remove_recursive(svc->debugfs_dentry);
 	kfree(svc->rail_names);
@@ -660,7 +660,7 @@ static int gb_svc_hello(struct gb_operation *op)
 		return ret;
 	}
 
-	svc_debugfs_init(svc);
+	gb_svc_debugfs_init(svc);
 
 	return 0;
 }
@@ -1112,7 +1112,7 @@ void gb_svc_del(struct gb_svc *svc)
 	 * from the request handler.
 	 */
 	if (device_is_registered(&svc->dev)) {
-		svc_debugfs_exit(svc);
+		gb_svc_debugfs_exit(svc);
 		gb_svc_watchdog_destroy(svc);
 		input_unregister_device(svc->input);
 		device_del(&svc->dev);
