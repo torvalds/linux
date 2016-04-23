@@ -667,6 +667,11 @@ static int core_get_max_pstate(void)
 			if (err)
 				goto skip_tar;
 
+			/* For level 1 and 2, bits[23:16] contain the ratio */
+			if (tdp_ctrl)
+				tdp_ratio >>= 16;
+
+			tdp_ratio &= 0xff; /* ratios are only 8 bits long */
 			if (tdp_ratio - 1 == tar) {
 				max_pstate = tar;
 				pr_debug("max_pstate=TAC %x\n", max_pstate);
