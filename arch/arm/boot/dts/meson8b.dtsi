@@ -155,8 +155,8 @@
 			reg = <0xc1108000 0x4>, <0xc1104000 0x460>;
 		};
 
-		pinctrl: pinctrl@c1109880 {
-			compatible = "amlogic,meson8b-pinctrl";
+		pinctrl_cbus: pinctrl@c1109880 {
+			compatible = "amlogic,meson8b-cbus-pinctrl";
 			reg = <0xc1109880 0x10>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -171,6 +171,14 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 			};
+		};
+
+		pinctrl_aobus: pinctrl@c8100084 {
+			compatible = "amlogic,meson8b-aobus-pinctrl";
+			reg = <0xc8100084 0xc>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 
 			gpio_ao: ao-bank@c1108030 {
 				reg = <0xc8100014 0x4>,

@@ -224,11 +224,11 @@ static int uvd_v4_2_suspend(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_uvd_suspend(adev);
+	r = uvd_v4_2_hw_fini(adev);
 	if (r)
 		return r;
 
-	r = uvd_v4_2_hw_fini(adev);
+	r = amdgpu_uvd_suspend(adev);
 	if (r)
 		return r;
 

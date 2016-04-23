@@ -2254,6 +2254,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 {
 	u32 intmsk;
 	u32 val;
+	u32 usbcfg;
 
 	/* Kill any ep0 requests as controller will be reinitialized */
 	kill_all_requests(hsotg, hsotg->eps_out[0], -ECONNRESET);
@@ -2267,10 +2268,16 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	 * set configuration.
 	 */
 
+	/* keep other bits untouched (so e.g. forced modes are not lost) */
+	usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+	usbcfg &= ~(GUSBCFG_TOUTCAL_MASK | GUSBCFG_PHYIF16 | GUSBCFG_SRPCAP |
+		GUSBCFG_HNPCAP);
+
 	/* set the PLL on, remove the HNP/SRP and set the PHY */
 	val = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
-	dwc2_writel(hsotg->phyif | GUSBCFG_TOUTCAL(7) |
-	       (val << GUSBCFG_USBTRDTIM_SHIFT), hsotg->regs + GUSBCFG);
+	usbcfg |= hsotg->phyif | GUSBCFG_TOUTCAL(7) |
+		(val << GUSBCFG_USBTRDTIM_SHIFT);
+	dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
 	dwc2_hsotg_init_fifo(hsotg);
 
@@ -3031,6 +3038,7 @@ static struct usb_ep_ops dwc2_hsotg_ep_ops = {
 static void dwc2_hsotg_init(struct dwc2_hsotg *hsotg)
 {
 	u32 trdtim;
+	u32 usbcfg;
 	/* unmask subset of endpoint interrupts */
 
 	dwc2_writel(DIEPMSK_TIMEOUTMSK | DIEPMSK_AHBERRMSK |
@@ -3054,11 +3062,16 @@ static void dwc2_hsotg_init(struct dwc2_hsotg *hsotg)
 
 	dwc2_hsotg_init_fifo(hsotg);
 
+	/* keep other bits untouched (so e.g. forced modes are not lost) */
+	usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+	usbcfg &= ~(GUSBCFG_TOUTCAL_MASK | GUSBCFG_PHYIF16 | GUSBCFG_SRPCAP |
+		GUSBCFG_HNPCAP);
+
 	/* set the PLL on, remove the HNP/SRP and set the PHY */
 	trdtim = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
-	dwc2_writel(hsotg->phyif | GUSBCFG_TOUTCAL(7) |
-		(trdtim << GUSBCFG_USBTRDTIM_SHIFT),
-		hsotg->regs + GUSBCFG);
+	usbcfg |= hsotg->phyif | GUSBCFG_TOUTCAL(7) |
+		(trdtim << GUSBCFG_USBTRDTIM_SHIFT);
+	dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
 	if (using_dma(hsotg))
 		__orr32(hsotg->regs + GAHBCFG, GAHBCFG_DMA_EN);

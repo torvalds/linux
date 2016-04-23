@@ -784,8 +784,9 @@ void scsi_attach_vpd(struct scsi_device *sdev)
 	int pg83_supported = 0;
 	unsigned char __rcu *vpd_buf, *orig_vpd_buf = NULL;
 
-	if (sdev->skip_vpd_pages)
+	if (!scsi_device_supports_vpd(sdev))
 		return;
+
 retry_pg0:
 	vpd_buf = kmalloc(vpd_len, GFP_KERNEL);
 	if (!vpd_buf)

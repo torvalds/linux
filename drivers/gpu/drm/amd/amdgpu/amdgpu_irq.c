@@ -219,6 +219,8 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	if (r) {
 		return r;
 	}
+	adev->ddev->vblank_disable_allowed = true;
+
 	/* enable msi */
 	adev->irq.msi_enabled = false;
 

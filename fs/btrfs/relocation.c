@@ -1850,6 +1850,7 @@ again:
 			eb = read_tree_block(dest, old_bytenr, old_ptr_gen);
 			if (IS_ERR(eb)) {
 				ret = PTR_ERR(eb);
+				break;
 			} else if (!extent_buffer_uptodate(eb)) {
 				ret = -EIO;
 				free_extent_buffer(eb);
@@ -3129,10 +3130,10 @@ static int relocate_file_extent_cluster(struct inode *inode,
 	if (ret)
 		goto out;
 
-	index = (cluster->start - offset) >> PAGE_CACHE_SHIFT;
-	last_index = (cluster->end - offset) >> PAGE_CACHE_SHIFT;
+	index = (cluster->start - offset) >> PAGE_SHIFT;
+	last_index = (cluster->end - offset) >> PAGE_SHIFT;
 	while (index <= last_index) {
-		ret = btrfs_delalloc_reserve_metadata(inode, PAGE_CACHE_SIZE);
+		ret = btrfs_delalloc_reserve_metadata(inode, PAGE_SIZE);
 		if (ret)
 			goto out;
 
@@ -3145,7 +3146,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 						   mask);
 			if (!page) {
 				btrfs_delalloc_release_metadata(inode,
-							PAGE_CACHE_SIZE);
+							PAGE_SIZE);
 				ret = -ENOMEM;
 				goto out;
 			}
@@ -3162,16 +3163,16 @@ static int relocate_file_extent_cluster(struct inode *inode,
 			lock_page(page);
 			if (!PageUptodate(page)) {
 				unlock_page(page);
-				page_cache_release(page);
+				put_page(page);
 				btrfs_delalloc_release_metadata(inode,
-							PAGE_CACHE_SIZE);
+							PAGE_SIZE);
 				ret = -EIO;
 				goto out;
 			}
 		}
 
 		page_start = page_offset(page);
-		page_end = page_start + PAGE_CACHE_SIZE - 1;
+		page_end = page_start + PAGE_SIZE - 1;
 
 		lock_extent(&BTRFS_I(inode)->io_tree, page_start, page_end);
 
@@ -3191,7 +3192,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 		unlock_extent(&BTRFS_I(inode)->io_tree,
 			      page_start, page_end);
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 
 		index++;
 		balance_dirty_pages_ratelimited(inode->i_mapping);

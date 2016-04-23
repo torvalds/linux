@@ -124,7 +124,7 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 	if (mapping == NULL)
 		mapping = &sdp->sd_aspace;
 
-	shift = PAGE_CACHE_SHIFT - sdp->sd_sb.sb_bsize_shift;
+	shift = PAGE_SHIFT - sdp->sd_sb.sb_bsize_shift;
 	index = blkno >> shift;             /* convert block to page */
 	bufnum = blkno - (index << shift);  /* block buf index within page */
 
@@ -154,7 +154,7 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 		map_bh(bh, sdp->sd_vfs, blkno);
 
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	return bh;
 }

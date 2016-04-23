@@ -40,7 +40,7 @@ int bpf_prog2(struct pt_regs *ctx)
 	long ip = 0;
 
 	/* get ip address of kmem_cache_alloc_node() caller */
-	bpf_probe_read(&ip, sizeof(ip), (void *)(PT_REGS_FP(ctx) + sizeof(ip)));
+	BPF_KRETPROBE_READ_RET_IP(ip, ctx);
 
 	struct pair v = {
 		.val = bpf_ktime_get_ns(),

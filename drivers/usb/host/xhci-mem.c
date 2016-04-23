@@ -1861,6 +1861,12 @@ no_bw:
 	kfree(xhci->rh_bw);
 	kfree(xhci->ext_caps);
 
+	xhci->usb2_ports = NULL;
+	xhci->usb3_ports = NULL;
+	xhci->port_array = NULL;
+	xhci->rh_bw = NULL;
+	xhci->ext_caps = NULL;
+
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
 	xhci->bus_state[0].bus_suspended = 0;

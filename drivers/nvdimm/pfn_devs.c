@@ -376,7 +376,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 	} else {
 		/* from init we validate */
 		if (memcmp(nd_pfn->uuid, pfn_sb->uuid, 16) != 0)
-			return -EINVAL;
+			return -ENODEV;
 	}
 
 	if (nd_pfn->align > nvdimm_namespace_capacity(ndns)) {
