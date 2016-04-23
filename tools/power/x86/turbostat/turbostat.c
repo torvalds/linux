@@ -51,8 +51,6 @@ unsigned int debug;
 unsigned int rapl_joules;
 unsigned int summary_only;
 unsigned int dump_only;
-unsigned int skip_c0;
-unsigned int skip_c1;
 unsigned int do_nhm_cstates;
 unsigned int do_snb_cstates;
 unsigned int do_knl_cstates;
@@ -145,7 +143,6 @@ unsigned int has_hwp_pkg;		/* IA32_HWP_REQUEST_PKG */
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-int aperf_mperf_unstable;
 int backwards_count;
 char *progname;
 
@@ -546,12 +543,8 @@ int format_counters(struct thread_data *t, struct core_data *c,
 			1.0 / units * t->aperf / interval_float);
 
 	/* Busy% */
-	if (has_aperf) {
-		if (!skip_c0)
-			outp += sprintf(outp, "%8.2f", 100.0 * t->mperf/t->tsc/tsc_tweak);
-		else
-			outp += sprintf(outp, "********");
-	}
+	if (has_aperf)
+		outp += sprintf(outp, "%8.2f", 100.0 * t->mperf/t->tsc/tsc_tweak);
 
 	/* Bzy_MHz */
 	if (has_aperf) {
@@ -591,12 +584,8 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (do_smi)
 		outp += sprintf(outp, "%8d", t->smi_count);
 
-	if (do_nhm_cstates) {
-		if (!skip_c1)
-			outp += sprintf(outp, "%8.2f", 100.0 * t->c1/t->tsc);
-		else
-			outp += sprintf(outp, "********");
-	}
+	if (do_nhm_cstates)
+		outp += sprintf(outp, "%8.2f", 100.0 * t->c1/t->tsc);
 
 	/* print per-core data only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
@@ -622,8 +611,8 @@ int format_counters(struct thread_data *t, struct core_data *c,
 
 	/* GFXrc6 */
 	if (do_gfx_rc6_ms) {
-		if (p->gfx_rc6_ms == -1) {	/* detect counter reset */
-			outp += sprintf(outp, "  ***.**");
+		if (p->gfx_rc6_ms == -1) {	/* detect GFX counter reset */
+			outp += sprintf(outp, "   **.**");
 		} else {
 			outp += sprintf(outp, "%8.2f",
 				p->gfx_rc6_ms / 10.0 / interval_float);
@@ -748,7 +737,7 @@ void format_all_counters(struct thread_data *t, struct core_data *c, struct pkg_
 		old = 0x100000000 + new - old;	\
 	}
 
-void
+int
 delta_package(struct pkg_data *new, struct pkg_data *old)
 {
 
@@ -784,6 +773,8 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 	DELTA_WRAP32(new->energy_dram, old->energy_dram);
 	DELTA_WRAP32(new->rapl_pkg_perf_status, old->rapl_pkg_perf_status);
 	DELTA_WRAP32(new->rapl_dram_perf_status, old->rapl_dram_perf_status);
+
+	return 0;
 }
 
 void
@@ -798,7 +789,7 @@ delta_core(struct core_data *new, struct core_data *old)
 /*
  * old = new - old
  */
-void
+int
 delta_thread(struct thread_data *new, struct thread_data *old,
 	struct core_data *core_delta)
 {
@@ -817,20 +808,7 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 			old->aperf = new->aperf - old->aperf;
 			old->mperf = new->mperf - old->mperf;
 		} else {
-
-			if (!aperf_mperf_unstable) {
-				fprintf(outf, "%s: APERF or MPERF went backwards *\n", progname);
-				fprintf(outf, "* Frequency results do not cover entire interval *\n");
-				fprintf(outf, "* fix this by running Linux-2.6.30 or later *\n");
-
-				aperf_mperf_unstable = 1;
-			}
-			/*
-			 * mperf delta is likely a huge "positive" number
-			 * can not use it for calculating c0 time
-			 */
-			skip_c0 = 1;
-			skip_c1 = 1;
+			return -1;
 		}
 	}
 
@@ -877,24 +855,30 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 
 	if (do_smi)
 		old->smi_count = new->smi_count - old->smi_count;
+
+	return 0;
 }
 
 int delta_cpu(struct thread_data *t, struct core_data *c,
 	struct pkg_data *p, struct thread_data *t2,
 	struct core_data *c2, struct pkg_data *p2)
 {
+	int retval = 0;
+
 	/* calculate core delta only for 1st thread in core */
 	if (t->flags & CPU_IS_FIRST_THREAD_IN_CORE)
 		delta_core(c, c2);
 
 	/* always calculate thread delta */
-	delta_thread(t, t2, c2);	/* c2 is core delta */
+	retval = delta_thread(t, t2, c2);	/* c2 is core delta */
+	if (retval)
+		return retval;
 
 	/* calculate package delta only for 1st core in package */
 	if (t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE)
-		delta_package(p, p2);
+		retval = delta_package(p, p2);
 
-	return 0;
+	return retval;
 }
 
 void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
@@ -2067,7 +2051,10 @@ restart:
 		}
 		gettimeofday(&tv_odd, (struct timezone *)NULL);
 		timersub(&tv_odd, &tv_even, &tv_delta);
-		for_all_cpus_2(delta_cpu, ODD_COUNTERS, EVEN_COUNTERS);
+		if (for_all_cpus_2(delta_cpu, ODD_COUNTERS, EVEN_COUNTERS)) {
+			re_initialize();
+			goto restart;
+		}
 		compute_average(EVEN_COUNTERS);
 		format_all_counters(EVEN_COUNTERS);
 		flush_output_stdout();
@@ -2083,7 +2070,10 @@ restart:
 		}
 		gettimeofday(&tv_even, (struct timezone *)NULL);
 		timersub(&tv_even, &tv_odd, &tv_delta);
-		for_all_cpus_2(delta_cpu, EVEN_COUNTERS, ODD_COUNTERS);
+		if (for_all_cpus_2(delta_cpu, EVEN_COUNTERS, ODD_COUNTERS)) {
+			re_initialize();
+			goto restart;
+		}
 		compute_average(ODD_COUNTERS);
 		format_all_counters(ODD_COUNTERS);
 		flush_output_stdout();
@@ -3693,9 +3683,12 @@ int fork_it(char **argv)
 	for_all_cpus(get_counters, ODD_COUNTERS);
 	gettimeofday(&tv_odd, (struct timezone *)NULL);
 	timersub(&tv_odd, &tv_even, &tv_delta);
-	for_all_cpus_2(delta_cpu, ODD_COUNTERS, EVEN_COUNTERS);
-	compute_average(EVEN_COUNTERS);
-	format_all_counters(EVEN_COUNTERS);
+	if (for_all_cpus_2(delta_cpu, ODD_COUNTERS, EVEN_COUNTERS))
+		fprintf(outf, "%s: Counter reset detected\n", progname);
+	else {
+		compute_average(EVEN_COUNTERS);
+		format_all_counters(EVEN_COUNTERS);
+	}
 
 	fprintf(outf, "%.6f sec\n", tv_delta.tv_sec + tv_delta.tv_usec/1000000.0);
 
@@ -3722,7 +3715,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 4.12 5 Apr 2016"
+	fprintf(outf, "turbostat version 4.13 22 Apr 2016"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
