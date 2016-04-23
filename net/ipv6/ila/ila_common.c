@@ -15,17 +15,20 @@
 
 static __wsum get_csum_diff(struct ipv6hdr *ip6h, struct ila_params *p)
 {
-	if (*(__be64 *)&ip6h->daddr == p->locator_match)
+	struct ila_addr *iaddr = ila_a2i(&ip6h->daddr);
+
+	if (iaddr->loc.v64 == p->locator_match.v64)
 		return p->csum_diff;
 	else
-		return compute_csum_diff8((__be32 *)&ip6h->daddr,
+		return compute_csum_diff8((__be32 *)&iaddr->loc,
 					  (__be32 *)&p->locator);
 }
 
-void update_ipv6_locator(struct sk_buff *skb, struct ila_params *p)
+void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p)
 {
 	__wsum diff;
 	struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	struct ila_addr *iaddr = ila_a2i(&ip6h->daddr);
 	size_t nhoff = sizeof(struct ipv6hdr);
 
 	/* First update checksum */
@@ -68,7 +71,7 @@ void update_ipv6_locator(struct sk_buff *skb, struct ila_params *p)
 	}
 
 	/* Now change destination address */
-	*(__be64 *)&ip6h->daddr = p->locator;
+	iaddr->loc = p->locator;
 }
 
 static int __init ila_init(void)
