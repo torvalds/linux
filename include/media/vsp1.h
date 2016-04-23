@@ -14,31 +14,52 @@
 #define __MEDIA_VSP1_H__
 
 #include <linux/types.h>
+#include <linux/videodev2.h>
 
 struct device;
-struct v4l2_rect;
 
 int vsp1_du_init(struct device *dev);
 
 int vsp1_du_setup_lif(struct device *dev, unsigned int width,
 		      unsigned int height);
 
+struct vsp1_du_atomic_config {
+	u32 pixelformat;
+	unsigned int pitch;
+	dma_addr_t mem[2];
+	struct v4l2_rect src;
+	struct v4l2_rect dst;
+	unsigned int alpha;
+	unsigned int zpos;
+};
+
 void vsp1_du_atomic_begin(struct device *dev);
-int vsp1_du_atomic_update_ext(struct device *dev, unsigned int rpf,
-			      u32 pixelformat, unsigned int pitch,
-			      dma_addr_t mem[2], const struct v4l2_rect *src,
-			      const struct v4l2_rect *dst, unsigned int alpha,
-			      unsigned int zpos);
+int __vsp1_du_atomic_update(struct device *dev, unsigned int rpf,
+			    const struct vsp1_du_atomic_config *cfg);
 void vsp1_du_atomic_flush(struct device *dev);
 
-static inline int vsp1_du_atomic_update(struct device *dev,
-					unsigned int rpf_index, u32 pixelformat,
-					unsigned int pitch, dma_addr_t mem[2],
-					const struct v4l2_rect *src,
-					const struct v4l2_rect *dst)
+static inline int vsp1_du_atomic_update_old(struct device *dev,
+	unsigned int rpf, u32 pixelformat, unsigned int pitch,
+	dma_addr_t mem[2], const struct v4l2_rect *src,
+	const struct v4l2_rect *dst)
 {
-	return vsp1_du_atomic_update_ext(dev, rpf_index, pixelformat, pitch,
-					 mem, src, dst, 255, 0);
+	struct vsp1_du_atomic_config cfg = {
+		.pixelformat = pixelformat,
+		.pitch = pitch,
+		.mem[0] = mem[0],
+		.mem[1] = mem[1],
+		.src = *src,
+		.dst = *dst,
+		.alpha = 255,
+		.zpos = 0,
+	};
+
+	return __vsp1_du_atomic_update(dev, rpf, &cfg);
 }
+
+#define _vsp1_du_atomic_update(_1, _2, _3, _4, _5, _6, _7, f, ...) f
+#define vsp1_du_atomic_update(...) \
+	_vsp1_du_atomic_update(__VA_ARGS__, vsp1_du_atomic_update_old, 0, 0, \
+			       0, __vsp1_du_atomic_update)(__VA_ARGS__)
 
 #endif /* __MEDIA_VSP1_H__ */
