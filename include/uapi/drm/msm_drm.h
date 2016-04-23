@@ -42,6 +42,15 @@ extern "C" {
 #define MSM_PIPE_2D1         0x02
 #define MSM_PIPE_3D0         0x10
 
+/* The pipe-id just uses the lower bits, so can be OR'd with flags in
+ * the upper 16 bits (which could be extended further, if needed, maybe
+ * we extend/overload the pipe-id some day to deal with multiple rings,
+ * but even then I don't think we need the full lower 16 bits).
+ */
+#define MSM_PIPE_ID_MASK     0xffff
+#define MSM_PIPE_ID(x)       ((x) & MSM_PIPE_ID_MASK)
+#define MSM_PIPE_FLAGS(x)    ((x) & ~MSM_PIPE_ID_MASK)
+
 /* timeouts are specified in clock-monotonic absolute times (to simplify
  * restarting interrupted ioctls).  The following struct is logically the
  * same as 'struct timespec' but 32/64b ABI safe.
@@ -175,12 +184,16 @@ struct drm_msm_gem_submit_bo {
 	__u64 presumed;       /* in/out, presumed buffer address */
 };
 
+/* Valid submit ioctl flags: */
+/* to start, nothing.. */
+#define MSM_SUBMIT_FLAGS 0
+
 /* Each cmdstream submit consists of a table of buffers involved, and
  * one or more cmdstream buffers.  This allows for conditional execution
  * (context-restore), and IB buffers needed for per tile/bin draw cmds.
  */
 struct drm_msm_gem_submit {
-	__u32 pipe;           /* in, MSM_PIPE_x */
+	__u32 flags;          /* MSM_PIPE_x | MSM_SUBMIT_x */
 	__u32 fence;          /* out */
 	__u32 nr_bos;         /* in, number of submit_bo's */
 	__u32 nr_cmds;        /* in, number of submit_cmd's */

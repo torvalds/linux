@@ -370,7 +370,10 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	/* for now, we just have 3d pipe.. eventually this would need to
 	 * be more clever to dispatch to appropriate gpu module:
 	 */
-	if (args->pipe != MSM_PIPE_3D0)
+	if (MSM_PIPE_ID(args->flags) != MSM_PIPE_3D0)
+		return -EINVAL;
+
+	if (MSM_PIPE_FLAGS(args->flags) & ~MSM_SUBMIT_FLAGS)
 		return -EINVAL;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
