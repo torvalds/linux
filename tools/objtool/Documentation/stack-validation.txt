@@ -299,18 +299,38 @@ they mean, and suggestions for how to fix them.
 Errors in .c files
 ------------------
 
-If you're getting an objtool error in a compiled .c file, chances are
-the file uses an asm() statement which has a "call" instruction.  An
-asm() statement with a call instruction must declare the use of the
-stack pointer in its output operand.  For example, on x86_64:
+1. c_file.o: warning: objtool: funcA() falls through to next function funcB()
 
-   register void *__sp asm("rsp");
-   asm volatile("call func" : "+r" (__sp));
+   This means that funcA() doesn't end with a return instruction or an
+   unconditional jump, and that objtool has determined that the function
+   can fall through into the next function.  There could be different
+   reasons for this:
 
-Otherwise the stack frame may not get created before the call.
+   1) funcA()'s last instruction is a call to a "noreturn" function like
+      panic().  In this case the noreturn function needs to be added to
+      objtool's hard-coded global_noreturns array.  Feel free to bug the
+      objtool maintainer, or you can submit a patch.
 
-Another possible cause for errors in C code is if the Makefile removes
--fno-omit-frame-pointer or adds -fomit-frame-pointer to the gcc options.
+   2) funcA() uses the unreachable() annotation in a section of code
+      that is actually reachable.
+
+   3) If funcA() calls an inline function, the object code for funcA()
+      might be corrupt due to a gcc bug.  For more details, see:
+      https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70646
+
+2. If you're getting any other objtool error in a compiled .c file, it
+   may be because the file uses an asm() statement which has a "call"
+   instruction.  An asm() statement with a call instruction must declare
+   the use of the stack pointer in its output operand.  For example, on
+   x86_64:
+
+     register void *__sp asm("rsp");
+     asm volatile("call func" : "+r" (__sp));
+
+   Otherwise the stack frame may not get created before the call.
+
+3. Another possible cause for errors in C code is if the Makefile removes
+   -fno-omit-frame-pointer or adds -fomit-frame-pointer to the gcc options.
 
 Also see the above section for .S file errors for more information what
 the individual error messages mean.
