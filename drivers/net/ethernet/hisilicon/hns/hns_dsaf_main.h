@@ -277,7 +277,6 @@ struct dsaf_device {
 	u8 __iomem *sds_base;
 	u8 __iomem *ppe_base;
 	u8 __iomem *io_base;
-	u8 __iomem *cpld_base;
 	struct regmap *sub_ctrl;
 	phys_addr_t ppe_paddr;
 

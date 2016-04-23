@@ -313,10 +313,11 @@ struct hns_mac_cb {
 	struct mac_priv priv;
 	struct fwnode_handle *fw_port;
 	u8 __iomem *vaddr;
-	u8 __iomem *cpld_vaddr;
 	u8 __iomem *sys_ctl_vaddr;
 	u8 __iomem *serdes_vaddr;
 	struct regmap *serdes_ctrl;
+	struct regmap *cpld_ctrl;
+	u32 cpld_ctrl_reg;
 	struct mac_entry_idx addr_entry_idx[DSAF_MAX_VM_NUM];
 	u8 sfp_prsnt;
 	u8 cpld_led_value;

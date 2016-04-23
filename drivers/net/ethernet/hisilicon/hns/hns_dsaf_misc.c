@@ -42,8 +42,8 @@ void hns_cpld_set_led(struct hns_mac_cb *mac_cb, int link_status,
 		pr_err("sfp_led_opt mac_dev is null!\n");
 		return;
 	}
-	if (!mac_cb->cpld_vaddr) {
-		dev_err(mac_cb->dev, "mac_id=%d, cpld_vaddr is null !\n",
+	if (!mac_cb->cpld_ctrl) {
+		dev_err(mac_cb->dev, "mac_id=%d, cpld syscon is null !\n",
 			mac_cb->mac_id);
 		return;
 	}
@@ -60,21 +60,24 @@ void hns_cpld_set_led(struct hns_mac_cb *mac_cb, int link_status,
 		dsaf_set_bit(value, DSAF_LED_DATA_B, data);
 
 		if (value != mac_cb->cpld_led_value) {
-			dsaf_write_b(mac_cb->cpld_vaddr, value);
+			dsaf_write_syscon(mac_cb->cpld_ctrl,
+					  mac_cb->cpld_ctrl_reg, value);
 			mac_cb->cpld_led_value = value;
 		}
 	} else {
-		dsaf_write_b(mac_cb->cpld_vaddr, CPLD_LED_DEFAULT_VALUE);
+		dsaf_write_syscon(mac_cb->cpld_ctrl, mac_cb->cpld_ctrl_reg,
+				  CPLD_LED_DEFAULT_VALUE);
 		mac_cb->cpld_led_value = CPLD_LED_DEFAULT_VALUE;
 	}
 }
 
 void cpld_led_reset(struct hns_mac_cb *mac_cb)
 {
-	if (!mac_cb || !mac_cb->cpld_vaddr)
+	if (!mac_cb || !mac_cb->cpld_ctrl)
 		return;
 
-	dsaf_write_b(mac_cb->cpld_vaddr, CPLD_LED_DEFAULT_VALUE);
+	dsaf_write_syscon(mac_cb->cpld_ctrl, mac_cb->cpld_ctrl_reg,
+			  CPLD_LED_DEFAULT_VALUE);
 	mac_cb->cpld_led_value = CPLD_LED_DEFAULT_VALUE;
 }
 
@@ -83,15 +86,19 @@ int cpld_set_led_id(struct hns_mac_cb *mac_cb,
 {
 	switch (status) {
 	case HNAE_LED_ACTIVE:
-		mac_cb->cpld_led_value = dsaf_read_b(mac_cb->cpld_vaddr);
+		mac_cb->cpld_led_value =
+			dsaf_read_syscon(mac_cb->cpld_ctrl,
+					 mac_cb->cpld_ctrl_reg);
 		dsaf_set_bit(mac_cb->cpld_led_value, DSAF_LED_ANCHOR_B,
 			     CPLD_LED_ON_VALUE);
-		dsaf_write_b(mac_cb->cpld_vaddr, mac_cb->cpld_led_value);
+		dsaf_write_syscon(mac_cb->cpld_ctrl, mac_cb->cpld_ctrl_reg,
+				  mac_cb->cpld_led_value);
 		return 2;
 	case HNAE_LED_INACTIVE:
 		dsaf_set_bit(mac_cb->cpld_led_value, DSAF_LED_ANCHOR_B,
 			     CPLD_LED_DEFAULT_VALUE);
-		dsaf_write_b(mac_cb->cpld_vaddr, mac_cb->cpld_led_value);
+		dsaf_write_syscon(mac_cb->cpld_ctrl, mac_cb->cpld_ctrl_reg,
+				  mac_cb->cpld_led_value);
 		break;
 	default:
 		break;
@@ -299,6 +306,17 @@ phy_interface_t hns_mac_get_phy_if(struct hns_mac_cb *mac_cb)
 			phy_if = PHY_INTERFACE_MODE_SGMII;
 	}
 	return phy_if;
+}
+
+int hns_mac_get_sfp_prsnt(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
+{
+	if (!mac_cb->cpld_ctrl)
+		return -ENODEV;
+
+	*sfp_prsnt = !dsaf_read_syscon(mac_cb->cpld_ctrl, mac_cb->cpld_ctrl_reg
+					+ MAC_SFP_PORT_OFFSET);
+
+	return 0;
 }
 
 /**

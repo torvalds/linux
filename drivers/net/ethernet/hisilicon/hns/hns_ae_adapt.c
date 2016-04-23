@@ -664,7 +664,7 @@ void hns_ae_update_led_status(struct hnae_handle *handle)
 
 	assert(handle);
 	mac_cb = hns_get_mac_cb(handle);
-	if (!mac_cb->cpld_vaddr)
+	if (!mac_cb->cpld_ctrl)
 		return;
 	hns_set_led_opt(mac_cb);
 }

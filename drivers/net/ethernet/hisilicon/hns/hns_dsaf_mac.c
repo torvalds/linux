@@ -82,17 +82,6 @@ static enum mac_mode hns_get_enet_interface(const struct hns_mac_cb *mac_cb)
 	}
 }
 
-int hns_mac_get_sfp_prsnt(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
-{
-	if (!mac_cb->cpld_vaddr)
-		return -ENODEV;
-
-	*sfp_prsnt = !dsaf_read_b((u8 *)mac_cb->cpld_vaddr
-					+ MAC_SFP_PORT_OFFSET);
-
-	return 0;
-}
-
 void hns_mac_get_link_status(struct hns_mac_cb *mac_cb, u32 *link_status)
 {
 	struct mac_driver *mac_ctrl_drv;
@@ -658,6 +647,8 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 {
 	struct device_node *np = mac_cb->dev->of_node;
 	struct regmap *syscon;
+	u32 ret;
+
 	mac_cb->link = false;
 	mac_cb->half_duplex = false;
 	mac_cb->speed = mac_phy_to_speed[mac_cb->phy_if];
@@ -701,6 +692,23 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 		return -EINVAL;
 	}
 	mac_cb->serdes_ctrl = syscon;
+
+	syscon = syscon_node_to_regmap(
+			of_parse_phandle(to_of_node(mac_cb->fw_port),
+					 "cpld-syscon", 0));
+	if (IS_ERR_OR_NULL(syscon)) {
+		dev_dbg(mac_cb->dev, "no cpld-syscon found!\n");
+		mac_cb->cpld_ctrl = NULL;
+	} else {
+		mac_cb->cpld_ctrl = syscon;
+		ret = fwnode_property_read_u32(mac_cb->fw_port,
+					       "cpld-ctrl-reg",
+					       &mac_cb->cpld_ctrl_reg);
+		if (ret) {
+			dev_err(mac_cb->dev, "get cpld-ctrl-reg fail!\n");
+			return ret;
+		}
+	}
 	return 0;
 }
 
@@ -751,11 +759,6 @@ int hns_mac_get_cfg(struct dsaf_device *dsaf_dev, struct hns_mac_cb *mac_cb)
 	mac_cb->sys_ctl_vaddr =	dsaf_dev->sc_base;
 	mac_cb->serdes_vaddr = dsaf_dev->sds_base;
 
-	if (dsaf_dev->cpld_base && !HNS_DSAF_IS_DEBUG(dsaf_dev)) {
-		mac_cb->cpld_vaddr = dsaf_dev->cpld_base +
-			mac_cb->mac_id * CPLD_ADDR_PORT_OFFSET;
-		cpld_led_reset(mac_cb);
-	}
 	mac_cb->sfp_prsnt = 0;
 	mac_cb->txpkt_for_led = 0;
 	mac_cb->rxpkt_for_led = 0;
@@ -780,6 +783,7 @@ int hns_mac_get_cfg(struct dsaf_device *dsaf_dev, struct hns_mac_cb *mac_cb)
 	if (ret)
 		return ret;
 
+	cpld_led_reset(mac_cb);
 	mac_cb->vaddr = hns_mac_get_vaddr(dsaf_dev, mac_cb, mac_mode_idx);
 
 	return 0;
@@ -956,7 +960,7 @@ void hns_set_led_opt(struct hns_mac_cb *mac_cb)
 int hns_cpld_led_set_id(struct hns_mac_cb *mac_cb,
 			enum hnae_led_state status)
 {
-	if (!mac_cb || !mac_cb->cpld_vaddr)
+	if (!mac_cb || !mac_cb->cpld_ctrl)
 		return 0;
 
 	return cpld_set_led_id(mac_cb, status);

@@ -189,8 +189,6 @@ unmap_base_addr:
 		iounmap(dsaf_dev->sds_base);
 	if (dsaf_dev->sc_base)
 		iounmap(dsaf_dev->sc_base);
-	if (dsaf_dev->cpld_base)
-		iounmap(dsaf_dev->cpld_base);
 	return ret;
 }
 
@@ -207,9 +205,6 @@ static void hns_dsaf_free_cfg(struct dsaf_device *dsaf_dev)
 
 	if (dsaf_dev->sc_base)
 		iounmap(dsaf_dev->sc_base);
-
-	if (dsaf_dev->cpld_base)
-		iounmap(dsaf_dev->cpld_base);
 }
 
 /**
