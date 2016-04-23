@@ -665,6 +665,24 @@ static int gb_svc_hello(struct gb_operation *op)
 	return 0;
 }
 
+static void gb_svc_intf_reenable(struct gb_svc *svc, struct gb_interface *intf)
+{
+	int ret;
+
+	/* Mark as disconnected to prevent I/O during disable. */
+	intf->disconnected = true;
+	gb_interface_disable(intf);
+	intf->disconnected = false;
+
+	ret = gb_interface_enable(intf);
+	if (ret) {
+		dev_err(&svc->dev, "failed to enable interface %u: %d\n",
+				intf->interface_id, ret);
+
+		gb_interface_deactivate(intf);
+	}
+}
+
 static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 {
 	struct gb_svc_intf_hotplug_request *request;
@@ -686,12 +704,7 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 		dev_info(&svc->dev, "mode switch detected on interface %u\n",
 				intf_id);
 
-		/* Mark as disconnected to prevent I/O during disable. */
-		intf->disconnected = true;
-		gb_interface_disable(intf);
-		intf->disconnected = false;
-
-		goto enable_interface;
+		return gb_svc_intf_reenable(svc, intf);
 	}
 
 	intf = gb_interface_create(hd, intf_id);
@@ -713,7 +726,6 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	if (ret)
 		goto err_interface_deactivate;
 
-enable_interface:
 	ret = gb_interface_enable(intf);
 	if (ret) {
 		dev_err(&svc->dev, "failed to enable interface %u: %d\n",
