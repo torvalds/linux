@@ -249,7 +249,7 @@ int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb,
 	struct mac_entry_idx *old_entry;
 
 	old_entry = &mac_cb->addr_entry_idx[vmid];
-	if (dsaf_dev) {
+	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
 		memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
 		mac_entry.in_vlan_id = old_entry->vlan_id;
 		mac_entry.in_port_num = mac_cb->mac_id;
@@ -289,7 +289,7 @@ int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
-	if (dsaf_dev && addr) {
+	if (!HNS_DSAF_IS_DEBUG(dsaf_dev) && addr) {
 		memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
 		mac_entry.in_vlan_id = 0;/*vlan_id;*/
 		mac_entry.in_port_num = mac_cb->mac_id;
@@ -380,7 +380,7 @@ static int hns_mac_port_config_bc_en(struct hns_mac_cb *mac_cb,
 	if (mac_cb->mac_type == HNAE_PORT_DEBUG)
 		return 0;
 
-	if (dsaf_dev) {
+	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
 		memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
 		mac_entry.in_vlan_id = vlan_id;
 		mac_entry.in_port_num = mac_cb->mac_id;
@@ -418,7 +418,7 @@ int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vmid, bool enable)
 
 	uc_mac_entry = &mac_cb->addr_entry_idx[vmid];
 
-	if (dsaf_dev)  {
+	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))  {
 		memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
 		mac_entry.in_vlan_id = uc_mac_entry->vlan_id;
 		mac_entry.in_port_num = mac_cb->mac_id;

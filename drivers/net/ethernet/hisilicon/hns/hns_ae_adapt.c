@@ -96,7 +96,7 @@ static struct ring_pair_cb *hns_ae_get_base_ring_pair(
 	int q_num = rcb_comm->max_q_per_vf;
 	int vf_num = rcb_comm->max_vfn;
 
-	if (common_idx == HNS_DSAF_COMM_SERVICE_NW_IDX)
+	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
 		return &rcb_comm->ring_pair_cb[port * q_num * vf_num];
 	else
 		return &rcb_comm->ring_pair_cb[0];

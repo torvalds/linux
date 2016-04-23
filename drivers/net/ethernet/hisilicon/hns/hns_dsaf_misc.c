@@ -147,7 +147,7 @@ void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val)
 	if (port >= DSAF_GE_NUM)
 		return;
 
-	if (port < DSAF_SERVICE_NW_NUM) {
+	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
 		reg_val_1  = 0x1 << port;
 		/* there is difference between V1 and V2 in register.*/
 		if (AE_IS_VER1(dsaf_dev->dsaf_ver))
@@ -218,7 +218,7 @@ void hns_ppe_com_srst(struct ppe_common_cb *ppe_common, u32 val)
 	u32 reg_val;
 	u32 reg_addr;
 
-	if (comm_index == HNS_DSAF_COMM_SERVICE_NW_IDX) {
+	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
 		reg_val = RESET_REQ_OR_DREQ;
 		if (val == 0)
 			reg_addr = DSAF_SUB_SC_RCB_PPE_COM_RESET_REQ_REG;

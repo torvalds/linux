@@ -28,6 +28,7 @@ const char *g_dsaf_mode_match[DSAF_MODE_MAX] = {
 	[DSAF_MODE_DISABLE_2PORT_64VM] = "2port-64vf",
 	[DSAF_MODE_DISABLE_6PORT_0VM] = "6port-16rss",
 	[DSAF_MODE_DISABLE_6PORT_16VM] = "6port-16vf",
+	[DSAF_MODE_DISABLE_SP] = "single-port",
 };
 
 int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
@@ -217,9 +218,7 @@ static void hns_dsaf_mix_def_qid_cfg(struct dsaf_device *dsaf_dev)
 	u32 q_id, q_num_per_port;
 	u32 i;
 
-	hns_rcb_get_queue_mode(dsaf_dev->dsaf_mode,
-			       HNS_DSAF_COMM_SERVICE_NW_IDX,
-			       &max_vfn, &max_q_per_vf);
+	hns_rcb_get_queue_mode(dsaf_dev->dsaf_mode, &max_vfn, &max_q_per_vf);
 	q_num_per_port = max_vfn * max_q_per_vf;
 
 	for (i = 0, q_id = 0; i < DSAF_SERVICE_NW_NUM; i++) {
@@ -239,9 +238,7 @@ static void hns_dsaf_inner_qid_cfg(struct dsaf_device *dsaf_dev)
 	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
 		return;
 
-	hns_rcb_get_queue_mode(dsaf_dev->dsaf_mode,
-			       HNS_DSAF_COMM_SERVICE_NW_IDX,
-			       &max_vfn, &max_q_per_vf);
+	hns_rcb_get_queue_mode(dsaf_dev->dsaf_mode, &max_vfn, &max_q_per_vf);
 	q_num_per_port = max_vfn * max_q_per_vf;
 
 	for (mac_id = 0, q_id = 0; mac_id < DSAF_SERVICE_NW_NUM; mac_id++) {
@@ -712,7 +709,9 @@ static void hns_dsaf_tbl_tcam_data_ucast_pul(
 
 void hns_dsaf_set_promisc_mode(struct dsaf_device *dsaf_dev, u32 en)
 {
-	dsaf_set_dev_bit(dsaf_dev, DSAF_CFG_0_REG, DSAF_CFG_MIX_MODE_S, !!en);
+	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
+		dsaf_set_dev_bit(dsaf_dev, DSAF_CFG_0_REG,
+				 DSAF_CFG_MIX_MODE_S, !!en);
 }
 
 void hns_dsaf_set_inner_lb(struct dsaf_device *dsaf_dev, u32 mac_id, u32 en)
@@ -1306,6 +1305,9 @@ static int hns_dsaf_init(struct dsaf_device *dsaf_dev)
 	    (struct dsaf_drv_priv *)hns_dsaf_dev_priv(dsaf_dev);
 	u32 i;
 	int ret;
+
+	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return 0;
 
 	ret = hns_dsaf_init_hw(dsaf_dev);
 	if (ret)

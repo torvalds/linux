@@ -41,6 +41,7 @@ struct hns_mac_cb;
 #define DSAF_STATIC_NUM 28
 
 #define DSAF_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
+#define HNS_DSAF_IS_DEBUG(dev) (dev->dsaf_mode == DSAF_MODE_DISABLE_SP)
 
 enum hal_dsaf_mode {
 	HRD_DSAF_NO_DSAF_MODE	= 0x0,
@@ -117,6 +118,7 @@ enum dsaf_mode {
 	DSAF_MODE_ENABLE_32VM,	/**< en DSAF-mode, support 32 VM */
 	DSAF_MODE_ENABLE_128VM,	/**< en DSAF-mode, support 128 VM */
 	DSAF_MODE_ENABLE,		/**< before is enable DSAF mode*/
+	DSAF_MODE_DISABLE_SP,	/* <non-dsaf, single port mode */
 	DSAF_MODE_DISABLE_FIX,	/**< non-dasf, fixed to queue*/
 	DSAF_MODE_DISABLE_2PORT_8VM,	/**< non-dasf, 2port 8VM */
 	DSAF_MODE_DISABLE_2PORT_16VM,	/**< non-dasf, 2port 16VM */
