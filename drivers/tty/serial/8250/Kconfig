@@ -324,7 +324,6 @@ config SERIAL_8250_EM
 config SERIAL_8250_RT288X
 	bool "Ralink RT288x/RT305x/RT3662/RT3883 serial port support"
 	depends on SERIAL_8250
-	depends on MIPS || COMPILE_TEST
 	default y if MIPS_ALCHEMY || SOC_RT288X || SOC_RT305X || SOC_RT3883 || SOC_MT7620
 	help
 	  Selecting this option will add support for the alternate register
