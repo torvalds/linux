@@ -814,7 +814,7 @@ static struct tracing_map_elt *copy_elt(struct tracing_map_elt *elt)
 	unsigned int i;
 
 	dup_elt = tracing_map_elt_alloc(elt->map);
-	if (!dup_elt)
+	if (IS_ERR(dup_elt))
 		return NULL;
 
 	if (elt->map->ops && elt->map->ops->elt_copy)
