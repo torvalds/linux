@@ -7,22 +7,22 @@
  * (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
+#include <linux/device.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/vmalloc.h>
 
-#include "hns_dsaf_main.h"
-#include "hns_dsaf_rcb.h"
-#include "hns_dsaf_ppe.h"
 #include "hns_dsaf_mac.h"
+#include "hns_dsaf_main.h"
+#include "hns_dsaf_ppe.h"
+#include "hns_dsaf_rcb.h"
 
 const char *g_dsaf_mode_match[DSAF_MODE_MAX] = {
 	[DSAF_MODE_DISABLE_2PORT_64VM] = "2port-64vf",

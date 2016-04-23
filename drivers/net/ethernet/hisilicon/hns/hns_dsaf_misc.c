@@ -7,10 +7,10 @@
  * (at your option) any later version.
  */
 
-#include "hns_dsaf_misc.h"
 #include "hns_dsaf_mac.h"
-#include "hns_dsaf_reg.h"
+#include "hns_dsaf_misc.h"
 #include "hns_dsaf_ppe.h"
+#include "hns_dsaf_reg.h"
 
 void hns_cpld_set_led(struct hns_mac_cb *mac_cb, int link_status,
 		      u16 speed, int data)

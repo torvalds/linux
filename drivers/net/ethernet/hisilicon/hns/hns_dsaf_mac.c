@@ -7,18 +7,18 @@
  * (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/netdevice.h>
-#include <linux/phy_fixed.h>
 #include <linux/interrupt.h>
-#include <linux/platform_device.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/netdevice.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/phy_fixed.h>
+#include <linux/platform_device.h>
 
-#include "hns_dsaf_misc.h"
 #include "hns_dsaf_main.h"
+#include "hns_dsaf_misc.h"
 #include "hns_dsaf_rcb.h"
 
 #define MAC_EN_FLAG_V		0xada0328
