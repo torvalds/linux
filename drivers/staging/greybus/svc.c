@@ -650,6 +650,8 @@ static void gb_svc_debugfs_init(struct gb_svc *svc)
 static void gb_svc_debugfs_exit(struct gb_svc *svc)
 {
 	debugfs_remove_recursive(svc->debugfs_dentry);
+	kfree(svc->pwrmon_rails);
+	svc->pwrmon_rails = NULL;
 }
 
 static int gb_svc_hello(struct gb_operation *op)
