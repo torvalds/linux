@@ -132,6 +132,7 @@ static struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
 	[ILA_ATTR_LOCATOR] = { .type = NLA_U64, },
 	[ILA_ATTR_LOCATOR_MATCH] = { .type = NLA_U64, },
 	[ILA_ATTR_IFINDEX] = { .type = NLA_U32, },
+	[ILA_ATTR_CSUM_MODE] = { .type = NLA_U8, },
 };
 
 static int parse_nl_config(struct genl_info *info,
@@ -146,6 +147,9 @@ static int parse_nl_config(struct genl_info *info,
 	if (info->attrs[ILA_ATTR_LOCATOR_MATCH])
 		xp->ip.locator_match.v64 = (__force __be64)nla_get_u64(
 			info->attrs[ILA_ATTR_LOCATOR_MATCH]);
+
+	if (info->attrs[ILA_ATTR_CSUM_MODE])
+		xp->ip.csum_mode = nla_get_u8(info->attrs[ILA_ATTR_CSUM_MODE]);
 
 	if (info->attrs[ILA_ATTR_IFINDEX])
 		xp->ifindex = nla_get_s32(info->attrs[ILA_ATTR_IFINDEX]);
@@ -249,14 +253,9 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 	if (!ila)
 		return -ENOMEM;
 
-	ila->xp = *xp;
+	ila_init_saved_csum(&xp->ip);
 
-	/* Precompute checksum difference for translation since we
-	 * know both the old identifier and the new one.
-	 */
-	ila->xp.ip.csum_diff = compute_csum_diff8(
-		(__be32 *)&xp->ip.locator_match,
-		(__be32 *)&xp->ip.locator);
+	ila->xp = *xp;
 
 	order = ila_order(ila);
 
@@ -408,7 +407,8 @@ static int ila_fill_info(struct ila_map *ila, struct sk_buff *msg)
 	    nla_put_u64_64bit(msg, ILA_ATTR_LOCATOR_MATCH,
 			      (__force u64)ila->xp.ip.locator_match.v64,
 			      ILA_ATTR_PAD) ||
-	    nla_put_s32(msg, ILA_ATTR_IFINDEX, ila->xp.ifindex))
+	    nla_put_s32(msg, ILA_ATTR_IFINDEX, ila->xp.ifindex) ||
+	    nla_put_u32(msg, ILA_ATTR_CSUM_MODE, ila->xp.ip.csum_mode))
 		return -1;
 
 	return 0;

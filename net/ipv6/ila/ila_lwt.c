@@ -53,6 +53,7 @@ drop:
 
 static struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
 	[ILA_ATTR_LOCATOR] = { .type = NLA_U64, },
+	[ILA_ATTR_CSUM_MODE] = { .type = NLA_U8, },
 };
 
 static int ila_build_state(struct net_device *dev, struct nlattr *nla,
@@ -79,8 +80,10 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 
 	iaddr = (struct ila_addr *)&cfg6->fc_dst;
 
-	if (!ila_addr_is_ila(iaddr)) {
-		/* Don't allow setting a translation for a non-ILA address */
+	if (!ila_addr_is_ila(iaddr) || ila_csum_neutral_set(iaddr->ident)) {
+		/* Don't allow translation for a non-ILA address or checksum
+		 * neutral flag to be set.
+		 */
 		return -EINVAL;
 	}
 
@@ -108,6 +111,11 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 	p->csum_diff = compute_csum_diff8(
 		(__be32 *)&p->locator_match, (__be32 *)&p->locator);
 
+	if (tb[ILA_ATTR_CSUM_MODE])
+		p->csum_mode = nla_get_u8(tb[ILA_ATTR_CSUM_MODE]);
+
+	ila_init_saved_csum(p);
+
 	newts->type = LWTUNNEL_ENCAP_ILA;
 	newts->flags |= LWTUNNEL_STATE_OUTPUT_REDIRECT |
 			LWTUNNEL_STATE_INPUT_REDIRECT;
@@ -124,6 +132,8 @@ static int ila_fill_encap_info(struct sk_buff *skb,
 
 	if (nla_put_u64_64bit(skb, ILA_ATTR_LOCATOR, (__force u64)p->locator.v64,
 			      ILA_ATTR_PAD))
+		goto nla_put_failure;
+	if (nla_put_u64(skb, ILA_ATTR_CSUM_MODE, (__force u8)p->csum_mode))
 		goto nla_put_failure;
 
 	return 0;
