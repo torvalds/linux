@@ -581,38 +581,40 @@ static void gb_svc_pwrmon_debugfs_init(struct gb_svc *svc)
 	int i;
 	size_t bufsize;
 	struct dentry *dent;
+	struct gb_svc_pwrmon_rail_names_get_response *rail_names;
+	u8 rail_count;
 
 	dent = debugfs_create_dir("pwrmon", svc->debugfs_dentry);
 	if (IS_ERR_OR_NULL(dent))
 		return;
 
-	if (gb_svc_pwrmon_rail_count_get(svc, &svc->rail_count))
+	if (gb_svc_pwrmon_rail_count_get(svc, &rail_count))
 		goto err_pwrmon_debugfs;
 
-	if (!svc->rail_count || svc->rail_count > GB_SVC_PWRMON_MAX_RAIL_COUNT)
+	if (!rail_count || rail_count > GB_SVC_PWRMON_MAX_RAIL_COUNT)
 		goto err_pwrmon_debugfs;
 
-	bufsize = GB_SVC_PWRMON_RAIL_NAME_BUFSIZE * svc->rail_count;
+	bufsize = GB_SVC_PWRMON_RAIL_NAME_BUFSIZE * rail_count;
 
-	svc->rail_names = kzalloc(bufsize, GFP_KERNEL);
-	if (!svc->rail_names)
+	rail_names = kzalloc(bufsize, GFP_KERNEL);
+	if (!rail_names)
 		goto err_pwrmon_debugfs;
 
-	svc->pwrmon_rails = kcalloc(svc->rail_count, sizeof(*svc->pwrmon_rails),
+	svc->pwrmon_rails = kcalloc(rail_count, sizeof(*svc->pwrmon_rails),
 				    GFP_KERNEL);
 	if (!svc->pwrmon_rails)
 		goto err_pwrmon_debugfs_free;
 
-	if (gb_svc_pwrmon_rail_names_get(svc, svc->rail_names, bufsize))
+	if (gb_svc_pwrmon_rail_names_get(svc, rail_names, bufsize))
 		goto err_pwrmon_debugfs_free;
 
-	for (i = 0; i < svc->rail_count; i++) {
+	for (i = 0; i < rail_count; i++) {
 		struct dentry *dir;
 		struct svc_debugfs_pwrmon_rail *rail = &svc->pwrmon_rails[i];
 		char fname[GB_SVC_PWRMON_RAIL_NAME_BUFSIZE];
 
 		snprintf(fname, sizeof(fname), "%s",
-			 (char *)&svc->rail_names->name[i]);
+			 (char *)&rail_names->name[i]);
 
 		rail->id = i;
 		rail->svc = svc;
@@ -625,12 +627,12 @@ static void gb_svc_pwrmon_debugfs_init(struct gb_svc *svc)
 		debugfs_create_file("power_now", S_IRUGO, dir, rail,
 				    &pwrmon_debugfs_power_fops);
 	};
+
+	kfree(rail_names);
 	return;
 
 err_pwrmon_debugfs_free:
-	kfree(svc->rail_names);
-	svc->rail_names = NULL;
-
+	kfree(rail_names);
 	kfree(svc->pwrmon_rails);
 	svc->pwrmon_rails = NULL;
 
@@ -648,7 +650,6 @@ static void gb_svc_debugfs_init(struct gb_svc *svc)
 static void gb_svc_debugfs_exit(struct gb_svc *svc)
 {
 	debugfs_remove_recursive(svc->debugfs_dentry);
-	kfree(svc->rail_names);
 }
 
 static int gb_svc_hello(struct gb_operation *op)
