@@ -274,6 +274,15 @@ int gb_svc_intf_unipro_set(struct gb_svc *svc, u8 intf_id, bool enable)
 	return 0;
 }
 
+int gb_svc_intf_activate(struct gb_svc *svc, u8 intf_id, u8 *intf_type)
+{
+	/* FIXME: implement */
+
+	*intf_type = GB_SVC_INTF_TYPE_GREYBUS;
+
+	return 0;
+}
+
 int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 			u32 *value)
 {

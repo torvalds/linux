@@ -802,6 +802,7 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_PWRMON_RAIL_NAMES_GET	0x15
 #define GB_SVC_TYPE_PWRMON_SAMPLE_GET		0x16
 #define GB_SVC_TYPE_PWRMON_INTF_SAMPLE_GET	0x17
+#define GB_SVC_TYPE_INTF_ACTIVATE		0x27
 
 /*
  * SVC version request/response has the same payload as
@@ -1006,6 +1007,19 @@ struct gb_svc_pwrmon_intf_sample_get_request {
 struct gb_svc_pwrmon_intf_sample_get_response {
 	__u8	result;
 	__le32	measurement;
+} __packed;
+
+struct gb_svc_intf_activate_request {
+	__u8	intf_id;
+} __packed;
+
+#define GB_SVC_INTF_TYPE_UNKNOWN		0x00
+#define GB_SVC_INTF_TYPE_DUMMY			0x01
+#define GB_SVC_INTF_TYPE_UNIPRO			0x02
+#define GB_SVC_INTF_TYPE_GREYBUS		0x03
+
+struct gb_svc_intf_activate_response {
+	__u8	intf_type;
 } __packed;
 
 /* RAW */
