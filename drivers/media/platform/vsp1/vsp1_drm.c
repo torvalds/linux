@@ -255,8 +255,8 @@ EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
  *
  * Return 0 on success or a negative error code on failure.
  */
-int __vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
-			    const struct vsp1_du_atomic_config *cfg)
+int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
+			  const struct vsp1_du_atomic_config *cfg)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	const struct vsp1_format_info *fmtinfo;
@@ -310,7 +310,7 @@ int __vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(__vsp1_du_atomic_update);
+EXPORT_SYMBOL_GPL(vsp1_du_atomic_update);
 
 static int vsp1_du_setup_rpf_pipe(struct vsp1_device *vsp1,
 				  struct vsp1_rwpf *rpf, unsigned int bru_input)

@@ -34,32 +34,8 @@ struct vsp1_du_atomic_config {
 };
 
 void vsp1_du_atomic_begin(struct device *dev);
-int __vsp1_du_atomic_update(struct device *dev, unsigned int rpf,
-			    const struct vsp1_du_atomic_config *cfg);
+int vsp1_du_atomic_update(struct device *dev, unsigned int rpf,
+			  const struct vsp1_du_atomic_config *cfg);
 void vsp1_du_atomic_flush(struct device *dev);
-
-static inline int vsp1_du_atomic_update_old(struct device *dev,
-	unsigned int rpf, u32 pixelformat, unsigned int pitch,
-	dma_addr_t mem[2], const struct v4l2_rect *src,
-	const struct v4l2_rect *dst)
-{
-	struct vsp1_du_atomic_config cfg = {
-		.pixelformat = pixelformat,
-		.pitch = pitch,
-		.mem[0] = mem[0],
-		.mem[1] = mem[1],
-		.src = *src,
-		.dst = *dst,
-		.alpha = 255,
-		.zpos = 0,
-	};
-
-	return __vsp1_du_atomic_update(dev, rpf, &cfg);
-}
-
-#define _vsp1_du_atomic_update(_1, _2, _3, _4, _5, _6, _7, f, ...) f
-#define vsp1_du_atomic_update(...) \
-	_vsp1_du_atomic_update(__VA_ARGS__, vsp1_du_atomic_update_old, 0, 0, \
-			       0, __vsp1_du_atomic_update)(__VA_ARGS__)
 
 #endif /* __MEDIA_VSP1_H__ */
