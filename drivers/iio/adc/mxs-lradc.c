@@ -1148,14 +1148,6 @@ static int mxs_lradc_ts_register(struct mxs_lradc *lradc)
 	return input_register_device(input);
 }
 
-static void mxs_lradc_ts_unregister(struct mxs_lradc *lradc)
-{
-	if (!lradc->use_touchscreen)
-		return;
-
-	mxs_lradc_disable_ts(lradc);
-}
-
 /*
  * IRQ Handling
  */
@@ -1715,13 +1707,11 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	ret = iio_device_register(iio);
 	if (ret) {
 		dev_err(dev, "Failed to register IIO device\n");
-		goto err_ts;
+		return ret;
 	}
 
 	return 0;
 
-err_ts:
-	mxs_lradc_ts_unregister(lradc);
 err_ts_register:
 	mxs_lradc_hw_stop(lradc);
 err_dev:
@@ -1739,7 +1729,6 @@ static int mxs_lradc_remove(struct platform_device *pdev)
 	struct mxs_lradc *lradc = iio_priv(iio);
 
 	iio_device_unregister(iio);
-	mxs_lradc_ts_unregister(lradc);
 	mxs_lradc_hw_stop(lradc);
 	mxs_lradc_trigger_remove(iio);
 	iio_triggered_buffer_cleanup(iio);
