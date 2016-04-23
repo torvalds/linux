@@ -5,6 +5,13 @@ config COMMON_CLK_HI6220
 	help
 	  Build the Hisilicon Hi6220 clock driver based on the common clock framework.
 
+config RESET_HISI
+	bool "HiSilicon Reset Controller Driver"
+	depends on ARCH_HISI || COMPILE_TEST
+	select RESET_CONTROLLER
+	help
+	  Build reset controller driver for HiSilicon device chipsets.
+
 config STUB_CLK_HI6220
 	bool "Hi6220 Stub Clock Driver"
 	depends on COMMON_CLK_HI6220 && MAILBOX
