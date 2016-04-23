@@ -14,6 +14,14 @@ Description:
 		A Module M on the bus N, where M is the 1-byte interface
 		ID of the module's primary interface.
 
+What:		/sys/bus/greybus/device/N-M/eject
+Date:		March 2016
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Writing a non-zero argument to this attibute disables the
+		module's interfaces before physically ejecting it.
+
 What:		/sys/bus/greybus/device/N-M/module_id
 Date:		March 2016
 KernelVersion:	4.XX

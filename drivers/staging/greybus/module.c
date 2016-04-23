@@ -10,6 +10,43 @@
 #include "greybus.h"
 
 
+static ssize_t eject_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t len)
+{
+	struct gb_module *module = to_gb_module(dev);
+	struct gb_interface *intf;
+	size_t i;
+	long val;
+	int ret;
+
+	ret = kstrtol(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (!val)
+		return len;
+
+	for (i = 0; i < module->num_interfaces; ++i) {
+		intf = module->interfaces[i];
+
+		mutex_lock(&intf->mutex);
+		/* Set flag to prevent concurrent activation. */
+		intf->ejected = true;
+		gb_interface_disable(intf);
+		gb_interface_deactivate(intf);
+		mutex_unlock(&intf->mutex);
+	}
+
+	/* Tell the SVC to eject the primary interface. */
+	ret = gb_svc_intf_eject(module->hd->svc, module->module_id);
+	if (ret)
+		return ret;
+
+	return len;
+}
+static DEVICE_ATTR_WO(eject);
+
 static ssize_t module_id_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -29,6 +66,7 @@ static ssize_t num_interfaces_show(struct device *dev,
 static DEVICE_ATTR_RO(num_interfaces);
 
 static struct attribute *module_attrs[] = {
+	&dev_attr_eject.attr,
 	&dev_attr_module_id.attr,
 	&dev_attr_num_interfaces.attr,
 	NULL,
@@ -101,12 +139,14 @@ static void gb_module_register_interface(struct gb_interface *intf)
 	u8 intf_id = intf->interface_id;
 	int ret;
 
+	mutex_lock(&intf->mutex);
+
 	ret = gb_interface_activate(intf);
 	if (ret) {
 		dev_err(&module->dev, "failed to activate interface %u: %d\n",
 				intf_id, ret);
 		gb_interface_add(intf);
-		return;
+		goto err_unlock;
 	}
 
 	ret = gb_interface_add(intf);
@@ -120,10 +160,14 @@ static void gb_module_register_interface(struct gb_interface *intf)
 		goto err_interface_deactivate;
 	}
 
+	mutex_unlock(&intf->mutex);
+
 	return;
 
 err_interface_deactivate:
 	gb_interface_deactivate(intf);
+err_unlock:
+	mutex_unlock(&intf->mutex);
 }
 
 static void gb_module_deregister_interface(struct gb_interface *intf)
@@ -132,8 +176,10 @@ static void gb_module_deregister_interface(struct gb_interface *intf)
 	if (intf->module->disconnected)
 		intf->disconnected = true;
 
+	mutex_lock(&intf->mutex);
 	gb_interface_disable(intf);
 	gb_interface_deactivate(intf);
+	mutex_unlock(&intf->mutex);
 
 	gb_interface_del(intf);
 }

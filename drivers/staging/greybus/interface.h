@@ -39,7 +39,10 @@ struct gb_interface {
 
 	unsigned long quirks;
 
+	struct mutex mutex;
+
 	bool disconnected;
+	bool ejected;
 	bool enabled;
 };
 #define to_gb_interface(d) container_of(d, struct gb_interface, dev)

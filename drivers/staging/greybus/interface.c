@@ -372,6 +372,7 @@ struct gb_interface *gb_interface_create(struct gb_module *module,
 	intf->interface_id = interface_id;
 	INIT_LIST_HEAD(&intf->bundles);
 	INIT_LIST_HEAD(&intf->manifest_descs);
+	mutex_init(&intf->mutex);
 
 	/* Invalid device id to start with */
 	intf->device_id = GB_INTERFACE_DEVICE_ID_BAD;
@@ -388,9 +389,17 @@ struct gb_interface *gb_interface_create(struct gb_module *module,
 	return intf;
 }
 
+/*
+ * Activate an interface.
+ *
+ * Locking: Caller holds the interface mutex.
+ */
 int gb_interface_activate(struct gb_interface *intf)
 {
 	int ret;
+
+	if (intf->ejected)
+		return -ENODEV;
 
 	ret = gb_interface_read_dme(intf);
 	if (ret)
@@ -403,6 +412,11 @@ int gb_interface_activate(struct gb_interface *intf)
 	return 0;
 }
 
+/*
+ * Deactivate an interface.
+ *
+ * Locking: Caller holds the interface mutex.
+ */
 void gb_interface_deactivate(struct gb_interface *intf)
 {
 	gb_interface_route_destroy(intf);
@@ -412,6 +426,8 @@ void gb_interface_deactivate(struct gb_interface *intf)
  * Enable an interface by enabling its control connection, fetching the
  * manifest and other information over it, and finally registering its child
  * devices.
+ *
+ * Locking: Caller holds the interface mutex.
  */
 int gb_interface_enable(struct gb_interface *intf)
 {
@@ -516,7 +532,11 @@ err_put_control:
 	return ret;
 }
 
-/* Disable an interface and destroy its bundles. */
+/*
+ * Disable an interface and destroy its bundles.
+ *
+ * Locking: Caller holds the interface mutex.
+ */
 void gb_interface_disable(struct gb_interface *intf)
 {
 	struct gb_bundle *bundle;

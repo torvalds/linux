@@ -682,6 +682,8 @@ static void gb_svc_intf_reenable(struct gb_svc *svc, struct gb_interface *intf)
 {
 	int ret;
 
+	mutex_lock(&intf->mutex);
+
 	/* Mark as disconnected to prevent I/O during disable. */
 	intf->disconnected = true;
 	gb_interface_disable(intf);
@@ -694,6 +696,8 @@ static void gb_svc_intf_reenable(struct gb_svc *svc, struct gb_interface *intf)
 
 		gb_interface_deactivate(intf);
 	}
+
+	mutex_unlock(&intf->mutex);
 }
 
 static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
