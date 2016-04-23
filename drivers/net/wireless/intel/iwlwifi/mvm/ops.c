@@ -782,8 +782,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	for (i = 0; i < NVM_MAX_NUM_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
 
-	iwl_free_fw_paging(mvm);
-
 	iwl_mvm_tof_clean(mvm);
 
 	del_timer_sync(&mvm->scan_timer);

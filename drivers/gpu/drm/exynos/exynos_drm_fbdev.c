@@ -317,3 +317,14 @@ void exynos_drm_fbdev_restore_mode(struct drm_device *dev)
 
 	drm_fb_helper_restore_fbdev_mode_unlocked(private->fb_helper);
 }
+
+void exynos_drm_output_poll_changed(struct drm_device *dev)
+{
+	struct exynos_drm_private *private = dev->dev_private;
+	struct drm_fb_helper *fb_helper = private->fb_helper;
+
+	if (fb_helper)
+		drm_fb_helper_hotplug_event(fb_helper);
+	else
+		exynos_drm_fbdev_init(dev);
+}
