@@ -4004,7 +4004,8 @@ static int queue_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
 	int reserved_trbs = xhci->cmd_ring_reserved_trbs;
 	int ret;
 
-	if (xhci->xhc_state) {
+	if ((xhci->xhc_state & XHCI_STATE_DYING) ||
+		(xhci->xhc_state & XHCI_STATE_HALTED)) {
 		xhci_dbg(xhci, "xHCI dying or halted, can't queue_command\n");
 		return -ESHUTDOWN;
 	}

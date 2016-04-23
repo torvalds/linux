@@ -34,11 +34,6 @@ enum {
 DECLARE_PER_CPU(int, cpu_state);
 
 void smp_message_recv(unsigned int msg);
-void smp_timer_broadcast(const struct cpumask *mask);
-
-void local_timer_interrupt(void);
-void local_timer_setup(unsigned int cpu);
-void local_timer_stop(unsigned int cpu);
 
 void arch_send_call_function_single_ipi(int cpu);
 void arch_send_call_function_ipi_mask(const struct cpumask *mask);

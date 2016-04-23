@@ -867,39 +867,55 @@ static int blocks_are_unmapped_or_clean(struct dm_cache_metadata *cmd,
 	return 0;
 }
 
-#define WRITE_LOCK(cmd)	\
-	down_write(&cmd->root_lock); \
-	if (cmd->fail_io || dm_bm_is_read_only(cmd->bm)) { \
-		up_write(&cmd->root_lock); \
-		return -EINVAL; \
+static bool cmd_write_lock(struct dm_cache_metadata *cmd)
+{
+	down_write(&cmd->root_lock);
+	if (cmd->fail_io || dm_bm_is_read_only(cmd->bm)) {
+		up_write(&cmd->root_lock);
+		return false;
 	}
+	return true;
+}
 
-#define WRITE_LOCK_VOID(cmd) \
-	down_write(&cmd->root_lock); \
-	if (cmd->fail_io || dm_bm_is_read_only(cmd->bm)) { \
-		up_write(&cmd->root_lock); \
-		return; \
-	}
+#define WRITE_LOCK(cmd)				\
+	do {					\
+		if (!cmd_write_lock((cmd)))	\
+			return -EINVAL;		\
+	} while(0)
+
+#define WRITE_LOCK_VOID(cmd)			\
+	do {					\
+		if (!cmd_write_lock((cmd)))	\
+			return;			\
+	} while(0)
 
 #define WRITE_UNLOCK(cmd) \
-	up_write(&cmd->root_lock)
+	up_write(&(cmd)->root_lock)
 
-#define READ_LOCK(cmd) \
-	down_read(&cmd->root_lock); \
-	if (cmd->fail_io || dm_bm_is_read_only(cmd->bm)) { \
-		up_read(&cmd->root_lock); \
-		return -EINVAL; \
+static bool cmd_read_lock(struct dm_cache_metadata *cmd)
+{
+	down_read(&cmd->root_lock);
+	if (cmd->fail_io) {
+		up_read(&cmd->root_lock);
+		return false;
 	}
+	return true;
+}
 
-#define READ_LOCK_VOID(cmd)	\
-	down_read(&cmd->root_lock); \
-	if (cmd->fail_io || dm_bm_is_read_only(cmd->bm)) { \
-		up_read(&cmd->root_lock); \
-		return; \
-	}
+#define READ_LOCK(cmd)				\
+	do {					\
+		if (!cmd_read_lock((cmd)))	\
+			return -EINVAL;		\
+	} while(0)
+
+#define READ_LOCK_VOID(cmd)			\
+	do {					\
+		if (!cmd_read_lock((cmd)))	\
+			return;			\
+	} while(0)
 
 #define READ_UNLOCK(cmd) \
-	up_read(&cmd->root_lock)
+	up_read(&(cmd)->root_lock)
 
 int dm_cache_resize(struct dm_cache_metadata *cmd, dm_cblock_t new_cache_size)
 {

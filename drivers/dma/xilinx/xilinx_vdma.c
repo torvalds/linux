@@ -1236,7 +1236,7 @@ static struct dma_chan *of_dma_xilinx_xlate(struct of_phandle_args *dma_spec,
 	struct xilinx_vdma_device *xdev = ofdma->of_dma_data;
 	int chan_id = dma_spec->args[0];
 
-	if (chan_id >= XILINX_VDMA_MAX_CHANS_PER_DEVICE)
+	if (chan_id >= XILINX_VDMA_MAX_CHANS_PER_DEVICE || !xdev->chan[chan_id])
 		return NULL;
 
 	return dma_get_slave_channel(&xdev->chan[chan_id]->common);

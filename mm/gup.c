@@ -1,4 +1,3 @@
-#define __DISABLE_GUP_DEPRECATED 1
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/err.h>
@@ -839,7 +838,7 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
  *      if (locked)
  *          up_read(&mm->mmap_sem);
  */
-long get_user_pages_locked6(unsigned long start, unsigned long nr_pages,
+long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
 			   int write, int force, struct page **pages,
 			   int *locked)
 {
@@ -847,7 +846,7 @@ long get_user_pages_locked6(unsigned long start, unsigned long nr_pages,
 				       write, force, pages, NULL, locked, true,
 				       FOLL_TOUCH);
 }
-EXPORT_SYMBOL(get_user_pages_locked6);
+EXPORT_SYMBOL(get_user_pages_locked);
 
 /*
  * Same as get_user_pages_unlocked(...., FOLL_TOUCH) but it allows to
@@ -892,13 +891,13 @@ EXPORT_SYMBOL(__get_user_pages_unlocked);
  * or if "force" shall be set to 1 (get_user_pages_fast misses the
  * "force" parameter).
  */
-long get_user_pages_unlocked5(unsigned long start, unsigned long nr_pages,
+long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
 			     int write, int force, struct page **pages)
 {
 	return __get_user_pages_unlocked(current, current->mm, start, nr_pages,
 					 write, force, pages, FOLL_TOUCH);
 }
-EXPORT_SYMBOL(get_user_pages_unlocked5);
+EXPORT_SYMBOL(get_user_pages_unlocked);
 
 /*
  * get_user_pages_remote() - pin user pages in memory
@@ -972,7 +971,7 @@ EXPORT_SYMBOL(get_user_pages_remote);
  * and mm being operated on are the current task's.  We also
  * obviously don't pass FOLL_REMOTE in here.
  */
-long get_user_pages6(unsigned long start, unsigned long nr_pages,
+long get_user_pages(unsigned long start, unsigned long nr_pages,
 		int write, int force, struct page **pages,
 		struct vm_area_struct **vmas)
 {
@@ -980,7 +979,7 @@ long get_user_pages6(unsigned long start, unsigned long nr_pages,
 				       write, force, pages, vmas, NULL, false,
 				       FOLL_TOUCH);
 }
-EXPORT_SYMBOL(get_user_pages6);
+EXPORT_SYMBOL(get_user_pages);
 
 /**
  * populate_vma_page_range() -  populate a range of pages in the vma.
@@ -1491,7 +1490,6 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			struct page **pages)
 {
-	struct mm_struct *mm = current->mm;
 	int nr, ret;
 
 	start &= PAGE_MASK;
@@ -1503,8 +1501,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		start += nr << PAGE_SHIFT;
 		pages += nr;
 
-		ret = get_user_pages_unlocked(current, mm, start,
-					      nr_pages - nr, write, 0, pages);
+		ret = get_user_pages_unlocked(start, nr_pages - nr, write, 0, pages);
 
 		/* Have to be a bit careful with return values */
 		if (nr > 0) {
@@ -1519,38 +1516,3 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 }
 
 #endif /* CONFIG_HAVE_GENERIC_RCU_GUP */
-
-long get_user_pages8(struct task_struct *tsk, struct mm_struct *mm,
-		     unsigned long start, unsigned long nr_pages,
-		     int write, int force, struct page **pages,
-		     struct vm_area_struct **vmas)
-{
-	WARN_ONCE(tsk != current, "get_user_pages() called on remote task");
-	WARN_ONCE(mm != current->mm, "get_user_pages() called on remote mm");
-
-	return get_user_pages6(start, nr_pages, write, force, pages, vmas);
-}
-EXPORT_SYMBOL(get_user_pages8);
-
-long get_user_pages_locked8(struct task_struct *tsk, struct mm_struct *mm,
-			    unsigned long start, unsigned long nr_pages,
-			    int write, int force, struct page **pages, int *locked)
-{
-	WARN_ONCE(tsk != current, "get_user_pages_locked() called on remote task");
-	WARN_ONCE(mm != current->mm, "get_user_pages_locked() called on remote mm");
-
-	return get_user_pages_locked6(start, nr_pages, write, force, pages, locked);
-}
-EXPORT_SYMBOL(get_user_pages_locked8);
-
-long get_user_pages_unlocked7(struct task_struct *tsk, struct mm_struct *mm,
-				  unsigned long start, unsigned long nr_pages,
-				  int write, int force, struct page **pages)
-{
-	WARN_ONCE(tsk != current, "get_user_pages_unlocked() called on remote task");
-	WARN_ONCE(mm != current->mm, "get_user_pages_unlocked() called on remote mm");
-
-	return get_user_pages_unlocked5(start, nr_pages, write, force, pages);
-}
-EXPORT_SYMBOL(get_user_pages_unlocked7);
-

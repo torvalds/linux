@@ -103,6 +103,20 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 			flush_dcache_page(page);
 		}
 	} else {
+		/*
+		 * Note that we write the data both before and after
+		 * clearing poison.  The write before clear poison
+		 * handles situations where the latest written data is
+		 * preserved and the clear poison operation simply marks
+		 * the address range as valid without changing the data.
+		 * In this case application software can assume that an
+		 * interrupted write will either return the new good
+		 * data or an error.
+		 *
+		 * However, if pmem_clear_poison() leaves the data in an
+		 * indeterminate state we need to perform the write
+		 * after clear poison.
+		 */
 		flush_dcache_page(page);
 		memcpy_to_pmem(pmem_addr, mem + off, len);
 		if (unlikely(bad_pmem)) {
