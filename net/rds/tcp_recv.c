@@ -207,22 +207,14 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 		}
 
 		if (left && tc->t_tinc_data_rem) {
-			clone = skb_clone(skb, arg->gfp);
+			to_copy = min(tc->t_tinc_data_rem, left);
+
+			clone = pskb_extract(skb, offset, to_copy, arg->gfp);
 			if (!clone) {
 				desc->error = -ENOMEM;
 				goto out;
 			}
 
-			to_copy = min(tc->t_tinc_data_rem, left);
-			if (!pskb_pull(clone, offset) ||
-			    pskb_trim(clone, to_copy)) {
-				pr_warn("rds_tcp_data_recv: pull/trim failed "
-					"left %zu data_rem %zu skb_len %d\n",
-					left, tc->t_tinc_data_rem, skb->len);
-				kfree_skb(clone);
-				desc->error = -ENOMEM;
-				goto out;
-			}
 			skb_queue_tail(&tinc->ti_skb_list, clone);
 
 			rdsdebug("skb %p data %p len %d off %u to_copy %zu -> "
