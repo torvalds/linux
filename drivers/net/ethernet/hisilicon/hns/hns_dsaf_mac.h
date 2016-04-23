@@ -319,6 +319,7 @@ struct hns_mac_cb {
 	struct regmap *cpld_ctrl;
 	u32 cpld_ctrl_reg;
 	u32 port_rst_off;
+	u32 port_mode_off;
 	struct mac_entry_idx addr_entry_idx[DSAF_MAX_VM_NUM];
 	u8 sfp_prsnt;
 	u8 cpld_led_value;
