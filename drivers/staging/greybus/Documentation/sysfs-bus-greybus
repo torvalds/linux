@@ -88,13 +88,13 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Power measurement of the interface in microwatts (uW)
 
-What:		/sys/bus/greybus/device/N-I.B
+What:		/sys/bus/greybus/device/N-I.ctrl
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		A bundle B on the Interface I, B is replaced by a 1-byte
-		number representing the bundle.
+		Abstract control device for interface I that represents the
+		current mode of an enumerated Greybus interface.
 
 What:		/sys/bus/greybus/device/N-I.ctrl/product_string
 Date:		October 2015
@@ -109,6 +109,14 @@ KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Vendor ID string of a Greybus interface.
+
+What:		/sys/bus/greybus/device/N-I.B
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		A bundle B on the Interface I, B is replaced by a 1-byte
+		number representing the bundle.
 
 What:		/sys/bus/greybus/device/N-I.B/bundle_class
 Date:		October 2015
