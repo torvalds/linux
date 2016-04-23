@@ -69,6 +69,9 @@ int gb_svc_connection_create(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 			       u8 intf2_id, u16 cport2_id);
 int gb_svc_intf_eject(struct gb_svc *svc, u8 intf_id);
+int gb_svc_intf_vsys_set(struct gb_svc *svc, u8 intf_id, bool enable);
+int gb_svc_intf_refclk_set(struct gb_svc *svc, u8 intf_id, bool enable);
+int gb_svc_intf_unipro_set(struct gb_svc *svc, u8 intf_id, bool enable);
 int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 			u32 *value);
 int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
