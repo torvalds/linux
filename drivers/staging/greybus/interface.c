@@ -389,6 +389,95 @@ struct gb_interface *gb_interface_create(struct gb_module *module,
 	return intf;
 }
 
+static int gb_interface_vsys_set(struct gb_interface *intf, bool enable)
+{
+	struct gb_svc *svc = intf->hd->svc;
+	int ret;
+
+	dev_dbg(&intf->dev, "%s - %d\n", __func__, enable);
+
+	ret = gb_svc_intf_vsys_set(svc, intf->interface_id, enable);
+	if (ret) {
+		dev_err(&intf->dev, "failed to enable v_sys: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int gb_interface_refclk_set(struct gb_interface *intf, bool enable)
+{
+	struct gb_svc *svc = intf->hd->svc;
+	int ret;
+
+	dev_dbg(&intf->dev, "%s - %d\n", __func__, enable);
+
+	ret = gb_svc_intf_refclk_set(svc, intf->interface_id, enable);
+	if (ret) {
+		dev_err(&intf->dev, "failed to enable refclk: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int gb_interface_unipro_set(struct gb_interface *intf, bool enable)
+{
+	struct gb_svc *svc = intf->hd->svc;
+	int ret;
+
+	dev_dbg(&intf->dev, "%s - %d\n", __func__, enable);
+
+	ret = gb_svc_intf_unipro_set(svc, intf->interface_id, enable);
+	if (ret) {
+		dev_err(&intf->dev, "failed to enable UniPro: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int gb_interface_activate_operation(struct gb_interface *intf)
+{
+	struct gb_svc *svc = intf->hd->svc;
+	u8 type;
+	int ret;
+
+	dev_dbg(&intf->dev, "%s\n", __func__);
+
+	ret = gb_svc_intf_activate(svc, intf->interface_id, &type);
+	if (ret) {
+		dev_err(&intf->dev, "failed to activate: %d\n", ret);
+		return ret;
+	}
+
+	switch (type) {
+	case GB_SVC_INTF_TYPE_DUMMY:
+		dev_info(&intf->dev, "dummy interface detected\n");
+		/* FIXME: handle as an error for now */
+		return -ENODEV;
+	case GB_SVC_INTF_TYPE_UNIPRO:
+		dev_err(&intf->dev, "interface type UniPro not supported\n");
+		return -ENODEV;
+	case GB_SVC_INTF_TYPE_GREYBUS:
+		break;
+	default:
+		dev_err(&intf->dev, "unknown interface type: %u\n", type);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static int gb_interface_hibernate_link(struct gb_interface *intf)
+{
+	dev_dbg(&intf->dev, "%s\n", __func__);
+
+	/* FIXME: implement */
+
+	return 0;
+}
+
 /*
  * Activate an interface.
  *
@@ -401,17 +490,44 @@ int gb_interface_activate(struct gb_interface *intf)
 	if (intf->ejected)
 		return -ENODEV;
 
-	ret = gb_interface_read_dme(intf);
+	ret = gb_interface_vsys_set(intf, true);
 	if (ret)
 		return ret;
 
+	ret = gb_interface_refclk_set(intf, true);
+	if (ret)
+		goto err_vsys_disable;
+
+	ret = gb_interface_unipro_set(intf, true);
+	if (ret)
+		goto err_refclk_disable;
+
+	ret = gb_interface_activate_operation(intf);
+	if (ret)
+		goto err_unipro_disable;
+
+	ret = gb_interface_read_dme(intf);
+	if (ret)
+		goto err_hibernate_link;
+
 	ret = gb_interface_route_create(intf);
 	if (ret)
-		return ret;
+		goto err_hibernate_link;
 
 	intf->active = true;
 
 	return 0;
+
+err_hibernate_link:
+	gb_interface_hibernate_link(intf);
+err_unipro_disable:
+	gb_interface_unipro_set(intf, false);
+err_refclk_disable:
+	gb_interface_refclk_set(intf, false);
+err_vsys_disable:
+	gb_interface_vsys_set(intf, false);
+
+	return ret;
 }
 
 /*
@@ -425,6 +541,10 @@ void gb_interface_deactivate(struct gb_interface *intf)
 		return;
 
 	gb_interface_route_destroy(intf);
+	gb_interface_hibernate_link(intf);
+	gb_interface_unipro_set(intf, false);
+	gb_interface_refclk_set(intf, false);
+	gb_interface_vsys_set(intf, false);
 
 	intf->active = false;
 }
