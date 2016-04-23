@@ -45,7 +45,6 @@
 struct vibra_info {
 	struct device *dev;
 	struct input_dev *input_dev;
-	struct workqueue_struct *workqueue;
 	struct work_struct play_work;
 	struct mutex mutex;
 	int irq;
@@ -213,11 +212,7 @@ static int vibra_play(struct input_dev *input, void *data,
 	info->strong_speed = effect->u.rumble.strong_magnitude;
 	info->direction = effect->direction < EFFECT_DIR_180_DEG ? 1 : -1;
 
-	ret = queue_work(info->workqueue, &info->play_work);
-	if (!ret) {
-		dev_info(&input->dev, "work is already on queue\n");
-		return ret;
-	}
+	schedule_work(&info->play_work);
 
 	return 0;
 }
@@ -362,7 +357,6 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 
 	info->input_dev->name = "twl6040:vibrator";
 	info->input_dev->id.version = 1;
-	info->input_dev->dev.parent = pdev->dev.parent;
 	info->input_dev->close = twl6040_vibra_close;
 	__set_bit(FF_RUMBLE, info->input_dev->ffbit);
 
