@@ -333,21 +333,6 @@ static struct attribute *interface_attrs[] = {
 };
 ATTRIBUTE_GROUPS(interface);
 
-
-// FIXME, odds are you don't want to call this function, rework the caller to
-// not need it please.
-struct gb_interface *gb_interface_find(struct gb_host_device *hd,
-				       u8 interface_id)
-{
-	struct gb_interface *intf;
-
-	list_for_each_entry(intf, &hd->interfaces, links)
-		if (intf->interface_id == interface_id)
-			return intf;
-
-	return NULL;
-}
-
 static void gb_interface_release(struct device *dev)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -371,13 +356,11 @@ struct device_type greybus_interface_type = {
  *
  * Returns a pointer to the new interfce or a null pointer if a
  * failure occurs due to memory exhaustion.
- *
- * Locking: Caller ensures serialisation with gb_interface_remove and
- * gb_interface_find.
  */
-struct gb_interface *gb_interface_create(struct gb_host_device *hd,
+struct gb_interface *gb_interface_create(struct gb_module *module,
 					 u8 interface_id)
 {
+	struct gb_host_device *hd = module->hd;
 	struct gb_interface *intf;
 
 	intf = kzalloc(sizeof(*intf), GFP_KERNEL);
@@ -385,6 +368,7 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 		return NULL;
 
 	intf->hd = hd;		/* XXX refcount? */
+	intf->module = module;
 	intf->interface_id = interface_id;
 	INIT_LIST_HEAD(&intf->bundles);
 	INIT_LIST_HEAD(&intf->manifest_descs);
@@ -392,15 +376,14 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 	/* Invalid device id to start with */
 	intf->device_id = GB_INTERFACE_DEVICE_ID_BAD;
 
-	intf->dev.parent = &hd->dev;
+	intf->dev.parent = &module->dev;
 	intf->dev.bus = &greybus_bus_type;
 	intf->dev.type = &greybus_interface_type;
 	intf->dev.groups = interface_groups;
-	intf->dev.dma_mask = hd->dev.dma_mask;
+	intf->dev.dma_mask = module->dev.dma_mask;
 	device_initialize(&intf->dev);
-	dev_set_name(&intf->dev, "%d-%d", hd->bus_id, interface_id);
-
-	list_add(&intf->links, &hd->interfaces);
+	dev_set_name(&intf->dev, "%s.%u", dev_name(&module->dev),
+			interface_id);
 
 	return intf;
 }
@@ -579,15 +562,16 @@ int gb_interface_add(struct gb_interface *intf)
 	return 0;
 }
 
-/* Deregister an interface and drop its reference. */
-void gb_interface_remove(struct gb_interface *intf)
+/* Deregister an interface. */
+void gb_interface_del(struct gb_interface *intf)
 {
 	if (device_is_registered(&intf->dev)) {
 		device_del(&intf->dev);
 		dev_info(&intf->dev, "Interface removed\n");
 	}
+}
 
-	list_del(&intf->links);
-
+void gb_interface_put(struct gb_interface *intf)
+{
 	put_device(&intf->dev);
 }

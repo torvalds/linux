@@ -665,6 +665,19 @@ static int gb_svc_hello(struct gb_operation *op)
 	return 0;
 }
 
+static struct gb_module *gb_svc_module_lookup(struct gb_svc *svc, u8 module_id)
+{
+	struct gb_host_device *hd = svc->hd;
+	struct gb_module *module;
+
+	list_for_each_entry(module, &hd->modules, hd_node) {
+		if (module->module_id == module_id)
+			return module;
+	}
+
+	return NULL;
+}
+
 static void gb_svc_intf_reenable(struct gb_svc *svc, struct gb_interface *intf)
 {
 	int ret;
@@ -689,7 +702,7 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	struct gb_connection *connection = operation->connection;
 	struct gb_svc *svc = gb_connection_get_data(connection);
 	struct gb_host_device *hd = connection->hd;
-	struct gb_interface *intf;
+	struct gb_module *module;
 	u8 intf_id;
 	int ret;
 
@@ -699,52 +712,35 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 
 	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, intf_id);
 
-	intf = gb_interface_find(hd, intf_id);
-	if (intf) {
+	/* All modules are considered 1x2 for now */
+	module = gb_svc_module_lookup(svc, intf_id);
+	if (module) {
 		dev_info(&svc->dev, "mode switch detected on interface %u\n",
 				intf_id);
 
-		return gb_svc_intf_reenable(svc, intf);
+		return gb_svc_intf_reenable(svc, module->interfaces[0]);
 	}
 
-	intf = gb_interface_create(hd, intf_id);
-	if (!intf) {
-		dev_err(&svc->dev, "failed to create interface %u\n",
-				intf_id);
+	module = gb_module_create(hd, intf_id, 1);
+	if (!module) {
+		dev_err(&svc->dev, "failed to create module\n");
 		return;
 	}
 
-	ret = gb_interface_activate(intf);
+	ret = gb_module_add(module);
 	if (ret) {
-		dev_err(&svc->dev, "failed to activate interface %u: %d\n",
-				intf_id, ret);
-		gb_interface_add(intf);
+		gb_module_put(module);
 		return;
 	}
 
-	ret = gb_interface_add(intf);
-	if (ret)
-		goto err_interface_deactivate;
-
-	ret = gb_interface_enable(intf);
-	if (ret) {
-		dev_err(&svc->dev, "failed to enable interface %u: %d\n",
-				intf_id, ret);
-		goto err_interface_deactivate;
-	}
-
-	return;
-
-err_interface_deactivate:
-	gb_interface_deactivate(intf);
+	list_add(&module->hd_node, &hd->modules);
 }
 
 static void gb_svc_process_intf_hot_unplug(struct gb_operation *operation)
 {
 	struct gb_svc *svc = gb_connection_get_data(operation->connection);
 	struct gb_svc_intf_hot_unplug_request *request;
-	struct gb_host_device *hd = operation->connection->hd;
-	struct gb_interface *intf;
+	struct gb_module *module;
 	u8 intf_id;
 
 	/* The request message size has already been verified. */
@@ -753,19 +749,19 @@ static void gb_svc_process_intf_hot_unplug(struct gb_operation *operation)
 
 	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, intf_id);
 
-	intf = gb_interface_find(hd, intf_id);
-	if (!intf) {
+	/* All modules are considered 1x2 for now */
+	module = gb_svc_module_lookup(svc, intf_id);
+	if (!module) {
 		dev_warn(&svc->dev, "could not find hot-unplug interface %u\n",
 				intf_id);
 		return;
 	}
 
-	/* Mark as disconnected to prevent I/O during disable. */
-	intf->disconnected = true;
+	module->disconnected = true;
 
-	gb_interface_disable(intf);
-	gb_interface_deactivate(intf);
-	gb_interface_remove(intf);
+	gb_module_del(module);
+	list_del(&module->hd_node);
+	gb_module_put(module);
 }
 
 static void gb_svc_process_deferred_request(struct work_struct *work)
@@ -1104,14 +1100,15 @@ int gb_svc_add(struct gb_svc *svc)
 	return 0;
 }
 
-static void gb_svc_remove_interfaces(struct gb_svc *svc)
+static void gb_svc_remove_modules(struct gb_svc *svc)
 {
-	struct gb_interface *intf, *tmp;
+	struct gb_host_device *hd = svc->hd;
+	struct gb_module *module, *tmp;
 
-	list_for_each_entry_safe(intf, tmp, &svc->hd->interfaces, links) {
-		gb_interface_disable(intf);
-		gb_interface_deactivate(intf);
-		gb_interface_remove(intf);
+	list_for_each_entry_safe(module, tmp, &hd->modules, hd_node) {
+		gb_module_del(module);
+		list_del(&module->hd_node);
+		gb_module_put(module);
 	}
 }
 
@@ -1132,7 +1129,7 @@ void gb_svc_del(struct gb_svc *svc)
 
 	flush_workqueue(svc->wq);
 
-	gb_svc_remove_interfaces(svc);
+	gb_svc_remove_modules(svc);
 }
 
 void gb_svc_put(struct gb_svc *svc)

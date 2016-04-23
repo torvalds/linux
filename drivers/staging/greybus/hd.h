@@ -34,7 +34,7 @@ struct gb_host_device {
 	int bus_id;
 	const struct gb_hd_driver *driver;
 
-	struct list_head interfaces;
+	struct list_head modules;
 	struct list_head connections;
 	struct ida cport_id_map;
 

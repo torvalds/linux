@@ -20,7 +20,7 @@ struct gb_interface {
 	struct gb_control *control;
 
 	struct list_head bundles;
-	struct list_head links;	/* gb_host_device->interfaces */
+	struct list_head module_node;
 	struct list_head manifest_descs;
 	u8 interface_id;	/* Physical location within the Endo */
 	u8 device_id;
@@ -35,6 +35,7 @@ struct gb_interface {
 	u16 version_minor;
 
 	struct gb_host_device *hd;
+	struct gb_module *module;
 
 	unsigned long quirks;
 
@@ -46,13 +47,14 @@ struct gb_interface {
 struct gb_interface *gb_interface_find(struct gb_host_device *hd,
 				       u8 interface_id);
 
-struct gb_interface *gb_interface_create(struct gb_host_device *hd,
+struct gb_interface *gb_interface_create(struct gb_module *module,
 					 u8 interface_id);
 int gb_interface_activate(struct gb_interface *intf);
 void gb_interface_deactivate(struct gb_interface *intf);
 int gb_interface_enable(struct gb_interface *intf);
 void gb_interface_disable(struct gb_interface *intf);
 int gb_interface_add(struct gb_interface *intf);
-void gb_interface_remove(struct gb_interface *intf);
+void gb_interface_del(struct gb_interface *intf);
+void gb_interface_put(struct gb_interface *intf);
 
 #endif /* __INTERFACE_H */

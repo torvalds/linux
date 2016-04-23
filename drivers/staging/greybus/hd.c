@@ -89,7 +89,7 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 	hd->bus_id = ret;
 
 	hd->driver = driver;
-	INIT_LIST_HEAD(&hd->interfaces);
+	INIT_LIST_HEAD(&hd->modules);
 	INIT_LIST_HEAD(&hd->connections);
 	ida_init(&hd->cport_id_map);
 	hd->buffer_size_max = buffer_size_max;

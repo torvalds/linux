@@ -85,6 +85,7 @@ static int greybus_module_match(struct device *dev, struct device_driver *drv)
 static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct gb_host_device *hd;
+	struct gb_module *module = NULL;
 	struct gb_interface *intf = NULL;
 	struct gb_control *control = NULL;
 	struct gb_bundle *bundle = NULL;
@@ -92,8 +93,12 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	if (is_gb_host_device(dev)) {
 		hd = to_gb_host_device(dev);
+	} else if (is_gb_module(dev)) {
+		module = to_gb_module(dev);
+		hd = module->hd;
 	} else if (is_gb_interface(dev)) {
 		intf = to_gb_interface(dev);
+		module = intf->module;
 		hd = intf->hd;
 	} else if (is_gb_control(dev)) {
 		control = to_gb_control(dev);
@@ -102,6 +107,7 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	} else if (is_gb_bundle(dev)) {
 		bundle = to_gb_bundle(dev);
 		intf = bundle->intf;
+		module = intf->module;
 		hd = intf->hd;
 	} else if (is_gb_svc(dev)) {
 		svc = to_gb_svc(dev);
@@ -113,6 +119,11 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	if (add_uevent_var(env, "BUS=%u", hd->bus_id))
 		return -ENOMEM;
+
+	if (module) {
+		if (add_uevent_var(env, "MODULE=%u", module->module_id))
+			return -ENOMEM;
+	}
 
 	if (intf) {
 		if (add_uevent_var(env, "INTERFACE=%u", intf->interface_id))
