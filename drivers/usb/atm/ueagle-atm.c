@@ -173,10 +173,10 @@ struct uea_softc {
 	const struct firmware *dsp_firm;
 	struct urb *urb_int;
 
-	void (*dispatch_cmv) (struct uea_softc *, struct intr_pkt *);
-	void (*schedule_load_page) (struct uea_softc *, struct intr_pkt *);
-	int (*stat) (struct uea_softc *);
-	int (*send_cmvs) (struct uea_softc *);
+	void (*dispatch_cmv)(struct uea_softc *, struct intr_pkt *);
+	void (*schedule_load_page)(struct uea_softc *, struct intr_pkt *);
+	int (*stat)(struct uea_softc *);
+	int (*send_cmvs)(struct uea_softc *);
 
 	/* keep in sync with eaglectl */
 	struct uea_stats {
