@@ -161,6 +161,7 @@ static void mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
+	int prio;
 	void *out;
 	u32 *in;
 
@@ -181,6 +182,14 @@ static void mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	out = pstats->RFC_2819_counters;
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2819_COUNTERS_GROUP);
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
+
+	MLX5_SET(ppcnt_reg, in, grp, MLX5_PER_PRIORITY_COUNTERS_GROUP);
+	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
+		out = pstats->per_prio_counters[prio];
+		MLX5_SET(ppcnt_reg, in, prio_tc, prio);
+		mlx5_core_access_reg(mdev, in, sz, out, sz,
+				     MLX5_REG_PPCNT, 0, 0);
+	}
 
 free_out:
 	kvfree(in);
