@@ -56,7 +56,7 @@ static void of_mdiobus_register_phy(struct mii_bus *mdio,
 		phy = phy_device_create(mdio, addr, phy_id, 0, NULL);
 	else
 		phy = get_phy_device(mdio, addr, is_c45);
-	if (IS_ERR_OR_NULL(phy))
+	if (IS_ERR(phy))
 		return;
 
 	rc = irq_of_parse_and_map(child, 0);
