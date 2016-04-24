@@ -247,8 +247,8 @@ int mlx5_query_port_admin_status(struct mlx5_core_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_admin_status);
 
-static void mlx5_query_port_mtu(struct mlx5_core_dev *dev, int *admin_mtu,
-				int *max_mtu, int *oper_mtu, u8 port)
+static void mlx5_query_port_mtu(struct mlx5_core_dev *dev, u16 *admin_mtu,
+				u16 *max_mtu, u16 *oper_mtu, u8 port)
 {
 	u32 in[MLX5_ST_SZ_DW(pmtu_reg)];
 	u32 out[MLX5_ST_SZ_DW(pmtu_reg)];
@@ -268,7 +268,7 @@ static void mlx5_query_port_mtu(struct mlx5_core_dev *dev, int *admin_mtu,
 		*admin_mtu = MLX5_GET(pmtu_reg, out, admin_mtu);
 }
 
-int mlx5_set_port_mtu(struct mlx5_core_dev *dev, int mtu, u8 port)
+int mlx5_set_port_mtu(struct mlx5_core_dev *dev, u16 mtu, u8 port)
 {
 	u32 in[MLX5_ST_SZ_DW(pmtu_reg)];
 	u32 out[MLX5_ST_SZ_DW(pmtu_reg)];
@@ -283,14 +283,14 @@ int mlx5_set_port_mtu(struct mlx5_core_dev *dev, int mtu, u8 port)
 }
 EXPORT_SYMBOL_GPL(mlx5_set_port_mtu);
 
-void mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, int *max_mtu,
+void mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, u16 *max_mtu,
 			     u8 port)
 {
 	mlx5_query_port_mtu(dev, NULL, max_mtu, NULL, port);
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_max_mtu);
 
-void mlx5_query_port_oper_mtu(struct mlx5_core_dev *dev, int *oper_mtu,
+void mlx5_query_port_oper_mtu(struct mlx5_core_dev *dev, u16 *oper_mtu,
 			      u8 port)
 {
 	mlx5_query_port_mtu(dev, NULL, NULL, oper_mtu, port);
