@@ -64,7 +64,6 @@ static fInt fGetSquare(fInt);                             /* Returns the square 
 static fInt fSqrt(fInt);                                  /* Returns the Square Root of a fInt number */
 
 static int uAbs(int);                                     /* Returns the Absolute value of the Int */
-static fInt fAbs(fInt);                                   /* Returns the Absolute value of the fInt */
 static int uPow(int base, int exponent);                  /* Returns base^exponent an INT */
 
 static void SolveQuadracticEqn(fInt, fInt, fInt, fInt[]); /* Returns the 2 roots via the array */
@@ -85,20 +84,11 @@ static fInt fDecodeLeakageID (uint32_t leakageID_fuse, fInt ln_max_div_min, fInt
  * -------------------------------------------------------------------------------------
  * Some of the following functions take two INTs as their input - This is unsafe for a variety of reasons.
  */
-static fInt Add (int, int);                               /* Add two INTs and return Sum as FINT */
-static fInt Multiply (int, int);                          /* Multiply two INTs and return Product as FINT */
-static fInt Divide (int, int);                            /* You get the idea... */
+static fInt Divide (int, int);                            /* Divide two INTs and return result as FINT */
 static fInt fNegate(fInt);
 
 static int uGetScaledDecimal (fInt);                      /* Internal function */
 static int GetReal (fInt A);                              /* Internal function */
-
-/* Future Additions and Incomplete Functions
- * -------------------------------------------------------------------------------------
- */
-static int GetRoundedValue(fInt);                         /* Incomplete function - Useful only when Precision is lacking */
-                                                          /* Let us say we have 2.126 but can only handle 2 decimal points. We could */
-                                                          /* either chop of 6 and keep 2.12 or use this function to get 2.13, which is more accurate */
 
 /* -------------------------------------------------------------------------------------
  * TROUBLESHOOTING INFORMATION
@@ -498,49 +488,10 @@ static void SolveQuadracticEqn(fInt A, fInt B, fInt C, fInt Roots[])
  * -----------------------------------------------------------------------------
  */
 
-/* Addition using two normal ints - Temporary - Use only for testing purposes?. */
-static fInt Add (int X, int Y)
-{
-	fInt A, B, Sum;
-
-	A.full = (X << SHIFT_AMOUNT);
-	B.full = (Y << SHIFT_AMOUNT);
-
-	Sum.full = A.full + B.full;
-
-	return Sum;
-}
-
 /* Conversion Functions */
 static int GetReal (fInt A)
 {
 	return (A.full >> SHIFT_AMOUNT);
-}
-
-/* Temporarily Disabled */
-static int GetRoundedValue(fInt A) /*For now, round the 3rd decimal place */
-{
-	/* ROUNDING TEMPORARLY DISABLED
-	int temp = A.full;
-	int decimal_cutoff, decimal_mask = 0x000001FF;
-	decimal_cutoff = temp & decimal_mask;
-	if (decimal_cutoff > 0x147) {
-		temp += 673;
-	}*/
-
-	return ConvertBackToInteger(A)/10000; /*Temporary - in case this was used somewhere else */
-}
-
-static fInt Multiply (int X, int Y)
-{
-	fInt A, B, Product;
-
-	A.full = X << SHIFT_AMOUNT;
-	B.full = Y << SHIFT_AMOUNT;
-
-	Product = fMultiply(A, B);
-
-	return Product;
 }
 
 static fInt Divide (int X, int Y)
@@ -576,14 +527,6 @@ static int uPow(int base, int power)
 		return 1;
 	else
 		return (base)*uPow(base, power - 1);
-}
-
-static fInt fAbs(fInt A)
-{
-	if (A.partial.real < 0)
-		return (fMultiply(A, ConvertToFraction(-1)));
-	else
-		return A;
 }
 
 static int uAbs(int X)
