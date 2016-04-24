@@ -224,6 +224,12 @@
 					reg = <0x52>;
 					pagesize = <32>;
 				};
+
+				bq27541@55 {
+					compatible = "ti,bq27541";
+					reg = <0x55>;
+				};
+
 			};
 		};
 
