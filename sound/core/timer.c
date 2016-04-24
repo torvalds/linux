@@ -683,20 +683,19 @@ static void snd_timer_tasklet(unsigned long arg)
  * ticks_left is usually equal to timer->sticks.
  *
  */
-int snd_timer_interrupt(struct snd_timer *timer, unsigned long ticks_left)
+void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 {
 	struct snd_timer_instance *ti, *ts, *tmp;
 	unsigned long resolution, ticks;
 	struct list_head *p, *ack_list_head;
 	unsigned long flags;
 	int use_tasklet = 0;
-	int ret = 0;
 
 	if (timer == NULL)
-		return -ENODEV;
+		return;
 
 	if (timer->card && timer->card->shutdown)
-		return -ENODEV;
+		return;
 
 	spin_lock_irqsave(&timer->lock, flags);
 
@@ -748,26 +747,17 @@ int snd_timer_interrupt(struct snd_timer *timer, unsigned long ticks_left)
 		snd_timer_reschedule(timer, timer->sticks);
 	if (timer->running) {
 		if (timer->hw.flags & SNDRV_TIMER_HW_STOP) {
-			if (timer->hw.flags & SNDRV_TIMER_HW_RET_CTRL)
-				ret = SNDRV_TIMER_RET_STOP;
-			else
-				timer->hw.stop(timer);
+			timer->hw.stop(timer);
 			timer->flags |= SNDRV_TIMER_FLG_CHANGE;
 		}
 		if (!(timer->hw.flags & SNDRV_TIMER_HW_AUTO) ||
 		    (timer->flags & SNDRV_TIMER_FLG_CHANGE)) {
 			/* restart timer */
 			timer->flags &= ~SNDRV_TIMER_FLG_CHANGE;
-			if (timer->hw.flags & SNDRV_TIMER_HW_RET_CTRL)
-				ret = SNDRV_TIMER_RET_START;
-			else
-				timer->hw.start(timer);
+			timer->hw.start(timer);
 		}
 	} else {
-		if (timer->hw.flags & SNDRV_TIMER_HW_RET_CTRL)
-			ret = SNDRV_TIMER_RET_STOP;
-		else
-			timer->hw.stop(timer);
+		timer->hw.stop(timer);
 	}
 
 	/* now process all fast callbacks */
@@ -795,8 +785,6 @@ int snd_timer_interrupt(struct snd_timer *timer, unsigned long ticks_left)
 
 	if (use_tasklet)
 		tasklet_schedule(&timer->task_queue);
-
-	return ret;
 }
 
 /*

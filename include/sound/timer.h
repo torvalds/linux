@@ -37,7 +37,6 @@
 #define SNDRV_TIMER_HW_SLAVE	0x00000004	/* only slave timer (variable resolution) */
 #define SNDRV_TIMER_HW_FIRST	0x00000008	/* first tick can be incomplete */
 #define SNDRV_TIMER_HW_TASKLET	0x00000010	/* timer is called from tasklet */
-#define SNDRV_TIMER_HW_RET_CTRL	0x00000020	/* don't start/stop at irq handler */
 
 #define SNDRV_TIMER_IFLG_SLAVE	  0x00000001
 #define SNDRV_TIMER_IFLG_RUNNING  0x00000002
@@ -50,15 +49,6 @@
 
 #define SNDRV_TIMER_FLG_CHANGE	0x00000001
 #define SNDRV_TIMER_FLG_RESCHED	0x00000002	/* need reschedule */
-
-/* return value from snd_timer_interrupt();
- * START and STOP are returned only when SNDRV_TIMER_HW_RET_CTRL is set
- */
-enum {
-	SNDRV_TIMER_RET_NONE = 0,
-	SNDRV_TIMER_RET_START = 1,
-	SNDRV_TIMER_RET_STOP = 2,
-};
 
 struct snd_timer;
 
@@ -149,6 +139,6 @@ int snd_timer_stop(struct snd_timer_instance *timeri);
 int snd_timer_continue(struct snd_timer_instance *timeri);
 int snd_timer_pause(struct snd_timer_instance *timeri);
 
-int snd_timer_interrupt(struct snd_timer *timer, unsigned long ticks_left);
+void snd_timer_interrupt(struct snd_timer *timer, unsigned long ticks_left);
 
 #endif /* __SOUND_TIMER_H */
