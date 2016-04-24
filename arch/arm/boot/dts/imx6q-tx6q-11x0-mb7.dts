@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 Lothar Waßmann <LW@KARO-electronics.de>
+ * Copyright 2016 Lothar Waßmann <LW@KARO-electronics.de>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -44,18 +44,19 @@
 #include "imx6qdl-tx6.dtsi"
 
 / {
-	model = "Ka-Ro electronics TX6Q-1110 Module";
+	model = "Ka-Ro electronics TX6Q-1110/-1130 Module on MB7 baseboard";
 	compatible = "karo,imx6q-tx6q", "fsl,imx6q";
 
 	aliases {
 		display = &lvds0;
+		ipu1 = &ipu2;
 		lvds0 = &lvds0;
 		lvds1 = &lvds1;
 	};
 
 	backlight0: backlight0 {
 		compatible = "pwm-backlight";
-		pwms = <&pwm2 0 500000 0>;
+		pwms = <&pwm2 0 500000 PWM_POLARITY_INVERTED>;
 		power-supply = <&reg_lcd0_pwr>;
 		/*
 		 * a poor man's way to create a 1:1 relationship between
@@ -77,7 +78,7 @@
 
 	backlight1: backlight1 {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 500000 0>;
+		pwms = <&pwm1 0 500000 PWM_POLARITY_INVERTED>;
 		power-supply = <&reg_lcd1_pwr>;
 		/*
 		 * a poor man's way to create a 1:1 relationship between
@@ -98,21 +99,32 @@
 	};
 };
 
+&can1 {
+	status = "disabled";
+};
+
+&can2 {
+	xceiver-supply = <&reg_3v3>;
+};
+
 &i2c3 {
 	polytouch1: eeti@04 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_eeti>;
-		interrupt-parent = <&gpio3>;
-		interrupts = <22 0>;
+		interrupts-extended = <&gpio3 22 IRQ_TYPE_EDGE_FALLING>;
 		wakeup-gpios = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 		wakeup-source;
 	};
 };
 
+&ipu2 {
+	status = "disabled";
+};
+
 &kpp {
-	status = "disabled"; /* pad conflict with backlight1 PWM */
+	status = "disabled"; /* pads partially clash with backlight1 PWM */
 };
 
 &ldb {
@@ -124,8 +136,9 @@
 		status = "okay";
 
 		display-timings {
-			native-mode = <&lvds_timing0>;
-			lvds_timing0: hsd100pxn1 {
+			native-mode = <&lvds0_timing1>;
+
+			lvds0_timing0: hsd100pxn1 {
 				clock-frequency = <65000000>;
 				hactive = <1024>;
 				vactive = <768>;
@@ -135,6 +148,40 @@
 				vfront-porch = <7>;
 				hsync-len = <60>;
 				vsync-len = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+
+			lvds0_timing1: VGA {
+				clock-frequency = <25200000>;
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <48>;
+				hfront-porch = <16>;
+				vback-porch = <31>;
+				vfront-porch = <12>;
+				hsync-len = <96>;
+				vsync-len = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+
+			lvds0_timing2: nl12880bc20 {
+				clock-frequency = <71000000>;
+				hactive = <1280>;
+				vactive = <800>;
+				hback-porch = <50>;
+				hfront-porch = <50>;
+				vback-porch = <5>;
+				vfront-porch = <5>;
+				hsync-len = <60>;
+				vsync-len = <13>;
+				hsync-active = <0>;
+				vsync-active = <0>;
 				de-active = <1>;
 				pixelclk-active = <1>;
 			};
@@ -144,11 +191,12 @@
 	lvds1: lvds-channel@1 {
 		fsl,data-mapping = "spwg";
 		fsl,data-width = <18>;
-		status = "disabled";
+		status = "okay";
 
 		display-timings {
-			native-mode = <&lvds_timing1>;
-			lvds_timing1: hsd100pxn1 {
+			native-mode = <&lvds1_timing2>;
+
+			lvds1_timing0: hsd100pxn1 {
 				clock-frequency = <65000000>;
 				hactive = <1024>;
 				vactive = <768>;
@@ -158,6 +206,40 @@
 				vfront-porch = <7>;
 				hsync-len = <60>;
 				vsync-len = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+
+			lvds1_timing1: VGA {
+				clock-frequency = <25200000>;
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <48>;
+				hfront-porch = <16>;
+				vback-porch = <31>;
+				vfront-porch = <12>;
+				hsync-len = <96>;
+				vsync-len = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+
+			lvds1_timing2: nl12880bc20 {
+				clock-frequency = <71000000>;
+				hactive = <1280>;
+				vactive = <800>;
+				hback-porch = <50>;
+				hfront-porch = <50>;
+				vback-porch = <5>;
+				vfront-porch = <5>;
+				hsync-len = <60>;
+				vsync-len = <13>;
+				hsync-active = <0>;
+				vsync-active = <0>;
 				de-active = <1>;
 				pixelclk-active = <1>;
 			};

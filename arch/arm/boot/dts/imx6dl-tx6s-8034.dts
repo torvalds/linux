@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 Lothar Waßmann <LW@KARO-electronics.de>
+ * Copyright 2015-2016 Lothar Waßmann <LW@KARO-electronics.de>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -44,17 +44,25 @@
 #include "imx6qdl-tx6.dtsi"
 
 / {
-	model = "Ka-Ro electronics TX6DL Module on CoMpact TFT";
+	model = "Ka-Ro electronics TX6S-8034 Module";
 	compatible = "karo,imx6dl-tx6dl", "fsl,imx6dl";
 
 	aliases {
 		display = &display;
+		ipu1 = &ipu1;
+	};
+
+	cpus {
+		/delete-node/ cpu@1;
 	};
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm2 0 500000 0>;
-		power-supply = <&reg_3v3>;
+		pwms = <&pwm2 0 500000 PWM_POLARITY_INVERTED>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lcd0_pwr>;
+		enable-gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_lcd1_pwr>;
 		/*
 		 * a poor man's way to create a 1:1 relationship between
 		 * the PWM value and the actual duty cycle
@@ -75,9 +83,9 @@
 
 	display: display@di0 {
 		compatible = "fsl,imx-parallel-display";
-		interface-pix-fmt = "rgb24";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_disp0_1>;
+		pinctrl-0 = <&pinctrl_disp0_2>;
+		interface-pix-fmt = "rgb24";
 		status = "okay";
 
 		port {
@@ -87,9 +95,73 @@
 		};
 
 		display-timings {
-			native-mode = <&ET070001DM6>;
+			native-mode = <&vga>;
 
-			ET070001DM6: CoMTFT { /* same as ET0700 but with inverted pixel clock */
+			vga: VGA {
+				clock-frequency = <25200000>;
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <48>;
+				hsync-len = <96>;
+				hfront-porch = <16>;
+				vback-porch = <31>;
+				vsync-len = <2>;
+				vfront-porch = <12>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+
+			ETV570 {
+				clock-frequency = <25200000>;
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <114>;
+				hsync-len = <30>;
+				hfront-porch = <16>;
+				vback-porch = <32>;
+				vsync-len = <3>;
+				vfront-porch = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+
+			ET0350 {
+				clock-frequency = <6413760>;
+				hactive = <320>;
+				vactive = <240>;
+				hback-porch = <34>;
+				hsync-len = <34>;
+				hfront-porch = <20>;
+				vback-porch = <15>;
+				vsync-len = <3>;
+				vfront-porch = <4>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+
+			ET0430 {
+				clock-frequency = <9009000>;
+				hactive = <480>;
+				vactive = <272>;
+				hback-porch = <2>;
+				hsync-len = <41>;
+				hfront-porch = <2>;
+				vback-porch = <2>;
+				vsync-len = <10>;
+				vfront-porch = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+
+			ET0500 {
 				clock-frequency = <33264000>;
 				hactive = <800>;
 				vactive = <480>;
@@ -102,32 +174,64 @@
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <1>;
-				pixelclk-active = <1>;
+				pixelclk-active = <0>;
+			};
+
+			ET0700 { /* same as ET0500 */
+				clock-frequency = <33264000>;
+				hactive = <800>;
+				vactive = <480>;
+				hback-porch = <88>;
+				hsync-len = <128>;
+				hfront-porch = <40>;
+				vback-porch = <33>;
+				vsync-len = <2>;
+				vfront-porch = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+
+			ETQ570 {
+				clock-frequency = <6596040>;
+				hactive = <320>;
+				vactive = <240>;
+				hback-porch = <38>;
+				hsync-len = <30>;
+				hfront-porch = <30>;
+				vback-porch = <16>;
+				vsync-len = <3>;
+				vfront-porch = <4>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
 			};
 		};
-        };
+	};
 };
 
-&can1 {
+&ds1339 {
 	status = "disabled";
 };
 
-&can2 {
-	xceiver-supply = <&reg_3v3>;
+&pinctrl_usdhc1 {
+	fsl,pins = <
+		MX6QDL_PAD_SD1_CMD__SD1_CMD		0x070b1
+		MX6QDL_PAD_SD1_CLK__SD1_CLK		0x070b1
+		MX6QDL_PAD_SD1_DAT0__SD1_DATA0		0x070b1
+		MX6QDL_PAD_SD1_DAT1__SD1_DATA1		0x070b1
+		MX6QDL_PAD_SD1_DAT2__SD1_DATA2		0x070b1
+		MX6QDL_PAD_SD1_DAT3__SD1_DATA3		0x070b1
+		MX6QDL_PAD_SD3_CMD__GPIO7_IO02		0x170b0 /* SD1 CD */
+	>;
 };
 
 &ipu1_di0_disp0 {
 	remote-endpoint = <&display0_in>;
 };
 
-&kpp {
-	status = "disabled";
-};
-
-&reg_can_xcvr {
-	status = "disabled";
-};
-
-&touchscreen {
+&reg_lcd0_pwr {
 	status = "disabled";
 };
