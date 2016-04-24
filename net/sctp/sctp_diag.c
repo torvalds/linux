@@ -145,7 +145,11 @@ static int inet_sctp_diag_fill(struct sock *sk, struct sctp_association *asoc,
 		else
 			amt = sk_wmem_alloc_get(sk);
 		mem[SK_MEMINFO_WMEM_ALLOC] = amt;
-		mem[SK_MEMINFO_RMEM_ALLOC] = sk_rmem_alloc_get(sk);
+		if (asoc && asoc->ep->rcvbuf_policy)
+			amt = atomic_read(&asoc->rmem_alloc);
+		else
+			amt = sk_rmem_alloc_get(sk);
+		mem[SK_MEMINFO_RMEM_ALLOC] = amt;
 		mem[SK_MEMINFO_RCVBUF] = sk->sk_rcvbuf;
 		mem[SK_MEMINFO_SNDBUF] = sk->sk_sndbuf;
 		mem[SK_MEMINFO_FWD_ALLOC] = sk->sk_forward_alloc;
