@@ -83,7 +83,6 @@ config ROCKCHIP_EFUSE
 config NVMEM_SUNXI_SID
 	tristate "Allwinner SoCs SID support"
 	depends on ARCH_SUNXI
-	select REGMAP_MMIO
 	help
 	  This is a driver for the 'security ID' available on various Allwinner
 	  devices.
