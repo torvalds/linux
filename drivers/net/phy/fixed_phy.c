@@ -328,7 +328,7 @@ struct phy_device *fixed_phy_register(unsigned int irq,
 		return ERR_PTR(ret);
 
 	phy = get_phy_device(fmb->mii_bus, phy_addr, false);
-	if (!phy || IS_ERR(phy)) {
+	if (IS_ERR(phy)) {
 		fixed_phy_del(phy_addr);
 		return ERR_PTR(-EINVAL);
 	}
