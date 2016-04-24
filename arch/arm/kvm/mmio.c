@@ -23,7 +23,7 @@
 
 #include "trace.h"
 
-static void mmio_write_buf(char *buf, unsigned int len, unsigned long data)
+void kvm_mmio_write_buf(void *buf, unsigned int len, unsigned long data)
 {
 	void *datap = NULL;
 	union {
@@ -55,7 +55,7 @@ static void mmio_write_buf(char *buf, unsigned int len, unsigned long data)
 	memcpy(buf, datap, len);
 }
 
-static unsigned long mmio_read_buf(char *buf, unsigned int len)
+unsigned long kvm_mmio_read_buf(const void *buf, unsigned int len)
 {
 	unsigned long data = 0;
 	union {
@@ -66,7 +66,7 @@ static unsigned long mmio_read_buf(char *buf, unsigned int len)
 
 	switch (len) {
 	case 1:
-		data = buf[0];
+		data = *(u8 *)buf;
 		break;
 	case 2:
 		memcpy(&tmp.hword, buf, len);
@@ -103,7 +103,7 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		if (len > sizeof(unsigned long))
 			return -EINVAL;
 
-		data = mmio_read_buf(run->mmio.data, len);
+		data = kvm_mmio_read_buf(run->mmio.data, len);
 
 		if (vcpu->arch.mmio_decode.sign_extend &&
 		    len < sizeof(unsigned long)) {
@@ -189,7 +189,7 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 					       len);
 
 		trace_kvm_mmio(KVM_TRACE_MMIO_WRITE, len, fault_ipa, data);
-		mmio_write_buf(data_buf, len, data);
+		kvm_mmio_write_buf(data_buf, len, data);
 
 		ret = kvm_io_bus_write(vcpu, KVM_MMIO_BUS, fault_ipa, len,
 				       data_buf);
