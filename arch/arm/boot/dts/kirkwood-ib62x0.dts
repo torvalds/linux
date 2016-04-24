@@ -62,12 +62,12 @@
 		pinctrl-0 = <&pmx_button_reset &pmx_button_usb_copy>;
 		pinctrl-names = "default";
 
-		button@1 {
+		copy {
 			label = "USB Copy";
 			linux,code = <KEY_COPY>;
 			gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
 		};
-		button@2 {
+		reset {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio0 28 GPIO_ACTIVE_LOW>;

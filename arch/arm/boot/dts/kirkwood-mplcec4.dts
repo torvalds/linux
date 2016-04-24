@@ -17,16 +17,6 @@
 		stdout-path = &uart0;
 	};
 
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
-	};
-
 	ocp@f1000000 {
 		pinctrl: pin-controller@10000 {
 			pmx_led_health: pmx-led-health {
@@ -214,4 +204,12 @@
 	ethernet1-port@0 {
 		phy-handle = <&ethphy1>;
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

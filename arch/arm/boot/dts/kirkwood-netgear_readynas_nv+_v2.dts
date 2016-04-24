@@ -28,18 +28,6 @@
 		stdout-path = &uart0;
 	};
 
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			/* Connected to NEC uPD720200 USB 3.0 controller */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-		};
-	};
-
 	ocp@f1000000 {
 		pinctrl: pin-controller@10000 {
 			pmx_button_power: pmx-button-power {
@@ -205,7 +193,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		usb3_regulator: usb3-regulator {
+		usb3_regulator: usb3-regulator@1 {
 			compatible = "regulator-fixed";
 			reg = <1>;
 			regulator-name = "USB 3.0 Power";
@@ -264,4 +252,13 @@
 	ethernet0-port@0 {
 		phy-handle = <&ethphy0>;
 	};
+};
+
+/* Connected to NEC uPD720200 USB 3.0 controller */
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };
