@@ -2078,50 +2078,104 @@ static int mlx5e_set_mac(struct net_device *netdev, void *addr)
 	return 0;
 }
 
-static int mlx5e_set_features(struct net_device *netdev,
-			      netdev_features_t features)
+#define MLX5E_SET_FEATURE(netdev, feature, enable)	\
+	do {						\
+		if (enable)				\
+			netdev->features |= feature;	\
+		else					\
+			netdev->features &= ~feature;	\
+	} while (0)
+
+typedef int (*mlx5e_feature_handler)(struct net_device *netdev, bool enable);
+
+static int set_feature_lro(struct net_device *netdev, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	int err = 0;
-	netdev_features_t changes = features ^ netdev->features;
+	bool was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	int err;
 
 	mutex_lock(&priv->state_lock);
 
-	if (changes & NETIF_F_LRO) {
-		bool was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	if (was_opened && (priv->params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST))
+		mlx5e_close_locked(priv->netdev);
 
-		if (was_opened && (priv->params.rq_wq_type ==
-				   MLX5_WQ_TYPE_LINKED_LIST))
-			mlx5e_close_locked(priv->netdev);
-
-		priv->params.lro_en = !!(features & NETIF_F_LRO);
-		err = mlx5e_modify_tirs_lro(priv);
-		if (err)
-			mlx5_core_warn(priv->mdev, "lro modify failed, %d\n",
-				       err);
-
-		if (was_opened && (priv->params.rq_wq_type ==
-				   MLX5_WQ_TYPE_LINKED_LIST))
-			err = mlx5e_open_locked(priv->netdev);
+	priv->params.lro_en = enable;
+	err = mlx5e_modify_tirs_lro(priv);
+	if (err) {
+		netdev_err(netdev, "lro modify failed, %d\n", err);
+		priv->params.lro_en = !enable;
 	}
+
+	if (was_opened && (priv->params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST))
+		mlx5e_open_locked(priv->netdev);
 
 	mutex_unlock(&priv->state_lock);
 
-	if (changes & NETIF_F_HW_VLAN_CTAG_FILTER) {
-		if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
-			mlx5e_enable_vlan_filter(priv);
-		else
-			mlx5e_disable_vlan_filter(priv);
-	}
+	return err;
+}
 
-	if ((changes & NETIF_F_HW_TC) && !(features & NETIF_F_HW_TC) &&
-	    mlx5e_tc_num_filters(priv)) {
+static int set_feature_vlan_filter(struct net_device *netdev, bool enable)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	if (enable)
+		mlx5e_enable_vlan_filter(priv);
+	else
+		mlx5e_disable_vlan_filter(priv);
+
+	return 0;
+}
+
+static int set_feature_tc_num_filters(struct net_device *netdev, bool enable)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	if (!enable && mlx5e_tc_num_filters(priv)) {
 		netdev_err(netdev,
 			   "Active offloaded tc filters, can't turn hw_tc_offload off\n");
 		return -EINVAL;
 	}
 
-	return err;
+	return 0;
+}
+
+static int mlx5e_handle_feature(struct net_device *netdev,
+				netdev_features_t wanted_features,
+				netdev_features_t feature,
+				mlx5e_feature_handler feature_handler)
+{
+	netdev_features_t changes = wanted_features ^ netdev->features;
+	bool enable = !!(wanted_features & feature);
+	int err;
+
+	if (!(changes & feature))
+		return 0;
+
+	err = feature_handler(netdev, enable);
+	if (err) {
+		netdev_err(netdev, "%s feature 0x%llx failed err %d\n",
+			   enable ? "Enable" : "Disable", feature, err);
+		return err;
+	}
+
+	MLX5E_SET_FEATURE(netdev, feature, enable);
+	return 0;
+}
+
+static int mlx5e_set_features(struct net_device *netdev,
+			      netdev_features_t features)
+{
+	int err;
+
+	err  = mlx5e_handle_feature(netdev, features, NETIF_F_LRO,
+				    set_feature_lro);
+	err |= mlx5e_handle_feature(netdev, features,
+				    NETIF_F_HW_VLAN_CTAG_FILTER,
+				    set_feature_vlan_filter);
+	err |= mlx5e_handle_feature(netdev, features, NETIF_F_HW_TC,
+				    set_feature_tc_num_filters);
+
+	return err ? -EINVAL : 0;
 }
 
 static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
