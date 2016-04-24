@@ -108,35 +108,6 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 	return skb;
 }
 
-static inline int handle_dev_cpu_collision(struct sk_buff *skb,
-					   struct netdev_queue *dev_queue,
-					   struct Qdisc *q)
-{
-	int ret;
-
-	if (unlikely(dev_queue->xmit_lock_owner == smp_processor_id())) {
-		/*
-		 * Same CPU holding the lock. It may be a transient
-		 * configuration error, when hard_start_xmit() recurses. We
-		 * detect it by checking xmit owner and drop the packet when
-		 * deadloop is detected. Return OK to try the next skb.
-		 */
-		kfree_skb_list(skb);
-		net_warn_ratelimited("Dead loop on netdevice %s, fix it urgently!\n",
-				     dev_queue->dev->name);
-		ret = qdisc_qlen(q);
-	} else {
-		/*
-		 * Another cpu is holding lock, requeue & delay xmits for
-		 * some time.
-		 */
-		__this_cpu_inc(softnet_data.cpu_collision);
-		ret = dev_requeue_skb(skb, q);
-	}
-
-	return ret;
-}
-
 /*
  * Transmit possibly several skbs, and handle the return status as
  * required. Holding the __QDISC___STATE_RUNNING bit guarantees that
@@ -174,9 +145,6 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 	if (dev_xmit_complete(ret)) {
 		/* Driver sent out skb successfully or skb was consumed */
 		ret = qdisc_qlen(q);
-	} else if (ret == NETDEV_TX_LOCKED) {
-		/* Driver try lock failed */
-		ret = handle_dev_cpu_collision(skb, txq, q);
 	} else {
 		/* Driver returned NETDEV_TX_BUSY - requeue skb */
 		if (unlikely(ret != NETDEV_TX_BUSY))
