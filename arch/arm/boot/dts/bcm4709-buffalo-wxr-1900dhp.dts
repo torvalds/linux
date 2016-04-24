@@ -126,3 +126,8 @@
 		};
 	};
 };
+
+
+&usb2 {
+	vcc-gpio = <&chipcommon 13 GPIO_ACTIVE_HIGH>;
+};

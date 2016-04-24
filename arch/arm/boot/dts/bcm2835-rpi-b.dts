@@ -16,3 +16,7 @@
 &gpio {
 	pinctrl-0 = <&gpioout &alt0 &alt3>;
 };
+
+&hdmi {
+	hpd-gpios = <&gpio 46 GPIO_ACTIVE_HIGH>;
+};
