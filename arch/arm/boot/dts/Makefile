@@ -112,6 +112,7 @@ dtb-$(CONFIG_ARCH_DIGICOLOR) += \
 dtb-$(CONFIG_ARCH_EFM32) += \
 	efm32gg-dk3750.dtb
 dtb-$(CONFIG_ARCH_EXYNOS3) += \
+	exynos3250-artik5-eval.dtb \
 	exynos3250-monk.dtb \
 	exynos3250-rinato.dtb
 dtb-$(CONFIG_ARCH_EXYNOS4) += \
