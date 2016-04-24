@@ -460,45 +460,6 @@ static int pic32_sqi_unprepare_hardware(struct spi_master *master)
 	return 0;
 }
 
-/* This may be called twice for each spi dev */
-static int pic32_sqi_setup(struct spi_device *spi)
-{
-	struct pic32_sqi *sqi;
-
-	if (spi_get_ctldata(spi)) {
-		dev_err(&spi->dev, "is already associated\n");
-		return -EBUSY;
-	}
-
-	/* check word size */
-	if (!spi->bits_per_word) {
-		dev_err(&spi->dev, "No bits_per_word defined\n");
-		return -EINVAL;
-	}
-
-	/* check maximum SPI clk rate */
-	if (!spi->max_speed_hz) {
-		dev_err(&spi->dev, "No max speed HZ parameter\n");
-		return -EINVAL;
-	}
-
-	if (spi->master->max_speed_hz < spi->max_speed_hz) {
-		dev_err(&spi->dev, "max speed %u HZ is too high\n",
-			spi->max_speed_hz);
-		return -EINVAL;
-	}
-
-	sqi = spi_master_get_devdata(spi->master);
-	spi_set_ctldata(spi, (void *)sqi);
-
-	return 0;
-}
-
-static void pic32_sqi_cleanup(struct spi_device *spi)
-{
-	spi_set_ctldata(spi, (void *)NULL);
-}
-
 static int ring_desc_ring_alloc(struct pic32_sqi *sqi)
 {
 	struct ring_desc *rdesc;
@@ -700,8 +661,6 @@ static int pic32_sqi_probe(struct platform_device *pdev)
 	master->mode_bits	= SPI_MODE_3 | SPI_MODE_0 | SPI_TX_DUAL |
 				  SPI_RX_DUAL | SPI_TX_QUAD | SPI_RX_QUAD;
 	master->flags		= SPI_MASTER_HALF_DUPLEX;
-	master->setup		= pic32_sqi_setup;
-	master->cleanup		= pic32_sqi_cleanup;
 	master->can_dma		= pic32_sqi_can_dma;
 	master->bits_per_word_mask	= SPI_BPW_RANGE_MASK(8, 32);
 	master->transfer_one_message	= pic32_sqi_one_message;
