@@ -17,6 +17,10 @@
 		serial3 = &uartd;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	pcie-controller@00003000 {
 		status = "okay";
 
@@ -196,7 +200,7 @@
 			gpios = <&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WAKEUP>;
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
