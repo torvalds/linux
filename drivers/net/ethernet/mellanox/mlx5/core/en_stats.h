@@ -71,6 +71,9 @@ struct mlx5e_sw_stats {
 	u64 rx_mpwqe_filler;
 	u64 rx_mpwqe_frag;
 	u64 rx_buff_alloc_err;
+
+	/* Special handling counters */
+	u64 link_down_events;
 };
 
 static const struct counter_desc sw_stats_desc[] = {
@@ -96,6 +99,7 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_mpwqe_filler) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_mpwqe_frag) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_buff_alloc_err) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, link_down_events) },
 };
 
 struct mlx5e_qcounter_stats {
@@ -178,6 +182,7 @@ struct mlx5e_pport_stats {
 	__be64 RFC_2863_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 RFC_2819_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 per_prio_counters[NUM_PPORT_PRIO][MLX5_ST_SZ_QW(ppcnt_reg)];
+	__be64 phy_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 };
 
 static const struct counter_desc pport_802_3_stats_desc[] = {

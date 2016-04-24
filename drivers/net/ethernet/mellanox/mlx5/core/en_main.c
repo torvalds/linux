@@ -135,6 +135,10 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 	s->tx_csum_offload = s->tx_packets - tx_offload_none - s->tx_csum_inner;
 	s->rx_csum_good    = s->rx_packets - s->rx_csum_none -
 			     s->rx_csum_sw;
+
+	s->link_down_events = MLX5_GET(ppcnt_reg,
+				priv->stats.pport.phy_counters,
+				counter_set.phys_layer_cntrs.link_down_events);
 }
 
 static void mlx5e_update_vport_counters(struct mlx5e_priv *priv)
@@ -183,6 +187,10 @@ static void mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2819_COUNTERS_GROUP);
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 
+	out = pstats->phy_counters;
+	MLX5_SET(ppcnt_reg, in, grp, MLX5_PHYSICAL_LAYER_COUNTERS_GROUP);
+	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
+
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_PER_PRIORITY_COUNTERS_GROUP);
 	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
 		out = pstats->per_prio_counters[prio];
@@ -208,10 +216,10 @@ static void mlx5e_update_q_counter(struct mlx5e_priv *priv)
 
 void mlx5e_update_stats(struct mlx5e_priv *priv)
 {
-	mlx5e_update_sw_counters(priv);
 	mlx5e_update_q_counter(priv);
 	mlx5e_update_vport_counters(priv);
 	mlx5e_update_pport_counters(priv);
+	mlx5e_update_sw_counters(priv);
 }
 
 static void mlx5e_update_stats_work(struct work_struct *work)
