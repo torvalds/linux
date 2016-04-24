@@ -91,96 +91,15 @@ static void mlx5e_update_carrier_work(struct work_struct *work)
 	mutex_unlock(&priv->state_lock);
 }
 
-static void mlx5e_update_pport_counters(struct mlx5e_priv *priv)
+static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_pport_stats *s = &priv->stats.pport;
-	u32 *in;
-	u32 *out;
-	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
-
-	in  = mlx5_vzalloc(sz);
-	out = mlx5_vzalloc(sz);
-	if (!in || !out)
-		goto free_out;
-
-	MLX5_SET(ppcnt_reg, in, local_port, 1);
-
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_IEEE_802_3_COUNTERS_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, out,
-			     sz, MLX5_REG_PPCNT, 0, 0);
-	memcpy(s->IEEE_802_3_counters,
-	       MLX5_ADDR_OF(ppcnt_reg, out, counter_set),
-	       sizeof(s->IEEE_802_3_counters));
-
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2863_COUNTERS_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, out,
-			     sz, MLX5_REG_PPCNT, 0, 0);
-	memcpy(s->RFC_2863_counters,
-	       MLX5_ADDR_OF(ppcnt_reg, out, counter_set),
-	       sizeof(s->RFC_2863_counters));
-
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2819_COUNTERS_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, out,
-			     sz, MLX5_REG_PPCNT, 0, 0);
-	memcpy(s->RFC_2819_counters,
-	       MLX5_ADDR_OF(ppcnt_reg, out, counter_set),
-	       sizeof(s->RFC_2819_counters));
-
-free_out:
-	kvfree(in);
-	kvfree(out);
-}
-
-static void mlx5e_update_q_counter(struct mlx5e_priv *priv)
-{
-	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
-
-	if (!priv->q_counter)
-		return;
-
-	mlx5_core_query_out_of_buffer(priv->mdev, priv->q_counter,
-				      &qcnt->rx_out_of_buffer);
-}
-
-void mlx5e_update_stats(struct mlx5e_priv *priv)
-{
-	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_vport_stats *s = &priv->stats.vport;
+	struct mlx5e_sw_stats *s = &priv->stats.sw;
 	struct mlx5e_rq_stats *rq_stats;
 	struct mlx5e_sq_stats *sq_stats;
-	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)];
-	u32 *out;
-	int outlen = MLX5_ST_SZ_BYTES(query_vport_counter_out);
-	u64 tx_offload_none;
+	u64 tx_offload_none = 0;
 	int i, j;
 
-	out = mlx5_vzalloc(outlen);
-	if (!out)
-		return;
-
-	/* Collect firts the SW counters and then HW for consistency */
-	s->rx_packets		= 0;
-	s->rx_bytes		= 0;
-	s->tx_packets		= 0;
-	s->tx_bytes		= 0;
-	s->tso_packets		= 0;
-	s->tso_bytes		= 0;
-	s->tso_inner_packets	= 0;
-	s->tso_inner_bytes	= 0;
-	s->tx_queue_stopped	= 0;
-	s->tx_queue_wake	= 0;
-	s->tx_queue_dropped	= 0;
-	s->tx_csum_inner	= 0;
-	tx_offload_none		= 0;
-	s->lro_packets		= 0;
-	s->lro_bytes		= 0;
-	s->rx_csum_none		= 0;
-	s->rx_csum_sw		= 0;
-	s->rx_wqe_err		= 0;
-	s->rx_mpwqe_filler	= 0;
-	s->rx_mpwqe_frag	= 0;
-	s->rx_buff_alloc_err	= 0;
+	memset(s, 0, sizeof(*s));
 	for (i = 0; i < priv->params.num_channels; i++) {
 		rq_stats = &priv->channel[i]->rq.stats;
 
@@ -212,7 +131,19 @@ void mlx5e_update_stats(struct mlx5e_priv *priv)
 		}
 	}
 
-	/* HW counters */
+	/* Update calculated offload counters */
+	s->tx_csum_offload = s->tx_packets - tx_offload_none - s->tx_csum_inner;
+	s->rx_csum_good    = s->rx_packets - s->rx_csum_none -
+			     s->rx_csum_sw;
+}
+
+static void mlx5e_update_vport_counters(struct mlx5e_priv *priv)
+{
+	int outlen = MLX5_ST_SZ_BYTES(query_vport_counter_out);
+	u32 *out = (u32 *)priv->stats.vport.query_vport_out;
+	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)];
+	struct mlx5_core_dev *mdev = priv->mdev;
+
 	memset(in, 0, sizeof(in));
 
 	MLX5_SET(query_vport_counter_in, in, opcode,
@@ -222,58 +153,56 @@ void mlx5e_update_stats(struct mlx5e_priv *priv)
 
 	memset(out, 0, outlen);
 
-	if (mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen))
+	mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen);
+}
+
+static void mlx5e_update_pport_counters(struct mlx5e_priv *priv)
+{
+	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
+	void *out;
+	u32 *in;
+
+	in = mlx5_vzalloc(sz);
+	if (!in)
 		goto free_out;
 
-#define MLX5_GET_CTR(p, x) \
-	MLX5_GET64(query_vport_counter_out, p, x)
+	MLX5_SET(ppcnt_reg, in, local_port, 1);
 
-	s->rx_error_packets     =
-		MLX5_GET_CTR(out, received_errors.packets);
-	s->rx_error_bytes       =
-		MLX5_GET_CTR(out, received_errors.octets);
-	s->tx_error_packets     =
-		MLX5_GET_CTR(out, transmit_errors.packets);
-	s->tx_error_bytes       =
-		MLX5_GET_CTR(out, transmit_errors.octets);
+	out = pstats->IEEE_802_3_counters;
+	MLX5_SET(ppcnt_reg, in, grp, MLX5_IEEE_802_3_COUNTERS_GROUP);
+	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 
-	s->rx_unicast_packets   =
-		MLX5_GET_CTR(out, received_eth_unicast.packets);
-	s->rx_unicast_bytes     =
-		MLX5_GET_CTR(out, received_eth_unicast.octets);
-	s->tx_unicast_packets   =
-		MLX5_GET_CTR(out, transmitted_eth_unicast.packets);
-	s->tx_unicast_bytes     =
-		MLX5_GET_CTR(out, transmitted_eth_unicast.octets);
+	out = pstats->RFC_2863_counters;
+	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2863_COUNTERS_GROUP);
+	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 
-	s->rx_multicast_packets =
-		MLX5_GET_CTR(out, received_eth_multicast.packets);
-	s->rx_multicast_bytes   =
-		MLX5_GET_CTR(out, received_eth_multicast.octets);
-	s->tx_multicast_packets =
-		MLX5_GET_CTR(out, transmitted_eth_multicast.packets);
-	s->tx_multicast_bytes   =
-		MLX5_GET_CTR(out, transmitted_eth_multicast.octets);
-
-	s->rx_broadcast_packets =
-		MLX5_GET_CTR(out, received_eth_broadcast.packets);
-	s->rx_broadcast_bytes   =
-		MLX5_GET_CTR(out, received_eth_broadcast.octets);
-	s->tx_broadcast_packets =
-		MLX5_GET_CTR(out, transmitted_eth_broadcast.packets);
-	s->tx_broadcast_bytes   =
-		MLX5_GET_CTR(out, transmitted_eth_broadcast.octets);
-
-	/* Update calculated offload counters */
-	s->tx_csum_offload = s->tx_packets - tx_offload_none - s->tx_csum_inner;
-	s->rx_csum_good    = s->rx_packets - s->rx_csum_none -
-			       s->rx_csum_sw;
-
-	mlx5e_update_pport_counters(priv);
-	mlx5e_update_q_counter(priv);
+	out = pstats->RFC_2819_counters;
+	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2819_COUNTERS_GROUP);
+	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 
 free_out:
-	kvfree(out);
+	kvfree(in);
+}
+
+static void mlx5e_update_q_counter(struct mlx5e_priv *priv)
+{
+	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
+
+	if (!priv->q_counter)
+		return;
+
+	mlx5_core_query_out_of_buffer(priv->mdev, priv->q_counter,
+				      &qcnt->rx_out_of_buffer);
+}
+
+void mlx5e_update_stats(struct mlx5e_priv *priv)
+{
+	mlx5e_update_sw_counters(priv);
+	mlx5e_update_q_counter(priv);
+	mlx5e_update_vport_counters(priv);
+	mlx5e_update_pport_counters(priv);
 }
 
 static void mlx5e_update_stats_work(struct work_struct *work)
@@ -2073,37 +2002,28 @@ static struct rtnl_link_stats64 *
 mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5e_sw_stats *sstats = &priv->stats.sw;
 	struct mlx5e_vport_stats *vstats = &priv->stats.vport;
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
 
-	stats->rx_packets = vstats->rx_packets;
-	stats->rx_bytes   = vstats->rx_bytes;
-	stats->tx_packets = vstats->tx_packets;
-	stats->tx_bytes   = vstats->tx_bytes;
-
-#define PPCNT_GET_802_3_CTR(fld)                            \
-	(MLX5_GET64(eth_802_3_cntrs_grp_data_layout,        \
-			pstats->IEEE_802_3_counters, fld##_high))
-
-#define PPCNT_GET_2863_CTR(fld)                             \
-	(MLX5_GET64(eth_2863_cntrs_grp_data_layout,         \
-			pstats->RFC_2863_counters, fld##_high))
+	stats->rx_packets = sstats->rx_packets;
+	stats->rx_bytes   = sstats->rx_bytes;
+	stats->tx_packets = sstats->tx_packets;
+	stats->tx_bytes   = sstats->tx_bytes;
 
 	stats->rx_dropped = priv->stats.qcnt.rx_out_of_buffer;
-	stats->tx_dropped = vstats->tx_queue_dropped;
+	stats->tx_dropped = sstats->tx_queue_dropped;
 
 	stats->rx_length_errors =
-		PPCNT_GET_802_3_CTR(a_in_range_length_errors) +
-		PPCNT_GET_802_3_CTR(a_out_of_range_length_field) +
-		PPCNT_GET_802_3_CTR(a_frame_too_long_errors);
+		PPORT_802_3_GET(pstats, a_in_range_length_errors) +
+		PPORT_802_3_GET(pstats, a_out_of_range_length_field) +
+		PPORT_802_3_GET(pstats, a_frame_too_long_errors);
 	stats->rx_crc_errors =
-		PPCNT_GET_802_3_CTR(a_frame_check_sequence_errors);
-	stats->rx_frame_errors =
-		PPCNT_GET_802_3_CTR(a_alignment_errors);
-	stats->tx_aborted_errors =
-		PPCNT_GET_2863_CTR(if_out_discards);
+		PPORT_802_3_GET(pstats, a_frame_check_sequence_errors);
+	stats->rx_frame_errors = PPORT_802_3_GET(pstats, a_alignment_errors);
+	stats->tx_aborted_errors = PPORT_2863_GET(pstats, if_out_discards);
 	stats->tx_carrier_errors =
-		PPCNT_GET_802_3_CTR(a_symbol_error_during_carrier);
+		PPORT_802_3_GET(pstats, a_symbol_error_during_carrier);
 	stats->rx_errors = stats->rx_length_errors + stats->rx_crc_errors +
 			   stats->rx_frame_errors;
 	stats->tx_errors = stats->tx_aborted_errors + stats->tx_carrier_errors;
@@ -2111,8 +2031,8 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	/* vport multicast also counts packets that are dropped due to steering
 	 * or rx out of buffer
 	 */
-	stats->multicast = vstats->rx_multicast_packets;
-
+	stats->multicast =
+		VPORT_COUNTER_GET(vstats, received_eth_multicast.packets);
 
 	return stats;
 }
