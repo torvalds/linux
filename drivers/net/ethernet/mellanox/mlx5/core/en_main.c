@@ -2074,18 +2074,45 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_vport_stats *vstats = &priv->stats.vport;
+	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
 
 	stats->rx_packets = vstats->rx_packets;
 	stats->rx_bytes   = vstats->rx_bytes;
 	stats->tx_packets = vstats->tx_packets;
 	stats->tx_bytes   = vstats->tx_bytes;
-	stats->multicast  = vstats->rx_multicast_packets +
-			    vstats->tx_multicast_packets;
-	stats->tx_errors  = vstats->tx_error_packets;
-	stats->rx_errors  = vstats->rx_error_packets;
+
+#define PPCNT_GET_802_3_CTR(fld)                            \
+	(MLX5_GET64(eth_802_3_cntrs_grp_data_layout,        \
+			pstats->IEEE_802_3_counters, fld##_high))
+
+#define PPCNT_GET_2863_CTR(fld)                             \
+	(MLX5_GET64(eth_2863_cntrs_grp_data_layout,         \
+			pstats->RFC_2863_counters, fld##_high))
+
+	stats->rx_dropped = priv->stats.qcnt.rx_out_of_buffer;
 	stats->tx_dropped = vstats->tx_queue_dropped;
-	stats->rx_crc_errors = 0;
-	stats->rx_length_errors = 0;
+
+	stats->rx_length_errors =
+		PPCNT_GET_802_3_CTR(a_in_range_length_errors) +
+		PPCNT_GET_802_3_CTR(a_out_of_range_length_field) +
+		PPCNT_GET_802_3_CTR(a_frame_too_long_errors);
+	stats->rx_crc_errors =
+		PPCNT_GET_802_3_CTR(a_frame_check_sequence_errors);
+	stats->rx_frame_errors =
+		PPCNT_GET_802_3_CTR(a_alignment_errors);
+	stats->tx_aborted_errors =
+		PPCNT_GET_2863_CTR(if_out_discards);
+	stats->tx_carrier_errors =
+		PPCNT_GET_802_3_CTR(a_symbol_error_during_carrier);
+	stats->rx_errors = stats->rx_length_errors + stats->rx_crc_errors +
+			   stats->rx_frame_errors;
+	stats->tx_errors = stats->tx_aborted_errors + stats->tx_carrier_errors;
+
+	/* vport multicast also counts packets that are dropped due to steering
+	 * or rx out of buffer
+	 */
+	stats->multicast = vstats->rx_multicast_packets;
+
 
 	return stats;
 }
