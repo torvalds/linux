@@ -899,7 +899,7 @@ static int sh_eth_check_reset(struct net_device *ndev)
 	int cnt = 100;
 
 	while (cnt > 0) {
-		if (!(sh_eth_read(ndev, EDMR) & 0x3))
+		if (!(sh_eth_read(ndev, EDMR) & EDMR_SRST_GETHER))
 			break;
 		mdelay(1);
 		cnt--;
