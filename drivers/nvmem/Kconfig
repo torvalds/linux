@@ -1,6 +1,5 @@
 menuconfig NVMEM
 	tristate "NVMEM Support"
-	select REGMAP
 	help
 	  Support for NVMEM(Non Volatile Memory) devices like EEPROM, EFUSES...
 
