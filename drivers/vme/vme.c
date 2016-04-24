@@ -1429,6 +1429,20 @@ static void vme_dev_release(struct device *dev)
 	kfree(dev_to_vme_dev(dev));
 }
 
+/* Common bridge initialization */
+struct vme_bridge *vme_init_bridge(struct vme_bridge *bridge)
+{
+	INIT_LIST_HEAD(&bridge->vme_error_handlers);
+	INIT_LIST_HEAD(&bridge->master_resources);
+	INIT_LIST_HEAD(&bridge->slave_resources);
+	INIT_LIST_HEAD(&bridge->dma_resources);
+	INIT_LIST_HEAD(&bridge->lm_resources);
+	mutex_init(&bridge->irq_mtx);
+
+	return bridge;
+}
+EXPORT_SYMBOL(vme_init_bridge);
+
 int vme_register_bridge(struct vme_bridge *bridge)
 {
 	int i;
