@@ -325,8 +325,11 @@ static int wilc_wlan_txq_add_cfg_pkt(struct wilc_vif *vif, u8 *buffer,
 	tqe->priv = NULL;
 	tqe->tcp_pending_ack_idx = NOT_TCP_ACK;
 
-	if (wilc_wlan_txq_add_to_head(vif, tqe))
+	if (wilc_wlan_txq_add_to_head(vif, tqe)) {
+		kfree(tqe);
 		return 0;
+	}
+
 	return 1;
 }
 
