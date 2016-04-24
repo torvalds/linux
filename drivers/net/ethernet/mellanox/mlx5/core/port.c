@@ -607,3 +607,52 @@ int mlx5_query_port_wol(struct mlx5_core_dev *mdev, u8 *wol_mode)
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_wol);
+
+static int mlx5_query_ports_check(struct mlx5_core_dev *mdev, u32 *out,
+				  int outlen)
+{
+	u32 in[MLX5_ST_SZ_DW(pcmr_reg)];
+
+	memset(in, 0, sizeof(in));
+	MLX5_SET(pcmr_reg, in, local_port, 1);
+
+	return mlx5_core_access_reg(mdev, in, sizeof(in), out,
+				    outlen, MLX5_REG_PCMR, 0, 0);
+}
+
+static int mlx5_set_ports_check(struct mlx5_core_dev *mdev, u32 *in, int inlen)
+{
+	u32 out[MLX5_ST_SZ_DW(pcmr_reg)];
+
+	return mlx5_core_access_reg(mdev, in, inlen, out,
+				    sizeof(out), MLX5_REG_PCMR, 0, 1);
+}
+
+int mlx5_set_port_fcs(struct mlx5_core_dev *mdev, u8 enable)
+{
+	u32 in[MLX5_ST_SZ_DW(pcmr_reg)];
+
+	memset(in, 0, sizeof(in));
+	MLX5_SET(pcmr_reg, in, local_port, 1);
+	MLX5_SET(pcmr_reg, in, fcs_chk, enable);
+
+	return mlx5_set_ports_check(mdev, in, sizeof(in));
+}
+
+void mlx5_query_port_fcs(struct mlx5_core_dev *mdev, bool *supported,
+			 bool *enabled)
+{
+	u32 out[MLX5_ST_SZ_DW(pcmr_reg)];
+	/* Default values for FW which do not support MLX5_REG_PCMR */
+	*supported = false;
+	*enabled = true;
+
+	if (!MLX5_CAP_GEN(mdev, ports_check))
+		return;
+
+	if (mlx5_query_ports_check(mdev, out, sizeof(out)))
+		return;
+
+	*supported = !!(MLX5_GET(pcmr_reg, out, fcs_cap));
+	*enabled = !!(MLX5_GET(pcmr_reg, out, fcs_chk));
+}
