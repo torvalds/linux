@@ -1345,7 +1345,7 @@ void ovs_ct_init(struct net *net)
 	unsigned int n_bits = sizeof(struct ovs_key_ct_labels) * BITS_PER_BYTE;
 	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
 
-	if (nf_connlabels_get(net, n_bits)) {
+	if (nf_connlabels_get(net, n_bits - 1)) {
 		ovs_net->xt_label = false;
 		OVS_NLERR(true, "Failed to set connlabel length");
 	} else {

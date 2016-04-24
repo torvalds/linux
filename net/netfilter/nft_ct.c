@@ -484,6 +484,8 @@ static struct nft_expr_type nft_ct_type __read_mostly = {
 
 static int __init nft_ct_module_init(void)
 {
+	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE > NFT_REG_SIZE);
+
 	return nft_register_expr(&nft_ct_type);
 }
 
