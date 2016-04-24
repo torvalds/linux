@@ -19,14 +19,20 @@
 #ifndef _LINUX_IF_H
 #define _LINUX_IF_H
 
+#include <linux/libc-compat.h>          /* for compatibility with glibc */
 #include <linux/types.h>		/* for "__kernel_caddr_t" et al	*/
 #include <linux/socket.h>		/* for "struct sockaddr" et al	*/
 #include <linux/compiler.h>		/* for "__user" et al           */
 
+#if __UAPI_DEF_IF_IFNAMSIZ
 #define	IFNAMSIZ	16
+#endif /* __UAPI_DEF_IF_IFNAMSIZ */
 #define	IFALIASZ	256
 #include <linux/hdlc/ioctl.h>
 
+/* For glibc compatibility. An empty enum does not compile. */
+#if __UAPI_DEF_IF_NET_DEVICE_FLAGS_LOWER_UP_DORMANT_ECHO != 0 && \
+    __UAPI_DEF_IF_NET_DEVICE_FLAGS != 0
 /**
  * enum net_device_flags - &struct net_device flags
  *
@@ -68,6 +74,8 @@
  * @IFF_ECHO: echo sent packets. Volatile.
  */
 enum net_device_flags {
+/* for compatibility with glibc net/if.h */
+#if __UAPI_DEF_IF_NET_DEVICE_FLAGS
 	IFF_UP				= 1<<0,  /* sysfs */
 	IFF_BROADCAST			= 1<<1,  /* volatile */
 	IFF_DEBUG			= 1<<2,  /* sysfs */
@@ -84,11 +92,17 @@ enum net_device_flags {
 	IFF_PORTSEL			= 1<<13, /* sysfs */
 	IFF_AUTOMEDIA			= 1<<14, /* sysfs */
 	IFF_DYNAMIC			= 1<<15, /* sysfs */
+#endif /* __UAPI_DEF_IF_NET_DEVICE_FLAGS */
+#if __UAPI_DEF_IF_NET_DEVICE_FLAGS_LOWER_UP_DORMANT_ECHO
 	IFF_LOWER_UP			= 1<<16, /* volatile */
 	IFF_DORMANT			= 1<<17, /* volatile */
 	IFF_ECHO			= 1<<18, /* volatile */
+#endif /* __UAPI_DEF_IF_NET_DEVICE_FLAGS_LOWER_UP_DORMANT_ECHO */
 };
+#endif /* __UAPI_DEF_IF_NET_DEVICE_FLAGS_LOWER_UP_DORMANT_ECHO != 0 && __UAPI_DEF_IF_NET_DEVICE_FLAGS != 0 */
 
+/* for compatibility with glibc net/if.h */
+#if __UAPI_DEF_IF_NET_DEVICE_FLAGS
 #define IFF_UP				IFF_UP
 #define IFF_BROADCAST			IFF_BROADCAST
 #define IFF_DEBUG			IFF_DEBUG
@@ -105,9 +119,13 @@ enum net_device_flags {
 #define IFF_PORTSEL			IFF_PORTSEL
 #define IFF_AUTOMEDIA			IFF_AUTOMEDIA
 #define IFF_DYNAMIC			IFF_DYNAMIC
+#endif /* __UAPI_DEF_IF_NET_DEVICE_FLAGS */
+
+#if __UAPI_DEF_IF_NET_DEVICE_FLAGS_LOWER_UP_DORMANT_ECHO
 #define IFF_LOWER_UP			IFF_LOWER_UP
 #define IFF_DORMANT			IFF_DORMANT
 #define IFF_ECHO			IFF_ECHO
+#endif /* __UAPI_DEF_IF_NET_DEVICE_FLAGS_LOWER_UP_DORMANT_ECHO */
 
 #define IFF_VOLATILE	(IFF_LOOPBACK|IFF_POINTOPOINT|IFF_BROADCAST|IFF_ECHO|\
 		IFF_MASTER|IFF_SLAVE|IFF_RUNNING|IFF_LOWER_UP|IFF_DORMANT)
@@ -166,6 +184,8 @@ enum {
  *	being very small might be worth keeping for clean configuration.
  */
 
+/* for compatibility with glibc net/if.h */
+#if __UAPI_DEF_IF_IFMAP
 struct ifmap {
 	unsigned long mem_start;
 	unsigned long mem_end;
@@ -175,6 +195,7 @@ struct ifmap {
 	unsigned char port;
 	/* 3 bytes spare */
 };
+#endif /* __UAPI_DEF_IF_IFMAP */
 
 struct if_settings {
 	unsigned int type;	/* Type of physical device or protocol */
@@ -200,6 +221,8 @@ struct if_settings {
  * remainder may be interface specific.
  */
 
+/* for compatibility with glibc net/if.h */
+#if __UAPI_DEF_IF_IFREQ
 struct ifreq {
 #define IFHWADDRLEN	6
 	union
@@ -223,6 +246,7 @@ struct ifreq {
 		struct	if_settings ifru_settings;
 	} ifr_ifru;
 };
+#endif /* __UAPI_DEF_IF_IFREQ */
 
 #define ifr_name	ifr_ifrn.ifrn_name	/* interface name 	*/
 #define ifr_hwaddr	ifr_ifru.ifru_hwaddr	/* MAC address 		*/
@@ -249,6 +273,8 @@ struct ifreq {
  * must know all networks accessible).
  */
 
+/* for compatibility with glibc net/if.h */
+#if __UAPI_DEF_IF_IFCONF
 struct ifconf  {
 	int	ifc_len;			/* size of buffer	*/
 	union {
@@ -256,6 +282,8 @@ struct ifconf  {
 		struct ifreq __user *ifcu_req;
 	} ifc_ifcu;
 };
+#endif /* __UAPI_DEF_IF_IFCONF */
+
 #define	ifc_buf	ifc_ifcu.ifcu_buf		/* buffer address	*/
 #define	ifc_req	ifc_ifcu.ifcu_req		/* array of structures	*/
 
