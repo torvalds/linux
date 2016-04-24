@@ -1159,6 +1159,84 @@ static int mlx5e_set_phys_id(struct net_device *dev,
 	return mlx5_set_port_beacon(mdev, beacon_duration);
 }
 
+static int mlx5e_get_module_info(struct net_device *netdev,
+				 struct ethtool_modinfo *modinfo)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *dev = priv->mdev;
+	int size_read = 0;
+	u8 data[4];
+
+	size_read = mlx5_query_module_eeprom(dev, 0, 2, data);
+	if (size_read < 2)
+		return -EIO;
+
+	/* data[0] = identifier byte */
+	switch (data[0]) {
+	case MLX5_MODULE_ID_QSFP:
+		modinfo->type       = ETH_MODULE_SFF_8436;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		break;
+	case MLX5_MODULE_ID_QSFP_PLUS:
+	case MLX5_MODULE_ID_QSFP28:
+		/* data[1] = revision id */
+		if (data[0] == MLX5_MODULE_ID_QSFP28 || data[1] >= 0x3) {
+			modinfo->type       = ETH_MODULE_SFF_8636;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+		} else {
+			modinfo->type       = ETH_MODULE_SFF_8436;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		}
+		break;
+	case MLX5_MODULE_ID_SFP:
+		modinfo->type       = ETH_MODULE_SFF_8472;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		break;
+	default:
+		netdev_err(priv->netdev, "%s: cable type not recognized:0x%x\n",
+			   __func__, data[0]);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int mlx5e_get_module_eeprom(struct net_device *netdev,
+				   struct ethtool_eeprom *ee,
+				   u8 *data)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int offset = ee->offset;
+	int size_read;
+	int i = 0;
+
+	if (!ee->len)
+		return -EINVAL;
+
+	memset(data, 0, ee->len);
+
+	while (i < ee->len) {
+		size_read = mlx5_query_module_eeprom(mdev, offset, ee->len - i,
+						     data + i);
+
+		if (!size_read)
+			/* Done reading */
+			return 0;
+
+		if (size_read < 0) {
+			netdev_err(priv->netdev, "%s: mlx5_query_eeprom failed:0x%x\n",
+				   __func__, size_read);
+			return 0;
+		}
+
+		i += size_read;
+		offset += size_read;
+	}
+
+	return 0;
+}
+
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
@@ -1186,4 +1264,6 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.set_phys_id       = mlx5e_set_phys_id,
 	.get_wol	   = mlx5e_get_wol,
 	.set_wol	   = mlx5e_set_wol,
+	.get_module_info   = mlx5e_get_module_info,
+	.get_module_eeprom = mlx5e_get_module_eeprom,
 };

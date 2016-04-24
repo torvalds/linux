@@ -310,6 +310,82 @@ void mlx5_query_port_oper_mtu(struct mlx5_core_dev *dev, int *oper_mtu,
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_oper_mtu);
 
+static int mlx5_query_module_num(struct mlx5_core_dev *dev, int *module_num)
+{
+	u32 out[MLX5_ST_SZ_DW(pmlp_reg)];
+	u32 in[MLX5_ST_SZ_DW(pmlp_reg)];
+	int module_mapping;
+	int err;
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(pmlp_reg, in, local_port, 1);
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), out, sizeof(out),
+				   MLX5_REG_PMLP, 0, 0);
+	if (err)
+		return err;
+
+	module_mapping = MLX5_GET(pmlp_reg, out, lane0_module_mapping);
+	*module_num = module_mapping & MLX5_EEPROM_IDENTIFIER_BYTE_MASK;
+
+	return 0;
+}
+
+int mlx5_query_module_eeprom(struct mlx5_core_dev *dev,
+			     u16 offset, u16 size, u8 *data)
+{
+	u32 out[MLX5_ST_SZ_DW(mcia_reg)];
+	u32 in[MLX5_ST_SZ_DW(mcia_reg)];
+	int module_num;
+	u16 i2c_addr;
+	int status;
+	int err;
+	void *ptr = MLX5_ADDR_OF(mcia_reg, out, dword_0);
+
+	err = mlx5_query_module_num(dev, &module_num);
+	if (err)
+		return err;
+
+	memset(in, 0, sizeof(in));
+	size = min_t(int, size, MLX5_EEPROM_MAX_BYTES);
+
+	if (offset < MLX5_EEPROM_PAGE_LENGTH &&
+	    offset + size > MLX5_EEPROM_PAGE_LENGTH)
+		/* Cross pages read, read until offset 256 in low page */
+		size -= offset + size - MLX5_EEPROM_PAGE_LENGTH;
+
+	i2c_addr = MLX5_I2C_ADDR_LOW;
+	if (offset >= MLX5_EEPROM_PAGE_LENGTH) {
+		i2c_addr = MLX5_I2C_ADDR_HIGH;
+		offset -= MLX5_EEPROM_PAGE_LENGTH;
+	}
+
+	MLX5_SET(mcia_reg, in, l, 0);
+	MLX5_SET(mcia_reg, in, module, module_num);
+	MLX5_SET(mcia_reg, in, i2c_device_address, i2c_addr);
+	MLX5_SET(mcia_reg, in, page_number, 0);
+	MLX5_SET(mcia_reg, in, device_address, offset);
+	MLX5_SET(mcia_reg, in, size, size);
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), out,
+				   sizeof(out), MLX5_REG_MCIA, 0, 0);
+	if (err)
+		return err;
+
+	status = MLX5_GET(mcia_reg, out, status);
+	if (status) {
+		mlx5_core_err(dev, "query_mcia_reg failed: status: 0x%x\n",
+			      status);
+		return -EIO;
+	}
+
+	memcpy(data, ptr, size);
+
+	return size;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_module_eeprom);
+
 static int mlx5_query_port_pvlc(struct mlx5_core_dev *dev, u32 *pvlc,
 				int pvlc_size,  u8 local_port)
 {
