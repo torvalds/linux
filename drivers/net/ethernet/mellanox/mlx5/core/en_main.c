@@ -109,6 +109,7 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 		s->lro_bytes	+= rq_stats->lro_bytes;
 		s->rx_csum_none	+= rq_stats->csum_none;
 		s->rx_csum_sw	+= rq_stats->csum_sw;
+		s->rx_csum_inner += rq_stats->csum_inner;
 		s->rx_wqe_err   += rq_stats->wqe_err;
 		s->rx_mpwqe_filler += rq_stats->mpwqe_filler;
 		s->rx_mpwqe_frag   += rq_stats->mpwqe_frag;

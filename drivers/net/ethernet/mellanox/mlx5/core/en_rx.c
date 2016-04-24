@@ -543,16 +543,26 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 
 	if (lro) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	} else if (likely(is_first_ethertype_ip(skb))) {
+		return;
+	}
+
+	if (is_first_ethertype_ip(skb)) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 		rq->stats.csum_sw++;
-	} else {
-		goto csum_none;
+		return;
 	}
 
-	return;
-
+	if (likely((cqe->hds_ip_ext & CQE_L3_OK) &&
+		   (cqe->hds_ip_ext & CQE_L4_OK))) {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		if (cqe_is_tunneled(cqe)) {
+			skb->csum_level = 1;
+			skb->encapsulation = 1;
+			rq->stats.csum_inner++;
+		}
+		return;
+	}
 csum_none:
 	skb->ip_summed = CHECKSUM_NONE;
 	rq->stats.csum_none++;

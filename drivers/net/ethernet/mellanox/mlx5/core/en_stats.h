@@ -62,6 +62,7 @@ struct mlx5e_sw_stats {
 	u64 rx_csum_good;
 	u64 rx_csum_none;
 	u64 rx_csum_sw;
+	u64 rx_csum_inner;
 	u64 tx_csum_offload;
 	u64 tx_csum_inner;
 	u64 tx_queue_stopped;
@@ -90,6 +91,7 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_csum_good) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_csum_none) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_csum_sw) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_csum_inner) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_csum_offload) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_csum_inner) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_queue_stopped) },
@@ -272,8 +274,9 @@ static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
 struct mlx5e_rq_stats {
 	u64 packets;
 	u64 bytes;
-	u64 csum_none;
 	u64 csum_sw;
+	u64 csum_inner;
+	u64 csum_none;
 	u64 lro_packets;
 	u64 lro_bytes;
 	u64 wqe_err;
@@ -285,8 +288,9 @@ struct mlx5e_rq_stats {
 static const struct counter_desc rq_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_rq_stats, packets) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_rq_stats, bytes) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_rq_stats, csum_none) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_rq_stats, csum_sw) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_rq_stats, csum_inner) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_rq_stats, csum_none) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_rq_stats, lro_packets) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_rq_stats, lro_bytes) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_rq_stats, wqe_err) },

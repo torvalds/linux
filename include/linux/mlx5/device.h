@@ -645,8 +645,9 @@ struct mlx5_err_cqe {
 };
 
 struct mlx5_cqe64 {
-	u8              rsvd0[2];
-	__be16          wqe_id;
+	u8		outer_l3_tunneled;
+	u8		rsvd0;
+	__be16		wqe_id;
 	u8		lro_tcppsh_abort_dupack;
 	u8		lro_min_ttl;
 	__be16		lro_tcp_win;
@@ -659,7 +660,7 @@ struct mlx5_cqe64 {
 	__be16		slid;
 	__be32		flags_rqpn;
 	u8		hds_ip_ext;
-	u8		l4_hdr_type_etc;
+	u8		l4_l3_hdr_type;
 	__be16		vlan_info;
 	__be32		srqn; /* [31:24]: lro_num_seg, [23:0]: srqn */
 	__be32		imm_inval_pkey;
@@ -680,12 +681,22 @@ static inline int get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
 
 static inline u8 get_cqe_l4_hdr_type(struct mlx5_cqe64 *cqe)
 {
-	return (cqe->l4_hdr_type_etc >> 4) & 0x7;
+	return (cqe->l4_l3_hdr_type >> 4) & 0x7;
+}
+
+static inline u8 get_cqe_l3_hdr_type(struct mlx5_cqe64 *cqe)
+{
+	return (cqe->l4_l3_hdr_type >> 2) & 0x3;
+}
+
+static inline u8 cqe_is_tunneled(struct mlx5_cqe64 *cqe)
+{
+	return cqe->outer_l3_tunneled & 0x1;
 }
 
 static inline int cqe_has_vlan(struct mlx5_cqe64 *cqe)
 {
-	return !!(cqe->l4_hdr_type_etc & 0x1);
+	return !!(cqe->l4_l3_hdr_type & 0x1);
 }
 
 static inline u64 get_cqe_ts(struct mlx5_cqe64 *cqe)
