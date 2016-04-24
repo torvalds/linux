@@ -46,6 +46,10 @@
 #include <linux/mlx5/doorbell.h>
 
 enum {
+	MLX5_RQ_BITMASK_VSD = 1 << 1,
+};
+
+enum {
 	MLX5_BOARD_ID_LEN = 64,
 	MLX5_MAX_NAME_LEN = 16,
 };
