@@ -3,7 +3,6 @@ menu "EEPROM support"
 config EEPROM_AT24
 	tristate "I2C EEPROMs / RAMs / ROMs from most vendors"
 	depends on I2C && SYSFS
-	select REGMAP
 	select NVMEM
 	help
 	  Enable this driver to get read/write support to most I2C EEPROMs
