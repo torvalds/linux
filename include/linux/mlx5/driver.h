@@ -116,6 +116,7 @@ enum {
 	MLX5_REG_PMLP		 = 0, /* TBD */
 	MLX5_REG_NODE_DESC	 = 0x6001,
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
+	MLX5_REG_MLCR		 = 0x902b,
 };
 
 enum {

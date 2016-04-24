@@ -115,6 +115,19 @@ int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_ptys);
 
+int mlx5_set_port_beacon(struct mlx5_core_dev *dev, u16 beacon_duration)
+{
+	u32 out[MLX5_ST_SZ_DW(mlcr_reg)];
+	u32 in[MLX5_ST_SZ_DW(mlcr_reg)];
+
+	memset(in, 0, sizeof(in));
+	MLX5_SET(mlcr_reg, in, local_port, 1);
+	MLX5_SET(mlcr_reg, in, beacon_duration, beacon_duration);
+
+	return mlx5_core_access_reg(dev, in, sizeof(in), out,
+				    sizeof(out), MLX5_REG_MLCR, 0, 1);
+}
+
 int mlx5_query_port_proto_cap(struct mlx5_core_dev *dev,
 			      u32 *proto_cap, int proto_mask)
 {

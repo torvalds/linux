@@ -1135,6 +1135,30 @@ static int mlx5e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	return mlx5_set_port_wol(mdev, mlx5_wol_mode);
 }
 
+static int mlx5e_set_phys_id(struct net_device *dev,
+			     enum ethtool_phys_id_state state)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u16 beacon_duration;
+
+	if (!MLX5_CAP_GEN(mdev, beacon_led))
+		return -EOPNOTSUPP;
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		beacon_duration = MLX5_BEACON_DURATION_INF;
+		break;
+	case ETHTOOL_ID_INACTIVE:
+		beacon_duration = MLX5_BEACON_DURATION_OFF;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return mlx5_set_port_beacon(mdev, beacon_duration);
+}
+
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
@@ -1159,6 +1183,7 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_pauseparam    = mlx5e_get_pauseparam,
 	.set_pauseparam    = mlx5e_set_pauseparam,
 	.get_ts_info       = mlx5e_get_ts_info,
+	.set_phys_id       = mlx5e_set_phys_id,
 	.get_wol	   = mlx5e_get_wol,
 	.set_wol	   = mlx5e_set_wol,
 };
