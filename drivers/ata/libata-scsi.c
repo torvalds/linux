@@ -3318,6 +3318,160 @@ invalid_opcode:
 }
 
 /**
+ *	ata_scsi_report_zones_complete - convert ATA output
+ *	@qc: command structure returning the data
+ *
+ *	Convert T-13 little-endian field representation into
+ *	T-10 big-endian field representation.
+ *	What a mess.
+ */
+static void ata_scsi_report_zones_complete(struct ata_queued_cmd *qc)
+{
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	struct sg_mapping_iter miter;
+	unsigned long flags;
+	unsigned int bytes = 0;
+
+	sg_miter_start(&miter, scsi_sglist(scmd), scsi_sg_count(scmd),
+		       SG_MITER_TO_SG | SG_MITER_ATOMIC);
+
+	local_irq_save(flags);
+	while (sg_miter_next(&miter)) {
+		unsigned int offset = 0;
+
+		if (bytes == 0) {
+			char *hdr;
+			u32 list_length;
+			u64 max_lba, opt_lba;
+			u16 same;
+
+			/* Swizzle header */
+			hdr = miter.addr;
+			list_length = get_unaligned_le32(&hdr[0]);
+			same = get_unaligned_le16(&hdr[4]);
+			max_lba = get_unaligned_le64(&hdr[8]);
+			opt_lba = get_unaligned_le64(&hdr[16]);
+			put_unaligned_be32(list_length, &hdr[0]);
+			hdr[4] = same & 0xf;
+			put_unaligned_be64(max_lba, &hdr[8]);
+			put_unaligned_be64(opt_lba, &hdr[16]);
+			offset += 64;
+			bytes += 64;
+		}
+		while (offset < miter.length) {
+			char *rec;
+			u8 cond, type, non_seq, reset;
+			u64 size, start, wp;
+
+			/* Swizzle zone descriptor */
+			rec = miter.addr + offset;
+			type = rec[0] & 0xf;
+			cond = (rec[1] >> 4) & 0xf;
+			non_seq = (rec[1] & 2);
+			reset = (rec[1] & 1);
+			size = get_unaligned_le64(&rec[8]);
+			start = get_unaligned_le64(&rec[16]);
+			wp = get_unaligned_le64(&rec[24]);
+			rec[0] = type;
+			rec[1] = (cond << 4) | non_seq | reset;
+			put_unaligned_be64(size, &rec[8]);
+			put_unaligned_be64(start, &rec[16]);
+			put_unaligned_be64(wp, &rec[24]);
+			WARN_ON(offset + 64 > miter.length);
+			offset += 64;
+			bytes += 64;
+		}
+	}
+	sg_miter_stop(&miter);
+	local_irq_restore(flags);
+
+	ata_scsi_qc_complete(qc);
+}
+
+static unsigned int ata_scsi_zbc_in_xlat(struct ata_queued_cmd *qc)
+{
+	struct ata_taskfile *tf = &qc->tf;
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	const u8 *cdb = scmd->cmnd;
+	u16 sect, fp = (u16)-1;
+	u8 sa, options, bp = 0xff;
+	u64 block;
+	u32 n_block;
+
+	if (unlikely(scmd->cmd_len < 16)) {
+		ata_dev_warn(qc->dev, "invalid cdb length %d\n",
+			     scmd->cmd_len);
+		fp = 15;
+		goto invalid_fld;
+	}
+	scsi_16_lba_len(cdb, &block, &n_block);
+	if (n_block != scsi_bufflen(scmd)) {
+		ata_dev_warn(qc->dev, "non-matching transfer count (%d/%d)\n",
+			     n_block, scsi_bufflen(scmd));
+		goto invalid_param_len;
+	}
+	sa = cdb[1] & 0x1f;
+	if (sa != ZI_REPORT_ZONES) {
+		ata_dev_warn(qc->dev, "invalid service action %d\n", sa);
+		fp = 1;
+		goto invalid_fld;
+	}
+	/*
+	 * ZAC allows only for transfers in 512 byte blocks,
+	 * and uses a 16 bit value for the transfer count.
+	 */
+	if ((n_block / 512) > 0xffff || n_block < 512 || (n_block % 512)) {
+		ata_dev_warn(qc->dev, "invalid transfer count %d\n", n_block);
+		goto invalid_param_len;
+	}
+	sect = n_block / 512;
+	options = cdb[14];
+
+	if (ata_ncq_enabled(qc->dev) &&
+	    ata_fpdma_zac_mgmt_in_supported(qc->dev)) {
+		tf->protocol = ATA_PROT_NCQ;
+		tf->command = ATA_CMD_FPDMA_RECV;
+		tf->hob_nsect = ATA_SUBCMD_FPDMA_RECV_ZAC_MGMT_IN & 0x1f;
+		tf->nsect = qc->tag << 3;
+		tf->feature = sect & 0xff;
+		tf->hob_feature = (sect >> 8) & 0xff;
+		tf->auxiliary = ATA_SUBCMD_ZAC_MGMT_IN_REPORT_ZONES;
+	} else {
+		tf->command = ATA_CMD_ZAC_MGMT_IN;
+		tf->feature = ATA_SUBCMD_ZAC_MGMT_IN_REPORT_ZONES;
+		tf->protocol = ATA_PROT_DMA;
+		tf->hob_feature = options;
+		tf->hob_nsect = (sect >> 8) & 0xff;
+		tf->nsect = sect & 0xff;
+	}
+	tf->device = ATA_LBA;
+	tf->lbah = (block >> 16) & 0xff;
+	tf->lbam = (block >> 8) & 0xff;
+	tf->lbal = block & 0xff;
+	tf->hob_lbah = (block >> 40) & 0xff;
+	tf->hob_lbam = (block >> 32) & 0xff;
+	tf->hob_lbal = (block >> 24) & 0xff;
+
+	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE | ATA_TFLAG_LBA48;
+	qc->flags |= ATA_QCFLAG_RESULT_TF;
+
+	ata_qc_set_pc_nbytes(qc);
+
+	qc->complete_fn = ata_scsi_report_zones_complete;
+
+	return 0;
+
+invalid_fld:
+	ata_scsi_set_invalid_field(qc->dev, scmd, fp, bp);
+	return 1;
+
+invalid_param_len:
+	/* "Parameter list length error" */
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x1a, 0x0);
+	return 1;
+}
+
+/**
  *	ata_mselect_caching - Simulate MODE SELECT for caching info page
  *	@qc: Storage for translated ATA taskfile
  *	@buf: input buffer
@@ -3631,6 +3785,9 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	case MODE_SELECT_10:
 		return ata_scsi_mode_select_xlat;
 		break;
+
+	case ZBC_IN:
+		return ata_scsi_zbc_in_xlat;
 
 	case START_STOP:
 		return ata_scsi_start_stop_xlat;

@@ -162,6 +162,9 @@ libata_trace_parse_subcmd(struct trace_seq *p, unsigned char cmd,
 		case ATA_SUBCMD_FPDMA_RECV_RD_LOG_DMA_EXT:
 			trace_seq_printf(p, " READ_LOG_DMA_EXT");
 			break;
+		case ATA_SUBCMD_FPDMA_RECV_ZAC_MGMT_IN:
+			trace_seq_printf(p, " ZAC_MGMT_IN");
+			break;
 		}
 		break;
 	case ATA_CMD_FPDMA_SEND:
@@ -184,6 +187,13 @@ libata_trace_parse_subcmd(struct trace_seq *p, unsigned char cmd,
 			break;
 		case ATA_SUBCMD_NCQ_NON_DATA_ZERO_EXT:
 			trace_seq_printf(p, " ZERO_EXT");
+			break;
+		}
+		break;
+	case ATA_CMD_ZAC_MGMT_IN:
+		switch (feature) {
+		case ATA_SUBCMD_ZAC_MGMT_IN_REPORT_ZONES:
+			trace_seq_printf(p, " REPORT_ZONES");
 			break;
 		}
 		break;
