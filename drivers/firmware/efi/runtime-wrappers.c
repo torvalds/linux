@@ -22,10 +22,6 @@
 #include <linux/stringify.h>
 #include <asm/efi.h>
 
-/*
- * Temporary scaffolding until all users provide ARCH_EFI_IRQ_FLAGS_MASK.
- */
-#ifdef ARCH_EFI_IRQ_FLAGS_MASK
 static void efi_call_virt_check_flags(unsigned long flags, const char *call)
 {
 	unsigned long cur_flags, mismatch;
@@ -41,9 +37,6 @@ static void efi_call_virt_check_flags(unsigned long flags, const char *call)
 			   flags, cur_flags, call);
 	local_irq_restore(flags);
 }
-#else /* ARCH_EFI_IRQ_FLAGS_MASK */
-static inline void efi_call_virt_check_flags(unsigned long flags, const char *call) {}
-#endif /* ARCH_EFI_IRQ_FLAGS_MASK */
 
 /*
  * Arch code can implement the following three template macros, avoiding
