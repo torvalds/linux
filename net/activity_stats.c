@@ -63,13 +63,14 @@ void activity_stats_update(void)
 static int activity_stats_show(struct seq_file *m, void *v)
 {
 	int i;
+	int ret;
 
 	seq_printf(m, "Min Bucket(sec) Count\n");
 
 	for (i = 0; i < BUCKET_MAX; i++) {
-		seq_printf(m, "%15d %lu\n", 1 << i, activity_stats[i]);
-		if (seq_has_overflowed(m))
-			return -ENOSPC;
+		ret = seq_printf(m, "%15d %lu\n", 1 << i, activity_stats[i]);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
