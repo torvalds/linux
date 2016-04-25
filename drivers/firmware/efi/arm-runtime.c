@@ -105,8 +105,7 @@ static int __init arm_enable_runtime_services(void)
 
 	mapsize = efi.memmap.map_end - efi.memmap.map;
 
-	efi.memmap.map = (__force void *)ioremap_cache(efi.memmap.phys_map,
-						       mapsize);
+	efi.memmap.map = memremap(efi.memmap.phys_map, mapsize, MEMREMAP_WB);
 	if (!efi.memmap.map) {
 		pr_err("Failed to remap EFI memory map\n");
 		return -ENOMEM;
