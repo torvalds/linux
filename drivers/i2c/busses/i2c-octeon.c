@@ -103,6 +103,12 @@ struct octeon_i2c {
 	struct device *dev;
 };
 
+static void octeon_i2c_writeq_flush(u64 val, void __iomem *addr)
+{
+	__raw_writeq(val, addr);
+	__raw_readq(addr);	/* wait for write to land */
+}
+
 /**
  * octeon_i2c_reg_write - write an I2C core register
  * @i2c: The struct octeon_i2c
@@ -172,8 +178,7 @@ static u64 octeon_i2c_read_int(struct octeon_i2c *i2c)
  */
 static void octeon_i2c_write_int(struct octeon_i2c *i2c, u64 data)
 {
-	__raw_writeq(data, i2c->twsi_base + TWSI_INT);
-	__raw_readq(i2c->twsi_base + TWSI_INT);
+	octeon_i2c_writeq_flush(data, i2c->twsi_base + TWSI_INT);
 }
 
 /**
