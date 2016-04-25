@@ -14,6 +14,7 @@ enum {
 	ILA_ATTR_LOCATOR_MATCH,			/* u64 */
 	ILA_ATTR_IFINDEX,			/* s32 */
 	ILA_ATTR_DIR,				/* u32 */
+	ILA_ATTR_PAD,
 
 	__ILA_ATTR_MAX,
 };
