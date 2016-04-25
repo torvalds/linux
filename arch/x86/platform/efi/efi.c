@@ -119,11 +119,10 @@ void efi_get_time(struct timespec *now)
 
 void __init efi_find_mirror(void)
 {
-	void *p;
+	efi_memory_desc_t *md;
 	u64 mirror_size = 0, total_size = 0;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		efi_memory_desc_t *md = p;
+	for_each_efi_memory_desc(md) {
 		unsigned long long start = md->phys_addr;
 		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
 
@@ -146,10 +145,9 @@ void __init efi_find_mirror(void)
 
 static void __init do_add_efi_memmap(void)
 {
-	void *p;
+	efi_memory_desc_t *md;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		efi_memory_desc_t *md = p;
+	for_each_efi_memory_desc(md) {
 		unsigned long long start = md->phys_addr;
 		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
 		int e820_type;
@@ -226,17 +224,13 @@ void __init efi_print_memmap(void)
 {
 #ifdef EFI_DEBUG
 	efi_memory_desc_t *md;
-	void *p;
-	int i;
+	int i = 0;
 
-	for (p = memmap.map, i = 0;
-	     p < memmap.map_end;
-	     p += memmap.desc_size, i++) {
+	for_each_efi_memory_desc(md) {
 		char buf[64];
 
-		md = p;
 		pr_info("mem%02u: %s range=[0x%016llx-0x%016llx] (%lluMB)\n",
-			i, efi_md_typeattr_format(buf, sizeof(buf), md),
+			i++, efi_md_typeattr_format(buf, sizeof(buf), md),
 			md->phys_addr,
 			md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT) - 1,
 			(md->num_pages >> (20 - EFI_PAGE_SHIFT)));
@@ -550,12 +544,9 @@ void __init efi_set_executable(efi_memory_desc_t *md, bool executable)
 void __init runtime_code_page_mkexec(void)
 {
 	efi_memory_desc_t *md;
-	void *p;
 
 	/* Make EFI runtime service code area executable */
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		md = p;
-
+	for_each_efi_memory_desc(md) {
 		if (md->type != EFI_RUNTIME_SERVICES_CODE)
 			continue;
 
@@ -602,12 +593,10 @@ void __init old_map_region(efi_memory_desc_t *md)
 /* Merge contiguous regions of the same type and attribute */
 static void __init efi_merge_regions(void)
 {
-	void *p;
 	efi_memory_desc_t *md, *prev_md = NULL;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
+	for_each_efi_memory_desc(md) {
 		u64 prev_size;
-		md = p;
 
 		if (!prev_md) {
 			prev_md = md;
@@ -650,15 +639,13 @@ static void __init save_runtime_map(void)
 {
 #ifdef CONFIG_KEXEC_CORE
 	efi_memory_desc_t *md;
-	void *tmp, *p, *q = NULL;
+	void *tmp, *q = NULL;
 	int count = 0;
 
 	if (efi_enabled(EFI_OLD_MEMMAP))
 		return;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		md = p;
-
+	for_each_efi_memory_desc(md) {
 		if (!(md->attribute & EFI_MEMORY_RUNTIME) ||
 		    (md->type == EFI_BOOT_SERVICES_CODE) ||
 		    (md->type == EFI_BOOT_SERVICES_DATA))
@@ -814,7 +801,6 @@ static void __init kexec_enter_virtual_mode(void)
 #ifdef CONFIG_KEXEC_CORE
 	efi_memory_desc_t *md;
 	unsigned int num_pages;
-	void *p;
 
 	efi.systab = NULL;
 
@@ -838,8 +824,7 @@ static void __init kexec_enter_virtual_mode(void)
 	* Map efi regions which were passed via setup_data. The virt_addr is a
 	* fixed addr which was used in first kernel of a kexec boot.
 	*/
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		md = p;
+	for_each_efi_memory_desc(md) {
 		efi_map_region_fixed(md); /* FIXME: add error handling */
 		get_systab_virt_addr(md);
 	}
@@ -1009,13 +994,11 @@ void __init efi_enter_virtual_mode(void)
 u32 efi_mem_type(unsigned long phys_addr)
 {
 	efi_memory_desc_t *md;
-	void *p;
 
 	if (!efi_enabled(EFI_MEMMAP))
 		return 0;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		md = p;
+	for_each_efi_memory_desc(md) {
 		if ((md->phys_addr <= phys_addr) &&
 		    (phys_addr < (md->phys_addr +
 				  (md->num_pages << EFI_PAGE_SHIFT))))

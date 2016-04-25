@@ -958,10 +958,19 @@ static inline void efi_fake_memmap(void) { }
 #endif
 
 /* Iterate through an efi_memory_map */
-#define for_each_efi_memory_desc(m, md)					   \
+#define for_each_efi_memory_desc_in_map(m, md)				   \
 	for ((md) = (m)->map;						   \
 	     (md) <= (efi_memory_desc_t *)((m)->map_end - (m)->desc_size); \
 	     (md) = (void *)(md) + (m)->desc_size)
+
+/**
+ * for_each_efi_memory_desc - iterate over descriptors in efi.memmap
+ * @md: the efi_memory_desc_t * iterator
+ *
+ * Once the loop finishes @md must not be accessed.
+ */
+#define for_each_efi_memory_desc(md) \
+	for_each_efi_memory_desc_in_map(efi.memmap, md)
 
 /*
  * Format an EFI memory descriptor's type and attributes to a user-provided

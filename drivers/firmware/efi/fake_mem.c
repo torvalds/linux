@@ -68,8 +68,7 @@ void __init efi_fake_memmap(void)
 		return;
 
 	/* count up the number of EFI memory descriptor */
-	for (old = memmap.map; old < memmap.map_end; old += memmap.desc_size) {
-		md = old;
+	for_each_efi_memory_desc(md) {
 		start = md->phys_addr;
 		end = start + (md->num_pages << EFI_PAGE_SHIFT) - 1;
 
