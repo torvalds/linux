@@ -185,7 +185,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (!id)
 			continue;
 
-		if (atomic_long_read(&id->owner) != (long)vm)
+		if (atomic_long_read(&id->owner) != vm->client_id)
 			continue;
 
 		if (pd_addr != id->pd_gpu_addr)
@@ -261,7 +261,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 	list_move_tail(&id->list, &adev->vm_manager.ids_lru);
 	id->last_user = ring;
-	atomic_long_set(&id->owner, (long)vm);
+	atomic_long_set(&id->owner, vm->client_id);
 	vm->ids[ring->idx] = id;
 
 	*vm_id = id - adev->vm_manager.ids;
@@ -1485,7 +1485,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 				 list) {
 		if (!id)
 			continue;
-		if (atomic_long_read(&id->owner) == (long)vm) {
+		if (atomic_long_read(&id->owner) == vm->client_id) {
 			atomic_long_set(&id->owner, 0);
 			id->pd_gpu_addr = 0;
 		}
