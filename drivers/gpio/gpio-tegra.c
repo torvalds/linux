@@ -75,6 +75,11 @@ struct tegra_gpio_bank {
 #endif
 };
 
+struct tegra_gpio_soc_config {
+	u32 bank_stride;
+	u32 upper_offset;
+};
+
 static struct device *dev;
 static struct irq_domain *irq_domain;
 static void __iomem *regs;
@@ -445,27 +450,6 @@ static const struct dev_pm_ops tegra_gpio_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tegra_gpio_suspend, tegra_gpio_resume)
 };
 
-struct tegra_gpio_soc_config {
-	u32 bank_stride;
-	u32 upper_offset;
-};
-
-static struct tegra_gpio_soc_config tegra20_gpio_config = {
-	.bank_stride = 0x80,
-	.upper_offset = 0x800,
-};
-
-static struct tegra_gpio_soc_config tegra30_gpio_config = {
-	.bank_stride = 0x100,
-	.upper_offset = 0x80,
-};
-
-static const struct of_device_id tegra_gpio_of_match[] = {
-	{ .compatible = "nvidia,tegra30-gpio", .data = &tegra30_gpio_config },
-	{ .compatible = "nvidia,tegra20-gpio", .data = &tegra20_gpio_config },
-	{ },
-};
-
 /* This lock class tells lockdep that GPIO irqs are in a different
  * category than their parents, so it won't report false recursion.
  */
@@ -473,8 +457,7 @@ static struct lock_class_key gpio_lock_class;
 
 static int tegra_gpio_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
-	struct tegra_gpio_soc_config *config;
+	const struct tegra_gpio_soc_config *config;
 	struct resource *res;
 	struct tegra_gpio_bank *bank;
 	int ret;
@@ -484,12 +467,11 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 	dev = &pdev->dev;
 
-	match = of_match_device(tegra_gpio_of_match, &pdev->dev);
-	if (!match) {
+	config = of_device_get_match_data(&pdev->dev);
+	if (!config) {
 		dev_err(&pdev->dev, "Error: No device match found\n");
 		return -ENODEV;
 	}
-	config = (struct tegra_gpio_soc_config *)match->data;
 
 	tegra_gpio_bank_stride = config->bank_stride;
 	tegra_gpio_upper_offset = config->upper_offset;
@@ -577,6 +559,22 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 	return 0;
 }
+
+static struct tegra_gpio_soc_config tegra20_gpio_config = {
+	.bank_stride = 0x80,
+	.upper_offset = 0x800,
+};
+
+static struct tegra_gpio_soc_config tegra30_gpio_config = {
+	.bank_stride = 0x100,
+	.upper_offset = 0x80,
+};
+
+static const struct of_device_id tegra_gpio_of_match[] = {
+	{ .compatible = "nvidia,tegra30-gpio", .data = &tegra30_gpio_config },
+	{ .compatible = "nvidia,tegra20-gpio", .data = &tegra20_gpio_config },
+	{ },
+};
 
 static struct platform_driver tegra_gpio_driver = {
 	.driver		= {
