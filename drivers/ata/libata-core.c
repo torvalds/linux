@@ -2121,6 +2121,40 @@ static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
 	}
 }
 
+static void ata_dev_config_ncq_non_data(struct ata_device *dev)
+{
+	struct ata_port *ap = dev->link->ap;
+	unsigned int err_mask;
+	int log_index = ATA_LOG_NCQ_NON_DATA * 2;
+	u16 log_pages;
+
+	err_mask = ata_read_log_page(dev, ATA_LOG_DIRECTORY,
+				     0, ap->sector_buf, 1);
+	if (err_mask) {
+		ata_dev_dbg(dev,
+			    "failed to get Log Directory Emask 0x%x\n",
+			    err_mask);
+		return;
+	}
+	log_pages = get_unaligned_le16(&ap->sector_buf[log_index]);
+	if (!log_pages) {
+		ata_dev_warn(dev,
+			     "NCQ Send/Recv Log not supported\n");
+		return;
+	}
+	err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_NON_DATA,
+				     0, ap->sector_buf, 1);
+	if (err_mask) {
+		ata_dev_dbg(dev,
+			    "failed to get NCQ Non-Data Log Emask 0x%x\n",
+			    err_mask);
+	} else {
+		u8 *cmds = dev->ncq_non_data_cmds;
+
+		memcpy(cmds, ap->sector_buf, ATA_LOG_NCQ_NON_DATA_SIZE);
+	}
+}
+
 static int ata_dev_config_ncq(struct ata_device *dev,
 			       char *desc, size_t desc_sz)
 {
@@ -2165,9 +2199,12 @@ static int ata_dev_config_ncq(struct ata_device *dev,
 		snprintf(desc, desc_sz, "NCQ (depth %d/%d)%s", hdepth,
 			ddepth, aa_desc);
 
-	if ((ap->flags & ATA_FLAG_FPDMA_AUX) &&
-	    ata_id_has_ncq_send_and_recv(dev->id))
-		ata_dev_config_ncq_send_recv(dev);
+	if ((ap->flags & ATA_FLAG_FPDMA_AUX)) {
+		if (ata_id_has_ncq_send_and_recv(dev->id))
+			ata_dev_config_ncq_send_recv(dev);
+		if (ata_id_has_ncq_non_data(dev->id))
+			ata_dev_config_ncq_non_data(dev);
+	}
 
 	return 0;
 }

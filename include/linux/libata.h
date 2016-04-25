@@ -729,6 +729,7 @@ struct ata_device {
 
 	/* NCQ send and receive log subcommand support */
 	u8			ncq_send_recv_cmds[ATA_LOG_NCQ_SEND_RECV_SIZE];
+	u8			ncq_non_data_cmds[ATA_LOG_NCQ_NON_DATA_SIZE];
 
 	/* error history */
 	int			spdn_cnt;
@@ -1656,6 +1657,12 @@ static inline bool ata_fpdma_zac_mgmt_in_supported(struct ata_device *dev)
 	return (dev->flags & ATA_DFLAG_NCQ_SEND_RECV) &&
 		(dev->ncq_send_recv_cmds[ATA_LOG_NCQ_SEND_RECV_ZAC_MGMT_OFFSET] &
 		ATA_LOG_NCQ_SEND_RECV_ZAC_MGMT_IN_SUPPORTED);
+}
+
+static inline bool ata_fpdma_zac_mgmt_out_supported(struct ata_device *dev)
+{
+	return (dev->ncq_non_data_cmds[ATA_LOG_NCQ_NON_DATA_ZAC_MGMT_OFFSET] &
+		ATA_LOG_NCQ_NON_DATA_ZAC_MGMT_OUT);
 }
 
 static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)

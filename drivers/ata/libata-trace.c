@@ -188,6 +188,9 @@ libata_trace_parse_subcmd(struct trace_seq *p, unsigned char cmd,
 		case ATA_SUBCMD_NCQ_NON_DATA_ZERO_EXT:
 			trace_seq_printf(p, " ZERO_EXT");
 			break;
+		case ATA_SUBCMD_NCQ_NON_DATA_ZAC_MGMT_OUT:
+			trace_seq_printf(p, " ZAC_MGMT_OUT");
+			break;
 		}
 		break;
 	case ATA_CMD_ZAC_MGMT_IN:

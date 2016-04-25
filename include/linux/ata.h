@@ -320,6 +320,7 @@ enum {
 	ATA_SUBCMD_NCQ_NON_DATA_ABORT_QUEUE  = 0x00,
 	ATA_SUBCMD_NCQ_NON_DATA_SET_FEATURES = 0x05,
 	ATA_SUBCMD_NCQ_NON_DATA_ZERO_EXT     = 0x06,
+	ATA_SUBCMD_NCQ_NON_DATA_ZAC_MGMT_OUT = 0x07,
 
 	/* Subcmds for ATA_CMD_ZAC_MGMT_IN */
 	ATA_SUBCMD_ZAC_MGMT_IN_REPORT_ZONES = 0x00,
@@ -333,6 +334,7 @@ enum {
 	/* READ_LOG_EXT pages */
 	ATA_LOG_DIRECTORY	= 0x0,
 	ATA_LOG_SATA_NCQ	= 0x10,
+	ATA_LOG_NCQ_NON_DATA	  = 0x12,
 	ATA_LOG_NCQ_SEND_RECV	  = 0x13,
 	ATA_LOG_SATA_ID_DEV_DATA  = 0x30,
 	ATA_LOG_SATA_SETTINGS	  = 0x08,
@@ -875,6 +877,11 @@ static inline int ata_id_rotation_rate(const u16 *id)
 static inline bool ata_id_has_ncq_send_and_recv(const u16 *id)
 {
 	return id[ATA_ID_SATA_CAPABILITY_2] & BIT(6);
+}
+
+static inline bool ata_id_has_ncq_non_data(const u16 *id)
+{
+	return id[ATA_ID_SATA_CAPABILITY_2] & BIT(5);
 }
 
 static inline bool ata_id_has_trim(const u16 *id)
