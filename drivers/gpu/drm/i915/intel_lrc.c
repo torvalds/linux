@@ -1474,9 +1474,11 @@ static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *engine, u32 size)
 
 	engine->wa_ctx.obj = i915_gem_object_create(engine->dev,
 						   PAGE_ALIGN(size));
-	if (!engine->wa_ctx.obj) {
+	if (IS_ERR(engine->wa_ctx.obj)) {
 		DRM_DEBUG_DRIVER("alloc LRC WA ctx backing obj failed.\n");
-		return -ENOMEM;
+		ret = PTR_ERR(engine->wa_ctx.obj);
+		engine->wa_ctx.obj = NULL;
+		return ret;
 	}
 
 	ret = i915_gem_obj_ggtt_pin(engine->wa_ctx.obj, PAGE_SIZE, 0);
@@ -2666,9 +2668,9 @@ int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 	context_size += PAGE_SIZE * LRC_PPHWSP_PN;
 
 	ctx_obj = i915_gem_object_create(dev, context_size);
-	if (!ctx_obj) {
+	if (IS_ERR(ctx_obj)) {
 		DRM_DEBUG_DRIVER("Alloc LRC backing obj failed.\n");
-		return -ENOMEM;
+		return PTR_ERR(ctx_obj);
 	}
 
 	ringbuf = intel_engine_create_ringbuffer(engine, 4 * PAGE_SIZE);

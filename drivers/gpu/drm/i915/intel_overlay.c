@@ -1397,7 +1397,7 @@ void intel_setup_overlay(struct drm_device *dev)
 		reg_bo = i915_gem_object_create_stolen(dev, PAGE_SIZE);
 	if (reg_bo == NULL)
 		reg_bo = i915_gem_object_create(dev, PAGE_SIZE);
-	if (reg_bo == NULL)
+	if (IS_ERR(reg_bo))
 		goto out_free;
 	overlay->reg_bo = reg_bo;
 

@@ -382,8 +382,8 @@ i915_gem_create(struct drm_file *file,
 
 	/* Allocate the new object */
 	obj = i915_gem_object_create(dev, size);
-	if (obj == NULL)
-		return -ENOMEM;
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
 
 	ret = drm_gem_handle_create(file, &obj->base, &handle);
 	/* drop reference from allocate - handle holds it now */
@@ -4501,15 +4501,15 @@ struct drm_i915_gem_object *i915_gem_object_create(struct drm_device *dev,
 	struct drm_i915_gem_object *obj;
 	struct address_space *mapping;
 	gfp_t mask;
+	int ret;
 
 	obj = i915_gem_object_alloc(dev);
 	if (obj == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	if (drm_gem_object_init(dev, &obj->base, size) != 0) {
-		i915_gem_object_free(obj);
-		return NULL;
-	}
+	ret = drm_gem_object_init(dev, &obj->base, size);
+	if (ret)
+		goto fail;
 
 	mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
 	if (IS_CRESTLINE(dev) || IS_BROADWATER(dev)) {
@@ -4546,6 +4546,11 @@ struct drm_i915_gem_object *i915_gem_object_create(struct drm_device *dev,
 	trace_i915_gem_object_create(obj);
 
 	return obj;
+
+fail:
+	i915_gem_object_free(obj);
+
+	return ERR_PTR(ret);
 }
 
 static bool discard_backing_storage(struct drm_i915_gem_object *obj)
@@ -5351,7 +5356,7 @@ i915_gem_object_create_from_data(struct drm_device *dev,
 	int ret;
 
 	obj = i915_gem_object_create(dev, round_up(size, PAGE_SIZE));
-	if (IS_ERR_OR_NULL(obj))
+	if (IS_ERR(obj))
 		return obj;
 
 	ret = i915_gem_object_set_to_cpu_domain(obj, true);

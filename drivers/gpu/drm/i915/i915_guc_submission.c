@@ -588,7 +588,7 @@ static struct drm_i915_gem_object *gem_allocate_guc_obj(struct drm_device *dev,
 	struct drm_i915_gem_object *obj;
 
 	obj = i915_gem_object_create(dev, size);
-	if (!obj)
+	if (IS_ERR(obj))
 		return NULL;
 
 	if (i915_gem_object_get_pages(obj)) {

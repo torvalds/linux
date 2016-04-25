@@ -10321,8 +10321,8 @@ intel_framebuffer_create_for_mode(struct drm_device *dev,
 
 	obj = i915_gem_object_create(dev,
 				    intel_framebuffer_size_for_mode(mode, bpp));
-	if (obj == NULL)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
 
 	mode_cmd.width = mode->hdisplay;
 	mode_cmd.height = mode->vdisplay;

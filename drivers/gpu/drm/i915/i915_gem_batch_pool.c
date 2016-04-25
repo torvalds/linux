@@ -135,8 +135,8 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 		int ret;
 
 		obj = i915_gem_object_create(pool->dev, size);
-		if (obj == NULL)
-			return ERR_PTR(-ENOMEM);
+		if (IS_ERR(obj))
+			return obj;
 
 		ret = i915_gem_object_get_pages(obj);
 		if (ret)

@@ -179,8 +179,8 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 	int ret;
 
 	obj = i915_gem_object_create(dev, size);
-	if (obj == NULL)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(obj))
+		return obj;
 
 	/*
 	 * Try to make the context utilize L3 as well as LLC.

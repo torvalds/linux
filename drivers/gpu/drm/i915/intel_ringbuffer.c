@@ -672,9 +672,10 @@ intel_init_pipe_control(struct intel_engine_cs *engine)
 	WARN_ON(engine->scratch.obj);
 
 	engine->scratch.obj = i915_gem_object_create(engine->dev, 4096);
-	if (engine->scratch.obj == NULL) {
+	if (IS_ERR(engine->scratch.obj)) {
 		DRM_ERROR("Failed to allocate seqno page\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(engine->scratch.obj);
+		engine->scratch.obj = NULL;
 		goto err;
 	}
 
@@ -2033,9 +2034,9 @@ static int init_status_page(struct intel_engine_cs *engine)
 		int ret;
 
 		obj = i915_gem_object_create(engine->dev, 4096);
-		if (obj == NULL) {
+		if (IS_ERR(obj)) {
 			DRM_ERROR("Failed to allocate status page\n");
-			return -ENOMEM;
+			return PTR_ERR(obj);
 		}
 
 		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
@@ -2174,8 +2175,8 @@ static int intel_alloc_ringbuffer_obj(struct drm_device *dev,
 		obj = i915_gem_object_create_stolen(dev, ringbuf->size);
 	if (obj == NULL)
 		obj = i915_gem_object_create(dev, ringbuf->size);
-	if (obj == NULL)
-		return -ENOMEM;
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
 
 	/* mark ring buffers as read-only from GPU side by default */
 	obj->gt_ro = 1;
@@ -2787,7 +2788,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 8) {
 		if (i915_semaphore_is_enabled(dev)) {
 			obj = i915_gem_object_create(dev, 4096);
-			if (obj == NULL) {
+			if (IS_ERR(obj)) {
 				DRM_ERROR("Failed to allocate semaphore bo. Disabling semaphores\n");
 				i915.semaphores = 0;
 			} else {
@@ -2896,9 +2897,9 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	/* Workaround batchbuffer to combat CS tlb bug. */
 	if (HAS_BROKEN_CS_TLB(dev)) {
 		obj = i915_gem_object_create(dev, I830_WA_SIZE);
-		if (obj == NULL) {
+		if (IS_ERR(obj)) {
 			DRM_ERROR("Failed to allocate batch bo\n");
-			return -ENOMEM;
+			return PTR_ERR(obj);
 		}
 
 		ret = i915_gem_obj_ggtt_pin(obj, 0, 0);

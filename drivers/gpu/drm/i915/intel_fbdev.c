@@ -151,9 +151,9 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 		obj = i915_gem_object_create_stolen(dev, size);
 	if (obj == NULL)
 		obj = i915_gem_object_create(dev, size);
-	if (!obj) {
+	if (IS_ERR(obj)) {
 		DRM_ERROR("failed to allocate framebuffer\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(obj);
 		goto out;
 	}
 
