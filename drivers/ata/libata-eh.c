@@ -1660,7 +1660,7 @@ static void ata_eh_request_sense(struct ata_queued_cmd *qc,
 		return;
 	}
 
-	if (!cmd)
+	if (!cmd || qc->flags & ATA_QCFLAG_SENSE_VALID)
 		return;
 
 	if (!ata_id_sense_reporting_enabled(dev->id)) {
@@ -1849,7 +1849,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	memcpy(&qc->result_tf, &tf, sizeof(tf));
 	qc->result_tf.flags = ATA_TFLAG_ISADDR | ATA_TFLAG_LBA | ATA_TFLAG_LBA48;
 	qc->err_mask |= AC_ERR_DEV | AC_ERR_NCQ;
-	if (qc->result_tf.auxiliary) {
+	if ((qc->result_tf.command & ATA_SENSE) || qc->result_tf.auxiliary) {
 		char sense_key, asc, ascq;
 
 		sense_key = (qc->result_tf.auxiliary >> 16) & 0xff;
