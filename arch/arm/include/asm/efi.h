@@ -67,6 +67,10 @@ void efi_virtmap_unload(void);
 struct screen_info *alloc_screen_info(efi_system_table_t *sys_table_arg);
 void free_screen_info(efi_system_table_t *sys_table, struct screen_info *si);
 
+static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
+{
+}
+
 /*
  * A reasonable upper bound for the uncompressed kernel size is 32 MBytes,
  * so we will reserve that amount of memory. We have no easy way to tell what
