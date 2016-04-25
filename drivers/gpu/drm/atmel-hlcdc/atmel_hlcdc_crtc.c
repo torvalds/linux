@@ -414,8 +414,9 @@ atmel_hlcdc_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	state = kmalloc(sizeof(*state), GFP_KERNEL);
-	if (state)
-		__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
+	if (!state)
+		return NULL;
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
 
 	cur = drm_crtc_state_to_atmel_hlcdc_crtc_state(crtc->state);
 	state->output_mode = cur->output_mode;
