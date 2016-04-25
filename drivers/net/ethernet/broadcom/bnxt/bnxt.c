@@ -4309,7 +4309,7 @@ static int bnxt_setup_int_mode(struct bnxt *bp)
 	if (bp->flags & BNXT_FLAG_MSIX_CAP)
 		rc = bnxt_setup_msix(bp);
 
-	if (!(bp->flags & BNXT_FLAG_USING_MSIX)) {
+	if (!(bp->flags & BNXT_FLAG_USING_MSIX) && BNXT_PF(bp)) {
 		/* fallback to INTA */
 		rc = bnxt_setup_inta(bp);
 	}
