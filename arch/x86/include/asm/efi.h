@@ -33,28 +33,16 @@
 
 extern unsigned long asmlinkage efi_call_phys(void *, ...);
 
+#define arch_efi_call_virt_setup()	kernel_fpu_begin()
+#define arch_efi_call_virt_teardown()	kernel_fpu_end()
+
 /*
  * Wrap all the virtual calls in a way that forces the parameters on the stack.
  */
-
-/* Use this macro if your virtual returns a non-void value */
-#define efi_call_virt(f, args...) \
+#define arch_efi_call_virt(f, args...)					\
 ({									\
-	efi_status_t __s;						\
-	kernel_fpu_begin();						\
-	__s = ((efi_##f##_t __attribute__((regparm(0)))*)		\
-		efi.systab->runtime->f)(args);				\
-	kernel_fpu_end();						\
-	__s;								\
-})
-
-/* Use this macro if your virtual call does not return any value */
-#define __efi_call_virt(f, args...) \
-({									\
-	kernel_fpu_begin();						\
 	((efi_##f##_t __attribute__((regparm(0)))*)			\
 		efi.systab->runtime->f)(args);				\
-	kernel_fpu_end();						\
 })
 
 #define efi_ioremap(addr, size, type, attr)	ioremap_cache(addr, size)
@@ -78,10 +66,8 @@ struct efi_scratch {
 	u64	phys_stack;
 } __packed;
 
-#define efi_call_virt(f, ...)						\
+#define arch_efi_call_virt_setup()					\
 ({									\
-	efi_status_t __s;						\
-									\
 	efi_sync_low_kernel_mappings();					\
 	preempt_disable();						\
 	__kernel_fpu_begin();						\
@@ -91,9 +77,13 @@ struct efi_scratch {
 		write_cr3((unsigned long)efi_scratch.efi_pgt);		\
 		__flush_tlb_all();					\
 	}								\
-									\
-	__s = efi_call((void *)efi.systab->runtime->f, __VA_ARGS__);	\
-									\
+})
+
+#define arch_efi_call_virt(f, args...)					\
+	efi_call((void *)efi.systab->runtime->f, args)			\
+
+#define arch_efi_call_virt_teardown()					\
+({									\
 	if (efi_scratch.use_pgd) {					\
 		write_cr3(efi_scratch.prev_cr3);			\
 		__flush_tlb_all();					\
@@ -101,14 +91,7 @@ struct efi_scratch {
 									\
 	__kernel_fpu_end();						\
 	preempt_enable();						\
-	__s;								\
 })
-
-/*
- * All X86_64 virt calls return non-void values. Thus, use non-void call for
- * virt calls that would be void on X86_32.
- */
-#define __efi_call_virt(f, args...) efi_call_virt(f, args)
 
 extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned long size,
 					u32 type, u64 attribute);
