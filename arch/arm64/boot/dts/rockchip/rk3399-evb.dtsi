@@ -272,6 +272,7 @@
 
 &sdhci {
 	bus-width = <8>;
+	mmc-hs400-1_8v;
 	supports-emmc;
 	non-removable;
 	status = "okay";
