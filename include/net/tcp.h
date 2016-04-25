@@ -761,7 +761,8 @@ struct tcp_skb_cb {
 
 	__u8		ip_dsfield;	/* IPv4 tos or IPv6 dsfield	*/
 	__u8		txstamp_ack:1,	/* Record TX timestamp for ack? */
-			unused:7;
+			eor:1,		/* Is skb MSG_EOR marked? */
+			unused:6;
 	__u32		ack_seq;	/* Sequence number ACK'd	*/
 	union {
 		struct inet_skb_parm	h4;
@@ -806,6 +807,11 @@ static inline void tcp_skb_pcount_add(struct sk_buff *skb, int segs)
 static inline int tcp_skb_mss(const struct sk_buff *skb)
 {
 	return TCP_SKB_CB(skb)->tcp_gso_size;
+}
+
+static inline bool tcp_skb_can_collapse_to(const struct sk_buff *skb)
+{
+	return likely(!TCP_SKB_CB(skb)->eor);
 }
 
 /* Events passed to congestion control interface */
