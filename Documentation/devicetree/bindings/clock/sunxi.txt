@@ -64,6 +64,7 @@ Required properties:
 	"allwinner,sun8i-a83t-bus-gates-clk" - for the bus gates on A83T
 	"allwinner,sun8i-h3-bus-gates-clk" - for the bus gates on H3
 	"allwinner,sun9i-a80-apbs-gates-clk" - for the APBS gates on A80
+	"allwinner,sun4i-a10-display-clk" - for the display clocks on the A10
 	"allwinner,sun4i-a10-dram-gates-clk" - for the DRAM gates on A10
 	"allwinner,sun5i-a13-dram-gates-clk" - for the DRAM gates on A13
 	"allwinner,sun5i-a13-mbus-clk" - for the MBUS clock on A13
@@ -75,6 +76,7 @@ Required properties:
 	"allwinner,sun8i-a23-mbus-clk" - for the MBUS clock on A23
 	"allwinner,sun7i-a20-out-clk" - for the external output clocks
 	"allwinner,sun7i-a20-gmac-clk" - for the GMAC clock module on A20/A31
+	"allwinner,sun4i-a10-tcon-ch0-clk" - for the TCON channel 0 clock on the A10
 	"allwinner,sun4i-a10-tcon-ch1-clk" - for the TCON channel 1 clock on the A10
 	"allwinner,sun4i-a10-usb-clk" - for usb gates + resets on A10 / A20
 	"allwinner,sun5i-a13-usb-clk" - for usb gates + resets on A13
