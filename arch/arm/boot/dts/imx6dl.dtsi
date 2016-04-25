@@ -30,7 +30,7 @@
 				/* kHz    uV */
 				996000  1250000
 				792000  1175000
-				396000  1075000
+				396000  1150000
 			>;
 			fsl,soc-operating-points = <
 				/* ARM kHz  SOC-PU uV */
