@@ -225,9 +225,7 @@ serial_exists:
 struct key *key_alloc(struct key_type *type, const char *desc,
 		      kuid_t uid, kgid_t gid, const struct cred *cred,
 		      key_perm_t perm, unsigned long flags,
-		      int (*restrict_link)(struct key *,
-					   const struct key_type *,
-					   const union key_payload *))
+		      key_restrict_link_func_t restrict_link)
 {
 	struct key_user *user = NULL;
 	struct key *key;
@@ -806,9 +804,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	struct key *keyring, *key = NULL;
 	key_ref_t key_ref;
 	int ret;
-	int (*restrict_link)(struct key *,
-			     const struct key_type *,
-			     const union key_payload *) = NULL;
+	key_restrict_link_func_t restrict_link = NULL;
 
 	/* look up the key type to see if it's one of the registered kernel
 	 * types */

@@ -492,9 +492,7 @@ static long keyring_read(const struct key *keyring,
 struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
 			  const struct cred *cred, key_perm_t perm,
 			  unsigned long flags,
-			  int (*restrict_link)(struct key *,
-					       const struct key_type *,
-					       const union key_payload *),
+			  key_restrict_link_func_t restrict_link,
 			  struct key *dest)
 {
 	struct key *keyring;

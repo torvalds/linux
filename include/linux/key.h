@@ -127,6 +127,10 @@ static inline bool is_key_possessed(const key_ref_t key_ref)
 	return (unsigned long) key_ref & 1UL;
 }
 
+typedef int (*key_restrict_link_func_t)(struct key *keyring,
+					const struct key_type *type,
+					const union key_payload *payload);
+
 /*****************************************************************************/
 /*
  * authentication token / access credential / keyring
@@ -215,9 +219,7 @@ struct key {
 	 * overrides this, allowing the kernel to add extra keys without
 	 * restriction.
 	 */
-	int (*restrict_link)(struct key *keyring,
-			     const struct key_type *type,
-			     const union key_payload *payload);
+	key_restrict_link_func_t restrict_link;
 };
 
 extern struct key *key_alloc(struct key_type *type,
@@ -226,9 +228,7 @@ extern struct key *key_alloc(struct key_type *type,
 			     const struct cred *cred,
 			     key_perm_t perm,
 			     unsigned long flags,
-			     int (*restrict_link)(struct key *,
-						  const struct key_type *,
-						  const union key_payload *));
+			     key_restrict_link_func_t restrict_link);
 
 
 #define KEY_ALLOC_IN_QUOTA		0x0000	/* add to quota, reject if would overrun */
@@ -304,9 +304,7 @@ extern struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid
 				 const struct cred *cred,
 				 key_perm_t perm,
 				 unsigned long flags,
-				 int (*restrict_link)(struct key *,
-						      const struct key_type *,
-						      const union key_payload *),
+				 key_restrict_link_func_t restrict_link,
 				 struct key *dest);
 
 extern int restrict_link_reject(struct key *keyring,
