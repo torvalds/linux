@@ -825,17 +825,17 @@ static inline int rtnl_vfinfo_size(const struct net_device *dev,
 			 nla_total_size(sizeof(struct ifla_vf_link_state)) +
 			 nla_total_size(sizeof(struct ifla_vf_rss_query_en)) +
 			 /* IFLA_VF_STATS_RX_PACKETS */
-			 nla_total_size(sizeof(__u64)) +
+			 nla_total_size_64bit(sizeof(__u64)) +
 			 /* IFLA_VF_STATS_TX_PACKETS */
-			 nla_total_size(sizeof(__u64)) +
+			 nla_total_size_64bit(sizeof(__u64)) +
 			 /* IFLA_VF_STATS_RX_BYTES */
-			 nla_total_size(sizeof(__u64)) +
+			 nla_total_size_64bit(sizeof(__u64)) +
 			 /* IFLA_VF_STATS_TX_BYTES */
-			 nla_total_size(sizeof(__u64)) +
+			 nla_total_size_64bit(sizeof(__u64)) +
 			 /* IFLA_VF_STATS_BROADCAST */
-			 nla_total_size(sizeof(__u64)) +
+			 nla_total_size_64bit(sizeof(__u64)) +
 			 /* IFLA_VF_STATS_MULTICAST */
-			 nla_total_size(sizeof(__u64)) +
+			 nla_total_size_64bit(sizeof(__u64)) +
 			 nla_total_size(sizeof(struct ifla_vf_trust)));
 		return size;
 	} else
@@ -1153,18 +1153,18 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 		nla_nest_cancel(skb, vfinfo);
 		return -EMSGSIZE;
 	}
-	if (nla_put_u64(skb, IFLA_VF_STATS_RX_PACKETS,
-			vf_stats.rx_packets) ||
-	    nla_put_u64(skb, IFLA_VF_STATS_TX_PACKETS,
-			vf_stats.tx_packets) ||
-	    nla_put_u64(skb, IFLA_VF_STATS_RX_BYTES,
-			vf_stats.rx_bytes) ||
-	    nla_put_u64(skb, IFLA_VF_STATS_TX_BYTES,
-			vf_stats.tx_bytes) ||
-	    nla_put_u64(skb, IFLA_VF_STATS_BROADCAST,
-			vf_stats.broadcast) ||
-	    nla_put_u64(skb, IFLA_VF_STATS_MULTICAST,
-			vf_stats.multicast))
+	if (nla_put_u64_64bit(skb, IFLA_VF_STATS_RX_PACKETS,
+			      vf_stats.rx_packets, IFLA_VF_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, IFLA_VF_STATS_TX_PACKETS,
+			      vf_stats.tx_packets, IFLA_VF_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, IFLA_VF_STATS_RX_BYTES,
+			      vf_stats.rx_bytes, IFLA_VF_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, IFLA_VF_STATS_TX_BYTES,
+			      vf_stats.tx_bytes, IFLA_VF_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, IFLA_VF_STATS_BROADCAST,
+			      vf_stats.broadcast, IFLA_VF_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, IFLA_VF_STATS_MULTICAST,
+			      vf_stats.multicast, IFLA_VF_STATS_PAD))
 		return -EMSGSIZE;
 	nla_nest_end(skb, vfstats);
 	nla_nest_end(skb, vf);
