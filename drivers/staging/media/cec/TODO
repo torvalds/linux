@@ -1,0 +1,27 @@
+The reason why cec.c is still in staging is that I would like
+to have a bit more confidence in the uABI. The kABI is fine,
+no problem there, but I would like to let the public API mature
+a bit.
+
+Once I'm confident that I didn't miss anything then the cec.c source
+can move to drivers/media and the linux/cec.h and linux/cec-funcs.h
+headers can move to uapi/linux and added to uapi/linux/Kbuild to make
+them public.
+
+Hopefully this will happen later in 2016.
+
+Other TODOs:
+
+- Add a flag to inhibit passing CEC RC messages to the rc subsystem.
+  Applications should be able to choose this when calling S_LOG_ADDRS.
+- Convert cec.txt to sphinx.
+- If the reply field of cec_msg is set then when the reply arrives it
+  is only sent to the filehandle that transmitted the original message
+  and not to any followers. Should this behavior change or perhaps
+  controlled through a cec_msg flag?
+- Should CEC_LOG_ADDR_TYPE_SPECIFIC be replaced by TYPE_2ND_TV and TYPE_PROCESSOR?
+  And also TYPE_SWITCH and TYPE_CDC_ONLY in addition to the TYPE_UNREGISTERED?
+  This should give the framework more information about the device type
+  since SPECIFIC and UNREGISTERED give no useful information.
+
+Hans Verkuil <hans.verkuil@cisco.com>
