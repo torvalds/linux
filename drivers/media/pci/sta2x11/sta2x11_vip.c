@@ -444,8 +444,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct sta2x11_vip *vip = video_drvdata(file);
-	v4l2_std_id oldstd = vip->std;
-	int status;
 
 	/*
 	 * This is here for backwards compatibility only.
