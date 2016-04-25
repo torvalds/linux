@@ -1118,6 +1118,7 @@ static int register_root_hub(struct usb_hcd *hcd)
 		/* Did the HC die before the root hub was registered? */
 		if (HCD_DEAD(hcd))
 			usb_hc_died (hcd);	/* This time clean up */
+		usb_dev->dev.of_node = parent_dev->of_node;
 	}
 	mutex_unlock(&usb_bus_idr_lock);
 
