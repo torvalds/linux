@@ -112,6 +112,7 @@ __efistub___memset		= KALLSYMS_HIDE(__pi_memset);
 __efistub__text			= KALLSYMS_HIDE(_text);
 __efistub__end			= KALLSYMS_HIDE(_end);
 __efistub__edata		= KALLSYMS_HIDE(_edata);
+__efistub_screen_info		= KALLSYMS_HIDE(screen_info);
 
 #endif
 
