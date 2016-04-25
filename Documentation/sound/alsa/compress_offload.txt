@@ -149,7 +149,7 @@ Gapless Playback
 ================
 When playing thru an album, the decoders have the ability to skip the encoder
 delay and padding and directly move from one track content to another. The end
-user can perceive this as gapless playback as we dont have silence while
+user can perceive this as gapless playback as we don't have silence while
 switching from one track to another
 
 Also, there might be low-intensity noises due to encoding. Perfect gapless is
