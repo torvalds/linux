@@ -1940,7 +1940,8 @@ static inline unsigned long sock_wspace(struct sock *sk)
  */
 static inline void sk_set_bit(int nr, struct sock *sk)
 {
-	if (nr == SOCKWQ_ASYNC_NOSPACE && !sock_flag(sk, SOCK_FASYNC))
+	if ((nr == SOCKWQ_ASYNC_NOSPACE || nr == SOCKWQ_ASYNC_WAITDATA) &&
+	    !sock_flag(sk, SOCK_FASYNC))
 		return;
 
 	set_bit(nr, &sk->sk_wq_raw->flags);
@@ -1948,7 +1949,8 @@ static inline void sk_set_bit(int nr, struct sock *sk)
 
 static inline void sk_clear_bit(int nr, struct sock *sk)
 {
-	if (nr == SOCKWQ_ASYNC_NOSPACE && !sock_flag(sk, SOCK_FASYNC))
+	if ((nr == SOCKWQ_ASYNC_NOSPACE || nr == SOCKWQ_ASYNC_WAITDATA) &&
+	    !sock_flag(sk, SOCK_FASYNC))
 		return;
 
 	clear_bit(nr, &sk->sk_wq_raw->flags);
