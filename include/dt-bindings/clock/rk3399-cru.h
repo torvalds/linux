@@ -72,7 +72,7 @@
 #define SCLK_MACREF_OUT			106
 #define SCLK_VOP0_PWM			107
 #define SCLK_VOP1_PWM			108
-#define SCLK_RGA			109
+#define SCLK_RGA_CORE			109
 #define SCLK_ISP0			110
 #define SCLK_ISP1			111
 #define SCLK_HDMI_CEC			112
@@ -129,6 +129,8 @@
 #define SCLK_DPHY_TX0_CFG		163
 #define SCLK_DPHY_TX1RX1_CFG		164
 #define SCLK_DPHY_RX0_CFG		165
+#define SCLK_RMII_SRC			166
+#define SCLK_PCIEPHY_REF100M		167
 
 #define DCLK_VOP0			180
 #define DCLK_VOP1			181
@@ -671,6 +673,7 @@
 #define SRST_P_EDP_CTRL			285
 
 /* cru_softrst_con18 */
+#define SRST_A_GPU			288
 #define SRST_A_GPU_NOC			289
 #define SRST_A_GPU_GRF			290
 #define SRST_PVTM_GPU			291
