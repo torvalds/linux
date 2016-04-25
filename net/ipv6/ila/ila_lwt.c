@@ -109,7 +109,8 @@ static int ila_fill_encap_info(struct sk_buff *skb,
 {
 	struct ila_params *p = ila_params_lwtunnel(lwtstate);
 
-	if (nla_put_u64(skb, ILA_ATTR_LOCATOR, (__force u64)p->locator))
+	if (nla_put_u64_64bit(skb, ILA_ATTR_LOCATOR, (__force u64)p->locator,
+			      ILA_ATTR_PAD))
 		goto nla_put_failure;
 
 	return 0;

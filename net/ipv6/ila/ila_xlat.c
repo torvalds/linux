@@ -418,12 +418,15 @@ static int ila_nl_cmd_del_mapping(struct sk_buff *skb, struct genl_info *info)
 
 static int ila_fill_info(struct ila_map *ila, struct sk_buff *msg)
 {
-	if (nla_put_u64(msg, ILA_ATTR_IDENTIFIER,
-			(__force u64)ila->p.identifier) ||
-	    nla_put_u64(msg, ILA_ATTR_LOCATOR,
-			(__force u64)ila->p.ip.locator) ||
-	    nla_put_u64(msg, ILA_ATTR_LOCATOR_MATCH,
-			(__force u64)ila->p.ip.locator_match) ||
+	if (nla_put_u64_64bit(msg, ILA_ATTR_IDENTIFIER,
+			      (__force u64)ila->p.identifier,
+			      ILA_ATTR_PAD) ||
+	    nla_put_u64_64bit(msg, ILA_ATTR_LOCATOR,
+			      (__force u64)ila->p.ip.locator,
+			      ILA_ATTR_PAD) ||
+	    nla_put_u64_64bit(msg, ILA_ATTR_LOCATOR_MATCH,
+			      (__force u64)ila->p.ip.locator_match,
+			      ILA_ATTR_PAD) ||
 	    nla_put_s32(msg, ILA_ATTR_IFINDEX, ila->p.ifindex) ||
 	    nla_put_u32(msg, ILA_ATTR_DIR, ila->p.dir))
 		return -1;
