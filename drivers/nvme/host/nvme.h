@@ -182,6 +182,12 @@ static inline unsigned nvme_map_len(struct request *rq)
 		return blk_rq_bytes(rq);
 }
 
+static inline void nvme_cleanup_cmd(struct request *req)
+{
+	if (req->cmd_flags & REQ_DISCARD)
+		kfree(req->completion_data);
+}
+
 static inline int nvme_error_status(u16 status)
 {
 	switch (status & 0x7ff) {

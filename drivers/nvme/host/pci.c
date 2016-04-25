@@ -321,8 +321,7 @@ static void nvme_free_iod(struct nvme_dev *dev, struct request *req)
 	__le64 **list = iod_list(req);
 	dma_addr_t prp_dma = iod->first_dma;
 
-	if (req->cmd_flags & REQ_DISCARD)
-		kfree(req->completion_data);
+	nvme_cleanup_cmd(req);
 
 	if (iod->npages == 0)
 		dma_pool_free(dev->prp_small_pool, list[0], prp_dma);
