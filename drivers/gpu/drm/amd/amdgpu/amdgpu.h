@@ -363,6 +363,7 @@ struct amdgpu_fence_driver {
 /* some special values for the owner field */
 #define AMDGPU_FENCE_OWNER_UNDEFINED	((void*)0ul)
 #define AMDGPU_FENCE_OWNER_VM		((void*)1ul)
+#define AMDGPU_CLIENT_ID_RESERVED       2
 
 #define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
@@ -885,6 +886,9 @@ struct amdgpu_vm {
 
 	/* Scheduler entity for page table updates */
 	struct amd_sched_entity	entity;
+
+	/* client id */
+	u64                     client_id;
 };
 
 struct amdgpu_vm_id {
@@ -924,6 +928,8 @@ struct amdgpu_vm_manager {
 	struct amdgpu_ring                      *vm_pte_rings[AMDGPU_MAX_RINGS];
 	unsigned				vm_pte_num_rings;
 	atomic_t				vm_pte_next_ring;
+	/* client id counter */
+	atomic64_t				client_counter;
 };
 
 void amdgpu_vm_manager_init(struct amdgpu_device *adev);
