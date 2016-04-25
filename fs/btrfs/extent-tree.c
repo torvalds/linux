@@ -4936,7 +4936,7 @@ btrfs_calc_reclaim_metadata_size(struct btrfs_root *root,
 }
 
 static inline int need_do_async_reclaim(struct btrfs_space_info *space_info,
-					struct btrfs_fs_info *fs_info, u64 used)
+					struct btrfs_root *root, u64 used)
 {
 	u64 thresh = div_factor_fine(space_info->total_bytes, 98);
 
@@ -4944,11 +4944,12 @@ static inline int need_do_async_reclaim(struct btrfs_space_info *space_info,
 	if ((space_info->bytes_used + space_info->bytes_reserved) >= thresh)
 		return 0;
 
-	if (!btrfs_calc_reclaim_metadata_size(fs_info->fs_root, space_info))
+	if (!btrfs_calc_reclaim_metadata_size(root, space_info))
 		return 0;
 
-	return (used >= thresh && !btrfs_fs_closing(fs_info) &&
-		!test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state));
+	return (used >= thresh && !btrfs_fs_closing(root->fs_info) &&
+		!test_bit(BTRFS_FS_STATE_REMOUNTING,
+			  &root->fs_info->fs_state));
 }
 
 static void wake_all_tickets(struct list_head *head)
@@ -5193,7 +5194,7 @@ static int __reserve_metadata_bytes(struct btrfs_root *root,
 		 * the async reclaim as we will panic.
 		 */
 		if (!root->fs_info->log_root_recovering &&
-		    need_do_async_reclaim(space_info, root->fs_info, used) &&
+		    need_do_async_reclaim(space_info, root, used) &&
 		    !work_busy(&root->fs_info->async_reclaim_work)) {
 			trace_btrfs_trigger_flush(root->fs_info,
 						  space_info->flags,
