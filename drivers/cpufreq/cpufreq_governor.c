@@ -508,12 +508,12 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 
 	for_each_cpu(j, policy->cpus) {
 		struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
-		unsigned int prev_load;
 
 		j_cdbs->prev_cpu_idle = get_cpu_idle_time(j, &j_cdbs->prev_cpu_wall, io_busy);
-
-		prev_load = j_cdbs->prev_cpu_wall - j_cdbs->prev_cpu_idle;
-		j_cdbs->prev_load = 100 * prev_load / (unsigned int)j_cdbs->prev_cpu_wall;
+		/*
+		 * Make the first invocation of dbs_update() compute the load.
+		 */
+		j_cdbs->prev_load = 0;
 
 		if (ignore_nice)
 			j_cdbs->prev_cpu_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];
