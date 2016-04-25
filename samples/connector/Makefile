@@ -1,9 +1,9 @@
-ifneq ($(CONFIG_CONNECTOR),)
-obj-m += cn_test.o
-endif
+obj-$(CONFIG_SAMPLE_CONNECTOR) += cn_test.o
 
 # List of programs to build
+ifdef CONFIG_SAMPLE_CONNECTOR
 hostprogs-y := ucon
+endif
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
