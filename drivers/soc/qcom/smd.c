@@ -194,6 +194,8 @@ struct qcom_smd_channel {
 
 	int pkt_size;
 
+	void *drvdata;
+
 	struct list_head list;
 	struct list_head dev_list;
 };
@@ -513,7 +515,6 @@ static void qcom_smd_channel_advance(struct qcom_smd_channel *channel,
  */
 static int qcom_smd_channel_recv_single(struct qcom_smd_channel *channel)
 {
-	struct qcom_smd_device *qsdev = channel->qsdev;
 	unsigned tail;
 	size_t len;
 	void *ptr;
@@ -533,7 +534,7 @@ static int qcom_smd_channel_recv_single(struct qcom_smd_channel *channel)
 		len = channel->pkt_size;
 	}
 
-	ret = channel->cb(qsdev, ptr, len);
+	ret = channel->cb(channel, ptr, len);
 	if (ret < 0)
 		return ret;
 
@@ -1034,6 +1035,18 @@ int qcom_smd_driver_register(struct qcom_smd_driver *qsdrv)
 }
 EXPORT_SYMBOL(qcom_smd_driver_register);
 
+void *qcom_smd_get_drvdata(struct qcom_smd_channel *channel)
+{
+	return channel->drvdata;
+}
+EXPORT_SYMBOL(qcom_smd_get_drvdata);
+
+void qcom_smd_set_drvdata(struct qcom_smd_channel *channel, void *data)
+{
+	channel->drvdata = data;
+}
+EXPORT_SYMBOL(qcom_smd_set_drvdata);
+
 /**
  * qcom_smd_driver_unregister - unregister a smd driver
  * @qsdrv:	qcom_smd_driver struct
@@ -1079,12 +1092,13 @@ qcom_smd_find_channel(struct qcom_smd_edge *edge, const char *name)
  * Returns a channel handle on success, or -EPROBE_DEFER if the channel isn't
  * ready.
  */
-struct qcom_smd_channel *qcom_smd_open_channel(struct qcom_smd_device *sdev,
+struct qcom_smd_channel *qcom_smd_open_channel(struct qcom_smd_channel *parent,
 					       const char *name,
 					       qcom_smd_cb_t cb)
 {
 	struct qcom_smd_channel *channel;
-	struct qcom_smd_edge *edge = sdev->channel->edge;
+	struct qcom_smd_device *sdev = parent->qsdev;
+	struct qcom_smd_edge *edge = parent->edge;
 	int ret;
 
 	/* Wait up to HZ for the channel to appear */
