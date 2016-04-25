@@ -318,7 +318,7 @@
         vcck_dvfs {
             dvfs_id     = <1>;                                  /** must be value of (1 << n)            */
             table_count = <15>;                                 /** must be correct count for dvfs_table */
-            change-frequent-only;
+            /*change-frequent-only;*/
             dvfs_table  = <
             /* NOTE: frequent in this table must be ascending order */
             /* frequent(Khz)    min_uV      max_uV                  */
@@ -339,6 +339,48 @@
                 1728000        1160000     1160000
             >;
         };
+    };
+
+    meson_vcck_dvfs_driver{
+        compatible = "amlogic, meson_vcck_dvfs";
+        dev_name = "meson_vcck_dvfs_driver";
+        status = "ok";
+        pinctrl-names = "default";
+        pinctrl-0 = <&aml_pwm_pins>;
+        use_pwm = <1>;
+        pmw_controller = "PWM_C";
+        table_count = <29>;
+        cs_voltage_table = <
+		0x10f001b        860000
+		0x1050025        870000
+		0x0fc002e        880000
+		0x0f30037        890000
+		0x0ea0040        900000
+		0x0e10049        910000
+		0x0d60054        920000
+		0x0cb005f        930000
+		0x0c0006a        940000
+		0x0b50075        950000
+		0x0aa0080        960000
+		0x0a0008a        970000
+		0x0960094        980000
+		0x08d009d        990000
+		0x07b00af        1000000
+		0x07200b8        1010000
+		0x06900c1        1020000
+		0x06000ca        1030000
+		0x05700d3        1040000
+		0x04e00dc        1050000
+		0x04500e5        1060000
+		0x03c00ee        1070000
+		0x03300f7        1080000
+		0x02a0100        1090000
+		0x0180109        1100000
+		0x00f011b        1110000
+		0x00a0120        1120000
+		0x0050125        1130000
+		0x000012a        1140000
+        >;
     };
 
     arm_pmu {
@@ -911,6 +953,13 @@
                                          9 0x00080000>;
                         amlogic,pins = "GPIOX_8","GPIOX_9","GPIOX_10";
                 };
+
+		aml_pwm_pins:aml_pwm{
+			amlogic,setmask=<3 0x1000000>;
+			amlogic,clrmask=<0 0x48
+					 7 0x10000020>;
+			amlogic,pins="GPIODV_9";
+		};
 
 		odroid_pwm0:odroid_pwm0{
             amlogic,setmask=<2 0x00000008>;     /*GPIOX_11 PWM_B Reg2[3]*/
