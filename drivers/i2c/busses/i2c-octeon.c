@@ -90,6 +90,8 @@
 #define TWSI_INT_CORE_EN	BIT_ULL(6)
 #define TWSI_INT_SDA_OVR	BIT_ULL(8)
 #define TWSI_INT_SCL_OVR	BIT_ULL(9)
+#define TWSI_INT_SDA		BIT_ULL(10)
+#define TWSI_INT_SCL		BIT_ULL(11)
 
 struct octeon_i2c {
 	wait_queue_head_t queue;
@@ -153,6 +155,17 @@ static u8 octeon_i2c_reg_read(struct octeon_i2c *i2c, u64 eop_reg)
 	octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_STAT)
 
 /**
+ * octeon_i2c_read_int - read the TWSI_INT register
+ * @i2c: The struct octeon_i2c
+ *
+ * Returns the value of the register.
+ */
+static u64 octeon_i2c_read_int(struct octeon_i2c *i2c)
+{
+	return __raw_readq(i2c->twsi_base + TWSI_INT);
+}
+
+/**
  * octeon_i2c_write_int - write the TWSI_INT register
  * @i2c: The struct octeon_i2c
  * @data: Value to be written
@@ -179,33 +192,6 @@ static void octeon_i2c_int_enable(struct octeon_i2c *i2c)
 static void octeon_i2c_int_disable(struct octeon_i2c *i2c)
 {
 	/* clear TS/ST/IFLG events */
-	octeon_i2c_write_int(i2c, 0);
-}
-
-/**
- * octeon_i2c_unblock - unblock the bus
- * @i2c: The struct octeon_i2c
- *
- * If there was a reset while a device was driving 0 to bus, bus is blocked.
- * We toggle it free manually by some clock cycles and send a stop.
- */
-static void octeon_i2c_unblock(struct octeon_i2c *i2c)
-{
-	int i;
-
-	dev_dbg(i2c->dev, "%s\n", __func__);
-
-	for (i = 0; i < 9; i++) {
-		octeon_i2c_write_int(i2c, 0);
-		udelay(5);
-		octeon_i2c_write_int(i2c, TWSI_INT_SCL_OVR);
-		udelay(5);
-	}
-	/* hand-crank a STOP */
-	octeon_i2c_write_int(i2c, TWSI_INT_SDA_OVR | TWSI_INT_SCL_OVR);
-	udelay(5);
-	octeon_i2c_write_int(i2c, TWSI_INT_SDA_OVR);
-	udelay(5);
 	octeon_i2c_write_int(i2c, 0);
 }
 
@@ -371,6 +357,17 @@ static int octeon_i2c_init_lowlevel(struct octeon_i2c *i2c)
 	return -EIO;
 }
 
+static int octeon_i2c_recovery(struct octeon_i2c *i2c)
+{
+	int ret;
+
+	ret = i2c_recover_bus(&i2c->adap);
+	if (ret)
+		/* recover failed, try hardware re-init */
+		ret = octeon_i2c_init_lowlevel(i2c);
+	return ret;
+}
+
 /**
  * octeon_i2c_start - send START to the bus
  * @i2c: The struct octeon_i2c
@@ -379,34 +376,23 @@ static int octeon_i2c_init_lowlevel(struct octeon_i2c *i2c)
  */
 static int octeon_i2c_start(struct octeon_i2c *i2c)
 {
-	int result;
-	u8 data;
+	int ret;
+	u8 stat;
 
 	octeon_i2c_ctl_write(i2c, TWSI_CTL_ENAB | TWSI_CTL_STA);
+	ret = octeon_i2c_wait(i2c);
+	if (ret)
+		goto error;
 
-	result = octeon_i2c_wait(i2c);
-	if (result) {
-		if (octeon_i2c_stat_read(i2c) == STAT_IDLE) {
-			/*
-			 * Controller refused to send start flag May
-			 * be a client is holding SDA low - let's try
-			 * to free it.
-			 */
-			octeon_i2c_unblock(i2c);
-			octeon_i2c_ctl_write(i2c, TWSI_CTL_ENAB | TWSI_CTL_STA);
-			result = octeon_i2c_wait(i2c);
-		}
-		if (result)
-			return result;
-	}
+	stat = octeon_i2c_stat_read(i2c);
+	if (stat == STAT_START || stat == STAT_REP_START)
+		/* START successful, bail out */
+		return 0;
 
-	data = octeon_i2c_stat_read(i2c);
-	if ((data != STAT_START) && (data != STAT_REP_START)) {
-		dev_err(i2c->dev, "%s: bad status (0x%x)\n", __func__, data);
-		return -EIO;
-	}
-
-	return 0;
+error:
+	/* START failed, try to recover */
+	ret = octeon_i2c_recovery(i2c);
+	return (ret) ? ret : -EAGAIN;
 }
 
 /* send STOP to the bus */
@@ -430,10 +416,6 @@ static int octeon_i2c_write(struct octeon_i2c *i2c, int target,
 			    const u8 *data, int length)
 {
 	int i, result;
-
-	result = octeon_i2c_start(i2c);
-	if (result)
-		return result;
 
 	octeon_i2c_data_write(i2c, target << 1);
 	octeon_i2c_ctl_write(i2c, TWSI_CTL_ENAB);
@@ -478,10 +460,6 @@ static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
 
 	if (length < 1)
 		return -EINVAL;
-
-	result = octeon_i2c_start(i2c);
-	if (result)
-		return result;
 
 	octeon_i2c_data_write(i2c, (target << 1) | 1);
 	octeon_i2c_ctl_write(i2c, TWSI_CTL_ENAB);
@@ -546,10 +524,10 @@ static int octeon_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	for (i = 0; ret == 0 && i < num; i++) {
 		struct i2c_msg *pmsg = &msgs[i];
 
-		dev_dbg(i2c->dev,
-			"Doing %s %d byte(s) to/from 0x%02x - %d of %d messages\n",
-			 pmsg->flags & I2C_M_RD ? "read" : "write",
-			 pmsg->len, pmsg->addr, i + 1, num);
+		ret = octeon_i2c_start(i2c);
+		if (ret)
+			return ret;
+
 		if (pmsg->flags & I2C_M_RD)
 			ret = octeon_i2c_read(i2c, pmsg->addr, pmsg->buf,
 					      &pmsg->len, pmsg->flags & I2C_M_RECV_LEN);
@@ -561,6 +539,60 @@ static int octeon_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 	return (ret != 0) ? ret : num;
 }
+
+static int octeon_i2c_get_scl(struct i2c_adapter *adap)
+{
+	struct octeon_i2c *i2c = i2c_get_adapdata(adap);
+	u64 state;
+
+	state = octeon_i2c_read_int(i2c);
+	return state & TWSI_INT_SCL;
+}
+
+static void octeon_i2c_set_scl(struct i2c_adapter *adap, int val)
+{
+	struct octeon_i2c *i2c = i2c_get_adapdata(adap);
+
+	octeon_i2c_write_int(i2c, TWSI_INT_SCL_OVR);
+}
+
+static int octeon_i2c_get_sda(struct i2c_adapter *adap)
+{
+	struct octeon_i2c *i2c = i2c_get_adapdata(adap);
+	u64 state;
+
+	state = octeon_i2c_read_int(i2c);
+	return state & TWSI_INT_SDA;
+}
+
+static void octeon_i2c_prepare_recovery(struct i2c_adapter *adap)
+{
+	struct octeon_i2c *i2c = i2c_get_adapdata(adap);
+
+	/*
+	 * The stop resets the state machine, does not _transmit_ STOP unless
+	 * engine was active.
+	 */
+	octeon_i2c_stop(i2c);
+
+	octeon_i2c_write_int(i2c, 0);
+}
+
+static void octeon_i2c_unprepare_recovery(struct i2c_adapter *adap)
+{
+	struct octeon_i2c *i2c = i2c_get_adapdata(adap);
+
+	octeon_i2c_write_int(i2c, 0);
+}
+
+static struct i2c_bus_recovery_info octeon_i2c_recovery_info = {
+	.recover_bus = i2c_generic_scl_recovery,
+	.get_scl = octeon_i2c_get_scl,
+	.set_scl = octeon_i2c_set_scl,
+	.get_sda = octeon_i2c_get_sda,
+	.prepare_recovery = octeon_i2c_prepare_recovery,
+	.unprepare_recovery = octeon_i2c_unprepare_recovery,
+};
 
 static u32 octeon_i2c_functionality(struct i2c_adapter *adap)
 {
@@ -642,6 +674,7 @@ static int octeon_i2c_probe(struct platform_device *pdev)
 	i2c->adap = octeon_i2c_ops;
 	i2c->adap.timeout = msecs_to_jiffies(2);
 	i2c->adap.retries = 5;
+	i2c->adap.bus_recovery_info = &octeon_i2c_recovery_info;
 	i2c->adap.dev.parent = &pdev->dev;
 	i2c->adap.dev.of_node = node;
 	i2c_set_adapdata(&i2c->adap, i2c);
