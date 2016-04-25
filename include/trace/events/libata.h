@@ -39,6 +39,7 @@
 		 ata_opcode_name(ATA_CMD_WRITE_QUEUED_FUA_EXT), \
 		 ata_opcode_name(ATA_CMD_FPDMA_READ),		\
 		 ata_opcode_name(ATA_CMD_FPDMA_WRITE),		\
+		 ata_opcode_name(ATA_CMD_NCQ_NON_DATA),		\
 		 ata_opcode_name(ATA_CMD_FPDMA_SEND),		\
 		 ata_opcode_name(ATA_CMD_FPDMA_RECV),		\
 		 ata_opcode_name(ATA_CMD_PIO_READ),		\

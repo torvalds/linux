@@ -207,7 +207,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
 	    qc->tf.command == ATA_CMD_FPDMA_READ ||
 	    qc->tf.command == ATA_CMD_FPDMA_RECV ||
-	    qc->tf.command == ATA_CMD_FPDMA_SEND) {
+	    qc->tf.command == ATA_CMD_FPDMA_SEND ||
+	    qc->tf.command == ATA_CMD_NCQ_NON_DATA) {
 		/* Need to zero out the tag libata assigned us */
 		qc->tf.nsect = 0;
 	}
