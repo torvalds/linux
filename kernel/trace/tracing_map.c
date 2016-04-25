@@ -366,10 +366,13 @@ static void tracing_map_free_elts(struct tracing_map *map)
 	if (!map->elts)
 		return;
 
-	for (i = 0; i < map->max_elts; i++)
+	for (i = 0; i < map->max_elts; i++) {
 		tracing_map_elt_free(*(TRACING_MAP_ELT(map->elts, i)));
+		*(TRACING_MAP_ELT(map->elts, i)) = NULL;
+	}
 
 	tracing_map_array_free(map->elts);
+	map->elts = NULL;
 }
 
 static int tracing_map_alloc_elts(struct tracing_map *map)
@@ -383,7 +386,8 @@ static int tracing_map_alloc_elts(struct tracing_map *map)
 
 	for (i = 0; i < map->max_elts; i++) {
 		*(TRACING_MAP_ELT(map->elts, i)) = tracing_map_elt_alloc(map);
-		if (!(*(TRACING_MAP_ELT(map->elts, i)))) {
+		if (IS_ERR(*(TRACING_MAP_ELT(map->elts, i)))) {
+			*(TRACING_MAP_ELT(map->elts, i)) = NULL;
 			tracing_map_free_elts(map);
 
 			return -ENOMEM;
