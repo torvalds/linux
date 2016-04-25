@@ -2875,8 +2875,10 @@ static int ip_vs_genl_fill_stats(struct sk_buff *skb, int container_type,
 	if (nla_put_u32(skb, IPVS_STATS_ATTR_CONNS, (u32)kstats->conns) ||
 	    nla_put_u32(skb, IPVS_STATS_ATTR_INPKTS, (u32)kstats->inpkts) ||
 	    nla_put_u32(skb, IPVS_STATS_ATTR_OUTPKTS, (u32)kstats->outpkts) ||
-	    nla_put_u64(skb, IPVS_STATS_ATTR_INBYTES, kstats->inbytes) ||
-	    nla_put_u64(skb, IPVS_STATS_ATTR_OUTBYTES, kstats->outbytes) ||
+	    nla_put_u64_64bit(skb, IPVS_STATS_ATTR_INBYTES, kstats->inbytes,
+			      IPVS_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, IPVS_STATS_ATTR_OUTBYTES, kstats->outbytes,
+			      IPVS_STATS_ATTR_PAD) ||
 	    nla_put_u32(skb, IPVS_STATS_ATTR_CPS, (u32)kstats->cps) ||
 	    nla_put_u32(skb, IPVS_STATS_ATTR_INPPS, (u32)kstats->inpps) ||
 	    nla_put_u32(skb, IPVS_STATS_ATTR_OUTPPS, (u32)kstats->outpps) ||
@@ -2900,16 +2902,26 @@ static int ip_vs_genl_fill_stats64(struct sk_buff *skb, int container_type,
 	if (!nl_stats)
 		return -EMSGSIZE;
 
-	if (nla_put_u64(skb, IPVS_STATS_ATTR_CONNS, kstats->conns) ||
-	    nla_put_u64(skb, IPVS_STATS_ATTR_INPKTS, kstats->inpkts) ||
-	    nla_put_u64(skb, IPVS_STATS_ATTR_OUTPKTS, kstats->outpkts) ||
-	    nla_put_u64(skb, IPVS_STATS_ATTR_INBYTES, kstats->inbytes) ||
-	    nla_put_u64(skb, IPVS_STATS_ATTR_OUTBYTES, kstats->outbytes) ||
-	    nla_put_u64(skb, IPVS_STATS_ATTR_CPS, kstats->cps) ||
-	    nla_put_u64(skb, IPVS_STATS_ATTR_INPPS, kstats->inpps) ||
-	    nla_put_u64(skb, IPVS_STATS_ATTR_OUTPPS, kstats->outpps) ||
-	    nla_put_u64(skb, IPVS_STATS_ATTR_INBPS, kstats->inbps) ||
-	    nla_put_u64(skb, IPVS_STATS_ATTR_OUTBPS, kstats->outbps))
+	if (nla_put_u64_64bit(skb, IPVS_STATS_ATTR_CONNS, kstats->conns,
+			      IPVS_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, IPVS_STATS_ATTR_INPKTS, kstats->inpkts,
+			      IPVS_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, IPVS_STATS_ATTR_OUTPKTS, kstats->outpkts,
+			      IPVS_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, IPVS_STATS_ATTR_INBYTES, kstats->inbytes,
+			      IPVS_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, IPVS_STATS_ATTR_OUTBYTES, kstats->outbytes,
+			      IPVS_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, IPVS_STATS_ATTR_CPS, kstats->cps,
+			      IPVS_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, IPVS_STATS_ATTR_INPPS, kstats->inpps,
+			      IPVS_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, IPVS_STATS_ATTR_OUTPPS, kstats->outpps,
+			      IPVS_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, IPVS_STATS_ATTR_INBPS, kstats->inbps,
+			      IPVS_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, IPVS_STATS_ATTR_OUTBPS, kstats->outbps,
+			      IPVS_STATS_ATTR_PAD))
 		goto nla_put_failure;
 	nla_nest_end(skb, nl_stats);
 
