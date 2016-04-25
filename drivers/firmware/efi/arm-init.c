@@ -206,6 +206,7 @@ void __init efi_init(void)
 		return;
 
 	reserve_regions();
+	efi_memattr_init();
 	early_memunmap(efi.memmap.map, params.mmap_size);
 
 	if (IS_ENABLED(CONFIG_ARM)) {

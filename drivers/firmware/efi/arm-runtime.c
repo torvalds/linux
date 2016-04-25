@@ -77,9 +77,15 @@ static bool __init efi_virtmap_init(void)
 			systab_found = true;
 		}
 	}
-	if (!systab_found)
+	if (!systab_found) {
 		pr_err("No virtual mapping found for the UEFI System Table\n");
-	return systab_found;
+		return false;
+	}
+
+	if (efi_memattr_apply_permissions(&efi_mm, efi_set_mapping_permissions))
+		return false;
+
+	return true;
 }
 
 /*
