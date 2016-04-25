@@ -54,8 +54,6 @@
 #include <asm/rtc.h>
 #include <asm/uv/uv.h>
 
-#define EFI_DEBUG
-
 static struct efi efi_phys __initdata;
 static efi_system_table_t efi_systab __initdata;
 
@@ -222,7 +220,6 @@ int __init efi_memblock_x86_reserve_range(void)
 
 void __init efi_print_memmap(void)
 {
-#ifdef EFI_DEBUG
 	efi_memory_desc_t *md;
 	int i = 0;
 
@@ -235,7 +232,6 @@ void __init efi_print_memmap(void)
 			md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT) - 1,
 			(md->num_pages >> (20 - EFI_PAGE_SHIFT)));
 	}
-#endif  /*  EFI_DEBUG  */
 }
 
 void __init efi_unmap_memmap(void)
