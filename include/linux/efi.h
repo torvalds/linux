@@ -1080,6 +1080,8 @@ static inline void
 efi_reboot(enum reboot_mode reboot_mode, const char *__unused) {}
 #endif
 
+extern int efi_status_to_err(efi_status_t status);
+
 /*
  * Variable Attributes
  */
