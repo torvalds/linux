@@ -1448,6 +1448,18 @@ config SERIAL_EFM32_UART
 	  This driver support the USART and UART ports on
 	  Energy Micro's efm32 SoCs.
 
+config SERIAL_MPS2_UART_CONSOLE
+	bool "MPS2 UART console support"
+	depends on SERIAL_MPS2_UART
+	select SERIAL_CORE_CONSOLE
+
+config SERIAL_MPS2_UART
+	bool "MPS2 UART port"
+	depends on ARM || COMPILE_TEST
+	select SERIAL_CORE
+	help
+	  This driver support the UART ports on ARM MPS2.
+
 config SERIAL_EFM32_UART_CONSOLE
 	bool "EFM32 UART/USART console support"
 	depends on SERIAL_EFM32_UART=y

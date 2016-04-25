@@ -264,4 +264,7 @@
 /* MVEBU UART */
 #define PORT_MVEBU	114
 
+/* MPS2 UART */
+#define PORT_MPS2UART	115
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */
