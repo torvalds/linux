@@ -410,6 +410,7 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 	if (list_empty(&codec->module_list)) {
 		dev_err(codec->dev, "No codec module available\n");
 		mutex_unlock(&codec->lock);
+		pm_relax(dai->dev);
 		return;
 	}
 
