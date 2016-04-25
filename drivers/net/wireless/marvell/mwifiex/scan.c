@@ -498,11 +498,13 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 					&= ~MWIFIEX_PASSIVE_SCAN;
 			scan_chan_list[chan_idx].chan_number =
 							(u32) ch->hw_value;
+
+			scan_chan_list[chan_idx].chan_scan_mode_bitmap
+					|= MWIFIEX_DISABLE_CHAN_FILT;
+
 			if (filtered_scan) {
 				scan_chan_list[chan_idx].max_scan_time =
 				cpu_to_le16(adapter->specific_scan_time);
-				scan_chan_list[chan_idx].chan_scan_mode_bitmap
-					|= MWIFIEX_DISABLE_CHAN_FILT;
 			}
 			chan_idx++;
 		}
@@ -1060,9 +1062,8 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 				scan_chan_list[chan_idx].chan_scan_mode_bitmap
 					&= ~MWIFIEX_PASSIVE_SCAN;
 
-			if (*filtered_scan)
-				scan_chan_list[chan_idx].chan_scan_mode_bitmap
-					|= MWIFIEX_DISABLE_CHAN_FILT;
+			scan_chan_list[chan_idx].chan_scan_mode_bitmap
+				|= MWIFIEX_DISABLE_CHAN_FILT;
 
 			if (user_scan_in->chan_list[chan_idx].scan_time) {
 				scan_dur = (u16) user_scan_in->
