@@ -24,6 +24,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
+#include "physmap_of_versatile.h"
 
 struct of_flash_list {
 	struct mtd_info *mtd;
@@ -240,6 +241,11 @@ static int of_flash_probe(struct platform_device *dev)
 		info->list[i].map.size = res_size;
 		info->list[i].map.bankwidth = be32_to_cpup(width);
 		info->list[i].map.device_node = dp;
+		err = of_flash_probe_versatile(dev, dp, &info->list[i].map);
+		if (err) {
+			dev_err(&dev->dev, "Can't probe Versatile VPP\n");
+			return err;
+		}
 
 		err = -ENOMEM;
 		info->list[i].map.virt = ioremap(info->list[i].map.phys,
