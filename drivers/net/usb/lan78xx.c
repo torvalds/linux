@@ -269,6 +269,7 @@ struct skb_data {		/* skb->cb is one of these */
 	struct lan78xx_net *dev;
 	enum skb_state state;
 	size_t length;
+	int num_of_packet;
 };
 
 struct usb_context {
@@ -2464,7 +2465,7 @@ static void tx_complete(struct urb *urb)
 	struct lan78xx_net *dev = entry->dev;
 
 	if (urb->status == 0) {
-		dev->net->stats.tx_packets++;
+		dev->net->stats.tx_packets += entry->num_of_packet;
 		dev->net->stats.tx_bytes += entry->length;
 	} else {
 		dev->net->stats.tx_errors++;
@@ -2681,9 +2682,10 @@ void lan78xx_skb_return(struct lan78xx_net *dev, struct sk_buff *skb)
 		return;
 	}
 
-	skb->protocol = eth_type_trans(skb, dev->net);
 	dev->net->stats.rx_packets++;
 	dev->net->stats.rx_bytes += skb->len;
+
+	skb->protocol = eth_type_trans(skb, dev->net);
 
 	netif_dbg(dev, rx_status, dev->net, "< rx, len %zu, type 0x%x\n",
 		  skb->len + sizeof(struct ethhdr), skb->protocol);
@@ -2934,13 +2936,16 @@ static void lan78xx_tx_bh(struct lan78xx_net *dev)
 
 	skb_totallen = 0;
 	pkt_cnt = 0;
+	count = 0;
+	length = 0;
 	for (skb = tqp->next; pkt_cnt < tqp->qlen; skb = skb->next) {
 		if (skb_is_gso(skb)) {
 			if (pkt_cnt) {
 				/* handle previous packets first */
 				break;
 			}
-			length = skb->len;
+			count = 1;
+			length = skb->len - TX_OVERHEAD;
 			skb2 = skb_dequeue(tqp);
 			goto gso_skb;
 		}
@@ -2961,13 +2966,12 @@ static void lan78xx_tx_bh(struct lan78xx_net *dev)
 	for (count = pos = 0; count < pkt_cnt; count++) {
 		skb2 = skb_dequeue(tqp);
 		if (skb2) {
+			length += (skb2->len - TX_OVERHEAD);
 			memcpy(skb->data + pos, skb2->data, skb2->len);
 			pos += roundup(skb2->len, sizeof(u32));
 			dev_kfree_skb(skb2);
 		}
 	}
-
-	length = skb_totallen;
 
 gso_skb:
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
@@ -2980,6 +2984,7 @@ gso_skb:
 	entry->urb = urb;
 	entry->dev = dev;
 	entry->length = length;
+	entry->num_of_packet = count;
 
 	spin_lock_irqsave(&dev->txq.lock, flags);
 	ret = usb_autopm_get_interface_async(dev->intf);
