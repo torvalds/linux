@@ -2079,6 +2079,31 @@ static inline u8 ata_dev_knobble(struct ata_device *dev)
 	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
 }
 
+static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
+{
+	struct ata_port *ap = dev->link->ap;
+	unsigned int err_mask;
+
+	err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_SEND_RECV,
+				     0, ap->sector_buf, 1);
+	if (err_mask) {
+		ata_dev_dbg(dev,
+			    "failed to get NCQ Send/Recv Log Emask 0x%x\n",
+			    err_mask);
+	} else {
+		u8 *cmds = dev->ncq_send_recv_cmds;
+
+		dev->flags |= ATA_DFLAG_NCQ_SEND_RECV;
+		memcpy(cmds, ap->sector_buf, ATA_LOG_NCQ_SEND_RECV_SIZE);
+
+		if (dev->horkage & ATA_HORKAGE_NO_NCQ_TRIM) {
+			ata_dev_dbg(dev, "disabling queued TRIM support\n");
+			cmds[ATA_LOG_NCQ_SEND_RECV_DSM_OFFSET] &=
+				~ATA_LOG_NCQ_SEND_RECV_DSM_TRIM;
+		}
+	}
+}
+
 static int ata_dev_config_ncq(struct ata_device *dev,
 			       char *desc, size_t desc_sz)
 {
@@ -2124,26 +2149,8 @@ static int ata_dev_config_ncq(struct ata_device *dev,
 			ddepth, aa_desc);
 
 	if ((ap->flags & ATA_FLAG_FPDMA_AUX) &&
-	    ata_id_has_ncq_send_and_recv(dev->id)) {
-		err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_SEND_RECV,
-					     0, ap->sector_buf, 1);
-		if (err_mask) {
-			ata_dev_dbg(dev,
-				    "failed to get NCQ Send/Recv Log Emask 0x%x\n",
-				    err_mask);
-		} else {
-			u8 *cmds = dev->ncq_send_recv_cmds;
-
-			dev->flags |= ATA_DFLAG_NCQ_SEND_RECV;
-			memcpy(cmds, ap->sector_buf, ATA_LOG_NCQ_SEND_RECV_SIZE);
-
-			if (dev->horkage & ATA_HORKAGE_NO_NCQ_TRIM) {
-				ata_dev_dbg(dev, "disabling queued TRIM support\n");
-				cmds[ATA_LOG_NCQ_SEND_RECV_DSM_OFFSET] &=
-					~ATA_LOG_NCQ_SEND_RECV_DSM_TRIM;
-			}
-		}
-	}
+	    ata_id_has_ncq_send_and_recv(dev->id))
+		ata_dev_config_ncq_send_recv(dev);
 
 	return 0;
 }
