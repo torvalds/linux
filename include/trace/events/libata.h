@@ -140,6 +140,10 @@ const char *libata_trace_parse_eh_err_mask(struct trace_seq *, unsigned int);
 const char *libata_trace_parse_qc_flags(struct trace_seq *, unsigned int);
 #define __parse_qc_flags(f) libata_trace_parse_qc_flags(p, f)
 
+const char *libata_trace_parse_subcmd(struct trace_seq *, unsigned char,
+				      unsigned char, unsigned char);
+#define __parse_subcmd(c,f,h) libata_trace_parse_subcmd(p, c, f, h)
+
 TRACE_EVENT(ata_qc_issue,
 
 	TP_PROTO(struct ata_queued_cmd *qc),
@@ -186,11 +190,12 @@ TRACE_EVENT(ata_qc_issue,
 		__entry->hob_nsect	= qc->tf.hob_nsect;
 	),
 
-	TP_printk("ata_port=%u ata_dev=%u tag=%d proto=%s cmd=%s " \
+	TP_printk("ata_port=%u ata_dev=%u tag=%d proto=%s cmd=%s%s " \
 		  " tf=(%02x/%02x:%02x:%02x:%02x:%02x/%02x:%02x:%02x:%02x:%02x/%02x)",
 		  __entry->ata_port, __entry->ata_dev, __entry->tag,
 		  show_protocol_name(__entry->proto),
 		  show_opcode_name(__entry->cmd),
+		  __parse_subcmd(__entry->cmd, __entry->feature, __entry->hob_nsect),
 		  __entry->cmd, __entry->feature, __entry->nsect,
 		  __entry->lbal, __entry->lbam, __entry->lbah,
 		  __entry->hob_feature, __entry->hob_nsect,

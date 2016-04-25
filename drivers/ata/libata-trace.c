@@ -149,3 +149,46 @@ libata_trace_parse_qc_flags(struct trace_seq *p, unsigned int qc_flags)
 
 	return ret;
 }
+
+const char *
+libata_trace_parse_subcmd(struct trace_seq *p, unsigned char cmd,
+			  unsigned char feature, unsigned char hob_nsect)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+
+	switch (cmd) {
+	case ATA_CMD_FPDMA_RECV:
+		switch (hob_nsect & 0x5f) {
+		case ATA_SUBCMD_FPDMA_RECV_RD_LOG_DMA_EXT:
+			trace_seq_printf(p, " READ_LOG_DMA_EXT");
+			break;
+		}
+		break;
+	case ATA_CMD_FPDMA_SEND:
+		switch (hob_nsect & 0x5f) {
+		case ATA_SUBCMD_FPDMA_SEND_WR_LOG_DMA_EXT:
+			trace_seq_printf(p, " WRITE_LOG_DMA_EXT");
+			break;
+		case ATA_SUBCMD_FPDMA_SEND_DSM:
+			trace_seq_printf(p, " DATASET_MANAGEMENT");
+			break;
+		}
+		break;
+	case ATA_CMD_NCQ_NON_DATA:
+		switch (feature) {
+		case ATA_SUBCMD_NCQ_NON_DATA_ABORT_QUEUE:
+			trace_seq_printf(p, " ABORT_QUEUE");
+			break;
+		case ATA_SUBCMD_NCQ_NON_DATA_SET_FEATURES:
+			trace_seq_printf(p, " SET_FEATURES");
+			break;
+		case ATA_SUBCMD_NCQ_NON_DATA_ZERO_EXT:
+			trace_seq_printf(p, " ZERO_EXT");
+			break;
+		}
+		break;
+	}
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
