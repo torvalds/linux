@@ -1642,6 +1642,13 @@ static inline bool ata_fpdma_dsm_supported(struct ata_device *dev)
 		 ATA_LOG_NCQ_SEND_RECV_DSM_TRIM);
 }
 
+static inline bool ata_fpdma_read_log_supported(struct ata_device *dev)
+{
+	return (dev->flags & ATA_DFLAG_NCQ_SEND_RECV) &&
+		(dev->ncq_send_recv_cmds[ATA_LOG_NCQ_SEND_RECV_RD_LOG_OFFSET] &
+		 ATA_LOG_NCQ_SEND_RECV_RD_LOG_SUPPORTED);
+}
+
 static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)
 {
 	qc->tf.ctl |= ATA_NIEN;
