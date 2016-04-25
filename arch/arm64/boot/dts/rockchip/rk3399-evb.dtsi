@@ -271,7 +271,6 @@
 	bus-width = <8>;
 	supports-emmc;
 	non-removable;
-	max-frequency = <50000000>;
 	status = "okay";
 };
 
