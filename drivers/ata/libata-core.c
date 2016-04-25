@@ -66,6 +66,7 @@
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 #include <linux/cdrom.h>
 #include <linux/ratelimit.h>
 #include <linux/pm_runtime.h>
@@ -2083,7 +2084,23 @@ static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
+	int log_index = ATA_LOG_NCQ_SEND_RECV * 2;
+	u16 log_pages;
 
+	err_mask = ata_read_log_page(dev, ATA_LOG_DIRECTORY,
+				     0, ap->sector_buf, 1);
+	if (err_mask) {
+		ata_dev_dbg(dev,
+			    "failed to get Log Directory Emask 0x%x\n",
+			    err_mask);
+		return;
+	}
+	log_pages = get_unaligned_le16(&ap->sector_buf[log_index]);
+	if (!log_pages) {
+		ata_dev_warn(dev,
+			     "NCQ Send/Recv Log not supported\n");
+		return;
+	}
 	err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_SEND_RECV,
 				     0, ap->sector_buf, 1);
 	if (err_mask) {
