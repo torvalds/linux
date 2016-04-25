@@ -969,6 +969,19 @@ extern void __init efi_fake_memmap(void);
 static inline void efi_fake_memmap(void) { }
 #endif
 
+/*
+ * efi_memattr_perm_setter - arch specific callback function passed into
+ *                           efi_memattr_apply_permissions() that updates the
+ *                           mapping permissions described by the second
+ *                           argument in the page tables referred to by the
+ *                           first argument.
+ */
+typedef int (*efi_memattr_perm_setter)(struct mm_struct *, efi_memory_desc_t *);
+
+extern int efi_memattr_init(void);
+extern int efi_memattr_apply_permissions(struct mm_struct *mm,
+					 efi_memattr_perm_setter fn);
+
 /* Iterate through an efi_memory_map */
 #define for_each_efi_memory_desc_in_map(m, md)				   \
 	for ((md) = (m)->map;						   \
