@@ -85,6 +85,8 @@ static int __init uefi_init(void)
 			efi.systab->hdr.revision >> 16,
 			efi.systab->hdr.revision & 0xffff);
 
+	efi.runtime_version = efi.systab->hdr.revision;
+
 	/* Show what we know for posterity */
 	c16 = early_memremap_ro(efi_to_phys(efi.systab->fw_vendor),
 				sizeof(vendor) * sizeof(efi_char16_t));
