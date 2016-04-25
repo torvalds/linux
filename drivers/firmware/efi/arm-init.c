@@ -20,8 +20,6 @@
 
 #include <asm/efi.h>
 
-struct efi_memory_map memmap;
-
 u64 efi_system_table;
 
 static int __init is_normal_ram(efi_memory_desc_t *md)
@@ -40,7 +38,7 @@ static phys_addr_t efi_to_phys(unsigned long addr)
 {
 	efi_memory_desc_t *md;
 
-	for_each_efi_memory_desc_in_map(&memmap, md) {
+	for_each_efi_memory_desc(md) {
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
 		if (md->virt_addr == 0)
@@ -145,7 +143,7 @@ static __init void reserve_regions(void)
 	if (efi_enabled(EFI_DBG))
 		pr_info("Processing EFI memory map:\n");
 
-	for_each_efi_memory_desc_in_map(&memmap, md) {
+	for_each_efi_memory_desc(md) {
 		paddr = md->phys_addr;
 		npages = md->num_pages;
 
@@ -186,9 +184,9 @@ void __init efi_init(void)
 
 	efi_system_table = params.system_table;
 
-	memmap.phys_map = params.mmap;
-	memmap.map = early_memremap_ro(params.mmap, params.mmap_size);
-	if (memmap.map == NULL) {
+	efi.memmap.phys_map = params.mmap;
+	efi.memmap.map = early_memremap_ro(params.mmap, params.mmap_size);
+	if (efi.memmap.map == NULL) {
 		/*
 		* If we are booting via UEFI, the UEFI memory map is the only
 		* description of memory we have, so there is little point in
@@ -196,15 +194,15 @@ void __init efi_init(void)
 		*/
 		panic("Unable to map EFI memory map.\n");
 	}
-	memmap.map_end = memmap.map + params.mmap_size;
-	memmap.desc_size = params.desc_size;
-	memmap.desc_version = params.desc_ver;
+	efi.memmap.map_end = efi.memmap.map + params.mmap_size;
+	efi.memmap.desc_size = params.desc_size;
+	efi.memmap.desc_version = params.desc_ver;
 
 	if (uefi_init() < 0)
 		return;
 
 	reserve_regions();
-	early_memunmap(memmap.map, params.mmap_size);
+	early_memunmap(efi.memmap.map, params.mmap_size);
 
 	if (IS_ENABLED(CONFIG_ARM)) {
 		/*

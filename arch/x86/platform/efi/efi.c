@@ -56,8 +56,6 @@
 
 #define EFI_DEBUG
 
-struct efi_memory_map memmap;
-
 static struct efi efi_phys __initdata;
 static efi_system_table_t efi_systab __initdata;
 
@@ -207,15 +205,13 @@ int __init efi_memblock_x86_reserve_range(void)
 #else
 	pmap = (e->efi_memmap |	((__u64)e->efi_memmap_hi << 32));
 #endif
-	memmap.phys_map		= pmap;
-	memmap.nr_map		= e->efi_memmap_size /
+	efi.memmap.phys_map	= pmap;
+	efi.memmap.nr_map	= e->efi_memmap_size /
 				  e->efi_memdesc_size;
-	memmap.desc_size	= e->efi_memdesc_size;
-	memmap.desc_version	= e->efi_memdesc_version;
+	efi.memmap.desc_size	= e->efi_memdesc_size;
+	efi.memmap.desc_version	= e->efi_memdesc_version;
 
-	memblock_reserve(pmap, memmap.nr_map * memmap.desc_size);
-
-	efi.memmap = &memmap;
+	memblock_reserve(pmap, efi.memmap.nr_map * efi.memmap.desc_size);
 
 	return 0;
 }
@@ -240,10 +236,14 @@ void __init efi_print_memmap(void)
 
 void __init efi_unmap_memmap(void)
 {
+	unsigned long size;
+
 	clear_bit(EFI_MEMMAP, &efi.flags);
-	if (memmap.map) {
-		early_memunmap(memmap.map, memmap.nr_map * memmap.desc_size);
-		memmap.map = NULL;
+
+	size = efi.memmap.nr_map * efi.memmap.desc_size;
+	if (efi.memmap.map) {
+		early_memunmap(efi.memmap.map, size);
+		efi.memmap.map = NULL;
 	}
 }
 
@@ -432,17 +432,22 @@ static int __init efi_runtime_init(void)
 
 static int __init efi_memmap_init(void)
 {
+	unsigned long addr, size;
+
 	if (efi_enabled(EFI_PARAVIRT))
 		return 0;
 
 	/* Map the EFI memory map */
-	memmap.map = early_memremap((unsigned long)memmap.phys_map,
-				   memmap.nr_map * memmap.desc_size);
-	if (memmap.map == NULL) {
+	size = efi.memmap.nr_map * efi.memmap.desc_size;
+	addr = (unsigned long)efi.memmap.phys_map;
+
+	efi.memmap.map = early_memremap(addr, size);
+	if (efi.memmap.map == NULL) {
 		pr_err("Could not map the memory map!\n");
 		return -ENOMEM;
 	}
-	memmap.map_end = memmap.map + (memmap.nr_map * memmap.desc_size);
+
+	efi.memmap.map_end = efi.memmap.map + size;
 
 	if (add_efi_memmap)
 		do_add_efi_memmap();
@@ -638,6 +643,7 @@ static void __init get_systab_virt_addr(efi_memory_desc_t *md)
 static void __init save_runtime_map(void)
 {
 #ifdef CONFIG_KEXEC_CORE
+	unsigned long desc_size;
 	efi_memory_desc_t *md;
 	void *tmp, *q = NULL;
 	int count = 0;
@@ -645,21 +651,23 @@ static void __init save_runtime_map(void)
 	if (efi_enabled(EFI_OLD_MEMMAP))
 		return;
 
+	desc_size = efi.memmap.desc_size;
+
 	for_each_efi_memory_desc(md) {
 		if (!(md->attribute & EFI_MEMORY_RUNTIME) ||
 		    (md->type == EFI_BOOT_SERVICES_CODE) ||
 		    (md->type == EFI_BOOT_SERVICES_DATA))
 			continue;
-		tmp = krealloc(q, (count + 1) * memmap.desc_size, GFP_KERNEL);
+		tmp = krealloc(q, (count + 1) * desc_size, GFP_KERNEL);
 		if (!tmp)
 			goto out;
 		q = tmp;
 
-		memcpy(q + count * memmap.desc_size, md, memmap.desc_size);
+		memcpy(q + count * desc_size, md, desc_size);
 		count++;
 	}
 
-	efi_runtime_map_setup(q, count, memmap.desc_size);
+	efi_runtime_map_setup(q, count, desc_size);
 	return;
 
 out:
@@ -699,10 +707,10 @@ static inline void *efi_map_next_entry_reverse(void *entry)
 {
 	/* Initial call */
 	if (!entry)
-		return memmap.map_end - memmap.desc_size;
+		return efi.memmap.map_end - efi.memmap.desc_size;
 
-	entry -= memmap.desc_size;
-	if (entry < memmap.map)
+	entry -= efi.memmap.desc_size;
+	if (entry < efi.memmap.map)
 		return NULL;
 
 	return entry;
@@ -744,10 +752,10 @@ static void *efi_map_next_entry(void *entry)
 
 	/* Initial call */
 	if (!entry)
-		return memmap.map;
+		return efi.memmap.map;
 
-	entry += memmap.desc_size;
-	if (entry >= memmap.map_end)
+	entry += efi.memmap.desc_size;
+	if (entry >= efi.memmap.map_end)
 		return NULL;
 
 	return entry;
@@ -761,7 +769,10 @@ static void * __init efi_map_regions(int *count, int *pg_shift)
 {
 	void *p, *new_memmap = NULL;
 	unsigned long left = 0;
+	unsigned long desc_size;
 	efi_memory_desc_t *md;
+
+	desc_size = efi.memmap.desc_size;
 
 	p = NULL;
 	while ((p = efi_map_next_entry(p))) {
@@ -777,7 +788,7 @@ static void * __init efi_map_regions(int *count, int *pg_shift)
 		efi_map_region(md);
 		get_systab_virt_addr(md);
 
-		if (left < memmap.desc_size) {
+		if (left < desc_size) {
 			new_memmap = realloc_pages(new_memmap, *pg_shift);
 			if (!new_memmap)
 				return NULL;
@@ -786,10 +797,9 @@ static void * __init efi_map_regions(int *count, int *pg_shift)
 			(*pg_shift)++;
 		}
 
-		memcpy(new_memmap + (*count * memmap.desc_size), md,
-		       memmap.desc_size);
+		memcpy(new_memmap + (*count * desc_size), md, desc_size);
 
-		left -= memmap.desc_size;
+		left -= desc_size;
 		(*count)++;
 	}
 
@@ -833,10 +843,10 @@ static void __init kexec_enter_virtual_mode(void)
 
 	BUG_ON(!efi.systab);
 
-	num_pages = ALIGN(memmap.nr_map * memmap.desc_size, PAGE_SIZE);
+	num_pages = ALIGN(efi.memmap.nr_map * efi.memmap.desc_size, PAGE_SIZE);
 	num_pages >>= PAGE_SHIFT;
 
-	if (efi_setup_page_tables(memmap.phys_map, num_pages)) {
+	if (efi_setup_page_tables(efi.memmap.phys_map, num_pages)) {
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 		return;
 	}
@@ -920,16 +930,16 @@ static void __init __efi_enter_virtual_mode(void)
 
 	if (efi_is_native()) {
 		status = phys_efi_set_virtual_address_map(
-				memmap.desc_size * count,
-				memmap.desc_size,
-				memmap.desc_version,
+				efi.memmap.desc_size * count,
+				efi.memmap.desc_size,
+				efi.memmap.desc_version,
 				(efi_memory_desc_t *)__pa(new_memmap));
 	} else {
 		status = efi_thunk_set_virtual_address_map(
 				efi_phys.set_virtual_address_map,
-				memmap.desc_size * count,
-				memmap.desc_size,
-				memmap.desc_version,
+				efi.memmap.desc_size * count,
+				efi.memmap.desc_size,
+				efi.memmap.desc_version,
 				(efi_memory_desc_t *)__pa(new_memmap));
 	}
 

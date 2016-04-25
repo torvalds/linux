@@ -256,7 +256,7 @@ subsys_initcall(efisubsys_init);
  */
 int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 {
-	struct efi_memory_map *map = efi.memmap;
+	struct efi_memory_map *map = &efi.memmap;
 	phys_addr_t p, e;
 
 	if (!efi_enabled(EFI_MEMMAP)) {

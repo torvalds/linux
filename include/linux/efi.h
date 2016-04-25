@@ -883,7 +883,7 @@ extern struct efi {
 	efi_get_next_high_mono_count_t *get_next_high_mono_count;
 	efi_reset_system_t *reset_system;
 	efi_set_virtual_address_map_t *set_virtual_address_map;
-	struct efi_memory_map *memmap;
+	struct efi_memory_map memmap;
 	unsigned long flags;
 } efi;
 
@@ -945,7 +945,6 @@ extern void efi_initialize_iomem_resources(struct resource *code_resource,
 extern void efi_get_time(struct timespec *now);
 extern void efi_reserve_boot_services(void);
 extern int efi_get_fdt_params(struct efi_fdt_params *params);
-extern struct efi_memory_map memmap;
 extern struct kobject *efi_kobj;
 
 extern int efi_reboot_quirk_mode;
@@ -970,7 +969,7 @@ static inline void efi_fake_memmap(void) { }
  * Once the loop finishes @md must not be accessed.
  */
 #define for_each_efi_memory_desc(md) \
-	for_each_efi_memory_desc_in_map(efi.memmap, md)
+	for_each_efi_memory_desc_in_map(&efi.memmap, md)
 
 /*
  * Format an EFI memory descriptor's type and attributes to a user-provided
