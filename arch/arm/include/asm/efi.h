@@ -64,6 +64,9 @@ void efi_virtmap_unload(void);
 #define __efi_call_early(f, ...)	f(__VA_ARGS__)
 #define efi_is_64bit()			(false)
 
+struct screen_info *alloc_screen_info(efi_system_table_t *sys_table_arg);
+void free_screen_info(efi_system_table_t *sys_table, struct screen_info *si);
+
 /*
  * A reasonable upper bound for the uncompressed kernel size is 32 MBytes,
  * so we will reserve that amount of memory. We have no easy way to tell what

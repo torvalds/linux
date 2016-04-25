@@ -286,7 +286,7 @@ typedef struct {
 	efi_status_t (*locate_handle)(int, efi_guid_t *, void *,
 				      unsigned long *, efi_handle_t *);
 	void *locate_device_path;
-	void *install_configuration_table;
+	efi_status_t (*install_configuration_table)(efi_guid_t *, void *);
 	void *load_image;
 	void *start_image;
 	void *exit;
@@ -632,6 +632,15 @@ void efi_native_runtime_setup(void);
 #define EFI_CONSOLE_OUT_DEVICE_GUID \
 	EFI_GUID(0xd3b36f2c, 0xd551, 0x11d4, \
 		 0x9a, 0x46, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d)
+
+/*
+ * This GUID is used to pass to the kernel proper the struct screen_info
+ * structure that was populated by the stub based on the GOP protocol instance
+ * associated with ConOut
+ */
+#define LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID \
+	EFI_GUID(0xe03fc20a, 0x85dc, 0x406e, \
+		 0xb9, 0xe, 0x4a, 0xb5, 0x02, 0x37, 0x1d, 0x95)
 
 typedef struct {
 	efi_guid_t guid;

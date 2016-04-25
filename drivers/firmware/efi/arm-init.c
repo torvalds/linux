@@ -11,12 +11,15 @@
  *
  */
 
+#define pr_fmt(fmt)	"efi: " fmt
+
 #include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/mm_types.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/screen_info.h>
 
 #include <asm/efi.h>
 
@@ -49,6 +52,32 @@ static phys_addr_t efi_to_phys(unsigned long addr)
 			return md->phys_addr + addr - md->virt_addr;
 	}
 	return addr;
+}
+
+static __initdata unsigned long screen_info_table = EFI_INVALID_TABLE_ADDR;
+
+static __initdata efi_config_table_type_t arch_tables[] = {
+	{LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID, NULL, &screen_info_table},
+	{NULL_GUID, NULL, NULL}
+};
+
+static void __init init_screen_info(void)
+{
+	struct screen_info *si;
+
+	if (screen_info_table != EFI_INVALID_TABLE_ADDR) {
+		si = early_memremap_ro(screen_info_table, sizeof(*si));
+		if (!si) {
+			pr_err("Could not map screen_info config table\n");
+			return;
+		}
+		screen_info = *si;
+		early_memunmap(si, sizeof(*si));
+
+		/* dummycon on ARM needs non-zero values for columns/lines */
+		screen_info.orig_video_cols = 80;
+		screen_info.orig_video_lines = 25;
+	}
 }
 
 static int __init uefi_init(void)
@@ -108,7 +137,8 @@ static int __init uefi_init(void)
 		goto out;
 	}
 	retval = efi_config_parse_tables(config_tables, efi.systab->nr_tables,
-					 sizeof(efi_config_table_t), NULL);
+					 sizeof(efi_config_table_t),
+					 arch_tables);
 
 	early_memunmap(config_tables, table_size);
 out:
@@ -223,4 +253,6 @@ void __init efi_init(void)
 				 PAGE_ALIGN(params.mmap_size +
 					    (params.mmap & ~PAGE_MASK)));
 	}
+
+	init_screen_info();
 }
