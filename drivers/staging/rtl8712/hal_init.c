@@ -197,8 +197,8 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 						       0x0000ffff);
 			memcpy(ppayload, ptr, dump_imem_sz);
 			r8712_write_mem(padapter, RTL8712_DMA_VOQ,
-				  dump_imem_sz + TXDESC_SIZE,
-				  (u8 *)ptx_desc);
+					dump_imem_sz + TXDESC_SIZE,
+					(u8 *)ptx_desc);
 			ptr += dump_imem_sz;
 			imem_sz -= dump_imem_sz;
 		} while (imem_sz > 0);
@@ -226,7 +226,8 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 						       0x0000ffff);
 			memcpy(ppayload, ptr, dump_emem_sz);
 			r8712_write_mem(padapter, RTL8712_DMA_VOQ,
-				  dump_emem_sz + TXDESC_SIZE, (u8 *)ptx_desc);
+					dump_emem_sz + TXDESC_SIZE,
+					(u8 *)ptx_desc);
 			ptr += dump_emem_sz;
 			emem_sz -= dump_emem_sz;
 		} while (emem_sz > 0);
@@ -278,7 +279,7 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		ptx_desc->txdw0 |= cpu_to_le32(BIT(28));
 		memcpy(ppayload, &fwhdr.fwpriv, fwhdr.fw_priv_sz);
 		r8712_write_mem(padapter, RTL8712_DMA_VOQ,
-			  fwhdr.fw_priv_sz + TXDESC_SIZE, (u8 *)ptx_desc);
+				fwhdr.fw_priv_sz + TXDESC_SIZE, (u8 *)ptx_desc);
 
 		/* polling dmem code done */
 		i = 100;
