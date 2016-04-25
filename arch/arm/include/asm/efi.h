@@ -60,7 +60,9 @@ void efi_virtmap_unload(void);
 
 /* arch specific definitions used by the stub code */
 
-#define efi_call_early(f, ...) sys_table_arg->boottime->f(__VA_ARGS__)
+#define efi_call_early(f, ...)		sys_table_arg->boottime->f(__VA_ARGS__)
+#define __efi_call_early(f, ...)	f(__VA_ARGS__)
+#define efi_is_64bit()			(false)
 
 /*
  * A reasonable upper bound for the uncompressed kernel size is 32 MBytes,

@@ -283,7 +283,8 @@ typedef struct {
 	efi_status_t (*handle_protocol)(efi_handle_t, efi_guid_t *, void **);
 	void *__reserved;
 	void *register_protocol_notify;
-	void *locate_handle;
+	efi_status_t (*locate_handle)(int, efi_guid_t *, void *,
+				      unsigned long *, efi_handle_t *);
 	void *locate_device_path;
 	void *install_configuration_table;
 	void *load_image;
@@ -627,6 +628,10 @@ void efi_native_runtime_setup(void);
 #define EFI_MEMORY_ATTRIBUTES_TABLE_GUID \
 	EFI_GUID(0xdcfa911d, 0x26eb, 0x469f, \
 		 0xa2, 0x20, 0x38, 0xb7, 0xdc, 0x46, 0x12, 0x20)
+
+#define EFI_CONSOLE_OUT_DEVICE_GUID \
+	EFI_GUID(0xd3b36f2c, 0xd551, 0x11d4, \
+		 0x9a, 0x46, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d)
 
 typedef struct {
 	efi_guid_t guid;
@@ -1213,6 +1218,80 @@ struct efi_simple_text_output_protocol {
 	efi_status_t (*output_string)(void *, void *);
 	void *test_string;
 };
+
+#define PIXEL_RGB_RESERVED_8BIT_PER_COLOR		0
+#define PIXEL_BGR_RESERVED_8BIT_PER_COLOR		1
+#define PIXEL_BIT_MASK					2
+#define PIXEL_BLT_ONLY					3
+#define PIXEL_FORMAT_MAX				4
+
+struct efi_pixel_bitmask {
+	u32 red_mask;
+	u32 green_mask;
+	u32 blue_mask;
+	u32 reserved_mask;
+};
+
+struct efi_graphics_output_mode_info {
+	u32 version;
+	u32 horizontal_resolution;
+	u32 vertical_resolution;
+	int pixel_format;
+	struct efi_pixel_bitmask pixel_information;
+	u32 pixels_per_scan_line;
+} __packed;
+
+struct efi_graphics_output_protocol_mode_32 {
+	u32 max_mode;
+	u32 mode;
+	u32 info;
+	u32 size_of_info;
+	u64 frame_buffer_base;
+	u32 frame_buffer_size;
+} __packed;
+
+struct efi_graphics_output_protocol_mode_64 {
+	u32 max_mode;
+	u32 mode;
+	u64 info;
+	u64 size_of_info;
+	u64 frame_buffer_base;
+	u64 frame_buffer_size;
+} __packed;
+
+struct efi_graphics_output_protocol_mode {
+	u32 max_mode;
+	u32 mode;
+	unsigned long info;
+	unsigned long size_of_info;
+	u64 frame_buffer_base;
+	unsigned long frame_buffer_size;
+} __packed;
+
+struct efi_graphics_output_protocol_32 {
+	u32 query_mode;
+	u32 set_mode;
+	u32 blt;
+	u32 mode;
+};
+
+struct efi_graphics_output_protocol_64 {
+	u64 query_mode;
+	u64 set_mode;
+	u64 blt;
+	u64 mode;
+};
+
+struct efi_graphics_output_protocol {
+	unsigned long query_mode;
+	unsigned long set_mode;
+	unsigned long blt;
+	struct efi_graphics_output_protocol_mode *mode;
+};
+
+typedef efi_status_t (*efi_graphics_output_protocol_query_mode)(
+	struct efi_graphics_output_protocol *, u32, unsigned long *,
+	struct efi_graphics_output_mode_info **);
 
 extern struct list_head efivar_sysfs_list;
 
