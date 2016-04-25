@@ -515,6 +515,7 @@ struct bnxt_sw_rx_bd {
 
 struct bnxt_sw_rx_agg_bd {
 	struct page		*page;
+	unsigned int		offset;
 	dma_addr_t		mapping;
 };
 
@@ -594,6 +595,9 @@ struct bnxt_rx_ring_info {
 
 	unsigned long		*rx_agg_bmap;
 	u16			rx_agg_bmap_size;
+
+	struct page		*rx_page;
+	unsigned int		rx_page_offset;
 
 	dma_addr_t		rx_desc_mapping[MAX_RX_PAGES];
 	dma_addr_t		rx_agg_desc_mapping[MAX_RX_AGG_PAGES];

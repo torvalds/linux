@@ -581,12 +581,30 @@ static inline int bnxt_alloc_rx_page(struct bnxt *bp,
 	struct page *page;
 	dma_addr_t mapping;
 	u16 sw_prod = rxr->rx_sw_agg_prod;
+	unsigned int offset = 0;
 
-	page = alloc_page(gfp);
-	if (!page)
-		return -ENOMEM;
+	if (PAGE_SIZE > BNXT_RX_PAGE_SIZE) {
+		page = rxr->rx_page;
+		if (!page) {
+			page = alloc_page(gfp);
+			if (!page)
+				return -ENOMEM;
+			rxr->rx_page = page;
+			rxr->rx_page_offset = 0;
+		}
+		offset = rxr->rx_page_offset;
+		rxr->rx_page_offset += BNXT_RX_PAGE_SIZE;
+		if (rxr->rx_page_offset == PAGE_SIZE)
+			rxr->rx_page = NULL;
+		else
+			get_page(page);
+	} else {
+		page = alloc_page(gfp);
+		if (!page)
+			return -ENOMEM;
+	}
 
-	mapping = dma_map_page(&pdev->dev, page, 0, BNXT_RX_PAGE_SIZE,
+	mapping = dma_map_page(&pdev->dev, page, offset, BNXT_RX_PAGE_SIZE,
 			       PCI_DMA_FROMDEVICE);
 	if (dma_mapping_error(&pdev->dev, mapping)) {
 		__free_page(page);
@@ -601,6 +619,7 @@ static inline int bnxt_alloc_rx_page(struct bnxt *bp,
 	rxr->rx_sw_agg_prod = NEXT_RX_AGG(sw_prod);
 
 	rx_agg_buf->page = page;
+	rx_agg_buf->offset = offset;
 	rx_agg_buf->mapping = mapping;
 	rxbd->rx_bd_haddr = cpu_to_le64(mapping);
 	rxbd->rx_bd_opaque = sw_prod;
@@ -642,6 +661,7 @@ static void bnxt_reuse_rx_agg_bufs(struct bnxt_napi *bnapi, u16 cp_cons,
 		page = cons_rx_buf->page;
 		cons_rx_buf->page = NULL;
 		prod_rx_buf->page = page;
+		prod_rx_buf->offset = cons_rx_buf->offset;
 
 		prod_rx_buf->mapping = cons_rx_buf->mapping;
 
@@ -709,7 +729,8 @@ static struct sk_buff *bnxt_rx_pages(struct bnxt *bp, struct bnxt_napi *bnapi,
 			    RX_AGG_CMP_LEN) >> RX_AGG_CMP_LEN_SHIFT;
 
 		cons_rx_buf = &rxr->rx_agg_ring[cons];
-		skb_fill_page_desc(skb, i, cons_rx_buf->page, 0, frag_len);
+		skb_fill_page_desc(skb, i, cons_rx_buf->page,
+				   cons_rx_buf->offset, frag_len);
 		__clear_bit(cons, rxr->rx_agg_bmap);
 
 		/* It is possible for bnxt_alloc_rx_page() to allocate
@@ -1590,6 +1611,10 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 			__clear_bit(j, rxr->rx_agg_bmap);
 
 			__free_page(page);
+		}
+		if (rxr->rx_page) {
+			__free_page(rxr->rx_page);
+			rxr->rx_page = NULL;
 		}
 	}
 }
