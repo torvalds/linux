@@ -37,7 +37,8 @@ static int ring_interrupt_index(struct tb_ring *ring)
  */
 static void ring_interrupt_active(struct tb_ring *ring, bool active)
 {
-	int reg = REG_RING_INTERRUPT_BASE + ring_interrupt_index(ring) / 32;
+	int reg = REG_RING_INTERRUPT_BASE +
+		  ring_interrupt_index(ring) / 32 * 4;
 	int bit = ring_interrupt_index(ring) & 31;
 	int mask = 1 << bit;
 	u32 old, new;
@@ -564,7 +565,7 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* cannot fail - table is allocated bin pcim_iomap_regions */
 	nhi->iobase = pcim_iomap_table(pdev)[0];
 	nhi->hop_count = ioread32(nhi->iobase + REG_HOP_COUNT) & 0x3ff;
-	if (nhi->hop_count != 12)
+	if (nhi->hop_count != 12 && nhi->hop_count != 32)
 		dev_warn(&pdev->dev, "unexpected hop count: %d\n",
 			 nhi->hop_count);
 	INIT_WORK(&nhi->interrupt_work, nhi_interrupt_work);
@@ -633,16 +634,24 @@ static const struct dev_pm_ops nhi_pm_ops = {
 static struct pci_device_id nhi_ids[] = {
 	/*
 	 * We have to specify class, the TB bridges use the same device and
-	 * vendor (sub)id.
+	 * vendor (sub)id on gen 1 and gen 2 controllers.
 	 */
 	{
 		.class = PCI_CLASS_SYSTEM_OTHER << 8, .class_mask = ~0,
-		.vendor = PCI_VENDOR_ID_INTEL, .device = 0x1547,
+		.vendor = PCI_VENDOR_ID_INTEL,
+		.device = PCI_DEVICE_ID_INTEL_LIGHT_RIDGE,
 		.subvendor = 0x2222, .subdevice = 0x1111,
 	},
 	{
 		.class = PCI_CLASS_SYSTEM_OTHER << 8, .class_mask = ~0,
-		.vendor = PCI_VENDOR_ID_INTEL, .device = 0x156c,
+		.vendor = PCI_VENDOR_ID_INTEL,
+		.device = PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C,
+		.subvendor = 0x2222, .subdevice = 0x1111,
+	},
+	{
+		.class = PCI_CLASS_SYSTEM_OTHER << 8, .class_mask = ~0,
+		.vendor = PCI_VENDOR_ID_INTEL,
+		.device = PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI,
 		.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID,
 	},
 	{ 0,}
