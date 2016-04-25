@@ -257,7 +257,9 @@ dtb-$(CONFIG_ARCH_MMP) += \
 dtb-$(CONFIG_MACH_MESON8B) += \
 	meson8b-mxq.dtb \
 	meson8b-odroidc1.dtb
-dtb-$(CONFIG_ARCH_MPS2) += mps2-an385.dtb
+dtb-$(CONFIG_ARCH_MPS2) += \
+	mps2-an385.dtb \
+	mps2-an399.dtb
 dtb-$(CONFIG_ARCH_MOXART) += \
 	moxart-uc7112lx.dtb
 dtb-$(CONFIG_SOC_IMX1) += \
