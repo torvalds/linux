@@ -3036,7 +3036,7 @@ double slm_bclk(void)
 	i = msr & 0xf;
 	if (i >= SLM_BCLK_FREQS) {
 		fprintf(outf, "SLM BCLK[%d] invalid\n", i);
-		msr = 3;
+		i = 3;
 	}
 	freq = slm_freq_table[i];
 
