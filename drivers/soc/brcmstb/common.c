@@ -51,6 +51,7 @@ static int __init brcmstb_soc_device_init(void)
 	struct soc_device *soc_dev;
 	struct device_node *sun_top_ctrl;
 	void __iomem *sun_top_ctrl_base;
+	int ret = 0;
 
 	sun_top_ctrl = of_find_matching_node(NULL, sun_top_ctrl_match);
 	if (!sun_top_ctrl)
@@ -64,8 +65,10 @@ static int __init brcmstb_soc_device_init(void)
 	product_id = readl(sun_top_ctrl_base + 0x4);
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
-	if (!soc_dev_attr)
-		return -ENOMEM;
+	if (!soc_dev_attr) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	soc_dev_attr->family = kasprintf(GFP_KERNEL, "%x",
 					 family_id >> 28 ?
@@ -83,9 +86,14 @@ static int __init brcmstb_soc_device_init(void)
 		kfree(soc_dev_attr->soc_id);
 		kfree(soc_dev_attr->revision);
 		kfree(soc_dev_attr);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out;
 	}
 
 	return 0;
+
+out:
+	iounmap(sun_top_ctrl_base);
+	return ret;
 }
 arch_initcall(brcmstb_soc_device_init);
