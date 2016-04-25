@@ -2,7 +2,7 @@
 
 Required properties:
 	- reg - The ID number for the phy, usually a small integer
-	- ti,rx-internal-delay - RGMII Recieve Clock Delay - see dt-bindings/net/ti-dp83867.h
+	- ti,rx-internal-delay - RGMII Receive Clock Delay - see dt-bindings/net/ti-dp83867.h
 		for applicable values
 	- ti,tx-internal-delay - RGMII Transmit Clock Delay - see dt-bindings/net/ti-dp83867.h
 		for applicable values
