@@ -592,16 +592,6 @@ static int pic32_spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	switch (spi->bits_per_word) {
-	case 8:
-	case 16:
-	case 32:
-		break;
-	default:
-		dev_err(&spi->dev, "Invalid bits_per_word defined\n");
-		return -EINVAL;
-	}
-
 	/* PIC32 spi controller can drive /CS during transfer depending
 	 * on tx fifo fill-level. /CS will stay asserted as long as TX
 	 * fifo is non-empty, else will be deasserted indicating
@@ -791,7 +781,8 @@ static int pic32_spi_probe(struct platform_device *pdev)
 	master->setup		= pic32_spi_setup;
 	master->cleanup		= pic32_spi_cleanup;
 	master->flags		= SPI_MASTER_MUST_TX | SPI_MASTER_MUST_RX;
-	master->bits_per_word_mask	= SPI_BPW_RANGE_MASK(8, 32);
+	master->bits_per_word_mask	= SPI_BPW_MASK(8) | SPI_BPW_MASK(16) |
+					  SPI_BPW_MASK(32);
 	master->transfer_one		= pic32_spi_one_transfer;
 	master->prepare_message		= pic32_spi_prepare_message;
 	master->unprepare_message	= pic32_spi_unprepare_message;
