@@ -181,6 +181,7 @@ enum {
 	ATA_DFLAG_DEVSLP	= (1 << 27), /* device supports Device Sleep */
 	ATA_DFLAG_ACPI_DISABLED = (1 << 28), /* ACPI for the device is disabled */
 	ATA_DFLAG_D_SENSE	= (1 << 29), /* Descriptor sense requested */
+	ATA_DFLAG_ZAC		= (1 << 30), /* ZAC device */
 
 	ATA_DEV_UNKNOWN		= 0,	/* unknown device */
 	ATA_DEV_ATA		= 1,	/* ATA device */
@@ -730,6 +731,12 @@ struct ata_device {
 	/* NCQ send and receive log subcommand support */
 	u8			ncq_send_recv_cmds[ATA_LOG_NCQ_SEND_RECV_SIZE];
 	u8			ncq_non_data_cmds[ATA_LOG_NCQ_NON_DATA_SIZE];
+
+	/* ZAC zone configuration */
+	u32			zac_zoned_cap;
+	u32			zac_zones_optimal_open;
+	u32			zac_zones_optimal_nonseq;
+	u32			zac_zones_max_open;
 
 	/* error history */
 	int			spdn_cnt;

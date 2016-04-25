@@ -2227,6 +2227,99 @@ static void ata_dev_config_sense_reporting(struct ata_device *dev)
 	}
 }
 
+static void ata_dev_config_zac(struct ata_device *dev)
+{
+	struct ata_port *ap = dev->link->ap;
+	unsigned int err_mask;
+	u8 *identify_buf = ap->sector_buf;
+	int log_index = ATA_LOG_SATA_ID_DEV_DATA * 2, i, found = 0;
+	u16 log_pages;
+
+	dev->zac_zones_optimal_open = U32_MAX;
+	dev->zac_zones_optimal_nonseq = U32_MAX;
+	dev->zac_zones_max_open = U32_MAX;
+
+	/*
+	 * Always set the 'ZAC' flag for Host-managed devices.
+	 */
+	if (dev->class == ATA_DEV_ZAC)
+		dev->flags |= ATA_DFLAG_ZAC;
+	else if (ata_id_zoned_cap(dev->id) == 0x01)
+		/*
+		 * Check for host-aware devices.
+		 */
+		dev->flags |= ATA_DFLAG_ZAC;
+
+	if (!(dev->flags & ATA_DFLAG_ZAC))
+		return;
+
+	/*
+	 * Read Log Directory to figure out if IDENTIFY DEVICE log
+	 * is supported.
+	 */
+	err_mask = ata_read_log_page(dev, ATA_LOG_DIRECTORY,
+				     0, ap->sector_buf, 1);
+	if (err_mask) {
+		ata_dev_info(dev,
+			     "failed to get Log Directory Emask 0x%x\n",
+			     err_mask);
+		return;
+	}
+	log_pages = get_unaligned_le16(&ap->sector_buf[log_index]);
+	if (log_pages == 0) {
+		ata_dev_warn(dev,
+			     "ATA Identify Device Log not supported\n");
+		return;
+	}
+	/*
+	 * Read IDENTIFY DEVICE data log, page 0, to figure out
+	 * if page 9 is supported.
+	 */
+	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_ID_DEV_DATA, 0,
+				     identify_buf, 1);
+	if (err_mask) {
+		ata_dev_info(dev,
+			     "failed to get Device Identify Log Emask 0x%x\n",
+			     err_mask);
+		return;
+	}
+	log_pages = identify_buf[8];
+	for (i = 0; i < log_pages; i++) {
+		if (identify_buf[9 + i] == ATA_LOG_ZONED_INFORMATION) {
+			found++;
+			break;
+		}
+	}
+	if (!found) {
+		ata_dev_warn(dev,
+			     "ATA Zoned Information Log not supported\n");
+		return;
+	}
+
+	/*
+	 * Read IDENTIFY DEVICE data log, page 9 (Zoned-device information)
+	 */
+	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_ID_DEV_DATA,
+				     ATA_LOG_ZONED_INFORMATION,
+				     identify_buf, 1);
+	if (!err_mask) {
+		u64 zoned_cap, opt_open, opt_nonseq, max_open;
+
+		zoned_cap = get_unaligned_le64(&identify_buf[8]);
+		if ((zoned_cap >> 63))
+			dev->zac_zoned_cap = (zoned_cap & 1);
+		opt_open = get_unaligned_le64(&identify_buf[24]);
+		if ((opt_open >> 63))
+			dev->zac_zones_optimal_open = (u32)opt_open;
+		opt_nonseq = get_unaligned_le64(&identify_buf[32]);
+		if ((opt_nonseq >> 63))
+			dev->zac_zones_optimal_nonseq = (u32)opt_nonseq;
+		max_open = get_unaligned_le64(&identify_buf[40]);
+		if ((max_open >> 63))
+			dev->zac_zones_max_open = (u32)max_open;
+	}
+}
+
 /**
  *	ata_dev_configure - Configure the specified ATA/ATAPI device
  *	@dev: Target device to configure
@@ -2450,6 +2543,7 @@ int ata_dev_configure(struct ata_device *dev)
 				}
 		}
 		ata_dev_config_sense_reporting(dev);
+		ata_dev_config_zac(dev);
 		dev->cdb_len = 16;
 	}
 

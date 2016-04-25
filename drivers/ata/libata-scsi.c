@@ -2144,6 +2144,7 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
  */
 static unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf)
 {
+	int num_pages;
 	const u8 pages[] = {
 		0x00,	/* page 0x00, this page */
 		0x80,	/* page 0x80, unit serial no page */
@@ -2152,10 +2153,14 @@ static unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf)
 		0xb0,	/* page 0xb0, block limits page */
 		0xb1,	/* page 0xb1, block device characteristics page */
 		0xb2,	/* page 0xb2, thin provisioning page */
+		0xb6,	/* page 0xb6, zoned block device characteristics */
 	};
 
-	rbuf[3] = sizeof(pages);	/* number of supported VPD pages */
-	memcpy(rbuf + 4, pages, sizeof(pages));
+	num_pages = sizeof(pages);
+	if (!(args->dev->flags & ATA_DFLAG_ZAC))
+		num_pages--;
+	rbuf[3] = num_pages;	/* number of supported VPD pages */
+	memcpy(rbuf + 4, pages, num_pages);
 	return 0;
 }
 
@@ -2339,6 +2344,26 @@ static unsigned int ata_scsiop_inq_b2(struct ata_scsi_args *args, u8 *rbuf)
 	rbuf[1] = 0xb2;
 	rbuf[3] = 0x4;
 	rbuf[5] = 1 << 6;	/* TPWS */
+
+	return 0;
+}
+
+static unsigned int ata_scsiop_inq_b6(struct ata_scsi_args *args, u8 *rbuf)
+{
+	/*
+	 * zbc-r05 SCSI Zoned Block device characteristics VPD page
+	 */
+	rbuf[1] = 0xb6;
+	rbuf[3] = 0x3C;
+
+	/*
+	 * URSWRZ bit is only meaningful for host-managed ZAC drives
+	 */
+	if (args->dev->zac_zoned_cap & 1)
+		rbuf[4] |= 1;
+	put_unaligned_be32(args->dev->zac_zones_optimal_open, &rbuf[8]);
+	put_unaligned_be32(args->dev->zac_zones_optimal_nonseq, &rbuf[12]);
+	put_unaligned_be32(args->dev->zac_zones_max_open, &rbuf[16]);
 
 	return 0;
 }
@@ -2661,6 +2686,9 @@ static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 				rbuf[14] |= 0x40; /* LBPRZ */
 			}
 		}
+		if (ata_id_zoned_cap(args->id) ||
+		    args->dev->class == ATA_DEV_ZAC)
+			rbuf[12] = (1 << 4); /* RC_BASIS */
 	}
 	return 0;
 }
@@ -4046,6 +4074,12 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		case 0xb2:
 			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b2);
 			break;
+		case 0xb6:
+			if (dev->flags & ATA_DFLAG_ZAC) {
+				ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b6);
+				break;
+			}
+			/* Fallthrough */
 		default:
 			ata_scsi_invalid_field(dev, cmd, 2);
 			break;
