@@ -10,6 +10,7 @@ config IIO_DUMMY_EVGEN
 
 config IIO_SIMPLE_DUMMY
        tristate "An example driver with no hardware requirements"
+       depends on IIO_SW_DEVICE
        help
 	 Driver intended mainly as documentation for how to write
 	 a driver. May also be useful for testing userspace code
