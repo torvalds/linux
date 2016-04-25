@@ -19,27 +19,11 @@
 #define DA8XX_USB1_BASE 	0x01e25000
 
 #if IS_ENABLED(CONFIG_USB_MUSB_HDRC)
-static struct musb_hdrc_eps_bits musb_eps[] = {
-	{ "ep1_tx", 8, },
-	{ "ep1_rx", 8, },
-	{ "ep2_tx", 8, },
-	{ "ep2_rx", 8, },
-	{ "ep3_tx", 5, },
-	{ "ep3_rx", 5, },
-	{ "ep4_tx", 5, },
-	{ "ep4_rx", 5, },
-};
-
 static struct musb_hdrc_config musb_config = {
 	.multipoint	= true,
-	.dyn_fifo	= true,
-	.soft_con	= true,
-	.dma		= true,
 
 	.num_eps	= 5,
-	.dma_channels	= 8,
 	.ram_bits	= 10,
-	.eps_bits	= musb_eps,
 };
 
 static struct musb_hdrc_platform_data usb_data = {
