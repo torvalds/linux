@@ -2082,14 +2082,14 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 		0x00,
 		0xA0,	/* SAM-5 (no version claimed) */
 
-		0x04,
-		0xC0,	/* SBC-3 (no version claimed) */
+		0x06,
+		0x00,	/* SBC-4 (no version claimed) */
 
-		0x04,
-		0x60,	/* SPC-4 (no version claimed) */
+		0x05,
+		0xC0,	/* SPC-5 (no version claimed) */
 
 		0x60,
-		0x20,   /* ZBC (no version claimed) */
+		0x24,   /* ZBC r05 */
 	};
 
 	u8 hdr[] = {
@@ -2109,10 +2109,8 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 	    (args->dev->link->ap->pflags & ATA_PFLAG_EXTERNAL))
 		hdr[1] |= (1 << 7);
 
-	if (args->dev->class == ATA_DEV_ZAC) {
+	if (args->dev->class == ATA_DEV_ZAC)
 		hdr[0] = TYPE_ZBC;
-		hdr[2] = 0x6; /* ZBC is defined in SPC-4 */
-	}
 
 	memcpy(rbuf, hdr, sizeof(hdr));
 	memcpy(&rbuf[8], "ATA     ", 8);
@@ -2126,7 +2124,7 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 	if (rbuf[32] == 0 || rbuf[32] == ' ')
 		memcpy(&rbuf[32], "n/a ", 4);
 
-	if (args->dev->class == ATA_DEV_ZAC)
+	if (ata_id_zoned_cap(args->id) || args->dev->class == ATA_DEV_ZAC)
 		memcpy(rbuf + 58, versions_zbc, sizeof(versions_zbc));
 	else
 		memcpy(rbuf + 58, versions, sizeof(versions));
@@ -2322,12 +2320,15 @@ static unsigned int ata_scsiop_inq_b1(struct ata_scsi_args *args, u8 *rbuf)
 {
 	int form_factor = ata_id_form_factor(args->id);
 	int media_rotation_rate = ata_id_rotation_rate(args->id);
+	u8 zoned = ata_id_zoned_cap(args->id);
 
 	rbuf[1] = 0xb1;
 	rbuf[3] = 0x3c;
 	rbuf[4] = media_rotation_rate >> 8;
 	rbuf[5] = media_rotation_rate;
 	rbuf[7] = form_factor;
+	if (zoned)
+		rbuf[8] = (zoned << 4);
 
 	return 0;
 }

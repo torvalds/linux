@@ -935,6 +935,11 @@ static inline bool ata_id_is_ssd(const u16 *id)
 	return id[ATA_ID_ROT_SPEED] == 0x01;
 }
 
+static inline u8 ata_id_zoned_cap(const u16 *id)
+{
+	return (id[ATA_ID_ADDITIONAL_SUPP] & 0x3);
+}
+
 static inline bool ata_id_pio_need_iordy(const u16 *id, const u8 pio)
 {
 	/* CF spec. r4.1 Table 22 says no IORDY on PIO5 and PIO6. */
