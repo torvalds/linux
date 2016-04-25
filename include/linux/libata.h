@@ -192,7 +192,8 @@ enum {
 	ATA_DEV_SEMB		= 7,	/* SEMB */
 	ATA_DEV_SEMB_UNSUP	= 8,	/* SEMB (unsupported) */
 	ATA_DEV_ZAC		= 9,	/* ZAC device */
-	ATA_DEV_NONE		= 10,	/* no device */
+	ATA_DEV_ZAC_UNSUP	= 10,	/* ZAC device (unsupported) */
+	ATA_DEV_NONE		= 11,	/* no device */
 
 	/* struct ata_link flags */
 	ATA_LFLAG_NO_HRST	= (1 << 1), /* avoid hardreset */
@@ -1524,7 +1525,8 @@ static inline unsigned int ata_class_enabled(unsigned int class)
 static inline unsigned int ata_class_disabled(unsigned int class)
 {
 	return class == ATA_DEV_ATA_UNSUP || class == ATA_DEV_ATAPI_UNSUP ||
-		class == ATA_DEV_PMP_UNSUP || class == ATA_DEV_SEMB_UNSUP;
+		class == ATA_DEV_PMP_UNSUP || class == ATA_DEV_SEMB_UNSUP ||
+		class == ATA_DEV_ZAC_UNSUP;
 }
 
 static inline unsigned int ata_class_absent(unsigned int class)
