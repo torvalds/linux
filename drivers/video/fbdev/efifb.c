@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/efi.h>
 #include <linux/errno.h>
 #include <linux/fb.h>
 #include <linux/platform_device.h>
@@ -15,7 +16,7 @@
 #include <linux/dmi.h>
 #include <linux/pci.h>
 #include <video/vga.h>
-#include <asm/sysfb.h>
+#include <asm/efi.h>
 
 static bool request_mem_succeeded = false;
 
@@ -85,21 +86,13 @@ static struct fb_ops efifb_ops = {
 static int efifb_setup(char *options)
 {
 	char *this_opt;
-	int i;
 
 	if (options && *options) {
 		while ((this_opt = strsep(&options, ",")) != NULL) {
 			if (!*this_opt) continue;
 
-			for (i = 0; i < M_UNKNOWN; i++) {
-				if (efifb_dmi_list[i].base != 0 &&
-				    !strcmp(this_opt, efifb_dmi_list[i].optname)) {
-					screen_info.lfb_base = efifb_dmi_list[i].base;
-					screen_info.lfb_linelength = efifb_dmi_list[i].stride;
-					screen_info.lfb_width = efifb_dmi_list[i].width;
-					screen_info.lfb_height = efifb_dmi_list[i].height;
-				}
-			}
+			efifb_setup_from_dmi(&screen_info, this_opt);
+
 			if (!strncmp(this_opt, "base:", 5))
 				screen_info.lfb_base = simple_strtoul(this_opt+5, NULL, 0);
 			else if (!strncmp(this_opt, "stride:", 7))
