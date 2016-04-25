@@ -125,8 +125,10 @@ static const struct block_device_operations xlvbd_block_fops;
  */
 
 static unsigned int xen_blkif_max_segments = 32;
-module_param_named(max, xen_blkif_max_segments, int, S_IRUGO);
-MODULE_PARM_DESC(max, "Maximum amount of segments in indirect requests (default is 32)");
+module_param_named(max_indirect_segments, xen_blkif_max_segments, uint,
+		   S_IRUGO);
+MODULE_PARM_DESC(max_indirect_segments,
+		 "Maximum amount of segments in indirect requests (default is 32)");
 
 static unsigned int xen_blkif_max_queues = 4;
 module_param_named(max_queues, xen_blkif_max_queues, uint, S_IRUGO);
@@ -1873,6 +1875,43 @@ again:
 	return err;
 }
 
+static int negotiate_mq(struct blkfront_info *info)
+{
+	unsigned int backend_max_queues = 0;
+	int err;
+	unsigned int i;
+
+	BUG_ON(info->nr_rings);
+
+	/* Check if backend supports multiple queues. */
+	err = xenbus_scanf(XBT_NIL, info->xbdev->otherend,
+			   "multi-queue-max-queues", "%u", &backend_max_queues);
+	if (err < 0)
+		backend_max_queues = 1;
+
+	info->nr_rings = min(backend_max_queues, xen_blkif_max_queues);
+	/* We need at least one ring. */
+	if (!info->nr_rings)
+		info->nr_rings = 1;
+
+	info->rinfo = kzalloc(sizeof(struct blkfront_ring_info) * info->nr_rings, GFP_KERNEL);
+	if (!info->rinfo) {
+		xenbus_dev_fatal(info->xbdev, -ENOMEM, "allocating ring_info structure");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < info->nr_rings; i++) {
+		struct blkfront_ring_info *rinfo;
+
+		rinfo = &info->rinfo[i];
+		INIT_LIST_HEAD(&rinfo->indirect_pages);
+		INIT_LIST_HEAD(&rinfo->grants);
+		rinfo->dev_info = info;
+		INIT_WORK(&rinfo->work, blkif_restart_queue);
+		spin_lock_init(&rinfo->ring_lock);
+	}
+	return 0;
+}
 /**
  * Entry point to this code when a new device is created.  Allocate the basic
  * structures and the ring buffer for communication with the backend, and
@@ -1883,9 +1922,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 			  const struct xenbus_device_id *id)
 {
 	int err, vdevice;
-	unsigned int r_index;
 	struct blkfront_info *info;
-	unsigned int backend_max_queues = 0;
 
 	/* FIXME: Use dynamic device id if this is not set. */
 	err = xenbus_scanf(XBT_NIL, dev->nodename,
@@ -1936,33 +1973,10 @@ static int blkfront_probe(struct xenbus_device *dev,
 	}
 
 	info->xbdev = dev;
-	/* Check if backend supports multiple queues. */
-	err = xenbus_scanf(XBT_NIL, info->xbdev->otherend,
-			   "multi-queue-max-queues", "%u", &backend_max_queues);
-	if (err < 0)
-		backend_max_queues = 1;
-
-	info->nr_rings = min(backend_max_queues, xen_blkif_max_queues);
-	/* We need at least one ring. */
-	if (!info->nr_rings)
-		info->nr_rings = 1;
-
-	info->rinfo = kzalloc(sizeof(struct blkfront_ring_info) * info->nr_rings, GFP_KERNEL);
-	if (!info->rinfo) {
-		xenbus_dev_fatal(dev, -ENOMEM, "allocating ring_info structure");
+	err = negotiate_mq(info);
+	if (err) {
 		kfree(info);
-		return -ENOMEM;
-	}
-
-	for (r_index = 0; r_index < info->nr_rings; r_index++) {
-		struct blkfront_ring_info *rinfo;
-
-		rinfo = &info->rinfo[r_index];
-		INIT_LIST_HEAD(&rinfo->indirect_pages);
-		INIT_LIST_HEAD(&rinfo->grants);
-		rinfo->dev_info = info;
-		INIT_WORK(&rinfo->work, blkif_restart_queue);
-		spin_lock_init(&rinfo->ring_lock);
+		return err;
 	}
 
 	mutex_init(&info->mutex);
@@ -2123,11 +2137,15 @@ static int blkif_recover(struct blkfront_info *info)
 static int blkfront_resume(struct xenbus_device *dev)
 {
 	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
-	int err;
+	int err = 0;
 
 	dev_dbg(&dev->dev, "blkfront_resume: %s\n", dev->nodename);
 
 	blkif_free(info, info->connected == BLKIF_STATE_CONNECTED);
+
+	err = negotiate_mq(info);
+	if (err)
+		return err;
 
 	err = talk_to_blkback(dev, info);
 

@@ -35,7 +35,7 @@
 
 exec=/usr/sbin/mpssd
 sysfs="/sys/class/mic"
-mic_modules="mic_host mic_x100_dma scif"
+mic_modules="mic_host mic_x100_dma scif vop"
 
 start()
 {

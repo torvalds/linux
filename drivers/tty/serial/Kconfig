@@ -610,6 +610,7 @@ config SERIAL_UARTLITE_CONSOLE
 	bool "Support for console on Xilinx uartlite serial port"
 	depends on SERIAL_UARTLITE=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Say Y here if you wish to use a Xilinx uartlite as the system
 	  console (the system console is the device which receives all kernel
@@ -732,7 +733,7 @@ config SERIAL_IP22_ZILOG_CONSOLE
 
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
-	depends on SUPERH || ARCH_SHMOBILE || H8300 || COMPILE_TEST
+	depends on SUPERH || ARCH_RENESAS || H8300 || COMPILE_TEST
 	select SERIAL_CORE
 
 config SERIAL_SH_SCI_NR_UARTS
@@ -744,6 +745,12 @@ config SERIAL_SH_SCI_CONSOLE
 	bool "Support for console on SuperH SCI(F)"
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
+
+config SERIAL_SH_SCI_EARLYCON
+	bool "Support for early console on SuperH SCI(F)"
+	depends on SERIAL_SH_SCI=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 
 config SERIAL_SH_SCI_DMA
 	bool "DMA support"
@@ -792,17 +799,6 @@ config SERIAL_CORE_CONSOLE
 
 config CONSOLE_POLL
 	bool
-
-config SERIAL_68328
-	bool "68328 serial support"
-	depends on M68328 || M68EZ328 || M68VZ328
-	help
-	  This driver supports the built-in serial port of the Motorola 68328
-	  (standard, EZ and VZ varieties).
-
-config SERIAL_68328_RTS_CTS
-	bool "Support RTS/CTS on 68328 serial port"
-	depends on SERIAL_68328
 
 config SERIAL_MCF
 	bool "Coldfire serial support"
@@ -1605,6 +1601,28 @@ config SERIAL_STM32_CONSOLE
 	bool "Support for console on STM32"
 	depends on SERIAL_STM32=y
 	select SERIAL_CORE_CONSOLE
+
+config SERIAL_MVEBU_UART
+	bool "Marvell EBU serial port support"
+	select SERIAL_CORE
+	help
+	  This driver is for Marvell EBU SoC's UART. If you have a machine
+	  based on the Armada-3700 SoC and wish to use the on-board serial
+	  port,
+	  say 'Y' here.
+	  Otherwise, say 'N'.
+
+config SERIAL_MVEBU_CONSOLE
+	bool "Console on Marvell EBU serial port"
+	depends on SERIAL_MVEBU_UART
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	default y
+	help
+	  Say 'Y' here if you wish to use Armada-3700 UART as the system console.
+	  (the system console is the device which receives all kernel messages
+	  and warnings and which allows logins in single user mode)
+	  Otherwise, say 'N'.
 
 endmenu
 

@@ -10,7 +10,7 @@
  * backing is indicated by flags in the high bits of the value.
  */
 typedef struct {
-	unsigned long val;
+	u64 val;
 } pfn_t;
 #endif
 

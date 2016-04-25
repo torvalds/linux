@@ -14,26 +14,24 @@
 int fb_is_primary_device(struct fb_info *info)
 {
 	struct device *device = info->device;
-	struct pci_dev *pci_dev = NULL;
 	struct pci_dev *default_device = vga_default_device();
-	struct resource *res = NULL;
+	struct pci_dev *pci_dev;
+	struct resource *res;
 
-	if (device)
-		pci_dev = to_pci_dev(device);
-
-	if (!pci_dev)
+	if (!device || !dev_is_pci(device))
 		return 0;
+
+	pci_dev = to_pci_dev(device);
 
 	if (default_device) {
 		if (pci_dev == default_device)
 			return 1;
-		else
-			return 0;
+		return 0;
 	}
 
-	res = &pci_dev->resource[PCI_ROM_RESOURCE];
+	res = pci_dev->resource + PCI_ROM_RESOURCE;
 
-	if (res && res->flags & IORESOURCE_ROM_SHADOW)
+	if (res->flags & IORESOURCE_ROM_SHADOW)
 		return 1;
 
 	return 0;

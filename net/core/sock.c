@@ -987,6 +987,10 @@ set_rcvbuf:
 		sk->sk_incoming_cpu = val;
 		break;
 
+	case SO_CNX_ADVICE:
+		if (val == 1)
+			dst_negative_advice(sk);
+		break;
 	default:
 		ret = -ENOPROTOOPT;
 		break;
@@ -1531,6 +1535,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 			newsk = NULL;
 			goto out;
 		}
+		RCU_INIT_POINTER(newsk->sk_reuseport_cb, NULL);
 
 		newsk->sk_err	   = 0;
 		newsk->sk_priority = 0;
@@ -1903,7 +1908,7 @@ EXPORT_SYMBOL(sock_cmsg_send);
 bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t gfp)
 {
 	if (pfrag->page) {
-		if (atomic_read(&pfrag->page->_count) == 1) {
+		if (page_ref_count(pfrag->page) == 1) {
 			pfrag->offset = 0;
 			return true;
 		}

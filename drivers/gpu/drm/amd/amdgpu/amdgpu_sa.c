@@ -60,9 +60,8 @@ int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,
 	sa_manager->align = align;
 	sa_manager->hole = &sa_manager->olist;
 	INIT_LIST_HEAD(&sa_manager->olist);
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+	for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i)
 		INIT_LIST_HEAD(&sa_manager->flist[i]);
-	}
 
 	r = amdgpu_bo_create(adev, size, align, true, domain,
 			     0, NULL, NULL, &sa_manager->bo);
@@ -228,11 +227,9 @@ static bool amdgpu_sa_event(struct amdgpu_sa_manager *sa_manager,
 	unsigned soffset, eoffset, wasted;
 	int i;
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		if (!list_empty(&sa_manager->flist[i])) {
+	for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i)
+		if (!list_empty(&sa_manager->flist[i]))
 			return true;
-		}
-	}
 
 	soffset = amdgpu_sa_bo_hole_soffset(sa_manager);
 	eoffset = amdgpu_sa_bo_hole_eoffset(sa_manager);
@@ -265,12 +262,11 @@ static bool amdgpu_sa_bo_next_hole(struct amdgpu_sa_manager *sa_manager,
 	/* go over all fence list and try to find the closest sa_bo
 	 * of the current last
 	 */
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+	for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i) {
 		struct amdgpu_sa_bo *sa_bo;
 
-		if (list_empty(&sa_manager->flist[i])) {
+		if (list_empty(&sa_manager->flist[i]))
 			continue;
-		}
 
 		sa_bo = list_first_entry(&sa_manager->flist[i],
 					 struct amdgpu_sa_bo, flist);
@@ -299,7 +295,9 @@ static bool amdgpu_sa_bo_next_hole(struct amdgpu_sa_manager *sa_manager,
 	}
 
 	if (best_bo) {
-		uint32_t idx = amdgpu_ring_from_fence(best_bo->fence)->idx;
+		uint32_t idx = best_bo->fence->context;
+
+		idx %= AMDGPU_SA_NUM_FENCE_LISTS;
 		++tries[idx];
 		sa_manager->hole = best_bo->olist.prev;
 
@@ -315,14 +313,17 @@ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 		     struct amdgpu_sa_bo **sa_bo,
 		     unsigned size, unsigned align)
 {
-	struct fence *fences[AMDGPU_MAX_RINGS];
-	unsigned tries[AMDGPU_MAX_RINGS];
+	struct fence *fences[AMDGPU_SA_NUM_FENCE_LISTS];
+	unsigned tries[AMDGPU_SA_NUM_FENCE_LISTS];
 	unsigned count;
 	int i, r;
 	signed long t;
 
-	BUG_ON(align > sa_manager->align);
-	BUG_ON(size > sa_manager->size);
+	if (WARN_ON_ONCE(align > sa_manager->align))
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(size > sa_manager->size))
+		return -EINVAL;
 
 	*sa_bo = kmalloc(sizeof(struct amdgpu_sa_bo), GFP_KERNEL);
 	if ((*sa_bo) == NULL) {
@@ -335,7 +336,7 @@ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 
 	spin_lock(&sa_manager->wq.lock);
 	do {
-		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+		for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i) {
 			fences[i] = NULL;
 			tries[i] = 0;
 		}
@@ -352,14 +353,17 @@ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 			/* see if we can skip over some allocations */
 		} while (amdgpu_sa_bo_next_hole(sa_manager, fences, tries));
 
-		for (i = 0, count = 0; i < AMDGPU_MAX_RINGS; ++i)
+		for (i = 0, count = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i)
 			if (fences[i])
-				fences[count++] = fences[i];
+				fences[count++] = fence_get(fences[i]);
 
 		if (count) {
 			spin_unlock(&sa_manager->wq.lock);
 			t = fence_wait_any_timeout(fences, count, false,
 						   MAX_SCHEDULE_TIMEOUT);
+			for (i = 0; i < count; ++i)
+				fence_put(fences[i]);
+
 			r = (t > 0) ? 0 : t;
 			spin_lock(&sa_manager->wq.lock);
 		} else {
@@ -391,8 +395,9 @@ void amdgpu_sa_bo_free(struct amdgpu_device *adev, struct amdgpu_sa_bo **sa_bo,
 	spin_lock(&sa_manager->wq.lock);
 	if (fence && !fence_is_signaled(fence)) {
 		uint32_t idx;
+
 		(*sa_bo)->fence = fence_get(fence);
-		idx = amdgpu_ring_from_fence(fence)->idx;
+		idx = fence->context % AMDGPU_SA_NUM_FENCE_LISTS;
 		list_add_tail(&(*sa_bo)->flist, &sa_manager->flist[idx]);
 	} else {
 		amdgpu_sa_bo_remove_locked(*sa_bo);
@@ -403,25 +408,6 @@ void amdgpu_sa_bo_free(struct amdgpu_device *adev, struct amdgpu_sa_bo **sa_bo,
 }
 
 #if defined(CONFIG_DEBUG_FS)
-
-static void amdgpu_sa_bo_dump_fence(struct fence *fence, struct seq_file *m)
-{
-	struct amdgpu_fence *a_fence = to_amdgpu_fence(fence);
-	struct amd_sched_fence *s_fence = to_amd_sched_fence(fence);
-
-	if (a_fence)
-		seq_printf(m, " protected by 0x%016llx on ring %d",
-			   a_fence->seq, a_fence->ring->idx);
-
-	if (s_fence) {
-		struct amdgpu_ring *ring;
-
-
-		ring = container_of(s_fence->sched, struct amdgpu_ring, sched);
-		seq_printf(m, " protected by 0x%016x on ring %d",
-			   s_fence->base.seqno, ring->idx);
-	}
-}
 
 void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 				  struct seq_file *m)
@@ -439,8 +425,11 @@ void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 		}
 		seq_printf(m, "[0x%010llx 0x%010llx] size %8lld",
 			   soffset, eoffset, eoffset - soffset);
+
 		if (i->fence)
-			amdgpu_sa_bo_dump_fence(i->fence, m);
+			seq_printf(m, " protected by 0x%08x on context %d",
+				   i->fence->seqno, i->fence->context);
+
 		seq_printf(m, "\n");
 	}
 	spin_unlock(&sa_manager->wq.lock);

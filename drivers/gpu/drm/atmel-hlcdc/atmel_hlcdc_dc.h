@@ -152,9 +152,6 @@ int atmel_hlcdc_plane_prepare_disc_area(struct drm_crtc_state *c_state);
 
 void atmel_hlcdc_crtc_irq(struct drm_crtc *c);
 
-void atmel_hlcdc_crtc_cancel_page_flip(struct drm_crtc *crtc,
-				       struct drm_file *file);
-
 void atmel_hlcdc_crtc_suspend(struct drm_crtc *crtc);
 void atmel_hlcdc_crtc_resume(struct drm_crtc *crtc);
 

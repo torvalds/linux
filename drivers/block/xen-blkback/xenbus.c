@@ -23,8 +23,7 @@
 #include <xen/grant_table.h>
 #include "common.h"
 
-/* Enlarge the array size in order to fully show blkback name. */
-#define BLKBACK_NAME_LEN (20)
+/* On the XenBus the max length of 'ring-ref%u'. */
 #define RINGREF_NAME_LEN (20)
 
 struct backend_info {
@@ -76,7 +75,7 @@ static int blkback_name(struct xen_blkif *blkif, char *buf)
 	else
 		devname  = devpath;
 
-	snprintf(buf, BLKBACK_NAME_LEN, "blkback.%d.%s", blkif->domid, devname);
+	snprintf(buf, TASK_COMM_LEN, "%d.%s", blkif->domid, devname);
 	kfree(devpath);
 
 	return 0;
@@ -85,7 +84,7 @@ static int blkback_name(struct xen_blkif *blkif, char *buf)
 static void xen_update_blkif_status(struct xen_blkif *blkif)
 {
 	int err;
-	char name[BLKBACK_NAME_LEN];
+	char name[TASK_COMM_LEN];
 	struct xen_blkif_ring *ring;
 	int i;
 
@@ -618,6 +617,14 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 		goto fail;
 	}
 
+	err = xenbus_printf(XBT_NIL, dev->nodename,
+			    "feature-max-indirect-segments", "%u",
+			    MAX_INDIRECT_SEGMENTS);
+	if (err)
+		dev_warn(&dev->dev,
+			 "writing %s/feature-max-indirect-segments (%d)",
+			 dev->nodename, err);
+
 	/* Multi-queue: advertise how many queues are supported by us.*/
 	err = xenbus_printf(XBT_NIL, dev->nodename,
 			    "multi-queue-max-queues", "%u", xenblk_max_queues);
@@ -849,11 +856,6 @@ again:
 				 dev->nodename);
 		goto abort;
 	}
-	err = xenbus_printf(xbt, dev->nodename, "feature-max-indirect-segments", "%u",
-			    MAX_INDIRECT_SEGMENTS);
-	if (err)
-		dev_warn(&dev->dev, "writing %s/feature-max-indirect-segments (%d)",
-			 dev->nodename, err);
 
 	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(&be->blkif->vbd));

@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -109,17 +106,17 @@ const char *parse_everbs_hdrs(
 	case OP(RC, RDMA_WRITE_LAST_WITH_IMMEDIATE):
 	case OP(UC, RDMA_WRITE_LAST_WITH_IMMEDIATE):
 		trace_seq_printf(p, IMM_PRN,
-			be32_to_cpu(eh->imm_data));
+				 be32_to_cpu(eh->imm_data));
 		break;
 	/* reth + imm */
 	case OP(RC, RDMA_WRITE_ONLY_WITH_IMMEDIATE):
 	case OP(UC, RDMA_WRITE_ONLY_WITH_IMMEDIATE):
 		trace_seq_printf(p, RETH_PRN " " IMM_PRN,
-			(unsigned long long)ib_u64_get(
-				(__be32 *)&eh->rc.reth.vaddr),
-			be32_to_cpu(eh->rc.reth.rkey),
-			be32_to_cpu(eh->rc.reth.length),
-			be32_to_cpu(eh->rc.imm_data));
+				 (unsigned long long)ib_u64_get(
+				 (__be32 *)&eh->rc.reth.vaddr),
+				 be32_to_cpu(eh->rc.reth.rkey),
+				 be32_to_cpu(eh->rc.reth.length),
+				 be32_to_cpu(eh->rc.imm_data));
 		break;
 	/* reth */
 	case OP(RC, RDMA_READ_REQUEST):
@@ -128,10 +125,10 @@ const char *parse_everbs_hdrs(
 	case OP(RC, RDMA_WRITE_ONLY):
 	case OP(UC, RDMA_WRITE_ONLY):
 		trace_seq_printf(p, RETH_PRN,
-			(unsigned long long)ib_u64_get(
-				(__be32 *)&eh->rc.reth.vaddr),
-			be32_to_cpu(eh->rc.reth.rkey),
-			be32_to_cpu(eh->rc.reth.length));
+				 (unsigned long long)ib_u64_get(
+				 (__be32 *)&eh->rc.reth.vaddr),
+				 be32_to_cpu(eh->rc.reth.rkey),
+				 be32_to_cpu(eh->rc.reth.length));
 		break;
 	case OP(RC, RDMA_READ_RESPONSE_FIRST):
 	case OP(RC, RDMA_READ_RESPONSE_LAST):
@@ -154,19 +151,20 @@ const char *parse_everbs_hdrs(
 	case OP(RC, COMPARE_SWAP):
 	case OP(RC, FETCH_ADD):
 		trace_seq_printf(p, ATOMICETH_PRN,
-			(unsigned long long)ib_u64_get(eh->atomic_eth.vaddr),
-			eh->atomic_eth.rkey,
-			(unsigned long long)ib_u64_get(
-				(__be32 *)&eh->atomic_eth.swap_data),
-			(unsigned long long) ib_u64_get(
+				 (unsigned long long)ib_u64_get(
+				 eh->atomic_eth.vaddr),
+				 eh->atomic_eth.rkey,
+				 (unsigned long long)ib_u64_get(
+				 (__be32 *)&eh->atomic_eth.swap_data),
+				 (unsigned long long)ib_u64_get(
 				 (__be32 *)&eh->atomic_eth.compare_data));
 		break;
 	/* deth */
 	case OP(UD, SEND_ONLY):
 	case OP(UD, SEND_ONLY_WITH_IMMEDIATE):
 		trace_seq_printf(p, DETH_PRN,
-			be32_to_cpu(eh->ud.deth[0]),
-			be32_to_cpu(eh->ud.deth[1]) & HFI1_QPN_MASK);
+				 be32_to_cpu(eh->ud.deth[0]),
+				 be32_to_cpu(eh->ud.deth[1]) & RVT_QPN_MASK);
 		break;
 	}
 	trace_seq_putc(p, 0);
@@ -187,12 +185,12 @@ const char *parse_sdma_flags(
 	trace_seq_printf(p, "%s", flags);
 	if (desc0 & SDMA_DESC0_FIRST_DESC_FLAG)
 		trace_seq_printf(p, " amode:%u aidx:%u alen:%u",
-			(u8)((desc1 >> SDMA_DESC1_HEADER_MODE_SHIFT)
-				& SDMA_DESC1_HEADER_MODE_MASK),
-			(u8)((desc1 >> SDMA_DESC1_HEADER_INDEX_SHIFT)
-				& SDMA_DESC1_HEADER_INDEX_MASK),
-			(u8)((desc1 >> SDMA_DESC1_HEADER_DWS_SHIFT)
-				& SDMA_DESC1_HEADER_DWS_MASK));
+				 (u8)((desc1 >> SDMA_DESC1_HEADER_MODE_SHIFT) &
+				      SDMA_DESC1_HEADER_MODE_MASK),
+				 (u8)((desc1 >> SDMA_DESC1_HEADER_INDEX_SHIFT) &
+				      SDMA_DESC1_HEADER_INDEX_MASK),
+				 (u8)((desc1 >> SDMA_DESC1_HEADER_DWS_SHIFT) &
+				      SDMA_DESC1_HEADER_DWS_MASK));
 	return ret;
 }
 
@@ -234,3 +232,4 @@ __hfi1_trace_fn(DC8051);
 __hfi1_trace_fn(FIRMWARE);
 __hfi1_trace_fn(RCVCTRL);
 __hfi1_trace_fn(TID);
+__hfi1_trace_fn(MMU);

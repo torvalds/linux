@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/acpi.h>
 
 struct goldfish_battery_data {
 	void __iomem *reg_base;
@@ -227,11 +228,25 @@ static int goldfish_battery_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id goldfish_battery_of_match[] = {
+	{ .compatible = "google,goldfish-battery", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, goldfish_battery_of_match);
+
+static const struct acpi_device_id goldfish_battery_acpi_match[] = {
+	{ "GFSH0001", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, goldfish_battery_acpi_match);
+
 static struct platform_driver goldfish_battery_device = {
 	.probe		= goldfish_battery_probe,
 	.remove		= goldfish_battery_remove,
 	.driver = {
-		.name = "goldfish-battery"
+		.name = "goldfish-battery",
+		.of_match_table = goldfish_battery_of_match,
+		.acpi_match_table = ACPI_PTR(goldfish_battery_acpi_match),
 	}
 };
 module_platform_driver(goldfish_battery_device);

@@ -659,29 +659,24 @@ static int rsi_mac80211_set_key(struct ieee80211_hw *hw,
  *				 informs the f/w regarding this.
  * @hw: Pointer to the ieee80211_hw structure.
  * @vif: Pointer to the ieee80211_vif structure.
- * @action: ieee80211_ampdu_mlme_action enum.
- * @sta: Pointer to the ieee80211_sta structure.
- * @tid: Traffic identifier.
- * @ssn: Pointer to ssn value.
- * @buf_size: Buffer size (for kernel version > 2.6.38).
- * @amsdu: is AMSDU in AMPDU allowed
+ * @params: Pointer to A-MPDU action parameters
  *
  * Return: status: 0 on success, negative error code on failure.
  */
 static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
-				     enum ieee80211_ampdu_mlme_action action,
-				     struct ieee80211_sta *sta,
-				     unsigned short tid,
-				     unsigned short *ssn,
-				     unsigned char buf_size,
-				     bool amsdu)
+				     struct ieee80211_ampdu_params *params)
 {
 	int status = -EOPNOTSUPP;
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
 	u16 seq_no = 0;
 	u8 ii = 0;
+	struct ieee80211_sta *sta = params->sta;
+	enum ieee80211_ampdu_mlme_action action = params->action;
+	u16 tid = params->tid;
+	u16 *ssn = &params->ssn;
+	u8 buf_size = params->buf_size;
 
 	for (ii = 0; ii < RSI_MAX_VIFS; ii++) {
 		if (vif == adapter->vifs[ii])

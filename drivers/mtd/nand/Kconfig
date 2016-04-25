@@ -74,6 +74,7 @@ config MTD_NAND_DENALI_SCRATCH_REG_ADDR
 config MTD_NAND_GPIO
 	tristate "GPIO assisted NAND Flash driver"
 	depends on GPIOLIB || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  This enables a NAND flash driver where control signals are
 	  connected to GPIO pins, and commands and data are communicated
@@ -310,6 +311,7 @@ config MTD_NAND_CAFE
 config MTD_NAND_CS553X
 	tristate "NAND support for CS5535/CS5536 (AMD Geode companion chip)"
 	depends on X86_32
+	depends on !UML && HAS_IOMEM
 	help
 	  The CS553x companion chips for the AMD Geode processor
 	  include NAND flash controllers with built-in hardware ECC
@@ -463,6 +465,7 @@ config MTD_NAND_MPC5121_NFC
 config MTD_NAND_VF610_NFC
 	tristate "Support for Freescale NFC for VF610/MPC5125"
 	depends on (SOC_VF610 || COMPILE_TEST)
+	depends on HAS_IOMEM
 	help
 	  Enables support for NAND Flash Controller on some Freescale
 	  processors like the VF610, MPC5125, MCF54418 or Kinetis K70.
@@ -552,5 +555,12 @@ config MTD_NAND_HISI504
 	depends on HAS_DMA
 	help
 	  Enables support for NAND controller on Hisilicon SoC Hip04.
+
+config MTD_NAND_QCOM
+	tristate "Support for NAND on QCOM SoCs"
+	depends on ARCH_QCOM
+	help
+	  Enables support for NAND flash chips on SoCs containing the EBI2 NAND
+	  controller. This controller is found on IPQ806x SoC.
 
 endif # MTD_NAND

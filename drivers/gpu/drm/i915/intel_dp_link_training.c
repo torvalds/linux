@@ -215,27 +215,46 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 	}
 }
 
+/*
+ * Pick training pattern for channel equalization. Training Pattern 3 for HBR2
+ * or 1.2 devices that support it, Training Pattern 2 otherwise.
+ */
+static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
+{
+	u32 training_pattern = DP_TRAINING_PATTERN_2;
+	bool source_tps3, sink_tps3;
+
+	/*
+	 * Intel platforms that support HBR2 also support TPS3. TPS3 support is
+	 * also mandatory for downstream devices that support HBR2. However, not
+	 * all sinks follow the spec.
+	 *
+	 * Due to WaDisableHBR2 SKL < B0 is the only exception where TPS3 is
+	 * supported in source but still not enabled.
+	 */
+	source_tps3 = intel_dp_source_supports_hbr2(intel_dp);
+	sink_tps3 = drm_dp_tps3_supported(intel_dp->dpcd);
+
+	if (source_tps3 && sink_tps3) {
+		training_pattern = DP_TRAINING_PATTERN_3;
+	} else if (intel_dp->link_rate == 540000) {
+		if (!source_tps3)
+			DRM_DEBUG_KMS("5.4 Gbps link rate without source HBR2/TPS3 support\n");
+		if (!sink_tps3)
+			DRM_DEBUG_KMS("5.4 Gbps link rate without sink TPS3 support\n");
+	}
+
+	return training_pattern;
+}
+
 static void
 intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 {
 	bool channel_eq = false;
 	int tries, cr_tries;
-	uint32_t training_pattern = DP_TRAINING_PATTERN_2;
+	u32 training_pattern;
 
-	/*
-	 * Training Pattern 3 for HBR2 or 1.2 devices that support it.
-	 *
-	 * Intel platforms that support HBR2 also support TPS3. TPS3 support is
-	 * also mandatory for downstream devices that support HBR2.
-	 *
-	 * Due to WaDisableHBR2 SKL < B0 is the only exception where TPS3 is
-	 * supported but still not enabled.
-	 */
-	if (intel_dp_source_supports_hbr2(intel_dp) &&
-	    drm_dp_tps3_supported(intel_dp->dpcd))
-		training_pattern = DP_TRAINING_PATTERN_3;
-	else if (intel_dp->link_rate == 540000)
-		DRM_ERROR("5.4 Gbps link rate without HBR2/TPS3 support\n");
+	training_pattern = intel_dp_training_pattern(intel_dp);
 
 	/* channel equalization */
 	if (!intel_dp_set_link_train(intel_dp,

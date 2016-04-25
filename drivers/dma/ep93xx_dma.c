@@ -421,23 +421,25 @@ static int m2p_hw_interrupt(struct ep93xx_dma_chan *edmac)
 			desc->size);
 	}
 
-	switch (irq_status & (M2P_INTERRUPT_STALL | M2P_INTERRUPT_NFB)) {
-	case M2P_INTERRUPT_STALL:
-		/* Disable interrupts */
-		control = readl(edmac->regs + M2P_CONTROL);
-		control &= ~(M2P_CONTROL_STALLINT | M2P_CONTROL_NFBINT);
-		m2p_set_control(edmac, control);
+	/*
+	 * Even latest E2 silicon revision sometimes assert STALL interrupt
+	 * instead of NFB. Therefore we treat them equally, basing on the
+	 * amount of data we still have to transfer.
+	 */
+	if (!(irq_status & (M2P_INTERRUPT_STALL | M2P_INTERRUPT_NFB)))
+		return INTERRUPT_UNKNOWN;
 
-		return INTERRUPT_DONE;
-
-	case M2P_INTERRUPT_NFB:
-		if (ep93xx_dma_advance_active(edmac))
-			m2p_fill_desc(edmac);
-
+	if (ep93xx_dma_advance_active(edmac)) {
+		m2p_fill_desc(edmac);
 		return INTERRUPT_NEXT_BUFFER;
 	}
 
-	return INTERRUPT_UNKNOWN;
+	/* Disable interrupts */
+	control = readl(edmac->regs + M2P_CONTROL);
+	control &= ~(M2P_CONTROL_STALLINT | M2P_CONTROL_NFBINT);
+	m2p_set_control(edmac, control);
+
+	return INTERRUPT_DONE;
 }
 
 /*

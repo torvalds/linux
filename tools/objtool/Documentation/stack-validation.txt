@@ -1,0 +1,342 @@
+Compile-time stack metadata validation
+======================================
+
+
+Overview
+--------
+
+The kernel CONFIG_STACK_VALIDATION option enables a host tool named
+objtool which runs at compile time.  It has a "check" subcommand which
+analyzes every .o file and ensures the validity of its stack metadata.
+It enforces a set of rules on asm code and C inline assembly code so
+that stack traces can be reliable.
+
+Currently it only checks frame pointer usage, but there are plans to add
+CFI validation for C files and CFI generation for asm files.
+
+For each function, it recursively follows all possible code paths and
+validates the correct frame pointer state at each instruction.
+
+It also follows code paths involving special sections, like
+.altinstructions, __jump_table, and __ex_table, which can add
+alternative execution paths to a given instruction (or set of
+instructions).  Similarly, it knows how to follow switch statements, for
+which gcc sometimes uses jump tables.
+
+
+Why do we need stack metadata validation?
+-----------------------------------------
+
+Here are some of the benefits of validating stack metadata:
+
+a) More reliable stack traces for frame pointer enabled kernels
+
+   Frame pointers are used for debugging purposes.  They allow runtime
+   code and debug tools to be able to walk the stack to determine the
+   chain of function call sites that led to the currently executing
+   code.
+
+   For some architectures, frame pointers are enabled by
+   CONFIG_FRAME_POINTER.  For some other architectures they may be
+   required by the ABI (sometimes referred to as "backchain pointers").
+
+   For C code, gcc automatically generates instructions for setting up
+   frame pointers when the -fno-omit-frame-pointer option is used.
+
+   But for asm code, the frame setup instructions have to be written by
+   hand, which most people don't do.  So the end result is that
+   CONFIG_FRAME_POINTER is honored for C code but not for most asm code.
+
+   For stack traces based on frame pointers to be reliable, all
+   functions which call other functions must first create a stack frame
+   and update the frame pointer.  If a first function doesn't properly
+   create a stack frame before calling a second function, the *caller*
+   of the first function will be skipped on the stack trace.
+
+   For example, consider the following example backtrace with frame
+   pointers enabled:
+
+     [<ffffffff81812584>] dump_stack+0x4b/0x63
+     [<ffffffff812d6dc2>] cmdline_proc_show+0x12/0x30
+     [<ffffffff8127f568>] seq_read+0x108/0x3e0
+     [<ffffffff812cce62>] proc_reg_read+0x42/0x70
+     [<ffffffff81256197>] __vfs_read+0x37/0x100
+     [<ffffffff81256b16>] vfs_read+0x86/0x130
+     [<ffffffff81257898>] SyS_read+0x58/0xd0
+     [<ffffffff8181c1f2>] entry_SYSCALL_64_fastpath+0x12/0x76
+
+   It correctly shows that the caller of cmdline_proc_show() is
+   seq_read().
+
+   If we remove the frame pointer logic from cmdline_proc_show() by
+   replacing the frame pointer related instructions with nops, here's
+   what it looks like instead:
+
+     [<ffffffff81812584>] dump_stack+0x4b/0x63
+     [<ffffffff812d6dc2>] cmdline_proc_show+0x12/0x30
+     [<ffffffff812cce62>] proc_reg_read+0x42/0x70
+     [<ffffffff81256197>] __vfs_read+0x37/0x100
+     [<ffffffff81256b16>] vfs_read+0x86/0x130
+     [<ffffffff81257898>] SyS_read+0x58/0xd0
+     [<ffffffff8181c1f2>] entry_SYSCALL_64_fastpath+0x12/0x76
+
+   Notice that cmdline_proc_show()'s caller, seq_read(), has been
+   skipped.  Instead the stack trace seems to show that
+   cmdline_proc_show() was called by proc_reg_read().
+
+   The benefit of objtool here is that because it ensures that *all*
+   functions honor CONFIG_FRAME_POINTER, no functions will ever[*] be
+   skipped on a stack trace.
+
+   [*] unless an interrupt or exception has occurred at the very
+       beginning of a function before the stack frame has been created,
+       or at the very end of the function after the stack frame has been
+       destroyed.  This is an inherent limitation of frame pointers.
+
+b) 100% reliable stack traces for DWARF enabled kernels
+
+   (NOTE: This is not yet implemented)
+
+   As an alternative to frame pointers, DWARF Call Frame Information
+   (CFI) metadata can be used to walk the stack.  Unlike frame pointers,
+   CFI metadata is out of band.  So it doesn't affect runtime
+   performance and it can be reliable even when interrupts or exceptions
+   are involved.
+
+   For C code, gcc automatically generates DWARF CFI metadata.  But for
+   asm code, generating CFI is a tedious manual approach which requires
+   manually placed .cfi assembler macros to be scattered throughout the
+   code.  It's clumsy and very easy to get wrong, and it makes the real
+   code harder to read.
+
+   Stacktool will improve this situation in several ways.  For code
+   which already has CFI annotations, it will validate them.  For code
+   which doesn't have CFI annotations, it will generate them.  So an
+   architecture can opt to strip out all the manual .cfi annotations
+   from their asm code and have objtool generate them instead.
+
+   We might also add a runtime stack validation debug option where we
+   periodically walk the stack from schedule() and/or an NMI to ensure
+   that the stack metadata is sane and that we reach the bottom of the
+   stack.
+
+   So the benefit of objtool here will be that external tooling should
+   always show perfect stack traces.  And the same will be true for
+   kernel warning/oops traces if the architecture has a runtime DWARF
+   unwinder.
+
+c) Higher live patching compatibility rate
+
+   (NOTE: This is not yet implemented)
+
+   Currently with CONFIG_LIVEPATCH there's a basic live patching
+   framework which is safe for roughly 85-90% of "security" fixes.  But
+   patches can't have complex features like function dependency or
+   prototype changes, or data structure changes.
+
+   There's a strong need to support patches which have the more complex
+   features so that the patch compatibility rate for security fixes can
+   eventually approach something resembling 100%.  To achieve that, a
+   "consistency model" is needed, which allows tasks to be safely
+   transitioned from an unpatched state to a patched state.
+
+   One of the key requirements of the currently proposed livepatch
+   consistency model [*] is that it needs to walk the stack of each
+   sleeping task to determine if it can be transitioned to the patched
+   state.  If objtool can ensure that stack traces are reliable, this
+   consistency model can be used and the live patching compatibility
+   rate can be improved significantly.
+
+   [*] https://lkml.kernel.org/r/cover.1423499826.git.jpoimboe@redhat.com
+
+
+Rules
+-----
+
+To achieve the validation, objtool enforces the following rules:
+
+1. Each callable function must be annotated as such with the ELF
+   function type.  In asm code, this is typically done using the
+   ENTRY/ENDPROC macros.  If objtool finds a return instruction
+   outside of a function, it flags an error since that usually indicates
+   callable code which should be annotated accordingly.
+
+   This rule is needed so that objtool can properly identify each
+   callable function in order to analyze its stack metadata.
+
+2. Conversely, each section of code which is *not* callable should *not*
+   be annotated as an ELF function.  The ENDPROC macro shouldn't be used
+   in this case.
+
+   This rule is needed so that objtool can ignore non-callable code.
+   Such code doesn't have to follow any of the other rules.
+
+3. Each callable function which calls another function must have the
+   correct frame pointer logic, if required by CONFIG_FRAME_POINTER or
+   the architecture's back chain rules.  This can by done in asm code
+   with the FRAME_BEGIN/FRAME_END macros.
+
+   This rule ensures that frame pointer based stack traces will work as
+   designed.  If function A doesn't create a stack frame before calling
+   function B, the _caller_ of function A will be skipped on the stack
+   trace.
+
+4. Dynamic jumps and jumps to undefined symbols are only allowed if:
+
+   a) the jump is part of a switch statement; or
+
+   b) the jump matches sibling call semantics and the frame pointer has
+      the same value it had on function entry.
+
+   This rule is needed so that objtool can reliably analyze all of a
+   function's code paths.  If a function jumps to code in another file,
+   and it's not a sibling call, objtool has no way to follow the jump
+   because it only analyzes a single file at a time.
+
+5. A callable function may not execute kernel entry/exit instructions.
+   The only code which needs such instructions is kernel entry code,
+   which shouldn't be be in callable functions anyway.
+
+   This rule is just a sanity check to ensure that callable functions
+   return normally.
+
+
+Errors in .S files
+------------------
+
+If you're getting an error in a compiled .S file which you don't
+understand, first make sure that the affected code follows the above
+rules.
+
+Here are some examples of common warnings reported by objtool, what
+they mean, and suggestions for how to fix them.
+
+
+1. asm_file.o: warning: objtool: func()+0x128: call without frame pointer save/setup
+
+   The func() function made a function call without first saving and/or
+   updating the frame pointer.
+
+   If func() is indeed a callable function, add proper frame pointer
+   logic using the FRAME_BEGIN and FRAME_END macros.  Otherwise, remove
+   its ELF function annotation by changing ENDPROC to END.
+
+   If you're getting this error in a .c file, see the "Errors in .c
+   files" section.
+
+
+2. asm_file.o: warning: objtool: .text+0x53: return instruction outside of a callable function
+
+   A return instruction was detected, but objtool couldn't find a way
+   for a callable function to reach the instruction.
+
+   If the return instruction is inside (or reachable from) a callable
+   function, the function needs to be annotated with the ENTRY/ENDPROC
+   macros.
+
+   If you _really_ need a return instruction outside of a function, and
+   are 100% sure that it won't affect stack traces, you can tell
+   objtool to ignore it.  See the "Adding exceptions" section below.
+
+
+3. asm_file.o: warning: objtool: func()+0x9: function has unreachable instruction
+
+   The instruction lives inside of a callable function, but there's no
+   possible control flow path from the beginning of the function to the
+   instruction.
+
+   If the instruction is actually needed, and it's actually in a
+   callable function, ensure that its function is properly annotated
+   with ENTRY/ENDPROC.
+
+   If it's not actually in a callable function (e.g. kernel entry code),
+   change ENDPROC to END.
+
+
+4. asm_file.o: warning: objtool: func(): can't find starting instruction
+   or
+   asm_file.o: warning: objtool: func()+0x11dd: can't decode instruction
+
+   Did you put data in a text section?  If so, that can confuse
+   objtool's instruction decoder.  Move the data to a more appropriate
+   section like .data or .rodata.
+
+
+5. asm_file.o: warning: objtool: func()+0x6: kernel entry/exit from callable instruction
+
+   This is a kernel entry/exit instruction like sysenter or sysret.
+   Such instructions aren't allowed in a callable function, and are most
+   likely part of the kernel entry code.
+
+   If the instruction isn't actually in a callable function, change
+   ENDPROC to END.
+
+
+6. asm_file.o: warning: objtool: func()+0x26: sibling call from callable instruction with changed frame pointer
+
+   This is a dynamic jump or a jump to an undefined symbol.  Stacktool
+   assumed it's a sibling call and detected that the frame pointer
+   wasn't first restored to its original state.
+
+   If it's not really a sibling call, you may need to move the
+   destination code to the local file.
+
+   If the instruction is not actually in a callable function (e.g.
+   kernel entry code), change ENDPROC to END.
+
+
+7. asm_file: warning: objtool: func()+0x5c: frame pointer state mismatch
+
+   The instruction's frame pointer state is inconsistent, depending on
+   which execution path was taken to reach the instruction.
+
+   Make sure the function pushes and sets up the frame pointer (for
+   x86_64, this means rbp) at the beginning of the function and pops it
+   at the end of the function.  Also make sure that no other code in the
+   function touches the frame pointer.
+
+
+Errors in .c files
+------------------
+
+If you're getting an objtool error in a compiled .c file, chances are
+the file uses an asm() statement which has a "call" instruction.  An
+asm() statement with a call instruction must declare the use of the
+stack pointer in its output operand.  For example, on x86_64:
+
+   register void *__sp asm("rsp");
+   asm volatile("call func" : "+r" (__sp));
+
+Otherwise the stack frame may not get created before the call.
+
+Another possible cause for errors in C code is if the Makefile removes
+-fno-omit-frame-pointer or adds -fomit-frame-pointer to the gcc options.
+
+Also see the above section for .S file errors for more information what
+the individual error messages mean.
+
+If the error doesn't seem to make sense, it could be a bug in objtool.
+Feel free to ask the objtool maintainer for help.
+
+
+Adding exceptions
+-----------------
+
+If you _really_ need objtool to ignore something, and are 100% sure
+that it won't affect kernel stack traces, you can tell objtool to
+ignore it:
+
+- To skip validation of a function, use the STACK_FRAME_NON_STANDARD
+  macro.
+
+- To skip validation of a file, add
+
+    OBJECT_FILES_NON_STANDARD_filename.o := n
+
+  to the Makefile.
+
+- To skip validation of a directory, add
+
+    OBJECT_FILES_NON_STANDARD := y
+
+  to the Makefile.

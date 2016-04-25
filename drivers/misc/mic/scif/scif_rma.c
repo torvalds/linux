@@ -1394,8 +1394,6 @@ retry:
 		}
 
 		pinned_pages->nr_pages = get_user_pages(
-				current,
-				mm,
 				(u64)addr,
 				nr_pages,
 				!!(prot & SCIF_PROT_WRITE),
@@ -1511,7 +1509,7 @@ off_t scif_register_pinned_pages(scif_epd_t epd,
 	if ((map_flags & SCIF_MAP_FIXED) &&
 	    ((ALIGN(offset, PAGE_SIZE) != offset) ||
 	    (offset < 0) ||
-	    (offset + (off_t)len < offset)))
+	    (len > LONG_MAX - offset)))
 		return -EINVAL;
 
 	might_sleep();
@@ -1614,7 +1612,7 @@ off_t scif_register(scif_epd_t epd, void *addr, size_t len, off_t offset,
 	if ((map_flags & SCIF_MAP_FIXED) &&
 	    ((ALIGN(offset, PAGE_SIZE) != offset) ||
 	    (offset < 0) ||
-	    (offset + (off_t)len < offset)))
+	    (len > LONG_MAX - offset)))
 		return -EINVAL;
 
 	/* Unsupported protection requested */
@@ -1732,7 +1730,8 @@ scif_unregister(scif_epd_t epd, off_t offset, size_t len)
 
 	/* Offset is not page aligned or offset+len wraps around */
 	if ((ALIGN(offset, PAGE_SIZE) != offset) ||
-	    (offset + (off_t)len < offset))
+	    (offset < 0) ||
+	    (len > LONG_MAX - offset))
 		return -EINVAL;
 
 	err = scif_verify_epd(ep);

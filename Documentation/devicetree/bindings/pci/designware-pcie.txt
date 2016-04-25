@@ -28,3 +28,20 @@ Optional properties:
 - clock-names: Must include the following entries:
 	- "pcie"
 	- "pcie_bus"
+
+Example configuration:
+
+	pcie: pcie@0xdffff000 {
+		compatible = "snps,dw-pcie";
+		reg = <0xdffff000 0x1000>, /* Controller registers */
+		      <0xd0000000 0x2000>; /* PCI config space */
+		reg-names = "ctrlreg", "config";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x81000000 0 0x00000000 0xde000000 0 0x00010000
+			  0x82000000 0 0xd0400000 0xd0400000 0 0x0d000000>;
+		interrupts = <25>, <24>;
+		#interrupt-cells = <1>;
+		num-lanes = <1>;
+	};

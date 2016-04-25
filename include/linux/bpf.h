@@ -10,6 +10,7 @@
 #include <uapi/linux/bpf.h>
 #include <linux/workqueue.h>
 #include <linux/file.h>
+#include <linux/percpu.h>
 
 struct bpf_map;
 
@@ -36,6 +37,7 @@ struct bpf_map {
 	u32 key_size;
 	u32 value_size;
 	u32 max_entries;
+	u32 map_flags;
 	u32 pages;
 	struct user_struct *user;
 	const struct bpf_map_ops *ops;
@@ -65,6 +67,7 @@ enum bpf_arg_type {
 	 */
 	ARG_PTR_TO_STACK,	/* any pointer to eBPF program stack */
 	ARG_CONST_STACK_SIZE,	/* number of bytes accessed from stack */
+	ARG_CONST_STACK_SIZE_OR_ZERO, /* number of bytes accessed from stack or 0 */
 
 	ARG_PTR_TO_CTX,		/* pointer to context */
 	ARG_ANYTHING,		/* any (initialized) argument is ok */
@@ -151,6 +154,7 @@ struct bpf_array {
 	union {
 		char value[0] __aligned(8);
 		void *ptrs[0] __aligned(8);
+		void __percpu *pptrs[0] __aligned(8);
 	};
 };
 #define MAX_TAIL_CALL_CNT 32
@@ -161,6 +165,8 @@ bool bpf_prog_array_compatible(struct bpf_array *array, const struct bpf_prog *f
 const struct bpf_func_proto *bpf_get_trace_printk_proto(void);
 
 #ifdef CONFIG_BPF_SYSCALL
+DECLARE_PER_CPU(int, bpf_prog_active);
+
 void bpf_register_prog_type(struct bpf_prog_type_list *tl);
 void bpf_register_map_type(struct bpf_map_type_list *tl);
 
@@ -173,6 +179,7 @@ struct bpf_map *__bpf_map_get(struct fd f);
 void bpf_map_inc(struct bpf_map *map, bool uref);
 void bpf_map_put_with_uref(struct bpf_map *map);
 void bpf_map_put(struct bpf_map *map);
+int bpf_map_precharge_memlock(u32 pages);
 
 extern int sysctl_unprivileged_bpf_disabled;
 
@@ -181,6 +188,30 @@ int bpf_prog_new_fd(struct bpf_prog *prog);
 
 int bpf_obj_pin_user(u32 ufd, const char __user *pathname);
 int bpf_obj_get_user(const char __user *pathname);
+
+int bpf_percpu_hash_copy(struct bpf_map *map, void *key, void *value);
+int bpf_percpu_array_copy(struct bpf_map *map, void *key, void *value);
+int bpf_percpu_hash_update(struct bpf_map *map, void *key, void *value,
+			   u64 flags);
+int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
+			    u64 flags);
+int bpf_stackmap_copy(struct bpf_map *map, void *key, void *value);
+
+/* memcpy that is used with 8-byte aligned pointers, power-of-8 size and
+ * forced to use 'long' read/writes to try to atomically copy long counters.
+ * Best-effort only.  No barriers here, since it _will_ race with concurrent
+ * updates from BPF programs. Called from bpf syscall and mostly used with
+ * size 8 or 16 bytes, so ask compiler to inline it.
+ */
+static inline void bpf_long_memcpy(void *dst, const void *src, u32 size)
+{
+	const long *lsrc = src;
+	long *ldst = dst;
+
+	size /= sizeof(long);
+	while (size--)
+		*ldst++ = *lsrc++;
+}
 
 /* verify correctness of eBPF program */
 int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
@@ -213,6 +244,7 @@ extern const struct bpf_func_proto bpf_get_current_uid_gid_proto;
 extern const struct bpf_func_proto bpf_get_current_comm_proto;
 extern const struct bpf_func_proto bpf_skb_vlan_push_proto;
 extern const struct bpf_func_proto bpf_skb_vlan_pop_proto;
+extern const struct bpf_func_proto bpf_get_stackid_proto;
 
 /* Shared helpers among cBPF and eBPF. */
 void bpf_user_rnd_init_once(void);

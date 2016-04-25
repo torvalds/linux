@@ -384,36 +384,6 @@ static const struct dev_pm_ops rockchip_drm_pm_ops = {
 				rockchip_drm_sys_resume)
 };
 
-/*
- * @node: device tree node containing encoder input ports
- * @encoder: drm_encoder
- */
-int rockchip_drm_encoder_get_mux_id(struct device_node *node,
-				    struct drm_encoder *encoder)
-{
-	struct device_node *ep;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct of_endpoint endpoint;
-	struct device_node *port;
-	int ret;
-
-	if (!node || !crtc)
-		return -EINVAL;
-
-	for_each_endpoint_of_node(node, ep) {
-		port = of_graph_get_remote_port(ep);
-		of_node_put(port);
-		if (port == crtc->port) {
-			ret = of_graph_parse_endpoint(ep, &endpoint);
-			of_node_put(ep);
-			return ret ?: endpoint.id;
-		}
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(rockchip_drm_encoder_get_mux_id);
-
 static int compare_of(struct device *dev, void *data)
 {
 	struct device_node *np = data;

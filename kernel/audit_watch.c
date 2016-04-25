@@ -185,7 +185,7 @@ static struct audit_watch *audit_init_watch(char *path)
 	return watch;
 }
 
-/* Translate a watch string to kernel respresentation. */
+/* Translate a watch string to kernel representation. */
 int audit_to_watch(struct audit_krule *krule, char *path, int len, u32 op)
 {
 	struct audit_watch *watch;

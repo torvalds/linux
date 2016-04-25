@@ -269,7 +269,6 @@ void r8712_stop_drv_timers(struct _adapter *padapter)
 
 static u8 init_default_value(struct _adapter *padapter)
 {
-	u8 ret  = _SUCCESS;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -302,7 +301,7 @@ static u8 init_default_value(struct _adapter *padapter)
 	r8712_init_registrypriv_dev_network(padapter);
 	r8712_update_registrypriv_dev_network(padapter);
 	/*misc.*/
-	return ret;
+	return _SUCCESS;
 }
 
 u8 r8712_init_drv_sw(struct _adapter *padapter)

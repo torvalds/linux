@@ -28,6 +28,7 @@
 #include <linux/prefetch.h>
 #include <linux/dca.h>
 #include <linux/aer.h>
+#include <linux/sizes.h>
 #include "dma.h"
 #include "registers.h"
 #include "hw.h"
@@ -136,14 +137,6 @@ int ioat_pending_level = 4;
 module_param(ioat_pending_level, int, 0644);
 MODULE_PARM_DESC(ioat_pending_level,
 		 "high-water mark for pushing ioat descriptors (default: 4)");
-int ioat_ring_alloc_order = 8;
-module_param(ioat_ring_alloc_order, int, 0644);
-MODULE_PARM_DESC(ioat_ring_alloc_order,
-		 "ioat+: allocate 2^n descriptors per channel (default: 8 max: 16)");
-int ioat_ring_max_alloc_order = IOAT_MAX_ORDER;
-module_param(ioat_ring_max_alloc_order, int, 0644);
-MODULE_PARM_DESC(ioat_ring_max_alloc_order,
-		 "ioat+: upper limit for ring size (default: 16)");
 static char ioat_interrupt_style[32] = "msix";
 module_param_string(ioat_interrupt_style, ioat_interrupt_style,
 		    sizeof(ioat_interrupt_style), 0644);
@@ -504,23 +497,14 @@ static int ioat_probe(struct ioatdma_device *ioat_dma)
 	struct pci_dev *pdev = ioat_dma->pdev;
 	struct device *dev = &pdev->dev;
 
-	/* DMA coherent memory pool for DMA descriptor allocations */
-	ioat_dma->dma_pool = pci_pool_create("dma_desc_pool", pdev,
-					     sizeof(struct ioat_dma_descriptor),
-					     64, 0);
-	if (!ioat_dma->dma_pool) {
-		err = -ENOMEM;
-		goto err_dma_pool;
-	}
-
-	ioat_dma->completion_pool = pci_pool_create("completion_pool", pdev,
+	ioat_dma->completion_pool = dma_pool_create("completion_pool", dev,
 						    sizeof(u64),
 						    SMP_CACHE_BYTES,
 						    SMP_CACHE_BYTES);
 
 	if (!ioat_dma->completion_pool) {
 		err = -ENOMEM;
-		goto err_completion_pool;
+		goto err_out;
 	}
 
 	ioat_enumerate_channels(ioat_dma);
@@ -546,10 +530,8 @@ static int ioat_probe(struct ioatdma_device *ioat_dma)
 err_self_test:
 	ioat_disable_interrupts(ioat_dma);
 err_setup_interrupts:
-	pci_pool_destroy(ioat_dma->completion_pool);
-err_completion_pool:
-	pci_pool_destroy(ioat_dma->dma_pool);
-err_dma_pool:
+	dma_pool_destroy(ioat_dma->completion_pool);
+err_out:
 	return err;
 }
 
@@ -559,8 +541,7 @@ static int ioat_register(struct ioatdma_device *ioat_dma)
 
 	if (err) {
 		ioat_disable_interrupts(ioat_dma);
-		pci_pool_destroy(ioat_dma->completion_pool);
-		pci_pool_destroy(ioat_dma->dma_pool);
+		dma_pool_destroy(ioat_dma->completion_pool);
 	}
 
 	return err;
@@ -576,8 +557,7 @@ static void ioat_dma_remove(struct ioatdma_device *ioat_dma)
 
 	dma_async_device_unregister(dma);
 
-	pci_pool_destroy(ioat_dma->dma_pool);
-	pci_pool_destroy(ioat_dma->completion_pool);
+	dma_pool_destroy(ioat_dma->completion_pool);
 
 	INIT_LIST_HEAD(&dma->channels);
 }
@@ -666,10 +646,19 @@ static void ioat_free_chan_resources(struct dma_chan *c)
 		ioat_free_ring_ent(desc, c);
 	}
 
+	for (i = 0; i < ioat_chan->desc_chunks; i++) {
+		dma_free_coherent(to_dev(ioat_chan), SZ_2M,
+				  ioat_chan->descs[i].virt,
+				  ioat_chan->descs[i].hw);
+		ioat_chan->descs[i].virt = NULL;
+		ioat_chan->descs[i].hw = 0;
+	}
+	ioat_chan->desc_chunks = 0;
+
 	kfree(ioat_chan->ring);
 	ioat_chan->ring = NULL;
 	ioat_chan->alloc_order = 0;
-	pci_pool_free(ioat_dma->completion_pool, ioat_chan->completion,
+	dma_pool_free(ioat_dma->completion_pool, ioat_chan->completion,
 		      ioat_chan->completion_dma);
 	spin_unlock_bh(&ioat_chan->prep_lock);
 	spin_unlock_bh(&ioat_chan->cleanup_lock);
@@ -701,7 +690,7 @@ static int ioat_alloc_chan_resources(struct dma_chan *c)
 	/* allocate a completion writeback area */
 	/* doing 2 32bit writes to mmio since 1 64b write doesn't work */
 	ioat_chan->completion =
-		pci_pool_alloc(ioat_chan->ioat_dma->completion_pool,
+		dma_pool_alloc(ioat_chan->ioat_dma->completion_pool,
 			       GFP_KERNEL, &ioat_chan->completion_dma);
 	if (!ioat_chan->completion)
 		return -ENOMEM;
@@ -712,7 +701,7 @@ static int ioat_alloc_chan_resources(struct dma_chan *c)
 	writel(((u64)ioat_chan->completion_dma) >> 32,
 	       ioat_chan->reg_base + IOAT_CHANCMP_OFFSET_HIGH);
 
-	order = ioat_get_alloc_order();
+	order = IOAT_MAX_ORDER;
 	ring = ioat_alloc_ring(c, order, GFP_KERNEL);
 	if (!ring)
 		return -ENOMEM;

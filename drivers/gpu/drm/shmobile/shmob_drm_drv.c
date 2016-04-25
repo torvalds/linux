@@ -200,13 +200,6 @@ done:
 	return ret;
 }
 
-static void shmob_drm_preclose(struct drm_device *dev, struct drm_file *file)
-{
-	struct shmob_drm_device *sdev = dev->dev_private;
-
-	shmob_drm_crtc_cancel_page_flip(&sdev->crtc, file);
-}
-
 static irqreturn_t shmob_drm_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
@@ -266,7 +259,6 @@ static struct drm_driver shmob_drm_driver = {
 				| DRIVER_PRIME,
 	.load			= shmob_drm_load,
 	.unload			= shmob_drm_unload,
-	.preclose		= shmob_drm_preclose,
 	.set_busid		= drm_platform_set_busid,
 	.irq_handler		= shmob_drm_irq,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,

@@ -899,9 +899,9 @@ static int tda1004x_set_fe(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda1004x_get_fe(struct dvb_frontend *fe)
+static int tda1004x_get_fe(struct dvb_frontend *fe,
+			   struct dtv_frontend_properties *fe_params)
 {
-	struct dtv_frontend_properties *fe_params = &fe->dtv_property_cache;
 	struct tda1004x_state* state = fe->demodulator_priv;
 	int status;
 

@@ -206,10 +206,8 @@ void extent_io_exit(void)
 	 * destroy caches.
 	 */
 	rcu_barrier();
-	if (extent_state_cache)
-		kmem_cache_destroy(extent_state_cache);
-	if (extent_buffer_cache)
-		kmem_cache_destroy(extent_buffer_cache);
+	kmem_cache_destroy(extent_state_cache);
+	kmem_cache_destroy(extent_buffer_cache);
 	if (btrfs_bioset)
 		bioset_free(btrfs_bioset);
 }
@@ -232,7 +230,7 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
 	if (!state)
 		return state;
 	state->state = 0;
-	state->private = 0;
+	state->failrec = NULL;
 	RB_CLEAR_NODE(&state->rb_node);
 	btrfs_leak_debug_add(&state->leak_list, &states);
 	atomic_set(&state->refs, 1);
@@ -1844,7 +1842,8 @@ out:
  * set the private field for a given byte offset in the tree.  If there isn't
  * an extent_state there already, this does nothing.
  */
-static int set_state_private(struct extent_io_tree *tree, u64 start, u64 private)
+static noinline int set_state_failrec(struct extent_io_tree *tree, u64 start,
+		struct io_failure_record *failrec)
 {
 	struct rb_node *node;
 	struct extent_state *state;
@@ -1865,13 +1864,14 @@ static int set_state_private(struct extent_io_tree *tree, u64 start, u64 private
 		ret = -ENOENT;
 		goto out;
 	}
-	state->private = private;
+	state->failrec = failrec;
 out:
 	spin_unlock(&tree->lock);
 	return ret;
 }
 
-int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private)
+static noinline int get_state_failrec(struct extent_io_tree *tree, u64 start,
+		struct io_failure_record **failrec)
 {
 	struct rb_node *node;
 	struct extent_state *state;
@@ -1892,7 +1892,7 @@ int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private)
 		ret = -ENOENT;
 		goto out;
 	}
-	*private = state->private;
+	*failrec = state->failrec;
 out:
 	spin_unlock(&tree->lock);
 	return ret;
@@ -1972,7 +1972,7 @@ int free_io_failure(struct inode *inode, struct io_failure_record *rec)
 	int err = 0;
 	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
 
-	set_state_private(failure_tree, rec->start, 0);
+	set_state_failrec(failure_tree, rec->start, NULL);
 	ret = clear_extent_bits(failure_tree, rec->start,
 				rec->start + rec->len - 1,
 				EXTENT_LOCKED | EXTENT_DIRTY, GFP_NOFS);
@@ -2089,7 +2089,6 @@ int clean_io_failure(struct inode *inode, u64 start, struct page *page,
 		     unsigned int pg_offset)
 {
 	u64 private;
-	u64 private_failure;
 	struct io_failure_record *failrec;
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 	struct extent_state *state;
@@ -2102,12 +2101,11 @@ int clean_io_failure(struct inode *inode, u64 start, struct page *page,
 	if (!ret)
 		return 0;
 
-	ret = get_state_private(&BTRFS_I(inode)->io_failure_tree, start,
-				&private_failure);
+	ret = get_state_failrec(&BTRFS_I(inode)->io_failure_tree, start,
+			&failrec);
 	if (ret)
 		return 0;
 
-	failrec = (struct io_failure_record *)(unsigned long) private_failure;
 	BUG_ON(!failrec->this_mirror);
 
 	if (failrec->in_validation) {
@@ -2167,7 +2165,7 @@ void btrfs_free_io_failure_record(struct inode *inode, u64 start, u64 end)
 
 		next = next_state(state);
 
-		failrec = (struct io_failure_record *)(unsigned long)state->private;
+		failrec = state->failrec;
 		free_extent_state(state);
 		kfree(failrec);
 
@@ -2177,10 +2175,9 @@ void btrfs_free_io_failure_record(struct inode *inode, u64 start, u64 end)
 }
 
 int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
-				struct io_failure_record **failrec_ret)
+		struct io_failure_record **failrec_ret)
 {
 	struct io_failure_record *failrec;
-	u64 private;
 	struct extent_map *em;
 	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
@@ -2188,7 +2185,7 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 	int ret;
 	u64 logical;
 
-	ret = get_state_private(failure_tree, start, &private);
+	ret = get_state_failrec(failure_tree, start, &failrec);
 	if (ret) {
 		failrec = kzalloc(sizeof(*failrec), GFP_NOFS);
 		if (!failrec)
@@ -2237,8 +2234,7 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 		ret = set_extent_bits(failure_tree, start, end,
 					EXTENT_LOCKED | EXTENT_DIRTY, GFP_NOFS);
 		if (ret >= 0)
-			ret = set_state_private(failure_tree, start,
-						(u64)(unsigned long)failrec);
+			ret = set_state_failrec(failure_tree, start, failrec);
 		/* set the bits in the inode's tree */
 		if (ret >= 0)
 			ret = set_extent_bits(tree, start, end, EXTENT_DAMAGED,
@@ -2248,7 +2244,6 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 			return ret;
 		}
 	} else {
-		failrec = (struct io_failure_record *)(unsigned long)private;
 		pr_debug("Get IO Failure Record: (found) logical=%llu, start=%llu, len=%llu, validation=%d\n",
 			 failrec->logical, failrec->start, failrec->len,
 			 failrec->in_validation);
@@ -2897,12 +2892,11 @@ static int __do_readpage(struct extent_io_tree *tree,
 	struct block_device *bdev;
 	int ret;
 	int nr = 0;
-	int parent_locked = *bio_flags & EXTENT_BIO_PARENT_LOCKED;
 	size_t pg_offset = 0;
 	size_t iosize;
 	size_t disk_io_size;
 	size_t blocksize = inode->i_sb->s_blocksize;
-	unsigned long this_bio_flag = *bio_flags & EXTENT_BIO_PARENT_LOCKED;
+	unsigned long this_bio_flag = 0;
 
 	set_page_extent_mapped(page);
 
@@ -2942,18 +2936,16 @@ static int __do_readpage(struct extent_io_tree *tree,
 			kunmap_atomic(userpage);
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    &cached, GFP_NOFS);
-			if (!parent_locked)
-				unlock_extent_cached(tree, cur,
-						     cur + iosize - 1,
-						     &cached, GFP_NOFS);
+			unlock_extent_cached(tree, cur,
+					     cur + iosize - 1,
+					     &cached, GFP_NOFS);
 			break;
 		}
 		em = __get_extent_map(inode, page, pg_offset, cur,
 				      end - cur + 1, get_extent, em_cached);
 		if (IS_ERR_OR_NULL(em)) {
 			SetPageError(page);
-			if (!parent_locked)
-				unlock_extent(tree, cur, end);
+			unlock_extent(tree, cur, end);
 			break;
 		}
 		extent_offset = cur - em->start;
@@ -3038,12 +3030,9 @@ static int __do_readpage(struct extent_io_tree *tree,
 
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    &cached, GFP_NOFS);
-			if (parent_locked)
-				free_extent_state(cached);
-			else
-				unlock_extent_cached(tree, cur,
-						     cur + iosize - 1,
-						     &cached, GFP_NOFS);
+			unlock_extent_cached(tree, cur,
+					     cur + iosize - 1,
+					     &cached, GFP_NOFS);
 			cur = cur + iosize;
 			pg_offset += iosize;
 			continue;
@@ -3052,8 +3041,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 		if (test_range_bit(tree, cur, cur_end,
 				   EXTENT_UPTODATE, 1, NULL)) {
 			check_page_uptodate(tree, page);
-			if (!parent_locked)
-				unlock_extent(tree, cur, cur + iosize - 1);
+			unlock_extent(tree, cur, cur + iosize - 1);
 			cur = cur + iosize;
 			pg_offset += iosize;
 			continue;
@@ -3063,8 +3051,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 		 */
 		if (block_start == EXTENT_MAP_INLINE) {
 			SetPageError(page);
-			if (!parent_locked)
-				unlock_extent(tree, cur, cur + iosize - 1);
+			unlock_extent(tree, cur, cur + iosize - 1);
 			cur = cur + iosize;
 			pg_offset += iosize;
 			continue;
@@ -3083,8 +3070,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 			*bio_flags = this_bio_flag;
 		} else {
 			SetPageError(page);
-			if (!parent_locked)
-				unlock_extent(tree, cur, cur + iosize - 1);
+			unlock_extent(tree, cur, cur + iosize - 1);
 		}
 		cur = cur + iosize;
 		pg_offset += iosize;
@@ -3186,7 +3172,8 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 
 	while (1) {
 		lock_extent(tree, start, end);
-		ordered = btrfs_lookup_ordered_extent(inode, start);
+		ordered = btrfs_lookup_ordered_range(inode, start,
+						PAGE_CACHE_SIZE);
 		if (!ordered)
 			break;
 		unlock_extent(tree, start, end);
@@ -3208,20 +3195,6 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 
 	ret = __extent_read_full_page(tree, page, get_extent, &bio, mirror_num,
 				      &bio_flags, READ);
-	if (bio)
-		ret = submit_one_bio(READ, bio, mirror_num, bio_flags);
-	return ret;
-}
-
-int extent_read_full_page_nolock(struct extent_io_tree *tree, struct page *page,
-				 get_extent_t *get_extent, int mirror_num)
-{
-	struct bio *bio = NULL;
-	unsigned long bio_flags = EXTENT_BIO_PARENT_LOCKED;
-	int ret;
-
-	ret = __do_readpage(tree, page, get_extent, NULL, &bio, mirror_num,
-			    &bio_flags, READ, NULL);
 	if (bio)
 		ret = submit_one_bio(READ, bio, mirror_num, bio_flags);
 	return ret;

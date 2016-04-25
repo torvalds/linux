@@ -121,7 +121,6 @@ static void adf_device_reset_worker(struct work_struct *work)
 	adf_dev_restarting_notify(accel_dev);
 	adf_dev_stop(accel_dev);
 	adf_dev_shutdown(accel_dev);
-	adf_dev_restore(accel_dev);
 	if (adf_dev_init(accel_dev) || adf_dev_start(accel_dev)) {
 		/* The device hanged and we can't restart it so stop here */
 		dev_err(&GET_DEV(accel_dev), "Restart device failed\n");

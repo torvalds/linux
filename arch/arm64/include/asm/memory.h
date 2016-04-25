@@ -24,6 +24,7 @@
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <linux/types.h>
+#include <asm/bug.h>
 #include <asm/sizes.h>
 
 /*
@@ -45,15 +46,15 @@
  * VA_START - the first kernel virtual address.
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
- * The module space lives between the addresses given by TASK_SIZE
- * and PAGE_OFFSET - it must be within 128MB of the kernel text.
  */
 #define VA_BITS			(CONFIG_ARM64_VA_BITS)
 #define VA_START		(UL(0xffffffffffffffff) << VA_BITS)
 #define PAGE_OFFSET		(UL(0xffffffffffffffff) << (VA_BITS - 1))
-#define MODULES_END		(PAGE_OFFSET)
-#define MODULES_VADDR		(MODULES_END - SZ_64M)
-#define PCI_IO_END		(MODULES_VADDR - SZ_2M)
+#define KIMAGE_VADDR		(MODULES_END)
+#define MODULES_END		(MODULES_VADDR + MODULES_VSIZE)
+#define MODULES_VADDR		(VA_START + KASAN_SHADOW_SIZE)
+#define MODULES_VSIZE		(SZ_128M)
+#define PCI_IO_END		(PAGE_OFFSET - SZ_2M)
 #define PCI_IO_START		(PCI_IO_END - PCI_IO_SIZE)
 #define FIXADDR_TOP		(PCI_IO_START - SZ_2M)
 #define TASK_SIZE_64		(UL(1) << VA_BITS)
@@ -71,12 +72,27 @@
 #define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 4))
 
 /*
+ * The size of the KASAN shadow region. This should be 1/8th of the
+ * size of the entire kernel virtual address space.
+ */
+#ifdef CONFIG_KASAN
+#define KASAN_SHADOW_SIZE	(UL(1) << (VA_BITS - 3))
+#else
+#define KASAN_SHADOW_SIZE	(0)
+#endif
+
+/*
  * Physical vs virtual RAM address space conversion.  These are
  * private definitions which should NOT be used outside memory.h
  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
  */
-#define __virt_to_phys(x)	(((phys_addr_t)(x) - PAGE_OFFSET + PHYS_OFFSET))
-#define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET + PAGE_OFFSET))
+#define __virt_to_phys(x) ({						\
+	phys_addr_t __x = (phys_addr_t)(x);				\
+	__x & BIT(VA_BITS - 1) ? (__x & ~PAGE_OFFSET) + PHYS_OFFSET :	\
+				 (__x - kimage_voffset); })
+
+#define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET) | PAGE_OFFSET)
+#define __phys_to_kimg(x)	((unsigned long)((x) + kimage_voffset))
 
 /*
  * Convert a page to/from a physical address
@@ -100,19 +116,40 @@
 #define MT_S2_NORMAL		0xf
 #define MT_S2_DEVICE_nGnRE	0x1
 
+#ifdef CONFIG_ARM64_4K_PAGES
+#define IOREMAP_MAX_ORDER	(PUD_SHIFT)
+#else
+#define IOREMAP_MAX_ORDER	(PMD_SHIFT)
+#endif
+
+#ifdef CONFIG_BLK_DEV_INITRD
+#define __early_init_dt_declare_initrd(__start, __end)			\
+	do {								\
+		initrd_start = (__start);				\
+		initrd_end = (__end);					\
+	} while (0)
+#endif
+
 #ifndef __ASSEMBLY__
 
-extern phys_addr_t		memstart_addr;
+#include <linux/bitops.h>
+#include <linux/mmdebug.h>
+
+extern s64			memstart_addr;
 /* PHYS_OFFSET - the physical address of the start of memory. */
-#define PHYS_OFFSET		({ memstart_addr; })
+#define PHYS_OFFSET		({ VM_BUG_ON(memstart_addr & 1); memstart_addr; })
+
+/* the virtual base of the kernel image (minus TEXT_OFFSET) */
+extern u64			kimage_vaddr;
+
+/* the offset between the kernel virtual and physical mappings */
+extern u64			kimage_voffset;
 
 /*
- * The maximum physical address that the linear direct mapping
- * of system RAM can cover. (PAGE_OFFSET can be interpreted as
- * a 2's complement signed quantity and negated to derive the
- * maximum size of the linear mapping.)
+ * Allow all memory at the discovery stage. We will clip it later.
  */
-#define MAX_MEMBLOCK_ADDR	({ memstart_addr - PAGE_OFFSET - 1; })
+#define MIN_MEMBLOCK_ADDR	0
+#define MAX_MEMBLOCK_ADDR	U64_MAX
 
 /*
  * PFNs are used to describe any physical page; this means

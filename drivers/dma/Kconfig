@@ -341,12 +341,13 @@ config MV_XOR
 
 config MXS_DMA
 	bool "MXS DMA support"
-	depends on SOC_IMX23 || SOC_IMX28 || SOC_IMX6Q
+	depends on SOC_IMX23 || SOC_IMX28 || SOC_IMX6Q || SOC_IMX6UL
 	select STMP_DEVICE
 	select DMA_ENGINE
 	help
 	  Support the MXS DMA engine. This engine including APBH-DMA
-	  and APBX-DMA is integrated into Freescale i.MX23/28/MX6Q/MX6DL chips.
+	  and APBX-DMA is integrated into Freescale
+	  i.MX23/28/MX6Q/MX6DL/MX6UL chips.
 
 config MX3_IPU
 	bool "MX3x Image Processing Unit support"
@@ -407,15 +408,6 @@ config PXA_DMA
 	  platform. The internal DMA IP of all PXA variants is supported, with
 	  16 to 32 channels for peripheral to memory or memory to memory
 	  transfers.
-
-config QCOM_BAM_DMA
-	tristate "QCOM BAM DMA support"
-	depends on ARCH_QCOM || (COMPILE_TEST && OF && ARM)
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	---help---
-	  Enable support for the QCOM BAM DMA controller.  This controller
-	  provides DMA capabilities for a variety of on-chip devices.
 
 config SIRF_DMA
 	tristate "CSR SiRFprimaII/SiRFmarco DMA support"
@@ -538,6 +530,8 @@ config ZX_DMA
 
 # driver files
 source "drivers/dma/bestcomm/Kconfig"
+
+source "drivers/dma/qcom/Kconfig"
 
 source "drivers/dma/dw/Kconfig"
 

@@ -195,6 +195,7 @@ static void bnx2x_dcbx_get_ap_feature(struct bnx2x *bp,
 				   u32 error) {
 	u8 index;
 	u32 *ttp = bp->dcbx_port_params.app.traffic_type_priority;
+	u8 iscsi_pri_found = 0, fcoe_pri_found = 0;
 
 	if (GET_FLAGS(error, DCBX_LOCAL_APP_ERROR))
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_APP_ERROR\n");
@@ -210,29 +211,57 @@ static void bnx2x_dcbx_get_ap_feature(struct bnx2x *bp,
 
 		bp->dcbx_port_params.app.enabled = true;
 
+		/* Use 0 as the default application priority for all. */
 		for (index = 0 ; index < LLFC_DRIVER_TRAFFIC_TYPE_MAX; index++)
 			ttp[index] = 0;
-
-		if (app->default_pri < MAX_PFC_PRIORITIES)
-			ttp[LLFC_TRAFFIC_TYPE_NW] = app->default_pri;
 
 		for (index = 0 ; index < DCBX_MAX_APP_PROTOCOL; index++) {
 			struct dcbx_app_priority_entry *entry =
 							app->app_pri_tbl;
+			enum traffic_type type = MAX_TRAFFIC_TYPE;
 
 			if (GET_FLAGS(entry[index].appBitfield,
-				     DCBX_APP_SF_ETH_TYPE) &&
-			   ETH_TYPE_FCOE == entry[index].app_id)
-				bnx2x_dcbx_get_ap_priority(bp,
-						entry[index].pri_bitmap,
-						LLFC_TRAFFIC_TYPE_FCOE);
+				      DCBX_APP_SF_DEFAULT) &&
+			    GET_FLAGS(entry[index].appBitfield,
+				      DCBX_APP_SF_ETH_TYPE)) {
+				type = LLFC_TRAFFIC_TYPE_NW;
+			} else if (GET_FLAGS(entry[index].appBitfield,
+					     DCBX_APP_SF_PORT) &&
+				   TCP_PORT_ISCSI == entry[index].app_id) {
+				type = LLFC_TRAFFIC_TYPE_ISCSI;
+				iscsi_pri_found = 1;
+			} else if (GET_FLAGS(entry[index].appBitfield,
+					     DCBX_APP_SF_ETH_TYPE) &&
+				   ETH_TYPE_FCOE == entry[index].app_id) {
+				type = LLFC_TRAFFIC_TYPE_FCOE;
+				fcoe_pri_found = 1;
+			}
 
-			if (GET_FLAGS(entry[index].appBitfield,
-				     DCBX_APP_SF_PORT) &&
-			   TCP_PORT_ISCSI == entry[index].app_id)
-				bnx2x_dcbx_get_ap_priority(bp,
-						entry[index].pri_bitmap,
-						LLFC_TRAFFIC_TYPE_ISCSI);
+			if (type == MAX_TRAFFIC_TYPE)
+				continue;
+
+			bnx2x_dcbx_get_ap_priority(bp,
+						   entry[index].pri_bitmap,
+						   type);
+		}
+
+		/* If we have received a non-zero default application
+		 * priority, then use that for applications which are
+		 * not configured with any priority.
+		 */
+		if (ttp[LLFC_TRAFFIC_TYPE_NW] != 0) {
+			if (!iscsi_pri_found) {
+				ttp[LLFC_TRAFFIC_TYPE_ISCSI] =
+					ttp[LLFC_TRAFFIC_TYPE_NW];
+				DP(BNX2X_MSG_DCB,
+				   "ISCSI is using default priority.\n");
+			}
+			if (!fcoe_pri_found) {
+				ttp[LLFC_TRAFFIC_TYPE_FCOE] =
+					ttp[LLFC_TRAFFIC_TYPE_NW];
+				DP(BNX2X_MSG_DCB,
+				   "FCoE is using default priority.\n");
+			}
 		}
 	} else {
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_APP_DISABLED\n");

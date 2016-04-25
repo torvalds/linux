@@ -332,9 +332,7 @@ void rcu_init(void);
 void rcu_sched_qs(void);
 void rcu_bh_qs(void);
 void rcu_check_callbacks(int user);
-struct notifier_block;
-int rcu_cpu_notify(struct notifier_block *self,
-		   unsigned long action, void *hcpu);
+void rcu_report_dead(unsigned int cpu);
 
 #ifndef CONFIG_TINY_RCU
 void rcu_end_inkernel_boot(void);
@@ -360,8 +358,6 @@ void rcu_user_exit(void);
 #else
 static inline void rcu_user_enter(void) { }
 static inline void rcu_user_exit(void) { }
-static inline void rcu_user_hooks_switch(struct task_struct *prev,
-					 struct task_struct *next) { }
 #endif /* CONFIG_NO_HZ_FULL */
 
 #ifdef CONFIG_RCU_NOCB_CPU

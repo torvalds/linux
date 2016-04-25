@@ -1267,7 +1267,7 @@ static int if_sdio_probe(struct sdio_func *func,
 	priv->reset_card = if_sdio_reset_card;
 	priv->power_save = if_sdio_power_save;
 	priv->power_restore = if_sdio_power_restore;
-
+	priv->is_polling = !(func->card->host->caps & MMC_CAP_SDIO_IRQ);
 	ret = if_sdio_power_on(card);
 	if (ret)
 		goto err_activate_card;

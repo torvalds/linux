@@ -41,11 +41,11 @@
 		reg = <0x0040>;
 	};
 
-	/* Optional auxosc, 20 - 30 MHz range, assume 27 MHz by default */
+	/* Optional auxosc, 20 - 30 MHz range, assume 22.5729 MHz by default */
 	auxosc_ck: auxosc_ck {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
-		clock-frequency = <27000000>;
+		clock-frequency = <22572900>;
 	};
 
 	/* Optional 32768Hz crystal or clock on RTCOSC pins */

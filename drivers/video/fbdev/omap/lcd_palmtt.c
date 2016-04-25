@@ -28,8 +28,8 @@ GPIO13 - screen blanking
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
-#include <asm/gpio.h>
 #include "omapfb.h"
 
 static int palmtt_panel_init(struct lcd_panel *panel,

@@ -125,6 +125,7 @@ enum trace_flag_type {
 	TRACE_FLAG_HARDIRQ		= 0x08,
 	TRACE_FLAG_SOFTIRQ		= 0x10,
 	TRACE_FLAG_PREEMPT_RESCHED	= 0x20,
+	TRACE_FLAG_NMI			= 0x40,
 };
 
 #define TRACE_BUF_SIZE		1024
@@ -345,6 +346,7 @@ struct tracer_opt {
 struct tracer_flags {
 	u32			val;
 	struct tracer_opt	*opts;
+	struct tracer		*trace;
 };
 
 /* Makes more easy to define a tracer opt */
@@ -1111,6 +1113,18 @@ struct filter_pred {
 	unsigned short		right;
 };
 
+static inline bool is_string_field(struct ftrace_event_field *field)
+{
+	return field->filter_type == FILTER_DYN_STRING ||
+	       field->filter_type == FILTER_STATIC_STRING ||
+	       field->filter_type == FILTER_PTR_STRING;
+}
+
+static inline bool is_function_field(struct ftrace_event_field *field)
+{
+	return field->filter_type == FILTER_TRACE_FN;
+}
+
 extern enum regex_type
 filter_parse_regex(char *buff, int len, char **search, int *not);
 extern void print_event_filter(struct trace_event_file *file,
@@ -1159,8 +1173,23 @@ struct event_trigger_data {
 	struct event_filter __rcu	*filter;
 	char				*filter_str;
 	void				*private_data;
+	bool				paused;
 	struct list_head		list;
 };
+
+extern void trigger_data_free(struct event_trigger_data *data);
+extern int event_trigger_init(struct event_trigger_ops *ops,
+			      struct event_trigger_data *data);
+extern int trace_event_trigger_enable_disable(struct trace_event_file *file,
+					      int trigger_enable);
+extern void update_cond_flag(struct trace_event_file *file);
+extern void unregister_trigger(char *glob, struct event_trigger_ops *ops,
+			       struct event_trigger_data *test,
+			       struct trace_event_file *file);
+extern int set_trigger_filter(char *filter_str,
+			      struct event_trigger_data *trigger_data,
+			      struct trace_event_file *file);
+extern int register_event_command(struct event_command *cmd);
 
 /**
  * struct event_trigger_ops - callbacks for trace event triggers
@@ -1174,7 +1203,8 @@ struct event_trigger_data {
  * @func: The trigger 'probe' function called when the triggering
  *	event occurs.  The data passed into this callback is the data
  *	that was supplied to the event_command @reg() function that
- *	registered the trigger (see struct event_command).
+ *	registered the trigger (see struct event_command) along with
+ *	the trace record, rec.
  *
  * @init: An optional initialization function called for the trigger
  *	when the trigger is registered (via the event_command reg()
@@ -1199,7 +1229,8 @@ struct event_trigger_data {
  *	(see trace_event_triggers.c).
  */
 struct event_trigger_ops {
-	void			(*func)(struct event_trigger_data *data);
+	void			(*func)(struct event_trigger_data *data,
+					void *rec);
 	int			(*init)(struct event_trigger_ops *ops,
 					struct event_trigger_data *data);
 	void			(*free)(struct event_trigger_ops *ops,
@@ -1243,27 +1274,10 @@ struct event_trigger_ops {
  *	values are defined by adding new values to the trigger_type
  *	enum in include/linux/trace_events.h.
  *
- * @post_trigger: A flag that says whether or not this command needs
- *	to have its action delayed until after the current event has
- *	been closed.  Some triggers need to avoid being invoked while
- *	an event is currently in the process of being logged, since
- *	the trigger may itself log data into the trace buffer.  Thus
- *	we make sure the current event is committed before invoking
- *	those triggers.  To do that, the trigger invocation is split
- *	in two - the first part checks the filter using the current
- *	trace record; if a command has the @post_trigger flag set, it
- *	sets a bit for itself in the return value, otherwise it
- *	directly invokes the trigger.  Once all commands have been
- *	either invoked or set their return flag, the current record is
- *	either committed or discarded.  At that point, if any commands
- *	have deferred their triggers, those commands are finally
- *	invoked following the close of the current event.  In other
- *	words, if the event_trigger_ops @func() probe implementation
- *	itself logs to the trace buffer, this flag should be set,
- *	otherwise it can be left unspecified.
+ * @flags: See the enum event_command_flags below.
  *
- * All the methods below, except for @set_filter(), must be
- * implemented.
+ * All the methods below, except for @set_filter() and @unreg_all(),
+ * must be implemented.
  *
  * @func: The callback function responsible for parsing and
  *	registering the trigger written to the 'trigger' file by the
@@ -1288,6 +1302,10 @@ struct event_trigger_ops {
  *	This is usually implemented by the generic utility function
  *	@unregister_trigger() (see trace_event_triggers.c).
  *
+ * @unreg_all: An optional function called to remove all the triggers
+ *	from the list of triggers associated with the event.  Called
+ *	when a trigger file is opened in truncate mode.
+ *
  * @set_filter: An optional function called to parse and set a filter
  *	for the trigger.  If no @set_filter() method is set for the
  *	event command, filters set by the user for the command will be
@@ -1301,7 +1319,7 @@ struct event_command {
 	struct list_head	list;
 	char			*name;
 	enum event_trigger_type	trigger_type;
-	bool			post_trigger;
+	int			flags;
 	int			(*func)(struct event_command *cmd_ops,
 					struct trace_event_file *file,
 					char *glob, char *cmd, char *params);
@@ -1313,11 +1331,55 @@ struct event_command {
 					 struct event_trigger_ops *ops,
 					 struct event_trigger_data *data,
 					 struct trace_event_file *file);
+	void			(*unreg_all)(struct trace_event_file *file);
 	int			(*set_filter)(char *filter_str,
 					      struct event_trigger_data *data,
 					      struct trace_event_file *file);
 	struct event_trigger_ops *(*get_trigger_ops)(char *cmd, char *param);
 };
+
+/**
+ * enum event_command_flags - flags for struct event_command
+ *
+ * @POST_TRIGGER: A flag that says whether or not this command needs
+ *	to have its action delayed until after the current event has
+ *	been closed.  Some triggers need to avoid being invoked while
+ *	an event is currently in the process of being logged, since
+ *	the trigger may itself log data into the trace buffer.  Thus
+ *	we make sure the current event is committed before invoking
+ *	those triggers.  To do that, the trigger invocation is split
+ *	in two - the first part checks the filter using the current
+ *	trace record; if a command has the @post_trigger flag set, it
+ *	sets a bit for itself in the return value, otherwise it
+ *	directly invokes the trigger.  Once all commands have been
+ *	either invoked or set their return flag, the current record is
+ *	either committed or discarded.  At that point, if any commands
+ *	have deferred their triggers, those commands are finally
+ *	invoked following the close of the current event.  In other
+ *	words, if the event_trigger_ops @func() probe implementation
+ *	itself logs to the trace buffer, this flag should be set,
+ *	otherwise it can be left unspecified.
+ *
+ * @NEEDS_REC: A flag that says whether or not this command needs
+ *	access to the trace record in order to perform its function,
+ *	regardless of whether or not it has a filter associated with
+ *	it (filters make a trigger require access to the trace record
+ *	but are not always present).
+ */
+enum event_command_flags {
+	EVENT_CMD_FL_POST_TRIGGER	= 1,
+	EVENT_CMD_FL_NEEDS_REC		= 2,
+};
+
+static inline bool event_command_post_trigger(struct event_command *cmd_ops)
+{
+	return cmd_ops->flags & EVENT_CMD_FL_POST_TRIGGER;
+}
+
+static inline bool event_command_needs_rec(struct event_command *cmd_ops)
+{
+	return cmd_ops->flags & EVENT_CMD_FL_NEEDS_REC;
+}
 
 extern int trace_event_enable_disable(struct trace_event_file *file,
 				      int enable, int soft_disable);
@@ -1365,8 +1427,13 @@ int perf_ftrace_event_register(struct trace_event_call *call,
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 void init_ftrace_syscalls(void);
+const char *get_syscall_name(int syscall);
 #else
 static inline void init_ftrace_syscalls(void) { }
+static inline const char *get_syscall_name(int syscall)
+{
+	return NULL;
+}
 #endif
 
 #ifdef CONFIG_EVENT_TRACING

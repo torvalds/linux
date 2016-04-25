@@ -81,6 +81,9 @@ enum i40e_virtchnl_ops {
 	I40E_VIRTCHNL_OP_GET_STATS = 15,
 	I40E_VIRTCHNL_OP_FCOE = 16,
 	I40E_VIRTCHNL_OP_EVENT = 17,
+	I40E_VIRTCHNL_OP_IWARP = 20,
+	I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP = 21,
+	I40E_VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP = 22,
 };
 
 /* Virtual channel message descriptor. This overlays the admin queue
@@ -346,6 +349,37 @@ struct i40e_virtchnl_pf_event {
 	} event_data;
 
 	int severity;
+};
+
+/* I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP
+ * VF uses this message to request PF to map IWARP vectors to IWARP queues.
+ * The request for this originates from the VF IWARP driver through
+ * a client interface between VF LAN and VF IWARP driver.
+ * A vector could have an AEQ and CEQ attached to it although
+ * there is a single AEQ per VF IWARP instance in which case
+ * most vectors will have an INVALID_IDX for aeq and valid idx for ceq.
+ * There will never be a case where there will be multiple CEQs attached
+ * to a single vector.
+ * PF configures interrupt mapping and returns status.
+ */
+
+/* HW does not define a type value for AEQ; only for RX/TX and CEQ.
+ * In order for us to keep the interface simple, SW will define a
+ * unique type value for AEQ.
+*/
+#define I40E_QUEUE_TYPE_PE_AEQ  0x80
+#define I40E_QUEUE_INVALID_IDX  0xFFFF
+
+struct i40e_virtchnl_iwarp_qv_info {
+	u32 v_idx; /* msix_vector */
+	u16 ceq_idx;
+	u16 aeq_idx;
+	u8 itr_idx;
+};
+
+struct i40e_virtchnl_iwarp_qvlist_info {
+	u32 num_vectors;
+	struct i40e_virtchnl_iwarp_qv_info qv_info[1];
 };
 
 /* VF reset states - these are written into the RSTAT register:

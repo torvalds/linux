@@ -230,14 +230,14 @@
 
 	flash0@40000000 {
 		/* 2 * 32MiB NOR Flash memory */
-		compatible = "arm,vexpress-flash", "cfi-flash";
+		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x40000000 0x04000000>;
 		bank-width = <4>;
 	};
 
 	flash1@44000000 {
 		// 2 * 32MiB NOR Flash memory
-		compatible = "arm,vexpress-flash", "cfi-flash";
+		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x44000000 0x04000000>;
 		bank-width = <4>;
 	};

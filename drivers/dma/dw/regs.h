@@ -150,7 +150,7 @@ enum dw_dma_msize {
 #define DWC_CTLL_DST_INC	(0<<7)		/* DAR update/not */
 #define DWC_CTLL_DST_DEC	(1<<7)
 #define DWC_CTLL_DST_FIX	(2<<7)
-#define DWC_CTLL_SRC_INC	(0<<7)		/* SAR update/not */
+#define DWC_CTLL_SRC_INC	(0<<9)		/* SAR update/not */
 #define DWC_CTLL_SRC_DEC	(1<<9)
 #define DWC_CTLL_SRC_FIX	(2<<9)
 #define DWC_CTLL_DST_MSIZE(n)	((n)<<11)	/* burst, #elements */

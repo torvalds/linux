@@ -93,10 +93,8 @@ struct perf_evsel {
 	const char		*unit;
 	struct event_format	*tp_format;
 	off_t			id_offset;
-	union {
-		void		*priv;
-		u64		db_id;
-	};
+	void			*priv;
+	u64			db_id;
 	struct cgroup_sel	*cgrp;
 	void			*handler;
 	struct cpu_map		*cpus;
@@ -362,6 +360,14 @@ static inline bool perf_evsel__is_function_event(struct perf_evsel *evsel)
 	       !strncmp(FUNCTION_EVENT, evsel->name, sizeof(FUNCTION_EVENT));
 
 #undef FUNCTION_EVENT
+}
+
+static inline bool perf_evsel__is_bpf_output(struct perf_evsel *evsel)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+
+	return (attr->config == PERF_COUNT_SW_BPF_OUTPUT) &&
+		(attr->type == PERF_TYPE_SOFTWARE);
 }
 
 struct perf_attr_details {

@@ -381,7 +381,7 @@
 				allwinner,pins = "PC5", "PC6", "PC8",
 						 "PC9", "PC10", "PC11",
 						 "PC12", "PC13", "PC14",
-						 "PC15";
+						 "PC15", "PC16";
 				allwinner,function = "mmc2";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;

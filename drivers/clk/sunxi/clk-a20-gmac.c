@@ -17,7 +17,6 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
@@ -107,7 +106,6 @@ static void __init sun7i_a20_gmac_clk_setup(struct device_node *node)
 		goto iounmap_reg;
 
 	of_clk_add_provider(node, of_clk_src_simple_get, clk);
-	clk_register_clkdev(clk, clk_name, NULL);
 
 	return;
 

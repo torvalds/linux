@@ -257,7 +257,7 @@ static void mon_iucv_message_pending(struct iucv_path *path,
 	memcpy(&monpriv->msg_array[monpriv->write_index]->msg,
 	       msg, sizeof(*msg));
 	if (atomic_inc_return(&monpriv->msglim_count) == MON_MSGLIM) {
-		pr_warning("The read queue for monitor data is full\n");
+		pr_warn("The read queue for monitor data is full\n");
 		monpriv->msg_array[monpriv->write_index]->msglim_reached = 1;
 	}
 	monpriv->write_index = (monpriv->write_index + 1) % MON_MSGLIM;
@@ -342,8 +342,8 @@ static int mon_close(struct inode *inode, struct file *filp)
 	if (monpriv->path) {
 		rc = iucv_path_sever(monpriv->path, user_data_sever);
 		if (rc)
-			pr_warning("Disconnecting the z/VM *MONITOR system "
-				   "service failed with rc=%i\n", rc);
+			pr_warn("Disconnecting the z/VM *MONITOR system service failed with rc=%i\n",
+				rc);
 		iucv_path_free(monpriv->path);
 	}
 
@@ -469,8 +469,8 @@ static int monreader_freeze(struct device *dev)
 	if (monpriv->path) {
 		rc = iucv_path_sever(monpriv->path, user_data_sever);
 		if (rc)
-			pr_warning("Disconnecting the z/VM *MONITOR system "
-				   "service failed with rc=%i\n", rc);
+			pr_warn("Disconnecting the z/VM *MONITOR system service failed with rc=%i\n",
+				rc);
 		iucv_path_free(monpriv->path);
 	}
 	atomic_set(&monpriv->iucv_severed, 0);

@@ -85,7 +85,7 @@ union acpi_parse_object;
 #define ACPI_MTX_MEMORY                 5	/* Debug memory tracking lists */
 
 #define ACPI_MAX_MUTEX                  5
-#define ACPI_NUM_MUTEX                  ACPI_MAX_MUTEX+1
+#define ACPI_NUM_MUTEX                  (ACPI_MAX_MUTEX+1)
 
 /* Lock structure for reader/writer interfaces */
 
@@ -103,11 +103,11 @@ struct acpi_rw_lock {
 #define ACPI_LOCK_HARDWARE              1
 
 #define ACPI_MAX_LOCK                   1
-#define ACPI_NUM_LOCK                   ACPI_MAX_LOCK+1
+#define ACPI_NUM_LOCK                   (ACPI_MAX_LOCK+1)
 
 /* This Thread ID means that the mutex is not in use (unlocked) */
 
-#define ACPI_MUTEX_NOT_ACQUIRED         (acpi_thread_id) 0
+#define ACPI_MUTEX_NOT_ACQUIRED         ((acpi_thread_id) 0)
 
 /* This Thread ID means an invalid thread ID */
 

@@ -38,7 +38,7 @@ struct of_phandle_args;
  * @nr_resets: number of reset controls in this reset controller device
  */
 struct reset_controller_dev {
-	struct reset_control_ops *ops;
+	const struct reset_control_ops *ops;
 	struct module *owner;
 	struct list_head list;
 	struct device_node *of_node;

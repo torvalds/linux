@@ -86,7 +86,7 @@ static int create_gpio_led(const struct gpio_led *template,
 		 * still uses GPIO numbers. Ultimately we would like to get
 		 * rid of this block completely.
 		 */
-		unsigned long flags = 0;
+		unsigned long flags = GPIOF_OUT_INIT_LOW;
 
 		/* skip leds that aren't available */
 		if (!gpio_is_valid(template->gpio)) {
@@ -104,8 +104,8 @@ static int create_gpio_led(const struct gpio_led *template,
 			return ret;
 
 		led_dat->gpiod = gpio_to_desc(template->gpio);
-		if (IS_ERR(led_dat->gpiod))
-			return PTR_ERR(led_dat->gpiod);
+		if (!led_dat->gpiod)
+			return -EINVAL;
 	}
 
 	led_dat->cdev.name = template->name;

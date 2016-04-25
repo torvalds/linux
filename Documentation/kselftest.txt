@@ -73,7 +73,7 @@ To install selftests in an user specified location:
 Contributing new tests
 ======================
 
-In general, the rules for for selftests are
+In general, the rules for selftests are
 
  * Do as much as you can if you're not root;
 

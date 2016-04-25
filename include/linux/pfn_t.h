@@ -9,14 +9,13 @@
  * PFN_DEV - pfn is not covered by system memmap by default
  * PFN_MAP - pfn has a dynamic page mapping established by a device driver
  */
-#define PFN_FLAGS_MASK (((unsigned long) ~PAGE_MASK) \
-		<< (BITS_PER_LONG - PAGE_SHIFT))
-#define PFN_SG_CHAIN (1UL << (BITS_PER_LONG - 1))
-#define PFN_SG_LAST (1UL << (BITS_PER_LONG - 2))
-#define PFN_DEV (1UL << (BITS_PER_LONG - 3))
-#define PFN_MAP (1UL << (BITS_PER_LONG - 4))
+#define PFN_FLAGS_MASK (((u64) ~PAGE_MASK) << (BITS_PER_LONG_LONG - PAGE_SHIFT))
+#define PFN_SG_CHAIN (1ULL << (BITS_PER_LONG_LONG - 1))
+#define PFN_SG_LAST (1ULL << (BITS_PER_LONG_LONG - 2))
+#define PFN_DEV (1ULL << (BITS_PER_LONG_LONG - 3))
+#define PFN_MAP (1ULL << (BITS_PER_LONG_LONG - 4))
 
-static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, unsigned long flags)
+static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, u64 flags)
 {
 	pfn_t pfn_t = { .val = pfn | (flags & PFN_FLAGS_MASK), };
 
@@ -29,7 +28,7 @@ static inline pfn_t pfn_to_pfn_t(unsigned long pfn)
 	return __pfn_to_pfn_t(pfn, 0);
 }
 
-extern pfn_t phys_to_pfn_t(phys_addr_t addr, unsigned long flags);
+extern pfn_t phys_to_pfn_t(phys_addr_t addr, u64 flags);
 
 static inline bool pfn_t_has_page(pfn_t pfn)
 {
@@ -87,7 +86,7 @@ static inline pmd_t pfn_t_pmd(pfn_t pfn, pgprot_t pgprot)
 #ifdef __HAVE_ARCH_PTE_DEVMAP
 static inline bool pfn_t_devmap(pfn_t pfn)
 {
-	const unsigned long flags = PFN_DEV|PFN_MAP;
+	const u64 flags = PFN_DEV|PFN_MAP;
 
 	return (pfn.val & flags) == flags;
 }

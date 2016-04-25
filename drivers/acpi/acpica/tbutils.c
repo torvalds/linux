@@ -174,9 +174,7 @@ struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index)
 				      ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL,
 				      new_table);
 
-	ACPI_INFO((AE_INFO,
-		   "Forced DSDT copy: length 0x%05X copied locally, original unmapped",
-		   new_table->length));
+	ACPI_INFO(("Forced DSDT copy: length 0x%05X copied locally, original unmapped", new_table->length));
 
 	return (new_table);
 }

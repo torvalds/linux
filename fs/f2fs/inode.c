@@ -83,7 +83,7 @@ static void __recover_inline_status(struct inode *inode, struct page *ipage)
 
 	while (start < end) {
 		if (*start++) {
-			f2fs_wait_on_page_writeback(ipage, NODE);
+			f2fs_wait_on_page_writeback(ipage, NODE, true);
 
 			set_inode_flag(F2FS_I(inode), FI_DATA_EXIST);
 			set_raw_inline(F2FS_I(inode), F2FS_INODE(ipage));
@@ -227,7 +227,7 @@ int update_inode(struct inode *inode, struct page *node_page)
 {
 	struct f2fs_inode *ri;
 
-	f2fs_wait_on_page_writeback(node_page, NODE);
+	f2fs_wait_on_page_writeback(node_page, NODE, true);
 
 	ri = F2FS_INODE(node_page);
 
@@ -262,6 +262,10 @@ int update_inode(struct inode *inode, struct page *node_page)
 	__set_inode_rdev(inode, ri);
 	set_cold_node(inode, node_page);
 	clear_inode_flag(F2FS_I(inode), FI_DIRTY_INODE);
+
+	/* deleted inode */
+	if (inode->i_nlink == 0)
+		clear_inline_node(node_page);
 
 	return set_page_dirty(node_page);
 }
@@ -320,7 +324,7 @@ void f2fs_evict_inode(struct inode *inode)
 
 	/* some remained atomic pages should discarded */
 	if (f2fs_is_atomic_file(inode))
-		commit_inmem_pages(inode, true);
+		drop_inmem_pages(inode);
 
 	trace_f2fs_evict_inode(inode);
 	truncate_inode_pages_final(&inode->i_data);
@@ -385,10 +389,7 @@ no_delete:
 		}
 	}
 out_clear:
-#ifdef CONFIG_F2FS_FS_ENCRYPTION
-	if (fi->i_crypt_info)
-		f2fs_free_encryption_info(inode, fi->i_crypt_info);
-#endif
+	fscrypt_put_encryption_info(inode, NULL);
 	clear_inode(inode);
 }
 

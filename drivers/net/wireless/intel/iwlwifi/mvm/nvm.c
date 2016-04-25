@@ -300,7 +300,6 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
 	const __le16 *hw, *sw, *calib, *regulatory, *mac_override, *phy_sku;
 	bool lar_enabled;
-	u32 mac_addr0, mac_addr1;
 
 	/* Checking for required sections */
 	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
@@ -336,10 +335,6 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	if (WARN_ON(!mvm->cfg))
 		return NULL;
 
-	/* read the mac address from WFMP registers */
-	mac_addr0 = iwl_trans_read_prph(mvm->trans, WFMP_MAC_ADDR_0);
-	mac_addr1 = iwl_trans_read_prph(mvm->trans, WFMP_MAC_ADDR_1);
-
 	hw = (const __le16 *)sections[mvm->cfg->nvm_hw_section_num].data;
 	sw = (const __le16 *)sections[NVM_SECTION_TYPE_SW].data;
 	calib = (const __le16 *)sections[NVM_SECTION_TYPE_CALIBRATION].data;
@@ -352,10 +347,10 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 		      fw_has_capa(&mvm->fw->ucode_capa,
 				  IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 
-	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib,
+	return iwl_parse_nvm_data(mvm->trans, mvm->cfg, hw, sw, calib,
 				  regulatory, mac_override, phy_sku,
 				  mvm->fw->valid_tx_ant, mvm->fw->valid_rx_ant,
-				  lar_enabled, mac_addr0, mac_addr1);
+				  lar_enabled);
 }
 
 #define MAX_NVM_FILE_LEN	16384

@@ -32,6 +32,7 @@ static struct most_aim cdev_aim;
 
 struct aim_channel {
 	wait_queue_head_t wq;
+	spinlock_t unlink;	/* synchronization lock to unlink channels */
 	struct cdev cdev;
 	struct device *dev;
 	struct mutex io_mutex;
@@ -39,11 +40,9 @@ struct aim_channel {
 	struct most_channel_config *cfg;
 	unsigned int channel_id;
 	dev_t devno;
-	bool keep_mbo;
-	unsigned int mbo_offs;
-	struct mbo *stacked_mbo;
+	size_t mbo_offs;
 	DECLARE_KFIFO_PTR(fifo, typeof(struct mbo *));
-	atomic_t access_ref;
+	int access_ref;
 	struct list_head list;
 };
 
@@ -51,15 +50,26 @@ struct aim_channel {
 static struct list_head channel_list;
 static spinlock_t ch_list_lock;
 
+static inline bool ch_has_mbo(struct aim_channel *c)
+{
+	return channel_has_mbo(c->iface, c->channel_id, &cdev_aim) > 0;
+}
+
+static inline bool ch_get_mbo(struct aim_channel *c, struct mbo **mbo)
+{
+	*mbo = most_get_mbo(c->iface, c->channel_id, &cdev_aim);
+	return *mbo;
+}
+
 static struct aim_channel *get_channel(struct most_interface *iface, int id)
 {
-	struct aim_channel *channel, *tmp;
+	struct aim_channel *c, *tmp;
 	unsigned long flags;
 	int found_channel = 0;
 
 	spin_lock_irqsave(&ch_list_lock, flags);
-	list_for_each_entry_safe(channel, tmp, &channel_list, list) {
-		if ((channel->iface == iface) && (channel->channel_id == id)) {
+	list_for_each_entry_safe(c, tmp, &channel_list, list) {
+		if ((c->iface == iface) && (c->channel_id == id)) {
 			found_channel = 1;
 			break;
 		}
@@ -67,7 +77,29 @@ static struct aim_channel *get_channel(struct most_interface *iface, int id)
 	spin_unlock_irqrestore(&ch_list_lock, flags);
 	if (!found_channel)
 		return NULL;
-	return channel;
+	return c;
+}
+
+static void stop_channel(struct aim_channel *c)
+{
+	struct mbo *mbo;
+
+	while (kfifo_out((struct kfifo *)&c->fifo, &mbo, 1))
+		most_put_mbo(mbo);
+	most_stop_channel(c->iface, c->channel_id, &cdev_aim);
+}
+
+static void destroy_cdev(struct aim_channel *c)
+{
+	unsigned long flags;
+
+	device_destroy(aim_class, c->devno);
+	cdev_del(&c->cdev);
+	kfifo_free(&c->fifo);
+	spin_lock_irqsave(&ch_list_lock, flags);
+	list_del(&c->list);
+	spin_unlock_irqrestore(&ch_list_lock, flags);
+	ida_simple_remove(&minor_id, MINOR(c->devno));
 }
 
 /**
@@ -80,29 +112,38 @@ static struct aim_channel *get_channel(struct most_interface *iface, int id)
  */
 static int aim_open(struct inode *inode, struct file *filp)
 {
-	struct aim_channel *channel;
+	struct aim_channel *c;
 	int ret;
 
-	channel = to_channel(inode->i_cdev);
-	filp->private_data = channel;
+	c = to_channel(inode->i_cdev);
+	filp->private_data = c;
 
-	if (((channel->cfg->direction == MOST_CH_RX) &&
+	if (((c->cfg->direction == MOST_CH_RX) &&
 	     ((filp->f_flags & O_ACCMODE) != O_RDONLY)) ||
-	     ((channel->cfg->direction == MOST_CH_TX) &&
+	     ((c->cfg->direction == MOST_CH_TX) &&
 		((filp->f_flags & O_ACCMODE) != O_WRONLY))) {
 		pr_info("WARN: Access flags mismatch\n");
 		return -EACCES;
 	}
-	if (!atomic_inc_and_test(&channel->access_ref)) {
-		pr_info("WARN: Device is busy\n");
-		atomic_dec(&channel->access_ref);
+
+	mutex_lock(&c->io_mutex);
+	if (!c->dev) {
+		pr_info("WARN: Device is destroyed\n");
+		mutex_unlock(&c->io_mutex);
 		return -EBUSY;
 	}
 
-	ret = most_start_channel(channel->iface, channel->channel_id,
-				 &cdev_aim);
-	if (ret)
-		atomic_dec(&channel->access_ref);
+	if (c->access_ref) {
+		pr_info("WARN: Device is busy\n");
+		mutex_unlock(&c->io_mutex);
+		return -EBUSY;
+	}
+
+	c->mbo_offs = 0;
+	ret = most_start_channel(c->iface, c->channel_id, &cdev_aim);
+	if (!ret)
+		c->access_ref = 1;
+	mutex_unlock(&c->io_mutex);
 	return ret;
 }
 
@@ -115,33 +156,21 @@ static int aim_open(struct inode *inode, struct file *filp)
  */
 static int aim_close(struct inode *inode, struct file *filp)
 {
-	int ret;
-	struct mbo *mbo;
-	struct aim_channel *channel = to_channel(inode->i_cdev);
+	struct aim_channel *c = to_channel(inode->i_cdev);
 
-	mutex_lock(&channel->io_mutex);
-	if (!channel->dev) {
-		mutex_unlock(&channel->io_mutex);
-		atomic_dec(&channel->access_ref);
-		device_destroy(aim_class, channel->devno);
-		cdev_del(&channel->cdev);
-		kfifo_free(&channel->fifo);
-		list_del(&channel->list);
-		ida_simple_remove(&minor_id, MINOR(channel->devno));
-		wake_up_interruptible(&channel->wq);
-		kfree(channel);
-		return 0;
+	mutex_lock(&c->io_mutex);
+	spin_lock(&c->unlink);
+	c->access_ref = 0;
+	spin_unlock(&c->unlink);
+	if (c->dev) {
+		stop_channel(c);
+		mutex_unlock(&c->io_mutex);
+	} else {
+		destroy_cdev(c);
+		mutex_unlock(&c->io_mutex);
+		kfree(c);
 	}
-	mutex_unlock(&channel->io_mutex);
-
-	while (kfifo_out((struct kfifo *)&channel->fifo, &mbo, 1))
-		most_put_mbo(mbo);
-	if (channel->keep_mbo)
-		most_put_mbo(channel->stacked_mbo);
-	ret = most_stop_channel(channel->iface, channel->channel_id, &cdev_aim);
-	atomic_dec(&channel->access_ref);
-	wake_up_interruptible(&channel->wq);
-	return ret;
+	return 0;
 }
 
 /**
@@ -154,62 +183,48 @@ static int aim_close(struct inode *inode, struct file *filp)
 static ssize_t aim_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *offset)
 {
-	int ret, err;
-	size_t actual_len = 0;
-	size_t max_len = 0;
-	ssize_t retval;
-	struct mbo *mbo;
-	struct aim_channel *channel = filp->private_data;
+	int ret;
+	size_t actual_len;
+	size_t max_len;
+	struct mbo *mbo = NULL;
+	struct aim_channel *c = filp->private_data;
 
-	mutex_lock(&channel->io_mutex);
-	if (unlikely(!channel->dev)) {
-		mutex_unlock(&channel->io_mutex);
-		return -EPIPE;
-	}
-	mutex_unlock(&channel->io_mutex);
+	mutex_lock(&c->io_mutex);
+	while (c->dev && !ch_get_mbo(c, &mbo)) {
+		mutex_unlock(&c->io_mutex);
 
-	mbo = most_get_mbo(channel->iface, channel->channel_id, &cdev_aim);
-
-	if (!mbo) {
 		if ((filp->f_flags & O_NONBLOCK))
 			return -EAGAIN;
-		if (wait_event_interruptible(
-			    channel->wq,
-			    (mbo = most_get_mbo(channel->iface,
-						channel->channel_id,
-						&cdev_aim)) ||
-			    (!channel->dev)))
+		if (wait_event_interruptible(c->wq, ch_has_mbo(c) || !c->dev))
 			return -ERESTARTSYS;
+		mutex_lock(&c->io_mutex);
 	}
 
-	mutex_lock(&channel->io_mutex);
-	if (unlikely(!channel->dev)) {
-		mutex_unlock(&channel->io_mutex);
-		err = -EPIPE;
-		goto error;
+	if (unlikely(!c->dev)) {
+		ret = -EPIPE;
+		goto unlock;
 	}
-	mutex_unlock(&channel->io_mutex);
 
-	max_len = channel->cfg->buffer_size;
+	max_len = c->cfg->buffer_size;
 	actual_len = min(count, max_len);
 	mbo->buffer_length = actual_len;
 
-	retval = copy_from_user(mbo->virt_address, buf, mbo->buffer_length);
-	if (retval) {
-		err = -EIO;
-		goto error;
+	if (copy_from_user(mbo->virt_address, buf, mbo->buffer_length)) {
+		ret = -EFAULT;
+		goto put_mbo;
 	}
 
 	ret = most_submit_mbo(mbo);
-	if (ret) {
-		pr_info("submitting MBO to core failed\n");
-		err = ret;
-		goto error;
-	}
-	return actual_len - retval;
-error:
+	if (ret)
+		goto put_mbo;
+
+	mutex_unlock(&c->io_mutex);
+	return actual_len;
+put_mbo:
 	most_put_mbo(mbo);
-	return err;
+unlock:
+	mutex_unlock(&c->io_mutex);
+	return ret;
 }
 
 /**
@@ -222,59 +237,46 @@ error:
 static ssize_t
 aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 {
-	ssize_t retval;
-	size_t not_copied, proc_len;
+	size_t to_copy, not_copied, copied;
 	struct mbo *mbo;
-	struct aim_channel *channel = filp->private_data;
+	struct aim_channel *c = filp->private_data;
 
-	if (channel->keep_mbo) {
-		mbo = channel->stacked_mbo;
-		channel->keep_mbo = false;
-		goto start_copy;
-	}
-	while ((!kfifo_out(&channel->fifo, &mbo, 1)) && (channel->dev)) {
+	mutex_lock(&c->io_mutex);
+	while (c->dev && !kfifo_peek(&c->fifo, &mbo)) {
+		mutex_unlock(&c->io_mutex);
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
-		if (wait_event_interruptible(channel->wq,
-					     (!kfifo_is_empty(&channel->fifo) ||
-					      (!channel->dev))))
+		if (wait_event_interruptible(c->wq,
+					     (!kfifo_is_empty(&c->fifo) ||
+					      (!c->dev))))
 			return -ERESTARTSYS;
+		mutex_lock(&c->io_mutex);
 	}
 
-start_copy:
 	/* make sure we don't submit to gone devices */
-	mutex_lock(&channel->io_mutex);
-	if (unlikely(!channel->dev)) {
-		mutex_unlock(&channel->io_mutex);
+	if (unlikely(!c->dev)) {
+		mutex_unlock(&c->io_mutex);
 		return -EIO;
 	}
 
-	if (count < mbo->processed_length)
-		channel->keep_mbo = true;
-
-	proc_len = min((int)count,
-		       (int)(mbo->processed_length - channel->mbo_offs));
+	to_copy = min_t(size_t,
+			count,
+			mbo->processed_length - c->mbo_offs);
 
 	not_copied = copy_to_user(buf,
-				  mbo->virt_address + channel->mbo_offs,
-				  proc_len);
+				  mbo->virt_address + c->mbo_offs,
+				  to_copy);
 
-	retval = not_copied ? proc_len - not_copied : proc_len;
+	copied = to_copy - not_copied;
 
-	if (channel->keep_mbo) {
-		channel->mbo_offs = retval;
-		channel->stacked_mbo = mbo;
-	} else {
+	c->mbo_offs += copied;
+	if (c->mbo_offs >= mbo->processed_length) {
+		kfifo_skip(&c->fifo);
 		most_put_mbo(mbo);
-		channel->mbo_offs = 0;
+		c->mbo_offs = 0;
 	}
-	mutex_unlock(&channel->io_mutex);
-	return retval;
-}
-
-static inline bool __must_check IS_ERR_OR_FALSE(int x)
-{
-	return x <= 0;
+	mutex_unlock(&c->io_mutex);
+	return copied;
 }
 
 static unsigned int aim_poll(struct file *filp, poll_table *wait)
@@ -288,7 +290,7 @@ static unsigned int aim_poll(struct file *filp, poll_table *wait)
 		if (!kfifo_is_empty(&c->fifo))
 			mask |= POLLIN | POLLRDNORM;
 	} else {
-		if (!IS_ERR_OR_FALSE(channel_has_mbo(c->iface, c->channel_id)))
+		if (ch_has_mbo(c))
 			mask |= POLLOUT | POLLWRNORM;
 	}
 	return mask;
@@ -316,33 +318,29 @@ static const struct file_operations channel_fops = {
  */
 static int aim_disconnect_channel(struct most_interface *iface, int channel_id)
 {
-	struct aim_channel *channel;
-	unsigned long flags;
+	struct aim_channel *c;
 
 	if (!iface) {
 		pr_info("Bad interface pointer\n");
 		return -EINVAL;
 	}
 
-	channel = get_channel(iface, channel_id);
-	if (!channel)
+	c = get_channel(iface, channel_id);
+	if (!c)
 		return -ENXIO;
 
-	mutex_lock(&channel->io_mutex);
-	channel->dev = NULL;
-	mutex_unlock(&channel->io_mutex);
-
-	if (atomic_read(&channel->access_ref)) {
-		device_destroy(aim_class, channel->devno);
-		cdev_del(&channel->cdev);
-		kfifo_free(&channel->fifo);
-		ida_simple_remove(&minor_id, MINOR(channel->devno));
-		spin_lock_irqsave(&ch_list_lock, flags);
-		list_del(&channel->list);
-		spin_unlock_irqrestore(&ch_list_lock, flags);
-		kfree(channel);
+	mutex_lock(&c->io_mutex);
+	spin_lock(&c->unlink);
+	c->dev = NULL;
+	spin_unlock(&c->unlink);
+	if (c->access_ref) {
+		stop_channel(c);
+		wake_up_interruptible(&c->wq);
+		mutex_unlock(&c->io_mutex);
 	} else {
-		wake_up_interruptible(&channel->wq);
+		destroy_cdev(c);
+		mutex_unlock(&c->io_mutex);
+		kfree(c);
 	}
 	return 0;
 }
@@ -356,21 +354,27 @@ static int aim_disconnect_channel(struct most_interface *iface, int channel_id)
  */
 static int aim_rx_completion(struct mbo *mbo)
 {
-	struct aim_channel *channel;
+	struct aim_channel *c;
 
 	if (!mbo)
 		return -EINVAL;
 
-	channel = get_channel(mbo->ifp, mbo->hdm_channel_id);
-	if (!channel)
+	c = get_channel(mbo->ifp, mbo->hdm_channel_id);
+	if (!c)
 		return -ENXIO;
 
-	kfifo_in(&channel->fifo, &mbo, 1);
+	spin_lock(&c->unlink);
+	if (!c->access_ref || !c->dev) {
+		spin_unlock(&c->unlink);
+		return -EFAULT;
+	}
+	kfifo_in(&c->fifo, &mbo, 1);
+	spin_unlock(&c->unlink);
 #ifdef DEBUG_MESG
-	if (kfifo_is_full(&channel->fifo))
+	if (kfifo_is_full(&c->fifo))
 		pr_info("WARN: Fifo is full\n");
 #endif
-	wake_up_interruptible(&channel->wq);
+	wake_up_interruptible(&c->wq);
 	return 0;
 }
 
@@ -383,7 +387,7 @@ static int aim_rx_completion(struct mbo *mbo)
  */
 static int aim_tx_completion(struct most_interface *iface, int channel_id)
 {
-	struct aim_channel *channel;
+	struct aim_channel *c;
 
 	if (!iface) {
 		pr_info("Bad interface pointer\n");
@@ -394,14 +398,12 @@ static int aim_tx_completion(struct most_interface *iface, int channel_id)
 		return -EINVAL;
 	}
 
-	channel = get_channel(iface, channel_id);
-	if (!channel)
+	c = get_channel(iface, channel_id);
+	if (!c)
 		return -ENXIO;
-	wake_up_interruptible(&channel->wq);
+	wake_up_interruptible(&c->wq);
 	return 0;
 }
-
-static struct most_aim cdev_aim;
 
 /**
  * aim_probe - probe function of the driver module
@@ -419,7 +421,7 @@ static int aim_probe(struct most_interface *iface, int channel_id,
 		     struct most_channel_config *cfg,
 		     struct kobject *parent, char *name)
 {
-	struct aim_channel *channel;
+	struct aim_channel *c;
 	unsigned long cl_flags;
 	int retval;
 	int current_minor;
@@ -428,60 +430,60 @@ static int aim_probe(struct most_interface *iface, int channel_id,
 		pr_info("Probing AIM with bad arguments");
 		return -EINVAL;
 	}
-	channel = get_channel(iface, channel_id);
-	if (channel)
+	c = get_channel(iface, channel_id);
+	if (c)
 		return -EEXIST;
 
 	current_minor = ida_simple_get(&minor_id, 0, 0, GFP_KERNEL);
 	if (current_minor < 0)
 		return current_minor;
 
-	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
-	if (!channel) {
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	if (!c) {
 		retval = -ENOMEM;
 		goto error_alloc_channel;
 	}
 
-	channel->devno = MKDEV(major, current_minor);
-	cdev_init(&channel->cdev, &channel_fops);
-	channel->cdev.owner = THIS_MODULE;
-	cdev_add(&channel->cdev, channel->devno, 1);
-	channel->iface = iface;
-	channel->cfg = cfg;
-	channel->channel_id = channel_id;
-	channel->mbo_offs = 0;
-	atomic_set(&channel->access_ref, -1);
-	INIT_KFIFO(channel->fifo);
-	retval = kfifo_alloc(&channel->fifo, cfg->num_buffers, GFP_KERNEL);
+	c->devno = MKDEV(major, current_minor);
+	cdev_init(&c->cdev, &channel_fops);
+	c->cdev.owner = THIS_MODULE;
+	cdev_add(&c->cdev, c->devno, 1);
+	c->iface = iface;
+	c->cfg = cfg;
+	c->channel_id = channel_id;
+	c->access_ref = 0;
+	spin_lock_init(&c->unlink);
+	INIT_KFIFO(c->fifo);
+	retval = kfifo_alloc(&c->fifo, cfg->num_buffers, GFP_KERNEL);
 	if (retval) {
 		pr_info("failed to alloc channel kfifo");
 		goto error_alloc_kfifo;
 	}
-	init_waitqueue_head(&channel->wq);
-	mutex_init(&channel->io_mutex);
+	init_waitqueue_head(&c->wq);
+	mutex_init(&c->io_mutex);
 	spin_lock_irqsave(&ch_list_lock, cl_flags);
-	list_add_tail(&channel->list, &channel_list);
+	list_add_tail(&c->list, &channel_list);
 	spin_unlock_irqrestore(&ch_list_lock, cl_flags);
-	channel->dev = device_create(aim_class,
+	c->dev = device_create(aim_class,
 				     NULL,
-				     channel->devno,
+				     c->devno,
 				     NULL,
 				     "%s", name);
 
-	retval = IS_ERR(channel->dev);
-	if (retval) {
+	if (IS_ERR(c->dev)) {
+		retval = PTR_ERR(c->dev);
 		pr_info("failed to create new device node %s\n", name);
 		goto error_create_device;
 	}
-	kobject_uevent(&channel->dev->kobj, KOBJ_ADD);
+	kobject_uevent(&c->dev->kobj, KOBJ_ADD);
 	return 0;
 
 error_create_device:
-	kfifo_free(&channel->fifo);
-	list_del(&channel->list);
+	kfifo_free(&c->fifo);
+	list_del(&c->list);
 error_alloc_kfifo:
-	cdev_del(&channel->cdev);
-	kfree(channel);
+	cdev_del(&c->cdev);
+	kfree(c);
 error_alloc_channel:
 	ida_simple_remove(&minor_id, current_minor);
 	return retval;
@@ -526,19 +528,15 @@ free_cdev:
 
 static void __exit mod_exit(void)
 {
-	struct aim_channel *channel, *tmp;
+	struct aim_channel *c, *tmp;
 
 	pr_info("exit module\n");
 
 	most_deregister_aim(&cdev_aim);
 
-	list_for_each_entry_safe(channel, tmp, &channel_list, list) {
-		device_destroy(aim_class, channel->devno);
-		cdev_del(&channel->cdev);
-		kfifo_free(&channel->fifo);
-		list_del(&channel->list);
-		ida_simple_remove(&minor_id, MINOR(channel->devno));
-		kfree(channel);
+	list_for_each_entry_safe(c, tmp, &channel_list, list) {
+		destroy_cdev(c);
+		kfree(c);
 	}
 	class_destroy(aim_class);
 	unregister_chrdev_region(aim_devno, 1);

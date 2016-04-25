@@ -26,7 +26,7 @@
 #include "qed_hsi.h"
 
 extern const struct qed_common_ops qed_common_ops_pass;
-#define DRV_MODULE_VERSION "8.4.0.0"
+#define DRV_MODULE_VERSION "8.7.0.0"
 
 #define MAX_HWFNS_PER_DEVICE    (4)
 #define NAME_SIZE 16
@@ -70,8 +70,8 @@ struct qed_sb_sp_info;
 struct qed_mcp_info;
 
 struct qed_rt_data {
-	u32 init_val;
-	bool b_valid;
+	u32	*init_val;
+	bool	*b_valid;
 };
 
 /* The PCI personality is not quite synonymous to protocol ID:
@@ -120,6 +120,10 @@ enum QED_PORT_MODE {
 	QED_PORT_MODE_DE_1X25G
 };
 
+enum qed_dev_cap {
+	QED_DEV_CAP_ETH,
+};
+
 struct qed_hw_info {
 	/* PCI personality */
 	enum qed_pci_personality	personality;
@@ -142,15 +146,13 @@ struct qed_hw_info {
 	u16				ovlan;
 	u32				part_num[4];
 
-	u32				vendor_id;
-	u32				device_id;
-
 	unsigned char			hw_mac_addr[ETH_ALEN];
 
 	struct qed_igu_info		*p_igu_info;
 
 	u32				port_mode;
 	u32				hw_mode;
+	unsigned long		device_capabilities;
 };
 
 struct qed_hw_cid_data {
@@ -267,7 +269,7 @@ struct qed_hwfn {
 	struct qed_hw_info		hw_info;
 
 	/* rt_array (for init-tool) */
-	struct qed_rt_data		*rt_data;
+	struct qed_rt_data		rt_data;
 
 	/* SPQ */
 	struct qed_spq			*p_spq;
@@ -300,6 +302,9 @@ struct qed_hwfn {
 	/* Flag indicating whether interrupts are enabled or not*/
 	bool				b_int_enabled;
 	bool				b_int_requested;
+
+	/* True if the driver requests for the link */
+	bool				b_drv_link_init;
 
 	struct qed_mcp_info		*mcp_info;
 
@@ -350,9 +355,20 @@ struct qed_dev {
 	char	name[NAME_SIZE];
 
 	u8	type;
-#define QED_DEV_TYPE_BB_A0      (0 << 0)
-#define QED_DEV_TYPE_MASK       (0x3)
-#define QED_DEV_TYPE_SHIFT      (0)
+#define QED_DEV_TYPE_BB (0 << 0)
+#define QED_DEV_TYPE_AH BIT(0)
+/* Translate type/revision combo into the proper conditions */
+#define QED_IS_BB(dev)  ((dev)->type == QED_DEV_TYPE_BB)
+#define QED_IS_BB_A0(dev)       (QED_IS_BB(dev) && \
+				 CHIP_REV_IS_A0(dev))
+#define QED_IS_BB_B0(dev)       (QED_IS_BB(dev) && \
+				 CHIP_REV_IS_B0(dev))
+
+#define QED_GET_TYPE(dev)       (QED_IS_BB_A0(dev) ? CHIP_BB_A0 : \
+				 QED_IS_BB_B0(dev) ? CHIP_BB_B0 : CHIP_K2)
+
+	u16	vendor_id;
+	u16	device_id;
 
 	u16	chip_num;
 #define CHIP_NUM_MASK                   0xffff
@@ -361,6 +377,8 @@ struct qed_dev {
 	u16	chip_rev;
 #define CHIP_REV_MASK                   0xf
 #define CHIP_REV_SHIFT                  12
+#define CHIP_REV_IS_A0(_cdev)   (!(_cdev)->chip_rev)
+#define CHIP_REV_IS_B0(_cdev)   ((_cdev)->chip_rev == 1)
 
 	u16				chip_metal;
 #define CHIP_METAL_MASK                 0xff
@@ -375,10 +393,10 @@ struct qed_dev {
 	u8				num_funcs_in_port;
 
 	u8				path_id;
-	enum mf_mode			mf_mode;
-#define IS_MF(_p_hwfn)          (((_p_hwfn)->cdev)->mf_mode != SF)
-#define IS_MF_SI(_p_hwfn)       (((_p_hwfn)->cdev)->mf_mode == MF_NPAR)
-#define IS_MF_SD(_p_hwfn)       (((_p_hwfn)->cdev)->mf_mode == MF_OVLAN)
+	enum qed_mf_mode		mf_mode;
+#define IS_MF_DEFAULT(_p_hwfn)  (((_p_hwfn)->cdev)->mf_mode == QED_MF_DEFAULT)
+#define IS_MF_SI(_p_hwfn)       (((_p_hwfn)->cdev)->mf_mode == QED_MF_NPAR)
+#define IS_MF_SD(_p_hwfn)       (((_p_hwfn)->cdev)->mf_mode == QED_MF_OVLAN)
 
 	int				pcie_width;
 	int				pcie_speed;
@@ -440,11 +458,6 @@ struct qed_dev {
 
 	const struct firmware		*firmware;
 };
-
-#define QED_GET_TYPE(dev)       (((dev)->type & QED_DEV_TYPE_MASK) >> \
-				 QED_DEV_TYPE_SHIFT)
-#define QED_IS_BB_A0(dev)       (QED_GET_TYPE(dev) == QED_DEV_TYPE_BB_A0)
-#define QED_IS_BB(dev)  (QED_IS_BB_A0(dev))
 
 #define NUM_OF_SBS(dev)         MAX_SB_PER_PATH_BB
 #define NUM_OF_ENG_PFS(dev)     MAX_NUM_PFS_BB

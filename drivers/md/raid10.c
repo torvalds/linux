@@ -2664,6 +2664,7 @@ static void handle_write_completed(struct r10conf *conf, struct r10bio *r10_bio)
 		if (fail) {
 			spin_lock_irq(&conf->device_lock);
 			list_add(&r10_bio->retry_list, &conf->bio_end_io_list);
+			conf->nr_queued++;
 			spin_unlock_irq(&conf->device_lock);
 			md_wakeup_thread(conf->mddev->thread);
 		} else {
@@ -2691,8 +2692,10 @@ static void raid10d(struct md_thread *thread)
 		LIST_HEAD(tmp);
 		spin_lock_irqsave(&conf->device_lock, flags);
 		if (!test_bit(MD_CHANGE_PENDING, &mddev->flags)) {
-			list_add(&tmp, &conf->bio_end_io_list);
-			list_del_init(&conf->bio_end_io_list);
+			while (!list_empty(&conf->bio_end_io_list)) {
+				list_move(conf->bio_end_io_list.prev, &tmp);
+				conf->nr_queued--;
+			}
 		}
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 		while (!list_empty(&tmp)) {

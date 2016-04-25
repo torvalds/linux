@@ -212,7 +212,7 @@ static int crypto_kw_decrypt(struct blkcipher_desc *desc,
 			  SEMIBSIZE))
 		ret = -EBADMSG;
 
-	memzero_explicit(&block, sizeof(struct crypto_kw_block));
+	memzero_explicit(block, sizeof(struct crypto_kw_block));
 
 	return ret;
 }
@@ -297,7 +297,7 @@ static int crypto_kw_encrypt(struct blkcipher_desc *desc,
 	/* establish the IV for the caller to pick up */
 	memcpy(desc->info, block->A, SEMIBSIZE);
 
-	memzero_explicit(&block, sizeof(struct crypto_kw_block));
+	memzero_explicit(block, sizeof(struct crypto_kw_block));
 
 	return 0;
 }

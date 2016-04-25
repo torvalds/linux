@@ -4,7 +4,7 @@
  * Copyright (C) 2005 Ralph Metzler <rjkm@metzlerbros.de>
  *                    Metzler Brothers Systementwicklung GbR
  *
- * Copyright (C) 2005 Patrick Boettcher <patrick.boettcher@desy.de>
+ * Copyright (C) 2005 Patrick Boettcher <patrick.boettcher@posteo.de>
  *
  * Thanks to Twinhan who kindly provided hardware and information.
  *

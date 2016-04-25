@@ -146,6 +146,9 @@ __drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
 					    struct drm_connector_state *state);
 void drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
 					  struct drm_connector_state *state);
+void drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
+					u16 *red, u16 *green, u16 *blue,
+					uint32_t start, uint32_t size);
 
 /**
  * drm_atomic_crtc_for_each_plane - iterate over planes currently attached to CRTC

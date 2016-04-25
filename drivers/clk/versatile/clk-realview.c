@@ -56,12 +56,11 @@ void __init realview_clk_init(void __iomem *sysbase, bool is_pb1176)
 	struct clk *clk;
 
 	/* APB clock dummy */
-	clk = clk_register_fixed_rate(NULL, "apb_pclk", NULL, CLK_IS_ROOT, 0);
+	clk = clk_register_fixed_rate(NULL, "apb_pclk", NULL, 0, 0);
 	clk_register_clkdev(clk, "apb_pclk", NULL);
 
 	/* 24 MHz clock */
-	clk = clk_register_fixed_rate(NULL, "clk24mhz", NULL, CLK_IS_ROOT,
-				24000000);
+	clk = clk_register_fixed_rate(NULL, "clk24mhz", NULL, 0, 24000000);
 	clk_register_clkdev(clk, NULL, "dev:uart0");
 	clk_register_clkdev(clk, NULL, "dev:uart1");
 	clk_register_clkdev(clk, NULL, "dev:uart2");
@@ -81,8 +80,7 @@ void __init realview_clk_init(void __iomem *sysbase, bool is_pb1176)
 
 
 	/* 1 MHz clock */
-	clk = clk_register_fixed_rate(NULL, "clk1mhz", NULL, CLK_IS_ROOT,
-				      1000000);
+	clk = clk_register_fixed_rate(NULL, "clk1mhz", NULL, 0, 1000000);
 	clk_register_clkdev(clk, NULL, "sp804");
 
 	/* ICST VCO clock */

@@ -248,6 +248,7 @@ extern int opal_elog_init(void);
 extern void opal_platform_dump_init(void);
 extern void opal_sys_param_init(void);
 extern void opal_msglog_init(void);
+extern void opal_msglog_sysfs_init(void);
 extern int opal_async_comp_init(void);
 extern int opal_sensor_init(void);
 extern int opal_hmi_handler_init(void);
@@ -272,6 +273,8 @@ struct opal_sg_list *opal_vmalloc_to_sg_list(void *vmalloc_addr,
 void opal_free_sg_list(struct opal_sg_list *sg);
 
 extern int opal_error_code(int rc);
+
+ssize_t opal_msglog_copy(char *to, loff_t pos, size_t count);
 
 #endif /* __ASSEMBLY__ */
 

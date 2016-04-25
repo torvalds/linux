@@ -313,12 +313,10 @@ void snd_efw_stream_stop_duplex(struct snd_efw *efw)
 
 void snd_efw_stream_update_duplex(struct snd_efw *efw)
 {
-	if ((cmp_connection_update(&efw->out_conn) < 0) ||
-	    (cmp_connection_update(&efw->in_conn) < 0)) {
-		mutex_lock(&efw->mutex);
+	if (cmp_connection_update(&efw->out_conn) < 0 ||
+	    cmp_connection_update(&efw->in_conn) < 0) {
 		stop_stream(efw, &efw->rx_stream);
 		stop_stream(efw, &efw->tx_stream);
-		mutex_unlock(&efw->mutex);
 	} else {
 		amdtp_stream_update(&efw->rx_stream);
 		amdtp_stream_update(&efw->tx_stream);

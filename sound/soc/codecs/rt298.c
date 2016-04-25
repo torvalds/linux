@@ -1224,7 +1224,12 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 	regmap_write(rt298->regmap, RT298_MISC_CTRL1, 0x0000);
 	regmap_update_bits(rt298->regmap,
 				RT298_WIND_FILTER_CTRL, 0x0082, 0x0082);
-	regmap_update_bits(rt298->regmap, RT298_IRQ_CTRL, 0x2, 0x2);
+
+	regmap_write(rt298->regmap, RT298_UNSOLICITED_INLINE_CMD, 0x81);
+	regmap_write(rt298->regmap, RT298_UNSOLICITED_HP_OUT, 0x82);
+	regmap_write(rt298->regmap, RT298_UNSOLICITED_MIC1, 0x84);
+	regmap_update_bits(rt298->regmap, RT298_IRQ_FLAG_CTRL, 0x2, 0x2);
+
 	rt298->is_hp_in = -1;
 
 	if (rt298->i2c->irq) {

@@ -88,8 +88,6 @@ struct snd_bebob {
 	unsigned int midi_input_ports;
 	unsigned int midi_output_ports;
 
-	/* for bus reset quirk */
-	struct completion bus_reset;
 	bool connected;
 
 	struct amdtp_stream *master;
@@ -97,7 +95,7 @@ struct snd_bebob {
 	struct amdtp_stream rx_stream;
 	struct cmp_connection out_conn;
 	struct cmp_connection in_conn;
-	atomic_t substreams_counter;
+	unsigned int substreams_counter;
 
 	struct snd_bebob_stream_formation
 		tx_stream_formations[SND_BEBOB_STRM_FMT_ENTRIES];
@@ -219,7 +217,6 @@ int snd_bebob_stream_discover(struct snd_bebob *bebob);
 int snd_bebob_stream_init_duplex(struct snd_bebob *bebob);
 int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate);
 void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob);
-void snd_bebob_stream_update_duplex(struct snd_bebob *bebob);
 void snd_bebob_stream_destroy_duplex(struct snd_bebob *bebob);
 
 void snd_bebob_stream_lock_changed(struct snd_bebob *bebob);

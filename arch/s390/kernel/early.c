@@ -448,7 +448,6 @@ void __init startup_init(void)
 	rescue_initrd();
 	clear_bss_section();
 	init_kernel_storage_key();
-	lockdep_init();
 	lockdep_off();
 	setup_lowcore_early();
 	setup_facility_list();

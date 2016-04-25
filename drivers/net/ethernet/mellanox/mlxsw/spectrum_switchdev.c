@@ -311,8 +311,13 @@ static int mlxsw_sp_port_attr_br_ageing_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	unsigned long ageing_jiffies = clock_t_to_jiffies(ageing_clock_t);
 	u32 ageing_time = jiffies_to_msecs(ageing_jiffies) / 1000;
 
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
+	if (switchdev_trans_ph_prepare(trans)) {
+		if (ageing_time < MLXSW_SP_MIN_AGEING_TIME ||
+		    ageing_time > MLXSW_SP_MAX_AGEING_TIME)
+			return -ERANGE;
+		else
+			return 0;
+	}
 
 	return mlxsw_sp_ageing_set(mlxsw_sp, ageing_time);
 }
@@ -370,13 +375,61 @@ static int mlxsw_sp_port_attr_set(struct net_device *dev,
 	return err;
 }
 
-static int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
+static int __mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				    u16 vid)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char spvid_pl[MLXSW_REG_SPVID_LEN];
 
 	mlxsw_reg_spvid_pack(spvid_pl, mlxsw_sp_port->local_port, vid);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvid), spvid_pl);
+}
+
+static int mlxsw_sp_port_allow_untagged_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					    bool allow)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char spaft_pl[MLXSW_REG_SPAFT_LEN];
+
+	mlxsw_reg_spaft_pack(spaft_pl, mlxsw_sp_port->local_port, allow);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spaft), spaft_pl);
+}
+
+int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
+{
+	struct net_device *dev = mlxsw_sp_port->dev;
+	int err;
+
+	if (!vid) {
+		err = mlxsw_sp_port_allow_untagged_set(mlxsw_sp_port, false);
+		if (err) {
+			netdev_err(dev, "Failed to disallow untagged traffic\n");
+			return err;
+		}
+	} else {
+		err = __mlxsw_sp_port_pvid_set(mlxsw_sp_port, vid);
+		if (err) {
+			netdev_err(dev, "Failed to set PVID\n");
+			return err;
+		}
+
+		/* Only allow if not already allowed. */
+		if (!mlxsw_sp_port->pvid) {
+			err = mlxsw_sp_port_allow_untagged_set(mlxsw_sp_port,
+							       true);
+			if (err) {
+				netdev_err(dev, "Failed to allow untagged traffic\n");
+				goto err_port_allow_untagged_set;
+			}
+		}
+	}
+
+	mlxsw_sp_port->pvid = vid;
+	return 0;
+
+err_port_allow_untagged_set:
+	__mlxsw_sp_port_pvid_set(mlxsw_sp_port, mlxsw_sp_port->pvid);
+	return err;
 }
 
 static int mlxsw_sp_fid_create(struct mlxsw_sp *mlxsw_sp, u16 fid)
@@ -540,7 +593,12 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			netdev_err(dev, "Unable to add PVID %d\n", vid_begin);
 			goto err_port_pvid_set;
 		}
-		mlxsw_sp_port->pvid = vid_begin;
+	} else if (!flag_pvid && old_pvid >= vid_begin && old_pvid <= vid_end) {
+		err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, 0);
+		if (err) {
+			netdev_err(dev, "Unable to del PVID\n");
+			goto err_port_pvid_set;
+		}
 	}
 
 	/* Changing activity bits only if HW operation succeded */
@@ -892,19 +950,17 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 		return err;
 	}
 
+	if (init)
+		goto out;
+
 	pvid = mlxsw_sp_port->pvid;
-	if (pvid >= vid_begin && pvid <= vid_end && pvid != 1) {
-		/* Default VLAN is always 1 */
-		err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, 1);
+	if (pvid >= vid_begin && pvid <= vid_end) {
+		err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, 0);
 		if (err) {
 			netdev_err(dev, "Unable to del PVID %d\n", pvid);
 			return err;
 		}
-		mlxsw_sp_port->pvid = 1;
 	}
-
-	if (init)
-		goto out;
 
 	err = __mlxsw_sp_port_flood_set(mlxsw_sp_port, vid_begin, vid_end,
 					false, false);

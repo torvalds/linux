@@ -528,6 +528,7 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 	.ops = &sst_compr_dai_ops,
 	.playback = {
 		.stream_name = "Compress Playback",
+		.channels_min = 1,
 	},
 },
 /* BE CPU  Dais */

@@ -19,7 +19,7 @@
 #include <asm/setup.h>
 #include <asm/processor-flags.h>
 #include <asm/msr-index.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/percpu.h>
 #include <asm/nops.h>
 #include <asm/bootparam.h>
@@ -388,6 +388,12 @@ default_entry:
 	btsl $_EFER_NX, %eax
 	/* Make changes effective */
 	wrmsr
+
+	/*
+	 * And make sure that all the mappings we set up have NX set from
+	 * the beginning.
+	 */
+	orl $(1 << (_PAGE_BIT_NX - 32)), pa(__supported_pte_mask + 4)
 
 enable_paging:
 

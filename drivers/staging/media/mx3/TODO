@@ -1,0 +1,10 @@
+This driver is deprecated: it should become a stand-alone driver instead of
+using the soc-camera framework.
+
+Unless someone is willing to take this on (unlikely with such ancient
+hardware) it is going to be removed from the kernel soon.
+
+Note that trivial patches will not be accepted anymore, only a full conversion.
+
+If you want to convert this driver, please contact the linux-media mailinglist
+(see http://linuxtv.org/lists.php).

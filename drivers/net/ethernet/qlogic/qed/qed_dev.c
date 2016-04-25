@@ -32,6 +32,33 @@
 #include "qed_sp.h"
 
 /* API common to all protocols */
+enum BAR_ID {
+	BAR_ID_0,       /* used for GRC */
+	BAR_ID_1        /* Used for doorbells */
+};
+
+static u32 qed_hw_bar_size(struct qed_hwfn	*p_hwfn,
+			   enum BAR_ID		bar_id)
+{
+	u32	bar_reg = (bar_id == BAR_ID_0 ?
+			   PGLUE_B_REG_PF_BAR0_SIZE : PGLUE_B_REG_PF_BAR1_SIZE);
+	u32	val = qed_rd(p_hwfn, p_hwfn->p_main_ptt, bar_reg);
+
+	if (val)
+		return 1 << (val + 15);
+
+	/* Old MFW initialized above registered only conditionally */
+	if (p_hwfn->cdev->num_hwfns > 1) {
+		DP_INFO(p_hwfn,
+			"BAR size not configured. Assuming BAR size of 256kB for GRC and 512kB for DB\n");
+			return BAR_ID_0 ? 256 * 1024 : 512 * 1024;
+	} else {
+		DP_INFO(p_hwfn,
+			"BAR size not configured. Assuming BAR size of 512kB for GRC and 512kB for DB\n");
+			return 512 * 1024;
+	}
+}
+
 void qed_init_dp(struct qed_dev *cdev,
 		 u32 dp_module, u8 dp_level)
 {
@@ -134,17 +161,17 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 	/* PQs will be arranged as follows: First per-TC PQ then pure-LB quete.
 	 */
 	qm_info->qm_pq_params = kzalloc(sizeof(*qm_info->qm_pq_params) *
-					num_pqs, GFP_ATOMIC);
+					num_pqs, GFP_KERNEL);
 	if (!qm_info->qm_pq_params)
 		goto alloc_err;
 
 	qm_info->qm_vport_params = kzalloc(sizeof(*qm_info->qm_vport_params) *
-					   num_vports, GFP_ATOMIC);
+					   num_vports, GFP_KERNEL);
 	if (!qm_info->qm_vport_params)
 		goto alloc_err;
 
 	qm_info->qm_port_params = kzalloc(sizeof(*qm_info->qm_port_params) *
-					  MAX_NUM_PORTS, GFP_ATOMIC);
+					  MAX_NUM_PORTS, GFP_KERNEL);
 	if (!qm_info->qm_port_params)
 		goto alloc_err;
 
@@ -341,11 +368,6 @@ void qed_resc_setup(struct qed_dev *cdev)
 	}
 }
 
-#define FINAL_CLEANUP_CMD_OFFSET        (0)
-#define FINAL_CLEANUP_CMD (0x1)
-#define FINAL_CLEANUP_VALID_OFFSET      (6)
-#define FINAL_CLEANUP_VFPF_ID_SHIFT     (7)
-#define FINAL_CLEANUP_COMP (0x2)
 #define FINAL_CLEANUP_POLL_CNT          (100)
 #define FINAL_CLEANUP_POLL_TIME         (10)
 int qed_final_cleanup(struct qed_hwfn *p_hwfn,
@@ -355,12 +377,14 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
 	u32 command = 0, addr, count = FINAL_CLEANUP_POLL_CNT;
 	int rc = -EBUSY;
 
-	addr = GTT_BAR0_MAP_REG_USDM_RAM + USTORM_FLR_FINAL_ACK_OFFSET;
+	addr = GTT_BAR0_MAP_REG_USDM_RAM +
+		USTORM_FLR_FINAL_ACK_OFFSET(p_hwfn->rel_pf_id);
 
-	command |= FINAL_CLEANUP_CMD << FINAL_CLEANUP_CMD_OFFSET;
-	command |= 1 << FINAL_CLEANUP_VALID_OFFSET;
-	command |= id << FINAL_CLEANUP_VFPF_ID_SHIFT;
-	command |= FINAL_CLEANUP_COMP << SDM_OP_GEN_COMP_TYPE_SHIFT;
+	command |= X_FINAL_CLEANUP_AGG_INT <<
+		SDM_AGG_INT_COMP_PARAMS_AGG_INT_INDEX_SHIFT;
+	command |= 1 << SDM_AGG_INT_COMP_PARAMS_AGG_VECTOR_ENABLE_SHIFT;
+	command |= id << SDM_AGG_INT_COMP_PARAMS_AGG_VECTOR_BIT_SHIFT;
+	command |= SDM_COMP_TYPE_AGG_INT << SDM_OP_GEN_COMP_TYPE_SHIFT;
 
 	/* Make sure notification is not set before initiating final cleanup */
 	if (REG_RD(p_hwfn, addr)) {
@@ -396,7 +420,7 @@ static void qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 {
 	int hw_mode = 0;
 
-	hw_mode = (1 << MODE_BB_A0);
+	hw_mode = (1 << MODE_BB_B0);
 
 	switch (p_hwfn->cdev->num_ports_in_engines) {
 	case 1:
@@ -415,18 +439,16 @@ static void qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 	}
 
 	switch (p_hwfn->cdev->mf_mode) {
-	case SF:
-		hw_mode |= 1 << MODE_SF;
-		break;
-	case MF_OVLAN:
-		hw_mode |= 1 << MODE_MF_SD;
-		break;
-	case MF_NPAR:
+	case QED_MF_DEFAULT:
+	case QED_MF_NPAR:
 		hw_mode |= 1 << MODE_MF_SI;
 		break;
+	case QED_MF_OVLAN:
+		hw_mode |= 1 << MODE_MF_SD;
+		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unsupported MF mode, init as SF\n");
-		hw_mode |= 1 << MODE_SF;
+		DP_NOTICE(p_hwfn, "Unsupported MF mode, init as DEFAULT\n");
+		hw_mode |= 1 << MODE_MF_SI;
 	}
 
 	hw_mode |= 1 << MODE_ASIC;
@@ -655,10 +677,8 @@ int qed_hw_init(struct qed_dev *cdev,
 		bool allow_npar_tx_switch,
 		const u8 *bin_fw_data)
 {
-	struct qed_storm_stats *p_stat;
-	u32 load_code, param, *p_address;
+	u32 load_code, param;
 	int rc, mfw_rc, i;
-	u8 fw_vport = 0;
 
 	rc = qed_init_fw_data(cdev, bin_fw_data);
 	if (rc != 0)
@@ -666,10 +686,6 @@ int qed_hw_init(struct qed_dev *cdev,
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
-
-		rc = qed_fw_vport(p_hwfn, 0, &fw_vport);
-		if (rc != 0)
-			return rc;
 
 		/* Enable DMAE in PXP */
 		rc = qed_change_pci_hwfn(p_hwfn, p_hwfn->p_main_ptt, true);
@@ -734,35 +750,60 @@ int qed_hw_init(struct qed_dev *cdev,
 		}
 
 		p_hwfn->hw_init_done = true;
-
-		/* init PF stats */
-		p_stat = &p_hwfn->storm_stats;
-		p_stat->mstats.address = BAR0_MAP_REG_MSDM_RAM +
-					 MSTORM_QUEUE_STAT_OFFSET(fw_vport);
-		p_stat->mstats.len = sizeof(struct eth_mstorm_per_queue_stat);
-
-		p_stat->ustats.address = BAR0_MAP_REG_USDM_RAM +
-					 USTORM_QUEUE_STAT_OFFSET(fw_vport);
-		p_stat->ustats.len = sizeof(struct eth_ustorm_per_queue_stat);
-
-		p_stat->pstats.address = BAR0_MAP_REG_PSDM_RAM +
-					 PSTORM_QUEUE_STAT_OFFSET(fw_vport);
-		p_stat->pstats.len = sizeof(struct eth_pstorm_per_queue_stat);
-
-		p_address = &p_stat->tstats.address;
-		*p_address = BAR0_MAP_REG_TSDM_RAM +
-			     TSTORM_PORT_STAT_OFFSET(MFW_PORT(p_hwfn));
-		p_stat->tstats.len = sizeof(struct tstorm_per_port_stat);
 	}
 
 	return 0;
 }
 
 #define QED_HW_STOP_RETRY_LIMIT (10)
+static inline void qed_hw_timers_stop(struct qed_dev *cdev,
+				      struct qed_hwfn *p_hwfn,
+				      struct qed_ptt *p_ptt)
+{
+	int i;
+
+	/* close timers */
+	qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_CONN, 0x0);
+	qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_TASK, 0x0);
+
+	for (i = 0; i < QED_HW_STOP_RETRY_LIMIT; i++) {
+		if ((!qed_rd(p_hwfn, p_ptt,
+			     TM_REG_PF_SCAN_ACTIVE_CONN)) &&
+		    (!qed_rd(p_hwfn, p_ptt,
+			     TM_REG_PF_SCAN_ACTIVE_TASK)))
+			break;
+
+		/* Dependent on number of connection/tasks, possibly
+		 * 1ms sleep is required between polls
+		 */
+		usleep_range(1000, 2000);
+	}
+
+	if (i < QED_HW_STOP_RETRY_LIMIT)
+		return;
+
+	DP_NOTICE(p_hwfn,
+		  "Timers linear scans are not over [Connection %02x Tasks %02x]\n",
+		  (u8)qed_rd(p_hwfn, p_ptt, TM_REG_PF_SCAN_ACTIVE_CONN),
+		  (u8)qed_rd(p_hwfn, p_ptt, TM_REG_PF_SCAN_ACTIVE_TASK));
+}
+
+void qed_hw_timers_stop_all(struct qed_dev *cdev)
+{
+	int j;
+
+	for_each_hwfn(cdev, j) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[j];
+		struct qed_ptt *p_ptt = p_hwfn->p_main_ptt;
+
+		qed_hw_timers_stop(cdev, p_hwfn, p_ptt);
+	}
+}
+
 int qed_hw_stop(struct qed_dev *cdev)
 {
 	int rc = 0, t_rc;
-	int i, j;
+	int j;
 
 	for_each_hwfn(cdev, j) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[j];
@@ -775,7 +816,8 @@ int qed_hw_stop(struct qed_dev *cdev)
 
 		rc = qed_sp_pf_stop(p_hwfn);
 		if (rc)
-			return rc;
+			DP_NOTICE(p_hwfn,
+				  "Failed to close PF against FW. Continue to stop HW to prevent illegal host access by the device\n");
 
 		qed_wr(p_hwfn, p_ptt,
 		       NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x1);
@@ -786,24 +828,7 @@ int qed_hw_stop(struct qed_dev *cdev)
 		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_ROCE, 0x0);
 		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_OPENFLOW, 0x0);
 
-		qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_CONN, 0x0);
-		qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_TASK, 0x0);
-		for (i = 0; i < QED_HW_STOP_RETRY_LIMIT; i++) {
-			if ((!qed_rd(p_hwfn, p_ptt,
-				     TM_REG_PF_SCAN_ACTIVE_CONN)) &&
-			    (!qed_rd(p_hwfn, p_ptt,
-				     TM_REG_PF_SCAN_ACTIVE_TASK)))
-				break;
-
-			usleep_range(1000, 2000);
-		}
-		if (i == QED_HW_STOP_RETRY_LIMIT)
-			DP_NOTICE(p_hwfn,
-				  "Timers linear scans are not over [Connection %02x Tasks %02x]\n",
-				  (u8)qed_rd(p_hwfn, p_ptt,
-					     TM_REG_PF_SCAN_ACTIVE_CONN),
-				  (u8)qed_rd(p_hwfn, p_ptt,
-					     TM_REG_PF_SCAN_ACTIVE_TASK));
+		qed_hw_timers_stop(cdev, p_hwfn, p_ptt);
 
 		/* Disable Attention Generation */
 		qed_int_igu_disable_int(p_hwfn, p_ptt);
@@ -832,7 +857,7 @@ int qed_hw_stop(struct qed_dev *cdev)
 
 void qed_hw_stop_fastpath(struct qed_dev *cdev)
 {
-	int i, j;
+	int j;
 
 	for_each_hwfn(cdev, j) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[j];
@@ -850,25 +875,6 @@ void qed_hw_stop_fastpath(struct qed_dev *cdev)
 		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_FCOE, 0x0);
 		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_ROCE, 0x0);
 		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_OPENFLOW, 0x0);
-
-		qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_CONN, 0x0);
-		qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_TASK, 0x0);
-		for (i = 0; i < QED_HW_STOP_RETRY_LIMIT; i++) {
-			if ((!qed_rd(p_hwfn, p_ptt,
-				     TM_REG_PF_SCAN_ACTIVE_CONN)) &&
-			    (!qed_rd(p_hwfn, p_ptt,
-				     TM_REG_PF_SCAN_ACTIVE_TASK)))
-				break;
-
-			usleep_range(1000, 2000);
-		}
-		if (i == QED_HW_STOP_RETRY_LIMIT)
-			DP_NOTICE(p_hwfn,
-				  "Timers linear scans are not over [Connection %02x Tasks %02x]\n",
-				  (u8)qed_rd(p_hwfn, p_ptt,
-					     TM_REG_PF_SCAN_ACTIVE_CONN),
-				  (u8)qed_rd(p_hwfn, p_ptt,
-					     TM_REG_PF_SCAN_ACTIVE_TASK));
 
 		qed_int_igu_init_pure_rt(p_hwfn, p_ptt, false, false);
 
@@ -954,18 +960,8 @@ static void qed_hw_hwfn_free(struct qed_hwfn *p_hwfn)
 }
 
 /* Setup bar access */
-static int qed_hw_hwfn_prepare(struct qed_hwfn *p_hwfn)
+static void qed_hw_hwfn_prepare(struct qed_hwfn *p_hwfn)
 {
-	int rc;
-
-	/* Allocate PTT pool */
-	rc = qed_ptt_pool_alloc(p_hwfn);
-	if (rc)
-		return rc;
-
-	/* Allocate the main PTT */
-	p_hwfn->p_main_ptt = qed_get_reserved_ptt(p_hwfn, RESERVED_PTT_MAIN);
-
 	/* clear indirect access */
 	qed_wr(p_hwfn, p_hwfn->p_main_ptt, PGLUE_B_REG_PGL_ADDR_88_F0, 0);
 	qed_wr(p_hwfn, p_hwfn->p_main_ptt, PGLUE_B_REG_PGL_ADDR_8C_F0, 0);
@@ -980,8 +976,6 @@ static int qed_hw_hwfn_prepare(struct qed_hwfn *p_hwfn)
 	/* enable internal target-read */
 	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
 	       PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ, 1);
-
-	return 0;
 }
 
 static void get_function_id(struct qed_hwfn *p_hwfn)
@@ -1016,14 +1010,17 @@ static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 {
 	u32 *resc_start = p_hwfn->hw_info.resc_start;
 	u32 *resc_num = p_hwfn->hw_info.resc_num;
+	struct qed_sb_cnt_info sb_cnt_info;
 	int num_funcs, i;
 
-	num_funcs = IS_MF(p_hwfn) ? MAX_NUM_PFS_BB
-				  : p_hwfn->cdev->num_ports_in_engines;
+	num_funcs = MAX_NUM_PFS_BB;
+
+	memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
+	qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
 
 	resc_num[QED_SB] = min_t(u32,
 				 (MAX_SB_PER_PATH_BB / num_funcs),
-				 qed_int_get_num_sbs(p_hwfn, NULL));
+				 sb_cnt_info.sb_cnt);
 	resc_num[QED_L2_QUEUE] = MAX_NUM_L2_QUEUES_BB / num_funcs;
 	resc_num[QED_VPORT] = MAX_NUM_VPORTS_BB / num_funcs;
 	resc_num[QED_RSS_ENG] = ETH_RSS_ENGINE_NUM_BB / num_funcs;
@@ -1071,7 +1068,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 			       struct qed_ptt *p_ptt)
 {
 	u32 nvm_cfg1_offset, mf_mode, addr, generic_cont0, core_cfg;
-	u32 port_cfg_addr, link_temp, val, nvm_cfg_addr;
+	u32 port_cfg_addr, link_temp, nvm_cfg_addr, device_capabilities;
 	struct qed_mcp_link_params *link;
 
 	/* Read global nvm_cfg address */
@@ -1085,13 +1082,6 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 
 	/* Read nvm_cfg1  (Notice this is just offset, and not offsize (TBD) */
 	nvm_cfg1_offset = qed_rd(p_hwfn, p_ptt, nvm_cfg_addr + 4);
-
-	/* Read Vendor Id / Device Id */
-	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
-	       offsetof(struct nvm_cfg1, glob) +
-	       offsetof(struct nvm_cfg1_glob, pci_id);
-	p_hwfn->hw_info.vendor_id = qed_rd(p_hwfn, p_ptt, addr) &
-				    NVM_CFG1_GLOB_VENDOR_ID_MASK;
 
 	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
 	       offsetof(struct nvm_cfg1, glob) +
@@ -1132,21 +1122,6 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 		DP_NOTICE(p_hwfn, "Unknown port mode in 0x%08x\n",
 			  core_cfg);
 		break;
-	}
-
-	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
-	       offsetof(struct nvm_cfg1, func[MCP_PF_ID(p_hwfn)]) +
-	       offsetof(struct nvm_cfg1_func, device_id);
-	val = qed_rd(p_hwfn, p_ptt, addr);
-
-	if (IS_MF(p_hwfn)) {
-		p_hwfn->hw_info.device_id =
-			(val & NVM_CFG1_FUNC_MF_VENDOR_DEVICE_ID_MASK) >>
-			NVM_CFG1_FUNC_MF_VENDOR_DEVICE_ID_OFFSET;
-	} else {
-		p_hwfn->hw_info.device_id =
-			(val & NVM_CFG1_FUNC_VENDOR_DEVICE_ID_MASK) >>
-			NVM_CFG1_FUNC_VENDOR_DEVICE_ID_OFFSET;
 	}
 
 	/* Read default link configuration */
@@ -1220,17 +1195,27 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 
 	switch (mf_mode) {
 	case NVM_CFG1_GLOB_MF_MODE_MF_ALLOWED:
-		p_hwfn->cdev->mf_mode = MF_OVLAN;
+		p_hwfn->cdev->mf_mode = QED_MF_OVLAN;
 		break;
 	case NVM_CFG1_GLOB_MF_MODE_NPAR1_0:
-		p_hwfn->cdev->mf_mode = MF_NPAR;
+		p_hwfn->cdev->mf_mode = QED_MF_NPAR;
 		break;
-	case NVM_CFG1_GLOB_MF_MODE_FORCED_SF:
-		p_hwfn->cdev->mf_mode = SF;
+	case NVM_CFG1_GLOB_MF_MODE_DEFAULT:
+		p_hwfn->cdev->mf_mode = QED_MF_DEFAULT;
 		break;
 	}
 	DP_INFO(p_hwfn, "Multi function mode is %08x\n",
 		p_hwfn->cdev->mf_mode);
+
+	/* Read Multi-function information from shmem */
+	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
+		offsetof(struct nvm_cfg1, glob) +
+		offsetof(struct nvm_cfg1_glob, device_capabilities);
+
+	device_capabilities = qed_rd(p_hwfn, p_ptt, addr);
+	if (device_capabilities & NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ETHERNET)
+		__set_bit(QED_DEV_CAP_ETH,
+			  &p_hwfn->hw_info.device_capabilities);
 
 	return qed_mcp_fill_shmem_func_info(p_hwfn, p_ptt);
 }
@@ -1291,31 +1276,38 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-static void qed_get_dev_info(struct qed_dev *cdev)
+static int qed_get_dev_info(struct qed_dev *cdev)
 {
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
 	u32 tmp;
 
-	cdev->chip_num = (u16)qed_rd(cdev->hwfns, cdev->hwfns[0].p_main_ptt,
+	/* Read Vendor Id / Device Id */
+	pci_read_config_word(cdev->pdev, PCI_VENDOR_ID,
+			     &cdev->vendor_id);
+	pci_read_config_word(cdev->pdev, PCI_DEVICE_ID,
+			     &cdev->device_id);
+	cdev->chip_num = (u16)qed_rd(p_hwfn, p_hwfn->p_main_ptt,
 				     MISCS_REG_CHIP_NUM);
-	cdev->chip_rev = (u16)qed_rd(cdev->hwfns, cdev->hwfns[0].p_main_ptt,
+	cdev->chip_rev = (u16)qed_rd(p_hwfn, p_hwfn->p_main_ptt,
 				     MISCS_REG_CHIP_REV);
 	MASK_FIELD(CHIP_REV, cdev->chip_rev);
 
+	cdev->type = QED_DEV_TYPE_BB;
 	/* Learn number of HW-functions */
-	tmp = qed_rd(cdev->hwfns, cdev->hwfns[0].p_main_ptt,
+	tmp = qed_rd(p_hwfn, p_hwfn->p_main_ptt,
 		     MISCS_REG_CMT_ENABLED_FOR_PAIR);
 
-	if (tmp & (1 << cdev->hwfns[0].rel_pf_id)) {
+	if (tmp & (1 << p_hwfn->rel_pf_id)) {
 		DP_NOTICE(cdev->hwfns, "device in CMT mode\n");
 		cdev->num_hwfns = 2;
 	} else {
 		cdev->num_hwfns = 1;
 	}
 
-	cdev->chip_bond_id = qed_rd(cdev->hwfns, cdev->hwfns[0].p_main_ptt,
+	cdev->chip_bond_id = qed_rd(p_hwfn, p_hwfn->p_main_ptt,
 				    MISCS_REG_CHIP_TEST_REG) >> 4;
 	MASK_FIELD(CHIP_BOND_ID, cdev->chip_bond_id);
-	cdev->chip_metal = (u16)qed_rd(cdev->hwfns, cdev->hwfns[0].p_main_ptt,
+	cdev->chip_metal = (u16)qed_rd(p_hwfn, p_hwfn->p_main_ptt,
 				       MISCS_REG_CHIP_METAL);
 	MASK_FIELD(CHIP_METAL, cdev->chip_metal);
 
@@ -1323,6 +1315,14 @@ static void qed_get_dev_info(struct qed_dev *cdev)
 		"Chip details - Num: %04x Rev: %04x Bond id: %04x Metal: %04x\n",
 		cdev->chip_num, cdev->chip_rev,
 		cdev->chip_bond_id, cdev->chip_metal);
+
+	if (QED_IS_BB(cdev) && CHIP_REV_IS_A0(cdev)) {
+		DP_NOTICE(cdev->hwfns,
+			  "The chip type/rev (BB A0) is not supported!\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
@@ -1345,15 +1345,24 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 
 	get_function_id(p_hwfn);
 
-	rc = qed_hw_hwfn_prepare(p_hwfn);
+	/* Allocate PTT pool */
+	rc = qed_ptt_pool_alloc(p_hwfn);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "Failed to prepare hwfn's hw\n");
 		goto err0;
 	}
 
+	/* Allocate the main PTT */
+	p_hwfn->p_main_ptt = qed_get_reserved_ptt(p_hwfn, RESERVED_PTT_MAIN);
+
 	/* First hwfn learns basic information, e.g., number of hwfns */
-	if (!p_hwfn->my_id)
-		qed_get_dev_info(p_hwfn->cdev);
+	if (!p_hwfn->my_id) {
+		rc = qed_get_dev_info(p_hwfn->cdev);
+		if (rc != 0)
+			goto err1;
+	}
+
+	qed_hw_hwfn_prepare(p_hwfn);
 
 	/* Initialize MCP structure */
 	rc = qed_mcp_cmd_init(p_hwfn, p_hwfn->p_main_ptt);
@@ -1385,17 +1394,6 @@ err0:
 	return rc;
 }
 
-static u32 qed_hw_bar_size(struct qed_hwfn	*p_hwfn,
-			   u8			bar_id)
-{
-	u32 bar_reg = (bar_id == 0 ? PGLUE_B_REG_PF_BAR0_SIZE
-		       : PGLUE_B_REG_PF_BAR1_SIZE);
-	u32 val = qed_rd(p_hwfn, p_hwfn->p_main_ptt, bar_reg);
-
-	/* Get the BAR size(in KB) from hardware given val */
-	return 1 << (val + 15);
-}
-
 int qed_hw_prepare(struct qed_dev *cdev,
 		   int personality)
 {
@@ -1420,11 +1418,11 @@ int qed_hw_prepare(struct qed_dev *cdev,
 		u8 __iomem *addr;
 
 		/* adjust bar offset for second engine */
-		addr = cdev->regview + qed_hw_bar_size(p_hwfn, 0) / 2;
+		addr = cdev->regview + qed_hw_bar_size(p_hwfn, BAR_ID_0) / 2;
 		p_regview = addr;
 
 		/* adjust doorbell bar offset for second engine */
-		addr = cdev->doorbells + qed_hw_bar_size(p_hwfn, 1) / 2;
+		addr = cdev->doorbells + qed_hw_bar_size(p_hwfn, BAR_ID_1) / 2;
 		p_doorbell = addr;
 
 		/* prepare second hw function */
@@ -1534,223 +1532,6 @@ void qed_chain_free(struct qed_dev *cdev,
 	dma_free_coherent(&cdev->pdev->dev, size,
 			  p_chain->p_virt_addr,
 			  p_chain->p_phys_addr);
-}
-
-static void __qed_get_vport_stats(struct qed_dev *cdev,
-				  struct qed_eth_stats  *stats)
-{
-	int i, j;
-
-	memset(stats, 0, sizeof(*stats));
-
-	for_each_hwfn(cdev, i) {
-		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
-		struct eth_mstorm_per_queue_stat mstats;
-		struct eth_ustorm_per_queue_stat ustats;
-		struct eth_pstorm_per_queue_stat pstats;
-		struct tstorm_per_port_stat tstats;
-		struct port_stats port_stats;
-		struct qed_ptt *p_ptt = qed_ptt_acquire(p_hwfn);
-
-		if (!p_ptt) {
-			DP_ERR(p_hwfn, "Failed to acquire ptt\n");
-			continue;
-		}
-
-		memset(&mstats, 0, sizeof(mstats));
-		qed_memcpy_from(p_hwfn, p_ptt, &mstats,
-				p_hwfn->storm_stats.mstats.address,
-				p_hwfn->storm_stats.mstats.len);
-
-		memset(&ustats, 0, sizeof(ustats));
-		qed_memcpy_from(p_hwfn, p_ptt, &ustats,
-				p_hwfn->storm_stats.ustats.address,
-				p_hwfn->storm_stats.ustats.len);
-
-		memset(&pstats, 0, sizeof(pstats));
-		qed_memcpy_from(p_hwfn, p_ptt, &pstats,
-				p_hwfn->storm_stats.pstats.address,
-				p_hwfn->storm_stats.pstats.len);
-
-		memset(&tstats, 0, sizeof(tstats));
-		qed_memcpy_from(p_hwfn, p_ptt, &tstats,
-				p_hwfn->storm_stats.tstats.address,
-				p_hwfn->storm_stats.tstats.len);
-
-		memset(&port_stats, 0, sizeof(port_stats));
-
-		if (p_hwfn->mcp_info)
-			qed_memcpy_from(p_hwfn, p_ptt, &port_stats,
-					p_hwfn->mcp_info->port_addr +
-					offsetof(struct public_port, stats),
-					sizeof(port_stats));
-		qed_ptt_release(p_hwfn, p_ptt);
-
-		stats->no_buff_discards +=
-			HILO_64_REGPAIR(mstats.no_buff_discard);
-		stats->packet_too_big_discard +=
-			HILO_64_REGPAIR(mstats.packet_too_big_discard);
-		stats->ttl0_discard +=
-			HILO_64_REGPAIR(mstats.ttl0_discard);
-		stats->tpa_coalesced_pkts +=
-			HILO_64_REGPAIR(mstats.tpa_coalesced_pkts);
-		stats->tpa_coalesced_events +=
-			HILO_64_REGPAIR(mstats.tpa_coalesced_events);
-		stats->tpa_aborts_num +=
-			HILO_64_REGPAIR(mstats.tpa_aborts_num);
-		stats->tpa_coalesced_bytes +=
-			HILO_64_REGPAIR(mstats.tpa_coalesced_bytes);
-
-		stats->rx_ucast_bytes +=
-			HILO_64_REGPAIR(ustats.rcv_ucast_bytes);
-		stats->rx_mcast_bytes +=
-			HILO_64_REGPAIR(ustats.rcv_mcast_bytes);
-		stats->rx_bcast_bytes +=
-			HILO_64_REGPAIR(ustats.rcv_bcast_bytes);
-		stats->rx_ucast_pkts +=
-			HILO_64_REGPAIR(ustats.rcv_ucast_pkts);
-		stats->rx_mcast_pkts +=
-			HILO_64_REGPAIR(ustats.rcv_mcast_pkts);
-		stats->rx_bcast_pkts +=
-			HILO_64_REGPAIR(ustats.rcv_bcast_pkts);
-
-		stats->mftag_filter_discards +=
-			HILO_64_REGPAIR(tstats.mftag_filter_discard);
-		stats->mac_filter_discards +=
-			HILO_64_REGPAIR(tstats.eth_mac_filter_discard);
-
-		stats->tx_ucast_bytes +=
-			HILO_64_REGPAIR(pstats.sent_ucast_bytes);
-		stats->tx_mcast_bytes +=
-			HILO_64_REGPAIR(pstats.sent_mcast_bytes);
-		stats->tx_bcast_bytes +=
-			HILO_64_REGPAIR(pstats.sent_bcast_bytes);
-		stats->tx_ucast_pkts +=
-			HILO_64_REGPAIR(pstats.sent_ucast_pkts);
-		stats->tx_mcast_pkts +=
-			HILO_64_REGPAIR(pstats.sent_mcast_pkts);
-		stats->tx_bcast_pkts +=
-			HILO_64_REGPAIR(pstats.sent_bcast_pkts);
-		stats->tx_err_drop_pkts +=
-			HILO_64_REGPAIR(pstats.error_drop_pkts);
-		stats->rx_64_byte_packets       += port_stats.pmm.r64;
-		stats->rx_127_byte_packets      += port_stats.pmm.r127;
-		stats->rx_255_byte_packets      += port_stats.pmm.r255;
-		stats->rx_511_byte_packets      += port_stats.pmm.r511;
-		stats->rx_1023_byte_packets     += port_stats.pmm.r1023;
-		stats->rx_1518_byte_packets     += port_stats.pmm.r1518;
-		stats->rx_1522_byte_packets     += port_stats.pmm.r1522;
-		stats->rx_2047_byte_packets     += port_stats.pmm.r2047;
-		stats->rx_4095_byte_packets     += port_stats.pmm.r4095;
-		stats->rx_9216_byte_packets     += port_stats.pmm.r9216;
-		stats->rx_16383_byte_packets    += port_stats.pmm.r16383;
-		stats->rx_crc_errors	    += port_stats.pmm.rfcs;
-		stats->rx_mac_crtl_frames       += port_stats.pmm.rxcf;
-		stats->rx_pause_frames	  += port_stats.pmm.rxpf;
-		stats->rx_pfc_frames	    += port_stats.pmm.rxpp;
-		stats->rx_align_errors	  += port_stats.pmm.raln;
-		stats->rx_carrier_errors	+= port_stats.pmm.rfcr;
-		stats->rx_oversize_packets      += port_stats.pmm.rovr;
-		stats->rx_jabbers	       += port_stats.pmm.rjbr;
-		stats->rx_undersize_packets     += port_stats.pmm.rund;
-		stats->rx_fragments	     += port_stats.pmm.rfrg;
-		stats->tx_64_byte_packets       += port_stats.pmm.t64;
-		stats->tx_65_to_127_byte_packets += port_stats.pmm.t127;
-		stats->tx_128_to_255_byte_packets += port_stats.pmm.t255;
-		stats->tx_256_to_511_byte_packets  += port_stats.pmm.t511;
-		stats->tx_512_to_1023_byte_packets += port_stats.pmm.t1023;
-		stats->tx_1024_to_1518_byte_packets += port_stats.pmm.t1518;
-		stats->tx_1519_to_2047_byte_packets += port_stats.pmm.t2047;
-		stats->tx_2048_to_4095_byte_packets += port_stats.pmm.t4095;
-		stats->tx_4096_to_9216_byte_packets += port_stats.pmm.t9216;
-		stats->tx_9217_to_16383_byte_packets += port_stats.pmm.t16383;
-		stats->tx_pause_frames	  += port_stats.pmm.txpf;
-		stats->tx_pfc_frames	    += port_stats.pmm.txpp;
-		stats->tx_lpi_entry_count       += port_stats.pmm.tlpiec;
-		stats->tx_total_collisions      += port_stats.pmm.tncl;
-		stats->rx_mac_bytes	     += port_stats.pmm.rbyte;
-		stats->rx_mac_uc_packets	+= port_stats.pmm.rxuca;
-		stats->rx_mac_mc_packets	+= port_stats.pmm.rxmca;
-		stats->rx_mac_bc_packets	+= port_stats.pmm.rxbca;
-		stats->rx_mac_frames_ok	 += port_stats.pmm.rxpok;
-		stats->tx_mac_bytes	     += port_stats.pmm.tbyte;
-		stats->tx_mac_uc_packets	+= port_stats.pmm.txuca;
-		stats->tx_mac_mc_packets	+= port_stats.pmm.txmca;
-		stats->tx_mac_bc_packets	+= port_stats.pmm.txbca;
-		stats->tx_mac_ctrl_frames       += port_stats.pmm.txcf;
-
-		for (j = 0; j < 8; j++) {
-			stats->brb_truncates += port_stats.brb.brb_truncate[j];
-			stats->brb_discards += port_stats.brb.brb_discard[j];
-		}
-	}
-}
-
-void qed_get_vport_stats(struct qed_dev *cdev,
-			 struct qed_eth_stats *stats)
-{
-	u32 i;
-
-	if (!cdev) {
-		memset(stats, 0, sizeof(*stats));
-		return;
-	}
-
-	__qed_get_vport_stats(cdev, stats);
-
-	if (!cdev->reset_stats)
-		return;
-
-	/* Reduce the statistics baseline */
-	for (i = 0; i < sizeof(struct qed_eth_stats) / sizeof(u64); i++)
-		((u64 *)stats)[i] -= ((u64 *)cdev->reset_stats)[i];
-}
-
-/* zeroes V-PORT specific portion of stats (Port stats remains untouched) */
-void qed_reset_vport_stats(struct qed_dev *cdev)
-{
-	int i;
-
-	for_each_hwfn(cdev, i) {
-		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
-		struct eth_mstorm_per_queue_stat mstats;
-		struct eth_ustorm_per_queue_stat ustats;
-		struct eth_pstorm_per_queue_stat pstats;
-		struct qed_ptt *p_ptt = qed_ptt_acquire(p_hwfn);
-
-		if (!p_ptt) {
-			DP_ERR(p_hwfn, "Failed to acquire ptt\n");
-			continue;
-		}
-
-		memset(&mstats, 0, sizeof(mstats));
-		qed_memcpy_to(p_hwfn, p_ptt,
-			      p_hwfn->storm_stats.mstats.address,
-			      &mstats,
-			      p_hwfn->storm_stats.mstats.len);
-
-		memset(&ustats, 0, sizeof(ustats));
-		qed_memcpy_to(p_hwfn, p_ptt,
-			      p_hwfn->storm_stats.ustats.address,
-			      &ustats,
-			      p_hwfn->storm_stats.ustats.len);
-
-		memset(&pstats, 0, sizeof(pstats));
-		qed_memcpy_to(p_hwfn, p_ptt,
-			      p_hwfn->storm_stats.pstats.address,
-			      &pstats,
-			      p_hwfn->storm_stats.pstats.len);
-
-		qed_ptt_release(p_hwfn, p_ptt);
-	}
-
-	/* PORT statistics are not necessarily reset, so we need to
-	 * read and create a baseline for future statistics.
-	 */
-	if (!cdev->reset_stats)
-		DP_INFO(cdev, "Reset stats not allocated\n");
-	else
-		__qed_get_vport_stats(cdev, cdev->reset_stats);
 }
 
 int qed_fw_l2_queue(struct qed_hwfn *p_hwfn,

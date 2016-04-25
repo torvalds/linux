@@ -996,11 +996,13 @@ TRACE_EVENT(kvm_enter_smm,
  * Tracepoint for VT-d posted-interrupts.
  */
 TRACE_EVENT(kvm_pi_irte_update,
-	TP_PROTO(unsigned int vcpu_id, unsigned int gsi,
-		 unsigned int gvec, u64 pi_desc_addr, bool set),
-	TP_ARGS(vcpu_id, gsi, gvec, pi_desc_addr, set),
+	TP_PROTO(unsigned int host_irq, unsigned int vcpu_id,
+		 unsigned int gsi, unsigned int gvec,
+		 u64 pi_desc_addr, bool set),
+	TP_ARGS(host_irq, vcpu_id, gsi, gvec, pi_desc_addr, set),
 
 	TP_STRUCT__entry(
+		__field(	unsigned int,	host_irq	)
 		__field(	unsigned int,	vcpu_id		)
 		__field(	unsigned int,	gsi		)
 		__field(	unsigned int,	gvec		)
@@ -1009,6 +1011,7 @@ TRACE_EVENT(kvm_pi_irte_update,
 	),
 
 	TP_fast_assign(
+		__entry->host_irq	= host_irq;
 		__entry->vcpu_id	= vcpu_id;
 		__entry->gsi		= gsi;
 		__entry->gvec		= gvec;
@@ -1016,9 +1019,10 @@ TRACE_EVENT(kvm_pi_irte_update,
 		__entry->set		= set;
 	),
 
-	TP_printk("VT-d PI is %s for this irq, vcpu %u, gsi: 0x%x, "
+	TP_printk("VT-d PI is %s for irq %u, vcpu %u, gsi: 0x%x, "
 		  "gvec: 0x%x, pi_desc_addr: 0x%llx",
 		  __entry->set ? "enabled and being updated" : "disabled",
+		  __entry->host_irq,
 		  __entry->vcpu_id,
 		  __entry->gsi,
 		  __entry->gvec,

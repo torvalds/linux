@@ -62,6 +62,7 @@ static inline int skb_metadata_dst_cmp(const struct sk_buff *skb_a,
 		      sizeof(a->u.tun_info) + a->u.tun_info.options_len);
 }
 
+void metadata_dst_free(struct metadata_dst *);
 struct metadata_dst *metadata_dst_alloc(u8 optslen, gfp_t flags);
 struct metadata_dst __percpu *metadata_dst_alloc_percpu(u8 optslen, gfp_t flags);
 
@@ -125,7 +126,7 @@ static inline struct metadata_dst *ip_tun_rx_dst(struct sk_buff *skb,
 
 	ip_tunnel_key_init(&tun_dst->u.tun_info.key,
 			   iph->saddr, iph->daddr, iph->tos, iph->ttl,
-			   0, 0, tunnel_id, flags);
+			   0, 0, 0, tunnel_id, flags);
 	return tun_dst;
 }
 
@@ -151,8 +152,11 @@ static inline struct metadata_dst *ipv6_tun_rx_dst(struct sk_buff *skb,
 
 	info->key.u.ipv6.src = ip6h->saddr;
 	info->key.u.ipv6.dst = ip6h->daddr;
+
 	info->key.tos = ipv6_get_dsfield(ip6h);
 	info->key.ttl = ip6h->hop_limit;
+	info->key.label = ip6_flowlabel(ip6h);
+
 	return tun_dst;
 }
 

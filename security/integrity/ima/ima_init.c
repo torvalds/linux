@@ -21,7 +21,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <crypto/hash_info.h>
+
 #include "ima.h"
 
 /* name for boot aggregate entry */

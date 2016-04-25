@@ -496,12 +496,12 @@ static void pc_set_checksum(void)
 
 #ifdef CONFIG_PROC_FS
 
-static char *floppy_types[] = {
+static const char * const floppy_types[] = {
 	"none", "5.25'' 360k", "5.25'' 1.2M", "3.5'' 720k", "3.5'' 1.44M",
 	"3.5'' 2.88M", "3.5'' 2.88M"
 };
 
-static char *gfx_types[] = {
+static const char * const gfx_types[] = {
 	"EGA, VGA, ... (with BIOS)",
 	"CGA (40 cols)",
 	"CGA (80 cols)",
@@ -602,7 +602,7 @@ static void atari_set_checksum(void)
 
 static struct {
 	unsigned char val;
-	char *name;
+	const char *name;
 } boot_prefs[] = {
 	{ 0x80, "TOS" },
 	{ 0x40, "ASV" },
@@ -611,7 +611,7 @@ static struct {
 	{ 0x00, "unspecified" }
 };
 
-static char *languages[] = {
+static const char * const languages[] = {
 	"English (US)",
 	"German",
 	"French",
@@ -623,7 +623,7 @@ static char *languages[] = {
 	"Swiss (German)"
 };
 
-static char *dateformat[] = {
+static const char * const dateformat[] = {
 	"MM%cDD%cYY",
 	"DD%cMM%cYY",
 	"YY%cMM%cDD",
@@ -634,7 +634,7 @@ static char *dateformat[] = {
 	"7 (undefined)"
 };
 
-static char *colors[] = {
+static const char * const colors[] = {
 	"2", "4", "16", "256", "65536", "??", "??", "??"
 };
 

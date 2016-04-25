@@ -36,10 +36,14 @@
 #include <linux/types.h>
 
 /** \addtogroup lnet
- * @{ */
+ * @{
+ */
+
+#define LNET_VERSION		"0.6.0"
 
 /** \addtogroup lnet_addr
- * @{ */
+ * @{
+ */
 
 /** Portal reserved for LNet's own use.
  * \see lustre/include/lustre/lustre_idl.h for Lustre portal assignments.
@@ -116,10 +120,12 @@ typedef struct {
 	lnet_pid_t	pid;
 } WIRE_ATTR lnet_process_id_packed_t;
 
-/* The wire handle's interface cookie only matches one network interface in
+/*
+ * The wire handle's interface cookie only matches one network interface in
  * one epoch (i.e. new cookie when the interface restarts or the node
  * reboots).  The object cookie only matches one object on that interface
- * during that object's lifetime (i.e. no cookie re-use). */
+ * during that object's lifetime (i.e. no cookie re-use).
+ */
 typedef struct {
 	__u64	wh_interface_cookie;
 	__u64	wh_object_cookie;
@@ -133,10 +139,12 @@ typedef enum {
 	LNET_MSG_HELLO,
 } lnet_msg_type_t;
 
-/* The variant fields of the portals message header are aligned on an 8
+/*
+ * The variant fields of the portals message header are aligned on an 8
  * byte boundary in the message header.  Note that all types used in these
  * wire structs MUST be fixed size and the smaller types are placed at the
- * end. */
+ * end.
+ */
 typedef struct lnet_ack {
 	lnet_handle_wire_t	dst_wmd;
 	__u64			match_bits;
@@ -185,7 +193,8 @@ typedef struct {
 	} msg;
 } WIRE_ATTR lnet_hdr_t;
 
-/* A HELLO message contains a magic number and protocol version
+/*
+ * A HELLO message contains a magic number and protocol version
  * code in the header's dest_nid, the peer's NID in the src_nid, and
  * LNET_MSG_HELLO in the type field.  All other common fields are zero
  * (including payload_size; i.e. no payload).
@@ -208,8 +217,10 @@ typedef struct {
 #define LNET_PROTO_PING_MAGIC		0x70696E67 /* 'ping' */
 
 /* Placeholder for a future "unified" protocol across all LNDs */
-/* Current LNDs that receive a request with this magic will respond with a
- * "stub" reply using their current protocol */
+/*
+ * Current LNDs that receive a request with this magic will respond with a
+ * "stub" reply using their current protocol
+ */
 #define LNET_PROTO_MAGIC		0x45726963 /* ! */
 
 #define LNET_PROTO_TCP_VERSION_MAJOR	1
@@ -258,7 +269,7 @@ typedef struct lnet_counters {
 
 #define LNET_MAX_INTERFACES    16
 
-/*
+/**
  * Objects maintained by the LNet are accessed through handles. Handle types
  * have names of the form lnet_handle_xx_t, where xx is one of the two letter
  * object type codes ('eq' for event queue, 'md' for memory descriptor, and
@@ -318,7 +329,8 @@ typedef struct {
 /** @} lnet_addr */
 
 /** \addtogroup lnet_me
- * @{ */
+ * @{
+ */
 
 /**
  * Specifies whether the match entry or memory descriptor should be unlinked
@@ -348,7 +360,8 @@ typedef enum {
 /** @} lnet_me */
 
 /** \addtogroup lnet_md
- * @{ */
+ * @{
+ */
 
 /**
  * Defines the visible parts of a memory descriptor. Values of this type
@@ -450,9 +463,11 @@ typedef struct {
 	lnet_handle_eq_t eq_handle;
 } lnet_md_t;
 
-/* Max Transfer Unit (minimum supported everywhere).
+/*
+ * Max Transfer Unit (minimum supported everywhere).
  * CAVEAT EMPTOR, with multinet (i.e. routers forwarding between networks)
- * these limits are system wide and not interface-local. */
+ * these limits are system wide and not interface-local.
+ */
 #define LNET_MTU_BITS	20
 #define LNET_MTU	(1 << LNET_MTU_BITS)
 
@@ -506,7 +521,8 @@ typedef struct {
 /** @} lnet_md */
 
 /** \addtogroup lnet_eq
- * @{ */
+ * @{
+ */
 
 /**
  * Six types of events can be logged in an event queue.
@@ -640,7 +656,8 @@ typedef void (*lnet_eq_handler_t)(lnet_event_t *event);
 /** @} lnet_eq */
 
 /** \addtogroup lnet_data
- * @{ */
+ * @{
+ */
 
 /**
  * Specify whether an acknowledgment should be sent by target when the PUT

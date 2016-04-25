@@ -338,4 +338,5 @@ sys_call_table:
 	.long	sys_userfaultfd
 	.long	sys_membarrier
 	.long	sys_mlock2
+	.long   __sys_copy_file_range   /* 325 */
 	.long	sys_ni_syscall		/* r8 is saturated at nr_syscalls */

@@ -1514,6 +1514,19 @@ int amdgpu_atombios_init_mc_reg_table(struct amdgpu_device *adev,
 	return -EINVAL;
 }
 
+bool amdgpu_atombios_has_gpu_virtualization_table(struct amdgpu_device *adev)
+{
+	int index = GetIndexIntoMasterTable(DATA, GPUVirtualizationInfo);
+	u8 frev, crev;
+	u16 data_offset, size;
+
+	if (amdgpu_atom_parse_data_header(adev->mode_info.atom_context, index, &size,
+					  &frev, &crev, &data_offset))
+		return true;
+
+	return false;
+}
+
 void amdgpu_atombios_scratch_regs_lock(struct amdgpu_device *adev, bool lock)
 {
 	uint32_t bios_6_scratch;

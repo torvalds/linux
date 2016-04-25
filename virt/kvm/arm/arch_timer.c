@@ -34,6 +34,11 @@ static struct timecounter *timecounter;
 static struct workqueue_struct *wqueue;
 static unsigned int host_vtimer_irq;
 
+void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.timer_cpu.active_cleared_last = false;
+}
+
 static cycle_t kvm_phys_timer_read(void)
 {
 	return timecounter->cc->read(timecounter->cc);
@@ -130,6 +135,7 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level)
 
 	BUG_ON(!vgic_initialized(vcpu->kvm));
 
+	timer->active_cleared_last = false;
 	timer->irq.level = new_level;
 	trace_kvm_timer_update_irq(vcpu->vcpu_id, timer->map->virt_irq,
 				   timer->irq.level);
@@ -143,7 +149,7 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level)
  * Check if there was a change in the timer state (should we raise or lower
  * the line level to the GIC).
  */
-static void kvm_timer_update_state(struct kvm_vcpu *vcpu)
+static int kvm_timer_update_state(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 
@@ -154,10 +160,12 @@ static void kvm_timer_update_state(struct kvm_vcpu *vcpu)
 	 * until we call this function from kvm_timer_flush_hwstate.
 	 */
 	if (!vgic_initialized(vcpu->kvm))
-	    return;
+		return -ENODEV;
 
 	if (kvm_timer_should_fire(vcpu) != timer->irq.level)
 		kvm_timer_update_irq(vcpu, !timer->irq.level);
+
+	return 0;
 }
 
 /*
@@ -218,7 +226,8 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 	bool phys_active;
 	int ret;
 
-	kvm_timer_update_state(vcpu);
+	if (kvm_timer_update_state(vcpu))
+		return;
 
 	/*
 	* If we enter the guest with the virtual input level to the VGIC
@@ -242,10 +251,35 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 	else
 		phys_active = false;
 
+	/*
+	 * We want to avoid hitting the (re)distributor as much as
+	 * possible, as this is a potentially expensive MMIO access
+	 * (not to mention locks in the irq layer), and a solution for
+	 * this is to cache the "active" state in memory.
+	 *
+	 * Things to consider: we cannot cache an "active set" state,
+	 * because the HW can change this behind our back (it becomes
+	 * "clear" in the HW). We must then restrict the caching to
+	 * the "clear" state.
+	 *
+	 * The cache is invalidated on:
+	 * - vcpu put, indicating that the HW cannot be trusted to be
+	 *   in a sane state on the next vcpu load,
+	 * - any change in the interrupt state
+	 *
+	 * Usage conditions:
+	 * - cached value is "active clear"
+	 * - value to be programmed is "active clear"
+	 */
+	if (timer->active_cleared_last && !phys_active)
+		return;
+
 	ret = irq_set_irqchip_state(timer->map->irq,
 				    IRQCHIP_STATE_ACTIVE,
 				    phys_active);
 	WARN_ON(ret);
+
+	timer->active_cleared_last = !phys_active;
 }
 
 /**

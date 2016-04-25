@@ -14,16 +14,16 @@
  * more details.
  */
 
-#include <linux/platform_device.h>
-#include <linux/nvmem-provider.h>
-#include <linux/slab.h>
-#include <linux/regmap.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/delay.h>
+#include <linux/nvmem-provider.h>
+#include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/clk.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
 
 #define EFUSE_A_SHIFT			6
 #define EFUSE_A_MASK			0x3ff
@@ -35,10 +35,10 @@
 #define REG_EFUSE_CTRL			0x0000
 #define REG_EFUSE_DOUT			0x0004
 
-struct rockchip_efuse_context {
+struct rockchip_efuse_chip {
 	struct device *dev;
 	void __iomem *base;
-	struct clk *efuse_clk;
+	struct clk *clk;
 };
 
 static int rockchip_efuse_write(void *context, const void *data, size_t count)
@@ -52,34 +52,32 @@ static int rockchip_efuse_read(void *context,
 			       void *val, size_t val_size)
 {
 	unsigned int offset = *(u32 *)reg;
-	struct rockchip_efuse_context *_context = context;
-	void __iomem *base = _context->base;
-	struct clk *clk = _context->efuse_clk;
+	struct rockchip_efuse_chip *efuse = context;
 	u8 *buf = val;
 	int ret;
 
-	ret = clk_prepare_enable(clk);
+	ret = clk_prepare_enable(efuse->clk);
 	if (ret < 0) {
-		dev_err(_context->dev, "failed to prepare/enable efuse clk\n");
+		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
 		return ret;
 	}
 
-	writel(EFUSE_LOAD | EFUSE_PGENB, base + REG_EFUSE_CTRL);
+	writel(EFUSE_LOAD | EFUSE_PGENB, efuse->base + REG_EFUSE_CTRL);
 	udelay(1);
 	while (val_size) {
-		writel(readl(base + REG_EFUSE_CTRL) &
+		writel(readl(efuse->base + REG_EFUSE_CTRL) &
 			     (~(EFUSE_A_MASK << EFUSE_A_SHIFT)),
-			     base + REG_EFUSE_CTRL);
-		writel(readl(base + REG_EFUSE_CTRL) |
+			     efuse->base + REG_EFUSE_CTRL);
+		writel(readl(efuse->base + REG_EFUSE_CTRL) |
 			     ((offset & EFUSE_A_MASK) << EFUSE_A_SHIFT),
-			     base + REG_EFUSE_CTRL);
+			     efuse->base + REG_EFUSE_CTRL);
 		udelay(1);
-		writel(readl(base + REG_EFUSE_CTRL) |
-			     EFUSE_STROBE, base + REG_EFUSE_CTRL);
+		writel(readl(efuse->base + REG_EFUSE_CTRL) |
+			     EFUSE_STROBE, efuse->base + REG_EFUSE_CTRL);
 		udelay(1);
-		*buf++ = readb(base + REG_EFUSE_DOUT);
-		writel(readl(base + REG_EFUSE_CTRL) &
-		     (~EFUSE_STROBE), base + REG_EFUSE_CTRL);
+		*buf++ = readb(efuse->base + REG_EFUSE_DOUT);
+		writel(readl(efuse->base + REG_EFUSE_CTRL) &
+		     (~EFUSE_STROBE), efuse->base + REG_EFUSE_CTRL);
 		udelay(1);
 
 		val_size -= 1;
@@ -87,9 +85,9 @@ static int rockchip_efuse_read(void *context,
 	}
 
 	/* Switch to standby mode */
-	writel(EFUSE_PGENB | EFUSE_CSB, base + REG_EFUSE_CTRL);
+	writel(EFUSE_PGENB | EFUSE_CSB, efuse->base + REG_EFUSE_CTRL);
 
-	clk_disable_unprepare(clk);
+	clk_disable_unprepare(efuse->clk);
 
 	return 0;
 }
@@ -114,48 +112,44 @@ static struct nvmem_config econfig = {
 };
 
 static const struct of_device_id rockchip_efuse_match[] = {
-	{ .compatible = "rockchip,rockchip-efuse",},
+	{ .compatible = "rockchip,rockchip-efuse", },
 	{ /* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, rockchip_efuse_match);
 
 static int rockchip_efuse_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct nvmem_device *nvmem;
 	struct regmap *regmap;
-	void __iomem *base;
-	struct clk *clk;
-	struct rockchip_efuse_context *context;
+	struct rockchip_efuse_chip *efuse;
+
+	efuse = devm_kzalloc(&pdev->dev, sizeof(struct rockchip_efuse_chip),
+			     GFP_KERNEL);
+	if (!efuse)
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	efuse->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(efuse->base))
+		return PTR_ERR(efuse->base);
 
-	context = devm_kzalloc(dev, sizeof(struct rockchip_efuse_context),
-			       GFP_KERNEL);
-	if (IS_ERR(context))
-		return PTR_ERR(context);
+	efuse->clk = devm_clk_get(&pdev->dev, "pclk_efuse");
+	if (IS_ERR(efuse->clk))
+		return PTR_ERR(efuse->clk);
 
-	clk = devm_clk_get(dev, "pclk_efuse");
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	context->dev = dev;
-	context->base = base;
-	context->efuse_clk = clk;
+	efuse->dev = &pdev->dev;
 
 	rockchip_efuse_regmap_config.max_register = resource_size(res) - 1;
 
-	regmap = devm_regmap_init(dev, &rockchip_efuse_bus,
-				  context, &rockchip_efuse_regmap_config);
+	regmap = devm_regmap_init(efuse->dev, &rockchip_efuse_bus,
+				  efuse, &rockchip_efuse_regmap_config);
 	if (IS_ERR(regmap)) {
-		dev_err(dev, "regmap init failed\n");
+		dev_err(efuse->dev, "regmap init failed\n");
 		return PTR_ERR(regmap);
 	}
-	econfig.dev = dev;
+
+	econfig.dev = efuse->dev;
 	nvmem = nvmem_register(&econfig);
 	if (IS_ERR(nvmem))
 		return PTR_ERR(nvmem);

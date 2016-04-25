@@ -338,7 +338,7 @@ do {									\
 			    schedule(); try_to_freeze())
 
 /**
- * wait_event - sleep (or freeze) until a condition gets true
+ * wait_event_freezable - sleep (or freeze) until a condition gets true
  * @wq: the waitqueue to wait on
  * @condition: a C expression for the event to wait for
  *

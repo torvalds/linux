@@ -225,8 +225,7 @@ static int dove_divider_init(struct device *dev, void __iomem *base,
 	 * Create the core PLL clock.  We treat this as a fixed rate
 	 * clock as we don't know any better, and documentation is sparse.
 	 */
-	clk = clk_register_fixed_rate(dev, core_pll[0], NULL, CLK_IS_ROOT,
-				      2000000000UL);
+	clk = clk_register_fixed_rate(dev, core_pll[0], NULL, 0, 2000000000UL);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
@@ -247,7 +246,7 @@ static struct clk_onecell_data dove_divider_data = {
 
 void __init dove_divider_clk_init(struct device_node *np)
 {
-	void *base;
+	void __iomem *base;
 
 	base = of_iomap(np, 0);
 	if (WARN_ON(!base))

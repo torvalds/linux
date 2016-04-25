@@ -358,20 +358,19 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
 #define pgd_none(a)  pud_none(__pud(pgd_val(a)))
 #endif
 
-#ifdef CONFIG_X86_64
 static inline bool is_hypervisor_range(int idx)
 {
+#ifdef CONFIG_X86_64
 	/*
 	 * ffff800000000000 - ffff87ffffffffff is reserved for
 	 * the hypervisor.
 	 */
-	return paravirt_enabled() &&
-		(idx >= pgd_index(__PAGE_OFFSET) - 16) &&
-		(idx < pgd_index(__PAGE_OFFSET));
-}
+	return	(idx >= pgd_index(__PAGE_OFFSET) - 16) &&
+		(idx <  pgd_index(__PAGE_OFFSET));
 #else
-static inline bool is_hypervisor_range(int idx) { return false; }
+	return false;
 #endif
+}
 
 static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 				       bool checkwx)

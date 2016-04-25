@@ -526,6 +526,7 @@ static void do_fault(struct work_struct *work)
 		flags |= FAULT_FLAG_USER;
 	if (fault->flags & PPR_FAULT_WRITE)
 		flags |= FAULT_FLAG_WRITE;
+	flags |= FAULT_FLAG_REMOTE;
 
 	down_read(&mm->mmap_sem);
 	vma = find_extend_vma(mm, address);

@@ -98,14 +98,14 @@ ATOMIC_LONG_ADD_SUB_OP(sub, _release)
 #define atomic_long_xchg(v, new) \
 	(ATOMIC_LONG_PFX(_xchg)((ATOMIC_LONG_PFX(_t) *)(v), (new)))
 
-static inline void atomic_long_inc(atomic_long_t *l)
+static __always_inline void atomic_long_inc(atomic_long_t *l)
 {
 	ATOMIC_LONG_PFX(_t) *v = (ATOMIC_LONG_PFX(_t) *)l;
 
 	ATOMIC_LONG_PFX(_inc)(v);
 }
 
-static inline void atomic_long_dec(atomic_long_t *l)
+static __always_inline void atomic_long_dec(atomic_long_t *l)
 {
 	ATOMIC_LONG_PFX(_t) *v = (ATOMIC_LONG_PFX(_t) *)l;
 
@@ -113,7 +113,7 @@ static inline void atomic_long_dec(atomic_long_t *l)
 }
 
 #define ATOMIC_LONG_OP(op)						\
-static inline void							\
+static __always_inline void						\
 atomic_long_##op(long i, atomic_long_t *l)				\
 {									\
 	ATOMIC_LONG_PFX(_t) *v = (ATOMIC_LONG_PFX(_t) *)l;		\

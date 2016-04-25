@@ -21,7 +21,7 @@
 #define PMU_F_ERR_LSDA			0x0200
 #define PMU_F_ERR_MASK			(PMU_F_ERR_IBE|PMU_F_ERR_LSDA)
 
-/* Perf defintions for PMU event attributes in sysfs */
+/* Perf definitions for PMU event attributes in sysfs */
 extern __init const struct attribute_group **cpumf_cf_event_group(void);
 extern ssize_t cpumf_events_sysfs_show(struct device *dev,
 				       struct device_attribute *attr,

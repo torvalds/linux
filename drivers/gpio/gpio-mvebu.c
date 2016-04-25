@@ -756,7 +756,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		BUG();
 	}
 
-	gpiochip_add_data(&mvchip->chip, mvchip);
+	devm_gpiochip_add_data(&pdev->dev, &mvchip->chip, mvchip);
 
 	/* Some gpio controllers do not provide irq support */
 	if (!of_irq_count(np))
@@ -777,16 +777,14 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->irqbase = irq_alloc_descs(-1, 0, ngpios, -1);
 	if (mvchip->irqbase < 0) {
 		dev_err(&pdev->dev, "no irqs\n");
-		err = mvchip->irqbase;
-		goto err_gpiochip_add;
+		return mvchip->irqbase;
 	}
 
 	gc = irq_alloc_generic_chip("mvebu_gpio_irq", 2, mvchip->irqbase,
 				    mvchip->membase, handle_level_irq);
 	if (!gc) {
 		dev_err(&pdev->dev, "Cannot allocate generic irq_chip\n");
-		err = -ENOMEM;
-		goto err_gpiochip_add;
+		return -ENOMEM;
 	}
 
 	gc->private = mvchip;
@@ -827,9 +825,6 @@ err_generic_chip:
 	irq_remove_generic_chip(gc, IRQ_MSK(ngpios), IRQ_NOREQUEST,
 				IRQ_LEVEL | IRQ_NOPROBE);
 	kfree(gc);
-
-err_gpiochip_add:
-	gpiochip_remove(&mvchip->chip);
 
 	return err;
 }

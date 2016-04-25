@@ -30,6 +30,7 @@ enum {
  * struct intel_th_output - descriptor INTEL_TH_OUTPUT type devices
  * @port:	output port number, assigned by the switch
  * @type:	GTH_{MSU,CTP,PTI}
+ * @scratchpad:	scratchpad bits to flag when this output is enabled
  * @multiblock:	true for multiblock output configuration
  * @active:	true when this output is enabled
  *
@@ -41,6 +42,7 @@ enum {
 struct intel_th_output {
 	int		port;
 	unsigned int	type;
+	unsigned int	scratchpad;
 	bool		multiblock;
 	bool		active;
 };
@@ -239,6 +241,45 @@ enum {
 	GTH_MSU,	/* memory/usb */
 	GTH_CTP,	/* Common Trace Port */
 	GTH_PTI = 4,	/* MIPI-PTI */
+};
+
+/*
+ * Scratchpad bits: tell firmware and external debuggers
+ * what we are up to.
+ */
+enum {
+	/* Memory is the primary destination */
+	SCRPD_MEM_IS_PRIM_DEST		= BIT(0),
+	/* XHCI DbC is the primary destination */
+	SCRPD_DBC_IS_PRIM_DEST		= BIT(1),
+	/* PTI is the primary destination */
+	SCRPD_PTI_IS_PRIM_DEST		= BIT(2),
+	/* BSSB is the primary destination */
+	SCRPD_BSSB_IS_PRIM_DEST		= BIT(3),
+	/* PTI is the alternate destination */
+	SCRPD_PTI_IS_ALT_DEST		= BIT(4),
+	/* BSSB is the alternate destination */
+	SCRPD_BSSB_IS_ALT_DEST		= BIT(5),
+	/* DeepSx exit occurred */
+	SCRPD_DEEPSX_EXIT		= BIT(6),
+	/* S4 exit occurred */
+	SCRPD_S4_EXIT			= BIT(7),
+	/* S5 exit occurred */
+	SCRPD_S5_EXIT			= BIT(8),
+	/* MSU controller 0/1 is enabled */
+	SCRPD_MSC0_IS_ENABLED		= BIT(9),
+	SCRPD_MSC1_IS_ENABLED		= BIT(10),
+	/* Sx exit occurred */
+	SCRPD_SX_EXIT			= BIT(11),
+	/* Trigger Unit is enabled */
+	SCRPD_TRIGGER_IS_ENABLED	= BIT(12),
+	SCRPD_ODLA_IS_ENABLED		= BIT(13),
+	SCRPD_SOCHAP_IS_ENABLED		= BIT(14),
+	SCRPD_STH_IS_ENABLED		= BIT(15),
+	SCRPD_DCIH_IS_ENABLED		= BIT(16),
+	SCRPD_VER_IS_ENABLED		= BIT(17),
+	/* External debugger is using Intel TH */
+	SCRPD_DEBUGGER_IN_USE		= BIT(24),
 };
 
 #endif

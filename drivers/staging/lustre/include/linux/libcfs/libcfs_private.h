@@ -387,11 +387,6 @@ int cfs_percpt_atomic_summary(atomic_t **refs);
  * Support for temporary event tracing with minimal Heisenberg effect.
  * -------------------------------------------------------------------- */
 
-struct libcfs_device_userstate {
-	int	   ldu_memhog_pages;
-	struct page   *ldu_memhog_root_page;
-};
-
 #define MKSTR(ptr) ((ptr)) ? (ptr) : ""
 
 static inline int cfs_size_round4(int val)

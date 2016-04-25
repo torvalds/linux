@@ -35,6 +35,8 @@
 #include <net/sock.h>
 #include <linux/in.h>
 #include <linux/export.h>
+#include <linux/time.h>
+#include <linux/rds.h>
 
 #include "rds.h"
 
@@ -46,6 +48,8 @@ void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 	inc->i_conn = conn;
 	inc->i_saddr = saddr;
 	inc->i_rdma_cookie = 0;
+	inc->i_rx_tstamp.tv_sec = 0;
+	inc->i_rx_tstamp.tv_usec = 0;
 }
 EXPORT_SYMBOL_GPL(rds_inc_init);
 
@@ -228,6 +232,8 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 		rds_recv_rcvbuf_delta(rs, sk, inc->i_conn->c_lcong,
 				      be32_to_cpu(inc->i_hdr.h_len),
 				      inc->i_hdr.h_dport);
+		if (sock_flag(sk, SOCK_RCVTSTAMP))
+			do_gettimeofday(&inc->i_rx_tstamp);
 		rds_inc_addref(inc);
 		list_add_tail(&inc->i_item, &rs->rs_recv_queue);
 		__rds_wake_sk_sleep(sk);
@@ -381,13 +387,23 @@ static int rds_notify_cong(struct rds_sock *rs, struct msghdr *msghdr)
 /*
  * Receive any control messages.
  */
-static int rds_cmsg_recv(struct rds_incoming *inc, struct msghdr *msg)
+static int rds_cmsg_recv(struct rds_incoming *inc, struct msghdr *msg,
+			 struct rds_sock *rs)
 {
 	int ret = 0;
 
 	if (inc->i_rdma_cookie) {
 		ret = put_cmsg(msg, SOL_RDS, RDS_CMSG_RDMA_DEST,
 				sizeof(inc->i_rdma_cookie), &inc->i_rdma_cookie);
+		if (ret)
+			return ret;
+	}
+
+	if ((inc->i_rx_tstamp.tv_sec != 0) &&
+	    sock_flag(rds_rs_to_sk(rs), SOCK_RCVTSTAMP)) {
+		ret = put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMP,
+			       sizeof(struct timeval),
+			       &inc->i_rx_tstamp);
 		if (ret)
 			return ret;
 	}
@@ -474,7 +490,7 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 			msg->msg_flags |= MSG_TRUNC;
 		}
 
-		if (rds_cmsg_recv(inc, msg)) {
+		if (rds_cmsg_recv(inc, msg, rs)) {
 			ret = -EFAULT;
 			goto out;
 		}

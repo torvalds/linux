@@ -28,8 +28,6 @@
 #include <linux/types.h>
 #include <linux/regmap.h>
 
-#define RC5T583_MAX_REGS		0xF8
-
 /* Maximum number of main interrupts */
 #define MAX_MAIN_INTERRUPT		5
 #define RC5T583_MAX_GPEDGE_REG		2
@@ -168,6 +166,9 @@
 #define RC5T583_RTC_AY_DAY	0xF2
 #define RC5T583_RTC_AY_MONTH 0xF3
 #define RC5T583_RTC_AY_YEAR	0xF4
+
+#define RC5T583_MAX_REG		0xF7
+#define RC5T583_NUM_REGS	(RC5T583_MAX_REG + 1)
 
 /* RICOH_RC5T583 IRQ definitions */
 enum {

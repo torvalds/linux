@@ -5,7 +5,7 @@
 	medium = green, lightgray
 	normal = black, lightgray
 	selected = lightgray, magenta
-	code = blue, lightgray
+	jump_arrows = blue, lightgray
 	addr = magenta, lightgray
 
 [tui]

@@ -124,6 +124,7 @@ config S390
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DMA_API_DEBUG
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -254,12 +255,12 @@ config MARCH_ZEC12
 	  older machines.
 
 config MARCH_Z13
-	bool "IBM z13"
+	bool "IBM z13s and z13"
 	select HAVE_MARCH_Z13_FEATURES
 	help
-	  Select this to enable optimizations for IBM z13 (2964 series).
-	  The kernel will be slightly faster but will not work on older
-	  machines.
+	  Select this to enable optimizations for IBM z13s and z13 (2965 and
+	  2964 series). The kernel will be slightly faster but will not work on
+	  older machines.
 
 endchoice
 
@@ -605,8 +606,6 @@ config PCI_NR_MSI
 	  PCI devices.
 
 source "drivers/pci/Kconfig"
-source "drivers/pci/pcie/Kconfig"
-source "drivers/pci/hotplug/Kconfig"
 
 endif	# PCI
 
@@ -618,10 +617,6 @@ config HAS_IOMEM
 
 config IOMMU_HELPER
 	def_bool PCI
-
-config HAS_DMA
-	def_bool PCI
-	select HAVE_DMA_API_DEBUG
 
 config NEED_SG_DMA_LENGTH
 	def_bool PCI

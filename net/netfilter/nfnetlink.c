@@ -127,13 +127,6 @@ int nfnetlink_has_listeners(struct net *net, unsigned int group)
 }
 EXPORT_SYMBOL_GPL(nfnetlink_has_listeners);
 
-struct sk_buff *nfnetlink_alloc_skb(struct net *net, unsigned int size,
-				    u32 dst_portid, gfp_t gfp_mask)
-{
-	return netlink_alloc_skb(net->nfnl, size, dst_portid, gfp_mask);
-}
-EXPORT_SYMBOL_GPL(nfnetlink_alloc_skb);
-
 int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 portid,
 		   unsigned int group, int echo, gfp_t flags)
 {
@@ -311,14 +304,14 @@ replay:
 #endif
 		{
 			nfnl_unlock(subsys_id);
-			netlink_ack(skb, nlh, -EOPNOTSUPP);
+			netlink_ack(oskb, nlh, -EOPNOTSUPP);
 			return kfree_skb(skb);
 		}
 	}
 
 	if (!ss->commit || !ss->abort) {
 		nfnl_unlock(subsys_id);
-		netlink_ack(skb, nlh, -EOPNOTSUPP);
+		netlink_ack(oskb, nlh, -EOPNOTSUPP);
 		return kfree_skb(skb);
 	}
 
@@ -328,10 +321,12 @@ replay:
 		nlh = nlmsg_hdr(skb);
 		err = 0;
 
-		if (nlmsg_len(nlh) < sizeof(struct nfgenmsg) ||
-		    skb->len < nlh->nlmsg_len) {
-			err = -EINVAL;
-			goto ack;
+		if (nlh->nlmsg_len < NLMSG_HDRLEN ||
+		    skb->len < nlh->nlmsg_len ||
+		    nlmsg_len(nlh) < sizeof(struct nfgenmsg)) {
+			nfnl_err_reset(&err_list);
+			status |= NFNL_BATCH_FAILURE;
+			goto done;
 		}
 
 		/* Only requests are handled by the kernel */
@@ -406,7 +401,7 @@ ack:
 				 * pointing to the batch header.
 				 */
 				nfnl_err_reset(&err_list);
-				netlink_ack(skb, nlmsg_hdr(oskb), -ENOMEM);
+				netlink_ack(oskb, nlmsg_hdr(oskb), -ENOMEM);
 				status |= NFNL_BATCH_FAILURE;
 				goto done;
 			}

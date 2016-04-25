@@ -8,6 +8,10 @@
 #include <dvb_frontend.h>
 
 #include <media/videobuf2-v4l2.h>
+
+/* We don't actually need to include media-device.h here */
+struct media_device;
+
 /*
  * TODO: This header file should be replaced with videobuf2-core.h
  * Currently, vb2_thread is not a stuff of videobuf2-core,
@@ -50,6 +54,7 @@ int vb2_dvb_register_bus(struct vb2_dvb_frontends *f,
 			 struct module *module,
 			 void *adapter_priv,
 			 struct device *device,
+			 struct media_device *mdev,
 			 short *adapter_nr,
 			 int mfe_shared);
 

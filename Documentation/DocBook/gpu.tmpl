@@ -1816,7 +1816,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="37" valign="top" >DRM</td>
+	<td rowspan="42" valign="top" >DRM</td>
 	<td valign="top" >Generic</td>
 	<td valign="top" >“rotation”</td>
 	<td valign="top" >BITMASK</td>
@@ -2068,7 +2068,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >property to suggest an Y offset for a connector</td>
 	</tr>
 	<tr>
-	<td rowspan="3" valign="top" >Optional</td>
+	<td rowspan="8" valign="top" >Optional</td>
 	<td valign="top" >“scaling mode”</td>
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ "None", "Full", "Center", "Full aspect" }</td>
@@ -2090,6 +2090,61 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >{ "Off", "On", "Annotate" }</td>
 	<td valign="top" >Connector</td>
 	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“DEGAMMA_LUT”</td>
+	<td valign="top" >BLOB</td>
+	<td valign="top" >0</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >DRM property to set the degamma lookup table
+		(LUT) mapping pixel data from the framebuffer before it is
+		given to the transformation matrix. The data is an interpreted
+		as an array of struct drm_color_lut elements. Hardware might
+		choose not to use the full precision of the LUT elements nor
+		use all the elements of the LUT (for example the hardware
+		might choose to interpolate between LUT[0] and LUT[4]). </td>
+	</tr>
+	<tr>
+	<td valign="top" >“DEGAMMA_LUT_SIZE”</td>
+	<td valign="top" >RANGE | IMMUTABLE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >DRM property to gives the size of the lookup
+		table to be set on the DEGAMMA_LUT property (the size depends
+		on the underlying hardware).</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CTM”</td>
+	<td valign="top" >BLOB</td>
+	<td valign="top" >0</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >DRM property to set the current
+		transformation matrix (CTM) apply to pixel data after the
+		lookup through the degamma LUT and before the lookup through
+		the gamma LUT. The data is an interpreted as a struct
+		drm_color_ctm.</td>
+	</tr>
+	<tr>
+	<td valign="top" >“GAMMA_LUT”</td>
+	<td valign="top" >BLOB</td>
+	<td valign="top" >0</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >DRM property to set the gamma lookup table
+		(LUT) mapping pixel data after to the transformation matrix to
+		data sent to the connector. The data is an interpreted as an
+		array of struct drm_color_lut elements. Hardware might choose
+		not to use the full precision of the LUT elements nor use all
+		the elements of the LUT (for example the hardware might choose
+		to interpolate between LUT[0] and LUT[4]).</td>
+	</tr>
+	<tr>
+	<td valign="top" >“GAMMA_LUT_SIZE”</td>
+	<td valign="top" >RANGE | IMMUTABLE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >DRM property to gives the size of the lookup
+		table to be set on the GAMMA_LUT property (the size depends on
+		the underlying hardware).</td>
 	</tr>
 	<tr>
 	<td rowspan="20" valign="top" >i915</td>
@@ -2886,52 +2941,8 @@ void (*postclose) (struct drm_device *, struct drm_file *);</synopsis>
     </sect2>
     <sect2>
       <title>File Operations</title>
-      <synopsis>const struct file_operations *fops</synopsis>
-      <abstract>File operations for the DRM device node.</abstract>
-      <para>
-        Drivers must define the file operations structure that forms the DRM
-	userspace API entry point, even though most of those operations are
-	implemented in the DRM core. The <methodname>open</methodname>,
-	<methodname>release</methodname> and <methodname>ioctl</methodname>
-	operations are handled by
-	<programlisting>
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.release = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-  #ifdef CONFIG_COMPAT
-	.compat_ioctl = drm_compat_ioctl,
-  #endif
-        </programlisting>
-      </para>
-      <para>
-        Drivers that implement private ioctls that requires 32/64bit
-	compatibility support must provide their own
-	<methodname>compat_ioctl</methodname> handler that processes private
-	ioctls and calls <function>drm_compat_ioctl</function> for core ioctls.
-      </para>
-      <para>
-        The <methodname>read</methodname> and <methodname>poll</methodname>
-	operations provide support for reading DRM events and polling them. They
-	are implemented by
-	<programlisting>
-	.poll = drm_poll,
-	.read = drm_read,
-	.llseek = no_llseek,
-	</programlisting>
-      </para>
-      <para>
-        The memory mapping implementation varies depending on how the driver
-	manages memory. Pre-GEM drivers will use <function>drm_mmap</function>,
-	while GEM-aware drivers will use <function>drm_gem_mmap</function>. See
-	<xref linkend="drm-gem"/>.
-	<programlisting>
-	.mmap = drm_gem_mmap,
-	</programlisting>
-      </para>
-      <para>
-        No other file operation is supported by the DRM API.
-      </para>
+!Pdrivers/gpu/drm/drm_fops.c file operations
+!Edrivers/gpu/drm/drm_fops.c
     </sect2>
     <sect2>
       <title>IOCTLs</title>
@@ -3319,6 +3330,12 @@ int num_ioctls;</synopsis>
 !Pdrivers/gpu/drm/i915/intel_csr.c csr support for dmc
 !Idrivers/gpu/drm/i915/intel_csr.c
       </sect2>
+      <sect2>
+	<title>Video BIOS Table (VBT)</title>
+!Pdrivers/gpu/drm/i915/intel_bios.c Video BIOS Table (VBT)
+!Idrivers/gpu/drm/i915/intel_bios.c
+!Idrivers/gpu/drm/i915/intel_bios.h
+      </sect2>
     </sect1>
 
     <sect1>
@@ -3460,6 +3477,7 @@ int num_ioctls;</synopsis>
     </sect1>
     <sect1>
       <title>Public constants</title>
+!Finclude/linux/vga_switcheroo.h vga_switcheroo_handler_flags_t
 !Finclude/linux/vga_switcheroo.h vga_switcheroo_client_id
 !Finclude/linux/vga_switcheroo.h vga_switcheroo_state
     </sect1>
@@ -3487,6 +3505,10 @@ int num_ioctls;</synopsis>
       <sect2>
         <title>Backlight control</title>
 !Pdrivers/platform/x86/apple-gmux.c Backlight control
+      </sect2>
+      <sect2>
+        <title>Public functions</title>
+!Iinclude/linux/apple-gmux.h
       </sect2>
     </sect1>
   </chapter>

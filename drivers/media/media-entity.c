@@ -46,25 +46,41 @@ static inline const char *intf_type(struct media_interface *intf)
 {
 	switch (intf->type) {
 	case MEDIA_INTF_T_DVB_FE:
-		return "frontend";
+		return "dvb-frontend";
 	case MEDIA_INTF_T_DVB_DEMUX:
-		return "demux";
+		return "dvb-demux";
 	case MEDIA_INTF_T_DVB_DVR:
-		return "DVR";
+		return "dvb-dvr";
 	case MEDIA_INTF_T_DVB_CA:
-		return  "CA";
+		return  "dvb-ca";
 	case MEDIA_INTF_T_DVB_NET:
-		return "dvbnet";
+		return "dvb-net";
 	case MEDIA_INTF_T_V4L_VIDEO:
-		return "video";
+		return "v4l-video";
 	case MEDIA_INTF_T_V4L_VBI:
-		return "vbi";
+		return "v4l-vbi";
 	case MEDIA_INTF_T_V4L_RADIO:
-		return "radio";
+		return "v4l-radio";
 	case MEDIA_INTF_T_V4L_SUBDEV:
-		return "v4l2-subdev";
+		return "v4l-subdev";
 	case MEDIA_INTF_T_V4L_SWRADIO:
-		return "swradio";
+		return "v4l-swradio";
+	case MEDIA_INTF_T_ALSA_PCM_CAPTURE:
+		return "alsa-pcm-capture";
+	case MEDIA_INTF_T_ALSA_PCM_PLAYBACK:
+		return "alsa-pcm-playback";
+	case MEDIA_INTF_T_ALSA_CONTROL:
+		return "alsa-control";
+	case MEDIA_INTF_T_ALSA_COMPRESS:
+		return "alsa-compress";
+	case MEDIA_INTF_T_ALSA_RAWMIDI:
+		return "alsa-rawmidi";
+	case MEDIA_INTF_T_ALSA_HWDEP:
+		return "alsa-hwdep";
+	case MEDIA_INTF_T_ALSA_SEQUENCER:
+		return "alsa-sequencer";
+	case MEDIA_INTF_T_ALSA_TIMER:
+		return "alsa-timer";
 	default:
 		return "unknown-intf";
 	}
@@ -73,8 +89,9 @@ static inline const char *intf_type(struct media_interface *intf)
 __must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
 					  int idx_max)
 {
-	ent_enum->bmap = kcalloc(DIV_ROUND_UP(idx_max, BITS_PER_LONG),
-				 sizeof(long), GFP_KERNEL);
+	idx_max = ALIGN(idx_max, BITS_PER_LONG);
+	ent_enum->bmap = kcalloc(idx_max / BITS_PER_LONG, sizeof(long),
+				 GFP_KERNEL);
 	if (!ent_enum->bmap)
 		return -ENOMEM;
 
@@ -349,16 +366,14 @@ EXPORT_SYMBOL_GPL(media_entity_graph_walk_next);
  * Pipeline management
  */
 
-__must_check int media_entity_pipeline_start(struct media_entity *entity,
-					     struct media_pipeline *pipe)
+__must_check int __media_entity_pipeline_start(struct media_entity *entity,
+					       struct media_pipeline *pipe)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
 	struct media_entity_graph *graph = &pipe->graph;
 	struct media_entity *entity_err = entity;
 	struct media_link *link;
 	int ret;
-
-	mutex_lock(&mdev->graph_mutex);
 
 	if (!pipe->streaming_count++) {
 		ret = media_entity_graph_walk_init(&pipe->graph, mdev);
@@ -440,8 +455,6 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 		}
 	}
 
-	mutex_unlock(&mdev->graph_mutex);
-
 	return 0;
 
 error:
@@ -452,9 +465,12 @@ error:
 	media_entity_graph_walk_start(graph, entity_err);
 
 	while ((entity_err = media_entity_graph_walk_next(graph))) {
-		entity_err->stream_count--;
-		if (entity_err->stream_count == 0)
-			entity_err->pipe = NULL;
+		/* don't let the stream_count go negative */
+		if (entity->stream_count > 0) {
+			entity_err->stream_count--;
+			if (entity_err->stream_count == 0)
+				entity_err->pipe = NULL;
+		}
 
 		/*
 		 * We haven't increased stream_count further than this
@@ -468,32 +484,53 @@ error_graph_walk_start:
 	if (!--pipe->streaming_count)
 		media_entity_graph_walk_cleanup(graph);
 
-	mutex_unlock(&mdev->graph_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(__media_entity_pipeline_start);
 
+__must_check int media_entity_pipeline_start(struct media_entity *entity,
+					     struct media_pipeline *pipe)
+{
+	struct media_device *mdev = entity->graph_obj.mdev;
+	int ret;
+
+	mutex_lock(&mdev->graph_mutex);
+	ret = __media_entity_pipeline_start(entity, pipe);
+	mutex_unlock(&mdev->graph_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(media_entity_pipeline_start);
 
-void media_entity_pipeline_stop(struct media_entity *entity)
+void __media_entity_pipeline_stop(struct media_entity *entity)
 {
-	struct media_device *mdev = entity->graph_obj.mdev;
 	struct media_entity_graph *graph = &entity->pipe->graph;
 	struct media_pipeline *pipe = entity->pipe;
 
-	mutex_lock(&mdev->graph_mutex);
 
 	WARN_ON(!pipe->streaming_count);
 	media_entity_graph_walk_start(graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(graph))) {
-		entity->stream_count--;
-		if (entity->stream_count == 0)
-			entity->pipe = NULL;
+		/* don't let the stream_count go negative */
+		if (entity->stream_count > 0) {
+			entity->stream_count--;
+			if (entity->stream_count == 0)
+				entity->pipe = NULL;
+		}
 	}
 
 	if (!--pipe->streaming_count)
 		media_entity_graph_walk_cleanup(graph);
 
+}
+EXPORT_SYMBOL_GPL(__media_entity_pipeline_stop);
+
+void media_entity_pipeline_stop(struct media_entity *entity)
+{
+	struct media_device *mdev = entity->graph_obj.mdev;
+
+	mutex_lock(&mdev->graph_mutex);
+	__media_entity_pipeline_stop(entity);
 	mutex_unlock(&mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_entity_pipeline_stop);
@@ -783,6 +820,7 @@ int __media_entity_setup_link(struct media_link *link, u32 flags)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(__media_entity_setup_link);
 
 int media_entity_setup_link(struct media_link *link, u32 flags)
 {

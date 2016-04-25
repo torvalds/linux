@@ -699,8 +699,7 @@ debug_info_t *debug_register_mode(const char *name, int pages_per_area,
 	/* Since debugfs currently does not support uid/gid other than root, */
 	/* we do not allow gid/uid != 0 until we get support for that. */
 	if ((uid != 0) || (gid != 0))
-		pr_warning("Root becomes the owner of all s390dbf files "
-			   "in sysfs\n");
+		pr_warn("Root becomes the owner of all s390dbf files in sysfs\n");
 	BUG_ON(!initialized);
 	mutex_lock(&debug_mutex);
 
@@ -1307,8 +1306,7 @@ debug_input_level_fn(debug_info_t * id, struct debug_view *view,
 		new_level = debug_get_uint(str);
 	}
 	if(new_level < 0) {
-		pr_warning("%s is not a valid level for a debug "
-			   "feature\n", str);
+		pr_warn("%s is not a valid level for a debug feature\n", str);
 		rc = -EINVAL;
 	} else {
 		debug_set_level(id, new_level);

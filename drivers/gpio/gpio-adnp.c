@@ -265,7 +265,7 @@ static int adnp_gpio_setup(struct adnp *adnp, unsigned int num_gpios)
 	chip->of_node = chip->parent->of_node;
 	chip->owner = THIS_MODULE;
 
-	err = gpiochip_add_data(chip, adnp);
+	err = devm_gpiochip_add_data(&adnp->client->dev, chip, adnp);
 	if (err)
 		return err;
 
@@ -520,14 +520,6 @@ static int adnp_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int adnp_i2c_remove(struct i2c_client *client)
-{
-	struct adnp *adnp = i2c_get_clientdata(client);
-
-	gpiochip_remove(&adnp->gpio);
-	return 0;
-}
-
 static const struct i2c_device_id adnp_i2c_id[] = {
 	{ "gpio-adnp" },
 	{ },
@@ -546,7 +538,6 @@ static struct i2c_driver adnp_i2c_driver = {
 		.of_match_table = adnp_of_match,
 	},
 	.probe = adnp_i2c_probe,
-	.remove = adnp_i2c_remove,
 	.id_table = adnp_i2c_id,
 };
 module_i2c_driver(adnp_i2c_driver);

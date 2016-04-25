@@ -199,21 +199,12 @@ int stmmac_mdio_register(struct net_device *ndev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
 	int addr, found;
-	struct device_node *mdio_node = NULL;
-	struct device_node *child_node = NULL;
+	struct device_node *mdio_node = priv->plat->mdio_node;
 
 	if (!mdio_bus_data)
 		return 0;
 
 	if (IS_ENABLED(CONFIG_OF)) {
-		for_each_child_of_node(priv->device->of_node, child_node) {
-			if (of_device_is_compatible(child_node,
-						    "snps,dwmac-mdio")) {
-				mdio_node = child_node;
-				break;
-			}
-		}
-
 		if (mdio_node) {
 			netdev_dbg(ndev, "FOUND MDIO subnode\n");
 		} else {
@@ -251,6 +242,9 @@ int stmmac_mdio_register(struct net_device *ndev)
 		pr_err("%s: Cannot register as MDIO bus\n", new_bus->name);
 		goto bus_register_fail;
 	}
+
+	if (priv->plat->phy_node || mdio_node)
+		goto bus_register_done;
 
 	found = 0;
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
@@ -307,6 +301,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		return -ENODEV;
 	}
 
+bus_register_done:
 	priv->mii = new_bus;
 
 	return 0;

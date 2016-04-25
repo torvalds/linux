@@ -43,14 +43,16 @@ config SI7005
 	  humidity and temperature sensor.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called si7005.
+	  will be called si7005. This driver also
+	  supports Hoperf TH02 Humidity and Temperature Sensor.
 
 config SI7020
 	tristate "Si7013/20/21 Relative Humidity and Temperature Sensors"
 	depends on I2C
 	help
 	  Say yes here to build support for the Silicon Labs Si7013/20/21
-	  Relative Humidity and Temperature Sensors.
+	  Relative Humidity and Temperature Sensors. This driver also
+	  supports Hoperf TH06 Humidity and Temperature Sensor.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called si7020.

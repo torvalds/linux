@@ -60,6 +60,15 @@
 #define PWRAP_MAN_CMD_OP_OUTD		(0x9 << 8)
 #define PWRAP_MAN_CMD_OP_OUTQ		(0xa << 8)
 
+/* macro for Watch Dog Timer Source */
+#define PWRAP_WDT_SRC_EN_STAUPD_TRIG		(1 << 25)
+#define PWRAP_WDT_SRC_EN_HARB_STAUPD_DLE	(1 << 20)
+#define PWRAP_WDT_SRC_EN_HARB_STAUPD_ALE	(1 << 6)
+#define PWRAP_WDT_SRC_MASK_ALL			0xffffffff
+#define PWRAP_WDT_SRC_MASK_NO_STAUPD	~(PWRAP_WDT_SRC_EN_STAUPD_TRIG | \
+					  PWRAP_WDT_SRC_EN_HARB_STAUPD_DLE | \
+					  PWRAP_WDT_SRC_EN_HARB_STAUPD_ALE)
+
 /* macro for slave device wrapper registers */
 #define PWRAP_DEW_BASE			0xbc00
 #define PWRAP_DEW_EVENT_OUT_EN		(PWRAP_DEW_BASE + 0x0)
@@ -412,6 +421,20 @@ static bool pwrap_is_fsm_vldclr(struct pmic_wrapper *wrp)
 	return PWRAP_GET_WACS_FSM(val) == PWRAP_WACS_FSM_WFVLDCLR;
 }
 
+/*
+ * Timeout issue sometimes caused by the last read command
+ * failed because pmic wrap could not got the FSM_VLDCLR
+ * in time after finishing WACS2_CMD. It made state machine
+ * still on FSM_VLDCLR and timeout next time.
+ * Check the status of FSM and clear the vldclr to recovery the
+ * error.
+ */
+static inline void pwrap_leave_fsm_vldclr(struct pmic_wrapper *wrp)
+{
+	if (pwrap_is_fsm_vldclr(wrp))
+		pwrap_writel(wrp, 1, PWRAP_WACS2_VLDCLR);
+}
+
 static bool pwrap_is_sync_idle(struct pmic_wrapper *wrp)
 {
 	return pwrap_readl(wrp, PWRAP_WACS2_RDATA) & PWRAP_STATE_SYNC_IDLE0;
@@ -445,8 +468,10 @@ static int pwrap_write(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
 	int ret;
 
 	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
-	if (ret)
+	if (ret) {
+		pwrap_leave_fsm_vldclr(wrp);
 		return ret;
+	}
 
 	pwrap_writel(wrp, (1 << 31) | ((adr >> 1) << 16) | wdata,
 			PWRAP_WACS2_CMD);
@@ -459,8 +484,10 @@ static int pwrap_read(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 	int ret;
 
 	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
-	if (ret)
+	if (ret) {
+		pwrap_leave_fsm_vldclr(wrp);
 		return ret;
+	}
 
 	pwrap_writel(wrp, (adr >> 1) << 16, PWRAP_WACS2_CMD);
 
@@ -804,7 +831,7 @@ MODULE_DEVICE_TABLE(of, of_pwrap_match_tbl);
 
 static int pwrap_probe(struct platform_device *pdev)
 {
-	int ret, irq;
+	int ret, irq, wdt_src;
 	struct pmic_wrapper *wrp;
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id =
@@ -894,7 +921,13 @@ static int pwrap_probe(struct platform_device *pdev)
 
 	/* Initialize watchdog, may not be done by the bootloader */
 	pwrap_writel(wrp, 0xf, PWRAP_WDT_UNIT);
-	pwrap_writel(wrp, 0xffffffff, PWRAP_WDT_SRC_EN);
+	/*
+	 * Since STAUPD was not used on mt8173 platform,
+	 * so STAUPD of WDT_SRC which should be turned off
+	 */
+	wdt_src = pwrap_is_mt8173(wrp) ?
+			PWRAP_WDT_SRC_MASK_NO_STAUPD : PWRAP_WDT_SRC_MASK_ALL;
+	pwrap_writel(wrp, wdt_src, PWRAP_WDT_SRC_EN);
 	pwrap_writel(wrp, 0x1, PWRAP_TIMER_EN);
 	pwrap_writel(wrp, ~((1 << 31) | (1 << 1)), PWRAP_INT_EN);
 

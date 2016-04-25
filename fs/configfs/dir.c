@@ -432,14 +432,9 @@ static int configfs_attach_attr(struct configfs_dirent * sd, struct dentry * den
 				(sd->s_type & CONFIGFS_ITEM_BIN_ATTR) ?
 					configfs_init_bin_file :
 					configfs_init_file);
-	if (error) {
+	if (error)
 		configfs_put(sd);
-		return error;
-	}
-
-	d_rehash(dentry);
-
-	return 0;
+	return error;
 }
 
 static struct dentry * configfs_lookup(struct inode *dir,
@@ -701,22 +696,28 @@ static int populate_groups(struct config_group *group)
 {
 	struct config_group *new_group;
 	int ret = 0;
-	int i;
 
-	if (group->default_groups) {
-		for (i = 0; group->default_groups[i]; i++) {
-			new_group = group->default_groups[i];
-
-			ret = create_default_group(group, new_group);
-			if (ret) {
-				detach_groups(group);
-				break;
-			}
+	list_for_each_entry(new_group, &group->default_groups, group_entry) {
+		ret = create_default_group(group, new_group);
+		if (ret) {
+			detach_groups(group);
+			break;
 		}
 	}
 
 	return ret;
 }
+
+void configfs_remove_default_groups(struct config_group *group)
+{
+	struct config_group *g, *n;
+
+	list_for_each_entry_safe(g, n, &group->default_groups, group_entry) {
+		list_del(&g->group_entry);
+		config_item_put(&g->cg_item);
+	}
+}
+EXPORT_SYMBOL(configfs_remove_default_groups);
 
 /*
  * All of link_obj/unlink_obj/link_group/unlink_group require that
@@ -766,15 +767,10 @@ static void link_obj(struct config_item *parent_item, struct config_item *item)
 
 static void unlink_group(struct config_group *group)
 {
-	int i;
 	struct config_group *new_group;
 
-	if (group->default_groups) {
-		for (i = 0; group->default_groups[i]; i++) {
-			new_group = group->default_groups[i];
-			unlink_group(new_group);
-		}
-	}
+	list_for_each_entry(new_group, &group->default_groups, group_entry)
+		unlink_group(new_group);
 
 	group->cg_subsys = NULL;
 	unlink_obj(&group->cg_item);
@@ -782,7 +778,6 @@ static void unlink_group(struct config_group *group)
 
 static void link_group(struct config_group *parent_group, struct config_group *group)
 {
-	int i;
 	struct config_group *new_group;
 	struct configfs_subsystem *subsys = NULL; /* gcc is a turd */
 
@@ -796,12 +791,8 @@ static void link_group(struct config_group *parent_group, struct config_group *g
 		BUG();
 	group->cg_subsys = subsys;
 
-	if (group->default_groups) {
-		for (i = 0; group->default_groups[i]; i++) {
-			new_group = group->default_groups[i];
-			link_group(group, new_group);
-		}
-	}
+	list_for_each_entry(new_group, &group->default_groups, group_entry)
+		link_group(group, new_group);
 }
 
 /*

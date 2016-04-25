@@ -903,14 +903,10 @@ static inline void free_zone(struct zone_entry *zone)
 	zone->set_index = 0;
 	zone->get_index = 0;
 	zone->unused_blk_cnt = 0;
-	if (zone->l2p_table) {
-		vfree(zone->l2p_table);
-		zone->l2p_table = NULL;
-	}
-	if (zone->free_table) {
-		vfree(zone->free_table);
-		zone->free_table = NULL;
-	}
+	vfree(zone->l2p_table);
+	zone->l2p_table = NULL;
+	vfree(zone->free_table);
+	zone->free_table = NULL;
 }
 
 static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
@@ -1435,7 +1431,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 
 	if (zone->l2p_table == NULL) {
 		zone->l2p_table = vmalloc(2000);
-		if (zone->l2p_table == NULL) {
+		if (!zone->l2p_table) {
 			rtsx_trace(chip);
 			goto Build_Fail;
 		}
@@ -1444,7 +1440,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 
 	if (zone->free_table == NULL) {
 		zone->free_table = vmalloc(XD_FREE_TABLE_CNT * 2);
-		if (zone->free_table == NULL) {
+		if (!zone->free_table) {
 			rtsx_trace(chip);
 			goto Build_Fail;
 		}
@@ -1588,14 +1584,10 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 	return STATUS_SUCCESS;
 
 Build_Fail:
-	if (zone->l2p_table) {
-		vfree(zone->l2p_table);
-		zone->l2p_table = NULL;
-	}
-	if (zone->free_table) {
-		vfree(zone->free_table);
-		zone->free_table = NULL;
-	}
+	vfree(zone->l2p_table);
+	zone->l2p_table = NULL;
+	vfree(zone->free_table);
+	zone->free_table = NULL;
 
 	return STATUS_FAIL;
 }
@@ -2251,14 +2243,10 @@ void xd_free_l2p_tbl(struct rtsx_chip *chip)
 
 	if (xd_card->zone != NULL) {
 		for (i = 0; i < xd_card->zone_cnt; i++) {
-			if (xd_card->zone[i].l2p_table != NULL) {
-				vfree(xd_card->zone[i].l2p_table);
-				xd_card->zone[i].l2p_table = NULL;
-			}
-			if (xd_card->zone[i].free_table != NULL) {
-				vfree(xd_card->zone[i].free_table);
-				xd_card->zone[i].free_table = NULL;
-			}
+			vfree(xd_card->zone[i].l2p_table);
+			xd_card->zone[i].l2p_table = NULL;
+			vfree(xd_card->zone[i].free_table);
+			xd_card->zone[i].free_table = NULL;
 		}
 		vfree(xd_card->zone);
 		xd_card->zone = NULL;

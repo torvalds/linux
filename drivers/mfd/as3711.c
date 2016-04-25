@@ -108,8 +108,8 @@ static const struct regmap_config as3711_regmap_config = {
 	.volatile_reg = as3711_volatile_reg,
 	.readable_reg = as3711_readable_reg,
 	.precious_reg = as3711_precious_reg,
-	.max_register = AS3711_MAX_REGS,
-	.num_reg_defaults_raw = AS3711_MAX_REGS,
+	.max_register = AS3711_MAX_REG,
+	.num_reg_defaults_raw = AS3711_NUM_REGS,
 	.cache_type = REGCACHE_RBTREE,
 };
 

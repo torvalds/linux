@@ -438,6 +438,9 @@ exit_clear:
  *
  * New endpoints will be added to chip->ep_list and must be freed by
  * calling snd_usb_endpoint_free().
+ *
+ * For SND_USB_ENDPOINT_TYPE_SYNC, the caller needs to guarantee that
+ * bNumEndpoints > 1 beforehand.
  */
 struct snd_usb_endpoint *snd_usb_add_endpoint(struct snd_usb_audio *chip,
 					      struct usb_host_interface *alts,

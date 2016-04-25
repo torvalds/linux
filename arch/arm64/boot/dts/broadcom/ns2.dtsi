@@ -137,6 +137,80 @@
 		};
 	};
 
+	pcie0: pcie@20020000 {
+		compatible = "brcm,iproc-pcie";
+		reg = <0 0x20020000 0 0x1000>;
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &gic GIC_SPI 281 IRQ_TYPE_NONE>;
+
+		linux,pci-domain = <0>;
+
+		bus-range = <0x00 0xff>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x83000000 0 0x00000000 0 0x00000000 0 0x20000000>;
+
+		brcm,pcie-ob;
+		brcm,pcie-ob-oarr-size;
+		brcm,pcie-ob-axi-offset = <0x00000000>;
+		brcm,pcie-ob-window-size = <256>;
+
+		status = "disabled";
+
+		msi-parent = <&msi0>;
+		msi0: msi@20020000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 277 IRQ_TYPE_NONE>,
+				     <GIC_SPI 278 IRQ_TYPE_NONE>,
+				     <GIC_SPI 279 IRQ_TYPE_NONE>,
+				     <GIC_SPI 280 IRQ_TYPE_NONE>;
+			brcm,num-eq-region = <1>;
+			brcm,num-msi-msg-region = <1>;
+		};
+	};
+
+	pcie4: pcie@50020000 {
+		compatible = "brcm,iproc-pcie";
+		reg = <0 0x50020000 0 0x1000>;
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &gic GIC_SPI 305 IRQ_TYPE_NONE>;
+
+		linux,pci-domain = <4>;
+
+		bus-range = <0x00 0xff>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x83000000 0 0x00000000 0 0x30000000 0 0x20000000>;
+
+		brcm,pcie-ob;
+		brcm,pcie-ob-oarr-size;
+		brcm,pcie-ob-axi-offset = <0x30000000>;
+		brcm,pcie-ob-window-size = <256>;
+
+		status = "disabled";
+
+		msi-parent = <&msi4>;
+		msi4: msi@50020000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 301 IRQ_TYPE_NONE>,
+				     <GIC_SPI 302 IRQ_TYPE_NONE>,
+				     <GIC_SPI 303 IRQ_TYPE_NONE>,
+				     <GIC_SPI 304 IRQ_TYPE_NONE>;
+		};
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -256,6 +330,46 @@
 			      <0x65260000 0x1000>;
 		};
 
+		timer0: timer@66030000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x66030000 0x1000>;
+			interrupts = <GIC_SPI 396 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>,
+				 <&iprocslow>,
+				 <&iprocslow>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+		};
+
+		timer1: timer@66040000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x66040000 0x1000>;
+			interrupts = <GIC_SPI 397 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>,
+				 <&iprocslow>,
+				 <&iprocslow>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+		};
+
+		timer2: timer@66050000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x66050000 0x1000>;
+			interrupts = <GIC_SPI 398 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>,
+				 <&iprocslow>,
+				 <&iprocslow>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+		};
+
+		timer3: timer@66060000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x66060000 0x1000>;
+			interrupts = <GIC_SPI 399 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>,
+				 <&iprocslow>,
+				 <&iprocslow>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+		};
+
 		i2c0: i2c@66080000 {
 			compatible = "brcm,iproc-i2c";
 			reg = <0x66080000 0x100>;
@@ -264,6 +378,14 @@
 			interrupts = <GIC_SPI 394 IRQ_TYPE_NONE>;
 			clock-frequency = <100000>;
 			status = "disabled";
+		};
+
+		wdt0: watchdog@66090000 {
+			compatible = "arm,sp805", "arm,primecell";
+			reg = <0x66090000 0x1000>;
+			interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>, <&iprocslow>;
+			clock-names = "wdogclk", "apb_pclk";
 		};
 
 		i2c1: i2c@660b0000 {
@@ -289,6 +411,24 @@
 		hwrng: hwrng@66220000 {
 			compatible = "brcm,iproc-rng200";
 			reg = <0x66220000 0x28>;
+		};
+
+		sdio0: sdhci@66420000 {
+			compatible = "brcm,sdhci-iproc-cygnus";
+			reg = <0x66420000 0x100>;
+			interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>;
+			bus-width = <8>;
+			clocks = <&genpll_sw BCM_NS2_GENPLL_SW_SDIO_CLK>;
+			status = "disabled";
+		};
+
+		sdio1: sdhci@66430000 {
+			compatible = "brcm,sdhci-iproc-cygnus";
+			reg = <0x66430000 0x100>;
+			interrupts = <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>;
+			bus-width = <8>;
+			clocks = <&genpll_sw BCM_NS2_GENPLL_SW_SDIO_CLK>;
+			status = "disabled";
 		};
 
 		nand: nand@66460000 {

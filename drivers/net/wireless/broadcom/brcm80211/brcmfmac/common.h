@@ -15,6 +15,10 @@
 #ifndef BRCMFMAC_COMMON_H
 #define BRCMFMAC_COMMON_H
 
+#include <linux/platform_device.h>
+#include <linux/platform_data/brcmfmac.h>
+#include "fwil_types.h"
+
 extern const u8 ALLFFMAC[ETH_ALEN];
 
 #define BRCMF_FW_ALTPATH_LEN			256
@@ -41,37 +45,30 @@ extern struct brcmf_mp_global_t brcmf_mp_global;
 /**
  * struct brcmf_mp_device - Device module paramaters.
  *
- * @sdiod_txglomsz: SDIO txglom size.
- * @joinboost_5g_rssi: 5g rssi booost for preferred join selection.
  * @p2p_enable: Legacy P2P0 enable (old wpa_supplicant).
  * @feature_disable: Feature_disable bitmask.
  * @fcmode: FWS flow control.
  * @roamoff: Firmware roaming off?
+ * @ignore_probe_fail: Ignore probe failure.
+ * @country_codes: If available, pointer to struct for translating country codes
+ * @bus: Bus specific platform data. Only SDIO at the mmoment.
  */
 struct brcmf_mp_device {
-	int	sdiod_txglomsz;
-	int	joinboost_5g_rssi;
-	bool	p2p_enable;
-	int	feature_disable;
-	int	fcmode;
-	bool	roamoff;
-	bool	ignore_probe_fail;
+	bool		p2p_enable;
+	unsigned int	feature_disable;
+	int		fcmode;
+	bool		roamoff;
+	bool		ignore_probe_fail;
+	struct brcmfmac_pd_cc *country_codes;
+	union {
+		struct brcmfmac_sdio_pd sdio;
+	} bus;
 };
 
-void brcmf_mp_attach(void);
-int brcmf_mp_device_attach(struct brcmf_pub *drvr);
-void brcmf_mp_device_detach(struct brcmf_pub *drvr);
-#ifdef DEBUG
-static inline bool brcmf_ignoring_probe_fail(struct brcmf_pub *drvr)
-{
-	return drvr->settings->ignore_probe_fail;
-}
-#else
-static inline bool brcmf_ignoring_probe_fail(struct brcmf_pub *drvr)
-{
-	return false;
-}
-#endif
+struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
+					       enum brcmf_bus_type bus_type,
+					       u32 chip, u32 chiprev);
+void brcmf_release_module_param(struct brcmf_mp_device *module_param);
 
 /* Sets dongle media info (drv_version, mac address). */
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);

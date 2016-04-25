@@ -645,6 +645,8 @@ static int dw_i2s_probe(struct platform_device *pdev)
 
 	dev->dev = &pdev->dev;
 
+	dev->i2s_reg_comp1 = I2S_COMP_PARAM_1;
+	dev->i2s_reg_comp2 = I2S_COMP_PARAM_2;
 	if (pdata) {
 		dev->capability = pdata->cap;
 		clk_id = NULL;
@@ -652,9 +654,6 @@ static int dw_i2s_probe(struct platform_device *pdev)
 		if (dev->quirks & DW_I2S_QUIRK_COMP_REG_OFFSET) {
 			dev->i2s_reg_comp1 = pdata->i2s_reg_comp1;
 			dev->i2s_reg_comp2 = pdata->i2s_reg_comp2;
-		} else {
-			dev->i2s_reg_comp1 = I2S_COMP_PARAM_1;
-			dev->i2s_reg_comp2 = I2S_COMP_PARAM_2;
 		}
 		ret = dw_configure_dai_by_pd(dev, dw_i2s_dai, res, pdata);
 	} else {

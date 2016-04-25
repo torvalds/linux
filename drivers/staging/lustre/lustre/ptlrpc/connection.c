@@ -72,7 +72,8 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 	 * returned and may be compared against out object.
 	 */
 	/* In the function below, .hs_keycmp resolves to
-	 * conn_keycmp() */
+	 * conn_keycmp()
+	 */
 	/* coverity[overrun-buffer-val] */
 	conn2 = cfs_hash_findadd_unique(conn_hash, &peer, &conn->c_hash);
 	if (conn != conn2) {
@@ -172,7 +173,7 @@ conn_keycmp(const void *key, struct hlist_node *hnode)
 	struct ptlrpc_connection *conn;
 	const lnet_process_id_t *conn_key;
 
-	LASSERT(key != NULL);
+	LASSERT(key);
 	conn_key = key;
 	conn = hlist_entry(hnode, struct ptlrpc_connection, c_hash);
 

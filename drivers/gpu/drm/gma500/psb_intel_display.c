@@ -430,7 +430,6 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 
 const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.dpms = gma_crtc_dpms,
-	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = psb_intel_crtc_mode_set,
 	.mode_set_base = gma_pipe_set_base,
 	.prepare = gma_crtc_prepare,

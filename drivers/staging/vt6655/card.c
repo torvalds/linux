@@ -443,7 +443,6 @@ bool CARDbRadioPowerOff(struct vnt_private *priv)
 		MACvWordRegBitsOff(priv->PortOffset, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE2);
 		MACvWordRegBitsOff(priv->PortOffset, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 		break;
-
 	}
 
 	MACvRegBitsOff(priv->PortOffset, MAC_REG_HOSTCR, HOSTCR_RXON);
@@ -499,7 +498,6 @@ bool CARDbRadioPowerOn(struct vnt_private *priv)
 		MACvWordRegBitsOn(priv->PortOffset, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE2 |
 									    SOFTPWRCTL_SWPE3));
 		break;
-
 	}
 
 	priv->bRadioOff = false;
@@ -535,11 +533,9 @@ CARDvSafeResetTx(
 	}
 
 	/* set MAC TD pointer */
-	MACvSetCurrTXDescAddr(TYPE_TXDMA0, priv->PortOffset,
-			      (priv->td0_pool_dma));
+	MACvSetCurrTXDescAddr(TYPE_TXDMA0, priv, priv->td0_pool_dma);
 
-	MACvSetCurrTXDescAddr(TYPE_AC0DMA, priv->PortOffset,
-			      (priv->td1_pool_dma));
+	MACvSetCurrTXDescAddr(TYPE_AC0DMA, priv, priv->td1_pool_dma);
 
 	/* set MAC Beacon TX pointer */
 	MACvSetCurrBCNTxDescAddr(priv->PortOffset,
@@ -590,11 +586,9 @@ CARDvSafeResetRx(
 	MACvRx0PerPktMode(priv->PortOffset);
 	MACvRx1PerPktMode(priv->PortOffset);
 	/* set MAC RD pointer */
-	MACvSetCurrRx0DescAddr(priv->PortOffset,
-			       priv->rd0_pool_dma);
+	MACvSetCurrRx0DescAddr(priv, priv->rd0_pool_dma);
 
-	MACvSetCurrRx1DescAddr(priv->PortOffset,
-			       priv->rd1_pool_dma);
+	MACvSetCurrRx1DescAddr(priv, priv->rd1_pool_dma);
 }
 
 /*
@@ -816,7 +810,6 @@ bool CARDbIsOFDMinBasicRate(struct vnt_private *priv)
 
 unsigned char CARDbyGetPktType(struct vnt_private *priv)
 {
-
 	if (priv->byBBType == BB_TYPE_11A || priv->byBBType == BB_TYPE_11B)
 		return (unsigned char)priv->byBBType;
 	else if (CARDbIsOFDMinBasicRate((void *)priv))
@@ -839,8 +832,6 @@ unsigned char CARDbyGetPktType(struct vnt_private *priv)
  */
 void CARDvSetLoopbackMode(struct vnt_private *priv, unsigned short wLoopbackMode)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
-
 	switch (wLoopbackMode) {
 	case CARD_LB_NONE:
 	case CARD_LB_MAC:
@@ -850,7 +841,7 @@ void CARDvSetLoopbackMode(struct vnt_private *priv, unsigned short wLoopbackMode
 		break;
 	}
 	/* set MAC loopback */
-	MACvSetLoopbackMode(dwIoBase, LOBYTE(wLoopbackMode));
+	MACvSetLoopbackMode(priv, LOBYTE(wLoopbackMode));
 	/* set Baseband loopback */
 }
 
@@ -867,9 +858,8 @@ void CARDvSetLoopbackMode(struct vnt_private *priv, unsigned short wLoopbackMode
  */
 bool CARDbSoftwareReset(struct vnt_private *priv)
 {
-
 	/* reset MAC */
-	if (!MACbSafeSoftwareReset(priv->PortOffset))
+	if (!MACbSafeSoftwareReset(priv))
 		return false;
 
 	return true;

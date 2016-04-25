@@ -803,7 +803,14 @@ static int brcmf_chip_dmp_get_regaddr(struct brcmf_chip_priv *ci, u32 *eromaddr,
 				*eromaddr -= 4;
 				return -EFAULT;
 			}
-		} while (desc != DMP_DESC_ADDRESS);
+		} while (desc != DMP_DESC_ADDRESS &&
+			 desc != DMP_DESC_COMPONENT);
+
+		/* stop if we crossed current component border */
+		if (desc == DMP_DESC_COMPONENT) {
+			*eromaddr -= 4;
+			return 0;
+		}
 
 		/* skip upper 32-bit address descriptor */
 		if (val & DMP_DESC_ADDRSIZE_GT32)
@@ -876,7 +883,8 @@ int brcmf_chip_dmp_erom_scan(struct brcmf_chip_priv *ci)
 		rev = (val & DMP_COMP_REVISION) >> DMP_COMP_REVISION_S;
 
 		/* need core with ports */
-		if (nmw + nsw == 0)
+		if (nmw + nsw == 0 &&
+		    id != BCMA_CORE_PMU)
 			continue;
 
 		/* try to obtain register address info */
@@ -1006,6 +1014,7 @@ static int brcmf_chip_setup(struct brcmf_chip_priv *chip)
 {
 	struct brcmf_chip *pub;
 	struct brcmf_core_priv *cc;
+	struct brcmf_core *pmu;
 	u32 base;
 	u32 val;
 	int ret = 0;
@@ -1017,11 +1026,15 @@ static int brcmf_chip_setup(struct brcmf_chip_priv *chip)
 	/* get chipcommon capabilites */
 	pub->cc_caps = chip->ops->read32(chip->ctx,
 					 CORE_CC_REG(base, capabilities));
+	pub->cc_caps_ext = chip->ops->read32(chip->ctx,
+					     CORE_CC_REG(base,
+							 capabilities_ext));
 
 	/* get pmu caps & rev */
+	pmu = brcmf_chip_get_pmu(pub); /* after reading cc_caps_ext */
 	if (pub->cc_caps & CC_CAP_PMU) {
 		val = chip->ops->read32(chip->ctx,
-					CORE_CC_REG(base, pmucapabilities));
+					CORE_CC_REG(pmu->base, pmucapabilities));
 		pub->pmurev = val & PCAP_REV_MASK;
 		pub->pmucaps = val;
 	}
@@ -1118,6 +1131,23 @@ struct brcmf_core *brcmf_chip_get_chipcommon(struct brcmf_chip *pub)
 	if (WARN_ON(!cc || cc->pub.id != BCMA_CORE_CHIPCOMMON))
 		return brcmf_chip_get_core(pub, BCMA_CORE_CHIPCOMMON);
 	return &cc->pub;
+}
+
+struct brcmf_core *brcmf_chip_get_pmu(struct brcmf_chip *pub)
+{
+	struct brcmf_core *cc = brcmf_chip_get_chipcommon(pub);
+	struct brcmf_core *pmu;
+
+	/* See if there is separated PMU core available */
+	if (cc->rev >= 35 &&
+	    pub->cc_caps_ext & BCMA_CC_CAP_EXT_AOB_PRESENT) {
+		pmu = brcmf_chip_get_core(pub, BCMA_CORE_PMU);
+		if (pmu)
+			return pmu;
+	}
+
+	/* Fallback to ChipCommon core for older hardware */
+	return cc;
 }
 
 bool brcmf_chip_iscoreup(struct brcmf_core *pub)
@@ -1290,6 +1320,7 @@ bool brcmf_chip_sr_capable(struct brcmf_chip *pub)
 {
 	u32 base, addr, reg, pmu_cc3_mask = ~0;
 	struct brcmf_chip_priv *chip;
+	struct brcmf_core *pmu = brcmf_chip_get_pmu(pub);
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -1309,9 +1340,9 @@ bool brcmf_chip_sr_capable(struct brcmf_chip *pub)
 	case BRCM_CC_4335_CHIP_ID:
 	case BRCM_CC_4339_CHIP_ID:
 		/* read PMU chipcontrol register 3 */
-		addr = CORE_CC_REG(base, chipcontrol_addr);
+		addr = CORE_CC_REG(pmu->base, chipcontrol_addr);
 		chip->ops->write32(chip->ctx, addr, 3);
-		addr = CORE_CC_REG(base, chipcontrol_data);
+		addr = CORE_CC_REG(pmu->base, chipcontrol_data);
 		reg = chip->ops->read32(chip->ctx, addr);
 		return (reg & pmu_cc3_mask) != 0;
 	case BRCM_CC_43430_CHIP_ID:
@@ -1319,12 +1350,12 @@ bool brcmf_chip_sr_capable(struct brcmf_chip *pub)
 		reg = chip->ops->read32(chip->ctx, addr);
 		return reg != 0;
 	default:
-		addr = CORE_CC_REG(base, pmucapabilities_ext);
+		addr = CORE_CC_REG(pmu->base, pmucapabilities_ext);
 		reg = chip->ops->read32(chip->ctx, addr);
 		if ((reg & PCAPEXT_SR_SUPPORTED_MASK) == 0)
 			return false;
 
-		addr = CORE_CC_REG(base, retention_ctl);
+		addr = CORE_CC_REG(pmu->base, retention_ctl);
 		reg = chip->ops->read32(chip->ctx, addr);
 		return (reg & (PMU_RCTL_MACPHY_DISABLE_MASK |
 			       PMU_RCTL_LOGIC_DISABLE_MASK)) == 0;

@@ -809,6 +809,16 @@ static int audit_set_feature(struct sk_buff *skb)
 	return 0;
 }
 
+static int audit_replace(pid_t pid)
+{
+	struct sk_buff *skb = audit_make_reply(0, 0, AUDIT_REPLACE, 0, 0,
+					       &pid, sizeof(pid));
+
+	if (!skb)
+		return -ENOMEM;
+	return netlink_unicast(audit_sock, skb, audit_nlk_portid, 0);
+}
+
 static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	u32			seq;
@@ -870,9 +880,17 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		}
 		if (s.mask & AUDIT_STATUS_PID) {
 			int new_pid = s.pid;
+			pid_t requesting_pid = task_tgid_vnr(current);
 
-			if ((!new_pid) && (task_tgid_vnr(current) != audit_pid))
+			if ((!new_pid) && (requesting_pid != audit_pid)) {
+				audit_log_config_change("audit_pid", new_pid, audit_pid, 0);
 				return -EACCES;
+			}
+			if (audit_pid && new_pid &&
+			    audit_replace(requesting_pid) != -ECONNREFUSED) {
+				audit_log_config_change("audit_pid", new_pid, audit_pid, 0);
+				return -EEXIST;
+			}
 			if (audit_enabled != AUDIT_OFF)
 				audit_log_config_change("audit_pid", new_pid, audit_pid, 1);
 			audit_pid = new_pid;
@@ -920,7 +938,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (err == 1) { /* match or error */
 			err = 0;
 			if (msg_type == AUDIT_USER_TTY) {
-				err = tty_audit_push_current();
+				err = tty_audit_push();
 				if (err)
 					break;
 			}
@@ -1030,20 +1048,19 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	case AUDIT_TTY_GET: {
 		struct audit_tty_status s;
-		struct task_struct *tsk = current;
+		unsigned int t;
 
-		spin_lock(&tsk->sighand->siglock);
-		s.enabled = tsk->signal->audit_tty;
-		s.log_passwd = tsk->signal->audit_tty_log_passwd;
-		spin_unlock(&tsk->sighand->siglock);
+		t = READ_ONCE(current->signal->audit_tty);
+		s.enabled = t & AUDIT_TTY_ENABLE;
+		s.log_passwd = !!(t & AUDIT_TTY_LOG_PASSWD);
 
 		audit_send_reply(skb, seq, AUDIT_TTY_GET, 0, 0, &s, sizeof(s));
 		break;
 	}
 	case AUDIT_TTY_SET: {
 		struct audit_tty_status s, old;
-		struct task_struct *tsk = current;
 		struct audit_buffer	*ab;
+		unsigned int t;
 
 		memset(&s, 0, sizeof(s));
 		/* guard against past and future API changes */
@@ -1053,14 +1070,14 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		    (s.log_passwd != 0 && s.log_passwd != 1))
 			err = -EINVAL;
 
-		spin_lock(&tsk->sighand->siglock);
-		old.enabled = tsk->signal->audit_tty;
-		old.log_passwd = tsk->signal->audit_tty_log_passwd;
-		if (!err) {
-			tsk->signal->audit_tty = s.enabled;
-			tsk->signal->audit_tty_log_passwd = s.log_passwd;
+		if (err)
+			t = READ_ONCE(current->signal->audit_tty);
+		else {
+			t = s.enabled | (-s.log_passwd & AUDIT_TTY_LOG_PASSWD);
+			t = xchg(&current->signal->audit_tty, t);
 		}
-		spin_unlock(&tsk->sighand->siglock);
+		old.enabled = t & AUDIT_TTY_ENABLE;
+		old.log_passwd = !!(t & AUDIT_TTY_LOG_PASSWD);
 
 		audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE);
 		audit_log_format(ab, " op=tty_set old-enabled=%d new-enabled=%d"

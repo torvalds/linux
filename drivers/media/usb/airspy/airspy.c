@@ -104,9 +104,8 @@ struct airspy_frame_buf {
 };
 
 struct airspy {
-#define POWER_ON           (1 << 1)
-#define URB_BUF            (1 << 2)
-#define USB_STATE_URB_BUF  (1 << 3)
+#define POWER_ON	   1
+#define USB_STATE_URB_BUF  2
 	unsigned long flags;
 
 	struct device *dev;
@@ -359,7 +358,7 @@ static int airspy_submit_urbs(struct airspy *s)
 
 static int airspy_free_stream_bufs(struct airspy *s)
 {
-	if (s->flags & USB_STATE_URB_BUF) {
+	if (test_bit(USB_STATE_URB_BUF, &s->flags)) {
 		while (s->buf_num) {
 			s->buf_num--;
 			dev_dbg(s->dev, "free buf=%d\n", s->buf_num);
@@ -368,7 +367,7 @@ static int airspy_free_stream_bufs(struct airspy *s)
 					  s->dma_addr[s->buf_num]);
 		}
 	}
-	s->flags &= ~USB_STATE_URB_BUF;
+	clear_bit(USB_STATE_URB_BUF, &s->flags);
 
 	return 0;
 }
@@ -394,7 +393,7 @@ static int airspy_alloc_stream_bufs(struct airspy *s)
 		dev_dbg(s->dev, "alloc buf=%d %p (dma %llu)\n", s->buf_num,
 				s->buf_list[s->buf_num],
 				(long long)s->dma_addr[s->buf_num]);
-		s->flags |= USB_STATE_URB_BUF;
+		set_bit(USB_STATE_URB_BUF, &s->flags);
 	}
 
 	return 0;

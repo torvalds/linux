@@ -64,7 +64,7 @@
 			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			debounce-interval = <100>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -340,11 +340,6 @@
 	i2c-scl-rising-time-ns = <1000>;
 };
 
-&power {
-	assigned-clocks = <&cru SCLK_EDP_24M>;
-	assigned-clock-parents = <&xin24m>;
-};
-
 &pwm1 {
 	status = "okay";
 };
@@ -421,7 +416,7 @@
 	status = "okay";
 
 	assigned-clocks = <&cru SCLK_USBPHY480M_SRC>;
-	assigned-clock-parents = <&cru SCLK_OTGPHY0>;
+	assigned-clock-parents = <&usbphy0>;
 	dr_mode = "host";
 };
 

@@ -28,6 +28,7 @@ Optional properties:
   - ti,dvs-gpio: GPIO specifier for external DVS pin control of LP872x devices.
   - ti,dvs-vsel: DVS selector. 0 = SEL_V1, 1 = SEL_V2.
   - ti,dvs-state: initial DVS pin state. 0 = DVS_LOW, 1 = DVS_HIGH.
+  - enable-gpios: GPIO specifier for EN pin control of LP872x devices.
 
   Sub nodes for regulator_init_data
     LP8720 has maximum 6 nodes. (child name: ldo1 ~ 5 and buck)

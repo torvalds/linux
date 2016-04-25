@@ -199,6 +199,8 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 	if (sb->s_op->show_devname) {
 		seq_puts(m, "device ");
 		err = sb->s_op->show_devname(m, mnt_path.dentry);
+		if (err)
+			goto out;
 	} else {
 		if (r->mnt_devname) {
 			seq_puts(m, "device ");

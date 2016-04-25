@@ -166,6 +166,7 @@ static struct attribute_group iscsi_boot_target_attr_group = {
 iscsi_boot_rd_attr(eth_index, index, ISCSI_BOOT_ETH_INDEX);
 iscsi_boot_rd_attr(eth_flags, flags, ISCSI_BOOT_ETH_FLAGS);
 iscsi_boot_rd_attr(eth_ip, ip-addr, ISCSI_BOOT_ETH_IP_ADDR);
+iscsi_boot_rd_attr(eth_prefix, prefix-len, ISCSI_BOOT_ETH_PREFIX_LEN);
 iscsi_boot_rd_attr(eth_subnet, subnet-mask, ISCSI_BOOT_ETH_SUBNET_MASK);
 iscsi_boot_rd_attr(eth_origin, origin, ISCSI_BOOT_ETH_ORIGIN);
 iscsi_boot_rd_attr(eth_gateway, gateway, ISCSI_BOOT_ETH_GATEWAY);
@@ -181,6 +182,7 @@ static struct attribute *ethernet_attrs[] = {
 	&iscsi_boot_attr_eth_index.attr,
 	&iscsi_boot_attr_eth_flags.attr,
 	&iscsi_boot_attr_eth_ip.attr,
+	&iscsi_boot_attr_eth_prefix.attr,
 	&iscsi_boot_attr_eth_subnet.attr,
 	&iscsi_boot_attr_eth_origin.attr,
 	&iscsi_boot_attr_eth_gateway.attr,
@@ -208,6 +210,9 @@ static umode_t iscsi_boot_eth_attr_is_visible(struct kobject *kobj,
 	else if (attr ==  &iscsi_boot_attr_eth_ip.attr)
 		return boot_kobj->is_visible(boot_kobj->data,
 					     ISCSI_BOOT_ETH_IP_ADDR);
+	else if (attr ==  &iscsi_boot_attr_eth_prefix.attr)
+		return boot_kobj->is_visible(boot_kobj->data,
+					     ISCSI_BOOT_ETH_PREFIX_LEN);
 	else if (attr ==  &iscsi_boot_attr_eth_subnet.attr)
 		return boot_kobj->is_visible(boot_kobj->data,
 					     ISCSI_BOOT_ETH_SUBNET_MASK);

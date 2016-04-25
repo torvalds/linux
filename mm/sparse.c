@@ -313,9 +313,8 @@ static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
 
 	usemap_nid = sparse_early_nid(__nr_to_section(usemap_snr));
 	if (usemap_nid != nid) {
-		printk(KERN_INFO
-		       "node %d must be removed before remove section %ld\n",
-		       nid, usemap_snr);
+		pr_info("node %d must be removed before remove section %ld\n",
+			nid, usemap_snr);
 		return;
 	}
 	/*
@@ -324,10 +323,8 @@ static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
 	 * gather other removable sections for dynamic partitioning.
 	 * Just notify un-removable section's number here.
 	 */
-	printk(KERN_INFO "Section %ld and %ld (node %d)", usemap_snr,
-	       pgdat_snr, nid);
-	printk(KERN_CONT
-	       " have a circular dependency on usemap and pgdat allocations\n");
+	pr_info("Section %ld and %ld (node %d) have a circular dependency on usemap and pgdat allocations\n",
+		usemap_snr, pgdat_snr, nid);
 }
 #else
 static unsigned long * __init
@@ -355,7 +352,7 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
 	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nodeid),
 							  size * usemap_count);
 	if (!usemap) {
-		printk(KERN_WARNING "%s: allocation failed\n", __func__);
+		pr_warn("%s: allocation failed\n", __func__);
 		return;
 	}
 
@@ -428,8 +425,8 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 		if (map_map[pnum])
 			continue;
 		ms = __nr_to_section(pnum);
-		printk(KERN_ERR "%s: sparsemem memory map backing failed "
-			"some memory will not be available.\n", __func__);
+		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+		       __func__);
 		ms->section_mem_map = 0;
 	}
 }
@@ -456,8 +453,8 @@ static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
 	if (map)
 		return map;
 
-	printk(KERN_ERR "%s: sparsemem memory map backing failed "
-			"some memory will not be available.\n", __func__);
+	pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+	       __func__);
 	ms->section_mem_map = 0;
 	return NULL;
 }

@@ -112,7 +112,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "micron,n25q128a11"; /* 16MB */
+				compatible = "micron,n25q128a11", "jedec,spi-nor"; /* 16MB */
 				reg = <0>;
 				spi-max-frequency = <40000000>; /* input clock */
 			};
@@ -120,7 +120,7 @@
 			flash@1 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "sst,sst25wf040";
+				compatible = "sst,sst25wf040", "jedec,spi-nor";
 				reg = <1>;
 				spi-max-frequency = <35000000>;
 			};
@@ -128,7 +128,7 @@
 			flash@2 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "eon,en25s64";
+				compatible = "eon,en25s64", "jedec,spi-nor";
 				reg = <2>;
 				spi-max-frequency = <35000000>;
 			};

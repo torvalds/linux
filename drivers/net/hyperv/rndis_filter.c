@@ -986,12 +986,6 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 
 	nvscdev = hv_get_drvdata(new_sc->primary_channel->device_obj);
 
-	spin_lock_irqsave(&nvscdev->sc_lock, flags);
-	nvscdev->num_sc_offered--;
-	spin_unlock_irqrestore(&nvscdev->sc_lock, flags);
-	if (nvscdev->num_sc_offered == 0)
-		complete(&nvscdev->channel_init_wait);
-
 	if (chn_index >= nvscdev->num_chn)
 		return;
 
@@ -1004,6 +998,12 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 
 	if (ret == 0)
 		nvscdev->chn_table[chn_index] = new_sc;
+
+	spin_lock_irqsave(&nvscdev->sc_lock, flags);
+	nvscdev->num_sc_offered--;
+	spin_unlock_irqrestore(&nvscdev->sc_lock, flags);
+	if (nvscdev->num_sc_offered == 0)
+		complete(&nvscdev->channel_init_wait);
 }
 
 int rndis_filter_device_add(struct hv_device *dev,
@@ -1113,9 +1113,9 @@ int rndis_filter_device_add(struct hv_device *dev,
 	if (ret || rsscap.num_recv_que < 2)
 		goto out;
 
-	num_rss_qs = min(device_info->max_num_vrss_chns, rsscap.num_recv_que);
+	net_device->max_chn = min_t(u32, VRSS_CHANNEL_MAX, rsscap.num_recv_que);
 
-	net_device->max_chn = rsscap.num_recv_que;
+	num_rss_qs = min(device_info->max_num_vrss_chns, net_device->max_chn);
 
 	/*
 	 * We will limit the VRSS channels to the number CPUs in the NUMA node
@@ -1175,22 +1175,18 @@ int rndis_filter_device_add(struct hv_device *dev,
 	ret = rndis_filter_set_rss_param(rndis_device, net_device->num_chn);
 
 	/*
-	 * Wait for the host to send us the sub-channel offers.
+	 * Set the number of sub-channels to be received.
 	 */
 	spin_lock_irqsave(&net_device->sc_lock, flags);
 	sc_delta = num_rss_qs - (net_device->num_chn - 1);
 	net_device->num_sc_offered -= sc_delta;
 	spin_unlock_irqrestore(&net_device->sc_lock, flags);
 
-	while (net_device->num_sc_offered != 0) {
-		t = wait_for_completion_timeout(&net_device->channel_init_wait, 10*HZ);
-		if (t == 0)
-			WARN(1, "Netvsc: Waiting for sub-channel processing");
-	}
 out:
 	if (ret) {
 		net_device->max_chn = 1;
 		net_device->num_chn = 1;
+		net_device->num_sc_offered = 0;
 	}
 
 	return 0; /* return 0 because primary channel can be used alone */
@@ -1204,6 +1200,17 @@ void rndis_filter_device_remove(struct hv_device *dev)
 {
 	struct netvsc_device *net_dev = hv_get_drvdata(dev);
 	struct rndis_device *rndis_dev = net_dev->extension;
+	unsigned long t;
+
+	/* If not all subchannel offers are complete, wait for them until
+	 * completion to avoid race.
+	 */
+	while (net_dev->num_sc_offered > 0) {
+		t = wait_for_completion_timeout(&net_dev->channel_init_wait,
+						10 * HZ);
+		if (t == 0)
+			WARN(1, "Netvsc: Waiting for sub-channel processing");
+	}
 
 	/* Halt and release the rndis device */
 	rndis_filter_halt_device(rndis_dev);

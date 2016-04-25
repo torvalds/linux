@@ -29,7 +29,6 @@
  */
 #define EXTENT_BIO_COMPRESSED 1
 #define EXTENT_BIO_TREE_LOG 2
-#define EXTENT_BIO_PARENT_LOCKED 4
 #define EXTENT_BIO_FLAG_SHIFT 16
 
 /* these are bit numbers for test/set bit */
@@ -62,6 +61,7 @@
 struct extent_state;
 struct btrfs_root;
 struct btrfs_io_bio;
+struct io_failure_record;
 
 typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
 				       struct bio *bio, int mirror_num,
@@ -112,8 +112,7 @@ struct extent_state {
 	atomic_t refs;
 	unsigned state;
 
-	/* for use by the FS */
-	u64 private;
+	struct io_failure_record *failrec;
 
 #ifdef CONFIG_BTRFS_DEBUG
 	struct list_head leak_list;
@@ -210,8 +209,6 @@ static inline int lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end);
 int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 			  get_extent_t *get_extent, int mirror_num);
-int extent_read_full_page_nolock(struct extent_io_tree *tree, struct page *page,
-				 get_extent_t *get_extent, int mirror_num);
 int __init extent_io_init(void);
 void extent_io_exit(void);
 
@@ -345,7 +342,6 @@ int extent_readpages(struct extent_io_tree *tree,
 		     get_extent_t get_extent);
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len, get_extent_t *get_extent);
-int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private);
 void set_page_extent_mapped(struct page *page);
 
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,

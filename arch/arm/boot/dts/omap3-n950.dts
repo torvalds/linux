@@ -17,6 +17,17 @@
 	compatible = "nokia,omap3-n950", "ti,omap36xx", "ti,omap3";
 };
 
+&omap3_pmx_core {
+	spi4_pins: pinmux_spi4_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x218c, PIN_INPUT_PULLDOWN | MUX_MODE1) /* mcspi4_clk */
+			OMAP3_CORE1_IOPAD(0x2190, PIN_OUTPUT | MUX_MODE1) /* mcspi4_simo */
+			OMAP3_CORE1_IOPAD(0x2192, PIN_INPUT_PULLDOWN | MUX_MODE1) /* mcspi4_somi */
+			OMAP3_CORE1_IOPAD(0x2196, PIN_OUTPUT | MUX_MODE1) /* mcspi4_cs0 */
+		>;
+	};
+};
+
 &i2c2 {
 	smia_1: camera@10 {
 		compatible = "nokia,smia";
@@ -52,4 +63,26 @@
 			};
 		};
 	};
+};
+
+&mcspi4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi4_pins>;
+
+	wlcore: wlcore@0 {
+		compatible = "ti,wl1271";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_pins>;
+		reg = <0>;
+		spi-max-frequency = <48000000>;
+		clock-xtal;
+		ref-clock-frequency = <38400000>;
+		interrupts-extended = <&gpio2 10 IRQ_TYPE_LEVEL_HIGH>; /* gpio 42 */
+		vwlan-supply = <&vwlan_fixed>;
+	};
+};
+
+&modem {
+	compatible = "nokia,n950-modem";
 };

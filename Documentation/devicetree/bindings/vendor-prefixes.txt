@@ -10,6 +10,7 @@ ad	Avionic Design GmbH
 adapteva	Adapteva, Inc.
 adh	AD Holdings Plc.
 adi	Analog Devices, Inc.
+advantech	Advantech Corporation
 aeroflexgaisler	Aeroflex Gaisler AB
 al	Annapurna Labs
 allwinner	Allwinner Technology Co., Ltd.
@@ -28,6 +29,7 @@ arm	ARM Ltd.
 armadeus	ARMadeus Systems SARL
 artesyn	Artesyn Embedded Technologies Inc.
 asahi-kasei	Asahi Kasei Corp.
+atlas	Atlas Scientific LLC
 atmel	Atmel Corporation
 auo	AU Optronics Corporation
 avago	Avago Technologies
@@ -71,6 +73,7 @@ dmo	Data Modul AG
 ea	Embedded Artists AB
 ebv	EBV Elektronik
 edt	Emerging Display Technologies
+eeti	eGalax_eMPIA Technology Inc
 elan	Elan Microelectronic Corp.
 emmicro	EM Microelectronic
 energymicro	Silicon Laboratories (formerly Energy Micro AS)
@@ -87,6 +90,7 @@ fcs	Fairchild Semiconductor
 firefly	Firefly
 focaltech	FocalTech Systems Co.,Ltd
 fsl	Freescale Semiconductor
+ge	General Electric Company
 GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 geniatech	Geniatech, Inc.
@@ -111,6 +115,7 @@ hp	Hewlett Packard
 i2se	I2SE GmbH
 ibm	International Business Machines (IBM)
 idt	Integrated Device Technologies, Inc.
+ifi	Ingenieurburo Fur Ic-Technologie (I/F/I)
 iom	Iomega Corporation
 img	Imagination Technologies Ltd.
 ingenic	Ingenic Semiconductor
@@ -120,6 +125,7 @@ intercontrol	Inter Control Group
 invensense	InvenSense Inc.
 isee	ISEE 2007 S.L.
 isil	Intersil
+issi	Integrated Silicon Solutions Inc.
 jedec	JEDEC Solid State Technology Association
 karo	Ka-Ro electronics GmbH
 keymile	Keymile GmbH
@@ -170,6 +176,7 @@ opencores	OpenCores.org
 option	Option NV
 ortustech	Ortus Technology Co., Ltd.
 ovti	OmniVision Technologies
+ORCL	Oracle Corporation
 panasonic	Panasonic Corporation
 parade	Parade Technologies Inc.
 pericom	Pericom Technology Inc.
@@ -204,6 +211,7 @@ seagate	Seagate Technology PLC
 semtech	Semtech Corporation
 sgx	SGX Sensortech
 sharp	Sharp Corporation
+si-en	Si-En Technology Ltd.
 sigma	Sigma Designs, Inc.
 sil	Silicon Image
 silabs	Silicon Laboratories
@@ -226,7 +234,9 @@ st	STMicroelectronics
 startek	Startek
 ste	ST-Ericsson
 stericsson	ST-Ericsson
+syna	Synaptics Inc.
 synology	Synology, Inc.
+SUNW	Sun Microsystems, Inc
 tbs	TBS Technologies
 tcl	Toby Churchill Ltd.
 technologic	Technologic Systems
@@ -238,8 +248,10 @@ toshiba	Toshiba Corporation
 toumaz	Toumaz
 tplink	TP-LINK Technologies Co., Ltd.
 tronfy	Tronfy
+tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
 upisemi	uPI Semiconductor Corp.
+urt	United Radiant Technology Corporation
 usi	Universal Scientific Industrial Co., Ltd.
 v3	V3 Semiconductor
 variscite	Variscite Ltd.

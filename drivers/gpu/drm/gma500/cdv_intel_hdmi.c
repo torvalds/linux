@@ -255,7 +255,6 @@ static void cdv_hdmi_destroy(struct drm_connector *connector)
 
 static const struct drm_encoder_helper_funcs cdv_hdmi_helper_funcs = {
 	.dpms = cdv_hdmi_dpms,
-	.mode_fixup = gma_encoder_mode_fixup,
 	.prepare = gma_encoder_prepare,
 	.mode_set = cdv_hdmi_mode_set,
 	.commit = gma_encoder_commit,

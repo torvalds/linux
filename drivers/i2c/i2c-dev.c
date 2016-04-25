@@ -22,17 +22,17 @@
 
 /* The I2C_RDWR ioctl code is written by Kolja Waschk <waschk@telos.de> */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/device.h>
-#include <linux/notifier.h>
 #include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/list.h>
-#include <linux/i2c.h>
 #include <linux/i2c-dev.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 
 /*

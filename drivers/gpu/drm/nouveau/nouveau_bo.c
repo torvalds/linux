@@ -1502,7 +1502,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	}
 #endif
 
-#ifdef CONFIG_SWIOTLB
+#if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
 	if (swiotlb_nr_tbl()) {
 		return ttm_dma_populate((void *)ttm, dev->dev);
 	}
@@ -1520,7 +1520,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 				    DMA_BIDIRECTIONAL);
 
 		if (dma_mapping_error(pdev, addr)) {
-			while (--i) {
+			while (i--) {
 				dma_unmap_page(pdev, ttm_dma->dma_address[i],
 					       PAGE_SIZE, DMA_BIDIRECTIONAL);
 				ttm_dma->dma_address[i] = 0;
@@ -1570,7 +1570,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	}
 #endif
 
-#ifdef CONFIG_SWIOTLB
+#if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
 	if (swiotlb_nr_tbl()) {
 		ttm_dma_unpopulate((void *)ttm, dev->dev);
 		return;

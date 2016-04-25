@@ -96,6 +96,42 @@ static int dwmac1000_validate_ucast_entries(int ucast_entries)
 }
 
 /**
+ * stmmac_axi_setup - parse DT parameters for programming the AXI register
+ * @pdev: platform device
+ * @priv: driver private struct.
+ * Description:
+ * if required, from device-tree the AXI internal register can be tuned
+ * by using platform parameters.
+ */
+static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
+{
+	struct device_node *np;
+	struct stmmac_axi *axi;
+
+	np = of_parse_phandle(pdev->dev.of_node, "snps,axi-config", 0);
+	if (!np)
+		return NULL;
+
+	axi = kzalloc(sizeof(*axi), GFP_KERNEL);
+	if (!axi)
+		return ERR_PTR(-ENOMEM);
+
+	axi->axi_lpi_en = of_property_read_bool(np, "snps,lpi_en");
+	axi->axi_xit_frm = of_property_read_bool(np, "snps,xit_frm");
+	axi->axi_kbbe = of_property_read_bool(np, "snps,axi_kbbe");
+	axi->axi_axi_all = of_property_read_bool(np, "snps,axi_all");
+	axi->axi_fb = of_property_read_bool(np, "snps,axi_fb");
+	axi->axi_mb = of_property_read_bool(np, "snps,axi_mb");
+	axi->axi_rb =  of_property_read_bool(np, "snps,axi_rb");
+
+	of_property_read_u32(np, "snps,wr_osr_lmt", &axi->axi_wr_osr_lmt);
+	of_property_read_u32(np, "snps,rd_osr_lmt", &axi->axi_rd_osr_lmt);
+	of_property_read_u32_array(np, "snps,blen", axi->axi_blen, AXI_BLEN);
+
+	return axi;
+}
+
+/**
  * stmmac_probe_config_dt - parse device-tree driver parameters
  * @pdev: platform_device structure
  * @plat: driver data platform structure
@@ -110,6 +146,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	struct device_node *np = pdev->dev.of_node;
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_dma_cfg *dma_cfg;
+	struct device_node *child_node = NULL;
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
@@ -140,13 +177,19 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		plat->phy_node = of_node_get(np);
 	}
 
+	for_each_child_of_node(np, child_node)
+		if (of_device_is_compatible(child_node,	"snps,dwmac-mdio")) {
+			plat->mdio_node = child_node;
+			break;
+		}
+
 	/* "snps,phy-addr" is not a standard property. Mark it as deprecated
 	 * and warn of its use. Remove this when phy node support is added.
 	 */
 	if (of_property_read_u32(np, "snps,phy-addr", &plat->phy_addr) == 0)
 		dev_warn(&pdev->dev, "snps,phy-addr property is deprecated\n");
 
-	if ((plat->phy_node && !of_phy_is_fixed_link(np)) || plat->phy_bus_name)
+	if ((plat->phy_node && !of_phy_is_fixed_link(np)) || !plat->mdio_node)
 		plat->mdio_bus_data = NULL;
 	else
 		plat->mdio_bus_data =
@@ -216,19 +259,19 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		}
 		plat->dma_cfg = dma_cfg;
 		of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
+		dma_cfg->aal = of_property_read_bool(np, "snps,aal");
 		dma_cfg->fixed_burst =
 			of_property_read_bool(np, "snps,fixed-burst");
 		dma_cfg->mixed_burst =
 			of_property_read_bool(np, "snps,mixed-burst");
-		of_property_read_u32(np, "snps,burst_len", &dma_cfg->burst_len);
-		if (dma_cfg->burst_len < 0 || dma_cfg->burst_len > 256)
-			dma_cfg->burst_len = 0;
 	}
 	plat->force_thresh_dma_mode = of_property_read_bool(np, "snps,force_thresh_dma_mode");
 	if (plat->force_thresh_dma_mode) {
 		plat->force_sf_dma_mode = 0;
 		pr_warn("force_sf_dma_mode is ignored if force_thresh_dma_mode is set.");
 	}
+
+	plat->axi = stmmac_axi_setup(pdev);
 
 	return plat;
 }

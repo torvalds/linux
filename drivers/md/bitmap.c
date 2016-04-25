@@ -98,7 +98,6 @@ __acquires(bitmap->lock)
 		   bitmap->bp[page].hijacked) {
 		/* somebody beat us to getting the page */
 		kfree(mappage);
-		return 0;
 	} else {
 
 		/* no page was in place and we have one, so install it */
@@ -510,8 +509,7 @@ static int bitmap_new_disk_sb(struct bitmap *bitmap)
 	sb->chunksize = cpu_to_le32(chunksize);
 
 	daemon_sleep = bitmap->mddev->bitmap_info.daemon_sleep;
-	if (!daemon_sleep ||
-	    (daemon_sleep < 1) || (daemon_sleep > MAX_SCHEDULE_TIMEOUT)) {
+	if (!daemon_sleep || (daemon_sleep > MAX_SCHEDULE_TIMEOUT)) {
 		printk(KERN_INFO "Choosing daemon_sleep default (5 sec)\n");
 		daemon_sleep = 5 * HZ;
 	}

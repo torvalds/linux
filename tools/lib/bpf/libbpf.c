@@ -201,6 +201,7 @@ struct bpf_object {
 			Elf_Data *data;
 		} *reloc;
 		int nr_reloc;
+		int maps_shndx;
 	} efile;
 	/*
 	 * All loaded bpf_object is linked in a list, which is
@@ -350,6 +351,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 	 */
 	obj->efile.obj_buf = obj_buf;
 	obj->efile.obj_buf_sz = obj_buf_sz;
+	obj->efile.maps_shndx = -1;
 
 	obj->loaded = false;
 
@@ -529,12 +531,12 @@ bpf_object__init_maps(struct bpf_object *obj, void *data,
 }
 
 static int
-bpf_object__init_maps_name(struct bpf_object *obj, int maps_shndx)
+bpf_object__init_maps_name(struct bpf_object *obj)
 {
 	int i;
 	Elf_Data *symbols = obj->efile.symbols;
 
-	if (!symbols || maps_shndx < 0)
+	if (!symbols || obj->efile.maps_shndx < 0)
 		return -EINVAL;
 
 	for (i = 0; i < symbols->d_size / sizeof(GElf_Sym); i++) {
@@ -544,7 +546,7 @@ bpf_object__init_maps_name(struct bpf_object *obj, int maps_shndx)
 
 		if (!gelf_getsym(symbols, i, &sym))
 			continue;
-		if (sym.st_shndx != maps_shndx)
+		if (sym.st_shndx != obj->efile.maps_shndx)
 			continue;
 
 		map_name = elf_strptr(obj->efile.elf,
@@ -572,7 +574,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 	Elf *elf = obj->efile.elf;
 	GElf_Ehdr *ep = &obj->efile.ehdr;
 	Elf_Scn *scn = NULL;
-	int idx = 0, err = 0, maps_shndx = -1;
+	int idx = 0, err = 0;
 
 	/* Elf is corrupted/truncated, avoid calling elf_strptr. */
 	if (!elf_rawdata(elf_getscn(elf, ep->e_shstrndx), NULL)) {
@@ -625,7 +627,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		else if (strcmp(name, "maps") == 0) {
 			err = bpf_object__init_maps(obj, data->d_buf,
 						    data->d_size);
-			maps_shndx = idx;
+			obj->efile.maps_shndx = idx;
 		} else if (sh.sh_type == SHT_SYMTAB) {
 			if (obj->efile.symbols) {
 				pr_warning("bpf: multiple SYMTAB in %s\n",
@@ -674,8 +676,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		pr_warning("Corrupted ELF file: index of strtab invalid\n");
 		return LIBBPF_ERRNO__FORMAT;
 	}
-	if (maps_shndx >= 0)
-		err = bpf_object__init_maps_name(obj, maps_shndx);
+	if (obj->efile.maps_shndx >= 0)
+		err = bpf_object__init_maps_name(obj);
 out:
 	return err;
 }
@@ -697,7 +699,8 @@ bpf_object__find_prog_by_idx(struct bpf_object *obj, int idx)
 static int
 bpf_program__collect_reloc(struct bpf_program *prog,
 			   size_t nr_maps, GElf_Shdr *shdr,
-			   Elf_Data *data, Elf_Data *symbols)
+			   Elf_Data *data, Elf_Data *symbols,
+			   int maps_shndx)
 {
 	int i, nrels;
 
@@ -724,9 +727,6 @@ bpf_program__collect_reloc(struct bpf_program *prog,
 			return -LIBBPF_ERRNO__FORMAT;
 		}
 
-		insn_idx = rel.r_offset / sizeof(struct bpf_insn);
-		pr_debug("relocation: insn_idx=%u\n", insn_idx);
-
 		if (!gelf_getsym(symbols,
 				 GELF_R_SYM(rel.r_info),
 				 &sym)) {
@@ -734,6 +734,15 @@ bpf_program__collect_reloc(struct bpf_program *prog,
 				   GELF_R_SYM(rel.r_info));
 			return -LIBBPF_ERRNO__FORMAT;
 		}
+
+		if (sym.st_shndx != maps_shndx) {
+			pr_warning("Program '%s' contains non-map related relo data pointing to section %u\n",
+				   prog->section_name, sym.st_shndx);
+			return -LIBBPF_ERRNO__RELOC;
+		}
+
+		insn_idx = rel.r_offset / sizeof(struct bpf_insn);
+		pr_debug("relocation: insn_idx=%u\n", insn_idx);
 
 		if (insns[insn_idx].code != (BPF_LD | BPF_IMM | BPF_DW)) {
 			pr_warning("bpf: relocation: invalid relo for insns[%d].code 0x%x\n",
@@ -863,7 +872,8 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 
 		err = bpf_program__collect_reloc(prog, nr_maps,
 						 shdr, data,
-						 obj->efile.symbols);
+						 obj->efile.symbols,
+						 obj->efile.maps_shndx);
 		if (err)
 			return err;
 	}

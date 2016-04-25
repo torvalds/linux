@@ -16,6 +16,8 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/limits.h>
+#include <linux/bitops.h>
+#include <linux/msi.h>
 #include "../include/dpmng.h"
 #include "../include/mc-sys.h"
 #include "dprc-cmd.h"
@@ -246,8 +248,7 @@ static bool fsl_mc_is_root_dprc(struct device *dev)
 	fsl_mc_get_root_dprc(dev, &root_dprc_dev);
 	if (!root_dprc_dev)
 		return false;
-	else
-		return dev == root_dprc_dev;
+	return dev == root_dprc_dev;
 }
 
 static int get_dprc_icid(struct fsl_mc_io *mc_io,
@@ -259,14 +260,15 @@ static int get_dprc_icid(struct fsl_mc_io *mc_io,
 
 	error = dprc_open(mc_io, 0, container_id, &dprc_handle);
 	if (error < 0) {
-		pr_err("dprc_open() failed: %d\n", error);
+		dev_err(mc_io->dev, "dprc_open() failed: %d\n", error);
 		return error;
 	}
 
 	memset(&attr, 0, sizeof(attr));
 	error = dprc_get_attributes(mc_io, 0, dprc_handle, &attr);
 	if (error < 0) {
-		pr_err("dprc_get_attributes() failed: %d\n", error);
+		dev_err(mc_io->dev, "dprc_get_attributes() failed: %d\n",
+			error);
 		goto common_cleanup;
 	}
 
@@ -472,6 +474,8 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 		mc_dev->icid = parent_mc_dev->icid;
 		mc_dev->dma_mask = FSL_MC_DEFAULT_DMA_MASK;
 		mc_dev->dev.dma_mask = &mc_dev->dma_mask;
+		dev_set_msi_domain(&mc_dev->dev,
+				   dev_get_msi_domain(&parent_mc_dev->dev));
 	}
 
 	/*
@@ -702,7 +706,8 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	mc_portal_phys_addr = res.start;
 	mc_portal_size = resource_size(&res);
 	error = fsl_create_mc_io(&pdev->dev, mc_portal_phys_addr,
-				 mc_portal_size, NULL, 0, &mc_io);
+				 mc_portal_size, NULL,
+				 FSL_MC_IO_ATOMIC_CONTEXT_PORTAL, &mc_io);
 	if (error < 0)
 		return error;
 
@@ -790,7 +795,6 @@ MODULE_DEVICE_TABLE(of, fsl_mc_bus_match_table);
 static struct platform_driver fsl_mc_bus_driver = {
 	.driver = {
 		   .name = "fsl_mc_bus",
-		   .owner = THIS_MODULE,
 		   .pm = NULL,
 		   .of_match_table = fsl_mc_bus_match_table,
 		   },
@@ -832,7 +836,14 @@ static int __init fsl_mc_bus_driver_init(void)
 	if (error < 0)
 		goto error_cleanup_dprc_driver;
 
+	error = its_fsl_mc_msi_init();
+	if (error < 0)
+		goto error_cleanup_mc_allocator;
+
 	return 0;
+
+error_cleanup_mc_allocator:
+	fsl_mc_allocator_driver_exit();
 
 error_cleanup_dprc_driver:
 	dprc_driver_exit();
@@ -855,6 +866,7 @@ static void __exit fsl_mc_bus_driver_exit(void)
 	if (WARN_ON(!mc_dev_cache))
 		return;
 
+	its_fsl_mc_msi_cleanup();
 	fsl_mc_allocator_driver_exit();
 	dprc_driver_exit();
 	platform_driver_unregister(&fsl_mc_bus_driver);

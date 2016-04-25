@@ -39,6 +39,7 @@ struct led_classdev {
 
 	/* Lower 16 bits reflect status */
 #define LED_SUSPENDED		(1 << 0)
+#define LED_UNREGISTERING	(1 << 1)
 	/* Upper 16 bits reflect control information */
 #define LED_CORE_SUSPENDRESUME	(1 << 16)
 #define LED_BLINK_ONESHOT	(1 << 17)
@@ -48,9 +49,12 @@ struct led_classdev {
 #define LED_BLINK_DISABLE	(1 << 21)
 #define LED_SYSFS_DISABLE	(1 << 22)
 #define LED_DEV_CAP_FLASH	(1 << 23)
+#define LED_HW_PLUGGABLE	(1 << 24)
 
-	/* Set LED brightness level */
-	/* Must not sleep, use a workqueue if needed */
+	/* Set LED brightness level
+	 * Must not sleep. Use brightness_set_blocking for drivers
+	 * that can sleep while setting brightness.
+	 */
 	void		(*brightness_set)(struct led_classdev *led_cdev,
 					  enum led_brightness brightness);
 	/*

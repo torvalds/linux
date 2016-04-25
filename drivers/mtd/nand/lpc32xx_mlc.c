@@ -750,7 +750,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	}
 
 	nand_chip->ecc.mode = NAND_ECC_HW;
-	nand_chip->ecc.size = mtd->writesize;
+	nand_chip->ecc.size = 512;
 	nand_chip->ecc.layout = &lpc32xx_nand_oob;
 	host->mlcsubpages = mtd->writesize / 512;
 

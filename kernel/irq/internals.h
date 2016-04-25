@@ -131,6 +131,9 @@ static inline void chip_bus_sync_unlock(struct irq_desc *desc)
 #define IRQ_GET_DESC_CHECK_GLOBAL	(_IRQ_DESC_CHECK)
 #define IRQ_GET_DESC_CHECK_PERCPU	(_IRQ_DESC_CHECK | _IRQ_DESC_PERCPU)
 
+#define for_each_action_of_desc(desc, act)			\
+	for (act = desc->act; act; act = act->next)
+
 struct irq_desc *
 __irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus,
 		    unsigned int check);
@@ -160,6 +163,8 @@ irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags)
 	__irq_put_desc_unlock(desc, flags, false);
 }
 
+#define __irqd_to_state(d) ACCESS_PRIVATE((d)->common, state_use_accessors)
+
 /*
  * Manipulation functions for irq_data.state
  */
@@ -187,6 +192,8 @@ static inline bool irqd_has_set(struct irq_data *d, unsigned int mask)
 {
 	return __irqd_to_state(d) & mask;
 }
+
+#undef __irqd_to_state
 
 static inline void kstat_incr_irqs_this_cpu(struct irq_desc *desc)
 {

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Before running this script please ensure that your PATH is
-# typical as you use for compilation/istallation. I use
+# typical as you use for compilation/installation. I use
 # /bin /sbin /usr/bin /usr/sbin /usr/local/bin, but it may
 # differ on your system.
 #

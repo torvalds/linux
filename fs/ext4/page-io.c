@@ -128,25 +128,12 @@ static void ext4_release_io_end(ext4_io_end_t *io_end)
 	BUG_ON(io_end->flag & EXT4_IO_END_UNWRITTEN);
 	WARN_ON(io_end->handle);
 
-	if (atomic_dec_and_test(&EXT4_I(io_end->inode)->i_ioend_count))
-		wake_up_all(ext4_ioend_wq(io_end->inode));
-
 	for (bio = io_end->bio; bio; bio = next_bio) {
 		next_bio = bio->bi_private;
 		ext4_finish_bio(bio);
 		bio_put(bio);
 	}
 	kmem_cache_free(io_end_cachep, io_end);
-}
-
-static void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
-{
-	struct inode *inode = io_end->inode;
-
-	io_end->flag &= ~EXT4_IO_END_UNWRITTEN;
-	/* Wake up anyone waiting on unwritten extent conversion */
-	if (atomic_dec_and_test(&EXT4_I(inode)->i_unwritten))
-		wake_up_all(ext4_ioend_wq(inode));
 }
 
 /*
@@ -265,7 +252,6 @@ ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 {
 	ext4_io_end_t *io = kmem_cache_zalloc(io_end_cachep, flags);
 	if (io) {
-		atomic_inc(&EXT4_I(inode)->i_ioend_count);
 		io->inode = inode;
 		INIT_LIST_HEAD(&io->list);
 		atomic_set(&io->count, 1);

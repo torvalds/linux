@@ -57,7 +57,7 @@ static int hi6220_reset_deassert(struct reset_controller_dev *rc_dev,
 	return 0;
 }
 
-static struct reset_control_ops hi6220_reset_ops = {
+static const struct reset_control_ops hi6220_reset_ops = {
 	.assert = hi6220_reset_assert,
 	.deassert = hi6220_reset_deassert,
 };
@@ -83,9 +83,7 @@ static int hi6220_reset_probe(struct platform_device *pdev)
 	data->rc_dev.ops = &hi6220_reset_ops;
 	data->rc_dev.of_node = pdev->dev.of_node;
 
-	reset_controller_register(&data->rc_dev);
-
-	return 0;
+	return reset_controller_register(&data->rc_dev);
 }
 
 static const struct of_device_id hi6220_reset_match[] = {

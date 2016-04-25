@@ -107,7 +107,7 @@
  * amount of bytes needed to move the data.
  */
 #define ALIGN_SIZE(__skb, __header) \
-	(  ((unsigned long)((__skb)->data + (__header))) & 3 )
+	(((unsigned long)((__skb)->data + (__header))) & 3)
 
 /*
  * Constants for extra TX headroom for alignment purposes.
@@ -128,14 +128,14 @@
 #define SLOT_TIME		20
 #define SHORT_SLOT_TIME		9
 #define SIFS			10
-#define PIFS			( SIFS + SLOT_TIME )
-#define SHORT_PIFS		( SIFS + SHORT_SLOT_TIME )
-#define DIFS			( PIFS + SLOT_TIME )
-#define SHORT_DIFS		( SHORT_PIFS + SHORT_SLOT_TIME )
-#define EIFS			( SIFS + DIFS + \
-				  GET_DURATION(IEEE80211_HEADER + ACK_SIZE, 10) )
-#define SHORT_EIFS		( SIFS + SHORT_DIFS + \
-				  GET_DURATION(IEEE80211_HEADER + ACK_SIZE, 10) )
+#define PIFS			(SIFS + SLOT_TIME)
+#define SHORT_PIFS		(SIFS + SHORT_SLOT_TIME)
+#define DIFS			(PIFS + SLOT_TIME)
+#define SHORT_DIFS		(SHORT_PIFS + SHORT_SLOT_TIME)
+#define EIFS			(SIFS + DIFS + \
+				  GET_DURATION(IEEE80211_HEADER + ACK_SIZE, 10))
+#define SHORT_EIFS		(SIFS + SHORT_DIFS + \
+				  GET_DURATION(IEEE80211_HEADER + ACK_SIZE, 10))
 
 enum rt2x00_chip_intf {
 	RT2X00_CHIP_INTF_PCI,

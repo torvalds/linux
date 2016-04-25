@@ -955,6 +955,13 @@ err_rhtbl:
  */
 int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags)
 {
+	struct switchdev_obj_port_vlan v = {
+		.obj.orig_dev = port->dev,
+		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
+		.flags = flags,
+		.vid_begin = vid,
+		.vid_end = vid,
+	};
 	struct net_bridge_vlan *vlan;
 	int ret;
 
@@ -962,6 +969,10 @@ int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags)
 
 	vlan = br_vlan_find(nbp_vlan_group(port), vid);
 	if (vlan) {
+		/* Pass the flags to the hardware bridge */
+		ret = switchdev_port_obj_add(port->dev, &v.obj);
+		if (ret && ret != -EOPNOTSUPP)
+			return ret;
 		__vlan_add_flags(vlan, flags);
 		return 0;
 	}

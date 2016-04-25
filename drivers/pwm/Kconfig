@@ -316,7 +316,7 @@ config PWM_RCAR
 
 config PWM_RENESAS_TPU
 	tristate "Renesas TPU PWM support"
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This driver exposes the Timer Pulse Unit (TPU) PWM controller found

@@ -86,7 +86,6 @@ bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer,
 			 struct sk_buff_head *namedq,
 			 struct tipc_link *bc_sndlink,
 			 struct tipc_link **link);
-void tipc_link_reinit(struct tipc_link *l, u32 addr);
 void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 			   int mtyp, struct sk_buff_head *xmitq);
 void tipc_link_build_reset_msg(struct tipc_link *l, struct sk_buff_head *xmitq);
@@ -112,8 +111,10 @@ char tipc_link_plane(struct tipc_link *l);
 int tipc_link_prio(struct tipc_link *l);
 int tipc_link_window(struct tipc_link *l);
 unsigned long tipc_link_tolerance(struct tipc_link *l);
-void tipc_link_set_tolerance(struct tipc_link *l, u32 tol);
-void tipc_link_set_prio(struct tipc_link *l, u32 prio);
+void tipc_link_set_tolerance(struct tipc_link *l, u32 tol,
+			     struct sk_buff_head *xmitq);
+void tipc_link_set_prio(struct tipc_link *l, u32 prio,
+			struct sk_buff_head *xmitq);
 void tipc_link_set_abort_limit(struct tipc_link *l, u32 limit);
 void tipc_link_set_queue_limits(struct tipc_link *l, u32 window);
 int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,

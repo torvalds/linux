@@ -204,7 +204,7 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	rockchip_drm_crtc_mode_config(encoder->crtc, DRM_MODE_CONNECTOR_HDMIA,
 				      ROCKCHIP_OUT_MODE_AAAA);
 
-	mux = rockchip_drm_encoder_get_mux_id(hdmi->dev->of_node, encoder);
+	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
 	if (mux)
 		val = HDMI_SEL_VOP_LIT | (HDMI_SEL_VOP_LIT << 16);
 	else

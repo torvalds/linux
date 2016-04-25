@@ -568,7 +568,7 @@ static void delete_char(struct vc_data *vc, unsigned int nr)
 			vc->vc_cols - vc->vc_x);
 }
 
-static int softcursor_original;
+static int softcursor_original = -1;
 
 static void add_softcursor(struct vc_data *vc)
 {

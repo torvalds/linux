@@ -25,7 +25,6 @@
 #include <linux/of_platform.h>
 #include <linux/module.h>
 
-#include <asm/gpio.h>
 #include <asm/mpc52xx.h>
 #include <sysdev/fsl_soc.h>
 

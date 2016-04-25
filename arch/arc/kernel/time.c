@@ -55,14 +55,14 @@
 #define ARC_REG_TIMER1_CTRL	0x101	/* timer 1 control */
 #define ARC_REG_TIMER1_CNT	0x100	/* timer 1 count */
 
-#define TIMER_CTRL_IE		(1 << 0) /* Interupt when Count reachs limit */
-#define TIMER_CTRL_NH		(1 << 1) /* Count only when CPU NOT halted */
+#define TIMER_CTRL_IE	(1 << 0) /* Interrupt when Count reaches limit */
+#define TIMER_CTRL_NH	(1 << 1) /* Count only when CPU NOT halted */
 
 #define ARC_TIMER_MAX	0xFFFFFFFF
 
 /********** Clock Source Device *********/
 
-#ifdef CONFIG_ARC_HAS_GRTC
+#ifdef CONFIG_ARC_HAS_GFRC
 
 static int arc_counter_setup(void)
 {
@@ -83,10 +83,10 @@ static cycle_t arc_counter_read(struct clocksource *cs)
 
 	local_irq_save(flags);
 
-	__mcip_cmd(CMD_GRTC_READ_LO, 0);
+	__mcip_cmd(CMD_GFRC_READ_LO, 0);
 	stamp.l = read_aux_reg(ARC_REG_MCIP_READBACK);
 
-	__mcip_cmd(CMD_GRTC_READ_HI, 0);
+	__mcip_cmd(CMD_GFRC_READ_HI, 0);
 	stamp.h = read_aux_reg(ARC_REG_MCIP_READBACK);
 
 	local_irq_restore(flags);
@@ -95,7 +95,7 @@ static cycle_t arc_counter_read(struct clocksource *cs)
 }
 
 static struct clocksource arc_counter = {
-	.name   = "ARConnect GRTC",
+	.name   = "ARConnect GFRC",
 	.rating = 400,
 	.read   = arc_counter_read,
 	.mask   = CLOCKSOURCE_MASK(64),
