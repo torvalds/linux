@@ -102,6 +102,16 @@ config EFI_BOOTLOADER_CONTROL
 	  bootloader reads this reboot reason and takes particular
 	  action according to its policy.
 
+config EFI_CAPSULE_LOADER
+	tristate "EFI capsule loader"
+	depends on EFI
+	help
+	  This option exposes a loader interface "/dev/efi_capsule_loader" for
+	  users to load EFI capsules. This driver requires working runtime
+	  capsule support in the firmware, which many OEMs do not provide.
+
+	  Most users should say N.
+
 endmenu
 
 config UEFI_CPER
