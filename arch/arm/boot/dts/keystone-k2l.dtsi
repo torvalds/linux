@@ -1,7 +1,7 @@
 /*
- * Copyright 2013-2014 Texas Instruments, Inc.
+ * Copyright 2014 Texas Instruments, Inc.
  *
- * Keystone 2 Kepler/Hawking soc specific device tree
+ * Keystone 2 Lamarr SoC specific device tree
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -9,8 +9,8 @@
  */
 
 / {
-	compatible = "ti,k2hk", "ti,keystone";
-	model = "Texas Instruments Keystone 2 Kepler/Hawking SoC";
+	compatible = "ti,k2l", "ti,keystone";
+	model = "Texas Instruments Keystone 2 Lamarr SoC";
 
 	cpus {
 		#address-cells = <1>;
@@ -29,22 +29,30 @@
 			device_type = "cpu";
 			reg = <1>;
 		};
-
-		cpu@2 {
-			compatible = "arm,cortex-a15";
-			device_type = "cpu";
-			reg = <2>;
-		};
-
-		cpu@3 {
-			compatible = "arm,cortex-a15";
-			device_type = "cpu";
-			reg = <3>;
-		};
 	};
 
 	soc {
-		/include/ "k2hk-clocks.dtsi"
+		/include/ "keystone-k2l-clocks.dtsi"
+
+		uart2: serial@02348400 {
+			compatible = "ns16550a";
+			current-speed = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			reg = <0x02348400 0x100>;
+			clocks	= <&clkuart2>;
+			interrupts = <GIC_SPI 432 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		uart3:	serial@02348800 {
+			compatible = "ns16550a";
+			current-speed = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			reg = <0x02348800 0x100>;
+			clocks	= <&clkuart3>;
+			interrupts = <GIC_SPI 435 IRQ_TYPE_EDGE_RISING>;
+		};
 
 		dspgpio0: keystone_dsp_gpio@02620240 {
 			compatible = "ti,keystone-dsp-gpio";
@@ -74,44 +82,30 @@
 			gpio,syscon-dev = <&devctrl 0x24c>;
 		};
 
-		dspgpio4: keystone_dsp_gpio@2620250 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x250>;
-		};
-
-		dspgpio5: keystone_dsp_gpio@2620254 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x254>;
-		};
-
-		dspgpio6: keystone_dsp_gpio@2620258 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x258>;
-		};
-
-		dspgpio7: keystone_dsp_gpio@262025c {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x25c>;
-		};
-
-		mdio: mdio@02090300 {
+		mdio: mdio@26200f00 {
 			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0x02090300 0x100>;
+			reg = <0x26200f00 0x100>;
 			status = "disabled";
 			clocks = <&clkcpgmac>;
 			clock-names = "fck";
 			bus_freq	= <2500000>;
 		};
-		/include/ "k2hk-netcp.dtsi"
+		/include/ "keystone-k2l-netcp.dtsi"
 	};
+};
+
+&spi0 {
+       ti,davinci-spi-num-cs = <5>;
+};
+
+&spi1 {
+       ti,davinci-spi-num-cs = <3>;
+};
+
+&spi2 {
+       ti,davinci-spi-num-cs = <5>;
+       /* Pin muxed. Enabled and configured by Bootloader */
+       status = "disabled";
 };
