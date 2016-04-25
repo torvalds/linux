@@ -106,11 +106,12 @@ free_descs:
 /**
  * irq_destroy_ipi() - unreserve an IPI that was previously allocated
  * @irq:	linux irq number to be destroyed
+ * @dest:	cpumask of cpus which should have the IPI removed
  *
  * Return the IPIs allocated with irq_reserve_ipi() to the system destroying
  * all virqs associated with them.
  */
-void irq_destroy_ipi(unsigned int irq)
+void irq_destroy_ipi(unsigned int irq, const struct cpumask *dest)
 {
 	struct irq_data *data = irq_get_irq_data(irq);
 	struct cpumask *ipimask = data ? irq_data_get_affinity_mask(data) : NULL;
@@ -129,10 +130,19 @@ void irq_destroy_ipi(unsigned int irq)
 		return;
 	}
 
-	if (irq_domain_is_ipi_per_cpu(domain))
-		nr_irqs = cpumask_weight(ipimask);
-	else
+	if (WARN_ON(!cpumask_subset(dest, ipimask)))
+		/*
+		 * Must be destroying a subset of CPUs to which this IPI
+		 * was set up to target
+		 */
+		return;
+
+	if (irq_domain_is_ipi_per_cpu(domain)) {
+		irq = irq + cpumask_first(dest) - data->common->ipi_offset;
+		nr_irqs = cpumask_weight(dest);
+	} else {
 		nr_irqs = 1;
+	}
 
 	irq_domain_free_irqs(irq, nr_irqs);
 }

@@ -348,7 +348,7 @@ int irq_domain_xlate_onetwocell(struct irq_domain *d, struct device_node *ctrlr,
 /* IPI functions */
 unsigned int irq_reserve_ipi(struct irq_domain *domain,
 			     const struct cpumask *dest);
-void irq_destroy_ipi(unsigned int irq);
+void irq_destroy_ipi(unsigned int irq, const struct cpumask *dest);
 
 /* V2 interfaces to support hierarchy IRQ domains. */
 extern struct irq_data *irq_domain_get_irq_data(struct irq_domain *domain,
