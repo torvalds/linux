@@ -141,9 +141,10 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 				   PHYCTRL_ENDLL_SHIFT));
 	/*
 	 * After enable analog DLL circuits, we need extra 10.2us
-	 * for dll to be ready for work.
+	 * for dll to be ready for work. But according to the test, we
+	 * find some chips need more than 25us.
 	 */
-	udelay(11);
+	udelay(30);
 	regmap_read(rk_phy->reg_base,
 		    rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
 		    &dllrdy);
