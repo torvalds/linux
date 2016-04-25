@@ -2563,7 +2563,7 @@ static ssize_t ab8500_gpadc_trig_timer_write(struct file *file,
 
 	if (user_trig_timer & ~0xFF) {
 		dev_err(dev,
-			"debugfs error input: should be beetween 0 to 255\n");
+			"debugfs error input: should be between 0 to 255\n");
 		return -EINVAL;
 	}
 
