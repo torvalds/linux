@@ -9,6 +9,13 @@ Required properties:
  - reg-offset: PHY configure reg address offset in "general
    register files"
 
+Optional Properties:
+ - freq-sel: must match the freq of emmc clock, only support the
+   following frequency: 50000000, 100000000, 150000000, 200000000.
+   If not assigned any freq, default use 200000000Hz.
+ - dr-sel: select the drive strength of phy IO.
+ - opdelay: select the output delay count number for clk IO and data IO
+
 Example:
 
 emmcphy: phy {
