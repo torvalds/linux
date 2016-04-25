@@ -113,6 +113,7 @@
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
 			clocks = <&cru ARMCLKL>;
+			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -122,6 +123,7 @@
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
+			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -131,6 +133,7 @@
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
+			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -140,6 +143,7 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
+			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -150,6 +154,7 @@
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
 			clocks = <&cru ARMCLKB>;
+			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster1_opp>;
 		};
 
@@ -159,7 +164,20 @@
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
+			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster1_opp>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+			cpu_sleep: cpu-sleep-0 {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <350>;
+				exit-latency-us = <600>;
+				min-residency-us = <1150>;
+			};
 		};
 	};
 
