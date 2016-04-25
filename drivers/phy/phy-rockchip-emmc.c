@@ -31,48 +31,56 @@
 		((val) << (shift) | (mask) << ((shift) + 16))
 
 /* Register definition */
-#define GRF_EMMCPHY_CON0	0x0
-#define GRF_EMMCPHY_CON1	0x4
-#define GRF_EMMCPHY_CON2	0x8
-#define GRF_EMMCPHY_CON3	0xc
-#define GRF_EMMCPHY_CON4	0x10
-#define GRF_EMMCPHY_CON5	0x14
-#define GRF_EMMCPHY_CON6	0x18
-#define GRF_EMMCPHY_STATUS	0x20
+#define GRF_EMMCPHY_CON0		0x0
+#define GRF_EMMCPHY_CON1		0x4
+#define GRF_EMMCPHY_CON2		0x8
+#define GRF_EMMCPHY_CON3		0xc
+#define GRF_EMMCPHY_CON4		0x10
+#define GRF_EMMCPHY_CON5		0x14
+#define GRF_EMMCPHY_CON6		0x18
+#define GRF_EMMCPHY_STATUS		0x20
 
-#define PHYCTRL_PDB_MASK	0x1
-#define PHYCTRL_PDB_SHIFT	0x0
-#define PHYCTRL_PDB_PWR_ON	0x1
-#define PHYCTRL_PDB_PWR_OFF	0x0
-#define PHYCTRL_ENDLL_MASK	0x1
-#define PHYCTRL_ENDLL_SHIFT     0x1
-#define PHYCTRL_ENDLL_ENABLE	0x1
-#define PHYCTRL_ENDLL_DISABLE	0x0
-#define PHYCTRL_CALDONE_MASK	0x1
-#define PHYCTRL_CALDONE_SHIFT   0x6
-#define PHYCTRL_CALDONE_DONE	0x1
-#define PHYCTRL_CALDONE_GOING	0x0
-#define PHYCTRL_DLLRDY_MASK	0x1
-#define PHYCTRL_DLLRDY_SHIFT	0x5
-#define PHYCTRL_DLLRDY_DONE	0x1
-#define PHYCTRL_DLLRDY_GOING	0x0
-#define PHYCTRL_FREQSEL_200M	0x0
-#define PHYCTRL_FREQSEL_50M	0x1
-#define PHYCTRL_FREQSEL_100M	0x2
-#define PHYCTRL_FREQSEL_150M	0x3
-#define PHYCTRL_FREQSEL_MASK	0x3
-#define PHYCTRL_FREQSEL_SHIFT	0xc
-#define PHYCTRL_DR_MASK		0x7
-#define PHYCTRL_DR_SHIFT	0x4
-#define PHYCTRL_DR_50OHM	0x0
-#define PHYCTRL_DR_33OHM	0x1
-#define PHYCTRL_DR_66OHM	0x2
-#define PHYCTRL_DR_100OHM	0x3
-#define PHYCTRL_DR_40OHM	0x4
+#define PHYCTRL_PDB_MASK		0x1
+#define PHYCTRL_PDB_SHIFT		0x0
+#define PHYCTRL_PDB_PWR_ON		0x1
+#define PHYCTRL_PDB_PWR_OFF		0x0
+#define PHYCTRL_ENDLL_MASK		0x1
+#define PHYCTRL_ENDLL_SHIFT		0x1
+#define PHYCTRL_ENDLL_ENABLE		0x1
+#define PHYCTRL_ENDLL_DISABLE		0x0
+#define PHYCTRL_CALDONE_MASK		0x1
+#define PHYCTRL_CALDONE_SHIFT		0x6
+#define PHYCTRL_CALDONE_DONE		0x1
+#define PHYCTRL_CALDONE_GOING		0x0
+#define PHYCTRL_DLLRDY_MASK		0x1
+#define PHYCTRL_DLLRDY_SHIFT		0x5
+#define PHYCTRL_DLLRDY_DONE		0x1
+#define PHYCTRL_DLLRDY_GOING		0x0
+#define PHYCTRL_FREQSEL_200M		0x0
+#define PHYCTRL_FREQSEL_50M		0x1
+#define PHYCTRL_FREQSEL_100M		0x2
+#define PHYCTRL_FREQSEL_150M		0x3
+#define PHYCTRL_FREQSEL_MASK		0x3
+#define PHYCTRL_FREQSEL_SHIFT		0xc
+#define PHYCTRL_DR_MASK			0x7
+#define PHYCTRL_DR_SHIFT		0x4
+#define PHYCTRL_DR_50OHM		0x0
+#define PHYCTRL_DR_33OHM		0x1
+#define PHYCTRL_DR_66OHM		0x2
+#define PHYCTRL_DR_100OHM		0x3
+#define PHYCTRL_DR_40OHM		0x4
+#define PHYCTRL_OTAPDLYENA		0x1
+#define PHYCTRL_OTAPDLYENA_MASK		0x1
+#define PHYCTRL_OTAPDLYENA_SHIFT	11
+#define PHYCTRL_OTAPDLYSEL_MASK		0xf
+#define PHYCTRL_OTAPDLYSEL_SHIFT	7
 
 struct rockchip_emmc_phy {
 	unsigned int	reg_offset;
 	struct regmap	*reg_base;
+	u32	freq_sel;
+	u32	dr_sel;
+	u32	opdelay;
 };
 
 static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
@@ -148,21 +156,33 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 	return 0;
 }
 
-static int rockchip_emmc_phy_init(struct phy*phy)
+static int rockchip_emmc_phy_init(struct phy *phy)
 {
 	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
 
 	regmap_write(rk_phy->reg_base,
 		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
-		     HIWORD_UPDATE(PHYCTRL_FREQSEL_200M,
+		     HIWORD_UPDATE(rk_phy->freq_sel,
 				   PHYCTRL_FREQSEL_MASK,
 				   PHYCTRL_FREQSEL_SHIFT));
 
 	regmap_write(rk_phy->reg_base,
 		     rk_phy->reg_offset + GRF_EMMCPHY_CON6,
-		     HIWORD_UPDATE(PHYCTRL_DR_100OHM,
+		     HIWORD_UPDATE(rk_phy->dr_sel,
 				   PHYCTRL_DR_MASK,
 				   PHYCTRL_DR_SHIFT));
+
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
+		     HIWORD_UPDATE(PHYCTRL_OTAPDLYENA,
+				   PHYCTRL_OTAPDLYENA_MASK,
+				   PHYCTRL_OTAPDLYENA_SHIFT));
+
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
+		     HIWORD_UPDATE(rk_phy->opdelay,
+				   PHYCTRL_OTAPDLYSEL_MASK,
+				   PHYCTRL_OTAPDLYSEL_SHIFT));
 
 	return 0;
 }
@@ -208,6 +228,9 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct regmap *grf;
 	unsigned int reg_offset;
+	u32 freq_sel;
+	u32 dr_sel;
+	u32 opdelay;
 
 	grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
 	if (IS_ERR(grf)) {
@@ -223,6 +246,59 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 		dev_err(dev, "missing reg property in node %s\n",
 			dev->of_node->name);
 		return -EINVAL;
+	}
+
+	rk_phy->freq_sel = 0x0;
+	if (!of_property_read_u32(dev->of_node, "freq-sel", &freq_sel)) {
+		switch (freq_sel) {
+		case 50000000:
+			rk_phy->freq_sel = PHYCTRL_FREQSEL_50M;
+			break;
+		case 100000000:
+			rk_phy->freq_sel = PHYCTRL_FREQSEL_100M;
+			break;
+		case 150000000:
+			rk_phy->freq_sel = PHYCTRL_FREQSEL_150M;
+			break;
+		case 200000000:
+			rk_phy->freq_sel = PHYCTRL_FREQSEL_200M;
+			break;
+		default:
+			dev_info(dev, "Not support freq_sel, default 200M\n");
+			break;
+		}
+	}
+
+	rk_phy->dr_sel = 0x0;
+	if (!of_property_read_u32(dev->of_node, "dr-sel", &dr_sel)) {
+		switch (dr_sel) {
+		case 50:
+			rk_phy->dr_sel = PHYCTRL_DR_50OHM;
+			break;
+		case 33:
+			rk_phy->dr_sel = PHYCTRL_DR_33OHM;
+			break;
+		case 66:
+			rk_phy->dr_sel = PHYCTRL_DR_66OHM;
+			break;
+		case 100:
+			rk_phy->dr_sel = PHYCTRL_DR_100OHM;
+			break;
+		case 40:
+			rk_phy->dr_sel = PHYCTRL_DR_40OHM;
+			break;
+		default:
+			dev_info(dev, "Not support dr_sel, default 50OHM\n");
+			break;
+		}
+	}
+
+	rk_phy->opdelay = 0x4;
+	if (!of_property_read_u32(dev->of_node, "opdelay", &opdelay)) {
+		if (opdelay > 15)
+			dev_info(dev, "opdelay shouldn't larger than 15\n");
+		else
+			rk_phy->opdelay = opdelay;
 	}
 
 	rk_phy->reg_offset = reg_offset;
