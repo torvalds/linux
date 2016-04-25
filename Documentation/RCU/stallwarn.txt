@@ -49,7 +49,7 @@ rcupdate.rcu_task_stall_timeout
 	This boot/sysfs parameter controls the RCU-tasks stall warning
 	interval.  A value of zero or less suppresses RCU-tasks stall
 	warnings.  A positive value sets the stall-warning interval
-	in jiffies.  An RCU-tasks stall warning starts wtih the line:
+	in jiffies.  An RCU-tasks stall warning starts with the line:
 
 		INFO: rcu_tasks detected stalls on tasks:
 
