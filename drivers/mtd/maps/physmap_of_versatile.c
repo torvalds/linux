@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
+#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -251,3 +252,4 @@ int of_flash_probe_versatile(struct platform_device *pdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(of_flash_probe_versatile);
