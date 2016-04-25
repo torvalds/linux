@@ -2062,6 +2062,8 @@ static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 	if (he) {
 		memset(&he->stat, 0, sizeof(he->stat));
 		he->hists = hists;
+		if (symbol_conf.cumulate_callchain)
+			memset(he->stat_acc, 0, sizeof(he->stat));
 		rb_link_node(&he->rb_node_in, parent, p);
 		rb_insert_color(&he->rb_node_in, root);
 		hists__inc_stats(hists, he);
