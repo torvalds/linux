@@ -198,6 +198,10 @@ void __init efi_init(void)
 	efi.memmap.desc_size = params.desc_size;
 	efi.memmap.desc_version = params.desc_ver;
 
+	WARN(efi.memmap.desc_version != 1,
+	     "Unexpected EFI_MEMORY_DESCRIPTOR version %ld",
+	      efi.memmap.desc_version);
+
 	if (uefi_init() < 0)
 		return;
 

@@ -211,6 +211,10 @@ int __init efi_memblock_x86_reserve_range(void)
 	efi.memmap.desc_size	= e->efi_memdesc_size;
 	efi.memmap.desc_version	= e->efi_memdesc_version;
 
+	WARN(efi.memmap.desc_version != 1,
+	     "Unexpected EFI_MEMORY_DESCRIPTOR version %ld",
+	     efi.memmap.desc_version);
+
 	memblock_reserve(pmap, efi.memmap.nr_map * efi.memmap.desc_size);
 
 	return 0;
