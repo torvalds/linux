@@ -1126,6 +1126,12 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 
 	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
+	if (ata_dev_disabled(dev)) {
+		/* Device disabled after error recovery */
+		/* LOGICAL UNIT NOT READY, HARD RESET REQUIRED */
+		ata_scsi_set_sense(dev, cmd, NOT_READY, 0x04, 0x21);
+		return;
+	}
 	/* Use ata_to_sense_error() to map status register bits
 	 * onto sense key, asc & ascq.
 	 */
