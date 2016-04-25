@@ -6,11 +6,9 @@
  */
 
 /dts-v1/;
-
-/*Reserved 1MB memory for MCU*/
-/memreserve/ 0x05e00000 0x00100000;
-
 #include "hi6220.dtsi"
+#include "hikey-pinctrl.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "HiKey Development Board";
@@ -27,9 +25,201 @@
 		stdout-path = "serial3:115200n8";
 	};
 
+	/*
+	 * Reserve below regions from memory node:
+	 *
+	 *  0x05e0,0000 - 0x05ef,ffff: MCU firmware runtime using
+	 *  0x06df,f000 - 0x06df,ffff: Mailbox message data
+	 *  0x0740,f000 - 0x0740,ffff: MCU firmware section
+	 *  0x3e00,0000 - 0x3fff,ffff: OP-TEE
+	 */
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x40000000>;
+		reg = <0x00000000 0x00000000 0x00000000 0x05e00000>,
+		      <0x00000000 0x05f00000 0x00000000 0x00eff000>,
+		      <0x00000000 0x06e00000 0x00000000 0x0060f000>,
+		      <0x00000000 0x07410000 0x00000000 0x36bf0000>;
+	};
+
+	soc {
+		spi0: spi@f7106000 {
+			status = "ok";
+		};
+
+		i2c0: i2c@f7100000 {
+			status = "ok";
+		};
+
+		i2c1: i2c@f7101000 {
+			status = "ok";
+		};
+
+		uart1: uart@f7111000 {
+			status = "ok";
+		};
+
+		uart2: uart@f7112000 {
+			status = "ok";
+		};
+
+		uart3: uart@f7113000 {
+			status = "ok";
+		};
+
+		dwmmc_2: dwmmc2@f723f000 {
+			ti,non-removable;
+			non-removable;
+			/* WL_EN */
+			vmmc-supply = <&wlan_en_reg>;
+
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			wlcore: wlcore@2 {
+				compatible = "ti,wl1835";
+				reg = <2>;	/* sdio func num */
+				/* WL_IRQ, WL_HOST_WAKE_GPIO1_3 */
+				interrupt-parent = <&gpio1>;
+				interrupts = <3 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
+		wlan_en_reg: regulator@1 {
+			compatible = "regulator-fixed";
+			regulator-name = "wlan-en-regulator";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			/* WLAN_EN GPIO */
+			gpio = <&gpio0 5 0>;
+			/* WLAN card specific delay */
+			startup-delay-us = <70000>;
+			enable-active-high;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		user_led4 {
+			label = "user_led4";
+			gpios = <&gpio4 0 0>; /* <&gpio_user_led_1>; */
+			linux,default-trigger = "heartbeat";
+		};
+
+		user_led3 {
+			label = "user_led3";
+			gpios = <&gpio4 1 0>; /* <&gpio_user_led_2>; */
+			linux,default-trigger = "mmc0";
+		};
+
+		user_led2 {
+			label = "user_led2";
+			gpios = <&gpio4 2 0>; /* <&gpio_user_led_3>; */
+			linux,default-trigger = "mmc1";
+		};
+
+		user_led1 {
+			label = "user_led1";
+			gpios = <&gpio4 3 0>; /* <&gpio_user_led_4>; */
+			linux,default-trigger = "cpu0";
+		};
+
+		wlan_active_led {
+			label = "wifi_active";
+			gpios = <&gpio3 5 0>; /* <&gpio_wlan_active_led>; */
+			linux,default-trigger = "phy0tx";
+			default-state = "off";
+		};
+
+		bt_active_led {
+			label = "bt_active";
+			gpios = <&gpio4 7 0>; /* <&gpio_bt_active_led>; */
+			linux,default-trigger = "hci0rx";
+			default-state = "off";
+		};
+	};
+
+	pmic: pmic@f8000000 {
+		compatible = "hisilicon,hi655x-pmic";
+		reg = <0x0 0xf8000000 0x0 0x1000>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		pmic-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+
+		regulators {
+			ldo2: LDO2 {
+				regulator-name = "LDO2_2V8";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3200000>;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo7: LDO7 {
+				regulator-name = "LDO7_SDIO";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo10: LDO10 {
+				regulator-name = "LDO10_2V85";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-enable-ramp-delay = <360>;
+			};
+
+			ldo13: LDO13 {
+				regulator-name = "LDO13_1V8";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo14: LDO14 {
+				regulator-name = "LDO14_2V8";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3200000>;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo15: LDO15 {
+				regulator-name = "LDO15_1V8";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo17: LDO17 {
+				regulator-name = "LDO17_2V5";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3200000>;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo19: LDO19 {
+				regulator-name = "LDO19_3V0";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-enable-ramp-delay = <360>;
+			};
+
+			ldo21: LDO21 {
+				regulator-name = "LDO21_1V8";
+				regulator-min-microvolt = <1650000>;
+				regulator-max-microvolt = <2000000>;
+				regulator-always-on;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo22: LDO22 {
+				regulator-name = "LDO22_1V2";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-enable-ramp-delay = <120>;
+			};
+		};
 	};
 };
 
