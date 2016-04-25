@@ -406,7 +406,7 @@ static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
 		vector_reg = (vfinfo->vf_mc_hashes[i] >> 5) & 0x7F;
 		vector_bit = vfinfo->vf_mc_hashes[i] & 0x1F;
 		mta_reg = IXGBE_READ_REG(hw, IXGBE_MTA(vector_reg));
-		mta_reg |= (1 << vector_bit);
+		mta_reg |= BIT(vector_bit);
 		IXGBE_WRITE_REG(hw, IXGBE_MTA(vector_reg), mta_reg);
 	}
 	vmolr |= IXGBE_VMOLR_ROMPE;
@@ -433,7 +433,7 @@ void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 			vector_reg = (vfinfo->vf_mc_hashes[j] >> 5) & 0x7F;
 			vector_bit = vfinfo->vf_mc_hashes[j] & 0x1F;
 			mta_reg = IXGBE_READ_REG(hw, IXGBE_MTA(vector_reg));
-			mta_reg |= (1 << vector_bit);
+			mta_reg |= BIT(vector_bit);
 			IXGBE_WRITE_REG(hw, IXGBE_MTA(vector_reg), mta_reg);
 		}
 
@@ -536,9 +536,9 @@ static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 		/* enable or disable receive depending on error */
 		vfre = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));
 		if (err)
-			vfre &= ~(1 << vf_shift);
+			vfre &= ~BIT(vf_shift);
 		else
-			vfre |= 1 << vf_shift;
+			vfre |= BIT(vf_shift);
 		IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), vfre);
 
 		if (err) {
@@ -592,8 +592,8 @@ static void ixgbe_clear_vf_vlans(struct ixgbe_adapter *adapter, u32 vf)
 	u32 vlvfb_mask, pool_mask, i;
 
 	/* create mask for VF and other pools */
-	pool_mask = ~(1 << (VMDQ_P(0) % 32));
-	vlvfb_mask = 1 << (vf % 32);
+	pool_mask = ~BIT(VMDQ_P(0) % 32);
+	vlvfb_mask = BIT(vf % 32);
 
 	/* post increment loop, covers VLVF_ENTRIES - 1 to 0 */
 	for (i = IXGBE_VLVF_ENTRIES; i--;) {
@@ -629,7 +629,7 @@ static void ixgbe_clear_vf_vlans(struct ixgbe_adapter *adapter, u32 vf)
 			goto update_vlvfb;
 
 		vid = vlvf & VLAN_VID_MASK;
-		mask = 1 << (vid % 32);
+		mask = BIT(vid % 32);
 
 		/* clear bit from VFTA */
 		vfta = IXGBE_READ_REG(hw, IXGBE_VFTA(vid / 32));
@@ -813,7 +813,7 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 	/* enable transmit for vf */
 	reg = IXGBE_READ_REG(hw, IXGBE_VFTE(reg_offset));
-	reg |= 1 << vf_shift;
+	reg |= BIT(vf_shift);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), reg);
 
 	/* force drop enable for all VF Rx queues */
@@ -821,7 +821,7 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 	/* enable receive for vf */
 	reg = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));
-	reg |= 1 << vf_shift;
+	reg |= BIT(vf_shift);
 	/*
 	 * The 82599 cannot support a mix of jumbo and non-jumbo PF/VFs.
 	 * For more info take a look at ixgbe_set_vf_lpe
@@ -837,7 +837,7 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 #endif /* CONFIG_FCOE */
 		if (pf_max_frame > ETH_FRAME_LEN)
-			reg &= ~(1 << vf_shift);
+			reg &= ~BIT(vf_shift);
 	}
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), reg);
 
@@ -846,7 +846,7 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 	/* Enable counting of spoofed packets in the SSVPC register */
 	reg = IXGBE_READ_REG(hw, IXGBE_VMECM(reg_offset));
-	reg |= (1 << vf_shift);
+	reg |= BIT(vf_shift);
 	IXGBE_WRITE_REG(hw, IXGBE_VMECM(reg_offset), reg);
 
 	/*
@@ -908,8 +908,6 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 	u32 add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
 	u32 vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
 	u8 tcs = netdev_get_num_tc(adapter->netdev);
-	struct ixgbe_hw *hw = &adapter->hw;
-	int err;
 
 	if (adapter->vfinfo[vf].pf_vlan || tcs) {
 		e_warn(drv,
@@ -923,19 +921,7 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 	if (!vid && !add)
 		return 0;
 
-	err = ixgbe_set_vf_vlan(adapter, add, vid, vf);
-	if (err)
-		return err;
-
-	if (adapter->vfinfo[vf].spoofchk_enabled)
-		hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
-
-	if (add)
-		adapter->vfinfo[vf].vlan_count++;
-	else if (adapter->vfinfo[vf].vlan_count)
-		adapter->vfinfo[vf].vlan_count--;
-
-	return 0;
+	return ixgbe_set_vf_vlan(adapter, add, vid, vf);
 }
 
 static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
@@ -964,8 +950,11 @@ static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
 		 * If the VF is allowed to set MAC filters then turn off
 		 * anti-spoofing to avoid false positives.
 		 */
-		if (adapter->vfinfo[vf].spoofchk_enabled)
-			ixgbe_ndo_set_vf_spoofchk(adapter->netdev, vf, false);
+		if (adapter->vfinfo[vf].spoofchk_enabled) {
+			struct ixgbe_hw *hw = &adapter->hw;
+
+			hw->mac.ops.set_mac_anti_spoofing(hw, false, vf);
+		}
 	}
 
 	err = ixgbe_set_vf_macvlan(adapter, vf, index, new_mac);
@@ -1321,9 +1310,6 @@ static int ixgbe_enable_port_vlan(struct ixgbe_adapter *adapter, int vf,
 
 	ixgbe_set_vmvir(adapter, vlan, qos, vf);
 	ixgbe_set_vmolr(hw, vf, false);
-	if (adapter->vfinfo[vf].spoofchk_enabled)
-		hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
-	adapter->vfinfo[vf].vlan_count++;
 
 	/* enable hide vlan on X550 */
 	if (hw->mac.type >= ixgbe_mac_X550)
@@ -1356,9 +1342,6 @@ static int ixgbe_disable_port_vlan(struct ixgbe_adapter *adapter, int vf)
 	ixgbe_set_vf_vlan(adapter, true, 0, vf);
 	ixgbe_clear_vmvir(adapter, vf);
 	ixgbe_set_vmolr(hw, vf, true);
-	hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
-	if (adapter->vfinfo[vf].vlan_count)
-		adapter->vfinfo[vf].vlan_count--;
 
 	/* disable hide VLAN on X550 */
 	if (hw->mac.type >= ixgbe_mac_X550)
@@ -1525,27 +1508,34 @@ int ixgbe_ndo_set_vf_bw(struct net_device *netdev, int vf, int min_tx_rate,
 int ixgbe_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	int vf_target_reg = vf >> 3;
-	int vf_target_shift = vf % 8;
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 regval;
 
 	if (vf >= adapter->num_vfs)
 		return -EINVAL;
 
 	adapter->vfinfo[vf].spoofchk_enabled = setting;
 
-	regval = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
-	regval &= ~(1 << vf_target_shift);
-	regval |= (setting << vf_target_shift);
-	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), regval);
+	/* configure MAC spoofing */
+	hw->mac.ops.set_mac_anti_spoofing(hw, setting, vf);
 
-	if (adapter->vfinfo[vf].vlan_count) {
-		vf_target_shift += IXGBE_SPOOF_VLANAS_SHIFT;
-		regval = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
-		regval &= ~(1 << vf_target_shift);
-		regval |= (setting << vf_target_shift);
-		IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), regval);
+	/* configure VLAN spoofing */
+	hw->mac.ops.set_vlan_anti_spoofing(hw, setting, vf);
+
+	/* Ensure LLDP and FC is set for Ethertype Antispoofing if we will be
+	 * calling set_ethertype_anti_spoofing for each VF in loop below
+	 */
+	if (hw->mac.ops.set_ethertype_anti_spoofing) {
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_LLDP),
+				(IXGBE_ETQF_FILTER_EN    |
+				 IXGBE_ETQF_TX_ANTISPOOF |
+				 IXGBE_ETH_P_LLDP));
+
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_FC),
+				(IXGBE_ETQF_FILTER_EN |
+				 IXGBE_ETQF_TX_ANTISPOOF |
+				 ETH_P_PAUSE));
+
+		hw->mac.ops.set_ethertype_anti_spoofing(hw, setting, vf);
 	}
 
 	return 0;

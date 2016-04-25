@@ -825,8 +825,8 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 			 */
 			eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
 					    IXGBE_EEC_SIZE_SHIFT);
-			eeprom->word_size = 1 << (eeprom_size +
-						  IXGBE_EEPROM_WORD_SIZE_SHIFT);
+			eeprom->word_size = BIT(eeprom_size +
+						 IXGBE_EEPROM_WORD_SIZE_SHIFT);
 		}
 
 		if (eec & IXGBE_EEC_ADDR_SIZE)
@@ -1502,7 +1502,7 @@ static void ixgbe_shift_out_eeprom_bits(struct ixgbe_hw *hw, u16 data,
 	 * Mask is used to shift "count" bits of "data" out to the EEPROM
 	 * one bit at a time.  Determine the starting bit based on count
 	 */
-	mask = 0x01 << (count - 1);
+	mask = BIT(count - 1);
 
 	for (i = 0; i < count; i++) {
 		/*
@@ -1991,7 +1991,7 @@ static void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr)
 	 */
 	vector_reg = (vector >> 5) & 0x7F;
 	vector_bit = vector & 0x1F;
-	hw->mac.mta_shadow[vector_reg] |= (1 << vector_bit);
+	hw->mac.mta_shadow[vector_reg] |= BIT(vector_bit);
 }
 
 /**
@@ -2921,10 +2921,10 @@ s32 ixgbe_clear_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 			mpsar_hi = 0;
 		}
 	} else if (vmdq < 32) {
-		mpsar_lo &= ~(1 << vmdq);
+		mpsar_lo &= ~BIT(vmdq);
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar_lo);
 	} else {
-		mpsar_hi &= ~(1 << (vmdq - 32));
+		mpsar_hi &= ~BIT(vmdq - 32);
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar_hi);
 	}
 
@@ -2953,11 +2953,11 @@ s32 ixgbe_set_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 
 	if (vmdq < 32) {
 		mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
-		mpsar |= 1 << vmdq;
+		mpsar |= BIT(vmdq);
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar);
 	} else {
 		mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
-		mpsar |= 1 << (vmdq - 32);
+		mpsar |= BIT(vmdq - 32);
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar);
 	}
 	return 0;
@@ -2978,11 +2978,11 @@ s32 ixgbe_set_vmdq_san_mac_generic(struct ixgbe_hw *hw, u32 vmdq)
 	u32 rar = hw->mac.san_mac_rar_index;
 
 	if (vmdq < 32) {
-		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 1 << vmdq);
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), BIT(vmdq));
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 0);
 	} else {
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 1 << (vmdq - 32));
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), BIT(vmdq - 32));
 	}
 
 	return 0;
@@ -3082,7 +3082,7 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	 *    bits[4-0]:  which bit in the register
 	 */
 	regidx = vlan / 32;
-	vfta_delta = 1 << (vlan % 32);
+	vfta_delta = BIT(vlan % 32);
 	vfta = IXGBE_READ_REG(hw, IXGBE_VFTA(regidx));
 
 	/* vfta_delta represents the difference between the current value
@@ -3113,12 +3113,12 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	bits = IXGBE_READ_REG(hw, IXGBE_VLVFB(vlvf_index * 2 + vind / 32));
 
 	/* set the pool bit */
-	bits |= 1 << (vind % 32);
+	bits |= BIT(vind % 32);
 	if (vlan_on)
 		goto vlvf_update;
 
 	/* clear the pool bit */
-	bits ^= 1 << (vind % 32);
+	bits ^= BIT(vind % 32);
 
 	if (!bits &&
 	    !IXGBE_READ_REG(hw, IXGBE_VLVFB(vlvf_index * 2 + 1 - vind / 32))) {
@@ -3310,43 +3310,25 @@ wwn_prefix_err:
 /**
  *  ixgbe_set_mac_anti_spoofing - Enable/Disable MAC anti-spoofing
  *  @hw: pointer to hardware structure
- *  @enable: enable or disable switch for anti-spoofing
- *  @pf: Physical Function pool - do not enable anti-spoofing for the PF
+ *  @enable: enable or disable switch for MAC anti-spoofing
+ *  @vf: Virtual Function pool - VF Pool to set for MAC anti-spoofing
  *
  **/
-void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int pf)
+void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf)
 {
-	int j;
-	int pf_target_reg = pf >> 3;
-	int pf_target_shift = pf % 8;
-	u32 pfvfspoof = 0;
+	int vf_target_reg = vf >> 3;
+	int vf_target_shift = vf % 8;
+	u32 pfvfspoof;
 
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		return;
 
+	pfvfspoof = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
 	if (enable)
-		pfvfspoof = IXGBE_SPOOF_MACAS_MASK;
-
-	/*
-	 * PFVFSPOOF register array is size 8 with 8 bits assigned to
-	 * MAC anti-spoof enables in each register array element.
-	 */
-	for (j = 0; j < pf_target_reg; j++)
-		IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(j), pfvfspoof);
-
-	/*
-	 * The PF should be allowed to spoof so that it can support
-	 * emulation mode NICs.  Do not set the bits assigned to the PF
-	 */
-	pfvfspoof &= (1 << pf_target_shift) - 1;
-	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(j), pfvfspoof);
-
-	/*
-	 * Remaining pools belong to the PF so they do not need to have
-	 * anti-spoofing enabled.
-	 */
-	for (j++; j < IXGBE_PFVFSPOOF_REG_COUNT; j++)
-		IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(j), 0);
+		pfvfspoof |= BIT(vf_target_shift);
+	else
+		pfvfspoof &= ~BIT(vf_target_shift);
+	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), pfvfspoof);
 }
 
 /**
@@ -3367,9 +3349,9 @@ void ixgbe_set_vlan_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf)
 
 	pfvfspoof = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
 	if (enable)
-		pfvfspoof |= (1 << vf_target_shift);
+		pfvfspoof |= BIT(vf_target_shift);
 	else
-		pfvfspoof &= ~(1 << vf_target_shift);
+		pfvfspoof &= ~BIT(vf_target_shift);
 	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), pfvfspoof);
 }
 

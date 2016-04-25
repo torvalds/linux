@@ -1586,7 +1586,7 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 	/* Test each interrupt */
 	for (; i < 10; i++) {
 		/* Interrupt to test */
-		mask = 1 << i;
+		mask = BIT(i);
 
 		if (!shared_int) {
 			/*
@@ -3014,14 +3014,14 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 			info->phc_index = -1;
 
 		info->tx_types =
-			(1 << HWTSTAMP_TX_OFF) |
-			(1 << HWTSTAMP_TX_ON);
+			BIT(HWTSTAMP_TX_OFF) |
+			BIT(HWTSTAMP_TX_ON);
 
 		info->rx_filters =
-			(1 << HWTSTAMP_FILTER_NONE) |
-			(1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
-			(1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
-			(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
+			BIT(HWTSTAMP_FILTER_NONE) |
+			BIT(HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+			BIT(HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+			BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
 		break;
 	default:
 		return ethtool_op_get_ts_info(dev, info);

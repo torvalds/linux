@@ -335,8 +335,8 @@ static s32 ixgbe_init_eeprom_params_X550(struct ixgbe_hw *hw)
 		eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 		eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
 				    IXGBE_EEC_SIZE_SHIFT);
-		eeprom->word_size = 1 << (eeprom_size +
-					  IXGBE_EEPROM_WORD_SIZE_SHIFT);
+		eeprom->word_size = BIT(eeprom_size +
+					IXGBE_EEPROM_WORD_SIZE_SHIFT);
 
 		hw_dbg(hw, "Eeprom params: type = %d, size = %d\n",
 		       eeprom->type, eeprom->word_size);
@@ -2646,9 +2646,9 @@ static void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw,
 
 	pfvfspoof = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
 	if (enable)
-		pfvfspoof |= (1 << vf_target_shift);
+		pfvfspoof |= BIT(vf_target_shift);
 	else
-		pfvfspoof &= ~(1 << vf_target_shift);
+		pfvfspoof &= ~BIT(vf_target_shift);
 
 	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), pfvfspoof);
 }
@@ -2765,7 +2765,7 @@ static s32 ixgbe_acquire_swfw_sync_x550em_a(struct ixgbe_hw *hw, u32 mask)
 			ixgbe_release_swfw_sync_X540(hw, hmask);
 		if (status != IXGBE_ERR_TOKEN_RETRY)
 			return status;
-		udelay(FW_PHY_TOKEN_DELAY * 1000);
+		msleep(FW_PHY_TOKEN_DELAY);
 	}
 
 	return status;
@@ -2908,7 +2908,7 @@ static const struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	.get_media_type		= &ixgbe_get_media_type_X550em,
 	.get_san_mac_addr	= NULL,
 	.get_wwn_prefix		= NULL,
-	.setup_link		= NULL, /* defined later */
+	.setup_link		= &ixgbe_setup_mac_link_X540,
 	.get_link_capabilities	= &ixgbe_get_link_capabilities_X550em,
 	.get_bus_info		= &ixgbe_get_bus_info_X550em,
 	.setup_sfp		= ixgbe_setup_sfp_modules_X550em,
@@ -2932,7 +2932,7 @@ static struct ixgbe_mac_operations mac_ops_x550em_a = {
 	.setup_sfp		= ixgbe_setup_sfp_modules_X550em,
 	.acquire_swfw_sync	= ixgbe_acquire_swfw_sync_x550em_a,
 	.release_swfw_sync	= ixgbe_release_swfw_sync_x550em_a,
-	.setup_fc		= ixgbe_setup_fc_generic,
+	.setup_fc		= ixgbe_setup_fc_x550em,
 	.read_iosf_sb_reg	= ixgbe_read_iosf_sb_reg_x550a,
 	.write_iosf_sb_reg	= ixgbe_write_iosf_sb_reg_x550a,
 };

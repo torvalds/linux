@@ -792,7 +792,7 @@ mac_reset_top:
 	}
 
 	gheccr = IXGBE_READ_REG(hw, IXGBE_GHECCR);
-	gheccr &= ~((1 << 21) | (1 << 18) | (1 << 9) | (1 << 6));
+	gheccr &= ~(BIT(21) | BIT(18) | BIT(9) | BIT(6));
 	IXGBE_WRITE_REG(hw, IXGBE_GHECCR, gheccr);
 
 	/*
@@ -914,10 +914,10 @@ static s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	bits = IXGBE_READ_REG(hw, IXGBE_VFTA(regindex));
 	if (vlan_on)
 		/* Turn on this VLAN id */
-		bits |= (1 << bitindex);
+		bits |= BIT(bitindex);
 	else
 		/* Turn off this VLAN id */
-		bits &= ~(1 << bitindex);
+		bits &= ~BIT(bitindex);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTA(regindex), bits);
 
 	return 0;

@@ -670,11 +670,11 @@ void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
 }
 
 /**
- *  ixgbevf_negotiate_api_version - Negotiate supported API version
+ *  ixgbevf_negotiate_api_version_vf - Negotiate supported API version
  *  @hw: pointer to the HW structure
  *  @api: integer containing requested API version
  **/
-int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api)
+static int ixgbevf_negotiate_api_version_vf(struct ixgbe_hw *hw, int api)
 {
 	int err;
 	u32 msg[3];
@@ -769,6 +769,7 @@ static const struct ixgbe_mac_operations ixgbevf_mac_ops = {
 	.stop_adapter		= ixgbevf_stop_hw_vf,
 	.setup_link		= ixgbevf_setup_mac_link_vf,
 	.check_link		= ixgbevf_check_mac_link_vf,
+	.negotiate_api_version	= ixgbevf_negotiate_api_version_vf,
 	.set_rar		= ixgbevf_set_rar_vf,
 	.update_mc_addr_list	= ixgbevf_update_mc_addr_list_vf,
 	.update_xcast_mode	= ixgbevf_update_xcast_mode,

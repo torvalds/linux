@@ -186,7 +186,7 @@ void ixgbe_dcb_unpack_pfc(struct ixgbe_dcb_config *cfg, u8 *pfc_en)
 
 	for (*pfc_en = 0, tc = 0; tc < MAX_TRAFFIC_CLASS; tc++) {
 		if (tc_config[tc].dcb_pfc != pfc_disabled)
-			*pfc_en |= 1 << tc;
+			*pfc_en |= BIT(tc);
 	}
 }
 
@@ -232,7 +232,7 @@ void ixgbe_dcb_unpack_prio(struct ixgbe_dcb_config *cfg, int direction,
 u8 ixgbe_dcb_get_tc_from_up(struct ixgbe_dcb_config *cfg, int direction, u8 up)
 {
 	struct tc_configuration *tc_config = &cfg->tc_config[0];
-	u8 prio_mask = 1 << up;
+	u8 prio_mask = BIT(up);
 	u8 tc = cfg->num_tcs.pg_tcs;
 
 	/* If tc is 0 then DCB is likely not enabled or supported */
