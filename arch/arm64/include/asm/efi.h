@@ -4,6 +4,7 @@
 #include <asm/io.h>
 #include <asm/mmu_context.h>
 #include <asm/neon.h>
+#include <asm/ptrace.h>
 #include <asm/tlbflush.h>
 
 #ifdef CONFIG_EFI
@@ -34,6 +35,8 @@ int efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md);
 	efi_virtmap_unload();						\
 	kernel_neon_end();						\
 })
+
+#define ARCH_EFI_IRQ_FLAGS_MASK (PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 
 /* arch specific definitions used by the stub code */
 
