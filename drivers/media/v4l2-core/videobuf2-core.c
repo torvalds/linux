@@ -2298,6 +2298,16 @@ unsigned int vb2_core_poll(struct vb2_queue *q, struct file *file,
 		return POLLERR;
 
 	/*
+	 * If this quirk is set and QBUF hasn't been called yet then
+	 * return POLLERR as well. This only affects capture queues, output
+	 * queues will always initialize waiting_for_buffers to false.
+	 * This quirk is set by V4L2 for backwards compatibility reasons.
+	 */
+	if (q->quirk_poll_must_check_waiting_for_buffers &&
+	    q->waiting_for_buffers && (req_events & (POLLIN | POLLRDNORM)))
+		return POLLERR;
+
+	/*
 	 * For output streams you can call write() as long as there are fewer
 	 * buffers queued than there are buffers available.
 	 */
