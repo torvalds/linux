@@ -74,7 +74,7 @@ struct kvm_s390_io_adapter {
 
   KVM_DEV_FLIC_ADAPTER_MODIFY
     Modifies attributes of an existing I/O adapter interrupt source. Takes
-    a kvm_s390_io_adapter_req specifiying the adapter and the operation:
+    a kvm_s390_io_adapter_req specifying the adapter and the operation:
 
 struct kvm_s390_io_adapter_req {
 	__u32 id;
