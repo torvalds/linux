@@ -7,6 +7,7 @@
  *
  * Copyright (C) 1995  Linus Torvalds
  * Copyright (C) 2001 - 2005  Tensilica Inc.
+ * Copyright (C) 2014 - 2016  Cadence Design Systems Inc.
  *
  * Chris Zankel	<chris@zankel.net>
  * Joe Taylor	<joe@tensilica.com, joetylr@yahoo.com>
@@ -24,6 +25,7 @@
 #include <linux/percpu.h>
 #include <linux/clk-provider.h>
 #include <linux/cpu.h>
+#include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 
@@ -114,7 +116,7 @@ static int __init parse_tag_mem(const bp_tag_t *tag)
 	if (mi->type != MEMORY_TYPE_CONVENTIONAL)
 		return -1;
 
-	return add_sysmem_bank(mi->start, mi->end);
+	return memblock_add(mi->start, mi->end - mi->start);
 }
 
 __tagtable(BP_TAG_MEMORY, parse_tag_mem);
@@ -228,7 +230,7 @@ static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	size &= PAGE_MASK;
-	add_sysmem_bank(base, base + size);
+	memblock_add(base, size);
 }
 
 void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
@@ -440,6 +442,10 @@ static int __init check_s32c1i(void)
 early_initcall(check_s32c1i);
 #endif /* CONFIG_S32C1I_SELFTEST */
 
+static inline int mem_reserve(unsigned long start, unsigned long end)
+{
+	return memblock_reserve(start, end - start);
+}
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -451,54 +457,54 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start < initrd_end) {
 		initrd_is_mapped = mem_reserve(__pa(initrd_start),
-					       __pa(initrd_end), 0) == 0;
+					       __pa(initrd_end)) == 0;
 		initrd_below_start_ok = 1;
 	} else {
 		initrd_start = 0;
 	}
 #endif
 
-	mem_reserve(__pa(&_stext),__pa(&_end), 1);
+	mem_reserve(__pa(&_stext), __pa(&_end));
 
 	mem_reserve(__pa(&_WindowVectors_text_start),
-		    __pa(&_WindowVectors_text_end), 0);
+		    __pa(&_WindowVectors_text_end));
 
 	mem_reserve(__pa(&_DebugInterruptVector_literal_start),
-		    __pa(&_DebugInterruptVector_text_end), 0);
+		    __pa(&_DebugInterruptVector_text_end));
 
 	mem_reserve(__pa(&_KernelExceptionVector_literal_start),
-		    __pa(&_KernelExceptionVector_text_end), 0);
+		    __pa(&_KernelExceptionVector_text_end));
 
 	mem_reserve(__pa(&_UserExceptionVector_literal_start),
-		    __pa(&_UserExceptionVector_text_end), 0);
+		    __pa(&_UserExceptionVector_text_end));
 
 	mem_reserve(__pa(&_DoubleExceptionVector_literal_start),
-		    __pa(&_DoubleExceptionVector_text_end), 0);
+		    __pa(&_DoubleExceptionVector_text_end));
 
 #if XCHAL_EXCM_LEVEL >= 2
 	mem_reserve(__pa(&_Level2InterruptVector_text_start),
-		    __pa(&_Level2InterruptVector_text_end), 0);
+		    __pa(&_Level2InterruptVector_text_end));
 #endif
 #if XCHAL_EXCM_LEVEL >= 3
 	mem_reserve(__pa(&_Level3InterruptVector_text_start),
-		    __pa(&_Level3InterruptVector_text_end), 0);
+		    __pa(&_Level3InterruptVector_text_end));
 #endif
 #if XCHAL_EXCM_LEVEL >= 4
 	mem_reserve(__pa(&_Level4InterruptVector_text_start),
-		    __pa(&_Level4InterruptVector_text_end), 0);
+		    __pa(&_Level4InterruptVector_text_end));
 #endif
 #if XCHAL_EXCM_LEVEL >= 5
 	mem_reserve(__pa(&_Level5InterruptVector_text_start),
-		    __pa(&_Level5InterruptVector_text_end), 0);
+		    __pa(&_Level5InterruptVector_text_end));
 #endif
 #if XCHAL_EXCM_LEVEL >= 6
 	mem_reserve(__pa(&_Level6InterruptVector_text_start),
-		    __pa(&_Level6InterruptVector_text_end), 0);
+		    __pa(&_Level6InterruptVector_text_end));
 #endif
 
 #ifdef CONFIG_SMP
 	mem_reserve(__pa(&_SecondaryResetVector_text_start),
-		    __pa(&_SecondaryResetVector_text_end), 0);
+		    __pa(&_SecondaryResetVector_text_end));
 #endif
 	parse_early_param();
 	bootmem_init();
