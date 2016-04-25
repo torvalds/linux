@@ -13,7 +13,7 @@
  *
  */
 
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 #include <linux/err.h>
 #include <linux/init.h>
