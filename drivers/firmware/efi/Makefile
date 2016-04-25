@@ -10,6 +10,7 @@
 KASAN_SANITIZE_runtime-wrappers.o	:= n
 
 obj-$(CONFIG_EFI)			+= efi.o vars.o reboot.o memattr.o
+obj-$(CONFIG_EFI)			+= capsule.o
 obj-$(CONFIG_EFI_VARS)			+= efivars.o
 obj-$(CONFIG_EFI_ESRT)			+= esrt.o
 obj-$(CONFIG_EFI_VARS_PSTORE)		+= efi-pstore.o
