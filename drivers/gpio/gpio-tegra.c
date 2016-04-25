@@ -560,12 +560,12 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct tegra_gpio_soc_config tegra20_gpio_config = {
+static const struct tegra_gpio_soc_config tegra20_gpio_config = {
 	.bank_stride = 0x80,
 	.upper_offset = 0x800,
 };
 
-static struct tegra_gpio_soc_config tegra30_gpio_config = {
+static const struct tegra_gpio_soc_config tegra30_gpio_config = {
 	.bank_stride = 0x100,
 	.upper_offset = 0x80,
 };
