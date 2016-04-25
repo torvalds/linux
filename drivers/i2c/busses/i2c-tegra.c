@@ -483,19 +483,20 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 			if (time_after(jiffies, timeout)) {
 				dev_warn(i2c_dev->dev,
 					"timeout waiting for config load\n");
-				return -ETIMEDOUT;
+				err = -ETIMEDOUT;
+				goto err;
 			}
 			msleep(1);
 		}
 	}
-
-	tegra_i2c_clock_disable(i2c_dev);
 
 	if (i2c_dev->irq_disabled) {
 		i2c_dev->irq_disabled = 0;
 		enable_irq(i2c_dev->irq);
 	}
 
+err:
+	tegra_i2c_clock_disable(i2c_dev);
 	return err;
 }
 
