@@ -21,6 +21,7 @@
 #include <linux/pfn.h>
 #include <linux/pstore.h>
 #include <linux/reboot.h>
+#include <linux/screen_info.h>
 
 #include <asm/page.h>
 
@@ -1351,6 +1352,10 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 				  unsigned long *load_size);
 
 efi_status_t efi_parse_options(char *cmdline);
+
+efi_status_t efi_setup_gop(efi_system_table_t *sys_table_arg,
+			   struct screen_info *si, efi_guid_t *proto,
+			   unsigned long size);
 
 bool efi_runtime_disabled(void);
 #endif /* _LINUX_EFI_H */

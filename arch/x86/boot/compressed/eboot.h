@@ -85,6 +85,10 @@ struct efi_graphics_output_protocol {
 	struct efi_graphics_output_protocol_mode *mode;
 };
 
+typedef efi_status_t (*efi_graphics_output_protocol_query_mode)(
+	struct efi_graphics_output_protocol *, u32, unsigned long *,
+	struct efi_graphics_output_mode_info **);
+
 struct efi_uga_draw_protocol_32 {
 	u32 get_mode;
 	u32 set_mode;
