@@ -197,6 +197,22 @@ libata_trace_parse_subcmd(struct trace_seq *p, unsigned char cmd,
 			break;
 		}
 		break;
+	case ATA_CMD_ZAC_MGMT_OUT:
+		switch (feature) {
+		case ATA_SUBCMD_ZAC_MGMT_OUT_CLOSE_ZONE:
+			trace_seq_printf(p, " CLOSE_ZONE");
+			break;
+		case ATA_SUBCMD_ZAC_MGMT_OUT_FINISH_ZONE:
+			trace_seq_printf(p, " FINISH_ZONE");
+			break;
+		case ATA_SUBCMD_ZAC_MGMT_OUT_OPEN_ZONE:
+			trace_seq_printf(p, " OPEN_ZONE");
+			break;
+		case ATA_SUBCMD_ZAC_MGMT_OUT_RESET_WRITE_POINTER:
+			trace_seq_printf(p, " RESET_WRITE_POINTER");
+			break;
+		}
+		break;
 	}
 	trace_seq_putc(p, 0);
 

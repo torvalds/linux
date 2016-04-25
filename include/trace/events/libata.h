@@ -99,6 +99,7 @@
 		 ata_opcode_name(ATA_CMD_REQ_SENSE_DATA),	\
 		 ata_opcode_name(ATA_CMD_SANITIZE_DEVICE),	\
 		 ata_opcode_name(ATA_CMD_ZAC_MGMT_IN),		\
+		 ata_opcode_name(ATA_CMD_ZAC_MGMT_OUT),		\
 		 ata_opcode_name(ATA_CMD_RESTORE),		\
 		 ata_opcode_name(ATA_CMD_READ_LONG),		\
 		 ata_opcode_name(ATA_CMD_READ_LONG_ONCE),	\
