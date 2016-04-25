@@ -294,7 +294,7 @@ the result will be.
 
 These inputs support all combinations of the field setting. Special care has
 been taken to faithfully reproduce how fields are handled for the different
-TV standards. This is particularly noticable when generating a horizontally
+TV standards. This is particularly noticeable when generating a horizontally
 moving image so the temporal effect of using interlaced formats becomes clearly
 visible. For 50 Hz standards the top field is the oldest and the bottom field
 is the newest in time. For 60 Hz standards that is reversed: the bottom field
@@ -313,7 +313,7 @@ will be SMPTE-170M.
 The pixel aspect ratio will depend on the TV standard. The video aspect ratio
 can be selected through the 'Standard Aspect Ratio' Vivid control.
 Choices are '4x3', '16x9' which will give letterboxed widescreen video and
-'16x9 Anomorphic' which will give full screen squashed anamorphic widescreen
+'16x9 Anamorphic' which will give full screen squashed anamorphic widescreen
 video that will need to be scaled accordingly.
 
 The TV 'tuner' supports a frequency range of 44-958 MHz. Channels are available
@@ -862,7 +862,7 @@ RDS Radio Text:
 RDS Stereo:
 RDS Artificial Head:
 RDS Compressed:
-RDS Dymanic PTY:
+RDS Dynamic PTY:
 RDS Traffic Announcement:
 RDS Traffic Program:
 RDS Music: these are all controls that set the RDS data that is transmitted by
