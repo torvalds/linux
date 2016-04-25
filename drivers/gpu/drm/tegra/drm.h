@@ -121,7 +121,7 @@ struct tegra_dc {
 	spinlock_t lock;
 
 	struct drm_crtc base;
-	int powergate;
+	unsigned int powergate;
 	int pipe;
 
 	struct clk *clk;
