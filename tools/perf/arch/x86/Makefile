@@ -24,6 +24,6 @@ $(header): $(sys)/syscall_64.tbl $(systbl)
 	$(Q)$(SHELL) '$(systbl)' $(sys)/syscall_64.tbl 'x86_64' > $@
 
 clean::
-	rm -f $(header)
+	$(call QUIET_CLEAN, x86) $(RM) $(header)
 
 archheaders: $(header)
