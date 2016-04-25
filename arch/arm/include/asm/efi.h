@@ -24,26 +24,14 @@ void efi_init(void);
 int efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md);
 int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
 
-#define efi_call_virt(f, ...)						\
-({									\
-	efi_##f##_t *__f;						\
-	efi_status_t __s;						\
-									\
-	efi_virtmap_load();						\
-	__f = efi.systab->runtime->f;					\
-	__s = __f(__VA_ARGS__);						\
-	efi_virtmap_unload();						\
-	__s;								\
-})
+#define arch_efi_call_virt_setup()	efi_virtmap_load()
+#define arch_efi_call_virt_teardown()	efi_virtmap_unload()
 
-#define __efi_call_virt(f, ...)						\
+#define arch_efi_call_virt(f, args...)					\
 ({									\
 	efi_##f##_t *__f;						\
-									\
-	efi_virtmap_load();						\
 	__f = efi.systab->runtime->f;					\
-	__f(__VA_ARGS__);						\
-	efi_virtmap_unload();						\
+	__f(args);							\
 })
 
 static inline void efi_set_pgd(struct mm_struct *mm)
