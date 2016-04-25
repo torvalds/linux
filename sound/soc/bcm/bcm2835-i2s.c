@@ -276,8 +276,15 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 		/* otherwise calculate a fitting block ratio */
 		bclk_ratio = 2 * data_length;
 
-	/* set target clock rate*/
-	clk_set_rate(dev->clk, sampling_rate * bclk_ratio);
+	/* Clock should only be set up here if CPU is clock master */
+	switch (dev->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBS_CFM:
+		clk_set_rate(dev->clk, sampling_rate * bclk_ratio);
+		break;
+	default:
+		break;
+	}
 
 	/* Setup the frame format */
 	format = BCM2835_I2S_CHEN;
