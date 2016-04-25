@@ -63,7 +63,7 @@ extern "C" {
 #ifdef ENABLE_DEBUG_LOG
 /** Debug log. */
 #define D(fmt, args...) \
-	pr_debug("D : [File] : %s; [Line] : %d; [Func] : %s(); " fmt \
+	pr_info("D : [File] : %s; [Line] : %d; [Func] : %s(); " fmt \
 			"\n",	\
 		__FILE__,	\
 		__LINE__,	\
@@ -121,17 +121,17 @@ extern "C" {
 #define D_STR(p_str) \
 do { \
 	if (!p_str) { \
-		D(#p_str" = NULL."); \
+		D(#p_str " = NULL."); \
 	else \
-		D(#p_str" = '%s'.", p_str); \
+		D(#p_str " = '%s'.", p_str); \
 } while (0)
 
 #define E_STR(p_str) \
 do { \
 	if (!p_str) \
-		E(#p_str" = NULL."); \
+		E(#p_str " = NULL."); \
 	else \
-		E(#p_str" = '%s'.", p_str); \
+		E(#p_str " = '%s'.", p_str); \
 } while (0)
 
 #ifdef ENABLE_DEBUG_LOG
