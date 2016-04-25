@@ -32,6 +32,7 @@
 
 #include <linux/types.h>
 #include <xen/xen.h>
+#include <linux/kthread.h>
 
 #include "i915_drv.h"
 
@@ -114,6 +115,52 @@ static void init_device_info(struct intel_gvt *gvt)
 	}
 }
 
+static int gvt_service_thread(void *data)
+{
+	struct intel_gvt *gvt = (struct intel_gvt *)data;
+	int ret;
+
+	gvt_dbg_core("service thread start\n");
+
+	while (!kthread_should_stop()) {
+		ret = wait_event_interruptible(gvt->service_thread_wq,
+				kthread_should_stop() || gvt->service_request);
+
+		if (kthread_should_stop())
+			break;
+
+		if (WARN_ONCE(ret, "service thread is waken up by signal.\n"))
+			continue;
+
+		if (test_and_clear_bit(INTEL_GVT_REQUEST_EMULATE_VBLANK,
+					(void *)&gvt->service_request)) {
+			mutex_lock(&gvt->lock);
+			intel_gvt_emulate_vblank(gvt);
+			mutex_unlock(&gvt->lock);
+		}
+	}
+
+	return 0;
+}
+
+static void clean_service_thread(struct intel_gvt *gvt)
+{
+	kthread_stop(gvt->service_thread);
+}
+
+static int init_service_thread(struct intel_gvt *gvt)
+{
+	init_waitqueue_head(&gvt->service_thread_wq);
+
+	gvt->service_thread = kthread_run(gvt_service_thread,
+			gvt, "gvt_service_thread");
+	if (IS_ERR(gvt->service_thread)) {
+		gvt_err("fail to start service thread.\n");
+		return PTR_ERR(gvt->service_thread);
+	}
+	return 0;
+}
+
 /**
  * intel_gvt_clean_device - clean a GVT device
  * @gvt: intel gvt device
@@ -129,6 +176,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	if (WARN_ON(!gvt->initialized))
 		return;
 
+	clean_service_thread(gvt);
 	intel_gvt_clean_opregion(gvt);
 	intel_gvt_clean_gtt(gvt);
 	intel_gvt_clean_irq(gvt);
@@ -191,10 +239,16 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_clean_gtt;
 
+	ret = init_service_thread(gvt);
+	if (ret)
+		goto out_clean_opregion;
+
 	gvt_dbg_core("gvt device creation is done\n");
 	gvt->initialized = true;
 	return 0;
 
+out_clean_opregion:
+	intel_gvt_clean_opregion(gvt);
 out_clean_gtt:
 	intel_gvt_clean_gtt(gvt);
 out_clean_irq:

@@ -146,6 +146,7 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	vgpu->active = false;
 	idr_remove(&gvt->vgpu_idr, vgpu->id);
 
+	intel_vgpu_clean_display(vgpu);
 	intel_vgpu_clean_opregion(vgpu);
 	intel_vgpu_clean_gtt(vgpu);
 	intel_gvt_hypervisor_detach_vgpu(vgpu);
@@ -216,11 +217,17 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 			goto out_clean_gtt;
 	}
 
+	ret = intel_vgpu_init_display(vgpu);
+	if (ret)
+		goto out_clean_opregion;
+
 	vgpu->active = true;
 	mutex_unlock(&gvt->lock);
 
 	return vgpu;
 
+out_clean_opregion:
+	intel_vgpu_clean_opregion(vgpu);
 out_clean_gtt:
 	intel_vgpu_clean_gtt(vgpu);
 out_detach_hypervisor_vgpu:

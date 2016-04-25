@@ -251,6 +251,704 @@ static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	return 0;
 }
 
+static int gmbus_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	return intel_gvt_i2c_handle_gmbus_read(vgpu, offset, p_data, bytes);
+}
+
+static int gmbus_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	return intel_gvt_i2c_handle_gmbus_write(vgpu, offset, p_data, bytes);
+}
+
+static int pch_pp_control_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (vgpu_vreg(vgpu, offset) & PANEL_POWER_ON) {
+		vgpu_vreg(vgpu, PCH_PP_STATUS) |= PP_ON;
+		vgpu_vreg(vgpu, PCH_PP_STATUS) |= PP_SEQUENCE_STATE_ON_IDLE;
+		vgpu_vreg(vgpu, PCH_PP_STATUS) &= ~PP_SEQUENCE_POWER_DOWN;
+		vgpu_vreg(vgpu, PCH_PP_STATUS) &= ~PP_CYCLE_DELAY_ACTIVE;
+
+	} else
+		vgpu_vreg(vgpu, PCH_PP_STATUS) &=
+			~(PP_ON | PP_SEQUENCE_POWER_DOWN
+					| PP_CYCLE_DELAY_ACTIVE);
+	return 0;
+}
+
+static int transconf_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (vgpu_vreg(vgpu, offset) & TRANS_ENABLE)
+		vgpu_vreg(vgpu, offset) |= TRANS_STATE_ENABLE;
+	else
+		vgpu_vreg(vgpu, offset) &= ~TRANS_STATE_ENABLE;
+	return 0;
+}
+
+static int lcpll_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (vgpu_vreg(vgpu, offset) & LCPLL_PLL_DISABLE)
+		vgpu_vreg(vgpu, offset) &= ~LCPLL_PLL_LOCK;
+	else
+		vgpu_vreg(vgpu, offset) |= LCPLL_PLL_LOCK;
+
+	if (vgpu_vreg(vgpu, offset) & LCPLL_CD_SOURCE_FCLK)
+		vgpu_vreg(vgpu, offset) |= LCPLL_CD_SOURCE_FCLK_DONE;
+	else
+		vgpu_vreg(vgpu, offset) &= ~LCPLL_CD_SOURCE_FCLK_DONE;
+
+	return 0;
+}
+
+static int dpy_reg_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	*(u32 *)p_data = (1 << 17);
+	return 0;
+}
+
+static int dpy_reg_mmio_read_2(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	*(u32 *)p_data = 3;
+	return 0;
+}
+
+static int dpy_reg_mmio_read_3(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	*(u32 *)p_data = (0x2f << 16);
+	return 0;
+}
+
+static int pipeconf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	u32 data;
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	data = vgpu_vreg(vgpu, offset);
+
+	if (data & PIPECONF_ENABLE)
+		vgpu_vreg(vgpu, offset) |= I965_PIPECONF_ACTIVE;
+	else
+		vgpu_vreg(vgpu, offset) &= ~I965_PIPECONF_ACTIVE;
+	intel_gvt_check_vblank_emulation(vgpu->gvt);
+	return 0;
+}
+
+static int ddi_buf_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (vgpu_vreg(vgpu, offset) & DDI_BUF_CTL_ENABLE) {
+		vgpu_vreg(vgpu, offset) &= ~DDI_BUF_IS_IDLE;
+	} else {
+		vgpu_vreg(vgpu, offset) |= DDI_BUF_IS_IDLE;
+		if (offset == i915_mmio_reg_offset(DDI_BUF_CTL(PORT_E)))
+			vgpu_vreg(vgpu, DP_TP_STATUS(PORT_E))
+				&= ~DP_TP_STATUS_AUTOTRAIN_DONE;
+	}
+	return 0;
+}
+
+static int fdi_rx_iir_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	vgpu_vreg(vgpu, offset) &= ~*(u32 *)p_data;
+	return 0;
+}
+
+#define FDI_LINK_TRAIN_PATTERN1         0
+#define FDI_LINK_TRAIN_PATTERN2         1
+
+static int fdi_auto_training_started(struct intel_vgpu *vgpu)
+{
+	u32 ddi_buf_ctl = vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_E));
+	u32 rx_ctl = vgpu_vreg(vgpu, _FDI_RXA_CTL);
+	u32 tx_ctl = vgpu_vreg(vgpu, DP_TP_CTL(PORT_E));
+
+	if ((ddi_buf_ctl & DDI_BUF_CTL_ENABLE) &&
+			(rx_ctl & FDI_RX_ENABLE) &&
+			(rx_ctl & FDI_AUTO_TRAINING) &&
+			(tx_ctl & DP_TP_CTL_ENABLE) &&
+			(tx_ctl & DP_TP_CTL_FDI_AUTOTRAIN))
+		return 1;
+	else
+		return 0;
+}
+
+static int check_fdi_rx_train_status(struct intel_vgpu *vgpu,
+		enum pipe pipe, unsigned int train_pattern)
+{
+	i915_reg_t fdi_rx_imr, fdi_tx_ctl, fdi_rx_ctl;
+	unsigned int fdi_rx_check_bits, fdi_tx_check_bits;
+	unsigned int fdi_rx_train_bits, fdi_tx_train_bits;
+	unsigned int fdi_iir_check_bits;
+
+	fdi_rx_imr = FDI_RX_IMR(pipe);
+	fdi_tx_ctl = FDI_TX_CTL(pipe);
+	fdi_rx_ctl = FDI_RX_CTL(pipe);
+
+	if (train_pattern == FDI_LINK_TRAIN_PATTERN1) {
+		fdi_rx_train_bits = FDI_LINK_TRAIN_PATTERN_1_CPT;
+		fdi_tx_train_bits = FDI_LINK_TRAIN_PATTERN_1;
+		fdi_iir_check_bits = FDI_RX_BIT_LOCK;
+	} else if (train_pattern == FDI_LINK_TRAIN_PATTERN2) {
+		fdi_rx_train_bits = FDI_LINK_TRAIN_PATTERN_2_CPT;
+		fdi_tx_train_bits = FDI_LINK_TRAIN_PATTERN_2;
+		fdi_iir_check_bits = FDI_RX_SYMBOL_LOCK;
+	} else {
+		gvt_err("Invalid train pattern %d\n", train_pattern);
+		return -EINVAL;
+	}
+
+	fdi_rx_check_bits = FDI_RX_ENABLE | fdi_rx_train_bits;
+	fdi_tx_check_bits = FDI_TX_ENABLE | fdi_tx_train_bits;
+
+	/* If imr bit has been masked */
+	if (vgpu_vreg(vgpu, fdi_rx_imr) & fdi_iir_check_bits)
+		return 0;
+
+	if (((vgpu_vreg(vgpu, fdi_tx_ctl) & fdi_tx_check_bits)
+			== fdi_tx_check_bits)
+		&& ((vgpu_vreg(vgpu, fdi_rx_ctl) & fdi_rx_check_bits)
+			== fdi_rx_check_bits))
+		return 1;
+	else
+		return 0;
+}
+
+#define INVALID_INDEX (~0U)
+
+static unsigned int calc_index(unsigned int offset, unsigned int start,
+	unsigned int next, unsigned int end, i915_reg_t i915_end)
+{
+	unsigned int range = next - start;
+
+	if (!end)
+		end = i915_mmio_reg_offset(i915_end);
+	if (offset < start || offset > end)
+		return INVALID_INDEX;
+	offset -= start;
+	return offset / range;
+}
+
+#define FDI_RX_CTL_TO_PIPE(offset) \
+	calc_index(offset, _FDI_RXA_CTL, _FDI_RXB_CTL, 0, FDI_RX_CTL(PIPE_C))
+
+#define FDI_TX_CTL_TO_PIPE(offset) \
+	calc_index(offset, _FDI_TXA_CTL, _FDI_TXB_CTL, 0, FDI_TX_CTL(PIPE_C))
+
+#define FDI_RX_IMR_TO_PIPE(offset) \
+	calc_index(offset, _FDI_RXA_IMR, _FDI_RXB_IMR, 0, FDI_RX_IMR(PIPE_C))
+
+static int update_fdi_rx_iir_status(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	i915_reg_t fdi_rx_iir;
+	unsigned int index;
+	int ret;
+
+	if (FDI_RX_CTL_TO_PIPE(offset) != INVALID_INDEX)
+		index = FDI_RX_CTL_TO_PIPE(offset);
+	else if (FDI_TX_CTL_TO_PIPE(offset) != INVALID_INDEX)
+		index = FDI_TX_CTL_TO_PIPE(offset);
+	else if (FDI_RX_IMR_TO_PIPE(offset) != INVALID_INDEX)
+		index = FDI_RX_IMR_TO_PIPE(offset);
+	else {
+		gvt_err("Unsupport registers %x\n", offset);
+		return -EINVAL;
+	}
+
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	fdi_rx_iir = FDI_RX_IIR(index);
+
+	ret = check_fdi_rx_train_status(vgpu, index, FDI_LINK_TRAIN_PATTERN1);
+	if (ret < 0)
+		return ret;
+	if (ret)
+		vgpu_vreg(vgpu, fdi_rx_iir) |= FDI_RX_BIT_LOCK;
+
+	ret = check_fdi_rx_train_status(vgpu, index, FDI_LINK_TRAIN_PATTERN2);
+	if (ret < 0)
+		return ret;
+	if (ret)
+		vgpu_vreg(vgpu, fdi_rx_iir) |= FDI_RX_SYMBOL_LOCK;
+
+	if (offset == _FDI_RXA_CTL)
+		if (fdi_auto_training_started(vgpu))
+			vgpu_vreg(vgpu, DP_TP_STATUS(PORT_E)) |=
+				DP_TP_STATUS_AUTOTRAIN_DONE;
+	return 0;
+}
+
+#define DP_TP_CTL_TO_PORT(offset) \
+	calc_index(offset, _DP_TP_CTL_A, _DP_TP_CTL_B, 0, DP_TP_CTL(PORT_E))
+
+static int dp_tp_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	i915_reg_t status_reg;
+	unsigned int index;
+	u32 data;
+
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	index = DP_TP_CTL_TO_PORT(offset);
+	data = (vgpu_vreg(vgpu, offset) & GENMASK(10, 8)) >> 8;
+	if (data == 0x2) {
+		status_reg = DP_TP_STATUS(index);
+		vgpu_vreg(vgpu, status_reg) |= (1 << 25);
+	}
+	return 0;
+}
+
+static int dp_tp_status_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	u32 reg_val;
+	u32 sticky_mask;
+
+	reg_val = *((u32 *)p_data);
+	sticky_mask = GENMASK(27, 26) | (1 << 24);
+
+	vgpu_vreg(vgpu, offset) = (reg_val & ~sticky_mask) |
+		(vgpu_vreg(vgpu, offset) & sticky_mask);
+	vgpu_vreg(vgpu, offset) &= ~(reg_val & sticky_mask);
+	return 0;
+}
+
+static int pch_adpa_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	u32 data;
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	data = vgpu_vreg(vgpu, offset);
+
+	if (data & ADPA_CRT_HOTPLUG_FORCE_TRIGGER)
+		vgpu_vreg(vgpu, offset) &= ~ADPA_CRT_HOTPLUG_FORCE_TRIGGER;
+	return 0;
+}
+
+static int south_chicken2_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	u32 data;
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	data = vgpu_vreg(vgpu, offset);
+
+	if (data & FDI_MPHY_IOSFSB_RESET_CTL)
+		vgpu_vreg(vgpu, offset) |= FDI_MPHY_IOSFSB_RESET_STATUS;
+	else
+		vgpu_vreg(vgpu, offset) &= ~FDI_MPHY_IOSFSB_RESET_STATUS;
+	return 0;
+}
+
+#define DSPSURF_TO_PIPE(offset) \
+	calc_index(offset, _DSPASURF, _DSPBSURF, 0, DSPSURF(PIPE_C))
+
+static int pri_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	unsigned int index = DSPSURF_TO_PIPE(offset);
+	i915_reg_t surflive_reg = DSPSURFLIVE(index);
+	int flip_event[] = {
+		[PIPE_A] = PRIMARY_A_FLIP_DONE,
+		[PIPE_B] = PRIMARY_B_FLIP_DONE,
+		[PIPE_C] = PRIMARY_C_FLIP_DONE,
+	};
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	vgpu_vreg(vgpu, surflive_reg) = vgpu_vreg(vgpu, offset);
+
+	set_bit(flip_event[index], vgpu->irq.flip_done_event[index]);
+	return 0;
+}
+
+#define SPRSURF_TO_PIPE(offset) \
+	calc_index(offset, _SPRA_SURF, _SPRB_SURF, 0, SPRSURF(PIPE_C))
+
+static int spr_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	unsigned int index = SPRSURF_TO_PIPE(offset);
+	i915_reg_t surflive_reg = SPRSURFLIVE(index);
+	int flip_event[] = {
+		[PIPE_A] = SPRITE_A_FLIP_DONE,
+		[PIPE_B] = SPRITE_B_FLIP_DONE,
+		[PIPE_C] = SPRITE_C_FLIP_DONE,
+	};
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	vgpu_vreg(vgpu, surflive_reg) = vgpu_vreg(vgpu, offset);
+
+	set_bit(flip_event[index], vgpu->irq.flip_done_event[index]);
+	return 0;
+}
+
+static int trigger_aux_channel_interrupt(struct intel_vgpu *vgpu,
+		unsigned int reg)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	enum intel_gvt_event_type event;
+
+	if (reg == _DPA_AUX_CH_CTL)
+		event = AUX_CHANNEL_A;
+	else if (reg == _PCH_DPB_AUX_CH_CTL || reg == _DPB_AUX_CH_CTL)
+		event = AUX_CHANNEL_B;
+	else if (reg == _PCH_DPC_AUX_CH_CTL || reg == _DPC_AUX_CH_CTL)
+		event = AUX_CHANNEL_C;
+	else if (reg == _PCH_DPD_AUX_CH_CTL || reg == _DPD_AUX_CH_CTL)
+		event = AUX_CHANNEL_D;
+	else {
+		WARN_ON(true);
+		return -EINVAL;
+	}
+
+	intel_vgpu_trigger_virtual_event(vgpu, event);
+	return 0;
+}
+
+static int dp_aux_ch_ctl_trans_done(struct intel_vgpu *vgpu, u32 value,
+		unsigned int reg, int len, bool data_valid)
+{
+	/* mark transaction done */
+	value |= DP_AUX_CH_CTL_DONE;
+	value &= ~DP_AUX_CH_CTL_SEND_BUSY;
+	value &= ~DP_AUX_CH_CTL_RECEIVE_ERROR;
+
+	if (data_valid)
+		value &= ~DP_AUX_CH_CTL_TIME_OUT_ERROR;
+	else
+		value |= DP_AUX_CH_CTL_TIME_OUT_ERROR;
+
+	/* message size */
+	value &= ~(0xf << 20);
+	value |= (len << 20);
+	vgpu_vreg(vgpu, reg) = value;
+
+	if (value & DP_AUX_CH_CTL_INTERRUPT)
+		return trigger_aux_channel_interrupt(vgpu, reg);
+	return 0;
+}
+
+static void dp_aux_ch_ctl_link_training(struct intel_vgpu_dpcd_data *dpcd,
+		uint8_t t)
+{
+	if ((t & DPCD_TRAINING_PATTERN_SET_MASK) == DPCD_TRAINING_PATTERN_1) {
+		/* training pattern 1 for CR */
+		/* set LANE0_CR_DONE, LANE1_CR_DONE */
+		dpcd->data[DPCD_LANE0_1_STATUS] |= DPCD_LANES_CR_DONE;
+		/* set LANE2_CR_DONE, LANE3_CR_DONE */
+		dpcd->data[DPCD_LANE2_3_STATUS] |= DPCD_LANES_CR_DONE;
+	} else if ((t & DPCD_TRAINING_PATTERN_SET_MASK) ==
+			DPCD_TRAINING_PATTERN_2) {
+		/* training pattern 2 for EQ */
+		/* Set CHANNEL_EQ_DONE and  SYMBOL_LOCKED for Lane0_1 */
+		dpcd->data[DPCD_LANE0_1_STATUS] |= DPCD_LANES_EQ_DONE;
+		dpcd->data[DPCD_LANE0_1_STATUS] |= DPCD_SYMBOL_LOCKED;
+		/* Set CHANNEL_EQ_DONE and  SYMBOL_LOCKED for Lane2_3 */
+		dpcd->data[DPCD_LANE2_3_STATUS] |= DPCD_LANES_EQ_DONE;
+		dpcd->data[DPCD_LANE2_3_STATUS] |= DPCD_SYMBOL_LOCKED;
+		/* set INTERLANE_ALIGN_DONE */
+		dpcd->data[DPCD_LANE_ALIGN_STATUS_UPDATED] |=
+			DPCD_INTERLANE_ALIGN_DONE;
+	} else if ((t & DPCD_TRAINING_PATTERN_SET_MASK) ==
+			DPCD_LINK_TRAINING_DISABLED) {
+		/* finish link training */
+		/* set sink status as synchronized */
+		dpcd->data[DPCD_SINK_STATUS] = DPCD_SINK_IN_SYNC;
+	}
+}
+
+#define _REG_HSW_DP_AUX_CH_CTL(dp) \
+	((dp) ? (_PCH_DPB_AUX_CH_CTL + ((dp)-1)*0x100) : 0x64010)
+
+#define _REG_SKL_DP_AUX_CH_CTL(dp) (0x64010 + (dp) * 0x100)
+
+#define OFFSET_TO_DP_AUX_PORT(offset) (((offset) & 0xF00) >> 8)
+
+#define dpy_is_valid_port(port)	\
+		(((port) >= PORT_A) && ((port) < I915_MAX_PORTS))
+
+static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	struct intel_vgpu_display *display = &vgpu->display;
+	int msg, addr, ctrl, op, len;
+	int port_index = OFFSET_TO_DP_AUX_PORT(offset);
+	struct intel_vgpu_dpcd_data *dpcd = NULL;
+	struct intel_vgpu_port *port = NULL;
+	u32 data;
+
+	if (!dpy_is_valid_port(port_index)) {
+		gvt_err("GVT(%d): Unsupported DP port access!\n", vgpu->id);
+		return 0;
+	}
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	data = vgpu_vreg(vgpu, offset);
+
+	if (IS_SKYLAKE(vgpu->gvt->dev_priv) &&
+	    offset != _REG_SKL_DP_AUX_CH_CTL(port_index)) {
+		/* SKL DPB/C/D aux ctl register changed */
+		return 0;
+	} else if (IS_BROADWELL(vgpu->gvt->dev_priv) &&
+		   offset != _REG_HSW_DP_AUX_CH_CTL(port_index)) {
+		/* write to the data registers */
+		return 0;
+	}
+
+	if (!(data & DP_AUX_CH_CTL_SEND_BUSY)) {
+		/* just want to clear the sticky bits */
+		vgpu_vreg(vgpu, offset) = 0;
+		return 0;
+	}
+
+	port = &display->ports[port_index];
+	dpcd = port->dpcd;
+
+	/* read out message from DATA1 register */
+	msg = vgpu_vreg(vgpu, offset + 4);
+	addr = (msg >> 8) & 0xffff;
+	ctrl = (msg >> 24) & 0xff;
+	len = msg & 0xff;
+	op = ctrl >> 4;
+
+	if (op == GVT_AUX_NATIVE_WRITE) {
+		int t;
+		uint8_t buf[16];
+
+		if ((addr + len + 1) >= DPCD_SIZE) {
+			/*
+			 * Write request exceeds what we supported,
+			 * DCPD spec: When a Source Device is writing a DPCD
+			 * address not supported by the Sink Device, the Sink
+			 * Device shall reply with AUX NACK and “M” equal to
+			 * zero.
+			 */
+
+			/* NAK the write */
+			vgpu_vreg(vgpu, offset + 4) = AUX_NATIVE_REPLY_NAK;
+			dp_aux_ch_ctl_trans_done(vgpu, data, offset, 2, true);
+			return 0;
+		}
+
+		/*
+		 * Write request format: (command + address) occupies
+		 * 3 bytes, followed by (len + 1) bytes of data.
+		 */
+		if (WARN_ON((len + 4) > AUX_BURST_SIZE))
+			return -EINVAL;
+
+		/* unpack data from vreg to buf */
+		for (t = 0; t < 4; t++) {
+			u32 r = vgpu_vreg(vgpu, offset + 8 + t * 4);
+
+			buf[t * 4] = (r >> 24) & 0xff;
+			buf[t * 4 + 1] = (r >> 16) & 0xff;
+			buf[t * 4 + 2] = (r >> 8) & 0xff;
+			buf[t * 4 + 3] = r & 0xff;
+		}
+
+		/* write to virtual DPCD */
+		if (dpcd && dpcd->data_valid) {
+			for (t = 0; t <= len; t++) {
+				int p = addr + t;
+
+				dpcd->data[p] = buf[t];
+				/* check for link training */
+				if (p == DPCD_TRAINING_PATTERN_SET)
+					dp_aux_ch_ctl_link_training(dpcd,
+							buf[t]);
+			}
+		}
+
+		/* ACK the write */
+		vgpu_vreg(vgpu, offset + 4) = 0;
+		dp_aux_ch_ctl_trans_done(vgpu, data, offset, 1,
+				dpcd && dpcd->data_valid);
+		return 0;
+	}
+
+	if (op == GVT_AUX_NATIVE_READ) {
+		int idx, i, ret = 0;
+
+		if ((addr + len + 1) >= DPCD_SIZE) {
+			/*
+			 * read request exceeds what we supported
+			 * DPCD spec: A Sink Device receiving a Native AUX CH
+			 * read request for an unsupported DPCD address must
+			 * reply with an AUX ACK and read data set equal to
+			 * zero instead of replying with AUX NACK.
+			 */
+
+			/* ACK the READ*/
+			vgpu_vreg(vgpu, offset + 4) = 0;
+			vgpu_vreg(vgpu, offset + 8) = 0;
+			vgpu_vreg(vgpu, offset + 12) = 0;
+			vgpu_vreg(vgpu, offset + 16) = 0;
+			vgpu_vreg(vgpu, offset + 20) = 0;
+
+			dp_aux_ch_ctl_trans_done(vgpu, data, offset, len + 2,
+					true);
+			return 0;
+		}
+
+		for (idx = 1; idx <= 5; idx++) {
+			/* clear the data registers */
+			vgpu_vreg(vgpu, offset + 4 * idx) = 0;
+		}
+
+		/*
+		 * Read reply format: ACK (1 byte) plus (len + 1) bytes of data.
+		 */
+		if (WARN_ON((len + 2) > AUX_BURST_SIZE))
+			return -EINVAL;
+
+		/* read from virtual DPCD to vreg */
+		/* first 4 bytes: [ACK][addr][addr+1][addr+2] */
+		if (dpcd && dpcd->data_valid) {
+			for (i = 1; i <= (len + 1); i++) {
+				int t;
+
+				t = dpcd->data[addr + i - 1];
+				t <<= (24 - 8 * (i % 4));
+				ret |= t;
+
+				if ((i % 4 == 3) || (i == (len + 1))) {
+					vgpu_vreg(vgpu, offset +
+							(i / 4 + 1) * 4) = ret;
+					ret = 0;
+				}
+			}
+		}
+		dp_aux_ch_ctl_trans_done(vgpu, data, offset, len + 2,
+				dpcd && dpcd->data_valid);
+		return 0;
+	}
+
+	/* i2c transaction starts */
+	intel_gvt_i2c_handle_aux_ch_write(vgpu, port_index, offset, p_data);
+
+	if (data & DP_AUX_CH_CTL_INTERRUPT)
+		trigger_aux_channel_interrupt(vgpu, offset);
+	return 0;
+}
+
+static int vga_control_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	bool vga_disable;
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	vga_disable = vgpu_vreg(vgpu, offset) & VGA_DISP_DISABLE;
+
+	gvt_dbg_core("vgpu%d: %s VGA mode\n", vgpu->id,
+			vga_disable ? "Disable" : "Enable");
+	return 0;
+}
+
+static u32 read_virtual_sbi_register(struct intel_vgpu *vgpu,
+		unsigned int sbi_offset)
+{
+	struct intel_vgpu_display *display = &vgpu->display;
+	int num = display->sbi.number;
+	int i;
+
+	for (i = 0; i < num; ++i)
+		if (display->sbi.registers[i].offset == sbi_offset)
+			break;
+
+	if (i == num)
+		return 0;
+
+	return display->sbi.registers[i].value;
+}
+
+static void write_virtual_sbi_register(struct intel_vgpu *vgpu,
+		unsigned int offset, u32 value)
+{
+	struct intel_vgpu_display *display = &vgpu->display;
+	int num = display->sbi.number;
+	int i;
+
+	for (i = 0; i < num; ++i) {
+		if (display->sbi.registers[i].offset == offset)
+			break;
+	}
+
+	if (i == num) {
+		if (num == SBI_REG_MAX) {
+			gvt_err("vgpu%d: SBI caching meets maximum limits\n",
+					vgpu->id);
+			return;
+		}
+		display->sbi.number++;
+	}
+
+	display->sbi.registers[i].offset = offset;
+	display->sbi.registers[i].value = value;
+}
+
+static int sbi_data_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	if (((vgpu_vreg(vgpu, SBI_CTL_STAT) & SBI_OPCODE_MASK) >>
+				SBI_OPCODE_SHIFT) == SBI_CMD_CRRD) {
+		unsigned int sbi_offset = (vgpu_vreg(vgpu, SBI_ADDR) &
+				SBI_ADDR_OFFSET_MASK) >> SBI_ADDR_OFFSET_SHIFT;
+		vgpu_vreg(vgpu, offset) = read_virtual_sbi_register(vgpu,
+				sbi_offset);
+	}
+	read_vreg(vgpu, offset, p_data, bytes);
+	return 0;
+}
+
+static bool sbi_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	u32 data;
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	data = vgpu_vreg(vgpu, offset);
+
+	data &= ~(SBI_STAT_MASK << SBI_STAT_SHIFT);
+	data |= SBI_READY;
+
+	data &= ~(SBI_RESPONSE_MASK << SBI_RESPONSE_SHIFT);
+	data |= SBI_RESPONSE_SUCCESS;
+
+	vgpu_vreg(vgpu, offset) = data;
+
+	if (((vgpu_vreg(vgpu, SBI_CTL_STAT) & SBI_OPCODE_MASK) >>
+				SBI_OPCODE_SHIFT) == SBI_CMD_CRWR) {
+		unsigned int sbi_offset = (vgpu_vreg(vgpu, SBI_ADDR) &
+				SBI_ADDR_OFFSET_MASK) >> SBI_ADDR_OFFSET_SHIFT;
+
+		write_virtual_sbi_register(vgpu, sbi_offset,
+				vgpu_vreg(vgpu, SBI_DATA));
+	}
+	return 0;
+}
+
 #define _vgtif_reg(x) \
 	(VGT_PVINFO_PAGE + offsetof(struct vgt_if, x))
 
@@ -312,6 +1010,23 @@ static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
 	return ret;
 }
 
+static int send_display_ready_uevent(struct intel_vgpu *vgpu, int ready)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct kobject *kobj = &dev_priv->drm.primary->kdev->kobj;
+	char *env[3] = {NULL, NULL, NULL};
+	char vmid_str[20];
+	char display_ready_str[20];
+
+	snprintf(display_ready_str, 20, "GVT_DISPLAY_READY=%d\n", ready);
+	env[0] = display_ready_str;
+
+	snprintf(vmid_str, 20, "VMID=%d", vgpu->id);
+	env[1] = vmid_str;
+
+	return kobject_uevent_env(kobj, KOBJ_ADD, env);
+}
+
 static int pvinfo_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
@@ -323,6 +1038,8 @@ static int pvinfo_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 
 	switch (offset) {
 	case _vgtif_reg(display_ready):
+		send_display_ready_uevent(vgpu, data ? 1 : 0);
+		break;
 	case _vgtif_reg(g2v_notify):
 		ret = handle_g2v_notification(vgpu, data);
 		break;
@@ -345,6 +1062,34 @@ static int pvinfo_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 				offset, bytes, data);
 		break;
 	}
+	return 0;
+}
+
+static int pf_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	u32 val = *(u32 *)p_data;
+
+	if ((offset == _PS_1A_CTRL || offset == _PS_2A_CTRL ||
+	   offset == _PS_1B_CTRL || offset == _PS_2B_CTRL ||
+	   offset == _PS_1C_CTRL) && (val & PS_PLANE_SEL_MASK) != 0) {
+		WARN_ONCE(true, "VM(%d): guest is trying to scaling a plane\n",
+			  vgpu->id);
+		return 0;
+	}
+
+	return intel_vgpu_default_mmio_write(vgpu, offset, p_data, bytes);
+}
+
+static int power_well_ctl_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (vgpu_vreg(vgpu, offset) & HSW_PWR_WELL_ENABLE_REQUEST)
+		vgpu_vreg(vgpu, offset) |= HSW_PWR_WELL_STATE_ENABLED;
+	else
+		vgpu_vreg(vgpu, offset) &= ~HSW_PWR_WELL_STATE_ENABLED;
 	return 0;
 }
 
@@ -402,6 +1147,119 @@ static int gen9_trtt_chicken_write(struct intel_vgpu *vgpu, unsigned int offset,
 	}
 	write_vreg(vgpu, offset, p_data, bytes);
 	return 0;
+}
+
+static int dpll_status_read(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	u32 v = 0;
+
+	if (vgpu_vreg(vgpu, 0x46010) & (1 << 31))
+		v |= (1 << 0);
+
+	if (vgpu_vreg(vgpu, 0x46014) & (1 << 31))
+		v |= (1 << 8);
+
+	if (vgpu_vreg(vgpu, 0x46040) & (1 << 31))
+		v |= (1 << 16);
+
+	if (vgpu_vreg(vgpu, 0x46060) & (1 << 31))
+		v |= (1 << 24);
+
+	vgpu_vreg(vgpu, offset) = v;
+
+	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
+}
+
+static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	u32 value = *(u32 *)p_data;
+	u32 cmd = value & 0xff;
+	u32 *data0 = &vgpu_vreg(vgpu, GEN6_PCODE_DATA);
+
+	switch (cmd) {
+	case 0x6:
+		/**
+		 * "Read memory latency" command on gen9.
+		 * Below memory latency values are read
+		 * from skylake platform.
+		 */
+		if (!*data0)
+			*data0 = 0x1e1a1100;
+		else
+			*data0 = 0x61514b3d;
+		break;
+	case 0x5:
+		*data0 |= 0x1;
+		break;
+	}
+
+	gvt_dbg_core("VM(%d) write %x to mailbox, return data0 %x\n",
+		     vgpu->id, value, *data0);
+
+	value &= ~(1 << 31);
+	return intel_vgpu_default_mmio_write(vgpu, offset, &value, bytes);
+}
+
+static int skl_power_well_ctl_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	u32 v = *(u32 *)p_data;
+
+	v &= (1 << 31) | (1 << 29) | (1 << 9) |
+	     (1 << 7) | (1 << 5) | (1 << 3) | (1 << 1);
+	v |= (v >> 1);
+
+	return intel_vgpu_default_mmio_write(vgpu, offset, &v, bytes);
+}
+
+static int skl_misc_ctl_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	i915_reg_t reg = {.reg = offset};
+
+	switch (offset) {
+	case 0x4ddc:
+		vgpu_vreg(vgpu, offset) = 0x8000003c;
+		break;
+	case 0x42080:
+		vgpu_vreg(vgpu, offset) = 0x8000;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/**
+	 * TODO: need detect stepping info after gvt contain such information
+	 * 0x4ddc enabled after C0, 0x42080 enabled after E0.
+	 */
+	I915_WRITE(reg, vgpu_vreg(vgpu, offset));
+	return 0;
+}
+
+static int skl_lcpll_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	u32 v = *(u32 *)p_data;
+
+	/* other bits are MBZ. */
+	v &= (1 << 31) | (1 << 30);
+	v & (1 << 31) ? (v |= (1 << 30)) : (v &= ~(1 << 30));
+
+	vgpu_vreg(vgpu, offset) = v;
+
+	return 0;
+}
+
+static int ring_timestamp_mmio_read(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+
+	vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
+	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
 }
 
 #define MMIO_F(reg, s, f, am, rm, d, r, w) do { \
@@ -490,8 +1348,10 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_RING_DFH(RING_MI_MODE, D_ALL, F_MODE_MASK, NULL, NULL);
 	MMIO_RING_DFH(RING_INSTPM, D_ALL, F_MODE_MASK, NULL, NULL);
-	MMIO_RING_DFH(RING_TIMESTAMP, D_ALL, F_CMD_ACCESS, NULL, NULL);
-	MMIO_RING_DFH(RING_TIMESTAMP_UDW, D_ALL, F_CMD_ACCESS, NULL, NULL);
+	MMIO_RING_DFH(RING_TIMESTAMP, D_ALL, F_CMD_ACCESS,
+			ring_timestamp_mmio_read, NULL);
+	MMIO_RING_DFH(RING_TIMESTAMP_UDW, D_ALL, F_CMD_ACCESS,
+			ring_timestamp_mmio_read, NULL);
 
 	MMIO_DFH(GEN7_GT_MODE, D_ALL, F_MODE_MASK, NULL, NULL);
 	MMIO_DFH(CACHE_MODE_0_GEN7, D_ALL, F_MODE_MASK, NULL, NULL);
@@ -531,10 +1391,10 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(PIPEDSL(PIPE_C), D_ALL);
 	MMIO_D(PIPEDSL(_PIPE_EDP), D_ALL);
 
-	MMIO_DH(PIPECONF(PIPE_A), D_ALL, NULL, NULL);
-	MMIO_DH(PIPECONF(PIPE_B), D_ALL, NULL, NULL);
-	MMIO_DH(PIPECONF(PIPE_C), D_ALL, NULL, NULL);
-	MMIO_DH(PIPECONF(_PIPE_EDP), D_ALL, NULL, NULL);
+	MMIO_DH(PIPECONF(PIPE_A), D_ALL, NULL, pipeconf_mmio_write);
+	MMIO_DH(PIPECONF(PIPE_B), D_ALL, NULL, pipeconf_mmio_write);
+	MMIO_DH(PIPECONF(PIPE_C), D_ALL, NULL, pipeconf_mmio_write);
+	MMIO_DH(PIPECONF(_PIPE_EDP), D_ALL, NULL, pipeconf_mmio_write);
 
 	MMIO_D(PIPESTAT(PIPE_A), D_ALL);
 	MMIO_D(PIPESTAT(PIPE_B), D_ALL);
@@ -577,7 +1437,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(DSPSTRIDE(PIPE_A), D_ALL);
 	MMIO_D(DSPPOS(PIPE_A), D_ALL);
 	MMIO_D(DSPSIZE(PIPE_A), D_ALL);
-	MMIO_D(DSPSURF(PIPE_A), D_ALL);
+	MMIO_DH(DSPSURF(PIPE_A), D_ALL, NULL, pri_surf_mmio_write);
 	MMIO_D(DSPOFFSET(PIPE_A), D_ALL);
 	MMIO_D(DSPSURFLIVE(PIPE_A), D_ALL);
 
@@ -586,7 +1446,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(DSPSTRIDE(PIPE_B), D_ALL);
 	MMIO_D(DSPPOS(PIPE_B), D_ALL);
 	MMIO_D(DSPSIZE(PIPE_B), D_ALL);
-	MMIO_D(DSPSURF(PIPE_B), D_ALL);
+	MMIO_DH(DSPSURF(PIPE_B), D_ALL, NULL, pri_surf_mmio_write);
 	MMIO_D(DSPOFFSET(PIPE_B), D_ALL);
 	MMIO_D(DSPSURFLIVE(PIPE_B), D_ALL);
 
@@ -595,7 +1455,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(DSPSTRIDE(PIPE_C), D_ALL);
 	MMIO_D(DSPPOS(PIPE_C), D_ALL);
 	MMIO_D(DSPSIZE(PIPE_C), D_ALL);
-	MMIO_D(DSPSURF(PIPE_C), D_ALL);
+	MMIO_DH(DSPSURF(PIPE_C), D_ALL, NULL, pri_surf_mmio_write);
 	MMIO_D(DSPOFFSET(PIPE_C), D_ALL);
 	MMIO_D(DSPSURFLIVE(PIPE_C), D_ALL);
 
@@ -606,7 +1466,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(SPRSIZE(PIPE_A), D_ALL);
 	MMIO_D(SPRKEYVAL(PIPE_A), D_ALL);
 	MMIO_D(SPRKEYMSK(PIPE_A), D_ALL);
-	MMIO_D(SPRSURF(PIPE_A), D_ALL);
+	MMIO_DH(SPRSURF(PIPE_A), D_ALL, NULL, spr_surf_mmio_write);
 	MMIO_D(SPRKEYMAX(PIPE_A), D_ALL);
 	MMIO_D(SPROFFSET(PIPE_A), D_ALL);
 	MMIO_D(SPRSCALE(PIPE_A), D_ALL);
@@ -619,7 +1479,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(SPRSIZE(PIPE_B), D_ALL);
 	MMIO_D(SPRKEYVAL(PIPE_B), D_ALL);
 	MMIO_D(SPRKEYMSK(PIPE_B), D_ALL);
-	MMIO_D(SPRSURF(PIPE_B), D_ALL);
+	MMIO_DH(SPRSURF(PIPE_B), D_ALL, NULL, spr_surf_mmio_write);
 	MMIO_D(SPRKEYMAX(PIPE_B), D_ALL);
 	MMIO_D(SPROFFSET(PIPE_B), D_ALL);
 	MMIO_D(SPRSCALE(PIPE_B), D_ALL);
@@ -632,7 +1492,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(SPRSIZE(PIPE_C), D_ALL);
 	MMIO_D(SPRKEYVAL(PIPE_C), D_ALL);
 	MMIO_D(SPRKEYMSK(PIPE_C), D_ALL);
-	MMIO_D(SPRSURF(PIPE_C), D_ALL);
+	MMIO_DH(SPRSURF(PIPE_C), D_ALL, NULL, spr_surf_mmio_write);
 	MMIO_D(SPRKEYMAX(PIPE_C), D_ALL);
 	MMIO_D(SPROFFSET(PIPE_C), D_ALL);
 	MMIO_D(SPRSCALE(PIPE_C), D_ALL);
@@ -752,29 +1612,32 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_D(0x48268, D_ALL);
 
-	MMIO_F(PCH_GMBUS0, 4 * 4, 0, 0, 0, D_ALL, NULL, NULL);
-	MMIO_F(PCH_GPIOA, 6 * 4, 0, 0, 0, D_ALL, NULL, NULL);
+	MMIO_F(PCH_GMBUS0, 4 * 4, 0, 0, 0, D_ALL, gmbus_mmio_read,
+		gmbus_mmio_write);
+	MMIO_F(PCH_GPIOA, 6 * 4, F_UNALIGN, 0, 0, D_ALL, NULL, NULL);
 	MMIO_F(0xe4f00, 0x28, 0, 0, 0, D_ALL, NULL, NULL);
 
-	MMIO_F(_PCH_DPB_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_PRE_SKL, NULL, NULL);
-	MMIO_F(_PCH_DPC_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_PRE_SKL, NULL, NULL);
-	MMIO_F(_PCH_DPD_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_PRE_SKL, NULL, NULL);
+	MMIO_F(_PCH_DPB_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
+		dp_aux_ch_ctl_mmio_write);
+	MMIO_F(_PCH_DPC_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
+		dp_aux_ch_ctl_mmio_write);
+	MMIO_F(_PCH_DPD_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
+		dp_aux_ch_ctl_mmio_write);
 
-	MMIO_RO(PCH_ADPA, D_ALL, 0,
-			ADPA_CRT_HOTPLUG_MONITOR_MASK, NULL, NULL);
+	MMIO_RO(PCH_ADPA, D_ALL, 0, ADPA_CRT_HOTPLUG_MONITOR_MASK, NULL, pch_adpa_mmio_write);
 
-	MMIO_DH(_PCH_TRANSACONF, D_ALL, NULL, NULL);
-	MMIO_DH(_PCH_TRANSBCONF, D_ALL, NULL, NULL);
+	MMIO_DH(_PCH_TRANSACONF, D_ALL, NULL, transconf_mmio_write);
+	MMIO_DH(_PCH_TRANSBCONF, D_ALL, NULL, transconf_mmio_write);
 
-	MMIO_DH(FDI_RX_IIR(PIPE_A), D_ALL, NULL, NULL);
-	MMIO_DH(FDI_RX_IIR(PIPE_B), D_ALL, NULL, NULL);
-	MMIO_DH(FDI_RX_IIR(PIPE_C), D_ALL, NULL, NULL);
-	MMIO_DH(FDI_RX_IMR(PIPE_A), D_ALL, NULL, NULL);
-	MMIO_DH(FDI_RX_IMR(PIPE_B), D_ALL, NULL, NULL);
-	MMIO_DH(FDI_RX_IMR(PIPE_C), D_ALL, NULL, NULL);
-	MMIO_DH(FDI_RX_CTL(PIPE_A), D_ALL, NULL, NULL);
-	MMIO_DH(FDI_RX_CTL(PIPE_B), D_ALL, NULL, NULL);
-	MMIO_DH(FDI_RX_CTL(PIPE_C), D_ALL, NULL, NULL);
+	MMIO_DH(FDI_RX_IIR(PIPE_A), D_ALL, NULL, fdi_rx_iir_mmio_write);
+	MMIO_DH(FDI_RX_IIR(PIPE_B), D_ALL, NULL, fdi_rx_iir_mmio_write);
+	MMIO_DH(FDI_RX_IIR(PIPE_C), D_ALL, NULL, fdi_rx_iir_mmio_write);
+	MMIO_DH(FDI_RX_IMR(PIPE_A), D_ALL, NULL, update_fdi_rx_iir_status);
+	MMIO_DH(FDI_RX_IMR(PIPE_B), D_ALL, NULL, update_fdi_rx_iir_status);
+	MMIO_DH(FDI_RX_IMR(PIPE_C), D_ALL, NULL, update_fdi_rx_iir_status);
+	MMIO_DH(FDI_RX_CTL(PIPE_A), D_ALL, NULL, update_fdi_rx_iir_status);
+	MMIO_DH(FDI_RX_CTL(PIPE_B), D_ALL, NULL, update_fdi_rx_iir_status);
+	MMIO_DH(FDI_RX_CTL(PIPE_C), D_ALL, NULL, update_fdi_rx_iir_status);
 
 	MMIO_D(_PCH_TRANS_HTOTAL_A, D_ALL);
 	MMIO_D(_PCH_TRANS_HBLANK_A, D_ALL);
@@ -824,7 +1687,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_FDI_RXB_TUSIZE1, D_ALL);
 	MMIO_D(_FDI_RXB_TUSIZE2, D_ALL);
 
-	MMIO_DH(PCH_PP_CONTROL, D_ALL, NULL, NULL);
+	MMIO_DH(PCH_PP_CONTROL, D_ALL, NULL, pch_pp_control_mmio_write);
 	MMIO_D(PCH_PP_DIVISOR, D_ALL);
 	MMIO_D(PCH_PP_STATUS,  D_ALL);
 	MMIO_D(PCH_LVDS, D_ALL);
@@ -843,12 +1706,12 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(PCH_PP_ON_DELAYS, D_ALL);
 	MMIO_D(PCH_PP_OFF_DELAYS, D_ALL);
 
-	MMIO_DH(0xe651c, D_ALL, NULL, NULL);
-	MMIO_DH(0xe661c, D_ALL, NULL, NULL);
-	MMIO_DH(0xe671c, D_ALL, NULL, NULL);
-	MMIO_DH(0xe681c, D_ALL, NULL, NULL);
-	MMIO_DH(0xe6c04, D_ALL, NULL, NULL);
-	MMIO_DH(0xe6e1c, D_ALL, NULL, NULL);
+	MMIO_DH(0xe651c, D_ALL, dpy_reg_mmio_read, NULL);
+	MMIO_DH(0xe661c, D_ALL, dpy_reg_mmio_read, NULL);
+	MMIO_DH(0xe671c, D_ALL, dpy_reg_mmio_read, NULL);
+	MMIO_DH(0xe681c, D_ALL, dpy_reg_mmio_read, NULL);
+	MMIO_DH(0xe6c04, D_ALL, dpy_reg_mmio_read_2, NULL);
+	MMIO_DH(0xe6e1c, D_ALL, dpy_reg_mmio_read_3, NULL);
 
 	MMIO_RO(PCH_PORT_HOTPLUG, D_ALL, 0,
 		PORTA_HOTPLUG_STATUS_MASK
@@ -857,7 +1720,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 		| PORTD_HOTPLUG_STATUS_MASK,
 		NULL, NULL);
 
-	MMIO_DH(LCPLL_CTL, D_ALL, NULL, NULL);
+	MMIO_DH(LCPLL_CTL, D_ALL, NULL, lcpll_ctl_mmio_write);
 	MMIO_D(FUSE_STRAP, D_ALL);
 	MMIO_D(DIGITAL_PORT_HOTPLUG_CNTRL, D_ALL);
 
@@ -869,7 +1732,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(ILK_DSPCLK_GATE_D, D_ALL);
 
 	MMIO_D(SOUTH_CHICKEN1, D_ALL);
-	MMIO_DH(SOUTH_CHICKEN2, D_ALL, NULL, NULL);
+	MMIO_DH(SOUTH_CHICKEN2, D_ALL, NULL, south_chicken2_mmio_write);
 	MMIO_D(_TRANSA_CHICKEN1, D_ALL);
 	MMIO_D(_TRANSB_CHICKEN1, D_ALL);
 	MMIO_D(SOUTH_DSPCLK_GATE_D, D_ALL);
@@ -928,6 +1791,18 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(PIPE_CSC_POSTOFF_ME(PIPE_C), D_ALL);
 	MMIO_D(PIPE_CSC_POSTOFF_LO(PIPE_C), D_ALL);
 
+	MMIO_D(PREC_PAL_INDEX(PIPE_A), D_ALL);
+	MMIO_D(PREC_PAL_DATA(PIPE_A), D_ALL);
+	MMIO_F(PREC_PAL_GC_MAX(PIPE_A, 0), 4 * 3, 0, 0, 0, D_ALL, NULL, NULL);
+
+	MMIO_D(PREC_PAL_INDEX(PIPE_B), D_ALL);
+	MMIO_D(PREC_PAL_DATA(PIPE_B), D_ALL);
+	MMIO_F(PREC_PAL_GC_MAX(PIPE_B, 0), 4 * 3, 0, 0, 0, D_ALL, NULL, NULL);
+
+	MMIO_D(PREC_PAL_INDEX(PIPE_C), D_ALL);
+	MMIO_D(PREC_PAL_DATA(PIPE_C), D_ALL);
+	MMIO_F(PREC_PAL_GC_MAX(PIPE_C, 0), 4 * 3, 0, 0, 0, D_ALL, NULL, NULL);
+
 	MMIO_D(0x60110, D_ALL);
 	MMIO_D(0x61110, D_ALL);
 	MMIO_F(0x70400, 0x40, 0, 0, 0, D_ALL, NULL, NULL);
@@ -970,10 +1845,6 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(GAMMA_MODE(PIPE_B), D_ALL);
 	MMIO_D(GAMMA_MODE(PIPE_C), D_ALL);
 
-	MMIO_D(0x4a400, D_ALL);
-	MMIO_D(0x4ac00, D_ALL);
-	MMIO_D(0x4b400, D_ALL);
-
 	MMIO_D(PIPE_MULT(PIPE_A), D_ALL);
 	MMIO_D(PIPE_MULT(PIPE_B), D_ALL);
 	MMIO_D(PIPE_MULT(PIPE_C), D_ALL);
@@ -984,39 +1855,30 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_DH(SFUSE_STRAP, D_ALL, NULL, NULL);
 	MMIO_D(SBI_ADDR, D_ALL);
-	MMIO_DH(SBI_DATA, D_ALL, NULL, NULL);
-	MMIO_DH(SBI_CTL_STAT, D_ALL, NULL, NULL);
+	MMIO_DH(SBI_DATA, D_ALL, sbi_data_mmio_read, NULL);
+	MMIO_DH(SBI_CTL_STAT, D_ALL, NULL, sbi_ctl_mmio_write);
 	MMIO_D(PIXCLK_GATE, D_ALL);
 
-	MMIO_F(_DPA_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_ALL, NULL, NULL);
+	MMIO_F(_DPA_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_ALL, NULL,
+		dp_aux_ch_ctl_mmio_write);
 
-	MMIO_RO(DDI_BUF_CTL(PORT_A), D_ALL, 0,
-		DDI_INIT_DISPLAY_DETECTED, NULL, NULL);
-	MMIO_RO(DDI_BUF_CTL(PORT_B), D_ALL, 0,
-		DDI_INIT_DISPLAY_DETECTED, NULL, NULL);
-	MMIO_RO(DDI_BUF_CTL(PORT_C), D_ALL, 0,
-		DDI_INIT_DISPLAY_DETECTED, NULL, NULL);
-	MMIO_RO(DDI_BUF_CTL(PORT_D), D_ALL, 0,
-		DDI_INIT_DISPLAY_DETECTED, NULL, NULL);
-	MMIO_RO(DDI_BUF_CTL(PORT_E), D_ALL, 0,
-		DDI_INIT_DISPLAY_DETECTED, NULL, NULL);
+	MMIO_DH(DDI_BUF_CTL(PORT_A), D_ALL, NULL, ddi_buf_ctl_mmio_write);
+	MMIO_DH(DDI_BUF_CTL(PORT_B), D_ALL, NULL, ddi_buf_ctl_mmio_write);
+	MMIO_DH(DDI_BUF_CTL(PORT_C), D_ALL, NULL, ddi_buf_ctl_mmio_write);
+	MMIO_DH(DDI_BUF_CTL(PORT_D), D_ALL, NULL, ddi_buf_ctl_mmio_write);
+	MMIO_DH(DDI_BUF_CTL(PORT_E), D_ALL, NULL, ddi_buf_ctl_mmio_write);
 
-	MMIO_DH(DP_TP_CTL(PORT_A), D_ALL, NULL, NULL);
-	MMIO_DH(DP_TP_CTL(PORT_B), D_ALL, NULL, NULL);
-	MMIO_DH(DP_TP_CTL(PORT_C), D_ALL, NULL, NULL);
-	MMIO_DH(DP_TP_CTL(PORT_D), D_ALL, NULL, NULL);
-	MMIO_DH(DP_TP_CTL(PORT_E), D_ALL, NULL, NULL);
+	MMIO_DH(DP_TP_CTL(PORT_A), D_ALL, NULL, dp_tp_ctl_mmio_write);
+	MMIO_DH(DP_TP_CTL(PORT_B), D_ALL, NULL, dp_tp_ctl_mmio_write);
+	MMIO_DH(DP_TP_CTL(PORT_C), D_ALL, NULL, dp_tp_ctl_mmio_write);
+	MMIO_DH(DP_TP_CTL(PORT_D), D_ALL, NULL, dp_tp_ctl_mmio_write);
+	MMIO_DH(DP_TP_CTL(PORT_E), D_ALL, NULL, dp_tp_ctl_mmio_write);
 
-	MMIO_RO(DP_TP_STATUS(PORT_A), D_ALL, 0,
-			(1 << 27) | (1 << 26) | (1 << 24), NULL, NULL);
-	MMIO_RO(DP_TP_STATUS(PORT_B), D_ALL, 0,
-			(1 << 27) | (1 << 26) | (1 << 24), NULL, NULL);
-	MMIO_RO(DP_TP_STATUS(PORT_C), D_ALL, 0,
-			(1 << 27) | (1 << 26) | (1 << 24), NULL, NULL);
-	MMIO_RO(DP_TP_STATUS(PORT_D), D_ALL, 0,
-			(1 << 27) | (1 << 26) | (1 << 24), NULL, NULL);
-	MMIO_RO(DP_TP_STATUS(PORT_E), D_ALL, 0,
-			(1 << 27) | (1 << 26) | (1 << 24), NULL, NULL);
+	MMIO_DH(DP_TP_STATUS(PORT_A), D_ALL, NULL, dp_tp_status_mmio_write);
+	MMIO_DH(DP_TP_STATUS(PORT_B), D_ALL, NULL, dp_tp_status_mmio_write);
+	MMIO_DH(DP_TP_STATUS(PORT_C), D_ALL, NULL, dp_tp_status_mmio_write);
+	MMIO_DH(DP_TP_STATUS(PORT_D), D_ALL, NULL, dp_tp_status_mmio_write);
+	MMIO_DH(DP_TP_STATUS(PORT_E), D_ALL, NULL, NULL);
 
 	MMIO_F(_DDI_BUF_TRANS_A, 0x50, 0, 0, 0, D_ALL, NULL, NULL);
 	MMIO_F(0x64e60, 0x50, 0, 0, 0, D_ALL, NULL, NULL);
@@ -1076,19 +1938,19 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(GEN6_RC6p_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_RC6pp_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_PMINTRMSK, D_ALL);
-	MMIO_DH(HSW_PWR_WELL_BIOS, D_HSW | D_BDW, NULL, NULL);
-	MMIO_DH(HSW_PWR_WELL_DRIVER, D_HSW | D_BDW, NULL, NULL);
-	MMIO_DH(HSW_PWR_WELL_KVMR, D_HSW | D_BDW, NULL, NULL);
-	MMIO_DH(HSW_PWR_WELL_DEBUG, D_HSW | D_BDW, NULL, NULL);
-	MMIO_DH(HSW_PWR_WELL_CTL5, D_HSW | D_BDW, NULL, NULL);
-	MMIO_DH(HSW_PWR_WELL_CTL6, D_HSW | D_BDW, NULL, NULL);
+	MMIO_DH(HSW_PWR_WELL_BIOS, D_HSW | D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_DRIVER, D_HSW | D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_KVMR, D_HSW | D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_DEBUG, D_HSW | D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL5, D_HSW | D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL6, D_HSW | D_BDW, NULL, power_well_ctl_mmio_write);
 
 	MMIO_D(RSTDBYCTL, D_ALL);
 
 	MMIO_DH(GEN6_GDRST, D_ALL, NULL, gdrst_mmio_write);
 	MMIO_F(FENCE_REG_GEN6_LO(0), 0x80, 0, 0, 0, D_ALL, fence_mmio_read, fence_mmio_write);
 	MMIO_F(VGT_PVINFO_PAGE, VGT_PVINFO_SIZE, F_UNALIGN, 0, 0, D_ALL, pvinfo_mmio_read, pvinfo_mmio_write);
-	MMIO_DH(CPU_VGACNTRL, D_ALL, NULL, NULL);
+	MMIO_DH(CPU_VGACNTRL, D_ALL, NULL, vga_control_mmio_write);
 
 	MMIO_F(MCHBAR_MIRROR_BASE_SNB, 0x40000, 0, 0, 0, D_ALL, NULL, NULL);
 
@@ -1301,8 +2163,8 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 			NULL, NULL);
 	MMIO_DFH(RING_INSTPM(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_MODE_MASK,
 			NULL, NULL);
-	MMIO_DFH(RING_TIMESTAMP(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_MODE_MASK,
-			NULL, NULL);
+	MMIO_DFH(RING_TIMESTAMP(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_CMD_ACCESS,
+			ring_timestamp_mmio_read, NULL);
 
 	MMIO_RING_D(RING_ACTHD_UDW, D_BDW_PLUS);
 
@@ -1422,24 +2284,24 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(FORCEWAKE_MEDIA_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);
 	MMIO_DH(FORCEWAKE_ACK_MEDIA_GEN9, D_SKL_PLUS, NULL, NULL);
 
-	MMIO_F(_DPB_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_SKL, NULL, NULL);
-	MMIO_F(_DPC_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_SKL, NULL, NULL);
-	MMIO_F(_DPD_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_SKL, NULL, NULL);
+	MMIO_F(_DPB_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_SKL, NULL, dp_aux_ch_ctl_mmio_write);
+	MMIO_F(_DPC_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_SKL, NULL, dp_aux_ch_ctl_mmio_write);
+	MMIO_F(_DPD_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_SKL, NULL, dp_aux_ch_ctl_mmio_write);
 
 	MMIO_D(HSW_PWR_WELL_BIOS, D_SKL);
-	MMIO_DH(HSW_PWR_WELL_DRIVER, D_SKL, NULL, NULL);
+	MMIO_DH(HSW_PWR_WELL_DRIVER, D_SKL, NULL, skl_power_well_ctl_write);
 
-	MMIO_DH(GEN6_PCODE_MAILBOX, D_SKL, NULL, NULL);
+	MMIO_DH(GEN6_PCODE_MAILBOX, D_SKL, NULL, mailbox_write);
 	MMIO_D(0xa210, D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
 	MMIO_D(GEN9_RENDER_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
-	MMIO_DH(0x4ddc, D_SKL, NULL, NULL);
-	MMIO_DH(0x42080, D_SKL, NULL, NULL);
+	MMIO_DH(0x4ddc, D_SKL, NULL, skl_misc_ctl_write);
+	MMIO_DH(0x42080, D_SKL, NULL, skl_misc_ctl_write);
 	MMIO_D(0x45504, D_SKL);
 	MMIO_D(0x45520, D_SKL);
 	MMIO_D(0x46000, D_SKL);
-	MMIO_DH(0x46010, D_SKL, NULL, NULL);
-	MMIO_DH(0x46014, D_SKL, NULL, NULL);
+	MMIO_DH(0x46010, D_SKL, NULL, skl_lcpll_write);
+	MMIO_DH(0x46014, D_SKL, NULL, skl_lcpll_write);
 	MMIO_D(0x6C040, D_SKL);
 	MMIO_D(0x6C048, D_SKL);
 	MMIO_D(0x6C050, D_SKL);
@@ -1448,28 +2310,28 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(0x6C054, D_SKL);
 	MMIO_D(0x6c058, D_SKL);
 	MMIO_D(0x6c05c, D_SKL);
-	MMIO_DH(0x6c060, D_SKL, NULL, NULL);
+	MMIO_DH(0X6c060, D_SKL, dpll_status_read, NULL);
 
-	MMIO_DH(SKL_PS_WIN_POS(PIPE_A, 0), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_WIN_POS(PIPE_A, 1), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_WIN_POS(PIPE_B, 0), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_WIN_POS(PIPE_B, 1), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_WIN_POS(PIPE_C, 0), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_WIN_POS(PIPE_C, 1), D_SKL, NULL, NULL);
+	MMIO_DH(SKL_PS_WIN_POS(PIPE_A, 0), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_WIN_POS(PIPE_A, 1), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_WIN_POS(PIPE_B, 0), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_WIN_POS(PIPE_B, 1), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_WIN_POS(PIPE_C, 0), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_WIN_POS(PIPE_C, 1), D_SKL, NULL, pf_write);
 
-	MMIO_DH(SKL_PS_WIN_SZ(PIPE_A, 0), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_WIN_SZ(PIPE_A, 1), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_WIN_SZ(PIPE_B, 0), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_WIN_SZ(PIPE_B, 1), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_WIN_SZ(PIPE_C, 0), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_WIN_SZ(PIPE_C, 1), D_SKL, NULL, NULL);
+	MMIO_DH(SKL_PS_WIN_SZ(PIPE_A, 0), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_WIN_SZ(PIPE_A, 1), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_WIN_SZ(PIPE_B, 0), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_WIN_SZ(PIPE_B, 1), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_WIN_SZ(PIPE_C, 0), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_WIN_SZ(PIPE_C, 1), D_SKL, NULL, pf_write);
 
-	MMIO_DH(SKL_PS_CTRL(PIPE_A, 0), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_CTRL(PIPE_A, 1), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_CTRL(PIPE_B, 0), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_CTRL(PIPE_B, 1), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_CTRL(PIPE_C, 0), D_SKL, NULL, NULL);
-	MMIO_DH(SKL_PS_CTRL(PIPE_C, 1), D_SKL, NULL, NULL);
+	MMIO_DH(SKL_PS_CTRL(PIPE_A, 0), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_CTRL(PIPE_A, 1), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_CTRL(PIPE_B, 0), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_CTRL(PIPE_B, 1), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_CTRL(PIPE_C, 0), D_SKL, NULL, pf_write);
+	MMIO_DH(SKL_PS_CTRL(PIPE_C, 1), D_SKL, NULL, pf_write);
 
 	MMIO_DH(PLANE_BUF_CFG(PIPE_A, 0), D_SKL, NULL, NULL);
 	MMIO_DH(PLANE_BUF_CFG(PIPE_A, 1), D_SKL, NULL, NULL);
@@ -1634,6 +2496,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(0x44500, D_SKL);
 	return 0;
 }
+
 /**
  * intel_gvt_find_mmio_info - find MMIO information entry by aligned offset
  * @gvt: GVT device

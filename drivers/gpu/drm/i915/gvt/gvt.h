@@ -39,6 +39,8 @@
 #include "reg.h"
 #include "interrupt.h"
 #include "gtt.h"
+#include "display.h"
+#include "edid.h"
 
 #define GVT_MAX_VGPU 8
 
@@ -105,8 +107,12 @@ struct intel_vgpu_cfg_space {
 
 #define vgpu_cfg_space(vgpu) ((vgpu)->cfg_space.virtual_cfg_space)
 
+#define INTEL_GVT_MAX_PIPE 4
+
 struct intel_vgpu_irq {
 	bool irq_warn_once[INTEL_GVT_EVENT_MAX];
+	DECLARE_BITMAP(flip_done_event[INTEL_GVT_MAX_PIPE],
+		       INTEL_GVT_EVENT_MAX);
 };
 
 struct intel_vgpu_opregion {
@@ -116,6 +122,14 @@ struct intel_vgpu_opregion {
 };
 
 #define vgpu_opregion(vgpu) (&(vgpu->opregion))
+
+#define INTEL_GVT_MAX_PORT 5
+
+struct intel_vgpu_display {
+	struct intel_vgpu_i2c_edid i2c_edid;
+	struct intel_vgpu_port ports[INTEL_GVT_MAX_PORT];
+	struct intel_vgpu_sbi sbi;
+};
 
 struct intel_vgpu {
 	struct intel_gvt *gvt;
@@ -131,6 +145,7 @@ struct intel_vgpu {
 	struct intel_vgpu_irq irq;
 	struct intel_vgpu_gtt gtt;
 	struct intel_vgpu_opregion opregion;
+	struct intel_vgpu_display display;
 };
 
 struct intel_gvt_gm {
@@ -175,7 +190,22 @@ struct intel_gvt {
 	struct intel_gvt_irq irq;
 	struct intel_gvt_gtt gtt;
 	struct intel_gvt_opregion opregion;
+
+	struct task_struct *service_thread;
+	wait_queue_head_t service_thread_wq;
+	unsigned long service_request;
 };
+
+enum {
+	INTEL_GVT_REQUEST_EMULATE_VBLANK = 0,
+};
+
+static inline void intel_gvt_request_service(struct intel_gvt *gvt,
+		int service)
+{
+	set_bit(service, (void *)&gvt->service_request);
+	wake_up(&gvt->service_thread_wq);
+}
 
 void intel_gvt_free_firmware(struct intel_gvt *gvt);
 int intel_gvt_load_firmware(struct intel_gvt *gvt);
