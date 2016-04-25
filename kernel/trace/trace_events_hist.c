@@ -371,6 +371,9 @@ static struct hist_field *create_hist_field(struct ftrace_event_field *field,
 		goto out;
 	}
 
+	if (WARN_ON_ONCE(!field))
+		goto out;
+
 	if (is_string_field(field)) {
 		flags |= HIST_FIELD_FL_STRING;
 
