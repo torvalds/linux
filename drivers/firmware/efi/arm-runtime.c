@@ -105,7 +105,6 @@ static int __init arm_enable_runtime_services(void)
 		pr_err("Failed to remap EFI System Table\n");
 		return -ENOMEM;
 	}
-	set_bit(EFI_SYSTEM_TABLES, &efi.flags);
 
 	if (!efi_virtmap_init()) {
 		pr_err("No UEFI virtual mapping was installed -- runtime services will not be available\n");

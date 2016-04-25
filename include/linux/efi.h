@@ -1000,7 +1000,6 @@ extern int __init efi_setup_pcdp_console(char *);
  * possible, remove EFI-related code altogether.
  */
 #define EFI_BOOT		0	/* Were we booted from EFI? */
-#define EFI_SYSTEM_TABLES	1	/* Can we use EFI system tables? */
 #define EFI_CONFIG_TABLES	2	/* Can we use EFI config tables? */
 #define EFI_RUNTIME_SERVICES	3	/* Can we use runtime services? */
 #define EFI_MEMMAP		4	/* Can we use EFI memory map? */

@@ -352,8 +352,6 @@ static int __init efi_systab_init(void *phys)
 		       efi.systab->hdr.revision >> 16,
 		       efi.systab->hdr.revision & 0xffff);
 
-	set_bit(EFI_SYSTEM_TABLES, &efi.flags);
-
 	return 0;
 }
 
