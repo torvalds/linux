@@ -49,7 +49,7 @@
 
 #define SMC_RAM_END 0x40000
 
-SMU74_Discrete_GraphicsLevel avfs_graphics_level_polaris10[8] = {
+static const SMU74_Discrete_GraphicsLevel avfs_graphics_level_polaris10[8] = {
 	/*  Min      pcie   DeepSleep Activity  CgSpll      CgSpll    CcPwr  CcPwr  Sclk         Enabled      Enabled                       Voltage    Power */
 	/* Voltage, DpmLevel, DivId,  Level,  FuncCntl3,  FuncCntl4,  DynRm, DynRm1 Did, Padding,ForActivity, ForThrottle, UpHyst, DownHyst, DownHyst, Throttle */
 	{ 0x3c0fd047, 0x00, 0x03, 0x1e00, 0x00200410, 0x87020000, 0, 0, 0x16, 0, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, { 0x30750000, 0, 0, 0, 0, 0, 0, 0 } },
@@ -62,8 +62,9 @@ SMU74_Discrete_GraphicsLevel avfs_graphics_level_polaris10[8] = {
 	{ 0xf811d047, 0x01, 0x00, 0x1e00, 0x00000610, 0x87020000, 0, 0, 0x0c, 0, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, { 0x80380100, 0, 0, 0, 0, 0, 0, 0 } }
 };
 
-SMU74_Discrete_MemoryLevel avfs_memory_level_polaris10 = {0x50140000, 0x50140000, 0x00320000, 0x00, 0x00,
-							0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x0000, 0x00, 0x00};
+static const SMU74_Discrete_MemoryLevel avfs_memory_level_polaris10 =
+	{0x50140000, 0x50140000, 0x00320000, 0x00, 0x00,
+	 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x0000, 0x00, 0x00};
 
 /**
 * Set the address for reading/writing the SMC SRAM space.
@@ -200,7 +201,7 @@ int polaris10_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_add
 
 static int polaris10_program_jump_on_start(struct pp_smumgr *smumgr)
 {
-	static unsigned char data[4] = { 0xE0, 0x00, 0x80, 0x40 };
+	static const unsigned char data[4] = { 0xE0, 0x00, 0x80, 0x40 };
 
 	polaris10_copy_bytes_to_smc(smumgr, 0x0, data, 4, sizeof(data)+1);
 
@@ -616,7 +617,7 @@ static int polaris10_setup_pwr_virus(struct pp_smumgr *smumgr)
 	int result = -1;
 	uint32_t reg, data;
 
-	PWR_Command_Table *pvirus = pwr_virus_table;
+	const PWR_Command_Table *pvirus = pwr_virus_table;
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
 
 

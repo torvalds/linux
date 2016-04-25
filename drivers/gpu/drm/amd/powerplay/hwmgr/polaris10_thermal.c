@@ -638,7 +638,7 @@ static int tf_polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr,
 	return ret;
 }
 
-static struct phm_master_table_item
+static const struct phm_master_table_item
 polaris10_thermal_start_thermal_controller_master_list[] = {
 	{NULL, tf_polaris10_thermal_initialize},
 	{NULL, tf_polaris10_thermal_set_temperature_range},
@@ -654,14 +654,14 @@ polaris10_thermal_start_thermal_controller_master_list[] = {
 	{NULL, NULL}
 };
 
-static struct phm_master_table_header
+static const struct phm_master_table_header
 polaris10_thermal_start_thermal_controller_master = {
 	0,
 	PHM_MasterTableFlag_None,
 	polaris10_thermal_start_thermal_controller_master_list
 };
 
-static struct phm_master_table_item
+static const struct phm_master_table_item
 polaris10_thermal_set_temperature_range_master_list[] = {
 	{NULL, tf_polaris10_thermal_disable_alert},
 	{NULL, tf_polaris10_thermal_set_temperature_range},
@@ -669,7 +669,7 @@ polaris10_thermal_set_temperature_range_master_list[] = {
 	{NULL, NULL}
 };
 
-struct phm_master_table_header
+static const struct phm_master_table_header
 polaris10_thermal_set_temperature_range_master = {
 	0,
 	PHM_MasterTableFlag_None,

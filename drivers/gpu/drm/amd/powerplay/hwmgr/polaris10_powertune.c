@@ -32,7 +32,7 @@
 #define VOLTAGE_SCALE  4
 #define POWERTUNE_DEFAULT_SET_MAX    1
 
-struct polaris10_pt_defaults polaris10_power_tune_data_set_array[POWERTUNE_DEFAULT_SET_MAX] = {
+static const struct polaris10_pt_defaults polaris10_power_tune_data_set_array[POWERTUNE_DEFAULT_SET_MAX] = {
 	/* sviLoadLIneEn, SviLoadLineVddC, TDC_VDDC_ThrottleReleaseLimitPerc, TDC_MAWt,
 	 * TdcWaterfallCtl, DTEAmbientTempBase, DisplayCac, BAPM_TEMP_GRADIENT */
 	{ 1, 0xF, 0xFD, 0x19, 5, 45, 0, 0xB0000,
@@ -67,7 +67,7 @@ static uint16_t scale_fan_gain_settings(uint16_t raw_setting)
 int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-	struct polaris10_pt_defaults *defaults = data->power_tune_defaults;
+	const struct polaris10_pt_defaults *defaults = data->power_tune_defaults;
 	SMU74_Discrete_DpmTable  *dpm_table = &(data->smc_state_table);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -75,8 +75,8 @@ int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 	struct pp_advance_fan_control_parameters *fan_table=
 			&hwmgr->thermal_controller.advanceFanControlParameters;
 	int i, j, k;
-	uint16_t *pdef1;
-	uint16_t *pdef2;
+	const uint16_t *pdef1;
+	const uint16_t *pdef2;
 
 	dpm_table->DefaultTdp = PP_HOST_TO_SMC_US((uint16_t)(cac_dtp_table->usTDP * 128));
 	dpm_table->TargetTdp  = PP_HOST_TO_SMC_US((uint16_t)(cac_dtp_table->usTDP * 128));
@@ -114,7 +114,7 @@ int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 static int polaris10_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-	struct polaris10_pt_defaults *defaults = data->power_tune_defaults;
+	const struct polaris10_pt_defaults *defaults = data->power_tune_defaults;
 
 	data->power_tune_table.SviLoadLineEn = defaults->SviLoadLineEn;
 	data->power_tune_table.SviLoadLineVddC = defaults->SviLoadLineVddC;
@@ -130,7 +130,7 @@ static int polaris10_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	struct  polaris10_pt_defaults *defaults = data->power_tune_defaults;
+	const struct polaris10_pt_defaults *defaults = data->power_tune_defaults;
 
 	tdc_limit = (uint16_t)(table_info->cac_dtp_table->usTDC * 128);
 	data->power_tune_table.TDC_VDDC_PkgLimit =
@@ -145,7 +145,7 @@ static int polaris10_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 static int polaris10_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-	struct polaris10_pt_defaults *defaults = data->power_tune_defaults;
+	const struct polaris10_pt_defaults *defaults = data->power_tune_defaults;
 	uint32_t temp;
 
 	if (polaris10_read_smc_sram_dword(hwmgr->smumgr,

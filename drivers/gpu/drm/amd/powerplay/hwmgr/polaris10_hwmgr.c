@@ -99,16 +99,17 @@
 #define TCLK                        (PCIE_BUS_CLK / 10)
 
 
-uint16_t polaris10_clock_stretcher_lookup_table[2][4] = { {600, 1050, 3, 0},
-							  {600, 1050, 6, 1} };
+static const uint16_t polaris10_clock_stretcher_lookup_table[2][4] =
+{ {600, 1050, 3, 0}, {600, 1050, 6, 1} };
 
 /*  [FF, SS] type, [] 4 voltage ranges, and [Floor Freq, Boundary Freq, VID min , VID max] */
-uint32_t polaris10_clock_stretcher_ddt_table[2][4][4] = { { {265, 529, 120, 128}, {325, 650, 96, 119}, {430, 860, 32, 95}, {0, 0, 0, 31} },
-							{ {275, 550, 104, 112}, {319, 638, 96, 103}, {360, 720, 64, 95}, {384, 768, 32, 63} } };
+static const uint32_t polaris10_clock_stretcher_ddt_table[2][4][4] =
+{ { {265, 529, 120, 128}, {325, 650, 96, 119}, {430, 860, 32, 95}, {0, 0, 0, 31} },
+  { {275, 550, 104, 112}, {319, 638, 96, 103}, {360, 720, 64, 95}, {384, 768, 32, 63} } };
 
 /*  [Use_For_Low_freq] value, [0%, 5%, 10%, 7.14%, 14.28%, 20%] (coming from PWR_CKS_CNTL.stretch_amount reg spec) */
-uint8_t polaris10_clock_stretch_amount_conversion[2][6] = { {0, 1, 3, 2, 4, 5},
-							    {0, 2, 4, 5, 6, 5} };
+static const uint8_t polaris10_clock_stretch_amount_conversion[2][6] =
+{ {0, 1, 3, 2, 4, 5}, {0, 2, 4, 5, 6, 5} };
 
 /** Values for the CG_THERMAL_CTRL::DPM_EVENT_SRC field. */
 enum DPM_EVENT_SRC {
@@ -119,7 +120,7 @@ enum DPM_EVENT_SRC {
 	DPM_EVENT_SRC_DIGITAL_OR_EXTERNAL = 4
 };
 
-const unsigned long PhwPolaris10_Magic = (unsigned long)(PHM_VIslands_Magic);
+static const unsigned long PhwPolaris10_Magic = (unsigned long)(PHM_VIslands_Magic);
 
 struct polaris10_power_state *cast_phw_polaris10_power_state(
 				  struct pp_hw_power_state *hw_ps)
@@ -1069,14 +1070,15 @@ static int polaris10_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-sclkFcwRange_t Range_Table[NUM_SCLK_RANGE] = { {VCO_2_4, POSTDIV_DIV_BY_16,  75, 160, 112},
-						{VCO_3_6, POSTDIV_DIV_BY_16, 112, 224, 160},
-						{VCO_2_4, POSTDIV_DIV_BY_8,   75, 160, 112},
-						{VCO_3_6, POSTDIV_DIV_BY_8,  112, 224, 160},
-						{VCO_2_4, POSTDIV_DIV_BY_4,   75, 160, 112},
-						{VCO_3_6, POSTDIV_DIV_BY_4,  112, 216, 160},
-						{VCO_2_4, POSTDIV_DIV_BY_2,   75, 160, 108},
-						{VCO_3_6, POSTDIV_DIV_BY_2,  112, 216, 160} };
+static const sclkFcwRange_t Range_Table[NUM_SCLK_RANGE] =
+{ {VCO_2_4, POSTDIV_DIV_BY_16,  75, 160, 112},
+  {VCO_3_6, POSTDIV_DIV_BY_16, 112, 224, 160},
+  {VCO_2_4, POSTDIV_DIV_BY_8,   75, 160, 112},
+  {VCO_3_6, POSTDIV_DIV_BY_8,  112, 224, 160},
+  {VCO_2_4, POSTDIV_DIV_BY_4,   75, 160, 112},
+  {VCO_3_6, POSTDIV_DIV_BY_4,  112, 216, 160},
+  {VCO_2_4, POSTDIV_DIV_BY_2,   75, 160, 108},
+  {VCO_3_6, POSTDIV_DIV_BY_2,  112, 216, 160} };
 
 static void polaris10_get_sclk_range_table(struct pp_hwmgr *hwmgr)
 {
