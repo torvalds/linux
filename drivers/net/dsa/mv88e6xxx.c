@@ -2181,7 +2181,7 @@ int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 			       struct net_device *bridge)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int i, err;
+	int i, err = 0;
 
 	mutex_lock(&ps->smi_mutex);
 
