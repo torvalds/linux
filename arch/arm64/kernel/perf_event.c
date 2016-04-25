@@ -416,7 +416,7 @@ ARMV8_EVENT_ATTR(memory_error, ARMV8_PMUV3_PERFCTR_MEMORY_ERROR);
 ARMV8_EVENT_ATTR(inst_spec, ARMV8_PMUV3_PERFCTR_INST_SPEC);
 ARMV8_EVENT_ATTR(ttbr_write_retired, ARMV8_PMUV3_PERFCTR_TTBR_WRITE_RETIRED);
 ARMV8_EVENT_ATTR(bus_cycles, ARMV8_PMUV3_PERFCTR_BUS_CYCLES);
-ARMV8_EVENT_ATTR(chain, ARMV8_PMUV3_PERFCTR_CHAIN);
+/* Don't expose the chain event in /sys, since it's useless in isolation */
 ARMV8_EVENT_ATTR(l1d_cache_allocate, ARMV8_PMUV3_PERFCTR_L1D_CACHE_ALLOCATE);
 ARMV8_EVENT_ATTR(l2d_cache_allocate, ARMV8_PMUV3_PERFCTR_L2D_CACHE_ALLOCATE);
 ARMV8_EVENT_ATTR(br_retired, ARMV8_PMUV3_PERFCTR_BR_RETIRED);
@@ -467,7 +467,6 @@ static struct attribute *armv8_pmuv3_event_attrs[] = {
 	&armv8_event_attr_inst_spec.attr.attr,
 	&armv8_event_attr_ttbr_write_retired.attr.attr,
 	&armv8_event_attr_bus_cycles.attr.attr,
-	&armv8_event_attr_chain.attr.attr,
 	&armv8_event_attr_l1d_cache_allocate.attr.attr,
 	&armv8_event_attr_l2d_cache_allocate.attr.attr,
 	&armv8_event_attr_br_retired.attr.attr,
