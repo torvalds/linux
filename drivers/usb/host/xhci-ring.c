@@ -1768,7 +1768,7 @@ static int xhci_requires_manual_halt_cleanup(struct xhci_hcd *xhci,
 	if (trb_comp_code == COMP_TX_ERR ||
 			trb_comp_code == COMP_BABBLE ||
 			trb_comp_code == COMP_SPLIT_ERR)
-		/* The 0.96 spec says a babbling control endpoint
+		/* The 0.95 spec says a babbling control endpoint
 		 * is not halted. The 0.96 spec says it is.  Some HW
 		 * claims to be 0.95 compliant, but it halts the control
 		 * endpoint anyway.  Check if a babble halted the
