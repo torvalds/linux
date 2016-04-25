@@ -25,6 +25,9 @@
 #include <nvif/driver.h>
 #include <nvif/ioctl.h>
 #include <nvif/class.h>
+#include <nvif/cl0002.h>
+#include <nvif/cla06f.h>
+#include <nvif/unpack.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
@@ -32,11 +35,10 @@
 #include "nouveau_chan.h"
 #include "nouveau_abi16.h"
 
-struct nouveau_abi16 *
-nouveau_abi16_get(struct drm_file *file_priv, struct drm_device *dev)
+static struct nouveau_abi16 *
+nouveau_abi16(struct drm_file *file_priv)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	mutex_lock(&cli->mutex);
 	if (!cli->abi16) {
 		struct nouveau_abi16 *abi16;
 		cli->abi16 = abi16 = kzalloc(sizeof(*abi16), GFP_KERNEL);
@@ -51,8 +53,7 @@ nouveau_abi16_get(struct drm_file *file_priv, struct drm_device *dev)
 			 * device (ie. the one that belongs to the fd it
 			 * opened)
 			 */
-			if (nvif_device_init(&cli->base.object,
-					     NOUVEAU_ABI16_DEVICE, NV_DEVICE,
+			if (nvif_device_init(&cli->base.object, 0, NV_DEVICE,
 					     &args, sizeof(args),
 					     &abi16->device) == 0)
 				return cli->abi16;
@@ -60,10 +61,19 @@ nouveau_abi16_get(struct drm_file *file_priv, struct drm_device *dev)
 			kfree(cli->abi16);
 			cli->abi16 = NULL;
 		}
-
-		mutex_unlock(&cli->mutex);
 	}
 	return cli->abi16;
+}
+
+struct nouveau_abi16 *
+nouveau_abi16_get(struct drm_file *file_priv)
+{
+	struct nouveau_cli *cli = nouveau_cli(file_priv);
+	mutex_lock(&cli->mutex);
+	if (nouveau_abi16(file_priv))
+		return cli->abi16;
+	mutex_unlock(&cli->mutex);
+	return NULL;
 }
 
 int
@@ -79,18 +89,18 @@ nouveau_abi16_swclass(struct nouveau_drm *drm)
 {
 	switch (drm->device.info.family) {
 	case NV_DEVICE_INFO_V0_TNT:
-		return NVIF_IOCTL_NEW_V0_SW_NV04;
+		return NVIF_CLASS_SW_NV04;
 	case NV_DEVICE_INFO_V0_CELSIUS:
 	case NV_DEVICE_INFO_V0_KELVIN:
 	case NV_DEVICE_INFO_V0_RANKINE:
 	case NV_DEVICE_INFO_V0_CURIE:
-		return NVIF_IOCTL_NEW_V0_SW_NV10;
+		return NVIF_CLASS_SW_NV10;
 	case NV_DEVICE_INFO_V0_TESLA:
-		return NVIF_IOCTL_NEW_V0_SW_NV50;
+		return NVIF_CLASS_SW_NV50;
 	case NV_DEVICE_INFO_V0_FERMI:
 	case NV_DEVICE_INFO_V0_KEPLER:
 	case NV_DEVICE_INFO_V0_MAXWELL:
-		return NVIF_IOCTL_NEW_V0_SW_GF100;
+		return NVIF_CLASS_SW_GF100;
 	}
 
 	return 0x0000;
@@ -133,7 +143,6 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 
 	/* destroy channel object, all children will be killed too */
 	if (chan->chan) {
-		abi16->handles &= ~(1ULL << (chan->chan->user.handle & 0xffff));
 		nouveau_channel_idle(chan->chan);
 		nouveau_channel_del(&chan->chan);
 	}
@@ -238,7 +247,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	struct drm_nouveau_channel_alloc *init = data;
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
+	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
 	struct nvif_device *device;
 	int ret;
@@ -254,13 +263,23 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	/* hack to allow channel engine type specification on kepler */
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
 		if (init->fb_ctxdma_handle != ~0)
-			init->fb_ctxdma_handle = KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR;
-		else
-			init->fb_ctxdma_handle = init->tt_ctxdma_handle;
+			init->fb_ctxdma_handle = NVA06F_V0_ENGINE_GR;
+		else {
+			init->fb_ctxdma_handle = 0;
+#define _(A,B) if (init->tt_ctxdma_handle & (A)) init->fb_ctxdma_handle |= (B)
+			_(0x01, NVA06F_V0_ENGINE_GR);
+			_(0x02, NVA06F_V0_ENGINE_MSPDEC);
+			_(0x04, NVA06F_V0_ENGINE_MSPPP);
+			_(0x08, NVA06F_V0_ENGINE_MSVLD);
+			_(0x10, NVA06F_V0_ENGINE_CE0);
+			_(0x20, NVA06F_V0_ENGINE_CE1);
+			_(0x40, NVA06F_V0_ENGINE_MSENC);
+#undef _
+		}
 
 		/* allow flips to be executed if this is a graphics channel */
 		init->tt_ctxdma_handle = 0;
-		if (init->fb_ctxdma_handle == KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR)
+		if (init->fb_ctxdma_handle == NVA06F_V0_ENGINE_GR)
 			init->tt_ctxdma_handle = 1;
 	}
 
@@ -268,25 +287,20 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		return nouveau_abi16_put(abi16, -EINVAL);
 
 	/* allocate "abi16 channel" data and make up a handle for it */
-	init->channel = __ffs64(~abi16->handles);
-	if (~abi16->handles == 0)
-		return nouveau_abi16_put(abi16, -ENOSPC);
-
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
 		return nouveau_abi16_put(abi16, -ENOMEM);
 
 	INIT_LIST_HEAD(&chan->notifiers);
 	list_add(&chan->head, &abi16->channels);
-	abi16->handles |= (1ULL << init->channel);
 
 	/* create channel object and initialise dma and fence management */
-	ret = nouveau_channel_new(drm, device,
-				  NOUVEAU_ABI16_CHAN(init->channel),
-				  init->fb_ctxdma_handle,
+	ret = nouveau_channel_new(drm, device, init->fb_ctxdma_handle,
 				  init->tt_ctxdma_handle, &chan->chan);
 	if (ret)
 		goto done;
+
+	init->channel = chan->chan->chid;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA)
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM |
@@ -338,7 +352,7 @@ nouveau_abi16_chan(struct nouveau_abi16 *abi16, int channel)
 	struct nouveau_abi16_chan *chan;
 
 	list_for_each_entry(chan, &abi16->channels, head) {
-		if (chan->chan->user.handle == NOUVEAU_ABI16_CHAN(channel))
+		if (chan->chan->chid == channel)
 			return chan;
 	}
 
@@ -346,10 +360,48 @@ nouveau_abi16_chan(struct nouveau_abi16 *abi16, int channel)
 }
 
 int
+nouveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
+{
+	union {
+		struct nvif_ioctl_v0 v0;
+	} *args = data;
+	struct nouveau_abi16_chan *chan;
+	struct nouveau_abi16 *abi16;
+	int ret = -ENOSYS;
+
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
+		switch (args->v0.type) {
+		case NVIF_IOCTL_V0_NEW:
+		case NVIF_IOCTL_V0_MTHD:
+		case NVIF_IOCTL_V0_SCLASS:
+			break;
+		default:
+			return -EACCES;
+		}
+	} else
+		return ret;
+
+	if (!(abi16 = nouveau_abi16(file_priv)))
+		return -ENOMEM;
+
+	if (args->v0.token != ~0ULL) {
+		if (!(chan = nouveau_abi16_chan(abi16, args->v0.token)))
+			return -EINVAL;
+		args->v0.object = nvif_handle(&chan->chan->user);
+		args->v0.owner  = NVIF_IOCTL_V0_OWNER_ANY;
+		return 0;
+	}
+
+	args->v0.object = nvif_handle(&abi16->device.object);
+	args->v0.owner  = NVIF_IOCTL_V0_OWNER_ANY;
+	return 0;
+}
+
+int
 nouveau_abi16_ioctl_channel_free(ABI16_IOCTL_ARGS)
 {
 	struct drm_nouveau_channel_free *req = data;
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
+	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
 
 	if (unlikely(!abi16))
@@ -366,7 +418,7 @@ int
 nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 {
 	struct drm_nouveau_grobj_alloc *init = data;
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
+	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
 	struct nvif_client *client;
@@ -393,10 +445,10 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 		/* nvsw: compatibility with older 0x*6e class identifier */
 		for (i = 0; !oclass && i < ret; i++) {
 			switch (sclass[i].oclass) {
-			case NVIF_IOCTL_NEW_V0_SW_NV04:
-			case NVIF_IOCTL_NEW_V0_SW_NV10:
-			case NVIF_IOCTL_NEW_V0_SW_NV50:
-			case NVIF_IOCTL_NEW_V0_SW_GF100:
+			case NVIF_CLASS_SW_NV04:
+			case NVIF_CLASS_SW_NV10:
+			case NVIF_CLASS_SW_NV50:
+			case NVIF_CLASS_SW_GF100:
 				oclass = sclass[i].oclass;
 				break;
 			default:
@@ -459,7 +511,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 {
 	struct drm_nouveau_notifierobj_alloc *info = data;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
+	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
 	struct nvif_device *device = &abi16->device;
@@ -531,7 +583,7 @@ int
 nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
 {
 	struct drm_nouveau_gpuobj_free *fini = data;
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
+	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
 	int ret = -ENOENT;

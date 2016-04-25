@@ -39,8 +39,8 @@ struct mcip_cmd {
 #define CMD_DEBUG_SET_MASK		0x34
 #define CMD_DEBUG_SET_SELECT		0x36
 
-#define CMD_GRTC_READ_LO		0x42
-#define CMD_GRTC_READ_HI		0x43
+#define CMD_GFRC_READ_LO		0x42
+#define CMD_GFRC_READ_HI		0x43
 
 #define CMD_IDU_ENABLE			0x71
 #define CMD_IDU_DISABLE			0x72
@@ -85,9 +85,6 @@ static inline void __mcip_cmd_data(unsigned int cmd, unsigned int param,
 
 	__mcip_cmd(cmd, param);
 }
-
-extern void mcip_init_early_smp(void);
-extern void mcip_init_smp(unsigned int cpu);
 
 #endif
 

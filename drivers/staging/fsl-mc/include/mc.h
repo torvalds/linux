@@ -14,12 +14,14 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/list.h>
+#include <linux/interrupt.h>
 #include "../include/dprc.h"
 
 #define FSL_MC_VENDOR_FREESCALE	0x1957
 
 struct fsl_mc_device;
 struct fsl_mc_io;
+struct fsl_mc_bus;
 
 /**
  * struct fsl_mc_driver - MC object device driver object
@@ -59,10 +61,10 @@ struct fsl_mc_driver {
  * a MC object device driver. The last entry of the table has vendor set to 0x0
  */
 struct fsl_mc_device_match_id {
-	uint16_t vendor;
+	u16 vendor;
 	const char obj_type[16];
-	uint32_t ver_major;
-	uint32_t ver_minor;
+	u32 ver_major;
+	u32 ver_minor;
 };
 
 /**
@@ -75,6 +77,7 @@ enum fsl_mc_pool_type {
 	FSL_MC_POOL_DPMCP = 0x0,    /* corresponds to "dpmcp" in the MC */
 	FSL_MC_POOL_DPBP,	    /* corresponds to "dpbp" in the MC */
 	FSL_MC_POOL_DPCON,	    /* corresponds to "dpcon" in the MC */
+	FSL_MC_POOL_IRQ,
 
 	/*
 	 * NOTE: New resource pool types must be added before this entry
@@ -104,6 +107,23 @@ struct fsl_mc_resource {
 };
 
 /**
+ * struct fsl_mc_device_irq - MC object device message-based interrupt
+ * @msi_desc: pointer to MSI descriptor allocated by fsl_mc_msi_alloc_descs()
+ * @mc_dev: MC object device that owns this interrupt
+ * @dev_irq_index: device-relative IRQ index
+ * @resource: MC generic resource associated with the interrupt
+ */
+struct fsl_mc_device_irq {
+	struct msi_desc *msi_desc;
+	struct fsl_mc_device *mc_dev;
+	u8 dev_irq_index;
+	struct fsl_mc_resource resource;
+};
+
+#define to_fsl_mc_irq(_mc_resource) \
+	container_of(_mc_resource, struct fsl_mc_device_irq, resource)
+
+/**
  * Bit masks for a MC object device (struct fsl_mc_device) flags
  */
 #define FSL_MC_IS_DPRC	0x0001
@@ -124,6 +144,7 @@ struct fsl_mc_resource {
  * NULL if none.
  * @obj_desc: MC description of the DPAA device
  * @regions: pointer to array of MMIO region entries
+ * @irqs: pointer to array of pointers to interrupts allocated to this device
  * @resource: generic resource associated with this MC object device, if any.
  *
  * Generic device object for MC object devices that are "attached" to a
@@ -148,13 +169,14 @@ struct fsl_mc_resource {
  */
 struct fsl_mc_device {
 	struct device dev;
-	uint64_t dma_mask;
-	uint16_t flags;
-	uint16_t icid;
-	uint16_t mc_handle;
+	u64 dma_mask;
+	u16 flags;
+	u16 icid;
+	u16 mc_handle;
 	struct fsl_mc_io *mc_io;
 	struct dprc_obj_desc obj_desc;
 	struct resource *regions;
+	struct fsl_mc_device_irq **irqs;
 	struct fsl_mc_resource *resource;
 };
 
@@ -182,8 +204,10 @@ int __must_check __fsl_mc_driver_register(struct fsl_mc_driver *fsl_mc_driver,
 
 void fsl_mc_driver_unregister(struct fsl_mc_driver *driver);
 
+bool fsl_mc_bus_exists(void);
+
 int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
-					uint16_t mc_io_flags,
+					u16 mc_io_flags,
 					struct fsl_mc_io **new_mc_io);
 
 void fsl_mc_portal_free(struct fsl_mc_io *mc_io);
@@ -195,6 +219,10 @@ int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 					struct fsl_mc_device **new_mc_adev);
 
 void fsl_mc_object_free(struct fsl_mc_device *mc_adev);
+
+int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev);
+
+void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev);
 
 extern struct bus_type fsl_mc_bus_type;
 

@@ -187,13 +187,13 @@ static int tcpprobe_sprint(char *tbuf, int n)
 {
 	const struct tcp_log *p
 		= tcp_probe.log + tcp_probe.tail;
-	struct timespec tv
-		= ktime_to_timespec(ktime_sub(p->tstamp, tcp_probe.start));
+	struct timespec64 ts
+		= ktime_to_timespec64(ktime_sub(p->tstamp, tcp_probe.start));
 
 	return scnprintf(tbuf, n,
 			"%lu.%09lu %pISpc %pISpc %d %#x %#x %u %u %u %u %u\n",
-			(unsigned long)tv.tv_sec,
-			(unsigned long)tv.tv_nsec,
+			(unsigned long)ts.tv_sec,
+			(unsigned long)ts.tv_nsec,
 			&p->src, &p->dst, p->length, p->snd_nxt, p->snd_una,
 			p->snd_cwnd, p->ssthresh, p->snd_wnd, p->srtt, p->rcv_wnd);
 }

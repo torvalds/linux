@@ -9,60 +9,66 @@
 #include <asm/sigp.h>
 
 #
-# store_status
+# Issue "store status" for the current CPU to its prefix page
+# and call passed function afterwards
 #
-# Prerequisites to run this function:
-# - Prefix register is set to zero
-# - Original prefix register is stored in "dump_prefix_page"
-# - Lowcore protection is off
+# r2 = Function to be called after store status
+# r3 = Parameter for function
 #
 ENTRY(store_status)
 	/* Save register one and load save area base */
 	stg	%r1,__LC_SAVE_AREA_RESTART
-	lghi	%r1,SAVE_AREA_BASE
 	/* General purpose registers */
-	stmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	lg	%r2,__LC_SAVE_AREA_RESTART
-	stg	%r2,__LC_GPREGS_SAVE_AREA-SAVE_AREA_BASE+8(%r1)
+	lghi	%r1,__LC_GPREGS_SAVE_AREA
+	stmg	%r0,%r15,0(%r1)
+	mvc	8(8,%r1),__LC_SAVE_AREA_RESTART
 	/* Control registers */
-	stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	lghi	%r1,__LC_CREGS_SAVE_AREA
+	stctg	%c0,%c15,0(%r1)
 	/* Access registers */
-	stam	%a0,%a15,__LC_AREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	lghi	%r1,__LC_AREGS_SAVE_AREA
+	stam	%a0,%a15,0(%r1)
 	/* Floating point registers */
-	std	%f0, 0x00 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f1, 0x08 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f2, 0x10 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f3, 0x18 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f4, 0x20 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f5, 0x28 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f6, 0x30 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f7, 0x38 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f8, 0x40 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f9, 0x48 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f10,0x50 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f11,0x58 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f12,0x60 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f13,0x68 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f14,0x70 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	std	%f15,0x78 + __LC_FPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	lghi	%r1,__LC_FPREGS_SAVE_AREA
+	std	%f0, 0x00(%r1)
+	std	%f1, 0x08(%r1)
+	std	%f2, 0x10(%r1)
+	std	%f3, 0x18(%r1)
+	std	%f4, 0x20(%r1)
+	std	%f5, 0x28(%r1)
+	std	%f6, 0x30(%r1)
+	std	%f7, 0x38(%r1)
+	std	%f8, 0x40(%r1)
+	std	%f9, 0x48(%r1)
+	std	%f10,0x50(%r1)
+	std	%f11,0x58(%r1)
+	std	%f12,0x60(%r1)
+	std	%f13,0x68(%r1)
+	std	%f14,0x70(%r1)
+	std	%f15,0x78(%r1)
 	/* Floating point control register */
-	stfpc	__LC_FP_CREG_SAVE_AREA-SAVE_AREA_BASE(%r1)
+	lghi	%r1,__LC_FP_CREG_SAVE_AREA
+	stfpc	0(%r1)
 	/* CPU timer */
-	stpt	__LC_CPU_TIMER_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	/* Saved prefix register */
-	larl	%r2,dump_prefix_page
-	mvc	__LC_PREFIX_SAVE_AREA-SAVE_AREA_BASE(4,%r1),0(%r2)
+	lghi	%r1,__LC_CPU_TIMER_SAVE_AREA
+	stpt	0(%r1)
+	/* Store prefix register */
+	lghi	%r1,__LC_PREFIX_SAVE_AREA
+	stpx	0(%r1)
 	/* Clock comparator - seven bytes */
-	larl	%r2,.Lclkcmp
-	stckc	0(%r2)
-	mvc	__LC_CLOCK_COMP_SAVE_AREA-SAVE_AREA_BASE + 1(7,%r1),1(%r2)
+	lghi	%r1,__LC_CLOCK_COMP_SAVE_AREA
+	larl	%r4,.Lclkcmp
+	stckc	0(%r4)
+	mvc	1(7,%r1),1(%r4)
 	/* Program status word */
-	epsw	%r2,%r3
-	st	%r2,__LC_PSW_SAVE_AREA-SAVE_AREA_BASE + 0(%r1)
-	st	%r3,__LC_PSW_SAVE_AREA-SAVE_AREA_BASE + 4(%r1)
-	larl	%r2,store_status
-	stg	%r2,__LC_PSW_SAVE_AREA-SAVE_AREA_BASE + 8(%r1)
-	br	%r14
+	lghi	%r1,__LC_PSW_SAVE_AREA
+	epsw	%r4,%r5
+	st	%r4,0(%r1)
+	st	%r5,4(%r1)
+	stg	%r2,8(%r1)
+	lgr	%r1,%r2
+	lgr	%r2,%r3
+	br	%r1
 
 	.section .bss
 	.align	8
@@ -77,9 +83,11 @@ ENTRY(store_status)
 ENTRY(do_reipl_asm)
 		basr	%r13,0
 .Lpg0:		lpswe	.Lnewpsw-.Lpg0(%r13)
-.Lpg1:		brasl	%r14,store_status
+.Lpg1:		lgr	%r3,%r2
+		larl	%r2,.Lstatus
+		brasl	%r14,store_status
 
-		lctlg	%c6,%c6,.Lall-.Lpg0(%r13)
+.Lstatus:	lctlg	%c6,%c6,.Lall-.Lpg0(%r13)
 		lgr	%r1,%r2
 		mvc	__LC_PGM_NEW_PSW(16),.Lpcnew-.Lpg0(%r13)
 		stsch	.Lschib-.Lpg0(%r13)

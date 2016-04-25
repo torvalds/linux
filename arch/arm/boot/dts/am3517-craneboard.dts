@@ -77,7 +77,7 @@
 &omap3_pmx_core {
 	tps_pins: pinmux_tps_pins {
 		pinctrl-single,pins = <
-			0x1b0 (PIN_INPUT_PULLUP | MUX_MODE0) /* sys_nirq.sys_nirq */
+			OMAP3_CORE1_IOPAD(0x21e0, PIN_INPUT_PULLUP | MUX_MODE0) /* sys_nirq.sys_nirq */
 		>;
 	};
 };

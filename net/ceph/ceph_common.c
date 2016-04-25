@@ -245,6 +245,8 @@ enum {
 	Opt_nocrc,
 	Opt_cephx_require_signatures,
 	Opt_nocephx_require_signatures,
+	Opt_cephx_sign_messages,
+	Opt_nocephx_sign_messages,
 	Opt_tcp_nodelay,
 	Opt_notcp_nodelay,
 };
@@ -267,6 +269,8 @@ static match_table_t opt_tokens = {
 	{Opt_nocrc, "nocrc"},
 	{Opt_cephx_require_signatures, "cephx_require_signatures"},
 	{Opt_nocephx_require_signatures, "nocephx_require_signatures"},
+	{Opt_cephx_sign_messages, "cephx_sign_messages"},
+	{Opt_nocephx_sign_messages, "nocephx_sign_messages"},
 	{Opt_tcp_nodelay, "tcp_nodelay"},
 	{Opt_notcp_nodelay, "notcp_nodelay"},
 	{-1, NULL}
@@ -318,7 +322,7 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name) {
 		goto out;
 	}
 
-	ckey = ukey->payload.data;
+	ckey = ukey->payload.data[0];
 	err = ceph_crypto_key_clone(dst, ckey);
 	if (err)
 		goto out_key;
@@ -357,7 +361,6 @@ ceph_parse_options(char *options, const char *dev_name,
 	opt->osd_keepalive_timeout = CEPH_OSD_KEEPALIVE_DEFAULT;
 	opt->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT;
 	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;
-	opt->monc_ping_timeout = CEPH_MONC_PING_TIMEOUT_DEFAULT;
 
 	/* get mon ip(s) */
 	/* ip1[:port1][,ip2[:port2]...] */
@@ -491,6 +494,12 @@ ceph_parse_options(char *options, const char *dev_name,
 		case Opt_nocephx_require_signatures:
 			opt->flags |= CEPH_OPT_NOMSGAUTH;
 			break;
+		case Opt_cephx_sign_messages:
+			opt->flags &= ~CEPH_OPT_NOMSGSIGN;
+			break;
+		case Opt_nocephx_sign_messages:
+			opt->flags |= CEPH_OPT_NOMSGSIGN;
+			break;
 
 		case Opt_tcp_nodelay:
 			opt->flags |= CEPH_OPT_TCP_NODELAY;
@@ -534,6 +543,8 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client)
 		seq_puts(m, "nocrc,");
 	if (opt->flags & CEPH_OPT_NOMSGAUTH)
 		seq_puts(m, "nocephx_require_signatures,");
+	if (opt->flags & CEPH_OPT_NOMSGSIGN)
+		seq_puts(m, "nocephx_sign_messages,");
 	if ((opt->flags & CEPH_OPT_TCP_NODELAY) == 0)
 		seq_puts(m, "notcp_nodelay,");
 
@@ -596,11 +607,7 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private,
 	if (ceph_test_opt(client, MYIP))
 		myaddr = &client->options->my_addr;
 
-	ceph_messenger_init(&client->msgr, myaddr,
-		client->supported_features,
-		client->required_features,
-		ceph_test_opt(client, NOCRC),
-		ceph_test_opt(client, TCP_NODELAY));
+	ceph_messenger_init(&client->msgr, myaddr);
 
 	/* subsystems */
 	err = ceph_monc_init(&client->monc, client);
@@ -677,6 +684,9 @@ int __ceph_open_session(struct ceph_client *client, unsigned long started)
 		if (client->auth_err < 0)
 			return client->auth_err;
 	}
+
+	pr_info("client%llu fsid %pU\n", ceph_client_id(client), &client->fsid);
+	ceph_debugfs_client_init(client);
 
 	return 0;
 }

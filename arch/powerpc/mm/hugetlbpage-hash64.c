@@ -59,10 +59,8 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 			new_pte |= _PAGE_DIRTY;
 	} while(old_pte != __cmpxchg_u64((unsigned long *)ptep,
 					 old_pte, new_pte));
+	rflags = htab_convert_pte_flags(new_pte);
 
-	rflags = 0x2 | (!(new_pte & _PAGE_RW));
-	/* _PAGE_EXEC -> HW_NO_EXEC since it's inverted */
-	rflags |= ((new_pte & _PAGE_EXEC) ? 0 : HPTE_R_N);
 	sz = ((1UL) << shift);
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		/* No CPU has hugepages but lacks no execute, so we
@@ -78,7 +76,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		if (old_pte & _PAGE_F_SECOND)
 			hash = ~hash;
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-		slot += (old_pte & _PAGE_F_GIX) >> 12;
+		slot += (old_pte & _PAGE_F_GIX) >> _PAGE_F_GIX_SHIFT;
 
 		if (ppc_md.hpte_updatepp(slot, rflags, vpn, mmu_psize,
 					 mmu_psize, ssize, flags) == -1)
@@ -91,18 +89,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		pa = pte_pfn(__pte(old_pte)) << PAGE_SHIFT;
 
 		/* clear HPTE slot informations in new PTE */
-#ifdef CONFIG_PPC_64K_PAGES
-		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | _PAGE_HPTE_SUB0;
-#else
 		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | _PAGE_HASHPTE;
-#endif
-		/* Add in WIMG bits */
-		rflags |= (new_pte & (_PAGE_WRITETHRU | _PAGE_NO_CACHE |
-				      _PAGE_COHERENT | _PAGE_GUARDED));
-		/*
-		 * enable the memory coherence always
-		 */
-		rflags |= HPTE_R_M;
 
 		slot = hpte_insert_repeating(hash, vpn, pa, rflags, 0,
 					     mmu_psize, ssize);
@@ -118,7 +105,8 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 			return -1;
 		}
 
-		new_pte |= (slot << 12) & (_PAGE_F_SECOND | _PAGE_F_GIX);
+		new_pte |= (slot << _PAGE_F_GIX_SHIFT) &
+			(_PAGE_F_SECOND | _PAGE_F_GIX);
 	}
 
 	/*
@@ -127,3 +115,21 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	*ptep = __pte(new_pte & ~_PAGE_BUSY);
 	return 0;
 }
+
+#if defined(CONFIG_PPC_64K_PAGES) && defined(CONFIG_DEBUG_VM)
+/*
+ * This enables us to catch the wrong page directory format
+ * Moved here so that we can use WARN() in the call.
+ */
+int hugepd_ok(hugepd_t hpd)
+{
+	bool is_hugepd;
+
+	/*
+	 * We should not find this format in page directory, warn otherwise.
+	 */
+	is_hugepd = (((hpd.pd & 0x3) == 0x0) && ((hpd.pd & HUGEPD_SHIFT_MASK) != 0));
+	WARN(is_hugepd, "Found wrong page directory format\n");
+	return 0;
+}
+#endif

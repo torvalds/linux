@@ -17,6 +17,7 @@
 #include <linux/of_platform.h>
 #include <linux/clk.h>
 #include <linux/module.h>
+#include <linux/dma-mapping.h>
 
 struct fsl_usb2_dev_data {
 	char *dr_mode;		/* controller mode */
@@ -96,7 +97,11 @@ static struct platform_device *fsl_usb2_device_register(
 	pdev->dev.parent = &ofdev->dev;
 
 	pdev->dev.coherent_dma_mask = ofdev->dev.coherent_dma_mask;
-	*pdev->dev.dma_mask = *ofdev->dev.dma_mask;
+
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &ofdev->dev.coherent_dma_mask;
+	else
+		dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 
 	retval = platform_device_add_data(pdev, pdata, sizeof(*pdata));
 	if (retval)
@@ -351,6 +356,7 @@ static const struct of_device_id fsl_usb2_mph_dr_of_match[] = {
 #endif
 	{},
 };
+MODULE_DEVICE_TABLE(of, fsl_usb2_mph_dr_of_match);
 
 static struct platform_driver fsl_usb2_mph_dr_driver = {
 	.driver = {

@@ -114,6 +114,14 @@ config JZ4780_NEMC
 	  the Ingenic JZ4780. This controller is used to handle external
 	  memory devices such as NAND and SRAM.
 
+config MTK_SMI
+	bool
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  This driver is for the Memory Controller module in MediaTek SoCs,
+	  mainly help enable/disable iommu and control the power domain and
+	  clocks for each local arbiter.
+
 source "drivers/memory/tegra/Kconfig"
 
 endif

@@ -13,6 +13,7 @@
  * @target:	the target extension
  * @matchinfo:	per-match data
  * @targetinfo:	per-target data
+ * @net		network namespace through which the action was invoked
  * @in:		input netdevice
  * @out:	output netdevice
  * @fragoff:	packet is a fragment, this is the data offset
@@ -24,7 +25,6 @@
  * Fields written to by extensions:
  *
  * @hotdrop:	drop packet if we had inspection problems
- * Network namespace obtainable using dev_net(in/out)
  */
 struct xt_action_param {
 	union {
@@ -34,6 +34,7 @@ struct xt_action_param {
 	union {
 		const void *matchinfo, *targinfo;
 	};
+	struct net *net;
 	const struct net_device *in, *out;
 	int fragoff;
 	unsigned int thoff;
@@ -198,6 +199,9 @@ struct xt_table {
 
 	u_int8_t af;		/* address/protocol family */
 	int priority;		/* hook order */
+
+	/* called when table is needed in the given netns */
+	int (*table_init)(struct net *net);
 
 	/* A unique name... */
 	const char name[XT_TABLE_MAXNAMELEN];
@@ -407,8 +411,7 @@ xt_get_per_cpu_counter(struct xt_counters *cnt, unsigned int cpu)
 	return cnt;
 }
 
-struct nf_hook_ops *xt_hook_link(const struct xt_table *, nf_hookfn *);
-void xt_hook_unlink(const struct xt_table *, struct nf_hook_ops *);
+struct nf_hook_ops *xt_hook_ops_alloc(const struct xt_table *, nf_hookfn *);
 
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>

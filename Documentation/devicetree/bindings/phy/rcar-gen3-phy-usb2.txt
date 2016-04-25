@@ -1,0 +1,32 @@
+* Renesas R-Car generation 3 USB 2.0 PHY
+
+This file provides information on what the device node for the R-Car generation
+3 USB 2.0 PHY contains.
+
+Required properties:
+- compatible: "renesas,usb2-phy-r8a7795" if the device is a part of an R8A7795
+	      SoC.
+- reg: offset and length of the partial USB 2.0 Host register block.
+- clocks: clock phandle and specifier pair(s).
+- #phy-cells: see phy-bindings.txt in the same directory, must be <0>.
+
+Optional properties:
+To use a USB channel where USB 2.0 Host and HSUSB (USB 2.0 Peripheral) are
+combined, the device tree node should set interrupt properties to use the
+channel as USB OTG:
+- interrupts: interrupt specifier for the PHY.
+
+Example (R-Car H3):
+
+	usb-phy@ee080200 {
+		compatible = "renesas,usb2-phy-r8a7795";
+		reg = <0 0xee080200 0 0x700>;
+		interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp7_clks R8A7795_CLK_EHCI0>;
+	};
+
+	usb-phy@ee0a0200 {
+		compatible = "renesas,usb2-phy-r8a7795";
+		reg = <0 0xee0a0200 0 0x700>;
+		clocks = <&mstp7_clks R8A7795_CLK_EHCI0>;
+	};

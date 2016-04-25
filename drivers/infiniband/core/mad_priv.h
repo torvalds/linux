@@ -64,6 +64,7 @@
 
 struct ib_mad_list_head {
 	struct list_head list;
+	struct ib_cqe cqe;
 	struct ib_mad_queue *mad_queue;
 };
 
@@ -123,7 +124,7 @@ struct ib_mad_send_wr_private {
 	struct ib_mad_send_buf send_buf;
 	u64 header_mapping;
 	u64 payload_mapping;
-	struct ib_send_wr send_wr;
+	struct ib_ud_wr send_wr;
 	struct ib_sge sg_list[IB_MAD_SEND_REQ_MAX_SG];
 	__be64 tid;
 	unsigned long timeout;
@@ -204,7 +205,6 @@ struct ib_mad_port_private {
 	struct ib_mad_mgmt_version_table version[MAX_MGMT_VERSION];
 	struct list_head agent_list;
 	struct workqueue_struct *wq;
-	struct work_struct work;
 	struct ib_mad_qp_info qp_info[IB_MAD_QPS_CORE];
 };
 

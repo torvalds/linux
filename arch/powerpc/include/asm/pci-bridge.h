@@ -10,7 +10,6 @@
 #include <linux/pci.h>
 #include <linux/list.h>
 #include <linux/ioport.h>
-#include <asm-generic/pci-bridge.h>
 
 struct device_node;
 
@@ -205,21 +204,23 @@ struct pci_dn {
 
 	int	pci_ext_config_space;	/* for pci devices */
 
+	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
 #ifdef CONFIG_EEH
 	struct eeh_dev *edev;		/* eeh device */
 #endif
 #define IODA_INVALID_PE		(-1)
 #ifdef CONFIG_PPC_POWERNV
 	int	pe_number;
+	int     vf_index;		/* VF index in the PF */
 #ifdef CONFIG_PCI_IOV
 	u16     vfs_expanded;		/* number of VFs IOV BAR expanded */
 	u16     num_vfs;		/* number of VFs enabled*/
-	int     offset;			/* PE# for the first VF PE */
-#define M64_PER_IOV 4
-	int     m64_per_iov;
+	int     *pe_num_map;		/* PE# for the first VF PE or array */
+	bool    m64_single_mode;	/* Use M64 BAR in Single Mode */
 #define IODA_INVALID_M64        (-1)
-	int     m64_wins[PCI_SRIOV_NUM_BARS][M64_PER_IOV];
+	int     (*m64_map)[PCI_SRIOV_NUM_BARS];
 #endif /* CONFIG_PCI_IOV */
+	int	mps;			/* Maximum Payload Size */
 #endif
 	struct list_head child_list;
 	struct list_head list;

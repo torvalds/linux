@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -65,9 +65,10 @@ static int mdc_reint(struct ptlrpc_request *request,
 
 /* Find and cancel locally locks matched by inode @bits & @mode in the resource
  * found by @fid. Found locks are added into @cancel list. Returns the amount of
- * locks added to @cancels list. */
+ * locks added to @cancels list.
+ */
 int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
-			    struct list_head *cancels, ldlm_mode_t mode,
+			    struct list_head *cancels, enum ldlm_mode mode,
 			    __u64 bits)
 {
 	struct ldlm_namespace *ns = exp->exp_obd->obd_namespace;
@@ -81,14 +82,15 @@ int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 	 *
 	 * This distinguishes from a case when ELC is not supported originally,
 	 * when we still want to cancel locks in advance and just cancel them
-	 * locally, without sending any RPC. */
+	 * locally, without sending any RPC.
+	 */
 	if (exp_connect_cancelset(exp) && !ns_connect_cancelset(ns))
 		return 0;
 
 	fid_build_reg_res_name(fid, &res_id);
 	res = ldlm_resource_get(exp->exp_obd->obd_namespace,
 				NULL, &res_id, 0, 0);
-	if (res == NULL)
+	if (!res)
 		return 0;
 	LDLM_RESOURCE_ADDREF(res);
 	/* Initialize ibits lock policy. */
@@ -111,8 +113,6 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	int count = 0, rc;
 	__u64 bits;
 
-	LASSERT(op_data != NULL);
-
 	bits = MDS_INODELOCK_UPDATE;
 	if (op_data->op_attr.ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID))
 		bits |= MDS_INODELOCK_LOOKUP;
@@ -123,11 +123,10 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 						&cancels, LCK_EX, bits);
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_MDS_REINT_SETATTR);
-	if (req == NULL) {
+	if (!req) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
-	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
 	if ((op_data->op_flags & (MF_SOM_CHANGE | MF_EPOCH_OPEN)) == 0)
 		req_capsule_set_size(&req->rq_pill, &RMF_MDT_EPOCH, RCL_CLIENT,
 				     0);
@@ -144,8 +143,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	rpc_lock = obd->u.cli.cl_rpc_lock;
 
 	if (op_data->op_attr.ia_valid & (ATTR_MTIME | ATTR_CTIME))
-		CDEBUG(D_INODE, "setting mtime "CFS_TIME_T
-		       ", ctime "CFS_TIME_T"\n",
+		CDEBUG(D_INODE, "setting mtime %ld, ctime %ld\n",
 		       LTIME_S(op_data->op_attr.ia_mtime),
 		       LTIME_S(op_data->op_attr.ia_ctime));
 	mdc_setattr_pack(req, op_data, ea, ealen, ea2, ea2len);
@@ -153,10 +151,10 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	ptlrpc_request_set_replen(req);
 	if (mod && (op_data->op_flags & MF_EPOCH_OPEN) &&
 	    req->rq_import->imp_replayable) {
-		LASSERT(*mod == NULL);
+		LASSERT(!*mod);
 
 		*mod = obd_mod_alloc();
-		if (*mod == NULL) {
+		if (!*mod) {
 			DEBUG_REQ(D_ERROR, req, "Can't allocate md_open_data");
 		} else {
 			req->rq_replay = 1;
@@ -183,8 +181,6 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 
 		epoch = req_capsule_client_get(&req->rq_pill, &RMF_MDT_EPOCH);
 		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-		LASSERT(epoch != NULL);
-		LASSERT(body != NULL);
 		epoch->handle = body->handle;
 		epoch->ioepoch = body->ioepoch;
 		req->rq_replay_cb = mdc_replay_open;
@@ -197,7 +193,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	*request = req;
 	if (rc && req->rq_commit_cb) {
 		/* Put an extra reference on \var mod on error case. */
-		if (mod != NULL && *mod != NULL)
+		if (mod && *mod)
 			obd_mod_put(*mod);
 		req->rq_commit_cb(req);
 	}
@@ -239,11 +235,10 @@ rebuild:
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_MDS_REINT_CREATE_RMT_ACL);
-	if (req == NULL) {
+	if (!req) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
-	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT,
 			     op_data->op_namelen + 1);
 	req_capsule_set_size(&req->rq_pill, &RMF_EADATA, RCL_CLIENT,
@@ -265,13 +260,14 @@ rebuild:
 	ptlrpc_request_set_replen(req);
 
 	/* ask ptlrpc not to resend on EINPROGRESS since we have our own retry
-	 * logic here */
+	 * logic here
+	 */
 	req->rq_no_retry_einprogress = 1;
 
 	if (resends) {
 		req->rq_generation_set = 1;
 		req->rq_import_generation = generation;
-		req->rq_sent = get_seconds() + resends;
+		req->rq_sent = ktime_get_real_seconds() + resends;
 	}
 	level = LUSTRE_IMP_FULL;
  resend:
@@ -283,7 +279,8 @@ rebuild:
 		goto resend;
 	} else if (rc == -EINPROGRESS) {
 		/* Retry create infinitely until succeed or get other
-		 * error code. */
+		 * error code.
+		 */
 		ptlrpc_req_finished(req);
 		resends++;
 
@@ -296,18 +293,6 @@ rebuild:
 		} else {
 			CDEBUG(D_HA, "resend cross eviction\n");
 			return -EIO;
-		}
-	} else if (rc == 0) {
-		struct mdt_body *body;
-		struct lustre_capa *capa;
-
-		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-		LASSERT(body);
-		if (body->valid & OBD_MD_FLMDSCAPA) {
-			capa = req_capsule_server_get(&req->rq_pill,
-						      &RMF_CAPA1);
-			if (capa == NULL)
-				rc = -EPROTO;
 		}
 	}
 
@@ -323,7 +308,7 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	struct ptlrpc_request *req = *request;
 	int count = 0, rc;
 
-	LASSERT(req == NULL);
+	LASSERT(!req);
 
 	if ((op_data->op_flags & MF_MDC_CANCEL_FID1) &&
 	    (fid_is_sane(&op_data->op_fid1)) &&
@@ -339,11 +324,10 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 						 MDS_INODELOCK_FULL);
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_MDS_REINT_UNLINK);
-	if (req == NULL) {
+	if (!req) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
-	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT,
 			     op_data->op_namelen + 1);
 
@@ -389,12 +373,10 @@ int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 						 MDS_INODELOCK_UPDATE);
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_MDS_REINT_LINK);
-	if (req == NULL) {
+	if (!req) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
-	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
-	mdc_set_capa_size(req, &RMF_CAPA2, op_data->op_capa2);
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT,
 			     op_data->op_namelen + 1);
 
@@ -440,20 +422,18 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 						 &cancels, LCK_EX,
 						 MDS_INODELOCK_LOOKUP);
 	if ((op_data->op_flags & MF_MDC_CANCEL_FID4) &&
-	     (fid_is_sane(&op_data->op_fid4)))
+	    (fid_is_sane(&op_data->op_fid4)))
 		count += mdc_resource_get_unused(exp, &op_data->op_fid4,
 						 &cancels, LCK_EX,
 						 MDS_INODELOCK_FULL);
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_MDS_REINT_RENAME);
-	if (req == NULL) {
+	if (!req) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
 
-	mdc_set_capa_size(req, &RMF_CAPA1, op_data->op_capa1);
-	mdc_set_capa_size(req, &RMF_CAPA2, op_data->op_capa2);
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT, oldlen + 1);
 	req_capsule_set_size(&req->rq_pill, &RMF_SYMTGT, RCL_CLIENT, newlen+1);
 

@@ -1141,8 +1141,6 @@ static void greth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *in
 	strlcpy(info->version, "revision: 1.0", sizeof(info->version));
 	strlcpy(info->bus_info, greth->dev->bus->name, sizeof(info->bus_info));
 	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	info->eedump_len = 0;
-	info->regdump_len = sizeof(struct greth_regs);
 }
 
 static void greth_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
@@ -1338,11 +1336,6 @@ static int greth_mdio_init(struct greth_private *greth)
 	greth->mdio->read = greth_mdio_read;
 	greth->mdio->write = greth_mdio_write;
 	greth->mdio->priv = greth;
-
-	greth->mdio->irq = greth->mdio_irqs;
-
-	for (phy = 0; phy < PHY_MAX_ADDR; phy++)
-		greth->mdio->irq[phy] = PHY_POLL;
 
 	ret = mdiobus_register(greth->mdio);
 	if (ret) {

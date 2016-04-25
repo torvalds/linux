@@ -45,7 +45,7 @@
 #include <net/ip_fib.h>
 #include <net/rtnetlink.h>
 #include <net/xfrm.h>
-#include <net/vrf.h>
+#include <net/l3mdev.h>
 #include <trace/events/fib.h>
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES
@@ -255,7 +255,7 @@ EXPORT_SYMBOL(inet_addr_type);
 unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 				__be32 addr)
 {
-	u32 rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
+	u32 rt_table = l3mdev_fib_table(dev) ? : RT_TABLE_LOCAL;
 
 	return __inet_dev_addr_type(net, dev, addr, rt_table);
 }
@@ -268,7 +268,7 @@ unsigned int inet_addr_type_dev_table(struct net *net,
 				      const struct net_device *dev,
 				      __be32 addr)
 {
-	u32 rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
+	u32 rt_table = l3mdev_fib_table(dev) ? : RT_TABLE_LOCAL;
 
 	return __inet_dev_addr_type(net, NULL, addr, rt_table);
 }
@@ -280,7 +280,6 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
 	struct in_device *in_dev;
 	struct fib_result res;
 	struct rtable *rt;
-	struct flowi4 fl4;
 	struct net *net;
 	int scope;
 
@@ -296,14 +295,13 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
 
 	scope = RT_SCOPE_UNIVERSE;
 	if (!ipv4_is_zeronet(ip_hdr(skb)->saddr)) {
-		fl4.flowi4_oif = 0;
-		fl4.flowi4_iif = LOOPBACK_IFINDEX;
-		fl4.daddr = ip_hdr(skb)->saddr;
-		fl4.saddr = 0;
-		fl4.flowi4_tos = RT_TOS(ip_hdr(skb)->tos);
-		fl4.flowi4_scope = scope;
-		fl4.flowi4_mark = IN_DEV_SRC_VMARK(in_dev) ? skb->mark : 0;
-		fl4.flowi4_tun_key.tun_id = 0;
+		struct flowi4 fl4 = {
+			.flowi4_iif = LOOPBACK_IFINDEX,
+			.daddr = ip_hdr(skb)->saddr,
+			.flowi4_tos = RT_TOS(ip_hdr(skb)->tos),
+			.flowi4_scope = scope,
+			.flowi4_mark = IN_DEV_SRC_VMARK(in_dev) ? skb->mark : 0,
+		};
 		if (!fib_lookup(net, &fl4, &res, 0))
 			return FIB_RES_PREFSRC(net, res);
 	} else {
@@ -332,7 +330,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	bool dev_match;
 
 	fl4.flowi4_oif = 0;
-	fl4.flowi4_iif = vrf_master_ifindex_rcu(dev);
+	fl4.flowi4_iif = l3mdev_master_ifindex_rcu(dev);
 	if (!fl4.flowi4_iif)
 		fl4.flowi4_iif = oif ? : LOOPBACK_IFINDEX;
 	fl4.daddr = src;
@@ -367,7 +365,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 		if (nh->nh_dev == dev) {
 			dev_match = true;
 			break;
-		} else if (vrf_master_ifindex_rcu(nh->nh_dev) == dev->ifindex) {
+		} else if (l3mdev_master_ifindex_rcu(nh->nh_dev) == dev->ifindex) {
 			dev_match = true;
 			break;
 		}
@@ -804,7 +802,7 @@ out:
 static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifaddr *ifa)
 {
 	struct net *net = dev_net(ifa->ifa_dev->dev);
-	u32 tb_id = vrf_dev_table_rtnl(ifa->ifa_dev->dev);
+	u32 tb_id = l3mdev_fib_table(ifa->ifa_dev->dev);
 	struct fib_table *tb;
 	struct fib_config cfg = {
 		.fc_protocol = RTPROT_KERNEL,
@@ -867,9 +865,10 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 
 	if (!ipv4_is_zeronet(prefix) && !(ifa->ifa_flags & IFA_F_SECONDARY) &&
 	    (prefix != addr || ifa->ifa_prefixlen < 32)) {
-		fib_magic(RTM_NEWROUTE,
-			  dev->flags & IFF_LOOPBACK ? RTN_LOCAL : RTN_UNICAST,
-			  prefix, ifa->ifa_prefixlen, prim);
+		if (!(ifa->ifa_flags & IFA_F_NOPREFIXROUTE))
+			fib_magic(RTM_NEWROUTE,
+				  dev->flags & IFF_LOOPBACK ? RTN_LOCAL : RTN_UNICAST,
+				  prefix, ifa->ifa_prefixlen, prim);
 
 		/* Add network specific broadcasts, when it takes a sense */
 		if (ifa->ifa_prefixlen < 31) {
@@ -914,11 +913,15 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 		}
 	} else if (!ipv4_is_zeronet(any) &&
 		   (any != ifa->ifa_local || ifa->ifa_prefixlen < 32)) {
-		fib_magic(RTM_DELROUTE,
-			  dev->flags & IFF_LOOPBACK ? RTN_LOCAL : RTN_UNICAST,
-			  any, ifa->ifa_prefixlen, prim);
+		if (!(ifa->ifa_flags & IFA_F_NOPREFIXROUTE))
+			fib_magic(RTM_DELROUTE,
+				  dev->flags & IFF_LOOPBACK ? RTN_LOCAL : RTN_UNICAST,
+				  any, ifa->ifa_prefixlen, prim);
 		subnet = 1;
 	}
+
+	if (in_dev->dead)
+		goto no_promotions;
 
 	/* Deletion is more complicated than add.
 	 * We should take care of not to delete too much :-)
@@ -995,6 +998,7 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 		}
 	}
 
+no_promotions:
 	if (!(ok & BRD_OK))
 		fib_magic(RTM_DELROUTE, RTN_BROADCAST, ifa->ifa_broadcast, 32, prim);
 	if (subnet && ifa->ifa_prefixlen < 31) {
@@ -1110,9 +1114,10 @@ static void nl_fib_lookup_exit(struct net *net)
 	net->ipv4.fibnl = NULL;
 }
 
-static void fib_disable_ip(struct net_device *dev, unsigned long event)
+static void fib_disable_ip(struct net_device *dev, unsigned long event,
+			   bool force)
 {
-	if (fib_sync_down_dev(dev, event))
+	if (fib_sync_down_dev(dev, event, force))
 		fib_flush(dev_net(dev));
 	rt_cache_flush(dev_net(dev));
 	arp_ifdown(dev);
@@ -1140,7 +1145,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 			/* Last address was deleted from this interface.
 			 * Disable IP.
 			 */
-			fib_disable_ip(dev, event);
+			fib_disable_ip(dev, event, true);
 		} else {
 			rt_cache_flush(dev_net(dev));
 		}
@@ -1152,12 +1157,13 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct netdev_notifier_changeupper_info *info;
 	struct in_device *in_dev;
 	struct net *net = dev_net(dev);
 	unsigned int flags;
 
 	if (event == NETDEV_UNREGISTER) {
-		fib_disable_ip(dev, event);
+		fib_disable_ip(dev, event, true);
 		rt_flush_dev(dev);
 		return NOTIFY_DONE;
 	}
@@ -1178,17 +1184,25 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		rt_cache_flush(net);
 		break;
 	case NETDEV_DOWN:
-		fib_disable_ip(dev, event);
+		fib_disable_ip(dev, event, false);
 		break;
 	case NETDEV_CHANGE:
 		flags = dev_get_flags(dev);
 		if (flags & (IFF_RUNNING | IFF_LOWER_UP))
 			fib_sync_up(dev, RTNH_F_LINKDOWN);
 		else
-			fib_sync_down_dev(dev, event);
+			fib_sync_down_dev(dev, event, false);
 		/* fall through */
 	case NETDEV_CHANGEMTU:
 		rt_cache_flush(net);
+		break;
+	case NETDEV_CHANGEUPPER:
+		info = ptr;
+		/* flush all routes if dev is linked to or unlinked from
+		 * an L3 master device (e.g., VRF)
+		 */
+		if (info->upper_dev && netif_is_l3_master(info->upper_dev))
+			fib_disable_ip(dev, NETDEV_DOWN, true);
 		break;
 	}
 	return NOTIFY_DONE;

@@ -762,10 +762,10 @@ txq_put_data_tso(struct net_device *dev, struct tx_queue *txq,
 
 	if (length <= 8 && (uintptr_t)data & 0x7) {
 		/* Copy unaligned small data fragment to TSO header data area */
-		memcpy(txq->tso_hdrs + txq->tx_curr_desc * TSO_HEADER_SIZE,
+		memcpy(txq->tso_hdrs + tx_index * TSO_HEADER_SIZE,
 		       data, length);
 		desc->buf_ptr = txq->tso_hdrs_dma
-			+ txq->tx_curr_desc * TSO_HEADER_SIZE;
+			+ tx_index * TSO_HEADER_SIZE;
 	} else {
 		/* Alignment is okay, map buffer and hand off to hardware */
 		txq->tx_desc_mapping[tx_index] = DESC_DMA_MAP_SINGLE;
@@ -1618,7 +1618,6 @@ static void mv643xx_eth_get_drvinfo(struct net_device *dev,
 		sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, "platform", sizeof(drvinfo->bus_info));
-	drvinfo->n_stats = ARRAY_SIZE(mv643xx_eth_stats);
 }
 
 static int mv643xx_eth_nway_reset(struct net_device *dev)
@@ -1877,29 +1876,19 @@ static void mv643xx_eth_program_multicast_filter(struct net_device *dev)
 	struct netdev_hw_addr *ha;
 	int i;
 
-	if (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) {
-		int port_num;
-		u32 accept;
+	if (dev->flags & (IFF_PROMISC | IFF_ALLMULTI))
+		goto promiscuous;
 
-oom:
-		port_num = mp->port_num;
-		accept = 0x01010101;
-		for (i = 0; i < 0x100; i += 4) {
-			wrl(mp, SPECIAL_MCAST_TABLE(port_num) + i, accept);
-			wrl(mp, OTHER_MCAST_TABLE(port_num) + i, accept);
-		}
-		return;
-	}
-
-	mc_spec = kzalloc(0x200, GFP_ATOMIC);
-	if (mc_spec == NULL)
-		goto oom;
-	mc_other = mc_spec + (0x100 >> 2);
+	/* Allocate both mc_spec and mc_other tables */
+	mc_spec = kcalloc(128, sizeof(u32), GFP_ATOMIC);
+	if (!mc_spec)
+		goto promiscuous;
+	mc_other = &mc_spec[64];
 
 	netdev_for_each_mc_addr(ha, dev) {
 		u8 *a = ha->addr;
 		u32 *table;
-		int entry;
+		u8 entry;
 
 		if (memcmp(a, "\x01\x00\x5e\x00\x00", 5) == 0) {
 			table = mc_spec;
@@ -1912,12 +1901,23 @@ oom:
 		table[entry >> 2] |= 1 << (8 * (entry & 3));
 	}
 
-	for (i = 0; i < 0x100; i += 4) {
-		wrl(mp, SPECIAL_MCAST_TABLE(mp->port_num) + i, mc_spec[i >> 2]);
-		wrl(mp, OTHER_MCAST_TABLE(mp->port_num) + i, mc_other[i >> 2]);
+	for (i = 0; i < 64; i++) {
+		wrl(mp, SPECIAL_MCAST_TABLE(mp->port_num) + i * sizeof(u32),
+		    mc_spec[i]);
+		wrl(mp, OTHER_MCAST_TABLE(mp->port_num) + i * sizeof(u32),
+		    mc_other[i]);
 	}
 
 	kfree(mc_spec);
+	return;
+
+promiscuous:
+	for (i = 0; i < 64; i++) {
+		wrl(mp, SPECIAL_MCAST_TABLE(mp->port_num) + i * sizeof(u32),
+		    0x01010101u);
+		wrl(mp, OTHER_MCAST_TABLE(mp->port_num) + i * sizeof(u32),
+		    0x01010101u);
+	}
 }
 
 static void mv643xx_eth_set_rx_mode(struct net_device *dev)
@@ -3133,7 +3133,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		if (!mp->phy)
 			err = -ENODEV;
 		else
-			phy_addr_set(mp, mp->phy->addr);
+			phy_addr_set(mp, mp->phy->mdio.addr);
 	} else if (pd->phy_addr != MV643XX_ETH_PHY_NONE) {
 		mp->phy = phy_scan(mp, pd->phy_addr);
 
@@ -3257,25 +3257,20 @@ static struct platform_driver mv643xx_eth_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&mv643xx_eth_shared_driver,
+	&mv643xx_eth_driver,
+};
+
 static int __init mv643xx_eth_init_module(void)
 {
-	int rc;
-
-	rc = platform_driver_register(&mv643xx_eth_shared_driver);
-	if (!rc) {
-		rc = platform_driver_register(&mv643xx_eth_driver);
-		if (rc)
-			platform_driver_unregister(&mv643xx_eth_shared_driver);
-	}
-
-	return rc;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_init(mv643xx_eth_init_module);
 
 static void __exit mv643xx_eth_cleanup_module(void)
 {
-	platform_driver_unregister(&mv643xx_eth_driver);
-	platform_driver_unregister(&mv643xx_eth_shared_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_exit(mv643xx_eth_cleanup_module);
 

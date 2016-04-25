@@ -372,6 +372,7 @@ int aac_sa_init(struct aac_dev *dev)
 	dev->a_ops.adapter_sync_cmd = sa_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_sa_check_health;
 	dev->a_ops.adapter_restart = aac_sa_restart_adapter;
+	dev->a_ops.adapter_start = aac_sa_start_adapter;
 	dev->a_ops.adapter_intr = aac_sa_intr;
 	dev->a_ops.adapter_deliver = aac_rx_deliver_producer;
 	dev->a_ops.adapter_ioremap = aac_sa_ioremap;

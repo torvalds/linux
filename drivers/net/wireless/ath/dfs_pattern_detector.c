@@ -21,12 +21,6 @@
 #include "dfs_pri_detector.h"
 #include "ath.h"
 
-/*
- * tolerated deviation of radar time stamp in usecs on both sides
- * TODO: this might need to be HW-dependent
- */
-#define PRI_TOLERANCE	16
-
 /**
  * struct radar_types - contains array of patterns defined for one DFS domain
  * @domain: DFS regulatory domain
@@ -121,7 +115,7 @@ static const struct radar_detector_specs jp_radar_ref_types[] = {
 	JP_PATTERN(4, 0, 5, 150, 230, 1, 23, 50, false),
 	JP_PATTERN(5, 6, 10, 200, 500, 1, 16, 50, false),
 	JP_PATTERN(6, 11, 20, 200, 500, 1, 12, 50, false),
-	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 20, 50, false),
+	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 3, 50, false),
 	JP_PATTERN(5, 0, 1, 333, 333, 1, 9, 50, false),
 };
 
@@ -290,10 +284,10 @@ dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
 	if (cd == NULL)
 		return false;
 
-	dpd->last_pulse_ts = event->ts;
 	/* reset detector on time stamp wraparound, caused by TSF reset */
 	if (event->ts < dpd->last_pulse_ts)
 		dpd_reset(dpd);
+	dpd->last_pulse_ts = event->ts;
 
 	/* do type individual pattern matching */
 	for (i = 0; i < dpd->num_radar_types; i++) {

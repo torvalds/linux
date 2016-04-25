@@ -1,30 +1,11 @@
 #ifndef _PARISC_DMA_MAPPING_H
 #define _PARISC_DMA_MAPPING_H
 
-#include <linux/mm.h>
-#include <linux/scatterlist.h>
 #include <asm/cacheflush.h>
 
-/* See Documentation/DMA-API-HOWTO.txt */
-struct hppa_dma_ops {
-	int  (*dma_supported)(struct device *dev, u64 mask);
-	void *(*alloc_consistent)(struct device *dev, size_t size, dma_addr_t *iova, gfp_t flag);
-	void *(*alloc_noncoherent)(struct device *dev, size_t size, dma_addr_t *iova, gfp_t flag);
-	void (*free_consistent)(struct device *dev, size_t size, void *vaddr, dma_addr_t iova);
-	dma_addr_t (*map_single)(struct device *dev, void *addr, size_t size, enum dma_data_direction direction);
-	void (*unmap_single)(struct device *dev, dma_addr_t iova, size_t size, enum dma_data_direction direction);
-	int  (*map_sg)(struct device *dev, struct scatterlist *sg, int nents, enum dma_data_direction direction);
-	void (*unmap_sg)(struct device *dev, struct scatterlist *sg, int nhwents, enum dma_data_direction direction);
-	void (*dma_sync_single_for_cpu)(struct device *dev, dma_addr_t iova, unsigned long offset, size_t size, enum dma_data_direction direction);
-	void (*dma_sync_single_for_device)(struct device *dev, dma_addr_t iova, unsigned long offset, size_t size, enum dma_data_direction direction);
-	void (*dma_sync_sg_for_cpu)(struct device *dev, struct scatterlist *sg, int nelems, enum dma_data_direction direction);
-	void (*dma_sync_sg_for_device)(struct device *dev, struct scatterlist *sg, int nelems, enum dma_data_direction direction);
-};
-
 /*
-** We could live without the hppa_dma_ops indirection if we didn't want
-** to support 4 different coherent dma models with one binary (they will
-** someday be loadable modules):
+** We need to support 4 different coherent dma models with one binary:
+**
 **     I/O MMU        consistent method           dma_sync behavior
 **  =============   ======================       =======================
 **  a) PA-7x00LC    uncachable host memory          flush/purge
@@ -40,158 +21,22 @@ struct hppa_dma_ops {
 */
 
 #ifdef CONFIG_PA11
-extern struct hppa_dma_ops pcxl_dma_ops;
-extern struct hppa_dma_ops pcx_dma_ops;
+extern struct dma_map_ops pcxl_dma_ops;
+extern struct dma_map_ops pcx_dma_ops;
 #endif
 
-extern struct hppa_dma_ops *hppa_dma_ops;
+extern struct dma_map_ops *hppa_dma_ops;
 
-#define dma_alloc_attrs(d, s, h, f, a) dma_alloc_coherent(d, s, h, f)
-#define dma_free_attrs(d, s, h, f, a) dma_free_coherent(d, s, h, f)
-
-static inline void *
-dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		   gfp_t flag)
+static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 {
-	return hppa_dma_ops->alloc_consistent(dev, size, dma_handle, flag);
-}
-
-static inline void *
-dma_alloc_noncoherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		      gfp_t flag)
-{
-	return hppa_dma_ops->alloc_noncoherent(dev, size, dma_handle, flag);
-}
-
-static inline void
-dma_free_coherent(struct device *dev, size_t size, 
-		    void *vaddr, dma_addr_t dma_handle)
-{
-	hppa_dma_ops->free_consistent(dev, size, vaddr, dma_handle);
-}
-
-static inline void
-dma_free_noncoherent(struct device *dev, size_t size, 
-		    void *vaddr, dma_addr_t dma_handle)
-{
-	hppa_dma_ops->free_consistent(dev, size, vaddr, dma_handle);
-}
-
-static inline dma_addr_t
-dma_map_single(struct device *dev, void *ptr, size_t size,
-	       enum dma_data_direction direction)
-{
-	return hppa_dma_ops->map_single(dev, ptr, size, direction);
-}
-
-static inline void
-dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
-		 enum dma_data_direction direction)
-{
-	hppa_dma_ops->unmap_single(dev, dma_addr, size, direction);
-}
-
-static inline int
-dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
-	   enum dma_data_direction direction)
-{
-	return hppa_dma_ops->map_sg(dev, sg, nents, direction);
-}
-
-static inline void
-dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
-	     enum dma_data_direction direction)
-{
-	hppa_dma_ops->unmap_sg(dev, sg, nhwentries, direction);
-}
-
-static inline dma_addr_t
-dma_map_page(struct device *dev, struct page *page, unsigned long offset,
-	     size_t size, enum dma_data_direction direction)
-{
-	return dma_map_single(dev, (page_address(page) + (offset)), size, direction);
-}
-
-static inline void
-dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
-	       enum dma_data_direction direction)
-{
-	dma_unmap_single(dev, dma_address, size, direction);
-}
-
-
-static inline void
-dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle, size_t size,
-		enum dma_data_direction direction)
-{
-	if(hppa_dma_ops->dma_sync_single_for_cpu)
-		hppa_dma_ops->dma_sync_single_for_cpu(dev, dma_handle, 0, size, direction);
-}
-
-static inline void
-dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle, size_t size,
-		enum dma_data_direction direction)
-{
-	if(hppa_dma_ops->dma_sync_single_for_device)
-		hppa_dma_ops->dma_sync_single_for_device(dev, dma_handle, 0, size, direction);
-}
-
-static inline void
-dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t dma_handle,
-		      unsigned long offset, size_t size,
-		      enum dma_data_direction direction)
-{
-	if(hppa_dma_ops->dma_sync_single_for_cpu)
-		hppa_dma_ops->dma_sync_single_for_cpu(dev, dma_handle, offset, size, direction);
-}
-
-static inline void
-dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_handle,
-		      unsigned long offset, size_t size,
-		      enum dma_data_direction direction)
-{
-	if(hppa_dma_ops->dma_sync_single_for_device)
-		hppa_dma_ops->dma_sync_single_for_device(dev, dma_handle, offset, size, direction);
-}
-
-static inline void
-dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
-		 enum dma_data_direction direction)
-{
-	if(hppa_dma_ops->dma_sync_sg_for_cpu)
-		hppa_dma_ops->dma_sync_sg_for_cpu(dev, sg, nelems, direction);
-}
-
-static inline void
-dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
-		 enum dma_data_direction direction)
-{
-	if(hppa_dma_ops->dma_sync_sg_for_device)
-		hppa_dma_ops->dma_sync_sg_for_device(dev, sg, nelems, direction);
-}
-
-static inline int
-dma_supported(struct device *dev, u64 mask)
-{
-	return hppa_dma_ops->dma_supported(dev, mask);
-}
-
-static inline int
-dma_set_mask(struct device *dev, u64 mask)
-{
-	if(!dev->dma_mask || !dma_supported(dev, mask))
-		return -EIO;
-
-	*dev->dma_mask = mask;
-
-	return 0;
+	return hppa_dma_ops;
 }
 
 static inline void
 dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction)
 {
-	if(hppa_dma_ops->dma_sync_single_for_cpu)
+	if (hppa_dma_ops->sync_single_for_cpu)
 		flush_kernel_dcache_range((unsigned long)vaddr, size);
 }
 
@@ -237,23 +82,5 @@ int ccio_allocate_resource(const struct parisc_device *dev,
 struct parisc_device;
 void * sba_get_iommu(struct parisc_device *dev);
 #endif
-
-/* At the moment, we panic on error for IOMMU resource exaustion */
-#define dma_mapping_error(dev, x)	0
-
-/* This API cannot be supported on PA-RISC */
-static inline int dma_mmap_coherent(struct device *dev,
-				    struct vm_area_struct *vma, void *cpu_addr,
-				    dma_addr_t dma_addr, size_t size)
-{
-	return -EINVAL;
-}
-
-static inline int dma_get_sgtable(struct device *dev, struct sg_table *sgt,
-				  void *cpu_addr, dma_addr_t dma_addr,
-				  size_t size)
-{
-	return -EINVAL;
-}
 
 #endif

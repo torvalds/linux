@@ -1,5 +1,5 @@
 /*
- * Read-Copy Update tracing for classic implementation
+ * Read-Copy Update tracing for hierarchical implementation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright IBM Corporation, 2008
+ * Author: Paul E. McKenney
  *
  * Papers:  http://www.rdrop.com/users/paulmck/RCU
  *
@@ -33,9 +34,7 @@
 #include <linux/sched.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
-#include <linux/module.h>
 #include <linux/completion.h>
-#include <linux/moduleparam.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
@@ -117,13 +116,13 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 
 	if (!rdp->beenonline)
 		return;
-	seq_printf(m, "%3d%cc=%ld g=%ld pq=%d/%d qp=%d",
+	seq_printf(m, "%3d%cc=%ld g=%ld cnq=%d/%d:%d",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
 		   ulong2long(rdp->completed), ulong2long(rdp->gpnum),
-		   rdp->passed_quiesce,
+		   rdp->cpu_no_qs.b.norm,
 		   rdp->rcu_qs_ctr_snap == per_cpu(rcu_qs_ctr, rdp->cpu),
-		   rdp->qs_pending);
+		   rdp->core_needs_qs);
 	seq_printf(m, " dt=%d/%llx/%d df=%lu",
 		   atomic_read(&rdp->dynticks->dynticks),
 		   rdp->dynticks->dynticks_nesting,
@@ -183,14 +182,20 @@ static const struct file_operations rcudata_fops = {
 
 static int show_rcuexp(struct seq_file *m, void *v)
 {
+	int cpu;
 	struct rcu_state *rsp = (struct rcu_state *)m->private;
+	struct rcu_data *rdp;
+	unsigned long s0 = 0, s1 = 0, s2 = 0, s3 = 0;
 
+	for_each_possible_cpu(cpu) {
+		rdp = per_cpu_ptr(rsp->rda, cpu);
+		s0 += atomic_long_read(&rdp->expedited_workdone0);
+		s1 += atomic_long_read(&rdp->expedited_workdone1);
+		s2 += atomic_long_read(&rdp->expedited_workdone2);
+		s3 += atomic_long_read(&rdp->expedited_workdone3);
+	}
 	seq_printf(m, "s=%lu wd0=%lu wd1=%lu wd2=%lu wd3=%lu n=%lu enq=%d sc=%lu\n",
-		   rsp->expedited_sequence,
-		   atomic_long_read(&rsp->expedited_workdone0),
-		   atomic_long_read(&rsp->expedited_workdone1),
-		   atomic_long_read(&rsp->expedited_workdone2),
-		   atomic_long_read(&rsp->expedited_workdone3),
+		   rsp->expedited_sequence, s0, s1, s2, s3,
 		   atomic_long_read(&rsp->expedited_normal),
 		   atomic_read(&rsp->expedited_need_qs),
 		   rsp->expedited_sequence / 2);
@@ -268,7 +273,7 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 	gpnum = rsp->gpnum;
 	seq_printf(m, "c=%ld g=%ld s=%d jfq=%ld j=%x ",
 		   ulong2long(rsp->completed), ulong2long(gpnum),
-		   rsp->fqs_state,
+		   rsp->gp_state,
 		   (long)(rsp->jiffies_force_qs - jiffies),
 		   (int)(jiffies & 0xffff));
 	seq_printf(m, "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld/%ld\n",
@@ -319,7 +324,7 @@ static void show_one_rcugp(struct seq_file *m, struct rcu_state *rsp)
 	unsigned long gpmax;
 	struct rcu_node *rnp = &rsp->node[0];
 
-	raw_spin_lock_irqsave(&rnp->lock, flags);
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	completed = READ_ONCE(rsp->completed);
 	gpnum = READ_ONCE(rsp->gpnum);
 	if (completed == gpnum)
@@ -361,7 +366,7 @@ static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
 		   rdp->n_rcu_pending);
 	seq_printf(m, "qsp=%ld rpq=%ld cbr=%ld cng=%ld ",
-		   rdp->n_rp_qs_pending,
+		   rdp->n_rp_core_needs_qs,
 		   rdp->n_rp_report_qs,
 		   rdp->n_rp_cb_ready,
 		   rdp->n_rp_cpu_needs_gp);
@@ -487,16 +492,4 @@ free_out:
 	debugfs_remove_recursive(rcudir);
 	return 1;
 }
-
-static void __exit rcutree_trace_cleanup(void)
-{
-	debugfs_remove_recursive(rcudir);
-}
-
-
-module_init(rcutree_trace_init);
-module_exit(rcutree_trace_cleanup);
-
-MODULE_AUTHOR("Paul E. McKenney");
-MODULE_DESCRIPTION("Read-Copy Update tracing for hierarchical implementation");
-MODULE_LICENSE("GPL");
+device_initcall(rcutree_trace_init);

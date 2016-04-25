@@ -1227,7 +1227,7 @@ unsigned int update_basic_rate(unsigned char *ptn, unsigned int ptn_sz)
 	unsigned int i, num_of_rate;
 	unsigned int mask = 0;
 
-	num_of_rate = (ptn_sz > NumRates) ? NumRates : ptn_sz;
+	num_of_rate = min_t(unsigned int, ptn_sz, NumRates);
 
 	for (i = 0; i < num_of_rate; i++) {
 		if ((*(ptn + i)) & 0x80)
@@ -1241,7 +1241,7 @@ unsigned int update_supported_rate(unsigned char *ptn, unsigned int ptn_sz)
 	unsigned int i, num_of_rate;
 	unsigned int mask = 0;
 
-	num_of_rate = (ptn_sz > NumRates) ? NumRates : ptn_sz;
+	num_of_rate = min_t(unsigned int, ptn_sz, NumRates);
 
 	for (i = 0; i < num_of_rate; i++)
 		mask |= 0x1 << wifirate2_ratetbl_inx(*(ptn + i));
@@ -1374,7 +1374,7 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 				epigram_vendor_flag = 1;
 				if (ralink_vendor_flag) {
 					DBG_88E("link to Tenda W311R AP\n");
-					 return HT_IOT_PEER_TENDA;
+					return HT_IOT_PEER_TENDA;
 				} else {
 					DBG_88E("Capture EPIGRAM_OUI\n");
 				}
@@ -1414,13 +1414,15 @@ void update_IOT_info(struct adapter *padapter)
 		pmlmeinfo->turboMode_cts2self = 0;
 		pmlmeinfo->turboMode_rtsen = 1;
 		/* disable high power */
-		Switch_DM_Func(padapter, (~DYNAMIC_BB_DYNAMIC_TXPWR), false);
+		Switch_DM_Func(padapter, (u32)(~DYNAMIC_BB_DYNAMIC_TXPWR),
+			       false);
 		break;
 	case HT_IOT_PEER_REALTEK:
 		/* rtw_write16(padapter, 0x4cc, 0xffff); */
 		/* rtw_write16(padapter, 0x546, 0x01c0); */
 		/* disable high power */
-		Switch_DM_Func(padapter, (~DYNAMIC_BB_DYNAMIC_TXPWR), false);
+		Switch_DM_Func(padapter, (u32)(~DYNAMIC_BB_DYNAMIC_TXPWR),
+			       false);
 		break;
 	default:
 		pmlmeinfo->turboMode_cts2self = 0;
@@ -1577,7 +1579,8 @@ void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr)
 		tid = (param>>2)&0x0f;
 		preorder_ctrl = &psta->recvreorder_ctrl[tid];
 		preorder_ctrl->indicate_seq = 0xffff;
-		preorder_ctrl->enable = (pmlmeinfo->bAcceptAddbaReq) ? true : false;
+		preorder_ctrl->enable = (pmlmeinfo->accept_addba_req) ? true
+								      : false;
 	}
 }
 

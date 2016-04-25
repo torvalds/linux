@@ -1219,7 +1219,7 @@ static struct ac97_pcm atiixp_pcm_defs[] = {
 	},
 };
 
-static struct atiixp_dma_ops snd_atiixp_playback_dma_ops = {
+static const struct atiixp_dma_ops snd_atiixp_playback_dma_ops = {
 	.type = ATI_DMA_PLAYBACK,
 	.llp_offset = ATI_REG_OUT_DMA_LINKPTR,
 	.dt_cur = ATI_REG_OUT_DMA_DT_CUR,
@@ -1228,7 +1228,7 @@ static struct atiixp_dma_ops snd_atiixp_playback_dma_ops = {
 	.flush_dma = atiixp_out_flush_dma,
 };
 	
-static struct atiixp_dma_ops snd_atiixp_capture_dma_ops = {
+static const struct atiixp_dma_ops snd_atiixp_capture_dma_ops = {
 	.type = ATI_DMA_CAPTURE,
 	.llp_offset = ATI_REG_IN_DMA_LINKPTR,
 	.dt_cur = ATI_REG_IN_DMA_DT_CUR,
@@ -1237,7 +1237,7 @@ static struct atiixp_dma_ops snd_atiixp_capture_dma_ops = {
 	.flush_dma = atiixp_in_flush_dma,
 };
 	
-static struct atiixp_dma_ops snd_atiixp_spdif_dma_ops = {
+static const struct atiixp_dma_ops snd_atiixp_spdif_dma_ops = {
 	.type = ATI_DMA_SPDIF,
 	.llp_offset = ATI_REG_SPDF_DMA_LINKPTR,
 	.dt_cur = ATI_REG_SPDF_DMA_DT_CUR,

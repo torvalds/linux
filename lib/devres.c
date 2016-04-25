@@ -236,7 +236,7 @@ struct pcim_iomap_devres {
 
 static void pcim_iomap_release(struct device *gendev, void *res)
 {
-	struct pci_dev *dev = container_of(gendev, struct pci_dev, dev);
+	struct pci_dev *dev = to_pci_dev(gendev);
 	struct pcim_iomap_devres *this = res;
 	int i;
 
@@ -418,7 +418,7 @@ void pcim_iounmap_regions(struct pci_dev *pdev, int mask)
 	if (!iomap)
 		return;
 
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+	for (i = 0; i < PCIM_IOMAP_MAX; i++) {
 		if (!(mask & (1 << i)))
 			continue;
 

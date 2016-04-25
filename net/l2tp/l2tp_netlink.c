@@ -124,8 +124,13 @@ static int l2tp_tunnel_notify(struct genl_family *family,
 	ret = l2tp_nl_tunnel_send(msg, info->snd_portid, info->snd_seq,
 				  NLM_F_ACK, tunnel, cmd);
 
-	if (ret >= 0)
-		return genlmsg_multicast_allns(family, msg, 0,	0, GFP_ATOMIC);
+	if (ret >= 0) {
+		ret = genlmsg_multicast_allns(family, msg, 0, 0, GFP_ATOMIC);
+		/* We don't care if no one is listening */
+		if (ret == -ESRCH)
+			ret = 0;
+		return ret;
+	}
 
 	nlmsg_free(msg);
 
@@ -147,8 +152,13 @@ static int l2tp_session_notify(struct genl_family *family,
 	ret = l2tp_nl_session_send(msg, info->snd_portid, info->snd_seq,
 				   NLM_F_ACK, session, cmd);
 
-	if (ret >= 0)
-		return genlmsg_multicast_allns(family, msg, 0,	0, GFP_ATOMIC);
+	if (ret >= 0) {
+		ret = genlmsg_multicast_allns(family, msg, 0, 0, GFP_ATOMIC);
+		/* We don't care if no one is listening */
+		if (ret == -ESRCH)
+			ret = 0;
+		return ret;
+	}
 
 	nlmsg_free(msg);
 
@@ -576,6 +586,13 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 	if (info->attrs[L2TP_ATTR_MRU])
 		cfg.mru = nla_get_u16(info->attrs[L2TP_ATTR_MRU]);
 
+#ifdef CONFIG_MODULES
+	if (l2tp_nl_cmd_ops[cfg.pw_type] == NULL) {
+		genl_unlock();
+		request_module("net-l2tp-type-%u", cfg.pw_type);
+		genl_lock();
+	}
+#endif
 	if ((l2tp_nl_cmd_ops[cfg.pw_type] == NULL) ||
 	    (l2tp_nl_cmd_ops[cfg.pw_type]->session_create == NULL)) {
 		ret = -EPROTONOSUPPORT;

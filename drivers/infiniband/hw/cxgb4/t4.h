@@ -455,8 +455,7 @@ static inline void pio_copy(u64 __iomem *dst, u64 *src)
 	}
 }
 
-static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t5,
-				 union t4_wr *wqe)
+static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, union t4_wr *wqe)
 {
 
 	/* Flush host queue memory writes. */
@@ -482,7 +481,7 @@ static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t5,
 	writel(QID_V(wq->sq.qid) | PIDX_V(inc), wq->db);
 }
 
-static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc, u8 t5,
+static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc,
 				 union t4_recv_wr *wqe)
 {
 
@@ -700,4 +699,11 @@ static inline void t4_set_cq_in_error(struct t4_cq *cq)
 
 struct t4_dev_status_page {
 	u8 db_off;
+	u8 pad1;
+	u16 pad2;
+	u32 pad3;
+	u64 qp_start;
+	u64 qp_size;
+	u64 cq_start;
+	u64 cq_size;
 };

@@ -47,8 +47,8 @@
 /* wacom data packet report IDs */
 #define WACOM_REPORT_PENABLED		2
 #define WACOM_REPORT_PENABLED_BT	3
-#define WACOM_REPORT_INTUOSREAD		5
-#define WACOM_REPORT_INTUOSWRITE	6
+#define WACOM_REPORT_INTUOS_ID1		5
+#define WACOM_REPORT_INTUOS_ID2		6
 #define WACOM_REPORT_INTUOSPAD		12
 #define WACOM_REPORT_INTUOS5PAD		3
 #define WACOM_REPORT_DTUSPAD		21
@@ -68,7 +68,9 @@
 #define WACOM_REPORT_BPAD_PEN		3
 #define WACOM_REPORT_BPAD_TOUCH		16
 #define WACOM_REPORT_DEVICE_LIST	16
+#define WACOM_REPORT_INTUOS_PEN		16
 #define WACOM_REPORT_REMOTE		17
+#define WACOM_REPORT_INTUOSHT2_ID	8
 
 /* device quirks */
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
@@ -82,6 +84,12 @@
 #define WACOM_DEVICETYPE_WL_MONITOR     0x0008
 
 #define WACOM_VENDORDEFINED_PEN		0xff0d0001
+#define WACOM_G9_PAGE			0xff090000
+#define WACOM_G9_DIGITIZER		(WACOM_G9_PAGE | 0x02)
+#define WACOM_G9_TOUCHSCREEN		(WACOM_G9_PAGE | 0x11)
+#define WACOM_G11_PAGE			0xff110000
+#define WACOM_G11_DIGITIZER		(WACOM_G11_PAGE | 0x02)
+#define WACOM_G11_TOUCHSCREEN		(WACOM_G11_PAGE | 0x11)
 
 #define WACOM_PEN_FIELD(f)	(((f)->logical == HID_DG_STYLUS) || \
 				 ((f)->physical == HID_DG_STYLUS) || \
@@ -117,22 +125,26 @@ enum {
 	INTUOSPS,
 	INTUOSPM,
 	INTUOSPL,
-	INTUOSHT,
 	WACOM_21UX2,
 	WACOM_22HD,
 	DTK,
 	WACOM_24HD,
 	WACOM_27QHD,
 	CINTIQ_HYBRID,
+	CINTIQ_COMPANION_2,
 	CINTIQ,
 	WACOM_BEE,
 	WACOM_13HD,
 	WACOM_MO,
-	WIRELESS,
+	BAMBOO_PEN,
+	INTUOSHT,
+	INTUOSHT2,
+	BAMBOO_TOUCH,
 	BAMBOO_PT,
 	WACOM_24HDT,
 	WACOM_27QHDT,
 	BAMBOO_PAD,
+	WIRELESS,
 	REMOTE,
 	TABLETPC,   /* add new TPC below */
 	TABLETPCE,
@@ -198,6 +210,7 @@ struct hid_data {
 	int width;
 	int height;
 	int id;
+	int cc_report;
 	int cc_index;
 	int cc_value_index;
 	int num_expected;
@@ -231,6 +244,8 @@ struct wacom_wac {
 	int ps_connected;
 	u8 bt_features;
 	u8 bt_high_speed;
+	int mode_report;
+	int mode_value;
 	struct hid_data hid_data;
 };
 

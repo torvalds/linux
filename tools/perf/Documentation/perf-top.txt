@@ -160,9 +160,10 @@ Default is to monitor all CPUS.
 -g::
 	Enables call-graph (stack chain/backtrace) recording.
 
---call-graph::
+--call-graph [mode,type,min[,limit],order[,key][,branch]]::
 	Setup and enable call-graph (stack chain/backtrace) recording,
-	implies -g.
+	implies -g.  See `--call-graph` section in perf-record and
+	perf-report man pages for details.
 
 --children::
 	Accumulate callchain of children to parent entry so that then can
@@ -228,6 +229,12 @@ Default is to monitor all CPUS.
 	is enabled for all the sampling events. The sampled branch type is the same for all events.
 	The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
 	Note that this feature may not be available on all processors.
+
+--raw-trace::
+	When displaying traceevent output, do not use print fmt or plugins.
+
+--hierarchy::
+	Enable hierarchy output.
 
 INTERACTIVE PROMPTING KEYS
 --------------------------

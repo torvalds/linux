@@ -59,7 +59,7 @@ struct ds278x_info {
 	struct i2c_client	*client;
 	struct power_supply	*battery;
 	struct power_supply_desc	battery_desc;
-	struct ds278x_battery_ops  *ops;
+	const struct ds278x_battery_ops *ops;
 	struct delayed_work	bat_work;
 	int			id;
 	int                     rsns;
@@ -361,7 +361,7 @@ enum ds278x_num_id {
 	DS2786,
 };
 
-static struct ds278x_battery_ops ds278x_ops[] = {
+static const struct ds278x_battery_ops ds278x_ops[] = {
 	[DS2782] = {
 		.get_battery_current  = ds2782_get_current,
 		.get_battery_voltage  = ds2782_get_voltage,

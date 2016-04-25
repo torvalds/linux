@@ -24,7 +24,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-ctrls.h>
-#include <media/sr030pc30.h>
+#include <media/i2c/sr030pc30.h>
 
 static int debug;
 module_param(debug, int, 0644);

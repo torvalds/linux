@@ -1,4 +1,4 @@
-NVEC: An NVidia compliant Embedded Controller Protocol Implemenation
+NVEC: An NVidia compliant Embedded Controller Protocol Implementation
 
 This is an implementation of the NVEC protocol used to communicate with an
 embedded controller (EC) via I2C bus. The EC is an I2C master while the host

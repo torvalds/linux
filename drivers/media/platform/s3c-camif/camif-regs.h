@@ -13,7 +13,7 @@
 #define CAMIF_REGS_H_
 
 #include "camif-core.h"
-#include <media/s3c_camif.h>
+#include <media/drv-intf/s3c_camif.h>
 
 /*
  * The id argument indicates the processing path:

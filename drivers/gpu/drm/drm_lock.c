@@ -38,8 +38,6 @@
 #include "drm_legacy.h"
 #include "drm_internal.h"
 
-static int drm_notifier(void *priv);
-
 static int drm_lock_take(struct drm_lock_data *lock_data, unsigned int context);
 
 /**
@@ -118,14 +116,8 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 	 * really probably not the correct answer but lets us debug xkb
  	 * xserver for now */
 	if (!file_priv->is_master) {
-		sigemptyset(&dev->sigmask);
-		sigaddset(&dev->sigmask, SIGSTOP);
-		sigaddset(&dev->sigmask, SIGTSTP);
-		sigaddset(&dev->sigmask, SIGTTIN);
-		sigaddset(&dev->sigmask, SIGTTOU);
 		dev->sigdata.context = lock->context;
 		dev->sigdata.lock = master->lock.hw_lock;
-		block_all_signals(drm_notifier, dev, &dev->sigmask);
 	}
 
 	if (dev->driver->dma_quiescent && (lock->flags & _DRM_LOCK_QUIESCENT))
@@ -169,7 +161,6 @@ int drm_legacy_unlock(struct drm_device *dev, void *data, struct drm_file *file_
 		/* FIXME: Should really bail out here. */
 	}
 
-	unblock_all_signals();
 	return 0;
 }
 
@@ -284,38 +275,6 @@ int drm_legacy_lock_free(struct drm_lock_data *lock_data, unsigned int context)
 		return 1;
 	}
 	wake_up_interruptible(&lock_data->lock_queue);
-	return 0;
-}
-
-/**
- * If we get here, it means that the process has called DRM_IOCTL_LOCK
- * without calling DRM_IOCTL_UNLOCK.
- *
- * If the lock is not held, then let the signal proceed as usual.  If the lock
- * is held, then set the contended flag and keep the signal blocked.
- *
- * \param priv pointer to a drm_device structure.
- * \return one if the signal should be delivered normally, or zero if the
- * signal should be blocked.
- */
-static int drm_notifier(void *priv)
-{
-	struct drm_device *dev = priv;
-	struct drm_hw_lock *lock = dev->sigdata.lock;
-	unsigned int old, new, prev;
-
-	/* Allow signal delivery if lock isn't held */
-	if (!lock || !_DRM_LOCK_IS_HELD(lock->lock)
-	    || _DRM_LOCKING_CONTEXT(lock->lock) != dev->sigdata.context)
-		return 1;
-
-	/* Otherwise, set flag to force call to
-	   drmUnlock */
-	do {
-		old = lock->lock;
-		new = old | _DRM_LOCK_CONT;
-		prev = cmpxchg(&lock->lock, old, new);
-	} while (prev != old);
 	return 0;
 }
 

@@ -144,8 +144,9 @@ static unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
 			pipe = usb_sndbulkpipe(pusbd, 0x0d);
 			break;
 		}
-	} else
+	} else {
 	   pipe = 0;
+	}
 	return pipe;
 }
 
@@ -170,7 +171,7 @@ void r8712_usb_write_mem(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	unsigned int pipe;
 	struct _adapter *padapter = (struct _adapter *)pintfhdl->adapter;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
-	struct io_queue *pio_queue = (struct io_queue *)padapter->pio_queue;
+	struct io_queue *pio_queue = padapter->pio_queue;
 	struct dvobj_priv *pdvobj = (struct dvobj_priv *)pintfpriv->intf_dev;
 	struct usb_device *pusbd = pdvobj->pusbdev;
 	struct urb *piorw_urb = pintfpriv->piorw_urb;
@@ -231,9 +232,14 @@ static void r8712_usb_read_port_complete(struct urb *purb)
 		case -EPIPE:
 		case -ENODEV:
 		case -ESHUTDOWN:
-		case -ENOENT:
 			padapter->bDriverStopped = true;
 			break;
+		case -ENOENT:
+			if (!padapter->bSuspended) {
+				padapter->bDriverStopped = true;
+				break;
+			}
+			/* Fall through. */
 		case -EPROTO:
 			precvbuf->reuse = true;
 			r8712_read_port(padapter, precvpriv->ff_hwaddr, 0,
@@ -259,16 +265,16 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 	struct recv_buf	*precvbuf = (struct recv_buf *)rmem;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
 	struct dvobj_priv *pdvobj = (struct dvobj_priv *)pintfpriv->intf_dev;
-	struct _adapter *adapter = (struct _adapter *)pdvobj->padapter;
+	struct _adapter *adapter = pdvobj->padapter;
 	struct recv_priv *precvpriv = &adapter->recvpriv;
 	struct usb_device *pusbd = pdvobj->pusbdev;
 
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
 	    adapter->pwrctrlpriv.pnp_bstop_trx)
 		return _FAIL;
-	if (!precvbuf->reuse == false || !precvbuf->pskb) {
+	if (precvbuf->reuse || !precvbuf->pskb) {
 		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
-		if (NULL != precvbuf->pskb)
+		if (precvbuf->pskb != NULL)
 			precvbuf->reuse = true;
 	}
 	if (precvbuf != NULL) {
@@ -280,7 +286,7 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 			if (!precvbuf->pskb)
 				return _FAIL;
 			tmpaddr = (addr_t)precvbuf->pskb->data;
-			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
+			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
 			skb_reserve(precvbuf->pskb,
 				    (RECVBUFF_ALIGN_SZ - alignment));
 			precvbuf->phead = precvbuf->pskb->head;
@@ -306,8 +312,9 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 		err = usb_submit_urb(purb, GFP_ATOMIC);
 		if ((err) && (err != (-EPERM)))
 			ret = _FAIL;
-	} else
+	} else {
 		ret = _FAIL;
+	}
 	return ret;
 }
 
@@ -327,16 +334,16 @@ void r8712_usb_read_port_cancel(struct _adapter *padapter)
 void r8712_xmit_bh(void *priv)
 {
 	int ret = false;
-	struct _adapter *padapter = (struct _adapter *)priv;
+	struct _adapter *padapter = priv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	if ((padapter->bDriverStopped == true) ||
-	    (padapter->bSurpriseRemoved == true)) {
+	if (padapter->bDriverStopped ||
+	    padapter->bSurpriseRemoved) {
 		netdev_err(padapter->pnetdev, "xmit_bh => bDriverStopped or bSurpriseRemoved\n");
 		return;
 	}
 	ret = r8712_xmitframe_complete(padapter, pxmitpriv, NULL);
-	if (ret == false)
+	if (!ret)
 		return;
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
 }
@@ -400,7 +407,7 @@ u32 r8712_usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	u32 ret, bwritezero;
 	struct urb *purb = NULL;
 	struct _adapter *padapter = (struct _adapter *)pintfhdl->adapter;
-	struct dvobj_priv *pdvobj = (struct dvobj_priv   *)&padapter->dvobjpriv;
+	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct xmit_frame *pxmitframe = (struct xmit_frame *)wmem;
 	struct usb_device *pusbd = pdvobj->pusbdev;
@@ -410,7 +417,7 @@ u32 r8712_usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	    (padapter->pwrctrlpriv.pnp_bstop_trx))
 		return _FAIL;
 	for (i = 0; i < 8; i++) {
-		if (pxmitframe->bpending[i] == false) {
+		if (!pxmitframe->bpending[i]) {
 			spin_lock_irqsave(&pxmitpriv->lock, irqL);
 			pxmitpriv->txirp_cnt++;
 			pxmitframe->bpending[i]  = true;
@@ -449,7 +456,7 @@ u32 r8712_usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	}
 	/* translate DMA FIFO addr to pipehandle */
 	pipe = ffaddr2pipehdl(pdvobj, addr);
-	if (pxmitpriv->free_xmitbuf_cnt%NR_XMITBUFF == 0)
+	if (pxmitpriv->free_xmitbuf_cnt % NR_XMITBUFF == 0)
 		purb->transfer_flags  &=  (~URB_NO_INTERRUPT);
 	else
 		purb->transfer_flags  |=  URB_NO_INTERRUPT;

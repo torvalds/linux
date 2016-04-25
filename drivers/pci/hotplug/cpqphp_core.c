@@ -291,7 +291,7 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 	kfree(slot);
 }
 
-static int ctrl_slot_cleanup (struct controller *ctrl)
+static int ctrl_slot_cleanup(struct controller *ctrl)
 {
 	struct slot *old_slot, *next_slot;
 
@@ -301,7 +301,7 @@ static int ctrl_slot_cleanup (struct controller *ctrl)
 	while (old_slot) {
 		/* memory will be freed by the release_slot callback */
 		next_slot = old_slot->next;
-		pci_hp_deregister (old_slot->hotplug_slot);
+		pci_hp_deregister(old_slot->hotplug_slot);
 		old_slot = next_slot;
 	}
 
@@ -413,9 +413,9 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
 	mutex_lock(&ctrl->crit_sect);
 
 	if (status == 1)
-		amber_LED_on (ctrl, hp_slot);
+		amber_LED_on(ctrl, hp_slot);
 	else if (status == 0)
-		amber_LED_off (ctrl, hp_slot);
+		amber_LED_off(ctrl, hp_slot);
 	else {
 		/* Done with exclusive hardware access */
 		mutex_unlock(&ctrl->crit_sect);
@@ -425,7 +425,7 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
 	set_SOGO(ctrl);
 
 	/* Wait for SOBS to be unset */
-	wait_for_ctrl_irq (ctrl);
+	wait_for_ctrl_irq(ctrl);
 
 	/* Done with exclusive hardware access */
 	mutex_unlock(&ctrl->crit_sect);
@@ -439,7 +439,7 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
  * @hotplug_slot: slot to change LED on
  * @status: LED control flag
  */
-static int set_attention_status (struct hotplug_slot *hotplug_slot, u8 status)
+static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 {
 	struct pci_func *slot_func;
 	struct slot *slot = hotplug_slot->private;
@@ -610,7 +610,7 @@ static int ctrl_slot_setup(struct controller *ctrl,
 	u8 ctrl_slot;
 	u32 tempdword;
 	char name[SLOT_NAME_SIZE];
-	void __iomem *slot_entry= NULL;
+	void __iomem *slot_entry = NULL;
 	int result;
 
 	dbg("%s\n", __func__);
@@ -755,7 +755,7 @@ static int one_time_init(void)
 	if (cpqhp_debug)
 		pci_print_IRQ_route();
 
-	dbg("Initialize + Start the notification mechanism \n");
+	dbg("Initialize + Start the notification mechanism\n");
 
 	retval = cpqhp_event_start_thread();
 	if (retval)
@@ -772,7 +772,7 @@ static int one_time_init(void)
 	/* Map rom address */
 	cpqhp_rom_start = ioremap(ROM_PHY_ADDR, ROM_PHY_LEN);
 	if (!cpqhp_rom_start) {
-		err ("Could not ioremap memory region for ROM\n");
+		err("Could not ioremap memory region for ROM\n");
 		retval = -EIO;
 		goto error;
 	}
@@ -786,7 +786,7 @@ static int one_time_init(void)
 	smbios_table = detect_SMBIOS_pointer(cpqhp_rom_start,
 					cpqhp_rom_start + ROM_PHY_LEN);
 	if (!smbios_table) {
-		err ("Could not find the SMBIOS pointer in memory\n");
+		err("Could not find the SMBIOS pointer in memory\n");
 		retval = -EIO;
 		goto error_rom_start;
 	}
@@ -794,7 +794,7 @@ static int one_time_init(void)
 	smbios_start = ioremap(readl(smbios_table + ST_ADDRESS),
 					readw(smbios_table + ST_LENGTH));
 	if (!smbios_start) {
-		err ("Could not ioremap memory region taken from SMBIOS values\n");
+		err("Could not ioremap memory region taken from SMBIOS values\n");
 		retval = -EIO;
 		goto error_smbios_start;
 	}
@@ -1181,7 +1181,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * Finish setting up the hot plug ctrl device
 	 */
 	ctrl->slot_device_offset = readb(ctrl->hpc_reg + SLOT_MASK) >> 4;
-	dbg("NumSlots %d \n", ctrl->slot_device_offset);
+	dbg("NumSlots %d\n", ctrl->slot_device_offset);
 
 	ctrl->next_event = 0;
 
@@ -1198,7 +1198,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	writel(0xFFFFFFFFL, ctrl->hpc_reg + INT_MASK);
 
 	/* set up the interrupt */
-	dbg("HPC interrupt = %d \n", ctrl->interrupt);
+	dbg("HPC interrupt = %d\n", ctrl->interrupt);
 	if (request_irq(ctrl->interrupt, cpqhp_ctrl_intr,
 			IRQF_SHARED, MY_NAME, ctrl)) {
 		err("Can't get irq %d for the hotplug pci controller\n",
@@ -1321,7 +1321,7 @@ static void __exit unload_cpqphpd(void)
 	while (ctrl) {
 		if (ctrl->hpc_reg) {
 			u16 misc;
-			rc = read_slot_enable (ctrl);
+			rc = read_slot_enable(ctrl);
 
 			writeb(0, ctrl->hpc_reg + SLOT_SERR);
 			writel(0xFFFFFFC0L | ~rc, ctrl->hpc_reg + INT_MASK);
@@ -1361,7 +1361,7 @@ static void __exit unload_cpqphpd(void)
 			kfree(tres);
 		}
 
-		kfree (ctrl->pci_bus);
+		kfree(ctrl->pci_bus);
 
 		tctrl = ctrl;
 		ctrl = ctrl->next;
@@ -1446,7 +1446,7 @@ static int __init cpqhpc_init(void)
 
 	cpqhp_debug = debug;
 
-	info (DRIVER_DESC " version: " DRIVER_VERSION "\n");
+	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	cpqhp_initialize_debugfs();
 	result = pci_register_driver(&cpqhpc_driver);
 	dbg("pci_register_driver = %d\n", result);

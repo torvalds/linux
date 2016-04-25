@@ -27,7 +27,7 @@
 #define F2FS_XATTR_REFCOUNT_MAX         1024
 
 /* Name indexes */
-#define F2FS_SYSTEM_ADVISE_PREFIX		"system.advise"
+#define F2FS_SYSTEM_ADVISE_NAME			"system.advise"
 #define F2FS_XATTR_INDEX_USER			1
 #define F2FS_XATTR_INDEX_POSIX_ACL_ACCESS	2
 #define F2FS_XATTR_INDEX_POSIX_ACL_DEFAULT	3
@@ -126,7 +126,8 @@ extern ssize_t f2fs_listxattr(struct dentry *, char *, size_t);
 
 #define f2fs_xattr_handlers	NULL
 static inline int f2fs_setxattr(struct inode *inode, int index,
-		const char *name, const void *value, size_t size, int flags)
+		const char *name, const void *value, size_t size,
+		struct page *page, int flags)
 {
 	return -EOPNOTSUPP;
 }

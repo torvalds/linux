@@ -16,6 +16,8 @@ int event_attributes(void)
 {
 	struct event event, leader;
 
+	SKIP_IF(!ebb_is_supported());
+
 	event_init(&event, 0x1001e);
 	event_leader_ebb_init(&event);
 	/* Expected to succeed */

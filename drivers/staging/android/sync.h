@@ -18,63 +18,35 @@
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/wait.h>
 #include <linux/fence.h>
 
 #include "uapi/sync.h"
 
 struct sync_timeline;
-struct sync_pt;
-struct sync_fence;
+struct sync_file;
 
 /**
  * struct sync_timeline_ops - sync object implementation ops
  * @driver_name:	name of the implementation
- * @dup:		duplicate a sync_pt
  * @has_signaled:	returns:
  *			  1 if pt has signaled
  *			  0 if pt has not signaled
  *			 <0 on error
- * @compare:		returns:
- *			  1 if b will signal before a
- *			  0 if a and b will signal at the same time
- *			 -1 if a will signal before b
- * @free_pt:		called before sync_pt is freed
- * @release_obj:	called before sync_timeline is freed
- * @fill_driver_data:	write implementation specific driver data to data.
- *			  should return an error if there is not enough room
- *			  as specified by size.  This information is returned
- *			  to userspace by SYNC_IOC_FENCE_INFO.
  * @timeline_value_str: fill str with the value of the sync_timeline's counter
- * @pt_value_str:	fill str with the value of the sync_pt
+ * @fence_value_str:	fill str with the value of the fence
  */
 struct sync_timeline_ops {
 	const char *driver_name;
 
 	/* required */
-	struct sync_pt * (*dup)(struct sync_pt *pt);
-
-	/* required */
-	int (*has_signaled)(struct sync_pt *pt);
-
-	/* required */
-	int (*compare)(struct sync_pt *a, struct sync_pt *b);
-
-	/* optional */
-	void (*free_pt)(struct sync_pt *sync_pt);
-
-	/* optional */
-	void (*release_obj)(struct sync_timeline *sync_timeline);
-
-	/* optional */
-	int (*fill_driver_data)(struct sync_pt *syncpt, void *data, int size);
+	int (*has_signaled)(struct fence *fence);
 
 	/* optional */
 	void (*timeline_value_str)(struct sync_timeline *timeline, char *str,
 				   int size);
 
 	/* optional */
-	void (*pt_value_str)(struct sync_pt *pt, char *str, int size);
+	void (*fence_value_str)(struct fence *fence, char *str, int size);
 };
 
 /**
@@ -85,7 +57,7 @@ struct sync_timeline_ops {
  * @destroyed:		set when sync_timeline is destroyed
  * @child_list_head:	list of children sync_pts for this sync_timeline
  * @child_list_lock:	lock protecting @child_list_head, destroyed, and
- *			  sync_pt.status
+ *			fence.status
  * @active_list_head:	list of active (unsignaled/errored) sync_pts
  * @sync_timeline_list:	membership in global sync_timeline_list
  */
@@ -108,85 +80,43 @@ struct sync_timeline {
 #endif
 };
 
-/**
- * struct sync_pt - sync point
- * @fence:		base fence class
- * @child_list:		membership in sync_timeline.child_list_head
- * @active_list:	membership in sync_timeline.active_list_head
- * @signaled_list:	membership in temporary signaled_list on stack
- * @fence:		sync_fence to which the sync_pt belongs
- * @pt_list:		membership in sync_fence.pt_list_head
- * @status:		1: signaled, 0:active, <0: error
- * @timestamp:		time which sync_pt status transitioned from active to
- *			  signaled or error.
- */
-struct sync_pt {
-	struct fence base;
-
-	struct list_head	child_list;
-	struct list_head	active_list;
-};
-
-static inline struct sync_timeline *sync_pt_parent(struct sync_pt *pt)
+static inline struct sync_timeline *fence_parent(struct fence *fence)
 {
-	return container_of(pt->base.lock, struct sync_timeline,
+	return container_of(fence->lock, struct sync_timeline,
 			    child_list_lock);
 }
 
-struct sync_fence_cb {
+struct sync_file_cb {
 	struct fence_cb cb;
-	struct fence *sync_pt;
-	struct sync_fence *fence;
+	struct fence *fence;
+	struct sync_file *sync_file;
 };
 
 /**
- * struct sync_fence - sync fence
+ * struct sync_file - sync file to export to the userspace
  * @file:		file representing this fence
  * @kref:		reference count on fence.
- * @name:		name of sync_fence.  Useful for debugging
- * @pt_list_head:	list of sync_pts in the fence.  immutable once fence
- *			  is created
- * @status:		0: signaled, >0:active, <0: error
- *
+ * @name:		name of sync_file.  Useful for debugging
+ * @sync_file_list:	membership in global file list
+ * @num_fences		number of sync_pts in the fence
  * @wq:			wait queue for fence signaling
- * @sync_fence_list:	membership in global fence list
+ * @status:		0: signaled, >0:active, <0: error
+ * @cbs:		sync_pts callback information
  */
-struct sync_fence {
+struct sync_file {
 	struct file		*file;
 	struct kref		kref;
 	char			name[32];
 #ifdef CONFIG_DEBUG_FS
-	struct list_head	sync_fence_list;
+	struct list_head	sync_file_list;
 #endif
 	int num_fences;
 
 	wait_queue_head_t	wq;
 	atomic_t		status;
 
-	struct sync_fence_cb	cbs[];
+	struct sync_file_cb	cbs[];
 };
-
-struct sync_fence_waiter;
-typedef void (*sync_callback_t)(struct sync_fence *fence,
-				struct sync_fence_waiter *waiter);
-
-/**
- * struct sync_fence_waiter - metadata for asynchronous waiter on a fence
- * @waiter_list:	membership in sync_fence.waiter_list_head
- * @callback:		function pointer to call when fence signals
- * @callback_data:	pointer to pass to @callback
- */
-struct sync_fence_waiter {
-	wait_queue_t work;
-	sync_callback_t callback;
-};
-
-static inline void sync_fence_waiter_init(struct sync_fence_waiter *waiter,
-					  sync_callback_t callback)
-{
-	INIT_LIST_HEAD(&waiter->work.task_list);
-	waiter->callback = callback;
-}
 
 /*
  * API for sync_timeline implementers
@@ -200,7 +130,8 @@ static inline void sync_fence_waiter_init(struct sync_fence_waiter *waiter,
  *
  * Creates a new sync_timeline which will use the implementation specified by
  * @ops.  @size bytes will be allocated allowing for implementation specific
- * data to be kept after the generic sync_timeline struct.
+ * data to be kept after the generic sync_timeline struct. Returns the
+ * sync_timeline object or NULL in case of error.
  */
 struct sync_timeline *sync_timeline_create(const struct sync_timeline_ops *ops,
 					   int size, const char *name);
@@ -211,7 +142,7 @@ struct sync_timeline *sync_timeline_create(const struct sync_timeline_ops *ops,
  *
  * A sync implementation should call this when the @obj is going away
  * (i.e. module unload.)  @obj won't actually be freed until all its children
- * sync_pts are freed.
+ * fences are freed.
  */
 void sync_timeline_destroy(struct sync_timeline *obj);
 
@@ -219,138 +150,92 @@ void sync_timeline_destroy(struct sync_timeline *obj);
  * sync_timeline_signal() - signal a status change on a sync_timeline
  * @obj:	sync_timeline to signal
  *
- * A sync implementation should call this any time one of it's sync_pts
+ * A sync implementation should call this any time one of it's fences
  * has signaled or has an error condition.
  */
 void sync_timeline_signal(struct sync_timeline *obj);
 
 /**
  * sync_pt_create() - creates a sync pt
- * @parent:	sync_pt's parent sync_timeline
+ * @parent:	fence's parent sync_timeline
  * @size:	size to allocate for this pt
  *
- * Creates a new sync_pt as a child of @parent.  @size bytes will be
+ * Creates a new fence as a child of @parent.  @size bytes will be
  * allocated allowing for implementation specific data to be kept after
- * the generic sync_timeline struct.
+ * the generic sync_timeline struct. Returns the fence object or
+ * NULL in case of error.
  */
-struct sync_pt *sync_pt_create(struct sync_timeline *parent, int size);
-
-/**
- * sync_pt_free() - frees a sync pt
- * @pt:		sync_pt to free
- *
- * This should only be called on sync_pts which have been created but
- * not added to a fence.
- */
-void sync_pt_free(struct sync_pt *pt);
+struct fence *sync_pt_create(struct sync_timeline *parent, int size);
 
 /**
  * sync_fence_create() - creates a sync fence
  * @name:	name of fence to create
- * @pt:		sync_pt to add to the fence
+ * @fence:	fence to add to the sync_fence
  *
- * Creates a fence containg @pt.  Once this is called, the fence takes
- * ownership of @pt.
+ * Creates a sync_file containg @fence. Once this is called, the sync_file
+ * takes ownership of @fence.
  */
-struct sync_fence *sync_fence_create(const char *name, struct sync_pt *pt);
+struct sync_file *sync_file_create(const char *name, struct fence *fence);
 
 /*
- * API for sync_fence consumers
+ * API for sync_file consumers
  */
 
 /**
- * sync_fence_merge() - merge two fences
+ * sync_file_merge() - merge two sync_files
  * @name:	name of new fence
- * @a:		fence a
- * @b:		fence b
+ * @a:		sync_file a
+ * @b:		sync_file b
  *
- * Creates a new fence which contains copies of all the sync_pts in both
- * @a and @b.  @a and @b remain valid, independent fences.
+ * Creates a new sync_file which contains copies of all the fences in both
+ * @a and @b.  @a and @b remain valid, independent sync_file. Returns the
+ * new merged sync_file or NULL in case of error.
  */
-struct sync_fence *sync_fence_merge(const char *name,
-				    struct sync_fence *a, struct sync_fence *b);
+struct sync_file *sync_file_merge(const char *name,
+				    struct sync_file *a, struct sync_file *b);
 
 /**
- * sync_fence_fdget() - get a fence from an fd
+ * sync_file_fdget() - get a sync_file from an fd
  * @fd:		fd referencing a fence
  *
- * Ensures @fd references a valid fence, increments the refcount of the backing
- * file, and returns the fence.
+ * Ensures @fd references a valid sync_file, increments the refcount of the
+ * backing file. Returns the sync_file or NULL in case of error.
  */
-struct sync_fence *sync_fence_fdget(int fd);
+struct sync_file *sync_file_fdget(int fd);
 
 /**
- * sync_fence_put() - puts a reference of a sync fence
- * @fence:	fence to put
+ * sync_file_put() - puts a reference of a sync_file
+ * @sync_file:	sync_file to put
  *
- * Puts a reference on @fence.  If this is the last reference, the fence and
- * all it's sync_pts will be freed
+ * Puts a reference on @sync_fence.  If this is the last reference, the
+ * sync_fil and all it's sync_pts will be freed
  */
-void sync_fence_put(struct sync_fence *fence);
+void sync_file_put(struct sync_file *sync_file);
 
 /**
- * sync_fence_install() - installs a fence into a file descriptor
- * @fence:	fence to install
+ * sync_file_install() - installs a sync_file into a file descriptor
+ * @sync_file:	sync_file to install
  * @fd:		file descriptor in which to install the fence
  *
- * Installs @fence into @fd.  @fd's should be acquired through
+ * Installs @sync_file into @fd.  @fd's should be acquired through
  * get_unused_fd_flags(O_CLOEXEC).
  */
-void sync_fence_install(struct sync_fence *fence, int fd);
-
-/**
- * sync_fence_wait_async() - registers and async wait on the fence
- * @fence:		fence to wait on
- * @waiter:		waiter callback struck
- *
- * Returns 1 if @fence has already signaled.
- *
- * Registers a callback to be called when @fence signals or has an error.
- * @waiter should be initialized with sync_fence_waiter_init().
- */
-int sync_fence_wait_async(struct sync_fence *fence,
-			  struct sync_fence_waiter *waiter);
-
-/**
- * sync_fence_cancel_async() - cancels an async wait
- * @fence:		fence to wait on
- * @waiter:		waiter callback struck
- *
- * returns 0 if waiter was removed from fence's async waiter list.
- * returns -ENOENT if waiter was not found on fence's async waiter list.
- *
- * Cancels a previously registered async wait.  Will fail gracefully if
- * @waiter was never registered or if @fence has already signaled @waiter.
- */
-int sync_fence_cancel_async(struct sync_fence *fence,
-			    struct sync_fence_waiter *waiter);
-
-/**
- * sync_fence_wait() - wait on fence
- * @fence:	fence to wait on
- * @tiemout:	timeout in ms
- *
- * Wait for @fence to be signaled or have an error.  Waits indefinitely
- * if @timeout < 0
- */
-int sync_fence_wait(struct sync_fence *fence, long timeout);
+void sync_file_install(struct sync_file *sync_file, int fd);
 
 #ifdef CONFIG_DEBUG_FS
 
 void sync_timeline_debug_add(struct sync_timeline *obj);
 void sync_timeline_debug_remove(struct sync_timeline *obj);
-void sync_fence_debug_add(struct sync_fence *fence);
-void sync_fence_debug_remove(struct sync_fence *fence);
+void sync_file_debug_add(struct sync_file *fence);
+void sync_file_debug_remove(struct sync_file *fence);
 void sync_dump(void);
 
 #else
 # define sync_timeline_debug_add(obj)
 # define sync_timeline_debug_remove(obj)
-# define sync_fence_debug_add(fence)
-# define sync_fence_debug_remove(fence)
+# define sync_file_debug_add(fence)
+# define sync_file_debug_remove(fence)
 # define sync_dump()
 #endif
-int sync_fence_wake_up_wq(wait_queue_t *curr, unsigned mode,
-				 int wake_flags, void *key);
 
 #endif /* _LINUX_SYNC_H */

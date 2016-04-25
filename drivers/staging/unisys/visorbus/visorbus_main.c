@@ -221,7 +221,6 @@ visorbus_release_busdevice(struct device *xdev)
 {
 	struct visor_device *dev = dev_get_drvdata(xdev);
 
-	dev_set_drvdata(xdev, NULL);
 	kfree(dev);
 }
 
@@ -701,12 +700,10 @@ DRIVER_ATTR_version(struct device_driver *xdrv, char *buf)
 static int
 register_driver_attributes(struct visor_driver *drv)
 {
-	int rc;
 	struct driver_attribute version =
 	    __ATTR(version, S_IRUGO, DRIVER_ATTR_version, NULL);
 	drv->version_attr = version;
-	rc = driver_create_file(&drv->driver, &drv->version_attr);
-	return rc;
+	return driver_create_file(&drv->driver, &drv->version_attr);
 }
 
 static void
@@ -771,7 +768,7 @@ visordriver_probe_device(struct device *xdev)
 	get_device(&dev->device);
 	if (!drv->probe) {
 		up(&dev->visordriver_callback_lock);
-		rc = -1;
+		rc = -ENODEV;
 		goto away;
 	}
 	rc = drv->probe(dev);
@@ -973,7 +970,7 @@ EXPORT_SYMBOL_GPL(visorbus_disable_channel_interrupts);
 static int
 create_visor_device(struct visor_device *dev)
 {
-	int rc = -1;
+	int rc;
 	u32 chipset_bus_no = dev->chipset_bus_no;
 	u32 chipset_dev_no = dev->chipset_dev_no;
 
@@ -995,6 +992,7 @@ create_visor_device(struct visor_device *dev)
 	if (!dev->periodic_work) {
 		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, chipset_dev_no,
 				 DIAG_SEVERITY_ERR);
+		rc = -EINVAL;
 		goto away;
 	}
 
@@ -1032,14 +1030,15 @@ create_visor_device(struct visor_device *dev)
 	if (rc < 0) {
 		POSTCODE_LINUX_3(DEVICE_REGISTER_FAILURE_PC, chipset_dev_no,
 				 DIAG_SEVERITY_ERR);
-		goto away_register;
+		goto away_unregister;
 	}
 
 	list_add_tail(&dev->list_all, &list_all_device_instances);
 	return 0;
 
-away_register:
+away_unregister:
 	device_unregister(&dev->device);
+
 away:
 	put_device(&dev->device);
 	return rc;
@@ -1058,27 +1057,26 @@ static int
 get_vbus_header_info(struct visorchannel *chan,
 		     struct spar_vbus_headerinfo *hdr_info)
 {
-	int rc = -1;
-
 	if (!SPAR_VBUS_CHANNEL_OK_CLIENT(visorchannel_get_header(chan)))
-		goto away;
+		return -EINVAL;
+
 	if (visorchannel_read(chan, sizeof(struct channel_header), hdr_info,
 			      sizeof(*hdr_info)) < 0) {
-		goto away;
+		return -EIO;
 	}
 	if (hdr_info->struct_bytes < sizeof(struct spar_vbus_headerinfo))
-		goto away;
+		return -EINVAL;
+
 	if (hdr_info->device_info_struct_bytes <
 	    sizeof(struct ultra_vbus_deviceinfo)) {
-		goto away;
+		return -EINVAL;
 	}
-	rc = 0;
-away:
-	return rc;
+	return 0;
 }
 
 /* Write the contents of <info> to the struct
- * spar_vbus_channel_protocol.chp_info. */
+ * spar_vbus_channel_protocol.chp_info.
+ */
 
 static int
 write_vbus_chp_info(struct visorchannel *chan,
@@ -1096,7 +1094,8 @@ write_vbus_chp_info(struct visorchannel *chan,
 }
 
 /* Write the contents of <info> to the struct
- * spar_vbus_channel_protocol.bus_info. */
+ * spar_vbus_channel_protocol.bus_info.
+ */
 
 static int
 write_vbus_bus_info(struct visorchannel *chan,
@@ -1195,17 +1194,14 @@ fix_vbus_dev_info(struct visor_device *visordev)
 static int
 create_bus_instance(struct visor_device *dev)
 {
-	int rc;
 	int id = dev->chipset_bus_no;
 	struct spar_vbus_headerinfo *hdr_info;
 
 	POSTCODE_LINUX_2(BUS_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 
 	hdr_info = kzalloc(sizeof(*hdr_info), GFP_KERNEL);
-	if (!hdr_info) {
-		rc = -1;
-		goto away;
-	}
+	if (!hdr_info)
+		return -ENOMEM;
 
 	dev_set_name(&dev->device, "visorbus%d", id);
 	dev->device.bus = &visorbus_type;
@@ -1215,8 +1211,8 @@ create_bus_instance(struct visor_device *dev)
 	if (device_register(&dev->device) < 0) {
 		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, id,
 				 POSTCODE_SEVERITY_ERR);
-		rc = -1;
-		goto away_mem;
+		kfree(hdr_info);
+		return -ENODEV;
 	}
 
 	if (get_vbus_header_info(dev->visorchannel, hdr_info) >= 0) {
@@ -1232,11 +1228,6 @@ create_bus_instance(struct visor_device *dev)
 	list_add_tail(&dev->list_all, &list_all_bus_instances);
 	dev_set_drvdata(&dev->device, dev);
 	return 0;
-
-away_mem:
-	kfree(hdr_info);
-away:
-	return rc;
 }
 
 /** Remove a device instance for the visor bus itself.
@@ -1326,7 +1317,7 @@ chipset_bus_destroy(struct visor_device *dev)
 static void
 chipset_device_create(struct visor_device *dev_info)
 {
-	int rc = -1;
+	int rc;
 	u32 bus_no = dev_info->chipset_bus_no;
 	u32 dev_no = dev_info->chipset_dev_no;
 
@@ -1369,8 +1360,9 @@ pause_state_change_complete(struct visor_device *dev, int status)
 		return;
 
 	/* Notify the chipset driver that the pause is complete, which
-	* will presumably want to send some sort of response to the
-	* initiator. */
+	 * will presumably want to send some sort of response to the
+	 * initiator.
+	 */
 	(*chipset_responders.device_pause) (dev, status);
 }
 
@@ -1390,7 +1382,8 @@ resume_state_change_complete(struct visor_device *dev, int status)
 
 	/* Notify the chipset driver that the resume is complete,
 	 * which will presumably want to send some sort of response to
-	 * the initiator. */
+	 * the initiator.
+	 */
 	(*chipset_responders.device_resume) (dev, status);
 }
 
@@ -1401,7 +1394,7 @@ resume_state_change_complete(struct visor_device *dev, int status)
 static void
 initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 {
-	int rc = -1, x;
+	int rc;
 	struct visor_driver *drv = NULL;
 	void (*notify_func)(struct visor_device *dev, int response) = NULL;
 
@@ -1410,14 +1403,18 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 	else
 		notify_func = chipset_responders.device_resume;
 	if (!notify_func)
-		goto away;
+		return;
 
 	drv = to_visor_driver(dev->device.driver);
-	if (!drv)
-		goto away;
+	if (!drv) {
+		(*notify_func)(dev, -ENODEV);
+		return;
+	}
 
-	if (dev->pausing || dev->resuming)
-		goto away;
+	if (dev->pausing || dev->resuming) {
+		(*notify_func)(dev, -EBUSY);
+		return;
+	}
 
 	/* Note that even though both drv->pause() and drv->resume
 	 * specify a callback function, it is NOT necessary for us to
@@ -1427,36 +1424,35 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 	 * visorbus while child function drivers are still running.
 	 */
 	if (is_pause) {
-		if (!drv->pause)
-			goto away;
+		if (!drv->pause) {
+			(*notify_func)(dev, -EINVAL);
+			return;
+		}
 
 		dev->pausing = true;
-		x = drv->pause(dev, pause_state_change_complete);
+		rc = drv->pause(dev, pause_state_change_complete);
 	} else {
 		/* This should be done at BUS resume time, but an
 		 * existing problem prevents us from ever getting a bus
 		 * resume...  This hack would fail to work should we
 		 * ever have a bus that contains NO devices, since we
-		 * would never even get here in that case. */
+		 * would never even get here in that case.
+		 */
 		fix_vbus_dev_info(dev);
-		if (!drv->resume)
-			goto away;
+		if (!drv->resume) {
+			(*notify_func)(dev, -EINVAL);
+			return;
+		}
 
 		dev->resuming = true;
-		x = drv->resume(dev, resume_state_change_complete);
+		rc = drv->resume(dev, resume_state_change_complete);
 	}
-	if (x < 0) {
+	if (rc < 0) {
 		if (is_pause)
 			dev->pausing = false;
 		else
 			dev->resuming = false;
-		goto away;
-	}
-	rc = 0;
-away:
-	if (rc < 0) {
-		if (notify_func)
-			(*notify_func)(dev, rc);
+		(*notify_func)(dev, -EINVAL);
 	}
 }
 

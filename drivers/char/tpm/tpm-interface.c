@@ -310,10 +310,12 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip,
 {
 	int duration_idx = TPM_UNDEFINED;
 	int duration = 0;
-	u8 category = (ordinal >> 24) & 0xFF;
 
-	if ((category == TPM_PROTECTED_COMMAND && ordinal < TPM_MAX_ORDINAL) ||
-	    (category == TPM_CONNECTION_COMMAND && ordinal < TSC_MAX_ORDINAL))
+	/*
+	 * We only have a duration table for protected commands, where the upper
+	 * 16 bits are 0. For the few other ordinals the fallback will be used.
+	 */
+	if (ordinal < TPM_MAX_ORDINAL)
 		duration_idx = tpm_ordinal_duration[ordinal];
 
 	if (duration_idx != TPM_UNDEFINED)
@@ -501,6 +503,21 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 	struct duration_t *duration_cap;
 	ssize_t rc;
 
+	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+		/* Fixed timeouts for TPM2 */
+		chip->vendor.timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
+		chip->vendor.timeout_b = msecs_to_jiffies(TPM2_TIMEOUT_B);
+		chip->vendor.timeout_c = msecs_to_jiffies(TPM2_TIMEOUT_C);
+		chip->vendor.timeout_d = msecs_to_jiffies(TPM2_TIMEOUT_D);
+		chip->vendor.duration[TPM_SHORT] =
+		    msecs_to_jiffies(TPM2_DURATION_SHORT);
+		chip->vendor.duration[TPM_MEDIUM] =
+		    msecs_to_jiffies(TPM2_DURATION_MEDIUM);
+		chip->vendor.duration[TPM_LONG] =
+		    msecs_to_jiffies(TPM2_DURATION_LONG);
+		return 0;
+	}
+
 	tpm_cmd.header.in = tpm_getcap_header;
 	tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;
 	tpm_cmd.params.getcap_in.subcap_size = cpu_to_be32(4);
@@ -664,6 +681,30 @@ int tpm_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
 		       TPM_DIGEST_SIZE);
 	return rc;
 }
+
+/**
+ * tpm_is_tpm2 - is the chip a TPM2 chip?
+ * @chip_num:	tpm idx # or ANY
+ *
+ * Returns < 0 on error, and 1 or 0 on success depending whether the chip
+ * is a TPM2 chip.
+ */
+int tpm_is_tpm2(u32 chip_num)
+{
+	struct tpm_chip *chip;
+	int rc;
+
+	chip = tpm_chip_find_get(chip_num);
+	if (chip == NULL)
+		return -ENODEV;
+
+	rc = (chip->flags & TPM_CHIP_FLAG_TPM2) != 0;
+
+	tpm_chip_put(chip);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_is_tpm2);
 
 /**
  * tpm_pcr_read - read a pcr value
@@ -1020,6 +1061,58 @@ int tpm_get_random(u32 chip_num, u8 *out, size_t max)
 	return total ? total : -EIO;
 }
 EXPORT_SYMBOL_GPL(tpm_get_random);
+
+/**
+ * tpm_seal_trusted() - seal a trusted key
+ * @chip_num: A specific chip number for the request or TPM_ANY_NUM
+ * @options: authentication values and other options
+ * @payload: the key data in clear and encrypted form
+ *
+ * Returns < 0 on error and 0 on success. At the moment, only TPM 2.0 chips
+ * are supported.
+ */
+int tpm_seal_trusted(u32 chip_num, struct trusted_key_payload *payload,
+		     struct trusted_key_options *options)
+{
+	struct tpm_chip *chip;
+	int rc;
+
+	chip = tpm_chip_find_get(chip_num);
+	if (chip == NULL || !(chip->flags & TPM_CHIP_FLAG_TPM2))
+		return -ENODEV;
+
+	rc = tpm2_seal_trusted(chip, payload, options);
+
+	tpm_chip_put(chip);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_seal_trusted);
+
+/**
+ * tpm_unseal_trusted() - unseal a trusted key
+ * @chip_num: A specific chip number for the request or TPM_ANY_NUM
+ * @options: authentication values and other options
+ * @payload: the key data in clear and encrypted form
+ *
+ * Returns < 0 on error and 0 on success. At the moment, only TPM 2.0 chips
+ * are supported.
+ */
+int tpm_unseal_trusted(u32 chip_num, struct trusted_key_payload *payload,
+		       struct trusted_key_options *options)
+{
+	struct tpm_chip *chip;
+	int rc;
+
+	chip = tpm_chip_find_get(chip_num);
+	if (chip == NULL || !(chip->flags & TPM_CHIP_FLAG_TPM2))
+		return -ENODEV;
+
+	rc = tpm2_unseal_trusted(chip, payload, options);
+
+	tpm_chip_put(chip);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_unseal_trusted);
 
 static int __init tpm_init(void)
 {

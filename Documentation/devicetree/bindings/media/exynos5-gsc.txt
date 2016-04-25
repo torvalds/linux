@@ -7,6 +7,10 @@ Required properties:
 - reg: should contain G-Scaler physical address location and length.
 - interrupts: should contain G-Scaler interrupt number
 
+Optional properties:
+- samsung,sysreg: handle to syscon used to control the system registers to
+  set writeback input and destination
+
 Example:
 
 gsc_0:  gsc@0x13e00000 {

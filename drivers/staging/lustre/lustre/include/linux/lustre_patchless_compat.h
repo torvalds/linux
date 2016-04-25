@@ -43,7 +43,6 @@
 #include <linux/mm.h>
 #include <linux/hash.h>
 
-
 #define ll_delete_from_page_cache(page) delete_from_page_cache(page)
 
 static inline void
@@ -53,7 +52,7 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 		return;
 
 	if (PagePrivate(page))
-		page->mapping->a_ops->invalidatepage(page, 0, PAGE_CACHE_SIZE);
+		page->mapping->a_ops->invalidatepage(page, 0, PAGE_SIZE);
 
 	cancel_dirty_page(page);
 	ClearPageMappedToDisk(page);

@@ -41,20 +41,18 @@ struct octeon_ethernet {
 	/* Device statistics */
 	struct net_device_stats stats;
 	struct phy_device *phydev;
+	unsigned int last_speed;
 	unsigned int last_link;
 	/* Last negotiated link state */
-	uint64_t link_info;
+	u64 link_info;
 	/* Called periodically to check link status */
 	void (*poll)(struct net_device *dev);
 	struct delayed_work	port_periodic_work;
-	struct work_struct	port_work;	/* may be unused. */
 	struct device_node	*of_node;
 };
 
 int cvm_oct_free_work(void *work_queue_entry);
 
-int cvm_oct_rgmii_init(struct net_device *dev);
-void cvm_oct_rgmii_uninit(struct net_device *dev);
 int cvm_oct_rgmii_open(struct net_device *dev);
 
 int cvm_oct_sgmii_init(struct net_device *dev);
@@ -62,15 +60,13 @@ int cvm_oct_sgmii_open(struct net_device *dev);
 
 int cvm_oct_spi_init(struct net_device *dev);
 void cvm_oct_spi_uninit(struct net_device *dev);
-int cvm_oct_xaui_init(struct net_device *dev);
-int cvm_oct_xaui_open(struct net_device *dev);
 
 int cvm_oct_common_init(struct net_device *dev);
 void cvm_oct_common_uninit(struct net_device *dev);
 void cvm_oct_adjust_link(struct net_device *dev);
 int cvm_oct_common_stop(struct net_device *dev);
 int cvm_oct_common_open(struct net_device *dev,
-			void (*link_poll)(struct net_device *), bool poll_now);
+			void (*link_poll)(struct net_device *));
 void cvm_oct_note_carrier(struct octeon_ethernet *priv,
 			  cvmx_helper_link_info_t li);
 void cvm_oct_link_poll(struct net_device *dev);
@@ -80,7 +76,6 @@ extern int pow_send_group;
 extern int pow_receive_group;
 extern char pow_send_list[];
 extern struct net_device *cvm_oct_device[];
-extern struct workqueue_struct *cvm_oct_poll_queue;
 extern atomic_t cvm_oct_poll_queue_stopping;
 extern u64 cvm_oct_tx_poll_interval;
 

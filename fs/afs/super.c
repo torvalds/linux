@@ -91,7 +91,7 @@ int __init afs_fs_init(void)
 	afs_inode_cachep = kmem_cache_create("afs_inode_cache",
 					     sizeof(struct afs_vnode),
 					     0,
-					     SLAB_HWCACHE_ALIGN,
+					     SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
 					     afs_i_init_once);
 	if (!afs_inode_cachep) {
 		printk(KERN_NOTICE "kAFS: Failed to allocate inode cache\n");
@@ -315,8 +315,8 @@ static int afs_fill_super(struct super_block *sb,
 	_enter("");
 
 	/* fill in the superblock */
-	sb->s_blocksize		= PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits	= PAGE_CACHE_SHIFT;
+	sb->s_blocksize		= PAGE_SIZE;
+	sb->s_blocksize_bits	= PAGE_SHIFT;
 	sb->s_magic		= AFS_FS_MAGIC;
 	sb->s_op		= &afs_super_ops;
 	sb->s_bdi		= &as->volume->bdi;

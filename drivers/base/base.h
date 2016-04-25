@@ -131,6 +131,8 @@ extern void device_remove_groups(struct device *dev,
 extern char *make_class_name(const char *name, struct kobject *kobj);
 
 extern int devres_release_all(struct device *dev);
+extern void device_block_probing(void);
+extern void device_unblock_probing(void);
 
 /* /sys/devices directory */
 extern struct kset *devices_kset;

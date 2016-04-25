@@ -1,0 +1,236 @@
+/*
+ * Device Tree Source for PIC32MZDA clock data
+ *
+ * Purna Chandra Mandal <purna.mandal@microchip.com>
+ * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ *
+ * Licensed under GPLv2 or later.
+ */
+
+/* all fixed rate clocks */
+
+/ {
+	POSC:posc_clk { /* On-chip primary oscillator */
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+
+	FRC:frc_clk { /* internal FRC oscillator */
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <8000000>;
+	};
+
+	BFRC:bfrc_clk { /* internal backup FRC oscillator */
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <8000000>;
+	};
+
+	LPRC:lprc_clk { /* internal low-power FRC oscillator */
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32000>;
+	};
+
+	/* UPLL provides clock to USBCORE */
+	UPLL:usb_phy_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		clock-output-names = "usbphy_clk";
+	};
+
+	TxCKI:txcki_clk { /* external clock input on TxCLKI pin */
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <4000000>;
+		status = "disabled";
+	};
+
+	/* external clock input on REFCLKIx pin */
+	REFIx:refix_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		status = "disabled";
+	};
+
+	/* PIC32 specific clks */
+	pic32_clktree {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x1f801200 0x200>;
+		compatible = "microchip,pic32mzda-clk";
+		ranges = <0 0x1f801200 0x200>;
+
+		/* secondary oscillator; external input on SOSCI pin */
+		SOSC:sosc_clk@0 {
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-sosc";
+			clock-frequency = <32768>;
+			reg = <0x000 0x10>,   /* enable reg */
+			      <0x1d0 0x10>; /* status reg */
+			microchip,bit-mask = <0x02>; /* enable mask */
+			microchip,status-bit-mask = <0x10>; /* status-mask*/
+		};
+
+		FRCDIV:frcdiv_clk {
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-frcdivclk";
+			clocks = <&FRC>;
+			clock-output-names = "frcdiv_clk";
+		};
+
+		/* System PLL clock */
+		SYSPLL:spll_clk@020 {
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-syspll";
+			reg = <0x020 0x10>, /* SPLL register */
+			      <0x1d0 0x10>; /* CLKSTAT register */
+			clocks = <&POSC>, <&FRC>;
+			clock-output-names = "sys_pll";
+			microchip,status-bit-mask = <0x80>; /* SPLLRDY */
+		};
+
+		/* system clock; mux with postdiv & slew */
+		SYSCLK:sys_clk@1c0 {
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-sysclk-v2";
+			reg = <0x1c0 0x04>; /* SLEWCON */
+			clocks = <&FRCDIV>, <&SYSPLL>, <&POSC>, <&SOSC>,
+				 <&LPRC>, <&FRCDIV>;
+			microchip,clock-indices = <0>, <1>, <2>, <4>,
+						  <5>, <7>;
+			clock-output-names = "sys_clk";
+		};
+
+		/* Peripheral bus1 clock */
+		PBCLK1:pb1_clk@140 {
+			reg = <0x140 0x10>;
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-pbclk";
+			clocks = <&SYSCLK>;
+			clock-output-names = "pb1_clk";
+			/* used by system modules, not gateable */
+			microchip,ignore-unused;
+		};
+
+		/* Peripheral bus2 clock */
+		PBCLK2:pb2_clk@150 {
+			reg = <0x150 0x10>;
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-pbclk";
+			clocks = <&SYSCLK>;
+			clock-output-names = "pb2_clk";
+			/* avoid gating even if unused */
+			microchip,ignore-unused;
+		};
+
+		/* Peripheral bus3 clock */
+		PBCLK3:pb3_clk@160 {
+			reg = <0x160 0x10>;
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-pbclk";
+			clocks = <&SYSCLK>;
+			clock-output-names = "pb3_clk";
+		};
+
+		/* Peripheral bus4 clock(I/O ports, GPIO) */
+		PBCLK4:pb4_clk@170 {
+			reg = <0x170 0x10>;
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-pbclk";
+			clocks = <&SYSCLK>;
+			clock-output-names = "pb4_clk";
+		};
+
+		/* Peripheral bus clock */
+		PBCLK5:pb5_clk@180 {
+			reg = <0x180 0x10>;
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-pbclk";
+			clocks = <&SYSCLK>;
+			clock-output-names = "pb5_clk";
+		};
+
+		/* Peripheral Bus6 clock; */
+		PBCLK6:pb6_clk@190 {
+			reg = <0x190 0x10>;
+			compatible = "microchip,pic32mzda-pbclk";
+			clocks = <&SYSCLK>;
+			#clock-cells = <0>;
+		};
+
+		/* Peripheral bus7 clock */
+		PBCLK7:pb7_clk@1a0 {
+			reg = <0x1a0 0x10>;
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-pbclk";
+			/* CPU is driven by this clock; so named */
+			clock-output-names = "cpu_clk";
+			clocks = <&SYSCLK>;
+		};
+
+		/* Reference Oscillator clock for SPI/I2S */
+		REFCLKO1:refo1_clk@80 {
+			reg = <0x080 0x20>;
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-refoclk";
+			clocks = <&SYSCLK>, <&PBCLK1>, <&POSC>, <&FRC>, <&LPRC>,
+				 <&SOSC>, <&SYSPLL>, <&REFIx>, <&BFRC>;
+			microchip,clock-indices = <0>, <1>, <2>, <3>, <4>,
+						  <5>, <7>, <8>, <9>;
+			clock-output-names = "refo1_clk";
+		};
+
+		/* Reference Oscillator clock for SQI */
+		REFCLKO2:refo2_clk@a0 {
+			reg = <0x0a0 0x20>;
+			#clock-cells = <0>;
+			compatible = "microchip,pic32mzda-refoclk";
+			clocks = <&SYSCLK>, <&PBCLK1>, <&POSC>, <&FRC>, <&LPRC>,
+				 <&SOSC>, <&SYSPLL>, <&REFIx>, <&BFRC>;
+			microchip,clock-indices = <0>, <1>, <2>, <3>, <4>,
+						  <5>, <7>, <8>, <9>;
+			clock-output-names = "refo2_clk";
+		};
+
+		/* Reference Oscillator clock, ADC */
+		REFCLKO3:refo3_clk@c0 {
+			reg = <0x0c0 0x20>;
+			compatible = "microchip,pic32mzda-refoclk";
+			clocks = <&SYSCLK>, <&PBCLK1>, <&POSC>, <&FRC>, <&LPRC>,
+				 <&SOSC>, <&SYSPLL>, <&REFIx>, <&BFRC>;
+			microchip,clock-indices = <0>, <1>, <2>, <3>, <4>,
+						  <5>, <7>, <8>, <9>;
+			#clock-cells = <0>;
+			clock-output-names = "refo3_clk";
+		};
+
+		/* Reference Oscillator clock */
+		REFCLKO4:refo4_clk@e0 {
+			reg = <0x0e0 0x20>;
+			compatible = "microchip,pic32mzda-refoclk";
+			clocks = <&SYSCLK>, <&PBCLK1>, <&POSC>, <&FRC>, <&LPRC>,
+				 <&SOSC>, <&SYSPLL>, <&REFIx>, <&BFRC>;
+			microchip,clock-indices = <0>, <1>, <2>, <3>, <4>,
+						  <5>, <7>, <8>, <9>;
+			#clock-cells = <0>;
+			clock-output-names = "refo4_clk";
+		};
+
+		/* Reference Oscillator clock, LCD */
+		REFCLKO5:refo5_clk@100 {
+			reg = <0x100 0x20>;
+			compatible = "microchip,pic32mzda-refoclk";
+			clocks = <&SYSCLK>,<&PBCLK1>,<&POSC>,<&FRC>,<&LPRC>,
+				 <&SOSC>,<&SYSPLL>,<&REFIx>,<&BFRC>;
+			microchip,clock-indices = <0>, <1>, <2>, <3>, <4>,
+						  <5>, <7>, <8>, <9>;
+			#clock-cells = <0>;
+			clock-output-names = "refo5_clk";
+		};
+	};
+};

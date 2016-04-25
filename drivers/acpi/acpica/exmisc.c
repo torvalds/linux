@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -98,9 +98,9 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 
 		default:
 
-			ACPI_ERROR((AE_INFO, "Unknown Reference Class 0x%2.2X",
+			ACPI_ERROR((AE_INFO, "Invalid Reference Class 0x%2.2X",
 				    obj_desc->reference.class));
-			return_ACPI_STATUS(AE_AML_INTERNAL);
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 		break;
 
@@ -247,6 +247,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 	union acpi_operand_object *local_operand1 = operand1;
 	union acpi_operand_object *return_desc;
 	char *new_buf;
+	const char *type_string;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ex_do_concatenate);
@@ -266,9 +267,41 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 		break;
 
 	case ACPI_TYPE_STRING:
+		/*
+		 * Per the ACPI spec, Concatenate only supports int/str/buf.
+		 * However, we support all objects here as an extension.
+		 * This improves the usefulness of the Printf() macro.
+		 * 12/2015.
+		 */
+		switch (operand1->common.type) {
+		case ACPI_TYPE_INTEGER:
+		case ACPI_TYPE_STRING:
+		case ACPI_TYPE_BUFFER:
 
-		status = acpi_ex_convert_to_string(operand1, &local_operand1,
-						   ACPI_IMPLICIT_CONVERT_HEX);
+			status =
+			    acpi_ex_convert_to_string(operand1, &local_operand1,
+						      ACPI_IMPLICIT_CONVERT_HEX);
+			break;
+
+		default:
+			/*
+			 * Just emit a string containing the object type.
+			 */
+			type_string =
+			    acpi_ut_get_type_name(operand1->common.type);
+
+			local_operand1 = acpi_ut_create_string_object(((acpi_size) strlen(type_string) + 9));	/* 9 For "[Object]" */
+			if (!local_operand1) {
+				status = AE_NO_MEMORY;
+				goto cleanup;
+			}
+
+			strcpy(local_operand1->string.pointer, "[");
+			strcat(local_operand1->string.pointer, type_string);
+			strcat(local_operand1->string.pointer, " Object]");
+			status = AE_OK;
+			break;
+		}
 		break;
 
 	case ACPI_TYPE_BUFFER:
@@ -347,8 +380,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 		/* Concatenate the strings */
 
 		strcpy(new_buf, operand0->string.pointer);
-		strcpy(new_buf + operand0->string.length,
-		       local_operand1->string.pointer);
+		strcat(new_buf, local_operand1->string.pointer);
 		break;
 
 	case ACPI_TYPE_BUFFER:
@@ -591,8 +623,9 @@ acpi_ex_do_logical_op(u16 opcode,
 
 	case ACPI_TYPE_STRING:
 
-		status = acpi_ex_convert_to_string(operand1, &local_operand1,
-						   ACPI_IMPLICIT_CONVERT_HEX);
+		status =
+		    acpi_ex_convert_to_string(operand1, &local_operand1,
+					      ACPI_IMPLICIT_CONVERT_HEX);
 		break;
 
 	case ACPI_TYPE_BUFFER:

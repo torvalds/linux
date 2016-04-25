@@ -95,7 +95,7 @@ struct audit_fsnotify_mark *audit_alloc_mark(struct audit_krule *krule, char *pa
 	if (IS_ERR(dentry))
 		return (void *)dentry; /* returning an error */
 	inode = path.dentry->d_inode;
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	audit_mark = kzalloc(sizeof(*audit_mark), GFP_KERNEL);
 	if (unlikely(!audit_mark)) {

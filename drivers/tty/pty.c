@@ -7,7 +7,6 @@
  */
 
 #include <linux/module.h>
-
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>
@@ -264,8 +263,7 @@ static void pty_set_termios(struct tty_struct *tty,
 {
 	/* See if packet mode change of state. */
 	if (tty->link && tty->link->packet) {
-		int extproc = (old_termios->c_lflag & EXTPROC) |
-				(tty->termios.c_lflag & EXTPROC);
+		int extproc = (old_termios->c_lflag & EXTPROC) | L_EXTPROC(tty);
 		int old_flow = ((old_termios->c_iflag & IXON) &&
 				(old_termios->c_cc[VSTOP] == '\023') &&
 				(old_termios->c_cc[VSTART] == '\021'));
@@ -407,13 +405,8 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	if (legacy) {
 		/* We always use new tty termios data so we can do this
 		   the easy way .. */
-		retval = tty_init_termios(tty);
-		if (retval)
-			goto err_deinit_tty;
-
-		retval = tty_init_termios(o_tty);
-		if (retval)
-			goto err_free_termios;
+		tty_init_termios(tty);
+		tty_init_termios(o_tty);
 
 		driver->other->ttys[idx] = o_tty;
 		driver->ttys[idx] = tty;
@@ -445,12 +438,7 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	tty->count++;
 	o_tty->count++;
 	return 0;
-err_free_termios:
-	if (legacy)
-		tty_free_termios(tty);
-err_deinit_tty:
-	deinitialize_tty_struct(o_tty);
-	free_tty_struct(o_tty);
+
 err_put_module:
 	module_put(driver->other->owner);
 err:
@@ -501,6 +489,10 @@ static int pty_bsd_ioctl(struct tty_struct *tty,
 }
 
 static int legacy_count = CONFIG_LEGACY_PTY_COUNT;
+/*
+ * not really modular, but the easiest way to keep compat with existing
+ * bootargs behaviour is to continue using module_param here.
+ */
 module_param(legacy_count, int, 0);
 
 /*
@@ -663,22 +655,22 @@ static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver,
 	return tty;
 }
 
-/* We have no need to install and remove our tty objects as devpts does all
-   the work for us */
-
 static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	return pty_common_install(driver, tty, false);
 }
 
+/* this is called once with whichever end is closed last */
 static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 {
-}
+	struct pts_fs_info *fsi;
 
-/* this is called once with whichever end is closed last */
-static void pty_unix98_shutdown(struct tty_struct *tty)
-{
-	devpts_kill_index(tty->driver_data, tty->index);
+	if (tty->driver->subtype == PTY_TYPE_MASTER)
+		fsi = tty->driver_data;
+	else
+		fsi = tty->link->driver_data;
+	devpts_kill_index(fsi, tty->index);
+	devpts_put_ref(fsi);
 }
 
 static const struct tty_operations ptm_unix98_ops = {
@@ -694,7 +686,6 @@ static const struct tty_operations ptm_unix98_ops = {
 	.unthrottle = pty_unthrottle,
 	.ioctl = pty_unix98_ioctl,
 	.resize = pty_resize,
-	.shutdown = pty_unix98_shutdown,
 	.cleanup = pty_cleanup
 };
 
@@ -712,7 +703,6 @@ static const struct tty_operations pty_unix98_ops = {
 	.set_termios = pty_set_termios,
 	.start = pty_start,
 	.stop = pty_stop,
-	.shutdown = pty_unix98_shutdown,
 	.cleanup = pty_cleanup,
 };
 
@@ -730,6 +720,7 @@ static const struct tty_operations pty_unix98_ops = {
 
 static int ptmx_open(struct inode *inode, struct file *filp)
 {
+	struct pts_fs_info *fsi;
 	struct tty_struct *tty;
 	struct inode *slave_inode;
 	int retval;
@@ -744,35 +735,41 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	if (retval)
 		return retval;
 
+	fsi = devpts_get_ref(inode, filp);
+	retval = -ENODEV;
+	if (!fsi)
+		goto out_free_file;
+
 	/* find a device that is not in use. */
 	mutex_lock(&devpts_mutex);
-	index = devpts_new_index(inode);
-	if (index < 0) {
-		retval = index;
-		mutex_unlock(&devpts_mutex);
-		goto err_file;
-	}
-
+	index = devpts_new_index(fsi);
 	mutex_unlock(&devpts_mutex);
+
+	retval = index;
+	if (index < 0)
+		goto out_put_ref;
+
 
 	mutex_lock(&tty_mutex);
 	tty = tty_init_dev(ptm_driver, index);
-
-	if (IS_ERR(tty)) {
-		retval = PTR_ERR(tty);
-		goto out;
-	}
-
 	/* The tty returned here is locked so we can safely
 	   drop the mutex */
 	mutex_unlock(&tty_mutex);
 
+	retval = PTR_ERR(tty);
+	if (IS_ERR(tty))
+		goto out;
+
+	/*
+	 * From here on out, the tty is "live", and the index and
+	 * fsi will be killed/put by the tty_release()
+	 */
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
-	tty->driver_data = inode;
+	tty->driver_data = fsi;
 
 	tty_add_file(tty, filp);
 
-	slave_inode = devpts_pty_new(inode,
+	slave_inode = devpts_pty_new(fsi,
 			MKDEV(UNIX98_PTY_SLAVE_MAJOR, index), index,
 			tty->link);
 	if (IS_ERR(slave_inode)) {
@@ -785,18 +782,20 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	if (retval)
 		goto err_release;
 
-	tty_debug_hangup(tty, "(tty count=%d)\n", tty->count);
+	tty_debug_hangup(tty, "opening (count=%d)\n", tty->count);
 
 	tty_unlock(tty);
 	return 0;
 err_release:
 	tty_unlock(tty);
+	// This will also put-ref the fsi
 	tty_release(inode, filp);
 	return retval;
 out:
-	mutex_unlock(&tty_mutex);
-	devpts_kill_index(inode, index);
-err_file:
+	devpts_kill_index(fsi, index);
+out_put_ref:
+	devpts_put_ref(fsi);
+out_free_file:
 	tty_free_file(filp);
 	return retval;
 }
@@ -877,4 +876,4 @@ static int __init pty_init(void)
 	unix98_pty_init();
 	return 0;
 }
-module_init(pty_init);
+device_initcall(pty_init);

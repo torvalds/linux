@@ -9,6 +9,7 @@ struct kvm;
 struct kvm_vcpu;
 
 #define IOAPIC_NUM_PINS  KVM_IOAPIC_NUM_PINS
+#define MAX_NR_RESERVED_IOAPIC_PINS KVM_MAX_IRQ_ROUTES
 #define IOAPIC_VERSION_ID 0x11	/* IOAPIC version */
 #define IOAPIC_EDGE_TRIG  0
 #define IOAPIC_LEVEL_TRIG 1
@@ -39,9 +40,21 @@ struct kvm_vcpu;
 #define RTC_GSI -1U
 #endif
 
+struct dest_map {
+	/* vcpu bitmap where IRQ has been sent */
+	DECLARE_BITMAP(map, KVM_MAX_VCPUS);
+
+	/*
+	 * Vector sent to a given vcpu, only valid when
+	 * the vcpu's bit in map is set
+	 */
+	u8 vectors[KVM_MAX_VCPUS];
+};
+
+
 struct rtc_status {
 	int pending_eoi;
-	DECLARE_BITMAP(dest_map, KVM_MAX_VCPUS);
+	struct dest_map dest_map;
 };
 
 union kvm_ioapic_redirect_entry {
@@ -73,7 +86,6 @@ struct kvm_ioapic {
 	struct kvm *kvm;
 	void (*ack_notifier)(void *opaque, int irq);
 	spinlock_t lock;
-	DECLARE_BITMAP(handled_vectors, 256);
 	struct rtc_status rtc_status;
 	struct delayed_work eoi_inject;
 	u32 irq_eoi[IOAPIC_NUM_PINS];
@@ -98,11 +110,12 @@ static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 	return kvm->arch.vioapic;
 }
 
-static inline bool kvm_ioapic_handles_vector(struct kvm *kvm, int vector)
+static inline int ioapic_in_kernel(struct kvm *kvm)
 {
-	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
-	smp_rmb();
-	return test_bit(vector, ioapic->handled_vectors);
+	int ret;
+
+	ret = (ioapic_irqchip(kvm) != NULL);
+	return ret;
 }
 
 void kvm_rtc_eoi_tracking_restore_one(struct kvm_vcpu *vcpu);
@@ -117,10 +130,12 @@ int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int irq_source_id,
 		       int level, bool line_status);
 void kvm_ioapic_clear_all(struct kvm_ioapic *ioapic, int irq_source_id);
 int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
-		struct kvm_lapic_irq *irq, unsigned long *dest_map);
+			     struct kvm_lapic_irq *irq,
+			     struct dest_map *dest_map);
 int kvm_get_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
 int kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
-void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap,
-			u32 *tmr);
-
+void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu,
+			   ulong *ioapic_handled_vectors);
+void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,
+			    ulong *ioapic_handled_vectors);
 #endif

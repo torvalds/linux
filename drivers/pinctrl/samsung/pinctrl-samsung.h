@@ -270,6 +270,7 @@ extern const struct samsung_pin_ctrl exynos4x12_pin_ctrl[];
 extern const struct samsung_pin_ctrl exynos4415_pin_ctrl[];
 extern const struct samsung_pin_ctrl exynos5250_pin_ctrl[];
 extern const struct samsung_pin_ctrl exynos5260_pin_ctrl[];
+extern const struct samsung_pin_ctrl exynos5410_pin_ctrl[];
 extern const struct samsung_pin_ctrl exynos5420_pin_ctrl[];
 extern const struct samsung_pin_ctrl exynos5433_pin_ctrl[];
 extern const struct samsung_pin_ctrl exynos7_pin_ctrl[];

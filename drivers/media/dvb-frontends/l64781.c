@@ -243,9 +243,9 @@ static int apply_frontend_param(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int get_frontend(struct dvb_frontend *fe)
+static int get_frontend(struct dvb_frontend *fe,
+			struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct l64781_state* state = fe->demodulator_priv;
 	int tmp;
 

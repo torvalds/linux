@@ -2,7 +2,7 @@
 
 Required properties:
 - compatible: Should be "st,st21nfcb-spi"
-- spi-max-frequency: Maximum SPI frequency (<= 10000000).
+- spi-max-frequency: Maximum SPI frequency (<= 4000000).
 - interrupt-parent: phandle for the interrupt gpio controller
 - interrupts: GPIO interrupt to which the chip is connected
 - reset-gpios: Output GPIO pin used to reset the ST21NFCB
@@ -10,6 +10,10 @@ Required properties:
 Optional SoC Specific Properties:
 - pinctrl-names: Contains only one value - "default".
 - pintctrl-0: Specifies the pin control groups used for this controller.
+- ese-present: Specifies that an ese is physically connected to the nfc
+controller.
+- uicc-present: Specifies that the uicc swp signal can be physically
+connected to the nfc controller.
 
 Example (for ARM-based BeagleBoard xM with ST21NFCB on SPI4):
 
@@ -27,5 +31,8 @@ Example (for ARM-based BeagleBoard xM with ST21NFCB on SPI4):
 		interrupts = <2 IRQ_TYPE_EDGE_RISING>;
 
 		reset-gpios = <&gpio5 29 GPIO_ACTIVE_HIGH>;
+
+		ese-present;
+		uicc-present;
 	};
 };

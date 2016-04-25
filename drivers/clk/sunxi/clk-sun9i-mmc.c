@@ -83,7 +83,7 @@ static int sun9i_mmc_reset_deassert(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
-static struct reset_control_ops sun9i_mmc_reset_ops = {
+static const struct reset_control_ops sun9i_mmc_reset_ops = {
 	.assert		= sun9i_mmc_reset_assert,
 	.deassert	= sun9i_mmc_reset_deassert,
 };
@@ -204,6 +204,7 @@ static const struct of_device_id sun9i_a80_mmc_config_clk_dt_ids[] = {
 	{ .compatible = "allwinner,sun9i-a80-mmc-config-clk" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, sun9i_a80_mmc_config_clk_dt_ids);
 
 static struct platform_driver sun9i_a80_mmc_config_clk_driver = {
 	.driver = {

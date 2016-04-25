@@ -29,6 +29,7 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
+#include <nvif/cl906f.h>
 #include <nvif/unpack.h>
 
 static u32
@@ -138,9 +139,9 @@ gf100_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
 	u32 coff = chan->base.chid * 8;
 
 	if (!list_empty(&chan->head) && !chan->killed) {
-		list_del_init(&chan->head);
+		gf100_fifo_runlist_remove(fifo, chan);
 		nvkm_mask(device, 0x003004 + coff, 0x00000001, 0x00000000);
-		gf100_fifo_runlist_update(fifo);
+		gf100_fifo_runlist_commit(fifo);
 	}
 
 	gf100_fifo_intr_engine(fifo);
@@ -160,9 +161,9 @@ gf100_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 	nvkm_wr32(device, 0x003000 + coff, 0xc0000000 | addr);
 
 	if (list_empty(&chan->head) && !chan->killed) {
-		list_add_tail(&chan->head, &fifo->chan);
+		gf100_fifo_runlist_insert(fifo, chan);
 		nvkm_wr32(device, 0x003004 + coff, 0x001f0001);
-		gf100_fifo_runlist_update(fifo);
+		gf100_fifo_runlist_commit(fifo);
 	}
 }
 
@@ -199,10 +200,10 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	struct nvkm_object *parent = oclass->parent;
 	struct gf100_fifo_chan *chan;
 	u64 usermem, ioffset, ilength;
-	int ret, i;
+	int ret = -ENOSYS, i;
 
 	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create channel gpfifo vers %d vm %llx "
 				   "ioffset %016llx ilength %08x\n",
 			   args->v0.version, args->v0.vm, args->v0.ioffset,

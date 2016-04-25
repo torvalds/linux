@@ -74,7 +74,8 @@ static struct drm_framebuffer_funcs drm_fb_cma_funcs = {
 };
 
 static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
-	struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_cma_object **obj,
+	const struct drm_mode_fb_cmd2 *mode_cmd,
+	struct drm_gem_cma_object **obj,
 	unsigned int num_planes)
 {
 	struct drm_fb_cma *fb_cma;
@@ -107,7 +108,7 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
  * checked before calling this function.
  */
 struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
-	struct drm_file *file_priv, struct drm_mode_fb_cmd2 *mode_cmd)
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_fb_cma *fb_cma;
 	struct drm_gem_cma_object *objs[4];
@@ -266,7 +267,7 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 	fbi = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(fbi)) {
 		ret = PTR_ERR(fbi);
-		goto err_drm_gem_cma_free_object;
+		goto err_gem_free_object;
 	}
 
 	fbdev_cma->fb = drm_fb_cma_alloc(dev, &mode_cmd, &obj, 1);
@@ -299,8 +300,8 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 
 err_fb_info_destroy:
 	drm_fb_helper_release_fbi(helper);
-err_drm_gem_cma_free_object:
-	drm_gem_cma_free_object(&obj->base);
+err_gem_free_object:
+	dev->driver->gem_free_object(&obj->base);
 	return ret;
 }
 
@@ -347,9 +348,6 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 		goto err_drm_fb_helper_fini;
 
 	}
-
-	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(dev);
 
 	ret = drm_fb_helper_initial_config(helper, preferred_bpp);
 	if (ret < 0) {

@@ -930,9 +930,9 @@ __xfs_trans_commit(
 	 */
 	if (sync) {
 		error = _xfs_log_force_lsn(mp, commit_lsn, XFS_LOG_SYNC, NULL);
-		XFS_STATS_INC(xs_trans_sync);
+		XFS_STATS_INC(mp, xs_trans_sync);
 	} else {
-		XFS_STATS_INC(xs_trans_async);
+		XFS_STATS_INC(mp, xs_trans_async);
 	}
 
 	return error;
@@ -955,7 +955,7 @@ out_unreserve:
 	xfs_trans_free_items(tp, NULLCOMMITLSN, !!error);
 	xfs_trans_free(tp);
 
-	XFS_STATS_INC(xs_trans_empty);
+	XFS_STATS_INC(mp, xs_trans_empty);
 	return error;
 }
 
@@ -1028,6 +1028,8 @@ __xfs_trans_roll(
 	struct xfs_trans_res	tres;
 	int			error;
 
+	*committed = 0;
+
 	/*
 	 * Ensure that the inode is always logged.
 	 */
@@ -1082,6 +1084,6 @@ xfs_trans_roll(
 	struct xfs_trans	**tpp,
 	struct xfs_inode	*dp)
 {
-	int			committed = 0;
+	int			committed;
 	return __xfs_trans_roll(tpp, dp, &committed);
 }

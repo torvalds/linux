@@ -603,7 +603,7 @@ static struct uart_driver serial_pxa_reg;
 /*
  *	Wait for transmitter & holding register to empty
  */
-static inline void wait_for_xmitr(struct uart_pxa_port *up)
+static void wait_for_xmitr(struct uart_pxa_port *up)
 {
 	unsigned int status, tmout = 10000;
 

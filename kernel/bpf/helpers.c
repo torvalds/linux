@@ -93,13 +93,8 @@ const struct bpf_func_proto bpf_map_delete_elem_proto = {
 	.arg2_type	= ARG_PTR_TO_MAP_KEY,
 };
 
-static u64 bpf_get_prandom_u32(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
-{
-	return prandom_u32();
-}
-
 const struct bpf_func_proto bpf_get_prandom_u32_proto = {
-	.func		= bpf_get_prandom_u32,
+	.func		= bpf_user_rnd_u32,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 };
@@ -171,7 +166,7 @@ static u64 bpf_get_current_comm(u64 r1, u64 size, u64 r3, u64 r4, u64 r5)
 	if (!task)
 		return -EINVAL;
 
-	memcpy(buf, task->comm, min_t(size_t, size, sizeof(task->comm)));
+	strlcpy(buf, task->comm, min_t(size_t, size, sizeof(task->comm)));
 	return 0;
 }
 

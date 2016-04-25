@@ -10,6 +10,7 @@ Required properties:
     - "renesas,irqc-r8a7792" (R-Car V2H)
     - "renesas,irqc-r8a7793" (R-Car M2-N)
     - "renesas,irqc-r8a7794" (R-Car E2)
+    - "renesas,intc-ex-r8a7795" (R-Car H3)
 - #interrupt-cells: has to be <2>: an interrupt index and flags, as defined in
   interrupts.txt in this directory
 - clocks: Must contain a reference to the functional clock.

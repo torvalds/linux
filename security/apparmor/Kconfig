@@ -33,7 +33,7 @@ config SECURITY_APPARMOR_BOOTPARAM_VALUE
 config SECURITY_APPARMOR_HASH
 	bool "SHA1 hash of loaded profiles"
 	depends on SECURITY_APPARMOR
-	depends on CRYPTO
+	select CRYPTO
 	select CRYPTO_SHA1
 	default y
 

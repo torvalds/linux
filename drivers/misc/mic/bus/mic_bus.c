@@ -25,9 +25,6 @@
 #include <linux/idr.h>
 #include <linux/mic_bus.h>
 
-/* Unique numbering for mbus devices. */
-static DEFINE_IDA(mbus_index_ida);
-
 static ssize_t device_show(struct device *d,
 			   struct device_attribute *attr, char *buf)
 {
@@ -147,7 +144,8 @@ static void mbus_release_dev(struct device *d)
 
 struct mbus_device *
 mbus_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
-		     struct mbus_hw_ops *hw_ops, void __iomem *mmio_va)
+		     struct mbus_hw_ops *hw_ops, int index,
+		     void __iomem *mmio_va)
 {
 	int ret;
 	struct mbus_device *mbdev;
@@ -166,13 +164,7 @@ mbus_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
 	mbdev->dev.release = mbus_release_dev;
 	mbdev->hw_ops = hw_ops;
 	mbdev->dev.bus = &mic_bus;
-
-	/* Assign a unique device index and hence name. */
-	ret = ida_simple_get(&mbus_index_ida, 0, 0, GFP_KERNEL);
-	if (ret < 0)
-		goto free_mbdev;
-
-	mbdev->index = ret;
+	mbdev->index = index;
 	dev_set_name(&mbdev->dev, "mbus-dev%u", mbdev->index);
 	/*
 	 * device_register() causes the bus infrastructure to look for a
@@ -180,22 +172,17 @@ mbus_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
 	 */
 	ret = device_register(&mbdev->dev);
 	if (ret)
-		goto ida_remove;
+		goto free_mbdev;
 	return mbdev;
-ida_remove:
-	ida_simple_remove(&mbus_index_ida, mbdev->index);
 free_mbdev:
-	kfree(mbdev);
+	put_device(&mbdev->dev);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(mbus_register_device);
 
 void mbus_unregister_device(struct mbus_device *mbdev)
 {
-	int index = mbdev->index; /* save for after device release */
-
 	device_unregister(&mbdev->dev);
-	ida_simple_remove(&mbus_index_ida, index);
 }
 EXPORT_SYMBOL_GPL(mbus_unregister_device);
 
@@ -207,7 +194,6 @@ static int __init mbus_init(void)
 static void __exit mbus_exit(void)
 {
 	bus_unregister(&mic_bus);
-	ida_destroy(&mbus_index_ida);
 }
 
 core_initcall(mbus_init);

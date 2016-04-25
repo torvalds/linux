@@ -666,7 +666,7 @@ static void mac_destroy(struct cmac *mac)
 	kfree(mac);
 }
 
-static struct cmac_ops vsc7326_ops = {
+static const struct cmac_ops vsc7326_ops = {
 	.destroy                  = mac_destroy,
 	.reset                    = mac_reset,
 	.interrupt_handler        = mac_intr_handler,

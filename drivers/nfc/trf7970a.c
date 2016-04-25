@@ -2139,7 +2139,7 @@ static int trf7970a_remove(struct spi_device *spi)
 #ifdef CONFIG_PM_SLEEP
 static int trf7970a_suspend(struct device *dev)
 {
-	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct spi_device *spi = to_spi_device(dev);
 	struct trf7970a *trf = spi_get_drvdata(spi);
 
 	dev_dbg(dev, "Suspend\n");
@@ -2155,7 +2155,7 @@ static int trf7970a_suspend(struct device *dev)
 
 static int trf7970a_resume(struct device *dev)
 {
-	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct spi_device *spi = to_spi_device(dev);
 	struct trf7970a *trf = spi_get_drvdata(spi);
 	int ret;
 
@@ -2174,7 +2174,7 @@ static int trf7970a_resume(struct device *dev)
 #ifdef CONFIG_PM
 static int trf7970a_pm_runtime_suspend(struct device *dev)
 {
-	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct spi_device *spi = to_spi_device(dev);
 	struct trf7970a *trf = spi_get_drvdata(spi);
 	int ret;
 
@@ -2191,7 +2191,7 @@ static int trf7970a_pm_runtime_suspend(struct device *dev)
 
 static int trf7970a_pm_runtime_resume(struct device *dev)
 {
-	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct spi_device *spi = to_spi_device(dev);
 	struct trf7970a *trf = spi_get_drvdata(spi);
 	int ret;
 
@@ -2211,6 +2211,12 @@ static const struct dev_pm_ops trf7970a_pm_ops = {
 			trf7970a_pm_runtime_resume, NULL)
 };
 
+static const struct of_device_id trf7970a_of_match[] = {
+	{ .compatible = "ti,trf7970a", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, trf7970a_of_match);
+
 static const struct spi_device_id trf7970a_id_table[] = {
 	{ "trf7970a", 0 },
 	{ }
@@ -2223,7 +2229,7 @@ static struct spi_driver trf7970a_spi_driver = {
 	.id_table	= trf7970a_id_table,
 	.driver		= {
 		.name	= "trf7970a",
-		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(trf7970a_of_match),
 		.pm	= &trf7970a_pm_ops,
 	},
 };

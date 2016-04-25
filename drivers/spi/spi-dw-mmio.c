@@ -19,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
+#include <linux/property.h>
 
 #include "spi-dw.h"
 
@@ -46,11 +47,6 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 
 	/* Get basic io resource and map it */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "no mem resource?\n");
-		return -EINVAL;
-	}
-
 	dws->regs = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(dws->regs)) {
 		dev_err(&pdev->dev, "SPI region map failed\n");
@@ -74,13 +70,11 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 
 	dws->max_freq = clk_get_rate(dwsmmio->clk);
 
-	of_property_read_u32(pdev->dev.of_node, "reg-io-width",
-			     &dws->reg_io_width);
+	device_property_read_u32(&pdev->dev, "reg-io-width", &dws->reg_io_width);
 
 	num_cs = 4;
 
-	if (pdev->dev.of_node)
-		of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs);
+	device_property_read_u32(&pdev->dev, "num-cs", &num_cs);
 
 	dws->num_cs = num_cs;
 

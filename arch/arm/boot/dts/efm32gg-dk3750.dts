@@ -26,7 +26,7 @@
 		};
 
 		i2c@4000a000 {
-			efm32,location = <3>;
+			energymicro,location = <3>;
 			status = "ok";
 
 			temp@48 {
@@ -43,7 +43,7 @@
 
 		spi0: spi@4000c000 { /* USART0 */
 			cs-gpios = <&gpio 68 1>; // E4
-			location = <1>;
+			energymicro,location = <1>;
 			status = "ok";
 
 			microsd@0 {
@@ -57,7 +57,7 @@
 
 		spi1: spi@4000c400 { /* USART1 */
 			cs-gpios = <&gpio 51 1>; // D3
-			location = <1>;
+			energymicro,location = <1>;
 			status = "ok";
 
 			ks8851@0 {
@@ -70,7 +70,7 @@
 		};
 
 		uart4: uart@4000e400 { /* UART1 */
-			location = <2>;
+			energymicro,location = <2>;
 			status = "ok";
 		};
 

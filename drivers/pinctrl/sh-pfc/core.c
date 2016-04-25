@@ -1,5 +1,7 @@
 /*
- * SuperH Pin Function Controller support.
+ * Pin Control and GPIO driver for SuperH Pin Function Controller.
+ *
+ * Authors: Magnus Damm, Paul Mundt, Laurent Pinchart
  *
  * Copyright (C) 2008 Magnus Damm
  * Copyright (C) 2009 - 2012 Paul Mundt
@@ -17,7 +19,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/machine.h>
@@ -503,7 +505,6 @@ static const struct of_device_id sh_pfc_of_table[] = {
 #endif
 	{ },
 };
-MODULE_DEVICE_TABLE(of, sh_pfc_of_table);
 #endif
 
 static int sh_pfc_probe(struct platform_device *pdev)
@@ -518,7 +519,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 	if (np)
-		info = of_match_device(sh_pfc_of_table, &pdev->dev)->data;
+		info = of_device_get_match_data(&pdev->dev);
 	else
 #endif
 		info = platid ? (const void *)platid->driver_data : NULL;
@@ -545,7 +546,9 @@ static int sh_pfc_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	pinctrl_provide_dummies();
+	/* Enable dummy states for those platforms without pinctrl support */
+	if (!of_have_populated_dt())
+		pinctrl_provide_dummies();
 
 	ret = sh_pfc_init_ranges(pfc);
 	if (ret < 0)
@@ -558,7 +561,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	if (unlikely(ret != 0))
 		return ret;
 
-#ifdef CONFIG_GPIO_SH_PFC
+#ifdef CONFIG_PINCTRL_SH_PFC_GPIO
 	/*
 	 * Then the GPIO chip
 	 */
@@ -584,7 +587,7 @@ static int sh_pfc_remove(struct platform_device *pdev)
 {
 	struct sh_pfc *pfc = platform_get_drvdata(pdev);
 
-#ifdef CONFIG_GPIO_SH_PFC
+#ifdef CONFIG_PINCTRL_SH_PFC_GPIO
 	sh_pfc_unregister_gpiochip(pfc);
 #endif
 	sh_pfc_unregister_pinctrl(pfc);
@@ -632,7 +635,6 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 	{ "sh-pfc", 0 },
 	{ },
 };
-MODULE_DEVICE_TABLE(platform, sh_pfc_id_table);
 
 static struct platform_driver sh_pfc_driver = {
 	.probe		= sh_pfc_probe,
@@ -649,13 +651,3 @@ static int __init sh_pfc_init(void)
 	return platform_driver_register(&sh_pfc_driver);
 }
 postcore_initcall(sh_pfc_init);
-
-static void __exit sh_pfc_exit(void)
-{
-	platform_driver_unregister(&sh_pfc_driver);
-}
-module_exit(sh_pfc_exit);
-
-MODULE_AUTHOR("Magnus Damm, Paul Mundt, Laurent Pinchart");
-MODULE_DESCRIPTION("Pin Control and GPIO driver for SuperH pin function controller");
-MODULE_LICENSE("GPL v2");

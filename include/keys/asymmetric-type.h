@@ -19,6 +19,16 @@
 extern struct key_type key_type_asymmetric;
 
 /*
+ * The key payload is four words.  The asymmetric-type key uses them as
+ * follows:
+ */
+enum asymmetric_payload_bits {
+	asym_crypto,
+	asym_subtype,
+	asym_key_ids,
+};
+
+/*
  * Identifiers for an asymmetric key ID.  We have three ways of looking up a
  * key derived from an X.509 certificate:
  *
@@ -58,6 +68,11 @@ extern struct asymmetric_key_id *asymmetric_key_generate_id(const void *val_1,
 							    size_t len_1,
 							    const void *val_2,
 							    size_t len_2);
+static inline
+const struct asymmetric_key_ids *asymmetric_key_ids(const struct key *key)
+{
+	return key->payload.data[asym_key_ids];
+}
 
 /*
  * The payload is at the discretion of the subtype.

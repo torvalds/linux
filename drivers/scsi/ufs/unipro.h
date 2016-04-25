@@ -15,6 +15,7 @@
 /*
  * M-TX Configuration Attributes
  */
+#define TX_HIBERN8TIME_CAPABILITY		0x000F
 #define TX_MODE					0x0021
 #define TX_HSRATE_SERIES			0x0022
 #define TX_HSGEAR				0x0023
@@ -48,8 +49,12 @@
 #define RX_ENTER_HIBERN8			0x00A7
 #define RX_BYPASS_8B10B_ENABLE			0x00A8
 #define RX_TERMINATION_FORCE_ENABLE		0x0089
+#define RX_MIN_ACTIVATETIME_CAPABILITY		0x008F
+#define RX_HIBERN8TIME_CAPABILITY		0x0092
 
 #define is_mphy_tx_attr(attr)			(attr < RX_MODE)
+#define RX_MIN_ACTIVATETIME_UNIT_US		100
+#define HIBERN8TIME_UNIT_US			100
 /*
  * PHY Adpater attributes
  */
@@ -70,6 +75,7 @@
 #define PA_MAXRXSPEEDFAST	0x1541
 #define PA_MAXRXSPEEDSLOW	0x1542
 #define PA_TXLINKSTARTUPHS	0x1544
+#define PA_LOCAL_TX_LCC_ENABLE	0x155E
 #define PA_TXSPEEDFAST		0x1565
 #define PA_TXSPEEDSLOW		0x1566
 #define PA_REMOTEVERINFO	0x15A0
@@ -110,6 +116,12 @@
 #define PA_STALLNOCONFIGTIME	0x15A3
 #define PA_SAVECONFIGTIME	0x15A4
 
+#define PA_TACTIVATE_TIME_UNIT_US	10
+#define PA_HIBERN8_TIME_UNIT_US		100
+
+/* PHY Adapter Protocol Constants */
+#define PA_MAXDATALANES	4
+
 /* PA power modes */
 enum {
 	FAST_MODE	= 1,
@@ -141,6 +153,16 @@ enum ufs_hs_gear_tag {
 	UFS_HS_G1,		/* HS Gear 1 (default for reset) */
 	UFS_HS_G2,		/* HS Gear 2 */
 	UFS_HS_G3,		/* HS Gear 3 */
+};
+
+enum ufs_unipro_ver {
+	UFS_UNIPRO_VER_RESERVED = 0,
+	UFS_UNIPRO_VER_1_40 = 1, /* UniPro version 1.40 */
+	UFS_UNIPRO_VER_1_41 = 2, /* UniPro version 1.41 */
+	UFS_UNIPRO_VER_1_6 = 3,  /* UniPro version 1.6 */
+	UFS_UNIPRO_VER_MAX = 4,  /* UniPro unsupported version */
+	/* UniPro version field mask in PA_LOCALVERINFO */
+	UFS_UNIPRO_VER_MASK = 0xF,
 };
 
 /*

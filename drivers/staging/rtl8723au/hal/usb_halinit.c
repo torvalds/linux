@@ -736,8 +736,7 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 	rtl8723a_InitHalDm(Adapter);
 
-	val8 = (WiFiNavUpperUs + HAL_8723A_NAV_UPPER_UNIT - 1) /
-		HAL_8723A_NAV_UPPER_UNIT;
+	val8 = DIV_ROUND_UP(WiFiNavUpperUs, HAL_8723A_NAV_UPPER_UNIT);
 	rtl8723au_write8(Adapter, REG_NAV_UPPER, val8);
 
 	/*  2011/03/09 MH debug only, UMC-B cut pass 2500 S5 test, but we need to fin root cause. */
@@ -834,12 +833,11 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 			rtl8723au_read32(Adapter, rOFDM0_TRxPathEnable);
 		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF2] =
 			rtl8723au_read32(Adapter, rFPGA0_RFMOD);
-		if (pHalData->rf_type ==  RF_2T2R) {
+		if (pHalData->rf_type ==  RF_2T2R)
 			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
 				     0x380038, 0);
-		} else if (pHalData->rf_type ==  RF_1T1R) {
+		else if (pHalData->rf_type ==  RF_1T1R)
 			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, 0x38, 0);
-		}
 		PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 0);
 		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 1);
 
@@ -1022,10 +1020,8 @@ static void Hal_EfuseParseMACAddr_8723AU(struct rtw_adapter *padapter,
 	}
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-		 "Hal_EfuseParseMACAddr_8723AU: Permanent Address =%02x:%02x:%02x:%02x:%02x:%02x\n",
-		 pEEPROM->mac_addr[0], pEEPROM->mac_addr[1],
-		 pEEPROM->mac_addr[2], pEEPROM->mac_addr[3],
-		 pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]);
+		 "Hal_EfuseParseMACAddr_8723AU: Permanent Address =%pM\n",
+		 pEEPROM->mac_addr);
 }
 
 static void readAdapterInfo(struct rtw_adapter *padapter)

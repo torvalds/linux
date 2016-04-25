@@ -128,6 +128,17 @@
 		 */
 		ranges = <0 0 0 0x20000000>;
 
+		/*
+		 * This clock is actually configurable from the PRCM address
+		 * space. The external 24M oscillator can be turned off, and
+		 * the clock switched to an internal 16M RC oscillator. Under
+		 * normal operation there's no reason to do this, and the
+		 * default is to use the external good one, so just model this
+		 * as a fixed clock. Also it is not entirely clear if the
+		 * osc24M mux in the PRCM affects the entire clock tree, which
+		 * would also throw all the PLL clock rates off, or just the
+		 * downstream clocks in the PRCM.
+		 */
 		osc24M: osc24M_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -135,6 +146,13 @@
 			clock-output-names = "osc24M";
 		};
 
+		/*
+		 * The 32k clock is from an external source, normally the
+		 * AC100 codec/RTC chip. This clock is by default enabled
+		 * and clocked at 32768 Hz, from the oscillator connected
+		 * to the AC100. It is configurable, but no such driver or
+		 * bindings exist yet.
+		 */
 		osc32k: osc32k_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -162,6 +180,14 @@
 			clock-output-names = "usb_phy0", "usb_hsic1_480M",
 					     "usb_phy1", "usb_hsic2_480M",
 					     "usb_phy2", "usb_hsic_12M";
+		};
+
+		pll3: clk@06000008 {
+			/* placeholder until implemented */
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-rate = <0>;
+			clock-output-names = "pll3";
 		};
 
 		pll4: clk@0600000c {
@@ -350,6 +376,68 @@
 					"apb1_uart2", "apb1_uart3",
 					"apb1_uart4", "apb1_uart5";
 		};
+
+		cpus_clk: clk@08001410 {
+			compatible = "allwinner,sun9i-a80-cpus-clk";
+			reg = <0x08001410 0x4>;
+			#clock-cells = <0>;
+			clocks = <&osc32k>, <&osc24M>, <&pll4>, <&pll3>;
+			clock-output-names = "cpus";
+		};
+
+		ahbs: ahbs_clk {
+			compatible = "fixed-factor-clock";
+			#clock-cells = <0>;
+			clock-div = <1>;
+			clock-mult = <1>;
+			clocks = <&cpus_clk>;
+			clock-output-names = "ahbs";
+		};
+
+		apbs: clk@0800141c {
+			compatible = "allwinner,sun8i-a23-apb0-clk";
+			reg = <0x0800141c 0x4>;
+			#clock-cells = <0>;
+			clocks = <&ahbs>;
+			clock-output-names = "apbs";
+		};
+
+		apbs_gates: clk@08001428 {
+			compatible = "allwinner,sun9i-a80-apbs-gates-clk";
+			reg = <0x08001428 0x4>;
+			#clock-cells = <1>;
+			clocks = <&apbs>;
+			clock-indices = <0>, <1>,
+					<2>, <3>,
+					<4>, <5>,
+					<6>, <7>,
+					<12>, <13>,
+					<16>, <17>,
+					<18>, <20>;
+			clock-output-names = "apbs_pio", "apbs_ir",
+					"apbs_timer", "apbs_rsb",
+					"apbs_uart", "apbs_1wire",
+					"apbs_i2c0", "apbs_i2c1",
+					"apbs_ps2_0", "apbs_ps2_1",
+					"apbs_dma", "apbs_i2s0",
+					"apbs_i2s1", "apbs_twd";
+		};
+
+		r_1wire_clk: clk@08001450 {
+			reg = <0x08001450 0x4>;
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-mod0-clk";
+			clocks = <&osc32k>, <&osc24M>;
+			clock-output-names = "r_1wire";
+		};
+
+		r_ir_clk: clk@08001454 {
+			reg = <0x08001454 0x4>;
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-mod0-clk";
+			clocks = <&osc32k>, <&osc24M>;
+			clock-output-names = "r_ir";
+		};
 	};
 
 	soc {
@@ -455,7 +543,7 @@
 		};
 
 		mmc0: mmc@01c0f000 {
-			compatible = "allwinner,sun5i-a13-mmc";
+			compatible = "allwinner,sun9i-a80-mmc";
 			reg = <0x01c0f000 0x1000>;
 			clocks = <&mmc_config_clk 0>, <&mmc0_clk 0>,
 				 <&mmc0_clk 1>, <&mmc0_clk 2>;
@@ -469,7 +557,7 @@
 		};
 
 		mmc1: mmc@01c10000 {
-			compatible = "allwinner,sun5i-a13-mmc";
+			compatible = "allwinner,sun9i-a80-mmc";
 			reg = <0x01c10000 0x1000>;
 			clocks = <&mmc_config_clk 1>, <&mmc1_clk 0>,
 				 <&mmc1_clk 1>, <&mmc1_clk 2>;
@@ -483,7 +571,7 @@
 		};
 
 		mmc2: mmc@01c11000 {
-			compatible = "allwinner,sun5i-a13-mmc";
+			compatible = "allwinner,sun9i-a80-mmc";
 			reg = <0x01c11000 0x1000>;
 			clocks = <&mmc_config_clk 2>, <&mmc2_clk 0>,
 				 <&mmc2_clk 1>, <&mmc2_clk 2>;
@@ -497,7 +585,7 @@
 		};
 
 		mmc3: mmc@01c12000 {
-			compatible = "allwinner,sun5i-a13-mmc";
+			compatible = "allwinner,sun9i-a80-mmc";
 			reg = <0x01c12000 0x1000>;
 			clocks = <&mmc_config_clk 3>, <&mmc3_clk 0>,
 				 <&mmc3_clk 1>, <&mmc3_clk 2>;
@@ -594,7 +682,7 @@
 			clocks = <&apb0_gates 5>;
 			gpio-controller;
 			interrupt-controller;
-			#interrupt-cells = <2>;
+			#interrupt-cells = <3>;
 			#size-cells = <0>;
 			#gpio-cells = <3>;
 
@@ -616,7 +704,8 @@
 			mmc2_8bit_pins: mmc2_8bit {
 				allwinner,pins = "PC6", "PC7", "PC8", "PC9",
 						 "PC10", "PC11", "PC12",
-						 "PC13", "PC14", "PC15";
+						 "PC13", "PC14", "PC15",
+						 "PC16";
 				allwinner,function = "mmc2";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
@@ -764,14 +853,83 @@
 			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		apbs_rst: reset@080014b0 {
+			reg = <0x080014b0 0x4>;
+			compatible = "allwinner,sun6i-a31-clock-reset";
+			#reset-cells = <1>;
+		};
+
+		nmi_intc: interrupt-controller@080015a0 {
+			compatible = "allwinner,sun9i-a80-nmi";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0x080015a0 0xc>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		r_ir: ir@08002000 {
+			compatible = "allwinner,sun5i-a13-ir";
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&r_ir_pins>;
+			clocks = <&apbs_gates 1>, <&r_ir_clk>;
+			clock-names = "apb", "ir";
+			resets = <&apbs_rst 1>;
+			reg = <0x08002000 0x40>;
+			status = "disabled";
+		};
+
 		r_uart: serial@08002800 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x08002800 0x400>;
 			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&osc24M>;
+			clocks = <&apbs_gates 4>;
+			resets = <&apbs_rst 4>;
 			status = "disabled";
+		};
+
+		r_pio: pinctrl@08002c00 {
+			compatible = "allwinner,sun9i-a80-r-pinctrl";
+			reg = <0x08002c00 0x400>;
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&apbs_gates 0>;
+			resets = <&apbs_rst 0>;
+			gpio-controller;
+			interrupt-controller;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#gpio-cells = <3>;
+
+			r_ir_pins: r_ir {
+				allwinner,pins = "PL6";
+				allwinner,function = "s_cir_rx";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			r_rsb_pins: r_rsb {
+				allwinner,pins = "PN0", "PN1";
+				allwinner,function = "s_rsb";
+				allwinner,drive = <SUN4I_PINCTRL_20_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+			};
+		};
+
+		r_rsb: i2c@08003400 {
+			compatible = "allwinner,sun8i-a23-rsb";
+			reg = <0x08003400 0x400>;
+			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&apbs_gates 3>;
+			clock-frequency = <3000000>;
+			resets = <&apbs_rst 3>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&r_rsb_pins>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 	};
 };

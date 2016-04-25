@@ -50,6 +50,7 @@ struct ep_device;
  * struct usb_host_endpoint - host-side endpoint descriptor and queue
  * @desc: descriptor for this endpoint, wMaxPacketSize in native byteorder
  * @ss_ep_comp: SuperSpeed companion descriptor for this endpoint
+ * @ssp_isoc_ep_comp: SuperSpeedPlus isoc companion descriptor for this endpoint
  * @urb_list: urbs queued to this endpoint; maintained by usbcore
  * @hcpriv: for use by HCD; typically holds hardware dma queue head (QH)
  *	with one or more transfer descriptors (TDs) per urb
@@ -65,6 +66,7 @@ struct ep_device;
 struct usb_host_endpoint {
 	struct usb_endpoint_descriptor		desc;
 	struct usb_ss_ep_comp_descriptor	ss_ep_comp;
+	struct usb_ssp_isoc_ep_comp_descriptor	ssp_isoc_ep_comp;
 	struct list_head		urb_list;
 	void				*hcpriv;
 	struct ep_device		*ep_dev;	/* For sysfs info */
@@ -122,6 +124,8 @@ enum usb_interface_condition {
  *	has been deferred.
  * @needs_binding: flag set when the driver should be re-probed or unbound
  *	following a reset or suspend operation it doesn't support.
+ * @authorized: This allows to (de)authorize individual interfaces instead
+ *	a whole device in contrast to the device authorization.
  * @dev: driver model's view of this device
  * @usb_dev: if an interface is bound to the USB major, this will point
  *	to the sysfs representation for that device.
@@ -178,6 +182,7 @@ struct usb_interface {
 	unsigned needs_altsetting0:1;	/* switch to altsetting 0 is pending */
 	unsigned needs_binding:1;	/* needs delayed unbind/rebind */
 	unsigned resetting_device:1;	/* true: bandwidth alloc after reset */
+	unsigned authorized:1;		/* used for interface authorization */
 
 	struct device dev;		/* interface specific device info */
 	struct device *usb_dev;
@@ -325,7 +330,9 @@ struct usb_host_bos {
 	/* wireless cap descriptor is handled by wusb */
 	struct usb_ext_cap_descriptor	*ext_cap;
 	struct usb_ss_cap_descriptor	*ss_cap;
+	struct usb_ssp_cap_descriptor	*ssp_cap;
 	struct usb_ss_container_id_descriptor	*ss_id;
+	struct usb_ptm_cap_descriptor	*ptm_cap;
 };
 
 int __usb_get_extra_descriptor(char *buffer, unsigned size,
@@ -371,7 +378,6 @@ struct usb_bus {
 	struct usb_devmap devmap;	/* device address allocation map */
 	struct usb_device *root_hub;	/* Root hub */
 	struct usb_bus *hs_companion;	/* Companion EHCI bus, if any */
-	struct list_head bus_list;	/* list of busses */
 
 	struct mutex usb_address0_mutex; /* unaddressed device mutex */
 
@@ -506,7 +512,8 @@ struct usb3_lpm_parameters {
  * @usb2_hw_lpm_besl_capable: device can perform USB2 hardware BESL LPM
  * @usb2_hw_lpm_enabled: USB2 hardware LPM is enabled
  * @usb2_hw_lpm_allowed: Userspace allows USB 2.0 LPM to be enabled
- * @usb3_lpm_enabled: USB3 hardware LPM enabled
+ * @usb3_lpm_u1_enabled: USB3 hardware U1 LPM enabled
+ * @usb3_lpm_u2_enabled: USB3 hardware U2 LPM enabled
  * @string_langid: language ID for strings
  * @product: iProduct string, if present (static)
  * @manufacturer: iManufacturer string, if present (static)
@@ -579,7 +586,8 @@ struct usb_device {
 	unsigned usb2_hw_lpm_besl_capable:1;
 	unsigned usb2_hw_lpm_enabled:1;
 	unsigned usb2_hw_lpm_allowed:1;
-	unsigned usb3_lpm_enabled:1;
+	unsigned usb3_lpm_u1_enabled:1;
+	unsigned usb3_lpm_u2_enabled:1;
 	int string_langid;
 
 	/* static strings from the device */
@@ -636,9 +644,10 @@ extern struct usb_device *usb_hub_find_child(struct usb_device *hdev,
 		if (!child) continue; else
 
 /* USB device locking */
-#define usb_lock_device(udev)		device_lock(&(udev)->dev)
-#define usb_unlock_device(udev)		device_unlock(&(udev)->dev)
-#define usb_trylock_device(udev)	device_trylock(&(udev)->dev)
+#define usb_lock_device(udev)			device_lock(&(udev)->dev)
+#define usb_unlock_device(udev)			device_unlock(&(udev)->dev)
+#define usb_lock_device_interruptible(udev)	device_lock_interruptible(&(udev)->dev)
+#define usb_trylock_device(udev)		device_trylock(&(udev)->dev)
 extern int usb_lock_device_for_reset(struct usb_device *udev,
 				     const struct usb_interface *iface);
 

@@ -10,7 +10,7 @@
 unsigned int nf_nat_packet(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 			   unsigned int hooknum, struct sk_buff *skb);
 
-int nf_xfrm_me_harder(struct sk_buff *skb, unsigned int family);
+int nf_xfrm_me_harder(struct net *net, struct sk_buff *skb, unsigned int family);
 
 static inline int nf_nat_initialized(struct nf_conn *ct,
 				     enum nf_nat_manip_type manip)

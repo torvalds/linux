@@ -29,8 +29,6 @@
 
 #include "i40e.h"
 
-#define I40E_MAX_MACVLAN_FILTERS 256
-#define I40E_MAX_VLAN_FILTERS 256
 #define I40E_MAX_VLANID 4095
 
 #define I40E_VIRTCHNL_SUPPORTED_QTYPES 2
@@ -60,6 +58,7 @@ enum i40e_queue_ctrl {
 enum i40e_vf_states {
 	I40E_VF_STAT_INIT = 0,
 	I40E_VF_STAT_ACTIVE,
+	I40E_VF_STAT_IWARPENA,
 	I40E_VF_STAT_FCOEENA,
 	I40E_VF_STAT_DISABLED,
 };
@@ -68,6 +67,7 @@ enum i40e_vf_states {
 enum i40e_vf_capabilities {
 	I40E_VIRTCHNL_VF_CAP_PRIVILEGE = 0,
 	I40E_VIRTCHNL_VF_CAP_L2,
+	I40E_VIRTCHNL_VF_CAP_IWARP,
 };
 
 /* VF information structure */
@@ -93,12 +93,13 @@ struct i40e_vf {
 	 * When assigned, these will be non-zero, because VSI 0 is always
 	 * the main LAN VSI for the PF.
 	 */
-	u8 lan_vsi_idx;	        /* index into PF struct */
-	u8 lan_vsi_id;		/* ID as used by firmware */
+	u16 lan_vsi_idx;	/* index into PF struct */
+	u16 lan_vsi_id;		/* ID as used by firmware */
 
 	u8 num_queue_pairs;	/* num of qps assigned to VF vsis */
 	u64 num_mdd_events;	/* num of mdd events detected */
-	u64 num_invalid_msgs;	/* num of malformed or invalid msgs detected */
+	/* num of continuous malformed or invalid msgs detected */
+	u64 num_invalid_msgs;
 	u64 num_valid_msgs;	/* num of valid msgs detected */
 
 	unsigned long vf_caps;	/* vf's adv. capabilities */
@@ -107,6 +108,8 @@ struct i40e_vf {
 	bool link_forced;
 	bool link_up;		/* only valid if VF link is forced */
 	bool spoofchk;
+	/* RDMA Client */
+	struct i40e_virtchnl_iwarp_qvlist_info *qvlist_info;
 };
 
 void i40e_free_vfs(struct i40e_pf *pf);

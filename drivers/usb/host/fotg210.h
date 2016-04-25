@@ -137,19 +137,25 @@ struct fotg210_hcd {			/* one per controller */
 	/* per root hub port */
 	unsigned long		reset_done[FOTG210_MAX_ROOT_PORTS];
 
-	/* bit vectors (one bit per port) */
-	unsigned long		bus_suspended;		/* which ports were
-			already suspended at the start of a bus suspend */
-	unsigned long		companion_ports;	/* which ports are
-			dedicated to the companion controller */
-	unsigned long		owned_ports;		/* which ports are
-			owned by the companion during a bus suspend */
-	unsigned long		port_c_suspend;		/* which ports have
-			the change-suspend feature turned on */
-	unsigned long		suspended_ports;	/* which ports are
-			suspended */
-	unsigned long		resuming_ports;		/* which ports have
-			started to resume */
+	/* bit vectors (one bit per port)
+	 * which ports were already suspended at the start of a bus suspend
+	 */
+	unsigned long		bus_suspended;
+
+	/* which ports are edicated to the companion controller */
+	unsigned long		companion_ports;
+
+	/* which ports are owned by the companion during a bus suspend */
+	unsigned long		owned_ports;
+
+	/* which ports have the change-suspend feature turned on */
+	unsigned long		port_c_suspend;
+
+	/* which ports are suspended */
+	unsigned long		suspended_ports;
+
+	/* which ports have started to resume */
+	unsigned long		resuming_ports;
 
 	/* per-HC memory pools (could be per-bus, but ...) */
 	struct dma_pool		*qh_pool;	/* qh per active urb */
@@ -585,10 +591,10 @@ struct fotg210_fstn {
 /* Prepare the PORTSC wakeup flags during controller suspend/resume */
 
 #define fotg210_prepare_ports_for_controller_suspend(fotg210, do_wakeup) \
-		fotg210_adjust_port_wakeup_flags(fotg210, true, do_wakeup);
+		fotg210_adjust_port_wakeup_flags(fotg210, true, do_wakeup)
 
 #define fotg210_prepare_ports_for_controller_resume(fotg210)		\
-		fotg210_adjust_port_wakeup_flags(fotg210, false, false);
+		fotg210_adjust_port_wakeup_flags(fotg210, false, false)
 
 /*-------------------------------------------------------------------------*/
 

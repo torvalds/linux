@@ -27,7 +27,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -39,35 +39,14 @@
 #include "../include/lustre/lustre_idl.h"
 #include "mdc_internal.h"
 
-
 static void __mdc_pack_body(struct mdt_body *b, __u32 suppgid)
 {
-	LASSERT(b != NULL);
-
 	b->suppgid = suppgid;
 	b->uid = from_kuid(&init_user_ns, current_uid());
 	b->gid = from_kgid(&init_user_ns, current_gid());
 	b->fsuid = from_kuid(&init_user_ns, current_fsuid());
 	b->fsgid = from_kgid(&init_user_ns, current_fsgid());
 	b->capability = cfs_curproc_cap_pack();
-}
-
-void mdc_pack_capa(struct ptlrpc_request *req,
-		   const struct req_msg_field *field,
-		   struct obd_capa *oc)
-{
-	struct req_capsule *pill = &req->rq_pill;
-	struct lustre_capa *c;
-
-	if (oc == NULL) {
-		LASSERT(req_capsule_get_size(pill, field, RCL_CLIENT) == 0);
-		return;
-	}
-
-	c = req_capsule_client_get(pill, field);
-	LASSERT(c != NULL);
-	capa_cpy(c, oc);
-	DEBUG_CAPA(D_SEC, c, "pack");
 }
 
 void mdc_is_subdir_pack(struct ptlrpc_request *req, const struct lu_fid *pfid,
@@ -95,18 +74,13 @@ void mdc_swap_layouts_pack(struct ptlrpc_request *req,
 	b->fid1 = op_data->op_fid1;
 	b->fid2 = op_data->op_fid2;
 	b->valid |= OBD_MD_FLID;
-
-	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
-	mdc_pack_capa(req, &RMF_CAPA2, op_data->op_capa2);
 }
 
-void mdc_pack_body(struct ptlrpc_request *req,
-		   const struct lu_fid *fid, struct obd_capa *oc,
+void mdc_pack_body(struct ptlrpc_request *req, const struct lu_fid *fid,
 		   __u64 valid, int ea_size, __u32 suppgid, int flags)
 {
 	struct mdt_body *b = req_capsule_client_get(&req->rq_pill,
 						    &RMF_MDT_BODY);
-	LASSERT(b != NULL);
 	b->valid = valid;
 	b->eadatasize = ea_size;
 	b->flags = flags;
@@ -114,12 +88,11 @@ void mdc_pack_body(struct ptlrpc_request *req,
 	if (fid) {
 		b->fid1 = *fid;
 		b->valid |= OBD_MD_FLID;
-		mdc_pack_capa(req, &RMF_CAPA1, oc);
 	}
 }
 
 void mdc_readdir_pack(struct ptlrpc_request *req, __u64 pgoff,
-		      __u32 size, const struct lu_fid *fid, struct obd_capa *oc)
+		      __u32 size, const struct lu_fid *fid)
 {
 	struct mdt_body *b = req_capsule_client_get(&req->rq_pill,
 						    &RMF_MDT_BODY);
@@ -129,8 +102,6 @@ void mdc_readdir_pack(struct ptlrpc_request *req, __u64 pgoff,
 	b->nlink = size;			/* !! */
 	__mdc_pack_body(b, -1);
 	b->mode = LUDA_FID | LUDA_TYPE;
-
-	mdc_pack_capa(req, &RMF_CAPA1, oc);
 }
 
 /* packing of MDS records */
@@ -144,7 +115,6 @@ void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 
 	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_create));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
-
 
 	rec->cr_opcode   = REINT_CREATE;
 	rec->cr_fsuid    = uid;
@@ -163,8 +133,6 @@ void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	set_mrc_cr_flags(rec, flags);
 	rec->cr_bias     = op_data->op_bias;
 	rec->cr_umask    = current_umask();
-
-	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
 
 	tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
 	LOGL0(op_data->op_name, op_data->op_namelen, tmp);
@@ -234,10 +202,6 @@ void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec->cr_bias     = op_data->op_bias;
 	rec->cr_umask    = current_umask();
 	rec->cr_old_handle = op_data->op_handle;
-
-	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
-	/* the next buffer is child capa, which is used for replay,
-	 * will be packed from the data in reply message. */
 
 	if (op_data->op_name) {
 		tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
@@ -347,8 +311,6 @@ void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 	mdc_setattr_pack_rec(rec, op_data);
 
-	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
-
 	if (op_data->op_flags & (MF_SOM_CHANGE | MF_EPOCH_OPEN)) {
 		epoch = req_capsule_client_get(&req->rq_pill, &RMF_MDT_EPOCH);
 		mdc_ioepoch_pack(epoch, op_data);
@@ -358,7 +320,7 @@ void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 		return;
 
 	lum = req_capsule_client_get(&req->rq_pill, &RMF_EADATA);
-	if (ea == NULL) { /* Remove LOV EA */
+	if (!ea) { /* Remove LOV EA */
 		lum->lmm_magic = LOV_USER_MAGIC_V1;
 		lum->lmm_stripe_size = 0;
 		lum->lmm_stripe_count = 0;
@@ -381,7 +343,6 @@ void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 
 	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_unlink));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
-	LASSERT(rec != NULL);
 
 	rec->ul_opcode   = op_data->op_cli_flags & CLI_RM_ENTRY ?
 					REINT_RMENTRY : REINT_UNLINK;
@@ -396,10 +357,8 @@ void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	rec->ul_time     = op_data->op_mod_time;
 	rec->ul_bias     = op_data->op_bias;
 
-	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
-
 	tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
-	LASSERT(tmp != NULL);
+	LASSERT(tmp);
 	LOGL0(op_data->op_name, op_data->op_namelen, tmp);
 }
 
@@ -410,7 +369,6 @@ void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 
 	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_link));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
-	LASSERT(rec != NULL);
 
 	rec->lk_opcode   = REINT_LINK;
 	rec->lk_fsuid    = op_data->op_fsuid; /* current->fsuid; */
@@ -422,9 +380,6 @@ void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	rec->lk_fid2     = op_data->op_fid2;
 	rec->lk_time     = op_data->op_mod_time;
 	rec->lk_bias     = op_data->op_bias;
-
-	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
-	mdc_pack_capa(req, &RMF_CAPA2, op_data->op_capa2);
 
 	tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
 	LOGL0(op_data->op_name, op_data->op_namelen, tmp);
@@ -451,9 +406,6 @@ void mdc_rename_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec->rn_time     = op_data->op_mod_time;
 	rec->rn_mode     = op_data->op_mode;
 	rec->rn_bias     = op_data->op_bias;
-
-	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
-	mdc_pack_capa(req, &RMF_CAPA2, op_data->op_capa2);
 
 	tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
 	LOGL0(old, oldlen, tmp);
@@ -483,8 +435,6 @@ void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, int flags,
 	b->fid2 = op_data->op_fid2;
 	b->valid |= OBD_MD_FLID;
 
-	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
-
 	if (op_data->op_name) {
 		char *tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
 
@@ -501,10 +451,9 @@ static void mdc_hsm_release_pack(struct ptlrpc_request *req,
 		struct ldlm_lock *lock;
 
 		data = req_capsule_client_get(&req->rq_pill, &RMF_CLOSE_DATA);
-		LASSERT(data != NULL);
 
 		lock = ldlm_handle2lock(&op_data->op_lease_handle);
-		if (lock != NULL) {
+		if (lock) {
 			data->cd_handle = lock->l_remote_handle;
 			ldlm_lock_put(lock);
 		}
@@ -524,7 +473,6 @@ void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 
 	mdc_setattr_pack_rec(rec, op_data);
-	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
 	mdc_ioepoch_pack(epoch, op_data);
 	mdc_hsm_release_pack(req, op_data);
 }
@@ -541,7 +489,8 @@ static int mdc_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 
 /* We record requests in flight in cli->cl_r_in_flight here.
  * There is only one write rpc possible in mdc anyway. If this to change
- * in the future - the code may need to be revisited. */
+ * in the future - the code may need to be revisited.
+ */
 int mdc_enter_request(struct client_obd *cli)
 {
 	int rc = 0;

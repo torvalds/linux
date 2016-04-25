@@ -240,9 +240,9 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	WARN_ON(overlay->active);
 	WARN_ON(IS_I830(dev) && !(dev_priv->quirks & QUIRK_PIPEA_FORCE));
 
-	ret = i915_gem_request_alloc(ring, ring->default_context, &req);
-	if (ret)
-		return ret;
+	req = i915_gem_request_alloc(ring, NULL);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
 	ret = intel_ring_begin(req, 4);
 	if (ret) {
@@ -283,9 +283,9 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	if (tmp & (1 << 17))
 		DRM_DEBUG("overlay underrun, DOVSTA: %x\n", tmp);
 
-	ret = i915_gem_request_alloc(ring, ring->default_context, &req);
-	if (ret)
-		return ret;
+	req = i915_gem_request_alloc(ring, NULL);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
 	ret = intel_ring_begin(req, 2);
 	if (ret) {
@@ -349,9 +349,9 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	 * of the hw. Do it in both cases */
 	flip_addr |= OFC_UPDATE;
 
-	ret = i915_gem_request_alloc(ring, ring->default_context, &req);
-	if (ret)
-		return ret;
+	req = i915_gem_request_alloc(ring, NULL);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
 	ret = intel_ring_begin(req, 6);
 	if (ret) {
@@ -423,9 +423,9 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 		/* synchronous slowpath */
 		struct drm_i915_gem_request *req;
 
-		ret = i915_gem_request_alloc(ring, ring->default_context, &req);
-		if (ret)
-			return ret;
+		req = i915_gem_request_alloc(ring, NULL);
+		if (IS_ERR(req))
+			return PTR_ERR(req);
 
 		ret = intel_ring_begin(req, 2);
 		if (ret) {
@@ -749,7 +749,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret != 0)
 		return ret;
 
-	ret = i915_gem_object_pin_to_display_plane(new_bo, 0, NULL, NULL,
+	ret = i915_gem_object_pin_to_display_plane(new_bo, 0,
 						   &i915_ggtt_view_normal);
 	if (ret != 0)
 		return ret;

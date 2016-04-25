@@ -13,10 +13,17 @@
 #include <linux/bug.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
+#include <asm/frame.h>
 
 static inline int paravirt_enabled(void)
 {
 	return pv_info.paravirt_enabled;
+}
+
+static inline int paravirt_has_feature(unsigned int feature)
+{
+	WARN_ON_ONCE(!pv_info.paravirt_enabled);
+	return (pv_info.features & feature);
 }
 
 static inline void load_sp0(struct tss_struct *tss,
@@ -285,15 +292,6 @@ static inline void slow_down_io(void)
 #endif
 }
 
-#ifdef CONFIG_SMP
-static inline void startup_ipi_hook(int phys_apicid, unsigned long start_eip,
-				    unsigned long start_esp)
-{
-	PVOP_VCALL3(pv_apic_ops.startup_ipi_hook,
-		    phys_apicid, start_eip, start_esp);
-}
-#endif
-
 static inline void paravirt_activate_mm(struct mm_struct *prev,
 					struct mm_struct *next)
 {
@@ -374,23 +372,6 @@ static inline void pte_update(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep)
 {
 	PVOP_VCALL3(pv_mmu_ops.pte_update, mm, addr, ptep);
-}
-static inline void pmd_update(struct mm_struct *mm, unsigned long addr,
-			      pmd_t *pmdp)
-{
-	PVOP_VCALL3(pv_mmu_ops.pmd_update, mm, addr, pmdp);
-}
-
-static inline void pte_update_defer(struct mm_struct *mm, unsigned long addr,
-				    pte_t *ptep)
-{
-	PVOP_VCALL3(pv_mmu_ops.pte_update_defer, mm, addr, ptep);
-}
-
-static inline void pmd_update_defer(struct mm_struct *mm, unsigned long addr,
-				    pmd_t *pmdp)
-{
-	PVOP_VCALL3(pv_mmu_ops.pmd_update_defer, mm, addr, pmdp);
 }
 
 static inline pte_t __pte(pteval_t val)
@@ -776,15 +757,19 @@ static __always_inline void __ticket_unlock_kick(struct arch_spinlock *lock,
  * call. The return value in rax/eax will not be saved, even for void
  * functions.
  */
+#define PV_THUNK_NAME(func) "__raw_callee_save_" #func
 #define PV_CALLEE_SAVE_REGS_THUNK(func)					\
 	extern typeof(func) __raw_callee_save_##func;			\
 									\
 	asm(".pushsection .text;"					\
-	    ".globl __raw_callee_save_" #func " ; "			\
-	    "__raw_callee_save_" #func ": "				\
+	    ".globl " PV_THUNK_NAME(func) ";"				\
+	    ".type " PV_THUNK_NAME(func) ", @function;"			\
+	    PV_THUNK_NAME(func) ":"					\
+	    FRAME_BEGIN							\
 	    PV_SAVE_ALL_CALLER_REGS					\
 	    "call " #func ";"						\
 	    PV_RESTORE_ALL_CALLER_REGS					\
+	    FRAME_END							\
 	    "ret;"							\
 	    ".popsection")
 
@@ -922,23 +907,11 @@ extern void default_banner(void);
 		  call PARA_INDIRECT(pv_irq_ops+PV_IRQ_irq_enable);	\
 		  PV_RESTORE_REGS(clobbers | CLBR_CALLEE_SAVE);)
 
-#define USERGS_SYSRET32							\
-	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usergs_sysret32),	\
-		  CLBR_NONE,						\
-		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_usergs_sysret32))
-
 #ifdef CONFIG_X86_32
 #define GET_CR0_INTO_EAX				\
 	push %ecx; push %edx;				\
 	call PARA_INDIRECT(pv_cpu_ops+PV_CPU_read_cr0);	\
 	pop %edx; pop %ecx
-
-#define ENABLE_INTERRUPTS_SYSEXIT					\
-	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_irq_enable_sysexit),	\
-		  CLBR_NONE,						\
-		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_irq_enable_sysexit))
-
-
 #else	/* !CONFIG_X86_32 */
 
 /*

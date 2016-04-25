@@ -310,15 +310,12 @@ struct wl1271 {
 	/* FW memory block size */
 	u32 fw_mem_block_size;
 
-	/* Sysfs FW log entry readers wait queue */
-	wait_queue_head_t fwlog_waitq;
-
 	/* Hardware recovery work */
 	struct work_struct recovery_work;
 	bool watchdog_recovery;
 
 	/* Reg domain last configuration */
-	u32 reg_ch_conf_last[2];
+	u32 reg_ch_conf_last[2]  __aligned(8);
 	/* Reg domain pending configuration */
 	u32 reg_ch_conf_pending[2];
 
@@ -466,6 +463,7 @@ struct wl1271 {
 
 	/* the current dfs region */
 	enum nl80211_dfs_regions dfs_region;
+	bool radar_debug_mode;
 
 	/* size of the private FW status data */
 	size_t fw_status_len;

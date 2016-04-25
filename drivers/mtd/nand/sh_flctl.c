@@ -160,7 +160,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.direction = DMA_MEM_TO_DEV;
-	cfg.dst_addr = (dma_addr_t)FLDTFIFO(flctl);
+	cfg.dst_addr = flctl->fifo;
 	cfg.src_addr = 0;
 	ret = dmaengine_slave_config(flctl->chan_fifo0_tx, &cfg);
 	if (ret < 0)
@@ -176,7 +176,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 
 	cfg.direction = DMA_DEV_TO_MEM;
 	cfg.dst_addr = 0;
-	cfg.src_addr = (dma_addr_t)FLDTFIFO(flctl);
+	cfg.src_addr = flctl->fifo;
 	ret = dmaengine_slave_config(flctl->chan_fifo0_rx, &cfg);
 	if (ret < 0)
 		goto err;
@@ -569,7 +569,8 @@ static int flctl_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 static int flctl_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-				   const uint8_t *buf, int oob_required)
+				  const uint8_t *buf, int oob_required,
+				  int page)
 {
 	chip->write_buf(mtd, buf, mtd->writesize);
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -606,13 +607,13 @@ static void execmd_read_page_sector(struct mtd_info *mtd, int page_addr)
 		case FL_REPAIRABLE:
 			dev_info(&flctl->pdev->dev,
 				"applied ecc on page 0x%x", page_addr);
-			flctl->mtd.ecc_stats.corrected++;
+			mtd->ecc_stats.corrected++;
 			break;
 		case FL_ERROR:
 			dev_warn(&flctl->pdev->dev,
 				"page 0x%x contains corrupted data\n",
 				page_addr);
-			flctl->mtd.ecc_stats.failed++;
+			mtd->ecc_stats.failed++;
 			break;
 		default:
 			;
@@ -1085,7 +1086,6 @@ static int flctl_probe(struct platform_device *pdev)
 	struct sh_flctl_platform_data *pdata;
 	int ret;
 	int irq;
-	struct mtd_part_parser_data ppdata = {};
 
 	flctl = devm_kzalloc(&pdev->dev, sizeof(struct sh_flctl), GFP_KERNEL);
 	if (!flctl)
@@ -1095,6 +1095,7 @@ static int flctl_probe(struct platform_device *pdev)
 	flctl->reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(flctl->reg))
 		return PTR_ERR(flctl->reg);
+	flctl->fifo = res->start + 0x24; /* FLDTFIFO */
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -1120,9 +1121,10 @@ static int flctl_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, flctl);
-	flctl_mtd = &flctl->mtd;
 	nand = &flctl->chip;
-	flctl_mtd->priv = nand;
+	flctl_mtd = nand_to_mtd(nand);
+	nand_set_flash_node(nand, pdev->dev.of_node);
+	flctl_mtd->dev.parent = &pdev->dev;
 	flctl->pdev = pdev;
 	flctl->hwecc = pdata->has_hwecc;
 	flctl->holden = pdata->use_holden;
@@ -1161,9 +1163,7 @@ static int flctl_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_chip;
 
-	ppdata.of_node = pdev->dev.of_node;
-	ret = mtd_device_parse_register(flctl_mtd, NULL, &ppdata, pdata->parts,
-			pdata->nr_parts);
+	ret = mtd_device_register(flctl_mtd, pdata->parts, pdata->nr_parts);
 
 	return 0;
 
@@ -1178,7 +1178,7 @@ static int flctl_remove(struct platform_device *pdev)
 	struct sh_flctl *flctl = platform_get_drvdata(pdev);
 
 	flctl_release_dma(flctl);
-	nand_release(&flctl->mtd);
+	nand_release(nand_to_mtd(&flctl->chip));
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;

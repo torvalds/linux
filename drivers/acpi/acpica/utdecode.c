@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -114,7 +114,7 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"PCC"			/* 0x0A */
 };
 
-char *acpi_ut_get_region_name(u8 space_id)
+const char *acpi_ut_get_region_name(u8 space_id)
 {
 
 	if (space_id >= ACPI_USER_REGION_BEGIN) {
@@ -127,7 +127,7 @@ char *acpi_ut_get_region_name(u8 space_id)
 		return ("InvalidSpaceId");
 	}
 
-	return (ACPI_CAST_PTR(char, acpi_gbl_region_types[space_id]));
+	return (acpi_gbl_region_types[space_id]);
 }
 
 /*******************************************************************************
@@ -152,14 +152,14 @@ static const char *acpi_gbl_event_types[ACPI_NUM_FIXED_EVENTS] = {
 	"RealTimeClock",
 };
 
-char *acpi_ut_get_event_name(u32 event_id)
+const char *acpi_ut_get_event_name(u32 event_id)
 {
 
 	if (event_id > ACPI_EVENT_MAX) {
 		return ("InvalidEventID");
 	}
 
-	return (ACPI_CAST_PTR(char, acpi_gbl_event_types[event_id]));
+	return (acpi_gbl_event_types[event_id]);
 }
 
 /*******************************************************************************
@@ -180,7 +180,8 @@ char *acpi_ut_get_event_name(u32 event_id)
  *
  * The type ACPI_TYPE_ANY (Untyped) is used as a "don't care" when searching;
  * when stored in a table it really means that we have thus far seen no
- * evidence to indicate what type is actually going to be stored for this entry.
+ * evidence to indicate what type is actually going to be stored for this
+ & entry.
  */
 static const char acpi_gbl_bad_type[] = "UNDEFINED";
 
@@ -220,24 +221,39 @@ static const char *acpi_gbl_ns_type_names[] = {
 	/* 30 */ "Invalid"
 };
 
-char *acpi_ut_get_type_name(acpi_object_type type)
+const char *acpi_ut_get_type_name(acpi_object_type type)
 {
 
 	if (type > ACPI_TYPE_INVALID) {
-		return (ACPI_CAST_PTR(char, acpi_gbl_bad_type));
+		return (acpi_gbl_bad_type);
 	}
 
-	return (ACPI_CAST_PTR(char, acpi_gbl_ns_type_names[type]));
+	return (acpi_gbl_ns_type_names[type]);
 }
 
-char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
+const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 {
+	ACPI_FUNCTION_TRACE(ut_get_object_type_name);
 
 	if (!obj_desc) {
-		return ("[NULL Object Descriptor]");
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Null Object Descriptor\n"));
+		return_PTR("[NULL Object Descriptor]");
 	}
 
-	return (acpi_ut_get_type_name(obj_desc->common.type));
+	/* These descriptor types share a common area */
+
+	if ((ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_OPERAND) &&
+	    (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_NAMED)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "Invalid object descriptor type: 0x%2.2X [%s] (%p)\n",
+				  ACPI_GET_DESCRIPTOR_TYPE(obj_desc),
+				  acpi_ut_get_descriptor_name(obj_desc),
+				  obj_desc));
+
+		return_PTR("Invalid object");
+	}
+
+	return_PTR(acpi_ut_get_type_name(obj_desc->common.type));
 }
 
 /*******************************************************************************
@@ -252,7 +268,7 @@ char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
  *
  ******************************************************************************/
 
-char *acpi_ut_get_node_name(void *object)
+const char *acpi_ut_get_node_name(void *object)
 {
 	struct acpi_namespace_node *node = (struct acpi_namespace_node *)object;
 
@@ -318,7 +334,7 @@ static const char *acpi_gbl_desc_type_names[] = {
 	/* 15 */ "Node"
 };
 
-char *acpi_ut_get_descriptor_name(void *object)
+const char *acpi_ut_get_descriptor_name(void *object)
 {
 
 	if (!object) {
@@ -329,10 +345,7 @@ char *acpi_ut_get_descriptor_name(void *object)
 		return ("Not a Descriptor");
 	}
 
-	return (ACPI_CAST_PTR(char,
-			      acpi_gbl_desc_type_names[ACPI_GET_DESCRIPTOR_TYPE
-						       (object)]));
-
+	return (acpi_gbl_desc_type_names[ACPI_GET_DESCRIPTOR_TYPE(object)]);
 }
 
 /*******************************************************************************
@@ -400,18 +413,16 @@ const char *acpi_ut_get_reference_name(union acpi_operand_object *object)
 
 /* Names for internal mutex objects, used for debug output */
 
-static char *acpi_gbl_mutex_names[ACPI_NUM_MUTEX] = {
+static const char *acpi_gbl_mutex_names[ACPI_NUM_MUTEX] = {
 	"ACPI_MTX_Interpreter",
 	"ACPI_MTX_Namespace",
 	"ACPI_MTX_Tables",
 	"ACPI_MTX_Events",
 	"ACPI_MTX_Caches",
 	"ACPI_MTX_Memory",
-	"ACPI_MTX_CommandComplete",
-	"ACPI_MTX_CommandReady"
 };
 
-char *acpi_ut_get_mutex_name(u32 mutex_id)
+const char *acpi_ut_get_mutex_name(u32 mutex_id)
 {
 
 	if (mutex_id > ACPI_MAX_MUTEX) {

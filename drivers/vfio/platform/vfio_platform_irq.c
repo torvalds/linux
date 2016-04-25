@@ -185,6 +185,7 @@ static int vfio_set_trigger(struct vfio_platform_device *vdev, int index,
 	int ret;
 
 	if (irq->trigger) {
+		irq_clear_status_flags(irq->hwirq, IRQ_NOAUTOEN);
 		free_irq(irq->hwirq, irq);
 		kfree(irq->name);
 		eventfd_ctx_put(irq->trigger);

@@ -414,6 +414,22 @@ struct i2c_algorithm {
 };
 
 /**
+ * struct i2c_timings - I2C timing information
+ * @bus_freq_hz: the bus frequency in Hz
+ * @scl_rise_ns: time SCL signal takes to rise in ns; t(r) in the I2C specification
+ * @scl_fall_ns: time SCL signal takes to fall in ns; t(f) in the I2C specification
+ * @scl_int_delay_ns: time IP core additionally needs to setup SCL in ns
+ * @sda_fall_ns: time SDA signal takes to fall in ns; t(f) in the I2C specification
+ */
+struct i2c_timings {
+	u32 bus_freq_hz;
+	u32 scl_rise_ns;
+	u32 scl_fall_ns;
+	u32 scl_int_delay_ns;
+	u32 sda_fall_ns;
+};
+
+/**
  * struct i2c_bus_recovery_info - I2C bus recovery information
  * @recover_bus: Recover routine. Either pass driver's recover_bus() routine, or
  *	i2c_generic_scl_recovery() or i2c_generic_gpio_recovery().
@@ -493,6 +509,8 @@ struct i2c_adapter_quirks {
 /* convenience macro for typical write-then read case */
 #define I2C_AQ_COMB_WRITE_THEN_READ	(I2C_AQ_COMB | I2C_AQ_COMB_WRITE_FIRST | \
 					 I2C_AQ_COMB_READ_SECOND | I2C_AQ_COMB_SAME_ADDR)
+/* clock stretching is not supported */
+#define I2C_AQ_NO_CLK_STRETCH		BIT(4)
 
 /*
  * i2c_adapter is the structure used to identify a physical i2c bus along
@@ -602,6 +620,7 @@ extern void i2c_clients_command(struct i2c_adapter *adap,
 extern struct i2c_adapter *i2c_get_adapter(int nr);
 extern void i2c_put_adapter(struct i2c_adapter *adap);
 
+void i2c_parse_fw_timings(struct device *dev, struct i2c_timings *t, bool use_defaults);
 
 /* Return the functionality mask */
 static inline u32 i2c_get_functionality(struct i2c_adapter *adap)
@@ -615,6 +634,20 @@ static inline int i2c_check_functionality(struct i2c_adapter *adap, u32 func)
 	return (func & i2c_get_functionality(adap)) == func;
 }
 
+/**
+ * i2c_check_quirks() - Function for checking the quirk flags in an i2c adapter
+ * @adap: i2c adapter
+ * @quirks: quirk flags
+ *
+ * Return: true if the adapter has all the specified quirk flags, false if not
+ */
+static inline bool i2c_check_quirks(struct i2c_adapter *adap, u64 quirks)
+{
+	if (!adap->quirks)
+		return false;
+	return (adap->quirks->flags & quirks) == quirks;
+}
+
 /* Return the adapter number for a specific adapter */
 static inline int i2c_adapter_id(struct i2c_adapter *adap)
 {
@@ -622,7 +655,7 @@ static inline int i2c_adapter_id(struct i2c_adapter *adap)
 }
 
 /**
- * module_i2c_driver() - Helper macro for registering a I2C driver
+ * module_i2c_driver() - Helper macro for registering a modular I2C driver
  * @__i2c_driver: i2c_driver struct
  *
  * Helper macro for I2C drivers which do not do anything special in module
@@ -632,6 +665,17 @@ static inline int i2c_adapter_id(struct i2c_adapter *adap)
 #define module_i2c_driver(__i2c_driver) \
 	module_driver(__i2c_driver, i2c_add_driver, \
 			i2c_del_driver)
+
+/**
+ * builtin_i2c_driver() - Helper macro for registering a builtin I2C driver
+ * @__i2c_driver: i2c_driver struct
+ *
+ * Helper macro for I2C drivers which do not do anything special in their
+ * init. This eliminates a lot of boilerplate. Each driver may only
+ * use this macro once, and calling it replaces device_initcall().
+ */
+#define builtin_i2c_driver(__i2c_driver) \
+	builtin_driver(__i2c_driver, i2c_add_driver)
 
 #endif /* I2C */
 
@@ -644,6 +688,7 @@ extern struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
 
 /* must call i2c_put_adapter() when done with returned i2c_adapter device */
 struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node);
+
 #else
 
 static inline struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)

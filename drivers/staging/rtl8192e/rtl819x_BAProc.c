@@ -6,10 +6,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -113,7 +109,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	*tag++ = type;
 	*tag++ = pBA->DialogToken;
 
-	if (ACT_ADDBARSP == type) {
+	if (type == ACT_ADDBARSP) {
 		RT_TRACE(COMP_DBG, "====>to send ADDBARSP\n");
 
 		put_unaligned_le16(StatusCode, tag);
@@ -126,7 +122,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	put_unaligned_le16(pBA->BaTimeoutValue, tag);
 	tag += 2;
 
-	if (ACT_ADDBAREQ == type) {
+	if (type == ACT_ADDBAREQ) {
 		memcpy(tag, (u8 *)&(pBA->BaStartSeqCtrl), 2);
 		tag += 2;
 	}
@@ -193,7 +189,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 				 struct ba_record *pBA)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 
 	skb = rtllib_ADDBA(ieee, dst, pBA, 0, ACT_ADDBAREQ);
 
@@ -208,7 +204,7 @@ static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 static void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
 				 struct ba_record *pBA, u16 StatusCode)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 
 	skb = rtllib_ADDBA(ieee, dst, pBA, StatusCode, ACT_ADDBARSP);
 	if (skb)
@@ -221,7 +217,7 @@ static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
 			      struct ba_record *pBA, enum tr_select TxRxSelect,
 			      u16 ReasonCode)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 
 	skb = rtllib_DELBA(ieee, dst, pBA, TxRxSelect, ReasonCode);
 	if (skb)

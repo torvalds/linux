@@ -32,7 +32,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-event.h>
-#include <media/saa6588.h>
+#include <media/i2c/saa6588.h>
 
 /* ------------------------------------------------------------------ */
 
@@ -409,7 +409,8 @@ static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 
 static void video_mux(struct saa7134_dev *dev, int input)
 {
-	video_dbg("video input = %d [%s]\n", input, card_in(dev, input).name);
+	video_dbg("video input = %d [%s]\n",
+		  input, saa7134_input_name[card_in(dev, input).type]);
 	dev->ctl_input = input;
 	set_tvnorm(dev, dev->tvnorm);
 	saa7134_tvaudio_setinput(dev, &card_in(dev, input));
@@ -478,8 +479,7 @@ void saa7134_set_tvnorm_hw(struct saa7134_dev *dev)
 {
 	saa7134_set_decoder(dev);
 
-	if (card_in(dev, dev->ctl_input).tv)
-		saa_call_all(dev, video, s_std, dev->tvnorm->id);
+	saa_call_all(dev, video, s_std, dev->tvnorm->id);
 	/* Set the correct norm for the saa6752hs. This function
 	   does nothing if there is no saa6752hs. */
 	saa_call_empress(dev, video, s_std, dev->tvnorm->id);
@@ -785,13 +785,70 @@ static int stop_preview(struct saa7134_dev *dev)
 	return 0;
 }
 
+/*
+ * Media Controller helper functions
+ */
+
+static int saa7134_enable_analog_tuner(struct saa7134_dev *dev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *mdev = dev->media_dev;
+	struct media_entity *source;
+	struct media_link *link, *found_link = NULL;
+	int ret, active_links = 0;
+
+	if (!mdev || !dev->decoder)
+		return 0;
+
+	/*
+	 * This will find the tuner that is connected into the decoder.
+	 * Technically, this is not 100% correct, as the device may be
+	 * using an analog input instead of the tuner. However, as we can't
+	 * do DVB streaming while the DMA engine is being used for V4L2,
+	 * this should be enough for the actual needs.
+	 */
+	list_for_each_entry(link, &dev->decoder->links, list) {
+		if (link->sink->entity == dev->decoder) {
+			found_link = link;
+			if (link->flags & MEDIA_LNK_FL_ENABLED)
+				active_links++;
+			break;
+		}
+	}
+
+	if (active_links == 1 || !found_link)
+		return 0;
+
+	source = found_link->source->entity;
+	list_for_each_entry(link, &source->links, list) {
+		struct media_entity *sink;
+		int flags = 0;
+
+		sink = link->sink->entity;
+
+		if (sink == dev->decoder)
+			flags = MEDIA_LNK_FL_ENABLED;
+
+		ret = media_entity_setup_link(link, flags);
+		if (ret) {
+			pr_err("Couldn't change link %s->%s to %s. Error %d\n",
+			       source->name, sink->name,
+			       flags ? "enabled" : "disabled",
+			       ret);
+			return ret;
+		}
+	}
+#endif
+	return 0;
+}
+
 /* ------------------------------------------------------------------ */
 
 static int buffer_activate(struct saa7134_dev *dev,
 			   struct saa7134_buf *buf,
 			   struct saa7134_buf *next)
 {
-	struct saa7134_dmaqueue *dmaq = buf->vb2.vb2_queue->drv_priv;
+	struct saa7134_dmaqueue *dmaq = buf->vb2.vb2_buf.vb2_queue->drv_priv;
 	unsigned long base,control,bpl;
 	unsigned long bpl_uv,lines_uv,base2,base3,tmp; /* planar */
 
@@ -872,7 +929,8 @@ static int buffer_activate(struct saa7134_dev *dev,
 static int buffer_init(struct vb2_buffer *vb2)
 {
 	struct saa7134_dmaqueue *dmaq = vb2->vb2_queue->drv_priv;
-	struct saa7134_buf *buf = container_of(vb2, struct saa7134_buf, vb2);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb2);
+	struct saa7134_buf *buf = container_of(vbuf, struct saa7134_buf, vb2);
 
 	dmaq->curr = NULL;
 	buf->activate = buffer_activate;
@@ -883,8 +941,9 @@ static int buffer_prepare(struct vb2_buffer *vb2)
 {
 	struct saa7134_dmaqueue *dmaq = vb2->vb2_queue->drv_priv;
 	struct saa7134_dev *dev = dmaq->dev;
-	struct saa7134_buf *buf = container_of(vb2, struct saa7134_buf, vb2);
-	struct sg_table *dma = vb2_dma_sg_plane_desc(&buf->vb2, 0);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb2);
+	struct saa7134_buf *buf = container_of(vbuf, struct saa7134_buf, vb2);
+	struct sg_table *dma = vb2_dma_sg_plane_desc(vb2, 0);
 	unsigned int size;
 
 	if (dma->sgl->offset) {
@@ -896,13 +955,13 @@ static int buffer_prepare(struct vb2_buffer *vb2)
 		return -EINVAL;
 
 	vb2_set_plane_payload(vb2, 0, size);
-	vb2->v4l2_buf.field = dev->field;
+	vbuf->field = dev->field;
 
 	return saa7134_pgtable_build(dev->pci, &dmaq->pt, dma->sgl, dma->nents,
 				    saa7134_buffer_startpage(buf));
 }
 
-static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+static int queue_setup(struct vb2_queue *q,
 			   unsigned int *nbuffers, unsigned int *nplanes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -922,6 +981,9 @@ static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 	*nplanes = 1;
 	sizes[0] = size;
 	alloc_ctxs[0] = dev->alloc_ctx;
+
+	saa7134_enable_analog_tuner(dev);
+
 	return 0;
 }
 
@@ -932,7 +994,8 @@ void saa7134_vb2_buffer_queue(struct vb2_buffer *vb)
 {
 	struct saa7134_dmaqueue *dmaq = vb->vb2_queue->drv_priv;
 	struct saa7134_dev *dev = dmaq->dev;
-	struct saa7134_buf *buf = container_of(vb, struct saa7134_buf, vb2);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct saa7134_buf *buf = container_of(vbuf, struct saa7134_buf, vb2);
 
 	saa7134_buffer_queue(dev, dmaq, buf);
 }
@@ -953,10 +1016,12 @@ int saa7134_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 		list_for_each_entry_safe(buf, tmp, &dmaq->queue, entry) {
 			list_del(&buf->entry);
-			vb2_buffer_done(&buf->vb2, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&buf->vb2.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
 		if (dmaq->curr) {
-			vb2_buffer_done(&dmaq->curr->vb2, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&dmaq->curr->vb2.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 			dmaq->curr = NULL;
 		}
 		return -EBUSY;
@@ -1214,10 +1279,13 @@ static int saa7134_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.height       = dev->height;
 	f->fmt.pix.field        = dev->field;
 	f->fmt.pix.pixelformat  = dev->fmt->fourcc;
-	f->fmt.pix.bytesperline =
-		(f->fmt.pix.width * dev->fmt->depth) >> 3;
+	if (dev->fmt->planar)
+		f->fmt.pix.bytesperline = f->fmt.pix.width;
+	else
+		f->fmt.pix.bytesperline =
+			(f->fmt.pix.width * dev->fmt->depth) / 8;
 	f->fmt.pix.sizeimage =
-		f->fmt.pix.height * f->fmt.pix.bytesperline;
+		(f->fmt.pix.height * f->fmt.pix.width * dev->fmt->depth) / 8;
 	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
 	return 0;
 }
@@ -1293,10 +1361,13 @@ static int saa7134_try_fmt_vid_cap(struct file *file, void *priv,
 	if (f->fmt.pix.height > maxh)
 		f->fmt.pix.height = maxh;
 	f->fmt.pix.width &= ~0x03;
-	f->fmt.pix.bytesperline =
-		(f->fmt.pix.width * fmt->depth) >> 3;
+	if (fmt->planar)
+		f->fmt.pix.bytesperline = f->fmt.pix.width;
+	else
+		f->fmt.pix.bytesperline =
+			(f->fmt.pix.width * fmt->depth) / 8;
 	f->fmt.pix.sizeimage =
-		f->fmt.pix.height * f->fmt.pix.bytesperline;
+		(f->fmt.pix.height * f->fmt.pix.width * fmt->depth) / 8;
 	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
 
 	return 0;
@@ -1376,13 +1447,19 @@ int saa7134_enum_input(struct file *file, void *priv, struct v4l2_input *i)
 	n = i->index;
 	if (n >= SAA7134_INPUT_MAX)
 		return -EINVAL;
-	if (NULL == card_in(dev, i->index).name)
+	if (card_in(dev, i->index).type == SAA7134_NO_INPUT)
 		return -EINVAL;
 	i->index = n;
-	i->type  = V4L2_INPUT_TYPE_CAMERA;
-	strcpy(i->name, card_in(dev, n).name);
-	if (card_in(dev, n).tv)
+	strcpy(i->name, saa7134_input_name[card_in(dev, n).type]);
+	switch (card_in(dev, n).type) {
+	case SAA7134_INPUT_TV:
+	case SAA7134_INPUT_TV_MONO:
 		i->type = V4L2_INPUT_TYPE_TUNER;
+		break;
+	default:
+		i->type  = V4L2_INPUT_TYPE_CAMERA;
+		break;
+	}
 	if (n == dev->ctl_input) {
 		int v1 = saa_readb(SAA7134_STATUS_VIDEO1);
 		int v2 = saa_readb(SAA7134_STATUS_VIDEO2);
@@ -1414,7 +1491,7 @@ int saa7134_s_input(struct file *file, void *priv, unsigned int i)
 
 	if (i >= SAA7134_INPUT_MAX)
 		return -EINVAL;
-	if (NULL == card_in(dev, i).name)
+	if (card_in(dev, i).type == SAA7134_NO_INPUT)
 		return -EINVAL;
 	video_mux(dev, i);
 	return 0;
@@ -1651,12 +1728,13 @@ int saa7134_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 	memset(t, 0, sizeof(*t));
 	for (n = 0; n < SAA7134_INPUT_MAX; n++) {
-		if (card_in(dev, n).tv)
+		if (card_in(dev, n).type == SAA7134_INPUT_TV ||
+		    card_in(dev, n).type == SAA7134_INPUT_TV_MONO)
 			break;
 	}
 	if (n == SAA7134_INPUT_MAX)
 		return -EINVAL;
-	if (NULL != card_in(dev, n).name) {
+	if (card_in(dev, n).type != SAA7134_NO_INPUT) {
 		strcpy(t->name, "Television");
 		t->type = V4L2_TUNER_ANALOG_TV;
 		saa_call_all(dev, tuner, g_tuner, t);
@@ -1901,6 +1979,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querybuf		= vb2_ioctl_querybuf,
 	.vidioc_qbuf			= vb2_ioctl_qbuf,
 	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
+	.vidioc_expbuf			= vb2_ioctl_expbuf,
 	.vidioc_s_std			= saa7134_s_std,
 	.vidioc_g_std			= saa7134_g_std,
 	.vidioc_querystd		= saa7134_querystd,
@@ -2084,7 +2163,7 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	 * USERPTR support is a no-go unless the application knows about these
 	 * limitations and has special support for this.
 	 */
-	q->io_modes = VB2_MMAP | VB2_READ;
+	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
 	if (saa7134_userptr)
 		q->io_modes |= VB2_USERPTR;
 	q->drv_priv = &dev->video_q;

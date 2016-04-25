@@ -20,10 +20,21 @@
 #include <linux/gpio/consumer.h>
 
 #define AT803X_INTR_ENABLE			0x12
+#define AT803X_INTR_ENABLE_AUTONEG_ERR		BIT(15)
+#define AT803X_INTR_ENABLE_SPEED_CHANGED	BIT(14)
+#define AT803X_INTR_ENABLE_DUPLEX_CHANGED	BIT(13)
+#define AT803X_INTR_ENABLE_PAGE_RECEIVED	BIT(12)
+#define AT803X_INTR_ENABLE_LINK_FAIL		BIT(11)
+#define AT803X_INTR_ENABLE_LINK_SUCCESS		BIT(10)
+#define AT803X_INTR_ENABLE_WIRESPEED_DOWNGRADE	BIT(5)
+#define AT803X_INTR_ENABLE_POLARITY_CHANGED	BIT(1)
+#define AT803X_INTR_ENABLE_WOL			BIT(0)
+
 #define AT803X_INTR_STATUS			0x13
+
 #define AT803X_SMART_SPEED			0x14
 #define AT803X_LED_CONTROL			0x18
-#define AT803X_WOL_ENABLE			0x01
+
 #define AT803X_DEVICE_ADDR			0x03
 #define AT803X_LOC_MAC_ADDR_0_15_OFFSET		0x804C
 #define AT803X_LOC_MAC_ADDR_16_31_OFFSET	0x804B
@@ -31,13 +42,18 @@
 #define AT803X_MMD_ACCESS_CONTROL		0x0D
 #define AT803X_MMD_ACCESS_CONTROL_DATA		0x0E
 #define AT803X_FUNC_DATA			0x4003
-#define AT803X_INER				0x0012
-#define AT803X_INER_INIT			0xec00
-#define AT803X_INSR				0x0013
+
 #define AT803X_DEBUG_ADDR			0x1D
 #define AT803X_DEBUG_DATA			0x1E
-#define AT803X_DEBUG_SYSTEM_MODE_CTRL		0x05
-#define AT803X_DEBUG_RGMII_TX_CLK_DLY		BIT(8)
+
+#define AT803X_DEBUG_REG_0			0x00
+#define AT803X_DEBUG_RX_CLK_DLY_EN		BIT(15)
+
+#define AT803X_DEBUG_REG_5			0x05
+#define AT803X_DEBUG_TX_CLK_DLY_EN		BIT(8)
+
+#define AT803X_REG_CHIP_CONFIG			0x1f
+#define AT803X_BT_BX_REG_SEL			0x8000
 
 #define ATH8030_PHY_ID 0x004dd076
 #define ATH8031_PHY_ID 0x004dd074
@@ -60,6 +76,46 @@ struct at803x_context {
 	u16 smart_speed;
 	u16 led_control;
 };
+
+static int at803x_debug_reg_read(struct phy_device *phydev, u16 reg)
+{
+	int ret;
+
+	ret = phy_write(phydev, AT803X_DEBUG_ADDR, reg);
+	if (ret < 0)
+		return ret;
+
+	return phy_read(phydev, AT803X_DEBUG_DATA);
+}
+
+static int at803x_debug_reg_mask(struct phy_device *phydev, u16 reg,
+				 u16 clear, u16 set)
+{
+	u16 val;
+	int ret;
+
+	ret = at803x_debug_reg_read(phydev, reg);
+	if (ret < 0)
+		return ret;
+
+	val = ret & 0xffff;
+	val &= ~clear;
+	val |= set;
+
+	return phy_write(phydev, AT803X_DEBUG_DATA, val);
+}
+
+static inline int at803x_enable_rx_delay(struct phy_device *phydev)
+{
+	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_0, 0,
+					AT803X_DEBUG_RX_CLK_DLY_EN);
+}
+
+static inline int at803x_enable_tx_delay(struct phy_device *phydev)
+{
+	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_5, 0,
+					AT803X_DEBUG_TX_CLK_DLY_EN);
+}
 
 /* save relevant PHY registers to private copy */
 static void at803x_context_save(struct phy_device *phydev,
@@ -119,14 +175,14 @@ static int at803x_set_wol(struct phy_device *phydev,
 		}
 
 		value = phy_read(phydev, AT803X_INTR_ENABLE);
-		value |= AT803X_WOL_ENABLE;
+		value |= AT803X_INTR_ENABLE_WOL;
 		ret = phy_write(phydev, AT803X_INTR_ENABLE, value);
 		if (ret)
 			return ret;
 		value = phy_read(phydev, AT803X_INTR_STATUS);
 	} else {
 		value = phy_read(phydev, AT803X_INTR_ENABLE);
-		value &= (~AT803X_WOL_ENABLE);
+		value &= (~AT803X_INTR_ENABLE_WOL);
 		ret = phy_write(phydev, AT803X_INTR_ENABLE, value);
 		if (ret)
 			return ret;
@@ -145,7 +201,7 @@ static void at803x_get_wol(struct phy_device *phydev,
 	wol->wolopts = 0;
 
 	value = phy_read(phydev, AT803X_INTR_ENABLE);
-	if (value & AT803X_WOL_ENABLE)
+	if (value & AT803X_INTR_ENABLE_WOL)
 		wol->wolopts |= WAKE_MAGIC;
 }
 
@@ -153,11 +209,12 @@ static int at803x_suspend(struct phy_device *phydev)
 {
 	int value;
 	int wol_enabled;
+	int ccr;
 
 	mutex_lock(&phydev->lock);
 
 	value = phy_read(phydev, AT803X_INTR_ENABLE);
-	wol_enabled = value & AT803X_WOL_ENABLE;
+	wol_enabled = value & AT803X_INTR_ENABLE_WOL;
 
 	value = phy_read(phydev, MII_BMCR);
 
@@ -168,6 +225,16 @@ static int at803x_suspend(struct phy_device *phydev)
 
 	phy_write(phydev, MII_BMCR, value);
 
+	if (phydev->interface != PHY_INTERFACE_MODE_SGMII)
+		goto done;
+
+	/* also power-down SGMII interface */
+	ccr = phy_read(phydev, AT803X_REG_CHIP_CONFIG);
+	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr & ~AT803X_BT_BX_REG_SEL);
+	phy_write(phydev, MII_BMCR, phy_read(phydev, MII_BMCR) | BMCR_PDOWN);
+	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr | AT803X_BT_BX_REG_SEL);
+
+done:
 	mutex_unlock(&phydev->lock);
 
 	return 0;
@@ -176,6 +243,7 @@ static int at803x_suspend(struct phy_device *phydev)
 static int at803x_resume(struct phy_device *phydev)
 {
 	int value;
+	int ccr;
 
 	mutex_lock(&phydev->lock);
 
@@ -183,6 +251,17 @@ static int at803x_resume(struct phy_device *phydev)
 	value &= ~(BMCR_PDOWN | BMCR_ISOLATE);
 	phy_write(phydev, MII_BMCR, value);
 
+	if (phydev->interface != PHY_INTERFACE_MODE_SGMII)
+		goto done;
+
+	/* also power-up SGMII interface */
+	ccr = phy_read(phydev, AT803X_REG_CHIP_CONFIG);
+	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr & ~AT803X_BT_BX_REG_SEL);
+	value = phy_read(phydev, MII_BMCR) & ~(BMCR_PDOWN | BMCR_ISOLATE);
+	phy_write(phydev, MII_BMCR, value);
+	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr | AT803X_BT_BX_REG_SEL);
+
+done:
 	mutex_unlock(&phydev->lock);
 
 	return 0;
@@ -190,7 +269,7 @@ static int at803x_resume(struct phy_device *phydev)
 
 static int at803x_probe(struct phy_device *phydev)
 {
-	struct device *dev = &phydev->dev;
+	struct device *dev = &phydev->mdio.dev;
 	struct at803x_priv *priv;
 	struct gpio_desc *gpiod_reset;
 
@@ -198,12 +277,16 @@ static int at803x_probe(struct phy_device *phydev)
 	if (!priv)
 		return -ENOMEM;
 
-	gpiod_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (phydev->drv->phy_id != ATH8030_PHY_ID)
+		goto does_not_require_reset_workaround;
+
+	gpiod_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(gpiod_reset))
 		return PTR_ERR(gpiod_reset);
 
 	priv->gpiod_reset = gpiod_reset;
 
+does_not_require_reset_workaround:
 	phydev->priv = priv;
 
 	return 0;
@@ -217,14 +300,17 @@ static int at803x_config_init(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID) {
-		ret = phy_write(phydev, AT803X_DEBUG_ADDR,
-				AT803X_DEBUG_SYSTEM_MODE_CTRL);
-		if (ret)
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID ||
+			phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) {
+		ret = at803x_enable_rx_delay(phydev);
+		if (ret < 0)
 			return ret;
-		ret = phy_write(phydev, AT803X_DEBUG_DATA,
-				AT803X_DEBUG_RGMII_TX_CLK_DLY);
-		if (ret)
+	}
+
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID ||
+			phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) {
+		ret = at803x_enable_tx_delay(phydev);
+		if (ret < 0)
 			return ret;
 	}
 
@@ -235,7 +321,7 @@ static int at803x_ack_interrupt(struct phy_device *phydev)
 {
 	int err;
 
-	err = phy_read(phydev, AT803X_INSR);
+	err = phy_read(phydev, AT803X_INTR_STATUS);
 
 	return (err < 0) ? err : 0;
 }
@@ -245,13 +331,19 @@ static int at803x_config_intr(struct phy_device *phydev)
 	int err;
 	int value;
 
-	value = phy_read(phydev, AT803X_INER);
+	value = phy_read(phydev, AT803X_INTR_ENABLE);
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		err = phy_write(phydev, AT803X_INER,
-				value | AT803X_INER_INIT);
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		value |= AT803X_INTR_ENABLE_AUTONEG_ERR;
+		value |= AT803X_INTR_ENABLE_SPEED_CHANGED;
+		value |= AT803X_INTR_ENABLE_DUPLEX_CHANGED;
+		value |= AT803X_INTR_ENABLE_LINK_FAIL;
+		value |= AT803X_INTR_ENABLE_LINK_SUCCESS;
+
+		err = phy_write(phydev, AT803X_INTR_ENABLE, value);
+	}
 	else
-		err = phy_write(phydev, AT803X_INER, 0);
+		err = phy_write(phydev, AT803X_INTR_ENABLE, 0);
 
 	return err;
 }
@@ -274,15 +366,15 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 
 				at803x_context_save(phydev, &context);
 
-				gpiod_set_value(priv->gpiod_reset, 0);
-				msleep(1);
 				gpiod_set_value(priv->gpiod_reset, 1);
+				msleep(1);
+				gpiod_set_value(priv->gpiod_reset, 0);
 				msleep(1);
 
 				at803x_context_restore(phydev, &context);
 
-				dev_dbg(&phydev->dev, "%s(): phy was reset\n",
-					__func__);
+				phydev_dbg(phydev, "%s(): phy was reset\n",
+					   __func__);
 				priv->phy_reset = true;
 			}
 		} else {
@@ -308,9 +400,8 @@ static struct phy_driver at803x_driver[] = {
 	.flags			= PHY_HAS_INTERRUPT,
 	.config_aneg		= genphy_config_aneg,
 	.read_status		= genphy_read_status,
-	.driver			= {
-		.owner = THIS_MODULE,
-	},
+	.ack_interrupt		= at803x_ack_interrupt,
+	.config_intr		= at803x_config_intr,
 }, {
 	/* ATHEROS 8030 */
 	.phy_id			= ATH8030_PHY_ID,
@@ -323,13 +414,12 @@ static struct phy_driver at803x_driver[] = {
 	.get_wol		= at803x_get_wol,
 	.suspend		= at803x_suspend,
 	.resume			= at803x_resume,
-	.features		= PHY_GBIT_FEATURES,
+	.features		= PHY_BASIC_FEATURES,
 	.flags			= PHY_HAS_INTERRUPT,
 	.config_aneg		= genphy_config_aneg,
 	.read_status		= genphy_read_status,
-	.driver			= {
-		.owner = THIS_MODULE,
-	},
+	.ack_interrupt		= at803x_ack_interrupt,
+	.config_intr		= at803x_config_intr,
 }, {
 	/* ATHEROS 8031 */
 	.phy_id			= ATH8031_PHY_ID,
@@ -348,9 +438,6 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= genphy_read_status,
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,
-	.driver			= {
-		.owner = THIS_MODULE,
-	},
 } };
 
 module_phy_driver(at803x_driver);

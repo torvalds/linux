@@ -13,7 +13,7 @@
 
 #define pr_fmt(fmt) "SIG: "fmt
 #include <keys/asymmetric-subtype.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/err.h>
 #include <crypto/public_key.h>
 #include "asymmetric_keys.h"
@@ -37,7 +37,7 @@ int verify_signature(const struct key *key,
 		return -EINVAL;
 	subtype = asymmetric_key_subtype(key);
 	if (!subtype ||
-	    !key->payload.data)
+	    !key->payload.data[0])
 		return -EINVAL;
 	if (!subtype->verify_signature)
 		return -ENOTSUPP;

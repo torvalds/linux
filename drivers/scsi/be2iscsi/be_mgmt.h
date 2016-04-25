@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2015 Avago Technologies
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -12,7 +12,7 @@
  * Contact Information:
  * linux-drivers@avagotech.com
  *
- * Avago Technologies
+ * Emulex
  * 3333 Susan Street
  * Costa Mesa, CA 92626
  */
@@ -268,6 +268,8 @@ struct beiscsi_endpoint {
 
 int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 				 struct beiscsi_hba *phba);
+int mgmt_get_port_name(struct be_ctrl_info *ctrl,
+		       struct beiscsi_hba *phba);
 
 unsigned int mgmt_invalidate_connection(struct beiscsi_hba *phba,
 					 struct beiscsi_endpoint *beiscsi_ep,
@@ -330,10 +332,13 @@ ssize_t beiscsi_phys_port_disp(struct device *dev,
 
 void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
 			     struct wrb_handle *pwrb_handle,
-			     struct be_mem_descriptor *mem_descr);
+			     struct be_mem_descriptor *mem_descr,
+			     struct hwi_wrb_context *pwrb_context);
 
 void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
-			     struct wrb_handle *pwrb_handle);
+			     struct wrb_handle *pwrb_handle,
+			     struct hwi_wrb_context *pwrb_context);
+
 void beiscsi_ue_detect(struct beiscsi_hba *phba);
 int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
 			 struct be_set_eqd *, int num);

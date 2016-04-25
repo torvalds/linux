@@ -67,6 +67,12 @@ void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
 	node->locked = 0;
 	node->next   = NULL;
 
+	/*
+	 * We rely on the full barrier with global transitivity implied by the
+	 * below xchg() to order the initialization stores above against any
+	 * observation of @node. And to provide the ACQUIRE ordering associated
+	 * with a LOCK primitive.
+	 */
 	prev = xchg(lock, node);
 	if (likely(prev == NULL)) {
 		/*
@@ -98,7 +104,7 @@ void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
 		/*
 		 * Release the lock by setting it to NULL
 		 */
-		if (likely(cmpxchg(lock, node, NULL) == node))
+		if (likely(cmpxchg_release(lock, node, NULL) == node))
 			return;
 		/* Wait until the next pointer is set */
 		while (!(next = READ_ONCE(node->next)))

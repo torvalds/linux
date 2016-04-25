@@ -26,6 +26,106 @@
 
 #include "internal.h"
 
+static ssize_t acpi_object_path(acpi_handle handle, char *buf)
+{
+	struct acpi_buffer path = {ACPI_ALLOCATE_BUFFER, NULL};
+	int result;
+
+	result = acpi_get_name(handle, ACPI_FULL_PATHNAME, &path);
+	if (result)
+		return result;
+
+	result = sprintf(buf, "%s\n", (char*)path.pointer);
+	kfree(path.pointer);
+	return result;
+}
+
+struct acpi_data_node_attr {
+	struct attribute attr;
+	ssize_t (*show)(struct acpi_data_node *, char *);
+	ssize_t (*store)(struct acpi_data_node *, const char *, size_t count);
+};
+
+#define DATA_NODE_ATTR(_name)			\
+	static struct acpi_data_node_attr data_node_##_name =	\
+		__ATTR(_name, 0444, data_node_show_##_name, NULL)
+
+static ssize_t data_node_show_path(struct acpi_data_node *dn, char *buf)
+{
+	return acpi_object_path(dn->handle, buf);
+}
+
+DATA_NODE_ATTR(path);
+
+static struct attribute *acpi_data_node_default_attrs[] = {
+	&data_node_path.attr,
+	NULL
+};
+
+#define to_data_node(k) container_of(k, struct acpi_data_node, kobj)
+#define to_attr(a) container_of(a, struct acpi_data_node_attr, attr)
+
+static ssize_t acpi_data_node_attr_show(struct kobject *kobj,
+					struct attribute *attr, char *buf)
+{
+	struct acpi_data_node *dn = to_data_node(kobj);
+	struct acpi_data_node_attr *dn_attr = to_attr(attr);
+
+	return dn_attr->show ? dn_attr->show(dn, buf) : -ENXIO;
+}
+
+static const struct sysfs_ops acpi_data_node_sysfs_ops = {
+	.show	= acpi_data_node_attr_show,
+};
+
+static void acpi_data_node_release(struct kobject *kobj)
+{
+	struct acpi_data_node *dn = to_data_node(kobj);
+	complete(&dn->kobj_done);
+}
+
+static struct kobj_type acpi_data_node_ktype = {
+	.sysfs_ops = &acpi_data_node_sysfs_ops,
+	.default_attrs = acpi_data_node_default_attrs,
+	.release = acpi_data_node_release,
+};
+
+static void acpi_expose_nondev_subnodes(struct kobject *kobj,
+					struct acpi_device_data *data)
+{
+	struct list_head *list = &data->subnodes;
+	struct acpi_data_node *dn;
+
+	if (list_empty(list))
+		return;
+
+	list_for_each_entry(dn, list, sibling) {
+		int ret;
+
+		init_completion(&dn->kobj_done);
+		ret = kobject_init_and_add(&dn->kobj, &acpi_data_node_ktype,
+					   kobj, "%s", dn->name);
+		if (ret)
+			acpi_handle_err(dn->handle, "Failed to expose (%d)\n", ret);
+		else
+			acpi_expose_nondev_subnodes(&dn->kobj, &dn->data);
+	}
+}
+
+static void acpi_hide_nondev_subnodes(struct acpi_device_data *data)
+{
+	struct list_head *list = &data->subnodes;
+	struct acpi_data_node *dn;
+
+	if (list_empty(list))
+		return;
+
+	list_for_each_entry_reverse(dn, list, sibling) {
+		acpi_hide_nondev_subnodes(&dn->data);
+		kobject_put(&dn->kobj);
+	}
+}
+
 /**
  * create_pnp_modalias - Create hid/cid(s) string for modalias and uevent
  * @acpi_dev: ACPI device object.
@@ -323,20 +423,12 @@ static ssize_t acpi_device_adr_show(struct device *dev,
 }
 static DEVICE_ATTR(adr, 0444, acpi_device_adr_show, NULL);
 
-static ssize_t
-acpi_device_path_show(struct device *dev, struct device_attribute *attr, char *buf) {
+static ssize_t acpi_device_path_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	struct acpi_buffer path = {ACPI_ALLOCATE_BUFFER, NULL};
-	int result;
 
-	result = acpi_get_name(acpi_dev->handle, ACPI_FULL_PATHNAME, &path);
-	if (result)
-		goto end;
-
-	result = sprintf(buf, "%s\n", (char*)path.pointer);
-	kfree(path.pointer);
-end:
-	return result;
+	return acpi_object_path(acpi_dev->handle, buf);
 }
 static DEVICE_ATTR(path, 0444, acpi_device_path_show, NULL);
 
@@ -475,6 +567,8 @@ int acpi_device_setup_files(struct acpi_device *dev)
 						    &dev_attr_real_power_state);
 	}
 
+	acpi_expose_nondev_subnodes(&dev->dev.kobj, &dev->data);
+
 end:
 	return result;
 }
@@ -485,6 +579,8 @@ end:
  */
 void acpi_device_remove_files(struct acpi_device *dev)
 {
+	acpi_hide_nondev_subnodes(&dev->data);
+
 	if (dev->flags.power_manageable) {
 		device_remove_file(&dev->dev, &dev_attr_power_state);
 		if (dev->power.flags.power_resources)

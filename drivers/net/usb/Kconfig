@@ -109,6 +109,8 @@ config USB_RTL8152
 config USB_LAN78XX
 	tristate "Microchip LAN78XX Based USB Ethernet Adapters"
 	select MII
+	select PHYLIB
+	select MICROCHIP_PHY
 	help
 	  This option adds support for Microchip LAN78XX based USB 2
 	  & USB 3 10/100/1000 Ethernet adapters.
@@ -393,6 +395,10 @@ config USB_NET_RNDIS_HOST
 	  The protocol specification is incomplete, and is controlled by
 	  (and for) Microsoft; it isn't an "Open" ecosystem or market.
 
+config USB_NET_CDC_SUBSET_ENABLE
+	tristate
+	depends on USB_NET_CDC_SUBSET
+
 config USB_NET_CDC_SUBSET
 	tristate "Simple USB Network Links (CDC Ethernet subset)"
 	depends on USB_USBNET
@@ -411,6 +417,7 @@ config USB_NET_CDC_SUBSET
 config USB_ALI_M5632
 	bool "ALi M5632 based 'USB 2.0 Data Link' cables"
 	depends on USB_NET_CDC_SUBSET
+	select USB_NET_CDC_SUBSET_ENABLE
 	help
 	  Choose this option if you're using a host-to-host cable
 	  based on this design, which supports USB 2.0 high speed.
@@ -418,6 +425,7 @@ config USB_ALI_M5632
 config USB_AN2720
 	bool "AnchorChips 2720 based cables (Xircom PGUNET, ...)"
 	depends on USB_NET_CDC_SUBSET
+	select USB_NET_CDC_SUBSET_ENABLE
 	help
 	  Choose this option if you're using a host-to-host cable
 	  based on this design.  Note that AnchorChips is now a
@@ -426,6 +434,7 @@ config USB_AN2720
 config USB_BELKIN
 	bool "eTEK based host-to-host cables (Advance, Belkin, ...)"
 	depends on USB_NET_CDC_SUBSET
+	select USB_NET_CDC_SUBSET_ENABLE
 	default y
 	help
 	  Choose this option if you're using a host-to-host cable
@@ -435,6 +444,7 @@ config USB_BELKIN
 config USB_ARMLINUX
 	bool "Embedded ARM Linux links (iPaq, ...)"
 	depends on USB_NET_CDC_SUBSET
+	select USB_NET_CDC_SUBSET_ENABLE
 	default y
 	help
 	  Choose this option to support the "usb-eth" networking driver
@@ -452,6 +462,7 @@ config USB_ARMLINUX
 config USB_EPSON2888
 	bool "Epson 2888 based firmware (DEVELOPMENT)"
 	depends on USB_NET_CDC_SUBSET
+	select USB_NET_CDC_SUBSET_ENABLE
 	help
 	  Choose this option to support the usb networking links used
 	  by some sample firmware from Epson.
@@ -459,6 +470,7 @@ config USB_EPSON2888
 config USB_KC2190
 	bool "KT Technology KC2190 based cables (InstaNet)"
 	depends on USB_NET_CDC_SUBSET
+	select USB_NET_CDC_SUBSET_ENABLE
 	help
 	  Choose this option if you're using a host-to-host cable
 	  with one of these chips.
@@ -542,7 +554,7 @@ config USB_NET_INT51X1
 
 config USB_CDC_PHONET
 	tristate "CDC Phonet support"
-	depends on PHONET
+	depends on PHONET && USB_USBNET
 	help
 	  Choose this option to support the Phonet interface to a Nokia
 	  cellular modem, as found on most Nokia handsets with the

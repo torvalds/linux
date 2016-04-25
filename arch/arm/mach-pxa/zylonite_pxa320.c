@@ -18,8 +18,8 @@
 #include <linux/init.h>
 #include <linux/gpio.h>
 
-#include <mach/pxa320.h>
-#include <mach/zylonite.h>
+#include "pxa320.h"
+#include "zylonite.h"
 
 #include "generic.h"
 

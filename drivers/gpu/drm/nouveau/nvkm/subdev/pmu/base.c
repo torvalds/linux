@@ -28,7 +28,7 @@
 void
 nvkm_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {
-	if (pmu->func->pgob)
+	if (pmu && pmu->func->pgob)
 		pmu->func->pgob(pmu, enable);
 }
 

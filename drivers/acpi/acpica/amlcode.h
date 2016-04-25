@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -120,7 +120,7 @@
 #define AML_CREATE_WORD_FIELD_OP    (u16) 0x8b
 #define AML_CREATE_BYTE_FIELD_OP    (u16) 0x8c
 #define AML_CREATE_BIT_FIELD_OP     (u16) 0x8d
-#define AML_TYPE_OP                 (u16) 0x8e
+#define AML_OBJECT_TYPE_OP          (u16) 0x8e
 #define AML_CREATE_QWORD_FIELD_OP   (u16) 0x8f	/* ACPI 2.0 */
 #define AML_LAND_OP                 (u16) 0x90
 #define AML_LOR_OP                  (u16) 0x91
@@ -238,7 +238,8 @@
 #define ARGP_TERMLIST               0x0F
 #define ARGP_WORDDATA               0x10
 #define ARGP_QWORDDATA              0x11
-#define ARGP_SIMPLENAME             0x12
+#define ARGP_SIMPLENAME             0x12	/* name_string | local_term | arg_term */
+#define ARGP_NAME_OR_REF            0x13	/* For object_type only */
 
 /*
  * Resolved argument types for the AML Interpreter
@@ -277,14 +278,15 @@
 #define ARGI_TARGETREF              0x0F	/* Target, subject to implicit conversion */
 #define ARGI_FIXED_TARGET           0x10	/* Target, no implicit conversion */
 #define ARGI_SIMPLE_TARGET          0x11	/* Name, Local, Arg -- no implicit conversion */
+#define ARGI_STORE_TARGET           0x12	/* Target for store is TARGETREF + package objects */
 
 /* Multiple/complex types */
 
-#define ARGI_DATAOBJECT             0x12	/* Buffer, String, package or reference to a node - Used only by size_of operator */
-#define ARGI_COMPLEXOBJ             0x13	/* Buffer, String, or package (Used by INDEX op only) */
-#define ARGI_REF_OR_STRING          0x14	/* Reference or String (Used by DEREFOF op only) */
-#define ARGI_REGION_OR_BUFFER       0x15	/* Used by LOAD op only */
-#define ARGI_DATAREFOBJ             0x16
+#define ARGI_DATAOBJECT             0x13	/* Buffer, String, package or reference to a node - Used only by size_of operator */
+#define ARGI_COMPLEXOBJ             0x14	/* Buffer, String, or package (Used by INDEX op only) */
+#define ARGI_REF_OR_STRING          0x15	/* Reference or String (Used by DEREFOF op only) */
+#define ARGI_REGION_OR_BUFFER       0x16	/* Used by LOAD op only */
+#define ARGI_DATAREFOBJ             0x17
 
 /* Note: types above can expand to 0x1F maximum */
 

@@ -439,10 +439,11 @@ static int lgdt330x_set_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int lgdt330x_get_frontend(struct dvb_frontend *fe)
+static int lgdt330x_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct lgdt330x_state *state = fe->demodulator_priv;
+
 	p->frequency = state->current_frequency;
 	return 0;
 }

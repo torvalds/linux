@@ -18,7 +18,7 @@
 		reg = <0x0 0x2000000>;
 	};
 
-	extosc: oscillator {
+	extosc: ref {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <40000000>;
@@ -33,6 +33,10 @@
 			pll-controller@18050000 {
 				clocks = <&extosc>;
 			};
+		};
+
+		usb@1b000100 {
+			status = "okay";
 		};
 
 		spi@1f000000 {
@@ -63,6 +67,10 @@
 				};
 			};
 		};
+	};
+
+	usb-phy {
+		status = "okay";
 	};
 
 	gpio-keys {

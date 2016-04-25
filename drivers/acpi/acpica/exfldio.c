@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -180,7 +180,8 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 			 * byte, and a field with Dword access specified.
 			 */
 			ACPI_ERROR((AE_INFO,
-				    "Field [%4.4s] access width (%u bytes) too large for region [%4.4s] (length %u)",
+				    "Field [%4.4s] access width (%u bytes) "
+				    "too large for region [%4.4s] (length %u)",
 				    acpi_ut_get_node_name(obj_desc->
 							  common_field.node),
 				    obj_desc->common_field.access_byte_width,
@@ -194,7 +195,8 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 		 * exceeds region length, indicate an error
 		 */
 		ACPI_ERROR((AE_INFO,
-			    "Field [%4.4s] Base+Offset+Width %u+%u+%u is beyond end of region [%4.4s] (length %u)",
+			    "Field [%4.4s] Base+Offset+Width %u+%u+%u "
+			    "is beyond end of region [%4.4s] (length %u)",
 			    acpi_ut_get_node_name(obj_desc->common_field.node),
 			    obj_desc->common_field.base_byte_offset,
 			    field_datum_byte_offset,
@@ -638,15 +640,15 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
 
 			ACPI_ERROR((AE_INFO,
 				    "Unknown UpdateRule value: 0x%X",
-				    (obj_desc->common_field.
-				     field_flags &
+				    (obj_desc->common_field.field_flags &
 				     AML_FIELD_UPDATE_RULE_MASK)));
 			return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 		}
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-			  "Mask %8.8X%8.8X, DatumOffset %X, Width %X, Value %8.8X%8.8X, MergedValue %8.8X%8.8X\n",
+			  "Mask %8.8X%8.8X, DatumOffset %X, Width %X, "
+			  "Value %8.8X%8.8X, MergedValue %8.8X%8.8X\n",
 			  ACPI_FORMAT_UINT64(mask),
 			  field_datum_byte_offset,
 			  obj_desc->common_field.access_byte_width,
@@ -655,8 +657,9 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
 
 	/* Write the merged value */
 
-	status = acpi_ex_field_datum_io(obj_desc, field_datum_byte_offset,
-					&merged_value, ACPI_WRITE);
+	status =
+	    acpi_ex_field_datum_io(obj_desc, field_datum_byte_offset,
+				   &merged_value, ACPI_WRITE);
 
 	return_ACPI_STATUS(status);
 }
@@ -764,8 +767,9 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
 		/* Get next input datum from the field */
 
 		field_offset += obj_desc->common_field.access_byte_width;
-		status = acpi_ex_field_datum_io(obj_desc, field_offset,
-						&raw_datum, ACPI_READ);
+		status =
+		    acpi_ex_field_datum_io(obj_desc, field_offset, &raw_datum,
+					   ACPI_READ);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -858,6 +862,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 	new_buffer = NULL;
 	required_length =
 	    ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->common_field.bit_length);
+
 	/*
 	 * We must have a buffer that is at least as long as the field
 	 * we are writing to. This is because individual fields are
@@ -932,9 +937,9 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 		/* Write merged datum to the target field */
 
 		merged_datum &= mask;
-		status = acpi_ex_write_with_update_rule(obj_desc, mask,
-							merged_datum,
-							field_offset);
+		status =
+		    acpi_ex_write_with_update_rule(obj_desc, mask, merged_datum,
+						   field_offset);
 		if (ACPI_FAILURE(status)) {
 			goto exit;
 		}
@@ -990,9 +995,9 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 	/* Write the last datum to the field */
 
 	merged_datum &= mask;
-	status = acpi_ex_write_with_update_rule(obj_desc,
-						mask, merged_datum,
-						field_offset);
+	status =
+	    acpi_ex_write_with_update_rule(obj_desc, mask, merged_datum,
+					   field_offset);
 
 exit:
 	/* Free temporary buffer if we used one */

@@ -1,0 +1,100 @@
+Qualcomm adreno/snapdragon hdmi output
+
+Required properties:
+- compatible: one of the following
+   * "qcom,hdmi-tx-8996"
+   * "qcom,hdmi-tx-8994"
+   * "qcom,hdmi-tx-8084"
+   * "qcom,hdmi-tx-8974"
+   * "qcom,hdmi-tx-8660"
+   * "qcom,hdmi-tx-8960"
+- reg: Physical base address and length of the controller's registers
+- reg-names: "core_physical"
+- interrupts: The interrupt signal from the hdmi block.
+- power-domains: Should be <&mmcc MDSS_GDSC>.
+- clocks: device clocks
+  See ../clocks/clock-bindings.txt for details.
+- qcom,hdmi-tx-ddc-clk-gpio: ddc clk pin
+- qcom,hdmi-tx-ddc-data-gpio: ddc data pin
+- qcom,hdmi-tx-hpd-gpio: hpd pin
+- core-vdda-supply: phandle to supply regulator
+- hdmi-mux-supply: phandle to mux regulator
+- phys: the phandle for the HDMI PHY device
+- phy-names: the name of the corresponding PHY device
+
+Optional properties:
+- qcom,hdmi-tx-mux-en-gpio: hdmi mux enable pin
+- qcom,hdmi-tx-mux-sel-gpio: hdmi mux select pin
+- power-domains: reference to the power domain(s), if available.
+- pinctrl-names: the pin control state names; should contain "default"
+- pinctrl-0: the default pinctrl state (active)
+- pinctrl-1: the "sleep" pinctrl state
+
+HDMI PHY:
+Required properties:
+- compatible: Could be the following
+  * "qcom,hdmi-phy-8660"
+  * "qcom,hdmi-phy-8960"
+  * "qcom,hdmi-phy-8974"
+  * "qcom,hdmi-phy-8084"
+  * "qcom,hdmi-phy-8996"
+- #phy-cells: Number of cells in a PHY specifier; Should be 0.
+- reg: Physical base address and length of the registers of the PHY sub blocks.
+- reg-names: The names of register regions. The following regions are required:
+  * "hdmi_phy"
+  * "hdmi_pll"
+  For HDMI PHY on msm8996, these additional register regions are required:
+    * "hdmi_tx_l0"
+    * "hdmi_tx_l1"
+    * "hdmi_tx_l3"
+    * "hdmi_tx_l4"
+- power-domains: Should be <&mmcc MDSS_GDSC>.
+- clocks: device clocks
+  See Documentation/devicetree/bindings/clocks/clock-bindings.txt for details.
+- core-vdda-supply: phandle to vdda regulator device node
+
+Example:
+
+/ {
+	...
+
+	hdmi: hdmi@4a00000 {
+		compatible = "qcom,hdmi-tx-8960";
+		reg-names = "core_physical";
+		reg = <0x04a00000 0x2f0>;
+		interrupts = <GIC_SPI 79 0>;
+		power-domains = <&mmcc MDSS_GDSC>;
+		clock-names =
+		    "core_clk",
+		    "master_iface_clk",
+		    "slave_iface_clk";
+		clocks =
+		    <&mmcc HDMI_APP_CLK>,
+		    <&mmcc HDMI_M_AHB_CLK>,
+		    <&mmcc HDMI_S_AHB_CLK>;
+		qcom,hdmi-tx-ddc-clk = <&msmgpio 70 GPIO_ACTIVE_HIGH>;
+		qcom,hdmi-tx-ddc-data = <&msmgpio 71 GPIO_ACTIVE_HIGH>;
+		qcom,hdmi-tx-hpd = <&msmgpio 72 GPIO_ACTIVE_HIGH>;
+		core-vdda-supply = <&pm8921_hdmi_mvs>;
+		hdmi-mux-supply = <&ext_3p3v>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&hpd_active  &ddc_active  &cec_active>;
+		pinctrl-1 = <&hpd_suspend &ddc_suspend &cec_suspend>;
+
+		phys = <&hdmi_phy>;
+		phy-names = "hdmi_phy";
+	};
+
+	hdmi_phy: phy@4a00400 {
+		compatible = "qcom,hdmi-phy-8960";
+		reg-names = "hdmi_phy",
+			    "hdmi_pll";
+		reg = <0x4a00400 0x60>,
+		      <0x4a00500 0x100>;
+		#phy-cells = <0>;
+		power-domains = <&mmcc MDSS_GDSC>;
+		clock-names = "slave_iface_clk";
+		clocks = <&mmcc HDMI_S_AHB_CLK>;
+		core-vdda-supply = <&pm8921_hdmi_mvs>;
+	};
+};

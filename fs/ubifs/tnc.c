@@ -198,11 +198,10 @@ static struct ubifs_znode *copy_znode(struct ubifs_info *c,
 {
 	struct ubifs_znode *zn;
 
-	zn = kmalloc(c->max_znode_sz, GFP_NOFS);
+	zn = kmemdup(znode, c->max_znode_sz, GFP_NOFS);
 	if (unlikely(!zn))
 		return ERR_PTR(-ENOMEM);
 
-	memcpy(zn, znode, c->max_znode_sz);
 	zn->cnext = NULL;
 	__set_bit(DIRTY_ZNODE, &zn->flags);
 	__clear_bit(COW_ZNODE, &zn->flags);

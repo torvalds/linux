@@ -110,13 +110,12 @@
 
 .macro FAKE_RET_FROM_EXCPN
 
-	ld  r9, [sp, PT_status32]
-	bic r9, r9, (STATUS_U_MASK|STATUS_DE_MASK)
-	bset  r9, r9, STATUS_L_BIT
-	sr  r9, [erstatus]
-	mov r9, 55f
-	sr  r9, [eret]
-
+	lr	r9, [status32]
+	bclr	r9, r9, STATUS_AE_BIT
+	or	r9, r9, (STATUS_E1_MASK|STATUS_E2_MASK)
+	sr	r9, [erstatus]
+	mov	r9, 55f
+	sr	r9, [eret]
 	rtie
 55:
 .endm
@@ -232,7 +231,7 @@
 	/* free up r9 as scratchpad */
 	PROLOG_FREEUP_REG r9, @int\LVL\()_saved_reg
 
-	/* Which mode (user/kernel) was the system in when intr occured */
+	/* Which mode (user/kernel) was the system in when intr occurred */
 	lr  r9, [status32_l\LVL\()]
 
 	SWITCH_TO_KERNEL_STK

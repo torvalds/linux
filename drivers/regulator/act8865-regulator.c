@@ -218,7 +218,7 @@ static const struct regulator_desc act8600_regulators[] = {
 		.ops = &act8865_ldo_ops,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = 1,
-		.fixed_uV = 1800000,
+		.fixed_uV = 3300000,
 		.enable_reg = ACT8600_LDO910_CTRL,
 		.enable_mask = ACT8865_ENA,
 		.owner = THIS_MODULE,
@@ -255,6 +255,16 @@ static const struct regulator_desc act8865_regulators[] = {
 	ACT88xx_REG("DCDC_REG1", ACT8865, DCDC1, VSET1, "vp1"),
 	ACT88xx_REG("DCDC_REG2", ACT8865, DCDC2, VSET1, "vp2"),
 	ACT88xx_REG("DCDC_REG3", ACT8865, DCDC3, VSET1, "vp3"),
+	ACT88xx_REG("LDO_REG1", ACT8865, LDO1, VSET, "inl45"),
+	ACT88xx_REG("LDO_REG2", ACT8865, LDO2, VSET, "inl45"),
+	ACT88xx_REG("LDO_REG3", ACT8865, LDO3, VSET, "inl67"),
+	ACT88xx_REG("LDO_REG4", ACT8865, LDO4, VSET, "inl67"),
+};
+
+static const struct regulator_desc act8865_alt_regulators[] = {
+	ACT88xx_REG("DCDC_REG1", ACT8865, DCDC1, VSET2, "vp1"),
+	ACT88xx_REG("DCDC_REG2", ACT8865, DCDC2, VSET2, "vp2"),
+	ACT88xx_REG("DCDC_REG3", ACT8865, DCDC3, VSET2, "vp3"),
 	ACT88xx_REG("LDO_REG1", ACT8865, LDO1, VSET, "inl45"),
 	ACT88xx_REG("LDO_REG2", ACT8865, LDO2, VSET, "inl45"),
 	ACT88xx_REG("LDO_REG3", ACT8865, LDO3, VSET, "inl67"),
@@ -359,7 +369,7 @@ static int act8865_pdata_from_dt(struct device *dev,
 	for (i = 0; i < num_matches; i++) {
 		regulator->id = i;
 		regulator->name = matches[i].name;
-		regulator->platform_data = matches[i].init_data;
+		regulator->init_data = matches[i].init_data;
 		of_node[i] = matches[i].of_node;
 		regulator++;
 	}
@@ -386,7 +396,7 @@ static struct regulator_init_data
 
 	for (i = 0; i < pdata->num_regulators; i++) {
 		if (pdata->regulators[i].id == id)
-			return pdata->regulators[i].platform_data;
+			return pdata->regulators[i].init_data;
 	}
 
 	return NULL;
@@ -405,7 +415,7 @@ static void act8865_power_off(void)
 static int act8865_pmic_probe(struct i2c_client *client,
 			      const struct i2c_device_id *i2c_id)
 {
-	static const struct regulator_desc *regulators;
+	const struct regulator_desc *regulators;
 	struct act8865_platform_data pdata_of, *pdata;
 	struct device *dev = &client->dev;
 	struct device_node **of_node;
@@ -413,6 +423,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	struct act8865 *act8865;
 	unsigned long type;
 	int off_reg, off_mask;
+	int voltage_select = 0;
 
 	pdata = dev_get_platdata(dev);
 
@@ -424,6 +435,10 @@ static int act8865_pmic_probe(struct i2c_client *client,
 			return -ENODEV;
 
 		type = (unsigned long) id->data;
+
+		voltage_select = !!of_get_property(dev->of_node,
+						   "active-semi,vsel-high",
+						   NULL);
 	} else {
 		type = i2c_id->driver_data;
 	}
@@ -442,8 +457,13 @@ static int act8865_pmic_probe(struct i2c_client *client,
 		off_mask = ACT8846_OFF_SYSMASK;
 		break;
 	case ACT8865:
-		regulators = act8865_regulators;
-		num_regulators = ARRAY_SIZE(act8865_regulators);
+		if (voltage_select) {
+			regulators = act8865_alt_regulators;
+			num_regulators = ARRAY_SIZE(act8865_alt_regulators);
+		} else {
+			regulators = act8865_regulators;
+			num_regulators = ARRAY_SIZE(act8865_regulators);
+		}
 		off_reg = ACT8865_SYS_CTRL;
 		off_mask = ACT8865_MSTROFF;
 		break;

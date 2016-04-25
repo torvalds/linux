@@ -97,10 +97,10 @@ struct obd_client_handle {
 	__u32			 och_magic;
 	fmode_t			 och_flags;
 };
+
 #define OBD_CLIENT_HANDLE_MAGIC 0xd15ea5ed
 
 /* statfs_pack.c */
-void statfs_pack(struct obd_statfs *osfs, struct kstatfs *sfs);
 void statfs_unpack(struct kstatfs *sfs, struct obd_statfs *osfs);
 
 /*
@@ -153,9 +153,9 @@ struct obd_ioctl_data {
 
 	/* buffers the kernel will treat as user pointers */
 	__u32  ioc_plen1;
-	char  *ioc_pbuf1;
+	void __user *ioc_pbuf1;
 	__u32  ioc_plen2;
-	char  *ioc_pbuf2;
+	void __user *ioc_pbuf2;
 
 	/* inline buffers for various arguments */
 	__u32  ioc_inllen1;
@@ -178,13 +178,13 @@ struct obd_ioctl_hdr {
 static inline int obd_ioctl_packlen(struct obd_ioctl_data *data)
 {
 	int len = cfs_size_round(sizeof(struct obd_ioctl_data));
+
 	len += cfs_size_round(data->ioc_inllen1);
 	len += cfs_size_round(data->ioc_inllen2);
 	len += cfs_size_round(data->ioc_inllen3);
 	len += cfs_size_round(data->ioc_inllen4);
 	return len;
 }
-
 
 static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 {
@@ -249,16 +249,15 @@ static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 	return 0;
 }
 
-
 #include "obd_support.h"
 
 /* function defined in lustre/obdclass/<platform>/<platform>-module.c */
-int obd_ioctl_getdata(char **buf, int *len, void *arg);
-int obd_ioctl_popdata(void *arg, void *data, int len);
+int obd_ioctl_getdata(char **buf, int *len, void __user *arg);
+int obd_ioctl_popdata(void __user *arg, void *data, int len);
 
 static inline void obd_ioctl_freedata(char *buf, int len)
 {
-	OBD_FREE_LARGE(buf, len);
+	kvfree(buf);
 	return;
 }
 
@@ -289,7 +288,6 @@ static inline void obd_ioctl_freedata(char *buf, int len)
 #define OBD_IOC_READ		   _IOWR('f', 109, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_WRITE		  _IOWR('f', 110, OBD_IOC_DATA_TYPE)
 
-
 #define OBD_IOC_STATFS		 _IOWR('f', 113, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_SYNC		   _IOW ('f', 114, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_READ2		  _IOWR('f', 115, OBD_IOC_DATA_TYPE)
@@ -313,7 +311,7 @@ static inline void obd_ioctl_freedata(char *buf, int len)
 #define OBD_IOC_CLIENT_RECOVER	 _IOW ('f', 133, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_PING_TARGET	    _IOW ('f', 136, OBD_IOC_DATA_TYPE)
 
-#define OBD_IOC_DEC_FS_USE_COUNT       _IO  ('f', 139      )
+#define OBD_IOC_DEC_FS_USE_COUNT       _IO  ('f', 139)
 #define OBD_IOC_NO_TRANSNO	     _IOW ('f', 140, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_SET_READONLY	   _IOW ('f', 141, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_ABORT_RECOVERY	 _IOR ('f', 142, OBD_IOC_DATA_TYPE)
@@ -367,10 +365,10 @@ static inline void obd_ioctl_freedata(char *buf, int len)
 /* OBD_IOC_LLOG_CATINFO is deprecated */
 #define OBD_IOC_LLOG_CATINFO	   _IOWR('f', 196, OBD_IOC_DATA_TYPE)
 
-#define ECHO_IOC_GET_STRIPE	    _IOWR('f', 200, OBD_IOC_DATA_TYPE)
-#define ECHO_IOC_SET_STRIPE	    _IOWR('f', 201, OBD_IOC_DATA_TYPE)
-#define ECHO_IOC_ENQUEUE	       _IOWR('f', 202, OBD_IOC_DATA_TYPE)
-#define ECHO_IOC_CANCEL		_IOWR('f', 203, OBD_IOC_DATA_TYPE)
+/*	#define ECHO_IOC_GET_STRIPE    _IOWR('f', 200, OBD_IOC_DATA_TYPE) */
+/*	#define ECHO_IOC_SET_STRIPE    _IOWR('f', 201, OBD_IOC_DATA_TYPE) */
+/*	#define ECHO_IOC_ENQUEUE       _IOWR('f', 202, OBD_IOC_DATA_TYPE) */
+/*	#define ECHO_IOC_CANCEL        _IOWR('f', 203, OBD_IOC_DATA_TYPE) */
 
 #define OBD_IOC_GET_OBJ_VERSION	_IOR('f', 210, OBD_IOC_DATA_TYPE)
 
@@ -389,7 +387,8 @@ static inline void obd_ioctl_freedata(char *buf, int len)
  */
 
 /* Until such time as we get_info the per-stripe maximum from the OST,
- * we define this to be 2T - 4k, which is the ext3 maxbytes. */
+ * we define this to be 2T - 4k, which is the ext3 maxbytes.
+ */
 #define LUSTRE_STRIPE_MAXBYTES 0x1fffffff000ULL
 
 /* Special values for remove LOV EA from disk */
@@ -453,7 +452,7 @@ static inline void obd_ioctl_freedata(char *buf, int len)
  *					 __wake_up_common(q, ...);     (2.2)
  *					 spin_unlock(&q->lock, flags); (2.3)
  *
- *   OBD_FREE_PTR(obj);						  (3)
+ *   kfree(obj);						  (3)
  *
  * As l_wait_event() may "short-cut" execution and return without taking
  * wait-queue spin-lock, some additional synchronization is necessary to
@@ -523,7 +522,6 @@ struct l_wait_info {
 			   sigmask(SIGTERM) | sigmask(SIGQUIT) |	\
 			   sigmask(SIGALRM))
 
-
 /*
  * wait for @condition to become true, but no longer than timeout, specified
  * by @info.
@@ -543,7 +541,7 @@ do {									   \
 	l_add_wait(&wq, &__wait);					      \
 									       \
 	/* Block all signals (just the non-fatal ones if no timeout). */       \
-	if (info->lwi_on_signal != NULL && (__timeout == 0 || __allow_intr))   \
+	if (info->lwi_on_signal && (__timeout == 0 || __allow_intr))   \
 		__blocked = cfs_block_sigsinv(LUSTRE_FATAL_SIGS);	      \
 	else								   \
 		__blocked = cfs_block_sigsinv(0);			      \
@@ -557,21 +555,21 @@ do {									   \
 		if (__timeout == 0) {					  \
 			schedule();					       \
 		} else {						       \
-			long interval = info->lwi_interval?	  \
+			long interval = info->lwi_interval ?	  \
 					     min_t(long,	     \
-						 info->lwi_interval,__timeout):\
+						 info->lwi_interval, __timeout) : \
 					     __timeout;			\
 			long remaining = schedule_timeout(interval);\
 			__timeout = cfs_time_sub(__timeout,		    \
 					    cfs_time_sub(interval, remaining));\
 			if (__timeout == 0) {				  \
-				if (info->lwi_on_timeout == NULL ||	    \
+				if (!info->lwi_on_timeout ||		      \
 				    info->lwi_on_timeout(info->lwi_cb_data)) { \
 					ret = -ETIMEDOUT;		      \
 					break;				 \
 				}					      \
 				/* Take signals after the timeout expires. */  \
-				if (info->lwi_on_signal != NULL)	       \
+				if (info->lwi_on_signal)		       \
 				    (void)cfs_block_sigsinv(LUSTRE_FATAL_SIGS);\
 			}						      \
 		}							      \
@@ -581,7 +579,7 @@ do {									   \
 		if (condition)						 \
 			break;						 \
 		if (cfs_signal_pending()) {				    \
-			if (info->lwi_on_signal != NULL &&		     \
+			if (info->lwi_on_signal &&		     \
 			    (__timeout == 0 || __allow_intr)) {		\
 				if (info->lwi_on_signal != LWI_ON_SIGNAL_NOOP) \
 					info->lwi_on_signal(info->lwi_cb_data);\
@@ -603,8 +601,6 @@ do {									   \
 									       \
 	remove_wait_queue(&wq, &__wait);					   \
 } while (0)
-
-
 
 #define l_wait_event(wq, condition, info)		       \
 ({							      \

@@ -28,7 +28,10 @@ extern struct cxlflash_global global;
 */
 #define MC_CHUNK_SIZE     (1 << MC_RHT_NMASK)	/* in LBAs */
 
-#define MC_DISCOVERY_TIMEOUT 5  /* 5 secs */
+#define CMD_TIMEOUT 30  /* 30 secs */
+#define CMD_RETRIES 5   /* 5 retries for scsi_execute */
+
+#define MAX_SECTOR_UNIT  512 /* max_sector is in 512 byte multiples */
 
 #define CHAN2PORT(_x)	((_x) + 1)
 #define PORT2CHAN(_x)	((_x) - 1)
@@ -60,7 +63,6 @@ struct llun_info {
 	u32 lun_index;		/* Index in the LUN table */
 	u32 host_no;		/* host_no from Scsi_host */
 	u32 port_sel;		/* What port to use for this LUN */
-	bool newly_created;	/* Whether the LUN was just discovered */
 	bool in_table;		/* Whether a LUN table entry was created */
 
 	u8 wwid[16];		/* Keep a duplicate copy here? */
@@ -84,22 +86,23 @@ enum ctx_ctrl {
 	CTX_CTRL_FILE		= (1 << 5)
 };
 
-#define ENCODE_CTXID(_ctx, _id)	(((((u64)_ctx) & 0xFFFFFFFF0) << 28) | _id)
+#define ENCODE_CTXID(_ctx, _id)	(((((u64)_ctx) & 0xFFFFFFFF0ULL) << 28) | _id)
 #define DECODE_CTXID(_val)	(_val & 0xFFFFFFFF)
 
 struct ctx_info {
-	struct sisl_ctrl_map *ctrl_map; /* initialized at startup */
+	struct sisl_ctrl_map __iomem *ctrl_map; /* initialized at startup */
 	struct sisl_rht_entry *rht_start; /* 1 page (req'd for alignment),
 					     alloc/free on attach/detach */
 	u32 rht_out;		/* Number of checked out RHT entries */
 	u32 rht_perms;		/* User-defined permissions for RHT entries */
 	struct llun_info **rht_lun;       /* Mapping of RHT entries to LUNs */
-	bool *rht_needs_ws;	/* User-desired write-same function per RHTE */
+	u8 *rht_needs_ws;	/* User-desired write-same function per RHTE */
 
 	struct cxl_ioctl_start_work work;
 	u64 ctxid;
 	int lfd;
 	pid_t pid;
+	bool initialized;
 	bool unavail;
 	bool err_recovery_active;
 	struct mutex mutex; /* Context protection */
@@ -143,5 +146,7 @@ void rhte_checkin(struct ctx_info *, struct sisl_rht_entry *);
 void cxlflash_ba_terminate(struct ba_lun *);
 
 int cxlflash_manage_lun(struct scsi_device *, struct dk_cxlflash_manage_lun *);
+
+int check_state(struct cxlflash_cfg *);
 
 #endif /* ifndef _CXLFLASH_SUPERPIPE_H */

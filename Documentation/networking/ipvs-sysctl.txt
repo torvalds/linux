@@ -157,6 +157,16 @@ expire_quiescent_template - BOOLEAN
 	persistence template if it is to be used to schedule a new
 	connection and the destination server is quiescent.
 
+ignore_tunneled - BOOLEAN
+	0 - disabled (default)
+	not 0 - enabled
+
+	If set, ipvs will set the ipvs_property on all packets which are of
+	unrecognized protocols.  This prevents us from routing tunneled
+	protocols like ipip, which is useful to prevent rescheduling
+	packets that have been tunneled to the ipvs host (i.e. to prevent
+	ipvs routing loops when ipvs is also acting as a real server).
+
 nat_icmp_send - BOOLEAN
         0 - disabled (default)
         not 0 - enabled

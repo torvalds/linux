@@ -202,10 +202,9 @@ static int ca91cx42_irq_init(struct vme_bridge *ca91cx42_bridge)
 	bridge = ca91cx42_bridge->driver_priv;
 
 	/* Need pdev */
-	pdev = container_of(ca91cx42_bridge->parent, struct pci_dev, dev);
+	pdev = to_pci_dev(ca91cx42_bridge->parent);
 
-	/* Initialise list for VME bus errors */
-	INIT_LIST_HEAD(&ca91cx42_bridge->vme_errors);
+	INIT_LIST_HEAD(&ca91cx42_bridge->vme_error_handlers);
 
 	mutex_init(&ca91cx42_bridge->irq_mtx);
 
@@ -294,8 +293,7 @@ static void ca91cx42_irq_set(struct vme_bridge *ca91cx42_bridge, int level,
 	iowrite32(tmp, bridge->base + LINT_EN);
 
 	if ((state == 0) && (sync != 0)) {
-		pdev = container_of(ca91cx42_bridge->parent, struct pci_dev,
-			dev);
+		pdev = to_pci_dev(ca91cx42_bridge->parent);
 
 		synchronize_irq(pdev->irq);
 	}
@@ -519,7 +517,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 		dev_err(ca91cx42_bridge->parent, "Dev entry NULL\n");
 		return -EINVAL;
 	}
-	pdev = container_of(ca91cx42_bridge->parent, struct pci_dev, dev);
+	pdev = to_pci_dev(ca91cx42_bridge->parent);
 
 	existing_size = (unsigned long long)(image->bus_resource.end -
 		image->bus_resource.start);
@@ -554,7 +552,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 	image->bus_resource.flags = IORESOURCE_MEM;
 
 	retval = pci_bus_alloc_resource(pdev->bus,
-		&image->bus_resource, size, size, PCIBIOS_MIN_MEM,
+		&image->bus_resource, size, 0x10000, PCIBIOS_MIN_MEM,
 		0, NULL, NULL);
 	if (retval) {
 		dev_err(ca91cx42_bridge->parent, "Failed to allocate mem "
@@ -1520,7 +1518,7 @@ static void *ca91cx42_alloc_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = container_of(parent, struct pci_dev, dev);
+	pdev = to_pci_dev(parent);
 
 	return pci_alloc_consistent(pdev, size, dma);
 }
@@ -1531,7 +1529,7 @@ static void ca91cx42_free_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = container_of(parent, struct pci_dev, dev);
+	pdev = to_pci_dev(parent);
 
 	pci_free_consistent(pdev, size, vaddr, dma);
 }

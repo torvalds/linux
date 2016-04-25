@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -42,12 +42,7 @@
 
 #include "curproc.h"
 
-static inline int __is_po2(unsigned long long val)
-{
-	return !(val & (val - 1));
-}
-
-#define IS_PO2(val) __is_po2((unsigned long long)(val))
+#define LIBCFS_VERSION "0.7.0"
 
 #define LOWEST_BIT_SET(x)       ((x) & ~((x) - 1))
 
@@ -58,12 +53,7 @@ static inline int __is_po2(unsigned long long val)
 #define LERRCHKSUM(hexnum) (((hexnum) & 0xf) ^ ((hexnum) >> 4 & 0xf) ^ \
 			   ((hexnum) >> 8 & 0xf))
 
-#define LUSTRE_SRV_LNET_PID      LUSTRE_LNET_PID
-
 #include <linux/list.h>
-
-int libcfs_arch_init(void);
-void libcfs_arch_cleanup(void);
 
 /* need both kernel and user-land acceptor */
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
@@ -87,7 +77,7 @@ struct cfs_psdev_ops {
 	int (*p_close)(unsigned long, void *);
 	int (*p_read)(struct cfs_psdev_file *, char *, unsigned long);
 	int (*p_write)(struct cfs_psdev_file *, char *, unsigned long);
-	int (*p_ioctl)(struct cfs_psdev_file *, unsigned long, void *);
+	int (*p_ioctl)(struct cfs_psdev_file *, unsigned long, void __user *);
 };
 
 /*
@@ -100,7 +90,6 @@ void cfs_enter_debugger(void);
  * Defined by platform
  */
 int unshare_fs_struct(void);
-sigset_t cfs_get_blocked_sigs(void);
 sigset_t cfs_block_allsigs(void);
 sigset_t cfs_block_sigs(unsigned long sigs);
 sigset_t cfs_block_sigsinv(unsigned long sigs);
@@ -125,7 +114,6 @@ void cfs_get_random_bytes(void *buf, int size);
 #include "libcfs_prim.h"
 #include "libcfs_time.h"
 #include "libcfs_string.h"
-#include "libcfs_kernelcomm.h"
 #include "libcfs_workitem.h"
 #include "libcfs_hash.h"
 #include "libcfs_fail.h"
@@ -155,10 +143,20 @@ extern struct miscdevice libcfs_dev;
 extern char lnet_upcall[1024];
 extern char lnet_debug_log_upcall[1024];
 
-extern void libcfs_init_nidstrings(void);
-
 extern struct cfs_psdev_ops libcfs_psdev_ops;
 
 extern struct cfs_wi_sched *cfs_sched_rehash;
+
+struct lnet_debugfs_symlink_def {
+	char *name;
+	char *target;
+};
+
+void lustre_insert_debugfs(struct ctl_table *table,
+			   const struct lnet_debugfs_symlink_def *symlinks);
+int lprocfs_call_handler(void *data, int write, loff_t *ppos,
+			  void __user *buffer, size_t *lenp,
+			  int (*handler)(void *data, int write,
+			  loff_t pos, void __user *buffer, int len));
 
 #endif /* _LIBCFS_H */

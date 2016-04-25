@@ -273,14 +273,14 @@ int input_ff_event(struct input_dev *dev, unsigned int type,
 
 	switch (code) {
 	case FF_GAIN:
-		if (!test_bit(FF_GAIN, dev->ffbit) || value > 0xffff)
+		if (!test_bit(FF_GAIN, dev->ffbit) || value > 0xffffU)
 			break;
 
 		ff->set_gain(dev, value);
 		break;
 
 	case FF_AUTOCENTER:
-		if (!test_bit(FF_AUTOCENTER, dev->ffbit) || value > 0xffff)
+		if (!test_bit(FF_AUTOCENTER, dev->ffbit) || value > 0xffffU)
 			break;
 
 		ff->set_autocenter(dev, value);
@@ -315,6 +315,11 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 
 	if (!max_effects) {
 		dev_err(&dev->dev, "cannot allocate device without any effects\n");
+		return -EINVAL;
+	}
+
+	if (max_effects > FF_MAX_EFFECTS) {
+		dev_err(&dev->dev, "cannot allocate more than FF_MAX_EFFECTS effects\n");
 		return -EINVAL;
 	}
 

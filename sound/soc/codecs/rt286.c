@@ -29,7 +29,6 @@
 #include <sound/jack.h>
 #include <linux/workqueue.h>
 #include <sound/rt286.h>
-#include <sound/hda_verbs.h>
 
 #include "rl6347a.h"
 #include "rt286.h"
@@ -38,7 +37,7 @@
 #define RT288_VENDOR_ID 0x10ec0288
 
 struct rt286_priv {
-	const struct reg_default *index_cache;
+	struct reg_default *index_cache;
 	int index_cache_size;
 	struct regmap *regmap;
 	struct snd_soc_codec *codec;
@@ -267,6 +266,8 @@ static int rt286_jack_detect(struct rt286_priv *rt286, bool *hp, bool *mic)
 		} else {
 			*mic = false;
 			regmap_write(rt286->regmap, RT286_SET_MIC1, 0x20);
+			regmap_update_bits(rt286->regmap,
+				RT286_CBJ_CTRL1, 0x0400, 0x0000);
 		}
 	} else {
 		regmap_read(rt286->regmap, RT286_GET_HP_SENSE, &buf);
@@ -471,24 +472,6 @@ static int rt286_set_dmic1_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int rt286_vref_event(struct snd_soc_dapm_widget *w,
-			     struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		snd_soc_update_bits(codec,
-			RT286_CBJ_CTRL1, 0x0400, 0x0000);
-		mdelay(50);
-		break;
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
 static int rt286_ldo2_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
@@ -537,7 +520,7 @@ static const struct snd_soc_dapm_widget rt286_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("HV", 1, RT286_POWER_CTRL1,
 		12, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("VREF", RT286_POWER_CTRL1,
-		0, 1, rt286_vref_event, SND_SOC_DAPM_PRE_PMU),
+		0, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("LDO1", 1, RT286_POWER_CTRL2,
 		2, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("LDO2", 2, RT286_POWER_CTRL1,
@@ -912,8 +895,6 @@ static int rt286_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_ON:
 		mdelay(10);
 		snd_soc_update_bits(codec,
-			RT286_CBJ_CTRL1, 0x0400, 0x0400);
-		snd_soc_update_bits(codec,
 			RT286_DC_GAIN, 0x200, 0x0);
 
 		break;
@@ -921,8 +902,6 @@ static int rt286_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		snd_soc_write(codec,
 			RT286_SET_AUDIO_POWER, AC_PWRST_D3);
-		snd_soc_update_bits(codec,
-			RT286_CBJ_CTRL1, 0x0400, 0x0000);
 		break;
 
 	default:
@@ -1115,6 +1094,12 @@ static const struct dmi_system_id force_combo_jack_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "Wilson Beach SDS")
 		}
 	},
+	{
+		.ident = "Intel Skylake RVP",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Skylake Client platform")
+		}
+	},
 	{ }
 };
 
@@ -1161,7 +1146,11 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 		return -ENODEV;
 	}
 
-	rt286->index_cache = rt286_index_def;
+	rt286->index_cache = devm_kmemdup(&i2c->dev, rt286_index_def,
+					  sizeof(rt286_index_def), GFP_KERNEL);
+	if (!rt286->index_cache)
+		return -ENOMEM;
+
 	rt286->index_cache_size = INDEX_CACHE_SIZE;
 	rt286->i2c = i2c;
 	i2c_set_clientdata(i2c, rt286);

@@ -51,6 +51,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include "adf_accel_devices.h"
+#include "adf_common_drv.h"
 #include "icp_qat_fw_init_admin.h"
 
 /* Admin Messages Registers */
@@ -234,7 +235,8 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 	struct adf_bar *pmisc =
 		&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
 	void __iomem *csr = pmisc->virt_addr;
-	void __iomem *mailbox = csr + ADF_DH895XCC_MAILBOX_BASE_OFFSET;
+	void __iomem *mailbox = (void __iomem *)((uintptr_t)csr +
+				 ADF_DH895XCC_MAILBOX_BASE_OFFSET);
 	u64 reg_val;
 
 	admin = kzalloc_node(sizeof(*accel_dev->admin), GFP_KERNEL,

@@ -105,6 +105,36 @@ enum cgs_ucode_id {
 	CGS_UCODE_ID_MAXIMUM,
 };
 
+enum cgs_system_info_id {
+	CGS_SYSTEM_INFO_ADAPTER_BDF_ID = 1,
+	CGS_SYSTEM_INFO_PCIE_GEN_INFO,
+	CGS_SYSTEM_INFO_PCIE_MLW,
+	CGS_SYSTEM_INFO_CG_FLAGS,
+	CGS_SYSTEM_INFO_PG_FLAGS,
+	CGS_SYSTEM_INFO_ID_MAXIMUM,
+};
+
+struct cgs_system_info {
+	uint64_t       size;
+	uint64_t       info_id;
+	union {
+		void           *ptr;
+		uint64_t        value;
+	};
+	uint64_t               padding[13];
+};
+
+/*
+ * enum cgs_resource_type - GPU resource type
+ */
+enum cgs_resource_type {
+	CGS_RESOURCE_TYPE_MMIO = 0,
+	CGS_RESOURCE_TYPE_FB,
+	CGS_RESOURCE_TYPE_IO,
+	CGS_RESOURCE_TYPE_DOORBELL,
+	CGS_RESOURCE_TYPE_ROM,
+};
+
 /**
  * struct cgs_clock_limits - Clock limits
  *
@@ -127,7 +157,52 @@ struct cgs_firmware_info {
 	void			*kptr;
 };
 
+struct cgs_mode_info {
+	uint32_t		refresh_rate;
+	uint32_t		ref_clock;
+	uint32_t		vblank_time_us;
+};
+
+struct cgs_display_info {
+	uint32_t		display_count;
+	uint32_t		active_display_mask;
+	struct cgs_mode_info *mode_info;
+};
+
 typedef unsigned long cgs_handle_t;
+
+#define CGS_ACPI_METHOD_ATCS          0x53435441
+#define CGS_ACPI_METHOD_ATIF          0x46495441
+#define CGS_ACPI_METHOD_ATPX          0x58505441
+#define CGS_ACPI_FIELD_METHOD_NAME                      0x00000001
+#define CGS_ACPI_FIELD_INPUT_ARGUMENT_COUNT             0x00000002
+#define CGS_ACPI_MAX_BUFFER_SIZE     256
+#define CGS_ACPI_TYPE_ANY                      0x00
+#define CGS_ACPI_TYPE_INTEGER               0x01
+#define CGS_ACPI_TYPE_STRING                0x02
+#define CGS_ACPI_TYPE_BUFFER                0x03
+#define CGS_ACPI_TYPE_PACKAGE               0x04
+
+struct cgs_acpi_method_argument {
+	uint32_t type;
+	uint32_t method_length;
+	uint32_t data_length;
+	union{
+		uint32_t value;
+		void *pointer;
+	};
+};
+
+struct cgs_acpi_method_info {
+	uint32_t size;
+	uint32_t field;
+	uint32_t input_count;
+	uint32_t name;
+	struct cgs_acpi_method_argument *pinput_argument;
+	uint32_t output_count;
+	struct cgs_acpi_method_argument *poutput_argument;
+	uint32_t padding[9];
+};
 
 /**
  * cgs_gpu_mem_info() - Return information about memory heaps
@@ -355,6 +430,23 @@ typedef void (*cgs_write_pci_config_word_t)(void *cgs_device, unsigned addr,
 typedef void (*cgs_write_pci_config_dword_t)(void *cgs_device, unsigned addr,
 					     uint32_t value);
 
+
+/**
+ * cgs_get_pci_resource() - provide access to a device resource (PCI BAR)
+ * @cgs_device:	opaque device handle
+ * @resource_type:	Type of Resource (MMIO, IO, ROM, FB, DOORBELL)
+ * @size:	size of the region
+ * @offset:	offset from the start of the region
+ * @resource_base:	base address (not including offset) returned
+ *
+ * Return: 0 on success, -errno otherwise
+ */
+typedef int (*cgs_get_pci_resource_t)(void *cgs_device,
+				      enum cgs_resource_type resource_type,
+				      uint64_t size,
+				      uint64_t offset,
+				      uint64_t *resource_base);
+
 /**
  * cgs_atom_get_data_table() - Get a pointer to an ATOM BIOS data table
  * @cgs_device:	opaque device handle
@@ -493,6 +585,23 @@ typedef int(*cgs_set_clockgating_state)(void *cgs_device,
 				  enum amd_ip_block_type block_type,
 				  enum amd_clockgating_state state);
 
+typedef int(*cgs_get_active_displays_info)(
+					void *cgs_device,
+					struct cgs_display_info *info);
+
+typedef int (*cgs_notify_dpm_enabled)(void *cgs_device, bool enabled);
+
+typedef int (*cgs_call_acpi_method)(void *cgs_device,
+					uint32_t acpi_method,
+					uint32_t acpi_function,
+					void *pinput, void *poutput,
+					uint32_t output_count,
+					uint32_t input_size,
+					uint32_t output_size);
+
+typedef int (*cgs_query_system_info)(void *cgs_device,
+				struct cgs_system_info *sys_info);
+
 struct cgs_ops {
 	/* memory management calls (similar to KFD interface) */
 	cgs_gpu_mem_info_t gpu_mem_info;
@@ -516,6 +625,8 @@ struct cgs_ops {
 	cgs_write_pci_config_byte_t write_pci_config_byte;
 	cgs_write_pci_config_word_t write_pci_config_word;
 	cgs_write_pci_config_dword_t write_pci_config_dword;
+	/* PCI resources */
+	cgs_get_pci_resource_t get_pci_resource;
 	/* ATOM BIOS */
 	cgs_atom_get_data_table_t atom_get_data_table;
 	cgs_atom_get_cmd_table_revs_t atom_get_cmd_table_revs;
@@ -533,7 +644,14 @@ struct cgs_ops {
 	/* cg pg interface*/
 	cgs_set_powergating_state set_powergating_state;
 	cgs_set_clockgating_state set_clockgating_state;
-	/* ACPI (TODO) */
+	/* display manager */
+	cgs_get_active_displays_info get_active_displays_info;
+	/* notify dpm enabled */
+	cgs_notify_dpm_enabled notify_dpm_enabled;
+	/* ACPI */
+	cgs_call_acpi_method call_acpi_method;
+	/* get system info */
+	cgs_query_system_info query_system_info;
 };
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
@@ -620,5 +738,19 @@ struct cgs_device
 	CGS_CALL(set_powergating_state, dev, block_type, state)
 #define cgs_set_clockgating_state(dev, block_type, state)	\
 	CGS_CALL(set_clockgating_state, dev, block_type, state)
+#define cgs_notify_dpm_enabled(dev, enabled)	\
+	CGS_CALL(notify_dpm_enabled, dev, enabled)
+
+#define cgs_get_active_displays_info(dev, info)	\
+	CGS_CALL(get_active_displays_info, dev, info)
+
+#define cgs_call_acpi_method(dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)	\
+	CGS_CALL(call_acpi_method, dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)
+#define cgs_query_system_info(dev, sys_info)	\
+	CGS_CALL(query_system_info, dev, sys_info)
+#define cgs_get_pci_resource(cgs_device, resource_type, size, offset, \
+	resource_base) \
+	CGS_CALL(get_pci_resource, cgs_device, resource_type, size, offset, \
+	resource_base)
 
 #endif /* _CGS_COMMON_H */

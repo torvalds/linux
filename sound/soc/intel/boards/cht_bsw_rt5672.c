@@ -46,12 +46,9 @@ static struct snd_soc_jack_pin cht_bsw_headset_pins[] = {
 
 static inline struct snd_soc_dai *cht_get_codec_dai(struct snd_soc_card *card)
 {
-	int i;
+	struct snd_soc_pcm_runtime *rtd;
 
-	for (i = 0; i < card->num_rtd; i++) {
-		struct snd_soc_pcm_runtime *rtd;
-
-		rtd = card->rtd + i;
+	list_for_each_entry(rtd, &card->rtd_list, list) {
 		if (!strncmp(rtd->codec_dai->name, CHT_CODEC_DAI,
 			     strlen(CHT_CODEC_DAI)))
 			return rtd->codec_dai;
@@ -222,20 +219,10 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static unsigned int rates_48000[] = {
-	48000,
-};
-
-static struct snd_pcm_hw_constraint_list constraints_48000 = {
-	.count = ARRAY_SIZE(rates_48000),
-	.list  = rates_48000,
-};
-
 static int cht_aif1_startup(struct snd_pcm_substream *substream)
 {
-	return snd_pcm_hw_constraint_list(substream->runtime, 0,
-			SNDRV_PCM_HW_PARAM_RATE,
-			&constraints_48000);
+	return snd_pcm_hw_constraint_single(substream->runtime,
+			SNDRV_PCM_HW_PARAM_RATE, 48000);
 }
 
 static struct snd_soc_ops cht_aif1_ops = {
@@ -259,6 +246,18 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
+		.ops = &cht_aif1_ops,
+	},
+	[MERR_DPCM_DEEP_BUFFER] = {
+		.name = "Deep-Buffer Audio Port",
+		.stream_name = "Deep-Buffer Audio",
+		.cpu_dai_name = "deepbuffer-cpu-dai",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.platform_name = "sst-mfld-platform",
+		.nonatomic = true,
+		.dynamic = 1,
+		.dpcm_playback = 1,
 		.ops = &cht_aif1_ops,
 	},
 	[MERR_DPCM_COMPR] = {

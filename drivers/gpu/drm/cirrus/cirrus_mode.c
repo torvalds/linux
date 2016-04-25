@@ -91,18 +91,6 @@ static void cirrus_crtc_dpms(struct drm_crtc *crtc, int mode)
 	WREG_GFX(0xe, gr0e);
 }
 
-/*
- * The core passes the desired mode to the CRTC code to see whether any
- * CRTC-specific modifications need to be made to it. We're in a position
- * to just pass that straight through, so this does nothing
- */
-static bool cirrus_crtc_mode_fixup(struct drm_crtc *crtc,
-				   const struct drm_display_mode *mode,
-				   struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void cirrus_set_start_address(struct drm_crtc *crtc, unsigned offset)
 {
 	struct cirrus_device *cdev = crtc->dev->dev_private;
@@ -372,7 +360,6 @@ static const struct drm_crtc_funcs cirrus_crtc_funcs = {
 
 static const struct drm_crtc_helper_funcs cirrus_helper_funcs = {
 	.dpms = cirrus_crtc_dpms,
-	.mode_fixup = cirrus_crtc_mode_fixup,
 	.mode_set = cirrus_crtc_mode_set,
 	.mode_set_base = cirrus_crtc_mode_set_base,
 	.prepare = cirrus_crtc_prepare,
@@ -430,14 +417,6 @@ void cirrus_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 	*blue = cirrus_crtc->lut_b[regno];
 }
 
-
-static bool cirrus_encoder_mode_fixup(struct drm_encoder *encoder,
-				      const struct drm_display_mode *mode,
-				      struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void cirrus_encoder_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -466,7 +445,6 @@ static void cirrus_encoder_destroy(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs cirrus_encoder_helper_funcs = {
 	.dpms = cirrus_encoder_dpms,
-	.mode_fixup = cirrus_encoder_mode_fixup,
 	.mode_set = cirrus_encoder_mode_set,
 	.prepare = cirrus_encoder_prepare,
 	.commit = cirrus_encoder_commit,
@@ -489,7 +467,7 @@ static struct drm_encoder *cirrus_encoder_init(struct drm_device *dev)
 	encoder->possible_crtcs = 0x1;
 
 	drm_encoder_init(dev, encoder, &cirrus_encoder_encoder_funcs,
-			 DRM_MODE_ENCODER_DAC);
+			 DRM_MODE_ENCODER_DAC, NULL);
 	drm_encoder_helper_add(encoder, &cirrus_encoder_helper_funcs);
 
 	return encoder;
@@ -533,12 +511,12 @@ static void cirrus_connector_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-struct drm_connector_helper_funcs cirrus_vga_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs cirrus_vga_connector_helper_funcs = {
 	.get_modes = cirrus_vga_get_modes,
 	.best_encoder = cirrus_connector_best_encoder,
 };
 
-struct drm_connector_funcs cirrus_vga_connector_funcs = {
+static const struct drm_connector_funcs cirrus_vga_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = cirrus_vga_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,

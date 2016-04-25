@@ -525,14 +525,22 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 		   __func__, cqe_tx->sq_qs, cqe_tx->sq_idx,
 		   cqe_tx->sqe_ptr, hdr->subdesc_cnt);
 
-	nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 	nicvf_check_cqe_tx_errs(nic, cq, cqe_tx);
 	skb = (struct sk_buff *)sq->skbuff[cqe_tx->sqe_ptr];
-	/* For TSO offloaded packets only one head SKB needs to be freed */
+	/* For TSO offloaded packets only one SQE will have a valid SKB */
 	if (skb) {
+		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 		prefetch(skb);
 		dev_consume_skb_any(skb);
 		sq->skbuff[cqe_tx->sqe_ptr] = (u64)NULL;
+	} else {
+		/* In case of HW TSO, HW sends a CQE for each segment of a TSO
+		 * packet instead of a single CQE for the whole TSO packet
+		 * transmitted. Each of this CQE points to the same SQE, so
+		 * avoid freeing same SQE multiple times.
+		 */
+		if (!nic->hw_tso)
+			nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 	}
 }
 
@@ -566,8 +574,7 @@ static inline void nicvf_set_rxhash(struct net_device *netdev,
 
 static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 				  struct napi_struct *napi,
-				  struct cmp_queue *cq,
-				  struct cqe_rx_t *cqe_rx, int cqe_type)
+				  struct cqe_rx_t *cqe_rx)
 {
 	struct sk_buff *skb;
 	struct nicvf *nic = netdev_priv(netdev);
@@ -583,7 +590,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 	}
 
 	/* Check for errors */
-	err = nicvf_check_cqe_rx_errs(nic, cq, cqe_rx);
+	err = nicvf_check_cqe_rx_errs(nic, cqe_rx);
 	if (err && !cqe_rx->rb_cnt)
 		return;
 
@@ -674,8 +681,7 @@ loop:
 			   cq_idx, cq_desc->cqe_type);
 		switch (cq_desc->cqe_type) {
 		case CQE_TYPE_RX:
-			nicvf_rcv_pkt_handler(netdev, napi, cq,
-					      cq_desc, CQE_TYPE_RX);
+			nicvf_rcv_pkt_handler(netdev, napi, cq_desc);
 			work_done++;
 		break;
 		case CQE_TYPE_SEND:
@@ -820,7 +826,7 @@ static irqreturn_t nicvf_intr_handler(int irq, void *cq_irq)
 	nicvf_disable_intr(nic, NICVF_INTR_CQ, qidx);
 
 	/* Schedule NAPI */
-	napi_schedule(&cq_poll->napi);
+	napi_schedule_irqoff(&cq_poll->napi);
 
 	/* Clear interrupt */
 	nicvf_clear_intr(nic, NICVF_INTR_CQ, qidx);
@@ -891,6 +897,31 @@ static void nicvf_disable_msix(struct nicvf *nic)
 	}
 }
 
+static void nicvf_set_irq_affinity(struct nicvf *nic)
+{
+	int vec, cpu;
+	int irqnum;
+
+	for (vec = 0; vec < nic->num_vec; vec++) {
+		if (!nic->irq_allocated[vec])
+			continue;
+
+		if (!zalloc_cpumask_var(&nic->affinity_mask[vec], GFP_KERNEL))
+			return;
+		 /* CQ interrupts */
+		if (vec < NICVF_INTR_ID_SQ)
+			/* Leave CPU0 for RBDR and other interrupts */
+			cpu = nicvf_netdev_qidx(nic, vec) + 1;
+		else
+			cpu = 0;
+
+		cpumask_set_cpu(cpumask_local_spread(cpu, nic->node),
+				nic->affinity_mask[vec]);
+		irqnum = nic->msix_entries[vec].vector;
+		irq_set_affinity_hint(irqnum, nic->affinity_mask[vec]);
+	}
+}
+
 static int nicvf_register_interrupts(struct nicvf *nic)
 {
 	int irq, ret = 0;
@@ -936,8 +967,13 @@ static int nicvf_register_interrupts(struct nicvf *nic)
 	ret = request_irq(nic->msix_entries[irq].vector,
 			  nicvf_qs_err_intr_handler,
 			  0, nic->irq_name[irq], nic);
-	if (!ret)
-		nic->irq_allocated[irq] = true;
+	if (ret)
+		goto err;
+
+	nic->irq_allocated[irq] = true;
+
+	/* Set IRQ affinities */
+	nicvf_set_irq_affinity(nic);
 
 err:
 	if (ret)
@@ -954,6 +990,9 @@ static void nicvf_unregister_interrupts(struct nicvf *nic)
 	for (irq = 0; irq < nic->num_vec; irq++) {
 		if (!nic->irq_allocated[irq])
 			continue;
+
+		irq_set_affinity_hint(nic->msix_entries[irq].vector, NULL);
+		free_cpumask_var(nic->affinity_mask[irq]);
 
 		if (irq < NICVF_INTR_ID_SQ)
 			free_irq(nic->msix_entries[irq].vector, nic->napi[irq]);
@@ -1057,6 +1096,7 @@ int nicvf_stop(struct net_device *netdev)
 
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(nic->netdev);
+	nic->link_up = false;
 
 	/* Teardown secondary qsets first */
 	if (!nic->sqs_mode) {
@@ -1116,7 +1156,6 @@ int nicvf_stop(struct net_device *netdev)
 
 	/* Clear multiqset info */
 	nic->pnicvf = nic;
-	nic->sqs_count = 0;
 
 	return 0;
 }
@@ -1210,9 +1249,6 @@ int nicvf_open(struct net_device *netdev)
 
 	nic->drv_stats.txq_stop = 0;
 	nic->drv_stats.txq_wake = 0;
-
-	netif_carrier_on(netdev);
-	netif_tx_start_all_queues(netdev);
 
 	return 0;
 cleanup:
@@ -1348,6 +1384,9 @@ void nicvf_update_stats(struct nicvf *nic)
 	drv_stats->tx_frames_ok = stats->tx_ucast_frames_ok +
 				  stats->tx_bcast_frames_ok +
 				  stats->tx_mcast_frames_ok;
+	drv_stats->rx_frames_ok = stats->rx_ucast_frames +
+				  stats->rx_bcast_frames +
+				  stats->rx_mcast_frames;
 	drv_stats->rx_drops = stats->rx_drop_red +
 			      stats->rx_drop_overrun;
 	drv_stats->tx_drops = stats->tx_drops;
@@ -1388,6 +1427,7 @@ static void nicvf_tx_timeout(struct net_device *dev)
 		netdev_warn(dev, "%s: Transmit timed out, resetting\n",
 			    dev->name);
 
+	nic->drv_stats.tx_timeout++;
 	schedule_work(&nic->reset_task);
 }
 
@@ -1532,6 +1572,9 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	nicvf_send_vf_struct(nic);
 
+	if (!pass1_silicon(nic->pdev))
+		nic->hw_tso = true;
+
 	/* Check if this VF is in QS only mode */
 	if (nic->sqs_mode)
 		return 0;
@@ -1583,8 +1626,14 @@ err_disable_device:
 static void nicvf_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct nicvf *nic = netdev_priv(netdev);
-	struct net_device *pnetdev = nic->pnicvf->netdev;
+	struct nicvf *nic;
+	struct net_device *pnetdev;
+
+	if (!netdev)
+		return;
+
+	nic = netdev_priv(netdev);
+	pnetdev = nic->pnicvf->netdev;
 
 	/* Check if this Qset is assigned to different VF.
 	 * If yes, clean primary and all secondary Qsets.

@@ -26,14 +26,16 @@
 #include <linux/uaccess.h>
 #include <linux/anon_inodes.h>
 #include <linux/time64.h>
-#include "sync.h"
+#include "sw_sync.h"
 
 #ifdef CONFIG_DEBUG_FS
 
+static struct dentry *dbgfs;
+
 static LIST_HEAD(sync_timeline_list_head);
 static DEFINE_SPINLOCK(sync_timeline_list_lock);
-static LIST_HEAD(sync_fence_list_head);
-static DEFINE_SPINLOCK(sync_fence_list_lock);
+static LIST_HEAD(sync_file_list_head);
+static DEFINE_SPINLOCK(sync_file_list_lock);
 
 void sync_timeline_debug_add(struct sync_timeline *obj)
 {
@@ -53,22 +55,22 @@ void sync_timeline_debug_remove(struct sync_timeline *obj)
 	spin_unlock_irqrestore(&sync_timeline_list_lock, flags);
 }
 
-void sync_fence_debug_add(struct sync_fence *fence)
+void sync_file_debug_add(struct sync_file *sync_file)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&sync_fence_list_lock, flags);
-	list_add_tail(&fence->sync_fence_list, &sync_fence_list_head);
-	spin_unlock_irqrestore(&sync_fence_list_lock, flags);
+	spin_lock_irqsave(&sync_file_list_lock, flags);
+	list_add_tail(&sync_file->sync_file_list, &sync_file_list_head);
+	spin_unlock_irqrestore(&sync_file_list_lock, flags);
 }
 
-void sync_fence_debug_remove(struct sync_fence *fence)
+void sync_file_debug_remove(struct sync_file *sync_file)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&sync_fence_list_lock, flags);
-	list_del(&fence->sync_fence_list);
-	spin_unlock_irqrestore(&sync_fence_list_lock, flags);
+	spin_lock_irqsave(&sync_file_list_lock, flags);
+	list_del(&sync_file->sync_file_list);
+	spin_unlock_irqrestore(&sync_file_list_lock, flags);
 }
 
 static const char *sync_status_str(int status)
@@ -82,36 +84,43 @@ static const char *sync_status_str(int status)
 	return "error";
 }
 
-static void sync_print_pt(struct seq_file *s, struct sync_pt *pt, bool fence)
+static void sync_print_fence(struct seq_file *s, struct fence *fence, bool show)
 {
 	int status = 1;
-	struct sync_timeline *parent = sync_pt_parent(pt);
+	struct sync_timeline *parent = fence_parent(fence);
 
-	if (fence_is_signaled_locked(&pt->base))
-		status = pt->base.status;
+	if (fence_is_signaled_locked(fence))
+		status = fence->status;
 
-	seq_printf(s, "  %s%spt %s",
-		   fence ? parent->name : "",
-		   fence ? "_" : "",
+	seq_printf(s, "  %s%sfence %s",
+		   show ? parent->name : "",
+		   show ? "_" : "",
 		   sync_status_str(status));
 
 	if (status <= 0) {
 		struct timespec64 ts64 =
-			ktime_to_timespec64(pt->base.timestamp);
+			ktime_to_timespec64(fence->timestamp);
 
 		seq_printf(s, "@%lld.%09ld", (s64)ts64.tv_sec, ts64.tv_nsec);
 	}
 
-	if (parent->ops->timeline_value_str &&
-	    parent->ops->pt_value_str) {
+	if ((!fence || fence->ops->timeline_value_str) &&
+		fence->ops->fence_value_str) {
 		char value[64];
+		bool success;
 
-		parent->ops->pt_value_str(pt, value, sizeof(value));
-		seq_printf(s, ": %s", value);
-		if (fence) {
-			parent->ops->timeline_value_str(parent, value,
-						    sizeof(value));
-			seq_printf(s, " / %s", value);
+		fence->ops->fence_value_str(fence, value, sizeof(value));
+		success = strlen(value);
+
+		if (success)
+			seq_printf(s, ": %s", value);
+
+		if (success && fence) {
+			fence->ops->timeline_value_str(fence, value,
+						       sizeof(value));
+
+			if (strlen(value))
+				seq_printf(s, " / %s", value);
 		}
 	}
 
@@ -136,42 +145,23 @@ static void sync_print_obj(struct seq_file *s, struct sync_timeline *obj)
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
 	list_for_each(pos, &obj->child_list_head) {
-		struct sync_pt *pt =
-			container_of(pos, struct sync_pt, child_list);
-		sync_print_pt(s, pt, false);
+		struct fence *fence =
+			container_of(pos, struct fence, child_list);
+		sync_print_fence(s, fence, false);
 	}
 	spin_unlock_irqrestore(&obj->child_list_lock, flags);
 }
 
-static void sync_print_fence(struct seq_file *s, struct sync_fence *fence)
+static void sync_print_sync_file(struct seq_file *s,
+				  struct sync_file *sync_file)
 {
-	wait_queue_t *pos;
-	unsigned long flags;
 	int i;
 
-	seq_printf(s, "[%p] %s: %s\n", fence, fence->name,
-		   sync_status_str(atomic_read(&fence->status)));
+	seq_printf(s, "[%p] %s: %s\n", sync_file, sync_file->name,
+		   sync_status_str(atomic_read(&sync_file->status)));
 
-	for (i = 0; i < fence->num_fences; ++i) {
-		struct sync_pt *pt =
-			container_of(fence->cbs[i].sync_pt,
-				     struct sync_pt, base);
-
-		sync_print_pt(s, pt, true);
-	}
-
-	spin_lock_irqsave(&fence->wq.lock, flags);
-	list_for_each_entry(pos, &fence->wq.task_list, task_list) {
-		struct sync_fence_waiter *waiter;
-
-		if (pos->func != &sync_fence_wake_up_wq)
-			continue;
-
-		waiter = container_of(pos, struct sync_fence_waiter, work);
-
-		seq_printf(s, "waiter %pF\n", waiter->callback);
-	}
-	spin_unlock_irqrestore(&fence->wq.lock, flags);
+	for (i = 0; i < sync_file->num_fences; ++i)
+		sync_print_fence(s, sync_file->cbs[i].fence, true);
 }
 
 static int sync_debugfs_show(struct seq_file *s, void *unused)
@@ -194,33 +184,152 @@ static int sync_debugfs_show(struct seq_file *s, void *unused)
 
 	seq_puts(s, "fences:\n--------------\n");
 
-	spin_lock_irqsave(&sync_fence_list_lock, flags);
-	list_for_each(pos, &sync_fence_list_head) {
-		struct sync_fence *fence =
-			container_of(pos, struct sync_fence, sync_fence_list);
+	spin_lock_irqsave(&sync_file_list_lock, flags);
+	list_for_each(pos, &sync_file_list_head) {
+		struct sync_file *sync_file =
+			container_of(pos, struct sync_file, sync_file_list);
 
-		sync_print_fence(s, fence);
+		sync_print_sync_file(s, sync_file);
 		seq_puts(s, "\n");
 	}
-	spin_unlock_irqrestore(&sync_fence_list_lock, flags);
+	spin_unlock_irqrestore(&sync_file_list_lock, flags);
 	return 0;
 }
 
-static int sync_debugfs_open(struct inode *inode, struct file *file)
+static int sync_info_debugfs_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, sync_debugfs_show, inode->i_private);
 }
 
-static const struct file_operations sync_debugfs_fops = {
-	.open           = sync_debugfs_open,
+static const struct file_operations sync_info_debugfs_fops = {
+	.open           = sync_info_debugfs_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
 	.release        = single_release,
 };
 
+/*
+ * *WARNING*
+ *
+ * improper use of this can result in deadlocking kernel drivers from userspace.
+ */
+
+/* opening sw_sync create a new sync obj */
+static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
+{
+	struct sw_sync_timeline *obj;
+	char task_comm[TASK_COMM_LEN];
+
+	get_task_comm(task_comm, current);
+
+	obj = sw_sync_timeline_create(task_comm);
+	if (!obj)
+		return -ENOMEM;
+
+	file->private_data = obj;
+
+	return 0;
+}
+
+static int sw_sync_debugfs_release(struct inode *inode, struct file *file)
+{
+	struct sw_sync_timeline *obj = file->private_data;
+
+	sync_timeline_destroy(&obj->obj);
+	return 0;
+}
+
+static long sw_sync_ioctl_create_fence(struct sw_sync_timeline *obj,
+				       unsigned long arg)
+{
+	int fd = get_unused_fd_flags(O_CLOEXEC);
+	int err;
+	struct fence *fence;
+	struct sync_file *sync_file;
+	struct sw_sync_create_fence_data data;
+
+	if (fd < 0)
+		return fd;
+
+	if (copy_from_user(&data, (void __user *)arg, sizeof(data))) {
+		err = -EFAULT;
+		goto err;
+	}
+
+	fence = sw_sync_pt_create(obj, data.value);
+	if (!fence) {
+		err = -ENOMEM;
+		goto err;
+	}
+
+	data.name[sizeof(data.name) - 1] = '\0';
+	sync_file = sync_file_create(data.name, fence);
+	if (!sync_file) {
+		fence_put(fence);
+		err = -ENOMEM;
+		goto err;
+	}
+
+	data.fence = fd;
+	if (copy_to_user((void __user *)arg, &data, sizeof(data))) {
+		sync_file_put(sync_file);
+		err = -EFAULT;
+		goto err;
+	}
+
+	sync_file_install(sync_file, fd);
+
+	return 0;
+
+err:
+	put_unused_fd(fd);
+	return err;
+}
+
+static long sw_sync_ioctl_inc(struct sw_sync_timeline *obj, unsigned long arg)
+{
+	u32 value;
+
+	if (copy_from_user(&value, (void __user *)arg, sizeof(value)))
+		return -EFAULT;
+
+	sw_sync_timeline_inc(obj, value);
+
+	return 0;
+}
+
+static long sw_sync_ioctl(struct file *file, unsigned int cmd,
+			  unsigned long arg)
+{
+	struct sw_sync_timeline *obj = file->private_data;
+
+	switch (cmd) {
+	case SW_SYNC_IOC_CREATE_FENCE:
+		return sw_sync_ioctl_create_fence(obj, arg);
+
+	case SW_SYNC_IOC_INC:
+		return sw_sync_ioctl_inc(obj, arg);
+
+	default:
+		return -ENOTTY;
+	}
+}
+
+static const struct file_operations sw_sync_debugfs_fops = {
+	.open           = sw_sync_debugfs_open,
+	.release        = sw_sync_debugfs_release,
+	.unlocked_ioctl = sw_sync_ioctl,
+	.compat_ioctl = sw_sync_ioctl,
+};
+
 static __init int sync_debugfs_init(void)
 {
-	debugfs_create_file("sync", S_IRUGO, NULL, NULL, &sync_debugfs_fops);
+	dbgfs = debugfs_create_dir("sync", NULL);
+
+	debugfs_create_file("info", 0444, dbgfs, NULL, &sync_info_debugfs_fops);
+	debugfs_create_file("sw_sync", 0644, dbgfs, NULL,
+			    &sw_sync_debugfs_fops);
+
 	return 0;
 }
 late_initcall(sync_debugfs_init);

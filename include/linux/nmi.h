@@ -65,7 +65,6 @@ static inline bool trigger_allbutself_cpu_backtrace(void)
 #endif
 
 #ifdef CONFIG_LOCKUP_DETECTOR
-int hw_nmi_is_cpu_stuck(struct pt_regs *);
 u64 hw_nmi_get_sample_period(int watchdog_thresh);
 extern int nmi_watchdog_enabled;
 extern int soft_watchdog_enabled;
@@ -73,6 +72,7 @@ extern int watchdog_user_enabled;
 extern int watchdog_thresh;
 extern unsigned long *watchdog_cpumask_bits;
 extern int sysctl_softlockup_all_cpu_backtrace;
+extern int sysctl_hardlockup_all_cpu_backtrace;
 struct ctl_table;
 extern int proc_watchdog(struct ctl_table *, int ,
 			 void __user *, size_t *, loff_t *);

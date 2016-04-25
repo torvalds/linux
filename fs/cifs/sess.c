@@ -988,7 +988,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 		goto out;
 	}
 
-	msg = spnego_key->payload.data;
+	msg = spnego_key->payload.data[0];
 	/*
 	 * check version field to make sure that cifs.upcall is
 	 * sending us a response in an expected form

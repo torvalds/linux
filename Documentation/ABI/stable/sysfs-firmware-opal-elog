@@ -57,4 +57,4 @@ Description:
 				Shortly after acknowledging it, the log
 				entry will be removed from sysfs.
 				Reading this file will list the supported
-				operations (curently just acknowledge).
+				operations (currently just acknowledge).

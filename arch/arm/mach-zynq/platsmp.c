@@ -157,7 +157,7 @@ static void zynq_cpu_die(unsigned int cpu)
 }
 #endif
 
-struct smp_operations zynq_smp_ops __initdata = {
+const struct smp_operations zynq_smp_ops __initconst = {
 	.smp_init_cpus		= zynq_smp_init_cpus,
 	.smp_prepare_cpus	= zynq_smp_prepare_cpus,
 	.smp_boot_secondary	= zynq_boot_secondary,

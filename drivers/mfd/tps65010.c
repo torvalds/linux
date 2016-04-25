@@ -499,11 +499,11 @@ static int tps65010_gpio_get(struct gpio_chip *chip, unsigned offset)
 	if (offset < 4) {
 		value = i2c_smbus_read_byte_data(tps->client, TPS_DEFGPIO);
 		if (value < 0)
-			return 0;
+			return value;
 		if (value & (1 << (offset + 4)))	/* output */
 			return !(value & (1 << offset));
 		else					/* input */
-			return (value & (1 << offset));
+			return !!(value & (1 << offset));
 	}
 
 	/* REVISIT we *could* report LED1/nPG and LED2 state ... */
@@ -638,7 +638,7 @@ static int tps65010_probe(struct i2c_client *client,
 		tps->outmask = board->outmask;
 
 		tps->chip.label = client->name;
-		tps->chip.dev = &client->dev;
+		tps->chip.parent = &client->dev;
 		tps->chip.owner = THIS_MODULE;
 
 		tps->chip.set = tps65010_gpio_set;
@@ -1059,26 +1059,7 @@ EXPORT_SYMBOL(tps65013_set_low_pwr);
 
 static int __init tps_init(void)
 {
-	u32	tries = 3;
-	int	status = -ENODEV;
-
-	printk(KERN_INFO "%s: version %s\n", DRIVER_NAME, DRIVER_VERSION);
-
-	/* some boards have startup glitches */
-	while (tries--) {
-		status = i2c_add_driver(&tps65010_driver);
-		if (the_tps)
-			break;
-		i2c_del_driver(&tps65010_driver);
-		if (!tries) {
-			printk(KERN_ERR "%s: no chip?\n", DRIVER_NAME);
-			return -ENODEV;
-		}
-		pr_debug("%s: re-probe ...\n", DRIVER_NAME);
-		msleep(10);
-	}
-
-	return status;
+	return i2c_add_driver(&tps65010_driver);
 }
 /* NOTE:  this MUST be initialized before the other parts of the system
  * that rely on it ... but after the i2c bus on which this relies.

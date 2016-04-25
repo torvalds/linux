@@ -70,8 +70,11 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @dev_groups:	Default attributes of the devices on the bus.
  * @drv_groups: Default attributes of the device drivers on the bus.
  * @match:	Called, perhaps multiple times, whenever a new device or driver
- *		is added for this bus. It should return a nonzero value if the
- *		given device can be handled by the given driver.
+ *		is added for this bus. It should return a positive value if the
+ *		given device can be handled by the given driver and zero
+ *		otherwise. It may also return error code if determining that
+ *		the driver supports the device is not possible. In case of
+ *		-EPROBE_DEFER it will queue the device for deferred probing.
  * @uevent:	Called when a device is added, removed, or a few other things
  *		that generate uevents to add the environment variables.
  * @probe:	Called when a new device or driver add to this bus, and callback
@@ -191,6 +194,7 @@ extern int bus_unregister_notifier(struct bus_type *bus,
 						      unbound */
 #define BUS_NOTIFY_UNBOUND_DRIVER	0x00000007 /* driver is unbound
 						      from the device */
+#define BUS_NOTIFY_DRIVER_NOT_BOUND	0x00000008 /* driver fails to be bound */
 
 extern struct kset *bus_get_kset(struct bus_type *bus);
 extern struct klist *bus_get_device_klist(struct bus_type *bus);
@@ -604,13 +608,21 @@ typedef void (*dr_release_t)(struct device *dev, void *res);
 typedef int (*dr_match_t)(struct device *dev, void *res, void *match_data);
 
 #ifdef CONFIG_DEBUG_DEVRES
-extern void *__devres_alloc(dr_release_t release, size_t size, gfp_t gfp,
-			     const char *name);
+extern void *__devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp,
+				 int nid, const char *name);
 #define devres_alloc(release, size, gfp) \
-	__devres_alloc(release, size, gfp, #release)
+	__devres_alloc_node(release, size, gfp, NUMA_NO_NODE, #release)
+#define devres_alloc_node(release, size, gfp, nid) \
+	__devres_alloc_node(release, size, gfp, nid, #release)
 #else
-extern void *devres_alloc(dr_release_t release, size_t size, gfp_t gfp);
+extern void *devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp,
+			       int nid);
+static inline void *devres_alloc(dr_release_t release, size_t size, gfp_t gfp)
+{
+	return devres_alloc_node(release, size, gfp, NUMA_NO_NODE);
+}
 #endif
+
 extern void devres_for_each_res(struct device *dev, dr_release_t release,
 				dr_match_t match, void *match_data,
 				void (*fn)(struct device *, void *, void *),
@@ -672,6 +684,18 @@ void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res);
 /* allows to add/remove a custom action to devres stack */
 int devm_add_action(struct device *dev, void (*action)(void *), void *data);
 void devm_remove_action(struct device *dev, void (*action)(void *), void *data);
+
+static inline int devm_add_action_or_reset(struct device *dev,
+					   void (*action)(void *), void *data)
+{
+	int ret;
+
+	ret = devm_add_action(dev, action, data);
+	if (ret)
+		action(data);
+
+	return ret;
+}
 
 struct device_dma_parameters {
 	/*
@@ -949,6 +973,11 @@ static inline void device_lock(struct device *dev)
 	mutex_lock(&dev->mutex);
 }
 
+static inline int device_lock_interruptible(struct device *dev)
+{
+	return mutex_lock_interruptible(&dev->mutex);
+}
+
 static inline int device_trylock(struct device *dev)
 {
 	return mutex_trylock(&dev->mutex);
@@ -1034,6 +1063,8 @@ extern int  __must_check device_attach(struct device *dev);
 extern int __must_check driver_attach(struct device_driver *drv);
 extern void device_initial_probe(struct device *dev);
 extern int __must_check device_reprobe(struct device *dev);
+
+extern bool device_is_bound(struct device *dev);
 
 /*
  * Easy functions for dynamically creating devices on the fly

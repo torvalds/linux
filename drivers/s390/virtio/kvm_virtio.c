@@ -255,7 +255,7 @@ static void kvm_del_vqs(struct virtio_device *vdev)
 static int kvm_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 			struct virtqueue *vqs[],
 			vq_callback_t *callbacks[],
-			const char *names[])
+			const char * const names[])
 {
 	struct kvm_device *kdev = to_kvmdev(vdev);
 	int i;

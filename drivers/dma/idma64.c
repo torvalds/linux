@@ -65,9 +65,6 @@ static void idma64_chan_init(struct idma64 *idma64, struct idma64_chan *idma64c)
 	u32 cfghi = IDMA64C_CFGH_SRC_PER(1) | IDMA64C_CFGH_DST_PER(0);
 	u32 cfglo = 0;
 
-	/* Enforce FIFO drain when channel is suspended */
-	cfglo |= IDMA64C_CFGL_CH_DRAIN;
-
 	/* Set default burst alignment */
 	cfglo |= IDMA64C_CFGL_DST_BURST_ALIGN | IDMA64C_CFGL_SRC_BURST_ALIGN;
 
@@ -181,19 +178,11 @@ static irqreturn_t idma64_irq(int irq, void *dev)
 	if (!status)
 		return IRQ_NONE;
 
-	/* Disable interrupts */
-	channel_clear_bit(idma64, MASK(XFER), idma64->all_chan_mask);
-	channel_clear_bit(idma64, MASK(ERROR), idma64->all_chan_mask);
-
 	status_xfer = dma_readl(idma64, RAW(XFER));
 	status_err = dma_readl(idma64, RAW(ERROR));
 
 	for (i = 0; i < idma64->dma.chancnt; i++)
 		idma64_chan_irq(idma64, i, status_err, status_xfer);
-
-	/* Re-enable interrupts */
-	channel_set_bit(idma64, MASK(XFER), idma64->all_chan_mask);
-	channel_set_bit(idma64, MASK(ERROR), idma64->all_chan_mask);
 
 	return IRQ_HANDLED;
 }
@@ -242,7 +231,7 @@ static void idma64_vdesc_free(struct virt_dma_desc *vdesc)
 	idma64_desc_free(idma64c, to_idma64_desc(vdesc));
 }
 
-static u64 idma64_hw_desc_fill(struct idma64_hw_desc *hw,
+static void idma64_hw_desc_fill(struct idma64_hw_desc *hw,
 		struct dma_slave_config *config,
 		enum dma_transfer_direction direction, u64 llp)
 {
@@ -257,15 +246,15 @@ static u64 idma64_hw_desc_fill(struct idma64_hw_desc *hw,
 		dar = config->dst_addr;
 		ctllo |= IDMA64C_CTLL_DST_FIX | IDMA64C_CTLL_SRC_INC |
 			 IDMA64C_CTLL_FC_M2P;
-		src_width = min_t(u32, 2, __fls(sar | hw->len));
-		dst_width = __fls(config->dst_addr_width);
+		src_width = __ffs(sar | hw->len | 4);
+		dst_width = __ffs(config->dst_addr_width);
 	} else {	/* DMA_DEV_TO_MEM */
 		sar = config->src_addr;
 		dar = hw->phys;
 		ctllo |= IDMA64C_CTLL_DST_INC | IDMA64C_CTLL_SRC_FIX |
 			 IDMA64C_CTLL_FC_P2M;
-		src_width = __fls(config->src_addr_width);
-		dst_width = min_t(u32, 2, __fls(dar | hw->len));
+		src_width = __ffs(config->src_addr_width);
+		dst_width = __ffs(dar | hw->len | 4);
 	}
 
 	lli->sar = sar;
@@ -279,27 +268,30 @@ static u64 idma64_hw_desc_fill(struct idma64_hw_desc *hw,
 		     IDMA64C_CTLL_SRC_WIDTH(src_width);
 
 	lli->llp = llp;
-	return hw->llp;
 }
 
 static void idma64_desc_fill(struct idma64_chan *idma64c,
 		struct idma64_desc *desc)
 {
 	struct dma_slave_config *config = &idma64c->config;
-	struct idma64_hw_desc *hw = &desc->hw[desc->ndesc - 1];
+	unsigned int i = desc->ndesc;
+	struct idma64_hw_desc *hw = &desc->hw[i - 1];
 	struct idma64_lli *lli = hw->lli;
 	u64 llp = 0;
-	unsigned int i = desc->ndesc;
 
 	/* Fill the hardware descriptors and link them to a list */
 	do {
 		hw = &desc->hw[--i];
-		llp = idma64_hw_desc_fill(hw, config, desc->direction, llp);
+		idma64_hw_desc_fill(hw, config, desc->direction, llp);
+		llp = hw->llp;
 		desc->length += hw->len;
 	} while (i);
 
-	/* Trigger interrupt after last block */
+	/* Trigger an interrupt after the last block is transfered */
 	lli->ctllo |= IDMA64C_CTLL_INT_EN;
+
+	/* Disable LLP transfer in the last block */
+	lli->ctllo &= ~(IDMA64C_CTLL_LLP_S_EN | IDMA64C_CTLL_LLP_D_EN);
 }
 
 static struct dma_async_tx_descriptor *idma64_prep_slave_sg(
@@ -428,12 +420,17 @@ static int idma64_slave_config(struct dma_chan *chan,
 	return 0;
 }
 
-static void idma64_chan_deactivate(struct idma64_chan *idma64c)
+static void idma64_chan_deactivate(struct idma64_chan *idma64c, bool drain)
 {
 	unsigned short count = 100;
 	u32 cfglo;
 
 	cfglo = channel_readl(idma64c, CFG_LO);
+	if (drain)
+		cfglo |= IDMA64C_CFGL_CH_DRAIN;
+	else
+		cfglo &= ~IDMA64C_CFGL_CH_DRAIN;
+
 	channel_writel(idma64c, CFG_LO, cfglo | IDMA64C_CFGL_CH_SUSP);
 	do {
 		udelay(1);
@@ -456,7 +453,7 @@ static int idma64_pause(struct dma_chan *chan)
 
 	spin_lock_irqsave(&idma64c->vchan.lock, flags);
 	if (idma64c->desc && idma64c->desc->status == DMA_IN_PROGRESS) {
-		idma64_chan_deactivate(idma64c);
+		idma64_chan_deactivate(idma64c, false);
 		idma64c->desc->status = DMA_PAUSED;
 	}
 	spin_unlock_irqrestore(&idma64c->vchan.lock, flags);
@@ -486,7 +483,7 @@ static int idma64_terminate_all(struct dma_chan *chan)
 	LIST_HEAD(head);
 
 	spin_lock_irqsave(&idma64c->vchan.lock, flags);
-	idma64_chan_deactivate(idma64c);
+	idma64_chan_deactivate(idma64c, true);
 	idma64_stop_transfer(idma64c);
 	if (idma64c->desc) {
 		idma64_vdesc_free(&idma64c->desc->vdesc);
@@ -593,6 +590,8 @@ static int idma64_probe(struct idma64_chip *chip)
 	idma64->dma.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 
 	idma64->dma.dev = chip->dev;
+
+	dma_set_max_seg_size(idma64->dma.dev, IDMA64C_CTLH_BLOCK_TS_MASK);
 
 	ret = dma_async_device_register(&idma64->dma);
 	if (ret)

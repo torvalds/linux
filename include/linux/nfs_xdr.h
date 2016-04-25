@@ -141,6 +141,7 @@ struct nfs_fsinfo {
 	__u32			lease_time; /* in seconds */
 	__u32			layouttype; /* supported pnfs layout driver */
 	__u32			blksize; /* preferred pnfs io block size */
+	__u32			clone_blksize; /* granularity of a CLONE operation */
 };
 
 struct nfs_fsstat {
@@ -250,6 +251,7 @@ struct nfs4_layoutget {
 	struct nfs4_layoutget_res res;
 	struct rpc_cred *cred;
 	gfp_t gfp_flags;
+	long timeout;
 };
 
 struct nfs4_getdeviceinfo_args {
@@ -273,6 +275,7 @@ struct nfs4_layoutcommit_args {
 	size_t layoutupdate_len;
 	struct page *layoutupdate_page;
 	struct page **layoutupdate_pages;
+	__be32 *start_p;
 };
 
 struct nfs4_layoutcommit_res {
@@ -357,6 +360,25 @@ struct nfs42_layoutstat_data {
 	struct inode *inode;
 	struct nfs42_layoutstat_args args;
 	struct nfs42_layoutstat_res res;
+};
+
+struct nfs42_clone_args {
+	struct nfs4_sequence_args	seq_args;
+	struct nfs_fh			*src_fh;
+	struct nfs_fh			*dst_fh;
+	nfs4_stateid			src_stateid;
+	nfs4_stateid			dst_stateid;
+	__u64				src_offset;
+	__u64				dst_offset;
+	__u64				count;
+	const u32			*dst_bitmask;
+};
+
+struct nfs42_clone_res {
+	struct nfs4_sequence_res	seq_res;
+	unsigned int			rpc_status;
+	struct nfs_fattr		*dst_fattr;
+	const struct nfs_server		*server;
 };
 
 struct stateowner_id {
@@ -528,7 +550,7 @@ struct nfs4_delegreturnargs {
 struct nfs4_delegreturnres {
 	struct nfs4_sequence_res	seq_res;
 	struct nfs_fattr * fattr;
-	const struct nfs_server *server;
+	struct nfs_server *server;
 };
 
 /*
@@ -601,7 +623,7 @@ struct nfs_removeargs {
 
 struct nfs_removeres {
 	struct nfs4_sequence_res 	seq_res;
-	const struct nfs_server *server;
+	struct nfs_server *server;
 	struct nfs_fattr	*dir_attr;
 	struct nfs4_change_info	cinfo;
 };
@@ -619,7 +641,7 @@ struct nfs_renameargs {
 
 struct nfs_renameres {
 	struct nfs4_sequence_res	seq_res;
-	const struct nfs_server		*server;
+	struct nfs_server		*server;
 	struct nfs4_change_info		old_cinfo;
 	struct nfs_fattr		*old_fattr;
 	struct nfs4_change_info		new_cinfo;
@@ -685,7 +707,6 @@ struct nfs_setaclargs {
 	struct nfs4_sequence_args	seq_args;
 	struct nfs_fh *			fh;
 	size_t				acl_len;
-	unsigned int			acl_pgbase;
 	struct page **			acl_pages;
 };
 
@@ -697,7 +718,6 @@ struct nfs_getaclargs {
 	struct nfs4_sequence_args 	seq_args;
 	struct nfs_fh *			fh;
 	size_t				acl_len;
-	unsigned int			acl_pgbase;
 	struct page **			acl_pages;
 };
 
@@ -1356,6 +1376,7 @@ enum {
 	NFS_IOHDR_ERROR = 0,
 	NFS_IOHDR_EOF,
 	NFS_IOHDR_REDO,
+	NFS_IOHDR_STAT,
 };
 
 struct nfs_pgio_header {
@@ -1401,11 +1422,12 @@ struct nfs_mds_commit_info {
 	struct list_head	list;
 };
 
+struct nfs_commit_info;
 struct nfs_commit_data;
 struct nfs_inode;
 struct nfs_commit_completion_ops {
-	void (*error_cleanup) (struct nfs_inode *nfsi);
 	void (*completion) (struct nfs_commit_data *data);
+	void (*resched_write) (struct nfs_commit_info *, struct nfs_page *);
 };
 
 struct nfs_commit_info {
@@ -1435,12 +1457,14 @@ struct nfs_commit_data {
 	const struct rpc_call_ops *mds_ops;
 	const struct nfs_commit_completion_ops *completion_ops;
 	int (*commit_done_cb) (struct rpc_task *task, struct nfs_commit_data *data);
+	unsigned long		flags;
 };
 
 struct nfs_pgio_completion_ops {
 	void	(*error_cleanup)(struct list_head *head);
 	void	(*init_hdr)(struct nfs_pgio_header *hdr);
 	void	(*completion)(struct nfs_pgio_header *hdr);
+	void	(*reschedule_io)(struct nfs_pgio_header *hdr);
 };
 
 struct nfs_unlinkdata {

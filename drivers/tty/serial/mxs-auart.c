@@ -1196,7 +1196,7 @@ static int mxs_auart_init_gpios(struct mxs_auart_port *s, struct device *dev)
 	enum mctrl_gpio_idx i;
 	struct gpio_desc *gpiod;
 
-	s->gpios = mctrl_gpio_init(dev, 0);
+	s->gpios = mctrl_gpio_init_noauto(dev, 0);
 	if (IS_ERR(s->gpios))
 		return PTR_ERR(s->gpios);
 

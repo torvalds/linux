@@ -57,6 +57,7 @@ static const char mlxsw_pci_driver_name[] = "mlxsw_pci";
 
 static const struct pci_device_id mlxsw_pci_id_table[] = {
 	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SWITCHX2), 0},
+	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SPECTRUM), 0},
 	{0, }
 };
 
@@ -67,6 +68,8 @@ static const char *mlxsw_pci_device_kind_get(const struct pci_device_id *id)
 	switch (id->device) {
 	case PCI_DEVICE_ID_MELLANOX_SWITCHX2:
 		return MLXSW_DEVICE_KIND_SWITCHX2;
+	case PCI_DEVICE_ID_MELLANOX_SPECTRUM:
+		return MLXSW_DEVICE_KIND_SPECTRUM;
 	default:
 		BUG();
 	}
@@ -171,8 +174,8 @@ struct mlxsw_pci {
 	struct msix_entry msix_entry;
 	struct mlxsw_core *core;
 	struct {
-		u16 num_pages;
 		struct mlxsw_pci_mem_item *items;
+		unsigned int count;
 	} fw_area;
 	struct {
 		struct mlxsw_pci_mem_item out_mbox;
@@ -212,7 +215,7 @@ mlxsw_pci_queue_elem_info_producer_get(struct mlxsw_pci_queue *q)
 {
 	int index = q->producer_counter & (q->count - 1);
 
-	if ((q->producer_counter - q->consumer_counter) == q->count)
+	if ((u16) (q->producer_counter - q->consumer_counter) == q->count)
 		return NULL;
 	return mlxsw_pci_queue_elem_info_get(q, index);
 }
@@ -381,7 +384,7 @@ static int mlxsw_pci_sdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 
 	/* Set CQ of same number of this SDQ. */
 	mlxsw_cmd_mbox_sw2hw_dq_cq_set(mbox, q->num);
-	mlxsw_cmd_mbox_sw2hw_dq_sdq_tclass_set(mbox, 7);
+	mlxsw_cmd_mbox_sw2hw_dq_sdq_tclass_set(mbox, 3);
 	mlxsw_cmd_mbox_sw2hw_dq_log2_dq_sz_set(mbox, 3); /* 8 pages */
 	for (i = 0; i < MLXSW_PCI_AQ_PAGES; i++) {
 		dma_addr_t mapaddr = __mlxsw_pci_queue_page_get(q, i);
@@ -431,8 +434,7 @@ static int mlxsw_pci_wqe_frag_map(struct mlxsw_pci *mlxsw_pci, char *wqe,
 
 	mapaddr = pci_map_single(pdev, frag_data, frag_len, direction);
 	if (unlikely(pci_dma_mapping_error(pdev, mapaddr))) {
-		if (net_ratelimit())
-			dev_err(&pdev->dev, "failed to dma map tx frag\n");
+		dev_err_ratelimited(&pdev->dev, "failed to dma map tx frag\n");
 		return -EIO;
 	}
 	mlxsw_pci_wqe_address_set(wqe, index, mapaddr);
@@ -497,6 +499,7 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 			      struct mlxsw_pci_queue *q)
 {
 	struct mlxsw_pci_queue_elem_info *elem_info;
+	u8 sdq_count = mlxsw_pci_sdq_count(mlxsw_pci);
 	int i;
 	int err;
 
@@ -504,9 +507,9 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	q->consumer_counter = 0;
 
 	/* Set CQ of same number of this RDQ with base
-	 * above MLXSW_PCI_SDQS_MAX as the lower ones are assigned to SDQs.
+	 * above SDQ count as the lower ones are assigned to SDQs.
 	 */
-	mlxsw_cmd_mbox_sw2hw_dq_cq_set(mbox, q->num + MLXSW_PCI_SDQS_COUNT);
+	mlxsw_cmd_mbox_sw2hw_dq_cq_set(mbox, sdq_count + q->num);
 	mlxsw_cmd_mbox_sw2hw_dq_log2_dq_sz_set(mbox, 3); /* 8 pages */
 	for (i = 0; i < MLXSW_PCI_AQ_PAGES; i++) {
 		dma_addr_t mapaddr = __mlxsw_pci_queue_page_get(q, i);
@@ -683,11 +686,15 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	if (q->consumer_counter++ != consumer_counter_limit)
 		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does not match limit in RDQ\n");
 
-	/* We do not support lag now */
-	if (mlxsw_pci_cqe_lag_get(cqe))
-		goto drop;
+	if (mlxsw_pci_cqe_lag_get(cqe)) {
+		rx_info.is_lag = true;
+		rx_info.u.lag_id = mlxsw_pci_cqe_lag_id_get(cqe);
+		rx_info.lag_port_index = mlxsw_pci_cqe_lag_port_index_get(cqe);
+	} else {
+		rx_info.is_lag = false;
+		rx_info.u.sys_port = mlxsw_pci_cqe_system_port_get(cqe);
+	}
 
-	rx_info.sys_port = mlxsw_pci_cqe_system_port_get(cqe);
 	rx_info.trap_id = mlxsw_pci_cqe_trap_id_get(cqe);
 
 	byte_count = mlxsw_pci_cqe_byte_count_get(cqe);
@@ -696,19 +703,14 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	skb_put(skb, byte_count);
 	mlxsw_core_skb_receive(mlxsw_pci->core, skb, &rx_info);
 
-put_new_skb:
 	memset(wqe, 0, q->elem_size);
 	err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info);
-	if (err && net_ratelimit())
-		dev_dbg(&pdev->dev, "Failed to alloc skb for RDQ\n");
+	if (err)
+		dev_dbg_ratelimited(&pdev->dev, "Failed to alloc skb for RDQ\n");
 	/* Everything is set up, ring doorbell to pass elem to HW */
 	q->producer_counter++;
 	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, q);
 	return;
-
-drop:
-	dev_kfree_skb_any(skb);
-	goto put_new_skb;
 }
 
 static char *mlxsw_pci_cq_sw_cqe_get(struct mlxsw_pci_queue *q)
@@ -830,7 +832,8 @@ static void mlxsw_pci_eq_tasklet(unsigned long data)
 {
 	struct mlxsw_pci_queue *q = (struct mlxsw_pci_queue *) data;
 	struct mlxsw_pci *mlxsw_pci = q->pci;
-	unsigned long active_cqns[BITS_TO_LONGS(MLXSW_PCI_CQS_COUNT)];
+	u8 cq_count = mlxsw_pci_cq_count(mlxsw_pci);
+	unsigned long active_cqns[BITS_TO_LONGS(MLXSW_PCI_CQS_MAX)];
 	char *eqe;
 	u8 cqn;
 	bool cq_handle = false;
@@ -866,7 +869,7 @@ static void mlxsw_pci_eq_tasklet(unsigned long data)
 
 	if (!cq_handle)
 		return;
-	for_each_set_bit(cqn, active_cqns, MLXSW_PCI_CQS_COUNT) {
+	for_each_set_bit(cqn, active_cqns, cq_count) {
 		q = mlxsw_pci_cq_get(mlxsw_pci, cqn);
 		mlxsw_pci_queue_tasklet_schedule(q);
 	}
@@ -1067,10 +1070,8 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 	num_eqs = mlxsw_cmd_mbox_query_aq_cap_max_num_eqs_get(mbox);
 	eq_log2sz = mlxsw_cmd_mbox_query_aq_cap_log_max_eq_sz_get(mbox);
 
-	if ((num_sdqs != MLXSW_PCI_SDQS_COUNT) ||
-	    (num_rdqs != MLXSW_PCI_RDQS_COUNT) ||
-	    (num_cqs != MLXSW_PCI_CQS_COUNT) ||
-	    (num_eqs != MLXSW_PCI_EQS_COUNT)) {
+	if (num_sdqs + num_rdqs > num_cqs ||
+	    num_cqs > MLXSW_PCI_CQS_MAX || num_eqs != MLXSW_PCI_EQS_COUNT) {
 		dev_err(&pdev->dev, "Unsupported number of queues\n");
 		return -EINVAL;
 	}
@@ -1215,6 +1216,14 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 			mbox, profile->max_flood_tables);
 		mlxsw_cmd_mbox_config_profile_max_vid_flood_tables_set(
 			mbox, profile->max_vid_flood_tables);
+		mlxsw_cmd_mbox_config_profile_max_fid_offset_flood_tables_set(
+			mbox, profile->max_fid_offset_flood_tables);
+		mlxsw_cmd_mbox_config_profile_fid_offset_flood_table_size_set(
+			mbox, profile->fid_offset_flood_table_size);
+		mlxsw_cmd_mbox_config_profile_max_fid_flood_tables_set(
+			mbox, profile->max_fid_flood_tables);
+		mlxsw_cmd_mbox_config_profile_fid_flood_table_size_set(
+			mbox, profile->fid_flood_table_size);
 	}
 	if (profile->used_flood_mode) {
 		mlxsw_cmd_mbox_config_profile_set_flood_mode_set(
@@ -1272,6 +1281,7 @@ static int mlxsw_pci_fw_area_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 				  u16 num_pages)
 {
 	struct mlxsw_pci_mem_item *mem_item;
+	int nent = 0;
 	int i;
 	int err;
 
@@ -1279,7 +1289,7 @@ static int mlxsw_pci_fw_area_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 					   GFP_KERNEL);
 	if (!mlxsw_pci->fw_area.items)
 		return -ENOMEM;
-	mlxsw_pci->fw_area.num_pages = num_pages;
+	mlxsw_pci->fw_area.count = num_pages;
 
 	mlxsw_cmd_mbox_zero(mbox);
 	for (i = 0; i < num_pages; i++) {
@@ -1293,13 +1303,22 @@ static int mlxsw_pci_fw_area_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 			err = -ENOMEM;
 			goto err_alloc;
 		}
-		mlxsw_cmd_mbox_map_fa_pa_set(mbox, i, mem_item->mapaddr);
-		mlxsw_cmd_mbox_map_fa_log2size_set(mbox, i, 0); /* 1 page */
+		mlxsw_cmd_mbox_map_fa_pa_set(mbox, nent, mem_item->mapaddr);
+		mlxsw_cmd_mbox_map_fa_log2size_set(mbox, nent, 0); /* 1 page */
+		if (++nent == MLXSW_CMD_MAP_FA_VPM_ENTRIES_MAX) {
+			err = mlxsw_cmd_map_fa(mlxsw_pci->core, mbox, nent);
+			if (err)
+				goto err_cmd_map_fa;
+			nent = 0;
+			mlxsw_cmd_mbox_zero(mbox);
+		}
 	}
 
-	err = mlxsw_cmd_map_fa(mlxsw_pci->core, mbox, num_pages);
-	if (err)
-		goto err_cmd_map_fa;
+	if (nent) {
+		err = mlxsw_cmd_map_fa(mlxsw_pci->core, mbox, nent);
+		if (err)
+			goto err_cmd_map_fa;
+	}
 
 	return 0;
 
@@ -1322,7 +1341,7 @@ static void mlxsw_pci_fw_area_fini(struct mlxsw_pci *mlxsw_pci)
 
 	mlxsw_cmd_unmap_fa(mlxsw_pci->core);
 
-	for (i = 0; i < mlxsw_pci->fw_area.num_pages; i++) {
+	for (i = 0; i < mlxsw_pci->fw_area.count; i++) {
 		mem_item = &mlxsw_pci->fw_area.items[i];
 
 		pci_free_consistent(mlxsw_pci->pdev, mem_item->size,
@@ -1642,8 +1661,9 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 							   CIR_OUT_PARAM_LO));
 			memcpy(out_mbox + sizeof(tmp), &tmp, sizeof(tmp));
 		}
-	} else if (!err && out_mbox)
+	} else if (!err && out_mbox) {
 		memcpy(out_mbox, mlxsw_pci->cmd.out_mbox.buf, out_mbox_size);
+	}
 
 	mutex_unlock(&mlxsw_pci->cmd.lock);
 
@@ -1661,11 +1681,18 @@ static const struct mlxsw_bus mlxsw_pci_bus = {
 
 static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci)
 {
+	unsigned long end;
+
 	mlxsw_pci_write32(mlxsw_pci, SW_RESET, MLXSW_PCI_SW_RESET_RST_BIT);
-	/* Current firware does not let us know when the reset is done.
-	 * So we just wait here for constant time and hope for the best.
-	 */
-	msleep(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
+	wmb(); /* reset needs to be written before we read control register */
+	end = jiffies + msecs_to_jiffies(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
+	do {
+		u32 val = mlxsw_pci_read32(mlxsw_pci, FW_READY);
+
+		if ((val & MLXSW_PCI_FW_READY_MASK) == MLXSW_PCI_FW_READY_MAGIC)
+			break;
+		cond_resched();
+	} while (time_before(jiffies, end));
 	return 0;
 }
 

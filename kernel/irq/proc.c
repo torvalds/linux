@@ -291,7 +291,7 @@ static int name_unique(unsigned int irq, struct irqaction *new_action)
 	int ret = 1;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	for (action = desc->action ; action; action = action->next) {
+	for_each_action_of_desc(desc, action) {
 		if ((action != new_action) && action->name &&
 				!strcmp(new_action->name, action->name)) {
 			ret = 0;
@@ -475,7 +475,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	for_each_online_cpu(j)
 		any_count |= kstat_irqs_cpu(i, j);
 	action = desc->action;
-	if (!action && !any_count)
+	if ((!action || irq_desc_is_chained(desc)) && !any_count)
 		goto out;
 
 	seq_printf(p, "%*d: ", prec, i);

@@ -41,7 +41,8 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define VEN_EDIROL	0x000040ab
 #define VEN_PRESONUS	0x00000a92
 #define VEN_BRIDGECO	0x000007f5
-#define VEN_MACKIE	0x0000000f
+#define VEN_MACKIE1	0x0000000f
+#define VEN_MACKIE2	0x00000ff2
 #define VEN_STANTON	0x00001260
 #define VEN_TASCAM	0x0000022e
 #define VEN_BEHRINGER	0x00001564
@@ -299,6 +300,22 @@ error:
 	return err;
 }
 
+/*
+ * This driver doesn't update streams in bus reset handler.
+ *
+ * DM1000/ DM1100/DM1500 chipsets with BeBoB firmware transfer packets with
+ * discontinued counter at bus reset. This discontinuity is immediately
+ * detected in packet streaming layer, then it sets XRUN to PCM substream.
+ *
+ * ALSA PCM applications can know the XRUN by getting -EPIPE from PCM operation.
+ * Then, they can recover the PCM substream by executing ioctl(2) with
+ * SNDRV_PCM_IOCTL_PREPARE. 'struct snd_pcm_ops.prepare' is called and drivers
+ * restart packet streaming.
+ *
+ * The above processing may be executed before this bus-reset handler is
+ * executed. When this handler updates streams with current isochronous
+ * channels, the streams already have the current ones.
+ */
 static void
 bebob_update(struct fw_unit *unit)
 {
@@ -308,7 +325,6 @@ bebob_update(struct fw_unit *unit)
 		return;
 
 	fcp_bus_reset(bebob->unit);
-	snd_bebob_stream_update_duplex(bebob);
 
 	if (bebob->deferred_registration) {
 		if (snd_card_register(bebob->card) < 0) {
@@ -326,15 +342,11 @@ static void bebob_remove(struct fw_unit *unit)
 	if (bebob == NULL)
 		return;
 
-	/* Awake bus-reset waiters. */
-	if (!completion_done(&bebob->bus_reset))
-		complete_all(&bebob->bus_reset);
-
 	/* No need to wait for releasing card object in this context. */
 	snd_card_free_when_closed(bebob->card);
 }
 
-static struct snd_bebob_rate_spec normal_rate_spec = {
+static const struct snd_bebob_rate_spec normal_rate_spec = {
 	.get	= &snd_bebob_stream_get_rate,
 	.set	= &snd_bebob_stream_set_rate
 };
@@ -360,9 +372,9 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	/* BridgeCo, Audio5 */
 	SND_BEBOB_DEV_ENTRY(VEN_BRIDGECO, 0x00010049, &spec_normal),
 	/* Mackie, Onyx 1220/1620/1640 (Firewire I/O Card) */
-	SND_BEBOB_DEV_ENTRY(VEN_MACKIE, 0x00010065, &spec_normal),
+	SND_BEBOB_DEV_ENTRY(VEN_MACKIE2, 0x00010065, &spec_normal),
 	/* Mackie, d.2 (Firewire Option) */
-	SND_BEBOB_DEV_ENTRY(VEN_MACKIE, 0x00010067, &spec_normal),
+	SND_BEBOB_DEV_ENTRY(VEN_MACKIE1, 0x00010067, &spec_normal),
 	/* Stanton, ScratchAmp */
 	SND_BEBOB_DEV_ENTRY(VEN_STANTON, 0x00000001, &spec_normal),
 	/* Tascam, IF-FW DM */

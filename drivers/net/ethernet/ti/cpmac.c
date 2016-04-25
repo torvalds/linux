@@ -316,8 +316,6 @@ static int cpmac_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
-static int mii_irqs[PHY_MAX_ADDR] = { PHY_POLL, };
-
 static struct mii_bus *cpmac_mii;
 
 static void cpmac_set_multicast_list(struct net_device *dev)
@@ -899,7 +897,6 @@ static void cpmac_get_drvinfo(struct net_device *dev,
 	strlcpy(info->driver, "cpmac", sizeof(info->driver));
 	strlcpy(info->version, CPMAC_VERSION, sizeof(info->version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "%s", "cpmac");
-	info->regdump_len = 0;
 }
 
 static const struct ethtool_ops cpmac_ethtool_ops = {
@@ -1119,7 +1116,7 @@ static int cpmac_probe(struct platform_device *pdev)
 		for (phy_id = 0; phy_id < PHY_MAX_ADDR; phy_id++) {
 			if (!(pdata->phy_mask & (1 << phy_id)))
 				continue;
-			if (!cpmac_mii->phy_map[phy_id])
+			if (!mdiobus_get_phy(cpmac_mii, phy_id))
 				continue;
 			strncpy(mdio_bus_id, cpmac_mii->id, MII_BUS_ID_SIZE);
 			break;
@@ -1227,7 +1224,6 @@ int cpmac_init(void)
 	cpmac_mii->read = cpmac_mdio_read;
 	cpmac_mii->write = cpmac_mdio_write;
 	cpmac_mii->reset = cpmac_mdio_reset;
-	cpmac_mii->irq = mii_irqs;
 
 	cpmac_mii->priv = ioremap(AR7_REGS_MDIO, 256);
 

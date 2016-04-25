@@ -23,6 +23,7 @@
 #include <linux/kprobes.h>
 #include <linux/random.h>
 #include <linux/module.h>
+#include <linux/init_task.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/vtimer.h>
@@ -35,6 +36,9 @@
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
+
+/* FPU save area for the init task */
+__vector128 init_task_fpu_regs[__NUM_VXRS] __init_task_data;
 
 /*
  * Return saved PC of a blocked thread. used in kernel/sched.
@@ -52,10 +56,10 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 		return 0;
 	low = task_stack_page(tsk);
 	high = (struct stack_frame *) task_pt_regs(tsk);
-	sf = (struct stack_frame *) (tsk->thread.ksp & PSW_ADDR_INSN);
+	sf = (struct stack_frame *) tsk->thread.ksp;
 	if (sf <= low || sf > high)
 		return 0;
-	sf = (struct stack_frame *) (sf->back_chain & PSW_ADDR_INSN);
+	sf = (struct stack_frame *) sf->back_chain;
 	if (sf <= low || sf > high)
 		return 0;
 	return sf->gprs[8];
@@ -87,31 +91,29 @@ void arch_release_task_struct(struct task_struct *tsk)
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
+	size_t fpu_regs_size;
+
 	*dst = *src;
 
-	/* Set up a new floating-point register save area */
-	dst->thread.fpu.fpc = 0;
-	dst->thread.fpu.flags = 0;	/* Always start with VX disabled */
-	dst->thread.fpu.fprs = kzalloc(sizeof(freg_t) * __NUM_FPRS,
-				       GFP_KERNEL|__GFP_REPEAT);
-	if (!dst->thread.fpu.fprs)
+	/*
+	 * If the vector extension is available, it is enabled for all tasks,
+	 * and, thus, the FPU register save area must be allocated accordingly.
+	 */
+	fpu_regs_size = MACHINE_HAS_VX ? sizeof(__vector128) * __NUM_VXRS
+				       : sizeof(freg_t) * __NUM_FPRS;
+	dst->thread.fpu.regs = kzalloc(fpu_regs_size, GFP_KERNEL|__GFP_REPEAT);
+	if (!dst->thread.fpu.regs)
 		return -ENOMEM;
 
 	/*
 	 * Save the floating-point or vector register state of the current
-	 * task.  The state is not saved for early kernel threads, for example,
-	 * the init_task, which do not have an allocated save area.
-	 * The CIF_FPU flag is set in any case to lazy clear or restore a saved
-	 * state when switching to a different task or returning to user space.
+	 * task and set the CIF_FPU flag to lazy restore the FPU register
+	 * state when returning to user space.
 	 */
 	save_fpu_regs();
 	dst->thread.fpu.fpc = current->thread.fpu.fpc;
-	if (is_vx_task(current))
-		convert_vx_to_fp(dst->thread.fpu.fprs,
-				 current->thread.fpu.vxrs);
-	else
-		memcpy(dst->thread.fpu.fprs, current->thread.fpu.fprs,
-		       sizeof(freg_t) * __NUM_FPRS);
+	memcpy(dst->thread.fpu.regs, current->thread.fpu.regs, fpu_regs_size);
+
 	return 0;
 }
 
@@ -152,7 +154,7 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
 		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT |
 				PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-		frame->childregs.psw.addr = PSW_ADDR_AMODE |
+		frame->childregs.psw.addr =
 				(unsigned long) kernel_thread_starter;
 		frame->childregs.gprs[9] = new_stackp; /* function */
 		frame->childregs.gprs[10] = arg;
@@ -169,7 +171,6 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 
 	/* Don't copy runtime instrumentation info */
 	p->thread.ri_cb = NULL;
-	p->thread.ri_signum = 0;
 	frame->childregs.psw.mask &= ~PSW_MASK_RI;
 
 	/* Set a new TLS ?  */
@@ -199,7 +200,7 @@ int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
 	save_fpu_regs();
 	fpregs->fpc = current->thread.fpu.fpc;
 	fpregs->pad = 0;
-	if (is_vx_task(current))
+	if (MACHINE_HAS_VX)
 		convert_vx_to_fp((freg_t *)&fpregs->fprs,
 				 current->thread.fpu.vxrs);
 	else
@@ -219,14 +220,14 @@ unsigned long get_wchan(struct task_struct *p)
 		return 0;
 	low = task_stack_page(p);
 	high = (struct stack_frame *) task_pt_regs(p);
-	sf = (struct stack_frame *) (p->thread.ksp & PSW_ADDR_INSN);
+	sf = (struct stack_frame *) p->thread.ksp;
 	if (sf <= low || sf > high)
 		return 0;
 	for (count = 0; count < 16; count++) {
-		sf = (struct stack_frame *) (sf->back_chain & PSW_ADDR_INSN);
+		sf = (struct stack_frame *) sf->back_chain;
 		if (sf <= low || sf > high)
 			return 0;
-		return_address = sf->gprs[8] & PSW_ADDR_INSN;
+		return_address = sf->gprs[8];
 		if (!in_sched_functions(return_address))
 			return return_address;
 	}
@@ -242,11 +243,7 @@ unsigned long arch_align_stack(unsigned long sp)
 
 static inline unsigned long brk_rnd(void)
 {
-	/* 8MB for 32bit, 1GB for 64bit */
-	if (is_32bit_task())
-		return (get_random_int() & 0x7ffUL) << PAGE_SHIFT;
-	else
-		return (get_random_int() & 0x3ffffUL) << PAGE_SHIFT;
+	return (get_random_int() & BRK_RND_MASK) << PAGE_SHIFT;
 }
 
 unsigned long arch_randomize_brk(struct mm_struct *mm)

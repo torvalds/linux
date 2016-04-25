@@ -24,9 +24,19 @@
 
 #include <asm/desc.h>
 #include <asm/traps.h>
+#include <asm/vdso.h>
+#include <asm/uaccess.h>
+#include <asm/cpufeature.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
+
+static struct thread_info *pt_regs_to_thread_info(struct pt_regs *regs)
+{
+	unsigned long top_of_stack =
+		(unsigned long)(regs + 1) + TOP_OF_KERNEL_STACK_PADDING;
+	return (struct thread_info *)(top_of_stack - THREAD_SIZE);
+}
 
 #ifdef CONFIG_CONTEXT_TRACKING
 /* Called on entry from user mode with IRQs off. */
@@ -35,6 +45,8 @@ __visible void enter_from_user_mode(void)
 	CT_WARN_ON(ct_state() != CONTEXT_USER);
 	user_exit();
 }
+#else
+static inline void enter_from_user_mode(void) {}
 #endif
 
 static void do_audit_syscall_entry(struct pt_regs *regs, u32 arch)
@@ -66,24 +78,14 @@ static void do_audit_syscall_entry(struct pt_regs *regs, u32 arch)
  */
 unsigned long syscall_trace_enter_phase1(struct pt_regs *regs, u32 arch)
 {
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
 	unsigned long ret = 0;
 	u32 work;
 
-	BUG_ON(regs != task_pt_regs(current));
+	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
+		BUG_ON(regs != task_pt_regs(current));
 
-	work = ACCESS_ONCE(current_thread_info()->flags) &
-		_TIF_WORK_SYSCALL_ENTRY;
-
-#ifdef CONFIG_CONTEXT_TRACKING
-	/*
-	 * If TIF_NOHZ is set, we are required to call user_exit() before
-	 * doing anything that could touch RCU.
-	 */
-	if (work & _TIF_NOHZ) {
-		enter_from_user_mode();
-		work &= ~_TIF_NOHZ;
-	}
-#endif
+	work = ACCESS_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY;
 
 #ifdef CONFIG_SECCOMP
 	/*
@@ -154,21 +156,12 @@ unsigned long syscall_trace_enter_phase1(struct pt_regs *regs, u32 arch)
 long syscall_trace_enter_phase2(struct pt_regs *regs, u32 arch,
 				unsigned long phase1_result)
 {
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
 	long ret = 0;
-	u32 work = ACCESS_ONCE(current_thread_info()->flags) &
-		_TIF_WORK_SYSCALL_ENTRY;
+	u32 work = ACCESS_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY;
 
-	BUG_ON(regs != task_pt_regs(current));
-
-	/*
-	 * If we stepped into a sysenter/syscall insn, it trapped in
-	 * kernel mode; do_debug() cleared TF and set TIF_SINGLESTEP.
-	 * If user-mode had set TF itself, then it's still clear from
-	 * do_debug() and we need to set it again to restore the user
-	 * state.  If we entered on the slow path, TF was already set.
-	 */
-	if (work & _TIF_SINGLESTEP)
-		regs->flags |= X86_EFLAGS_TF;
+	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
+		BUG_ON(regs != task_pt_regs(current));
 
 #ifdef CONFIG_SECCOMP
 	/*
@@ -207,19 +200,12 @@ long syscall_trace_enter(struct pt_regs *regs)
 		return syscall_trace_enter_phase2(regs, arch, phase1_result);
 }
 
-static struct thread_info *pt_regs_to_thread_info(struct pt_regs *regs)
-{
-	unsigned long top_of_stack =
-		(unsigned long)(regs + 1) + TOP_OF_KERNEL_STACK_PADDING;
-	return (struct thread_info *)(top_of_stack - THREAD_SIZE);
-}
+#define EXIT_TO_USERMODE_LOOP_FLAGS				\
+	(_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_UPROBE |	\
+	 _TIF_NEED_RESCHED | _TIF_USER_RETURN_NOTIFY)
 
-/* Called with IRQs disabled. */
-__visible void prepare_exit_to_usermode(struct pt_regs *regs)
+static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 {
-	if (WARN_ON(!irqs_disabled()))
-		local_irq_disable();
-
 	/*
 	 * In order to return to user mode, we need to have IRQs off with
 	 * none of _TIF_SIGPENDING, _TIF_NOTIFY_RESUME, _TIF_USER_RETURN_NOTIFY,
@@ -229,14 +215,6 @@ __visible void prepare_exit_to_usermode(struct pt_regs *regs)
 	 * work to clear some of the flags can sleep.
 	 */
 	while (true) {
-		u32 cached_flags =
-			READ_ONCE(pt_regs_to_thread_info(regs)->flags);
-
-		if (!(cached_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME |
-				      _TIF_UPROBE | _TIF_NEED_RESCHED |
-				      _TIF_USER_RETURN_NOTIFY)))
-			break;
-
 		/* We have work to do. */
 		local_irq_enable();
 
@@ -260,59 +238,249 @@ __visible void prepare_exit_to_usermode(struct pt_regs *regs)
 
 		/* Disable IRQs and retry */
 		local_irq_disable();
+
+		cached_flags = READ_ONCE(pt_regs_to_thread_info(regs)->flags);
+
+		if (!(cached_flags & EXIT_TO_USERMODE_LOOP_FLAGS))
+			break;
+
 	}
+}
+
+/* Called with IRQs disabled. */
+__visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
+{
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	u32 cached_flags;
+
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING) && WARN_ON(!irqs_disabled()))
+		local_irq_disable();
+
+	lockdep_sys_exit();
+
+	cached_flags = READ_ONCE(ti->flags);
+
+	if (unlikely(cached_flags & EXIT_TO_USERMODE_LOOP_FLAGS))
+		exit_to_usermode_loop(regs, cached_flags);
+
+#ifdef CONFIG_COMPAT
+	/*
+	 * Compat syscalls set TS_COMPAT.  Make sure we clear it before
+	 * returning to user mode.  We need to clear it *after* signal
+	 * handling, because syscall restart has a fixup for compat
+	 * syscalls.  The fixup is exercised by the ptrace_syscall_32
+	 * selftest.
+	 */
+	ti->status &= ~TS_COMPAT;
+#endif
 
 	user_enter();
+}
+
+#define SYSCALL_EXIT_WORK_FLAGS				\
+	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT |	\
+	 _TIF_SINGLESTEP | _TIF_SYSCALL_TRACEPOINT)
+
+static void syscall_slow_exit_work(struct pt_regs *regs, u32 cached_flags)
+{
+	bool step;
+
+	audit_syscall_exit(regs);
+
+	if (cached_flags & _TIF_SYSCALL_TRACEPOINT)
+		trace_sys_exit(regs, regs->ax);
+
+	/*
+	 * If TIF_SYSCALL_EMU is set, we only get here because of
+	 * TIF_SINGLESTEP (i.e. this is PTRACE_SYSEMU_SINGLESTEP).
+	 * We already reported this syscall instruction in
+	 * syscall_trace_enter().
+	 */
+	step = unlikely(
+		(cached_flags & (_TIF_SINGLESTEP | _TIF_SYSCALL_EMU))
+		== _TIF_SINGLESTEP);
+	if (step || cached_flags & _TIF_SYSCALL_TRACE)
+		tracehook_report_syscall_exit(regs, step);
 }
 
 /*
  * Called with IRQs on and fully valid regs.  Returns with IRQs off in a
  * state such that we can immediately switch to user mode.
  */
-__visible void syscall_return_slowpath(struct pt_regs *regs)
+__visible inline void syscall_return_slowpath(struct pt_regs *regs)
 {
 	struct thread_info *ti = pt_regs_to_thread_info(regs);
 	u32 cached_flags = READ_ONCE(ti->flags);
-	bool step;
 
 	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 
-	if (WARN(irqs_disabled(), "syscall %ld left IRQs disabled",
-		 regs->orig_ax))
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING) &&
+	    WARN(irqs_disabled(), "syscall %ld left IRQs disabled", regs->orig_ax))
 		local_irq_enable();
 
 	/*
 	 * First do one-time work.  If these work items are enabled, we
 	 * want to run them exactly once per syscall exit with IRQs on.
 	 */
-	if (cached_flags & (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT |
-			    _TIF_SINGLESTEP | _TIF_SYSCALL_TRACEPOINT)) {
-		audit_syscall_exit(regs);
-
-		if (cached_flags & _TIF_SYSCALL_TRACEPOINT)
-			trace_sys_exit(regs, regs->ax);
-
-		/*
-		 * If TIF_SYSCALL_EMU is set, we only get here because of
-		 * TIF_SINGLESTEP (i.e. this is PTRACE_SYSEMU_SINGLESTEP).
-		 * We already reported this syscall instruction in
-		 * syscall_trace_enter().
-		 */
-		step = unlikely(
-			(cached_flags & (_TIF_SINGLESTEP | _TIF_SYSCALL_EMU))
-			== _TIF_SINGLESTEP);
-		if (step || cached_flags & _TIF_SYSCALL_TRACE)
-			tracehook_report_syscall_exit(regs, step);
-	}
-
-#ifdef CONFIG_COMPAT
-	/*
-	 * Compat syscalls set TS_COMPAT.  Make sure we clear it before
-	 * returning to user mode.
-	 */
-	ti->status &= ~TS_COMPAT;
-#endif
+	if (unlikely(cached_flags & SYSCALL_EXIT_WORK_FLAGS))
+		syscall_slow_exit_work(regs, cached_flags);
 
 	local_irq_disable();
 	prepare_exit_to_usermode(regs);
 }
+
+#ifdef CONFIG_X86_64
+__visible void do_syscall_64(struct pt_regs *regs)
+{
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	unsigned long nr = regs->orig_ax;
+
+	enter_from_user_mode();
+	local_irq_enable();
+
+	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY)
+		nr = syscall_trace_enter(regs);
+
+	/*
+	 * NB: Native and x32 syscalls are dispatched from the same
+	 * table.  The only functional difference is the x32 bit in
+	 * regs->orig_ax, which changes the behavior of some syscalls.
+	 */
+	if (likely((nr & __SYSCALL_MASK) < NR_syscalls)) {
+		regs->ax = sys_call_table[nr & __SYSCALL_MASK](
+			regs->di, regs->si, regs->dx,
+			regs->r10, regs->r8, regs->r9);
+	}
+
+	syscall_return_slowpath(regs);
+}
+#endif
+
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
+/*
+ * Does a 32-bit syscall.  Called with IRQs on in CONTEXT_KERNEL.  Does
+ * all entry and exit work and returns with IRQs off.  This function is
+ * extremely hot in workloads that use it, and it's usually called from
+ * do_fast_syscall_32, so forcibly inline it to improve performance.
+ */
+static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
+{
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	unsigned int nr = (unsigned int)regs->orig_ax;
+
+#ifdef CONFIG_IA32_EMULATION
+	ti->status |= TS_COMPAT;
+#endif
+
+	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY) {
+		/*
+		 * Subtlety here: if ptrace pokes something larger than
+		 * 2^32-1 into orig_ax, this truncates it.  This may or
+		 * may not be necessary, but it matches the old asm
+		 * behavior.
+		 */
+		nr = syscall_trace_enter(regs);
+	}
+
+	if (likely(nr < IA32_NR_syscalls)) {
+		/*
+		 * It's possible that a 32-bit syscall implementation
+		 * takes a 64-bit parameter but nonetheless assumes that
+		 * the high bits are zero.  Make sure we zero-extend all
+		 * of the args.
+		 */
+		regs->ax = ia32_sys_call_table[nr](
+			(unsigned int)regs->bx, (unsigned int)regs->cx,
+			(unsigned int)regs->dx, (unsigned int)regs->si,
+			(unsigned int)regs->di, (unsigned int)regs->bp);
+	}
+
+	syscall_return_slowpath(regs);
+}
+
+/* Handles int $0x80 */
+__visible void do_int80_syscall_32(struct pt_regs *regs)
+{
+	enter_from_user_mode();
+	local_irq_enable();
+	do_syscall_32_irqs_on(regs);
+}
+
+/* Returns 0 to return using IRET or 1 to return using SYSEXIT/SYSRETL. */
+__visible long do_fast_syscall_32(struct pt_regs *regs)
+{
+	/*
+	 * Called using the internal vDSO SYSENTER/SYSCALL32 calling
+	 * convention.  Adjust regs so it looks like we entered using int80.
+	 */
+
+	unsigned long landing_pad = (unsigned long)current->mm->context.vdso +
+		vdso_image_32.sym_int80_landing_pad;
+
+	/*
+	 * SYSENTER loses EIP, and even SYSCALL32 needs us to skip forward
+	 * so that 'regs->ip -= 2' lands back on an int $0x80 instruction.
+	 * Fix it up.
+	 */
+	regs->ip = landing_pad;
+
+	enter_from_user_mode();
+
+	local_irq_enable();
+
+	/* Fetch EBP from where the vDSO stashed it. */
+	if (
+#ifdef CONFIG_X86_64
+		/*
+		 * Micro-optimization: the pointer we're following is explicitly
+		 * 32 bits, so it can't be out of range.
+		 */
+		__get_user(*(u32 *)&regs->bp,
+			    (u32 __user __force *)(unsigned long)(u32)regs->sp)
+#else
+		get_user(*(u32 *)&regs->bp,
+			 (u32 __user __force *)(unsigned long)(u32)regs->sp)
+#endif
+		) {
+
+		/* User code screwed up. */
+		local_irq_disable();
+		regs->ax = -EFAULT;
+		prepare_exit_to_usermode(regs);
+		return 0;	/* Keep it simple: use IRET. */
+	}
+
+	/* Now this is just like a normal syscall. */
+	do_syscall_32_irqs_on(regs);
+
+#ifdef CONFIG_X86_64
+	/*
+	 * Opportunistic SYSRETL: if possible, try to return using SYSRETL.
+	 * SYSRETL is available on all 64-bit CPUs, so we don't need to
+	 * bother with SYSEXIT.
+	 *
+	 * Unlike 64-bit opportunistic SYSRET, we can't check that CX == IP,
+	 * because the ECX fixup above will ensure that this is essentially
+	 * never the case.
+	 */
+	return regs->cs == __USER32_CS && regs->ss == __USER_DS &&
+		regs->ip == landing_pad &&
+		(regs->flags & (X86_EFLAGS_RF | X86_EFLAGS_TF)) == 0;
+#else
+	/*
+	 * Opportunistic SYSEXIT: if possible, try to return using SYSEXIT.
+	 *
+	 * Unlike 64-bit opportunistic SYSRET, we can't check that CX == IP,
+	 * because the ECX fixup above will ensure that this is essentially
+	 * never the case.
+	 *
+	 * We don't allow syscalls at all from VM86 mode, but we still
+	 * need to check VM, because we might be returning from sys_vm86.
+	 */
+	return static_cpu_has(X86_FEATURE_SEP) &&
+		regs->cs == __USER_CS && regs->ss == __USER_DS &&
+		regs->ip == landing_pad &&
+		(regs->flags & (X86_EFLAGS_RF | X86_EFLAGS_TF | X86_EFLAGS_VM)) == 0;
+#endif
+}
+#endif

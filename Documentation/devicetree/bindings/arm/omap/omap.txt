@@ -23,6 +23,7 @@ Optional properties:
   during suspend.
 - ti,no-reset-on-init: When present, the module should not be reset at init
 - ti,no-idle-on-init: When present, the module should not be idled at init
+- ti,no-idle: When present, the module is never allowed to idle.
 
 Example:
 
@@ -138,17 +139,35 @@ Boards:
 - AM335X phyBOARD-WEGA: Single Board Computer dev kit
   compatible = "phytec,am335x-wega", "phytec,am335x-phycore-som", "ti,am33xx"
 
+- AM335X CM-T335 : System On Module, built around the Sitara AM3352/4
+  compatible = "compulab,cm-t335", "ti,am33xx"
+
+- AM335X SBC-T335 : single board computer, built around the Sitara AM3352/4
+  compatible = "compulab,sbc-t335", "compulab,cm-t335", "ti,am33xx"
+
 - OMAP5 EVM : Evaluation Module
   compatible = "ti,omap5-evm", "ti,omap5"
 
+- AM437x CM-T43
+  compatible = "compulab,am437x-cm-t43", "ti,am4372", "ti,am43"
+
+- AM437x SBC-T43
+  compatible = "compulab,am437x-sbc-t43", "compulab,am437x-cm-t43", "ti,am4372", "ti,am43"
+
 - AM43x EPOS EVM
-  compatible = "ti,am43x-epos-evm", "ti,am4372", "ti,am43"
+  compatible = "ti,am43x-epos-evm", "ti,am43", "ti,am438x"
 
 - AM437x GP EVM
   compatible = "ti,am437x-gp-evm", "ti,am4372", "ti,am43"
 
 - AM437x SK EVM: AM437x StarterKit Evaluation Module
   compatible = "ti,am437x-sk-evm", "ti,am4372", "ti,am43"
+
+- AM57XX CL-SOM-AM57x
+  compatible = "compulab,cl-som-am57x", "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7"
+
+- AM57XX SBC-AM57x
+  compatible = "compulab,sbc-am57x", "compulab,cl-som-am57x", "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7"
 
 - DRA742 EVM:  Software Development Board for DRA742
   compatible = "ti,dra7-evm", "ti,dra742", "ti,dra74", "ti,dra7"

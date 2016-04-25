@@ -231,6 +231,49 @@
 #define CORE_BRCM_HDR_RX_DIS		0x0980
 #define CORE_BRCM_HDR_TX_DIS		0x0988
 
+#define CORE_ARLA_NUM_ENTRIES		1024
+
+#define CORE_ARLA_RWCTL			0x1400
+#define  ARL_RW				(1 << 0)
+#define  IVL_SVL_SELECT			(1 << 6)
+#define  ARL_STRTDN			(1 << 7)
+
+#define CORE_ARLA_MAC			0x1408
+#define CORE_ARLA_VID			0x1420
+#define  ARLA_VIDTAB_INDX_MASK		0x1fff
+
+#define CORE_ARLA_MACVID0		0x1440
+#define  MAC_MASK			0xffffffffff
+#define  VID_SHIFT			48
+#define  VID_MASK			0xfff
+
+#define CORE_ARLA_FWD_ENTRY0		0x1460
+#define  PORTID_MASK			0x1ff
+#define  ARL_CON_SHIFT			9
+#define  ARL_CON_MASK			0x3
+#define  ARL_PRI_SHIFT			11
+#define  ARL_PRI_MASK			0x7
+#define  ARL_AGE			(1 << 14)
+#define  ARL_STATIC			(1 << 15)
+#define  ARL_VALID			(1 << 16)
+
+#define CORE_ARLA_MACVID_ENTRY(x)	(CORE_ARLA_MACVID0 + ((x) * 0x40))
+#define CORE_ARLA_FWD_ENTRY(x)		(CORE_ARLA_FWD_ENTRY0 + ((x) * 0x40))
+
+#define CORE_ARLA_SRCH_CTL		0x1540
+#define  ARLA_SRCH_VLID			(1 << 0)
+#define  IVL_SVL_SELECT			(1 << 6)
+#define  ARLA_SRCH_STDN			(1 << 7)
+
+#define CORE_ARLA_SRCH_ADR		0x1544
+#define  ARLA_SRCH_ADR_VALID		(1 << 15)
+
+#define CORE_ARLA_SRCH_RSLT_0_MACVID	0x1580
+#define CORE_ARLA_SRCH_RSLT_0		0x15a0
+
+#define CORE_ARLA_SRCH_RSLT_MACVID(x)	(CORE_ARLA_SRCH_RSLT_0_MACVID + ((x) * 0x40))
+#define CORE_ARLA_SRCH_RSLT(x)		(CORE_ARLA_SRCH_RSLT_0 + ((x) * 0x40))
+
 #define CORE_MEM_PSM_VDD_CTRL		0x2380
 #define  P_TXQ_PSM_VDD_SHIFT		2
 #define  P_TXQ_PSM_VDD_MASK		0x3

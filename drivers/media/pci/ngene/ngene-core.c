@@ -1513,7 +1513,7 @@ static int init_channel(struct ngene_channel *chan)
 		set_transfer(&chan->dev->channel[2], 1);
 		dvb_register_device(adapter, &chan->ci_dev,
 				    &ngene_dvbdev_ci, (void *) chan,
-				    DVB_DEVICE_SEC);
+				    DVB_DEVICE_SEC, 0);
 		if (!chan->ci_dev)
 			goto err;
 	}

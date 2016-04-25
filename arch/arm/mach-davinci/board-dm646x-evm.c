@@ -25,8 +25,8 @@
 #include <linux/platform_data/at24.h>
 #include <linux/i2c/pcf857x.h>
 
-#include <media/tvp514x.h>
-#include <media/adv7343.h>
+#include <media/i2c/tvp514x.h>
+#include <media/i2c/adv7343.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -121,6 +121,7 @@ static struct platform_device davinci_nand_device = {
 
 #define HAS_ATA		IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710)
 
+#ifdef CONFIG_I2C
 /* CPLD Register 0 bits to control ATA */
 #define DM646X_EVM_ATA_RST		BIT(0)
 #define DM646X_EVM_ATA_PWD		BIT(1)
@@ -316,6 +317,7 @@ static struct at24_platform_data eeprom_info = {
 	.setup          = davinci_get_mac_addr,
 	.context	= (void *)0x7f00,
 };
+#endif
 
 static u8 dm646x_iis_serializer_direction[] = {
        TX_MODE, RX_MODE, INACTIVE_MODE, INACTIVE_MODE,
@@ -346,6 +348,7 @@ static struct snd_platform_data dm646x_evm_snd_data[] = {
 	},
 };
 
+#ifdef CONFIG_I2C
 static struct i2c_client *cpld_client;
 
 static int cpld_video_probe(struct i2c_client *client,
@@ -710,6 +713,7 @@ static void __init evm_init_i2c(void)
 	evm_init_cpld();
 	evm_init_video();
 }
+#endif
 
 #define DM6467T_EVM_REF_FREQ		33000000
 
@@ -764,7 +768,10 @@ static __init void evm_init(void)
 	if (ret)
 		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
 
+#ifdef CONFIG_I2C
 	evm_init_i2c();
+#endif
+
 	davinci_serial_init(dm646x_serial_device);
 	dm646x_init_mcasp0(&dm646x_evm_snd_data[0]);
 	dm646x_init_mcasp1(&dm646x_evm_snd_data[1]);

@@ -14,7 +14,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <linux/clk/shmobile.h>
+#include <linux/clk/renesas.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/irq.h>
@@ -97,7 +97,7 @@ static u32 __init r8a7779_read_mode_pins(void)
 static void __init r8a7779_init_time(void)
 {
 	r8a7779_clocks_init(r8a7779_read_mode_pins());
-	clocksource_of_init();
+	clocksource_probe();
 }
 
 static const char *const r8a7779_compat_dt[] __initconst = {

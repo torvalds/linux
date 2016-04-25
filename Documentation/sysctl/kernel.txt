@@ -33,6 +33,7 @@ show up in /proc/sys/kernel:
 - domainname
 - hostname
 - hotplug
+- hardlockup_all_cpu_backtrace
 - hung_task_panic
 - hung_task_check_count
 - hung_task_timeout_secs
@@ -57,12 +58,15 @@ show up in /proc/sys/kernel:
 - panic_on_stackoverflow
 - panic_on_unrecovered_nmi
 - panic_on_warn
+- perf_cpu_time_max_percent
+- perf_event_paranoid
 - pid_max
 - powersave-nap               [ PPC only ]
 - printk
 - printk_delay
 - printk_ratelimit
 - printk_ratelimit_burst
+- pty                         ==> Documentation/filesystems/devpts.txt
 - randomize_va_space
 - real-root-dev               ==> Documentation/initrd.txt
 - reboot-cmd                  [ SPARC only ]
@@ -292,6 +296,17 @@ Information Service) or YP (Yellow Pages) domainname. These two
 domain names are in general different. For a detailed discussion
 see the hostname(1) man page.
 
+==============================================================
+hardlockup_all_cpu_backtrace:
+
+This value controls the hard lockup detector behavior when a hard
+lockup condition is detected as to whether or not to gather further
+debug information. If enabled, arch-specific all-CPU stack dumping
+will be initiated.
+
+0: do nothing. This is the default behavior.
+
+1: on detection capture more debug information.
 ==============================================================
 
 hotplug:
@@ -539,6 +554,21 @@ the recommended setting is 60.
 
 ==============================================================
 
+panic_on_io_nmi:
+
+Controls the kernel's behavior when a CPU receives an NMI caused by
+an IO error.
+
+0: try to continue operation (default)
+
+1: panic immediately. The IO error triggered an NMI. This indicates a
+   serious system condition which could result in IO data corruption.
+   Rather than continuing, panicking might be a better choice. Some
+   servers issue this sort of NMI when the dump button is pushed,
+   and you can use this option to take a crash dump.
+
+==============================================================
+
 panic_on_oops:
 
 Controls the kernel's behaviour when an oops or BUG is encountered.
@@ -612,6 +642,17 @@ allowed to execute.
 
 ==============================================================
 
+perf_event_paranoid:
+
+Controls use of the performance events system by unprivileged
+users (without CAP_SYS_ADMIN).  The default value is 1.
+
+ -1: Allow use of (almost) all events by all users
+>=0: Disallow raw tracepoint access by users without CAP_IOC_LOCK
+>=1: Disallow CPU event access by users without CAP_SYS_ADMIN
+>=2: Disallow kernel profiling by users without CAP_SYS_ADMIN
+
+==============================================================
 
 pid_max:
 
@@ -733,6 +774,14 @@ rtsig-nr shows the number of RT signals currently queued.
 
 ==============================================================
 
+sched_schedstats:
+
+Enables/disables scheduler statistics. Enabling this feature
+incurs a small amount of overhead in the scheduler but is
+useful for debugging and performance tuning.
+
+==============================================================
+
 sg-big-buff:
 
 This file shows the size of the generic SCSI (sg) buffer.
@@ -798,14 +847,13 @@ via the /proc/sys interface:
        Each write syscall must fully contain the sysctl value to be
        written, and multiple writes on the same sysctl file descriptor
        will rewrite the sysctl value, regardless of file position.
-   0 - (default) Same behavior as above, but warn about processes that
-       perform writes to a sysctl file descriptor when the file position
-       is not 0.
-   1 - Respect file position when writing sysctl strings. Multiple writes
-       will append to the sysctl value buffer. Anything past the max length
-       of the sysctl value buffer will be ignored. Writes to numeric sysctl
-       entries must always be at file position 0 and the value must be
-       fully contained in the buffer sent in the write syscall.
+   0 - Same behavior as above, but warn about processes that perform writes
+       to a sysctl file descriptor when the file position is not 0.
+   1 - (default) Respect file position when writing sysctl strings. Multiple
+       writes will append to the sysctl value buffer. Anything past the max
+       length of the sysctl value buffer will be ignored. Writes to numeric
+       sysctl entries must always be at file position 0 and the value must
+       be fully contained in the buffer sent in the write syscall.
 
 ==============================================================
 

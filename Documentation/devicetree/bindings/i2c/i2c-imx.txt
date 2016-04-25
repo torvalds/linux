@@ -11,9 +11,13 @@ Required properties:
 
 Optional properties:
 - clock-frequency : Constains desired I2C/HS-I2C bus clock frequency in Hz.
-  The absence of the propoerty indicates the default frequency 100 kHz.
+  The absence of the property indicates the default frequency 100 kHz.
 - dmas: A list of two dma specifiers, one for each entry in dma-names.
 - dma-names: should contain "tx" and "rx".
+- scl-gpios: specify the gpio related to SCL pin
+- sda-gpios: specify the gpio related to SDA pin
+- pinctrl: add extra pinctrl to configure i2c pins to gpio function for i2c
+  bus recovery, call it "gpio" state
 
 Examples:
 
@@ -37,4 +41,9 @@ i2c0: i2c@40066000 { /* i2c0 on vf610 */
 	dmas = <&edma0 0 50>,
 		<&edma0 0 51>;
 	dma-names = "rx","tx";
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	scl-gpios = <&gpio5 26 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio5 27 GPIO_ACTIVE_HIGH>;
 };

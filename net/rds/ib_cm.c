@@ -194,7 +194,7 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 		dp->dp_protocol_major = RDS_PROTOCOL_MAJOR(protocol_version);
 		dp->dp_protocol_minor = RDS_PROTOCOL_MINOR(protocol_version);
 		dp->dp_protocol_minor_mask = cpu_to_be16(RDS_IB_SUPPORTED_PROTOCOLS);
-		dp->dp_ack_seq = rds_ib_piggyb_ack(ic);
+		dp->dp_ack_seq = cpu_to_be64(rds_ib_piggyb_ack(ic));
 
 		/* Advertise flow control */
 		if (ic->i_flowctl) {
@@ -214,6 +214,113 @@ static void rds_ib_cq_event_handler(struct ib_event *event, void *data)
 {
 	rdsdebug("event %u (%s) data %p\n",
 		 event->event, ib_event_msg(event->event), data);
+}
+
+/* Plucking the oldest entry from the ring can be done concurrently with
+ * the thread refilling the ring.  Each ring operation is protected by
+ * spinlocks and the transient state of refilling doesn't change the
+ * recording of which entry is oldest.
+ *
+ * This relies on IB only calling one cq comp_handler for each cq so that
+ * there will only be one caller of rds_recv_incoming() per RDS connection.
+ */
+static void rds_ib_cq_comp_handler_recv(struct ib_cq *cq, void *context)
+{
+	struct rds_connection *conn = context;
+	struct rds_ib_connection *ic = conn->c_transport_data;
+
+	rdsdebug("conn %p cq %p\n", conn, cq);
+
+	rds_ib_stats_inc(s_ib_evt_handler_call);
+
+	tasklet_schedule(&ic->i_recv_tasklet);
+}
+
+static void poll_scq(struct rds_ib_connection *ic, struct ib_cq *cq,
+		     struct ib_wc *wcs)
+{
+	int nr, i;
+	struct ib_wc *wc;
+
+	while ((nr = ib_poll_cq(cq, RDS_IB_WC_MAX, wcs)) > 0) {
+		for (i = 0; i < nr; i++) {
+			wc = wcs + i;
+			rdsdebug("wc wr_id 0x%llx status %u byte_len %u imm_data %u\n",
+				 (unsigned long long)wc->wr_id, wc->status,
+				 wc->byte_len, be32_to_cpu(wc->ex.imm_data));
+
+			if (wc->wr_id <= ic->i_send_ring.w_nr ||
+			    wc->wr_id == RDS_IB_ACK_WR_ID)
+				rds_ib_send_cqe_handler(ic, wc);
+			else
+				rds_ib_mr_cqe_handler(ic, wc);
+
+		}
+	}
+}
+
+static void rds_ib_tasklet_fn_send(unsigned long data)
+{
+	struct rds_ib_connection *ic = (struct rds_ib_connection *)data;
+	struct rds_connection *conn = ic->conn;
+
+	rds_ib_stats_inc(s_ib_tasklet_call);
+
+	poll_scq(ic, ic->i_send_cq, ic->i_send_wc);
+	ib_req_notify_cq(ic->i_send_cq, IB_CQ_NEXT_COMP);
+	poll_scq(ic, ic->i_send_cq, ic->i_send_wc);
+
+	if (rds_conn_up(conn) &&
+	    (!test_bit(RDS_LL_SEND_FULL, &conn->c_flags) ||
+	    test_bit(0, &conn->c_map_queued)))
+		rds_send_xmit(ic->conn);
+}
+
+static void poll_rcq(struct rds_ib_connection *ic, struct ib_cq *cq,
+		     struct ib_wc *wcs,
+		     struct rds_ib_ack_state *ack_state)
+{
+	int nr, i;
+	struct ib_wc *wc;
+
+	while ((nr = ib_poll_cq(cq, RDS_IB_WC_MAX, wcs)) > 0) {
+		for (i = 0; i < nr; i++) {
+			wc = wcs + i;
+			rdsdebug("wc wr_id 0x%llx status %u byte_len %u imm_data %u\n",
+				 (unsigned long long)wc->wr_id, wc->status,
+				 wc->byte_len, be32_to_cpu(wc->ex.imm_data));
+
+			rds_ib_recv_cqe_handler(ic, wc, ack_state);
+		}
+	}
+}
+
+static void rds_ib_tasklet_fn_recv(unsigned long data)
+{
+	struct rds_ib_connection *ic = (struct rds_ib_connection *)data;
+	struct rds_connection *conn = ic->conn;
+	struct rds_ib_device *rds_ibdev = ic->rds_ibdev;
+	struct rds_ib_ack_state state;
+
+	if (!rds_ibdev)
+		rds_conn_drop(conn);
+
+	rds_ib_stats_inc(s_ib_tasklet_call);
+
+	memset(&state, 0, sizeof(state));
+	poll_rcq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
+	ib_req_notify_cq(ic->i_recv_cq, IB_CQ_SOLICITED);
+	poll_rcq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
+
+	if (state.ack_next_valid)
+		rds_ib_set_ack(ic, state.ack_next, state.ack_required);
+	if (state.ack_recv_valid && state.ack_recv > ic->i_ack_recv) {
+		rds_send_drop_acked(conn, state.ack_recv, NULL);
+		ic->i_ack_recv = state.ack_recv;
+	}
+
+	if (rds_conn_up(conn))
+		rds_ib_attempt_ack(ic);
 }
 
 static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
@@ -238,6 +345,18 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 	}
 }
 
+static void rds_ib_cq_comp_handler_send(struct ib_cq *cq, void *context)
+{
+	struct rds_connection *conn = context;
+	struct rds_ib_connection *ic = conn->c_transport_data;
+
+	rdsdebug("conn %p cq %p\n", conn, cq);
+
+	rds_ib_stats_inc(s_ib_evt_handler_call);
+
+	tasklet_schedule(&ic->i_send_tasklet);
+}
+
 /*
  * This needs to be very careful to not leave IS_ERR pointers around for
  * cleanup to trip over.
@@ -249,7 +368,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	struct ib_qp_init_attr attr;
 	struct ib_cq_init_attr cq_attr = {};
 	struct rds_ib_device *rds_ibdev;
-	int ret;
+	int ret, fr_queue_space;
 
 	/*
 	 * It's normal to see a null device if an incoming connection races
@@ -258,6 +377,12 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	rds_ibdev = rds_ib_get_client_data(dev);
 	if (!rds_ibdev)
 		return -EOPNOTSUPP;
+
+	/* The fr_queue_space is currently set to 512, to add extra space on
+	 * completion queue and send queue. This extra space is used for FRMR
+	 * registration and invalidation work requests
+	 */
+	fr_queue_space = (rds_ibdev->use_fastreg ? RDS_IB_DEFAULT_FR_WR : 0);
 
 	/* add the conn now so that connection establishment has the dev */
 	rds_ib_add_conn(rds_ibdev, conn);
@@ -270,8 +395,9 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	/* Protection domain and memory range */
 	ic->i_pd = rds_ibdev->pd;
 
-	cq_attr.cqe = ic->i_send_ring.w_nr + 1;
-	ic->i_send_cq = ib_create_cq(dev, rds_ib_send_cq_comp_handler,
+	cq_attr.cqe = ic->i_send_ring.w_nr + fr_queue_space + 1;
+
+	ic->i_send_cq = ib_create_cq(dev, rds_ib_cq_comp_handler_send,
 				     rds_ib_cq_event_handler, conn,
 				     &cq_attr);
 	if (IS_ERR(ic->i_send_cq)) {
@@ -282,7 +408,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	}
 
 	cq_attr.cqe = ic->i_recv_ring.w_nr;
-	ic->i_recv_cq = ib_create_cq(dev, rds_ib_recv_cq_comp_handler,
+	ic->i_recv_cq = ib_create_cq(dev, rds_ib_cq_comp_handler_recv,
 				     rds_ib_cq_event_handler, conn,
 				     &cq_attr);
 	if (IS_ERR(ic->i_recv_cq)) {
@@ -309,7 +435,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	attr.event_handler = rds_ib_qp_event_handler;
 	attr.qp_context = conn;
 	/* + 1 to allow for the single ack message */
-	attr.cap.max_send_wr = ic->i_send_ring.w_nr + 1;
+	attr.cap.max_send_wr = ic->i_send_ring.w_nr + fr_queue_space + 1;
 	attr.cap.max_recv_wr = ic->i_recv_ring.w_nr + 1;
 	attr.cap.max_send_sge = rds_ibdev->max_sge;
 	attr.cap.max_recv_sge = RDS_IB_RECV_SGE;
@@ -317,6 +443,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	attr.qp_type = IB_QPT_RC;
 	attr.send_cq = ic->i_send_cq;
 	attr.recv_cq = ic->i_recv_cq;
+	atomic_set(&ic->i_fastreg_wrs, RDS_IB_DEFAULT_FR_WR);
 
 	/*
 	 * XXX this can fail if max_*_wr is too large?  Are we supposed
@@ -565,7 +692,7 @@ int rds_ib_conn_connect(struct rds_connection *conn)
 
 	/* XXX I wonder what affect the port space has */
 	/* delegate cm event handler to rdma_transport */
-	ic->i_cm_id = rdma_create_id(rds_rdma_cm_event_handler, conn,
+	ic->i_cm_id = rdma_create_id(&init_net, rds_rdma_cm_event_handler, conn,
 				     RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(ic->i_cm_id)) {
 		ret = PTR_ERR(ic->i_cm_id);
@@ -636,7 +763,9 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 		 */
 		wait_event(rds_ib_ring_empty_wait,
 			   rds_ib_ring_empty(&ic->i_recv_ring) &&
-			   (atomic_read(&ic->i_signaled_sends) == 0));
+			   (atomic_read(&ic->i_signaled_sends) == 0) &&
+			   (atomic_read(&ic->i_fastreg_wrs) == RDS_IB_DEFAULT_FR_WR));
+		tasklet_kill(&ic->i_send_tasklet);
 		tasklet_kill(&ic->i_recv_tasklet);
 
 		/* first destroy the ib state that generates callbacks */
@@ -743,8 +872,10 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	}
 
 	INIT_LIST_HEAD(&ic->ib_node);
-	tasklet_init(&ic->i_recv_tasklet, rds_ib_recv_tasklet_fn,
-		     (unsigned long) ic);
+	tasklet_init(&ic->i_send_tasklet, rds_ib_tasklet_fn_send,
+		     (unsigned long)ic);
+	tasklet_init(&ic->i_recv_tasklet, rds_ib_tasklet_fn_recv,
+		     (unsigned long)ic);
 	mutex_init(&ic->i_recv_mutex);
 #ifndef KERNEL_HAS_ATOMIC64
 	spin_lock_init(&ic->i_ack_lock);

@@ -77,8 +77,6 @@ void __init plat_mem_setup(void)
 	 * parsed resulting in our memory appearing
 	 */
 	__dt_setup_arch(__dtb_start);
-
-	strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
 }
 
 void __init device_tree_init(void)

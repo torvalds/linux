@@ -25,7 +25,7 @@
 
 #include <core/client.h>
 
-#include <nvif/class.h>
+#include <nvif/cl5070.h>
 #include <nvif/unpack.h>
 
 int
@@ -38,10 +38,10 @@ gk104_hdmi_ctrl(NV50_DISP_MTHD_V1)
 		struct nv50_disp_sor_hdmi_pwr_v0 v0;
 	} *args = data;
 	u32 ctrl;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "disp sor hdmi ctrl size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "disp sor hdmi ctrl vers %d state %d "
 				   "max_ac_packet %d rekey %d\n",
 			   args->v0.version, args->v0.state,

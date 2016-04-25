@@ -192,8 +192,6 @@ static diva_os_spin_lock_t dbg_q_lock;
 static diva_os_spin_lock_t dbg_adapter_lock;
 static int                 dbg_q_busy;
 static volatile dword      dbg_sequence;
-static dword               start_sec;
-static dword               start_usec;
 
 /*
   INTERFACE:
@@ -214,8 +212,6 @@ int diva_maint_init(byte *base, unsigned long length, int do_init) {
 	TraceFilterChannel = -1;
 
 	dbg_base = base;
-
-	diva_os_get_time(&start_sec, &start_usec);
 
 	*(dword *)base  = (dword)DBG_MAGIC; /* Store Magic */
 	base   += sizeof(dword);

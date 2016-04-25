@@ -24,27 +24,102 @@
 #ifndef _I915_COMPONENT_H_
 #define _I915_COMPONENT_H_
 
+/* MAX_PORT is the number of port
+ * It must be sync with I915_MAX_PORTS defined i915_drv.h
+ * 5 should be enough as only HSW, BDW, SKL need such fix.
+ */
+#define MAX_PORTS 5
+
+/**
+ * struct i915_audio_component_ops - Ops implemented by i915 driver, called by hda driver
+ */
+struct i915_audio_component_ops {
+	/**
+	 * @owner: i915 module
+	 */
+	struct module *owner;
+	/**
+	 * @get_power: get the POWER_DOMAIN_AUDIO power well
+	 *
+	 * Request the power well to be turned on.
+	 */
+	void (*get_power)(struct device *);
+	/**
+	 * @put_power: put the POWER_DOMAIN_AUDIO power well
+	 *
+	 * Allow the power well to be turned off.
+	 */
+	void (*put_power)(struct device *);
+	/**
+	 * @codec_wake_override: Enable/disable codec wake signal
+	 */
+	void (*codec_wake_override)(struct device *, bool enable);
+	/**
+	 * @get_cdclk_freq: Get the Core Display Clock in kHz
+	 */
+	int (*get_cdclk_freq)(struct device *);
+	/**
+	 * @sync_audio_rate: set n/cts based on the sample rate
+	 *
+	 * Called from audio driver. After audio driver sets the
+	 * sample rate, it will call this function to set n/cts
+	 */
+	int (*sync_audio_rate)(struct device *, int port, int rate);
+	/**
+	 * @get_eld: fill the audio state and ELD bytes for the given port
+	 *
+	 * Called from audio driver to get the HDMI/DP audio state of the given
+	 * digital port, and also fetch ELD bytes to the given pointer.
+	 *
+	 * It returns the byte size of the original ELD (not the actually
+	 * copied size), zero for an invalid ELD, or a negative error code.
+	 *
+	 * Note that the returned size may be over @max_bytes.  Then it
+	 * implies that only a part of ELD has been copied to the buffer.
+	 */
+	int (*get_eld)(struct device *, int port, bool *enabled,
+		       unsigned char *buf, int max_bytes);
+};
+
+/**
+ * struct i915_audio_component_audio_ops - Ops implemented by hda driver, called by i915 driver
+ */
+struct i915_audio_component_audio_ops {
+	/**
+	 * @audio_ptr: Pointer to be used in call to pin_eld_notify
+	 */
+	void *audio_ptr;
+	/**
+	 * @pin_eld_notify: Notify the HDA driver that pin sense and/or ELD information has changed
+	 *
+	 * Called when the i915 driver has set up audio pipeline or has just
+	 * begun to tear it down. This allows the HDA driver to update its
+	 * status accordingly (even when the HDA controller is in power save
+	 * mode).
+	 */
+	void (*pin_eld_notify)(void *audio_ptr, int port);
+};
+
+/**
+ * struct i915_audio_component - Used for direct communication between i915 and hda drivers
+ */
 struct i915_audio_component {
+	/**
+	 * @dev: i915 device, used as parameter for ops
+	 */
 	struct device *dev;
-
-	const struct i915_audio_component_ops {
-		struct module *owner;
-		void (*get_power)(struct device *);
-		void (*put_power)(struct device *);
-		void (*codec_wake_override)(struct device *, bool enable);
-		int (*get_cdclk_freq)(struct device *);
-	} *ops;
-
-	const struct i915_audio_component_audio_ops {
-		void *audio_ptr;
-		/**
-		 * Call from i915 driver, notifying the HDA driver that
-		 * pin sense and/or ELD information has changed.
-		 * @audio_ptr:		HDA driver object
-		 * @port:		Which port has changed (PORTA / PORTB / PORTC etc)
-		 */
-		void (*pin_eld_notify)(void *audio_ptr, int port);
-	} *audio_ops;
+	/**
+	 * @aud_sample_rate: the array of audio sample rate per port
+	 */
+	int aud_sample_rate[MAX_PORTS];
+	/**
+	 * @ops: Ops implemented by i915 driver, called by hda driver
+	 */
+	const struct i915_audio_component_ops *ops;
+	/**
+	 * @audio_ops: Ops implemented by hda driver, called by i915 driver
+	 */
+	const struct i915_audio_component_audio_ops *audio_ops;
 };
 
 #endif /* _I915_COMPONENT_H_ */

@@ -95,7 +95,7 @@ static const struct v4l2_discrete_probe webcam_probe = {
 	VIVID_WEBCAM_SIZES
 };
 
-static int vid_cap_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int vid_cap_queue_setup(struct vb2_queue *vq,
 		       unsigned *nbuffers, unsigned *nplanes,
 		       unsigned sizes[], void *alloc_ctxs[])
 {
@@ -121,27 +121,16 @@ static int vid_cap_queue_setup(struct vb2_queue *vq, const struct v4l2_format *f
 		dev->queue_setup_error = false;
 		return -EINVAL;
 	}
-	if (fmt) {
-		const struct v4l2_pix_format_mplane *mp;
-		struct v4l2_format mp_fmt;
-		const struct vivid_fmt *vfmt;
-
-		if (!V4L2_TYPE_IS_MULTIPLANAR(fmt->type)) {
-			fmt_sp2mp(fmt, &mp_fmt);
-			fmt = &mp_fmt;
-		}
-		mp = &fmt->fmt.pix_mp;
+	if (*nplanes) {
 		/*
-		 * Check if the number of planes in the specified format match
+		 * Check if the number of requested planes match
 		 * the number of buffers in the current format. You can't mix that.
 		 */
-		if (mp->num_planes != buffers)
+		if (*nplanes != buffers)
 			return -EINVAL;
-		vfmt = vivid_get_format(dev, mp->pixelformat);
 		for (p = 0; p < buffers; p++) {
-			sizes[p] = mp->plane_fmt[p].sizeimage;
 			if (sizes[p] < tpg_g_line_width(&dev->tpg, p) * h +
-							vfmt->data_offset[p])
+						dev->fmt_cap->data_offset[p])
 				return -EINVAL;
 		}
 	} else {
@@ -198,7 +187,7 @@ static int vid_cap_buf_prepare(struct vb2_buffer *vb)
 		}
 
 		vb2_set_plane_payload(vb, p, size);
-		vb->v4l2_planes[p].data_offset = dev->fmt_cap->data_offset[p];
+		vb->planes[p].data_offset = dev->fmt_cap->data_offset[p];
 	}
 
 	return 0;
@@ -206,10 +195,11 @@ static int vid_cap_buf_prepare(struct vb2_buffer *vb)
 
 static void vid_cap_buf_finish(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct v4l2_timecode *tc = &vb->v4l2_buf.timecode;
+	struct v4l2_timecode *tc = &vbuf->timecode;
 	unsigned fps = 25;
-	unsigned seq = vb->v4l2_buf.sequence;
+	unsigned seq = vbuf->sequence;
 
 	if (!vivid_is_sdtv_cap(dev))
 		return;
@@ -218,7 +208,7 @@ static void vid_cap_buf_finish(struct vb2_buffer *vb)
 	 * Set the timecode. Rarely used, so it is interesting to
 	 * test this.
 	 */
-	vb->v4l2_buf.flags |= V4L2_BUF_FLAG_TIMECODE;
+	vbuf->flags |= V4L2_BUF_FLAG_TIMECODE;
 	if (dev->std_cap & V4L2_STD_525_60)
 		fps = 30;
 	tc->type = (fps == 30) ? V4L2_TC_TYPE_30FPS : V4L2_TC_TYPE_25FPS;
@@ -231,8 +221,9 @@ static void vid_cap_buf_finish(struct vb2_buffer *vb)
 
 static void vid_cap_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct vivid_buffer *buf = container_of(vb, struct vivid_buffer, vb);
+	struct vivid_buffer *buf = container_of(vbuf, struct vivid_buffer, vb);
 
 	dprintk(dev, 1, "%s\n", __func__);
 
@@ -268,7 +259,8 @@ static int vid_cap_start_streaming(struct vb2_queue *vq, unsigned count)
 
 		list_for_each_entry_safe(buf, tmp, &dev->vid_cap_active, list) {
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&buf->vb.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
 	}
 	return err;
@@ -401,6 +393,7 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 {
 	struct v4l2_bt_timings *bt = &dev->dv_timings_cap.bt;
 	unsigned size;
+	u64 pixelclock;
 
 	switch (dev->input_type[dev->input]) {
 	case WEBCAM:
@@ -430,8 +423,15 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 		dev->src_rect.width = bt->width;
 		dev->src_rect.height = bt->height;
 		size = V4L2_DV_BT_FRAME_WIDTH(bt) * V4L2_DV_BT_FRAME_HEIGHT(bt);
+		if (dev->reduced_fps && can_reduce_fps(bt)) {
+			pixelclock = div_u64(bt->pixelclock * 1000, 1001);
+			bt->flags |= V4L2_DV_FL_REDUCED_FPS;
+		} else {
+			pixelclock = bt->pixelclock;
+			bt->flags &= ~V4L2_DV_FL_REDUCED_FPS;
+		}
 		dev->timeperframe_vid_cap = (struct v4l2_fract) {
-			size / 100, (u32)bt->pixelclock / 100
+			size / 100, (u32)pixelclock / 100
 		};
 		if (bt->interlaced)
 			dev->field_cap = V4L2_FIELD_ALTERNATE;
@@ -1658,7 +1658,7 @@ int vivid_vid_cap_s_dv_timings(struct file *file, void *_fh,
 	    !valid_cvt_gtf_timings(timings))
 		return -EINVAL;
 
-	if (v4l2_match_dv_timings(timings, &dev->dv_timings_cap, 0))
+	if (v4l2_match_dv_timings(timings, &dev->dv_timings_cap, 0, false))
 		return 0;
 	if (vb2_is_busy(&dev->vb_vid_cap_q))
 		return -EBUSY;

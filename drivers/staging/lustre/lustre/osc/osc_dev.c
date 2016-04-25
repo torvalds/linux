@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -122,8 +122,8 @@ static void *osc_key_init(const struct lu_context *ctx,
 {
 	struct osc_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, osc_thread_kmem, GFP_NOFS);
-	if (info == NULL)
+	info = kmem_cache_zalloc(osc_thread_kmem, GFP_NOFS);
+	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
 }
@@ -133,7 +133,7 @@ static void osc_key_fini(const struct lu_context *ctx,
 {
 	struct osc_thread_info *info = data;
 
-	OBD_SLAB_FREE_PTR(info, osc_thread_kmem);
+	kmem_cache_free(osc_thread_kmem, info);
 }
 
 struct lu_context_key osc_key = {
@@ -147,8 +147,8 @@ static void *osc_session_init(const struct lu_context *ctx,
 {
 	struct osc_session *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, osc_session_kmem, GFP_NOFS);
-	if (info == NULL)
+	info = kmem_cache_zalloc(osc_session_kmem, GFP_NOFS);
+	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
 }
@@ -158,7 +158,7 @@ static void osc_session_fini(const struct lu_context *ctx,
 {
 	struct osc_session *info = data;
 
-	OBD_SLAB_FREE_PTR(info, osc_session_kmem);
+	kmem_cache_free(osc_session_kmem, info);
 }
 
 struct lu_context_key osc_session_key = {
@@ -228,7 +228,7 @@ static struct lu_device *osc_device_alloc(const struct lu_env *env,
 
 	/* Setup OSC OBD */
 	obd = class_name2obd(lustre_cfg_string(cfg, 0));
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 	rc = osc_setup(obd, cfg);
 	if (rc) {
 		osc_device_free(env, d);

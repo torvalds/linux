@@ -984,24 +984,17 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 	 * Find the Legacy Support Capability register -
 	 * this is optional for xHCI host controllers.
 	 */
-	ext_cap_offset = xhci_find_next_cap_offset(base, XHCI_HCC_PARAMS_OFFSET);
-	do {
-		if ((ext_cap_offset + sizeof(val)) > len) {
-			/* We're reading garbage from the controller */
-			dev_warn(&pdev->dev,
-				 "xHCI controller failing to respond");
-			return;
-		}
+	ext_cap_offset = xhci_find_next_ext_cap(base, 0, XHCI_EXT_CAPS_LEGACY);
 
-		if (!ext_cap_offset)
-			/* We've reached the end of the extended capabilities */
-			goto hc_init;
+	if (!ext_cap_offset)
+		goto hc_init;
 
-		val = readl(base + ext_cap_offset);
-		if (XHCI_EXT_CAPS_ID(val) == XHCI_EXT_CAPS_LEGACY)
-			break;
-		ext_cap_offset = xhci_find_next_cap_offset(base, ext_cap_offset);
-	} while (1);
+	if ((ext_cap_offset + sizeof(val)) > len) {
+		/* We're reading garbage from the controller */
+		dev_warn(&pdev->dev, "xHCI controller failing to respond");
+		goto iounmap;
+	}
+	val = readl(base + ext_cap_offset);
 
 	/* If the BIOS owns the HC, signal that the OS wants it, and wait */
 	if (val & XHCI_HC_BIOS_OWNED) {
@@ -1062,6 +1055,7 @@ hc_init:
 			 XHCI_MAX_HALT_USEC, val);
 	}
 
+iounmap:
 	iounmap(base);
 }
 

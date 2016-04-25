@@ -27,7 +27,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -47,10 +47,14 @@ struct ldlm_res_id;
 struct ptlrpc_request_set;
 extern int test_req_buffer_pressure;
 extern struct mutex ptlrpc_all_services_mutex;
+extern struct list_head ptlrpc_all_services;
+
+extern struct mutex ptlrpcd_mutex;
+extern struct mutex pinger_mutex;
 
 int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait);
 /* ptlrpcd.c */
-int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc);
+int ptlrpcd_start(struct ptlrpcd_ctl *pc);
 
 /* client.c */
 struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned npages, unsigned max_brw,
@@ -69,7 +73,6 @@ void ptlrpc_request_handle_notconn(struct ptlrpc_request *);
 void lustre_assert_wire_constants(void);
 int ptlrpc_import_in_recovery(struct obd_import *imp);
 int ptlrpc_set_import_discon(struct obd_import *imp, __u32 conn_cnt);
-void ptlrpc_handle_failed_import(struct obd_import *imp);
 int ptlrpc_replay_next(struct obd_import *imp, int *inflight);
 void ptlrpc_initiate_recovery(struct obd_import *imp);
 
@@ -84,8 +87,6 @@ void ptlrpc_ldebugfs_register_service(struct dentry *debugfs_entry,
 				      struct ptlrpc_service *svc);
 void ptlrpc_lprocfs_unregister_service(struct ptlrpc_service *svc);
 void ptlrpc_lprocfs_rpc_sent(struct ptlrpc_request *req, long amount);
-void ptlrpc_lprocfs_do_request_stat(struct ptlrpc_request *req,
-				     long q_usec, long work_usec);
 
 /* NRS */
 
@@ -100,8 +101,6 @@ struct nrs_core {
 	 * registration/unregistration, and NRS core lprocfs operations.
 	 */
 	struct mutex nrs_mutex;
-	/* XXX: This is just for liblustre. Remove the #if defined directive
-	 * when the * "cfs_" prefix is dropped from cfs_list_head. */
 	/**
 	 * List of all policy descriptors registered with NRS core; protected
 	 * by nrs_core::nrs_mutex.
@@ -109,6 +108,8 @@ struct nrs_core {
 	struct list_head nrs_policies;
 
 };
+
+extern struct nrs_core nrs_core;
 
 int ptlrpc_service_nrs_setup(struct ptlrpc_service *svc);
 void ptlrpc_service_nrs_cleanup(struct ptlrpc_service *svc);
@@ -131,13 +132,6 @@ ptlrpc_nrs_req_get_nolock(struct ptlrpc_service_part *svcpt, bool hp,
 	return ptlrpc_nrs_req_get_nolock0(svcpt, hp, false, force);
 }
 
-static inline struct ptlrpc_request *
-ptlrpc_nrs_req_peek_nolock(struct ptlrpc_service_part *svcpt, bool hp)
-{
-	return ptlrpc_nrs_req_get_nolock0(svcpt, hp, true, false);
-}
-
-void ptlrpc_nrs_req_del_nolock(struct ptlrpc_request *req);
 bool ptlrpc_nrs_req_pending_nolock(struct ptlrpc_service_part *svcpt, bool hp);
 
 int ptlrpc_nrs_policy_control(const struct ptlrpc_service *svc,
@@ -243,8 +237,6 @@ int ptlrpc_stop_pinger(void);
 void ptlrpc_pinger_sending_on_import(struct obd_import *imp);
 void ptlrpc_pinger_commit_expected(struct obd_import *imp);
 void ptlrpc_pinger_wake_up(void);
-void ptlrpc_ping_import_soon(struct obd_import *imp);
-int ping_evictor_wake(struct obd_export *exp);
 
 /* sec_null.c */
 int  sptlrpc_null_init(void);
@@ -298,6 +290,6 @@ static inline void tgt_mod_exit(void)
 static inline void ptlrpc_reqset_put(struct ptlrpc_request_set *set)
 {
 	if (atomic_dec_and_test(&set->set_refcount))
-		OBD_FREE_PTR(set);
+		kfree(set);
 }
 #endif /* PTLRPC_INTERNAL_H */

@@ -252,7 +252,7 @@ void mgag200_fbdev_fini(struct mga_device *mdev);
 				/* mgag200_main.c */
 int mgag200_framebuffer_init(struct drm_device *dev,
 			     struct mga_framebuffer *mfb,
-			     struct drm_mode_fb_cmd2 *mode_cmd,
+			     const struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj);
 
 

@@ -23,11 +23,24 @@
 #include <linux/export.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
+#include <linux/irq.h>
 
 #ifdef CONFIG_X86
 #define valid_IRQ(i) (((i) != 0) && ((i) != 2))
+static inline bool acpi_iospace_resource_valid(struct resource *res)
+{
+	/* On X86 IO space is limited to the [0 - 64K] IO port range */
+	return res->end < 0x10003;
+}
 #else
 #define valid_IRQ(i) (true)
+/*
+ * ACPI IO descriptors on arches other than X86 contain MMIO CPU physical
+ * addresses mapping IO space in CPU physical address space, IO space
+ * resources can be placed anywhere in the 64-bit physical address space.
+ */
+static inline bool
+acpi_iospace_resource_valid(struct resource *res) { return true; }
 #endif
 
 static bool acpi_dev_resource_len_valid(u64 start, u64 end, u64 len, bool io)
@@ -119,18 +132,20 @@ bool acpi_dev_resource_memory(struct acpi_resource *ares, struct resource *res)
 EXPORT_SYMBOL_GPL(acpi_dev_resource_memory);
 
 static void acpi_dev_ioresource_flags(struct resource *res, u64 len,
-				      u8 io_decode)
+				      u8 io_decode, u8 translation_type)
 {
 	res->flags = IORESOURCE_IO;
 
 	if (!acpi_dev_resource_len_valid(res->start, res->end, len, true))
 		res->flags |= IORESOURCE_DISABLED | IORESOURCE_UNSET;
 
-	if (res->end >= 0x10003)
+	if (!acpi_iospace_resource_valid(res))
 		res->flags |= IORESOURCE_DISABLED | IORESOURCE_UNSET;
 
 	if (io_decode == ACPI_DECODE_16)
 		res->flags |= IORESOURCE_IO_16BIT_ADDR;
+	if (translation_type == ACPI_SPARSE_TRANSLATION)
+		res->flags |= IORESOURCE_IO_SPARSE;
 }
 
 static void acpi_dev_get_ioresource(struct resource *res, u64 start, u64 len,
@@ -138,7 +153,7 @@ static void acpi_dev_get_ioresource(struct resource *res, u64 start, u64 len,
 {
 	res->start = start;
 	res->end = start + len - 1;
-	acpi_dev_ioresource_flags(res, len, io_decode);
+	acpi_dev_ioresource_flags(res, len, io_decode, 0);
 }
 
 /**
@@ -231,7 +246,8 @@ static bool acpi_decode_space(struct resource_win *win,
 		acpi_dev_memresource_flags(res, len, wp);
 		break;
 	case ACPI_IO_RANGE:
-		acpi_dev_ioresource_flags(res, len, iodec);
+		acpi_dev_ioresource_flags(res, len, iodec,
+					  addr->info.io.translation_type);
 		break;
 	case ACPI_BUS_NUMBER_RANGE:
 		res->flags = IORESOURCE_BUS;
@@ -332,6 +348,31 @@ unsigned long acpi_dev_irq_flags(u8 triggering, u8 polarity, u8 shareable)
 	return flags | IORESOURCE_IRQ;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_irq_flags);
+
+/**
+ * acpi_dev_get_irq_type - Determine irq type.
+ * @triggering: Triggering type as provided by ACPI.
+ * @polarity: Interrupt polarity as provided by ACPI.
+ */
+unsigned int acpi_dev_get_irq_type(int triggering, int polarity)
+{
+	switch (polarity) {
+	case ACPI_ACTIVE_LOW:
+		return triggering == ACPI_EDGE_SENSITIVE ?
+		       IRQ_TYPE_EDGE_FALLING :
+		       IRQ_TYPE_LEVEL_LOW;
+	case ACPI_ACTIVE_HIGH:
+		return triggering == ACPI_EDGE_SENSITIVE ?
+		       IRQ_TYPE_EDGE_RISING :
+		       IRQ_TYPE_LEVEL_HIGH;
+	case ACPI_ACTIVE_BOTH:
+		if (triggering == ACPI_EDGE_SENSITIVE)
+			return IRQ_TYPE_EDGE_BOTH;
+	default:
+		return IRQ_TYPE_NONE;
+	}
+}
+EXPORT_SYMBOL_GPL(acpi_dev_get_irq_type);
 
 static void acpi_dev_irqresource_disabled(struct resource *res, u32 gsi)
 {

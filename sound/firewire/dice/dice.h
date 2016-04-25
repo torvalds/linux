@@ -34,16 +34,42 @@
 #include <sound/pcm_params.h>
 #include <sound/rawmidi.h>
 
-#include "../amdtp.h"
+#include "../amdtp-am824.h"
 #include "../iso-resources.h"
 #include "../lib.h"
 #include "dice-interface.h"
+
+/*
+ * This module support maximum 2 pairs of tx/rx isochronous streams for
+ * our convinience.
+ *
+ * In documents for ASICs called with a name of 'DICE':
+ *  - ASIC for DICE II:
+ *   - Maximum 2 tx and 4 rx are supported.
+ *   - A packet supports maximum 16 data channels.
+ *  - TCD2210/2210-E (so-called 'Dice Mini'):
+ *   - Maximum 2 tx and 2 rx are supported.
+ *   - A packet supports maximum 16 data channels.
+ *  - TCD2220/2220-E (so-called 'Dice Jr.')
+ *   - 2 tx and 2 rx are supported.
+ *   - A packet supports maximum 16 data channels.
+ *  - TCD3070-CH (so-called 'Dice III')
+ *   - Maximum 2 tx and 2 rx are supported.
+ *   - A packet supports maximum 32 data channels.
+ *
+ * For the above, MIDI conformant data channel is just on the first isochronous
+ * stream.
+ */
+#define MAX_STREAMS	2
 
 struct snd_dice {
 	struct snd_card *card;
 	struct fw_unit *unit;
 	spinlock_t lock;
 	struct mutex mutex;
+
+	bool registered;
+	struct delayed_work dwork;
 
 	/* Offsets for sub-addresses */
 	unsigned int global_offset;
@@ -53,10 +79,6 @@ struct snd_dice {
 	unsigned int rsrv_offset;
 
 	unsigned int clock_caps;
-	unsigned int tx_channels[3];
-	unsigned int rx_channels[3];
-	unsigned int tx_midi_ports[3];
-	unsigned int rx_midi_ports[3];
 
 	struct fw_address_handler notification_handler;
 	int owner_generation;
@@ -68,13 +90,15 @@ struct snd_dice {
 	wait_queue_head_t hwdep_wait;
 
 	/* For streaming */
-	struct fw_iso_resources tx_resources;
-	struct fw_iso_resources rx_resources;
-	struct amdtp_stream tx_stream;
-	struct amdtp_stream rx_stream;
+	struct fw_iso_resources tx_resources[MAX_STREAMS];
+	struct fw_iso_resources rx_resources[MAX_STREAMS];
+	struct amdtp_stream tx_stream[MAX_STREAMS];
+	struct amdtp_stream rx_stream[MAX_STREAMS];
 	bool global_enabled;
 	struct completion clock_accepted;
 	unsigned int substreams_counter;
+
+	bool force_two_pcms;
 };
 
 enum snd_dice_addr_type {
@@ -155,7 +179,6 @@ static inline int snd_dice_transaction_read_sync(struct snd_dice *dice,
 
 int snd_dice_transaction_get_clock_source(struct snd_dice *dice,
 					  unsigned int *source);
-int snd_dice_transaction_set_rate(struct snd_dice *dice, unsigned int rate);
 int snd_dice_transaction_get_rate(struct snd_dice *dice, unsigned int *rate);
 int snd_dice_transaction_set_enable(struct snd_dice *dice);
 void snd_dice_transaction_clear_enable(struct snd_dice *dice);
@@ -165,9 +188,6 @@ void snd_dice_transaction_destroy(struct snd_dice *dice);
 
 #define SND_DICE_RATES_COUNT	7
 extern const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT];
-
-int snd_dice_stream_get_rate_mode(struct snd_dice *dice,
-				  unsigned int rate, unsigned int *mode);
 
 int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate);
 void snd_dice_stream_stop_duplex(struct snd_dice *dice);

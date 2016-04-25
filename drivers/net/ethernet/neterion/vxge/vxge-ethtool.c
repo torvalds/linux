@@ -105,10 +105,6 @@ static void vxge_ethtool_gdrvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->fw_version, vdev->fw_version, sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(vdev->pdev), sizeof(info->bus_info));
-	info->regdump_len = sizeof(struct vxge_hw_vpath_reg)
-				* vdev->no_of_vpath;
-
-	info->n_stats = STAT_LEN;
 }
 
 /**

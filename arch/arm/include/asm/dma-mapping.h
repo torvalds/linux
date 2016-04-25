@@ -41,13 +41,6 @@ static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
 #define HAVE_ARCH_DMA_SUPPORTED 1
 extern int dma_supported(struct device *dev, u64 mask);
 
-/*
- * Note that while the generic code provides dummy dma_{alloc,free}_noncoherent
- * implementations, we don't provide a dma_cache_sync function so drivers using
- * this API are highlighted with build warnings.
- */
-#include <asm-generic/dma-mapping-common.h>
-
 #ifdef __arch_page_to_dma
 #error Please update to __arch_pfn_to_dma
 #endif

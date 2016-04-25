@@ -659,8 +659,8 @@ succinct and descriptive, but that is what a well-written summary
 should do.
 
 The "summary phrase" may be prefixed by tags enclosed in square
-brackets: "Subject: [PATCH tag] <summary phrase>".  The tags are not
-considered part of the summary phrase, but describe how the patch
+brackets: "Subject: [PATCH <tag>...] <summary phrase>".  The tags are
+not considered part of the summary phrase, but describe how the patch
 should be treated.  Common tags might include a version descriptor if
 the multiple versions of the patch have been sent out in response to
 comments (i.e., "v1, v2, v3"), or "RFC" to indicate a request for
@@ -672,8 +672,8 @@ the patch series.
 
 A couple of example Subjects:
 
-    Subject: [patch 2/5] ext2: improve scalability of bitmap searching
-    Subject: [PATCHv2 001/207] x86: fix eflags tracking
+    Subject: [PATCH 2/5] ext2: improve scalability of bitmap searching
+    Subject: [PATCH v2 01/27] x86: fix eflags tracking
 
 The "from" line must be the very first line in the message body,
 and has the form:
@@ -718,8 +718,21 @@ generates appropriate diffstats by default.)
 See more details on the proper patch format in the following
 references.
 
+15) Explicit In-Reply-To headers
+--------------------------------
 
-15) Sending "git pull" requests
+It can be helpful to manually add In-Reply-To: headers to a patch
+(e.g., when using "git send-email") to associate the patch with
+previous relevant discussion, e.g. to link a bug fix to the email with
+the bug report.  However, for a multi-patch series, it is generally
+best to avoid using In-Reply-To: to link to older versions of the
+series.  This way multiple versions of the patch don't become an
+unmanageable forest of references in email clients.  If a link is
+helpful, you can use the https://lkml.kernel.org/ redirector (e.g., in
+the cover email text) to link to an earlier version of the patch series.
+
+
+16) Sending "git pull" requests
 -------------------------------
 
 If you have a series of patches, it may be most convenient to have the

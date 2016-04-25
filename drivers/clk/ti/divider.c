@@ -26,8 +26,6 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
-#define to_clk_divider(_hw) container_of(_hw, struct clk_divider, hw)
-
 #define div_mask(d)	((1 << ((d)->width)) - 1)
 
 static unsigned int _get_table_maxdiv(const struct clk_div_table *table)
@@ -214,7 +212,6 @@ static int ti_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_divider *divider;
 	unsigned int div, value;
-	unsigned long flags = 0;
 	u32 val;
 
 	if (!hw || !rate)
@@ -228,9 +225,6 @@ static int ti_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (value > div_mask(divider))
 		value = div_mask(divider);
 
-	if (divider->lock)
-		spin_lock_irqsave(divider->lock, flags);
-
 	if (divider->flags & CLK_DIVIDER_HIWORD_MASK) {
 		val = div_mask(divider) << (divider->shift + 16);
 	} else {
@@ -239,9 +233,6 @@ static int ti_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	}
 	val |= value << divider->shift;
 	ti_clk_ll_ops->clk_writel(val, divider->reg);
-
-	if (divider->lock)
-		spin_unlock_irqrestore(divider->lock, flags);
 
 	return 0;
 }
@@ -256,8 +247,7 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 				     const char *parent_name,
 				     unsigned long flags, void __iomem *reg,
 				     u8 shift, u8 width, u8 clk_divider_flags,
-				     const struct clk_div_table *table,
-				     spinlock_t *lock)
+				     const struct clk_div_table *table)
 {
 	struct clk_divider *div;
 	struct clk *clk;
@@ -288,7 +278,6 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 	div->shift = shift;
 	div->width = width;
 	div->flags = clk_divider_flags;
-	div->lock = lock;
 	div->hw.init = &init;
 	div->table = table;
 
@@ -421,7 +410,7 @@ struct clk *ti_clk_register_divider(struct ti_clk *setup)
 
 	clk = _register_divider(NULL, setup->name, div->parent,
 				flags, (void __iomem *)reg, div->bit_shift,
-				width, div_flags, table, NULL);
+				width, div_flags, table);
 
 	if (IS_ERR(clk))
 		kfree(table);
@@ -584,8 +573,7 @@ static void __init of_ti_divider_clk_setup(struct device_node *node)
 		goto cleanup;
 
 	clk = _register_divider(NULL, node->name, parent_name, flags, reg,
-				shift, width, clk_divider_flags, table,
-				NULL);
+				shift, width, clk_divider_flags, table);
 
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);

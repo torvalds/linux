@@ -658,7 +658,7 @@ static void csi2_isr_buffer(struct iss_csi2_device *csi2)
 	 * Let video queue operation restart engine if there is an underrun
 	 * condition.
 	 */
-	if (buffer == NULL)
+	if (!buffer)
 		return;
 
 	csi2_set_outaddr(csi2, buffer->iss_addr);
@@ -673,6 +673,9 @@ static void csi2_isr_ctx(struct iss_csi2_device *csi2,
 
 	status = iss_reg_read(csi2->iss, csi2->regs1, CSI2_CTX_IRQSTATUS(n));
 	iss_reg_write(csi2->iss, csi2->regs1, CSI2_CTX_IRQSTATUS(n), status);
+
+	if (omap4iss_module_sync_is_stopping(&csi2->wait, &csi2->stopping))
+		return;
 
 	/* Propagate frame number */
 	if (status & CSI2_CTX_IRQ_FS) {
@@ -775,9 +778,6 @@ void omap4iss_csi2_isr(struct iss_csi2_device *csi2)
 			csi2_irqstatus & CSI2_IRQ_FIFO_OVF ? 1 : 0);
 		pipe->error = true;
 	}
-
-	if (omap4iss_module_sync_is_stopping(&csi2->wait, &csi2->stopping))
-		return;
 
 	/* Successful cases */
 	if (csi2_irqstatus & CSI2_IRQ_CONTEXT0)
@@ -979,7 +979,7 @@ static int csi2_get_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __csi2_get_format(csi2, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	fmt->format = *format;
@@ -1001,7 +1001,7 @@ static int csi2_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __csi2_get_format(csi2, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	csi2_try_format(csi2, cfg, fmt->pad, &fmt->format, fmt->which);
@@ -1170,14 +1170,19 @@ static int csi2_link_setup(struct media_entity *entity,
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct iss_csi2_device *csi2 = v4l2_get_subdevdata(sd);
 	struct iss_csi2_ctrl_cfg *ctrl = &csi2->ctrl;
+	unsigned int index = local->index;
+
+	/* FIXME: this is actually a hack! */
+	if (is_media_entity_v4l2_subdev(remote->entity))
+		index |= 2 << 16;
 
 	/*
 	 * The ISS core doesn't support pipelines with multiple video outputs.
 	 * Revisit this when it will be implemented, and return -EBUSY for now.
 	 */
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case CSI2_PAD_SOURCE | MEDIA_ENT_T_DEVNODE:
+	switch (index) {
+	case CSI2_PAD_SOURCE:
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (csi2->output & ~CSI2_OUTPUT_MEMORY)
 				return -EBUSY;
@@ -1187,7 +1192,7 @@ static int csi2_link_setup(struct media_entity *entity,
 		}
 		break;
 
-	case CSI2_PAD_SOURCE | MEDIA_ENT_T_V4L2_SUBDEV:
+	case CSI2_PAD_SOURCE | 2 << 16:
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (csi2->output & ~CSI2_OUTPUT_IPIPEIF)
 				return -EBUSY;
@@ -1271,7 +1276,7 @@ static int csi2_init_entities(struct iss_csi2_device *csi2, const char *subname)
 	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 
 	me->ops = &csi2_media_ops;
-	ret = media_entity_init(me, CSI2_PADS_NUM, pads, 0);
+	ret = media_entity_pads_init(me, CSI2_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 
@@ -1290,16 +1295,8 @@ static int csi2_init_entities(struct iss_csi2_device *csi2, const char *subname)
 	if (ret < 0)
 		goto error_video;
 
-	/* Connect the CSI2 subdev to the video node. */
-	ret = media_entity_create_link(&csi2->subdev.entity, CSI2_PAD_SOURCE,
-				       &csi2->video_out.video.entity, 0, 0);
-	if (ret < 0)
-		goto error_link;
-
 	return 0;
 
-error_link:
-	omap4iss_video_cleanup(&csi2->video_out);
 error_video:
 	media_entity_cleanup(&csi2->subdev.entity);
 	return ret;
@@ -1335,6 +1332,33 @@ int omap4iss_csi2_init(struct iss_device *iss)
 	init_waitqueue_head(&csi2b->wait);
 
 	ret = csi2_init_entities(csi2b, "b");
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+/*
+ * omap4iss_csi2_create_links() - CSI2 pads links creation
+ * @iss: Pointer to ISS device
+ *
+ * return negative error code or zero on success
+ */
+int omap4iss_csi2_create_links(struct iss_device *iss)
+{
+	struct iss_csi2_device *csi2a = &iss->csi2a;
+	struct iss_csi2_device *csi2b = &iss->csi2b;
+	int ret;
+
+	/* Connect the CSI2a subdev to the video node. */
+	ret = media_create_pad_link(&csi2a->subdev.entity, CSI2_PAD_SOURCE,
+				    &csi2a->video_out.video.entity, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	/* Connect the CSI2b subdev to the video node. */
+	ret = media_create_pad_link(&csi2b->subdev.entity, CSI2_PAD_SOURCE,
+				    &csi2b->video_out.video.entity, 0, 0);
 	if (ret < 0)
 		return ret;
 

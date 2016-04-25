@@ -18,13 +18,13 @@
 #include <asm/hardware/cache-feroceon-l2.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/mv78xx0.h>
-#include <mach/bridge-regs.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <linux/platform_data/mtd-orion_nand.h>
 #include <plat/time.h>
 #include <plat/common.h>
 #include <plat/addr-map.h>
+#include "mv78xx0.h"
+#include "bridge-regs.h"
 #include "common.h"
 
 static int get_tclk(void);
@@ -405,9 +405,8 @@ void __init mv78xx0_init(void)
 	printk("HCLK = %dMHz, ", (hclk + 499999) / 1000000);
 	printk("TCLK = %dMHz\n", (get_tclk() + 499999) / 1000000);
 
-#ifdef CONFIG_CACHE_FEROCEON_L2
-	feroceon_l2_init(is_l2_writethrough());
-#endif
+	if (IS_ENABLED(CONFIG_CACHE_FEROCEON_L2))
+		feroceon_l2_init(is_l2_writethrough());
 
 	/* Setup root of clk tree */
 	clk_init();

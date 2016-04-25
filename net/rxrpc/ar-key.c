@@ -12,11 +12,11 @@
  *	"afs@CAMBRIDGE.REDHAT.COM>
  */
 
+#include <crypto/skcipher.h>
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <linux/key-type.h>
-#include <linux/crypto.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <net/sock.h>
@@ -148,10 +148,10 @@ static int rxrpc_preparse_xdr_rxkad(struct key_preparsed_payload *prep,
 		       token->kad->ticket[6], token->kad->ticket[7]);
 
 	/* count the number of tokens attached */
-	prep->type_data[0] = (void *)((unsigned long)prep->type_data[0] + 1);
+	prep->payload.data[1] = (void *)((unsigned long)prep->payload.data[1] + 1);
 
 	/* attach the data */
-	for (pptoken = (struct rxrpc_key_token **)&prep->payload[0];
+	for (pptoken = (struct rxrpc_key_token **)&prep->payload.data[0];
 	     *pptoken;
 	     pptoken = &(*pptoken)->next)
 		continue;
@@ -522,7 +522,7 @@ static int rxrpc_preparse_xdr_rxk5(struct key_preparsed_payload *prep,
 		goto inval;
 
 	/* attach the payload */
-	for (pptoken = (struct rxrpc_key_token **)&prep->payload[0];
+	for (pptoken = (struct rxrpc_key_token **)&prep->payload.data[0];
 	     *pptoken;
 	     pptoken = &(*pptoken)->next)
 		continue;
@@ -764,10 +764,10 @@ static int rxrpc_preparse(struct key_preparsed_payload *prep)
 	memcpy(&token->kad->ticket, v1->ticket, v1->ticket_length);
 
 	/* count the number of tokens attached */
-	prep->type_data[0] = (void *)((unsigned long)prep->type_data[0] + 1);
+	prep->payload.data[1] = (void *)((unsigned long)prep->payload.data[1] + 1);
 
 	/* attach the data */
-	pp = (struct rxrpc_key_token **)&prep->payload[0];
+	pp = (struct rxrpc_key_token **)&prep->payload.data[0];
 	while (*pp)
 		pp = &(*pp)->next;
 	*pp = token;
@@ -814,7 +814,7 @@ static void rxrpc_free_token_list(struct rxrpc_key_token *token)
  */
 static void rxrpc_free_preparse(struct key_preparsed_payload *prep)
 {
-	rxrpc_free_token_list(prep->payload[0]);
+	rxrpc_free_token_list(prep->payload.data[0]);
 }
 
 /*
@@ -824,25 +824,25 @@ static void rxrpc_free_preparse(struct key_preparsed_payload *prep)
  */
 static int rxrpc_preparse_s(struct key_preparsed_payload *prep)
 {
-	struct crypto_blkcipher *ci;
+	struct crypto_skcipher *ci;
 
 	_enter("%zu", prep->datalen);
 
 	if (prep->datalen != 8)
 		return -EINVAL;
 
-	memcpy(&prep->type_data, prep->data, 8);
+	memcpy(&prep->payload.data[2], prep->data, 8);
 
-	ci = crypto_alloc_blkcipher("pcbc(des)", 0, CRYPTO_ALG_ASYNC);
+	ci = crypto_alloc_skcipher("pcbc(des)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(ci)) {
 		_leave(" = %ld", PTR_ERR(ci));
 		return PTR_ERR(ci);
 	}
 
-	if (crypto_blkcipher_setkey(ci, prep->data, 8) < 0)
+	if (crypto_skcipher_setkey(ci, prep->data, 8) < 0)
 		BUG();
 
-	prep->payload[0] = ci;
+	prep->payload.data[0] = ci;
 	_leave(" = 0");
 	return 0;
 }
@@ -852,8 +852,8 @@ static int rxrpc_preparse_s(struct key_preparsed_payload *prep)
  */
 static void rxrpc_free_preparse_s(struct key_preparsed_payload *prep)
 {
-	if (prep->payload[0])
-		crypto_free_blkcipher(prep->payload[0]);
+	if (prep->payload.data[0])
+		crypto_free_skcipher(prep->payload.data[0]);
 }
 
 /*
@@ -861,7 +861,7 @@ static void rxrpc_free_preparse_s(struct key_preparsed_payload *prep)
  */
 static void rxrpc_destroy(struct key *key)
 {
-	rxrpc_free_token_list(key->payload.data);
+	rxrpc_free_token_list(key->payload.data[0]);
 }
 
 /*
@@ -869,9 +869,9 @@ static void rxrpc_destroy(struct key *key)
  */
 static void rxrpc_destroy_s(struct key *key)
 {
-	if (key->payload.data) {
-		crypto_free_blkcipher(key->payload.data);
-		key->payload.data = NULL;
+	if (key->payload.data[0]) {
+		crypto_free_skcipher(key->payload.data[0]);
+		key->payload.data[0] = NULL;
 	}
 }
 
@@ -896,15 +896,9 @@ int rxrpc_request_key(struct rxrpc_sock *rx, char __user *optval, int optlen)
 	if (optlen <= 0 || optlen > PAGE_SIZE - 1)
 		return -EINVAL;
 
-	description = kmalloc(optlen + 1, GFP_KERNEL);
-	if (!description)
-		return -ENOMEM;
-
-	if (copy_from_user(description, optval, optlen)) {
-		kfree(description);
-		return -EFAULT;
-	}
-	description[optlen] = 0;
+	description = memdup_user_nul(optval, optlen);
+	if (IS_ERR(description))
+		return PTR_ERR(description);
 
 	key = request_key(&key_type_rxrpc, description, NULL);
 	if (IS_ERR(key)) {
@@ -933,15 +927,9 @@ int rxrpc_server_keyring(struct rxrpc_sock *rx, char __user *optval,
 	if (optlen <= 0 || optlen > PAGE_SIZE - 1)
 		return -EINVAL;
 
-	description = kmalloc(optlen + 1, GFP_KERNEL);
-	if (!description)
-		return -ENOMEM;
-
-	if (copy_from_user(description, optval, optlen)) {
-		kfree(description);
-		return -EFAULT;
-	}
-	description[optlen] = 0;
+	description = memdup_user_nul(optval, optlen);
+	if (IS_ERR(description))
+		return PTR_ERR(description);
 
 	key = request_key(&key_type_keyring, description, NULL);
 	if (IS_ERR(key)) {
@@ -1070,7 +1058,7 @@ static long rxrpc_read(const struct key *key,
 	size += 1 * 4;	/* token count */
 
 	ntoks = 0;
-	for (token = key->payload.data; token; token = token->next) {
+	for (token = key->payload.data[0]; token; token = token->next) {
 		toksize = 4;	/* sec index */
 
 		switch (token->security_index) {
@@ -1163,7 +1151,7 @@ static long rxrpc_read(const struct key *key,
 	ENCODE(ntoks);
 
 	tok = 0;
-	for (token = key->payload.data; token; token = token->next) {
+	for (token = key->payload.data[0]; token; token = token->next) {
 		toksize = toksizes[tok++];
 		ENCODE(toksize);
 		oldxdr = xdr;

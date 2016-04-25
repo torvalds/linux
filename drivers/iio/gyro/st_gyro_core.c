@@ -185,6 +185,11 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 		.drdy_irq = {
 			.addr = ST_GYRO_1_DRDY_IRQ_ADDR,
 			.mask_int2 = ST_GYRO_1_DRDY_IRQ_INT2_MASK,
+			/*
+			 * The sensor has IHL (active low) and open
+			 * drain settings, but only for INT1 and not
+			 * for the DRDY line on INT2.
+			 */
 		},
 		.multi_read_bit = ST_GYRO_1_MULTIREAD_BIT,
 		.bootime = 2,
@@ -248,6 +253,11 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 		.drdy_irq = {
 			.addr = ST_GYRO_2_DRDY_IRQ_ADDR,
 			.mask_int2 = ST_GYRO_2_DRDY_IRQ_INT2_MASK,
+			/*
+			 * The sensor has IHL (active low) and open
+			 * drain settings, but only for INT1 and not
+			 * for the DRDY line on INT2.
+			 */
 		},
 		.multi_read_bit = ST_GYRO_2_MULTIREAD_BIT,
 		.bootime = 2,
@@ -307,6 +317,11 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 		.drdy_irq = {
 			.addr = ST_GYRO_3_DRDY_IRQ_ADDR,
 			.mask_int2 = ST_GYRO_3_DRDY_IRQ_INT2_MASK,
+			/*
+			 * The sensor has IHL (active low) and open
+			 * drain settings, but only for INT1 and not
+			 * for the DRDY line on INT2.
+			 */
 		},
 		.multi_read_bit = ST_GYRO_3_MULTIREAD_BIT,
 		.bootime = 2,
@@ -383,6 +398,7 @@ static const struct iio_info gyro_info = {
 	.attrs = &st_gyro_attribute_group,
 	.read_raw = &st_gyro_read_raw,
 	.write_raw = &st_gyro_write_raw,
+	.debugfs_reg_access = &st_sensors_debugfs_reg_access,
 };
 
 #ifdef CONFIG_IIO_TRIGGER

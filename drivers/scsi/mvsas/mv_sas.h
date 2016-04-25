@@ -103,6 +103,7 @@ enum dev_reset {
 };
 
 struct mvs_info;
+struct mvs_prv_info;
 
 struct mvs_dispatch {
 	char *name;
@@ -172,6 +173,8 @@ struct mvs_dispatch {
 				int buf_len, int from, void *prd);
 	void (*tune_interrupt)(struct mvs_info *mvi, u32 time);
 	void (*non_spec_ncq_error)(struct mvs_info *mvi);
+	int (*gpio_write)(struct mvs_prv_info *mvs_prv, u8 reg_type,
+			u8 reg_index, u8 reg_count, u8 *write_data);
 
 };
 
@@ -476,5 +479,7 @@ void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events);
 void mvs_update_phyinfo(struct mvs_info *mvi, int i, int get_st);
 int mvs_int_rx(struct mvs_info *mvi, bool self_clear);
 struct mvs_device *mvs_find_dev_by_reg_set(struct mvs_info *mvi, u8 reg_set);
+int mvs_gpio_write(struct sas_ha_struct *, u8 reg_type, u8 reg_index,
+			u8 reg_count, u8 *write_data);
 #endif
 

@@ -1094,7 +1094,7 @@ static int octeon_irq_gpio_xlat(struct irq_domain *d,
 	unsigned int pin;
 	unsigned int trigger;
 
-	if (d->of_node != node)
+	if (irq_domain_get_of_node(d) != node)
 		return -EINVAL;
 
 	if (intsize < 2)
@@ -2163,7 +2163,7 @@ static int octeon_irq_cib_map(struct irq_domain *d,
 
 	if (hw >= host_data->max_bits) {
 		pr_err("ERROR: %s mapping %u is to big!\n",
-		       d->of_node->name, (unsigned)hw);
+		       irq_domain_get_of_node(d)->name, (unsigned)hw);
 		return -EINVAL;
 	}
 

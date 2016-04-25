@@ -58,16 +58,17 @@ void xhci_dbg_regs(struct xhci_hcd *xhci)
 static void xhci_print_cap_regs(struct xhci_hcd *xhci)
 {
 	u32 temp;
+	u32 hci_version;
 
 	xhci_dbg(xhci, "xHCI capability registers at %p:\n", xhci->cap_regs);
 
 	temp = readl(&xhci->cap_regs->hc_capbase);
+	hci_version = HC_VERSION(temp);
 	xhci_dbg(xhci, "CAPLENGTH AND HCIVERSION 0x%x:\n",
 			(unsigned int) temp);
 	xhci_dbg(xhci, "CAPLENGTH: 0x%x\n",
 			(unsigned int) HC_LENGTH(temp));
-	xhci_dbg(xhci, "HCIVERSION: 0x%x\n",
-			(unsigned int) HC_VERSION(temp));
+	xhci_dbg(xhci, "HCIVERSION: 0x%x\n", hci_version);
 
 	temp = readl(&xhci->cap_regs->hcs_params1);
 	xhci_dbg(xhci, "HCSPARAMS 1: 0x%x\n",
@@ -108,6 +109,18 @@ static void xhci_print_cap_regs(struct xhci_hcd *xhci)
 
 	temp = readl(&xhci->cap_regs->run_regs_off);
 	xhci_dbg(xhci, "RTSOFF 0x%x:\n", temp & RTSOFF_MASK);
+
+	/* xhci 1.1 controllers have the HCCPARAMS2 register */
+	if (hci_version > 100) {
+		temp = readl(&xhci->cap_regs->hcc_params2);
+		xhci_dbg(xhci, "HCC PARAMS2 0x%x:\n", (unsigned int) temp);
+		xhci_dbg(xhci, "  HC %s Force save context capability",
+			 HCC2_FSC(temp) ? "supports" : "doesn't support");
+		xhci_dbg(xhci, "  HC %s Large ESIT Payload Capability",
+			 HCC2_LEC(temp) ? "supports" : "doesn't support");
+		xhci_dbg(xhci, "  HC %s Extended TBC capability",
+			 HCC2_ETC(temp) ? "supports" : "doesn't support");
+	}
 }
 
 static void xhci_print_command_reg(struct xhci_hcd *xhci)

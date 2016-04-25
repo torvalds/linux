@@ -17,13 +17,14 @@
 #include <linux/ahci_platform.h>
 #include <linux/clk.h>
 #include <linux/reboot.h>
+#include <linux/dmaengine.h>
 
 #include <mach/cputype.h>
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
-#include <mach/cpuidle.h>
-#include <mach/sram.h>
+#include "cpuidle.h"
+#include "sram.h"
 
 #include "clock.h"
 #include "asp.h"
@@ -147,150 +148,163 @@ static s8 da850_queue_priority_mapping[][2] = {
 	{-1, -1}
 };
 
-static struct edma_soc_info da830_edma_cc0_info = {
+static struct edma_soc_info da8xx_edma0_pdata = {
 	.queue_priority_mapping	= da8xx_queue_priority_mapping,
 	.default_queue		= EVENTQ_1,
 };
 
-static struct edma_soc_info *da830_edma_info[EDMA_MAX_CC] = {
-	&da830_edma_cc0_info,
+static struct edma_soc_info da850_edma1_pdata = {
+	.queue_priority_mapping	= da850_queue_priority_mapping,
+	.default_queue		= EVENTQ_0,
 };
 
-static struct edma_soc_info da850_edma_cc_info[] = {
+static struct resource da8xx_edma0_resources[] = {
 	{
-		.queue_priority_mapping	= da8xx_queue_priority_mapping,
-		.default_queue		= EVENTQ_1,
-	},
-	{
-		.queue_priority_mapping	= da850_queue_priority_mapping,
-		.default_queue		= EVENTQ_0,
-	},
-};
-
-static struct edma_soc_info *da850_edma_info[EDMA_MAX_CC] = {
-	&da850_edma_cc_info[0],
-	&da850_edma_cc_info[1],
-};
-
-static struct resource da830_edma_resources[] = {
-	{
-		.name	= "edma_cc0",
+		.name	= "edma3_cc",
 		.start	= DA8XX_TPCC_BASE,
 		.end	= DA8XX_TPCC_BASE + SZ_32K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= "edma_tc0",
+		.name	= "edma3_tc0",
 		.start	= DA8XX_TPTC0_BASE,
 		.end	= DA8XX_TPTC0_BASE + SZ_1K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= "edma_tc1",
+		.name	= "edma3_tc1",
 		.start	= DA8XX_TPTC1_BASE,
 		.end	= DA8XX_TPTC1_BASE + SZ_1K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= "edma0",
+		.name	= "edma3_ccint",
 		.start	= IRQ_DA8XX_CCINT0,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.name	= "edma0_err",
+		.name	= "edma3_ccerrint",
 		.start	= IRQ_DA8XX_CCERRINT,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
 
-static struct resource da850_edma_resources[] = {
+static struct resource da850_edma1_resources[] = {
 	{
-		.name	= "edma_cc0",
-		.start	= DA8XX_TPCC_BASE,
-		.end	= DA8XX_TPCC_BASE + SZ_32K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.name	= "edma_tc0",
-		.start	= DA8XX_TPTC0_BASE,
-		.end	= DA8XX_TPTC0_BASE + SZ_1K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.name	= "edma_tc1",
-		.start	= DA8XX_TPTC1_BASE,
-		.end	= DA8XX_TPTC1_BASE + SZ_1K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.name	= "edma_cc1",
+		.name	= "edma3_cc",
 		.start	= DA850_TPCC1_BASE,
 		.end	= DA850_TPCC1_BASE + SZ_32K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= "edma_tc2",
+		.name	= "edma3_tc0",
 		.start	= DA850_TPTC2_BASE,
 		.end	= DA850_TPTC2_BASE + SZ_1K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= "edma0",
-		.start	= IRQ_DA8XX_CCINT0,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.name	= "edma0_err",
-		.start	= IRQ_DA8XX_CCERRINT,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.name	= "edma1",
+		.name	= "edma3_ccint",
 		.start	= IRQ_DA850_CCINT1,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.name	= "edma1_err",
+		.name	= "edma3_ccerrint",
 		.start	= IRQ_DA850_CCERRINT1,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
 
-static struct platform_device da830_edma_device = {
+static const struct platform_device_info da8xx_edma0_device __initconst = {
 	.name		= "edma",
-	.id		= -1,
-	.dev = {
-		.platform_data = da830_edma_info,
-	},
-	.num_resources	= ARRAY_SIZE(da830_edma_resources),
-	.resource	= da830_edma_resources,
+	.id		= 0,
+	.dma_mask	= DMA_BIT_MASK(32),
+	.res		= da8xx_edma0_resources,
+	.num_res	= ARRAY_SIZE(da8xx_edma0_resources),
+	.data		= &da8xx_edma0_pdata,
+	.size_data	= sizeof(da8xx_edma0_pdata),
 };
 
-static struct platform_device da850_edma_device = {
+static const struct platform_device_info da850_edma1_device __initconst = {
 	.name		= "edma",
-	.id		= -1,
-	.dev = {
-		.platform_data = da850_edma_info,
-	},
-	.num_resources	= ARRAY_SIZE(da850_edma_resources),
-	.resource	= da850_edma_resources,
+	.id		= 1,
+	.dma_mask	= DMA_BIT_MASK(32),
+	.res		= da850_edma1_resources,
+	.num_res	= ARRAY_SIZE(da850_edma1_resources),
+	.data		= &da850_edma1_pdata,
+	.size_data	= sizeof(da850_edma1_pdata),
+};
+
+static const struct dma_slave_map da830_edma_map[] = {
+	{ "davinci-mcasp.0", "rx", EDMA_FILTER_PARAM(0, 0) },
+	{ "davinci-mcasp.0", "tx", EDMA_FILTER_PARAM(0, 1) },
+	{ "davinci-mcasp.1", "rx", EDMA_FILTER_PARAM(0, 2) },
+	{ "davinci-mcasp.1", "tx", EDMA_FILTER_PARAM(0, 3) },
+	{ "davinci-mcasp.2", "rx", EDMA_FILTER_PARAM(0, 4) },
+	{ "davinci-mcasp.2", "tx", EDMA_FILTER_PARAM(0, 5) },
+	{ "spi_davinci.0", "rx", EDMA_FILTER_PARAM(0, 14) },
+	{ "spi_davinci.0", "tx", EDMA_FILTER_PARAM(0, 15) },
+	{ "da830-mmc.0", "rx", EDMA_FILTER_PARAM(0, 16) },
+	{ "da830-mmc.0", "tx", EDMA_FILTER_PARAM(0, 17) },
+	{ "spi_davinci.1", "rx", EDMA_FILTER_PARAM(0, 18) },
+	{ "spi_davinci.1", "tx", EDMA_FILTER_PARAM(0, 19) },
 };
 
 int __init da830_register_edma(struct edma_rsv_info *rsv)
 {
-	da830_edma_cc0_info.rsv = rsv;
+	struct platform_device *edma_pdev;
 
-	return platform_device_register(&da830_edma_device);
+	da8xx_edma0_pdata.rsv = rsv;
+
+	da8xx_edma0_pdata.slave_map = da830_edma_map;
+	da8xx_edma0_pdata.slavecnt = ARRAY_SIZE(da830_edma_map);
+
+	edma_pdev = platform_device_register_full(&da8xx_edma0_device);
+	return IS_ERR(edma_pdev) ? PTR_ERR(edma_pdev) : 0;
 }
+
+static const struct dma_slave_map da850_edma0_map[] = {
+	{ "davinci-mcasp.0", "rx", EDMA_FILTER_PARAM(0, 0) },
+	{ "davinci-mcasp.0", "tx", EDMA_FILTER_PARAM(0, 1) },
+	{ "davinci-mcbsp.0", "rx", EDMA_FILTER_PARAM(0, 2) },
+	{ "davinci-mcbsp.0", "tx", EDMA_FILTER_PARAM(0, 3) },
+	{ "davinci-mcbsp.1", "rx", EDMA_FILTER_PARAM(0, 4) },
+	{ "davinci-mcbsp.1", "tx", EDMA_FILTER_PARAM(0, 5) },
+	{ "spi_davinci.0", "rx", EDMA_FILTER_PARAM(0, 14) },
+	{ "spi_davinci.0", "tx", EDMA_FILTER_PARAM(0, 15) },
+	{ "da830-mmc.0", "rx", EDMA_FILTER_PARAM(0, 16) },
+	{ "da830-mmc.0", "tx", EDMA_FILTER_PARAM(0, 17) },
+	{ "spi_davinci.1", "rx", EDMA_FILTER_PARAM(0, 18) },
+	{ "spi_davinci.1", "tx", EDMA_FILTER_PARAM(0, 19) },
+};
+
+static const struct dma_slave_map da850_edma1_map[] = {
+	{ "da830-mmc.1", "rx", EDMA_FILTER_PARAM(1, 28) },
+	{ "da830-mmc.1", "tx", EDMA_FILTER_PARAM(1, 29) },
+};
 
 int __init da850_register_edma(struct edma_rsv_info *rsv[2])
 {
+	struct platform_device *edma_pdev;
+
 	if (rsv) {
-		da850_edma_cc_info[0].rsv = rsv[0];
-		da850_edma_cc_info[1].rsv = rsv[1];
+		da8xx_edma0_pdata.rsv = rsv[0];
+		da850_edma1_pdata.rsv = rsv[1];
 	}
 
-	return platform_device_register(&da850_edma_device);
+	da8xx_edma0_pdata.slave_map = da850_edma0_map;
+	da8xx_edma0_pdata.slavecnt = ARRAY_SIZE(da850_edma0_map);
+
+	edma_pdev = platform_device_register_full(&da8xx_edma0_device);
+	if (IS_ERR(edma_pdev)) {
+		pr_warn("%s: Failed to register eDMA0\n", __func__);
+		return PTR_ERR(edma_pdev);
+	}
+
+	da850_edma1_pdata.slave_map = da850_edma1_map;
+	da850_edma1_pdata.slavecnt = ARRAY_SIZE(da850_edma1_map);
+
+	edma_pdev = platform_device_register_full(&da850_edma1_device);
+	return IS_ERR(edma_pdev) ? PTR_ERR(edma_pdev) : 0;
 }
 
 static struct resource da8xx_i2c_resources0[] = {

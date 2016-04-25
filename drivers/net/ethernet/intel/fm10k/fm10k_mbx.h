@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -128,11 +128,11 @@ enum fm10k_mbx_state {
  *		The maximum message size is provided during connect to avoid
  *		jamming the mailbox with messages that do not fit.
  * Err_no: Error number - Applies only to error headers
- *		The error number provides a indication of the type of error
+ *		The error number provides an indication of the type of error
  *		experienced.
  */
 
-/* macros for retriving and setting header values */
+/* macros for retrieving and setting header values */
 #define FM10K_MSG_HDR_MASK(name) \
 	((0x1u << FM10K_MSG_##name##_SIZE) - 1)
 #define FM10K_MSG_HDR_FIELD_SET(value, name) \
@@ -291,8 +291,10 @@ struct fm10k_mbx_info {
 	u64 tx_dropped;
 	u64 tx_messages;
 	u64 tx_dwords;
+	u64 tx_mbmem_pulled;
 	u64 rx_messages;
 	u64 rx_dwords;
+	u64 rx_mbmem_pushed;
 	u64 rx_parse_err;
 
 	/* Buffer to store messages */

@@ -17,6 +17,7 @@
 #include <linux/pm_qos.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
+#include <linux/tick.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -184,6 +185,14 @@ static struct cpuidle_governor ladder_governor = {
  */
 static int __init init_ladder(void)
 {
+	/*
+	 * When NO_HZ is disabled, or when booting with nohz=off, the ladder
+	 * governor is better so give it a higher rating than the menu
+	 * governor.
+	 */
+	if (!tick_nohz_enabled)
+		ladder_governor.rating = 25;
+
 	return cpuidle_register_governor(&ladder_governor);
 }
 

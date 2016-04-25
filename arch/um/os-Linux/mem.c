@@ -106,6 +106,17 @@ static int __init make_tempfile(const char *template)
 		}
 	}
 
+#ifdef O_TMPFILE
+	fd = open(tempdir, O_CLOEXEC | O_RDWR | O_EXCL | O_TMPFILE, 0700);
+	/*
+	 * If the running system does not support O_TMPFILE flag then retry
+	 * without it.
+	 */
+	if (fd != -1 || (errno != EINVAL && errno != EISDIR &&
+			errno != EOPNOTSUPP))
+		return fd;
+#endif
+
 	tempname = malloc(strlen(tempdir) + strlen(template) + 1);
 	if (tempname == NULL)
 		return -1;
@@ -141,12 +152,6 @@ static int __init create_tmp_file(unsigned long long len)
 	fd = make_tempfile(TEMPNAME_TEMPLATE);
 	if (fd < 0)
 		exit(1);
-
-	err = fchmod(fd, 0777);
-	if (err < 0) {
-		perror("fchmod");
-		exit(1);
-	}
 
 	/*
 	 * Seek to len - 1 because writing a character there will

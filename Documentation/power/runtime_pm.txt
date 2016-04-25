@@ -371,6 +371,12 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
     - increment the device's usage counter, run pm_runtime_resume(dev) and
       return its result
 
+  int pm_runtime_get_if_in_use(struct device *dev);
+    - return -EINVAL if 'power.disable_depth' is nonzero; otherwise, if the
+      runtime PM status is RPM_ACTIVE and the runtime PM usage counter is
+      nonzero, increment the counter and return 1; otherwise return 0 without
+      changing the counter
+
   void pm_runtime_put_noidle(struct device *dev);
     - decrement the device's usage counter
 
@@ -579,6 +585,10 @@ notifications in __device_release_driver().  This requires bus types and
 drivers to make their ->remove() callbacks avoid races with runtime PM directly,
 but also it allows of more flexibility in the handling of devices during the
 removal of their drivers.
+
+Drivers in ->remove() callback should undo the runtime PM changes done
+in ->probe(). Usually this means calling pm_runtime_disable(),
+pm_runtime_dont_use_autosuspend() etc.
 
 The user space can effectively disallow the driver of the device to power manage
 it at run time by changing the value of its /sys/devices/.../power/control

@@ -26,7 +26,7 @@
 #include "../../util/evlist.h"
 #include "../../util/evsel.h"
 #include "../../util/cpumap.h"
-#include "../../util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "../../util/parse-events.h"
 #include "../../util/pmu.h"
 #include "../../util/debug.h"
@@ -89,7 +89,7 @@ static int intel_pt_parse_terms_with_default(struct list_head *formats,
 
 	*config = attr.config;
 out_free:
-	parse_events__free_terms(terms);
+	parse_events_terms__delete(terms);
 	return err;
 }
 
@@ -273,7 +273,9 @@ intel_pt_pmu_default_config(struct perf_pmu *intel_pt_pmu)
 	return attr;
 }
 
-static size_t intel_pt_info_priv_size(struct auxtrace_record *itr __maybe_unused)
+static size_t
+intel_pt_info_priv_size(struct auxtrace_record *itr __maybe_unused,
+			struct perf_evlist *evlist __maybe_unused)
 {
 	return INTEL_PT_AUXTRACE_PRIV_SIZE;
 }
@@ -624,13 +626,49 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	 * threads.
 	 */
 	if (have_timing_info && !cpu_map__empty(cpus)) {
-		err = intel_pt_track_switches(evlist);
-		if (err == -EPERM)
-			pr_debug2("Unable to select sched:sched_switch\n");
-		else if (err)
-			return err;
-		else
-			ptr->have_sched_switch = 1;
+		if (perf_can_record_switch_events()) {
+			bool cpu_wide = !target__none(&opts->target) &&
+					!target__has_task(&opts->target);
+
+			if (!cpu_wide && perf_can_record_cpu_wide()) {
+				struct perf_evsel *switch_evsel;
+
+				err = parse_events(evlist, "dummy:u", NULL);
+				if (err)
+					return err;
+
+				switch_evsel = perf_evlist__last(evlist);
+
+				switch_evsel->attr.freq = 0;
+				switch_evsel->attr.sample_period = 1;
+				switch_evsel->attr.context_switch = 1;
+
+				switch_evsel->system_wide = true;
+				switch_evsel->no_aux_samples = true;
+				switch_evsel->immediate = true;
+
+				perf_evsel__set_sample_bit(switch_evsel, TID);
+				perf_evsel__set_sample_bit(switch_evsel, TIME);
+				perf_evsel__set_sample_bit(switch_evsel, CPU);
+
+				opts->record_switch_events = false;
+				ptr->have_sched_switch = 3;
+			} else {
+				opts->record_switch_events = true;
+				if (cpu_wide)
+					ptr->have_sched_switch = 3;
+				else
+					ptr->have_sched_switch = 2;
+			}
+		} else {
+			err = intel_pt_track_switches(evlist);
+			if (err == -EPERM)
+				pr_debug2("Unable to select sched:sched_switch\n");
+			else if (err)
+				return err;
+			else
+				ptr->have_sched_switch = 1;
+		}
 	}
 
 	if (intel_pt_evsel) {
@@ -663,8 +701,11 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		tracking_evsel->attr.sample_period = 1;
 
 		/* In per-cpu case, always need the time of mmap events etc */
-		if (!cpu_map__empty(cpus))
+		if (!cpu_map__empty(cpus)) {
 			perf_evsel__set_sample_bit(tracking_evsel, TIME);
+			/* And the CPU for switch events */
+			perf_evsel__set_sample_bit(tracking_evsel, CPU);
+		}
 	}
 
 	/*
@@ -686,7 +727,7 @@ static int intel_pt_snapshot_start(struct auxtrace_record *itr)
 
 	evlist__for_each(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
-			return perf_evlist__disable_event(ptr->evlist, evsel);
+			return perf_evsel__disable(evsel);
 	}
 	return -EINVAL;
 }
@@ -699,7 +740,7 @@ static int intel_pt_snapshot_finish(struct auxtrace_record *itr)
 
 	evlist__for_each(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
-			return perf_evlist__enable_event(ptr->evlist, evsel);
+			return perf_evsel__enable(evsel);
 	}
 	return -EINVAL;
 }

@@ -24,7 +24,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 #include "coda_regs.h"
 
@@ -50,7 +50,7 @@ enum coda_product {
 struct coda_video_device;
 
 struct coda_devtype {
-	char			*firmware;
+	char			*firmware[2];
 	enum coda_product	product;
 	const struct coda_codec	*codecs;
 	unsigned int		num_codecs;
@@ -74,6 +74,7 @@ struct coda_dev {
 	struct video_device	vfd[5];
 	struct platform_device	*plat_dev;
 	const struct coda_devtype *devtype;
+	int			firmware;
 
 	void __iomem		*regs_base;
 	struct clk		*clk_per;
@@ -138,7 +139,7 @@ struct coda_buffer_meta {
 	struct list_head	list;
 	u32			sequence;
 	struct v4l2_timecode	timecode;
-	struct timeval		timestamp;
+	u64			timestamp;
 	u32			start;
 	u32			end;
 };
@@ -243,7 +244,7 @@ extern int coda_debug;
 void coda_write(struct coda_dev *dev, u32 data, u32 reg);
 unsigned int coda_read(struct coda_dev *dev, u32 reg);
 void coda_write_base(struct coda_ctx *ctx, struct coda_q_data *q_data,
-		     struct vb2_buffer *buf, unsigned int reg_y);
+		     struct vb2_v4l2_buffer *buf, unsigned int reg_y);
 
 int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 		       size_t size, const char *name, struct dentry *parent);
@@ -284,7 +285,7 @@ static inline unsigned int coda_get_bitstream_payload(struct coda_ctx *ctx)
 
 void coda_bit_stream_end_flag(struct coda_ctx *ctx);
 
-void coda_m2m_buf_done(struct coda_ctx *ctx, struct vb2_buffer *buf,
+void coda_m2m_buf_done(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
 		       enum vb2_buffer_state state);
 
 int coda_h264_padding(int size, char *p);

@@ -11,12 +11,12 @@
  */
 
 #include <linux/module.h>
+#include <linux/fsl/guts.h>
 #include <linux/interrupt.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
 #include <sound/soc.h>
-#include <asm/fsl_guts.h>
 
 #include "fsl_dma.h"
 #include "fsl_ssi.h"
@@ -199,8 +199,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 {
 	struct device *dev = pdev->dev.parent;
 	/* ssi_pdev is the platform device for the SSI node that probed us */
-	struct platform_device *ssi_pdev =
-		container_of(dev, struct platform_device, dev);
+	struct platform_device *ssi_pdev = to_platform_device(dev);
 	struct device_node *np = ssi_pdev->dev.of_node;
 	struct device_node *codec_np = NULL;
 	struct machine_data *mdata;

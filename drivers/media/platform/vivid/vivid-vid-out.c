@@ -31,7 +31,7 @@
 #include "vivid-kthread-out.h"
 #include "vivid-vid-out.h"
 
-static int vid_out_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int vid_out_queue_setup(struct vb2_queue *vq,
 		       unsigned *nbuffers, unsigned *nplanes,
 		       unsigned sizes[], void *alloc_ctxs[])
 {
@@ -63,26 +63,16 @@ static int vid_out_queue_setup(struct vb2_queue *vq, const struct v4l2_format *f
 		return -EINVAL;
 	}
 
-	if (fmt) {
-		const struct v4l2_pix_format_mplane *mp;
-		struct v4l2_format mp_fmt;
-
-		if (!V4L2_TYPE_IS_MULTIPLANAR(fmt->type)) {
-			fmt_sp2mp(fmt, &mp_fmt);
-			fmt = &mp_fmt;
-		}
-		mp = &fmt->fmt.pix_mp;
+	if (*nplanes) {
 		/*
-		 * Check if the number of planes in the specified format match
+		 * Check if the number of requested planes match
 		 * the number of planes in the current format. You can't mix that.
 		 */
-		if (mp->num_planes != planes)
+		if (*nplanes != planes)
 			return -EINVAL;
-		sizes[0] = mp->plane_fmt[0].sizeimage;
 		if (sizes[0] < size)
 			return -EINVAL;
 		for (p = 1; p < planes; p++) {
-			sizes[p] = mp->plane_fmt[p].sizeimage;
 			if (sizes[p] < dev->bytesperline_out[p] * h)
 				return -EINVAL;
 		}
@@ -109,6 +99,7 @@ static int vid_out_queue_setup(struct vb2_queue *vq, const struct v4l2_format *f
 
 static int vid_out_buf_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
 	unsigned long size;
 	unsigned planes;
@@ -131,14 +122,14 @@ static int vid_out_buf_prepare(struct vb2_buffer *vb)
 	}
 
 	if (dev->field_out != V4L2_FIELD_ALTERNATE)
-		vb->v4l2_buf.field = dev->field_out;
-	else if (vb->v4l2_buf.field != V4L2_FIELD_TOP &&
-		 vb->v4l2_buf.field != V4L2_FIELD_BOTTOM)
+		vbuf->field = dev->field_out;
+	else if (vbuf->field != V4L2_FIELD_TOP &&
+		 vbuf->field != V4L2_FIELD_BOTTOM)
 		return -EINVAL;
 
 	for (p = 0; p < planes; p++) {
 		size = dev->bytesperline_out[p] * dev->fmt_out_rect.height +
-			vb->v4l2_planes[p].data_offset;
+			vb->planes[p].data_offset;
 
 		if (vb2_get_plane_payload(vb, p) < size) {
 			dprintk(dev, 1, "%s the payload is too small for plane %u (%lu < %lu)\n",
@@ -152,8 +143,9 @@ static int vid_out_buf_prepare(struct vb2_buffer *vb)
 
 static void vid_out_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct vivid_buffer *buf = container_of(vb, struct vivid_buffer, vb);
+	struct vivid_buffer *buf = container_of(vbuf, struct vivid_buffer, vb);
 
 	dprintk(dev, 1, "%s\n", __func__);
 
@@ -186,7 +178,8 @@ static int vid_out_start_streaming(struct vb2_queue *vq, unsigned count)
 
 		list_for_each_entry_safe(buf, tmp, &dev->vid_out_active, list) {
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&buf->vb.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
 	}
 	return err;
@@ -220,6 +213,7 @@ void vivid_update_format_out(struct vivid_dev *dev)
 {
 	struct v4l2_bt_timings *bt = &dev->dv_timings_out.bt;
 	unsigned size, p;
+	u64 pixelclock;
 
 	switch (dev->output_type[dev->output]) {
 	case SVID:
@@ -241,8 +235,14 @@ void vivid_update_format_out(struct vivid_dev *dev)
 		dev->sink_rect.width = bt->width;
 		dev->sink_rect.height = bt->height;
 		size = V4L2_DV_BT_FRAME_WIDTH(bt) * V4L2_DV_BT_FRAME_HEIGHT(bt);
+
+		if (can_reduce_fps(bt) && (bt->flags & V4L2_DV_FL_REDUCED_FPS))
+			pixelclock = div_u64(bt->pixelclock * 1000, 1001);
+		else
+			pixelclock = bt->pixelclock;
+
 		dev->timeperframe_vid_out = (struct v4l2_fract) {
-			size / 100, (u32)bt->pixelclock / 100
+			size / 100, (u32)pixelclock / 100
 		};
 		if (bt->interlaced)
 			dev->field_out = V4L2_FIELD_ALTERNATE;
@@ -1145,7 +1145,7 @@ int vivid_vid_out_s_dv_timings(struct file *file, void *_fh,
 				0, NULL, NULL) &&
 	    !valid_cvt_gtf_timings(timings))
 		return -EINVAL;
-	if (v4l2_match_dv_timings(timings, &dev->dv_timings_out, 0))
+	if (v4l2_match_dv_timings(timings, &dev->dv_timings_out, 0, true))
 		return 0;
 	if (vb2_is_busy(&dev->vb_vid_out_q))
 		return -EBUSY;

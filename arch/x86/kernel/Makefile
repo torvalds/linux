@@ -16,9 +16,21 @@ CFLAGS_REMOVE_ftrace.o = -pg
 CFLAGS_REMOVE_early_printk.o = -pg
 endif
 
-KASAN_SANITIZE_head$(BITS).o := n
-KASAN_SANITIZE_dumpstack.o := n
-KASAN_SANITIZE_dumpstack_$(BITS).o := n
+KASAN_SANITIZE_head$(BITS).o				:= n
+KASAN_SANITIZE_dumpstack.o				:= n
+KASAN_SANITIZE_dumpstack_$(BITS).o			:= n
+KASAN_SANITIZE_stacktrace.o := n
+
+OBJECT_FILES_NON_STANDARD_head_$(BITS).o		:= y
+OBJECT_FILES_NON_STANDARD_relocate_kernel_$(BITS).o	:= y
+OBJECT_FILES_NON_STANDARD_mcount_$(BITS).o		:= y
+OBJECT_FILES_NON_STANDARD_test_nx.o			:= y
+
+# If instrumentation of this dir is enabled, boot hangs during first second.
+# Probably could be more selective here, but note that files related to irqs,
+# boot, dumpstack/stacktrace, etc are either non-interesting or can lead to
+# non-deterministic coverage.
+KCOV_INSTRUMENT		:= n
 
 CFLAGS_irq.o := -I$(src)/../include/asm/trace
 

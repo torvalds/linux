@@ -32,7 +32,7 @@
 #ifndef _DRM_SAREA_H_
 #define _DRM_SAREA_H_
 
-#include <drm/drm.h>
+#include "drm.h"
 
 /* SAREA area needs to be at least a page */
 #if defined(__alpha__)

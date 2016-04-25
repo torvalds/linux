@@ -4,17 +4,11 @@
 
 #include <asm/ia32.h>
 
-#define __SYSCALL_64(nr, sym, compat) [nr] = 1,
-#define __SYSCALL_COMMON(nr, sym, compat) [nr] = 1,
-#ifdef CONFIG_X86_X32_ABI
-# define __SYSCALL_X32(nr, sym, compat) [nr] = 1,
-#else
-# define __SYSCALL_X32(nr, sym, compat) /* nothing */
-#endif
+#define __SYSCALL_64(nr, sym, qual) [nr] = 1,
 static char syscalls_64[] = {
 #include <asm/syscalls_64.h>
 };
-#define __SYSCALL_I386(nr, sym, compat) [nr] = 1,
+#define __SYSCALL_I386(nr, sym, qual) [nr] = 1,
 static char syscalls_ia32[] = {
 #include <asm/syscalls_32.h>
 };
@@ -23,7 +17,6 @@ int main(void)
 {
 #ifdef CONFIG_PARAVIRT
 	OFFSET(PV_IRQ_adjust_exception_frame, pv_irq_ops, adjust_exception_frame);
-	OFFSET(PV_CPU_usergs_sysret32, pv_cpu_ops, usergs_sysret32);
 	OFFSET(PV_CPU_usergs_sysret64, pv_cpu_ops, usergs_sysret64);
 	OFFSET(PV_CPU_swapgs, pv_cpu_ops, swapgs);
 	BLANK();

@@ -48,7 +48,6 @@
 #include <adf_pf2vf_msg.h>
 #include <adf_common_drv.h>
 #include "adf_dh895xccvf_hw_data.h"
-#include "adf_drv.h"
 
 static struct adf_hw_device_class dh895xcciov_class = {
 	.name = ADF_DH895XCCVF_DEVICE_NAME,
@@ -136,7 +135,6 @@ static void adf_vf2pf_shutdown(struct adf_accel_dev *accel_dev)
 void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 {
 	hw_data->dev_class = &dh895xcciov_class;
-	hw_data->instance_id = dh895xcciov_class.instances++;
 	hw_data->num_banks = ADF_DH895XCCIOV_ETR_MAX_BANKS;
 	hw_data->num_accel = ADF_DH895XCCIOV_MAX_ACCELERATORS;
 	hw_data->num_logical_accel = 1;
@@ -164,9 +162,12 @@ void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 	hw_data->enable_ints = adf_vf_void_noop;
 	hw_data->enable_vf2pf_comms = adf_enable_vf2pf_comms;
 	hw_data->min_iov_compat_ver = ADF_PFVF_COMPATIBILITY_VERSION;
+	hw_data->dev_class->instances++;
+	adf_devmgr_update_class_index(hw_data);
 }
 
 void adf_clean_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 {
 	hw_data->dev_class->instances--;
+	adf_devmgr_update_class_index(hw_data);
 }

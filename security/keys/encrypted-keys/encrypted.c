@@ -28,11 +28,10 @@
 #include <linux/random.h>
 #include <linux/rcupdate.h>
 #include <linux/scatterlist.h>
-#include <linux/crypto.h>
 #include <linux/ctype.h>
 #include <crypto/hash.h>
 #include <crypto/sha.h>
-#include <crypto/aes.h>
+#include <crypto/skcipher.h>
 
 #include "encrypted.h"
 #include "ecryptfs_format.h"
@@ -85,17 +84,17 @@ static const match_table_t key_tokens = {
 
 static int aes_get_sizes(void)
 {
-	struct crypto_blkcipher *tfm;
+	struct crypto_skcipher *tfm;
 
-	tfm = crypto_alloc_blkcipher(blkcipher_alg, 0, CRYPTO_ALG_ASYNC);
+	tfm = crypto_alloc_skcipher(blkcipher_alg, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm)) {
 		pr_err("encrypted_key: failed to alloc_cipher (%ld)\n",
 		       PTR_ERR(tfm));
 		return PTR_ERR(tfm);
 	}
-	ivsize = crypto_blkcipher_ivsize(tfm);
-	blksize = crypto_blkcipher_blocksize(tfm);
-	crypto_free_blkcipher(tfm);
+	ivsize = crypto_skcipher_ivsize(tfm);
+	blksize = crypto_skcipher_blocksize(tfm);
+	crypto_free_skcipher(tfm);
 	return 0;
 }
 
@@ -303,10 +302,10 @@ out:
  *
  * Use a user provided key to encrypt/decrypt an encrypted-key.
  */
-static struct key *request_user_key(const char *master_desc, u8 **master_key,
+static struct key *request_user_key(const char *master_desc, const u8 **master_key,
 				    size_t *master_keylen)
 {
-	struct user_key_payload *upayload;
+	const struct user_key_payload *upayload;
 	struct key *ukey;
 
 	ukey = request_key(&key_type_user, master_desc, NULL);
@@ -314,7 +313,7 @@ static struct key *request_user_key(const char *master_desc, u8 **master_key,
 		goto error;
 
 	down_read(&ukey->sem);
-	upayload = ukey->payload.data;
+	upayload = user_key_payload(ukey);
 	*master_key = upayload->data;
 	*master_keylen = upayload->datalen;
 error:
@@ -401,32 +400,41 @@ static int get_derived_key(u8 *derived_key, enum derived_key_type key_type,
 	return ret;
 }
 
-static int init_blkcipher_desc(struct blkcipher_desc *desc, const u8 *key,
-			       unsigned int key_len, const u8 *iv,
-			       unsigned int ivsize)
+static struct skcipher_request *init_skcipher_req(const u8 *key,
+						  unsigned int key_len)
 {
+	struct skcipher_request *req;
+	struct crypto_skcipher *tfm;
 	int ret;
 
-	desc->tfm = crypto_alloc_blkcipher(blkcipher_alg, 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(desc->tfm)) {
+	tfm = crypto_alloc_skcipher(blkcipher_alg, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm)) {
 		pr_err("encrypted_key: failed to load %s transform (%ld)\n",
-		       blkcipher_alg, PTR_ERR(desc->tfm));
-		return PTR_ERR(desc->tfm);
+		       blkcipher_alg, PTR_ERR(tfm));
+		return ERR_CAST(tfm);
 	}
-	desc->flags = 0;
 
-	ret = crypto_blkcipher_setkey(desc->tfm, key, key_len);
+	ret = crypto_skcipher_setkey(tfm, key, key_len);
 	if (ret < 0) {
 		pr_err("encrypted_key: failed to setkey (%d)\n", ret);
-		crypto_free_blkcipher(desc->tfm);
-		return ret;
+		crypto_free_skcipher(tfm);
+		return ERR_PTR(ret);
 	}
-	crypto_blkcipher_set_iv(desc->tfm, iv, ivsize);
-	return 0;
+
+	req = skcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		pr_err("encrypted_key: failed to allocate request for %s\n",
+		       blkcipher_alg);
+		crypto_free_skcipher(tfm);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	skcipher_request_set_callback(req, 0, NULL, NULL);
+	return req;
 }
 
 static struct key *request_master_key(struct encrypted_key_payload *epayload,
-				      u8 **master_key, size_t *master_keylen)
+				      const u8 **master_key, size_t *master_keylen)
 {
 	struct key *mkey = NULL;
 
@@ -467,7 +475,8 @@ static int derived_key_encrypt(struct encrypted_key_payload *epayload,
 {
 	struct scatterlist sg_in[2];
 	struct scatterlist sg_out[1];
-	struct blkcipher_desc desc;
+	struct crypto_skcipher *tfm;
+	struct skcipher_request *req;
 	unsigned int encrypted_datalen;
 	unsigned int padlen;
 	char pad[16];
@@ -476,9 +485,9 @@ static int derived_key_encrypt(struct encrypted_key_payload *epayload,
 	encrypted_datalen = roundup(epayload->decrypted_datalen, blksize);
 	padlen = encrypted_datalen - epayload->decrypted_datalen;
 
-	ret = init_blkcipher_desc(&desc, derived_key, derived_keylen,
-				  epayload->iv, ivsize);
-	if (ret < 0)
+	req = init_skcipher_req(derived_key, derived_keylen);
+	ret = PTR_ERR(req);
+	if (IS_ERR(req))
 		goto out;
 	dump_decrypted_data(epayload);
 
@@ -491,8 +500,12 @@ static int derived_key_encrypt(struct encrypted_key_payload *epayload,
 	sg_init_table(sg_out, 1);
 	sg_set_buf(sg_out, epayload->encrypted_data, encrypted_datalen);
 
-	ret = crypto_blkcipher_encrypt(&desc, sg_out, sg_in, encrypted_datalen);
-	crypto_free_blkcipher(desc.tfm);
+	skcipher_request_set_crypt(req, sg_in, sg_out, encrypted_datalen,
+				   epayload->iv);
+	ret = crypto_skcipher_encrypt(req);
+	tfm = crypto_skcipher_reqtfm(req);
+	skcipher_request_free(req);
+	crypto_free_skcipher(tfm);
 	if (ret < 0)
 		pr_err("encrypted_key: failed to encrypt (%d)\n", ret);
 	else
@@ -565,15 +578,16 @@ static int derived_key_decrypt(struct encrypted_key_payload *epayload,
 {
 	struct scatterlist sg_in[1];
 	struct scatterlist sg_out[2];
-	struct blkcipher_desc desc;
+	struct crypto_skcipher *tfm;
+	struct skcipher_request *req;
 	unsigned int encrypted_datalen;
 	char pad[16];
 	int ret;
 
 	encrypted_datalen = roundup(epayload->decrypted_datalen, blksize);
-	ret = init_blkcipher_desc(&desc, derived_key, derived_keylen,
-				  epayload->iv, ivsize);
-	if (ret < 0)
+	req = init_skcipher_req(derived_key, derived_keylen);
+	ret = PTR_ERR(req);
+	if (IS_ERR(req))
 		goto out;
 	dump_encrypted_data(epayload, encrypted_datalen);
 
@@ -585,8 +599,12 @@ static int derived_key_decrypt(struct encrypted_key_payload *epayload,
 		   epayload->decrypted_datalen);
 	sg_set_buf(&sg_out[1], pad, sizeof pad);
 
-	ret = crypto_blkcipher_decrypt(&desc, sg_out, sg_in, encrypted_datalen);
-	crypto_free_blkcipher(desc.tfm);
+	skcipher_request_set_crypt(req, sg_in, sg_out, encrypted_datalen,
+				   epayload->iv);
+	ret = crypto_skcipher_decrypt(req);
+	tfm = crypto_skcipher_reqtfm(req);
+	skcipher_request_free(req);
+	crypto_free_skcipher(tfm);
 	if (ret < 0)
 		goto out;
 	dump_decrypted_data(epayload);
@@ -653,7 +671,7 @@ static int encrypted_key_decrypt(struct encrypted_key_payload *epayload,
 {
 	struct key *mkey;
 	u8 derived_key[HASH_SIZE];
-	u8 *master_key;
+	const u8 *master_key;
 	u8 *hmac;
 	const char *hex_encoded_data;
 	unsigned int encrypted_datalen;
@@ -837,7 +855,7 @@ static void encrypted_rcu_free(struct rcu_head *rcu)
  */
 static int encrypted_update(struct key *key, struct key_preparsed_payload *prep)
 {
-	struct encrypted_key_payload *epayload = key->payload.data;
+	struct encrypted_key_payload *epayload = key->payload.data[0];
 	struct encrypted_key_payload *new_epayload;
 	char *buf;
 	char *new_master_desc = NULL;
@@ -845,6 +863,8 @@ static int encrypted_update(struct key *key, struct key_preparsed_payload *prep)
 	size_t datalen = prep->datalen;
 	int ret = 0;
 
+	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags))
+		return -ENOKEY;
 	if (datalen <= 0 || datalen > 32767 || !prep->data)
 		return -EINVAL;
 
@@ -896,7 +916,7 @@ static long encrypted_read(const struct key *key, char __user *buffer,
 {
 	struct encrypted_key_payload *epayload;
 	struct key *mkey;
-	u8 *master_key;
+	const u8 *master_key;
 	size_t master_keylen;
 	char derived_key[HASH_SIZE];
 	char *ascii_buf;
@@ -957,13 +977,13 @@ out:
  */
 static void encrypted_destroy(struct key *key)
 {
-	struct encrypted_key_payload *epayload = key->payload.data;
+	struct encrypted_key_payload *epayload = key->payload.data[0];
 
 	if (!epayload)
 		return;
 
 	memset(epayload->decrypted_data, 0, epayload->decrypted_datalen);
-	kfree(key->payload.data);
+	kfree(key->payload.data[0]);
 }
 
 struct key_type key_type_encrypted = {

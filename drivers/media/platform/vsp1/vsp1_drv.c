@@ -17,17 +17,23 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
 
+#include <media/v4l2-subdev.h>
+
 #include "vsp1.h"
 #include "vsp1_bru.h"
+#include "vsp1_dl.h"
+#include "vsp1_drm.h"
 #include "vsp1_hsit.h"
 #include "vsp1_lif.h"
 #include "vsp1_lut.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_sru.h"
 #include "vsp1_uds.h"
+#include "vsp1_video.h"
 
 /* -----------------------------------------------------------------------------
  * Interrupt Handling
@@ -39,11 +45,11 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 	struct vsp1_device *vsp1 = data;
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int i;
+	u32 status;
 
-	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
+	for (i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
 		struct vsp1_pipeline *pipe;
-		u32 status;
 
 		if (wpf == NULL)
 			continue;
@@ -58,6 +64,21 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 		}
 	}
 
+	status = vsp1_read(vsp1, VI6_DISP_IRQ_STA);
+	vsp1_write(vsp1, VI6_DISP_IRQ_STA, ~status & VI6_DISP_IRQ_STA_DST);
+
+	if (status & VI6_DISP_IRQ_STA_DST) {
+		struct vsp1_rwpf *wpf = vsp1->wpf[0];
+		struct vsp1_pipeline *pipe;
+
+		if (wpf) {
+			pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
+			vsp1_pipeline_display_start(pipe);
+		}
+
+		ret = IRQ_HANDLED;
+	}
+
 	return ret;
 }
 
@@ -66,7 +87,7 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
  */
 
 /*
- * vsp1_create_links - Create links from all sources to the given sink
+ * vsp1_create_sink_links - Create links from all sources to the given sink
  *
  * This function creates media links from all valid sources to the given sink
  * pad. Links that would be invalid according to the VSP1 hardware capabilities
@@ -75,7 +96,8 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
  * - from a UDS to a UDS (UDS entities can't be chained)
  * - from an entity to itself (no loops are allowed)
  */
-static int vsp1_create_links(struct vsp1_device *vsp1, struct vsp1_entity *sink)
+static int vsp1_create_sink_links(struct vsp1_device *vsp1,
+				  struct vsp1_entity *sink)
 {
 	struct media_entity *entity = &sink->subdev.entity;
 	struct vsp1_entity *source;
@@ -101,7 +123,7 @@ static int vsp1_create_links(struct vsp1_device *vsp1, struct vsp1_entity *sink)
 			if (!(entity->pads[pad].flags & MEDIA_PAD_FL_SINK))
 				continue;
 
-			ret = media_entity_create_link(&source->subdev.entity,
+			ret = media_create_pad_link(&source->subdev.entity,
 						       source->source_pad,
 						       entity, pad, flags);
 			if (ret < 0)
@@ -115,18 +137,86 @@ static int vsp1_create_links(struct vsp1_device *vsp1, struct vsp1_entity *sink)
 	return 0;
 }
 
-static void vsp1_destroy_entities(struct vsp1_device *vsp1)
+static int vsp1_uapi_create_links(struct vsp1_device *vsp1)
 {
 	struct vsp1_entity *entity;
-	struct vsp1_entity *next;
+	unsigned int i;
+	int ret;
 
-	list_for_each_entry_safe(entity, next, &vsp1->entities, list_dev) {
+	list_for_each_entry(entity, &vsp1->entities, list_dev) {
+		if (entity->type == VSP1_ENTITY_LIF ||
+		    entity->type == VSP1_ENTITY_RPF)
+			continue;
+
+		ret = vsp1_create_sink_links(vsp1, entity);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (vsp1->info->features & VSP1_HAS_LIF) {
+		ret = media_create_pad_link(&vsp1->wpf[0]->entity.subdev.entity,
+					    RWPF_PAD_SOURCE,
+					    &vsp1->lif->entity.subdev.entity,
+					    LIF_PAD_SINK, 0);
+		if (ret < 0)
+			return ret;
+	}
+
+	for (i = 0; i < vsp1->info->rpf_count; ++i) {
+		struct vsp1_rwpf *rpf = vsp1->rpf[i];
+
+		ret = media_create_pad_link(&rpf->video->video.entity, 0,
+					    &rpf->entity.subdev.entity,
+					    RWPF_PAD_SINK,
+					    MEDIA_LNK_FL_ENABLED |
+					    MEDIA_LNK_FL_IMMUTABLE);
+		if (ret < 0)
+			return ret;
+	}
+
+	for (i = 0; i < vsp1->info->wpf_count; ++i) {
+		/* Connect the video device to the WPF. All connections are
+		 * immutable except for the WPF0 source link if a LIF is
+		 * present.
+		 */
+		struct vsp1_rwpf *wpf = vsp1->wpf[i];
+		unsigned int flags = MEDIA_LNK_FL_ENABLED;
+
+		if (!(vsp1->info->features & VSP1_HAS_LIF) || i != 0)
+			flags |= MEDIA_LNK_FL_IMMUTABLE;
+
+		ret = media_create_pad_link(&wpf->entity.subdev.entity,
+					    RWPF_PAD_SOURCE,
+					    &wpf->video->video.entity, 0,
+					    flags);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void vsp1_destroy_entities(struct vsp1_device *vsp1)
+{
+	struct vsp1_entity *entity, *_entity;
+	struct vsp1_video *video, *_video;
+
+	list_for_each_entry_safe(entity, _entity, &vsp1->entities, list_dev) {
 		list_del(&entity->list_dev);
 		vsp1_entity_destroy(entity);
 	}
 
+	list_for_each_entry_safe(video, _video, &vsp1->videos, list) {
+		list_del(&video->list);
+		vsp1_video_cleanup(video);
+	}
+
 	v4l2_device_unregister(&vsp1->v4l2_dev);
 	media_device_unregister(&vsp1->media_dev);
+	media_device_cleanup(&vsp1->media_dev);
+
+	if (!vsp1->info->uapi)
+		vsp1_drm_cleanup(vsp1);
 }
 
 static int vsp1_create_entities(struct vsp1_device *vsp1)
@@ -141,12 +231,15 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	strlcpy(mdev->model, "VSP1", sizeof(mdev->model));
 	snprintf(mdev->bus_info, sizeof(mdev->bus_info), "platform:%s",
 		 dev_name(mdev->dev));
-	ret = media_device_register(mdev);
-	if (ret < 0) {
-		dev_err(vsp1->dev, "media device registration failed (%d)\n",
-			ret);
-		return ret;
-	}
+	media_device_init(mdev);
+
+	vsp1->media_ops.link_setup = vsp1_entity_link_setup;
+	/* Don't perform link validation when the userspace API is disabled as
+	 * the pipeline is configured internally by the driver in that case, and
+	 * its configuration can thus be trusted.
+	 */
+	if (vsp1->info->uapi)
+		vsp1->media_ops.link_validate = v4l2_subdev_link_validate;
 
 	vdev->mdev = mdev;
 	ret = v4l2_device_register(vsp1->dev, vdev);
@@ -157,13 +250,15 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	/* Instantiate all the entities. */
-	vsp1->bru = vsp1_bru_create(vsp1);
-	if (IS_ERR(vsp1->bru)) {
-		ret = PTR_ERR(vsp1->bru);
-		goto done;
-	}
+	if (vsp1->info->features & VSP1_HAS_BRU) {
+		vsp1->bru = vsp1_bru_create(vsp1);
+		if (IS_ERR(vsp1->bru)) {
+			ret = PTR_ERR(vsp1->bru);
+			goto done;
+		}
 
-	list_add_tail(&vsp1->bru->entity.list_dev, &vsp1->entities);
+		list_add_tail(&vsp1->bru->entity.list_dev, &vsp1->entities);
+	}
 
 	vsp1->hsi = vsp1_hsit_create(vsp1, true);
 	if (IS_ERR(vsp1->hsi)) {
@@ -181,7 +276,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 	list_add_tail(&vsp1->hst->entity.list_dev, &vsp1->entities);
 
-	if (vsp1->pdata.features & VSP1_HAS_LIF) {
+	if (vsp1->info->features & VSP1_HAS_LIF) {
 		vsp1->lif = vsp1_lif_create(vsp1);
 		if (IS_ERR(vsp1->lif)) {
 			ret = PTR_ERR(vsp1->lif);
@@ -191,7 +286,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&vsp1->lif->entity.list_dev, &vsp1->entities);
 	}
 
-	if (vsp1->pdata.features & VSP1_HAS_LUT) {
+	if (vsp1->info->features & VSP1_HAS_LUT) {
 		vsp1->lut = vsp1_lut_create(vsp1);
 		if (IS_ERR(vsp1->lut)) {
 			ret = PTR_ERR(vsp1->lut);
@@ -201,7 +296,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&vsp1->lut->entity.list_dev, &vsp1->entities);
 	}
 
-	for (i = 0; i < vsp1->pdata.rpf_count; ++i) {
+	for (i = 0; i < vsp1->info->rpf_count; ++i) {
 		struct vsp1_rwpf *rpf;
 
 		rpf = vsp1_rpf_create(vsp1, i);
@@ -212,9 +307,20 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 		vsp1->rpf[i] = rpf;
 		list_add_tail(&rpf->entity.list_dev, &vsp1->entities);
+
+		if (vsp1->info->uapi) {
+			struct vsp1_video *video = vsp1_video_create(vsp1, rpf);
+
+			if (IS_ERR(video)) {
+				ret = PTR_ERR(video);
+				goto done;
+			}
+
+			list_add_tail(&video->list, &vsp1->videos);
+		}
 	}
 
-	if (vsp1->pdata.features & VSP1_HAS_SRU) {
+	if (vsp1->info->features & VSP1_HAS_SRU) {
 		vsp1->sru = vsp1_sru_create(vsp1);
 		if (IS_ERR(vsp1->sru)) {
 			ret = PTR_ERR(vsp1->sru);
@@ -224,7 +330,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&vsp1->sru->entity.list_dev, &vsp1->entities);
 	}
 
-	for (i = 0; i < vsp1->pdata.uds_count; ++i) {
+	for (i = 0; i < vsp1->info->uds_count; ++i) {
 		struct vsp1_uds *uds;
 
 		uds = vsp1_uds_create(vsp1, i);
@@ -237,7 +343,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&uds->entity.list_dev, &vsp1->entities);
 	}
 
-	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
+	for (i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf;
 
 		wpf = vsp1_wpf_create(vsp1, i);
@@ -248,25 +354,18 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 		vsp1->wpf[i] = wpf;
 		list_add_tail(&wpf->entity.list_dev, &vsp1->entities);
-	}
 
-	/* Create links. */
-	list_for_each_entry(entity, &vsp1->entities, list_dev) {
-		if (entity->type == VSP1_ENTITY_LIF ||
-		    entity->type == VSP1_ENTITY_RPF)
-			continue;
+		if (vsp1->info->uapi) {
+			struct vsp1_video *video = vsp1_video_create(vsp1, wpf);
 
-		ret = vsp1_create_links(vsp1, entity);
-		if (ret < 0)
-			goto done;
-	}
+			if (IS_ERR(video)) {
+				ret = PTR_ERR(video);
+				goto done;
+			}
 
-	if (vsp1->pdata.features & VSP1_HAS_LIF) {
-		ret = media_entity_create_link(
-			&vsp1->wpf[0]->entity.subdev.entity, RWPF_PAD_SOURCE,
-			&vsp1->lif->entity.subdev.entity, LIF_PAD_SINK, 0);
-		if (ret < 0)
-			return ret;
+			list_add_tail(&video->list, &vsp1->videos);
+			wpf->entity.sink = &video->video.entity;
+		}
 	}
 
 	/* Register all subdevs. */
@@ -277,7 +376,28 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 			goto done;
 	}
 
-	ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
+	/* Create links. */
+	if (vsp1->info->uapi)
+		ret = vsp1_uapi_create_links(vsp1);
+	else
+		ret = vsp1_drm_create_links(vsp1);
+	if (ret < 0)
+		goto done;
+
+	/* Register subdev nodes if the userspace API is enabled or initialize
+	 * the DRM pipeline otherwise.
+	 */
+	if (vsp1->info->uapi) {
+		vsp1->use_dl = false;
+		ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
+	} else {
+		vsp1->use_dl = true;
+		ret = vsp1_drm_init(vsp1);
+	}
+	if (ret < 0)
+		goto done;
+
+	ret = media_device_register(mdev);
 
 done:
 	if (ret < 0)
@@ -286,42 +406,51 @@ done:
 	return ret;
 }
 
+int vsp1_reset_wpf(struct vsp1_device *vsp1, unsigned int index)
+{
+	unsigned int timeout;
+	u32 status;
+
+	status = vsp1_read(vsp1, VI6_STATUS);
+	if (!(status & VI6_STATUS_SYS_ACT(index)))
+		return 0;
+
+	vsp1_write(vsp1, VI6_SRESET, VI6_SRESET_SRTS(index));
+	for (timeout = 10; timeout > 0; --timeout) {
+		status = vsp1_read(vsp1, VI6_STATUS);
+		if (!(status & VI6_STATUS_SYS_ACT(index)))
+			break;
+
+		usleep_range(1000, 2000);
+	}
+
+	if (!timeout) {
+		dev_err(vsp1->dev, "failed to reset wpf.%u\n", index);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 static int vsp1_device_init(struct vsp1_device *vsp1)
 {
 	unsigned int i;
-	u32 status;
+	int ret;
 
 	/* Reset any channel that might be running. */
-	status = vsp1_read(vsp1, VI6_STATUS);
-
-	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
-		unsigned int timeout;
-
-		if (!(status & VI6_STATUS_SYS_ACT(i)))
-			continue;
-
-		vsp1_write(vsp1, VI6_SRESET, VI6_SRESET_SRTS(i));
-		for (timeout = 10; timeout > 0; --timeout) {
-			status = vsp1_read(vsp1, VI6_STATUS);
-			if (!(status & VI6_STATUS_SYS_ACT(i)))
-				break;
-
-			usleep_range(1000, 2000);
-		}
-
-		if (!timeout) {
-			dev_err(vsp1->dev, "failed to reset wpf.%u\n", i);
-			return -ETIMEDOUT;
-		}
+	for (i = 0; i < vsp1->info->wpf_count; ++i) {
+		ret = vsp1_reset_wpf(vsp1, i);
+		if (ret < 0)
+			return ret;
 	}
 
 	vsp1_write(vsp1, VI6_CLK_DCSWT, (8 << VI6_CLK_DCSWT_CSTPW_SHIFT) |
 		   (8 << VI6_CLK_DCSWT_CSTRW_SHIFT));
 
-	for (i = 0; i < vsp1->pdata.rpf_count; ++i)
+	for (i = 0; i < vsp1->info->rpf_count; ++i)
 		vsp1_write(vsp1, VI6_DPR_RPF_ROUTE(i), VI6_DPR_NODE_UNUSED);
 
-	for (i = 0; i < vsp1->pdata.uds_count; ++i)
+	for (i = 0; i < vsp1->info->uds_count; ++i)
 		vsp1_write(vsp1, VI6_DPR_UDS_ROUTE(i), VI6_DPR_NODE_UNUSED);
 
 	vsp1_write(vsp1, VI6_DPR_SRU_ROUTE, VI6_DPR_NODE_UNUSED);
@@ -335,6 +464,9 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 		   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
 	vsp1_write(vsp1, VI6_DPR_HGT_SMPPT, (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
 		   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
+
+	if (vsp1->use_dl)
+		vsp1_dl_setup(vsp1);
 
 	return 0;
 }
@@ -435,48 +567,76 @@ static const struct dev_pm_ops vsp1_pm_ops = {
  * Platform Driver
  */
 
-static int vsp1_parse_dt(struct vsp1_device *vsp1)
-{
-	struct device_node *np = vsp1->dev->of_node;
-	struct vsp1_platform_data *pdata = &vsp1->pdata;
-
-	if (of_property_read_bool(np, "renesas,has-lif"))
-		pdata->features |= VSP1_HAS_LIF;
-	if (of_property_read_bool(np, "renesas,has-lut"))
-		pdata->features |= VSP1_HAS_LUT;
-	if (of_property_read_bool(np, "renesas,has-sru"))
-		pdata->features |= VSP1_HAS_SRU;
-
-	of_property_read_u32(np, "renesas,#rpf", &pdata->rpf_count);
-	of_property_read_u32(np, "renesas,#uds", &pdata->uds_count);
-	of_property_read_u32(np, "renesas,#wpf", &pdata->wpf_count);
-
-	if (pdata->rpf_count <= 0 || pdata->rpf_count > VSP1_MAX_RPF) {
-		dev_err(vsp1->dev, "invalid number of RPF (%u)\n",
-			pdata->rpf_count);
-		return -EINVAL;
-	}
-
-	if (pdata->uds_count <= 0 || pdata->uds_count > VSP1_MAX_UDS) {
-		dev_err(vsp1->dev, "invalid number of UDS (%u)\n",
-			pdata->uds_count);
-		return -EINVAL;
-	}
-
-	if (pdata->wpf_count <= 0 || pdata->wpf_count > VSP1_MAX_WPF) {
-		dev_err(vsp1->dev, "invalid number of WPF (%u)\n",
-			pdata->wpf_count);
-		return -EINVAL;
-	}
-
-	return 0;
-}
+static const struct vsp1_device_info vsp1_device_infos[] = {
+	{
+		.version = VI6_IP_VERSION_MODEL_VSPS_H2,
+		.features = VSP1_HAS_BRU | VSP1_HAS_LUT | VSP1_HAS_SRU,
+		.rpf_count = 5,
+		.uds_count = 3,
+		.wpf_count = 4,
+		.num_bru_inputs = 4,
+		.uapi = true,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPR_H2,
+		.features = VSP1_HAS_BRU | VSP1_HAS_SRU,
+		.rpf_count = 5,
+		.uds_count = 1,
+		.wpf_count = 4,
+		.num_bru_inputs = 4,
+		.uapi = true,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPD_GEN2,
+		.features = VSP1_HAS_BRU | VSP1_HAS_LIF | VSP1_HAS_LUT,
+		.rpf_count = 4,
+		.uds_count = 1,
+		.wpf_count = 4,
+		.num_bru_inputs = 4,
+		.uapi = true,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPS_M2,
+		.features = VSP1_HAS_BRU | VSP1_HAS_LUT | VSP1_HAS_SRU,
+		.rpf_count = 5,
+		.uds_count = 3,
+		.wpf_count = 4,
+		.num_bru_inputs = 4,
+		.uapi = true,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPI_GEN3,
+		.features = VSP1_HAS_LUT | VSP1_HAS_SRU,
+		.rpf_count = 1,
+		.uds_count = 1,
+		.wpf_count = 1,
+		.uapi = true,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPBD_GEN3,
+		.features = VSP1_HAS_BRU,
+		.rpf_count = 5,
+		.wpf_count = 1,
+		.num_bru_inputs = 5,
+		.uapi = true,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPBC_GEN3,
+		.features = VSP1_HAS_BRU | VSP1_HAS_LUT,
+		.rpf_count = 5,
+		.wpf_count = 1,
+		.num_bru_inputs = 5,
+		.uapi = true,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPD_GEN3,
+		.features = VSP1_HAS_BRU | VSP1_HAS_LIF | VSP1_HAS_LUT,
+		.rpf_count = 5,
+		.wpf_count = 2,
+		.num_bru_inputs = 5,
+	},
+};
 
 static int vsp1_probe(struct platform_device *pdev)
 {
 	struct vsp1_device *vsp1;
 	struct resource *irq;
 	struct resource *io;
+	unsigned int i;
+	u32 version;
 	int ret;
 
 	vsp1 = devm_kzalloc(&pdev->dev, sizeof(*vsp1), GFP_KERNEL);
@@ -486,10 +646,7 @@ static int vsp1_probe(struct platform_device *pdev)
 	vsp1->dev = &pdev->dev;
 	mutex_init(&vsp1->lock);
 	INIT_LIST_HEAD(&vsp1->entities);
-
-	ret = vsp1_parse_dt(vsp1);
-	if (ret < 0)
-		return ret;
+	INIT_LIST_HEAD(&vsp1->videos);
 
 	/* I/O, IRQ and clock resources */
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -516,6 +673,29 @@ static int vsp1_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* Configure device parameters based on the version register. */
+	ret = clk_prepare_enable(vsp1->clock);
+	if (ret < 0)
+		return ret;
+
+	version = vsp1_read(vsp1, VI6_IP_VERSION);
+	clk_disable_unprepare(vsp1->clock);
+
+	for (i = 0; i < ARRAY_SIZE(vsp1_device_infos); ++i) {
+		if ((version & VI6_IP_VERSION_MODEL_MASK) ==
+		    vsp1_device_infos[i].version) {
+			vsp1->info = &vsp1_device_infos[i];
+			break;
+		}
+	}
+
+	if (!vsp1->info) {
+		dev_err(&pdev->dev, "unsupported IP version 0x%08x\n", version);
+		return -ENXIO;
+	}
+
+	dev_dbg(&pdev->dev, "IP version 0x%08x\n", version);
+
 	/* Instanciate entities */
 	ret = vsp1_create_entities(vsp1);
 	if (ret < 0) {
@@ -539,6 +719,7 @@ static int vsp1_remove(struct platform_device *pdev)
 
 static const struct of_device_id vsp1_of_match[] = {
 	{ .compatible = "renesas,vsp1" },
+	{ .compatible = "renesas,vsp2" },
 	{ },
 };
 

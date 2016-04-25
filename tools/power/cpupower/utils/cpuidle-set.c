@@ -13,15 +13,11 @@
 #include "helpers/sysfs.h"
 
 static struct option info_opts[] = {
-	{ .name = "disable",
-	  .has_arg = required_argument,	.flag = NULL,	.val = 'd'},
-	{ .name = "enable",
-	  .has_arg = required_argument,	.flag = NULL,	.val = 'e'},
-	{ .name = "disable-by-latency",
-	  .has_arg = required_argument,	.flag = NULL,	.val = 'D'},
-	{ .name = "enable-all",
-	  .has_arg = no_argument,	.flag = NULL,	.val = 'E'},
-	{ },
+     {"disable",	required_argument,		NULL, 'd'},
+     {"enable",		required_argument,		NULL, 'e'},
+     {"disable-by-latency", required_argument,		NULL, 'D'},
+     {"enable-all",	no_argument,			NULL, 'E'},
+     { },
 };
 
 
@@ -148,14 +144,21 @@ int cmd_idle_set(int argc, char **argv)
 					(cpu, idlestate);
 				state_latency = sysfs_get_idlestate_latency
 					(cpu, idlestate);
-				printf("CPU: %u - idlestate %u - state_latency: %llu - latency: %llu\n",
-				       cpu, idlestate, state_latency, latency);
-				if (disabled == 1 || latency > state_latency)
+				if (disabled == 1) {
+					if (latency > state_latency){
+						ret = sysfs_idlestate_disable
+							(cpu, idlestate, 0);
+						if (ret == 0)
+		printf(_("Idlestate %u enabled on CPU %u\n"),  idlestate, cpu);
+					}
 					continue;
-				ret = sysfs_idlestate_disable
-					(cpu, idlestate, 1);
-				if (ret == 0)
+				}
+				if (latency <= state_latency){
+					ret = sysfs_idlestate_disable
+						(cpu, idlestate, 1);
+					if (ret == 0)
 		printf(_("Idlestate %u disabled on CPU %u\n"), idlestate, cpu);
+				}
 			}
 			break;
 		case 'E':

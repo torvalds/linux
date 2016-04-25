@@ -12,6 +12,11 @@ config RALINK_ILL_ACC
 	depends on SOC_RT305X
 	default y
 
+config IRQ_INTC
+	bool
+	default y
+	depends on !SOC_MT7621
+
 choice
 	prompt "Ralink SoC selection"
 	default SOC_RT305X
@@ -33,7 +38,18 @@ choice
 
 	config SOC_MT7620
 		bool "MT7620/8"
+		select HW_HAS_PCI
 
+	config SOC_MT7621
+		bool "MT7621"
+		select MIPS_CPU_SCACHE
+		select SYS_SUPPORTS_MULTITHREADING
+		select SYS_SUPPORTS_SMP
+		select SYS_SUPPORTS_MIPS_CPS
+		select MIPS_GIC
+		select COMMON_CLK
+		select CLKSRC_MIPS_GIC
+		select HW_HAS_PCI
 endchoice
 
 choice

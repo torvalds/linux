@@ -11,6 +11,7 @@
  * See Documentation/security/keys-trusted-encrypted.txt
  */
 
+#include <crypto/hash_info.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -710,7 +711,10 @@ enum {
 	Opt_err = -1,
 	Opt_new, Opt_load, Opt_update,
 	Opt_keyhandle, Opt_keyauth, Opt_blobauth,
-	Opt_pcrinfo, Opt_pcrlock, Opt_migratable
+	Opt_pcrinfo, Opt_pcrlock, Opt_migratable,
+	Opt_hash,
+	Opt_policydigest,
+	Opt_policyhandle,
 };
 
 static const match_table_t key_tokens = {
@@ -723,6 +727,9 @@ static const match_table_t key_tokens = {
 	{Opt_pcrinfo, "pcrinfo=%s"},
 	{Opt_pcrlock, "pcrlock=%s"},
 	{Opt_migratable, "migratable=%s"},
+	{Opt_hash, "hash=%s"},
+	{Opt_policydigest, "policydigest=%s"},
+	{Opt_policyhandle, "policyhandle=%s"},
 	{Opt_err, NULL}
 };
 
@@ -736,11 +743,23 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 	int res;
 	unsigned long handle;
 	unsigned long lock;
+	unsigned long token_mask = 0;
+	unsigned int digest_len;
+	int i;
+	int tpm2;
+
+	tpm2 = tpm_is_tpm2(TPM_ANY_NUM);
+	if (tpm2 < 0)
+		return tpm2;
+
+	opt->hash = tpm2 ? HASH_ALGO_SHA256 : HASH_ALGO_SHA1;
 
 	while ((p = strsep(&c, " \t"))) {
 		if (*p == '\0' || *p == ' ' || *p == '\t')
 			continue;
 		token = match_token(p, key_tokens, args);
+		if (test_and_set_bit(token, &token_mask))
+			return -EINVAL;
 
 		switch (token) {
 		case Opt_pcrinfo:
@@ -786,6 +805,40 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 			if (res < 0)
 				return -EINVAL;
 			opt->pcrlock = lock;
+			break;
+		case Opt_hash:
+			if (test_bit(Opt_policydigest, &token_mask))
+				return -EINVAL;
+			for (i = 0; i < HASH_ALGO__LAST; i++) {
+				if (!strcmp(args[0].from, hash_algo_name[i])) {
+					opt->hash = i;
+					break;
+				}
+			}
+			if (i == HASH_ALGO__LAST)
+				return -EINVAL;
+			if  (!tpm2 && i != HASH_ALGO_SHA1) {
+				pr_info("trusted_key: TPM 1.x only supports SHA-1.\n");
+				return -EINVAL;
+			}
+			break;
+		case Opt_policydigest:
+			digest_len = hash_digest_size[opt->hash];
+			if (!tpm2 || strlen(args[0].from) != (2 * digest_len))
+				return -EINVAL;
+			res = hex2bin(opt->policydigest, args[0].from,
+				      digest_len);
+			if (res < 0)
+				return -EINVAL;
+			opt->policydigest_len = digest_len;
+			break;
+		case Opt_policyhandle:
+			if (!tpm2)
+				return -EINVAL;
+			res = kstrtoul(args[0].from, 16, &handle);
+			if (res < 0)
+				return -EINVAL;
+			opt->policyhandle = handle;
 			break;
 		default:
 			return -EINVAL;
@@ -862,12 +915,19 @@ static int datablob_parse(char *datablob, struct trusted_key_payload *p,
 static struct trusted_key_options *trusted_options_alloc(void)
 {
 	struct trusted_key_options *options;
+	int tpm2;
+
+	tpm2 = tpm_is_tpm2(TPM_ANY_NUM);
+	if (tpm2 < 0)
+		return NULL;
 
 	options = kzalloc(sizeof *options, GFP_KERNEL);
 	if (options) {
 		/* set any non-zero defaults */
 		options->keytype = SRK_keytype;
-		options->keyhandle = SRKHANDLE;
+
+		if (!tpm2)
+			options->keyhandle = SRKHANDLE;
 	}
 	return options;
 }
@@ -905,6 +965,11 @@ static int trusted_instantiate(struct key *key,
 	int ret = 0;
 	int key_cmd;
 	size_t key_len;
+	int tpm2;
+
+	tpm2 = tpm_is_tpm2(TPM_ANY_NUM);
+	if (tpm2 < 0)
+		return tpm2;
 
 	if (datalen <= 0 || datalen > 32767 || !prep->data)
 		return -EINVAL;
@@ -932,12 +997,20 @@ static int trusted_instantiate(struct key *key,
 		goto out;
 	}
 
+	if (!options->keyhandle) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	dump_payload(payload);
 	dump_options(options);
 
 	switch (key_cmd) {
 	case Opt_load:
-		ret = key_unseal(payload, options);
+		if (tpm2)
+			ret = tpm_unseal_trusted(TPM_ANY_NUM, payload, options);
+		else
+			ret = key_unseal(payload, options);
 		dump_payload(payload);
 		dump_options(options);
 		if (ret < 0)
@@ -950,7 +1023,10 @@ static int trusted_instantiate(struct key *key,
 			pr_info("trusted_key: key_create failed (%d)\n", ret);
 			goto out;
 		}
-		ret = key_seal(payload, options);
+		if (tpm2)
+			ret = tpm_seal_trusted(TPM_ANY_NUM, payload, options);
+		else
+			ret = key_seal(payload, options);
 		if (ret < 0)
 			pr_info("trusted_key: key_seal failed (%d)\n", ret);
 		break;
@@ -984,13 +1060,16 @@ static void trusted_rcu_free(struct rcu_head *rcu)
  */
 static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 {
-	struct trusted_key_payload *p = key->payload.data;
+	struct trusted_key_payload *p;
 	struct trusted_key_payload *new_p;
 	struct trusted_key_options *new_o;
 	size_t datalen = prep->datalen;
 	char *datablob;
 	int ret = 0;
 
+	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags))
+		return -ENOKEY;
+	p = key->payload.data[0];
 	if (!p->migratable)
 		return -EPERM;
 	if (datalen <= 0 || datalen > 32767 || !prep->data)
@@ -1018,6 +1097,13 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 		kfree(new_p);
 		goto out;
 	}
+
+	if (!new_o->keyhandle) {
+		ret = -EINVAL;
+		kfree(new_p);
+		goto out;
+	}
+
 	/* copy old key values, and reseal with new pcrs */
 	new_p->migratable = p->migratable;
 	new_p->key_len = p->key_len;
@@ -1084,12 +1170,12 @@ static long trusted_read(const struct key *key, char __user *buffer,
  */
 static void trusted_destroy(struct key *key)
 {
-	struct trusted_key_payload *p = key->payload.data;
+	struct trusted_key_payload *p = key->payload.data[0];
 
 	if (!p)
 		return;
 	memset(p->key, 0, p->key_len);
-	kfree(key->payload.data);
+	kfree(key->payload.data[0]);
 }
 
 struct key_type key_type_trusted = {

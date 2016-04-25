@@ -25,6 +25,7 @@ static void dsos__init(struct dsos *dsos)
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 {
+	memset(machine, 0, sizeof(*machine));
 	map_groups__init(&machine->kmaps, machine);
 	RB_CLEAR_NODE(&machine->rb_node);
 	dsos__init(&machine->dsos);
@@ -35,6 +36,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	machine->last_match = NULL;
 
 	machine->vdso_info = NULL;
+	machine->env = NULL;
 
 	machine->pid = pid;
 
@@ -42,6 +44,8 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	machine->id_hdr_size = 0;
 	machine->comm_exec = false;
 	machine->kernel_start = 0;
+
+	memset(machine->vmlinux_maps, 0, sizeof(machine->vmlinux_maps));
 
 	machine->root_dir = strdup(root_dir);
 	if (machine->root_dir == NULL)
@@ -90,6 +94,7 @@ static void dsos__purge(struct dsos *dsos)
 
 	list_for_each_entry_safe(pos, n, &dsos->head, node) {
 		RB_CLEAR_NODE(&pos->rb_node);
+		pos->root = NULL;
 		list_del_init(&pos->node);
 		dso__put(pos);
 	}
@@ -120,6 +125,7 @@ void machine__delete_threads(struct machine *machine)
 
 void machine__exit(struct machine *machine)
 {
+	machine__destroy_kernel_maps(machine);
 	map_groups__exit(&machine->kmaps);
 	dsos__exit(&machine->dsos);
 	machine__exit_vdso(machine);
@@ -346,13 +352,18 @@ static void machine__update_thread_pid(struct machine *machine,
 	}
 
 	th->mg = map_groups__get(leader->mg);
-
+out_put:
+	thread__put(leader);
 	return;
-
 out_err:
 	pr_err("Failed to join map groups for %d:%d\n", th->pid_, th->tid);
+	goto out_put;
 }
 
+/*
+ * Caller must eventually drop thread->refcnt returned with a successfull
+ * lookup/new thread inserted.
+ */
 static struct thread *____machine__findnew_thread(struct machine *machine,
 						  pid_t pid, pid_t tid,
 						  bool create)
@@ -370,7 +381,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 	if (th != NULL) {
 		if (th->tid == tid) {
 			machine__update_thread_pid(machine, th, pid);
-			return th;
+			return thread__get(th);
 		}
 
 		machine->last_match = NULL;
@@ -383,7 +394,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		if (th->tid == tid) {
 			machine->last_match = th;
 			machine__update_thread_pid(machine, th, pid);
-			return th;
+			return thread__get(th);
 		}
 
 		if (tid < th->tid)
@@ -411,7 +422,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		if (thread__init_map_groups(th, machine)) {
 			rb_erase_init(&th->rb_node, &machine->threads);
 			RB_CLEAR_NODE(&th->rb_node);
-			thread__delete(th);
+			thread__put(th);
 			return NULL;
 		}
 		/*
@@ -435,7 +446,7 @@ struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
 	struct thread *th;
 
 	pthread_rwlock_wrlock(&machine->threads_lock);
-	th = thread__get(__machine__findnew_thread(machine, pid, tid));
+	th = __machine__findnew_thread(machine, pid, tid);
 	pthread_rwlock_unlock(&machine->threads_lock);
 	return th;
 }
@@ -445,7 +456,7 @@ struct thread *machine__find_thread(struct machine *machine, pid_t pid,
 {
 	struct thread *th;
 	pthread_rwlock_rdlock(&machine->threads_lock);
-	th =  thread__get(____machine__findnew_thread(machine, pid, tid, false));
+	th =  ____machine__findnew_thread(machine, pid, tid, false);
 	pthread_rwlock_unlock(&machine->threads_lock);
 	return th;
 }
@@ -558,11 +569,29 @@ int machine__process_switch_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
+static void dso__adjust_kmod_long_name(struct dso *dso, const char *filename)
+{
+	const char *dup_filename;
+
+	if (!filename || !dso || !dso->long_name)
+		return;
+	if (dso->long_name[0] != '[')
+		return;
+	if (!strchr(filename, '/'))
+		return;
+
+	dup_filename = strdup(filename);
+	if (!dup_filename)
+		return;
+
+	dso__set_long_name(dso, dup_filename, true);
+}
+
 struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename)
 {
 	struct map *map = NULL;
-	struct dso *dso;
+	struct dso *dso = NULL;
 	struct kmod_path m;
 
 	if (kmod_path__parse_name(&m, filename))
@@ -570,8 +599,15 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 
 	map = map_groups__find_by_name(&machine->kmaps, MAP__FUNCTION,
 				       m.name);
-	if (map)
+	if (map) {
+		/*
+		 * If the map's dso is an offline module, give dso__load()
+		 * a chance to find the file path of that module by fixing
+		 * long_name.
+		 */
+		dso__adjust_kmod_long_name(map->dso, filename);
 		goto out;
+	}
 
 	dso = machine__findnew_module_dso(machine, &m, filename);
 	if (dso == NULL)
@@ -583,7 +619,11 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 
 	map_groups__insert(&machine->kmaps, map);
 
+	/* Put the map here because map_groups__insert alread got it */
+	map__put(map);
 out:
+	/* put the dso here, corresponding to  machine__findnew_module_dso */
+	dso__put(dso);
 	free(m.name);
 	return map;
 }
@@ -624,7 +664,7 @@ size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp)
 {
 	int i;
 	size_t printed = 0;
-	struct dso *kdso = machine->vmlinux_maps[MAP__FUNCTION]->dso;
+	struct dso *kdso = machine__kernel_map(machine)->dso;
 
 	if (kdso->has_build_id) {
 		char filename[PATH_MAX];
@@ -738,8 +778,12 @@ int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 	enum map_type type;
 	u64 start = machine__get_running_kernel_start(machine, NULL);
 
+	/* In case of renewal the kernel map, destroy previous one */
+	machine__destroy_kernel_maps(machine);
+
 	for (type = 0; type < MAP__NR_TYPES; ++type) {
 		struct kmap *kmap;
+		struct map *map;
 
 		machine->vmlinux_maps[type] = map__new2(start, kernel, type);
 		if (machine->vmlinux_maps[type] == NULL)
@@ -748,13 +792,13 @@ int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 		machine->vmlinux_maps[type]->map_ip =
 			machine->vmlinux_maps[type]->unmap_ip =
 				identity__map_ip;
-		kmap = map__kmap(machine->vmlinux_maps[type]);
+		map = __machine__kernel_map(machine, type);
+		kmap = map__kmap(map);
 		if (!kmap)
 			return -1;
 
 		kmap->kmaps = &machine->kmaps;
-		map_groups__insert(&machine->kmaps,
-				   machine->vmlinux_maps[type]);
+		map_groups__insert(&machine->kmaps, map);
 	}
 
 	return 0;
@@ -766,13 +810,13 @@ void machine__destroy_kernel_maps(struct machine *machine)
 
 	for (type = 0; type < MAP__NR_TYPES; ++type) {
 		struct kmap *kmap;
+		struct map *map = __machine__kernel_map(machine, type);
 
-		if (machine->vmlinux_maps[type] == NULL)
+		if (map == NULL)
 			continue;
 
-		kmap = map__kmap(machine->vmlinux_maps[type]);
-		map_groups__remove(&machine->kmaps,
-				   machine->vmlinux_maps[type]);
+		kmap = map__kmap(map);
+		map_groups__remove(&machine->kmaps, map);
 		if (kmap && kmap->ref_reloc_sym) {
 			/*
 			 * ref_reloc_sym is shared among all maps, so free just
@@ -785,6 +829,7 @@ void machine__destroy_kernel_maps(struct machine *machine)
 				kmap->ref_reloc_sym = NULL;
 		}
 
+		map__put(machine->vmlinux_maps[type]);
 		machine->vmlinux_maps[type] = NULL;
 	}
 }
@@ -866,7 +911,7 @@ int machines__create_kernel_maps(struct machines *machines, pid_t pid)
 int machine__load_kallsyms(struct machine *machine, const char *filename,
 			   enum map_type type, symbol_filter_t filter)
 {
-	struct map *map = machine->vmlinux_maps[type];
+	struct map *map = machine__kernel_map(machine);
 	int ret = dso__load_kallsyms(map->dso, filename, map, filter);
 
 	if (ret > 0) {
@@ -885,7 +930,7 @@ int machine__load_kallsyms(struct machine *machine, const char *filename,
 int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
 			       symbol_filter_t filter)
 {
-	struct map *map = machine->vmlinux_maps[type];
+	struct map *map = machine__kernel_map(machine);
 	int ret = dso__load_vmlinux_path(map->dso, map, filter);
 
 	if (ret > 0)
@@ -1081,11 +1126,14 @@ int machine__create_kernel_maps(struct machine *machine)
 	struct dso *kernel = machine__get_kernel(machine);
 	const char *name;
 	u64 addr = machine__get_running_kernel_start(machine, &name);
-	if (!addr)
+	int ret;
+
+	if (!addr || kernel == NULL)
 		return -1;
 
-	if (kernel == NULL ||
-	    __machine__create_kernel_maps(machine, kernel) < 0)
+	ret = __machine__create_kernel_maps(machine, kernel);
+	dso__put(kernel);
+	if (ret < 0)
 		return -1;
 
 	if (symbol_conf.use_modules && machine__create_modules(machine) < 0) {
@@ -1243,8 +1291,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			/*
 			 * preload dso of guest kernel and modules
 			 */
-			dso__load(kernel, machine->vmlinux_maps[MAP__FUNCTION],
-				  NULL);
+			dso__load(kernel, machine__kernel_map(machine), NULL);
 		}
 	}
 	return 0;
@@ -1254,9 +1301,8 @@ out_problem:
 
 int machine__process_mmap2_event(struct machine *machine,
 				 union perf_event *event,
-				 struct perf_sample *sample __maybe_unused)
+				 struct perf_sample *sample)
 {
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread;
 	struct map *map;
 	enum map_type type;
@@ -1265,8 +1311,8 @@ int machine__process_mmap2_event(struct machine *machine,
 	if (dump_trace)
 		perf_event__fprintf_mmap2(event, stdout);
 
-	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
-	    cpumode == PERF_RECORD_MISC_KERNEL) {
+	if (sample->cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
+	    sample->cpumode == PERF_RECORD_MISC_KERNEL) {
 		ret = machine__process_kernel_mmap_event(machine, event);
 		if (ret < 0)
 			goto out_problem;
@@ -1308,9 +1354,8 @@ out_problem:
 }
 
 int machine__process_mmap_event(struct machine *machine, union perf_event *event,
-				struct perf_sample *sample __maybe_unused)
+				struct perf_sample *sample)
 {
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread;
 	struct map *map;
 	enum map_type type;
@@ -1319,8 +1364,8 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 	if (dump_trace)
 		perf_event__fprintf_mmap(event, stdout);
 
-	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
-	    cpumode == PERF_RECORD_MISC_KERNEL) {
+	if (sample->cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
+	    sample->cpumode == PERF_RECORD_MISC_KERNEL) {
 		ret = machine__process_kernel_mmap_event(machine, event);
 		if (ret < 0)
 			goto out_problem;
@@ -1607,6 +1652,8 @@ static int add_callchain_ip(struct thread *thread,
 		}
 	}
 
+	if (symbol_conf.hide_unresolved && al.sym == NULL)
+		return 0;
 	return callchain_cursor_append(&callchain_cursor, al.addr, al.map, al.sym);
 }
 
@@ -1830,7 +1877,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	}
 
 check_calls:
-	if (chain->nr > PERF_MAX_STACK_DEPTH) {
+	if (chain->nr > PERF_MAX_STACK_DEPTH && (int)chain->nr > max_stack) {
 		pr_warning("corrupted callchain. skipping...\n");
 		return 0;
 	}
@@ -1861,6 +1908,9 @@ check_calls:
 static int unwind_entry(struct unwind_entry *entry, void *arg)
 {
 	struct callchain_cursor *cursor = arg;
+
+	if (symbol_conf.hide_unresolved && entry->sym == NULL)
+		return 0;
 	return callchain_cursor_append(cursor, entry->ip,
 				       entry->map, entry->sym);
 }
@@ -1996,7 +2046,7 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 
 int machine__get_kernel_start(struct machine *machine)
 {
-	struct map *map = machine__kernel_map(machine, MAP__FUNCTION);
+	struct map *map = machine__kernel_map(machine);
 	int err = 0;
 
 	/*

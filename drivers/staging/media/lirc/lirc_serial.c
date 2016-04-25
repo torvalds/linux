@@ -59,7 +59,7 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/serial_reg.h>
-#include <linux/time.h>
+#include <linux/ktime.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -109,16 +109,8 @@ static bool iommap;
 static int ioshift;
 static bool softcarrier = true;
 static bool share_irq;
-static bool debug;
 static int sense = -1;	/* -1 = auto, 0 = active high, 1 = active low */
 static bool txsense;	/* 0 = active high, 1 = active low */
-
-#define dprintk(fmt, args...)					\
-	do {							\
-		if (debug)					\
-			printk(KERN_DEBUG LIRC_DRIVER_NAME ": "	\
-			       fmt, ## args);			\
-	} while (0)
 
 /* forward declarations */
 static long send_pulse_irdeo(unsigned long length);
@@ -212,7 +204,7 @@ static struct lirc_serial hardware[] = {
 
 #define RBUF_LEN 256
 
-static struct timeval lasttv = {0, 0};
+static ktime_t lastkt;
 
 static struct lirc_buffer rbuf;
 
@@ -352,10 +344,9 @@ static int init_timing_params(unsigned int new_duty_cycle,
 	/* Derive pulse and space from the period */
 	pulse_width = period * duty_cycle / 100;
 	space_width = period - pulse_width;
-	dprintk("in init_timing_params, freq=%d, duty_cycle=%d, "
-		"clk/jiffy=%ld, pulse=%ld, space=%ld\n",
-		freq, duty_cycle, __this_cpu_read(cpu_info.loops_per_jiffy),
-		pulse_width, space_width);
+	pr_debug("in init_timing_params, freq=%d, duty_cycle=%d, clk/jiffy=%ld, pulse=%ld, space=%ld, conv_us_to_clocks=%ld\n",
+		 freq, duty_cycle, __this_cpu_read(cpu_info.loops_per_jiffy),
+		 pulse_width, space_width, conv_us_to_clocks);
 	return 0;
 }
 #else /* ! USE_RDTSC */
@@ -377,8 +368,8 @@ static int init_timing_params(unsigned int new_duty_cycle,
 	period = 256 * 1000000L / freq;
 	pulse_width = period * duty_cycle / 100;
 	space_width = period - pulse_width;
-	dprintk("in init_timing_params, freq=%d pulse=%ld, space=%ld\n",
-		freq, pulse_width, space_width);
+	pr_debug("in init_timing_params, freq=%d pulse=%ld, space=%ld\n",
+		 freq, pulse_width, space_width);
 	return 0;
 }
 #endif /* USE_RDTSC */
@@ -500,7 +491,7 @@ static void rbwrite(int l)
 {
 	if (lirc_buffer_full(&rbuf)) {
 		/* no new signals will be accepted */
-		dprintk("Buffer overrun\n");
+		pr_debug("Buffer overrun\n");
 		return;
 	}
 	lirc_buffer_write(&rbuf, (void *)&l);
@@ -551,10 +542,10 @@ static void frbwrite(int l)
 
 static irqreturn_t lirc_irq_handler(int i, void *blah)
 {
-	struct timeval tv;
+	ktime_t kt;
 	int counter, dcd;
 	u8 status;
-	long deltv;
+	ktime_t delkt;
 	int data;
 	static int last_dcd = -1;
 
@@ -574,7 +565,7 @@ static irqreturn_t lirc_irq_handler(int i, void *blah)
 		if ((status & hardware[type].signal_pin_change)
 		    && sense != -1) {
 			/* get current time */
-			do_gettimeofday(&tv);
+			kt = ktime_get();
 
 			/* New mode, written by Trent Piepho
 			   <xyzzy@u.washington.edu>. */
@@ -603,34 +594,20 @@ static irqreturn_t lirc_irq_handler(int i, void *blah)
 			dcd = (status & hardware[type].signal_pin) ? 1 : 0;
 
 			if (dcd == last_dcd) {
-				pr_warn("ignoring spike: %d %d %lx %lx %lx %lx\n",
-					dcd, sense,
-					tv.tv_sec, lasttv.tv_sec,
-					(unsigned long)tv.tv_usec,
-					(unsigned long)lasttv.tv_usec);
+				pr_warn("ignoring spike: %d %d %llx %llx\n",
+					dcd, sense, ktime_to_us(kt),
+					ktime_to_us(lastkt));
 				continue;
 			}
 
-			deltv = tv.tv_sec-lasttv.tv_sec;
-			if (tv.tv_sec < lasttv.tv_sec ||
-			    (tv.tv_sec == lasttv.tv_sec &&
-			     tv.tv_usec < lasttv.tv_usec)) {
-				pr_warn("AIEEEE: your clock just jumped backwards\n");
-				pr_warn("%d %d %lx %lx %lx %lx\n",
-					dcd, sense,
-					tv.tv_sec, lasttv.tv_sec,
-					(unsigned long)tv.tv_usec,
-					(unsigned long)lasttv.tv_usec);
-				data = PULSE_MASK;
-			} else if (deltv > 15) {
+			delkt = ktime_sub(kt, lastkt);
+			if (ktime_compare(delkt, ktime_set(15, 0)) > 0) {
 				data = PULSE_MASK; /* really long time */
 				if (!(dcd^sense)) {
 					/* sanity check */
-					pr_warn("AIEEEE: %d %d %lx %lx %lx %lx\n",
-						dcd, sense,
-						tv.tv_sec, lasttv.tv_sec,
-						(unsigned long)tv.tv_usec,
-						(unsigned long)lasttv.tv_usec);
+					pr_warn("AIEEEE: %d %d %llx %llx\n",
+						dcd, sense, ktime_to_us(kt),
+						ktime_to_us(lastkt));
 					/*
 					 * detecting pulse while this
 					 * MUST be a space!
@@ -638,11 +615,9 @@ static irqreturn_t lirc_irq_handler(int i, void *blah)
 					sense = sense ? 0 : 1;
 				}
 			} else
-				data = (int) (deltv*1000000 +
-					       tv.tv_usec -
-					       lasttv.tv_usec);
+				data = (int) ktime_to_us(delkt);
 			frbwrite(dcd^sense ? data : (data|PULSE_BIT));
-			lasttv = tv;
+			lastkt = kt;
 			last_dcd = dcd;
 			wake_up_interruptible(&rbuf.wait_poll);
 		}
@@ -790,7 +765,7 @@ static int lirc_serial_probe(struct platform_device *dev)
 		dev_info(&dev->dev, "Manually using active %s receiver\n",
 			 sense ? "low" : "high");
 
-	dprintk("Interrupt %d, port %04x obtained\n", irq, io);
+	dev_dbg(&dev->dev, "Interrupt %d, port %04x obtained\n", irq, io);
 	return 0;
 }
 
@@ -799,7 +774,7 @@ static int set_use_inc(void *data)
 	unsigned long flags;
 
 	/* initialize timestamp */
-	do_gettimeofday(&lasttv);
+	lastkt = ktime_get();
 
 	spin_lock_irqsave(&hardware[type].lock, flags);
 
@@ -895,7 +870,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		return -ENOIOCTLCMD;
 
 	case LIRC_SET_SEND_DUTY_CYCLE:
-		dprintk("SET_SEND_DUTY_CYCLE\n");
+		pr_debug("SET_SEND_DUTY_CYCLE\n");
 		if (!(hardware[type].features&LIRC_CAN_SET_SEND_DUTY_CYCLE))
 			return -ENOIOCTLCMD;
 
@@ -907,7 +882,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		return init_timing_params(value, freq);
 
 	case LIRC_SET_SEND_CARRIER:
-		dprintk("SET_SEND_CARRIER\n");
+		pr_debug("SET_SEND_CARRIER\n");
 		if (!(hardware[type].features&LIRC_CAN_SET_SEND_CARRIER))
 			return -ENOIOCTLCMD;
 
@@ -988,7 +963,7 @@ static int lirc_serial_resume(struct platform_device *dev)
 
 	spin_lock_irqsave(&hardware[type].lock, flags);
 	/* Enable Interrupt */
-	do_gettimeofday(&lasttv);
+	lastkt = ktime_get();
 	soutp(UART_IER, sinp(UART_IER)|UART_IER_MSI);
 	off();
 
@@ -1102,7 +1077,7 @@ static void __exit lirc_serial_exit_module(void)
 {
 	lirc_unregister_driver(driver.minor);
 	lirc_serial_exit();
-	dprintk("cleaned up module\n");
+	pr_debug("cleaned up module\n");
 }
 
 
@@ -1153,6 +1128,3 @@ MODULE_PARM_DESC(txsense, "Sense of transmitter circuit"
 
 module_param(softcarrier, bool, S_IRUGO);
 MODULE_PARM_DESC(softcarrier, "Software carrier (0 = off, 1 = on, default on)");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debugging messages");

@@ -30,7 +30,7 @@
 #include <linux/kernel.h>
 #include <crypto/internal/hash.h>
 
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/cpu_device_id.h>
 #include <asm/fpu/internal.h>
 
@@ -257,7 +257,7 @@ static int __init crc32c_intel_mod_init(void)
 	if (!x86_match_cpu(crc32c_cpu_id))
 		return -ENODEV;
 #ifdef CONFIG_X86_64
-	if (cpu_has_pclmulqdq) {
+	if (boot_cpu_has(X86_FEATURE_PCLMULQDQ)) {
 		alg.update = crc32c_pcl_intel_update;
 		alg.finup = crc32c_pcl_intel_finup;
 		alg.digest = crc32c_pcl_intel_digest;

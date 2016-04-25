@@ -59,13 +59,6 @@
 
 #include <linux/jiffies.h>
 
-
-static inline void cfs_fs_time_usec(struct timespec *t, struct timeval *v)
-{
-	v->tv_sec  = t->tv_sec;
-	v->tv_usec = t->tv_nsec / 1000;
-}
-
 /*
  * Generic kernel stuff
  */
@@ -75,39 +68,14 @@ static inline unsigned long cfs_time_current(void)
 	return jiffies;
 }
 
-static inline void cfs_fs_time_current(struct timespec *t)
-{
-	*t = CURRENT_TIME;
-}
-
-static inline time_t cfs_fs_time_sec(struct timespec *t)
-{
-	return t->tv_sec;
-}
-
 static inline long cfs_time_seconds(int seconds)
 {
 	return ((long)seconds) * HZ;
 }
 
-static inline time_t cfs_duration_sec(long d)
+static inline long cfs_duration_sec(long d)
 {
 	return d / HZ;
-}
-
-static inline void cfs_duration_usec(long d, struct timeval *s)
-{
-#if (BITS_PER_LONG == 32) && (HZ > 4096)
-	__u64 t;
-
-	s->tv_sec = d / HZ;
-	t = (d - (long)s->tv_sec * HZ) * ONE_MILLION;
-	do_div(t, HZ);
-	s->tv_usec = t;
-#else
-	s->tv_sec = d / HZ;
-	s->tv_usec = ((d - (long)s->tv_sec * HZ) * ONE_MILLION) / HZ;
-#endif
 }
 
 #define cfs_time_current_64 get_jiffies_64
@@ -138,7 +106,6 @@ static inline int cfs_time_beforeq_64(__u64 t1, __u64 t2)
  */
 #define CFS_TICK		(1)
 
-#define CFS_TIME_T	      "%lu"
 #define CFS_DURATION_T	  "%ld"
 
 #endif /* __LIBCFS_LINUX_LINUX_TIME_H__ */

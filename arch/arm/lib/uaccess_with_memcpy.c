@@ -52,14 +52,13 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
 	 *
 	 * Lock the page table for the destination and check
 	 * to see that it's still huge and whether or not we will
-	 * need to fault on write, or if we have a splitting THP.
+	 * need to fault on write.
 	 */
 	if (unlikely(pmd_thp_or_huge(*pmd))) {
 		ptl = &current->mm->page_table_lock;
 		spin_lock(ptl);
 		if (unlikely(!pmd_thp_or_huge(*pmd)
-			|| pmd_hugewillfault(*pmd)
-			|| pmd_trans_splitting(*pmd))) {
+			|| pmd_hugewillfault(*pmd))) {
 			spin_unlock(ptl);
 			return 0;
 		}
@@ -88,6 +87,7 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
 static unsigned long noinline
 __copy_to_user_memcpy(void __user *to, const void *from, unsigned long n)
 {
+	unsigned long ua_flags;
 	int atomic;
 
 	if (unlikely(segment_eq(get_fs(), KERNEL_DS))) {
@@ -118,7 +118,9 @@ __copy_to_user_memcpy(void __user *to, const void *from, unsigned long n)
 		if (tocopy > n)
 			tocopy = n;
 
+		ua_flags = uaccess_save_and_enable();
 		memcpy((void *)to, from, tocopy);
+		uaccess_restore(ua_flags);
 		to += tocopy;
 		from += tocopy;
 		n -= tocopy;
@@ -145,14 +147,21 @@ arm_copy_to_user(void __user *to, const void *from, unsigned long n)
 	 * With frame pointer disabled, tail call optimization kicks in
 	 * as well making this test almost invisible.
 	 */
-	if (n < 64)
-		return __copy_to_user_std(to, from, n);
-	return __copy_to_user_memcpy(to, from, n);
+	if (n < 64) {
+		unsigned long ua_flags = uaccess_save_and_enable();
+		n = __copy_to_user_std(to, from, n);
+		uaccess_restore(ua_flags);
+	} else {
+		n = __copy_to_user_memcpy(to, from, n);
+	}
+	return n;
 }
 	
 static unsigned long noinline
 __clear_user_memset(void __user *addr, unsigned long n)
 {
+	unsigned long ua_flags;
+
 	if (unlikely(segment_eq(get_fs(), KERNEL_DS))) {
 		memset((void *)addr, 0, n);
 		return 0;
@@ -175,7 +184,9 @@ __clear_user_memset(void __user *addr, unsigned long n)
 		if (tocopy > n)
 			tocopy = n;
 
+		ua_flags = uaccess_save_and_enable();
 		memset((void *)addr, 0, tocopy);
+		uaccess_restore(ua_flags);
 		addr += tocopy;
 		n -= tocopy;
 
@@ -193,9 +204,14 @@ out:
 unsigned long arm_clear_user(void __user *addr, unsigned long n)
 {
 	/* See rational for this in __copy_to_user() above. */
-	if (n < 64)
-		return __clear_user_std(addr, n);
-	return __clear_user_memset(addr, n);
+	if (n < 64) {
+		unsigned long ua_flags = uaccess_save_and_enable();
+		n = __clear_user_std(addr, n);
+		uaccess_restore(ua_flags);
+	} else {
+		n = __clear_user_memset(addr, n);
+	}
+	return n;
 }
 
 #if 0

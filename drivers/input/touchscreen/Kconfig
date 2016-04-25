@@ -295,6 +295,29 @@ config TOUCHSCREEN_EGALAX
 	  To compile this driver as a module, choose M here: the
 	  module will be called egalax_ts.
 
+config TOUCHSCREEN_EGALAX_SERIAL
+	tristate "EETI eGalax serial touchscreen"
+	select SERIO
+	help
+	  Say Y here to enable support for serial connected EETI
+	  eGalax touch panels.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called egalax_ts_serial.
+
+config TOUCHSCREEN_FT6236
+	tristate "FT6236 I2C touchscreen"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here to enable support for the I2C connected FT6x06 and
+	  FT6x36 family of capacitive touchscreen drivers.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ft6236.
+
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
 	select SERIO
@@ -311,6 +334,7 @@ config TOUCHSCREEN_FUJITSU
 config TOUCHSCREEN_GOODIX
 	tristate "Goodix I2C touchscreen"
 	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here if you have the Goodix touchscreen (such as one
 	  installed in Onda v975w tablets) connected to your
@@ -352,7 +376,7 @@ config TOUCHSCREEN_IPROC
 config TOUCHSCREEN_S3C2410
 	tristate "Samsung S3C2410/generic touchscreen input driver"
 	depends on ARCH_S3C24XX || SAMSUNG_DEV_TS
-	select S3C_ADC
+	depends on S3C_ADC
 	help
 	  Say Y here if you have the s3c2410 touchscreen.
 
@@ -466,6 +490,17 @@ config TOUCHSCREEN_MMS114
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mms114.
+
+config TOUCHSCREEN_MELFAS_MIP4
+	tristate "MELFAS MIP4 Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have a MELFAS MIP4 Touchscreen device.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called melfas_mip4.
 
 config TOUCHSCREEN_MTOUCH
 	tristate "MicroTouch serial touchscreens"
@@ -798,6 +833,15 @@ config TOUCHSCREEN_USB_COMPOSITE
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbtouchscreen.
 
+config TOUCHSCREEN_MX25
+	tristate "Freescale i.MX25 touchscreen input driver"
+	depends on MFD_MX25_TSADC
+	help
+	  Enable support for touchscreen connected to your i.MX25.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fsl-imx25-tcq.
+
 config TOUCHSCREEN_MC13783
 	tristate "Freescale MC13783 touchscreen input driver"
 	depends on MFD_MC13XXX
@@ -914,6 +958,23 @@ config TOUCHSCREEN_TOUCHIT213
 	  To compile this driver as a module, choose M here: the
 	  module will be called touchit213.
 
+config TOUCHSCREEN_TS4800
+	tristate "TS-4800 touchscreen"
+	depends on HAS_IOMEM && OF
+	depends on SOC_IMX51 || COMPILE_TEST
+	select MFD_SYSCON
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you have a touchscreen on a TS-4800 board.
+
+	  On TS-4800, the touchscreen is not handled directly by Linux but by
+	  a companion FPGA.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ts4800_ts.
+
 config TOUCHSCREEN_TSC_SERIO
 	tristate "TSC-10/25/40 serial touchscreen support"
 	select SERIO
@@ -926,10 +987,27 @@ config TOUCHSCREEN_TSC_SERIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called tsc40.
 
+config TOUCHSCREEN_TSC200X_CORE
+	tristate
+
+config TOUCHSCREEN_TSC2004
+	tristate "TSC2004 based touchscreens"
+	depends on I2C
+	select REGMAP_I2C
+	select TOUCHSCREEN_TSC200X_CORE
+	help
+	  Say Y here if you have a TSC2004 based touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tsc2004.
+
 config TOUCHSCREEN_TSC2005
 	tristate "TSC2005 based touchscreens"
 	depends on SPI_MASTER
 	select REGMAP_SPI
+	select TOUCHSCREEN_TSC200X_CORE
 	help
 	  Say Y here if you have a TSC2005 based touchscreen.
 
@@ -1055,7 +1133,8 @@ config TOUCHSCREEN_ZFORCE
 
 config TOUCHSCREEN_COLIBRI_VF50
 	tristate "Toradex Colibri on board touchscreen driver"
-	depends on GPIOLIB && IIO && VF610_ADC
+	depends on IIO && VF610_ADC
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here if you have a Colibri VF50 and plan to use
 	  the on-board provided 4-wire touchscreen driver.
@@ -1064,5 +1143,16 @@ config TOUCHSCREEN_COLIBRI_VF50
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called colibri_vf50_ts.
+
+config TOUCHSCREEN_ROHM_BU21023
+	tristate "ROHM BU21023/24 Dual touch support resistive touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a touchscreen using ROHM BU21023/24.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bu21023_ts.
 
 endif

@@ -418,7 +418,7 @@ static int pn_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 		spin_lock(&port->lock);
 
-		if (fp->in_ep->driver_data)
+		if (fp->in_ep->enabled)
 			__pn_reset(f);
 
 		if (alt == 1) {
@@ -530,20 +530,18 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto err;
 	fp->out_ep = ep;
-	ep->driver_data = fp; /* Claim */
 
 	ep = usb_ep_autoconfig(gadget, &pn_fs_source_desc);
 	if (!ep)
 		goto err;
 	fp->in_ep = ep;
-	ep->driver_data = fp; /* Claim */
 
 	pn_hs_sink_desc.bEndpointAddress = pn_fs_sink_desc.bEndpointAddress;
 	pn_hs_source_desc.bEndpointAddress = pn_fs_source_desc.bEndpointAddress;
 
 	/* Do not try to bind Phonet twice... */
 	status = usb_assign_descriptors(f, fs_pn_function, hs_pn_function,
-			NULL);
+			NULL, NULL);
 	if (status)
 		goto err;
 
@@ -575,10 +573,6 @@ err_req:
 		usb_ep_free_request(fp->out_ep, fp->out_reqv[i]);
 	usb_free_all_descriptors(f);
 err:
-	if (fp->out_ep)
-		fp->out_ep->driver_data = NULL;
-	if (fp->in_ep)
-		fp->in_ep->driver_data = NULL;
 	ERROR(cdev, "USB CDC Phonet: cannot autoconfigure\n");
 	return status;
 }
@@ -587,21 +581,6 @@ static inline struct f_phonet_opts *to_f_phonet_opts(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct f_phonet_opts,
 			func_inst.group);
-}
-
-CONFIGFS_ATTR_STRUCT(f_phonet_opts);
-static ssize_t f_phonet_attr_show(struct config_item *item,
-				struct configfs_attribute *attr,
-				char *page)
-{
-	struct f_phonet_opts *opts = to_f_phonet_opts(item);
-	struct f_phonet_opts_attribute *f_phonet_opts_attr =
-		container_of(attr, struct f_phonet_opts_attribute, attr);
-	ssize_t ret = 0;
-
-	if (f_phonet_opts_attr->show)
-		ret = f_phonet_opts_attr->show(opts, page);
-	return ret;
 }
 
 static void phonet_attr_release(struct config_item *item)
@@ -613,19 +592,17 @@ static void phonet_attr_release(struct config_item *item)
 
 static struct configfs_item_operations phonet_item_ops = {
 	.release		= phonet_attr_release,
-	.show_attribute		= f_phonet_attr_show,
 };
 
-static ssize_t f_phonet_ifname_show(struct f_phonet_opts *opts, char *page)
+static ssize_t f_phonet_ifname_show(struct config_item *item, char *page)
 {
-	return gether_get_ifname(opts->net, page, PAGE_SIZE);
+	return gether_get_ifname(to_f_phonet_opts(item)->net, page, PAGE_SIZE);
 }
 
-static struct f_phonet_opts_attribute f_phonet_ifname =
-	__CONFIGFS_ATTR_RO(ifname, f_phonet_ifname_show);
+CONFIGFS_ATTR_RO(f_phonet_, ifname);
 
 static struct configfs_attribute *phonet_attrs[] = {
-	&f_phonet_ifname.attr,
+	&f_phonet_attr_ifname,
 	NULL,
 };
 

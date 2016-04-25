@@ -224,10 +224,10 @@ ncp_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	iocb->ki_pos = pos;
 
 	if (pos > i_size_read(inode)) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		if (pos > i_size_read(inode))
 			i_size_write(inode, pos);
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	}
 	ncp_dbg(1, "exit %pD2\n", file);
 outrel:

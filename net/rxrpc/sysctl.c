@@ -15,11 +15,11 @@
 #include "ar-internal.h"
 
 static struct ctl_table_header *rxrpc_sysctl_reg_table;
-static const unsigned zero = 0;
-static const unsigned one = 1;
-static const unsigned four = 4;
-static const unsigned n_65535 = 65535;
-static const unsigned n_max_acks = RXRPC_MAXACKS;
+static const unsigned int zero = 0;
+static const unsigned int one = 1;
+static const unsigned int four = 4;
+static const unsigned int n_65535 = 65535;
+static const unsigned int n_max_acks = RXRPC_MAXACKS;
 
 /*
  * RxRPC operating parameters.
@@ -32,7 +32,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "req_ack_delay",
 		.data		= &rxrpc_requested_ack_delay,
-		.maxlen		= sizeof(unsigned),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_ms_jiffies,
 		.extra1		= (void *)&zero,
@@ -40,7 +40,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "soft_ack_delay",
 		.data		= &rxrpc_soft_ack_delay,
-		.maxlen		= sizeof(unsigned),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_ms_jiffies,
 		.extra1		= (void *)&one,
@@ -48,7 +48,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "idle_ack_delay",
 		.data		= &rxrpc_idle_ack_delay,
-		.maxlen		= sizeof(unsigned),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_ms_jiffies,
 		.extra1		= (void *)&one,
@@ -56,7 +56,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "resend_timeout",
 		.data		= &rxrpc_resend_timeout,
-		.maxlen		= sizeof(unsigned),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_ms_jiffies,
 		.extra1		= (void *)&one,
@@ -66,7 +66,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "max_call_lifetime",
 		.data		= &rxrpc_max_call_lifetime,
-		.maxlen		= sizeof(unsigned),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 		.extra1		= (void *)&one,
@@ -74,7 +74,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "dead_call_expiry",
 		.data		= &rxrpc_dead_call_expiry,
-		.maxlen		= sizeof(unsigned),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 		.extra1		= (void *)&one,
@@ -84,7 +84,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "connection_expiry",
 		.data		= &rxrpc_connection_expiry,
-		.maxlen		= sizeof(unsigned),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= (void *)&one,
@@ -92,7 +92,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "transport_expiry",
 		.data		= &rxrpc_transport_expiry,
-		.maxlen		= sizeof(unsigned),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= (void *)&one,
@@ -102,7 +102,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "rx_window_size",
 		.data		= &rxrpc_rx_window_size,
-		.maxlen		= sizeof(unsigned),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= (void *)&one,
@@ -111,16 +111,16 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "rx_mtu",
 		.data		= &rxrpc_rx_mtu,
-		.maxlen		= sizeof(unsigned),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= (void *)&one,
-		.extra1		= (void *)&n_65535,
+		.extra2		= (void *)&n_65535,
 	},
 	{
 		.procname	= "rx_jumbo_max",
 		.data		= &rxrpc_rx_jumbo_max,
-		.maxlen		= sizeof(unsigned),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= (void *)&one,

@@ -13,12 +13,11 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <asm/tm.h>
-#include <asm/cputable.h>
-#include <linux/auxvec.h>
 #include <sys/time.h>
 #include <stdlib.h>
 
 #include "utils.h"
+#include "tm.h"
 
 extern int getppid_tm_active(void);
 extern int getppid_tm_suspended(void);
@@ -82,8 +81,8 @@ int tm_syscall(void)
 	unsigned count = 0;
 	struct timeval end, now;
 
-	SKIP_IF(!((long)get_auxv_entry(AT_HWCAP2)
-		  & PPC_FEATURE2_HTM_NOSC));
+	SKIP_IF(!have_htm_nosc());
+
 	setbuf(stdout, NULL);
 
 	printf("Testing transactional syscalls for %d seconds...\n", TEST_DURATION);

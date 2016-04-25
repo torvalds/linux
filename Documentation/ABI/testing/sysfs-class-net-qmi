@@ -1,0 +1,23 @@
+What:		/sys/class/net/<iface>/qmi/raw_ip
+Date:		Dec 2015
+KernelVersion:	4.4
+Contact:	Bjørn Mork <bjorn@mork.no>
+Description:
+		Boolean.  Default: 'N'
+
+		Set this to 'Y' to change the network device link
+		framing from '802.3' to 'raw-ip'.
+
+		The netdev will change to reflect the link framing
+		mode.  The netdev is an ordinary ethernet device in
+		'802.3' mode, and the driver expects to exchange
+		frames with an ethernet header over the USB link. The
+		netdev is a headerless p-t-p device in 'raw-ip' mode,
+		and the driver expects to echange IPv4 or IPv6 packets
+		without any L2 header over the USB link.
+
+		Userspace is in full control of firmware configuration
+		through the delegation of the QMI protocol. Userspace
+		is responsible for coordination of driver and firmware
+		link framing mode, changing this setting to 'Y' if the
+		firmware is configured for 'raw-ip' mode.

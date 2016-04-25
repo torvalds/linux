@@ -1,7 +1,4 @@
-/* -*- linux-c -*- ------------------------------------------------------- *
- *   
- * linux/include/linux/auto_fs.h
- *
+/*
  *   Copyright 1997 Transmeta Corporation - All Rights Reserved
  *
  * This file is part of the Linux kernel and is made available under
@@ -51,7 +48,7 @@ struct autofs_packet_hdr {
 
 struct autofs_packet_missing {
 	struct autofs_packet_hdr hdr;
-        autofs_wqt_t wait_queue_token;
+	autofs_wqt_t wait_queue_token;
 	int len;
 	char name[NAME_MAX+1];
 };	
@@ -63,12 +60,12 @@ struct autofs_packet_expire {
 	char name[NAME_MAX+1];
 };
 
-#define AUTOFS_IOC_READY      _IO(0x93,0x60)
-#define AUTOFS_IOC_FAIL       _IO(0x93,0x61)
-#define AUTOFS_IOC_CATATONIC  _IO(0x93,0x62)
-#define AUTOFS_IOC_PROTOVER   _IOR(0x93,0x63,int)
-#define AUTOFS_IOC_SETTIMEOUT32 _IOWR(0x93,0x64,compat_ulong_t)
-#define AUTOFS_IOC_SETTIMEOUT _IOWR(0x93,0x64,unsigned long)
-#define AUTOFS_IOC_EXPIRE     _IOR(0x93,0x65,struct autofs_packet_expire)
+#define AUTOFS_IOC_READY      _IO(0x93, 0x60)
+#define AUTOFS_IOC_FAIL       _IO(0x93, 0x61)
+#define AUTOFS_IOC_CATATONIC  _IO(0x93, 0x62)
+#define AUTOFS_IOC_PROTOVER   _IOR(0x93, 0x63, int)
+#define AUTOFS_IOC_SETTIMEOUT32 _IOWR(0x93, 0x64, compat_ulong_t)
+#define AUTOFS_IOC_SETTIMEOUT _IOWR(0x93, 0x64, unsigned long)
+#define AUTOFS_IOC_EXPIRE     _IOR(0x93, 0x65, struct autofs_packet_expire)
 
 #endif /* _UAPI_LINUX_AUTO_FS_H */

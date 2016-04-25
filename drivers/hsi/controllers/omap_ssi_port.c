@@ -1111,7 +1111,7 @@ static int __init ssi_port_probe(struct platform_device *pd)
 	struct omap_ssi_port *omap_port;
 	struct hsi_controller *ssi = dev_get_drvdata(pd->dev.parent);
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
-	u32 cawake_gpio = 0;
+	int cawake_gpio = 0;
 	u32 port_id;
 	int err;
 
@@ -1147,13 +1147,13 @@ static int __init ssi_port_probe(struct platform_device *pd)
 		goto error;
 	}
 
-	cawake_gpio = of_get_named_gpio(np, "ti,ssi-cawake-gpio", 0);
-	if (cawake_gpio < 0) {
+	err = of_get_named_gpio(np, "ti,ssi-cawake-gpio", 0);
+	if (err < 0) {
 		dev_err(&pd->dev, "DT data is missing cawake gpio (err=%d)\n",
-			cawake_gpio);
-		err = -ENODEV;
+			err);
 		goto error;
 	}
+	cawake_gpio = err;
 
 	err = devm_gpio_request_one(&port->device, cawake_gpio, GPIOF_DIR_IN,
 		"cawake");

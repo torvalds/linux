@@ -308,7 +308,7 @@ static int ade7758_reset(struct device *dev)
 		dev_err(dev, "Failed to read opmode reg\n");
 		return ret;
 	}
-	val |= 1 << 6; /* Software Chip Reset */
+	val |= BIT(6); /* Software Chip Reset */
 	ret = ade7758_spi_write_reg_8(dev, ADE7758_OPMODE, val);
 	if (ret < 0)
 		dev_err(dev, "Failed to write opmode reg\n");
@@ -423,19 +423,16 @@ int ade7758_set_irq(struct device *dev, bool enable)
 
 	ret = ade7758_spi_read_reg_24(dev, ADE7758_MASK, &irqen);
 	if (ret)
-		goto error_ret;
+		return ret;
 
 	if (enable)
-		irqen |= 1 << 16; /* Enables an interrupt when a data is
+		irqen |= BIT(16); /* Enables an interrupt when a data is
 				     present in the waveform register */
 	else
-		irqen &= ~(1 << 16);
+		irqen &= ~BIT(16);
 
 	ret = ade7758_spi_write_reg_24(dev, ADE7758_MASK, irqen);
-	if (ret)
-		goto error_ret;
 
-error_ret:
 	return ret;
 }
 
@@ -904,7 +901,6 @@ MODULE_DEVICE_TABLE(spi, ade7758_id);
 static struct spi_driver ade7758_driver = {
 	.driver = {
 		.name = "ade7758",
-		.owner = THIS_MODULE,
 	},
 	.probe = ade7758_probe,
 	.remove = ade7758_remove,

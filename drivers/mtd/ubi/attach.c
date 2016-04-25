@@ -1209,9 +1209,7 @@ static void destroy_ai(struct ubi_attach_info *ai)
 		}
 	}
 
-	if (ai->aeb_slab_cache)
-		kmem_cache_destroy(ai->aeb_slab_cache);
-
+	kmem_cache_destroy(ai->aeb_slab_cache);
 	kfree(ai);
 }
 

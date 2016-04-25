@@ -35,7 +35,7 @@
 		regulator-name = "hsusb2_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio6 8 0>;				/* gpio_168: vbus enable */
+		gpio = <&gpio6 8 GPIO_ACTIVE_HIGH>;		/* gpio_168: vbus enable */
 		startup-delay-us = <70000>;
 		enable-active-high;
 	};
@@ -226,8 +226,12 @@
 	ranges = <0 0 0x00000000 0x20000000>;
 
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
 		linux,mtd-name= "micron,mt29c4g96maz";
-		reg = <0 0 0>;
+		reg = <0 0 4>;	/* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		nand-bus-width = <16>;
 		gpmc,device-width = <2>;
 		ti,nand-ecc-opt = "bch8";

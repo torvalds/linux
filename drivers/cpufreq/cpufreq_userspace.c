@@ -89,10 +89,7 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 	return rc;
 }
 
-#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE
-static
-#endif
-struct cpufreq_governor cpufreq_gov_userspace = {
+static struct cpufreq_governor cpufreq_gov_userspace = {
 	.name		= "userspace",
 	.governor	= cpufreq_governor_userspace,
 	.store_setspeed	= cpufreq_set,
@@ -116,6 +113,11 @@ MODULE_DESCRIPTION("CPUfreq policy governor 'userspace'");
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE
+struct cpufreq_governor *cpufreq_default_governor(void)
+{
+	return &cpufreq_gov_userspace;
+}
+
 fs_initcall(cpufreq_gov_userspace_init);
 #else
 module_init(cpufreq_gov_userspace_init);

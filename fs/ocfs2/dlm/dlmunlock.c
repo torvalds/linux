@@ -421,7 +421,7 @@ int dlm_unlock_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	if (!dlm_grab(dlm))
-		return DLM_REJECTED;
+		return DLM_FORWARD;
 
 	mlog_bug_on_msg(!dlm_domain_fully_joined(dlm),
 			"Domain %s not fully joined!\n", dlm->name);

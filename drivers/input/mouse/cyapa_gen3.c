@@ -269,6 +269,7 @@ static const struct cyapa_cmd_len cyapa_smbus_cmds[] = {
 	{ CYAPA_SMBUS_MIN_BASELINE, 1 },	/* CYAPA_CMD_MIN_BASELINE */
 };
 
+static int cyapa_gen3_try_poll_handler(struct cyapa *cyapa);
 
 /*
  * cyapa_smbus_read_block - perform smbus block read command
@@ -950,12 +951,14 @@ static u16 cyapa_get_wait_time_for_pwr_cmd(u8 pwr_mode)
  * Device power mode can only be set when device is in operational mode.
  */
 static int cyapa_gen3_set_power_mode(struct cyapa *cyapa, u8 power_mode,
-		u16 always_unused, bool is_suspend_unused)
+		u16 always_unused, enum cyapa_pm_stage pm_stage)
 {
-	int ret;
+	struct input_dev *input = cyapa->input;
 	u8 power;
 	int tries;
-	u16 sleep_time;
+	int sleep_time;
+	int interval;
+	int ret;
 
 	if (cyapa->state != CYAPA_STATE_OP)
 		return 0;
@@ -977,7 +980,7 @@ static int cyapa_gen3_set_power_mode(struct cyapa *cyapa, u8 power_mode,
 	if ((ret & PWR_MODE_MASK) == power_mode)
 		return 0;
 
-	sleep_time = cyapa_get_wait_time_for_pwr_cmd(ret & PWR_MODE_MASK);
+	sleep_time = (int)cyapa_get_wait_time_for_pwr_cmd(ret & PWR_MODE_MASK);
 	power = ret;
 	power &= ~PWR_MODE_MASK;
 	power |= power_mode & PWR_MODE_MASK;
@@ -995,7 +998,23 @@ static int cyapa_gen3_set_power_mode(struct cyapa *cyapa, u8 power_mode,
 	 * doing so before issuing the next command may result in errors
 	 * depending on the command's content.
 	 */
-	msleep(sleep_time);
+	if (cyapa->operational && input && input->users &&
+	    (pm_stage == CYAPA_PM_RUNTIME_SUSPEND ||
+	     pm_stage == CYAPA_PM_RUNTIME_RESUME)) {
+		/* Try to polling in 120Hz, read may fail, just ignore it. */
+		interval = 1000 / 120;
+		while (sleep_time > 0) {
+			if (sleep_time > interval)
+				msleep(interval);
+			else
+				msleep(sleep_time);
+			sleep_time -= interval;
+			cyapa_gen3_try_poll_handler(cyapa);
+		}
+	} else {
+		msleep(sleep_time);
+	}
+
 	return ret;
 }
 
@@ -1112,7 +1131,7 @@ static int cyapa_gen3_do_operational_check(struct cyapa *cyapa)
 		 * may cause problems, so we set the power mode first here.
 		 */
 		error = cyapa_gen3_set_power_mode(cyapa,
-				PWR_MODE_FULL_ACTIVE, 0, false);
+				PWR_MODE_FULL_ACTIVE, 0, CYAPA_PM_ACTIVE);
 		if (error)
 			dev_err(dev, "%s: set full power mode failed: %d\n",
 				__func__, error);
@@ -1168,32 +1187,16 @@ static bool cyapa_gen3_irq_cmd_handler(struct cyapa *cyapa)
 	return false;
 }
 
-static int cyapa_gen3_irq_handler(struct cyapa *cyapa)
+static int cyapa_gen3_event_process(struct cyapa *cyapa,
+				    struct cyapa_reg_data *data)
 {
 	struct input_dev *input = cyapa->input;
-	struct device *dev = &cyapa->client->dev;
-	struct cyapa_reg_data data;
 	int num_fingers;
-	int ret;
 	int i;
 
-	ret = cyapa_read_block(cyapa, CYAPA_CMD_GROUP_DATA, (u8 *)&data);
-	if (ret != sizeof(data)) {
-		dev_err(dev, "failed to read report data, (%d)\n", ret);
-		return -EINVAL;
-	}
-
-	if ((data.device_status & OP_STATUS_SRC) != OP_STATUS_SRC ||
-	    (data.device_status & OP_STATUS_DEV) != CYAPA_DEV_NORMAL ||
-	    (data.finger_btn & OP_DATA_VALID) != OP_DATA_VALID) {
-		dev_err(dev, "invalid device state bytes, %02x %02x\n",
-			data.device_status, data.finger_btn);
-		return -EINVAL;
-	}
-
-	num_fingers = (data.finger_btn >> 4) & 0x0f;
+	num_fingers = (data->finger_btn >> 4) & 0x0f;
 	for (i = 0; i < num_fingers; i++) {
-		const struct cyapa_touch *touch = &data.touches[i];
+		const struct cyapa_touch *touch = &data->touches[i];
 		/* Note: touch->id range is 1 to 15; slots are 0 to 14. */
 		int slot = touch->id - 1;
 
@@ -1210,16 +1213,63 @@ static int cyapa_gen3_irq_handler(struct cyapa *cyapa)
 
 	if (cyapa->btn_capability & CAPABILITY_LEFT_BTN_MASK)
 		input_report_key(input, BTN_LEFT,
-				 !!(data.finger_btn & OP_DATA_LEFT_BTN));
+				 !!(data->finger_btn & OP_DATA_LEFT_BTN));
 	if (cyapa->btn_capability & CAPABILITY_MIDDLE_BTN_MASK)
 		input_report_key(input, BTN_MIDDLE,
-				 !!(data.finger_btn & OP_DATA_MIDDLE_BTN));
+				 !!(data->finger_btn & OP_DATA_MIDDLE_BTN));
 	if (cyapa->btn_capability & CAPABILITY_RIGHT_BTN_MASK)
 		input_report_key(input, BTN_RIGHT,
-				 !!(data.finger_btn & OP_DATA_RIGHT_BTN));
+				 !!(data->finger_btn & OP_DATA_RIGHT_BTN));
 	input_sync(input);
 
 	return 0;
+}
+
+static int cyapa_gen3_irq_handler(struct cyapa *cyapa)
+{
+	struct device *dev = &cyapa->client->dev;
+	struct cyapa_reg_data data;
+	int ret;
+
+	ret = cyapa_read_block(cyapa, CYAPA_CMD_GROUP_DATA, (u8 *)&data);
+	if (ret != sizeof(data)) {
+		dev_err(dev, "failed to read report data, (%d)\n", ret);
+		return -EINVAL;
+	}
+
+	if ((data.device_status & OP_STATUS_SRC) != OP_STATUS_SRC ||
+	    (data.device_status & OP_STATUS_DEV) != CYAPA_DEV_NORMAL ||
+	    (data.finger_btn & OP_DATA_VALID) != OP_DATA_VALID) {
+		dev_err(dev, "invalid device state bytes: %02x %02x\n",
+			data.device_status, data.finger_btn);
+		return -EINVAL;
+	}
+
+	return cyapa_gen3_event_process(cyapa, &data);
+}
+
+/*
+ * This function will be called in the cyapa_gen3_set_power_mode function,
+ * and it's known that it may failed in some situation after the set power
+ * mode command was sent. So this function is aimed to avoid the knwon
+ * and unwanted output I2C and data parse error messages.
+ */
+static int cyapa_gen3_try_poll_handler(struct cyapa *cyapa)
+{
+	struct cyapa_reg_data data;
+	int ret;
+
+	ret = cyapa_read_block(cyapa, CYAPA_CMD_GROUP_DATA, (u8 *)&data);
+	if (ret != sizeof(data))
+		return -EINVAL;
+
+	if ((data.device_status & OP_STATUS_SRC) != OP_STATUS_SRC ||
+	    (data.device_status & OP_STATUS_DEV) != CYAPA_DEV_NORMAL ||
+	    (data.finger_btn & OP_DATA_VALID) != OP_DATA_VALID)
+		return -EINVAL;
+
+	return cyapa_gen3_event_process(cyapa, &data);
+
 }
 
 static int cyapa_gen3_initialize(struct cyapa *cyapa) { return 0; }

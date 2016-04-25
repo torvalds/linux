@@ -232,8 +232,8 @@ static struct notifier_block s3c2412_restart_handler = {
  */
 #define XTI	1
 struct samsung_fixed_rate_clock s3c2412_common_frate_clks[] __initdata = {
-	FRATE(XTI, "xti", NULL, CLK_IS_ROOT, 0),
-	FRATE(0, "ext", NULL, CLK_IS_ROOT, 0),
+	FRATE(XTI, "xti", NULL, 0, 0),
+	FRATE(0, "ext", NULL, 0, 0),
 };
 
 static void __init s3c2412_common_clk_register_fixed_ext(

@@ -155,7 +155,6 @@ static int board_staging_add_dev_domain(struct platform_device *pdev,
 	if (IS_ERR(pd)) {
 		pr_err("Cannot find genpd %s (%ld)\n", domain, PTR_ERR(pd));
 		return PTR_ERR(pd);
-
 	}
 	pr_debug("Found genpd %s for device %s\n", pd->name, pdev->name);
 
@@ -187,15 +186,15 @@ int __init board_staging_register_device(const struct board_staging_dev *dev)
 	for (i = 0; i < dev->nclocks; i++)
 		board_staging_register_clock(&dev->clocks[i]);
 
+	if (dev->domain)
+		board_staging_add_dev_domain(pdev, dev->domain);
+
 	error = platform_device_register(pdev);
 	if (error) {
 		pr_err("Failed to register device %s (%d)\n", pdev->name,
 		       error);
 		return error;
 	}
-
-	if (dev->domain)
-		board_staging_add_dev_domain(pdev, dev->domain);
 
 	return error;
 }

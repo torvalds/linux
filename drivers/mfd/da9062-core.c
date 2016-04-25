@@ -198,7 +198,7 @@ static int da9062_clear_fault_log(struct da9062 *chip)
 	return ret;
 }
 
-int get_device_type(struct da9062 *chip)
+static int da9062_get_device_type(struct da9062 *chip)
 {
 	int device_id, variant_id, variant_mrc;
 	int ret;
@@ -388,11 +388,32 @@ static const struct regmap_range da9062_aa_volatile_ranges[] = {
 		.range_min = DA9062AA_STATUS_D,
 		.range_max = DA9062AA_EVENT_C,
 	}, {
-		.range_min = DA9062AA_CONTROL_F,
+		.range_min = DA9062AA_CONTROL_A,
+		.range_max = DA9062AA_CONTROL_B,
+	}, {
+		.range_min = DA9062AA_CONTROL_E,
 		.range_max = DA9062AA_CONTROL_F,
+	}, {
+		.range_min = DA9062AA_BUCK2_CONT,
+		.range_max = DA9062AA_BUCK4_CONT,
+	}, {
+		.range_min = DA9062AA_BUCK3_CONT,
+		.range_max = DA9062AA_BUCK3_CONT,
+	}, {
+		.range_min = DA9062AA_LDO1_CONT,
+		.range_max = DA9062AA_LDO4_CONT,
+	}, {
+		.range_min = DA9062AA_DVC_1,
+		.range_max = DA9062AA_DVC_1,
 	}, {
 		.range_min = DA9062AA_COUNT_S,
 		.range_max = DA9062AA_SECOND_D,
+	}, {
+		.range_min = DA9062AA_SEQ,
+		.range_max = DA9062AA_SEQ,
+	}, {
+		.range_min = DA9062AA_EN_32K,
+		.range_max = DA9062AA_EN_32K,
 	},
 };
 
@@ -466,7 +487,7 @@ static int da9062_i2c_probe(struct i2c_client *i2c,
 	if (ret < 0)
 		dev_warn(chip->dev, "Cannot clear fault log\n");
 
-	ret = get_device_type(chip);
+	ret = da9062_get_device_type(chip);
 	if (ret)
 		return ret;
 

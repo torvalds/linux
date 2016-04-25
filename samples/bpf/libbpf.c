@@ -19,13 +19,14 @@ static __u64 ptr_to_u64(void *ptr)
 }
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
-		   int max_entries)
+		   int max_entries, int map_flags)
 {
 	union bpf_attr attr = {
 		.map_type = map_type,
 		.key_size = key_size,
 		.value_size = value_size,
-		.max_entries = max_entries
+		.max_entries = max_entries,
+		.map_flags = map_flags,
 	};
 
 	return syscall(__NR_bpf, BPF_MAP_CREATE, &attr, sizeof(attr));
@@ -101,6 +102,25 @@ int bpf_prog_load(enum bpf_prog_type prog_type,
 	bpf_log_buf[0] = 0;
 
 	return syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
+}
+
+int bpf_obj_pin(int fd, const char *pathname)
+{
+	union bpf_attr attr = {
+		.pathname	= ptr_to_u64((void *)pathname),
+		.bpf_fd		= fd,
+	};
+
+	return syscall(__NR_bpf, BPF_OBJ_PIN, &attr, sizeof(attr));
+}
+
+int bpf_obj_get(const char *pathname)
+{
+	union bpf_attr attr = {
+		.pathname	= ptr_to_u64((void *)pathname),
+	};
+
+	return syscall(__NR_bpf, BPF_OBJ_GET, &attr, sizeof(attr));
 }
 
 int open_raw_sock(const char *name)

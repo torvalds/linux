@@ -43,13 +43,9 @@ static ssize_t tomoyo_write_self(struct file *file, const char __user *buf,
 	int error;
 	if (!count || count >= TOMOYO_EXEC_TMPSIZE - 10)
 		return -ENOMEM;
-	data = kzalloc(count + 1, GFP_NOFS);
-	if (!data)
-		return -ENOMEM;
-	if (copy_from_user(data, buf, count)) {
-		error = -EFAULT;
-		goto out;
-	}
+	data = memdup_user_nul(buf, count);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 	tomoyo_normalize_line(data);
 	if (tomoyo_correct_domain(data)) {
 		const int idx = tomoyo_read_lock();
@@ -87,7 +83,6 @@ static ssize_t tomoyo_write_self(struct file *file, const char __user *buf,
 		tomoyo_read_unlock(idx);
 	} else
 		error = -EINVAL;
-out:
 	kfree(data);
 	return error ? error : count;
 }

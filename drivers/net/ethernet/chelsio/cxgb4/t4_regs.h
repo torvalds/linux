@@ -492,6 +492,9 @@
 #define STATSOURCE_T5_V(x) ((x) << STATSOURCE_T5_S)
 #define STATSOURCE_T5_G(x) (((x) >> STATSOURCE_T5_S) & STATSOURCE_T5_M)
 
+#define T6_STATMODE_S    0
+#define T6_STATMODE_V(x) ((x) << T6_STATMODE_S)
+
 #define SGE_DBFIFO_STATUS2_A 0x1118
 
 #define HP_INT_THRESH_T5_S    10
@@ -2395,6 +2398,30 @@
 #define MPS_CLS_TCAM_DATA0_A 0xf000
 #define MPS_CLS_TCAM_DATA1_A 0xf004
 
+#define VIDL_S    16
+#define VIDL_M    0xffffU
+#define VIDL_G(x) (((x) >> VIDL_S) & VIDL_M)
+
+#define DATALKPTYPE_S    10
+#define DATALKPTYPE_M    0x3U
+#define DATALKPTYPE_G(x) (((x) >> DATALKPTYPE_S) & DATALKPTYPE_M)
+
+#define DATAPORTNUM_S    12
+#define DATAPORTNUM_M    0xfU
+#define DATAPORTNUM_G(x) (((x) >> DATAPORTNUM_S) & DATAPORTNUM_M)
+
+#define DATADIPHIT_S    8
+#define DATADIPHIT_V(x) ((x) << DATADIPHIT_S)
+#define DATADIPHIT_F    DATADIPHIT_V(1U)
+
+#define DATAVIDH2_S    7
+#define DATAVIDH2_V(x) ((x) << DATAVIDH2_S)
+#define DATAVIDH2_F    DATAVIDH2_V(1U)
+
+#define DATAVIDH1_S    0
+#define DATAVIDH1_M    0x7fU
+#define DATAVIDH1_G(x) (((x) >> DATAVIDH1_S) & DATAVIDH1_M)
+
 #define USED_S    16
 #define USED_M    0x7ffU
 #define USED_G(x) (((x) >> USED_S) & USED_M)
@@ -2801,6 +2828,10 @@
 #define HASHEN_S    20
 #define HASHEN_V(x) ((x) << HASHEN_S)
 #define HASHEN_F    HASHEN_V(1U)
+
+#define ASLIPCOMPEN_S    17
+#define ASLIPCOMPEN_V(x) ((x) << ASLIPCOMPEN_S)
+#define ASLIPCOMPEN_F    ASLIPCOMPEN_V(1U)
 
 #define REQQPARERR_S    16
 #define REQQPARERR_V(x) ((x) << REQQPARERR_S)

@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -39,7 +39,6 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LLITE
-
 
 #include "../../include/linux/libcfs/libcfs.h"
 
@@ -87,9 +86,9 @@ static int vvp_attr_get(const struct lu_env *env, struct cl_object *obj,
 	 */
 
 	attr->cat_size = i_size_read(inode);
-	attr->cat_mtime = LTIME_S(inode->i_mtime);
-	attr->cat_atime = LTIME_S(inode->i_atime);
-	attr->cat_ctime = LTIME_S(inode->i_ctime);
+	attr->cat_mtime = inode->i_mtime.tv_sec;
+	attr->cat_atime = inode->i_atime.tv_sec;
+	attr->cat_ctime = inode->i_ctime.tv_sec;
 	attr->cat_blocks = inode->i_blocks;
 	attr->cat_uid = from_kuid(&init_user_ns, inode->i_uid);
 	attr->cat_gid = from_kgid(&init_user_ns, inode->i_gid);
@@ -107,11 +106,11 @@ static int vvp_attr_set(const struct lu_env *env, struct cl_object *obj,
 	if (valid & CAT_GID)
 		inode->i_gid = make_kgid(&init_user_ns, attr->cat_gid);
 	if (valid & CAT_ATIME)
-		LTIME_S(inode->i_atime) = attr->cat_atime;
+		inode->i_atime.tv_sec = attr->cat_atime;
 	if (valid & CAT_MTIME)
-		LTIME_S(inode->i_mtime) = attr->cat_mtime;
+		inode->i_mtime.tv_sec = attr->cat_mtime;
 	if (valid & CAT_CTIME)
-		LTIME_S(inode->i_ctime) = attr->cat_ctime;
+		inode->i_ctime.tv_sec = attr->cat_ctime;
 	if (0 && valid & CAT_SIZE)
 		cl_isize_write_nolock(inode, attr->cat_size);
 	/* not currently necessary */
@@ -138,7 +137,8 @@ static int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
 		 * page may be stale due to layout change, and the process
 		 * will never be notified.
 		 * This operation is expensive but mmap processes have to pay
-		 * a price themselves. */
+		 * a price themselves.
+		 */
 		unmap_mapping_range(conf->coc_inode->i_mapping,
 				    0, OBD_OBJECT_EOF, 0);
 
@@ -148,7 +148,7 @@ static int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
 	if (conf->coc_opc != OBJECT_CONF_SET)
 		return 0;
 
-	if (conf->u.coc_md != NULL && conf->u.coc_md->lsm != NULL) {
+	if (conf->u.coc_md && conf->u.coc_md->lsm) {
 		CDEBUG(D_VFSTRACE, DFID ": layout version change: %u -> %u\n",
 		       PFID(&lli->lli_fid), lli->lli_layout_gen,
 		       conf->u.coc_md->lsm->lsm_layout_gen);
@@ -187,9 +187,8 @@ struct ccc_object *cl_inode2ccc(struct inode *inode)
 	struct cl_object     *obj = lli->lli_clob;
 	struct lu_object     *lu;
 
-	LASSERT(obj != NULL);
 	lu = lu_object_locate(obj->co_lu.lo_header, &vvp_device_type);
-	LASSERT(lu != NULL);
+	LASSERT(lu);
 	return lu2ccc(lu);
 }
 

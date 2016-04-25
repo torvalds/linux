@@ -274,10 +274,10 @@ static void hid_irq_in(struct urb *urb)
 
 	switch (urb->status) {
 	case 0:			/* success */
-		usbhid_mark_busy(usbhid);
 		usbhid->retry_delay = 0;
 		if ((hid->quirks & HID_QUIRK_ALWAYS_POLL) && !hid->open)
 			break;
+		usbhid_mark_busy(usbhid);
 		if (!test_bit(HID_RESUME_RUNNING, &usbhid->iofl)) {
 			hid_input_report(urb->context, HID_INPUT_REPORT,
 					 urb->transfer_buffer,
@@ -477,8 +477,6 @@ static void hid_ctrl(struct urb *urb)
 	struct usbhid_device *usbhid = hid->driver_data;
 	int unplug = 0, status = urb->status;
 
-	spin_lock(&usbhid->lock);
-
 	switch (status) {
 	case 0:			/* success */
 		if (usbhid->ctrl[usbhid->ctrltail].dir == USB_DIR_IN)
@@ -497,6 +495,8 @@ static void hid_ctrl(struct urb *urb)
 	default:		/* error */
 		hid_warn(urb->dev, "ctrl urb status %d received\n", status);
 	}
+
+	spin_lock(&usbhid->lock);
 
 	if (unplug) {
 		usbhid->ctrltail = usbhid->ctrlhead;
@@ -951,14 +951,6 @@ static int usbhid_output_report(struct hid_device *hid, __u8 *buf, size_t count)
 	return ret;
 }
 
-static void usbhid_restart_queues(struct usbhid_device *usbhid)
-{
-	if (usbhid->urbout && !test_bit(HID_OUT_RUNNING, &usbhid->iofl))
-		usbhid_restart_out_queue(usbhid);
-	if (!test_bit(HID_CTRL_RUNNING, &usbhid->iofl))
-		usbhid_restart_ctrl_queue(usbhid);
-}
-
 static void hid_free_buffers(struct usb_device *dev, struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
@@ -1404,6 +1396,37 @@ static void hid_cease_io(struct usbhid_device *usbhid)
 	usb_kill_urb(usbhid->urbout);
 }
 
+static void hid_restart_io(struct hid_device *hid)
+{
+	struct usbhid_device *usbhid = hid->driver_data;
+	int clear_halt = test_bit(HID_CLEAR_HALT, &usbhid->iofl);
+	int reset_pending = test_bit(HID_RESET_PENDING, &usbhid->iofl);
+
+	spin_lock_irq(&usbhid->lock);
+	clear_bit(HID_SUSPENDED, &usbhid->iofl);
+	usbhid_mark_busy(usbhid);
+
+	if (clear_halt || reset_pending)
+		schedule_work(&usbhid->reset_work);
+	usbhid->retry_delay = 0;
+	spin_unlock_irq(&usbhid->lock);
+
+	if (reset_pending || !test_bit(HID_STARTED, &usbhid->iofl))
+		return;
+
+	if (!clear_halt) {
+		if (hid_start_in(hid) < 0)
+			hid_io_error(hid);
+	}
+
+	spin_lock_irq(&usbhid->lock);
+	if (usbhid->urbout && !test_bit(HID_OUT_RUNNING, &usbhid->iofl))
+		usbhid_restart_out_queue(usbhid);
+	if (!test_bit(HID_CTRL_RUNNING, &usbhid->iofl))
+		usbhid_restart_ctrl_queue(usbhid);
+	spin_unlock_irq(&usbhid->lock);
+}
+
 /* Treat USB reset pretty much the same as suspend/resume */
 static int hid_pre_reset(struct usb_interface *intf)
 {
@@ -1453,14 +1476,14 @@ static int hid_post_reset(struct usb_interface *intf)
 		return 1;
 	}
 
+	/* No need to do another reset or clear a halted endpoint */
 	spin_lock_irq(&usbhid->lock);
 	clear_bit(HID_RESET_PENDING, &usbhid->iofl);
+	clear_bit(HID_CLEAR_HALT, &usbhid->iofl);
 	spin_unlock_irq(&usbhid->lock);
 	hid_set_idle(dev, intf->cur_altsetting->desc.bInterfaceNumber, 0, 0);
-	status = hid_start_in(hid);
-	if (status < 0)
-		hid_io_error(hid);
-	usbhid_restart_queues(usbhid);
+
+	hid_restart_io(hid);
 
 	return 0;
 }
@@ -1483,25 +1506,9 @@ void usbhid_put_power(struct hid_device *hid)
 #ifdef CONFIG_PM
 static int hid_resume_common(struct hid_device *hid, bool driver_suspended)
 {
-	struct usbhid_device *usbhid = hid->driver_data;
-	int status;
+	int status = 0;
 
-	spin_lock_irq(&usbhid->lock);
-	clear_bit(HID_SUSPENDED, &usbhid->iofl);
-	usbhid_mark_busy(usbhid);
-
-	if (test_bit(HID_CLEAR_HALT, &usbhid->iofl) ||
-			test_bit(HID_RESET_PENDING, &usbhid->iofl))
-		schedule_work(&usbhid->reset_work);
-	usbhid->retry_delay = 0;
-
-	usbhid_restart_queues(usbhid);
-	spin_unlock_irq(&usbhid->lock);
-
-	status = hid_start_in(hid);
-	if (status < 0)
-		hid_io_error(hid);
-
+	hid_restart_io(hid);
 	if (driver_suspended && hid->driver && hid->driver->resume)
 		status = hid->driver->resume(hid);
 	return status;
@@ -1570,11 +1577,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 static int hid_resume(struct usb_interface *intf)
 {
 	struct hid_device *hid = usb_get_intfdata (intf);
-	struct usbhid_device *usbhid = hid->driver_data;
 	int status;
-
-	if (!test_bit(HID_STARTED, &usbhid->iofl))
-		return 0;
 
 	status = hid_resume_common(hid, true);
 	dev_dbg(&intf->dev, "resume status %d\n", status);
@@ -1584,10 +1587,8 @@ static int hid_resume(struct usb_interface *intf)
 static int hid_reset_resume(struct usb_interface *intf)
 {
 	struct hid_device *hid = usb_get_intfdata(intf);
-	struct usbhid_device *usbhid = hid->driver_data;
 	int status;
 
-	clear_bit(HID_SUSPENDED, &usbhid->iofl);
 	status = hid_post_reset(intf);
 	if (status >= 0 && hid->driver && hid->driver->reset_resume) {
 		int ret = hid->driver->reset_resume(hid);

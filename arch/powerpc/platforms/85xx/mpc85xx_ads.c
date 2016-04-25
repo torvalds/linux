@@ -36,17 +36,6 @@
 
 #include "mpc85xx.h"
 
-#ifdef CONFIG_PCI
-static int mpc85xx_exclude_device(struct pci_controller *hose,
-				   u_char bus, u_char devfn)
-{
-	if (bus == 0 && PCI_SLOT(devfn) == 0)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-	else
-		return PCIBIOS_SUCCESSFUL;
-}
-#endif /* CONFIG_PCI */
-
 static void __init mpc85xx_ads_pic_init(void)
 {
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
@@ -143,10 +132,6 @@ static void __init mpc85xx_ads_setup_arch(void)
 #ifdef CONFIG_CPM2
 	cpm2_reset();
 	init_ioports();
-#endif
-
-#ifdef CONFIG_PCI
-	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 #endif
 
 	fsl_pci_assign_primary();

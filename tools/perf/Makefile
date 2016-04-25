@@ -68,6 +68,20 @@ all tags TAGS:
 	$(print_msg)
 	$(make)
 
+ifdef MAKECMDGOALS
+has_clean := 0
+ifneq ($(filter clean,$(MAKECMDGOALS)),)
+  has_clean := 1
+endif # clean
+
+ifeq ($(has_clean),1)
+  rest := $(filter-out clean,$(MAKECMDGOALS))
+  ifneq ($(rest),)
+$(rest): clean
+  endif # rest
+endif # has_clean
+endif # MAKECMDGOALS
+
 #
 # The clean target is not really parallel, don't print the jobs info:
 #
@@ -75,10 +89,17 @@ clean:
 	$(make)
 
 #
-# The build-test target is not really parallel, don't print the jobs info:
+# The build-test target is not really parallel, don't print the jobs info,
+# it also uses only the tests/make targets that don't pollute the source
+# repository, i.e. that uses O= or builds the tarpkg outside the source
+# repo directories.
+#
+# For a full test, use:
+#
+# make -C tools/perf -f tests/make
 #
 build-test:
-	@$(MAKE) -f tests/make --no-print-directory
+	@$(MAKE) SHUF=1 -f tests/make REUSE_FEATURES_DUMP=1 MK=Makefile SET_PARALLEL=1 --no-print-directory tarpkg out
 
 #
 # All other targets get passed through:

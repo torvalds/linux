@@ -43,6 +43,7 @@ Table of Contents
   3.7   /proc/<pid>/task/<tid>/children - Information about task children
   3.8   /proc/<pid>/fdinfo/<fd> - Information about opened file
   3.9   /proc/<pid>/map_files - Information about memory mapped files
+  3.10  /proc/<pid>/timerslack_ns - Task timerslack value
 
   4	Configuring procfs
   4.1	Mount options
@@ -140,7 +141,8 @@ Table 1-1: Process specific entries in /proc
  stat		Process status
  statm		Process memory status information
  status		Process status in human readable form
- wchan		If CONFIG_KALLSYMS is set, a pre-decoded wchan
+ wchan		Present with CONFIG_KALLSYMS=y: it shows the kernel function
+		symbol the task is blocked in - or "0" if not blocked.
  pagemap	Page table
  stack		Report full stack trace, enable via CONFIG_STACKTRACE
  smaps		a extension based on maps, showing the memory consumption of
@@ -168,12 +170,16 @@ read the file /proc/PID/status:
   VmLck:         0 kB
   VmHWM:       476 kB
   VmRSS:       476 kB
+  RssAnon:             352 kB
+  RssFile:             120 kB
+  RssShmem:              4 kB
   VmData:      156 kB
   VmStk:        88 kB
   VmExe:        68 kB
   VmLib:      1412 kB
   VmPTE:        20 kb
   VmSwap:        0 kB
+  HugetlbPages:          0 kB
   Threads:        1
   SigQ:   0/28578
   SigPnd: 0000000000000000
@@ -229,14 +235,21 @@ Table 1-2: Contents of the status files (as of 4.1)
  VmSize                      total program size
  VmLck                       locked memory size
  VmHWM                       peak resident set size ("high water mark")
- VmRSS                       size of memory portions
- VmData                      size of data, stack, and text segments
- VmStk                       size of data, stack, and text segments
+ VmRSS                       size of memory portions. It contains the three
+                             following parts (VmRSS = RssAnon + RssFile + RssShmem)
+ RssAnon                     size of resident anonymous memory
+ RssFile                     size of resident file mappings
+ RssShmem                    size of resident shmem memory (includes SysV shm,
+                             mapping of tmpfs and shared anonymous mappings)
+ VmData                      size of private data segments
+ VmStk                       size of stack segments
  VmExe                       size of text segment
  VmLib                       size of shared library code
  VmPTE                       size of page table entries
  VmPMD                       size of second level page tables
- VmSwap                      size of swap usage (the number of referred swapents)
+ VmSwap                      amount of swap used by anonymous private data
+                             (shmem swap usage is not included)
+ HugetlbPages                size of hugetlb memory portions
  Threads                     number of threads
  SigQ                        number of signals queued/max. number for queue
  SigPnd                      bitmap of pending signals for the thread
@@ -262,7 +275,8 @@ Table 1-3: Contents of the statm files (as of 2.6.8-rc3)
  Field    Content
  size     total program size (pages)		(same as VmSize in status)
  resident size of memory portions (pages)	(same as VmRSS in status)
- shared   number of pages that are shared	(i.e. backed by a file)
+ shared   number of pages that are shared	(i.e. backed by a file, same
+						as RssFile+RssShmem in status)
  trs      number of pages that are 'code'	(not including libs; broken,
 							includes data segment)
  lrs      number of pages of library		(always 0 on 2.6)
@@ -310,7 +324,7 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   blocked       bitmap of blocked signals
   sigign        bitmap of ignored signals
   sigcatch      bitmap of caught signals
-  wchan         address where process went to sleep
+  0		(place holder, used to be the wchan address, use /proc/PID/wchan instead)
   0             (place holder)
   0             (place holder)
   exit_signal   signal to send to parent thread on exit
@@ -343,7 +357,7 @@ address           perms offset  dev   inode      pathname
 a7cb1000-a7cb2000 ---p 00000000 00:00 0
 a7cb2000-a7eb2000 rw-p 00000000 00:00 0
 a7eb2000-a7eb3000 ---p 00000000 00:00 0
-a7eb3000-a7ed5000 rw-p 00000000 00:00 0          [stack:1001]
+a7eb3000-a7ed5000 rw-p 00000000 00:00 0
 a7ed5000-a8008000 r-xp 00000000 03:00 4222       /lib/libc.so.6
 a8008000-a800a000 r--p 00133000 03:00 4222       /lib/libc.so.6
 a800a000-a800b000 rw-p 00135000 03:00 4222       /lib/libc.so.6
@@ -375,7 +389,6 @@ is not associated with a file:
 
  [heap]                   = the heap of the program
  [stack]                  = the stack of the main process
- [stack:1001]             = the stack of the thread with tid 1001
  [vdso]                   = the "virtual dynamic shared object",
                             the kernel system call handler
 
@@ -383,10 +396,8 @@ is not associated with a file:
 
 The /proc/PID/task/TID/maps is a view of the virtual memory from the viewpoint
 of the individual tasks of a process. In this file you will see a mapping marked
-as [stack] if that task sees it as a stack. This is a key difference from the
-content of /proc/PID/maps, where you will see all mappings that are being used
-as stack by all of those tasks. Hence, for the example above, the task-level
-map, i.e. /proc/PID/task/TID/maps for thread 1001 will look like this:
+as [stack] if that task sees it as a stack. Hence, for the example above, the
+task-level map, i.e. /proc/PID/task/TID/maps for thread 1001 will look like this:
 
 08048000-08049000 r-xp 00000000 03:00 8312       /opt/test
 08049000-0804a000 rw-p 00001000 03:00 8312       /opt/test
@@ -423,12 +434,15 @@ Private_Clean:         0 kB
 Private_Dirty:         0 kB
 Referenced:          892 kB
 Anonymous:             0 kB
+AnonHugePages:         0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
 Swap:                  0 kB
 SwapPss:               0 kB
 KernelPageSize:        4 kB
 MMUPageSize:           4 kB
-Locked:              374 kB
-VmFlags: rd ex mr mw me de
+Locked:                0 kB
+VmFlags: rd ex mr mw me dw
 
 the first of these lines shows the same information as is displayed for the
 mapping in /proc/PID/maps.  The remaining lines show the size of the mapping
@@ -448,9 +462,17 @@ accessed.
 "Anonymous" shows the amount of memory that does not belong to any file.  Even
 a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
 and a page is modified, the file page is replaced by a private anonymous copy.
-"Swap" shows how much would-be-anonymous memory is also used, but out on
-swap.
-"SwapPss" shows proportional swap share of this mapping.
+"AnonHugePages" shows the ammount of memory backed by transparent hugepage.
+"Shared_Hugetlb" and "Private_Hugetlb" show the ammounts of memory backed by
+hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
+reasons. And these are not included in {Shared,Private}_{Clean,Dirty} field.
+"Swap" shows how much would-be-anonymous memory is also used, but out on swap.
+For shmem mappings, "Swap" includes also the size of the mapped (and not
+replaced by copy-on-write) part of the underlying shmem object out on swap.
+"SwapPss" shows proportional swap share of this mapping. Unlike "Swap", this
+does not take into account swapped out page of underlying shmem objects.
+"Locked" indicates whether the mapping is locked in memory or not.
+
 "VmFlags" field deserves a separate description. This member represents the kernel
 flags associated with the particular virtual memory area in two letter encoded
 manner. The codes are the following:
@@ -474,7 +496,6 @@ manner. The codes are the following:
     ac  - area is accountable
     nr  - swap space is not reserved for the area
     ht  - area uses huge tlb pages
-    nl  - non-linear mapping
     ar  - architecture specific flag
     dd  - do not include area into core dump
     sd  - soft-dirty flag
@@ -797,7 +818,7 @@ by migrate-type and finishes with details on how many page blocks of each
 type exist.
 
 If min_free_kbytes has been tuned correctly (recommendations made by hugeadm
-from libhugetlbfs http://sourceforge.net/projects/libhugetlbfs/), one can
+from libhugetlbfs https://github.com/libhugetlbfs/libhugetlbfs/), one can
 make an estimate of the likely number of huge pages that can be allocated
 at a given point in time. All the "Movable" blocks should be allocatable
 unless memory has been mlock()'d. Some of the Reclaimable blocks should
@@ -813,9 +834,6 @@ varies by architecture and compile options.  The following is from a
 16GB PIII, which has highmem enabled.  You may not have all of these fields.
 
 > cat /proc/meminfo
-
-The "Locked" indicates whether the mapping is locked in memory or not.
-
 
 MemTotal:     16344972 kB
 MemFree:      13634064 kB
@@ -835,6 +853,7 @@ Dirty:             968 kB
 Writeback:           0 kB
 AnonPages:      861800 kB
 Mapped:         280372 kB
+Shmem:             644 kB
 Slab:           284364 kB
 SReclaimable:   159856 kB
 SUnreclaim:     124508 kB
@@ -891,6 +910,7 @@ MemAvailable: An estimate of how much memory is available for starting new
    AnonPages: Non-file backed pages mapped into userspace page tables
 AnonHugePages: Non-file backed huge pages mapped into userspace page tables
       Mapped: files which have been mmaped, such as libraries
+       Shmem: Total memory used by shared memory (shmem) and tmpfs
         Slab: in-kernel data structures cache
 SReclaimable: Part of Slab, that might be reclaimed, such as caches
   SUnreclaim: Part of Slab, that cannot be reclaimed on memory pressure
@@ -1598,16 +1618,16 @@ Documentation/accounting.
 ---------------------------------------------------------------
 When a process is dumped, all anonymous memory is written to a core file as
 long as the size of the core file isn't limited. But sometimes we don't want
-to dump some memory segments, for example, huge shared memory. Conversely,
-sometimes we want to save file-backed memory segments into a core file, not
-only the individual files.
+to dump some memory segments, for example, huge shared memory or DAX.
+Conversely, sometimes we want to save file-backed memory segments into a core
+file, not only the individual files.
 
 /proc/<pid>/coredump_filter allows you to customize which memory segments
 will be dumped when the <pid> process is dumped. coredump_filter is a bitmask
 of memory types. If a bit of the bitmask is set, memory segments of the
 corresponding memory type are dumped, otherwise they are not dumped.
 
-The following 7 memory types are supported:
+The following 9 memory types are supported:
   - (bit 0) anonymous private memory
   - (bit 1) anonymous shared memory
   - (bit 2) file-backed private memory
@@ -1616,20 +1636,22 @@ The following 7 memory types are supported:
             effective only if the bit 2 is cleared)
   - (bit 5) hugetlb private memory
   - (bit 6) hugetlb shared memory
+  - (bit 7) DAX private memory
+  - (bit 8) DAX shared memory
 
   Note that MMIO pages such as frame buffer are never dumped and vDSO pages
   are always dumped regardless of the bitmask status.
 
-  Note bit 0-4 doesn't effect any hugetlb memory. hugetlb memory are only
-  effected by bit 5-6.
+  Note that bits 0-4 don't affect hugetlb or DAX memory. hugetlb memory is
+  only affected by bit 5-6, and DAX is only affected by bits 7-8.
 
-Default value of coredump_filter is 0x23; this means all anonymous memory
-segments and hugetlb private memory are dumped.
+The default value of coredump_filter is 0x33; this means all anonymous memory
+segments, ELF header pages and hugetlb private memory are dumped.
 
 If you don't want to dump all shared memory segments attached to pid 1234,
-write 0x21 to the process's proc file.
+write 0x31 to the process's proc file.
 
-  $ echo 0x21 > /proc/1234/coredump_filter
+  $ echo 0x31 > /proc/1234/coredump_filter
 
 When a new process is created, the process inherits the bitmask status from its
 parent. It is useful to set up coredump_filter before the program runs.
@@ -1840,6 +1862,23 @@ files in a fast way instead of parsing /proc/<pid>/maps or
 time one can open(2) mappings from the listings of two processes and
 comparing their inode numbers to figure out which anonymous memory areas
 are actually shared.
+
+3.10	/proc/<pid>/timerslack_ns - Task timerslack value
+---------------------------------------------------------
+This file provides the value of the task's timerslack value in nanoseconds.
+This value specifies a amount of time that normal timers may be deferred
+in order to coalesce timers and avoid unnecessary wakeups.
+
+This allows a task's interactivity vs power consumption trade off to be
+adjusted.
+
+Writing 0 to the file will set the tasks timerslack to the default value.
+
+Valid values are from 0 - ULLONG_MAX
+
+An application setting the value must have PTRACE_MODE_ATTACH_FSCREDS level
+permissions on the task specified to change its timerslack_ns value.
+
 
 ------------------------------------------------------------------------------
 Configuring procfs

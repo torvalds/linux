@@ -207,7 +207,7 @@ extern u32 audit_ever_enabled;
 
 extern void audit_copy_inode(struct audit_names *name,
 			     const struct dentry *dentry,
-			     const struct inode *inode);
+			     struct inode *inode);
 extern void audit_log_cap(struct audit_buffer *ab, char *prefix,
 			  kernel_cap_t *cap);
 extern void audit_log_name(struct audit_context *context,
@@ -301,7 +301,7 @@ extern int audit_exe_compare(struct task_struct *tsk, struct audit_fsnotify_mark
 #ifdef CONFIG_AUDIT_TREE
 extern struct audit_chunk *audit_tree_lookup(const struct inode *);
 extern void audit_put_chunk(struct audit_chunk *);
-extern int audit_tree_match(struct audit_chunk *, struct audit_tree *);
+extern bool audit_tree_match(struct audit_chunk *, struct audit_tree *);
 extern int audit_make_tree(struct audit_krule *, char *, u32);
 extern int audit_add_tree_rule(struct audit_krule *);
 extern int audit_remove_tree_rule(struct audit_krule *);

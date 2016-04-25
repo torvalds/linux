@@ -31,20 +31,21 @@
 #include <linux/platform_data/clk-realview.h>
 #include <linux/reboot.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/pgtable.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/smp_twd.h>
 #include <asm/system_info.h>
+#include <asm/outercache.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <mach/board-eb.h>
-#include <mach/irqs.h>
+#include "board-eb.h"
+#include "irqs-eb.h"
 
 #include "core.h"
 
@@ -450,6 +451,12 @@ static void __init realview_eb_init(void)
 		 * Bits:  .... ...0 0111 1001 0000 .... .... ....
 		 */
 		l2x0_init(__io_address(REALVIEW_EB11MP_L220_BASE), 0x00790000, 0xfe000fff);
+
+		/*
+		 * due to a bug in the l220 cache controller, we must not call
+		 * the sync function. stub it out here instead!
+		 */
+		outer_cache.sync = NULL;
 #endif
 		pmu_device.name = core_tile_a9mp() ? "armv7-pmu" : "armv6-pmu";
 		platform_device_register(&pmu_device);

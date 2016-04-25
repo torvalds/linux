@@ -1,0 +1,400 @@
+/*
+ * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+#include "sun4i-a10.dtsi"
+#include "sunxi-common-regulators.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
+
+/ {
+	model = "iNet-9F Rev 03";
+	compatible = "inet-tek,inet9f-rev03", "allwinner,sun4i-a10";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys-polled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&key_pins_inet9f>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		button@0 {
+			label = "Left Joystick Left";
+			linux,code = <ABS_X>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <0xffffffff>; /* -1 */
+			gpios = <&pio 0 6 GPIO_ACTIVE_LOW>; /* PA6 */
+		};
+
+		button@1 {
+			label = "Left Joystick Right";
+			linux,code = <ABS_X>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <1>;
+			gpios = <&pio 0 5 GPIO_ACTIVE_LOW>; /* PA5 */
+		};
+
+		button@2 {
+			label = "Left Joystick Up";
+			linux,code = <ABS_Y>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <0xffffffff>; /* -1 */
+			gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
+		};
+
+		button@3 {
+			label = "Left Joystick Down";
+			linux,code = <ABS_Y>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <1>;
+			gpios = <&pio 0 9 GPIO_ACTIVE_LOW>; /* PA9 */
+		};
+
+		button@4 {
+			label = "Right Joystick Left";
+			linux,code = <ABS_Z>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <0xffffffff>; /* -1 */
+			gpios = <&pio 0 1 GPIO_ACTIVE_LOW>; /* PA1 */
+		};
+
+		button@5 {
+			label = "Right Joystick Right";
+			linux,code = <ABS_Z>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <1>;
+			gpios = <&pio 0 0 GPIO_ACTIVE_LOW>; /* PA0 */
+		};
+
+		button@6 {
+			label = "Right Joystick Up";
+			linux,code = <ABS_RZ>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <0xffffffff>; /* -1 */
+			gpios = <&pio 0 3 GPIO_ACTIVE_LOW>; /* PA3 */
+		};
+
+		button@7 {
+			label = "Right Joystick Down";
+			linux,code = <ABS_RZ>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <1>;
+			gpios = <&pio 0 4 GPIO_ACTIVE_LOW>; /* PA4 */
+		};
+
+		button@8 {
+			label = "DPad Left";
+			linux,code = <ABS_HAT0X>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <0xffffffff>; /* -1 */
+			gpios = <&pio 7 23 GPIO_ACTIVE_LOW>; /* PH23 */
+		};
+
+		button@9 {
+			label = "DPad Right";
+			linux,code = <ABS_HAT0X>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <1>;
+			gpios = <&pio 7 24 GPIO_ACTIVE_LOW>; /* PH24 */
+		};
+
+		button@10 {
+			label = "DPad Up";
+			linux,code = <ABS_HAT0Y>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <0xffffffff>; /* -1 */
+			gpios = <&pio 7 25 GPIO_ACTIVE_LOW>; /* PH25 */
+		};
+
+		button@11 {
+			label = "DPad Down";
+			linux,code = <ABS_HAT0Y>;
+			linux,input-type = <EV_ABS>;
+			linux,input-value = <1>;
+			gpios = <&pio 7 26 GPIO_ACTIVE_LOW>; /* PH26 */
+		};
+
+		button@12 {
+			label = "Button X";
+			linux,code = <BTN_X>;
+			gpios = <&pio 0 16 GPIO_ACTIVE_LOW>; /* PA16 */
+		};
+
+		button@13 {
+			label = "Button Y";
+			linux,code = <BTN_Y>;
+			gpios = <&pio 0 14 GPIO_ACTIVE_LOW>; /* PA14 */
+		};
+
+		button@14 {
+			label = "Button A";
+			linux,code = <BTN_A>;
+			gpios = <&pio 0 17 GPIO_ACTIVE_LOW>; /* PA17 */
+		};
+
+		button@15 {
+			label = "Button B";
+			linux,code = <BTN_B>;
+			gpios = <&pio 0 15 GPIO_ACTIVE_LOW>; /* PA15 */
+		};
+
+		button@16 {
+			label = "Select Button";
+			linux,code = <BTN_SELECT>;
+			gpios = <&pio 0 11 GPIO_ACTIVE_LOW>; /* PA11 */
+		};
+
+		button@17 {
+			label = "Start Button";
+			linux,code = <BTN_START>;
+			gpios = <&pio 0 12 GPIO_ACTIVE_LOW>; /* PA12 */
+		};
+
+		button@18 {
+			label = "Top Left Button";
+			linux,code = <BTN_TL>;
+			gpios = <&pio 7 22 GPIO_ACTIVE_LOW>; /* PH22 */
+		};
+
+		button@19 {
+			label = "Top Right Button";
+			linux,code = <BTN_TR>;
+			gpios = <&pio 0 13 GPIO_ACTIVE_LOW>; /* PA13 */
+		};
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
+};
+
+&ehci1 {
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins_a>;
+	status = "okay";
+
+	axp209: pmic@34 {
+		reg = <0x34>;
+		interrupts = <0>;
+	};
+};
+
+#include "axp209.dtsi"
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins_a>;
+	status = "okay";
+
+	/* Accelerometer */
+	bma250@18 {
+		compatible = "bosch,bma250";
+		reg = <0x18>;
+		interrupt-parent = <&pio>;
+		interrupts = <7 0 IRQ_TYPE_EDGE_RISING>; /* PH0 / EINT0 */
+	};
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins_a>;
+	status = "okay";
+
+	ft5406ee8: touchscreen@38 {
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		interrupt-parent = <&pio>;
+		interrupts = <7 21 IRQ_TYPE_EDGE_FALLING>;
+		touchscreen-size-x = <800>;
+		touchscreen-size-y = <480>;
+	};
+};
+
+&lradc {
+	vref-supply = <&reg_ldo2>;
+	status = "okay";
+
+	button@200 {
+		label = "Menu";
+		linux,code = <KEY_MENU>;
+		channel = <0>;
+		voltage = <200000>;
+	};
+
+	button@600 {
+		label = "Volume Up";
+		linux,code = <KEY_VOLUMEUP>;
+		channel = <0>;
+		voltage = <600000>;
+	};
+
+	button@800 {
+		label = "Volume Down";
+		linux,code = <KEY_VOLUMEDOWN>;
+		channel = <0>;
+		voltage = <800000>;
+	};
+
+	button@1000 {
+		label = "Home";
+		linux,code = <KEY_HOMEPAGE>;
+		channel = <0>;
+		voltage = <1000000>;
+	};
+
+	button@1200 {
+		label = "Esc";
+		linux,code = <KEY_ESC>;
+		channel = <0>;
+		voltage = <1200000>;
+	};
+};
+
+&mmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <4>;
+	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
+	cd-inverted;
+	status = "okay";
+};
+
+&otg_sram {
+	status = "okay";
+};
+
+&pio {
+	key_pins_inet9f: key_pins@0 {
+		allwinner,pins = "PA0", "PA1", "PA3", "PA4",
+				 "PA5", "PA6", "PA8", "PA9",
+				 "PA11", "PA12", "PA13",
+				 "PA14", "PA15", "PA16", "PA17",
+				 "PH22", "PH23", "PH24", "PH25", "PH26";
+		allwinner,function = "gpio_in";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	};
+
+	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+		allwinner,pins = "PH4";
+		allwinner,function = "gpio_in";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	};
+
+	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
+		allwinner,pins = "PH5";
+		allwinner,function = "gpio_in";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_DOWN>;
+	};
+};
+
+&reg_dcdc2 {
+	regulator-always-on;
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1400000>;
+	regulator-name = "vdd-cpu";
+};
+
+&reg_dcdc3 {
+	regulator-always-on;
+	regulator-min-microvolt = <1250000>;
+	regulator-max-microvolt = <1250000>;
+	regulator-name = "vdd-int-dll";
+};
+
+&reg_ldo1 {
+	regulator-name = "vdd-rtc";
+};
+
+&reg_ldo2 {
+	regulator-always-on;
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-name = "avcc";
+};
+
+&reg_usb0_vbus {
+	status = "okay";
+};
+
+&reg_usb2_vbus {
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins_a>;
+	status = "okay";
+};
+
+&usb_otg {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usbphy {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_id_detect_pin>, <&usb0_vbus_detect_pin>;
+	usb0_id_det-gpio = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
+	usb0_vbus_det-gpio = <&pio 7 5 GPIO_ACTIVE_HIGH>; /* PH5 */
+	usb0_vbus-supply = <&reg_usb0_vbus>;
+	usb2_vbus-supply = <&reg_usb2_vbus>;
+	status = "okay";
+};

@@ -50,8 +50,6 @@ struct pci_dev;
 extern unsigned long ia64_max_iommu_merge_mask;
 #define PCI_DMA_BUS_IS_PHYS	(ia64_max_iommu_merge_mask == ~0UL)
 
-#include <asm-generic/pci-dma-compat.h>
-
 #define HAVE_PCI_MMAP
 extern int pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,
 				enum pci_mmap_state mmap_state, int write_combine);
@@ -63,11 +61,6 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 #define pci_get_legacy_mem platform_pci_get_legacy_mem
 #define pci_legacy_read platform_pci_legacy_read
 #define pci_legacy_write platform_pci_legacy_write
-
-struct iospace_resource {
-	struct list_head list;
-	struct resource res;
-};
 
 struct pci_controller {
 	struct acpi_device *companion;

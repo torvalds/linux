@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/kmsg_dump.h>
+#include <linux/pagemap.h>
 #include <linux/pstore.h>
 #include <linux/zlib.h>
 #include <asm/uaccess.h>
@@ -733,24 +734,10 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 
 static loff_t dev_nvram_llseek(struct file *file, loff_t offset, int origin)
 {
-	int size;
-
 	if (ppc_md.nvram_size == NULL)
 		return -ENODEV;
-	size = ppc_md.nvram_size();
-
-	switch (origin) {
-	case 1:
-		offset += file->f_pos;
-		break;
-	case 2:
-		offset += size;
-		break;
-	}
-	if (offset < 0)
-		return -EINVAL;
-	file->f_pos = offset;
-	return file->f_pos;
+	return generic_file_llseek_size(file, offset, origin, MAX_LFS_FILESIZE,
+					ppc_md.nvram_size());
 }
 
 
@@ -1065,7 +1052,7 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	/* Create our OS partition */
 	new_part = kmalloc(sizeof(*new_part), GFP_KERNEL);
 	if (!new_part) {
-		pr_err("nvram_create_os_partition: kmalloc failed\n");
+		pr_err("%s: kmalloc failed\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -1077,8 +1064,8 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 
 	rc = nvram_write_header(new_part);
 	if (rc <= 0) {
-		pr_err("nvram_create_os_partition: nvram_write_header "
-		       "failed (%d)\n", rc);
+		pr_err("%s: nvram_write_header failed (%d)\n", __func__, rc);
+		kfree(new_part);
 		return rc;
 	}
 	list_add_tail(&new_part->partition, &free_part->partition);
@@ -1090,8 +1077,8 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 		free_part->header.checksum = nvram_checksum(&free_part->header);
 		rc = nvram_write_header(free_part);
 		if (rc <= 0) {
-			pr_err("nvram_create_os_partition: nvram_write_header "
-			       "failed (%d)\n", rc);
+			pr_err("%s: nvram_write_header failed (%d)\n",
+			       __func__, rc);
 			return rc;
 		}
 	} else {
@@ -1105,11 +1092,12 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	     tmp_index += NVRAM_BLOCK_LEN) {
 		rc = ppc_md.nvram_write(nv_init_vals, NVRAM_BLOCK_LEN, &tmp_index);
 		if (rc <= 0) {
-			pr_err("nvram_create_partition: nvram_write failed (%d)\n", rc);
+			pr_err("%s: nvram_write failed (%d)\n",
+			       __func__, rc);
 			return rc;
 		}
 	}
-	
+
 	return new_part->index + NVRAM_HEADER_LEN;
 }
 

@@ -15,21 +15,21 @@ static int logfs_write_begin(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	struct page *page;
-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+	pgoff_t index = pos >> PAGE_SHIFT;
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;
 
-	if ((len == PAGE_CACHE_SIZE) || PageUptodate(page))
+	if ((len == PAGE_SIZE) || PageUptodate(page))
 		return 0;
-	if ((pos & PAGE_CACHE_MASK) >= i_size_read(inode)) {
-		unsigned start = pos & (PAGE_CACHE_SIZE - 1);
+	if ((pos & PAGE_MASK) >= i_size_read(inode)) {
+		unsigned start = pos & (PAGE_SIZE - 1);
 		unsigned end = start + len;
 
 		/* Reading beyond i_size is simple: memset to zero */
-		zero_user_segments(page, 0, start, end, PAGE_CACHE_SIZE);
+		zero_user_segments(page, 0, start, end, PAGE_SIZE);
 		return 0;
 	}
 	return logfs_readpage_nolock(page);
@@ -41,11 +41,11 @@ static int logfs_write_end(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	pgoff_t index = page->index;
-	unsigned start = pos & (PAGE_CACHE_SIZE - 1);
+	unsigned start = pos & (PAGE_SIZE - 1);
 	unsigned end = start + copied;
 	int ret = 0;
 
-	BUG_ON(PAGE_CACHE_SIZE != inode->i_sb->s_blocksize);
+	BUG_ON(PAGE_SIZE != inode->i_sb->s_blocksize);
 	BUG_ON(page->index > I3_BLOCKS);
 
 	if (copied < len) {
@@ -61,8 +61,8 @@ static int logfs_write_end(struct file *file, struct address_space *mapping,
 	if (copied == 0)
 		goto out; /* FIXME: do we need to update inode? */
 
-	if (i_size_read(inode) < (index << PAGE_CACHE_SHIFT) + end) {
-		i_size_write(inode, (index << PAGE_CACHE_SHIFT) + end);
+	if (i_size_read(inode) < (index << PAGE_SHIFT) + end) {
+		i_size_write(inode, (index << PAGE_SHIFT) + end);
 		mark_inode_dirty_sync(inode);
 	}
 
@@ -75,7 +75,7 @@ static int logfs_write_end(struct file *file, struct address_space *mapping,
 	}
 out:
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 	return ret ? ret : copied;
 }
 
@@ -118,7 +118,7 @@ static int logfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
 	loff_t i_size = i_size_read(inode);
-	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+	pgoff_t end_index = i_size >> PAGE_SHIFT;
 	unsigned offset;
 	u64 bix;
 	level_t level;
@@ -142,7 +142,7 @@ static int logfs_writepage(struct page *page, struct writeback_control *wbc)
 		return __logfs_writepage(page);
 
 	 /* Is the page fully outside i_size? (truncate in progress) */
-	offset = i_size & (PAGE_CACHE_SIZE-1);
+	offset = i_size & (PAGE_SIZE-1);
 	if (bix > end_index || offset == 0) {
 		unlock_page(page);
 		return 0; /* don't care */
@@ -155,7 +155,7 @@ static int logfs_writepage(struct page *page, struct writeback_control *wbc)
 	 * the  page size, the remaining memory is zeroed when mapped, and
 	 * writes to that region are not written out to the file."
 	 */
-	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
+	zero_user_segment(page, offset, PAGE_SIZE);
 	return __logfs_writepage(page);
 }
 
@@ -204,12 +204,12 @@ long logfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (err)
 			return err;
 
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		oldflags = li->li_flags;
 		flags &= LOGFS_FL_USER_MODIFIABLE;
 		flags |= oldflags & ~LOGFS_FL_USER_MODIFIABLE;
 		li->li_flags = flags;
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 
 		inode->i_ctime = CURRENT_TIME;
 		mark_inode_dirty_sync(inode);
@@ -230,11 +230,11 @@ int logfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	if (ret)
 		return ret;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	logfs_get_wblocks(sb, NULL, WF_LOCK);
 	logfs_write_anchor(sb);
 	logfs_put_wblocks(sb, NULL, WF_LOCK);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	return 0;
 }

@@ -22,6 +22,7 @@ enum dmi_device_type {
 	DMI_DEV_TYPE_IPMI = -1,
 	DMI_DEV_TYPE_OEM_STRING = -2,
 	DMI_DEV_TYPE_DEV_ONBOARD = -3,
+	DMI_DEV_TYPE_DEV_SLOT = -4,
 };
 
 enum dmi_entry_type {

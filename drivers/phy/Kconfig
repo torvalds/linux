@@ -32,7 +32,7 @@ config PHY_BERLIN_SATA
 config ARMADA375_USBCLUSTER_PHY
 	def_bool y
 	depends on MACH_ARMADA_375 || COMPILE_TEST
-	depends on OF
+	depends on OF && HAS_IOMEM
 	select GENERIC_PHY
 
 config PHY_DM816X_USB
@@ -117,6 +117,13 @@ config PHY_RCAR_GEN2
 	depends on GENERIC_PHY
 	help
 	  Support for USB PHY found on Renesas R-Car generation 2 SoCs.
+
+config PHY_RCAR_GEN3_USB2
+	tristate "Renesas R-Car generation 3 USB 2.0 PHY driver"
+	depends on OF && ARCH_SHMOBILE
+	select GENERIC_PHY
+	help
+	  Support for USB 2.0 PHY found on Renesas R-Car generation 3 SoCs.
 
 config OMAP_CONTROL_PHY
 	tristate "OMAP CONTROL PHY Driver"
@@ -206,6 +213,25 @@ config PHY_HIX5HD2_SATA
 	help
 	  Support for SATA PHY on Hisilicon hix5hd2 Soc.
 
+config PHY_MT65XX_USB3
+	tristate "Mediatek USB3.0 PHY Driver"
+	depends on ARCH_MEDIATEK && OF
+	select GENERIC_PHY
+	help
+	  Say 'Y' here to add support for Mediatek USB3.0 PHY driver
+	  for mt65xx SoCs. it supports two usb2.0 ports and
+	  one usb3.0 port.
+
+config PHY_HI6220_USB
+	tristate "hi6220 USB PHY support"
+	depends on (ARCH_HISI && ARM64) || COMPILE_TEST
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the HISILICON HI6220 USB PHY.
+
+	  To compile this driver as a module, choose M here.
+
 config PHY_SUN4I_USB
 	tristate "Allwinner sunxi SoC USB PHY driver"
 	depends on ARCH_SUNXI && HAS_IOMEM && OF
@@ -224,6 +250,7 @@ config PHY_SUN9I_USB
 	tristate "Allwinner sun9i SoC USB PHY driver"
 	depends on ARCH_SUNXI && HAS_IOMEM && OF
 	depends on RESET_CONTROLLER
+	depends on USB_COMMON
 	select GENERIC_PHY
 	help
 	  Enable this to support the transceiver that is part of Allwinner
@@ -310,6 +337,20 @@ config PHY_ROCKCHIP_USB
 	help
 	  Enable this to support the Rockchip USB 2.0 PHY.
 
+config PHY_ROCKCHIP_EMMC
+	tristate "Rockchip EMMC PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip EMMC PHY.
+
+config PHY_ROCKCHIP_DP
+	tristate "Rockchip Display Port PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip Display Port PHY.
+
 config PHY_ST_SPEAR1310_MIPHY
 	tristate "ST SPEAR1310-MIPHY driver"
 	select GENERIC_PHY
@@ -364,11 +405,20 @@ config PHY_TUSB1210
 
 config PHY_BRCMSTB_SATA
 	tristate "Broadcom STB SATA PHY driver"
-	depends on ARCH_BRCMSTB
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC
 	depends on OF
 	select GENERIC_PHY
 	help
-	  Enable this to support the SATA3 PHY on 28nm Broadcom STB SoCs.
+	  Enable this to support the SATA3 PHY on 28nm or 40nm Broadcom STB SoCs.
 	  Likely useful only with CONFIG_SATA_BRCMSTB enabled.
+
+config PHY_CYGNUS_PCIE
+	tristate "Broadcom Cygnus PCIe PHY driver"
+	depends on OF && (ARCH_BCM_CYGNUS || COMPILE_TEST)
+	select GENERIC_PHY
+	default ARCH_BCM_CYGNUS
+	help
+	  Enable this to support the Broadcom Cygnus PCIe PHY.
+	  If unsure, say N.
 
 endmenu

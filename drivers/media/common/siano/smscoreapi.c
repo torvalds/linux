@@ -1167,8 +1167,8 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 		return rc;
 	}
 	pr_debug("read fw %s, buffer size=0x%zx\n", fw_filename, fw->size);
-	fw_buf = kmalloc(ALIGN(fw->size, SMS_ALLOC_ALIGNMENT),
-			 GFP_KERNEL | GFP_DMA);
+	fw_buf = kmalloc(ALIGN(fw->size + sizeof(struct sms_firmware),
+			 SMS_ALLOC_ALIGNMENT), GFP_KERNEL | GFP_DMA);
 	if (!fw_buf) {
 		pr_err("failed to allocate firmware buffer\n");
 		rc = -ENOMEM;

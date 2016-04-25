@@ -443,7 +443,7 @@ static const struct ppi_info ppi_info = {
 };
 
 #if IS_ENABLED(CONFIG_VIDEO_ADV7183)
-#include <media/adv7183.h>
+#include <media/i2c/adv7183.h>
 static struct v4l2_input adv7183_inputs[] = {
 	{
 		.index = 0,

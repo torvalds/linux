@@ -9,7 +9,7 @@
  *  Copyright (C) 2008-2009 Red Hat, Inc., Ingo Molnar
  *  Copyright (C) 2009 Jaswinder Singh Rajput
  *  Copyright (C) 2009 Advanced Micro Devices, Inc., Robert Richter
- *  Copyright (C) 2008-2009 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ *  Copyright (C) 2008-2009 Red Hat, Inc., Peter Zijlstra
  */
 
 #include <linux/perf_event.h>
@@ -108,7 +108,7 @@ struct cpu_hw_events {
 	/* Enabled/disable state.  */
 	int			enabled;
 
-	unsigned int		group_flag;
+	unsigned int		txn_flags;
 };
 static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events) = { .enabled = 1, };
 
@@ -1379,7 +1379,7 @@ static int sparc_pmu_add(struct perf_event *event, int ef_flags)
 	 * skip the schedulability test here, it will be performed
 	 * at commit time(->commit_txn) as a whole
 	 */
-	if (cpuc->group_flag & PERF_EVENT_TXN)
+	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
 		goto nocheck;
 
 	if (check_excludes(cpuc->event, n0, 1))
@@ -1494,12 +1494,17 @@ static int sparc_pmu_event_init(struct perf_event *event)
  * Set the flag to make pmu::enable() not perform the
  * schedulability test, it will be performed at commit time
  */
-static void sparc_pmu_start_txn(struct pmu *pmu)
+static void sparc_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
 {
 	struct cpu_hw_events *cpuhw = this_cpu_ptr(&cpu_hw_events);
 
+	WARN_ON_ONCE(cpuhw->txn_flags);		/* txn already in flight */
+
+	cpuhw->txn_flags = txn_flags;
+	if (txn_flags & ~PERF_PMU_TXN_ADD)
+		return;
+
 	perf_pmu_disable(pmu);
-	cpuhw->group_flag |= PERF_EVENT_TXN;
 }
 
 /*
@@ -1510,8 +1515,15 @@ static void sparc_pmu_start_txn(struct pmu *pmu)
 static void sparc_pmu_cancel_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = this_cpu_ptr(&cpu_hw_events);
+	unsigned int txn_flags;
 
-	cpuhw->group_flag &= ~PERF_EVENT_TXN;
+	WARN_ON_ONCE(!cpuhw->txn_flags);	/* no txn in flight */
+
+	txn_flags = cpuhw->txn_flags;
+	cpuhw->txn_flags = 0;
+	if (txn_flags & ~PERF_PMU_TXN_ADD)
+		return;
+
 	perf_pmu_enable(pmu);
 }
 
@@ -1528,14 +1540,20 @@ static int sparc_pmu_commit_txn(struct pmu *pmu)
 	if (!sparc_pmu)
 		return -EINVAL;
 
-	cpuc = this_cpu_ptr(&cpu_hw_events);
+	WARN_ON_ONCE(!cpuc->txn_flags);	/* no txn in flight */
+
+	if (cpuc->txn_flags & ~PERF_PMU_TXN_ADD) {
+		cpuc->txn_flags = 0;
+		return 0;
+	}
+
 	n = cpuc->n_events;
 	if (check_excludes(cpuc->event, 0, n))
 		return -EINVAL;
 	if (sparc_check_constraints(cpuc->event, cpuc->events, n))
 		return -EAGAIN;
 
-	cpuc->group_flag &= ~PERF_EVENT_TXN;
+	cpuc->txn_flags = 0;
 	perf_pmu_enable(pmu);
 	return 0;
 }
@@ -1810,10 +1828,17 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 void
 perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
+	u64 saved_fault_address = current_thread_info()->fault_address;
+	u8 saved_fault_code = get_thread_fault_code();
+	mm_segment_t old_fs;
+
 	perf_callchain_store(entry, regs->tpc);
 
 	if (!current->mm)
 		return;
+
+	old_fs = get_fs();
+	set_fs(USER_DS);
 
 	flushw_user();
 
@@ -1825,4 +1850,8 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		perf_callchain_user_64(entry, regs);
 
 	pagefault_enable();
+
+	set_fs(old_fs);
+	set_thread_fault_code(saved_fault_code);
+	current_thread_info()->fault_address = saved_fault_address;
 }

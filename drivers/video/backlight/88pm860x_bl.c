@@ -180,6 +180,7 @@ static int pm860x_backlight_dt_init(struct platform_device *pdev,
 			data->iset = PM8606_WLED_CURRENT(iset);
 			of_property_read_u32(np, "marvell,88pm860x-pwm",
 					     &data->pwm);
+			of_node_put(np);
 			break;
 		}
 	}

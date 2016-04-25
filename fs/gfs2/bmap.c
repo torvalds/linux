@@ -75,7 +75,7 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 			dsize = dibh->b_size - sizeof(struct gfs2_dinode);
 
 		memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode), dsize);
-		memset(kaddr + dsize, 0, PAGE_CACHE_SIZE - dsize);
+		memset(kaddr + dsize, 0, PAGE_SIZE - dsize);
 		kunmap(page);
 
 		SetPageUptodate(page);
@@ -98,7 +98,7 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 	if (release) {
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 
 	return 0;
@@ -787,8 +787,8 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	if (error)
 		goto out_rlist;
 
-	if (gfs2_rs_active(ip->i_res)) /* needs to be done with the rgrp glock held */
-		gfs2_rs_deltree(ip->i_res);
+	if (gfs2_rs_active(&ip->i_res)) /* needs to be done with the rgrp glock held */
+		gfs2_rs_deltree(&ip->i_res);
 
 	error = gfs2_trans_begin(sdp, rg_blocks + RES_DINODE +
 				 RES_INDIRECT + RES_STATFS + RES_QUOTA,
@@ -932,8 +932,8 @@ static int gfs2_block_truncate_page(struct address_space *mapping, loff_t from)
 {
 	struct inode *inode = mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
-	unsigned long index = from >> PAGE_CACHE_SHIFT;
-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+	unsigned long index = from >> PAGE_SHIFT;
+	unsigned offset = from & (PAGE_SIZE-1);
 	unsigned blocksize, iblock, length, pos;
 	struct buffer_head *bh;
 	struct page *page;
@@ -945,7 +945,7 @@ static int gfs2_block_truncate_page(struct address_space *mapping, loff_t from)
 
 	blocksize = inode->i_sb->s_blocksize;
 	length = blocksize - (offset & (blocksize - 1));
-	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
+	iblock = index << (PAGE_SHIFT - inode->i_sb->s_blocksize_bits);
 
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, blocksize, 0);
@@ -989,7 +989,7 @@ static int gfs2_block_truncate_page(struct address_space *mapping, loff_t from)
 	mark_buffer_dirty(bh);
 unlock:
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 	return err;
 }
 
@@ -1291,13 +1291,9 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 	if (ret)
 		return ret;
 
-	ret = get_write_access(inode);
-	if (ret)
-		return ret;
-
 	inode_dio_wait(inode);
 
-	ret = gfs2_rs_alloc(ip);
+	ret = gfs2_rsqa_alloc(ip);
 	if (ret)
 		goto out;
 
@@ -1307,10 +1303,9 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 		goto out;
 	}
 
-	gfs2_rs_deltree(ip->i_res);
 	ret = do_shrink(inode, oldsize, newsize);
 out:
-	put_write_access(inode);
+	gfs2_rsqa_delete(ip, NULL);
 	return ret;
 }
 

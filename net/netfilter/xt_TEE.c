@@ -31,19 +31,21 @@ static unsigned int
 tee_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_tee_tginfo *info = par->targinfo;
+	int oif = info->priv ? info->priv->oif : 0;
 
-	nf_dup_ipv4(skb, par->hooknum, &info->gw.in, info->priv->oif);
+	nf_dup_ipv4(par->net, skb, par->hooknum, &info->gw.in, oif);
 
 	return XT_CONTINUE;
 }
 
-#if IS_ENABLED(CONFIG_NF_DUP_IPV6)
+#if IS_ENABLED(CONFIG_IPV6)
 static unsigned int
 tee_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_tee_tginfo *info = par->targinfo;
+	int oif = info->priv ? info->priv->oif : 0;
 
-	nf_dup_ipv6(skb, par->hooknum, &info->gw.in6, info->priv->oif);
+	nf_dup_ipv6(par->net, skb, par->hooknum, &info->gw.in6, oif);
 
 	return XT_CONTINUE;
 }
@@ -129,7 +131,7 @@ static struct xt_target tee_tg_reg[] __read_mostly = {
 		.destroy    = tee_tg_destroy,
 		.me         = THIS_MODULE,
 	},
-#if IS_ENABLED(CONFIG_NF_DUP_IPV6)
+#if IS_ENABLED(CONFIG_IPV6)
 	{
 		.name       = "TEE",
 		.revision   = 1,

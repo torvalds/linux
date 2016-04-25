@@ -52,7 +52,7 @@ uint _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 
 
 	len =  rtw_remainder_len(pfile);
-	len = (rlen > len) ? len : rlen;
+	len = min(rlen, len);
 
 	if (rmem)
 		skb_copy_bits(pfile->pkt, pfile->buf_len-pfile->pkt_len, rmem, len);

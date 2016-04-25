@@ -32,7 +32,7 @@ MODULE_PARM_DESC(edid_firmware, "Do not probe monitor, use specified EDID blob "
 	"from built-in data or /lib/firmware instead. ");
 
 #define GENERIC_EDIDS 6
-static const char *generic_edid_name[GENERIC_EDIDS] = {
+static const char * const generic_edid_name[GENERIC_EDIDS] = {
 	"edid/800x600.bin",
 	"edid/1024x768.bin",
 	"edid/1280x1024.bin",
@@ -170,16 +170,11 @@ static void *edid_load(struct drm_connector *connector, const char *name,
 	int i, valid_extensions = 0;
 	bool print_bad_edid = !connector->bad_edid_counter || (drm_debug & DRM_UT_KMS);
 
-	builtin = 0;
-	for (i = 0; i < GENERIC_EDIDS; i++) {
-		if (strcmp(name, generic_edid_name[i]) == 0) {
-			fwdata = generic_edid[i];
-			fwsize = sizeof(generic_edid[i]);
-			builtin = 1;
-			break;
-		}
-	}
-	if (!builtin) {
+	builtin = match_string(generic_edid_name, GENERIC_EDIDS, name);
+	if (builtin >= 0) {
+		fwdata = generic_edid[builtin];
+		fwsize = sizeof(generic_edid[builtin]);
+	} else {
 		struct platform_device *pdev;
 		int err;
 
@@ -252,7 +247,7 @@ static void *edid_load(struct drm_connector *connector, const char *name,
 	}
 
 	DRM_INFO("Got %s EDID base block and %d extension%s from "
-	    "\"%s\" for connector \"%s\"\n", builtin ? "built-in" :
+	    "\"%s\" for connector \"%s\"\n", (builtin >= 0) ? "built-in" :
 	    "external", valid_extensions, valid_extensions == 1 ? "" : "s",
 	    name, connector_name);
 
@@ -264,20 +259,43 @@ out:
 int drm_load_edid_firmware(struct drm_connector *connector)
 {
 	const char *connector_name = connector->name;
-	char *edidname = edid_firmware, *last, *colon;
+	char *edidname, *last, *colon, *fwstr, *edidstr, *fallback = NULL;
 	int ret;
 	struct edid *edid;
 
-	if (*edidname == '\0')
+	if (edid_firmware[0] == '\0')
 		return 0;
 
-	colon = strchr(edidname, ':');
-	if (colon != NULL) {
-		if (strncmp(connector_name, edidname, colon - edidname))
+	/*
+	 * If there are multiple edid files specified and separated
+	 * by commas, search through the list looking for one that
+	 * matches the connector.
+	 *
+	 * If there's one or more that don't't specify a connector, keep
+	 * the last one found one as a fallback.
+	 */
+	fwstr = kstrdup(edid_firmware, GFP_KERNEL);
+	edidstr = fwstr;
+
+	while ((edidname = strsep(&edidstr, ","))) {
+		colon = strchr(edidname, ':');
+		if (colon != NULL) {
+			if (strncmp(connector_name, edidname, colon - edidname))
+				continue;
+			edidname = colon + 1;
+			break;
+		}
+
+		if (*edidname != '\0') /* corner case: multiple ',' */
+			fallback = edidname;
+	}
+
+	if (!edidname) {
+		if (!fallback) {
+			kfree(fwstr);
 			return 0;
-		edidname = colon + 1;
-		if (*edidname == '\0')
-			return 0;
+		}
+		edidname = fallback;
 	}
 
 	last = edidname + strlen(edidname) - 1;
@@ -285,6 +303,8 @@ int drm_load_edid_firmware(struct drm_connector *connector)
 		*last = '\0';
 
 	edid = edid_load(connector, edidname, connector_name);
+	kfree(fwstr);
+
 	if (IS_ERR_OR_NULL(edid))
 		return 0;
 

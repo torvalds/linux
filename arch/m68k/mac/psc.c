@@ -27,8 +27,8 @@
 
 #define DEBUG_PSC
 
-int psc_present;
 volatile __u8 *psc;
+EXPORT_SYMBOL_GPL(psc);
 
 /*
  * Debugging dump, used in various places to see what's going on.
@@ -38,7 +38,9 @@ static void psc_debug_dump(void)
 {
 	int	i;
 
-	if (!psc_present) return;
+	if (!psc)
+		return;
+
 	for (i = 0x30 ; i < 0x70 ; i += 0x10) {
 		printk("PSC #%d:  IFR = 0x%02X IER = 0x%02X\n",
 			i >> 4,
@@ -80,7 +82,6 @@ void __init psc_init(void)
 	 && macintosh_config->ident != MAC_MODEL_Q840)
 	{
 		psc = NULL;
-		psc_present = 0;
 		return;
 	}
 
@@ -90,7 +91,6 @@ void __init psc_init(void)
 	 */
 
 	psc = (void *) PSC_BASE;
-	psc_present = 1;
 
 	printk("PSC detected at %p\n", psc);
 

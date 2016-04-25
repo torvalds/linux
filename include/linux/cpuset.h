@@ -93,7 +93,7 @@ extern int current_cpuset_is_being_rebound(void);
 
 extern void rebuild_sched_domains(void);
 
-extern void cpuset_print_task_mems_allowed(struct task_struct *p);
+extern void cpuset_print_current_mems_allowed(void);
 
 /*
  * read_mems_allowed_begin is required when making decisions involving
@@ -104,6 +104,9 @@ extern void cpuset_print_task_mems_allowed(struct task_struct *p);
  */
 static inline unsigned int read_mems_allowed_begin(void)
 {
+	if (!cpusets_enabled())
+		return 0;
+
 	return read_seqcount_begin(&current->mems_allowed_seq);
 }
 
@@ -115,6 +118,9 @@ static inline unsigned int read_mems_allowed_begin(void)
  */
 static inline bool read_mems_allowed_retry(unsigned int seq)
 {
+	if (!cpusets_enabled())
+		return false;
+
 	return read_seqcount_retry(&current->mems_allowed_seq, seq);
 }
 
@@ -130,6 +136,8 @@ static inline void set_mems_allowed(nodemask_t nodemask)
 	local_irq_restore(flags);
 	task_unlock(current);
 }
+
+extern void cpuset_post_attach_flush(void);
 
 #else /* !CONFIG_CPUSETS */
 
@@ -219,7 +227,7 @@ static inline void rebuild_sched_domains(void)
 	partition_sched_domains(1, NULL, NULL);
 }
 
-static inline void cpuset_print_task_mems_allowed(struct task_struct *p)
+static inline void cpuset_print_current_mems_allowed(void)
 {
 }
 
@@ -235,6 +243,10 @@ static inline unsigned int read_mems_allowed_begin(void)
 static inline bool read_mems_allowed_retry(unsigned int seq)
 {
 	return false;
+}
+
+static inline void cpuset_post_attach_flush(void)
+{
 }
 
 #endif /* !CONFIG_CPUSETS */

@@ -90,7 +90,7 @@ static struct list_head *cuse_conntbl_head(dev_t devt)
 
 static ssize_t cuse_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 {
-	struct fuse_io_priv io = { .async = 0, .file = kiocb->ki_filp };
+	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(kiocb->ki_filp);
 	loff_t pos = 0;
 
 	return fuse_direct_io(&io, to, &pos, FUSE_DIO_CUSE);
@@ -98,7 +98,7 @@ static ssize_t cuse_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 
 static ssize_t cuse_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 {
-	struct fuse_io_priv io = { .async = 0, .file = kiocb->ki_filp };
+	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(kiocb->ki_filp);
 	loff_t pos = 0;
 	/*
 	 * No locking or generic_write_checks(), the server is
@@ -549,6 +549,8 @@ static int cuse_channel_release(struct inode *inode, struct file *file)
 		unregister_chrdev_region(cc->cdev->dev, 1);
 		cdev_del(cc->cdev);
 	}
+	/* Base reference is now owned by "fud" */
+	fuse_conn_put(&cc->fc);
 
 	rc = fuse_dev_release(inode, file);	/* puts the base reference */
 

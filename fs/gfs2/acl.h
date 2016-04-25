@@ -12,8 +12,6 @@
 
 #include "incore.h"
 
-#define GFS2_POSIX_ACL_ACCESS		"posix_acl_access"
-#define GFS2_POSIX_ACL_DEFAULT		"posix_acl_default"
 #define GFS2_ACL_MAX_ENTRIES(sdp) ((300 << (sdp)->sd_sb.sb_bsize_shift) >> 12)
 
 extern struct posix_acl *gfs2_get_acl(struct inode *inode, int type);

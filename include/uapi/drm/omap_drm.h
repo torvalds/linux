@@ -20,7 +20,7 @@
 #ifndef __OMAP_DRM_H__
 #define __OMAP_DRM_H__
 
-#include <drm/drm.h>
+#include "drm.h"
 
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
@@ -101,9 +101,6 @@ struct drm_omap_gem_info {
 
 #define DRM_OMAP_GET_PARAM		0x00
 #define DRM_OMAP_SET_PARAM		0x01
-/* placeholder for plugin-api
-#define DRM_OMAP_GET_BASE		0x02
-*/
 #define DRM_OMAP_GEM_NEW		0x03
 #define DRM_OMAP_GEM_CPU_PREP		0x04
 #define DRM_OMAP_GEM_CPU_FINI		0x05
@@ -112,9 +109,6 @@ struct drm_omap_gem_info {
 
 #define DRM_IOCTL_OMAP_GET_PARAM	DRM_IOWR(DRM_COMMAND_BASE + DRM_OMAP_GET_PARAM, struct drm_omap_param)
 #define DRM_IOCTL_OMAP_SET_PARAM	DRM_IOW (DRM_COMMAND_BASE + DRM_OMAP_SET_PARAM, struct drm_omap_param)
-/* placeholder for plugin-api
-#define DRM_IOCTL_OMAP_GET_BASE		DRM_IOWR(DRM_COMMAND_BASE + DRM_OMAP_GET_BASE, struct drm_omap_get_base)
-*/
 #define DRM_IOCTL_OMAP_GEM_NEW		DRM_IOWR(DRM_COMMAND_BASE + DRM_OMAP_GEM_NEW, struct drm_omap_gem_new)
 #define DRM_IOCTL_OMAP_GEM_CPU_PREP	DRM_IOW (DRM_COMMAND_BASE + DRM_OMAP_GEM_CPU_PREP, struct drm_omap_gem_cpu_prep)
 #define DRM_IOCTL_OMAP_GEM_CPU_FINI	DRM_IOW (DRM_COMMAND_BASE + DRM_OMAP_GEM_CPU_FINI, struct drm_omap_gem_cpu_fini)

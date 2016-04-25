@@ -15,7 +15,7 @@
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
 
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include "edac_core.h"
 
 #define X38_REVISION		"1.1"

@@ -247,8 +247,8 @@ ipipe_try_format(struct iss_ipipe_device *ipipe,
  * return -EINVAL or zero on success
  */
 static int ipipe_enum_mbus_code(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
-			       struct v4l2_subdev_mbus_code_enum *code)
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_mbus_code_enum *code)
 {
 	switch (code->pad) {
 	case IPIPE_PAD_SINK:
@@ -274,8 +274,8 @@ static int ipipe_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ipipe_enum_frame_size(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
-				struct v4l2_subdev_frame_size_enum *fse)
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct iss_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt format;
@@ -320,7 +320,7 @@ static int ipipe_get_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __ipipe_get_format(ipipe, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	fmt->format = *format;
@@ -344,7 +344,7 @@ static int ipipe_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __ipipe_get_format(ipipe, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	ipipe_try_format(ipipe, cfg, fmt->pad, &fmt->format, fmt->which);
@@ -353,18 +353,18 @@ static int ipipe_set_format(struct v4l2_subdev *sd,
 	/* Propagate the format from sink to source */
 	if (fmt->pad == IPIPE_PAD_SINK) {
 		format = __ipipe_get_format(ipipe, cfg, IPIPE_PAD_SOURCE_VP,
-					   fmt->which);
+					    fmt->which);
 		*format = fmt->format;
 		ipipe_try_format(ipipe, cfg, IPIPE_PAD_SOURCE_VP, format,
-				fmt->which);
+				 fmt->which);
 	}
 
 	return 0;
 }
 
 static int ipipe_link_validate(struct v4l2_subdev *sd, struct media_link *link,
-				 struct v4l2_subdev_format *source_fmt,
-				 struct v4l2_subdev_format *sink_fmt)
+			       struct v4l2_subdev_format *source_fmt,
+			       struct v4l2_subdev_format *sink_fmt)
 {
 	/* Check if the two ends match */
 	if (source_fmt->format.width != sink_fmt->format.width ||
@@ -440,15 +440,18 @@ static const struct v4l2_subdev_internal_ops ipipe_v4l2_internal_ops = {
  * return -EINVAL or zero on success
  */
 static int ipipe_link_setup(struct media_entity *entity,
-			   const struct media_pad *local,
-			   const struct media_pad *remote, u32 flags)
+			    const struct media_pad *local,
+			    const struct media_pad *remote, u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct iss_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct iss_device *iss = to_iss_device(ipipe);
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case IPIPE_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	if (!is_media_entity_v4l2_subdev(remote->entity))
+		return -EINVAL;
+
+	switch (local->index) {
+	case IPIPE_PAD_SINK:
 		/* Read from IPIPEIF. */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			ipipe->input = IPIPE_INPUT_NONE;
@@ -463,7 +466,7 @@ static int ipipe_link_setup(struct media_entity *entity,
 
 		break;
 
-	case IPIPE_PAD_SOURCE_VP | MEDIA_ENT_T_V4L2_SUBDEV:
+	case IPIPE_PAD_SOURCE_VP:
 		/* Send to RESIZER */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (ipipe->output & ~IPIPE_OUTPUT_VP)
@@ -513,7 +516,7 @@ static int ipipe_init_entities(struct iss_ipipe_device *ipipe)
 	pads[IPIPE_PAD_SOURCE_VP].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &ipipe_media_ops;
-	ret = media_entity_init(me, IPIPE_PADS_NUM, pads, 0);
+	ret = media_entity_pads_init(me, IPIPE_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 
@@ -528,7 +531,7 @@ void omap4iss_ipipe_unregister_entities(struct iss_ipipe_device *ipipe)
 }
 
 int omap4iss_ipipe_register_entities(struct iss_ipipe_device *ipipe,
-	struct v4l2_device *vdev)
+				     struct v4l2_device *vdev)
 {
 	int ret;
 

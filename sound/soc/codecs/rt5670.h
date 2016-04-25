@@ -973,12 +973,12 @@
 #define RT5670_SCLK_SRC_MCLK			(0x0 << 14)
 #define RT5670_SCLK_SRC_PLL1			(0x1 << 14)
 #define RT5670_SCLK_SRC_RCCLK			(0x2 << 14) /* 15MHz */
-#define RT5670_PLL1_SRC_MASK			(0x3 << 12)
-#define RT5670_PLL1_SRC_SFT			12
-#define RT5670_PLL1_SRC_MCLK			(0x0 << 12)
-#define RT5670_PLL1_SRC_BCLK1			(0x1 << 12)
-#define RT5670_PLL1_SRC_BCLK2			(0x2 << 12)
-#define RT5670_PLL1_SRC_BCLK3			(0x3 << 12)
+#define RT5670_PLL1_SRC_MASK			(0x7 << 11)
+#define RT5670_PLL1_SRC_SFT			11
+#define RT5670_PLL1_SRC_MCLK			(0x0 << 11)
+#define RT5670_PLL1_SRC_BCLK1			(0x1 << 11)
+#define RT5670_PLL1_SRC_BCLK2			(0x2 << 11)
+#define RT5670_PLL1_SRC_BCLK3			(0x3 << 11)
 #define RT5670_PLL1_PD_MASK			(0x1 << 3)
 #define RT5670_PLL1_PD_SFT			3
 #define RT5670_PLL1_PD_1			(0x0 << 3)

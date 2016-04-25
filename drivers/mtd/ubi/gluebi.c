@@ -112,8 +112,8 @@ static int gluebi_get_device(struct mtd_info *mtd)
 		 * The MTD device is already referenced and this is just one
 		 * more reference. MTD allows many users to open the same
 		 * volume simultaneously and do not distinguish between
-		 * readers/writers/exclusive openers as UBI does. So we do not
-		 * open the UBI volume again - just increase the reference
+		 * readers/writers/exclusive/meta openers as UBI does. So we do
+		 * not open the UBI volume again - just increase the reference
 		 * counter and return.
 		 */
 		gluebi->refcnt += 1;

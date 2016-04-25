@@ -14,8 +14,9 @@ ifeq ($(CONFIG_OF),y)
   videodev-objs += v4l2-of.o
 endif
 ifeq ($(CONFIG_TRACEPOINTS),y)
-  videodev-objs += v4l2-trace.o
+  videodev-objs += vb2-trace.o v4l2-trace.o
 endif
+videodev-$(CONFIG_MEDIA_CONTROLLER) += v4l2-mc.o
 
 obj-$(CONFIG_VIDEO_V4L2) += videodev.o
 obj-$(CONFIG_VIDEO_V4L2) += v4l2-common.o
@@ -33,7 +34,7 @@ obj-$(CONFIG_VIDEOBUF_DMA_CONTIG) += videobuf-dma-contig.o
 obj-$(CONFIG_VIDEOBUF_VMALLOC) += videobuf-vmalloc.o
 obj-$(CONFIG_VIDEOBUF_DVB) += videobuf-dvb.o
 
-obj-$(CONFIG_VIDEOBUF2_CORE) += videobuf2-core.o
+obj-$(CONFIG_VIDEOBUF2_CORE) += videobuf2-core.o videobuf2-v4l2.o
 obj-$(CONFIG_VIDEOBUF2_MEMOPS) += videobuf2-memops.o
 obj-$(CONFIG_VIDEOBUF2_VMALLOC) += videobuf2-vmalloc.o
 obj-$(CONFIG_VIDEOBUF2_DMA_CONTIG) += videobuf2-dma-contig.o

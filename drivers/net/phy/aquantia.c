@@ -128,7 +128,6 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
-	.driver		= { .owner = THIS_MODULE,},
 },
 {
 	.phy_id		= PHY_ID_AQ2104,
@@ -141,7 +140,6 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
-	.driver		= { .owner = THIS_MODULE,},
 },
 {
 	.phy_id		= PHY_ID_AQR105,
@@ -154,7 +152,6 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
-	.driver		= { .owner = THIS_MODULE,},
 },
 {
 	.phy_id		= PHY_ID_AQR405,
@@ -167,24 +164,10 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
-	.driver		= { .owner = THIS_MODULE,},
 },
 };
 
-static int __init aquantia_init(void)
-{
-	return phy_drivers_register(aquantia_driver,
-				    ARRAY_SIZE(aquantia_driver));
-}
-
-static void __exit aquantia_exit(void)
-{
-	return phy_drivers_unregister(aquantia_driver,
-				      ARRAY_SIZE(aquantia_driver));
-}
-
-module_init(aquantia_init);
-module_exit(aquantia_exit);
+module_phy_driver(aquantia_driver);
 
 static struct mdio_device_id __maybe_unused aquantia_tbl[] = {
 	{ PHY_ID_AQ1202, 0xfffffff0 },

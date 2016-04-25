@@ -66,6 +66,10 @@ ENTRY(_stext)
 	mov	#0, r0
 	ldc	r0, r6_bank
 #endif
+
+#ifdef CONFIG_OF
+	mov	r4, r12		! Store device tree blob pointer in r12
+#endif
 	
 	/*
 	 * Prefetch if possible to reduce cache miss penalty.
@@ -314,6 +318,12 @@ ENTRY(_stext)
 10:		
 #endif
 
+#ifdef CONFIG_OF
+	mov.l	8f, r0		! Make flat device tree available early.
+	jsr	@r0
+	 mov	r12, r4
+#endif
+
 	!			Additional CPU initialization
 	mov.l	6f, r0
 	jsr	@r0
@@ -339,6 +349,9 @@ ENTRY(stack_start)
 5:	.long	start_kernel
 6:	.long	cpu_init
 7:	.long	init_thread_union
+#if defined(CONFIG_OF)
+8:	.long	sh_fdt_init
+#endif
 
 #ifdef CONFIG_PMB
 .LPMB_ADDR:		.long	PMB_ADDR

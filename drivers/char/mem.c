@@ -689,13 +689,13 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	mutex_lock(&file_inode(file)->i_mutex);
+	inode_lock(file_inode(file));
 	switch (orig) {
 	case SEEK_CUR:
 		offset += file->f_pos;
 	case SEEK_SET:
 		/* to avoid userland mistaking f_pos=-9 as -EBADF=-9 */
-		if (IS_ERR_VALUE((unsigned long long)offset)) {
+		if ((unsigned long long)offset >= -MAX_ERRNO) {
 			ret = -EOVERFLOW;
 			break;
 		}
@@ -706,7 +706,7 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 	default:
 		ret = -EINVAL;
 	}
-	mutex_unlock(&file_inode(file)->i_mutex);
+	inode_unlock(file_inode(file));
 	return ret;
 }
 

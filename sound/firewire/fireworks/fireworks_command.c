@@ -257,7 +257,7 @@ int snd_efw_command_get_phys_meters(struct snd_efw *efw,
 				    struct snd_efw_phys_meters *meters,
 				    unsigned int len)
 {
-	__be32 *buf = (__be32 *)meters;
+	u32 *buf = (u32 *)meters;
 	unsigned int i;
 	int err;
 

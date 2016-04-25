@@ -37,7 +37,7 @@ static inline bool __must_check IS_ERR(__force const void *ptr)
 
 static inline bool __must_check IS_ERR_OR_NULL(__force const void *ptr)
 {
-	return !ptr || IS_ERR_VALUE((unsigned long)ptr);
+	return unlikely(!ptr) || IS_ERR_VALUE((unsigned long)ptr);
 }
 
 /**

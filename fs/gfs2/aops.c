@@ -101,7 +101,7 @@ static int gfs2_writepage_common(struct page *page,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	loff_t i_size = i_size_read(inode);
-	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+	pgoff_t end_index = i_size >> PAGE_SHIFT;
 	unsigned offset;
 
 	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(ip->i_gl)))
@@ -109,9 +109,9 @@ static int gfs2_writepage_common(struct page *page,
 	if (current->journal_info)
 		goto redirty;
 	/* Is the page fully outside i_size? (truncate in progress) */
-	offset = i_size & (PAGE_CACHE_SIZE-1);
+	offset = i_size & (PAGE_SIZE-1);
 	if (page->index > end_index || (page->index == end_index && !offset)) {
-		page->mapping->a_ops->invalidatepage(page, 0, PAGE_CACHE_SIZE);
+		page->mapping->a_ops->invalidatepage(page, 0, PAGE_SIZE);
 		goto out;
 	}
 	return 1;
@@ -238,7 +238,7 @@ static int gfs2_write_jdata_pagevec(struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	unsigned nrblocks = nr_pages * (PAGE_CACHE_SIZE/inode->i_sb->s_blocksize);
+	unsigned nrblocks = nr_pages * (PAGE_SIZE/inode->i_sb->s_blocksize);
 	int i;
 	int ret;
 
@@ -366,8 +366,8 @@ static int gfs2_write_cache_jdata(struct address_space *mapping,
 			cycled = 0;
 		end = -1;
 	} else {
-		index = wbc->range_start >> PAGE_CACHE_SHIFT;
-		end = wbc->range_end >> PAGE_CACHE_SHIFT;
+		index = wbc->range_start >> PAGE_SHIFT;
+		end = wbc->range_end >> PAGE_SHIFT;
 		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
 			range_whole = 1;
 		cycled = 1; /* ignore range_cyclic tests */
@@ -458,7 +458,7 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	 * so we need to supply one here. It doesn't happen often.
 	 */
 	if (unlikely(page->index)) {
-		zero_user(page, 0, PAGE_CACHE_SIZE);
+		zero_user(page, 0, PAGE_SIZE);
 		SetPageUptodate(page);
 		return 0;
 	}
@@ -471,7 +471,7 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	if (dsize > (dibh->b_size - sizeof(struct gfs2_dinode)))
 		dsize = (dibh->b_size - sizeof(struct gfs2_dinode));
 	memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode), dsize);
-	memset(kaddr + dsize, 0, PAGE_CACHE_SIZE - dsize);
+	memset(kaddr + dsize, 0, PAGE_SIZE - dsize);
 	kunmap_atomic(kaddr);
 	flush_dcache_page(page);
 	brelse(dibh);
@@ -560,8 +560,8 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
                        unsigned size)
 {
 	struct address_space *mapping = ip->i_inode.i_mapping;
-	unsigned long index = *pos / PAGE_CACHE_SIZE;
-	unsigned offset = *pos & (PAGE_CACHE_SIZE - 1);
+	unsigned long index = *pos / PAGE_SIZE;
+	unsigned offset = *pos & (PAGE_SIZE - 1);
 	unsigned copied = 0;
 	unsigned amt;
 	struct page *page;
@@ -569,15 +569,15 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
 
 	do {
 		amt = size - copied;
-		if (offset + size > PAGE_CACHE_SIZE)
-			amt = PAGE_CACHE_SIZE - offset;
+		if (offset + size > PAGE_SIZE)
+			amt = PAGE_SIZE - offset;
 		page = read_cache_page(mapping, index, __gfs2_readpage, NULL);
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 		p = kmap_atomic(page);
 		memcpy(buf + copied, p + offset, amt);
 		kunmap_atomic(p);
-		page_cache_release(page);
+		put_page(page);
 		copied += amt;
 		index++;
 		offset = 0;
@@ -651,8 +651,8 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	unsigned requested = 0;
 	int alloc_required;
 	int error = 0;
-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+	pgoff_t index = pos >> PAGE_SHIFT;
+	unsigned from = pos & (PAGE_SIZE - 1);
 	struct page *page;
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &ip->i_gh);
@@ -697,7 +697,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 		rblocks += gfs2_rg_blocks(ip, requested);
 
 	error = gfs2_trans_begin(sdp, rblocks,
-				 PAGE_CACHE_SIZE/sdp->sd_sb.sb_bsize);
+				 PAGE_SIZE/sdp->sd_sb.sb_bsize);
 	if (error)
 		goto out_trans_fail;
 
@@ -727,7 +727,7 @@ out:
 		return 0;
 
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	gfs2_trans_end(sdp);
 	if (pos + len > ip->i_inode.i_size)
@@ -827,7 +827,7 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	if (!PageUptodate(page))
 		SetPageUptodate(page);
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	if (copied) {
 		if (inode->i_size < to)
@@ -877,7 +877,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
 	struct buffer_head *dibh;
-	unsigned int from = pos & (PAGE_CACHE_SIZE - 1);
+	unsigned int from = pos & (PAGE_SIZE - 1);
 	unsigned int to = from + len;
 	int ret;
 	struct gfs2_trans *tr = current->journal_info;
@@ -888,7 +888,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	ret = gfs2_meta_inode_buffer(ip, &dibh);
 	if (unlikely(ret)) {
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 		goto failed;
 	}
 
@@ -914,7 +914,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 failed:
 	gfs2_trans_end(sdp);
 	gfs2_inplace_release(ip);
-	if (ip->i_res->rs_qa_qd_num)
+	if (ip->i_qadata && ip->i_qadata->qa_qd_num)
 		gfs2_quota_unlock(ip);
 	if (inode == sdp->sd_rindex) {
 		gfs2_glock_dq(&m_ip->i_gh);
@@ -992,7 +992,7 @@ static void gfs2_invalidatepage(struct page *page, unsigned int offset,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
 	unsigned int stop = offset + length;
-	int partial_page = (offset || length < PAGE_CACHE_SIZE);
+	int partial_page = (offset || length < PAGE_SIZE);
 	struct buffer_head *bh, *head;
 	unsigned long pos = 0;
 
@@ -1082,7 +1082,7 @@ static ssize_t gfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	 * the first place, mapping->nr_pages will always be zero.
 	 */
 	if (mapping->nrpages) {
-		loff_t lstart = offset & (PAGE_CACHE_SIZE - 1);
+		loff_t lstart = offset & ~(PAGE_SIZE - 1);
 		loff_t len = iov_iter_count(iter);
 		loff_t end = PAGE_ALIGN(offset + len) - 1;
 

@@ -16,7 +16,6 @@
 
 #include <linux/kvm_host.h>
 
-#include "opcode.h"
 #include "interrupt.h"
 
 static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)
@@ -501,7 +500,7 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	kvm_write_c0_guest_config7(cop0, (MIPS_CONF7_WII) | (1 << 10));
 
 	/*
-	 * Setup IntCtl defaults, compatibilty mode for timer interrupts (HW5)
+	 * Setup IntCtl defaults, compatibility mode for timer interrupts (HW5)
 	 */
 	kvm_write_c0_guest_intctl(cop0, 0xFC000000);
 

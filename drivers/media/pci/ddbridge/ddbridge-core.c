@@ -81,13 +81,13 @@ static int i2c_read_reg16(struct i2c_adapter *adapter, u8 adr,
 static int ddb_i2c_cmd(struct ddb_i2c *i2c, u32 adr, u32 cmd)
 {
 	struct ddb *dev = i2c->dev;
-	int stat;
+	long stat;
 	u32 val;
 
 	i2c->done = 0;
 	ddbwritel((adr << 9) | cmd, i2c->regs + I2C_COMMAND);
 	stat = wait_event_timeout(i2c->wq, i2c->done == 1, HZ);
-	if (stat <= 0) {
+	if (stat == 0) {
 		printk(KERN_ERR "I2C timeout\n");
 		{ /* MSI debugging*/
 			u32 istat = ddbreadl(INTERRUPT_STATUS);
@@ -690,7 +690,7 @@ static int tuner_attach_stv6110(struct ddb_input *input, int type)
 	struct stv090x_config *feconf = type ? &stv0900_aa : &stv0900;
 	struct stv6110x_config *tunerconf = (input->nr & 1) ?
 		&stv6110b : &stv6110a;
-	struct stv6110x_devctl *ctl;
+	const struct stv6110x_devctl *ctl;
 
 	ctl = dvb_attach(stv6110x_attach, input->fe, tunerconf, i2c);
 	if (!ctl) {
@@ -1065,7 +1065,7 @@ static int ddb_ci_attach(struct ddb_port *port)
 			    port->en, 0, 1);
 	ret = dvb_register_device(&port->output->adap, &port->output->dev,
 				  &dvbdev_ci, (void *) port->output,
-				  DVB_DEVICE_SEC);
+				  DVB_DEVICE_SEC, 0);
 	return ret;
 }
 

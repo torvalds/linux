@@ -31,10 +31,10 @@
  *
  * For example: authenc(hmac(sha256), cbc(aes))
  *
- * The example code provided for the asynchronous block cipher operation
- * applies here as well. Naturally all *ablkcipher* symbols must be exchanged
+ * The example code provided for the symmetric key cipher operation
+ * applies here as well. Naturally all *skcipher* symbols must be exchanged
  * the *aead* pendants discussed in the following. In addition, for the AEAD
- * operation, the aead_request_set_assoc function must be used to set the
+ * operation, the aead_request_set_ad function must be used to set the
  * pointer to the associated data memory location before performing the
  * encryption or decryption operation. In case of an encryption, the associated
  * data memory is filled during the encryption operation. For decryption, the
@@ -128,6 +128,7 @@ struct aead_request {
  * @exit: Deinitialize the cryptographic transformation object. This is a
  *	  counterpart to @init, used to remove various changes set in
  *	  @init.
+ * @base: Definition of a generic crypto cipher algorithm.
  *
  * All fields except @ivsize is mandatory and must be filled.
  */

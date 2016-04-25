@@ -25,27 +25,43 @@
  *
  */
 
-#ifndef _I830_BIOS_H_
-#define _I830_BIOS_H_
+#ifndef _INTEL_BIOS_H_
+#define _INTEL_BIOS_H_
 
-#include <drm/drmP.h>
-
+/**
+ * struct vbt_header - VBT Header structure
+ * @signature:		VBT signature, always starts with "$VBT"
+ * @version:		Version of this structure
+ * @header_size:	Size of this structure
+ * @vbt_size:		Size of VBT (VBT Header, BDB Header and data blocks)
+ * @vbt_checksum:	Checksum
+ * @reserved0:		Reserved
+ * @bdb_offset:		Offset of &struct bdb_header from beginning of VBT
+ * @aim_offset:		Offsets of add-in data blocks from beginning of VBT
+ */
 struct vbt_header {
-	u8 signature[20];		/**< Always starts with 'VBT$' */
-	u16 version;			/**< decimal */
-	u16 header_size;		/**< in bytes */
-	u16 vbt_size;			/**< in bytes */
+	u8 signature[20];
+	u16 version;
+	u16 header_size;
+	u16 vbt_size;
 	u8 vbt_checksum;
 	u8 reserved0;
-	u32 bdb_offset;			/**< from beginning of VBT */
-	u32 aim_offset[4];		/**< from beginning of VBT */
+	u32 bdb_offset;
+	u32 aim_offset[4];
 } __packed;
 
+/**
+ * struct bdb_header - BDB Header structure
+ * @signature:		BDB signature "BIOS_DATA_BLOCK"
+ * @version:		Version of the data block definitions
+ * @header_size:	Size of this structure
+ * @bdb_size:		Size of BDB (BDB Header and data blocks)
+ */
 struct bdb_header {
-	u8 signature[16];		/**< Always 'BIOS_DATA_BLOCK' */
-	u16 version;			/**< decimal */
-	u16 header_size;		/**< in bytes */
-	u16 bdb_size;			/**< in bytes */
+	u8 signature[16];
+	u16 version;
+	u16 header_size;
+	u16 bdb_size;
 } __packed;
 
 /* strictly speaking, this is a "skip" block, but it has interesting info */
@@ -588,9 +604,6 @@ struct bdb_psr {
 	struct psr_table psr_table[16];
 } __packed;
 
-void intel_setup_bios(struct drm_device *dev);
-int intel_parse_bios(struct drm_device *dev);
-
 /*
  * Driver<->VBIOS interaction occurs through scratch bits in
  * GR18 & SWF*.
@@ -742,7 +755,6 @@ int intel_parse_bios(struct drm_device *dev);
  */
 #define DEVICE_TYPE_eDP_BITS \
 	(DEVICE_TYPE_INTERNAL_CONNECTOR | \
-	 DEVICE_TYPE_NOT_HDMI_OUTPUT | \
 	 DEVICE_TYPE_MIPI_OUTPUT | \
 	 DEVICE_TYPE_COMPOSITE_OUTPUT | \
 	 DEVICE_TYPE_DUAL_CHANNEL | \
@@ -750,7 +762,6 @@ int intel_parse_bios(struct drm_device *dev);
 	 DEVICE_TYPE_TMDS_DVI_SIGNALING | \
 	 DEVICE_TYPE_VIDEO_SIGNALING | \
 	 DEVICE_TYPE_DISPLAYPORT_OUTPUT | \
-	 DEVICE_TYPE_DIGITAL_OUTPUT | \
 	 DEVICE_TYPE_ANALOG_OUTPUT)
 
 /* define the DVO port for HDMI output type */
@@ -943,21 +954,29 @@ struct bdb_mipi_sequence {
 
 /* MIPI Sequnece Block definitions */
 enum mipi_seq {
-	MIPI_SEQ_UNDEFINED = 0,
+	MIPI_SEQ_END = 0,
 	MIPI_SEQ_ASSERT_RESET,
 	MIPI_SEQ_INIT_OTP,
 	MIPI_SEQ_DISPLAY_ON,
 	MIPI_SEQ_DISPLAY_OFF,
 	MIPI_SEQ_DEASSERT_RESET,
+	MIPI_SEQ_BACKLIGHT_ON,		/* sequence block v2+ */
+	MIPI_SEQ_BACKLIGHT_OFF,		/* sequence block v2+ */
+	MIPI_SEQ_TEAR_ON,		/* sequence block v2+ */
+	MIPI_SEQ_TEAR_OFF,		/* sequence block v3+ */
+	MIPI_SEQ_POWER_ON,		/* sequence block v3+ */
+	MIPI_SEQ_POWER_OFF,		/* sequence block v3+ */
 	MIPI_SEQ_MAX
 };
 
 enum mipi_seq_element {
-	MIPI_SEQ_ELEM_UNDEFINED = 0,
+	MIPI_SEQ_ELEM_END = 0,
 	MIPI_SEQ_ELEM_SEND_PKT,
 	MIPI_SEQ_ELEM_DELAY,
 	MIPI_SEQ_ELEM_GPIO,
-	MIPI_SEQ_ELEM_STATUS,
+	MIPI_SEQ_ELEM_I2C,		/* sequence block v2+ */
+	MIPI_SEQ_ELEM_SPI,		/* sequence block v3+ */
+	MIPI_SEQ_ELEM_PMIC,		/* sequence block v3+ */
 	MIPI_SEQ_ELEM_MAX
 };
 
@@ -972,4 +991,4 @@ enum mipi_gpio_pin_index {
 	MIPI_GPIO_MAX
 };
 
-#endif /* _I830_BIOS_H_ */
+#endif /* _INTEL_BIOS_H_ */

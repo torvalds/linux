@@ -30,7 +30,12 @@
 int
 nvkm_volt_get(struct nvkm_volt *volt)
 {
-	int ret = volt->func->vid_get(volt), i;
+	int ret, i;
+
+	if (volt->func->volt_get)
+		return volt->func->volt_get(volt);
+
+	ret = volt->func->vid_get(volt);
 	if (ret >= 0) {
 		for (i = 0; i < volt->vid_nr; i++) {
 			if (volt->vid[i].vid == ret)
@@ -46,6 +51,10 @@ nvkm_volt_set(struct nvkm_volt *volt, u32 uv)
 {
 	struct nvkm_subdev *subdev = &volt->subdev;
 	int i, ret = -EINVAL;
+
+	if (volt->func->volt_set)
+		return volt->func->volt_set(volt, uv);
+
 	for (i = 0; i < volt->vid_nr; i++) {
 		if (volt->vid[i].uv == uv) {
 			ret = volt->func->vid_set(volt, volt->vid[i].vid);

@@ -5,6 +5,7 @@
 menuconfig FB
 	tristate "Support for frame buffer devices"
 	select FB_CMDLINE
+	select FB_NOTIFY
 	---help---
 	  The frame buffer device provides an abstraction for the graphics
 	  hardware. It represents the frame buffer of some video hardware and
@@ -54,6 +55,9 @@ config FIRMWARE_EDID
 	 suffer from this problem.
 
 config FB_CMDLINE
+	bool
+
+config FB_NOTIFY
 	bool
 
 config FB_DDC
@@ -1506,6 +1510,7 @@ config FB_SIS
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_BOOT_VESA_SUPPORT if FB_SIS = y
+	select FB_SIS_300 if !FB_SIS_315
 	help
 	  This is the frame buffer device driver for the SiS 300, 315, 330
 	  and 340 series as well as XGI V3XT, V5, V8, Z7 graphics chipsets.
@@ -1666,6 +1671,8 @@ config FB_TRIDENT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_DDC
+	select FB_MODE_HELPERS
 	---help---
 	  This is the frame buffer device driver for Trident PCI/AGP chipsets.
 	  Supported chipset families are TGUI 9440/96XX, 3DImage, Blade3D
@@ -1801,8 +1808,8 @@ config FB_HIT
 	  frame buffer card.
 
 config FB_PMAG_AA
-	bool "PMAG-AA TURBOchannel framebuffer support"
-	depends on (FB = y) && TC
+	tristate "PMAG-AA TURBOchannel framebuffer support"
+	depends on FB && TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
@@ -1878,6 +1885,8 @@ config FB_PXA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select VIDEOMODE_HELPERS if OF
+	select FB_MODE_HELPERS if OF
 	---help---
 	  Frame buffer driver for the built-in LCD controller in the Intel
 	  PXA2x0 processor.
@@ -1976,7 +1985,7 @@ config FB_W100
 
 config FB_SH_MOBILE_LCDC
 	tristate "SuperH Mobile LCDC framebuffer support"
-	depends on FB && (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
+	depends on FB && (SUPERH || ARCH_RENESAS) && HAVE_CLK
 	depends on FB_SH_MOBILE_MERAM || !FB_SH_MOBILE_MERAM
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
@@ -1987,16 +1996,6 @@ config FB_SH_MOBILE_LCDC
 	select SH_MIPI_DSI if SH_LCD_MIPI_DSI
 	---help---
 	  Frame buffer driver for the on-chip SH-Mobile LCD controller.
-
-config FB_SH_MOBILE_HDMI
-	tristate "SuperH Mobile HDMI controller support"
-	depends on FB_SH_MOBILE_LCDC
-	select FB_MODE_HELPERS
-	select SOUND
-	select SND
-	select SND_SOC
-	---help---
-	  Driver for the on-chip SH-Mobile HDMI controller.
 
 config FB_TMIO
 	tristate "Toshiba Mobile IO FrameBuffer support"
@@ -2132,7 +2131,7 @@ config FB_UDL
 
 config FB_IBM_GXT4500
 	tristate "Framebuffer support for IBM GXT4000P/4500P/6000P/6500P adaptors"
-	depends on FB && PPC
+	depends on FB
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2140,7 +2139,8 @@ config FB_IBM_GXT4500
 	  Say Y here to enable support for the IBM GXT4000P/6000P and
 	  GXT4500P/6500P display adaptor based on Raster Engine RC1000,
 	  found on some IBM System P (pSeries) machines. This driver
-	  doesn't use Geometry Engine GT1000.
+	  doesn't use Geometry Engine GT1000. This driver also supports
+	  AGP Fire GL2/3/4 cards on x86.
 
 config FB_PS3
 	tristate "PS3 GPU framebuffer driver"
@@ -2246,7 +2246,6 @@ config XEN_FBDEV_FRONTEND
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	select FB_DEFERRED_IO
-	select INPUT_XEN_KBDDEV_FRONTEND if INPUT_MISC
 	select XEN_XENBUS_FRONTEND
 	default y
 	help

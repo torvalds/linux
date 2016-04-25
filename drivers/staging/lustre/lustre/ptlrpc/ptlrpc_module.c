@@ -36,7 +36,6 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-
 #include "../include/obd_support.h"
 #include "../include/obd_class.h"
 #include "../include/lustre_net.h"
@@ -48,8 +47,6 @@ extern spinlock_t ptlrpc_last_xid_lock;
 #if RS_DEBUG
 extern spinlock_t ptlrpc_rs_debug_lock;
 #endif
-extern struct mutex pinger_mutex;
-extern struct mutex ptlrpcd_mutex;
 
 static int __init ptlrpc_init(void)
 {
@@ -143,7 +140,8 @@ cleanup:
 		ptlrpc_hr_fini();
 		req_layout_fini();
 		/* Fall through */
-	default: ;
+	default:
+		;
 	}
 
 	return rc;
@@ -162,10 +160,10 @@ static void __exit ptlrpc_exit(void)
 	ptlrpc_connection_fini();
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Request Processor and Lock Management");
+MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0.0");
 
 module_init(ptlrpc_init);
 module_exit(ptlrpc_exit);

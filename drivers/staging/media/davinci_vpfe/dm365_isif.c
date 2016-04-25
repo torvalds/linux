@@ -282,7 +282,8 @@ isif_config_format(struct vpfe_device *vpfe_dev, unsigned int pad)
  * @fmt: pointer to v4l2 subdev format structure
  */
 static void
-isif_try_format(struct vpfe_isif_device *isif, struct v4l2_subdev_pad_config *cfg,
+isif_try_format(struct vpfe_isif_device *isif,
+		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *fmt)
 {
 	unsigned int width = fmt->format.width;
@@ -625,21 +626,16 @@ static int isif_set_params(struct v4l2_subdev *sd, void *params)
  */
 static long isif_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	int ret;
-
 	switch (cmd) {
 	case VIDIOC_VPFE_ISIF_S_RAW_PARAMS:
-		ret = isif_set_params(sd, arg);
-		break;
+		return isif_set_params(sd, arg);
 
 	case VIDIOC_VPFE_ISIF_G_RAW_PARAMS:
-		ret = isif_get_params(sd, arg);
-		break;
+		return isif_get_params(sd, arg);
 
 	default:
-		ret = -ENOIOCTLCMD;
+		return -ENOIOCTLCMD;
 	}
-	return ret;
 }
 
 static void isif_config_gain_offset(struct vpfe_isif_device *isif)
@@ -1239,7 +1235,8 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 	 * a lot of registers that we didn't touch
 	 */
 	/* start with all bits zero */
-	ccdcfg = modeset = 0;
+	ccdcfg = 0;
+	modeset = 0;
 	pix_fmt = isif_get_pix_fmt(format->code);
 	if (pix_fmt < 0) {
 		pr_debug("Invalid pix_fmt(input mode)\n");
@@ -1398,8 +1395,9 @@ static int isif_set_stream(struct v4l2_subdev *sd, int enable)
  * @which: wanted subdev format.
  */
 static struct v4l2_mbus_framefmt *
-__isif_get_format(struct vpfe_isif_device *isif, struct v4l2_subdev_pad_config *cfg,
-		  unsigned int pad, enum v4l2_subdev_format_whence which)
+__isif_get_format(struct vpfe_isif_device *isif,
+		  struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+		  enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_subdev_format fmt;
@@ -1570,7 +1568,7 @@ isif_pad_set_selection(struct v4l2_subdev *sd,
 		sel->r.height = format->height;
 	}
 	/* adjust the width to 16 pixel boundary */
-	sel->r.width = ((sel->r.width + 15) & ~0xf);
+	sel->r.width = (sel->r.width + 15) & ~0xf;
 	vpfe_isif->crop = sel->r;
 	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		isif_set_image_window(vpfe_isif);
@@ -1707,9 +1705,14 @@ isif_link_setup(struct media_entity *entity, const struct media_pad *local,
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct vpfe_isif_device *isif = v4l2_get_subdevdata(sd);
+	unsigned int index = local->index;
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case ISIF_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	/* FIXME: this is actually a hack! */
+	if (is_media_entity_v4l2_subdev(remote->entity))
+		index |= 2 << 16;
+
+	switch (index) {
+	case ISIF_PAD_SINK | 2 << 16:
 		/* read from decoder/sensor */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			isif->input = ISIF_INPUT_NONE;
@@ -1720,7 +1723,7 @@ isif_link_setup(struct media_entity *entity, const struct media_pad *local,
 		isif->input = ISIF_INPUT_PARALLEL;
 		break;
 
-	case ISIF_PAD_SOURCE | MEDIA_ENT_T_DEVNODE:
+	case ISIF_PAD_SOURCE:
 		/* write to memory */
 		if (flags & MEDIA_LNK_FL_ENABLED)
 			isif->output = ISIF_OUTPUT_MEMORY;
@@ -1728,7 +1731,7 @@ isif_link_setup(struct media_entity *entity, const struct media_pad *local,
 			isif->output = ISIF_OUTPUT_NONE;
 		break;
 
-	case ISIF_PAD_SOURCE | MEDIA_ENT_T_V4L2_SUBDEV:
+	case ISIF_PAD_SOURCE | 2 << 16:
 		if (flags & MEDIA_LNK_FL_ENABLED)
 			isif->output = ISIF_OUTPUT_IPIPEIF;
 		else
@@ -1817,7 +1820,7 @@ int vpfe_isif_register_entities(struct vpfe_isif_device *isif,
 	isif->video_out.vpfe_dev = vpfe_dev;
 	flags = 0;
 	/* connect isif to video node */
-	ret = media_entity_create_link(&isif->subdev.entity, 1,
+	ret = media_create_pad_link(&isif->subdev.entity, 1,
 				       &isif->video_out.video_dev.entity,
 				       0, flags);
 	if (ret < 0)
@@ -2052,7 +2055,7 @@ int vpfe_isif_init(struct vpfe_isif_device *isif, struct platform_device *pdev)
 	isif->input = ISIF_INPUT_NONE;
 	isif->output = ISIF_OUTPUT_NONE;
 	me->ops = &isif_media_ops;
-	status = media_entity_init(me, ISIF_PADS_NUM, pads, 0);
+	status = media_entity_pads_init(me, ISIF_PADS_NUM, pads);
 	if (status)
 		goto isif_fail;
 	isif->video_out.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;

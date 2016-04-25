@@ -35,6 +35,7 @@
  * @coreclk: clock source to access register
  * @extalclk: esai clock source to derive HCK, SCK and FS
  * @fsysclk: system clock source to derive HCK, SCK and FS
+ * @spbaclk: SPBA clock (optional, depending on SoC design)
  * @fifo_depth: depth of tx/rx FIFO
  * @slot_width: width of each DAI slot
  * @slots: number of slots
@@ -54,6 +55,7 @@ struct fsl_esai {
 	struct clk *coreclk;
 	struct clk *extalclk;
 	struct clk *fsysclk;
+	struct clk *spbaclk;
 	u32 fifo_depth;
 	u32 slot_width;
 	u32 slots;
@@ -469,6 +471,11 @@ static int fsl_esai_startup(struct snd_pcm_substream *substream,
 	ret = clk_prepare_enable(esai_priv->coreclk);
 	if (ret)
 		return ret;
+	if (!IS_ERR(esai_priv->spbaclk)) {
+		ret = clk_prepare_enable(esai_priv->spbaclk);
+		if (ret)
+			goto err_spbaclk;
+	}
 	if (!IS_ERR(esai_priv->extalclk)) {
 		ret = clk_prepare_enable(esai_priv->extalclk);
 		if (ret)
@@ -499,6 +506,9 @@ err_fsysclk:
 	if (!IS_ERR(esai_priv->extalclk))
 		clk_disable_unprepare(esai_priv->extalclk);
 err_extalck:
+	if (!IS_ERR(esai_priv->spbaclk))
+		clk_disable_unprepare(esai_priv->spbaclk);
+err_spbaclk:
 	clk_disable_unprepare(esai_priv->coreclk);
 
 	return ret;
@@ -510,7 +520,7 @@ static int fsl_esai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct fsl_esai *esai_priv = snd_soc_dai_get_drvdata(dai);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	u32 width = snd_pcm_format_width(params_format(params));
+	u32 width = params_width(params);
 	u32 channels = params_channels(params);
 	u32 pins = DIV_ROUND_UP(channels, esai_priv->slots);
 	u32 slot_width = width;
@@ -564,6 +574,8 @@ static void fsl_esai_shutdown(struct snd_pcm_substream *substream,
 		clk_disable_unprepare(esai_priv->fsysclk);
 	if (!IS_ERR(esai_priv->extalclk))
 		clk_disable_unprepare(esai_priv->extalclk);
+	if (!IS_ERR(esai_priv->spbaclk))
+		clk_disable_unprepare(esai_priv->spbaclk);
 	clk_disable_unprepare(esai_priv->coreclk);
 }
 
@@ -652,6 +664,31 @@ static const struct snd_soc_component_driver fsl_esai_component = {
 	.name		= "fsl-esai",
 };
 
+static const struct reg_default fsl_esai_reg_defaults[] = {
+	{REG_ESAI_ETDR,	 0x00000000},
+	{REG_ESAI_ECR,	 0x00000000},
+	{REG_ESAI_TFCR,	 0x00000000},
+	{REG_ESAI_RFCR,	 0x00000000},
+	{REG_ESAI_TX0,	 0x00000000},
+	{REG_ESAI_TX1,	 0x00000000},
+	{REG_ESAI_TX2,	 0x00000000},
+	{REG_ESAI_TX3,	 0x00000000},
+	{REG_ESAI_TX4,	 0x00000000},
+	{REG_ESAI_TX5,	 0x00000000},
+	{REG_ESAI_TSR,	 0x00000000},
+	{REG_ESAI_SAICR, 0x00000000},
+	{REG_ESAI_TCR,	 0x00000000},
+	{REG_ESAI_TCCR,	 0x00000000},
+	{REG_ESAI_RCR,	 0x00000000},
+	{REG_ESAI_RCCR,	 0x00000000},
+	{REG_ESAI_TSMA,  0x0000ffff},
+	{REG_ESAI_TSMB,  0x0000ffff},
+	{REG_ESAI_RSMA,  0x0000ffff},
+	{REG_ESAI_RSMB,  0x0000ffff},
+	{REG_ESAI_PRRC,  0x00000000},
+	{REG_ESAI_PCRC,  0x00000000},
+};
+
 static bool fsl_esai_readable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -678,6 +715,24 @@ static bool fsl_esai_readable_reg(struct device *dev, unsigned int reg)
 	case REG_ESAI_RSMB:
 	case REG_ESAI_PRRC:
 	case REG_ESAI_PCRC:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool fsl_esai_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case REG_ESAI_ERDR:
+	case REG_ESAI_ESR:
+	case REG_ESAI_TFSR:
+	case REG_ESAI_RFSR:
+	case REG_ESAI_RX0:
+	case REG_ESAI_RX1:
+	case REG_ESAI_RX2:
+	case REG_ESAI_RX3:
+	case REG_ESAI_SAISR:
 		return true;
 	default:
 		return false;
@@ -721,8 +776,12 @@ static const struct regmap_config fsl_esai_regmap_config = {
 	.val_bits = 32,
 
 	.max_register = REG_ESAI_PCRC,
+	.reg_defaults = fsl_esai_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(fsl_esai_reg_defaults),
 	.readable_reg = fsl_esai_readable_reg,
+	.volatile_reg = fsl_esai_volatile_reg,
 	.writeable_reg = fsl_esai_writeable_reg,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static int fsl_esai_probe(struct platform_device *pdev)
@@ -771,6 +830,11 @@ static int fsl_esai_probe(struct platform_device *pdev)
 	if (IS_ERR(esai_priv->fsysclk))
 		dev_warn(&pdev->dev, "failed to get fsys clock: %ld\n",
 				PTR_ERR(esai_priv->fsysclk));
+
+	esai_priv->spbaclk = devm_clk_get(&pdev->dev, "spba");
+	if (IS_ERR(esai_priv->spbaclk))
+		dev_warn(&pdev->dev, "failed to get spba clock: %ld\n",
+				PTR_ERR(esai_priv->spbaclk));
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -853,10 +917,51 @@ static const struct of_device_id fsl_esai_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_esai_dt_ids);
 
+#ifdef CONFIG_PM_SLEEP
+static int fsl_esai_suspend(struct device *dev)
+{
+	struct fsl_esai *esai = dev_get_drvdata(dev);
+
+	regcache_cache_only(esai->regmap, true);
+	regcache_mark_dirty(esai->regmap);
+
+	return 0;
+}
+
+static int fsl_esai_resume(struct device *dev)
+{
+	struct fsl_esai *esai = dev_get_drvdata(dev);
+	int ret;
+
+	regcache_cache_only(esai->regmap, false);
+
+	/* FIFO reset for safety */
+	regmap_update_bits(esai->regmap, REG_ESAI_TFCR,
+			   ESAI_xFCR_xFR, ESAI_xFCR_xFR);
+	regmap_update_bits(esai->regmap, REG_ESAI_RFCR,
+			   ESAI_xFCR_xFR, ESAI_xFCR_xFR);
+
+	ret = regcache_sync(esai->regmap);
+	if (ret)
+		return ret;
+
+	/* FIFO reset done */
+	regmap_update_bits(esai->regmap, REG_ESAI_TFCR, ESAI_xFCR_xFR, 0);
+	regmap_update_bits(esai->regmap, REG_ESAI_RFCR, ESAI_xFCR_xFR, 0);
+
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops fsl_esai_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(fsl_esai_suspend, fsl_esai_resume)
+};
+
 static struct platform_driver fsl_esai_driver = {
 	.probe = fsl_esai_probe,
 	.driver = {
 		.name = "fsl-esai-dai",
+		.pm = &fsl_esai_pm_ops,
 		.of_match_table = fsl_esai_dt_ids,
 	},
 };

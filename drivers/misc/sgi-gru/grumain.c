@@ -930,6 +930,7 @@ int gru_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct gru_thread_state *gts;
 	unsigned long paddr, vaddr;
+	unsigned long expires;
 
 	vaddr = (unsigned long)vmf->virtual_address;
 	gru_dbg(grudev, "vma %p, vaddr 0x%lx (0x%lx)\n",
@@ -954,7 +955,8 @@ again:
 			mutex_unlock(&gts->ts_ctxlock);
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(GRU_ASSIGN_DELAY);  /* true hack ZZZ */
-			if (gts->ts_steal_jiffies + GRU_STEAL_DELAY < jiffies)
+			expires = gts->ts_steal_jiffies + GRU_STEAL_DELAY;
+			if (time_before(expires, jiffies))
 				gru_steal_context(gts);
 			goto again;
 		}

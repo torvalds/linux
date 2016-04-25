@@ -385,7 +385,7 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 
 	ah->config.dma_beacon_response_time = 1;
 	ah->config.sw_beacon_response_time = 6;
-	ah->config.cwm_ignore_extcca = 0;
+	ah->config.cwm_ignore_extcca = false;
 	ah->config.analog_shiftreg = 1;
 
 	ah->config.rx_intr_mitigation = true;
@@ -1241,6 +1241,7 @@ static void ath9k_hw_set_operating_mode(struct ath_hw *ah, int opmode)
 			break;
 		}
 		/* fall through */
+	case NL80211_IFTYPE_OCB:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
 		set |= AR_STA_ID1_STA_AP;
@@ -1366,6 +1367,16 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 
 	if (ath9k_hw_mci_is_enabled(ah))
 		ar9003_mci_check_gpm_offset(ah);
+
+	/* DMA HALT added to resolve ar9300 and ar9580 bus error during
+	 * RTC_RC reg read
+	 */
+	if (AR_SREV_9300(ah) || AR_SREV_9580(ah)) {
+		REG_SET_BIT(ah, AR_CFG, AR_CFG_HALT_REQ);
+		ath9k_hw_wait(ah, AR_CFG, AR_CFG_HALT_ACK, AR_CFG_HALT_ACK,
+			      20 * AH_WAIT_TIMEOUT);
+		REG_CLR_BIT(ah, AR_CFG, AR_CFG_HALT_REQ);
+	}
 
 	REG_WRITE(ah, AR_RTC_RC, rst_flags);
 
@@ -2298,10 +2309,10 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 	else
 		nextTbtt = bs->bs_nexttbtt;
 
-	ath_dbg(common, BEACON, "next DTIM %d\n", bs->bs_nextdtim);
-	ath_dbg(common, BEACON, "next beacon %d\n", nextTbtt);
-	ath_dbg(common, BEACON, "beacon period %d\n", beaconintval);
-	ath_dbg(common, BEACON, "DTIM period %d\n", dtimperiod);
+	ath_dbg(common, BEACON, "next DTIM %u\n", bs->bs_nextdtim);
+	ath_dbg(common, BEACON, "next beacon %u\n", nextTbtt);
+	ath_dbg(common, BEACON, "beacon period %u\n", beaconintval);
+	ath_dbg(common, BEACON, "DTIM period %u\n", dtimperiod);
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
@@ -2759,9 +2770,6 @@ void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits)
 	u32 phybits;
 
 	ENABLE_REGWRITE_BUFFER(ah);
-
-	if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
-		bits |= ATH9K_RX_FILTER_CONTROL_WRAPPER;
 
 	REG_WRITE(ah, AR_RX_FILTER, bits);
 

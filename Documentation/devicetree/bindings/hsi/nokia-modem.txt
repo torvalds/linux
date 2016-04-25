@@ -7,6 +7,8 @@ properties are needed by the Nokia modem HSI client:
 Required properties:
 - compatible:		Should be one of
       "nokia,n900-modem"
+      "nokia,n950-modem"
+      "nokia,n9-modem"
 - hsi-channel-names:	Should contain the following strings
       "mcsaab-control"
       "speech-control"
@@ -15,11 +17,11 @@ Required properties:
 - gpios:		Should provide a GPIO handler for each GPIO listed in
                         gpio-names
 - gpio-names:		Should contain the following strings
-      "cmt_apeslpx"
-      "cmt_rst_rq"
-      "cmt_en"
-      "cmt_rst"
-      "cmt_bsi"
+      "cmt_apeslpx" (for n900, n950, n9)
+      "cmt_rst_rq"  (for n900, n950, n9)
+      "cmt_en"      (for n900, n950, n9)
+      "cmt_rst"     (for n900)
+      "cmt_bsi"     (for n900)
 - interrupts:		Should be IRQ handle for modem's reset indication
 
 Example:

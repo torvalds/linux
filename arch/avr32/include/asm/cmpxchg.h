@@ -57,7 +57,7 @@ static inline unsigned long __cmpxchg_u32(volatile int *m, unsigned long old,
 		"	brne	1b\n"
 		"2:\n"
 		: [ret] "=&r"(ret), [m] "=m"(*m)
-		: "m"(m), [old] "ir"(old), [new] "r"(new)
+		: "m"(m), [old] "Ks21r"(old), [new] "r"(new)
 		: "memory", "cc");
 	return ret;
 }

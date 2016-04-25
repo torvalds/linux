@@ -8,7 +8,7 @@ Description:
 
 What:           /sys/class/net/<mesh_iface>/mesh/<vlan_subdir>/ap_isolation
 Date:           May 2011
-Contact:        Antonio Quartulli <antonio@meshcoding.com>
+Contact:        Antonio Quartulli <a@unstable.cc>
 Description:
                 Indicates whether the data traffic going from a
                 wireless client to another wireless client will be
@@ -70,7 +70,7 @@ Description:
 
 What:		/sys/class/net/<mesh_iface>/mesh/isolation_mark
 Date:		Nov 2013
-Contact:	Antonio Quartulli <antonio@meshcoding.com>
+Contact:	Antonio Quartulli <a@unstable.cc>
 Description:
 		Defines the isolation mark (and its bitmask) which
 		is used to classify clients as "isolated" by the

@@ -218,7 +218,11 @@ static struct atmel_tdes_dev *atmel_tdes_find_dev(struct atmel_tdes_ctx *ctx)
 
 static int atmel_tdes_hw_init(struct atmel_tdes_dev *dd)
 {
-	clk_prepare_enable(dd->iclk);
+	int err;
+
+	err = clk_prepare_enable(dd->iclk);
+	if (err)
+		return err;
 
 	if (!(dd->flags & TDES_FLAGS_INIT)) {
 		atmel_tdes_write(dd, TDES_CR, TDES_CR_SWRST);
@@ -1355,7 +1359,6 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	struct crypto_platform_data	*pdata;
 	struct device *dev = &pdev->dev;
 	struct resource *tdes_res;
-	unsigned long tdes_phys_size;
 	int err;
 
 	tdes_dd = devm_kmalloc(&pdev->dev, sizeof(*tdes_dd), GFP_KERNEL);
@@ -1389,7 +1392,6 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 		goto res_err;
 	}
 	tdes_dd->phys_base = tdes_res->start;
-	tdes_phys_size = resource_size(tdes_res);
 
 	/* Get the IRQ */
 	tdes_dd->irq = platform_get_irq(pdev,  0);
@@ -1399,26 +1401,26 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 		goto res_err;
 	}
 
-	err = request_irq(tdes_dd->irq, atmel_tdes_irq, IRQF_SHARED,
-			"atmel-tdes", tdes_dd);
+	err = devm_request_irq(&pdev->dev, tdes_dd->irq, atmel_tdes_irq,
+			       IRQF_SHARED, "atmel-tdes", tdes_dd);
 	if (err) {
 		dev_err(dev, "unable to request tdes irq.\n");
-		goto tdes_irq_err;
+		goto res_err;
 	}
 
 	/* Initializing the clock */
-	tdes_dd->iclk = clk_get(&pdev->dev, "tdes_clk");
+	tdes_dd->iclk = devm_clk_get(&pdev->dev, "tdes_clk");
 	if (IS_ERR(tdes_dd->iclk)) {
 		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(tdes_dd->iclk);
-		goto clk_err;
+		goto res_err;
 	}
 
-	tdes_dd->io_base = ioremap(tdes_dd->phys_base, tdes_phys_size);
-	if (!tdes_dd->io_base) {
+	tdes_dd->io_base = devm_ioremap_resource(&pdev->dev, tdes_res);
+	if (IS_ERR(tdes_dd->io_base)) {
 		dev_err(dev, "can't ioremap\n");
-		err = -ENOMEM;
-		goto tdes_io_err;
+		err = PTR_ERR(tdes_dd->io_base);
+		goto res_err;
 	}
 
 	atmel_tdes_hw_version_init(tdes_dd);
@@ -1474,12 +1476,6 @@ err_tdes_dma:
 err_pdata:
 	atmel_tdes_buff_cleanup(tdes_dd);
 err_tdes_buff:
-	iounmap(tdes_dd->io_base);
-tdes_io_err:
-	clk_put(tdes_dd->iclk);
-clk_err:
-	free_irq(tdes_dd->irq, tdes_dd);
-tdes_irq_err:
 res_err:
 	tasklet_kill(&tdes_dd->done_task);
 	tasklet_kill(&tdes_dd->queue_task);
@@ -1509,13 +1505,6 @@ static int atmel_tdes_remove(struct platform_device *pdev)
 		atmel_tdes_dma_cleanup(tdes_dd);
 
 	atmel_tdes_buff_cleanup(tdes_dd);
-
-	iounmap(tdes_dd->io_base);
-
-	clk_put(tdes_dd->iclk);
-
-	if (tdes_dd->irq >= 0)
-		free_irq(tdes_dd->irq, tdes_dd);
 
 	return 0;
 }

@@ -266,6 +266,9 @@ void drm_pci_agp_destroy(struct drm_device *dev)
  * then register the character device and inter module information.
  * Try and register, if we fail to register, backout previous work.
  *
+ * NOTE: This function is deprecated, please use drm_dev_alloc() and
+ * drm_dev_register() instead and remove your ->load() callback.
+ *
  * Return: 0 on success or a negative error code on failure.
  */
 int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
@@ -325,6 +328,10 @@ EXPORT_SYMBOL(drm_get_pci_dev);
  *
  * Initializes a drm_device structures, registering the stubs and initializing
  * the AGP device.
+ *
+ * NOTE: This function is deprecated. Modern modesetting drm drivers should use
+ * pci_register_driver() directly, this function only provides shadow-binding
+ * support for old legacy drivers on top of that core pci function.
  *
  * Return: 0 on success or a negative error code on failure.
  */
@@ -403,6 +410,26 @@ int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
 }
 EXPORT_SYMBOL(drm_pcie_get_speed_cap_mask);
 
+int drm_pcie_get_max_link_width(struct drm_device *dev, u32 *mlw)
+{
+	struct pci_dev *root;
+	u32 lnkcap;
+
+	*mlw = 0;
+	if (!dev->pdev)
+		return -EINVAL;
+
+	root = dev->pdev->bus->self;
+
+	pcie_capability_read_dword(root, PCI_EXP_LNKCAP, &lnkcap);
+
+	*mlw = (lnkcap & PCI_EXP_LNKCAP_MLW) >> 4;
+
+	DRM_INFO("probing mlw for device %x:%x = %x\n", root->vendor, root->device, lnkcap);
+	return 0;
+}
+EXPORT_SYMBOL(drm_pcie_get_max_link_width);
+
 #else
 
 int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
@@ -435,6 +462,10 @@ EXPORT_SYMBOL(drm_pci_init);
  *
  * Unregisters one or more devices matched by a PCI driver from the DRM
  * subsystem.
+ *
+ * NOTE: This function is deprecated. Modern modesetting drm drivers should use
+ * pci_unregister_driver() directly, this function only provides shadow-binding
+ * support for old legacy drivers on top of that core pci function.
  */
 void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 {

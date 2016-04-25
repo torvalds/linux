@@ -875,7 +875,7 @@ bio_pageinc(struct bio *bio)
 		 * compound pages is no longer allowed by the kernel.
 		 */
 		page = compound_head(bv.bv_page);
-		atomic_inc(&page->_count);
+		page_ref_inc(page);
 	}
 }
 
@@ -888,7 +888,7 @@ bio_pagedec(struct bio *bio)
 
 	bio_for_each_segment(bv, bio, iter) {
 		page = compound_head(bv.bv_page);
-		atomic_dec(&page->_count);
+		page_ref_dec(page);
 	}
 }
 
@@ -964,9 +964,9 @@ aoecmd_sleepwork(struct work_struct *work)
 		ssize = get_capacity(d->gd);
 		bd = bdget_disk(d->gd, 0);
 		if (bd) {
-			mutex_lock(&bd->bd_inode->i_mutex);
+			inode_lock(bd->bd_inode);
 			i_size_write(bd->bd_inode, (loff_t)ssize<<9);
-			mutex_unlock(&bd->bd_inode->i_mutex);
+			inode_unlock(bd->bd_inode);
 			bdput(bd);
 		}
 		spin_lock_irq(&d->lock);

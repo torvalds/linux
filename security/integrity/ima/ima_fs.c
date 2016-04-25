@@ -22,8 +22,11 @@
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/parser.h>
+#include <linux/vmalloc.h>
 
 #include "ima.h"
+
+static DEFINE_MUTEX(ima_write_mutex);
 
 static int valid_policy = 1;
 #define TMPBUFLEN 12
@@ -256,10 +259,47 @@ static const struct file_operations ima_ascii_measurements_ops = {
 	.release = seq_release,
 };
 
+static ssize_t ima_read_policy(char *path)
+{
+	void *data;
+	char *datap;
+	loff_t size;
+	int rc, pathlen = strlen(path);
+
+	char *p;
+
+	/* remove \n */
+	datap = path;
+	strsep(&datap, "\n");
+
+	rc = kernel_read_file_from_path(path, &data, &size, 0, READING_POLICY);
+	if (rc < 0) {
+		pr_err("Unable to open file: %s (%d)", path, rc);
+		return rc;
+	}
+
+	datap = data;
+	while (size > 0 && (p = strsep(&datap, "\n"))) {
+		pr_debug("rule: %s\n", p);
+		rc = ima_parse_add_rule(p);
+		if (rc < 0)
+			break;
+		size -= rc;
+	}
+
+	vfree(data);
+	if (rc < 0)
+		return rc;
+	else if (size)
+		return -EINVAL;
+	else
+		return pathlen;
+}
+
 static ssize_t ima_write_policy(struct file *file, const char __user *buf,
 				size_t datalen, loff_t *ppos)
 {
-	char *data = NULL;
+	char *data;
 	ssize_t result;
 
 	if (datalen >= PAGE_SIZE)
@@ -279,13 +319,31 @@ static ssize_t ima_write_policy(struct file *file, const char __user *buf,
 
 	result = -EFAULT;
 	if (copy_from_user(data, buf, datalen))
-		goto out;
+		goto out_free;
 
-	result = ima_parse_add_rule(data);
+	result = mutex_lock_interruptible(&ima_write_mutex);
+	if (result < 0)
+		goto out_free;
+
+	if (data[0] == '/') {
+		result = ima_read_policy(data);
+	} else if (ima_appraise & IMA_APPRAISE_POLICY) {
+		pr_err("IMA: signed policy file (specified as an absolute pathname) required\n");
+		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL, NULL,
+				    "policy_update", "signed policy required",
+				    1, 0);
+		if (ima_appraise & IMA_APPRAISE_ENFORCE)
+			result = -EACCES;
+	} else {
+		result = ima_parse_add_rule(data);
+	}
+	mutex_unlock(&ima_write_mutex);
+out_free:
+	kfree(data);
 out:
 	if (result < 0)
 		valid_policy = 0;
-	kfree(data);
+
 	return result;
 }
 
@@ -302,14 +360,31 @@ enum ima_fs_flags {
 
 static unsigned long ima_fs_flags;
 
+#ifdef	CONFIG_IMA_READ_POLICY
+static const struct seq_operations ima_policy_seqops = {
+		.start = ima_policy_start,
+		.next = ima_policy_next,
+		.stop = ima_policy_stop,
+		.show = ima_policy_show,
+};
+#endif
+
 /*
  * ima_open_policy: sequentialize access to the policy file
  */
 static int ima_open_policy(struct inode *inode, struct file *filp)
 {
-	/* No point in being allowed to open it if you aren't going to write */
-	if (!(filp->f_flags & O_WRONLY))
+	if (!(filp->f_flags & O_WRONLY)) {
+#ifndef	CONFIG_IMA_READ_POLICY
 		return -EACCES;
+#else
+		if ((filp->f_flags & O_ACCMODE) != O_RDONLY)
+			return -EACCES;
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		return seq_open(filp, &ima_policy_seqops);
+#endif
+	}
 	if (test_and_set_bit(IMA_FS_BUSY, &ima_fs_flags))
 		return -EBUSY;
 	return 0;
@@ -326,6 +401,14 @@ static int ima_release_policy(struct inode *inode, struct file *file)
 {
 	const char *cause = valid_policy ? "completed" : "failed";
 
+	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
+		return 0;
+
+	if (valid_policy && ima_check_policy() < 0) {
+		cause = "failed";
+		valid_policy = 0;
+	}
+
 	pr_info("IMA: policy update %s\n", cause);
 	integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL, NULL,
 			    "policy_update", cause, !valid_policy, 0);
@@ -336,15 +419,21 @@ static int ima_release_policy(struct inode *inode, struct file *file)
 		clear_bit(IMA_FS_BUSY, &ima_fs_flags);
 		return 0;
 	}
+
 	ima_update_policy();
+#ifndef	CONFIG_IMA_WRITE_POLICY
 	securityfs_remove(ima_policy);
 	ima_policy = NULL;
+#else
+	clear_bit(IMA_FS_BUSY, &ima_fs_flags);
+#endif
 	return 0;
 }
 
 static const struct file_operations ima_measure_policy_ops = {
 	.open = ima_open_policy,
 	.write = ima_write_policy,
+	.read = seq_read,
 	.release = ima_release_policy,
 	.llseek = generic_file_llseek,
 };
@@ -382,8 +471,7 @@ int __init ima_fs_init(void)
 	if (IS_ERR(violations))
 		goto out;
 
-	ima_policy = securityfs_create_file("policy",
-					    S_IWUSR,
+	ima_policy = securityfs_create_file("policy", POLICY_FILE_FLAGS,
 					    ima_dir, NULL,
 					    &ima_measure_policy_ops);
 	if (IS_ERR(ima_policy))

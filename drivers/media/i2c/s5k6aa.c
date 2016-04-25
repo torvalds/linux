@@ -28,7 +28,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
-#include <media/s5k6aa.h>
+#include <media/i2c/s5k6aa.h>
 
 static int debug;
 module_param(debug, int, 0644);
@@ -1577,8 +1577,8 @@ static int s5k6aa_probe(struct i2c_client *client,
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	s5k6aa->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &s5k6aa->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &s5k6aa->pad);
 	if (ret)
 		return ret;
 

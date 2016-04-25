@@ -107,6 +107,82 @@ struct scifioctl_msg {
 };
 
 /**
+ * struct scifioctl_reg - used for SCIF_REG IOCTL
+ * @addr:	starting virtual address
+ * @len:	length of range
+ * @offset:	offset of window
+ * @prot:	read/write protection
+ * @flags:	flags
+ * @out_offset:	offset returned
+ */
+struct scifioctl_reg {
+	__u64		addr;
+	__u64		len;
+	__s64		offset;
+	__s32		prot;
+	__s32		flags;
+	__s64		out_offset;
+};
+
+/**
+ * struct scifioctl_unreg - used for SCIF_UNREG IOCTL
+ * @offset:	start of range to unregister
+ * @len:	length of range to unregister
+ */
+struct scifioctl_unreg {
+	__s64		offset;
+	__u64		len;
+};
+
+/**
+ * struct scifioctl_copy - used for SCIF DMA copy IOCTLs
+ *
+ * @loffset:	offset in local registered address space to/from
+ *		which to copy
+ * @len:	length of range to copy
+ * @roffset:	offset in remote registered address space to/from
+ *		which to copy
+ * @addr:	user virtual address to/from which to copy
+ * @flags:	flags
+ *
+ * This structure is used for SCIF_READFROM, SCIF_WRITETO, SCIF_VREADFROM
+ * and SCIF_VREADFROM IOCTL's.
+ */
+struct scifioctl_copy {
+	__s64		loffset;
+	__u64		len;
+	__s64		roffset;
+	__u64		addr;
+	__s32		flags;
+};
+
+/**
+ * struct scifioctl_fence_mark  - used for SCIF_FENCE_MARK IOCTL
+ * @flags:	flags
+ * @mark:	fence handle which is a pointer to a __s32
+ */
+struct scifioctl_fence_mark {
+	__s32	flags;
+	__u64	mark;
+};
+
+/**
+ * struct scifioctl_fence_signal - used for SCIF_FENCE_SIGNAL IOCTL
+ * @loff:	local offset
+ * @lval:	value to write to loffset
+ * @roff:	remote offset
+ * @rval:	value to write to roffset
+ * @flags:	flags
+ */
+struct scifioctl_fence_signal {
+	__s64		loff;
+	__u64		lval;
+	__s64		roff;
+	__u64		rval;
+	__s32		flags;
+};
+
+/**
  * struct scifioctl_node_ids - used for SCIF_GET_NODEIDS IOCTL
  * @nodes:	pointer to an array of node_ids
  * @self:	ID of the current node
@@ -125,6 +201,15 @@ struct scifioctl_node_ids {
 #define SCIF_ACCEPTREG		_IOWR('s', 5, __u64)
 #define SCIF_SEND		_IOWR('s', 6, struct scifioctl_msg)
 #define SCIF_RECV		_IOWR('s', 7, struct scifioctl_msg)
+#define SCIF_REG		_IOWR('s', 8, struct scifioctl_reg)
+#define SCIF_UNREG		_IOWR('s', 9, struct scifioctl_unreg)
+#define SCIF_READFROM		_IOWR('s', 10, struct scifioctl_copy)
+#define SCIF_WRITETO		_IOWR('s', 11, struct scifioctl_copy)
+#define SCIF_VREADFROM		_IOWR('s', 12, struct scifioctl_copy)
+#define SCIF_VWRITETO		_IOWR('s', 13, struct scifioctl_copy)
 #define SCIF_GET_NODEIDS	_IOWR('s', 14, struct scifioctl_node_ids)
+#define SCIF_FENCE_MARK		_IOWR('s', 15, struct scifioctl_fence_mark)
+#define SCIF_FENCE_WAIT		_IOWR('s', 16, __s32)
+#define SCIF_FENCE_SIGNAL	_IOWR('s', 17, struct scifioctl_fence_signal)
 
 #endif /* SCIF_IOCTL_H */

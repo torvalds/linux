@@ -842,7 +842,6 @@ static void s6e63m0_shutdown(struct spi_device *spi)
 static struct spi_driver s6e63m0_driver = {
 	.driver = {
 		.name	= "s6e63m0",
-		.owner	= THIS_MODULE,
 		.pm	= &s6e63m0_pm_ops,
 	},
 	.probe		= s6e63m0_probe,

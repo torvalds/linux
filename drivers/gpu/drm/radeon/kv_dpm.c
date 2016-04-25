@@ -2640,7 +2640,7 @@ static int kv_parse_power_table(struct radeon_device *rdev)
 	struct _NonClockInfoArray *non_clock_info_array;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
-        u16 data_offset;
+	u16 data_offset;
 	u8 frev, crev;
 	u8 *power_state_offset;
 	struct kv_ps *ps;
@@ -2738,7 +2738,7 @@ int kv_dpm_init(struct radeon_device *rdev)
 	for (i = 0; i < SUMO_MAX_HARDWARE_POWERLEVELS; i++)
 		pi->at[i] = TRINITY_AT_DFLT;
 
-        pi->sram_end = SMC_RAM_END;
+	pi->sram_end = SMC_RAM_END;
 
 	/* Enabling nb dpm on an asrock system prevents dpm from working */
 	if (rdev->pdev->subsystem_vendor == 0x1849)

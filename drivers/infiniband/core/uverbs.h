@@ -204,6 +204,8 @@ void ib_uverbs_event_handler(struct ib_event_handler *handler,
 			     struct ib_event *event);
 void ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev, struct ib_xrcd *xrcd);
 
+int uverbs_dealloc_mw(struct ib_mw *mw);
+
 struct ib_uverbs_flow_spec {
 	union {
 		union {
@@ -272,5 +274,6 @@ IB_UVERBS_DECLARE_EX_CMD(create_flow);
 IB_UVERBS_DECLARE_EX_CMD(destroy_flow);
 IB_UVERBS_DECLARE_EX_CMD(query_device);
 IB_UVERBS_DECLARE_EX_CMD(create_cq);
+IB_UVERBS_DECLARE_EX_CMD(create_qp);
 
 #endif /* UVERBS_H */

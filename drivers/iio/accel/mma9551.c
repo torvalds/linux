@@ -495,25 +495,23 @@ static int mma9551_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto out_poweroff;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "unable to register iio device\n");
-		goto out_poweroff;
-	}
-
 	ret = pm_runtime_set_active(&client->dev);
 	if (ret < 0)
-		goto out_iio_unregister;
+		goto out_poweroff;
 
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev,
 					 MMA9551_AUTO_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&client->dev);
 
+	ret = iio_device_register(indio_dev);
+	if (ret < 0) {
+		dev_err(&client->dev, "unable to register iio device\n");
+		goto out_poweroff;
+	}
+
 	return 0;
 
-out_iio_unregister:
-	iio_device_unregister(indio_dev);
 out_poweroff:
 	mma9551_set_device_state(client, false);
 
@@ -525,11 +523,12 @@ static int mma9551_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct mma9551_data *data = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
+
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_put_noidle(&client->dev);
 
-	iio_device_unregister(indio_dev);
 	mutex_lock(&data->mutex);
 	mma9551_set_device_state(data->client, false);
 	mutex_unlock(&data->mutex);

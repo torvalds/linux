@@ -2,7 +2,7 @@
  * Driver for DiBcom DiB3000MC/P-demodulator.
  *
  * Copyright (C) 2004-7 DiBcom (http://www.dibcom.fr/)
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  * This code is partially based on the previous dib3000mc.c .
  *
@@ -636,9 +636,9 @@ struct i2c_adapter * dib3000mc_get_tuner_i2c_master(struct dvb_frontend *demod, 
 
 EXPORT_SYMBOL(dib3000mc_get_tuner_i2c_master);
 
-static int dib3000mc_get_frontend(struct dvb_frontend* fe)
+static int dib3000mc_get_frontend(struct dvb_frontend* fe,
+				  struct dtv_frontend_properties *fep)
 {
-	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib3000mc_state *state = fe->demodulator_priv;
 	u16 tps = dib3000mc_read_word(state,458);
 
@@ -726,7 +726,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend *fe)
 		if (found == 0 || found == 1)
 			return 0; // no channel found
 
-		dib3000mc_get_frontend(fe);
+		dib3000mc_get_frontend(fe, fep);
 	}
 
 	ret = dib3000mc_tune(fe);
@@ -939,6 +939,6 @@ static struct dvb_frontend_ops dib3000mc_ops = {
 	.read_ucblocks        = dib3000mc_read_unc_blocks,
 };
 
-MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for the DiBcom 3000MC/P COFDM demodulator");
 MODULE_LICENSE("GPL");

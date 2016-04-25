@@ -64,9 +64,9 @@ static u32 xen_apic_read(u32 reg)
 	if (reg != APIC_ID)
 		return 0;
 
-	ret = HYPERVISOR_dom0_op(&op);
+	ret = HYPERVISOR_platform_op(&op);
 	if (ret)
-		return 0;
+		op.u.pcpu_info.apic_id = BAD_APICID;
 
 	return op.u.pcpu_info.apic_id << 24;
 }
@@ -142,6 +142,14 @@ static void xen_silent_inquire(int apicid)
 {
 }
 
+static int xen_cpu_present_to_apicid(int cpu)
+{
+	if (cpu_present(cpu))
+		return xen_get_apic_id(xen_apic_read(APIC_ID));
+	else
+		return BAD_APICID;
+}
+
 static struct apic xen_pv_apic = {
 	.name 				= "Xen PV",
 	.probe 				= xen_apic_probe_pv,
@@ -162,7 +170,7 @@ static struct apic xen_pv_apic = {
 
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map, /* Used on 32-bit */
 	.setup_apic_routing		= NULL,
-	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
+	.cpu_present_to_apicid		= xen_cpu_present_to_apicid,
 	.apicid_to_cpu_present		= physid_set_mask_of_physid, /* Used on 32-bit */
 	.check_phys_apicid_present	= default_check_phys_apicid_present, /* smp_sanity_check needs it */
 	.phys_pkg_id			= xen_phys_pkg_id, /* detect_ht */

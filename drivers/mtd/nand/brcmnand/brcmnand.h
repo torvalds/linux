@@ -21,8 +21,6 @@ struct platform_device;
 struct dev_pm_ops;
 
 struct brcmnand_soc {
-	struct platform_device *pdev;
-	void *priv;
 	bool (*ctlrdy_ack)(struct brcmnand_soc *soc);
 	void (*ctlrdy_set_enabled)(struct brcmnand_soc *soc, bool en);
 	void (*prepare_data_bus)(struct brcmnand_soc *soc, bool prepare);

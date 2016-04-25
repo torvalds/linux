@@ -534,6 +534,7 @@ N: NeilBrown
 E: neil@brown.name
 P: 4096R/566281B9 1BC6 29EB D390 D870 7B5F  497A 39EC 9EDD 5662 81B9
 D: NFSD Maintainer 2000-2007
+D: MD Maintainer 2001-2016
 
 N: Zach Brown
 E: zab@zabbo.net
@@ -1507,6 +1508,14 @@ S: 312/107 Canberra Avenue
 S: Griffith, ACT 2603 
 S: Australia
 
+N: Andreas Herrmann
+E: herrmann.der.user@gmail.com
+E: herrmann.der.user@googlemail.com
+D: Key developer of x86/AMD64
+D: Author of AMD family 15h processor power monitoring driver
+D: Maintainer of AMD Athlon 64 and Opteron processor frequency driver
+S: Germany
+
 N: Sebastian Hetze
 E: she@lunetix.de
 D: German Linux Documentation,
@@ -1846,6 +1855,16 @@ D: Kernel cleanups
 S: Korte Heul 95
 S: 1403 ND  BUSSUM
 S: The Netherlands
+
+N: Martin Kepplinger
+E: martink@posteo.de
+E: martin.kepplinger@theobroma-systems.com
+W: http://www.martinkepplinger.com
+D: mma8452 accelerators iio driver
+D: Kernel cleanups
+S: Garnisonstraße 26
+S: 4020 Linz
+S: Austria
 
 N: Karl Keyte
 E: karl@koft.com
@@ -3035,6 +3054,7 @@ D: PLX USB338x driver
 D: PCA9634 driver
 D: Option GTM671WFS
 D: Fintek F81216A
+D: AD5761 iio driver
 D: Various kernel hacks
 S: Qtechnology A/S
 S: Valby Langgade 142

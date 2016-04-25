@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <media/ths7303.h>
+#include <media/i2c/ths7303.h>
 #include <media/v4l2-device.h>
 
 #define THS7303_CHANNEL_1	1

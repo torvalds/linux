@@ -36,9 +36,7 @@
  *         = 163840 bytes
  */
 #define MAX_BUF 163840
-
-static spinlock_t dev_num_pool_lock;
-static void *dev_num_pool;	/**< pool to grab device numbers from */
+#define NAPI_WEIGHT 64
 
 static int visornic_probe(struct visor_device *dev);
 static void visornic_remove(struct visor_device *dev);
@@ -60,8 +58,6 @@ static const struct file_operations debugfs_info_fops = {
 static const struct file_operations debugfs_enable_ints_fops = {
 	.write = enable_ints_write,
 };
-
-static struct workqueue_struct *visornic_timeout_reset_workqueue;
 
 /* GUIDS for director channel type supported by this driver.  */
 static struct visor_channeltype_descriptor visornic_channel_types[] = {
@@ -113,20 +109,17 @@ struct chanstat {
 };
 
 struct visornic_devdata {
-	int devnum;
 	unsigned short enabled;		/* 0 disabled 1 enabled to receive */
 	unsigned short enab_dis_acked;	/* NET_RCV_ENABLE/DISABLE acked by
 					 * IOPART
 					 */
 	struct visor_device *dev;
-	char name[99];
-	struct list_head list_all;   /* < link within list_all_devices list */
 	struct net_device *netdev;
 	struct net_device_stats net_stats;
 	atomic_t interrupt_rcvd;
 	wait_queue_head_t rsp_queue;
 	struct sk_buff **rcvbuf;
-	u64 uniquenum; /* TODO figure out why not used */
+	u64 incarnation_id;		/* lets IOPART know about re-birth */
 	unsigned short old_flags;	/* flags as they were prior to
 					 * set_multicast_list
 					 */
@@ -201,12 +194,6 @@ struct visornic_devdata {
 	struct uiscmdrsp cmdrsp[SIZEOF_CMDRSP];
 };
 
-
-/* List of all visornic_devdata structs,
- * linked via the list_all member
- */
-static LIST_HEAD(list_all_devices);
-static DEFINE_SPINLOCK(lock_all_devices);
 static int visornic_poll(struct napi_struct *napi, int budget);
 static void poll_for_irq(unsigned long v);
 
@@ -388,8 +375,8 @@ visornic_serverdown(struct visornic_devdata *devdata,
 			__func__);
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		return -EINVAL;
-	} else
-		spin_unlock_irqrestore(&devdata->priv_lock, flags);
+	}
+	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 	return 0;
 }
 
@@ -443,7 +430,7 @@ post_skb(struct uiscmdrsp *cmdrsp,
 	cmdrsp->net.rcvpost.frag.pi_off =
 		(unsigned long)skb->data & PI_PAGE_MASK;
 	cmdrsp->net.rcvpost.frag.pi_len = skb->len;
-	cmdrsp->net.rcvpost.unique_num = devdata->uniquenum;
+	cmdrsp->net.rcvpost.unique_num = devdata->incarnation_id;
 
 	if ((cmdrsp->net.rcvpost.frag.pi_off + skb->len) <= PI_PAGE_SIZE) {
 		cmdrsp->net.type = NET_RCV_POST;
@@ -773,9 +760,8 @@ static unsigned long devdata_xmits_outstanding(struct visornic_devdata *devdata)
 	if (devdata->chstat.sent_xmit >= devdata->chstat.got_xmit_done)
 		return devdata->chstat.sent_xmit -
 			devdata->chstat.got_xmit_done;
-	else
-		return (ULONG_MAX - devdata->chstat.got_xmit_done
-			+ devdata->chstat.sent_xmit + 1);
+	return (ULONG_MAX - devdata->chstat.got_xmit_done
+		+ devdata->chstat.sent_xmit + 1);
 }
 
 /**
@@ -1040,7 +1026,7 @@ visornic_set_multi(struct net_device *netdev)
 			cmdrsp->net.type = NET_RCV_PROMISC;
 			cmdrsp->net.enbdis.context = netdev;
 			cmdrsp->net.enbdis.enable =
-				(netdev->flags & IFF_PROMISC);
+				netdev->flags & IFF_PROMISC;
 			visorchannel_signalinsert(devdata->dev->visorchannel,
 						  IOCHAN_TO_IOPART,
 						  cmdrsp);
@@ -1081,7 +1067,7 @@ visornic_xmit_timeout(struct net_device *netdev)
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		return;
 	}
-	queue_work(visornic_timeout_reset_workqueue, &devdata->timeout_reset);
+	schedule_work(&devdata->timeout_reset);
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 }
 
@@ -1230,8 +1216,9 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		/* length rcvd is greater than firstfrag in this skb rcv buf  */
 		skb->tail += RCVPOST_BUF_SIZE;	/* amount in skb->data */
 		skb->data_len = skb->len - RCVPOST_BUF_SIZE;	/* amount that
-								   will be in
-								   frag_list */
+								 *  will be in
+								 * frag_list
+								 */
 	} else {
 		/* data fits in this skb - no chaining - do
 		 * PRECAUTIONARY check
@@ -1327,12 +1314,14 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 				}
 				if (found_mc)
 					break;	/* accept packet, dest
-						   matches a multicast
-						   address */
+						 * matches a multicast
+						 * address
+						 */
 			}
 		} else if (skb->pkt_type == PACKET_HOST) {
 			break;	/* accept packet, h_dest must match vnic
-				   mac address */
+				 *  mac address
+				 */
 		} else if (skb->pkt_type == PACKET_OTHERHOST) {
 			/* something is not right */
 			dev_err(&devdata->netdev->dev,
@@ -1373,25 +1362,10 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 static struct visornic_devdata *
 devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 {
-	int devnum = -1;
-
 	if (!devdata)
 		return NULL;
-	memset(devdata, '\0', sizeof(struct visornic_devdata));
-	spin_lock(&dev_num_pool_lock);
-	devnum = find_first_zero_bit(dev_num_pool, MAXDEVICES);
-	set_bit(devnum, dev_num_pool);
-	spin_unlock(&dev_num_pool_lock);
-	if (devnum == MAXDEVICES)
-		devnum = -1;
-	if (devnum < 0)
-		return NULL;
-	devdata->devnum = devnum;
 	devdata->dev = dev;
-	strncpy(devdata->name, dev_name(&dev->device), sizeof(devdata->name));
-	spin_lock(&lock_all_devices);
-	list_add_tail(&devdata->list_all, &list_all_devices);
-	spin_unlock(&lock_all_devices);
+	devdata->incarnation_id = get_jiffies_64();
 	return devdata;
 }
 
@@ -1404,12 +1378,6 @@ devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
  */
 static void devdata_release(struct visornic_devdata *devdata)
 {
-	spin_lock(&dev_num_pool_lock);
-	clear_bit(devdata->devnum, dev_num_pool);
-	spin_unlock(&dev_num_pool_lock);
-	spin_lock(&lock_all_devices);
-	list_del(&devdata->list_all);
-	spin_unlock(&lock_all_devices);
 	kfree(devdata->rcvbuf);
 	kfree(devdata->cmdrsp_rcv);
 	kfree(devdata->xmit_cmdrsp);
@@ -1621,7 +1589,21 @@ send_rcv_posts_if_needed(struct visornic_devdata *devdata)
 }
 
 /**
- *	draing_queue	- drains the response queue
+ *	drain_resp_queue  - drains and ignores all messages from the resp queue
+ *	@cmdrsp: io channel command response message
+ *	@devdata: visornic device to drain
+ */
+static void
+drain_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
+{
+	while (visorchannel_signalremove(devdata->dev->visorchannel,
+					 IOCHAN_FROM_IOPART,
+					 cmdrsp))
+		;
+}
+
+/**
+ *	service_resp_queue	- drains the response queue
  *	@cmdrsp: io channel command response message
  *	@devdata: visornic device to drain
  *
@@ -1631,14 +1613,15 @@ send_rcv_posts_if_needed(struct visornic_devdata *devdata)
  */
 static void
 service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
-		   int *rx_work_done)
+		   int *rx_work_done, int budget)
 {
 	unsigned long flags;
 	struct net_device *netdev;
 
+	while (*rx_work_done < budget) {
 	/* TODO: CLIENT ACQUIRE -- Don't really need this at the
-	 * moment */
-	for (;;) {
+	 * moment
+	 */
 		if (!visorchannel_signalremove(devdata->dev->visorchannel,
 					       IOCHAN_FROM_IOPART,
 					       cmdrsp))
@@ -1727,7 +1710,7 @@ static int visornic_poll(struct napi_struct *napi, int budget)
 	int rx_count = 0;
 
 	send_rcv_posts_if_needed(devdata);
-	service_resp_queue(devdata->cmdrsp, devdata, &rx_count);
+	service_resp_queue(devdata->cmdrsp, devdata, &rx_count, budget);
 
 	/*
 	 * If there aren't any more packets to receive
@@ -1760,7 +1743,6 @@ poll_for_irq(unsigned long v)
 	atomic_set(&devdata->interrupt_rcvd, 0);
 
 	mod_timer(&devdata->irq_poll_timer, msecs_to_jiffies(2));
-
 }
 
 /**
@@ -1787,7 +1769,7 @@ static int visornic_probe(struct visor_device *dev)
 	}
 
 	netdev->netdev_ops = &visornic_dev_ops;
-	netdev->watchdog_timeo = (5 * HZ);
+	netdev->watchdog_timeo = 5 * HZ;
 	SET_NETDEV_DEV(netdev, &dev->device);
 
 	/* Get MAC adddress from channel and read it into the device. */
@@ -1810,6 +1792,8 @@ static int visornic_probe(struct visor_device *dev)
 		err = -ENOMEM;
 		goto cleanup_netdev;
 	}
+	/* don't trust messages laying around in the channel */
+	drain_resp_queue(devdata->cmdrsp, devdata);
 
 	devdata->netdev = netdev;
 	dev_set_drvdata(&dev->device, devdata);
@@ -1830,8 +1814,8 @@ static int visornic_probe(struct visor_device *dev)
 		goto cleanup_netdev;
 	}
 
-	devdata->rcvbuf = kzalloc(sizeof(struct sk_buff *) *
-				  devdata->num_rcv_bufs, GFP_KERNEL);
+	devdata->rcvbuf = kcalloc(devdata->num_rcv_bufs,
+				  sizeof(struct sk_buff *), GFP_KERNEL);
 	if (!devdata->rcvbuf) {
 		err = -ENOMEM;
 		goto cleanup_rcvbuf;
@@ -1901,6 +1885,7 @@ static int visornic_probe(struct visor_device *dev)
 	}
 
 	features |= ULTRA_IO_CHANNEL_IS_POLLING;
+	features |= ULTRA_IO_DRIVER_SUPPORTS_ENHANCED_RCVBUF_CHECKING;
 	err = visorbus_write_channel(dev, channel_offset, &features, 8);
 	if (err) {
 		dev_err(&dev->device,
@@ -1908,6 +1893,16 @@ static int visornic_probe(struct visor_device *dev)
 			__func__, err);
 		goto cleanup_napi_add;
 	}
+
+	/* Let's start our threads to get responses */
+	netif_napi_add(netdev, &devdata->napi, visornic_poll, NAPI_WEIGHT);
+
+	/*
+	 * Note: Interupts have to be enable before the while
+	 * loop below because the napi routine is responsible for
+	 * setting enab_dis_acked
+	 */
+	visorbus_enable_channel_interrupts(dev);
 
 	err = register_netdev(netdev);
 	if (err) {
@@ -1964,7 +1959,6 @@ static void host_side_disappeared(struct visornic_devdata *devdata)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devdata->priv_lock, flags);
-	sprintf(devdata->name, "<dev#%d-history>", devdata->devnum);
 	devdata->dev = NULL;   /* indicate device destroyed */
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 }
@@ -2001,7 +1995,7 @@ static void visornic_remove(struct visor_device *dev)
 	}
 
 	/* going_away prevents new items being added to the workqueues */
-	flush_workqueue(visornic_timeout_reset_workqueue);
+	cancel_work_sync(&devdata->timeout_reset);
 
 	debugfs_remove_recursive(devdata->eth_debugfs_dir);
 
@@ -2120,26 +2114,10 @@ static int visornic_init(void)
 	if (!ret)
 		goto cleanup_debugfs;
 
-	/* create workqueue for tx timeout reset */
-	visornic_timeout_reset_workqueue =
-		create_singlethread_workqueue("visornic_timeout_reset");
-	if (!visornic_timeout_reset_workqueue)
-		goto cleanup_workqueue;
-
-	spin_lock_init(&dev_num_pool_lock);
-	dev_num_pool = kzalloc(BITS_TO_LONGS(MAXDEVICES), GFP_KERNEL);
-	if (!dev_num_pool)
-		goto cleanup_workqueue;
-
 	err = visorbus_register_visor_driver(&visornic_driver);
 	if (!err)
 		return 0;
 
-cleanup_workqueue:
-	if (visornic_timeout_reset_workqueue) {
-		flush_workqueue(visornic_timeout_reset_workqueue);
-		destroy_workqueue(visornic_timeout_reset_workqueue);
-	}
 cleanup_debugfs:
 	debugfs_remove_recursive(visornic_debugfs_dir);
 
@@ -2155,14 +2133,7 @@ static void visornic_cleanup(void)
 {
 	visorbus_unregister_visor_driver(&visornic_driver);
 
-	if (visornic_timeout_reset_workqueue) {
-		flush_workqueue(visornic_timeout_reset_workqueue);
-		destroy_workqueue(visornic_timeout_reset_workqueue);
-	}
 	debugfs_remove_recursive(visornic_debugfs_dir);
-
-	kfree(dev_num_pool);
-	dev_num_pool = NULL;
 }
 
 module_init(visornic_init);

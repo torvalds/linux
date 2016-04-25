@@ -67,22 +67,25 @@ static struct irq_chip mtk_sysirq_chip = {
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 };
 
-static int mtk_sysirq_domain_xlate(struct irq_domain *d,
-				   struct device_node *controller,
-				   const u32 *intspec, unsigned int intsize,
-				   unsigned long *out_hwirq,
-				   unsigned int *out_type)
+static int mtk_sysirq_domain_translate(struct irq_domain *d,
+				       struct irq_fwspec *fwspec,
+				       unsigned long *hwirq,
+				       unsigned int *type)
 {
-	if (intsize != 3)
-		return -EINVAL;
+	if (is_of_node(fwspec->fwnode)) {
+		if (fwspec->param_count != 3)
+			return -EINVAL;
 
-	/* sysirq doesn't support PPI */
-	if (intspec[0])
-		return -EINVAL;
+		/* No PPI should point to this domain */
+		if (fwspec->param[0] != 0)
+			return -EINVAL;
 
-	*out_hwirq = intspec[1];
-	*out_type = intspec[2] & IRQ_TYPE_SENSE_MASK;
-	return 0;
+		*hwirq = fwspec->param[1];
+		*type = fwspec->param[2] & IRQ_TYPE_SENSE_MASK;
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 static int mtk_sysirq_domain_alloc(struct irq_domain *domain, unsigned int virq,
@@ -90,30 +93,30 @@ static int mtk_sysirq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	int i;
 	irq_hw_number_t hwirq;
-	struct of_phandle_args *irq_data = arg;
-	struct of_phandle_args gic_data = *irq_data;
+	struct irq_fwspec *fwspec = arg;
+	struct irq_fwspec gic_fwspec = *fwspec;
 
-	if (irq_data->args_count != 3)
+	if (fwspec->param_count != 3)
 		return -EINVAL;
 
 	/* sysirq doesn't support PPI */
-	if (irq_data->args[0])
+	if (fwspec->param[0])
 		return -EINVAL;
 
-	hwirq = irq_data->args[1];
+	hwirq = fwspec->param[1];
 	for (i = 0; i < nr_irqs; i++)
 		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
 					      &mtk_sysirq_chip,
 					      domain->host_data);
 
-	gic_data.np = domain->parent->of_node;
-	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &gic_data);
+	gic_fwspec.fwnode = domain->parent->fwnode;
+	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &gic_fwspec);
 }
 
 static const struct irq_domain_ops sysirq_domain_ops = {
-	.xlate = mtk_sysirq_domain_xlate,
-	.alloc = mtk_sysirq_domain_alloc,
-	.free = irq_domain_free_irqs_common,
+	.translate	= mtk_sysirq_domain_translate,
+	.alloc		= mtk_sysirq_domain_alloc,
+	.free		= irq_domain_free_irqs_common,
 };
 
 static int __init mtk_sysirq_of_init(struct device_node *node,

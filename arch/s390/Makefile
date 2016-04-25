@@ -106,6 +106,7 @@ drivers-y	+= drivers/s390/
 drivers-$(CONFIG_OPROFILE)	+= arch/s390/oprofile/
 
 boot		:= arch/s390/boot
+tools		:= arch/s390/tools
 
 all: image bzImage
 
@@ -124,9 +125,17 @@ vdso_install:
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
+	$(Q)$(MAKE) $(clean)=$(tools)
+
+archprepare:
+	$(Q)$(MAKE) $(build)=$(tools) include/generated/facilities.h
 
 # Don't use tabs in echo arguments
 define archhelp
   echo  '* image           - Kernel image for IPL ($(boot)/image)'
   echo	'* bzImage         - Compressed kernel image for IPL ($(boot)/bzImage)'
+  echo	'  install         - Install kernel using'
+  echo	'                    (your) ~/bin/$(INSTALLKERNEL) or'
+  echo	'                    (distribution) /sbin/$(INSTALLKERNEL) or'
+  echo	'                    install to $$(INSTALL_PATH)'
 endef

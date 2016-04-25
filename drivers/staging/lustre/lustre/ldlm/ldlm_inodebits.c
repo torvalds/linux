@@ -58,7 +58,6 @@
 #include "../include/lustre_lib.h"
 #include "ldlm_internal.h"
 
-
 void ldlm_ibits_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
 				     ldlm_policy_data_t *lpolicy)
 {

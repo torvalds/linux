@@ -39,6 +39,7 @@
 
 #include "nouveau_fence.h"
 
+#include <nvif/cl0046.h>
 #include <nvif/event.h>
 
 static int
@@ -51,12 +52,12 @@ nouveau_display_vblank_handler(struct nvif_notify *notify)
 }
 
 int
-nouveau_display_vblank_enable(struct drm_device *dev, int head)
+nouveau_display_vblank_enable(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == head) {
+		if (nv_crtc->index == pipe) {
 			nvif_notify_get(&nv_crtc->vblank);
 			return 0;
 		}
@@ -65,12 +66,12 @@ nouveau_display_vblank_enable(struct drm_device *dev, int head)
 }
 
 void
-nouveau_display_vblank_disable(struct drm_device *dev, int head)
+nouveau_display_vblank_disable(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == head) {
+		if (nv_crtc->index == pipe) {
 			nvif_notify_put(&nv_crtc->vblank);
 			return;
 		}
@@ -103,6 +104,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 		.base.head = nouveau_crtc(crtc)->index,
 	};
 	struct nouveau_display *disp = nouveau_display(crtc->dev);
+	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
 	int ret, retry = 1;
 
 	do {
@@ -116,7 +118,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 			break;
 		}
 
-		if (retry) ndelay(crtc->linedur_ns);
+		if (retry) ndelay(vblank->linedur_ns);
 	} while (retry--);
 
 	*hpos = args.scan.hline;
@@ -131,13 +133,15 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 }
 
 int
-nouveau_display_scanoutpos(struct drm_device *dev, int head, unsigned int flags,
-			   int *vpos, int *hpos, ktime_t *stime, ktime_t *etime)
+nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
+			   unsigned int flags, int *vpos, int *hpos,
+			   ktime_t *stime, ktime_t *etime,
+			   const struct drm_display_mode *mode)
 {
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == head) {
+		if (nouveau_crtc(crtc)->index == pipe) {
 			return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
 							       stime, etime);
 		}
@@ -147,15 +151,15 @@ nouveau_display_scanoutpos(struct drm_device *dev, int head, unsigned int flags,
 }
 
 int
-nouveau_display_vblstamp(struct drm_device *dev, int head, int *max_error,
-			 struct timeval *time, unsigned flags)
+nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
+			 int *max_error, struct timeval *time, unsigned flags)
 {
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == head) {
+		if (nouveau_crtc(crtc)->index == pipe) {
 			return drm_calc_vbltimestamp_from_scanoutpos(dev,
-					head, max_error, time, flags, crtc,
+					pipe, max_error, time, flags,
 					&crtc->hwmode);
 		}
 	}
@@ -243,7 +247,7 @@ static const struct drm_framebuffer_funcs nouveau_framebuffer_funcs = {
 int
 nouveau_framebuffer_init(struct drm_device *dev,
 			 struct nouveau_framebuffer *nv_fb,
-			 struct drm_mode_fb_cmd2 *mode_cmd,
+			 const struct drm_mode_fb_cmd2 *mode_cmd,
 			 struct nouveau_bo *nvbo)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
@@ -269,7 +273,7 @@ nouveau_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 nouveau_user_framebuffer_create(struct drm_device *dev,
 				struct drm_file *file_priv,
-				struct drm_mode_fb_cmd2 *mode_cmd)
+				const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct nouveau_framebuffer *nouveau_fb;
 	struct drm_gem_object *gem;
@@ -491,7 +495,7 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
 		static const u16 oclass[] = {
-			GM204_DISP,
+			GM200_DISP,
 			GM107_DISP,
 			GK110_DISP,
 			GK104_DISP,
@@ -506,9 +510,8 @@ nouveau_display_create(struct drm_device *dev)
 		int i;
 
 		for (i = 0, ret = -ENODEV; ret && i < ARRAY_SIZE(oclass); i++) {
-			ret = nvif_object_init(&drm->device.object,
-					       NVDRM_DISPLAY, oclass[i],
-					       NULL, 0, &disp->disp);
+			ret = nvif_object_init(&drm->device.object, 0,
+					       oclass[i], NULL, 0, &disp->disp);
 		}
 
 		if (ret == 0) {
@@ -632,10 +635,6 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 		nv_crtc->lut.depth = 0;
 	}
 
-	/* Make sure that drm and hw vblank irqs get resumed if needed. */
-	for (head = 0; head < dev->mode_config.num_crtc; head++)
-		drm_vblank_on(dev, head);
-
 	/* This should ensure we don't hit a locking problem when someone
 	 * wakes us up via a connector.  We should never go into suspend
 	 * while the display is on anyways.
@@ -644,6 +643,10 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 		return;
 
 	drm_helper_resume_force_mode(dev);
+
+	/* Make sure that drm and hw vblank irqs get resumed if needed. */
+	for (head = 0; head < dev->mode_config.num_crtc; head++)
+		drm_vblank_on(dev, head);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
@@ -827,7 +830,6 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 	struct drm_device *dev = drm->dev;
 	struct nouveau_page_flip_state *s;
 	unsigned long flags;
-	int crtcid = -1;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
@@ -839,15 +841,19 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 
 	s = list_first_entry(&fctx->flip, struct nouveau_page_flip_state, head);
 	if (s->event) {
-		/* Vblank timestamps/counts are only correct on >= NV-50 */
-		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA)
-			crtcid = s->crtc;
+		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+			drm_arm_vblank_event(dev, s->crtc, s->event);
+		} else {
+			drm_send_vblank_event(dev, s->crtc, s->event);
 
-		drm_send_vblank_event(dev, crtcid, s->event);
+			/* Give up ownership of vblank for page-flipped crtc */
+			drm_vblank_put(dev, s->crtc);
+		}
 	}
-
-	/* Give up ownership of vblank for page-flipped crtc */
-	drm_vblank_put(dev, s->crtc);
+	else {
+		/* Give up ownership of vblank for page-flipped crtc */
+		drm_vblank_put(dev, s->crtc);
+	}
 
 	list_del(&s->head);
 	if (ps)

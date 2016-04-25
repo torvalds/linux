@@ -35,6 +35,9 @@ static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
 #define MEI_UUID_NFC_HCI UUID_LE(0x0bb17a78, 0x2a8e, 0x4c50, \
 			0x94, 0xd4, 0x50, 0x26, 0x67, 0x23, 0x77, 0x5c)
 
+#define MEI_UUID_WD UUID_LE(0x05B79A6F, 0x4628, 0x4D7F, \
+			    0x89, 0x9D, 0xA9, 0x15, 0x14, 0xCB, 0x32, 0xAB)
+
 #define MEI_UUID_ANY NULL_UUID_LE
 
 /**
@@ -48,8 +51,7 @@ static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
  */
 static void number_of_connections(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s on %pUl\n",
-			__func__, mei_me_cl_uuid(cldev->me_cl));
+	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 
 	if (cldev->me_cl->props.max_number_of_connections > 1)
 		cldev->do_match = 0;
@@ -62,10 +64,35 @@ static void number_of_connections(struct mei_cl_device *cldev)
  */
 static void blacklist(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s on %pUl\n",
-			__func__, mei_me_cl_uuid(cldev->me_cl));
+	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
+
 	cldev->do_match = 0;
 }
+
+/**
+ * mei_wd - wd client on the bus, change protocol version
+ *   as the API has changed.
+ *
+ * @cldev: me clients device
+ */
+#if IS_ENABLED(CONFIG_INTEL_MEI_ME)
+#include <linux/pci.h>
+#include "hw-me-regs.h"
+static void mei_wd(struct mei_cl_device *cldev)
+{
+	struct pci_dev *pdev = to_pci_dev(cldev->dev.parent);
+
+	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
+	if (pdev->device == MEI_DEV_ID_WPT_LP ||
+	    pdev->device == MEI_DEV_ID_SPT ||
+	    pdev->device == MEI_DEV_ID_SPT_H)
+		cldev->me_cl->props.protocol_version = 0x2;
+
+	cldev->do_match = 1;
+}
+#else
+static inline void mei_wd(struct mei_cl_device *cldev) {}
+#endif /* CONFIG_INTEL_MEI_ME */
 
 struct mei_nfc_cmd {
 	u8 command;
@@ -208,12 +235,11 @@ static void mei_nfc(struct mei_cl_device *cldev)
 
 	bus = cldev->bus;
 
-	dev_dbg(bus->dev, "running hook %s: %pUl match=%d\n",
-		__func__, mei_me_cl_uuid(cldev->me_cl), cldev->do_match);
+	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 
 	mutex_lock(&bus->device_lock);
 	/* we need to connect to INFO GUID */
-	cl = mei_cl_alloc_linked(bus, MEI_HOST_CLIENT_ID_ANY);
+	cl = mei_cl_alloc_linked(bus);
 	if (IS_ERR(cl)) {
 		ret = PTR_ERR(cl);
 		cl = NULL;
@@ -282,14 +308,15 @@ static struct mei_fixup {
 	MEI_FIXUP(MEI_UUID_ANY, number_of_connections),
 	MEI_FIXUP(MEI_UUID_NFC_INFO, blacklist),
 	MEI_FIXUP(MEI_UUID_NFC_HCI, mei_nfc),
+	MEI_FIXUP(MEI_UUID_WD, mei_wd),
 };
 
 /**
- * mei_cl_dev_fixup - run fixup handlers
+ * mei_cldev_fixup - run fixup handlers
  *
  * @cldev: me client device
  */
-void mei_cl_dev_fixup(struct mei_cl_device *cldev)
+void mei_cl_bus_dev_fixup(struct mei_cl_device *cldev)
 {
 	struct mei_fixup *f;
 	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);

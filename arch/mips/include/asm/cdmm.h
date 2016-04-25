@@ -84,6 +84,17 @@ void mips_cdmm_driver_unregister(struct mips_cdmm_driver *);
 	module_driver(__mips_cdmm_driver, mips_cdmm_driver_register, \
 			mips_cdmm_driver_unregister)
 
+/*
+ * builtin_mips_cdmm_driver() - Helper macro for drivers that don't do anything
+ * special in init and have no exit. This eliminates some boilerplate. Each
+ * driver may only use this macro once, and calling it replaces device_initcall
+ * (or in some cases, the legacy __initcall). This is meant to be a direct
+ * parallel of module_mips_cdmm_driver() above but without the __exit stuff that
+ * is not used for builtin cases.
+ */
+#define builtin_mips_cdmm_driver(__mips_cdmm_driver) \
+	builtin_driver(__mips_cdmm_driver, mips_cdmm_driver_register)
+
 /* drivers/tty/mips_ejtag_fdc.c */
 
 #ifdef CONFIG_MIPS_EJTAG_FDC_EARLYCON

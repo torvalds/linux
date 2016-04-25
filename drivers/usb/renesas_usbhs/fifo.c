@@ -46,7 +46,7 @@ static int usbhsf_null_handle(struct usbhs_pkt *pkt, int *is_done)
 	return -EINVAL;
 }
 
-static struct usbhs_pkt_handle usbhsf_null_handler = {
+static const struct usbhs_pkt_handle usbhsf_null_handler = {
 	.prepare = usbhsf_null_handle,
 	.try_run = usbhsf_null_handle,
 };
@@ -190,7 +190,8 @@ static int usbhsf_pkt_handler(struct usbhs_pipe *pipe, int type)
 		goto __usbhs_pkt_handler_end;
 	}
 
-	ret = func(pkt, &is_done);
+	if (likely(func))
+		ret = func(pkt, &is_done);
 
 	if (is_done)
 		__usbhsf_pkt_del(pkt);
@@ -422,12 +423,12 @@ static int usbhs_dcp_dir_switch_done(struct usbhs_pkt *pkt, int *is_done)
 	return 0;
 }
 
-struct usbhs_pkt_handle usbhs_dcp_status_stage_in_handler = {
+const struct usbhs_pkt_handle usbhs_dcp_status_stage_in_handler = {
 	.prepare = usbhs_dcp_dir_switch_to_write,
 	.try_run = usbhs_dcp_dir_switch_done,
 };
 
-struct usbhs_pkt_handle usbhs_dcp_status_stage_out_handler = {
+const struct usbhs_pkt_handle usbhs_dcp_status_stage_out_handler = {
 	.prepare = usbhs_dcp_dir_switch_to_read,
 	.try_run = usbhs_dcp_dir_switch_done,
 };
@@ -449,7 +450,7 @@ static int usbhsf_dcp_data_stage_try_push(struct usbhs_pkt *pkt, int *is_done)
 	return pkt->handler->prepare(pkt, is_done);
 }
 
-struct usbhs_pkt_handle usbhs_dcp_data_stage_out_handler = {
+const struct usbhs_pkt_handle usbhs_dcp_data_stage_out_handler = {
 	.prepare = usbhsf_dcp_data_stage_try_push,
 };
 
@@ -488,7 +489,7 @@ static int usbhsf_dcp_data_stage_prepare_pop(struct usbhs_pkt *pkt,
 	return pkt->handler->prepare(pkt, is_done);
 }
 
-struct usbhs_pkt_handle usbhs_dcp_data_stage_in_handler = {
+const struct usbhs_pkt_handle usbhs_dcp_data_stage_in_handler = {
 	.prepare = usbhsf_dcp_data_stage_prepare_pop,
 };
 
@@ -600,7 +601,7 @@ static int usbhsf_pio_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 	return usbhsf_pio_try_push(pkt, is_done);
 }
 
-struct usbhs_pkt_handle usbhs_fifo_pio_push_handler = {
+const struct usbhs_pkt_handle usbhs_fifo_pio_push_handler = {
 	.prepare = usbhsf_pio_prepare_push,
 	.try_run = usbhsf_pio_try_push,
 };
@@ -730,7 +731,7 @@ usbhs_fifo_read_busy:
 	return ret;
 }
 
-struct usbhs_pkt_handle usbhs_fifo_pio_pop_handler = {
+const struct usbhs_pkt_handle usbhs_fifo_pio_pop_handler = {
 	.prepare = usbhsf_prepare_pop,
 	.try_run = usbhsf_pio_try_pop,
 };
@@ -747,7 +748,7 @@ static int usbhsf_ctrl_stage_end(struct usbhs_pkt *pkt, int *is_done)
 	return 0;
 }
 
-struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler = {
+const struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler = {
 	.prepare = usbhsf_ctrl_stage_end,
 	.try_run = usbhsf_ctrl_stage_end,
 };
@@ -889,6 +890,7 @@ static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 
 	pkt->trans = len;
 
+	usbhsf_tx_irq_ctrl(pipe, 0);
 	INIT_WORK(&pkt->work, xfer_work);
 	schedule_work(&pkt->work);
 
@@ -934,7 +936,7 @@ static int usbhsf_dma_push_done(struct usbhs_pkt *pkt, int *is_done)
 	return 0;
 }
 
-struct usbhs_pkt_handle usbhs_fifo_dma_push_handler = {
+const struct usbhs_pkt_handle usbhs_fifo_dma_push_handler = {
 	.prepare	= usbhsf_dma_prepare_push,
 	.dma_done	= usbhsf_dma_push_done,
 };
@@ -1182,7 +1184,7 @@ static int usbhsf_dma_pop_done(struct usbhs_pkt *pkt, int *is_done)
 		return usbhsf_dma_pop_done_with_rx_irq(pkt, is_done);
 }
 
-struct usbhs_pkt_handle usbhs_fifo_dma_pop_handler = {
+const struct usbhs_pkt_handle usbhs_fifo_dma_pop_handler = {
 	.prepare	= usbhsf_dma_prepare_pop,
 	.try_run	= usbhsf_dma_try_pop,
 	.dma_done	= usbhsf_dma_pop_done

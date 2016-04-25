@@ -28,8 +28,16 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_fb_helper.h>
 
 #include <nvif/class.h>
+#include <nvif/cl0002.h>
+#include <nvif/cl5070.h>
+#include <nvif/cl507a.h>
+#include <nvif/cl507b.h>
+#include <nvif/cl507c.h>
+#include <nvif/cl507d.h>
+#include <nvif/cl507e.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
@@ -68,7 +76,6 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 		 const s32 *oclass, u8 head, void *data, u32 size,
 		 struct nv50_chan *chan)
 {
-	const u32 handle = (oclass[0] << 16) | head;
 	struct nvif_sclass *sclass;
 	int ret, i, n;
 
@@ -81,7 +88,7 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 	while (oclass[0]) {
 		for (i = 0; i < n; i++) {
 			if (sclass[i].oclass == oclass[0]) {
-				ret = nvif_object_init(disp, handle, oclass[0],
+				ret = nvif_object_init(disp, 0, oclass[0],
 						       data, size, &chan->user);
 				if (ret == 0)
 					nvif_object_map(&chan->user);
@@ -231,8 +238,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (!dmac->ptr)
 		return -ENOMEM;
 
-	ret = nvif_object_init(&device->object, 0xd0000000,
-			       NV_DMA_FROM_MEMORY, &(struct nv_dma_v0) {
+	ret = nvif_object_init(&device->object, 0, NV_DMA_FROM_MEMORY,
+			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_PCI_US,
 					.access = NV_DMA_V0_ACCESS_RD,
 					.start = dmac->handle + 0x0000,
@@ -290,7 +297,7 @@ nv50_core_create(struct nvif_device *device, struct nvif_object *disp,
 		.pushbuf = 0xb0007d00,
 	};
 	static const s32 oclass[] = {
-		GM204_DISP_CORE_CHANNEL_DMA,
+		GM200_DISP_CORE_CHANNEL_DMA,
 		GM107_DISP_CORE_CHANNEL_DMA,
 		GK110_DISP_CORE_CHANNEL_DMA,
 		GK104_DISP_CORE_CHANNEL_DMA,
@@ -774,7 +781,6 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 	 */
 	if (nv_connector && ( nv_connector->underscan == UNDERSCAN_ON ||
 			     (nv_connector->underscan == UNDERSCAN_AUTO &&
-			      nv_connector->edid &&
 			      drm_detect_hdmi_monitor(nv_connector->edid)))) {
 		u32 bX = nv_connector->underscan_hborder;
 		u32 bY = nv_connector->underscan_vborder;
@@ -1718,7 +1724,7 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;
 	encoder->possible_clones = 0;
-	drm_encoder_init(connector->dev, encoder, &nv50_dac_func, type);
+	drm_encoder_init(connector->dev, encoder, &nv50_dac_func, type, NULL);
 	drm_encoder_helper_add(encoder, &nv50_dac_hfunc);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
@@ -1962,10 +1968,17 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
 		if (nv_encoder->dcb->sorconf.link & 1) {
-			if (mode->clock < 165000)
-				proto = 0x1;
-			else
-				proto = 0x5;
+			proto = 0x1;
+			/* Only enable dual-link if:
+			 *  - Need to (i.e. rate > 165MHz)
+			 *  - DCB says we can
+			 *  - Not an HDMI monitor, since there's no dual-link
+			 *    on HDMI.
+			 */
+			if (mode->clock >= 165000 &&
+			    nv_encoder->dcb->duallink_possible &&
+			    !drm_detect_hdmi_monitor(nv_connector->edid))
+				proto |= 0x4;
 		} else {
 			proto = 0x2;
 		}
@@ -2126,7 +2139,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;
 	encoder->possible_clones = 0;
-	drm_encoder_init(connector->dev, encoder, &nv50_sor_func, type);
+	drm_encoder_init(connector->dev, encoder, &nv50_sor_func, type, NULL);
 	drm_encoder_helper_add(encoder, &nv50_sor_hfunc);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
@@ -2306,7 +2319,7 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;
 	encoder->possible_clones = 0;
-	drm_encoder_init(connector->dev, encoder, &nv50_pior_func, type);
+	drm_encoder_init(connector->dev, encoder, &nv50_pior_func, type, NULL);
 	drm_encoder_helper_add(encoder, &nv50_pior_hfunc);
 
 	drm_mode_connector_attach_encoder(connector, encoder);

@@ -238,8 +238,6 @@ typedef struct cb_desc {
 
 #define ieee80211_tkip_null		ieee80211_tkip_null_rsl
 
-#define ieee80211_wep_null		ieee80211_wep_null_rsl
-
 #define free_ieee80211			free_ieee80211_rsl
 #define alloc_ieee80211			alloc_ieee80211_rsl
 
@@ -329,9 +327,6 @@ typedef struct ieee_param {
 
 
 // linux under 2.6.9 release may not support it, so modify it for common use
-#define MSECS(t) msecs_to_jiffies(t)
-#define msleep_interruptible_rsl  msleep_interruptible
-
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
    6.2.1.1.2.
@@ -415,7 +410,7 @@ typedef struct ieee_param {
 /* QOS control */
 #define IEEE80211_QCTL_TID              0x000F
 
-#define	FC_QOS_BIT					BIT7
+#define	FC_QOS_BIT					BIT(7)
 #define IsDataFrame(pdu)			( ((pdu[0] & 0x0C)==0x08) ? true : false )
 #define	IsLegacyDataFrame(pdu)	(IsDataFrame(pdu) && (!(pdu[0]&FC_QOS_BIT)) )
 //added by wb. Is this right?
@@ -1565,10 +1560,10 @@ typedef struct _RT_POWER_SAVE_CONTROL {
 } RT_POWER_SAVE_CONTROL, *PRT_POWER_SAVE_CONTROL;
 
 typedef u32 RT_RF_CHANGE_SOURCE;
-#define RF_CHANGE_BY_SW BIT31
-#define RF_CHANGE_BY_HW BIT30
-#define RF_CHANGE_BY_PS BIT29
-#define RF_CHANGE_BY_IPS BIT28
+#define RF_CHANGE_BY_SW		BIT(31)
+#define RF_CHANGE_BY_HW		BIT(30)
+#define RF_CHANGE_BY_PS		BIT(29)
+#define RF_CHANGE_BY_IPS	BIT(28)
 #define RF_CHANGE_BY_INIT	0	// Do not change the RFOff reason. Defined by Bruce, 2008-01-17.
 
 typedef enum
@@ -2260,7 +2255,6 @@ void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee);
 
 /* ieee80211_crypt_ccmp&tkip&wep.c */
 void ieee80211_tkip_null(void);
-void ieee80211_wep_null(void);
 void ieee80211_ccmp_null(void);
 
 int ieee80211_crypto_init(void);

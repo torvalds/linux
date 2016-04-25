@@ -28,6 +28,16 @@ Devices supporting the SDR receiver interface set the
 <structfield>capabilities</structfield> field of &v4l2-capability;
 returned by the &VIDIOC-QUERYCAP; ioctl. That flag means the device has an
 Analog to Digital Converter (ADC), which is a mandatory element for the SDR receiver.
+    </para>
+    <para>
+Devices supporting the SDR transmitter interface set the
+<constant>V4L2_CAP_SDR_OUTPUT</constant> and
+<constant>V4L2_CAP_MODULATOR</constant> flag in the
+<structfield>capabilities</structfield> field of &v4l2-capability;
+returned by the &VIDIOC-QUERYCAP; ioctl. That flag means the device has an
+Digital to Analog Converter (DAC), which is a mandatory element for the SDR transmitter.
+    </para>
+    <para>
 At least one of the read/write, streaming or asynchronous I/O methods must
 be supported.
     </para>
@@ -39,15 +49,16 @@ be supported.
     <para>
 SDR devices can support <link linkend="control">controls</link>, and must
 support the <link linkend="tuner">tuner</link> ioctls. Tuner ioctls are used
-for setting the ADC sampling rate (sampling frequency) and the possible RF tuner
-frequency.
+for setting the ADC/DAC sampling rate (sampling frequency) and the possible
+radio frequency (RF).
     </para>
 
     <para>
-The <constant>V4L2_TUNER_ADC</constant> tuner type is used for ADC tuners, and
-the <constant>V4L2_TUNER_RF</constant> tuner type is used for RF tuners. The
-tuner index of the RF tuner (if any) must always follow the ADC tuner index.
-Normally the ADC tuner is #0 and the RF tuner is #1.
+The <constant>V4L2_TUNER_SDR</constant> tuner type is used for setting SDR
+device ADC/DAC frequency, and the <constant>V4L2_TUNER_RF</constant>
+tuner type is used for setting radio frequency.
+The tuner index of the RF tuner (if any) must always follow the SDR tuner index.
+Normally the SDR tuner is #0 and the RF tuner is #1.
     </para>
 
     <para>
@@ -59,9 +70,9 @@ The &VIDIOC-S-HW-FREQ-SEEK; ioctl is not supported.
     <title>Data Format Negotiation</title>
 
     <para>
-The SDR capture device uses the <link linkend="format">format</link> ioctls to
-select the capture format. Both the sampling resolution and the data streaming
-format are bound to that selectable format. In addition to the basic
+The SDR device uses the <link linkend="format">format</link> ioctls to
+select the capture and output format. Both the sampling resolution and the data
+streaming format are bound to that selectable format. In addition to the basic
 <link linkend="format">format</link> ioctls, the &VIDIOC-ENUM-FMT; ioctl
 must be supported as well.
     </para>
@@ -69,7 +80,8 @@ must be supported as well.
     <para>
 To use the <link linkend="format">format</link> ioctls applications set the
 <structfield>type</structfield> field of a &v4l2-format; to
-<constant>V4L2_BUF_TYPE_SDR_CAPTURE</constant> and use the &v4l2-sdr-format;
+<constant>V4L2_BUF_TYPE_SDR_CAPTURE</constant> or
+<constant>V4L2_BUF_TYPE_SDR_OUTPUT</constant> and use the &v4l2-sdr-format;
 <structfield>sdr</structfield> member of the <structfield>fmt</structfield>
 union as needed per the desired operation.
 Currently there is two fields, <structfield>pixelformat</structfield> and

@@ -21,7 +21,7 @@ struct hda_jack_callback;
 typedef void (*hda_jack_callback_fn) (struct hda_codec *, struct hda_jack_callback *);
 
 struct hda_jack_callback {
-	struct hda_jack_tbl *tbl;
+	hda_nid_t nid;
 	hda_jack_callback_fn func;
 	unsigned int private_data;	/* arbitrary data */
 	struct hda_jack_callback *next;
@@ -82,7 +82,7 @@ static inline bool snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid)
 bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid);
 
 int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
-			  const char *name);
+			  const char *name, bool phantom_jack);
 int snd_hda_jack_add_kctls(struct hda_codec *codec,
 			   const struct auto_pin_cfg *cfg);
 

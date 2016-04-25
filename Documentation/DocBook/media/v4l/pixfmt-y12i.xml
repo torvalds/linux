@@ -1,0 +1,49 @@
+<refentry id="V4L2-PIX-FMT-Y12I">
+  <refmeta>
+    <refentrytitle>V4L2_PIX_FMT_Y12I ('Y12I')</refentrytitle>
+    &manvol;
+  </refmeta>
+  <refnamediv>
+    <refname><constant>V4L2_PIX_FMT_Y12I</constant></refname>
+    <refpurpose>Interleaved grey-scale image, e.g. from a stereo-pair</refpurpose>
+  </refnamediv>
+  <refsect1>
+    <title>Description</title>
+
+    <para>This is a grey-scale image with a depth of 12 bits per pixel, but with
+pixels from 2 sources interleaved and bit-packed. Each pixel is stored in a
+24-bit word in the little-endian order. On a little-endian machine these pixels
+can be deinterlaced using</para>
+
+<para>
+<programlisting>
+__u8 *buf;
+left0 = 0xfff &amp; *(__u16 *)buf;
+right0 = *(__u16 *)(buf + 1) >> 4;
+</programlisting>
+</para>
+
+    <example>
+      <title><constant>V4L2_PIX_FMT_Y12I</constant> 2 pixel data stream taking 3 bytes</title>
+
+      <formalpara>
+	<title>Bit-packed representation</title>
+	<para>pixels cross the byte boundary and have a ratio of 3 bytes for each
+          interleaved pixel.
+	  <informaltable frame="all">
+	    <tgroup cols="3" align="center">
+	      <colspec align="left" colwidth="2*" />
+	      <tbody valign="top">
+		<row>
+		  <entry>Y'<subscript>0left[7:0]</subscript></entry>
+		  <entry>Y'<subscript>0right[3:0]</subscript>Y'<subscript>0left[11:8]</subscript></entry>
+		  <entry>Y'<subscript>0right[11:4]</subscript></entry>
+		</row>
+	      </tbody>
+	    </tgroup>
+	  </informaltable>
+	</para>
+      </formalpara>
+    </example>
+  </refsect1>
+</refentry>

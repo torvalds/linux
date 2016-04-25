@@ -312,6 +312,15 @@ config DEBUG_SECTION_MISMATCH
 	  - Enable verbose reporting from modpost in order to help resolve
 	    the section mismatches that are reported.
 
+config SECTION_MISMATCH_WARN_ONLY
+	bool "Make section mismatch errors non-fatal"
+	default y
+	help
+	  If you say N here, the build process will fail if there are any
+	  section mismatch, instead of just throwing warnings.
+
+	  If unsure, say Y.
+
 #
 # Select this config option from the architecture Kconfig, if it
 # is preferred to always offer frame pointers as a config
@@ -332,6 +341,18 @@ config FRAME_POINTER
 	  If you say Y here the resulting kernel image will be slightly
 	  larger and slower, but it gives very useful debugging information
 	  in case of kernel bugs. (precise oopses/stacktraces/warnings)
+
+config STACK_VALIDATION
+	bool "Compile-time stack metadata validation"
+	depends on HAVE_STACK_VALIDATION
+	default n
+	help
+	  Add compile-time checks to validate stack metadata, including frame
+	  pointers (if CONFIG_FRAME_POINTER is enabled).  This helps ensure
+	  that runtime stack traces are more reliable.
+
+	  For more information, see
+	  tools/objtool/Documentation/stack-validation.txt.
 
 config DEBUG_FORCE_WEAK_PER_CPU
 	bool "Force weak per-cpu definitions"
@@ -537,7 +558,7 @@ config DEBUG_KMEMLEAK_DEFAULT_OFF
 
 config DEBUG_STACK_USAGE
 	bool "Stack utilization instrumentation"
-	depends on DEBUG_KERNEL && !IA64 && !PARISC && !METAG
+	depends on DEBUG_KERNEL && !IA64
 	help
 	  Enables the display of the minimum amount of free stack which each
 	  task has ever had available in the sysrq-T and sysrq-P debug output.
@@ -568,6 +589,14 @@ config DEBUG_VM_RB
 	depends on DEBUG_VM
 	help
 	  Enable VM red-black tree debugging information and extra validations.
+
+	  If unsure, say N.
+
+config DEBUG_VM_PGFLAGS
+	bool "Debug page-flags operations"
+	depends on DEBUG_VM
+	help
+	  Enables extra validation on page flags operations.
 
 	  If unsure, say N.
 
@@ -666,6 +695,27 @@ source "lib/Kconfig.kmemcheck"
 source "lib/Kconfig.kasan"
 
 endmenu # "Memory Debugging"
+
+config ARCH_HAS_KCOV
+	bool
+	help
+	  KCOV does not have any arch-specific code, but currently it is enabled
+	  only for x86_64. KCOV requires testing on other archs, and most likely
+	  disabling of instrumentation for some early boot code.
+
+config KCOV
+	bool "Code coverage for fuzzing"
+	depends on ARCH_HAS_KCOV
+	select DEBUG_FS
+	help
+	  KCOV exposes kernel code coverage information in a form suitable
+	  for coverage-guided fuzzing (randomized testing).
+
+	  If RANDOMIZE_BASE is enabled, PC values will not be stable across
+	  different machines and across reboots. If you need stable PC values,
+	  disable RANDOMIZE_BASE.
+
+	  For more details, see Documentation/kcov.txt.
 
 config DEBUG_SHIRQ
 	bool "Debug shared IRQ handlers"
@@ -802,6 +852,17 @@ config BOOTPARAM_HUNG_TASK_PANIC_VALUE
 	range 0 1
 	default 0 if !BOOTPARAM_HUNG_TASK_PANIC
 	default 1 if BOOTPARAM_HUNG_TASK_PANIC
+
+config WQ_WATCHDOG
+	bool "Detect Workqueue Stalls"
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here to enable stall detection on workqueues.  If a
+	  worker pool doesn't make forward progress on a pending work
+	  item for over a given amount of time, 30s by default, a
+	  warning message is printed along with dump of workqueue
+	  state.  This can be configured through kernel parameter
+	  "workqueue.watchdog_thresh" and its sysfs counterpart.
 
 endmenu # "Debug lockups and hangs"
 
@@ -1372,6 +1433,21 @@ config RCU_EQS_DEBUG
 
 endmenu # "RCU Debugging"
 
+config DEBUG_WQ_FORCE_RR_CPU
+	bool "Force round-robin CPU selection for unbound work items"
+	depends on DEBUG_KERNEL
+	default n
+	help
+	  Workqueue used to implicitly guarantee that work items queued
+	  without explicit CPU specified are put on the local CPU.  This
+	  guarantee is no longer true and while local CPU is still
+	  preferred work items may be put on foreign CPUs.  Kernel
+	  parameter "workqueue.debug_force_rr_cpu" is added to force
+	  round-robin CPU selection to flush out usages which depend on the
+	  now broken guarantee.  This config option enables the debug
+	  feature by default.  When enabled, memory and cache locality will
+	  be impacted.
+
 config DEBUG_BLOCK_EXT_DEVT
         bool "Force extended block device numbers and spread them"
 	depends on DEBUG_KERNEL
@@ -1398,6 +1474,19 @@ config DEBUG_BLOCK_EXT_DEVT
 	  Textual device names (root=/dev/sdXn) will continue to work.
 
 	  Say N if you are unsure.
+
+config CPU_HOTPLUG_STATE_CONTROL
+	bool "Enable CPU hotplug state control"
+	depends on DEBUG_KERNEL
+	depends on HOTPLUG_CPU
+	default n
+	help
+	  Allows to write steps between "offline" and "online" to the CPUs
+	  sysfs target file so states can be stepped granular. This is a debug
+	  option for now as the hotplug machinery cannot be stopped and
+	  restarted at arbitrary points yet.
+
+	  Say N if your are unsure.
 
 config NOTIFIER_ERROR_INJECTION
 	tristate "Notifier error injection"
@@ -1475,6 +1564,29 @@ config OF_RECONFIG_NOTIFIER_ERROR_INJECT
 
 	  If unsure, say N.
 
+config NETDEV_NOTIFIER_ERROR_INJECT
+	tristate "Netdev notifier error injection module"
+	depends on NET && NOTIFIER_ERROR_INJECTION
+	help
+	  This option provides the ability to inject artificial errors to
+	  netdevice notifier chain callbacks.  It is controlled through debugfs
+	  interface /sys/kernel/debug/notifier-error-inject/netdev
+
+	  If the notifier call chain should be failed with some events
+	  notified, write the error code to "actions/<notifier event>/error".
+
+	  Example: Inject netdevice mtu change error (-22 = -EINVAL)
+
+	  # cd /sys/kernel/debug/notifier-error-inject/netdev
+	  # echo -22 > actions/NETDEV_CHANGEMTU/error
+	  # ip link set eth0 mtu 1024
+	  RTNETLINK answers: Invalid argument
+
+	  To compile this code as a module, choose M here: the module will
+	  be called netdev-notifier-error-inject.
+
+	  If unsure, say N.
+
 config FAULT_INJECTION
 	bool "Fault-injection framework"
 	depends on DEBUG_KERNEL
@@ -1514,8 +1626,7 @@ config FAIL_IO_TIMEOUT
 
 config FAIL_MMC_REQUEST
 	bool "Fault-injection capability for MMC IO"
-	select DEBUG_FS
-	depends on FAULT_INJECTION && MMC
+	depends on FAULT_INJECTION_DEBUG_FS && MMC
 	help
 	  Provide fault-injection capability for MMC IO.
 	  This will make the mmc core return data errors. This is
@@ -1547,7 +1658,6 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 
 config LATENCYTOP
 	bool "Latency measuring infrastructure"
-	depends on HAVE_LATENCYTOP_SUPPORT
 	depends on DEBUG_KERNEL
 	depends on STACKTRACE_SUPPORT
 	depends on PROC_FS
@@ -1685,6 +1795,17 @@ config TEST_STRING_HELPERS
 
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
+
+config TEST_PRINTF
+	tristate "Test printf() family of functions at runtime"
+
+config TEST_BITMAP
+	tristate "Test bitmap_*() family of functions at runtime"
+	default n
+	help
+	  Enable this option to test the bitmap functions at boot.
+
+	  If unsure, say N.
 
 config TEST_RHASHTABLE
 	tristate "Perform selftest on resizable hash table"
@@ -1841,3 +1962,43 @@ source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"
 
+source "lib/Kconfig.ubsan"
+
+config ARCH_HAS_DEVMEM_IS_ALLOWED
+	bool
+
+config STRICT_DEVMEM
+	bool "Filter access to /dev/mem"
+	depends on MMU
+	depends on ARCH_HAS_DEVMEM_IS_ALLOWED
+	default y if TILE || PPC
+	---help---
+	  If this option is disabled, you allow userspace (root) access to all
+	  of memory, including kernel and userspace memory. Accidental
+	  access to this is obviously disastrous, but specific access can
+	  be used by people debugging the kernel. Note that with PAT support
+	  enabled, even in this case there are restrictions on /dev/mem
+	  use due to the cache aliasing requirements.
+
+	  If this option is switched on, and IO_STRICT_DEVMEM=n, the /dev/mem
+	  file only allows userspace access to PCI space and the BIOS code and
+	  data regions.  This is sufficient for dosemu and X and all common
+	  users of /dev/mem.
+
+	  If in doubt, say Y.
+
+config IO_STRICT_DEVMEM
+	bool "Filter I/O access to /dev/mem"
+	depends on STRICT_DEVMEM
+	---help---
+	  If this option is disabled, you allow userspace (root) access to all
+	  io-memory regardless of whether a driver is actively using that
+	  range.  Accidental access to this is obviously disastrous, but
+	  specific access can be used by people debugging kernel drivers.
+
+	  If this option is switched on, the /dev/mem file only allows
+	  userspace access to *idle* io-memory ranges (see /proc/iomem) This
+	  may break traditional users of /dev/mem (dosemu, legacy X, etc...)
+	  if the driver using a given range cannot be disabled.
+
+	  If in doubt, say Y.

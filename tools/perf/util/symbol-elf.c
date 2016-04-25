@@ -6,6 +6,7 @@
 #include <inttypes.h>
 
 #include "symbol.h"
+#include "demangle-java.h"
 #include "machine.h"
 #include "vdso.h"
 #include <symbol/kallsyms.h>
@@ -792,6 +793,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	uint32_t idx;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
+	GElf_Shdr tshdr;
 	Elf_Data *syms, *opddata = NULL;
 	GElf_Sym sym;
 	Elf_Scn *sec, *sec_strndx;
@@ -830,6 +832,9 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	ehdr = syms_ss->ehdr;
 	sec = syms_ss->symtab;
 	shdr = syms_ss->symshdr;
+
+	if (elf_section_by_name(elf, &ehdr, &tshdr, ".text", NULL))
+		dso->text_offset = tshdr.sh_addr - tshdr.sh_offset;
 
 	if (runtime_ss->opdsec)
 		opddata = elf_rawdata(runtime_ss->opdsec, NULL);
@@ -879,12 +884,8 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	 * Handle any relocation of vdso necessary because older kernels
 	 * attempted to prelink vdso to its virtual address.
 	 */
-	if (dso__is_vdso(dso)) {
-		GElf_Shdr tshdr;
-
-		if (elf_section_by_name(elf, &ehdr, &tshdr, ".text", NULL))
-			map->reloc = map->start - tshdr.sh_addr + tshdr.sh_offset;
-	}
+	if (dso__is_vdso(dso))
+		map->reloc = map->start - dso->text_offset;
 
 	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
 	/*
@@ -1026,8 +1027,8 @@ int dso__load_sym(struct dso *dso, struct map *map,
 				curr_dso->long_name_len = dso->long_name_len;
 				curr_map = map__new2(start, curr_dso,
 						     map->type);
+				dso__put(curr_dso);
 				if (curr_map == NULL) {
-					dso__put(curr_dso);
 					goto out_elf_end;
 				}
 				if (adjust_kernel_syms) {
@@ -1042,7 +1043,14 @@ int dso__load_sym(struct dso *dso, struct map *map,
 				}
 				curr_dso->symtab_type = dso->symtab_type;
 				map_groups__insert(kmaps, curr_map);
+				/*
+				 * Add it before we drop the referece to curr_map,
+				 * i.e. while we still are sure to have a reference
+				 * to this DSO via curr_map->dso.
+				 */
 				dsos__add(&map->groups->machine->dsos, curr_dso);
+				/* kmaps already got it */
+				map__put(curr_map);
 				dso__set_loaded(curr_dso, map->type);
 			} else
 				curr_dso = curr_map->dso;
@@ -1070,6 +1078,8 @@ new_symbol:
 				demangle_flags = DMGL_PARAMS | DMGL_ANSI;
 
 			demangled = bfd_demangle(NULL, elf_name, demangle_flags);
+			if (demangled == NULL)
+				demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
 			if (demangled != NULL)
 				elf_name = demangled;
 		}

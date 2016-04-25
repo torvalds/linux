@@ -25,6 +25,8 @@
 #define CLK_FOUT_MPLL		10
 #define CLK_FOUT_BPLL		11
 #define CLK_FOUT_KPLL		12
+#define CLK_ARM_CLK		13
+#define CLK_KFC_CLK		14
 
 /* gate for special clocks (sclk) */
 #define CLK_SCLK_UART0		128
@@ -210,6 +212,8 @@
 #define CLK_MOUT_SW_ACLK300     649
 #define CLK_MOUT_USER_ACLK400_DISP1     650
 #define CLK_MOUT_SW_ACLK400     651
+#define CLK_MOUT_USER_ACLK300_GSCL	652
+#define CLK_MOUT_SW_ACLK300_GSCL	653
 
 /* divider clocks */
 #define CLK_DOUT_PIXEL		768

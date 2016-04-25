@@ -1,0 +1,7 @@
+QiaoDian XianShi Corporation 4"3 TFT LCD panel
+
+Required properties:
+- compatible: should be "qiaodian,qd43003c0-40"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

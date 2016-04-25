@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
-#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/fs.h>
@@ -32,6 +31,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
+#include <linux/perf_event.h>
 #include <asm/sections.h>
 
 #include "coresight-etm4x.h"
@@ -63,6 +63,13 @@ static bool etm4_arch_supported(u8 arch)
 	return true;
 }
 
+static int etm4_cpu_id(struct coresight_device *csdev)
+{
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	return drvdata->cpu;
+}
+
 static int etm4_trace_id(struct coresight_device *csdev)
 {
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
@@ -72,7 +79,6 @@ static int etm4_trace_id(struct coresight_device *csdev)
 	if (!drvdata->enable)
 		return drvdata->trcid;
 
-	pm_runtime_get_sync(drvdata->dev);
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	CS_UNLOCK(drvdata->base);
@@ -81,7 +87,6 @@ static int etm4_trace_id(struct coresight_device *csdev)
 	CS_LOCK(drvdata->base);
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	pm_runtime_put(drvdata->dev);
 
 	return trace_id;
 }
@@ -136,7 +141,9 @@ static void etm4_enable_hw(void *info)
 		writel_relaxed(drvdata->cntr_val[i],
 			       drvdata->base + TRCCNTVRn(i));
 	}
-	for (i = 0; i < drvdata->nr_resource; i++)
+
+	/* Resource selector pair 0 is always implemented and reserved */
+	for (i = 2; i < drvdata->nr_resource * 2; i++)
 		writel_relaxed(drvdata->res_ctrl[i],
 			       drvdata->base + TRCRSCTLRn(i));
 
@@ -180,12 +187,12 @@ static void etm4_enable_hw(void *info)
 	dev_dbg(drvdata->dev, "cpu: %d enable smp call done\n", drvdata->cpu);
 }
 
-static int etm4_enable(struct coresight_device *csdev)
+static int etm4_enable(struct coresight_device *csdev,
+		       struct perf_event_attr *attr, u32 mode)
 {
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	int ret;
 
-	pm_runtime_get_sync(drvdata->dev);
 	spin_lock(&drvdata->spinlock);
 
 	/*
@@ -205,7 +212,6 @@ static int etm4_enable(struct coresight_device *csdev)
 	return 0;
 err:
 	spin_unlock(&drvdata->spinlock);
-	pm_runtime_put(drvdata->dev);
 	return ret;
 }
 
@@ -254,12 +260,11 @@ static void etm4_disable(struct coresight_device *csdev)
 	spin_unlock(&drvdata->spinlock);
 	put_online_cpus();
 
-	pm_runtime_put(drvdata->dev);
-
 	dev_info(drvdata->dev, "ETM tracing disabled\n");
 }
 
 static const struct coresight_ops_source etm4_source_ops = {
+	.cpu_id		= etm4_cpu_id,
 	.trace_id	= etm4_trace_id,
 	.enable		= etm4_enable,
 	.disable	= etm4_disable,
@@ -489,8 +494,9 @@ static ssize_t reset_store(struct device *dev,
 		drvdata->cntr_val[i] = 0x0;
 	}
 
-	drvdata->res_idx = 0x0;
-	for (i = 0; i < drvdata->nr_resource; i++)
+	/* Resource selector pair 0 is always implemented and reserved */
+	drvdata->res_idx = 0x2;
+	for (i = 2; i < drvdata->nr_resource * 2; i++)
 		drvdata->res_ctrl[i] = 0x0;
 
 	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
@@ -1732,7 +1738,7 @@ static ssize_t res_idx_store(struct device *dev,
 	if (kstrtoul(buf, 16, &val))
 		return -EINVAL;
 	/* Resource selector pair 0 is always implemented and reserved */
-	if ((val == 0) || (val >= drvdata->nr_resource))
+	if (val < 2 || val >= drvdata->nr_resource * 2)
 		return -EINVAL;
 
 	/*
@@ -2216,7 +2222,7 @@ static ssize_t name##_show(struct device *_dev,				\
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n",			\
 			 readl_relaxed(drvdata->base + offset));	\
 }									\
-DEVICE_ATTR_RO(name)
+static DEVICE_ATTR_RO(name)
 
 coresight_simple_func(trcoslsr, TRCOSLSR);
 coresight_simple_func(trcpdcr, TRCPDCR);
@@ -2416,8 +2422,13 @@ static void etm4_init_arch_data(void *info)
 	drvdata->nr_addr_cmp = BMVAL(etmidr4, 0, 3);
 	/* NUMPC, bits[15:12] number of PE comparator inputs for tracing */
 	drvdata->nr_pe_cmp = BMVAL(etmidr4, 12, 15);
-	/* NUMRSPAIR, bits[19:16] the number of resource pairs for tracing */
-	drvdata->nr_resource = BMVAL(etmidr4, 16, 19);
+	/*
+	 * NUMRSPAIR, bits[19:16]
+	 * The number of resource pairs conveyed by the HW starts at 0, i.e a
+	 * value of 0x0 indicate 1 resource pair, 0x1 indicate two and so on.
+	 * As such add 1 to the value of NUMRSPAIR for a better representation.
+	 */
+	drvdata->nr_resource = BMVAL(etmidr4, 16, 19) + 1;
 	/*
 	 * NUMSSCC, bits[23:20] the number of single-shot
 	 * comparator control for tracing
@@ -2504,6 +2515,8 @@ static void etm4_init_default_data(struct etmv4_drvdata *drvdata)
 		drvdata->cntr_val[i] = 0x0;
 	}
 
+	/* Resource selector pair 0 is always implemented and reserved */
+	drvdata->res_idx = 0x2;
 	for (i = 2; i < drvdata->nr_resource * 2; i++)
 		drvdata->res_ctrl[i] = 0x0;
 
@@ -2674,17 +2687,6 @@ err_coresight_register:
 	return ret;
 }
 
-static int etm4_remove(struct amba_device *adev)
-{
-	struct etmv4_drvdata *drvdata = amba_get_drvdata(adev);
-
-	coresight_unregister(drvdata->csdev);
-	if (--etm4_count == 0)
-		unregister_hotcpu_notifier(&etm4_cpu_notifier);
-
-	return 0;
-}
-
 static struct amba_id etm4_ids[] = {
 	{       /* ETM 4.0 - Qualcomm */
 		.id	= 0x0003b95d,
@@ -2702,10 +2704,9 @@ static struct amba_id etm4_ids[] = {
 static struct amba_driver etm4x_driver = {
 	.drv = {
 		.name   = "coresight-etm4x",
+		.suppress_bind_attrs = true,
 	},
 	.probe		= etm4_probe,
-	.remove		= etm4_remove,
 	.id_table	= etm4_ids,
 };
-
-module_amba_driver(etm4x_driver);
+builtin_amba_driver(etm4x_driver);

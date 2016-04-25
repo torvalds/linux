@@ -63,6 +63,8 @@
  * where to place its SVC stack
  */
 struct secondary_data secondary_data;
+/* Number of CPUs which aren't online, but looping in kernel text. */
+int cpus_stuck_in_kernel;
 
 enum ipi_msg_type {
 	IPI_RESCHEDULE,
@@ -70,7 +72,18 @@ enum ipi_msg_type {
 	IPI_CPU_STOP,
 	IPI_TIMER,
 	IPI_IRQ_WORK,
+	IPI_WAKEUP
 };
+
+#ifdef CONFIG_HOTPLUG_CPU
+static int op_cpu_kill(unsigned int cpu);
+#else
+static inline int op_cpu_kill(unsigned int cpu)
+{
+	return -ENOSYS;
+}
+#endif
+
 
 /*
  * Boot a secondary CPU, and assign it the specified idle task.
@@ -89,12 +102,14 @@ static DECLARE_COMPLETION(cpu_running);
 int __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	int ret;
+	long status;
 
 	/*
 	 * We need to tell the secondary core where to find its stack and the
 	 * page tables.
 	 */
 	secondary_data.stack = task_stack_page(idle) + THREAD_START_SP;
+	update_cpu_boot_status(CPU_MMU_OFF);
 	__flush_dcache_area(&secondary_data, sizeof(secondary_data));
 
 	/*
@@ -118,6 +133,32 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	}
 
 	secondary_data.stack = NULL;
+	status = READ_ONCE(secondary_data.status);
+	if (ret && status) {
+
+		if (status == CPU_MMU_OFF)
+			status = READ_ONCE(__early_cpu_boot_status);
+
+		switch (status) {
+		default:
+			pr_err("CPU%u: failed in unknown state : 0x%lx\n",
+					cpu, status);
+			break;
+		case CPU_KILL_ME:
+			if (!op_cpu_kill(cpu)) {
+				pr_crit("CPU%u: died during early boot\n", cpu);
+				break;
+			}
+			/* Fall through */
+			pr_crit("CPU%u: may not have shut down cleanly\n", cpu);
+		case CPU_STUCK_IN_KERNEL:
+			pr_crit("CPU%u: is stuck in kernel\n", cpu);
+			cpus_stuck_in_kernel++;
+			break;
+		case CPU_PANIC_KERNEL:
+			panic("CPU%u detected unsupported configuration\n", cpu);
+		}
+	}
 
 	return ret;
 }
@@ -142,21 +183,24 @@ asmlinkage void secondary_start_kernel(void)
 	 */
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
-	cpumask_set_cpu(cpu, mm_cpumask(mm));
 
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
-	printk("CPU%u: Booted secondary processor\n", cpu);
 
 	/*
 	 * TTBR0 is only used for the identity mapping at this stage. Make it
 	 * point to zero page to avoid speculatively fetching new entries.
 	 */
-	cpu_set_reserved_ttbr0();
-	flush_tlb_all();
-	cpu_set_default_tcr_t0sz();
+	cpu_uninstall_idmap();
 
 	preempt_disable();
 	trace_hardirqs_off();
+
+	/*
+	 * If the system has established the capabilities, make sure
+	 * this CPU ticks all of those. If it doesn't, the CPU will
+	 * fail to come online.
+	 */
+	verify_local_cpu_capabilities();
 
 	if (cpu_ops[cpu]->cpu_postboot)
 		cpu_ops[cpu]->cpu_postboot();
@@ -178,6 +222,11 @@ asmlinkage void secondary_start_kernel(void)
 	 * the CPU migration code to notice that the CPU is online
 	 * before we continue.
 	 */
+	pr_info("CPU%u: Booted secondary processor [%08x]\n",
+					 cpu, read_cpuid_id());
+	update_cpu_boot_status(CPU_BOOT_SUCCESS);
+	/* Make sure the status update is visible before we complete */
+	smp_wmb();
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
 
@@ -188,7 +237,7 @@ asmlinkage void secondary_start_kernel(void)
 	/*
 	 * OK, it's off to the idle thread for us
 	 */
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -232,12 +281,7 @@ int __cpu_disable(void)
 	/*
 	 * OK - migrate IRQs away from this CPU
 	 */
-	migrate_irqs();
-
-	/*
-	 * Remove this CPU from the vm mask set of all processes.
-	 */
-	clear_tasks_mm_cpumask(cpu);
+	irq_migrate_all_off_this_cpu();
 
 	return 0;
 }
@@ -311,6 +355,30 @@ void cpu_die(void)
 }
 #endif
 
+/*
+ * Kill the calling secondary CPU, early in bringup before it is turned
+ * online.
+ */
+void cpu_die_early(void)
+{
+	int cpu = smp_processor_id();
+
+	pr_crit("CPU%d: will not boot\n", cpu);
+
+	/* Mark this CPU absent */
+	set_cpu_present(cpu, 0);
+
+#ifdef CONFIG_HOTPLUG_CPU
+	update_cpu_boot_status(CPU_KILL_ME);
+	/* Check if we can park ourselves */
+	if (cpu_ops[cpu] && cpu_ops[cpu]->cpu_die)
+		cpu_ops[cpu]->cpu_die(cpu);
+#endif
+	update_cpu_boot_status(CPU_STUCK_IN_KERNEL);
+
+	cpu_park_loop();
+}
+
 static void __init hyp_mode_check(void)
 {
 	if (is_hyp_mode_available())
@@ -325,12 +393,14 @@ static void __init hyp_mode_check(void)
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	pr_info("SMP: Total of %d processors activated.\n", num_online_cpus());
+	setup_cpu_features();
 	hyp_mode_check();
 	apply_alternatives_all();
 }
 
 void __init smp_prepare_boot_cpu(void)
 {
+	cpuinfo_store_boot_cpu();
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
 }
 
@@ -441,6 +511,17 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 	/* map the logical cpu id to cpu MPIDR */
 	cpu_logical_map(cpu_count) = hwid;
 
+	/*
+	 * Set-up the ACPI parking protocol cpu entries
+	 * while initializing the cpu_logical_map to
+	 * avoid parsing MADT entries multiple times for
+	 * nothing (ie a valid cpu_logical_map entry should
+	 * contain a valid parking protocol data set to
+	 * initialize the cpu if the parking protocol is
+	 * the only available enable method).
+	 */
+	acpi_set_mailbox_entry(cpu_count, processor);
+
 	cpu_count++;
 }
 
@@ -469,7 +550,7 @@ acpi_parse_gic_cpu_interface(struct acpi_subtable_header *header,
  * cpu logical map array containing MPIDR values related to logical
  * cpus. Assumes that cpu_logical_map(0) has already been initialized.
  */
-void __init of_parse_and_init_cpus(void)
+static void __init of_parse_and_init_cpus(void)
 {
 	struct device_node *dn = NULL;
 
@@ -623,6 +704,7 @@ static const char *ipi_types[NR_IPI] __tracepoint_string = {
 	S(IPI_CPU_STOP, "CPU stop interrupts"),
 	S(IPI_TIMER, "Timer broadcast interrupts"),
 	S(IPI_IRQ_WORK, "IRQ work interrupts"),
+	S(IPI_WAKEUP, "CPU wake-up interrupts"),
 };
 
 static void smp_cross_call(const struct cpumask *target, unsigned int ipinr)
@@ -665,6 +747,13 @@ void arch_send_call_function_single_ipi(int cpu)
 {
 	smp_cross_call(cpumask_of(cpu), IPI_CALL_FUNC);
 }
+
+#ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
+void arch_send_wakeup_ipi_mask(const struct cpumask *mask)
+{
+	smp_cross_call(mask, IPI_WAKEUP);
+}
+#endif
 
 #ifdef CONFIG_IRQ_WORK
 void arch_irq_work_raise(void)
@@ -740,6 +829,14 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		irq_enter();
 		irq_work_run();
 		irq_exit();
+		break;
+#endif
+
+#ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
+	case IPI_WAKEUP:
+		WARN_ONCE(!acpi_parking_protocol_valid(cpu),
+			  "CPU%u: Wake-up IPI outside the ACPI parking protocol\n",
+			  cpu);
 		break;
 #endif
 

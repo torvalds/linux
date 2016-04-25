@@ -97,7 +97,7 @@ struct lp_gpio {
 static unsigned long lp_gpio_reg(struct gpio_chip *chip, unsigned offset,
 				 int reg)
 {
-	struct lp_gpio *lg = container_of(chip, struct lp_gpio, chip);
+	struct lp_gpio *lg = gpiochip_get_data(chip);
 	int reg_offset;
 
 	if (reg == LP_CONFIG1 || reg == LP_CONFIG2)
@@ -112,7 +112,7 @@ static unsigned long lp_gpio_reg(struct gpio_chip *chip, unsigned offset,
 
 static int lp_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct lp_gpio *lg = container_of(chip, struct lp_gpio, chip);
+	struct lp_gpio *lg = gpiochip_get_data(chip);
 	unsigned long reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
 	unsigned long conf2 = lp_gpio_reg(chip, offset, LP_CONFIG2);
 	unsigned long acpi_use = lp_gpio_reg(chip, offset, LP_ACPI_OWNED);
@@ -137,7 +137,7 @@ static int lp_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static void lp_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct lp_gpio *lg = container_of(chip, struct lp_gpio, chip);
+	struct lp_gpio *lg = gpiochip_get_data(chip);
 	unsigned long conf2 = lp_gpio_reg(chip, offset, LP_CONFIG2);
 
 	/* disable input sensing */
@@ -149,7 +149,7 @@ static void lp_gpio_free(struct gpio_chip *chip, unsigned offset)
 static int lp_irq_type(struct irq_data *d, unsigned type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct lp_gpio *lg = container_of(gc, struct lp_gpio, chip);
+	struct lp_gpio *lg = gpiochip_get_data(gc);
 	u32 hwirq = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 value;
@@ -191,7 +191,7 @@ static int lp_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void lp_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct lp_gpio *lg = container_of(chip, struct lp_gpio, chip);
+	struct lp_gpio *lg = gpiochip_get_data(chip);
 	unsigned long reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
 	unsigned long flags;
 
@@ -207,7 +207,7 @@ static void lp_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int lp_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct lp_gpio *lg = container_of(chip, struct lp_gpio, chip);
+	struct lp_gpio *lg = gpiochip_get_data(chip);
 	unsigned long reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
 	unsigned long flags;
 
@@ -221,7 +221,7 @@ static int lp_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int lp_gpio_direction_output(struct gpio_chip *chip,
 				      unsigned offset, int value)
 {
-	struct lp_gpio *lg = container_of(chip, struct lp_gpio, chip);
+	struct lp_gpio *lg = gpiochip_get_data(chip);
 	unsigned long reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
 	unsigned long flags;
 
@@ -238,7 +238,7 @@ static void lp_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
-	struct lp_gpio *lg = container_of(gc, struct lp_gpio, chip);
+	struct lp_gpio *lg = gpiochip_get_data(gc);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 	u32 base, pin, mask;
 	unsigned long reg, ena, pending;
@@ -273,7 +273,7 @@ static void lp_irq_mask(struct irq_data *d)
 static void lp_irq_enable(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct lp_gpio *lg = container_of(gc, struct lp_gpio, chip);
+	struct lp_gpio *lg = gpiochip_get_data(gc);
 	u32 hwirq = irqd_to_hwirq(d);
 	unsigned long reg = lp_gpio_reg(&lg->chip, hwirq, LP_INT_ENABLE);
 	unsigned long flags;
@@ -286,7 +286,7 @@ static void lp_irq_enable(struct irq_data *d)
 static void lp_irq_disable(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct lp_gpio *lg = container_of(gc, struct lp_gpio, chip);
+	struct lp_gpio *lg = gpiochip_get_data(gc);
 	u32 hwirq = irqd_to_hwirq(d);
 	unsigned long reg = lp_gpio_reg(&lg->chip, hwirq, LP_INT_ENABLE);
 	unsigned long flags;
@@ -368,9 +368,9 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->base = -1;
 	gc->ngpio = LP_NUM_GPIO;
 	gc->can_sleep = false;
-	gc->dev = dev;
+	gc->parent = dev;
 
-	ret = gpiochip_add(gc);
+	ret = devm_gpiochip_add_data(dev, gc, lg);
 	if (ret) {
 		dev_err(dev, "failed adding lp-gpio chip\n");
 		return ret;
@@ -439,9 +439,7 @@ MODULE_DEVICE_TABLE(acpi, lynxpoint_gpio_acpi_match);
 
 static int lp_gpio_remove(struct platform_device *pdev)
 {
-	struct lp_gpio *lg = platform_get_drvdata(pdev);
 	pm_runtime_disable(&pdev->dev);
-	gpiochip_remove(&lg->chip);
 	return 0;
 }
 

@@ -40,6 +40,19 @@
 #define INTEL_VGT_IF_VERSION \
 	INTEL_VGT_IF_VERSION_ENCODE(VGT_VERSION_MAJOR, VGT_VERSION_MINOR)
 
+/*
+ * notifications from guest to vgpu device model
+ */
+enum vgt_g2v_type {
+	VGT_G2V_PPGTT_L3_PAGE_TABLE_CREATE = 2,
+	VGT_G2V_PPGTT_L3_PAGE_TABLE_DESTROY,
+	VGT_G2V_PPGTT_L4_PAGE_TABLE_CREATE,
+	VGT_G2V_PPGTT_L4_PAGE_TABLE_DESTROY,
+	VGT_G2V_EXECLIST_CONTEXT_CREATE,
+	VGT_G2V_EXECLIST_CONTEXT_DESTROY,
+	VGT_G2V_MAX,
+};
+
 struct vgt_if {
 	uint64_t magic;		/* VGT_MAGIC */
 	uint16_t version_major;
@@ -70,15 +83,28 @@ struct vgt_if {
 	uint32_t rsv3[0x200 - 24];	/* pad to half page */
 	/*
 	 * The bottom half page is for response from Gfx driver to hypervisor.
-	 * Set to reserved fields temporarily by now.
 	 */
 	uint32_t rsv4;
 	uint32_t display_ready;	/* ready for display owner switch */
-	uint32_t rsv5[0x200 - 2];	/* pad to one page */
+
+	uint32_t rsv5[4];
+
+	uint32_t g2v_notify;
+	uint32_t rsv6[7];
+
+	struct {
+		uint32_t lo;
+		uint32_t hi;
+	} pdp[4];
+
+	uint32_t execlist_context_descriptor_lo;
+	uint32_t execlist_context_descriptor_hi;
+
+	uint32_t  rsv7[0x200 - 24];    /* pad to one page */
 } __packed;
 
 #define vgtif_reg(x) \
-	(VGT_PVINFO_PAGE + (long)&((struct vgt_if *)NULL)->x)
+	_MMIO((VGT_PVINFO_PAGE + (long)&((struct vgt_if *)NULL)->x))
 
 /* vGPU display status to be used by the host side */
 #define VGT_DRV_DISPLAY_NOT_READY 0

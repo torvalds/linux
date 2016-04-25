@@ -19,6 +19,7 @@
 #include "vsp1.h"
 #include "vsp1_bru.h"
 #include "vsp1_rwpf.h"
+#include "vsp1_video.h"
 
 #define BRU_MIN_SIZE				1U
 #define BRU_MAX_SIZE				8190U
@@ -27,14 +28,9 @@
  * Device Access
  */
 
-static inline u32 vsp1_bru_read(struct vsp1_bru *bru, u32 reg)
-{
-	return vsp1_read(bru->entity.vsp1, reg);
-}
-
 static inline void vsp1_bru_write(struct vsp1_bru *bru, u32 reg, u32 data)
 {
-	vsp1_write(bru->entity.vsp1, reg, data);
+	vsp1_mod_write(&bru->entity, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -83,7 +79,7 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (!enable)
 		return 0;
 
-	format = &bru->entity.formats[BRU_PAD_SOURCE];
+	format = &bru->entity.formats[bru->entity.source_pad];
 
 	/* The hardware is extremely flexible but we have no userspace API to
 	 * expose all the parameters, nor is it clear whether we would have use
@@ -94,7 +90,7 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 	/* Disable dithering and enable color data normalization unless the
 	 * format at the pipeline output is premultiplied.
 	 */
-	flags = pipe->output ? pipe->output->video.format.flags : 0;
+	flags = pipe->output ? pipe->output->format.flags : 0;
 	vsp1_bru_write(bru, VI6_BRU_INCTRL,
 		       flags & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA ?
 		       0 : VI6_BRU_INCTRL_NRM);
@@ -113,7 +109,7 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 		       VI6_BRU_ROP_CROP(VI6_ROP_NOP) |
 		       VI6_BRU_ROP_AROP(VI6_ROP_NOP));
 
-	for (i = 0; i < 4; ++i) {
+	for (i = 0; i < bru->entity.source_pad; ++i) {
 		bool premultiplied = false;
 		u32 ctrl = 0;
 
@@ -125,7 +121,7 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 		if (bru->inputs[i].rpf) {
 			ctrl |= VI6_BRU_CTRL_RBC;
 
-			premultiplied = bru->inputs[i].rpf->video.format.flags
+			premultiplied = bru->inputs[i].rpf->format.flags
 				      & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA;
 		} else {
 			ctrl |= VI6_BRU_CTRL_CROP(VI6_ROP_NOP)
@@ -295,7 +291,7 @@ static int bru_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_con
 	*format = fmt->format;
 
 	/* Reset the compose rectangle */
-	if (fmt->pad != BRU_PAD_SOURCE) {
+	if (fmt->pad != bru->entity.source_pad) {
 		struct v4l2_rect *compose;
 
 		compose = bru_get_compose(bru, cfg, fmt->pad, fmt->which);
@@ -309,7 +305,7 @@ static int bru_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_con
 	if (fmt->pad == BRU_PAD_SINK(0)) {
 		unsigned int i;
 
-		for (i = 0; i <= BRU_PAD_SOURCE; ++i) {
+		for (i = 0; i <= bru->entity.source_pad; ++i) {
 			format = vsp1_entity_get_pad_format(&bru->entity, cfg,
 							    i, fmt->which);
 			format->code = fmt->format.code;
@@ -325,7 +321,7 @@ static int bru_get_selection(struct v4l2_subdev *subdev,
 {
 	struct vsp1_bru *bru = to_bru(subdev);
 
-	if (sel->pad == BRU_PAD_SOURCE)
+	if (sel->pad == bru->entity.source_pad)
 		return -EINVAL;
 
 	switch (sel->target) {
@@ -353,7 +349,7 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *compose;
 
-	if (sel->pad == BRU_PAD_SOURCE)
+	if (sel->pad == bru->entity.source_pad)
 		return -EINVAL;
 
 	if (sel->target != V4L2_SEL_TGT_COMPOSE)
@@ -362,8 +358,8 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 	/* The compose rectangle top left corner must be inside the output
 	 * frame.
 	 */
-	format = vsp1_entity_get_pad_format(&bru->entity, cfg, BRU_PAD_SOURCE,
-					    sel->which);
+	format = vsp1_entity_get_pad_format(&bru->entity, cfg,
+					    bru->entity.source_pad, sel->which);
 	sel->r.left = clamp_t(unsigned int, sel->r.left, 0, format->width - 1);
 	sel->r.top = clamp_t(unsigned int, sel->r.top, 0, format->height - 1);
 
@@ -419,7 +415,8 @@ struct vsp1_bru *vsp1_bru_create(struct vsp1_device *vsp1)
 
 	bru->entity.type = VSP1_ENTITY_BRU;
 
-	ret = vsp1_entity_init(vsp1, &bru->entity, 5);
+	ret = vsp1_entity_init(vsp1, &bru->entity,
+			       vsp1->info->num_bru_inputs + 1);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
@@ -427,7 +424,7 @@ struct vsp1_bru *vsp1_bru_create(struct vsp1_device *vsp1)
 	subdev = &bru->entity.subdev;
 	v4l2_subdev_init(subdev, &bru_ops);
 
-	subdev->entity.ops = &vsp1_media_ops;
+	subdev->entity.ops = &vsp1->media_ops;
 	subdev->internal_ops = &vsp1_subdev_internal_ops;
 	snprintf(subdev->name, sizeof(subdev->name), "%s bru",
 		 dev_name(vsp1->dev));

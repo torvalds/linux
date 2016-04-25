@@ -179,7 +179,7 @@ static int save_sigregs_ext(struct pt_regs *regs,
 	int i;
 
 	/* Save vector registers to signal stack */
-	if (is_vx_task(current)) {
+	if (MACHINE_HAS_VX) {
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
 			vxrs[i] = *((__u64 *)(current->thread.fpu.vxrs + i) + 1);
 		if (__copy_to_user(&sregs_ext->vxrs_low, vxrs,
@@ -199,7 +199,7 @@ static int restore_sigregs_ext(struct pt_regs *regs,
 	int i;
 
 	/* Restore vector registers from signal stack */
-	if (is_vx_task(current)) {
+	if (MACHINE_HAS_VX) {
 		if (__copy_from_user(vxrs, &sregs_ext->vxrs_low,
 				     sizeof(sregs_ext->vxrs_low)) ||
 		    __copy_from_user(current->thread.fpu.vxrs + __NUM_VXRS_LOW,
@@ -331,13 +331,13 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	if (ka->sa.sa_flags & SA_RESTORER) {
-		restorer = (unsigned long) ka->sa.sa_restorer | PSW_ADDR_AMODE;
+		restorer = (unsigned long) ka->sa.sa_restorer;
 	} else {
 		/* Signal frame without vector registers are short ! */
 		__u16 __user *svc = (void __user *) frame + frame_size - 2;
 		if (__put_user(S390_SYSCALL_OPCODE | __NR_sigreturn, svc))
 			return -EFAULT;
-		restorer = (unsigned long) svc | PSW_ADDR_AMODE;
+		restorer = (unsigned long) svc;
 	}
 
 	/* Set up registers for signal handler */
@@ -347,7 +347,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	regs->psw.mask = PSW_MASK_EA | PSW_MASK_BA |
 		(PSW_USER_BITS & PSW_MASK_ASC) |
 		(regs->psw.mask & ~PSW_MASK_ASC);
-	regs->psw.addr = (unsigned long) ka->sa.sa_handler | PSW_ADDR_AMODE;
+	regs->psw.addr = (unsigned long) ka->sa.sa_handler;
 
 	regs->gprs[2] = sig;
 	regs->gprs[3] = (unsigned long) &frame->sc;
@@ -381,8 +381,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	uc_flags = 0;
 	if (MACHINE_HAS_VX) {
 		frame_size += sizeof(_sigregs_ext);
-		if (is_vx_task(current))
-			uc_flags |= UC_VXRS;
+		uc_flags |= UC_VXRS;
 	}
 	frame = get_sigframe(&ksig->ka, regs, frame_size);
 	if (frame == (void __user *) -1UL)
@@ -395,13 +394,12 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	if (ksig->ka.sa.sa_flags & SA_RESTORER) {
-		restorer = (unsigned long)
-			ksig->ka.sa.sa_restorer | PSW_ADDR_AMODE;
+		restorer = (unsigned long) ksig->ka.sa.sa_restorer;
 	} else {
 		__u16 __user *svc = &frame->svc_insn;
 		if (__put_user(S390_SYSCALL_OPCODE | __NR_rt_sigreturn, svc))
 			return -EFAULT;
-		restorer = (unsigned long) svc | PSW_ADDR_AMODE;
+		restorer = (unsigned long) svc;
 	}
 
 	/* Create siginfo on the signal stack */
@@ -427,7 +425,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	regs->psw.mask = PSW_MASK_EA | PSW_MASK_BA |
 		(PSW_USER_BITS & PSW_MASK_ASC) |
 		(regs->psw.mask & ~PSW_MASK_ASC);
-	regs->psw.addr = (unsigned long) ksig->ka.sa.sa_handler | PSW_ADDR_AMODE;
+	regs->psw.addr = (unsigned long) ksig->ka.sa.sa_handler;
 
 	regs->gprs[2] = ksig->sig;
 	regs->gprs[3] = (unsigned long) &frame->info;

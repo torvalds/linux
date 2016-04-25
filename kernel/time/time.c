@@ -322,6 +322,13 @@ EXPORT_SYMBOL(timespec_trunc);
  * -year/100+year/400 terms, and add 10.]
  *
  * This algorithm was first published by Gauss (I think).
+ *
+ * A leap second can be indicated by calling this function with sec as
+ * 60 (allowable under ISO 8601).  The leap second is treated the same
+ * as the following second since they don't exist in UNIX time.
+ *
+ * An encoding of midnight at the end of the day as 24:00:00 - ie. midnight
+ * tomorrow - (allowable under ISO 8601) is supported.
  */
 time64_t mktime64(const unsigned int year0, const unsigned int mon0,
 		const unsigned int day, const unsigned int hour,
@@ -338,7 +345,7 @@ time64_t mktime64(const unsigned int year0, const unsigned int mon0,
 	return ((((time64_t)
 		  (year/4 - year/100 + year/400 + 367*mon/12 + day) +
 		  year*365 - 719499
-	    )*24 + hour /* now have hours */
+	    )*24 + hour /* now have hours - midnight tomorrow handled here */
 	  )*60 + min /* now have minutes */
 	)*60 + sec; /* finally seconds */
 }

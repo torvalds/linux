@@ -1033,25 +1033,9 @@ static ssize_t mdesc_read(struct file *file, char __user *buf,
 
 static loff_t mdesc_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct mdesc_handle *hp;
+	struct mdesc_handle *hp = file->private_data;
 
-	switch (whence) {
-	case SEEK_CUR:
-		offset += file->f_pos;
-		break;
-	case SEEK_SET:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	hp = file->private_data;
-	if (offset > hp->handle_size)
-		return -EINVAL;
-	else
-		file->f_pos = offset;
-
-	return offset;
+	return no_seek_end_llseek_size(file, offset, whence, hp->handle_size);
 }
 
 /* mdesc_close() - /dev/mdesc is being closed, release the reference to

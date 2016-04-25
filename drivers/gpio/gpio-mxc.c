@@ -26,14 +26,15 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
+/* FIXME: for gpio_get_value() replace this with direct register read */
+#include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/module.h>
-#include <asm-generic/bug.h>
+#include <linux/bug.h>
 
 enum mxc_gpio_hwtype {
 	IMX1_GPIO,	/* runs on i.mx1 */
@@ -64,7 +65,7 @@ struct mxc_gpio_port {
 	int irq;
 	int irq_high;
 	struct irq_domain *domain;
-	struct bgpio_chip bgc;
+	struct gpio_chip gc;
 	u32 both_edges;
 };
 
@@ -172,7 +173,7 @@ static int gpio_set_irq_type(struct irq_data *d, u32 type)
 	struct mxc_gpio_port *port = gc->private;
 	u32 bit, val;
 	u32 gpio_idx = d->hwirq;
-	u32 gpio = port->bgc.gc.base + gpio_idx;
+	u32 gpio = port->gc.base + gpio_idx;
 	int edge;
 	void __iomem *reg = port->base;
 
@@ -398,9 +399,7 @@ static void mxc_gpio_get_hw(struct platform_device *pdev)
 
 static int mxc_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
-	struct bgpio_chip *bgc = to_bgpio_chip(gc);
-	struct mxc_gpio_port *port =
-		container_of(bgc, struct mxc_gpio_port, bgc);
+	struct mxc_gpio_port *port = gpiochip_get_data(gc);
 
 	return irq_find_mapping(port->domain, offset);
 }
@@ -451,7 +450,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 							 port);
 	}
 
-	err = bgpio_init(&port->bgc, &pdev->dev, 4,
+	err = bgpio_init(&port->gc, &pdev->dev, 4,
 			 port->base + GPIO_PSR,
 			 port->base + GPIO_DR, NULL,
 			 port->base + GPIO_GDIR, NULL,
@@ -459,18 +458,18 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	if (err)
 		goto out_bgio;
 
-	port->bgc.gc.to_irq = mxc_gpio_to_irq;
-	port->bgc.gc.base = (pdev->id < 0) ? of_alias_get_id(np, "gpio") * 32 :
+	port->gc.to_irq = mxc_gpio_to_irq;
+	port->gc.base = (pdev->id < 0) ? of_alias_get_id(np, "gpio") * 32 :
 					     pdev->id * 32;
 
-	err = gpiochip_add(&port->bgc.gc);
+	err = devm_gpiochip_add_data(&pdev->dev, &port->gc, port);
 	if (err)
-		goto out_bgpio_remove;
+		goto out_bgio;
 
 	irq_base = irq_alloc_descs(-1, 0, 32, numa_node_id());
 	if (irq_base < 0) {
 		err = irq_base;
-		goto out_gpiochip_remove;
+		goto out_bgio;
 	}
 
 	port->domain = irq_domain_add_legacy(np, 32, irq_base, 0,
@@ -493,10 +492,6 @@ out_irqdomain_remove:
 	irq_domain_remove(port->domain);
 out_irqdesc_free:
 	irq_free_descs(irq_base, 32);
-out_gpiochip_remove:
-	gpiochip_remove(&port->bgc.gc);
-out_bgpio_remove:
-	bgpio_remove(&port->bgc);
 out_bgio:
 	dev_info(&pdev->dev, "%s failed with errno %d\n", __func__, err);
 	return err;

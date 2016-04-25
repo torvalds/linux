@@ -35,4 +35,28 @@ extern int system_verify_data(const void *data, unsigned long len,
 			      enum key_being_used_for usage);
 #endif
 
+#ifdef CONFIG_IMA_MOK_KEYRING
+extern struct key *ima_mok_keyring;
+extern struct key *ima_blacklist_keyring;
+
+static inline struct key *get_ima_mok_keyring(void)
+{
+	return ima_mok_keyring;
+}
+static inline struct key *get_ima_blacklist_keyring(void)
+{
+	return ima_blacklist_keyring;
+}
+#else
+static inline struct key *get_ima_mok_keyring(void)
+{
+	return NULL;
+}
+static inline struct key *get_ima_blacklist_keyring(void)
+{
+	return NULL;
+}
+#endif /* CONFIG_IMA_MOK_KEYRING */
+
+
 #endif /* _KEYS_SYSTEM_KEYRING_H */

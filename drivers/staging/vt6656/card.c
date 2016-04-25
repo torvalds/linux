@@ -12,9 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * File: card.c
  * Purpose: Provide functions to setup NIC operation mode
@@ -82,7 +79,7 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 					connection_channel, 0, 0, NULL);
 
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG, MAC_REG_CHANNEL,
-		(u8)(connection_channel|0x80));
+		(u8)(connection_channel | 0x80));
 }
 
 /*
@@ -285,7 +282,6 @@ void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
 	vnt_get_phy_field(priv, 14,
 		vnt_get_cck_rate(priv, RATE_11M), PK_TYPE_11B, &phy[3]);
 
-
 	/*RSPINF_a_6*/
 	vnt_calculate_ofdm_rate(RATE_6M, bb_type, &tx_rate[0], &rsv_time[0]);
 
@@ -473,7 +469,7 @@ int vnt_ofdm_min_rate(struct vnt_private *priv)
 	int ii;
 
 	for (ii = RATE_54M; ii >= RATE_6M; ii--) {
-		if ((priv->basic_rates) & ((u16)(1 << ii)))
+		if ((priv->basic_rates) & ((u16)BIT(ii)))
 			return true;
 	}
 
@@ -508,7 +504,7 @@ u8 vnt_get_pkt_type(struct vnt_private *priv)
 u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2)
 {
 	u64 tsf_offset = 0;
-	u16 rx_bcn_offset = 0;
+	u16 rx_bcn_offset;
 
 	rx_bcn_offset = cwRXBCNTSFOff[rx_rate % MAX_RATE];
 

@@ -62,7 +62,7 @@ struct video_obj {
 };
 
 struct vpif_disp_buffer {
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 };
 

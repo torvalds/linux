@@ -687,6 +687,7 @@ static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		dev->hard_header_len = sizeof(struct hdlc_header);
 		dev->header_ops = &ppp_header_ops;
 		dev->type = ARPHRD_PPP;
+		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		netif_dormant_on(dev);
 		return 0;
 	}

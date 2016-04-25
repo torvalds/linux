@@ -156,6 +156,7 @@ nv40_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		return -ENOMEM;
 	nvkm_object_ctor(&nv40_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
+	chan->fifo = fifoch;
 	*pobject = &chan->object;
 
 	spin_lock_irqsave(&chan->gr->base.engine.lock, flags);

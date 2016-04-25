@@ -211,7 +211,7 @@ fallback:
 		bvl = mempool_alloc(pool, gfp_mask);
 	} else {
 		struct biovec_slab *bvs = bvec_slabs + *idx;
-		gfp_t __gfp_mask = gfp_mask & ~(__GFP_WAIT | __GFP_IO);
+		gfp_t __gfp_mask = gfp_mask & ~(__GFP_DIRECT_RECLAIM | __GFP_IO);
 
 		/*
 		 * Make this allocation restricted and don't dump info on
@@ -221,11 +221,11 @@ fallback:
 		__gfp_mask |= __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN;
 
 		/*
-		 * Try a slab allocation. If this fails and __GFP_WAIT
+		 * Try a slab allocation. If this fails and __GFP_DIRECT_RECLAIM
 		 * is set, retry with the 1-entry mempool
 		 */
 		bvl = kmem_cache_alloc(bvs->slab, __gfp_mask);
-		if (unlikely(!bvl && (gfp_mask & __GFP_WAIT))) {
+		if (unlikely(!bvl && (gfp_mask & __GFP_DIRECT_RECLAIM))) {
 			*idx = BIOVEC_MAX_IDX;
 			goto fallback;
 		}
@@ -296,13 +296,19 @@ void bio_reset(struct bio *bio)
 }
 EXPORT_SYMBOL(bio_reset);
 
-static void bio_chain_endio(struct bio *bio)
+static struct bio *__bio_chain_endio(struct bio *bio)
 {
 	struct bio *parent = bio->bi_private;
 
-	parent->bi_error = bio->bi_error;
-	bio_endio(parent);
+	if (!parent->bi_error)
+		parent->bi_error = bio->bi_error;
 	bio_put(bio);
+	return parent;
+}
+
+static void bio_chain_endio(struct bio *bio)
+{
+	bio_endio(__bio_chain_endio(bio));
 }
 
 /*
@@ -395,12 +401,12 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
  *   If @bs is NULL, uses kmalloc() to allocate the bio; else the allocation is
  *   backed by the @bs's mempool.
  *
- *   When @bs is not NULL, if %__GFP_WAIT is set then bio_alloc will always be
- *   able to allocate a bio. This is due to the mempool guarantees. To make this
- *   work, callers must never allocate more than 1 bio at a time from this pool.
- *   Callers that need to allocate more than 1 bio must always submit the
- *   previously allocated bio for IO before attempting to allocate a new one.
- *   Failure to do so can cause deadlocks under memory pressure.
+ *   When @bs is not NULL, if %__GFP_DIRECT_RECLAIM is set then bio_alloc will
+ *   always be able to allocate a bio. This is due to the mempool guarantees.
+ *   To make this work, callers must never allocate more than 1 bio at a time
+ *   from this pool. Callers that need to allocate more than 1 bio must always
+ *   submit the previously allocated bio for IO before attempting to allocate
+ *   a new one. Failure to do so can cause deadlocks under memory pressure.
  *
  *   Note that when running under generic_make_request() (i.e. any block
  *   driver), bios are not submitted until after you return - see the code in
@@ -459,13 +465,13 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 		 * We solve this, and guarantee forward progress, with a rescuer
 		 * workqueue per bio_set. If we go to allocate and there are
 		 * bios on current->bio_list, we first try the allocation
-		 * without __GFP_WAIT; if that fails, we punt those bios we
-		 * would be blocking to the rescuer workqueue before we retry
-		 * with the original gfp_flags.
+		 * without __GFP_DIRECT_RECLAIM; if that fails, we punt those
+		 * bios we would be blocking to the rescuer workqueue before
+		 * we retry with the original gfp_flags.
 		 */
 
 		if (current->bio_list && !bio_list_empty(current->bio_list))
-			gfp_mask &= ~__GFP_WAIT;
+			gfp_mask &= ~__GFP_DIRECT_RECLAIM;
 
 		p = mempool_alloc(bs->bio_pool, gfp_mask);
 		if (!p && gfp_mask != saved_gfp) {
@@ -874,7 +880,7 @@ int submit_bio_wait(int rw, struct bio *bio)
 	bio->bi_private = &ret;
 	bio->bi_end_io = submit_bio_wait_endio;
 	submit_bio(rw, bio);
-	wait_for_completion(&ret.event);
+	wait_for_completion_io(&ret.event);
 
 	return ret.error;
 }
@@ -1090,9 +1096,12 @@ int bio_uncopy_user(struct bio *bio)
 	if (!bio_flagged(bio, BIO_NULL_MAPPED)) {
 		/*
 		 * if we're in a workqueue, the request is orphaned, so
-		 * don't copy into a random user address space, just free.
+		 * don't copy into a random user address space, just free
+		 * and return -EINTR so user space doesn't expect any data.
 		 */
-		if (current->mm && bio_data_dir(bio) == READ)
+		if (!current->mm)
+			ret = -EINTR;
+		else if (bio_data_dir(bio) == READ)
 			ret = bio_copy_to_iter(bio, bmd->iter);
 		if (bmd->is_our_pages)
 			bio_free_pages(bio);
@@ -1125,7 +1134,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	int i, ret;
 	int nr_pages = 0;
 	unsigned int len = iter->count;
-	unsigned int offset = map_data ? map_data->offset & ~PAGE_MASK : 0;
+	unsigned int offset = map_data ? offset_in_page(map_data->offset) : 0;
 
 	for (i = 0; i < iter->nr_segs; i++) {
 		unsigned long uaddr;
@@ -1304,7 +1313,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 			goto out_unmap;
 		}
 
-		offset = uaddr & ~PAGE_MASK;
+		offset = offset_in_page(uaddr);
 		for (j = cur_page; j < page_limit; j++) {
 			unsigned int bytes = PAGE_SIZE - offset;
 
@@ -1330,7 +1339,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 		 * release the pages we didn't map into the bio, if any
 		 */
 		while (j < page_limit)
-			page_cache_release(pages[j++]);
+			put_page(pages[j++]);
 	}
 
 	kfree(pages);
@@ -1356,7 +1365,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	for (j = 0; j < nr_pages; j++) {
 		if (!pages[j])
 			break;
-		page_cache_release(pages[j]);
+		put_page(pages[j]);
 	}
  out:
 	kfree(pages);
@@ -1376,7 +1385,7 @@ static void __bio_unmap_user(struct bio *bio)
 		if (bio_data_dir(bio) == READ)
 			set_page_dirty_lock(bvec->bv_page);
 
-		page_cache_release(bvec->bv_page);
+		put_page(bvec->bv_page);
 	}
 
 	bio_put(bio);
@@ -1606,8 +1615,8 @@ static void bio_release_pages(struct bio *bio)
  * the BIO and the offending pages and re-dirty the pages in process context.
  *
  * It is expected that bio_check_pages_dirty() will wholly own the BIO from
- * here on.  It will run one page_cache_release() against each page and will
- * run one bio_put() against the BIO.
+ * here on.  It will run one put_page() against each page and will run one
+ * bio_put() against the BIO.
  */
 
 static void bio_dirty_fn(struct work_struct *work);
@@ -1649,7 +1658,7 @@ void bio_check_pages_dirty(struct bio *bio)
 		struct page *page = bvec->bv_page;
 
 		if (PageDirty(page) || PageCompound(page)) {
-			page_cache_release(page);
+			put_page(page);
 			bvec->bv_page = NULL;
 		} else {
 			nr_clean_pages++;
@@ -1739,29 +1748,25 @@ static inline bool bio_remaining_done(struct bio *bio)
  **/
 void bio_endio(struct bio *bio)
 {
-	while (bio) {
-		if (unlikely(!bio_remaining_done(bio)))
-			break;
+again:
+	if (!bio_remaining_done(bio))
+		return;
 
-		/*
-		 * Need to have a real endio function for chained bios,
-		 * otherwise various corner cases will break (like stacking
-		 * block devices that save/restore bi_end_io) - however, we want
-		 * to avoid unbounded recursion and blowing the stack. Tail call
-		 * optimization would handle this, but compiling with frame
-		 * pointers also disables gcc's sibling call optimization.
-		 */
-		if (bio->bi_end_io == bio_chain_endio) {
-			struct bio *parent = bio->bi_private;
-			parent->bi_error = bio->bi_error;
-			bio_put(bio);
-			bio = parent;
-		} else {
-			if (bio->bi_end_io)
-				bio->bi_end_io(bio);
-			bio = NULL;
-		}
+	/*
+	 * Need to have a real endio function for chained bios, otherwise
+	 * various corner cases will break (like stacking block devices that
+	 * save/restore bi_end_io) - however, we want to avoid unbounded
+	 * recursion and blowing the stack. Tail call optimization would
+	 * handle this, but compiling with frame pointers also disables
+	 * gcc's sibling call optimization.
+	 */
+	if (bio->bi_end_io == bio_chain_endio) {
+		bio = __bio_chain_endio(bio);
+		goto again;
 	}
+
+	if (bio->bi_end_io)
+		bio->bi_end_io(bio);
 }
 EXPORT_SYMBOL(bio_endio);
 

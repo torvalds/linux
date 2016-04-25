@@ -92,7 +92,7 @@ struct ttm_placement {
  */
 struct ttm_bus_placement {
 	void		*addr;
-	unsigned long	base;
+	phys_addr_t	base;
 	unsigned long	size;
 	unsigned long	offset;
 	bool		is_iomem;
@@ -383,6 +383,16 @@ extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
  */
 extern int ttm_bo_del_from_lru(struct ttm_buffer_object *bo);
 
+/**
+ * ttm_bo_move_to_lru_tail
+ *
+ * @bo: The buffer object.
+ *
+ * Move this BO to the tail of all lru lists used to lookup and reserve an
+ * object. This function must be called with struct ttm_bo_global::lru_lock
+ * held, and is used to make a BO less likely to be considered for eviction.
+ */
+extern void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_lock_delayed_workqueue

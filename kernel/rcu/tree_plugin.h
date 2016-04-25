@@ -63,8 +63,7 @@ static bool __read_mostly rcu_nocb_poll;    /* Offload kthread are to poll. */
 
 /*
  * Check the RCU kernel configuration parameters and print informative
- * messages about anything out of the ordinary.  If you like #ifdef, you
- * will love this function.
+ * messages about anything out of the ordinary.
  */
 static void __init rcu_bootup_announce_oddness(void)
 {
@@ -101,7 +100,6 @@ RCU_STATE_INITIALIZER(rcu_preempt, 'p', call_rcu);
 static struct rcu_state *const rcu_state_p = &rcu_preempt_state;
 static struct rcu_data __percpu *const rcu_data_p = &rcu_preempt_data;
 
-static int rcu_preempted_readers_exp(struct rcu_node *rnp);
 static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 			       bool wake);
 
@@ -112,6 +110,146 @@ static void __init rcu_bootup_announce(void)
 {
 	pr_info("Preemptible hierarchical RCU implementation.\n");
 	rcu_bootup_announce_oddness();
+}
+
+/* Flags for rcu_preempt_ctxt_queue() decision table. */
+#define RCU_GP_TASKS	0x8
+#define RCU_EXP_TASKS	0x4
+#define RCU_GP_BLKD	0x2
+#define RCU_EXP_BLKD	0x1
+
+/*
+ * Queues a task preempted within an RCU-preempt read-side critical
+ * section into the appropriate location within the ->blkd_tasks list,
+ * depending on the states of any ongoing normal and expedited grace
+ * periods.  The ->gp_tasks pointer indicates which element the normal
+ * grace period is waiting on (NULL if none), and the ->exp_tasks pointer
+ * indicates which element the expedited grace period is waiting on (again,
+ * NULL if none).  If a grace period is waiting on a given element in the
+ * ->blkd_tasks list, it also waits on all subsequent elements.  Thus,
+ * adding a task to the tail of the list blocks any grace period that is
+ * already waiting on one of the elements.  In contrast, adding a task
+ * to the head of the list won't block any grace period that is already
+ * waiting on one of the elements.
+ *
+ * This queuing is imprecise, and can sometimes make an ongoing grace
+ * period wait for a task that is not strictly speaking blocking it.
+ * Given the choice, we needlessly block a normal grace period rather than
+ * blocking an expedited grace period.
+ *
+ * Note that an endless sequence of expedited grace periods still cannot
+ * indefinitely postpone a normal grace period.  Eventually, all of the
+ * fixed number of preempted tasks blocking the normal grace period that are
+ * not also blocking the expedited grace period will resume and complete
+ * their RCU read-side critical sections.  At that point, the ->gp_tasks
+ * pointer will equal the ->exp_tasks pointer, at which point the end of
+ * the corresponding expedited grace period will also be the end of the
+ * normal grace period.
+ */
+static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
+	__releases(rnp->lock) /* But leaves rrupts disabled. */
+{
+	int blkd_state = (rnp->gp_tasks ? RCU_GP_TASKS : 0) +
+			 (rnp->exp_tasks ? RCU_EXP_TASKS : 0) +
+			 (rnp->qsmask & rdp->grpmask ? RCU_GP_BLKD : 0) +
+			 (rnp->expmask & rdp->grpmask ? RCU_EXP_BLKD : 0);
+	struct task_struct *t = current;
+
+	/*
+	 * Decide where to queue the newly blocked task.  In theory,
+	 * this could be an if-statement.  In practice, when I tried
+	 * that, it was quite messy.
+	 */
+	switch (blkd_state) {
+	case 0:
+	case                RCU_EXP_TASKS:
+	case                RCU_EXP_TASKS + RCU_GP_BLKD:
+	case RCU_GP_TASKS:
+	case RCU_GP_TASKS + RCU_EXP_TASKS:
+
+		/*
+		 * Blocking neither GP, or first task blocking the normal
+		 * GP but not blocking the already-waiting expedited GP.
+		 * Queue at the head of the list to avoid unnecessarily
+		 * blocking the already-waiting GPs.
+		 */
+		list_add(&t->rcu_node_entry, &rnp->blkd_tasks);
+		break;
+
+	case                                              RCU_EXP_BLKD:
+	case                                RCU_GP_BLKD:
+	case                                RCU_GP_BLKD + RCU_EXP_BLKD:
+	case RCU_GP_TASKS +                               RCU_EXP_BLKD:
+	case RCU_GP_TASKS +                 RCU_GP_BLKD + RCU_EXP_BLKD:
+	case RCU_GP_TASKS + RCU_EXP_TASKS + RCU_GP_BLKD + RCU_EXP_BLKD:
+
+		/*
+		 * First task arriving that blocks either GP, or first task
+		 * arriving that blocks the expedited GP (with the normal
+		 * GP already waiting), or a task arriving that blocks
+		 * both GPs with both GPs already waiting.  Queue at the
+		 * tail of the list to avoid any GP waiting on any of the
+		 * already queued tasks that are not blocking it.
+		 */
+		list_add_tail(&t->rcu_node_entry, &rnp->blkd_tasks);
+		break;
+
+	case                RCU_EXP_TASKS +               RCU_EXP_BLKD:
+	case                RCU_EXP_TASKS + RCU_GP_BLKD + RCU_EXP_BLKD:
+	case RCU_GP_TASKS + RCU_EXP_TASKS +               RCU_EXP_BLKD:
+
+		/*
+		 * Second or subsequent task blocking the expedited GP.
+		 * The task either does not block the normal GP, or is the
+		 * first task blocking the normal GP.  Queue just after
+		 * the first task blocking the expedited GP.
+		 */
+		list_add(&t->rcu_node_entry, rnp->exp_tasks);
+		break;
+
+	case RCU_GP_TASKS +                 RCU_GP_BLKD:
+	case RCU_GP_TASKS + RCU_EXP_TASKS + RCU_GP_BLKD:
+
+		/*
+		 * Second or subsequent task blocking the normal GP.
+		 * The task does not block the expedited GP. Queue just
+		 * after the first task blocking the normal GP.
+		 */
+		list_add(&t->rcu_node_entry, rnp->gp_tasks);
+		break;
+
+	default:
+
+		/* Yet another exercise in excessive paranoia. */
+		WARN_ON_ONCE(1);
+		break;
+	}
+
+	/*
+	 * We have now queued the task.  If it was the first one to
+	 * block either grace period, update the ->gp_tasks and/or
+	 * ->exp_tasks pointers, respectively, to reference the newly
+	 * blocked tasks.
+	 */
+	if (!rnp->gp_tasks && (blkd_state & RCU_GP_BLKD))
+		rnp->gp_tasks = &t->rcu_node_entry;
+	if (!rnp->exp_tasks && (blkd_state & RCU_EXP_BLKD))
+		rnp->exp_tasks = &t->rcu_node_entry;
+	raw_spin_unlock_rcu_node(rnp); /* interrupts remain disabled. */
+
+	/*
+	 * Report the quiescent state for the expedited GP.  This expedited
+	 * GP should not be able to end until we report, so there should be
+	 * no need to check for a subsequent expedited GP.  (Though we are
+	 * still in a quiescent state in any case.)
+	 */
+	if (blkd_state & RCU_EXP_BLKD &&
+	    t->rcu_read_unlock_special.b.exp_need_qs) {
+		t->rcu_read_unlock_special.b.exp_need_qs = false;
+		rcu_report_exp_rdp(rdp->rsp, rdp, true);
+	} else {
+		WARN_ON_ONCE(t->rcu_read_unlock_special.b.exp_need_qs);
+	}
 }
 
 /*
@@ -125,11 +263,11 @@ static void __init rcu_bootup_announce(void)
  */
 static void rcu_preempt_qs(void)
 {
-	if (!__this_cpu_read(rcu_data_p->passed_quiesce)) {
+	if (__this_cpu_read(rcu_data_p->cpu_no_qs.s)) {
 		trace_rcu_grace_period(TPS("rcu_preempt"),
 				       __this_cpu_read(rcu_data_p->gpnum),
 				       TPS("cpuqs"));
-		__this_cpu_write(rcu_data_p->passed_quiesce, 1);
+		__this_cpu_write(rcu_data_p->cpu_no_qs.b.norm, false);
 		barrier(); /* Coordinate with rcu_preempt_check_callbacks(). */
 		current->rcu_read_unlock_special.b.need_qs = false;
 	}
@@ -146,12 +284,11 @@ static void rcu_preempt_qs(void)
  * predating the current grace period drain, in other words, until
  * rnp->gp_tasks becomes NULL.
  *
- * Caller must disable preemption.
+ * Caller must disable interrupts.
  */
 static void rcu_preempt_note_context_switch(void)
 {
 	struct task_struct *t = current;
-	unsigned long flags;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 
@@ -161,48 +298,23 @@ static void rcu_preempt_note_context_switch(void)
 		/* Possibly blocking in an RCU read-side critical section. */
 		rdp = this_cpu_ptr(rcu_state_p->rda);
 		rnp = rdp->mynode;
-		raw_spin_lock_irqsave(&rnp->lock, flags);
-		smp_mb__after_unlock_lock();
+		raw_spin_lock_rcu_node(rnp);
 		t->rcu_read_unlock_special.b.blocked = true;
 		t->rcu_blocked_node = rnp;
 
 		/*
-		 * If this CPU has already checked in, then this task
-		 * will hold up the next grace period rather than the
-		 * current grace period.  Queue the task accordingly.
-		 * If the task is queued for the current grace period
-		 * (i.e., this CPU has not yet passed through a quiescent
-		 * state for the current grace period), then as long
-		 * as that task remains queued, the current grace period
-		 * cannot end.  Note that there is some uncertainty as
-		 * to exactly when the current grace period started.
-		 * We take a conservative approach, which can result
-		 * in unnecessarily waiting on tasks that started very
-		 * slightly after the current grace period began.  C'est
-		 * la vie!!!
-		 *
-		 * But first, note that the current CPU must still be
-		 * on line!
+		 * Verify the CPU's sanity, trace the preemption, and
+		 * then queue the task as required based on the states
+		 * of any ongoing and expedited grace periods.
 		 */
 		WARN_ON_ONCE((rdp->grpmask & rcu_rnp_online_cpus(rnp)) == 0);
 		WARN_ON_ONCE(!list_empty(&t->rcu_node_entry));
-		if ((rnp->qsmask & rdp->grpmask) && rnp->gp_tasks != NULL) {
-			list_add(&t->rcu_node_entry, rnp->gp_tasks->prev);
-			rnp->gp_tasks = &t->rcu_node_entry;
-			if (IS_ENABLED(CONFIG_RCU_BOOST) &&
-			    rnp->boost_tasks != NULL)
-				rnp->boost_tasks = rnp->gp_tasks;
-		} else {
-			list_add(&t->rcu_node_entry, &rnp->blkd_tasks);
-			if (rnp->qsmask & rdp->grpmask)
-				rnp->gp_tasks = &t->rcu_node_entry;
-		}
 		trace_rcu_preempt_task(rdp->rsp->name,
 				       t->pid,
 				       (rnp->qsmask & rdp->grpmask)
 				       ? rnp->gpnum
 				       : rnp->gpnum + 1);
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		rcu_preempt_ctxt_queue(rnp, rdp);
 	} else if (t->rcu_read_lock_nesting < 0 &&
 		   t->rcu_read_unlock_special.s) {
 
@@ -272,6 +384,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 	unsigned long flags;
 	struct list_head *np;
 	bool drop_boost_mutex = false;
+	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 	union rcu_special special;
 
@@ -282,8 +395,8 @@ void rcu_read_unlock_special(struct task_struct *t)
 	local_irq_save(flags);
 
 	/*
-	 * If RCU core is waiting for this CPU to exit critical section,
-	 * let it know that we have done so.  Because irqs are disabled,
+	 * If RCU core is waiting for this CPU to exit its critical section,
+	 * report the fact that it has exited.  Because irqs are disabled,
 	 * t->rcu_read_unlock_special cannot change.
 	 */
 	special = t->rcu_read_unlock_special;
@@ -296,13 +409,32 @@ void rcu_read_unlock_special(struct task_struct *t)
 		}
 	}
 
+	/*
+	 * Respond to a request for an expedited grace period, but only if
+	 * we were not preempted, meaning that we were running on the same
+	 * CPU throughout.  If we were preempted, the exp_need_qs flag
+	 * would have been cleared at the time of the first preemption,
+	 * and the quiescent state would be reported when we were dequeued.
+	 */
+	if (special.b.exp_need_qs) {
+		WARN_ON_ONCE(special.b.blocked);
+		t->rcu_read_unlock_special.b.exp_need_qs = false;
+		rdp = this_cpu_ptr(rcu_state_p->rda);
+		rcu_report_exp_rdp(rcu_state_p, rdp, true);
+		if (!t->rcu_read_unlock_special.s) {
+			local_irq_restore(flags);
+			return;
+		}
+	}
+
 	/* Hardware IRQ handlers cannot block, complain if they get here. */
 	if (in_irq() || in_serving_softirq()) {
 		lockdep_rcu_suspicious(__FILE__, __LINE__,
 				       "rcu_read_unlock() from irq or softirq with blocking in critical section!!!\n");
-		pr_alert("->rcu_read_unlock_special: %#x (b: %d, nq: %d)\n",
+		pr_alert("->rcu_read_unlock_special: %#x (b: %d, enq: %d nq: %d)\n",
 			 t->rcu_read_unlock_special.s,
 			 t->rcu_read_unlock_special.b.blocked,
+			 t->rcu_read_unlock_special.b.exp_need_qs,
 			 t->rcu_read_unlock_special.b.need_qs);
 		local_irq_restore(flags);
 		return;
@@ -314,22 +446,15 @@ void rcu_read_unlock_special(struct task_struct *t)
 
 		/*
 		 * Remove this task from the list it blocked on.  The task
-		 * now remains queued on the rcu_node corresponding to
-		 * the CPU it first blocked on, so the first attempt to
-		 * acquire the task's rcu_node's ->lock will succeed.
-		 * Keep the loop and add a WARN_ON() out of sheer paranoia.
+		 * now remains queued on the rcu_node corresponding to the
+		 * CPU it first blocked on, so there is no longer any need
+		 * to loop.  Retain a WARN_ON_ONCE() out of sheer paranoia.
 		 */
-		for (;;) {
-			rnp = t->rcu_blocked_node;
-			raw_spin_lock(&rnp->lock);  /* irqs already disabled. */
-			smp_mb__after_unlock_lock();
-			if (rnp == t->rcu_blocked_node)
-				break;
-			WARN_ON_ONCE(1);
-			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
-		}
+		rnp = t->rcu_blocked_node;
+		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
+		WARN_ON_ONCE(rnp != t->rcu_blocked_node);
 		empty_norm = !rcu_preempt_blocked_readers_cgp(rnp);
-		empty_exp = !rcu_preempted_readers_exp(rnp);
+		empty_exp = sync_rcu_preempt_exp_done(rnp);
 		smp_mb(); /* ensure expedited fastpath sees end of RCU c-s. */
 		np = rcu_next_node_entry(t, rnp);
 		list_del_init(&t->rcu_node_entry);
@@ -353,7 +478,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 		 * Note that rcu_report_unblock_qs_rnp() releases rnp->lock,
 		 * so we must take a snapshot of the expedited state.
 		 */
-		empty_exp_now = !rcu_preempted_readers_exp(rnp);
+		empty_exp_now = sync_rcu_preempt_exp_done(rnp);
 		if (!empty_norm && !rcu_preempt_blocked_readers_cgp(rnp)) {
 			trace_rcu_quiescent_state_report(TPS("preempt_rcu"),
 							 rnp->gpnum,
@@ -364,7 +489,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 							 !!rnp->gp_tasks);
 			rcu_report_unblock_qs_rnp(rcu_state_p, rnp, flags);
 		} else {
-			raw_spin_unlock_irqrestore(&rnp->lock, flags);
+			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		}
 
 		/* Unboost if we were boosted. */
@@ -391,16 +516,16 @@ static void rcu_print_detail_task_stall_rnp(struct rcu_node *rnp)
 	unsigned long flags;
 	struct task_struct *t;
 
-	raw_spin_lock_irqsave(&rnp->lock, flags);
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	if (!rcu_preempt_blocked_readers_cgp(rnp)) {
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
 	}
 	t = list_entry(rnp->gp_tasks->prev,
 		       struct task_struct, rcu_node_entry);
 	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry)
 		sched_show_task(t);
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 }
 
 /*
@@ -450,6 +575,27 @@ static int rcu_print_task_stall(struct rcu_node *rnp)
 }
 
 /*
+ * Scan the current list of tasks blocked within RCU read-side critical
+ * sections, printing out the tid of each that is blocking the current
+ * expedited grace period.
+ */
+static int rcu_print_task_exp_stall(struct rcu_node *rnp)
+{
+	struct task_struct *t;
+	int ndetected = 0;
+
+	if (!rnp->exp_tasks)
+		return 0;
+	t = list_entry(rnp->exp_tasks->prev,
+		       struct task_struct, rcu_node_entry);
+	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
+		pr_cont(" P%d", t->pid);
+		ndetected++;
+	}
+	return ndetected;
+}
+
+/*
  * Check that the list of blocked tasks for the newly completed grace
  * period is in fact empty.  It is a serious bug to complete a grace
  * period that still has RCU readers blocked!  This function must be
@@ -483,8 +629,8 @@ static void rcu_preempt_check_callbacks(void)
 		return;
 	}
 	if (t->rcu_read_lock_nesting > 0 &&
-	    __this_cpu_read(rcu_data_p->qs_pending) &&
-	    !__this_cpu_read(rcu_data_p->passed_quiesce))
+	    __this_cpu_read(rcu_data_p->core_needs_qs) &&
+	    __this_cpu_read(rcu_data_p->cpu_no_qs.b.norm))
 		t->rcu_read_unlock_special.b.need_qs = true;
 }
 
@@ -500,7 +646,7 @@ static void rcu_preempt_do_callbacks(void)
 /*
  * Queue a preemptible-RCU callback for invocation after a grace period.
  */
-void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
+void call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
 	__call_rcu(head, func, rcu_state_p, -1, 0);
 }
@@ -535,155 +681,41 @@ void synchronize_rcu(void)
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
-static DECLARE_WAIT_QUEUE_HEAD(sync_rcu_preempt_exp_wq);
-
 /*
- * Return non-zero if there are any tasks in RCU read-side critical
- * sections blocking the current preemptible-RCU expedited grace period.
- * If there is no preemptible-RCU expedited grace period currently in
- * progress, returns zero unconditionally.
+ * Remote handler for smp_call_function_single().  If there is an
+ * RCU read-side critical section in effect, request that the
+ * next rcu_read_unlock() record the quiescent state up the
+ * ->expmask fields in the rcu_node tree.  Otherwise, immediately
+ * report the quiescent state.
  */
-static int rcu_preempted_readers_exp(struct rcu_node *rnp)
+static void sync_rcu_exp_handler(void *info)
 {
-	return rnp->exp_tasks != NULL;
-}
-
-/*
- * return non-zero if there is no RCU expedited grace period in progress
- * for the specified rcu_node structure, in other words, if all CPUs and
- * tasks covered by the specified rcu_node structure have done their bit
- * for the current expedited grace period.  Works only for preemptible
- * RCU -- other RCU implementation use other means.
- *
- * Caller must hold the root rcu_node's exp_funnel_mutex.
- */
-static int sync_rcu_preempt_exp_done(struct rcu_node *rnp)
-{
-	return !rcu_preempted_readers_exp(rnp) &&
-	       READ_ONCE(rnp->expmask) == 0;
-}
-
-/*
- * Report the exit from RCU read-side critical section for the last task
- * that queued itself during or before the current expedited preemptible-RCU
- * grace period.  This event is reported either to the rcu_node structure on
- * which the task was queued or to one of that rcu_node structure's ancestors,
- * recursively up the tree.  (Calm down, calm down, we do the recursion
- * iteratively!)
- *
- * Caller must hold the root rcu_node's exp_funnel_mutex.
- */
-static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
-			       bool wake)
-{
-	unsigned long flags;
-	unsigned long mask;
-
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	smp_mb__after_unlock_lock();
-	for (;;) {
-		if (!sync_rcu_preempt_exp_done(rnp)) {
-			raw_spin_unlock_irqrestore(&rnp->lock, flags);
-			break;
-		}
-		if (rnp->parent == NULL) {
-			raw_spin_unlock_irqrestore(&rnp->lock, flags);
-			if (wake) {
-				smp_mb(); /* EGP done before wake_up(). */
-				wake_up(&sync_rcu_preempt_exp_wq);
-			}
-			break;
-		}
-		mask = rnp->grpmask;
-		raw_spin_unlock(&rnp->lock); /* irqs remain disabled */
-		rnp = rnp->parent;
-		raw_spin_lock(&rnp->lock); /* irqs already disabled */
-		smp_mb__after_unlock_lock();
-		rnp->expmask &= ~mask;
-	}
-}
-
-/*
- * Snapshot the tasks blocking the newly started preemptible-RCU expedited
- * grace period for the specified rcu_node structure, phase 1.  If there
- * are such tasks, set the ->expmask bits up the rcu_node tree and also
- * set the ->expmask bits on the leaf rcu_node structures to tell phase 2
- * that work is needed here.
- *
- * Caller must hold the root rcu_node's exp_funnel_mutex.
- */
-static void
-sync_rcu_preempt_exp_init1(struct rcu_state *rsp, struct rcu_node *rnp)
-{
-	unsigned long flags;
-	unsigned long mask;
-	struct rcu_node *rnp_up;
-
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	smp_mb__after_unlock_lock();
-	WARN_ON_ONCE(rnp->expmask);
-	WARN_ON_ONCE(rnp->exp_tasks);
-	if (!rcu_preempt_has_tasks(rnp)) {
-		/* No blocked tasks, nothing to do. */
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
-		return;
-	}
-	/* Call for Phase 2 and propagate ->expmask bits up the tree. */
-	rnp->expmask = 1;
-	rnp_up = rnp;
-	while (rnp_up->parent) {
-		mask = rnp_up->grpmask;
-		rnp_up = rnp_up->parent;
-		if (rnp_up->expmask & mask)
-			break;
-		raw_spin_lock(&rnp_up->lock); /* irqs already off */
-		smp_mb__after_unlock_lock();
-		rnp_up->expmask |= mask;
-		raw_spin_unlock(&rnp_up->lock); /* irqs still off */
-	}
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
-}
-
-/*
- * Snapshot the tasks blocking the newly started preemptible-RCU expedited
- * grace period for the specified rcu_node structure, phase 2.  If the
- * leaf rcu_node structure has its ->expmask field set, check for tasks.
- * If there are some, clear ->expmask and set ->exp_tasks accordingly,
- * then initiate RCU priority boosting.  Otherwise, clear ->expmask and
- * invoke rcu_report_exp_rnp() to clear out the upper-level ->expmask bits,
- * enabling rcu_read_unlock_special() to do the bit-clearing.
- *
- * Caller must hold the root rcu_node's exp_funnel_mutex.
- */
-static void
-sync_rcu_preempt_exp_init2(struct rcu_state *rsp, struct rcu_node *rnp)
-{
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	smp_mb__after_unlock_lock();
-	if (!rnp->expmask) {
-		/* Phase 1 didn't do anything, so Phase 2 doesn't either. */
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
-		return;
-	}
-
-	/* Phase 1 is over. */
-	rnp->expmask = 0;
+	struct rcu_data *rdp;
+	struct rcu_state *rsp = info;
+	struct task_struct *t = current;
 
 	/*
-	 * If there are still blocked tasks, set up ->exp_tasks so that
-	 * rcu_read_unlock_special() will wake us and then boost them.
+	 * Within an RCU read-side critical section, request that the next
+	 * rcu_read_unlock() report.  Unless this RCU read-side critical
+	 * section has already blocked, in which case it is already set
+	 * up for the expedited grace period to wait on it.
 	 */
-	if (rcu_preempt_has_tasks(rnp)) {
-		rnp->exp_tasks = rnp->blkd_tasks.next;
-		rcu_initiate_boost(rnp, flags);  /* releases rnp->lock */
+	if (t->rcu_read_lock_nesting > 0 &&
+	    !t->rcu_read_unlock_special.b.blocked) {
+		t->rcu_read_unlock_special.b.exp_need_qs = true;
 		return;
 	}
 
-	/* No longer any blocked tasks, so undo bit setting. */
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
-	rcu_report_exp_rnp(rsp, rnp, false);
+	/*
+	 * We are either exiting an RCU read-side critical section (negative
+	 * values of t->rcu_read_lock_nesting) or are not in one at all
+	 * (zero value of t->rcu_read_lock_nesting).  Or we are in an RCU
+	 * read-side critical section that blocked before this expedited
+	 * grace period started.  Either way, we can immediately report
+	 * the quiescent state.
+	 */
+	rdp = this_cpu_ptr(rsp->rda);
+	rcu_report_exp_rdp(rsp, rdp, true);
 }
 
 /**
@@ -705,6 +737,12 @@ void synchronize_rcu_expedited(void)
 	struct rcu_state *rsp = rcu_state_p;
 	unsigned long s;
 
+	/* If expedited grace periods are prohibited, fall back to normal. */
+	if (rcu_gp_is_normal()) {
+		wait_rcu_gp(call_rcu);
+		return;
+	}
+
 	s = rcu_exp_gp_seq_snap(rsp);
 
 	rnp_unlock = exp_funnel_lock(rsp, s);
@@ -713,24 +751,12 @@ void synchronize_rcu_expedited(void)
 
 	rcu_exp_gp_seq_start(rsp);
 
-	/* force all RCU readers onto ->blkd_tasks lists. */
-	synchronize_sched_expedited();
-
-	/*
-	 * Snapshot current state of ->blkd_tasks lists into ->expmask.
-	 * Phase 1 sets bits and phase 2 permits rcu_read_unlock_special()
-	 * to start clearing them.  Doing this in one phase leads to
-	 * strange races between setting and clearing bits, so just say "no"!
-	 */
-	rcu_for_each_leaf_node(rsp, rnp)
-		sync_rcu_preempt_exp_init1(rsp, rnp);
-	rcu_for_each_leaf_node(rsp, rnp)
-		sync_rcu_preempt_exp_init2(rsp, rnp);
+	/* Initialize the rcu_node tree in preparation for the wait. */
+	sync_rcu_exp_select_cpus(rsp, sync_rcu_exp_handler);
 
 	/* Wait for snapshotted ->blkd_tasks lists to drain. */
 	rnp = rcu_get_root(rsp);
-	wait_event(sync_rcu_preempt_exp_wq,
-		   sync_rcu_preempt_exp_done(rnp));
+	synchronize_sched_expedited_wait(rsp);
 
 	/* Clean up and exit. */
 	rcu_exp_gp_seq_end(rsp);
@@ -757,7 +783,7 @@ EXPORT_SYMBOL_GPL(rcu_barrier);
  */
 static void __init __rcu_init_preempt(void)
 {
-	rcu_init_one(rcu_state_p, rcu_data_p);
+	rcu_init_one(rcu_state_p);
 }
 
 /*
@@ -781,7 +807,6 @@ void exit_rcu(void)
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
 static struct rcu_state *const rcu_state_p = &rcu_sched_state;
-static struct rcu_data __percpu *const rcu_data_p = &rcu_sched_data;
 
 /*
  * Tell them what RCU they are running.
@@ -830,6 +855,16 @@ static void rcu_print_detail_task_stall(struct rcu_state *rsp)
  * tasks blocked within RCU read-side critical sections.
  */
 static int rcu_print_task_stall(struct rcu_node *rnp)
+{
+	return 0;
+}
+
+/*
+ * Because preemptible RCU does not exist, we never have to check for
+ * tasks blocked within RCU read-side critical sections that are
+ * blocking the current expedited grace period.
+ */
+static int rcu_print_task_exp_stall(struct rcu_node *rnp)
 {
 	return 0;
 }
@@ -948,15 +983,14 @@ static int rcu_boost(struct rcu_node *rnp)
 	    READ_ONCE(rnp->boost_tasks) == NULL)
 		return 0;  /* Nothing left to boost. */
 
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	smp_mb__after_unlock_lock();
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 
 	/*
 	 * Recheck under the lock: all tasks in need of boosting
 	 * might exit their RCU read-side critical sections on their own.
 	 */
 	if (rnp->exp_tasks == NULL && rnp->boost_tasks == NULL) {
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return 0;
 	}
 
@@ -993,7 +1027,7 @@ static int rcu_boost(struct rcu_node *rnp)
 	 */
 	t = container_of(tb, struct task_struct, rcu_node_entry);
 	rt_mutex_init_proxy_locked(&rnp->boost_mtx, t);
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	/* Lock only for side effect: boosts task t's priority. */
 	rt_mutex_lock(&rnp->boost_mtx);
 	rt_mutex_unlock(&rnp->boost_mtx);  /* Then keep lockdep happy. */
@@ -1053,7 +1087,7 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 
 	if (!rcu_preempt_blocked_readers_cgp(rnp) && rnp->exp_tasks == NULL) {
 		rnp->n_balk_exp_gp_tasks++;
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
 	}
 	if (rnp->exp_tasks != NULL ||
@@ -1063,13 +1097,13 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 	     ULONG_CMP_GE(jiffies, rnp->boost_time))) {
 		if (rnp->exp_tasks == NULL)
 			rnp->boost_tasks = rnp->gp_tasks;
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		t = rnp->boost_kthread_task;
 		if (t)
 			rcu_wake_cond(t, rnp->boost_kthread_status);
 	} else {
 		rcu_initiate_boost_trace(rnp);
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
 }
 
@@ -1135,10 +1169,9 @@ static int rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 			   "rcub/%d", rnp_index);
 	if (IS_ERR(t))
 		return PTR_ERR(t);
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	smp_mb__after_unlock_lock();
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	rnp->boost_kthread_task = t;
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	sp.sched_priority = kthread_prio;
 	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
 	wake_up_process(t); /* get to TASK_INTERRUPTIBLE quickly. */
@@ -1274,7 +1307,7 @@ static void rcu_prepare_kthreads(int cpu)
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 	__releases(rnp->lock)
 {
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 }
 
 static void invoke_rcu_callbacks_kthread(void)
@@ -1483,7 +1516,8 @@ static void rcu_prepare_for_idle(void)
 	struct rcu_state *rsp;
 	int tne;
 
-	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_ALL))
+	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_ALL) ||
+	    rcu_is_nocb_cpu(smp_processor_id()))
 		return;
 
 	/* Handle nohz enablement switches conservatively. */
@@ -1495,10 +1529,6 @@ static void rcu_prepare_for_idle(void)
 		return;
 	}
 	if (!tne)
-		return;
-
-	/* If this is a no-CBs CPU, no callbacks, just return. */
-	if (rcu_is_nocb_cpu(smp_processor_id()))
 		return;
 
 	/*
@@ -1526,10 +1556,9 @@ static void rcu_prepare_for_idle(void)
 		if (!*rdp->nxttail[RCU_DONE_TAIL])
 			continue;
 		rnp = rdp->mynode;
-		raw_spin_lock(&rnp->lock); /* irqs already disabled. */
-		smp_mb__after_unlock_lock();
+		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
 		needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
-		raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
+		raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
 		if (needwake)
 			rcu_gp_kthread_wake(rsp);
 	}
@@ -1702,8 +1731,12 @@ static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
 		ticks_value = rsp->gpnum - rdp->gpnum;
 	}
 	print_cpu_stall_fast_no_hz(fast_no_hz, cpu);
-	pr_err("\t%d: (%lu %s) idle=%03x/%llx/%d softirq=%u/%u fqs=%ld %s\n",
-	       cpu, ticks_value, ticks_title,
+	pr_err("\t%d-%c%c%c: (%lu %s) idle=%03x/%llx/%d softirq=%u/%u fqs=%ld %s\n",
+	       cpu,
+	       "O."[!!cpu_online(cpu)],
+	       "o."[!!(rdp->grpmask & rdp->mynode->qsmaskinit)],
+	       "N."[!!(rdp->grpmask & rdp->mynode->qsmaskinitnext)],
+	       ticks_value, ticks_title,
 	       atomic_read(&rdtp->dynticks) & 0xfff,
 	       rdtp->dynticks_nesting, rdtp->dynticks_nmi_nesting,
 	       rdp->softirq_snap, kstat_softirqs_cpu(RCU_SOFTIRQ, cpu),
@@ -1777,9 +1810,9 @@ early_param("rcu_nocb_poll", parse_rcu_nocb_poll);
  * Wake up any no-CBs CPUs' kthreads that were waiting on the just-ended
  * grace period.
  */
-static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
+static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq)
 {
-	wake_up_all(&rnp->nocb_gp_wq[rnp->completed & 0x1]);
+	swake_up_all(sq);
 }
 
 /*
@@ -1795,10 +1828,15 @@ static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
 	rnp->need_future_gp[(rnp->completed + 1) & 0x1] += nrq;
 }
 
+static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp)
+{
+	return &rnp->nocb_gp_wq[rnp->completed & 0x1];
+}
+
 static void rcu_init_one_nocb(struct rcu_node *rnp)
 {
-	init_waitqueue_head(&rnp->nocb_gp_wq[0]);
-	init_waitqueue_head(&rnp->nocb_gp_wq[1]);
+	init_swait_queue_head(&rnp->nocb_gp_wq[0]);
+	init_swait_queue_head(&rnp->nocb_gp_wq[1]);
 }
 
 #ifndef CONFIG_RCU_NOCB_CPU_ALL
@@ -1823,7 +1861,7 @@ static void wake_nocb_leader(struct rcu_data *rdp, bool force)
 	if (READ_ONCE(rdp_leader->nocb_leader_sleep) || force) {
 		/* Prior smp_mb__after_atomic() orders against prior enqueue. */
 		WRITE_ONCE(rdp_leader->nocb_leader_sleep, false);
-		wake_up(&rdp_leader->nocb_wq);
+		swake_up(&rdp_leader->nocb_wq);
 	}
 }
 
@@ -2023,10 +2061,9 @@ static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 	bool needwake;
 	struct rcu_node *rnp = rdp->mynode;
 
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	smp_mb__after_unlock_lock();
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	needwake = rcu_start_future_gp(rnp, rdp, &c);
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	if (needwake)
 		rcu_gp_kthread_wake(rdp->rsp);
 
@@ -2036,7 +2073,7 @@ static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 	 */
 	trace_rcu_future_gp(rnp, rdp, c, TPS("StartWait"));
 	for (;;) {
-		wait_event_interruptible(
+		swait_event_interruptible(
 			rnp->nocb_gp_wq[c & 0x1],
 			(d = ULONG_CMP_GE(READ_ONCE(rnp->completed), c)));
 		if (likely(d))
@@ -2064,7 +2101,7 @@ wait_again:
 	/* Wait for callbacks to appear. */
 	if (!rcu_nocb_poll) {
 		trace_rcu_nocb_wake(my_rdp->rsp->name, my_rdp->cpu, "Sleep");
-		wait_event_interruptible(my_rdp->nocb_wq,
+		swait_event_interruptible(my_rdp->nocb_wq,
 				!READ_ONCE(my_rdp->nocb_leader_sleep));
 		/* Memory barrier handled by smp_mb() calls below and repoll. */
 	} else if (firsttime) {
@@ -2139,7 +2176,7 @@ wait_again:
 			 * List was empty, wake up the follower.
 			 * Memory barriers supplied by atomic_long_add().
 			 */
-			wake_up(&rdp->nocb_wq);
+			swake_up(&rdp->nocb_wq);
 		}
 	}
 
@@ -2160,7 +2197,7 @@ static void nocb_follower_wait(struct rcu_data *rdp)
 		if (!rcu_nocb_poll) {
 			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
 					    "FollowerSleep");
-			wait_event_interruptible(rdp->nocb_wq,
+			swait_event_interruptible(rdp->nocb_wq,
 						 READ_ONCE(rdp->nocb_follower_head));
 		} else if (firsttime) {
 			/* Don't drown trace log with "Poll"! */
@@ -2319,7 +2356,7 @@ void __init rcu_init_nohz(void)
 static void __init rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp)
 {
 	rdp->nocb_tail = &rdp->nocb_head;
-	init_waitqueue_head(&rdp->nocb_wq);
+	init_swait_queue_head(&rdp->nocb_wq);
 	rdp->nocb_follower_tail = &rdp->nocb_follower_head;
 }
 
@@ -2469,12 +2506,17 @@ static bool rcu_nocb_cpu_needs_barrier(struct rcu_state *rsp, int cpu)
 	return false;
 }
 
-static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
+static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq)
 {
 }
 
 static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
 {
+}
+
+static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp)
+{
+	return NULL;
 }
 
 static void rcu_init_one_nocb(struct rcu_node *rnp)

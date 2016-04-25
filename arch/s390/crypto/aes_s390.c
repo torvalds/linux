@@ -27,6 +27,7 @@
 #include <linux/cpufeature.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <crypto/xts.h>
 #include "crypt_s390.h"
 
 #define AES_KEYLEN_128		1
@@ -587,6 +588,11 @@ static int xts_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 {
 	struct s390_xts_ctx *xts_ctx = crypto_tfm_ctx(tfm);
 	u32 *flags = &tfm->crt_flags;
+	int err;
+
+	err = xts_check_key(tfm, in_key, key_len);
+	if (err)
+		return err;
 
 	switch (key_len) {
 	case 32:

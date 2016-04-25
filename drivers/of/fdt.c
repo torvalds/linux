@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/initrd.h>
 #include <linux/memblock.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
@@ -184,7 +185,7 @@ static void * unflatten_dt_node(const void *blob,
 	struct property *pp, **prev_pp = NULL;
 	const char *pathp;
 	unsigned int l, allocl;
-	static int depth = 0;
+	static int depth;
 	int old_depth;
 	int offset;
 	int has_name = 0;
@@ -436,6 +437,8 @@ static void *kernel_tree_alloc(u64 size, u64 align)
 	return kzalloc(size, GFP_KERNEL);
 }
 
+static DEFINE_MUTEX(of_fdt_unflatten_mutex);
+
 /**
  * of_fdt_unflatten_tree - create tree of device_nodes from flat blob
  *
@@ -447,7 +450,9 @@ static void *kernel_tree_alloc(u64 size, u64 align)
 void of_fdt_unflatten_tree(const unsigned long *blob,
 			struct device_node **mynodes)
 {
+	mutex_lock(&of_fdt_unflatten_mutex);
 	__unflatten_device_tree(blob, mynodes, &kernel_tree_alloc);
+	mutex_unlock(&of_fdt_unflatten_mutex);
 }
 EXPORT_SYMBOL_GPL(of_fdt_unflatten_tree);
 
@@ -755,6 +760,16 @@ const void * __init of_flat_dt_match_machine(const void *default_match,
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
+#ifndef __early_init_dt_declare_initrd
+static void __early_init_dt_declare_initrd(unsigned long start,
+					   unsigned long end)
+{
+	initrd_start = (unsigned long)__va(start);
+	initrd_end = (unsigned long)__va(end);
+	initrd_below_start_ok = 1;
+}
+#endif
+
 /**
  * early_init_dt_check_for_initrd - Decode initrd location from flat tree
  * @node: reference to node containing initrd location ('chosen')
@@ -777,9 +792,7 @@ static void __init early_init_dt_check_for_initrd(unsigned long node)
 		return;
 	end = of_read_number(prop, len/4);
 
-	initrd_start = (unsigned long)__va(start);
-	initrd_end = (unsigned long)__va(end);
-	initrd_below_start_ok = 1;
+	__early_init_dt_declare_initrd(start, end);
 
 	pr_debug("initrd_start=0x%llx  initrd_end=0x%llx\n",
 		 (unsigned long long)start, (unsigned long long)end);
@@ -791,14 +804,13 @@ static inline void early_init_dt_check_for_initrd(unsigned long node)
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 #ifdef CONFIG_SERIAL_EARLYCON
-extern struct of_device_id __earlycon_of_table[];
 
 static int __init early_init_dt_scan_chosen_serial(void)
 {
 	int offset;
-	const char *p;
+	const char *p, *q, *options = NULL;
 	int l;
-	const struct of_device_id *match = __earlycon_of_table;
+	const struct earlycon_id *match;
 	const void *fdt = initial_boot_params;
 
 	offset = fdt_path_offset(fdt, "/chosen");
@@ -813,23 +825,26 @@ static int __init early_init_dt_scan_chosen_serial(void)
 	if (!p || !l)
 		return -ENOENT;
 
+	q = strchrnul(p, ':');
+	if (*q != '\0')
+		options = q + 1;
+	l = q - p;
+
 	/* Get the node specified by stdout-path */
-	offset = fdt_path_offset(fdt, p);
-	if (offset < 0)
-		return -ENODEV;
+	offset = fdt_path_offset_namelen(fdt, p, l);
+	if (offset < 0) {
+		pr_warn("earlycon: stdout-path %.*s not found\n", l, p);
+		return 0;
+	}
 
-	while (match->compatible[0]) {
-		unsigned long addr;
-		if (fdt_node_check_compatible(fdt, offset, match->compatible)) {
-			match++;
+	for (match = __earlycon_table; match < __earlycon_table_end; match++) {
+		if (!match->compatible[0])
 			continue;
-		}
 
-		addr = fdt_translate_address(fdt, offset);
-		if (!addr)
-			return -ENXIO;
+		if (fdt_node_check_compatible(fdt, offset, match->compatible))
+			continue;
 
-		of_setup_earlycon(addr, match->data);
+		of_setup_earlycon(match, offset, options);
 		return 0;
 	}
 	return -ENODEV;
@@ -967,13 +982,16 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 }
 
 #ifdef CONFIG_HAVE_MEMBLOCK
+#ifndef MIN_MEMBLOCK_ADDR
+#define MIN_MEMBLOCK_ADDR	__pa(PAGE_OFFSET)
+#endif
 #ifndef MAX_MEMBLOCK_ADDR
 #define MAX_MEMBLOCK_ADDR	((phys_addr_t)~0)
 #endif
 
 void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 {
-	const u64 phys_offset = __pa(PAGE_OFFSET);
+	const u64 phys_offset = MIN_MEMBLOCK_ADDR;
 
 	if (!PAGE_ALIGNED(base)) {
 		if (size < PAGE_SIZE - (base & ~PAGE_MASK)) {
@@ -1037,7 +1055,7 @@ void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 					phys_addr_t size, bool nomap)
 {
-	pr_err("Reserved memory not supported, ignoring range 0x%pa - 0x%pa%s\n",
+	pr_err("Reserved memory not supported, ignoring range %pa - %pa%s\n",
 		  &base, &size, nomap ? " (nomap)" : "");
 	return -ENOSYS;
 }

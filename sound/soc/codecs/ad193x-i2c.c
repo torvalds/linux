@@ -15,8 +15,8 @@
 #include "ad193x.h"
 
 static const struct i2c_device_id ad193x_id[] = {
-	{ "ad1936", 0 },
-	{ "ad1937", 0 },
+	{ "ad1936", AD193X },
+	{ "ad1937", AD193X },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad193x_id);
@@ -30,7 +30,9 @@ static int ad193x_i2c_probe(struct i2c_client *client,
 	config.val_bits = 8;
 	config.reg_bits = 8;
 
-	return ad193x_probe(&client->dev, devm_regmap_init_i2c(client, &config));
+	return ad193x_probe(&client->dev,
+			    devm_regmap_init_i2c(client, &config),
+			    (enum ad193x_type)id->driver_data);
 }
 
 static int ad193x_i2c_remove(struct i2c_client *client)

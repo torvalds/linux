@@ -13,16 +13,13 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 
@@ -31,9 +28,6 @@
 
 static int init_display(struct fbtft_par *par)
 {
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 	mdelay(150);
 
@@ -53,18 +47,18 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x3A, 0x05);
 
 	/* MEM ACCESS */
-	write_reg(par, 0x36, 0xC0);
+	write_reg(par, MIPI_DCS_SET_ADDRESS_MODE, 0xC0);
 
 	/* SLPOUT - Sleep out & booster on */
-	write_reg(par, 0x11);
+	write_reg(par, MIPI_DCS_EXIT_SLEEP_MODE);
 	mdelay(150);
 
 	/* DISPON - Display On */
-	write_reg(par, 0x29);
+	write_reg(par, MIPI_DCS_SET_DISPLAY_ON);
 
 	/* RGBSET */
-	write_reg(par, 0x2D,
-		 0,  2,  4,  6,  8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
+	write_reg(par, MIPI_DCS_WRITE_LUT,
+		  0,  2,  4,  6,  8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
 		32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62,
 		 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
 		16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
@@ -78,9 +72,6 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	/* column address */
 	write_reg(par, 0x2a, xs >> 8, xs & 0xff, xe >> 8, xe & 0xff);
 
@@ -91,54 +82,53 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 	write_reg(par, 0x2c);
 }
 
-#define my (1 << 7)
-#define mx (1 << 6)
-#define mv (1 << 5)
+#define my BIT(7)
+#define mx BIT(6)
+#define mv BIT(5)
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
-	/* madctl - memory data access control
-	     rgb/bgr:
-	     1. mode selection pin srgb
-		rgb h/w pin for color filter setting: 0=rgb, 1=bgr
-	     2. madctl rgb bit
-		rgb-bgr order color filter panel: 0=rgb, 1=bgr */
+	/*
+	 * madctl - memory data access control
+	 *   rgb/bgr:
+	 *   1. mode selection pin srgb
+	 *	rgb h/w pin for color filter setting: 0=rgb, 1=bgr
+	 *   2. madctl rgb bit
+	 *	rgb-bgr order color filter panel: 0=rgb, 1=bgr
+	 */
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0x36, mx | my | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  mx | my | (par->bgr << 3));
 		break;
 	case 270:
-		write_reg(par, 0x36, my | mv | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  my | mv | (par->bgr << 3));
 		break;
 	case 180:
-		write_reg(par, 0x36, par->bgr << 3);
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  par->bgr << 3);
 		break;
 	case 90:
-		write_reg(par, 0x36, mx | mv | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  mx | mv | (par->bgr << 3));
 		break;
 	}
 
 	return 0;
 }
 
-/*
-  gamma string format:
-*/
+/* gamma string format: */
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	write_reg(par, 0xE0,
-		curves[0], curves[1], curves[2], curves[3],
-		curves[4], curves[5], curves[6], curves[7],
-		curves[8], curves[9], curves[10], curves[11],
-		curves[12], curves[13], curves[14], curves[15],
-		curves[16], curves[17], curves[18]);
+		  curves[0], curves[1], curves[2], curves[3],
+		  curves[4], curves[5], curves[6], curves[7],
+		  curves[8], curves[9], curves[10], curves[11],
+		  curves[12], curves[13], curves[14], curves[15],
+		  curves[16], curves[17], curves[18]);
 
 	return 0;
 }
-
 
 static struct fbtft_display display = {
 	.regwidth = 8,
@@ -154,6 +144,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "himax,hx8353d", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

@@ -19,7 +19,7 @@
 #include <asm/setup.h>
 #include <asm/processor-flags.h>
 #include <asm/msr-index.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/percpu.h>
 #include <asm/nops.h>
 #include <asm/bootparam.h>
@@ -152,7 +152,7 @@ ENTRY(startup_32)
 	movl %eax, pa(olpc_ofw_pgd)
 #endif
 
-#ifdef CONFIG_MICROCODE_EARLY
+#ifdef CONFIG_MICROCODE
 	/* Early load ucode on BSP. */
 	call load_ucode_bsp
 #endif
@@ -311,11 +311,10 @@ ENTRY(startup_32_smp)
 	movl %eax,%ss
 	leal -__PAGE_OFFSET(%ecx),%esp
 
-#ifdef CONFIG_MICROCODE_EARLY
+#ifdef CONFIG_MICROCODE
 	/* Early load ucode on AP. */
 	call load_ucode_ap
 #endif
-
 
 default_entry:
 #define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
@@ -389,6 +388,12 @@ default_entry:
 	btsl $_EFER_NX, %eax
 	/* Make changes effective */
 	wrmsr
+
+	/*
+	 * And make sure that all the mappings we set up have NX set from
+	 * the beginning.
+	 */
+	orl $(1 << (_PAGE_BIT_NX - 32)), pa(__supported_pte_mask + 4)
 
 enable_paging:
 

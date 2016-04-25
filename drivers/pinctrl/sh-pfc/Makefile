@@ -1,8 +1,5 @@
-sh-pfc-objs			= core.o pinctrl.o
-ifeq ($(CONFIG_GPIO_SH_PFC),y)
-sh-pfc-objs			+= gpio.o
-endif
-obj-$(CONFIG_PINCTRL_SH_PFC)	+= sh-pfc.o
+obj-$(CONFIG_PINCTRL_SH_PFC)	+= core.o pinctrl.o
+obj-$(CONFIG_PINCTRL_SH_PFC_GPIO)	+= gpio.o
 obj-$(CONFIG_PINCTRL_PFC_EMEV2)	+= pfc-emev2.o
 obj-$(CONFIG_PINCTRL_PFC_R8A73A4)	+= pfc-r8a73a4.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7740)	+= pfc-r8a7740.o

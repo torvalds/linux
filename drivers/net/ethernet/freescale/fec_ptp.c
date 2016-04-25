@@ -112,9 +112,8 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 	unsigned long flags;
 	u32 val, tempval;
 	int inc;
-	struct timespec ts;
+	struct timespec64 ts;
 	u64 ns;
-	u32 remainder;
 	val = 0;
 
 	if (!(fep->hwts_tx_en || fep->hwts_rx_en)) {
@@ -163,8 +162,7 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 		tempval = readl(fep->hwp + FEC_ATIME);
 		/* Convert the ptp local counter to 1588 timestamp */
 		ns = timecounter_cyc2time(&fep->tc, tempval);
-		ts.tv_sec = div_u64_rem(ns, 1000000000ULL, &remainder);
-		ts.tv_nsec = remainder;
+		ts = ns_to_timespec64(ns);
 
 		/* The tempval is  less than 3 seconds, and  so val is less than
 		 * 4 seconds. No overflow for 32bit calculation.

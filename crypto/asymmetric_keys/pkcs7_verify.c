@@ -16,7 +16,7 @@
 #include <linux/err.h>
 #include <linux/asn1.h>
 #include <crypto/hash.h>
-#include "public_key.h"
+#include <crypto/public_key.h>
 #include "pkcs7_parser.h"
 
 /*
@@ -31,17 +31,15 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 	void *digest;
 	int ret;
 
-	kenter(",%u,%u", sinfo->index, sinfo->sig.pkey_hash_algo);
+	kenter(",%u,%s", sinfo->index, sinfo->sig.hash_algo);
 
-	if (sinfo->sig.pkey_hash_algo >= PKEY_HASH__LAST ||
-	    !hash_algo_name[sinfo->sig.pkey_hash_algo])
+	if (!sinfo->sig.hash_algo)
 		return -ENOPKG;
 
 	/* Allocate the hashing algorithm we're going to need and find out how
 	 * big the hash operational data will be.
 	 */
-	tfm = crypto_alloc_shash(hash_algo_name[sinfo->sig.pkey_hash_algo],
-				 0, 0);
+	tfm = crypto_alloc_shash(sinfo->sig.hash_algo, 0, 0);
 	if (IS_ERR(tfm))
 		return (PTR_ERR(tfm) == -ENOENT) ? -ENOPKG : PTR_ERR(tfm);
 
@@ -49,11 +47,12 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 	sinfo->sig.digest_size = digest_size = crypto_shash_digestsize(tfm);
 
 	ret = -ENOMEM;
-	digest = kzalloc(digest_size + desc_size, GFP_KERNEL);
+	digest = kzalloc(ALIGN(digest_size, __alignof__(*desc)) + desc_size,
+			 GFP_KERNEL);
 	if (!digest)
 		goto error_no_desc;
 
-	desc = digest + digest_size;
+	desc = PTR_ALIGN(digest + digest_size, __alignof__(*desc));
 	desc->tfm   = tfm;
 	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 

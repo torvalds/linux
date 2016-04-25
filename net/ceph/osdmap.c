@@ -342,22 +342,31 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
         c->choose_local_tries = ceph_decode_32(p);
         c->choose_local_fallback_tries =  ceph_decode_32(p);
         c->choose_total_tries = ceph_decode_32(p);
-        dout("crush decode tunable choose_local_tries = %d",
+        dout("crush decode tunable choose_local_tries = %d\n",
              c->choose_local_tries);
-        dout("crush decode tunable choose_local_fallback_tries = %d",
+        dout("crush decode tunable choose_local_fallback_tries = %d\n",
              c->choose_local_fallback_tries);
-        dout("crush decode tunable choose_total_tries = %d",
+        dout("crush decode tunable choose_total_tries = %d\n",
              c->choose_total_tries);
 
 	ceph_decode_need(p, end, sizeof(u32), done);
 	c->chooseleaf_descend_once = ceph_decode_32(p);
-	dout("crush decode tunable chooseleaf_descend_once = %d",
+	dout("crush decode tunable chooseleaf_descend_once = %d\n",
 	     c->chooseleaf_descend_once);
 
 	ceph_decode_need(p, end, sizeof(u8), done);
 	c->chooseleaf_vary_r = ceph_decode_8(p);
-	dout("crush decode tunable chooseleaf_vary_r = %d",
+	dout("crush decode tunable chooseleaf_vary_r = %d\n",
 	     c->chooseleaf_vary_r);
+
+	/* skip straw_calc_version, allowed_bucket_algs */
+	ceph_decode_need(p, end, sizeof(u8) + sizeof(u32), done);
+	*p += sizeof(u8) + sizeof(u32);
+
+	ceph_decode_need(p, end, sizeof(u8), done);
+	c->chooseleaf_stable = ceph_decode_8(p);
+	dout("crush decode tunable chooseleaf_stable = %d\n",
+	     c->chooseleaf_stable);
 
 done:
 	dout("crush_decode success\n");

@@ -111,7 +111,7 @@ module_param_named(pi_guard, iser_pi_guard, int, S_IRUGO);
 MODULE_PARM_DESC(pi_guard, "T10-PI guard_type [deprecated]");
 
 /*
- * iscsi_iser_recv() - Process a successfull recv completion
+ * iscsi_iser_recv() - Process a successful recv completion
  * @conn:         iscsi connection
  * @hdr:          iscsi header
  * @rx_data:      buffer containing receive data payload
@@ -126,7 +126,6 @@ iscsi_iser_recv(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 {
 	int rc = 0;
 	int datalen;
-	int ahslen;
 
 	/* verify PDU length */
 	datalen = ntoh24(hdr->dlength);
@@ -140,9 +139,6 @@ iscsi_iser_recv(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	if (datalen != rx_data_len)
 		iser_dbg("aligned datalen (%d) hdr, %d (IB)\n",
 			datalen, rx_data_len);
-
-	/* read AHS */
-	ahslen = hdr->hlength * 4;
 
 	rc = iscsi_complete_pdu(conn, hdr, rx_data, rx_data_len);
 	if (rc && rc != ISCSI_ERR_NO_SCSI_CMD)
@@ -648,7 +644,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 
 		ib_conn = &iser_conn->ib_conn;
 		if (ib_conn->pi_support) {
-			u32 sig_caps = ib_conn->device->dev_attr.sig_prot_cap;
+			u32 sig_caps = ib_conn->device->ib_device->attrs.sig_prot_cap;
 
 			scsi_host_set_prot(shost, iser_dif_prot_caps(sig_caps));
 			scsi_host_set_guard(shost, SHOST_DIX_GUARD_IP |
@@ -660,7 +656,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 		 * max fastreg page list length.
 		 */
 		shost->sg_tablesize = min_t(unsigned short, shost->sg_tablesize,
-			ib_conn->device->dev_attr.max_fast_reg_page_list_len);
+			ib_conn->device->ib_device->attrs.max_fast_reg_page_list_len);
 		shost->max_sectors = min_t(unsigned int,
 			1024, (shost->sg_tablesize * PAGE_SIZE) >> 9);
 
@@ -766,9 +762,7 @@ iscsi_iser_conn_get_stats(struct iscsi_cls_conn *cls_conn, struct iscsi_stats *s
 	stats->r2t_pdus = conn->r2t_pdus_cnt; /* always 0 */
 	stats->tmfcmd_pdus = conn->tmfcmd_pdus_cnt;
 	stats->tmfrsp_pdus = conn->tmfrsp_pdus_cnt;
-	stats->custom_length = 1;
-	strcpy(stats->custom[0].desc, "fmr_unalign_cnt");
-	stats->custom[0].value = conn->fmr_unalign_cnt;
+	stats->custom_length = 0;
 }
 
 static int iscsi_iser_get_ep_param(struct iscsi_endpoint *ep,
@@ -973,6 +967,22 @@ static umode_t iser_attr_is_visible(int param_type, int param)
 	return 0;
 }
 
+static int iscsi_iser_slave_alloc(struct scsi_device *sdev)
+{
+	struct iscsi_session *session;
+	struct iser_conn *iser_conn;
+	struct ib_device *ib_dev;
+
+	session = starget_to_session(scsi_target(sdev))->dd_data;
+	iser_conn = session->leadconn->dd_data;
+	ib_dev = iser_conn->ib_conn.device->ib_device;
+
+	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG))
+		blk_queue_virt_boundary(sdev->request_queue, ~MASK_4K);
+
+	return 0;
+}
+
 static struct scsi_host_template iscsi_iser_sht = {
 	.module                 = THIS_MODULE,
 	.name                   = "iSCSI Initiator over iSER",
@@ -985,7 +995,8 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.eh_device_reset_handler= iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.target_alloc		= iscsi_target_alloc,
-	.use_clustering         = DISABLE_CLUSTERING,
+	.use_clustering         = ENABLE_CLUSTERING,
+	.slave_alloc            = iscsi_iser_slave_alloc,
 	.proc_name              = "iscsi_iser",
 	.this_id                = -1,
 	.track_queue_depth	= 1,
@@ -1057,7 +1068,8 @@ static int __init iser_init(void)
 	release_wq = alloc_workqueue("release workqueue", 0, 0);
 	if (!release_wq) {
 		iser_err("failed to allocate release workqueue\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_alloc_wq;
 	}
 
 	iscsi_iser_scsi_transport = iscsi_register_transport(
@@ -1065,12 +1077,14 @@ static int __init iser_init(void)
 	if (!iscsi_iser_scsi_transport) {
 		iser_err("iscsi_register_transport failed\n");
 		err = -EINVAL;
-		goto register_transport_failure;
+		goto err_reg;
 	}
 
 	return 0;
 
-register_transport_failure:
+err_reg:
+	destroy_workqueue(release_wq);
+err_alloc_wq:
 	kmem_cache_destroy(ig.desc_cache);
 
 	return err;

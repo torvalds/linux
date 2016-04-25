@@ -34,9 +34,36 @@ function test_ex_suffix {
 	make -C ex V=1 clean > /dev/null 2>&1
 	rm -f ex.out
 }
+
+function test_ex_include {
+	make -C ex V=1 clean > ex.out 2>&1
+
+	# build with krava.h include
+	touch ex/krava.h
+	make -C ex V=1 CFLAGS=-DINCLUDE >> ex.out 2>&1
+
+	if [ ! -x ./ex/ex ]; then
+	  echo FAILED
+	  exit -1
+	fi
+
+	# build without the include
+	rm -f ex/krava.h ex/ex
+	make -C ex V=1 >> ex.out 2>&1
+
+	if [ ! -x ./ex/ex ]; then
+	  echo FAILED
+	  exit -1
+	fi
+
+	make -C ex V=1 clean > /dev/null 2>&1
+	rm -f ex.out
+}
+
 echo -n Testing..
 
 test_ex
 test_ex_suffix
+test_ex_include
 
 echo OK

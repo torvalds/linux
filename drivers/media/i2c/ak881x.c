@@ -15,7 +15,7 @@
 #include <linux/videodev2.h>
 #include <linux/module.h>
 
-#include <media/ak881x.h>
+#include <media/i2c/ak881x.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 

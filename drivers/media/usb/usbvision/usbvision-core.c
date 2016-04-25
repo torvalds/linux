@@ -37,7 +37,7 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 

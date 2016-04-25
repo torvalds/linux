@@ -37,7 +37,7 @@ static unsigned int mpls_encap_size(struct mpls_iptunnel_encap *en)
 	return en->labels * sizeof(struct mpls_shim_hdr);
 }
 
-int mpls_output(struct sock *sk, struct sk_buff *skb)
+static int mpls_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct mpls_iptunnel_encap *tun_encap_info;
 	struct mpls_shim_hdr *hdr;
@@ -54,10 +54,10 @@ int mpls_output(struct sock *sk, struct sk_buff *skb)
 	unsigned int ttl;
 
 	/* Obtain the ttl */
-	if (skb->protocol == htons(ETH_P_IP)) {
+	if (dst->ops->family == AF_INET) {
 		ttl = ip_hdr(skb)->ttl;
 		rt = (struct rtable *)dst;
-	} else if (skb->protocol == htons(ETH_P_IPV6)) {
+	} else if (dst->ops->family == AF_INET6) {
 		ttl = ipv6_hdr(skb)->hop_limit;
 		rt6 = (struct rt6_info *)dst;
 	} else {
@@ -227,5 +227,6 @@ static void __exit mpls_iptunnel_exit(void)
 }
 module_exit(mpls_iptunnel_exit);
 
+MODULE_ALIAS_RTNL_LWT(MPLS);
 MODULE_DESCRIPTION("MultiProtocol Label Switching IP Tunnels");
 MODULE_LICENSE("GPL v2");

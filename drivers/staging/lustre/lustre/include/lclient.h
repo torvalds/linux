@@ -71,7 +71,6 @@ enum ccc_setattr_lock_type {
 	SETATTR_MATCH_LOCK
 };
 
-
 /**
  * IO state private to vvp or slp layers.
  */
@@ -128,7 +127,7 @@ static inline struct ccc_thread_info *ccc_env_info(const struct lu_env *env)
 	struct ccc_thread_info      *info;
 
 	info = lu_context_key_get(&env->le_ctx, &ccc_key);
-	LASSERT(info != NULL);
+	LASSERT(info);
 	return info;
 }
 
@@ -157,7 +156,7 @@ static inline struct ccc_session *ccc_env_session(const struct lu_env *env)
 	struct ccc_session *ses;
 
 	ses = lu_context_key_get(env->le_ses, &ccc_session_key);
-	LASSERT(ses != NULL);
+	LASSERT(ses);
 	return ses;
 }
 
@@ -233,8 +232,6 @@ static inline struct ccc_page *cl2ccc_page(const struct cl_page_slice *slice)
 	return container_of(slice, struct ccc_page, cpg_cl);
 }
 
-struct cl_page    *ccc_vmpage_page_transient(struct page *vmpage);
-
 struct ccc_device {
 	struct cl_device    cdv_cl;
 	struct super_block *cdv_sb;
@@ -289,33 +286,13 @@ void ccc_object_free(const struct lu_env *env, struct lu_object *obj);
 int ccc_lock_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_lock *lock, const struct cl_io *io,
 		  const struct cl_lock_operations *lkops);
-int ccc_attr_set(const struct lu_env *env, struct cl_object *obj,
-		 const struct cl_attr *attr, unsigned valid);
 int ccc_object_glimpse(const struct lu_env *env,
 		       const struct cl_object *obj, struct ost_lvb *lvb);
-int ccc_conf_set(const struct lu_env *env, struct cl_object *obj,
-		 const struct cl_object_conf *conf);
 struct page *ccc_page_vmpage(const struct lu_env *env,
 			    const struct cl_page_slice *slice);
 int ccc_page_is_under_lock(const struct lu_env *env,
 			   const struct cl_page_slice *slice, struct cl_io *io);
 int ccc_fail(const struct lu_env *env, const struct cl_page_slice *slice);
-void ccc_transient_page_verify(const struct cl_page *page);
-int  ccc_transient_page_own(const struct lu_env *env,
-			    const struct cl_page_slice *slice,
-			    struct cl_io *io, int nonblock);
-void ccc_transient_page_assume(const struct lu_env *env,
-			       const struct cl_page_slice *slice,
-			       struct cl_io *io);
-void ccc_transient_page_unassume(const struct lu_env *env,
-				 const struct cl_page_slice *slice,
-				 struct cl_io *io);
-void ccc_transient_page_disown(const struct lu_env *env,
-			       const struct cl_page_slice *slice,
-			       struct cl_io *io);
-void ccc_transient_page_discard(const struct lu_env *env,
-				const struct cl_page_slice *slice,
-				struct cl_io *io);
 int ccc_transient_page_prep(const struct lu_env *env,
 			    const struct cl_page_slice *slice,
 			    struct cl_io *io);
@@ -336,7 +313,6 @@ void ccc_lock_state(const struct lu_env *env,
 		    const struct cl_lock_slice *slice,
 		    enum cl_lock_state state);
 
-void ccc_io_fini(const struct lu_env *env, const struct cl_io_slice *ios);
 int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 			  __u32 enqflags, enum cl_lock_mode mode,
 			  pgoff_t start, pgoff_t end);
@@ -371,10 +347,8 @@ struct page	 *cl2vm_page      (const struct cl_page_slice *slice);
 struct inode       *ccc_object_inode(const struct cl_object *obj);
 struct ccc_object  *cl_inode2ccc    (struct inode *inode);
 
-int cl_setattr_ost(struct inode *inode, const struct iattr *attr,
-		   struct obd_capa *capa);
+int cl_setattr_ost(struct inode *inode, const struct iattr *attr);
 
-struct cl_page *ccc_vmpage_page_transient(struct page *vmpage);
 int ccc_object_invariant(const struct cl_object *obj);
 int cl_file_inode_init(struct inode *inode, struct lustre_md *md);
 void cl_inode_fini(struct inode *inode);
@@ -409,7 +383,8 @@ void cl_put_grouplock(struct ccc_grouplock *cg);
  *
  * NB: If you find you have to use these interfaces for your new code, please
  * think about it again. These interfaces may be removed in the future for
- * better layering. */
+ * better layering.
+ */
 struct lov_stripe_md *lov_lsm_get(struct cl_object *clobj);
 void lov_lsm_put(struct cl_object *clobj, struct lov_stripe_md *lsm);
 int lov_read_and_clear_async_rc(struct cl_object *clob);

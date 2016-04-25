@@ -43,6 +43,7 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	struct smb2_file_all_info *smb2_data = NULL;
 	__u8 smb2_oplock[17];
 	struct cifs_fid *fid = oparms->fid;
+	struct network_resiliency_req nr_ioctl_req;
 
 	smb2_path = cifs_convert_path_to_utf16(oparms->path, oparms->cifs_sb);
 	if (smb2_path == NULL) {
@@ -66,6 +67,24 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	rc = SMB2_open(xid, oparms, smb2_path, smb2_oplock, smb2_data, NULL);
 	if (rc)
 		goto out;
+
+
+	 if (oparms->tcon->use_resilient) {
+		nr_ioctl_req.Timeout = 0; /* use server default (120 seconds) */
+		nr_ioctl_req.Reserved = 0;
+		rc = SMB2_ioctl(xid, oparms->tcon, fid->persistent_fid,
+			fid->volatile_fid, FSCTL_LMR_REQUEST_RESILIENCY, true,
+			(char *)&nr_ioctl_req, sizeof(nr_ioctl_req),
+			NULL, NULL /* no return info */);
+		if (rc == -EOPNOTSUPP) {
+			cifs_dbg(VFS,
+			     "resiliency not supported by server, disabling\n");
+			oparms->tcon->use_resilient = false;
+		} else if (rc)
+			cifs_dbg(FYI, "error %d setting resiliency\n", rc);
+
+		rc = 0;
+	}
 
 	if (buf) {
 		/* open response does not have IndexNumber field - get it */

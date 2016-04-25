@@ -36,12 +36,14 @@
 #endif /* CONFIG_NFSD_V3 */
 
 #ifdef CONFIG_NFSD_V4
+#include "../internal.h"
 #include "acl.h"
 #include "idmap.h"
 #endif /* CONFIG_NFSD_V4 */
 
 #include "nfsd.h"
 #include "vfs.h"
+#include "trace.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_FILEOP
 
@@ -217,10 +219,16 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		host_err = PTR_ERR(dentry);
 		if (IS_ERR(dentry))
 			goto out_nfserr;
-		/*
-		 * check if we have crossed a mount point ...
-		 */
 		if (nfsd_mountpoint(dentry, exp)) {
+			/*
+			 * We don't need the i_mutex after all.  It's
+			 * still possible we could open this (regular
+			 * files can be mountpoints too), but the
+			 * i_mutex is just there to prevent renames of
+			 * something that we might be about to delegate,
+			 * and a mountpoint won't be renamed:
+			 */
+			fh_unlock(fhp);
 			if ((host_err = nfsd_cross_mnt(rqstp, &dentry, &exp))) {
 				dput(dentry);
 				goto out_nfserr;
@@ -485,9 +493,9 @@ __be32 nfsd4_set_nfs4_label(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	dentry = fhp->fh_dentry;
 
-	mutex_lock(&d_inode(dentry)->i_mutex);
+	inode_lock(d_inode(dentry));
 	host_error = security_inode_setsecctx(dentry, label->data, label->len);
-	mutex_unlock(&d_inode(dentry)->i_mutex);
+	inode_unlock(d_inode(dentry));
 	return nfserrno(host_error);
 }
 #else
@@ -497,6 +505,13 @@ __be32 nfsd4_set_nfs4_label(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	return nfserr_notsupp;
 }
 #endif
+
+__be32 nfsd4_clone_file_range(struct file *src, u64 src_pos, struct file *dst,
+		u64 dst_pos, u64 count)
+{
+	return nfserrno(vfs_clone_file_range(src, src_pos, dst, dst_pos,
+			count));
+}
 
 __be32 nfsd4_vfs_fallocate(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			   struct file *file, loff_t offset, loff_t len,
@@ -855,7 +870,7 @@ __be32 nfsd_readv(struct file *file, loff_t offset, struct kvec *vec, int vlen,
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
-	host_err = vfs_readv(file, (struct iovec __user *)vec, vlen, &offset);
+	host_err = vfs_readv(file, (struct iovec __user *)vec, vlen, &offset, 0);
 	set_fs(oldfs);
 	return nfsd_finish_read(file, count, host_err);
 }
@@ -942,7 +957,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 
 	/* Write the data. */
 	oldfs = get_fs(); set_fs(KERNEL_DS);
-	host_err = vfs_writev(file, (struct iovec __user *)vec, vlen, &pos);
+	host_err = vfs_writev(file, (struct iovec __user *)vec, vlen, &pos, 0);
 	set_fs(oldfs);
 	if (host_err < 0)
 		goto out_nfserr;
@@ -983,15 +998,22 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	struct raparms	*ra;
 	__be32 err;
 
+	trace_read_start(rqstp, fhp, offset, vlen);
 	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_READ, &file);
 	if (err)
 		return err;
 
 	ra = nfsd_init_raparms(file);
+
+	trace_read_opened(rqstp, fhp, offset, vlen);
 	err = nfsd_vfs_read(rqstp, file, offset, vec, vlen, count);
+	trace_read_io_done(rqstp, fhp, offset, vlen);
+
 	if (ra)
 		nfsd_put_raparams(file, ra);
 	fput(file);
+
+	trace_read_done(rqstp, fhp, offset, vlen);
 
 	return err;
 }
@@ -1008,24 +1030,31 @@ nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 {
 	__be32			err = 0;
 
+	trace_write_start(rqstp, fhp, offset, vlen);
+
 	if (file) {
 		err = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry,
 				NFSD_MAY_WRITE|NFSD_MAY_OWNER_OVERRIDE);
 		if (err)
 			goto out;
+		trace_write_opened(rqstp, fhp, offset, vlen);
 		err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen, cnt,
 				stablep);
+		trace_write_io_done(rqstp, fhp, offset, vlen);
 	} else {
 		err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_WRITE, &file);
 		if (err)
 			goto out;
 
+		trace_write_opened(rqstp, fhp, offset, vlen);
 		if (cnt)
 			err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen,
 					     cnt, stablep);
+		trace_write_io_done(rqstp, fhp, offset, vlen);
 		fput(file);
 	}
 out:
+	trace_write_done(rqstp, fhp, offset, vlen);
 	return err;
 }
 
@@ -1631,7 +1660,7 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	/* cannot use fh_lock as we need deadlock protective ordering
 	 * so do it by hand */
 	trap = lock_rename(tdentry, fdentry);
-	ffhp->fh_locked = tfhp->fh_locked = 1;
+	ffhp->fh_locked = tfhp->fh_locked = true;
 	fill_pre_wcc(ffhp);
 	fill_pre_wcc(tfhp);
 
@@ -1681,7 +1710,7 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	fill_post_wcc(ffhp);
 	fill_post_wcc(tfhp);
 	unlock_rename(tdentry, fdentry);
-	ffhp->fh_locked = tfhp->fh_locked = 0;
+	ffhp->fh_locked = tfhp->fh_locked = false;
 	fh_drop_write(ffhp);
 
 out:
@@ -1809,7 +1838,6 @@ static __be32 nfsd_buffered_readdir(struct file *file, nfsd_filldir_t func,
 	offset = *offsetp;
 
 	while (1) {
-		struct inode *dir_inode = file_inode(file);
 		unsigned int reclen;
 
 		cdp->err = nfserr_eof; /* will be cleared on successful read */
@@ -1828,15 +1856,6 @@ static __be32 nfsd_buffered_readdir(struct file *file, nfsd_filldir_t func,
 		if (!size)
 			break;
 
-		/*
-		 * Various filldir functions may end up calling back into
-		 * lookup_one_len() and the file system's ->lookup() method.
-		 * These expect i_mutex to be held, as it would within readdir.
-		 */
-		host_err = mutex_lock_killable(&dir_inode->i_mutex);
-		if (host_err)
-			break;
-
 		de = (struct buffered_dirent *)buf.dirent;
 		while (size > 0) {
 			offset = de->offset;
@@ -1853,7 +1872,6 @@ static __be32 nfsd_buffered_readdir(struct file *file, nfsd_filldir_t func,
 			size -= reclen;
 			de = (struct buffered_dirent *)((char *)de + reclen);
 		}
-		mutex_unlock(&dir_inode->i_mutex);
 		if (size > 0) /* We bailed out early */
 			break;
 

@@ -6,10 +6,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -20,8 +16,6 @@
 #define __INC_DOT11D_H
 
 #include "rtllib.h"
-
-
 
 struct chnl_txpow_triple {
 	u8 FirstChnl;
@@ -46,7 +40,6 @@ enum dot11d_state {
  */
 
 struct rt_dot11d_info {
-
 	bool bEnabled;
 
 	u16 CountryIeLen;

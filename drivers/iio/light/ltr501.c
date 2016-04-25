@@ -180,7 +180,7 @@ static const struct ltr501_samp_table ltr501_ps_samp_table[] = {
 			{500000, 2000000}
 };
 
-static unsigned int ltr501_match_samp_freq(const struct ltr501_samp_table *tab,
+static int ltr501_match_samp_freq(const struct ltr501_samp_table *tab,
 					   int len, int val, int val2)
 {
 	int i, freq;

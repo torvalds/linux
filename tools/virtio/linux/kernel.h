@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/printk.h>
 #include <linux/bug.h>
@@ -109,5 +110,11 @@ static inline void free_page(unsigned long addr)
 	typeof(y) _min2 = (y);			\
 	(void) (&_min1 == &_min2);		\
 	_min1 < _min2 ? _min1 : _min2; })
+
+/* TODO: empty stubs for now. Broken but enough for virtio_ring.c */
+#define list_add_tail(a, b) do {} while (0)
+#define list_del(a) do {} while (0)
+#define list_for_each_entry(a, b, c) while (0)
+/* end of stubs */
 
 #endif /* KERNEL_H */

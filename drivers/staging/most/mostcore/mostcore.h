@@ -60,7 +60,6 @@ enum most_channel_data_type {
 	MOST_CH_SYNC = 1 << 5,
 };
 
-
 enum mbo_status_flags {
 	/* MBO was processed successfully (data was send or received )*/
 	MBO_SUCCESS = 0,
@@ -190,6 +189,7 @@ struct mbo {
 	void *priv;
 	struct list_head list;
 	struct most_interface *ifp;
+	int *num_buffers_ptr;
 	u16 hdm_channel_id;
 	void *virt_address;
 	dma_addr_t bus_address;
@@ -254,7 +254,7 @@ struct most_interface {
  * struct most_aim - identifies MOST device driver to mostcore
  * @name: Driver name
  * @probe_channel: function for core to notify driver about channel connection
- * @disconnect_channel: notification that a certain channel isn't available anymore
+ * @disconnect_channel: callback function to disconnect a certain channel
  * @rx_completion: completion handler for received packets
  * @tx_completion: completion handler for transmitted packets
  * @context: context pointer to be used by mostcore
@@ -307,10 +307,14 @@ void most_stop_enqueue(struct most_interface *iface, int channel_idx);
 void most_resume_enqueue(struct most_interface *iface, int channel_idx);
 int most_register_aim(struct most_aim *aim);
 int most_deregister_aim(struct most_aim *aim);
-struct mbo *most_get_mbo(struct most_interface *iface, int channel_idx);
+struct mbo *most_get_mbo(struct most_interface *iface, int channel_idx,
+			 struct most_aim *);
 void most_put_mbo(struct mbo *mbo);
-int most_start_channel(struct most_interface *iface, int channel_idx);
-int most_stop_channel(struct most_interface *iface, int channel_idx);
-
+int channel_has_mbo(struct most_interface *iface, int channel_idx,
+		    struct most_aim *aim);
+int most_start_channel(struct most_interface *iface, int channel_idx,
+		       struct most_aim *);
+int most_stop_channel(struct most_interface *iface, int channel_idx,
+		      struct most_aim *);
 
 #endif /* MOST_CORE_H_ */

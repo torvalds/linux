@@ -25,18 +25,13 @@ config PPC_CELL_NATIVE
 
 config PPC_IBM_CELL_BLADE
 	bool "IBM Cell Blade"
-	depends on PPC64 && PPC_BOOK3S
+	depends on PPC64 && PPC_BOOK3S && CPU_BIG_ENDIAN
 	select PPC_CELL_NATIVE
 	select PPC_OF_PLATFORM_PCI
 	select PCI
 	select MMIO_NVRAM
 	select PPC_UDBG_16550
 	select UDBG_RTAS_CONSOLE
-
-config PPC_CELL_QPACE
-	bool "IBM Cell - QPACE"
-	depends on PPC64 && PPC_BOOK3S
-	select PPC_CELL_COMMON
 
 config AXON_MSI
 	bool

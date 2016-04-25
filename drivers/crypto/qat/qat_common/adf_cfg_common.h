@@ -72,12 +72,16 @@ enum adf_device_type {
 	DEV_UNKNOWN = 0,
 	DEV_DH895XCC,
 	DEV_DH895XCCVF,
+	DEV_C62X,
+	DEV_C62XVF,
+	DEV_C3XXX,
+	DEV_C3XXXVF
 };
 
 struct adf_dev_status_info {
 	enum adf_device_type type;
-	uint8_t accel_id;
-	uint8_t instance_id;
+	u32 accel_id;
+	u32 instance_id;
 	uint8_t num_ae;
 	uint8_t num_accel;
 	uint8_t num_logical_accel;

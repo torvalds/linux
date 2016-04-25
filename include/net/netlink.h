@@ -1004,6 +1004,15 @@ static inline __be32 nla_get_be32(const struct nlattr *nla)
 }
 
 /**
+ * nla_get_le32 - return payload of __le32 attribute
+ * @nla: __le32 netlink attribute
+ */
+static inline __le32 nla_get_le32(const struct nlattr *nla)
+{
+	return *(__le32 *) nla_data(nla);
+}
+
+/**
  * nla_get_u16 - return payload of u16 attribute
  * @nla: u16 netlink attribute
  */
@@ -1063,6 +1072,15 @@ static inline __be64 nla_get_be64(const struct nlattr *nla)
 	nla_memcpy(&tmp, nla, sizeof(tmp));
 
 	return tmp;
+}
+
+/**
+ * nla_get_le64 - return payload of __le64 attribute
+ * @nla: __le64 netlink attribute
+ */
+static inline __le64 nla_get_le64(const struct nlattr *nla)
+{
+	return *(__le64 *) nla_data(nla);
 }
 
 /**

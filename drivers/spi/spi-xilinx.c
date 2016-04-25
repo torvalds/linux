@@ -270,6 +270,7 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 	while (remaining_words) {
 		int n_words, tx_words, rx_words;
+		u32 sr;
 
 		n_words = min(remaining_words, xspi->buffer_size);
 
@@ -284,24 +285,33 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 		if (use_irq) {
 			xspi->write_fn(cr, xspi->regs + XSPI_CR_OFFSET);
 			wait_for_completion(&xspi->done);
-		} else
-			while (!(xspi->read_fn(xspi->regs + XSPI_SR_OFFSET) &
-						XSPI_SR_TX_EMPTY_MASK))
-				;
-
-		/* A transmit has just completed. Process received data and
-		 * check for more data to transmit. Always inhibit the
-		 * transmitter while the Isr refills the transmit register/FIFO,
-		 * or make sure it is stopped if we're done.
-		 */
-		if (use_irq)
+			/* A transmit has just completed. Process received data
+			 * and check for more data to transmit. Always inhibit
+			 * the transmitter while the Isr refills the transmit
+			 * register/FIFO, or make sure it is stopped if we're
+			 * done.
+			 */
 			xspi->write_fn(cr | XSPI_CR_TRANS_INHIBIT,
-			       xspi->regs + XSPI_CR_OFFSET);
+				       xspi->regs + XSPI_CR_OFFSET);
+			sr = XSPI_SR_TX_EMPTY_MASK;
+		} else
+			sr = xspi->read_fn(xspi->regs + XSPI_SR_OFFSET);
 
 		/* Read out all the data from the Rx FIFO */
 		rx_words = n_words;
-		while (rx_words--)
-			xilinx_spi_rx(xspi);
+		while (rx_words) {
+			if ((sr & XSPI_SR_TX_EMPTY_MASK) && (rx_words > 1)) {
+				xilinx_spi_rx(xspi);
+				rx_words--;
+				continue;
+			}
+
+			sr = xspi->read_fn(xspi->regs + XSPI_SR_OFFSET);
+			if (!(sr & XSPI_SR_RX_EMPTY_MASK)) {
+				xilinx_spi_rx(xspi);
+				rx_words--;
+			}
+		}
 
 		remaining_words -= n_words;
 	}

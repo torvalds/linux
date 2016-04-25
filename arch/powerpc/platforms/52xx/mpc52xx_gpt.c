@@ -724,7 +724,7 @@ static int mpc52xx_gpt_probe(struct platform_device *ofdev)
 {
 	struct mpc52xx_gpt_priv *gpt;
 
-	gpt = kzalloc(sizeof *gpt, GFP_KERNEL);
+	gpt = devm_kzalloc(&ofdev->dev, sizeof *gpt, GFP_KERNEL);
 	if (!gpt)
 		return -ENOMEM;
 
@@ -732,10 +732,8 @@ static int mpc52xx_gpt_probe(struct platform_device *ofdev)
 	gpt->dev = &ofdev->dev;
 	gpt->ipb_freq = mpc5xxx_get_bus_frequency(ofdev->dev.of_node);
 	gpt->regs = of_iomap(ofdev->dev.of_node, 0);
-	if (!gpt->regs) {
-		kfree(gpt);
+	if (!gpt->regs)
 		return -ENOMEM;
-	}
 
 	dev_set_drvdata(&ofdev->dev, gpt);
 

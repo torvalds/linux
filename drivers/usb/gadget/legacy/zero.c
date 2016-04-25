@@ -68,6 +68,8 @@ static struct usb_zero_options gzero_options = {
 	.isoc_maxpacket = GZERO_ISOC_MAXPACKET,
 	.bulk_buflen = GZERO_BULK_BUFLEN,
 	.qlen = GZERO_QLEN,
+	.ss_bulk_qlen = GZERO_SS_BULK_QLEN,
+	.ss_iso_qlen = GZERO_SS_ISO_QLEN,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -113,7 +115,7 @@ static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		cpu_to_le16(0x0200),
+	/* .bcdUSB = DYNAMIC */
 	.bDeviceClass =		USB_CLASS_VENDOR_SPEC,
 
 	.idVendor =		cpu_to_le16(DRIVER_VENDOR_NUM),
@@ -255,6 +257,14 @@ static struct usb_function_instance *func_inst_lb;
 module_param_named(qlen, gzero_options.qlen, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(qlen, "depth of loopback queue");
 
+module_param_named(ss_bulk_qlen, gzero_options.ss_bulk_qlen, uint,
+		S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(bulk_qlen, "depth of sourcesink queue for bulk transfer");
+
+module_param_named(ss_iso_qlen, gzero_options.ss_iso_qlen, uint,
+		S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(iso_qlen, "depth of sourcesink queue for iso transfer");
+
 static int zero_bind(struct usb_composite_dev *cdev)
 {
 	struct f_ss_opts	*ss_opts;
@@ -285,6 +295,8 @@ static int zero_bind(struct usb_composite_dev *cdev)
 	ss_opts->isoc_mult = gzero_options.isoc_mult;
 	ss_opts->isoc_maxburst = gzero_options.isoc_maxburst;
 	ss_opts->bulk_buflen = gzero_options.bulk_buflen;
+	ss_opts->bulk_qlen = gzero_options.ss_bulk_qlen;
+	ss_opts->iso_qlen = gzero_options.ss_iso_qlen;
 
 	func_ss = usb_get_function(func_inst_ss);
 	if (IS_ERR(func_ss)) {

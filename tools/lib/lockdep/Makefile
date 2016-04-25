@@ -93,12 +93,14 @@ else
   print_install =		echo '  INSTALL  '$1'	to	$(DESTDIR_SQ)$2';
 endif
 
+all:
+
 export srctree OUTPUT CC LD CFLAGS V
-build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+include $(srctree)/tools/build/Makefile.include
 
 do_compile_shared_library =			\
 	($(print_shared_lib_compile)		\
-	$(CC) --shared $^ -o $@ -lpthread -ldl -Wl,-soname='"$@"';$(shell ln -s $@ liblockdep.so))
+	$(CC) --shared $^ -o $@ -lpthread -ldl -Wl,-soname='"$@"';$(shell ln -sf $@ liblockdep.so))
 
 do_build_static_lib =				\
 	($(print_static_lib_build)		\
@@ -109,7 +111,7 @@ CMD_TARGETS = $(LIB_FILE)
 TARGETS = $(CMD_TARGETS)
 
 
-all: all_cmd
+all: fixdep all_cmd
 
 all_cmd: $(CMD_TARGETS)
 
@@ -147,7 +149,7 @@ install_lib: all_cmd
 install: install_lib
 
 clean:
-	$(RM) *.o *~ $(TARGETS) *.a *liblockdep*.so* $(VERSION_FILES) .*.d
+	$(RM) *.o *~ $(TARGETS) *.a *liblockdep*.so* $(VERSION_FILES) .*.d .*.cmd
 	$(RM) tags TAGS
 
 PHONY += force

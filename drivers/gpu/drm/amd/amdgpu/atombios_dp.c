@@ -243,7 +243,7 @@ static void amdgpu_atombios_dp_get_adjust_train(const u8 link_status[DP_LINK_STA
 
 /* convert bits per color to bits per pixel */
 /* get bpc from the EDID */
-static int amdgpu_atombios_dp_convert_bpc_to_bpp(int bpc)
+static unsigned amdgpu_atombios_dp_convert_bpc_to_bpp(int bpc)
 {
 	if (bpc == 0)
 		return 24;
@@ -251,64 +251,44 @@ static int amdgpu_atombios_dp_convert_bpc_to_bpp(int bpc)
 		return bpc * 3;
 }
 
-/* get the max pix clock supported by the link rate and lane num */
-static int amdgpu_atombios_dp_get_max_dp_pix_clock(int link_rate,
-					    int lane_num,
-					    int bpp)
-{
-	return (link_rate * lane_num * 8) / bpp;
-}
-
 /***** amdgpu specific DP functions *****/
 
-/* First get the min lane# when low rate is used according to pixel clock
- * (prefer low rate), second check max lane# supported by DP panel,
- * if the max lane# < low rate lane# then use max lane# instead.
- */
-static int amdgpu_atombios_dp_get_dp_lane_number(struct drm_connector *connector,
+static int amdgpu_atombios_dp_get_dp_link_config(struct drm_connector *connector,
 						 const u8 dpcd[DP_DPCD_SIZE],
-						 int pix_clock)
+						 unsigned pix_clock,
+						 unsigned *dp_lanes, unsigned *dp_rate)
 {
-	int bpp = amdgpu_atombios_dp_convert_bpc_to_bpp(amdgpu_connector_get_monitor_bpc(connector));
-	int max_link_rate = drm_dp_max_link_rate(dpcd);
-	int max_lane_num = drm_dp_max_lane_count(dpcd);
-	int lane_num;
-	int max_dp_pix_clock;
-
-	for (lane_num = 1; lane_num < max_lane_num; lane_num <<= 1) {
-		max_dp_pix_clock = amdgpu_atombios_dp_get_max_dp_pix_clock(max_link_rate, lane_num, bpp);
-		if (pix_clock <= max_dp_pix_clock)
-			break;
-	}
-
-	return lane_num;
-}
-
-static int amdgpu_atombios_dp_get_dp_link_clock(struct drm_connector *connector,
-						const u8 dpcd[DP_DPCD_SIZE],
-						int pix_clock)
-{
-	int bpp = amdgpu_atombios_dp_convert_bpc_to_bpp(amdgpu_connector_get_monitor_bpc(connector));
-	int lane_num, max_pix_clock;
+	unsigned bpp =
+		amdgpu_atombios_dp_convert_bpc_to_bpp(amdgpu_connector_get_monitor_bpc(connector));
+	static const unsigned link_rates[3] = { 162000, 270000, 540000 };
+	unsigned max_link_rate = drm_dp_max_link_rate(dpcd);
+	unsigned max_lane_num = drm_dp_max_lane_count(dpcd);
+	unsigned lane_num, i, max_pix_clock;
 
 	if (amdgpu_connector_encoder_get_dp_bridge_encoder_id(connector) ==
-	    ENCODER_OBJECT_ID_NUTMEG)
-		return 270000;
-
-	lane_num = amdgpu_atombios_dp_get_dp_lane_number(connector, dpcd, pix_clock);
-	max_pix_clock = amdgpu_atombios_dp_get_max_dp_pix_clock(162000, lane_num, bpp);
-	if (pix_clock <= max_pix_clock)
-		return 162000;
-	max_pix_clock = amdgpu_atombios_dp_get_max_dp_pix_clock(270000, lane_num, bpp);
-	if (pix_clock <= max_pix_clock)
-		return 270000;
-	if (amdgpu_connector_is_dp12_capable(connector)) {
-		max_pix_clock = amdgpu_atombios_dp_get_max_dp_pix_clock(540000, lane_num, bpp);
-		if (pix_clock <= max_pix_clock)
-			return 540000;
+	    ENCODER_OBJECT_ID_NUTMEG) {
+		for (lane_num = 1; lane_num <= max_lane_num; lane_num <<= 1) {
+			max_pix_clock = (lane_num * 270000 * 8) / bpp;
+			if (max_pix_clock >= pix_clock) {
+				*dp_lanes = lane_num;
+				*dp_rate = 270000;
+				return 0;
+			}
+		}
+	} else {
+		for (lane_num = 1; lane_num <= max_lane_num; lane_num <<= 1) {
+			for (i = 0; i < ARRAY_SIZE(link_rates) && link_rates[i] <= max_link_rate; i++) {
+				max_pix_clock = (lane_num * link_rates[i] * 8) / bpp;
+				if (max_pix_clock >= pix_clock) {
+					*dp_lanes = lane_num;
+					*dp_rate = link_rates[i];
+					return 0;
+				}
+			}
+		}
 	}
 
-	return drm_dp_max_link_rate(dpcd);
+	return -EINVAL;
 }
 
 static u8 amdgpu_atombios_dp_encoder_service(struct amdgpu_device *adev,
@@ -422,6 +402,7 @@ void amdgpu_atombios_dp_set_link_config(struct drm_connector *connector,
 {
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 	struct amdgpu_connector_atom_dig *dig_connector;
+	int ret;
 
 	if (!amdgpu_connector->con_priv)
 		return;
@@ -429,10 +410,14 @@ void amdgpu_atombios_dp_set_link_config(struct drm_connector *connector,
 
 	if ((dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
 	    (dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP)) {
-		dig_connector->dp_clock =
-			amdgpu_atombios_dp_get_dp_link_clock(connector, dig_connector->dpcd, mode->clock);
-		dig_connector->dp_lane_count =
-			amdgpu_atombios_dp_get_dp_lane_number(connector, dig_connector->dpcd, mode->clock);
+		ret = amdgpu_atombios_dp_get_dp_link_config(connector, dig_connector->dpcd,
+							    mode->clock,
+							    &dig_connector->dp_lane_count,
+							    &dig_connector->dp_clock);
+		if (ret) {
+			dig_connector->dp_clock = 0;
+			dig_connector->dp_lane_count = 0;
+		}
 	}
 }
 
@@ -441,14 +426,17 @@ int amdgpu_atombios_dp_mode_valid_helper(struct drm_connector *connector,
 {
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 	struct amdgpu_connector_atom_dig *dig_connector;
-	int dp_clock;
+	unsigned dp_lanes, dp_clock;
+	int ret;
 
 	if (!amdgpu_connector->con_priv)
 		return MODE_CLOCK_HIGH;
 	dig_connector = amdgpu_connector->con_priv;
 
-	dp_clock =
-		amdgpu_atombios_dp_get_dp_link_clock(connector, dig_connector->dpcd, mode->clock);
+	ret = amdgpu_atombios_dp_get_dp_link_config(connector, dig_connector->dpcd,
+						    mode->clock, &dp_lanes, &dp_clock);
+	if (ret)
+		return MODE_CLOCK_HIGH;
 
 	if ((dp_clock == 540000) &&
 	    (!amdgpu_connector_is_dp12_capable(connector)))

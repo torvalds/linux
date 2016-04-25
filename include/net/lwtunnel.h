@@ -18,7 +18,7 @@ struct lwtunnel_state {
 	__u16		type;
 	__u16		flags;
 	atomic_t	refcnt;
-	int		(*orig_output)(struct sock *sk, struct sk_buff *skb);
+	int		(*orig_output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int		(*orig_input)(struct sk_buff *);
 	int             len;
 	__u8            data[0];
@@ -28,7 +28,7 @@ struct lwtunnel_encap_ops {
 	int (*build_state)(struct net_device *dev, struct nlattr *encap,
 			   unsigned int family, const void *cfg,
 			   struct lwtunnel_state **ts);
-	int (*output)(struct sock *sk, struct sk_buff *skb);
+	int (*output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int (*input)(struct sk_buff *skb);
 	int (*fill_encap)(struct sk_buff *skb,
 			  struct lwtunnel_state *lwtstate);
@@ -88,7 +88,7 @@ int lwtunnel_fill_encap(struct sk_buff *skb,
 int lwtunnel_get_encap_size(struct lwtunnel_state *lwtstate);
 struct lwtunnel_state *lwtunnel_state_alloc(int hdr_len);
 int lwtunnel_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b);
-int lwtunnel_output(struct sock *sk, struct sk_buff *skb);
+int lwtunnel_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int lwtunnel_input(struct sk_buff *skb);
 
 #else
@@ -160,7 +160,7 @@ static inline int lwtunnel_cmp_encap(struct lwtunnel_state *a,
 	return 0;
 }
 
-static inline int lwtunnel_output(struct sock *sk, struct sk_buff *skb)
+static inline int lwtunnel_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	return -EOPNOTSUPP;
 }
@@ -170,6 +170,8 @@ static inline int lwtunnel_input(struct sk_buff *skb)
 	return -EOPNOTSUPP;
 }
 
-#endif
+#endif /* CONFIG_LWTUNNEL */
+
+#define MODULE_ALIAS_RTNL_LWT(encap_type) MODULE_ALIAS("rtnl-lwt-" __stringify(encap_type))
 
 #endif /* __NET_LWTUNNEL_H */

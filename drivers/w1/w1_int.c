@@ -91,8 +91,7 @@ static struct w1_master *w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	err = device_register(&dev->dev);
 	if (err) {
 		pr_err("Failed to register master device. err=%d\n", err);
-		memset(dev, 0, sizeof(struct w1_master));
-		kfree(dev);
+		put_device(&dev->dev);
 		dev = NULL;
 	}
 

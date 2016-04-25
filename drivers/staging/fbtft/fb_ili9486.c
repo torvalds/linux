@@ -12,15 +12,12 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 
@@ -28,16 +25,14 @@
 #define WIDTH		320
 #define HEIGHT		480
 
-
 /* this init sequence matches PiScreen */
 static int default_init_sequence[] = {
 	/* Interface Mode Control */
 	-1, 0xb0, 0x0,
-	/* Sleep OUT */
-	-1, 0x11,
+	-1, MIPI_DCS_EXIT_SLEEP_MODE,
 	-2, 250,
 	/* Interface Pixel Format */
-	-1, 0x3A, 0x55,
+	-1, MIPI_DCS_SET_PIXEL_FORMAT, 0x55,
 	/* Power Control 3 */
 	-1, 0xC2, 0x44,
 	/* VCOM Control 1 */
@@ -51,45 +46,41 @@ static int default_init_sequence[] = {
 	/* Digital Gamma Control 1 */
 	-1, 0xE2, 0x0F, 0x32, 0x2E, 0x0B, 0x0D, 0x05, 0x47, 0x75,
 		  0x37, 0x06, 0x10, 0x03, 0x24, 0x20, 0x00,
-	/* Sleep OUT */
-	-1, 0x11,
-	/* Display ON */
-	-1, 0x29,
+	-1, MIPI_DCS_EXIT_SLEEP_MODE,
+	-1, MIPI_DCS_SET_DISPLAY_ON,
 	/* end marker */
 	-3
 };
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
+	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
+		  xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
 
-	/* Column address */
-	write_reg(par, 0x2A, xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
+	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
+		  ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
 
-	/* Row address */
-	write_reg(par, 0x2B, ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
-
-	/* Memory write */
-	write_reg(par, 0x2C);
+	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 }
 
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0x36, 0x80 | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  0x80 | (par->bgr << 3));
 		break;
 	case 90:
-		write_reg(par, 0x36, 0x20 | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  0x20 | (par->bgr << 3));
 		break;
 	case 180:
-		write_reg(par, 0x36, 0x40 | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  0x40 | (par->bgr << 3));
 		break;
 	case 270:
-		write_reg(par, 0x36, 0xE0 | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  0xE0 | (par->bgr << 3));
 		break;
 	default:
 		break;
@@ -97,7 +88,6 @@ static int set_var(struct fbtft_par *par)
 
 	return 0;
 }
-
 
 static struct fbtft_display display = {
 	.regwidth = 8,
@@ -109,6 +99,7 @@ static struct fbtft_display display = {
 		.set_var = set_var,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "ilitek,ili9486", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

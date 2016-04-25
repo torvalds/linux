@@ -19,7 +19,7 @@
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/list.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include "ion_priv.h"
@@ -149,8 +149,8 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 
 struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order)
 {
-	struct ion_page_pool *pool = kmalloc(sizeof(struct ion_page_pool),
-					     GFP_KERNEL);
+	struct ion_page_pool *pool = kmalloc(sizeof(*pool), GFP_KERNEL);
+
 	if (!pool)
 		return NULL;
 	pool->high_count = 0;
@@ -174,10 +174,4 @@ static int __init ion_page_pool_init(void)
 {
 	return 0;
 }
-
-static void __exit ion_page_pool_exit(void)
-{
-}
-
-module_init(ion_page_pool_init);
-module_exit(ion_page_pool_exit);
+device_initcall(ion_page_pool_init);

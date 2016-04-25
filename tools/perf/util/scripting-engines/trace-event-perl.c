@@ -187,6 +187,9 @@ static void define_event_symbols(struct event_format *event,
 				 const char *ev_name,
 				 struct print_arg *args)
 {
+	if (args == NULL)
+		return;
+
 	switch (args->type) {
 	case PRINT_NULL:
 		break;
@@ -221,6 +224,7 @@ static void define_event_symbols(struct event_format *event,
 		break;
 	case PRINT_BSTRING:
 	case PRINT_DYNAMIC_ARRAY:
+	case PRINT_DYNAMIC_ARRAY_LEN:
 	case PRINT_STRING:
 	case PRINT_BITMASK:
 		break;

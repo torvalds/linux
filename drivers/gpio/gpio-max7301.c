@@ -87,7 +87,6 @@ MODULE_DEVICE_TABLE(spi, max7301_id);
 static struct spi_driver max7301_driver = {
 	.driver = {
 		.name = "max7301",
-		.owner = THIS_MODULE,
 	},
 	.probe = max7301_probe,
 	.remove = max7301_remove,

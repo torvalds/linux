@@ -244,11 +244,8 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 		return -EFAULT;
 	}
 
-	if (!iommu_present(&pci_bus_type)) {
-		dev_err(&pdev->dev,
-			"IOMMU must be enabled for SR-IOV to work\n");
-		return -EINVAL;
-	}
+	if (!iommu_present(&pci_bus_type))
+		dev_warn(&pdev->dev, "IOMMU should be enabled for SR-IOV to work correctly\n");
 
 	if (accel_dev->pf.vf_info) {
 		dev_info(&pdev->dev, "Already enabled for this device\n");

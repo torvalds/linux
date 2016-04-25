@@ -14,6 +14,7 @@
  */
 
 #include "skeleton.dtsi"
+#include "exynos-syscon-restart.dtsi"
 #include <dt-bindings/clock/exynos5410.h>
 
 / {
@@ -21,6 +22,10 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		pinctrl0 = &pinctrl_0;
+		pinctrl1 = &pinctrl_1;
+		pinctrl2 = &pinctrl_2;
+		pinctrl3 = &pinctrl_3;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -95,6 +100,17 @@
 		chipid@10000000 {
 			compatible = "samsung,exynos4210-chipid";
 			reg = <0x10000000 0x100>;
+		};
+
+		sromc: sromc@12250000 {
+			compatible = "samsung,exynos-srom";
+			reg = <0x12250000 0x14>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <0 0 0x04000000 0x20000
+				  1 0 0x05000000 0x20000
+				  2 0 0x06000000 0x20000
+				  3 0 0x07000000 0x20000>;
 		};
 
 		pmu_system_controller: system-controller@10040000 {
@@ -191,6 +207,36 @@
 			status = "disabled";
 		};
 
+		pinctrl_0: pinctrl@13400000 {
+			compatible = "samsung,exynos5410-pinctrl";
+			reg = <0x13400000 0x1000>;
+			interrupts = <0 45 0>;
+
+			wakeup-interrupt-controller {
+				compatible = "samsung,exynos4210-wakeup-eint";
+				interrupt-parent = <&gic>;
+				interrupts = <0 32 0>;
+			};
+		};
+
+		pinctrl_1: pinctrl@14000000 {
+			compatible = "samsung,exynos5410-pinctrl";
+			reg = <0x14000000 0x1000>;
+			interrupts = <0 46 0>;
+		};
+
+		pinctrl_2: pinctrl@10d10000 {
+			compatible = "samsung,exynos5410-pinctrl";
+			reg = <0x10d10000 0x1000>;
+			interrupts = <0 50 0>;
+		};
+
+		pinctrl_3: pinctrl@03860000 {
+			compatible = "samsung,exynos5410-pinctrl";
+			reg = <0x03860000 0x1000>;
+			interrupts = <0 47 0>;
+		};
+
 		uart0: serial@12C00000 {
 			compatible = "samsung,exynos4210-uart";
 			reg = <0x12C00000 0x100>;
@@ -219,3 +265,5 @@
 		};
 	};
 };
+
+#include "exynos5410-pinctrl.dtsi"

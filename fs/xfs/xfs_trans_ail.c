@@ -349,7 +349,7 @@ xfsaild_push(
 	     xfs_ail_min_lsn(ailp))) {
 		ailp->xa_log_flush = 0;
 
-		XFS_STATS_INC(xs_push_ail_flush);
+		XFS_STATS_INC(mp, xs_push_ail_flush);
 		xfs_log_force(mp, XFS_LOG_SYNC);
 	}
 
@@ -371,7 +371,7 @@ xfsaild_push(
 		goto out_done;
 	}
 
-	XFS_STATS_INC(xs_push_ail);
+	XFS_STATS_INC(mp, xs_push_ail);
 
 	lsn = lip->li_lsn;
 	while ((XFS_LSN_CMP(lip->li_lsn, target) <= 0)) {
@@ -385,7 +385,7 @@ xfsaild_push(
 		lock_result = lip->li_ops->iop_push(lip, &ailp->xa_buf_list);
 		switch (lock_result) {
 		case XFS_ITEM_SUCCESS:
-			XFS_STATS_INC(xs_push_ail_success);
+			XFS_STATS_INC(mp, xs_push_ail_success);
 			trace_xfs_ail_push(lip);
 
 			ailp->xa_last_pushed_lsn = lsn;
@@ -403,7 +403,7 @@ xfsaild_push(
 			 * re-try the flushing relatively soon if most of the
 			 * AIL is beeing flushed.
 			 */
-			XFS_STATS_INC(xs_push_ail_flushing);
+			XFS_STATS_INC(mp, xs_push_ail_flushing);
 			trace_xfs_ail_flushing(lip);
 
 			flushing++;
@@ -411,14 +411,14 @@ xfsaild_push(
 			break;
 
 		case XFS_ITEM_PINNED:
-			XFS_STATS_INC(xs_push_ail_pinned);
+			XFS_STATS_INC(mp, xs_push_ail_pinned);
 			trace_xfs_ail_pinned(lip);
 
 			stuck++;
 			ailp->xa_log_flush++;
 			break;
 		case XFS_ITEM_LOCKED:
-			XFS_STATS_INC(xs_push_ail_locked);
+			XFS_STATS_INC(mp, xs_push_ail_locked);
 			trace_xfs_ail_locked(lip);
 
 			stuck++;
@@ -497,6 +497,7 @@ xfsaild(
 	long		tout = 0;	/* milliseconds */
 
 	current->flags |= PF_MEMALLOC;
+	set_freezable();
 
 	while (!kthread_should_stop()) {
 		if (tout && tout <= 20)
@@ -519,14 +520,14 @@ xfsaild(
 		if (!xfs_ail_min(ailp) &&
 		    ailp->xa_target == ailp->xa_target_prev) {
 			spin_unlock(&ailp->xa_lock);
-			schedule();
+			freezable_schedule();
 			tout = 0;
 			continue;
 		}
 		spin_unlock(&ailp->xa_lock);
 
 		if (tout)
-			schedule_timeout(msecs_to_jiffies(tout));
+			freezable_schedule_timeout(msecs_to_jiffies(tout));
 
 		__set_current_state(TASK_RUNNING);
 

@@ -50,7 +50,7 @@ osq_wait_next(struct optimistic_spin_queue *lock,
 
 	for (;;) {
 		if (atomic_read(&lock->tail) == curr &&
-		    atomic_cmpxchg(&lock->tail, curr, old) == curr) {
+		    atomic_cmpxchg_acquire(&lock->tail, curr, old) == curr) {
 			/*
 			 * We were the last queued, we moved @lock back. @prev
 			 * will now observe @lock and will complete its
@@ -92,6 +92,12 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 	node->next = NULL;
 	node->cpu = curr;
 
+	/*
+	 * We need both ACQUIRE (pairs with corresponding RELEASE in
+	 * unlock() uncontended, or fastpath) and RELEASE (to publish
+	 * the node fields we just initialised) semantics when updating
+	 * the lock tail.
+	 */
 	old = atomic_xchg(&lock->tail, curr);
 	if (old == OSQ_UNLOCKED_VAL)
 		return true;
@@ -184,7 +190,8 @@ void osq_unlock(struct optimistic_spin_queue *lock)
 	/*
 	 * Fast path for the uncontended case.
 	 */
-	if (likely(atomic_cmpxchg(&lock->tail, curr, OSQ_UNLOCKED_VAL) == curr))
+	if (likely(atomic_cmpxchg_release(&lock->tail, curr,
+					  OSQ_UNLOCKED_VAL) == curr))
 		return;
 
 	/*

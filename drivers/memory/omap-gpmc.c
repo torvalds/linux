@@ -541,9 +541,20 @@ static void gpmc_cs_show_timings(int cs, const char *desc)
 	GPMC_GET_TICKS(GPMC_CS_CONFIG3,  0,  3, "adv-on-ns");
 	GPMC_GET_TICKS(GPMC_CS_CONFIG3,  8, 12, "adv-rd-off-ns");
 	GPMC_GET_TICKS(GPMC_CS_CONFIG3, 16, 20, "adv-wr-off-ns");
+	if (gpmc_capability & GPMC_HAS_MUX_AAD) {
+		GPMC_GET_TICKS(GPMC_CS_CONFIG3, 4, 6, "adv-aad-mux-on-ns");
+		GPMC_GET_TICKS(GPMC_CS_CONFIG3, 24, 26,
+				"adv-aad-mux-rd-off-ns");
+		GPMC_GET_TICKS(GPMC_CS_CONFIG3, 28, 30,
+				"adv-aad-mux-wr-off-ns");
+	}
 
 	GPMC_GET_TICKS(GPMC_CS_CONFIG4,  0,  3, "oe-on-ns");
 	GPMC_GET_TICKS(GPMC_CS_CONFIG4,  8, 12, "oe-off-ns");
+	if (gpmc_capability & GPMC_HAS_MUX_AAD) {
+		GPMC_GET_TICKS(GPMC_CS_CONFIG4,  4,  6, "oe-aad-mux-on-ns");
+		GPMC_GET_TICKS(GPMC_CS_CONFIG4, 13, 15, "oe-aad-mux-off-ns");
+	}
 	GPMC_GET_TICKS(GPMC_CS_CONFIG4, 16, 19, "we-on-ns");
 	GPMC_GET_TICKS(GPMC_CS_CONFIG4, 24, 28, "we-off-ns");
 
@@ -734,9 +745,18 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 	GPMC_SET_ONE(GPMC_CS_CONFIG3,  0,  3, adv_on);
 	GPMC_SET_ONE(GPMC_CS_CONFIG3,  8, 12, adv_rd_off);
 	GPMC_SET_ONE(GPMC_CS_CONFIG3, 16, 20, adv_wr_off);
+	if (gpmc_capability & GPMC_HAS_MUX_AAD) {
+		GPMC_SET_ONE(GPMC_CS_CONFIG3,  4,  6, adv_aad_mux_on);
+		GPMC_SET_ONE(GPMC_CS_CONFIG3, 24, 26, adv_aad_mux_rd_off);
+		GPMC_SET_ONE(GPMC_CS_CONFIG3, 28, 30, adv_aad_mux_wr_off);
+	}
 
 	GPMC_SET_ONE(GPMC_CS_CONFIG4,  0,  3, oe_on);
 	GPMC_SET_ONE(GPMC_CS_CONFIG4,  8, 12, oe_off);
+	if (gpmc_capability & GPMC_HAS_MUX_AAD) {
+		GPMC_SET_ONE(GPMC_CS_CONFIG4,  4,  6, oe_aad_mux_on);
+		GPMC_SET_ONE(GPMC_CS_CONFIG4, 13, 15, oe_aad_mux_off);
+	}
 	GPMC_SET_ONE(GPMC_CS_CONFIG4, 16, 19, we_on);
 	GPMC_SET_ONE(GPMC_CS_CONFIG4, 24, 28, we_off);
 
@@ -1722,6 +1742,12 @@ static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
 	of_property_read_u32(np, "gpmc,adv-on-ns", &gpmc_t->adv_on);
 	of_property_read_u32(np, "gpmc,adv-rd-off-ns", &gpmc_t->adv_rd_off);
 	of_property_read_u32(np, "gpmc,adv-wr-off-ns", &gpmc_t->adv_wr_off);
+	of_property_read_u32(np, "gpmc,adv-aad-mux-on-ns",
+			     &gpmc_t->adv_aad_mux_on);
+	of_property_read_u32(np, "gpmc,adv-aad-mux-rd-off-ns",
+			     &gpmc_t->adv_aad_mux_rd_off);
+	of_property_read_u32(np, "gpmc,adv-aad-mux-wr-off-ns",
+			     &gpmc_t->adv_aad_mux_wr_off);
 
 	/* WE signal timings */
 	of_property_read_u32(np, "gpmc,we-on-ns", &gpmc_t->we_on);
@@ -1730,6 +1756,10 @@ static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
 	/* OE signal timings */
 	of_property_read_u32(np, "gpmc,oe-on-ns", &gpmc_t->oe_on);
 	of_property_read_u32(np, "gpmc,oe-off-ns", &gpmc_t->oe_off);
+	of_property_read_u32(np, "gpmc,oe-aad-mux-on-ns",
+			     &gpmc_t->oe_aad_mux_on);
+	of_property_read_u32(np, "gpmc,oe-aad-mux-off-ns",
+			     &gpmc_t->oe_aad_mux_off);
 
 	/* access and cycle timings */
 	of_property_read_u32(np, "gpmc,page-burst-access-ns",

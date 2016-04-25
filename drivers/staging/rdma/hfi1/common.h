@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -132,13 +129,14 @@
  * HFI1_CAP_RESERVED_MASK bits.
  */
 #define HFI1_CAP_WRITABLE_MASK   (HFI1_CAP_SDMA_AHG |			\
-				 HFI1_CAP_HDRSUPP |			\
-				 HFI1_CAP_MULTI_PKT_EGR |		\
-				 HFI1_CAP_NODROP_RHQ_FULL |		\
-				 HFI1_CAP_NODROP_EGR_FULL |		\
-				 HFI1_CAP_ALLOW_PERM_JKEY |		\
-				 HFI1_CAP_STATIC_RATE_CTRL |		\
-				 HFI1_CAP_PRINT_UNIMPL)
+				  HFI1_CAP_HDRSUPP |			\
+				  HFI1_CAP_MULTI_PKT_EGR |		\
+				  HFI1_CAP_NODROP_RHQ_FULL |		\
+				  HFI1_CAP_NODROP_EGR_FULL |		\
+				  HFI1_CAP_ALLOW_PERM_JKEY |		\
+				  HFI1_CAP_STATIC_RATE_CTRL |		\
+				  HFI1_CAP_PRINT_UNIMPL |		\
+				  HFI1_CAP_TID_UNMAP)
 /*
  * A set of capability bits that are "global" and are not allowed to be
  * set in the user bitmask.
@@ -147,7 +145,6 @@
 				  HFI1_CAP_USE_SDMA_HEAD |		\
 				  HFI1_CAP_EXTENDED_PSN |		\
 				  HFI1_CAP_PRINT_UNIMPL |		\
-				  HFI1_CAP_QSFP_ENABLED |		\
 				  HFI1_CAP_NO_INTEGRITY |		\
 				  HFI1_CAP_PKEY_CHECK) <<		\
 				 HFI1_CAP_USER_SHIFT)
@@ -163,7 +160,6 @@
 				 HFI1_CAP_SDMA |			\
 				 HFI1_CAP_PRINT_UNIMPL |		\
 				 HFI1_CAP_STATIC_RATE_CTRL |		\
-				 HFI1_CAP_QSFP_ENABLED |		\
 				 HFI1_CAP_PKEY_CHECK |			\
 				 HFI1_CAP_MULTI_PKT_EGR |		\
 				 HFI1_CAP_EXTENDED_PSN |		\
@@ -206,7 +202,7 @@
  * to the driver itself, not the software interfaces it supports.
  */
 #ifndef HFI1_DRIVER_VERSION_BASE
-#define HFI1_DRIVER_VERSION_BASE "0.9-248"
+#define HFI1_DRIVER_VERSION_BASE "0.9-294"
 #endif
 
 /* create the final driver version string */
@@ -342,19 +338,16 @@ struct hfi1_message_header {
 #define FULL_MGMT_P_KEY      0xFFFF
 
 #define DEFAULT_P_KEY LIM_MGMT_P_KEY
-#define HFI1_PERMISSIVE_LID 0xFFFF
 #define HFI1_AETH_CREDIT_SHIFT 24
 #define HFI1_AETH_CREDIT_MASK 0x1F
 #define HFI1_AETH_CREDIT_INVAL 0x1F
 #define HFI1_MSN_MASK 0xFFFFFF
-#define HFI1_QPN_MASK 0xFFFFFF
 #define HFI1_FECN_SHIFT 31
 #define HFI1_FECN_MASK 1
-#define HFI1_FECN_SMASK (1 << HFI1_FECN_SHIFT)
+#define HFI1_FECN_SMASK BIT(HFI1_FECN_SHIFT)
 #define HFI1_BECN_SHIFT 30
 #define HFI1_BECN_MASK 1
-#define HFI1_BECN_SMASK (1 << HFI1_BECN_SHIFT)
-#define HFI1_MULTICAST_LID_BASE 0xC000
+#define HFI1_BECN_SMASK BIT(HFI1_BECN_SHIFT)
 
 static inline __u64 rhf_to_cpu(const __le32 *rbuf)
 {

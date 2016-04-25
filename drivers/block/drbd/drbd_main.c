@@ -117,6 +117,7 @@ module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0
  */
 struct idr drbd_devices;
 struct list_head drbd_resources;
+struct mutex resources_mutex;
 
 struct kmem_cache *drbd_request_cache;
 struct kmem_cache *drbd_ee_cache;	/* peer requests */
@@ -1339,7 +1340,7 @@ void drbd_send_ack_dp(struct drbd_peer_device *peer_device, enum drbd_packet cmd
 		      struct p_data *dp, int data_size)
 {
 	if (peer_device->connection->peer_integrity_tfm)
-		data_size -= crypto_hash_digestsize(peer_device->connection->peer_integrity_tfm);
+		data_size -= crypto_ahash_digestsize(peer_device->connection->peer_integrity_tfm);
 	_drbd_send_ack(peer_device, cmd, dp->sector, cpu_to_be32(data_size),
 		       dp->block_id);
 }
@@ -1435,8 +1436,8 @@ static int we_should_drop_the_connection(struct drbd_connection *connection, str
 	/* long elapsed = (long)(jiffies - device->last_received); */
 
 	drop_it =   connection->meta.socket == sock
-		|| !connection->asender.task
-		|| get_t_state(&connection->asender) != RUNNING
+		|| !connection->ack_receiver.task
+		|| get_t_state(&connection->ack_receiver) != RUNNING
 		|| connection->cstate < C_WF_REPORT_PARAMS;
 
 	if (drop_it)
@@ -1628,7 +1629,7 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 	sock = &peer_device->connection->data;
 	p = drbd_prepare_command(peer_device, sock);
 	digest_size = peer_device->connection->integrity_tfm ?
-		      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
+		      crypto_ahash_digestsize(peer_device->connection->integrity_tfm) : 0;
 
 	if (!p)
 		return -EIO;
@@ -1717,7 +1718,7 @@ int drbd_send_block(struct drbd_peer_device *peer_device, enum drbd_packet cmd,
 	p = drbd_prepare_command(peer_device, sock);
 
 	digest_size = peer_device->connection->integrity_tfm ?
-		      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
+		      crypto_ahash_digestsize(peer_device->connection->integrity_tfm) : 0;
 
 	if (!p)
 		return -EIO;
@@ -1793,15 +1794,6 @@ int drbd_send(struct drbd_connection *connection, struct socket *sock,
 		drbd_update_congested(connection);
 	}
 	do {
-		/* STRANGE
-		 * tcp_sendmsg does _not_ use its size parameter at all ?
-		 *
-		 * -EAGAIN on timeout, -EINTR on signal.
-		 */
-/* THINK
- * do we need to block DRBD_SIG if sock == &meta.socket ??
- * otherwise wake_asender() might interrupt some send_*Ack !
- */
 		rv = kernel_sendmsg(sock, &msg, &iov, 1, size);
 		if (rv == -EAGAIN) {
 			if (we_should_drop_the_connection(connection, sock))
@@ -2000,7 +1992,7 @@ void drbd_device_cleanup(struct drbd_device *device)
 		drbd_bm_cleanup(device);
 	}
 
-	drbd_free_ldev(device->ldev);
+	drbd_backing_dev_free(device, device->ldev);
 	device->ldev = NULL;
 
 	clear_bit(AL_SUSPENDED, &device->flags);
@@ -2179,7 +2171,7 @@ void drbd_destroy_device(struct kref *kref)
 	if (device->this_bdev)
 		bdput(device->this_bdev);
 
-	drbd_free_ldev(device->ldev);
+	drbd_backing_dev_free(device, device->ldev);
 	device->ldev = NULL;
 
 	drbd_release_all_peer_reqs(device);
@@ -2506,11 +2498,11 @@ void conn_free_crypto(struct drbd_connection *connection)
 {
 	drbd_free_sock(connection);
 
-	crypto_free_hash(connection->csums_tfm);
-	crypto_free_hash(connection->verify_tfm);
-	crypto_free_hash(connection->cram_hmac_tfm);
-	crypto_free_hash(connection->integrity_tfm);
-	crypto_free_hash(connection->peer_integrity_tfm);
+	crypto_free_ahash(connection->csums_tfm);
+	crypto_free_ahash(connection->verify_tfm);
+	crypto_free_shash(connection->cram_hmac_tfm);
+	crypto_free_ahash(connection->integrity_tfm);
+	crypto_free_ahash(connection->peer_integrity_tfm);
 	kfree(connection->int_dig_in);
 	kfree(connection->int_dig_vv);
 
@@ -2563,7 +2555,7 @@ int set_resource_options(struct drbd_resource *resource, struct res_opts *res_op
 		cpumask_copy(resource->cpu_mask, new_cpu_mask);
 		for_each_connection_rcu(connection, resource) {
 			connection->receiver.reset_cpu_mask = 1;
-			connection->asender.reset_cpu_mask = 1;
+			connection->ack_receiver.reset_cpu_mask = 1;
 			connection->worker.reset_cpu_mask = 1;
 		}
 	}
@@ -2590,7 +2582,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
 	kref_init(&resource->kref);
 	idr_init(&resource->devices);
 	INIT_LIST_HEAD(&resource->connections);
-	resource->write_ordering = WO_bdev_flush;
+	resource->write_ordering = WO_BDEV_FLUSH;
 	list_add_tail_rcu(&resource->resources, &drbd_resources);
 	mutex_init(&resource->conf_update);
 	mutex_init(&resource->adm_mutex);
@@ -2652,8 +2644,8 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	connection->receiver.connection = connection;
 	drbd_thread_init(resource, &connection->worker, drbd_worker, "worker");
 	connection->worker.connection = connection;
-	drbd_thread_init(resource, &connection->asender, drbd_asender, "asender");
-	connection->asender.connection = connection;
+	drbd_thread_init(resource, &connection->ack_receiver, drbd_ack_receiver, "ack_recv");
+	connection->ack_receiver.connection = connection;
 
 	kref_init(&connection->kref);
 
@@ -2702,8 +2694,8 @@ static int init_submitter(struct drbd_device *device)
 {
 	/* opencoded create_singlethread_workqueue(),
 	 * to be able to say "drbd%d", ..., minor */
-	device->submit.wq = alloc_workqueue("drbd%u_submit",
-			WQ_UNBOUND | WQ_MEM_RECLAIM, 1, device->minor);
+	device->submit.wq =
+		alloc_ordered_workqueue("drbd%u_submit", WQ_MEM_RECLAIM, device->minor);
 	if (!device->submit.wq)
 		return -ENOMEM;
 
@@ -2820,6 +2812,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 			goto out_idr_remove_from_resource;
 		}
 		kref_get(&connection->kref);
+		INIT_WORK(&peer_device->send_acks_work, drbd_send_acks_wf);
 	}
 
 	if (init_submitter(device)) {
@@ -2923,7 +2916,7 @@ static int __init drbd_init(void)
 	drbd_proc = NULL; /* play safe for drbd_cleanup */
 	idr_init(&drbd_devices);
 
-	rwlock_init(&global_state_lock);
+	mutex_init(&resources_mutex);
 	INIT_LIST_HEAD(&drbd_resources);
 
 	err = drbd_genl_register();
@@ -2969,18 +2962,6 @@ fail:
 	else
 		pr_err("initialization failure\n");
 	return err;
-}
-
-void drbd_free_ldev(struct drbd_backing_dev *ldev)
-{
-	if (ldev == NULL)
-		return;
-
-	blkdev_put(ldev->backing_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
-	blkdev_put(ldev->md_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
-
-	kfree(ldev->disk_conf);
-	kfree(ldev);
 }
 
 static void drbd_free_one_sock(struct drbd_socket *ds)
@@ -3277,6 +3258,10 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
 	 * and read it. */
 	bdev->md.meta_dev_idx = bdev->disk_conf->meta_dev_idx;
 	bdev->md.md_offset = drbd_md_ss(bdev);
+	/* Even for (flexible or indexed) external meta data,
+	 * initially restrict us to the 4k superblock for now.
+	 * Affects the paranoia out-of-range access check in drbd_md_sync_page_io(). */
+	bdev->md.md_size_sect = 8;
 
 	if (drbd_md_sync_page_io(device, bdev, bdev->md.md_offset, READ)) {
 		/* NOTE: can't do normal error processing here as this is
@@ -3578,7 +3563,9 @@ void drbd_queue_bitmap_io(struct drbd_device *device,
 
 	spin_lock_irq(&device->resource->req_lock);
 	set_bit(BITMAP_IO, &device->flags);
-	if (atomic_read(&device->ap_bio_cnt) == 0) {
+	/* don't wait for pending application IO if the caller indicates that
+	 * application IO does not conflict anyways. */
+	if (flags == BM_LOCKED_CHANGE_ALLOWED || atomic_read(&device->ap_bio_cnt) == 0) {
 		if (!test_and_set_bit(BITMAP_IO_QUEUED, &device->flags))
 			drbd_queue_work(&first_peer_device(device)->connection->sender_work,
 					&device->bm_io_work.w);
@@ -3744,6 +3731,27 @@ int drbd_wait_misc(struct drbd_device *device, struct drbd_interval *i)
 	if (signal_pending(current))
 		return -ERESTARTSYS;
 	return 0;
+}
+
+void lock_all_resources(void)
+{
+	struct drbd_resource *resource;
+	int __maybe_unused i = 0;
+
+	mutex_lock(&resources_mutex);
+	local_irq_disable();
+	for_each_resource(resource, &drbd_resources)
+		spin_lock_nested(&resource->req_lock, i++);
+}
+
+void unlock_all_resources(void)
+{
+	struct drbd_resource *resource;
+
+	for_each_resource(resource, &drbd_resources)
+		spin_unlock(&resource->req_lock);
+	local_irq_enable();
+	mutex_unlock(&resources_mutex);
 }
 
 #ifdef CONFIG_DRBD_FAULT_INJECTION

@@ -6,7 +6,7 @@
  *
  * License 1: GPLv2
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  *
  * This file is free software; you may copy, redistribute and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@
  *
  * License 2: Modified BSD
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -209,8 +209,6 @@
 #define XGMAC_IOCTL_CONTEXT	2
 
 #define XGBE_FIFO_MAX		81920
-#define XGBE_FIFO_SIZE_B(x)	(x)
-#define XGBE_FIFO_SIZE_KB(x)	(x * 1024)
 
 #define XGBE_TC_MIN_QUANTUM	10
 
@@ -461,7 +459,6 @@ struct xgbe_channel {
 
 enum xgbe_state {
 	XGBE_DOWN,
-	XGBE_LINK,
 	XGBE_LINK_INIT,
 	XGBE_LINK_ERR,
 };
@@ -481,20 +478,6 @@ enum xgbe_int {
 enum xgbe_int_state {
 	XGMAC_INT_STATE_SAVE,
 	XGMAC_INT_STATE_RESTORE,
-};
-
-enum xgbe_mtl_fifo_size {
-	XGMAC_MTL_FIFO_SIZE_256  = 0x00,
-	XGMAC_MTL_FIFO_SIZE_512  = 0x01,
-	XGMAC_MTL_FIFO_SIZE_1K   = 0x03,
-	XGMAC_MTL_FIFO_SIZE_2K   = 0x07,
-	XGMAC_MTL_FIFO_SIZE_4K   = 0x0f,
-	XGMAC_MTL_FIFO_SIZE_8K   = 0x1f,
-	XGMAC_MTL_FIFO_SIZE_16K  = 0x3f,
-	XGMAC_MTL_FIFO_SIZE_32K  = 0x7f,
-	XGMAC_MTL_FIFO_SIZE_64K  = 0xff,
-	XGMAC_MTL_FIFO_SIZE_128K = 0x1ff,
-	XGMAC_MTL_FIFO_SIZE_256K = 0x3ff,
 };
 
 enum xgbe_speed {
@@ -598,6 +581,7 @@ struct xgbe_mmc_stats {
 struct xgbe_ext_stats {
 	u64 tx_tso_packets;
 	u64 rx_split_header_packets;
+	u64 rx_buffer_unavailable;
 };
 
 struct xgbe_hw_if {
@@ -689,6 +673,7 @@ struct xgbe_hw_if {
 	u64 (*get_tx_tstamp)(struct xgbe_prv_data *);
 
 	/* For Data Center Bridging config */
+	void (*config_tc)(struct xgbe_prv_data *);
 	void (*config_dcb_tc)(struct xgbe_prv_data *);
 	void (*config_dcb_pfc)(struct xgbe_prv_data *);
 
@@ -789,8 +774,8 @@ struct xgbe_prv_data {
 	/* Overall device lock */
 	spinlock_t lock;
 
-	/* XPCS indirect addressing mutex */
-	struct mutex xpcs_mutex;
+	/* XPCS indirect addressing lock */
+	spinlock_t xpcs_lock;
 
 	/* RSS addressing mutex */
 	struct mutex rss_mutex;
@@ -896,6 +881,7 @@ struct xgbe_prv_data {
 	struct ieee_pfc *pfc;
 	unsigned int q2tc_map[XGBE_MAX_QUEUES];
 	unsigned int prio2q_map[IEEE_8021QAZ_MAX_TCS];
+	u8 num_tcs;
 
 	/* Hardware features of the device */
 	struct xgbe_hw_features hw_feat;
@@ -941,6 +927,7 @@ struct xgbe_prv_data {
 	u32 serdes_dfe_tap_ena[XGBE_SPEEDS];
 
 	/* Auto-negotiation state machine support */
+	unsigned int an_int;
 	struct mutex an_mutex;
 	enum xgbe_an an_result;
 	enum xgbe_an an_state;

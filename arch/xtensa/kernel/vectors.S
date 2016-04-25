@@ -478,6 +478,9 @@ _DoubleExceptionVector_handle_exception:
 
 ENDPROC(_DoubleExceptionVector)
 
+	.end literal_prefix
+
+	.text
 /*
  * Fixup handler for TLB miss in double exception handler for window owerflow.
  * We get here with windowbase set to the window that was being spilled and
@@ -587,7 +590,6 @@ ENTRY(window_overflow_restore_a0_fixup)
 
 ENDPROC(window_overflow_restore_a0_fixup)
 
-	.end literal_prefix
 /*
  * Debug interrupt vector
  *
@@ -599,7 +601,9 @@ ENDPROC(window_overflow_restore_a0_fixup)
 
 ENTRY(_DebugInterruptVector)
 
-	xsr	a0, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
+	xsr	a3, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
+	s32i	a0, a3, DT_DEBUG_SAVE
+	l32i	a0, a3, DT_DEBUG_EXCEPTION
 	jx	a0
 
 ENDPROC(_DebugInterruptVector)

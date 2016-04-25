@@ -159,7 +159,8 @@ u32	_rtw_free_sta_priv(struct	sta_priv *pstapriv)
 
 			while (phead != plist) {
 				int i;
-				psta = container_of(plist, struct sta_info , hash_list);
+				psta = container_of(plist, struct sta_info,
+						    hash_list);
 				plist = plist->next;
 
 				for (i = 0; i < 16; i++) {
@@ -171,16 +172,15 @@ u32	_rtw_free_sta_priv(struct	sta_priv *pstapriv)
 		spin_unlock_bh(&pstapriv->sta_hash_lock);
 		/*===============================*/
 
-		if (pstapriv->pallocated_stainfo_buf)
-			vfree(pstapriv->pallocated_stainfo_buf);
+		vfree(pstapriv->pallocated_stainfo_buf);
 	}
 
 	return _SUCCESS;
 }
 
-struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
+struct sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 {
-	s32	index;
+	s32 index;
 	struct list_head *phash_list;
 	struct sta_info	*psta;
 	struct __queue *pfree_sta_queue;
@@ -188,17 +188,15 @@ struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	int i = 0;
 	u16  wRxSeqInitialValue = 0xffff;
 
-
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 
-	spin_lock_bh(&(pfree_sta_queue->lock));
-
-	if (list_empty(&pfree_sta_queue->queue)) {
+	spin_lock_bh(&pfree_sta_queue->lock);
+	psta = list_first_entry_or_null(&pfree_sta_queue->queue,
+					struct sta_info, list);
+	if (!psta) {
 		spin_unlock_bh(&pfree_sta_queue->lock);
-		psta = NULL;
 	} else {
-		psta = container_of((&pfree_sta_queue->queue)->next, struct sta_info, list);
-		list_del_init(&(psta->list));
+		list_del_init(&psta->list);
 		spin_unlock_bh(&pfree_sta_queue->lock);
 		_rtw_init_stainfo(psta);
 		memcpy(psta->hwaddr, hwaddr, ETH_ALEN);
@@ -209,14 +207,11 @@ struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 			psta = NULL;
 			goto exit;
 		}
-		phash_list = &(pstapriv->sta_hash[index]);
+		phash_list = &pstapriv->sta_hash[index];
 
-		spin_lock_bh(&(pstapriv->sta_hash_lock));
-
+		spin_lock_bh(&pstapriv->sta_hash_lock);
 		list_add_tail(&psta->hash_list, phash_list);
-
 		pstapriv->asoc_sta_count++;
-
 		spin_unlock_bh(&pstapriv->sta_hash_lock);
 
 /*  Commented by Albert 2009/08/13 */
@@ -273,7 +268,7 @@ u32	rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 
 
-	if (psta == NULL)
+	if (!psta)
 		goto exit;
 
 	pfree_sta_queue = &pstapriv->free_sta_queue;
@@ -304,7 +299,11 @@ u32	rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 	spin_unlock_bh(&pxmitpriv->lock);
 
 	list_del_init(&psta->hash_list);
-	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_, ("\n free number_%d stainfo  with hwaddr=0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n", pstapriv->asoc_sta_count , psta->hwaddr[0], psta->hwaddr[1], psta->hwaddr[2], psta->hwaddr[3], psta->hwaddr[4], psta->hwaddr[5]));
+	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
+		 ("\n free number_%d stainfo with hwaddr=0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n",
+		 pstapriv->asoc_sta_count, psta->hwaddr[0], psta->hwaddr[1],
+		 psta->hwaddr[2], psta->hwaddr[3], psta->hwaddr[4],
+		 psta->hwaddr[5]));
 	pstapriv->asoc_sta_count--;
 
 	/*  re-init sta_info; 20061114 */
@@ -433,7 +432,7 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 
-	if (hwaddr == NULL)
+	if (!hwaddr)
 		return NULL;
 
 	if (IS_MCAST(hwaddr))
@@ -473,7 +472,7 @@ u32 rtw_init_bcmc_stainfo(struct adapter *padapter)
 
 	psta = rtw_alloc_stainfo(pstapriv, bcast_addr);
 
-	if (psta == NULL) {
+	if (!psta) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_, ("rtw_alloc_stainfo fail"));
 		goto exit;
@@ -488,11 +487,9 @@ exit:
 
 struct sta_info *rtw_get_bcmc_stainfo(struct adapter *padapter)
 {
-	struct sta_info		*psta;
 	struct sta_priv		*pstapriv = &padapter->stapriv;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	 psta = rtw_get_stainfo(pstapriv, bc_addr);
-	return psta;
+	 return rtw_get_stainfo(pstapriv, bc_addr);
 }
 
 u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)

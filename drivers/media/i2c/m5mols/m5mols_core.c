@@ -25,7 +25,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
-#include <media/m5mols.h>
+#include <media/i2c/m5mols.h>
 
 #include "m5mols.h"
 #include "m5mols_reg.h"
@@ -975,10 +975,10 @@ static int m5mols_probe(struct i2c_client *client,
 
 	sd->internal_ops = &m5mols_subdev_internal_ops;
 	info->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, 1, &info->pad, 0);
+	ret = media_entity_pads_init(&sd->entity, 1, &info->pad);
 	if (ret < 0)
 		return ret;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	init_waitqueue_head(&info->irq_waitq);
 	mutex_init(&info->lock);

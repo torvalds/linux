@@ -11,6 +11,7 @@
 
 #include <linux/if.h>
 #include <linux/leds.h>
+#include <linux/netdevice.h>
 
 enum can_led_event {
 	CAN_LED_EVENT_OPEN,

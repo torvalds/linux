@@ -15,14 +15,32 @@ Recommended properties:
 - spi-max-frequency: Definition as per
                      Documentation/devicetree/bindings/spi/spi-bus.txt
 
+Optional properties:
+- syscon-chipselects: Handle to system control region contains QSPI
+		      chipselect register and offset of that register.
+
 Example:
 
+For am4372:
 qspi: qspi@4b300000 {
-	compatible = "ti,dra7xxx-qspi";
-	reg = <0x47900000 0x100>, <0x30000000 0x3ffffff>;
+	compatible = "ti,am4372-qspi";
+	reg = <0x47900000 0x100>, <0x30000000 0x4000000>;
 	reg-names = "qspi_base", "qspi_mmap";
 	#address-cells = <1>;
 	#size-cells = <0>;
 	spi-max-frequency = <25000000>;
+	ti,hwmods = "qspi";
+};
+
+For dra7xx:
+qspi: qspi@4b300000 {
+	compatible = "ti,dra7xxx-qspi";
+	reg = <0x4b300000 0x100>,
+	      <0x5c000000 0x4000000>,
+	reg-names = "qspi_base", "qspi_mmap";
+	syscon-chipselects = <&scm_conf 0x558>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	spi-max-frequency = <48000000>;
 	ti,hwmods = "qspi";
 };

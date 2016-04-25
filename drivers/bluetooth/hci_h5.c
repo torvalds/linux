@@ -51,7 +51,7 @@
 #define H5_HDR_CRC(hdr)		(((hdr)[0] >> 6) & 0x01)
 #define H5_HDR_RELIABLE(hdr)	(((hdr)[0] >> 7) & 0x01)
 #define H5_HDR_PKT_TYPE(hdr)	((hdr)[1] & 0x0f)
-#define H5_HDR_LEN(hdr)		((((hdr)[1] >> 4) & 0xff) + ((hdr)[2] << 4))
+#define H5_HDR_LEN(hdr)		((((hdr)[1] >> 4) & 0x0f) + ((hdr)[2] << 4))
 
 #define SLIP_DELIMITER	0xc0
 #define SLIP_ESC	0xdb
@@ -107,7 +107,7 @@ static void h5_link_control(struct hci_uart *hu, const void *data, size_t len)
 	if (!nskb)
 		return;
 
-	bt_cb(nskb)->pkt_type = HCI_3WIRE_LINK_PKT;
+	hci_skb_pkt_type(nskb) = HCI_3WIRE_LINK_PKT;
 
 	memcpy(skb_put(nskb, len), data, len);
 
@@ -116,19 +116,15 @@ static void h5_link_control(struct hci_uart *hu, const void *data, size_t len)
 
 static u8 h5_cfg_field(struct h5 *h5)
 {
-	u8 field = 0;
-
 	/* Sliding window size (first 3 bits) */
-	field |= (h5->tx_win & 7);
-
-	return field;
+	return h5->tx_win & 0x07;
 }
 
 static void h5_timed_event(unsigned long arg)
 {
 	const unsigned char sync_req[] = { 0x01, 0x7e };
-	unsigned char conf_req[] = { 0x03, 0xfc, 0x01 };
-	struct hci_uart *hu = (struct hci_uart *) arg;
+	unsigned char conf_req[3] = { 0x03, 0xfc };
+	struct hci_uart *hu = (struct hci_uart *)arg;
 	struct h5 *h5 = hu->priv;
 	struct sk_buff *skb;
 	unsigned long flags;
@@ -210,7 +206,7 @@ static int h5_open(struct hci_uart *hu)
 
 	init_timer(&h5->timer);
 	h5->timer.function = h5_timed_event;
-	h5->timer.data = (unsigned long) hu;
+	h5->timer.data = (unsigned long)hu;
 
 	h5->tx_win = H5_TX_WIN_MAX;
 
@@ -285,7 +281,7 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 	struct h5 *h5 = hu->priv;
 	const unsigned char sync_req[] = { 0x01, 0x7e };
 	const unsigned char sync_rsp[] = { 0x02, 0x7d };
-	unsigned char conf_req[] = { 0x03, 0xfc, 0x01 };
+	unsigned char conf_req[3] = { 0x03, 0xfc };
 	const unsigned char conf_rsp[] = { 0x04, 0x7b };
 	const unsigned char wakeup_req[] = { 0x05, 0xfa };
 	const unsigned char woken_req[] = { 0x06, 0xf9 };
@@ -317,7 +313,7 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 		h5_link_control(hu, conf_req, 3);
 	} else if (memcmp(data, conf_rsp, 2) == 0) {
 		if (H5_HDR_LEN(hdr) > 2)
-			h5->tx_win = (data[2] & 7);
+			h5->tx_win = (data[2] & 0x07);
 		BT_DBG("Three-wire init complete. tx_win %u", h5->tx_win);
 		h5->state = H5_ACTIVE;
 		hci_uart_init_ready(hu);
@@ -360,7 +356,7 @@ static void h5_complete_rx_pkt(struct hci_uart *hu)
 	case HCI_EVENT_PKT:
 	case HCI_ACLDATA_PKT:
 	case HCI_SCODATA_PKT:
-		bt_cb(h5->rx_skb)->pkt_type = H5_HDR_PKT_TYPE(hdr);
+		hci_skb_pkt_type(h5->rx_skb) = H5_HDR_PKT_TYPE(hdr);
 
 		/* Remove Three-wire header */
 		skb_pull(h5->rx_skb, 4);
@@ -453,7 +449,7 @@ static int h5_rx_pkt_start(struct hci_uart *hu, unsigned char c)
 		return -ENOMEM;
 	}
 
-	h5->rx_skb->dev = (void *) hu->hdev;
+	h5->rx_skb->dev = (void *)hu->hdev;
 
 	return 0;
 }
@@ -562,7 +558,7 @@ static int h5_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		return 0;
 	}
 
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_ACLDATA_PKT:
 	case HCI_COMMAND_PKT:
 		skb_queue_tail(&h5->rel, skb);
@@ -573,7 +569,7 @@ static int h5_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		break;
 
 	default:
-		BT_ERR("Unknown packet type %u", bt_cb(skb)->pkt_type);
+		BT_ERR("Unknown packet type %u", hci_skb_pkt_type(skb));
 		kfree_skb(skb);
 		break;
 	}
@@ -642,7 +638,7 @@ static struct sk_buff *h5_prepare_pkt(struct hci_uart *hu, u8 pkt_type,
 	if (!nskb)
 		return NULL;
 
-	bt_cb(nskb)->pkt_type = pkt_type;
+	hci_skb_pkt_type(nskb) = pkt_type;
 
 	h5_slip_delim(nskb);
 
@@ -696,8 +692,8 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 	}
 
 	skb = skb_dequeue(&h5->unrel);
-	if (skb != NULL) {
-		nskb = h5_prepare_pkt(hu, bt_cb(skb)->pkt_type,
+	if (skb) {
+		nskb = h5_prepare_pkt(hu, hci_skb_pkt_type(skb),
 				      skb->data, skb->len);
 		if (nskb) {
 			kfree_skb(skb);
@@ -714,8 +710,8 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 		goto unlock;
 
 	skb = skb_dequeue(&h5->rel);
-	if (skb != NULL) {
-		nskb = h5_prepare_pkt(hu, bt_cb(skb)->pkt_type,
+	if (skb) {
+		nskb = h5_prepare_pkt(hu, hci_skb_pkt_type(skb),
 				      skb->data, skb->len);
 		if (nskb) {
 			__skb_queue_tail(&h5->unack, skb);

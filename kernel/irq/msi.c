@@ -109,9 +109,11 @@ static int msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	if (irq_find_mapping(domain, hwirq) > 0)
 		return -EEXIST;
 
-	ret = irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, arg);
-	if (ret < 0)
-		return ret;
+	if (domain->parent) {
+		ret = irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, arg);
+		if (ret < 0)
+			return ret;
+	}
 
 	for (i = 0; i < nr_irqs; i++) {
 		ret = ops->msi_init(domain, info, virq + i, hwirq + i, arg);
@@ -235,11 +237,11 @@ static void msi_domain_update_chip_ops(struct msi_domain_info *info)
 
 /**
  * msi_create_irq_domain - Create a MSI interrupt domain
- * @of_node:	Optional device-tree node of the interrupt controller
+ * @fwnode:	Optional fwnode of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  */
-struct irq_domain *msi_create_irq_domain(struct device_node *node,
+struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 					 struct msi_domain_info *info,
 					 struct irq_domain *parent)
 {
@@ -248,8 +250,62 @@ struct irq_domain *msi_create_irq_domain(struct device_node *node,
 	if (info->flags & MSI_FLAG_USE_DEF_CHIP_OPS)
 		msi_domain_update_chip_ops(info);
 
-	return irq_domain_add_hierarchy(parent, 0, 0, node, &msi_domain_ops,
-					info);
+	return irq_domain_create_hierarchy(parent, 0, 0, fwnode,
+					   &msi_domain_ops, info);
+}
+
+int msi_domain_prepare_irqs(struct irq_domain *domain, struct device *dev,
+			    int nvec, msi_alloc_info_t *arg)
+{
+	struct msi_domain_info *info = domain->host_data;
+	struct msi_domain_ops *ops = info->ops;
+	int ret;
+
+	ret = ops->msi_check(domain, info, dev);
+	if (ret == 0)
+		ret = ops->msi_prepare(domain, dev, nvec, arg);
+
+	return ret;
+}
+
+int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
+			     int virq, int nvec, msi_alloc_info_t *arg)
+{
+	struct msi_domain_info *info = domain->host_data;
+	struct msi_domain_ops *ops = info->ops;
+	struct msi_desc *desc;
+	int ret = 0;
+
+	for_each_msi_entry(desc, dev) {
+		/* Don't even try the multi-MSI brain damage. */
+		if (WARN_ON(!desc->irq || desc->nvec_used != 1)) {
+			ret = -EINVAL;
+			break;
+		}
+
+		if (!(desc->irq >= virq && desc->irq < (virq + nvec)))
+			continue;
+
+		ops->set_desc(arg, desc);
+		/* Assumes the domain mutex is held! */
+		ret = irq_domain_alloc_irqs_recursive(domain, virq, 1, arg);
+		if (ret)
+			break;
+
+		irq_set_msi_desc_off(virq, 0, desc);
+	}
+
+	if (ret) {
+		/* Mop up the damage */
+		for_each_msi_entry(desc, dev) {
+			if (!(desc->irq >= virq && desc->irq < (virq + nvec)))
+				continue;
+
+			irq_domain_free_irqs_common(domain, desc->irq, 1);
+		}
+	}
+
+	return ret;
 }
 
 /**
@@ -270,9 +326,7 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 	struct msi_desc *desc;
 	int i, ret, virq = -1;
 
-	ret = ops->msi_check(domain, info, dev);
-	if (ret == 0)
-		ret = ops->msi_prepare(domain, dev, nvec, &arg);
+	ret = msi_domain_prepare_irqs(domain, dev, nvec, &arg);
 	if (ret)
 		return ret;
 

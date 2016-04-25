@@ -11,11 +11,14 @@
 #ifndef __LINUX_MFD_AXP20X_H
 #define __LINUX_MFD_AXP20X_H
 
+#include <linux/regmap.h>
+
 enum {
 	AXP152_ID = 0,
 	AXP202_ID,
 	AXP209_ID,
 	AXP221_ID,
+	AXP223_ID,
 	AXP288_ID,
 	NR_AXP20X_VARIANTS,
 };
@@ -394,7 +397,7 @@ enum axp288_irqs {
 
 struct axp20x_dev {
 	struct device			*dev;
-	struct i2c_client		*i2c_client;
+	int				irq;
 	struct regmap			*regmap;
 	struct regmap_irq_chip_data	*regmap_irqc;
 	long				variant;
@@ -437,5 +440,58 @@ struct axp288_extcon_pdata {
 	/* GPIO pin control to switch D+/D- lines b/w PMIC and SOC */
 	struct gpio_desc *gpio_mux_cntl;
 };
+
+/* generic helper function for reading 9-16 bit wide regs */
+static inline int axp20x_read_variable_width(struct regmap *regmap,
+	unsigned int reg, unsigned int width)
+{
+	unsigned int reg_val, result;
+	int err;
+
+	err = regmap_read(regmap, reg, &reg_val);
+	if (err)
+		return err;
+
+	result = reg_val << (width - 8);
+
+	err = regmap_read(regmap, reg + 1, &reg_val);
+	if (err)
+		return err;
+
+	result |= reg_val;
+
+	return result;
+}
+
+/**
+ * axp20x_match_device(): Setup axp20x variant related fields
+ *
+ * @axp20x: axp20x device to setup (.dev field must be set)
+ * @dev: device associated with this axp20x device
+ *
+ * This lets the axp20x core configure the mfd cells and register maps
+ * for later use.
+ */
+int axp20x_match_device(struct axp20x_dev *axp20x);
+
+/**
+ * axp20x_device_probe(): Probe a configured axp20x device
+ *
+ * @axp20x: axp20x device to probe (must be configured)
+ *
+ * This function lets the axp20x core register the axp20x mfd devices
+ * and irqchip. The axp20x device passed in must be fully configured
+ * with axp20x_match_device, its irq set, and regmap created.
+ */
+int axp20x_device_probe(struct axp20x_dev *axp20x);
+
+/**
+ * axp20x_device_probe(): Remove a axp20x device
+ *
+ * @axp20x: axp20x device to remove
+ *
+ * This tells the axp20x core to remove the associated mfd devices
+ */
+int axp20x_device_remove(struct axp20x_dev *axp20x);
 
 #endif /* __LINUX_MFD_AXP20X_H */

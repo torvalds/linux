@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,7 +92,7 @@
 #define ARGP_BYTELIST_OP                ARGP_LIST1 (ARGP_NAMESTRING)
 #define ARGP_CONCAT_OP                  ARGP_LIST3 (ARGP_TERMARG,    ARGP_TERMARG,       ARGP_TARGET)
 #define ARGP_CONCAT_RES_OP              ARGP_LIST3 (ARGP_TERMARG,    ARGP_TERMARG,       ARGP_TARGET)
-#define ARGP_COND_REF_OF_OP             ARGP_LIST2 (ARGP_SUPERNAME,  ARGP_SUPERNAME)
+#define ARGP_COND_REF_OF_OP             ARGP_LIST2 (ARGP_NAME_OR_REF,ARGP_TARGET)
 #define ARGP_CONNECTFIELD_OP            ARGP_LIST1 (ARGP_NAMESTRING)
 #define ARGP_CONTINUE_OP                ARG_NONE
 #define ARGP_COPY_OP                    ARGP_LIST2 (ARGP_TERMARG,    ARGP_SIMPLENAME)
@@ -152,13 +152,14 @@
 #define ARGP_NAMEPATH_OP                ARGP_LIST1 (ARGP_NAMESTRING)
 #define ARGP_NOOP_OP                    ARG_NONE
 #define ARGP_NOTIFY_OP                  ARGP_LIST2 (ARGP_SUPERNAME,  ARGP_TERMARG)
+#define ARGP_OBJECT_TYPE_OP             ARGP_LIST1 (ARGP_NAME_OR_REF)
 #define ARGP_ONE_OP                     ARG_NONE
 #define ARGP_ONES_OP                    ARG_NONE
 #define ARGP_PACKAGE_OP                 ARGP_LIST3 (ARGP_PKGLENGTH,  ARGP_BYTEDATA,      ARGP_DATAOBJLIST)
 #define ARGP_POWER_RES_OP               ARGP_LIST5 (ARGP_PKGLENGTH,  ARGP_NAME,          ARGP_BYTEDATA,  ARGP_WORDDATA,  ARGP_OBJLIST)
 #define ARGP_PROCESSOR_OP               ARGP_LIST6 (ARGP_PKGLENGTH,  ARGP_NAME,          ARGP_BYTEDATA,  ARGP_DWORDDATA, ARGP_BYTEDATA,  ARGP_OBJLIST)
 #define ARGP_QWORD_OP                   ARGP_LIST1 (ARGP_QWORDDATA)
-#define ARGP_REF_OF_OP                  ARGP_LIST1 (ARGP_SUPERNAME)
+#define ARGP_REF_OF_OP                  ARGP_LIST1 (ARGP_NAME_OR_REF)
 #define ARGP_REGION_OP                  ARGP_LIST4 (ARGP_NAME,       ARGP_BYTEDATA,      ARGP_TERMARG,   ARGP_TERMARG)
 #define ARGP_RELEASE_OP                 ARGP_LIST1 (ARGP_SUPERNAME)
 #define ARGP_RESERVEDFIELD_OP           ARGP_LIST1 (ARGP_NAMESTRING)
@@ -185,7 +186,6 @@
 #define ARGP_TO_HEX_STR_OP              ARGP_LIST2 (ARGP_TERMARG,    ARGP_TARGET)
 #define ARGP_TO_INTEGER_OP              ARGP_LIST2 (ARGP_TERMARG,    ARGP_TARGET)
 #define ARGP_TO_STRING_OP               ARGP_LIST3 (ARGP_TERMARG,    ARGP_TERMARG,       ARGP_TARGET)
-#define ARGP_TYPE_OP                    ARGP_LIST1 (ARGP_SUPERNAME)
 #define ARGP_UNLOAD_OP                  ARGP_LIST1 (ARGP_SUPERNAME)
 #define ARGP_VAR_PACKAGE_OP             ARGP_LIST3 (ARGP_PKGLENGTH,  ARGP_TERMARG,       ARGP_DATAOBJLIST)
 #define ARGP_WAIT_OP                    ARGP_LIST2 (ARGP_SUPERNAME,  ARGP_TERMARG)
@@ -211,7 +211,7 @@
 #define ARGI_ARG4                       ARG_NONE
 #define ARGI_ARG5                       ARG_NONE
 #define ARGI_ARG6                       ARG_NONE
-#define ARGI_BANK_FIELD_OP              ARGI_INVALID_OPCODE
+#define ARGI_BANK_FIELD_OP              ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_BIT_AND_OP                 ARGI_LIST3 (ARGI_INTEGER,    ARGI_INTEGER,       ARGI_TARGETREF)
 #define ARGI_BIT_NAND_OP                ARGI_LIST3 (ARGI_INTEGER,    ARGI_INTEGER,       ARGI_TARGETREF)
 #define ARGI_BIT_NOR_OP                 ARGI_LIST3 (ARGI_INTEGER,    ARGI_INTEGER,       ARGI_TARGETREF)
@@ -223,7 +223,7 @@
 #define ARGI_BUFFER_OP                  ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_BYTE_OP                    ARGI_INVALID_OPCODE
 #define ARGI_BYTELIST_OP                ARGI_INVALID_OPCODE
-#define ARGI_CONCAT_OP                  ARGI_LIST3 (ARGI_COMPUTEDATA,ARGI_COMPUTEDATA,   ARGI_TARGETREF)
+#define ARGI_CONCAT_OP                  ARGI_LIST3 (ARGI_ANYTYPE,    ARGI_ANYTYPE,       ARGI_TARGETREF)
 #define ARGI_CONCAT_RES_OP              ARGI_LIST3 (ARGI_BUFFER,     ARGI_BUFFER,        ARGI_TARGETREF)
 #define ARGI_COND_REF_OF_OP             ARGI_LIST2 (ARGI_OBJECT_REF, ARGI_TARGETREF)
 #define ARGI_CONNECTFIELD_OP            ARGI_INVALID_OPCODE
@@ -285,6 +285,7 @@
 #define ARGI_NAMEPATH_OP                ARGI_INVALID_OPCODE
 #define ARGI_NOOP_OP                    ARG_NONE
 #define ARGI_NOTIFY_OP                  ARGI_LIST2 (ARGI_DEVICE_REF, ARGI_INTEGER)
+#define ARGI_OBJECT_TYPE_OP             ARGI_LIST1 (ARGI_ANYTYPE)
 #define ARGI_ONE_OP                     ARG_NONE
 #define ARGI_ONES_OP                    ARG_NONE
 #define ARGI_PACKAGE_OP                 ARGI_LIST1 (ARGI_INTEGER)
@@ -307,7 +308,7 @@
 #define ARGI_SLEEP_OP                   ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_STALL_OP                   ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_STATICSTRING_OP            ARGI_INVALID_OPCODE
-#define ARGI_STORE_OP                   ARGI_LIST2 (ARGI_DATAREFOBJ, ARGI_TARGETREF)
+#define ARGI_STORE_OP                   ARGI_LIST2 (ARGI_DATAREFOBJ, ARGI_STORE_TARGET)
 #define ARGI_STRING_OP                  ARGI_INVALID_OPCODE
 #define ARGI_SUBTRACT_OP                ARGI_LIST3 (ARGI_INTEGER,    ARGI_INTEGER,       ARGI_TARGETREF)
 #define ARGI_THERMAL_ZONE_OP            ARGI_INVALID_OPCODE
@@ -318,7 +319,6 @@
 #define ARGI_TO_HEX_STR_OP              ARGI_LIST2 (ARGI_COMPUTEDATA,ARGI_FIXED_TARGET)
 #define ARGI_TO_INTEGER_OP              ARGI_LIST2 (ARGI_COMPUTEDATA,ARGI_FIXED_TARGET)
 #define ARGI_TO_STRING_OP               ARGI_LIST3 (ARGI_BUFFER,     ARGI_INTEGER,       ARGI_FIXED_TARGET)
-#define ARGI_TYPE_OP                    ARGI_LIST1 (ARGI_ANYTYPE)
 #define ARGI_UNLOAD_OP                  ARGI_LIST1 (ARGI_DDBHANDLE)
 #define ARGI_VAR_PACKAGE_OP             ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_WAIT_OP                    ARGI_LIST2 (ARGI_EVENT,      ARGI_INTEGER)

@@ -93,9 +93,21 @@ static int nd_region_remove(struct device *dev)
 	return 0;
 }
 
+static int child_notify(struct device *dev, void *data)
+{
+	nd_device_notify(dev, *(enum nvdimm_event *) data);
+	return 0;
+}
+
+static void nd_region_notify(struct device *dev, enum nvdimm_event event)
+{
+	device_for_each_child(dev, &event, child_notify);
+}
+
 static struct nd_device_driver nd_region_driver = {
 	.probe = nd_region_probe,
 	.remove = nd_region_remove,
+	.notify = nd_region_notify,
 	.drv = {
 		.name = "nd_region",
 	},

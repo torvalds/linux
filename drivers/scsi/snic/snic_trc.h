@@ -45,7 +45,7 @@ struct snic_trc {
 	u32	max_idx;		/* Max Index into trace buffer */
 	u32	rd_idx;
 	u32	wr_idx;
-	u32	enable;			/* Control Variable for Tracing */
+	bool	enable;			/* Control Variable for Tracing */
 
 	struct dentry *trc_enable;	/* debugfs file object */
 	struct dentry *trc_file;

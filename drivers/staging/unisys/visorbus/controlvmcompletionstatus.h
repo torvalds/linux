@@ -39,7 +39,8 @@
 #define CONTROLVM_RESP_ERROR_MAX_DEVICES        202	/* DEVICE_CREATE */
 /* Payload and Parameter Related------------------------------------[400-499] */
 #define CONTROLVM_RESP_ERROR_PAYLOAD_INVALID	400	/* SWITCH_ATTACHEXTPORT,
-							 * DEVICE_CONFIGURE */
+							 * DEVICE_CONFIGURE
+							 */
 #define CONTROLVM_RESP_ERROR_INITIATOR_PARAMETER_INVALID 401	/* Multiple */
 #define CONTROLVM_RESP_ERROR_TARGET_PARAMETER_INVALID 402 /* DEVICE_CONFIGURE */
 #define CONTROLVM_RESP_ERROR_CLIENT_PARAMETER_INVALID 403 /* DEVICE_CONFIGURE */
@@ -48,36 +49,43 @@
 							 * BUS_CONFIGURE,
 							 * DEVICE_CREATE,
 							 * DEVICE_CONFIG
-							 * DEVICE_DESTROY */
+							 * DEVICE_DESTROY
+							 */
 #define CONTROLVM_RESP_ERROR_DEVICE_INVALID	501 /* SWITCH_ATTACHINTPORT */
 						    /* DEVICE_CREATE,
 						     * DEVICE_CONFIGURE,
-						     * DEVICE_DESTROY */
+						     * DEVICE_DESTROY
+						     */
 #define CONTROLVM_RESP_ERROR_CHANNEL_INVALID	502 /* DEVICE_CREATE,
-						     * DEVICE_CONFIGURE */
+						     * DEVICE_CONFIGURE
+						     */
 /* Partition Driver Callback Interface----------------------[600-699] */
 #define CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE 604	/* BUS_CREATE,
 							 * BUS_DESTROY,
 							 * DEVICE_CREATE,
-							 * DEVICE_DESTROY */
+							 * DEVICE_DESTROY
+							 */
 /* Unable to invoke VIRTPCI callback */
 #define CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR 605
 							/* BUS_CREATE,
 							 * BUS_DESTROY,
 							 * DEVICE_CREATE,
-							 * DEVICE_DESTROY */
+							 * DEVICE_DESTROY
+							 */
 /* VIRTPCI Callback returned error */
 #define CONTROLVM_RESP_ERROR_GENERIC_DRIVER_CALLBACK_ERROR 606
 							/* SWITCH_ATTACHEXTPORT,
 							 * SWITCH_DETACHEXTPORT
-							 * DEVICE_CONFIGURE */
+							 * DEVICE_CONFIGURE
+							 */
 
 /* generic device callback returned error */
 /* Bus Related------------------------------------------------------[700-799] */
 #define CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED 700	/* BUS_DESTROY */
 /* Channel Related--------------------------------------------------[800-899] */
 #define CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN 800	/* GET_CHANNELINFO,
-							 * DEVICE_DESTROY */
+							 * DEVICE_DESTROY
+							 */
 #define CONTROLVM_RESP_ERROR_CHANNEL_SIZE_TOO_SMALL 801	/* DEVICE_CREATE */
 /* Chipset Shutdown Related---------------------------------------[1000-1099] */
 #define CONTROLVM_RESP_ERROR_CHIPSET_SHUTDOWN_FAILED            1000

@@ -130,6 +130,20 @@ static const char *cpu_podf_sels[] = { "pll1_sw", "step_sel" };
 static struct clk *clk[IMX5_CLK_END];
 static struct clk_onecell_data clk_data;
 
+static struct clk ** const uart_clks[] __initconst = {
+	&clk[IMX5_CLK_UART1_IPG_GATE],
+	&clk[IMX5_CLK_UART1_PER_GATE],
+	&clk[IMX5_CLK_UART2_IPG_GATE],
+	&clk[IMX5_CLK_UART2_PER_GATE],
+	&clk[IMX5_CLK_UART3_IPG_GATE],
+	&clk[IMX5_CLK_UART3_PER_GATE],
+	&clk[IMX5_CLK_UART4_IPG_GATE],
+	&clk[IMX5_CLK_UART4_PER_GATE],
+	&clk[IMX5_CLK_UART5_IPG_GATE],
+	&clk[IMX5_CLK_UART5_PER_GATE],
+	NULL
+};
+
 static void __init mx5_clocks_common_init(void __iomem *ccm_base)
 {
 	clk[IMX5_CLK_DUMMY]		= imx_clk_fixed("dummy", 0);
@@ -310,6 +324,8 @@ static void __init mx5_clocks_common_init(void __iomem *ccm_base)
 	clk_prepare_enable(clk[IMX5_CLK_TMAX1]);
 	clk_prepare_enable(clk[IMX5_CLK_TMAX2]); /* esdhc2, fec */
 	clk_prepare_enable(clk[IMX5_CLK_TMAX3]); /* esdhc1, esdhc4 */
+
+	imx_register_uart_clocks(uart_clks);
 }
 
 static void __init mx50_clocks_init(struct device_node *np)
@@ -503,10 +519,10 @@ static void __init mx53_clocks_init(struct device_node *np)
 						mx53_ldb_di0_sel, ARRAY_SIZE(mx53_ldb_di0_sel), CLK_SET_RATE_PARENT);
 	clk[IMX5_CLK_LDB_DI0_GATE]	= imx_clk_gate2("ldb_di0_gate", "ldb_di0_div", MXC_CCM_CCGR6, 28);
 	clk[IMX5_CLK_LDB_DI1_GATE]	= imx_clk_gate2("ldb_di1_gate", "ldb_di1_div", MXC_CCM_CCGR6, 30);
-	clk[IMX5_CLK_IPU_DI0_SEL]	= imx_clk_mux("ipu_di0_sel", MXC_CCM_CSCMR2, 26, 3,
-						mx53_ipu_di0_sel, ARRAY_SIZE(mx53_ipu_di0_sel));
-	clk[IMX5_CLK_IPU_DI1_SEL]	= imx_clk_mux("ipu_di1_sel", MXC_CCM_CSCMR2, 29, 3,
-						mx53_ipu_di1_sel, ARRAY_SIZE(mx53_ipu_di1_sel));
+	clk[IMX5_CLK_IPU_DI0_SEL]	= imx_clk_mux_flags("ipu_di0_sel", MXC_CCM_CSCMR2, 26, 3,
+						mx53_ipu_di0_sel, ARRAY_SIZE(mx53_ipu_di0_sel), CLK_SET_RATE_PARENT);
+	clk[IMX5_CLK_IPU_DI1_SEL]	= imx_clk_mux_flags("ipu_di1_sel", MXC_CCM_CSCMR2, 29, 3,
+						mx53_ipu_di1_sel, ARRAY_SIZE(mx53_ipu_di1_sel), CLK_SET_RATE_PARENT);
 	clk[IMX5_CLK_TVE_EXT_SEL]	= imx_clk_mux_flags("tve_ext_sel", MXC_CCM_CSCMR1, 6, 1,
 						mx53_tve_ext_sel, ARRAY_SIZE(mx53_tve_ext_sel), CLK_SET_RATE_PARENT);
 	clk[IMX5_CLK_TVE_GATE]		= imx_clk_gate2("tve_gate", "tve_pred", MXC_CCM_CCGR2, 30);

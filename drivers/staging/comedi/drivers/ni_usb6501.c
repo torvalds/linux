@@ -166,7 +166,7 @@ enum commands {
 struct ni6501_private {
 	struct usb_endpoint_descriptor *ep_rx;
 	struct usb_endpoint_descriptor *ep_tx;
-	struct semaphore sem;
+	struct mutex mut;
 	u8 *usb_rx_buf;
 	u8 *usb_tx_buf;
 };
@@ -183,7 +183,7 @@ static int ni6501_port_command(struct comedi_device *dev, int command,
 	if (command != SET_PORT_DIR && !bitmap)
 		return -EINVAL;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	switch (command) {
 	case READ_PORT:
@@ -248,7 +248,7 @@ static int ni6501_port_command(struct comedi_device *dev, int command,
 		ret = -EINVAL;
 	}
 end:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -265,7 +265,7 @@ static int ni6501_counter_command(struct comedi_device *dev, int command,
 	if ((command == READ_COUNTER || command ==  WRITE_COUNTER) && !val)
 		return -EINVAL;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	switch (command) {
 	case START_COUNTER:
@@ -338,7 +338,7 @@ static int ni6501_counter_command(struct comedi_device *dev, int command,
 		ret = -EINVAL;
 	}
 end:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -535,7 +535,7 @@ static int ni6501_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	sema_init(&devpriv->sem, 1);
+	mutex_init(&devpriv->mut);
 	usb_set_intfdata(intf, devpriv);
 
 	ret = comedi_alloc_subdevices(dev, 2);
@@ -573,14 +573,14 @@ static void ni6501_detach(struct comedi_device *dev)
 	if (!devpriv)
 		return;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	usb_set_intfdata(intf, NULL);
 
 	kfree(devpriv->usb_rx_buf);
 	kfree(devpriv->usb_tx_buf);
 
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 }
 
 static struct comedi_driver ni6501_driver = {

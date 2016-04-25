@@ -188,7 +188,6 @@ enum rq_flag_bits {
 	__REQ_PM,		/* runtime pm request */
 	__REQ_HASHED,		/* on IO scheduler merge hash */
 	__REQ_MQ_INFLIGHT,	/* track inflight for MQ */
-	__REQ_NO_TIMEOUT,	/* requests may never expire */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -242,6 +241,29 @@ enum rq_flag_bits {
 #define REQ_PM			(1ULL << __REQ_PM)
 #define REQ_HASHED		(1ULL << __REQ_HASHED)
 #define REQ_MQ_INFLIGHT		(1ULL << __REQ_MQ_INFLIGHT)
-#define REQ_NO_TIMEOUT		(1ULL << __REQ_NO_TIMEOUT)
+
+typedef unsigned int blk_qc_t;
+#define BLK_QC_T_NONE	-1U
+#define BLK_QC_T_SHIFT	16
+
+static inline bool blk_qc_t_valid(blk_qc_t cookie)
+{
+	return cookie != BLK_QC_T_NONE;
+}
+
+static inline blk_qc_t blk_tag_to_qc_t(unsigned int tag, unsigned int queue_num)
+{
+	return tag | (queue_num << BLK_QC_T_SHIFT);
+}
+
+static inline unsigned int blk_qc_t_to_queue_num(blk_qc_t cookie)
+{
+	return cookie >> BLK_QC_T_SHIFT;
+}
+
+static inline unsigned int blk_qc_t_to_tag(blk_qc_t cookie)
+{
+	return cookie & ((1u << BLK_QC_T_SHIFT) - 1);
+}
 
 #endif /* __LINUX_BLK_TYPES_H */

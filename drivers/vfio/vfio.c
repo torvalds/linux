@@ -25,6 +25,7 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/pci.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -61,6 +62,7 @@ struct vfio_container {
 	struct rw_semaphore		group_lock;
 	struct vfio_iommu_driver	*iommu_driver;
 	void				*iommu_data;
+	bool				noiommu;
 };
 
 struct vfio_unbound_dev {
@@ -83,6 +85,7 @@ struct vfio_group {
 	struct list_head		unbound_list;
 	struct mutex			unbound_lock;
 	atomic_t			opened;
+	bool				noiommu;
 };
 
 struct vfio_device {
@@ -93,6 +96,123 @@ struct vfio_device {
 	struct list_head		group_next;
 	void				*device_data;
 };
+
+#ifdef CONFIG_VFIO_NOIOMMU
+static bool noiommu __read_mostly;
+module_param_named(enable_unsafe_noiommu_mode,
+		   noiommu, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(enable_unsafe_noiommu_mode, "Enable UNSAFE, no-IOMMU mode.  This mode provides no device isolation, no DMA translation, no host kernel protection, cannot be used for device assignment to virtual machines, requires RAWIO permissions, and will taint the kernel.  If you do not know what this is for, step away. (default: false)");
+#endif
+
+/*
+ * vfio_iommu_group_{get,put} are only intended for VFIO bus driver probe
+ * and remove functions, any use cases other than acquiring the first
+ * reference for the purpose of calling vfio_add_group_dev() or removing
+ * that symmetric reference after vfio_del_group_dev() should use the raw
+ * iommu_group_{get,put} functions.  In particular, vfio_iommu_group_put()
+ * removes the device from the dummy group and cannot be nested.
+ */
+struct iommu_group *vfio_iommu_group_get(struct device *dev)
+{
+	struct iommu_group *group;
+	int __maybe_unused ret;
+
+	group = iommu_group_get(dev);
+
+#ifdef CONFIG_VFIO_NOIOMMU
+	/*
+	 * With noiommu enabled, an IOMMU group will be created for a device
+	 * that doesn't already have one and doesn't have an iommu_ops on their
+	 * bus.  We set iommudata simply to be able to identify these groups
+	 * as special use and for reclamation later.
+	 */
+	if (group || !noiommu || iommu_present(dev->bus))
+		return group;
+
+	group = iommu_group_alloc();
+	if (IS_ERR(group))
+		return NULL;
+
+	iommu_group_set_name(group, "vfio-noiommu");
+	iommu_group_set_iommudata(group, &noiommu, NULL);
+	ret = iommu_group_add_device(group, dev);
+	iommu_group_put(group);
+	if (ret)
+		return NULL;
+
+	/*
+	 * Where to taint?  At this point we've added an IOMMU group for a
+	 * device that is not backed by iommu_ops, therefore any iommu_
+	 * callback using iommu_ops can legitimately Oops.  So, while we may
+	 * be about to give a DMA capable device to a user without IOMMU
+	 * protection, which is clearly taint-worthy, let's go ahead and do
+	 * it here.
+	 */
+	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+	dev_warn(dev, "Adding kernel taint for vfio-noiommu group on device\n");
+#endif
+
+	return group;
+}
+EXPORT_SYMBOL_GPL(vfio_iommu_group_get);
+
+void vfio_iommu_group_put(struct iommu_group *group, struct device *dev)
+{
+#ifdef CONFIG_VFIO_NOIOMMU
+	if (iommu_group_get_iommudata(group) == &noiommu)
+		iommu_group_remove_device(dev);
+#endif
+
+	iommu_group_put(group);
+}
+EXPORT_SYMBOL_GPL(vfio_iommu_group_put);
+
+#ifdef CONFIG_VFIO_NOIOMMU
+static void *vfio_noiommu_open(unsigned long arg)
+{
+	if (arg != VFIO_NOIOMMU_IOMMU)
+		return ERR_PTR(-EINVAL);
+	if (!capable(CAP_SYS_RAWIO))
+		return ERR_PTR(-EPERM);
+
+	return NULL;
+}
+
+static void vfio_noiommu_release(void *iommu_data)
+{
+}
+
+static long vfio_noiommu_ioctl(void *iommu_data,
+			       unsigned int cmd, unsigned long arg)
+{
+	if (cmd == VFIO_CHECK_EXTENSION)
+		return noiommu && (arg == VFIO_NOIOMMU_IOMMU) ? 1 : 0;
+
+	return -ENOTTY;
+}
+
+static int vfio_noiommu_attach_group(void *iommu_data,
+				     struct iommu_group *iommu_group)
+{
+	return iommu_group_get_iommudata(iommu_group) == &noiommu ? 0 : -EINVAL;
+}
+
+static void vfio_noiommu_detach_group(void *iommu_data,
+				      struct iommu_group *iommu_group)
+{
+}
+
+static const struct vfio_iommu_driver_ops vfio_noiommu_ops = {
+	.name = "vfio-noiommu",
+	.owner = THIS_MODULE,
+	.open = vfio_noiommu_open,
+	.release = vfio_noiommu_release,
+	.ioctl = vfio_noiommu_ioctl,
+	.attach_group = vfio_noiommu_attach_group,
+	.detach_group = vfio_noiommu_detach_group,
+};
+#endif
+
 
 /**
  * IOMMU driver registration
@@ -216,6 +336,9 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 	atomic_set(&group->container_users, 0);
 	atomic_set(&group->opened, 0);
 	group->iommu_group = iommu_group;
+#ifdef CONFIG_VFIO_NOIOMMU
+	group->noiommu = (iommu_group_get_iommudata(iommu_group) == &noiommu);
+#endif
 
 	group->nb.notifier_call = vfio_iommu_group_notifier;
 
@@ -251,7 +374,8 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 
 	dev = device_create(vfio.class, NULL,
 			    MKDEV(MAJOR(vfio.group_devt), minor),
-			    group, "%d", iommu_group_id(iommu_group));
+			    group, "%s%d", group->noiommu ? "noiommu-" : "",
+			    iommu_group_id(iommu_group));
 	if (IS_ERR(dev)) {
 		vfio_free_group_minor(minor);
 		vfio_group_unlock_and_free(group);
@@ -438,15 +562,32 @@ static struct vfio_device *vfio_group_get_device(struct vfio_group *group,
 }
 
 /*
- * Whitelist some drivers that we know are safe (no dma) or just sit on
- * a device.  It's not always practical to leave a device within a group
- * driverless as it could get re-bound to something unsafe.
+ * Some drivers, like pci-stub, are only used to prevent other drivers from
+ * claiming a device and are therefore perfectly legitimate for a user owned
+ * group.  The pci-stub driver has no dependencies on DMA or the IOVA mapping
+ * of the device, but it does prevent the user from having direct access to
+ * the device, which is useful in some circumstances.
+ *
+ * We also assume that we can include PCI interconnect devices, ie. bridges.
+ * IOMMU grouping on PCI necessitates that if we lack isolation on a bridge
+ * then all of the downstream devices will be part of the same IOMMU group as
+ * the bridge.  Thus, if placing the bridge into the user owned IOVA space
+ * breaks anything, it only does so for user owned devices downstream.  Note
+ * that error notification via MSI can be affected for platforms that handle
+ * MSI within the same IOVA space as DMA.
  */
-static const char * const vfio_driver_whitelist[] = { "pci-stub", "pcieport" };
+static const char * const vfio_driver_whitelist[] = { "pci-stub" };
 
-static bool vfio_whitelisted_driver(struct device_driver *drv)
+static bool vfio_dev_whitelisted(struct device *dev, struct device_driver *drv)
 {
 	int i;
+
+	if (dev_is_pci(dev)) {
+		struct pci_dev *pdev = to_pci_dev(dev);
+
+		if (pdev->hdr_type != PCI_HEADER_TYPE_NORMAL)
+			return true;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(vfio_driver_whitelist); i++) {
 		if (!strcmp(drv->name, vfio_driver_whitelist[i]))
@@ -462,6 +603,7 @@ static bool vfio_whitelisted_driver(struct device_driver *drv)
  *  - driver-less
  *  - bound to a vfio driver
  *  - bound to a whitelisted driver
+ *  - a PCI interconnect device
  *
  * We use two methods to determine whether a device is bound to a vfio
  * driver.  The first is to test whether the device exists in the vfio
@@ -486,7 +628,7 @@ static int vfio_dev_viable(struct device *dev, void *data)
 	}
 	mutex_unlock(&group->unbound_lock);
 
-	if (!ret || !drv || vfio_whitelisted_driver(drv))
+	if (!ret || !drv || vfio_dev_whitelisted(dev, drv))
 		return 0;
 
 	device = vfio_group_get_device(group, dev);
@@ -517,7 +659,7 @@ static int vfio_group_nb_add_dev(struct vfio_group *group, struct device *dev)
 		return 0;
 
 	/* TODO Prevent device auto probing */
-	WARN("Device %s added to live group %d!\n", dev_name(dev),
+	WARN(1, "Device %s added to live group %d!\n", dev_name(dev),
 	     iommu_group_id(group->iommu_group));
 
 	return 0;
@@ -692,11 +834,12 @@ EXPORT_SYMBOL_GPL(vfio_device_get_from_dev);
 static struct vfio_device *vfio_device_get_from_name(struct vfio_group *group,
 						     char *buf)
 {
-	struct vfio_device *device;
+	struct vfio_device *it, *device = NULL;
 
 	mutex_lock(&group->device_lock);
-	list_for_each_entry(device, &group->device_list, group_next) {
-		if (!strcmp(dev_name(device->dev), buf)) {
+	list_for_each_entry(it, &group->device_list, group_next) {
+		if (!strcmp(dev_name(it->dev), buf)) {
+			device = it;
 			vfio_device_get(device);
 			break;
 		}
@@ -834,6 +977,14 @@ static long vfio_ioctl_check_extension(struct vfio_container *container,
 			mutex_lock(&vfio.iommu_drivers_lock);
 			list_for_each_entry(driver, &vfio.iommu_drivers_list,
 					    vfio_next) {
+
+#ifdef CONFIG_VFIO_NOIOMMU
+				if (!list_empty(&container->group_list) &&
+				    (container->noiommu !=
+				     (driver->ops == &vfio_noiommu_ops)))
+					continue;
+#endif
+
 				if (!try_module_get(driver->ops->owner))
 					continue;
 
@@ -905,6 +1056,15 @@ static long vfio_ioctl_set_iommu(struct vfio_container *container,
 	list_for_each_entry(driver, &vfio.iommu_drivers_list, vfio_next) {
 		void *data;
 
+#ifdef CONFIG_VFIO_NOIOMMU
+		/*
+		 * Only noiommu containers can use vfio-noiommu and noiommu
+		 * containers can only use vfio-noiommu.
+		 */
+		if (container->noiommu != (driver->ops == &vfio_noiommu_ops))
+			continue;
+#endif
+
 		if (!try_module_get(driver->ops->owner))
 			continue;
 
@@ -920,30 +1080,26 @@ static long vfio_ioctl_set_iommu(struct vfio_container *container,
 			continue;
 		}
 
-		/* module reference holds the driver we're working on */
-		mutex_unlock(&vfio.iommu_drivers_lock);
-
 		data = driver->ops->open(arg);
 		if (IS_ERR(data)) {
 			ret = PTR_ERR(data);
 			module_put(driver->ops->owner);
-			goto skip_drivers_unlock;
+			continue;
 		}
 
 		ret = __vfio_container_attach_groups(container, driver, data);
-		if (!ret) {
-			container->iommu_driver = driver;
-			container->iommu_data = data;
-		} else {
+		if (ret) {
 			driver->ops->release(data);
 			module_put(driver->ops->owner);
+			continue;
 		}
 
-		goto skip_drivers_unlock;
+		container->iommu_driver = driver;
+		container->iommu_data = data;
+		break;
 	}
 
 	mutex_unlock(&vfio.iommu_drivers_lock);
-skip_drivers_unlock:
 	up_write(&container->group_lock);
 
 	return ret;
@@ -1167,6 +1323,9 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	if (atomic_read(&group->container_users))
 		return -EINVAL;
 
+	if (group->noiommu && !capable(CAP_SYS_RAWIO))
+		return -EPERM;
+
 	f = fdget(container_fd);
 	if (!f.file)
 		return -EBADF;
@@ -1182,6 +1341,13 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 
 	down_write(&container->group_lock);
 
+	/* Real groups and fake groups cannot mix */
+	if (!list_empty(&container->group_list) &&
+	    container->noiommu != group->noiommu) {
+		ret = -EPERM;
+		goto unlock_out;
+	}
+
 	driver = container->iommu_driver;
 	if (driver) {
 		ret = driver->ops->attach_group(container->iommu_data,
@@ -1191,6 +1357,7 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	}
 
 	group->container = container;
+	container->noiommu = group->noiommu;
 	list_add(&group->container_next, &container->group_list);
 
 	/* Get a reference on the container and mark a user within the group */
@@ -1220,6 +1387,9 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 	if (0 == atomic_read(&group->container_users) ||
 	    !group->container->iommu_driver || !vfio_group_viable(group))
 		return -EINVAL;
+
+	if (group->noiommu && !capable(CAP_SYS_RAWIO))
+		return -EPERM;
 
 	device = vfio_device_get_from_name(group, buf);
 	if (!device)
@@ -1262,6 +1432,10 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 	atomic_inc(&group->container_users);
 
 	fd_install(ret, filep);
+
+	if (group->noiommu)
+		dev_warn(device->dev, "vfio-noiommu device opened by user "
+			 "(%s:%d)\n", current->comm, task_pid_nr(current));
 
 	return ret;
 }
@@ -1350,6 +1524,11 @@ static int vfio_group_fops_open(struct inode *inode, struct file *filep)
 	group = vfio_group_get_from_minor(iminor(inode));
 	if (!group)
 		return -ENODEV;
+
+	if (group->noiommu && !capable(CAP_SYS_RAWIO)) {
+		vfio_group_put(group);
+		return -EPERM;
+	}
 
 	/* Do we need multiple instances of the group open?  Seems not. */
 	opened = atomic_cmpxchg(&group->opened, 0, 1);
@@ -1513,6 +1692,11 @@ struct vfio_group *vfio_group_get_external_user(struct file *filep)
 	if (!atomic_inc_not_zero(&group->container_users))
 		return ERR_PTR(-EINVAL);
 
+	if (group->noiommu) {
+		atomic_dec(&group->container_users);
+		return ERR_PTR(-EPERM);
+	}
+
 	if (!group->container->iommu_driver ||
 			!vfio_group_viable(group)) {
 		atomic_dec(&group->container_users);
@@ -1543,6 +1727,60 @@ long vfio_external_check_extension(struct vfio_group *group, unsigned long arg)
 	return vfio_ioctl_check_extension(group->container, arg);
 }
 EXPORT_SYMBOL_GPL(vfio_external_check_extension);
+
+/**
+ * Sub-module support
+ */
+/*
+ * Helper for managing a buffer of info chain capabilities, allocate or
+ * reallocate a buffer with additional @size, filling in @id and @version
+ * of the capability.  A pointer to the new capability is returned.
+ *
+ * NB. The chain is based at the head of the buffer, so new entries are
+ * added to the tail, vfio_info_cap_shift() should be called to fixup the
+ * next offsets prior to copying to the user buffer.
+ */
+struct vfio_info_cap_header *vfio_info_cap_add(struct vfio_info_cap *caps,
+					       size_t size, u16 id, u16 version)
+{
+	void *buf;
+	struct vfio_info_cap_header *header, *tmp;
+
+	buf = krealloc(caps->buf, caps->size + size, GFP_KERNEL);
+	if (!buf) {
+		kfree(caps->buf);
+		caps->size = 0;
+		return ERR_PTR(-ENOMEM);
+	}
+
+	caps->buf = buf;
+	header = buf + caps->size;
+
+	/* Eventually copied to user buffer, zero */
+	memset(header, 0, size);
+
+	header->id = id;
+	header->version = version;
+
+	/* Add to the end of the capability chain */
+	for (tmp = caps->buf; tmp->next; tmp = (void *)tmp + tmp->next)
+		; /* nothing */
+
+	tmp->next = caps->size;
+	caps->size += size;
+
+	return header;
+}
+EXPORT_SYMBOL_GPL(vfio_info_cap_add);
+
+void vfio_info_cap_shift(struct vfio_info_cap *caps, size_t offset)
+{
+	struct vfio_info_cap_header *tmp;
+
+	for (tmp = caps->buf; tmp->next; tmp = (void *)tmp + tmp->next - offset)
+		tmp->next += offset;
+}
+EXPORT_SYMBOL_GPL(vfio_info_cap_shift);
 
 /**
  * Module/class support
@@ -1605,6 +1843,9 @@ static int __init vfio_init(void)
 	request_module_nowait("vfio_iommu_type1");
 	request_module_nowait("vfio_iommu_spapr_tce");
 
+#ifdef CONFIG_VFIO_NOIOMMU
+	vfio_register_iommu_driver(&vfio_noiommu_ops);
+#endif
 	return 0;
 
 err_cdev_add:
@@ -1621,6 +1862,9 @@ static void __exit vfio_cleanup(void)
 {
 	WARN_ON(!list_empty(&vfio.group_list));
 
+#ifdef CONFIG_VFIO_NOIOMMU
+	vfio_unregister_iommu_driver(&vfio_noiommu_ops);
+#endif
 	idr_destroy(&vfio.group_idr);
 	cdev_del(&vfio.group_cdev);
 	unregister_chrdev_region(vfio.group_devt, MINORMASK);

@@ -147,10 +147,7 @@ static int usb_console_setup(struct console *co, char *options)
 			kref_get(&tty->driver->kref);
 			__module_get(tty->driver->owner);
 			tty->ops = &usb_console_fake_tty_ops;
-			if (tty_init_termios(tty)) {
-				retval = -ENOMEM;
-				goto put_tty;
-			}
+			tty_init_termios(tty);
 			tty_port_tty_set(&port->port, tty);
 		}
 
@@ -185,7 +182,6 @@ static int usb_console_setup(struct console *co, char *options)
 
  fail:
 	tty_port_tty_set(&port->port, NULL);
- put_tty:
 	tty_kref_put(tty);
  reset_open_count:
 	port->port.count = 0;

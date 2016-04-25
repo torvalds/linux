@@ -10,6 +10,8 @@ to the silicon temperature.
 
 Required properties:
 - compatible : Should be:
+  - "ti,omap34xx-bandgap" : for OMAP34xx bandgap
+  - "ti,omap36xx-bandgap" : for OMAP36xx bandgap
   - "ti,omap4430-bandgap" : for OMAP4430 bandgap
   - "ti,omap4460-bandgap" : for OMAP4460 bandgap
   - "ti,omap4470-bandgap" : for OMAP4470 bandgap
@@ -25,6 +27,18 @@ to each bandgap version, because the mapping may change from
 soc to soc, apart of depending on available features.
 
 Example:
+OMAP34xx:
+bandgap {
+	reg = <0x48002524 0x4>;
+	compatible = "ti,omap34xx-bandgap";
+};
+
+OMAP36xx:
+bandgap {
+	reg = <0x48002524 0x4>;
+	compatible = "ti,omap36xx-bandgap";
+};
+
 OMAP4430:
 bandgap {
 	reg = <0x4a002260 0x4 0x4a00232C 0x4>;

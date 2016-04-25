@@ -153,7 +153,9 @@ static inline struct spmi_driver *to_spmi_driver(struct device_driver *d)
 	return container_of(d, struct spmi_driver, driver);
 }
 
-int spmi_driver_register(struct spmi_driver *sdrv);
+#define spmi_driver_register(sdrv) \
+	__spmi_driver_register(sdrv, THIS_MODULE)
+int __spmi_driver_register(struct spmi_driver *sdrv, struct module *owner);
 
 /**
  * spmi_driver_unregister() - unregister an SPMI client driver

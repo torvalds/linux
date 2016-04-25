@@ -18,6 +18,7 @@ enum dma_attr {
 	DMA_ATTR_NO_KERNEL_MAPPING,
 	DMA_ATTR_SKIP_CPU_SYNC,
 	DMA_ATTR_FORCE_CONTIGUOUS,
+	DMA_ATTR_ALLOC_SINGLE_PAGES,
 	DMA_ATTR_MAX,
 };
 
@@ -41,7 +42,6 @@ static inline void init_dma_attrs(struct dma_attrs *attrs)
 	bitmap_zero(attrs->flags, __DMA_ATTRS_LONGS);
 }
 
-#ifdef CONFIG_HAVE_DMA_ATTRS
 /**
  * dma_set_attr - set a specific attribute
  * @attr: attribute to set
@@ -67,14 +67,5 @@ static inline int dma_get_attr(enum dma_attr attr, struct dma_attrs *attrs)
 	BUG_ON(attr >= DMA_ATTR_MAX);
 	return test_bit(attr, attrs->flags);
 }
-#else /* !CONFIG_HAVE_DMA_ATTRS */
-static inline void dma_set_attr(enum dma_attr attr, struct dma_attrs *attrs)
-{
-}
 
-static inline int dma_get_attr(enum dma_attr attr, struct dma_attrs *attrs)
-{
-	return 0;
-}
-#endif /* CONFIG_HAVE_DMA_ATTRS */
 #endif /* _DMA_ATTR_H */

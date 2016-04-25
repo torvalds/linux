@@ -29,6 +29,7 @@
 #include <subdev/instmem.h>
 
 #include <nvif/class.h>
+#include <nvif/cl006b.h>
 #include <nvif/unpack.h>
 
 static bool
@@ -188,10 +189,10 @@ nv40_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	struct nv04_fifo_chan *chan = NULL;
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct nvkm_instmem *imem = device->imem;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(parent, "create channel dma size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create channel dma vers %d pushbuf %llx "
 				   "offset %08x\n", args->v0.version,
 			   args->v0.pushbuf, args->v0.offset);

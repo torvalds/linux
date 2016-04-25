@@ -57,7 +57,7 @@ static inline int hlist_nulls_unhashed(const struct hlist_nulls_node *h)
 
 static inline int hlist_nulls_empty(const struct hlist_nulls_head *h)
 {
-	return is_a_nulls(h->first);
+	return is_a_nulls(READ_ONCE(h->first));
 }
 
 static inline void hlist_nulls_add_head(struct hlist_nulls_node *n,
@@ -76,7 +76,8 @@ static inline void __hlist_nulls_del(struct hlist_nulls_node *n)
 {
 	struct hlist_nulls_node *next = n->next;
 	struct hlist_nulls_node **pprev = n->pprev;
-	*pprev = next;
+
+	WRITE_ONCE(*pprev, next);
 	if (!is_a_nulls(next))
 		next->pprev = pprev;
 }

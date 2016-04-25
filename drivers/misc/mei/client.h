@@ -18,7 +18,6 @@
 #define _MEI_CLIENT_H_
 
 #include <linux/types.h>
-#include <linux/watchdog.h>
 #include <linux/poll.h>
 #include <linux/mei.h>
 
@@ -68,11 +67,23 @@ static inline const uuid_le *mei_me_cl_uuid(const struct mei_me_client *me_cl)
 	return &me_cl->props.protocol_name;
 }
 
+/**
+ * mei_me_cl_ver - return me client protocol version
+ *
+ * @me_cl: me client
+ *
+ * Return: me client protocol version
+ */
+static inline u8 mei_me_cl_ver(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.protocol_version;
+}
+
 /*
  * MEI IO Functions
  */
 struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, enum mei_cb_file_ops type,
-				 struct file *fp);
+				 const struct file *fp);
 void mei_io_cb_free(struct mei_cl_cb *priv_cb);
 int mei_io_cb_alloc_buf(struct mei_cl_cb *cb, size_t length);
 
@@ -96,21 +107,19 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev);
 void mei_cl_init(struct mei_cl *cl, struct mei_device *dev);
 
 
-int mei_cl_link(struct mei_cl *cl, int id);
+int mei_cl_link(struct mei_cl *cl);
 int mei_cl_unlink(struct mei_cl *cl);
 
-struct mei_cl *mei_cl_alloc_linked(struct mei_device *dev, int id);
+struct mei_cl *mei_cl_alloc_linked(struct mei_device *dev);
 
 struct mei_cl_cb *mei_cl_read_cb(const struct mei_cl *cl,
 				 const struct file *fp);
 void mei_cl_read_cb_flush(const struct mei_cl *cl, const struct file *fp);
 struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
-				  enum mei_cb_file_ops type, struct file *fp);
+				  enum mei_cb_file_ops type,
+				  const struct file *fp);
 int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp);
 
-int mei_cl_flow_ctrl_creds(struct mei_cl *cl);
-
-int mei_cl_flow_ctrl_reduce(struct mei_cl *cl);
 /*
  *  MEI input output function prototype
  */
@@ -205,10 +214,10 @@ void mei_cl_set_disconnected(struct mei_cl *cl);
 int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 			  struct mei_cl_cb *cmpl_list);
 int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
-		   struct file *file);
+		   const struct file *file);
 int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 			      struct mei_cl_cb *cmpl_list);
-int mei_cl_read_start(struct mei_cl *cl, size_t length, struct file *fp);
+int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp);
 int mei_cl_irq_read_msg(struct mei_cl *cl, struct mei_msg_hdr *hdr,
 			struct mei_cl_cb *cmpl_list);
 int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking);
@@ -217,25 +226,27 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb);
 
-void mei_host_client_init(struct work_struct *work);
+void mei_host_client_init(struct mei_device *dev);
 
 u8 mei_cl_notify_fop2req(enum mei_cb_file_ops fop);
 enum mei_cb_file_ops mei_cl_notify_req2fop(u8 request);
-int mei_cl_notify_request(struct mei_cl *cl, struct file *file, u8 request);
+int mei_cl_notify_request(struct mei_cl *cl,
+			  const struct file *file, u8 request);
 int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
 		      struct mei_cl_cb *cmpl_list);
 int mei_cl_notify_get(struct mei_cl *cl, bool block, bool *notify_ev);
 void mei_cl_notify(struct mei_cl *cl);
 
 void mei_cl_all_disconnect(struct mei_device *dev);
-void mei_cl_all_wakeup(struct mei_device *dev);
-void mei_cl_all_write_clear(struct mei_device *dev);
 
 #define MEI_CL_FMT "cl:host=%02d me=%02d "
 #define MEI_CL_PRM(cl) (cl)->host_client_id, mei_cl_me_id(cl)
 
 #define cl_dbg(dev, cl, format, arg...) \
 	dev_dbg((dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
+
+#define cl_warn(dev, cl, format, arg...) \
+	dev_warn((dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
 
 #define cl_err(dev, cl, format, arg...) \
 	dev_err((dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)

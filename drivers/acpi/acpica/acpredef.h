@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1125,7 +1125,7 @@ const union acpi_predefined_info acpi_gbl_resource_names[] = {
 	PACKAGE_INFO(0, 0, 0, 0, 0, 0)	/* Table terminator */
 };
 
-static const union acpi_predefined_info acpi_gbl_scope_names[] = {
+const union acpi_predefined_info acpi_gbl_scope_names[] = {
 	{{"_GPE", 0, 0}},
 	{{"_PR_", 0, 0}},
 	{{"_SB_", 0, 0}},

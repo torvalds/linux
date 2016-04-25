@@ -1038,6 +1038,10 @@ kbuf_alloc_2_sgl(int bytes, u32 sgdir, int sge_offset, int *frags,
 	int		 i, buflist_ent;
 	int		 sg_spill = MAX_FRAGS_SPILL1;
 	int		 dir;
+
+	if (bytes < 0)
+		return NULL;
+
 	/* initialization */
 	*frags = 0;
 	*blp = NULL;

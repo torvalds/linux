@@ -55,6 +55,7 @@ static const struct of_device_id max8997_pmic_dt_match[] = {
 	{ .compatible = "maxim,max8997-pmic", .data = (void *)TYPE_MAX8997 },
 	{},
 };
+MODULE_DEVICE_TABLE(of, max8997_pmic_dt_match);
 #endif
 
 int max8997_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
@@ -436,7 +437,7 @@ static u8 max8997_dumpaddr_haptic[] = {
 
 static int max8997_freeze(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8997_dev *max8997 = i2c_get_clientdata(i2c);
 	int i;
 
@@ -458,7 +459,7 @@ static int max8997_freeze(struct device *dev)
 
 static int max8997_restore(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8997_dev *max8997 = i2c_get_clientdata(i2c);
 	int i;
 
@@ -480,7 +481,7 @@ static int max8997_restore(struct device *dev)
 
 static int max8997_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8997_dev *max8997 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -490,7 +491,7 @@ static int max8997_suspend(struct device *dev)
 
 static int max8997_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8997_dev *max8997 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))

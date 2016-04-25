@@ -1,5 +1,6 @@
 config ARCH_PICOXCELL
-	bool "Picochip PicoXcell" if ARCH_MULTI_V6
+	bool "Picochip PicoXcell"
+	depends on ARCH_MULTI_V6
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_VIC
 	select DW_APB_TIMER_OF

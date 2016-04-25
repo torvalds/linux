@@ -112,7 +112,7 @@ config MTD_CMDLINE_PARTS
 
 config MTD_AFS_PARTS
 	tristate "ARM Firmware Suite partition parsing"
-	depends on ARM
+	depends on (ARM || ARM64)
 	---help---
 	  The ARM Firmware Suite allows the user to divide flash devices into
 	  multiple 'images'. Each such image has a header containing its name
@@ -142,7 +142,7 @@ config MTD_AR7_PARTS
 
 config MTD_BCM63XX_PARTS
 	tristate "BCM63XX CFE partitioning support"
-	depends on BCM63XX
+	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
 	select CRC32
 	help
 	  This provides partions parsing for BCM63xx devices with CFE

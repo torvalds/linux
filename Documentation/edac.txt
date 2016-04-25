@@ -1,9 +1,13 @@
 EDAC - Error Detection And Correction
 =====================================
 
-"bluesmoke" was the name for this device driver when it was "out-of-tree"
-and maintained at sourceforge.net.  When it was pushed into 2.6.16 for the
-first time, it was renamed to 'EDAC'.
+"bluesmoke" was the name for this device driver when it
+was "out-of-tree" and maintained at sourceforge.net -
+bluesmoke.sourceforge.net. That site is mostly archaic now and can be
+used only for historical purposes.
+
+When the subsystem was pushed into 2.6.16 for the first time, it was
+renamed to 'EDAC'.
 
 PURPOSE
 -------

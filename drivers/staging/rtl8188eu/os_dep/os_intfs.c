@@ -101,8 +101,6 @@ static int rtw_rf_config = RF_819X_MAX_TYPE;  /* auto */
 static int rtw_low_power;
 static int rtw_wifi_spec;
 static int rtw_channel_plan = RT_CHANNEL_DOMAIN_MAX;
-/* 0:Reject AP's Add BA req, 1:Accept AP's Add BA req. */
-static int rtw_AcceptAddbaReq = true;
 
 static int rtw_antdiv_cfg = 2; /*  0:OFF , 1:ON, 2:decide by Efuse config */
 
@@ -184,6 +182,10 @@ module_param(rtw_notch_filter, uint, 0644);
 MODULE_PARM_DESC(rtw_notch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
 module_param_named(debug, rtw_debug, int, 0444);
 MODULE_PARM_DESC(debug, "Set debug level (1-9) (default 1)");
+
+static bool rtw_monitor_enable;
+module_param_named(monitor_enable, rtw_monitor_enable, bool, 0444);
+MODULE_PARM_DESC(monitor_enable, "Enable monitor inferface (default: false)");
 
 static int netdev_open(struct net_device *pnetdev);
 static int netdev_close(struct net_device *pnetdev);
@@ -589,7 +591,7 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	registry_par->low_power = (u8)rtw_low_power;
 	registry_par->wifi_spec = (u8)rtw_wifi_spec;
 	registry_par->channel_plan = (u8)rtw_channel_plan;
-	registry_par->bAcceptAddbaReq = (u8)rtw_AcceptAddbaReq;
+	registry_par->accept_addba_req = true;
 	registry_par->antdiv_cfg = (u8)rtw_antdiv_cfg;
 	registry_par->antdiv_type = (u8)rtw_antdiv_type;
 	registry_par->hwpdn_mode = (u8)rtw_hwpdn_mode;
@@ -604,6 +606,7 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	snprintf(registry_par->ifname, 16, "%s", ifname);
 	snprintf(registry_par->if2name, 16, "%s", if2name);
 	registry_par->notch_filter = (u8)rtw_notch_filter;
+	registry_par->monitor_enable = rtw_monitor_enable;
 }
 
 static int rtw_net_set_mac_address(struct net_device *pnetdev, void *p)
@@ -1053,7 +1056,8 @@ static int netdev_open(struct net_device *pnetdev)
 	int ret;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
 
-	_enter_critical_mutex(&padapter->hw_init_mutex, NULL);
+	if (mutex_lock_interruptible(&padapter->hw_init_mutex))
+		return -ERESTARTSYS;
 	ret = _netdev_open(pnetdev);
 	mutex_unlock(&padapter->hw_init_mutex);
 	return ret;
@@ -1094,7 +1098,7 @@ netdev_open_error:
 int rtw_ips_pwr_up(struct adapter *padapter)
 {
 	int result;
-	u32 start_time = jiffies;
+	unsigned long start_time = jiffies;
 
 	DBG_88E("===>  rtw_ips_pwr_up..............\n");
 	rtw_reset_drv_sw(padapter);
@@ -1103,13 +1107,14 @@ int rtw_ips_pwr_up(struct adapter *padapter)
 
 	rtw_led_control(padapter, LED_CTL_NO_LINK);
 
-	DBG_88E("<===  rtw_ips_pwr_up.............. in %dms\n", rtw_get_passing_time_ms(start_time));
+	DBG_88E("<===  rtw_ips_pwr_up.............. in %dms\n",
+		jiffies_to_msecs(jiffies - start_time));
 	return result;
 }
 
 void rtw_ips_pwr_down(struct adapter *padapter)
 {
-	u32 start_time = jiffies;
+	unsigned long start_time = jiffies;
 
 	DBG_88E("===> rtw_ips_pwr_down...................\n");
 
@@ -1118,7 +1123,8 @@ void rtw_ips_pwr_down(struct adapter *padapter)
 	rtw_led_control(padapter, LED_CTL_POWER_OFF);
 
 	rtw_ips_dev_unload(padapter);
-	DBG_88E("<=== rtw_ips_pwr_down..................... in %dms\n", rtw_get_passing_time_ms(start_time));
+	DBG_88E("<=== rtw_ips_pwr_down..................... in %dms\n",
+		jiffies_to_msecs(jiffies - start_time));
 }
 
 void rtw_ips_dev_unload(struct adapter *padapter)
@@ -1149,7 +1155,6 @@ int pm_netdev_open(struct net_device *pnetdev, u8 bnormal)
 static int netdev_close(struct net_device *pnetdev)
 {
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
-	struct hal_data_8188e *rtlhal = GET_HAL_DATA(padapter);
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+88eu_drv - drv_close\n"));
 
@@ -1181,9 +1186,6 @@ static int netdev_close(struct net_device *pnetdev)
 		/*  Close LED */
 		rtw_led_control(padapter, LED_CTL_POWER_OFF);
 	}
-
-	kfree(rtlhal->pfirmware);
-	rtlhal->pfirmware = NULL;
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-88eu_drv - drv_close\n"));
 	DBG_88E("-88eu_drv - drv_close, bup =%d\n", padapter->bup);

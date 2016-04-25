@@ -25,7 +25,7 @@
 
 static int mtk_cg_bit_is_cleared(struct clk_hw *hw)
 {
-	struct mtk_clk_gate *cg = to_clk_gate(hw);
+	struct mtk_clk_gate *cg = to_mtk_clk_gate(hw);
 	u32 val;
 
 	regmap_read(cg->regmap, cg->sta_ofs, &val);
@@ -37,7 +37,7 @@ static int mtk_cg_bit_is_cleared(struct clk_hw *hw)
 
 static int mtk_cg_bit_is_set(struct clk_hw *hw)
 {
-	struct mtk_clk_gate *cg = to_clk_gate(hw);
+	struct mtk_clk_gate *cg = to_mtk_clk_gate(hw);
 	u32 val;
 
 	regmap_read(cg->regmap, cg->sta_ofs, &val);
@@ -49,14 +49,14 @@ static int mtk_cg_bit_is_set(struct clk_hw *hw)
 
 static void mtk_cg_set_bit(struct clk_hw *hw)
 {
-	struct mtk_clk_gate *cg = to_clk_gate(hw);
+	struct mtk_clk_gate *cg = to_mtk_clk_gate(hw);
 
 	regmap_write(cg->regmap, cg->set_ofs, BIT(cg->bit));
 }
 
 static void mtk_cg_clr_bit(struct clk_hw *hw)
 {
-	struct mtk_clk_gate *cg = to_clk_gate(hw);
+	struct mtk_clk_gate *cg = to_mtk_clk_gate(hw);
 
 	regmap_write(cg->regmap, cg->clr_ofs, BIT(cg->bit));
 }
@@ -97,7 +97,7 @@ const struct clk_ops mtk_clk_gate_ops_setclr_inv = {
 	.disable	= mtk_cg_disable_inv,
 };
 
-struct clk *mtk_clk_register_gate(
+struct clk * __init mtk_clk_register_gate(
 		const char *name,
 		const char *parent_name,
 		struct regmap *regmap,

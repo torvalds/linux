@@ -58,6 +58,7 @@
 #define COMPAT_PSR_Z_BIT	0x40000000
 #define COMPAT_PSR_N_BIT	0x80000000
 #define COMPAT_PSR_IT_MASK	0x0600fc00	/* If-Then execution state mask */
+#define COMPAT_PSR_GE_MASK	0x000f0000
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
 #define COMPAT_PSR_ENDSTATE	COMPAT_PSR_E_BIT
@@ -83,14 +84,14 @@
 #define compat_sp	regs[13]
 #define compat_lr	regs[14]
 #define compat_sp_hyp	regs[15]
-#define compat_sp_irq	regs[16]
-#define compat_lr_irq	regs[17]
-#define compat_sp_svc	regs[18]
-#define compat_lr_svc	regs[19]
-#define compat_sp_abt	regs[20]
-#define compat_lr_abt	regs[21]
-#define compat_sp_und	regs[22]
-#define compat_lr_und	regs[23]
+#define compat_lr_irq	regs[16]
+#define compat_sp_irq	regs[17]
+#define compat_lr_svc	regs[18]
+#define compat_sp_svc	regs[19]
+#define compat_lr_abt	regs[20]
+#define compat_sp_abt	regs[21]
+#define compat_lr_und	regs[22]
+#define compat_sp_und	regs[23]
 #define compat_r8_fiq	regs[24]
 #define compat_r9_fiq	regs[25]
 #define compat_r10_fiq	regs[26]
@@ -151,35 +152,9 @@ static inline unsigned long regs_return_value(struct pt_regs *regs)
 	return regs->regs[0];
 }
 
-/*
- * Are the current registers suitable for user mode? (used to maintain
- * security in signal handlers)
- */
-static inline int valid_user_regs(struct user_pt_regs *regs)
-{
-	if (user_mode(regs) && (regs->pstate & PSR_I_BIT) == 0) {
-		regs->pstate &= ~(PSR_F_BIT | PSR_A_BIT);
-
-		/* The T bit is reserved for AArch64 */
-		if (!(regs->pstate & PSR_MODE32_BIT))
-			regs->pstate &= ~COMPAT_PSR_T_BIT;
-
-		return 1;
-	}
-
-	/*
-	 * Force PSR to something logical...
-	 */
-	regs->pstate &= PSR_f | PSR_s | (PSR_x & ~PSR_A_BIT) | \
-			COMPAT_PSR_T_BIT | PSR_MODE32_BIT;
-
-	if (!(regs->pstate & PSR_MODE32_BIT)) {
-		regs->pstate &= ~COMPAT_PSR_T_BIT;
-		regs->pstate |= PSR_MODE_EL0t;
-	}
-
-	return 0;
-}
+/* We must avoid circular header include via sched.h */
+struct task_struct;
+int valid_user_regs(struct user_pt_regs *regs, struct task_struct *task);
 
 #define instruction_pointer(regs)	((unsigned long)(regs)->pc)
 

@@ -1,0 +1,20 @@
+Panasonic 10" WUXGA TFT LCD panel
+
+Required properties:
+- compatible: should be "panasonic,vvx10f034n00"
+- reg: DSI virtual channel of the peripheral
+- power-supply: phandle of the regulator that provides the supply voltage
+
+Optional properties:
+- backlight: phandle of the backlight device attached to the panel
+
+Example:
+
+	mdss_dsi@fd922800 {
+		panel@0 {
+			compatible = "panasonic,vvx10f034n00";
+			reg = <0>;
+			power-supply = <&vreg_vsp>;
+			backlight = <&lp8566_wled>;
+		};
+	};

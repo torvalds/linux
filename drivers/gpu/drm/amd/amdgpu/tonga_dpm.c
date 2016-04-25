@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #include "drmP.h"
 #include "amdgpu.h"
-#include "tonga_smumgr.h"
+#include "tonga_smum.h"
 
 MODULE_FIRMWARE("amdgpu/tonga_smc.bin");
 
@@ -122,25 +122,12 @@ static int tonga_dpm_hw_fini(void *handle)
 
 static int tonga_dpm_suspend(void *handle)
 {
-	return 0;
+	return tonga_dpm_hw_fini(handle);
 }
 
 static int tonga_dpm_resume(void *handle)
 {
-	int ret;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	mutex_lock(&adev->pm.mutex);
-
-	ret = tonga_smu_start(adev);
-	if (ret) {
-		DRM_ERROR("SMU start failed\n");
-		goto fail;
-	}
-
-fail:
-	mutex_unlock(&adev->pm.mutex);
-	return ret;
+	return tonga_dpm_hw_init(handle);
 }
 
 static int tonga_dpm_set_clockgating_state(void *handle,

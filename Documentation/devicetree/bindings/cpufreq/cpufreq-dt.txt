@@ -11,7 +11,7 @@ Required properties:
 - None
 
 Optional properties:
-- operating-points: Refer to Documentation/devicetree/bindings/power/opp.txt for
+- operating-points: Refer to Documentation/devicetree/bindings/opp/opp.txt for
   details. OPPs *must* be supplied either via DT, i.e. this property, or
   populated at runtime.
 - clock-latency: Specify the possible maximum transition latency for clock,

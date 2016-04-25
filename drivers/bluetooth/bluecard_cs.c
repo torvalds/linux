@@ -261,7 +261,7 @@ static void bluecard_write_wakeup(struct bluecard_info *info)
 		if (!skb)
 			break;
 
-		if (bt_cb(skb)->pkt_type & 0x80) {
+		if (hci_skb_pkt_type(skb) & 0x80) {
 			/* Disable RTS */
 			info->ctrl_reg |= REG_CONTROL_RTS;
 			outb(info->ctrl_reg, iobase + REG_CONTROL);
@@ -279,13 +279,13 @@ static void bluecard_write_wakeup(struct bluecard_info *info)
 		/* Mark the buffer as dirty */
 		clear_bit(ready_bit, &(info->tx_state));
 
-		if (bt_cb(skb)->pkt_type & 0x80) {
+		if (hci_skb_pkt_type(skb) & 0x80) {
 			DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 			DEFINE_WAIT(wait);
 
 			unsigned char baud_reg;
 
-			switch (bt_cb(skb)->pkt_type) {
+			switch (hci_skb_pkt_type(skb)) {
 			case PKT_BAUD_RATE_460800:
 				baud_reg = REG_CONTROL_BAUD_RATE_460800;
 				break;
@@ -390,7 +390,7 @@ static void bluecard_receive(struct bluecard_info *info,
 	for (i = 0; i < len; i++) {
 
 		/* Allocate packet */
-		if (info->rx_skb == NULL) {
+		if (!info->rx_skb) {
 			info->rx_state = RECV_WAIT_PACKET_TYPE;
 			info->rx_count = 0;
 			info->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC);
@@ -402,9 +402,9 @@ static void bluecard_receive(struct bluecard_info *info,
 
 		if (info->rx_state == RECV_WAIT_PACKET_TYPE) {
 
-			bt_cb(info->rx_skb)->pkt_type = buf[i];
+			hci_skb_pkt_type(info->rx_skb) = buf[i];
 
-			switch (bt_cb(info->rx_skb)->pkt_type) {
+			switch (hci_skb_pkt_type(info->rx_skb)) {
 
 			case 0x00:
 				/* init packet */
@@ -436,7 +436,8 @@ static void bluecard_receive(struct bluecard_info *info,
 
 			default:
 				/* unknown packet */
-				BT_ERR("Unknown HCI packet with type 0x%02x received", bt_cb(info->rx_skb)->pkt_type);
+				BT_ERR("Unknown HCI packet with type 0x%02x received",
+				       hci_skb_pkt_type(info->rx_skb));
 				info->hdev->stat.err_rx++;
 
 				kfree_skb(info->rx_skb);
@@ -578,21 +579,21 @@ static int bluecard_hci_set_baud_rate(struct hci_dev *hdev, int baud)
 	switch (baud) {
 	case 460800:
 		cmd[4] = 0x00;
-		bt_cb(skb)->pkt_type = PKT_BAUD_RATE_460800;
+		hci_skb_pkt_type(skb) = PKT_BAUD_RATE_460800;
 		break;
 	case 230400:
 		cmd[4] = 0x01;
-		bt_cb(skb)->pkt_type = PKT_BAUD_RATE_230400;
+		hci_skb_pkt_type(skb) = PKT_BAUD_RATE_230400;
 		break;
 	case 115200:
 		cmd[4] = 0x02;
-		bt_cb(skb)->pkt_type = PKT_BAUD_RATE_115200;
+		hci_skb_pkt_type(skb) = PKT_BAUD_RATE_115200;
 		break;
 	case 57600:
 		/* Fall through... */
 	default:
 		cmd[4] = 0x03;
-		bt_cb(skb)->pkt_type = PKT_BAUD_RATE_57600;
+		hci_skb_pkt_type(skb) = PKT_BAUD_RATE_57600;
 		break;
 	}
 
@@ -628,9 +629,6 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		bluecard_hci_set_baud_rate(hdev, DEFAULT_BAUD_RATE);
 
-	if (test_and_set_bit(HCI_RUNNING, &(hdev->flags)))
-		return 0;
-
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state))) {
 		unsigned int iobase = info->p_dev->resource[0]->start;
 
@@ -645,9 +643,6 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 static int bluecard_hci_close(struct hci_dev *hdev)
 {
 	struct bluecard_info *info = hci_get_drvdata(hdev);
-
-	if (!test_and_clear_bit(HCI_RUNNING, &(hdev->flags)))
-		return 0;
 
 	bluecard_hci_flush(hdev);
 
@@ -666,7 +661,7 @@ static int bluecard_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct bluecard_info *info = hci_get_drvdata(hdev);
 
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		break;
@@ -679,7 +674,7 @@ static int bluecard_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 	skb_queue_tail(&(info->txq), skb);
 
 	bluecard_write_wakeup(info);

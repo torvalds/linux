@@ -40,6 +40,7 @@
 #include "item.h"
 
 #define PCI_DEVICE_ID_MELLANOX_SWITCHX2	0xc738
+#define PCI_DEVICE_ID_MELLANOX_SPECTRUM	0xcb84
 #define MLXSW_PCI_BAR0_SIZE		(1024 * 1024) /* 1MB */
 #define MLXSW_PCI_PAGE_SIZE		4096
 
@@ -60,6 +61,9 @@
 #define MLXSW_PCI_SW_RESET			0xF0010
 #define MLXSW_PCI_SW_RESET_RST_BIT		BIT(0)
 #define MLXSW_PCI_SW_RESET_TIMEOUT_MSECS	5000
+#define MLXSW_PCI_FW_READY			0xA1844
+#define MLXSW_PCI_FW_READY_MASK			0xFF
+#define MLXSW_PCI_FW_READY_MAGIC		0x5E
 
 #define MLXSW_PCI_DOORBELL_SDQ_OFFSET		0x000
 #define MLXSW_PCI_DOORBELL_RDQ_OFFSET		0x200
@@ -71,9 +75,7 @@
 #define MLXSW_PCI_DOORBELL(offset, type_offset, num)	\
 	((offset) + (type_offset) + (num) * 4)
 
-#define MLXSW_PCI_RDQS_COUNT	24
-#define MLXSW_PCI_SDQS_COUNT	24
-#define MLXSW_PCI_CQS_COUNT	(MLXSW_PCI_RDQS_COUNT + MLXSW_PCI_SDQS_COUNT)
+#define MLXSW_PCI_CQS_MAX	96
 #define MLXSW_PCI_EQS_COUNT	2
 #define MLXSW_PCI_EQ_ASYNC_NUM	0
 #define MLXSW_PCI_EQ_COMP_NUM	1
@@ -130,13 +132,15 @@ MLXSW_ITEM64_INDEXED(pci, wqe, address, 0x08, 0, 64, 0x8, 0x0, false);
  */
 MLXSW_ITEM32(pci, cqe, lag, 0x00, 23, 1);
 
-/* pci_cqe_system_port
+/* pci_cqe_system_port/lag_id
  * When lag=0: System port on which the packet was received
  * When lag=1:
  * bits [15:4] LAG ID on which the packet was received
  * bits [3:0] sub_port on which the packet was received
  */
 MLXSW_ITEM32(pci, cqe, system_port, 0x00, 0, 16);
+MLXSW_ITEM32(pci, cqe, lag_id, 0x00, 4, 12);
+MLXSW_ITEM32(pci, cqe, lag_port_index, 0x00, 0, 4);
 
 /* pci_cqe_wqe_counter
  * WQE count of the WQEs completed on the associated dqn

@@ -272,7 +272,6 @@ static int wm8728_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8728_spi_driver = {
 	.driver = {
 		.name	= "wm8728",
-		.owner	= THIS_MODULE,
 		.of_match_table = wm8728_of_match,
 	},
 	.probe		= wm8728_spi_probe,

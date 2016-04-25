@@ -78,6 +78,12 @@ different audio modulation if the request cannot be satisfied. However
 this is a write-only ioctl, it does not return the actual audio
 modulation selected.</para>
 
+    <para><link linkend="sdr">SDR</link> specific modulator types are
+<constant>V4L2_TUNER_SDR</constant> and <constant>V4L2_TUNER_RF</constant>.
+For SDR devices <structfield>txsubchans</structfield> field must be
+initialized to zero.
+The term 'modulator' means SDR transmitter in this context.</para>
+
     <para>To change the radio frequency the &VIDIOC-S-FREQUENCY; ioctl
 is available.</para>
 
@@ -140,7 +146,13 @@ indicator, for example a stereo pilot tone.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
-	    <entry><structfield>reserved</structfield>[4]</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry spanname="hspan">Type of the modulator, see <xref
+		linkend="v4l2-tuner-type" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[3]</entry>
 	    <entry>Reserved for future extensions. Drivers and
 applications must set the array to zero.</entry>
 	  </row>

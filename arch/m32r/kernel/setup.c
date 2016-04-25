@@ -70,18 +70,21 @@ static struct resource data_resource = {
 	.name   = "Kernel data",
 	.start  = 0,
 	.end    = 0,
-	.flags  = IORESOURCE_BUSY | IORESOURCE_MEM
+	.flags  = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
 };
 
 static struct resource code_resource = {
 	.name   = "Kernel code",
 	.start  = 0,
 	.end    = 0,
-	.flags  = IORESOURCE_BUSY | IORESOURCE_MEM
+	.flags  = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
 };
 
 unsigned long memory_start;
+EXPORT_SYMBOL(memory_start);
+
 unsigned long memory_end;
+EXPORT_SYMBOL(memory_end);
 
 void __init setup_arch(char **);
 int get_cpuinfo(char *);

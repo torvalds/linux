@@ -96,7 +96,7 @@ static inline u_int32_t gpio_o_bit(int i)
 static int vx855gpio_direction_input(struct gpio_chip *gpio,
 				     unsigned int nr)
 {
-	struct vx855_gpio *vg = container_of(gpio, struct vx855_gpio, gpio);
+	struct vx855_gpio *vg = gpiochip_get_data(gpio);
 	unsigned long flags;
 	u_int32_t reg_out;
 
@@ -120,7 +120,7 @@ static int vx855gpio_direction_input(struct gpio_chip *gpio,
 
 static int vx855gpio_get(struct gpio_chip *gpio, unsigned int nr)
 {
-	struct vx855_gpio *vg = container_of(gpio, struct vx855_gpio, gpio);
+	struct vx855_gpio *vg = gpiochip_get_data(gpio);
 	u_int32_t reg_in;
 	int ret = 0;
 
@@ -146,7 +146,7 @@ static int vx855gpio_get(struct gpio_chip *gpio, unsigned int nr)
 static void vx855gpio_set(struct gpio_chip *gpio, unsigned int nr,
 			  int val)
 {
-	struct vx855_gpio *vg = container_of(gpio, struct vx855_gpio, gpio);
+	struct vx855_gpio *vg = gpiochip_get_data(gpio);
 	unsigned long flags;
 	u_int32_t reg_out;
 
@@ -259,16 +259,7 @@ static int vx855gpio_probe(struct platform_device *pdev)
 
 	vx855gpio_gpio_setup(vg);
 
-	return gpiochip_add(&vg->gpio);
-}
-
-static int vx855gpio_remove(struct platform_device *pdev)
-{
-	struct vx855_gpio *vg = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&vg->gpio);
-
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &vg->gpio, vg);
 }
 
 static struct platform_driver vx855gpio_driver = {
@@ -276,7 +267,6 @@ static struct platform_driver vx855gpio_driver = {
 		.name	= MODULE_NAME,
 	},
 	.probe		= vx855gpio_probe,
-	.remove		= vx855gpio_remove,
 };
 
 module_platform_driver(vx855gpio_driver);

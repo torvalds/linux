@@ -42,8 +42,8 @@
 			 <&tegra_car TEGRA30_CLK_CML0>;
 		clock-names = "pex", "afi", "pll_e", "cml";
 		resets = <&tegra_car 70>,
-		         <&tegra_car 72>,
-		         <&tegra_car 74>;
+			 <&tegra_car 72>,
+			 <&tegra_car 74>;
 		reset-names = "pex", "afi", "pcie_x";
 		status = "disabled";
 
@@ -153,7 +153,7 @@
 				  &tegra_car TEGRA30_CLK_GR3D2>;
 			clock-names = "3d", "3d2";
 			resets = <&tegra_car 24>,
-			         <&tegra_car 98>;
+				 <&tegra_car 98>;
 			reset-names = "3d", "3d2";
 		};
 
@@ -457,7 +457,7 @@
 	};
 
 	i2c@7000c000 {
-		compatible =  "nvidia,tegra30-i2c", "nvidia,tegra20-i2c";
+		compatible = "nvidia,tegra30-i2c", "nvidia,tegra20-i2c";
 		reg = <0x7000c000 0x100>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -662,7 +662,7 @@
 		reg = <0x70030000 0x10000>;
 		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA30_CLK_HDA>,
-		         <&tegra_car TEGRA30_CLK_HDA2HDMI>,
+			 <&tegra_car TEGRA30_CLK_HDA2HDMI>,
 			 <&tegra_car TEGRA30_CLK_HDA2CODEC_2X>;
 		clock-names = "hda", "hda2hdmi", "hda2codec_2x";
 		resets = <&tegra_car 125>, /* hda */

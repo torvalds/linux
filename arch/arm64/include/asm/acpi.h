@@ -12,7 +12,6 @@
 #ifndef _ASM_ACPI_H
 #define _ASM_ACPI_H
 
-#include <linux/irqchip/arm-gic-acpi.h>
 #include <linux/mm.h>
 #include <linux/psci.h>
 
@@ -88,8 +87,30 @@ void __init acpi_init_cpus(void);
 static inline void acpi_init_cpus(void) { }
 #endif /* CONFIG_ACPI */
 
+#ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
+bool acpi_parking_protocol_valid(int cpu);
+void __init
+acpi_set_mailbox_entry(int cpu, struct acpi_madt_generic_interrupt *processor);
+#else
+static inline bool acpi_parking_protocol_valid(int cpu) { return false; }
+static inline void
+acpi_set_mailbox_entry(int cpu, struct acpi_madt_generic_interrupt *processor)
+{}
+#endif
+
 static inline const char *acpi_get_enable_method(int cpu)
 {
-	return acpi_psci_present() ? "psci" : NULL;
+	if (acpi_psci_present())
+		return "psci";
+
+	if (acpi_parking_protocol_valid(cpu))
+		return "parking-protocol";
+
+	return NULL;
 }
+
+#ifdef	CONFIG_ACPI_APEI
+pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr);
+#endif
+
 #endif /*_ASM_ACPI_H*/

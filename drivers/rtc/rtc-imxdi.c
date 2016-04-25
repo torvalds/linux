@@ -303,7 +303,7 @@ static int di_handle_invalid_state(struct imxdi_dev *imxdi, u32 dsr)
 	sec = readl(imxdi->ioaddr + DTCMR);
 	if (sec != 0)
 		dev_warn(&imxdi->pdev->dev,
-			 "The security violation has happend at %u seconds\n",
+			 "The security violation has happened at %u seconds\n",
 			 sec);
 	/*
 	 * the timer cannot be set/modified if

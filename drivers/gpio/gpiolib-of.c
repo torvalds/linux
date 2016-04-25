@@ -262,9 +262,10 @@ int of_gpio_simple_xlate(struct gpio_chip *gc,
 EXPORT_SYMBOL(of_gpio_simple_xlate);
 
 /**
- * of_mm_gpiochip_add - Add memory mapped GPIO chip (bank)
+ * of_mm_gpiochip_add_data - Add memory mapped GPIO chip (bank)
  * @np:		device node of the GPIO chip
  * @mm_gc:	pointer to the of_mm_gpio_chip allocated structure
+ * @data:	driver data to store in the struct gpio_chip
  *
  * To use this function you should allocate and fill mm_gc with:
  *
@@ -280,8 +281,9 @@ EXPORT_SYMBOL(of_gpio_simple_xlate);
  * do all necessary work for you. Then you'll able to use .regs
  * to manage GPIOs from the callbacks.
  */
-int of_mm_gpiochip_add(struct device_node *np,
-		       struct of_mm_gpio_chip *mm_gc)
+int of_mm_gpiochip_add_data(struct device_node *np,
+			    struct of_mm_gpio_chip *mm_gc,
+			    void *data)
 {
 	int ret = -ENOMEM;
 	struct gpio_chip *gc = &mm_gc->gc;
@@ -301,7 +303,7 @@ int of_mm_gpiochip_add(struct device_node *np,
 
 	mm_gc->gc.of_node = np;
 
-	ret = gpiochip_add(gc);
+	ret = gpiochip_add_data(gc, data);
 	if (ret)
 		goto err2;
 
@@ -315,7 +317,7 @@ err0:
 	       np->full_name, ret);
 	return ret;
 }
-EXPORT_SYMBOL(of_mm_gpiochip_add);
+EXPORT_SYMBOL(of_mm_gpiochip_add_data);
 
 /**
  * of_mm_gpiochip_remove - Remove memory mapped GPIO chip (bank)
@@ -423,8 +425,8 @@ int of_gpiochip_add(struct gpio_chip *chip)
 {
 	int status;
 
-	if ((!chip->of_node) && (chip->dev))
-		chip->of_node = chip->dev->of_node;
+	if ((!chip->of_node) && (chip->parent))
+		chip->of_node = chip->parent->of_node;
 
 	if (!chip->of_node)
 		return 0;

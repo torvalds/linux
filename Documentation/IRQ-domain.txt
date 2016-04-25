@@ -32,9 +32,9 @@ top of the irq_alloc_desc*() API.  An irq_domain to manage mapping is
 preferred over interrupt controller drivers open coding their own
 reverse mapping scheme.
 
-irq_domain also implements translation from Device Tree interrupt
-specifiers to hwirq numbers, and can be easily extended to support
-other IRQ topology data sources.
+irq_domain also implements translation from an abstract irq_fwspec
+structure to hwirq numbers (Device Tree and ACPI GSI so far), and can
+be easily extended to support other IRQ topology data sources.
 
 === irq_domain usage ===
 An interrupt controller driver creates and registers an irq_domain by
@@ -184,7 +184,7 @@ There are four major interfaces to use hierarchy irq_domain:
    related resources associated with these interrupts.
 3) irq_domain_activate_irq(): activate interrupt controller hardware to
    deliver the interrupt.
-3) irq_domain_deactivate_irq(): deactivate interrupt controller hardware
+4) irq_domain_deactivate_irq(): deactivate interrupt controller hardware
    to stop delivering the interrupt.
 
 Following changes are needed to support hierarchy irq_domain.

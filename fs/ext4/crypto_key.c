@@ -8,6 +8,7 @@
  * Written by Michael Halcrow, Ildar Muslukhov, and Uday Savagaonkar, 2015.
  */
 
+#include <crypto/skcipher.h>
 #include <keys/encrypted-type.h>
 #include <keys/user-type.h>
 #include <linux/random.h>
@@ -41,46 +42,42 @@ static int ext4_derive_key_aes(char deriving_key[EXT4_AES_128_ECB_KEY_SIZE],
 			       char derived_key[EXT4_AES_256_XTS_KEY_SIZE])
 {
 	int res = 0;
-	struct ablkcipher_request *req = NULL;
+	struct skcipher_request *req = NULL;
 	DECLARE_EXT4_COMPLETION_RESULT(ecr);
 	struct scatterlist src_sg, dst_sg;
-	struct crypto_ablkcipher *tfm = crypto_alloc_ablkcipher("ecb(aes)", 0,
-								0);
+	struct crypto_skcipher *tfm = crypto_alloc_skcipher("ecb(aes)", 0, 0);
 
 	if (IS_ERR(tfm)) {
 		res = PTR_ERR(tfm);
 		tfm = NULL;
 		goto out;
 	}
-	crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_REQ_WEAK_KEY);
-	req = ablkcipher_request_alloc(tfm, GFP_NOFS);
+	crypto_skcipher_set_flags(tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+	req = skcipher_request_alloc(tfm, GFP_NOFS);
 	if (!req) {
 		res = -ENOMEM;
 		goto out;
 	}
-	ablkcipher_request_set_callback(req,
+	skcipher_request_set_callback(req,
 			CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 			derive_crypt_complete, &ecr);
-	res = crypto_ablkcipher_setkey(tfm, deriving_key,
-				       EXT4_AES_128_ECB_KEY_SIZE);
+	res = crypto_skcipher_setkey(tfm, deriving_key,
+				     EXT4_AES_128_ECB_KEY_SIZE);
 	if (res < 0)
 		goto out;
 	sg_init_one(&src_sg, source_key, EXT4_AES_256_XTS_KEY_SIZE);
 	sg_init_one(&dst_sg, derived_key, EXT4_AES_256_XTS_KEY_SIZE);
-	ablkcipher_request_set_crypt(req, &src_sg, &dst_sg,
-				     EXT4_AES_256_XTS_KEY_SIZE, NULL);
-	res = crypto_ablkcipher_encrypt(req);
+	skcipher_request_set_crypt(req, &src_sg, &dst_sg,
+				   EXT4_AES_256_XTS_KEY_SIZE, NULL);
+	res = crypto_skcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
-		BUG_ON(req->base.data != &ecr);
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
 
 out:
-	if (req)
-		ablkcipher_request_free(req);
-	if (tfm)
-		crypto_free_ablkcipher(tfm);
+	skcipher_request_free(req);
+	crypto_free_skcipher(tfm);
 	return res;
 }
 
@@ -91,7 +88,7 @@ void ext4_free_crypt_info(struct ext4_crypt_info *ci)
 
 	if (ci->ci_keyring_key)
 		key_put(ci->ci_keyring_key);
-	crypto_free_ablkcipher(ci->ci_ctfm);
+	crypto_free_skcipher(ci->ci_ctfm);
 	kmem_cache_free(ext4_crypt_info_cachep, ci);
 }
 
@@ -121,9 +118,9 @@ int _ext4_get_encryption_info(struct inode *inode)
 	struct key *keyring_key = NULL;
 	struct ext4_encryption_key *master_key;
 	struct ext4_encryption_context ctx;
-	struct user_key_payload *ukp;
+	const struct user_key_payload *ukp;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-	struct crypto_ablkcipher *ctfm;
+	struct crypto_skcipher *ctfm;
 	const char *cipher_str;
 	char raw_key[EXT4_MAX_KEY_SIZE];
 	char mode;
@@ -208,22 +205,37 @@ retry:
 		goto out;
 	}
 	crypt_info->ci_keyring_key = keyring_key;
-	BUG_ON(keyring_key->type != &key_type_logon);
-	ukp = ((struct user_key_payload *)keyring_key->payload.data);
+	if (keyring_key->type != &key_type_logon) {
+		printk_once(KERN_WARNING
+			    "ext4: key type must be logon\n");
+		res = -ENOKEY;
+		goto out;
+	}
+	down_read(&keyring_key->sem);
+	ukp = user_key_payload(keyring_key);
 	if (ukp->datalen != sizeof(struct ext4_encryption_key)) {
 		res = -EINVAL;
+		up_read(&keyring_key->sem);
 		goto out;
 	}
 	master_key = (struct ext4_encryption_key *)ukp->data;
 	BUILD_BUG_ON(EXT4_AES_128_ECB_KEY_SIZE !=
 		     EXT4_KEY_DERIVATION_NONCE_SIZE);
-	BUG_ON(master_key->size != EXT4_AES_256_XTS_KEY_SIZE);
+	if (master_key->size != EXT4_AES_256_XTS_KEY_SIZE) {
+		printk_once(KERN_WARNING
+			    "ext4: key size incorrect: %d\n",
+			    master_key->size);
+		res = -ENOKEY;
+		up_read(&keyring_key->sem);
+		goto out;
+	}
 	res = ext4_derive_key_aes(ctx.nonce, master_key->raw,
 				  raw_key);
+	up_read(&keyring_key->sem);
 	if (res)
 		goto out;
 got_key:
-	ctfm = crypto_alloc_ablkcipher(cipher_str, 0, 0);
+	ctfm = crypto_alloc_skcipher(cipher_str, 0, 0);
 	if (!ctfm || IS_ERR(ctfm)) {
 		res = ctfm ? PTR_ERR(ctfm) : -ENOMEM;
 		printk(KERN_DEBUG
@@ -232,11 +244,11 @@ got_key:
 		goto out;
 	}
 	crypt_info->ci_ctfm = ctfm;
-	crypto_ablkcipher_clear_flags(ctfm, ~0);
-	crypto_tfm_set_flags(crypto_ablkcipher_tfm(ctfm),
+	crypto_skcipher_clear_flags(ctfm, ~0);
+	crypto_tfm_set_flags(crypto_skcipher_tfm(ctfm),
 			     CRYPTO_TFM_REQ_WEAK_KEY);
-	res = crypto_ablkcipher_setkey(ctfm, raw_key,
-				       ext4_encryption_key_size(mode));
+	res = crypto_skcipher_setkey(ctfm, raw_key,
+				     ext4_encryption_key_size(mode));
 	if (res)
 		goto out;
 	memzero_explicit(raw_key, sizeof(raw_key));

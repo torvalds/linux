@@ -13,11 +13,21 @@ config QCOM_GSBI
 config QCOM_PM
 	bool "Qualcomm Power Management"
 	depends on ARCH_QCOM && !ARM64
+	select ARM_CPU_SUSPEND
 	select QCOM_SCM
 	help
 	  QCOM Platform specific power driver to manage cores and L2 low power
 	  modes. It interface with various system drivers to put the cores in
 	  low power modes.
+
+config QCOM_SMEM
+	tristate "Qualcomm Shared Memory Manager (SMEM)"
+	depends on ARCH_QCOM
+	depends on HWSPINLOCK
+	help
+	  Say y here to enable support for the Qualcomm Shared Memory Manager.
+	  The driver provides an interface to items in a heap shared among all
+	  processors in a Qualcomm platform.
 
 config QCOM_SMD
 	tristate "Qualcomm Shared Memory Driver (SMD)"
@@ -41,10 +51,28 @@ config QCOM_SMD_RPM
 	  Say M here if you want to include support for the Qualcomm RPM as a
 	  module. This will build a module called "qcom-smd-rpm".
 
-config QCOM_SMEM
-	tristate "Qualcomm Shared Memory Manager (SMEM)"
-	depends on ARCH_QCOM
+config QCOM_SMEM_STATE
+	bool
+
+config QCOM_SMP2P
+	tristate "Qualcomm Shared Memory Point to Point support"
+	depends on QCOM_SMEM
+	select QCOM_SMEM_STATE
 	help
-	  Say y here to enable support for the Qualcomm Shared Memory Manager.
-	  The driver provides an interface to items in a heap shared among all
-	  processors in a Qualcomm platform.
+	  Say yes here to support the Qualcomm Shared Memory Point to Point
+	  protocol.
+
+config QCOM_SMSM
+	tristate "Qualcomm Shared Memory State Machine"
+	depends on QCOM_SMEM
+	select QCOM_SMEM_STATE
+	help
+	  Say yes here to support the Qualcomm Shared Memory State Machine.
+	  The state machine is represented by bits in shared memory.
+
+config QCOM_WCNSS_CTRL
+	tristate "Qualcomm WCNSS control driver"
+	depends on QCOM_SMD
+	help
+	  Client driver for the WCNSS_CTRL SMD channel, used to download nv
+	  firmware to a newly booted WCNSS chip.

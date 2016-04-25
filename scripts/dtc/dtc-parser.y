@@ -410,8 +410,24 @@ integer_add:
 
 integer_mul:
 	  integer_mul '*' integer_unary { $$ = $1 * $3; }
-	| integer_mul '/' integer_unary { $$ = $1 / $3; }
-	| integer_mul '%' integer_unary { $$ = $1 % $3; }
+	| integer_mul '/' integer_unary
+		{
+			if ($3 != 0) {
+				$$ = $1 / $3;
+			} else {
+				ERROR(&@$, "Division by zero");
+				$$ = 0;
+			}
+		}
+	| integer_mul '%' integer_unary
+		{
+			if ($3 != 0) {
+				$$ = $1 % $3;
+			} else {
+				ERROR(&@$, "Division by zero");
+				$$ = 0;
+			}
+		}
 	| integer_unary
 	;
 

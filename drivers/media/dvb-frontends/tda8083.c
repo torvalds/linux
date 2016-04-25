@@ -342,9 +342,9 @@ static int tda8083_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda8083_get_frontend(struct dvb_frontend *fe)
+static int tda8083_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct tda8083_state* state = fe->demodulator_priv;
 
 	/*  FIXME: get symbolrate & frequency offset...*/

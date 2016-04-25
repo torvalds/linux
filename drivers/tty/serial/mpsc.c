@@ -55,8 +55,6 @@
 #define SUPPORT_SYSRQ
 #endif
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/ioport.h>
@@ -139,8 +137,6 @@ struct mpsc_port_info {
 	/* Internal driver state for this ctlr */
 	u8 ready;
 	u8 rcv_data;
-	tcflag_t c_iflag;	/* save termios->c_iflag */
-	tcflag_t c_cflag;	/* save termios->c_cflag */
 
 	/* Info passed in from platform */
 	u8 mirror_regs;		/* Need to mirror regs? */
@@ -755,7 +751,7 @@ static int mpsc_alloc_ring_mem(struct mpsc_port_info *pi)
 		pi->port.line);
 
 	if (!pi->dma_region) {
-		if (!dma_supported(pi->port.dev, 0xffffffff)) {
+		if (!dma_set_mask(pi->port.dev, 0xffffffff)) {
 			printk(KERN_ERR "MPSC: Inadequate DMA support\n");
 			rc = -ENXIO;
 		} else if ((pi->dma_region = dma_alloc_noncoherent(pi->port.dev,
@@ -1409,9 +1405,6 @@ static void mpsc_set_termios(struct uart_port *port, struct ktermios *termios,
 	ulong flags;
 	u32 chr_bits, stop_bits, par;
 
-	pi->c_iflag = termios->c_iflag;
-	pi->c_cflag = termios->c_cflag;
-
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
 		chr_bits = MPSC_MPCR_CL_5;
@@ -1872,12 +1865,12 @@ static int mpsc_shared_map_regs(struct platform_device *pd)
 
 static void mpsc_shared_unmap_regs(void)
 {
-	if (!mpsc_shared_regs.mpsc_routing_base) {
+	if (mpsc_shared_regs.mpsc_routing_base) {
 		iounmap(mpsc_shared_regs.mpsc_routing_base);
 		release_mem_region(mpsc_shared_regs.mpsc_routing_base_p,
 				MPSC_ROUTING_REG_BLOCK_SIZE);
 	}
-	if (!mpsc_shared_regs.sdma_intr_base) {
+	if (mpsc_shared_regs.sdma_intr_base) {
 		iounmap(mpsc_shared_regs.sdma_intr_base);
 		release_mem_region(mpsc_shared_regs.sdma_intr_base_p,
 				MPSC_SDMA_INTR_REG_BLOCK_SIZE);
@@ -1893,44 +1886,39 @@ static void mpsc_shared_unmap_regs(void)
 static int mpsc_shared_drv_probe(struct platform_device *dev)
 {
 	struct mpsc_shared_pdata	*pdata;
-	int				 rc = -ENODEV;
+	int rc;
 
-	if (dev->id == 0) {
-		rc = mpsc_shared_map_regs(dev);
-		if (!rc) {
-			pdata = (struct mpsc_shared_pdata *)
-				dev_get_platdata(&dev->dev);
+	if (dev->id != 0)
+		return -ENODEV;
 
-			mpsc_shared_regs.MPSC_MRR_m = pdata->mrr_val;
-			mpsc_shared_regs.MPSC_RCRR_m= pdata->rcrr_val;
-			mpsc_shared_regs.MPSC_TCRR_m= pdata->tcrr_val;
-			mpsc_shared_regs.SDMA_INTR_CAUSE_m =
-				pdata->intr_cause_val;
-			mpsc_shared_regs.SDMA_INTR_MASK_m =
-				pdata->intr_mask_val;
+	rc = mpsc_shared_map_regs(dev);
+	if (rc)
+		return rc;
 
-			rc = 0;
-		}
-	}
+	pdata = dev_get_platdata(&dev->dev);
 
-	return rc;
+	mpsc_shared_regs.MPSC_MRR_m = pdata->mrr_val;
+	mpsc_shared_regs.MPSC_RCRR_m= pdata->rcrr_val;
+	mpsc_shared_regs.MPSC_TCRR_m= pdata->tcrr_val;
+	mpsc_shared_regs.SDMA_INTR_CAUSE_m = pdata->intr_cause_val;
+	mpsc_shared_regs.SDMA_INTR_MASK_m = pdata->intr_mask_val;
+
+	return 0;
 }
 
 static int mpsc_shared_drv_remove(struct platform_device *dev)
 {
-	int	rc = -ENODEV;
+	if (dev->id != 0)
+		return -ENODEV;
 
-	if (dev->id == 0) {
-		mpsc_shared_unmap_regs();
-		mpsc_shared_regs.MPSC_MRR_m = 0;
-		mpsc_shared_regs.MPSC_RCRR_m = 0;
-		mpsc_shared_regs.MPSC_TCRR_m = 0;
-		mpsc_shared_regs.SDMA_INTR_CAUSE_m = 0;
-		mpsc_shared_regs.SDMA_INTR_MASK_m = 0;
-		rc = 0;
-	}
+	mpsc_shared_unmap_regs();
+	mpsc_shared_regs.MPSC_MRR_m = 0;
+	mpsc_shared_regs.MPSC_RCRR_m = 0;
+	mpsc_shared_regs.MPSC_TCRR_m = 0;
+	mpsc_shared_regs.SDMA_INTR_CAUSE_m = 0;
+	mpsc_shared_regs.SDMA_INTR_MASK_m = 0;
 
-	return rc;
+	return 0;
 }
 
 static struct platform_driver mpsc_shared_driver = {
@@ -1981,10 +1969,6 @@ static int mpsc_drv_map_regs(struct mpsc_port_info *pi,
 		pi->sdma_base_p = r->start;
 	} else {
 		mpsc_resource_err("SDMA base");
-		if (pi->mpsc_base) {
-			iounmap(pi->mpsc_base);
-			pi->mpsc_base = NULL;
-		}
 		goto err;
 	}
 
@@ -1995,33 +1979,33 @@ static int mpsc_drv_map_regs(struct mpsc_port_info *pi,
 		pi->brg_base_p = r->start;
 	} else {
 		mpsc_resource_err("BRG base");
-		if (pi->mpsc_base) {
-			iounmap(pi->mpsc_base);
-			pi->mpsc_base = NULL;
-		}
-		if (pi->sdma_base) {
-			iounmap(pi->sdma_base);
-			pi->sdma_base = NULL;
-		}
 		goto err;
 	}
 	return 0;
 
 err:
+	if (pi->sdma_base) {
+		iounmap(pi->sdma_base);
+		pi->sdma_base = NULL;
+	}
+	if (pi->mpsc_base) {
+		iounmap(pi->mpsc_base);
+		pi->mpsc_base = NULL;
+	}
 	return -ENOMEM;
 }
 
 static void mpsc_drv_unmap_regs(struct mpsc_port_info *pi)
 {
-	if (!pi->mpsc_base) {
+	if (pi->mpsc_base) {
 		iounmap(pi->mpsc_base);
 		release_mem_region(pi->mpsc_base_p, MPSC_REG_BLOCK_SIZE);
 	}
-	if (!pi->sdma_base) {
+	if (pi->sdma_base) {
 		iounmap(pi->sdma_base);
 		release_mem_region(pi->sdma_base_p, MPSC_SDMA_REG_BLOCK_SIZE);
 	}
-	if (!pi->brg_base) {
+	if (pi->brg_base) {
 		iounmap(pi->brg_base);
 		release_mem_region(pi->brg_base_p, MPSC_BRG_REG_BLOCK_SIZE);
 	}
@@ -2075,59 +2059,45 @@ static void mpsc_drv_get_platform_data(struct mpsc_port_info *pi,
 
 static int mpsc_drv_probe(struct platform_device *dev)
 {
-	struct mpsc_port_info	*pi;
-	int			rc = -ENODEV;
+	struct mpsc_port_info *pi;
+	int rc;
 
-	pr_debug("mpsc_drv_probe: Adding MPSC %d\n", dev->id);
+	dev_dbg(&dev->dev, "mpsc_drv_probe: Adding MPSC %d\n", dev->id);
 
-	if (dev->id < MPSC_NUM_CTLRS) {
-		pi = &mpsc_ports[dev->id];
-
-		rc = mpsc_drv_map_regs(pi, dev);
-		if (!rc) {
-			mpsc_drv_get_platform_data(pi, dev, dev->id);
-			pi->port.dev = &dev->dev;
-
-			rc = mpsc_make_ready(pi);
-			if (!rc) {
-				spin_lock_init(&pi->tx_lock);
-				rc = uart_add_one_port(&mpsc_reg, &pi->port);
-				if (!rc) {
-					rc = 0;
-				} else {
-					mpsc_release_port((struct uart_port *)
-							pi);
-					mpsc_drv_unmap_regs(pi);
-				}
-			} else {
-				mpsc_drv_unmap_regs(pi);
-			}
-		}
-	}
-
-	return rc;
-}
-
-static int mpsc_drv_remove(struct platform_device *dev)
-{
-	pr_debug("mpsc_drv_exit: Removing MPSC %d\n", dev->id);
-
-	if (dev->id < MPSC_NUM_CTLRS) {
-		uart_remove_one_port(&mpsc_reg, &mpsc_ports[dev->id].port);
-		mpsc_release_port((struct uart_port *)
-				&mpsc_ports[dev->id].port);
-		mpsc_drv_unmap_regs(&mpsc_ports[dev->id]);
-		return 0;
-	} else {
+	if (dev->id >= MPSC_NUM_CTLRS)
 		return -ENODEV;
-	}
+
+	pi = &mpsc_ports[dev->id];
+
+	rc = mpsc_drv_map_regs(pi, dev);
+	if (rc)
+		return rc;
+
+	mpsc_drv_get_platform_data(pi, dev, dev->id);
+	pi->port.dev = &dev->dev;
+
+	rc = mpsc_make_ready(pi);
+	if (rc)
+		goto err_unmap;
+
+	spin_lock_init(&pi->tx_lock);
+	rc = uart_add_one_port(&mpsc_reg, &pi->port);
+	if (rc)
+		goto err_relport;
+
+	return 0;
+err_relport:
+	mpsc_release_port(&pi->port);
+err_unmap:
+	mpsc_drv_unmap_regs(pi);
+	return rc;
 }
 
 static struct platform_driver mpsc_driver = {
 	.probe	= mpsc_drv_probe,
-	.remove	= mpsc_drv_remove,
 	.driver	= {
-		.name	= MPSC_CTLR_NAME,
+		.name			= MPSC_CTLR_NAME,
+		.suppress_bind_attrs	= true,
 	},
 };
 
@@ -2141,37 +2111,28 @@ static int __init mpsc_drv_init(void)
 	memset(&mpsc_shared_regs, 0, sizeof(mpsc_shared_regs));
 
 	rc = uart_register_driver(&mpsc_reg);
-	if (!rc) {
-		rc = platform_driver_register(&mpsc_shared_driver);
-		if (!rc) {
-			rc = platform_driver_register(&mpsc_driver);
-			if (rc) {
-				platform_driver_unregister(&mpsc_shared_driver);
-				uart_unregister_driver(&mpsc_reg);
-			}
-		} else {
-			uart_unregister_driver(&mpsc_reg);
-		}
-	}
+	if (rc)
+		return rc;
 
+	rc = platform_driver_register(&mpsc_shared_driver);
+	if (rc)
+		goto err_unreg_uart;
+
+	rc = platform_driver_register(&mpsc_driver);
+	if (rc)
+		goto err_unreg_plat;
+
+	return 0;
+err_unreg_plat:
+	platform_driver_unregister(&mpsc_shared_driver);
+err_unreg_uart:
+	uart_unregister_driver(&mpsc_reg);
 	return rc;
 }
+device_initcall(mpsc_drv_init);
 
-static void __exit mpsc_drv_exit(void)
-{
-	platform_driver_unregister(&mpsc_driver);
-	platform_driver_unregister(&mpsc_shared_driver);
-	uart_unregister_driver(&mpsc_reg);
-	memset(mpsc_ports, 0, sizeof(mpsc_ports));
-	memset(&mpsc_shared_regs, 0, sizeof(mpsc_shared_regs));
-}
-
-module_init(mpsc_drv_init);
-module_exit(mpsc_drv_exit);
-
+/*
 MODULE_AUTHOR("Mark A. Greer <mgreer@mvista.com>");
 MODULE_DESCRIPTION("Generic Marvell MPSC serial/UART driver");
-MODULE_VERSION(MPSC_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_CHARDEV_MAJOR(MPSC_MAJOR);
-MODULE_ALIAS("platform:" MPSC_CTLR_NAME);
+*/

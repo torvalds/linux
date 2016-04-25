@@ -28,7 +28,7 @@
 #define ULITE_NAME		"ttyUL"
 #define ULITE_MAJOR		204
 #define ULITE_MINOR		187
-#define ULITE_NR_UARTS		4
+#define ULITE_NR_UARTS		16
 
 /* ---------------------------------------------------------------------
  * Register definitions
@@ -193,12 +193,15 @@ static int ulite_transmit(struct uart_port *port, int stat)
 static irqreturn_t ulite_isr(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	int busy, n = 0;
+	int stat, busy, n = 0;
+	unsigned long flags;
 
 	do {
-		int stat = uart_in32(ULITE_STATUS, port);
+		spin_lock_irqsave(&port->lock, flags);
+		stat = uart_in32(ULITE_STATUS, port);
 		busy  = ulite_receive(port, stat);
 		busy |= ulite_transmit(port, stat);
+		spin_unlock_irqrestore(&port->lock, flags);
 		n++;
 	} while (busy);
 
@@ -259,7 +262,8 @@ static int ulite_startup(struct uart_port *port)
 {
 	int ret;
 
-	ret = request_irq(port->irq, ulite_isr, IRQF_SHARED, "uartlite", port);
+	ret = request_irq(port->irq, ulite_isr, IRQF_SHARED | IRQF_TRIGGER_RISING,
+			  "uartlite", port);
 	if (ret)
 		return ret;
 
@@ -518,6 +522,47 @@ static int __init ulite_console_init(void)
 }
 
 console_initcall(ulite_console_init);
+
+static void early_uartlite_putc(struct uart_port *port, int c)
+{
+	/*
+	 * Limit how many times we'll spin waiting for TX FIFO status.
+	 * This will prevent lockups if the base address is incorrectly
+	 * set, or any other issue on the UARTLITE.
+	 * This limit is pretty arbitrary, unless we are at about 10 baud
+	 * we'll never timeout on a working UART.
+	 */
+
+	unsigned retries = 1000000;
+	/* read status bit - 0x8 offset */
+	while (--retries && (readl(port->membase + 8) & (1 << 3)))
+		;
+
+	/* Only attempt the iowrite if we didn't timeout */
+	/* write to TX_FIFO - 0x4 offset */
+	if (retries)
+		writel(c & 0xff, port->membase + 4);
+}
+
+static void early_uartlite_write(struct console *console,
+				 const char *s, unsigned n)
+{
+	struct earlycon_device *device = console->data;
+	uart_console_write(&device->port, s, n, early_uartlite_putc);
+}
+
+static int __init early_uartlite_setup(struct earlycon_device *device,
+				       const char *options)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = early_uartlite_write;
+	return 0;
+}
+EARLYCON_DECLARE(uartlite, early_uartlite_setup);
+OF_EARLYCON_DECLARE(uartlite_b, "xlnx,opb-uartlite-1.00.b", early_uartlite_setup);
+OF_EARLYCON_DECLARE(uartlite_a, "xlnx,xps-uartlite-1.00.a", early_uartlite_setup);
 
 #endif /* CONFIG_SERIAL_UARTLITE_CONSOLE */
 

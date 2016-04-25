@@ -142,10 +142,17 @@
 	status = "okay";
 };
 
+&clks {
+	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
+	                  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL3_USB_OTG>,
+	                  <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
+};
+
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	phy-reset-gpios = <&gpio1 30 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
@@ -260,6 +267,8 @@
 			swbst_reg: swbst {
 				regulator-min-microvolt = <5000000>;
 				regulator-max-microvolt = <5150000>;
+				regulator-boot-on;
+				regulator-always-on;
 			};
 
 			snvs_reg: vsnvs {
@@ -336,7 +345,7 @@
 &ldb {
 	status = "okay";
 
-	lvds-channel@1 {
+	lvds-channel@0 {
 		fsl,data-mapping = "spwg";
 		fsl,data-width = <18>;
 		status = "okay";
@@ -369,9 +378,28 @@
 	};
 };
 
-&pwm4 {
+&pwm1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm4>;
+	pinctrl-0 = <&pinctrl_pwm1>; /* MX6_DIO0 */
+	status = "disabled";
+};
+
+&pwm2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm2>; /* MX6_DIO1 */
+	status = "disabled";
+};
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>; /* MX6_DIO2 */
+	status = "disabled";
+};
+
+&pwm4 {
+	pinctrl-names = "default", "state_dio";
+	pinctrl-0 = <&pinctrl_pwm4_backlight>;
+	pinctrl-1 = <&pinctrl_pwm4_dio>;
 	status = "okay";
 };
 
@@ -528,9 +556,35 @@
 			>;
 		};
 
-		pinctrl_pwm4: pwm4grp {
+		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
+				MX6QDL_PAD_GPIO_9__PWM1_OUT		0x1b0b1
+			>;
+		};
+
+		pinctrl_pwm2: pwm2grp {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_DAT2__PWM2_OUT		0x1b0b1
+			>;
+		};
+
+		pinctrl_pwm3: pwm3grp {
+			fsl,pins = <
+				MX6QDL_PAD_SD4_DAT1__PWM3_OUT		0x1b0b1
+			>;
+		};
+
+		pinctrl_pwm4_backlight: pwm4grpbacklight {
+			fsl,pins = <
+				/* LVDS_PWM J6.5 */
 				MX6QDL_PAD_SD1_CMD__PWM4_OUT		0x1b0b1
+			>;
+		};
+
+		pinctrl_pwm4_dio: pwm4grpdio {
+			fsl,pins = <
+				/* DIO3 J16.4 */
+				MX6QDL_PAD_SD4_DAT2__PWM4_OUT		0x1b0b1
 			>;
 		};
 

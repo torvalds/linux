@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2015 Avago Technologies
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -12,7 +12,7 @@
  * Contact Information:
  * linux-drivers@avagotech.com
  *
- * Avago Technologies
+ * Emulex
  * 3333 Susan Street
  * Costa Mesa, CA 92626
  */
@@ -36,8 +36,8 @@
 #include <scsi/scsi_transport_iscsi.h>
 
 #define DRV_NAME		"be2iscsi"
-#define BUILD_STR		"10.6.0.0"
-#define BE_NAME			"Avago Technologies OneConnect" \
+#define BUILD_STR		"11.0.0.0"
+#define BE_NAME			"Emulex OneConnect" \
 				"Open-iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
 
@@ -63,6 +63,7 @@
 #define BE2_SGE			32
 #define BE2_DEFPDU_HDR_SZ	64
 #define BE2_DEFPDU_DATA_SZ	8192
+#define BE2_MAX_NUM_CQ_PROC	512
 
 #define MAX_CPUS		64
 #define BEISCSI_MAX_NUM_CPUS	7
@@ -103,8 +104,7 @@
 #define BE_ADAPTER_LINK_UP	0x001
 #define BE_ADAPTER_LINK_DOWN	0x002
 #define BE_ADAPTER_PCI_ERR	0x004
-#define BE_ADAPTER_STATE_SHUTDOWN	0x008
-#define BE_ADAPTER_CHECK_BOOT	0x010
+#define BE_ADAPTER_CHECK_BOOT	0x008
 
 
 #define BEISCSI_CLEAN_UNLOAD	0x01
@@ -304,6 +304,7 @@ struct invalidate_command_table {
 #define BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr, cri) \
 	(phwi_ctrlr->wrb_context[cri].ulp_num)
 struct hwi_wrb_context {
+	spinlock_t wrb_lock;
 	struct list_head wrb_handle_list;
 	struct list_head wrb_handle_drvr_list;
 	struct wrb_handle **pwrb_handle_base;
@@ -398,7 +399,9 @@ struct beiscsi_hba {
 		 * group together since they are used most frequently
 		 * for cid to cri conversion
 		 */
+#define BEISCSI_PHYS_PORT_MAX	4
 		unsigned int phys_port;
+		/* valid values of phys_port id are 0, 1, 2, 3 */
 		unsigned int eqid_count;
 		unsigned int cqid_count;
 		unsigned int iscsi_cid_start[BEISCSI_ULP_COUNT];
@@ -416,6 +419,7 @@ struct beiscsi_hba {
 	} fw_config;
 
 	unsigned int state;
+	u8 optic_state;
 	int get_boot;
 	bool fw_timeout;
 	bool ue_detected;
@@ -423,6 +427,8 @@ struct beiscsi_hba {
 
 	bool mac_addr_set;
 	u8 mac_address[ETH_ALEN];
+	u8 port_name;
+	u8 port_speed;
 	char fw_ver_str[BEISCSI_VER_STRLEN];
 	char wq_name[20];
 	struct workqueue_struct *wq;	/* The actuak work queue */
@@ -502,6 +508,7 @@ struct beiscsi_io_task {
 	struct sgl_handle *psgl_handle;
 	struct beiscsi_conn *conn;
 	struct scsi_cmnd *scsi_cmnd;
+	struct hwi_wrb_context *pwrb_context;
 	unsigned int cmd_sn;
 	unsigned int flags;
 	unsigned short cid;
@@ -833,7 +840,8 @@ struct amap_iscsi_wrb_v2 {
 } __packed;
 
 
-struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid);
+struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid,
+				     struct hwi_wrb_context **pcontext);
 void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
 
@@ -843,9 +851,10 @@ void beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn,
 
 void hwi_ring_cq_db(struct beiscsi_hba *phba,
 		     unsigned int id, unsigned int num_processed,
-		     unsigned char rearm, unsigned char event);
+		     unsigned char rearm);
 
-unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq);
+unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget);
+void beiscsi_process_mcc_cq(struct beiscsi_hba *phba);
 
 static inline bool beiscsi_error(struct beiscsi_hba *phba)
 {
@@ -1044,7 +1053,6 @@ enum hwh_type_enum {
 struct wrb_handle {
 	enum hwh_type_enum type;
 	unsigned short wrb_index;
-	unsigned short nxt_wrb_index;
 
 	struct iscsi_task *pio_handle;
 	struct iscsi_wrb *pwrb;
@@ -1073,12 +1081,14 @@ struct hwi_context_memory {
 #define BEISCSI_LOG_CONFIG	0x0020	/* CONFIG Code Path */
 #define BEISCSI_LOG_ISCSI	0x0040	/* SCSI/iSCSI Protocol related Logs */
 
+#define __beiscsi_log(phba, level, fmt, arg...) \
+	shost_printk(level, phba->shost, fmt, __LINE__, ##arg)
+
 #define beiscsi_log(phba, level, mask, fmt, arg...) \
 do { \
 	uint32_t log_value = phba->attr_log_enable; \
 		if (((mask) & log_value) || (level[1] <= '3')) \
-			shost_printk(level, phba->shost, \
-				     fmt, __LINE__, ##arg); \
-} while (0)
+			__beiscsi_log(phba, level, fmt, ##arg); \
+} while (0);
 
 #endif

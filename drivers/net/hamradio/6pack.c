@@ -683,14 +683,20 @@ static void sixpack_close(struct tty_struct *tty)
 	if (!atomic_dec_and_test(&sp->refcnt))
 		down(&sp->dead_sem);
 
-	unregister_netdev(sp->dev);
+	/* We must stop the queue to avoid potentially scribbling
+	 * on the free buffers. The sp->dead_sem is not sufficient
+	 * to protect us from sp->xbuff access.
+	 */
+	netif_stop_queue(sp->dev);
 
-	del_timer(&sp->tx_t);
-	del_timer(&sp->resync_t);
+	del_timer_sync(&sp->tx_t);
+	del_timer_sync(&sp->resync_t);
 
 	/* Free all 6pack frame buffers. */
 	kfree(sp->rbuff);
 	kfree(sp->xbuff);
+
+	unregister_netdev(sp->dev);
 }
 
 /* Perform I/O control on an active 6pack channel. */

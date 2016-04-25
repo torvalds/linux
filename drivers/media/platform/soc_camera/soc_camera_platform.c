@@ -18,7 +18,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-subdev.h>
 #include <media/soc_camera.h>
-#include <media/soc_camera_platform.h>
+#include <linux/platform_data/media/soc_camera_platform.h>
 
 struct soc_camera_platform_priv {
 	struct v4l2_subdev subdev;

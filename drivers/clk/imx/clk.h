@@ -7,6 +7,7 @@
 extern spinlock_t imx_ccm_lock;
 
 void imx_check_clocks(struct clk *clks[], unsigned int count);
+void imx_register_uart_clocks(struct clk ** const clks[]);
 
 extern void imx_cscmr1_fixup(u32 *val);
 
@@ -86,7 +87,7 @@ struct clk *imx_clk_fixup_mux(const char *name, void __iomem *reg,
 
 static inline struct clk *imx_clk_fixed(const char *name, int rate)
 {
-	return clk_register_fixed_rate(NULL, name, NULL, CLK_IS_ROOT, rate);
+	return clk_register_fixed_rate(NULL, name, NULL, 0, rate);
 }
 
 static inline struct clk *imx_clk_divider(const char *name, const char *parent,

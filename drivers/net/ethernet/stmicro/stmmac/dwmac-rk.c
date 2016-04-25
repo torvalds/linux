@@ -354,7 +354,7 @@ static int gmac_clk_init(struct rk_priv_data *bsp_priv)
 
 static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 {
-	int phy_iface = phy_iface = bsp_priv->phy_iface;
+	int phy_iface = bsp_priv->phy_iface;
 
 	if (enable) {
 		if (!bsp_priv->clk_enabled) {

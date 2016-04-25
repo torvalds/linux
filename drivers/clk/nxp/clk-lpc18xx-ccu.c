@@ -28,8 +28,6 @@
 #define CCU_BRANCH_IS_BUS	BIT(0)
 #define CCU_BRANCH_HAVE_DIV2	BIT(1)
 
-#define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
-
 struct lpc18xx_branch_clk_data {
 	const char **name;
 	int num;
@@ -179,9 +177,22 @@ static void lpc18xx_ccu_gate_disable(struct clk_hw *hw)
 
 static int lpc18xx_ccu_gate_is_enabled(struct clk_hw *hw)
 {
-	struct clk_gate *gate = to_clk_gate(hw);
+	const struct clk_hw *parent;
 
-	return clk_readl(gate->reg) & LPC18XX_CCU_RUN;
+	/*
+	 * The branch clock registers are only accessible
+	 * if the base (parent) clock is enabled. Register
+	 * access with a disabled base clock will hang the
+	 * system.
+	 */
+	parent = clk_hw_get_parent(hw);
+	if (!parent)
+		return 0;
+
+	if (!clk_hw_is_enabled(parent))
+		return 0;
+
+	return clk_gate_ops.is_enabled(hw);
 }
 
 static const struct clk_ops lpc18xx_ccu_gate_ops = {
@@ -209,7 +220,7 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 		div->width = 1;
 
 		div_hw = &div->hw;
-		div_ops = &clk_divider_ops;
+		div_ops = &clk_divider_ro_ops;
 	}
 
 	branch->gate.reg = branch->offset + reg_base;

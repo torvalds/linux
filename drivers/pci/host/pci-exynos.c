@@ -318,7 +318,6 @@ static int exynos_pcie_establish_link(struct pcie_port *pp)
 {
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pp);
 	u32 val;
-	unsigned int retries;
 
 	if (dw_pcie_link_up(pp)) {
 		dev_err(pp->dev, "Link already up\n");
@@ -357,13 +356,8 @@ static int exynos_pcie_establish_link(struct pcie_port *pp)
 			  PCIE_APP_LTSSM_ENABLE);
 
 	/* check if the link is up or not */
-	for (retries = 0; retries < 10; retries++) {
-		if (dw_pcie_link_up(pp)) {
-			dev_info(pp->dev, "Link up\n");
-			return 0;
-		}
-		mdelay(100);
-	}
+	if (!dw_pcie_wait_for_link(pp))
+		return 0;
 
 	while (exynos_phy_readl(exynos_pcie, PCIE_PHY_PLL_LOCKED) == 0) {
 		val = exynos_blk_readl(exynos_pcie, PCIE_PHY_PLL_LOCKED);
@@ -372,8 +366,7 @@ static int exynos_pcie_establish_link(struct pcie_port *pp)
 	/* power off phy */
 	exynos_pcie_power_off_phy(pp);
 
-	dev_err(pp->dev, "PCIe Link Fail\n");
-	return -EINVAL;
+	return -ETIMEDOUT;
 }
 
 static void exynos_pcie_clear_irq_pulse(struct pcie_port *pp)
@@ -454,7 +447,7 @@ static int exynos_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 	int ret;
 
 	exynos_pcie_sideband_dbi_r_mode(pp, true);
-	ret = dw_pcie_cfg_read(pp->dbi_base + (where & ~0x3), where, size, val);
+	ret = dw_pcie_cfg_read(pp->dbi_base + where, size, val);
 	exynos_pcie_sideband_dbi_r_mode(pp, false);
 	return ret;
 }
@@ -465,8 +458,7 @@ static int exynos_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
 	int ret;
 
 	exynos_pcie_sideband_dbi_w_mode(pp, true);
-	ret = dw_pcie_cfg_write(pp->dbi_base + (where & ~0x3),
-			where, size, val);
+	ret = dw_pcie_cfg_write(pp->dbi_base + where, size, val);
 	exynos_pcie_sideband_dbi_w_mode(pp, false);
 	return ret;
 }
@@ -523,7 +515,8 @@ static int __init exynos_add_pcie_port(struct pcie_port *pp,
 
 		ret = devm_request_irq(&pdev->dev, pp->msi_irq,
 					exynos_pcie_msi_irq_handler,
-					IRQF_SHARED, "exynos-pcie", pp);
+					IRQF_SHARED | IRQF_NO_THREAD,
+					"exynos-pcie", pp);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to request msi irq\n");
 			return ret;

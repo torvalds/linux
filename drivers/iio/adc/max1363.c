@@ -1007,7 +1007,6 @@ static struct attribute *max1363_event_attributes[] = {
 
 static struct attribute_group max1363_event_attribute_group = {
 	.attrs = max1363_event_attributes,
-	.name = "events",
 };
 
 static int max1363_update_scan_mode(struct iio_dev *indio_dev,
@@ -1387,7 +1386,7 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 	},
 	[max11644] = {
 		.bits = 12,
-		.int_vref_mv = 2048,
+		.int_vref_mv = 4096,
 		.mode_list = max11644_mode_list,
 		.num_modes = ARRAY_SIZE(max11644_mode_list),
 		.default_mode = s0to1,
@@ -1397,7 +1396,7 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 	},
 	[max11645] = {
 		.bits = 12,
-		.int_vref_mv = 4096,
+		.int_vref_mv = 2048,
 		.mode_list = max11644_mode_list,
 		.num_modes = ARRAY_SIZE(max11644_mode_list),
 		.default_mode = s0to1,
@@ -1407,7 +1406,7 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 	},
 	[max11646] = {
 		.bits = 10,
-		.int_vref_mv = 2048,
+		.int_vref_mv = 4096,
 		.mode_list = max11644_mode_list,
 		.num_modes = ARRAY_SIZE(max11644_mode_list),
 		.default_mode = s0to1,
@@ -1417,7 +1416,7 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 	},
 	[max11647] = {
 		.bits = 10,
-		.int_vref_mv = 4096,
+		.int_vref_mv = 2048,
 		.mode_list = max11644_mode_list,
 		.num_modes = ARRAY_SIZE(max11644_mode_list),
 		.default_mode = s0to1,
@@ -1681,6 +1680,10 @@ static const struct i2c_device_id max1363_id[] = {
 	{ "max11615", max11615 },
 	{ "max11616", max11616 },
 	{ "max11617", max11617 },
+	{ "max11644", max11644 },
+	{ "max11645", max11645 },
+	{ "max11646", max11646 },
+	{ "max11647", max11647 },
 	{}
 };
 

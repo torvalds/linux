@@ -84,15 +84,6 @@ config CRYPTO_RNG_DEFAULT
 	tristate
 	select CRYPTO_DRBG_MENU
 
-config CRYPTO_PCOMP
-	tristate
-	select CRYPTO_PCOMP2
-	select CRYPTO_ALGAPI
-
-config CRYPTO_PCOMP2
-	tristate
-	select CRYPTO_ALGAPI2
-
 config CRYPTO_AKCIPHER2
 	tristate
 	select CRYPTO_ALGAPI2
@@ -122,7 +113,6 @@ config CRYPTO_MANAGER2
 	select CRYPTO_AEAD2
 	select CRYPTO_HASH2
 	select CRYPTO_BLKCIPHER2
-	select CRYPTO_PCOMP2
 	select CRYPTO_AKCIPHER2
 
 config CRYPTO_USER
@@ -226,6 +216,9 @@ config CRYPTO_GLUE_HELPER_X86
 	tristate
 	depends on X86
 	select CRYPTO_ALGAPI
+
+config CRYPTO_ENGINE
+	tristate
 
 comment "Authenticated Encryption with Associated Data"
 
@@ -348,6 +341,13 @@ config CRYPTO_XTS
 	  key size 256, 384 or 512 bits. This implementation currently
 	  can't handle a sectorsize which is not a multiple of 16 bytes.
 
+config CRYPTO_KEYWRAP
+	tristate "Key wrapping support"
+	select CRYPTO_BLKCIPHER
+	help
+	  Support for key wrapping (NIST SP800-38F / RFC3394) without
+	  padding.
+
 comment "Hash modes"
 
 config CRYPTO_CMAC
@@ -465,11 +465,13 @@ config CRYPTO_CRCT10DIF_PCLMUL
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"
 	select CRYPTO_GF128MUL
+	select CRYPTO_HASH
 	help
 	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
 
 config CRYPTO_POLY1305
 	tristate "Poly1305 authenticator algorithm"
+	select CRYPTO_HASH
 	help
 	  Poly1305 authenticator algorithm, RFC7539.
 
@@ -597,17 +599,18 @@ config CRYPTO_SHA1
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
 config CRYPTO_SHA1_SSSE3
-	tristate "SHA1 digest algorithm (SSSE3/AVX/AVX2)"
+	tristate "SHA1 digest algorithm (SSSE3/AVX/AVX2/SHA-NI)"
 	depends on X86 && 64BIT
 	select CRYPTO_SHA1
 	select CRYPTO_HASH
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
 	  using Supplemental SSE3 (SSSE3) instructions or Advanced Vector
-	  Extensions (AVX/AVX2), when available.
+	  Extensions (AVX/AVX2) or SHA-NI(SHA Extensions New Instructions),
+	  when available.
 
 config CRYPTO_SHA256_SSSE3
-	tristate "SHA256 digest algorithm (SSSE3/AVX/AVX2)"
+	tristate "SHA256 digest algorithm (SSSE3/AVX/AVX2/SHA-NI)"
 	depends on X86 && 64BIT
 	select CRYPTO_SHA256
 	select CRYPTO_HASH
@@ -615,7 +618,8 @@ config CRYPTO_SHA256_SSSE3
 	  SHA-256 secure hash standard (DFIPS 180-2) implemented
 	  using Supplemental SSE3 (SSSE3) instructions, or Advanced Vector
 	  Extensions version 1 (AVX1), or Advanced Vector Extensions
-	  version 2 (AVX2) instructions, when available.
+	  version 2 (AVX2) instructions, or SHA-NI (SHA Extensions New
+	  Instructions) when available.
 
 config CRYPTO_SHA512_SSSE3
 	tristate "SHA512 digest algorithm (SSSE3/AVX/AVX2)"
@@ -1495,15 +1499,6 @@ config CRYPTO_DEFLATE
 
 	  You will most probably want this if using IPSec.
 
-config CRYPTO_ZLIB
-	tristate "Zlib compression algorithm"
-	select CRYPTO_PCOMP
-	select ZLIB_INFLATE
-	select ZLIB_DEFLATE
-	select NLATTR
-	help
-	  This is the zlib algorithm.
-
 config CRYPTO_LZO
 	tristate "LZO compression algorithm"
 	select CRYPTO_ALGAPI
@@ -1584,6 +1579,7 @@ endif	# if CRYPTO_DRBG_MENU
 
 config CRYPTO_JITTERENTROPY
 	tristate "Jitterentropy Non-Deterministic Random Number Generator"
+	select CRYPTO_RNG
 	help
 	  The Jitterentropy RNG is a noise that is intended
 	  to provide seed to another RNG. The RNG does not

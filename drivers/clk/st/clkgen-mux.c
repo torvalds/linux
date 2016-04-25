@@ -17,6 +17,7 @@
 #include <linux/of_address.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include "clkgen.h"
 
 static DEFINE_SPINLOCK(clkgena_divmux_lock);
 static DEFINE_SPINLOCK(clkgenf_lock);
@@ -25,10 +26,10 @@ static const char ** __init clkgen_mux_get_parents(struct device_node *np,
 						       int *num_parents)
 {
 	const char **parents;
-	int nparents;
+	unsigned int nparents;
 
 	nparents = of_clk_get_parent_count(np);
-	if (WARN_ON(nparents <= 0))
+	if (WARN_ON(!nparents))
 		return ERR_PTR(-EINVAL);
 
 	parents = kcalloc(nparents, sizeof(const char *), GFP_KERNEL);
@@ -576,6 +577,7 @@ static struct clkgen_mux_data stih415_a9_mux_data = {
 	.offset = 0,
 	.shift = 1,
 	.width = 2,
+	.lock = &clkgen_a9_lock,
 };
 static struct clkgen_mux_data stih416_a9_mux_data = {
 	.offset = 0,
@@ -586,6 +588,7 @@ static struct clkgen_mux_data stih407_a9_mux_data = {
 	.offset = 0x1a4,
 	.shift = 0,
 	.width = 2,
+	.lock = &clkgen_a9_lock,
 };
 
 static const struct of_device_id mux_of_match[] = {
@@ -819,11 +822,10 @@ err:
 		if (!clk_data->clks[i])
 			continue;
 
-		composite = container_of(__clk_get_hw(clk_data->clks[i]),
-					 struct clk_composite, hw);
-		kfree(container_of(composite->gate_hw, struct clk_gate, hw));
-		kfree(container_of(composite->rate_hw, struct clk_divider, hw));
-		kfree(container_of(composite->mux_hw, struct clk_mux, hw));
+		composite = to_clk_composite(__clk_get_hw(clk_data->clks[i]));
+		kfree(to_clk_gate(composite->gate_hw));
+		kfree(to_clk_divider(composite->rate_hw));
+		kfree(to_clk_mux(composite->mux_hw));
 	}
 
 	kfree(clk_data->clks);

@@ -16,30 +16,31 @@ struct sample {
 	struct thread *thread;
 	struct map *map;
 	struct symbol *sym;
+	int socket;
 };
 
 /* For the numbers, see hists_common.c */
 static struct sample fake_samples[] = {
 	/* perf [kernel] schedule() */
-	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_KERNEL_SCHEDULE, },
+	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_KERNEL_SCHEDULE, .socket = 0 },
 	/* perf [perf]   main() */
-	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_PERF_MAIN, },
+	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_PERF_MAIN, .socket = 0 },
 	/* perf [libc]   malloc() */
-	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_LIBC_MALLOC, },
+	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_LIBC_MALLOC, .socket = 0 },
 	/* perf [perf]   main() */
-	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_PERF_MAIN, }, /* will be merged */
+	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_PERF_MAIN, .socket = 0 }, /* will be merged */
 	/* perf [perf]   cmd_record() */
-	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_PERF_CMD_RECORD, },
+	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_PERF_CMD_RECORD, .socket = 1 },
 	/* perf [kernel] page_fault() */
-	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_KERNEL_PAGE_FAULT, },
+	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_KERNEL_PAGE_FAULT, .socket = 1 },
 	/* bash [bash]   main() */
-	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_MAIN, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_MAIN, .socket = 2 },
 	/* bash [bash]   xmalloc() */
-	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_XMALLOC, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_XMALLOC, .socket = 2 },
 	/* bash [libc]   malloc() */
-	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_LIBC_MALLOC, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_LIBC_MALLOC, .socket = 3 },
 	/* bash [kernel] page_fault() */
-	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_KERNEL_PAGE_FAULT, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_KERNEL_PAGE_FAULT, .socket = 3 },
 };
 
 static int add_hist_entries(struct perf_evlist *evlist,
@@ -57,11 +58,6 @@ static int add_hist_entries(struct perf_evlist *evlist,
 	 */
 	evlist__for_each(evlist, evsel) {
 		for (i = 0; i < ARRAY_SIZE(fake_samples); i++) {
-			const union perf_event event = {
-				.header = {
-					.misc = PERF_RECORD_MISC_USER,
-				},
-			};
 			struct hist_entry_iter iter = {
 				.evsel = evsel,
 				.sample = &sample,
@@ -75,14 +71,15 @@ static int add_hist_entries(struct perf_evlist *evlist,
 			hists->dso_filter = NULL;
 			hists->symbol_filter_str = NULL;
 
+			sample.cpumode = PERF_RECORD_MISC_USER;
 			sample.pid = fake_samples[i].pid;
 			sample.tid = fake_samples[i].pid;
 			sample.ip = fake_samples[i].ip;
 
-			if (perf_event__preprocess_sample(&event, machine, &al,
-							  &sample) < 0)
+			if (machine__resolve(machine, &al, &sample) < 0)
 				goto out;
 
+			al.socket = fake_samples[i].socket;
 			if (hist_entry_iter__add(&iter, &al,
 						 PERF_MAX_STACK_DEPTH, NULL) < 0) {
 				addr_location__put(&al);
@@ -102,7 +99,7 @@ out:
 	return TEST_FAIL;
 }
 
-int test__hists_filter(void)
+int test__hists_filter(int subtest __maybe_unused)
 {
 	int err = TEST_FAIL;
 	struct machines machines;
@@ -118,9 +115,10 @@ int test__hists_filter(void)
 	err = parse_events(evlist, "task-clock", NULL);
 	if (err)
 		goto out;
+	err = TEST_FAIL;
 
 	/* default sort order (comm,dso,sym) will be used */
-	if (setup_sorting() < 0)
+	if (setup_sorting(NULL) < 0)
 		goto out;
 
 	machines__init(&machines);
@@ -142,7 +140,7 @@ int test__hists_filter(void)
 		struct hists *hists = evsel__hists(evsel);
 
 		hists__collapse_resort(hists, NULL);
-		hists__output_resort(hists, NULL);
+		perf_evsel__output_resort(evsel, NULL);
 
 		if (verbose > 2) {
 			pr_info("Normal histogram\n");
@@ -252,6 +250,39 @@ int test__hists_filter(void)
 				hists->nr_non_filtered_entries == 2);
 		TEST_ASSERT_VAL("Unmatched total period for symbol filter",
 				hists->stats.total_non_filtered_period == 300);
+
+		/* remove symbol filter first */
+		hists->symbol_filter_str = NULL;
+		hists__filter_by_symbol(hists);
+
+		/* now applying socket filters */
+		hists->socket_filter = 2;
+		hists__filter_by_socket(hists);
+
+		if (verbose > 2) {
+			pr_info("Histogram for socket filters\n");
+			print_hists_out(hists);
+		}
+
+		/* normal stats should be invariant */
+		TEST_ASSERT_VAL("Invalid nr samples",
+				hists->stats.nr_events[PERF_RECORD_SAMPLE] == 10);
+		TEST_ASSERT_VAL("Invalid nr hist entries",
+				hists->nr_entries == 9);
+		TEST_ASSERT_VAL("Invalid total period",
+				hists->stats.total_period == 1000);
+
+		/* but filter stats are changed */
+		TEST_ASSERT_VAL("Unmatched nr samples for socket filter",
+				hists->stats.nr_non_filtered_samples == 2);
+		TEST_ASSERT_VAL("Unmatched nr hist entries for socket filter",
+				hists->nr_non_filtered_entries == 2);
+		TEST_ASSERT_VAL("Unmatched total period for socket filter",
+				hists->stats.total_non_filtered_period == 200);
+
+		/* remove socket filter first */
+		hists->socket_filter = -1;
+		hists__filter_by_socket(hists);
 
 		/* now applying all filters at once. */
 		hists->thread_filter = fake_samples[1].thread;

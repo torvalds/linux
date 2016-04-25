@@ -68,7 +68,7 @@ struct nfc_ops {
 	int (*activate_target)(struct nfc_dev *dev, struct nfc_target *target,
 			       u32 protocol);
 	void (*deactivate_target)(struct nfc_dev *dev,
-				  struct nfc_target *target);
+				  struct nfc_target *target, u8 mode);
 	int (*im_transceive)(struct nfc_dev *dev, struct nfc_target *target,
 			     struct sk_buff *skb, data_exchange_cb_t cb,
 			     void *cb_context);
@@ -299,6 +299,7 @@ void nfc_driver_failure(struct nfc_dev *dev, int err);
 
 int nfc_se_transaction(struct nfc_dev *dev, u8 se_idx,
 		       struct nfc_evt_transaction *evt_transaction);
+int nfc_se_connectivity(struct nfc_dev *dev, u8 se_idx);
 int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type);
 int nfc_remove_se(struct nfc_dev *dev, u32 se_idx);
 struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx);

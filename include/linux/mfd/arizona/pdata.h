@@ -124,6 +124,9 @@ struct arizona_pdata {
 	/** Channel to use for headphone detection */
 	unsigned int hpdet_channel;
 
+	/** Use software comparison to determine mic presence */
+	bool micd_software_compare;
+
 	/** Extra debounce timeout used during initial mic detection (ms) */
 	unsigned int micd_detect_debounce;
 
@@ -168,7 +171,7 @@ struct arizona_pdata {
 	int inmode[ARIZONA_MAX_INPUT];
 
 	/** Mode for outputs */
-	bool out_mono[ARIZONA_MAX_OUTPUT];
+	int out_mono[ARIZONA_MAX_OUTPUT];
 
 	/** PDM speaker mute setting */
 	unsigned int spk_mute[ARIZONA_MAX_PDM_SPK];
@@ -181,6 +184,9 @@ struct arizona_pdata {
 
 	/** GPIO for primary IRQ (used for edge triggered emulation) */
 	int irq_gpio;
+
+	/** General purpose switch control */
+	unsigned int gpsw;
 };
 
 #endif

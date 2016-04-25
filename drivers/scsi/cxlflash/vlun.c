@@ -132,7 +132,7 @@ static int ba_init(struct ba_lun *ba_lun)
 		return -ENOMEM;
 	}
 
-	/* Pass the allocated lun info as a handle to the user */
+	/* Pass the allocated LUN info as a handle to the user */
 	ba_lun->ba_lun_handle = bali;
 
 	pr_debug("%s: Successfully initialized the LUN: "
@@ -165,7 +165,7 @@ static int find_free_range(u32 low,
 			num_bits = (sizeof(*lam) * BITS_PER_BYTE);
 			bit_pos = find_first_bit(lam, num_bits);
 
-			pr_devel("%s: Found free bit %llX in lun "
+			pr_devel("%s: Found free bit %llX in LUN "
 				 "map entry %llX at bitmap index = %X\n",
 				 __func__, bit_pos, bali->lun_alloc_map[i],
 				 i);
@@ -400,6 +400,24 @@ static int init_vlun(struct llun_info *lli)
  * @lba:	Logical block address to start write same.
  * @nblks:	Number of logical blocks to write same.
  *
+ * The SCSI WRITE_SAME16 can take quite a while to complete. Should an EEH occur
+ * while in scsi_execute(), the EEH handler will attempt to recover. As part of
+ * the recovery, the handler drains all currently running ioctls, waiting until
+ * they have completed before proceeding with a reset. As this routine is used
+ * on the ioctl path, this can create a condition where the EEH handler becomes
+ * stuck, infinitely waiting for this ioctl thread. To avoid this behavior,
+ * temporarily unmark this thread as an ioctl thread by releasing the ioctl read
+ * semaphore. This will allow the EEH handler to proceed with a recovery while
+ * this thread is still running. Once the scsi_execute() returns, reacquire the
+ * ioctl read semaphore and check the adapter state in case it changed while
+ * inside of scsi_execute(). The state check will wait if the adapter is still
+ * being recovered or return a failure if the recovery failed. In the event that
+ * the adapter reset failed, simply return the failure as the ioctl would be
+ * unable to continue.
+ *
+ * Note that the above puts a requirement on this routine to only be called on
+ * an ioctl thread.
+ *
  * Return: 0 on success, -errno on failure
  */
 static int write_same16(struct scsi_device *sdev,
@@ -414,7 +432,7 @@ static int write_same16(struct scsi_device *sdev,
 	int ws_limit = SISLITE_MAX_WS_BLOCKS;
 	u64 offset = lba;
 	int left = nblks;
-	u32 tout = sdev->request_queue->rq_timeout;
+	u32 to = sdev->request_queue->rq_timeout;
 	struct cxlflash_cfg *cfg = (struct cxlflash_cfg *)sdev->host->hostdata;
 	struct device *dev = &cfg->dev->dev;
 
@@ -433,8 +451,20 @@ static int write_same16(struct scsi_device *sdev,
 		put_unaligned_be32(ws_limit < left ? ws_limit : left,
 				   &scsi_cmd[10]);
 
+		/* Drop the ioctl read semahpore across lengthy call */
+		up_read(&cfg->ioctl_rwsem);
 		result = scsi_execute(sdev, scsi_cmd, DMA_TO_DEVICE, cmd_buf,
-				      CMD_BUFSIZE, sense_buf, tout, 5, 0, NULL);
+				      CMD_BUFSIZE, sense_buf, to, CMD_RETRIES,
+				      0, NULL);
+		down_read(&cfg->ioctl_rwsem);
+		rc = check_state(cfg);
+		if (rc) {
+			dev_err(dev, "%s: Failed state! result=0x08%X\n",
+				__func__, result);
+			rc = -ENODEV;
+			goto out;
+		}
+
 		if (result) {
 			dev_err_ratelimited(dev, "%s: command failed for "
 					    "offset %lld result=0x%x\n",
@@ -681,14 +711,14 @@ out:
 }
 
 /**
- * _cxlflash_vlun_resize() - changes the size of a virtual lun
+ * _cxlflash_vlun_resize() - changes the size of a virtual LUN
  * @sdev:	SCSI device associated with LUN owning virtual LUN.
  * @ctxi:	Context owning resources.
  * @resize:	Resize ioctl data structure.
  *
  * On successful return, the user is informed of the new size (in blocks)
- * of the virtual lun in last LBA format. When the size of the virtual
- * lun is zero, the last LBA is reflected as -1. See comment in the
+ * of the virtual LUN in last LBA format. When the size of the virtual
+ * LUN is zero, the last LBA is reflected as -1. See comment in the
  * prologue for _cxlflash_disk_release() regarding AFU syncs and contexts
  * on the error recovery list.
  *
@@ -785,7 +815,7 @@ void cxlflash_restore_luntable(struct cxlflash_cfg *cfg)
 	u32 chan;
 	u32 lind;
 	struct afu *afu = cfg->afu;
-	struct sisl_global_map *agm = &afu->afu_map->global;
+	struct sisl_global_map __iomem *agm = &afu->afu_map->global;
 
 	mutex_lock(&global.mutex);
 
@@ -830,7 +860,7 @@ static int init_luntable(struct cxlflash_cfg *cfg, struct llun_info *lli)
 	u32 lind;
 	int rc = 0;
 	struct afu *afu = cfg->afu;
-	struct sisl_global_map *agm = &afu->afu_map->global;
+	struct sisl_global_map __iomem *agm = &afu->afu_map->global;
 
 	mutex_lock(&global.mutex);
 
@@ -885,8 +915,8 @@ out:
  * @arg:	UVirtual ioctl data structure.
  *
  * On successful return, the user is informed of the resource handle
- * to be used to identify the virtual lun and the size (in blocks) of
- * the virtual lun in last LBA format. When the size of the virtual lun
+ * to be used to identify the virtual LUN and the size (in blocks) of
+ * the virtual LUN in last LBA format. When the size of the virtual LUN
  * is zero, the last LBA is reflected as -1.
  *
  * Return: 0 on success, -errno on failure
@@ -914,16 +944,9 @@ int cxlflash_disk_virtual_open(struct scsi_device *sdev, void *arg)
 
 	pr_debug("%s: ctxid=%llu ls=0x%llx\n", __func__, ctxid, lun_size);
 
+	/* Setup the LUNs block allocator on first call */
 	mutex_lock(&gli->mutex);
 	if (gli->mode == MODE_NONE) {
-		/* Setup the LUN table and block allocator on first call */
-		rc = init_luntable(cfg, lli);
-		if (rc) {
-			dev_err(dev, "%s: call to init_luntable failed "
-				"rc=%d!\n", __func__, rc);
-			goto err0;
-		}
-
 		rc = init_vlun(lli);
 		if (rc) {
 			dev_err(dev, "%s: call to init_vlun failed rc=%d!\n",
@@ -940,6 +963,13 @@ int cxlflash_disk_virtual_open(struct scsi_device *sdev, void *arg)
 		goto err0;
 	}
 	mutex_unlock(&gli->mutex);
+
+	rc = init_luntable(cfg, lli);
+	if (rc) {
+		dev_err(dev, "%s: call to init_luntable failed rc=%d!\n",
+			__func__, rc);
+		goto err1;
+	}
 
 	ctxi = get_context(cfg, rctxid, lli, 0);
 	if (unlikely(!ctxi)) {
@@ -978,6 +1008,8 @@ int cxlflash_disk_virtual_open(struct scsi_device *sdev, void *arg)
 	virt->last_lba = last_lba;
 	virt->rsrc_handle = rsrc_handle;
 
+	if (lli->port_sel == BOTH_PORTS)
+		virt->hdr.return_flags |= DK_CXLFLASH_ALL_PORTS_ACTIVE;
 out:
 	if (likely(ctxi))
 		put_context(ctxi);

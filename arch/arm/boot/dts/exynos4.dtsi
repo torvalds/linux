@@ -22,6 +22,7 @@
 #include <dt-bindings/clock/exynos4.h>
 #include <dt-bindings/clock/exynos-audss-clk.h>
 #include "skeleton.dtsi"
+#include "exynos-syscon-restart.dtsi"
 
 / {
 	interrupt-parent = <&gic>;
@@ -74,6 +75,11 @@
 	chipid@10000000 {
 		compatible = "samsung,exynos4210-chipid";
 		reg = <0x10000000 0x100>;
+	};
+
+	sromc@12570000 {
+		compatible = "samsung,exynos-srom";
+		reg = <0x12570000 0x14>;
 	};
 
 	mipi_phy: video-phy@10020710 {
@@ -431,6 +437,8 @@
 		interrupts = <0 52 0>;
 		clocks = <&clock CLK_UART0>, <&clock CLK_SCLK_UART0>;
 		clock-names = "uart", "clk_uart_baud0";
+		dmas = <&pdma0 15>, <&pdma0 16>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -440,6 +448,8 @@
 		interrupts = <0 53 0>;
 		clocks = <&clock CLK_UART1>, <&clock CLK_SCLK_UART1>;
 		clock-names = "uart", "clk_uart_baud0";
+		dmas = <&pdma1 15>, <&pdma1 16>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -449,6 +459,8 @@
 		interrupts = <0 54 0>;
 		clocks = <&clock CLK_UART2>, <&clock CLK_SCLK_UART2>;
 		clock-names = "uart", "clk_uart_baud0";
+		dmas = <&pdma0 17>, <&pdma0 18>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -458,6 +470,8 @@
 		interrupts = <0 55 0>;
 		clocks = <&clock CLK_UART3>, <&clock CLK_SCLK_UART3>;
 		clock-names = "uart", "clk_uart_baud0";
+		dmas = <&pdma1 17>, <&pdma1 18>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -639,7 +653,7 @@
 	amba {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "arm,amba-bus";
+		compatible = "simple-bus";
 		interrupt-parent = <&gic>;
 		ranges;
 
@@ -703,6 +717,15 @@
 		clock-names = "jpeg";
 		power-domains = <&pd_cam>;
 		iommus = <&sysmmu_jpeg>;
+	};
+
+	rotator: rotator@12810000 {
+		compatible = "samsung,exynos4210-rotator";
+		reg = <0x12810000 0x64>;
+		interrupts = <0 83 0>;
+		clocks = <&clock CLK_ROTATOR>;
+		clock-names = "rotator";
+		iommus = <&sysmmu_rotator>;
 	};
 
 	hdmi: hdmi@12D00000 {
@@ -932,7 +955,6 @@
 		interrupts = <5 0>;
 		clock-names = "sysmmu", "master";
 		clocks = <&clock CLK_SMMU_ROTATOR>, <&clock CLK_ROTATOR>;
-		power-domains = <&pd_lcd0>;
 		#iommu-cells = <0>;
 	};
 
@@ -945,5 +967,13 @@
 		clocks = <&clock CLK_SMMU_FIMD0>, <&clock CLK_FIMD0>;
 		power-domains = <&pd_lcd0>;
 		#iommu-cells = <0>;
+	};
+
+	prng: rng@10830400 {
+		compatible = "samsung,exynos4-rng";
+		reg = <0x10830400 0x200>;
+		clocks = <&clock CLK_SSS>;
+		clock-names = "secss";
+		status = "disabled";
 	};
 };

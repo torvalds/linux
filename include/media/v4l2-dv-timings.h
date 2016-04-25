@@ -23,7 +23,7 @@
 
 #include <linux/videodev2.h>
 
-/**
+/*
  * v4l2_dv_timings_presets: list of all dv_timings presets.
  */
 extern const struct v4l2_dv_timings v4l2_dv_timings_presets[];
@@ -107,12 +107,14 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
  * @standard:	  the timings according to the standard.
  * @pclock_delta: maximum delta in Hz between standard->pixelclock and
  * 		the measured timings.
+ * @match_reduced_fps: if true, then fail if V4L2_DV_FL_REDUCED_FPS does not
+ * match.
  *
  * Returns true if the two timings match, returns false otherwise.
  */
 bool v4l2_match_dv_timings(const struct v4l2_dv_timings *measured,
 			   const struct v4l2_dv_timings *standard,
-			   unsigned pclock_delta);
+			   unsigned pclock_delta, bool match_reduced_fps);
 
 /**
  * v4l2_print_dv_timings() - log the contents of a dv_timings struct
@@ -127,16 +129,16 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
 /**
  * v4l2_detect_cvt - detect if the given timings follow the CVT standard
  *
- * @frame_height - the total height of the frame (including blanking) in lines.
- * @hfreq - the horizontal frequency in Hz.
- * @vsync - the height of the vertical sync in lines.
- * @active_width - active width of image (does not include blanking). This
+ * @frame_height: the total height of the frame (including blanking) in lines.
+ * @hfreq: the horizontal frequency in Hz.
+ * @vsync: the height of the vertical sync in lines.
+ * @active_width: active width of image (does not include blanking). This
  * information is needed only in case of version 2 of reduced blanking.
  * In other cases, this parameter does not have any effect on timings.
- * @polarities - the horizontal and vertical polarities (same as struct
+ * @polarities: the horizontal and vertical polarities (same as struct
  *		v4l2_bt_timings polarities).
- * @interlaced - if this flag is true, it indicates interlaced format
- * @fmt - the resulting timings.
+ * @interlaced: if this flag is true, it indicates interlaced format
+ * @fmt: the resulting timings.
  *
  * This function will attempt to detect if the given values correspond to a
  * valid CVT format. If so, then it will return true, and fmt will be filled
@@ -149,18 +151,18 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
 /**
  * v4l2_detect_gtf - detect if the given timings follow the GTF standard
  *
- * @frame_height - the total height of the frame (including blanking) in lines.
- * @hfreq - the horizontal frequency in Hz.
- * @vsync - the height of the vertical sync in lines.
- * @polarities - the horizontal and vertical polarities (same as struct
+ * @frame_height: the total height of the frame (including blanking) in lines.
+ * @hfreq: the horizontal frequency in Hz.
+ * @vsync: the height of the vertical sync in lines.
+ * @polarities: the horizontal and vertical polarities (same as struct
  *		v4l2_bt_timings polarities).
- * @interlaced - if this flag is true, it indicates interlaced format
- * @aspect - preferred aspect ratio. GTF has no method of determining the
+ * @interlaced: if this flag is true, it indicates interlaced format
+ * @aspect: preferred aspect ratio. GTF has no method of determining the
  *		aspect ratio in order to derive the image width from the
  *		image height, so it has to be passed explicitly. Usually
  *		the native screen aspect ratio is used for this. If it
  *		is not filled in correctly, then 16:9 will be assumed.
- * @fmt - the resulting timings.
+ * @fmt: the resulting timings.
  *
  * This function will attempt to detect if the given values correspond to a
  * valid GTF format. If so, then it will return true, and fmt will be filled
@@ -174,13 +176,34 @@ bool v4l2_detect_gtf(unsigned frame_height, unsigned hfreq, unsigned vsync,
  * v4l2_calc_aspect_ratio - calculate the aspect ratio based on bytes
  *	0x15 and 0x16 from the EDID.
  *
- * @hor_landscape - byte 0x15 from the EDID.
- * @vert_portrait - byte 0x16 from the EDID.
+ * @hor_landscape: byte 0x15 from the EDID.
+ * @vert_portrait: byte 0x16 from the EDID.
  *
  * Determines the aspect ratio from the EDID.
  * See VESA Enhanced EDID standard, release A, rev 2, section 3.6.2:
  * "Horizontal and Vertical Screen Size or Aspect Ratio"
  */
 struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait);
+
+/*
+ * reduce_fps - check if conditions for reduced fps are true.
+ * bt - v4l2 timing structure
+ * For different timings reduced fps is allowed if following conditions
+ * are met -
+ * For CVT timings: if reduced blanking v2 (vsync == 8) is true.
+ * For CEA861 timings: if V4L2_DV_FL_CAN_REDUCE_FPS flag is true.
+ */
+static inline  bool can_reduce_fps(struct v4l2_bt_timings *bt)
+{
+	if ((bt->standards & V4L2_DV_BT_STD_CVT) && (bt->vsync == 8))
+		return true;
+
+	if ((bt->standards & V4L2_DV_BT_STD_CEA861) &&
+	    (bt->flags & V4L2_DV_FL_CAN_REDUCE_FPS))
+		return true;
+
+	return false;
+}
+
 
 #endif

@@ -202,7 +202,7 @@ static int ipu_csi_set_testgen_mclk(struct ipu_csi *csi, u32 pixel_clk,
 					u32 ipu_clk)
 {
 	u32 temp;
-	u32 div_ratio;
+	int div_ratio;
 
 	div_ratio = (ipu_clk / pixel_clk) - 1;
 
@@ -271,6 +271,7 @@ static int mbus_code_to_bus_cfg(struct ipu_csi_bus_config *cfg, u32 mbus_code)
 	case MEDIA_BUS_FMT_SGBRG8_1X8:
 	case MEDIA_BUS_FMT_SGRBG8_1X8:
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
 		cfg->data_fmt = CSI_SENS_CONF_DATA_FMT_BAYER;
 		cfg->mipi_dt = MIPI_DT_RAW8;
 		cfg->data_width = IPU_CSI_DATA_WIDTH_8;
@@ -538,7 +539,7 @@ void ipu_csi_set_test_generator(struct ipu_csi *csi, bool active,
 
 	temp = ipu_csi_read(csi, CSI_TST_CTRL);
 
-	if (active == false) {
+	if (!active) {
 		temp &= ~CSI_TEST_GEN_MODE_EN;
 		ipu_csi_write(csi, temp, CSI_TST_CTRL);
 	} else {

@@ -16,20 +16,12 @@
 #ifndef NET_MAC802154_H
 #define NET_MAC802154_H
 
+#include <asm/unaligned.h>
 #include <net/af_ieee802154.h>
 #include <linux/ieee802154.h>
 #include <linux/skbuff.h>
-#include <linux/unaligned/memmove.h>
 
 #include <net/cfg802154.h>
-
-/* General MAC frame format:
- *  2 bytes: Frame Control
- *  1 byte:  Sequence Number
- * 20 bytes: Addressing fields
- * 14 bytes: Auxiliary Security Header
- */
-#define MAC802154_FRAME_HARD_HEADER_LEN		(2 + 1 + 20 + 14)
 
 /**
  * enum ieee802154_hw_addr_filt_flags - hardware address filtering flags
@@ -250,13 +242,29 @@ struct ieee802154_ops {
 };
 
 /**
+ * ieee802154_get_fc_from_skb - get the frame control field from an skb
+ * @skb: skb where the frame control field will be get from
+ */
+static inline __le16 ieee802154_get_fc_from_skb(const struct sk_buff *skb)
+{
+	/* check if we can fc at skb_mac_header of sk buffer */
+	if (unlikely(!skb_mac_header_was_set(skb) ||
+		     (skb_tail_pointer(skb) - skb_mac_header(skb)) < 2)) {
+		WARN_ON(1);
+		return cpu_to_le16(0);
+	}
+
+	return get_unaligned_le16(skb_mac_header(skb));
+}
+
+/**
  * ieee802154_be64_to_le64 - copies and convert be64 to le64
  * @le64_dst: le64 destination pointer
  * @be64_src: be64 source pointer
  */
 static inline void ieee802154_be64_to_le64(void *le64_dst, const void *be64_src)
 {
-	__put_unaligned_memmove64(swab64p(be64_src), le64_dst);
+	put_unaligned_le64(get_unaligned_be64(be64_src), le64_dst);
 }
 
 /**
@@ -266,7 +274,17 @@ static inline void ieee802154_be64_to_le64(void *le64_dst, const void *be64_src)
  */
 static inline void ieee802154_le64_to_be64(void *be64_dst, const void *le64_src)
 {
-	__put_unaligned_memmove64(swab64p(le64_src), be64_dst);
+	put_unaligned_be64(get_unaligned_le64(le64_src), be64_dst);
+}
+
+/**
+ * ieee802154_le16_to_be16 - copies and convert le16 to be16
+ * @be16_dst: be16 destination pointer
+ * @le16_src: le16 source pointer
+ */
+static inline void ieee802154_le16_to_be16(void *be16_dst, const void *le16_src)
+{
+	put_unaligned_be16(get_unaligned_le16(le16_src), be16_dst);
 }
 
 /**

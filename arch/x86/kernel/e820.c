@@ -24,6 +24,7 @@
 #include <asm/e820.h>
 #include <asm/proto.h>
 #include <asm/setup.h>
+#include <asm/cpufeature.h>
 
 /*
  * The e820 map is the map that gets modified e.g. with command line parameters
@@ -911,7 +912,7 @@ void __init finish_e820_parsing(void)
 	}
 }
 
-static inline const char *e820_type_to_string(int e820_type)
+static const char *e820_type_to_string(int e820_type)
 {
 	switch (e820_type) {
 	case E820_RESERVED_KERN:
@@ -922,6 +923,41 @@ static inline const char *e820_type_to_string(int e820_type)
 	case E820_PRAM: return "Persistent Memory (legacy)";
 	case E820_PMEM: return "Persistent Memory";
 	default:	return "reserved";
+	}
+}
+
+static unsigned long e820_type_to_iomem_type(int e820_type)
+{
+	switch (e820_type) {
+	case E820_RESERVED_KERN:
+	case E820_RAM:
+		return IORESOURCE_SYSTEM_RAM;
+	case E820_ACPI:
+	case E820_NVS:
+	case E820_UNUSABLE:
+	case E820_PRAM:
+	case E820_PMEM:
+	default:
+		return IORESOURCE_MEM;
+	}
+}
+
+static unsigned long e820_type_to_iores_desc(int e820_type)
+{
+	switch (e820_type) {
+	case E820_ACPI:
+		return IORES_DESC_ACPI_TABLES;
+	case E820_NVS:
+		return IORES_DESC_ACPI_NV_STORAGE;
+	case E820_PMEM:
+		return IORES_DESC_PERSISTENT_MEMORY;
+	case E820_PRAM:
+		return IORES_DESC_PERSISTENT_MEMORY_LEGACY;
+	case E820_RESERVED_KERN:
+	case E820_RAM:
+	case E820_UNUSABLE:
+	default:
+		return IORES_DESC_NONE;
 	}
 }
 
@@ -967,7 +1003,8 @@ void __init e820_reserve_resources(void)
 		res->start = e820.map[i].addr;
 		res->end = end;
 
-		res->flags = IORESOURCE_MEM;
+		res->flags = e820_type_to_iomem_type(e820.map[i].type);
+		res->desc = e820_type_to_iores_desc(e820.map[i].type);
 
 		/*
 		 * don't register the region that could be conflicted with

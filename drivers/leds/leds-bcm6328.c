@@ -41,12 +41,17 @@
 #define BCM6328_SERIAL_LED_SHIFT_DIR	BIT(16)
 #define BCM6328_LED_SHIFT_TEST		BIT(30)
 #define BCM6328_LED_TEST		BIT(31)
+#define BCM6328_INIT_MASK		(BCM6328_SERIAL_LED_EN | \
+					 BCM6328_SERIAL_LED_MUX | \
+					 BCM6328_SERIAL_LED_CLK_NPOL | \
+					 BCM6328_SERIAL_LED_DATA_PPOL | \
+					 BCM6328_SERIAL_LED_SHIFT_DIR)
 
 #define BCM6328_LED_MODE_MASK		3
-#define BCM6328_LED_MODE_OFF		0
+#define BCM6328_LED_MODE_ON		0
 #define BCM6328_LED_MODE_FAST		1
 #define BCM6328_LED_MODE_BLINK		2
-#define BCM6328_LED_MODE_ON		3
+#define BCM6328_LED_MODE_OFF		3
 #define BCM6328_LED_SHIFT(X)		((X) << 1)
 
 /**
@@ -71,12 +76,20 @@ struct bcm6328_led {
 
 static void bcm6328_led_write(void __iomem *reg, unsigned long data)
 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
 	iowrite32be(data, reg);
+#else
+	writel(data, reg);
+#endif
 }
 
 static unsigned long bcm6328_led_read(void __iomem *reg)
 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
 	return ioread32be(reg);
+#else
+	return readl(reg);
+#endif
 }
 
 /**
@@ -121,10 +134,22 @@ static void bcm6328_led_set(struct led_classdev *led_cdev,
 	*(led->blink_leds) &= ~BIT(led->pin);
 	if ((led->active_low && value == LED_OFF) ||
 	    (!led->active_low && value != LED_OFF))
-		bcm6328_led_mode(led, BCM6328_LED_MODE_OFF);
-	else
 		bcm6328_led_mode(led, BCM6328_LED_MODE_ON);
+	else
+		bcm6328_led_mode(led, BCM6328_LED_MODE_OFF);
 	spin_unlock_irqrestore(led->lock, flags);
+}
+
+static unsigned long bcm6328_blink_delay(unsigned long delay)
+{
+	unsigned long bcm6328_delay;
+
+	bcm6328_delay = delay + BCM6328_LED_INTERVAL_MS / 2;
+	bcm6328_delay = bcm6328_delay / BCM6328_LED_INTERVAL_MS;
+	if (bcm6328_delay == 0)
+		bcm6328_delay = 1;
+
+	return bcm6328_delay;
 }
 
 static int bcm6328_blink_set(struct led_classdev *led_cdev,
@@ -133,22 +158,21 @@ static int bcm6328_blink_set(struct led_classdev *led_cdev,
 	struct bcm6328_led *led =
 		container_of(led_cdev, struct bcm6328_led, cdev);
 	unsigned long delay, flags;
+	int rc;
 
 	if (!*delay_on)
 		*delay_on = BCM6328_LED_DEF_DELAY;
 	if (!*delay_off)
 		*delay_off = BCM6328_LED_DEF_DELAY;
 
-	if (*delay_on != *delay_off) {
+	delay = bcm6328_blink_delay(*delay_on);
+	if (delay != bcm6328_blink_delay(*delay_off)) {
 		dev_dbg(led_cdev->dev,
 			"fallback to soft blinking (delay_on != delay_off)\n");
 		return -EINVAL;
 	}
 
-	delay = *delay_on / BCM6328_LED_INTERVAL_MS;
-	if (delay == 0)
-		delay = 1;
-	else if (delay > BCM6328_LED_INTV_MASK) {
+	if (delay > BCM6328_LED_INTV_MASK) {
 		dev_dbg(led_cdev->dev,
 			"fallback to soft blinking (delay > %ums)\n",
 			BCM6328_LED_INTV_MASK * BCM6328_LED_INTERVAL_MS);
@@ -170,16 +194,15 @@ static int bcm6328_blink_set(struct led_classdev *led_cdev,
 		bcm6328_led_write(led->mem + BCM6328_REG_INIT, val);
 
 		bcm6328_led_mode(led, BCM6328_LED_MODE_BLINK);
-
-		spin_unlock_irqrestore(led->lock, flags);
+		rc = 0;
 	} else {
-		spin_unlock_irqrestore(led->lock, flags);
 		dev_dbg(led_cdev->dev,
 			"fallback to soft blinking (delay already set)\n");
-		return -EINVAL;
+		rc = -EINVAL;
 	}
+	spin_unlock_irqrestore(led->lock, flags);
 
-	return 0;
+	return rc;
 }
 
 static int bcm6328_hwled(struct device *dev, struct device_node *nc, u32 reg,
@@ -259,7 +282,6 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 		       unsigned long *blink_leds, unsigned long *blink_delay)
 {
 	struct bcm6328_led *led;
-	unsigned long flags;
 	const char *state;
 	int rc;
 
@@ -282,10 +304,8 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 						    NULL);
 
 	if (!of_property_read_string(nc, "default-state", &state)) {
-		spin_lock_irqsave(lock, flags);
 		if (!strcmp(state, "on")) {
 			led->cdev.brightness = LED_FULL;
-			bcm6328_led_mode(led, BCM6328_LED_MODE_ON);
 		} else if (!strcmp(state, "keep")) {
 			void __iomem *mode;
 			unsigned long val, shift;
@@ -296,20 +316,22 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 			else
 				mode = mem + BCM6328_REG_MODE_LO;
 
-			val = bcm6328_led_read(mode) >> (shift % 16);
+			val = bcm6328_led_read(mode) >>
+			      BCM6328_LED_SHIFT(shift % 16);
 			val &= BCM6328_LED_MODE_MASK;
-			if (val == BCM6328_LED_MODE_ON)
+			if ((led->active_low && val == BCM6328_LED_MODE_OFF) ||
+			    (!led->active_low && val == BCM6328_LED_MODE_ON))
 				led->cdev.brightness = LED_FULL;
-			else {
+			else
 				led->cdev.brightness = LED_OFF;
-				bcm6328_led_mode(led, BCM6328_LED_MODE_OFF);
-			}
 		} else {
 			led->cdev.brightness = LED_OFF;
-			bcm6328_led_mode(led, BCM6328_LED_MODE_OFF);
 		}
-		spin_unlock_irqrestore(lock, flags);
+	} else {
+		led->cdev.brightness = LED_OFF;
 	}
+
+	bcm6328_led_set(&led->cdev, led->cdev.brightness);
 
 	led->cdev.brightness_set = bcm6328_led_set;
 	led->cdev.blink_set = bcm6328_blink_set;
@@ -330,7 +352,7 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 	struct device_node *child;
 	struct resource *mem_r;
 	void __iomem *mem;
-	spinlock_t *lock;
+	spinlock_t *lock; /* memory lock */
 	unsigned long val, *blink_leds, *blink_delay;
 
 	mem_r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -360,9 +382,17 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 	bcm6328_led_write(mem + BCM6328_REG_LNKACTSEL_LO, 0);
 
 	val = bcm6328_led_read(mem + BCM6328_REG_INIT);
-	val &= ~BCM6328_SERIAL_LED_EN;
+	val &= ~(BCM6328_INIT_MASK);
 	if (of_property_read_bool(np, "brcm,serial-leds"))
 		val |= BCM6328_SERIAL_LED_EN;
+	if (of_property_read_bool(np, "brcm,serial-mux"))
+		val |= BCM6328_SERIAL_LED_MUX;
+	if (of_property_read_bool(np, "brcm,serial-clk-low"))
+		val |= BCM6328_SERIAL_LED_CLK_NPOL;
+	if (!of_property_read_bool(np, "brcm,serial-dat-low"))
+		val |= BCM6328_SERIAL_LED_DATA_PPOL;
+	if (!of_property_read_bool(np, "brcm,serial-shift-inv"))
+		val |= BCM6328_SERIAL_LED_SHIFT_DIR;
 	bcm6328_led_write(mem + BCM6328_REG_INIT, val);
 
 	for_each_available_child_of_node(np, child) {
@@ -373,7 +403,7 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 			continue;
 
 		if (reg >= BCM6328_LED_MAX_COUNT) {
-			dev_err(dev, "invalid LED (>= %d)\n",
+			dev_err(dev, "invalid LED (%u >= %d)\n", reg,
 				BCM6328_LED_MAX_COUNT);
 			continue;
 		}
@@ -384,8 +414,10 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 			rc = bcm6328_led(dev, child, reg, mem, lock,
 					 blink_leds, blink_delay);
 
-		if (rc < 0)
+		if (rc < 0) {
+			of_node_put(child);
 			return rc;
+		}
 	}
 
 	return 0;

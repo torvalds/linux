@@ -170,6 +170,23 @@ static struct unwind_table *find_table(unsigned long pc)
 
 static unsigned long read_pointer(const u8 **pLoc,
 				  const void *end, signed ptrType);
+static void init_unwind_hdr(struct unwind_table *table,
+			    void *(*alloc) (unsigned long));
+
+/*
+ * wrappers for header alloc (vs. calling one vs. other at call site)
+ * to elide section mismatches warnings
+ */
+static void *__init unw_hdr_alloc_early(unsigned long sz)
+{
+	return __alloc_bootmem_nopanic(sz, sizeof(unsigned int),
+				       MAX_DMA_ADDRESS);
+}
+
+static void *unw_hdr_alloc(unsigned long sz)
+{
+	return kmalloc(sz, GFP_KERNEL);
+}
 
 static void init_unwind_table(struct unwind_table *table, const char *name,
 			      const void *core_start, unsigned long core_size,
@@ -209,6 +226,8 @@ void __init arc_unwind_init(void)
 			  __start_unwind, __end_unwind - __start_unwind,
 			  NULL, 0);
 	  /*__start_unwind_hdr, __end_unwind_hdr - __start_unwind_hdr);*/
+
+	init_unwind_hdr(&root_table, unw_hdr_alloc_early);
 }
 
 static const u32 bad_cie, not_fde;
@@ -241,8 +260,8 @@ static void swap_eh_frame_hdr_table_entries(void *p1, void *p2, int size)
 	e2->fde = v;
 }
 
-static void __init setup_unwind_table(struct unwind_table *table,
-				      void *(*alloc) (unsigned long))
+static void init_unwind_hdr(struct unwind_table *table,
+			    void *(*alloc) (unsigned long))
 {
 	const u8 *ptr;
 	unsigned long tableSize = table->size, hdrSize;
@@ -277,10 +296,10 @@ static void __init setup_unwind_table(struct unwind_table *table,
 		if (cie == &not_fde)
 			continue;
 		if (cie == NULL || cie == &bad_cie)
-			return;
+			goto ret_err;
 		ptrType = fde_pointer_type(cie);
 		if (ptrType < 0)
-			return;
+			goto ret_err;
 
 		ptr = (const u8 *)(fde + 2);
 		if (!read_pointer(&ptr, (const u8 *)(fde + 1) + *fde,
@@ -296,13 +315,15 @@ static void __init setup_unwind_table(struct unwind_table *table,
 	}
 
 	if (tableSize || !n)
-		return;
+		goto ret_err;
 
 	hdrSize = 4 + sizeof(unsigned long) + sizeof(unsigned int)
 	    + 2 * n * sizeof(unsigned long);
+
 	header = alloc(hdrSize);
 	if (!header)
-		return;
+		goto ret_err;
+
 	header->version = 1;
 	header->eh_frame_ptr_enc = DW_EH_PE_abs | DW_EH_PE_native;
 	header->fde_count_enc = DW_EH_PE_abs | DW_EH_PE_data4;
@@ -340,18 +361,10 @@ static void __init setup_unwind_table(struct unwind_table *table,
 	table->hdrsz = hdrSize;
 	smp_wmb();
 	table->header = (const void *)header;
-}
+	return;
 
-static void *__init balloc(unsigned long sz)
-{
-	return __alloc_bootmem_nopanic(sz,
-				       sizeof(unsigned int),
-				       __pa(MAX_DMA_ADDRESS));
-}
-
-void __init arc_unwind_setup(void)
-{
-	setup_unwind_table(&root_table, balloc);
+ret_err:
+	panic("Attention !!! Dwarf FDE parsing errors\n");;
 }
 
 #ifdef CONFIG_MODULES
@@ -372,10 +385,12 @@ void *unwind_add_table(struct module *module, const void *table_start,
 		return NULL;
 
 	init_unwind_table(table, module->name,
-			  module->module_core, module->core_size,
-			  module->module_init, module->init_size,
+			  module->core_layout.base, module->core_layout.size,
+			  module->init_layout.base, module->init_layout.size,
 			  table_start, table_size,
 			  NULL, 0);
+
+	init_unwind_hdr(table, unw_hdr_alloc);
 
 #ifdef UNWIND_DEBUG
 	unw_debug("Table added for [%s] %lx %lx\n",
@@ -439,6 +454,7 @@ void unwind_remove_table(void *handle, int init_only)
 	info.init_only = init_only;
 
 	unlink_table(&info); /* XXX: SMP */
+	kfree(table->header);
 	kfree(table);
 }
 
@@ -587,9 +603,6 @@ static signed fde_pointer_type(const u32 *cie)
 {
 	const u8 *ptr = (const u8 *)(cie + 2);
 	unsigned version = *ptr;
-
-	if (version != 1)
-		return -1;	/* unsupported */
 
 	if (*++ptr) {
 		const char *aug;
@@ -986,42 +999,13 @@ int arc_unwind(struct unwind_frame_info *frame)
 							    (const u8 *)(fde +
 									 1) +
 							    *fde, ptrType);
-				if (pc >= endLoc)
+				if (pc >= endLoc) {
 					fde = NULL;
-			} else
-				fde = NULL;
-		}
-		if (fde == NULL) {
-			for (fde = table->address, tableSize = table->size;
-			     cie = NULL, tableSize > sizeof(*fde)
-			     && tableSize - sizeof(*fde) >= *fde;
-			     tableSize -= sizeof(*fde) + *fde,
-			     fde += 1 + *fde / sizeof(*fde)) {
-				cie = cie_for_fde(fde, table);
-				if (cie == &bad_cie) {
 					cie = NULL;
-					break;
 				}
-				if (cie == NULL
-				    || cie == &not_fde
-				    || (ptrType = fde_pointer_type(cie)) < 0)
-					continue;
-				ptr = (const u8 *)(fde + 2);
-				startLoc = read_pointer(&ptr,
-							(const u8 *)(fde + 1) +
-							*fde, ptrType);
-				if (!startLoc)
-					continue;
-				if (!(ptrType & DW_EH_PE_indirect))
-					ptrType &=
-					    DW_EH_PE_FORM | DW_EH_PE_signed;
-				endLoc =
-				    startLoc + read_pointer(&ptr,
-							    (const u8 *)(fde +
-									 1) +
-							    *fde, ptrType);
-				if (pc >= startLoc && pc < endLoc)
-					break;
+			} else {
+				fde = NULL;
+				cie = NULL;
 			}
 		}
 	}
@@ -1031,9 +1015,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 		ptr = (const u8 *)(cie + 2);
 		end = (const u8 *)(cie + 1) + *cie;
 		frame->call_frame = 1;
-		if ((state.version = *ptr) != 1)
-			cie = NULL;	/* unsupported version */
-		else if (*++ptr) {
+		if (*++ptr) {
 			/* check if augmentation size is first (thus present) */
 			if (*ptr == 'z') {
 				while (++ptr < end && *ptr) {

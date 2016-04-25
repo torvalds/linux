@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program; if not, see <http://www.gnu.org/licenses/>.
  *
+ * Description: Data Center Bridging netlink interface
  * Author: Lucy Liu <lucy.liu@intel.com>
  */
 
@@ -24,7 +25,7 @@
 #include <linux/dcbnl.h>
 #include <net/dcbevent.h>
 #include <linux/rtnetlink.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <net/sock.h>
 
 /* Data Center Bridging (DCB) is a collection of Ethernet enhancements
@@ -47,10 +48,6 @@
  * This file implements an rtnetlink interface to allow configuration of DCB
  * features for capable devices.
  */
-
-MODULE_AUTHOR("Lucy Liu, <lucy.liu@intel.com>");
-MODULE_DESCRIPTION("Data Center Bridging netlink interface");
-MODULE_LICENSE("GPL");
 
 /**************** DCB attribute policies *************************************/
 
@@ -1935,19 +1932,6 @@ int dcb_ieee_delapp(struct net_device *dev, struct dcb_app *del)
 }
 EXPORT_SYMBOL(dcb_ieee_delapp);
 
-static void dcb_flushapp(void)
-{
-	struct dcb_app_type *app;
-	struct dcb_app_type *tmp;
-
-	spin_lock_bh(&dcb_lock);
-	list_for_each_entry_safe(app, tmp, &dcb_app_list, list) {
-		list_del(&app->list);
-		kfree(app);
-	}
-	spin_unlock_bh(&dcb_lock);
-}
-
 static int __init dcbnl_init(void)
 {
 	INIT_LIST_HEAD(&dcb_app_list);
@@ -1957,12 +1941,4 @@ static int __init dcbnl_init(void)
 
 	return 0;
 }
-module_init(dcbnl_init);
-
-static void __exit dcbnl_exit(void)
-{
-	rtnl_unregister(PF_UNSPEC, RTM_GETDCB);
-	rtnl_unregister(PF_UNSPEC, RTM_SETDCB);
-	dcb_flushapp();
-}
-module_exit(dcbnl_exit);
+device_initcall(dcbnl_init);

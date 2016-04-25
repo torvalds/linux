@@ -46,9 +46,10 @@
 enum {
 	OCRDMA_AH_ID_MASK		= 0x3FF,
 	OCRDMA_AH_VLAN_VALID_MASK	= 0x01,
-	OCRDMA_AH_VLAN_VALID_SHIFT	= 0x1F
+	OCRDMA_AH_VLAN_VALID_SHIFT	= 0x1F,
+	OCRDMA_AH_L3_TYPE_MASK		= 0x03,
+	OCRDMA_AH_L3_TYPE_SHIFT		= 0x1D /* 29 bits */
 };
-
 struct ib_ah *ocrdma_create_ah(struct ib_pd *, struct ib_ah_attr *);
 int ocrdma_destroy_ah(struct ib_ah *);
 int ocrdma_query_ah(struct ib_ah *, struct ib_ah_attr *);

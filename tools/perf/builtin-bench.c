@@ -16,7 +16,7 @@
  */
 #include "perf.h"
 #include "util/util.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "builtin.h"
 #include "bench/bench.h"
 
@@ -36,7 +36,7 @@ struct bench {
 #ifdef HAVE_LIBNUMA_SUPPORT
 static struct bench numa_benchmarks[] = {
 	{ "mem",	"Benchmark for NUMA workloads",			bench_numa		},
-	{ "all",	"Test all NUMA benchmarks",			NULL			},
+	{ "all",	"Run all NUMA benchmarks",			NULL			},
 	{ NULL,		NULL,						NULL			}
 };
 #endif
@@ -44,14 +44,14 @@ static struct bench numa_benchmarks[] = {
 static struct bench sched_benchmarks[] = {
 	{ "messaging",	"Benchmark for scheduling and IPC",		bench_sched_messaging	},
 	{ "pipe",	"Benchmark for pipe() between two processes",	bench_sched_pipe	},
-	{ "all",	"Test all scheduler benchmarks",		NULL			},
+	{ "all",	"Run all scheduler benchmarks",		NULL			},
 	{ NULL,		NULL,						NULL			}
 };
 
 static struct bench mem_benchmarks[] = {
-	{ "memcpy",	"Benchmark for memcpy()",			bench_mem_memcpy	},
-	{ "memset",	"Benchmark for memset() tests",			bench_mem_memset	},
-	{ "all",	"Test all memory benchmarks",			NULL			},
+	{ "memcpy",	"Benchmark for memcpy() functions",		bench_mem_memcpy	},
+	{ "memset",	"Benchmark for memset() functions",		bench_mem_memset	},
+	{ "all",	"Run all memory access benchmarks",		NULL			},
 	{ NULL,		NULL,						NULL			}
 };
 
@@ -62,7 +62,7 @@ static struct bench futex_benchmarks[] = {
 	{ "requeue",	"Benchmark for futex requeue calls",            bench_futex_requeue	},
 	/* pi-futexes */
 	{ "lock-pi",	"Benchmark for futex lock_pi calls",            bench_futex_lock_pi	},
-	{ "all",	"Test all futex benchmarks",			NULL			},
+	{ "all",	"Run all futex benchmarks",			NULL			},
 	{ NULL,		NULL,						NULL			}
 };
 
@@ -110,7 +110,7 @@ int bench_format = BENCH_FORMAT_DEFAULT;
 unsigned int bench_repeat = 10; /* default number of times to repeat the run */
 
 static const struct option bench_options[] = {
-	OPT_STRING('f', "format", &bench_format_str, "default", "Specify format style"),
+	OPT_STRING('f', "format", &bench_format_str, "default|simple", "Specify the output formatting style"),
 	OPT_UINTEGER('r', "repeat",  &bench_repeat,   "Specify amount of times to repeat the run"),
 	OPT_END()
 };

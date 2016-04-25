@@ -17,10 +17,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
   The full GNU General Public License is included in this distribution in the
   file called LICENSE.
 
@@ -627,7 +623,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 			goto done;
 		}
 		new_crypt->ops = ops;
-		if (new_crypt->ops)
+		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
 			new_crypt->priv = new_crypt->ops->init(idx);
 
 		if (new_crypt->priv == NULL) {

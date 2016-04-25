@@ -325,21 +325,26 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 			(!pHTInfo->bCurTxBW40MHz && pHTInfo->bCurShortGI20MHz);
 
 		pra->upper_rssi_threshold_ratr =
-				(pra->upper_rssi_threshold_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+				(pra->upper_rssi_threshold_ratr & (~BIT(31))) |
+				((bshort_gi_enabled) ? BIT(31) : 0);
 
 		pra->middle_rssi_threshold_ratr =
-				(pra->middle_rssi_threshold_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+				(pra->middle_rssi_threshold_ratr & (~BIT(31))) |
+				((bshort_gi_enabled) ? BIT(31) : 0);
 
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
 			pra->low_rssi_threshold_ratr =
-				(pra->low_rssi_threshold_ratr_40M & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+			      (pra->low_rssi_threshold_ratr_40M & (~BIT(31))) |
+			      ((bshort_gi_enabled) ? BIT(31) : 0);
 		} else {
 			pra->low_rssi_threshold_ratr =
-			(pra->low_rssi_threshold_ratr_20M & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+			(pra->low_rssi_threshold_ratr_20M & (~BIT(31))) |
+			((bshort_gi_enabled) ? BIT(31) : 0);
 		}
 		/* cosa add for test */
 		pra->ping_rssi_ratr =
-				(pra->ping_rssi_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31:0);
+				(pra->ping_rssi_ratr & (~BIT(31))) |
+				((bshort_gi_enabled) ? BIT(31) : 0);
 
 		/* 2007/10/08 MH We support RA smooth scheme now. When it is the first
 		   time to link with AP. We will not change upper/lower threshold. If
@@ -762,7 +767,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 
 void dm_txpower_trackingcallback(struct work_struct *work)
 {
-	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct r8192_priv *priv = container_of(dwork, struct r8192_priv, txpower_tracking_wq);
 	struct net_device *dev = priv->ieee80211->dev;
 
@@ -1623,47 +1628,75 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
 void dm_change_dynamic_initgain_thresh(struct net_device *dev, u32 dm_type,
 				       u32 dm_value)
 {
-	if (dm_type == DIG_TYPE_THRESH_HIGH) {
+	switch (dm_type) {
+	case DIG_TYPE_THRESH_HIGH:
 		dm_digtable.rssi_high_thresh = dm_value;
-	} else if (dm_type == DIG_TYPE_THRESH_LOW) {
+		break;
+
+	case  DIG_TYPE_THRESH_LOW:
 		dm_digtable.rssi_low_thresh = dm_value;
-	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_HIGH) {
+		break;
+
+	case  DIG_TYPE_THRESH_HIGHPWR_HIGH:
 		dm_digtable.rssi_high_power_highthresh = dm_value;
-	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_LOW) {
+		break;
+
+	case DIG_TYPE_THRESH_HIGHPWR_LOW:
 		dm_digtable.rssi_high_power_lowthresh = dm_value;
-	} else if (dm_type == DIG_TYPE_ENABLE) {
+		break;
+
+	case DIG_TYPE_ENABLE:
 		dm_digtable.dig_state		= DM_STA_DIG_MAX;
 		dm_digtable.dig_enable_flag	= true;
-	} else if (dm_type == DIG_TYPE_DISABLE) {
+		break;
+
+	case DIG_TYPE_DISABLE:
 		dm_digtable.dig_state		= DM_STA_DIG_MAX;
 		dm_digtable.dig_enable_flag	= false;
-	} else if (dm_type == DIG_TYPE_DBG_MODE) {
+		break;
+
+	case DIG_TYPE_DBG_MODE:
 		if (dm_value >= DM_DBG_MAX)
 			dm_value = DM_DBG_OFF;
 		dm_digtable.dbg_mode		= (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_RSSI) {
+		break;
+
+	case DIG_TYPE_RSSI:
 		if (dm_value > 100)
 			dm_value = 30;
 		dm_digtable.rssi_val			= (long)dm_value;
-	} else if (dm_type == DIG_TYPE_ALGORITHM) {
+		break;
+
+	case DIG_TYPE_ALGORITHM:
 		if (dm_value >= DIG_ALGO_MAX)
 			dm_value = DIG_ALGO_BY_FALSE_ALARM;
 		if (dm_digtable.dig_algorithm != (u8)dm_value)
 			dm_digtable.dig_algorithm_switch = 1;
 		dm_digtable.dig_algorithm	= (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_BACKOFF) {
+		break;
+
+	case DIG_TYPE_BACKOFF:
 		if (dm_value > 30)
 			dm_value = 30;
 		dm_digtable.backoff_val		= (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_RX_GAIN_MIN) {
+		break;
+
+	case DIG_TYPE_RX_GAIN_MIN:
 		if (dm_value == 0)
 			dm_value = 0x1;
 		dm_digtable.rx_gain_range_min = (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_RX_GAIN_MAX) {
+		break;
+
+	case DIG_TYPE_RX_GAIN_MAX:
 		if (dm_value > 0x50)
 			dm_value = 0x50;
 		dm_digtable.rx_gain_range_max = (u8)dm_value;
+		break;
+
+	default:
+		break;
 	}
+
 }	/* DM_ChangeDynamicInitGainThresh */
 
 /*-----------------------------------------------------------------------------
@@ -2378,7 +2411,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 	if (tmp1byte == 0xff)
 		return;
 
-	if (tmp1byte&BIT6 || tmp1byte&BIT0) {
+	if (tmp1byte & BIT(6) || tmp1byte & BIT(0)) {
 		/*
 		 * Here we only set bPbcPressed to TRUE
 		 * After trigger PBC, the variable will be set to FALSE
@@ -2407,7 +2440,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
  *---------------------------------------------------------------------------*/
 void dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 {
-	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct r8192_priv *priv = container_of(dwork, struct r8192_priv, rfpath_check_wq);
 	struct net_device *dev = priv->ieee80211->dev;
 	/*bool bactually_set = false;*/
@@ -2764,12 +2797,14 @@ void dm_fsync_timer_callback(unsigned long data)
 		if (bDoubleTimeInterval) {
 			if (timer_pending(&priv->fsync_timer))
 				del_timer_sync(&priv->fsync_timer);
-			priv->fsync_timer.expires = jiffies + MSECS(priv->ieee80211->fsync_time_interval*priv->ieee80211->fsync_multiple_timeinterval);
+			priv->fsync_timer.expires = jiffies +
+				msecs_to_jiffies(priv->ieee80211->fsync_time_interval*priv->ieee80211->fsync_multiple_timeinterval);
 			add_timer(&priv->fsync_timer);
 		} else {
 			if (timer_pending(&priv->fsync_timer))
 				del_timer_sync(&priv->fsync_timer);
-			priv->fsync_timer.expires = jiffies + MSECS(priv->ieee80211->fsync_time_interval);
+			priv->fsync_timer.expires = jiffies +
+				msecs_to_jiffies(priv->ieee80211->fsync_time_interval);
 			add_timer(&priv->fsync_timer);
 		}
 	} else {
@@ -2842,7 +2877,8 @@ static void dm_StartSWFsync(struct net_device *dev)
 	}
 	if (timer_pending(&priv->fsync_timer))
 		del_timer_sync(&priv->fsync_timer);
-	priv->fsync_timer.expires = jiffies + MSECS(priv->ieee80211->fsync_time_interval);
+	priv->fsync_timer.expires = jiffies +
+			msecs_to_jiffies(priv->ieee80211->fsync_time_interval);
 	add_timer(&priv->fsync_timer);
 
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cd);
