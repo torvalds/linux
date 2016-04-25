@@ -59,16 +59,16 @@ static const struct {
 	QEDE_STAT(tx_bcast_pkts),
 
 	QEDE_PF_STAT(rx_64_byte_packets),
-	QEDE_PF_STAT(rx_127_byte_packets),
-	QEDE_PF_STAT(rx_255_byte_packets),
-	QEDE_PF_STAT(rx_511_byte_packets),
-	QEDE_PF_STAT(rx_1023_byte_packets),
-	QEDE_PF_STAT(rx_1518_byte_packets),
-	QEDE_PF_STAT(rx_1522_byte_packets),
-	QEDE_PF_STAT(rx_2047_byte_packets),
-	QEDE_PF_STAT(rx_4095_byte_packets),
-	QEDE_PF_STAT(rx_9216_byte_packets),
-	QEDE_PF_STAT(rx_16383_byte_packets),
+	QEDE_PF_STAT(rx_65_to_127_byte_packets),
+	QEDE_PF_STAT(rx_128_to_255_byte_packets),
+	QEDE_PF_STAT(rx_256_to_511_byte_packets),
+	QEDE_PF_STAT(rx_512_to_1023_byte_packets),
+	QEDE_PF_STAT(rx_1024_to_1518_byte_packets),
+	QEDE_PF_STAT(rx_1519_to_1522_byte_packets),
+	QEDE_PF_STAT(rx_1519_to_2047_byte_packets),
+	QEDE_PF_STAT(rx_2048_to_4095_byte_packets),
+	QEDE_PF_STAT(rx_4096_to_9216_byte_packets),
+	QEDE_PF_STAT(rx_9217_to_16383_byte_packets),
 	QEDE_PF_STAT(tx_64_byte_packets),
 	QEDE_PF_STAT(tx_65_to_127_byte_packets),
 	QEDE_PF_STAT(tx_128_to_255_byte_packets),
@@ -116,6 +116,15 @@ static const struct {
 
 #define QEDE_NUM_STATS	ARRAY_SIZE(qede_stats_arr)
 
+enum {
+	QEDE_PRI_FLAG_CMT,
+	QEDE_PRI_FLAG_LEN,
+};
+
+static const char qede_private_arr[QEDE_PRI_FLAG_LEN][ETH_GSTRING_LEN] = {
+	"Coupled-Function",
+};
+
 static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 {
 	int i, j, k;
@@ -138,6 +147,10 @@ static void qede_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		qede_get_strings_stats(edev, buf);
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(buf, qede_private_arr,
+		       ETH_GSTRING_LEN * QEDE_PRI_FLAG_LEN);
 		break;
 	default:
 		DP_VERBOSE(edev, QED_MSG_DEBUG,
@@ -177,12 +190,21 @@ static int qede_get_sset_count(struct net_device *dev, int stringset)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		return num_stats + QEDE_NUM_RQSTATS;
+	case ETH_SS_PRIV_FLAGS:
+		return QEDE_PRI_FLAG_LEN;
 
 	default:
 		DP_VERBOSE(edev, QED_MSG_DEBUG,
 			   "Unsupported stringset 0x%08x\n", stringset);
 		return -EINVAL;
 	}
+}
+
+static u32 qede_get_priv_flags(struct net_device *dev)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	return (!!(edev->dev_info.common.num_hwfns > 1)) << QEDE_PRI_FLAG_CMT;
 }
 
 static int qede_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -217,9 +239,9 @@ static int qede_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct qed_link_params params;
 	u32 speed;
 
-	if (!edev->dev_info.common.is_mf_default) {
+	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
 		DP_INFO(edev,
-			"Link parameters can not be changed in non-default mode\n");
+			"Link settings are not allowed to be changed\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -328,6 +350,12 @@ static int qede_nway_reset(struct net_device *dev)
 	struct qed_link_output current_link;
 	struct qed_link_params link_params;
 
+	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
+		DP_INFO(edev,
+			"Link settings are not allowed to be changed\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (!netif_running(dev))
 		return 0;
 
@@ -428,9 +456,9 @@ static int qede_set_pauseparam(struct net_device *dev,
 	struct qed_link_params params;
 	struct qed_link_output current_link;
 
-	if (!edev->dev_info.common.is_mf_default) {
+	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
 		DP_INFO(edev,
-			"Pause parameters can not be updated in non-default mode\n");
+			"Pause settings are not allowed to be changed\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -814,6 +842,7 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_strings = qede_get_strings,
 	.set_phys_id = qede_set_phys_id,
 	.get_ethtool_stats = qede_get_ethtool_stats,
+	.get_priv_flags = qede_get_priv_flags,
 	.get_sset_count = qede_get_sset_count,
 	.get_rxnfc = qede_get_rxnfc,
 	.set_rxnfc = qede_set_rxnfc,
