@@ -953,7 +953,7 @@ include/generated/autoksyms.h: FORCE
       cmd_link-vmlinux = $(CONFIG_SHELL) $< $(LD) $(LDFLAGS) $(LDFLAGS_vmlinux)
 quiet_cmd_link-vmlinux = LINK    $@
 
-vmlinux: scripts/link-vmlinux.sh vmlinux_prereq FORCE
+vmlinux: scripts/link-vmlinux.sh vmlinux_prereq $(vmlinux-deps) FORCE
 	+$(call if_changed,link-vmlinux)
 
 # Build samples along the rest of the kernel
