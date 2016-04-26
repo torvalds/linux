@@ -5559,6 +5559,58 @@ static void ixgbe_tx_timeout(struct net_device *netdev)
 	ixgbe_tx_timeout_reset(adapter);
 }
 
+#ifdef CONFIG_IXGBE_DCB
+static void ixgbe_init_dcb(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct tc_configuration *tc;
+	int j;
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+	case ixgbe_mac_82599EB:
+		adapter->dcb_cfg.num_tcs.pg_tcs = MAX_TRAFFIC_CLASS;
+		adapter->dcb_cfg.num_tcs.pfc_tcs = MAX_TRAFFIC_CLASS;
+		break;
+	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+		adapter->dcb_cfg.num_tcs.pg_tcs = X540_TRAFFIC_CLASS;
+		adapter->dcb_cfg.num_tcs.pfc_tcs = X540_TRAFFIC_CLASS;
+		break;
+	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
+	default:
+		adapter->dcb_cfg.num_tcs.pg_tcs = DEF_TRAFFIC_CLASS;
+		adapter->dcb_cfg.num_tcs.pfc_tcs = DEF_TRAFFIC_CLASS;
+		break;
+	}
+
+	/* Configure DCB traffic classes */
+	for (j = 0; j < MAX_TRAFFIC_CLASS; j++) {
+		tc = &adapter->dcb_cfg.tc_config[j];
+		tc->path[DCB_TX_CONFIG].bwg_id = 0;
+		tc->path[DCB_TX_CONFIG].bwg_percent = 12 + (j & 1);
+		tc->path[DCB_RX_CONFIG].bwg_id = 0;
+		tc->path[DCB_RX_CONFIG].bwg_percent = 12 + (j & 1);
+		tc->dcb_pfc = pfc_disabled;
+	}
+
+	/* Initialize default user to priority mapping, UPx->TC0 */
+	tc = &adapter->dcb_cfg.tc_config[0];
+	tc->path[DCB_TX_CONFIG].up_to_tc_bitmap = 0xFF;
+	tc->path[DCB_RX_CONFIG].up_to_tc_bitmap = 0xFF;
+
+	adapter->dcb_cfg.bw_percentage[DCB_TX_CONFIG][0] = 100;
+	adapter->dcb_cfg.bw_percentage[DCB_RX_CONFIG][0] = 100;
+	adapter->dcb_cfg.pfc_mode_enable = false;
+	adapter->dcb_set_bitmap = 0x00;
+	if (adapter->flags & IXGBE_FLAG_DCB_CAPABLE)
+		adapter->dcbx_cap = DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_CEE;
+	memcpy(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
+	       sizeof(adapter->temp_dcb_cfg));
+}
+#endif
+
 /**
  * ixgbe_sw_init - Initialize general software structures (struct ixgbe_adapter)
  * @adapter: board private structure to initialize
@@ -5575,10 +5627,6 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	u32 fwsm;
 	u16 device_caps;
 	int i;
-#ifdef CONFIG_IXGBE_DCB
-	int j;
-	struct tc_configuration *tc;
-#endif
 
 	/* PCI config space info */
 
@@ -5599,6 +5647,10 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->fdir_pballoc = IXGBE_FDIR_PBALLOC_64K;
 #ifdef CONFIG_IXGBE_DCA
 	adapter->flags |= IXGBE_FLAG_DCA_CAPABLE;
+#endif
+#ifdef CONFIG_IXGBE_DCB
+	adapter->flags |= IXGBE_FLAG_DCB_CAPABLE;
+	adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 #endif
 #ifdef IXGBE_FCOE
 	adapter->flags |= IXGBE_FLAG_FCOE_CAPABLE;
@@ -5656,6 +5708,16 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		break;
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_x550em_a:
+#ifdef CONFIG_IXGBE_DCB
+		adapter->flags &= ~IXGBE_FLAG_DCB_CAPABLE;
+#endif
+#ifdef IXGBE_FCOE
+		adapter->flags &= ~IXGBE_FLAG_FCOE_CAPABLE;
+#ifdef CONFIG_IXGBE_DCB
+		adapter->fcoe.up = 0;
+#endif /* IXGBE_DCB */
+#endif /* IXGBE_FCOE */
+	/* Fall Through */
 	case ixgbe_mac_X550:
 #ifdef CONFIG_IXGBE_DCA
 		adapter->flags &= ~IXGBE_FLAG_DCA_CAPABLE;
@@ -5677,43 +5739,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	spin_lock_init(&adapter->fdir_perfect_lock);
 
 #ifdef CONFIG_IXGBE_DCB
-	switch (hw->mac.type) {
-	case ixgbe_mac_X540:
-	case ixgbe_mac_X550:
-	case ixgbe_mac_X550EM_x:
-	case ixgbe_mac_x550em_a:
-		adapter->dcb_cfg.num_tcs.pg_tcs = X540_TRAFFIC_CLASS;
-		adapter->dcb_cfg.num_tcs.pfc_tcs = X540_TRAFFIC_CLASS;
-		break;
-	default:
-		adapter->dcb_cfg.num_tcs.pg_tcs = MAX_TRAFFIC_CLASS;
-		adapter->dcb_cfg.num_tcs.pfc_tcs = MAX_TRAFFIC_CLASS;
-		break;
-	}
-
-	/* Configure DCB traffic classes */
-	for (j = 0; j < MAX_TRAFFIC_CLASS; j++) {
-		tc = &adapter->dcb_cfg.tc_config[j];
-		tc->path[DCB_TX_CONFIG].bwg_id = 0;
-		tc->path[DCB_TX_CONFIG].bwg_percent = 12 + (j & 1);
-		tc->path[DCB_RX_CONFIG].bwg_id = 0;
-		tc->path[DCB_RX_CONFIG].bwg_percent = 12 + (j & 1);
-		tc->dcb_pfc = pfc_disabled;
-	}
-
-	/* Initialize default user to priority mapping, UPx->TC0 */
-	tc = &adapter->dcb_cfg.tc_config[0];
-	tc->path[DCB_TX_CONFIG].up_to_tc_bitmap = 0xFF;
-	tc->path[DCB_RX_CONFIG].up_to_tc_bitmap = 0xFF;
-
-	adapter->dcb_cfg.bw_percentage[DCB_TX_CONFIG][0] = 100;
-	adapter->dcb_cfg.bw_percentage[DCB_RX_CONFIG][0] = 100;
-	adapter->dcb_cfg.pfc_mode_enable = false;
-	adapter->dcb_set_bitmap = 0x00;
-	adapter->dcbx_cap = DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_CEE;
-	memcpy(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
-	       sizeof(adapter->temp_dcb_cfg));
-
+	ixgbe_init_dcb(adapter);
 #endif
 
 	/* default flow control settings */
@@ -9495,7 +9521,8 @@ skip_sriov:
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
 
 #ifdef CONFIG_IXGBE_DCB
-	netdev->dcbnl_ops = &dcbnl_ops;
+	if (adapter->flags & IXGBE_FLAG_DCB_CAPABLE)
+		netdev->dcbnl_ops = &dcbnl_ops;
 #endif
 
 #ifdef IXGBE_FCOE

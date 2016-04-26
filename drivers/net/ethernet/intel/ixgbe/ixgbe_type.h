@@ -548,6 +548,7 @@ struct ixgbe_thermal_sensor_data {
 /* DCB registers */
 #define MAX_TRAFFIC_CLASS        8
 #define X540_TRAFFIC_CLASS       4
+#define DEF_TRAFFIC_CLASS        1
 #define IXGBE_RMCS      0x03D00
 #define IXGBE_DPMCS     0x07F40
 #define IXGBE_PDPMCS    0x0CD00
