@@ -33,6 +33,7 @@
 #include <linux/ratelimit.h>
 #include <crypto/hash.h>
 #include <linux/falloc.h>
+#include <linux/percpu-rwsem.h>
 #ifdef __KERNEL__
 #include <linux/compat.h>
 #endif
@@ -1508,6 +1509,9 @@ struct ext4_sb_info {
 	struct ratelimit_state s_err_ratelimit_state;
 	struct ratelimit_state s_warning_ratelimit_state;
 	struct ratelimit_state s_msg_ratelimit_state;
+
+	/* Barrier between changing inodes' journal flags and writepages ops. */
+	struct percpu_rw_semaphore s_journal_flag_rwsem;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
