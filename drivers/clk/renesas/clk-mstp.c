@@ -243,9 +243,7 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 }
 CLK_OF_DECLARE(cpg_mstp_clks, "renesas,cpg-mstp-clocks", cpg_mstp_clocks_init);
 
-
-#ifdef CONFIG_PM_GENERIC_DOMAINS_OF
-int cpg_mstp_attach_dev(struct generic_pm_domain *domain, struct device *dev)
+int cpg_mstp_attach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 	struct of_phandle_args clkspec;
@@ -297,7 +295,7 @@ fail_put:
 	return error;
 }
 
-void cpg_mstp_detach_dev(struct generic_pm_domain *domain, struct device *dev)
+void cpg_mstp_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
 	if (!list_empty(&dev->power.subsys_data->clock_list))
 		pm_clk_destroy(dev);
@@ -326,4 +324,3 @@ void __init cpg_mstp_add_clk_domain(struct device_node *np)
 
 	of_genpd_add_provider_simple(np, pd);
 }
-#endif /* !CONFIG_PM_GENERIC_DOMAINS_OF */
