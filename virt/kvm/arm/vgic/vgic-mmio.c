@@ -182,3 +182,29 @@ struct kvm_io_device_ops kvm_io_gic_ops = {
 	.read = dispatch_mmio_read,
 	.write = dispatch_mmio_write,
 };
+
+int vgic_register_dist_iodev(struct kvm *kvm, gpa_t dist_base_address,
+			     enum vgic_type type)
+{
+	struct vgic_io_device *io_device = &kvm->arch.vgic.dist_iodev;
+	int ret = 0;
+	unsigned int len;
+
+	switch (type) {
+	case VGIC_V2:
+		len = vgic_v2_init_dist_iodev(io_device);
+		break;
+	default:
+		BUG_ON(1);
+	}
+
+	io_device->base_addr = dist_base_address;
+	io_device->redist_vcpu = NULL;
+
+	mutex_lock(&kvm->slots_lock);
+	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, dist_base_address,
+				      len, &io_device->dev);
+	mutex_unlock(&kvm->slots_lock);
+
+	return ret;
+}
