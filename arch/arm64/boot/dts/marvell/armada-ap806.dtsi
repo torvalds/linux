@@ -54,6 +54,11 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
