@@ -2838,12 +2838,6 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 
 	BUG_ON(dentry->d_inode);
 
-	/* Don't create child dentry for a dead directory. */
-	if (unlikely(IS_DEADDIR(dir))) {
-		error = -ENOENT;
-		goto out;
-	}
-
 	mode = op->mode;
 	if ((open_flag & O_CREAT) && !IS_POSIXACL(dir))
 		mode &= ~current_umask();
@@ -3004,6 +2998,9 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 	int error;
 	bool need_lookup = false;
 
+	if (unlikely(IS_DEADDIR(dir_inode)))
+		return -ENOENT;
+
 	*opened &= ~FILE_CREATED;
 	dentry = lookup_dcache(&nd->last, dir, nd->flags);
 	if (IS_ERR(dentry))
@@ -3049,13 +3046,19 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 			goto out_dput;
 		}
 		*opened |= FILE_CREATED;
-		error = security_path_mknod(&nd->path, dentry, mode, 0);
+		audit_inode_child(dir_inode, dentry, AUDIT_TYPE_CHILD_CREATE);
+		error = may_o_create(&nd->path, dentry, mode);
 		if (error)
 			goto out_dput;
-		error = vfs_create(dir->d_inode, dentry, mode,
-				   nd->flags & LOOKUP_EXCL);
+		if (!dir_inode->i_op->create) {
+			error = -EACCES;
+			goto out_dput;
+		}
+		error = dir_inode->i_op->create(dir_inode, dentry, mode,
+						op->open_flag & O_EXCL);
 		if (error)
 			goto out_dput;
+		fsnotify_create(dir_inode, dentry);
 	}
 out_no_open:
 	path->dentry = dentry;
