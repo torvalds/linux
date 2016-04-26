@@ -684,6 +684,7 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 	struct perf_mmap *md = &evlist->mmap[idx];
 	u64 head;
 	u64 old = md->prev;
+	int diff;
 	unsigned char *data = md->base + page_size;
 	union perf_event *event = NULL;
 
@@ -694,6 +695,7 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 		return NULL;
 
 	head = perf_mmap__read_head(md);
+	diff = head - old;
 	if (evlist->overwrite) {
 		/*
 		 * If we're further behind than half the buffer, there's a chance
@@ -703,7 +705,6 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 		 *
 		 * In either case, truncate and restart at head.
 		 */
-		int diff = head - old;
 		if (diff > md->mask / 2 || diff < 0) {
 			fprintf(stderr, "WARNING: failed to keep up with mmap data.\n");
 
@@ -711,14 +712,20 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 			 * head points to a known good entry, start there.
 			 */
 			old = head;
+			diff = 0;
 		}
 	}
 
-	if (old != head) {
+	if (diff >= (int)sizeof(event->header)) {
 		size_t size;
 
 		event = (union perf_event *)&data[old & md->mask];
 		size = event->header.size;
+
+		if (size < sizeof(event->header) || diff < (int)size) {
+			event = NULL;
+			goto broken_event;
+		}
 
 		/*
 		 * Event straddles the mmap boundary -- header should always
@@ -743,6 +750,7 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 		old += size;
 	}
 
+broken_event:
 	md->prev = old;
 
 	return event;
