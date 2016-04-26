@@ -67,7 +67,7 @@
 
 #define F71808FG_FLAG_WDOUT_EN		7
 
-#define F71808FG_FLAG_WDTMOUT_STS	5
+#define F71808FG_FLAG_WDTMOUT_STS	6
 #define F71808FG_FLAG_WD_EN		5
 #define F71808FG_FLAG_WD_PULSE		4
 #define F71808FG_FLAG_WD_UNIT		3
@@ -670,7 +670,7 @@ static int __init watchdog_init(int sioaddr)
 	superio_select(watchdog.sioaddr, SIO_F71808FG_LD_WDT);
 
 	wdt_conf = superio_inb(sioaddr, F71808FG_REG_WDT_CONF);
-	watchdog.caused_reboot = wdt_conf & F71808FG_FLAG_WDTMOUT_STS;
+	watchdog.caused_reboot = wdt_conf & BIT(F71808FG_FLAG_WDTMOUT_STS);
 
 	superio_exit(sioaddr);
 
