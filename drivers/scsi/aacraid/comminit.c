@@ -378,21 +378,8 @@ void aac_define_int_mode(struct aac_dev *dev)
 			msi_count = i;
 		} else {
 			dev->msi_enabled = 0;
-			printk(KERN_ERR "%s%d: MSIX not supported!! Will try MSI 0x%x.\n",
-					dev->name, dev->id, i);
-		}
-	}
-
-	if (!dev->msi_enabled) {
-		msi_count = 1;
-		i = pci_enable_msi(dev->pdev);
-
-		if (!i) {
-			dev->msi_enabled = 1;
-			dev->msi = 1;
-		} else {
-			printk(KERN_ERR "%s%d: MSI not supported!! Will try INTx 0x%x.\n",
-					dev->name, dev->id, i);
+			dev_err(&dev->pdev->dev,
+			"MSIX not supported!! Will try INTX 0x%x.\n", i);
 		}
 	}
 
