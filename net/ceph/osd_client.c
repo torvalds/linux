@@ -391,6 +391,8 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	req->r_osdc = osdc;
 	req->r_mempool = use_mempool;
 	req->r_num_ops = num_ops;
+	req->r_snapid = CEPH_NOSNAP;
+	req->r_snapc = ceph_get_snap_context(snapc);
 
 	kref_init(&req->r_kref);
 	init_completion(&req->r_completion);
@@ -2457,7 +2459,7 @@ void ceph_osdc_build_request(struct ceph_osd_request *req, u64 off,
 	unsigned int i;
 
 	req->r_snapid = snap_id;
-	req->r_snapc = ceph_get_snap_context(snapc);
+	WARN_ON(snapc != req->r_snapc);
 
 	/* encode request */
 	msg->hdr.version = cpu_to_le16(4);
@@ -2508,7 +2510,7 @@ void ceph_osdc_build_request(struct ceph_osd_request *req, u64 off,
 	ceph_encode_64(&p, req->r_snapc ? req->r_snapc->seq : 0);
 	ceph_encode_32(&p, req->r_snapc ? req->r_snapc->num_snaps : 0);
 	if (req->r_snapc) {
-		for (i = 0; i < snapc->num_snaps; i++) {
+		for (i = 0; i < req->r_snapc->num_snaps; i++) {
 			ceph_encode_64(&p, req->r_snapc->snaps[i]);
 		}
 	}
