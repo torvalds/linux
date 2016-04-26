@@ -1925,9 +1925,31 @@ static int brcmnand_setup_dev(struct brcmnand_host *host)
 	cfg->col_adr_bytes = 2;
 	cfg->blk_adr_bytes = get_blk_adr_bytes(mtd->size, mtd->writesize);
 
+	if (chip->ecc.mode != NAND_ECC_HW) {
+		dev_err(ctrl->dev, "only HW ECC supported; selected: %d\n",
+			chip->ecc.mode);
+		return -EINVAL;
+	}
+
+	if (chip->ecc.algo == NAND_ECC_UNKNOWN) {
+		if (chip->ecc.strength == 1 && chip->ecc.size == 512)
+			/* Default to Hamming for 1-bit ECC, if unspecified */
+			chip->ecc.algo = NAND_ECC_HAMMING;
+		else
+			/* Otherwise, BCH */
+			chip->ecc.algo = NAND_ECC_BCH;
+	}
+
+	if (chip->ecc.algo == NAND_ECC_HAMMING && (chip->ecc.strength != 1 ||
+						   chip->ecc.size != 512)) {
+		dev_err(ctrl->dev, "invalid Hamming params: %d bits per %d bytes\n",
+			chip->ecc.strength, chip->ecc.size);
+		return -EINVAL;
+	}
+
 	switch (chip->ecc.size) {
 	case 512:
-		if (chip->ecc.strength == 1) /* Hamming */
+		if (chip->ecc.algo == NAND_ECC_HAMMING)
 			cfg->ecc_level = 15;
 		else
 			cfg->ecc_level = chip->ecc.strength;
