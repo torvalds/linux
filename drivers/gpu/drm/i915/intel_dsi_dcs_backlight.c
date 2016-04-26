@@ -33,6 +33,12 @@
 #define CONTROL_DISPLAY_DD		(1 << 3)
 #define CONTROL_DISPLAY_BL		(1 << 2)
 
+#define POWER_SAVE_OFF			(0 << 0)
+#define POWER_SAVE_LOW			(1 << 0)
+#define POWER_SAVE_MEDIUM		(2 << 0)
+#define POWER_SAVE_HIGH			(3 << 0)
+#define POWER_SAVE_OUTDOOR_MODE		(4 << 0)
+
 #define PANEL_PWM_MAX_VALUE		0xFF
 
 static u32 dcs_get_backlight(struct intel_connector *connector)
@@ -79,6 +85,14 @@ static void dcs_disable_backlight(struct intel_connector *connector)
 
 	dcs_set_backlight(connector, 0);
 
+	for_each_dsi_port(port, intel_dsi->dcs_cabc_ports) {
+		u8 cabc = POWER_SAVE_OFF;
+
+		dsi_device = intel_dsi->dsi_hosts[port]->device;
+		mipi_dsi_dcs_write(dsi_device, MIPI_DCS_WRITE_POWER_SAVE,
+				   &cabc, sizeof(cabc));
+	}
+
 	for_each_dsi_port(port, intel_dsi->dcs_backlight_ports) {
 		u8 ctrl = 0;
 
@@ -118,6 +132,14 @@ static void dcs_enable_backlight(struct intel_connector *connector)
 
 		mipi_dsi_dcs_write(dsi_device, MIPI_DCS_WRITE_CONTROL_DISPLAY,
 				   &ctrl, sizeof(ctrl));
+	}
+
+	for_each_dsi_port(port, intel_dsi->dcs_cabc_ports) {
+		u8 cabc = POWER_SAVE_MEDIUM;
+
+		dsi_device = intel_dsi->dsi_hosts[port]->device;
+		mipi_dsi_dcs_write(dsi_device, MIPI_DCS_WRITE_POWER_SAVE,
+				   &cabc, sizeof(cabc));
 	}
 
 	dcs_set_backlight(connector, panel->backlight.level);

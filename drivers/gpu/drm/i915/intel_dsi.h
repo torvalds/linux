@@ -80,6 +80,7 @@ struct intel_dsi {
 	u8 dual_link;
 
 	u16 dcs_backlight_ports;
+	u16 dcs_cabc_ports;
 
 	u8 pixel_overlap;
 	u32 port_bits;

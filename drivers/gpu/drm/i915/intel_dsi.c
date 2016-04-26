@@ -1489,10 +1489,27 @@ void intel_dsi_init(struct drm_device *dev)
 			intel_dsi->dcs_backlight_ports = BIT(PORT_A) | BIT(PORT_C);
 			break;
 		}
+
+		switch (dev_priv->vbt.dsi.config->dl_dcs_cabc_ports) {
+		case DL_DCS_PORT_A:
+			intel_dsi->dcs_cabc_ports = BIT(PORT_A);
+			break;
+		case DL_DCS_PORT_C:
+			intel_dsi->dcs_cabc_ports = BIT(PORT_C);
+			break;
+		default:
+		case DL_DCS_PORT_A_AND_C:
+			intel_dsi->dcs_cabc_ports = BIT(PORT_A) | BIT(PORT_C);
+			break;
+		}
 	} else {
 		intel_dsi->ports = BIT(port);
 		intel_dsi->dcs_backlight_ports = BIT(port);
+		intel_dsi->dcs_cabc_ports = BIT(port);
 	}
+
+	if (!dev_priv->vbt.dsi.config->cabc_supported)
+		intel_dsi->dcs_cabc_ports = 0;
 
 	/* Create a DSI host (and a device) for each port. */
 	for_each_dsi_port(port, intel_dsi->ports) {
