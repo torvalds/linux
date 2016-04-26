@@ -6175,6 +6175,57 @@ int btrfs_exclude_logged_extents(struct btrfs_root *log,
 	return 0;
 }
 
+static void
+btrfs_inc_block_group_reservations(struct btrfs_block_group_cache *bg)
+{
+	atomic_inc(&bg->reservations);
+}
+
+void btrfs_dec_block_group_reservations(struct btrfs_fs_info *fs_info,
+					const u64 start)
+{
+	struct btrfs_block_group_cache *bg;
+
+	bg = btrfs_lookup_block_group(fs_info, start);
+	ASSERT(bg);
+	if (atomic_dec_and_test(&bg->reservations))
+		wake_up_atomic_t(&bg->reservations);
+	btrfs_put_block_group(bg);
+}
+
+static int btrfs_wait_bg_reservations_atomic_t(atomic_t *a)
+{
+	schedule();
+	return 0;
+}
+
+void btrfs_wait_block_group_reservations(struct btrfs_block_group_cache *bg)
+{
+	struct btrfs_space_info *space_info = bg->space_info;
+
+	ASSERT(bg->ro);
+
+	if (!(bg->flags & BTRFS_BLOCK_GROUP_DATA))
+		return;
+
+	/*
+	 * Our block group is read only but before we set it to read only,
+	 * some task might have had allocated an extent from it already, but it
+	 * has not yet created a respective ordered extent (and added it to a
+	 * root's list of ordered extents).
+	 * Therefore wait for any task currently allocating extents, since the
+	 * block group's reservations counter is incremented while a read lock
+	 * on the groups' semaphore is held and decremented after releasing
+	 * the read access on that semaphore and creating the ordered extent.
+	 */
+	down_write(&space_info->groups_sem);
+	up_write(&space_info->groups_sem);
+
+	wait_on_atomic_t(&bg->reservations,
+			 btrfs_wait_bg_reservations_atomic_t,
+			 TASK_UNINTERRUPTIBLE);
+}
+
 /**
  * btrfs_update_reserved_bytes - update the block_group and space info counters
  * @cache:	The cache we are manipulating
@@ -7434,6 +7485,7 @@ checks:
 			btrfs_add_free_space(block_group, offset, num_bytes);
 			goto loop;
 		}
+		btrfs_inc_block_group_reservations(block_group);
 
 		/* we are all good, lets return */
 		ins->objectid = search_start;
@@ -7615,8 +7667,10 @@ again:
 	WARN_ON(num_bytes < root->sectorsize);
 	ret = find_free_extent(root, num_bytes, empty_size, hint_byte, ins,
 			       flags, delalloc);
-
-	if (ret == -ENOSPC) {
+	if (!ret && !is_data) {
+		btrfs_dec_block_group_reservations(root->fs_info,
+						   ins->objectid);
+	} else if (ret == -ENOSPC) {
 		if (!final_tried && ins->offset) {
 			num_bytes = min(num_bytes >> 1, ins->offset);
 			num_bytes = round_down(num_bytes, root->sectorsize);

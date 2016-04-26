@@ -4254,11 +4254,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	btrfs_info(extent_root->fs_info, "relocating block group %llu flags %llu",
 	       rc->block_group->key.objectid, rc->block_group->flags);
 
-	ret = btrfs_start_delalloc_roots(fs_info, 0, -1);
-	if (ret < 0) {
-		err = ret;
-		goto out;
-	}
+	btrfs_wait_block_group_reservations(rc->block_group);
 	btrfs_wait_ordered_roots(fs_info, -1,
 				 rc->block_group->key.objectid,
 				 rc->block_group->key.offset);

@@ -824,6 +824,7 @@ retry:
 						async_extent->ram_size - 1, 0);
 			goto out_free_reserve;
 		}
+		btrfs_dec_block_group_reservations(root->fs_info, ins.objectid);
 
 		/*
 		 * clear dirty, set writeback and unlock the pages.
@@ -861,6 +862,7 @@ retry:
 	}
 	return;
 out_free_reserve:
+	btrfs_dec_block_group_reservations(root->fs_info, ins.objectid);
 	btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
 out_free:
 	extent_clear_unlock_delalloc(inode, async_extent->start,
@@ -1038,6 +1040,8 @@ static noinline int cow_file_range(struct inode *inode,
 				goto out_drop_extent_cache;
 		}
 
+		btrfs_dec_block_group_reservations(root->fs_info, ins.objectid);
+
 		if (disk_num_bytes < cur_alloc_size)
 			break;
 
@@ -1066,6 +1070,7 @@ out:
 out_drop_extent_cache:
 	btrfs_drop_extent_cache(inode, start, start + ram_size - 1, 0);
 out_reserve:
+	btrfs_dec_block_group_reservations(root->fs_info, ins.objectid);
 	btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
 out_unlock:
 	extent_clear_unlock_delalloc(inode, start, end, locked_page,
@@ -7162,6 +7167,8 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 		return ERR_PTR(ret);
 	}
 
+	btrfs_dec_block_group_reservations(root->fs_info, ins.objectid);
+
 	em = create_pinned_em(inode, start, ins.offset, start, ins.objectid,
 			      ins.offset, ins.offset, ins.offset, 0);
 	if (IS_ERR(em)) {
@@ -9942,6 +9949,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 				btrfs_end_transaction(trans, root);
 			break;
 		}
+		btrfs_dec_block_group_reservations(root->fs_info, ins.objectid);
 
 		last_alloc = ins.offset;
 		ret = insert_reserved_file_extent(trans, inode,
