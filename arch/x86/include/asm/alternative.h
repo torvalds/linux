@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_ALTERNATIVE_H
 #define _ASM_X86_ALTERNATIVE_H
 
+#ifndef __ASSEMBLY__
+
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/stringify.h>
@@ -231,5 +233,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * alternative_{input,io,call}()
  */
 #define ASM_NO_INPUT_CLOBBER(clbr...) "i" (0) : clbr
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_X86_ALTERNATIVE_H */
