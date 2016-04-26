@@ -225,6 +225,7 @@ struct perf_event;
 #define PERF_PMU_CAP_AUX_SW_DOUBLEBUF		0x08
 #define PERF_PMU_CAP_EXCLUSIVE			0x10
 #define PERF_PMU_CAP_ITRACE			0x20
+#define PERF_PMU_CAP_HETEROGENEOUS_CPUS		0x40
 
 /**
  * struct pmu - generic performance monitoring unit

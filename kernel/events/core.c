@@ -8443,7 +8443,13 @@ skip_type:
 	if (pmu->task_ctx_nr == perf_hw_context) {
 		static int hw_context_taken = 0;
 
-		if (WARN_ON_ONCE(hw_context_taken))
+		/*
+		 * Other than systems with heterogeneous CPUs, it never makes
+		 * sense for two PMUs to share perf_hw_context. PMUs which are
+		 * uncore must use perf_invalid_context.
+		 */
+		if (WARN_ON_ONCE(hw_context_taken &&
+		    !(pmu->capabilities & PERF_PMU_CAP_HETEROGENEOUS_CPUS)))
 			pmu->task_ctx_nr = perf_invalid_context;
 
 		hw_context_taken = 1;

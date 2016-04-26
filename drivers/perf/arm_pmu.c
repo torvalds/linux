@@ -847,6 +847,14 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	if (!platform_get_irq(cpu_pmu->plat_device, 0))
 		cpu_pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 
+	/*
+	 * This is a CPU PMU potentially in a heterogeneous configuration (e.g.
+	 * big.LITTLE). This is not an uncore PMU, and we have taken ctx
+	 * sharing into account (e.g. with our pmu::filter_match callback and
+	 * pmu::event_init group validation).
+	 */
+	cpu_pmu->pmu.capabilities |= PERF_PMU_CAP_HETEROGENEOUS_CPUS;
+
 	return 0;
 
 out_unregister:
