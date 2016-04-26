@@ -3837,7 +3837,7 @@ struct public_drv_mb {
 
 #define DRV_MSG_CODE_SET_LLDP                   0x24000000
 #define DRV_MSG_CODE_SET_DCBX                   0x25000000
-
+#define DRV_MSG_CODE_BW_UPDATE_ACK		0x32000000
 #define DRV_MSG_CODE_NIG_DRAIN                  0x30000000
 
 #define DRV_MSG_CODE_INITIATE_FLR               0x02000000
@@ -5116,4 +5116,8 @@ struct hw_set_image {
 	struct hw_set_info	hw_sets[1];
 };
 
+int qed_init_pf_wfq(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		    u8 pf_id, u16 pf_wfq);
+int qed_init_vport_wfq(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		       u16 first_tx_pq_id[NUM_OF_TCS], u16 vport_wfq);
 #endif

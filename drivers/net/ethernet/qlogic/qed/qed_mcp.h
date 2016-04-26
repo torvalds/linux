@@ -40,7 +40,15 @@ struct qed_mcp_link_capabilities {
 struct qed_mcp_link_state {
 	bool    link_up;
 
-	u32     speed; /* In Mb/s */
+	u32	min_pf_rate;
+
+	/* Actual link speed in Mb/s */
+	u32	line_speed;
+
+	/* PF max speed in Mb/s, deduced from line_speed
+	 * according to PF max bandwidth configuration.
+	 */
+	u32     speed;
 	bool    full_duplex;
 
 	bool    an;
@@ -388,5 +396,14 @@ int qed_mcp_reset(struct qed_hwfn *p_hwfn,
  * @return true iff MFW is running and mcp_info is initialized
  */
 bool qed_mcp_is_init(struct qed_hwfn *p_hwfn);
-
+int qed_configure_pf_min_bandwidth(struct qed_dev *cdev, u8 min_bw);
+int qed_configure_pf_max_bandwidth(struct qed_dev *cdev, u8 max_bw);
+int __qed_configure_pf_max_bandwidth(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     struct qed_mcp_link_state *p_link,
+				     u8 max_bw);
+int __qed_configure_pf_min_bandwidth(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     struct qed_mcp_link_state *p_link,
+				     u8 min_bw);
 #endif

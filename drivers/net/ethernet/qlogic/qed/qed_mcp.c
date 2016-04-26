@@ -472,6 +472,7 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 				       bool b_reset)
 {
 	struct qed_mcp_link_state *p_link;
+	u8 max_bw, min_bw;
 	u32 status = 0;
 
 	p_link = &p_hwfn->mcp_info->link_output;
@@ -527,17 +528,20 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 		p_link->speed = 0;
 	}
 
-	/* Correct speed according to bandwidth allocation */
-	if (p_hwfn->mcp_info->func_info.bandwidth_max && p_link->speed) {
-		p_link->speed = p_link->speed *
-				p_hwfn->mcp_info->func_info.bandwidth_max /
-				100;
-		qed_init_pf_rl(p_hwfn, p_ptt, p_hwfn->rel_pf_id,
-			       p_link->speed);
-		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
-			   "Configured MAX bandwidth to be %08x Mb/sec\n",
-			   p_link->speed);
-	}
+	if (p_link->link_up && p_link->speed)
+		p_link->line_speed = p_link->speed;
+	else
+		p_link->line_speed = 0;
+
+	max_bw = p_hwfn->mcp_info->func_info.bandwidth_max;
+	min_bw = p_hwfn->mcp_info->func_info.bandwidth_min;
+
+	/* Max bandwidth configuration */
+	__qed_configure_pf_max_bandwidth(p_hwfn, p_ptt, p_link, max_bw);
+
+	/* Min bandwidth configuration */
+	__qed_configure_pf_min_bandwidth(p_hwfn, p_ptt, p_link, min_bw);
+	qed_configure_vp_wfq_on_link_change(p_hwfn->cdev, p_link->min_pf_rate);
 
 	p_link->an = !!(status & LINK_STATUS_AUTO_NEGOTIATE_ENABLED);
 	p_link->an_complete = !!(status &
@@ -648,6 +652,77 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+static void qed_read_pf_bandwidth(struct qed_hwfn *p_hwfn,
+				  struct public_func *p_shmem_info)
+{
+	struct qed_mcp_function_info *p_info;
+
+	p_info = &p_hwfn->mcp_info->func_info;
+
+	p_info->bandwidth_min = (p_shmem_info->config &
+				 FUNC_MF_CFG_MIN_BW_MASK) >>
+					FUNC_MF_CFG_MIN_BW_SHIFT;
+	if (p_info->bandwidth_min < 1 || p_info->bandwidth_min > 100) {
+		DP_INFO(p_hwfn,
+			"bandwidth minimum out of bounds [%02x]. Set to 1\n",
+			p_info->bandwidth_min);
+		p_info->bandwidth_min = 1;
+	}
+
+	p_info->bandwidth_max = (p_shmem_info->config &
+				 FUNC_MF_CFG_MAX_BW_MASK) >>
+					FUNC_MF_CFG_MAX_BW_SHIFT;
+	if (p_info->bandwidth_max < 1 || p_info->bandwidth_max > 100) {
+		DP_INFO(p_hwfn,
+			"bandwidth maximum out of bounds [%02x]. Set to 100\n",
+			p_info->bandwidth_max);
+		p_info->bandwidth_max = 100;
+	}
+}
+
+static u32 qed_mcp_get_shmem_func(struct qed_hwfn *p_hwfn,
+				  struct qed_ptt *p_ptt,
+				  struct public_func *p_data,
+				  int pfid)
+{
+	u32 addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
+					PUBLIC_FUNC);
+	u32 mfw_path_offsize = qed_rd(p_hwfn, p_ptt, addr);
+	u32 func_addr = SECTION_ADDR(mfw_path_offsize, pfid);
+	u32 i, size;
+
+	memset(p_data, 0, sizeof(*p_data));
+
+	size = min_t(u32, sizeof(*p_data),
+		     QED_SECTION_SIZE(mfw_path_offsize));
+	for (i = 0; i < size / sizeof(u32); i++)
+		((u32 *)p_data)[i] = qed_rd(p_hwfn, p_ptt,
+					    func_addr + (i << 2));
+	return size;
+}
+
+static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt)
+{
+	struct qed_mcp_function_info *p_info;
+	struct public_func shmem_info;
+	u32 resp = 0, param = 0;
+
+	qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info,
+			       MCP_PF_ID(p_hwfn));
+
+	qed_read_pf_bandwidth(p_hwfn, &shmem_info);
+
+	p_info = &p_hwfn->mcp_info->func_info;
+
+	qed_configure_pf_min_bandwidth(p_hwfn->cdev, p_info->bandwidth_min);
+	qed_configure_pf_max_bandwidth(p_hwfn->cdev, p_info->bandwidth_max);
+
+	/* Acknowledge the MFW */
+	qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_BW_UPDATE_ACK, 0, &resp,
+		    &param);
+}
+
 int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt)
 {
@@ -678,6 +753,9 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			break;
 		case MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE:
 			qed_mcp_handle_transceiver_change(p_hwfn, p_ptt);
+			break;
+		case MFW_DRV_MSG_BW_UPDATE:
+			qed_mcp_update_bw(p_hwfn, p_ptt);
 			break;
 		default:
 			DP_NOTICE(p_hwfn, "Unimplemented MFW message %d\n", i);
@@ -758,28 +836,6 @@ int qed_mcp_get_media_type(struct qed_dev *cdev,
 	return 0;
 }
 
-static u32 qed_mcp_get_shmem_func(struct qed_hwfn *p_hwfn,
-				  struct qed_ptt *p_ptt,
-				  struct public_func *p_data,
-				  int pfid)
-{
-	u32 addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
-					PUBLIC_FUNC);
-	u32 mfw_path_offsize = qed_rd(p_hwfn, p_ptt, addr);
-	u32 func_addr = SECTION_ADDR(mfw_path_offsize, pfid);
-	u32 i, size;
-
-	memset(p_data, 0, sizeof(*p_data));
-
-	size = min_t(u32, sizeof(*p_data),
-		     QED_SECTION_SIZE(mfw_path_offsize));
-	for (i = 0; i < size / sizeof(u32); i++)
-		((u32 *)p_data)[i] = qed_rd(p_hwfn, p_ptt,
-					    func_addr + (i << 2));
-
-	return size;
-}
-
 static int
 qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 			struct public_func *p_info,
@@ -818,26 +874,7 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
-
-	info->bandwidth_min = (shmem_info.config &
-			       FUNC_MF_CFG_MIN_BW_MASK) >>
-			      FUNC_MF_CFG_MIN_BW_SHIFT;
-	if (info->bandwidth_min < 1 || info->bandwidth_min > 100) {
-		DP_INFO(p_hwfn,
-			"bandwidth minimum out of bounds [%02x]. Set to 1\n",
-			info->bandwidth_min);
-		info->bandwidth_min = 1;
-	}
-
-	info->bandwidth_max = (shmem_info.config &
-			       FUNC_MF_CFG_MAX_BW_MASK) >>
-			      FUNC_MF_CFG_MAX_BW_SHIFT;
-	if (info->bandwidth_max < 1 || info->bandwidth_max > 100) {
-		DP_INFO(p_hwfn,
-			"bandwidth maximum out of bounds [%02x]. Set to 100\n",
-			info->bandwidth_max);
-		info->bandwidth_max = 100;
-	}
+	qed_read_pf_bandwidth(p_hwfn, &shmem_info);
 
 	if (shmem_info.mac_upper || shmem_info.mac_lower) {
 		info->mac[0] = (u8)(shmem_info.mac_upper >> 8);
@@ -938,9 +975,10 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 
 	p_drv_version = &union_data.drv_version;
 	p_drv_version->version = p_ver->version;
+
 	for (i = 0; i < MCP_DRV_VER_STR_SIZE - 1; i += 4) {
 		val = cpu_to_be32(p_ver->name[i]);
-		*(u32 *)&p_drv_version->name[i * sizeof(u32)] = val;
+		*(__be32 *)&p_drv_version->name[i * sizeof(u32)] = val;
 	}
 
 	memset(&mb_params, 0, sizeof(mb_params));
