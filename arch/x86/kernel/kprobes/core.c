@@ -51,6 +51,7 @@
 #include <linux/ftrace.h>
 #include <linux/frame.h>
 
+#include <asm/text-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/desc.h>
 #include <asm/pgtable.h>
