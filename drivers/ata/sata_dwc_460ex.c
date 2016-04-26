@@ -95,7 +95,7 @@ struct sata_dwc_regs {
 	u32 versionr;		/* Version Register */
 	u32 idr;		/* ID Register */
 	u32 unimpl[192];	/* Unimplemented */
-	u32 dmadr[256];	/* FIFO Locations in DMA Mode */
+	u32 dmadr[256];		/* FIFO Locations in DMA Mode */
 };
 
 enum {
@@ -143,6 +143,7 @@ struct sata_dwc_device {
 	u32			sactive_issued;
 	u32			sactive_queued;
 	struct phy		*phy;
+	phys_addr_t		dmadr;
 #ifdef CONFIG_SATA_DWC_OLD_DMA
 	struct dw_dma_chip	*dma;
 #endif
@@ -368,15 +369,14 @@ static struct dma_async_tx_descriptor *dma_dwc_xfer_setup(struct ata_queued_cmd 
 	struct ata_port *ap = qc->ap;
 	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
 	struct sata_dwc_device *hsdev = HSDEV_FROM_AP(ap);
-	dma_addr_t addr = (dma_addr_t)&hsdev->sata_dwc_regs->dmadr;
 	struct dma_slave_config sconf;
 	struct dma_async_tx_descriptor *desc;
 
 	if (qc->dma_dir == DMA_DEV_TO_MEM) {
-		sconf.src_addr = addr;
+		sconf.src_addr = hsdev->dmadr;
 		sconf.device_fc = false;
 	} else {	/* DMA_MEM_TO_DEV */
-		sconf.dst_addr = addr;
+		sconf.dst_addr = hsdev->dmadr;
 		sconf.device_fc = false;
 	}
 
@@ -399,8 +399,8 @@ static struct dma_async_tx_descriptor *dma_dwc_xfer_setup(struct ata_queued_cmd 
 	desc->callback = dma_dwc_xfer_done;
 	desc->callback_param = hsdev;
 
-	dev_dbg(hsdev->dev, "%s sg: 0x%p, count: %d addr: %pad\n",
-		__func__, qc->sg, qc->n_elem, &addr);
+	dev_dbg(hsdev->dev, "%s sg: 0x%p, count: %d addr: %pa\n", __func__,
+		qc->sg, qc->n_elem, &hsdev->dmadr);
 
 	return desc;
 }
@@ -1234,6 +1234,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 
 	/* Synopsys DWC SATA specific Registers */
 	hsdev->sata_dwc_regs = base + SATA_DWC_REG_OFFSET;
+	hsdev->dmadr = res->start + SATA_DWC_REG_OFFSET + offsetof(struct sata_dwc_regs, dmadr);
 
 	/* Setup port */
 	host->ports[0]->ioaddr.cmd_addr = base;
