@@ -275,10 +275,12 @@ else
 flags_nodeps = $(filter-out -Wp$(comma)-M%, $($(1)))
 ksym_dep_filter =                                                            \
 	case "$(1)" in                                                       \
-	cc_*_c) $(CPP) $(call flags_nodeps,c_flags) -D__KSYM_DEPS__ $< ;;    \
-	as_*_S) $(CPP) $(call flags_nodeps,a_flags) -D__KSYM_DEPS__ $< ;;    \
-	boot*|build*|*cpp_lds_S|dtc|host*|vdso*) : ;;                        \
-	*) echo "Don't know how to preprocess $(1)" >&2; false ;;            \
+	  cc_*_c|cpp_i_c)                                                    \
+	    $(CPP) $(call flags_nodeps,c_flags) -D__KSYM_DEPS__ $< ;;        \
+	  as_*_S|cpp_s_S)                                                    \
+	    $(CPP) $(call flags_nodeps,a_flags) -D__KSYM_DEPS__ $< ;;        \
+	  boot*|build*|*cpp_lds_S|dtc|host*|vdso*) : ;;                      \
+	  *) echo "Don't know how to preprocess $(1)" >&2; false ;;          \
 	esac | sed -rn 's/^.*=== __KSYM_(.*) ===.*$$/KSYM_\1/p'
 
 cmd_and_fixdep =                                                             \
