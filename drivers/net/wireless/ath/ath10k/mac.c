@@ -4346,7 +4346,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 
 	/*
 	 * This makes sense only when restarting hw. It is harmless to call
-	 * uncoditionally. This is necessary to make sure no HTT/WMI tx
+	 * unconditionally. This is necessary to make sure no HTT/WMI tx
 	 * commands will be submitted while restarting.
 	 */
 	ath10k_drain_tx(ar);
