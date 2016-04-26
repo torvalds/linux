@@ -255,6 +255,17 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
 	if (!(attr->ia_valid & ~(ATTR_KILL_SUID | ATTR_KILL_SGID)))
 		return 0;
 
+	/*
+	 * Verify that uid/gid changes are valid in the target
+	 * namespace of the superblock.
+	 */
+	if (ia_valid & ATTR_UID &&
+	    !kuid_has_mapping(inode->i_sb->s_user_ns, attr->ia_uid))
+		return -EOVERFLOW;
+	if (ia_valid & ATTR_GID &&
+	    !kgid_has_mapping(inode->i_sb->s_user_ns, attr->ia_gid))
+		return -EOVERFLOW;
+
 	error = security_inode_setattr(dentry, attr);
 	if (error)
 		return error;
