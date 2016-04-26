@@ -35,6 +35,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/phy/phy.h>
 #include <linux/libata.h>
 #include <linux/slab.h>
 
@@ -145,6 +146,7 @@ struct sata_dwc_device {
 	struct ata_host		*host;
 	u8 __iomem		*reg_base;
 	struct sata_dwc_regs	*sata_dwc_regs;	/* DW Synopsys SATA specific */
+	struct phy		*phy;
 #ifdef CONFIG_SATA_DWC_OLD_DMA
 	struct dw_dma_chip	*dma;
 #endif
@@ -948,6 +950,10 @@ static int sata_dwc_port_start(struct ata_port *ap)
 	if (err)
 		goto CLEANUP_ALLOC;
 
+	err = phy_power_on(hsdev->phy);
+	if (err)
+		goto CLEANUP_ALLOC;
+
 	for (i = 0; i < SATA_DWC_QCMD_MAX; i++)
 		hsdevp->cmd_issued[i] = SATA_DWC_CMD_ISSUED_NOT;
 
@@ -983,11 +989,13 @@ CLEANUP:
 static void sata_dwc_port_stop(struct ata_port *ap)
 {
 	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
+	struct sata_dwc_device *hsdev = HSDEV_FROM_AP(ap);
 
 	dev_dbg(ap->dev, "%s: ap->id = %d\n", __func__, ap->print_id);
 
 	dmaengine_terminate_all(hsdevp->chan);
 	dma_release_channel(hsdevp->chan);
+	phy_power_off(hsdev->phy);
 
 	kfree(hsdevp);
 	ap->private_data = NULL;
@@ -1321,6 +1329,17 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	}
 #endif
 
+	hsdev->phy = devm_phy_optional_get(hsdev->dev, "sata-phy");
+	if (IS_ERR(hsdev->phy)) {
+		err = PTR_ERR(hsdev->phy);
+		hsdev->phy = NULL;
+		goto error_out;
+	}
+
+	err = phy_init(hsdev->phy);
+	if (err)
+		goto error_out;
+
 	/*
 	 * Now, register with libATA core, this will also initiate the
 	 * device discovery process, invoking our port_start() handler &
@@ -1334,6 +1353,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	return 0;
 
 error_out:
+	phy_exit(hsdev->phy);
 	iounmap(base);
 	return err;
 }
@@ -1345,6 +1365,8 @@ static int sata_dwc_remove(struct platform_device *ofdev)
 	struct sata_dwc_device *hsdev = host->private_data;
 
 	ata_host_detach(host);
+
+	phy_exit(hsdev->phy);
 
 #ifdef CONFIG_SATA_DWC_OLD_DMA
 	/* Free SATA DMA resources */
