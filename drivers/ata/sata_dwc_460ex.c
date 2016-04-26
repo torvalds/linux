@@ -1132,27 +1132,6 @@ static unsigned int sata_dwc_qc_issue(struct ata_queued_cmd *qc)
 	return 0;
 }
 
-/*
- * Function : sata_dwc_qc_prep
- * arguments : ata_queued_cmd *qc
- * Return value : None
- * qc_prep for a particular queued command
- */
-
-static void sata_dwc_qc_prep(struct ata_queued_cmd *qc)
-{
-	if ((qc->dma_dir == DMA_NONE) || (qc->tf.protocol == ATA_PROT_PIO))
-		return;
-
-#ifdef DEBUG_NCQ
-	if (qc->tag > 0)
-		dev_info(qc->ap->dev, "%s: qc->tag=%d ap->active_tag=0x%08x\n",
-			 __func__, qc->tag, qc->ap->link.active_tag);
-
-	return ;
-#endif
-}
-
 static void sata_dwc_error_handler(struct ata_port *ap)
 {
 	ata_sff_error_handler(ap);
@@ -1212,7 +1191,6 @@ static struct ata_port_operations sata_dwc_ops = {
 	.error_handler		= sata_dwc_error_handler,
 	.hardreset		= sata_dwc_hardreset,
 
-	.qc_prep		= sata_dwc_qc_prep,
 	.qc_issue		= sata_dwc_qc_issue,
 
 	.scr_read		= sata_dwc_scr_read,
