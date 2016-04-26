@@ -19,6 +19,22 @@ in case of any doubt (and there are many) please ask.
 To repeat, this document is not a specification of what Linux expects from
 hardware.
 
+The purpose of this document is twofold:
+
+ (1) to specify the minimum functionality that one can rely on for any
+     particular barrier, and
+
+ (2) to provide a guide as to how to use the barriers that are available.
+
+Note that an architecture can provide more than the minimum requirement
+for any particular barrier, but if the architecure provides less than
+that, that architecture is incorrect.
+
+Note also that it is possible that a barrier may be a no-op for an
+architecture because the way that arch works renders an explicit barrier
+unnecessary in that case.
+
+
 ========
 CONTENTS
 ========
