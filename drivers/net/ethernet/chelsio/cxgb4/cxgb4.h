@@ -396,6 +396,7 @@ struct link_config {
 	unsigned char  fc;               /* actual link flow control */
 	unsigned char  autoneg;          /* autonegotiating? */
 	unsigned char  link_ok;          /* link up? */
+	unsigned char  link_down_rc;     /* link down reason */
 };
 
 #define FW_LEN16(fw_struct) FW_CMD_LEN16_V(sizeof(fw_struct) / 16)

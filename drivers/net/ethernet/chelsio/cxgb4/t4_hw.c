@@ -7103,6 +7103,32 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 }
 
 /**
+ *	t4_link_down_rc_str - return a string for a Link Down Reason Code
+ *	@adap: the adapter
+ *	@link_down_rc: Link Down Reason Code
+ *
+ *	Returns a string representation of the Link Down Reason Code.
+ */
+static const char *t4_link_down_rc_str(unsigned char link_down_rc)
+{
+	static const char * const reason[] = {
+		"Link Down",
+		"Remote Fault",
+		"Auto-negotiation Failure",
+		"Reserved",
+		"Insufficient Airflow",
+		"Unable To Determine Reason",
+		"No RX Signal Detected",
+		"Reserved",
+	};
+
+	if (link_down_rc >= ARRAY_SIZE(reason))
+		return "Bad Reason Code";
+
+	return reason[link_down_rc];
+}
+
+/**
  *	t4_handle_get_port_info - process a FW reply message
  *	@pi: the port info
  *	@rpl: start of the FW message
@@ -7142,6 +7168,14 @@ void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 	}
 	if (link_ok != lc->link_ok || speed != lc->speed ||
 	    fc != lc->fc) {	/* something changed */
+		if (!link_ok && lc->link_ok) {
+			unsigned char rc = FW_PORT_CMD_LINKDNRC_G(stat);
+
+			lc->link_down_rc = rc;
+			dev_warn(adap->pdev_dev,
+				 "Port %d link down, reason: %s\n",
+				 pi->port_id, t4_link_down_rc_str(rc));
+		}
 		lc->link_ok = link_ok;
 		lc->speed = speed;
 		lc->fc = fc;
