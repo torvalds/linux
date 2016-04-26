@@ -109,6 +109,7 @@ struct nvme_ctrl {
 	bool subsystem;
 	unsigned long quirks;
 	struct work_struct scan_work;
+	struct work_struct async_event_work;
 };
 
 /*
@@ -149,6 +150,7 @@ struct nvme_ctrl_ops {
 	int (*reset_ctrl)(struct nvme_ctrl *ctrl);
 	void (*free_ctrl)(struct nvme_ctrl *ctrl);
 	void (*post_scan)(struct nvme_ctrl *ctrl);
+	void (*submit_async_event)(struct nvme_ctrl *ctrl, int aer_idx);
 };
 
 static inline bool nvme_ctrl_ready(struct nvme_ctrl *ctrl)
@@ -211,6 +213,11 @@ int nvme_init_identify(struct nvme_ctrl *ctrl);
 
 void nvme_queue_scan(struct nvme_ctrl *ctrl);
 void nvme_remove_namespaces(struct nvme_ctrl *ctrl);
+
+#define NVME_NR_AERS	1
+void nvme_complete_async_event(struct nvme_ctrl *ctrl,
+		struct nvme_completion *cqe);
+void nvme_queue_async_events(struct nvme_ctrl *ctrl);
 
 void nvme_stop_queues(struct nvme_ctrl *ctrl);
 void nvme_start_queues(struct nvme_ctrl *ctrl);

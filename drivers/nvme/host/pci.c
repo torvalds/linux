@@ -54,8 +54,7 @@
  * We handle AEN commands ourselves and don't even let the
  * block layer know about them.
  */
-#define NVME_NR_AEN_COMMANDS	1
-#define NVME_AQ_BLKMQ_DEPTH	(NVME_AQ_DEPTH - NVME_NR_AEN_COMMANDS)
+#define NVME_AQ_BLKMQ_DEPTH	(NVME_AQ_DEPTH - NVME_NR_AERS)
 
 static int use_threaded_interrupts;
 module_param(use_threaded_interrupts, int, 0);
@@ -93,7 +92,6 @@ struct nvme_dev {
 	void __iomem *bar;
 	struct work_struct reset_work;
 	struct work_struct remove_work;
-	struct work_struct async_work;
 	struct timer_list watchdog_timer;
 	struct mutex shutdown_lock;
 	bool subsystem;
@@ -263,29 +261,6 @@ static int nvme_init_request(void *data, struct request *req,
 	BUG_ON(!nvmeq);
 	iod->nvmeq = nvmeq;
 	return 0;
-}
-
-static void nvme_complete_async_event(struct nvme_dev *dev,
-		struct nvme_completion *cqe)
-{
-	u16 status = le16_to_cpu(cqe->status) >> 1;
-	u32 result = le32_to_cpu(cqe->result);
-
-	if (status == NVME_SC_SUCCESS || status == NVME_SC_ABORT_REQ) {
-		++dev->ctrl.event_limit;
-		queue_work(nvme_workq, &dev->async_work);
-	}
-
-	if (status != NVME_SC_SUCCESS)
-		return;
-
-	switch (result & 0xff07) {
-	case NVME_AER_NOTICE_NS_CHANGED:
-		dev_info(dev->ctrl.device, "rescanning\n");
-		nvme_queue_scan(&dev->ctrl);
-	default:
-		dev_warn(dev->ctrl.device, "async event result %08x\n", result);
-	}
 }
 
 /**
@@ -709,7 +684,7 @@ static void __nvme_process_cq(struct nvme_queue *nvmeq, unsigned int *tag)
 		 */
 		if (unlikely(nvmeq->qid == 0 &&
 				cqe.command_id >= NVME_AQ_BLKMQ_DEPTH)) {
-			nvme_complete_async_event(nvmeq->dev, &cqe);
+			nvme_complete_async_event(&nvmeq->dev->ctrl, &cqe);
 			continue;
 		}
 
@@ -778,21 +753,18 @@ static int nvme_poll(struct blk_mq_hw_ctx *hctx, unsigned int tag)
 	return 0;
 }
 
-static void nvme_async_event_work(struct work_struct *work)
+static void nvme_pci_submit_async_event(struct nvme_ctrl *ctrl, int aer_idx)
 {
-	struct nvme_dev *dev = container_of(work, struct nvme_dev, async_work);
+	struct nvme_dev *dev = to_nvme_dev(ctrl);
 	struct nvme_queue *nvmeq = dev->queues[0];
 	struct nvme_command c;
 
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = nvme_admin_async_event;
+	c.common.command_id = NVME_AQ_BLKMQ_DEPTH + aer_idx;
 
 	spin_lock_irq(&nvmeq->q_lock);
-	while (dev->ctrl.event_limit > 0) {
-		c.common.command_id = NVME_AQ_BLKMQ_DEPTH +
-			--dev->ctrl.event_limit;
-		__nvme_submit_cmd(nvmeq, &c);
-	}
+	__nvme_submit_cmd(nvmeq, &c);
 	spin_unlock_irq(&nvmeq->q_lock);
 }
 
@@ -1848,10 +1820,8 @@ static void nvme_reset_work(struct work_struct *work)
 	 * should not submit commands the user did not request, so skip
 	 * registering for asynchronous event notification on this condition.
 	 */
-	if (dev->online_queues > 1) {
-		dev->ctrl.event_limit = NVME_NR_AEN_COMMANDS;
-		queue_work(nvme_workq, &dev->async_work);
-	}
+	if (dev->online_queues > 1)
+		nvme_queue_async_events(&dev->ctrl);
 
 	mod_timer(&dev->watchdog_timer, round_jiffies(jiffies + HZ));
 
@@ -1935,6 +1905,7 @@ static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 	.reset_ctrl		= nvme_pci_reset_ctrl,
 	.free_ctrl		= nvme_pci_free_ctrl,
 	.post_scan		= nvme_pci_post_scan,
+	.submit_async_event	= nvme_pci_submit_async_event,
 };
 
 static int nvme_dev_map(struct nvme_dev *dev)
@@ -1988,7 +1959,6 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	INIT_WORK(&dev->reset_work, nvme_reset_work);
 	INIT_WORK(&dev->remove_work, nvme_remove_dead_ctrl_work);
-	INIT_WORK(&dev->async_work, nvme_async_event_work);
 	setup_timer(&dev->watchdog_timer, nvme_watchdog_timer,
 		(unsigned long)dev);
 	mutex_init(&dev->shutdown_lock);
@@ -2050,7 +2020,6 @@ static void nvme_remove(struct pci_dev *pdev)
 	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DELETING);
 
 	pci_set_drvdata(pdev, NULL);
-	flush_work(&dev->async_work);
 	nvme_uninit_ctrl(&dev->ctrl);
 	nvme_dev_disable(dev, true);
 	flush_work(&dev->reset_work);

@@ -1584,6 +1584,54 @@ void nvme_remove_namespaces(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_remove_namespaces);
 
+static void nvme_async_event_work(struct work_struct *work)
+{
+	struct nvme_ctrl *ctrl =
+		container_of(work, struct nvme_ctrl, async_event_work);
+
+	spin_lock_irq(&ctrl->lock);
+	while (ctrl->event_limit > 0) {
+		int aer_idx = --ctrl->event_limit;
+
+		spin_unlock_irq(&ctrl->lock);
+		ctrl->ops->submit_async_event(ctrl, aer_idx);
+		spin_lock_irq(&ctrl->lock);
+	}
+	spin_unlock_irq(&ctrl->lock);
+}
+
+void nvme_complete_async_event(struct nvme_ctrl *ctrl,
+		struct nvme_completion *cqe)
+{
+	u16 status = le16_to_cpu(cqe->status) >> 1;
+	u32 result = le32_to_cpu(cqe->result);
+
+	if (status == NVME_SC_SUCCESS || status == NVME_SC_ABORT_REQ) {
+		++ctrl->event_limit;
+		schedule_work(&ctrl->async_event_work);
+	}
+
+	if (status != NVME_SC_SUCCESS)
+		return;
+
+	switch (result & 0xff07) {
+	case NVME_AER_NOTICE_NS_CHANGED:
+		dev_info(ctrl->device, "rescanning\n");
+		nvme_queue_scan(ctrl);
+		break;
+	default:
+		dev_warn(ctrl->device, "async event result %08x\n", result);
+	}
+}
+EXPORT_SYMBOL_GPL(nvme_complete_async_event);
+
+void nvme_queue_async_events(struct nvme_ctrl *ctrl)
+{
+	ctrl->event_limit = NVME_NR_AERS;
+	schedule_work(&ctrl->async_event_work);
+}
+EXPORT_SYMBOL_GPL(nvme_queue_async_events);
+
 static DEFINE_IDA(nvme_instance_ida);
 
 static int nvme_set_instance(struct nvme_ctrl *ctrl)
@@ -1615,6 +1663,7 @@ static void nvme_release_instance(struct nvme_ctrl *ctrl)
 
 void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
 {
+	flush_work(&ctrl->async_event_work);
 	flush_work(&ctrl->scan_work);
 	nvme_remove_namespaces(ctrl);
 
@@ -1662,6 +1711,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 	ctrl->ops = ops;
 	ctrl->quirks = quirks;
 	INIT_WORK(&ctrl->scan_work, nvme_scan_work);
+	INIT_WORK(&ctrl->async_event_work, nvme_async_event_work);
 
 	ret = nvme_set_instance(ctrl);
 	if (ret)
