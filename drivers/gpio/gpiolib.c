@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/compat.h>
+#include <linux/anon_inodes.h>
 #include <uapi/linux/gpio.h>
 
 #include "gpiolib.h"
@@ -310,6 +311,196 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
 	return 0;
 }
 
+/*
+ * GPIO line handle management
+ */
+
+/**
+ * struct linehandle_state - contains the state of a userspace handle
+ * @gdev: the GPIO device the handle pertains to
+ * @label: consumer label used to tag descriptors
+ * @descs: the GPIO descriptors held by this handle
+ * @numdescs: the number of descriptors held in the descs array
+ */
+struct linehandle_state {
+	struct gpio_device *gdev;
+	const char *label;
+	struct gpio_desc *descs[GPIOHANDLES_MAX];
+	u32 numdescs;
+};
+
+static long linehandle_ioctl(struct file *filep, unsigned int cmd,
+			     unsigned long arg)
+{
+	struct linehandle_state *lh = filep->private_data;
+	void __user *ip = (void __user *)arg;
+	struct gpiohandle_data ghd;
+	int i;
+
+	if (cmd == GPIOHANDLE_GET_LINE_VALUES_IOCTL) {
+		int val;
+
+		/* TODO: check if descriptors are really input */
+		for (i = 0; i < lh->numdescs; i++) {
+			val = gpiod_get_value_cansleep(lh->descs[i]);
+			if (val < 0)
+				return val;
+			ghd.values[i] = val;
+		}
+
+		if (copy_to_user(ip, &ghd, sizeof(ghd)))
+			return -EFAULT;
+
+		return 0;
+	} else if (cmd == GPIOHANDLE_SET_LINE_VALUES_IOCTL) {
+		int vals[GPIOHANDLES_MAX];
+
+		/* TODO: check if descriptors are really output */
+		if (copy_from_user(&ghd, ip, sizeof(ghd)))
+			return -EFAULT;
+
+		/* Clamp all values to [0,1] */
+		for (i = 0; i < lh->numdescs; i++)
+			vals[i] = !!ghd.values[i];
+
+		/* Reuse the array setting function */
+		gpiod_set_array_value_complex(false,
+					      true,
+					      lh->numdescs,
+					      lh->descs,
+					      vals);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+#ifdef CONFIG_COMPAT
+static long linehandle_ioctl_compat(struct file *filep, unsigned int cmd,
+			     unsigned long arg)
+{
+	return linehandle_ioctl(filep, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
+
+static int linehandle_release(struct inode *inode, struct file *filep)
+{
+	struct linehandle_state *lh = filep->private_data;
+	struct gpio_device *gdev = lh->gdev;
+	int i;
+
+	for (i = 0; i < lh->numdescs; i++)
+		gpiod_free(lh->descs[i]);
+	kfree(lh->label);
+	kfree(lh);
+	put_device(&gdev->dev);
+	return 0;
+}
+
+static const struct file_operations linehandle_fileops = {
+	.release = linehandle_release,
+	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
+	.unlocked_ioctl = linehandle_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = linehandle_ioctl_compat,
+#endif
+};
+
+static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+{
+	struct gpiohandle_request handlereq;
+	struct linehandle_state *lh;
+	int fd, i, ret;
+
+	if (copy_from_user(&handlereq, ip, sizeof(handlereq)))
+		return -EFAULT;
+	if ((handlereq.lines == 0) || (handlereq.lines > GPIOHANDLES_MAX))
+		return -EINVAL;
+
+	lh = kzalloc(sizeof(*lh), GFP_KERNEL);
+	if (!lh)
+		return -ENOMEM;
+	lh->gdev = gdev;
+	get_device(&gdev->dev);
+
+	/* Make sure this is terminated */
+	handlereq.consumer_label[sizeof(handlereq.consumer_label)-1] = '\0';
+	if (strlen(handlereq.consumer_label)) {
+		lh->label = kstrdup(handlereq.consumer_label,
+				    GFP_KERNEL);
+		if (!lh->label) {
+			ret = -ENOMEM;
+			goto out_free_lh;
+		}
+	}
+
+	/* Request each GPIO */
+	for (i = 0; i < handlereq.lines; i++) {
+		u32 offset = handlereq.lineoffsets[i];
+		u32 lflags = handlereq.flags;
+		struct gpio_desc *desc;
+
+		desc = &gdev->descs[offset];
+		ret = gpiod_request(desc, lh->label);
+		if (ret)
+			goto out_free_descs;
+		lh->descs[i] = desc;
+
+		if (lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW)
+			set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+		if (lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN)
+			set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+		if (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE)
+			set_bit(FLAG_OPEN_SOURCE, &desc->flags);
+
+		/*
+		 * Lines have to be requested explicitly for input
+		 * or output, else the line will be treated "as is".
+		 */
+		if (lflags & GPIOHANDLE_REQUEST_OUTPUT) {
+			int val = !!handlereq.default_values[i];
+
+			ret = gpiod_direction_output(desc, val);
+			if (ret)
+				goto out_free_descs;
+		} else if (lflags & GPIOHANDLE_REQUEST_INPUT) {
+			ret = gpiod_direction_input(desc);
+			if (ret)
+				goto out_free_descs;
+		}
+		dev_dbg(&gdev->dev, "registered chardev handle for line %d\n",
+			offset);
+	}
+	lh->numdescs = handlereq.lines;
+
+	fd = anon_inode_getfd("gpio-linehandle",
+			      &linehandle_fileops,
+			      lh,
+			      O_RDONLY | O_CLOEXEC);
+	if (fd < 0) {
+		ret = fd;
+		goto out_free_descs;
+	}
+
+	handlereq.fd = fd;
+	if (copy_to_user(ip, &handlereq, sizeof(handlereq)))
+		return -EFAULT;
+
+	dev_dbg(&gdev->dev, "registered chardev handle for %d lines\n",
+		lh->numdescs);
+
+	return 0;
+
+out_free_descs:
+	for (; i >= 0; i--)
+		gpiod_free(lh->descs[i]);
+	kfree(lh->label);
+out_free_lh:
+	kfree(lh);
+	put_device(&gdev->dev);
+	return ret;
+}
+
 /**
  * gpio_ioctl() - ioctl handler for the GPIO chardev
  */
@@ -385,6 +576,8 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
 			return -EFAULT;
 		return 0;
+	} else if (cmd == GPIO_GET_LINEHANDLE_IOCTL) {
+		return linehandle_create(gdev, ip);
 	}
 	return -EINVAL;
 }
