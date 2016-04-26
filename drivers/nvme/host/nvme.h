@@ -136,7 +136,6 @@ struct nvme_ctrl_ops {
 	int (*reg_read32)(struct nvme_ctrl *ctrl, u32 off, u32 *val);
 	int (*reg_write32)(struct nvme_ctrl *ctrl, u32 off, u32 val);
 	int (*reg_read64)(struct nvme_ctrl *ctrl, u32 off, u64 *val);
-	bool (*io_incapable)(struct nvme_ctrl *ctrl);
 	int (*reset_ctrl)(struct nvme_ctrl *ctrl);
 	void (*free_ctrl)(struct nvme_ctrl *ctrl);
 };
@@ -148,17 +147,6 @@ static inline bool nvme_ctrl_ready(struct nvme_ctrl *ctrl)
 	if (ctrl->ops->reg_read32(ctrl, NVME_REG_CSTS, &val))
 		return false;
 	return val & NVME_CSTS_RDY;
-}
-
-static inline bool nvme_io_incapable(struct nvme_ctrl *ctrl)
-{
-	u32 val = 0;
-
-	if (ctrl->ops->io_incapable(ctrl))
-		return true;
-	if (ctrl->ops->reg_read32(ctrl, NVME_REG_CSTS, &val))
-		return true;
-	return val & NVME_CSTS_CFS;
 }
 
 static inline int nvme_reset_subsystem(struct nvme_ctrl *ctrl)
