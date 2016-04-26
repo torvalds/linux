@@ -3837,7 +3837,7 @@ struct public_drv_mb {
 
 #define DRV_MSG_CODE_SET_LLDP                   0x24000000
 #define DRV_MSG_CODE_SET_DCBX                   0x25000000
-
+#define DRV_MSG_CODE_BW_UPDATE_ACK		0x32000000
 #define DRV_MSG_CODE_NIG_DRAIN                  0x30000000
 
 #define DRV_MSG_CODE_INITIATE_FLR               0x02000000

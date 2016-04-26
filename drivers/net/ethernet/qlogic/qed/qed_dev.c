@@ -579,7 +579,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 			p_hwfn->qm_info.pf_wfq = p_info->bandwidth_min;
 
 		/* Update rate limit once we'll actually have a link */
-		p_hwfn->qm_info.pf_rl = 100;
+		p_hwfn->qm_info.pf_rl = 100000;
 	}
 
 	qed_cxt_hw_init_pf(p_hwfn);
@@ -1774,4 +1774,70 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate)
 						      p_hwfn->p_dpc_ptt,
 						      min_pf_rate);
 	}
+}
+
+int __qed_configure_pf_max_bandwidth(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     struct qed_mcp_link_state *p_link,
+				     u8 max_bw)
+{
+	int rc = 0;
+
+	p_hwfn->mcp_info->func_info.bandwidth_max = max_bw;
+
+	if (!p_link->line_speed && (max_bw != 100))
+		return rc;
+
+	p_link->speed = (p_link->line_speed * max_bw) / 100;
+	p_hwfn->qm_info.pf_rl = p_link->speed;
+
+	/* Since the limiter also affects Tx-switched traffic, we don't want it
+	 * to limit such traffic in case there's no actual limit.
+	 * In that case, set limit to imaginary high boundary.
+	 */
+	if (max_bw == 100)
+		p_hwfn->qm_info.pf_rl = 100000;
+
+	rc = qed_init_pf_rl(p_hwfn, p_ptt, p_hwfn->rel_pf_id,
+			    p_hwfn->qm_info.pf_rl);
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+		   "Configured MAX bandwidth to be %08x Mb/sec\n",
+		   p_link->speed);
+
+	return rc;
+}
+
+/* Main API to configure PF max bandwidth where bw range is [1 - 100] */
+int qed_configure_pf_max_bandwidth(struct qed_dev *cdev, u8 max_bw)
+{
+	int i, rc = -EINVAL;
+
+	if (max_bw < 1 || max_bw > 100) {
+		DP_NOTICE(cdev, "PF max bw valid range is [1-100]\n");
+		return rc;
+	}
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn	*p_hwfn = &cdev->hwfns[i];
+		struct qed_hwfn *p_lead = QED_LEADING_HWFN(cdev);
+		struct qed_mcp_link_state *p_link;
+		struct qed_ptt *p_ptt;
+
+		p_link = &p_lead->mcp_info->link_output;
+
+		p_ptt = qed_ptt_acquire(p_hwfn);
+		if (!p_ptt)
+			return -EBUSY;
+
+		rc = __qed_configure_pf_max_bandwidth(p_hwfn, p_ptt,
+						      p_link, max_bw);
+
+		qed_ptt_release(p_hwfn, p_ptt);
+
+		if (rc)
+			break;
+	}
+
+	return rc;
 }
