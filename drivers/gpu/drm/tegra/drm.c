@@ -932,7 +932,7 @@ static struct drm_driver tegra_drm_driver = {
 	.debugfs_cleanup = tegra_debugfs_cleanup,
 #endif
 
-	.gem_free_object = tegra_bo_free_object,
+	.gem_free_object_unlocked = tegra_bo_free_object,
 	.gem_vm_ops = &tegra_bo_vm_ops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
