@@ -475,6 +475,12 @@ struct drm_mode_config {
 	 */
 	int num_total_plane;
 	/**
+	 * @num_share_plane: number of share planes on this device
+	 * @num_share_overlay_plane: number of overlay planes on this device
+	 */
+	int num_share_plane;
+	int num_share_overlay_plane;
+	/**
 	 * @plane_list:
 	 *
 	 * List of plane objects linked with &drm_plane.head. This is invariant
@@ -524,6 +530,10 @@ struct drm_mode_config {
 	 * @property_blob_list and &drm_file.blobs.
 	 */
 	struct mutex blob_lock;
+
+	/* pointers to share properties */
+	struct drm_property *prop_share_id;
+	struct drm_property *prop_share_flags;
 
 	/**
 	 * @property_blob_list:

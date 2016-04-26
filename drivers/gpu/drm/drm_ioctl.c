@@ -318,6 +318,11 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			return -EINVAL;
 		file_priv->universal_planes = req->value;
 		break;
+	case DRM_CLIENT_CAP_SHARE_PLANES:
+		if (req->value > 1)
+			return -EINVAL;
+		file_priv->share_planes = req->value;
+		break;
 	case DRM_CLIENT_CAP_ATOMIC:
 		if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
 			return -EINVAL;
