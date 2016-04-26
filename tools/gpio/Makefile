@@ -1,12 +1,13 @@
 CC = $(CROSS_COMPILE)gcc
 CFLAGS += -O2 -Wall -g -D_GNU_SOURCE
 
-all: lsgpio
+all: lsgpio gpio-hammer
 
 lsgpio: lsgpio.o gpio-utils.o
+gpio-hammer: gpio-hammer.o gpio-utils.o
 
 %.o: %.c gpio-utils.h
 
 .PHONY: clean
 clean:
-	rm -f *.o lsgpio
+	rm -f *.o lsgpio gpio-hammer
