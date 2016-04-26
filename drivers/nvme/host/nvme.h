@@ -67,7 +67,16 @@ enum nvme_quirks {
 	NVME_QUIRK_DISCARD_ZEROES		= (1 << 2),
 };
 
+enum nvme_ctrl_state {
+	NVME_CTRL_NEW,
+	NVME_CTRL_LIVE,
+	NVME_CTRL_RESETTING,
+	NVME_CTRL_DELETING,
+};
+
 struct nvme_ctrl {
+	enum nvme_ctrl_state state;
+	spinlock_t lock;
 	const struct nvme_ctrl_ops *ops;
 	struct request_queue *admin_q;
 	struct device *dev;
@@ -187,6 +196,8 @@ static inline bool nvme_req_needs_retry(struct request *req, u16 status)
 		(jiffies - req->start_time) < req->timeout;
 }
 
+bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
+		enum nvme_ctrl_state new_state);
 int nvme_disable_ctrl(struct nvme_ctrl *ctrl, u64 cap);
 int nvme_enable_ctrl(struct nvme_ctrl *ctrl, u64 cap);
 int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl);
