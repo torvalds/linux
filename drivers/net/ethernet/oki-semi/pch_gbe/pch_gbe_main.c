@@ -2137,7 +2137,7 @@ static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct pch_gbe_tx_ring *tx_ring = adapter->tx_ring;
 	unsigned long flags;
 
-	spin_trylock_irqsave(&tx_ring->tx_lock, flags);
+	spin_lock_irqsave(&tx_ring->tx_lock, flags);
 
 	if (unlikely(!PCH_GBE_DESC_UNUSED(tx_ring))) {
 		netif_stop_queue(netdev);
