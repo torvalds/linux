@@ -677,9 +677,9 @@ config MMC_SH_MMCIF
 	depends on HAS_DMA
 	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	help
-	  This selects the MMC Host Interface controller (MMCIF).
+	  This selects the MMC Host Interface controller (MMCIF) found in various
+	  Renesas SoCs for SH and ARM architectures.
 
-	  This driver supports MMCIF in sh7724/sh7757/sh7372.
 
 config MMC_JZ4740
 	tristate "JZ4740 SD/Multimedia Card Interface support"
