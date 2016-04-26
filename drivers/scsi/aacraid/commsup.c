@@ -1996,6 +1996,10 @@ int aac_command_thread(void *data)
 		if (difference <= 0)
 			difference = 1;
 		set_current_state(TASK_INTERRUPTIBLE);
+
+		if (kthread_should_stop())
+			break;
+
 		schedule_timeout(difference);
 
 		if (kthread_should_stop())
