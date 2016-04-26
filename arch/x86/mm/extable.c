@@ -70,6 +70,16 @@ bool ex_handler_wrmsr_unsafe(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL(ex_handler_wrmsr_unsafe);
 
+bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
+			 struct pt_regs *regs, int trapnr)
+{
+	if (static_cpu_has(X86_BUG_NULL_SEG))
+		asm volatile ("mov %0, %%fs" : : "rm" (__USER_DS));
+	asm volatile ("mov %0, %%fs" : : "rm" (0));
+	return ex_handler_default(fixup, regs, trapnr);
+}
+EXPORT_SYMBOL(ex_handler_clear_fs);
+
 bool ex_has_fault_handler(unsigned long ip)
 {
 	const struct exception_table_entry *e;
