@@ -5452,21 +5452,28 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 		return 0;
 	if (is_journal_aborted(journal))
 		return -EROFS;
-	/* We have to allocate physical blocks for delalloc blocks
-	 * before flushing journal. otherwise delalloc blocks can not
-	 * be allocated any more. even more truncate on delalloc blocks
-	 * could trigger BUG by flushing delalloc blocks in journal.
-	 * There is no delalloc block in non-journal data mode.
-	 */
-	if (val && test_opt(inode->i_sb, DELALLOC)) {
-		err = ext4_alloc_da_blocks(inode);
-		if (err < 0)
-			return err;
-	}
 
 	/* Wait for all existing dio workers */
 	ext4_inode_block_unlocked_dio(inode);
 	inode_dio_wait(inode);
+
+	/*
+	 * Before flushing the journal and switching inode's aops, we have
+	 * to flush all dirty data the inode has. There can be outstanding
+	 * delayed allocations, there can be unwritten extents created by
+	 * fallocate or buffered writes in dioread_nolock mode covered by
+	 * dirty data which can be converted only after flushing the dirty
+	 * data (and journalled aops don't know how to handle these cases).
+	 */
+	if (val) {
+		down_write(&EXT4_I(inode)->i_mmap_sem);
+		err = filemap_write_and_wait(inode->i_mapping);
+		if (err < 0) {
+			up_write(&EXT4_I(inode)->i_mmap_sem);
+			ext4_inode_resume_unlocked_dio(inode);
+			return err;
+		}
+	}
 
 	jbd2_journal_lock_updates(journal);
 
@@ -5492,6 +5499,8 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 	ext4_set_aops(inode);
 
 	jbd2_journal_unlock_updates(journal);
+	if (val)
+		up_write(&EXT4_I(inode)->i_mmap_sem);
 	ext4_inode_resume_unlocked_dio(inode);
 
 	/* Finally we can mark the inode as dirty. */
