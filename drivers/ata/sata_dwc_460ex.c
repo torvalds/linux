@@ -729,15 +729,14 @@ DONE:
 static void sata_dwc_clear_dmacr(struct sata_dwc_device_port *hsdevp, u8 tag)
 {
 	struct sata_dwc_device *hsdev = HSDEV_FROM_HSDEVP(hsdevp);
+	u32 dmacr = sata_dwc_readl(&hsdev->sata_dwc_regs->dmacr);
 
 	if (hsdevp->dma_pending[tag] == SATA_DWC_DMA_PENDING_RX) {
-		sata_dwc_writel(&hsdev->sata_dwc_regs->dmacr,
-			SATA_DWC_DMACR_RX_CLEAR(
-				sata_dwc_readl(&hsdev->sata_dwc_regs->dmacr)));
+		dmacr = SATA_DWC_DMACR_RX_CLEAR(dmacr);
+		sata_dwc_writel(&hsdev->sata_dwc_regs->dmacr, dmacr);
 	} else if (hsdevp->dma_pending[tag] == SATA_DWC_DMA_PENDING_TX) {
-		sata_dwc_writel(&hsdev->sata_dwc_regs->dmacr,
-			SATA_DWC_DMACR_TX_CLEAR(
-				sata_dwc_readl(&hsdev->sata_dwc_regs->dmacr)));
+		dmacr = SATA_DWC_DMACR_TX_CLEAR(dmacr);
+		sata_dwc_writel(&hsdev->sata_dwc_regs->dmacr, dmacr);
 	} else {
 		/*
 		 * This should not happen, it indicates the driver is out of
@@ -745,8 +744,7 @@ static void sata_dwc_clear_dmacr(struct sata_dwc_device_port *hsdevp, u8 tag)
 		 */
 		dev_err(hsdev->dev,
 			"%s DMA protocol RX and TX DMA not pending tag=0x%02x pending=%d dmacr: 0x%08x\n",
-			__func__, tag, hsdevp->dma_pending[tag],
-			sata_dwc_readl(&hsdev->sata_dwc_regs->dmacr));
+			__func__, tag, hsdevp->dma_pending[tag], dmacr);
 		sata_dwc_writel(&hsdev->sata_dwc_regs->dmacr,
 				SATA_DWC_DMACR_TXRXCH_CLEAR);
 	}
