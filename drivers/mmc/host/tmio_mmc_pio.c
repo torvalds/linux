@@ -626,19 +626,6 @@ out:
 	spin_unlock(&host->lock);
 }
 
-static void tmio_mmc_card_irq_status(struct tmio_mmc_host *host,
-				       int *ireg, int *status)
-{
-	*status = sd_ctrl_read32(host, CTL_STATUS);
-	*ireg = *status & TMIO_MASK_IRQ & ~host->sdcard_irq_mask;
-
-	pr_debug_status(*status);
-	pr_debug_status(*ireg);
-
-	/* Clear the status except the interrupt status */
-	sd_ctrl_write32(host, CTL_STATUS, TMIO_MASK_IRQ);
-}
-
 static bool __tmio_mmc_card_detect_irq(struct tmio_mmc_host *host,
 				      int ireg, int status)
 {
@@ -716,9 +703,15 @@ irqreturn_t tmio_mmc_irq(int irq, void *devid)
 	struct tmio_mmc_host *host = devid;
 	unsigned int ireg, status;
 
-	pr_debug("MMC IRQ begin\n");
+	status = sd_ctrl_read32(host, CTL_STATUS);
+	ireg = status & TMIO_MASK_IRQ & ~host->sdcard_irq_mask;
 
-	tmio_mmc_card_irq_status(host, &ireg, &status);
+	pr_debug_status(status);
+	pr_debug_status(ireg);
+
+	/* Clear the status except the interrupt status */
+	sd_ctrl_write32(host, CTL_STATUS, TMIO_MASK_IRQ);
+
 	if (__tmio_mmc_card_detect_irq(host, ireg, status))
 		return IRQ_HANDLED;
 	if (__tmio_mmc_sdcard_irq(host, ireg, status))
