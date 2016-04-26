@@ -124,6 +124,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TAS2552 if I2C
 	select SND_SOC_TAS5086 if I2C
 	select SND_SOC_TAS571X if I2C
+	select SND_SOC_TAS5720 if I2C
 	select SND_SOC_TFA9879 if I2C
 	select SND_SOC_TLV320AIC23_I2C if I2C
 	select SND_SOC_TLV320AIC23_SPI if SPI_MASTER
@@ -739,6 +740,13 @@ config SND_SOC_TAS5086
 config SND_SOC_TAS571X
 	tristate "Texas Instruments TAS5711/TAS5717/TAS5719/TAS5721 power amplifiers"
 	depends on I2C
+
+config SND_SOC_TAS5720
+	tristate "Texas Instruments TAS5720 Mono Audio amplifier"
+	depends on I2C
+	help
+	  Enable support for Texas Instruments TAS5720L/M high-efficiency mono
+	  Class-D audio power amplifiers.
 
 config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"
