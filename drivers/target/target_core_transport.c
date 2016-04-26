@@ -1480,6 +1480,11 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 	sense_reason_t rc;
 	int ret;
 
+	pr_debug("target: se_cmd(%p), se_sess(%p), cdb: %x, sense: %x"
+		" unpacked lun: %llx, data_length: %x, task_attr: %x"
+		" data_dir: %x, flags: %x\n", se_cmd, se_sess, cdb[0], sense[0],
+		unpacked_lun, data_length, task_attr, data_dir, flags);
+
 	se_tpg = se_sess->se_tpg;
 	BUG_ON(!se_tpg);
 	BUG_ON(se_cmd->se_tfo || se_cmd->se_sess);

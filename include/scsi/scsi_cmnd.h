@@ -44,7 +44,7 @@ struct scsi_pointer {
 	struct scatterlist *buffer;	/* which buffer */
 	int buffers_residual;	/* how many buffers left */
 
-        dma_addr_t dma_handle;
+	dma_addr_t dma_handle;
 
 	volatile int Status;
 	volatile int Message;
@@ -99,32 +99,38 @@ struct scsi_cmnd {
 	struct scsi_data_buffer *prot_sdb;
 
 	unsigned underflow;	/* Return error if less than
-				   this amount is transferred */
+				 * this amount is transferred
+				 */
 
 	unsigned transfersize;	/* How much we are guaranteed to
-				   transfer with each SCSI transfer
-				   (ie, between disconnect /
-				   reconnects.   Probably == sector
-				   size */
+				 * transfer with each SCSI transfer
+				 * (ie, between disconnect /
+				 * reconnects.   Probably == sector
+				 * size
+				 */
 
-	struct request *request;	/* The command we are
-				   	   working on */
+	/* The command we are working on*/
+	struct request *request;
 
-#define SCSI_SENSE_BUFFERSIZE 	96
+#define SCSI_SENSE_BUFFERSIZE 96
 	unsigned char *sense_buffer;
 				/* obtained by REQUEST SENSE when
 				 * CHECK CONDITION is received on original
-				 * command (auto-sense) */
+				 * command (auto-sense)
+				 */
 
 	/* Low-level done function - can be used by low-level driver to point
-	 *        to completion function.  Not used by mid/upper level code. */
-	void (*scsi_done) (struct scsi_cmnd *);
+	 *        to completion function.  Not used by mid/upper level code.
+	 */
+	void (*scsi_done)(struct scsi_cmnd *);
 
 	/*
 	 * The following fields can be written to by the host specific code.
 	 * Everything else should be left alone.
 	 */
-	struct scsi_pointer SCp;	/* Scratchpad used by some host adapters */
+	struct scsi_pointer SCp;	/* Scratchpad used by some
+					 * host adapters
+					 */
 
 	unsigned char *host_scribble;	/* The host adapter is allowed to
 					 * call scsi_malloc and get some memory
@@ -132,7 +138,8 @@ struct scsi_cmnd {
 					 * is also expected to call scsi_free
 					 * to release this memory.  (The memory
 					 * obtained by scsi_malloc is guaranteed
-					 * to be at an address < 16Mb). */
+					 * to be at an address < 16Mb).
+					 */
 
 	int result;		/* Status code from lower level driver */
 	int flags;		/* Command flags */
@@ -164,7 +171,7 @@ extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
 extern void scsi_kunmap_atomic_sg(void *virt);
 
 extern int scsi_init_io(struct scsi_cmnd *cmd);
-extern void scsi_release_buffers(struct scsi_cmnd *cmd);
+void scsi_release_buffers(struct scsi_cmnd *cmd);
 
 extern int scsi_dma_map(struct scsi_cmnd *cmd);
 extern void scsi_dma_unmap(struct scsi_cmnd *cmd);
@@ -280,7 +287,8 @@ enum scsi_prot_target_type {
 	SCSI_PROT_DIF_TYPE3,
 };
 
-static inline void scsi_set_prot_type(struct scsi_cmnd *scmd, unsigned char type)
+static inline void scsi_set_prot_type(struct scsi_cmnd *scmd,
+					unsigned char type)
 {
 	scmd->prot_type = type;
 }

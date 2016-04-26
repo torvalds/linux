@@ -35,7 +35,7 @@ extern void scsi_destroy_command_freelist(struct Scsi_Host *shost);
 void scsi_log_send(struct scsi_cmnd *cmd);
 void scsi_log_completion(struct scsi_cmnd *cmd, int disposition);
 #else
-static inline void scsi_log_send(struct scsi_cmnd *cmd) 
+static inline void scsi_log_send(struct scsi_cmnd *cmd)
 	{ };
 static inline void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 	{ };
@@ -180,7 +180,7 @@ static inline void scsi_dh_release_device(struct scsi_device *sdev) { }
 #endif
 static inline void scsi_dh_remove_device(struct scsi_device *sdev) { }
 
-/* 
+/*
  * internal scsi timeout functions: for use by mid-layer and transport
  * classes.
  */

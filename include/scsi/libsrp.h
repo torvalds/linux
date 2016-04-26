@@ -9,10 +9,10 @@
 #include <target/target_core_base.h>
 
 enum srp_task_attributes {
-        SRP_SIMPLE_TASK = 0,
-        SRP_HEAD_TASK = 1,
-        SRP_ORDERED_TASK = 2,
-        SRP_ACA_TASK = 4
+	SRP_SIMPLE_TASK = 0,
+	SRP_HEAD_TASK = 1,
+	SRP_ORDERED_TASK = 2,
+	SRP_ACA_TASK = 4
 };
 
 enum iue_flags {
@@ -63,13 +63,13 @@ struct iu_entry {
 typedef int (srp_rdma_t)(struct scsi_cmnd *, struct scatterlist *, int,
 			 struct srp_direct_buf *, int,
 			 enum dma_data_direction, unsigned int);
-extern int srp_target_alloc(struct srp_target *, struct device *, size_t, size_t);
+extern int srp_target_alloc(struct srp_target *, struct device *,
+				size_t, size_t);
 extern void srp_target_free(struct srp_target *);
 
 extern struct iu_entry *srp_iu_get(struct srp_target *);
 extern void srp_iu_put(struct iu_entry *);
 
-extern int srp_cmd_queue(struct Scsi_Host *, struct srp_cmd *, void *, u64, u64);
 extern int srp_transfer_data(struct scsi_cmnd *, struct srp_cmd *,
 			     srp_rdma_t, int, int);
 
