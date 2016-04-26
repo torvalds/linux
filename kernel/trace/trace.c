@@ -253,6 +253,9 @@ unsigned long long ns2usecs(cycle_t nsec)
 #define TOP_LEVEL_TRACE_FLAGS (TRACE_ITER_PRINTK |			\
 	       TRACE_ITER_PRINTK_MSGONLY | TRACE_ITER_RECORD_CMD)
 
+/* trace_flags that are default zero for instances */
+#define ZEROED_TRACE_FLAGS \
+	TRACE_ITER_EVENT_FORK
 
 /*
  * The global_trace is the descriptor that holds the tracing
@@ -6710,7 +6713,7 @@ static int instance_mkdir(const char *name)
 	if (!alloc_cpumask_var(&tr->tracing_cpumask, GFP_KERNEL))
 		goto out_free_tr;
 
-	tr->trace_flags = global_trace.trace_flags;
+	tr->trace_flags = global_trace.trace_flags & ~ZEROED_TRACE_FLAGS;
 
 	cpumask_copy(tr->tracing_cpumask, cpu_all_mask);
 
@@ -6783,6 +6786,12 @@ static int instance_rmdir(const char *name)
 		goto out_unlock;
 
 	list_del(&tr->list);
+
+	/* Disable all the flags that were enabled coming in */
+	for (i = 0; i < TRACE_FLAGS_MAX_SIZE; i++) {
+		if ((1 << i) & ZEROED_TRACE_FLAGS)
+			set_tracer_flag(tr, 1 << i, 0);
+	}
 
 	tracing_set_nop(tr);
 	event_trace_del_tracer(tr);
