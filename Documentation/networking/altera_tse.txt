@@ -6,7 +6,7 @@ This is the driver for the Altera Triple-Speed Ethernet (TSE) controllers
 using the SGDMA and MSGDMA soft DMA IP components. The driver uses the
 platform bus to obtain component resources. The designs used to test this
 driver were built for a Cyclone(R) V SOC FPGA board, a Cyclone(R) V FPGA board,
-and tested with ARM and NIOS processor hosts seperately. The anticipated use
+and tested with ARM and NIOS processor hosts separately. The anticipated use
 cases are simple communications between an embedded system and an external peer
 for status and simple configuration of the embedded system.
 

@@ -29,7 +29,7 @@ Main features of this FS include:
  * Read request (data read, directory listing, lookup requests) balancing between multiple servers.
  * Write requests are replicated to multiple servers and completed only when all of them are acked.
  * Ability to add and/or remove servers from the working set at run-time.
- * Strong authentification and possible data encryption in network channel.
+ * Strong authentication and possible data encryption in network channel.
  * Extended attributes support.
 
 POHMELFS is based on transactions, which are potentially long-standing objects that live

@@ -220,7 +220,7 @@ resulting effect on persistent huge page allocation is as follows:
    node list of "all" with numactl --interleave or --membind [-m] to achieve
    interleaving over all nodes in the system or cpuset.
 
-4) Any task mempolicy specifed--e.g., using numactl--will be constrained by
+4) Any task mempolicy specified--e.g., using numactl--will be constrained by
    the resource limits of any cpuset in which the task runs.  Thus, there will
    be no way for a task with non-default policy running in a cpuset with a
    subset of the system nodes to allocate huge pages outside the cpuset

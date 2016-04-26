@@ -272,7 +272,7 @@ A partial list of the supported mount options follows:
 		same domain (e.g. running winbind or nss_ldap) and
 		the server supports the Unix Extensions then the uid
 		and gid can be retrieved from the server (and uid
-		and gid would not have to be specifed on the mount. 
+		and gid would not have to be specified on the mount.
 		For servers which do not support the CIFS Unix
 		extensions, the default uid (and gid) returned on lookup
 		of existing files will be the uid (gid) of the person
