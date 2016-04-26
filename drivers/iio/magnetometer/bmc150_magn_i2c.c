@@ -2,6 +2,7 @@
  * 3-axis magnetometer driver supporting following I2C Bosch-Sensortec chips:
  *  - BMC150
  *  - BMC156
+ *  - BMM150
  *
  * Copyright (c) 2016, Intel Corporation.
  *
@@ -49,6 +50,7 @@ static int bmc150_magn_i2c_remove(struct i2c_client *client)
 static const struct acpi_device_id bmc150_magn_acpi_match[] = {
 	{"BMC150B", 0},
 	{"BMC156B", 0},
+	{"BMM150B", 0},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, bmc150_magn_acpi_match);
@@ -56,6 +58,7 @@ MODULE_DEVICE_TABLE(acpi, bmc150_magn_acpi_match);
 static const struct i2c_device_id bmc150_magn_i2c_id[] = {
 	{"bmc150_magn",	0},
 	{"bmc156_magn", 0},
+	{"bmm150_magn", 0},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, bmc150_magn_i2c_id);
