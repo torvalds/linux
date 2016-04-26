@@ -216,9 +216,9 @@ static struct drm_driver fsl_dcu_drm_driver = {
 	.fops			= &fsl_dcu_drm_fops,
 	.name			= "fsl-dcu-drm",
 	.desc			= "Freescale DCU DRM",
-	.date			= "20150213",
+	.date			= "20160425",
 	.major			= 1,
-	.minor			= 0,
+	.minor			= 1,
 };
 
 #ifdef CONFIG_PM_SLEEP
