@@ -246,9 +246,9 @@ static void free_excluded_extents(struct btrfs_root *root,
 	end = start + cache->key.offset - 1;
 
 	clear_extent_bits(&root->fs_info->freed_extents[0],
-			  start, end, EXTENT_UPTODATE, GFP_NOFS);
+			  start, end, EXTENT_UPTODATE);
 	clear_extent_bits(&root->fs_info->freed_extents[1],
-			  start, end, EXTENT_UPTODATE, GFP_NOFS);
+			  start, end, EXTENT_UPTODATE);
 }
 
 static int exclude_super_stripes(struct btrfs_root *root,
@@ -10526,14 +10526,14 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 */
 		mutex_lock(&fs_info->unused_bg_unpin_mutex);
 		ret = clear_extent_bits(&fs_info->freed_extents[0], start, end,
-				  EXTENT_DIRTY, GFP_NOFS);
+				  EXTENT_DIRTY);
 		if (ret) {
 			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 			btrfs_dec_block_group_ro(root, block_group);
 			goto end_trans;
 		}
 		ret = clear_extent_bits(&fs_info->freed_extents[1], start, end,
-				  EXTENT_DIRTY, GFP_NOFS);
+				  EXTENT_DIRTY);
 		if (ret) {
 			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 			btrfs_dec_block_group_ro(root, block_group);

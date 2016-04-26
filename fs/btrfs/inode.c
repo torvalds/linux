@@ -3103,8 +3103,7 @@ static int btrfs_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 
 	if (root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID &&
 	    test_range_bit(io_tree, start, end, EXTENT_NODATASUM, 1, NULL)) {
-		clear_extent_bits(io_tree, start, end, EXTENT_NODATASUM,
-				  GFP_NOFS);
+		clear_extent_bits(io_tree, start, end, EXTENT_NODATASUM);
 		return 0;
 	}
 

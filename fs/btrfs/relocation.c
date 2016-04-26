@@ -4059,8 +4059,7 @@ restart:
 	}
 
 	btrfs_release_path(path);
-	clear_extent_bits(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY,
-			  GFP_NOFS);
+	clear_extent_bits(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY);
 
 	if (trans) {
 		btrfs_end_transaction_throttle(trans, rc->extent_root);

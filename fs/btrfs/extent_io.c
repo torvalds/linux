@@ -1975,13 +1975,13 @@ int free_io_failure(struct inode *inode, struct io_failure_record *rec)
 	set_state_failrec(failure_tree, rec->start, NULL);
 	ret = clear_extent_bits(failure_tree, rec->start,
 				rec->start + rec->len - 1,
-				EXTENT_LOCKED | EXTENT_DIRTY, GFP_NOFS);
+				EXTENT_LOCKED | EXTENT_DIRTY);
 	if (ret)
 		err = ret;
 
 	ret = clear_extent_bits(&BTRFS_I(inode)->io_tree, rec->start,
 				rec->start + rec->len - 1,
-				EXTENT_DAMAGED, GFP_NOFS);
+				EXTENT_DAMAGED);
 	if (ret && !err)
 		err = ret;
 

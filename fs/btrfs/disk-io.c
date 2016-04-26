@@ -4357,7 +4357,7 @@ static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 		if (ret)
 			break;
 
-		clear_extent_bits(dirty_pages, start, end, mark, GFP_NOFS);
+		clear_extent_bits(dirty_pages, start, end, mark);
 		while (start <= end) {
 			eb = btrfs_find_tree_block(root->fs_info, start);
 			start += root->nodesize;

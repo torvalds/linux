@@ -763,7 +763,7 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *fixup_ctx)
 						end, EXTENT_DAMAGED, 0, NULL);
 		if (!corrected)
 			clear_extent_bits(&BTRFS_I(inode)->io_tree, offset, end,
-						EXTENT_DAMAGED, GFP_NOFS);
+						EXTENT_DAMAGED);
 	}
 
 out:

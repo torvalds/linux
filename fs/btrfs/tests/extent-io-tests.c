@@ -262,7 +262,7 @@ static int test_find_delalloc(void)
 	}
 	ret = 0;
 out_bits:
-	clear_extent_bits(&tmp, 0, total_dirty - 1, (unsigned)-1, GFP_KERNEL);
+	clear_extent_bits(&tmp, 0, total_dirty - 1, (unsigned)-1);
 out:
 	if (locked_page)
 		put_page(locked_page);

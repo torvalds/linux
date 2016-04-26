@@ -241,14 +241,15 @@ static inline int unlock_extent_cached(struct extent_io_tree *tree, u64 start,
 }
 
 static inline int clear_extent_bits(struct extent_io_tree *tree, u64 start,
-		u64 end, unsigned bits, gfp_t mask)
+		u64 end, unsigned bits)
 {
 	int wake = 0;
 
 	if (bits & EXTENT_LOCKED)
 		wake = 1;
 
-	return clear_extent_bit(tree, start, end, bits, wake, 0, NULL, mask);
+	return clear_extent_bit(tree, start, end, bits, wake, 0, NULL,
+			GFP_NOFS);
 }
 
 int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
