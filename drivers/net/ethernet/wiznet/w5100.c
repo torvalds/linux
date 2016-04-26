@@ -38,7 +38,7 @@ MODULE_ALIAS("platform:"DRV_NAME);
 MODULE_LICENSE("GPL");
 
 /*
- * W5100 and W5100 common registers
+ * W5100/W5200/W5500 common registers
  */
 #define W5100_COMMON_REGS	0x0000
 #define W5100_MR		0x0000 /* Mode Register */
@@ -48,10 +48,6 @@ MODULE_LICENSE("GPL");
 #define   MR_IND		  0x01 /* Indirect mode */
 #define W5100_SHAR		0x0009 /* Source MAC address */
 #define W5100_IR		0x0015 /* Interrupt Register */
-#define W5100_IMR		0x0016 /* Interrupt Mask Register */
-#define   IR_S0			  0x01 /* S0 interrupt */
-#define W5100_RTR		0x0017 /* Retry Time-value Register */
-#define   RTR_DEFAULT		  2000 /* =0x07d0 (2000) */
 #define W5100_COMMON_REGS_LEN	0x0040
 
 #define W5100_Sn_MR		0x0000 /* Sn Mode Register */
@@ -64,7 +60,7 @@ MODULE_LICENSE("GPL");
 #define W5100_Sn_RX_RSR		0x0026 /* Sn Receive free memory size */
 #define W5100_Sn_RX_RD		0x0028 /* Sn Receive memory read pointer */
 
-#define S0_REGS(priv)		(is_w5200(priv) ? W5200_S0_REGS : W5100_S0_REGS)
+#define S0_REGS(priv)		((priv)->s0_regs)
 
 #define W5100_S0_MR(priv)	(S0_REGS(priv) + W5100_Sn_MR)
 #define   S0_MR_MACRAW		  0x04 /* MAC RAW mode (promiscuous) */
@@ -88,7 +84,15 @@ MODULE_LICENSE("GPL");
 #define W5100_S0_REGS_LEN	0x0040
 
 /*
- * W5100 specific registers
+ * W5100 and W5200 common registers
+ */
+#define W5100_IMR		0x0016 /* Interrupt Mask Register */
+#define   IR_S0			  0x01 /* S0 interrupt */
+#define W5100_RTR		0x0017 /* Retry Time-value Register */
+#define   RTR_DEFAULT		  2000 /* =0x07d0 (2000) */
+
+/*
+ * W5100 specific register and memory
  */
 #define W5100_RMSR		0x001a /* Receive Memory Size */
 #define W5100_TMSR		0x001b /* Transmit Memory Size */
@@ -101,13 +105,12 @@ MODULE_LICENSE("GPL");
 #define W5100_RX_MEM_SIZE	0x2000
 
 /*
- * W5200 specific registers
+ * W5200 specific register and memory
  */
 #define W5200_S0_REGS		0x4000
 
 #define W5200_Sn_RXMEM_SIZE(n)	(0x401e + (n) * 0x0100) /* Sn RX Memory Size */
 #define W5200_Sn_TXMEM_SIZE(n)	(0x401f + (n) * 0x0100) /* Sn TX Memory Size */
-#define W5200_S0_IMR		0x402c /* S0 Interrupt Mask Register */
 
 #define W5200_TX_MEM_START	0x8000
 #define W5200_TX_MEM_SIZE	0x4000
@@ -115,11 +118,44 @@ MODULE_LICENSE("GPL");
 #define W5200_RX_MEM_SIZE	0x4000
 
 /*
+ * W5500 specific register and memory
+ *
+ * W5500 register and memory are organized by multiple blocks.  Each one is
+ * selected by 16bits offset address and 5bits block select bits.  So we
+ * encode it into 32bits address. (lower 16bits is offset address and
+ * upper 16bits is block select bits)
+ */
+#define W5500_SIMR		0x0018 /* Socket Interrupt Mask Register */
+#define W5500_RTR		0x0019 /* Retry Time-value Register */
+
+#define W5500_S0_REGS		0x10000
+
+#define W5500_Sn_RXMEM_SIZE(n)	\
+		(0x1001e + (n) * 0x40000) /* Sn RX Memory Size */
+#define W5500_Sn_TXMEM_SIZE(n)	\
+		(0x1001f + (n) * 0x40000) /* Sn TX Memory Size */
+
+#define W5500_TX_MEM_START	0x20000
+#define W5500_TX_MEM_SIZE	0x04000
+#define W5500_RX_MEM_START	0x30000
+#define W5500_RX_MEM_SIZE	0x04000
+
+/*
  * Device driver private data structure
  */
 
 struct w5100_priv {
 	const struct w5100_ops *ops;
+
+	/* Socket 0 register offset address */
+	u32 s0_regs;
+	/* Socket 0 TX buffer offset address and size */
+	u32 s0_tx_buf;
+	u16 s0_tx_buf_size;
+	/* Socket 0 RX buffer offset address and size */
+	u32 s0_rx_buf;
+	u16 s0_rx_buf_size;
+
 	int irq;
 	int link_irq;
 	int link_gpio;
@@ -172,12 +208,12 @@ static inline void __iomem *w5100_mmio(struct net_device *ndev)
  *
  * 0x8000 bytes are required for memory space.
  */
-static inline int w5100_read_direct(struct net_device *ndev, u16 addr)
+static inline int w5100_read_direct(struct net_device *ndev, u32 addr)
 {
 	return ioread8(w5100_mmio(ndev) + (addr << CONFIG_WIZNET_BUS_SHIFT));
 }
 
-static inline int __w5100_write_direct(struct net_device *ndev, u16 addr,
+static inline int __w5100_write_direct(struct net_device *ndev, u32 addr,
 				       u8 data)
 {
 	iowrite8(data, w5100_mmio(ndev) + (addr << CONFIG_WIZNET_BUS_SHIFT));
@@ -185,7 +221,7 @@ static inline int __w5100_write_direct(struct net_device *ndev, u16 addr,
 	return 0;
 }
 
-static inline int w5100_write_direct(struct net_device *ndev, u16 addr, u8 data)
+static inline int w5100_write_direct(struct net_device *ndev, u32 addr, u8 data)
 {
 	__w5100_write_direct(ndev, addr, data);
 	mmiowb();
@@ -193,7 +229,7 @@ static inline int w5100_write_direct(struct net_device *ndev, u16 addr, u8 data)
 	return 0;
 }
 
-static int w5100_read16_direct(struct net_device *ndev, u16 addr)
+static int w5100_read16_direct(struct net_device *ndev, u32 addr)
 {
 	u16 data;
 	data  = w5100_read_direct(ndev, addr) << 8;
@@ -201,7 +237,7 @@ static int w5100_read16_direct(struct net_device *ndev, u16 addr)
 	return data;
 }
 
-static int w5100_write16_direct(struct net_device *ndev, u16 addr, u16 data)
+static int w5100_write16_direct(struct net_device *ndev, u32 addr, u16 data)
 {
 	__w5100_write_direct(ndev, addr, data >> 8);
 	__w5100_write_direct(ndev, addr + 1, data);
@@ -210,7 +246,7 @@ static int w5100_write16_direct(struct net_device *ndev, u16 addr, u16 data)
 	return 0;
 }
 
-static int w5100_readbulk_direct(struct net_device *ndev, u16 addr, u8 *buf,
+static int w5100_readbulk_direct(struct net_device *ndev, u32 addr, u8 *buf,
 				 int len)
 {
 	int i;
@@ -221,7 +257,7 @@ static int w5100_readbulk_direct(struct net_device *ndev, u16 addr, u8 *buf,
 	return 0;
 }
 
-static int w5100_writebulk_direct(struct net_device *ndev, u16 addr,
+static int w5100_writebulk_direct(struct net_device *ndev, u32 addr,
 				  const u8 *buf, int len)
 {
 	int i;
@@ -275,7 +311,7 @@ static const struct w5100_ops w5100_mmio_direct_ops = {
 #define W5100_IDM_AR		0x01   /* Indirect Mode Address Register */
 #define W5100_IDM_DR		0x03   /* Indirect Mode Data Register */
 
-static int w5100_read_indirect(struct net_device *ndev, u16 addr)
+static int w5100_read_indirect(struct net_device *ndev, u32 addr)
 {
 	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
 	unsigned long flags;
@@ -289,7 +325,7 @@ static int w5100_read_indirect(struct net_device *ndev, u16 addr)
 	return data;
 }
 
-static int w5100_write_indirect(struct net_device *ndev, u16 addr, u8 data)
+static int w5100_write_indirect(struct net_device *ndev, u32 addr, u8 data)
 {
 	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
 	unsigned long flags;
@@ -302,7 +338,7 @@ static int w5100_write_indirect(struct net_device *ndev, u16 addr, u8 data)
 	return 0;
 }
 
-static int w5100_read16_indirect(struct net_device *ndev, u16 addr)
+static int w5100_read16_indirect(struct net_device *ndev, u32 addr)
 {
 	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
 	unsigned long flags;
@@ -317,7 +353,7 @@ static int w5100_read16_indirect(struct net_device *ndev, u16 addr)
 	return data;
 }
 
-static int w5100_write16_indirect(struct net_device *ndev, u16 addr, u16 data)
+static int w5100_write16_indirect(struct net_device *ndev, u32 addr, u16 data)
 {
 	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
 	unsigned long flags;
@@ -331,7 +367,7 @@ static int w5100_write16_indirect(struct net_device *ndev, u16 addr, u16 data)
 	return 0;
 }
 
-static int w5100_readbulk_indirect(struct net_device *ndev, u16 addr, u8 *buf,
+static int w5100_readbulk_indirect(struct net_device *ndev, u32 addr, u8 *buf,
 				   int len)
 {
 	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
@@ -350,7 +386,7 @@ static int w5100_readbulk_indirect(struct net_device *ndev, u16 addr, u8 *buf,
 	return 0;
 }
 
-static int w5100_writebulk_indirect(struct net_device *ndev, u16 addr,
+static int w5100_writebulk_indirect(struct net_device *ndev, u32 addr,
 				    const u8 *buf, int len)
 {
 	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
@@ -392,32 +428,32 @@ static const struct w5100_ops w5100_mmio_indirect_ops = {
 
 #if defined(CONFIG_WIZNET_BUS_DIRECT)
 
-static int w5100_read(struct w5100_priv *priv, u16 addr)
+static int w5100_read(struct w5100_priv *priv, u32 addr)
 {
 	return w5100_read_direct(priv->ndev, addr);
 }
 
-static int w5100_write(struct w5100_priv *priv, u16 addr, u8 data)
+static int w5100_write(struct w5100_priv *priv, u32 addr, u8 data)
 {
 	return w5100_write_direct(priv->ndev, addr, data);
 }
 
-static int w5100_read16(struct w5100_priv *priv, u16 addr)
+static int w5100_read16(struct w5100_priv *priv, u32 addr)
 {
 	return w5100_read16_direct(priv->ndev, addr);
 }
 
-static int w5100_write16(struct w5100_priv *priv, u16 addr, u16 data)
+static int w5100_write16(struct w5100_priv *priv, u32 addr, u16 data)
 {
 	return w5100_write16_direct(priv->ndev, addr, data);
 }
 
-static int w5100_readbulk(struct w5100_priv *priv, u16 addr, u8 *buf, int len)
+static int w5100_readbulk(struct w5100_priv *priv, u32 addr, u8 *buf, int len)
 {
 	return w5100_readbulk_direct(priv->ndev, addr, buf, len);
 }
 
-static int w5100_writebulk(struct w5100_priv *priv, u16 addr, const u8 *buf,
+static int w5100_writebulk(struct w5100_priv *priv, u32 addr, const u8 *buf,
 			   int len)
 {
 	return w5100_writebulk_direct(priv->ndev, addr, buf, len);
@@ -425,32 +461,32 @@ static int w5100_writebulk(struct w5100_priv *priv, u16 addr, const u8 *buf,
 
 #elif defined(CONFIG_WIZNET_BUS_INDIRECT)
 
-static int w5100_read(struct w5100_priv *priv, u16 addr)
+static int w5100_read(struct w5100_priv *priv, u32 addr)
 {
 	return w5100_read_indirect(priv->ndev, addr);
 }
 
-static int w5100_write(struct w5100_priv *priv, u16 addr, u8 data)
+static int w5100_write(struct w5100_priv *priv, u32 addr, u8 data)
 {
 	return w5100_write_indirect(priv->ndev, addr, data);
 }
 
-static int w5100_read16(struct w5100_priv *priv, u16 addr)
+static int w5100_read16(struct w5100_priv *priv, u32 addr)
 {
 	return w5100_read16_indirect(priv->ndev, addr);
 }
 
-static int w5100_write16(struct w5100_priv *priv, u16 addr, u16 data)
+static int w5100_write16(struct w5100_priv *priv, u32 addr, u16 data)
 {
 	return w5100_write16_indirect(priv->ndev, addr, data);
 }
 
-static int w5100_readbulk(struct w5100_priv *priv, u16 addr, u8 *buf, int len)
+static int w5100_readbulk(struct w5100_priv *priv, u32 addr, u8 *buf, int len)
 {
 	return w5100_readbulk_indirect(priv->ndev, addr, buf, len);
 }
 
-static int w5100_writebulk(struct w5100_priv *priv, u16 addr, const u8 *buf,
+static int w5100_writebulk(struct w5100_priv *priv, u32 addr, const u8 *buf,
 			   int len)
 {
 	return w5100_writebulk_indirect(priv->ndev, addr, buf, len);
@@ -458,32 +494,32 @@ static int w5100_writebulk(struct w5100_priv *priv, u16 addr, const u8 *buf,
 
 #else /* CONFIG_WIZNET_BUS_ANY */
 
-static int w5100_read(struct w5100_priv *priv, u16 addr)
+static int w5100_read(struct w5100_priv *priv, u32 addr)
 {
 	return priv->ops->read(priv->ndev, addr);
 }
 
-static int w5100_write(struct w5100_priv *priv, u16 addr, u8 data)
+static int w5100_write(struct w5100_priv *priv, u32 addr, u8 data)
 {
 	return priv->ops->write(priv->ndev, addr, data);
 }
 
-static int w5100_read16(struct w5100_priv *priv, u16 addr)
+static int w5100_read16(struct w5100_priv *priv, u32 addr)
 {
 	return priv->ops->read16(priv->ndev, addr);
 }
 
-static int w5100_write16(struct w5100_priv *priv, u16 addr, u16 data)
+static int w5100_write16(struct w5100_priv *priv, u32 addr, u16 data)
 {
 	return priv->ops->write16(priv->ndev, addr, data);
 }
 
-static int w5100_readbulk(struct w5100_priv *priv, u16 addr, u8 *buf, int len)
+static int w5100_readbulk(struct w5100_priv *priv, u32 addr, u8 *buf, int len)
 {
 	return priv->ops->readbulk(priv->ndev, addr, buf, len);
 }
 
-static int w5100_writebulk(struct w5100_priv *priv, u16 addr, const u8 *buf,
+static int w5100_writebulk(struct w5100_priv *priv, u32 addr, const u8 *buf,
 			   int len)
 {
 	return priv->ops->writebulk(priv->ndev, addr, buf, len);
@@ -493,13 +529,11 @@ static int w5100_writebulk(struct w5100_priv *priv, u16 addr, const u8 *buf,
 
 static int w5100_readbuf(struct w5100_priv *priv, u16 offset, u8 *buf, int len)
 {
-	u16 addr;
+	u32 addr;
 	int remain = 0;
 	int ret;
-	const u16 mem_start =
-		is_w5200(priv) ? W5200_RX_MEM_START : W5100_RX_MEM_START;
-	const u16 mem_size =
-		is_w5200(priv) ? W5200_RX_MEM_SIZE : W5100_RX_MEM_SIZE;
+	const u32 mem_start = priv->s0_rx_buf;
+	const u16 mem_size = priv->s0_rx_buf_size;
 
 	offset %= mem_size;
 	addr = mem_start + offset;
@@ -519,13 +553,11 @@ static int w5100_readbuf(struct w5100_priv *priv, u16 offset, u8 *buf, int len)
 static int w5100_writebuf(struct w5100_priv *priv, u16 offset, const u8 *buf,
 			  int len)
 {
-	u16 addr;
+	u32 addr;
 	int ret;
 	int remain = 0;
-	const u16 mem_start =
-		is_w5200(priv) ? W5200_TX_MEM_START : W5100_TX_MEM_START;
-	const u16 mem_size =
-		is_w5200(priv) ? W5200_TX_MEM_SIZE : W5100_TX_MEM_SIZE;
+	const u32 mem_start = priv->s0_tx_buf;
+	const u16 mem_size = priv->s0_tx_buf_size;
 
 	offset %= mem_size;
 	addr = mem_start + offset;
@@ -578,6 +610,28 @@ static void w5100_write_macaddr(struct w5100_priv *priv)
 	w5100_writebulk(priv, W5100_SHAR, ndev->dev_addr, ETH_ALEN);
 }
 
+static void w5100_socket_intr_mask(struct w5100_priv *priv, u8 mask)
+{
+	u32 imr;
+
+	if (priv->ops->chip_id == W5500)
+		imr = W5500_SIMR;
+	else
+		imr = W5100_IMR;
+
+	w5100_write(priv, imr, mask);
+}
+
+static void w5100_enable_intr(struct w5100_priv *priv)
+{
+	w5100_socket_intr_mask(priv, IR_S0);
+}
+
+static void w5100_disable_intr(struct w5100_priv *priv)
+{
+	w5100_socket_intr_mask(priv, 0);
+}
+
 static void w5100_memory_configure(struct w5100_priv *priv)
 {
 	/* Configure 16K of internal memory
@@ -603,17 +657,52 @@ static void w5200_memory_configure(struct w5100_priv *priv)
 	}
 }
 
-static void w5100_hw_reset(struct w5100_priv *priv)
+static void w5500_memory_configure(struct w5100_priv *priv)
 {
+	int i;
+
+	/* Configure internal RX memory as 16K RX buffer and
+	 * internal TX memory as 16K TX buffer
+	 */
+	w5100_write(priv, W5500_Sn_RXMEM_SIZE(0), 0x10);
+	w5100_write(priv, W5500_Sn_TXMEM_SIZE(0), 0x10);
+
+	for (i = 1; i < 8; i++) {
+		w5100_write(priv, W5500_Sn_RXMEM_SIZE(i), 0);
+		w5100_write(priv, W5500_Sn_TXMEM_SIZE(i), 0);
+	}
+}
+
+static int w5100_hw_reset(struct w5100_priv *priv)
+{
+	u32 rtr;
+
 	w5100_reset(priv);
 
-	w5100_write(priv, W5100_IMR, 0);
+	w5100_disable_intr(priv);
 	w5100_write_macaddr(priv);
 
-	if (is_w5200(priv))
-		w5200_memory_configure(priv);
-	else
+	switch (priv->ops->chip_id) {
+	case W5100:
 		w5100_memory_configure(priv);
+		rtr = W5100_RTR;
+		break;
+	case W5200:
+		w5200_memory_configure(priv);
+		rtr = W5100_RTR;
+		break;
+	case W5500:
+		w5500_memory_configure(priv);
+		rtr = W5500_RTR;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (w5100_read16(priv, rtr) != RTR_DEFAULT)
+		return -ENODEV;
+
+	return 0;
 }
 
 static void w5100_hw_start(struct w5100_priv *priv)
@@ -621,12 +710,12 @@ static void w5100_hw_start(struct w5100_priv *priv)
 	w5100_write(priv, W5100_S0_MR(priv), priv->promisc ?
 			  S0_MR_MACRAW : S0_MR_MACRAW_MF);
 	w5100_command(priv, S0_CR_OPEN);
-	w5100_write(priv, W5100_IMR, IR_S0);
+	w5100_enable_intr(priv);
 }
 
 static void w5100_hw_close(struct w5100_priv *priv)
 {
-	w5100_write(priv, W5100_IMR, 0);
+	w5100_disable_intr(priv);
 	w5100_command(priv, S0_CR_CLOSE);
 }
 
@@ -805,7 +894,7 @@ static void w5100_rx_work(struct work_struct *work)
 	while ((skb = w5100_rx_skb(priv->ndev)))
 		netif_rx_ni(skb);
 
-	w5100_write(priv, W5100_IMR, IR_S0);
+	w5100_enable_intr(priv);
 }
 
 static int w5100_napi_poll(struct napi_struct *napi, int budget)
@@ -824,7 +913,7 @@ static int w5100_napi_poll(struct napi_struct *napi, int budget)
 
 	if (rx_count < budget) {
 		napi_complete(napi);
-		w5100_write(priv, W5100_IMR, IR_S0);
+		w5100_enable_intr(priv);
 	}
 
 	return rx_count;
@@ -846,7 +935,7 @@ static irqreturn_t w5100_interrupt(int irq, void *ndev_instance)
 	}
 
 	if (ir & S0_IR_RECV) {
-		w5100_write(priv, W5100_IMR, 0);
+		w5100_disable_intr(priv);
 
 		if (priv->ops->may_sleep)
 			queue_work(priv->xfer_wq, &priv->rx_work);
@@ -1014,6 +1103,34 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	SET_NETDEV_DEV(ndev, dev);
 	dev_set_drvdata(dev, ndev);
 	priv = netdev_priv(ndev);
+
+	switch (ops->chip_id) {
+	case W5100:
+		priv->s0_regs = W5100_S0_REGS;
+		priv->s0_tx_buf = W5100_TX_MEM_START;
+		priv->s0_tx_buf_size = W5100_TX_MEM_SIZE;
+		priv->s0_rx_buf = W5100_RX_MEM_START;
+		priv->s0_rx_buf_size = W5100_RX_MEM_SIZE;
+		break;
+	case W5200:
+		priv->s0_regs = W5200_S0_REGS;
+		priv->s0_tx_buf = W5200_TX_MEM_START;
+		priv->s0_tx_buf_size = W5200_TX_MEM_SIZE;
+		priv->s0_rx_buf = W5200_RX_MEM_START;
+		priv->s0_rx_buf_size = W5200_RX_MEM_SIZE;
+		break;
+	case W5500:
+		priv->s0_regs = W5500_S0_REGS;
+		priv->s0_tx_buf = W5500_TX_MEM_START;
+		priv->s0_tx_buf_size = W5500_TX_MEM_SIZE;
+		priv->s0_rx_buf = W5500_RX_MEM_START;
+		priv->s0_rx_buf_size = W5500_RX_MEM_SIZE;
+		break;
+	default:
+		err = -EINVAL;
+		goto err_register;
+	}
+
 	priv->ndev = ndev;
 	priv->ops = ops;
 	priv->irq = irq;
@@ -1055,11 +1172,9 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 			goto err_hw;
 	}
 
-	w5100_hw_reset(priv);
-	if (w5100_read16(priv, W5100_RTR) != RTR_DEFAULT) {
-		err = -ENODEV;
+	err = w5100_hw_reset(priv);
+	if (err)
 		goto err_hw;
-	}
 
 	if (ops->may_sleep) {
 		err = request_threaded_irq(priv->irq, NULL, w5100_interrupt,

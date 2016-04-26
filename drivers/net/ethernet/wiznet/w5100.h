@@ -10,17 +10,18 @@
 enum {
 	W5100,
 	W5200,
+	W5500,
 };
 
 struct w5100_ops {
 	bool may_sleep;
 	int chip_id;
-	int (*read)(struct net_device *ndev, u16 addr);
-	int (*write)(struct net_device *ndev, u16 addr, u8 data);
-	int (*read16)(struct net_device *ndev, u16 addr);
-	int (*write16)(struct net_device *ndev, u16 addr, u16 data);
-	int (*readbulk)(struct net_device *ndev, u16 addr, u8 *buf, int len);
-	int (*writebulk)(struct net_device *ndev, u16 addr, const u8 *buf,
+	int (*read)(struct net_device *ndev, u32 addr);
+	int (*write)(struct net_device *ndev, u32 addr, u8 data);
+	int (*read16)(struct net_device *ndev, u32 addr);
+	int (*write16)(struct net_device *ndev, u32 addr, u16 data);
+	int (*readbulk)(struct net_device *ndev, u32 addr, u8 *buf, int len);
+	int (*writebulk)(struct net_device *ndev, u32 addr, const u8 *buf,
 			 int len);
 	int (*reset)(struct net_device *ndev);
 	int (*init)(struct net_device *ndev);

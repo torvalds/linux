@@ -70,7 +70,7 @@ config WIZNET_BUS_ANY
 endchoice
 
 config WIZNET_W5100_SPI
-	tristate "WIZnet W5100/W5200 Ethernet support for SPI mode"
+	tristate "WIZnet W5100/W5200/W5500 Ethernet support for SPI mode"
 	depends on WIZNET_BUS_ANY && WIZNET_W5100
 	depends on SPI
 	---help---
