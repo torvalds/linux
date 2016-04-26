@@ -2371,11 +2371,11 @@ retry:
 		goto fail;
 	}
 
-	ret = drm_atomic_async_commit(state);
+	ret = drm_atomic_nonblocking_commit(state);
 	if (ret != 0)
 		goto fail;
 
-	/* Driver takes ownership of state on successful async commit. */
+	/* Driver takes ownership of state on successful commit. */
 	return 0;
 fail:
 	if (ret == -EDEADLK)
