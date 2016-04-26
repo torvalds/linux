@@ -324,7 +324,9 @@ struct adapter_params {
 	unsigned int sf_fw_start;         /* start of FW image in flash */
 
 	unsigned int fw_vers;
+	unsigned int bs_vers;		/* bootstrap version */
 	unsigned int tp_vers;
+	unsigned int er_vers;		/* expansion ROM version */
 	u8 api_vers[7];
 
 	unsigned short mtus[NMTUS];
@@ -731,6 +733,7 @@ struct adapter {
 	u32 t4_bar0;
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
+	const char *name;
 	unsigned int mbox;
 	unsigned int pf;
 	unsigned int flags;
@@ -1306,6 +1309,7 @@ int t4_fl_pkt_align(struct adapter *adap);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_check_fw_version(struct adapter *adap);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
+int t4_get_bs_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
 int t4_get_exprom_version(struct adapter *adapter, u32 *vers);
 int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
