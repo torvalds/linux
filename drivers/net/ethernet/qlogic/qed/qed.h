@@ -32,6 +32,8 @@ extern const struct qed_common_ops qed_common_ops_pass;
 #define NAME_SIZE 16
 #define VER_SIZE 16
 
+#define QED_WFQ_UNIT	100
+
 /* cau states */
 enum qed_coalescing_mode {
 	QED_COAL_MODE_DISABLE,
@@ -237,6 +239,12 @@ struct qed_dmae_info {
 	struct dmae_cmd *p_dmae_cmd;
 };
 
+struct qed_wfq_data {
+	/* when feature is configured for at least 1 vport */
+	u32	min_speed;
+	bool	configured;
+};
+
 struct qed_qm_info {
 	struct init_qm_pq_params	*qm_pq_params;
 	struct init_qm_vport_params	*qm_vport_params;
@@ -257,6 +265,7 @@ struct qed_qm_info {
 	bool				vport_wfq_en;
 	u8				pf_wfq;
 	u32				pf_rl;
+	struct qed_wfq_data		*wfq_data;
 };
 
 struct storm_stats {
@@ -525,6 +534,8 @@ static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 }
 
 #define PURE_LB_TC 8
+
+void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate);
 
 #define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
 

@@ -105,6 +105,8 @@ static void qed_qm_info_free(struct qed_hwfn *p_hwfn)
 	qm_info->qm_vport_params = NULL;
 	kfree(qm_info->qm_port_params);
 	qm_info->qm_port_params = NULL;
+	kfree(qm_info->wfq_data);
+	qm_info->wfq_data = NULL;
 }
 
 void qed_resc_free(struct qed_dev *cdev)
@@ -175,6 +177,11 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 	if (!qm_info->qm_port_params)
 		goto alloc_err;
 
+	qm_info->wfq_data = kcalloc(num_vports, sizeof(*qm_info->wfq_data),
+				    GFP_KERNEL);
+	if (!qm_info->wfq_data)
+		goto alloc_err;
+
 	vport_id = (u8)RESC_START(p_hwfn, QED_VPORT);
 
 	/* First init per-TC PQs */
@@ -221,10 +228,7 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 
 alloc_err:
 	DP_NOTICE(p_hwfn, "Failed to allocate memory for QM params\n");
-	kfree(qm_info->qm_pq_params);
-	kfree(qm_info->qm_vport_params);
-	kfree(qm_info->qm_port_params);
-
+	qed_qm_info_free(p_hwfn);
 	return -ENOMEM;
 }
 
@@ -1594,4 +1598,180 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
 	*dst_id = RESC_START(p_hwfn, QED_RSS_ENG) + src_id;
 
 	return 0;
+}
+
+/* Calculate final WFQ values for all vports and configure them.
+ * After this configuration each vport will have
+ * approx min rate =  min_pf_rate * (vport_wfq / QED_WFQ_UNIT)
+ */
+static void qed_configure_wfq_for_all_vports(struct qed_hwfn *p_hwfn,
+					     struct qed_ptt *p_ptt,
+					     u32 min_pf_rate)
+{
+	struct init_qm_vport_params *vport_params;
+	int i;
+
+	vport_params = p_hwfn->qm_info.qm_vport_params;
+
+	for (i = 0; i < p_hwfn->qm_info.num_vports; i++) {
+		u32 wfq_speed = p_hwfn->qm_info.wfq_data[i].min_speed;
+
+		vport_params[i].vport_wfq = (wfq_speed * QED_WFQ_UNIT) /
+						min_pf_rate;
+		qed_init_vport_wfq(p_hwfn, p_ptt,
+				   vport_params[i].first_tx_pq_id,
+				   vport_params[i].vport_wfq);
+	}
+}
+
+static void qed_init_wfq_default_param(struct qed_hwfn *p_hwfn,
+				       u32 min_pf_rate)
+
+{
+	int i;
+
+	for (i = 0; i < p_hwfn->qm_info.num_vports; i++)
+		p_hwfn->qm_info.qm_vport_params[i].vport_wfq = 1;
+}
+
+static void qed_disable_wfq_for_all_vports(struct qed_hwfn *p_hwfn,
+					   struct qed_ptt *p_ptt,
+					   u32 min_pf_rate)
+{
+	struct init_qm_vport_params *vport_params;
+	int i;
+
+	vport_params = p_hwfn->qm_info.qm_vport_params;
+
+	for (i = 0; i < p_hwfn->qm_info.num_vports; i++) {
+		qed_init_wfq_default_param(p_hwfn, min_pf_rate);
+		qed_init_vport_wfq(p_hwfn, p_ptt,
+				   vport_params[i].first_tx_pq_id,
+				   vport_params[i].vport_wfq);
+	}
+}
+
+/* This function performs several validations for WFQ
+ * configuration and required min rate for a given vport
+ * 1. req_rate must be greater than one percent of min_pf_rate.
+ * 2. req_rate should not cause other vports [not configured for WFQ explicitly]
+ *    rates to get less than one percent of min_pf_rate.
+ * 3. total_req_min_rate [all vports min rate sum] shouldn't exceed min_pf_rate.
+ */
+static int qed_init_wfq_param(struct qed_hwfn *p_hwfn,
+			      u16 vport_id, u32 req_rate,
+			      u32 min_pf_rate)
+{
+	u32 total_req_min_rate = 0, total_left_rate = 0, left_rate_per_vp = 0;
+	int non_requested_count = 0, req_count = 0, i, num_vports;
+
+	num_vports = p_hwfn->qm_info.num_vports;
+
+	/* Accounting for the vports which are configured for WFQ explicitly */
+	for (i = 0; i < num_vports; i++) {
+		u32 tmp_speed;
+
+		if ((i != vport_id) &&
+		    p_hwfn->qm_info.wfq_data[i].configured) {
+			req_count++;
+			tmp_speed = p_hwfn->qm_info.wfq_data[i].min_speed;
+			total_req_min_rate += tmp_speed;
+		}
+	}
+
+	/* Include current vport data as well */
+	req_count++;
+	total_req_min_rate += req_rate;
+	non_requested_count = num_vports - req_count;
+
+	if (req_rate < min_pf_rate / QED_WFQ_UNIT) {
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+			   "Vport [%d] - Requested rate[%d Mbps] is less than one percent of configured PF min rate[%d Mbps]\n",
+			   vport_id, req_rate, min_pf_rate);
+		return -EINVAL;
+	}
+
+	if (num_vports > QED_WFQ_UNIT) {
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+			   "Number of vports is greater than %d\n",
+			   QED_WFQ_UNIT);
+		return -EINVAL;
+	}
+
+	if (total_req_min_rate > min_pf_rate) {
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+			   "Total requested min rate for all vports[%d Mbps] is greater than configured PF min rate[%d Mbps]\n",
+			   total_req_min_rate, min_pf_rate);
+		return -EINVAL;
+	}
+
+	total_left_rate	= min_pf_rate - total_req_min_rate;
+
+	left_rate_per_vp = total_left_rate / non_requested_count;
+	if (left_rate_per_vp <  min_pf_rate / QED_WFQ_UNIT) {
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+			   "Non WFQ configured vports rate [%d Mbps] is less than one percent of configured PF min rate[%d Mbps]\n",
+			   left_rate_per_vp, min_pf_rate);
+		return -EINVAL;
+	}
+
+	p_hwfn->qm_info.wfq_data[vport_id].min_speed = req_rate;
+	p_hwfn->qm_info.wfq_data[vport_id].configured = true;
+
+	for (i = 0; i < num_vports; i++) {
+		if (p_hwfn->qm_info.wfq_data[i].configured)
+			continue;
+
+		p_hwfn->qm_info.wfq_data[i].min_speed = left_rate_per_vp;
+	}
+
+	return 0;
+}
+
+static int __qed_configure_vp_wfq_on_link_change(struct qed_hwfn *p_hwfn,
+						 struct qed_ptt *p_ptt,
+						 u32 min_pf_rate)
+{
+	bool use_wfq = false;
+	int rc = 0;
+	u16 i;
+
+	/* Validate all pre configured vports for wfq */
+	for (i = 0; i < p_hwfn->qm_info.num_vports; i++) {
+		u32 rate;
+
+		if (!p_hwfn->qm_info.wfq_data[i].configured)
+			continue;
+
+		rate = p_hwfn->qm_info.wfq_data[i].min_speed;
+		use_wfq = true;
+
+		rc = qed_init_wfq_param(p_hwfn, i, rate, min_pf_rate);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "WFQ validation failed while configuring min rate\n");
+			break;
+		}
+	}
+
+	if (!rc && use_wfq)
+		qed_configure_wfq_for_all_vports(p_hwfn, p_ptt, min_pf_rate);
+	else
+		qed_disable_wfq_for_all_vports(p_hwfn, p_ptt, min_pf_rate);
+
+	return rc;
+}
+
+/* API to configure WFQ from mcp link change */
+void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate)
+{
+	int i;
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+		__qed_configure_vp_wfq_on_link_change(p_hwfn,
+						      p_hwfn->p_dpc_ptt,
+						      min_pf_rate);
+	}
 }

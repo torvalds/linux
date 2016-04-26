@@ -5116,4 +5116,6 @@ struct hw_set_image {
 	struct hw_set_info	hw_sets[1];
 };
 
+int qed_init_vport_wfq(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		       u16 first_tx_pq_id[NUM_OF_TCS], u16 vport_wfq);
 #endif
