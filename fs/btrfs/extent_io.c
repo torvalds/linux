@@ -1078,17 +1078,18 @@ int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
  * @bits:	the bits to set in this range
  * @clear_bits:	the bits to clear in this range
  * @cached_state:	state that we're going to cache
- * @mask:	the allocation mask
  *
  * This will go through and set bits for the given range.  If any states exist
  * already in this range they are set with the given bit and cleared of the
  * clear_bits.  This is only meant to be used by things that are mergeable, ie
  * converting from say DELALLOC to DIRTY.  This is not meant to be used with
  * boundary bits like LOCK.
+ *
+ * All allocations are done with GFP_NOFS.
  */
 int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		       unsigned bits, unsigned clear_bits,
-		       struct extent_state **cached_state, gfp_t mask)
+		       struct extent_state **cached_state)
 {
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
@@ -1103,7 +1104,7 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	btrfs_debug_check_extent_io_range(tree, start, end);
 
 again:
-	if (!prealloc && gfpflags_allow_blocking(mask)) {
+	if (!prealloc) {
 		/*
 		 * Best effort, don't worry if extent state allocation fails
 		 * here for the first iteration. We might have a cached state
@@ -1111,7 +1112,7 @@ again:
 		 * extent state allocations are needed. We'll only know this
 		 * after locking the tree.
 		 */
-		prealloc = alloc_extent_state(mask);
+		prealloc = alloc_extent_state(GFP_NOFS);
 		if (!prealloc && !first_iteration)
 			return -ENOMEM;
 	}
@@ -1272,8 +1273,7 @@ search_again:
 	if (start > end)
 		goto out;
 	spin_unlock(&tree->lock);
-	if (gfpflags_allow_blocking(mask))
-		cond_resched();
+	cond_resched();
 	first_iteration = false;
 	goto again;
 

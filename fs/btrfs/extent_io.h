@@ -287,7 +287,7 @@ static inline int clear_extent_dirty(struct extent_io_tree *tree, u64 start,
 
 int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		       unsigned bits, unsigned clear_bits,
-		       struct extent_state **cached_state, gfp_t mask);
+		       struct extent_state **cached_state);
 
 static inline int set_extent_delalloc(struct extent_io_tree *tree, u64 start,
 		u64 end, struct extent_state **cached_state)
