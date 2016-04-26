@@ -13386,7 +13386,7 @@ static int intel_atomic_check(struct drm_device *dev,
 
 static int intel_atomic_prepare_commit(struct drm_device *dev,
 				       struct drm_atomic_state *state,
-				       bool async)
+				       bool nonblock)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_plane_state *plane_state;
@@ -13395,8 +13395,8 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i, ret;
 
-	if (async) {
-		DRM_DEBUG_KMS("i915 does not yet support async commit\n");
+	if (nonblock) {
+		DRM_DEBUG_KMS("i915 does not yet support nonblocking commit\n");
 		return -EINVAL;
 	}
 
@@ -13414,7 +13414,7 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 		return ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
-	if (!ret && !async && !i915_reset_in_progress(&dev_priv->gpu_error)) {
+	if (!ret && !nonblock && !i915_reset_in_progress(&dev_priv->gpu_error)) {
 		u32 reset_counter;
 
 		reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
@@ -13519,21 +13519,21 @@ static bool needs_vblank_wait(struct intel_crtc_state *crtc_state)
  * intel_atomic_commit - commit validated state object
  * @dev: DRM device
  * @state: the top-level driver state object
- * @async: asynchronous commit
+ * @nonblock: nonblocking commit
  *
  * This function commits a top-level state object that has been validated
  * with drm_atomic_helper_check().
  *
  * FIXME:  Atomic modeset support for i915 is not yet complete.  At the moment
  * we can only handle plane-related operations and do not yet support
- * asynchronous commit.
+ * nonblocking commit.
  *
  * RETURNS
  * Zero for success or -errno.
  */
 static int intel_atomic_commit(struct drm_device *dev,
 			       struct drm_atomic_state *state,
-			       bool async)
+			       bool nonblock)
 {
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -13545,7 +13545,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	unsigned long put_domains[I915_MAX_PIPES] = {};
 	unsigned crtc_vblank_mask = 0;
 
-	ret = intel_atomic_prepare_commit(dev, state, async);
+	ret = intel_atomic_prepare_commit(dev, state, nonblock);
 	if (ret) {
 		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
 		return ret;
