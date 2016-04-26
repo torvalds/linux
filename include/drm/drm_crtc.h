@@ -827,6 +827,7 @@ enum drm_plane_type {
 /**
  * struct drm_plane - central DRM plane control structure
  * @dev: DRM device this plane belongs to
+ * @parent: this plane share some resources with parent plane.
  * @head: for list management
  * @base: base mode object
  * @possible_crtcs: pipes this plane can be bound to
@@ -844,6 +845,7 @@ enum drm_plane_type {
  */
 struct drm_plane {
 	struct drm_device *dev;
+	struct drm_plane *parent;
 	struct list_head head;
 
 	struct drm_modeset_lock mutex;
@@ -1074,6 +1076,8 @@ struct drm_mode_config {
 	 */
 	int num_overlay_plane;
 	int num_total_plane;
+	int num_share_plane;
+	int num_share_overlay_plane;
 	struct list_head plane_list;
 
 	int num_crtc;
@@ -1093,6 +1097,10 @@ struct drm_mode_config {
 	struct delayed_work output_poll_work;
 
 	struct mutex blob_lock;
+
+	/* pointers to share properties */
+	struct drm_property *prop_share_id;
+	struct drm_property *prop_share_flags;
 
 	/* pointers to standard properties */
 	struct list_head property_blob_list;
@@ -1269,6 +1277,13 @@ extern int drm_plane_init(struct drm_device *dev,
 			  const struct drm_plane_funcs *funcs,
 			  const uint32_t *formats, unsigned int format_count,
 			  bool is_primary);
+extern int drm_share_plane_init(struct drm_device *dev, struct drm_plane *plane,
+				struct drm_plane *parent,
+				unsigned long possible_crtcs,
+				const struct drm_plane_funcs *funcs,
+				const uint32_t *formats,
+				unsigned int format_count,
+				enum drm_plane_type type);
 extern void drm_plane_cleanup(struct drm_plane *plane);
 extern unsigned int drm_plane_index(struct drm_plane *plane);
 extern struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);

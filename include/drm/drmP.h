@@ -310,6 +310,11 @@ struct drm_file {
 	/* true if client understands atomic properties */
 	unsigned atomic:1;
 	/*
+	 * true if client understands share planes and
+	 * hardware support share planes.
+	 */
+	unsigned share_planes:1;
+	/*
 	 * This client is allowed to gain master privileges for @master.
 	 * Protected by struct drm_device::master_mutex.
 	 */

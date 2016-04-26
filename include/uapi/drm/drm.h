@@ -662,6 +662,13 @@ struct drm_get_cap {
  */
 #define DRM_CLIENT_CAP_ATOMIC	3
 
+/**
+ * DRM_CLIENT_CAP_SHARE_PLANES
+ *
+ * If set to 1, the DRM core will expose share planes to userspace.
+ */
+#define DRM_CLIENT_CAP_SHARE_PLANES	4
+
 /** DRM_IOCTL_SET_CLIENT_CAP ioctl argument type */
 struct drm_set_client_cap {
 	__u64 capability;

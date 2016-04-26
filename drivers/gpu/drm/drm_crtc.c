@@ -1250,6 +1250,96 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 EXPORT_SYMBOL(drm_plane_init);
 
 /**
+ * drm_share_plane_init - Initialize a share plane
+ * @dev: DRM device
+ * @plane: plane object to init
+ * @parent: this plane share some resources with parent plane.
+ * @possible_crtcs: bitmask of possible CRTCs
+ * @funcs: callbacks for the new plane
+ * @formats: array of supported formats (%DRM_FORMAT_*)
+ * @format_count: number of elements in @formats
+ * @type: type of plane (overlay, primary, cursor)
+ *
+ * With this API, the plane can share hardware resources with other planes.
+ *
+ *   --------------------------------------------------
+ *   |  scanout                                       |
+ *   |         ------------------                     |
+ *   |         |  parent plane  |                     |
+ *   |         | active scanout |                     |
+ *   |         |                |   ----------------- |
+ *   |         ------------------   | share plane 1 | |
+ *   |  -----------------           |active scanout | |
+ *   |  | share plane 0 |           |               | |
+ *   |  |active scanout |           ----------------- |
+ *   |  |               |                             |
+ *   |  -----------------                             |
+ *   --------------------------------------------------
+ *
+ *    parent plane
+ *        |---share plane 0
+ *        |---share plane 1
+ *        ...
+ *
+ * The plane hardware is used when the display scanout run into plane active
+ * scanout, that means we can reuse the plane hardware resources on plane
+ * non-active scanout.
+ *
+ * Because resource share, There are some limit on share plane: one group
+ * of share planes need use same zpos, can't not overlap, etc.
+ *
+ * Here assume share plane is a universal plane with some limit flags.
+ * people who use the share plane need know the limit, should call the ioctl
+ * DRM_CLIENT_CAP_SHARE_PLANES, and judge the planes limit before use it.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+
+int drm_share_plane_init(struct drm_device *dev, struct drm_plane *plane,
+			 struct drm_plane *parent,
+			 unsigned long possible_crtcs,
+			 const struct drm_plane_funcs *funcs,
+			 const uint32_t *formats, unsigned int format_count,
+			 enum drm_plane_type type)
+{
+	struct drm_mode_config *config = &dev->mode_config;
+	int ret;
+	int share_id;
+
+	/*
+	 * TODO: only verified on ATOMIC drm driver.
+	 */
+	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
+		return -EINVAL;
+
+	ret = drm_universal_plane_init(dev, plane, possible_crtcs, funcs,
+				       formats, format_count, type, NULL);
+	if (ret)
+		return ret;
+
+	if (parent) {
+		/*
+		 * Can't support more than two level plane share.
+		 */
+		WARN_ON(parent->parent);
+		share_id = parent->base.id;
+		plane->parent = parent;
+
+		config->num_share_plane++;
+		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
+			config->num_share_overlay_plane++;
+	} else {
+		share_id = plane->base.id;
+	}
+
+	drm_object_attach_property(&plane->base,
+				   config->prop_share_id, share_id);
+	return 0;
+}
+EXPORT_SYMBOL(drm_share_plane_init);
+
+/**
  * drm_plane_cleanup - Clean up the core plane usage
  * @plane: plane to cleanup
  *
@@ -1271,6 +1361,11 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	dev->mode_config.num_total_plane--;
 	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 		dev->mode_config.num_overlay_plane--;
+	if (plane->parent) {
+		dev->mode_config.num_share_plane--;
+		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
+			dev->mode_config.num_share_overlay_plane--;
+	}
 	drm_modeset_unlock_all(dev);
 
 	WARN_ON(plane->state && !plane->funcs->atomic_destroy_state);
@@ -1401,6 +1496,18 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.plane_type_property = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_IMMUTABLE,
+					 "SHARE_ID", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	dev->mode_config.prop_share_id = prop;
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_IMMUTABLE,
+					 "SHARE_FLAGS", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_share_flags = prop;
 
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 			"SRC_X", 0, UINT_MAX);
@@ -2208,6 +2315,12 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 		num_planes = config->num_total_plane;
 	else
 		num_planes = config->num_overlay_plane;
+	if (!file_priv->share_planes) {
+		if (file_priv->universal_planes)
+			num_planes -= config->num_share_plane;
+		else
+			num_planes -= config->num_share_overlay_plane;
+	}
 
 	/*
 	 * This ioctl is called twice, once to determine how much space is
@@ -2225,6 +2338,8 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 			 */
 			if (plane->type != DRM_PLANE_TYPE_OVERLAY &&
 			    !file_priv->universal_planes)
+				continue;
+			if (plane->parent && !file_priv->share_planes)
 				continue;
 
 			if (put_user(plane->base.id, plane_ptr + copied))
