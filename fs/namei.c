@@ -3019,7 +3019,7 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 		goto out_no_open;
 	}
 
-	if ((nd->flags & LOOKUP_OPEN) && dir_inode->i_op->atomic_open) {
+	if (dir_inode->i_op->atomic_open) {
 		return atomic_open(nd, dentry, path, file, op, got_write,
 				   need_lookup, opened);
 	}
@@ -3219,7 +3219,7 @@ finish_open:
 		return error;
 	}
 	audit_inode(nd->name, nd->path.dentry, 0);
-	if (unlikely(d_is_symlink(nd->path.dentry)) && !(open_flag & O_PATH)) {
+	if (unlikely(d_is_symlink(nd->path.dentry))) {
 		error = -ELOOP;
 		goto out;
 	}
@@ -3239,11 +3239,9 @@ finish_open:
 		got_write = true;
 	}
 finish_open_created:
-	if (likely(!(open_flag & O_PATH))) {
-		error = may_open(&nd->path, acc_mode, open_flag);
-		if (error)
-			goto out;
-	}
+	error = may_open(&nd->path, acc_mode, open_flag);
+	if (error)
+		goto out;
 	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
 	error = vfs_open(&nd->path, file, current_cred());
 	if (!error) {
@@ -3357,6 +3355,18 @@ out:
 	return error;
 }
 
+static int do_o_path(struct nameidata *nd, unsigned flags, struct file *file)
+{
+	struct path path;
+	int error = path_lookupat(nd, flags, &path);
+	if (!error) {
+		audit_inode(nd->name, path.dentry, 0);
+		error = vfs_open(&path, file, current_cred());
+		path_put(&path);
+	}
+	return error;
+}
+
 static struct file *path_openat(struct nameidata *nd,
 			const struct open_flags *op, unsigned flags)
 {
@@ -3373,6 +3383,13 @@ static struct file *path_openat(struct nameidata *nd,
 
 	if (unlikely(file->f_flags & __O_TMPFILE)) {
 		error = do_tmpfile(nd, flags, op, file, &opened);
+		goto out2;
+	}
+
+	if (unlikely(file->f_flags & O_PATH)) {
+		error = do_o_path(nd, flags, file);
+		if (!error)
+			opened |= FILE_OPENED;
 		goto out2;
 	}
 
