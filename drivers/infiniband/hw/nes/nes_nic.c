@@ -478,7 +478,6 @@ static int nes_netdev_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	u32 tso_wqe_length;
 	u32 curr_tcp_seq;
 	u32 wqe_count=1;
-	u32 send_rc;
 	struct iphdr *iph;
 	__le16 *wqe_fragment_length;
 	u32 nr_frags;
