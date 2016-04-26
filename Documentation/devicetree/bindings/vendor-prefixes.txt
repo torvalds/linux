@@ -178,6 +178,7 @@ option	Option NV
 ortustech	Ortus Technology Co., Ltd.
 ovti	OmniVision Technologies
 ORCL	Oracle Corporation
+oxsemi	Oxford Semiconductor, Ltd.
 panasonic	Panasonic Corporation
 parade	Parade Technologies Inc.
 pericom	Pericom Technology Inc.
@@ -260,6 +261,7 @@ via	VIA Technologies, Inc.
 virtio	Virtual I/O Device Specification, developed by the OASIS consortium
 vivante	Vivante Corporation
 voipac	Voipac Technologies s.r.o.
+wd	Western Digital Corp.
 wexler	Wexler
 winbond Winbond Electronics corp.
 wlf	Wolfson Microelectronics
