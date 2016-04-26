@@ -1030,7 +1030,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	data->pending_cookie++;
 	cookie = data->pending_cookie;
 	info->rate_driver_data[0] = (void *)cookie;
-	if (nla_put_u64(skb, HWSIM_ATTR_COOKIE, cookie))
+	if (nla_put_u64_64bit(skb, HWSIM_ATTR_COOKIE, cookie, HWSIM_ATTR_PAD))
 		goto nla_put_failure;
 
 	genlmsg_end(skb, msg_head);
