@@ -64,6 +64,16 @@ EXPORT_SYMBOL_GPL(leave_mm);
 void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	       struct task_struct *tsk)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
+	switch_mm_irqs_off(prev, next, tsk);
+	local_irq_restore(flags);
+}
+
+void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+			struct task_struct *tsk)
+{
 	unsigned cpu = smp_processor_id();
 
 	if (likely(prev != next)) {
