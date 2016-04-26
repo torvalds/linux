@@ -543,10 +543,12 @@ int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	static int outs;
 	unsigned long flags;
 
-	if (!TX_BUFFS_AVAIL)
-		return NETDEV_TX_LOCKED;
-
 	netif_stop_queue(dev);
+
+	if (!TX_BUFFS_AVAIL) {
+		dev_consume_skb_any(skb);
+		return NETDEV_TX_OK;
+	}
 
 	skblen = skb->len;
 

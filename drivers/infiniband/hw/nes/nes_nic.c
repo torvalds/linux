@@ -356,7 +356,7 @@ static int nes_netdev_stop(struct net_device *netdev)
 /**
  * nes_nic_send
  */
-static int nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
+static bool nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
@@ -413,7 +413,7 @@ static int nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 					netdev->name, skb_shinfo(skb)->nr_frags + 2, skb_headlen(skb));
 			kfree_skb(skb);
 			nesvnic->tx_sw_dropped++;
-			return NETDEV_TX_LOCKED;
+			return false;
 		}
 		set_bit(nesnic->sq_head, nesnic->first_frag_overflow);
 		bus_address = pci_map_single(nesdev->pcidev, skb->data + NES_FIRST_FRAG_SIZE,
@@ -454,8 +454,7 @@ static int nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 	set_wqe_32bit_value(nic_sqe->wqe_words, NES_NIC_SQ_WQE_MISC_IDX, wqe_misc);
 	nesnic->sq_head++;
 	nesnic->sq_head &= nesnic->sq_size - 1;
-
-	return NETDEV_TX_OK;
+	return true;
 }
 
 
@@ -673,13 +672,11 @@ tso_sq_no_longer_full:
 			skb_linearize(skb);
 			skb_set_transport_header(skb, hoffset);
 			skb_set_network_header(skb, nhoffset);
-			send_rc = nes_nic_send(skb, netdev);
-			if (send_rc != NETDEV_TX_OK)
+			if (!nes_nic_send(skb, netdev))
 				return NETDEV_TX_OK;
 		}
 	} else {
-		send_rc = nes_nic_send(skb, netdev);
-		if (send_rc != NETDEV_TX_OK)
+		if (!nes_nic_send(skb, netdev))
 			return NETDEV_TX_OK;
 	}
 
