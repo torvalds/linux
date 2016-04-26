@@ -399,7 +399,7 @@ static int putreg(struct task_struct *child,
 		 * to set either thread.fs or thread.fsindex and the
 		 * corresponding GDT slot.
 		 */
-		if (child->thread.fs != value)
+		if (child->thread.fsbase != value)
 			return do_arch_prctl(child, ARCH_SET_FS, value);
 		return 0;
 	case offsetof(struct user_regs_struct,gs_base):
@@ -408,7 +408,7 @@ static int putreg(struct task_struct *child,
 		 */
 		if (value >= TASK_SIZE_OF(child))
 			return -EIO;
-		if (child->thread.gs != value)
+		if (child->thread.gsbase != value)
 			return do_arch_prctl(child, ARCH_SET_GS, value);
 		return 0;
 #endif
@@ -438,14 +438,14 @@ static unsigned long getreg(struct task_struct *task, unsigned long offset)
 		 * XXX: This will not behave as expected if called on
 		 * current or if fsindex != 0.
 		 */
-		return task->thread.fs;
+		return task->thread.fsbase;
 	}
 	case offsetof(struct user_regs_struct, gs_base): {
 		/*
 		 * XXX: This will not behave as expected if called on
 		 * current or if fsindex != 0.
 		 */
-		return task->thread.gs;
+		return task->thread.gsbase;
 	}
 #endif
 	}

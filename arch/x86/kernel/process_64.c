@@ -150,9 +150,9 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
 	p->thread.io_bitmap_ptr = NULL;
 
 	savesegment(gs, p->thread.gsindex);
-	p->thread.gs = p->thread.gsindex ? 0 : me->thread.gs;
+	p->thread.gsbase = p->thread.gsindex ? 0 : me->thread.gsbase;
 	savesegment(fs, p->thread.fsindex);
-	p->thread.fs = p->thread.fsindex ? 0 : me->thread.fs;
+	p->thread.fsbase = p->thread.fsindex ? 0 : me->thread.fsbase;
 	savesegment(es, p->thread.es);
 	savesegment(ds, p->thread.ds);
 	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
@@ -329,18 +329,18 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * stronger guarantees.)
 	 *
 	 * As an invariant,
-	 * (fs != 0 && fsindex != 0) || (gs != 0 && gsindex != 0) is
+	 * (fsbase != 0 && fsindex != 0) || (gsbase != 0 && gsindex != 0) is
 	 * impossible.
 	 */
 	if (next->fsindex) {
 		/* Loading a nonzero value into FS sets the index and base. */
 		loadsegment(fs, next->fsindex);
 	} else {
-		if (next->fs) {
+		if (next->fsbase) {
 			/* Next index is zero but next base is nonzero. */
 			if (prev_fsindex)
 				loadsegment(fs, 0);
-			wrmsrl(MSR_FS_BASE, next->fs);
+			wrmsrl(MSR_FS_BASE, next->fsbase);
 		} else {
 			/* Next base and index are both zero. */
 			if (static_cpu_has_bug(X86_BUG_NULL_SEG)) {
@@ -356,7 +356,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 				 * didn't change the base, then the base is
 				 * also zero and we don't need to do anything.
 				 */
-				if (prev->fs || prev_fsindex)
+				if (prev->fsbase || prev_fsindex)
 					loadsegment(fs, 0);
 			}
 		}
@@ -369,18 +369,18 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * us.
 	 */
 	if (prev_fsindex)
-		prev->fs = 0;
+		prev->fsbase = 0;
 	prev->fsindex = prev_fsindex;
 
 	if (next->gsindex) {
 		/* Loading a nonzero value into GS sets the index and base. */
 		load_gs_index(next->gsindex);
 	} else {
-		if (next->gs) {
+		if (next->gsbase) {
 			/* Next index is zero but next base is nonzero. */
 			if (prev_gsindex)
 				load_gs_index(0);
-			wrmsrl(MSR_KERNEL_GS_BASE, next->gs);
+			wrmsrl(MSR_KERNEL_GS_BASE, next->gsbase);
 		} else {
 			/* Next base and index are both zero. */
 			if (static_cpu_has_bug(X86_BUG_NULL_SEG)) {
@@ -400,7 +400,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 				 * didn't change the base, then the base is
 				 * also zero and we don't need to do anything.
 				 */
-				if (prev->gs || prev_gsindex)
+				if (prev->gsbase || prev_gsindex)
 					load_gs_index(0);
 			}
 		}
@@ -413,7 +413,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * us.
 	 */
 	if (prev_gsindex)
-		prev->gs = 0;
+		prev->gsbase = 0;
 	prev->gsindex = prev_gsindex;
 
 	switch_fpu_finish(next_fpu, fpu_switch);
@@ -536,7 +536,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 			return -EPERM;
 		cpu = get_cpu();
 		task->thread.gsindex = 0;
-		task->thread.gs = addr;
+		task->thread.gsbase = addr;
 		if (doit) {
 			load_gs_index(0);
 			ret = wrmsrl_safe(MSR_KERNEL_GS_BASE, addr);
@@ -549,7 +549,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 			return -EPERM;
 		cpu = get_cpu();
 		task->thread.fsindex = 0;
-		task->thread.fs = addr;
+		task->thread.fsbase = addr;
 		if (doit) {
 			/* set the selector to 0 to not confuse __switch_to */
 			loadsegment(fs, 0);
@@ -562,7 +562,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		if (doit)
 			rdmsrl(MSR_FS_BASE, base);
 		else
-			base = task->thread.fs;
+			base = task->thread.fsbase;
 		ret = put_user(base, (unsigned long __user *)addr);
 		break;
 	}
@@ -571,7 +571,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		if (doit)
 			rdmsrl(MSR_KERNEL_GS_BASE, base);
 		else
-			base = task->thread.gs;
+			base = task->thread.gsbase;
 		ret = put_user(base, (unsigned long __user *)addr);
 		break;
 	}
