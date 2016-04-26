@@ -451,6 +451,8 @@ static int at91_adc_probe(struct platform_device *pdev)
 	if (ret)
 		goto vref_disable;
 
+	platform_set_drvdata(pdev, indio_dev);
+
 	ret = iio_device_register(indio_dev);
 	if (ret < 0)
 		goto per_clk_disable_unprepare;
