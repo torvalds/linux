@@ -130,7 +130,7 @@ struct ath10k_peer *ath10k_peer_find(struct ath10k *ar, int vdev_id,
 	list_for_each_entry(peer, &ar->peers, list) {
 		if (peer->vdev_id != vdev_id)
 			continue;
-		if (memcmp(peer->addr, addr, ETH_ALEN))
+		if (!ether_addr_equal(peer->addr, addr))
 			continue;
 
 		return peer;
@@ -166,7 +166,7 @@ static int ath10k_wait_for_peer_common(struct ath10k *ar, int vdev_id,
 
 			(mapped == expect_mapped ||
 			 test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags));
-		}), 3*HZ);
+		}), 3 * HZ);
 
 	if (time_left == 0)
 		return -ETIMEDOUT;
@@ -189,6 +189,13 @@ void ath10k_peer_map_event(struct ath10k_htt *htt,
 {
 	struct ath10k *ar = htt->ar;
 	struct ath10k_peer *peer;
+
+	if (ev->peer_id >= ATH10K_MAX_NUM_PEER_IDS) {
+		ath10k_warn(ar,
+			    "received htt peer map event with idx out of bounds: %hu\n",
+			    ev->peer_id);
+		return;
+	}
 
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find(ar, ev->vdev_id, ev->addr);
@@ -217,6 +224,13 @@ void ath10k_peer_unmap_event(struct ath10k_htt *htt,
 {
 	struct ath10k *ar = htt->ar;
 	struct ath10k_peer *peer;
+
+	if (ev->peer_id >= ATH10K_MAX_NUM_PEER_IDS) {
+		ath10k_warn(ar,
+			    "received htt peer unmap event with idx out of bounds: %hu\n",
+			    ev->peer_id);
+		return;
+	}
 
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find_by_id(ar, ev->peer_id);
