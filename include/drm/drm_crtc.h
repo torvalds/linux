@@ -1887,7 +1887,7 @@ struct drm_mode_config_funcs {
 	 * drm_atomic_helper_commit(), or one of the exported sub-functions of
 	 * it.
 	 *
-	 * Asynchronous commits (as indicated with the async parameter) must
+	 * Nonblocking commits (as indicated with the nonblock parameter) must
 	 * do any preparatory work which might result in an unsuccessful commit
 	 * in the context of this callback. The only exceptions are hardware
 	 * errors resulting in -EIO. But even in that case the driver must
@@ -1900,7 +1900,7 @@ struct drm_mode_config_funcs {
 	 * The driver must wait for any pending rendering to the new
 	 * framebuffers to complete before executing the flip. It should also
 	 * wait for any pending rendering from other drivers if the underlying
-	 * buffer is a shared dma-buf. Asynchronous commits must not wait for
+	 * buffer is a shared dma-buf. Nonblocking commits must not wait for
 	 * rendering in the context of this callback.
 	 *
 	 * An application can request to be notified when the atomic commit has
@@ -1931,7 +1931,7 @@ struct drm_mode_config_funcs {
 	 *
 	 * 0 on success or one of the below negative error codes:
 	 *
-	 *  - -EBUSY, if an asynchronous updated is requested and there is
+	 *  - -EBUSY, if a nonblocking updated is requested and there is
 	 *    an earlier updated pending. Drivers are allowed to support a queue
 	 *    of outstanding updates, but currently no driver supports that.
 	 *    Note that drivers must wait for preceding updates to complete if a
@@ -1961,7 +1961,7 @@ struct drm_mode_config_funcs {
 	 */
 	int (*atomic_commit)(struct drm_device *dev,
 			     struct drm_atomic_state *state,
-			     bool async);
+			     bool nonblock);
 
 	/**
 	 * @atomic_state_alloc:
