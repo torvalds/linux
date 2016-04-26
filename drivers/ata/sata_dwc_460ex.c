@@ -311,7 +311,7 @@ static struct dma_async_tx_descriptor *dma_dwc_xfer_setup(struct ata_queued_cmd 
 
 	if (qc->dma_dir == DMA_DEV_TO_MEM) {
 		sconf.src_addr = addr;
-		sconf.device_fc = true;
+		sconf.device_fc = false;
 	} else {	/* DMA_MEM_TO_DEV */
 		sconf.dst_addr = addr;
 		sconf.device_fc = false;
