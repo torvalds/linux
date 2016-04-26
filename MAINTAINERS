@@ -1312,7 +1312,13 @@ M:	Sylvain Lemieux <slemieux.tyco@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/vzapolskiy/linux-lpc32xx.git
 S:	Maintained
+F:	arch/arm/boot/dts/lpc32*
 F:	arch/arm/mach-lpc32xx/
+F:	drivers/i2c/busses/i2c-pnx.c
+F:	drivers/net/ethernet/nxp/lpc_eth.c
+F:	drivers/usb/host/ohci-nxp.c
+F:	drivers/watchdog/pnx4008_wdt.c
+N:	lpc32xx
 
 ARM/MAGICIAN MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
