@@ -30,6 +30,7 @@
 #include "amdgpu_pm.h"
 #include <drm/amdgpu_drm.h>
 #include "amdgpu_powerplay.h"
+#include "si_dpm.h"
 #include "cik_dpm.h"
 #include "vi_dpm.h"
 
@@ -59,6 +60,15 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 		amd_pp->pp_handle = (void *)adev;
 
 		switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_SI
+		case CHIP_TAHITI:
+		case CHIP_PITCAIRN:
+		case CHIP_VERDE:
+		case CHIP_OLAND:
+		case CHIP_HAINAN:
+			amd_pp->ip_funcs = &si_dpm_ip_funcs;
+		break;
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 		case CHIP_BONAIRE:
 		case CHIP_HAWAII:
