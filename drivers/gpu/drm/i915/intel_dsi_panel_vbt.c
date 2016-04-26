@@ -203,8 +203,8 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 	map = &vlv_gpio_table[gpio_index];
 
 	if (dev_priv->vbt.dsi.seq_version >= 3) {
-		DRM_DEBUG_KMS("GPIO element v3 not supported\n");
-		return;
+		/* XXX: this assumes vlv_gpio_table only has NC GPIOs. */
+		port = IOSF_PORT_GPIO_NC;
 	} else {
 		if (gpio_source == 0) {
 			port = IOSF_PORT_GPIO_NC;
