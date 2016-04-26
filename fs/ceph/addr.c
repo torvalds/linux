@@ -1099,8 +1099,7 @@ release_pvec_pages:
 		mapping->writeback_index = index;
 
 out:
-	if (req)
-		ceph_osdc_put_request(req);
+	ceph_osdc_put_request(req);
 	ceph_put_snap_context(snapc);
 	dout("writepages done, rc = %d\n", rc);
 	return rc;
@@ -1824,10 +1823,8 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci, u32 pool)
 out_unlock:
 	up_write(&mdsc->pool_perm_rwsem);
 
-	if (rd_req)
-		ceph_osdc_put_request(rd_req);
-	if (wr_req)
-		ceph_osdc_put_request(wr_req);
+	ceph_osdc_put_request(rd_req);
+	ceph_osdc_put_request(wr_req);
 out:
 	if (!err)
 		err = have;
