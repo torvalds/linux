@@ -1722,6 +1722,10 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 	    intel_dp_aux_init_backlight_funcs(connector) == 0)
 		return;
 
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DSI &&
+	    intel_dsi_dcs_init_backlight_funcs(connector) == 0)
+		return;
+
 	if (IS_BROXTON(dev_priv)) {
 		panel->backlight.setup = bxt_setup_backlight;
 		panel->backlight.enable = bxt_enable_backlight;
