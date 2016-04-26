@@ -275,6 +275,8 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 		} else {
 			*mic = false;
 			regmap_write(rt298->regmap, RT298_SET_MIC1, 0x20);
+			regmap_update_bits(rt298->regmap,
+				RT298_CBJ_CTRL1, 0x0400, 0x0000);
 		}
 	} else {
 		regmap_read(rt298->regmap, RT298_GET_HP_SENSE, &buf);
@@ -539,30 +541,12 @@ static int rt298_mic1_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int rt298_vref_event(struct snd_soc_dapm_widget *w,
-			     struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		snd_soc_update_bits(codec,
-			RT298_CBJ_CTRL1, 0x0400, 0x0000);
-		mdelay(50);
-		break;
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
 static const struct snd_soc_dapm_widget rt298_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SUPPLY_S("HV", 1, RT298_POWER_CTRL1,
 		12, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("VREF", RT298_POWER_CTRL1,
-		0, 1, rt298_vref_event, SND_SOC_DAPM_PRE_PMU),
+		0, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("BG_MBIAS", 1, RT298_POWER_CTRL2,
 		1, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("LDO1", 1, RT298_POWER_CTRL2,
@@ -953,18 +937,9 @@ static int rt298_set_bias_level(struct snd_soc_codec *codec,
 		}
 		break;
 
-	case SND_SOC_BIAS_ON:
-		mdelay(30);
-		snd_soc_update_bits(codec,
-			RT298_CBJ_CTRL1, 0x0400, 0x0400);
-
-		break;
-
 	case SND_SOC_BIAS_STANDBY:
 		snd_soc_write(codec,
 			RT298_SET_AUDIO_POWER, AC_PWRST_D3);
-		snd_soc_update_bits(codec,
-			RT298_CBJ_CTRL1, 0x0400, 0x0000);
 		break;
 
 	default:
