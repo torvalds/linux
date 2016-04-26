@@ -776,6 +776,7 @@ void wil_disable_irq(struct wil6210_priv *wil);
 void wil_enable_irq(struct wil6210_priv *wil);
 
 /* P2P */
+bool wil_p2p_is_social_scan(struct cfg80211_scan_request *request);
 void wil_p2p_discovery_timer_fn(ulong x);
 int wil_p2p_search(struct wil6210_priv *wil,
 		   struct cfg80211_scan_request *request);
