@@ -833,7 +833,8 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (txq >= numqueues)
 		goto drop;
 
-	if (numqueues == 1) {
+#ifdef CONFIG_RPS
+	if (numqueues == 1 && static_key_false(&rps_needed)) {
 		/* Select queue was not called for the skbuff, so we extract the
 		 * RPS hash and save it into the flow_table here.
 		 */
@@ -848,6 +849,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 				tun_flow_save_rps_rxhash(e, rxhash);
 		}
 	}
+#endif
 
 	tun_debug(KERN_INFO, tun, "tun_net_xmit %d\n", skb->len);
 
