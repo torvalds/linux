@@ -1043,8 +1043,7 @@ static struct syscall_fmt {
 			     [1] = SCA_FILENAME, /* filename */
 			     [2] = SCA_OPEN_FLAGS, /* flags */ }, },
 	{ .name	    = "perf_event_open", .errmsg = true,
-	  .arg_scnprintf = { [1] = SCA_INT, /* pid */
-			     [2] = SCA_INT, /* cpu */
+	  .arg_scnprintf = { [2] = SCA_INT, /* cpu */
 			     [3] = SCA_FD,  /* group_fd */
 			     [4] = SCA_PERF_FLAGS,  /* flags */ }, },
 	{ .name	    = "pipe2",	    .errmsg = true,
