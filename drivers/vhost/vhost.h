@@ -15,13 +15,15 @@
 struct vhost_work;
 typedef void (*vhost_work_fn_t)(struct vhost_work *work);
 
+#define VHOST_WORK_QUEUED 1
 struct vhost_work {
-	struct list_head	  node;
+	struct llist_node	  node;
 	vhost_work_fn_t		  fn;
 	wait_queue_head_t	  done;
 	int			  flushing;
 	unsigned		  queue_seq;
 	unsigned		  done_seq;
+	unsigned long		  flags;
 };
 
 /* Poll a file (eventfd or socket) */
@@ -126,8 +128,7 @@ struct vhost_dev {
 	int nvqs;
 	struct file *log_file;
 	struct eventfd_ctx *log_ctx;
-	spinlock_t work_lock;
-	struct list_head work_list;
+	struct llist_head work_list;
 	struct task_struct *worker;
 };
 
