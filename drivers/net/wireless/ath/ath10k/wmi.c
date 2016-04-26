@@ -1633,6 +1633,7 @@ void ath10k_wmi_put_wmi_channel(struct wmi_channel *ch,
 	ch->max_power = arg->max_power;
 	ch->reg_power = arg->max_reg_power;
 	ch->antenna_max = arg->max_antenna_gain;
+	ch->max_tx_power = arg->max_power;
 
 	/* mode & flags share storage */
 	ch->mode = arg->mode;

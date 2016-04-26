@@ -1795,6 +1795,7 @@ struct wmi_channel {
 		__le32 reginfo1;
 		struct {
 			u8 antenna_max;
+			u8 max_tx_power;
 		} __packed;
 	} __packed;
 } __packed;
