@@ -944,6 +944,8 @@ static int palmas_ldo_registration(struct palmas_pmic *pmic,
 			if (id == PALMAS_REG_LDO9) {
 				desc->ops = &palmas_ops_ldo9;
 				desc->bypass_reg = desc->enable_reg;
+				desc->bypass_val_on =
+						PALMAS_LDO9_CTRL_LDO_BYPASS_EN;
 				desc->bypass_mask =
 						PALMAS_LDO9_CTRL_LDO_BYPASS_EN;
 			}
@@ -1055,6 +1057,8 @@ static int tps65917_ldo_registration(struct palmas_pmic *pmic,
 			    id == TPS65917_REG_LDO2) {
 				desc->ops = &tps65917_ops_ldo_1_2;
 				desc->bypass_reg = desc->enable_reg;
+				desc->bypass_val_on =
+						TPS65917_LDO1_CTRL_BYPASS_EN;
 				desc->bypass_mask =
 						TPS65917_LDO1_CTRL_BYPASS_EN;
 			}
@@ -1206,6 +1210,7 @@ static int palmas_smps_registration(struct palmas_pmic *pmic,
 				desc->enable_mask = SMPS10_BOOST_EN;
 			desc->bypass_reg = PALMAS_BASE_TO_REG(PALMAS_SMPS_BASE,
 							    PALMAS_SMPS10_CTRL);
+			desc->bypass_val_on = SMPS10_BYPASS_EN;
 			desc->bypass_mask = SMPS10_BYPASS_EN;
 			desc->min_uV = 3750000;
 			desc->uV_step = 1250000;
