@@ -2748,9 +2748,13 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 {
 	int ret;
 
-	if (pev->uprobes && !pev->group) {
-		/* Replace group name if not given */
-		ret = convert_exec_to_group(pev->target, &pev->group);
+	if (!pev->group) {
+		/* Set group name if not given */
+		if (!pev->uprobes) {
+			pev->group = strdup(PERFPROBE_GROUP);
+			ret = pev->group ? 0 : -ENOMEM;
+		} else
+			ret = convert_exec_to_group(pev->target, &pev->group);
 		if (ret != 0) {
 			pr_warning("Failed to make a group name.\n");
 			return ret;
