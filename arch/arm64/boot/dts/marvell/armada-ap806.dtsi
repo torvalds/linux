@@ -59,7 +59,6 @@
 		method = "smc";
 	};
 
-
 	ap806 {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -190,7 +189,7 @@
 				status = "disabled";
 			};
 
-			serial@512000 {
+			uart0: serial@512000 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x512000 0x100>;
 				reg-shift = <2>;
@@ -200,7 +199,7 @@
 				status = "disabled";
 			};
 
-			serial@512100 {
+			uart1: serial@512100 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x512100 0x100>;
 				reg-shift = <2>;
@@ -232,6 +231,4 @@
 			};
 		};
 	};
-
 };
-
