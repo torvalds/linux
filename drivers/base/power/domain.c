@@ -730,14 +730,11 @@ static int pm_genpd_prepare(struct device *dev)
 	 * at this point and a system wakeup event should be reported if it's
 	 * set up to wake up the system from sleep states.
 	 */
-	pm_runtime_get_noresume(dev);
 	if (pm_runtime_barrier(dev) && device_may_wakeup(dev))
 		pm_wakeup_event(dev, 0);
 
-	if (pm_wakeup_pending()) {
-		pm_runtime_put(dev);
+	if (pm_wakeup_pending())
 		return -EBUSY;
-	}
 
 	if (resume_needed(dev, genpd))
 		pm_runtime_resume(dev);
@@ -751,10 +748,8 @@ static int pm_genpd_prepare(struct device *dev)
 
 	mutex_unlock(&genpd->lock);
 
-	if (genpd->suspend_power_off) {
-		pm_runtime_put_noidle(dev);
+	if (genpd->suspend_power_off)
 		return 0;
-	}
 
 	/*
 	 * The PM domain must be in the GPD_STATE_ACTIVE state at this point,
@@ -776,7 +771,6 @@ static int pm_genpd_prepare(struct device *dev)
 		pm_runtime_enable(dev);
 	}
 
-	pm_runtime_put(dev);
 	return ret;
 }
 
