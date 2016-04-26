@@ -174,7 +174,7 @@ void __msm_fence_worker(struct work_struct *work);
 int msm_atomic_check(struct drm_device *dev,
 		     struct drm_atomic_state *state);
 int msm_atomic_commit(struct drm_device *dev,
-		struct drm_atomic_state *state, bool async);
+		struct drm_atomic_state *state, bool nonblock);
 
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 
