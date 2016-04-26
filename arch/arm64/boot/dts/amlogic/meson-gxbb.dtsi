@@ -213,6 +213,27 @@
 					gpio-controller;
 					#gpio-cells = <2>;
 				};
+
+				emmc_pins: emmc {
+					mux {
+						groups = "emmc_nand_d07",
+						       "emmc_cmd",
+						       "emmc_clk";
+						function = "emmc";
+					};
+				};
+
+				sdcard_pins: sdcard {
+					mux {
+						groups = "sdcard_d0",
+						       "sdcard_d1",
+						       "sdcard_d2",
+						       "sdcard_d3",
+						       "sdcard_cmd",
+						       "sdcard_clk";
+						function = "sdcard";
+					};
+				};
 			};
 		};
 
