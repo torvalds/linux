@@ -32,9 +32,11 @@
 #undef memcpy
 #undef memset
 #define memzero(s, n)	memset((s), 0, (n))
+#define memmove		memmove
 
 /* Functions used by the included decompressor code below. */
 static void error(char *m);
+void *memmove(void *dest, const void *src, size_t n);
 
 /*
  * This is set up by the setup-routine at boot-time
@@ -80,7 +82,7 @@ static void scroll(void)
 {
 	int i;
 
-	memcpy(vidmem, vidmem + cols * 2, (lines - 1) * cols * 2);
+	memmove(vidmem, vidmem + cols * 2, (lines - 1) * cols * 2);
 	for (i = (lines - 1) * cols * 2; i < lines * cols * 2; i += 2)
 		vidmem[i] = ' ';
 }
@@ -307,7 +309,7 @@ static void parse_elf(void *output)
 #else
 			dest = (void *)(phdr->p_paddr);
 #endif
-			memcpy(dest, output + phdr->p_offset, phdr->p_filesz);
+			memmove(dest, output + phdr->p_offset, phdr->p_filesz);
 			break;
 		default: /* Ignore other PT_* */ break;
 		}
