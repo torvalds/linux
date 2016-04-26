@@ -1023,36 +1023,12 @@ static void sata_dwc_bmdma_start(struct ata_queued_cmd *qc)
 	sata_dwc_bmdma_start_by_tag(qc, tag);
 }
 
-/*
- * Function : sata_dwc_qc_prep_by_tag
- * arguments : ata_queued_cmd *qc, u8 tag
- * Return value : None
- * qc_prep for a particular queued command based on tag
- */
-static void sata_dwc_qc_prep_by_tag(struct ata_queued_cmd *qc, u8 tag)
-{
-	struct dma_async_tx_descriptor *desc;
-	struct ata_port *ap = qc->ap;
-	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
-
-	dev_dbg(ap->dev, "%s: port=%d dma dir=%s n_elem=%d\n",
-		__func__, ap->port_no, get_dma_dir_descript(qc->dma_dir),
-		 qc->n_elem);
-
-	desc = dma_dwc_xfer_setup(qc);
-	if (!desc) {
-		dev_err(ap->dev, "%s: dma_dwc_xfer_setup returns NULL\n",
-			__func__);
-		return;
-	}
-	hsdevp->desc[tag] = desc;
-}
-
 static unsigned int sata_dwc_qc_issue(struct ata_queued_cmd *qc)
 {
 	u32 sactive;
 	u8 tag = qc->tag;
 	struct ata_port *ap = qc->ap;
+	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
 
 #ifdef DEBUG_NCQ
 	if (qc->tag > 0 || ap->link.sactive > 1)
@@ -1066,7 +1042,14 @@ static unsigned int sata_dwc_qc_issue(struct ata_queued_cmd *qc)
 
 	if (!ata_is_ncq(qc->tf.protocol))
 		tag = 0;
-	sata_dwc_qc_prep_by_tag(qc, tag);
+
+	if (ata_is_dma(qc->tf.protocol)) {
+		hsdevp->desc[tag] = dma_dwc_xfer_setup(qc);
+		if (!hsdevp->desc[tag])
+			return AC_ERR_SYSTEM;
+	} else {
+		hsdevp->desc[tag] = NULL;
+	}
 
 	if (ata_is_ncq(qc->tf.protocol)) {
 		sactive = core_scr_read(SCR_ACTIVE);
