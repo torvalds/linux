@@ -64,11 +64,11 @@ static unsigned int tw686x_fields_map(v4l2_std_id std, unsigned int fps)
 	unsigned int i;
 
 	if (std & V4L2_STD_525_60) {
-		if (fps > ARRAY_SIZE(std_525_60))
+		if (fps >= ARRAY_SIZE(std_525_60))
 			fps = 30;
 		i = std_525_60[fps];
 	} else {
-		if (fps > ARRAY_SIZE(std_625_50))
+		if (fps >= ARRAY_SIZE(std_625_50))
 			fps = 25;
 		i = std_625_50[fps];
 	}
