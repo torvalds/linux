@@ -1151,7 +1151,13 @@ static struct scsi_host_template sata_dwc_sht = {
 	 */
 	.sg_tablesize		= LIBATA_MAX_PRD,
 	/* .can_queue		= ATA_MAX_QUEUE, */
-	.dma_boundary		= ATA_DMA_BOUNDARY,
+	/*
+	 * Make sure a LLI block is not created that will span 8K max FIS
+	 * boundary. If the block spans such a FIS boundary, there is a chance
+	 * that a DMA burst will cross that boundary -- this results in an
+	 * error in the host controller.
+	 */
+	.dma_boundary		= 0x1fff /* ATA_DMA_BOUNDARY */,
 };
 
 static struct ata_port_operations sata_dwc_ops = {
