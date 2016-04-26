@@ -464,9 +464,19 @@ static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 
 	/* Burst size is only needed in SuperSpeed mode */
 	if (dwc->gadget.speed >= USB_SPEED_SUPER) {
-		u32 burst = dep->endpoint.maxburst - 1;
+		u32 burst = dep->endpoint.maxburst;
+		u32 nump;
+		u32 reg;
 
-		params.param0 |= DWC3_DEPCFG_BURST_SIZE(burst);
+		/* update NumP */
+		reg = dwc3_readl(dwc->regs, DWC3_DCFG);
+		nump = DWC3_DCFG_NUMP(reg);
+		nump = max(nump, burst);
+		reg &= ~DWC3_DCFG_NUMP_MASK;
+		reg |= nump << DWC3_DCFG_NUMP_SHIFT;
+		dwc3_writel(dwc->regs, DWC3_DCFG, reg);
+
+		params.param0 |= DWC3_DEPCFG_BURST_SIZE(burst - 1);
 	}
 
 	if (ignore)
