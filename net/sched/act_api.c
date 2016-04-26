@@ -657,12 +657,15 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *a,
 	if (compat_mode) {
 		if (a->type == TCA_OLD_COMPAT)
 			err = gnet_stats_start_copy_compat(skb, 0,
-				TCA_STATS, TCA_XSTATS, &p->tcfc_lock, &d);
+							   TCA_STATS,
+							   TCA_XSTATS,
+							   &p->tcfc_lock, &d,
+							   TCA_PAD);
 		else
 			return 0;
 	} else
 		err = gnet_stats_start_copy(skb, TCA_ACT_STATS,
-					    &p->tcfc_lock, &d);
+					    &p->tcfc_lock, &d, TCA_ACT_PAD);
 
 	if (err < 0)
 		goto errout;

@@ -542,6 +542,7 @@ enum {
 	TCA_FCNT,
 	TCA_STATS2,
 	TCA_STAB,
+	TCA_PAD,
 	__TCA_MAX
 };
 
