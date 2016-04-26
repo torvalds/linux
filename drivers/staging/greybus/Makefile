@@ -39,6 +39,7 @@ gb-audio-apbridgea-y := audio_apbridgea.o
 gb-audio-manager-y += audio_manager.o
 gb-audio-manager-y += audio_manager_module.o
 gb-camera-y := camera.o
+gb-firmware-y := fw-core.o
 
 obj-m += greybus.o
 obj-m += gb-phy.o
@@ -60,6 +61,7 @@ endif
 obj-m += gb-audio-gb.o
 obj-m += gb-audio-apbridgea.o
 obj-m += gb-audio-manager.o
+obj-m += gb-firmware.o
 
 KERNELVER		?= $(shell uname -r)
 KERNELDIR 		?= /lib/modules/$(KERNELVER)/build

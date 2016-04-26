@@ -45,6 +45,8 @@ enum greybus_protocol {
 	GREYBUS_PROTOCOL_SVC            = 0x14,
 	GREYBUS_PROTOCOL_BOOTROM	= 0x15,
 	GREYBUS_PROTOCOL_CAMERA_DATA	= 0x16,
+	GREYBUS_PROTOCOL_FW_DOWNLOAD	= 0x17,
+	GREYBUS_PROTOCOL_FW_MANAGEMENT	= 0x18,
 		/* ... */
 	GREYBUS_PROTOCOL_RAW		= 0xfe,
 	GREYBUS_PROTOCOL_VENDOR		= 0xff,
@@ -73,6 +75,7 @@ enum greybus_class_type {
 	/* 0x13 is unused */
 	/* 0x14 is unused */
 	GREYBUS_CLASS_BOOTROM		= 0x15,
+	GREYBUS_CLASS_FW_MANAGEMENT	= 0x16,
 		/* ... */
 	GREYBUS_CLASS_RAW		= 0xfe,
 	GREYBUS_CLASS_VENDOR		= 0xff,
