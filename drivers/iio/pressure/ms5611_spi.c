@@ -108,7 +108,7 @@ static int ms5611_spi_probe(struct spi_device *spi)
 	st->client = spi;
 
 	return ms5611_probe(indio_dev, &spi->dev, spi_get_device_id(spi)->name,
-	                    spi_get_device_id(spi)->driver_data);
+			    spi_get_device_id(spi)->driver_data);
 }
 
 static int ms5611_spi_remove(struct spi_device *spi)

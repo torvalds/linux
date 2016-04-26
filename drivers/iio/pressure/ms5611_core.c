@@ -429,7 +429,7 @@ static void ms5611_fini(const struct iio_dev *indio_dev)
 }
 
 int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
-                 const char *name, int type)
+		 const char *name, int type)
 {
 	int ret;
 	struct ms5611_state *st = iio_priv(indio_dev);

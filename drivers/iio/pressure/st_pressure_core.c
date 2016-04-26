@@ -64,6 +64,8 @@
 #define ST_PRESS_LPS331AP_DRDY_IRQ_INT2_MASK	0x20
 #define ST_PRESS_LPS331AP_IHL_IRQ_ADDR		0x22
 #define ST_PRESS_LPS331AP_IHL_IRQ_MASK		0x80
+#define ST_PRESS_LPS331AP_OD_IRQ_ADDR		0x22
+#define ST_PRESS_LPS331AP_OD_IRQ_MASK		0x40
 #define ST_PRESS_LPS331AP_MULTIREAD_BIT		true
 #define ST_PRESS_LPS331AP_TEMP_OFFSET		42500
 
@@ -104,6 +106,8 @@
 #define ST_PRESS_LPS25H_DRDY_IRQ_INT2_MASK	0x10
 #define ST_PRESS_LPS25H_IHL_IRQ_ADDR		0x22
 #define ST_PRESS_LPS25H_IHL_IRQ_MASK		0x80
+#define ST_PRESS_LPS25H_OD_IRQ_ADDR		0x22
+#define ST_PRESS_LPS25H_OD_IRQ_MASK		0x40
 #define ST_PRESS_LPS25H_MULTIREAD_BIT		true
 #define ST_PRESS_LPS25H_TEMP_OFFSET		42500
 #define ST_PRESS_LPS25H_OUT_XL_ADDR		0x28
@@ -226,6 +230,9 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 			.mask_int2 = ST_PRESS_LPS331AP_DRDY_IRQ_INT2_MASK,
 			.addr_ihl = ST_PRESS_LPS331AP_IHL_IRQ_ADDR,
 			.mask_ihl = ST_PRESS_LPS331AP_IHL_IRQ_MASK,
+			.addr_od = ST_PRESS_LPS331AP_OD_IRQ_ADDR,
+			.mask_od = ST_PRESS_LPS331AP_OD_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_PRESS_LPS331AP_MULTIREAD_BIT,
 		.bootime = 2,
@@ -312,6 +319,9 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 			.mask_int2 = ST_PRESS_LPS25H_DRDY_IRQ_INT2_MASK,
 			.addr_ihl = ST_PRESS_LPS25H_IHL_IRQ_ADDR,
 			.mask_ihl = ST_PRESS_LPS25H_IHL_IRQ_MASK,
+			.addr_od = ST_PRESS_LPS25H_OD_IRQ_ADDR,
+			.mask_od = ST_PRESS_LPS25H_OD_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_PRESS_LPS25H_MULTIREAD_BIT,
 		.bootime = 2,
