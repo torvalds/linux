@@ -38,6 +38,8 @@
 #define WIL6210_IRQ_DISABLE	(0xFFFFFFFFUL)
 #define WIL6210_IMC_RX		(BIT_DMA_EP_RX_ICR_RX_DONE | \
 				 BIT_DMA_EP_RX_ICR_RX_HTRSH)
+#define WIL6210_IMC_RX_NO_RX_HTRSH (WIL6210_IMC_RX & \
+				    (~(BIT_DMA_EP_RX_ICR_RX_HTRSH)))
 #define WIL6210_IMC_TX		(BIT_DMA_EP_TX_ICR_TX_DONE | \
 				BIT_DMA_EP_TX_ICR_TX_DONE_N(0))
 #define WIL6210_IMC_MISC	(ISR_MISC_FW_READY | \
@@ -109,8 +111,10 @@ void wil6210_unmask_irq_tx(struct wil6210_priv *wil)
 
 void wil6210_unmask_irq_rx(struct wil6210_priv *wil)
 {
+	bool unmask_rx_htrsh = test_bit(wil_status_fwconnected, wil->status);
+
 	wil_w(wil, RGF_DMA_EP_RX_ICR + offsetof(struct RGF_ICR, IMC),
-	      WIL6210_IMC_RX);
+	      unmask_rx_htrsh ? WIL6210_IMC_RX : WIL6210_IMC_RX_NO_RX_HTRSH);
 }
 
 static void wil6210_unmask_irq_misc(struct wil6210_priv *wil)

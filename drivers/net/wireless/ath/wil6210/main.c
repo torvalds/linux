@@ -194,6 +194,18 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	memset(&sta->stats, 0, sizeof(sta->stats));
 }
 
+static bool wil_ap_is_connected(struct wil6210_priv *wil)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
+		if (wil->sta[i].status == wil_sta_connected)
+			return true;
+	}
+
+	return false;
+}
+
 static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 				u16 reason_code, bool from_event)
 {
@@ -246,6 +258,11 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 						GFP_KERNEL);
 		}
 		clear_bit(wil_status_fwconnecting, wil->status);
+		break;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+		if (!wil_ap_is_connected(wil))
+			clear_bit(wil_status_fwconnected, wil->status);
 		break;
 	default:
 		break;
