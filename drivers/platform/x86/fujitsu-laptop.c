@@ -69,7 +69,7 @@
 #include <linux/kfifo.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 #include <linux/leds.h>
 #endif
 #include <acpi/video.h>
@@ -100,7 +100,7 @@
 /* FUNC interface - responses */
 #define UNSUPPORTED_CMD 0x80000000
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 /* FUNC interface - LED control */
 #define FUNC_LED_OFF	0x1
 #define FUNC_LED_ON	0x30001
@@ -182,7 +182,7 @@ static struct fujitsu_hotkey_t *fujitsu_hotkey;
 
 static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event);
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 static enum led_brightness logolamp_get(struct led_classdev *cdev);
 static void logolamp_set(struct led_classdev *cdev,
 			       enum led_brightness brightness);
@@ -261,7 +261,7 @@ static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 	return value;
 }
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 /* LED class callbacks */
 
 static void logolamp_set(struct led_classdev *cdev,
@@ -903,7 +903,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	/* Suspect this is a keymap of the application panel, print it */
 	pr_info("BTNI: [0x%x]\n", call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0));
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 	if (call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & LOGOLAMP_POWERON) {
 		result = led_classdev_register(&fujitsu->pf_device->dev,
 						&logolamp_led);
@@ -963,7 +963,7 @@ static int acpi_fujitsu_hotkey_remove(struct acpi_device *device)
 	struct fujitsu_hotkey_t *fujitsu_hotkey = acpi_driver_data(device);
 	struct input_dev *input = fujitsu_hotkey->input;
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 	if (fujitsu_hotkey->logolamp_registered)
 		led_classdev_unregister(&logolamp_led);
 
