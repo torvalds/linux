@@ -208,13 +208,6 @@
 #define __USER_CS			(GDT_ENTRY_DEFAULT_USER_CS*8 + 3)
 #define __PER_CPU_SEG			(GDT_ENTRY_PER_CPU*8 + 3)
 
-/* TLS indexes for 64-bit - hardcoded in arch_prctl(): */
-#define FS_TLS				0
-#define GS_TLS				1
-
-#define GS_TLS_SEL			((GDT_ENTRY_TLS_MIN+GS_TLS)*8 + 3)
-#define FS_TLS_SEL			((GDT_ENTRY_TLS_MIN+FS_TLS)*8 + 3)
-
 #endif
 
 #ifndef CONFIG_PARAVIRT

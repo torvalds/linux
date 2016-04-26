@@ -136,25 +136,6 @@ void release_thread(struct task_struct *dead_task)
 	}
 }
 
-static inline void set_32bit_tls(struct task_struct *t, int tls, u32 addr)
-{
-	struct user_desc ud = {
-		.base_addr = addr,
-		.limit = 0xfffff,
-		.seg_32bit = 1,
-		.limit_in_pages = 1,
-		.useable = 1,
-	};
-	struct desc_struct *desc = t->thread.tls_array;
-	desc += tls;
-	fill_ldt(desc, &ud);
-}
-
-static inline u32 read_32bit_tls(struct task_struct *t, int tls)
-{
-	return get_desc_base(&t->thread.tls_array[tls]);
-}
-
 int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
 		unsigned long arg, struct task_struct *p, unsigned long tls)
 {
@@ -554,25 +535,12 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		if (addr >= TASK_SIZE_OF(task))
 			return -EPERM;
 		cpu = get_cpu();
-		/* handle small bases via the GDT because that's faster to
-		   switch. */
-		if (addr <= 0xffffffff) {
-			set_32bit_tls(task, GS_TLS, addr);
-			if (doit) {
-				load_TLS(&task->thread, cpu);
-				load_gs_index(GS_TLS_SEL);
-			}
-			task->thread.gsindex = GS_TLS_SEL;
-			task->thread.gs = 0;
-		} else {
-			task->thread.gsindex = 0;
-			task->thread.gs = addr;
-			if (doit) {
-				load_gs_index(0);
-				ret = wrmsrl_safe(MSR_KERNEL_GS_BASE, addr);
-			}
+		task->thread.gsindex = 0;
+		task->thread.gs = addr;
+		if (doit) {
+			load_gs_index(0);
+			ret = wrmsrl_safe(MSR_KERNEL_GS_BASE, addr);
 		}
-		put_cpu();
 		break;
 	case ARCH_SET_FS:
 		/* Not strictly needed for fs, but do it for symmetry
@@ -580,25 +548,12 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		if (addr >= TASK_SIZE_OF(task))
 			return -EPERM;
 		cpu = get_cpu();
-		/* handle small bases via the GDT because that's faster to
-		   switch. */
-		if (addr <= 0xffffffff) {
-			set_32bit_tls(task, FS_TLS, addr);
-			if (doit) {
-				load_TLS(&task->thread, cpu);
-				loadsegment(fs, FS_TLS_SEL);
-			}
-			task->thread.fsindex = FS_TLS_SEL;
-			task->thread.fs = 0;
-		} else {
-			task->thread.fsindex = 0;
-			task->thread.fs = addr;
-			if (doit) {
-				/* set the selector to 0 to not confuse
-				   __switch_to */
-				loadsegment(fs, 0);
-				ret = wrmsrl_safe(MSR_FS_BASE, addr);
-			}
+		task->thread.fsindex = 0;
+		task->thread.fs = addr;
+		if (doit) {
+			/* set the selector to 0 to not confuse __switch_to */
+			loadsegment(fs, 0);
+			ret = wrmsrl_safe(MSR_FS_BASE, addr);
 		}
 		put_cpu();
 		break;
@@ -606,8 +561,6 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		unsigned long base;
 		if (doit)
 			rdmsrl(MSR_FS_BASE, base);
-		else if (task->thread.fsindex == FS_TLS_SEL)
-			base = read_32bit_tls(task, FS_TLS);
 		else
 			base = task->thread.fs;
 		ret = put_user(base, (unsigned long __user *)addr);
@@ -617,8 +570,6 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		unsigned long base;
 		if (doit)
 			rdmsrl(MSR_KERNEL_GS_BASE, base);
-		else if (task->thread.gsindex == GS_TLS_SEL)
-			base = read_32bit_tls(task, GS_TLS);
 		else
 			base = task->thread.gs;
 		ret = put_user(base, (unsigned long __user *)addr);
