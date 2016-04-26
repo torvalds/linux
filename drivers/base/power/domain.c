@@ -730,12 +730,6 @@ static int pm_genpd_prepare(struct device *dev)
 	 * at this point and a system wakeup event should be reported if it's
 	 * set up to wake up the system from sleep states.
 	 */
-	if (pm_runtime_barrier(dev) && device_may_wakeup(dev))
-		pm_wakeup_event(dev, 0);
-
-	if (pm_wakeup_pending())
-		return -EBUSY;
-
 	if (resume_needed(dev, genpd))
 		pm_runtime_resume(dev);
 
