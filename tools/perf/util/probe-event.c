@@ -486,8 +486,10 @@ static int get_text_start_address(const char *exec, unsigned long *address)
 		return -errno;
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
-	if (elf == NULL)
-		return -EINVAL;
+	if (elf == NULL) {
+		ret = -EINVAL;
+		goto out_close;
+	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL)
 		goto out;
@@ -499,6 +501,9 @@ static int get_text_start_address(const char *exec, unsigned long *address)
 	ret = 0;
 out:
 	elf_end(elf);
+out_close:
+	close(fd);
+
 	return ret;
 }
 
