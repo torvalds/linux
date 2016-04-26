@@ -377,6 +377,9 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 	size_t p_len;
 
+	if (!fs_info)
+		return -EPERM;
+
 	if (fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
 
