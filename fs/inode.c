@@ -1749,7 +1749,8 @@ EXPORT_SYMBOL(touch_atime);
  */
 int should_remove_suid(struct dentry *dentry)
 {
-	umode_t mode = d_inode(dentry)->i_mode;
+	struct inode *inode = d_inode(dentry);
+	umode_t mode = inode->i_mode;
 	int kill = 0;
 
 	/* suid always must be killed */
@@ -1763,7 +1764,8 @@ int should_remove_suid(struct dentry *dentry)
 	if (unlikely((mode & S_ISGID) && (mode & S_IXGRP)))
 		kill |= ATTR_KILL_SGID;
 
-	if (unlikely(kill && !capable(CAP_FSETID) && S_ISREG(mode)))
+	if (unlikely(kill && !capable_wrt_inode_uidgid(inode, CAP_FSETID) &&
+		     S_ISREG(mode)))
 		return kill;
 
 	return 0;
