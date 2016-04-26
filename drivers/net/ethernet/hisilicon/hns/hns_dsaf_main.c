@@ -7,27 +7,29 @@
  * (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
+#include <linux/device.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/platform_device.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/vmalloc.h>
 
-#include "hns_dsaf_main.h"
-#include "hns_dsaf_rcb.h"
-#include "hns_dsaf_ppe.h"
 #include "hns_dsaf_mac.h"
+#include "hns_dsaf_main.h"
+#include "hns_dsaf_ppe.h"
+#include "hns_dsaf_rcb.h"
 
 const char *g_dsaf_mode_match[DSAF_MODE_MAX] = {
 	[DSAF_MODE_DISABLE_2PORT_64VM] = "2port-64vf",
 	[DSAF_MODE_DISABLE_6PORT_0VM] = "6port-16rss",
 	[DSAF_MODE_DISABLE_6PORT_16VM] = "6port-16vf",
+	[DSAF_MODE_DISABLE_SP] = "single-port",
 };
 
 int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
@@ -35,8 +37,13 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 	int ret, i;
 	u32 desc_num;
 	u32 buf_size;
+	u32 reset_offset = 0;
+	u32 res_idx = 0;
 	const char *mode_str;
+	struct regmap *syscon;
+	struct resource *res;
 	struct device_node *np = dsaf_dev->dev->of_node;
+	struct platform_device *pdev = to_platform_device(dsaf_dev->dev);
 
 	if (of_device_is_compatible(np, "hisilicon,hns-dsaf-v1"))
 		dsaf_dev->dsaf_ver = AE_VERSION_1;
@@ -73,41 +80,67 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 	else
 		dsaf_dev->dsaf_tc_mode = HRD_DSAF_4TC_MODE;
 
-	dsaf_dev->sc_base = of_iomap(np, 0);
-	if (!dsaf_dev->sc_base) {
-		dev_err(dsaf_dev->dev,
-			"%s of_iomap 0 fail!\n", dsaf_dev->ae_dev.name);
-		ret = -ENOMEM;
-		goto unmap_base_addr;
+	syscon = syscon_node_to_regmap(
+			of_parse_phandle(np, "subctrl-syscon", 0));
+	if (IS_ERR_OR_NULL(syscon)) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, res_idx++);
+		if (!res) {
+			dev_err(dsaf_dev->dev, "subctrl info is needed!\n");
+			return -ENOMEM;
+		}
+		dsaf_dev->sc_base = devm_ioremap_resource(&pdev->dev, res);
+		if (!dsaf_dev->sc_base) {
+			dev_err(dsaf_dev->dev, "subctrl can not map!\n");
+			return -ENOMEM;
+		}
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, res_idx++);
+		if (!res) {
+			dev_err(dsaf_dev->dev, "serdes-ctrl info is needed!\n");
+			return -ENOMEM;
+		}
+		dsaf_dev->sds_base = devm_ioremap_resource(&pdev->dev, res);
+		if (!dsaf_dev->sds_base) {
+			dev_err(dsaf_dev->dev, "serdes-ctrl can not map!\n");
+			return -ENOMEM;
+		}
+	} else {
+		dsaf_dev->sub_ctrl = syscon;
 	}
 
-	dsaf_dev->sds_base = of_iomap(np, 1);
-	if (!dsaf_dev->sds_base) {
-		dev_err(dsaf_dev->dev,
-			"%s of_iomap 1 fail!\n", dsaf_dev->ae_dev.name);
-		ret = -ENOMEM;
-		goto unmap_base_addr;
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ppe-base");
+	if (!res) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, res_idx++);
+		if (!res) {
+			dev_err(dsaf_dev->dev, "ppe-base info is needed!\n");
+			return -ENOMEM;
+		}
 	}
-
-	dsaf_dev->ppe_base = of_iomap(np, 2);
+	dsaf_dev->ppe_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!dsaf_dev->ppe_base) {
-		dev_err(dsaf_dev->dev,
-			"%s of_iomap 2 fail!\n", dsaf_dev->ae_dev.name);
-		ret = -ENOMEM;
-		goto unmap_base_addr;
+		dev_err(dsaf_dev->dev, "ppe-base resource can not map!\n");
+		return -ENOMEM;
 	}
+	dsaf_dev->ppe_paddr = res->start;
 
-	dsaf_dev->io_base = of_iomap(np, 3);
-	if (!dsaf_dev->io_base) {
-		dev_err(dsaf_dev->dev,
-			"%s of_iomap 3 fail!\n", dsaf_dev->ae_dev.name);
-		ret = -ENOMEM;
-		goto unmap_base_addr;
+	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   "dsaf-base");
+		if (!res) {
+			res = platform_get_resource(pdev, IORESOURCE_MEM,
+						    res_idx);
+			if (!res) {
+				dev_err(dsaf_dev->dev,
+					"dsaf-base info is needed!\n");
+				return -ENOMEM;
+			}
+		}
+		dsaf_dev->io_base = devm_ioremap_resource(&pdev->dev, res);
+		if (!dsaf_dev->io_base) {
+			dev_err(dsaf_dev->dev, "dsaf-base resource can not map!\n");
+			return -ENOMEM;
+		}
 	}
-
-	dsaf_dev->cpld_base = of_iomap(np, 4);
-	if (!dsaf_dev->cpld_base)
-		dev_dbg(dsaf_dev->dev, "NO CPLD ADDR");
 
 	ret = of_property_read_u32(np, "desc-num", &desc_num);
 	if (ret < 0 || desc_num < HNS_DSAF_MIN_DESC_CNT ||
@@ -117,6 +150,13 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 		goto unmap_base_addr;
 	}
 	dsaf_dev->desc_num = desc_num;
+
+	ret = of_property_read_u32(np, "reset-field-offset", &reset_offset);
+	if (ret < 0) {
+		dev_dbg(dsaf_dev->dev,
+			"get reset-field-offset fail, ret=%d!\r\n", ret);
+	}
+	dsaf_dev->reset_offset = reset_offset;
 
 	ret = of_property_read_u32(np, "buf-size", &buf_size);
 	if (ret < 0) {
@@ -149,8 +189,6 @@ unmap_base_addr:
 		iounmap(dsaf_dev->sds_base);
 	if (dsaf_dev->sc_base)
 		iounmap(dsaf_dev->sc_base);
-	if (dsaf_dev->cpld_base)
-		iounmap(dsaf_dev->cpld_base);
 	return ret;
 }
 
@@ -167,9 +205,6 @@ static void hns_dsaf_free_cfg(struct dsaf_device *dsaf_dev)
 
 	if (dsaf_dev->sc_base)
 		iounmap(dsaf_dev->sc_base);
-
-	if (dsaf_dev->cpld_base)
-		iounmap(dsaf_dev->cpld_base);
 }
 
 /**
@@ -217,9 +252,7 @@ static void hns_dsaf_mix_def_qid_cfg(struct dsaf_device *dsaf_dev)
 	u32 q_id, q_num_per_port;
 	u32 i;
 
-	hns_rcb_get_queue_mode(dsaf_dev->dsaf_mode,
-			       HNS_DSAF_COMM_SERVICE_NW_IDX,
-			       &max_vfn, &max_q_per_vf);
+	hns_rcb_get_queue_mode(dsaf_dev->dsaf_mode, &max_vfn, &max_q_per_vf);
 	q_num_per_port = max_vfn * max_q_per_vf;
 
 	for (i = 0, q_id = 0; i < DSAF_SERVICE_NW_NUM; i++) {
@@ -239,9 +272,7 @@ static void hns_dsaf_inner_qid_cfg(struct dsaf_device *dsaf_dev)
 	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
 		return;
 
-	hns_rcb_get_queue_mode(dsaf_dev->dsaf_mode,
-			       HNS_DSAF_COMM_SERVICE_NW_IDX,
-			       &max_vfn, &max_q_per_vf);
+	hns_rcb_get_queue_mode(dsaf_dev->dsaf_mode, &max_vfn, &max_q_per_vf);
 	q_num_per_port = max_vfn * max_q_per_vf;
 
 	for (mac_id = 0, q_id = 0; mac_id < DSAF_SERVICE_NW_NUM; mac_id++) {
@@ -712,13 +743,15 @@ static void hns_dsaf_tbl_tcam_data_ucast_pul(
 
 void hns_dsaf_set_promisc_mode(struct dsaf_device *dsaf_dev, u32 en)
 {
-	dsaf_set_dev_bit(dsaf_dev, DSAF_CFG_0_REG, DSAF_CFG_MIX_MODE_S, !!en);
+	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
+		dsaf_set_dev_bit(dsaf_dev, DSAF_CFG_0_REG,
+				 DSAF_CFG_MIX_MODE_S, !!en);
 }
 
 void hns_dsaf_set_inner_lb(struct dsaf_device *dsaf_dev, u32 mac_id, u32 en)
 {
 	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
-	    dsaf_dev->mac_cb[mac_id].mac_type == HNAE_PORT_DEBUG)
+	    dsaf_dev->mac_cb[mac_id]->mac_type == HNAE_PORT_DEBUG)
 		return;
 
 	dsaf_set_dev_bit(dsaf_dev, DSAFV2_SERDES_LBK_0_REG + 4 * mac_id,
@@ -1306,6 +1339,9 @@ static int hns_dsaf_init(struct dsaf_device *dsaf_dev)
 	    (struct dsaf_drv_priv *)hns_dsaf_dev_priv(dsaf_dev);
 	u32 i;
 	int ret;
+
+	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return 0;
 
 	ret = hns_dsaf_init_hw(dsaf_dev);
 	if (ret)

@@ -10,25 +10,20 @@
 #ifndef _DSAF_REG_H_
 #define _DSAF_REG_H_
 
-#define HNS_DEBUG_RING_IRQ_IDX 55
-#define HNS_SERVICE_RING_IRQ_IDX 59
-#define HNS_DEBUG_RING_IRQ_OFFSET 2
-#define HNSV2_DEBUG_RING_IRQ_IDX 409
-#define HNSV2_SERVICE_RING_IRQ_IDX 25
-#define HNSV2_DEBUG_RING_IRQ_OFFSET 9
+#include <linux/regmap.h>
+#define HNS_DEBUG_RING_IRQ_IDX		0
+#define HNS_SERVICE_RING_IRQ_IDX	59
+#define HNSV2_SERVICE_RING_IRQ_IDX	25
 
-#define DSAF_MAX_PORT_NUM_PER_CHIP 8
-#define DSAF_SERVICE_PORT_NUM_PER_DSAF 6
-#define DSAF_MAX_VM_NUM 128
+#define DSAF_MAX_PORT_NUM	6
+#define DSAF_MAX_VM_NUM		128
 
-#define DSAF_COMM_DEV_NUM 3
-#define DSAF_PPE_INODE_BASE 6
-#define HNS_DSAF_COMM_SERVICE_NW_IDX 0
+#define DSAF_COMM_DEV_NUM	1
+#define DSAF_PPE_INODE_BASE	6
 #define DSAF_DEBUG_NW_NUM	2
 #define DSAF_SERVICE_NW_NUM	6
 #define DSAF_COMM_CHN		DSAF_SERVICE_NW_NUM
 #define DSAF_GE_NUM		((DSAF_SERVICE_NW_NUM) + (DSAF_DEBUG_NW_NUM))
-#define DSAF_PORT_NUM		((DSAF_SERVICE_NW_NUM) + (DSAF_DEBUG_NW_NUM))
 #define DSAF_XGE_NUM		DSAF_SERVICE_NW_NUM
 #define DSAF_PORT_TYPE_NUM 3
 #define DSAF_NODE_NUM		18
@@ -992,6 +987,19 @@ static inline u32 dsaf_read_reg(u8 __iomem *base, u32 reg)
 	u8 __iomem *reg_addr = ACCESS_ONCE(base);
 
 	return readl(reg_addr + reg);
+}
+
+static inline void dsaf_write_syscon(struct regmap *base, u32 reg, u32 value)
+{
+	regmap_write(base, reg, value);
+}
+
+static inline u32 dsaf_read_syscon(struct regmap *base, u32 reg)
+{
+	unsigned int val;
+
+	regmap_read(base, reg, &val);
+	return val;
 }
 
 #define dsaf_read_dev(a, reg) \
