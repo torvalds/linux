@@ -220,8 +220,7 @@ int probe_file__add_event(int fd, struct probe_trace_event *tev)
 
 	pr_debug("Writing event: %s\n", buf);
 	if (!probe_event_dry_run) {
-		ret = write(fd, buf, strlen(buf));
-		if (ret <= 0) {
+		if (write(fd, buf, strlen(buf)) < (int)strlen(buf)) {
 			ret = -errno;
 			pr_warning("Failed to write event: %s\n",
 				   strerror_r(errno, sbuf, sizeof(sbuf)));
