@@ -381,34 +381,7 @@ static void drm_events_release(struct drm_file *file_priv)
  */
 static void drm_legacy_dev_reinit(struct drm_device *dev)
 {
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return;
-
-	dev->sigdata.lock = NULL;
-
-	dev->context_flag = 0;
-	dev->last_context = 0;
-	dev->if_version = 0;
-}
-
-/*
- * Take down the DRM device.
- *
- * \param dev DRM device structure.
- *
- * Frees every resource in \p dev.
- *
- * \sa drm_device
- */
-int drm_lastclose(struct drm_device * dev)
-{
-	DRM_DEBUG("\n");
-
-	if (dev->driver->lastclose)
-		dev->driver->lastclose(dev);
-	DRM_DEBUG("driver lastclose completed\n");
-
-	if (dev->irq_enabled && !drm_core_check_feature(dev, DRIVER_MODESET))
+	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
 	mutex_lock(&dev->struct_mutex);
@@ -421,10 +394,34 @@ int drm_lastclose(struct drm_device * dev)
 
 	mutex_unlock(&dev->struct_mutex);
 
-	drm_legacy_dev_reinit(dev);
+	dev->sigdata.lock = NULL;
+
+	dev->context_flag = 0;
+	dev->last_context = 0;
+	dev->if_version = 0;
 
 	DRM_DEBUG("lastclose completed\n");
-	return 0;
+}
+
+/*
+ * Take down the DRM device.
+ *
+ * \param dev DRM device structure.
+ *
+ * Frees every resource in \p dev.
+ *
+ * \sa drm_device
+ */
+void drm_lastclose(struct drm_device * dev)
+{
+	DRM_DEBUG("\n");
+
+	if (dev->driver->lastclose)
+		dev->driver->lastclose(dev);
+	DRM_DEBUG("driver lastclose completed\n");
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		drm_legacy_dev_reinit(dev);
 }
 
 /**
@@ -445,7 +442,6 @@ int drm_release(struct inode *inode, struct file *filp)
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_minor *minor = file_priv->minor;
 	struct drm_device *dev = minor->dev;
-	int retcode = 0;
 
 	mutex_lock(&drm_global_mutex);
 
@@ -538,7 +534,7 @@ int drm_release(struct inode *inode, struct file *filp)
 	 */
 
 	if (!--dev->open_count) {
-		retcode = drm_lastclose(dev);
+		drm_lastclose(dev);
 		if (drm_device_is_unplugged(dev))
 			drm_put_dev(dev);
 	}
@@ -546,7 +542,7 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	drm_minor_release(minor);
 
-	return retcode;
+	return 0;
 }
 EXPORT_SYMBOL(drm_release);
 
