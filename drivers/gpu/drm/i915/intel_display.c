@@ -5329,18 +5329,13 @@ static void intel_update_cdclk(struct drm_device *dev)
 			 dev_priv->cdclk_freq);
 
 	/*
-	 * Program the gmbus_freq based on the cdclk frequency.
-	 * BSpec erroneously claims we should aim for 4MHz, but
-	 * in fact 1MHz is the correct frequency.
+	 * 9:0 CMBUS [sic] CDCLK frequency (cdfreq):
+	 * Programmng [sic] note: bit[9:2] should be programmed to the number
+	 * of cdclk that generates 4MHz reference clock freq which is used to
+	 * generate GMBus clock. This will vary with the cdclk freq.
 	 */
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
-		/*
-		 * Program the gmbus_freq based on the cdclk frequency.
-		 * BSpec erroneously claims we should aim for 4MHz, but
-		 * in fact 1MHz is the correct frequency.
-		 */
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		I915_WRITE(GMBUSFREQ_VLV, DIV_ROUND_UP(dev_priv->cdclk_freq, 1000));
-	}
 
 	if (dev_priv->max_cdclk_freq == 0)
 		intel_update_max_cdclk(dev);
