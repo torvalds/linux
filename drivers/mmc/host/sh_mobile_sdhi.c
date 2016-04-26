@@ -238,11 +238,7 @@ static int sh_mobile_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 	if (ret)
 		return ret;
 
-	ret = pinctrl_select_state(priv->pinctrl, pin_state);
-	if (ret)
-		return ret;
-
-	return 0;
+	return pinctrl_select_state(priv->pinctrl, pin_state);
 }
 
 static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
