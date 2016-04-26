@@ -319,17 +319,15 @@ static int ve_spc_waitforcompletion(int req_type)
 
 static int ve_spc_set_performance(int cluster, u32 freq)
 {
-	u32 perf_cfg_reg, perf_stat_reg;
+	u32 perf_cfg_reg;
 	int ret, perf, req_type;
 
 	if (cluster_is_a15(cluster)) {
 		req_type = CA15_DVFS;
 		perf_cfg_reg = PERF_LVL_A15;
-		perf_stat_reg = PERF_REQ_A15;
 	} else {
 		req_type = CA7_DVFS;
 		perf_cfg_reg = PERF_LVL_A7;
-		perf_stat_reg = PERF_REQ_A7;
 	}
 
 	perf = ve_spc_find_performance_index(cluster, freq);
