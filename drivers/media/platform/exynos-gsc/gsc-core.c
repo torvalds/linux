@@ -1063,13 +1063,17 @@ static int gsc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct gsc_driverdata *drv_data = gsc_get_drv_data(pdev);
 	struct device *dev = &pdev->dev;
-	int ret = 0;
+	int ret;
 
 	gsc = devm_kzalloc(dev, sizeof(struct gsc_dev), GFP_KERNEL);
 	if (!gsc)
 		return -ENOMEM;
 
-	gsc->id = of_alias_get_id(pdev->dev.of_node, "gsc");
+	ret = of_alias_get_id(pdev->dev.of_node, "gsc");
+	if (ret < 0)
+		return ret;
+
+	gsc->id = ret;
 	if (gsc->id >= drv_data->num_entities) {
 		dev_err(dev, "Invalid platform device id: %d\n", gsc->id);
 		return -EINVAL;
