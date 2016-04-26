@@ -91,7 +91,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION);
 	if (dev->max_fib_size != sizeof(struct hw_fib))
 		init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4);
-	init->Sa_MSIXVectors = cpu_to_le32(Sa_MINIPORT_REVISION);
+	init->Sa_MSIXVectors = cpu_to_le32(SA_INIT_NUM_MSIXVECTORS);
 	init->fsrev = cpu_to_le32(dev->fsrev);
 
 	/*

@@ -720,7 +720,7 @@ struct sa_registers {
 };
 
 
-#define Sa_MINIPORT_REVISION			1
+#define SA_INIT_NUM_MSIXVECTORS		1
 
 #define sa_readw(AEP, CSR)		readl(&((AEP)->regs.sa->CSR))
 #define sa_readl(AEP, CSR)		readl(&((AEP)->regs.sa->CSR))
