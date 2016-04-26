@@ -1134,6 +1134,11 @@ static int sata_dwc_hardreset(struct ata_link *link, unsigned int *class,
 	return ret;
 }
 
+static void sata_dwc_dev_select(struct ata_port *ap, unsigned int device)
+{
+	/* SATA DWC is master only */
+}
+
 /*
  * scsi mid-layer and libata interface structures
  */
@@ -1163,6 +1168,8 @@ static struct ata_port_operations sata_dwc_ops = {
 
 	.port_start		= sata_dwc_port_start,
 	.port_stop		= sata_dwc_port_stop,
+
+	.sff_dev_select		= sata_dwc_dev_select,
 
 	.bmdma_setup		= sata_dwc_bmdma_setup,
 	.bmdma_start		= sata_dwc_bmdma_start,
