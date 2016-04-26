@@ -1230,22 +1230,22 @@
 				#size-cells = <0>;
 				reg = <2>;
 
-				ipu1_di0_disp0: endpoint@0 {
+				ipu1_di0_disp0: disp0-endpoint {
 				};
 
-				ipu1_di0_hdmi: endpoint@1 {
+				ipu1_di0_hdmi: hdmi-endpoint {
 					remote-endpoint = <&hdmi_mux_0>;
 				};
 
-				ipu1_di0_mipi: endpoint@2 {
+				ipu1_di0_mipi: mipi-endpoint {
 					remote-endpoint = <&mipi_mux_0>;
 				};
 
-				ipu1_di0_lvds0: endpoint@3 {
+				ipu1_di0_lvds0: lvds0-endpoint {
 					remote-endpoint = <&lvds0_mux_0>;
 				};
 
-				ipu1_di0_lvds1: endpoint@4 {
+				ipu1_di0_lvds1: lvds1-endpoint {
 					remote-endpoint = <&lvds1_mux_0>;
 				};
 			};
@@ -1255,22 +1255,22 @@
 				#size-cells = <0>;
 				reg = <3>;
 
-				ipu1_di0_disp1: endpoint@0 {
+				ipu1_di0_disp1: disp1-endpoint {
 				};
 
-				ipu1_di1_hdmi: endpoint@1 {
+				ipu1_di1_hdmi: hdmi-endpoint {
 					remote-endpoint = <&hdmi_mux_1>;
 				};
 
-				ipu1_di1_mipi: endpoint@2 {
+				ipu1_di1_mipi: mipi-endpoint {
 					remote-endpoint = <&mipi_mux_1>;
 				};
 
-				ipu1_di1_lvds0: endpoint@3 {
+				ipu1_di1_lvds0: lvds0-endpoint {
 					remote-endpoint = <&lvds0_mux_1>;
 				};
 
-				ipu1_di1_lvds1: endpoint@4 {
+				ipu1_di1_lvds1: lvds1-endpoint {
 					remote-endpoint = <&lvds1_mux_1>;
 				};
 			};
