@@ -670,24 +670,11 @@ ap_i2c_audio: &i2c8 {
 };
 
 &sdhci {
-	status = "okay";
-
-	// HACK: supports-emmc is not mainline.
-	supports-emmc;
-
-	// HACK: limit to 50MHz to avoid tuning during bringup.
-	max-frequency = <50000000>;
-
-	// TODO: add caps?
-	//cap-mmc-highspeed;
-	//mmc-hs200-1_8v;
-	//mmc-hs400-1_8v;
-
 	bus-width = <8>;
+	mmc-hs400-1_8v;
+	supports-emmc;
 	non-removable;
-
-	vmmc-supply = <&pp3000>;
-	vqmmc-supply = <&pp1800_emmc>;
+	status = "okay";
 };
 
 &sdmmc {
