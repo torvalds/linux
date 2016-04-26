@@ -168,6 +168,7 @@ struct RGF_ICR {
 #define RGF_DMA_EP_MISC_ICR		(0x881bec) /* struct RGF_ICR */
 	#define BIT_DMA_EP_MISC_ICR_RX_HTRSH	BIT(0)
 	#define BIT_DMA_EP_MISC_ICR_TX_NO_ACT	BIT(1)
+	#define BIT_DMA_EP_MISC_ICR_HALP	BIT(27)
 	#define BIT_DMA_EP_MISC_ICR_FW_INT(n)	BIT(28+n) /* n = [0..3] */
 
 /* Legacy interrupt moderation control (before Sparrow v2)*/
@@ -534,6 +535,17 @@ struct pmc_ctx {
 	int			descriptor_size;
 };
 
+struct wil_halp {
+	struct mutex		lock; /* protect halp ref_cnt */
+	unsigned int		ref_cnt;
+	struct completion	comp;
+};
+
+struct wil_blob_wrapper {
+	struct wil6210_priv *wil;
+	struct debugfs_blob_wrapper blob;
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	struct wireless_dev *wdev;
@@ -606,7 +618,7 @@ struct wil6210_priv {
 	atomic_t isr_count_rx, isr_count_tx;
 	/* debugfs */
 	struct dentry *debug;
-	struct debugfs_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
+	struct wil_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
 	u8 discovery_mode;
 
 	void *platform_handle;
@@ -622,6 +634,10 @@ struct wil6210_priv {
 	struct wireless_dev *p2p_wdev;
 	struct mutex p2p_wdev_mutex; /* protect @p2p_wdev */
 	struct wireless_dev *radio_wdev;
+
+	/* High Access Latency Policy voting */
+	struct wil_halp halp;
+
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
@@ -713,6 +729,12 @@ void wil_memcpy_fromio_32(void *dst, const volatile void __iomem *src,
 			  size_t count);
 void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 			size_t count);
+void wil_memcpy_fromio_halp_vote(struct wil6210_priv *wil, void *dst,
+				 const volatile void __iomem *src,
+				 size_t count);
+void wil_memcpy_toio_halp_vote(struct wil6210_priv *wil,
+			       volatile void __iomem *dst,
+			       const void *src, size_t count);
 
 void *wil_if_alloc(struct device *dev);
 void wil_if_free(struct wil6210_priv *wil);
@@ -848,5 +870,10 @@ int wil_resume(struct wil6210_priv *wil, bool is_runtime);
 
 int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size);
 void wil_fw_core_dump(struct wil6210_priv *wil);
+
+void wil_halp_vote(struct wil6210_priv *wil);
+void wil_halp_unvote(struct wil6210_priv *wil);
+void wil6210_set_halp(struct wil6210_priv *wil);
+void wil6210_clear_halp(struct wil6210_priv *wil);
 
 #endif /* __WIL6210_H__ */

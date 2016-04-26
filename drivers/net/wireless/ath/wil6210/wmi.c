@@ -194,6 +194,7 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	void __iomem *dst;
 	void __iomem *head = wmi_addr(wil, r->head);
 	uint retry;
+	int rc = 0;
 
 	if (sizeof(cmd) + len > r->entry_size) {
 		wil_err(wil, "WMI size too large: %d bytes, max is %d\n",
@@ -212,6 +213,9 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 		wil_err(wil, "WMI head is garbage: 0x%08x\n", r->head);
 		return -EINVAL;
 	}
+
+	wil_halp_vote(wil);
+
 	/* read Tx head till it is not busy */
 	for (retry = 5; retry > 0; retry--) {
 		wil_memcpy_fromio_32(&d_head, head, sizeof(d_head));
@@ -221,7 +225,8 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	}
 	if (d_head.sync != 0) {
 		wil_err(wil, "WMI head busy\n");
-		return -EBUSY;
+		rc = -EBUSY;
+		goto out;
 	}
 	/* next head */
 	next_head = r->base + ((r->head - r->base + sizeof(d_head)) % r->size);
@@ -230,7 +235,8 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	for (retry = 5; retry > 0; retry--) {
 		if (!test_bit(wil_status_fwready, wil->status)) {
 			wil_err(wil, "WMI: cannot send command while FW not ready\n");
-			return -EAGAIN;
+			rc = -EAGAIN;
+			goto out;
 		}
 		r->tail = wil_r(wil, RGF_MBOX +
 				offsetof(struct wil6210_mbox_ctl, tx.tail));
@@ -240,13 +246,15 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	}
 	if (next_head == r->tail) {
 		wil_err(wil, "WMI ring full\n");
-		return -EBUSY;
+		rc = -EBUSY;
+		goto out;
 	}
 	dst = wmi_buffer(wil, d_head.addr);
 	if (!dst) {
 		wil_err(wil, "invalid WMI buffer: 0x%08x\n",
 			le32_to_cpu(d_head.addr));
-		return -EINVAL;
+		rc = -EAGAIN;
+		goto out;
 	}
 	cmd.hdr.seq = cpu_to_le16(++wil->wmi_seq);
 	/* set command */
@@ -269,7 +277,9 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	wil_w(wil, RGF_USER_USER_ICR + offsetof(struct RGF_ICR, ICS),
 	      SW_INT_MBOX);
 
-	return 0;
+out:
+	wil_halp_unvote(wil);
+	return rc;
 }
 
 int wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
