@@ -50,6 +50,7 @@
 
 / {
 	compatible = "rockchip,rk3399";
+
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -314,7 +315,8 @@
 	};
 
 	sdio0: dwmmc@fe310000 {
-		compatible = "rockchip,rk3399-dw-mshc", "rockchip,rk3288-dw-mshc";
+		compatible = "rockchip,rk3399-dw-mshc",
+			     "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xfe310000 0x0 0x4000>;
 		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
 		clock-freq-min-max = <400000 150000000>;
@@ -326,7 +328,8 @@
 	};
 
 	sdmmc: dwmmc@fe320000 {
-		compatible = "rockchip,rk3399-dw-mshc", "rockchip,rk3288-dw-mshc";
+		compatible = "rockchip,rk3399-dw-mshc",
+			     "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xfe320000 0x0 0x4000>;
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 		clock-freq-min-max = <400000 150000000>;
@@ -338,7 +341,7 @@
 	};
 
 	sdhci: sdhci@fe330000 {
-		compatible = "arasan,sdhci-5.1";
+		compatible = "rockchip,rk3399-sdhci-5.1", "arasan,sdhci-5.1";
 		reg = <0x0 0xfe330000 0x0 0x10000>;
 		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_EMMC>, <&cru ACLK_EMMC>;
@@ -370,7 +373,7 @@
 		};
 	};
 
-	usb_host0_echi: usb@fe380000 {
+	usb_host0_ehci: usb@fe380000 {
 		compatible = "generic-ehci";
 		reg = <0x0 0xfe380000 0x0 0x20000>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
@@ -390,7 +393,7 @@
 		status = "disabled";
 	};
 
-	usb_host1_echi: usb@fe3c0000 {
+	usb_host1_ehci: usb@fe3c0000 {
 		compatible = "generic-ehci";
 		reg = <0x0 0xfe3c0000 0x0 0x20000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
@@ -592,8 +595,8 @@
 		interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-                pinctrl-names = "default";
-                pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
 		status = "disabled";
 	};
 
@@ -605,8 +608,8 @@
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-                pinctrl-names = "default";
-                pinctrl-0 = <&uart1_xfer>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart1_xfer>;
 		status = "disabled";
 	};
 
@@ -618,8 +621,8 @@
 		interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-                pinctrl-names = "default";
-                pinctrl-0 = <&uart2c_xfer>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2c_xfer>;
 		status = "disabled";
 	};
 
@@ -631,8 +634,8 @@
 		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-                pinctrl-names = "default";
-                pinctrl-0 = <&uart3_xfer &uart3_cts &uart3_rts>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart3_xfer &uart3_cts &uart3_rts>;
 		status = "disabled";
 	};
 
@@ -790,7 +793,7 @@
 		status = "disabled";
 	};
 
-	pmu: power-management@ff31000 {
+	pmu: power-management@ff310000 {
 		compatible = "rockchip,rk3399-pmu", "syscon", "simple-mfd";
 		reg = <0x0 0xff310000 0x0 0x1000>;
 
@@ -1008,12 +1011,11 @@
 		reg = <0x0 0xff770000 0x0 0x10000>;
 	};
 
-	wdt0: watchdog@ff840000 {
+	watchdog@ff840000 {
 		compatible = "snps,dw-wdt";
 		reg = <0x0 0xff840000 0x0 0x100>;
 		clocks = <&cru PCLK_WDT>;
 		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 	};
 
 	spdif: spdif@ff870000 {

@@ -810,7 +810,7 @@ ap_i2c_audio: &i2c8 {
 	status = "okay";
 };
 
-&usb_host0_echi {
+&usb_host0_ehci {
 	status = "okay";
 };
 
@@ -818,7 +818,7 @@ ap_i2c_audio: &i2c8 {
 	status = "okay";
 };
 
-&usb_host1_echi {
+&usb_host1_ehci {
 	status = "okay";
 };
 

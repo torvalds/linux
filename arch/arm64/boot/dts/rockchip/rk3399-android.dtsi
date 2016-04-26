@@ -43,6 +43,103 @@
 #include <dt-bindings/display/mipi_dsi.h>
 
 / {
+	compatible = "rockchip,android", "rockchip,rk3399";
+
+	chosen {
+		bootargs = "console=uart,mmio32,0xff1a0000";
+	};
+
+	ramoops_mem: ramoops_mem {
+		reg = <0x0 0x100000 0x0 0x100000>;
+		reg-names = "ramoops_mem";
+	};
+
+	ramoops {
+		compatible = "ramoops";
+		record-size = <0x0 0x20000>;
+		console-size = <0x0 0x80000>;
+		ftrace-size = <0x0 0x10000>;
+		pmsg-size = <0x0 0x50000>;
+		memory-region = <&ramoops_mem>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x8000000>;
+			linux,cma-default;
+		};
+	};
+
+	ion {
+		compatible = "rockchip,ion";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cma-heap {
+			reg = <0x00000000 0x02000000>;
+		};
+
+		system-heap {
+		};
+	};
+
+	rk_key: rockchip-key {
+		compatible = "rockchip,key";
+		status = "okay";
+
+		io-channels = <&saradc 1>;
+
+		vol-up-key {
+			linux,code = <115>;
+			label = "volume up";
+			rockchip,adc_value = <1>;
+		};
+
+		vol-down-key {
+			linux,code = <114>;
+			label = "volume down";
+			rockchip,adc_value = <170>;
+		};
+
+		power-key {
+			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+			linux,code = <116>;
+			label = "power";
+			gpio-key,wakeup;
+		};
+
+		menu-key {
+			linux,code = <59>;
+			label = "menu";
+			rockchip,adc_value = <746>;
+		};
+
+		home-key {
+			linux,code = <102>;
+			label = "home";
+			rockchip,adc_value = <355>;
+		};
+
+		back-key {
+			linux,code = <158>;
+			label = "back";
+			rockchip,adc_value = <560>;
+		};
+
+		camera-key {
+			linux,code = <212>;
+			label = "camera";
+			rockchip,adc_value = <450>;
+		};
+	};
+
 	vpu: vpu_service@ff650000 {
 		compatible = "rockchip,vpu_service";
 		rockchip,grf = <&grf>;
@@ -57,7 +154,6 @@
 		reset-names = "video_h", "video_a";
 		name = "vpu_service";
 		dev_mode = <0>;
-		status = "disabled";
 	};
 
 	vpu_mmu: vpu_mmu {
@@ -66,7 +162,6 @@
 		reg = <0x0 0xff650800 0x0 0x40>;
 		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vpu_mmu";
-		status = "disabled";
 	};
 
 	rkvdec: rkvdec@ff660000 {
@@ -82,7 +177,6 @@
 		reset-names = "video_h", "video_a";
 		dev_mode = <2>;
 		name = "rkvdec";
-		status = "disabled";
 	};
 
 	vdec_mmu: vdec_mmu {
@@ -92,7 +186,6 @@
 		      <0x0 0xff6604c0 0x0 0x40>;
 		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vdec_mmu";
-		status = "disabled";
 	};
 
 	iep: iep@ff670000 {
@@ -103,7 +196,6 @@
 		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
 		clock-names = "aclk_iep", "hclk_iep";
 		version = <2>;
-		status = "disabled";
 	};
 
 	iep_mmu: iep-mmu {
@@ -112,7 +204,6 @@
 		reg = <0x0 0xff670800 0x0 0x40>;
 		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "iep_mmu";
-		status = "disabled";
 	};
 
 	rga: rga@ff680000 {
@@ -122,22 +213,19 @@
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA_CORE>;
 		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
-		status = "disabled";
 	};
 
 	fb: fb {
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <DUAL>;
-		status = "disabled";
 	};
 
 	rk_screen: screen {
 		compatible = "rockchip,screen";
-		status = "disabled";
+		#include <dt-bindings/display/screen-timing/lcd-tv080wum-nl0-mipi.dtsi>
 	};
 
 	vopb_rk_fb: vop-rk-fb@ff900000 {
-		status = "disabled";
 		compatible = "rockchip,rk3399-lcdc";
 		rockchip,prop = <PRMRY>;
 		reg = <0x0 0xff900000 0x0 0x3efc>;
@@ -178,7 +266,6 @@
 		reg = <0x0 0xff903f00 0x0 0x100>;
 		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vopb_mmu";
-		status = "okay";
 	};
 
 	vopl_rk_fb: vop-rk-fb@ff8f0000 {
@@ -193,7 +280,6 @@
 		rockchip,grf = <&grf>;
 		rockchip,pwr18 = <0>;
 		rockchip,iommu-enabled = <1>;
-		status = "disabled";
 	};
 
 	vopl_mmu_rk_fb: vopl-mmu {
@@ -202,7 +288,6 @@
 		reg = <0x0 0xff8f3f00 0x0 0x100>;
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vopl_mmu";
-		status = "okay";
 	};
 
 	hdmi_rk_fb: hdmi-rk-fb@ff940000 {
@@ -219,7 +304,6 @@
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPIDPHY_REF>, <&cru PCLK_MIPI_DSI0>, <&cru SCLK_MIPIDPHY_CFG>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "mipi_dphy_cfg";
-		status = "disabled";
 	};
 
 	mipi1_rk_fb: mipi-rk-fb@ff968000 {
@@ -229,6 +313,5 @@
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPIDPHY_REF>, <&cru PCLK_MIPI_DSI1>, <&cru SCLK_MIPIDPHY_CFG>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "mipi_dphy_cfg";
-		status = "disabled";
 	};
 };

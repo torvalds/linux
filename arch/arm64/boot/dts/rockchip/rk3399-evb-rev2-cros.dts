@@ -41,14 +41,12 @@
  */
 
 /dts-v1/;
-#include "rk3399-evb.dtsi"
+
+#include "rk3399-evb-rev2.dtsi"
 
 / {
-	model = "Rockchip RK3399 Evaluation Board v1 (Chrome OS)";
-	compatible = "google,rk3399evb-rev1", "rockchip,chrome", "rockchip,evb1", "rockchip,rk3399";
-
-	/delete-node/ vdd-log;
-	/delete-node/ vdd-center;
+	model = "Rockchip RK3399 Evaluation Board v2 (Chrome OS)";
+	compatible = "google,rk3399evb-rev2", "rockchip,rk3399-evb-rev2", "rockchip,rk3399";
 
 	edp_panel: edp-panel {
 		compatible = "lg,lp097qx1-spa1", "panel-simple";
@@ -74,7 +72,7 @@
 };
 
 &edp {
-	status = "disabled";
+	status = "okay";
 
 	ports {
 		edp_out: port@1 {
