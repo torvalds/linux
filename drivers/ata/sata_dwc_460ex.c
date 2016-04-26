@@ -1219,7 +1219,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	struct sata_dwc_device *hsdev;
 	u32 idr, versionr;
 	char *ver = (char *)&versionr;
-	u8 __iomem *base;
+	void __iomem *base;
 	int err = 0;
 	int irq;
 	struct ata_host *host;
@@ -1246,7 +1246,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	dev_dbg(&ofdev->dev, "ioremap done for SATA register address\n");
 
 	/* Synopsys DWC SATA specific Registers */
-	hsdev->sata_dwc_regs = (void *__iomem)(base + SATA_DWC_REG_OFFSET);
+	hsdev->sata_dwc_regs = base + SATA_DWC_REG_OFFSET;
 
 	/* Setup port */
 	host->ports[0]->ioaddr.cmd_addr = base;
