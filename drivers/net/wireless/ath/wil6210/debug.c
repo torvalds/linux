@@ -17,7 +17,7 @@
 #include "wil6210.h"
 #include "trace.h"
 
-void wil_err(struct wil6210_priv *wil, const char *fmt, ...)
+void __wil_err(struct wil6210_priv *wil, const char *fmt, ...)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct va_format vaf = {
@@ -32,7 +32,7 @@ void wil_err(struct wil6210_priv *wil, const char *fmt, ...)
 	va_end(args);
 }
 
-void wil_err_ratelimited(struct wil6210_priv *wil, const char *fmt, ...)
+void __wil_err_ratelimited(struct wil6210_priv *wil, const char *fmt, ...)
 {
 	if (net_ratelimit()) {
 		struct net_device *ndev = wil_to_ndev(wil);
@@ -49,7 +49,7 @@ void wil_err_ratelimited(struct wil6210_priv *wil, const char *fmt, ...)
 	}
 }
 
-void wil_info(struct wil6210_priv *wil, const char *fmt, ...)
+void __wil_info(struct wil6210_priv *wil, const char *fmt, ...)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct va_format vaf = {
