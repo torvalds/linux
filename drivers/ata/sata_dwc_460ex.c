@@ -844,26 +844,26 @@ static void sata_dwc_enable_interrupts(struct sata_dwc_device *hsdev)
 		in_le32(&hsdev->sata_dwc_regs->errmr));
 }
 
-static void sata_dwc_setup_port(struct ata_ioports *port, unsigned long base)
+static void sata_dwc_setup_port(struct ata_ioports *port, void __iomem *base)
 {
-	port->cmd_addr = (void __iomem *)base + 0x00;
-	port->data_addr = (void __iomem *)base + 0x00;
+	port->cmd_addr		= base + 0x00;
+	port->data_addr		= base + 0x00;
 
-	port->error_addr = (void __iomem *)base + 0x04;
-	port->feature_addr = (void __iomem *)base + 0x04;
+	port->error_addr	= base + 0x04;
+	port->feature_addr	= base + 0x04;
 
-	port->nsect_addr = (void __iomem *)base + 0x08;
+	port->nsect_addr	= base + 0x08;
 
-	port->lbal_addr = (void __iomem *)base + 0x0c;
-	port->lbam_addr = (void __iomem *)base + 0x10;
-	port->lbah_addr = (void __iomem *)base + 0x14;
+	port->lbal_addr		= base + 0x0c;
+	port->lbam_addr		= base + 0x10;
+	port->lbah_addr		= base + 0x14;
 
-	port->device_addr = (void __iomem *)base + 0x18;
-	port->command_addr = (void __iomem *)base + 0x1c;
-	port->status_addr = (void __iomem *)base + 0x1c;
+	port->device_addr	= base + 0x18;
+	port->command_addr	= base + 0x1c;
+	port->status_addr	= base + 0x1c;
 
-	port->altstatus_addr = (void __iomem *)base + 0x20;
-	port->ctl_addr = (void __iomem *)base + 0x20;
+	port->altstatus_addr	= base + 0x20;
+	port->ctl_addr		= base + 0x20;
 }
 
 static int sata_dwc_dma_get_channel(struct sata_dwc_device_port *hsdevp)
@@ -1251,7 +1251,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	/* Setup port */
 	host->ports[0]->ioaddr.cmd_addr = base;
 	host->ports[0]->ioaddr.scr_addr = base + SATA_DWC_SCR_OFFSET;
-	sata_dwc_setup_port(&host->ports[0]->ioaddr, (unsigned long)base);
+	sata_dwc_setup_port(&host->ports[0]->ioaddr, base);
 
 	/* Read the ID and Version Registers */
 	idr = in_le32(&hsdev->sata_dwc_regs->idr);
