@@ -265,6 +265,65 @@ static bool kprobe_warn_out_range(const char *symbol, unsigned long address)
 	return true;
 }
 
+/*
+ * NOTE:
+ * '.gnu.linkonce.this_module' section of kernel module elf directly
+ * maps to 'struct module' from linux/module.h. This section contains
+ * actual module name which will be used by kernel after loading it.
+ * But, we cannot use 'struct module' here since linux/module.h is not
+ * exposed to user-space. Offset of 'name' has remained same from long
+ * time, so hardcoding it here.
+ */
+#ifdef __LP64__
+#define MOD_NAME_OFFSET 24
+#else
+#define MOD_NAME_OFFSET 12
+#endif
+
+/*
+ * @module can be module name of module file path. In case of path,
+ * inspect elf and find out what is actual module name.
+ * Caller has to free mod_name after using it.
+ */
+static char *find_module_name(const char *module)
+{
+	int fd;
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	Elf_Data *data;
+	Elf_Scn *sec;
+	char *mod_name = NULL;
+
+	fd = open(module, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (elf == NULL)
+		goto elf_err;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		goto ret_err;
+
+	sec = elf_section_by_name(elf, &ehdr, &shdr,
+			".gnu.linkonce.this_module", NULL);
+	if (!sec)
+		goto ret_err;
+
+	data = elf_getdata(sec, NULL);
+	if (!data || !data->d_buf)
+		goto ret_err;
+
+	mod_name = strdup((char *)data->d_buf + MOD_NAME_OFFSET);
+
+ret_err:
+	elf_end(elf);
+elf_err:
+	close(fd);
+	return mod_name;
+}
+
 #ifdef HAVE_DWARF_SUPPORT
 
 static int kernel_get_module_dso(const char *module, struct dso **pdso)
@@ -2512,6 +2571,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	struct probe_trace_point *tp;
 	int num_matched_functions;
 	int ret, i, j, skipped = 0;
+	char *mod_name;
 
 	map = get_target_map(pev->target, pev->uprobes);
 	if (!map) {
@@ -2596,9 +2656,19 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 		tp->realname = strdup_or_goto(sym->name, nomem_out);
 
 		tp->retprobe = pp->retprobe;
-		if (pev->target)
-			tev->point.module = strdup_or_goto(pev->target,
-							   nomem_out);
+		if (pev->target) {
+			if (pev->uprobes) {
+				tev->point.module = strdup_or_goto(pev->target,
+								   nomem_out);
+			} else {
+				mod_name = find_module_name(pev->target);
+				tev->point.module =
+					strdup(mod_name ? mod_name : pev->target);
+				free(mod_name);
+				if (!tev->point.module)
+					goto nomem_out;
+			}
+		}
 		tev->uprobes = pev->uprobes;
 		tev->nargs = pev->nargs;
 		if (tev->nargs) {
