@@ -120,7 +120,7 @@ static size_t sock_diag_nlmsg_size(void)
 {
 	return NLMSG_ALIGN(sizeof(struct inet_diag_msg)
 	       + nla_total_size(sizeof(u8)) /* INET_DIAG_PROTOCOL */
-	       + nla_total_size(sizeof(struct tcp_info))); /* INET_DIAG_INFO */
+	       + nla_total_size_64bit(sizeof(struct tcp_info))); /* INET_DIAG_INFO */
 }
 
 static void sock_diag_broadcast_destroy_work(struct work_struct *work)
