@@ -237,11 +237,11 @@ static int rs5c372_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	return 0;
 }
 
-#if defined(CONFIG_RTC_INTF_PROC) || defined(CONFIG_RTC_INTF_PROC_MODULE)
+#if IS_ENABLED(CONFIG_RTC_INTF_PROC)
 #define	NEED_TRIM
 #endif
 
-#if defined(CONFIG_RTC_INTF_SYSFS) || defined(CONFIG_RTC_INTF_SYSFS_MODULE)
+#if IS_ENABLED(CONFIG_RTC_INTF_SYSFS)
 #define	NEED_TRIM
 #endif
 
@@ -409,7 +409,7 @@ static int rs5c_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
-#if defined(CONFIG_RTC_INTF_PROC) || defined(CONFIG_RTC_INTF_PROC_MODULE)
+#if IS_ENABLED(CONFIG_RTC_INTF_PROC)
 
 static int rs5c372_rtc_proc(struct device *dev, struct seq_file *seq)
 {
@@ -438,7 +438,7 @@ static const struct rtc_class_ops rs5c372_rtc_ops = {
 	.alarm_irq_enable = rs5c_rtc_alarm_irq_enable,
 };
 
-#if defined(CONFIG_RTC_INTF_SYSFS) || defined(CONFIG_RTC_INTF_SYSFS_MODULE)
+#if IS_ENABLED(CONFIG_RTC_INTF_SYSFS)
 
 static ssize_t rs5c372_sysfs_show_trim(struct device *dev,
 				struct device_attribute *attr, char *buf)
