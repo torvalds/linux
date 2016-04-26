@@ -735,12 +735,12 @@ static int clk_core_enable(struct clk_core *core)
 		if (ret)
 			return ret;
 
-		trace_clk_enable(core);
+		trace_clk_enable_rcuidle(core);
 
 		if (core->ops->enable)
 			ret = core->ops->enable(core->hw);
 
-		trace_clk_enable_complete(core);
+		trace_clk_enable_complete_rcuidle(core);
 
 		if (ret) {
 			clk_core_disable(core->parent);
