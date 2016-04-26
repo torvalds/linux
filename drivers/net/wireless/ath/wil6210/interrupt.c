@@ -228,11 +228,8 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 	 */
 	if (likely(isr & (BIT_DMA_EP_RX_ICR_RX_DONE |
 			  BIT_DMA_EP_RX_ICR_RX_HTRSH))) {
-		wil_dbg_irq(wil, "RX done\n");
-
-		if (unlikely(isr & BIT_DMA_EP_RX_ICR_RX_HTRSH))
-			wil_err_ratelimited(wil,
-					    "Received \"Rx buffer is in risk of overflow\" interrupt\n");
+		wil_dbg_irq(wil, "RX done / RX_HTRSH received, ISR (0x%x)\n",
+			    isr);
 
 		isr &= ~(BIT_DMA_EP_RX_ICR_RX_DONE |
 			 BIT_DMA_EP_RX_ICR_RX_HTRSH);
