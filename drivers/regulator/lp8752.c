@@ -43,7 +43,7 @@ enum lp8752_bucks {
 	LP8752_BUCK_MAX,
 };
 
-static const struct regulator_linear_range lp8752_buck_voltage_ranges[] = {
+static const struct linear_range lp8752_buck_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(500000, 0, 23, 10000),
 	REGULATOR_LINEAR_RANGE(735000, 24, 157, 5000),
 	REGULATOR_LINEAR_RANGE(1420000, 158, 255, 20000),

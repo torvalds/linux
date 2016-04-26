@@ -462,6 +462,15 @@ config REGULATOR_LP873X
 	  voltage regulators. It supports software based voltage control
 	  for different voltage domains
 
+config REGULATOR_LP8752
+	tristate "TI LP8752 High Performance PMU driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports LP8752 High Performance PMU driver. This
+	  chip contains four step-down DC/DC converters which can support
+	  4 mode multiphase configuration.
+
 config REGULATOR_LP8755
 	tristate "TI LP8755 High Performance PMU driver"
 	depends on I2C
