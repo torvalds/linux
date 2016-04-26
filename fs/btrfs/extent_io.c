@@ -1262,15 +1262,6 @@ hit_next:
 		goto out;
 	}
 
-	goto search_again;
-
-out:
-	spin_unlock(&tree->lock);
-	if (prealloc)
-		free_extent_state(prealloc);
-
-	return err;
-
 search_again:
 	if (start > end)
 		goto out;
@@ -1279,6 +1270,13 @@ search_again:
 		cond_resched();
 	first_iteration = false;
 	goto again;
+
+out:
+	spin_unlock(&tree->lock);
+	if (prealloc)
+		free_extent_state(prealloc);
+
+	return err;
 }
 
 /* wrappers around set/clear extent bit */
