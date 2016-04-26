@@ -46,6 +46,7 @@
 #include <linux/rhashtable.h>
 #include "wq.h"
 #include "mlx5_core.h"
+#include "en_stats.h"
 
 #define MLX5E_MAX_NUM_TC	8
 
@@ -148,245 +149,6 @@ struct mlx5e_umr_wqe {
 #define MLX5E_MIN_BW_ALLOC 1   /* Min percentage of BW allocation */
 #endif
 
-static const char vport_strings[][ETH_GSTRING_LEN] = {
-	/* vport statistics */
-	"rx_packets",
-	"rx_bytes",
-	"tx_packets",
-	"tx_bytes",
-	"rx_error_packets",
-	"rx_error_bytes",
-	"tx_error_packets",
-	"tx_error_bytes",
-	"rx_unicast_packets",
-	"rx_unicast_bytes",
-	"tx_unicast_packets",
-	"tx_unicast_bytes",
-	"rx_multicast_packets",
-	"rx_multicast_bytes",
-	"tx_multicast_packets",
-	"tx_multicast_bytes",
-	"rx_broadcast_packets",
-	"rx_broadcast_bytes",
-	"tx_broadcast_packets",
-	"tx_broadcast_bytes",
-
-	/* SW counters */
-	"tso_packets",
-	"tso_bytes",
-	"tso_inner_packets",
-	"tso_inner_bytes",
-	"lro_packets",
-	"lro_bytes",
-	"rx_csum_good",
-	"rx_csum_none",
-	"rx_csum_sw",
-	"tx_csum_offload",
-	"tx_csum_inner",
-	"tx_queue_stopped",
-	"tx_queue_wake",
-	"tx_queue_dropped",
-	"rx_wqe_err",
-	"rx_mpwqe_filler",
-	"rx_mpwqe_frag",
-	"rx_buff_alloc_err",
-};
-
-struct mlx5e_vport_stats {
-	/* HW counters */
-	u64 rx_packets;
-	u64 rx_bytes;
-	u64 tx_packets;
-	u64 tx_bytes;
-	u64 rx_error_packets;
-	u64 rx_error_bytes;
-	u64 tx_error_packets;
-	u64 tx_error_bytes;
-	u64 rx_unicast_packets;
-	u64 rx_unicast_bytes;
-	u64 tx_unicast_packets;
-	u64 tx_unicast_bytes;
-	u64 rx_multicast_packets;
-	u64 rx_multicast_bytes;
-	u64 tx_multicast_packets;
-	u64 tx_multicast_bytes;
-	u64 rx_broadcast_packets;
-	u64 rx_broadcast_bytes;
-	u64 tx_broadcast_packets;
-	u64 tx_broadcast_bytes;
-
-	/* SW counters */
-	u64 tso_packets;
-	u64 tso_bytes;
-	u64 tso_inner_packets;
-	u64 tso_inner_bytes;
-	u64 lro_packets;
-	u64 lro_bytes;
-	u64 rx_csum_good;
-	u64 rx_csum_none;
-	u64 rx_csum_sw;
-	u64 tx_csum_offload;
-	u64 tx_csum_inner;
-	u64 tx_queue_stopped;
-	u64 tx_queue_wake;
-	u64 tx_queue_dropped;
-	u64 rx_wqe_err;
-	u64 rx_mpwqe_filler;
-	u64 rx_mpwqe_frag;
-	u64 rx_buff_alloc_err;
-
-#define NUM_VPORT_COUNTERS     38
-};
-
-static const char pport_strings[][ETH_GSTRING_LEN] = {
-	/* IEEE802.3 counters */
-	"frames_tx",
-	"frames_rx",
-	"check_seq_err",
-	"alignment_err",
-	"octets_tx",
-	"octets_received",
-	"multicast_xmitted",
-	"broadcast_xmitted",
-	"multicast_rx",
-	"broadcast_rx",
-	"in_range_len_errors",
-	"out_of_range_len",
-	"too_long_errors",
-	"symbol_err",
-	"mac_control_tx",
-	"mac_control_rx",
-	"unsupported_op_rx",
-	"pause_ctrl_rx",
-	"pause_ctrl_tx",
-
-	/* RFC2863 counters */
-	"in_octets",
-	"in_ucast_pkts",
-	"in_discards",
-	"in_errors",
-	"in_unknown_protos",
-	"out_octets",
-	"out_ucast_pkts",
-	"out_discards",
-	"out_errors",
-	"in_multicast_pkts",
-	"in_broadcast_pkts",
-	"out_multicast_pkts",
-	"out_broadcast_pkts",
-
-	/* RFC2819 counters */
-	"drop_events",
-	"octets",
-	"pkts",
-	"broadcast_pkts",
-	"multicast_pkts",
-	"crc_align_errors",
-	"undersize_pkts",
-	"oversize_pkts",
-	"fragments",
-	"jabbers",
-	"collisions",
-	"p64octets",
-	"p65to127octets",
-	"p128to255octets",
-	"p256to511octets",
-	"p512to1023octets",
-	"p1024to1518octets",
-	"p1519to2047octets",
-	"p2048to4095octets",
-	"p4096to8191octets",
-	"p8192to10239octets",
-};
-
-#define NUM_IEEE_802_3_COUNTERS		19
-#define NUM_RFC_2863_COUNTERS		13
-#define NUM_RFC_2819_COUNTERS		21
-#define NUM_PPORT_COUNTERS		(NUM_IEEE_802_3_COUNTERS + \
-					 NUM_RFC_2863_COUNTERS + \
-					 NUM_RFC_2819_COUNTERS)
-
-struct mlx5e_pport_stats {
-	__be64 IEEE_802_3_counters[NUM_IEEE_802_3_COUNTERS];
-	__be64 RFC_2863_counters[NUM_RFC_2863_COUNTERS];
-	__be64 RFC_2819_counters[NUM_RFC_2819_COUNTERS];
-};
-
-static const char qcounter_stats_strings[][ETH_GSTRING_LEN] = {
-	"rx_out_of_buffer",
-};
-
-struct mlx5e_qcounter_stats {
-	u32 rx_out_of_buffer;
-#define NUM_Q_COUNTERS 1
-};
-
-static const char rq_stats_strings[][ETH_GSTRING_LEN] = {
-	"packets",
-	"bytes",
-	"csum_none",
-	"csum_sw",
-	"lro_packets",
-	"lro_bytes",
-	"wqe_err",
-	"mpwqe_filler",
-	"mpwqe_frag",
-	"buff_alloc_err",
-};
-
-struct mlx5e_rq_stats {
-	u64 packets;
-	u64 bytes;
-	u64 csum_none;
-	u64 csum_sw;
-	u64 lro_packets;
-	u64 lro_bytes;
-	u64 wqe_err;
-	u64 mpwqe_filler;
-	u64 mpwqe_frag;
-	u64 buff_alloc_err;
-#define NUM_RQ_STATS 10
-};
-
-static const char sq_stats_strings[][ETH_GSTRING_LEN] = {
-	"packets",
-	"bytes",
-	"tso_packets",
-	"tso_bytes",
-	"tso_inner_packets",
-	"tso_inner_bytes",
-	"csum_offload_inner",
-	"nop",
-	"csum_offload_none",
-	"stopped",
-	"wake",
-	"dropped",
-};
-
-struct mlx5e_sq_stats {
-	/* commonly accessed in data path */
-	u64 packets;
-	u64 bytes;
-	u64 tso_packets;
-	u64 tso_bytes;
-	u64 tso_inner_packets;
-	u64 tso_inner_bytes;
-	u64 csum_offload_inner;
-	u64 nop;
-	/* less likely accessed in data path */
-	u64 csum_offload_none;
-	u64 stopped;
-	u64 wake;
-	u64 dropped;
-#define NUM_SQ_STATS 12
-};
-
-struct mlx5e_stats {
-	struct mlx5e_vport_stats   vport;
-	struct mlx5e_pport_stats   pport;
-	struct mlx5e_qcounter_stats qcnt;
-};
-
 struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
@@ -404,6 +166,7 @@ struct mlx5e_params {
 	u8  rss_hfunc;
 	u8  toeplitz_hash_key[40];
 	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE];
+	bool vlan_strip_disable;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	struct ieee_ets ets;
 #endif
@@ -812,6 +575,8 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 			   u16 vid);
 void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv);
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
+
+int mlx5e_modify_rqs_vsd(struct mlx5e_priv *priv, bool vsd);
 
 int mlx5e_redirect_rqt(struct mlx5e_priv *priv, enum mlx5e_rqt_ix rqt_ix);
 void mlx5e_build_tir_ctx_hash(void *tirc, struct mlx5e_priv *priv);
