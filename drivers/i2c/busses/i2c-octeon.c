@@ -838,9 +838,6 @@ static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
 	int i, result, length = *rlength;
 	bool final_read = false;
 
-	if (length < 1)
-		return -EINVAL;
-
 	octeon_i2c_data_write(i2c, (target << 1) | 1);
 	octeon_i2c_ctl_write(i2c, TWSI_CTL_ENAB);
 
@@ -926,6 +923,12 @@ static int octeon_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	for (i = 0; ret == 0 && i < num; i++) {
 		struct i2c_msg *pmsg = &msgs[i];
 
+		/* zero-length messages are not supported */
+		if (!pmsg->len) {
+			ret = -EOPNOTSUPP;
+			break;
+		}
+
 		ret = octeon_i2c_start(i2c);
 		if (ret)
 			return ret;
@@ -999,7 +1002,7 @@ static struct i2c_bus_recovery_info octeon_i2c_recovery_info = {
 
 static u32 octeon_i2c_functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
+	return I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) |
 	       I2C_FUNC_SMBUS_READ_BLOCK_DATA | I2C_SMBUS_BLOCK_PROC_CALL;
 }
 
