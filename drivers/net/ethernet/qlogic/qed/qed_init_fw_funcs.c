@@ -712,6 +712,21 @@ int qed_qm_pf_rt_init(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+int qed_init_pf_wfq(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt,
+		    u8 pf_id, u16 pf_wfq)
+{
+	u32 inc_val = QM_WFQ_INC_VAL(pf_wfq);
+
+	if (!inc_val || inc_val > QM_WFQ_MAX_INC_VAL) {
+		DP_NOTICE(p_hwfn, "Invalid PF WFQ weight configuration");
+		return -1;
+	}
+
+	qed_wr(p_hwfn, p_ptt, QM_REG_WFQPFWEIGHT + pf_id * 4, inc_val);
+	return 0;
+}
+
 int qed_init_pf_rl(struct qed_hwfn *p_hwfn,
 		   struct qed_ptt *p_ptt,
 		   u8 pf_id,

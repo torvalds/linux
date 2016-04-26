@@ -220,9 +220,13 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 
 	qm_info->start_vport = (u8)RESC_START(p_hwfn, QED_VPORT);
 
+	for (i = 0; i < qm_info->num_vports; i++)
+		qm_info->qm_vport_params[i].vport_wfq = 1;
+
 	qm_info->pf_wfq = 0;
 	qm_info->pf_rl = 0;
 	qm_info->vport_rl_en = 1;
+	qm_info->vport_wfq_en = 1;
 
 	return 0;
 
@@ -1837,6 +1841,73 @@ int qed_configure_pf_max_bandwidth(struct qed_dev *cdev, u8 max_bw)
 
 		if (rc)
 			break;
+	}
+
+	return rc;
+}
+
+int __qed_configure_pf_min_bandwidth(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     struct qed_mcp_link_state *p_link,
+				     u8 min_bw)
+{
+	int rc = 0;
+
+	p_hwfn->mcp_info->func_info.bandwidth_min = min_bw;
+	p_hwfn->qm_info.pf_wfq = min_bw;
+
+	if (!p_link->line_speed)
+		return rc;
+
+	p_link->min_pf_rate = (p_link->line_speed * min_bw) / 100;
+
+	rc = qed_init_pf_wfq(p_hwfn, p_ptt, p_hwfn->rel_pf_id, min_bw);
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+		   "Configured MIN bandwidth to be %d Mb/sec\n",
+		   p_link->min_pf_rate);
+
+	return rc;
+}
+
+/* Main API to configure PF min bandwidth where bw range is [1-100] */
+int qed_configure_pf_min_bandwidth(struct qed_dev *cdev, u8 min_bw)
+{
+	int i, rc = -EINVAL;
+
+	if (min_bw < 1 || min_bw > 100) {
+		DP_NOTICE(cdev, "PF min bw valid range is [1-100]\n");
+		return rc;
+	}
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+		struct qed_hwfn *p_lead = QED_LEADING_HWFN(cdev);
+		struct qed_mcp_link_state *p_link;
+		struct qed_ptt *p_ptt;
+
+		p_link = &p_lead->mcp_info->link_output;
+
+		p_ptt = qed_ptt_acquire(p_hwfn);
+		if (!p_ptt)
+			return -EBUSY;
+
+		rc = __qed_configure_pf_min_bandwidth(p_hwfn, p_ptt,
+						      p_link, min_bw);
+		if (rc) {
+			qed_ptt_release(p_hwfn, p_ptt);
+			return rc;
+		}
+
+		if (p_link->min_pf_rate) {
+			u32 min_rate = p_link->min_pf_rate;
+
+			rc = __qed_configure_vp_wfq_on_link_change(p_hwfn,
+								   p_ptt,
+								   min_rate);
+		}
+
+		qed_ptt_release(p_hwfn, p_ptt);
 	}
 
 	return rc;

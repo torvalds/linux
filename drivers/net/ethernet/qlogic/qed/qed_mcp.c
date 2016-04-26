@@ -472,8 +472,8 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 				       bool b_reset)
 {
 	struct qed_mcp_link_state *p_link;
+	u8 max_bw, min_bw;
 	u32 status = 0;
-	u8 max_bw;
 
 	p_link = &p_hwfn->mcp_info->link_output;
 	memset(p_link, 0, sizeof(*p_link));
@@ -534,9 +534,14 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 		p_link->line_speed = 0;
 
 	max_bw = p_hwfn->mcp_info->func_info.bandwidth_max;
+	min_bw = p_hwfn->mcp_info->func_info.bandwidth_min;
 
-	/* Correct speed according to bandwidth allocation */
+	/* Max bandwidth configuration */
 	__qed_configure_pf_max_bandwidth(p_hwfn, p_ptt, p_link, max_bw);
+
+	/* Min bandwidth configuration */
+	__qed_configure_pf_min_bandwidth(p_hwfn, p_ptt, p_link, min_bw);
+	qed_configure_vp_wfq_on_link_change(p_hwfn->cdev, p_link->min_pf_rate);
 
 	p_link->an = !!(status & LINK_STATUS_AUTO_NEGOTIATE_ENABLED);
 	p_link->an_complete = !!(status &
@@ -710,6 +715,7 @@ static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn,
 
 	p_info = &p_hwfn->mcp_info->func_info;
 
+	qed_configure_pf_min_bandwidth(p_hwfn->cdev, p_info->bandwidth_min);
 	qed_configure_pf_max_bandwidth(p_hwfn->cdev, p_info->bandwidth_max);
 
 	/* Acknowledge the MFW */
