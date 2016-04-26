@@ -1299,6 +1299,8 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		shost->this_id = shost->max_id;
 
+	aac_intr_normal(aac, 0, 2, 0, NULL);
+
 	/*
 	 * dmb - we may need to move the setting of these parms somewhere else once
 	 * we get a fib that can report the actual numbers

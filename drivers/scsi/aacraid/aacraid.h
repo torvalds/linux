@@ -2065,6 +2065,10 @@ extern struct aac_common aac_config;
 #define			AifEnAddJBOD		30	/* JBOD created */
 #define			AifEnDeleteJBOD		31	/* JBOD deleted */
 
+#define			AifBuManagerEvent		42 /* Bu management*/
+#define			AifBuCacheDataLoss		10
+#define			AifBuCacheDataRecover	11
+
 #define		AifCmdJobProgress	2	/* Progress report */
 #define			AifJobCtrZero	101	/* Array Zero progress */
 #define			AifJobStsSuccess 1	/* Job completes */
