@@ -6408,7 +6408,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 			ret = btrfs_discard_extent(root, start,
 						   end + 1 - start, NULL);
 
-		clear_extent_dirty(unpin, start, end, GFP_NOFS);
+		clear_extent_dirty(unpin, start, end);
 		unpin_extent_range(root, start, end, true);
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 		cond_resched();

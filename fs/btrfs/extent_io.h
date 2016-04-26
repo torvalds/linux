@@ -279,11 +279,11 @@ static inline int set_extent_dirty(struct extent_io_tree *tree, u64 start,
 }
 
 static inline int clear_extent_dirty(struct extent_io_tree *tree, u64 start,
-		u64 end, gfp_t mask)
+		u64 end)
 {
 	return clear_extent_bit(tree, start, end,
 				EXTENT_DIRTY | EXTENT_DELALLOC |
-				EXTENT_DO_ACCOUNTING, 0, 0, NULL, mask);
+				EXTENT_DO_ACCOUNTING, 0, 0, NULL, GFP_NOFS);
 }
 
 int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
