@@ -396,6 +396,10 @@ int drm_legacy_addmap_ioctl(struct drm_device *dev, void *data,
 	if (!(capable(CAP_SYS_ADMIN) || map->type == _DRM_AGP || map->type == _DRM_SHM))
 		return -EPERM;
 
+	if (!drm_core_check_feature(dev, DRIVER_KMS_LEGACY_CONTEXT) &&
+	    drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	err = drm_addmap_core(dev, map->offset, map->size, map->type,
 			      map->flags, &maplist);
 
@@ -437,6 +441,10 @@ int drm_legacy_getmap_ioctl(struct drm_device *dev, void *data,
 	struct list_head *list;
 	int idx;
 	int i;
+
+	if (!drm_core_check_feature(dev, DRIVER_KMS_LEGACY_CONTEXT) &&
+	    drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	idx = map->offset;
 	if (idx < 0)
@@ -568,6 +576,10 @@ int drm_legacy_rmmap_ioctl(struct drm_device *dev, void *data,
 	struct drm_local_map *map = NULL;
 	struct drm_map_list *r_list;
 	int ret;
+
+	if (!drm_core_check_feature(dev, DRIVER_KMS_LEGACY_CONTEXT) &&
+	    drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(r_list, &dev->maplist, head) {
