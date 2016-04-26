@@ -139,7 +139,6 @@ struct sata_dwc_device {
 	struct device		*dev;		/* generic device struct */
 	struct ata_probe_ent	*pe;		/* ptr to probe-ent */
 	struct ata_host		*host;
-	u8 __iomem		*reg_base;
 	struct sata_dwc_regs __iomem *sata_dwc_regs;	/* DW SATA specific */
 	u32			sactive_issued;
 	u32			sactive_queued;
@@ -241,7 +240,7 @@ static int sata_dwc_dma_init_old(struct platform_device *pdev,
 				 struct sata_dwc_device *hsdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	int err;
+	struct resource *res;
 
 	hsdev->dma = devm_kzalloc(&pdev->dev, sizeof(*hsdev->dma), GFP_KERNEL);
 	if (!hsdev->dma)
@@ -257,21 +256,16 @@ static int sata_dwc_dma_init_old(struct platform_device *pdev,
 	}
 
 	/* Get physical SATA DMA register base address */
-	hsdev->dma->regs = of_iomap(np, 1);
-	if (!hsdev->dma->regs) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	hsdev->dma->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hsdev->dma->regs)) {
 		dev_err(&pdev->dev,
 			"ioremap failed for AHBDMA register address\n");
-		return -ENODEV;
+		return PTR_ERR(hsdev->dma->regs);
 	}
 
 	/* Initialize AHB DMAC */
-	err = dw_dma_probe(hsdev->dma);
-	if (err) {
-		iounmap(hsdev->dma->regs);
-		return err;
-	}
-
-	return 0;
+	return dw_dma_probe(hsdev->dma);
 }
 
 static void sata_dwc_dma_exit_old(struct sata_dwc_device *hsdev)
@@ -280,7 +274,6 @@ static void sata_dwc_dma_exit_old(struct sata_dwc_device *hsdev)
 		return;
 
 	dw_dma_remove(hsdev->dma);
-	iounmap(hsdev->dma->regs);
 }
 
 #endif
@@ -1219,6 +1212,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	struct ata_port_info pi = sata_dwc_port_info[0];
 	const struct ata_port_info *ppi[] = { &pi, NULL };
 	struct device_node *np = ofdev->dev.of_node;
+	struct resource *res;
 
 	/* Allocate DWC SATA device */
 	host = ata_host_alloc_pinfo(&ofdev->dev, ppi, SATA_DWC_MAX_PORTS);
@@ -1229,13 +1223,13 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	host->private_data = hsdev;
 
 	/* Ioremap SATA registers */
-	base = of_iomap(np, 0);
-	if (!base) {
+	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(&ofdev->dev, res);
+	if (IS_ERR(base)) {
 		dev_err(&ofdev->dev,
 			"ioremap failed for SATA register address\n");
-		return -ENODEV;
+		return PTR_ERR(base);
 	}
-	hsdev->reg_base = base;
 	dev_dbg(&ofdev->dev, "ioremap done for SATA register address\n");
 
 	/* Synopsys DWC SATA specific Registers */
@@ -1299,7 +1293,6 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 
 error_out:
 	phy_exit(hsdev->phy);
-	iounmap(base);
 	return err;
 }
 
@@ -1318,7 +1311,6 @@ static int sata_dwc_remove(struct platform_device *ofdev)
 	sata_dwc_dma_exit_old(hsdev);
 #endif
 
-	iounmap(hsdev->reg_base);
 	dev_dbg(&ofdev->dev, "done\n");
 	return 0;
 }
