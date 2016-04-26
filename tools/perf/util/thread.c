@@ -10,6 +10,8 @@
 #include "comm.h"
 #include "unwind.h"
 
+#include <api/fs/fs.h>
+
 int thread__init_map_groups(struct thread *thread, struct machine *machine)
 {
 	struct thread *leader;
@@ -151,6 +153,23 @@ int __thread__set_comm(struct thread *thread, const char *str, u64 timestamp,
 	thread->comm_set = true;
 
 	return 0;
+}
+
+int thread__set_comm_from_proc(struct thread *thread)
+{
+	char path[64];
+	char *comm = NULL;
+	size_t sz;
+	int err = -1;
+
+	if (!(snprintf(path, sizeof(path), "%d/task/%d/comm",
+		       thread->pid_, thread->tid) >= (int)sizeof(path)) &&
+	    procfs__read_str(path, &comm, &sz) == 0) {
+		comm[sz - 1] = '\0';
+		err = thread__set_comm(thread, comm, 0);
+	}
+
+	return err;
 }
 
 const char *thread__comm_str(const struct thread *thread)
