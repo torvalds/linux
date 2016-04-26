@@ -270,7 +270,7 @@ static int commit_is_pending(struct exynos_drm_private *priv, u32 crtcs)
 }
 
 int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
-			 bool async)
+			 bool nonblock)
 {
 	struct exynos_drm_private *priv = dev->dev_private;
 	struct exynos_atomic_commit *commit;
@@ -308,7 +308,7 @@ int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
 
 	drm_atomic_helper_swap_state(dev, state);
 
-	if (async)
+	if (nonblock)
 		schedule_work(&commit->work);
 	else
 		exynos_atomic_commit_complete(commit);
