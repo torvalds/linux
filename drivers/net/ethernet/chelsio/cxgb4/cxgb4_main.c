@@ -337,6 +337,17 @@ void t4_os_portmod_changed(const struct adapter *adap, int port_id)
 		netdev_info(dev, "port module unplugged\n");
 	else if (pi->mod_type < ARRAY_SIZE(mod_str))
 		netdev_info(dev, "%s module inserted\n", mod_str[pi->mod_type]);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_NOTSUPPORTED)
+		netdev_info(dev, "%s: unsupported port module inserted\n",
+			    dev->name);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_UNKNOWN)
+		netdev_info(dev, "%s: unknown port module inserted\n",
+			    dev->name);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_ERROR)
+		netdev_info(dev, "%s: transceiver module error\n", dev->name);
+	else
+		netdev_info(dev, "%s: unknown module type %d inserted\n",
+			    dev->name, pi->mod_type);
 }
 
 int dbfifo_int_thresh = 10; /* 10 == 640 entry threshold */
