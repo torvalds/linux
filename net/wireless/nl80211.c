@@ -3755,9 +3755,16 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 		goto nla_put_failure;
 
 #define PUT_SINFO(attr, memb, type) do {				\
+	BUILD_BUG_ON(sizeof(type) == sizeof(u64));			\
 	if (sinfo->filled & (1ULL << NL80211_STA_INFO_ ## attr) &&	\
 	    nla_put_ ## type(msg, NL80211_STA_INFO_ ## attr,		\
 			     sinfo->memb))				\
+		goto nla_put_failure;					\
+	} while (0)
+#define PUT_SINFO_U64(attr, memb) do {					\
+	if (sinfo->filled & (1ULL << NL80211_STA_INFO_ ## attr) &&	\
+	    nla_put_u64_64bit(msg, NL80211_STA_INFO_ ## attr,		\
+			      sinfo->memb, NL80211_STA_INFO_PAD))	\
 		goto nla_put_failure;					\
 	} while (0)
 
@@ -3776,12 +3783,12 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 			(u32)sinfo->tx_bytes))
 		goto nla_put_failure;
 
-	PUT_SINFO(RX_BYTES64, rx_bytes, u64);
-	PUT_SINFO(TX_BYTES64, tx_bytes, u64);
+	PUT_SINFO_U64(RX_BYTES64, rx_bytes);
+	PUT_SINFO_U64(TX_BYTES64, tx_bytes);
 	PUT_SINFO(LLID, llid, u16);
 	PUT_SINFO(PLID, plid, u16);
 	PUT_SINFO(PLINK_STATE, plink_state, u8);
-	PUT_SINFO(RX_DURATION, rx_duration, u64);
+	PUT_SINFO_U64(RX_DURATION, rx_duration);
 
 	switch (rdev->wiphy.signal_type) {
 	case CFG80211_SIGNAL_TYPE_MBM:
@@ -3849,12 +3856,13 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 		    &sinfo->sta_flags))
 		goto nla_put_failure;
 
-	PUT_SINFO(T_OFFSET, t_offset, u64);
-	PUT_SINFO(RX_DROP_MISC, rx_dropped_misc, u64);
-	PUT_SINFO(BEACON_RX, rx_beacon, u64);
+	PUT_SINFO_U64(T_OFFSET, t_offset);
+	PUT_SINFO_U64(RX_DROP_MISC, rx_dropped_misc);
+	PUT_SINFO_U64(BEACON_RX, rx_beacon);
 	PUT_SINFO(BEACON_SIGNAL_AVG, rx_beacon_signal_avg, u8);
 
 #undef PUT_SINFO
+#undef PUT_SINFO_U64
 
 	if (sinfo->filled & BIT(NL80211_STA_INFO_TID_STATS)) {
 		struct nlattr *tidsattr;
@@ -3877,19 +3885,19 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 			if (!tidattr)
 				goto nla_put_failure;
 
-#define PUT_TIDVAL(attr, memb, type) do {				\
+#define PUT_TIDVAL_U64(attr, memb) do {					\
 	if (tidstats->filled & BIT(NL80211_TID_STATS_ ## attr) &&	\
-	    nla_put_ ## type(msg, NL80211_TID_STATS_ ## attr,		\
-			     tidstats->memb))				\
+	    nla_put_u64_64bit(msg, NL80211_TID_STATS_ ## attr,		\
+			      tidstats->memb, NL80211_TID_STATS_PAD))	\
 		goto nla_put_failure;					\
 	} while (0)
 
-			PUT_TIDVAL(RX_MSDU, rx_msdu, u64);
-			PUT_TIDVAL(TX_MSDU, tx_msdu, u64);
-			PUT_TIDVAL(TX_MSDU_RETRIES, tx_msdu_retries, u64);
-			PUT_TIDVAL(TX_MSDU_FAILED, tx_msdu_failed, u64);
+			PUT_TIDVAL_U64(RX_MSDU, rx_msdu);
+			PUT_TIDVAL_U64(TX_MSDU, tx_msdu);
+			PUT_TIDVAL_U64(TX_MSDU_RETRIES, tx_msdu_retries);
+			PUT_TIDVAL_U64(TX_MSDU_FAILED, tx_msdu_failed);
 
-#undef PUT_TIDVAL
+#undef PUT_TIDVAL_U64
 			nla_nest_end(msg, tidattr);
 		}
 
