@@ -651,6 +651,14 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	if (status)
 		return status;
 
+	/* Only set the baud rate if we're actually doing debug */
+	if (ar->conf_flags & ATH6KL_CONF_UART_DEBUG) {
+		status = ath6kl_bmi_write_hi32(ar, hi_desired_baud_rate,
+					       ar->hw.uarttx_rate);
+		if (status)
+			return status;
+	}
+
 	/* Configure target refclk_hz */
 	if (ar->hw.refclk_hz != 0) {
 		status = ath6kl_bmi_write_hi32(ar, hi_refclk_hz,
