@@ -54,7 +54,7 @@ CONFIG_SWP_EMULATION=y
 CONFIG_CP15_BARRIER_EMULATION=y
 CONFIG_SETEND_EMULATION=y
 CONFIG_CMDLINE="console=uart,mmio32,0xff1a0000 rootwait cros_debug cros_secure ro root=/dev/mmcblk0p3 init=/sbin/init kgdboc=ttyS2"
-CONFIG_CMDLINE_FORCE=y
+# CONFIG_CMDLINE_FORCE is not set
 # CONFIG_EFI is not set
 # CONFIG_COREDUMP is not set
 CONFIG_COMPAT=y
