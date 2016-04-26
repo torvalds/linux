@@ -682,12 +682,12 @@ static void clk_core_disable(struct clk_core *core)
 	if (--core->enable_count > 0)
 		return;
 
-	trace_clk_disable(core);
+	trace_clk_disable_rcuidle(core);
 
 	if (core->ops->disable)
 		core->ops->disable(core->hw);
 
-	trace_clk_disable_complete(core);
+	trace_clk_disable_complete_rcuidle(core);
 
 	clk_core_disable(core->parent);
 }
