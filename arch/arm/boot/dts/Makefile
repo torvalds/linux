@@ -485,6 +485,7 @@ dtb-$(CONFIG_SOC_TI81XX) += \
 	dm8168-evm.dtb \
 	dra62x-j5eco-evm.dtb
 dtb-$(CONFIG_SOC_AM33XX) += \
+	am335x-baltos-ir2110.dtb \
 	am335x-baltos-ir3220.dtb \
 	am335x-baltos-ir5221.dtb \
 	am335x-base0033.dtb \
