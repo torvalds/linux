@@ -445,6 +445,11 @@ static long sync_file_ioctl_merge(struct sync_file *sync_file,
 		goto err_put_fd;
 	}
 
+	if (data.flags || data.pad) {
+		err = -EINVAL;
+		goto err_put_fd;
+	}
+
 	fence2 = sync_file_fdget(data.fd2);
 	if (!fence2) {
 		err = -ENOENT;
@@ -479,13 +484,9 @@ err_put_fd:
 	return err;
 }
 
-static int sync_fill_fence_info(struct fence *fence, void *data, int size)
+static void sync_fill_fence_info(struct fence *fence,
+				struct sync_fence_info *info)
 {
-	struct sync_fence_info *info = data;
-
-	if (size < sizeof(*info))
-		return -ENOMEM;
-
 	strlcpy(info->obj_name, fence->ops->get_timeline_name(fence),
 		sizeof(info->obj_name));
 	strlcpy(info->driver_name, fence->ops->get_driver_name(fence),
@@ -495,58 +496,63 @@ static int sync_fill_fence_info(struct fence *fence, void *data, int size)
 	else
 		info->status = 0;
 	info->timestamp_ns = ktime_to_ns(fence->timestamp);
-
-	return sizeof(*info);
 }
 
 static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 					unsigned long arg)
 {
-	struct sync_file_info *info;
+	struct sync_file_info info;
+	struct sync_fence_info *fence_info = NULL;
 	__u32 size;
-	__u32 len = 0;
 	int ret, i;
 
-	if (copy_from_user(&size, (void __user *)arg, sizeof(size)))
+	if (copy_from_user(&info, (void __user *)arg, sizeof(info)))
 		return -EFAULT;
 
-	if (size < sizeof(struct sync_file_info))
+	if (info.flags || info.pad)
 		return -EINVAL;
 
-	if (size > 4096)
-		size = 4096;
+	/*
+	 * Passing num_fences = 0 means that userspace doesn't want to
+	 * retrieve any sync_fence_info. If num_fences = 0 we skip filling
+	 * sync_fence_info and return the actual number of fences on
+	 * info->num_fences.
+	 */
+	if (!info.num_fences)
+		goto no_fences;
 
-	info = kzalloc(size, GFP_KERNEL);
-	if (!info)
+	if (info.num_fences < sync_file->num_fences)
+		return -EINVAL;
+
+	size = sync_file->num_fences * sizeof(*fence_info);
+	fence_info = kzalloc(size, GFP_KERNEL);
+	if (!fence_info)
 		return -ENOMEM;
 
-	strlcpy(info->name, sync_file->name, sizeof(info->name));
-	info->status = atomic_read(&sync_file->status);
-	if (info->status >= 0)
-		info->status = !info->status;
+	for (i = 0; i < sync_file->num_fences; ++i)
+		sync_fill_fence_info(sync_file->cbs[i].fence, &fence_info[i]);
 
-	len = sizeof(struct sync_file_info);
-
-	for (i = 0; i < sync_file->num_fences; ++i) {
-		struct fence *fence = sync_file->cbs[i].fence;
-
-		ret = sync_fill_fence_info(fence, (u8 *)info + len, size - len);
-
-		if (ret < 0)
-			goto out;
-
-		len += ret;
+	if (copy_to_user(u64_to_user_ptr(info.sync_fence_info), fence_info,
+			 size)) {
+		ret = -EFAULT;
+		goto out;
 	}
 
-	info->len = len;
+no_fences:
+	strlcpy(info.name, sync_file->name, sizeof(info.name));
+	info.status = atomic_read(&sync_file->status);
+	if (info.status >= 0)
+		info.status = !info.status;
 
-	if (copy_to_user((void __user *)arg, info, len))
+	info.num_fences = sync_file->num_fences;
+
+	if (copy_to_user((void __user *)arg, &info, sizeof(info)))
 		ret = -EFAULT;
 	else
 		ret = 0;
 
 out:
-	kfree(info);
+	kfree(fence_info);
 
 	return ret;
 }
@@ -560,7 +566,7 @@ static long sync_file_ioctl(struct file *file, unsigned int cmd,
 	case SYNC_IOC_MERGE:
 		return sync_file_ioctl_merge(sync_file, arg);
 
-	case SYNC_IOC_FENCE_INFO:
+	case SYNC_IOC_FILE_INFO:
 		return sync_file_ioctl_fence_info(sync_file, arg);
 
 	default:
