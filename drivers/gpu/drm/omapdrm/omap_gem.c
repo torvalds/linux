@@ -383,18 +383,6 @@ size_t omap_gem_mmap_size(struct drm_gem_object *obj)
 	return size;
 }
 
-/* get tiled size, returns -EINVAL if not tiled buffer */
-int omap_gem_tiled_size(struct drm_gem_object *obj, uint16_t *w, uint16_t *h)
-{
-	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	if (omap_obj->flags & OMAP_BO_TILED) {
-		*w = omap_obj->width;
-		*h = omap_obj->height;
-		return 0;
-	}
-	return -EINVAL;
-}
-
 /* -----------------------------------------------------------------------------
  * Fault Handling
  */

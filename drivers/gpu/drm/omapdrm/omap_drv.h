@@ -231,7 +231,6 @@ int omap_gem_rotated_paddr(struct drm_gem_object *obj, uint32_t orient,
 		int x, int y, dma_addr_t *paddr);
 uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj);
 size_t omap_gem_mmap_size(struct drm_gem_object *obj);
-int omap_gem_tiled_size(struct drm_gem_object *obj, uint16_t *w, uint16_t *h);
 int omap_gem_tiled_stride(struct drm_gem_object *obj, uint32_t orient);
 
 struct dma_buf *omap_gem_prime_export(struct drm_device *dev,
