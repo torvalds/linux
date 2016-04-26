@@ -297,9 +297,9 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	}
 	mutex_unlock(&dev->master_mutex);
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev->filelist_mutex);
 	list_add(&priv->lhead, &dev->filelist);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->filelist_mutex);
 
 #ifdef __alpha__
 	/*
@@ -447,8 +447,11 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev->filelist_mutex);
 	list_del(&file_priv->lhead);
+	mutex_unlock(&dev->filelist_mutex);
+
+	mutex_lock(&dev->struct_mutex);
 	if (file_priv->magic)
 		idr_remove(&file_priv->master->magic_map, file_priv->magic);
 	mutex_unlock(&dev->struct_mutex);
