@@ -135,7 +135,7 @@
 				marvell,spi-base = <128>, <136>, <144>, <152>;
 			};
 
-			xor0@400000 {
+			xor@400000 {
 				compatible = "marvell,mv-xor-v2";
 				reg = <0x400000 0x1000>,
 				      <0x410000 0x1000>;
@@ -143,7 +143,7 @@
 				dma-coherent;
 			};
 
-			xor1@420000 {
+			xor@420000 {
 				compatible = "marvell,mv-xor-v2";
 				reg = <0x420000 0x1000>,
 				      <0x430000 0x1000>;
@@ -151,7 +151,7 @@
 				dma-coherent;
 			};
 
-			xor2@440000 {
+			xor@440000 {
 				compatible = "marvell,mv-xor-v2";
 				reg = <0x440000 0x1000>,
 				      <0x450000 0x1000>;
@@ -159,7 +159,7 @@
 				dma-coherent;
 			};
 
-			xor3@460000 {
+			xor@460000 {
 				compatible = "marvell,mv-xor-v2";
 				reg = <0x460000 0x1000>,
 				      <0x470000 0x1000>;
