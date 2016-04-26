@@ -37,6 +37,7 @@
 #include <asm/hw_irq.h>
 #include <asm/context_tracking.h>
 #include <asm/tm.h>
+#include <asm/ppc-opcode.h>
 
 /*
  * System calls.
@@ -508,6 +509,14 @@ _GLOBAL(_switch)
 BEGIN_FTR_SECTION
 	ldarx	r6,0,r1
 END_FTR_SECTION_IFSET(CPU_FTR_STCX_CHECKS_ADDRESS)
+
+BEGIN_FTR_SECTION
+/*
+ * A cp_abort (copy paste abort) here ensures that when context switching, a
+ * copy from one process can't leak into the paste of another.
+ */
+	PPC_CP_ABORT
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 #ifdef CONFIG_PPC_BOOK3S
 /* Cancel all explict user streams as they will have no use after context
