@@ -416,6 +416,58 @@ int drm_legacy_addmap_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+/*
+ * Get a mapping information.
+ *
+ * \param inode device inode.
+ * \param file_priv DRM file private.
+ * \param cmd command.
+ * \param arg user argument, pointing to a drm_map structure.
+ *
+ * \return zero on success or a negative number on failure.
+ *
+ * Searches for the mapping with the specified offset and copies its information
+ * into userspace
+ */
+int drm_legacy_getmap_ioctl(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv)
+{
+	struct drm_map *map = data;
+	struct drm_map_list *r_list = NULL;
+	struct list_head *list;
+	int idx;
+	int i;
+
+	idx = map->offset;
+	if (idx < 0)
+		return -EINVAL;
+
+	i = 0;
+	mutex_lock(&dev->struct_mutex);
+	list_for_each(list, &dev->maplist) {
+		if (i == idx) {
+			r_list = list_entry(list, struct drm_map_list, head);
+			break;
+		}
+		i++;
+	}
+	if (!r_list || !r_list->map) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+
+	map->offset = r_list->map->offset;
+	map->size = r_list->map->size;
+	map->type = r_list->map->type;
+	map->flags = r_list->map->flags;
+	map->handle = (void *)(unsigned long) r_list->user_token;
+	map->mtrr = arch_phys_wc_index(r_list->map->mtrr);
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
 /**
  * Remove a map private from list and deallocate resources if the mapping
  * isn't in use.
