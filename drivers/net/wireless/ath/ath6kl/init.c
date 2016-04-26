@@ -173,6 +173,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.reserved_ram_size		= 7168,
 		.board_addr			= 0x436400,
 		.testscript_addr		= 0,
+		.uarttx_pin			= 11,
 		.flags				= 0,
 
 		.fw = {
