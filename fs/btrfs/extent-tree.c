@@ -231,9 +231,9 @@ static int add_excluded_extent(struct btrfs_root *root,
 {
 	u64 end = start + num_bytes - 1;
 	set_extent_bits(&root->fs_info->freed_extents[0],
-			start, end, EXTENT_UPTODATE, GFP_NOFS);
+			start, end, EXTENT_UPTODATE);
 	set_extent_bits(&root->fs_info->freed_extents[1],
-			start, end, EXTENT_UPTODATE, GFP_NOFS);
+			start, end, EXTENT_UPTODATE);
 	return 0;
 }
 

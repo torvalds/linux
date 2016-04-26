@@ -2232,13 +2232,12 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 
 		/* set the bits in the private failure tree */
 		ret = set_extent_bits(failure_tree, start, end,
-					EXTENT_LOCKED | EXTENT_DIRTY, GFP_NOFS);
+					EXTENT_LOCKED | EXTENT_DIRTY);
 		if (ret >= 0)
 			ret = set_state_failrec(failure_tree, start, failrec);
 		/* set the bits in the inode's tree */
 		if (ret >= 0)
-			ret = set_extent_bits(tree, start, end, EXTENT_DAMAGED,
-						GFP_NOFS);
+			ret = set_extent_bits(tree, start, end, EXTENT_DAMAGED);
 		if (ret < 0) {
 			kfree(failrec);
 			return ret;

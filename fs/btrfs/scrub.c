@@ -745,7 +745,7 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *fixup_ctx)
 		 * sure we read the bad mirror.
 		 */
 		ret = set_extent_bits(&BTRFS_I(inode)->io_tree, offset, end,
-					EXTENT_DAMAGED, GFP_NOFS);
+					EXTENT_DAMAGED);
 		if (ret) {
 			/* set_extent_bits should give proper error */
 			WARN_ON(ret > 0);

@@ -2814,7 +2814,7 @@ static void mark_block_processed(struct reloc_control *rc,
 				 u64 bytenr, u32 blocksize)
 {
 	set_extent_bits(&rc->processed_blocks, bytenr, bytenr + blocksize - 1,
-			EXTENT_DIRTY, GFP_NOFS);
+			EXTENT_DIRTY);
 }
 
 static void __mark_block_processed(struct reloc_control *rc,
@@ -3182,7 +3182,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 		    page_start + offset == cluster->boundary[nr]) {
 			set_extent_bits(&BTRFS_I(inode)->io_tree,
 					page_start, page_end,
-					EXTENT_BOUNDARY, GFP_NOFS);
+					EXTENT_BOUNDARY);
 			nr++;
 		}
 

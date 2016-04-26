@@ -259,9 +259,9 @@ int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   struct extent_state **cached_state, gfp_t mask);
 
 static inline int set_extent_bits(struct extent_io_tree *tree, u64 start,
-		u64 end, unsigned bits, gfp_t mask)
+		u64 end, unsigned bits)
 {
-	return set_extent_bit(tree, start, end, bits, NULL, NULL, mask);
+	return set_extent_bit(tree, start, end, bits, NULL, NULL, GFP_NOFS);
 }
 
 static inline int clear_extent_uptodate(struct extent_io_tree *tree, u64 start,
