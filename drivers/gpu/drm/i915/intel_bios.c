@@ -318,6 +318,15 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 		return;
 	}
 
+	dev_priv->vbt.backlight.type = INTEL_BACKLIGHT_DISPLAY_DDI;
+	if (bdb->version >= 191 &&
+	    get_blocksize(backlight_data) >= sizeof(*backlight_data)) {
+		const struct bdb_lfp_backlight_control_method *method;
+
+		method = &backlight_data->backlight_control[panel_type];
+		dev_priv->vbt.backlight.type = method->type;
+	}
+
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;
 	dev_priv->vbt.backlight.min_brightness = entry->min_brightness;

@@ -30,6 +30,14 @@
 #ifndef _INTEL_BIOS_H_
 #define _INTEL_BIOS_H_
 
+enum intel_backlight_type {
+	INTEL_BACKLIGHT_PMIC,
+	INTEL_BACKLIGHT_LPSS,
+	INTEL_BACKLIGHT_DISPLAY_DDI,
+	INTEL_BACKLIGHT_DSI_DCS,
+	INTEL_BACKLIGHT_PANEL_DRIVER_INTERFACE,
+};
+
 struct edp_power_seq {
 	u16 t1_t3;
 	u16 t8;
