@@ -1140,9 +1140,10 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 				gpf->kcnts[i] += pf->kcnts[i];
 		}
 
-		if (nla_put(skb, TCA_U32_PCNT,
-			    sizeof(struct tc_u32_pcnt) + n->sel.nkeys*sizeof(u64),
-			    gpf)) {
+		if (nla_put_64bit(skb, TCA_U32_PCNT,
+				  sizeof(struct tc_u32_pcnt) +
+				  n->sel.nkeys * sizeof(u64),
+				  gpf, TCA_U32_PAD)) {
 			kfree(gpf);
 			goto nla_put_failure;
 		}
