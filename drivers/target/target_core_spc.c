@@ -1211,6 +1211,7 @@ sense_reason_t spc_emulate_report_luns(struct se_cmd *cmd)
 	u32 lun_count = 0, offset = 8;
 	__be32 len;
 
+	pr_debug("spc_emulate_report_luns\n");
 	buf = transport_kmap_data_sg(cmd);
 	if (cmd->data_length && !buf)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -1260,6 +1261,8 @@ done:
 
 	if (buf) {
 		len = cpu_to_be32(lun_count * 8);
+		pr_debug("spc_emulate_report: len:%x luncount:%x\n",
+			be32_to_cpu(len), lun_count);
 		memcpy(buf, &len, min_t(int, sizeof len, cmd->data_length));
 		transport_kunmap_data_sg(cmd);
 	}

@@ -72,14 +72,6 @@
 #define GETBUS(x) ((int)((((u64)(x)) >> 53) & 0x0007))
 #define GETLUN(x) ((int)((((u64)(x)) >> 48) & 0x001f))
 
-#define BUILD_BUG_ON_NOT_POWER_OF_2(n)		\
-	BUILD_BUG_ON((n) == 0 || (((n) & ((n) - 1)) != 0))
-
-/*
- * These are fixed for the system and come from the Open Firmware device tree.
- * We just store them here to save getting them every time.
- */
-
 static unsigned max_vdma_size = MAX_H_COPY_RDMA;
 
 static const char ibmvscsis_driver_name[] = "ibmvscsis";
@@ -87,6 +79,7 @@ static char system_id[64] = "";
 static char partition_name[97] = "UNKNOWN";
 static unsigned int partition_number = -1;
 
+/* Adapter list and lock to control it */
 static DEFINE_SPINLOCK(ibmvscsis_dev_lock);
 static LIST_HEAD(ibmvscsis_dev_list);
 
@@ -135,13 +128,11 @@ struct ibmvscsis_adapter {
 	struct list_head siblings;
 
 	struct crq_queue crq_queue;
-//	struct tasklet_struct work_task;
 	struct work_struct crq_work;
 
 	u32 liobn;
 	u32 riobn;
 
-	//TODO: FIX LIBSRP TO WORK WITH TCM
 	struct srp_target target;
 
 	struct list_head list;
@@ -200,15 +191,6 @@ static inline long h_send_crq(struct ibmvscsis_adapter *adapter,
 static inline union viosrp_iu *vio_iu(struct iu_entry *iue)
 {
 	return (union viosrp_iu *)(iue->sbuf->buf);
-}
-
-static u64 make_lun(unsigned int bus, unsigned int target, unsigned int lun)
-{
-	u16 result = (0x8000 |
-			   ((target & 0x003f) << 8) |
-			   ((bus & 0x0007) << 5) |
-			   (lun & 0x001f));
-	return ((u64) result) << 48;
 }
 
 static int ibmvscsis_check_true(struct se_portal_group *se_tpg)
@@ -310,9 +292,9 @@ static struct configfs_attribute *ibmvscsis_wwn_attrs[] = {
 	NULL,
 };
 
-static ssize_t ibmvscsis_tpg_enable_show(struct config_item *item, char *page)
+static ssize_t ibmvscsis_tpg_enable_show(struct config_item *item,
+				char *page)
 {
-
         struct se_portal_group *se_tpg = to_tpg(item);
         struct ibmvscsis_tport *tport = container_of(se_tpg,
                                 struct ibmvscsis_tport, se_tpg);
@@ -337,7 +319,8 @@ static ssize_t ibmvscsis_tpg_enable_store(struct config_item *item,
         }
 
         if ((tmp != 0) && (tmp != 1)) {
-                pr_err("Illegal value for srpt_tpg_store_enable: %lu\n", tmp);
+                pr_err("Illegal value for srpt_tpg_store_enable: %lu\n",
+			tmp);
                 return -EINVAL;
         }
         if (tmp == 1)
@@ -390,7 +373,8 @@ static struct se_portal_group *ibmvscsis_make_nexus(struct ibmvscsis_tport *tpor
 	pr_debug("ibmvscsis: make_nexus: se_sess:%p, tport(%p)\n",
 			tport->se_sess, tport);
 	pr_debug("ibmvsciss: initiator name:%s, se_tpg:%p\n",
-		tport->se_sess->se_node_acl->initiatorname, tport->se_sess->se_tpg);
+			tport->se_sess->se_node_acl->initiatorname,
+			tport->se_sess->se_tpg);
 	/*
 	 * Since we are running in 'demo mode' this call will generate a
 	 * struct se_node_acl for the ibmvscsis struct se_portal_group with
@@ -409,8 +393,9 @@ static struct se_portal_group *ibmvscsis_make_nexus(struct ibmvscsis_tport *tpor
 	/*
 	 * Now register the TCM ibmvscsis virtual I_T Nexus as active.
 	 */
-	transport_register_session(&tport->se_tpg, tport->se_sess->se_node_acl,
-			tport->se_sess, tport);
+	transport_register_session(&tport->se_tpg,
+					tport->se_sess->se_node_acl,
+					tport->se_sess, tport);
 
 	return &tport->se_tpg;
 
@@ -448,7 +433,6 @@ static void ibmvscsis_drop_tpg(struct se_portal_group *se_tpg)
 				struct ibmvscsis_tport, se_tpg);
 
 	tport->releasing = true;
-	//TODO: Add a release mechanism to remove vio
 	/*
 	 * Release the virtual I_T Nexus for this ibmvscsis TPG
 	 */
@@ -785,7 +769,8 @@ static int process_mad_iu(struct iu_entry *iue)
 		break;
 	default:
 		pr_err("ibmvscsis: Unknown type %u\n", iu->srp.rsp.opcode);
-		iu->mad.empty_iu.common.status = VIOSRP_MAD_NOT_SUPPORTED;
+		iu->mad.empty_iu.common.status =
+					cpu_to_be16(VIOSRP_MAD_NOT_SUPPORTED);
 		send_iu(iue, sizeof(iu->mad), VIOSRP_MAD_FORMAT);
 		break;
 	}
@@ -1000,7 +985,7 @@ static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 	unpacked_lun = ibmvscsis_unpack_lun((uint8_t *)&scmd->lun,
 				sizeof(scmd->lun));
 
-	pr_err("ibmvscsis: tcm_queuecommand- se_cmd(%p), se_sess(%p),"
+	pr_debug("ibmvscsis: tcm_queuecommand- se_cmd(%p), se_sess(%p),"
 			" cdb: %x, sense: %x, unpacked_lun: %llx,"
 			" data_length: %llx, task_attr: %x, data_dir: %x"
 			" flags: %x, tag:%llx, packed_lun:%llx\n",
@@ -1024,7 +1009,6 @@ static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 send_sense:
 	transport_send_check_condition_and_sense(&vsc->se_cmd, ret, 0);
 	return -1;
-
 }
 
 struct inquiry_data {
@@ -1046,7 +1030,6 @@ struct inquiry_data {
 	char unique[158];
 };
 
-//TODO: Needs to be rewritten to support TCM
 static int ibmvscsis_inquiry(struct ibmvscsis_adapter *adapter,
 			      struct srp_cmd *cmd, char *data)
 {
@@ -1126,7 +1109,7 @@ static int ibmvscsis_inquiry(struct ibmvscsis_adapter *adapter,
 
 	return len;
 }
-//TODO: Needs to be rewritten to support TCM
+
 static int ibmvscsis_mode_sense(struct ibmvscsis_adapter *adapter,
 				struct srp_cmd *cmd, char *mode)
 {
@@ -1142,7 +1125,6 @@ static int ibmvscsis_mode_sense(struct ibmvscsis_adapter *adapter,
 
 	hlist_for_each_entry(lun, &se_tpg->tpg_lun_hlist, link) {
 		if (lun->unpacked_lun == unpacked_lun) {
-			// TODO get_blocks seems to be private...
 			blocks = lun->lun_se_dev->transport->get_blocks(
 				lun->lun_se_dev);
 			break;
@@ -1191,14 +1173,10 @@ static int ibmvscsis_mode_sense(struct ibmvscsis_adapter *adapter,
 
 	return bytes;
 }
-/* TODO: Needs to be rewritten to support TCM, have a call back via
- * target_core_fabric_ops using existing make_luns encoding format
- * to use common code spc_emulate_report_luns().
- */
+
 static int ibmvscsis_report_luns(struct ibmvscsis_adapter *adapter,
 				 struct srp_cmd *cmd, u64 *data)
 {
-//	u64 lun;
 	struct se_portal_group *se_tpg = &adapter->tport.se_tpg;
 	int idx;
 	int alen, oalen, nr_luns, rbuflen = 4096;
@@ -1220,9 +1198,7 @@ static int ibmvscsis_report_luns(struct ibmvscsis_adapter *adapter,
 	nr_luns = 1;
 
 	spin_lock(&se_tpg->session_lock);
-	// TODO Is lun_index the right thing?
 	hlist_for_each_entry(se_lun, &se_tpg->tpg_lun_hlist, link) {
-//		lun = make_lun(0, se_lun->lun_index & 0x003f, 0);
 		data[idx++] = cpu_to_be64(se_lun->unpacked_lun);
 		alen -= 8;
 		if (!alen)
@@ -1238,7 +1214,7 @@ done:
 	put_unaligned_be32(nr_luns * 8, data);
 	return min(oalen, nr_luns * 8 + 8);
 }
-//TODO: Needs to be rewritten to support TCM
+
 static int ibmvscsis_rdma(struct scsi_cmnd *sc, struct scatterlist *sg, int nsg,
 			  struct srp_direct_buf *md, int nmd,
 			  enum dma_data_direction dir, unsigned int rest)
@@ -1301,7 +1277,7 @@ static int ibmvscsis_rdma(struct scsi_cmnd *sc, struct scatterlist *sg, int nsg,
 	}
 	return 0;
 }
-//TODO: Needs to be rewritten to support TCM
+
 static int ibmvscsis_cmnd_done(struct scsi_cmnd *sc)
 {
 	unsigned long flags;
@@ -1324,11 +1300,10 @@ static int ibmvscsis_cmnd_done(struct scsi_cmnd *sc)
 	} else
 		send_rsp(iue, sc, NO_SENSE, 0x00);
 
-	/* done(sc); */
 	srp_iu_put(iue);
 	return 0;
 }
-//TODO: Needs to be rewritten to support TCM
+
 static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
 {
 	struct ibmvscsis_cmnd *cmd = container_of(se_cmd,
@@ -1354,7 +1329,7 @@ static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
 	target_execute_cmd(se_cmd);
 	return 0;
 }
-//TODO: Needs to be rewritten to support TCM
+
 static int ibmvscsis_queue_data_in(struct se_cmd *se_cmd)
 {
 	struct ibmvscsis_cmnd *cmd = container_of(se_cmd,
@@ -1381,7 +1356,7 @@ static int ibmvscsis_queue_data_in(struct se_cmd *se_cmd)
 	pr_debug("ibmvscsis: queue_data_in");
 	return 0;
 }
-//TODO: Needs to be rewritten to support TCM
+
 static int ibmvscsis_queue_status(struct se_cmd *se_cmd)
 {
 	struct ibmvscsis_cmnd *cmd = container_of(se_cmd,
@@ -1389,7 +1364,7 @@ static int ibmvscsis_queue_status(struct se_cmd *se_cmd)
 	struct scsi_cmnd *sc = &cmd->sc;
 	/*
 	 * Copy any generated SENSE data into sc->sense_buffer and
-	 * set the appropiate sc->result to be translated by
+	 * set the appropriate sc->result to be translated by
 	 * ibmvscsis_cmnd_done()
 	 */
 	pr_debug("ibmvscsis: ibmvscsis_queue_status\n");
@@ -1408,7 +1383,7 @@ static int ibmvscsis_queue_status(struct se_cmd *se_cmd)
 	ibmvscsis_cmnd_done(sc);
 	return 0;
 }
-//TODO: Needs to be rewritten to support TCM
+
 static int ibmvscsis_queuecommand(struct ibmvscsis_adapter *adapter,
 				  struct iu_entry *iue)
 {
@@ -1476,7 +1451,7 @@ static int ibmvscsis_queuecommand(struct ibmvscsis_adapter *adapter,
 
 	return ret;
 }
-//TODO: Needs to be rewritten to support TCM
+
 static void handle_cmd_queue(struct ibmvscsis_adapter *adapter)
 {
 	struct srp_target *target = &adapter->target;
@@ -1510,7 +1485,6 @@ static irqreturn_t ibmvscsis_interrupt(int dummy, void *data)
 
 	pr_debug("ibmvscsis: there is an interrupt\n");
 	vio_disable_interrupts(adapter->dma_dev);
-//	tasklet_schedule(&adapter->work_task);
 	schedule_work(&adapter->crq_work);
 
 	return IRQ_HANDLED;
@@ -1549,7 +1523,6 @@ static void crq_queue_destroy(struct ibmvscsis_adapter *adapter)
 
 	free_irq(vdev->irq, (void *)adapter);
 	flush_work(&adapter->crq_work);
-//	tasklet_kill(&adapter->work_task);
 	h_free_crq(vdev->unit_address);
 	dma_unmap_single(&adapter->dma_dev->dev, queue->msg_token,
 			 queue->size * sizeof(*queue->msgs), DMA_BIDIRECTIONAL);
@@ -1606,12 +1579,12 @@ static int process_srp_iu(struct iu_entry *iue)
 {
 	union viosrp_iu *iu = vio_iu(iue);
 	struct srp_target *target = iue->target;
-//	struct ibmvscsis_adapter *adapter = target->ldata;
+	struct ibmvscsis_adapter *adapter = target->ldata;
 	u8 opcode = iu->srp.rsp.opcode;
 	unsigned long flags;
 	int err = 1;
 
-/*	spin_lock_irqsave(&target->lock, flags);
+	spin_lock_irqsave(&target->lock, flags);
 	if (adapter->tport.releasing) {
 		spin_unlock_irqrestore(&target->lock, flags);
 		pr_err("ibmvscsis: process_srp_iu, no tpg, releasing:%x\n",
@@ -1620,7 +1593,7 @@ static int process_srp_iu(struct iu_entry *iue)
 		goto done;
 	}
 	spin_unlock_irqrestore(&target->lock, flags);
-*/
+
 	switch (opcode) {
 	case SRP_LOGIN_REQ:
 		pr_debug("ibmvscsis: srploginreq");
@@ -1652,7 +1625,7 @@ static int process_srp_iu(struct iu_entry *iue)
 	default:
 		pr_err("ibmvscsis: Unknown type %u\n", opcode);
 	}
-//done:
+done:
 	return err;
 }
 
@@ -1712,8 +1685,8 @@ static void process_crq(struct viosrp_crq *crq,
 		switch (crq->format) {
 		case VIOSRP_SRP_FORMAT:
 		case VIOSRP_MAD_FORMAT:
-			pr_debug("ibmvscsis: case viosrp mad crq: 0x%x, 0x%x, \
-					0x%x, 0x%x, 0x%x, 0x%x, 0x%llx\n",
+			pr_debug("ibmvscsis: case viosrp mad crq: 0x%x, 0x%x,"
+					" 0x%x, 0x%x, 0x%x, 0x%x, 0x%llx\n",
 					crq->valid, crq->format, crq->reserved,
 					crq->status, be16_to_cpu(crq->timeout),
 					be16_to_cpu(crq->IU_length),
@@ -1738,11 +1711,9 @@ static void process_crq(struct viosrp_crq *crq,
 	}
 }
 
-//static void handle_crq(unsigned long data)
 static void handle_crq(struct work_struct *work)
 {
 	struct ibmvscsis_adapter *adapter =
-//			(struct ibmvscsis_adapter *) data;
 			container_of(work, struct ibmvscsis_adapter, crq_work);
 	struct viosrp_crq *crq;
 	int done = 0;
@@ -1808,7 +1779,6 @@ static int crq_queue_create(struct crq_queue *queue,
 	queue->cur = 0;
 	spin_lock_init(&queue->lock);
 
-//	tasklet_init(&adapter->work_task, handle_crq, (unsigned long)adapter);
 	INIT_WORK(&adapter->crq_work, handle_crq);
 
 	err = request_irq(vdev->irq, &ibmvscsis_interrupt,
@@ -1827,7 +1797,6 @@ static int crq_queue_create(struct crq_queue *queue,
 	return retrc;
 
 req_irq_failed:
-//	tasklet_kill(&adapter->work_task);
 	h_free_crq(vdev->unit_address);
 reg_crq_failed:
 	dma_unmap_single(&vdev->dev, queue->msg_token,

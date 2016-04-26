@@ -38,7 +38,7 @@ struct tgt_event_hdr {
 	uint16_t status;
 	uint16_t type;
 	uint16_t len;
-} __attribute__ ((aligned (sizeof(uint64_t))));
+} __aligned(sizeof(uint64_t));
 
 struct tgt_event {
 	struct tgt_event_hdr hdr;
@@ -101,7 +101,7 @@ struct tgt_event {
 			__u8 initiator_id[16];
 		} it_nexus_req;
 	} p;
-} __attribute__ ((aligned (sizeof(uint64_t))));
+} __aligned(sizeof(uint64_t));
 
 #define TGT_RING_SIZE (1UL << 16)
 

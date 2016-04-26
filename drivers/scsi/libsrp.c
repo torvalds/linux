@@ -2,6 +2,7 @@
  * SCSI RDMA Protocol lib functions
  *
  * Copyright (C) 2006 FUJITA Tomonori <tomof@acm.org>
+ * Copyright (C) 2016 Bryant G. Ly <bgly@us.ibm.com> IBM Corp.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -31,14 +32,6 @@
 #include <scsi/srp.h>
 #include <target/target_core_base.h>
 #include <scsi/libsrp.h>
-
-/* tmp - will replace with SCSI logging stuff */
-#define eprintk(fmt, args...)					\
-do {								\
-	printk("%s(%d) " fmt, __func__, __LINE__, ##args);	\
-} while (0)
-/* #define dprintk eprintk */
-#define dprintk(fmt, args...)
 
 static int srp_iu_pool_alloc(struct srp_queue *q, size_t max,
 			     struct srp_buf **ring)
@@ -98,8 +91,10 @@ static struct srp_buf **srp_ring_alloc(struct device *dev,
 
 out:
 	for (i = 0; i < max && ring[i]; i++) {
-		if (ring[i]->buf)
-			dma_free_coherent(dev, size, ring[i]->buf, ring[i]->dma);
+		if (ring[i]->buf) {
+			dma_free_coherent(dev, size, ring[i]->buf,
+						ring[i]->dma);
+		}
 		kfree(ring[i]);
 	}
 	kfree(ring);
@@ -139,7 +134,7 @@ int srp_target_alloc(struct srp_target *target, struct device *dev,
 	if (err)
 		goto free_ring;
 
-	dev_set_drvdata(target->dev,target);
+	dev_set_drvdata(target->dev, target);
 	return 0;
 
 free_ring:
@@ -163,9 +158,10 @@ struct iu_entry *srp_iu_get(struct srp_target *target)
 
 	pr_info("libsrp: srp_iu_get\n");
 	if (kfifo_out_locked(&target->iu_queue.queue, (void *) &iue,
-		sizeof(void *), &target->iu_queue.lock) != sizeof(void *)) {
-			WARN_ONCE(1, "unexpected fifo state");
-			return NULL;
+				sizeof(void *),
+				&target->iu_queue.lock) != sizeof(void *)) {
+		WARN_ONCE(1, "unexpected fifo state");
+		return NULL;
 	}
 	if (!iue)
 		return iue;
@@ -196,13 +192,15 @@ static int srp_direct_data(struct scsi_cmnd *sc, struct srp_direct_buf *md,
 		iue = (struct iu_entry *) sc->SCp.ptr;
 		sg = scsi_sglist(sc);
 
-		dprintk("%p %u %u %d\n", iue, scsi_bufflen(sc),
-			md->len, scsi_sg_count(sc));
+		pr_debug("libsrp: iue: %p scsi_buff_len: %u srp_buff_len: %u"
+			" scsi_sg_count: %d\n",
+			iue, scsi_bufflen(sc), md->len, scsi_sg_count(sc));
 
 		nsg = dma_map_sg(iue->target->dev, sg, scsi_sg_count(sc),
 				 DMA_BIDIRECTIONAL);
 		if (!nsg) {
-			printk("fail to map %p %d\n", iue, scsi_sg_count(sc));
+			pr_err("libsrp: fail to map %p %d\n",
+				iue, scsi_sg_count(sc));
 			return 0;
 		}
 		len = min(scsi_bufflen(sc), md->len);
@@ -233,7 +231,8 @@ static int srp_indirect_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 		iue = (struct iu_entry *) sc->SCp.ptr;
 		sg = scsi_sglist(sc);
 
-		dprintk("%p %u %u %d %d\n",
+		pr_debug("libsrp: iue: %p scsi_buff_len: %u srp_ind_len: %u"
+			" in_desc_count: %d out_desc_count: %d\n",
 			iue, scsi_bufflen(sc), id->len,
 			cmd->data_in_desc_cnt, cmd->data_out_desc_cnt);
 	}
@@ -250,7 +249,8 @@ static int srp_indirect_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 		md = dma_alloc_coherent(iue->target->dev, id->table_desc.len,
 				&token, GFP_KERNEL);
 		if (!md) {
-			eprintk("Can't get dma memory %u\n", id->table_desc.len);
+			pr_err("libsrp: Can't get dma memory %u\n",
+				id->table_desc.len);
 			return -ENOMEM;
 		}
 
@@ -260,11 +260,12 @@ static int srp_indirect_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 		err = rdma_io(sc, &dummy, 1, &id->table_desc, 1, DMA_TO_DEVICE,
 			      id->table_desc.len);
 		if (err) {
-			eprintk("Error copying indirect table %d\n", err);
+			pr_err("libsrp: Error copying indirect table %d\n",
+				err);
 			goto free_mem;
 		}
 	} else {
-		eprintk("This command uses external indirect buffer\n");
+		pr_err("libsrp: This command uses external indirect buffer\n");
 		return -EINVAL;
 	}
 
@@ -273,7 +274,8 @@ rdma:
 		nsg = dma_map_sg(iue->target->dev, sg, scsi_sg_count(sc),
 				 DMA_BIDIRECTIONAL);
 		if (!nsg) {
-			eprintk("fail to map %p %d\n", iue, scsi_sg_count(sc));
+			pr_err("libsrp: fail to map %p %d\n",
+				iue, scsi_sg_count(sc));
 			err = -EIO;
 			goto free_mem;
 		}
@@ -287,9 +289,10 @@ rdma:
 		dma_unmap_sg(iue->target->dev, sg, nsg, DMA_BIDIRECTIONAL);
 
 free_mem:
-	if (token && dma_map)
-		dma_free_coherent(iue->target->dev, id->table_desc.len, md, token);
-
+	if (token && dma_map) {
+		dma_free_coherent(iue->target->dev, id->table_desc.len,
+					md, token);
+	}
 	return err;
 }
 
@@ -309,7 +312,8 @@ static int data_out_desc_size(struct srp_cmd *cmd)
 			sizeof(struct srp_direct_buf) * cmd->data_out_desc_cnt;
 		break;
 	default:
-		eprintk("client error. Invalid data_out_format %x\n", fmt);
+		pr_err("libsrp: client error. Invalid data_out_format %x\n",
+			fmt);
 		break;
 	}
 	return size;
@@ -328,7 +332,6 @@ int srp_transfer_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 	int offset, err = 0;
 	u8 format;
 
-	pr_info("libsrp: srp transfer data\n");
 	offset = cmd->add_cdb_len & ~3;
 
 	dir = srp_cmd_direction(cmd);
@@ -355,7 +358,7 @@ int srp_transfer_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 					ext_desc);
 		break;
 	default:
-		eprintk("Unknown format %d %x\n", dir, format);
+		pr_err("libsrp: Unknown format %d %x\n", dir, format);
 		err = -EINVAL;
 	}
 
@@ -390,62 +393,13 @@ u64 srp_data_length(struct srp_cmd *cmd, enum dma_data_direction dir)
 		len = be32_to_cpu(id->len);
 		break;
 	default:
-		eprintk("invalid data format %x\n", fmt);
+		pr_err("invalid data format %x\n", fmt);
 		break;
 	}
 	return len;
 }
 EXPORT_SYMBOL_GPL(srp_data_length);
 
-int srp_cmd_queue(struct Scsi_Host *shost, struct srp_cmd *cmd, void *info,
-		  u64 itn_id, u64 addr)
-{
-	enum dma_data_direction dir;
-	struct scsi_cmnd *sc;
-	int tag, len, err;
-
-	pr_info("libsrp: srp cmd queue\n");
-	switch (cmd->task_attr) {
-	case SRP_SIMPLE_TASK:
-		tag = TCM_SIMPLE_TAG;
-		break;
-	case SRP_ORDERED_TASK:
-		tag = TCM_ORDERED_TAG;
-		break;
-	case SRP_HEAD_TASK:
-		tag = TCM_HEAD_TAG;
-		break;
-	case SRP_ACA_TASK:
-		tag = TCM_ACA_TAG;
-		break;
-	default:
-		eprintk("Task attribute %d not supported\n", cmd->task_attr);
-		tag = TCM_ORDERED_TAG;
-	}
-
-	dir = srp_cmd_direction(cmd);
-	len = srp_data_length(cmd, dir);
-
-	dprintk("%p %x %lx %d %d %d %llx\n", info, cmd->cdb[0],
-		cmd->lun, dir, len, tag, (unsigned long long) cmd->tag);
-
-	sc = scsi_host_get_command(shost, dir, GFP_KERNEL);
-	if (!sc)
-		return -ENOMEM;
-
-	sc->SCp.ptr = info;
-	memcpy(sc->cmnd, cmd->cdb, MAX_COMMAND_SIZE);
-	sc->sdb.length = len;
-	sc->sdb.table.sgl = (void *) (unsigned long) addr;
-	sc->tag = tag;
-	err = scsi_tgt_queue_command(sc, itn_id, &cmd->lun, cmd->tag);
-	if (err)
-		scsi_host_put_command(shost, sc);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(srp_cmd_queue);
-
 MODULE_DESCRIPTION("SCSI RDMA Protocol lib functions");
-MODULE_AUTHOR("FUJITA Tomonori");
+MODULE_AUTHOR("Bryant G. Ly");
 MODULE_LICENSE("GPL");

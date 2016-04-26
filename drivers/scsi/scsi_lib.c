@@ -666,7 +666,7 @@ static void scsi_mq_uninit_cmd(struct scsi_cmnd *cmd)
  *		the __init_io() function.  Primarily this would involve
  *		the scatter-gather table.
  */
-void scsi_release_buffers(struct scsi_cmnd *cmd)
+static void scsi_release_buffers(struct scsi_cmnd *cmd)
 {
 	if (cmd->sdb.table.nents)
 		scsi_free_sgtable(&cmd->sdb, false);
@@ -676,7 +676,7 @@ void scsi_release_buffers(struct scsi_cmnd *cmd)
 	if (scsi_prot_sg_count(cmd))
 		scsi_free_sgtable(cmd->prot_sdb, false);
 }
-EXPORT_SYMBOL(scsi_release_buffers);
+//EXPORT_SYMBOL(scsi_release_buffers);
 
 static void scsi_release_bidi_buffers(struct scsi_cmnd *cmd)
 {

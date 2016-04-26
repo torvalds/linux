@@ -145,7 +145,7 @@ struct scsi_host_template {
 	 */
 	/* TODO: rename */
 	int (* transfer_response)(struct scsi_cmnd *,
-				  void (*done)(struct scsi_cmnd *));
+				void (*done)(struct scsi_cmnd *));
 
 	/*
 	 * This is an error handling strategy routine.  You don't need to

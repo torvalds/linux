@@ -130,6 +130,7 @@ show_srp_rport_id(struct device *dev, struct device_attribute *attr,
 		  char *buf)
 {
 	struct srp_rport *rport = transport_class_to_srp_rport(dev);
+
 	return sprintf(buf, SRP_PID_FMT "\n", SRP_PID(rport));
 }
 
@@ -853,12 +854,14 @@ static int srp_tsk_mgmt_response(struct Scsi_Host *shost, u64 nexus, u64 tm_id,
 				 int result)
 {
 	struct srp_internal *i = to_srp_internal(shost->transportt);
+
 	return i->f->tsk_mgmt_response(shost, nexus, tm_id, result);
 }
 
 static int srp_it_nexus_response(struct Scsi_Host *shost, u64 nexus, int result)
 {
 	struct srp_internal *i = to_srp_internal(shost->transportt);
+
 	return i->f->it_nexus_response(shost, nexus, result);
 }
 
