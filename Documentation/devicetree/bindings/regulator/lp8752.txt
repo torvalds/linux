@@ -1,0 +1,44 @@
+Binding for TI/National Semiconductor LP8752 Driver
+
+Required properties:
+  - compatible: "ti,lp8752"
+  - reg: I2C slave address. 0x60 = LP8752
+
+Optional properties:
+  Sub nodes for regulator_init_data
+    LP8752 has maximum 4 nodes. (child name: buck0 ~ 3)
+    For more details, please see the following binding document.
+    (Documentation/devicetree/bindings/regulator/regulator.txt)
+
+Datasheet
+  - LP8752: http://www.ti.com/lit/ds/symlink/lp8752.pdf
+
+Example 1) LP8752
+
+lp8752: lp8752@60 {
+	compatible = "ti,lp8752";
+	status = "disabled";
+	reg = <0x60>;
+
+	vin0-supply = <&vcc5v0_sys>;
+	vin1-supply = <&vcc5v0_sys>;
+	/.............../
+
+	regulators {
+		lp8752_buck0: lp8752_buck0 {
+			regulator-name = "lp8752_buck0";
+			regulator-min-microvolt = <735000>;
+			regulator-max-microvolt = <1400000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		lp8752_buck1: lp8752_buck1 {
+			regulator-name = "lp8752_buck1";
+			regulator-min-microvolt = <735000>;
+			regulator-max-microvolt = <1400000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		/....../
+	};
+};
