@@ -481,6 +481,26 @@ static int rt298_adc_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec,
 			VERB_CMD(AC_VERB_SET_AMP_GAIN_MUTE, nid, 0),
 			0x7080, 0x7000);
+		 /* If MCLK doesn't exist, reset AD filter */
+		if (!(snd_soc_read(codec, RT298_VAD_CTRL) & 0x200)) {
+			pr_info("NO MCLK\n");
+			switch (nid) {
+			case RT298_ADC_IN1:
+				snd_soc_update_bits(codec,
+					RT298_D_FILTER_CTRL, 0x2, 0x2);
+				mdelay(10);
+				snd_soc_update_bits(codec,
+					RT298_D_FILTER_CTRL, 0x2, 0x0);
+				break;
+			case RT298_ADC_IN2:
+				snd_soc_update_bits(codec,
+					RT298_D_FILTER_CTRL, 0x4, 0x4);
+				mdelay(10);
+				snd_soc_update_bits(codec,
+					RT298_D_FILTER_CTRL, 0x4, 0x0);
+				break;
+			}
+		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_update_bits(codec,
