@@ -7923,7 +7923,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 					buf->start + buf->len - 1, GFP_NOFS);
 		else
 			set_extent_new(&root->dirty_log_pages, buf->start,
-					buf->start + buf->len - 1, GFP_NOFS);
+					buf->start + buf->len - 1);
 	} else {
 		buf->log_index = -1;
 		set_extent_dirty(&trans->transaction->dirty_pages, buf->start,

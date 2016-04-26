@@ -307,9 +307,10 @@ static inline int set_extent_defrag(struct extent_io_tree *tree, u64 start,
 }
 
 static inline int set_extent_new(struct extent_io_tree *tree, u64 start,
-		u64 end, gfp_t mask)
+		u64 end)
 {
-	return set_extent_bit(tree, start, end, EXTENT_NEW, NULL, NULL, mask);
+	return set_extent_bit(tree, start, end, EXTENT_NEW, NULL, NULL,
+			GFP_NOFS);
 }
 
 static inline int set_extent_uptodate(struct extent_io_tree *tree, u64 start,
