@@ -78,6 +78,15 @@
 #define VSD_FIRST_SECTOR_OFFSET		32768
 #define VSD_MAX_SECTOR_OFFSET		0x800000
 
+/*
+ * Maximum number of Terminating Descriptor / Logical Volume Integrity
+ * Descriptor redirections. The chosen numbers are arbitrary - just that we
+ * hopefully don't limit any real use of rewritten inode on write-once media
+ * but avoid looping for too long on corrupted media.
+ */
+#define UDF_MAX_TD_NESTING 64
+#define UDF_MAX_LVID_NESTING 1000
+
 enum { UDF_MAX_LINKS = 0xffff };
 
 /* These are the "meat" - everything else is stuffing */
@@ -1541,42 +1550,52 @@ out_bh:
 }
 
 /*
- * udf_load_logicalvolint
- *
+ * Find the prevailing Logical Volume Integrity Descriptor.
  */
 static void udf_load_logicalvolint(struct super_block *sb, struct kernel_extent_ad loc)
 {
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh, *final_bh;
 	uint16_t ident;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct logicalVolIntegrityDesc *lvid;
+	int indirections = 0;
 
-	while (loc.extLength > 0 &&
-	       (bh = udf_read_tagged(sb, loc.extLocation,
-				     loc.extLocation, &ident)) &&
-	       ident == TAG_IDENT_LVID) {
-		sbi->s_lvid_bh = bh;
-		lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
+	while (++indirections <= UDF_MAX_LVID_NESTING) {
+		final_bh = NULL;
+		while (loc.extLength > 0 &&
+			(bh = udf_read_tagged(sb, loc.extLocation,
+					loc.extLocation, &ident))) {
+			if (ident != TAG_IDENT_LVID) {
+				brelse(bh);
+				break;
+			}
 
-		if (lvid->nextIntegrityExt.extLength)
-			udf_load_logicalvolint(sb,
-				leea_to_cpu(lvid->nextIntegrityExt));
+			brelse(final_bh);
+			final_bh = bh;
 
-		if (sbi->s_lvid_bh != bh)
-			brelse(bh);
-		loc.extLength -= sb->s_blocksize;
-		loc.extLocation++;
+			loc.extLength -= sb->s_blocksize;
+			loc.extLocation++;
+		}
+
+		if (!final_bh)
+			return;
+
+		brelse(sbi->s_lvid_bh);
+		sbi->s_lvid_bh = final_bh;
+
+		lvid = (struct logicalVolIntegrityDesc *)final_bh->b_data;
+		if (lvid->nextIntegrityExt.extLength == 0)
+			return;
+
+		loc = leea_to_cpu(lvid->nextIntegrityExt);
 	}
-	if (sbi->s_lvid_bh != bh)
-		brelse(bh);
+
+	udf_warn(sb, "Too many LVID indirections (max %u), ignoring.\n",
+		UDF_MAX_LVID_NESTING);
+	brelse(sbi->s_lvid_bh);
+	sbi->s_lvid_bh = NULL;
 }
 
-/*
- * Maximum number of Terminating Descriptor redirections. The chosen number is
- * arbitrary - just that we hopefully don't limit any real use of rewritten
- * inode on write-once media but avoid looping for too long on corrupted media.
- */
-#define UDF_MAX_TD_NESTING 64
 
 /*
  * Process a main/reserve volume descriptor sequence.
