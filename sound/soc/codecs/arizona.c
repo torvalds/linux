@@ -249,6 +249,18 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(arizona_init_spk);
 
+int arizona_free_spk(struct snd_soc_codec *codec)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+
+	arizona_free_irq(arizona, ARIZONA_IRQ_SPK_OVERHEAT_WARN, arizona);
+	arizona_free_irq(arizona, ARIZONA_IRQ_SPK_OVERHEAT, arizona);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_free_spk);
+
 static const struct snd_soc_dapm_route arizona_mono_routes[] = {
 	{ "OUT1R", NULL, "OUT1L" },
 	{ "OUT2R", NULL, "OUT2L" },
