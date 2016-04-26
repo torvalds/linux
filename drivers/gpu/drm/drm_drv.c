@@ -123,10 +123,10 @@ static void drm_master_destroy(struct kref *kref)
 	struct drm_device *dev = master->minor->dev;
 	struct drm_map_list *r_list, *list_temp;
 
-	mutex_lock(&dev->struct_mutex);
 	if (dev->driver->master_destroy)
 		dev->driver->master_destroy(dev, master);
 
+	mutex_lock(&dev->struct_mutex);
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head) {
 		if (r_list->master == master) {
 			drm_legacy_rmmap_locked(dev, r_list->map);
