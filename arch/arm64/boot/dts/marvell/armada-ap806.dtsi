@@ -184,7 +184,7 @@
 			};
 
 			i2c0: i2c@511000 {
-				compatible = "marvell,mv64xxx-i2c";
+				compatible = "marvell,mv78230-i2c";
 				reg = <0x511000 0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
