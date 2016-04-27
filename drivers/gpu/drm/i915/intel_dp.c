@@ -2821,91 +2821,12 @@ static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder)
 
 static void chv_pre_enable_dp(struct intel_encoder *encoder)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(encoder->base.crtc);
-	enum dpio_channel ch = vlv_dport_to_channel(dport);
-	int pipe = intel_crtc->pipe;
-	int data, i, stagger;
-	u32 val;
-
-	mutex_lock(&dev_priv->sb_lock);
-
-	/* allow hardware to manage TX FIFO reset source */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW11(ch));
-	val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW11(ch), val);
-
-	if (intel_crtc->config->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW11(ch));
-		val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
-		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
-	}
-
-	/* Program Tx lane latency optimal setting*/
-	for (i = 0; i < intel_crtc->config->lane_count; i++) {
-		/* Set the upar bit */
-		if (intel_crtc->config->lane_count == 1)
-			data = 0x0;
-		else
-			data = (i == 1) ? 0x0 : 0x1;
-		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW14(ch, i),
-				data << DPIO_UPAR_SHIFT);
-	}
-
-	/* Data lane stagger programming */
-	if (intel_crtc->config->port_clock > 270000)
-		stagger = 0x18;
-	else if (intel_crtc->config->port_clock > 135000)
-		stagger = 0xd;
-	else if (intel_crtc->config->port_clock > 67500)
-		stagger = 0x7;
-	else if (intel_crtc->config->port_clock > 33750)
-		stagger = 0x4;
-	else
-		stagger = 0x2;
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW11(ch));
-	val |= DPIO_TX2_STAGGER_MASK(0x1f);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW11(ch), val);
-
-	if (intel_crtc->config->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW11(ch));
-		val |= DPIO_TX2_STAGGER_MASK(0x1f);
-		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
-	}
-
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW12(ch),
-		       DPIO_LANESTAGGER_STRAP(stagger) |
-		       DPIO_LANESTAGGER_STRAP_OVRD |
-		       DPIO_TX1_STAGGER_MASK(0x1f) |
-		       DPIO_TX1_STAGGER_MULT(6) |
-		       DPIO_TX2_STAGGER_MULT(0));
-
-	if (intel_crtc->config->lane_count > 2) {
-		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW12(ch),
-			       DPIO_LANESTAGGER_STRAP(stagger) |
-			       DPIO_LANESTAGGER_STRAP_OVRD |
-			       DPIO_TX1_STAGGER_MASK(0x1f) |
-			       DPIO_TX1_STAGGER_MULT(7) |
-			       DPIO_TX2_STAGGER_MULT(5));
-	}
-
-	/* Deassert data lane reset */
-	chv_data_lane_soft_reset(encoder, false);
-
-	mutex_unlock(&dev_priv->sb_lock);
+	chv_phy_pre_encoder_enable(encoder);
 
 	intel_enable_dp(encoder);
 
 	/* Second common lane will stay alive on its own now */
-	if (dport->release_cl2_override) {
-		chv_phy_powergate_ch(dev_priv, DPIO_PHY0, DPIO_CH1, false);
-		dport->release_cl2_override = false;
-	}
+	chv_phy_release_cl2_override(encoder);
 }
 
 static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)

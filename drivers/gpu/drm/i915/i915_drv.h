@@ -3596,6 +3596,8 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 void chv_data_lane_soft_reset(struct intel_encoder *encoder,
 			      bool reset);
 void chv_phy_pre_pll_enable(struct intel_encoder *encoder);
+void chv_phy_pre_encoder_enable(struct intel_encoder *encoder);
+void chv_phy_release_cl2_override(struct intel_encoder *encoder);
 
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
