@@ -1954,7 +1954,7 @@ static struct ceph_osd_request *rbd_osd_req_create(
 	osd_req = ceph_osdc_alloc_request(osdc, snapc, num_ops, false,
 					  GFP_NOIO);
 	if (!osd_req)
-		return NULL;	/* ENOMEM */
+		goto fail;
 
 	if (op_type == OBJ_OP_WRITE || op_type == OBJ_OP_DISCARD)
 		osd_req->r_flags = CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK;
@@ -1967,7 +1967,14 @@ static struct ceph_osd_request *rbd_osd_req_create(
 	osd_req->r_base_oloc.pool = ceph_file_layout_pg_pool(rbd_dev->layout);
 	ceph_oid_set_name(&osd_req->r_base_oid, obj_request->object_name);
 
+	if (ceph_osdc_alloc_messages(osd_req, GFP_NOIO))
+		goto fail;
+
 	return osd_req;
+
+fail:
+	ceph_osdc_put_request(osd_req);
+	return NULL;
 }
 
 /*
@@ -2003,7 +2010,7 @@ rbd_osd_req_create_copyup(struct rbd_obj_request *obj_request)
 	osd_req = ceph_osdc_alloc_request(osdc, snapc, num_osd_ops,
 						false, GFP_NOIO);
 	if (!osd_req)
-		return NULL;	/* ENOMEM */
+		goto fail;
 
 	osd_req->r_flags = CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK;
 	osd_req->r_callback = rbd_osd_req_callback;
@@ -2012,7 +2019,14 @@ rbd_osd_req_create_copyup(struct rbd_obj_request *obj_request)
 	osd_req->r_base_oloc.pool = ceph_file_layout_pg_pool(rbd_dev->layout);
 	ceph_oid_set_name(&osd_req->r_base_oid, obj_request->object_name);
 
+	if (ceph_osdc_alloc_messages(osd_req, GFP_NOIO))
+		goto fail;
+
 	return osd_req;
+
+fail:
+	ceph_osdc_put_request(osd_req);
+	return NULL;
 }
 
 

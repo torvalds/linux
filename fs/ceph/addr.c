@@ -1762,6 +1762,10 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci, u32 pool)
 		 "%llx.00000000", ci->i_vino.ino);
 	rd_req->r_base_oid.name_len = strlen(rd_req->r_base_oid.name);
 
+	err = ceph_osdc_alloc_messages(rd_req, GFP_NOFS);
+	if (err)
+		goto out_unlock;
+
 	wr_req = ceph_osdc_alloc_request(&fsc->client->osdc, NULL,
 					 1, false, GFP_NOFS);
 	if (!wr_req) {
@@ -1774,6 +1778,10 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci, u32 pool)
 	osd_req_op_init(wr_req, 0, CEPH_OSD_OP_CREATE, CEPH_OSD_OP_FLAG_EXCL);
 	wr_req->r_base_oloc.pool = pool;
 	wr_req->r_base_oid = rd_req->r_base_oid;
+
+	err = ceph_osdc_alloc_messages(wr_req, GFP_NOFS);
+	if (err)
+		goto out_unlock;
 
 	/* one page should be large enough for STAT data */
 	pages = ceph_alloc_page_vector(1, GFP_KERNEL);

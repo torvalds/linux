@@ -369,8 +369,6 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 					       gfp_t gfp_flags)
 {
 	struct ceph_osd_request *req;
-	struct ceph_msg *msg;
-	size_t msg_size;
 
 	if (use_mempool) {
 		BUG_ON(num_ops > CEPH_OSD_SLAB_OPS);
@@ -407,53 +405,59 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	req->r_base_oloc.pool = -1;
 	req->r_target_oloc.pool = -1;
 
-	msg_size = OSD_OPREPLY_FRONT_LEN;
-	if (num_ops > CEPH_OSD_SLAB_OPS) {
-		/* ceph_osd_op and rval */
-		msg_size += (num_ops - CEPH_OSD_SLAB_OPS) *
-			    (sizeof(struct ceph_osd_op) + 4);
-	}
+	dout("%s req %p\n", __func__, req);
+	return req;
+}
+EXPORT_SYMBOL(ceph_osdc_alloc_request);
 
-	/* create reply message */
-	if (use_mempool)
-		msg = ceph_msgpool_get(&osdc->msgpool_op_reply, 0);
-	else
-		msg = ceph_msg_new(CEPH_MSG_OSD_OPREPLY, msg_size,
-				   gfp_flags, true);
-	if (!msg) {
-		ceph_osdc_put_request(req);
-		return NULL;
-	}
-	req->r_reply = msg;
+int ceph_osdc_alloc_messages(struct ceph_osd_request *req, gfp_t gfp)
+{
+	struct ceph_osd_client *osdc = req->r_osdc;
+	struct ceph_msg *msg;
+	int msg_size;
 
+	/* create request message */
 	msg_size = 4 + 4 + 4; /* client_inc, osdmap_epoch, flags */
 	msg_size += 4 + 4 + 4 + 8; /* mtime, reassert_version */
 	msg_size += 2 + 4 + 8 + 4 + 4; /* oloc */
 	msg_size += 1 + 8 + 4 + 4; /* pgid */
-	msg_size += 4 + CEPH_MAX_OID_NAME_LEN; /* oid */
-	msg_size += 2 + num_ops * sizeof(struct ceph_osd_op);
+	msg_size += 4 + req->r_base_oid.name_len; /* oid */
+	msg_size += 2 + req->r_num_ops * sizeof(struct ceph_osd_op);
 	msg_size += 8; /* snapid */
 	msg_size += 8; /* snap_seq */
-	msg_size += 4 + 8 * (snapc ? snapc->num_snaps : 0); /* snaps */
+	msg_size += 4 + 8 * (req->r_snapc ? req->r_snapc->num_snaps : 0);
 	msg_size += 4; /* retry_attempt */
 
-	/* create request message; allow space for oid */
-	if (use_mempool)
+	if (req->r_mempool)
 		msg = ceph_msgpool_get(&osdc->msgpool_op, 0);
 	else
-		msg = ceph_msg_new(CEPH_MSG_OSD_OP, msg_size, gfp_flags, true);
-	if (!msg) {
-		ceph_osdc_put_request(req);
-		return NULL;
-	}
+		msg = ceph_msg_new(CEPH_MSG_OSD_OP, msg_size, gfp, true);
+	if (!msg)
+		return -ENOMEM;
 
 	memset(msg->front.iov_base, 0, msg->front.iov_len);
-
 	req->r_request = msg;
 
-	return req;
+	/* create reply message */
+	msg_size = OSD_OPREPLY_FRONT_LEN;
+	if (req->r_num_ops > CEPH_OSD_SLAB_OPS) {
+		/* ceph_osd_op and rval */
+		msg_size += (req->r_num_ops - CEPH_OSD_SLAB_OPS) *
+			    (sizeof(struct ceph_osd_op) + 4);
+	}
+
+	if (req->r_mempool)
+		msg = ceph_msgpool_get(&osdc->msgpool_op_reply, 0);
+	else
+		msg = ceph_msg_new(CEPH_MSG_OSD_OPREPLY, msg_size, gfp, true);
+	if (!msg)
+		return -ENOMEM;
+
+	req->r_reply = msg;
+
+	return 0;
 }
-EXPORT_SYMBOL(ceph_osdc_alloc_request);
+EXPORT_SYMBOL(ceph_osdc_alloc_messages);
 
 static bool osd_req_opcode_valid(u16 opcode)
 {
@@ -828,17 +832,17 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 
 	req = ceph_osdc_alloc_request(osdc, snapc, num_ops, use_mempool,
 					GFP_NOFS);
-	if (!req)
-		return ERR_PTR(-ENOMEM);
+	if (!req) {
+		r = -ENOMEM;
+		goto fail;
+	}
 
 	req->r_flags = flags;
 
 	/* calculate max write size */
 	r = calc_layout(layout, off, plen, &objnum, &objoff, &objlen);
-	if (r < 0) {
-		ceph_osdc_put_request(req);
-		return ERR_PTR(r);
-	}
+	if (r)
+		goto fail;
 
 	if (opcode == CEPH_OSD_OP_CREATE || opcode == CEPH_OSD_OP_DELETE) {
 		osd_req_op_init(req, which, opcode, 0);
@@ -864,7 +868,15 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 		 "%llx.%08llx", vino.ino, objnum);
 	req->r_base_oid.name_len = strlen(req->r_base_oid.name);
 
+	r = ceph_osdc_alloc_messages(req, GFP_NOFS);
+	if (r)
+		goto fail;
+
 	return req;
+
+fail:
+	ceph_osdc_put_request(req);
+	return ERR_PTR(r);
 }
 EXPORT_SYMBOL(ceph_osdc_new_request);
 
