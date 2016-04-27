@@ -275,6 +275,7 @@
 	mmc-hs400-1_8v;
 	supports-emmc;
 	non-removable;
+	mmc-hs400-enhanced-strobe;
 	status = "okay";
 };
 
