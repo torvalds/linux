@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -291,10 +291,10 @@ static void ipu_pre_irq_mask(struct ipu_pre_data *pre,
 			     unsigned long mask, bool clear)
 {
 	if (clear) {
-		pre_write(pre, mask & 0xf, HW_PRE_IRQ_MASK_CLR);
+		pre_write(pre, mask & 0x1f, HW_PRE_IRQ_MASK_CLR);
 		return;
 	}
-	pre_write(pre, mask & 0xf, HW_PRE_IRQ_MASK_SET);
+	pre_write(pre, mask & 0x1f, HW_PRE_IRQ_MASK_SET);
 }
 
 static int ipu_pre_buf_set(unsigned int id, unsigned long cur_buf,
