@@ -70,6 +70,8 @@ enum {
 enum mlx5_ib_mmap_cmd {
 	MLX5_IB_MMAP_REGULAR_PAGE		= 0,
 	MLX5_IB_MMAP_GET_CONTIGUOUS_PAGES	= 1,
+	MLX5_IB_MMAP_WC_PAGE			= 2,
+	MLX5_IB_MMAP_NC_PAGE			= 3,
 	/* 5 is chosen in order to be compatible with old versions of libmlx5 */
 	MLX5_IB_MMAP_CORE_CLOCK			= 5,
 };
