@@ -49,37 +49,30 @@
 	orr	\dst, \dst, \mask		// dst|=(aff3>>rs3)
 	.endm
 /*
- * Save CPU state for a suspend and execute the suspend finisher.
- * On success it will return 0 through cpu_resume - ie through a CPU
- * soft/hard reboot from the reset vector.
- * On failure it returns the suspend finisher return value or force
- * -EOPNOTSUPP if the finisher erroneously returns 0 (the suspend finisher
- * is not allowed to return, if it does this must be considered failure).
- * It saves callee registers, and allocates space on the kernel stack
- * to save the CPU specific registers + some other data for resume.
+ * Save CPU state in the provided sleep_stack_data area, and publish its
+ * location for cpu_resume()'s use in sleep_save_stash.
  *
- *  x0 = suspend finisher argument
- *  x1 = suspend finisher function pointer
+ * cpu_resume() will restore this saved state, and return. Because the
+ * link-register is saved and restored, it will appear to return from this
+ * function. So that the caller can tell the suspend/resume paths apart,
+ * __cpu_suspend_enter() will always return a non-zero value, whereas the
+ * path through cpu_resume() will return 0.
+ *
+ *  x0 = struct sleep_stack_data area
  */
 ENTRY(__cpu_suspend_enter)
-	stp	x29, lr, [sp, #-96]!
-	stp	x19, x20, [sp,#16]
-	stp	x21, x22, [sp,#32]
-	stp	x23, x24, [sp,#48]
-	stp	x25, x26, [sp,#64]
-	stp	x27, x28, [sp,#80]
-	/*
-	 * Stash suspend finisher and its argument in x20 and x19
-	 */
-	mov	x19, x0
-	mov	x20, x1
+	stp	x29, lr, [x0, #SLEEP_STACK_DATA_CALLEE_REGS]
+	stp	x19, x20, [x0,#SLEEP_STACK_DATA_CALLEE_REGS+16]
+	stp	x21, x22, [x0,#SLEEP_STACK_DATA_CALLEE_REGS+32]
+	stp	x23, x24, [x0,#SLEEP_STACK_DATA_CALLEE_REGS+48]
+	stp	x25, x26, [x0,#SLEEP_STACK_DATA_CALLEE_REGS+64]
+	stp	x27, x28, [x0,#SLEEP_STACK_DATA_CALLEE_REGS+80]
+
+	/* save the sp in cpu_suspend_ctx */
 	mov	x2, sp
-	sub	sp, sp, #CPU_SUSPEND_SZ	// allocate cpu_suspend_ctx
-	mov	x0, sp
-	/*
-	 * x0 now points to struct cpu_suspend_ctx allocated on the stack
-	 */
-	str	x2, [x0, #CPU_CTX_SP]
+	str	x2, [x0, #SLEEP_STACK_DATA_SYSTEM_REGS + CPU_CTX_SP]
+
+	/* find the mpidr_hash */
 	ldr	x1, =sleep_save_sp
 	ldr	x1, [x1, #SLEEP_SAVE_SP_VIRT]
 	mrs	x7, mpidr_el1
@@ -93,34 +86,11 @@ ENTRY(__cpu_suspend_enter)
 	ldp	w5, w6, [x9, #(MPIDR_HASH_SHIFTS + 8)]
 	compute_mpidr_hash x8, x3, x4, x5, x6, x7, x10
 	add	x1, x1, x8, lsl #3
+
+	stp	x29, lr, [sp, #-16]!
 	bl	__cpu_suspend_save
-	/*
-	 * Grab suspend finisher in x20 and its argument in x19
-	 */
-	mov	x0, x19
-	mov	x1, x20
-	/*
-	 * We are ready for power down, fire off the suspend finisher
-	 * in x1, with argument in x0
-	 */
-	blr	x1
-        /*
-	 * Never gets here, unless suspend finisher fails.
-	 * Successful cpu_suspend should return from cpu_resume, returning
-	 * through this code path is considered an error
-	 * If the return value is set to 0 force x0 = -EOPNOTSUPP
-	 * to make sure a proper error condition is propagated
-	 */
-	cmp	x0, #0
-	mov	x3, #-EOPNOTSUPP
-	csel	x0, x3, x0, eq
-	add	sp, sp, #CPU_SUSPEND_SZ	// rewind stack pointer
-	ldp	x19, x20, [sp, #16]
-	ldp	x21, x22, [sp, #32]
-	ldp	x23, x24, [sp, #48]
-	ldp	x25, x26, [sp, #64]
-	ldp	x27, x28, [sp, #80]
-	ldp	x29, lr, [sp], #96
+	ldp	x29, lr, [sp], #16
+	mov	x0, #1
 	ret
 ENDPROC(__cpu_suspend_enter)
 	.ltorg
@@ -150,12 +120,6 @@ cpu_resume_after_mmu:
 	bl	kasan_unpoison_remaining_stack
 #endif
 	mov	x0, #0			// return zero on success
-	ldp	x19, x20, [sp, #16]
-	ldp	x21, x22, [sp, #32]
-	ldp	x23, x24, [sp, #48]
-	ldp	x25, x26, [sp, #64]
-	ldp	x27, x28, [sp, #80]
-	ldp	x29, lr, [sp], #96
 	ret
 ENDPROC(cpu_resume_after_mmu)
 
@@ -172,6 +136,8 @@ ENTRY(cpu_resume)
         /* x7 contains hash index, let's use it to grab context pointer */
 	ldr_l	x0, sleep_save_sp + SLEEP_SAVE_SP_PHYS
 	ldr	x0, [x0, x7, lsl #3]
+	add	x29, x0, #SLEEP_STACK_DATA_CALLEE_REGS
+	add	x0, x0, #SLEEP_STACK_DATA_SYSTEM_REGS
 	/* load sp from context */
 	ldr	x2, [x0, #CPU_CTX_SP]
 	/* load physical address of identity map page table in x1 */
@@ -185,5 +151,12 @@ ENTRY(cpu_resume)
 	 * pointer and x1 to contain physical address of 1:1 page tables
 	 */
 	bl	cpu_do_resume		// PC relative jump, MMU off
+	/* Can't access these by physical address once the MMU is on */
+	ldp	x19, x20, [x29, #16]
+	ldp	x21, x22, [x29, #32]
+	ldp	x23, x24, [x29, #48]
+	ldp	x25, x26, [x29, #64]
+	ldp	x27, x28, [x29, #80]
+	ldp	x29, lr, [x29]
 	b	cpu_resume_mmu		// Resume MMU, never returns
 ENDPROC(cpu_resume)

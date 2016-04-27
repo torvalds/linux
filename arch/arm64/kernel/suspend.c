@@ -10,22 +10,22 @@
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
 
-extern int __cpu_suspend_enter(unsigned long arg, int (*fn)(unsigned long));
+
 /*
  * This is called by __cpu_suspend_enter() to save the state, and do whatever
  * flushing is required to ensure that when the CPU goes to sleep we have
  * the necessary data available when the caches are not searched.
  *
- * ptr: CPU context virtual address
+ * ptr: sleep_stack_data containing cpu state virtual address.
  * save_ptr: address of the location where the context physical address
  *           must be saved
  */
-void notrace __cpu_suspend_save(struct cpu_suspend_ctx *ptr,
+void notrace __cpu_suspend_save(struct sleep_stack_data *ptr,
 				phys_addr_t *save_ptr)
 {
 	*save_ptr = virt_to_phys(ptr);
 
-	cpu_do_suspend(ptr);
+	cpu_do_suspend(&ptr->system_regs);
 	/*
 	 * Only flush the context that must be retrieved with the MMU
 	 * off. VA primitives ensure the flush is applied to all
@@ -51,6 +51,30 @@ void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
 	hw_breakpoint_restore = hw_bp_restore;
 }
 
+void notrace __cpu_suspend_exit(void)
+{
+	/*
+	 * We are resuming from reset with the idmap active in TTBR0_EL1.
+	 * We must uninstall the idmap and restore the expected MMU
+	 * state before we can possibly return to userspace.
+	 */
+	cpu_uninstall_idmap();
+
+	/*
+	 * Restore per-cpu offset before any kernel
+	 * subsystem relying on it has a chance to run.
+	 */
+	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
+
+	/*
+	 * Restore HW breakpoint registers to sane values
+	 * before debug exceptions are possibly reenabled
+	 * through local_dbg_restore.
+	 */
+	if (hw_breakpoint_restore)
+		hw_breakpoint_restore(NULL);
+}
+
 /*
  * cpu_suspend
  *
@@ -60,8 +84,9 @@ void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
  */
 int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 {
-	int ret;
+	int ret = 0;
 	unsigned long flags;
+	struct sleep_stack_data state;
 
 	/*
 	 * From this point debug exceptions are disabled to prevent
@@ -77,34 +102,21 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	 */
 	pause_graph_tracing();
 
-	/*
-	 * mm context saved on the stack, it will be restored when
-	 * the cpu comes out of reset through the identity mapped
-	 * page tables, so that the thread address space is properly
-	 * set-up on function return.
-	 */
-	ret = __cpu_suspend_enter(arg, fn);
-	if (ret == 0) {
-		/*
-		 * We are resuming from reset with the idmap active in TTBR0_EL1.
-		 * We must uninstall the idmap and restore the expected MMU
-		 * state before we can possibly return to userspace.
-		 */
-		cpu_uninstall_idmap();
+	if (__cpu_suspend_enter(&state)) {
+		/* Call the suspend finisher */
+		ret = fn(arg);
 
 		/*
-		 * Restore per-cpu offset before any kernel
-		 * subsystem relying on it has a chance to run.
+		 * Never gets here, unless the suspend finisher fails.
+		 * Successful cpu_suspend() should return from cpu_resume(),
+		 * returning through this code path is considered an error
+		 * If the return value is set to 0 force ret = -EOPNOTSUPP
+		 * to make sure a proper error condition is propagated
 		 */
-		set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
-
-		/*
-		 * Restore HW breakpoint registers to sane values
-		 * before debug exceptions are possibly reenabled
-		 * through local_dbg_restore.
-		 */
-		if (hw_breakpoint_restore)
-			hw_breakpoint_restore(NULL);
+		if (!ret)
+			ret = -EOPNOTSUPP;
+	} else {
+		__cpu_suspend_exit();
 	}
 
 	unpause_graph_tracing();
