@@ -4346,7 +4346,7 @@ static int gfx_v8_0_cp_gfx_resume(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring;
 	u32 tmp;
 	u32 rb_bufsz;
-	u64 rb_addr, rptr_addr;
+	u64 rb_addr, rptr_addr, wptr_gpu_addr;
 	int r;
 
 	/* Set the write pointer delay */
@@ -4377,6 +4377,9 @@ static int gfx_v8_0_cp_gfx_resume(struct amdgpu_device *adev)
 	WREG32(mmCP_RB0_RPTR_ADDR, lower_32_bits(rptr_addr));
 	WREG32(mmCP_RB0_RPTR_ADDR_HI, upper_32_bits(rptr_addr) & 0xFF);
 
+	wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
+	WREG32(mmCP_RB_WPTR_POLL_ADDR_LO, lower_32_bits(wptr_gpu_addr));
+	WREG32(mmCP_RB_WPTR_POLL_ADDR_HI, upper_32_bits(wptr_gpu_addr));
 	mdelay(1);
 	WREG32(mmCP_RB0_CNTL, tmp);
 
