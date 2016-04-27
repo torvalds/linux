@@ -19,6 +19,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <linux/of_reserved_mem.h>
 
 #include "arcpgu.h"
 #include "arcpgu_regs.h"
@@ -134,6 +135,11 @@ static int arcpgu_load(struct drm_device *drm)
 
 	dev_info(drm->dev, "arc_pgu ID: 0x%x\n",
 		 arc_pgu_read(arcpgu, ARCPGU_REG_ID));
+
+	/* Get the optional framebuffer memory resource */
+	ret = of_reserved_mem_device_init(drm->dev);
+	if (ret && ret != -ENODEV)
+		return ret;
 
 	if (dma_set_mask_and_coherent(drm->dev, DMA_BIT_MASK(32)))
 		return -ENODEV;
