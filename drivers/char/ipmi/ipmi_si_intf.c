@@ -104,7 +104,7 @@ enum si_intf_state {
 #define IPMI_BT_INTMASK_ENABLE_IRQ_BIT	1
 
 enum si_type {
-    SI_KCS, SI_SMIC, SI_BT
+	SI_KCS, SI_SMIC, SI_BT
 };
 
 static const char * const si_to_str[] = { "kcs", "smic", "bt" };
@@ -410,7 +410,7 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 
 		rv = SI_SM_CALL_WITHOUT_DELAY;
 	}
- out:
+out:
 	return rv;
 }
 
@@ -539,7 +539,7 @@ static struct ipmi_smi_msg *alloc_msg_handle_irq(struct smi_info *smi_info)
 
 static void handle_flags(struct smi_info *smi_info)
 {
- retry:
+retry:
 	if (smi_info->msg_flags & WDT_PRE_TIMEOUT_INT) {
 		/* Watchdog pre-timeout */
 		smi_inc_stat(smi_info, watchdog_pretimeouts);
@@ -831,7 +831,7 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 {
 	enum si_sm_result si_sm_result;
 
- restart:
+restart:
 	/*
 	 * There used to be a loop here that waited a little while
 	 * (around 25us) before giving up.  That turned out to be
@@ -944,7 +944,7 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 			smi_info->timer_running = false;
 	}
 
- out:
+out:
 	return si_sm_result;
 }
 
@@ -1190,7 +1190,7 @@ static void smi_timeout(unsigned long data)
 		timeout = jiffies + SI_TIMEOUT_JIFFIES;
 	}
 
- do_mod_timer:
+do_mod_timer:
 	if (smi_result != SI_SM_IDLE)
 		smi_mod_timer(smi_info, timeout);
 	else
@@ -1576,10 +1576,9 @@ static int port_setup(struct smi_info *info)
 		if (request_region(addr + idx * info->io.regspacing,
 				   info->io.regsize, DEVICE_NAME) == NULL) {
 			/* Undo allocations */
-			while (idx--) {
+			while (idx--)
 				release_region(addr + idx * info->io.regspacing,
 					       info->io.regsize);
-			}
 			return -EIO;
 		}
 	}
@@ -1975,7 +1974,7 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 		}
 	}
 	rv = len;
- out:
+out:
 	kfree(str);
 	return rv;
 }
@@ -2945,7 +2944,7 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	/* Check and record info from the get device id, in case we need it. */
 	rv = ipmi_demangle_device_id(resp, resp_len, &smi_info->device_id);
 
- out:
+out:
 	kfree(resp);
 	return rv;
 }
@@ -3192,7 +3191,7 @@ static int try_enable_event_buffer(struct smi_info *smi_info)
 	else
 		smi_info->supports_event_msg_buff = true;
 
- out:
+out:
 	kfree(resp);
 	return rv;
 }
@@ -3718,10 +3717,10 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	return 0;
 
- out_err_stop_timer:
+out_err_stop_timer:
 	wait_for_timer_and_thread(new_smi);
 
- out_err:
+out_err:
 	new_smi->interrupt_disabled = true;
 
 	if (new_smi->intf) {
