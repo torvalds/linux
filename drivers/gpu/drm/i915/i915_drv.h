@@ -3589,6 +3589,11 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 u32 vlv_flisdsi_read(struct drm_i915_private *dev_priv, u32 reg);
 void vlv_flisdsi_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 
+/* intel_dpio_phy.c */
+void chv_set_phy_signal_level(struct intel_encoder *encoder,
+			      u32 deemph_reg_value, u32 margin_reg_value,
+			      bool uniq_trans_scale);
+
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
 

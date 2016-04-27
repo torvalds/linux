@@ -3309,23 +3309,12 @@ static uint32_t vlv_signal_levels(struct intel_dp *intel_dp)
 	return 0;
 }
 
-static bool chv_need_uniq_trans_scale(uint8_t train_set)
-{
-	return (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) == DP_TRAIN_PRE_EMPH_LEVEL_0 &&
-		(train_set & DP_TRAIN_VOLTAGE_SWING_MASK) == DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
-}
-
 static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
-	struct intel_crtc *intel_crtc = to_intel_crtc(dport->base.base.crtc);
-	u32 deemph_reg_value, margin_reg_value, val;
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	u32 deemph_reg_value, margin_reg_value;
+	bool uniq_trans_scale = false;
 	uint8_t train_set = intel_dp->train_set[0];
-	enum dpio_channel ch = vlv_dport_to_channel(dport);
-	enum pipe pipe = intel_crtc->pipe;
-	int i;
 
 	switch (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) {
 	case DP_TRAIN_PRE_EMPH_LEVEL_0:
@@ -3345,7 +3334,7 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
 			deemph_reg_value = 128;
 			margin_reg_value = 154;
-			/* FIXME extra to set for 1200 */
+			uniq_trans_scale = true;
 			break;
 		default:
 			return 0;
@@ -3397,88 +3386,8 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 		return 0;
 	}
 
-	mutex_lock(&dev_priv->sb_lock);
-
-	/* Clear calc init */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
-	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
-	val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
-	val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
-
-	if (intel_crtc->config->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
-		val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
-		val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
-		val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
-		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
-	}
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW9(ch));
-	val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
-	val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW9(ch), val);
-
-	if (intel_crtc->config->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW9(ch));
-		val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
-		val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
-		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW9(ch), val);
-	}
-
-	/* Program swing deemph */
-	for (i = 0; i < intel_crtc->config->lane_count; i++) {
-		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW4(ch, i));
-		val &= ~DPIO_SWING_DEEMPH9P5_MASK;
-		val |= deemph_reg_value << DPIO_SWING_DEEMPH9P5_SHIFT;
-		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW4(ch, i), val);
-	}
-
-	/* Program swing margin */
-	for (i = 0; i < intel_crtc->config->lane_count; i++) {
-		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
-
-		val &= ~DPIO_SWING_MARGIN000_MASK;
-		val |= margin_reg_value << DPIO_SWING_MARGIN000_SHIFT;
-
-		/*
-		 * Supposedly this value shouldn't matter when unique transition
-		 * scale is disabled, but in fact it does matter. Let's just
-		 * always program the same value and hope it's OK.
-		 */
-		val &= ~(0xff << DPIO_UNIQ_TRANS_SCALE_SHIFT);
-		val |= 0x9a << DPIO_UNIQ_TRANS_SCALE_SHIFT;
-
-		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
-	}
-
-	/*
-	 * The document said it needs to set bit 27 for ch0 and bit 26
-	 * for ch1. Might be a typo in the doc.
-	 * For now, for this unique transition scale selection, set bit
-	 * 27 for ch0 and ch1.
-	 */
-	for (i = 0; i < intel_crtc->config->lane_count; i++) {
-		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW3(ch, i));
-		if (chv_need_uniq_trans_scale(train_set))
-			val |= DPIO_TX_UNIQ_TRANS_SCALE_EN;
-		else
-			val &= ~DPIO_TX_UNIQ_TRANS_SCALE_EN;
-		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW3(ch, i), val);
-	}
-
-	/* Start swing calculation */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
-	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
-
-	if (intel_crtc->config->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
-		val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
-		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
-	}
-
-	mutex_unlock(&dev_priv->sb_lock);
+	chv_set_phy_signal_level(encoder, deemph_reg_value,
+				 margin_reg_value, uniq_trans_scale);
 
 	return 0;
 }

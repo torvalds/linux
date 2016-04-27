@@ -1921,77 +1921,11 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 	/* Deassert data lane reset */
 	chv_data_lane_soft_reset(encoder, false);
 
-	/* Clear calc init */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
-	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
-	val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
-	val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
-	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
-	val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
-	val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW9(ch));
-	val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
-	val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW9(ch), val);
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW9(ch));
-	val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
-	val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW9(ch), val);
+	mutex_unlock(&dev_priv->sb_lock);
 
 	/* FIXME: Program the support xxx V-dB */
 	/* Use 800mV-0dB */
-	for (i = 0; i < 4; i++) {
-		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW4(ch, i));
-		val &= ~DPIO_SWING_DEEMPH9P5_MASK;
-		val |= 128 << DPIO_SWING_DEEMPH9P5_SHIFT;
-		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW4(ch, i), val);
-	}
-
-	for (i = 0; i < 4; i++) {
-		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
-
-		val &= ~DPIO_SWING_MARGIN000_MASK;
-		val |= 102 << DPIO_SWING_MARGIN000_SHIFT;
-
-		/*
-		 * Supposedly this value shouldn't matter when unique transition
-		 * scale is disabled, but in fact it does matter. Let's just
-		 * always program the same value and hope it's OK.
-		 */
-		val &= ~(0xff << DPIO_UNIQ_TRANS_SCALE_SHIFT);
-		val |= 0x9a << DPIO_UNIQ_TRANS_SCALE_SHIFT;
-
-		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
-	}
-
-	/*
-	 * The document said it needs to set bit 27 for ch0 and bit 26
-	 * for ch1. Might be a typo in the doc.
-	 * For now, for this unique transition scale selection, set bit
-	 * 27 for ch0 and ch1.
-	 */
-	for (i = 0; i < 4; i++) {
-		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW3(ch, i));
-		val &= ~DPIO_TX_UNIQ_TRANS_SCALE_EN;
-		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW3(ch, i), val);
-	}
-
-	/* Start swing calculation */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
-	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
-	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
-
-	mutex_unlock(&dev_priv->sb_lock);
+	chv_set_phy_signal_level(encoder, 128, 102, false);
 
 	intel_hdmi->set_infoframes(&encoder->base,
 				   intel_crtc->config->has_hdmi_sink,
