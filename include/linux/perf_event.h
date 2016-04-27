@@ -151,6 +151,15 @@ struct hw_perf_event {
 	 */
 	struct task_struct		*target;
 
+	/*
+	 * PMU would store hardware filter configuration
+	 * here.
+	 */
+	void				*addr_filters;
+
+	/* Last sync'ed generation of filters */
+	unsigned long			addr_filters_gen;
+
 /*
  * hw_perf_event::state flags; used to track the PERF_EF_* state.
  */
@@ -239,6 +248,9 @@ struct pmu {
 	atomic_t			exclusive_cnt; /* < 0: cpu; > 0: tsk */
 	int				task_ctx_nr;
 	int				hrtimer_interval_ms;
+
+	/* number of address filters this PMU can do */
+	unsigned int			nr_addr_filters;
 
 	/*
 	 * Fully disable/enable this PMU, can be used to protect from the PMI
@@ -393,9 +405,68 @@ struct pmu {
 	void (*free_aux)		(void *aux); /* optional */
 
 	/*
+	 * Validate address range filters: make sure the HW supports the
+	 * requested configuration and number of filters; return 0 if the
+	 * supplied filters are valid, -errno otherwise.
+	 *
+	 * Runs in the context of the ioctl()ing process and is not serialized
+	 * with the rest of the PMU callbacks.
+	 */
+	int (*addr_filters_validate)	(struct list_head *filters);
+					/* optional */
+
+	/*
+	 * Synchronize address range filter configuration:
+	 * translate hw-agnostic filters into hardware configuration in
+	 * event::hw::addr_filters.
+	 *
+	 * Runs as a part of filter sync sequence that is done in ->start()
+	 * callback by calling perf_event_addr_filters_sync().
+	 *
+	 * May (and should) traverse event::addr_filters::list, for which its
+	 * caller provides necessary serialization.
+	 */
+	void (*addr_filters_sync)	(struct perf_event *event);
+					/* optional */
+
+	/*
 	 * Filter events for PMU-specific reasons.
 	 */
 	int (*filter_match)		(struct perf_event *event); /* optional */
+};
+
+/**
+ * struct perf_addr_filter - address range filter definition
+ * @entry:	event's filter list linkage
+ * @inode:	object file's inode for file-based filters
+ * @offset:	filter range offset
+ * @size:	filter range size
+ * @range:	1: range, 0: address
+ * @filter:	1: filter/start, 0: stop
+ *
+ * This is a hardware-agnostic filter configuration as specified by the user.
+ */
+struct perf_addr_filter {
+	struct list_head	entry;
+	struct inode		*inode;
+	unsigned long		offset;
+	unsigned long		size;
+	unsigned int		range	: 1,
+				filter	: 1;
+};
+
+/**
+ * struct perf_addr_filters_head - container for address range filters
+ * @list:	list of filters for this event
+ * @lock:	spinlock that serializes accesses to the @list and event's
+ *		(and its children's) filter generations.
+ *
+ * A child event will use parent's @list (and therefore @lock), so they are
+ * bundled together; see perf_event_addr_filters().
+ */
+struct perf_addr_filters_head {
+	struct list_head	list;
+	raw_spinlock_t		lock;
 };
 
 /**
@@ -565,6 +636,12 @@ struct perf_event {
 	struct irq_work			pending;
 
 	atomic_t			event_limit;
+
+	/* address range filters */
+	struct perf_addr_filters_head	addr_filters;
+	/* vma address array for file-based filders */
+	unsigned long			*addr_filters_offs;
+	unsigned long			addr_filters_gen;
 
 	void (*destroy)(struct perf_event *);
 	struct rcu_head			rcu_head;
@@ -1069,6 +1146,27 @@ static inline bool is_write_backward(struct perf_event *event)
 {
 	return !!event->attr.write_backward;
 }
+
+static inline bool has_addr_filter(struct perf_event *event)
+{
+	return event->pmu->nr_addr_filters;
+}
+
+/*
+ * An inherited event uses parent's filters
+ */
+static inline struct perf_addr_filters_head *
+perf_event_addr_filters(struct perf_event *event)
+{
+	struct perf_addr_filters_head *ifh = &event->addr_filters;
+
+	if (event->parent)
+		ifh = &event->parent->addr_filters;
+
+	return ifh;
+}
+
+extern void perf_event_addr_filters_sync(struct perf_event *event);
 
 extern int perf_output_begin(struct perf_output_handle *handle,
 			     struct perf_event *event, unsigned int size);
