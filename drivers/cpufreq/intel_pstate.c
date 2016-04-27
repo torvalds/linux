@@ -1418,10 +1418,21 @@ static void intel_pstate_set_performance_limits(struct perf_limits *limits)
 
 static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 {
+	struct cpudata *cpu;
+
 	if (!policy->cpuinfo.max_freq)
 		return -ENODEV;
 
 	intel_pstate_clear_update_util_hook(policy->cpu);
+
+	cpu = all_cpu_data[0];
+	if (cpu->pstate.max_pstate_physical > cpu->pstate.max_pstate) {
+		if (policy->max < policy->cpuinfo.max_freq &&
+		    policy->max > cpu->pstate.max_pstate * cpu->pstate.scaling) {
+			pr_debug("policy->max > max non turbo frequency\n");
+			policy->max = policy->cpuinfo.max_freq;
+		}
+	}
 
 	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		limits = &performance_limits;
