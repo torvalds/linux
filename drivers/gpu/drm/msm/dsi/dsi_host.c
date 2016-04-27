@@ -1602,12 +1602,12 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	}
 
 	/*
-	 * Get the first endpoint node. In our case, dsi has one output port
-	 * to which the panel is connected. Don't return an error if a port
-	 * isn't defined. It's possible that there is nothing connected to
-	 * the dsi output.
+	 * Get the endpoint of the output port of the DSI host. In our case,
+	 * this is mapped to port number with reg = 1. Don't return an error if
+	 * the remote endpoint isn't defined. It's possible that there is
+	 * nothing connected to the dsi output.
 	 */
-	endpoint = of_graph_get_next_endpoint(np, NULL);
+	endpoint = of_graph_get_endpoint_by_regs(np, 1, -1);
 	if (!endpoint) {
 		dev_dbg(dev, "%s: no endpoint\n", __func__);
 		return 0;
