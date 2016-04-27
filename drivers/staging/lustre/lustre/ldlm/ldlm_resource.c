@@ -758,12 +758,12 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 		list_for_each(tmp, q) {
 			lock = list_entry(tmp, struct ldlm_lock,
 					      l_res_link);
-			if (lock->l_flags & LDLM_FL_CLEANED) {
+			if (ldlm_is_cleaned(lock)) {
 				lock = NULL;
 				continue;
 			}
 			LDLM_LOCK_GET(lock);
-			lock->l_flags |= LDLM_FL_CLEANED;
+			ldlm_set_cleaned(lock);
 			break;
 		}
 
@@ -775,13 +775,13 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 		/* Set CBPENDING so nothing in the cancellation path
 		 * can match this lock.
 		 */
-		lock->l_flags |= LDLM_FL_CBPENDING;
-		lock->l_flags |= LDLM_FL_FAILED;
+		ldlm_set_cbpending(lock);
+		ldlm_set_failed(lock);
 		lock->l_flags |= flags;
 
 		/* ... without sending a CANCEL message for local_only. */
 		if (local_only)
-			lock->l_flags |= LDLM_FL_LOCAL_ONLY;
+			ldlm_set_local_only(lock);
 
 		if (local_only && (lock->l_readers || lock->l_writers)) {
 			/* This is a little bit gross, but much better than the
@@ -1275,7 +1275,7 @@ void ldlm_resource_add_lock(struct ldlm_resource *res, struct list_head *head,
 
 	LDLM_DEBUG(lock, "About to add this lock:\n");
 
-	if (lock->l_flags & LDLM_FL_DESTROYED) {
+	if (ldlm_is_destroyed(lock)) {
 		CDEBUG(D_OTHER, "Lock destroyed, not adding to resource\n");
 		return;
 	}

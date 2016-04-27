@@ -190,7 +190,7 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			break;
 
 		/* Invalidate all dentries associated with this inode */
-		LASSERT(lock->l_flags & LDLM_FL_CANCELING);
+		LASSERT(ldlm_is_canceling(lock));
 
 		if (!fid_res_name_eq(ll_inode2fid(inode),
 				     &lock->l_resource->lr_name)) {

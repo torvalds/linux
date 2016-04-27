@@ -153,7 +153,7 @@ static int ldlm_completion_tail(struct ldlm_lock *lock)
 	long delay;
 	int  result;
 
-	if (lock->l_flags & (LDLM_FL_DESTROYED | LDLM_FL_FAILED)) {
+	if (ldlm_is_destroyed(lock) || ldlm_is_failed(lock)) {
 		LDLM_DEBUG(lock, "client-side enqueue: destroyed");
 		result = -EIO;
 	} else {
@@ -252,7 +252,7 @@ noreproc:
 
 	lwd.lwd_lock = lock;
 
-	if (lock->l_flags & LDLM_FL_NO_TIMEOUT) {
+	if (ldlm_is_no_timeout(lock)) {
 		LDLM_DEBUG(lock, "waiting indefinitely because of NO_TIMEOUT");
 		lwi = LWI_INTR(interrupted_completion_wait, &lwd);
 	} else {
@@ -269,7 +269,7 @@ noreproc:
 
 	if (OBD_FAIL_CHECK_RESET(OBD_FAIL_LDLM_INTR_CP_AST,
 				 OBD_FAIL_LDLM_CP_BL_RACE | OBD_FAIL_ONCE)) {
-		lock->l_flags |= LDLM_FL_FAIL_LOC;
+		ldlm_set_fail_loc(lock);
 		rc = -EINTR;
 	} else {
 		/* Go to sleep until the lock is granted or cancelled. */
@@ -296,7 +296,7 @@ static void failed_lock_cleanup(struct ldlm_namespace *ns,
 	lock_res_and_lock(lock);
 	/* Check that lock is not granted or failed, we might race. */
 	if ((lock->l_req_mode != lock->l_granted_mode) &&
-	    !(lock->l_flags & LDLM_FL_FAILED)) {
+	    !ldlm_is_failed(lock)) {
 		/* Make sure that this lock will not be found by raced
 		 * bl_ast and -EINVAL reply is sent to server anyways.
 		 * bug 17645
@@ -821,12 +821,11 @@ static __u64 ldlm_cli_cancel_local(struct ldlm_lock *lock)
 		LDLM_DEBUG(lock, "client-side cancel");
 		/* Set this flag to prevent others from getting new references*/
 		lock_res_and_lock(lock);
-		lock->l_flags |= LDLM_FL_CBPENDING;
+		ldlm_set_cbpending(lock);
 		local_only = !!(lock->l_flags &
 				(LDLM_FL_LOCAL_ONLY|LDLM_FL_CANCEL_ON_BLOCK));
 		ldlm_cancel_callback(lock);
-		rc = (lock->l_flags & LDLM_FL_BL_AST) ?
-			LDLM_FL_BL_AST : LDLM_FL_CANCELING;
+		rc = ldlm_is_bl_ast(lock) ? LDLM_FL_BL_AST : LDLM_FL_CANCELING;
 		unlock_res_and_lock(lock);
 
 		if (local_only) {
@@ -1150,7 +1149,7 @@ ldlm_cancel_no_wait_policy(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 	default:
 		result = LDLM_POLICY_SKIP_LOCK;
 		lock_res_and_lock(lock);
-		lock->l_flags |= LDLM_FL_SKIPPED;
+		ldlm_set_skipped(lock);
 		unlock_res_and_lock(lock);
 		break;
 	}
@@ -1381,9 +1380,9 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
 		list_for_each_entry_safe(lock, next, &ns->ns_unused_list,
 					     l_lru) {
 			/* No locks which got blocking requests. */
-			LASSERT(!(lock->l_flags & LDLM_FL_BL_AST));
+			LASSERT(!ldlm_is_bl_ast(lock));
 
-			if (no_wait && lock->l_flags & LDLM_FL_SKIPPED)
+			if (no_wait && ldlm_is_skipped(lock))
 				/* already processed */
 				continue;
 
@@ -1394,7 +1393,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
 			/* Somebody is already doing CANCEL. No need for this
 			 * lock in LRU, do not traverse it again.
 			 */
-			if (!(lock->l_flags & LDLM_FL_CANCELING))
+			if (!ldlm_is_canceling(lock))
 				break;
 
 			ldlm_lock_remove_from_lru_nolock(lock);
@@ -1437,7 +1436,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
 
 		lock_res_and_lock(lock);
 		/* Check flags again under the lock. */
-		if ((lock->l_flags & LDLM_FL_CANCELING) ||
+		if (ldlm_is_canceling(lock) ||
 		    (ldlm_lock_remove_from_lru_check(lock, last_use) == 0)) {
 			/* Another thread is removing lock from LRU, or
 			 * somebody is already doing CANCEL, or there
@@ -1461,7 +1460,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
 		 * where while we are doing cancel here, server is also
 		 * silently cancelling this lock.
 		 */
-		lock->l_flags &= ~LDLM_FL_CANCEL_ON_BLOCK;
+		ldlm_clear_cancel_on_block(lock);
 
 		/* Setting the CBPENDING flag is a little misleading,
 		 * but prevents an important race; namely, once
@@ -1558,8 +1557,7 @@ int ldlm_cancel_resource_local(struct ldlm_resource *res,
 		/* If somebody is already doing CANCEL, or blocking AST came,
 		 * skip this lock.
 		 */
-		if (lock->l_flags & LDLM_FL_BL_AST ||
-		    lock->l_flags & LDLM_FL_CANCELING)
+		if (ldlm_is_bl_ast(lock) || ldlm_is_canceling(lock))
 			continue;
 
 		if (lockmode_compat(lock->l_granted_mode, mode))
@@ -1918,7 +1916,7 @@ static int replay_one_lock(struct obd_import *imp, struct ldlm_lock *lock)
 	int flags;
 
 	/* Bug 11974: Do not replay a lock which is actively being canceled */
-	if (lock->l_flags & LDLM_FL_CANCELING) {
+	if (ldlm_is_canceling(lock)) {
 		LDLM_DEBUG(lock, "Not replaying canceled lock:");
 		return 0;
 	}
@@ -1927,7 +1925,7 @@ static int replay_one_lock(struct obd_import *imp, struct ldlm_lock *lock)
 	 * server might have long dropped it, but notification of that event was
 	 * lost by network. (and server granted conflicting lock already)
 	 */
-	if (lock->l_flags & LDLM_FL_CANCEL_ON_BLOCK) {
+	if (ldlm_is_cancel_on_block(lock)) {
 		LDLM_DEBUG(lock, "Not replaying reply-less lock:");
 		ldlm_lock_cancel(lock);
 		return 0;

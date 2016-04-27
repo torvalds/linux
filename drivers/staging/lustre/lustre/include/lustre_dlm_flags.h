@@ -381,6 +381,9 @@
 /** test for ldlm_lock flag bit set */
 #define LDLM_TEST_FLAG(_l, _b)        (((_l)->l_flags & (_b)) != 0)
 
+/** multi-bit test: are any of mask bits set? */
+#define LDLM_HAVE_MASK(_l, _m)		((_l)->l_flags & LDLM_FL_##_m##_MASK)
+
 /** set a ldlm_lock flag bit */
 #define LDLM_SET_FLAG(_l, _b)         ((_l)->l_flags |= (_b))
 

@@ -120,7 +120,7 @@ static int osc_lock_invariant(struct osc_lock *ols)
 	 * ast.
 	 */
 	if (!ergo(olock && ols->ols_state < OLS_CANCELLED,
-		  ((olock->l_flags & LDLM_FL_DESTROYED) == 0)))
+		  !ldlm_is_destroyed(olock)))
 		return 0;
 
 	if (!ergo(ols->ols_state == OLS_GRANTED,
