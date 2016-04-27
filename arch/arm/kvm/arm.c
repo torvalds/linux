@@ -492,30 +492,31 @@ bool kvm_arch_intc_initialized(struct kvm *kvm)
 	return vgic_initialized(kvm);
 }
 
-static void kvm_arm_halt_guest(struct kvm *kvm) __maybe_unused;
-static void kvm_arm_resume_guest(struct kvm *kvm) __maybe_unused;
-
-static void kvm_arm_halt_guest(struct kvm *kvm)
+void kvm_arm_halt_guest(struct kvm *kvm)
 {
 	int i;
 	struct kvm_vcpu *vcpu;
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		vcpu->arch.pause = true;
-	force_vm_exit(cpu_all_mask);
+	kvm_make_all_cpus_request(kvm, KVM_REQ_VCPU_EXIT);
 }
 
-static void kvm_arm_resume_guest(struct kvm *kvm)
+static void kvm_arm_resume_vcpu(struct kvm_vcpu *vcpu)
+{
+	struct swait_queue_head *wq = kvm_arch_vcpu_wq(vcpu);
+
+	vcpu->arch.pause = false;
+	swake_up(wq);
+}
+
+void kvm_arm_resume_guest(struct kvm *kvm)
 {
 	int i;
 	struct kvm_vcpu *vcpu;
 
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		struct swait_queue_head *wq = kvm_arch_vcpu_wq(vcpu);
-
-		vcpu->arch.pause = false;
-		swake_up(wq);
-	}
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_arm_resume_vcpu(vcpu);
 }
 
 static void vcpu_sleep(struct kvm_vcpu *vcpu)

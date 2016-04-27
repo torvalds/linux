@@ -41,6 +41,8 @@
 
 #define KVM_MAX_VCPUS VGIC_V2_MAX_CPUS
 
+#define KVM_REQ_VCPU_EXIT	8
+
 u32 *kvm_vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num, u32 mode);
 int __attribute_const__ kvm_target_cpu(void);
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
@@ -225,6 +227,8 @@ static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 
 struct kvm_vcpu *kvm_arm_get_running_vcpu(void);
 struct kvm_vcpu __percpu **kvm_get_running_vcpus(void);
+void kvm_arm_halt_guest(struct kvm *kvm);
+void kvm_arm_resume_guest(struct kvm *kvm);
 
 int kvm_arm_copy_coproc_indices(struct kvm_vcpu *vcpu, u64 __user *uindices);
 unsigned long kvm_arm_num_coproc_regs(struct kvm_vcpu *vcpu);
