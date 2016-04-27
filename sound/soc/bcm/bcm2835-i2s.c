@@ -690,6 +690,15 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 	dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK].maxburst = 2;
 	dev->dma_data[SNDRV_PCM_STREAM_CAPTURE].maxburst = 2;
 
+	/*
+	 * Set the PACK flag to enable S16_LE support (2 S16_LE values
+	 * packed into 32-bit transfers).
+	 */
+	dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK].flags =
+		SND_DMAENGINE_PCM_DAI_FLAG_PACK;
+	dev->dma_data[SNDRV_PCM_STREAM_CAPTURE].flags =
+		SND_DMAENGINE_PCM_DAI_FLAG_PACK;
+
 	/* BCLK ratio - use default */
 	dev->bclk_ratio = 0;
 
