@@ -59,6 +59,7 @@ struct imx_ldb_channel {
 	struct drm_encoder encoder;
 	struct drm_panel *panel;
 	struct device_node *child;
+	struct i2c_adapter *ddc;
 	int chno;
 	void *edid;
 	int edid_len;
@@ -106,6 +107,9 @@ static int imx_ldb_connector_get_modes(struct drm_connector *connector)
 		if (num_modes > 0)
 			return num_modes;
 	}
+
+	if (!imx_ldb_ch->edid && imx_ldb_ch->ddc)
+		imx_ldb_ch->edid = drm_get_edid(connector, imx_ldb_ch->ddc);
 
 	if (imx_ldb_ch->edid) {
 		drm_mode_connector_update_edid_property(connector,
@@ -553,6 +557,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 
 	for_each_child_of_node(np, child) {
 		struct imx_ldb_channel *channel;
+		struct device_node *ddc_node;
 		struct device_node *port;
 
 		ret = of_property_read_u32(child, "reg", &i);
@@ -595,14 +600,34 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 			}
 		}
 
-		edidp = of_get_property(child, "edid", &channel->edid_len);
-		if (edidp) {
-			channel->edid = kmemdup(edidp, channel->edid_len,
-						GFP_KERNEL);
-		} else if (!channel->panel) {
-			ret = of_get_drm_display_mode(child, &channel->mode, 0);
-			if (!ret)
-				channel->mode_valid = 1;
+		ddc_node = of_parse_phandle(child, "ddc-i2c-bus", 0);
+		if (ddc_node) {
+			channel->ddc = of_find_i2c_adapter_by_node(ddc_node);
+			of_node_put(ddc_node);
+			if (!channel->ddc) {
+				dev_warn(dev, "failed to get ddc i2c adapter\n");
+				return -EPROBE_DEFER;
+			}
+		}
+
+		if (!channel->ddc) {
+			/* if no DDC available, fallback to hardcoded EDID */
+			dev_dbg(dev, "no ddc available\n");
+
+			edidp = of_get_property(child, "edid",
+						&channel->edid_len);
+			if (edidp) {
+				channel->edid = kmemdup(edidp,
+							channel->edid_len,
+							GFP_KERNEL);
+			} else if (!channel->panel) {
+				/* fallback to display-timings node */
+				ret = of_get_drm_display_mode(child,
+							      &channel->mode,
+							      0);
+				if (!ret)
+					channel->mode_valid = 1;
+			}
 		}
 
 		channel->bus_format = of_get_bus_format(dev, child);
@@ -647,6 +672,7 @@ static void imx_ldb_unbind(struct device *dev, struct device *master,
 		channel->encoder.funcs->destroy(&channel->encoder);
 
 		kfree(channel->edid);
+		i2c_put_adapter(channel->ddc);
 	}
 }
 
