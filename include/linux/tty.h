@@ -372,6 +372,7 @@ extern void proc_clear_tty(struct task_struct *p);
 extern struct tty_struct *get_current_tty(void);
 /* tty_io.c */
 extern int __init tty_init(void);
+extern const char *tty_name(const struct tty_struct *tty);
 #else
 static inline void console_init(void)
 { }
@@ -392,6 +393,8 @@ static inline struct tty_struct *get_current_tty(void)
 /* tty_io.c */
 static inline int __init tty_init(void)
 { return 0; }
+static inline const char *tty_name(const struct tty_struct *tty)
+{ return "(none)"; }
 #endif
 
 extern void tty_write_flush(struct tty_struct *);
@@ -420,7 +423,6 @@ static inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
 
 extern int tty_paranoia_check(struct tty_struct *tty, struct inode *inode,
 			      const char *routine);
-extern const char *tty_name(const struct tty_struct *tty);
 extern void tty_wait_until_sent(struct tty_struct *tty, long timeout);
 extern int __tty_check_change(struct tty_struct *tty, int sig);
 extern int tty_check_change(struct tty_struct *tty);
