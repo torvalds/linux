@@ -179,7 +179,7 @@ void v_stop_timer(struct vudc *udc);
 struct urbp *alloc_urbp(void);
 void free_urbp_and_urb(struct urbp *urb_p);
 
-struct vep *find_endpoint(struct vudc *udc, u8 address);
+struct vep *vudc_find_endpoint(struct vudc *udc, u8 address);
 
 struct vudc_device *alloc_vudc_device(int devid);
 void put_vudc_device(struct vudc_device *udc_dev);

@@ -117,7 +117,7 @@ static int v_recv_cmd_submit(struct vudc *udc,
 		address |= USB_DIR_IN;
 
 	spin_lock_irq(&udc->lock);
-	urb_p->ep = find_endpoint(udc, address);
+	urb_p->ep = vudc_find_endpoint(udc, address);
 	if (!urb_p->ep) {
 		/* we don't know the type, there may be isoc data! */
 		dev_err(&udc->pdev->dev, "request to nonexistent endpoint");

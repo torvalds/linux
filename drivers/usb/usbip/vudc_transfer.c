@@ -110,7 +110,7 @@ static int handle_control_request(struct vudc *udc, struct urb *urb,
 			}
 		} else if (setup->bRequestType == EP_REQUEST) {
 			/* endpoint halt */
-			ep2 = find_endpoint(udc, w_index);
+			ep2 = vudc_find_endpoint(udc, w_index);
 			if (!ep2 || ep2->ep.name == udc->ep[0].ep.name) {
 				ret_val = -EOPNOTSUPP;
 				break;
@@ -143,7 +143,7 @@ static int handle_control_request(struct vudc *udc, struct urb *urb,
 			}
 		} else if (setup->bRequestType == EP_REQUEST) {
 			/* endpoint halt */
-			ep2 = find_endpoint(udc, w_index);
+			ep2 = vudc_find_endpoint(udc, w_index);
 			if (!ep2) {
 				ret_val = -EOPNOTSUPP;
 				break;
@@ -167,7 +167,7 @@ static int handle_control_request(struct vudc *udc, struct urb *urb,
 			buf = (char *)urb->transfer_buffer;
 			if (urb->transfer_buffer_length > 0) {
 				if (setup->bRequestType == EP_INREQUEST) {
-					ep2 = find_endpoint(udc, w_index);
+					ep2 = vudc_find_endpoint(udc, w_index);
 					if (!ep2) {
 						ret_val = -EOPNOTSUPP;
 						break;

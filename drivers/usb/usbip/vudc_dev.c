@@ -115,7 +115,7 @@ static void stop_activity(struct vudc *udc)
 	}
 }
 
-struct vep *find_endpoint(struct vudc *udc, u8 address)
+struct vep *vudc_find_endpoint(struct vudc *udc, u8 address)
 {
 	int i;
 
