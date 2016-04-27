@@ -1105,8 +1105,9 @@ int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0)) {
 		if (end == OBD_OBJECT_EOF)
-			end = i_size_read(inode);
-		mapping->writeback_index = (end >> PAGE_SHIFT) + 1;
+			mapping->writeback_index = 0;
+		else
+			mapping->writeback_index = (end >> PAGE_SHIFT) + 1;
 	}
 	return result;
 }
