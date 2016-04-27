@@ -27,6 +27,7 @@
 #ifndef _OPTEE_MSG_H
 #define _OPTEE_MSG_H
 
+#include <linux/bitops.h>
 #include <linux/types.h>
 
 /*
@@ -63,14 +64,14 @@
  *
  * Currently only used with OPTEE_MSG_CMD_OPEN_SESSION.
  */
-#define OPTEE_MSG_ATTR_META			(1 << 8)
+#define OPTEE_MSG_ATTR_META			BIT(8)
 
 /*
  * The temporary shared memory object is not physically contigous and this
  * temp memref is followed by another fragment until the last temp memref
  * that doesn't have this bit set.
  */
-#define OPTEE_MSG_ATTR_FRAGMENT			(1 << 9)
+#define OPTEE_MSG_ATTR_FRAGMENT			BIT(9)
 
 /*
  * Memory attributes for caching passed with temp memrefs. The actual value
@@ -430,6 +431,5 @@ struct optee_msg_arg {
  *					above
  */
 #define OPTEE_MSG_RPC_CMD_SHM_FREE	7
-
 
 #endif /* _OPTEE_MSG_H */

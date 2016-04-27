@@ -12,8 +12,8 @@
  *
  */
 #include <linux/device.h>
-#include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include "optee_private.h"
 #include "optee_smc.h"
@@ -67,7 +67,7 @@ static struct wq_entry *wq_entry_get(struct optee_wait_queue *wq, u32 key)
 		if (w->key == key)
 			goto out;
 
-	w = kmalloc(sizeof(struct wq_entry), GFP_KERNEL);
+	w = kmalloc(sizeof(*w), GFP_KERNEL);
 	if (w) {
 		init_completion(&w->c);
 		w->key = key;
@@ -100,7 +100,7 @@ static void wq_wakeup(struct optee_wait_queue *wq, u32 key)
 }
 
 static void handle_rpc_func_cmd_wq(struct optee *optee,
-			struct optee_msg_arg *arg)
+				   struct optee_msg_arg *arg)
 {
 	struct optee_msg_param *params;
 
@@ -157,7 +157,7 @@ bad:
 }
 
 static void handle_rpc_supp_cmd(struct tee_context *ctx,
-			struct optee_msg_arg *arg)
+				struct optee_msg_arg *arg)
 {
 	struct tee_param *params;
 	struct optee_msg_param *msg_params = OPTEE_MSG_GET_PARAMS(arg);
@@ -204,7 +204,7 @@ static struct tee_shm *cmd_alloc_suppl(struct tee_context *ctx, size_t sz)
 }
 
 static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
-			struct optee_msg_arg *arg)
+					  struct optee_msg_arg *arg)
 {
 	struct tee_device *teedev = ctx->teedev;
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
@@ -270,16 +270,24 @@ static void cmd_free_suppl(struct tee_context *ctx, struct tee_shm *shm)
 	param.u.value.b = tee_shm_get_id(shm);
 	param.u.value.c = 0;
 
-	optee_supp_thrd_req(ctx, OPTEE_MSG_RPC_CMD_SHM_FREE, 1, &param);
 	/*
 	 * Match the tee_shm_get_from_id() in cmd_alloc_suppl() as secure
 	 * world has released its reference.
+	 *
+	 * It's better to do this before sending the request to supplicant
+	 * as we'd like to let the process doing the initial allocation to
+	 * do release the last reference too in order to avoid stacking
+	 * many pending fput() on the client process. This could otherwise
+	 * happen if secure world does many allocate and free in a single
+	 * invoke.
 	 */
 	tee_shm_put(shm);
+
+	optee_supp_thrd_req(ctx, OPTEE_MSG_RPC_CMD_SHM_FREE, 1, &param);
 }
 
 static void handle_rpc_func_cmd_shm_free(struct tee_context *ctx,
-			struct optee_msg_arg *arg)
+					 struct optee_msg_arg *arg)
 {
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	struct tee_shm *shm;
@@ -307,7 +315,7 @@ static void handle_rpc_func_cmd_shm_free(struct tee_context *ctx,
 }
 
 static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
-			struct tee_shm *shm)
+				struct tee_shm *shm)
 {
 	struct optee_msg_arg *arg;
 
@@ -339,6 +347,13 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 	}
 }
 
+/**
+ * optee_handle_rpc() - handle RPC from secure world
+ * @ctx:	context doing the RPC
+ * @param:	value of registers for the RPC
+ *
+ * Result of RPC is written back into @param.
+ */
 void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
 {
 	struct tee_device *teedev = ctx->teedev;

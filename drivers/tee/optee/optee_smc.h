@@ -28,6 +28,7 @@
 #define OPTEE_SMC_H
 
 #include <linux/arm-smccc.h>
+#include <linux/bitops.h>
 
 #define OPTEE_SMC_STD_CALL_VAL(func_num) \
 	ARM_SMCCC_CALL_VAL(ARM_SMCCC_STD_CALL, ARM_SMCCC_SMC_32, \
@@ -202,11 +203,11 @@
  * a2-7 Preserved
  */
 /* Normal world works as a uniprocessor system */
-#define OPTEE_SMC_NSEC_CAP_UNIPROCESSOR		(1 << 0)
+#define OPTEE_SMC_NSEC_CAP_UNIPROCESSOR		BIT(0)
 /* Secure world has reserved shared memory for normal world to use */
-#define OPTEE_SMC_SEC_CAP_HAVE_RESERVERED_SHM	(1 << 0)
+#define OPTEE_SMC_SEC_CAP_HAVE_RESERVERED_SHM	BIT(0)
 /* Secure world can communicate via previously unregistered shared memory */
-#define OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM	(1 << 1)
+#define OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM	BIT(1)
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	9
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES)
@@ -242,7 +243,6 @@
 #define OPTEE_SMC_FUNCID_DISABLE_SHM_CACHE	10
 #define OPTEE_SMC_DISABLE_SHM_CACHE \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_DISABLE_SHM_CACHE)
-
 
 /*
  * Enable cache of shared memory objects

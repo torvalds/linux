@@ -11,14 +11,14 @@
  * GNU General Public License for more details.
  *
  */
-#include <linux/types.h>
+#include <linux/arm-smccc.h>
+#include <linux/device.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/device.h>
 #include <linux/tee_drv.h>
-#include <linux/arm-smccc.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
 #include "optee_private.h"
 #include "optee_smc.h"
 
@@ -29,7 +29,7 @@ struct optee_call_waiter {
 };
 
 static void optee_cq_wait_init(struct optee_call_queue *cq,
-			struct optee_call_waiter *w)
+			       struct optee_call_waiter *w)
 {
 	mutex_lock(&cq->mutex);
 	/*
@@ -45,7 +45,7 @@ static void optee_cq_wait_init(struct optee_call_queue *cq,
 }
 
 static void optee_cq_wait_for_completion(struct optee_call_queue *cq,
-			struct optee_call_waiter *w)
+					 struct optee_call_waiter *w)
 {
 	wait_for_completion(&w->c);
 
@@ -74,7 +74,7 @@ static void optee_cq_complete_one(struct optee_call_queue *cq)
 }
 
 static void optee_cq_wait_final(struct optee_call_queue *cq,
-			struct optee_call_waiter *w)
+				struct optee_call_waiter *w)
 {
 	mutex_lock(&cq->mutex);
 
@@ -94,7 +94,7 @@ static void optee_cq_wait_final(struct optee_call_queue *cq,
 
 /* Requires the filpstate mutex to be held */
 static struct optee_session *find_session(struct optee_context_data *ctxdata,
-			u32 session_id)
+					  u32 session_id)
 {
 	struct optee_session *sess;
 
@@ -104,6 +104,16 @@ static struct optee_session *find_session(struct optee_context_data *ctxdata,
 	return NULL;
 }
 
+/**
+ * optee_do_call_with_arg() - Do an SMC to OP-TEE in secure world
+ * @ctx:	calling context
+ * @parg:	physical address of message to pass to secure world
+ *
+ * Does and SMC to OP-TEE in secure world and handles eventual resulting
+ * Remote Procedure Calls (RPC) from OP-TEE.
+ *
+ * Returns return code from secure world, 0 is OK
+ */
 u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
@@ -148,7 +158,8 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 }
 
 static struct tee_shm *get_msg_arg(struct tee_context *ctx, size_t num_params,
-			struct optee_msg_arg **msg_arg, phys_addr_t *msg_parg)
+				   struct optee_msg_arg **msg_arg,
+				   phys_addr_t *msg_parg)
 {
 	int rc;
 	struct tee_shm *shm;
@@ -179,8 +190,8 @@ out:
 }
 
 int optee_open_session(struct tee_context *ctx,
-			struct tee_ioctl_open_session_arg *arg,
-			struct tee_param *param)
+		       struct tee_ioctl_open_session_arg *arg,
+		       struct tee_param *param)
 {
 	struct optee_context_data *ctxdata = ctx->data;
 	int rc;
@@ -215,7 +226,7 @@ int optee_open_session(struct tee_context *ctx,
 	if (rc)
 		goto out;
 
-	sess = kzalloc(sizeof(struct optee_session), GFP_KERNEL);
+	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
 	if (!sess) {
 		rc = -ENOMEM;
 		goto out;
@@ -282,7 +293,7 @@ int optee_close_session(struct tee_context *ctx, u32 session)
 }
 
 int optee_invoke_func(struct tee_context *ctx, struct tee_ioctl_invoke_arg *arg,
-			struct tee_param *param)
+		      struct tee_param *param)
 {
 	struct optee_context_data *ctxdata = ctx->data;
 	struct tee_shm *shm;
@@ -357,6 +368,11 @@ int optee_cancel_req(struct tee_context *ctx, u32 cancel_id, u32 session)
 	return 0;
 }
 
+/**
+ * optee_enable_shm_cache() - Enables caching of some shared memory allocation
+ *			      in OP-TEE
+ * @optee:	main service struct
+ */
 void optee_enable_shm_cache(struct optee *optee)
 {
 	struct optee_call_waiter w;
@@ -375,6 +391,11 @@ void optee_enable_shm_cache(struct optee *optee)
 	optee_cq_wait_final(&optee->call_queue, &w);
 }
 
+/**
+ * optee_enable_shm_cache() - Disables caching of some shared memory allocation
+ *			      in OP-TEE
+ * @optee:	main service struct
+ */
 void optee_disable_shm_cache(struct optee *optee)
 {
 	struct optee_call_waiter w;
@@ -393,8 +414,9 @@ void optee_disable_shm_cache(struct optee *optee)
 
 			shm = reg_pair_to_ptr(res.a1, res.a2);
 			tee_shm_free(shm);
-		} else
+		} else {
 			optee_cq_wait_for_completion(&optee->call_queue, &w);
+		}
 	}
 	optee_cq_wait_final(&optee->call_queue, &w);
 }

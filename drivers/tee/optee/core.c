@@ -11,17 +11,17 @@
  * GNU General Public License for more details.
  *
  */
-#include <linux/types.h>
-#include <linux/string.h>
 #include <linux/errno.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/tee_drv.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
 #include "optee_private.h"
 #include "optee_smc.h"
 
@@ -29,8 +29,16 @@
 
 #define OPTEE_SHM_NUM_PRIV_PAGES	1
 
+/**
+ * optee_from_msg_param() - convert from OPTEE_MSG parameters to
+ *			    struct tee_param
+ * @params:	subsystem internal parameter representation
+ * @num_params:	number of elements in the parameter arrays
+ * @msg_params:	OPTEE_MSG parameters
+ * Returns 0 on success or <0 on failure
+ */
 int optee_from_msg_param(struct tee_param *params, size_t num_params,
-			const struct optee_msg_param *msg_params)
+			 const struct optee_msg_param *msg_params)
 {
 	int rc;
 	size_t n;
@@ -92,8 +100,15 @@ int optee_from_msg_param(struct tee_param *params, size_t num_params,
 	return 0;
 }
 
+/**
+ * optee_to_msg_param() - convert from struct tee_params to OPTEE_MSG parameters
+ * @msg_params:	OPTEE_MSG parameters
+ * @num_params:	number of elements in the parameter arrays
+ * @params:	subsystem itnernal parameter representation
+ * Returns 0 on success or <0 on failure
+ */
 int optee_to_msg_param(struct optee_msg_param *msg_params, size_t num_params,
-			const struct tee_param *params)
+		       const struct tee_param *params)
 {
 	int rc;
 	size_t n;
@@ -145,7 +160,7 @@ int optee_to_msg_param(struct optee_msg_param *msg_params, size_t num_params,
 }
 
 static void optee_get_version(struct tee_device *teedev,
-			struct tee_ioctl_version_data *vers)
+			      struct tee_ioctl_version_data *vers)
 {
 	struct tee_ioctl_version_data v = {
 		.impl_id = TEE_IMPL_ID_OPTEE,
@@ -158,10 +173,21 @@ static void optee_get_version(struct tee_device *teedev,
 static int optee_open(struct tee_context *ctx)
 {
 	struct optee_context_data *ctxdata;
+	struct tee_device *teedev = ctx->teedev;
+	struct optee *optee = tee_get_drvdata(teedev);
 
 	ctxdata = kzalloc(sizeof(*ctxdata), GFP_KERNEL);
 	if (!ctxdata)
 		return -ENOMEM;
+
+	if (teedev == optee->supp_teedev) {
+		if (!atomic_dec_and_test(&optee->supp.available)) {
+			/* Supplicant device is already open */
+			atomic_inc(&optee->supp.available);
+			kfree(ctxdata);
+			return -EBUSY;
+		}
+	}
 
 	mutex_init(&ctxdata->mutex);
 	INIT_LIST_HEAD(&ctxdata->sess_list);
@@ -173,6 +199,8 @@ static int optee_open(struct tee_context *ctx)
 static void optee_release(struct tee_context *ctx)
 {
 	struct optee_context_data *ctxdata = ctx->data;
+	struct tee_device *teedev = ctx->teedev;
+	struct optee *optee = tee_get_drvdata(teedev);
 	struct tee_shm *shm;
 	struct optee_msg_arg *arg = NULL;
 	phys_addr_t parg;
@@ -217,6 +245,9 @@ static void optee_release(struct tee_context *ctx)
 		tee_shm_free(shm);
 
 	ctx->data = NULL;
+
+	if (teedev == optee->supp_teedev)
+		atomic_inc(&optee->supp.available);
 }
 
 static struct tee_driver_ops optee_ops = {
@@ -275,7 +306,7 @@ static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
 }
 
 static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
-			u32 *sec_caps)
+					    u32 *sec_caps)
 {
 	struct arm_smccc_res res;
 	u32 a1 = 0;
