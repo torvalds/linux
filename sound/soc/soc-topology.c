@@ -1023,6 +1023,11 @@ static int soc_tplg_kcontrol_elems_load(struct soc_tplg *tplg,
 
 		control_hdr = (struct snd_soc_tplg_ctl_hdr *)tplg->pos;
 
+		if (control_hdr->size != sizeof(*control_hdr)) {
+			dev_err(tplg->dev, "ASoC: invalid control size\n");
+			return -EINVAL;
+		}
+
 		switch (control_hdr->ops.info) {
 		case SND_SOC_TPLG_CTL_VOLSW:
 		case SND_SOC_TPLG_CTL_STROBE:
@@ -1499,6 +1504,11 @@ static int soc_tplg_dapm_widget_elems_load(struct soc_tplg *tplg,
 
 	for (i = 0; i < count; i++) {
 		widget = (struct snd_soc_tplg_dapm_widget *) tplg->pos;
+		if (widget->size != sizeof(*widget)) {
+			dev_err(tplg->dev, "ASoC: invalid widget size\n");
+			return -EINVAL;
+		}
+
 		ret = soc_tplg_dapm_widget_create(tplg, widget);
 		if (ret < 0) {
 			dev_err(tplg->dev, "ASoC: failed to load widget %s\n",
@@ -1652,8 +1662,6 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 	if (tplg->pass != SOC_TPLG_PASS_PCM_DAI)
 		return 0;
 
-	pcm = (struct snd_soc_tplg_pcm *)tplg->pos;
-
 	if (soc_tplg_check_elem_count(tplg,
 		sizeof(struct snd_soc_tplg_pcm), count,
 		hdr->payload_size, "PCM DAI")) {
@@ -1663,7 +1671,13 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 	}
 
 	/* create the FE DAIs and DAI links */
+	pcm = (struct snd_soc_tplg_pcm *)tplg->pos;
 	for (i = 0; i < count; i++) {
+		if (pcm->size != sizeof(*pcm)) {
+			dev_err(tplg->dev, "ASoC: invalid pcm size\n");
+			return -EINVAL;
+		}
+
 		soc_tplg_pcm_create(tplg, pcm);
 		pcm++;
 	}
@@ -1683,6 +1697,11 @@ static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 		return 0;
 
 	manifest = (struct snd_soc_tplg_manifest *)tplg->pos;
+	if (manifest->size != sizeof(*manifest)) {
+		dev_err(tplg->dev, "ASoC: invalid manifest size\n");
+		return -EINVAL;
+	}
+
 	tplg->pos += sizeof(struct snd_soc_tplg_manifest);
 
 	if (tplg->comp && tplg->ops && tplg->ops->manifest)
@@ -1698,6 +1717,14 @@ static int soc_valid_header(struct soc_tplg *tplg,
 {
 	if (soc_tplg_get_hdr_offset(tplg) >= tplg->fw->size)
 		return 0;
+
+	if (hdr->size != sizeof(*hdr)) {
+		dev_err(tplg->dev,
+			"ASoC: invalid header size for type %d at offset 0x%lx size 0x%zx.\n",
+			hdr->type, soc_tplg_get_hdr_offset(tplg),
+			tplg->fw->size);
+		return -EINVAL;
+	}
 
 	/* big endian firmware objects not supported atm */
 	if (hdr->magic == cpu_to_be32(SND_SOC_TPLG_MAGIC)) {
