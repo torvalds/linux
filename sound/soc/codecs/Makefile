@@ -74,6 +74,7 @@ snd-soc-max98088-objs := max98088.o
 snd-soc-max98090-objs := max98090.o
 snd-soc-max98095-objs := max98095.o
 snd-soc-max98357a-objs := max98357a.o
+snd-soc-max98371-objs := max98371.o
 snd-soc-max9867-objs := max9867.o
 snd-soc-max98925-objs := max98925.o
 snd-soc-max98926-objs := max98926.o
