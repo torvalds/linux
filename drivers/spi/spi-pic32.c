@@ -711,10 +711,9 @@ static int pic32_spi_hw_probe(struct platform_device *pdev,
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pic32s->regs = devm_ioremap_resource(&pdev->dev, mem);
-	if (!pic32s->regs) {
-		dev_err(&pdev->dev, "ioremap() failed\n");
-		return -ENOMEM;
-	}
+	if (IS_ERR(pic32s->regs))
+		return PTR_ERR(pic32s->regs);
+
 	pic32s->dma_base = mem->start;
 
 	/* get irq resources: err-irq, rx-irq, tx-irq */
