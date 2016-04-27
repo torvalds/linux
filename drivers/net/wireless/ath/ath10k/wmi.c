@@ -521,7 +521,8 @@ static struct wmi_cmd_map wmi_10_2_4_cmd_map = {
 	.vdev_filter_neighbor_rx_packets_cmdid = WMI_CMD_UNSUPPORTED,
 	.mu_cal_start_cmdid = WMI_CMD_UNSUPPORTED,
 	.set_cca_params_cmdid = WMI_CMD_UNSUPPORTED,
-	.pdev_bss_chan_info_request_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_bss_chan_info_request_cmdid =
+		WMI_10_2_PDEV_BSS_CHAN_INFO_REQUEST_CMDID,
 };
 
 /* 10.4 WMI cmd track */
@@ -6637,6 +6638,26 @@ ath10k_wmi_10_2_op_gen_pdev_get_temperature(struct ath10k *ar)
 	return skb;
 }
 
+static struct sk_buff *
+ath10k_wmi_10_2_op_gen_pdev_bss_chan_info(struct ath10k *ar,
+					  enum wmi_bss_survey_req_type type)
+{
+	struct wmi_pdev_chan_info_req_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_pdev_chan_info_req_cmd *)skb->data;
+	cmd->type = __cpu_to_le32(type);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi pdev bss info request type %d\n", type);
+
+	return skb;
+}
+
 /* This function assumes the beacon is already DMA mapped */
 static struct sk_buff *
 ath10k_wmi_op_gen_beacon_dma(struct ath10k *ar, u32 vdev_id, const void *bcn,
@@ -7736,6 +7757,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	.gen_init = ath10k_wmi_10_2_op_gen_init,
 	.gen_peer_assoc = ath10k_wmi_10_2_op_gen_peer_assoc,
 	.gen_pdev_get_temperature = ath10k_wmi_10_2_op_gen_pdev_get_temperature,
+	.gen_pdev_bss_chan_info_req = ath10k_wmi_10_2_op_gen_pdev_bss_chan_info,
 
 	/* shared with 10.1 */
 	.map_svc = wmi_10x_svc_map,
@@ -7862,6 +7884,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.gen_request_stats = ath10k_wmi_op_gen_request_stats,
 	.gen_pdev_get_temperature = ath10k_wmi_10_2_op_gen_pdev_get_temperature,
 	.get_vdev_subtype = ath10k_wmi_10_4_op_get_vdev_subtype,
+	.gen_pdev_bss_chan_info_req = ath10k_wmi_10_2_op_gen_pdev_bss_chan_info,
 };
 
 int ath10k_wmi_attach(struct ath10k *ar)

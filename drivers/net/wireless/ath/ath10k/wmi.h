@@ -6488,6 +6488,16 @@ enum wmi_host_platform_type {
 	WMI_HOST_PLATFORM_LOW_PERF,
 };
 
+enum wmi_bss_survey_req_type {
+	WMI_BSS_SURVEY_REQ_TYPE_READ = 1,
+	WMI_BSS_SURVEY_REQ_TYPE_READ_CLEAR,
+};
+
+struct wmi_pdev_chan_info_req_cmd {
+	__le32 type;
+	__le32 reserved;
+} __packed;
+
 struct ath10k;
 struct ath10k_vif;
 struct ath10k_fw_stats_pdev;
