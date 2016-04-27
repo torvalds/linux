@@ -1500,9 +1500,11 @@ static int soc_tplg_dapm_widget_elems_load(struct soc_tplg *tplg,
 	for (i = 0; i < count; i++) {
 		widget = (struct snd_soc_tplg_dapm_widget *) tplg->pos;
 		ret = soc_tplg_dapm_widget_create(tplg, widget);
-		if (ret < 0)
+		if (ret < 0) {
 			dev_err(tplg->dev, "ASoC: failed to load widget %s\n",
 				widget->name);
+			return ret;
+		}
 	}
 
 	return 0;
