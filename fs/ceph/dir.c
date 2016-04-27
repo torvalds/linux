@@ -365,6 +365,8 @@ more:
 		req->r_readdir_cache_idx = fi->readdir_cache_idx;
 		req->r_readdir_offset = fi->next_offset;
 		req->r_args.readdir.frag = cpu_to_le32(frag);
+		req->r_args.readdir.flags =
+				cpu_to_le16(CEPH_READDIR_REPLY_BITFLAGS);
 
 		req->r_inode = inode;
 		ihold(inode);

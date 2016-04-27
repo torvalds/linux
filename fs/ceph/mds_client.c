@@ -181,8 +181,11 @@ static int parse_reply_info_dir(void **p, void *end,
 
 	ceph_decode_need(p, end, sizeof(num) + 2, bad);
 	num = ceph_decode_32(p);
-	info->dir_end = ceph_decode_8(p);
-	info->dir_complete = ceph_decode_8(p);
+	{
+		u16 flags = ceph_decode_16(p);
+		info->dir_end = !!(flags & CEPH_READDIR_FRAG_END);
+		info->dir_complete = !!(flags & CEPH_READDIR_FRAG_COMPLETE);
+	}
 	if (num == 0)
 		goto done;
 

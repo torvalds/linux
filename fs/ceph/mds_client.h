@@ -80,7 +80,7 @@ struct ceph_mds_reply_info_parsed {
 			struct ceph_mds_reply_dirfrag *dir_dir;
 			size_t			      dir_buf_size;
 			int                           dir_nr;
-			u8                            dir_complete, dir_end;
+			bool			      dir_complete, dir_end;
 			struct ceph_mds_reply_dir_entry  *dir_entries;
 		};
 
