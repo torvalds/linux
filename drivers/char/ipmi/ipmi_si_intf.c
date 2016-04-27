@@ -1637,25 +1637,28 @@ static void mem_outq(const struct si_sm_io *io, unsigned int offset,
 }
 #endif
 
-static void mem_cleanup(struct smi_info *info)
+static void mem_region_cleanup(struct smi_info *info, int num)
 {
 	unsigned long addr = info->io.addr_data;
-	int           mapsize;
+	int idx;
 
+	for (idx = 0; idx < num; idx++)
+		release_mem_region(addr + idx * info->io.regspacing,
+				   info->io.regsize);
+}
+
+static void mem_cleanup(struct smi_info *info)
+{
 	if (info->io.addr) {
 		iounmap(info->io.addr);
-
-		mapsize = ((info->io_size * info->io.regspacing)
-			   - (info->io.regspacing - info->io.regsize));
-
-		release_mem_region(addr, mapsize);
+		mem_region_cleanup(info, info->io_size);
 	}
 }
 
 static int mem_setup(struct smi_info *info)
 {
 	unsigned long addr = info->io.addr_data;
-	int           mapsize;
+	int           mapsize, idx;
 
 	if (!addr)
 		return -ENODEV;
@@ -1692,6 +1695,21 @@ static int mem_setup(struct smi_info *info)
 	}
 
 	/*
+	 * Some BIOSes reserve disjoint memory regions in their ACPI
+	 * tables.  This causes problems when trying to request the
+	 * entire region.  Therefore we must request each register
+	 * separately.
+	 */
+	for (idx = 0; idx < info->io_size; idx++) {
+		if (request_mem_region(addr + idx * info->io.regspacing,
+				       info->io.regsize, DEVICE_NAME) == NULL) {
+			/* Undo allocations */
+			mem_region_cleanup(info, idx);
+			return -EIO;
+		}
+	}
+
+	/*
 	 * Calculate the total amount of memory to claim.  This is an
 	 * unusual looking calculation, but it avoids claiming any
 	 * more memory than it has to.  It will claim everything
@@ -1700,13 +1718,9 @@ static int mem_setup(struct smi_info *info)
 	 */
 	mapsize = ((info->io_size * info->io.regspacing)
 		   - (info->io.regspacing - info->io.regsize));
-
-	if (request_mem_region(addr, mapsize, DEVICE_NAME) == NULL)
-		return -EIO;
-
 	info->io.addr = ioremap(addr, mapsize);
 	if (info->io.addr == NULL) {
-		release_mem_region(addr, mapsize);
+		mem_region_cleanup(info, info->io_size);
 		return -EIO;
 	}
 	return 0;
