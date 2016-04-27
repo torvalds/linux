@@ -453,3 +453,18 @@ void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder)
 
 	mutex_unlock(&dev_priv->sb_lock);
 }
+
+void vlv_phy_reset_lanes(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(encoder->base.crtc);
+	enum dpio_channel port = vlv_dport_to_channel(dport);
+	int pipe = intel_crtc->pipe;
+
+	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(port), 0x00000000);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW1(port), 0x00e00060);
+	mutex_unlock(&dev_priv->sb_lock);
+}
