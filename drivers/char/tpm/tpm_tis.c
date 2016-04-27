@@ -387,7 +387,7 @@ static void disable_interrupts(struct tpm_chip *chip)
 	intmask &= ~TPM_GLOBAL_INT_ENABLE;
 	iowrite32(intmask,
 		  priv->iobase + TPM_INT_ENABLE(priv->locality));
-	devm_free_irq(&chip->dev, priv->irq, chip);
+	devm_free_irq(chip->dev.parent, priv->irq, chip);
 	priv->irq = 0;
 	chip->flags &= ~TPM_CHIP_FLAG_IRQ;
 }
@@ -604,7 +604,7 @@ static int tpm_tis_probe_irq_single(struct tpm_chip *chip, u32 intmask,
 	struct priv_data *priv = dev_get_drvdata(&chip->dev);
 	u8 original_int_vec;
 
-	if (devm_request_irq(&chip->dev, irq, tis_int_handler, flags,
+	if (devm_request_irq(chip->dev.parent, irq, tis_int_handler, flags,
 			     dev_name(&chip->dev), chip) != 0) {
 		dev_info(&chip->dev, "Unable to request irq: %d for probe\n",
 			 irq);
