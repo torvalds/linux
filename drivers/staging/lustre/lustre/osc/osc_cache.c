@@ -1333,8 +1333,10 @@ static int osc_completion(const struct lu_env *env, struct osc_async_page *oap,
 	int srvlock;
 
 	cmd &= ~OBD_BRW_NOQUOTA;
-	LASSERT(equi(page->cp_state == CPS_PAGEIN,  cmd == OBD_BRW_READ));
-	LASSERT(equi(page->cp_state == CPS_PAGEOUT, cmd == OBD_BRW_WRITE));
+	LASSERTF(equi(page->cp_state == CPS_PAGEIN, cmd == OBD_BRW_READ),
+		 "cp_state:%u, cmd:%d\n", page->cp_state, cmd);
+	LASSERTF(equi(page->cp_state == CPS_PAGEOUT, cmd == OBD_BRW_WRITE),
+		 "cp_state:%u, cmd:%d\n", page->cp_state, cmd);
 	LASSERT(opg->ops_transfer_pinned);
 
 	/*
