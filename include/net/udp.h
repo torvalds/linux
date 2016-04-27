@@ -293,12 +293,12 @@ struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
 	if (is_udplite) SNMP_INC_STATS((net)->mib.udplite_statistics, field);       \
 	else		SNMP_INC_STATS((net)->mib.udp_statistics, field);  }  while(0)
 #define __UDP_INC_STATS(net, field, is_udplite) 	      do { \
-	if (is_udplite) SNMP_INC_STATS_BH((net)->mib.udplite_statistics, field);         \
-	else		SNMP_INC_STATS_BH((net)->mib.udp_statistics, field);    }  while(0)
+	if (is_udplite) __SNMP_INC_STATS((net)->mib.udplite_statistics, field);         \
+	else		__SNMP_INC_STATS((net)->mib.udp_statistics, field);    }  while(0)
 
 #define __UDP6_INC_STATS(net, field, is_udplite)	    do { \
-	if (is_udplite) SNMP_INC_STATS_BH((net)->mib.udplite_stats_in6, field);\
-	else		SNMP_INC_STATS_BH((net)->mib.udp_stats_in6, field);  \
+	if (is_udplite) __SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);\
+	else		__SNMP_INC_STATS((net)->mib.udp_stats_in6, field);  \
 } while(0)
 #define UDP6_INC_STATS(net, field, __lite)		    do { \
 	if (__lite) SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);  \
