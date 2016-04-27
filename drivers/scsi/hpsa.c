@@ -8283,8 +8283,10 @@ static void hpsa_ack_ctlr_events(struct ctlr_info *h)
 			event_type = "configuration change";
 		/* Stop sending new RAID offload reqs via the IO accelerator */
 		scsi_block_requests(h->scsi_host);
-		for (i = 0; i < h->ndevices; i++)
+		for (i = 0; i < h->ndevices; i++) {
 			h->dev[i]->offload_enabled = 0;
+			h->dev[i]->offload_to_be_enabled = 0;
+		}
 		hpsa_drain_accel_commands(h);
 		/* Set 'accelerator path config change' bit */
 		dev_warn(&h->pdev->dev,
