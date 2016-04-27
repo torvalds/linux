@@ -101,4 +101,8 @@ Rockchip platforms device tree bindings
 
 - Rockchip RK3228 Evaluation board:
     Required root node properties:
-      - compatible = "rockchip,rk3228-evb", "rockchip,rk3228";
+     - compatible = "rockchip,rk3228-evb", "rockchip,rk3228";
+
+- Rockchip RK3399 evb:
+    Required root node properties:
+      - compatible = "rockchip,rk3399-evb", "rockchip,rk3399";
