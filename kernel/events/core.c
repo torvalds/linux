@@ -7235,24 +7235,6 @@ static inline void perf_tp_register(void)
 	perf_pmu_register(&perf_tracepoint, "tracepoint", PERF_TYPE_TRACEPOINT);
 }
 
-static int perf_event_set_filter(struct perf_event *event, void __user *arg)
-{
-	char *filter_str;
-	int ret;
-
-	if (event->attr.type != PERF_TYPE_TRACEPOINT)
-		return -EINVAL;
-
-	filter_str = strndup_user(arg, PAGE_SIZE);
-	if (IS_ERR(filter_str))
-		return PTR_ERR(filter_str);
-
-	ret = ftrace_profile_set_filter(event, event->attr.config, filter_str);
-
-	kfree(filter_str);
-	return ret;
-}
-
 static void perf_event_free_filter(struct perf_event *event)
 {
 	ftrace_profile_free_filter(event);
@@ -7307,11 +7289,6 @@ static inline void perf_tp_register(void)
 {
 }
 
-static int perf_event_set_filter(struct perf_event *event, void __user *arg)
-{
-	return -ENOENT;
-}
-
 static void perf_event_free_filter(struct perf_event *event)
 {
 }
@@ -7338,6 +7315,28 @@ void perf_bp_event(struct perf_event *bp, void *data)
 		perf_swevent_event(bp, 1, &sample, regs);
 }
 #endif
+
+static int perf_event_set_filter(struct perf_event *event, void __user *arg)
+{
+	char *filter_str;
+	int ret = -EINVAL;
+
+	if (event->attr.type != PERF_TYPE_TRACEPOINT ||
+	    !IS_ENABLED(CONFIG_EVENT_TRACING))
+		return -EINVAL;
+
+	filter_str = strndup_user(arg, PAGE_SIZE);
+	if (IS_ERR(filter_str))
+		return PTR_ERR(filter_str);
+
+	if (IS_ENABLED(CONFIG_EVENT_TRACING) &&
+	    event->attr.type == PERF_TYPE_TRACEPOINT)
+		ret = ftrace_profile_set_filter(event, event->attr.config,
+						filter_str);
+
+	kfree(filter_str);
+	return ret;
+}
 
 /*
  * hrtimer based swevent callback
