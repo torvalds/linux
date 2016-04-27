@@ -423,24 +423,22 @@ try_again:
 		if (!peeked) {
 			atomic_inc(&sk->sk_drops);
 			if (is_udp4)
-				UDP_INC_STATS_USER(sock_net(sk),
-						   UDP_MIB_INERRORS,
-						   is_udplite);
+				UDP_INC_STATS(sock_net(sk), UDP_MIB_INERRORS,
+					      is_udplite);
 			else
-				UDP6_INC_STATS_USER(sock_net(sk),
-						    UDP_MIB_INERRORS,
-						    is_udplite);
+				UDP6_INC_STATS(sock_net(sk), UDP_MIB_INERRORS,
+					       is_udplite);
 		}
 		skb_free_datagram_locked(sk, skb);
 		return err;
 	}
 	if (!peeked) {
 		if (is_udp4)
-			UDP_INC_STATS_USER(sock_net(sk),
-					UDP_MIB_INDATAGRAMS, is_udplite);
+			UDP_INC_STATS(sock_net(sk), UDP_MIB_INDATAGRAMS,
+				      is_udplite);
 		else
-			UDP6_INC_STATS_USER(sock_net(sk),
-					UDP_MIB_INDATAGRAMS, is_udplite);
+			UDP6_INC_STATS(sock_net(sk), UDP_MIB_INDATAGRAMS,
+				       is_udplite);
 	}
 
 	sock_recv_ts_and_drops(msg, sk, skb);
@@ -487,15 +485,15 @@ csum_copy_err:
 	slow = lock_sock_fast(sk);
 	if (!skb_kill_datagram(sk, skb, flags)) {
 		if (is_udp4) {
-			UDP_INC_STATS_USER(sock_net(sk),
-					UDP_MIB_CSUMERRORS, is_udplite);
-			UDP_INC_STATS_USER(sock_net(sk),
-					UDP_MIB_INERRORS, is_udplite);
+			UDP_INC_STATS(sock_net(sk),
+				      UDP_MIB_CSUMERRORS, is_udplite);
+			UDP_INC_STATS(sock_net(sk),
+				      UDP_MIB_INERRORS, is_udplite);
 		} else {
-			UDP6_INC_STATS_USER(sock_net(sk),
-					UDP_MIB_CSUMERRORS, is_udplite);
-			UDP6_INC_STATS_USER(sock_net(sk),
-					UDP_MIB_INERRORS, is_udplite);
+			UDP6_INC_STATS(sock_net(sk),
+				       UDP_MIB_CSUMERRORS, is_udplite);
+			UDP6_INC_STATS(sock_net(sk),
+				       UDP_MIB_INERRORS, is_udplite);
 		}
 	}
 	unlock_sock_fast(sk, slow);
@@ -1015,13 +1013,14 @@ send:
 	err = ip6_send_skb(skb);
 	if (err) {
 		if (err == -ENOBUFS && !inet6_sk(sk)->recverr) {
-			UDP6_INC_STATS_USER(sock_net(sk),
-					    UDP_MIB_SNDBUFERRORS, is_udplite);
+			UDP6_INC_STATS(sock_net(sk),
+				       UDP_MIB_SNDBUFERRORS, is_udplite);
 			err = 0;
 		}
-	} else
-		UDP6_INC_STATS_USER(sock_net(sk),
-				    UDP_MIB_OUTDATAGRAMS, is_udplite);
+	} else {
+		UDP6_INC_STATS(sock_net(sk),
+			       UDP_MIB_OUTDATAGRAMS, is_udplite);
+	}
 	return err;
 }
 
@@ -1342,8 +1341,8 @@ out:
 	 * seems like overkill.
 	 */
 	if (err == -ENOBUFS || test_bit(SOCK_NOSPACE, &sk->sk_socket->flags)) {
-		UDP6_INC_STATS_USER(sock_net(sk),
-				UDP_MIB_SNDBUFERRORS, is_udplite);
+		UDP6_INC_STATS(sock_net(sk),
+			       UDP_MIB_SNDBUFERRORS, is_udplite);
 	}
 	return err;
 
