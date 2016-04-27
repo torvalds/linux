@@ -414,10 +414,7 @@ more:
 		if (req->r_reply_info.dir_end) {
 			kfree(fi->last_name);
 			fi->last_name = NULL;
-			if (ceph_frag_is_rightmost(frag))
-				fi->next_offset = 2;
-			else
-				fi->next_offset = 0;
+			fi->next_offset = 2;
 		} else {
 			err = note_last_dentry(fi,
 				       rinfo->dir_dname[rinfo->dir_nr-1],
@@ -468,7 +465,7 @@ more:
 	/* more frags? */
 	if (!ceph_frag_is_rightmost(frag)) {
 		frag = ceph_frag_next(frag);
-		off = 0;
+		off = 2;
 		ctx->pos = ceph_make_fpos(frag, off);
 		dout("readdir next frag is %x\n", frag);
 		goto more;
@@ -511,10 +508,7 @@ static void reset_readdir(struct ceph_file_info *fi, unsigned frag)
 	fi->last_name = NULL;
 	fi->dir_release_count = 0;
 	fi->readdir_cache_idx = -1;
-	if (ceph_frag_is_leftmost(frag))
-		fi->next_offset = 2;  /* compensate for . and .. */
-	else
-		fi->next_offset = 0;
+	fi->next_offset = 2;  /* compensate for . and .. */
 	fi->flags &= ~CEPH_F_ATEND;
 }
 

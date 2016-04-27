@@ -1405,10 +1405,7 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 		dout("readdir_prepopulate got new frag %x -> %x\n",
 		     frag, le32_to_cpu(rinfo->dir_dir->frag));
 		frag = le32_to_cpu(rinfo->dir_dir->frag);
-		if (ceph_frag_is_leftmost(frag))
-			req->r_readdir_offset = 2;
-		else
-			req->r_readdir_offset = 0;
+		req->r_readdir_offset = 2;
 	}
 
 	if (le32_to_cpu(rinfo->head->op) == CEPH_MDS_OP_LSSNAP) {
