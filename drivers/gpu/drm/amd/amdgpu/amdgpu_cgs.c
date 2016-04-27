@@ -853,6 +853,12 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 	return 0;
 }
 
+static int amdgpu_cgs_is_virtualization_enabled(void *cgs_device)
+{
+	CGS_FUNC_ADEV;
+	return amdgpu_sriov_vf(adev);
+}
+
 static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 					struct cgs_system_info *sys_info)
 {
@@ -1206,6 +1212,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_notify_dpm_enabled,
 	amdgpu_cgs_call_acpi_method,
 	amdgpu_cgs_query_system_info,
+	amdgpu_cgs_is_virtualization_enabled
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {
