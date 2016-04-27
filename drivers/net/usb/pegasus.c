@@ -528,7 +528,7 @@ static void read_bulk_callback(struct urb *urb)
 goon:
 	usb_fill_bulk_urb(pegasus->rx_urb, pegasus->usb,
 			  usb_rcvbulkpipe(pegasus->usb, 1),
-			  pegasus->rx_skb->data, PEGASUS_MTU + 8,
+			  pegasus->rx_skb->data, PEGASUS_MTU,
 			  read_bulk_callback, pegasus);
 	rx_status = usb_submit_urb(pegasus->rx_urb, GFP_ATOMIC);
 	if (rx_status == -ENODEV)
@@ -569,7 +569,7 @@ static void rx_fixup(unsigned long data)
 	}
 	usb_fill_bulk_urb(pegasus->rx_urb, pegasus->usb,
 			  usb_rcvbulkpipe(pegasus->usb, 1),
-			  pegasus->rx_skb->data, PEGASUS_MTU + 8,
+			  pegasus->rx_skb->data, PEGASUS_MTU,
 			  read_bulk_callback, pegasus);
 try_again:
 	status = usb_submit_urb(pegasus->rx_urb, GFP_ATOMIC);
@@ -823,7 +823,7 @@ static int pegasus_open(struct net_device *net)
 
 	usb_fill_bulk_urb(pegasus->rx_urb, pegasus->usb,
 			  usb_rcvbulkpipe(pegasus->usb, 1),
-			  pegasus->rx_skb->data, PEGASUS_MTU + 8,
+			  pegasus->rx_skb->data, PEGASUS_MTU,
 			  read_bulk_callback, pegasus);
 	if ((res = usb_submit_urb(pegasus->rx_urb, GFP_KERNEL))) {
 		if (res == -ENODEV)
