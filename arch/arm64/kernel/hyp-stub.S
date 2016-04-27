@@ -23,6 +23,7 @@
 
 #include <asm/assembler.h>
 #include <asm/kvm_arm.h>
+#include <asm/kvm_asm.h>
 #include <asm/ptrace.h>
 #include <asm/virt.h>
 
@@ -70,8 +71,8 @@ el1_sync:
 	msr	vbar_el2, x1
 	b	9f
 
-	/* Unrecognised call type */
-2:	mov     x0, xzr
+	/* Someone called kvm_call_hyp() against the hyp-stub... */
+2:	mov     x0, #ARM_EXCEPTION_HYP_GONE
 
 9:	eret
 ENDPROC(el1_sync)
