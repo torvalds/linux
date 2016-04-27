@@ -19,7 +19,6 @@
 #include <linux/ceph/auth.h>
 #include <linux/ceph/pagelist.h>
 
-#define OSD_OP_FRONT_LEN	4096
 #define OSD_OPREPLY_FRONT_LEN	512
 
 static struct kmem_cache	*ceph_osd_request_cache;
@@ -440,11 +439,8 @@ int ceph_osdc_alloc_messages(struct ceph_osd_request *req, gfp_t gfp)
 
 	/* create reply message */
 	msg_size = OSD_OPREPLY_FRONT_LEN;
-	if (req->r_num_ops > CEPH_OSD_SLAB_OPS) {
-		/* ceph_osd_op and rval */
-		msg_size += (req->r_num_ops - CEPH_OSD_SLAB_OPS) *
-			    (sizeof(struct ceph_osd_op) + 4);
-	}
+	msg_size += req->r_base_oid.name_len;
+	msg_size += req->r_num_ops * sizeof(struct ceph_osd_op);
 
 	if (req->r_mempool)
 		msg = ceph_msgpool_get(&osdc->msgpool_op_reply, 0);
@@ -2702,13 +2698,11 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 		goto out;
 
 	err = ceph_msgpool_init(&osdc->msgpool_op, CEPH_MSG_OSD_OP,
-				OSD_OP_FRONT_LEN, 10, true,
-				"osd_op");
+				PAGE_SIZE, 10, true, "osd_op");
 	if (err < 0)
 		goto out_mempool;
 	err = ceph_msgpool_init(&osdc->msgpool_op_reply, CEPH_MSG_OSD_OPREPLY,
-				OSD_OPREPLY_FRONT_LEN, 10, true,
-				"osd_op_reply");
+				PAGE_SIZE, 10, true, "osd_op_reply");
 	if (err < 0)
 		goto out_msgpool;
 
