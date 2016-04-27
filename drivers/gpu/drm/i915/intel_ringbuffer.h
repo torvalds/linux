@@ -93,13 +93,16 @@ struct intel_ring_hangcheck {
 	int score;
 	enum intel_ring_hangcheck_action action;
 	int deadlock;
+	u32 instdone[I915_NUM_INSTDONE_REG];
 };
 
 struct intel_ringbuffer {
 	struct drm_i915_gem_object *obj;
 	void __iomem *virtual_start;
+	struct i915_vma *vma;
 
 	struct intel_engine_cs *ring;
+	struct list_head link;
 
 	u32 head;
 	u32 tail;
@@ -146,17 +149,20 @@ struct  i915_ctx_workarounds {
 struct  intel_engine_cs {
 	const char	*name;
 	enum intel_ring_id {
-		RCS = 0x0,
-		VCS,
+		RCS = 0,
 		BCS,
-		VECS,
-		VCS2
+		VCS,
+		VCS2,	/* Keep instances of the same type engine together. */
+		VECS
 	} id;
 #define I915_NUM_RINGS 5
-#define LAST_USER_RING (VECS + 1)
+#define _VCS(n) (VCS + (n))
+	unsigned int exec_id;
+	unsigned int guc_id;
 	u32		mmio_base;
 	struct		drm_device *dev;
 	struct intel_ringbuffer *buffer;
+	struct list_head buffers;
 
 	/*
 	 * A pool of objects to use as shadow copies of client batch buffers
@@ -247,7 +253,7 @@ struct  intel_engine_cs {
 				/* our mbox written by others */
 				u32		wait[I915_NUM_RINGS];
 				/* mboxes this ring signals to */
-				u32		signal[I915_NUM_RINGS];
+				i915_reg_t	signal[I915_NUM_RINGS];
 			} mbox;
 			u64		signal_ggtt[I915_NUM_RINGS];
 		};
@@ -266,6 +272,8 @@ struct  intel_engine_cs {
 	struct list_head execlist_queue;
 	struct list_head execlist_retired_req_list;
 	u8 next_context_status_buffer;
+	bool disable_lite_restore_wa;
+	u32 ctx_desc_template;
 	u32             irq_keep_mask; /* bitmask for interrupts that should not be masked */
 	int		(*emit_request)(struct drm_i915_gem_request *request);
 	int		(*emit_flush)(struct drm_i915_gem_request *request,
@@ -303,7 +311,6 @@ struct  intel_engine_cs {
 
 	wait_queue_head_t irq_queue;
 
-	struct intel_context *default_context;
 	struct intel_context *last_context;
 
 	struct intel_ring_hangcheck hangcheck;
@@ -348,7 +355,11 @@ struct  intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
 
-bool intel_ring_initialized(struct intel_engine_cs *ring);
+static inline bool
+intel_ring_initialized(struct intel_engine_cs *ring)
+{
+	return ring->dev != NULL;
+}
 
 static inline unsigned
 intel_ring_flag(struct intel_engine_cs *ring)
@@ -377,6 +388,13 @@ intel_ring_sync_index(struct intel_engine_cs *ring,
 	return idx;
 }
 
+static inline void
+intel_flush_status_page(struct intel_engine_cs *ring, int reg)
+{
+	drm_clflush_virt_range(&ring->status_page.page_addr[reg],
+			       sizeof(uint32_t));
+}
+
 static inline u32
 intel_read_status_page(struct intel_engine_cs *ring,
 		       int reg)
@@ -393,7 +411,7 @@ intel_write_status_page(struct intel_engine_cs *ring,
 	ring->status_page.page_addr[reg] = value;
 }
 
-/**
+/*
  * Reads a dword out of the status page, which is written to from the command
  * queue by automatic updates, MI_REPORT_HEAD, MI_STORE_DATA_INDEX, or
  * MI_STORE_DATA_IMM.
@@ -410,15 +428,16 @@ intel_write_status_page(struct intel_engine_cs *ring,
  * The area from dword 0x30 to 0x3ff is available for driver usage.
  */
 #define I915_GEM_HWS_INDEX		0x30
+#define I915_GEM_HWS_INDEX_ADDR (I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 #define I915_GEM_HWS_SCRATCH_INDEX	0x40
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
-void intel_unpin_ringbuffer_obj(struct intel_ringbuffer *ringbuf);
+struct intel_ringbuffer *
+intel_engine_create_ringbuffer(struct intel_engine_cs *engine, int size);
 int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 				     struct intel_ringbuffer *ringbuf);
-void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf);
-int intel_alloc_ringbuffer_obj(struct drm_device *dev,
-			       struct intel_ringbuffer *ringbuf);
+void intel_unpin_ringbuffer_obj(struct intel_ringbuffer *ringbuf);
+void intel_ringbuffer_free(struct intel_ringbuffer *ring);
 
 void intel_stop_ring_buffer(struct intel_engine_cs *ring);
 void intel_cleanup_ring_buffer(struct intel_engine_cs *ring);
@@ -433,6 +452,11 @@ static inline void intel_ring_emit(struct intel_engine_cs *ring,
 	struct intel_ringbuffer *ringbuf = ring->buffer;
 	iowrite32(data, ringbuf->virtual_start + ringbuf->tail);
 	ringbuf->tail += 4;
+}
+static inline void intel_ring_emit_reg(struct intel_engine_cs *ring,
+				       i915_reg_t reg)
+{
+	intel_ring_emit(ring, i915_mmio_reg_offset(reg));
 }
 static inline void intel_ring_advance(struct intel_engine_cs *ring)
 {

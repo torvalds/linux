@@ -45,6 +45,7 @@
 		serial0 = &serial0;
 		ethernet0 = &enet0;
 		ethernet1 = &enet1;
+		pci0 = &pci0;
 	};
 
 	cpus {

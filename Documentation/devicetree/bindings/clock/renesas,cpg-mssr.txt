@@ -1,0 +1,69 @@
+* Renesas Clock Pulse Generator / Module Standby and Software Reset
+
+On Renesas ARM SoCs (SH/R-Mobile, R-Car, RZ), the CPG (Clock Pulse Generator)
+and MSSR (Module Standby and Software Reset) blocks are intimately connected,
+and share the same register block.
+
+They provide the following functionalities:
+  - The CPG block generates various core clocks,
+  - The MSSR block provides two functions:
+      1. Module Standby, providing a Clock Domain to control the clock supply
+	 to individual SoC devices,
+      2. Reset Control, to perform a software reset of individual SoC devices.
+
+Required Properties:
+  - compatible: Must be one of:
+      - "renesas,r8a7795-cpg-mssr" for the r8a7795 SoC
+
+  - reg: Base address and length of the memory resource used by the CPG/MSSR
+    block
+
+  - clocks: References to external parent clocks, one entry for each entry in
+    clock-names
+  - clock-names: List of external parent clock names. Valid names are:
+      - "extal" (r8a7795)
+      - "extalr" (r8a7795)
+
+  - #clock-cells: Must be 2
+      - For CPG core clocks, the two clock specifier cells must be "CPG_CORE"
+	and a core clock reference, as defined in
+	<dt-bindings/clock/*-cpg-mssr.h>.
+      - For module clocks, the two clock specifier cells must be "CPG_MOD" and
+	a module number, as defined in the datasheet.
+
+  - #power-domain-cells: Must be 0
+      - SoC devices that are part of the CPG/MSSR Clock Domain and can be
+	power-managed through Module Standby should refer to the CPG device
+	node in their "power-domains" property, as documented by the generic PM
+	Domain bindings in
+	Documentation/devicetree/bindings/power/power_domain.txt.
+
+
+Examples
+--------
+
+  - CPG device node:
+
+	cpg: clock-controller@e6150000 {
+		compatible = "renesas,r8a7795-cpg-mssr";
+		reg = <0 0xe6150000 0 0x1000>;
+		clocks = <&extal_clk>, <&extalr_clk>;
+		clock-names = "extal", "extalr";
+		#clock-cells = <2>;
+		#power-domain-cells = <0>;
+	};
+
+
+  - CPG/MSSR Clock Domain member device node:
+
+	scif2: serial@e6e88000 {
+		compatible = "renesas,scif-r8a7795", "renesas,scif";
+		reg = <0 0xe6e88000 0 64>;
+		interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 310>;
+		clock-names = "fck";
+		dmas = <&dmac1 0x13>, <&dmac1 0x12>;
+		dma-names = "tx", "rx";
+		power-domains = <&cpg>;
+		status = "disabled";
+	};

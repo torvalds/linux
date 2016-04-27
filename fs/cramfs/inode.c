@@ -100,6 +100,7 @@ static struct inode *get_cramfs_inode(struct super_block *sb,
 		break;
 	case S_IFLNK:
 		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_data.a_ops = &cramfs_aops;
 		break;
 	default:
@@ -136,7 +137,7 @@ static struct inode *get_cramfs_inode(struct super_block *sb,
  * page cache and dentry tree anyway..
  *
  * This also acts as a way to guarantee contiguous areas of up to
- * BLKS_PER_BUF*PAGE_CACHE_SIZE, so that the caller doesn't need to
+ * BLKS_PER_BUF*PAGE_SIZE, so that the caller doesn't need to
  * worry about end-of-buffer issues even when decompressing a full
  * page cache.
  */
@@ -151,7 +152,7 @@ static struct inode *get_cramfs_inode(struct super_block *sb,
  */
 #define BLKS_PER_BUF_SHIFT	(2)
 #define BLKS_PER_BUF		(1 << BLKS_PER_BUF_SHIFT)
-#define BUFFER_SIZE		(BLKS_PER_BUF*PAGE_CACHE_SIZE)
+#define BUFFER_SIZE		(BLKS_PER_BUF*PAGE_SIZE)
 
 static unsigned char read_buffers[READ_BUFFERS][BUFFER_SIZE];
 static unsigned buffer_blocknr[READ_BUFFERS];
@@ -172,8 +173,8 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset, unsigned i
 
 	if (!len)
 		return NULL;
-	blocknr = offset >> PAGE_CACHE_SHIFT;
-	offset &= PAGE_CACHE_SIZE - 1;
+	blocknr = offset >> PAGE_SHIFT;
+	offset &= PAGE_SIZE - 1;
 
 	/* Check if an existing buffer already has the data.. */
 	for (i = 0; i < READ_BUFFERS; i++) {
@@ -183,14 +184,14 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset, unsigned i
 			continue;
 		if (blocknr < buffer_blocknr[i])
 			continue;
-		blk_offset = (blocknr - buffer_blocknr[i]) << PAGE_CACHE_SHIFT;
+		blk_offset = (blocknr - buffer_blocknr[i]) << PAGE_SHIFT;
 		blk_offset += offset;
 		if (blk_offset + len > BUFFER_SIZE)
 			continue;
 		return read_buffers[i] + blk_offset;
 	}
 
-	devsize = mapping->host->i_size >> PAGE_CACHE_SHIFT;
+	devsize = mapping->host->i_size >> PAGE_SHIFT;
 
 	/* Ok, read in BLKS_PER_BUF pages completely first. */
 	for (i = 0; i < BLKS_PER_BUF; i++) {
@@ -212,7 +213,7 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset, unsigned i
 			wait_on_page_locked(page);
 			if (!PageUptodate(page)) {
 				/* asynchronous error */
-				page_cache_release(page);
+				put_page(page);
 				pages[i] = NULL;
 			}
 		}
@@ -228,12 +229,12 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset, unsigned i
 		struct page *page = pages[i];
 
 		if (page) {
-			memcpy(data, kmap(page), PAGE_CACHE_SIZE);
+			memcpy(data, kmap(page), PAGE_SIZE);
 			kunmap(page);
-			page_cache_release(page);
+			put_page(page);
 		} else
-			memset(data, 0, PAGE_CACHE_SIZE);
-		data += PAGE_CACHE_SIZE;
+			memset(data, 0, PAGE_SIZE);
+		data += PAGE_SIZE;
 	}
 	return read_buffers[buffer] + offset;
 }
@@ -352,7 +353,7 @@ static int cramfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 
 	buf->f_type = CRAMFS_MAGIC;
-	buf->f_bsize = PAGE_CACHE_SIZE;
+	buf->f_bsize = PAGE_SIZE;
 	buf->f_blocks = CRAMFS_SB(sb)->blocks;
 	buf->f_bfree = 0;
 	buf->f_bavail = 0;
@@ -495,7 +496,7 @@ static int cramfs_readpage(struct file *file, struct page *page)
 	int bytes_filled;
 	void *pgdata;
 
-	maxblock = (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	maxblock = (inode->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	bytes_filled = 0;
 	pgdata = kmap(page);
 
@@ -515,14 +516,14 @@ static int cramfs_readpage(struct file *file, struct page *page)
 
 		if (compr_len == 0)
 			; /* hole */
-		else if (unlikely(compr_len > (PAGE_CACHE_SIZE << 1))) {
+		else if (unlikely(compr_len > (PAGE_SIZE << 1))) {
 			pr_err("bad compressed blocksize %u\n",
 				compr_len);
 			goto err;
 		} else {
 			mutex_lock(&read_mutex);
 			bytes_filled = cramfs_uncompress_block(pgdata,
-				 PAGE_CACHE_SIZE,
+				 PAGE_SIZE,
 				 cramfs_read(sb, start_offset, compr_len),
 				 compr_len);
 			mutex_unlock(&read_mutex);
@@ -531,7 +532,7 @@ static int cramfs_readpage(struct file *file, struct page *page)
 		}
 	}
 
-	memset(pgdata + bytes_filled, 0, PAGE_CACHE_SIZE - bytes_filled);
+	memset(pgdata + bytes_filled, 0, PAGE_SIZE - bytes_filled);
 	flush_dcache_page(page);
 	kunmap(page);
 	SetPageUptodate(page);

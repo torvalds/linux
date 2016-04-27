@@ -13,25 +13,25 @@
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/clk/mmp.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/mv_usb.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
-#include <mach/cputype.h>
-#include <mach/addr-map.h>
-#include <mach/regs-apbc.h>
-#include <mach/regs-apmu.h>
-#include <mach/irqs.h>
-#include <mach/dma.h>
-#include <mach/devices.h>
-#include <mach/mfp.h>
-#include <linux/dma-mapping.h>
-#include <mach/pxa168.h>
-#include <mach/regs-usb.h>
 
-#include "common.h"
+#include "addr-map.h"
 #include "clock.h"
+#include "common.h"
+#include "cputype.h"
+#include "devices.h"
+#include "irqs.h"
+#include "mfp.h"
+#include "pxa168.h"
+#include "regs-apbc.h"
+#include "regs-apmu.h"
+#include "regs-usb.h"
 
 #define MFPR_VIRT_BASE	(APB_VIRT_BASE + 0x1e000)
 
@@ -55,8 +55,9 @@ static int __init pxa168_init(void)
 	if (cpu_is_pxa168()) {
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(pxa168_mfp_addr_map);
-		pxa_init_dma(IRQ_PXA168_DMA_INT0, 32);
-		pxa168_clk_init();
+		pxa168_clk_init(APB_PHYS_BASE + 0x50000,
+				AXI_PHYS_BASE + 0x82800,
+				APB_PHYS_BASE + 0x15000);
 	}
 
 	return 0;

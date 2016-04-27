@@ -1007,6 +1007,7 @@ static const struct tegra_smmu_soc tegra124_smmu_soc = {
 	.num_swgroups = ARRAY_SIZE(tegra124_swgroups),
 	.supports_round_robin_arbitration = true,
 	.supports_request_limit = true,
+	.num_tlb_lines = 32,
 	.num_asids = 128,
 };
 

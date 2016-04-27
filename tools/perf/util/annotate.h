@@ -122,7 +122,7 @@ struct annotated_source {
 	struct list_head   source;
 	struct source_line *lines;
 	int    		   nr_histograms;
-	int    		   sizeof_sym_hist;
+	size_t		   sizeof_sym_hist;
 	struct cyc_hist	   *cycles_hist;
 	struct sym_hist	   histograms[0];
 };
@@ -158,7 +158,7 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize);
 
 int hist_entry__annotate(struct hist_entry *he, size_t privsize);
 
-int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym);
+int symbol__annotate_init(struct map *map, struct symbol *sym);
 int symbol__annotate_printf(struct symbol *sym, struct map *map,
 			    struct perf_evsel *evsel, bool full_paths,
 			    int min_pcnt, int max_lines, int context);

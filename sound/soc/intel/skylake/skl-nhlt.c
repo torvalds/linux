@@ -25,7 +25,7 @@ static u8 OSC_UUID[16] = {0x6E, 0x88, 0x9F, 0xA6, 0xEB, 0x6C, 0x94, 0x45,
 
 #define DSDT_NHLT_PATH "\\_SB.PCI0.HDAS"
 
-void __iomem *skl_nhlt_init(struct device *dev)
+void *skl_nhlt_init(struct device *dev)
 {
 	acpi_handle handle;
 	union acpi_object *obj;
@@ -40,22 +40,22 @@ void __iomem *skl_nhlt_init(struct device *dev)
 	if (obj && obj->type == ACPI_TYPE_BUFFER) {
 		nhlt_ptr = (struct nhlt_resource_desc  *)obj->buffer.pointer;
 
-		return ioremap_cache(nhlt_ptr->min_addr, nhlt_ptr->length);
+		return memremap(nhlt_ptr->min_addr, nhlt_ptr->length,
+				MEMREMAP_WB);
 	}
 
 	dev_err(dev, "device specific method to extract NHLT blob failed\n");
 	return NULL;
 }
 
-void skl_nhlt_free(void __iomem *addr)
+void skl_nhlt_free(void *addr)
 {
-	iounmap(addr);
-	addr = NULL;
+	memunmap(addr);
 }
 
 static struct nhlt_specific_cfg *skl_get_specific_cfg(
 		struct device *dev, struct nhlt_fmt *fmt,
-		u8 no_ch, u32 rate, u16 bps)
+		u8 no_ch, u32 rate, u16 bps, u8 linktype)
 {
 	struct nhlt_specific_cfg *sp_config;
 	struct wav_fmt *wfmt;
@@ -68,11 +68,17 @@ static struct nhlt_specific_cfg *skl_get_specific_cfg(
 		wfmt = &fmt_config->fmt_ext.fmt;
 		dev_dbg(dev, "ch=%d fmt=%d s_rate=%d\n", wfmt->channels,
 			 wfmt->bits_per_sample, wfmt->samples_per_sec);
-		if (wfmt->channels == no_ch && wfmt->samples_per_sec == rate &&
-					wfmt->bits_per_sample == bps) {
+		if (wfmt->channels == no_ch && wfmt->bits_per_sample == bps) {
+			/*
+			 * if link type is dmic ignore rate check as the blob is
+			 * generic for all rates
+			 */
 			sp_config = &fmt_config->config;
+			if (linktype == NHLT_LINK_DMIC)
+				return sp_config;
 
-			return sp_config;
+			if (wfmt->samples_per_sec == rate)
+				return sp_config;
 		}
 
 		fmt_config = (struct nhlt_fmt_cfg *)(fmt_config->config.caps +
@@ -115,7 +121,7 @@ struct nhlt_specific_cfg
 	struct device *dev = bus->dev;
 	struct nhlt_specific_cfg *sp_config;
 	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
-	u16 bps = num_ch * s_fmt;
+	u16 bps = (s_fmt == 16) ? 16 : 32;
 	u8 j;
 
 	dump_config(dev, instance, link_type, s_fmt, num_ch, s_rate, dirn, bps);
@@ -128,7 +134,8 @@ struct nhlt_specific_cfg
 		if (skl_check_ep_match(dev, epnt, instance, link_type, dirn)) {
 			fmt = (struct nhlt_fmt *)(epnt->config.caps +
 						 epnt->config.size);
-			sp_config = skl_get_specific_cfg(dev, fmt, num_ch, s_rate, bps);
+			sp_config = skl_get_specific_cfg(dev, fmt, num_ch,
+							s_rate, bps, link_type);
 			if (sp_config)
 				return sp_config;
 		}
@@ -137,4 +144,38 @@ struct nhlt_specific_cfg
 	}
 
 	return NULL;
+}
+
+static void skl_nhlt_trim_space(struct skl *skl)
+{
+	char *s = skl->tplg_name;
+	int cnt;
+	int i;
+
+	cnt = 0;
+	for (i = 0; s[i]; i++) {
+		if (!isspace(s[i]))
+			s[cnt++] = s[i];
+	}
+
+	s[cnt] = '\0';
+}
+
+int skl_nhlt_update_topology_bin(struct skl *skl)
+{
+	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
+	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
+	struct device *dev = bus->dev;
+
+	dev_dbg(dev, "oem_id %.6s, oem_table_id %8s oem_revision %d\n",
+		nhlt->header.oem_id, nhlt->header.oem_table_id,
+		nhlt->header.oem_revision);
+
+	snprintf(skl->tplg_name, sizeof(skl->tplg_name), "%x-%.6s-%.8s-%d%s",
+		skl->pci_id, nhlt->header.oem_id, nhlt->header.oem_table_id,
+		nhlt->header.oem_revision, "-tplg.bin");
+
+	skl_nhlt_trim_space(skl);
+
+	return 0;
 }

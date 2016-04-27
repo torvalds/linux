@@ -25,8 +25,6 @@
 #include "l4_3xxx.h"
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
-#include <linux/platform_data/iommu-omap.h>
-#include <linux/platform_data/mailbox-omap.h>
 #include <plat/dmtimer.h>
 
 #include "soc.h"
@@ -1506,26 +1504,9 @@ static struct omap_hwmod_class omap3xxx_mailbox_hwmod_class = {
 	.sysc = &omap3xxx_mailbox_sysc,
 };
 
-static struct omap_mbox_dev_info omap3xxx_mailbox_info[] = {
-	{ .name = "dsp", .tx_id = 0, .rx_id = 1 },
-};
-
-static struct omap_mbox_pdata omap3xxx_mailbox_attrs = {
-	.num_users	= 2,
-	.num_fifos	= 2,
-	.info_cnt	= ARRAY_SIZE(omap3xxx_mailbox_info),
-	.info		= omap3xxx_mailbox_info,
-};
-
-static struct omap_hwmod_irq_info omap3xxx_mailbox_irqs[] = {
-	{ .irq = 26 + OMAP_INTC_START, },
-	{ .irq = -1 },
-};
-
 static struct omap_hwmod omap3xxx_mailbox_hwmod = {
 	.name		= "mailbox",
 	.class		= &omap3xxx_mailbox_hwmod_class,
-	.mpu_irqs	= omap3xxx_mailbox_irqs,
 	.main_clk	= "mailboxes_ick",
 	.prcm		= {
 		.omap2 = {
@@ -1536,7 +1517,6 @@ static struct omap_hwmod omap3xxx_mailbox_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MAILBOXES_SHIFT,
 		},
 	},
-	.dev_attr	= &omap3xxx_mailbox_attrs,
 };
 
 /*
@@ -2976,80 +2956,40 @@ static struct omap_hwmod_class omap3xxx_mmu_hwmod_class = {
 };
 
 /* mmu isp */
-
-static struct omap_mmu_dev_attr mmu_isp_dev_attr = {
-	.nr_tlb_entries = 8,
-};
-
 static struct omap_hwmod omap3xxx_mmu_isp_hwmod;
-static struct omap_hwmod_irq_info omap3xxx_mmu_isp_irqs[] = {
-	{ .irq = 24 + OMAP_INTC_START, },
-	{ .irq = -1 }
-};
-
-static struct omap_hwmod_addr_space omap3xxx_mmu_isp_addrs[] = {
-	{
-		.pa_start	= 0x480bd400,
-		.pa_end		= 0x480bd47f,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
 
 /* l4_core -> mmu isp */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__mmu_isp = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_mmu_isp_hwmod,
-	.addr		= omap3xxx_mmu_isp_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
 static struct omap_hwmod omap3xxx_mmu_isp_hwmod = {
 	.name		= "mmu_isp",
 	.class		= &omap3xxx_mmu_hwmod_class,
-	.mpu_irqs	= omap3xxx_mmu_isp_irqs,
 	.main_clk	= "cam_ick",
-	.dev_attr	= &mmu_isp_dev_attr,
 	.flags		= HWMOD_NO_IDLEST,
 };
 
 /* mmu iva */
 
-static struct omap_mmu_dev_attr mmu_iva_dev_attr = {
-	.nr_tlb_entries = 32,
-};
-
 static struct omap_hwmod omap3xxx_mmu_iva_hwmod;
-static struct omap_hwmod_irq_info omap3xxx_mmu_iva_irqs[] = {
-	{ .irq = 28 + OMAP_INTC_START, },
-	{ .irq = -1 }
-};
 
 static struct omap_hwmod_rst_info omap3xxx_mmu_iva_resets[] = {
 	{ .name = "mmu", .rst_shift = 1, .st_shift = 9 },
-};
-
-static struct omap_hwmod_addr_space omap3xxx_mmu_iva_addrs[] = {
-	{
-		.pa_start	= 0x5d000000,
-		.pa_end		= 0x5d00007f,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
 };
 
 /* l3_main -> iva mmu */
 static struct omap_hwmod_ocp_if omap3xxx_l3_main__mmu_iva = {
 	.master		= &omap3xxx_l3_main_hwmod,
 	.slave		= &omap3xxx_mmu_iva_hwmod,
-	.addr		= omap3xxx_mmu_iva_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
 static struct omap_hwmod omap3xxx_mmu_iva_hwmod = {
 	.name		= "mmu_iva",
 	.class		= &omap3xxx_mmu_hwmod_class,
-	.mpu_irqs	= omap3xxx_mmu_iva_irqs,
 	.clkdm_name	= "iva2_clkdm",
 	.rst_lines	= omap3xxx_mmu_iva_resets,
 	.rst_lines_cnt	= ARRAY_SIZE(omap3xxx_mmu_iva_resets),
@@ -3062,7 +3002,6 @@ static struct omap_hwmod omap3xxx_mmu_iva_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_IVA2_SHIFT,
 		},
 	},
-	.dev_attr	= &mmu_iva_dev_attr,
 	.flags		= HWMOD_NO_IDLEST,
 };
 
@@ -3276,20 +3215,10 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_per__mcbsp3_sidetone = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_addr_space omap3xxx_mailbox_addrs[] = {
-	{
-		.pa_start	= 0x48094000,
-		.pa_end		= 0x480941ff,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 /* l4_core -> mailbox */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__mailbox = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_mailbox_hwmod,
-	.addr		= omap3xxx_mailbox_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -3654,14 +3583,14 @@ static struct omap_hwmod_class_sysconfig omap34xx_ssi_sysc = {
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
-static struct omap_hwmod_class omap34xx_ssi_hwmod_class = {
+static struct omap_hwmod_class omap3xxx_ssi_hwmod_class = {
 	.name	= "ssi",
 	.sysc	= &omap34xx_ssi_sysc,
 };
 
-static struct omap_hwmod omap34xx_ssi_hwmod = {
+static struct omap_hwmod omap3xxx_ssi_hwmod = {
 	.name		= "ssi",
-	.class		= &omap34xx_ssi_hwmod_class,
+	.class		= &omap3xxx_ssi_hwmod_class,
 	.clkdm_name	= "core_l4_clkdm",
 	.main_clk	= "ssi_ssr_fck",
 	.prcm		= {
@@ -3676,9 +3605,9 @@ static struct omap_hwmod omap34xx_ssi_hwmod = {
 };
 
 /* L4 CORE -> SSI */
-static struct omap_hwmod_ocp_if omap34xx_l4_core__ssi = {
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__ssi = {
 	.master		= &omap3xxx_l4_core_hwmod,
-	.slave		= &omap34xx_ssi_hwmod,
+	.slave		= &omap3xxx_ssi_hwmod,
 	.clk		= "ssi_ick",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
@@ -3831,7 +3760,7 @@ static struct omap_hwmod_ocp_if *omap34xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_sad2d__l3,
 	&omap3xxx_l4_core__mmu_isp,
 	&omap3xxx_l3_main__mmu_iva,
-	&omap34xx_l4_core__ssi,
+	&omap3xxx_l4_core__ssi,
 	NULL
 };
 
@@ -3855,6 +3784,7 @@ static struct omap_hwmod_ocp_if *omap36xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_sad2d__l3,
 	&omap3xxx_l4_core__mmu_isp,
 	&omap3xxx_l3_main__mmu_iva,
+	&omap3xxx_l4_core__ssi,
 	NULL
 };
 

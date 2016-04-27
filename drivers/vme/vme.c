@@ -223,6 +223,39 @@ int vme_check_window(u32 aspace, unsigned long long vme_base,
 }
 EXPORT_SYMBOL(vme_check_window);
 
+static u32 vme_get_aspace(int am)
+{
+	switch (am) {
+	case 0x29:
+	case 0x2D:
+		return VME_A16;
+	case 0x38:
+	case 0x39:
+	case 0x3A:
+	case 0x3B:
+	case 0x3C:
+	case 0x3D:
+	case 0x3E:
+	case 0x3F:
+		return VME_A24;
+	case 0x8:
+	case 0x9:
+	case 0xA:
+	case 0xB:
+	case 0xC:
+	case 0xD:
+	case 0xE:
+	case 0xF:
+		return VME_A32;
+	case 0x0:
+	case 0x1:
+	case 0x3:
+		return VME_A64;
+	}
+
+	return 0;
+}
+
 /*
  * Request a slave image with specific attributes, return some unique
  * identifier.
@@ -989,6 +1022,63 @@ int vme_dma_free(struct vme_resource *resource)
 	return 0;
 }
 EXPORT_SYMBOL(vme_dma_free);
+
+void vme_bus_error_handler(struct vme_bridge *bridge,
+			   unsigned long long address, int am)
+{
+	struct list_head *handler_pos = NULL;
+	struct vme_error_handler *handler;
+	int handler_triggered = 0;
+	u32 aspace = vme_get_aspace(am);
+
+	list_for_each(handler_pos, &bridge->vme_error_handlers) {
+		handler = list_entry(handler_pos, struct vme_error_handler,
+				     list);
+		if ((aspace == handler->aspace) &&
+		    (address >= handler->start) &&
+		    (address < handler->end)) {
+			if (!handler->num_errors)
+				handler->first_error = address;
+			if (handler->num_errors != UINT_MAX)
+				handler->num_errors++;
+			handler_triggered = 1;
+		}
+	}
+
+	if (!handler_triggered)
+		dev_err(bridge->parent,
+			"Unhandled VME access error at address 0x%llx\n",
+			address);
+}
+EXPORT_SYMBOL(vme_bus_error_handler);
+
+struct vme_error_handler *vme_register_error_handler(
+	struct vme_bridge *bridge, u32 aspace,
+	unsigned long long address, size_t len)
+{
+	struct vme_error_handler *handler;
+
+	handler = kmalloc(sizeof(*handler), GFP_KERNEL);
+	if (!handler)
+		return NULL;
+
+	handler->aspace = aspace;
+	handler->start = address;
+	handler->end = address + len;
+	handler->num_errors = 0;
+	handler->first_error = 0;
+	list_add_tail(&handler->list, &bridge->vme_error_handlers);
+
+	return handler;
+}
+EXPORT_SYMBOL(vme_register_error_handler);
+
+void vme_unregister_error_handler(struct vme_error_handler *handler)
+{
+	list_del(&handler->list);
+	kfree(handler);
+}
+EXPORT_SYMBOL(vme_unregister_error_handler);
 
 void vme_irq_handler(struct vme_bridge *bridge, int level, int statid)
 {

@@ -823,7 +823,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		}
 		of_node_put(i2c_bus);
 
-		tsin->rst_gpio = of_get_named_gpio(child, "rst-gpio", 0);
+		tsin->rst_gpio = of_get_named_gpio(child, "reset-gpios", 0);
 
 		ret = gpio_is_valid(tsin->rst_gpio);
 		if (!ret) {
@@ -1084,10 +1084,10 @@ static void load_dmem_segment(struct c8sectpfei *fei, Elf32_Phdr *phdr,
 		seg_num, phdr->p_paddr, phdr->p_filesz,
 		dst, phdr->p_memsz);
 
-	memcpy((void __iomem *)dst, (void *)fw->data + phdr->p_offset,
+	memcpy((void __force *)dst, (void *)fw->data + phdr->p_offset,
 		phdr->p_filesz);
 
-	memset((void __iomem *)dst + phdr->p_filesz, 0,
+	memset((void __force *)dst + phdr->p_filesz, 0,
 		phdr->p_memsz - phdr->p_filesz);
 }
 

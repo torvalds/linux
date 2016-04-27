@@ -117,11 +117,23 @@ config FB_TFT_SSD1289
 	help
 	  Framebuffer support for SSD1289
 
+config FB_TFT_SSD1305
+        tristate "FB driver for the SSD1305 OLED Controller"
+        depends on FB_TFT
+        help
+          Framebuffer support for SSD1305
+
 config FB_TFT_SSD1306
 	tristate "FB driver for the SSD1306 OLED Controller"
 	depends on FB_TFT
 	help
 	  Framebuffer support for SSD1306
+
+config FB_TFT_SSD1325
+        tristate "FB driver for the SSD1325 OLED Controller"
+        depends on FB_TFT
+        help
+          Framebuffer support for SSD1305
 
 config FB_TFT_SSD1331
 	tristate "FB driver for the SSD1331 LCD Controller"
@@ -140,6 +152,16 @@ config FB_TFT_ST7735R
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for ST7735R
+
+config FB_TFT_ST7789V
+	tristate "FB driver for the ST7789V LCD Controller"
+	depends on FB_TFT
+	help
+	  This enables generic framebuffer support for the Sitronix ST7789V
+	  display controller. The controller is intended for small color
+	  displays with a resolution of up to 320x240 pixels.
+
+	  Say Y if you have such a display that utilizes this controller.
 
 config FB_TFT_TINYLCD
 	tristate "FB driver for tinylcd.com display"

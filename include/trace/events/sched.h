@@ -104,22 +104,17 @@ DEFINE_EVENT(sched_wakeup_template, sched_wakeup_new,
 	     TP_ARGS(p));
 
 #ifdef CREATE_TRACE_POINTS
-static inline long __trace_sched_switch_state(struct task_struct *p)
+static inline long __trace_sched_switch_state(bool preempt, struct task_struct *p)
 {
-	long state = p->state;
-
-#ifdef CONFIG_PREEMPT
 #ifdef CONFIG_SCHED_DEBUG
 	BUG_ON(p != current);
 #endif /* CONFIG_SCHED_DEBUG */
-	/*
-	 * For all intents and purposes a preempted task is a running task.
-	 */
-	if (preempt_count() & PREEMPT_ACTIVE)
-		state = TASK_RUNNING | TASK_STATE_MAX;
-#endif /* CONFIG_PREEMPT */
 
-	return state;
+	/*
+	 * Preemption ignores task state, therefore preempted tasks are always
+	 * RUNNING (we will not have dequeued if state != RUNNING).
+	 */
+	return preempt ? TASK_RUNNING | TASK_STATE_MAX : p->state;
 }
 #endif /* CREATE_TRACE_POINTS */
 
@@ -128,10 +123,11 @@ static inline long __trace_sched_switch_state(struct task_struct *p)
  */
 TRACE_EVENT(sched_switch,
 
-	TP_PROTO(struct task_struct *prev,
+	TP_PROTO(bool preempt,
+		 struct task_struct *prev,
 		 struct task_struct *next),
 
-	TP_ARGS(prev, next),
+	TP_ARGS(preempt, prev, next),
 
 	TP_STRUCT__entry(
 		__array(	char,	prev_comm,	TASK_COMM_LEN	)
@@ -147,7 +143,7 @@ TRACE_EVENT(sched_switch,
 		memcpy(__entry->next_comm, next->comm, TASK_COMM_LEN);
 		__entry->prev_pid	= prev->pid;
 		__entry->prev_prio	= prev->prio;
-		__entry->prev_state	= __trace_sched_switch_state(prev);
+		__entry->prev_state	= __trace_sched_switch_state(preempt, prev);
 		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
 		__entry->next_pid	= next->pid;
 		__entry->next_prio	= next->prio;

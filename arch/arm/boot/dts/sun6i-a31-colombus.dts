@@ -60,10 +60,32 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	i2c_lcd: i2c@0 {
+		/* The lcd panel i2c interface is hooked up via gpios */
+		compatible = "i2c-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_lcd_pins>;
+		gpios = <&pio 0 23 GPIO_ACTIVE_HIGH>, /* PA23, sda */
+			<&pio 0 24 GPIO_ACTIVE_HIGH>; /* PA24, scl */
+		i2c-gpio,delay-us = <5>;
+	};
 };
 
 &ehci1 {
 	status = "okay";
+};
+
+&gmac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac_pins_rgmii_a>;
+	phy = <&phy1>;
+	phy-mode = "rgmii";
+	status = "okay";
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &i2c0 {
@@ -82,6 +104,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
+
+	mma8452: mma8452@1d {
+		compatible = "fsl,mma8452";
+		reg = <0x1d>;
+		interrupt-parent = <&pio>;
+		interrupts = <0 9 IRQ_TYPE_LEVEL_LOW>; /* PA9 */
+	};
 };
 
 &mmc0 {
@@ -111,6 +140,13 @@
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
+	i2c_lcd_pins: i2c_lcd_pin@0 {
+		allwinner,pins = "PA23", "PA24";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 };
 

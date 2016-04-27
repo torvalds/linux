@@ -330,7 +330,7 @@ struct pch_vbus_gpio_data {
  * @prot_stall:		protcol stall requested
  * @irq_registered:	irq registered with system
  * @mem_region:		device memory mapped
- * @registered:		driver regsitered with system
+ * @registered:		driver registered with system
  * @suspended:		driver in suspended state
  * @connected:		gadget driver associated
  * @vbus_session:	required vbus_session state
@@ -2747,18 +2747,18 @@ static void pch_udc_dev_isr(struct pch_udc_dev *dev, u32 dev_intr)
 	if (dev_intr & UDC_DEVINT_US) {
 		if (dev->driver
 			&& dev->driver->suspend) {
-			spin_lock(&dev->lock);
-			dev->driver->suspend(&dev->gadget);
 			spin_unlock(&dev->lock);
+			dev->driver->suspend(&dev->gadget);
+			spin_lock(&dev->lock);
 		}
 
 		vbus = pch_vbus_gpio_get_value(dev);
 		if ((dev->vbus_session == 0)
 			&& (vbus != 1)) {
 			if (dev->driver && dev->driver->disconnect) {
-				spin_lock(&dev->lock);
-				dev->driver->disconnect(&dev->gadget);
 				spin_unlock(&dev->lock);
+				dev->driver->disconnect(&dev->gadget);
+				spin_lock(&dev->lock);
 			}
 			pch_udc_reconnect(dev);
 		} else if ((dev->vbus_session == 0)
@@ -3234,22 +3234,22 @@ static const struct pci_device_id pch_udc_pcidev_id[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL,
 			   PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC),
-		.class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe,
+		.class = PCI_CLASS_SERIAL_USB_DEVICE,
 		.class_mask = 0xffffffff,
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_EG20T_UDC),
-		.class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe,
+		.class = PCI_CLASS_SERIAL_USB_DEVICE,
 		.class_mask = 0xffffffff,
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_ROHM, PCI_DEVICE_ID_ML7213_IOH_UDC),
-		.class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe,
+		.class = PCI_CLASS_SERIAL_USB_DEVICE,
 		.class_mask = 0xffffffff,
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_ROHM, PCI_DEVICE_ID_ML7831_IOH_UDC),
-		.class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe,
+		.class = PCI_CLASS_SERIAL_USB_DEVICE,
 		.class_mask = 0xffffffff,
 	},
 	{ 0 },

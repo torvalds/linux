@@ -176,7 +176,13 @@ static int m41t80_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		bin2bcd(tm->tm_mday) | (buf[M41T80_REG_DAY] & ~0x3f);
 	buf[M41T80_REG_MON] =
 		bin2bcd(tm->tm_mon + 1) | (buf[M41T80_REG_MON] & ~0x1f);
+
 	/* assume 20YY not 19YY */
+	if (tm->tm_year < 100 || tm->tm_year > 199) {
+		dev_err(&client->dev, "Year must be between 2000 and 2099. It's %d.\n",
+			tm->tm_year + 1900);
+		return -EINVAL;
+	}
 	buf[M41T80_REG_YEAR] = bin2bcd(tm->tm_year % 100);
 
 	if (i2c_transfer(client->adapter, msgs, 1) != 1) {

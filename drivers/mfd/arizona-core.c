@@ -24,6 +24,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
+#include <linux/platform_device.h>
 
 #include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/registers.h>
@@ -69,8 +70,6 @@ EXPORT_SYMBOL_GPL(arizona_clk32k_enable);
 
 int arizona_clk32k_disable(struct arizona *arizona)
 {
-	int ret = 0;
-
 	mutex_lock(&arizona->clk_lock);
 
 	BUG_ON(arizona->clk32k_ref <= 0);
@@ -90,7 +89,7 @@ int arizona_clk32k_disable(struct arizona *arizona)
 
 	mutex_unlock(&arizona->clk_lock);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_clk32k_disable);
 
@@ -239,7 +238,7 @@ static int arizona_poll_reg(struct arizona *arizona,
 		if ((val & mask) == target)
 			return 0;
 
-		msleep(1);
+		usleep_range(1000, 5000);
 	}
 
 	dev_err(arizona->dev, "Polling reg %u timed out: %x\n", reg, val);
@@ -280,14 +279,14 @@ static void arizona_disable_reset(struct arizona *arizona)
 		case WM5110:
 		case WM8280:
 			/* Meet requirements for minimum reset duration */
-			msleep(5);
+			usleep_range(5000, 10000);
 			break;
 		default:
 			break;
 		}
 
 		gpio_set_value_cansleep(arizona->pdata.reset, 1);
-		msleep(1);
+		usleep_range(1000, 5000);
 	}
 }
 
@@ -462,6 +461,50 @@ static int wm5102_clear_write_sequencer(struct arizona *arizona)
 }
 
 #ifdef CONFIG_PM
+static int arizona_isolate_dcvdd(struct arizona *arizona)
+{
+	int ret;
+
+	ret = regmap_update_bits(arizona->regmap,
+				 ARIZONA_ISOLATION_CONTROL,
+				 ARIZONA_ISOLATE_DCVDD1,
+				 ARIZONA_ISOLATE_DCVDD1);
+	if (ret != 0)
+		dev_err(arizona->dev, "Failed to isolate DCVDD: %d\n", ret);
+
+	return ret;
+}
+
+static int arizona_connect_dcvdd(struct arizona *arizona)
+{
+	int ret;
+
+	ret = regmap_update_bits(arizona->regmap,
+				 ARIZONA_ISOLATION_CONTROL,
+				 ARIZONA_ISOLATE_DCVDD1, 0);
+	if (ret != 0)
+		dev_err(arizona->dev, "Failed to connect DCVDD: %d\n", ret);
+
+	return ret;
+}
+
+static int arizona_is_jack_det_active(struct arizona *arizona)
+{
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE, &val);
+	if (ret) {
+		dev_err(arizona->dev,
+			"Failed to check jack det status: %d\n", ret);
+		return ret;
+	} else if (val & ARIZONA_JD1_ENA) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 static int arizona_runtime_resume(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
@@ -501,14 +544,9 @@ static int arizona_runtime_resume(struct device *dev)
 	switch (arizona->type) {
 	case WM5102:
 		if (arizona->external_dcvdd) {
-			ret = regmap_update_bits(arizona->regmap,
-						 ARIZONA_ISOLATION_CONTROL,
-						 ARIZONA_ISOLATE_DCVDD1, 0);
-			if (ret != 0) {
-				dev_err(arizona->dev,
-					"Failed to connect DCVDD: %d\n", ret);
+			ret = arizona_connect_dcvdd(arizona);
+			if (ret != 0)
 				goto err;
-			}
 		}
 
 		ret = wm5102_patch(arizona);
@@ -533,14 +571,9 @@ static int arizona_runtime_resume(struct device *dev)
 			goto err;
 
 		if (arizona->external_dcvdd) {
-			ret = regmap_update_bits(arizona->regmap,
-						 ARIZONA_ISOLATION_CONTROL,
-						 ARIZONA_ISOLATE_DCVDD1, 0);
-			if (ret) {
-				dev_err(arizona->dev,
-					"Failed to connect DCVDD: %d\n", ret);
+			ret = arizona_connect_dcvdd(arizona);
+			if (ret != 0)
 				goto err;
-			}
 		} else {
 			/*
 			 * As this is only called for the internal regulator
@@ -565,20 +598,21 @@ static int arizona_runtime_resume(struct device *dev)
 			goto err;
 		}
 		break;
+	case WM1831:
+	case CS47L24:
+		ret = arizona_wait_for_boot(arizona);
+		if (ret != 0)
+			goto err;
+		break;
 	default:
 		ret = arizona_wait_for_boot(arizona);
 		if (ret != 0)
 			goto err;
 
 		if (arizona->external_dcvdd) {
-			ret = regmap_update_bits(arizona->regmap,
-						 ARIZONA_ISOLATION_CONTROL,
-						 ARIZONA_ISOLATE_DCVDD1, 0);
-			if (ret != 0) {
-				dev_err(arizona->dev,
-					"Failed to connect DCVDD: %d\n", ret);
+			ret = arizona_connect_dcvdd(arizona);
+			if (ret != 0)
 				goto err;
-			}
 		}
 		break;
 	}
@@ -600,49 +634,50 @@ err:
 static int arizona_runtime_suspend(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
-	unsigned int val;
+	int jd_active = 0;
 	int ret;
 
 	dev_dbg(arizona->dev, "Entering AoD mode\n");
 
-	ret = regmap_read(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE, &val);
-	if (ret) {
-		dev_err(dev, "Failed to check jack det status: %d\n", ret);
-		return ret;
-	}
-
-	if (arizona->external_dcvdd) {
-		ret = regmap_update_bits(arizona->regmap,
-					 ARIZONA_ISOLATION_CONTROL,
-					 ARIZONA_ISOLATE_DCVDD1,
-					 ARIZONA_ISOLATE_DCVDD1);
-		if (ret != 0) {
-			dev_err(arizona->dev, "Failed to isolate DCVDD: %d\n",
-				ret);
-			return ret;
-		}
-	}
-
 	switch (arizona->type) {
 	case WM5110:
 	case WM8280:
-		if (arizona->external_dcvdd)
-			break;
+		jd_active = arizona_is_jack_det_active(arizona);
+		if (jd_active < 0)
+			return jd_active;
 
-		/*
-		 * As this is only called for the internal regulator
-		 * (where we know voltage ranges available) it is ok
-		 * to request an exact range.
-		 */
-		ret = regulator_set_voltage(arizona->dcvdd, 1175000, 1175000);
-		if (ret < 0) {
-			dev_err(arizona->dev,
-				"Failed to set suspend voltage: %d\n", ret);
-			return ret;
+		if (arizona->external_dcvdd) {
+			ret = arizona_isolate_dcvdd(arizona);
+			if (ret != 0)
+				return ret;
+		} else {
+			/*
+			 * As this is only called for the internal regulator
+			 * (where we know voltage ranges available) it is ok
+			 * to request an exact range.
+			 */
+			ret = regulator_set_voltage(arizona->dcvdd,
+						    1175000, 1175000);
+			if (ret < 0) {
+				dev_err(arizona->dev,
+					"Failed to set suspend voltage: %d\n",
+					ret);
+				return ret;
+			}
 		}
 		break;
 	case WM5102:
-		if (!(val & ARIZONA_JD1_ENA)) {
+		jd_active = arizona_is_jack_det_active(arizona);
+		if (jd_active < 0)
+			return jd_active;
+
+		if (arizona->external_dcvdd) {
+			ret = arizona_isolate_dcvdd(arizona);
+			if (ret != 0)
+				return ret;
+		}
+
+		if (!jd_active) {
 			ret = regmap_write(arizona->regmap,
 					   ARIZONA_WRITE_SEQUENCER_CTRL_3, 0x0);
 			if (ret) {
@@ -653,7 +688,19 @@ static int arizona_runtime_suspend(struct device *dev)
 			}
 		}
 		break;
+	case WM1831:
+	case CS47L24:
+		break;
 	default:
+		jd_active = arizona_is_jack_det_active(arizona);
+		if (jd_active < 0)
+			return jd_active;
+
+		if (arizona->external_dcvdd) {
+			ret = arizona_isolate_dcvdd(arizona);
+			if (ret != 0)
+				return ret;
+		}
 		break;
 	}
 
@@ -662,7 +709,7 @@ static int arizona_runtime_suspend(struct device *dev)
 	regulator_disable(arizona->dcvdd);
 
 	/* Allow us to completely power down if no jack detection */
-	if (!(val & ARIZONA_JD1_ENA)) {
+	if (!jd_active) {
 		dev_dbg(arizona->dev, "Fully powering off\n");
 
 		arizona->has_fully_powered_off = true;
@@ -814,6 +861,16 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 		count++;
 	}
 
+	count = 0;
+	of_property_for_each_u32(arizona->dev->of_node, "wlf,out-mono", prop,
+				 cur, val) {
+		if (count == ARRAY_SIZE(pdata->out_mono))
+			break;
+
+		pdata->out_mono[count] = !!val;
+		count++;
+	}
+
 	return 0;
 }
 
@@ -824,6 +881,8 @@ const struct of_device_id arizona_of_match[] = {
 	{ .compatible = "wlf,wm8997", .data = (void *)WM8997 },
 	{ .compatible = "wlf,wm8998", .data = (void *)WM8998 },
 	{ .compatible = "wlf,wm1814", .data = (void *)WM1814 },
+	{ .compatible = "wlf,wm1831", .data = (void *)WM1831 },
+	{ .compatible = "cirrus,cs47l24", .data = (void *)CS47L24 },
 	{},
 };
 EXPORT_SYMBOL_GPL(arizona_of_match);
@@ -881,6 +940,23 @@ static const struct mfd_cell wm5110_devs[] = {
 	},
 };
 
+static const char * const cs47l24_supplies[] = {
+	"MICVDD",
+	"CPVDD",
+	"SPKVDD",
+};
+
+static const struct mfd_cell cs47l24_devs[] = {
+	{ .name = "arizona-gpio" },
+	{ .name = "arizona-haptics" },
+	{ .name = "arizona-pwm" },
+	{
+		.name = "cs47l24-codec",
+		.parent_supplies = cs47l24_supplies,
+		.num_parent_supplies = ARRAY_SIZE(cs47l24_supplies),
+	},
+};
+
 static const char * const wm8997_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
@@ -925,10 +1001,11 @@ static const struct mfd_cell wm8998_devs[] = {
 int arizona_dev_init(struct arizona *arizona)
 {
 	struct device *dev = arizona->dev;
-	const char *type_name;
+	const char *type_name = NULL;
 	unsigned int reg, val, mask;
 	int (*apply_patch)(struct arizona *) = NULL;
-	int ret, i;
+	const struct mfd_cell *subdevs = NULL;
+	int n_subdevs, ret, i;
 
 	dev_set_drvdata(arizona->dev, arizona);
 	mutex_init(&arizona->clk_lock);
@@ -948,6 +1025,8 @@ int arizona_dev_init(struct arizona *arizona)
 	case WM8997:
 	case WM8998:
 	case WM1814:
+	case WM1831:
+	case CS47L24:
 		for (i = 0; i < ARRAY_SIZE(wm5102_core_supplies); i++)
 			arizona->core_supplies[i].supply
 				= wm5102_core_supplies[i];
@@ -962,11 +1041,18 @@ int arizona_dev_init(struct arizona *arizona)
 	/* Mark DCVDD as external, LDO1 driver will clear if internal */
 	arizona->external_dcvdd = true;
 
-	ret = mfd_add_devices(arizona->dev, -1, early_devs,
-			      ARRAY_SIZE(early_devs), NULL, 0, NULL);
-	if (ret != 0) {
-		dev_err(dev, "Failed to add early children: %d\n", ret);
-		return ret;
+	switch (arizona->type) {
+	case WM1831:
+	case CS47L24:
+		break; /* No LDO1 regulator */
+	default:
+		ret = mfd_add_devices(arizona->dev, -1, early_devs,
+				      ARRAY_SIZE(early_devs), NULL, 0, NULL);
+		if (ret != 0) {
+			dev_err(dev, "Failed to add early children: %d\n", ret);
+			return ret;
+		}
+		break;
 	}
 
 	ret = devm_regulator_bulk_get(dev, arizona->num_core_supplies,
@@ -1030,6 +1116,7 @@ int arizona_dev_init(struct arizona *arizona)
 	case 0x5102:
 	case 0x5110:
 	case 0x6349:
+	case 0x6363:
 	case 0x8997:
 		break;
 	default:
@@ -1045,7 +1132,7 @@ int arizona_dev_init(struct arizona *arizona)
 			goto err_reset;
 		}
 
-		msleep(1);
+		usleep_range(1000, 5000);
 	}
 
 	/* Ensure device startup is complete */
@@ -1089,71 +1176,116 @@ int arizona_dev_init(struct arizona *arizona)
 	arizona->rev &= ARIZONA_DEVICE_REVISION_MASK;
 
 	switch (reg) {
-#ifdef CONFIG_MFD_WM5102
 	case 0x5102:
-		type_name = "WM5102";
-		if (arizona->type != WM5102) {
-			dev_err(arizona->dev, "WM5102 registered as %d\n",
-				arizona->type);
-			arizona->type = WM5102;
+		if (IS_ENABLED(CONFIG_MFD_WM5102)) {
+			type_name = "WM5102";
+			if (arizona->type != WM5102) {
+				dev_warn(arizona->dev,
+					 "WM5102 registered as %d\n",
+					 arizona->type);
+				arizona->type = WM5102;
+			}
+
+			apply_patch = wm5102_patch;
+			arizona->rev &= 0x7;
+			subdevs = wm5102_devs;
+			n_subdevs = ARRAY_SIZE(wm5102_devs);
 		}
-		apply_patch = wm5102_patch;
-		arizona->rev &= 0x7;
 		break;
-#endif
-#ifdef CONFIG_MFD_WM5110
 	case 0x5110:
-		switch (arizona->type) {
-		case WM5110:
-			type_name = "WM5110";
-			break;
-		case WM8280:
-			type_name = "WM8280";
-			break;
-		default:
-			type_name = "WM5110";
-			dev_err(arizona->dev, "WM5110 registered as %d\n",
-				arizona->type);
-			arizona->type = WM5110;
-			break;
+		if (IS_ENABLED(CONFIG_MFD_WM5110)) {
+			switch (arizona->type) {
+			case WM5110:
+				type_name = "WM5110";
+				break;
+			case WM8280:
+				type_name = "WM8280";
+				break;
+			default:
+				type_name = "WM5110";
+				dev_warn(arizona->dev,
+					 "WM5110 registered as %d\n",
+					 arizona->type);
+				arizona->type = WM5110;
+				break;
+			}
+
+			apply_patch = wm5110_patch;
+			subdevs = wm5110_devs;
+			n_subdevs = ARRAY_SIZE(wm5110_devs);
 		}
-		apply_patch = wm5110_patch;
 		break;
-#endif
-#ifdef CONFIG_MFD_WM8997
+	case 0x6363:
+		if (IS_ENABLED(CONFIG_MFD_CS47L24)) {
+			switch (arizona->type) {
+			case CS47L24:
+				type_name = "CS47L24";
+				break;
+
+			case WM1831:
+				type_name = "WM1831";
+				break;
+
+			default:
+				dev_warn(arizona->dev,
+					 "CS47L24 registered as %d\n",
+					 arizona->type);
+				arizona->type = CS47L24;
+				break;
+			}
+
+			apply_patch = cs47l24_patch;
+			subdevs = cs47l24_devs;
+			n_subdevs = ARRAY_SIZE(cs47l24_devs);
+		}
+		break;
 	case 0x8997:
-		type_name = "WM8997";
-		if (arizona->type != WM8997) {
-			dev_err(arizona->dev, "WM8997 registered as %d\n",
-				arizona->type);
-			arizona->type = WM8997;
+		if (IS_ENABLED(CONFIG_MFD_WM8997)) {
+			type_name = "WM8997";
+			if (arizona->type != WM8997) {
+				dev_warn(arizona->dev,
+					 "WM8997 registered as %d\n",
+					 arizona->type);
+				arizona->type = WM8997;
+			}
+
+			apply_patch = wm8997_patch;
+			subdevs = wm8997_devs;
+			n_subdevs = ARRAY_SIZE(wm8997_devs);
 		}
-		apply_patch = wm8997_patch;
 		break;
-#endif
-#ifdef CONFIG_MFD_WM8998
 	case 0x6349:
-		switch (arizona->type) {
-		case WM8998:
-			type_name = "WM8998";
-			break;
+		if (IS_ENABLED(CONFIG_MFD_WM8998)) {
+			switch (arizona->type) {
+			case WM8998:
+				type_name = "WM8998";
+				break;
 
-		case WM1814:
-			type_name = "WM1814";
-			break;
+			case WM1814:
+				type_name = "WM1814";
+				break;
 
-		default:
-			type_name = "WM8998";
-			dev_err(arizona->dev, "WM8998 registered as %d\n",
-				arizona->type);
-			arizona->type = WM8998;
+			default:
+				type_name = "WM8998";
+				dev_warn(arizona->dev,
+					 "WM8998 registered as %d\n",
+					 arizona->type);
+				arizona->type = WM8998;
+			}
+
+			apply_patch = wm8998_patch;
+			subdevs = wm8998_devs;
+			n_subdevs = ARRAY_SIZE(wm8998_devs);
 		}
-
-		apply_patch = wm8998_patch;
 		break;
-#endif
 	default:
 		dev_err(arizona->dev, "Unknown device ID %x\n", reg);
+		goto err_reset;
+	}
+
+	if (!subdevs) {
+		dev_err(arizona->dev,
+			"No kernel support for device ID %x\n", reg);
 		goto err_reset;
 	}
 
@@ -1342,28 +1474,10 @@ int arizona_dev_init(struct arizona *arizona)
 	arizona_request_irq(arizona, ARIZONA_IRQ_UNDERCLOCKED, "Underclocked",
 			    arizona_underclocked, arizona);
 
-	switch (arizona->type) {
-	case WM5102:
-		ret = mfd_add_devices(arizona->dev, -1, wm5102_devs,
-				      ARRAY_SIZE(wm5102_devs), NULL, 0, NULL);
-		break;
-	case WM5110:
-	case WM8280:
-		ret = mfd_add_devices(arizona->dev, -1, wm5110_devs,
-				      ARRAY_SIZE(wm5110_devs), NULL, 0, NULL);
-		break;
-	case WM8997:
-		ret = mfd_add_devices(arizona->dev, -1, wm8997_devs,
-				      ARRAY_SIZE(wm8997_devs), NULL, 0, NULL);
-		break;
-	case WM8998:
-	case WM1814:
-		ret = mfd_add_devices(arizona->dev, -1, wm8998_devs,
-				      ARRAY_SIZE(wm8998_devs), NULL, 0, NULL);
-		break;
-	}
+	ret = mfd_add_devices(arizona->dev, PLATFORM_DEVID_NONE,
+			      subdevs, n_subdevs, NULL, 0, NULL);
 
-	if (ret != 0) {
+	if (ret) {
 		dev_err(arizona->dev, "Failed to add subdevices: %d\n", ret);
 		goto err_irq;
 	}

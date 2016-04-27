@@ -90,7 +90,7 @@ BLOCK_SOFTIRQ:  Do all of the following:
 	from being initiated from tasks that might run on the CPU to
 	be de-jittered.  (It is OK to force this CPU offline and then
 	bring it back online before you start your application.)
-BLOCK_IOPOLL_SOFTIRQ:  Do all of the following:
+IRQ_POLL_SOFTIRQ:  Do all of the following:
 1.	Force block-device interrupts onto some other CPU.
 2.	Initiate any block I/O and block-I/O polling on other CPUs.
 3.	Once your application has started, prevent CPU-hotplug operations

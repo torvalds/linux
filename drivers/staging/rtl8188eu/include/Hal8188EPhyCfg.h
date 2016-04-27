@@ -69,13 +69,11 @@ enum hw90_block {
 enum rf_radio_path {
 	RF_PATH_A = 0,			/* Radio Path A */
 	RF_PATH_B = 1,			/* Radio Path B */
-	RF_PATH_C = 2,			/* Radio Path C */
-	RF_PATH_D = 3,			/* Radio Path D */
 };
 
 #define MAX_PG_GROUP 13
 
-#define	RF_PATH_MAX			3
+#define	RF_PATH_MAX			2
 #define		MAX_RF_PATH		RF_PATH_MAX
 #define		MAX_TX_COUNT		4 /* path numbers */
 
@@ -87,13 +85,13 @@ enum rf_radio_path {
 
 enum wireless_mode {
 	WIRELESS_MODE_UNKNOWN = 0x00,
-	WIRELESS_MODE_A			= BIT2,
-	WIRELESS_MODE_B			= BIT0,
-	WIRELESS_MODE_G			= BIT1,
-	WIRELESS_MODE_AUTO		= BIT5,
-	WIRELESS_MODE_N_24G		= BIT3,
-	WIRELESS_MODE_N_5G		= BIT4,
-	WIRELESS_MODE_AC		= BIT6
+	WIRELESS_MODE_A			= BIT(2),
+	WIRELESS_MODE_B			= BIT(0),
+	WIRELESS_MODE_G			= BIT(1),
+	WIRELESS_MODE_AUTO		= BIT(5),
+	WIRELESS_MODE_N_24G		= BIT(3),
+	WIRELESS_MODE_N_5G		= BIT(4),
+	WIRELESS_MODE_AC		= BIT(6)
 };
 
 enum phy_rate_tx_offset_area {

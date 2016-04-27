@@ -21,23 +21,12 @@
 #include <asm/cputype.h>
 #include <asm/cpufeature.h>
 
-#define MIDR_CORTEX_A53 MIDR_CPU_PART(ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A53)
-#define MIDR_CORTEX_A57 MIDR_CPU_PART(ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A57)
-
-#define CPU_MODEL_MASK (MIDR_IMPLEMENTOR_MASK | MIDR_PARTNUM_MASK | \
-			MIDR_ARCHITECTURE_MASK)
-
 static bool __maybe_unused
 is_affected_midr_range(const struct arm64_cpu_capabilities *entry)
 {
-	u32 midr = read_cpuid_id();
-
-	if ((midr & CPU_MODEL_MASK) != entry->midr_model)
-		return false;
-
-	midr &= MIDR_REVISION_MASK | MIDR_VARIANT_MASK;
-
-	return (midr >= entry->midr_range_min && midr <= entry->midr_range_max);
+	return MIDR_IS_CPU_MODEL_RANGE(read_cpuid_id(), entry->midr_model,
+				       entry->midr_range_min,
+				       entry->midr_range_max);
 }
 
 #define MIDR_RANGE(model, min, max) \
@@ -74,6 +63,15 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 			   (1 << MIDR_VARIANT_SHIFT) | 2),
 	},
 #endif
+#ifdef CONFIG_ARM64_ERRATUM_834220
+	{
+	/* Cortex-A57 r0p0 - r1p2 */
+		.desc = "ARM erratum 834220",
+		.capability = ARM64_WORKAROUND_834220,
+		MIDR_RANGE(MIDR_CORTEX_A57, 0x00,
+			   (1 << MIDR_VARIANT_SHIFT) | 2),
+	},
+#endif
 #ifdef CONFIG_ARM64_ERRATUM_845719
 	{
 	/* Cortex-A53 r0p[01234] */
@@ -82,11 +80,28 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		MIDR_RANGE(MIDR_CORTEX_A53, 0x00, 0x04),
 	},
 #endif
+#ifdef CONFIG_CAVIUM_ERRATUM_23154
+	{
+	/* Cavium ThunderX, pass 1.x */
+		.desc = "Cavium erratum 23154",
+		.capability = ARM64_WORKAROUND_CAVIUM_23154,
+		MIDR_RANGE(MIDR_THUNDERX, 0x00, 0x01),
+	},
+#endif
+#ifdef CONFIG_CAVIUM_ERRATUM_27456
+	{
+	/* Cavium ThunderX, T88 pass 1.x - 2.1 */
+		.desc = "Cavium erratum 27456",
+		.capability = ARM64_WORKAROUND_CAVIUM_27456,
+		MIDR_RANGE(MIDR_THUNDERX, 0x00,
+			   (1 << MIDR_VARIANT_SHIFT) | 1),
+	},
+#endif
 	{
 	}
 };
 
 void check_local_cpu_errata(void)
 {
-	check_cpu_capabilities(arm64_errata, "enabling workaround for");
+	update_cpu_capabilities(arm64_errata, "enabling workaround for");
 }

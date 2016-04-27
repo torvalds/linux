@@ -435,6 +435,55 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs, int in_syscall)
 		regs->gr[28]);
 }
 
+/*
+ * Check how the syscall number gets loaded into %r20 within
+ * the delay branch in userspace and adjust as needed.
+ */
+
+static void check_syscallno_in_delay_branch(struct pt_regs *regs)
+{
+	u32 opcode, source_reg;
+	u32 __user *uaddr;
+	int err;
+
+	/* Usually we don't have to restore %r20 (the system call number)
+	 * because it gets loaded in the delay slot of the branch external
+	 * instruction via the ldi instruction.
+	 * In some cases a register-to-register copy instruction might have
+	 * been used instead, in which case we need to copy the syscall
+	 * number into the source register before returning to userspace.
+	 */
+
+	/* A syscall is just a branch, so all we have to do is fiddle the
+	 * return pointer so that the ble instruction gets executed again.
+	 */
+	regs->gr[31] -= 8; /* delayed branching */
+
+	/* Get assembler opcode of code in delay branch */
+	uaddr = (unsigned int *) ((regs->gr[31] & ~3) + 4);
+	err = get_user(opcode, uaddr);
+	if (err)
+		return;
+
+	/* Check if delay branch uses "ldi int,%r20" */
+	if ((opcode & 0xffff0000) == 0x34140000)
+		return;	/* everything ok, just return */
+
+	/* Check if delay branch uses "nop" */
+	if (opcode == INSN_NOP)
+		return;
+
+	/* Check if delay branch uses "copy %rX,%r20" */
+	if ((opcode & 0xffe0ffff) == 0x08000254) {
+		source_reg = (opcode >> 16) & 31;
+		regs->gr[source_reg] = regs->gr[20];
+		return;
+	}
+
+	pr_warn("syscall restart: %s (pid %d): unexpected opcode 0x%08x\n",
+		current->comm, task_pid_nr(current), opcode);
+}
+
 static inline void
 syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 {
@@ -457,10 +506,7 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 		}
 		/* fallthrough */
 	case -ERESTARTNOINTR:
-		/* A syscall is just a branch, so all
-		 * we have to do is fiddle the return pointer.
-		 */
-		regs->gr[31] -= 8; /* delayed branching */
+		check_syscallno_in_delay_branch(regs);
 		break;
 	}
 }
@@ -510,15 +556,9 @@ insert_restart_trampoline(struct pt_regs *regs)
 	}
 	case -ERESTARTNOHAND:
 	case -ERESTARTSYS:
-	case -ERESTARTNOINTR: {
-		/* Hooray for delayed branching.  We don't
-		 * have to restore %r20 (the system call
-		 * number) because it gets loaded in the delay
-		 * slot of the branch external instruction.
-		 */
-		regs->gr[31] -= 8;
+	case -ERESTARTNOINTR:
+		check_syscallno_in_delay_branch(regs);
 		return;
-	}
 	default:
 		break;
 	}

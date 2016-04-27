@@ -55,7 +55,7 @@ extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 /*
  * namespace.c
  */
-extern int copy_mount_options(const void __user *, unsigned long *);
+extern void *copy_mount_options(const void __user *);
 extern char *copy_mount_string(const void __user *);
 
 extern struct vfsmount *lookup_mnt(struct path *);
@@ -151,3 +151,10 @@ extern void mnt_pin_kill(struct mount *m);
  * fs/nsfs.c
  */
 extern struct dentry_operations ns_dentry_operations;
+
+/*
+ * fs/ioctl.c
+ */
+extern int do_vfs_ioctl(struct file *file, unsigned int fd, unsigned int cmd,
+		    unsigned long arg);
+extern long vfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);

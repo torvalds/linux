@@ -27,6 +27,7 @@
 #include <linux/random.h>
 #include <linux/moduleloader.h>
 #include <linux/bpf.h>
+#include <linux/frame.h>
 
 #include <asm/unaligned.h>
 
@@ -82,6 +83,8 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 	if (fp == NULL)
 		return NULL;
 
+	kmemcheck_annotate_bitfield(fp, meta);
+
 	aux = kzalloc(sizeof(*aux), GFP_KERNEL | gfp_extra_flags);
 	if (aux == NULL) {
 		vfree(fp);
@@ -90,6 +93,7 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 
 	fp->pages = size / PAGE_SIZE;
 	fp->aux = aux;
+	fp->aux->prog = fp;
 
 	return fp;
 }
@@ -110,8 +114,11 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 
 	fp = __vmalloc(size, gfp_flags, PAGE_KERNEL);
 	if (fp != NULL) {
+		kmemcheck_annotate_bitfield(fp, meta);
+
 		memcpy(fp, fp_old, fp_old->pages * PAGE_SIZE);
 		fp->pages = size / PAGE_SIZE;
+		fp->aux->prog = fp;
 
 		/* We keep fp->aux from fp_old around in the new
 		 * reallocated structure.
@@ -299,10 +306,6 @@ static unsigned int __bpf_prog_run(void *ctx, const struct bpf_insn *insn)
 
 	FP = (u64) (unsigned long) &stack[ARRAY_SIZE(stack)];
 	ARG1 = (u64) (unsigned long) ctx;
-
-	/* Registers used in classic BPF programs need to be reset first. */
-	regs[BPF_REG_A] = 0;
-	regs[BPF_REG_X] = 0;
 
 select_insn:
 	goto *jumptable[insn->code];
@@ -647,6 +650,7 @@ load_byte:
 		WARN_RATELIMIT(1, "unknown opcode %02x\n", insn->code);
 		return 0;
 }
+STACK_FRAME_NON_STANDARD(__bpf_prog_run); /* jump table */
 
 bool bpf_prog_array_compatible(struct bpf_array *array,
 			       const struct bpf_prog *fp)
@@ -722,10 +726,35 @@ void bpf_prog_free(struct bpf_prog *fp)
 	struct bpf_prog_aux *aux = fp->aux;
 
 	INIT_WORK(&aux->work, bpf_prog_free_deferred);
-	aux->prog = fp;
 	schedule_work(&aux->work);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_free);
+
+/* RNG for unpriviledged user space with separated state from prandom_u32(). */
+static DEFINE_PER_CPU(struct rnd_state, bpf_user_rnd_state);
+
+void bpf_user_rnd_init_once(void)
+{
+	prandom_init_once(&bpf_user_rnd_state);
+}
+
+u64 bpf_user_rnd_u32(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	/* Should someone ever have the rather unwise idea to use some
+	 * of the registers passed into this function, then note that
+	 * this function is called from native eBPF and classic-to-eBPF
+	 * transformations. Register assignments from both sides are
+	 * different, f.e. classic always sets fn(ctx, A, X) here.
+	 */
+	struct rnd_state *state;
+	u32 res;
+
+	state = &get_cpu_var(bpf_user_rnd_state);
+	res = prandom_u32_state(state);
+	put_cpu_var(state);
+
+	return res;
+}
 
 /* Weak definitions of helper functions in case we don't have bpf syscall. */
 const struct bpf_func_proto bpf_map_lookup_elem_proto __weak;

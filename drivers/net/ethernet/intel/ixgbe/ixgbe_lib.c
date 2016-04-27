@@ -844,7 +844,6 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	/* initialize NAPI */
 	netif_napi_add(adapter->netdev, &q_vector->napi,
 		       ixgbe_poll, 64);
-	napi_hash_add(&q_vector->napi);
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	/* initialize busy poll */
@@ -866,7 +865,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	if (txr_count && !rxr_count) {
 		/* tx only vector */
 		if (adapter->tx_itr_setting == 1)
-			q_vector->itr = IXGBE_10K_ITR;
+			q_vector->itr = IXGBE_12K_ITR;
 		else
 			q_vector->itr = adapter->tx_itr_setting;
 	} else {

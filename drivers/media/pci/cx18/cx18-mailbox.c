@@ -202,7 +202,7 @@ static void cx18_mdl_send_to_videobuf(struct cx18_stream *s,
 	}
 
 	if (dispatch) {
-		vb_buf->vb.ts = ktime_to_timeval(ktime_get());
+		v4l2_get_timestamp(&vb_buf->vb.ts);
 		list_del(&vb_buf->vb.queue);
 		vb_buf->vb.state = VIDEOBUF_DONE;
 		wake_up(&vb_buf->vb.done);

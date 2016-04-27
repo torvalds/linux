@@ -287,14 +287,14 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 
 	if (filp->f_flags & O_NONBLOCK) {
 		/* nonblock mode is set */
-		if (tty->termios.c_cflag & CBAUD)
+		if (C_BAUD(tty))
 			tty_port_raise_dtr_rts(port);
 		port->flags |= ASYNC_NORMAL_ACTIVE;
 		pr_debug("%s(), O_NONBLOCK requested!\n", __func__);
 		return 0;
 	}
 
-	if (tty->termios.c_cflag & CLOCAL) {
+	if (C_CLOCAL(tty)) {
 		pr_debug("%s(), doing CLOCAL!\n", __func__);
 		do_clocal = 1;
 	}
@@ -335,8 +335,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 		 * specified, we cannot return before the IrCOMM link is
 		 * ready
 		 */
-		if (!test_bit(ASYNCB_CLOSING, &port->flags) &&
-		    (do_clocal || tty_port_carrier_raised(port)) &&
+		if ((do_clocal || tty_port_carrier_raised(port)) &&
 		    self->state == IRCOMM_TTY_READY)
 		{
 			break;
@@ -442,34 +441,6 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 
 	/* Not really used by us, but lets do it anyway */
 	self->port.low_latency = (self->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
-
-	/*
-	 * If the port is the middle of closing, bail out now
-	 */
-	if (test_bit(ASYNCB_CLOSING, &self->port.flags)) {
-
-		/* Hm, why are we blocking on ASYNC_CLOSING if we
-		 * do return -EAGAIN/-ERESTARTSYS below anyway?
-		 * IMHO it's either not needed in the first place
-		 * or for some reason we need to make sure the async
-		 * closing has been finished - if so, wouldn't we
-		 * probably better sleep uninterruptible?
-		 */
-
-		if (wait_event_interruptible(self->port.close_wait,
-				!test_bit(ASYNCB_CLOSING, &self->port.flags))) {
-			net_warn_ratelimited("%s - got signal while blocking on ASYNC_CLOSING!\n",
-					     __func__);
-			return -ERESTARTSYS;
-		}
-
-#ifdef SERIAL_DO_RESTART
-		return (self->port.flags & ASYNC_HUP_NOTIFY) ?
-			-EAGAIN : -ERESTARTSYS;
-#else
-		return -EAGAIN;
-#endif
-	}
 
 	/* Check if this is a "normal" ircomm device, or an irlpt device */
 	if (self->line < 0x10) {
@@ -835,7 +806,7 @@ static void ircomm_tty_throttle(struct tty_struct *tty)
 		ircomm_tty_send_xchar(tty, STOP_CHAR(tty));
 
 	/* Hardware flow control? */
-	if (tty->termios.c_cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		self->settings.dte &= ~IRCOMM_RTS;
 		self->settings.dte |= IRCOMM_DELTA_RTS;
 
@@ -860,12 +831,11 @@ static void ircomm_tty_unthrottle(struct tty_struct *tty)
 	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
 	/* Using software flow control? */
-	if (I_IXOFF(tty)) {
+	if (I_IXOFF(tty))
 		ircomm_tty_send_xchar(tty, START_CHAR(tty));
-	}
 
 	/* Using hardware flow control? */
-	if (tty->termios.c_cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		self->settings.dte |= (IRCOMM_RTS|IRCOMM_DELTA_RTS);
 
 		ircomm_param_request(self, IRCOMM_DTE, TRUE);
@@ -1295,10 +1265,6 @@ static void ircomm_tty_line_info(struct ircomm_tty_cb *self, struct seq_file *m)
 	}
 	if (self->port.flags & ASYNC_LOW_LATENCY) {
 		seq_printf(m, "%cASYNC_LOW_LATENCY", sep);
-		sep = '|';
-	}
-	if (self->port.flags & ASYNC_CLOSING) {
-		seq_printf(m, "%cASYNC_CLOSING", sep);
 		sep = '|';
 	}
 	if (self->port.flags & ASYNC_NORMAL_ACTIVE) {

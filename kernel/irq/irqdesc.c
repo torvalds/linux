@@ -24,10 +24,27 @@
 static struct lock_class_key irq_desc_lock_class;
 
 #if defined(CONFIG_SMP)
+static int __init irq_affinity_setup(char *str)
+{
+	zalloc_cpumask_var(&irq_default_affinity, GFP_NOWAIT);
+	cpulist_parse(str, irq_default_affinity);
+	/*
+	 * Set at least the boot cpu. We don't want to end up with
+	 * bugreports caused by random comandline masks
+	 */
+	cpumask_set_cpu(smp_processor_id(), irq_default_affinity);
+	return 1;
+}
+__setup("irqaffinity=", irq_affinity_setup);
+
 static void __init init_irq_default_affinity(void)
 {
-	alloc_cpumask_var(&irq_default_affinity, GFP_NOWAIT);
-	cpumask_setall(irq_default_affinity);
+#ifdef CONFIG_CPUMASK_OFFSTACK
+	if (!irq_default_affinity)
+		zalloc_cpumask_var(&irq_default_affinity, GFP_NOWAIT);
+#endif
+	if (cpumask_empty(irq_default_affinity))
+		cpumask_setall(irq_default_affinity);
 }
 #else
 static void __init init_irq_default_affinity(void)
@@ -159,6 +176,7 @@ static struct irq_desc *alloc_desc(int irq, int node, struct module *owner)
 
 	raw_spin_lock_init(&desc->lock);
 	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
+	init_rcu_head(&desc->rcu);
 
 	desc_set_defaults(irq, desc, node, owner);
 
@@ -169,6 +187,15 @@ err_kstat:
 err_desc:
 	kfree(desc);
 	return NULL;
+}
+
+static void delayed_free_desc(struct rcu_head *rhp)
+{
+	struct irq_desc *desc = container_of(rhp, struct irq_desc, rcu);
+
+	free_masks(desc);
+	free_percpu(desc->kstat_irqs);
+	kfree(desc);
 }
 
 static void free_desc(unsigned int irq)
@@ -187,9 +214,12 @@ static void free_desc(unsigned int irq)
 	delete_irq_desc(irq);
 	mutex_unlock(&sparse_irq_lock);
 
-	free_masks(desc);
-	free_percpu(desc->kstat_irqs);
-	kfree(desc);
+	/*
+	 * We free the descriptor, masks and stat fields via RCU. That
+	 * allows demultiplex interrupts to do rcu based management of
+	 * the child interrupts.
+	 */
+	call_rcu(&desc->rcu, delayed_free_desc);
 }
 
 static int alloc_descs(unsigned int start, unsigned int cnt, int node,

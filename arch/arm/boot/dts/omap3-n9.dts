@@ -53,3 +53,7 @@
 		};
 	};
 };
+
+&modem {
+	compatible = "nokia,n9-modem";
+};

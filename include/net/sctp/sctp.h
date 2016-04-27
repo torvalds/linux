@@ -82,6 +82,11 @@
 #define SCTP_PROTOSW_FLAG INET_PROTOSW_PERMANENT
 #endif
 
+/* Round an int up to the next multiple of 4.  */
+#define WORD_ROUND(s) (((s)+3)&~3)
+/* Truncate to the previous multiple of 4.  */
+#define WORD_TRUNC(s) ((s)&~3)
+
 /*
  * Function declarations.
  */
@@ -126,8 +131,6 @@ int sctp_primitive_ASCONF(struct net *, struct sctp_association *, void *arg);
  */
 int sctp_rcv(struct sk_buff *skb);
 void sctp_v4_err(struct sk_buff *skb, u32 info);
-void sctp_hash_established(struct sctp_association *);
-void sctp_unhash_established(struct sctp_association *);
 void sctp_hash_endpoint(struct sctp_endpoint *);
 void sctp_unhash_endpoint(struct sctp_endpoint *);
 struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *,
@@ -143,6 +146,17 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 				 struct sctp_transport *t);
 void sctp_backlog_migrate(struct sctp_association *assoc,
 			  struct sock *oldsk, struct sock *newsk);
+int sctp_transport_hashtable_init(void);
+void sctp_transport_hashtable_destroy(void);
+void sctp_hash_transport(struct sctp_transport *t);
+void sctp_unhash_transport(struct sctp_transport *t);
+struct sctp_transport *sctp_addrs_lookup_transport(
+				struct net *net,
+				const union sctp_addr *laddr,
+				const union sctp_addr *paddr);
+struct sctp_transport *sctp_epaddr_lookup_transport(
+				const struct sctp_endpoint *ep,
+				const union sctp_addr *paddr);
 
 /*
  * sctp/proc.c
@@ -372,11 +386,9 @@ static inline struct list_head *sctp_list_dequeue(struct list_head *list)
 {
 	struct list_head *result = NULL;
 
-	if (list->next != list) {
+	if (!list_empty(list)) {
 		result = list->next;
-		list->next = result->next;
-		list->next->prev = list;
-		INIT_LIST_HEAD(result);
+		list_del_init(result);
 	}
 	return result;
 }
@@ -417,7 +429,7 @@ static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 	if (asoc->user_frag)
 		frag = min_t(int, frag, asoc->user_frag);
 
-	frag = min_t(int, frag, SCTP_MAX_CHUNK_LEN);
+	frag = WORD_TRUNC(min_t(int, frag, SCTP_MAX_CHUNK_LEN));
 
 	return frag;
 }
@@ -465,9 +477,6 @@ _sctp_walk_fwdtsn((pos), (chunk), ntohs((chunk)->chunk_hdr->length) - sizeof(str
 for (pos = chunk->subh.fwdtsn_hdr->skip;\
      (void *)pos <= (void *)chunk->subh.fwdtsn_hdr->skip + end - sizeof(struct sctp_fwdtsn_skip);\
      pos++)
-
-/* Round an int up to the next multiple of 4.  */
-#define WORD_ROUND(s) (((s)+3)&~3)
 
 /* External references. */
 
@@ -517,25 +526,6 @@ static inline int sctp_phashfn(struct net *net, __u16 lport)
 static inline int sctp_ep_hashfn(struct net *net, __u16 lport)
 {
 	return (net_hash_mix(net) + lport) & (sctp_ep_hashsize - 1);
-}
-
-/* This is the hash function for the association hash table. */
-static inline int sctp_assoc_hashfn(struct net *net, __u16 lport, __u16 rport)
-{
-	int h = (lport << 16) + rport + net_hash_mix(net);
-	h ^= h>>8;
-	return h & (sctp_assoc_hashsize - 1);
-}
-
-/* This is the hash function for the association hash table.  This is
- * not used yet, but could be used as a better hash function when
- * we have a vtag.
- */
-static inline int sctp_vtag_hashfn(__u16 lport, __u16 rport, __u32 vtag)
-{
-	int h = (lport << 16) + rport;
-	h ^= vtag;
-	return h & (sctp_assoc_hashsize - 1);
 }
 
 #define sctp_for_each_hentry(epb, head) \

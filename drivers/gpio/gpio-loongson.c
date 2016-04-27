@@ -110,6 +110,6 @@ static struct gpio_chip loongson_chip = {
 
 static int __init loongson_gpio_setup(void)
 {
-	return gpiochip_add(&loongson_chip);
+	return gpiochip_add_data(&loongson_chip, NULL);
 }
 postcore_initcall(loongson_gpio_setup);

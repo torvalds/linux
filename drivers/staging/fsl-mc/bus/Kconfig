@@ -7,8 +7,9 @@
 #
 
 config FSL_MC_BUS
-	tristate "Freescale Management Complex (MC) bus driver"
+	bool "Freescale Management Complex (MC) bus driver"
 	depends on OF && ARM64
+	select GENERIC_MSI_IRQ_DOMAIN
 	help
 	  Driver to enable the bus infrastructure for the Freescale
           QorIQ Management Complex (fsl-mc). The fsl-mc is a hardware

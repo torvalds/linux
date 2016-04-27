@@ -300,7 +300,7 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
  * When CONFIG_PPC_INDIRECT_MMIO is set, the platform can provide hooks
  * on all MMIOs. (Note that this is all 64 bits only for now)
  *
- * To help platforms who may need to differenciate MMIO addresses in
+ * To help platforms who may need to differentiate MMIO addresses in
  * their hooks, a bitfield is reserved for use by the platform near the
  * top of MMIO addresses (not PIO, those have to cope the hard way).
  *
@@ -385,6 +385,17 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 {
 	*(volatile unsigned long __force *)PCI_FIX_ADDR(addr) = v;
 }
+
+/*
+ * Real mode version of the above. stdcix is only supposed to be used
+ * in hypervisor real mode as per the architecture spec.
+ */
+static inline void __raw_rm_writeq(u64 val, volatile void __iomem *paddr)
+{
+	__asm__ __volatile__("stdcix %0,0,%1"
+		: : "r" (val), "r" (paddr) : "memory");
+}
+
 #endif /* __powerpc64__ */
 
 /*

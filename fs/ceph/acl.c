@@ -49,10 +49,10 @@ struct posix_acl *ceph_get_acl(struct inode *inode, int type)
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		name = POSIX_ACL_XATTR_ACCESS;
+		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
-		name = POSIX_ACL_XATTR_DEFAULT;
+		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
 		BUG();
@@ -92,7 +92,7 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		name = POSIX_ACL_XATTR_ACCESS;
+		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		if (acl) {
 			ret = posix_acl_equiv_mode(acl, &new_mode);
 			if (ret < 0)
@@ -106,7 +106,7 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			ret = acl ? -EINVAL : 0;
 			goto out;
 		}
-		name = POSIX_ACL_XATTR_DEFAULT;
+		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
 		ret = -EINVAL;
@@ -202,11 +202,11 @@ int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
 	ceph_pagelist_encode_32(pagelist, acl && default_acl ? 2 : 1);
 
 	if (acl) {
-		size_t len = strlen(POSIX_ACL_XATTR_ACCESS);
+		size_t len = strlen(XATTR_NAME_POSIX_ACL_ACCESS);
 		err = ceph_pagelist_reserve(pagelist, len + val_size1 + 8);
 		if (err)
 			goto out_err;
-		ceph_pagelist_encode_string(pagelist, POSIX_ACL_XATTR_ACCESS,
+		ceph_pagelist_encode_string(pagelist, XATTR_NAME_POSIX_ACL_ACCESS,
 					    len);
 		err = posix_acl_to_xattr(&init_user_ns, acl,
 					 tmp_buf, val_size1);
@@ -216,12 +216,12 @@ int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
 		ceph_pagelist_append(pagelist, tmp_buf, val_size1);
 	}
 	if (default_acl) {
-		size_t len = strlen(POSIX_ACL_XATTR_DEFAULT);
+		size_t len = strlen(XATTR_NAME_POSIX_ACL_DEFAULT);
 		err = ceph_pagelist_reserve(pagelist, len + val_size2 + 8);
 		if (err)
 			goto out_err;
 		err = ceph_pagelist_encode_string(pagelist,
-						  POSIX_ACL_XATTR_DEFAULT, len);
+						  XATTR_NAME_POSIX_ACL_DEFAULT, len);
 		err = posix_acl_to_xattr(&init_user_ns, default_acl,
 					 tmp_buf, val_size2);
 		if (err < 0)

@@ -37,7 +37,7 @@ void rcu_cpu_stall_reset(void);
 /*
  * Note a virtualization-based context switch.  This is simply a
  * wrapper around rcu_note_context_switch(), which allows TINY_RCU
- * to save a few bytes.
+ * to save a few bytes. The caller must have disabled interrupts.
  */
 static inline void rcu_virt_note_context_switch(int cpu)
 {
@@ -48,7 +48,7 @@ void synchronize_rcu_bh(void);
 void synchronize_sched_expedited(void);
 void synchronize_rcu_expedited(void);
 
-void kfree_call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
+void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
 
 /**
  * synchronize_rcu_bh_expedited - Brute-force RCU-bh grace period
@@ -97,6 +97,8 @@ void rcu_idle_enter(void);
 void rcu_idle_exit(void);
 void rcu_irq_enter(void);
 void rcu_irq_exit(void);
+void rcu_irq_enter_irqson(void);
+void rcu_irq_exit_irqson(void);
 
 void exit_rcu(void);
 

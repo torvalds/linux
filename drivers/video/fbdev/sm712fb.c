@@ -28,9 +28,7 @@
 #include <linux/console.h>
 #include <linux/screen_info.h>
 
-#ifdef CONFIG_PM
 #include <linux/pm.h>
-#endif
 
 #include "sm712.h"
 
@@ -1545,8 +1543,7 @@ static void smtcfb_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-#ifdef CONFIG_PM
-static int smtcfb_pci_suspend(struct device *device)
+static int __maybe_unused smtcfb_pci_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct smtcfb_info *sfb;
@@ -1569,7 +1566,7 @@ static int smtcfb_pci_suspend(struct device *device)
 	return 0;
 }
 
-static int smtcfb_pci_resume(struct device *device)
+static int __maybe_unused smtcfb_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct smtcfb_info *sfb;
@@ -1610,20 +1607,13 @@ static int smtcfb_pci_resume(struct device *device)
 }
 
 static SIMPLE_DEV_PM_OPS(sm7xx_pm_ops, smtcfb_pci_suspend, smtcfb_pci_resume);
-#define SM7XX_PM_OPS (&sm7xx_pm_ops)
-
-#else  /* !CONFIG_PM */
-
-#define SM7XX_PM_OPS NULL
-
-#endif /* !CONFIG_PM */
 
 static struct pci_driver smtcfb_driver = {
 	.name = "smtcfb",
 	.id_table = smtcfb_pci_table,
 	.probe = smtcfb_pci_probe,
 	.remove = smtcfb_pci_remove,
-	.driver.pm  = SM7XX_PM_OPS,
+	.driver.pm  = &sm7xx_pm_ops,
 };
 
 static int __init sm712fb_init(void)

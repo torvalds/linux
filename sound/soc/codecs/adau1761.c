@@ -1,5 +1,5 @@
 /*
- * Driver for ADAU1761/ADAU1461/ADAU1761/ADAU1961 codec
+ * Driver for ADAU1361/ADAU1461/ADAU1761/ADAU1961 codec
  *
  * Copyright 2011-2013 Analog Devices Inc.
  * Author: Lars-Peter Clausen <lars@metafoo.de>
@@ -456,13 +456,17 @@ static int adau1761_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
+		regcache_cache_only(adau->regmap, false);
 		regmap_update_bits(adau->regmap, ADAU17X1_CLOCK_CONTROL,
 			ADAU17X1_CLOCK_CONTROL_SYSCLK_EN,
 			ADAU17X1_CLOCK_CONTROL_SYSCLK_EN);
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
+			regcache_sync(adau->regmap);
 		break;
 	case SND_SOC_BIAS_OFF:
 		regmap_update_bits(adau->regmap, ADAU17X1_CLOCK_CONTROL,
 			ADAU17X1_CLOCK_CONTROL_SYSCLK_EN, 0);
+		regcache_cache_only(adau->regmap, true);
 		break;
 
 	}
@@ -782,6 +786,10 @@ int adau1761_probe(struct device *dev, struct regmap *regmap,
 	ret = adau17x1_probe(dev, regmap, type, switch_mode, firmware_name);
 	if (ret)
 		return ret;
+
+	/* Enable cache only mode as we could miss writes before bias level
+	 * reaches standby and the core clock is enabled */
+	regcache_cache_only(regmap, true);
 
 	return snd_soc_register_codec(dev, &adau1761_codec_driver, dai_drv, 1);
 }

@@ -29,6 +29,14 @@ Required properties:
 Optional properties:
   - brcm,serial-leds : Boolean, enables Serial LEDs.
     Default : false
+  - brcm,serial-mux : Boolean, enables Serial LEDs multiplexing.
+    Default : false
+  - brcm,serial-clk-low : Boolean, makes clock signal active low.
+    Default : false
+  - brcm,serial-dat-low : Boolean, makes data signal active low.
+    Default : false
+  - brcm,serial-shift-inv : Boolean, inverts Serial LEDs shift direction.
+    Default : false
 
 Each LED is represented as a sub-node of the brcm,bcm6328-leds device.
 
@@ -110,6 +118,8 @@ Scenario 2 : BCM63268 with Serial/GPHY0 LEDs
 		#size-cells = <0>;
 		reg = <0x10001900 0x24>;
 		brcm,serial-leds;
+		brcm,serial-dat-low;
+		brcm,serial-shift-inv;
 
 		gphy0_spd0@0 {
 			reg = <0>;

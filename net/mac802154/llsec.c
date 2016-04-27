@@ -17,9 +17,9 @@
 #include <linux/err.h>
 #include <linux/bug.h>
 #include <linux/completion.h>
-#include <linux/crypto.h>
 #include <linux/ieee802154.h>
 #include <crypto/aead.h>
+#include <crypto/skcipher.h>
 
 #include "ieee802154_i.h"
 #include "llsec.h"
@@ -55,7 +55,7 @@ void mac802154_llsec_destroy(struct mac802154_llsec *sec)
 
 		msl = container_of(sl, struct mac802154_llsec_seclevel, level);
 		list_del(&sl->list);
-		kfree(msl);
+		kzfree(msl);
 	}
 
 	list_for_each_entry_safe(dev, dn, &sec->table.devices, list) {
@@ -72,7 +72,7 @@ void mac802154_llsec_destroy(struct mac802154_llsec *sec)
 		mkey = container_of(key->key, struct mac802154_llsec_key, key);
 		list_del(&key->list);
 		llsec_key_put(mkey);
-		kfree(key);
+		kzfree(key);
 	}
 }
 
@@ -144,24 +144,24 @@ llsec_key_alloc(const struct ieee802154_llsec_key *template)
 			goto err_tfm;
 	}
 
-	key->tfm0 = crypto_alloc_blkcipher("ctr(aes)", 0, CRYPTO_ALG_ASYNC);
+	key->tfm0 = crypto_alloc_skcipher("ctr(aes)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(key->tfm0))
 		goto err_tfm;
 
-	if (crypto_blkcipher_setkey(key->tfm0, template->key,
-				    IEEE802154_LLSEC_KEY_SIZE))
+	if (crypto_skcipher_setkey(key->tfm0, template->key,
+				   IEEE802154_LLSEC_KEY_SIZE))
 		goto err_tfm0;
 
 	return key;
 
 err_tfm0:
-	crypto_free_blkcipher(key->tfm0);
+	crypto_free_skcipher(key->tfm0);
 err_tfm:
 	for (i = 0; i < ARRAY_SIZE(key->tfm); i++)
 		if (key->tfm[i])
 			crypto_free_aead(key->tfm[i]);
 
-	kfree(key);
+	kzfree(key);
 	return NULL;
 }
 
@@ -175,8 +175,8 @@ static void llsec_key_release(struct kref *ref)
 	for (i = 0; i < ARRAY_SIZE(key->tfm); i++)
 		crypto_free_aead(key->tfm[i]);
 
-	crypto_free_blkcipher(key->tfm0);
-	kfree(key);
+	crypto_free_skcipher(key->tfm0);
+	kzfree(key);
 }
 
 static struct mac802154_llsec_key*
@@ -267,7 +267,7 @@ int mac802154_llsec_key_add(struct mac802154_llsec *sec,
 	return 0;
 
 fail:
-	kfree(new);
+	kzfree(new);
 	return -ENOMEM;
 }
 
@@ -347,10 +347,10 @@ static void llsec_dev_free(struct mac802154_llsec_device *dev)
 				      devkey);
 
 		list_del(&pos->list);
-		kfree(devkey);
+		kzfree(devkey);
 	}
 
-	kfree(dev);
+	kzfree(dev);
 }
 
 int mac802154_llsec_dev_add(struct mac802154_llsec *sec,
@@ -401,6 +401,7 @@ int mac802154_llsec_dev_del(struct mac802154_llsec *sec, __le64 device_addr)
 
 	hash_del_rcu(&pos->bucket_s);
 	hash_del_rcu(&pos->bucket_hw);
+	list_del_rcu(&pos->dev.list);
 	call_rcu(&pos->rcu, llsec_dev_free_rcu);
 
 	return 0;
@@ -619,15 +620,17 @@ llsec_do_encrypt_unauth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 {
 	u8 iv[16];
 	struct scatterlist src;
-	struct blkcipher_desc req = {
-		.tfm = key->tfm0,
-		.info = iv,
-		.flags = 0,
-	};
+	SKCIPHER_REQUEST_ON_STACK(req, key->tfm0);
+	int err;
 
 	llsec_geniv(iv, sec->params.hwaddr, &hdr->sec);
 	sg_init_one(&src, skb->data, skb->len);
-	return crypto_blkcipher_encrypt_iv(&req, &src, &src, skb->len);
+	skcipher_request_set_tfm(req, key->tfm0);
+	skcipher_request_set_callback(req, 0, NULL, NULL);
+	skcipher_request_set_crypt(req, &src, &src, skb->len, iv);
+	err = crypto_skcipher_encrypt(req);
+	skcipher_request_zero(req);
+	return err;
 }
 
 static struct crypto_aead*
@@ -680,7 +683,7 @@ llsec_do_encrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 
 	rc = crypto_aead_encrypt(req);
 
-	kfree(req);
+	kzfree(req);
 
 	return rc;
 }
@@ -829,11 +832,8 @@ llsec_do_decrypt_unauth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 	unsigned char *data;
 	int datalen;
 	struct scatterlist src;
-	struct blkcipher_desc req = {
-		.tfm = key->tfm0,
-		.info = iv,
-		.flags = 0,
-	};
+	SKCIPHER_REQUEST_ON_STACK(req, key->tfm0);
+	int err;
 
 	llsec_geniv(iv, dev_addr, &hdr->sec);
 	data = skb_mac_header(skb) + skb->mac_len;
@@ -841,7 +841,13 @@ llsec_do_decrypt_unauth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 
 	sg_init_one(&src, data, datalen);
 
-	return crypto_blkcipher_decrypt_iv(&req, &src, &src, datalen);
+	skcipher_request_set_tfm(req, key->tfm0);
+	skcipher_request_set_callback(req, 0, NULL, NULL);
+	skcipher_request_set_crypt(req, &src, &src, datalen, iv);
+
+	err = crypto_skcipher_decrypt(req);
+	skcipher_request_zero(req);
+	return err;
 }
 
 static int
@@ -880,7 +886,7 @@ llsec_do_decrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 
 	rc = crypto_aead_decrypt(req);
 
-	kfree(req);
+	kzfree(req);
 	skb_trim(skb, skb->len - authlen);
 
 	return rc;
@@ -920,7 +926,7 @@ llsec_update_devkey_record(struct mac802154_llsec_device *dev,
 		if (!devkey)
 			list_add_rcu(&next->devkey.list, &dev->dev.keys);
 		else
-			kfree(next);
+			kzfree(next);
 
 		spin_unlock_bh(&dev->lock);
 	}

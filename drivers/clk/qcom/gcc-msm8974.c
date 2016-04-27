@@ -31,6 +31,7 @@
 #include "clk-rcg.h"
 #include "clk-branch.h"
 #include "reset.h"
+#include "gdsc.h"
 
 enum {
 	P_XO,
@@ -1964,7 +1965,6 @@ static struct clk_branch gcc_mss_q6_bimc_axi_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_mss_q6_bimc_axi_clk",
-			.flags = CLK_IS_ROOT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2432,6 +2432,14 @@ static struct clk_branch gcc_usb_hsic_system_clk = {
 	},
 };
 
+static struct gdsc usb_hs_hsic_gdsc = {
+	.gdscr = 0x404,
+	.pd = {
+		.name = "usb_hs_hsic",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
 static struct clk_regmap *gcc_msm8974_clocks[] = {
 	[GPLL0] = &gpll0.clkr,
 	[GPLL0_VOTE] = &gpll0_vote,
@@ -2661,6 +2669,10 @@ static const struct qcom_reset_map gcc_msm8974_resets[] = {
 	[GCC_VENUS_RESTART] = { 0x1740 },
 };
 
+static struct gdsc *gcc_msm8974_gdscs[] = {
+	[USB_HS_HSIC_GDSC] = &usb_hs_hsic_gdsc,
+};
+
 static const struct regmap_config gcc_msm8974_regmap_config = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
@@ -2675,6 +2687,8 @@ static const struct qcom_cc_desc gcc_msm8974_desc = {
 	.num_clks = ARRAY_SIZE(gcc_msm8974_clocks),
 	.resets = gcc_msm8974_resets,
 	.num_resets = ARRAY_SIZE(gcc_msm8974_resets),
+	.gdscs = gcc_msm8974_gdscs,
+	.num_gdscs = ARRAY_SIZE(gcc_msm8974_gdscs),
 };
 
 static const struct of_device_id gcc_msm8974_match_table[] = {
@@ -2702,7 +2716,7 @@ static void msm8974_pro_clock_override(void)
 
 static int gcc_msm8974_probe(struct platform_device *pdev)
 {
-	struct clk *clk;
+	int ret;
 	struct device *dev = &pdev->dev;
 	bool pro;
 	const struct of_device_id *id;
@@ -2715,29 +2729,19 @@ static int gcc_msm8974_probe(struct platform_device *pdev)
 	if (pro)
 		msm8974_pro_clock_override();
 
-	/* Temporary until RPM clocks supported */
-	clk = clk_register_fixed_rate(dev, "xo", NULL, CLK_IS_ROOT, 19200000);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_board_clk(dev, "xo_board", "xo", 19200000);
+	if (ret)
+		return ret;
 
-	/* Should move to DT node? */
-	clk = clk_register_fixed_rate(dev, "sleep_clk_src", NULL,
-				      CLK_IS_ROOT, 32768);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_sleep_clk(dev);
+	if (ret)
+		return ret;
 
 	return qcom_cc_probe(pdev, &gcc_msm8974_desc);
 }
 
-static int gcc_msm8974_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver gcc_msm8974_driver = {
 	.probe		= gcc_msm8974_probe,
-	.remove		= gcc_msm8974_remove,
 	.driver		= {
 		.name	= "gcc-msm8974",
 		.of_match_table = gcc_msm8974_match_table,

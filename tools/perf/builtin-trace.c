@@ -17,26 +17,29 @@
  */
 
 #include <traceevent/event-parse.h>
+#include <api/fs/tracing_path.h>
 #include "builtin.h"
 #include "util/color.h"
 #include "util/debug.h"
 #include "util/evlist.h"
-#include "util/exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "util/machine.h"
 #include "util/session.h"
 #include "util/thread.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/strlist.h"
 #include "util/intlist.h"
 #include "util/thread_map.h"
 #include "util/stat.h"
 #include "trace-event.h"
 #include "util/parse-events.h"
+#include "util/bpf-loader.h"
 
 #include <libaudit.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <linux/futex.h>
+#include <linux/err.h>
 
 /* For older distros: */
 #ifndef MAP_STACK
@@ -244,13 +247,14 @@ static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction, void 
 	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
 
 	/* older kernel (e.g., RHEL6) use syscalls:{enter,exit} */
-	if (evsel == NULL)
+	if (IS_ERR(evsel))
 		evsel = perf_evsel__newtp("syscalls", direction);
 
-	if (evsel) {
-		if (perf_evsel__init_syscall_tp(evsel, handler))
-			goto out_delete;
-	}
+	if (IS_ERR(evsel))
+		return NULL;
+
+	if (perf_evsel__init_syscall_tp(evsel, handler))
+		goto out_delete;
 
 	return evsel;
 
@@ -581,6 +585,12 @@ static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, struct sysc
 }
 
 #define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op
+
+static const char *bpf_cmd[] = {
+	"MAP_CREATE", "MAP_LOOKUP_ELEM", "MAP_UPDATE_ELEM", "MAP_DELETE_ELEM",
+	"MAP_GET_NEXT_KEY", "PROG_LOAD",
+};
+static DEFINE_STRARRAY(bpf_cmd);
 
 static const char *epoll_ctl_ops[] = { "ADD", "DEL", "MOD", };
 static DEFINE_STRARRAY_OFFSET(epoll_ctl_ops, 1);
@@ -1008,6 +1018,7 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */
 			     [1] = SCA_ACCMODE,  /* mode */ }, },
 	{ .name	    = "arch_prctl", .errmsg = true, .alias = "prctl", },
+	{ .name	    = "bpf",	    .errmsg = true, STRARRAY(0, cmd, bpf_cmd), },
 	{ .name	    = "brk",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* brk */ }, },
 	{ .name	    = "chdir",	    .errmsg = true,
@@ -1704,18 +1715,22 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
 	sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 
-	if (sc->tp_format == NULL && sc->fmt && sc->fmt->alias) {
+	if (IS_ERR(sc->tp_format) && sc->fmt && sc->fmt->alias) {
 		snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->fmt->alias);
 		sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 	}
 
-	if (sc->tp_format == NULL)
+	if (IS_ERR(sc->tp_format))
 		return -1;
 
 	sc->args = sc->tp_format->format.fields;
 	sc->nr_args = sc->tp_format->format.nr_fields;
-	/* drop nr field - not relevant here; does not exist on older kernels */
-	if (sc->args && strcmp(sc->args->name, "nr") == 0) {
+	/*
+	 * We need to check and discard the first variable '__syscall_nr'
+	 * or 'nr' that mean the syscall number. It is needless here.
+	 * So drop '__syscall_nr' or 'nr' field but does not exist on older kernels.
+	 */
+	if (sc->args && (!strcmp(sc->args->name, "__syscall_nr") || !strcmp(sc->args->name, "nr"))) {
 		sc->args = sc->args->next;
 		--sc->nr_args;
 	}
@@ -2167,6 +2182,37 @@ out_dump:
 	return 0;
 }
 
+static void bpf_output__printer(enum binary_printer_ops op,
+				unsigned int val, void *extra)
+{
+	FILE *output = extra;
+	unsigned char ch = (unsigned char)val;
+
+	switch (op) {
+	case BINARY_PRINT_CHAR_DATA:
+		fprintf(output, "%c", isprint(ch) ? ch : '.');
+		break;
+	case BINARY_PRINT_DATA_BEGIN:
+	case BINARY_PRINT_LINE_BEGIN:
+	case BINARY_PRINT_ADDR:
+	case BINARY_PRINT_NUM_DATA:
+	case BINARY_PRINT_NUM_PAD:
+	case BINARY_PRINT_SEP:
+	case BINARY_PRINT_CHAR_PAD:
+	case BINARY_PRINT_LINE_END:
+	case BINARY_PRINT_DATA_END:
+	default:
+		break;
+	}
+}
+
+static void bpf_output__fprintf(struct trace *trace,
+				struct perf_sample *sample)
+{
+	print_binary(sample->raw_data, sample->raw_size, 8,
+		     bpf_output__printer, trace->output);
+}
+
 static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample)
@@ -2179,7 +2225,9 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 
 	fprintf(trace->output, "%s:", evsel->name);
 
-	if (evsel->tp_format) {
+	if (perf_evsel__is_bpf_output(evsel)) {
+		bpf_output__fprintf(trace, sample);
+	} else if (evsel->tp_format) {
 		event_format__fprintf(evsel->tp_format, sample->cpu,
 				      sample->raw_data, sample->raw_size,
 				      trace->output);
@@ -2208,11 +2256,10 @@ static void print_location(FILE *f, struct perf_sample *sample,
 
 static int trace__pgfault(struct trace *trace,
 			  struct perf_evsel *evsel,
-			  union perf_event *event,
+			  union perf_event *event __maybe_unused,
 			  struct perf_sample *sample)
 {
 	struct thread *thread;
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct addr_location al;
 	char map_type = 'd';
 	struct thread_trace *ttrace;
@@ -2231,7 +2278,7 @@ static int trace__pgfault(struct trace *trace,
 	if (trace->summary_only)
 		goto out;
 
-	thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
+	thread__find_addr_location(thread, sample->cpumode, MAP__FUNCTION,
 			      sample->ip, &al);
 
 	trace__fprintf_entry_head(trace, thread, 0, sample->time, trace->output);
@@ -2244,11 +2291,11 @@ static int trace__pgfault(struct trace *trace,
 
 	fprintf(trace->output, "] => ");
 
-	thread__find_addr_location(thread, cpumode, MAP__VARIABLE,
+	thread__find_addr_location(thread, sample->cpumode, MAP__VARIABLE,
 				   sample->addr, &al);
 
 	if (!al.map) {
-		thread__find_addr_location(thread, cpumode,
+		thread__find_addr_location(thread, sample->cpumode,
 					   MAP__FUNCTION, sample->addr, &al);
 
 		if (al.map)
@@ -2389,7 +2436,8 @@ static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp);
 static bool perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = perf_evsel__newtp("probe", "vfs_getname");
-	if (evsel == NULL)
+
+	if (IS_ERR(evsel))
 		return false;
 
 	if (perf_evsel__field(evsel, "pathname") == NULL) {
@@ -2575,6 +2623,16 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_open;
 
+	err = bpf__apply_obj_config();
+	if (err) {
+		char errbuf[BUFSIZ];
+
+		bpf__strerror_apply_obj_config(err, errbuf, sizeof(errbuf));
+		pr_err("ERROR: Apply config to BPF failed: %s\n",
+			 errbuf);
+		goto out_error_open;
+	}
+
 	/*
 	 * Better not use !target__has_task() here because we need to cover the
 	 * case where no threads were specified in the command line, but a
@@ -2686,11 +2744,11 @@ out_delete_evlist:
 	char errbuf[BUFSIZ];
 
 out_error_sched_stat_runtime:
-	debugfs__strerror_open_tp(errno, errbuf, sizeof(errbuf), "sched", "sched_stat_runtime");
+	tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "sched", "sched_stat_runtime");
 	goto out_error;
 
 out_error_raw_syscalls:
-	debugfs__strerror_open_tp(errno, errbuf, sizeof(errbuf), "raw_syscalls", "sys_(enter|exit)");
+	tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "raw_syscalls", "sys_(enter|exit)");
 	goto out_error;
 
 out_error_mmap:

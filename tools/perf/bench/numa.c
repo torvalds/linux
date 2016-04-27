@@ -7,7 +7,7 @@
 #include "../perf.h"
 #include "../builtin.h"
 #include "../util/util.h"
-#include "../util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "../util/cloexec.h"
 
 #include "bench.h"
@@ -164,8 +164,8 @@ static const struct option options[] = {
 	OPT_STRING('L', "mb_proc_locked", &p0.mb_proc_locked_str,"MB", "process serialized/locked memory access (MBs), <= process_memory"),
 	OPT_STRING('T', "mb_thread"	, &p0.mb_thread_str,	"MB", "thread  memory (MBs)"),
 
-	OPT_UINTEGER('l', "nr_loops"	, &p0.nr_loops,		"max number of loops to run"),
-	OPT_UINTEGER('s', "nr_secs"	, &p0.nr_secs,		"max number of seconds to run"),
+	OPT_UINTEGER('l', "nr_loops"	, &p0.nr_loops,		"max number of loops to run (default: unlimited)"),
+	OPT_UINTEGER('s', "nr_secs"	, &p0.nr_secs,		"max number of seconds to run (default: 5 secs)"),
 	OPT_UINTEGER('u', "usleep"	, &p0.sleep_usecs,	"usecs to sleep per loop iteration"),
 
 	OPT_BOOLEAN('R', "data_reads"	, &p0.data_reads,	"access the data via writes (can be mixed with -W)"),
@@ -293,7 +293,7 @@ static void bind_to_memnode(int node)
 	if (node == -1)
 		return;
 
-	BUG_ON(g->p.nr_nodes > (int)sizeof(nodemask));
+	BUG_ON(g->p.nr_nodes > (int)sizeof(nodemask)*8);
 	nodemask = 1L << node;
 
 	ret = set_mempolicy(MPOL_BIND, &nodemask, sizeof(nodemask)*8);

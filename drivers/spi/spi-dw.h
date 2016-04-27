@@ -130,7 +130,7 @@ struct dw_spi {
 	struct dma_chan		*rxchan;
 	unsigned long		dma_chan_busy;
 	dma_addr_t		dma_addr; /* phy address of the Data register */
-	struct dw_spi_dma_ops	*dma_ops;
+	const struct dw_spi_dma_ops *dma_ops;
 	void			*dma_tx;
 	void			*dma_rx;
 
@@ -223,6 +223,12 @@ static inline void spi_reset_chip(struct dw_spi *dws)
 	spi_enable_chip(dws, 0);
 	spi_mask_intr(dws, 0xff);
 	spi_enable_chip(dws, 1);
+}
+
+static inline void spi_shutdown_chip(struct dw_spi *dws)
+{
+	spi_enable_chip(dws, 0);
+	spi_set_clk(dws, 0);
 }
 
 /*

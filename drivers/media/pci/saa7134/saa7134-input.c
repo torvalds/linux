@@ -835,6 +835,13 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0xffff;
 		raw_decode   = true;
 		break;
+	case SAA7134_BOARD_LEADTEK_WINFAST_TV2100_FM:
+		ir_codes     = RC_MAP_LEADTEK_Y04G0051;
+		mask_keydown = 0x0040000;	/* Enable GPIO18 line on both edges */
+		mask_keyup   = 0x0040000;
+		mask_keycode = 0xffff;
+		raw_decode   = true;
+		break;
 	}
 	if (NULL == ir_codes) {
 		pr_err("Oops: IR config error [card=%d]\n", dev->board);
@@ -967,6 +974,27 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		input_dbg("probe 0x%02x @ %s: %s\n",
 			msg_msi.addr, dev->i2c_adap.name,
 			(1 == rc) ? "yes" : "no");
+		break;
+	case SAA7134_BOARD_SNAZIO_TVPVR_PRO:
+		dev->init_data.name = "SnaZio* TVPVR PRO";
+		dev->init_data.get_key = get_key_msi_tvanywhere_plus;
+		dev->init_data.ir_codes = RC_MAP_MSI_TVANYWHERE_PLUS;
+		/*
+		 * MSI TV@nyware Plus requires more frequent polling
+		 * otherwise it will miss some keypresses
+		 */
+		dev->init_data.polling_interval = 50;
+		info.addr = 0x30;
+		/*
+		 * MSI TV@nywhere Plus controller doesn't seem to
+		 *  respond to probes unless we read something from
+		 *  an existing device. Weird...
+		 * REVISIT: might no longer be needed
+		 */
+		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
+		input_dbg("probe 0x%02x @ %s: %s\n",
+			msg_msi.addr, dev->i2c_adap.name,
+			(rc == 1) ? "yes" : "no");
 		break;
 	case SAA7134_BOARD_KWORLD_PC150U:
 		/* copied and modified from MSI TV@nywhere Plus */

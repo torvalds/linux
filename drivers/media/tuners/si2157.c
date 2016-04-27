@@ -168,6 +168,7 @@ static int si2157_init(struct dvb_frontend *fe)
 		len = fw->data[fw->size - remaining];
 		if (len > SI2157_ARGLEN) {
 			dev_err(&client->dev, "Bad firmware length\n");
+			ret = -EINVAL;
 			goto err_release_firmware;
 		}
 		memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1], len);
@@ -363,8 +364,8 @@ static int si2157_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 static const struct dvb_tuner_ops si2157_ops = {
 	.info = {
 		.name           = "Silicon Labs Si2146/2147/2148/2157/2158",
-		.frequency_min  = 55000000,
-		.frequency_max  = 862000000,
+		.frequency_min  = 42000000,
+		.frequency_max  = 870000000,
 	},
 
 	.init = si2157_init,
@@ -402,7 +403,7 @@ err:
 }
 
 static int si2157_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+			const struct i2c_device_id *id)
 {
 	struct si2157_config *cfg = client->dev.platform_data;
 	struct dvb_frontend *fe = cfg->fe;
@@ -437,6 +438,31 @@ static int si2157_probe(struct i2c_client *client,
 	memcpy(&fe->ops.tuner_ops, &si2157_ops, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = client;
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+	if (cfg->mdev) {
+		dev->mdev = cfg->mdev;
+
+		dev->ent.name = KBUILD_MODNAME;
+		dev->ent.function = MEDIA_ENT_F_TUNER;
+
+		dev->pad[TUNER_PAD_RF_INPUT].flags = MEDIA_PAD_FL_SINK;
+		dev->pad[TUNER_PAD_OUTPUT].flags = MEDIA_PAD_FL_SOURCE;
+		dev->pad[TUNER_PAD_AUD_OUT].flags = MEDIA_PAD_FL_SOURCE;
+
+		ret = media_entity_pads_init(&dev->ent, TUNER_NUM_PADS,
+					     &dev->pad[0]);
+
+		if (ret)
+			goto err_kfree;
+
+		ret = media_device_register_entity(cfg->mdev, &dev->ent);
+		if (ret) {
+			media_entity_cleanup(&dev->ent);
+			goto err_kfree;
+		}
+	}
+#endif
+
 	dev_info(&client->dev, "Silicon Labs %s successfully attached\n",
 			dev->chiptype == SI2157_CHIPTYPE_SI2146 ?
 			"Si2146" : "Si2147/2148/2157/2158");
@@ -456,6 +482,14 @@ static int si2157_remove(struct i2c_client *client)
 	struct dvb_frontend *fe = dev->fe;
 
 	dev_dbg(&client->dev, "\n");
+
+	/* stop statistics polling */
+	cancel_delayed_work_sync(&dev->stat_work);
+
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	if (dev->mdev)
+		media_device_unregister_entity(&dev->ent);
+#endif
 
 	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = NULL;

@@ -31,7 +31,6 @@
 struct m25p {
 	struct spi_device	*spi;
 	struct spi_nor		spi_nor;
-	struct mtd_info		mtd;
 	u8			command[MAX_CMD_SIZE];
 };
 
@@ -62,8 +61,7 @@ static int m25p_cmdsz(struct spi_nor *nor)
 	return 1 + nor->addr_width;
 }
 
-static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len,
-			int wr_en)
+static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 {
 	struct m25p *flash = nor->priv;
 	struct spi_device *spi = flash->spi;
@@ -154,22 +152,6 @@ static int m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 	return 0;
 }
 
-static int m25p80_erase(struct spi_nor *nor, loff_t offset)
-{
-	struct m25p *flash = nor->priv;
-
-	dev_dbg(nor->dev, "%dKiB at 0x%08x\n",
-		flash->mtd.erasesize / 1024, (u32)offset);
-
-	/* Set up command buffer. */
-	flash->command[0] = nor->erase_opcode;
-	m25p_addr2cmd(nor, offset, flash->command);
-
-	spi_write(flash->spi, flash->command, m25p_cmdsz(nor));
-
-	return 0;
-}
-
 /*
  * board specific setup should have ensured the SPI clock used here
  * matches what the READ command supports, at least until this driver
@@ -177,12 +159,11 @@ static int m25p80_erase(struct spi_nor *nor, loff_t offset)
  */
 static int m25p_probe(struct spi_device *spi)
 {
-	struct mtd_part_parser_data	ppdata;
 	struct flash_platform_data	*data;
 	struct m25p *flash;
 	struct spi_nor *nor;
 	enum read_mode mode = SPI_NOR_NORMAL;
-	char *flash_name = NULL;
+	char *flash_name;
 	int ret;
 
 	data = dev_get_platdata(&spi->dev);
@@ -196,16 +177,14 @@ static int m25p_probe(struct spi_device *spi)
 	/* install the hooks */
 	nor->read = m25p80_read;
 	nor->write = m25p80_write;
-	nor->erase = m25p80_erase;
 	nor->write_reg = m25p80_write_reg;
 	nor->read_reg = m25p80_read_reg;
 
 	nor->dev = &spi->dev;
-	nor->mtd = &flash->mtd;
+	spi_nor_set_flash_node(nor, spi->dev.of_node);
 	nor->priv = flash;
 
 	spi_set_drvdata(spi, flash);
-	flash->mtd.priv = nor;
 	flash->spi = spi;
 
 	if (spi->mode & SPI_RX_QUAD)
@@ -214,7 +193,7 @@ static int m25p_probe(struct spi_device *spi)
 		mode = SPI_NOR_DUAL;
 
 	if (data && data->name)
-		flash->mtd.name = data->name;
+		nor->mtd.name = data->name;
 
 	/* For some (historical?) reason many platforms provide two different
 	 * names in flash_platform_data: "name" and "type". Quite often name is
@@ -223,6 +202,8 @@ static int m25p_probe(struct spi_device *spi)
 	 */
 	if (data && data->type)
 		flash_name = data->type;
+	else if (!strcmp(spi->modalias, "spi-nor"))
+		flash_name = NULL; /* auto-detect */
 	else
 		flash_name = spi->modalias;
 
@@ -230,11 +211,8 @@ static int m25p_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ppdata.of_node = spi->dev.of_node;
-
-	return mtd_device_parse_register(&flash->mtd, NULL, &ppdata,
-			data ? data->parts : NULL,
-			data ? data->nr_parts : 0);
+	return mtd_device_register(&nor->mtd, data ? data->parts : NULL,
+				   data ? data->nr_parts : 0);
 }
 
 
@@ -243,7 +221,7 @@ static int m25p_remove(struct spi_device *spi)
 	struct m25p	*flash = spi_get_drvdata(spi);
 
 	/* Clean up MTD stuff. */
-	return mtd_device_unregister(&flash->mtd);
+	return mtd_device_unregister(&flash->spi_nor.mtd);
 }
 
 /*
@@ -260,14 +238,21 @@ static int m25p_remove(struct spi_device *spi)
  */
 static const struct spi_device_id m25p_ids[] = {
 	/*
+	 * Allow non-DT platform devices to bind to the "spi-nor" modalias, and
+	 * hack around the fact that the SPI core does not provide uevent
+	 * matching for .of_match_table
+	 */
+	{"spi-nor"},
+
+	/*
 	 * Entries not used in DTs that should be safe to drop after replacing
-	 * them with "nor-jedec" in platform data.
+	 * them with "spi-nor" in platform data.
 	 */
 	{"s25sl064a"},	{"w25x16"},	{"m25p10"},	{"m25px64"},
 
 	/*
-	 * Entries that were used in DTs without "nor-jedec" fallback and should
-	 * be kept for backward compatibility.
+	 * Entries that were used in DTs without "jedec,spi-nor" fallback and
+	 * should be kept for backward compatibility.
 	 */
 	{"at25df321a"},	{"at25df641"},	{"at26df081a"},
 	{"mr25h256"},
@@ -304,7 +289,6 @@ MODULE_DEVICE_TABLE(of, m25p_of_table);
 static struct spi_driver m25p80_driver = {
 	.driver = {
 		.name	= "m25p80",
-		.owner	= THIS_MODULE,
 		.of_match_table = m25p_of_table,
 	},
 	.id_table	= m25p_ids,

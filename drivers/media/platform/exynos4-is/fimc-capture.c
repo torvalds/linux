@@ -24,7 +24,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mem2mem.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "common.h"
@@ -103,7 +103,7 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 	/* Release unused buffers */
 	while (!suspend && !list_empty(&cap->pending_buf_q)) {
 		buf = fimc_pending_queue_pop(cap);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	/* If suspending put unused buffers onto pending queue */
 	while (!list_empty(&cap->active_buf_q)) {
@@ -111,7 +111,7 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 		if (suspend)
 			fimc_pending_queue_add(cap, buf);
 		else
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
 	fimc_hw_reset(fimc);
@@ -183,8 +183,6 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
 	struct v4l2_subdev *csis = p->subdevs[IDX_CSIS];
 	struct fimc_frame *f = &cap->ctx->d_frame;
 	struct fimc_vid_buffer *v_buf;
-	struct timeval *tv;
-	struct timespec ts;
 
 	if (test_and_clear_bit(ST_CAPT_SHUT, &fimc->state)) {
 		wake_up(&fimc->irq_queue);
@@ -193,16 +191,12 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
 
 	if (!list_empty(&cap->active_buf_q) &&
 	    test_bit(ST_CAPT_RUN, &fimc->state) && deq_buf) {
-		ktime_get_real_ts(&ts);
-
 		v_buf = fimc_active_queue_pop(cap);
 
-		tv = &v_buf->vb.v4l2_buf.timestamp;
-		tv->tv_sec = ts.tv_sec;
-		tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
-		v_buf->vb.v4l2_buf.sequence = cap->frame_count++;
+		v_buf->vb.vb2_buf.timestamp = ktime_get_ns();
+		v_buf->vb.sequence = cap->frame_count++;
 
-		vb2_buffer_done(&v_buf->vb, VB2_BUF_STATE_DONE);
+		vb2_buffer_done(&v_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 
 	if (!list_empty(&cap->pending_buf_q)) {
@@ -233,7 +227,7 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
 		list_for_each_entry(v_buf, &cap->active_buf_q, list) {
 			if (v_buf->index != index)
 				continue;
-			vaddr = vb2_plane_vaddr(&v_buf->vb, plane);
+			vaddr = vb2_plane_vaddr(&v_buf->vb.vb2_buf, plane);
 			v4l2_subdev_call(csis, video, s_rx_buffer,
 					 vaddr, &size);
 			break;
@@ -338,42 +332,42 @@ int fimc_capture_resume(struct fimc_dev *fimc)
 		if (list_empty(&vid_cap->pending_buf_q))
 			break;
 		buf = fimc_pending_queue_pop(vid_cap);
-		buffer_queue(&buf->vb);
+		buffer_queue(&buf->vb.vb2_buf);
 	}
 	return 0;
 
 }
 
-static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
+static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *num_buffers, unsigned int *num_planes,
 		       unsigned int sizes[], void *allocators[])
 {
-	const struct v4l2_pix_format_mplane *pixm = NULL;
 	struct fimc_ctx *ctx = vq->drv_priv;
 	struct fimc_frame *frame = &ctx->d_frame;
 	struct fimc_fmt *fmt = frame->fmt;
-	unsigned long wh;
+	unsigned long wh = frame->f_width * frame->f_height;
 	int i;
-
-	if (pfmt) {
-		pixm = &pfmt->fmt.pix_mp;
-		fmt = fimc_find_format(&pixm->pixelformat, NULL,
-				       FMT_FLAGS_CAM | FMT_FLAGS_M2M, -1);
-		wh = pixm->width * pixm->height;
-	} else {
-		wh = frame->f_width * frame->f_height;
-	}
 
 	if (fmt == NULL)
 		return -EINVAL;
+
+	if (*num_planes) {
+		if (*num_planes != fmt->memplanes)
+			return -EINVAL;
+		for (i = 0; i < *num_planes; i++) {
+			if (sizes[i] < (wh * fmt->depth[i]) / 8)
+				return -EINVAL;
+			allocators[i] = ctx->fimc_dev->alloc_ctx;
+		}
+		return 0;
+	}
 
 	*num_planes = fmt->memplanes;
 
 	for (i = 0; i < fmt->memplanes; i++) {
 		unsigned int size = (wh * fmt->depth[i]) / 8;
-		if (pixm)
-			sizes[i] = max(size, pixm->plane_fmt[i].sizeimage);
-		else if (fimc_fmt_is_user_defined(fmt->color))
+
+		if (fimc_fmt_is_user_defined(fmt->color))
 			sizes[i] = frame->payload[i];
 		else
 			sizes[i] = max_t(u32, size, frame->payload[i]);
@@ -410,8 +404,9 @@ static int buffer_prepare(struct vb2_buffer *vb)
 
 static void buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct fimc_vid_buffer *buf
-		= container_of(vb, struct fimc_vid_buffer, vb);
+		= container_of(vbuf, struct fimc_vid_buffer, vb);
 	struct fimc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
@@ -420,7 +415,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	int min_bufs;
 
 	spin_lock_irqsave(&fimc->slock, flags);
-	fimc_prepare_addr(ctx, &buf->vb, &ctx->d_frame, &buf->paddr);
+	fimc_prepare_addr(ctx, &buf->vb.vb2_buf, &ctx->d_frame, &buf->paddr);
 
 	if (!test_bit(ST_CAPT_SUSPENDED, &fimc->state) &&
 	    !test_bit(ST_CAPT_STREAM, &fimc->state) &&
@@ -1141,8 +1136,7 @@ static int fimc_pipeline_validate(struct fimc_dev *fimc)
 			}
 		}
 
-		if (src_pad == NULL ||
-		    media_entity_type(src_pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!src_pad || !is_media_entity_v4l2_subdev(src_pad->entity))
 			break;
 
 		/* Don't call FIMC subdev operation to avoid nested locking */
@@ -1397,7 +1391,7 @@ static int fimc_link_setup(struct media_entity *entity,
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
 	struct v4l2_subdev *sensor;
 
-	if (media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+	if (!is_media_entity_v4l2_subdev(remote->entity))
 		return -EINVAL;
 
 	if (WARN_ON(fimc == NULL))
@@ -1472,7 +1466,8 @@ void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 		if (!list_empty(&fimc->vid_cap.active_buf_q)) {
 			buf = list_entry(fimc->vid_cap.active_buf_q.next,
 					 struct fimc_vid_buffer, list);
-			vb2_set_plane_payload(&buf->vb, 0, *((u32 *)arg));
+			vb2_set_plane_payload(&buf->vb.vb2_buf, 0,
+					      *((u32 *)arg));
 		}
 		fimc_capture_irq_handler(fimc, 1);
 		fimc_deactivate_capture(fimc);
@@ -1804,7 +1799,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	vid_cap->wb_fmt.code = fmt->mbus_code;
 
 	vid_cap->vd_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&vfd->entity, 1, &vid_cap->vd_pad, 0);
+	ret = media_entity_pads_init(&vfd->entity, 1, &vid_cap->vd_pad);
 	if (ret)
 		goto err_free_ctx;
 
@@ -1896,8 +1891,8 @@ int fimc_initialize_capture_subdev(struct fimc_dev *fimc)
 	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK_CAM].flags = MEDIA_PAD_FL_SINK;
 	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK_FIFO].flags = MEDIA_PAD_FL_SINK;
 	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, FIMC_SD_PADS_NUM,
-				fimc->vid_cap.sd_pads, 0);
+	ret = media_entity_pads_init(&sd->entity, FIMC_SD_PADS_NUM,
+				fimc->vid_cap.sd_pads);
 	if (ret)
 		return ret;
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -145,6 +145,7 @@ ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_operand_cache);
 
 ACPI_INIT_GLOBAL(u32, acpi_gbl_startup_flags, 0);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_shutdown, TRUE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_early_initialization, TRUE);
 
 /* Global handlers */
 
@@ -164,7 +165,7 @@ ACPI_GLOBAL(u8, acpi_gbl_next_owner_id_offset);
 
 /* Initialization sequencing */
 
-ACPI_GLOBAL(u8, acpi_gbl_reg_methods_executed);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_namespace_initialized, FALSE);
 
 /* Misc */
 
@@ -325,9 +326,8 @@ ACPI_GLOBAL(struct acpi_external_file *, acpi_gbl_external_file_list);
 
 #ifdef ACPI_DEBUGGER
 
-ACPI_INIT_GLOBAL(u8, acpi_gbl_db_terminate_threads, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_abort_method, FALSE);
-ACPI_INIT_GLOBAL(u8, acpi_gbl_method_executing, FALSE);
+ACPI_INIT_GLOBAL(acpi_thread_id, acpi_gbl_db_thread_id, ACPI_INVALID_THREAD_ID);
 
 ACPI_GLOBAL(u8, acpi_gbl_db_opt_no_ini_methods);
 ACPI_GLOBAL(u8, acpi_gbl_db_opt_no_region_support);
@@ -337,13 +337,14 @@ ACPI_GLOBAL(char *, acpi_gbl_db_filename);
 ACPI_GLOBAL(u32, acpi_gbl_db_debug_level);
 ACPI_GLOBAL(u32, acpi_gbl_db_console_debug_level);
 ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_db_scope_node);
+ACPI_GLOBAL(u8, acpi_gbl_db_terminate_loop);
+ACPI_GLOBAL(u8, acpi_gbl_db_threads_terminated);
 
 ACPI_GLOBAL(char *, acpi_gbl_db_args[ACPI_DEBUGGER_MAX_ARGS]);
 ACPI_GLOBAL(acpi_object_type, acpi_gbl_db_arg_types[ACPI_DEBUGGER_MAX_ARGS]);
 
 /* These buffers should all be the same size */
 
-ACPI_GLOBAL(char, acpi_gbl_db_line_buf[ACPI_DB_LINE_BUFFER_SIZE]);
 ACPI_GLOBAL(char, acpi_gbl_db_parsed_buf[ACPI_DB_LINE_BUFFER_SIZE]);
 ACPI_GLOBAL(char, acpi_gbl_db_scope_buf[ACPI_DB_LINE_BUFFER_SIZE]);
 ACPI_GLOBAL(char, acpi_gbl_db_debug_filename[ACPI_DB_LINE_BUFFER_SIZE]);

@@ -34,7 +34,7 @@ void skl_dsp_set_state_locked(struct sst_dsp *ctx, int state)
 	mutex_unlock(&ctx->mutex);
 }
 
-static int skl_dsp_core_set_reset_state(struct sst_dsp  *ctx)
+static int skl_dsp_core_set_reset_state(struct sst_dsp *ctx)
 {
 	int ret;
 
@@ -60,7 +60,7 @@ static int skl_dsp_core_set_reset_state(struct sst_dsp  *ctx)
 	return ret;
 }
 
-static int skl_dsp_core_unset_reset_state(struct sst_dsp  *ctx)
+static int skl_dsp_core_unset_reset_state(struct sst_dsp *ctx)
 {
 	int ret;
 
@@ -87,7 +87,7 @@ static int skl_dsp_core_unset_reset_state(struct sst_dsp  *ctx)
 	return ret;
 }
 
-static bool is_skl_dsp_core_enable(struct sst_dsp  *ctx)
+static bool is_skl_dsp_core_enable(struct sst_dsp *ctx)
 {
 	int val;
 	bool is_enable;
@@ -140,7 +140,7 @@ static int skl_dsp_start_core(struct sst_dsp *ctx)
 	return ret;
 }
 
-static int skl_dsp_core_power_up(struct sst_dsp  *ctx)
+static int skl_dsp_core_power_up(struct sst_dsp *ctx)
 {
 	int ret;
 
@@ -166,7 +166,7 @@ static int skl_dsp_core_power_up(struct sst_dsp  *ctx)
 	return ret;
 }
 
-static int skl_dsp_core_power_down(struct sst_dsp  *ctx)
+static int skl_dsp_core_power_down(struct sst_dsp *ctx)
 {
 	/* update bits */
 	sst_dsp_shim_update_bits_unlocked(ctx, SKL_ADSP_REG_ADSPCS,
@@ -175,13 +175,13 @@ static int skl_dsp_core_power_down(struct sst_dsp  *ctx)
 	/* poll with timeout to check if operation successful */
 	return sst_dsp_register_poll(ctx,
 			SKL_ADSP_REG_ADSPCS,
-			SKL_ADSPCS_SPA_MASK,
+			SKL_ADSPCS_CPA_MASK,
 			0,
 			SKL_DSP_PD_TO,
 			"Power down");
 }
 
-static int skl_dsp_enable_core(struct sst_dsp  *ctx)
+int skl_dsp_enable_core(struct sst_dsp *ctx)
 {
 	int ret;
 
@@ -195,7 +195,7 @@ static int skl_dsp_enable_core(struct sst_dsp  *ctx)
 	return skl_dsp_start_core(ctx);
 }
 
-int skl_dsp_disable_core(struct sst_dsp  *ctx)
+int skl_dsp_disable_core(struct sst_dsp *ctx)
 {
 	int ret;
 
@@ -261,6 +261,11 @@ irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id)
 
 	val = sst_dsp_shim_read_unlocked(ctx, SKL_ADSP_REG_ADSPIS);
 	ctx->intr_status = val;
+
+	if (val == 0xffffffff) {
+		spin_unlock(&ctx->spinlock);
+		return IRQ_NONE;
+	}
 
 	if (val & SKL_ADSPIS_IPC) {
 		skl_ipc_int_disable(ctx);

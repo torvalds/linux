@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,15 +49,7 @@
 
 #include "common.h"
 #include "iowait.h"
-
-#define EXP_TID_TIDLEN_MASK   0x7FFULL
-#define EXP_TID_TIDLEN_SHIFT  0
-#define EXP_TID_TIDCTRL_MASK  0x3ULL
-#define EXP_TID_TIDCTRL_SHIFT 20
-#define EXP_TID_TIDIDX_MASK   0x7FFULL
-#define EXP_TID_TIDIDX_SHIFT  22
-#define EXP_TID_GET(tid, field)	\
-	(((tid) >> EXP_TID_TID##field##_SHIFT) & EXP_TID_TID##field##_MASK)
+#include "user_exp_rcv.h"
 
 extern uint extended_psn;
 
@@ -76,6 +65,12 @@ struct hfi1_user_sdma_pkt_q {
 	struct user_sdma_request *reqs;
 	struct iowait busy;
 	unsigned state;
+	wait_queue_head_t wait;
+	unsigned long unpinned;
+	struct rb_root sdma_rb_root;
+	u32 n_locked;
+	struct list_head evict;
+	spinlock_t evict_lock; /* protect evict and n_locked */
 };
 
 struct hfi1_user_sdma_comp_q {

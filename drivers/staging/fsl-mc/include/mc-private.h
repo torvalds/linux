@@ -26,28 +26,44 @@
 	 strcmp(_obj_type, "dpmcp") == 0 || \
 	 strcmp(_obj_type, "dpcon") == 0)
 
+struct irq_domain;
+struct msi_domain_info;
+
+/**
+ * Maximum number of total IRQs that can be pre-allocated for an MC bus'
+ * IRQ pool
+ */
+#define FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS	256
+
+struct device_node;
+struct irq_domain;
+struct msi_domain_info;
+
 /**
  * struct fsl_mc - Private data of a "fsl,qoriq-mc" platform device
  * @root_mc_bus_dev: MC object device representing the root DPRC
- * @addr_translation_ranges: array of bus to system address translation ranges
+ * @num_translation_ranges: number of entries in addr_translation_ranges
+ * @translation_ranges: array of bus to system address translation ranges
  */
 struct fsl_mc {
 	struct fsl_mc_device *root_mc_bus_dev;
-	uint8_t num_translation_ranges;
+	u8 num_translation_ranges;
 	struct fsl_mc_addr_translation_range *translation_ranges;
 };
 
 /**
  * struct fsl_mc_addr_translation_range - bus to system address translation
  * range
- * @start_mc_addr: Start MC address of the range being translated
- * @end_mc_addr: MC address of the first byte after the range (last MC
- * address of the range is end_mc_addr - 1)
+ * @mc_region_type: Type of MC region for the range being translated
+ * @start_mc_offset: Start MC offset of the range being translated
+ * @end_mc_offset: MC offset of the first byte after the range (last MC
+ * offset of the range is end_mc_offset - 1)
  * @start_phys_addr: system physical address corresponding to start_mc_addr
  */
 struct fsl_mc_addr_translation_range {
-	uint64_t start_mc_addr;
-	uint64_t end_mc_addr;
+	enum dprc_region_type mc_region_type;
+	u64 start_mc_offset;
+	u64 end_mc_offset;
 	phys_addr_t start_phys_addr;
 };
 
@@ -76,11 +92,13 @@ struct fsl_mc_resource_pool {
  * @resource_pools: array of resource pools (one pool per resource type)
  * for this MC bus. These resources represent allocatable entities
  * from the physical DPRC.
+ * @irq_resources: Pointer to array of IRQ objects for the IRQ pool
  * @scan_mutex: Serializes bus scanning
  */
 struct fsl_mc_bus {
 	struct fsl_mc_device mc_dev;
 	struct fsl_mc_resource_pool resource_pools[FSL_MC_NUM_POOL_TYPES];
+	struct fsl_mc_device_irq *irq_resources;
 	struct mutex scan_mutex;    /* serializes bus scanning */
 };
 
@@ -96,15 +114,16 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev);
 
 int dprc_scan_container(struct fsl_mc_device *mc_bus_dev);
 
-int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev);
+int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
+		      unsigned int *total_irq_count);
 
 int __init dprc_driver_init(void);
 
-void __exit dprc_driver_exit(void);
+void dprc_driver_exit(void);
 
 int __init fsl_mc_allocator_driver_init(void);
 
-void __exit fsl_mc_allocator_driver_exit(void);
+void fsl_mc_allocator_driver_exit(void);
 
 int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 					  enum fsl_mc_pool_type pool_type,
@@ -112,5 +131,26 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 							  **new_resource);
 
 void fsl_mc_resource_free(struct fsl_mc_resource *resource);
+
+struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
+						struct msi_domain_info *info,
+						struct irq_domain *parent);
+
+int fsl_mc_find_msi_domain(struct device *mc_platform_dev,
+			   struct irq_domain **mc_msi_domain);
+
+int fsl_mc_msi_domain_alloc_irqs(struct device *dev,
+				 unsigned int irq_count);
+
+void fsl_mc_msi_domain_free_irqs(struct device *dev);
+
+int __init its_fsl_mc_msi_init(void);
+
+void its_fsl_mc_msi_cleanup(void);
+
+int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
+			     unsigned int irq_count);
+
+void fsl_mc_cleanup_irq_pool(struct fsl_mc_bus *mc_bus);
 
 #endif /* _FSL_MC_PRIVATE_H_ */

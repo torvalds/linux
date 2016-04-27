@@ -51,10 +51,10 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		flags = ext2_mask_flags(inode->i_mode, flags);
 
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		/* Is it quota file? Do not allow user to mess with it */
 		if (IS_NOQUOTA(inode)) {
-			mutex_unlock(&inode->i_mutex);
+			inode_unlock(inode);
 			ret = -EPERM;
 			goto setflags_out;
 		}
@@ -68,7 +68,7 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		 */
 		if ((flags ^ oldflags) & (EXT2_APPEND_FL | EXT2_IMMUTABLE_FL)) {
 			if (!capable(CAP_LINUX_IMMUTABLE)) {
-				mutex_unlock(&inode->i_mutex);
+				inode_unlock(inode);
 				ret = -EPERM;
 				goto setflags_out;
 			}
@@ -80,7 +80,7 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		ext2_set_inode_flags(inode);
 		inode->i_ctime = CURRENT_TIME_SEC;
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 
 		mark_inode_dirty(inode);
 setflags_out:
@@ -102,10 +102,10 @@ setflags_out:
 			goto setversion_out;
 		}
 
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		inode->i_ctime = CURRENT_TIME_SEC;
 		inode->i_generation = generation;
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 
 		mark_inode_dirty(inode);
 setversion_out:

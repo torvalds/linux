@@ -181,7 +181,6 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	int ret = 0;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
-	struct net *net;
 
 	*diff = 0;
 
@@ -223,14 +222,14 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		 */
 		{
 			struct ip_vs_conn_param p;
-			ip_vs_conn_fill_param(ip_vs_conn_net(cp), AF_INET,
+			ip_vs_conn_fill_param(cp->ipvs, AF_INET,
 					      iph->protocol, &from, port,
 					      &cp->caddr, 0, &p);
 			n_cp = ip_vs_conn_out_get(&p);
 		}
 		if (!n_cp) {
 			struct ip_vs_conn_param p;
-			ip_vs_conn_fill_param(ip_vs_conn_net(cp),
+			ip_vs_conn_fill_param(cp->ipvs,
 					      AF_INET, IPPROTO_TCP, &cp->caddr,
 					      0, &cp->vaddr, port, &p);
 			/* As above, this is ipv4 only */
@@ -289,9 +288,8 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		 * would be adjusted twice.
 		 */
 
-		net = skb_net(skb);
 		cp->app_data = NULL;
-		ip_vs_tcp_conn_listen(net, n_cp);
+		ip_vs_tcp_conn_listen(n_cp);
 		ip_vs_conn_put(n_cp);
 		return ret;
 	}
@@ -320,7 +318,6 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	union nf_inet_addr to;
 	__be16 port;
 	struct ip_vs_conn *n_cp;
-	struct net *net;
 
 	/* no diff required for incoming packets */
 	*diff = 0;
@@ -392,7 +389,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 
 	{
 		struct ip_vs_conn_param p;
-		ip_vs_conn_fill_param(ip_vs_conn_net(cp), AF_INET,
+		ip_vs_conn_fill_param(cp->ipvs, AF_INET,
 				      iph->protocol, &to, port, &cp->vaddr,
 				      htons(ntohs(cp->vport)-1), &p);
 		n_cp = ip_vs_conn_in_get(&p);
@@ -413,8 +410,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	/*
 	 *	Move tunnel to listen state
 	 */
-	net = skb_net(skb);
-	ip_vs_tcp_conn_listen(net, n_cp);
+	ip_vs_tcp_conn_listen(n_cp);
 	ip_vs_conn_put(n_cp);
 
 	return 1;
@@ -447,14 +443,14 @@ static int __net_init __ip_vs_ftp_init(struct net *net)
 	if (!ipvs)
 		return -ENOENT;
 
-	app = register_ip_vs_app(net, &ip_vs_ftp);
+	app = register_ip_vs_app(ipvs, &ip_vs_ftp);
 	if (IS_ERR(app))
 		return PTR_ERR(app);
 
 	for (i = 0; i < ports_count; i++) {
 		if (!ports[i])
 			continue;
-		ret = register_ip_vs_app_inc(net, app, app->protocol, ports[i]);
+		ret = register_ip_vs_app_inc(ipvs, app, app->protocol, ports[i]);
 		if (ret)
 			goto err_unreg;
 		pr_info("%s: loaded support on port[%d] = %d\n",
@@ -463,7 +459,7 @@ static int __net_init __ip_vs_ftp_init(struct net *net)
 	return 0;
 
 err_unreg:
-	unregister_ip_vs_app(net, &ip_vs_ftp);
+	unregister_ip_vs_app(ipvs, &ip_vs_ftp);
 	return ret;
 }
 /*
@@ -471,7 +467,12 @@ err_unreg:
  */
 static void __ip_vs_ftp_exit(struct net *net)
 {
-	unregister_ip_vs_app(net, &ip_vs_ftp);
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	if (!ipvs)
+		return;
+
+	unregister_ip_vs_app(ipvs, &ip_vs_ftp);
 }
 
 static struct pernet_operations ip_vs_ftp_ops = {

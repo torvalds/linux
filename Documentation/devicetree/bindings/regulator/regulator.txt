@@ -11,6 +11,7 @@ Optional properties:
 - regulator-always-on: boolean, regulator should never be disabled
 - regulator-boot-on: bootloader/firmware enabled regulator
 - regulator-allow-bypass: allow the regulator to go into bypass mode
+- regulator-allow-set-load: allow the regulator performance level to be configured
 - <name>-supply: phandle to the parent supply/regulator node
 - regulator-ramp-delay: ramp delay for regulator(in uV/uS)
   For hardware which supports disabling ramp rate, it should be explicitly
@@ -43,6 +44,11 @@ Optional properties:
   any consumer request.
 - regulator-pull-down: Enable pull down resistor when the regulator is disabled.
 - regulator-over-current-protection: Enable over current protection.
+- regulator-active-discharge: tristate, enable/disable active discharge of
+  regulators. The values are:
+	0: Disable active discharge.
+	1: Enable active discharge.
+	Absence of this property will leave configuration to default.
 
 Deprecated properties:
 - regulator-compatible: If a regulator chip contains multiple

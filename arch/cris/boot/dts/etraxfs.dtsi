@@ -28,6 +28,14 @@
 			#interrupt-cells = <1>;
 		};
 
+		gio: gpio@b001a000 {
+			compatible = "axis,etraxfs-gio";
+			reg = <0xb001a000 0x1000>;
+			interrupts = <50>;
+			gpio-controller;
+			#gpio-cells = <3>;
+		};
+
 		serial@b00260000 {
 			compatible = "axis,etraxfs-uart";
 			reg = <0xb0026000 0x1000>;

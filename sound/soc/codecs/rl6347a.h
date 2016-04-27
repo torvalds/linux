@@ -12,6 +12,8 @@
 #ifndef __RL6347A_H__
 #define __RL6347A_H__
 
+#include <sound/hda_verbs.h>
+
 #define VERB_CMD(V, N, D) ((N << 20) | (V << 8) | D)
 
 #define RL6347A_VENDOR_REGISTERS	0x20

@@ -33,8 +33,6 @@
 #include "hid-lg4ff.h"
 #include "hid-ids.h"
 
-#define to_hid_device(pdev) container_of(pdev, struct hid_device, dev)
-
 #define LG4FF_MMODE_IS_MULTIMODE 0
 #define LG4FF_MMODE_SWITCHED 1
 #define LG4FF_MMODE_NOT_MULTIMODE 2
@@ -45,7 +43,8 @@
 #define LG4FF_MODE_G25_IDX 3
 #define LG4FF_MODE_DFGT_IDX 4
 #define LG4FF_MODE_G27_IDX 5
-#define LG4FF_MODE_MAX_IDX 6
+#define LG4FF_MODE_G29_IDX 6
+#define LG4FF_MODE_MAX_IDX 7
 
 #define LG4FF_MODE_NATIVE BIT(LG4FF_MODE_NATIVE_IDX)
 #define LG4FF_MODE_DFEX BIT(LG4FF_MODE_DFEX_IDX)
@@ -53,6 +52,7 @@
 #define LG4FF_MODE_G25 BIT(LG4FF_MODE_G25_IDX)
 #define LG4FF_MODE_DFGT BIT(LG4FF_MODE_DFGT_IDX)
 #define LG4FF_MODE_G27 BIT(LG4FF_MODE_G27_IDX)
+#define LG4FF_MODE_G29 BIT(LG4FF_MODE_G29_IDX)
 
 #define LG4FF_DFEX_TAG "DF-EX"
 #define LG4FF_DFEX_NAME "Driving Force / Formula EX"
@@ -62,6 +62,8 @@
 #define LG4FF_G25_NAME "G25 Racing Wheel"
 #define LG4FF_G27_TAG "G27"
 #define LG4FF_G27_NAME "G27 Racing Wheel"
+#define LG4FF_G29_TAG "G29"
+#define LG4FF_G29_NAME "G29 Racing Wheel"
 #define LG4FF_DFGT_TAG "DFGT"
 #define LG4FF_DFGT_NAME "Driving Force GT"
 
@@ -114,14 +116,10 @@ struct lg4ff_compat_mode_switch {
 };
 
 struct lg4ff_wheel_ident_info {
+	const u32 modes;
 	const u16 mask;
 	const u16 result;
 	const u16 real_product_id;
-};
-
-struct lg4ff_wheel_ident_checklist {
-	const u32 count;
-	const struct lg4ff_wheel_ident_info *models[];
 };
 
 struct lg4ff_multimode_wheel {
@@ -144,6 +142,7 @@ static const struct lg4ff_wheel lg4ff_devices[] = {
 	{USB_DEVICE_ID_LOGITECH_G25_WHEEL,   lg4ff_wheel_effects, 40, 900, lg4ff_set_range_g25},
 	{USB_DEVICE_ID_LOGITECH_DFGT_WHEEL,  lg4ff_wheel_effects, 40, 900, lg4ff_set_range_g25},
 	{USB_DEVICE_ID_LOGITECH_G27_WHEEL,   lg4ff_wheel_effects, 40, 900, lg4ff_set_range_g25},
+	{USB_DEVICE_ID_LOGITECH_G29_WHEEL,   lg4ff_wheel_effects, 40, 900, lg4ff_set_range_g25},
 	{USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2, lg4ff_wheel_effects, 40, 270, NULL},
 	{USB_DEVICE_ID_LOGITECH_WII_WHEEL,   lg4ff_wheel_effects, 40, 270, NULL}
 };
@@ -161,6 +160,9 @@ static const struct lg4ff_multimode_wheel lg4ff_multimode_wheels[] = {
 	{USB_DEVICE_ID_LOGITECH_G27_WHEEL,
 	 LG4FF_MODE_NATIVE | LG4FF_MODE_G27 | LG4FF_MODE_G25 | LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
 	 LG4FF_G27_TAG, LG4FF_G27_NAME},
+	{USB_DEVICE_ID_LOGITECH_G29_WHEEL,
+	 LG4FF_MODE_NATIVE | LG4FF_MODE_G29 | LG4FF_MODE_G27 | LG4FF_MODE_G25 | LG4FF_MODE_DFGT | LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
+	 LG4FF_G29_TAG, LG4FF_G29_NAME},
 };
 
 static const struct lg4ff_alternate_mode lg4ff_alternate_modes[] = {
@@ -169,41 +171,61 @@ static const struct lg4ff_alternate_mode lg4ff_alternate_modes[] = {
 	[LG4FF_MODE_DFP_IDX] = {USB_DEVICE_ID_LOGITECH_DFP_WHEEL, LG4FF_DFP_TAG, LG4FF_DFP_NAME},
 	[LG4FF_MODE_G25_IDX] = {USB_DEVICE_ID_LOGITECH_G25_WHEEL, LG4FF_G25_TAG, LG4FF_G25_NAME},
 	[LG4FF_MODE_DFGT_IDX] = {USB_DEVICE_ID_LOGITECH_DFGT_WHEEL, LG4FF_DFGT_TAG, LG4FF_DFGT_NAME},
-	[LG4FF_MODE_G27_IDX] = {USB_DEVICE_ID_LOGITECH_G27_WHEEL, LG4FF_G27_TAG, LG4FF_G27_NAME}
+	[LG4FF_MODE_G27_IDX] = {USB_DEVICE_ID_LOGITECH_G27_WHEEL, LG4FF_G27_TAG, LG4FF_G27_NAME},
+	[LG4FF_MODE_G29_IDX] = {USB_DEVICE_ID_LOGITECH_G29_WHEEL, LG4FF_G29_TAG, LG4FF_G29_NAME},
 };
 
 /* Multimode wheel identificators */
 static const struct lg4ff_wheel_ident_info lg4ff_dfp_ident_info = {
+	LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
 	0xf000,
 	0x1000,
 	USB_DEVICE_ID_LOGITECH_DFP_WHEEL
 };
 
 static const struct lg4ff_wheel_ident_info lg4ff_g25_ident_info = {
+	LG4FF_MODE_G25 | LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
 	0xff00,
 	0x1200,
 	USB_DEVICE_ID_LOGITECH_G25_WHEEL
 };
 
 static const struct lg4ff_wheel_ident_info lg4ff_g27_ident_info = {
+	LG4FF_MODE_G27 | LG4FF_MODE_G25 | LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
 	0xfff0,
 	0x1230,
 	USB_DEVICE_ID_LOGITECH_G27_WHEEL
 };
 
 static const struct lg4ff_wheel_ident_info lg4ff_dfgt_ident_info = {
+	LG4FF_MODE_DFGT | LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
 	0xff00,
 	0x1300,
 	USB_DEVICE_ID_LOGITECH_DFGT_WHEEL
 };
 
+static const struct lg4ff_wheel_ident_info lg4ff_g29_ident_info = {
+	LG4FF_MODE_G29 | LG4FF_MODE_G27 | LG4FF_MODE_G25 | LG4FF_MODE_DFGT | LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
+	0xfff8,
+	0x1350,
+	USB_DEVICE_ID_LOGITECH_G29_WHEEL
+};
+
+static const struct lg4ff_wheel_ident_info lg4ff_g29_ident_info2 = {
+	LG4FF_MODE_G29 | LG4FF_MODE_G27 | LG4FF_MODE_G25 | LG4FF_MODE_DFGT | LG4FF_MODE_DFP | LG4FF_MODE_DFEX,
+	0xff00,
+	0x8900,
+	USB_DEVICE_ID_LOGITECH_G29_WHEEL
+};
+
 /* Multimode wheel identification checklists */
-static const struct lg4ff_wheel_ident_checklist lg4ff_main_checklist = {
-	4,
-	{&lg4ff_dfgt_ident_info,
-	 &lg4ff_g27_ident_info,
-	 &lg4ff_g25_ident_info,
-	 &lg4ff_dfp_ident_info}
+static const struct lg4ff_wheel_ident_info *lg4ff_main_checklist[] = {
+	&lg4ff_g29_ident_info,
+	&lg4ff_g29_ident_info2,
+	&lg4ff_dfgt_ident_info,
+	&lg4ff_g27_ident_info,
+	&lg4ff_g25_ident_info,
+	&lg4ff_dfp_ident_info
 };
 
 /* Compatibility mode switching commands */
@@ -236,6 +258,12 @@ static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_ext09_g27 = {
 	2,
 	{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,	/* Revert mode upon USB reset */
 	 0xf8, 0x09, 0x04, 0x01, 0x00, 0x00, 0x00}	/* Switch mode to G27 with detach */
+};
+
+static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_ext09_g29 = {
+	2,
+	{0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,	/* Revert mode upon USB reset */
+	 0xf8, 0x09, 0x05, 0x01, 0x01, 0x00, 0x00}	/* Switch mode to G29 with detach */
 };
 
 /* EXT_CMD1 - Understood by DFP, G25, G27 and DFGT */
@@ -651,6 +679,23 @@ static const struct lg4ff_compat_mode_switch *lg4ff_get_mode_switch_command(cons
 			return NULL;
 		}
 		break;
+	case USB_DEVICE_ID_LOGITECH_G29_WHEEL:
+		switch (target_product_id) {
+		case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
+			return &lg4ff_mode_switch_ext09_dfp;
+		case USB_DEVICE_ID_LOGITECH_DFGT_WHEEL:
+			return &lg4ff_mode_switch_ext09_dfgt;
+		case USB_DEVICE_ID_LOGITECH_G25_WHEEL:
+			return &lg4ff_mode_switch_ext09_g25;
+		case USB_DEVICE_ID_LOGITECH_G27_WHEEL:
+			return &lg4ff_mode_switch_ext09_g27;
+		case USB_DEVICE_ID_LOGITECH_G29_WHEEL:
+			return &lg4ff_mode_switch_ext09_g29;
+		/* G29 can only be switched to DF-EX, DFP, DFGT, G25, G27 or its native mode */
+		default:
+			return NULL;
+		}
+		break;
 	case USB_DEVICE_ID_LOGITECH_DFGT_WHEEL:
 		switch (target_product_id) {
 		case USB_DEVICE_ID_LOGITECH_WHEEL:
@@ -973,7 +1018,7 @@ static void lg4ff_led_set_brightness(struct led_classdev *led_cdev,
 			enum led_brightness value)
 {
 	struct device *dev = led_cdev->dev->parent;
-	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	struct hid_device *hid = to_hid_device(dev);
 	struct lg_drv_data *drv_data = hid_get_drvdata(hid);
 	struct lg4ff_device_entry *entry;
 	int i, state = 0;
@@ -1008,7 +1053,7 @@ static void lg4ff_led_set_brightness(struct led_classdev *led_cdev,
 static enum led_brightness lg4ff_led_get_brightness(struct led_classdev *led_cdev)
 {
 	struct device *dev = led_cdev->dev->parent;
-	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	struct hid_device *hid = to_hid_device(dev);
 	struct lg_drv_data *drv_data = hid_get_drvdata(hid);
 	struct lg4ff_device_entry *entry;
 	int i, value = 0;
@@ -1037,41 +1082,28 @@ static enum led_brightness lg4ff_led_get_brightness(struct led_classdev *led_cde
 
 static u16 lg4ff_identify_multimode_wheel(struct hid_device *hid, const u16 reported_product_id, const u16 bcdDevice)
 {
-	const struct lg4ff_wheel_ident_checklist *checklist;
-	int i, from_idx, to_idx;
+	u32 current_mode;
+	int i;
 
-	switch (reported_product_id) {
-	case USB_DEVICE_ID_LOGITECH_WHEEL:
-	case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
-		checklist = &lg4ff_main_checklist;
-		from_idx = 0;
-		to_idx = checklist->count - 1;
-		break;
-	case USB_DEVICE_ID_LOGITECH_G25_WHEEL:
-		checklist = &lg4ff_main_checklist;
-		from_idx = 0;
-		to_idx = checklist->count - 2; /* End identity check at G25 */
-		break;
-	case USB_DEVICE_ID_LOGITECH_G27_WHEEL:
-		checklist = &lg4ff_main_checklist;
-		from_idx = 1; /* Start identity check at G27 */
-		to_idx = checklist->count - 3; /* End identity check at G27 */
-		break;
-	case USB_DEVICE_ID_LOGITECH_DFGT_WHEEL:
-		checklist = &lg4ff_main_checklist;
-		from_idx = 0;
-		to_idx = checklist->count - 4; /* End identity check at DFGT */
-		break;
-	default:
-		return 0;
+	/* identify current mode from USB PID */
+	for (i = 1; i < ARRAY_SIZE(lg4ff_alternate_modes); i++) {
+		dbg_hid("Testing whether PID is %X\n", lg4ff_alternate_modes[i].product_id);
+		if (reported_product_id == lg4ff_alternate_modes[i].product_id)
+			break;
 	}
 
-	for (i = from_idx; i <= to_idx; i++) {
-		const u16 mask = checklist->models[i]->mask;
-		const u16 result = checklist->models[i]->result;
-		const u16 real_product_id = checklist->models[i]->real_product_id;
+	if (i == ARRAY_SIZE(lg4ff_alternate_modes))
+		return 0;
 
-		if ((bcdDevice & mask) == result) {
+	current_mode = BIT(i);
+
+	for (i = 0; i < ARRAY_SIZE(lg4ff_main_checklist); i++) {
+		const u16 mask = lg4ff_main_checklist[i]->mask;
+		const u16 result = lg4ff_main_checklist[i]->result;
+		const u16 real_product_id = lg4ff_main_checklist[i]->real_product_id;
+
+		if ((current_mode & lg4ff_main_checklist[i]->modes) && \
+				(bcdDevice & mask) == result) {
 			dbg_hid("Found wheel with real PID %X whose reported PID is %X\n", real_product_id, reported_product_id);
 			return real_product_id;
 		}
@@ -1246,12 +1278,13 @@ int lg4ff_init(struct hid_device *hid)
 		entry->wdata.set_range(hid, entry->wdata.range);
 
 #ifdef CONFIG_LEDS_CLASS
-	/* register led subsystem - G27 only */
+	/* register led subsystem - G27/G29 only */
 	entry->wdata.led_state = 0;
 	for (j = 0; j < 5; j++)
 		entry->wdata.led[j] = NULL;
 
-	if (lg4ff_devices[i].product_id == USB_DEVICE_ID_LOGITECH_G27_WHEEL) {
+	if (lg4ff_devices[i].product_id == USB_DEVICE_ID_LOGITECH_G27_WHEEL ||
+			lg4ff_devices[i].product_id == USB_DEVICE_ID_LOGITECH_G29_WHEEL) {
 		struct led_classdev *led;
 		size_t name_sz;
 		char *name;

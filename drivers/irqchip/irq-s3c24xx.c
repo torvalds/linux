@@ -311,7 +311,7 @@ static void s3c_irq_demux(struct irq_desc *desc)
 	 * and one big domain for the dt case where the subintc
 	 * starts at hwirq number 32.
 	 */
-	offset = (intc->domain->of_node) ? 32 : 0;
+	offset = irq_domain_get_of_node(intc->domain) ? 32 : 0;
 
 	chained_irq_enter(chip, desc);
 
@@ -342,7 +342,7 @@ static inline int s3c24xx_handle_intc(struct s3c_irq_intc *intc,
 		return false;
 
 	/* non-dt machines use individual domains */
-	if (!intc->domain->of_node)
+	if (!irq_domain_get_of_node(intc->domain))
 		intc_offset = 0;
 
 	/* We have a problem that the INTOFFSET register does not always
@@ -605,7 +605,7 @@ err:
 	return ERR_PTR(ret);
 }
 
-static struct s3c_irq_data init_eint[32] = {
+static struct s3c_irq_data __maybe_unused init_eint[32] = {
 	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
 	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
 	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */

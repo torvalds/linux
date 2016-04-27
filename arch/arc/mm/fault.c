@@ -18,7 +18,14 @@
 #include <asm/pgalloc.h>
 #include <asm/mmu.h>
 
-static int handle_vmalloc_fault(unsigned long address)
+/*
+ * kernel virtual address is required to implement vmalloc/pkmap/fixmap
+ * Refer to asm/processor.h for System Memory Map
+ *
+ * It simply copies the PMD entry (pointer to 2nd level page table or hugepage)
+ * from swapper pgdir to task pgdir. The 2nd level table/page is thus shared
+ */
+noinline static int handle_kernel_vaddr_fault(unsigned long address)
 {
 	/*
 	 * Synchronize this task's top level page-table
@@ -72,8 +79,8 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 	 * only copy the information from the master page table,
 	 * nothing more.
 	 */
-	if (address >= VMALLOC_START && address <= VMALLOC_END) {
-		ret = handle_vmalloc_fault(address);
+	if (address >= VMALLOC_START) {
+		ret = handle_kernel_vaddr_fault(address);
 		if (unlikely(ret))
 			goto bad_area_nosemaphore;
 		else

@@ -37,7 +37,7 @@ void __list_add(struct list_head *new,
 	next->prev = new;
 	new->next = next;
 	new->prev = prev;
-	prev->next = new;
+	WRITE_ONCE(prev->next, new);
 }
 EXPORT_SYMBOL(__list_add);
 

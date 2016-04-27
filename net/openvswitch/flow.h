@@ -55,7 +55,7 @@ struct ovs_tunnel_info {
 	FIELD_SIZEOF(struct sw_flow_key, recirc_id))
 
 struct sw_flow_key {
-	u8 tun_opts[255];
+	u8 tun_opts[IP_TUNNEL_OPTS_MAX];
 	u8 tun_opts_len;
 	struct ip_tunnel_key tun_key;	/* Encapsulating tunnel key. */
 	struct {
@@ -63,6 +63,7 @@ struct sw_flow_key {
 		u32	skb_mark;	/* SKB mark. */
 		u16	in_port;	/* Input switch port (or DP_MAX_PORTS). */
 	} __packed phy; /* Safe when right after 'tun_key'. */
+	u8 tun_proto;			/* Protocol of encapsulating tunnel. */
 	u32 ovs_flow_hash;		/* Datapath computed hash value.  */
 	u32 recirc_id;			/* Recirculation ID.  */
 	struct {

@@ -20,7 +20,6 @@
 #include <linux/kobject.h>
 #include <linux/list.h>
 #include <linux/memblock.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -168,13 +167,10 @@ static struct kset *esrt_kset;
 static int esre_create_sysfs_entry(void *esre, int entry_num)
 {
 	struct esre_entry *entry;
-	char name[20];
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
-
-	sprintf(name, "entry%d", entry_num);
 
 	entry->kobj.kset = esrt_kset;
 
@@ -183,7 +179,7 @@ static int esre_create_sysfs_entry(void *esre, int entry_num)
 
 		entry->esre.esre1 = esre;
 		rc = kobject_init_and_add(&entry->kobj, &esre1_ktype, NULL,
-					  "%s", name);
+					  "entry%d", entry_num);
 		if (rc) {
 			kfree(entry);
 			return rc;
@@ -450,22 +446,10 @@ err:
 	esrt = NULL;
 	return error;
 }
+device_initcall(esrt_sysfs_init);
 
-static void __exit esrt_sysfs_exit(void)
-{
-	pr_debug("esrt-sysfs: unloading.\n");
-	cleanup_entry_list();
-	kset_unregister(esrt_kset);
-	sysfs_remove_group(esrt_kobj, &esrt_attr_group);
-	kfree(esrt);
-	esrt = NULL;
-	kobject_del(esrt_kobj);
-	kobject_put(esrt_kobj);
-}
-
-module_init(esrt_sysfs_init);
-module_exit(esrt_sysfs_exit);
-
+/*
 MODULE_AUTHOR("Peter Jones <pjones@redhat.com>");
 MODULE_DESCRIPTION("EFI System Resource Table support");
 MODULE_LICENSE("GPL");
+*/

@@ -17,6 +17,7 @@
 #define DVB_USB_LOG_PREFIX "mxl111sf"
 #include "dvb_usb.h"
 #include <media/tveeprom.h>
+#include <media/media-entity.h>
 
 #define MXL_EP1_REG_READ     1
 #define MXL_EP2_REG_WRITE    2
@@ -85,6 +86,10 @@ struct mxl111sf_state {
 	struct mutex fe_lock;
 	u8 num_frontends;
 	struct mxl111sf_adap_state adap_state[3];
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	struct media_entity tuner;
+	struct media_pad tuner_pads[2];
+#endif
 };
 
 int mxl111sf_read_reg(struct mxl111sf_state *state, u8 addr, u8 *data);

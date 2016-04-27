@@ -92,6 +92,18 @@ struct serial8250_config {
 #define SERIAL8250_SHARE_IRQS 0
 #endif
 
+#define SERIAL8250_PORT_FLAGS(_base, _irq, _flags)		\
+	{							\
+		.iobase		= _base,			\
+		.irq		= _irq,				\
+		.uartclk	= 1843200,			\
+		.iotype		= UPIO_PORT,			\
+		.flags		= UPF_BOOT_AUTOCONF | (_flags),	\
+	}
+
+#define SERIAL8250_PORT(_base, _irq) SERIAL8250_PORT_FLAGS(_base, _irq, 0)
+
+
 static inline int serial_in(struct uart_8250_port *up, int offset)
 {
 	return up->port.serial_in(&up->port, offset);
@@ -117,6 +129,8 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
 struct uart_8250_port *serial8250_get_port(int line);
 void serial8250_rpm_get(struct uart_8250_port *p);
 void serial8250_rpm_put(struct uart_8250_port *p);
+int serial8250_em485_init(struct uart_8250_port *p);
+void serial8250_em485_destroy(struct uart_8250_port *p);
 
 #if defined(__alpha__) && !defined(CONFIG_PCI)
 /*

@@ -272,21 +272,26 @@
 /* ADMA2 32-bit DMA descriptor size */
 #define SDHCI_ADMA2_32_DESC_SZ	8
 
-/* ADMA2 32-bit DMA alignment */
-#define SDHCI_ADMA2_32_ALIGN	4
-
 /* ADMA2 32-bit descriptor */
 struct sdhci_adma2_32_desc {
 	__le16	cmd;
 	__le16	len;
 	__le32	addr;
-}  __packed __aligned(SDHCI_ADMA2_32_ALIGN);
+}  __packed __aligned(4);
+
+/* ADMA2 data alignment */
+#define SDHCI_ADMA2_ALIGN	4
+#define SDHCI_ADMA2_MASK	(SDHCI_ADMA2_ALIGN - 1)
+
+/*
+ * ADMA2 descriptor alignment.  Some controllers (e.g. Intel) require 8 byte
+ * alignment for the descriptor table even in 32-bit DMA mode.  Memory
+ * allocation is at least 8 byte aligned anyway, so just stipulate 8 always.
+ */
+#define SDHCI_ADMA2_DESC_ALIGN	8
 
 /* ADMA2 64-bit DMA descriptor size */
 #define SDHCI_ADMA2_64_DESC_SZ	12
-
-/* ADMA2 64-bit DMA alignment */
-#define SDHCI_ADMA2_64_ALIGN	8
 
 /*
  * ADMA2 64-bit descriptor. Note 12-byte descriptor can't always be 8-byte
@@ -311,8 +316,8 @@ struct sdhci_adma2_64_desc {
 
 enum sdhci_cookie {
 	COOKIE_UNMAPPED,
-	COOKIE_MAPPED,
-	COOKIE_GIVEN,
+	COOKIE_PRE_MAPPED,	/* mapped by sdhci_pre_req() */
+	COOKIE_MAPPED,		/* mapped by sdhci_prepare_data() */
 };
 
 struct sdhci_host {
@@ -425,6 +430,7 @@ struct sdhci_host {
 
 	/* Internal data */
 	struct mmc_host *mmc;	/* MMC structure */
+	struct mmc_host_ops mmc_host_ops;	/* MMC host ops */
 	u64 dma_mask;		/* custom DMA mask */
 
 #if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
@@ -482,8 +488,6 @@ struct sdhci_host {
 	dma_addr_t align_addr;	/* Mapped bounce buffer */
 
 	unsigned int desc_sz;	/* ADMA descriptor size */
-	unsigned int align_sz;	/* ADMA alignment */
-	unsigned int align_mask;	/* ADMA alignment mask */
 
 	struct tasklet_struct finish_tasklet;	/* Tasklet structures */
 
@@ -525,6 +529,8 @@ struct sdhci_ops {
 #endif
 
 	void	(*set_clock)(struct sdhci_host *host, unsigned int clock);
+	void	(*set_power)(struct sdhci_host *host, unsigned char mode,
+			     unsigned short vdd);
 
 	int		(*enable_dma)(struct sdhci_host *host);
 	unsigned int	(*get_max_clock)(struct sdhci_host *host);
@@ -656,6 +662,8 @@ static inline bool sdhci_sdio_irq_enabled(struct sdhci_host *host)
 }
 
 void sdhci_set_clock(struct sdhci_host *host, unsigned int clock);
+void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
+		     unsigned short vdd);
 void sdhci_set_bus_width(struct sdhci_host *host, int width);
 void sdhci_reset(struct sdhci_host *host, u8 mask);
 void sdhci_set_uhs_signaling(struct sdhci_host *host, unsigned timing);

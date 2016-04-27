@@ -61,7 +61,7 @@ Documentation/kobject.txt 文档以获得更多关于 kobject 接口的
 内核的对象层次到用户空间。sysfs 中的顶层目录代表着内核对象层次的
 共同祖先；例如：某些对象属于某个子系统。
 
-Sysfs 在与其目录关联的 sysfs_dirent 对象中内部保存一个指向实现
+Sysfs 在与其目录关联的 kernfs_node 对象中内部保存一个指向实现
 目录的 kobject 的指针。以前，这个 kobject 指针被 sysfs 直接用于
 kobject 文件打开和关闭的引用计数。而现在的 sysfs 实现中，kobject
 引用计数只能通过 sysfs_schedule_callback() 函数直接修改。

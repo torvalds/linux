@@ -62,8 +62,7 @@ static int spics_get_value(struct gpio_chip *chip, unsigned offset)
 
 static void spics_set_value(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct spear_spics *spics = container_of(chip, struct spear_spics,
-			chip);
+	struct spear_spics *spics = gpiochip_get_data(chip);
 	u32 tmp;
 
 	/* select chip select from register */
@@ -94,8 +93,7 @@ static int spics_direction_output(struct gpio_chip *chip, unsigned offset,
 
 static int spics_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct spear_spics *spics = container_of(chip, struct spear_spics,
-			chip);
+	struct spear_spics *spics = gpiochip_get_data(chip);
 	u32 tmp;
 
 	if (!spics->use_count++) {
@@ -110,8 +108,7 @@ static int spics_request(struct gpio_chip *chip, unsigned offset)
 
 static void spics_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct spear_spics *spics = container_of(chip, struct spear_spics,
-			chip);
+	struct spear_spics *spics = gpiochip_get_data(chip);
 	u32 tmp;
 
 	if (!--spics->use_count) {
@@ -164,11 +161,11 @@ static int spics_gpio_probe(struct platform_device *pdev)
 	spics->chip.get = spics_get_value;
 	spics->chip.set = spics_set_value;
 	spics->chip.label = dev_name(&pdev->dev);
-	spics->chip.dev = &pdev->dev;
+	spics->chip.parent = &pdev->dev;
 	spics->chip.owner = THIS_MODULE;
 	spics->last_off = -1;
 
-	ret = gpiochip_add(&spics->chip);
+	ret = devm_gpiochip_add_data(&pdev->dev, &spics->chip, spics);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to add gpio chip\n");
 		return ret;

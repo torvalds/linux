@@ -713,12 +713,8 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 		return result;
 
 	s = &dev->subdevices[2];
-	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
-				  dioP2ExpansionIO8Bit);
-	if (result)
-		return result;
-
-	return 0;
+	return subdev_8255_init(dev, s, daqboard2000_8255_cb,
+				dioP2ExpansionIO8Bit);
 }
 
 static void daqboard2000_detach(struct comedi_device *dev)

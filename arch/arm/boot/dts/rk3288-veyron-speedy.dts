@@ -88,6 +88,14 @@
 	};
 };
 
+&cpu_alert0 {
+	temperature = <65000>;
+};
+
+&cpu_alert1 {
+	temperature = <70000>;
+};
+
 &rk808 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pmic_int_l>;

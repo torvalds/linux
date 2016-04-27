@@ -1,0 +1,117 @@
+/*
+ * B4860DS Device Tree Source
+ *
+ * Copyright 2012 - 2015 Freescale Semiconductor Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Freescale Semiconductor nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ *
+ * ALTERNATIVELY, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") as published by the Free Software
+ * Foundation, either version 2 of that License or (at your option) any
+ * later version.
+ *
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/include/ "b4860si-pre.dtsi"
+/include/ "b4qds.dtsi"
+
+/ {
+	model = "fsl,B4860QDS";
+	compatible = "fsl,B4860QDS";
+
+	aliases {
+		phy_sgmii_1e = &phy_sgmii_1e;
+		phy_sgmii_1f = &phy_sgmii_1f;
+		phy_xaui_slot1 = &phy_xaui_slot1;
+		phy_xaui_slot2 = &phy_xaui_slot2;
+	};
+
+	ifc: localbus@ffe124000 {
+		board-control@3,0 {
+			compatible = "fsl,b4860qds-fpga", "fsl,fpga-qixis";
+		};
+	};
+
+	soc@ffe000000 {
+		fman@400000 {
+			ethernet@e8000 {
+				phy-handle = <&phy_sgmii_1e>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@ea000 {
+				phy-handle = <&phy_sgmii_1f>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@f0000 {
+				phy-handle = <&phy_xaui_slot1>;
+				phy-connection-type = "xgmii";
+			};
+
+			ethernet@f2000 {
+				phy-handle = <&phy_xaui_slot2>;
+				phy-connection-type = "xgmii";
+			};
+
+			mdio@fc000 {
+				phy_sgmii_1e: ethernet-phy@1e {
+					reg = <0x1e>;
+					status = "disabled";
+				};
+
+				phy_sgmii_1f: ethernet-phy@1f {
+					reg = <0x1f>;
+					status = "disabled";
+				};
+			};
+
+			mdio@fd000 {
+				phy_xaui_slot1: xaui-phy@slot1 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x7>;
+					status = "disabled";
+				};
+
+				phy_xaui_slot2: xaui-phy@slot2 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x6>;
+					status = "disabled";
+				};
+			};
+		};
+	};
+
+	rio: rapidio@ffe0c0000 {
+		reg = <0xf 0xfe0c0000 0 0x11000>;
+
+		port1 {
+			ranges = <0 0 0xc 0x20000000 0 0x10000000>;
+		};
+		port2 {
+			ranges = <0 0 0xc 0x30000000 0 0x10000000>;
+		};
+	};
+};
+
+/include/ "b4860si-post.dtsi"

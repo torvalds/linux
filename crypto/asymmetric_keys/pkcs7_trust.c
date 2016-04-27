@@ -17,7 +17,7 @@
 #include <linux/asn1.h>
 #include <linux/key.h>
 #include <keys/asymmetric-type.h>
-#include "public_key.h"
+#include <crypto/public_key.h>
 #include "pkcs7_parser.h"
 
 /**
@@ -177,6 +177,8 @@ int pkcs7_validate_trust(struct pkcs7_message *pkcs7,
 	struct x509_certificate *p;
 	int cached_ret = -ENOKEY;
 	int ret;
+
+	*_trusted = false;
 
 	for (p = pkcs7->certs; p; p = p->next)
 		p->seen = false;

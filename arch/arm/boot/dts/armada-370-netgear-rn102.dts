@@ -63,7 +63,8 @@
 
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
-			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
 
 		pcie-controller {
 			status = "okay";
@@ -82,6 +83,12 @@
 		};
 
 		internal-regs {
+
+			/* RTC is provided by Intersil ISL12057 I2C RTC chip */
+			rtc@10300 {
+				status = "disabled";
+			};
+
 			serial@12000 {
 				status = "okay";
 			};
@@ -120,7 +127,7 @@
 				isl12057: isl12057@68 {
 					compatible = "isil,isl12057";
 					reg = <0x68>;
-					isil,irq2-can-wakeup-machine;
+					wakeup-source;
 				};
 
 				g762: g762@3e {

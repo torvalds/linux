@@ -110,16 +110,6 @@ source "drivers/block/mtip32xx/Kconfig"
 
 source "drivers/block/zram/Kconfig"
 
-config BLK_CPQ_DA
-	tristate "Compaq SMART2 support"
-	depends on PCI && VIRT_TO_BUS && 0
-	help
-	  This is the driver for Compaq Smart Array controllers.  Everyone
-	  using these boards should say Y here.  See the file
-	  <file:Documentation/blockdev/cpqarray.txt> for the current list of
-	  boards supported by this driver, and for further information on the
-	  use of this driver.
-
 config BLK_CPQ_CISS_DA
 	tristate "Compaq Smart Array 5xxx support"
 	depends on PCI
@@ -309,17 +299,6 @@ config BLK_DEV_NBD
 	  module will be called nbd.
 
 	  If unsure, say N.
-
-config BLK_DEV_NVME
-	tristate "NVM Express block device"
-	depends on PCI
-	---help---
-	  The NVM Express driver is for solid state drives directly
-	  connected to the PCI or PCI Express bus.  If you know you
-	  don't have one of these, it is safe to answer N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called nvme.
 
 config BLK_DEV_SKD
 	tristate "STEC S1120 Block Driver"

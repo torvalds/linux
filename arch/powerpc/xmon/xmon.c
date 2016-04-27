@@ -47,6 +47,9 @@
 #include <asm/debug.h>
 #include <asm/hw_breakpoint.h>
 
+#include <asm/opal.h>
+#include <asm/firmware.h>
+
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
 #include <asm/paca.h>
@@ -119,6 +122,16 @@ static void dump(void);
 static void prdump(unsigned long, long);
 static int ppc_inst_dump(unsigned long, long, int);
 static void dump_log_buf(void);
+
+#ifdef CONFIG_PPC_POWERNV
+static void dump_opal_msglog(void);
+#else
+static inline void dump_opal_msglog(void)
+{
+	printf("Machine is not running OPAL firmware.\n");
+}
+#endif
+
 static void backtrace(struct pt_regs *);
 static void excprint(struct pt_regs *);
 static void prregs(struct pt_regs *);
@@ -150,6 +163,7 @@ static int  cpu_cmd(void);
 static void csum(void);
 static void bootcmds(void);
 static void proccall(void);
+static void show_tasks(void);
 void dump_segments(void);
 static void symbol_lookup(void);
 static void xmon_show_stack(unsigned long sp, unsigned long lr,
@@ -202,6 +216,10 @@ Commands:\n\
   df	dump float values\n\
   dd	dump double values\n\
   dl    dump the kernel log buffer\n"
+#ifdef CONFIG_PPC_POWERNV
+  "\
+  do    dump the OPAL message log\n"
+#endif
 #ifdef CONFIG_PPC64
   "\
   dp[#]	dump paca for current cpu, or cpu #\n\
@@ -221,6 +239,7 @@ Commands:\n\
   mz	zero a block of memory\n\
   mi	show information about memory allocation\n\
   p 	call a procedure\n\
+  P 	list processes/tasks\n\
   r	print registers\n\
   s	single step\n"
 #ifdef CONFIG_SPU_BASE
@@ -233,7 +252,7 @@ Commands:\n\
 "  S	print special registers\n\
   t	print backtrace\n\
   x	exit monitor and recover\n\
-  X	exit monitor and dont recover\n"
+  X	exit monitor and don't recover\n"
 #if defined(CONFIG_PPC64) && !defined(CONFIG_PPC_BOOK3E)
 "  u	dump segment table or SLB\n"
 #elif defined(CONFIG_PPC_STD_MMU_32)
@@ -242,6 +261,7 @@ Commands:\n\
 "  u	dump TLB\n"
 #endif
 "  ?	help\n"
+"  # n	limit output to n lines per page (for dp, dpa, dl)\n"
 "  zr	reboot\n\
   zh	halt\n"
 ;
@@ -319,6 +339,7 @@ static inline void disable_surveillance(void)
 #ifdef CONFIG_PPC_PSERIES
 	/* Since this can't be a module, args should end up below 4GB. */
 	static struct rtas_args args;
+	int token;
 
 	/*
 	 * At this point we have got all the cpus we can into
@@ -327,17 +348,12 @@ static inline void disable_surveillance(void)
 	 * If we did try to take rtas.lock there would be a
 	 * real possibility of deadlock.
 	 */
-	args.token = rtas_token("set-indicator");
-	if (args.token == RTAS_UNKNOWN_SERVICE)
+	token = rtas_token("set-indicator");
+	if (token == RTAS_UNKNOWN_SERVICE)
 		return;
-	args.token = cpu_to_be32(args.token);
-	args.nargs = cpu_to_be32(3);
-	args.nret = cpu_to_be32(1);
-	args.rets = &args.args[3];
-	args.args[0] = cpu_to_be32(SURVEILLANCE_TOKEN);
-	args.args[1] = 0;
-	args.args[2] = 0;
-	enter_rtas(__pa(&args));
+
+	rtas_call_unlocked(&args, token, 3, 1, NULL, SURVEILLANCE_TOKEN, 0, 0);
+
 #endif /* CONFIG_PPC_PSERIES */
 }
 
@@ -833,6 +849,16 @@ static void remove_cpu_bpts(void)
 	write_ciabr(0);
 }
 
+static void set_lpp_cmd(void)
+{
+	unsigned long lpp;
+
+	if (!scanhex(&lpp)) {
+		printf("Invalid number.\n");
+		lpp = 0;
+	}
+	xmon_set_pagination_lpp(lpp);
+}
 /* Command interpreting routine */
 static char *last_cmd;
 
@@ -924,6 +950,9 @@ cmds(struct pt_regs *excp)
 		case '?':
 			xmon_puts(help_string);
 			break;
+		case '#':
+			set_lpp_cmd();
+			break;
 		case 'b':
 			bpt_cmds();
 			break;
@@ -939,6 +968,9 @@ cmds(struct pt_regs *excp)
 			break;
 		case 'p':
 			proccall();
+			break;
+		case 'P':
+			show_tasks();
 			break;
 #ifdef CONFIG_PPC_STD_MMU
 		case 'u':
@@ -1508,6 +1540,8 @@ static void excprint(struct pt_regs *fp)
 
 	if (trap == 0x700)
 		print_bug_trap(fp);
+
+	printf(linux_banner);
 }
 
 static void prregs(struct pt_regs *fp)
@@ -2072,6 +2106,9 @@ static void xmon_rawdump (unsigned long adrs, long ndump)
 static void dump_one_paca(int cpu)
 {
 	struct paca_struct *p;
+#ifdef CONFIG_PPC_STD_MMU_64
+	int i = 0;
+#endif
 
 	if (setjmp(bus_error_jmp) != 0) {
 		printf("*** Error dumping paca for cpu 0x%x!\n", cpu);
@@ -2085,12 +2122,12 @@ static void dump_one_paca(int cpu)
 
 	printf("paca for cpu 0x%x @ %p:\n", cpu, p);
 
-	printf(" %-*s = %s\n", 16, "possible", cpu_possible(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 16, "present", cpu_present(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 16, "online", cpu_online(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 20, "possible", cpu_possible(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 20, "present", cpu_present(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 20, "online", cpu_online(cpu) ? "yes" : "no");
 
 #define DUMP(paca, name, format) \
-	printf(" %-*s = %#-*"format"\t(0x%lx)\n", 16, #name, 18, paca->name, \
+	printf(" %-*s = %#-*"format"\t(0x%lx)\n", 20, #name, 18, paca->name, \
 		offsetof(struct paca_struct, name));
 
 	DUMP(p, lock_token, "x");
@@ -2102,11 +2139,41 @@ static void dump_one_paca(int cpu)
 #ifdef CONFIG_PPC_BOOK3S_64
 	DUMP(p, mc_emergency_sp, "p");
 	DUMP(p, in_mce, "x");
+	DUMP(p, hmi_event_available, "x");
 #endif
 	DUMP(p, data_offset, "lx");
 	DUMP(p, hw_cpu_id, "x");
 	DUMP(p, cpu_start, "x");
 	DUMP(p, kexec_state, "x");
+#ifdef CONFIG_PPC_STD_MMU_64
+	for (i = 0; i < SLB_NUM_BOLTED; i++) {
+		u64 esid, vsid;
+
+		if (!p->slb_shadow_ptr)
+			continue;
+
+		esid = be64_to_cpu(p->slb_shadow_ptr->save_area[i].esid);
+		vsid = be64_to_cpu(p->slb_shadow_ptr->save_area[i].vsid);
+
+		if (esid || vsid) {
+			printf(" slb_shadow[%d]:       = 0x%016lx 0x%016lx\n",
+				i, esid, vsid);
+		}
+	}
+	DUMP(p, vmalloc_sllp, "x");
+	DUMP(p, slb_cache_ptr, "x");
+	for (i = 0; i < SLB_CACHE_ENTRIES; i++)
+		printf(" slb_cache[%d]:        = 0x%016lx\n", i, p->slb_cache[i]);
+#endif
+	DUMP(p, dscr_default, "llx");
+#ifdef CONFIG_PPC_BOOK3E
+	DUMP(p, pgd, "p");
+	DUMP(p, kernel_pgd, "p");
+	DUMP(p, tcd_ptr, "p");
+	DUMP(p, mc_kstack, "p");
+	DUMP(p, crit_kstack, "p");
+	DUMP(p, dbg_kstack, "p");
+#endif
 	DUMP(p, __current, "p");
 	DUMP(p, kstack, "lx");
 	DUMP(p, stab_rr, "lx");
@@ -2117,7 +2184,27 @@ static void dump_one_paca(int cpu)
 	DUMP(p, io_sync, "x");
 	DUMP(p, irq_work_pending, "x");
 	DUMP(p, nap_state_lost, "x");
+	DUMP(p, sprg_vdso, "llx");
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	DUMP(p, tm_scratch, "llx");
+#endif
+
+#ifdef CONFIG_PPC_POWERNV
+	DUMP(p, core_idle_state_ptr, "p");
+	DUMP(p, thread_idle_state, "x");
+	DUMP(p, thread_mask, "x");
+	DUMP(p, subcore_sibling_mask, "x");
+#endif
+
+	DUMP(p, user_time, "llx");
+	DUMP(p, system_time, "llx");
+	DUMP(p, user_time_scaled, "llx");
+	DUMP(p, starttime, "llx");
+	DUMP(p, starttime_user, "llx");
+	DUMP(p, startspurr, "llx");
+	DUMP(p, utime_sspurr, "llx");
+	DUMP(p, stolen_time, "llx");
 #undef DUMP
 
 	catch_memory_errors = 0;
@@ -2166,7 +2253,9 @@ dump(void)
 
 #ifdef CONFIG_PPC64
 	if (c == 'p') {
+		xmon_start_pagination();
 		dump_pacas();
+		xmon_end_pagination();
 		return;
 	}
 #endif
@@ -2186,6 +2275,8 @@ dump(void)
 		last_cmd = "di\n";
 	} else if (c == 'l') {
 		dump_log_buf();
+	} else if (c == 'o') {
+		dump_opal_msglog();
 	} else if (c == 'r') {
 		scanhex(&ndump);
 		if (ndump == 0)
@@ -2315,16 +2406,57 @@ dump_log_buf(void)
 	sync();
 
 	kmsg_dump_rewind_nolock(&dumper);
+	xmon_start_pagination();
 	while (kmsg_dump_get_line_nolock(&dumper, false, buf, sizeof(buf), &len)) {
 		buf[len] = '\0';
 		printf("%s", buf);
 	}
+	xmon_end_pagination();
 
 	sync();
 	/* wait a little while to see if we get a machine check */
 	__delay(200);
 	catch_memory_errors = 0;
 }
+
+#ifdef CONFIG_PPC_POWERNV
+static void dump_opal_msglog(void)
+{
+	unsigned char buf[128];
+	ssize_t res;
+	loff_t pos = 0;
+
+	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
+		printf("Machine is not running OPAL firmware.\n");
+		return;
+	}
+
+	if (setjmp(bus_error_jmp) != 0) {
+		printf("Error dumping OPAL msglog!\n");
+		return;
+	}
+
+	catch_memory_errors = 1;
+	sync();
+
+	xmon_start_pagination();
+	while ((res = opal_msglog_copy(buf, pos, sizeof(buf) - 1))) {
+		if (res < 0) {
+			printf("Error dumping OPAL msglog! Error: %zd\n", res);
+			break;
+		}
+		buf[res] = '\0';
+		printf("%s", buf);
+		pos += res;
+	}
+	xmon_end_pagination();
+
+	sync();
+	/* wait a little while to see if we get a machine check */
+	__delay(200);
+	catch_memory_errors = 0;
+}
+#endif
 
 /*
  * Memory operations - move, set, print differences
@@ -2437,6 +2569,61 @@ memzcan(void)
 	}
 	if (ook)
 		printf("%.8x\n", a - mskip);
+}
+
+static void show_task(struct task_struct *tsk)
+{
+	char state;
+
+	/*
+	 * Cloned from kdb_task_state_char(), which is not entirely
+	 * appropriate for calling from xmon. This could be moved
+	 * to a common, generic, routine used by both.
+	 */
+	state = (tsk->state == 0) ? 'R' :
+		(tsk->state < 0) ? 'U' :
+		(tsk->state & TASK_UNINTERRUPTIBLE) ? 'D' :
+		(tsk->state & TASK_STOPPED) ? 'T' :
+		(tsk->state & TASK_TRACED) ? 'C' :
+		(tsk->exit_state & EXIT_ZOMBIE) ? 'Z' :
+		(tsk->exit_state & EXIT_DEAD) ? 'E' :
+		(tsk->state & TASK_INTERRUPTIBLE) ? 'S' : '?';
+
+	printf("%p %016lx %6d %6d %c %2d %s\n", tsk,
+		tsk->thread.ksp,
+		tsk->pid, tsk->parent->pid,
+		state, task_thread_info(tsk)->cpu,
+		tsk->comm);
+}
+
+static void show_tasks(void)
+{
+	unsigned long tskv;
+	struct task_struct *tsk = NULL;
+
+	printf("     task_struct     ->thread.ksp    PID   PPID S  P CMD\n");
+
+	if (scanhex(&tskv))
+		tsk = (struct task_struct *)tskv;
+
+	if (setjmp(bus_error_jmp) != 0) {
+		catch_memory_errors = 0;
+		printf("*** Error dumping task %p\n", tsk);
+		return;
+	}
+
+	catch_memory_errors = 1;
+	sync();
+
+	if (tsk)
+		show_task(tsk);
+	else
+		for_each_process(tsk)
+			show_task(tsk);
+
+	sync();
+	__delay(200);
+	catch_memory_errors = 0;
 }
 
 static void proccall(void)

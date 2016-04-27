@@ -61,7 +61,8 @@
 
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
-			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
 
 		pcie-controller {
 			status = "okay";
@@ -138,6 +139,10 @@
 				phy-mode = "rgmii-id";
 			};
 
+			crypto@90000 {
+				status = "okay";
+			};
+
 			mvsdio@d4000 {
 				pinctrl-0 = <&sdio_pins3>;
 				pinctrl-names = "default";
@@ -195,7 +200,7 @@
 &pinctrl {
 	pwr_led_pin: pwr-led-pin {
 		marvell,pins = "mpp63";
-		marvell,function = "gpo";
+		marvell,function = "gpio";
 	};
 
 	stat_led_pins: stat-led-pins {

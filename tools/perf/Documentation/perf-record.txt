@@ -144,7 +144,7 @@ OPTIONS
 
 --call-graph::
 	Setup and enable call-graph (stack chain/backtrace) recording,
-	implies -g.
+	implies -g.  Default is "fp".
 
 	Allows specifying "fp" (frame pointer) or "dwarf"
 	(DWARF's CFI - Call Frame Information) or "lbr"
@@ -154,12 +154,17 @@ OPTIONS
 	In some systems, where binaries are build with gcc
 	--fomit-frame-pointer, using the "fp" method will produce bogus
 	call graphs, using "dwarf", if available (perf tools linked to
-	the libunwind library) should be used instead.
+	the libunwind or libdw library) should be used instead.
 	Using the "lbr" method doesn't require any compiler options. It
 	will produce call graphs from the hardware LBR registers. The
 	main limition is that it is only available on new Intel
 	platforms, such as Haswell. It can only get user call chain. It
 	doesn't work with branch stack sampling at the same time.
+
+	When "dwarf" recording is used, perf also records (user) stack dump
+	when sampled.  Default size of the stack dump is 8192 (bytes).
+	User can change the size by passing the size after comma like
+	"--call-graph dwarf,4096".
 
 -q::
 --quiet::
@@ -202,11 +207,23 @@ comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-
 In per-thread mode with inheritance mode on (default), samples are captured only when
 the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
+-B::
+--no-buildid::
+Do not save the build ids of binaries in the perf.data files. This skips
+post processing after recording, which sometimes makes the final step in
+the recording process to take a long time, as it needs to process all
+events looking for mmap records. The downside is that it can misresolve
+symbols if the workload binaries used when recording get locally rebuilt
+or upgraded, because the only key available in this case is the
+pathname. You can also set the "record.build-id" config variable to
+'skip to have this behaviour permanently.
+
 -N::
 --no-buildid-cache::
 Do not update the buildid cache. This saves some overhead in situations
 where the information in the perf.data file (which includes buildids)
-is sufficient.
+is sufficient.  You can also set the "record.build-id" config variable to
+'no-cache' to have the same effect.
 
 -G name,...::
 --cgroup name,...::
@@ -236,6 +253,7 @@ following filters are defined:
         - any_call: any function call or system call
         - any_ret: any function return or system call return
         - ind_call: any indirect branch
+        - call: direct calls, including far (to/from kernel) calls
         - u:  only when the branch target is at the user level
         - k: only when the branch target is in the kernel
         - hv: only when the target is at the hypervisor level
@@ -307,6 +325,27 @@ This option sets the time out limit. The default value is 500 ms.
 --switch-events::
 Record context switch events i.e. events of type PERF_RECORD_SWITCH or
 PERF_RECORD_SWITCH_CPU_WIDE.
+
+--clang-path=PATH::
+Path to clang binary to use for compiling BPF scriptlets.
+(enabled when BPF support is on)
+
+--clang-opt=OPTIONS::
+Options passed to clang when compiling BPF scriptlets.
+(enabled when BPF support is on)
+
+--vmlinux=PATH::
+Specify vmlinux path which has debuginfo.
+(enabled when BPF prologue is on)
+
+--buildid-all::
+Record build-id of all DSOs regardless whether it's actually hit or not.
+
+--all-kernel::
+Configure all used events to run in kernel space.
+
+--all-user::
+Configure all used events to run in user space.
 
 SEE ALSO
 --------

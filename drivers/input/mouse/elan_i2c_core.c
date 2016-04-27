@@ -41,6 +41,7 @@
 
 #define DRIVER_NAME		"elan_i2c"
 #define ELAN_DRIVER_VERSION	"1.6.1"
+#define ELAN_VENDOR_ID		0x04f3
 #define ETP_MAX_PRESSURE	255
 #define ETP_FWIDTH_REDUCE	90
 #define ETP_FINGER_WIDTH	15
@@ -914,6 +915,8 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 
 	input->name = "Elan Touchpad";
 	input->id.bustype = BUS_I2C;
+	input->id.vendor = ELAN_VENDOR_ID;
+	input->id.product = data->product_id;
 	input_set_drvdata(input, data);
 
 	error = input_mt_init_slots(input, ETP_MAX_FINGERS,

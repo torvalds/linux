@@ -233,6 +233,15 @@ static int ml86v7667_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ml86v7667_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
+{
+	struct ml86v7667_priv *priv = to_ml86v7667(sd);
+
+	*std = priv->std;
+
+	return 0;
+}
+
 static int ml86v7667_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct ml86v7667_priv *priv = to_ml86v7667(sd);
@@ -282,6 +291,7 @@ static const struct v4l2_ctrl_ops ml86v7667_ctrl_ops = {
 };
 
 static struct v4l2_subdev_video_ops ml86v7667_subdev_video_ops = {
+	.g_std = ml86v7667_g_std,
 	.s_std = ml86v7667_s_std,
 	.querystd = ml86v7667_querystd,
 	.g_input_status = ml86v7667_g_input_status,
@@ -427,7 +437,6 @@ MODULE_DEVICE_TABLE(i2c, ml86v7667_id);
 static struct i2c_driver ml86v7667_i2c_driver = {
 	.driver = {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ml86v7667_probe,
 	.remove		= ml86v7667_remove,

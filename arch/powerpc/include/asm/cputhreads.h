@@ -1,6 +1,7 @@
 #ifndef _ASM_POWERPC_CPUTHREADS_H
 #define _ASM_POWERPC_CPUTHREADS_H
 
+#ifndef __ASSEMBLY__
 #include <linux/cpumask.h>
 
 /*
@@ -94,7 +95,21 @@ static inline int cpu_last_thread_sibling(int cpu)
 	return cpu | (threads_per_core - 1);
 }
 
+static inline u32 get_tensr(void)
+{
+#ifdef	CONFIG_BOOKE
+	if (cpu_has_feature(CPU_FTR_SMT))
+		return mfspr(SPRN_TENSR);
+#endif
+	return 1;
+}
 
+void book3e_start_thread(int thread, unsigned long addr);
+void book3e_stop_thread(int thread);
+
+#endif /* __ASSEMBLY__ */
+
+#define INVALID_THREAD_HWID	0x0fff
 
 #endif /* _ASM_POWERPC_CPUTHREADS_H */
 

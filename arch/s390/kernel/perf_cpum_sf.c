@@ -1019,11 +1019,16 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 		break;
 	}
 
-	/* The host-program-parameter (hpp) contains the pid of
-	 * the CPU thread as set by sie64a() in entry.S.
-	 * If non-zero assume a guest sample.
+	/*
+	 * A non-zero guest program parameter indicates a guest
+	 * sample.
+	 * Note that some early samples or samples from guests without
+	 * lpp usage would be misaccounted to the host. We use the asn
+	 * value as a heuristic to detect most of these guest samples.
+	 * If the value differs from the host hpp value, we assume
+	 * it to be a KVM guest.
 	 */
-	if (sfr->basic.hpp)
+	if (sfr->basic.gpp || sfr->basic.prim_asn != (u16) sfr->basic.hpp)
 		sde_regs->in_guest = 1;
 
 	overflow = 0;
@@ -1516,7 +1521,7 @@ static int cpumf_pmu_notifier(struct notifier_block *self,
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
+	case CPU_DOWN_FAILED:
 		flags = PMC_INIT;
 		smp_call_function_single(cpu, setup_pmc_cpu, &flags, 1);
 		break;

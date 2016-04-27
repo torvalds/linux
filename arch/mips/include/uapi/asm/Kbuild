@@ -1,9 +1,9 @@
 # UAPI Header export list
 include include/uapi/asm-generic/Kbuild.asm
 
-generic-y += auxvec.h
 generic-y += ipcbuf.h
 
+header-y += auxvec.h
 header-y += bitfield.h
 header-y += bitsperlong.h
 header-y += break.h

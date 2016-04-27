@@ -22,6 +22,7 @@
 #include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/pm_qos.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 
 #include "internal.h"
@@ -963,23 +964,6 @@ int acpi_subsys_prepare(struct device *dev)
 EXPORT_SYMBOL_GPL(acpi_subsys_prepare);
 
 /**
- * acpi_subsys_complete - Finalize device's resume during system resume.
- * @dev: Device to handle.
- */
-void acpi_subsys_complete(struct device *dev)
-{
-	pm_generic_complete(dev);
-	/*
-	 * If the device had been runtime-suspended before the system went into
-	 * the sleep state it is going out of and it has never been resumed till
-	 * now, resume it in case the firmware powered it up.
-	 */
-	if (dev->power.direct_complete)
-		pm_request_resume(dev);
-}
-EXPORT_SYMBOL_GPL(acpi_subsys_complete);
-
-/**
  * acpi_subsys_suspend - Run the device driver's suspend callback.
  * @dev: Device to handle.
  *
@@ -1047,7 +1031,7 @@ static struct dev_pm_domain acpi_general_pm_domain = {
 		.runtime_resume = acpi_subsys_runtime_resume,
 #ifdef CONFIG_PM_SLEEP
 		.prepare = acpi_subsys_prepare,
-		.complete = acpi_subsys_complete,
+		.complete = pm_complete_with_resume_check,
 		.suspend = acpi_subsys_suspend,
 		.suspend_late = acpi_subsys_suspend_late,
 		.resume_early = acpi_subsys_resume_early,
@@ -1076,7 +1060,7 @@ static void acpi_dev_pm_detach(struct device *dev, bool power_off)
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 
 	if (adev && dev->pm_domain == &acpi_general_pm_domain) {
-		dev->pm_domain = NULL;
+		dev_pm_domain_set(dev, NULL);
 		acpi_remove_pm_notifier(adev);
 		if (power_off) {
 			/*
@@ -1128,7 +1112,7 @@ int acpi_dev_pm_attach(struct device *dev, bool power_on)
 		return -EBUSY;
 
 	acpi_add_pm_notifier(adev, dev, acpi_pm_notify_work_func);
-	dev->pm_domain = &acpi_general_pm_domain;
+	dev_pm_domain_set(dev, &acpi_general_pm_domain);
 	if (power_on) {
 		acpi_dev_pm_full_power(adev);
 		acpi_device_wakeup(adev, ACPI_STATE_S0, false);

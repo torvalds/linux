@@ -138,7 +138,7 @@ static struct snd_soc_ops poodle_ops = {
 static int poodle_get_jack(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = poodle_jack_func;
+	ucontrol->value.enumerated.item[0] = poodle_jack_func;
 	return 0;
 }
 
@@ -147,10 +147,10 @@ static int poodle_set_jack(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
 
-	if (poodle_jack_func == ucontrol->value.integer.value[0])
+	if (poodle_jack_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	poodle_jack_func = ucontrol->value.integer.value[0];
+	poodle_jack_func = ucontrol->value.enumerated.item[0];
 	poodle_ext_control(&card->dapm);
 	return 1;
 }
@@ -158,7 +158,7 @@ static int poodle_set_jack(struct snd_kcontrol *kcontrol,
 static int poodle_get_spk(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = poodle_spk_func;
+	ucontrol->value.enumerated.item[0] = poodle_spk_func;
 	return 0;
 }
 
@@ -167,10 +167,10 @@ static int poodle_set_spk(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
 
-	if (poodle_spk_func == ucontrol->value.integer.value[0])
+	if (poodle_spk_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	poodle_spk_func = ucontrol->value.integer.value[0];
+	poodle_spk_func = ucontrol->value.enumerated.item[0];
 	poodle_ext_control(&card->dapm);
 	return 1;
 }
@@ -267,19 +267,11 @@ static int poodle_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
 	return ret;
-}
-
-static int poodle_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
-	return 0;
 }
 
 static struct platform_driver poodle_driver = {
@@ -288,7 +280,6 @@ static struct platform_driver poodle_driver = {
 		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= poodle_probe,
-	.remove		= poodle_remove,
 };
 
 module_platform_driver(poodle_driver);

@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -100,8 +100,8 @@ struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size)
 		return NULL;
 
 	for (i = 0; i < stripe_count; i++) {
-		OBD_SLAB_ALLOC_PTR_GFP(loi, lov_oinfo_slab, GFP_NOFS);
-		if (loi == NULL)
+		loi = kmem_cache_zalloc(lov_oinfo_slab, GFP_NOFS);
+		if (!loi)
 			goto err;
 		lsm->lsm_oinfo[i] = loi;
 	}
@@ -110,7 +110,7 @@ struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size)
 
 err:
 	while (--i >= 0)
-		OBD_SLAB_FREE(lsm->lsm_oinfo[i], lov_oinfo_slab, sizeof(*loi));
+		kmem_cache_free(lov_oinfo_slab, lsm->lsm_oinfo[i]);
 	kvfree(lsm);
 	return NULL;
 }
@@ -121,8 +121,7 @@ void lsm_free_plain(struct lov_stripe_md *lsm)
 	int i;
 
 	for (i = 0; i < stripe_count; i++)
-		OBD_SLAB_FREE(lsm->lsm_oinfo[i], lov_oinfo_slab,
-			      sizeof(struct lov_oinfo));
+		kmem_cache_free(lov_oinfo_slab, lsm->lsm_oinfo[i]);
 	kvfree(lsm);
 }
 
@@ -142,7 +141,7 @@ static void lsm_unpackmd_common(struct lov_stripe_md *lsm,
 
 static void
 lsm_stripe_by_index_plain(struct lov_stripe_md *lsm, int *stripeno,
-			   u64 *lov_off, u64 *swidth)
+			  u64 *lov_off, u64 *swidth)
 {
 	if (swidth)
 		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
@@ -163,12 +162,13 @@ static int lsm_destroy_plain(struct lov_stripe_md *lsm, struct obdo *oa,
 }
 
 /* Find minimum stripe maxbytes value.  For inactive or
- * reconnecting targets use LUSTRE_STRIPE_MAXBYTES. */
+ * reconnecting targets use LUSTRE_STRIPE_MAXBYTES.
+ */
 static void lov_tgt_maxbytes(struct lov_tgt_desc *tgt, __u64 *stripe_maxbytes)
 {
 	struct obd_import *imp = tgt->ltd_obd->u.cli.cl_import;
 
-	if (imp == NULL || !tgt->ltd_active) {
+	if (!imp || !tgt->ltd_active) {
 		*stripe_maxbytes = LUSTRE_STRIPE_MAXBYTES;
 		return;
 	}

@@ -9,10 +9,13 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
-#include <asm/qe.h>
+#include <asm/fsl_pm.h>
+#include <soc/fsl/qe/qe.h>
 #include <sysdev/cpm2_pic.h>
 
 #include "mpc85xx.h"
+
+const struct fsl_pm_ops *qoriq_pm_ops;
 
 static const struct of_device_id mpc85xx_common_ids[] __initconst = {
 	{ .type = "soc", },
@@ -105,7 +108,6 @@ void __init mpc85xx_qe_init(void)
 		return;
 	}
 
-	qe_reset();
 	of_node_put(np);
 
 }

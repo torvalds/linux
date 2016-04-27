@@ -118,6 +118,22 @@
 		dma-names = "tx", "rx";
 		clock-names = "i2s_hclk", "i2s_clk";
 		clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>;
+		rockchip,playback-channels = <2>;
+		rockchip,capture-channels = <2>;
+		status = "disabled";
+	};
+
+	spdif: sound@1011e000 {
+		compatible = "rockchip,rk3188-spdif", "rockchip,rk3066-spdif";
+		reg = <0x1011e000 0x2000>;
+		#sound-dai-cells = <0>;
+		clock-names = "hclk", "mclk";
+		clocks = <&cru HCLK_SPDIF>, <&cru SCLK_SPDIF>;
+		dmas = <&dmac1_s 8>;
+		dma-names = "tx";
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spdif_tx>;
 		status = "disabled";
 	};
 
@@ -128,6 +144,19 @@
 
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+	};
+
+	efuse: efuse@20010000 {
+		compatible = "rockchip,rockchip-efuse";
+		reg = <0x20010000 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&cru PCLK_EFUSE>;
+		clock-names = "pclk_efuse";
+
+		cpu_leakage: cpu_leakage {
+			reg = <0x17 0x1>;
+		};
 	};
 
 	usbphy: phy {
@@ -142,6 +171,7 @@
 			reg = <0x10c>;
 			clocks = <&cru SCLK_OTGPHY0>;
 			clock-names = "phyclk";
+			#clock-cells = <0>;
 		};
 
 		usbphy1: usb-phy1 {
@@ -149,6 +179,7 @@
 			reg = <0x11c>;
 			clocks = <&cru SCLK_OTGPHY1>;
 			clock-names = "phyclk";
+			#clock-cells = <0>;
 		};
 	};
 
@@ -482,6 +513,12 @@
 						<RK_GPIO1 19 RK_FUNC_1 &pcfg_pull_none>,
 						<RK_GPIO1 20 RK_FUNC_1 &pcfg_pull_none>,
 						<RK_GPIO1 21 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		spdif {
+			spdif_tx: spdif-tx {
+				rockchip,pins = <RK_GPIO1 14 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 	};

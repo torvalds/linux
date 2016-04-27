@@ -281,7 +281,7 @@ static struct page *logfs_get_read_page(struct inode *inode, u64 bix,
 static void logfs_put_read_page(struct page *page)
 {
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 static void logfs_lock_write_page(struct page *page)
@@ -323,7 +323,7 @@ repeat:
 			return NULL;
 		err = add_to_page_cache_lru(page, mapping, index, GFP_NOFS);
 		if (unlikely(err)) {
-			page_cache_release(page);
+			put_page(page);
 			if (err == -EEXIST)
 				goto repeat;
 			return NULL;
@@ -342,7 +342,7 @@ static void logfs_unlock_write_page(struct page *page)
 static void logfs_put_write_page(struct page *page)
 {
 	logfs_unlock_write_page(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 static struct page *logfs_get_page(struct inode *inode, u64 bix, level_t level,
@@ -562,20 +562,20 @@ static void indirect_free_block(struct super_block *sb,
 
 	if (PagePrivate(page)) {
 		ClearPagePrivate(page);
-		page_cache_release(page);
+		put_page(page);
 		set_page_private(page, 0);
 	}
 	__free_block(sb, block);
 }
 
 
-static struct logfs_block_ops inode_block_ops = {
+static const struct logfs_block_ops inode_block_ops = {
 	.write_block = inode_write_block,
 	.free_block = inode_free_block,
 	.write_alias = inode_write_alias,
 };
 
-struct logfs_block_ops indirect_block_ops = {
+const struct logfs_block_ops indirect_block_ops = {
 	.write_block = indirect_write_block,
 	.free_block = indirect_free_block,
 	.write_alias = indirect_write_alias,
@@ -655,7 +655,7 @@ static void alloc_data_block(struct inode *inode, struct page *page)
 	block->page = page;
 
 	SetPagePrivate(page);
-	page_cache_get(page);
+	get_page(page);
 	set_page_private(page, (unsigned long) block);
 
 	block->ops = &indirect_block_ops;
@@ -709,7 +709,7 @@ static u64 block_get_pointer(struct page *page, int index)
 
 static int logfs_read_empty(struct page *page)
 {
-	zero_user_segment(page, 0, PAGE_CACHE_SIZE);
+	zero_user_segment(page, 0, PAGE_SIZE);
 	return 0;
 }
 
@@ -1660,7 +1660,7 @@ static int truncate_data_block(struct inode *inode, struct page *page,
 	if (err)
 		return err;
 
-	zero_user_segment(page, size - pageofs, PAGE_CACHE_SIZE);
+	zero_user_segment(page, size - pageofs, PAGE_SIZE);
 	return logfs_segment_write(inode, page, shadow);
 }
 
@@ -1919,7 +1919,7 @@ static void move_page_to_inode(struct inode *inode, struct page *page)
 	block->page = NULL;
 	if (PagePrivate(page)) {
 		ClearPagePrivate(page);
-		page_cache_release(page);
+		put_page(page);
 		set_page_private(page, 0);
 	}
 }
@@ -1940,7 +1940,7 @@ static void move_inode_to_page(struct page *page, struct inode *inode)
 
 	if (!PagePrivate(page)) {
 		SetPagePrivate(page);
-		page_cache_get(page);
+		get_page(page);
 		set_page_private(page, (unsigned long) block);
 	}
 
@@ -1971,7 +1971,7 @@ int logfs_read_inode(struct inode *inode)
 	logfs_disk_to_inode(di, inode);
 	kunmap_atomic(di);
 	move_page_to_inode(inode, page);
-	page_cache_release(page);
+	put_page(page);
 	return 0;
 }
 

@@ -19,7 +19,7 @@
 #include <asm/kvm_book3s_asm.h>
 #include <asm/opal.h>
 #include <asm/cpuidle.h>
-#include <asm/mmu-hash64.h>
+#include <asm/book3s/64/mmu-hash.h>
 
 #undef DEBUG
 
@@ -88,13 +88,6 @@ _GLOBAL(power7_powersave_common)
 	stdu	r1,-INT_FRAME_SIZE(r1)
 	std	r0,_LINK(r1)
 	std	r0,_NIP(r1)
-
-#ifndef CONFIG_SMP
-	/* Make sure FPU, VSX etc... are flushed as we may lose
-	 * state when going to nap mode
-	 */
-	bl	discard_lazy_cpu_state
-#endif /* CONFIG_SMP */
 
 	/* Hard disable interrupts */
 	mfmsr	r9

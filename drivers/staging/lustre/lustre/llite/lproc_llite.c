@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -43,7 +43,7 @@
 #include "llite_internal.h"
 #include "vvp_internal.h"
 
-/* /proc/lustre/llite mount point registration */
+/* debugfs llite mount point registration */
 static struct file_operations ll_rw_extents_stats_fops;
 static struct file_operations ll_rw_extents_stats_pp_fops;
 static struct file_operations ll_rw_offset_stats_fops;
@@ -218,6 +218,7 @@ static int ll_site_stats_seq_show(struct seq_file *m, void *v)
 	 */
 	return cl_site_stats_print(lu2cl_site(ll_s2sbi(sb)->ll_site), m);
 }
+
 LPROC_SEQ_FOPS_RO(ll_site_stats);
 
 static ssize_t max_read_ahead_mb_show(struct kobject *kobj,
@@ -232,7 +233,7 @@ static ssize_t max_read_ahead_mb_show(struct kobject *kobj,
 	pages_number = sbi->ll_ra_info.ra_max_pages;
 	spin_unlock(&sbi->ll_lock);
 
-	mult = 1 << (20 - PAGE_CACHE_SHIFT);
+	mult = 1 << (20 - PAGE_SHIFT);
 	return lprocfs_read_frac_helper(buf, PAGE_SIZE, pages_number, mult);
 }
 
@@ -250,12 +251,12 @@ static ssize_t max_read_ahead_mb_store(struct kobject *kobj,
 	if (rc)
 		return rc;
 
-	pages_number *= 1 << (20 - PAGE_CACHE_SHIFT); /* MB -> pages */
+	pages_number *= 1 << (20 - PAGE_SHIFT); /* MB -> pages */
 
 	if (pages_number > totalram_pages / 2) {
 
 		CERROR("can't set file readahead more than %lu MB\n",
-		       totalram_pages >> (20 - PAGE_CACHE_SHIFT + 1)); /*1/2 of RAM*/
+		       totalram_pages >> (20 - PAGE_SHIFT + 1)); /*1/2 of RAM*/
 		return -ERANGE;
 	}
 
@@ -280,7 +281,7 @@ static ssize_t max_read_ahead_per_file_mb_show(struct kobject *kobj,
 	pages_number = sbi->ll_ra_info.ra_max_pages_per_file;
 	spin_unlock(&sbi->ll_lock);
 
-	mult = 1 << (20 - PAGE_CACHE_SHIFT);
+	mult = 1 << (20 - PAGE_SHIFT);
 	return lprocfs_read_frac_helper(buf, PAGE_SIZE, pages_number, mult);
 }
 
@@ -325,7 +326,7 @@ static ssize_t max_read_ahead_whole_mb_show(struct kobject *kobj,
 	pages_number = sbi->ll_ra_info.ra_max_read_ahead_whole_pages;
 	spin_unlock(&sbi->ll_lock);
 
-	mult = 1 << (20 - PAGE_CACHE_SHIFT);
+	mult = 1 << (20 - PAGE_SHIFT);
 	return lprocfs_read_frac_helper(buf, PAGE_SIZE, pages_number, mult);
 }
 
@@ -344,10 +345,11 @@ static ssize_t max_read_ahead_whole_mb_store(struct kobject *kobj,
 		return rc;
 
 	/* Cap this at the current max readahead window size, the readahead
-	 * algorithm does this anyway so it's pointless to set it larger. */
+	 * algorithm does this anyway so it's pointless to set it larger.
+	 */
 	if (pages_number > sbi->ll_ra_info.ra_max_pages_per_file) {
 		CERROR("can't set max_read_ahead_whole_mb more than max_read_ahead_per_file_mb: %lu\n",
-		       sbi->ll_ra_info.ra_max_pages_per_file >> (20 - PAGE_CACHE_SHIFT));
+		       sbi->ll_ra_info.ra_max_pages_per_file >> (20 - PAGE_SHIFT));
 		return -ERANGE;
 	}
 
@@ -364,7 +366,7 @@ static int ll_max_cached_mb_seq_show(struct seq_file *m, void *v)
 	struct super_block     *sb    = m->private;
 	struct ll_sb_info      *sbi   = ll_s2sbi(sb);
 	struct cl_client_cache *cache = &sbi->ll_cache;
-	int shift = 20 - PAGE_CACHE_SHIFT;
+	int shift = 20 - PAGE_SHIFT;
 	int max_cached_mb;
 	int unused_mb;
 
@@ -403,7 +405,7 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 		return -EFAULT;
 	kernbuf[count] = 0;
 
-	mult = 1 << (20 - PAGE_CACHE_SHIFT);
+	mult = 1 << (20 - PAGE_SHIFT);
 	buffer += lprocfs_find_named_value(kernbuf, "max_cached_mb:", &count) -
 		  kernbuf;
 	rc = lprocfs_write_frac_helper(buffer, count, &pages_number, mult);
@@ -413,7 +415,7 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 	if (pages_number < 0 || pages_number > totalram_pages) {
 		CERROR("%s: can't set max cache more than %lu MB\n",
 		       ll_get_fsname(sb, NULL, 0),
-		       totalram_pages >> (20 - PAGE_CACHE_SHIFT));
+		       totalram_pages >> (20 - PAGE_SHIFT));
 		return -ERANGE;
 	}
 
@@ -452,7 +454,7 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 		if (diff <= 0)
 			break;
 
-		if (sbi->ll_dt_exp == NULL) { /* being initialized */
+		if (!sbi->ll_dt_exp) { /* being initialized */
 			rc = -ENODEV;
 			break;
 		}
@@ -460,9 +462,9 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 		/* difficult - have to ask OSCs to drop LRU slots. */
 		tmp = diff << 1;
 		rc = obd_set_info_async(NULL, sbi->ll_dt_exp,
-				sizeof(KEY_CACHE_LRU_SHRINK),
-				KEY_CACHE_LRU_SHRINK,
-				sizeof(tmp), &tmp, NULL);
+					sizeof(KEY_CACHE_LRU_SHRINK),
+					KEY_CACHE_LRU_SHRINK,
+					sizeof(tmp), &tmp, NULL);
 		if (rc < 0)
 			break;
 	}
@@ -478,6 +480,7 @@ out:
 	}
 	return rc;
 }
+
 LPROC_SEQ_FOPS(ll_max_cached_mb);
 
 static ssize_t checksum_pages_show(struct kobject *kobj, struct attribute *attr,
@@ -684,6 +687,7 @@ static int ll_statahead_stats_seq_show(struct seq_file *m, void *v)
 		   atomic_read(&sbi->ll_agl_total));
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(ll_statahead_stats);
 
 static ssize_t lazystatfs_show(struct kobject *kobj,
@@ -775,6 +779,7 @@ static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 	seq_printf(m, "\b\n");
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(ll_sbi_flags);
 
 static ssize_t xattr_cache_show(struct kobject *kobj,
@@ -960,12 +965,11 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	char name[MAX_STRING_SIZE + 1], *ptr;
 	int err, id, len, rc;
 
-
 	name[MAX_STRING_SIZE] = '\0';
 
-	LASSERT(sbi != NULL);
-	LASSERT(mdc != NULL);
-	LASSERT(osc != NULL);
+	LASSERT(sbi);
+	LASSERT(mdc);
+	LASSERT(osc);
 
 	/* Get fsname */
 	len = strlen(lsi->lsi_lmd->lmd_profile);
@@ -996,7 +1000,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 		CWARN("Error adding the extent_stats file\n");
 
 	rc = ldebugfs_seq_create(sbi->ll_debugfs_entry,
-				  "extents_stats_per_process",
+				 "extents_stats_per_process",
 				 0644, &ll_rw_extents_stats_pp_fops, sbi);
 	if (rc)
 		CWARN("Error adding the extents_stats_per_process file\n");
@@ -1009,7 +1013,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	/* File operations stats */
 	sbi->ll_stats = lprocfs_alloc_stats(LPROC_LL_FILE_OPCODES,
 					    LPROCFS_STATS_FLAG_NONE);
-	if (sbi->ll_stats == NULL) {
+	if (!sbi->ll_stats) {
 		err = -ENOMEM;
 		goto out;
 	}
@@ -1017,6 +1021,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	for (id = 0; id < LPROC_LL_FILE_OPCODES; id++) {
 		__u32 type = llite_opcode_table[id].type;
 		void *ptr = NULL;
+
 		if (type & LPROCFS_TYPE_REGS)
 			ptr = "regs";
 		else if (type & LPROCFS_TYPE_BYTES)
@@ -1029,13 +1034,13 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 				     llite_opcode_table[id].opname, ptr);
 	}
 	err = ldebugfs_register_stats(sbi->ll_debugfs_entry, "stats",
-				     sbi->ll_stats);
+				      sbi->ll_stats);
 	if (err)
 		goto out;
 
 	sbi->ll_ra_stats = lprocfs_alloc_stats(ARRAY_SIZE(ra_stat_string),
 					       LPROCFS_STATS_FLAG_NONE);
-	if (sbi->ll_ra_stats == NULL) {
+	if (!sbi->ll_ra_stats) {
 		err = -ENOMEM;
 		goto out;
 	}
@@ -1045,10 +1050,9 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 				     ra_stat_string[id], "pages");
 
 	err = ldebugfs_register_stats(sbi->ll_debugfs_entry, "read_ahead_stats",
-				     sbi->ll_ra_stats);
+				      sbi->ll_ra_stats);
 	if (err)
 		goto out;
-
 
 	err = ldebugfs_add_vars(sbi->ll_debugfs_entry,
 				lprocfs_llite_obd_vars, sb);
@@ -1094,12 +1098,13 @@ void ldebugfs_unregister_mountpoint(struct ll_sb_info *sbi)
 		lprocfs_free_stats(&sbi->ll_stats);
 	}
 }
+
 #undef MAX_STRING_SIZE
 
 #define pct(a, b) (b ? a * 100 / b : 0)
 
 static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
-				   struct seq_file *seq, int which)
+				    struct seq_file *seq, int which)
 {
 	unsigned long read_tot = 0, write_tot = 0, read_cum, write_cum;
 	unsigned long start, end, r, w;
@@ -1140,20 +1145,20 @@ static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
 
 static int ll_rw_extents_stats_pp_seq_show(struct seq_file *seq, void *v)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct ll_sb_info *sbi = seq->private;
 	struct ll_rw_extents_info *io_extents = &sbi->ll_rw_extents_info;
 	int k;
 
-	do_gettimeofday(&now);
+	ktime_get_real_ts64(&now);
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
 			   "write anything in this file to activate, then 0 or \"[D/d]isabled\" to deactivate\n");
 		return 0;
 	}
-	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, (unsigned long)now.tv_usec);
+	seq_printf(seq, "snapshot_time:	 %llu.%09lu (secs.usecs)\n",
+		   (s64)now.tv_sec, (unsigned long)now.tv_nsec);
 	seq_printf(seq, "%15s %19s       | %20s\n", " ", "read", "write");
 	seq_printf(seq, "%13s   %14s %4s %4s  | %14s %4s %4s\n",
 		   "extents", "calls", "%", "cum%",
@@ -1219,19 +1224,19 @@ LPROC_SEQ_FOPS(ll_rw_extents_stats_pp);
 
 static int ll_rw_extents_stats_seq_show(struct seq_file *seq, void *v)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct ll_sb_info *sbi = seq->private;
 	struct ll_rw_extents_info *io_extents = &sbi->ll_rw_extents_info;
 
-	do_gettimeofday(&now);
+	ktime_get_real_ts64(&now);
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
 			   "write anything in this file to activate, then 0 or \"[D/d]isabled\" to deactivate\n");
 		return 0;
 	}
-	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, (unsigned long)now.tv_usec);
+	seq_printf(seq, "snapshot_time:	 %llu.%09lu (secs.usecs)\n",
+		   (u64)now.tv_sec, (unsigned long)now.tv_nsec);
 
 	seq_printf(seq, "%15s %19s       | %20s\n", " ", "read", "write");
 	seq_printf(seq, "%13s   %14s %4s %4s  | %14s %4s %4s\n",
@@ -1288,6 +1293,7 @@ static ssize_t ll_rw_extents_stats_seq_write(struct file *file,
 
 	return len;
 }
+
 LPROC_SEQ_FOPS(ll_rw_extents_stats);
 
 void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
@@ -1325,8 +1331,9 @@ void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 		lprocfs_oh_clear(&io_extents->pp_extents[cur].pp_w_hist);
 	}
 
-	for(i = 0; (count >= (1 << LL_HIST_START << i)) &&
-	     (i < (LL_HIST_MAX - 1)); i++);
+	for (i = 0; (count >= (1 << LL_HIST_START << i)) &&
+	     (i < (LL_HIST_MAX - 1)); i++)
+		;
 	if (rw == 0) {
 		io_extents->pp_extents[cur].pp_r_hist.oh_buckets[i]++;
 		io_extents->pp_extents[LL_PROCESS_HIST_MAX].pp_r_hist.oh_buckets[i]++;
@@ -1395,13 +1402,13 @@ void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 
 static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct ll_sb_info *sbi = seq->private;
 	struct ll_rw_process_info *offset = sbi->ll_rw_offset_info;
 	struct ll_rw_process_info *process = sbi->ll_rw_process_info;
 	int i;
 
-	do_gettimeofday(&now);
+	ktime_get_real_ts64(&now);
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
@@ -1410,8 +1417,8 @@ static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 	}
 	spin_lock(&sbi->ll_process_lock);
 
-	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, (unsigned long)now.tv_usec);
+	seq_printf(seq, "snapshot_time:	 %llu.%09lu (secs.usecs)\n",
+		   (s64)now.tv_sec, (unsigned long)now.tv_nsec);
 	seq_printf(seq, "%3s %10s %14s %14s %17s %17s %14s\n",
 		   "R/W", "PID", "RANGE START", "RANGE END",
 		   "SMALLEST EXTENT", "LARGEST EXTENT", "OFFSET");
@@ -1497,5 +1504,5 @@ LPROC_SEQ_FOPS(ll_rw_offset_stats);
 
 void lprocfs_llite_init_vars(struct lprocfs_static_vars *lvars)
 {
-    lvars->obd_vars     = lprocfs_llite_obd_vars;
+	lvars->obd_vars = lprocfs_llite_obd_vars;
 }

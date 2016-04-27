@@ -205,6 +205,32 @@ out:
 	spin_unlock(&sta->tid_rx_lock);
 }
 
+/* process BAR frame, called in NAPI context */
+void wil_rx_bar(struct wil6210_priv *wil, u8 cid, u8 tid, u16 seq)
+{
+	struct wil_sta_info *sta = &wil->sta[cid];
+	struct wil_tid_ampdu_rx *r;
+
+	spin_lock(&sta->tid_rx_lock);
+
+	r = sta->tid_rx[tid];
+	if (!r) {
+		wil_err(wil, "BAR for non-existing CID %d TID %d\n", cid, tid);
+		goto out;
+	}
+	if (seq_less(seq, r->head_seq_num)) {
+		wil_err(wil, "BAR Seq 0x%03x preceding head 0x%03x\n",
+			seq, r->head_seq_num);
+		goto out;
+	}
+	wil_dbg_txrx(wil, "BAR: CID %d TID %d Seq 0x%03x head 0x%03x\n",
+		     cid, tid, seq, r->head_seq_num);
+	wil_release_reorder_frames(wil, r, seq);
+
+out:
+	spin_unlock(&sta->tid_rx_lock);
+}
+
 struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 						int size, u16 ssn)
 {
@@ -235,9 +261,19 @@ struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,
 			   struct wil_tid_ampdu_rx *r)
 {
+	int i;
+
 	if (!r)
 		return;
-	wil_release_reorder_frames(wil, r, r->head_seq_num + r->buf_size);
+
+	/* Do not pass remaining frames to the network stack - it may be
+	 * not expecting to get any more Rx. Rx from here may lead to
+	 * kernel OOPS since some per-socket accounting info was already
+	 * released.
+	 */
+	for (i = 0; i < r->buf_size; i++)
+		kfree_skb(r->reorder_buf[i]);
+
 	kfree(r->reorder_buf);
 	kfree(r->reorder_time);
 	kfree(r);

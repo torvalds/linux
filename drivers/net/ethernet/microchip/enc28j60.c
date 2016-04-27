@@ -1633,7 +1633,6 @@ static int enc28j60_remove(struct spi_device *spi)
 static struct spi_driver enc28j60_driver = {
 	.driver = {
 		   .name = DRV_NAME,
-		   .owner = THIS_MODULE,
 	 },
 	.probe = enc28j60_probe,
 	.remove = enc28j60_remove,

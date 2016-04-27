@@ -76,6 +76,12 @@ nvkm_sddr2_calc(struct nvkm_ram *ram)
 		return -ENOSYS;
 	}
 
+	if (ram->next->bios.timing_ver == 0x20 ||
+	    ram->next->bios.ramcfg_timing == 0xff) {
+		ODT =  (ram->mr[1] & 0x004) >> 2 |
+		       (ram->mr[1] & 0x040) >> 5;
+	}
+
 	CL  = ramxlat(ramddr2_cl, CL);
 	WR  = ramxlat(ramddr2_wr, WR);
 	if (CL < 0 || WR < 0)

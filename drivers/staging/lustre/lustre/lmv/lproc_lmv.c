@@ -138,17 +138,19 @@ static int lmv_desc_uuid_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = (struct obd_device *)m->private;
 	struct lmv_obd	  *lmv;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	lmv = &dev->u.lmv;
 	seq_printf(m, "%s\n", lmv->desc.ld_uuid.uuid);
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(lmv_desc_uuid);
 
 static void *lmv_tgt_seq_start(struct seq_file *p, loff_t *pos)
 {
 	struct obd_device       *dev = p->private;
 	struct lmv_obd	  *lmv = &dev->u.lmv;
+
 	return (*pos >= lmv->desc.ld_tgt_count) ? NULL : lmv->tgts[*pos];
 }
 
@@ -169,7 +171,7 @@ static int lmv_tgt_seq_show(struct seq_file *p, void *v)
 {
 	struct lmv_tgt_desc     *tgt = v;
 
-	if (tgt == NULL)
+	if (!tgt)
 		return 0;
 	seq_printf(p, "%d: %s %sACTIVE\n",
 		   tgt->ltd_idx, tgt->ltd_uuid.uuid,

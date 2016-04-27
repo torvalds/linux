@@ -25,9 +25,6 @@
 #define _CRYPTO_TESTMGR_H
 
 #include <linux/netlink.h>
-#include <linux/zlib.h>
-
-#include <crypto/compress.h>
 
 #define MAX_DIGEST_SIZE		64
 #define MAX_TAP			8
@@ -67,6 +64,7 @@ struct hash_testvec {
 struct cipher_testvec {
 	char *key;
 	char *iv;
+	char *iv_out;
 	char *input;
 	char *result;
 	unsigned short tap[MAX_TAP];
@@ -149,7 +147,8 @@ static struct akcipher_testvec rsa_tv_template[] = {
 	{
 #ifndef CONFIG_CRYPTO_FIPS
 	.key =
-	"\x30\x81\x88" /* sequence of 136 bytes */
+	"\x30\x81\x9A" /* sequence of 154 bytes */
+	"\x02\x01\x01" /* version - integer of 1 byte */
 	"\x02\x41" /* modulus - integer of 65 bytes */
 	"\x00\xAA\x36\xAB\xCE\x88\xAC\xFD\xFF\x55\x52\x3C\x7F\xC4\x52\x3F"
 	"\x90\xEF\xA0\x0D\xF3\x77\x4A\x25\x9F\x2E\x62\xB4\xC5\xD9\x9C\xB5"
@@ -161,19 +160,25 @@ static struct akcipher_testvec rsa_tv_template[] = {
 	"\x0A\x03\x37\x48\x62\x64\x87\x69\x5F\x5F\x30\xBC\x38\xB9\x8B\x44"
 	"\xC2\xCD\x2D\xFF\x43\x40\x98\xCD\x20\xD8\xA1\x38\xD0\x90\xBF\x64"
 	"\x79\x7C\x3F\xA7\xA2\xCD\xCB\x3C\xD1\xE0\xBD\xBA\x26\x54\xB4\xF9"
-	"\xDF\x8E\x8A\xE5\x9D\x73\x3D\x9F\x33\xB3\x01\x62\x4A\xFD\x1D\x51",
+	"\xDF\x8E\x8A\xE5\x9D\x73\x3D\x9F\x33\xB3\x01\x62\x4A\xFD\x1D\x51"
+	"\x02\x01\x00" /* prime1 - integer of 1 byte */
+	"\x02\x01\x00" /* prime2 - integer of 1 byte */
+	"\x02\x01\x00" /* exponent1 - integer of 1 byte */
+	"\x02\x01\x00" /* exponent2 - integer of 1 byte */
+	"\x02\x01\x00", /* coefficient - integer of 1 byte */
 	.m = "\x54\x85\x9b\x34\x2c\x49\xea\x2a",
 	.c =
 	"\x63\x1c\xcd\x7b\xe1\x7e\xe4\xde\xc9\xa8\x89\xa1\x74\xcb\x3c\x63"
 	"\x7d\x24\xec\x83\xc3\x15\xe4\x7f\x73\x05\x34\xd1\xec\x22\xbb\x8a"
 	"\x5e\x32\x39\x6d\xc1\x1d\x7d\x50\x3b\x9f\x7a\xad\xf0\x2e\x25\x53"
 	"\x9f\x6e\xbd\x4c\x55\x84\x0c\x9b\xcf\x1a\x4b\x51\x1e\x9e\x0c\x06",
-	.key_len = 139,
+	.key_len = 157,
 	.m_size = 8,
 	.c_size = 64,
 	}, {
 	.key =
-	"\x30\x82\x01\x0B" /* sequence of 267 bytes */
+	"\x30\x82\x01\x1D" /* sequence of 285 bytes */
+	"\x02\x01\x01" /* version - integer of 1 byte */
 	"\x02\x81\x81" /* modulus - integer of 129 bytes */
 	"\x00\xBB\xF8\x2F\x09\x06\x82\xCE\x9C\x23\x38\xAC\x2B\x9D\xA8\x71"
 	"\xF7\x36\x8D\x07\xEE\xD4\x10\x43\xA4\x40\xD6\xB6\xF0\x74\x54\xF5"
@@ -194,8 +199,13 @@ static struct akcipher_testvec rsa_tv_template[] = {
 	"\x44\xE5\x6A\xAF\x68\xC5\x6C\x09\x2C\xD3\x8D\xC3\xBE\xF5\xD2\x0A"
 	"\x93\x99\x26\xED\x4F\x74\xA1\x3E\xDD\xFB\xE1\xA1\xCE\xCC\x48\x94"
 	"\xAF\x94\x28\xC2\xB7\xB8\x88\x3F\xE4\x46\x3A\x4B\xC8\x5B\x1C\xB3"
-	"\xC1",
-	.key_len = 271,
+	"\xC1"
+	"\x02\x01\x00" /* prime1 - integer of 1 byte */
+	"\x02\x01\x00" /* prime2 - integer of 1 byte */
+	"\x02\x01\x00" /* exponent1 - integer of 1 byte */
+	"\x02\x01\x00" /* exponent2 - integer of 1 byte */
+	"\x02\x01\x00", /* coefficient - integer of 1 byte */
+	.key_len = 289,
 	.m = "\x54\x85\x9b\x34\x2c\x49\xea\x2a",
 	.c =
 	"\x74\x1b\x55\xac\x47\xb5\x08\x0a\x6e\x2b\x2d\xf7\x94\xb8\x8a\x95"
@@ -211,7 +221,8 @@ static struct akcipher_testvec rsa_tv_template[] = {
 	}, {
 #endif
 	.key =
-	"\x30\x82\x02\x0D" /* sequence of 525 bytes */
+	"\x30\x82\x02\x1F" /* sequence of 543 bytes */
+	"\x02\x01\x01" /* version - integer of 1 byte */
 	"\x02\x82\x01\x00" /* modulus - integer of 256 bytes */
 	"\xDB\x10\x1A\xC2\xA3\xF1\xDC\xFF\x13\x6B\xED\x44\xDF\xF0\x02\x6D"
 	"\x13\xC7\x88\xDA\x70\x6B\x54\xF1\xE8\x27\xDC\xC3\x0F\x99\x6A\xFA"
@@ -246,8 +257,13 @@ static struct akcipher_testvec rsa_tv_template[] = {
 	"\x77\xAF\x51\x27\x5B\x5E\x69\xB8\x81\xE6\x11\xC5\x43\x23\x81\x04"
 	"\x62\xFF\xE9\x46\xB8\xD8\x44\xDB\xA5\xCC\x31\x54\x34\xCE\x3E\x82"
 	"\xD6\xBF\x7A\x0B\x64\x21\x6D\x88\x7E\x5B\x45\x12\x1E\x63\x8D\x49"
-	"\xA7\x1D\xD9\x1E\x06\xCD\xE8\xBA\x2C\x8C\x69\x32\xEA\xBE\x60\x71",
-	.key_len = 529,
+	"\xA7\x1D\xD9\x1E\x06\xCD\xE8\xBA\x2C\x8C\x69\x32\xEA\xBE\x60\x71"
+	"\x02\x01\x00" /* prime1 - integer of 1 byte */
+	"\x02\x01\x00" /* prime2 - integer of 1 byte */
+	"\x02\x01\x00" /* exponent1 - integer of 1 byte */
+	"\x02\x01\x00" /* exponent2 - integer of 1 byte */
+	"\x02\x01\x00", /* coefficient - integer of 1 byte */
+	.key_len = 547,
 	.m = "\x54\x85\x9b\x34\x2c\x49\xea\x2a",
 	.c =
 	"\xb2\x97\x76\xb4\xae\x3e\x38\x3c\x7e\x64\x1f\xcc\xa2\x7f\xf6\xbe"
@@ -23814,6 +23830,46 @@ static struct aead_testvec rfc7539esp_dec_tv_template[] = {
 };
 
 /*
+ * All key wrapping test vectors taken from
+ * http://csrc.nist.gov/groups/STM/cavp/documents/mac/kwtestvectors.zip
+ *
+ * Note: as documented in keywrap.c, the ivout for encryption is the first
+ * semiblock of the ciphertext from the test vector. For decryption, iv is
+ * the first semiblock of the ciphertext.
+ */
+static struct cipher_testvec aes_kw_enc_tv_template[] = {
+	{
+		.key	= "\x75\x75\xda\x3a\x93\x60\x7c\xc2"
+			  "\xbf\xd8\xce\xc7\xaa\xdf\xd9\xa6",
+		.klen	= 16,
+		.input	= "\x42\x13\x6d\x3c\x38\x4a\x3e\xea"
+			  "\xc9\x5a\x06\x6f\xd2\x8f\xed\x3f",
+		.ilen	= 16,
+		.result	= "\xf6\x85\x94\x81\x6f\x64\xca\xa3"
+			  "\xf5\x6f\xab\xea\x25\x48\xf5\xfb",
+		.rlen	= 16,
+		.iv_out	= "\x03\x1f\x6b\xd7\xe6\x1e\x64\x3d",
+	},
+};
+
+static struct cipher_testvec aes_kw_dec_tv_template[] = {
+	{
+		.key	= "\x80\xaa\x99\x73\x27\xa4\x80\x6b"
+			  "\x6a\x7a\x41\xa5\x2b\x86\xc3\x71"
+			  "\x03\x86\xf9\x32\x78\x6e\xf7\x96"
+			  "\x76\xfa\xfb\x90\xb8\x26\x3c\x5f",
+		.klen	= 32,
+		.input	= "\xd3\x3d\x3d\x97\x7b\xf0\xa9\x15"
+			  "\x59\xf9\x9c\x8a\xcd\x29\x3d\x43",
+		.ilen	= 16,
+		.result	= "\x0a\x25\x6b\xa7\x5c\xfa\x03\xaa"
+			  "\xa0\x2b\xa9\x42\x03\xf1\x5b\xaa",
+		.rlen	= 16,
+		.iv	= "\x42\x3c\x96\x0d\x8a\x2a\xc4\xc1",
+	},
+};
+
+/*
  * ANSI X9.31 Continuous Pseudo-Random Number Generator (AES mode)
  * test vectors, taken from Appendix B.2.9 and B.2.10:
  *     http://csrc.nist.gov/groups/STM/cavp/documents/rng/RNGVS.pdf
@@ -32209,14 +32265,6 @@ struct comp_testvec {
 	char output[COMP_BUF_SIZE];
 };
 
-struct pcomp_testvec {
-	const void *params;
-	unsigned int paramsize;
-	int inlen, outlen;
-	char input[COMP_BUF_SIZE];
-	char output[COMP_BUF_SIZE];
-};
-
 /*
  * Deflate test vectors (null-terminated strings).
  * Params: winbits=-11, Z_DEFAULT_COMPRESSION, MAX_MEM_LEVEL.
@@ -32285,139 +32333,6 @@ static struct comp_testvec deflate_decomp_tv_template[] = {
 			"compression algorithm.  This document defines the application of "
 			"the DEFLATE algorithm to the IP Payload Compression Protocol.",
 	}, {
-		.inlen	= 38,
-		.outlen	= 70,
-		.input	= "\xf3\xca\xcf\xcc\x53\x28\x2d\x56"
-			  "\xc8\xcb\x2f\x57\x48\xcc\x4b\x51"
-			  "\x28\xce\x48\x2c\x4a\x55\x28\xc9"
-			  "\x48\x55\x28\xce\x4f\x2b\x29\x07"
-			  "\x71\xbc\x08\x2b\x01\x00",
-		.output	= "Join us now and share the software "
-			"Join us now and share the software ",
-	},
-};
-
-#define ZLIB_COMP_TEST_VECTORS 2
-#define ZLIB_DECOMP_TEST_VECTORS 2
-
-static const struct {
-	struct nlattr nla;
-	int val;
-} deflate_comp_params[] = {
-	{
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_COMP_LEVEL,
-		},
-		.val			= Z_DEFAULT_COMPRESSION,
-	}, {
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_COMP_METHOD,
-		},
-		.val			= Z_DEFLATED,
-	}, {
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_COMP_WINDOWBITS,
-		},
-		.val			= -11,
-	}, {
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_COMP_MEMLEVEL,
-		},
-		.val			= MAX_MEM_LEVEL,
-	}, {
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_COMP_STRATEGY,
-		},
-		.val			= Z_DEFAULT_STRATEGY,
-	}
-};
-
-static const struct {
-	struct nlattr nla;
-	int val;
-} deflate_decomp_params[] = {
-	{
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_DECOMP_WINDOWBITS,
-		},
-		.val			= -11,
-	}
-};
-
-static struct pcomp_testvec zlib_comp_tv_template[] = {
-	{
-		.params = &deflate_comp_params,
-		.paramsize = sizeof(deflate_comp_params),
-		.inlen	= 70,
-		.outlen	= 38,
-		.input	= "Join us now and share the software "
-			"Join us now and share the software ",
-		.output	= "\xf3\xca\xcf\xcc\x53\x28\x2d\x56"
-			  "\xc8\xcb\x2f\x57\x48\xcc\x4b\x51"
-			  "\x28\xce\x48\x2c\x4a\x55\x28\xc9"
-			  "\x48\x55\x28\xce\x4f\x2b\x29\x07"
-			  "\x71\xbc\x08\x2b\x01\x00",
-	}, {
-		.params = &deflate_comp_params,
-		.paramsize = sizeof(deflate_comp_params),
-		.inlen	= 191,
-		.outlen	= 122,
-		.input	= "This document describes a compression method based on the DEFLATE"
-			"compression algorithm.  This document defines the application of "
-			"the DEFLATE algorithm to the IP Payload Compression Protocol.",
-		.output	= "\x5d\x8d\x31\x0e\xc2\x30\x10\x04"
-			  "\xbf\xb2\x2f\xc8\x1f\x10\x04\x09"
-			  "\x89\xc2\x85\x3f\x70\xb1\x2f\xf8"
-			  "\x24\xdb\x67\xd9\x47\xc1\xef\x49"
-			  "\x68\x12\x51\xae\x76\x67\xd6\x27"
-			  "\x19\x88\x1a\xde\x85\xab\x21\xf2"
-			  "\x08\x5d\x16\x1e\x20\x04\x2d\xad"
-			  "\xf3\x18\xa2\x15\x85\x2d\x69\xc4"
-			  "\x42\x83\x23\xb6\x6c\x89\x71\x9b"
-			  "\xef\xcf\x8b\x9f\xcf\x33\xca\x2f"
-			  "\xed\x62\xa9\x4c\x80\xff\x13\xaf"
-			  "\x52\x37\xed\x0e\x52\x6b\x59\x02"
-			  "\xd9\x4e\xe8\x7a\x76\x1d\x02\x98"
-			  "\xfe\x8a\x87\x83\xa3\x4f\x56\x8a"
-			  "\xb8\x9e\x8e\x5c\x57\xd3\xa0\x79"
-			  "\xfa\x02",
-	},
-};
-
-static struct pcomp_testvec zlib_decomp_tv_template[] = {
-	{
-		.params = &deflate_decomp_params,
-		.paramsize = sizeof(deflate_decomp_params),
-		.inlen	= 122,
-		.outlen	= 191,
-		.input	= "\x5d\x8d\x31\x0e\xc2\x30\x10\x04"
-			  "\xbf\xb2\x2f\xc8\x1f\x10\x04\x09"
-			  "\x89\xc2\x85\x3f\x70\xb1\x2f\xf8"
-			  "\x24\xdb\x67\xd9\x47\xc1\xef\x49"
-			  "\x68\x12\x51\xae\x76\x67\xd6\x27"
-			  "\x19\x88\x1a\xde\x85\xab\x21\xf2"
-			  "\x08\x5d\x16\x1e\x20\x04\x2d\xad"
-			  "\xf3\x18\xa2\x15\x85\x2d\x69\xc4"
-			  "\x42\x83\x23\xb6\x6c\x89\x71\x9b"
-			  "\xef\xcf\x8b\x9f\xcf\x33\xca\x2f"
-			  "\xed\x62\xa9\x4c\x80\xff\x13\xaf"
-			  "\x52\x37\xed\x0e\x52\x6b\x59\x02"
-			  "\xd9\x4e\xe8\x7a\x76\x1d\x02\x98"
-			  "\xfe\x8a\x87\x83\xa3\x4f\x56\x8a"
-			  "\xb8\x9e\x8e\x5c\x57\xd3\xa0\x79"
-			  "\xfa\x02",
-		.output	= "This document describes a compression method based on the DEFLATE"
-			"compression algorithm.  This document defines the application of "
-			"the DEFLATE algorithm to the IP Payload Compression Protocol.",
-	}, {
-		.params = &deflate_decomp_params,
-		.paramsize = sizeof(deflate_decomp_params),
 		.inlen	= 38,
 		.outlen	= 70,
 		.input	= "\xf3\xca\xcf\xcc\x53\x28\x2d\x56"

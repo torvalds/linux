@@ -287,7 +287,6 @@ static struct spi_driver lg4573_driver = {
 	.remove = lg4573_remove,
 	.driver = {
 		.name = "lg4573",
-		.owner = THIS_MODULE,
 		.of_match_table = lg4573_of_match,
 	},
 };

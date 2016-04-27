@@ -25,21 +25,24 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 
+#include <asm/early_ioremap.h>
+
 struct efi __read_mostly efi = {
-	.mps        = EFI_INVALID_TABLE_ADDR,
-	.acpi       = EFI_INVALID_TABLE_ADDR,
-	.acpi20     = EFI_INVALID_TABLE_ADDR,
-	.smbios     = EFI_INVALID_TABLE_ADDR,
-	.smbios3    = EFI_INVALID_TABLE_ADDR,
-	.sal_systab = EFI_INVALID_TABLE_ADDR,
-	.boot_info  = EFI_INVALID_TABLE_ADDR,
-	.hcdp       = EFI_INVALID_TABLE_ADDR,
-	.uga        = EFI_INVALID_TABLE_ADDR,
-	.uv_systab  = EFI_INVALID_TABLE_ADDR,
-	.fw_vendor  = EFI_INVALID_TABLE_ADDR,
-	.runtime    = EFI_INVALID_TABLE_ADDR,
-	.config_table  = EFI_INVALID_TABLE_ADDR,
-	.esrt       = EFI_INVALID_TABLE_ADDR,
+	.mps			= EFI_INVALID_TABLE_ADDR,
+	.acpi			= EFI_INVALID_TABLE_ADDR,
+	.acpi20			= EFI_INVALID_TABLE_ADDR,
+	.smbios			= EFI_INVALID_TABLE_ADDR,
+	.smbios3		= EFI_INVALID_TABLE_ADDR,
+	.sal_systab		= EFI_INVALID_TABLE_ADDR,
+	.boot_info		= EFI_INVALID_TABLE_ADDR,
+	.hcdp			= EFI_INVALID_TABLE_ADDR,
+	.uga			= EFI_INVALID_TABLE_ADDR,
+	.uv_systab		= EFI_INVALID_TABLE_ADDR,
+	.fw_vendor		= EFI_INVALID_TABLE_ADDR,
+	.runtime		= EFI_INVALID_TABLE_ADDR,
+	.config_table		= EFI_INVALID_TABLE_ADDR,
+	.esrt			= EFI_INVALID_TABLE_ADDR,
+	.properties_table	= EFI_INVALID_TABLE_ADDR,
 };
 EXPORT_SYMBOL(efi);
 
@@ -62,6 +65,9 @@ static int __init parse_efi_cmdline(char *str)
 		pr_warn("need at least one option\n");
 		return -EINVAL;
 	}
+
+	if (parse_option_str(str, "debug"))
+		set_bit(EFI_DBG, &efi.flags);
 
 	if (parse_option_str(str, "noruntime"))
 		disable_runtime = true;
@@ -176,6 +182,7 @@ static int generic_ops_register(void)
 {
 	generic_ops.get_variable = efi.get_variable;
 	generic_ops.set_variable = efi.set_variable;
+	generic_ops.set_variable_nonblocking = efi.set_variable_nonblocking;
 	generic_ops.get_next_variable = efi.get_next_variable;
 	generic_ops.query_variable_store = efi_query_variable_store;
 
@@ -250,7 +257,7 @@ subsys_initcall(efisubsys_init);
 int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 {
 	struct efi_memory_map *map = efi.memmap;
-	void *p, *e;
+	phys_addr_t p, e;
 
 	if (!efi_enabled(EFI_MEMMAP)) {
 		pr_err_once("EFI_MEMMAP is not enabled.\n");
@@ -282,10 +289,10 @@ int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 		 * So just always get our own virtual map on the CPU.
 		 *
 		 */
-		md = early_memremap((phys_addr_t)p, sizeof (*md));
+		md = early_memremap(p, sizeof (*md));
 		if (!md) {
-			pr_err_once("early_memremap(%p, %zu) failed.\n",
-				    p, sizeof (*md));
+			pr_err_once("early_memremap(%pa, %zu) failed.\n",
+				    &p, sizeof (*md));
 			return -ENOMEM;
 		}
 
@@ -320,38 +327,6 @@ u64 __init efi_mem_desc_end(efi_memory_desc_t *md)
 	return end;
 }
 
-/*
- * We can't ioremap data in EFI boot services RAM, because we've already mapped
- * it as RAM.  So, look it up in the existing EFI memory map instead.  Only
- * callable after efi_enter_virtual_mode and before efi_free_boot_services.
- */
-void __iomem *efi_lookup_mapped_addr(u64 phys_addr)
-{
-	struct efi_memory_map *map;
-	void *p;
-	map = efi.memmap;
-	if (!map)
-		return NULL;
-	if (WARN_ON(!map->map))
-		return NULL;
-	for (p = map->map; p < map->map_end; p += map->desc_size) {
-		efi_memory_desc_t *md = p;
-		u64 size = md->num_pages << EFI_PAGE_SHIFT;
-		u64 end = md->phys_addr + size;
-		if (!(md->attribute & EFI_MEMORY_RUNTIME) &&
-		    md->type != EFI_BOOT_SERVICES_CODE &&
-		    md->type != EFI_BOOT_SERVICES_DATA)
-			continue;
-		if (!md->virt_addr)
-			continue;
-		if (phys_addr >= md->phys_addr && phys_addr < end) {
-			phys_addr += md->virt_addr - md->phys_addr;
-			return (__force void __iomem *)(unsigned long)phys_addr;
-		}
-	}
-	return NULL;
-}
-
 static __initdata efi_config_table_type_t common_tables[] = {
 	{ACPI_20_TABLE_GUID, "ACPI 2.0", &efi.acpi20},
 	{ACPI_TABLE_GUID, "ACPI", &efi.acpi},
@@ -362,6 +337,7 @@ static __initdata efi_config_table_type_t common_tables[] = {
 	{SMBIOS3_TABLE_GUID, "SMBIOS 3.0", &efi.smbios3},
 	{UGA_IO_PROTOCOL_GUID, "UGA", &efi.uga},
 	{EFI_SYSTEM_RESOURCE_TABLE_GUID, "ESRT", &efi.esrt},
+	{EFI_PROPERTIES_TABLE_GUID, "PROP", &efi.properties_table},
 	{NULL_GUID, NULL, NULL},
 };
 
@@ -421,6 +397,24 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 	}
 	pr_cont("\n");
 	set_bit(EFI_CONFIG_TABLES, &efi.flags);
+
+	/* Parse the EFI Properties table if it exists */
+	if (efi.properties_table != EFI_INVALID_TABLE_ADDR) {
+		efi_properties_table_t *tbl;
+
+		tbl = early_memremap(efi.properties_table, sizeof(*tbl));
+		if (tbl == NULL) {
+			pr_err("Could not map Properties table!\n");
+			return -ENOMEM;
+		}
+
+		if (tbl->memory_protection_attribute &
+		    EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA)
+			set_bit(EFI_NX_PE_DATA, &efi.flags);
+
+		early_memunmap(tbl, sizeof(*tbl));
+	}
+
 	return 0;
 }
 
@@ -489,7 +483,6 @@ static __initdata struct {
 };
 
 struct param_info {
-	int verbose;
 	int found;
 	void *params;
 };
@@ -520,21 +513,20 @@ static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
 		else
 			*(u64 *)dest = val;
 
-		if (info->verbose)
+		if (efi_enabled(EFI_DBG))
 			pr_info("  %s: 0x%0*llx\n", dt_params[i].name,
 				dt_params[i].size * 2, val);
 	}
 	return 1;
 }
 
-int __init efi_get_fdt_params(struct efi_fdt_params *params, int verbose)
+int __init efi_get_fdt_params(struct efi_fdt_params *params)
 {
 	struct param_info info;
 	int ret;
 
 	pr_info("Getting EFI parameters from FDT:\n");
 
-	info.verbose = verbose;
 	info.found = 0;
 	info.params = params;
 
@@ -563,7 +555,8 @@ static __initdata char memory_type_name[][20] = {
 	"ACPI Memory NVS",
 	"Memory Mapped I/O",
 	"MMIO Port Space",
-	"PAL Code"
+	"PAL Code",
+	"Persistent Memory",
 };
 
 char * __init efi_md_typeattr_format(char *buf, size_t size,
@@ -588,20 +581,59 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
 
 	attr = md->attribute;
 	if (attr & ~(EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT |
-		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_WP |
-		     EFI_MEMORY_RP | EFI_MEMORY_XP | EFI_MEMORY_RUNTIME))
+		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_RO |
+		     EFI_MEMORY_WP | EFI_MEMORY_RP | EFI_MEMORY_XP |
+		     EFI_MEMORY_NV |
+		     EFI_MEMORY_RUNTIME | EFI_MEMORY_MORE_RELIABLE))
 		snprintf(pos, size, "|attr=0x%016llx]",
 			 (unsigned long long)attr);
 	else
-		snprintf(pos, size, "|%3s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+		snprintf(pos, size,
+			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
 			 attr & EFI_MEMORY_RUNTIME ? "RUN" : "",
+			 attr & EFI_MEMORY_MORE_RELIABLE ? "MR" : "",
+			 attr & EFI_MEMORY_NV      ? "NV"  : "",
 			 attr & EFI_MEMORY_XP      ? "XP"  : "",
 			 attr & EFI_MEMORY_RP      ? "RP"  : "",
 			 attr & EFI_MEMORY_WP      ? "WP"  : "",
+			 attr & EFI_MEMORY_RO      ? "RO"  : "",
 			 attr & EFI_MEMORY_UCE     ? "UCE" : "",
 			 attr & EFI_MEMORY_WB      ? "WB"  : "",
 			 attr & EFI_MEMORY_WT      ? "WT"  : "",
 			 attr & EFI_MEMORY_WC      ? "WC"  : "",
 			 attr & EFI_MEMORY_UC      ? "UC"  : "");
 	return buf;
+}
+
+/*
+ * efi_mem_attributes - lookup memmap attributes for physical address
+ * @phys_addr: the physical address to lookup
+ *
+ * Search in the EFI memory map for the region covering
+ * @phys_addr. Returns the EFI memory attributes if the region
+ * was found in the memory map, 0 otherwise.
+ *
+ * Despite being marked __weak, most architectures should *not*
+ * override this function. It is __weak solely for the benefit
+ * of ia64 which has a funky EFI memory map that doesn't work
+ * the same way as other architectures.
+ */
+u64 __weak efi_mem_attributes(unsigned long phys_addr)
+{
+	struct efi_memory_map *map;
+	efi_memory_desc_t *md;
+	void *p;
+
+	if (!efi_enabled(EFI_MEMMAP))
+		return 0;
+
+	map = efi.memmap;
+	for (p = map->map; p < map->map_end; p += map->desc_size) {
+		md = p;
+		if ((md->phys_addr <= phys_addr) &&
+		    (phys_addr < (md->phys_addr +
+		    (md->num_pages << EFI_PAGE_SHIFT))))
+			return md->attribute;
+	}
+	return 0;
 }

@@ -171,6 +171,7 @@ nvbios_rammapSp_from_perf(struct nvkm_bios *bios, u32 data, u8 size, int idx,
 	p->ramcfg_DLLoff   = (nvbios_rd08(bios, data + 0x03) & 0x04) >> 2;
 	p->ramcfg_00_03_08 = (nvbios_rd08(bios, data + 0x03) & 0x08) >> 3;
 	p->ramcfg_RON      = (nvbios_rd08(bios, data + 0x03) & 0x10) >> 3;
+	p->ramcfg_FBVDDQ   = (nvbios_rd08(bios, data + 0x03) & 0x80) >> 7;
 	p->ramcfg_00_04_02 = (nvbios_rd08(bios, data + 0x04) & 0x02) >> 1;
 	p->ramcfg_00_04_04 = (nvbios_rd08(bios, data + 0x04) & 0x04) >> 2;
 	p->ramcfg_00_04_20 = (nvbios_rd08(bios, data + 0x04) & 0x20) >> 5;
@@ -205,6 +206,7 @@ nvbios_rammapSp(struct nvkm_bios *bios, u32 data,
 		p->ramcfg_DLLoff   = (nvbios_rd08(bios, data + 0x02) & 0x40) >> 6;
 		p->ramcfg_10_03_0f = (nvbios_rd08(bios, data + 0x03) & 0x0f) >> 0;
 		p->ramcfg_10_04_01 = (nvbios_rd08(bios, data + 0x04) & 0x01) >> 0;
+		p->ramcfg_FBVDDQ   = (nvbios_rd08(bios, data + 0x04) & 0x08) >> 3;
 		p->ramcfg_10_05    = (nvbios_rd08(bios, data + 0x05) & 0xff) >> 0;
 		p->ramcfg_10_06    = (nvbios_rd08(bios, data + 0x06) & 0xff) >> 0;
 		p->ramcfg_10_07    = (nvbios_rd08(bios, data + 0x07) & 0xff) >> 0;
@@ -219,7 +221,7 @@ nvbios_rammapSp(struct nvkm_bios *bios, u32 data,
 		p->ramcfg_11_01_04 = (nvbios_rd08(bios, data + 0x01) & 0x04) >> 2;
 		p->ramcfg_11_01_08 = (nvbios_rd08(bios, data + 0x01) & 0x08) >> 3;
 		p->ramcfg_11_01_10 = (nvbios_rd08(bios, data + 0x01) & 0x10) >> 4;
-		p->ramcfg_11_01_20 = (nvbios_rd08(bios, data + 0x01) & 0x20) >> 5;
+		p->ramcfg_DLLoff =   (nvbios_rd08(bios, data + 0x01) & 0x20) >> 5;
 		p->ramcfg_11_01_40 = (nvbios_rd08(bios, data + 0x01) & 0x40) >> 6;
 		p->ramcfg_11_01_80 = (nvbios_rd08(bios, data + 0x01) & 0x80) >> 7;
 		p->ramcfg_11_02_03 = (nvbios_rd08(bios, data + 0x02) & 0x03) >> 0;

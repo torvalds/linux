@@ -68,7 +68,8 @@ polarity is in effect.
 
 Optional SDIO properties:
 - keep-power-in-suspend: Preserves card power during a suspend/resume cycle
-- enable-sdio-wakeup: Enables wake up of host system on SDIO IRQ assertion
+- wakeup-source: Enables wake up of host system on SDIO IRQ assertion
+		 (Legacy property supported: "enable-sdio-wakeup")
 
 
 MMC power sequences:
@@ -118,7 +119,7 @@ sdhci@ab000000 {
 	wp-gpios = <&gpio 70 0>;
 	max-frequency = <50000000>;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	mmc-pwrseq = <&sdhci0_pwrseq>
 }
 

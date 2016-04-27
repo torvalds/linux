@@ -53,7 +53,6 @@
 #include "../include/obd_support.h"
 #include "../include/lprocfs_status.h"
 
-#include "../include/dt_object.h"
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_fld.h"
 #include "fld_internal.h"
@@ -66,7 +65,7 @@ struct fld_cache *fld_cache_init(const char *name,
 {
 	struct fld_cache *cache;
 
-	LASSERT(name != NULL);
+	LASSERT(name);
 	LASSERT(cache_threshold < cache_size);
 
 	cache = kzalloc(sizeof(*cache), GFP_NOFS);
@@ -101,7 +100,7 @@ void fld_cache_fini(struct fld_cache *cache)
 {
 	__u64 pct;
 
-	LASSERT(cache != NULL);
+	LASSERT(cache);
 	fld_cache_flush(cache);
 
 	if (cache->fci_stat.fst_count > 0) {
@@ -122,8 +121,8 @@ void fld_cache_fini(struct fld_cache *cache)
 /**
  * delete given node from list.
  */
-void fld_cache_entry_delete(struct fld_cache *cache,
-			    struct fld_cache_entry *node)
+static void fld_cache_entry_delete(struct fld_cache *cache,
+				   struct fld_cache_entry *node)
 {
 	list_del(&node->fce_list);
 	list_del(&node->fce_lru);
@@ -184,7 +183,8 @@ restart_fixup:
 			}
 
 			/* we could have overlap over next
-			 * range too. better restart. */
+			 * range too. better restart.
+			 */
 			goto restart_fixup;
 		}
 
@@ -219,8 +219,6 @@ static int fld_cache_shrink(struct fld_cache *cache)
 	struct list_head *curr;
 	int num = 0;
 
-	LASSERT(cache != NULL);
-
 	if (cache->fci_cache_count < cache->fci_cache_size)
 		return 0;
 
@@ -228,7 +226,6 @@ static int fld_cache_shrink(struct fld_cache *cache)
 
 	while (cache->fci_cache_count + cache->fci_threshold >
 	       cache->fci_cache_size && curr != &cache->fci_lru) {
-
 		flde = list_entry(curr, struct fld_cache_entry, fce_lru);
 		curr = curr->prev;
 		fld_cache_entry_delete(cache, flde);
@@ -236,7 +233,7 @@ static int fld_cache_shrink(struct fld_cache *cache)
 	}
 
 	CDEBUG(D_INFO, "%s: FLD cache - Shrunk by %d entries\n",
-			cache->fci_name, num);
+	       cache->fci_name, num);
 
 	return 0;
 }
@@ -266,7 +263,7 @@ static void fld_cache_punch_hole(struct fld_cache *cache,
 	const u64 new_end  = range->lsr_end;
 	struct fld_cache_entry *fldt;
 
-	OBD_ALLOC_GFP(fldt, sizeof(*fldt), GFP_ATOMIC);
+	fldt = kzalloc(sizeof(*fldt), GFP_ATOMIC);
 	if (!fldt) {
 		kfree(f_new);
 		/* overlap is not allowed, so dont mess up list. */
@@ -297,8 +294,8 @@ static void fld_cache_punch_hole(struct fld_cache *cache,
  * handle range overlap in fld cache.
  */
 static void fld_cache_overlap_handle(struct fld_cache *cache,
-				struct fld_cache_entry *f_curr,
-				struct fld_cache_entry *f_new)
+				     struct fld_cache_entry *f_curr,
+				     struct fld_cache_entry *f_new)
 {
 	const struct lu_seq_range *range = &f_new->fce_range;
 	const u64 new_start  = range->lsr_start;
@@ -306,7 +303,8 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 	const u32 mdt = range->lsr_index;
 
 	/* this is overlap case, these case are checking overlapping with
-	 * prev range only. fixup will handle overlapping with next range. */
+	 * prev range only. fixup will handle overlapping with next range.
+	 */
 
 	if (f_curr->fce_range.lsr_index == mdt) {
 		f_curr->fce_range.lsr_start = min(f_curr->fce_range.lsr_start,
@@ -321,7 +319,8 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 	} else if (new_start <= f_curr->fce_range.lsr_start &&
 			f_curr->fce_range.lsr_end <= new_end) {
 		/* case 1: new range completely overshadowed existing range.
-		 *	 e.g. whole range migrated. update fld cache entry */
+		 *	 e.g. whole range migrated. update fld cache entry
+		 */
 
 		f_curr->fce_range = *range;
 		kfree(f_new);
@@ -378,8 +377,8 @@ struct fld_cache_entry
  * This function handles all cases of merging and breaking up of
  * ranges.
  */
-int fld_cache_insert_nolock(struct fld_cache *cache,
-			    struct fld_cache_entry *f_new)
+static int fld_cache_insert_nolock(struct fld_cache *cache,
+				   struct fld_cache_entry *f_new)
 {
 	struct fld_cache_entry *f_curr;
 	struct fld_cache_entry *n;
@@ -403,8 +402,8 @@ int fld_cache_insert_nolock(struct fld_cache *cache,
 	list_for_each_entry_safe(f_curr, n, head, fce_list) {
 		/* add list if next is end of list */
 		if (new_end < f_curr->fce_range.lsr_start ||
-		   (new_end == f_curr->fce_range.lsr_start &&
-		    new_flags != f_curr->fce_range.lsr_flags))
+		    (new_end == f_curr->fce_range.lsr_start &&
+		     new_flags != f_curr->fce_range.lsr_flags))
 			break;
 
 		prev = &f_curr->fce_list;
@@ -416,7 +415,7 @@ int fld_cache_insert_nolock(struct fld_cache *cache,
 		}
 	}
 
-	if (prev == NULL)
+	if (!prev)
 		prev = head;
 
 	CDEBUG(D_INFO, "insert range "DRANGE"\n", PRANGE(&f_new->fce_range));
@@ -445,36 +444,10 @@ int fld_cache_insert(struct fld_cache *cache,
 	return rc;
 }
 
-void fld_cache_delete_nolock(struct fld_cache *cache,
-		      const struct lu_seq_range *range)
-{
-	struct fld_cache_entry *flde;
-	struct fld_cache_entry *tmp;
-	struct list_head *head;
-
-	head = &cache->fci_entries_head;
-	list_for_each_entry_safe(flde, tmp, head, fce_list) {
-		/* add list if next is end of list */
-		if (range->lsr_start == flde->fce_range.lsr_start ||
-		   (range->lsr_end == flde->fce_range.lsr_end &&
-		    range->lsr_flags == flde->fce_range.lsr_flags)) {
-			fld_cache_entry_delete(cache, flde);
-			break;
-		}
-	}
-}
-
 /**
  * Delete FLD entry in FLD cache.
  *
  */
-void fld_cache_delete(struct fld_cache *cache,
-		      const struct lu_seq_range *range)
-{
-	write_lock(&cache->fci_lock);
-	fld_cache_delete_nolock(cache, range);
-	write_unlock(&cache->fci_lock);
-}
 
 struct fld_cache_entry
 *fld_cache_entry_lookup_nolock(struct fld_cache *cache,
@@ -487,8 +460,8 @@ struct fld_cache_entry
 	head = &cache->fci_entries_head;
 	list_for_each_entry(flde, head, fce_list) {
 		if (range->lsr_start == flde->fce_range.lsr_start ||
-		   (range->lsr_end == flde->fce_range.lsr_end &&
-		    range->lsr_flags == flde->fce_range.lsr_flags)) {
+		    (range->lsr_end == flde->fce_range.lsr_end &&
+		     range->lsr_flags == flde->fce_range.lsr_flags)) {
 			got = flde;
 			break;
 		}
@@ -527,7 +500,7 @@ int fld_cache_lookup(struct fld_cache *cache,
 	cache->fci_stat.fst_count++;
 	list_for_each_entry(flde, head, fce_list) {
 		if (flde->fce_range.lsr_start > seq) {
-			if (prev != NULL)
+			if (prev)
 				*range = prev->fce_range;
 			break;
 		}

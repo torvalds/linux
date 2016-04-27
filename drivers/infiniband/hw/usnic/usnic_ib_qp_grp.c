@@ -64,7 +64,7 @@ const char *usnic_ib_qp_grp_state_to_string(enum ib_qp_state state)
 	case IB_QPS_ERR:
 		return "ERR";
 	default:
-		return "UNKOWN STATE";
+		return "UNKNOWN STATE";
 
 	}
 }
@@ -236,8 +236,8 @@ create_roce_custom_flow(struct usnic_ib_qp_grp *qp_grp,
 
 	/* Create Flow Handle */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
-	if (IS_ERR_OR_NULL(qp_flow)) {
-		err = qp_flow ? PTR_ERR(qp_flow) : -ENOMEM;
+	if (!qp_flow) {
+		err = -ENOMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;
@@ -311,8 +311,8 @@ create_udp_flow(struct usnic_ib_qp_grp *qp_grp,
 
 	/* Create qp_flow */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
-	if (IS_ERR_OR_NULL(qp_flow)) {
-		err = qp_flow ? PTR_ERR(qp_flow) : -ENOMEM;
+	if (!qp_flow) {
+		err = -ENOMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;
@@ -521,7 +521,7 @@ int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 
 	if (!status) {
 		qp_grp->state = new_state;
-		usnic_info("Transistioned %u from %s to %s",
+		usnic_info("Transitioned %u from %s to %s",
 		qp_grp->grp_id,
 		usnic_ib_qp_grp_state_to_string(old_state),
 		usnic_ib_qp_grp_state_to_string(new_state));
@@ -575,7 +575,7 @@ alloc_res_chunk_list(struct usnic_vnic *vnic,
 	return res_chunk_list;
 
 out_free_res:
-	for (i--; i > 0; i--)
+	for (i--; i >= 0; i--)
 		usnic_vnic_put_resources(res_chunk_list[i]);
 	kfree(res_chunk_list);
 	return ERR_PTR(err);

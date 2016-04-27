@@ -8,6 +8,7 @@
 #include <linux/cgroup.h>
 #include <linux/list.h>
 #include <linux/kref.h>
+#include <asm/pgtable.h>
 
 struct ctl_table;
 struct user_struct;
@@ -96,9 +97,7 @@ u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
 				struct address_space *mapping,
 				pgoff_t idx, unsigned long address);
 
-#ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
 pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud);
-#endif
 
 extern int hugepages_treat_as_movable;
 extern int sysctl_hugetlb_shm_group;
@@ -265,20 +264,18 @@ struct file *hugetlb_file_setup(const char *name, size_t size, vm_flags_t acct,
 				struct user_struct **user, int creat_flags,
 				int page_size_log);
 
-static inline int is_file_hugepages(struct file *file)
+static inline bool is_file_hugepages(struct file *file)
 {
 	if (file->f_op == &hugetlbfs_file_operations)
-		return 1;
-	if (is_file_shm_hugepages(file))
-		return 1;
+		return true;
 
-	return 0;
+	return is_file_shm_hugepages(file);
 }
 
 
 #else /* !CONFIG_HUGETLBFS */
 
-#define is_file_hugepages(file)			0
+#define is_file_hugepages(file)			false
 static inline struct file *
 hugetlb_file_setup(const char *name, size_t size, vm_flags_t acctflag,
 		struct user_struct **user, int creat_flags,
@@ -483,6 +480,17 @@ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
 #define hugepages_supported() (HPAGE_SHIFT != 0)
 #endif
 
+void hugetlb_report_usage(struct seq_file *m, struct mm_struct *mm);
+
+static inline void hugetlb_count_add(long l, struct mm_struct *mm)
+{
+	atomic_long_add(l, &mm->hugetlb_usage);
+}
+
+static inline void hugetlb_count_sub(long l, struct mm_struct *mm)
+{
+	atomic_long_sub(l, &mm->hugetlb_usage);
+}
 #else	/* CONFIG_HUGETLB_PAGE */
 struct hstate {};
 #define alloc_huge_page(v, a, r) NULL
@@ -518,6 +526,14 @@ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
 					   struct mm_struct *mm, pte_t *pte)
 {
 	return &mm->page_table_lock;
+}
+
+static inline void hugetlb_report_usage(struct seq_file *f, struct mm_struct *m)
+{
+}
+
+static inline void hugetlb_count_sub(long l, struct mm_struct *mm)
+{
 }
 #endif	/* CONFIG_HUGETLB_PAGE */
 

@@ -13,17 +13,12 @@
  * General Public License version 2 for more details (a copy is included
  * in the LICENSE file that accompanied this code).
  *
- * You should have received a copy of the GNU General Public License
- * version 2 along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA
- *
  * GPL HEADER END
  */
 /*
  * Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  *
  * Code originally extracted from quota directory
  */
@@ -35,8 +30,8 @@ static inline struct osc_quota_info *osc_oqi_alloc(u32 id)
 {
 	struct osc_quota_info *oqi;
 
-	OBD_SLAB_ALLOC_PTR(oqi, osc_quota_kmem);
-	if (oqi != NULL)
+	oqi = kmem_cache_zalloc(osc_quota_kmem, GFP_NOFS);
+	if (oqi)
 		oqi->oqi_id = id;
 
 	return oqi;
@@ -52,10 +47,12 @@ int osc_quota_chkdq(struct client_obd *cli, const unsigned int qid[])
 		oqi = cfs_hash_lookup(cli->cl_quota_hash[type], &qid[type]);
 		if (oqi) {
 			/* do not try to access oqi here, it could have been
-			 * freed by osc_quota_setdq() */
+			 * freed by osc_quota_setdq()
+			 */
 
 			/* the slot is busy, the user is about to run out of
-			 * quota space on this OST */
+			 * quota space on this OST
+			 */
 			CDEBUG(D_QUOTA, "chkdq found noquota for %s %d\n",
 			       type == USRQUOTA ? "user" : "grout", qid[type]);
 			return NO_QUOTA;
@@ -89,12 +86,13 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 		oqi = cfs_hash_lookup(cli->cl_quota_hash[type], &qid[type]);
 		if ((flags & FL_QUOTA_FLAG(type)) != 0) {
 			/* This ID is getting close to its quota limit, let's
-			 * switch to sync I/O */
-			if (oqi != NULL)
+			 * switch to sync I/O
+			 */
+			if (oqi)
 				continue;
 
 			oqi = osc_oqi_alloc(qid[type]);
-			if (oqi == NULL) {
+			if (!oqi) {
 				rc = -ENOMEM;
 				break;
 			}
@@ -104,7 +102,7 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 			/* race with others? */
 			if (rc == -EALREADY) {
 				rc = 0;
-				OBD_SLAB_FREE_PTR(oqi, osc_quota_kmem);
+				kmem_cache_free(osc_quota_kmem, oqi);
 			}
 
 			CDEBUG(D_QUOTA, "%s: setdq to insert for %s %d (%d)\n",
@@ -113,14 +111,15 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 			       qid[type], rc);
 		} else {
 			/* This ID is now off the hook, let's remove it from
-			 * the hash table */
-			if (oqi == NULL)
+			 * the hash table
+			 */
+			if (!oqi)
 				continue;
 
 			oqi = cfs_hash_del_key(cli->cl_quota_hash[type],
 					       &qid[type]);
 			if (oqi)
-				OBD_SLAB_FREE_PTR(oqi, osc_quota_kmem);
+				kmem_cache_free(osc_quota_kmem, oqi);
 
 			CDEBUG(D_QUOTA, "%s: setdq to remove for %s %d (%p)\n",
 			       cli->cl_import->imp_obd->obd_name,
@@ -147,7 +146,7 @@ oqi_keycmp(const void *key, struct hlist_node *hnode)
 	struct osc_quota_info *oqi;
 	u32 uid;
 
-	LASSERT(key != NULL);
+	LASSERT(key);
 	uid = *((u32 *)key);
 	oqi = hlist_entry(hnode, struct osc_quota_info, oqi_hash);
 
@@ -158,6 +157,7 @@ static void *
 oqi_key(struct hlist_node *hnode)
 {
 	struct osc_quota_info *oqi;
+
 	oqi = hlist_entry(hnode, struct osc_quota_info, oqi_hash);
 	return &oqi->oqi_id;
 }
@@ -185,14 +185,14 @@ oqi_exit(struct cfs_hash *hs, struct hlist_node *hnode)
 
 	oqi = hlist_entry(hnode, struct osc_quota_info, oqi_hash);
 
-	OBD_SLAB_FREE_PTR(oqi, osc_quota_kmem);
+	kmem_cache_free(osc_quota_kmem, oqi);
 }
 
 #define HASH_QUOTA_BKT_BITS 5
 #define HASH_QUOTA_CUR_BITS 5
 #define HASH_QUOTA_MAX_BITS 15
 
-static cfs_hash_ops_t quota_hash_ops = {
+static struct cfs_hash_ops quota_hash_ops = {
 	.hs_hash	= oqi_hashfn,
 	.hs_keycmp	= oqi_keycmp,
 	.hs_key		= oqi_key,
@@ -217,7 +217,7 @@ int osc_quota_setup(struct obd_device *obd)
 							   CFS_HASH_MAX_THETA,
 							   &quota_hash_ops,
 							   CFS_HASH_DEFAULT);
-		if (cli->cl_quota_hash[type] == NULL)
+		if (!cli->cl_quota_hash[type])
 			break;
 	}
 
@@ -251,7 +251,7 @@ int osc_quotactl(struct obd_device *unused, struct obd_export *exp,
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
 					&RQF_OST_QUOTACTL, LUSTRE_OST_VERSION,
 					OST_QUOTACTL);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	oqc = req_capsule_client_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
@@ -293,7 +293,7 @@ int osc_quotacheck(struct obd_device *unused, struct obd_export *exp,
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
 					&RQF_OST_QUOTACHECK, LUSTRE_OST_VERSION,
 					OST_QUOTACHECK);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	body = req_capsule_client_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
@@ -301,8 +301,8 @@ int osc_quotacheck(struct obd_device *unused, struct obd_export *exp,
 
 	ptlrpc_request_set_replen(req);
 
-	/* the next poll will find -ENODATA, that means quotacheck is
-	 * going on */
+	/* the next poll will find -ENODATA, that means quotacheck is going on
+	 */
 	cli->cl_qchk_stat = -ENODATA;
 	rc = ptlrpc_queue_wait(req);
 	if (rc)

@@ -168,12 +168,14 @@ GLOBAL(ftrace_call)
 	restore_mcount_regs
 
 	/*
-	 * The copied trampoline must call ftrace_return as it
+	 * The copied trampoline must call ftrace_epilogue as it
 	 * still may need to call the function graph tracer.
+	 *
+	 * The code up to this label is copied into trampolines so
+	 * think twice before adding any new code or changing the
+	 * layout here.
 	 */
-GLOBAL(ftrace_caller_end)
-
-GLOBAL(ftrace_return)
+GLOBAL(ftrace_epilogue)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 GLOBAL(ftrace_graph_call)
@@ -244,14 +246,14 @@ GLOBAL(ftrace_regs_call)
 	popfq
 
 	/*
-	 * As this jmp to ftrace_return can be a short jump
+	 * As this jmp to ftrace_epilogue can be a short jump
 	 * it must not be copied into the trampoline.
 	 * The trampoline will add the code to jump
 	 * to the return.
 	 */
 GLOBAL(ftrace_regs_caller_end)
 
-	jmp ftrace_return
+	jmp ftrace_epilogue
 
 END(ftrace_regs_caller)
 
@@ -278,6 +280,12 @@ trace:
 	/* save_mcount_regs fills in first two parameters */
 	save_mcount_regs
 
+	/*
+	 * When DYNAMIC_FTRACE is not defined, ARCH_SUPPORTS_FTRACE_OPS is not
+	 * set (see include/asm/ftrace.h and include/linux/ftrace.h).  Only the
+	 * ip and parent ip are used and the list function is called when
+	 * function tracing is enabled.
+	 */
 	call   *ftrace_trace_function
 
 	restore_mcount_regs

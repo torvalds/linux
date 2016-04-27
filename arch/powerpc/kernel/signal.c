@@ -1,7 +1,7 @@
 /*
  * Common signal handling code for both 32 and 64 bits
  *
- *    Copyright (c) 2007 Benjamin Herrenschmidt, IBM Coproration
+ *    Copyright (c) 2007 Benjamin Herrenschmidt, IBM Corporation
  *    Extracted from signal_32.c and signal_64.c
  *
  * This file is subject to the terms and conditions of the GNU General
@@ -178,7 +178,7 @@ unsigned long get_tm_stackpointer(struct pt_regs *regs)
 	 * need to use the stack pointer from the checkpointed state, rather
 	 * than the speculated state.  This ensures that the signal context
 	 * (written tm suspended) will be written below the stack required for
-	 * the rollback.  The transaction is aborted becuase of the treclaim,
+	 * the rollback.  The transaction is aborted because of the treclaim,
 	 * so any memory written between the tbegin and the signal will be
 	 * rolled back anyway.
 	 *

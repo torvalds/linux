@@ -213,7 +213,7 @@ static int __init omap_serial_early_init(void)
 
 	return 0;
 }
-omap_core_initcall(omap_serial_early_init);
+omap_postcore_initcall(omap_serial_early_init);
 
 /**
  * omap_serial_init_port() - initialize single serial port
@@ -252,7 +252,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 		info = omap_serial_default_info;
 
 	oh = uart->oh;
-	name = DRIVER_NAME;
+	name = OMAP_SERIAL_DRIVER_NAME;
 
 	omap_up.dma_enabled = info->dma_enabled;
 	omap_up.uartclk = OMAP24XX_BASE_BAUD * 16;

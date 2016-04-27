@@ -1320,7 +1320,7 @@ static int tegra_hdmi_init(struct host1x_client *client)
 	hdmi->output.connector.dpms = DRM_MODE_DPMS_OFF;
 
 	drm_encoder_init(drm, &hdmi->output.encoder, &tegra_hdmi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 	drm_encoder_helper_add(&hdmi->output.encoder,
 			       &tegra_hdmi_encoder_helper_funcs);
 

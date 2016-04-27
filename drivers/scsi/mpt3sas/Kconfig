@@ -41,15 +41,15 @@
 # USA.
 
 config SCSI_MPT3SAS
-	tristate "LSI MPT Fusion SAS 3.0 Device Driver"
+	tristate "LSI MPT Fusion SAS 3.0 & SAS 2.0 Device Driver"
 	depends on PCI && SCSI
 	select SCSI_SAS_ATTRS
 	select RAID_ATTRS
 	---help---
 	This driver supports PCI-Express SAS 12Gb/s Host Adapters.
 
-config SCSI_MPT3SAS_MAX_SGE
-	int "LSI MPT Fusion Max number of SG Entries (16 - 256)"
+config SCSI_MPT2SAS_MAX_SGE
+	int "LSI MPT Fusion SAS 2.0 Max number of SG Entries (16 - 256)"
 	depends on PCI && SCSI && SCSI_MPT3SAS
 	default "128"
 	range 16 256
@@ -60,8 +60,23 @@ config SCSI_MPT3SAS_MAX_SGE
 	can be 256. However, it may decreased down to 16.  Decreasing this
 	parameter will reduce memory requirements on a per controller instance.
 
-config SCSI_MPT3SAS_LOGGING
-	bool "LSI MPT Fusion logging facility"
+config SCSI_MPT3SAS_MAX_SGE
+	int "LSI MPT Fusion SAS 3.0 Max number of SG Entries (16 - 256)"
 	depends on PCI && SCSI && SCSI_MPT3SAS
+	default "128"
+	range 16 256
 	---help---
-	This turns on a logging facility.
+	This option allows you to specify the maximum number of scatter-
+	gather entries per I/O. The driver default is 128, which matches
+	MAX_PHYS_SEGMENTS in most kernels.  However in SuSE kernels this
+	can be 256. However, it may decreased down to 16.  Decreasing this
+	parameter will reduce memory requirements on a per controller instance.
+
+config SCSI_MPT2SAS
+	tristate "Legacy MPT2SAS config option"
+	default n
+	select SCSI_MPT3SAS
+	depends on PCI && SCSI
+	---help---
+	Dummy config option for backwards compatiblity: configure the MPT3SAS
+	driver instead.

@@ -223,6 +223,9 @@ struct stripe_head {
 	struct stripe_head	*batch_head; /* protected by stripe lock */
 	spinlock_t		batch_lock; /* only header's lock is useful */
 	struct list_head	batch_list; /* protected by head's batch lock*/
+
+	struct r5l_io_unit	*log_io;
+	struct list_head	log_list;
 	/**
 	 * struct stripe_operations
 	 * @target - STRIPE_OP_COMPUTE_BLK target
@@ -244,6 +247,7 @@ struct stripe_head {
 		struct bio	*toread, *read, *towrite, *written;
 		sector_t	sector;			/* sector of this page */
 		unsigned long	flags;
+		u32		log_checksum;
 	} dev[1]; /* allocated with extra space depending of RAID geometry */
 };
 
@@ -268,6 +272,7 @@ struct stripe_head_state {
 	struct bio_list return_bi;
 	struct md_rdev *blocked_rdev;
 	int handle_bad_blocks;
+	int log_failed;
 };
 
 /* Flags for struct r5dev.flags */
@@ -340,6 +345,7 @@ enum {
 	STRIPE_BITMAP_PENDING,	/* Being added to bitmap, don't add
 				 * to batch yet.
 				 */
+	STRIPE_LOG_TRAPPED, /* trapped into log */
 };
 
 #define STRIPE_EXPAND_SYNC_FLAGS \
@@ -504,6 +510,8 @@ struct r5conf {
 					      * conversions
 					      */
 	} __percpu *percpu;
+	int scribble_disks;
+	int scribble_sectors;
 #ifdef CONFIG_HOTPLUG_CPU
 	struct notifier_block	cpu_notify;
 #endif
@@ -516,7 +524,7 @@ struct r5conf {
 	atomic_t		empty_inactive_list_nr;
 	struct llist_head	released_stripes;
 	wait_queue_head_t	wait_for_quiescent;
-	wait_queue_head_t	wait_for_stripe[NR_STRIPE_HASH_LOCKS];
+	wait_queue_head_t	wait_for_stripe;
 	wait_queue_head_t	wait_for_overlap;
 	unsigned long		cache_state;
 #define R5_INACTIVE_BLOCKED	1	/* release of inactive stripes blocked,
@@ -543,6 +551,7 @@ struct r5conf {
 	struct r5worker_group	*worker_groups;
 	int			group_cnt;
 	int			worker_cnt_per_group;
+	struct r5l_log		*log;
 };
 
 
@@ -609,4 +618,21 @@ static inline int algorithm_is_DDF(int layout)
 
 extern void md_raid5_kick_device(struct r5conf *conf);
 extern int raid5_set_cache_size(struct mddev *mddev, int size);
+extern sector_t raid5_compute_blocknr(struct stripe_head *sh, int i, int previous);
+extern void raid5_release_stripe(struct stripe_head *sh);
+extern sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
+				     int previous, int *dd_idx,
+				     struct stripe_head *sh);
+extern struct stripe_head *
+raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
+			int previous, int noblock, int noquiesce);
+extern int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev);
+extern void r5l_exit_log(struct r5l_log *log);
+extern int r5l_write_stripe(struct r5l_log *log, struct stripe_head *head_sh);
+extern void r5l_write_stripe_run(struct r5l_log *log);
+extern void r5l_flush_stripe_to_raid(struct r5l_log *log);
+extern void r5l_stripe_write_finished(struct stripe_head *sh);
+extern int r5l_handle_flush_request(struct r5l_log *log, struct bio *bio);
+extern void r5l_quiesce(struct r5l_log *log, int state);
+extern bool r5l_log_disk_error(struct r5conf *conf);
 #endif

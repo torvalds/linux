@@ -64,7 +64,7 @@ static void writeseg_end_io(struct bio *bio)
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		end_page_writeback(bvec->bv_page);
-		page_cache_release(bvec->bv_page);
+		put_page(bvec->bv_page);
 	}
 	bio_put(bio);
 	if (atomic_dec_and_test(&super->s_pending_writes))
@@ -81,7 +81,7 @@ static int __bdev_writeseg(struct super_block *sb, u64 ofs, pgoff_t index,
 	unsigned int max_pages;
 	int i;
 
-	max_pages = min(nr_pages, BIO_MAX_PAGES);
+	max_pages = min_t(size_t, nr_pages, BIO_MAX_PAGES);
 
 	bio = bio_alloc(GFP_NOFS, max_pages);
 	BUG_ON(!bio);
@@ -171,7 +171,7 @@ static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
 	unsigned int max_pages;
 	int i;
 
-	max_pages = min(nr_pages, BIO_MAX_PAGES);
+	max_pages = min_t(size_t, nr_pages, BIO_MAX_PAGES);
 
 	bio = bio_alloc(GFP_NOFS, max_pages);
 	BUG_ON(!bio);

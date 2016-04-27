@@ -235,7 +235,7 @@ config PM_TRACE_RTC
 
 config APM_EMULATION
 	tristate "Advanced Power Management Emulation"
-	depends on PM && SYS_SUPPORTS_APM_EMULATION
+	depends on SYS_SUPPORTS_APM_EMULATION
 	help
 	  APM is a BIOS specification for saving power using several different
 	  techniques. This is mostly useful for battery powered laptops with

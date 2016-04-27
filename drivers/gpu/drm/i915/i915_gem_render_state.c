@@ -103,7 +103,7 @@ static int render_state_setup(struct render_state *so)
 	if (ret)
 		return ret;
 
-	page = sg_page(so->obj->pages->sgl);
+	page = i915_gem_object_get_dirty_page(so->obj, 0);
 	d = kmap(page);
 
 	while (i < rodata->batch_items) {

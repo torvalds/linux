@@ -36,10 +36,6 @@
 
 #define ATH79_SYS_TYPE_LEN	64
 
-#define AR71XX_BASE_FREQ	40000000
-#define AR724X_BASE_FREQ	5000000
-#define AR913X_BASE_FREQ	5000000
-
 static char ath79_sys_type[ATH79_SYS_TYPE_LEN];
 
 static void ath79_restart(char *command)
@@ -216,9 +212,9 @@ void __init plat_mem_setup(void)
 					   AR71XX_RESET_SIZE);
 	ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
 					 AR71XX_PLL_SIZE);
+	ath79_detect_sys_type();
 	ath79_ddr_ctrl_init();
 
-	ath79_detect_sys_type();
 	if (mips_machtype != ATH79_MACH_GENERIC_OF)
 		detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
 
@@ -272,12 +268,12 @@ void __init device_tree_init(void)
 	unflatten_and_copy_device_tree();
 }
 
-static void __init ath79_generic_init(void)
-{
-	/* Nothing to do */
-}
-
 MIPS_MACHINE(ATH79_MACH_GENERIC,
 	     "Generic",
 	     "Generic AR71XX/AR724X/AR913X based board",
-	     ath79_generic_init);
+	     NULL);
+
+MIPS_MACHINE(ATH79_MACH_GENERIC_OF,
+	     "DTB",
+	     "Generic AR71XX/AR724X/AR913X based board (DT)",
+	     NULL);

@@ -41,9 +41,6 @@
 #include "../include/lprocfs_status.h"
 #include "../include/obd_support.h"
 
-struct lprocfs_stats *obd_memory = NULL;
-EXPORT_SYMBOL(obd_memory);
-
 void lprocfs_counter_add(struct lprocfs_stats *stats, int idx, long amount)
 {
 	struct lprocfs_counter		*percpu_cntr;
@@ -51,14 +48,15 @@ void lprocfs_counter_add(struct lprocfs_stats *stats, int idx, long amount)
 	int				smp_id;
 	unsigned long			flags = 0;
 
-	if (stats == NULL)
+	if (!stats)
 		return;
 
 	LASSERTF(0 <= idx && idx < stats->ls_num,
 		 "idx %d, ls_num %hu\n", idx, stats->ls_num);
 
 	/* With per-client stats, statistics are allocated only for
-	 * single CPU area, so the smp_id should be 0 always. */
+	 * single CPU area, so the smp_id should be 0 always.
+	 */
 	smp_id = lprocfs_stats_lock(stats, LPROCFS_GET_SMP_ID, &flags);
 	if (smp_id < 0)
 		return;
@@ -74,9 +72,6 @@ void lprocfs_counter_add(struct lprocfs_stats *stats, int idx, long amount)
 		 * ldlm_pool_shrink(), which calls lprocfs_counter_add().
 		 * LU-1727.
 		 *
-		 * Only obd_memory uses LPROCFS_STATS_FLAG_IRQ_SAFE
-		 * flag, because it needs accurate counting lest memory leak
-		 * check reports error.
 		 */
 		if (in_interrupt() &&
 		    (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0)
@@ -102,14 +97,15 @@ void lprocfs_counter_sub(struct lprocfs_stats *stats, int idx, long amount)
 	int				smp_id;
 	unsigned long			flags = 0;
 
-	if (stats == NULL)
+	if (!stats)
 		return;
 
 	LASSERTF(0 <= idx && idx < stats->ls_num,
 		 "idx %d, ls_num %hu\n", idx, stats->ls_num);
 
 	/* With per-client stats, statistics are allocated only for
-	 * single CPU area, so the smp_id should be 0 always. */
+	 * single CPU area, so the smp_id should be 0 always.
+	 */
 	smp_id = lprocfs_stats_lock(stats, LPROCFS_GET_SMP_ID, &flags);
 	if (smp_id < 0)
 		return;
@@ -124,9 +120,6 @@ void lprocfs_counter_sub(struct lprocfs_stats *stats, int idx, long amount)
 		 * softirq context here, use separate counter for that.
 		 * bz20650.
 		 *
-		 * Only obd_memory uses LPROCFS_STATS_FLAG_IRQ_SAFE
-		 * flag, because it needs accurate counting lest memory leak
-		 * check reports error.
 		 */
 		if (in_interrupt() &&
 		    (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0)

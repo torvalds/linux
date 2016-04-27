@@ -27,15 +27,23 @@ struct amd_l3_cache {
 };
 
 struct threshold_block {
-	unsigned int		block;
-	unsigned int		bank;
-	unsigned int		cpu;
-	u32			address;
-	u16			interrupt_enable;
-	bool			interrupt_capable;
-	u16			threshold_limit;
-	struct kobject		kobj;
-	struct list_head	miscj;
+	unsigned int	 block;			/* Number within bank */
+	unsigned int	 bank;			/* MCA bank the block belongs to */
+	unsigned int	 cpu;			/* CPU which controls MCA bank */
+	u32		 address;		/* MSR address for the block */
+	u16		 interrupt_enable;	/* Enable/Disable APIC interrupt */
+	bool		 interrupt_capable;	/* Bank can generate an interrupt. */
+
+	u16		 threshold_limit;	/*
+						 * Value upon which threshold
+						 * interrupt is generated.
+						 */
+
+	struct kobject	 kobj;			/* sysfs object */
+	struct list_head miscj;			/*
+						 * List of threshold blocks
+						 * within a bank.
+						 */
 };
 
 struct threshold_bank {
@@ -81,7 +89,7 @@ static inline struct amd_northbridge *node_to_amd_nb(int node)
 	return (node < amd_northbridges.num) ? &amd_northbridges.nb[node] : NULL;
 }
 
-static inline u16 amd_get_node_id(struct pci_dev *pdev)
+static inline u16 amd_pci_dev_to_node_id(struct pci_dev *pdev)
 {
 	struct pci_dev *misc;
 	int i;

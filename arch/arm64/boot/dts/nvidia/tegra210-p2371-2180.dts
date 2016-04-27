@@ -1,0 +1,9 @@
+/dts-v1/;
+
+#include "tegra210-p2180.dtsi"
+#include "tegra210-p2597.dtsi"
+
+/ {
+	model = "NVIDIA Jetson TX1 Developer Kit";
+	compatible = "nvidia,p2371-2180", "nvidia,tegra210";
+};

@@ -66,6 +66,20 @@ EXPORT_SYMBOL_GPL(nf_conntrack_locks);
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(nf_conntrack_expect_lock);
 EXPORT_SYMBOL_GPL(nf_conntrack_expect_lock);
 
+static __read_mostly spinlock_t nf_conntrack_locks_all_lock;
+static __read_mostly bool nf_conntrack_locks_all;
+
+void nf_conntrack_lock(spinlock_t *lock) __acquires(lock)
+{
+	spin_lock(lock);
+	while (unlikely(nf_conntrack_locks_all)) {
+		spin_unlock(lock);
+		spin_unlock_wait(&nf_conntrack_locks_all_lock);
+		spin_lock(lock);
+	}
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_lock);
+
 static void nf_conntrack_double_unlock(unsigned int h1, unsigned int h2)
 {
 	h1 %= CONNTRACK_LOCKS;
@@ -82,12 +96,12 @@ static bool nf_conntrack_double_lock(struct net *net, unsigned int h1,
 	h1 %= CONNTRACK_LOCKS;
 	h2 %= CONNTRACK_LOCKS;
 	if (h1 <= h2) {
-		spin_lock(&nf_conntrack_locks[h1]);
+		nf_conntrack_lock(&nf_conntrack_locks[h1]);
 		if (h1 != h2)
 			spin_lock_nested(&nf_conntrack_locks[h2],
 					 SINGLE_DEPTH_NESTING);
 	} else {
-		spin_lock(&nf_conntrack_locks[h2]);
+		nf_conntrack_lock(&nf_conntrack_locks[h2]);
 		spin_lock_nested(&nf_conntrack_locks[h1],
 				 SINGLE_DEPTH_NESTING);
 	}
@@ -102,16 +116,18 @@ static void nf_conntrack_all_lock(void)
 {
 	int i;
 
-	for (i = 0; i < CONNTRACK_LOCKS; i++)
-		spin_lock_nested(&nf_conntrack_locks[i], i);
+	spin_lock(&nf_conntrack_locks_all_lock);
+	nf_conntrack_locks_all = true;
+
+	for (i = 0; i < CONNTRACK_LOCKS; i++) {
+		spin_unlock_wait(&nf_conntrack_locks[i]);
+	}
 }
 
 static void nf_conntrack_all_unlock(void)
 {
-	int i;
-
-	for (i = 0; i < CONNTRACK_LOCKS; i++)
-		spin_unlock(&nf_conntrack_locks[i]);
+	nf_conntrack_locks_all = false;
+	spin_unlock(&nf_conntrack_locks_all_lock);
 }
 
 unsigned int nf_conntrack_htable_size __read_mostly;
@@ -168,6 +184,7 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 		unsigned int dataoff,
 		u_int16_t l3num,
 		u_int8_t protonum,
+		struct net *net,
 		struct nf_conntrack_tuple *tuple,
 		const struct nf_conntrack_l3proto *l3proto,
 		const struct nf_conntrack_l4proto *l4proto)
@@ -181,12 +198,13 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 	tuple->dst.protonum = protonum;
 	tuple->dst.dir = IP_CT_DIR_ORIGINAL;
 
-	return l4proto->pkt_to_tuple(skb, dataoff, tuple);
+	return l4proto->pkt_to_tuple(skb, dataoff, net, tuple);
 }
 EXPORT_SYMBOL_GPL(nf_ct_get_tuple);
 
 bool nf_ct_get_tuplepr(const struct sk_buff *skb, unsigned int nhoff,
-		       u_int16_t l3num, struct nf_conntrack_tuple *tuple)
+		       u_int16_t l3num,
+		       struct net *net, struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
@@ -205,7 +223,7 @@ bool nf_ct_get_tuplepr(const struct sk_buff *skb, unsigned int nhoff,
 
 	l4proto = __nf_ct_l4proto_find(l3num, protonum);
 
-	ret = nf_ct_get_tuple(skb, nhoff, protoff, l3num, protonum, tuple,
+	ret = nf_ct_get_tuple(skb, nhoff, protoff, l3num, protonum, net, tuple,
 			      l3proto, l4proto);
 
 	rcu_read_unlock();
@@ -755,7 +773,7 @@ restart:
 	hash = hash_bucket(_hash, net);
 	for (; i < net->ct.htable_size; i++) {
 		lockp = &nf_conntrack_locks[hash % CONNTRACK_LOCKS];
-		spin_lock(lockp);
+		nf_conntrack_lock(lockp);
 		if (read_seqcount_retry(&net->ct.generation, sequence)) {
 			spin_unlock(lockp);
 			goto restart;
@@ -938,10 +956,13 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	}
 
 	timeout_ext = tmpl ? nf_ct_timeout_find(tmpl) : NULL;
-	if (timeout_ext)
-		timeouts = NF_CT_TIMEOUT_EXT_DATA(timeout_ext);
-	else
+	if (timeout_ext) {
+		timeouts = nf_ct_timeout_data(timeout_ext);
+		if (unlikely(!timeouts))
+			timeouts = l4proto->get_timeouts(net);
+	} else {
 		timeouts = l4proto->get_timeouts(net);
+	}
 
 	if (!l4proto->new(ct, skb, dataoff, timeouts)) {
 		nf_conntrack_free(ct);
@@ -950,7 +971,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	}
 
 	if (timeout_ext)
-		nf_ct_timeout_ext_add(ct, timeout_ext->timeout, GFP_ATOMIC);
+		nf_ct_timeout_ext_add(ct, rcu_dereference(timeout_ext->timeout),
+				      GFP_ATOMIC);
 
 	nf_ct_acct_ext_add(ct, GFP_ATOMIC);
 	nf_ct_tstamp_ext_add(ct, GFP_ATOMIC);
@@ -1029,7 +1051,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	u32 hash;
 
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
-			     dataoff, l3num, protonum, &tuple, l3proto,
+			     dataoff, l3num, protonum, net, &tuple, l3proto,
 			     l4proto)) {
 		pr_debug("resolve_normal_ct: Can't get tuple\n");
 		return NULL;
@@ -1376,7 +1398,7 @@ get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 	for (; *bucket < net->ct.htable_size; (*bucket)++) {
 		lockp = &nf_conntrack_locks[*bucket % CONNTRACK_LOCKS];
 		local_bh_disable();
-		spin_lock(lockp);
+		nf_conntrack_lock(lockp);
 		if (*bucket < net->ct.htable_size) {
 			hlist_nulls_for_each_entry(h, n, &net->ct.hash[*bucket], hnnode) {
 				if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
@@ -1388,6 +1410,7 @@ get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 		}
 		spin_unlock(lockp);
 		local_bh_enable();
+		cond_resched();
 	}
 
 	for_each_possible_cpu(cpu) {
@@ -1400,6 +1423,7 @@ get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 				set_bit(IPS_DYING_BIT, &ct->status);
 		}
 		spin_unlock_bh(&pcpu->lock);
+		cond_resched();
 	}
 	return NULL;
 found:
@@ -1416,6 +1440,8 @@ void nf_ct_iterate_cleanup(struct net *net,
 	struct nf_conn *ct;
 	unsigned int bucket = 0;
 
+	might_sleep();
+
 	while ((ct = get_next_corpse(net, iter, data, &bucket)) != NULL) {
 		/* Time to push up daises... */
 		if (del_timer(&ct->timeout))
@@ -1424,6 +1450,7 @@ void nf_ct_iterate_cleanup(struct net *net,
 		/* ... else the timer will get him soon. */
 
 		nf_ct_put(ct);
+		cond_resched();
 	}
 }
 EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup);

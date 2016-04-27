@@ -288,6 +288,24 @@ prev_pid == 0
 # cat sched_wakeup/filter
 common_pid == 0
 
+5.4 PID filtering
+-----------------
+
+The set_event_pid file in the same directory as the top events directory
+exists, will filter all events from tracing any task that does not have the
+PID listed in the set_event_pid file.
+
+# cd /sys/kernel/debug/tracing
+# echo $$ > set_event_pid
+# echo 1 > events/enabled
+
+Will only trace events for the current task.
+
+To add more PIDs without losing the PIDs already included, use '>>'.
+
+# echo 123 244 1 >> set_event_pid
+
+
 6. Event triggers
 =================
 

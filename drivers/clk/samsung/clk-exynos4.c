@@ -500,19 +500,19 @@ PNAME(clkout_cpu_p4x12) = { "fout_apll_div_2", "none", "none", "none",
 
 /* fixed rate clocks generated outside the soc */
 static struct samsung_fixed_rate_clock exynos4_fixed_rate_ext_clks[] __initdata = {
-	FRATE(CLK_XXTI, "xxti", NULL, CLK_IS_ROOT, 0),
-	FRATE(CLK_XUSBXTI, "xusbxti", NULL, CLK_IS_ROOT, 0),
+	FRATE(CLK_XXTI, "xxti", NULL, 0, 0),
+	FRATE(CLK_XUSBXTI, "xusbxti", NULL, 0, 0),
 };
 
 /* fixed rate clocks generated inside the soc */
 static struct samsung_fixed_rate_clock exynos4_fixed_rate_clks[] __initdata = {
-	FRATE(0, "sclk_hdmi24m", NULL, CLK_IS_ROOT, 24000000),
+	FRATE(0, "sclk_hdmi24m", NULL, 0, 24000000),
 	FRATE(CLK_SCLK_HDMIPHY, "sclk_hdmiphy", "hdmi", 0, 27000000),
-	FRATE(0, "sclk_usbphy0", NULL, CLK_IS_ROOT, 48000000),
+	FRATE(0, "sclk_usbphy0", NULL, 0, 48000000),
 };
 
 static struct samsung_fixed_rate_clock exynos4210_fixed_rate_clks[] __initdata = {
-	FRATE(0, "sclk_usbphy1", NULL, CLK_IS_ROOT, 48000000),
+	FRATE(0, "sclk_usbphy1", NULL, 0, 48000000),
 };
 
 static struct samsung_fixed_factor_clock exynos4_fixed_factor_clks[] __initdata = {
@@ -1024,6 +1024,7 @@ static struct samsung_gate_clock exynos4_gate_clks[] __initdata = {
 			0, 0),
 	GATE(CLK_AC97, "ac97", "aclk100", GATE_IP_PERIL, 27,
 			0, 0),
+	GATE(CLK_SSS, "sss", "aclk133", GATE_IP_DMC, 4, 0, 0),
 	GATE(CLK_PPMUDMC0, "ppmudmc0", "aclk133", GATE_IP_DMC, 8, 0, 0),
 	GATE(CLK_PPMUDMC1, "ppmudmc1", "aclk133", GATE_IP_DMC, 9, 0, 0),
 	GATE(CLK_PPMUCPU, "ppmucpu", "aclk133", GATE_IP_DMC, 10, 0, 0),
@@ -1250,7 +1251,7 @@ static void __init exynos4_clk_register_finpll(struct samsung_clk_provider *ctx)
 	fclk.id = CLK_FIN_PLL;
 	fclk.name = "fin_pll";
 	fclk.parent_name = NULL;
-	fclk.flags = CLK_IS_ROOT;
+	fclk.flags = 0;
 	fclk.fixed_rate = finpll_f;
 	samsung_clk_register_fixed_rate(ctx, &fclk, 1);
 

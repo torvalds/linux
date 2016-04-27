@@ -685,6 +685,27 @@ static void atom_op_div(atom_exec_context *ctx, int *ptr, int arg)
 	}
 }
 
+static void atom_op_div32(atom_exec_context *ctx, int *ptr, int arg)
+{
+	uint64_t val64;
+	uint8_t attr = U8((*ptr)++);
+	uint32_t dst, src;
+	SDEBUG("   src1: ");
+	dst = atom_get_dst(ctx, arg, attr, ptr, NULL, 1);
+	SDEBUG("   src2: ");
+	src = atom_get_src(ctx, attr, ptr);
+	if (src != 0) {
+		val64 = dst;
+		val64 |= ((uint64_t)ctx->ctx->divmul[1]) << 32;
+		do_div(val64, src);
+		ctx->ctx->divmul[0] = lower_32_bits(val64);
+		ctx->ctx->divmul[1] = upper_32_bits(val64);
+	} else {
+		ctx->ctx->divmul[0] = 0;
+		ctx->ctx->divmul[1] = 0;
+	}
+}
+
 static void atom_op_eot(atom_exec_context *ctx, int *ptr, int arg)
 {
 	/* functionally, a nop */
@@ -786,6 +807,20 @@ static void atom_op_mul(atom_exec_context *ctx, int *ptr, int arg)
 	SDEBUG("   src2: ");
 	src = atom_get_src(ctx, attr, ptr);
 	ctx->ctx->divmul[0] = dst * src;
+}
+
+static void atom_op_mul32(atom_exec_context *ctx, int *ptr, int arg)
+{
+	uint64_t val64;
+	uint8_t attr = U8((*ptr)++);
+	uint32_t dst, src;
+	SDEBUG("   src1: ");
+	dst = atom_get_dst(ctx, arg, attr, ptr, NULL, 1);
+	SDEBUG("   src2: ");
+	src = atom_get_src(ctx, attr, ptr);
+	val64 = (uint64_t)dst * (uint64_t)src;
+	ctx->ctx->divmul[0] = lower_32_bits(val64);
+	ctx->ctx->divmul[1] = upper_32_bits(val64);
 }
 
 static void atom_op_nop(atom_exec_context *ctx, int *ptr, int arg)
@@ -1022,7 +1057,15 @@ static void atom_op_xor(atom_exec_context *ctx, int *ptr, int arg)
 
 static void atom_op_debug(atom_exec_context *ctx, int *ptr, int arg)
 {
-	printk(KERN_INFO "unimplemented!\n");
+	uint8_t val = U8((*ptr)++);
+	SDEBUG("DEBUG output: 0x%02X\n", val);
+}
+
+static void atom_op_processds(atom_exec_context *ctx, int *ptr, int arg)
+{
+	uint16_t val = U16(*ptr);
+	(*ptr) += val + 2;
+	SDEBUG("PROCESSDS output: 0x%02X\n", val);
 }
 
 static struct {
@@ -1151,7 +1194,13 @@ static struct {
 	atom_op_shr, ATOM_ARG_FB}, {
 	atom_op_shr, ATOM_ARG_PLL}, {
 	atom_op_shr, ATOM_ARG_MC}, {
-atom_op_debug, 0},};
+	atom_op_debug, 0}, {
+	atom_op_processds, 0}, {
+	atom_op_mul32, ATOM_ARG_PS}, {
+	atom_op_mul32, ATOM_ARG_WS}, {
+	atom_op_div32, ATOM_ARG_PS}, {
+	atom_op_div32, ATOM_ARG_WS},
+};
 
 static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t * params)
 {

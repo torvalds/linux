@@ -467,7 +467,7 @@ static bool AddReorderEntry(struct rx_ts_record *pTS,
 		else if (SN_EQUAL(pReorderEntry->SeqNum,
 			((struct rx_reorder_entry *)list_entry(pList->next,
 			struct rx_reorder_entry, List))->SeqNum))
-				return false;
+			return false;
 		else
 			break;
 	}
@@ -905,7 +905,7 @@ static size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee,
 {
 	struct rtllib_hdr_4addr *hdr = (struct rtllib_hdr_4addr *)skb->data;
 	u16 fc = le16_to_cpu(hdr->frame_ctl);
-	size_t hdrlen = 0;
+	size_t hdrlen;
 
 	hdrlen = rtllib_get_hdrlen(fc);
 	if (HTCCheck(ieee, skb->data)) {
@@ -1200,11 +1200,9 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) &&
 	    rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
-			struct eapol *eap = (struct eapol *)(skb->data +
-				24);
-			netdev_dbg(ieee->dev,
-				   "RX: IEEE 802.1X EAPOL frame: %s\n",
-				   eap_get_type(eap->type));
+		struct eapol *eap = (struct eapol *)(skb->data + 24);
+		netdev_dbg(ieee->dev, "RX: IEEE 802.1X EAPOL frame: %s\n",
+			   eap_get_type(eap->type));
 	}
 
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) && !ieee->open_wep &&
@@ -1532,7 +1530,7 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 {
 	int ret = 0;
 
-	if ((NULL == ieee) || (NULL == skb) || (NULL == rx_stats)) {
+	if (!ieee || !skb || !rx_stats) {
 		pr_info("%s: Input parameters NULL!\n", __func__);
 		goto rx_dropped;
 	}
@@ -1831,7 +1829,6 @@ static inline void rtllib_extract_country_ie(
 		if (IS_EQUAL_CIE_SRC(ieee, addr2))
 			UPDATE_CIE_WATCHDOG(ieee);
 	}
-
 }
 
 static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
@@ -1904,7 +1901,6 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 				       info_element->data,
 				       network->bssht.bdHTInfoLen);
 			}
-
 		}
 	}
 
@@ -2556,7 +2552,7 @@ static inline int is_beacon(u16 fc)
 
 static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
 {
-	if (MAX_CHANNEL_NUMBER < channel) {
+	if (channel > MAX_CHANNEL_NUMBER) {
 		netdev_info(rtllib->dev, "%s(): Invalid Channel\n", __func__);
 		return 0;
 	}
@@ -2569,7 +2565,7 @@ static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
 
 int rtllib_legal_channel(struct rtllib_device *rtllib, u8 channel)
 {
-	if (MAX_CHANNEL_NUMBER < channel) {
+	if (channel > MAX_CHANNEL_NUMBER) {
 		netdev_info(rtllib->dev, "%s(): Invalid Channel\n", __func__);
 		return 0;
 	}

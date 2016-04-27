@@ -107,7 +107,7 @@ static int kfd_open(struct inode *inode, struct file *filep)
 	if (iminor(inode) != 0)
 		return -ENODEV;
 
-	is_32bit_user_mode = is_compat_task();
+	is_32bit_user_mode = in_compat_syscall();
 
 	if (is_32bit_user_mode == true) {
 		dev_warn(kfd_device,
@@ -558,20 +558,10 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 		return -EINVAL;
 
 	/* this is the actual buffer to work with */
-
-	args_buff = kmalloc(args->buf_size_in_bytes -
-					sizeof(*args), GFP_KERNEL);
-	if (args_buff == NULL)
-		return -ENOMEM;
-
-	status = copy_from_user(args_buff, cmd_from_user,
+	args_buff = memdup_user(cmd_from_user,
 				args->buf_size_in_bytes - sizeof(*args));
-
-	if (status != 0) {
-		pr_debug("Failed to copy address watch user data\n");
-		kfree(args_buff);
-		return -EINVAL;
-	}
+	if (IS_ERR(args_buff))
+		return PTR_ERR(args_buff);
 
 	aw_info.process = p;
 
@@ -677,22 +667,12 @@ static int kfd_ioctl_dbg_wave_control(struct file *filep,
 	if (cmd_from_user == NULL)
 		return -EINVAL;
 
-	/* this is the actual buffer to work with */
+	/* copy the entire buffer from user */
 
-	args_buff = kmalloc(args->buf_size_in_bytes - sizeof(*args),
-			GFP_KERNEL);
-
-	if (args_buff == NULL)
-		return -ENOMEM;
-
-	/* Now copy the entire buffer from user */
-	status = copy_from_user(args_buff, cmd_from_user,
+	args_buff = memdup_user(cmd_from_user,
 				args->buf_size_in_bytes - sizeof(*args));
-	if (status != 0) {
-		pr_debug("Failed to copy wave control user data\n");
-		kfree(args_buff);
-		return -EINVAL;
-	}
+	if (IS_ERR(args_buff))
+		return PTR_ERR(args_buff);
 
 	/* move ptr to the start of the "pay-load" area */
 	wac_info.process = p;

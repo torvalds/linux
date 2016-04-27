@@ -10,6 +10,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -48,6 +49,7 @@ static const char *shdwc_wakeup_modes[] = {
 };
 
 static void __iomem *at91_shdwc_base;
+static struct clk *sclk;
 
 static void __init at91_wakeup_status(void)
 {
@@ -119,15 +121,26 @@ static void at91_poweroff_dt_set_wakeup_mode(struct platform_device *pdev)
 	writel(wakeup_mode | mode, at91_shdwc_base + AT91_SHDW_MR);
 }
 
-static int at91_poweroff_probe(struct platform_device *pdev)
+static int __init at91_poweroff_probe(struct platform_device *pdev)
 {
 	struct resource *res;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	at91_shdwc_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(at91_shdwc_base)) {
 		dev_err(&pdev->dev, "Could not map reset controller address\n");
 		return PTR_ERR(at91_shdwc_base);
+	}
+
+	sclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(sclk))
+		return PTR_ERR(sclk);
+
+	ret = clk_prepare_enable(sclk);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		return ret;
 	}
 
 	at91_wakeup_status();
@@ -140,6 +153,16 @@ static int at91_poweroff_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __exit at91_poweroff_remove(struct platform_device *pdev)
+{
+	if (pm_power_off == at91_poweroff)
+		pm_power_off = NULL;
+
+	clk_disable_unprepare(sclk);
+
+	return 0;
+}
+
 static const struct of_device_id at91_poweroff_of_match[] = {
 	{ .compatible = "atmel,at91sam9260-shdwc", },
 	{ .compatible = "atmel,at91sam9rl-shdwc", },
@@ -148,10 +171,14 @@ static const struct of_device_id at91_poweroff_of_match[] = {
 };
 
 static struct platform_driver at91_poweroff_driver = {
-	.probe = at91_poweroff_probe,
+	.remove = __exit_p(at91_poweroff_remove),
 	.driver = {
 		.name = "at91-poweroff",
 		.of_match_table = at91_poweroff_of_match,
 	},
 };
-module_platform_driver(at91_poweroff_driver);
+module_platform_driver_probe(at91_poweroff_driver, at91_poweroff_probe);
+
+MODULE_AUTHOR("Atmel Corporation");
+MODULE_DESCRIPTION("Shutdown driver for Atmel SoCs");
+MODULE_LICENSE("GPL v2");

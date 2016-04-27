@@ -19,6 +19,7 @@
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include "xfs_error.h"
+#include "xfs_stats.h"
 
 static struct ctl_table_header *xfs_table_header;
 
@@ -31,22 +32,12 @@ xfs_stats_clear_proc_handler(
 	size_t			*lenp,
 	loff_t			*ppos)
 {
-	int		c, ret, *valp = ctl->data;
-	__uint32_t	vn_active;
+	int		ret, *valp = ctl->data;
 
 	ret = proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
 
 	if (!ret && write && *valp) {
-		xfs_notice(NULL, "Clearing xfsstats");
-		for_each_possible_cpu(c) {
-			preempt_disable();
-			/* save vn_active, it's a universal truth! */
-			vn_active = per_cpu(xfsstats, c).vn_active;
-			memset(&per_cpu(xfsstats, c), 0,
-			       sizeof(struct xfsstats));
-			per_cpu(xfsstats, c).vn_active = vn_active;
-			preempt_enable();
-		}
+		xfs_stats_clearall(xfsstats.xs_stats);
 		xfs_stats_clear = 0;
 	}
 

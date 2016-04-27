@@ -6,7 +6,7 @@
  *
  * License 1: GPLv2
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  *
  * This file is free software; you may copy, redistribute and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@
  *
  * License 2: Modified BSD
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -356,9 +356,12 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 				xgbe_disable_rx_tx_ints(pdata);
 
 				/* Turn on polling */
-				__napi_schedule(&pdata->napi);
+				__napi_schedule_irqoff(&pdata->napi);
 			}
 		}
+
+		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RBU))
+			pdata->ext_stats.rx_buffer_unavailable++;
 
 		/* Restart the device on a Fatal Bus Error */
 		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, FBE))
@@ -384,7 +387,8 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 				/* Read Tx Timestamp to clear interrupt */
 				pdata->tx_tstamp =
 					hw_if->get_tx_tstamp(pdata);
-				schedule_work(&pdata->tx_tstamp_work);
+				queue_work(pdata->dev_workqueue,
+					   &pdata->tx_tstamp_work);
 			}
 		}
 	}
@@ -405,7 +409,7 @@ static irqreturn_t xgbe_dma_isr(int irq, void *data)
 		disable_irq_nosync(channel->dma_irq);
 
 		/* Turn on polling */
-		__napi_schedule(&channel->napi);
+		__napi_schedule_irqoff(&channel->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -450,7 +454,7 @@ static void xgbe_service_timer(unsigned long data)
 {
 	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
 
-	schedule_work(&pdata->service_work);
+	queue_work(pdata->dev_workqueue, &pdata->service_work);
 
 	mod_timer(&pdata->service_timer, jiffies + HZ);
 }
@@ -891,7 +895,7 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 	netif_tx_start_all_queues(netdev);
 
 	xgbe_start_timers(pdata);
-	schedule_work(&pdata->service_work);
+	queue_work(pdata->dev_workqueue, &pdata->service_work);
 
 	DBGPR("<--xgbe_start\n");
 
@@ -1622,30 +1626,22 @@ static void xgbe_poll_controller(struct net_device *netdev)
 }
 #endif /* End CONFIG_NET_POLL_CONTROLLER */
 
-static int xgbe_setup_tc(struct net_device *netdev, u8 tc)
+static int xgbe_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
+			 struct tc_to_netdev *tc_to_netdev)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	unsigned int offset, queue;
-	u8 i;
+	u8 tc;
 
-	if (tc && (tc != pdata->hw_feat.tc_cnt))
+	if (tc_to_netdev->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
-	if (tc) {
-		netdev_set_num_tc(netdev, tc);
-		for (i = 0, queue = 0, offset = 0; i < tc; i++) {
-			while ((queue < pdata->tx_q_count) &&
-			       (pdata->q2tc_map[queue] == i))
-				queue++;
+	tc = tc_to_netdev->tc;
 
-			netif_dbg(pdata, drv, netdev, "TC%u using TXq%u-%u\n",
-				  i, offset, queue - 1);
-			netdev_set_tc_queue(netdev, i, queue - offset, offset);
-			offset = queue;
-		}
-	} else {
-		netdev_reset_tc(netdev);
-	}
+	if (tc > pdata->hw_feat.tc_cnt)
+		return -EINVAL;
+
+	pdata->num_tcs = tc;
+	pdata->hw_if.config_tc(pdata);
 
 	return 0;
 }
@@ -2020,7 +2016,6 @@ read_again:
 		skb->dev = netdev;
 		skb->protocol = eth_type_trans(skb, netdev);
 		skb_record_rx_queue(skb, channel->queue_index);
-		skb_mark_napi_id(skb, napi);
 
 		napi_gro_receive(napi, skb);
 
@@ -2059,7 +2054,7 @@ static int xgbe_one_poll(struct napi_struct *napi, int budget)
 	/* If we processed everything, we are done */
 	if (processed < budget) {
 		/* Turn off polling */
-		napi_complete(napi);
+		napi_complete_done(napi, processed);
 
 		/* Enable Tx and Rx interrupts */
 		enable_irq(channel->dma_irq);
@@ -2101,7 +2096,7 @@ static int xgbe_all_poll(struct napi_struct *napi, int budget)
 	/* If we processed everything, we are done */
 	if (processed < budget) {
 		/* Turn off polling */
-		napi_complete(napi);
+		napi_complete_done(napi, processed);
 
 		/* Enable Tx and Rx interrupts */
 		xgbe_enable_rx_tx_ints(pdata);

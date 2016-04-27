@@ -29,13 +29,25 @@ static int its_pmsi_prepare(struct irq_domain *domain, struct device *dev,
 {
 	struct msi_domain_info *msi_info;
 	u32 dev_id;
-	int ret;
+	int ret, index = 0;
 
 	msi_info = msi_get_domain_info(domain->parent);
 
 	/* Suck the DeviceID out of the msi-parent property */
-	ret = of_property_read_u32_index(dev->of_node, "msi-parent",
-					 1, &dev_id);
+	do {
+		struct of_phandle_args args;
+
+		ret = of_parse_phandle_with_args(dev->of_node,
+						 "msi-parent", "#msi-cells",
+						 index, &args);
+		if (args.np == irq_domain_get_of_node(domain)) {
+			if (WARN_ON(args.args_count != 1))
+				return -EINVAL;
+			dev_id = args.args[0];
+			break;
+		}
+	} while (!ret);
+
 	if (ret)
 		return ret;
 
@@ -78,7 +90,8 @@ static int __init its_pmsi_init(void)
 			continue;
 		}
 
-		if (!platform_msi_create_irq_domain(np, &its_pmsi_domain_info,
+		if (!platform_msi_create_irq_domain(of_node_to_fwnode(np),
+						    &its_pmsi_domain_info,
 						    parent)) {
 			pr_err("%s: unable to create platform domain\n",
 			       np->full_name);

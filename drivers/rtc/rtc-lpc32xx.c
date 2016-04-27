@@ -205,7 +205,7 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 	u32 tmp;
 
 	rtcirq = platform_get_irq(pdev, 0);
-	if (rtcirq < 0 || rtcirq >= NR_IRQS) {
+	if (rtcirq < 0) {
 		dev_warn(&pdev->dev, "Can't get interrupt resource\n");
 		rtcirq = -1;
 	}

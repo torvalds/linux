@@ -65,6 +65,8 @@ config SOC_AM43XX
 	select MACH_OMAP_GENERIC
 	select MIGHT_HAVE_CACHE_L2X0
 	select HAVE_ARM_SCU
+	select GENERIC_CLOCKEVENTS_BROADCAST
+	select HAVE_ARM_TWD
 
 config SOC_DRA7XX
 	bool "TI DRA7XX"
@@ -96,8 +98,8 @@ config ARCH_OMAP2PLUS
 	select OMAP_GPMC
 	select PINCTRL
 	select SOC_BUS
-	select TI_PRIV_EDMA
 	select OMAP_IRQCHIP
+	select CLKSRC_TI_32K
 	help
 	  Systems based on OMAP2, OMAP3, OMAP4 or OMAP5
 
@@ -121,6 +123,7 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select NEON if CPU_V7
 	select PM
 	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
 	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4
 	select TWL4030_POWER if ARCH_OMAP3 || ARCH_OMAP4
 	select VFP
@@ -201,7 +204,6 @@ config MACH_OMAP3_PANDORA
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_NOKIA_N810
        bool

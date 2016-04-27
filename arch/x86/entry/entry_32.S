@@ -3,7 +3,7 @@
  *
  * entry_32.S contains the system-call and low-level fault and trap handling routines.
  *
- * Stack layout in 'syscall_exit':
+ * Stack layout while running C code:
  *	ptrace needs to have all registers on the stack.
  *	If the order here is changed, it needs to be
  *	updated in fork.c:copy_process(), signal.c:do_signal(),
@@ -40,7 +40,7 @@
 #include <asm/processor-flags.h>
 #include <asm/ftrace.h>
 #include <asm/irq_vectors.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
@@ -153,13 +153,13 @@
 
 #endif /* CONFIG_X86_32_LAZY_GS */
 
-.macro SAVE_ALL
+.macro SAVE_ALL pt_regs_ax=%eax
 	cld
 	PUSH_GS
 	pushl	%fs
 	pushl	%es
 	pushl	%ds
-	pushl	%eax
+	pushl	\pt_regs_ax
 	pushl	%ebp
 	pushl	%edi
 	pushl	%esi
@@ -211,7 +211,11 @@ ENTRY(ret_from_fork)
 	popl	%eax
 	pushl	$0x0202				# Reset kernel eflags
 	popfl
-	jmp	syscall_exit
+
+	/* When we fork, we trace the syscall return in the child, too. */
+	movl    %esp, %eax
+	call    syscall_return_slowpath
+	jmp     restore_all
 END(ret_from_fork)
 
 ENTRY(ret_from_kernel_thread)
@@ -224,7 +228,15 @@ ENTRY(ret_from_kernel_thread)
 	movl	PT_EBP(%esp), %eax
 	call	*PT_EBX(%esp)
 	movl	$0, PT_EAX(%esp)
-	jmp	syscall_exit
+
+	/*
+	 * Kernel threads return to userspace as if returning from a syscall.
+	 * We should check whether anything actually uses this path and, if so,
+	 * consider switching it over to ret_from_fork.
+	 */
+	movl    %esp, %eax
+	call    syscall_return_slowpath
+	jmp     restore_all
 ENDPROC(ret_from_kernel_thread)
 
 /*
@@ -255,7 +267,6 @@ ret_from_intr:
 	jb	resume_kernel			# not returning to v8086 or userspace
 
 ENTRY(resume_userspace)
-	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
 	movl	%esp, %eax
@@ -276,77 +287,133 @@ need_resched:
 END(resume_kernel)
 #endif
 
+GLOBAL(__begin_SYSENTER_singlestep_region)
 /*
- * SYSENTER_RETURN points to after the SYSENTER instruction
- * in the vsyscall page.  See vsyscall-sysentry.S, which defines
- * the symbol.
+ * All code from here through __end_SYSENTER_singlestep_region is subject
+ * to being single-stepped if a user program sets TF and executes SYSENTER.
+ * There is absolutely nothing that we can do to prevent this from happening
+ * (thanks Intel!).  To keep our handling of this situation as simple as
+ * possible, we handle TF just like AC and NT, except that our #DB handler
+ * will ignore all of the single-step traps generated in this range.
  */
 
-	# SYSENTER  call handler stub
+#ifdef CONFIG_XEN
+/*
+ * Xen doesn't set %esp to be precisely what the normal SYSENTER
+ * entry point expects, so fix it up before using the normal path.
+ */
+ENTRY(xen_sysenter_target)
+	addl	$5*4, %esp			/* remove xen-provided frame */
+	jmp	sysenter_past_esp
+#endif
+
+/*
+ * 32-bit SYSENTER entry.
+ *
+ * 32-bit system calls through the vDSO's __kernel_vsyscall enter here
+ * if X86_FEATURE_SEP is available.  This is the preferred system call
+ * entry on 32-bit systems.
+ *
+ * The SYSENTER instruction, in principle, should *only* occur in the
+ * vDSO.  In practice, a small number of Android devices were shipped
+ * with a copy of Bionic that inlined a SYSENTER instruction.  This
+ * never happened in any of Google's Bionic versions -- it only happened
+ * in a narrow range of Intel-provided versions.
+ *
+ * SYSENTER loads SS, ESP, CS, and EIP from previously programmed MSRs.
+ * IF and VM in RFLAGS are cleared (IOW: interrupts are off).
+ * SYSENTER does not save anything on the stack,
+ * and does not save old EIP (!!!), ESP, or EFLAGS.
+ *
+ * To avoid losing track of EFLAGS.VM (and thus potentially corrupting
+ * user and/or vm86 state), we explicitly disable the SYSENTER
+ * instruction in vm86 mode by reprogramming the MSRs.
+ *
+ * Arguments:
+ * eax  system call number
+ * ebx  arg1
+ * ecx  arg2
+ * edx  arg3
+ * esi  arg4
+ * edi  arg5
+ * ebp  user stack
+ * 0(%ebp) arg6
+ */
 ENTRY(entry_SYSENTER_32)
 	movl	TSS_sysenter_sp0(%esp), %esp
 sysenter_past_esp:
+	pushl	$__USER_DS		/* pt_regs->ss */
+	pushl	%ebp			/* pt_regs->sp (stashed in bp) */
+	pushfl				/* pt_regs->flags (except IF = 0) */
+	orl	$X86_EFLAGS_IF, (%esp)	/* Fix IF */
+	pushl	$__USER_CS		/* pt_regs->cs */
+	pushl	$0			/* pt_regs->ip = 0 (placeholder) */
+	pushl	%eax			/* pt_regs->orig_ax */
+	SAVE_ALL pt_regs_ax=$-ENOSYS	/* save rest */
+
 	/*
-	 * Interrupts are disabled here, but we can't trace it until
-	 * enough kernel state to call TRACE_IRQS_OFF can be called - but
-	 * we immediately enable interrupts at that point anyway.
+	 * SYSENTER doesn't filter flags, so we need to clear NT, AC
+	 * and TF ourselves.  To save a few cycles, we can check whether
+	 * either was set instead of doing an unconditional popfq.
+	 * This needs to happen before enabling interrupts so that
+	 * we don't get preempted with NT set.
+	 *
+	 * If TF is set, we will single-step all the way to here -- do_debug
+	 * will ignore all the traps.  (Yes, this is slow, but so is
+	 * single-stepping in general.  This allows us to avoid having
+	 * a more complicated code to handle the case where a user program
+	 * forces us to single-step through the SYSENTER entry code.)
+	 *
+	 * NB.: .Lsysenter_fix_flags is a label with the code under it moved
+	 * out-of-line as an optimization: NT is unlikely to be set in the
+	 * majority of the cases and instead of polluting the I$ unnecessarily,
+	 * we're keeping that code behind a branch which will predict as
+	 * not-taken and therefore its instructions won't be fetched.
 	 */
-	pushl	$__USER_DS
-	pushl	%ebp
-	pushfl
-	orl	$X86_EFLAGS_IF, (%esp)
-	pushl	$__USER_CS
+	testl	$X86_EFLAGS_NT|X86_EFLAGS_AC|X86_EFLAGS_TF, PT_EFLAGS(%esp)
+	jnz	.Lsysenter_fix_flags
+.Lsysenter_flags_fixed:
+
 	/*
-	 * Push current_thread_info()->sysenter_return to the stack.
-	 * A tiny bit of offset fixup is necessary: TI_sysenter_return
-	 * is relative to thread_info, which is at the bottom of the
-	 * kernel stack page.  4*4 means the 4 words pushed above;
-	 * TOP_OF_KERNEL_STACK_PADDING takes us to the top of the stack;
-	 * and THREAD_SIZE takes us to the bottom.
+	 * User mode is traced as though IRQs are on, and SYSENTER
+	 * turned them off.
 	 */
-	pushl	((TI_sysenter_return) - THREAD_SIZE + TOP_OF_KERNEL_STACK_PADDING + 4*4)(%esp)
-
-	pushl	%eax
-	SAVE_ALL
-	ENABLE_INTERRUPTS(CLBR_NONE)
-
-/*
- * Load the potential sixth argument from user stack.
- * Careful about security.
- */
-	cmpl	$__PAGE_OFFSET-3, %ebp
-	jae	syscall_fault
-	ASM_STAC
-1:	movl	(%ebp), %ebp
-	ASM_CLAC
-	movl	%ebp, PT_EBP(%esp)
-	_ASM_EXTABLE(1b, syscall_fault)
-
-	GET_THREAD_INFO(%ebp)
-
-	testl	$_TIF_WORK_SYSCALL_ENTRY, TI_flags(%ebp)
-	jnz	syscall_trace_entry
-sysenter_do_call:
-	cmpl	$(NR_syscalls), %eax
-	jae	sysenter_badsys
-	call	*sys_call_table(, %eax, 4)
-sysenter_after_call:
-	movl	%eax, PT_EAX(%esp)
-	LOCKDEP_SYS_EXIT
-	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
-	movl	TI_flags(%ebp), %ecx
-	testl	$_TIF_ALLWORK_MASK, %ecx
-	jnz	syscall_exit_work_irqs_off
-sysenter_exit:
-/* if something modifies registers it must also disable sysexit */
-	movl	PT_EIP(%esp), %edx
-	movl	PT_OLDESP(%esp), %ecx
-	xorl	%ebp, %ebp
-	TRACE_IRQS_ON
+
+	movl	%esp, %eax
+	call	do_fast_syscall_32
+	/* XEN PV guests always use IRET path */
+	ALTERNATIVE "testl %eax, %eax; jz .Lsyscall_32_done", \
+		    "jmp .Lsyscall_32_done", X86_FEATURE_XENPV
+
+/* Opportunistic SYSEXIT */
+	TRACE_IRQS_ON			/* User mode traces as IRQs on. */
+	movl	PT_EIP(%esp), %edx	/* pt_regs->ip */
+	movl	PT_OLDESP(%esp), %ecx	/* pt_regs->sp */
 1:	mov	PT_FS(%esp), %fs
 	PTGS_TO_GS
-	ENABLE_INTERRUPTS_SYSEXIT
+	popl	%ebx			/* pt_regs->bx */
+	addl	$2*4, %esp		/* skip pt_regs->cx and pt_regs->dx */
+	popl	%esi			/* pt_regs->si */
+	popl	%edi			/* pt_regs->di */
+	popl	%ebp			/* pt_regs->bp */
+	popl	%eax			/* pt_regs->ax */
+
+	/*
+	 * Restore all flags except IF. (We restore IF separately because
+	 * STI gives a one-instruction window in which we won't be interrupted,
+	 * whereas POPF does not.)
+	 */
+	addl	$PT_EFLAGS-PT_DS, %esp	/* point esp at pt_regs->flags */
+	btr	$X86_EFLAGS_IF_BIT, (%esp)
+	popfl
+
+	/*
+	 * Return back to the vDSO, which will pop ecx and edx.
+	 * Don't bother with DS and ES (they already contain __USER_DS).
+	 */
+	sti
+	sysexit
 
 .pushsection .fixup, "ax"
 2:	movl	$0, PT_FS(%esp)
@@ -354,31 +421,63 @@ sysenter_exit:
 .popsection
 	_ASM_EXTABLE(1b, 2b)
 	PTGS_TO_GS_EX
+
+.Lsysenter_fix_flags:
+	pushl	$X86_EFLAGS_FIXED
+	popfl
+	jmp	.Lsysenter_flags_fixed
+GLOBAL(__end_SYSENTER_singlestep_region)
 ENDPROC(entry_SYSENTER_32)
 
-	# system call handler stub
+/*
+ * 32-bit legacy system call entry.
+ *
+ * 32-bit x86 Linux system calls traditionally used the INT $0x80
+ * instruction.  INT $0x80 lands here.
+ *
+ * This entry point can be used by any 32-bit perform system calls.
+ * Instances of INT $0x80 can be found inline in various programs and
+ * libraries.  It is also used by the vDSO's __kernel_vsyscall
+ * fallback for hardware that doesn't support a faster entry method.
+ * Restarted 32-bit system calls also fall back to INT $0x80
+ * regardless of what instruction was originally used to do the system
+ * call.  (64-bit programs can use INT $0x80 as well, but they can
+ * only run on 64-bit kernels and therefore land in
+ * entry_INT80_compat.)
+ *
+ * This is considered a slow path.  It is not used by most libc
+ * implementations on modern hardware except during process startup.
+ *
+ * Arguments:
+ * eax  system call number
+ * ebx  arg1
+ * ecx  arg2
+ * edx  arg3
+ * esi  arg4
+ * edi  arg5
+ * ebp  arg6
+ */
 ENTRY(entry_INT80_32)
 	ASM_CLAC
-	pushl	%eax				# save orig_eax
-	SAVE_ALL
-	GET_THREAD_INFO(%ebp)
-						# system call tracing in operation / emulation
-	testl	$_TIF_WORK_SYSCALL_ENTRY, TI_flags(%ebp)
-	jnz	syscall_trace_entry
-	cmpl	$(NR_syscalls), %eax
-	jae	syscall_badsys
-syscall_call:
-	call	*sys_call_table(, %eax, 4)
-syscall_after_call:
-	movl	%eax, PT_EAX(%esp)		# store the return value
-syscall_exit:
-	LOCKDEP_SYS_EXIT
-	jmp	syscall_exit_work
+	pushl	%eax			/* pt_regs->orig_ax */
+	SAVE_ALL pt_regs_ax=$-ENOSYS	/* save rest */
+
+	/*
+	 * User mode is traced as though IRQs are on, and the interrupt gate
+	 * turned them off.
+	 */
+	TRACE_IRQS_OFF
+
+	movl	%esp, %eax
+	call	do_int80_syscall_32
+.Lsyscall_32_done:
 
 restore_all:
 	TRACE_IRQS_IRET
 restore_all_notrace:
 #ifdef CONFIG_X86_ESPFIX32
+	ALTERNATIVE	"jmp restore_nocheck", "", X86_BUG_ESPFIX
+
 	movl	PT_EFLAGS(%esp), %eax		# mix EFLAGS, SS and CS
 	/*
 	 * Warning: PT_OLDSS(%esp) contains the wrong/random values if we
@@ -405,19 +504,6 @@ ENTRY(iret_exc	)
 
 #ifdef CONFIG_X86_ESPFIX32
 ldt_ss:
-#ifdef CONFIG_PARAVIRT
-	/*
-	 * The kernel can't run on a non-flat stack if paravirt mode
-	 * is active.  Rather than try to fixup the high bits of
-	 * ESP, bypass this code entirely.  This may break DOSemu
-	 * and/or Wine support in a paravirt VM, although the option
-	 * is still available to implement the setting of the high
-	 * 16-bits in the INTERRUPT_RETURN paravirt-op.
-	 */
-	cmpl	$0, pv_info+PARAVIRT_enabled
-	jne	restore_nocheck
-#endif
-
 /*
  * Setup and switch to ESPFIX stack
  *
@@ -449,47 +535,6 @@ ldt_ss:
 	jmp	restore_nocheck
 #endif
 ENDPROC(entry_INT80_32)
-
-	# perform syscall exit tracing
-	ALIGN
-syscall_trace_entry:
-	movl	$-ENOSYS, PT_EAX(%esp)
-	movl	%esp, %eax
-	call	syscall_trace_enter
-	/* What it returned is what we'll actually use.  */
-	cmpl	$(NR_syscalls), %eax
-	jnae	syscall_call
-	jmp	syscall_exit
-END(syscall_trace_entry)
-
-	# perform syscall exit tracing
-	ALIGN
-syscall_exit_work_irqs_off:
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_ANY)
-
-syscall_exit_work:
-	movl	%esp, %eax
-	call	syscall_return_slowpath
-	jmp	restore_all
-END(syscall_exit_work)
-
-syscall_fault:
-	ASM_CLAC
-	GET_THREAD_INFO(%ebp)
-	movl	$-EFAULT, PT_EAX(%esp)
-	jmp	resume_userspace
-END(syscall_fault)
-
-syscall_badsys:
-	movl	$-ENOSYS, %eax
-	jmp	syscall_after_call
-END(syscall_badsys)
-
-sysenter_badsys:
-	movl	$-ENOSYS, %eax
-	jmp	sysenter_after_call
-END(sysenter_badsys)
 
 .macro FIXUP_ESPFIX_STACK
 /*
@@ -613,11 +658,6 @@ ENTRY(native_iret)
 	iret
 	_ASM_EXTABLE(native_iret, iret_exc)
 END(native_iret)
-
-ENTRY(native_irq_enable_sysexit)
-	sti
-	sysexit
-END(native_irq_enable_sysexit)
 #endif
 
 ENTRY(overflow)
@@ -696,14 +736,6 @@ ENTRY(spurious_interrupt_bug)
 END(spurious_interrupt_bug)
 
 #ifdef CONFIG_XEN
-/*
- * Xen doesn't set %esp to be precisely what the normal SYSENTER
- * entry point expects, so fix it up before using the normal path.
- */
-ENTRY(xen_sysenter_target)
-	addl	$5*4, %esp			/* remove xen-provided frame */
-	jmp	sysenter_past_esp
-
 ENTRY(xen_hypervisor_callback)
 	pushl	$-1				/* orig_ax = -1 => not a system call */
 	SAVE_ALL
@@ -1003,51 +1035,48 @@ error_code:
 	jmp	ret_from_exception
 END(page_fault)
 
-/*
- * Debug traps and NMI can happen at the one SYSENTER instruction
- * that sets up the real kernel stack. Check here, since we can't
- * allow the wrong stack to be used.
- *
- * "TSS_sysenter_sp0+12" is because the NMI/debug handler will have
- * already pushed 3 words if it hits on the sysenter instruction:
- * eflags, cs and eip.
- *
- * We just load the right stack, and push the three (known) values
- * by hand onto the new stack - while updating the return eip past
- * the instruction that would have done it for sysenter.
- */
-.macro FIX_STACK offset ok label
-	cmpw	$__KERNEL_CS, 4(%esp)
-	jne	\ok
-\label:
-	movl	TSS_sysenter_sp0 + \offset(%esp), %esp
-	pushfl
-	pushl	$__KERNEL_CS
-	pushl	$sysenter_past_esp
-.endm
-
 ENTRY(debug)
+	/*
+	 * #DB can happen at the first instruction of
+	 * entry_SYSENTER_32 or in Xen's SYSENTER prologue.  If this
+	 * happens, then we will be running on a very small stack.  We
+	 * need to detect this condition and switch to the thread
+	 * stack before calling any C code at all.
+	 *
+	 * If you edit this code, keep in mind that NMIs can happen in here.
+	 */
 	ASM_CLAC
-	cmpl	$entry_SYSENTER_32, (%esp)
-	jne	debug_stack_correct
-	FIX_STACK 12, debug_stack_correct, debug_esp_fix_insn
-debug_stack_correct:
 	pushl	$-1				# mark this as an int
 	SAVE_ALL
-	TRACE_IRQS_OFF
 	xorl	%edx, %edx			# error code 0
 	movl	%esp, %eax			# pt_regs pointer
+
+	/* Are we currently on the SYSENTER stack? */
+	PER_CPU(cpu_tss + CPU_TSS_SYSENTER_stack + SIZEOF_SYSENTER_stack, %ecx)
+	subl	%eax, %ecx	/* ecx = (end of SYSENTER_stack) - esp */
+	cmpl	$SIZEOF_SYSENTER_stack, %ecx
+	jb	.Ldebug_from_sysenter_stack
+
+	TRACE_IRQS_OFF
 	call	do_debug
+	jmp	ret_from_exception
+
+.Ldebug_from_sysenter_stack:
+	/* We're on the SYSENTER stack.  Switch off. */
+	movl	%esp, %ebp
+	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
+	TRACE_IRQS_OFF
+	call	do_debug
+	movl	%ebp, %esp
 	jmp	ret_from_exception
 END(debug)
 
 /*
- * NMI is doubly nasty. It can happen _while_ we're handling
- * a debug fault, and the debug fault hasn't yet been able to
- * clear up the stack. So we first check whether we got  an
- * NMI on the sysenter entry path, but after that we need to
- * check whether we got an NMI on the debug path where the debug
- * fault happened on the sysenter path.
+ * NMI is doubly nasty.  It can happen on the first instruction of
+ * entry_SYSENTER_32 (just like #DB), but it can also interrupt the beginning
+ * of the #DB handler even if that #DB in turn hit before entry_SYSENTER_32
+ * switched stacks.  We handle both conditions by simply checking whether we
+ * interrupted kernel code running on the SYSENTER stack.
  */
 ENTRY(nmi)
 	ASM_CLAC
@@ -1058,41 +1087,32 @@ ENTRY(nmi)
 	popl	%eax
 	je	nmi_espfix_stack
 #endif
-	cmpl	$entry_SYSENTER_32, (%esp)
-	je	nmi_stack_fixup
-	pushl	%eax
-	movl	%esp, %eax
-	/*
-	 * Do not access memory above the end of our stack page,
-	 * it might not exist.
-	 */
-	andl	$(THREAD_SIZE-1), %eax
-	cmpl	$(THREAD_SIZE-20), %eax
-	popl	%eax
-	jae	nmi_stack_correct
-	cmpl	$entry_SYSENTER_32, 12(%esp)
-	je	nmi_debug_stack_check
-nmi_stack_correct:
-	pushl	%eax
+
+	pushl	%eax				# pt_regs->orig_ax
 	SAVE_ALL
 	xorl	%edx, %edx			# zero error code
 	movl	%esp, %eax			# pt_regs pointer
+
+	/* Are we currently on the SYSENTER stack? */
+	PER_CPU(cpu_tss + CPU_TSS_SYSENTER_stack + SIZEOF_SYSENTER_stack, %ecx)
+	subl	%eax, %ecx	/* ecx = (end of SYSENTER_stack) - esp */
+	cmpl	$SIZEOF_SYSENTER_stack, %ecx
+	jb	.Lnmi_from_sysenter_stack
+
+	/* Not on SYSENTER stack. */
 	call	do_nmi
 	jmp	restore_all_notrace
 
-nmi_stack_fixup:
-	FIX_STACK 12, nmi_stack_correct, 1
-	jmp	nmi_stack_correct
-
-nmi_debug_stack_check:
-	cmpw	$__KERNEL_CS, 16(%esp)
-	jne	nmi_stack_correct
-	cmpl	$debug, (%esp)
-	jb	nmi_stack_correct
-	cmpl	$debug_esp_fix_insn, (%esp)
-	ja	nmi_stack_correct
-	FIX_STACK 24, nmi_stack_correct, 1
-	jmp	nmi_stack_correct
+.Lnmi_from_sysenter_stack:
+	/*
+	 * We're on the SYSENTER stack.  Switch off.  No one (not even debug)
+	 * is using the thread stack right now, so it's safe for us to use it.
+	 */
+	movl	%esp, %ebp
+	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
+	call	do_nmi
+	movl	%ebp, %esp
+	jmp	restore_all_notrace
 
 #ifdef CONFIG_X86_ESPFIX32
 nmi_espfix_stack:

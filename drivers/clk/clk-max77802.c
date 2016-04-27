@@ -39,12 +39,10 @@ static struct clk_init_data max77802_clks_init[MAX77802_CLKS_NUM] = {
 	[MAX77802_CLK_32K_AP] = {
 		.name = "32khz_ap",
 		.ops = &max_gen_clk_ops,
-		.flags = CLK_IS_ROOT,
 	},
 	[MAX77802_CLK_32K_CP] = {
 		.name = "32khz_cp",
 		.ops = &max_gen_clk_ops,
-		.flags = CLK_IS_ROOT,
 	},
 };
 
@@ -94,5 +92,5 @@ static struct platform_driver max77802_clk_driver = {
 module_platform_driver(max77802_clk_driver);
 
 MODULE_DESCRIPTION("MAXIM 77802 Clock Driver");
-MODULE_AUTHOR("Javier Martinez Canillas <javier.martinez@collabora.co.uk>");
+MODULE_AUTHOR("Javier Martinez Canillas <javier@osg.samsung.com");
 MODULE_LICENSE("GPL");

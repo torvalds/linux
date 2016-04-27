@@ -28,6 +28,8 @@
 const struct nf_br_ops __rcu *nf_br_ops __read_mostly;
 EXPORT_SYMBOL_GPL(nf_br_ops);
 
+static struct lock_class_key bridge_netdev_addr_lock_key;
+
 /* net device transmit always called with BH disabled */
 netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -56,7 +58,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 
-	if (!br_allowed_ingress(br, br_get_vlan_info(br), skb, &vid))
+	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid))
 		goto out;
 
 	if (is_broadcast_ether_addr(dest))
@@ -87,6 +89,11 @@ out:
 	return NETDEV_TX_OK;
 }
 
+static void br_set_lockdep_class(struct net_device *dev)
+{
+	lockdep_set_class(&dev->addr_list_lock, &bridge_netdev_addr_lock_key);
+}
+
 static int br_dev_init(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
@@ -99,6 +106,7 @@ static int br_dev_init(struct net_device *dev)
 	err = br_vlan_init(br);
 	if (err)
 		free_percpu(br->stats);
+	br_set_lockdep_class(dev);
 
 	return err;
 }
@@ -391,7 +399,7 @@ void br_dev_setup(struct net_device *dev)
 	br->bridge_max_age = br->max_age = 20 * HZ;
 	br->bridge_hello_time = br->hello_time = 2 * HZ;
 	br->bridge_forward_delay = br->forward_delay = 15 * HZ;
-	br->ageing_time = 300 * HZ;
+	br->ageing_time = BR_DEFAULT_AGEING_TIME;
 
 	br_netfilter_rtable_init(br);
 	br_stp_timer_init(br);

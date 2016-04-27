@@ -217,8 +217,8 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 
 	/* Ensure that we have a parent clock fast enough */
 	mclk_rate = clk_get_rate(sspi->mclk);
-	if (mclk_rate < (2 * spi->max_speed_hz)) {
-		clk_set_rate(sspi->mclk, 2 * spi->max_speed_hz);
+	if (mclk_rate < (2 * tfr->speed_hz)) {
+		clk_set_rate(sspi->mclk, 2 * tfr->speed_hz);
 		mclk_rate = clk_get_rate(sspi->mclk);
 	}
 
@@ -236,14 +236,14 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 	 * First try CDR2, and if we can't reach the expected
 	 * frequency, fall back to CDR1.
 	 */
-	div = mclk_rate / (2 * spi->max_speed_hz);
+	div = mclk_rate / (2 * tfr->speed_hz);
 	if (div <= (SUN6I_CLK_CTL_CDR2_MASK + 1)) {
 		if (div > 0)
 			div--;
 
 		reg = SUN6I_CLK_CTL_CDR2(div) | SUN6I_CLK_CTL_DRS;
 	} else {
-		div = ilog2(mclk_rate) - ilog2(spi->max_speed_hz);
+		div = ilog2(mclk_rate) - ilog2(tfr->speed_hz);
 		reg = SUN6I_CLK_CTL_CDR1(div);
 	}
 

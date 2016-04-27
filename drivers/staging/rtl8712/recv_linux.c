@@ -44,7 +44,8 @@
 int r8712_os_recv_resource_alloc(struct _adapter *padapter,
 				 union recv_frame *precvframe)
 {
-	precvframe->u.hdr.pkt_newalloc = precvframe->u.hdr.pkt = NULL;
+	precvframe->u.hdr.pkt_newalloc = NULL;
+	precvframe->u.hdr.pkt = NULL;
 	return _SUCCESS;
 }
 
@@ -56,7 +57,7 @@ int r8712_os_recvbuf_resource_alloc(struct _adapter *padapter,
 
 	precvbuf->irp_pending = false;
 	precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
-	if (precvbuf->purb == NULL)
+	if (!precvbuf->purb)
 		res = _FAIL;
 	precvbuf->pskb = NULL;
 	precvbuf->reuse = false;
@@ -114,7 +115,7 @@ void r8712_recv_indicatepkt(struct _adapter *padapter,
 	precvpriv = &(padapter->recvpriv);
 	pfree_recv_queue = &(precvpriv->free_recv_queue);
 	skb = precv_frame->u.hdr.pkt;
-	if (skb == NULL)
+	if (!skb)
 		goto _recv_indicatepkt_drop;
 	skb->data = precv_frame->u.hdr.rx_data;
 	skb->len = precv_frame->u.hdr.len;
@@ -127,7 +128,8 @@ void r8712_recv_indicatepkt(struct _adapter *padapter,
 	skb->protocol = eth_type_trans(skb, padapter->pnetdev);
 	netif_rx(skb);
 	precv_frame->u.hdr.pkt = NULL; /* pointers to NULL before
-					* r8712_free_recvframe() */
+					* r8712_free_recvframe()
+					*/
 	r8712_free_recvframe(precv_frame, pfree_recv_queue);
 	return;
 _recv_indicatepkt_drop:

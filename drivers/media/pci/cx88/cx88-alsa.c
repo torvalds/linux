@@ -40,7 +40,7 @@
 #include <sound/control.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-#include <media/wm8775.h>
+#include <media/i2c/wm8775.h>
 
 #include "cx88.h"
 #include "cx88-reg.h"
@@ -101,7 +101,7 @@ typedef struct cx88_audio_dev snd_cx88_card_t;
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static const char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static bool enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 1};
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable cx88x soundcard. default enabled.");
@@ -890,9 +890,9 @@ static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
 		return err;
 	}
 
-	if (!pci_dma_supported(pci,DMA_BIT_MASK(32))) {
+	err = pci_set_dma_mask(pci,DMA_BIT_MASK(32));
+	if (err) {
 		dprintk(0, "%s/1: Oops: no 32bit PCI DMA ???\n",core->name);
-		err = -EIO;
 		cx88_core_put(core, pci);
 		return err;
 	}

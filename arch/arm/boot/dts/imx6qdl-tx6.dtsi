@@ -11,6 +11,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pwm/pwm.h>
 
 / {
@@ -40,7 +41,7 @@
 			compatible = "fixed-clock";
 			reg = <0>;
 			#clock-cells = <0>;
-			clock-frequency = <27000000>;
+			clock-frequency = <26000000>;
 		};
 	};
 
@@ -51,7 +52,7 @@
 			label = "Power Button";
 			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_POWER>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -226,6 +227,11 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
+	clocks = <&clks IMX6QDL_CLK_ENET>,
+		 <&clks IMX6QDL_CLK_ENET>,
+		 <&clks IMX6QDL_CLK_ENET_REF>,
+		 <&clks IMX6QDL_CLK_ENET_REF>;
+	clock-names = "ipg", "ahb", "ptp", "enet_out";
 	phy-mode = "rmii";
 	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_HIGH>;
 	phy-supply = <&reg_3v3_etn>;
@@ -272,10 +278,10 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_edt_ft5x06>;
 		interrupt-parent = <&gpio6>;
-		interrupts = <15 0>;
+		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpios = <&gpio2 22 GPIO_ACTIVE_LOW>;
 		wake-gpios = <&gpio2 21 GPIO_ACTIVE_HIGH>;
-		linux,wakeup;
+		wakeup-source;
 	};
 
 	touchscreen: tsc2007@48 {
@@ -287,7 +293,7 @@
 		interrupts = <26 0>;
 		gpios = <&gpio3 26 GPIO_ACTIVE_LOW>;
 		ti,x-plate-ohms = <660>;
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 

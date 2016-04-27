@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -126,8 +126,9 @@ struct acpi_exception_info {
 #define AE_OWNER_ID_LIMIT               EXCEP_ENV (0x001B)
 #define AE_NOT_CONFIGURED               EXCEP_ENV (0x001C)
 #define AE_ACCESS                       EXCEP_ENV (0x001D)
+#define AE_IO_ERROR                     EXCEP_ENV (0x001E)
 
-#define AE_CODE_ENV_MAX                 0x001D
+#define AE_CODE_ENV_MAX                 0x001E
 
 /*
  * Programmer exceptions
@@ -193,8 +194,9 @@ struct acpi_exception_info {
 #define AE_AML_ILLEGAL_ADDRESS          EXCEP_AML (0x0020)
 #define AE_AML_INFINITE_LOOP            EXCEP_AML (0x0021)
 #define AE_AML_UNINITIALIZED_NODE       EXCEP_AML (0x0022)
+#define AE_AML_TARGET_TYPE              EXCEP_AML (0x0023)
 
-#define AE_CODE_AML_MAX                 0x0022
+#define AE_CODE_AML_MAX                 0x0023
 
 /*
  * Internal exceptions used for control
@@ -262,7 +264,8 @@ static const struct acpi_exception_info acpi_gbl_exception_names_env[] = {
 		  "There are no more Owner IDs available for ACPI tables or control methods"),
 	EXCEP_TXT("AE_NOT_CONFIGURED",
 		  "The interface is not part of the current subsystem configuration"),
-	EXCEP_TXT("AE_ACCESS", "Permission denied for the requested operation")
+	EXCEP_TXT("AE_ACCESS", "Permission denied for the requested operation"),
+	EXCEP_TXT("AE_IO_ERROR", "An I/O error occurred")
 };
 
 static const struct acpi_exception_info acpi_gbl_exception_names_pgm[] = {
@@ -358,7 +361,9 @@ static const struct acpi_exception_info acpi_gbl_exception_names_aml[] = {
 	EXCEP_TXT("AE_AML_INFINITE_LOOP",
 		  "An apparent infinite AML While loop, method was aborted"),
 	EXCEP_TXT("AE_AML_UNINITIALIZED_NODE",
-		  "A namespace node is uninitialized or unresolved")
+		  "A namespace node is uninitialized or unresolved"),
+	EXCEP_TXT("AE_AML_TARGET_TYPE",
+		  "A target operand of an incorrect type was encountered")
 };
 
 static const struct acpi_exception_info acpi_gbl_exception_names_ctrl[] = {

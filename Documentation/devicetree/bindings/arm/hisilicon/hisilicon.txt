@@ -20,6 +20,10 @@ HiKey Board
 Required root node properties:
 	- compatible = "hisilicon,hi6220-hikey", "hisilicon,hi6220";
 
+HiP05 D02 Board
+Required root node properties:
+	- compatible = "hisilicon,hip05-d02";
+
 Hisilicon system controller
 
 Required properties:
@@ -166,6 +170,39 @@ Example:
 		reboot-offset = <0x4>;
 	};
 
+-----------------------------------------------------------------------
+Hisilicon HiP05 PCIe-SAS system controller
+
+Required properties:
+- compatible : "hisilicon,pcie-sas-subctrl", "syscon";
+- reg : Register address and size
+
+The HiP05 PCIe-SAS system controller is shared by PCIe and SAS controllers in
+HiP05 Soc to implement some basic configurations.
+
+Example:
+	/* for HiP05 PCIe-SAS system */
+	pcie_sas: system_controller@0xb0000000 {
+		compatible = "hisilicon,pcie-sas-subctrl", "syscon";
+		reg = <0xb0000000 0x10000>;
+	};
+
+Hisilicon HiP05 PERISUB system controller
+
+Required properties:
+- compatible : "hisilicon,hip05-perisubc", "syscon";
+- reg : Register address and size
+
+The HiP05 PERISUB system controller is shared by peripheral controllers in
+HiP05 Soc to implement some basic configurations. The peripheral
+controllers include mdio, ddr, iic, uart, timer and so on.
+
+Example:
+	/* for HiP05 perisub-ctrl-c system */
+	peri_c_subctrl: syscon@80000000 {
+		compatible = "hisilicon,hip05-perisubc", "syscon";
+		reg = <0x0 0x80000000 0x0 0x10000>;
+	};
 -----------------------------------------------------------------------
 Hisilicon CPU controller
 

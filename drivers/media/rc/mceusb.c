@@ -587,9 +587,8 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			if (len == 2)
 				dev_dbg(dev, "Get hw/sw rev?");
 			else
-				dev_dbg(dev, "hw/sw rev 0x%02x 0x%02x 0x%02x 0x%02x",
-					 data1, data2,
-					 buf[start + 4], buf[start + 5]);
+				dev_dbg(dev, "hw/sw rev %*ph",
+					4, &buf[start + 2]);
 			break;
 		case MCE_CMD_RESUME:
 			dev_dbg(dev, "Device resume requested");

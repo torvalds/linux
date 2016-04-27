@@ -52,13 +52,13 @@ struct slot {
 };
 
 struct cpci_hp_controller_ops {
-	int (*query_enum) (void);
-	int (*enable_irq) (void);
-	int (*disable_irq) (void);
-	int (*check_irq) (void *dev_id);
-	int (*hardware_test) (struct slot *slot, u32 value);
-	u8  (*get_power) (struct slot *slot);
-	int (*set_power) (struct slot *slot, int value);
+	int (*query_enum)(void);
+	int (*enable_irq)(void);
+	int (*disable_irq)(void);
+	int (*check_irq)(void *dev_id);
+	int (*hardware_test)(struct slot *slot, u32 value);
+	u8  (*get_power)(struct slot *slot);
+	int (*set_power)(struct slot *slot, int value);
 };
 
 struct cpci_hp_controller {

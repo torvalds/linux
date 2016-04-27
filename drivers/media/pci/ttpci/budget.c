@@ -31,7 +31,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/ 
+ * the project's page is at https://linuxtv.org
  */
 
 #include "budget.h"
@@ -615,36 +615,50 @@ static void frontend_init(struct budget *budget)
 		break;
 
 	case 0x1016: // Hauppauge/TT Nova-S SE (samsung s5h1420/????(tda8260))
-		budget->dvb_frontend = dvb_attach(s5h1420_attach, &s5h1420_config, &budget->i2c_adap);
-		if (budget->dvb_frontend) {
-			budget->dvb_frontend->ops.tuner_ops.set_params = s5h1420_tuner_set_params;
-			if (dvb_attach(lnbp21_attach, budget->dvb_frontend, &budget->i2c_adap, 0, 0) == NULL) {
+	{
+		struct dvb_frontend *fe;
+
+		fe = dvb_attach(s5h1420_attach, &s5h1420_config, &budget->i2c_adap);
+		if (fe) {
+			fe->ops.tuner_ops.set_params = s5h1420_tuner_set_params;
+			budget->dvb_frontend = fe;
+			if (dvb_attach(lnbp21_attach, fe, &budget->i2c_adap,
+				       0, 0) == NULL) {
 				printk("%s: No LNBP21 found!\n", __func__);
 				goto error_out;
 			}
 			break;
 		}
-
+	}
+	/* fall through */
 	case 0x1018: // TT Budget-S-1401 (philips tda10086/philips tda8262)
+	{
+		struct dvb_frontend *fe;
+
 		// gpio2 is connected to CLB - reset it + leave it high
 		saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTLO);
 		msleep(1);
 		saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTHI);
 		msleep(1);
 
-		budget->dvb_frontend = dvb_attach(tda10086_attach, &tda10086_config, &budget->i2c_adap);
-		if (budget->dvb_frontend) {
-			if (dvb_attach(tda826x_attach, budget->dvb_frontend, 0x60, &budget->i2c_adap, 0) == NULL)
+		fe = dvb_attach(tda10086_attach, &tda10086_config, &budget->i2c_adap);
+		if (fe) {
+			budget->dvb_frontend = fe;
+			if (dvb_attach(tda826x_attach, fe, 0x60,
+				       &budget->i2c_adap, 0) == NULL)
 				printk("%s: No tda826x found!\n", __func__);
-			if (dvb_attach(lnbp21_attach, budget->dvb_frontend, &budget->i2c_adap, 0, 0) == NULL) {
+			if (dvb_attach(lnbp21_attach, fe,
+				       &budget->i2c_adap, 0, 0) == NULL) {
 				printk("%s: No LNBP21 found!\n", __func__);
 				goto error_out;
 			}
 			break;
 		}
+	}
+	/* fall through */
 
 	case 0x101c: { /* TT S2-1600 */
-			struct stv6110x_devctl *ctl;
+			const struct stv6110x_devctl *ctl;
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTLO);
 			msleep(50);
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTHI);
@@ -697,7 +711,7 @@ static void frontend_init(struct budget *budget)
 		break;
 
 	case 0x1020: { /* Omicom S2 */
-			struct stv6110x_devctl *ctl;
+			const struct stv6110x_devctl *ctl;
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTLO);
 			msleep(50);
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTHI);

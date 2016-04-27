@@ -83,11 +83,36 @@ static int fib_map_alloc(struct aac_dev *dev)
 
 void aac_fib_map_free(struct aac_dev *dev)
 {
-	pci_free_consistent(dev->pdev,
-	  dev->max_fib_size * (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB),
-	  dev->hw_fib_va, dev->hw_fib_pa);
+	if (dev->hw_fib_va && dev->max_fib_size) {
+		pci_free_consistent(dev->pdev,
+		(dev->max_fib_size *
+		(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB)),
+		dev->hw_fib_va, dev->hw_fib_pa);
+	}
 	dev->hw_fib_va = NULL;
 	dev->hw_fib_pa = 0;
+}
+
+void aac_fib_vector_assign(struct aac_dev *dev)
+{
+	u32 i = 0;
+	u32 vector = 1;
+	struct fib *fibptr = NULL;
+
+	for (i = 0, fibptr = &dev->fibs[i];
+		i < (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB);
+		i++, fibptr++) {
+		if ((dev->max_msix == 1) ||
+		  (i > ((dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB - 1)
+			- dev->vector_cap))) {
+			fibptr->vector_no = 0;
+		} else {
+			fibptr->vector_no = vector;
+			vector++;
+			if (vector == dev->max_msix)
+				vector = 1;
+		}
+	}
 }
 
 /**
@@ -137,6 +162,7 @@ int aac_fib_setup(struct aac_dev * dev)
 		i++, fibptr++)
 	{
 		fibptr->flags = 0;
+		fibptr->size = sizeof(struct fib);
 		fibptr->dev = dev;
 		fibptr->hw_fib_va = hw_fib;
 		fibptr->data = (void *) fibptr->hw_fib_va->data;
@@ -151,15 +177,46 @@ int aac_fib_setup(struct aac_dev * dev)
 		hw_fib_pa = hw_fib_pa +
 			dev->max_fib_size + sizeof(struct aac_fib_xporthdr);
 	}
+
+	/*
+	 *Assign vector numbers to fibs
+	 */
+	aac_fib_vector_assign(dev);
+
 	/*
 	 *	Add the fib chain to the free list
 	 */
 	dev->fibs[dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB - 1].next = NULL;
 	/*
-	 *	Enable this to debug out of queue space
-	 */
-	dev->free_fib = &dev->fibs[0];
+	*	Set 8 fibs aside for management tools
+	*/
+	dev->free_fib = &dev->fibs[dev->scsi_host_ptr->can_queue];
 	return 0;
+}
+
+/**
+ *	aac_fib_alloc_tag-allocate a fib using tags
+ *	@dev: Adapter to allocate the fib for
+ *
+ *	Allocate a fib from the adapter fib pool using tags
+ *	from the blk layer.
+ */
+
+struct fib *aac_fib_alloc_tag(struct aac_dev *dev, struct scsi_cmnd *scmd)
+{
+	struct fib *fibptr;
+
+	fibptr = &dev->fibs[scmd->request->tag];
+	/*
+	 *	Null out fields that depend on being zero at the start of
+	 *	each I/O
+	 */
+	fibptr->hw_fib_va->header.XferState = 0;
+	fibptr->type = FSAFS_NTC_FIB_CONTEXT;
+	fibptr->callback_data = NULL;
+	fibptr->callback = NULL;
+
+	return fibptr;
 }
 
 /**
@@ -1270,13 +1327,12 @@ retry_next:
 static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 {
 	int index, quirks;
-	int retval, i;
+	int retval;
 	struct Scsi_Host *host;
 	struct scsi_device *dev;
 	struct scsi_cmnd *command;
 	struct scsi_cmnd *command_list;
 	int jafo = 0;
-	int cpu;
 
 	/*
 	 * Assumptions:
@@ -1339,35 +1395,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 	aac->comm_phys = 0;
 	kfree(aac->queues);
 	aac->queues = NULL;
-	cpu = cpumask_first(cpu_online_mask);
-	if (aac->pdev->device == PMC_DEVICE_S6 ||
-	    aac->pdev->device == PMC_DEVICE_S7 ||
-	    aac->pdev->device == PMC_DEVICE_S8 ||
-	    aac->pdev->device == PMC_DEVICE_S9) {
-		if (aac->max_msix > 1) {
-			for (i = 0; i < aac->max_msix; i++) {
-				if (irq_set_affinity_hint(
-				    aac->msixentry[i].vector,
-				    NULL)) {
-					printk(KERN_ERR "%s%d: Failed to reset IRQ affinity for cpu %d\n",
-						aac->name,
-						aac->id,
-						cpu);
-				}
-				cpu = cpumask_next(cpu,
-						cpu_online_mask);
-				free_irq(aac->msixentry[i].vector,
-					 &(aac->aac_msix[i]));
-			}
-			pci_disable_msix(aac->pdev);
-		} else {
-			free_irq(aac->pdev->irq, &(aac->aac_msix[0]));
-		}
-	} else {
-		free_irq(aac->pdev->irq, aac);
-	}
-	if (aac->msi)
-		pci_disable_msi(aac->pdev);
+	aac_free_irq(aac);
 	kfree(aac->fsa_dev);
 	aac->fsa_dev = NULL;
 	quirks = aac_get_driver_ident(index)->quirks;
@@ -1977,4 +2005,84 @@ int aac_command_thread(void *data)
 		remove_wait_queue(&dev->queues->queue[HostNormCmdQueue].cmdready, &wait);
 	dev->aif_thread = 0;
 	return 0;
+}
+
+int aac_acquire_irq(struct aac_dev *dev)
+{
+	int i;
+	int j;
+	int ret = 0;
+	int cpu;
+
+	cpu = cpumask_first(cpu_online_mask);
+	if (!dev->sync_mode && dev->msi_enabled && dev->max_msix > 1) {
+		for (i = 0; i < dev->max_msix; i++) {
+			dev->aac_msix[i].vector_no = i;
+			dev->aac_msix[i].dev = dev;
+			if (request_irq(dev->msixentry[i].vector,
+					dev->a_ops.adapter_intr,
+					0, "aacraid", &(dev->aac_msix[i]))) {
+				printk(KERN_ERR "%s%d: Failed to register IRQ for vector %d.\n",
+						dev->name, dev->id, i);
+				for (j = 0 ; j < i ; j++)
+					free_irq(dev->msixentry[j].vector,
+						 &(dev->aac_msix[j]));
+				pci_disable_msix(dev->pdev);
+				ret = -1;
+			}
+			if (irq_set_affinity_hint(dev->msixentry[i].vector,
+							get_cpu_mask(cpu))) {
+				printk(KERN_ERR "%s%d: Failed to set IRQ affinity for cpu %d\n",
+					    dev->name, dev->id, cpu);
+			}
+			cpu = cpumask_next(cpu, cpu_online_mask);
+		}
+	} else {
+		dev->aac_msix[0].vector_no = 0;
+		dev->aac_msix[0].dev = dev;
+
+		if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
+			IRQF_SHARED, "aacraid",
+			&(dev->aac_msix[0])) < 0) {
+			if (dev->msi)
+				pci_disable_msi(dev->pdev);
+			printk(KERN_ERR "%s%d: Interrupt unavailable.\n",
+					dev->name, dev->id);
+			ret = -1;
+		}
+	}
+	return ret;
+}
+
+void aac_free_irq(struct aac_dev *dev)
+{
+	int i;
+	int cpu;
+
+	cpu = cpumask_first(cpu_online_mask);
+	if (dev->pdev->device == PMC_DEVICE_S6 ||
+	    dev->pdev->device == PMC_DEVICE_S7 ||
+	    dev->pdev->device == PMC_DEVICE_S8 ||
+	    dev->pdev->device == PMC_DEVICE_S9) {
+		if (dev->max_msix > 1) {
+			for (i = 0; i < dev->max_msix; i++) {
+				if (irq_set_affinity_hint(
+					dev->msixentry[i].vector, NULL)) {
+					printk(KERN_ERR "%s%d: Failed to reset IRQ affinity for cpu %d\n",
+					    dev->name, dev->id, cpu);
+				}
+				cpu = cpumask_next(cpu, cpu_online_mask);
+				free_irq(dev->msixentry[i].vector,
+						&(dev->aac_msix[i]));
+			}
+		} else {
+			free_irq(dev->pdev->irq, &(dev->aac_msix[0]));
+		}
+	} else {
+		free_irq(dev->pdev->irq, dev);
+	}
+	if (dev->msi)
+		pci_disable_msi(dev->pdev);
+	else if (dev->max_msix > 1)
+		pci_disable_msix(dev->pdev);
 }

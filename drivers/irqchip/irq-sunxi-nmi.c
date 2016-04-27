@@ -8,6 +8,9 @@
  * warranty of any kind, whether express or implied.
  */
 
+#define DRV_NAME	"sunxi-nmi"
+#define pr_fmt(fmt)	DRV_NAME ": " fmt
+
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/io.h>
@@ -45,6 +48,12 @@ static struct sunxi_sc_nmi_reg_offs sun6i_reg_offs = {
 	.ctrl	= 0x00,
 	.pend	= 0x04,
 	.enable	= 0x34,
+};
+
+static struct sunxi_sc_nmi_reg_offs sun9i_reg_offs = {
+	.ctrl	= 0x00,
+	.pend	= 0x08,
+	.enable	= 0x04,
 };
 
 static inline void sunxi_sc_nmi_write(struct irq_chip_generic *gc, u32 off,
@@ -96,8 +105,8 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 		break;
 	default:
 		irq_gc_unlock(gc);
-		pr_err("%s: Cannot assign multiple trigger modes to IRQ %d.\n",
-			__func__, data->irq);
+		pr_err("Cannot assign multiple trigger modes to IRQ %d.\n",
+			data->irq);
 		return -EBADR;
 	}
 
@@ -130,31 +139,30 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 
 	domain = irq_domain_add_linear(node, 1, &irq_generic_chip_ops, NULL);
 	if (!domain) {
-		pr_err("%s: Could not register interrupt domain.\n", node->name);
+		pr_err("Could not register interrupt domain.\n");
 		return -ENOMEM;
 	}
 
-	ret = irq_alloc_domain_generic_chips(domain, 1, 2, node->name,
+	ret = irq_alloc_domain_generic_chips(domain, 1, 2, DRV_NAME,
 					     handle_fasteoi_irq, clr, 0,
 					     IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
-		 pr_err("%s: Could not allocate generic interrupt chip.\n",
-			 node->name);
-		 goto fail_irqd_remove;
+		pr_err("Could not allocate generic interrupt chip.\n");
+		goto fail_irqd_remove;
 	}
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq <= 0) {
-		pr_err("%s: unable to parse irq\n", node->name);
+		pr_err("unable to parse irq\n");
 		ret = -EINVAL;
 		goto fail_irqd_remove;
 	}
 
 	gc = irq_get_domain_generic_chip(domain, 0);
-	gc->reg_base = of_iomap(node, 0);
-	if (!gc->reg_base) {
-		pr_err("%s: unable to map resource\n", node->name);
-		ret = -ENOMEM;
+	gc->reg_base = of_io_request_and_map(node, 0, of_node_full_name(node));
+	if (IS_ERR(gc->reg_base)) {
+		pr_err("unable to map resource\n");
+		ret = PTR_ERR(gc->reg_base);
 		goto fail_irqd_remove;
 	}
 
@@ -205,3 +213,10 @@ static int __init sun7i_sc_nmi_irq_init(struct device_node *node,
 	return sunxi_sc_nmi_irq_init(node, &sun7i_reg_offs);
 }
 IRQCHIP_DECLARE(sun7i_sc_nmi, "allwinner,sun7i-a20-sc-nmi", sun7i_sc_nmi_irq_init);
+
+static int __init sun9i_nmi_irq_init(struct device_node *node,
+				     struct device_node *parent)
+{
+	return sunxi_sc_nmi_irq_init(node, &sun9i_reg_offs);
+}
+IRQCHIP_DECLARE(sun9i_nmi, "allwinner,sun9i-a80-nmi", sun9i_nmi_irq_init);

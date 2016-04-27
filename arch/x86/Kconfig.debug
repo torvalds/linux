@@ -5,23 +5,6 @@ config TRACE_IRQFLAGS_SUPPORT
 
 source "lib/Kconfig.debug"
 
-config STRICT_DEVMEM
-	bool "Filter access to /dev/mem"
-	---help---
-	  If this option is disabled, you allow userspace (root) access to all
-	  of memory, including kernel and userspace memory. Accidental
-	  access to this is obviously disastrous, but specific access can
-	  be used by people debugging the kernel. Note that with PAT support
-	  enabled, even in this case there are restrictions on /dev/mem
-	  use due to the cache aliasing requirements.
-
-	  If this option is switched on, the /dev/mem file only allows
-	  userspace access to PCI space and the BIOS code and data regions.
-	  This is sufficient for dosemu and X and all common users of
-	  /dev/mem.
-
-	  If in doubt, say Y.
-
 config X86_VERBOSE_BOOTUP
 	bool "Enable verbose x86 bootup info messages"
 	default y
@@ -65,10 +48,14 @@ config EARLY_PRINTK_EFI
 	  This is useful for kernel debugging when your machine crashes very
 	  early before the console code is initialized.
 
+config X86_PTDUMP_CORE
+	def_bool n
+
 config X86_PTDUMP
-	bool "Export kernel pagetable layout to userspace via debugfs"
+	tristate "Export kernel pagetable layout to userspace via debugfs"
 	depends on DEBUG_KERNEL
 	select DEBUG_FS
+	select X86_PTDUMP_CORE
 	---help---
 	  Say Y here if you want to show the kernel pagetable layout in a
 	  debugfs file. This information is only useful for kernel developers
@@ -79,31 +66,48 @@ config X86_PTDUMP
 
 config EFI_PGT_DUMP
 	bool "Dump the EFI pagetable"
-	depends on EFI && X86_PTDUMP
+	depends on EFI
+	select X86_PTDUMP_CORE
 	---help---
 	  Enable this if you want to dump the EFI page table before
 	  enabling virtual mode. This can be used to debug miscellaneous
 	  issues with the mapping of the EFI runtime regions into that
 	  table.
 
-config DEBUG_RODATA
-	bool "Write protect kernel read-only data structures"
-	default y
-	depends on DEBUG_KERNEL
-	---help---
-	  Mark the kernel read-only data as write-protected in the pagetables,
-	  in order to catch accidental (and incorrect) writes to such const
-	  data. This is recommended so that we can catch kernel bugs sooner.
-	  If in doubt, say "Y".
-
 config DEBUG_RODATA_TEST
-	bool "Testcase for the DEBUG_RODATA feature"
-	depends on DEBUG_RODATA
+	bool "Testcase for the marking rodata read-only"
 	default y
 	---help---
-	  This option enables a testcase for the DEBUG_RODATA
-	  feature as well as for the change_page_attr() infrastructure.
+	  This option enables a testcase for the setting rodata read-only
+	  as well as for the change_page_attr() infrastructure.
 	  If in doubt, say "N"
+
+config DEBUG_WX
+	bool "Warn on W+X mappings at boot"
+	select X86_PTDUMP_CORE
+	---help---
+	  Generate a warning if any W+X mappings are found at boot.
+
+	  This is useful for discovering cases where the kernel is leaving
+	  W+X mappings after applying NX, as such mappings are a security risk.
+
+	  Look for a message in dmesg output like this:
+
+	    x86/mm: Checked W+X mappings: passed, no W+X pages found.
+
+	  or like this, if the check failed:
+
+	    x86/mm: Checked W+X mappings: FAILED, <N> W+X pages found.
+
+	  Note that even if the check fails, your kernel is possibly
+	  still fine, as W+X mappings are not a security hole in
+	  themselves, what they do is that they make the exploitation
+	  of other unfixed kernel bugs easier.
+
+	  There is no runtime or memory usage effect of this option
+	  once the kernel has booted up - it's a one time check.
+
+	  If in doubt, say "Y".
 
 config DEBUG_SET_MODULE_RONX
 	bool "Set loadable kernel module data as NX and text as RO"
@@ -333,16 +337,6 @@ config DEBUG_IMR_SELFTEST
 	  test your changes.
 
 	  If unsure say N here.
-
-config X86_DEBUG_STATIC_CPU_HAS
-	bool "Debug alternatives"
-	depends on DEBUG_KERNEL
-	---help---
-	  This option causes additional code to be generated which
-	  fails if static_cpu_has() is used before alternatives have
-	  run.
-
-	  If unsure, say N.
 
 config X86_DEBUG_FPU
 	bool "Debug the x86 FPU code"

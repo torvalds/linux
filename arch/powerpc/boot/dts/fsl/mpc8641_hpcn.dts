@@ -1,0 +1,420 @@
+/*
+ * MPC8641 HPCN Device Tree Source
+ *
+ * Copyright 2006 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/include/ "mpc8641si-pre.dtsi"
+
+/ {
+	model = "MPC8641HPCN";
+	compatible = "fsl,mpc8641hpcn";
+
+	aliases {
+		pci1 = &pci1;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x40000000>;	// 1G at 0x0
+	};
+
+	lbc: localbus@ffe05000 {
+		reg = <0xffe05000 0x1000>;
+
+		ranges = <0 0 0xef800000 0x00800000
+			  2 0 0xffdf8000 0x00008000
+			  3 0 0xffdf0000 0x00008000>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x00800000>;
+			bank-width = <2>;
+			device-width = <2>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			partition@0 {
+				label = "kernel";
+				reg = <0x00000000 0x00300000>;
+			};
+			partition@300000 {
+				label = "firmware b";
+				reg = <0x00300000 0x00100000>;
+				read-only;
+			};
+			partition@400000 {
+				label = "fs";
+				reg = <0x00400000 0x00300000>;
+			};
+			partition@700000 {
+				label = "firmware a";
+				reg = <0x00700000 0x00100000>;
+				read-only;
+			};
+		};
+	};
+
+	soc: soc8641@ffe00000 {
+		ranges = <0x00000000 0xffe00000 0x00100000>;
+
+		enet0: ethernet@24000 {
+			tbi-handle = <&tbi0>;
+			phy-handle = <&phy0>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@24520 {
+			phy0: ethernet-phy@0 {
+				interrupts = <10 1 0 0>;
+				reg = <0>;
+			};
+			phy1: ethernet-phy@1 {
+				interrupts = <10 1 0 0>;
+				reg = <1>;
+			};
+			phy2: ethernet-phy@2 {
+				interrupts = <10 1 0 0>;
+				reg = <2>;
+			};
+			phy3: ethernet-phy@3 {
+				interrupts = <10 1 0 0>;
+				reg = <3>;
+			};
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet1: ethernet@25000 {
+			tbi-handle = <&tbi1>;
+			phy-handle = <&phy1>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@25520 {
+			tbi1: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+		
+		enet2: ethernet@26000 {
+			tbi-handle = <&tbi2>;
+			phy-handle = <&phy2>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@26520 {
+			tbi2: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet3: ethernet@27000 {
+			tbi-handle = <&tbi3>;
+			phy-handle = <&phy3>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@27520 {
+			tbi3: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		rmu: rmu@d3000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,srio-rmu";
+			reg = <0xd3000 0x500>;
+			ranges = <0x0 0xd3000 0x500>;
+
+			message-unit@0 {
+				compatible = "fsl,srio-msg-unit";
+				reg = <0x0 0x100>;
+				interrupts = <
+					53 2 0 0  /* msg1_tx_irq */
+					54 2 0 0>;/* msg1_rx_irq */
+			};
+			message-unit@100 {
+				compatible = "fsl,srio-msg-unit";
+				reg = <0x100 0x100>;
+				interrupts = <
+					55 2 0 0  /* msg2_tx_irq */
+					56 2 0 0>;/* msg2_rx_irq */
+			};
+			doorbell-unit@400 {
+				compatible = "fsl,srio-dbell-unit";
+				reg = <0x400 0x80>;
+				interrupts = <
+					49 2 0 0  /* bell_outb_irq */
+					50 2 0 0>;/* bell_inb_irq */
+			};
+			port-write-unit@4e0 {
+				compatible = "fsl,srio-port-write-unit";
+				reg = <0x4e0 0x20>;
+				interrupts = <48 2 0 0>;
+			};
+		};
+	};
+
+	pci0: pcie@ffe08000 {
+		reg = <0xffe08000 0x1000>;
+		ranges = <0x02000000 0x0 0x80000000 0x80000000 0x0 0x20000000
+			  0x01000000 0x0 0x00000000 0xffc00000 0x0 0x00010000>;
+		interrupt-map-mask = <0xff00 0 0 7>;
+		interrupt-map = <
+			/* IDSEL 0x11 func 0 - PCI slot 1 */
+			0x8800 0 0 1 &mpic 2 1
+			0x8800 0 0 2 &mpic 3 1
+			0x8800 0 0 3 &mpic 4 1
+			0x8800 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 1 - PCI slot 1 */
+			0x8900 0 0 1 &mpic 2 1
+			0x8900 0 0 2 &mpic 3 1
+			0x8900 0 0 3 &mpic 4 1
+			0x8900 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 2 - PCI slot 1 */
+			0x8a00 0 0 1 &mpic 2 1
+			0x8a00 0 0 2 &mpic 3 1
+			0x8a00 0 0 3 &mpic 4 1
+			0x8a00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 3 - PCI slot 1 */
+			0x8b00 0 0 1 &mpic 2 1
+			0x8b00 0 0 2 &mpic 3 1
+			0x8b00 0 0 3 &mpic 4 1
+			0x8b00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 4 - PCI slot 1 */
+			0x8c00 0 0 1 &mpic 2 1
+			0x8c00 0 0 2 &mpic 3 1
+			0x8c00 0 0 3 &mpic 4 1
+			0x8c00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 5 - PCI slot 1 */
+			0x8d00 0 0 1 &mpic 2 1
+			0x8d00 0 0 2 &mpic 3 1
+			0x8d00 0 0 3 &mpic 4 1
+			0x8d00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 6 - PCI slot 1 */
+			0x8e00 0 0 1 &mpic 2 1
+			0x8e00 0 0 2 &mpic 3 1
+			0x8e00 0 0 3 &mpic 4 1
+			0x8e00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 7 - PCI slot 1 */
+			0x8f00 0 0 1 &mpic 2 1
+			0x8f00 0 0 2 &mpic 3 1
+			0x8f00 0 0 3 &mpic 4 1
+			0x8f00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x12 func 0 - PCI slot 2 */
+			0x9000 0 0 1 &mpic 3 1
+			0x9000 0 0 2 &mpic 4 1
+			0x9000 0 0 3 &mpic 1 1
+			0x9000 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 1 - PCI slot 2 */
+			0x9100 0 0 1 &mpic 3 1
+			0x9100 0 0 2 &mpic 4 1
+			0x9100 0 0 3 &mpic 1 1
+			0x9100 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 2 - PCI slot 2 */
+			0x9200 0 0 1 &mpic 3 1
+			0x9200 0 0 2 &mpic 4 1
+			0x9200 0 0 3 &mpic 1 1
+			0x9200 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 3 - PCI slot 2 */
+			0x9300 0 0 1 &mpic 3 1
+			0x9300 0 0 2 &mpic 4 1
+			0x9300 0 0 3 &mpic 1 1
+			0x9300 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 4 - PCI slot 2 */
+			0x9400 0 0 1 &mpic 3 1
+			0x9400 0 0 2 &mpic 4 1
+			0x9400 0 0 3 &mpic 1 1
+			0x9400 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 5 - PCI slot 2 */
+			0x9500 0 0 1 &mpic 3 1
+			0x9500 0 0 2 &mpic 4 1
+			0x9500 0 0 3 &mpic 1 1
+			0x9500 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 6 - PCI slot 2 */
+			0x9600 0 0 1 &mpic 3 1
+			0x9600 0 0 2 &mpic 4 1
+			0x9600 0 0 3 &mpic 1 1
+			0x9600 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 7 - PCI slot 2 */
+			0x9700 0 0 1 &mpic 3 1
+			0x9700 0 0 2 &mpic 4 1
+			0x9700 0 0 3 &mpic 1 1
+			0x9700 0 0 4 &mpic 2 1
+
+			// IDSEL 0x1c  USB
+			0xe000 0 0 1 &i8259 12 2
+			0xe100 0 0 2 &i8259 9 2
+			0xe200 0 0 3 &i8259 10 2
+			0xe300 0 0 4 &i8259 11 2
+
+			// IDSEL 0x1d  Audio
+			0xe800 0 0 1 &i8259 6 2
+
+			// IDSEL 0x1e Legacy
+			0xf000 0 0 1 &i8259 7 2
+			0xf100 0 0 1 &i8259 7 2
+
+			// IDSEL 0x1f IDE/SATA
+			0xf800 0 0 1 &i8259 14 2
+			0xf900 0 0 1 &i8259 5 2
+			>;
+
+		pcie@0 {
+			ranges = <0x02000000 0x0 0x80000000
+				  0x02000000 0x0 0x80000000
+				  0x0 0x20000000
+
+				  0x01000000 0x0 0x00000000
+				  0x01000000 0x0 0x00000000
+				  0x0 0x00010000>;
+			uli1575@0 {
+				reg = <0 0 0 0 0>;
+				#size-cells = <2>;
+				#address-cells = <3>;
+				ranges = <0x02000000 0x0 0x80000000
+					  0x02000000 0x0 0x80000000
+					  0x0 0x20000000
+					  0x01000000 0x0 0x00000000
+					  0x01000000 0x0 0x00000000
+					  0x0 0x00010000>;
+				isa@1e {
+					device_type = "isa";
+					#size-cells = <1>;
+					#address-cells = <2>;
+					reg = <0xf000 0 0 0 0>;
+					ranges = <1 0 0x01000000 0 0
+						  0x00001000>;
+					interrupt-parent = <&i8259>;
+
+					i8259: interrupt-controller@20 {
+						reg = <1 0x20 2
+						       1 0xa0 2
+						       1 0x4d0 2>;
+						interrupt-controller;
+						device_type = "interrupt-controller";
+						#address-cells = <0>;
+						#interrupt-cells = <2>;
+						compatible = "chrp,iic";
+						interrupts = <9 2 0 0>;
+					};
+
+					i8042@60 {
+						#size-cells = <0>;
+						#address-cells = <1>;
+						reg = <1 0x60 1 1 0x64 1>;
+						interrupts = <1 3 12 3>;
+						interrupt-parent = <&i8259>;
+
+						keyboard@0 {
+							reg = <0>;
+							compatible = "pnpPNP,303";
+						};
+
+						mouse@1 {
+							reg = <1>;
+							compatible = "pnpPNP,f03";
+						};
+					};
+
+					rtc@70 {
+						compatible =
+							"pnpPNP,b00";
+						reg = <1 0x70 2>;
+					};
+
+					gpio@400 {
+						reg = <1 0x400 0x80>;
+					};
+				};
+			};
+		};
+
+	};
+
+	pci1: pcie@ffe09000 {
+		compatible = "fsl,mpc8641-pcie";
+		device_type = "pci";
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <0xffe09000 0x1000>;
+		bus-range = <0 0xff>;
+		ranges = <0x02000000 0x0 0xa0000000 0xa0000000 0x0 0x20000000
+			  0x01000000 0x0 0x00000000 0xffc10000 0x0 0x00010000>;
+		clock-frequency = <100000000>;
+		interrupts = <25 2 0 0>;
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = <
+			/* IDSEL 0x0 */
+			0x0000 0 0 1 &mpic 4 1
+			0x0000 0 0 2 &mpic 5 1
+			0x0000 0 0 3 &mpic 6 1
+			0x0000 0 0 4 &mpic 7 1
+			>;
+		pcie@0 {
+			reg = <0 0 0 0 0>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			device_type = "pci";
+			ranges = <0x02000000 0x0 0xa0000000
+				  0x02000000 0x0 0xa0000000
+				  0x0 0x20000000
+
+				  0x01000000 0x0 0x00000000
+				  0x01000000 0x0 0x00000000
+				  0x0 0x00010000>;
+		};
+	};
+/*
+ * Only one of Rapid IO or PCI can be present due to HW limitations and
+ * due to the fact that the 2 now share address space in the new memory
+ * map.  The most likely case is that we have PCI, so comment out the
+ * rapidio node.  Leave it here for reference.
+
+	rapidio@ffec0000 {
+		reg = <0xffec0000 0x11000>;
+		compatible = "fsl,srio";
+		interrupts = <48 2 0 0>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		fsl,srio-rmu-handle = <&rmu>;
+		ranges;
+
+		port1 {
+			#address-cells = <2>;
+			#size-cells = <2>;
+			cell-index = <1>;
+			ranges = <0 0 0x80000000 0 0x20000000>;
+		};
+	};
+*/
+
+};
+
+/include/ "mpc8641si-post.dtsi"

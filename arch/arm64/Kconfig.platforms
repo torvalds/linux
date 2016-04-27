@@ -1,40 +1,51 @@
 menu "Platform selection"
 
+config ARCH_SUNXI
+	bool "Allwinner sunxi 64-bit SoC Family"
+	help
+	  This enables support for Allwinner sunxi based SoCs like the A64.
+
+config ARCH_ALPINE
+	bool "Annapurna Labs Alpine platform"
+	select ALPINE_MSI
+	help
+	  This enables support for the Annapurna Labs Alpine
+	  Soc family.
+
 config ARCH_BCM_IPROC
 	bool "Broadcom iProc SoC Family"
+	select COMMON_CLK_IPROC
+	select PINCTRL
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  This enables support for Broadcom iProc based SoCs
 
 config ARCH_BERLIN
 	bool "Marvell Berlin SoC Family"
+	select ARCH_REQUIRE_GPIOLIB
 	select DW_APB_ICTL
+	select PINCTRL
 	help
 	  This enables support for Marvell Berlin SoC Family
 
 config ARCH_EXYNOS
-	bool
-	help
-	  This enables support for Samsung Exynos SoC family
-
-config ARCH_EXYNOS7
-	bool "ARMv8 based Samsung Exynos7"
-	select ARCH_EXYNOS
+	bool "ARMv8 based Samsung Exynos SoC family"
 	select COMMON_CLK_SAMSUNG
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
 	select PINCTRL
 	select PINCTRL_EXYNOS
-
 	help
-	  This enables support for Samsung Exynos7 SoC family
+	  This enables support for ARMv8 based Samsung Exynos SoC family.
 
-config ARCH_FSL_LS2085A
-	bool "Freescale LS2085A SOC"
+config ARCH_LAYERSCAPE
+	bool "ARMv8 based Freescale Layerscape SoC family"
 	help
-	  This enables support for Freescale LS2085A SOC.
+	  This enables support for the Freescale Layerscape SoC family.
 
 config ARCH_HISI
 	bool "Hisilicon SoC Family"
+	select HISILICON_IRQ_MBIGEN
 	help
 	  This enables support for Hisilicon ARMv8 SoC family
 
@@ -42,8 +53,25 @@ config ARCH_MEDIATEK
 	bool "Mediatek MT65xx & MT81xx ARMv8 SoC"
 	select ARM_GIC
 	select PINCTRL
+	select MTK_TIMER
 	help
 	  Support for Mediatek MT65xx & MT81xx ARMv8 SoCs
+
+config ARCH_MESON
+	bool "Amlogic Platforms"
+	help
+	  This enables support for the Amlogic S905 SoCs.
+
+config ARCH_MVEBU
+	bool "Marvell EBU SoC Family"
+	select ARMADA_AP806_CORE_CLK
+	select ARMADA_AP806_RING_CLK
+	select MVEBU_ODMI
+	help
+	  This enables support for Marvell EBU familly, including:
+	   - Armada 3700 SoC Family
+	   - Armada 7K SoC Family
+	   - Armada 8K SoC Family
 
 config ARCH_QCOM
 	bool "Qualcomm Platforms"
@@ -57,6 +85,7 @@ config ARCH_ROCKCHIP
 	select ARCH_REQUIRE_GPIOLIB
 	select PINCTRL
 	select PINCTRL_ROCKCHIP
+	select ROCKCHIP_TIMER
 	help
 	  This enables support for the ARMv8 based Rockchip chipsets,
 	  like the RK3368.
@@ -65,6 +94,30 @@ config ARCH_SEATTLE
 	bool "AMD Seattle SoC Family"
 	help
 	  This enables support for AMD Seattle SOC Family
+
+config ARCH_SHMOBILE
+	bool
+
+config ARCH_RENESAS
+	bool "Renesas SoC Platforms"
+	select ARCH_SHMOBILE
+	select PINCTRL
+	select PM
+	select PM_GENERIC_DOMAINS
+	select RENESAS_IRQC
+	help
+	  This enables support for the ARMv8 based Renesas SoCs.
+
+config ARCH_R8A7795
+	bool "Renesas R-Car H3 SoC Platform"
+	depends on ARCH_RENESAS
+	help
+	  This enables support for the Renesas R-Car H3 SoC.
+
+config ARCH_STRATIX10
+	bool "Altera's Stratix 10 SoCFPGA Family"
+	help
+	  This enables support for Altera's Stratix 10 SoCFPGA Family.
 
 config ARCH_TEGRA
 	bool "NVIDIA Tegra SoC Family"
@@ -80,18 +133,6 @@ config ARCH_TEGRA
 	help
 	  This enables support for the NVIDIA Tegra SoC family.
 
-config ARCH_TEGRA_132_SOC
-	bool "NVIDIA Tegra132 SoC"
-	depends on ARCH_TEGRA
-	select PINCTRL_TEGRA124
-	select USB_ULPI if USB_PHY
-	select USB_ULPI_VIEWPORT if USB_PHY
-	help
-	  Enable support for NVIDIA Tegra132 SoC, based on the Denver
-	  ARMv8 CPU.  The Tegra132 SoC is similar to the Tegra124 SoC,
-	  but contains an NVIDIA Denver CPU complex in place of
-	  Tegra124's "4+1" Cortex-A15 CPU complex.
-
 config ARCH_SPRD
 	bool "Spreadtrum SoC platform"
 	help
@@ -102,6 +143,12 @@ config ARCH_THUNDER
 	help
 	  This enables support for Cavium's Thunder Family of SoCs.
 
+config ARCH_UNIPHIER
+	bool "Socionext UniPhier SoC Family"
+	select PINCTRL
+	help
+	  This enables support for Socionext UniPhier SoC family.
+
 config ARCH_VEXPRESS
 	bool "ARMv8 software model (Versatile Express)"
 	select ARCH_REQUIRE_GPIOLIB
@@ -111,6 +158,11 @@ config ARCH_VEXPRESS
 	help
 	  This enables support for the ARMv8 software model (Versatile
 	  Express).
+
+config ARCH_VULCAN
+	bool "Broadcom Vulcan SOC Family"
+	help
+	  This enables support for Broadcom Vulcan SoC Family
 
 config ARCH_XGENE
 	bool "AppliedMicro X-Gene SOC Family"

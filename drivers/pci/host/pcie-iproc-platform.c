@@ -26,8 +26,21 @@
 
 #include "pcie-iproc.h"
 
+static const struct of_device_id iproc_pcie_of_match_table[] = {
+	{
+		.compatible = "brcm,iproc-pcie",
+		.data = (int *)IPROC_PCIE_PAXB,
+	}, {
+		.compatible = "brcm,iproc-pcie-paxc",
+		.data = (int *)IPROC_PCIE_PAXC,
+	},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, iproc_pcie_of_match_table);
+
 static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id;
 	struct iproc_pcie *pcie;
 	struct device_node *np = pdev->dev.of_node;
 	struct resource reg;
@@ -35,11 +48,16 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 	LIST_HEAD(res);
 	int ret;
 
+	of_id = of_match_device(iproc_pcie_of_match_table, &pdev->dev);
+	if (!of_id)
+		return -EINVAL;
+
 	pcie = devm_kzalloc(&pdev->dev, sizeof(struct iproc_pcie), GFP_KERNEL);
 	if (!pcie)
 		return -ENOMEM;
 
 	pcie->dev = &pdev->dev;
+	pcie->type = (enum iproc_pcie_type)of_id->data;
 	platform_set_drvdata(pdev, pcie);
 
 	ret = of_address_to_resource(np, 0, &reg);
@@ -52,6 +70,34 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 	if (!pcie->base) {
 		dev_err(pcie->dev, "unable to map controller registers\n");
 		return -ENOMEM;
+	}
+	pcie->base_addr = reg.start;
+
+	if (of_property_read_bool(np, "brcm,pcie-ob")) {
+		u32 val;
+
+		ret = of_property_read_u32(np, "brcm,pcie-ob-axi-offset",
+					   &val);
+		if (ret) {
+			dev_err(pcie->dev,
+				"missing brcm,pcie-ob-axi-offset property\n");
+			return ret;
+		}
+		pcie->ob.axi_offset = val;
+
+		ret = of_property_read_u32(np, "brcm,pcie-ob-window-size",
+					   &val);
+		if (ret) {
+			dev_err(pcie->dev,
+				"missing brcm,pcie-ob-window-size property\n");
+			return ret;
+		}
+		pcie->ob.window_size = (resource_size_t)val * SZ_1M;
+
+		if (of_property_read_bool(np, "brcm,pcie-ob-oarr-size"))
+			pcie->ob.set_oarr_size = true;
+
+		pcie->need_ob_cfg = true;
 	}
 
 	/* PHY use is optional */
@@ -86,12 +132,6 @@ static int iproc_pcie_pltfm_remove(struct platform_device *pdev)
 
 	return iproc_pcie_remove(pcie);
 }
-
-static const struct of_device_id iproc_pcie_of_match_table[] = {
-	{ .compatible = "brcm,iproc-pcie", },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, iproc_pcie_of_match_table);
 
 static struct platform_driver iproc_pcie_pltfm_driver = {
 	.driver = {

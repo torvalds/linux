@@ -163,9 +163,10 @@ static inline __must_check long __copy_to_user(void __user *to,
 
 #define put_user(x, ptr)					\
 ({								\
+	void *__p = (ptr);					\
 	might_fault();						\
-	access_ok(VERIFY_WRITE, ptr, sizeof(*ptr)) ?		\
-		__put_user(x, ptr) :				\
+	access_ok(VERIFY_WRITE, __p, sizeof(*ptr)) ?		\
+		__put_user((x), ((__typeof__(*(ptr)) *)__p)) :	\
 		-EFAULT;					\
 })
 
@@ -225,9 +226,10 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 
 #define get_user(x, ptr)					\
 ({								\
+	const void *__p = (ptr);				\
 	might_fault();						\
-	access_ok(VERIFY_READ, ptr, sizeof(*ptr)) ?		\
-		__get_user(x, ptr) :				\
+	access_ok(VERIFY_READ, __p, sizeof(*ptr)) ?		\
+		__get_user((x), (__typeof__(*(ptr)) *)__p) :	\
 		-EFAULT;					\
 })
 

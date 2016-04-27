@@ -18,7 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <mach/pxa300.h>
+#include "pxa300.h"
 
 #include "generic.h"
 #include "devices.h"

@@ -57,7 +57,29 @@ extern void exit_ptrace(struct task_struct *tracer, struct list_head *dead);
 #define PTRACE_MODE_READ	0x01
 #define PTRACE_MODE_ATTACH	0x02
 #define PTRACE_MODE_NOAUDIT	0x04
-/* Returns true on success, false on denial. */
+#define PTRACE_MODE_FSCREDS 0x08
+#define PTRACE_MODE_REALCREDS 0x10
+
+/* shorthands for READ/ATTACH and FSCREDS/REALCREDS combinations */
+#define PTRACE_MODE_READ_FSCREDS (PTRACE_MODE_READ | PTRACE_MODE_FSCREDS)
+#define PTRACE_MODE_READ_REALCREDS (PTRACE_MODE_READ | PTRACE_MODE_REALCREDS)
+#define PTRACE_MODE_ATTACH_FSCREDS (PTRACE_MODE_ATTACH | PTRACE_MODE_FSCREDS)
+#define PTRACE_MODE_ATTACH_REALCREDS (PTRACE_MODE_ATTACH | PTRACE_MODE_REALCREDS)
+
+/**
+ * ptrace_may_access - check whether the caller is permitted to access
+ * a target task.
+ * @task: target task
+ * @mode: selects type of access and caller credentials
+ *
+ * Returns true on success, false on denial.
+ *
+ * One of the flags PTRACE_MODE_FSCREDS and PTRACE_MODE_REALCREDS must
+ * be set in @mode to specify whether the access was requested through
+ * a filesystem syscall (should use effective capabilities and fsuid
+ * of the caller) or through an explicit syscall such as
+ * process_vm_writev or ptrace (and should use the real credentials).
+ */
 extern bool ptrace_may_access(struct task_struct *task, unsigned int mode);
 
 static inline int ptrace_reparented(struct task_struct *child)

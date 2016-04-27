@@ -1909,7 +1909,7 @@ static void msb_io_work(struct work_struct *work)
 		lba = blk_rq_pos(msb->req);
 
 		sector_div(lba, msb->page_size / 512);
-		page = do_div(lba, msb->pages_in_block);
+		page = sector_div(lba, msb->pages_in_block);
 
 		if (rq_data_dir(msb->req) == READ)
 			error = msb_do_read_request(msb, lba, page, sg,

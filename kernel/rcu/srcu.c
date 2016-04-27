@@ -298,11 +298,9 @@ int __srcu_read_lock(struct srcu_struct *sp)
 	int idx;
 
 	idx = READ_ONCE(sp->completed) & 0x1;
-	preempt_disable();
 	__this_cpu_inc(sp->per_cpu_ref->c[idx]);
 	smp_mb(); /* B */  /* Avoid leaking the critical section. */
 	__this_cpu_inc(sp->per_cpu_ref->seq[idx]);
-	preempt_enable();
 	return idx;
 }
 EXPORT_SYMBOL_GPL(__srcu_read_lock);
@@ -387,7 +385,7 @@ static void srcu_flip(struct srcu_struct *sp)
  * srcu_struct structure.
  */
 void call_srcu(struct srcu_struct *sp, struct rcu_head *head,
-		void (*func)(struct rcu_head *head))
+	       rcu_callback_t func)
 {
 	unsigned long flags;
 
@@ -491,7 +489,7 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
  */
 void synchronize_srcu(struct srcu_struct *sp)
 {
-	__synchronize_srcu(sp, rcu_gp_is_expedited()
+	__synchronize_srcu(sp, (rcu_gp_is_expedited() && !rcu_gp_is_normal())
 			   ? SYNCHRONIZE_SRCU_EXP_TRYCOUNT
 			   : SYNCHRONIZE_SRCU_TRYCOUNT);
 }

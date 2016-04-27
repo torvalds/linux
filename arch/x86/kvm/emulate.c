@@ -309,23 +309,29 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 
 static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 
-#define FOP_ALIGN ".align " __stringify(FASTOP_SIZE) " \n\t"
+#define FOP_FUNC(name) \
+	".align " __stringify(FASTOP_SIZE) " \n\t" \
+	".type " name ", @function \n\t" \
+	name ":\n\t"
+
 #define FOP_RET   "ret \n\t"
 
 #define FOP_START(op) \
 	extern void em_##op(struct fastop *fake); \
 	asm(".pushsection .text, \"ax\" \n\t" \
 	    ".global em_" #op " \n\t" \
-            FOP_ALIGN \
-	    "em_" #op ": \n\t"
+	    FOP_FUNC("em_" #op)
 
 #define FOP_END \
 	    ".popsection")
 
-#define FOPNOP() FOP_ALIGN FOP_RET
+#define FOPNOP() \
+	FOP_FUNC(__stringify(__UNIQUE_ID(nop))) \
+	FOP_RET
 
 #define FOP1E(op,  dst) \
-	FOP_ALIGN "10: " #op " %" #dst " \n\t" FOP_RET
+	FOP_FUNC(#op "_" #dst) \
+	"10: " #op " %" #dst " \n\t" FOP_RET
 
 #define FOP1EEX(op,  dst) \
 	FOP1E(op, dst) _ASM_EXTABLE(10b, kvm_fastop_exception)
@@ -357,7 +363,8 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 	FOP_END
 
 #define FOP2E(op,  dst, src)	   \
-	FOP_ALIGN #op " %" #src ", %" #dst " \n\t" FOP_RET
+	FOP_FUNC(#op "_" #dst "_" #src) \
+	#op " %" #src ", %" #dst " \n\t" FOP_RET
 
 #define FASTOP2(op) \
 	FOP_START(op) \
@@ -395,7 +402,8 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 	FOP_END
 
 #define FOP3E(op,  dst, src, src2) \
-	FOP_ALIGN #op " %" #src2 ", %" #src ", %" #dst " \n\t" FOP_RET
+	FOP_FUNC(#op "_" #dst "_" #src "_" #src2) \
+	#op " %" #src2 ", %" #src ", %" #dst " \n\t" FOP_RET
 
 /* 3-operand, word-only, src2=cl */
 #define FASTOP3WCL(op) \
@@ -407,7 +415,12 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 	FOP_END
 
 /* Special case for SETcc - 1 instruction per cc */
-#define FOP_SETCC(op) ".align 4; " #op " %al; ret \n\t"
+#define FOP_SETCC(op) \
+	".align 4 \n\t" \
+	".type " #op ", @function \n\t" \
+	#op ": \n\t" \
+	#op " %al \n\t" \
+	FOP_RET
 
 asm(".global kvm_fastop_exception \n"
     "kvm_fastop_exception: xor %esi, %esi; ret");
@@ -650,10 +663,10 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 	u16 sel;
 
 	la = seg_base(ctxt, addr.seg) + addr.ea;
-	*linear = la;
 	*max_size = 0;
 	switch (mode) {
 	case X86EMUL_MODE_PROT64:
+		*linear = la;
 		if (is_noncanonical_address(la))
 			goto bad;
 
@@ -662,6 +675,7 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 			goto bad;
 		break;
 	default:
+		*linear = la = (u32)la;
 		usable = ctxt->ops->get_segment(ctxt, &sel, &desc, NULL,
 						addr.seg);
 		if (!usable)
@@ -689,7 +703,6 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 			if (size > *max_size)
 				goto bad;
 		}
-		la &= (u32)-1;
 		break;
 	}
 	if (insn_aligned(ctxt, size) && ((la & (size - 1)) != 0))
@@ -956,7 +969,7 @@ static int em_bsr_c(struct x86_emulate_ctxt *ctxt)
 	return fastop(ctxt, em_bsr);
 }
 
-static u8 test_cc(unsigned int condition, unsigned long flags)
+static __always_inline u8 test_cc(unsigned int condition, unsigned long flags)
 {
 	u8 rc;
 	void (*fop)(void) = (void *)em_setcc + 4 * (condition & 0xf);
@@ -2272,8 +2285,8 @@ static int emulator_has_longmode(struct x86_emulate_ctxt *ctxt)
 #define GET_SMSTATE(type, smbase, offset)				  \
 	({								  \
 	 type __val;							  \
-	 int r = ctxt->ops->read_std(ctxt, smbase + offset, &__val,       \
-				     sizeof(__val), NULL);		  \
+	 int r = ctxt->ops->read_phys(ctxt, smbase + offset, &__val,      \
+				      sizeof(__val));			  \
 	 if (r != X86EMUL_CONTINUE)					  \
 		 return X86EMUL_UNHANDLEABLE;				  \
 	 __val;								  \
@@ -2484,17 +2497,36 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 
 	/*
 	 * Get back to real mode, to prepare a safe state in which to load
-	 * CR0/CR3/CR4/EFER.  Also this will ensure that addresses passed
-	 * to read_std/write_std are not virtual.
-	 *
-	 * CR4.PCIDE must be zero, because it is a 64-bit mode only feature.
+	 * CR0/CR3/CR4/EFER.  It's all a bit more complicated if the vCPU
+	 * supports long mode.
 	 */
+	cr4 = ctxt->ops->get_cr(ctxt, 4);
+	if (emulator_has_longmode(ctxt)) {
+		struct desc_struct cs_desc;
+
+		/* Zero CR4.PCIDE before CR0.PG.  */
+		if (cr4 & X86_CR4_PCIDE) {
+			ctxt->ops->set_cr(ctxt, 4, cr4 & ~X86_CR4_PCIDE);
+			cr4 &= ~X86_CR4_PCIDE;
+		}
+
+		/* A 32-bit code segment is required to clear EFER.LMA.  */
+		memset(&cs_desc, 0, sizeof(cs_desc));
+		cs_desc.type = 0xb;
+		cs_desc.s = cs_desc.g = cs_desc.p = 1;
+		ctxt->ops->set_segment(ctxt, 0, &cs_desc, 0, VCPU_SREG_CS);
+	}
+
+	/* For the 64-bit case, this will clear EFER.LMA.  */
 	cr0 = ctxt->ops->get_cr(ctxt, 0);
 	if (cr0 & X86_CR0_PE)
 		ctxt->ops->set_cr(ctxt, 0, cr0 & ~(X86_CR0_PG | X86_CR0_PE));
-	cr4 = ctxt->ops->get_cr(ctxt, 4);
+
+	/* Now clear CR4.PAE (which must be done before clearing EFER.LME).  */
 	if (cr4 & X86_CR4_PAE)
 		ctxt->ops->set_cr(ctxt, 4, cr4 & ~X86_CR4_PAE);
+
+	/* And finally go back to 32-bit mode.  */
 	efer = 0;
 	ctxt->ops->set_msr(ctxt, MSR_EFER, efer);
 
@@ -4455,7 +4487,7 @@ static const struct opcode twobyte_table[256] = {
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shld), N, N,
 	/* 0xA8 - 0xAF */
 	I(Stack | Src2GS, em_push_sreg), I(Stack | Src2GS, em_pop_sreg),
-	II(No64 | EmulateOnUD | ImplicitOps, em_rsm, rsm),
+	II(EmulateOnUD | ImplicitOps, em_rsm, rsm),
 	F(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_bts),
 	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shrd),
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shrd),

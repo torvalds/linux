@@ -50,7 +50,7 @@ static inline void gfs2_update_stats(struct gfs2_lkstats *s, unsigned index,
 	s64 delta = sample - s->stats[index];
 	s->stats[index] += (delta >> 3);
 	index++;
-	s->stats[index] += ((abs64(delta) - s->stats[index]) >> 2);
+	s->stats[index] += ((abs(delta) - s->stats[index]) >> 2);
 }
 
 /**

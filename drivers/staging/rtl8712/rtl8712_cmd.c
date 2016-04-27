@@ -62,12 +62,14 @@ static void check_hw_pbc(struct _adapter *padapter)
 	tmp1byte = r8712_read8(padapter, GPIO_CTRL);
 	if (tmp1byte == 0xff)
 		return;
-	if (tmp1byte&HAL_8192S_HW_GPIO_WPS_BIT) {
+	if (tmp1byte & HAL_8192S_HW_GPIO_WPS_BIT) {
 		/* Here we only set bPbcPressed to true
-		 * After trigger PBC, the variable will be set to false */
+		 * After trigger PBC, the variable will be set to false
+		 */
 		DBG_8712("CheckPbcGPIO - PBC is pressed !!!!\n");
 		/* 0 is the default value and it means the application monitors
-		 * the HW PBC doesn't provide its pid to driver. */
+		 * the HW PBC doesn't provide its pid to driver.
+		 */
 		if (padapter->pid == 0)
 			return;
 		kill_pid(find_vpid(padapter->pid), SIGUSR1, 1);
@@ -76,13 +78,14 @@ static void check_hw_pbc(struct _adapter *padapter)
 
 /* query rx phy status from fw.
  * Adhoc mode: beacon.
- * Infrastructure mode: beacon , data. */
+ * Infrastructure mode: beacon , data.
+ */
 static void query_fw_rx_phy_status(struct _adapter *padapter)
 {
 	u32 val32 = 0;
 	int pollingcnts = 50;
 
-	if (check_fwstate(&padapter->mlmepriv, _FW_LINKED) == true) {
+	if (check_fwstate(&padapter->mlmepriv, _FW_LINKED)) {
 		r8712_write32(padapter, IOCMD_CTRL_REG, 0xf4000001);
 		msleep(100);
 		/* Wait FW complete IO Cmd */
@@ -257,7 +260,8 @@ static struct cmd_obj *cmd_hdl_filter(struct _adapter *padapter,
 		/* Before set JoinBss_CMD to FW, driver must ensure FW is in
 		 * PS_MODE_ACTIVE. Directly write rpwm to radio on and assign
 		 * new pwr_mode to Driver, instead of use workitem to change
-		 * state. */
+		 * state.
+		 */
 		if (padapter->pwrctrlpriv.pwr_mode > PS_MODE_ACTIVE) {
 			padapter->pwrctrlpriv.pwr_mode = PS_MODE_ACTIVE;
 			_enter_pwrlock(&(padapter->pwrctrlpriv.lock));
@@ -289,7 +293,7 @@ u8 r8712_fw_cmd(struct _adapter *pAdapter, u32 cmd)
 
 	r8712_write32(pAdapter, IOCMD_CTRL_REG, cmd);
 	msleep(100);
-	while ((0 != r8712_read32(pAdapter, IOCMD_CTRL_REG)) &&
+	while ((r8712_read32(pAdapter, IOCMD_CTRL_REG != 0)) &&
 	       (pollingcnts > 0)) {
 		pollingcnts--;
 		msleep(20);
@@ -313,15 +317,14 @@ int r8712_cmd_thread(void *context)
 	unsigned int cmdsz, wr_sz, *pcmdbuf;
 	struct tx_desc *pdesc;
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
-	struct _adapter *padapter = (struct _adapter *)context;
+	struct _adapter *padapter = context;
 	struct	cmd_priv	*pcmdpriv = &(padapter->cmdpriv);
 
 	allow_signal(SIGTERM);
 	while (1) {
 		if ((_down_sema(&(pcmdpriv->cmd_queue_sema))) == _FAIL)
 			break;
-		if ((padapter->bDriverStopped == true) ||
-		    (padapter->bSurpriseRemoved == true))
+		if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
 			break;
 		if (r8712_register_cmd_alive(padapter) != _SUCCESS)
 			continue;
@@ -336,14 +339,13 @@ _next:
 		memset(pdesc, 0, TXDESC_SIZE);
 		pcmd = cmd_hdl_filter(padapter, pcmd);
 		if (pcmd) { /* if pcmd != NULL, cmd will be handled by f/w */
-			struct dvobj_priv *pdvobj = (struct dvobj_priv *)
-						    &padapter->dvobjpriv;
+			struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 			u8 blnPending = 0;
 
 			pcmdpriv->cmd_issued_cnt++;
 			cmdsz = round_up(pcmd->cmdsz, 8);
 			wr_sz = TXDESC_SIZE + 8 + cmdsz;
-			pdesc->txdw0 |= cpu_to_le32((wr_sz-TXDESC_SIZE) &
+			pdesc->txdw0 |= cpu_to_le32((wr_sz - TXDESC_SIZE) &
 						     0x0000ffff);
 			if (pdvobj->ishighspeed) {
 				if ((wr_sz % 512) == 0)
@@ -372,8 +374,8 @@ _next:
 			pcmdbuf += 2; /* 8 bytes alignment */
 			memcpy((u8 *)pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
 			while (check_cmd_fifo(padapter, wr_sz) == _FAIL) {
-				if ((padapter->bDriverStopped == true) ||
-				    (padapter->bSurpriseRemoved == true))
+				if (padapter->bDriverStopped ||
+				    padapter->bSurpriseRemoved)
 					break;
 				msleep(100);
 				continue;
@@ -403,10 +405,12 @@ _next:
 			if (list_empty(&pcmdpriv->cmd_queue.queue)) {
 				r8712_unregister_cmd_alive(padapter);
 				continue;
-			} else
+			} else {
 				goto _next;
-		} else
+			}
+		} else {
 			goto _next;
+		}
 		flush_signals_thread();
 	}
 	/* free all cmd_obj resources */
@@ -439,20 +443,20 @@ void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
 	}
 	/* checking if event code is valid */
 	if (evt_code >= MAX_C2HEVT) {
-		pevt_priv->event_seq = ((evt_seq+1) & 0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	} else if ((evt_code == GEN_EVT_CODE(_Survey)) &&
 		   (evt_sz > sizeof(struct wlan_bssid_ex))) {
-		pevt_priv->event_seq = ((evt_seq+1)&0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	}
 	/* checking if event size match the event parm size */
 	if ((wlanevents[evt_code].parmsize) &&
 	    (wlanevents[evt_code].parmsize != evt_sz)) {
-		pevt_priv->event_seq = ((evt_seq+1)&0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	} else if ((evt_sz == 0) && (evt_code != GEN_EVT_CODE(_WPS_PBC))) {
-		pevt_priv->event_seq = ((evt_seq+1)&0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	}
 	pevt_priv->event_seq++;	/* update evt_seq */

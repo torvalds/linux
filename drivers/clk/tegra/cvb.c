@@ -78,13 +78,6 @@ static int build_opp_table(const struct cvb_table *d,
 		if (!table->freq || (table->freq > max_freq))
 			break;
 
-		/*
-		 * FIXME after clk_round_rate/clk_determine_rate prototypes
-		 * have been updated
-		 */
-		if (table->freq & (1<<31))
-			continue;
-
 		dfll_mv = get_cvb_voltage(
 			speedo_value, d->speedo_scale, &table->coefficients);
 		dfll_mv = round_cvb_voltage(dfll_mv, d->voltage_scale, align);

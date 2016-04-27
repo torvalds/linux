@@ -742,7 +742,7 @@ static int at91_adc_of_get_resolution(struct at91_adc_state *st,
 		return count;
 	}
 
-	resolutions = kmalloc(count * sizeof(*resolutions), GFP_KERNEL);
+	resolutions = kmalloc_array(count, sizeof(*resolutions), GFP_KERNEL);
 	if (!resolutions)
 		return -ENOMEM;
 

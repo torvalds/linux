@@ -401,8 +401,8 @@ size_t efx_ptp_update_stats(struct efx_nic *efx, u64 *stats)
 /* For Siena platforms NIC time is s and ns */
 static void efx_ptp_ns_to_s_ns(s64 ns, u32 *nic_major, u32 *nic_minor)
 {
-	struct timespec ts = ns_to_timespec(ns);
-	*nic_major = ts.tv_sec;
+	struct timespec64 ts = ns_to_timespec64(ns);
+	*nic_major = (u32)ts.tv_sec;
 	*nic_minor = ts.tv_nsec;
 }
 
@@ -431,8 +431,8 @@ static ktime_t efx_ptp_s_ns_to_ktime_correction(u32 nic_major, u32 nic_minor,
  */
 static void efx_ptp_ns_to_s27(s64 ns, u32 *nic_major, u32 *nic_minor)
 {
-	struct timespec ts = ns_to_timespec(ns);
-	u32 maj = ts.tv_sec;
+	struct timespec64 ts = ns_to_timespec64(ns);
+	u32 maj = (u32)ts.tv_sec;
 	u32 min = (u32)(((u64)ts.tv_nsec * NS_TO_S27_MULT +
 			 (1ULL << (NS_TO_S27_SHIFT - 1))) >> NS_TO_S27_SHIFT);
 
@@ -646,28 +646,28 @@ static void efx_ptp_send_times(struct efx_nic *efx,
 			       struct pps_event_time *last_time)
 {
 	struct pps_event_time now;
-	struct timespec limit;
+	struct timespec64 limit;
 	struct efx_ptp_data *ptp = efx->ptp_data;
-	struct timespec start;
+	struct timespec64 start;
 	int *mc_running = ptp->start.addr;
 
 	pps_get_ts(&now);
 	start = now.ts_real;
 	limit = now.ts_real;
-	timespec_add_ns(&limit, SYNCHRONISE_PERIOD_NS);
+	timespec64_add_ns(&limit, SYNCHRONISE_PERIOD_NS);
 
 	/* Write host time for specified period or until MC is done */
-	while ((timespec_compare(&now.ts_real, &limit) < 0) &&
+	while ((timespec64_compare(&now.ts_real, &limit) < 0) &&
 	       ACCESS_ONCE(*mc_running)) {
-		struct timespec update_time;
+		struct timespec64 update_time;
 		unsigned int host_time;
 
 		/* Don't update continuously to avoid saturating the PCIe bus */
 		update_time = now.ts_real;
-		timespec_add_ns(&update_time, SYNCHRONISATION_GRANULARITY_NS);
+		timespec64_add_ns(&update_time, SYNCHRONISATION_GRANULARITY_NS);
 		do {
 			pps_get_ts(&now);
-		} while ((timespec_compare(&now.ts_real, &update_time) < 0) &&
+		} while ((timespec64_compare(&now.ts_real, &update_time) < 0) &&
 			 ACCESS_ONCE(*mc_running));
 
 		/* Synchronise NIC with single word of time only */
@@ -723,7 +723,7 @@ efx_ptp_process_times(struct efx_nic *efx, MCDI_DECLARE_STRUCT_PTR(synch_buf),
 	struct efx_ptp_data *ptp = efx->ptp_data;
 	u32 last_sec;
 	u32 start_sec;
-	struct timespec delta;
+	struct timespec64 delta;
 	ktime_t mc_time;
 
 	if (number_readings == 0)
@@ -737,14 +737,14 @@ efx_ptp_process_times(struct efx_nic *efx, MCDI_DECLARE_STRUCT_PTR(synch_buf),
 	 */
 	for (i = 0; i < number_readings; i++) {
 		s32 window, corrected;
-		struct timespec wait;
+		struct timespec64 wait;
 
 		efx_ptp_read_timeset(
 			MCDI_ARRAY_STRUCT_PTR(synch_buf,
 					      PTP_OUT_SYNCHRONIZE_TIMESET, i),
 			&ptp->timeset[i]);
 
-		wait = ktime_to_timespec(
+		wait = ktime_to_timespec64(
 			ptp->nic_to_kernel_time(0, ptp->timeset[i].wait, 0));
 		window = ptp->timeset[i].window;
 		corrected = window - wait.tv_nsec;
@@ -803,7 +803,7 @@ efx_ptp_process_times(struct efx_nic *efx, MCDI_DECLARE_STRUCT_PTR(synch_buf),
 					  ptp->timeset[last_good].minor, 0);
 
 	/* Calculate delay from NIC top of second to last_time */
-	delta.tv_nsec += ktime_to_timespec(mc_time).tv_nsec;
+	delta.tv_nsec += ktime_to_timespec64(mc_time).tv_nsec;
 
 	/* Set PPS timestamp to match NIC top of second */
 	ptp->host_time_pps = *last_time;

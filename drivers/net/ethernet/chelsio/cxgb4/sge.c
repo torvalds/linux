@@ -406,7 +406,7 @@ static void free_tx_desc(struct adapter *adap, struct sge_txq *q,
  */
 static inline int reclaimable(const struct sge_txq *q)
 {
-	int hw_cidx = ntohs(q->stat->cidx);
+	int hw_cidx = ntohs(ACCESS_ONCE(q->stat->cidx));
 	hw_cidx -= q->cidx;
 	return hw_cidx < 0 ? hw_cidx + q->size : hw_cidx;
 }
@@ -613,6 +613,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 				       PCI_DMA_FROMDEVICE);
 		if (unlikely(dma_mapping_error(adap->pdev_dev, mapping))) {
 			__free_pages(pg, s->fl_pg_order);
+			q->mapping_err++;
 			goto out;   /* do not try small pages for this error */
 		}
 		mapping |= RX_LARGE_PG_BUF;
@@ -642,6 +643,7 @@ alloc_small_pages:
 				       PCI_DMA_FROMDEVICE);
 		if (unlikely(dma_mapping_error(adap->pdev_dev, mapping))) {
 			put_page(pg);
+			q->mapping_err++;
 			goto out;
 		}
 		*d++ = cpu_to_be64(mapping);
@@ -663,6 +665,7 @@ out:	cred = q->avail - cred;
 
 	if (unlikely(fl_starving(adap, q))) {
 		smp_wmb();
+		q->low++;
 		set_bit(q->cntxt_id - adap->sge.egr_start,
 			adap->sge.starving_fl);
 	}
@@ -1029,6 +1032,30 @@ static void inline_tx_skb(const struct sk_buff *skb, const struct sge_txq *q,
 		*p = 0;
 }
 
+static void *inline_tx_skb_header(const struct sk_buff *skb,
+				  const struct sge_txq *q,  void *pos,
+				  int length)
+{
+	u64 *p;
+	int left = (void *)q->stat - pos;
+
+	if (likely(length <= left)) {
+		memcpy(pos, skb->data, length);
+		pos += length;
+	} else {
+		memcpy(pos, skb->data, left);
+		memcpy(q->desc, skb->data + left, length - left);
+		pos = (void *)q->desc + (length - left);
+	}
+	/* 0-pad to multiple of 16 */
+	p = PTR_ALIGN(pos, 8);
+	if ((uintptr_t)p & 8) {
+		*p = 0;
+		return p + 1;
+	}
+	return p;
+}
+
 /*
  * Figure out what HW csum a packet wants and return the appropriate control
  * bits.
@@ -1320,7 +1347,7 @@ out_free:	dev_kfree_skb_any(skb);
  */
 static inline void reclaim_completed_tx_imm(struct sge_txq *q)
 {
-	int hw_cidx = ntohs(q->stat->cidx);
+	int hw_cidx = ntohs(ACCESS_ONCE(q->stat->cidx));
 	int reclaim = hw_cidx - q->cidx;
 
 	if (reclaim < 0)
@@ -1542,24 +1569,50 @@ static void ofldtxq_stop(struct sge_ofld_txq *q, struct sk_buff *skb)
 }
 
 /**
- *	service_ofldq - restart a suspended offload queue
+ *	service_ofldq - service/restart a suspended offload queue
  *	@q: the offload queue
  *
- *	Services an offload Tx queue by moving packets from its packet queue
- *	to the HW Tx ring.  The function starts and ends with the queue locked.
+ *	Services an offload Tx queue by moving packets from its Pending Send
+ *	Queue to the Hardware TX ring.  The function starts and ends with the
+ *	Send Queue locked, but drops the lock while putting the skb at the
+ *	head of the Send Queue onto the Hardware TX Ring.  Dropping the lock
+ *	allows more skbs to be added to the Send Queue by other threads.
+ *	The packet being processed at the head of the Pending Send Queue is
+ *	left on the queue in case we experience DMA Mapping errors, etc.
+ *	and need to give up and restart later.
+ *
+ *	service_ofldq() can be thought of as a task which opportunistically
+ *	uses other threads execution contexts.  We use the Offload Queue
+ *	boolean "service_ofldq_running" to make sure that only one instance
+ *	is ever running at a time ...
  */
 static void service_ofldq(struct sge_ofld_txq *q)
 {
-	u64 *pos;
+	u64 *pos, *before, *end;
 	int credits;
 	struct sk_buff *skb;
+	struct sge_txq *txq;
+	unsigned int left;
 	unsigned int written = 0;
 	unsigned int flits, ndesc;
 
+	/* If another thread is currently in service_ofldq() processing the
+	 * Pending Send Queue then there's nothing to do. Otherwise, flag
+	 * that we're doing the work and continue.  Examining/modifying
+	 * the Offload Queue boolean "service_ofldq_running" must be done
+	 * while holding the Pending Send Queue Lock.
+	 */
+	if (q->service_ofldq_running)
+		return;
+	q->service_ofldq_running = true;
+
 	while ((skb = skb_peek(&q->sendq)) != NULL && !q->full) {
-		/*
-		 * We drop the lock but leave skb on sendq, thus retaining
-		 * exclusive access to the state of the queue.
+		/* We drop the lock while we're working with the skb at the
+		 * head of the Pending Send Queue.  This allows more skbs to
+		 * be added to the Pending Send Queue while we're working on
+		 * this one.  We don't need to lock to guard the TX Ring
+		 * updates because only one thread of execution is ever
+		 * allowed into service_ofldq() at a time.
 		 */
 		spin_unlock(&q->sendq.lock);
 
@@ -1583,9 +1636,32 @@ static void service_ofldq(struct sge_ofld_txq *q)
 		} else {
 			int last_desc, hdr_len = skb_transport_offset(skb);
 
-			memcpy(pos, skb->data, hdr_len);
-			write_sgl(skb, &q->q, (void *)pos + hdr_len,
-				  pos + flits, hdr_len,
+			/* The WR headers  may not fit within one descriptor.
+			 * So we need to deal with wrap-around here.
+			 */
+			before = (u64 *)pos;
+			end = (u64 *)pos + flits;
+			txq = &q->q;
+			pos = (void *)inline_tx_skb_header(skb, &q->q,
+							   (void *)pos,
+							   hdr_len);
+			if (before > (u64 *)pos) {
+				left = (u8 *)end - (u8 *)txq->stat;
+				end = (void *)txq->desc + left;
+			}
+
+			/* If current position is already at the end of the
+			 * ofld queue, reset the current to point to
+			 * start of the queue and update the end ptr as well.
+			 */
+			if (pos == (u64 *)txq->stat) {
+				left = (u8 *)end - (u8 *)txq->stat;
+				end = (void *)txq->desc + left;
+				pos = (void *)txq->desc;
+			}
+
+			write_sgl(skb, &q->q, (void *)pos,
+				  end, hdr_len,
 				  (dma_addr_t *)skb->head);
 #ifdef CONFIG_NEED_DMA_MAP_STATE
 			skb->dev = q->adap->port[0];
@@ -1604,6 +1680,11 @@ static void service_ofldq(struct sge_ofld_txq *q)
 			written = 0;
 		}
 
+		/* Reacquire the Pending Send Queue Lock so we can unlink the
+		 * skb we've just successfully transferred to the TX Ring and
+		 * loop for the next skb which may be at the head of the
+		 * Pending Send Queue.
+		 */
 		spin_lock(&q->sendq.lock);
 		__skb_unlink(skb, &q->sendq);
 		if (is_ofld_imm(skb))
@@ -1611,6 +1692,11 @@ static void service_ofldq(struct sge_ofld_txq *q)
 	}
 	if (likely(written))
 		ring_tx_db(q->adap, &q->q, written);
+
+	/*Indicate that no thread is processing the Pending Send Queue
+	 * currently.
+	 */
+	q->service_ofldq_running = false;
 }
 
 /**
@@ -1624,9 +1710,19 @@ static int ofld_xmit(struct sge_ofld_txq *q, struct sk_buff *skb)
 {
 	skb->priority = calc_tx_flits_ofld(skb);       /* save for restart */
 	spin_lock(&q->sendq.lock);
+
+	/* Queue the new skb onto the Offload Queue's Pending Send Queue.  If
+	 * that results in this new skb being the only one on the queue, start
+	 * servicing it.  If there are other skbs already on the list, then
+	 * either the queue is currently being processed or it's been stopped
+	 * for some reason and it'll be restarted at a later time.  Restart
+	 * paths are triggered by events like experiencing a DMA Mapping Error
+	 * or filling the Hardware TX Ring.
+	 */
 	__skb_queue_tail(&q->sendq, skb);
 	if (q->sendq.qlen == 1)
 		service_ofldq(q);
+
 	spin_unlock(&q->sendq.lock);
 	return NET_XMIT_SUCCESS;
 }
@@ -1820,11 +1916,34 @@ static noinline int handle_trace_pkt(struct adapter *adap,
 	return 0;
 }
 
+/**
+ * cxgb4_sgetim_to_hwtstamp - convert sge time stamp to hw time stamp
+ * @adap: the adapter
+ * @hwtstamps: time stamp structure to update
+ * @sgetstamp: 60bit iqe timestamp
+ *
+ * Every ingress queue entry has the 60-bit timestamp, convert that timestamp
+ * which is in Core Clock ticks into ktime_t and assign it
+ **/
+static void cxgb4_sgetim_to_hwtstamp(struct adapter *adap,
+				     struct skb_shared_hwtstamps *hwtstamps,
+				     u64 sgetstamp)
+{
+	u64 ns;
+	u64 tmp = (sgetstamp * 1000 * 1000 + adap->params.vpd.cclk / 2);
+
+	ns = div_u64(tmp, adap->params.vpd.cclk);
+
+	memset(hwtstamps, 0, sizeof(*hwtstamps));
+	hwtstamps->hwtstamp = ns_to_ktime(ns);
+}
+
 static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 		   const struct cpl_rx_pkt *pkt)
 {
 	struct adapter *adapter = rxq->rspq.adap;
 	struct sge *s = &adapter->sge;
+	struct port_info *pi;
 	int ret;
 	struct sk_buff *skb;
 
@@ -1841,7 +1960,10 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	skb->truesize += skb->data_len;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb_record_rx_queue(skb, rxq->rspq.idx);
-	skb_mark_napi_id(skb, &rxq->rspq.napi);
+	pi = netdev_priv(skb->dev);
+	if (pi->rxtstamp)
+		cxgb4_sgetim_to_hwtstamp(adapter, skb_hwtstamps(skb),
+					 gl->sgetstamp);
 	if (rxq->rspq.netdev->features & NETIF_F_RXHASH)
 		skb_set_hash(skb, (__force u32)pkt->rsshdr.hash_val,
 			     PKT_HASH_TYPE_L3);
@@ -1877,9 +1999,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	struct sge *s = &q->adap->sge;
 	int cpl_trace_pkt = is_t4(q->adap->params.chip) ?
 			    CPL_TRACE_PKT : CPL_TRACE_PKT_T5;
-#ifdef CONFIG_CHELSIO_T4_FCOE
 	struct port_info *pi;
-#endif
 
 	if (unlikely(*(u8 *)rsp == cpl_trace_pkt))
 		return handle_trace_pkt(q->adap, si);
@@ -1910,6 +2030,10 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 
 	rxq->stats.pkts++;
 
+	pi = netdev_priv(skb->dev);
+	if (pi->rxtstamp)
+		cxgb4_sgetim_to_hwtstamp(q->adap, skb_hwtstamps(skb),
+					 si->sgetstamp);
 	if (csum_ok && (pkt->l2info & htonl(RXF_UDP_F | RXF_TCP_F))) {
 		if (!pkt->ip_frag) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1926,7 +2050,6 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 #define CPL_RX_PKT_FLAGS (RXF_PSH_F | RXF_SYN_F | RXF_UDP_F | \
 			  RXF_TCP_F | RXF_IP_F | RXF_IP6_F | RXF_LRO_F)
 
-		pi = netdev_priv(skb->dev);
 		if (!(pkt->l2info & cpu_to_be32(CPL_RX_PKT_FLAGS))) {
 			if ((pkt->l2info & cpu_to_be32(RXF_FCOE_F)) &&
 			    (pi->fcoe.flags & CXGB_FCOE_ENABLED)) {
@@ -2034,8 +2157,11 @@ static int process_responses(struct sge_rspq *q, int budget)
 
 	while (likely(budget_left)) {
 		rc = (void *)q->cur_desc + (q->iqe_len - sizeof(*rc));
-		if (!is_new_response(rc, q))
+		if (!is_new_response(rc, q)) {
+			if (q->flush_handler)
+				q->flush_handler(q);
 			break;
+		}
 
 		dma_rmb();
 		rsp_type = RSPD_TYPE_G(rc->type_gen);
@@ -2067,6 +2193,8 @@ static int process_responses(struct sge_rspq *q, int budget)
 				unmap_rx_buf(q->adap, &rxq->fl);
 			}
 
+			si.sgetstamp = SGE_TIMESTAMP_G(
+					be64_to_cpu(rc->last_flit));
 			/*
 			 * Last buffer remains mapped so explicitly make it
 			 * coherent for CPU access.
@@ -2101,7 +2229,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 		budget_left--;
 	}
 
-	if (q->offset >= 0 && rxq->fl.size - rxq->fl.avail >= 16)
+	if (q->offset >= 0 && fl_cap(&rxq->fl) - rxq->fl.avail >= 16)
 		__refill_fl(q->adap, &rxq->fl);
 	return budget - budget_left;
 }
@@ -2163,7 +2291,7 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	if (likely(work_done < budget)) {
 		int timer_index;
 
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		timer_index = QINTR_TIMER_IDX_G(q->next_intr_params);
 
 		if (q->adaptive_rx) {
@@ -2419,7 +2547,8 @@ static void __iomem *bar2_address(struct adapter *adapter,
  */
 int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		     struct net_device *dev, int intr_idx,
-		     struct sge_fl *fl, rspq_handler_t hnd, int cong)
+		     struct sge_fl *fl, rspq_handler_t hnd,
+		     rspq_flush_handler_t flush_hnd, int cong)
 {
 	int ret, flsz = 0;
 	struct fw_iq_cmd c;
@@ -2430,7 +2559,8 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	iq->size = roundup(iq->size, 16);
 
 	iq->desc = alloc_ring(adap->pdev_dev, iq->size, iq->iqe_len, 0,
-			      &iq->phys_addr, NULL, 0, NUMA_NO_NODE);
+			      &iq->phys_addr, NULL, 0,
+			      dev_to_node(adap->pdev_dev));
 	if (!iq->desc)
 		return -ENOMEM;
 
@@ -2470,7 +2600,8 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		fl->size = roundup(fl->size, 8);
 		fl->desc = alloc_ring(adap->pdev_dev, fl->size, sizeof(__be64),
 				      sizeof(struct rx_sw_desc), &fl->addr,
-				      &fl->sdesc, s->stat_len, NUMA_NO_NODE);
+				      &fl->sdesc, s->stat_len,
+				      dev_to_node(adap->pdev_dev));
 		if (!fl->desc)
 			goto fl_nomem;
 
@@ -2484,8 +2615,18 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 				htonl(FW_IQ_CMD_FL0CNGCHMAP_V(cong) |
 				      FW_IQ_CMD_FL0CONGCIF_F |
 				      FW_IQ_CMD_FL0CONGEN_F);
+		/* In T6, for egress queue type FL there is internal overhead
+		 * of 16B for header going into FLM module.  Hence the maximum
+		 * allowed burst size is 448 bytes.  For T4/T5, the hardware
+		 * doesn't coalesce fetch requests if more than 64 bytes of
+		 * Free List pointers are provided, so we use a 128-byte Fetch
+		 * Burst Minimum there (T6 implements coalescing so we can use
+		 * the smaller 64-byte value there).
+		 */
 		c.fl0dcaen_to_fl0cidxfthresh =
-			htons(FW_IQ_CMD_FL0FBMIN_V(FETCHBURSTMIN_64B_X) |
+			htons(FW_IQ_CMD_FL0FBMIN_V(chip <= CHELSIO_T5 ?
+						   FETCHBURSTMIN_128B_X :
+						   FETCHBURSTMIN_64B_X) |
 			      FW_IQ_CMD_FL0FBMAX_V((chip <= CHELSIO_T5) ?
 						   FETCHBURSTMAX_512B_X :
 						   FETCHBURSTMAX_256B_X));
@@ -2498,7 +2639,6 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		goto err;
 
 	netif_napi_add(dev, &iq->napi, napi_rx_handler, 64);
-	napi_hash_add(&iq->napi);
 	iq->cur_desc = iq->desc;
 	iq->cidx = 0;
 	iq->gen = 1;
@@ -2512,6 +2652,10 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	iq->size--;                           /* subtract status entry */
 	iq->netdev = dev;
 	iq->handler = hnd;
+	iq->flush_handler = flush_hnd;
+
+	memset(&iq->lro_mgr, 0, sizeof(struct t4_lro_mgr));
+	skb_queue_head_init(&iq->lro_mgr.lroq);
 
 	/* set offset to -1 to distinguish ingress queues without FL */
 	iq->offset = fl ? 0 : -1;
@@ -2544,8 +2688,9 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	 * simple (and hopefully less wrong).
 	 */
 	if (!is_t4(adap->params.chip) && cong >= 0) {
-		u32 param, val;
+		u32 param, val, ch_map = 0;
 		int i;
+		u16 cng_ch_bits_log = adap->params.arch.cng_ch_bits_log;
 
 		param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
 			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
@@ -2557,9 +2702,9 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 			    CONMCTXT_CNGTPMODE_V(CONMCTXT_CNGTPMODE_CHANNEL_X);
 			for (i = 0; i < 4; i++) {
 				if (cong & (1 << i))
-					val |=
-					     CONMCTXT_CNGCHMAP_V(1 << (i << 2));
+					ch_map |= 1 << (i << cng_ch_bits_log);
 			}
+			val |= CONMCTXT_CNGCHMAP_V(ch_map);
 		}
 		ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1,
 				    &param, &val);
@@ -2836,14 +2981,28 @@ void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q)
 void t4_free_sge_resources(struct adapter *adap)
 {
 	int i;
-	struct sge_eth_rxq *eq = adap->sge.ethrxq;
-	struct sge_eth_txq *etq = adap->sge.ethtxq;
+	struct sge_eth_rxq *eq;
+	struct sge_eth_txq *etq;
+
+	/* stop all Rx queues in order to start them draining */
+	for (i = 0; i < adap->sge.ethqsets; i++) {
+		eq = &adap->sge.ethrxq[i];
+		if (eq->rspq.desc)
+			t4_iq_stop(adap, adap->mbox, adap->pf, 0,
+				   FW_IQ_TYPE_FL_INT_CAP,
+				   eq->rspq.cntxt_id,
+				   eq->fl.size ? eq->fl.cntxt_id : 0xffff,
+				   0xffff);
+	}
 
 	/* clean up Ethernet Tx/Rx queues */
-	for (i = 0; i < adap->sge.ethqsets; i++, eq++, etq++) {
+	for (i = 0; i < adap->sge.ethqsets; i++) {
+		eq = &adap->sge.ethrxq[i];
 		if (eq->rspq.desc)
 			free_rspq_fl(adap, &eq->rspq,
 				     eq->fl.size ? &eq->fl : NULL);
+
+		etq = &adap->sge.ethtxq[i];
 		if (etq->q.desc) {
 			t4_eth_eq_free(adap, adap->mbox, adap->pf, 0,
 				       etq->q.cntxt_id);
@@ -2854,7 +3013,8 @@ void t4_free_sge_resources(struct adapter *adap)
 	}
 
 	/* clean up RDMA and iSCSI Rx queues */
-	t4_free_ofld_rxqs(adap, adap->sge.ofldqsets, adap->sge.ofldrxq);
+	t4_free_ofld_rxqs(adap, adap->sge.iscsiqsets, adap->sge.iscsirxq);
+	t4_free_ofld_rxqs(adap, adap->sge.niscsitq, adap->sge.iscsitrxq);
 	t4_free_ofld_rxqs(adap, adap->sge.rdmaqs, adap->sge.rdmarxq);
 	t4_free_ofld_rxqs(adap, adap->sge.rdmaciqs, adap->sge.rdmaciq);
 
@@ -3047,8 +3207,7 @@ static int t4_sge_init_soft(struct adapter *adap)
 int t4_sge_init(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	u32 sge_control, sge_control2, sge_conm_ctrl;
-	unsigned int ingpadboundary, ingpackboundary;
+	u32 sge_control, sge_conm_ctrl;
 	int ret, egress_threshold;
 
 	/*
@@ -3059,35 +3218,7 @@ int t4_sge_init(struct adapter *adap)
 	s->pktshift = PKTSHIFT_G(sge_control);
 	s->stat_len = (sge_control & EGRSTATUSPAGESIZE_F) ? 128 : 64;
 
-	/* T4 uses a single control field to specify both the PCIe Padding and
-	 * Packing Boundary.  T5 introduced the ability to specify these
-	 * separately.  The actual Ingress Packet Data alignment boundary
-	 * within Packed Buffer Mode is the maximum of these two
-	 * specifications.  (Note that it makes no real practical sense to
-	 * have the Pading Boudary be larger than the Packing Boundary but you
-	 * could set the chip up that way and, in fact, legacy T4 code would
-	 * end doing this because it would initialize the Padding Boundary and
-	 * leave the Packing Boundary initialized to 0 (16 bytes).)
-	 */
-	ingpadboundary = 1 << (INGPADBOUNDARY_G(sge_control) +
-			       INGPADBOUNDARY_SHIFT_X);
-	if (is_t4(adap->params.chip)) {
-		s->fl_align = ingpadboundary;
-	} else {
-		/* T5 has a different interpretation of one of the PCIe Packing
-		 * Boundary values.
-		 */
-		sge_control2 = t4_read_reg(adap, SGE_CONTROL2_A);
-		ingpackboundary = INGPACKBOUNDARY_G(sge_control2);
-		if (ingpackboundary == INGPACKBOUNDARY_16B_X)
-			ingpackboundary = 16;
-		else
-			ingpackboundary = 1 << (ingpackboundary +
-						INGPACKBOUNDARY_SHIFT_X);
-
-		s->fl_align = max(ingpadboundary, ingpackboundary);
-	}
-
+	s->fl_align = t4_fl_pkt_align(adap);
 	ret = t4_sge_init_soft(adap);
 	if (ret < 0)
 		return ret;
@@ -3105,10 +3236,21 @@ int t4_sge_init(struct adapter *adap)
 	 * buffers.
 	 */
 	sge_conm_ctrl = t4_read_reg(adap, SGE_CONM_CTRL_A);
-	if (is_t4(adap->params.chip))
+	switch (CHELSIO_CHIP_VERSION(adap->params.chip)) {
+	case CHELSIO_T4:
 		egress_threshold = EGRTHRESHOLD_G(sge_conm_ctrl);
-	else
+		break;
+	case CHELSIO_T5:
 		egress_threshold = EGRTHRESHOLDPACKING_G(sge_conm_ctrl);
+		break;
+	case CHELSIO_T6:
+		egress_threshold = T6_EGRTHRESHOLDPACKING_G(sge_conm_ctrl);
+		break;
+	default:
+		dev_err(adap->pdev_dev, "Unsupported Chip version %d\n",
+			CHELSIO_CHIP_VERSION(adap->params.chip));
+		return -EINVAL;
+	}
 	s->fl_starve_thres = 2*egress_threshold + 1;
 
 	t4_idma_monitor_init(adap, &s->idma_monitor);

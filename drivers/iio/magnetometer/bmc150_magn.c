@@ -37,7 +37,6 @@
 
 #define BMC150_MAGN_DRV_NAME			"bmc150_magn"
 #define BMC150_MAGN_IRQ_NAME			"bmc150_magn_event"
-#define BMC150_MAGN_GPIO_INT			"interrupt"
 
 #define BMC150_MAGN_REG_CHIP_ID			0x40
 #define BMC150_MAGN_CHIP_ID_VAL			0x32
@@ -833,31 +832,6 @@ static const struct iio_buffer_setup_ops bmc150_magn_buffer_setup_ops = {
 	.postdisable = bmc150_magn_buffer_postdisable,
 };
 
-static int bmc150_magn_gpio_probe(struct i2c_client *client)
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-	int ret;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* data ready GPIO interrupt pin */
-	gpio = devm_gpiod_get_index(dev, BMC150_MAGN_GPIO_INT, 0, GPIOD_IN);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "ACPI GPIO get index failed\n");
-		return PTR_ERR(gpio);
-	}
-
-	ret = gpiod_to_irq(gpio);
-
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
-
-	return ret;
-}
-
 static const char *bmc150_magn_match_acpi_device(struct device *dev)
 {
 	const struct acpi_device_id *id;
@@ -911,9 +885,6 @@ static int bmc150_magn_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmc150_magn_info;
 
-	if (client->irq <= 0)
-		client->irq = bmc150_magn_gpio_probe(client);
-
 	if (client->irq > 0) {
 		data->dready_trig = devm_iio_trigger_alloc(&client->dev,
 							   "%s-dev%d",
@@ -957,27 +928,24 @@ static int bmc150_magn_probe(struct i2c_client *client,
 		goto err_free_irq;
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "unable to register iio device\n");
-		goto err_buffer_cleanup;
-	}
-
 	ret = pm_runtime_set_active(&client->dev);
 	if (ret)
-		goto err_iio_unregister;
+		goto err_buffer_cleanup;
 
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev,
 					 BMC150_MAGN_AUTO_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&client->dev);
 
-	dev_dbg(&indio_dev->dev, "Registered device %s\n", name);
+	ret = iio_device_register(indio_dev);
+	if (ret < 0) {
+		dev_err(&client->dev, "unable to register iio device\n");
+		goto err_buffer_cleanup;
+	}
 
+	dev_dbg(&indio_dev->dev, "Registered device %s\n", name);
 	return 0;
 
-err_iio_unregister:
-	iio_device_unregister(indio_dev);
 err_buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
 err_free_irq:
@@ -996,11 +964,12 @@ static int bmc150_magn_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct bmc150_magn_data *data = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
+
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_put_noidle(&client->dev);
 
-	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 
 	if (client->irq > 0)

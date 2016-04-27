@@ -56,8 +56,8 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/msp3400.h>
-#include <media/tvaudio.h>
+#include <media/drv-intf/msp3400.h>
+#include <media/i2c/tvaudio.h>
 #include "msp3400-driver.h"
 
 /* ---------------------------------------------------------------------- */
@@ -688,6 +688,9 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int msp_revision;
 	int msp_product, msp_prod_hi, msp_prod_lo;
 	int msp_rom;
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	int ret;
+#endif
 
 	if (!id)
 		strlcpy(client->name, "msp3400", sizeof(client->name));
@@ -703,6 +706,17 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &msp_ops);
+
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	state->pads[IF_AUD_DEC_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
+	state->pads[IF_AUD_DEC_PAD_OUT].flags = MEDIA_PAD_FL_SOURCE;
+
+	sd->entity.function = MEDIA_ENT_F_IF_AUD_DECODER;
+
+	ret = media_entity_pads_init(&sd->entity, 2, state->pads);
+	if (ret < 0)
+		return ret;
+#endif
 
 	state->v4l2_std = V4L2_STD_NTSC;
 	state->detected_std = V4L2_STD_ALL;

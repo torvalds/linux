@@ -320,7 +320,7 @@ static int netup_i2c_init(struct netup_unidvb_dev *ndev, int bus_num)
 	i2c = &ndev->i2c[bus_num];
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wq);
-	i2c->regs = (struct netup_i2c_regs *)(ndev->bmmio0 +
+	i2c->regs = (struct netup_i2c_regs __iomem *)(ndev->bmmio0 +
 		(bus_num == 0 ? NETUP_I2C_BUS0_ADDR : NETUP_I2C_BUS1_ADDR));
 	netup_i2c_reset(i2c);
 	i2c->adap = netup_i2c_adapter;

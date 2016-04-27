@@ -904,7 +904,6 @@ static SIMPLE_DEV_PM_OPS(max3100_pm_ops, max3100_suspend, max3100_resume);
 static struct spi_driver max3100_driver = {
 	.driver = {
 		.name		= "max3100",
-		.owner		= THIS_MODULE,
 		.pm		= MAX3100_PM_OPS,
 	},
 	.probe		= max3100_probe,

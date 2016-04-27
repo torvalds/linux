@@ -23,11 +23,12 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  ******************************************************************************/
-/*---------------------------------------------------------------------
-
-	For type defines and data structure defines
-
------------------------------------------------------------------------*/
+/* ---------------------------------------------------------------------
+ *
+ *	For type defines and data structure defines
+ *
+ * ---------------------------------------------------------------------
+ */
 #ifndef __DRV_TYPES_H__
 #define __DRV_TYPES_H__
 
@@ -158,6 +159,7 @@ struct _adapter {
 	struct mp_priv  mppriv;
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;
+	s32	bSuspended;
 	u32	IsrContent;
 	u32	ImrContent;
 	u8	EepromAddressSize;

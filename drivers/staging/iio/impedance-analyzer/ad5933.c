@@ -558,7 +558,7 @@ out:
 }
 
 static const struct iio_info ad5933_info = {
-	.read_raw = &ad5933_read_raw,
+	.read_raw = ad5933_read_raw,
 	.attrs = &ad5933_attribute_group,
 	.driver_module = THIS_MODULE,
 };
@@ -616,9 +616,9 @@ static int ad5933_ring_postdisable(struct iio_dev *indio_dev)
 }
 
 static const struct iio_buffer_setup_ops ad5933_ring_setup_ops = {
-	.preenable = &ad5933_ring_preenable,
-	.postenable = &ad5933_ring_postenable,
-	.postdisable = &ad5933_ring_postdisable,
+	.preenable = ad5933_ring_preenable,
+	.postenable = ad5933_ring_postenable,
+	.postdisable = ad5933_ring_postdisable,
 };
 
 static int ad5933_register_ring_funcs_and_init(struct iio_dev *indio_dev)
@@ -644,7 +644,8 @@ static void ad5933_work(struct work_struct *work)
 	struct ad5933_state *st = container_of(work,
 		struct ad5933_state, work.work);
 	struct iio_dev *indio_dev = i2c_get_clientdata(st->client);
-	signed short buf[2];
+	__be16 buf[2];
+	int val[2];
 	unsigned char status;
 
 	mutex_lock(&indio_dev->mlock);
@@ -668,12 +669,12 @@ static void ad5933_work(struct work_struct *work)
 				scan_count * 2, (u8 *)buf);
 
 		if (scan_count == 2) {
-			buf[0] = be16_to_cpu(buf[0]);
-			buf[1] = be16_to_cpu(buf[1]);
+			val[0] = be16_to_cpu(buf[0]);
+			val[1] = be16_to_cpu(buf[1]);
 		} else {
-			buf[0] = be16_to_cpu(buf[0]);
+			val[0] = be16_to_cpu(buf[0]);
 		}
-		iio_push_to_buffers(indio_dev, buf);
+		iio_push_to_buffers(indio_dev, val);
 	} else {
 		/* no data available - try again later */
 		schedule_delayed_work(&st->work, st->poll_time_jiffies);

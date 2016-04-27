@@ -35,7 +35,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 				        PxD_FLAG_VALID | 
 					PxD_FLAG_ATTACHED) 
 			+ (__u32)(__pa((unsigned long)pgd) >> PxD_VALUE_SHIFT));
-		/* The first pmd entry also is marked with _PAGE_GATEWAY as
+		/* The first pmd entry also is marked with PxD_FLAG_ATTACHED as
 		 * a signal that this pmd may not be freed */
 		__pgd_val_set(*pgd, PxD_FLAG_ATTACHED);
 #endif

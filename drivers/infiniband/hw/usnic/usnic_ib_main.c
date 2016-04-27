@@ -343,16 +343,15 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	netdev = pci_get_drvdata(dev);
 
 	us_ibdev = (struct usnic_ib_dev *)ib_alloc_device(sizeof(*us_ibdev));
-	if (IS_ERR_OR_NULL(us_ibdev)) {
+	if (!us_ibdev) {
 		usnic_err("Device %s context alloc failed\n",
 				netdev_name(pci_get_drvdata(dev)));
-		return ERR_PTR(us_ibdev ? PTR_ERR(us_ibdev) : -EFAULT);
+		return ERR_PTR(-EFAULT);
 	}
 
 	us_ibdev->ufdev = usnic_fwd_dev_alloc(dev);
-	if (IS_ERR_OR_NULL(us_ibdev->ufdev)) {
-		usnic_err("Failed to alloc ufdev for %s with err %ld\n",
-				pci_name(dev), PTR_ERR(us_ibdev->ufdev));
+	if (!us_ibdev->ufdev) {
+		usnic_err("Failed to alloc ufdev for %s\n", pci_name(dev));
 		goto err_dealloc;
 	}
 

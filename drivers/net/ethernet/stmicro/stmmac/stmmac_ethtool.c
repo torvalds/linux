@@ -97,7 +97,7 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(napi_poll),
 	STMMAC_STAT(tx_normal_irq_n),
 	STMMAC_STAT(tx_clean),
-	STMMAC_STAT(tx_reset_ic_bit),
+	STMMAC_STAT(tx_set_ic_bit),
 	STMMAC_STAT(irq_receive_pmt_irq_n),
 	/* MMC info */
 	STMMAC_STAT(mmc_tx_irq_n),
@@ -136,6 +136,31 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(irq_pcs_ane_n),
 	STMMAC_STAT(irq_pcs_link_n),
 	STMMAC_STAT(irq_rgmii_n),
+	/* DEBUG */
+	STMMAC_STAT(mtl_tx_status_fifo_full),
+	STMMAC_STAT(mtl_tx_fifo_not_empty),
+	STMMAC_STAT(mmtl_fifo_ctrl),
+	STMMAC_STAT(mtl_tx_fifo_read_ctrl_write),
+	STMMAC_STAT(mtl_tx_fifo_read_ctrl_wait),
+	STMMAC_STAT(mtl_tx_fifo_read_ctrl_read),
+	STMMAC_STAT(mtl_tx_fifo_read_ctrl_idle),
+	STMMAC_STAT(mac_tx_in_pause),
+	STMMAC_STAT(mac_tx_frame_ctrl_xfer),
+	STMMAC_STAT(mac_tx_frame_ctrl_idle),
+	STMMAC_STAT(mac_tx_frame_ctrl_wait),
+	STMMAC_STAT(mac_tx_frame_ctrl_pause),
+	STMMAC_STAT(mac_gmii_tx_proto_engine),
+	STMMAC_STAT(mtl_rx_fifo_fill_level_full),
+	STMMAC_STAT(mtl_rx_fifo_fill_above_thresh),
+	STMMAC_STAT(mtl_rx_fifo_fill_below_thresh),
+	STMMAC_STAT(mtl_rx_fifo_fill_level_empty),
+	STMMAC_STAT(mtl_rx_fifo_read_ctrl_flush),
+	STMMAC_STAT(mtl_rx_fifo_read_ctrl_read_data),
+	STMMAC_STAT(mtl_rx_fifo_read_ctrl_status),
+	STMMAC_STAT(mtl_rx_fifo_read_ctrl_idle),
+	STMMAC_STAT(mtl_rx_fifo_ctrl_active),
+	STMMAC_STAT(mac_rx_frame_ctrl_fifo),
+	STMMAC_STAT(mac_gmii_rx_proto_engine),
 };
 #define STMMAC_STATS_LEN ARRAY_SIZE(stmmac_gstrings_stats)
 
@@ -497,6 +522,11 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 			if (val)
 				priv->xstats.phy_eee_wakeup_error_n = val;
 		}
+
+		if ((priv->hw->mac->debug) &&
+		    (priv->synopsys_id >= DWMAC_CORE_3_50))
+			priv->hw->mac->debug(priv->ioaddr,
+					     (void *)&priv->xstats);
 	}
 	for (i = 0; i < STMMAC_STATS_LEN; i++) {
 		char *p = (char *)priv + stmmac_gstrings_stats[i].stat_offset;
@@ -721,10 +751,13 @@ static int stmmac_get_ts_info(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if ((priv->hwts_tx_en) && (priv->hwts_rx_en)) {
+	if ((priv->dma_cap.time_stamp || priv->dma_cap.atime_stamp)) {
 
-		info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
+		info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+					SOF_TIMESTAMPING_TX_HARDWARE |
+					SOF_TIMESTAMPING_RX_SOFTWARE |
 					SOF_TIMESTAMPING_RX_HARDWARE |
+					SOF_TIMESTAMPING_SOFTWARE |
 					SOF_TIMESTAMPING_RAW_HARDWARE;
 
 		if (priv->ptp_clock)
@@ -746,6 +779,43 @@ static int stmmac_get_ts_info(struct net_device *dev,
 		return 0;
 	} else
 		return ethtool_op_get_ts_info(dev, info);
+}
+
+static int stmmac_get_tunable(struct net_device *dev,
+			      const struct ethtool_tunable *tuna, void *data)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	int ret = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)data = priv->rx_copybreak;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static int stmmac_set_tunable(struct net_device *dev,
+			      const struct ethtool_tunable *tuna,
+			      const void *data)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	int ret = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		priv->rx_copybreak = *(u32 *)data;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
 }
 
 static const struct ethtool_ops stmmac_ethtool_ops = {
@@ -770,6 +840,8 @@ static const struct ethtool_ops stmmac_ethtool_ops = {
 	.get_ts_info = stmmac_get_ts_info,
 	.get_coalesce = stmmac_get_coalesce,
 	.set_coalesce = stmmac_set_coalesce,
+	.get_tunable = stmmac_get_tunable,
+	.set_tunable = stmmac_set_tunable,
 };
 
 void stmmac_set_ethtool_ops(struct net_device *netdev)

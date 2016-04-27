@@ -40,8 +40,8 @@
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/keyscan-davinci.h>
 
-#include <media/ths7303.h>
-#include <media/tvp514x.h>
+#include <media/i2c/ths7303.h>
+#include <media/i2c/tvp514x.h>
 
 #include "davinci.h"
 

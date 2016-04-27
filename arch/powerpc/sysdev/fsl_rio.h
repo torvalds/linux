@@ -97,6 +97,7 @@ struct fsl_rio_dbell {
 };
 
 struct fsl_rio_pw {
+	struct rio_mport *mport[MAX_PORT_NUM];
 	struct device *dev;
 	struct rio_pw_regs __iomem *pw_regs;
 	struct rio_port_write_msg port_write_msg;

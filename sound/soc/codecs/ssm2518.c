@@ -309,7 +309,7 @@ static const struct snd_pcm_hw_constraint_list ssm2518_constraints_12288000 = {
 	.count = ARRAY_SIZE(ssm2518_rates_12288000),
 };
 
-static unsigned int ssm2518_lookup_mcs(struct ssm2518 *ssm2518,
+static int ssm2518_lookup_mcs(struct ssm2518 *ssm2518,
 	unsigned int rate)
 {
 	const unsigned int *sysclks = NULL;
@@ -723,17 +723,11 @@ static struct snd_soc_codec_driver ssm2518_codec_driver = {
 	.num_dapm_routes = ARRAY_SIZE(ssm2518_routes),
 };
 
-static bool ssm2518_register_volatile(struct device *dev, unsigned int reg)
-{
-	return false;
-}
-
 static const struct regmap_config ssm2518_regmap_config = {
 	.val_bits = 8,
 	.reg_bits = 8,
 
 	.max_register = SSM2518_REG_DRC_9,
-	.volatile_reg = ssm2518_register_volatile,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = ssm2518_reg_defaults,

@@ -128,7 +128,7 @@ ENTRY(_startup)
 	wsr	a0, icountlevel
 
 	.set	_index, 0
-	.rept	XCHAL_NUM_DBREAK - 1
+	.rept	XCHAL_NUM_DBREAK
 	wsr	a0, SREG_DBREAKC + _index
 	.set	_index, _index + 1
 	.endr
@@ -197,11 +197,6 @@ ENTRY(_startup)
 	wsr	a2, ps			# (enable reg-windows; progmode stack)
 	rsync
 
-	/* Set up EXCSAVE[DEBUGLEVEL] to point to the Debug Exception Handler.*/
-
-	movi	a2, debug_exception
-	wsr	a2, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
-
 #ifdef CONFIG_SMP
 	/*
 	 * Notice that we assume with SMP that cores have PRID
@@ -249,7 +244,7 @@ ENTRY(_startup)
 
 	__loopt	a2, a3, a4, 2
 	s32i	a0, a2, 0
-	__endla	a2, a4, 4
+	__endla	a2, a3, 4
 
 #if XCHAL_DCACHE_IS_WRITEBACK
 

@@ -1,21 +1,23 @@
-/*
-   This file contains wireless extension handlers.
-
-   This is part of rtl8180 OpenSource driver.
-   Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
-   Released under the terms of GPL (General Public Licence)
-
-   Parts of this driver are based on the GPL part
-   of the official realtek driver.
-
-   Parts of this driver are based on the rtl8180 driver skeleton
-   from Patric Schenke & Andres Salomon.
-
-   Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
-
-   We want to thank the Authors of those projects and the Ndiswrapper
-   project Authors.
-*/
+/******************************************************************************
+ *
+ * This file contains wireless extension handlers.
+ *
+ * This is part of rtl8180 OpenSource driver.
+ * Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
+ * Released under the terms of GPL (General Public Licence)
+ *
+ * Parts of this driver are based on the GPL part
+ * of the official realtek driver.
+ *
+ * Parts of this driver are based on the rtl8180 driver skeleton
+ * from Patric Schenke & Andres Salomon.
+ *
+ * Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
+ *
+ * We want to thank the Authors of those projects and the Ndiswrapper
+ * project Authors.
+ *
+ *****************************************************************************/
 
 #include <linux/string.h>
 #include "r8192U.h"
@@ -263,12 +265,12 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	range->max_qual.qual = 100;
 	/* TODO: Find real max RSSI and stick here */
 	range->max_qual.level = 0;
-	range->max_qual.noise = -98;
+	range->max_qual.noise = 0x100 - 98;
 	range->max_qual.updated = 7; /* Updated all three */
 
 	range->avg_qual.qual = 92; /* > 8% missed beacons is 'bad' */
 	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
-	range->avg_qual.level = 20 + -98;
+	range->avg_qual.level = 0x100 - 78;
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
 

@@ -53,14 +53,18 @@ struct sst_dsp_device;
 /* HIPCT */
 #define SKL_ADSP_REG_HIPCT_BUSY		BIT(31)
 
+/* FW base IDs */
+#define SKL_INSTANCE_ID			0
+#define SKL_BASE_FW_MODULE_ID		0
+
 /* Intel HD Audio SRAM Window 1 */
 #define SKL_ADSP_SRAM1_BASE		0xA000
 
 #define SKL_ADSP_MMIO_LEN		0x10000
 
-#define SKL_ADSP_W0_STAT_SZ		0x800
+#define SKL_ADSP_W0_STAT_SZ		0x1000
 
-#define SKL_ADSP_W0_UP_SZ		0x800
+#define SKL_ADSP_W0_UP_SZ		0x1000
 
 #define SKL_ADSP_W1_SZ			0x1000
 
@@ -114,6 +118,9 @@ struct skl_dsp_fw_ops {
 	int (*set_state_D0)(struct sst_dsp *ctx);
 	int (*set_state_D3)(struct sst_dsp *ctx);
 	unsigned int (*get_fw_errcode)(struct sst_dsp *ctx);
+	int (*load_mod)(struct sst_dsp *ctx, u16 mod_id, char *mod_name);
+	int (*unload_mod)(struct sst_dsp *ctx, u16 mod_id);
+
 };
 
 struct skl_dsp_loader_ops {
@@ -123,6 +130,17 @@ struct skl_dsp_loader_ops {
 		struct snd_dma_buffer *dmab);
 };
 
+struct skl_load_module_info {
+	u16 mod_id;
+	const struct firmware *fw;
+};
+
+struct skl_module_table {
+	struct skl_load_module_info *mod_info;
+	unsigned int usage_cnt;
+	struct list_head list;
+};
+
 void skl_cldma_process_intr(struct sst_dsp *ctx);
 void skl_cldma_int_disable(struct sst_dsp *ctx);
 int skl_cldma_prepare(struct sst_dsp *ctx);
@@ -130,7 +148,8 @@ int skl_cldma_prepare(struct sst_dsp *ctx);
 void skl_dsp_set_state_locked(struct sst_dsp *ctx, int state);
 struct sst_dsp *skl_dsp_ctx_init(struct device *dev,
 		struct sst_dsp_device *sst_dev, int irq);
-int skl_dsp_disable_core(struct sst_dsp  *ctx);
+int skl_dsp_enable_core(struct sst_dsp *ctx);
+int skl_dsp_disable_core(struct sst_dsp *ctx);
 bool is_skl_dsp_running(struct sst_dsp *ctx);
 irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id);
 int skl_dsp_wake(struct sst_dsp *ctx);
@@ -139,7 +158,8 @@ void skl_dsp_free(struct sst_dsp *dsp);
 
 int skl_dsp_boot(struct sst_dsp *ctx);
 int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp);
+		const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
+		struct skl_sst **dsp);
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 
 #endif /*__SKL_SST_DSP_H__*/

@@ -14,6 +14,7 @@ int  nvkm_hwsq_fini(struct nvkm_hwsq **, bool exec);
 void nvkm_hwsq_wr32(struct nvkm_hwsq *, u32 addr, u32 data);
 void nvkm_hwsq_setf(struct nvkm_hwsq *, u8 flag, int data);
 void nvkm_hwsq_wait(struct nvkm_hwsq *, u8 flag, u8 data);
+void nvkm_hwsq_wait_vblank(struct nvkm_hwsq *);
 void nvkm_hwsq_nsec(struct nvkm_hwsq *, u32 nsec);
 
 int nv04_bus_new(struct nvkm_device *, int, struct nvkm_bus **);

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -267,8 +267,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 	if (!reload &&
 	    acpi_gbl_disable_ssdt_table_install &&
 	    ACPI_COMPARE_NAME(&new_table_desc.signature, ACPI_SIG_SSDT)) {
-		ACPI_INFO((AE_INFO,
-			   "Ignoring installation of %4.4s at %8.8X%8.8X",
+		ACPI_INFO(("Ignoring installation of %4.4s at %8.8X%8.8X",
 			   new_table_desc.signature.ascii,
 			   ACPI_FORMAT_UINT64(address)));
 		goto release_and_exit;
@@ -337,8 +336,8 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 			 * need to be unregistered when they are unloaded, and slots in the
 			 * root table list should be reused when empty.
 			 */
-			if (acpi_gbl_root_table_list.tables[i].
-			    flags & ACPI_TABLE_IS_LOADED) {
+			if (acpi_gbl_root_table_list.tables[i].flags &
+			    ACPI_TABLE_IS_LOADED) {
 
 				/* Table is still loaded, this is an error */
 
@@ -432,7 +431,7 @@ finish_override:
 		return;
 	}
 
-	ACPI_INFO((AE_INFO, "%4.4s 0x%8.8X%8.8X"
+	ACPI_INFO(("%4.4s 0x%8.8X%8.8X"
 		   " %s table override, new table: 0x%8.8X%8.8X",
 		   old_table_desc->signature.ascii,
 		   ACPI_FORMAT_UINT64(old_table_desc->address),

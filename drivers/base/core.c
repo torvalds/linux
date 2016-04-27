@@ -1066,7 +1066,7 @@ int device_add(struct device *dev)
 		dev->kobj.parent = kobj;
 
 	/* use parent numa_node */
-	if (parent)
+	if (parent && (dev_to_node(dev) == NUMA_NO_NODE))
 		set_dev_node(dev, dev_to_node(parent));
 
 	/* first, register with generic layer. */
@@ -2261,7 +2261,10 @@ void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode)
 		if (fwnode_is_primary(fn))
 			fn = fn->secondary;
 
-		fwnode->secondary = fn;
+		if (fn) {
+			WARN_ON(fwnode->secondary);
+			fwnode->secondary = fn;
+		}
 		dev->fwnode = fwnode;
 	} else {
 		dev->fwnode = fwnode_is_primary(dev->fwnode) ?

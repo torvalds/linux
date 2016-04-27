@@ -92,7 +92,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 /* ------------------------------------------------------------------ */
 
-static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+static int queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -110,18 +110,20 @@ static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 
 static int buffer_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx23885_tsport *port = vb->vb2_queue->drv_priv;
 	struct cx23885_buffer *buf =
-		container_of(vb, struct cx23885_buffer, vb);
+		container_of(vbuf, struct cx23885_buffer, vb);
 
 	return cx23885_buf_prepare(buf, port);
 }
 
 static void buffer_finish(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx23885_tsport *port = vb->vb2_queue->drv_priv;
 	struct cx23885_dev *dev = port->dev;
-	struct cx23885_buffer *buf = container_of(vb,
+	struct cx23885_buffer *buf = container_of(vbuf,
 		struct cx23885_buffer, vb);
 
 	cx23885_free_buffer(dev, buf);
@@ -129,8 +131,9 @@ static void buffer_finish(struct vb2_buffer *vb)
 
 static void buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx23885_tsport *port = vb->vb2_queue->drv_priv;
-	struct cx23885_buffer   *buf = container_of(vb,
+	struct cx23885_buffer   *buf = container_of(vbuf,
 		struct cx23885_buffer, vb);
 
 	cx23885_buf_queue(port, buf);
@@ -1136,7 +1139,7 @@ static int dvb_register_ci_mac(struct cx23885_tsport *port)
 		u8 eeprom[256]; /* 24C02 i2c eeprom */
 		struct sp2_config sp2_config;
 		struct i2c_board_info info;
-		struct cx23885_i2c *i2c_bus2 = &dev->i2c_bus[1];
+		struct cx23885_i2c *i2c_bus = &dev->i2c_bus[0];
 
 		/* attach CI */
 		memset(&sp2_config, 0, sizeof(sp2_config));
@@ -1148,7 +1151,7 @@ static int dvb_register_ci_mac(struct cx23885_tsport *port)
 		info.addr = 0x40;
 		info.platform_data = &sp2_config;
 		request_module(info.type);
-		client_ci = i2c_new_device(&i2c_bus2->i2c_adap, &info);
+		client_ci = i2c_new_device(&i2c_bus->i2c_adap, &info);
 		if (client_ci == NULL || client_ci->dev.driver == NULL)
 			return -ENODEV;
 		if (!try_module_get(client_ci->dev.driver->owner)) {
@@ -1985,8 +1988,8 @@ static int dvb_register(struct cx23885_tsport *port)
 		break;
 	case CX23885_BOARD_DVBSKY_T980C:
 	case CX23885_BOARD_TT_CT2_4500_CI:
-		i2c_bus = &dev->i2c_bus[1];
-		i2c_bus2 = &dev->i2c_bus[0];
+		i2c_bus = &dev->i2c_bus[0];
+		i2c_bus2 = &dev->i2c_bus[1];
 
 		/* attach frontend */
 		memset(&si2168_config, 0, sizeof(si2168_config));
@@ -1998,7 +2001,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		info.addr = 0x64;
 		info.platform_data = &si2168_config;
 		request_module(info.type);
-		client_demod = i2c_new_device(&i2c_bus->i2c_adap, &info);
+		client_demod = i2c_new_device(&i2c_bus2->i2c_adap, &info);
 		if (client_demod == NULL || client_demod->dev.driver == NULL)
 			goto frontend_detach;
 		if (!try_module_get(client_demod->dev.driver->owner)) {
@@ -2027,13 +2030,13 @@ static int dvb_register(struct cx23885_tsport *port)
 		port->i2c_client_tuner = client_tuner;
 		break;
 	case CX23885_BOARD_DVBSKY_S950C:
-		i2c_bus = &dev->i2c_bus[1];
-		i2c_bus2 = &dev->i2c_bus[0];
+		i2c_bus = &dev->i2c_bus[0];
+		i2c_bus2 = &dev->i2c_bus[1];
 
 		/* attach frontend */
 		fe0->dvb.frontend = dvb_attach(m88ds3103_attach,
 				&dvbsky_s950c_m88ds3103_config,
-				&i2c_bus->i2c_adap, &adapter);
+				&i2c_bus2->i2c_adap, &adapter);
 		if (fe0->dvb.frontend == NULL)
 			break;
 
@@ -2165,10 +2168,11 @@ static int dvb_register(struct cx23885_tsport *port)
 		}
 		port->i2c_client_tuner = client_tuner;
 		break;
-	case CX23885_BOARD_HAUPPAUGE_HVR5525:
-		switch (port->nr) {
+	case CX23885_BOARD_HAUPPAUGE_HVR5525: {
 		struct m88rs6000t_config m88rs6000t_config;
 		struct a8293_platform_data a8293_pdata = {};
+
+		switch (port->nr) {
 
 		/* port b - satellite */
 		case 1:
@@ -2264,6 +2268,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			break;
 		}
 		break;
+	}
 	default:
 		printk(KERN_INFO "%s: The frontend of your DVB/ATSC card "
 			" isn't supported yet\n",
@@ -2296,7 +2301,8 @@ static int dvb_register(struct cx23885_tsport *port)
 
 	/* register everything */
 	ret = vb2_dvb_register_bus(&port->frontends, THIS_MODULE, port,
-					&dev->pci->dev, adapter_nr, mfe_shared);
+				   &dev->pci->dev, NULL,
+				   adapter_nr, mfe_shared);
 	if (ret)
 		goto frontend_detach;
 

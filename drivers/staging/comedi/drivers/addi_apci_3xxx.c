@@ -27,9 +27,9 @@
 
 #include "../comedi_pci.h"
 
-#define CONV_UNIT_NS		(1 << 0)
-#define CONV_UNIT_US		(1 << 1)
-#define CONV_UNIT_MS		(1 << 2)
+#define CONV_UNIT_NS		BIT(0)
+#define CONV_UNIT_US		BIT(1)
+#define CONV_UNIT_MS		BIT(2)
 
 static const struct comedi_lrange apci3xxx_ai_range = {
 	8, {
@@ -496,7 +496,7 @@ static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
 		switch (flags & CMDF_ROUND_MASK) {
 		case CMDF_ROUND_NEAREST:
 		default:
-			timer = (*ns + base / 2) / base;
+			timer = DIV_ROUND_CLOSEST(*ns, base);
 			break;
 		case CMDF_ROUND_DOWN:
 			timer = *ns / base;

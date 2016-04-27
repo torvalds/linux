@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __LINUX_FBTFT_H
@@ -23,15 +19,6 @@
 #include <linux/spinlock.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
-
-
-#define FBTFT_NOP		0x00
-#define FBTFT_SWRESET	0x01
-#define FBTFT_RDDID		0x04
-#define FBTFT_RDDST		0x09
-#define FBTFT_CASET		0x2A
-#define FBTFT_RASET		0x2B
-#define FBTFT_RAMWR		0x2C
 
 #define FBTFT_ONBOARD_BACKLIGHT 2
 
@@ -251,7 +238,7 @@ struct fbtft_par {
 	} gamma;
 	unsigned long debug;
 	bool first_update_done;
-	struct timespec update_time;
+	ktime_t update_time;
 	bool bgr;
 	void *extra;
 };
@@ -295,7 +282,6 @@ void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...);
 void fbtft_write_reg16_bus8(struct fbtft_par *par, int len, ...);
 void fbtft_write_reg16_bus16(struct fbtft_par *par, int len, ...);
 
-
 #define FBTFT_REGISTER_DRIVER(_name, _compatible, _display)                \
 									   \
 static int fbtft_driver_probe_spi(struct spi_device *spi)                  \
@@ -333,7 +319,6 @@ MODULE_DEVICE_TABLE(of, dt_ids);                                           \
 static struct spi_driver fbtft_driver_spi_driver = {                       \
 	.driver = {                                                        \
 		.name   = _name,                                           \
-		.owner  = THIS_MODULE,                                     \
 		.of_match_table = of_match_ptr(dt_ids),                    \
 	},                                                                 \
 	.probe  = fbtft_driver_probe_spi,                                  \
@@ -368,7 +353,6 @@ static void __exit fbtft_driver_module_exit(void)                          \
 									   \
 module_init(fbtft_driver_module_init);                                     \
 module_exit(fbtft_driver_module_exit);
-
 
 /* Debug macros */
 
@@ -415,7 +399,6 @@ module_exit(fbtft_driver_module_exit);
 #define DEBUG_REQUEST_GPIOS_MATCH   (1<<30)
 #define DEBUG_VERIFY_GPIOS          (1<<31)
 
-
 #define fbtft_init_dbg(dev, format, arg...)                  \
 do {                                                         \
 	if (unlikely((dev)->platform_data &&                 \
@@ -428,7 +411,6 @@ do {                                                         \
 	if (unlikely(par->debug & level))                    \
 		dev_info(par->info->device, format, ##arg);  \
 } while (0)
-
 
 #define fbtft_par_dbg_hex(level, par, dev, type, buf, num, format, arg...) \
 do {                                                                       \

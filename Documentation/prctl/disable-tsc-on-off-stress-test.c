@@ -78,7 +78,7 @@ static void task(void)
 }
 
 
-int main(int argc, char **argv)
+int main(void)
 {
 	int n_tasks = 100, i;
 

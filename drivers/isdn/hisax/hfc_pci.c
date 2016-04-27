@@ -901,7 +901,7 @@ Begin:
 					ptr--;
 					*ptr++ = '\n';
 					*ptr = 0;
-					HiSax_putstatus(cs, NULL, "%s", cs->dlog);
+					HiSax_putstatus(cs, NULL, cs->dlog);
 				} else
 					HiSax_putstatus(cs, "LogEcho: ", "warning Frame too big (%d)", total - 3);
 			}

@@ -153,7 +153,7 @@ static inline void clr_fwstate(struct mlme_priv *pmlmepriv, sint state)
 	unsigned long irqL;
 
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
-	if (check_fwstate(pmlmepriv, state) == true)
+	if (check_fwstate(pmlmepriv, state))
 		pmlmepriv->fw_state ^= state;
 	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
 }

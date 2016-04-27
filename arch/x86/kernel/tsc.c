@@ -43,6 +43,11 @@ static DEFINE_STATIC_KEY_FALSE(__use_tsc);
 
 int tsc_clocksource_reliable;
 
+static u32 art_to_tsc_numerator;
+static u32 art_to_tsc_denominator;
+static u64 art_to_tsc_offset;
+struct clocksource *art_related_clocksource;
+
 /*
  * Use a ring-buffer like data structure, where a writer advances the head by
  * writing a new data entry and a reader advances the tail when it observes a
@@ -168,21 +173,20 @@ static void cyc2ns_write_end(int cpu, struct cyc2ns_data *data)
  *              ns = cycles * cyc2ns_scale / SC
  *
  *      And since SC is a constant power of two, we can convert the div
- *  into a shift.
+ *  into a shift. The larger SC is, the more accurate the conversion, but
+ *  cyc2ns_scale needs to be a 32-bit value so that 32-bit multiplication
+ *  (64-bit result) can be used.
  *
- *  We can use khz divisor instead of mhz to keep a better precision, since
- *  cyc2ns_scale is limited to 10^6 * 2^10, which fits in 32 bits.
+ *  We can use khz divisor instead of mhz to keep a better precision.
  *  (mathieu.desnoyers@polymtl.ca)
  *
  *                      -johnstul@us.ibm.com "math is hard, lets go shopping!"
  */
 
-#define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
-
 static void cyc2ns_data_init(struct cyc2ns_data *data)
 {
 	data->cyc2ns_mul = 0;
-	data->cyc2ns_shift = CYC2NS_SCALE_FACTOR;
+	data->cyc2ns_shift = 0;
 	data->cyc2ns_offset = 0;
 	data->__count = 0;
 }
@@ -216,14 +220,14 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 
 	if (likely(data == tail)) {
 		ns = data->cyc2ns_offset;
-		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, CYC2NS_SCALE_FACTOR);
+		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, data->cyc2ns_shift);
 	} else {
 		data->__count++;
 
 		barrier();
 
 		ns = data->cyc2ns_offset;
-		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, CYC2NS_SCALE_FACTOR);
+		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, data->cyc2ns_shift);
 
 		barrier();
 
@@ -257,12 +261,22 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	 * time function is continuous; see the comment near struct
 	 * cyc2ns_data.
 	 */
-	data->cyc2ns_mul =
-		DIV_ROUND_CLOSEST(NSEC_PER_MSEC << CYC2NS_SCALE_FACTOR,
-				  cpu_khz);
-	data->cyc2ns_shift = CYC2NS_SCALE_FACTOR;
+	clocks_calc_mult_shift(&data->cyc2ns_mul, &data->cyc2ns_shift, cpu_khz,
+			       NSEC_PER_MSEC, 0);
+
+	/*
+	 * cyc2ns_shift is exported via arch_perf_update_userpage() where it is
+	 * not expected to be greater than 31 due to the original published
+	 * conversion algorithm shifting a 32-bit value (now specifies a 64-bit
+	 * value) - refer perf_event_mmap_page documentation in perf_event.h.
+	 */
+	if (data->cyc2ns_shift == 32) {
+		data->cyc2ns_shift = 31;
+		data->cyc2ns_mul >>= 1;
+	}
+
 	data->cyc2ns_offset = ns_now -
-		mul_u64_u32_shr(tsc_now, data->cyc2ns_mul, CYC2NS_SCALE_FACTOR);
+		mul_u64_u32_shr(tsc_now, data->cyc2ns_mul, data->cyc2ns_shift);
 
 	cyc2ns_write_end(cpu, data);
 
@@ -867,7 +881,7 @@ void tsc_restore_sched_clock_state(void)
 	local_irq_save(flags);
 
 	/*
-	 * We're comming out of suspend, there's no concurrency yet; don't
+	 * We're coming out of suspend, there's no concurrency yet; don't
 	 * bother being nice about the RCU stuff, just write to both
 	 * data fields.
 	 */
@@ -954,6 +968,37 @@ static int __init cpufreq_tsc(void)
 core_initcall(cpufreq_tsc);
 
 #endif /* CONFIG_CPU_FREQ */
+
+#define ART_CPUID_LEAF (0x15)
+#define ART_MIN_DENOMINATOR (1)
+
+
+/*
+ * If ART is present detect the numerator:denominator to convert to TSC
+ */
+static void detect_art(void)
+{
+	unsigned int unused[2];
+
+	if (boot_cpu_data.cpuid_level < ART_CPUID_LEAF)
+		return;
+
+	cpuid(ART_CPUID_LEAF, &art_to_tsc_denominator,
+	      &art_to_tsc_numerator, unused, unused+1);
+
+	/* Don't enable ART in a VM, non-stop TSC required */
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR) ||
+	    !boot_cpu_has(X86_FEATURE_NONSTOP_TSC) ||
+	    art_to_tsc_denominator < ART_MIN_DENOMINATOR)
+		return;
+
+	if (rdmsrl_safe(MSR_IA32_TSC_ADJUST, &art_to_tsc_offset))
+		return;
+
+	/* Make this sticky over multiple CPU init calls */
+	setup_force_cpu_cap(X86_FEATURE_ART);
+}
+
 
 /* clocksource code */
 
@@ -1062,6 +1107,25 @@ int unsynchronized_tsc(void)
 	return 0;
 }
 
+/*
+ * Convert ART to TSC given numerator/denominator found in detect_art()
+ */
+struct system_counterval_t convert_art_to_tsc(cycle_t art)
+{
+	u64 tmp, res, rem;
+
+	rem = do_div(art, art_to_tsc_denominator);
+
+	res = art * art_to_tsc_numerator;
+	tmp = rem * art_to_tsc_numerator;
+
+	do_div(tmp, art_to_tsc_denominator);
+	res += tmp + art_to_tsc_offset;
+
+	return (struct system_counterval_t) {.cs = art_related_clocksource,
+			.cycles = res};
+}
+EXPORT_SYMBOL(convert_art_to_tsc);
 
 static void tsc_refine_calibration_work(struct work_struct *work);
 static DECLARE_DELAYED_WORK(tsc_irqwork, tsc_refine_calibration_work);
@@ -1133,6 +1197,8 @@ static void tsc_refine_calibration_work(struct work_struct *work)
 		(unsigned long)tsc_khz % 1000);
 
 out:
+	if (boot_cpu_has(X86_FEATURE_ART))
+		art_related_clocksource = &clocksource_tsc;
 	clocksource_register_khz(&clocksource_tsc, tsc_khz);
 }
 
@@ -1175,8 +1241,6 @@ void __init tsc_init(void)
 {
 	u64 lpj;
 	int cpu;
-
-	x86_init.timers.tsc_pre_init();
 
 	if (!cpu_has_tsc) {
 		setup_clear_cpu_cap(X86_FEATURE_TSC_DEADLINE_TIMER);
@@ -1228,6 +1292,8 @@ void __init tsc_init(void)
 		mark_tsc_unstable("TSCs unsynchronized");
 
 	check_system_tsc_reliable();
+
+	detect_art();
 }
 
 #ifdef CONFIG_SMP
@@ -1239,14 +1305,18 @@ void __init tsc_init(void)
  */
 unsigned long calibrate_delay_is_known(void)
 {
-	int i, cpu = smp_processor_id();
+	int sibling, cpu = smp_processor_id();
+	struct cpumask *mask = topology_core_cpumask(cpu);
 
 	if (!tsc_disabled && !cpu_has(&cpu_data(cpu), X86_FEATURE_CONSTANT_TSC))
 		return 0;
 
-	for_each_online_cpu(i)
-		if (cpu_data(i).phys_proc_id == cpu_data(cpu).phys_proc_id)
-			return cpu_data(i).loops_per_jiffy;
+	if (!mask)
+		return 0;
+
+	sibling = cpumask_any_but(mask, cpu);
+	if (sibling < nr_cpu_ids)
+		return cpu_data(sibling).loops_per_jiffy;
 	return 0;
 }
 #endif

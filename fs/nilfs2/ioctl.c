@@ -158,7 +158,7 @@ static int nilfs_ioctl_setflags(struct inode *inode, struct file *filp,
 
 	flags = nilfs_mask_flags(inode->i_mode, flags);
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	oldflags = NILFS_I(inode)->i_flags;
 
@@ -186,7 +186,7 @@ static int nilfs_ioctl_setflags(struct inode *inode, struct file *filp,
 	nilfs_mark_inode_dirty(inode);
 	ret = nilfs_transaction_commit(inode->i_sb);
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	mnt_drop_write_file(filp);
 	return ret;
 }

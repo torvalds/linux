@@ -43,6 +43,8 @@
  * @port_num: The port number of the device to query.
  * @index: The index into the cached GID table to query.
  * @gid: The GID value found at the specified index.
+ * @attr: The GID attribute found at the specified index (only in RoCE).
+ *   NULL means ignore (output parameter).
  *
  * ib_get_cached_gid() fetches the specified GID table entry stored in
  * the local software cache.
@@ -50,13 +52,16 @@
 int ib_get_cached_gid(struct ib_device    *device,
 		      u8                   port_num,
 		      int                  index,
-		      union ib_gid        *gid);
+		      union ib_gid        *gid,
+		      struct ib_gid_attr  *attr);
 
 /**
  * ib_find_cached_gid - Returns the port number and GID table index where
  *   a specified GID value occurs.
  * @device: The device to query.
  * @gid: The GID value to search for.
+ * @gid_type: The GID type to search for.
+ * @ndev: In RoCE, the net device of the device. NULL means ignore.
  * @port_num: The port number of the device where the GID value was found.
  * @index: The index into the cached GID table where the GID was found.  This
  *   parameter may be NULL.
@@ -64,11 +69,42 @@ int ib_get_cached_gid(struct ib_device    *device,
  * ib_find_cached_gid() searches for the specified GID value in
  * the local software cache.
  */
-int ib_find_cached_gid(struct ib_device   *device,
+int ib_find_cached_gid(struct ib_device *device,
 		       const union ib_gid *gid,
-		       u8                 *port_num,
-		       u16                *index);
+		       enum ib_gid_type gid_type,
+		       struct net_device *ndev,
+		       u8               *port_num,
+		       u16              *index);
 
+/**
+ * ib_find_cached_gid_by_port - Returns the GID table index where a specified
+ * GID value occurs
+ * @device: The device to query.
+ * @gid: The GID value to search for.
+ * @gid_type: The GID type to search for.
+ * @port_num: The port number of the device where the GID value sould be
+ *   searched.
+ * @ndev: In RoCE, the net device of the device. Null means ignore.
+ * @index: The index into the cached GID table where the GID was found.  This
+ *   parameter may be NULL.
+ *
+ * ib_find_cached_gid() searches for the specified GID value in
+ * the local software cache.
+ */
+int ib_find_cached_gid_by_port(struct ib_device *device,
+			       const union ib_gid *gid,
+			       enum ib_gid_type gid_type,
+			       u8               port_num,
+			       struct net_device *ndev,
+			       u16              *index);
+
+int ib_find_gid_by_filter(struct ib_device *device,
+			  const union ib_gid *gid,
+			  u8 port_num,
+			  bool (*filter)(const union ib_gid *gid,
+					 const struct ib_gid_attr *,
+					 void *),
+			  void *context, u16 *index);
 /**
  * ib_get_cached_pkey - Returns a cached PKey table entry
  * @device: The device to query.

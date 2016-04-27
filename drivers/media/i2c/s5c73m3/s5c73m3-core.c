@@ -34,7 +34,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
-#include <media/s5c73m3.h>
+#include <media/i2c/s5c73m3.h>
 #include <media/v4l2-of.h>
 
 #include "s5c73m3.h"
@@ -167,7 +167,7 @@ static int s5c73m3_i2c_read(struct i2c_client *client, u16 addr, u16 *data)
 	 */
 	ret = i2c_transfer(client->adapter, msg, 2);
 	if (ret == 2) {
-		*data = be16_to_cpup((u16 *)rbuf);
+		*data = be16_to_cpup((__be16 *)rbuf);
 		v4l2_dbg(4, s5c73m3_dbg, client,
 			 "%s: addr: 0x%04x, data: 0x%04x\n",
 			 __func__, addr, *data);
@@ -1482,11 +1482,11 @@ static int s5c73m3_oif_registered(struct v4l2_subdev *sd)
 		return ret;
 	}
 
-	ret = media_entity_create_link(&state->sensor_sd.entity,
+	ret = media_create_pad_link(&state->sensor_sd.entity,
 			S5C73M3_ISP_PAD, &state->oif_sd.entity, OIF_ISP_PAD,
 			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
 
-	ret = media_entity_create_link(&state->sensor_sd.entity,
+	ret = media_create_pad_link(&state->sensor_sd.entity,
 			S5C73M3_JPEG_PAD, &state->oif_sd.entity, OIF_JPEG_PAD,
 			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
 
@@ -1639,8 +1639,10 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 		return 0;
 	}
 
-	v4l2_of_parse_endpoint(node_ep, &ep);
+	ret = v4l2_of_parse_endpoint(node_ep, &ep);
 	of_node_put(node_ep);
+	if (ret)
+		return ret;
 
 	if (ep.bus_type != V4L2_MBUS_CSI2) {
 		dev_err(dev, "unsupported bus type\n");
@@ -1688,10 +1690,10 @@ static int s5c73m3_probe(struct i2c_client *client,
 
 	state->sensor_pads[S5C73M3_JPEG_PAD].flags = MEDIA_PAD_FL_SOURCE;
 	state->sensor_pads[S5C73M3_ISP_PAD].flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
-	ret = media_entity_init(&sd->entity, S5C73M3_NUM_PADS,
-							state->sensor_pads, 0);
+	ret = media_entity_pads_init(&sd->entity, S5C73M3_NUM_PADS,
+							state->sensor_pads);
 	if (ret < 0)
 		return ret;
 
@@ -1704,10 +1706,10 @@ static int s5c73m3_probe(struct i2c_client *client,
 	state->oif_pads[OIF_ISP_PAD].flags = MEDIA_PAD_FL_SINK;
 	state->oif_pads[OIF_JPEG_PAD].flags = MEDIA_PAD_FL_SINK;
 	state->oif_pads[OIF_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
-	oif_sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
+	oif_sd->entity.function = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
 
-	ret = media_entity_init(&oif_sd->entity, OIF_NUM_PADS,
-							state->oif_pads, 0);
+	ret = media_entity_pads_init(&oif_sd->entity, OIF_NUM_PADS,
+							state->oif_pads);
 	if (ret < 0)
 		return ret;
 

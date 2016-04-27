@@ -55,22 +55,25 @@
 #define CONTROLVM_CRASHMSG_MAX		2
 
 struct spar_segment_state  {
-	u16 enabled:1;		/* Bit 0: May enter other states */
-	u16 active:1;		/* Bit 1: Assigned to active partition */
-	u16 alive:1;		/* Bit 2: Configure message sent to
-				 * service/server */
-	u16 revoked:1;		/* Bit 3: similar to partition state
-				 * ShuttingDown */
-	u16 allocated:1;	/* Bit 4: memory (device/port number)
-				 * has been selected by Command */
-	u16 known:1;		/* Bit 5: has been introduced to the
-				 * service/guest partition */
-	u16 ready:1;		/* Bit 6: service/Guest partition has
-				 * responded to introduction */
-	u16 operating:1;	/* Bit 7: resource is configured and
-				 * operating */
-	/* Note: don't use high bit unless we need to switch to ushort
-	 * which is non-compliant */
+	/* Bit 0: May enter other states */
+	u16 enabled:1;
+	/* Bit 1: Assigned to active partition */
+	u16 active:1;
+	/* Bit 2: Configure message sent to service/server */
+	u16 alive:1;
+	/* Bit 3: similar to partition state ShuttingDown */
+	u16 revoked:1;
+	/* Bit 4: memory (device/port number) has been selected by Command */
+	u16 allocated:1;
+	/* Bit 5: has been introduced to the service/guest partition */
+	u16 known:1;
+	/* Bit 6: service/Guest partition has responded to introduction */
+	u16 ready:1;
+	/* Bit 7: resource is configured and operating */
+	u16 operating:1;
+/* Note: don't use high bit unless we need to switch to ushort
+ * which is non-compliant
+ */
 };
 
 static const struct spar_segment_state segment_state_running = {
@@ -177,53 +180,53 @@ struct controlvm_message_header  {
 	/* For requests, indicates the message type. */
 	/* For responses, indicates the type of message we are responding to. */
 
-	u32 message_size;	/* Includes size of this struct + size
-				 * of message */
-	u32 segment_index;	/* Index of segment containing Vm
-				 * message/information */
-	u32 completion_status;	/* Error status code or result of
-				 * message completion */
+	/* Includes size of this struct + size of message */
+	u32 message_size;
+	/* Index of segment containing Vm message/information */
+	u32 segment_index;
+	/* Error status code or result of  message completion */
+	u32 completion_status;
 	struct  {
-		u32 failed:1;		   /* =1 in a response to * signify
-					    * failure */
-		u32 response_expected:1;   /* =1 in all messages that expect a
-					    * response (Control ignores this
-					    * bit) */
-		u32 server:1;		   /* =1 in all bus & device-related
-					    * messages where the message
-					    * receiver is to act as the bus or
-					    * device server */
-		u32 test_message:1;	   /* =1 for testing use only
-					    * (Control and Command ignore this
-					    * bit) */
-		u32 partial_completion:1;  /* =1 if there are forthcoming
-					    * responses/acks associated
-					    * with this message */
-		u32 preserve:1;		   /* =1 this is to let us know to
-					    * preserve channel contents
-					    * (for running guests)*/
-		u32 writer_in_diag:1;	   /* =1 the DiagWriter is active in the
-					    * Diagnostic Partition*/
+		/* =1 in a response to signify failure */
+		u32 failed:1;
+		/* =1 in all messages that expect a response */
+		u32 response_expected:1;
+		/* =1 in all bus & device-related messages where the message
+		 * receiver is to act as the bus or device server
+		 */
+		u32 server:1;
+		/* =1 for testing use only (Control and Command ignore this */
+		u32 test_message:1;
+		/* =1 if there are forthcoming responses/acks associated
+		 * with this message
+		 */
+		u32 partial_completion:1;
+		/* =1 this is to let us know to preserve channel contents */
+		u32 preserve:1;
+		/* =1 the DiagWriter is active in the Diagnostic Partition */
+		u32 writer_in_diag:1;
 	} flags;
-	u32 reserved;		/* Natural alignment */
-	u64 message_handle;	/* Identifies the particular message instance,
-				 * and is used to match particular */
+	/* Natural alignment */
+	u32 reserved;
+	/* Identifies the particular message instance */
+	u64 message_handle;
 	/* request instances with the corresponding response instance. */
-	u64 payload_vm_offset;	/* Offset of payload area from start of this
-				 * instance of ControlVm segment */
-	u32 payload_max_bytes;	/* Maximum bytes allocated in payload
-				 * area of ControlVm segment */
-	u32 payload_bytes;	/* Actual number of bytes of payload
-				 * area to copy between IO/Command; */
+	/* Offset of payload area from start of this instance */
+	u64 payload_vm_offset;
+	/* Maximum bytes allocated in payload area of ControlVm segment */
+	u32 payload_max_bytes;
+	/* Actual number of bytes of payload area to copy between IO/Command */
+	u32 payload_bytes;
 	/* if non-zero, there is a payload to copy. */
 };
 
 struct controlvm_packet_device_create  {
 	u32 bus_no;		/* bus # (0..n-1) from the msg receiver's end */
 	u32 dev_no;		/* bus-relative (0..n-1) device number */
-	u64 channel_addr;	/* Guest physical address of the channel, which
-				 * can be dereferenced by the receiver of this
-				 * ControlVm command */
+	/* Guest physical address of the channel, which can be dereferenced by
+	 * the receiver of this ControlVm command
+	 */
+	u64 channel_addr;
 	u64 channel_bytes;	/* specifies size of the channel in bytes */
 	uuid_le data_type_uuid;	/* specifies format of data in channel */
 	uuid_le dev_inst_uuid;	/* instance guid for the device */
@@ -231,8 +234,8 @@ struct controlvm_packet_device_create  {
 };	/* for CONTROLVM_DEVICE_CREATE */
 
 struct controlvm_packet_device_configure  {
-	u32 bus_no;	      /* bus # (0..n-1) from the msg
-			       * receiver's perspective */
+	/* bus # (0..n-1) from the msg receiver's perspective */
+	u32 bus_no;
 	/* Control uses header SegmentIndex field to access bus number... */
 	u32 dev_no;	      /* bus-relative (0..n-1) device number */
 } ;	/* for CONTROLVM_DEVICE_CONFIGURE */
@@ -251,50 +254,50 @@ struct controlvm_message_device_configure  {
 struct controlvm_message_packet  {
 	union  {
 		struct  {
-			u32 bus_no;	/* bus # (0..n-1) from the msg
-					 * receiver's perspective */
-			u32 dev_count;	/* indicates the max number of
-					 * devices on this bus */
-			u64 channel_addr;	/* Guest physical address of
-						 * the channel, which can be
-						 * dereferenced by the receiver
-						 * of this ControlVm command */
+	/* bus # (0..n-1) from the msg receiver's perspective */
+			u32 bus_no;
+	/* indicates the max number of devices on this bus */
+			u32 dev_count;
+	/* Guest physical address of the channel, which can be
+	 * dereferenced by the receiver of this ControlVm command
+	 */
+			u64 channel_addr;
 			u64 channel_bytes;	/* size of the channel */
-			uuid_le bus_data_type_uuid;	/* indicates format of
-							 * data in bus channel*/
+	/* indicates format of data in bus channel*/
+			uuid_le bus_data_type_uuid;
 			uuid_le bus_inst_uuid;	/* instance uuid for the bus */
 		} create_bus;	/* for CONTROLVM_BUS_CREATE */
 		struct  {
-			u32 bus_no;	/* bus # (0..n-1) from the msg
-					 * receiver's perspective */
+	/* bus # (0..n-1) from the msg receiver's perspective */
+			u32 bus_no;
 			u32 reserved;	/* Natural alignment purposes */
 		} destroy_bus;	/* for CONTROLVM_BUS_DESTROY */
 		struct  {
-			u32 bus_no;	/* bus # (0..n-1) from the receiver's
-					 * perspective */
+	/* bus # (0..n-1) from the receiver's perspective */
+			u32 bus_no;
 			u32 reserved1;	/* for alignment purposes */
-			u64 guest_handle;	/* This is used to convert
-						 * guest physical address to
-						 * physical address */
+	/* This is used to convert guest physical address to physical address */
+			u64 guest_handle;
 			u64 recv_bus_irq_handle;
 				/* specifies interrupt info. It is used by SP
 				 * to register to receive interrupts from the
 				 * CP. This interrupt is used for bus level
 				 * notifications.  The corresponding
-				 * sendBusInterruptHandle is kept in CP. */
+				 * sendBusInterruptHandle is kept in CP.
+				 */
 		} configure_bus;	/* for CONTROLVM_BUS_CONFIGURE */
 		/* for CONTROLVM_DEVICE_CREATE */
 		struct controlvm_packet_device_create create_device;
 		struct  {
-			u32 bus_no;	/* bus # (0..n-1) from the msg
-					 * receiver's perspective */
+		/* bus # (0..n-1) from the msg receiver's perspective */
+			u32 bus_no;
 			u32 dev_no;	/* bus-relative (0..n-1) device # */
 		} destroy_device;	/* for CONTROLVM_DEVICE_DESTROY */
 		/* for CONTROLVM_DEVICE_CONFIGURE */
 		struct controlvm_packet_device_configure configure_device;
 		struct  {
-			u32 bus_no;	/* bus # (0..n-1) from the msg
-					 * receiver's perspective */
+		/* bus # (0..n-1) from the msg receiver's perspective */
+			u32 bus_no;
 			u32 dev_no;	/* bus-relative (0..n-1) device # */
 		} reconfigure_device;	/* for CONTROLVM_DEVICE_RECONFIGURE */
 		struct  {
@@ -307,8 +310,8 @@ struct controlvm_message_packet  {
 			u32 dev_no;
 			struct spar_segment_state state;
 			struct  {
-				u32 phys_device:1;	/* =1 if message is for
-							 * a physical device */
+				/* =1 if message is for a physical device */
+				u32 phys_device:1;
 			} flags;
 			u8 reserved[2];	/* Natural alignment purposes */
 		} device_change_state;	/* for CONTROLVM_DEVICE_CHANGESTATE */
@@ -320,9 +323,10 @@ struct controlvm_message_packet  {
 		} device_change_state_event;
 			/* for CONTROLVM_DEVICE_CHANGESTATE_EVENT */
 		struct  {
-			u32 bus_count;	/* indicates the max number of busses */
-			u32 switch_count; /* indicates the max number of
-					   * switches if a service partition */
+			/* indicates the max number of busses */
+			u32 bus_count;
+			/* indicates the max number of switches */
+			u32 switch_count;
 			enum ultra_chipset_feature features;
 			u32 platform_number;	/* Platform Number */
 		} init_chipset;	/* for CONTROLVM_CHIPSET_INIT */
@@ -330,11 +334,12 @@ struct controlvm_message_packet  {
 			u32 options;	/* reserved */
 			u32 test;	/* bit 0 set to run embedded selftest */
 		} chipset_selftest;	/* for CONTROLVM_CHIPSET_SELFTEST */
-		u64 addr;	/* a physical address of something, that can be
-				 * dereferenced by the receiver of this
-				 * ControlVm command (depends on command id) */
-		u64 handle;	/* a handle of something (depends on command
-				 * id) */
+		/* a physical address of something, that can be dereferenced
+		 * by the receiver of this ControlVm command
+		 */
+		u64 addr;
+		/* a handle of something (depends on command id) */
+		u64 handle;
 	};
 };
 
@@ -357,8 +362,8 @@ struct spar_controlvm_channel_protocol {
 	u64 gp_nvram;	/* guest phys addr of NVRAM channel */
 	u64 request_payload_offset;	/* Offset to request payload area */
 	u64 event_payload_offset;	/* Offset to event payload area */
-	u32 request_payload_bytes;	/* Bytes available in request payload
-					 * area */
+	/* Bytes available in request payload area */
+	u32 request_payload_bytes;
 	u32 event_payload_bytes;/* Bytes available in event payload area */
 	u32 control_channel_bytes;
 	u32 nvram_channel_bytes;	/* Bytes in PartitionNvram segment */
@@ -384,41 +389,37 @@ struct spar_controlvm_channel_protocol {
 	u64 virtual_guest_image_size;
 	u64 prototype_control_channel_offset;
 	u64 virtual_guest_partition_handle;
-
-	u16 restore_action;	/* Restore Action field to restore the guest
-				 * partition */
-	u16 dump_action;	/* For Windows guests it shows if the visordisk
-				 * is running in dump mode */
+	/* Restore Action field to restore the guest partition */
+	u16 restore_action;
+	/* For Windows guests it shows if the visordisk is in dump mode */
+	u16 dump_action;
 	u16 nvram_fail_count;
 	u16 saved_crash_message_count;	/* = CONTROLVM_CRASHMSG_MAX */
-	u32 saved_crash_message_offset;	/* Offset to request payload area needed
-					 * for crash dump */
-	u32 installation_error;	/* Type of error encountered during
-				 * installation */
+	/* Offset to request payload area needed for crash dump */
+	u32 saved_crash_message_offset;
+	/* Type of error encountered during installation */
+	u32 installation_error;
 	u32 installation_text_id;	/* Id of string to display */
-	u16 installation_remaining_steps;/* Number of remaining installation
-					  * steps (for progress bars) */
-	u8 tool_action;		/* ULTRA_TOOL_ACTIONS Installation Action
-				 * field */
+	/* Number of remaining installation  steps (for progress bars) */
+	u16 installation_remaining_steps;
+	/* ULTRA_TOOL_ACTIONS Installation Action field */
+	u8 tool_action;
 	u8 reserved;		/* alignment */
 	struct efi_spar_indication efi_spar_ind;
 	struct efi_spar_indication efi_spar_ind_supported;
 	u32 sp_reserved;
-	u8 reserved2[28];	/* Force signals to begin on 128-byte cache
-				 * line */
-	struct signal_queue_header request_queue;/* Service or guest partition
-						  * uses this queue to send
-						  * requests to Control */
-	struct signal_queue_header response_queue;/* Control uses this queue to
-						   * respond to service or guest
-						   * partition requests */
-	struct signal_queue_header event_queue;	/* Control uses this queue to
-						 * send events to service or
-						 * guest partition */
-	struct signal_queue_header event_ack_queue;/* Service or guest partition
-						    * uses this queue to ack
-						    * Control events */
-
+	/* Force signals to begin on 128-byte cache line */
+	u8 reserved2[28];
+	/* guest partition uses this queue to send requests to Control */
+	struct signal_queue_header request_queue;
+	/* Control uses this queue to respond to service or guest
+	 * partition requests
+	 */
+	struct signal_queue_header response_queue;
+	/* Control uses this queue to send events to guest partition */
+	struct signal_queue_header event_queue;
+	/* Service or guest partition  uses this queue to ack Control events */
+	struct signal_queue_header event_ack_queue;
 	 /* Request fixed-size message pool - does not include payload */
 	 struct controlvm_message request_msg[CONTROLVM_MESSAGE_MAX];
 

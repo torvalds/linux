@@ -23,7 +23,12 @@
 
 static void ath10k_report_offchan_tx(struct ath10k *ar, struct sk_buff *skb)
 {
-	if (!ATH10K_SKB_CB(skb)->htt.is_offchan)
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	if (likely(!(info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)))
+		return;
+
+	if (ath10k_mac_tx_frm_has_freq(ar))
 		return;
 
 	/* If the original wait_for_completion() timed out before
@@ -52,6 +57,7 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	struct ieee80211_tx_info *info;
 	struct ath10k_skb_cb *skb_cb;
 	struct sk_buff *msdu;
+	bool limit_mgmt_desc = false;
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
 		   "htt tx completion msdu_id %u discard %d no_ack %d success %d\n",
@@ -72,20 +78,20 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 		spin_unlock_bh(&htt->tx_lock);
 		return;
 	}
+
+	skb_cb = ATH10K_SKB_CB(msdu);
+
+	if (unlikely(skb_cb->flags & ATH10K_SKB_F_MGMT) &&
+	    ar->hw_params.max_probe_resp_desc_thres)
+		limit_mgmt_desc = true;
+
 	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
-	__ath10k_htt_tx_dec_pending(htt);
+	__ath10k_htt_tx_dec_pending(htt, limit_mgmt_desc);
 	if (htt->num_pending_tx == 0)
 		wake_up(&htt->empty_tx_wq);
 	spin_unlock_bh(&htt->tx_lock);
 
-	skb_cb = ATH10K_SKB_CB(msdu);
-
 	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
-
-	if (skb_cb->htt.txbuf)
-		dma_pool_free(htt->tx_pool,
-			      skb_cb->htt.txbuf,
-			      skb_cb->htt.txbuf_paddr);
 
 	ath10k_report_offchan_tx(htt->ar, msdu);
 

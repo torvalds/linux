@@ -15,14 +15,33 @@ Required properties:
 	to define the mapping of the PCIe interface to interrupt
 	numbers.
 - num-lanes: number of lanes to use
+
+Optional properties:
+- num-lanes: number of lanes to use (this property should be specified unless
+  the link is brought already up in BIOS)
+- reset-gpio: gpio pin number of power good signal
+- bus-range: PCI bus numbers covered (it is recommended for new devicetrees to
+  specify this property, to keep backwards compatibility a range of 0x00-0xff
+  is assumed if not present)
 - clocks: Must contain an entry for each entry in clock-names.
 	See ../clocks/clock-bindings.txt for details.
 - clock-names: Must include the following entries:
 	- "pcie"
 	- "pcie_bus"
 
-Optional properties:
-- reset-gpio: gpio pin number of power good signal
-- bus-range: PCI bus numbers covered (it is recommended for new devicetrees to
-  specify this property, to keep backwards compatibility a range of 0x00-0xff
-  is assumed if not present)
+Example configuration:
+
+	pcie: pcie@0xdffff000 {
+		compatible = "snps,dw-pcie";
+		reg = <0xdffff000 0x1000>, /* Controller registers */
+		      <0xd0000000 0x2000>; /* PCI config space */
+		reg-names = "ctrlreg", "config";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x81000000 0 0x00000000 0xde000000 0 0x00010000
+			  0x82000000 0 0xd0400000 0xd0400000 0 0x0d000000>;
+		interrupts = <25>, <24>;
+		#interrupt-cells = <1>;
+		num-lanes = <1>;
+	};

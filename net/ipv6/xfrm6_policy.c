@@ -20,7 +20,7 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
-#include <net/vrf.h>
+#include <net/l3mdev.h>
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
 #include <net/mip6.h>
 #endif
@@ -133,10 +133,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 
 	nexthdr = nh[nhoff];
 
-	if (skb_dst(skb)) {
-		oif = vrf_master_ifindex(skb_dst(skb)->dev) ?
-			: skb_dst(skb)->dev->ifindex;
-	}
+	if (skb_dst(skb))
+		oif = l3mdev_fib_oif(skb_dst(skb)->dev);
 
 	memset(fl6, 0, sizeof(struct flowi6));
 	fl6->flowi6_mark = skb->mark;
@@ -281,7 +279,7 @@ static void xfrm6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	xfrm_dst_ifdown(dst, dev);
 }
 
-static struct dst_ops xfrm6_dst_ops = {
+static struct dst_ops xfrm6_dst_ops_template = {
 	.family =		AF_INET6,
 	.gc =			xfrm6_garbage_collect,
 	.update_pmtu =		xfrm6_update_pmtu,
@@ -290,12 +288,12 @@ static struct dst_ops xfrm6_dst_ops = {
 	.destroy =		xfrm6_dst_destroy,
 	.ifdown =		xfrm6_dst_ifdown,
 	.local_out =		__ip6_local_out,
-	.gc_thresh =		32768,
+	.gc_thresh =		INT_MAX,
 };
 
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.family =		AF_INET6,
-	.dst_ops =		&xfrm6_dst_ops,
+	.dst_ops =		&xfrm6_dst_ops_template,
 	.dst_lookup =		xfrm6_dst_lookup,
 	.get_saddr =		xfrm6_get_saddr,
 	.decode_session =	_decode_session6,
@@ -327,7 +325,7 @@ static struct ctl_table xfrm6_policy_table[] = {
 	{ }
 };
 
-static int __net_init xfrm6_net_init(struct net *net)
+static int __net_init xfrm6_net_sysctl_init(struct net *net)
 {
 	struct ctl_table *table;
 	struct ctl_table_header *hdr;
@@ -355,7 +353,7 @@ err_alloc:
 	return -ENOMEM;
 }
 
-static void __net_exit xfrm6_net_exit(struct net *net)
+static void __net_exit xfrm6_net_sysctl_exit(struct net *net)
 {
 	struct ctl_table *table;
 
@@ -367,24 +365,52 @@ static void __net_exit xfrm6_net_exit(struct net *net)
 	if (!net_eq(net, &init_net))
 		kfree(table);
 }
+#else /* CONFIG_SYSCTL */
+static int inline xfrm6_net_sysctl_init(struct net *net)
+{
+	return 0;
+}
+
+static void inline xfrm6_net_sysctl_exit(struct net *net)
+{
+}
+#endif
+
+static int __net_init xfrm6_net_init(struct net *net)
+{
+	int ret;
+
+	memcpy(&net->xfrm.xfrm6_dst_ops, &xfrm6_dst_ops_template,
+	       sizeof(xfrm6_dst_ops_template));
+	ret = dst_entries_init(&net->xfrm.xfrm6_dst_ops);
+	if (ret)
+		return ret;
+
+	ret = xfrm6_net_sysctl_init(net);
+	if (ret)
+		dst_entries_destroy(&net->xfrm.xfrm6_dst_ops);
+
+	return ret;
+}
+
+static void __net_exit xfrm6_net_exit(struct net *net)
+{
+	xfrm6_net_sysctl_exit(net);
+	dst_entries_destroy(&net->xfrm.xfrm6_dst_ops);
+}
 
 static struct pernet_operations xfrm6_net_ops = {
 	.init	= xfrm6_net_init,
 	.exit	= xfrm6_net_exit,
 };
-#endif
 
 int __init xfrm6_init(void)
 {
 	int ret;
 
-	dst_entries_init(&xfrm6_dst_ops);
-
 	ret = xfrm6_policy_init();
-	if (ret) {
-		dst_entries_destroy(&xfrm6_dst_ops);
+	if (ret)
 		goto out;
-	}
 	ret = xfrm6_state_init();
 	if (ret)
 		goto out_policy;
@@ -393,9 +419,7 @@ int __init xfrm6_init(void)
 	if (ret)
 		goto out_state;
 
-#ifdef CONFIG_SYSCTL
 	register_pernet_subsys(&xfrm6_net_ops);
-#endif
 out:
 	return ret;
 out_state:
@@ -407,11 +431,8 @@ out_policy:
 
 void xfrm6_fini(void)
 {
-#ifdef CONFIG_SYSCTL
 	unregister_pernet_subsys(&xfrm6_net_ops);
-#endif
 	xfrm6_protocol_fini();
 	xfrm6_policy_fini();
 	xfrm6_state_fini();
-	dst_entries_destroy(&xfrm6_dst_ops);
 }

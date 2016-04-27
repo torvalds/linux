@@ -18,21 +18,21 @@
  * struct akcipher_request - public key request
  *
  * @base:	Common attributes for async crypto requests
- * @src:	Pointer to memory containing the input parameters
- *		The format of the parameter(s) is expeted to be Octet String
- * @dst:	Pointer to memory whare the result will be stored
- * @src_len:	Size of the input parameter
- * @dst_len:	Size of the output buffer. It needs to be at leaset
+ * @src:	Source data
+ * @dst:	Destination data
+ * @src_len:	Size of the input buffer
+ * @dst_len:	Size of the output buffer. It needs to be at least
  *		as big as the expected result depending	on the operation
- *		After operation it will be updated with the acctual size of the
- *		result. In case of error, where the dst_len was insufficient,
+ *		After operation it will be updated with the actual size of the
+ *		result.
+ *		In case of error where the dst sgl size was insufficient,
  *		it will be updated to the size required for the operation.
  * @__ctx:	Start of private context data
  */
 struct akcipher_request {
 	struct crypto_async_request base;
-	void *src;
-	void *dst;
+	struct scatterlist *src;
+	struct scatterlist *dst;
 	unsigned int src_len;
 	unsigned int dst_len;
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
@@ -59,7 +59,7 @@ struct crypto_akcipher {
  *		algorithm. In case of error, where the dst_len was insufficient,
  *		the req->dst_len will be updated to the size required for the
  *		operation
- * @encrypt:	Function performs an encrytp operation as defined by public key
+ * @encrypt:	Function performs an encrypt operation as defined by public key
  *		algorithm. In case of error, where the dst_len was insufficient,
  *		the req->dst_len will be updated to the size required for the
  *		operation
@@ -67,8 +67,13 @@ struct crypto_akcipher {
  *		algorithm. In case of error, where the dst_len was insufficient,
  *		the req->dst_len will be updated to the size required for the
  *		operation
- * @setkey:	Function invokes the algorithm specific set key function, which
- *		knows how to decode and interpret the BER encoded key
+ * @set_pub_key: Function invokes the algorithm specific set public key
+ *		function, which knows how to decode and interpret
+ *		the BER encoded public key
+ * @set_priv_key: Function invokes the algorithm specific set private key
+ *		function, which knows how to decode and interpret
+ *		the BER encoded private key
+ * @max_size:	Function returns dest buffer size required for a given key.
  * @init:	Initialize the cryptographic transformation object.
  *		This function is used to initialize the cryptographic
  *		transformation object. This function is called only once at
@@ -89,8 +94,11 @@ struct akcipher_alg {
 	int (*verify)(struct akcipher_request *req);
 	int (*encrypt)(struct akcipher_request *req);
 	int (*decrypt)(struct akcipher_request *req);
-	int (*setkey)(struct crypto_akcipher *tfm, const void *key,
-		      unsigned int keylen);
+	int (*set_pub_key)(struct crypto_akcipher *tfm, const void *key,
+			   unsigned int keylen);
+	int (*set_priv_key)(struct crypto_akcipher *tfm, const void *key,
+			    unsigned int keylen);
+	int (*max_size)(struct crypto_akcipher *tfm);
 	int (*init)(struct crypto_akcipher *tfm);
 	void (*exit)(struct crypto_akcipher *tfm);
 
@@ -106,7 +114,7 @@ struct akcipher_alg {
  */
 
 /**
- * crypto_alloc_akcipher() -- allocate AKCIPHER tfm handle
+ * crypto_alloc_akcipher() - allocate AKCIPHER tfm handle
  * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
  *	      public key algorithm e.g. "rsa"
  * @type: specifies the type of the algorithm
@@ -163,7 +171,7 @@ static inline struct crypto_akcipher *crypto_akcipher_reqtfm(
 }
 
 /**
- * crypto_free_akcipher() -- free AKCIPHER tfm handle
+ * crypto_free_akcipher() - free AKCIPHER tfm handle
  *
  * @tfm: AKCIPHER tfm handle allocated with crypto_alloc_akcipher()
  */
@@ -173,7 +181,7 @@ static inline void crypto_free_akcipher(struct crypto_akcipher *tfm)
 }
 
 /**
- * akcipher_request_alloc() -- allocates public key request
+ * akcipher_request_alloc() - allocates public key request
  *
  * @tfm:	AKCIPHER tfm handle allocated with crypto_alloc_akcipher()
  * @gfp:	allocation flags
@@ -193,7 +201,7 @@ static inline struct akcipher_request *akcipher_request_alloc(
 }
 
 /**
- * akcipher_request_free() -- zeroize and free public key request
+ * akcipher_request_free() - zeroize and free public key request
  *
  * @req:	request to free
  */
@@ -203,14 +211,14 @@ static inline void akcipher_request_free(struct akcipher_request *req)
 }
 
 /**
- * akcipher_request_set_callback() -- Sets an asynchronous callback.
+ * akcipher_request_set_callback() - Sets an asynchronous callback.
  *
  * Callback will be called when an asynchronous operation on a given
  * request is finished.
  *
  * @req:	request that the callback will be set for
  * @flgs:	specify for instance if the operation may backlog
- * @cmlp:	callback which will be called
+ * @cmpl:	callback which will be called
  * @data:	private data used by the caller
  */
 static inline void akcipher_request_set_callback(struct akcipher_request *req,
@@ -224,19 +232,19 @@ static inline void akcipher_request_set_callback(struct akcipher_request *req,
 }
 
 /**
- * akcipher_request_set_crypt() -- Sets reqest parameters
+ * akcipher_request_set_crypt() - Sets request parameters
  *
  * Sets parameters required by crypto operation
  *
  * @req:	public key request
- * @src:	ptr to input parameter
- * @dst:	ptr of output parameter
- * @src_len:	size of the input buffer
- * @dst_len:	size of the output buffer. It will be updated by the
- *		implementation to reflect the acctual size of the result
+ * @src:	ptr to input scatter list
+ * @dst:	ptr to output scatter list
+ * @src_len:	size of the src input scatter list to be processed
+ * @dst_len:	size of the dst output scatter list
  */
 static inline void akcipher_request_set_crypt(struct akcipher_request *req,
-					      void *src, void *dst,
+					      struct scatterlist *src,
+					      struct scatterlist *dst,
 					      unsigned int src_len,
 					      unsigned int dst_len)
 {
@@ -247,7 +255,23 @@ static inline void akcipher_request_set_crypt(struct akcipher_request *req,
 }
 
 /**
- * crypto_akcipher_encrypt() -- Invoke public key encrypt operation
+ * crypto_akcipher_maxsize() - Get len for output buffer
+ *
+ * Function returns the dest buffer size required for a given key
+ *
+ * @tfm:	AKCIPHER tfm handle allocated with crypto_alloc_akcipher()
+ *
+ * Return: minimum len for output buffer or error code in key hasn't been set
+ */
+static inline int crypto_akcipher_maxsize(struct crypto_akcipher *tfm)
+{
+	struct akcipher_alg *alg = crypto_akcipher_alg(tfm);
+
+	return alg->max_size(tfm);
+}
+
+/**
+ * crypto_akcipher_encrypt() - Invoke public key encrypt operation
  *
  * Function invokes the specific public key encrypt operation for a given
  * public key algorithm
@@ -265,7 +289,7 @@ static inline int crypto_akcipher_encrypt(struct akcipher_request *req)
 }
 
 /**
- * crypto_akcipher_decrypt() -- Invoke public key decrypt operation
+ * crypto_akcipher_decrypt() - Invoke public key decrypt operation
  *
  * Function invokes the specific public key decrypt operation for a given
  * public key algorithm
@@ -283,7 +307,7 @@ static inline int crypto_akcipher_decrypt(struct akcipher_request *req)
 }
 
 /**
- * crypto_akcipher_sign() -- Invoke public key sign operation
+ * crypto_akcipher_sign() - Invoke public key sign operation
  *
  * Function invokes the specific public key sign operation for a given
  * public key algorithm
@@ -301,7 +325,7 @@ static inline int crypto_akcipher_sign(struct akcipher_request *req)
 }
 
 /**
- * crypto_akcipher_verify() -- Invoke public key verify operation
+ * crypto_akcipher_verify() - Invoke public key verify operation
  *
  * Function invokes the specific public key verify operation for a given
  * public key algorithm
@@ -319,22 +343,44 @@ static inline int crypto_akcipher_verify(struct akcipher_request *req)
 }
 
 /**
- * crypto_akcipher_setkey() -- Invoke public key setkey operation
+ * crypto_akcipher_set_pub_key() - Invoke set public key operation
  *
  * Function invokes the algorithm specific set key function, which knows
  * how to decode and interpret the encoded key
  *
  * @tfm:	tfm handle
- * @key:	BER encoded private or public key
+ * @key:	BER encoded public key
  * @keylen:	length of the key
  *
  * Return: zero on success; error code in case of error
  */
-static inline int crypto_akcipher_setkey(struct crypto_akcipher *tfm, void *key,
-					 unsigned int keylen)
+static inline int crypto_akcipher_set_pub_key(struct crypto_akcipher *tfm,
+					      const void *key,
+					      unsigned int keylen)
 {
 	struct akcipher_alg *alg = crypto_akcipher_alg(tfm);
 
-	return alg->setkey(tfm, key, keylen);
+	return alg->set_pub_key(tfm, key, keylen);
+}
+
+/**
+ * crypto_akcipher_set_priv_key() - Invoke set private key operation
+ *
+ * Function invokes the algorithm specific set key function, which knows
+ * how to decode and interpret the encoded key
+ *
+ * @tfm:	tfm handle
+ * @key:	BER encoded private key
+ * @keylen:	length of the key
+ *
+ * Return: zero on success; error code in case of error
+ */
+static inline int crypto_akcipher_set_priv_key(struct crypto_akcipher *tfm,
+					       const void *key,
+					       unsigned int keylen)
+{
+	struct akcipher_alg *alg = crypto_akcipher_alg(tfm);
+
+	return alg->set_priv_key(tfm, key, keylen);
 }
 #endif

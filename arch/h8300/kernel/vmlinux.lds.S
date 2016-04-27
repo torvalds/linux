@@ -1,5 +1,6 @@
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/page.h>
+#include <asm/thread_info.h>
 
 #define ROMTOP 0x000000
 #define RAMTOP 0x400000
@@ -42,11 +43,10 @@ SECTIONS
 	. = RAMTOP;
 	_ramstart = .;
 #define ADDR(x) ROMEND
-#else
 #endif
 	_sdata = . ;
 	__data_start = . ;
-	RW_DATA_SECTION(0,0,0)
+	RW_DATA_SECTION(0, PAGE_SIZE, THREAD_SIZE)
 #if defined(CONFIG_ROMKERNEL)
 #undef ADDR
 #endif

@@ -6,14 +6,12 @@ config CLKDEV_LOOKUP
 config HAVE_CLK_PREPARE
 	bool
 
-config HAVE_MACH_CLKDEV
-	bool
-
 config COMMON_CLK
 	bool
 	select HAVE_CLK_PREPARE
 	select CLKDEV_LOOKUP
 	select SRCU
+	select RATIONAL
 	---help---
 	  The common clock framework is a single definition of struct
 	  clk, useful across many platforms, as well as an
@@ -59,6 +57,16 @@ config COMMON_CLK_RK808
 	  clocked at 32KHz each. Clkout1 is always on, Clkout2 can off
 	  by control register.
 
+config COMMON_CLK_SCPI
+	tristate "Clock driver controlled via SCPI interface"
+	depends on ARM_SCPI_PROTOCOL || COMPILE_TEST
+	  ---help---
+	  This driver provides support for clocks that are controlled
+	  by firmware that implements the SCPI interface.
+
+	  This driver uses SCPI Message Protocol to interact with the
+	  firmware providing all the clock controls.
+
 config COMMON_CLK_SI5351
 	tristate "Clock driver for SiLabs 5351A/B/C"
 	depends on I2C
@@ -67,6 +75,16 @@ config COMMON_CLK_SI5351
 	---help---
 	  This driver supports Silicon Labs 5351A/B/C programmable clock
 	  generators.
+
+config COMMON_CLK_SI514
+	tristate "Clock driver for SiLabs 514 devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports the Silicon Labs 514 programmable clock
+	  generator.
 
 config COMMON_CLK_SI570
 	tristate "Clock driver for SiLabs 570 and compatible devices"
@@ -77,6 +95,14 @@ config COMMON_CLK_SI570
 	---help---
 	  This driver supports Silicon Labs 570/571/598/599 programmable
 	  clock generators.
+
+config COMMON_CLK_CDCE706
+	tristate "Clock driver for TI CDCE706 clock synthesizer"
+	depends on I2C
+	select REGMAP_I2C
+	select RATIONAL
+	---help---
+	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
 
 config COMMON_CLK_CDCE925
 	tristate "Clock driver for TI CDCE925 devices"
@@ -94,6 +120,12 @@ config COMMON_CLK_CDCE925
 	  Y4 and Y5 derive from PLL2
 	  Given a target output frequency, the driver will set the PLL and
 	  divider to best approximate the desired output.
+
+config COMMON_CLK_CS2000_CP
+	tristate "Clock driver for CS2000 Fractional-N Clock Synthesizer & Clock Multiplier"
+	depends on I2C
+	help
+	  If you say yes here you get support for the CS2000 clock multiplier.
 
 config COMMON_CLK_S2MPS11
 	tristate "Clock driver for S2MPS1X/S5M8767 MFD"
@@ -113,7 +145,7 @@ config CLK_TWL6040
 
 config COMMON_CLK_AXI_CLKGEN
 	tristate "AXI clkgen driver"
-	depends on ARCH_ZYNQ || MICROBLAZE
+	depends on ARCH_ZYNQ || MICROBLAZE || COMPILE_TEST
 	help
 	---help---
 	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
@@ -121,7 +153,7 @@ config COMMON_CLK_AXI_CLKGEN
 
 config CLK_QORIQ
 	bool "Clock driver for Freescale QorIQ platforms"
-	depends on (PPC_E500MC || ARM) && OF
+	depends on (PPC_E500MC || ARM || ARM64 || COMPILE_TEST) && OF
 	---help---
 	  This adds the clock driver support for Freescale QorIQ platforms
 	  using common clock framework.
@@ -129,16 +161,22 @@ config CLK_QORIQ
 config COMMON_CLK_XGENE
 	bool "Clock driver for APM XGene SoC"
 	default y
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	---help---
 	  Sypport for the APM X-Gene SoC reference, PLL, and device clocks.
 
 config COMMON_CLK_KEYSTONE
 	tristate "Clock drivers for Keystone based SOCs"
-	depends on ARCH_KEYSTONE && OF
+	depends on (ARCH_KEYSTONE || COMPILE_TEST) && OF
 	---help---
           Supports clock drivers for Keystone based SOCs. These SOCs have local
 	  a power sleep control module that gate the clock to the IPs and PLLs.
+
+config COMMON_CLK_NXP
+	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
+	select REGMAP_MMIO if ARCH_LPC32XX
+	---help---
+	  Support for clock providers on NXP platforms.
 
 config COMMON_CLK_PALMAS
 	tristate "Clock driver for TI Palmas devices"
@@ -157,23 +195,14 @@ config COMMON_CLK_PWM
 config COMMON_CLK_PXA
 	def_bool COMMON_CLK && ARCH_PXA
 	---help---
-	  Sypport for the Marvell PXA SoC.
-
-config COMMON_CLK_CDCE706
-	tristate "Clock driver for TI CDCE706 clock synthesizer"
-	depends on I2C
-	select REGMAP_I2C
-	select RATIONAL
-	---help---
-	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
+	  Support for the Marvell PXA SoC.
 
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
-source "drivers/clk/qcom/Kconfig"
-
-endmenu
-
 source "drivers/clk/mvebu/Kconfig"
-
+source "drivers/clk/qcom/Kconfig"
 source "drivers/clk/samsung/Kconfig"
 source "drivers/clk/tegra/Kconfig"
+source "drivers/clk/ti/Kconfig"
+
+endmenu

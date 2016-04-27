@@ -99,19 +99,9 @@
 #define IOAT_DMA_COMP_V1			0x0001	/* Compatibility with DMA version 1 */
 #define IOAT_DMA_COMP_V2			0x0002	/* Compatibility with DMA version 2 */
 
-
-#define IOAT1_CHANSTS_OFFSET		0x04	/* 64-bit Channel Status Register */
-#define IOAT2_CHANSTS_OFFSET		0x08	/* 64-bit Channel Status Register */
-#define IOAT_CHANSTS_OFFSET(ver)		((ver) < IOAT_VER_2_0 \
-						? IOAT1_CHANSTS_OFFSET : IOAT2_CHANSTS_OFFSET)
-#define IOAT1_CHANSTS_OFFSET_LOW	0x04
-#define IOAT2_CHANSTS_OFFSET_LOW	0x08
-#define IOAT_CHANSTS_OFFSET_LOW(ver)		((ver) < IOAT_VER_2_0 \
-						? IOAT1_CHANSTS_OFFSET_LOW : IOAT2_CHANSTS_OFFSET_LOW)
-#define IOAT1_CHANSTS_OFFSET_HIGH	0x08
-#define IOAT2_CHANSTS_OFFSET_HIGH	0x0C
-#define IOAT_CHANSTS_OFFSET_HIGH(ver)		((ver) < IOAT_VER_2_0 \
-						? IOAT1_CHANSTS_OFFSET_HIGH : IOAT2_CHANSTS_OFFSET_HIGH)
+/* IOAT1 define left for i7300_idle driver to not fail compiling */
+#define IOAT1_CHANSTS_OFFSET		0x04
+#define IOAT_CHANSTS_OFFSET		0x08	/* 64-bit Channel Status Register */
 #define IOAT_CHANSTS_COMPLETED_DESCRIPTOR_ADDR	(~0x3fULL)
 #define IOAT_CHANSTS_SOFT_ERR			0x10ULL
 #define IOAT_CHANSTS_UNAFFILIATED_ERR		0x8ULL

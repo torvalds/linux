@@ -44,6 +44,7 @@ enum sec_device_type {
 	S2MPS11X,
 	S2MPS13X,
 	S2MPS14X,
+	S2MPS15X,
 	S2MPU02,
 };
 
@@ -132,6 +133,10 @@ struct sec_platform_data {
 	int				buck2_init;
 	int				buck3_init;
 	int				buck4_init;
+	/* Whether or not manually set PWRHOLD to low during shutdown. */
+	bool				manual_poweroff;
+	/* Disable the WRSTBI (buck voltage warm reset) when probing? */
+	bool				disable_wrstbi;
 };
 
 /**

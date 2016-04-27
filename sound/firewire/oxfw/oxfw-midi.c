@@ -90,11 +90,11 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *substrm, int up)
 	spin_lock_irqsave(&oxfw->lock, flags);
 
 	if (up)
-		amdtp_stream_midi_trigger(&oxfw->tx_stream,
-					  substrm->number, substrm);
+		amdtp_am824_midi_trigger(&oxfw->tx_stream,
+					 substrm->number, substrm);
 	else
-		amdtp_stream_midi_trigger(&oxfw->tx_stream,
-					  substrm->number, NULL);
+		amdtp_am824_midi_trigger(&oxfw->tx_stream,
+					 substrm->number, NULL);
 
 	spin_unlock_irqrestore(&oxfw->lock, flags);
 }
@@ -107,11 +107,11 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substrm, int up)
 	spin_lock_irqsave(&oxfw->lock, flags);
 
 	if (up)
-		amdtp_stream_midi_trigger(&oxfw->rx_stream,
-					  substrm->number, substrm);
+		amdtp_am824_midi_trigger(&oxfw->rx_stream,
+					 substrm->number, substrm);
 	else
-		amdtp_stream_midi_trigger(&oxfw->rx_stream,
-					  substrm->number, NULL);
+		amdtp_am824_midi_trigger(&oxfw->rx_stream,
+					 substrm->number, NULL);
 
 	spin_unlock_irqrestore(&oxfw->lock, flags);
 }
@@ -142,29 +142,11 @@ static void set_midi_substream_names(struct snd_oxfw *oxfw,
 
 int snd_oxfw_create_midi(struct snd_oxfw *oxfw)
 {
-	struct snd_oxfw_stream_formation formation;
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_str *str;
-	u8 *format;
-	int i, err;
+	int err;
 
-	/* If its stream has MIDI conformant data channel, add one MIDI port */
-	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
-		format = oxfw->tx_stream_formats[i];
-		if (format != NULL) {
-			err = snd_oxfw_stream_parse_format(format, &formation);
-			if (err >= 0 && formation.midi > 0)
-				oxfw->midi_input_ports = 1;
-		}
-
-		format = oxfw->rx_stream_formats[i];
-		if (format != NULL) {
-			err = snd_oxfw_stream_parse_format(format, &formation);
-			if (err >= 0 && formation.midi > 0)
-				oxfw->midi_output_ports = 1;
-		}
-	}
-	if ((oxfw->midi_input_ports == 0) && (oxfw->midi_output_ports == 0))
+	if (oxfw->midi_input_ports == 0 && oxfw->midi_output_ports == 0)
 		return 0;
 
 	/* create midi ports */

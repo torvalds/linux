@@ -5,6 +5,7 @@
 #define _TRACE_V4L2_H
 
 #include <linux/tracepoint.h>
+#include <media/videobuf2-v4l2.h>
 
 /* Enums require being exported to userspace, for user tool parsing */
 #undef EM
@@ -27,6 +28,7 @@
 	EM( V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, "VIDEO_CAPTURE_MPLANE" ) \
 	EM( V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,  "VIDEO_OUTPUT_MPLANE" )	\
 	EM( V4L2_BUF_TYPE_SDR_CAPTURE,          "SDR_CAPTURE" )		\
+	EM( V4L2_BUF_TYPE_SDR_OUTPUT,           "SDR_OUTPUT" )		\
 	EMe(V4L2_BUF_TYPE_PRIVATE,		"PRIVATE" )
 
 SHOW_TYPE
@@ -174,20 +176,15 @@ DEFINE_EVENT(v4l2_event_class, v4l2_qbuf,
 	TP_ARGS(minor, buf)
 );
 
-DECLARE_EVENT_CLASS(vb2_event_class,
+DECLARE_EVENT_CLASS(vb2_v4l2_event_class,
 	TP_PROTO(struct vb2_queue *q, struct vb2_buffer *vb),
 	TP_ARGS(q, vb),
 
 	TP_STRUCT__entry(
 		__field(int, minor)
-		__field(u32, queued_count)
-		__field(int, owned_by_drv_count)
-		__field(u32, index)
-		__field(u32, type)
-		__field(u32, bytesused)
 		__field(u32, flags)
 		__field(u32, field)
-		__field(s64, timestamp)
+		__field(u64, timestamp)
 		__field(u32, timecode_type)
 		__field(u32, timecode_flags)
 		__field(u8, timecode_frames)
@@ -202,38 +199,30 @@ DECLARE_EVENT_CLASS(vb2_event_class,
 	),
 
 	TP_fast_assign(
-		__entry->minor = q->owner ? q->owner->vdev->minor : -1;
-		__entry->queued_count = q->queued_count;
-		__entry->owned_by_drv_count =
-			atomic_read(&q->owned_by_drv_count);
-		__entry->index = vb->v4l2_buf.index;
-		__entry->type = vb->v4l2_buf.type;
-		__entry->bytesused = vb->v4l2_planes[0].bytesused;
-		__entry->flags = vb->v4l2_buf.flags;
-		__entry->field = vb->v4l2_buf.field;
-		__entry->timestamp = timeval_to_ns(&vb->v4l2_buf.timestamp);
-		__entry->timecode_type = vb->v4l2_buf.timecode.type;
-		__entry->timecode_flags = vb->v4l2_buf.timecode.flags;
-		__entry->timecode_frames = vb->v4l2_buf.timecode.frames;
-		__entry->timecode_seconds = vb->v4l2_buf.timecode.seconds;
-		__entry->timecode_minutes = vb->v4l2_buf.timecode.minutes;
-		__entry->timecode_hours = vb->v4l2_buf.timecode.hours;
-		__entry->timecode_userbits0 = vb->v4l2_buf.timecode.userbits[0];
-		__entry->timecode_userbits1 = vb->v4l2_buf.timecode.userbits[1];
-		__entry->timecode_userbits2 = vb->v4l2_buf.timecode.userbits[2];
-		__entry->timecode_userbits3 = vb->v4l2_buf.timecode.userbits[3];
-		__entry->sequence = vb->v4l2_buf.sequence;
+		struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+		struct v4l2_fh *owner = q->owner;
+
+		__entry->minor = owner ? owner->vdev->minor : -1;
+		__entry->flags = vbuf->flags;
+		__entry->field = vbuf->field;
+		__entry->timestamp = vb->timestamp;
+		__entry->timecode_type = vbuf->timecode.type;
+		__entry->timecode_flags = vbuf->timecode.flags;
+		__entry->timecode_frames = vbuf->timecode.frames;
+		__entry->timecode_seconds = vbuf->timecode.seconds;
+		__entry->timecode_minutes = vbuf->timecode.minutes;
+		__entry->timecode_hours = vbuf->timecode.hours;
+		__entry->timecode_userbits0 = vbuf->timecode.userbits[0];
+		__entry->timecode_userbits1 = vbuf->timecode.userbits[1];
+		__entry->timecode_userbits2 = vbuf->timecode.userbits[2];
+		__entry->timecode_userbits3 = vbuf->timecode.userbits[3];
+		__entry->sequence = vbuf->sequence;
 	),
 
-	TP_printk("minor = %d, queued = %u, owned_by_drv = %d, index = %u, "
-		  "type = %s, bytesused = %u, flags = %s, field = %s, "
+	TP_printk("minor=%d flags = %s, field = %s, "
 		  "timestamp = %llu, timecode = { type = %s, flags = %s, "
 		  "frames = %u, seconds = %u, minutes = %u, hours = %u, "
 		  "userbits = { %u %u %u %u } }, sequence = %u", __entry->minor,
-		  __entry->queued_count,
-		  __entry->owned_by_drv_count,
-		  __entry->index, show_type(__entry->type),
-		  __entry->bytesused,
 		  show_flags(__entry->flags),
 		  show_field(__entry->field),
 		  __entry->timestamp,
@@ -251,22 +240,22 @@ DECLARE_EVENT_CLASS(vb2_event_class,
 	)
 )
 
-DEFINE_EVENT(vb2_event_class, vb2_buf_done,
+DEFINE_EVENT(vb2_v4l2_event_class, vb2_v4l2_buf_done,
 	TP_PROTO(struct vb2_queue *q, struct vb2_buffer *vb),
 	TP_ARGS(q, vb)
 );
 
-DEFINE_EVENT(vb2_event_class, vb2_buf_queue,
+DEFINE_EVENT(vb2_v4l2_event_class, vb2_v4l2_buf_queue,
 	TP_PROTO(struct vb2_queue *q, struct vb2_buffer *vb),
 	TP_ARGS(q, vb)
 );
 
-DEFINE_EVENT(vb2_event_class, vb2_dqbuf,
+DEFINE_EVENT(vb2_v4l2_event_class, vb2_v4l2_dqbuf,
 	TP_PROTO(struct vb2_queue *q, struct vb2_buffer *vb),
 	TP_ARGS(q, vb)
 );
 
-DEFINE_EVENT(vb2_event_class, vb2_qbuf,
+DEFINE_EVENT(vb2_v4l2_event_class, vb2_v4l2_qbuf,
 	TP_PROTO(struct vb2_queue *q, struct vb2_buffer *vb),
 	TP_ARGS(q, vb)
 );

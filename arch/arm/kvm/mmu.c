@@ -28,6 +28,7 @@
 #include <asm/kvm_mmio.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_emulate.h>
+#include <asm/virt.h>
 
 #include "trace.h"
 
@@ -96,6 +97,11 @@ static void kvm_flush_dcache_pmd(pmd_t pmd)
 static void kvm_flush_dcache_pud(pud_t pud)
 {
 	__kvm_flush_dcache_pud(pud);
+}
+
+static bool kvm_is_device_pfn(unsigned long pfn)
+{
+	return !pfn_valid(pfn);
 }
 
 /**
@@ -213,7 +219,7 @@ static void unmap_ptes(struct kvm *kvm, pmd_t *pmd,
 			kvm_tlb_flush_vmid_ipa(kvm, addr);
 
 			/* No need to invalidate the cache for device mappings */
-			if ((pte_val(old_pte) & PAGE_S2_DEVICE) != PAGE_S2_DEVICE)
+			if (!kvm_is_device_pfn(pte_pfn(old_pte)))
 				kvm_flush_dcache_pte(old_pte);
 
 			put_page(virt_to_page(pte));
@@ -305,8 +311,7 @@ static void stage2_flush_ptes(struct kvm *kvm, pmd_t *pmd,
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
-		if (!pte_none(*pte) &&
-		    (pte_val(*pte) & PAGE_S2_DEVICE) != PAGE_S2_DEVICE)
+		if (!pte_none(*pte) && !kvm_is_device_pfn(pte_pfn(*pte)))
 			kvm_flush_dcache_pte(*pte);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 }
@@ -594,6 +599,9 @@ int create_hyp_mappings(void *from, void *to)
 	unsigned long start = KERN_TO_HYP((unsigned long)from);
 	unsigned long end = KERN_TO_HYP((unsigned long)to);
 
+	if (is_kernel_in_hyp_mode())
+		return 0;
+
 	start = start & PAGE_MASK;
 	end = PAGE_ALIGN(end);
 
@@ -626,6 +634,9 @@ int create_hyp_io_mappings(void *from, void *to, phys_addr_t phys_addr)
 	unsigned long start = KERN_TO_HYP((unsigned long)from);
 	unsigned long end = KERN_TO_HYP((unsigned long)to);
 
+	if (is_kernel_in_hyp_mode())
+		return 0;
+
 	/* Check for a valid kernel IO mapping */
 	if (!is_vmalloc_addr(from) || !is_vmalloc_addr(to - 1))
 		return -EINVAL;
@@ -652,9 +663,9 @@ static void *kvm_alloc_hwpgd(void)
  * kvm_alloc_stage2_pgd - allocate level-1 table for stage-2 translation.
  * @kvm:	The KVM struct pointer for the VM.
  *
- * Allocates the 1st level table only of size defined by S2_PGD_ORDER (can
- * support either full 40-bit input addresses or limited to 32-bit input
- * addresses). Clears the allocated pages.
+ * Allocates only the stage-2 HW PGD level table(s) (can support either full
+ * 40-bit input addresses or limited to 32-bit input addresses). Clears the
+ * allocated pages.
  *
  * Note we don't need locking here as this is only called when the VM is
  * created, which can only be done once.
@@ -988,9 +999,9 @@ out:
 	return ret;
 }
 
-static bool transparent_hugepage_adjust(pfn_t *pfnp, phys_addr_t *ipap)
+static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap)
 {
-	pfn_t pfn = *pfnp;
+	kvm_pfn_t pfn = *pfnp;
 	gfn_t gfn = *ipap >> PAGE_SHIFT;
 
 	if (PageTransCompound(pfn_to_page(pfn))) {
@@ -1035,11 +1046,6 @@ static bool kvm_is_write_fault(struct kvm_vcpu *vcpu)
 		return false;
 
 	return kvm_vcpu_dabt_iswrite(vcpu);
-}
-
-static bool kvm_is_device_pfn(unsigned long pfn)
-{
-	return !pfn_valid(pfn);
 }
 
 /**
@@ -1202,7 +1208,7 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 	kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
 }
 
-static void coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
+static void coherent_cache_guest_page(struct kvm_vcpu *vcpu, kvm_pfn_t pfn,
 				      unsigned long size, bool uncached)
 {
 	__coherent_cache_guest_page(vcpu, pfn, size, uncached);
@@ -1219,7 +1225,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
 	struct vm_area_struct *vma;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 	pgprot_t mem_type = PAGE_S2;
 	bool fault_ipa_uncached;
 	bool logging_active = memslot_is_logging(memslot);
@@ -1347,7 +1353,7 @@ static void handle_access_fault(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
 {
 	pmd_t *pmd;
 	pte_t *pte;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 	bool pfn_valid = false;
 
 	trace_kvm_access_fault(fault_ipa);
@@ -1427,6 +1433,22 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		if (is_iabt) {
 			/* Prefetch Abort on I/O address */
 			kvm_inject_pabt(vcpu, kvm_vcpu_get_hfar(vcpu));
+			ret = 1;
+			goto out_unlock;
+		}
+
+		/*
+		 * Check for a cache maintenance operation. Since we
+		 * ended-up here, we know it is outside of any memory
+		 * slot. But we can't find out if that is for a device,
+		 * or if the guest is just being stupid. The only thing
+		 * we know for sure is that this range cannot be cached.
+		 *
+		 * So let's assume that the guest is just being
+		 * cautious, and skip the instruction.
+		 */
+		if (kvm_vcpu_dabt_is_cm(vcpu)) {
+			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
 			ret = 1;
 			goto out_unlock;
 		}

@@ -652,6 +652,7 @@ static const struct of_device_id moxart_dma_match[] = {
 	{ .compatible = "moxa,moxart-dma" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, moxart_dma_match);
 
 static struct platform_driver moxart_driver = {
 	.probe	= moxart_probe,

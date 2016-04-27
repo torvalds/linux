@@ -15,10 +15,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * specificly written as a driver for the speakup screenreview
  * s not a general device driver.
  */
@@ -291,10 +287,9 @@ static void do_catch_up(struct spk_synth *synth)
 
 static void synth_flush(struct spk_synth *synth)
 {
-	if (in_escape) {
+	if (in_escape)
 		/* if in command output ']' so we don't get an error */
 		spk_serial_out(']');
-	}
 	in_escape = 0;
 	is_flushing = 1;
 	spk_serial_out(SYNTH_CLEAR);

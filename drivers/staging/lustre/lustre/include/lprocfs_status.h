@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -54,7 +54,7 @@ struct lprocfs_vars {
 	struct file_operations	*fops;
 	void			*data;
 	/**
-	 * /proc file mode.
+	 * sysfs file mode.
 	 */
 	umode_t			proc_mode;
 };
@@ -158,6 +158,7 @@ struct lprocfs_counter {
 	 */
 	__s64	lc_array_sum[1];
 };
+
 #define lc_sum		lc_array_sum[0]
 #define lc_sum_irq	lc_array_sum[1]
 
@@ -174,7 +175,8 @@ struct lprocfs_percpu {
 enum lprocfs_stats_flags {
 	LPROCFS_STATS_FLAG_NONE     = 0x0000, /* per cpu counter */
 	LPROCFS_STATS_FLAG_NOPERCPU = 0x0001, /* stats have no percpu
-					       * area and need locking */
+					       * area and need locking
+					       */
 	LPROCFS_STATS_FLAG_IRQ_SAFE = 0x0002, /* alloc need irq safe */
 };
 
@@ -195,7 +197,8 @@ struct lprocfs_stats {
 	unsigned short			ls_biggest_alloc_num;
 	enum lprocfs_stats_flags	ls_flags;
 	/* Lock used when there are no percpu stats areas; For percpu stats,
-	 * it is used to protect ls_biggest_alloc_num change */
+	 * it is used to protect ls_biggest_alloc_num change
+	 */
 	spinlock_t			ls_lock;
 
 	/* has ls_num of counter headers */
@@ -206,7 +209,8 @@ struct lprocfs_stats {
 #define OPC_RANGE(seg) (seg ## _LAST_OPC - seg ## _FIRST_OPC)
 
 /* Pack all opcodes down into a single monotonically increasing index */
-static inline int opcode_offset(__u32 opc) {
+static inline int opcode_offset(__u32 opc)
+{
 	if (opc < OST_LAST_OPC) {
 		 /* OST opcode */
 		return (opc - OST_FIRST_OPC);
@@ -272,20 +276,7 @@ static inline int opcode_offset(__u32 opc) {
 			OPC_RANGE(OST));
 	} else if (opc < FLD_LAST_OPC) {
 		/* FLD opcode */
-		 return (opc - FLD_FIRST_OPC +
-			OPC_RANGE(SEC) +
-			OPC_RANGE(SEQ) +
-			OPC_RANGE(QUOTA) +
-			OPC_RANGE(LLOG) +
-			OPC_RANGE(OBD) +
-			OPC_RANGE(MGS) +
-			OPC_RANGE(LDLM) +
-			OPC_RANGE(MDS) +
-			OPC_RANGE(OST));
-	} else if (opc < UPDATE_LAST_OPC) {
-		/* update opcode */
-		return (opc - UPDATE_FIRST_OPC +
-			OPC_RANGE(FLD) +
+		return (opc - FLD_FIRST_OPC +
 			OPC_RANGE(SEC) +
 			OPC_RANGE(SEQ) +
 			OPC_RANGE(QUOTA) +
@@ -301,7 +292,6 @@ static inline int opcode_offset(__u32 opc) {
 	}
 }
 
-
 #define LUSTRE_MAX_OPCODES (OPC_RANGE(OST)  + \
 			    OPC_RANGE(MDS)  + \
 			    OPC_RANGE(LDLM) + \
@@ -311,8 +301,7 @@ static inline int opcode_offset(__u32 opc) {
 			    OPC_RANGE(SEC)  + \
 			    OPC_RANGE(SEQ)  + \
 			    OPC_RANGE(SEC)  + \
-			    OPC_RANGE(FLD)  + \
-			    OPC_RANGE(UPDATE))
+			    OPC_RANGE(FLD))
 
 #define EXTRA_MAX_OPCODES ((PTLRPC_LAST_CNTR - PTLRPC_FIRST_CNTR)  + \
 			    OPC_RANGE(EXTRA))
@@ -358,15 +347,18 @@ struct obd_histogram;
 struct dhms {
 	int d, h, m, s;
 };
-static inline void s2dhms(struct dhms *ts, time_t secs)
+
+static inline void s2dhms(struct dhms *ts, time64_t secs64)
 {
-	ts->d = secs / 86400;
-	secs = secs % 86400;
+	unsigned int secs;
+
+	ts->d = div_u64_rem(secs64, 86400, &secs);
 	ts->h = secs / 3600;
 	secs = secs % 3600;
 	ts->m = secs / 60;
 	ts->s = secs % 60;
 }
+
 #define DHMS_FMT "%dd%dh%02dm%02ds"
 #define DHMS_VARS(x) (x)->d, (x)->h, (x)->m, (x)->s
 
@@ -403,7 +395,7 @@ static inline int lprocfs_stats_lock(struct lprocfs_stats *stats, int opc,
 		} else {
 			unsigned int cpuid = get_cpu();
 
-			if (unlikely(stats->ls_percpu[cpuid] == NULL)) {
+			if (unlikely(!stats->ls_percpu[cpuid])) {
 				rc = lprocfs_stats_alloc_one(stats, cpuid);
 				if (rc < 0) {
 					put_cpu();
@@ -434,12 +426,10 @@ static inline void lprocfs_stats_unlock(struct lprocfs_stats *stats, int opc,
 
 	case LPROCFS_GET_SMP_ID:
 		if (stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) {
-			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE) {
-				spin_unlock_irqrestore(&stats->ls_lock,
-							   *flags);
-			} else {
+			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
+				spin_unlock_irqrestore(&stats->ls_lock, *flags);
+			else
 				spin_unlock(&stats->ls_lock);
-			}
 		} else {
 			put_cpu();
 		}
@@ -447,12 +437,10 @@ static inline void lprocfs_stats_unlock(struct lprocfs_stats *stats, int opc,
 
 	case LPROCFS_GET_NUM_CPU:
 		if (stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) {
-			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE) {
-				spin_unlock_irqrestore(&stats->ls_lock,
-							   *flags);
-			} else {
+			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
+				spin_unlock_irqrestore(&stats->ls_lock, *flags);
+			else
 				spin_unlock(&stats->ls_lock);
-			}
 		}
 		return;
 	}
@@ -517,11 +505,11 @@ static inline __u64 lprocfs_stats_collector(struct lprocfs_stats *stats,
 	unsigned long flags	= 0;
 	__u64	      ret	= 0;
 
-	LASSERT(stats != NULL);
+	LASSERT(stats);
 
 	num_cpu = lprocfs_stats_lock(stats, LPROCFS_GET_NUM_CPU, &flags);
 	for (i = 0; i < num_cpu; i++) {
-		if (stats->ls_percpu[i] == NULL)
+		if (!stats->ls_percpu[i])
 			continue;
 		ret += lprocfs_read_helper(
 				lprocfs_stats_counter_get(stats, i, idx),
@@ -536,26 +524,14 @@ extern struct lprocfs_stats *
 lprocfs_alloc_stats(unsigned int num, enum lprocfs_stats_flags flags);
 void lprocfs_clear_stats(struct lprocfs_stats *stats);
 void lprocfs_free_stats(struct lprocfs_stats **stats);
-void lprocfs_init_ops_stats(int num_private_stats, struct lprocfs_stats *stats);
-void lprocfs_init_mps_stats(int num_private_stats, struct lprocfs_stats *stats);
-void lprocfs_init_ldlm_stats(struct lprocfs_stats *ldlm_stats);
-int lprocfs_alloc_obd_stats(struct obd_device *obddev,
-			    unsigned int num_private_stats);
-int lprocfs_alloc_md_stats(struct obd_device *obddev,
-			   unsigned int num_private_stats);
 void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 			  unsigned conf, const char *name, const char *units);
-void lprocfs_free_obd_stats(struct obd_device *obddev);
-void lprocfs_free_md_stats(struct obd_device *obddev);
 struct obd_export;
 int lprocfs_exp_cleanup(struct obd_export *exp);
 struct dentry *ldebugfs_add_simple(struct dentry *root,
 				   char *name,
 				   void *data,
 				   struct file_operations *fops);
-struct dentry *
-ldebugfs_add_symlink(const char *name, struct dentry *parent,
-		     const char *format, ...);
 
 int ldebugfs_register_stats(struct dentry *parent,
 			    const char *name,
@@ -590,14 +566,9 @@ int ldebugfs_obd_seq_create(struct obd_device *dev,
 
 /* Generic callbacks */
 
-int lprocfs_rd_u64(struct seq_file *m, void *data);
-int lprocfs_rd_atomic(struct seq_file *m, void *data);
-int lprocfs_wr_atomic(struct file *file, const char __user *buffer,
-		      unsigned long count, void *data);
 int lprocfs_rd_uint(struct seq_file *m, void *data);
 int lprocfs_wr_uint(struct file *file, const char __user *buffer,
 		    unsigned long count, void *data);
-int lprocfs_rd_name(struct seq_file *m, void *data);
 int lprocfs_rd_server_uuid(struct seq_file *m, void *data);
 int lprocfs_rd_conn_uuid(struct seq_file *m, void *data);
 int lprocfs_rd_import(struct seq_file *m, void *data);
@@ -607,10 +578,6 @@ int lprocfs_rd_connect_flags(struct seq_file *m, void *data);
 struct adaptive_timeout;
 int lprocfs_at_hist_helper(struct seq_file *m, struct adaptive_timeout *at);
 int lprocfs_rd_timeouts(struct seq_file *m, void *data);
-int lprocfs_wr_timeouts(struct file *file, const char __user *buffer,
-			unsigned long count, void *data);
-int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
-			    size_t count, loff_t *off);
 int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 		    size_t count, loff_t *off);
 int lprocfs_wr_import(struct file *file, const char __user *buffer,
@@ -623,10 +590,9 @@ int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 
 int lprocfs_write_helper(const char __user *buffer, unsigned long count,
 			 int *val);
-int lprocfs_seq_read_frac_helper(struct seq_file *m, long val, int mult);
 int lprocfs_write_u64_helper(const char __user *buffer,
 			     unsigned long count, __u64 *val);
-int lprocfs_write_frac_u64_helper(const char *buffer,
+int lprocfs_write_frac_u64_helper(const char __user *buffer,
 				  unsigned long count,
 				  __u64 *val, int mult);
 char *lprocfs_find_named_value(const char *buffer, const char *name,
@@ -642,24 +608,11 @@ void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 int lprocfs_single_release(struct inode *, struct file *);
 int lprocfs_seq_release(struct inode *, struct file *);
 
-/* You must use these macros when you want to refer to
- * the import in a client obd_device for a lprocfs entry */
-#define LPROCFS_CLIMP_CHECK(obd) do {	   \
-	typecheck(struct obd_device *, obd);    \
-	down_read(&(obd)->u.cli.cl_sem);    \
-	if ((obd)->u.cli.cl_import == NULL) {   \
-	     up_read(&(obd)->u.cli.cl_sem); \
-	     return -ENODEV;		    \
-	}				       \
-} while (0)
-#define LPROCFS_CLIMP_EXIT(obd)		 \
-	up_read(&(obd)->u.cli.cl_sem)
-
-
 /* write the name##_seq_show function, call LPROC_SEQ_FOPS_RO for read-only
-  proc entries; otherwise, you will define name##_seq_write function also for
-  a read-write proc entry, and then call LPROC_SEQ_SEQ instead. Finally,
-  call ldebugfs_obd_seq_create(obd, filename, 0444, &name#_fops, data); */
+ * proc entries; otherwise, you will define name##_seq_write function also for
+ * a read-write proc entry, and then call LPROC_SEQ_SEQ instead. Finally,
+ * call ldebugfs_obd_seq_create(obd, filename, 0444, &name#_fops, data);
+ */
 #define __LPROC_SEQ_FOPS(name, custom_seq_write)			\
 static int name##_single_open(struct inode *inode, struct file *file)	\
 {									\
@@ -730,21 +683,7 @@ static struct lustre_attr lustre_attr_##name = __ATTR(name, mode, show, store)
 #define LUSTRE_RO_ATTR(name) LUSTRE_ATTR(name, 0444, name##_show, NULL)
 #define LUSTRE_RW_ATTR(name) LUSTRE_ATTR(name, 0644, name##_show, name##_store)
 
-ssize_t lustre_attr_show(struct kobject *kobj, struct attribute *attr,
-			 char *buf);
-ssize_t lustre_attr_store(struct kobject *kobj, struct attribute *attr,
-			  const char *buf, size_t len);
-
 extern const struct sysfs_ops lustre_sysfs_ops;
-
-/* lproc_ptlrpc.c */
-struct ptlrpc_request;
-void target_print_req(void *seq_file, struct ptlrpc_request *req);
-
-/* lproc_status.c */
-int lprocfs_obd_rd_max_pages_per_rpc(struct seq_file *m, void *data);
-int lprocfs_obd_wr_max_pages_per_rpc(struct file *file, const char *buffer,
-				     size_t count, loff_t *off);
 
 /* all quota proc functions */
 int lprocfs_quota_rd_bunit(char *page, char **start,

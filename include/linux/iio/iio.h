@@ -180,18 +180,18 @@ struct iio_event_spec {
  * @address:		Driver specific identifier.
  * @scan_index:		Monotonic index to give ordering in scans when read
  *			from a buffer.
- * @scan_type:		Sign:		's' or 'u' to specify signed or unsigned
+ * @scan_type:		sign:		's' or 'u' to specify signed or unsigned
  *			realbits:	Number of valid bits of data
- *			storage_bits:	Realbits + padding
+ *			storagebits:	Realbits + padding
  *			shift:		Shift right by this before masking out
  *					realbits.
- *			endianness:	little or big endian
  *			repeat:		Number of times real/storage bits
  *					repeats. When the repeat element is
  *					more than 1, then the type element in
  *					sysfs will show a repeat value.
  *					Otherwise, the number of repetitions is
  *					omitted.
+ *			endianness:	little or big endian
  * @info_mask_separate: What information is to be exported that is specific to
  *			this channel.
  * @info_mask_shared_by_type: What information is to be exported that is shared
@@ -294,6 +294,7 @@ static inline s64 iio_get_time_ns(void)
 #define INDIO_BUFFER_TRIGGERED		0x02
 #define INDIO_BUFFER_SOFTWARE		0x04
 #define INDIO_BUFFER_HARDWARE		0x08
+#define INDIO_EVENT_TRIGGERED		0x10
 
 #define INDIO_ALL_BUFFER_MODES					\
 	(INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE | INDIO_BUFFER_SOFTWARE)
@@ -447,7 +448,7 @@ struct iio_buffer_setup_ops {
  * @buffer:		[DRIVER] any buffer present
  * @buffer_list:	[INTERN] list of all buffers currently attached
  * @scan_bytes:		[INTERN] num bytes captured to be fed to buffer demux
- * @mlock:		[INTERN] lock used to prevent simultaneous device state
+ * @mlock:		[DRIVER] lock used to prevent simultaneous device state
  *			changes
  * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
  * @masklength:		[INTERN] the length of the mask established from
@@ -457,6 +458,7 @@ struct iio_buffer_setup_ops {
  * @scan_index_timestamp:[INTERN] cache of the index to the timestamp
  * @trig:		[INTERN] current device trigger (buffer modes)
  * @pollfunc:		[DRIVER] function run on trigger being received
+ * @pollfunc_event:	[DRIVER] function run on events trigger being received
  * @channels:		[DRIVER] channel specification structure table
  * @num_channels:	[DRIVER] number of channels specified in @channels.
  * @channel_attr_list:	[INTERN] keep track of automatically created channel
@@ -495,6 +497,7 @@ struct iio_dev {
 	unsigned			scan_index_timestamp;
 	struct iio_trigger		*trig;
 	struct iio_poll_func		*pollfunc;
+	struct iio_poll_func		*pollfunc_event;
 
 	struct iio_chan_spec const	*channels;
 	int				num_channels;
@@ -632,6 +635,8 @@ static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 	return NULL;
 }
 #endif
+
+ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals);
 
 int iio_str_to_fixpoint(const char *str, int fract_mult, int *integer,
 	int *fract);

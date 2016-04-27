@@ -41,4 +41,4 @@ ENTRY(memchr)
 	ret
 2:	mov	x0, #0
 	ret
-ENDPROC(memchr)
+ENDPIPROC(memchr)

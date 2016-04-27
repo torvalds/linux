@@ -148,23 +148,25 @@ static struct ibm_pa_feature {
 	unsigned long	cpu_features;	/* CPU_FTR_xxx bit */
 	unsigned long	mmu_features;	/* MMU_FTR_xxx bit */
 	unsigned int	cpu_user_ftrs;	/* PPC_FEATURE_xxx bit */
+	unsigned int	cpu_user_ftrs2;	/* PPC_FEATURE2_xxx bit */
 	unsigned char	pabyte;		/* byte number in ibm,pa-features */
 	unsigned char	pabit;		/* bit number (big-endian) */
 	unsigned char	invert;		/* if 1, pa bit set => clear feature */
 } ibm_pa_features[] __initdata = {
-	{0, 0, PPC_FEATURE_HAS_MMU,	0, 0, 0},
-	{0, 0, PPC_FEATURE_HAS_FPU,	0, 1, 0},
-	{CPU_FTR_CTRL, 0, 0,		0, 3, 0},
-	{CPU_FTR_NOEXECUTE, 0, 0,	0, 6, 0},
-	{CPU_FTR_NODSISRALIGN, 0, 0,	1, 1, 1},
-	{0, MMU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
-	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
+	{0, 0, PPC_FEATURE_HAS_MMU, 0,		0, 0, 0},
+	{0, 0, PPC_FEATURE_HAS_FPU, 0,		0, 1, 0},
+	{CPU_FTR_CTRL, 0, 0, 0,			0, 3, 0},
+	{CPU_FTR_NOEXECUTE, 0, 0, 0,		0, 6, 0},
+	{CPU_FTR_NODSISRALIGN, 0, 0, 0,		1, 1, 1},
+	{0, MMU_FTR_CI_LARGE_PAGE, 0, 0,		1, 2, 0},
+	{CPU_FTR_REAL_LE, 0, PPC_FEATURE_TRUE_LE, 0, 5, 0, 0},
 	/*
-	 * If the kernel doesn't support TM (ie. CONFIG_PPC_TRANSACTIONAL_MEM=n),
-	 * we don't want to turn on CPU_FTR_TM here, so we use CPU_FTR_TM_COMP
-	 * which is 0 if the kernel doesn't support TM.
+	 * If the kernel doesn't support TM (ie CONFIG_PPC_TRANSACTIONAL_MEM=n),
+	 * we don't want to turn on TM here, so we use the *_COMP versions
+	 * which are 0 if the kernel doesn't support TM.
 	 */
-	{CPU_FTR_TM_COMP, 0, 0,		22, 0, 0},
+	{CPU_FTR_TM_COMP, 0, 0,
+	 PPC_FEATURE2_HTM_COMP|PPC_FEATURE2_HTM_NOSC_COMP, 22, 0, 0},
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
@@ -195,10 +197,12 @@ static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 		if (bit ^ fp->invert) {
 			cur_cpu_spec->cpu_features |= fp->cpu_features;
 			cur_cpu_spec->cpu_user_features |= fp->cpu_user_ftrs;
+			cur_cpu_spec->cpu_user_features2 |= fp->cpu_user_ftrs2;
 			cur_cpu_spec->mmu_features |= fp->mmu_features;
 		} else {
 			cur_cpu_spec->cpu_features &= ~fp->cpu_features;
 			cur_cpu_spec->cpu_user_features &= ~fp->cpu_user_ftrs;
+			cur_cpu_spec->cpu_user_features2 &= ~fp->cpu_user_ftrs2;
 			cur_cpu_spec->mmu_features &= ~fp->mmu_features;
 		}
 	}
@@ -783,17 +787,19 @@ void __init early_get_first_memblock_info(void *params, phys_addr_t *size)
 int of_get_ibm_chip_id(struct device_node *np)
 {
 	of_node_get(np);
-	while(np) {
-		struct device_node *old = np;
-		const __be32 *prop;
+	while (np) {
+		u32 chip_id;
 
-		prop = of_get_property(np, "ibm,chip-id", NULL);
-		if (prop) {
+		/*
+		 * Skiboot may produce memory nodes that contain more than one
+		 * cell in chip-id, we only read the first one here.
+		 */
+		if (!of_property_read_u32(np, "ibm,chip-id", &chip_id)) {
 			of_node_put(np);
-			return be32_to_cpup(prop);
+			return chip_id;
 		}
-		np = of_get_parent(np);
-		of_node_put(old);
+
+		np = of_get_next_parent(np);
 	}
 	return -1;
 }

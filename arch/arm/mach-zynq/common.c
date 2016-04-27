@@ -150,11 +150,9 @@ out:
 
 static void __init zynq_timer_init(void)
 {
-	zynq_early_slcr_init();
-
 	zynq_clock_init();
 	of_clk_init(NULL);
-	clocksource_of_init();
+	clocksource_probe();
 }
 
 static struct map_desc zynq_cortex_a9_scu_map __initdata = {
@@ -186,6 +184,7 @@ static void __init zynq_map_io(void)
 
 static void __init zynq_irq_init(void)
 {
+	zynq_early_slcr_init();
 	irqchip_init();
 }
 

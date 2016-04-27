@@ -135,7 +135,7 @@ static struct fb_ops cirrusfb_ops = {
 };
 
 static int cirrusfb_create_object(struct cirrus_fbdev *afbdev,
-			       struct drm_mode_fb_cmd2 *mode_cmd,
+			       const struct drm_mode_fb_cmd2 *mode_cmd,
 			       struct drm_gem_object **gobj_p)
 {
 	struct drm_device *dev = afbdev->helper.dev;

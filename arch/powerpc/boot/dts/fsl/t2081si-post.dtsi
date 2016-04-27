@@ -630,6 +630,49 @@
 /include/ "qoriq-qman3.dtsi"
 /include/ "qoriq-bman1.dtsi"
 
+/include/ "qoriq-fman3-0.dtsi"
+/include/ "qoriq-fman3-0-1g-0.dtsi"
+/include/ "qoriq-fman3-0-1g-1.dtsi"
+/include/ "qoriq-fman3-0-1g-2.dtsi"
+/include/ "qoriq-fman3-0-1g-3.dtsi"
+/include/ "qoriq-fman3-0-1g-4.dtsi"
+/include/ "qoriq-fman3-0-1g-5.dtsi"
+/include/ "qoriq-fman3-0-10g-0.dtsi"
+/include/ "qoriq-fman3-0-10g-1.dtsi"
+	fman@400000 {
+		enet0: ethernet@e0000 {
+		};
+
+		enet1: ethernet@e2000 {
+		};
+
+		enet2: ethernet@e4000 {
+		};
+
+		enet3: ethernet@e6000 {
+		};
+
+		enet4: ethernet@e8000 {
+		};
+
+		enet5: ethernet@ea000 {
+		};
+
+		enet6: ethernet@f0000 {
+		};
+
+		enet7: ethernet@f2000 {
+		};
+
+		mdio@fc000 {
+			interrupts = <100 1 0 0>;
+		};
+
+		mdio@fd000 {
+			interrupts = <101 1 0 0>;
+		};
+	};
+
 	L2_1: l2-cache-controller@c20000 {
 		/* Cluster 0 L2 cache */
 		compatible = "fsl,t2080-l2-cache-controller";

@@ -1174,7 +1174,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 #ifdef CONFIG_GPIOLIB
 	/* Setup GPIO cotroller */
 	s->gpio.owner		= THIS_MODULE;
-	s->gpio.dev		= dev;
+	s->gpio.parent		= dev;
 	s->gpio.label		= dev_name(dev);
 	s->gpio.direction_input	= max310x_gpio_direction_input;
 	s->gpio.get		= max310x_gpio_get;
@@ -1338,7 +1338,6 @@ MODULE_DEVICE_TABLE(spi, max310x_id_table);
 static struct spi_driver max310x_uart_driver = {
 	.driver = {
 		.name		= MAX310X_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(max310x_dt_ids),
 		.pm		= &max310x_pm_ops,
 	},

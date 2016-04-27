@@ -15,7 +15,7 @@
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
-#include <mach/mv78xx0.h>
+#include "mv78xx0.h"
 #include "common.h"
 
 #define MV78XX0_MBUS_PCIE_MEM_TARGET(port, lane) ((port) ? 8 : 4)

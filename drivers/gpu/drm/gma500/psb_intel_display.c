@@ -430,7 +430,6 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 
 const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.dpms = gma_crtc_dpms,
-	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = psb_intel_crtc_mode_set,
 	.mode_set_base = gma_pipe_set_base,
 	.prepare = gma_crtc_prepare,
@@ -439,8 +438,6 @@ const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 };
 
 const struct drm_crtc_funcs psb_intel_crtc_funcs = {
-	.save = gma_crtc_save,
-	.restore = gma_crtc_restore,
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,

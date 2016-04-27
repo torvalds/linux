@@ -28,65 +28,44 @@
  *      -1   - Fail to initialize the i2c
  *       0   - Success
  */
-long swI2CInit(
-	unsigned char i2cClkGPIO,
-	unsigned char i2cDataGPIO
+long sm750_sw_i2c_init(
+	unsigned char clk_gpio,
+	unsigned char data_gpio
 );
 
 /*
  *  This function reads the slave device's register
  *
  *  Parameters:
- *      deviceAddress   - i2c Slave device address which register
+ *      addr   - i2c Slave device address which register
  *                        to be read from
- *      registerIndex   - Slave device's register to be read
+ *      reg    - Slave device's register to be read
  *
  *  Return Value:
  *      Register value
  */
-unsigned char swI2CReadReg(
-	unsigned char deviceAddress,
-	unsigned char registerIndex
+unsigned char sm750_sw_i2c_read_reg(
+	unsigned char addr,
+	unsigned char reg
 );
 
 /*
  *  This function writes a value to the slave device's register
  *
  *  Parameters:
- *      deviceAddress   - i2c Slave device address which register
+ *      addr            - i2c Slave device address which register
  *                        to be written
- *      registerIndex   - Slave device's register to be written
+ *      reg             - Slave device's register to be written
  *      data            - Data to be written to the register
  *
  *  Result:
  *          0   - Success
  *         -1   - Fail
  */
-long swI2CWriteReg(
-	unsigned char deviceAddress,
-	unsigned char registerIndex,
+long sm750_sw_i2c_write_reg(
+	unsigned char addr,
+	unsigned char reg,
 	unsigned char data
 );
-
-/*
- *  These two functions toggle the data on the SCL and SDA I2C lines.
- *  The use of these two functions is not recommended unless it is necessary.
- */
-
-/*
- *  This function set/reset the SCL GPIO pin
- *
- *  Parameters:
- *      value	- Bit value to set to the SCL or SDA (0 = low, 1 = high)
- */
-void swI2CSCL(unsigned char value);
-
-/*
- *  This function set/reset the SDA GPIO pin
- *
- *  Parameters:
- *      value	- Bit value to set to the SCL or SDA (0 = low, 1 = high)
- */
-void swI2CSDA(unsigned char value);
 
 #endif  /* _SWI2C_H_ */

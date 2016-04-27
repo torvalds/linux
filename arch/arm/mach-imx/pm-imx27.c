@@ -19,9 +19,9 @@ static int mx27_suspend_enter(suspend_state_t state)
 	switch (state) {
 	case PM_SUSPEND_MEM:
 		/* Clear MPEN and SPEN to disable MPLL/SPLL */
-		cscr = __raw_readl(MX27_IO_ADDRESS(MX27_CCM_BASE_ADDR));
+		cscr = imx_readl(MX27_IO_ADDRESS(MX27_CCM_BASE_ADDR));
 		cscr &= 0xFFFFFFFC;
-		__raw_writel(cscr, MX27_IO_ADDRESS(MX27_CCM_BASE_ADDR));
+		imx_writel(cscr, MX27_IO_ADDRESS(MX27_CCM_BASE_ADDR));
 		/* Executes WFI */
 		cpu_do_idle();
 		break;

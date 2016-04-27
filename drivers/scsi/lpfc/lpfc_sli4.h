@@ -442,6 +442,7 @@ struct lpfc_sli4_lnk_info {
 #define LPFC_LNK_GE	0x0 /* FCoE */
 #define LPFC_LNK_FC	0x1 /* FC   */
 	uint8_t lnk_no;
+	uint8_t optic_state;
 };
 
 #define LPFC_SLI4_HANDLER_CNT		(LPFC_FCP_IO_CHAN_MAX+ \
@@ -454,7 +455,6 @@ struct lpfc_vector_map_info {
 	uint16_t	core_id;
 	uint16_t	irq;
 	uint16_t	channel_id;
-	struct cpumask	maskbits;
 };
 #define LPFC_VECTOR_MAP_EMPTY	0xffff
 

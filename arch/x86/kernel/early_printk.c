@@ -195,14 +195,14 @@ static __init void early_serial_init(char *s)
 #ifdef CONFIG_PCI
 static void mem32_serial_out(unsigned long addr, int offset, int value)
 {
-	u32 *vaddr = (u32 *)addr;
+	u32 __iomem *vaddr = (u32 __iomem *)addr;
 	/* shift implied by pointer type */
 	writel(value, vaddr + offset);
 }
 
 static unsigned int mem32_serial_in(unsigned long addr, int offset)
 {
-	u32 *vaddr = (u32 *)addr;
+	u32 __iomem *vaddr = (u32 __iomem *)addr;
 	/* shift implied by pointer type */
 	return readl(vaddr + offset);
 }
@@ -287,7 +287,7 @@ static __init void early_pci_serial_init(char *s)
 	}
 
 	/*
-	 * Lastly, initalize the hardware
+	 * Lastly, initialize the hardware
 	 */
 	if (*s) {
 		if (strcmp(s, "nocfg") == 0)
@@ -316,7 +316,7 @@ static struct console early_serial_console = {
 	.index =	-1,
 };
 
-static inline void early_console_register(struct console *con, int keep_early)
+static void early_console_register(struct console *con, int keep_early)
 {
 	if (con->index != -1) {
 		printk(KERN_CRIT "ERROR: earlyprintk= %s already used\n",

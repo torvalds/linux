@@ -12,7 +12,7 @@
 #include <linux/module.h>
 
 #define FILTER_VALID_HOOKS ((1 << NF_BR_LOCAL_IN) | (1 << NF_BR_FORWARD) | \
-   (1 << NF_BR_LOCAL_OUT))
+			    (1 << NF_BR_LOCAL_OUT))
 
 static struct ebt_entries initial_chains[] = {
 	{
@@ -57,39 +57,34 @@ static const struct ebt_table frame_filter = {
 };
 
 static unsigned int
-ebt_in_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ebt_in_hook(void *priv, struct sk_buff *skb,
 	    const struct nf_hook_state *state)
 {
-	return ebt_do_table(ops->hooknum, skb, state->in, state->out,
-			    dev_net(state->in)->xt.frame_filter);
+	return ebt_do_table(skb, state, state->net->xt.frame_filter);
 }
 
 static unsigned int
-ebt_out_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
+ebt_out_hook(void *priv, struct sk_buff *skb,
 	     const struct nf_hook_state *state)
 {
-	return ebt_do_table(ops->hooknum, skb, state->in, state->out,
-			    dev_net(state->out)->xt.frame_filter);
+	return ebt_do_table(skb, state, state->net->xt.frame_filter);
 }
 
 static struct nf_hook_ops ebt_ops_filter[] __read_mostly = {
 	{
 		.hook		= ebt_in_hook,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_LOCAL_IN,
 		.priority	= NF_BR_PRI_FILTER_BRIDGED,
 	},
 	{
 		.hook		= ebt_in_hook,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_FORWARD,
 		.priority	= NF_BR_PRI_FILTER_BRIDGED,
 	},
 	{
 		.hook		= ebt_out_hook,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_LOCAL_OUT,
 		.priority	= NF_BR_PRI_FILTER_OTHER,

@@ -8,11 +8,22 @@ ifeq ($(ARCH),powerpc)
 
 GIT_VERSION = $(shell git describe --always --long --dirty || echo "unknown")
 
-CFLAGS := -Wall -O2 -flto -Wall -Werror -DGIT_VERSION='"$(GIT_VERSION)"' -I$(CURDIR) $(CFLAGS)
+CFLAGS := -Wall -O2 -Wall -Werror -DGIT_VERSION='"$(GIT_VERSION)"' -I$(CURDIR) $(CFLAGS)
 
 export CFLAGS
 
-SUB_DIRS = pmu copyloops mm tm primitives stringloops vphn switch_endian dscr
+SUB_DIRS = benchmarks 		\
+	   copyloops		\
+	   dscr			\
+	   mm			\
+	   pmu			\
+	   primitives		\
+	   stringloops		\
+	   switch_endian	\
+	   syscalls		\
+	   tm			\
+	   vphn         \
+	   math
 
 endif
 

@@ -36,7 +36,6 @@
 
 static void __iomem *omap2_ctrl_base;
 static s16 omap2_ctrl_offset;
-static struct regmap *omap2_ctrl_syscon;
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 struct omap3_scratchpad {
@@ -166,16 +165,9 @@ u16 omap_ctrl_readw(u16 offset)
 
 u32 omap_ctrl_readl(u16 offset)
 {
-	u32 val;
-
 	offset &= 0xfffc;
-	if (!omap2_ctrl_syscon)
-		val = readl_relaxed(omap2_ctrl_base + offset);
-	else
-		regmap_read(omap2_ctrl_syscon, omap2_ctrl_offset + offset,
-			    &val);
 
-	return val;
+	return readl_relaxed(omap2_ctrl_base + offset);
 }
 
 void omap_ctrl_writeb(u8 val, u16 offset)
@@ -207,11 +199,7 @@ void omap_ctrl_writew(u16 val, u16 offset)
 void omap_ctrl_writel(u32 val, u16 offset)
 {
 	offset &= 0xfffc;
-	if (!omap2_ctrl_syscon)
-		writel_relaxed(val, omap2_ctrl_base + offset);
-	else
-		regmap_write(omap2_ctrl_syscon, omap2_ctrl_offset + offset,
-			     val);
+	writel_relaxed(val, omap2_ctrl_base + offset);
 }
 
 #ifdef CONFIG_ARCH_OMAP3
@@ -715,8 +703,6 @@ int __init omap_control_init(void)
 			if (IS_ERR(syscon))
 				return PTR_ERR(syscon);
 
-			omap2_ctrl_syscon = syscon;
-
 			if (of_get_child_by_name(scm_conf, "clocks")) {
 				ret = omap2_clk_provider_init(scm_conf,
 							      data->index,
@@ -724,9 +710,6 @@ int __init omap_control_init(void)
 				if (ret)
 					return ret;
 			}
-
-			iounmap(omap2_ctrl_base);
-			omap2_ctrl_base = NULL;
 		} else {
 			/* No scm_conf found, direct access */
 			ret = omap2_clk_provider_init(np, data->index, NULL,

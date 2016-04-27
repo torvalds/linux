@@ -199,19 +199,24 @@ static inline int inet_sk_listen_hashfn(const struct sock *sk)
 }
 
 /* Caller must disable local BH processing. */
-int __inet_inherit_port(struct sock *sk, struct sock *child);
+int __inet_inherit_port(const struct sock *sk, struct sock *child);
 
 void inet_put_port(struct sock *sk);
 
 void inet_hashinfo_init(struct inet_hashinfo *h);
 
-void __inet_hash_nolisten(struct sock *sk, struct sock *osk);
-void __inet_hash(struct sock *sk, struct sock *osk);
-void inet_hash(struct sock *sk);
+bool inet_ehash_insert(struct sock *sk, struct sock *osk);
+bool inet_ehash_nolisten(struct sock *sk, struct sock *osk);
+int __inet_hash(struct sock *sk, struct sock *osk,
+		int (*saddr_same)(const struct sock *sk1,
+				  const struct sock *sk2,
+				  bool match_wildcard));
+int inet_hash(struct sock *sk);
 void inet_unhash(struct sock *sk);
 
 struct sock *__inet_lookup_listener(struct net *net,
 				    struct inet_hashinfo *hashinfo,
+				    struct sk_buff *skb, int doff,
 				    const __be32 saddr, const __be16 sport,
 				    const __be32 daddr,
 				    const unsigned short hnum,
@@ -219,10 +224,11 @@ struct sock *__inet_lookup_listener(struct net *net,
 
 static inline struct sock *inet_lookup_listener(struct net *net,
 		struct inet_hashinfo *hashinfo,
+		struct sk_buff *skb, int doff,
 		__be32 saddr, __be16 sport,
 		__be32 daddr, __be16 dport, int dif)
 {
-	return __inet_lookup_listener(net, hashinfo, saddr, sport,
+	return __inet_lookup_listener(net, hashinfo, skb, doff, saddr, sport,
 				      daddr, ntohs(dport), dif);
 }
 
@@ -298,6 +304,7 @@ static inline struct sock *
 
 static inline struct sock *__inet_lookup(struct net *net,
 					 struct inet_hashinfo *hashinfo,
+					 struct sk_buff *skb, int doff,
 					 const __be32 saddr, const __be16 sport,
 					 const __be32 daddr, const __be16 dport,
 					 const int dif)
@@ -306,12 +313,13 @@ static inline struct sock *__inet_lookup(struct net *net,
 	struct sock *sk = __inet_lookup_established(net, hashinfo,
 				saddr, sport, daddr, hnum, dif);
 
-	return sk ? : __inet_lookup_listener(net, hashinfo, saddr, sport,
-					     daddr, hnum, dif);
+	return sk ? : __inet_lookup_listener(net, hashinfo, skb, doff, saddr,
+					     sport, daddr, hnum, dif);
 }
 
 static inline struct sock *inet_lookup(struct net *net,
 				       struct inet_hashinfo *hashinfo,
+				       struct sk_buff *skb, int doff,
 				       const __be32 saddr, const __be16 sport,
 				       const __be32 daddr, const __be16 dport,
 				       const int dif)
@@ -319,7 +327,8 @@ static inline struct sock *inet_lookup(struct net *net,
 	struct sock *sk;
 
 	local_bh_disable();
-	sk = __inet_lookup(net, hashinfo, saddr, sport, daddr, dport, dif);
+	sk = __inet_lookup(net, hashinfo, skb, doff, saddr, sport, daddr,
+			   dport, dif);
 	local_bh_enable();
 
 	return sk;
@@ -327,6 +336,7 @@ static inline struct sock *inet_lookup(struct net *net,
 
 static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
 					     struct sk_buff *skb,
+					     int doff,
 					     const __be16 sport,
 					     const __be16 dport)
 {
@@ -336,8 +346,8 @@ static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
 	if (sk)
 		return sk;
 	else
-		return __inet_lookup(dev_net(skb_dst(skb)->dev), hashinfo,
-				     iph->saddr, sport,
+		return __inet_lookup(dev_net(skb_dst(skb)->dev), hashinfo, skb,
+				     doff, iph->saddr, sport,
 				     iph->daddr, dport, inet_iif(skb));
 }
 

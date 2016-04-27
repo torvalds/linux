@@ -4,23 +4,7 @@
 #ifndef __ASSEMBLY__
 extern void mcount(void);
 
-/*
- * Stack of return addresses for functions of a thread.
- * Used in struct thread_info
- */
-struct ftrace_ret_stack {
-	unsigned long ret;
-	unsigned long func;
-	unsigned long long calltime;
-};
-
-/*
- * Primary handler of a function return.
- * It relays on ftrace_return_to_handler.
- * Defined in entry.S
- */
-extern void return_to_handler(void);
-
+#define MCOUNT_INSN_SIZE 4
 
 extern unsigned long return_address(unsigned int);
 

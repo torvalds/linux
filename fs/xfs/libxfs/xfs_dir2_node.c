@@ -33,6 +33,7 @@
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
+#include "xfs_log.h"
 
 /*
  * Function declarations.
@@ -97,6 +98,8 @@ xfs_dir3_free_verify(
 			return false;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
 			return false;
+		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
+			return false;
 	} else {
 		if (hdr->magic != cpu_to_be32(XFS_DIR2_FREE_MAGIC))
 			return false;
@@ -147,6 +150,7 @@ xfs_dir3_free_write_verify(
 }
 
 const struct xfs_buf_ops xfs_dir3_free_buf_ops = {
+	.name = "xfs_dir3_free",
 	.verify_read = xfs_dir3_free_read_verify,
 	.verify_write = xfs_dir3_free_write_verify,
 };
@@ -2231,6 +2235,9 @@ xfs_dir2_node_trim_free(
 
 	dp = args->dp;
 	tp = args->trans;
+
+	*rvalp = 0;
+
 	/*
 	 * Read the freespace block.
 	 */
@@ -2251,7 +2258,6 @@ xfs_dir2_node_trim_free(
 	 */
 	if (freehdr.nused > 0) {
 		xfs_trans_brelse(tp, bp);
-		*rvalp = 0;
 		return 0;
 	}
 	/*

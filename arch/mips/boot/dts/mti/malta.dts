@@ -1,5 +1,9 @@
 /dts-v1/;
 
+/memreserve/ 0x00000000 0x00001000;	/* YAMON exception vectors */
+/memreserve/ 0x00001000 0x000ef000;	/* YAMON */
+/memreserve/ 0x000f0000 0x00010000;	/* PIIX4 ISA memory */
+
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;

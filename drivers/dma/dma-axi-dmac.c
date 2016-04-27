@@ -307,6 +307,13 @@ static int axi_dmac_terminate_all(struct dma_chan *c)
 	return 0;
 }
 
+static void axi_dmac_synchronize(struct dma_chan *c)
+{
+	struct axi_dmac_chan *chan = to_axi_dmac_chan(c);
+
+	vchan_synchronize(&chan->vchan);
+}
+
 static void axi_dmac_issue_pending(struct dma_chan *c)
 {
 	struct axi_dmac_chan *chan = to_axi_dmac_chan(c);
@@ -613,6 +620,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	dma_dev->device_prep_dma_cyclic = axi_dmac_prep_dma_cyclic;
 	dma_dev->device_prep_interleaved_dma = axi_dmac_prep_interleaved;
 	dma_dev->device_terminate_all = axi_dmac_terminate_all;
+	dma_dev->device_synchronize = axi_dmac_synchronize;
 	dma_dev->dev = &pdev->dev;
 	dma_dev->chancnt = 1;
 	dma_dev->src_addr_widths = BIT(dmac->chan.src_width);

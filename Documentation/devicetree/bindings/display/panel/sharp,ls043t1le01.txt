@@ -1,0 +1,22 @@
+Sharp Microelectronics 4.3" qHD TFT LCD panel
+
+Required properties:
+- compatible: should be "sharp,ls043t1le01-qhd"
+- reg: DSI virtual channel of the peripheral
+- power-supply: phandle of the regulator that provides the supply voltage
+
+Optional properties:
+- backlight: phandle of the backlight device attached to the panel
+- reset-gpios: a GPIO spec for the reset pin
+
+Example:
+
+	mdss_dsi@fd922800 {
+		panel@0 {
+			compatible = "sharp,ls043t1le01-qhd";
+			reg = <0>;
+			avdd-supply = <&pm8941_l22>;
+			backlight = <&pm8941_wled>;
+			reset-gpios = <&pm8941_gpios 19 GPIO_ACTIVE_HIGH>;
+		};
+	};

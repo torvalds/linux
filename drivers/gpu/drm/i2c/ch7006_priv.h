@@ -78,7 +78,7 @@ struct ch7006_state {
 
 struct ch7006_priv {
 	struct ch7006_encoder_params params;
-	struct ch7006_mode *mode;
+	const struct ch7006_mode *mode;
 
 	struct ch7006_state state;
 	struct ch7006_state saved_state;
@@ -106,12 +106,12 @@ extern int ch7006_debug;
 extern char *ch7006_tv_norm;
 extern int ch7006_scale;
 
-extern char *ch7006_tv_norm_names[];
-extern struct ch7006_tv_norm_info ch7006_tv_norms[];
-extern struct ch7006_mode ch7006_modes[];
+extern const char * const ch7006_tv_norm_names[];
+extern const struct ch7006_tv_norm_info ch7006_tv_norms[];
+extern const struct ch7006_mode ch7006_modes[];
 
-struct ch7006_mode *ch7006_lookup_mode(struct drm_encoder *encoder,
-				       const struct drm_display_mode *drm_mode);
+const struct ch7006_mode *ch7006_lookup_mode(struct drm_encoder *encoder,
+					     const struct drm_display_mode *drm_mode);
 
 void ch7006_setup_levels(struct drm_encoder *encoder);
 void ch7006_setup_subcarrier(struct drm_encoder *encoder);

@@ -25,8 +25,13 @@ static void nft_masq_ipv4_eval(const struct nft_expr *expr,
 
 	memset(&range, 0, sizeof(range));
 	range.flags = priv->flags;
-
-	regs->verdict.code = nf_nat_masquerade_ipv4(pkt->skb, pkt->ops->hooknum,
+	if (priv->sreg_proto_min) {
+		range.min_proto.all =
+			*(__be16 *)&regs->data[priv->sreg_proto_min];
+		range.max_proto.all =
+			*(__be16 *)&regs->data[priv->sreg_proto_max];
+	}
+	regs->verdict.code = nf_nat_masquerade_ipv4(pkt->skb, pkt->hook,
 						    &range, pkt->out);
 }
 

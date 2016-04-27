@@ -414,17 +414,12 @@ void *ipc_alloc(int size)
 /**
  * ipc_free - free ipc space
  * @ptr: pointer returned by ipc_alloc
- * @size: size of block
  *
- * Free a block created with ipc_alloc(). The caller must know the size
- * used in the allocation call.
+ * Free a block created with ipc_alloc().
  */
-void ipc_free(void *ptr, int size)
+void ipc_free(void *ptr)
 {
-	if (size > PAGE_SIZE)
-		vfree(ptr);
-	else
-		kfree(ptr);
+	kvfree(ptr);
 }
 
 /**

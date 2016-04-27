@@ -17,10 +17,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
   The full GNU General Public License is included in this distribution in the
   file called LICENSE.
 
@@ -49,23 +45,18 @@
 #include <linux/etherdevice.h>
 #include <linux/uaccess.h>
 #include <net/arp.h>
-
 #include "rtllib.h"
-
 
 u32 rt_global_debug_component = COMP_ERR;
 EXPORT_SYMBOL(rt_global_debug_component);
-
-
 
 static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 {
 	if (ieee->networks)
 		return 0;
 
-	ieee->networks = kzalloc(
-		MAX_NETWORK_COUNT * sizeof(struct rtllib_network),
-		GFP_KERNEL);
+	ieee->networks = kcalloc(MAX_NETWORK_COUNT,
+				 sizeof(struct rtllib_network), GFP_KERNEL);
 	if (!ieee->networks)
 		return -ENOMEM;
 
@@ -114,7 +105,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 		goto failed;
 	}
 	rtllib_networks_initialize(ieee);
-
 
 	/* Default fragmentation threshold is maximum payload size */
 	ieee->fts = DEFAULT_FTS;

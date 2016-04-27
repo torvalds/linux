@@ -35,6 +35,8 @@
 
 #include <linux/types.h>
 
+#include "mlx5_ib.h"
+
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
 	MLX5_QP_FLAG_SCATTER_CQE	= 1 << 1,
@@ -66,7 +68,15 @@ struct mlx5_ib_alloc_ucontext_req_v2 {
 	__u32	total_num_uuars;
 	__u32	num_low_latency_uuars;
 	__u32	flags;
-	__u32	reserved;
+	__u32	comp_mask;
+	__u8	max_cqe_version;
+	__u8	reserved0;
+	__u16	reserved1;
+	__u32	reserved2;
+};
+
+enum mlx5_ib_alloc_ucontext_resp_mask {
+	MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_CORE_CLOCK_OFFSET = 1UL << 0,
 };
 
 struct mlx5_ib_alloc_ucontext_resp {
@@ -80,7 +90,13 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u32	max_recv_wr;
 	__u32	max_srq_recv_wr;
 	__u16	num_ports;
-	__u16	reserved;
+	__u16	reserved1;
+	__u32	comp_mask;
+	__u32	response_length;
+	__u8	cqe_version;
+	__u8	reserved2;
+	__u16	reserved3;
+	__u64	hca_core_clock_offset;
 };
 
 struct mlx5_ib_alloc_pd_resp {
@@ -110,7 +126,9 @@ struct mlx5_ib_create_srq {
 	__u64	buf_addr;
 	__u64	db_addr;
 	__u32	flags;
-	__u32	reserved; /* explicit padding (optional on i386) */
+	__u32	reserved0; /* explicit padding (optional on i386) */
+	__u32	uidx;
+	__u32	reserved1;
 };
 
 struct mlx5_ib_create_srq_resp {
@@ -125,9 +143,55 @@ struct mlx5_ib_create_qp {
 	__u32	rq_wqe_count;
 	__u32	rq_wqe_shift;
 	__u32	flags;
+	__u32	uidx;
+	__u32	reserved0;
+	__u64	sq_buf_addr;
 };
 
 struct mlx5_ib_create_qp_resp {
 	__u32	uuar_index;
 };
+
+struct mlx5_ib_alloc_mw {
+	__u32	comp_mask;
+	__u8	num_klms;
+	__u8	reserved1;
+	__u16	reserved2;
+};
+
+static inline int get_qp_user_index(struct mlx5_ib_ucontext *ucontext,
+				    struct mlx5_ib_create_qp *ucmd,
+				    int inlen,
+				    u32 *user_index)
+{
+	u8 cqe_version = ucontext->cqe_version;
+
+	if (field_avail(struct mlx5_ib_create_qp, uidx, inlen) &&
+	    !cqe_version && (ucmd->uidx == MLX5_IB_DEFAULT_UIDX))
+		return 0;
+
+	if (!!(field_avail(struct mlx5_ib_create_qp, uidx, inlen) !=
+	       !!cqe_version))
+		return -EINVAL;
+
+	return verify_assign_uidx(cqe_version, ucmd->uidx, user_index);
+}
+
+static inline int get_srq_user_index(struct mlx5_ib_ucontext *ucontext,
+				     struct mlx5_ib_create_srq *ucmd,
+				     int inlen,
+				     u32 *user_index)
+{
+	u8 cqe_version = ucontext->cqe_version;
+
+	if (field_avail(struct mlx5_ib_create_srq, uidx, inlen) &&
+	    !cqe_version && (ucmd->uidx == MLX5_IB_DEFAULT_UIDX))
+		return 0;
+
+	if (!!(field_avail(struct mlx5_ib_create_srq, uidx, inlen) !=
+	       !!cqe_version))
+		return -EINVAL;
+
+	return verify_assign_uidx(cqe_version, ucmd->uidx, user_index);
+}
 #endif /* MLX5_IB_USER_H */

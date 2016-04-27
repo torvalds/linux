@@ -1097,8 +1097,7 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 {
 	struct twl6040_data *priv;
 	struct twl6040 *twl6040 = dev_get_drvdata(codec->dev->parent);
-	struct platform_device *pdev = container_of(codec->dev,
-						   struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(codec->dev);
 	int ret = 0;
 
 	priv = devm_kzalloc(codec->dev, sizeof(*priv), GFP_KERNEL);

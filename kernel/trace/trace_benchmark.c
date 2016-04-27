@@ -43,7 +43,7 @@ static void trace_do_benchmark(void)
 	unsigned int std = 0;
 
 	/* Only run if the tracepoint is actually active */
-	if (!trace_benchmark_event_enabled())
+	if (!trace_benchmark_event_enabled() || !tracing_is_on())
 		return;
 
 	local_irq_disable();

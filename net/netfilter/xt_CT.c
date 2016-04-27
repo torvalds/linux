@@ -143,7 +143,7 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 		goto out;
 	}
 
-	timeout = timeout_find_get(timeout_name);
+	timeout = timeout_find_get(par->net, timeout_name);
 	if (timeout == NULL) {
 		ret = -ENOENT;
 		pr_info("No such timeout policy \"%s\"\n", timeout_name);
@@ -170,6 +170,9 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 	timeout_ext = nf_ct_timeout_ext_add(ct, timeout, GFP_ATOMIC);
 	if (timeout_ext == NULL)
 		ret = -ENOMEM;
+
+	rcu_read_unlock();
+	return ret;
 
 err_put_timeout:
 	__xt_ct_tg_timeout_put(timeout);
@@ -318,8 +321,10 @@ static void xt_ct_destroy_timeout(struct nf_conn *ct)
 
 	if (timeout_put) {
 		timeout_ext = nf_ct_timeout_find(ct);
-		if (timeout_ext)
+		if (timeout_ext) {
 			timeout_put(timeout_ext->timeout);
+			RCU_INIT_POINTER(timeout_ext->timeout, NULL);
+		}
 	}
 	rcu_read_unlock();
 #endif

@@ -1067,12 +1067,12 @@ static void ms_lib_free_writebuf(struct us_data *us)
 	ms_lib_clear_pagemap(info); /* (pdx)->MS_Lib.pagemap memset 0 in ms.h */
 
 	if (info->MS_Lib.blkpag) {
-		kfree((u8 *)(info->MS_Lib.blkpag));  /* Arnold test ... */
+		kfree(info->MS_Lib.blkpag);  /* Arnold test ... */
 		info->MS_Lib.blkpag = NULL;
 	}
 
 	if (info->MS_Lib.blkext) {
-		kfree((u8 *)(info->MS_Lib.blkext));  /* Arnold test ... */
+		kfree(info->MS_Lib.blkext);  /* Arnold test ... */
 		info->MS_Lib.blkext = NULL;
 	}
 }

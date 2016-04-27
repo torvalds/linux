@@ -46,6 +46,7 @@
 			snps,pbl = < 32 >;
 			clocks = <&apbclk>;
 			clock-names = "stmmaceth";
+			max-speed = <100>;
 		};
 
 		ehci@0x40000 {

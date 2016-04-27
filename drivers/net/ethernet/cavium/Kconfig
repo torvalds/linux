@@ -35,7 +35,7 @@ config	THUNDER_NIC_BGX
 	tristate "Thunder MAC interface driver (BGX)"
 	depends on 64BIT
 	select PHYLIB
-	select MDIO_OCTEON
+	select MDIO_THUNDER
 	---help---
 	  This driver supports programming and controlling of MAC
 	  interface from NIC physical function driver.
@@ -52,5 +52,16 @@ config LIQUIDIO
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called liquidio.  This is recommended.
+
+config OCTEON_MGMT_ETHERNET
+	tristate "Octeon Management port ethernet driver (CN5XXX, CN6XXX)"
+	depends on CAVIUM_OCTEON_SOC
+	select PHYLIB
+	select MDIO_OCTEON
+	default y
+	help
+	  Enable the ethernet driver for the management
+	  port on Cavium Networks' Octeon CN57XX, CN56XX, CN55XX,
+	  CN54XX, CN52XX, and CN6XXX chips.
 
 endif # NET_VENDOR_CAVIUM

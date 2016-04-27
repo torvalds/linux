@@ -9,7 +9,6 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -34,6 +33,7 @@ static const struct of_device_id sun6i_a31_apb0_gates_clk_dt_ids[] = {
 	{ .compatible = "allwinner,sun8i-a23-apb0-gates-clk", .data = &sun8i_a23_apb0_gates },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, sun6i_a31_apb0_gates_clk_dt_ids);
 
 static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 {
@@ -86,7 +86,6 @@ static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 						      clk_parent, 0, reg, i,
 						      0, NULL);
 		WARN_ON(IS_ERR(clk_data->clks[i]));
-		clk_register_clkdev(clk_data->clks[i], clk_name, NULL);
 
 		j++;
 	}

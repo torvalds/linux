@@ -10,7 +10,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -62,6 +61,7 @@
 
 #define	PCIECTRL_DRA7XX_CONF_PHY_CS			0x010C
 #define	LINK_UP						BIT(16)
+#define	DRA7XX_CPU_TO_BUS_ADDR				0x0FFFFFFF
 
 struct dra7xx_pcie {
 	void __iomem		*base;
@@ -107,7 +107,6 @@ static int dra7xx_pcie_establish_link(struct pcie_port *pp)
 {
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pp);
 	u32 reg;
-	unsigned int retries;
 
 	if (dw_pcie_link_up(pp)) {
 		dev_err(pp->dev, "link is already up\n");
@@ -118,14 +117,7 @@ static int dra7xx_pcie_establish_link(struct pcie_port *pp)
 	reg |= LTSSM_EN;
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD, reg);
 
-	for (retries = 0; retries < 1000; retries++) {
-		if (dw_pcie_link_up(pp))
-			return 0;
-		usleep_range(10, 20);
-	}
-
-	dev_err(pp->dev, "link is not up\n");
-	return -EINVAL;
+	return dw_pcie_wait_for_link(pp);
 }
 
 static void dra7xx_pcie_enable_interrupts(struct pcie_port *pp)
@@ -151,6 +143,12 @@ static void dra7xx_pcie_enable_interrupts(struct pcie_port *pp)
 static void dra7xx_pcie_host_init(struct pcie_port *pp)
 {
 	dw_pcie_setup_rc(pp);
+
+	pp->io_base &= DRA7XX_CPU_TO_BUS_ADDR;
+	pp->mem_base &= DRA7XX_CPU_TO_BUS_ADDR;
+	pp->cfg0_base &= DRA7XX_CPU_TO_BUS_ADDR;
+	pp->cfg1_base &= DRA7XX_CPU_TO_BUS_ADDR;
+
 	dra7xx_pcie_establish_link(pp);
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		dw_pcie_msi_init(pp);
@@ -295,7 +293,8 @@ static int __init dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
 	}
 
 	ret = devm_request_irq(&pdev->dev, pp->irq,
-			       dra7xx_pcie_msi_irq_handler, IRQF_SHARED,
+			       dra7xx_pcie_msi_irq_handler,
+			       IRQF_SHARED | IRQF_NO_THREAD,
 			       "dra7-pcie-msi",	pp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");

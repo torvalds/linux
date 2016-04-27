@@ -231,8 +231,11 @@ ENDPROC(tegra20_cpu_is_resettable_soon)
  * tegra20_tear_down_core in IRAM
  */
 ENTRY(tegra20_sleep_core_finish)
+	mov     r4, r0
 	/* Flush, disable the L1 data cache and exit SMP */
+	mov     r0, #TEGRA_FLUSH_CACHE_ALL
 	bl	tegra_disable_clean_inv_dcache
+	mov     r0, r4
 
 	mov32	r3, tegra_shut_off_mmu
 	add	r3, r3, r0

@@ -1394,7 +1394,9 @@ static int snd_korg1212_playback_open(struct snd_pcm_substream *substream)
 
         spin_unlock_irqrestore(&korg1212->lock, flags);
 
-        snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_SIZE, kPlayBufferFrames, kPlayBufferFrames);
+	snd_pcm_hw_constraint_single(runtime, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+				     kPlayBufferFrames);
+
         return 0;
 }
 
@@ -1422,8 +1424,8 @@ static int snd_korg1212_capture_open(struct snd_pcm_substream *substream)
 
         spin_unlock_irqrestore(&korg1212->lock, flags);
 
-        snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
-				     kPlayBufferFrames, kPlayBufferFrames);
+	snd_pcm_hw_constraint_single(runtime, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+				     kPlayBufferFrames);
         return 0;
 }
 

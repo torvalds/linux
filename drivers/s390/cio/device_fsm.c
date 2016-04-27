@@ -44,7 +44,7 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 	sch = to_subchannel(cdev->dev.parent);
 	private = to_io_private(sch);
 	orb = &private->orb;
-	cc = stsch_err(sch->schid, &schib);
+	cc = stsch(sch->schid, &schib);
 
 	printk(KERN_WARNING "cio: ccw device timeout occurred at %llx, "
 	       "device information:\n", get_tod_clock());
@@ -728,6 +728,44 @@ static void ccw_device_boxed_verify(struct ccw_device *cdev,
 			ccw_device_online_verify(cdev, dev_event);
 	} else
 		css_schedule_eval(sch->schid);
+}
+
+/*
+ * Pass interrupt to device driver.
+ */
+static int ccw_device_call_handler(struct ccw_device *cdev)
+{
+	unsigned int stctl;
+	int ending_status;
+
+	/*
+	 * we allow for the device action handler if .
+	 *  - we received ending status
+	 *  - the action handler requested to see all interrupts
+	 *  - we received an intermediate status
+	 *  - fast notification was requested (primary status)
+	 *  - unsolicited interrupts
+	 */
+	stctl = scsw_stctl(&cdev->private->irb.scsw);
+	ending_status = (stctl & SCSW_STCTL_SEC_STATUS) ||
+		(stctl == (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND)) ||
+		(stctl == SCSW_STCTL_STATUS_PEND);
+	if (!ending_status &&
+	    !cdev->private->options.repall &&
+	    !(stctl & SCSW_STCTL_INTER_STATUS) &&
+	    !(cdev->private->options.fast &&
+	      (stctl & SCSW_STCTL_PRIM_STATUS)))
+		return 0;
+
+	if (ending_status)
+		ccw_device_set_timeout(cdev, 0);
+
+	if (cdev->handler)
+		cdev->handler(cdev, cdev->private->intparm,
+			      &cdev->private->irb);
+
+	memset(&cdev->private->irb, 0, sizeof(struct irb));
+	return 1;
 }
 
 /*

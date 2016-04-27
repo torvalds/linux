@@ -30,9 +30,10 @@
  * SOFTWARE.
  */
 
-#include <asm-generic/kmap_types.h>
+#include <linux/highmem.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
@@ -95,6 +96,7 @@ struct mlx5_manage_pages_outbox {
 
 enum {
 	MAX_RECLAIM_TIME_MSECS	= 5000,
+	MAX_RECLAIM_VFS_PAGES_TIME_MSECS = 2 * 1000 * 60,
 };
 
 enum {
@@ -275,12 +277,36 @@ out_alloc:
 
 	return err;
 }
+
+static void page_notify_fail(struct mlx5_core_dev *dev, u16 func_id)
+{
+	struct mlx5_manage_pages_inbox *in;
+	struct mlx5_manage_pages_outbox out;
+	int err;
+
+	in = kzalloc(sizeof(*in), GFP_KERNEL);
+	if (!in)
+		return;
+
+	memset(&out, 0, sizeof(out));
+	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_MANAGE_PAGES);
+	in->hdr.opmod = cpu_to_be16(MLX5_PAGES_CANT_GIVE);
+	in->func_id = cpu_to_be16(func_id);
+	err = mlx5_cmd_exec(dev, in, sizeof(*in), &out, sizeof(out));
+	if (!err)
+		err = mlx5_cmd_status_to_err(&out.hdr);
+
+	if (err)
+		mlx5_core_warn(dev, "page notify failed\n");
+
+	kfree(in);
+}
+
 static int give_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
 		      int notify_fail)
 {
 	struct mlx5_manage_pages_inbox *in;
 	struct mlx5_manage_pages_outbox out;
-	struct mlx5_manage_pages_inbox *nin;
 	int inlen;
 	u64 addr;
 	int err;
@@ -289,8 +315,9 @@ static int give_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
 	inlen = sizeof(*in) + npages * sizeof(in->pas[0]);
 	in = mlx5_vzalloc(inlen);
 	if (!in) {
+		err = -ENOMEM;
 		mlx5_core_warn(dev, "vzalloc failed %d\n", inlen);
-		return -ENOMEM;
+		goto out_free;
 	}
 	memset(&out, 0, sizeof(out));
 
@@ -316,43 +343,33 @@ retry:
 	if (err) {
 		mlx5_core_warn(dev, "func_id 0x%x, npages %d, err %d\n",
 			       func_id, npages, err);
-		goto out_alloc;
+		goto out_4k;
 	}
 	dev->priv.fw_pages += npages;
 
-	if (out.hdr.status) {
-		err = mlx5_cmd_status_to_err(&out.hdr);
-		if (err) {
-			mlx5_core_warn(dev, "func_id 0x%x, npages %d, status %d\n",
-				       func_id, npages, out.hdr.status);
-			goto out_alloc;
-		}
+	err = mlx5_cmd_status_to_err(&out.hdr);
+	if (err) {
+		mlx5_core_warn(dev, "func_id 0x%x, npages %d, status %d\n",
+			       func_id, npages, out.hdr.status);
+		goto out_4k;
 	}
+
+	dev->priv.fw_pages += npages;
+	if (func_id)
+		dev->priv.vfs_pages += npages;
 
 	mlx5_core_dbg(dev, "err %d\n", err);
 
-	goto out_free;
-
-out_alloc:
-	if (notify_fail) {
-		nin = kzalloc(sizeof(*nin), GFP_KERNEL);
-		if (!nin) {
-			mlx5_core_warn(dev, "allocation failed\n");
-			goto out_4k;
-		}
-		memset(&out, 0, sizeof(out));
-		nin->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_MANAGE_PAGES);
-		nin->hdr.opmod = cpu_to_be16(MLX5_PAGES_CANT_GIVE);
-		if (mlx5_cmd_exec(dev, nin, sizeof(*nin), &out, sizeof(out)))
-			mlx5_core_warn(dev, "page notify failed\n");
-		kfree(nin);
-	}
+	kvfree(in);
+	return 0;
 
 out_4k:
 	for (i--; i >= 0; i--)
 		free_4k(dev, be64_to_cpu(in->pas[i]));
 out_free:
 	kvfree(in);
+	if (notify_fail)
+		page_notify_fail(dev, func_id);
 	return err;
 }
 
@@ -394,6 +411,12 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u32 func_id, int npages,
 	}
 
 	num_claimed = be32_to_cpu(out->num_entries);
+	if (num_claimed > npages) {
+		mlx5_core_warn(dev, "fw returned %d, driver asked %d => corruption\n",
+			       num_claimed, npages);
+		err = -EINVAL;
+		goto out_free;
+	}
 	if (nclaimed)
 		*nclaimed = num_claimed;
 
@@ -401,6 +424,9 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u32 func_id, int npages,
 		addr = be64_to_cpu(out->pas[i]);
 		free_4k(dev, addr);
 	}
+	dev->priv.fw_pages -= num_claimed;
+	if (func_id)
+		dev->priv.vfs_pages -= num_claimed;
 
 out_free:
 	kvfree(out);
@@ -482,15 +508,20 @@ int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev)
 	struct fw_page *fwp;
 	struct rb_node *p;
 	int nclaimed = 0;
-	int err;
+	int err = 0;
 
 	do {
 		p = rb_first(&dev->priv.page_root);
 		if (p) {
 			fwp = rb_entry(p, struct fw_page, rb_node);
-			err = reclaim_pages(dev, fwp->func_id,
-					    optimal_reclaimed_pages(),
-					    &nclaimed);
+			if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+				free_4k(dev, fwp->addr);
+				nclaimed = 1;
+			} else {
+				err = reclaim_pages(dev, fwp->func_id,
+						    optimal_reclaimed_pages(),
+						    &nclaimed);
+			}
 			if (err) {
 				mlx5_core_warn(dev, "failed reclaiming pages (%d)\n",
 					       err);
@@ -531,4 +562,27 @@ int mlx5_pagealloc_start(struct mlx5_core_dev *dev)
 void mlx5_pagealloc_stop(struct mlx5_core_dev *dev)
 {
 	destroy_workqueue(dev->priv.pg_wq);
+}
+
+int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev)
+{
+	unsigned long end = jiffies + msecs_to_jiffies(MAX_RECLAIM_VFS_PAGES_TIME_MSECS);
+	int prev_vfs_pages = dev->priv.vfs_pages;
+
+	mlx5_core_dbg(dev, "Waiting for %d pages from %s\n", prev_vfs_pages,
+		      dev->priv.name);
+	while (dev->priv.vfs_pages) {
+		if (time_after(jiffies, end)) {
+			mlx5_core_warn(dev, "aborting while there are %d pending pages\n", dev->priv.vfs_pages);
+			return -ETIMEDOUT;
+		}
+		if (dev->priv.vfs_pages < prev_vfs_pages) {
+			end = jiffies + msecs_to_jiffies(MAX_RECLAIM_VFS_PAGES_TIME_MSECS);
+			prev_vfs_pages = dev->priv.vfs_pages;
+		}
+		msleep(50);
+	}
+
+	mlx5_core_dbg(dev, "All pages received from %s\n", dev->priv.name);
+	return 0;
 }

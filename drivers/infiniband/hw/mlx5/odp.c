@@ -142,25 +142,27 @@ static struct mlx5_ib_mr *mlx5_ib_odp_find_mr_lkey(struct mlx5_ib_dev *dev,
 						   u32 key)
 {
 	u32 base_key = mlx5_base_mkey(key);
-	struct mlx5_core_mr *mmr = __mlx5_mr_lookup(dev->mdev, base_key);
-	struct mlx5_ib_mr *mr = container_of(mmr, struct mlx5_ib_mr, mmr);
+	struct mlx5_core_mkey *mmkey = __mlx5_mr_lookup(dev->mdev, base_key);
+	struct mlx5_ib_mr *mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
 
-	if (!mmr || mmr->key != key || !mr->live)
+	if (!mmkey || mmkey->key != key || !mr->live)
 		return NULL;
 
-	return container_of(mmr, struct mlx5_ib_mr, mmr);
+	return container_of(mmkey, struct mlx5_ib_mr, mmkey);
 }
 
 static void mlx5_ib_page_fault_resume(struct mlx5_ib_qp *qp,
 				      struct mlx5_ib_pfault *pfault,
-				      int error) {
+				      int error)
+{
 	struct mlx5_ib_dev *dev = to_mdev(qp->ibqp.pd->device);
-	int ret = mlx5_core_page_fault_resume(dev->mdev, qp->mqp.qpn,
+	u32 qpn = qp->trans_qp.base.mqp.qpn;
+	int ret = mlx5_core_page_fault_resume(dev->mdev,
+					      qpn,
 					      pfault->mpfault.flags,
 					      error);
 	if (ret)
-		pr_err("Failed to resolve the page fault on QP 0x%x\n",
-		       qp->mqp.qpn);
+		pr_err("Failed to resolve the page fault on QP 0x%x\n", qpn);
 }
 
 /*
@@ -230,7 +232,7 @@ static int pagefault_single_data_segment(struct mlx5_ib_qp *qp,
 	io_virt += pfault->mpfault.bytes_committed;
 	bcnt -= pfault->mpfault.bytes_committed;
 
-	start_idx = (io_virt - (mr->mmr.iova & PAGE_MASK)) >> PAGE_SHIFT;
+	start_idx = (io_virt - (mr->mmkey.iova & PAGE_MASK)) >> PAGE_SHIFT;
 
 	if (mr->umem->writable)
 		access_mask |= ODP_WRITE_ALLOWED_BIT;
@@ -391,6 +393,7 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 #if defined(DEBUG)
 	u32 ctrl_wqe_index, ctrl_qpn;
 #endif
+	u32 qpn = qp->trans_qp.base.mqp.qpn;
 
 	ds = be32_to_cpu(ctrl->qpn_ds) & MLX5_WQE_CTRL_DS_MASK;
 	if (ds * MLX5_WQE_DS_UNITS > wqe_length) {
@@ -401,7 +404,7 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 
 	if (ds == 0) {
 		mlx5_ib_err(dev, "Got WQE with zero DS. wqe_index=%x, qpn=%x\n",
-			    wqe_index, qp->mqp.qpn);
+			    wqe_index, qpn);
 		return -EFAULT;
 	}
 
@@ -411,16 +414,16 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 			MLX5_WQE_CTRL_WQE_INDEX_SHIFT;
 	if (wqe_index != ctrl_wqe_index) {
 		mlx5_ib_err(dev, "Got WQE with invalid wqe_index. wqe_index=0x%x, qpn=0x%x ctrl->wqe_index=0x%x\n",
-			    wqe_index, qp->mqp.qpn,
+			    wqe_index, qpn,
 			    ctrl_wqe_index);
 		return -EFAULT;
 	}
 
 	ctrl_qpn = (be32_to_cpu(ctrl->qpn_ds) & MLX5_WQE_CTRL_QPN_MASK) >>
 		MLX5_WQE_CTRL_QPN_SHIFT;
-	if (qp->mqp.qpn != ctrl_qpn) {
+	if (qpn != ctrl_qpn) {
 		mlx5_ib_err(dev, "Got WQE with incorrect QP number. wqe_index=0x%x, qpn=0x%x ctrl->qpn=0x%x\n",
-			    wqe_index, qp->mqp.qpn,
+			    wqe_index, qpn,
 			    ctrl_qpn);
 		return -EFAULT;
 	}
@@ -537,6 +540,7 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_qp *qp,
 	int resume_with_error = 0;
 	u16 wqe_index = pfault->mpfault.wqe.wqe_index;
 	int requestor = pfault->mpfault.flags & MLX5_PFAULT_REQUESTOR;
+	u32 qpn = qp->trans_qp.base.mqp.qpn;
 
 	buffer = (char *)__get_free_page(GFP_KERNEL);
 	if (!buffer) {
@@ -546,10 +550,10 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_qp *qp,
 	}
 
 	ret = mlx5_ib_read_user_wqe(qp, requestor, wqe_index, buffer,
-				    PAGE_SIZE);
+				    PAGE_SIZE, &qp->trans_qp.base);
 	if (ret < 0) {
 		mlx5_ib_err(dev, "Failed reading a WQE following page fault, error=%x, wqe_index=%x, qpn=%x\n",
-			    -ret, wqe_index, qp->mqp.qpn);
+			    -ret, wqe_index, qpn);
 		resume_with_error = 1;
 		goto resolve_page_fault;
 	}
@@ -586,7 +590,8 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_qp *qp,
 resolve_page_fault:
 	mlx5_ib_page_fault_resume(qp, pfault, resume_with_error);
 	mlx5_ib_dbg(dev, "PAGE FAULT completed. QP 0x%x resume_with_error=%d, flags: 0x%x\n",
-		    qp->mqp.qpn, resume_with_error, pfault->mpfault.flags);
+		    qpn, resume_with_error,
+		    pfault->mpfault.flags);
 
 	free_page((unsigned long)buffer);
 }
@@ -753,7 +758,7 @@ void mlx5_ib_odp_create_qp(struct mlx5_ib_qp *qp)
 	qp->disable_page_faults = 1;
 	spin_lock_init(&qp->disable_page_faults_lock);
 
-	qp->mqp.pfault_handler	= mlx5_ib_pfault_handler;
+	qp->trans_qp.base.mqp.pfault_handler = mlx5_ib_pfault_handler;
 
 	for (i = 0; i < MLX5_IB_PAGEFAULT_CONTEXTS; ++i)
 		INIT_WORK(&qp->pagefaults[i].work, mlx5_ib_qp_pfault_action);

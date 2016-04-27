@@ -1,0 +1,2897 @@
+<!-- DO NOT HAND EDIT. -->
+<!-- Instead, edit Documentation/RCU/Design/Requirements/Requirements.htmlx and run 'sh htmlqqz.sh Documentation/RCU/Design/Requirements/Requirements' -->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+        <html>
+        <head><title>A Tour Through RCU's Requirements [LWN.net]</title>
+        <meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=utf-8">
+
+<h1>A Tour Through RCU's Requirements</h1>
+
+<p>Copyright IBM Corporation, 2015</p>
+<p>Author: Paul E.&nbsp;McKenney</p>
+<p><i>The initial version of this document appeared in the
+<a href="https://lwn.net/">LWN</a> articles
+<a href="https://lwn.net/Articles/652156/">here</a>,
+<a href="https://lwn.net/Articles/652677/">here</a>, and
+<a href="https://lwn.net/Articles/653326/">here</a>.</i></p>
+
+<h2>Introduction</h2>
+
+<p>
+Read-copy update (RCU) is a synchronization mechanism that is often
+used as a replacement for reader-writer locking.
+RCU is unusual in that updaters do not block readers,
+which means that RCU's read-side primitives can be exceedingly fast
+and scalable.
+In addition, updaters can make useful forward progress concurrently
+with readers.
+However, all this concurrency between RCU readers and updaters does raise
+the question of exactly what RCU readers are doing, which in turn
+raises the question of exactly what RCU's requirements are.
+
+<p>
+This document therefore summarizes RCU's requirements, and can be thought
+of as an informal, high-level specification for RCU.
+It is important to understand that RCU's specification is primarily
+empirical in nature;
+in fact, I learned about many of these requirements the hard way.
+This situation might cause some consternation, however, not only
+has this learning process been a lot of fun, but it has also been
+a great privilege to work with so many people willing to apply
+technologies in interesting new ways.
+
+<p>
+All that aside, here are the categories of currently known RCU requirements:
+</p>
+
+<ol>
+<li>	<a href="#Fundamental Requirements">
+	Fundamental Requirements</a>
+<li>	<a href="#Fundamental Non-Requirements">Fundamental Non-Requirements</a>
+<li>	<a href="#Parallelism Facts of Life">
+	Parallelism Facts of Life</a>
+<li>	<a href="#Quality-of-Implementation Requirements">
+	Quality-of-Implementation Requirements</a>
+<li>	<a href="#Linux Kernel Complications">
+	Linux Kernel Complications</a>
+<li>	<a href="#Software-Engineering Requirements">
+	Software-Engineering Requirements</a>
+<li>	<a href="#Other RCU Flavors">
+	Other RCU Flavors</a>
+<li>	<a href="#Possible Future Changes">
+	Possible Future Changes</a>
+</ol>
+
+<p>
+This is followed by a <a href="#Summary">summary</a>,
+which is in turn followed by the inevitable
+<a href="#Answers to Quick Quizzes">answers to the quick quizzes</a>.
+
+<h2><a name="Fundamental Requirements">Fundamental Requirements</a></h2>
+
+<p>
+RCU's fundamental requirements are the closest thing RCU has to hard
+mathematical requirements.
+These are:
+
+<ol>
+<li>	<a href="#Grace-Period Guarantee">
+	Grace-Period Guarantee</a>
+<li>	<a href="#Publish-Subscribe Guarantee">
+	Publish-Subscribe Guarantee</a>
+<li>	<a href="#Memory-Barrier Guarantees">
+	Memory-Barrier Guarantees</a>
+<li>	<a href="#RCU Primitives Guaranteed to Execute Unconditionally">
+	RCU Primitives Guaranteed to Execute Unconditionally</a>
+<li>	<a href="#Guaranteed Read-to-Write Upgrade">
+	Guaranteed Read-to-Write Upgrade</a>
+</ol>
+
+<h3><a name="Grace-Period Guarantee">Grace-Period Guarantee</a></h3>
+
+<p>
+RCU's grace-period guarantee is unusual in being premeditated:
+Jack Slingwine and I had this guarantee firmly in mind when we started
+work on RCU (then called &ldquo;rclock&rdquo;) in the early 1990s.
+That said, the past two decades of experience with RCU have produced
+a much more detailed understanding of this guarantee.
+
+<p>
+RCU's grace-period guarantee allows updaters to wait for the completion
+of all pre-existing RCU read-side critical sections.
+An RCU read-side critical section
+begins with the marker <tt>rcu_read_lock()</tt> and ends with
+the marker <tt>rcu_read_unlock()</tt>.
+These markers may be nested, and RCU treats a nested set as one
+big RCU read-side critical section.
+Production-quality implementations of <tt>rcu_read_lock()</tt> and
+<tt>rcu_read_unlock()</tt> are extremely lightweight, and in
+fact have exactly zero overhead in Linux kernels built for production
+use with <tt>CONFIG_PREEMPT=n</tt>.
+
+<p>
+This guarantee allows ordering to be enforced with extremely low
+overhead to readers, for example:
+
+<blockquote>
+<pre>
+ 1 int x, y;
+ 2
+ 3 void thread0(void)
+ 4 {
+ 5   rcu_read_lock();
+ 6   r1 = READ_ONCE(x);
+ 7   r2 = READ_ONCE(y);
+ 8   rcu_read_unlock();
+ 9 }
+10
+11 void thread1(void)
+12 {
+13   WRITE_ONCE(x, 1);
+14   synchronize_rcu();
+15   WRITE_ONCE(y, 1);
+16 }
+</pre>
+</blockquote>
+
+<p>
+Because the <tt>synchronize_rcu()</tt> on line&nbsp;14 waits for
+all pre-existing readers, any instance of <tt>thread0()</tt> that
+loads a value of zero from <tt>x</tt> must complete before
+<tt>thread1()</tt> stores to <tt>y</tt>, so that instance must
+also load a value of zero from <tt>y</tt>.
+Similarly, any instance of <tt>thread0()</tt> that loads a value of
+one from <tt>y</tt> must have started after the
+<tt>synchronize_rcu()</tt> started, and must therefore also load
+a value of one from <tt>x</tt>.
+Therefore, the outcome:
+<blockquote>
+<pre>
+(r1 == 0 &amp;&amp; r2 == 1)
+</pre>
+</blockquote>
+cannot happen.
+
+<p><a name="Quick Quiz 1"><b>Quick Quiz 1</b>:</a>
+Wait a minute!
+You said that updaters can make useful forward progress concurrently
+with readers, but pre-existing readers will block
+<tt>synchronize_rcu()</tt>!!!
+Just who are you trying to fool???
+<br><a href="#qq1answer">Answer</a>
+
+<p>
+This scenario resembles one of the first uses of RCU in
+<a href="https://en.wikipedia.org/wiki/DYNIX">DYNIX/ptx</a>,
+which managed a distributed lock manager's transition into
+a state suitable for handling recovery from node failure,
+more or less as follows:
+
+<blockquote>
+<pre>
+ 1 #define STATE_NORMAL        0
+ 2 #define STATE_WANT_RECOVERY 1
+ 3 #define STATE_RECOVERING    2
+ 4 #define STATE_WANT_NORMAL   3
+ 5
+ 6 int state = STATE_NORMAL;
+ 7
+ 8 void do_something_dlm(void)
+ 9 {
+10   int state_snap;
+11
+12   rcu_read_lock();
+13   state_snap = READ_ONCE(state);
+14   if (state_snap == STATE_NORMAL)
+15     do_something();
+16   else
+17     do_something_carefully();
+18   rcu_read_unlock();
+19 }
+20
+21 void start_recovery(void)
+22 {
+23   WRITE_ONCE(state, STATE_WANT_RECOVERY);
+24   synchronize_rcu();
+25   WRITE_ONCE(state, STATE_RECOVERING);
+26   recovery();
+27   WRITE_ONCE(state, STATE_WANT_NORMAL);
+28   synchronize_rcu();
+29   WRITE_ONCE(state, STATE_NORMAL);
+30 }
+</pre>
+</blockquote>
+
+<p>
+The RCU read-side critical section in <tt>do_something_dlm()</tt>
+works with the <tt>synchronize_rcu()</tt> in <tt>start_recovery()</tt>
+to guarantee that <tt>do_something()</tt> never runs concurrently
+with <tt>recovery()</tt>, but with little or no synchronization
+overhead in <tt>do_something_dlm()</tt>.
+
+<p><a name="Quick Quiz 2"><b>Quick Quiz 2</b>:</a>
+Why is the <tt>synchronize_rcu()</tt> on line&nbsp;28 needed?
+<br><a href="#qq2answer">Answer</a>
+
+<p>
+In order to avoid fatal problems such as deadlocks,
+an RCU read-side critical section must not contain calls to
+<tt>synchronize_rcu()</tt>.
+Similarly, an RCU read-side critical section must not
+contain anything that waits, directly or indirectly, on completion of
+an invocation of <tt>synchronize_rcu()</tt>.
+
+<p>
+Although RCU's grace-period guarantee is useful in and of itself, with
+<a href="https://lwn.net/Articles/573497/">quite a few use cases</a>,
+it would be good to be able to use RCU to coordinate read-side
+access to linked data structures.
+For this, the grace-period guarantee is not sufficient, as can
+be seen in function <tt>add_gp_buggy()</tt> below.
+We will look at the reader's code later, but in the meantime, just think of
+the reader as locklessly picking up the <tt>gp</tt> pointer,
+and, if the value loaded is non-<tt>NULL</tt>, locklessly accessing the
+<tt>-&gt;a</tt> and <tt>-&gt;b</tt> fields.
+
+<blockquote>
+<pre>
+ 1 bool add_gp_buggy(int a, int b)
+ 2 {
+ 3   p = kmalloc(sizeof(*p), GFP_KERNEL);
+ 4   if (!p)
+ 5     return -ENOMEM;
+ 6   spin_lock(&amp;gp_lock);
+ 7   if (rcu_access_pointer(gp)) {
+ 8     spin_unlock(&amp;gp_lock);
+ 9     return false;
+10   }
+11   p-&gt;a = a;
+12   p-&gt;b = a;
+13   gp = p; /* ORDERING BUG */
+14   spin_unlock(&amp;gp_lock);
+15   return true;
+16 }
+</pre>
+</blockquote>
+
+<p>
+The problem is that both the compiler and weakly ordered CPUs are within
+their rights to reorder this code as follows:
+
+<blockquote>
+<pre>
+ 1 bool add_gp_buggy_optimized(int a, int b)
+ 2 {
+ 3   p = kmalloc(sizeof(*p), GFP_KERNEL);
+ 4   if (!p)
+ 5     return -ENOMEM;
+ 6   spin_lock(&amp;gp_lock);
+ 7   if (rcu_access_pointer(gp)) {
+ 8     spin_unlock(&amp;gp_lock);
+ 9     return false;
+10   }
+<b>11   gp = p; /* ORDERING BUG */
+12   p-&gt;a = a;
+13   p-&gt;b = a;</b>
+14   spin_unlock(&amp;gp_lock);
+15   return true;
+16 }
+</pre>
+</blockquote>
+
+<p>
+If an RCU reader fetches <tt>gp</tt> just after
+<tt>add_gp_buggy_optimized</tt> executes line&nbsp;11,
+it will see garbage in the <tt>-&gt;a</tt> and <tt>-&gt;b</tt>
+fields.
+And this is but one of many ways in which compiler and hardware optimizations
+could cause trouble.
+Therefore, we clearly need some way to prevent the compiler and the CPU from
+reordering in this manner, which brings us to the publish-subscribe
+guarantee discussed in the next section.
+
+<h3><a name="Publish-Subscribe Guarantee">Publish/Subscribe Guarantee</a></h3>
+
+<p>
+RCU's publish-subscribe guarantee allows data to be inserted
+into a linked data structure without disrupting RCU readers.
+The updater uses <tt>rcu_assign_pointer()</tt> to insert the
+new data, and readers use <tt>rcu_dereference()</tt> to
+access data, whether new or old.
+The following shows an example of insertion:
+
+<blockquote>
+<pre>
+ 1 bool add_gp(int a, int b)
+ 2 {
+ 3   p = kmalloc(sizeof(*p), GFP_KERNEL);
+ 4   if (!p)
+ 5     return -ENOMEM;
+ 6   spin_lock(&amp;gp_lock);
+ 7   if (rcu_access_pointer(gp)) {
+ 8     spin_unlock(&amp;gp_lock);
+ 9     return false;
+10   }
+11   p-&gt;a = a;
+12   p-&gt;b = a;
+13   rcu_assign_pointer(gp, p);
+14   spin_unlock(&amp;gp_lock);
+15   return true;
+16 }
+</pre>
+</blockquote>
+
+<p>
+The <tt>rcu_assign_pointer()</tt> on line&nbsp;13 is conceptually
+equivalent to a simple assignment statement, but also guarantees
+that its assignment will
+happen after the two assignments in lines&nbsp;11 and&nbsp;12,
+similar to the C11 <tt>memory_order_release</tt> store operation.
+It also prevents any number of &ldquo;interesting&rdquo; compiler
+optimizations, for example, the use of <tt>gp</tt> as a scratch
+location immediately preceding the assignment.
+
+<p><a name="Quick Quiz 3"><b>Quick Quiz 3</b>:</a>
+But <tt>rcu_assign_pointer()</tt> does nothing to prevent the
+two assignments to <tt>p-&gt;a</tt> and <tt>p-&gt;b</tt>
+from being reordered.
+Can't that also cause problems?
+<br><a href="#qq3answer">Answer</a>
+
+<p>
+It is tempting to assume that the reader need not do anything special
+to control its accesses to the RCU-protected data,
+as shown in <tt>do_something_gp_buggy()</tt> below:
+
+<blockquote>
+<pre>
+ 1 bool do_something_gp_buggy(void)
+ 2 {
+ 3   rcu_read_lock();
+ 4   p = gp;  /* OPTIMIZATIONS GALORE!!! */
+ 5   if (p) {
+ 6     do_something(p-&gt;a, p-&gt;b);
+ 7     rcu_read_unlock();
+ 8     return true;
+ 9   }
+10   rcu_read_unlock();
+11   return false;
+12 }
+</pre>
+</blockquote>
+
+<p>
+However, this temptation must be resisted because there are a
+surprisingly large number of ways that the compiler
+(to say nothing of
+<a href="https://h71000.www7.hp.com/wizard/wiz_2637.html">DEC Alpha CPUs</a>)
+can trip this code up.
+For but one example, if the compiler were short of registers, it
+might choose to refetch from <tt>gp</tt> rather than keeping
+a separate copy in <tt>p</tt> as follows:
+
+<blockquote>
+<pre>
+ 1 bool do_something_gp_buggy_optimized(void)
+ 2 {
+ 3   rcu_read_lock();
+ 4   if (gp) { /* OPTIMIZATIONS GALORE!!! */
+<b> 5     do_something(gp-&gt;a, gp-&gt;b);</b>
+ 6     rcu_read_unlock();
+ 7     return true;
+ 8   }
+ 9   rcu_read_unlock();
+10   return false;
+11 }
+</pre>
+</blockquote>
+
+<p>
+If this function ran concurrently with a series of updates that
+replaced the current structure with a new one,
+the fetches of <tt>gp-&gt;a</tt>
+and <tt>gp-&gt;b</tt> might well come from two different structures,
+which could cause serious confusion.
+To prevent this (and much else besides), <tt>do_something_gp()</tt> uses
+<tt>rcu_dereference()</tt> to fetch from <tt>gp</tt>:
+
+<blockquote>
+<pre>
+ 1 bool do_something_gp(void)
+ 2 {
+ 3   rcu_read_lock();
+ 4   p = rcu_dereference(gp);
+ 5   if (p) {
+ 6     do_something(p-&gt;a, p-&gt;b);
+ 7     rcu_read_unlock();
+ 8     return true;
+ 9   }
+10   rcu_read_unlock();
+11   return false;
+12 }
+</pre>
+</blockquote>
+
+<p>
+The <tt>rcu_dereference()</tt> uses volatile casts and (for DEC Alpha)
+memory barriers in the Linux kernel.
+Should a
+<a href="http://www.rdrop.com/users/paulmck/RCU/consume.2015.07.13a.pdf">high-quality implementation of C11 <tt>memory_order_consume</tt> [PDF]</a>
+ever appear, then <tt>rcu_dereference()</tt> could be implemented
+as a <tt>memory_order_consume</tt> load.
+Regardless of the exact implementation, a pointer fetched by
+<tt>rcu_dereference()</tt> may not be used outside of the
+outermost RCU read-side critical section containing that
+<tt>rcu_dereference()</tt>, unless protection of
+the corresponding data element has been passed from RCU to some
+other synchronization mechanism, most commonly locking or
+<a href="https://www.kernel.org/doc/Documentation/RCU/rcuref.txt">reference counting</a>.
+
+<p>
+In short, updaters use <tt>rcu_assign_pointer()</tt> and readers
+use <tt>rcu_dereference()</tt>, and these two RCU API elements
+work together to ensure that readers have a consistent view of
+newly added data elements.
+
+<p>
+Of course, it is also necessary to remove elements from RCU-protected
+data structures, for example, using the following process:
+
+<ol>
+<li>	Remove the data element from the enclosing structure.
+<li>	Wait for all pre-existing RCU read-side critical sections
+	to complete (because only pre-existing readers can possibly have
+	a reference to the newly removed data element).
+<li>	At this point, only the updater has a reference to the
+	newly removed data element, so it can safely reclaim
+	the data element, for example, by passing it to <tt>kfree()</tt>.
+</ol>
+
+This process is implemented by <tt>remove_gp_synchronous()</tt>:
+
+<blockquote>
+<pre>
+ 1 bool remove_gp_synchronous(void)
+ 2 {
+ 3   struct foo *p;
+ 4
+ 5   spin_lock(&amp;gp_lock);
+ 6   p = rcu_access_pointer(gp);
+ 7   if (!p) {
+ 8     spin_unlock(&amp;gp_lock);
+ 9     return false;
+10   }
+11   rcu_assign_pointer(gp, NULL);
+12   spin_unlock(&amp;gp_lock);
+13   synchronize_rcu();
+14   kfree(p);
+15   return true;
+16 }
+</pre>
+</blockquote>
+
+<p>
+This function is straightforward, with line&nbsp;13 waiting for a grace
+period before line&nbsp;14 frees the old data element.
+This waiting ensures that readers will reach line&nbsp;7 of
+<tt>do_something_gp()</tt> before the data element referenced by
+<tt>p</tt> is freed.
+The <tt>rcu_access_pointer()</tt> on line&nbsp;6 is similar to
+<tt>rcu_dereference()</tt>, except that:
+
+<ol>
+<li>	The value returned by <tt>rcu_access_pointer()</tt>
+	cannot be dereferenced.
+	If you want to access the value pointed to as well as
+	the pointer itself, use <tt>rcu_dereference()</tt>
+	instead of <tt>rcu_access_pointer()</tt>.
+<li>	The call to <tt>rcu_access_pointer()</tt> need not be
+	protected.
+	In contrast, <tt>rcu_dereference()</tt> must either be
+	within an RCU read-side critical section or in a code
+	segment where the pointer cannot change, for example, in
+	code protected by the corresponding update-side lock.
+</ol>
+
+<p><a name="Quick Quiz 4"><b>Quick Quiz 4</b>:</a>
+Without the <tt>rcu_dereference()</tt> or the
+<tt>rcu_access_pointer()</tt>, what destructive optimizations
+might the compiler make use of?
+<br><a href="#qq4answer">Answer</a>
+
+<p>
+In short, RCU's publish-subscribe guarantee is provided by the combination
+of <tt>rcu_assign_pointer()</tt> and <tt>rcu_dereference()</tt>.
+This guarantee allows data elements to be safely added to RCU-protected
+linked data structures without disrupting RCU readers.
+This guarantee can be used in combination with the grace-period
+guarantee to also allow data elements to be removed from RCU-protected
+linked data structures, again without disrupting RCU readers.
+
+<p>
+This guarantee was only partially premeditated.
+DYNIX/ptx used an explicit memory barrier for publication, but had nothing
+resembling <tt>rcu_dereference()</tt> for subscription, nor did it
+have anything resembling the <tt>smp_read_barrier_depends()</tt>
+that was later subsumed into <tt>rcu_dereference()</tt>.
+The need for these operations made itself known quite suddenly at a
+late-1990s meeting with the DEC Alpha architects, back in the days when
+DEC was still a free-standing company.
+It took the Alpha architects a good hour to convince me that any sort
+of barrier would ever be needed, and it then took me a good <i>two</i> hours
+to convince them that their documentation did not make this point clear.
+More recent work with the C and C++ standards committees have provided
+much education on tricks and traps from the compiler.
+In short, compilers were much less tricky in the early 1990s, but in
+2015, don't even think about omitting <tt>rcu_dereference()</tt>!
+
+<h3><a name="Memory-Barrier Guarantees">Memory-Barrier Guarantees</a></h3>
+
+<p>
+The previous section's simple linked-data-structure scenario clearly
+demonstrates the need for RCU's stringent memory-ordering guarantees on
+systems with more than one CPU:
+
+<ol>
+<li>	Each CPU that has an RCU read-side critical section that
+	begins before <tt>synchronize_rcu()</tt> starts is
+	guaranteed to execute a full memory barrier between the time
+	that the RCU read-side critical section ends and the time that
+	<tt>synchronize_rcu()</tt> returns.
+	Without this guarantee, a pre-existing RCU read-side critical section
+	might hold a reference to the newly removed <tt>struct foo</tt>
+	after the <tt>kfree()</tt> on line&nbsp;14 of
+	<tt>remove_gp_synchronous()</tt>.
+<li>	Each CPU that has an RCU read-side critical section that ends
+	after <tt>synchronize_rcu()</tt> returns is guaranteed
+	to execute a full memory barrier between the time that
+	<tt>synchronize_rcu()</tt> begins and the time that the RCU
+	read-side critical section begins.
+	Without this guarantee, a later RCU read-side critical section
+	running after the <tt>kfree()</tt> on line&nbsp;14 of
+	<tt>remove_gp_synchronous()</tt> might
+	later run <tt>do_something_gp()</tt> and find the
+	newly deleted <tt>struct foo</tt>.
+<li>	If the task invoking <tt>synchronize_rcu()</tt> remains
+	on a given CPU, then that CPU is guaranteed to execute a full
+	memory barrier sometime during the execution of
+	<tt>synchronize_rcu()</tt>.
+	This guarantee ensures that the <tt>kfree()</tt> on
+	line&nbsp;14 of <tt>remove_gp_synchronous()</tt> really does
+	execute after the removal on line&nbsp;11.
+<li>	If the task invoking <tt>synchronize_rcu()</tt> migrates
+	among a group of CPUs during that invocation, then each of the
+	CPUs in that group is guaranteed to execute a full memory barrier
+	sometime during the execution of <tt>synchronize_rcu()</tt>.
+	This guarantee also ensures that the <tt>kfree()</tt> on
+	line&nbsp;14 of <tt>remove_gp_synchronous()</tt> really does
+	execute after the removal on
+	line&nbsp;11, but also in the case where the thread executing the
+	<tt>synchronize_rcu()</tt> migrates in the meantime.
+</ol>
+
+<p><a name="Quick Quiz 5"><b>Quick Quiz 5</b>:</a>
+Given that multiple CPUs can start RCU read-side critical sections
+at any time without any ordering whatsoever, how can RCU possibly tell whether
+or not a given RCU read-side critical section starts before a
+given instance of <tt>synchronize_rcu()</tt>?
+<br><a href="#qq5answer">Answer</a>
+
+<p><a name="Quick Quiz 6"><b>Quick Quiz 6</b>:</a>
+The first and second guarantees require unbelievably strict ordering!
+Are all these memory barriers <i> really</i> required?
+<br><a href="#qq6answer">Answer</a>
+
+<p>
+Note that these memory-barrier requirements do not replace the fundamental
+RCU requirement that a grace period wait for all pre-existing readers.
+On the contrary, the memory barriers called out in this section must operate in
+such a way as to <i>enforce</i> this fundamental requirement.
+Of course, different implementations enforce this requirement in different
+ways, but enforce it they must.
+
+<h3><a name="RCU Primitives Guaranteed to Execute Unconditionally">RCU Primitives Guaranteed to Execute Unconditionally</a></h3>
+
+<p>
+The common-case RCU primitives are unconditional.
+They are invoked, they do their job, and they return, with no possibility
+of error, and no need to retry.
+This is a key RCU design philosophy.
+
+<p>
+However, this philosophy is pragmatic rather than pigheaded.
+If someone comes up with a good justification for a particular conditional
+RCU primitive, it might well be implemented and added.
+After all, this guarantee was reverse-engineered, not premeditated.
+The unconditional nature of the RCU primitives was initially an
+accident of implementation, and later experience with synchronization
+primitives with conditional primitives caused me to elevate this
+accident to a guarantee.
+Therefore, the justification for adding a conditional primitive to
+RCU would need to be based on detailed and compelling use cases.
+
+<h3><a name="Guaranteed Read-to-Write Upgrade">Guaranteed Read-to-Write Upgrade</a></h3>
+
+<p>
+As far as RCU is concerned, it is always possible to carry out an
+update within an RCU read-side critical section.
+For example, that RCU read-side critical section might search for
+a given data element, and then might acquire the update-side
+spinlock in order to update that element, all while remaining
+in that RCU read-side critical section.
+Of course, it is necessary to exit the RCU read-side critical section
+before invoking <tt>synchronize_rcu()</tt>, however, this
+inconvenience can be avoided through use of the
+<tt>call_rcu()</tt> and <tt>kfree_rcu()</tt> API members
+described later in this document.
+
+<p><a name="Quick Quiz 7"><b>Quick Quiz 7</b>:</a>
+But how does the upgrade-to-write operation exclude other readers?
+<br><a href="#qq7answer">Answer</a>
+
+<p>
+This guarantee allows lookup code to be shared between read-side
+and update-side code, and was premeditated, appearing in the earliest
+DYNIX/ptx RCU documentation.
+
+<h2><a name="Fundamental Non-Requirements">Fundamental Non-Requirements</a></h2>
+
+<p>
+RCU provides extremely lightweight readers, and its read-side guarantees,
+though quite useful, are correspondingly lightweight.
+It is therefore all too easy to assume that RCU is guaranteeing more
+than it really is.
+Of course, the list of things that RCU does not guarantee is infinitely
+long, however, the following sections list a few non-guarantees that
+have caused confusion.
+Except where otherwise noted, these non-guarantees were premeditated.
+
+<ol>
+<li>	<a href="#Readers Impose Minimal Ordering">
+	Readers Impose Minimal Ordering</a>
+<li>	<a href="#Readers Do Not Exclude Updaters">
+	Readers Do Not Exclude Updaters</a>
+<li>	<a href="#Updaters Only Wait For Old Readers">
+	Updaters Only Wait For Old Readers</a>
+<li>	<a href="#Grace Periods Don't Partition Read-Side Critical Sections">
+	Grace Periods Don't Partition Read-Side Critical Sections</a>
+<li>	<a href="#Read-Side Critical Sections Don't Partition Grace Periods">
+	Read-Side Critical Sections Don't Partition Grace Periods</a>
+<li>	<a href="#Disabling Preemption Does Not Block Grace Periods">
+	Disabling Preemption Does Not Block Grace Periods</a>
+</ol>
+
+<h3><a name="Readers Impose Minimal Ordering">Readers Impose Minimal Ordering</a></h3>
+
+<p>
+Reader-side markers such as <tt>rcu_read_lock()</tt> and
+<tt>rcu_read_unlock()</tt> provide absolutely no ordering guarantees
+except through their interaction with the grace-period APIs such as
+<tt>synchronize_rcu()</tt>.
+To see this, consider the following pair of threads:
+
+<blockquote>
+<pre>
+ 1 void thread0(void)
+ 2 {
+ 3   rcu_read_lock();
+ 4   WRITE_ONCE(x, 1);
+ 5   rcu_read_unlock();
+ 6   rcu_read_lock();
+ 7   WRITE_ONCE(y, 1);
+ 8   rcu_read_unlock();
+ 9 }
+10
+11 void thread1(void)
+12 {
+13   rcu_read_lock();
+14   r1 = READ_ONCE(y);
+15   rcu_read_unlock();
+16   rcu_read_lock();
+17   r2 = READ_ONCE(x);
+18   rcu_read_unlock();
+19 }
+</pre>
+</blockquote>
+
+<p>
+After <tt>thread0()</tt> and <tt>thread1()</tt> execute
+concurrently, it is quite possible to have
+
+<blockquote>
+<pre>
+(r1 == 1 &amp;&amp; r2 == 0)
+</pre>
+</blockquote>
+
+(that is, <tt>y</tt> appears to have been assigned before <tt>x</tt>),
+which would not be possible if <tt>rcu_read_lock()</tt> and
+<tt>rcu_read_unlock()</tt> had much in the way of ordering
+properties.
+But they do not, so the CPU is within its rights
+to do significant reordering.
+This is by design:  Any significant ordering constraints would slow down
+these fast-path APIs.
+
+<p><a name="Quick Quiz 8"><b>Quick Quiz 8</b>:</a>
+Can't the compiler also reorder this code?
+<br><a href="#qq8answer">Answer</a>
+
+<h3><a name="Readers Do Not Exclude Updaters">Readers Do Not Exclude Updaters</a></h3>
+
+<p>
+Neither <tt>rcu_read_lock()</tt> nor <tt>rcu_read_unlock()</tt>
+exclude updates.
+All they do is to prevent grace periods from ending.
+The following example illustrates this:
+
+<blockquote>
+<pre>
+ 1 void thread0(void)
+ 2 {
+ 3   rcu_read_lock();
+ 4   r1 = READ_ONCE(y);
+ 5   if (r1) {
+ 6     do_something_with_nonzero_x();
+ 7     r2 = READ_ONCE(x);
+ 8     WARN_ON(!r2); /* BUG!!! */
+ 9   }
+10   rcu_read_unlock();
+11 }
+12
+13 void thread1(void)
+14 {
+15   spin_lock(&amp;my_lock);
+16   WRITE_ONCE(x, 1);
+17   WRITE_ONCE(y, 1);
+18   spin_unlock(&amp;my_lock);
+19 }
+</pre>
+</blockquote>
+
+<p>
+If the <tt>thread0()</tt> function's <tt>rcu_read_lock()</tt>
+excluded the <tt>thread1()</tt> function's update,
+the <tt>WARN_ON()</tt> could never fire.
+But the fact is that <tt>rcu_read_lock()</tt> does not exclude
+much of anything aside from subsequent grace periods, of which
+<tt>thread1()</tt> has none, so the
+<tt>WARN_ON()</tt> can and does fire.
+
+<h3><a name="Updaters Only Wait For Old Readers">Updaters Only Wait For Old Readers</a></h3>
+
+<p>
+It might be tempting to assume that after <tt>synchronize_rcu()</tt>
+completes, there are no readers executing.
+This temptation must be avoided because
+new readers can start immediately after <tt>synchronize_rcu()</tt>
+starts, and <tt>synchronize_rcu()</tt> is under no
+obligation to wait for these new readers.
+
+<p><a name="Quick Quiz 9"><b>Quick Quiz 9</b>:</a>
+Suppose that synchronize_rcu() did wait until all readers had completed.
+Would the updater be able to rely on this?
+<br><a href="#qq9answer">Answer</a>
+
+<h3><a name="Grace Periods Don't Partition Read-Side Critical Sections">
+Grace Periods Don't Partition Read-Side Critical Sections</a></h3>
+
+<p>
+It is tempting to assume that if any part of one RCU read-side critical
+section precedes a given grace period, and if any part of another RCU
+read-side critical section follows that same grace period, then all of
+the first RCU read-side critical section must precede all of the second.
+However, this just isn't the case: A single grace period does not
+partition the set of RCU read-side critical sections.
+An example of this situation can be illustrated as follows, where
+<tt>x</tt>, <tt>y</tt>, and <tt>z</tt> are initially all zero:
+
+<blockquote>
+<pre>
+ 1 void thread0(void)
+ 2 {
+ 3   rcu_read_lock();
+ 4   WRITE_ONCE(a, 1);
+ 5   WRITE_ONCE(b, 1);
+ 6   rcu_read_unlock();
+ 7 }
+ 8
+ 9 void thread1(void)
+10 {
+11   r1 = READ_ONCE(a);
+12   synchronize_rcu();
+13   WRITE_ONCE(c, 1);
+14 }
+15
+16 void thread2(void)
+17 {
+18   rcu_read_lock();
+19   r2 = READ_ONCE(b);
+20   r3 = READ_ONCE(c);
+21   rcu_read_unlock();
+22 }
+</pre>
+</blockquote>
+
+<p>
+It turns out that the outcome:
+
+<blockquote>
+<pre>
+(r1 == 1 &amp;&amp; r2 == 0 &amp;&amp; r3 == 1)
+</pre>
+</blockquote>
+
+is entirely possible.
+The following figure show how this can happen, with each circled
+<tt>QS</tt> indicating the point at which RCU recorded a
+<i>quiescent state</i> for each thread, that is, a state in which
+RCU knows that the thread cannot be in the midst of an RCU read-side
+critical section that started before the current grace period:
+
+<p><img src="GPpartitionReaders1.svg" alt="GPpartitionReaders1.svg" width="60%"></p>
+
+<p>
+If it is necessary to partition RCU read-side critical sections in this
+manner, it is necessary to use two grace periods, where the first
+grace period is known to end before the second grace period starts:
+
+<blockquote>
+<pre>
+ 1 void thread0(void)
+ 2 {
+ 3   rcu_read_lock();
+ 4   WRITE_ONCE(a, 1);
+ 5   WRITE_ONCE(b, 1);
+ 6   rcu_read_unlock();
+ 7 }
+ 8
+ 9 void thread1(void)
+10 {
+11   r1 = READ_ONCE(a);
+12   synchronize_rcu();
+13   WRITE_ONCE(c, 1);
+14 }
+15
+16 void thread2(void)
+17 {
+18   r2 = READ_ONCE(c);
+19   synchronize_rcu();
+20   WRITE_ONCE(d, 1);
+21 }
+22
+23 void thread3(void)
+24 {
+25   rcu_read_lock();
+26   r3 = READ_ONCE(b);
+27   r4 = READ_ONCE(d);
+28   rcu_read_unlock();
+29 }
+</pre>
+</blockquote>
+
+<p>
+Here, if <tt>(r1 == 1)</tt>, then
+<tt>thread0()</tt>'s write to <tt>b</tt> must happen
+before the end of <tt>thread1()</tt>'s grace period.
+If in addition <tt>(r4 == 1)</tt>, then
+<tt>thread3()</tt>'s read from <tt>b</tt> must happen
+after the beginning of <tt>thread2()</tt>'s grace period.
+If it is also the case that <tt>(r2 == 1)</tt>, then the
+end of <tt>thread1()</tt>'s grace period must precede the
+beginning of <tt>thread2()</tt>'s grace period.
+This mean that the two RCU read-side critical sections cannot overlap,
+guaranteeing that <tt>(r3 == 1)</tt>.
+As a result, the outcome:
+
+<blockquote>
+<pre>
+(r1 == 1 &amp;&amp; r2 == 1 &amp;&amp; r3 == 0 &amp;&amp; r4 == 1)
+</pre>
+</blockquote>
+
+cannot happen.
+
+<p>
+This non-requirement was also non-premeditated, but became apparent
+when studying RCU's interaction with memory ordering.
+
+<h3><a name="Read-Side Critical Sections Don't Partition Grace Periods">
+Read-Side Critical Sections Don't Partition Grace Periods</a></h3>
+
+<p>
+It is also tempting to assume that if an RCU read-side critical section
+happens between a pair of grace periods, then those grace periods cannot
+overlap.
+However, this temptation leads nowhere good, as can be illustrated by
+the following, with all variables initially zero:
+
+<blockquote>
+<pre>
+ 1 void thread0(void)
+ 2 {
+ 3   rcu_read_lock();
+ 4   WRITE_ONCE(a, 1);
+ 5   WRITE_ONCE(b, 1);
+ 6   rcu_read_unlock();
+ 7 }
+ 8
+ 9 void thread1(void)
+10 {
+11   r1 = READ_ONCE(a);
+12   synchronize_rcu();
+13   WRITE_ONCE(c, 1);
+14 }
+15
+16 void thread2(void)
+17 {
+18   rcu_read_lock();
+19   WRITE_ONCE(d, 1);
+20   r2 = READ_ONCE(c);
+21   rcu_read_unlock();
+22 }
+23
+24 void thread3(void)
+25 {
+26   r3 = READ_ONCE(d);
+27   synchronize_rcu();
+28   WRITE_ONCE(e, 1);
+29 }
+30
+31 void thread4(void)
+32 {
+33   rcu_read_lock();
+34   r4 = READ_ONCE(b);
+35   r5 = READ_ONCE(e);
+36   rcu_read_unlock();
+37 }
+</pre>
+</blockquote>
+
+<p>
+In this case, the outcome:
+
+<blockquote>
+<pre>
+(r1 == 1 &amp;&amp; r2 == 1 &amp;&amp; r3 == 1 &amp;&amp; r4 == 0 &amp&amp; r5 == 1)
+</pre>
+</blockquote>
+
+is entirely possible, as illustrated below:
+
+<p><img src="ReadersPartitionGP1.svg" alt="ReadersPartitionGP1.svg" width="100%"></p>
+
+<p>
+Again, an RCU read-side critical section can overlap almost all of a
+given grace period, just so long as it does not overlap the entire
+grace period.
+As a result, an RCU read-side critical section cannot partition a pair
+of RCU grace periods.
+
+<p><a name="Quick Quiz 10"><b>Quick Quiz 10</b>:</a>
+How long a sequence of grace periods, each separated by an RCU read-side
+critical section, would be required to partition the RCU read-side
+critical sections at the beginning and end of the chain?
+<br><a href="#qq10answer">Answer</a>
+
+<h3><a name="Disabling Preemption Does Not Block Grace Periods">
+Disabling Preemption Does Not Block Grace Periods</a></h3>
+
+<p>
+There was a time when disabling preemption on any given CPU would block
+subsequent grace periods.
+However, this was an accident of implementation and is not a requirement.
+And in the current Linux-kernel implementation, disabling preemption
+on a given CPU in fact does not block grace periods, as Oleg Nesterov
+<a href="https://lkml.kernel.org/g/20150614193825.GA19582@redhat.com">demonstrated</a>.
+
+<p>
+If you need a preempt-disable region to block grace periods, you need to add
+<tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>, for example
+as follows:
+
+<blockquote>
+<pre>
+ 1 preempt_disable();
+ 2 rcu_read_lock();
+ 3 do_something();
+ 4 rcu_read_unlock();
+ 5 preempt_enable();
+ 6
+ 7 /* Spinlocks implicitly disable preemption. */
+ 8 spin_lock(&amp;mylock);
+ 9 rcu_read_lock();
+10 do_something();
+11 rcu_read_unlock();
+12 spin_unlock(&amp;mylock);
+</pre>
+</blockquote>
+
+<p>
+In theory, you could enter the RCU read-side critical section first,
+but it is more efficient to keep the entire RCU read-side critical
+section contained in the preempt-disable region as shown above.
+Of course, RCU read-side critical sections that extend outside of
+preempt-disable regions will work correctly, but such critical sections
+can be preempted, which forces <tt>rcu_read_unlock()</tt> to do
+more work.
+And no, this is <i>not</i> an invitation to enclose all of your RCU
+read-side critical sections within preempt-disable regions, because
+doing so would degrade real-time response.
+
+<p>
+This non-requirement appeared with preemptible RCU.
+If you need a grace period that waits on non-preemptible code regions, use
+<a href="#Sched Flavor">RCU-sched</a>.
+
+<h2><a name="Parallelism Facts of Life">Parallelism Facts of Life</a></h2>
+
+<p>
+These parallelism facts of life are by no means specific to RCU, but
+the RCU implementation must abide by them.
+They therefore bear repeating:
+
+<ol>
+<li>	Any CPU or task may be delayed at any time,
+	and any attempts to avoid these delays by disabling
+	preemption, interrupts, or whatever are completely futile.
+	This is most obvious in preemptible user-level
+	environments and in virtualized environments (where
+	a given guest OS's VCPUs can be preempted at any time by
+	the underlying hypervisor), but can also happen in bare-metal
+	environments due to ECC errors, NMIs, and other hardware
+	events.
+	Although a delay of more than about 20 seconds can result
+	in splats, the RCU implementation is obligated to use
+	algorithms that can tolerate extremely long delays, but where
+	&ldquo;extremely long&rdquo; is not long enough to allow
+	wrap-around when incrementing a 64-bit counter.
+<li>	Both the compiler and the CPU can reorder memory accesses.
+	Where it matters, RCU must use compiler directives and
+	memory-barrier instructions to preserve ordering.
+<li>	Conflicting writes to memory locations in any given cache line
+	will result in expensive cache misses.
+	Greater numbers of concurrent writes and more-frequent
+	concurrent writes will result in more dramatic slowdowns.
+	RCU is therefore obligated to use algorithms that have
+	sufficient locality to avoid significant performance and
+	scalability problems.
+<li>	As a rough rule of thumb, only one CPU's worth of processing
+	may be carried out under the protection of any given exclusive
+	lock.
+	RCU must therefore use scalable locking designs.
+<li>	Counters are finite, especially on 32-bit systems.
+	RCU's use of counters must therefore tolerate counter wrap,
+	or be designed such that counter wrap would take way more
+	time than a single system is likely to run.
+	An uptime of ten years is quite possible, a runtime
+	of a century much less so.
+	As an example of the latter, RCU's dyntick-idle nesting counter
+	allows 54 bits for interrupt nesting level (this counter
+	is 64 bits even on a 32-bit system).
+	Overflowing this counter requires 2<sup>54</sup>
+	half-interrupts on a given CPU without that CPU ever going idle.
+	If a half-interrupt happened every microsecond, it would take
+	570 years of runtime to overflow this counter, which is currently
+	believed to be an acceptably long time.
+<li>	Linux systems can have thousands of CPUs running a single
+	Linux kernel in a single shared-memory environment.
+	RCU must therefore pay close attention to high-end scalability.
+</ol>
+
+<p>
+This last parallelism fact of life means that RCU must pay special
+attention to the preceding facts of life.
+The idea that Linux might scale to systems with thousands of CPUs would
+have been met with some skepticism in the 1990s, but these requirements
+would have otherwise have been unsurprising, even in the early 1990s.
+
+<h2><a name="Quality-of-Implementation Requirements">Quality-of-Implementation Requirements</a></h2>
+
+<p>
+These sections list quality-of-implementation requirements.
+Although an RCU implementation that ignores these requirements could
+still be used, it would likely be subject to limitations that would
+make it inappropriate for industrial-strength production use.
+Classes of quality-of-implementation requirements are as follows:
+
+<ol>
+<li>	<a href="#Specialization">Specialization</a>
+<li>	<a href="#Performance and Scalability">Performance and Scalability</a>
+<li>	<a href="#Composability">Composability</a>
+<li>	<a href="#Corner Cases">Corner Cases</a>
+</ol>
+
+<p>
+These classes is covered in the following sections.
+
+<h3><a name="Specialization">Specialization</a></h3>
+
+<p>
+RCU is and always has been intended primarily for read-mostly situations, as
+illustrated by the following figure.
+This means that RCU's read-side primitives are optimized, often at the
+expense of its update-side primitives.
+
+<p><img src="RCUApplicability.svg" alt="RCUApplicability.svg" width="70%"></p>
+
+<p>
+This focus on read-mostly situations means that RCU must interoperate
+with other synchronization primitives.
+For example, the <tt>add_gp()</tt> and <tt>remove_gp_synchronous()</tt>
+examples discussed earlier use RCU to protect readers and locking to
+coordinate updaters.
+However, the need extends much farther, requiring that a variety of
+synchronization primitives be legal within RCU read-side critical sections,
+including spinlocks, sequence locks, atomic operations, reference
+counters, and memory barriers.
+
+<p><a name="Quick Quiz 11"><b>Quick Quiz 11</b>:</a>
+What about sleeping locks?
+<br><a href="#qq11answer">Answer</a>
+
+<p>
+It often comes as a surprise that many algorithms do not require a
+consistent view of data, but many can function in that mode,
+with network routing being the poster child.
+Internet routing algorithms take significant time to propagate
+updates, so that by the time an update arrives at a given system,
+that system has been sending network traffic the wrong way for
+a considerable length of time.
+Having a few threads continue to send traffic the wrong way for a
+few more milliseconds is clearly not a problem:  In the worst case,
+TCP retransmissions will eventually get the data where it needs to go.
+In general, when tracking the state of the universe outside of the
+computer, some level of inconsistency must be tolerated due to
+speed-of-light delays if nothing else.
+
+<p>
+Furthermore, uncertainty about external state is inherent in many cases.
+For example, a pair of veternarians might use heartbeat to determine
+whether or not a given cat was alive.
+But how long should they wait after the last heartbeat to decide that
+the cat is in fact dead?
+Waiting less than 400 milliseconds makes no sense because this would
+mean that a relaxed cat would be considered to cycle between death
+and life more than 100 times per minute.
+Moreover, just as with human beings, a cat's heart might stop for
+some period of time, so the exact wait period is a judgment call.
+One of our pair of veternarians might wait 30 seconds before pronouncing
+the cat dead, while the other might insist on waiting a full minute.
+The two veternarians would then disagree on the state of the cat during
+the final 30 seconds of the minute following the last heartbeat, as
+fancifully illustrated below:
+
+<p><img src="2013-08-is-it-dead.png" alt="2013-08-is-it-dead.png" width="431"></p>
+
+<p>
+Interestingly enough, this same situation applies to hardware.
+When push comes to shove, how do we tell whether or not some
+external server has failed?
+We send messages to it periodically, and declare it failed if we
+don't receive a response within a given period of time.
+Policy decisions can usually tolerate short
+periods of inconsistency.
+The policy was decided some time ago, and is only now being put into
+effect, so a few milliseconds of delay is normally inconsequential.
+
+<p>
+However, there are algorithms that absolutely must see consistent data.
+For example, the translation between a user-level SystemV semaphore
+ID to the corresponding in-kernel data structure is protected by RCU,
+but it is absolutely forbidden to update a semaphore that has just been
+removed.
+In the Linux kernel, this need for consistency is accommodated by acquiring
+spinlocks located in the in-kernel data structure from within
+the RCU read-side critical section, and this is indicated by the
+green box in the figure above.
+Many other techniques may be used, and are in fact used within the
+Linux kernel.
+
+<p>
+In short, RCU is not required to maintain consistency, and other
+mechanisms may be used in concert with RCU when consistency is required.
+RCU's specialization allows it to do its job extremely well, and its
+ability to interoperate with other synchronization mechanisms allows
+the right mix of synchronization tools to be used for a given job.
+
+<h3><a name="Performance and Scalability">Performance and Scalability</a></h3>
+
+<p>
+Energy efficiency is a critical component of performance today,
+and Linux-kernel RCU implementations must therefore avoid unnecessarily
+awakening idle CPUs.
+I cannot claim that this requirement was premeditated.
+In fact, I learned of it during a telephone conversation in which I
+was given &ldquo;frank and open&rdquo; feedback on the importance
+of energy efficiency in battery-powered systems and on specific
+energy-efficiency shortcomings of the Linux-kernel RCU implementation.
+In my experience, the battery-powered embedded community will consider
+any unnecessary wakeups to be extremely unfriendly acts.
+So much so that mere Linux-kernel-mailing-list posts are
+insufficient to vent their ire.
+
+<p>
+Memory consumption is not particularly important for in most
+situations, and has become decreasingly
+so as memory sizes have expanded and memory
+costs have plummeted.
+However, as I learned from Matt Mackall's
+<a href="http://elinux.org/Linux_Tiny-FAQ">bloatwatch</a>
+efforts, memory footprint is critically important on single-CPU systems with
+non-preemptible (<tt>CONFIG_PREEMPT=n</tt>) kernels, and thus
+<a href="https://lkml.kernel.org/g/20090113221724.GA15307@linux.vnet.ibm.com">tiny RCU</a>
+was born.
+Josh Triplett has since taken over the small-memory banner with his
+<a href="https://tiny.wiki.kernel.org/">Linux kernel tinification</a>
+project, which resulted in
+<a href="#Sleepable RCU">SRCU</a>
+becoming optional for those kernels not needing it.
+
+<p>
+The remaining performance requirements are, for the most part,
+unsurprising.
+For example, in keeping with RCU's read-side specialization,
+<tt>rcu_dereference()</tt> should have negligible overhead (for
+example, suppression of a few minor compiler optimizations).
+Similarly, in non-preemptible environments, <tt>rcu_read_lock()</tt> and
+<tt>rcu_read_unlock()</tt> should have exactly zero overhead.
+
+<p>
+In preemptible environments, in the case where the RCU read-side
+critical section was not preempted (as will be the case for the
+highest-priority real-time process), <tt>rcu_read_lock()</tt> and
+<tt>rcu_read_unlock()</tt> should have minimal overhead.
+In particular, they should not contain atomic read-modify-write
+operations, memory-barrier instructions, preemption disabling,
+interrupt disabling, or backwards branches.
+However, in the case where the RCU read-side critical section was preempted,
+<tt>rcu_read_unlock()</tt> may acquire spinlocks and disable interrupts.
+This is why it is better to nest an RCU read-side critical section
+within a preempt-disable region than vice versa, at least in cases
+where that critical section is short enough to avoid unduly degrading
+real-time latencies.
+
+<p>
+The <tt>synchronize_rcu()</tt> grace-period-wait primitive is
+optimized for throughput.
+It may therefore incur several milliseconds of latency in addition to
+the duration of the longest RCU read-side critical section.
+On the other hand, multiple concurrent invocations of
+<tt>synchronize_rcu()</tt> are required to use batching optimizations
+so that they can be satisfied by a single underlying grace-period-wait
+operation.
+For example, in the Linux kernel, it is not unusual for a single
+grace-period-wait operation to serve more than
+<a href="https://www.usenix.org/conference/2004-usenix-annual-technical-conference/making-rcu-safe-deep-sub-millisecond-response">1,000 separate invocations</a>
+of <tt>synchronize_rcu()</tt>, thus amortizing the per-invocation
+overhead down to nearly zero.
+However, the grace-period optimization is also required to avoid
+measurable degradation of real-time scheduling and interrupt latencies.
+
+<p>
+In some cases, the multi-millisecond <tt>synchronize_rcu()</tt>
+latencies are unacceptable.
+In these cases, <tt>synchronize_rcu_expedited()</tt> may be used
+instead, reducing the grace-period latency down to a few tens of
+microseconds on small systems, at least in cases where the RCU read-side
+critical sections are short.
+There are currently no special latency requirements for
+<tt>synchronize_rcu_expedited()</tt> on large systems, but,
+consistent with the empirical nature of the RCU specification,
+that is subject to change.
+However, there most definitely are scalability requirements:
+A storm of <tt>synchronize_rcu_expedited()</tt> invocations on 4096
+CPUs should at least make reasonable forward progress.
+In return for its shorter latencies, <tt>synchronize_rcu_expedited()</tt>
+is permitted to impose modest degradation of real-time latency
+on non-idle online CPUs.
+That said, it will likely be necessary to take further steps to reduce this
+degradation, hopefully to roughly that of a scheduling-clock interrupt.
+
+<p>
+There are a number of situations where even
+<tt>synchronize_rcu_expedited()</tt>'s reduced grace-period
+latency is unacceptable.
+In these situations, the asynchronous <tt>call_rcu()</tt> can be
+used in place of <tt>synchronize_rcu()</tt> as follows:
+
+<blockquote>
+<pre>
+ 1 struct foo {
+ 2   int a;
+ 3   int b;
+ 4   struct rcu_head rh;
+ 5 };
+ 6
+ 7 static void remove_gp_cb(struct rcu_head *rhp)
+ 8 {
+ 9   struct foo *p = container_of(rhp, struct foo, rh);
+10
+11   kfree(p);
+12 }
+13
+14 bool remove_gp_asynchronous(void)
+15 {
+16   struct foo *p;
+17
+18   spin_lock(&amp;gp_lock);
+19   p = rcu_dereference(gp);
+20   if (!p) {
+21     spin_unlock(&amp;gp_lock);
+22     return false;
+23   }
+24   rcu_assign_pointer(gp, NULL);
+25   call_rcu(&amp;p-&gt;rh, remove_gp_cb);
+26   spin_unlock(&amp;gp_lock);
+27   return true;
+28 }
+</pre>
+</blockquote>
+
+<p>
+A definition of <tt>struct foo</tt> is finally needed, and appears
+on lines&nbsp;1-5.
+The function <tt>remove_gp_cb()</tt> is passed to <tt>call_rcu()</tt>
+on line&nbsp;25, and will be invoked after the end of a subsequent
+grace period.
+This gets the same effect as <tt>remove_gp_synchronous()</tt>,
+but without forcing the updater to wait for a grace period to elapse.
+The <tt>call_rcu()</tt> function may be used in a number of
+situations where neither <tt>synchronize_rcu()</tt> nor
+<tt>synchronize_rcu_expedited()</tt> would be legal,
+including within preempt-disable code, <tt>local_bh_disable()</tt> code,
+interrupt-disable code, and interrupt handlers.
+However, even <tt>call_rcu()</tt> is illegal within NMI handlers.
+The callback function (<tt>remove_gp_cb()</tt> in this case) will be
+executed within softirq (software interrupt) environment within the
+Linux kernel,
+either within a real softirq handler or under the protection
+of <tt>local_bh_disable()</tt>.
+In both the Linux kernel and in userspace, it is bad practice to
+write an RCU callback function that takes too long.
+Long-running operations should be relegated to separate threads or
+(in the Linux kernel) workqueues.
+
+<p><a name="Quick Quiz 12"><b>Quick Quiz 12</b>:</a>
+Why does line&nbsp;19 use <tt>rcu_access_pointer()</tt>?
+After all, <tt>call_rcu()</tt> on line&nbsp;25 stores into the
+structure, which would interact badly with concurrent insertions.
+Doesn't this mean that <tt>rcu_dereference()</tt> is required?
+<br><a href="#qq12answer">Answer</a>
+
+<p>
+However, all that <tt>remove_gp_cb()</tt> is doing is
+invoking <tt>kfree()</tt> on the data element.
+This is a common idiom, and is supported by <tt>kfree_rcu()</tt>,
+which allows &ldquo;fire and forget&rdquo; operation as shown below:
+
+<blockquote>
+<pre>
+ 1 struct foo {
+ 2   int a;
+ 3   int b;
+ 4   struct rcu_head rh;
+ 5 };
+ 6
+ 7 bool remove_gp_faf(void)
+ 8 {
+ 9   struct foo *p;
+10
+11   spin_lock(&amp;gp_lock);
+12   p = rcu_dereference(gp);
+13   if (!p) {
+14     spin_unlock(&amp;gp_lock);
+15     return false;
+16   }
+17   rcu_assign_pointer(gp, NULL);
+18   kfree_rcu(p, rh);
+19   spin_unlock(&amp;gp_lock);
+20   return true;
+21 }
+</pre>
+</blockquote>
+
+<p>
+Note that <tt>remove_gp_faf()</tt> simply invokes
+<tt>kfree_rcu()</tt> and proceeds, without any need to pay any
+further attention to the subsequent grace period and <tt>kfree()</tt>.
+It is permissible to invoke <tt>kfree_rcu()</tt> from the same
+environments as for <tt>call_rcu()</tt>.
+Interestingly enough, DYNIX/ptx had the equivalents of
+<tt>call_rcu()</tt> and <tt>kfree_rcu()</tt>, but not
+<tt>synchronize_rcu()</tt>.
+This was due to the fact that RCU was not heavily used within DYNIX/ptx,
+so the very few places that needed something like
+<tt>synchronize_rcu()</tt> simply open-coded it.
+
+<p><a name="Quick Quiz 13"><b>Quick Quiz 13</b>:</a>
+Earlier it was claimed that <tt>call_rcu()</tt> and
+<tt>kfree_rcu()</tt> allowed updaters to avoid being blocked
+by readers.
+But how can that be correct, given that the invocation of the callback
+and the freeing of the memory (respectively) must still wait for
+a grace period to elapse?
+<br><a href="#qq13answer">Answer</a>
+
+<p>
+But what if the updater must wait for the completion of code to be
+executed after the end of the grace period, but has other tasks
+that can be carried out in the meantime?
+The polling-style <tt>get_state_synchronize_rcu()</tt> and
+<tt>cond_synchronize_rcu()</tt> functions may be used for this
+purpose, as shown below:
+
+<blockquote>
+<pre>
+ 1 bool remove_gp_poll(void)
+ 2 {
+ 3   struct foo *p;
+ 4   unsigned long s;
+ 5
+ 6   spin_lock(&amp;gp_lock);
+ 7   p = rcu_access_pointer(gp);
+ 8   if (!p) {
+ 9     spin_unlock(&amp;gp_lock);
+10     return false;
+11   }
+12   rcu_assign_pointer(gp, NULL);
+13   spin_unlock(&amp;gp_lock);
+14   s = get_state_synchronize_rcu();
+15   do_something_while_waiting();
+16   cond_synchronize_rcu(s);
+17   kfree(p);
+18   return true;
+19 }
+</pre>
+</blockquote>
+
+<p>
+On line&nbsp;14, <tt>get_state_synchronize_rcu()</tt> obtains a
+&ldquo;cookie&rdquo; from RCU,
+then line&nbsp;15 carries out other tasks,
+and finally, line&nbsp;16 returns immediately if a grace period has
+elapsed in the meantime, but otherwise waits as required.
+The need for <tt>get_state_synchronize_rcu</tt> and
+<tt>cond_synchronize_rcu()</tt> has appeared quite recently,
+so it is too early to tell whether they will stand the test of time.
+
+<p>
+RCU thus provides a range of tools to allow updaters to strike the
+required tradeoff between latency, flexibility and CPU overhead.
+
+<h3><a name="Composability">Composability</a></h3>
+
+<p>
+Composability has received much attention in recent years, perhaps in part
+due to the collision of multicore hardware with object-oriented techniques
+designed in single-threaded environments for single-threaded use.
+And in theory, RCU read-side critical sections may be composed, and in
+fact may be nested arbitrarily deeply.
+In practice, as with all real-world implementations of composable
+constructs, there are limitations.
+
+<p>
+Implementations of RCU for which <tt>rcu_read_lock()</tt>
+and <tt>rcu_read_unlock()</tt> generate no code, such as
+Linux-kernel RCU when <tt>CONFIG_PREEMPT=n</tt>, can be
+nested arbitrarily deeply.
+After all, there is no overhead.
+Except that if all these instances of <tt>rcu_read_lock()</tt>
+and <tt>rcu_read_unlock()</tt> are visible to the compiler,
+compilation will eventually fail due to exhausting memory,
+mass storage, or user patience, whichever comes first.
+If the nesting is not visible to the compiler, as is the case with
+mutually recursive functions each in its own translation unit,
+stack overflow will result.
+If the nesting takes the form of loops, either the control variable
+will overflow or (in the Linux kernel) you will get an RCU CPU stall warning.
+Nevertheless, this class of RCU implementations is one
+of the most composable constructs in existence.
+
+<p>
+RCU implementations that explicitly track nesting depth
+are limited by the nesting-depth counter.
+For example, the Linux kernel's preemptible RCU limits nesting to
+<tt>INT_MAX</tt>.
+This should suffice for almost all practical purposes.
+That said, a consecutive pair of RCU read-side critical sections
+between which there is an operation that waits for a grace period
+cannot be enclosed in another RCU read-side critical section.
+This is because it is not legal to wait for a grace period within
+an RCU read-side critical section:  To do so would result either
+in deadlock or
+in RCU implicitly splitting the enclosing RCU read-side critical
+section, neither of which is conducive to a long-lived and prosperous
+kernel.
+
+<p>
+It is worth noting that RCU is not alone in limiting composability.
+For example, many transactional-memory implementations prohibit
+composing a pair of transactions separated by an irrevocable
+operation (for example, a network receive operation).
+For another example, lock-based critical sections can be composed
+surprisingly freely, but only if deadlock is avoided.
+
+<p>
+In short, although RCU read-side critical sections are highly composable,
+care is required in some situations, just as is the case for any other
+composable synchronization mechanism.
+
+<h3><a name="Corner Cases">Corner Cases</a></h3>
+
+<p>
+A given RCU workload might have an endless and intense stream of
+RCU read-side critical sections, perhaps even so intense that there
+was never a point in time during which there was not at least one
+RCU read-side critical section in flight.
+RCU cannot allow this situation to block grace periods:  As long as
+all the RCU read-side critical sections are finite, grace periods
+must also be finite.
+
+<p>
+That said, preemptible RCU implementations could potentially result
+in RCU read-side critical sections being preempted for long durations,
+which has the effect of creating a long-duration RCU read-side
+critical section.
+This situation can arise only in heavily loaded systems, but systems using
+real-time priorities are of course more vulnerable.
+Therefore, RCU priority boosting is provided to help deal with this
+case.
+That said, the exact requirements on RCU priority boosting will likely
+evolve as more experience accumulates.
+
+<p>
+Other workloads might have very high update rates.
+Although one can argue that such workloads should instead use
+something other than RCU, the fact remains that RCU must
+handle such workloads gracefully.
+This requirement is another factor driving batching of grace periods,
+but it is also the driving force behind the checks for large numbers
+of queued RCU callbacks in the <tt>call_rcu()</tt> code path.
+Finally, high update rates should not delay RCU read-side critical
+sections, although some read-side delays can occur when using
+<tt>synchronize_rcu_expedited()</tt>, courtesy of this function's use
+of <tt>try_stop_cpus()</tt>.
+(In the future, <tt>synchronize_rcu_expedited()</tt> will be
+converted to use lighter-weight inter-processor interrupts (IPIs),
+but this will still disturb readers, though to a much smaller degree.)
+
+<p>
+Although all three of these corner cases were understood in the early
+1990s, a simple user-level test consisting of <tt>close(open(path))</tt>
+in a tight loop
+in the early 2000s suddenly provided a much deeper appreciation of the
+high-update-rate corner case.
+This test also motivated addition of some RCU code to react to high update
+rates, for example, if a given CPU finds itself with more than 10,000
+RCU callbacks queued, it will cause RCU to take evasive action by
+more aggressively starting grace periods and more aggressively forcing
+completion of grace-period processing.
+This evasive action causes the grace period to complete more quickly,
+but at the cost of restricting RCU's batching optimizations, thus
+increasing the CPU overhead incurred by that grace period.
+
+<h2><a name="Software-Engineering Requirements">
+Software-Engineering Requirements</a></h2>
+
+<p>
+Between Murphy's Law and &ldquo;To err is human&rdquo;, it is necessary to
+guard against mishaps and misuse:
+
+<ol>
+<li>	It is all too easy to forget to use <tt>rcu_read_lock()</tt>
+	everywhere that it is needed, so kernels built with
+	<tt>CONFIG_PROVE_RCU=y</tt> will spat if
+	<tt>rcu_dereference()</tt> is used outside of an
+	RCU read-side critical section.
+	Update-side code can use <tt>rcu_dereference_protected()</tt>,
+	which takes a
+	<a href="https://lwn.net/Articles/371986/">lockdep expression</a>
+	to indicate what is providing the protection.
+	If the indicated protection is not provided, a lockdep splat
+	is emitted.
+
+	<p>
+	Code shared between readers and updaters can use
+	<tt>rcu_dereference_check()</tt>, which also takes a
+	lockdep expression, and emits a lockdep splat if neither
+	<tt>rcu_read_lock()</tt> nor the indicated protection
+	is in place.
+	In addition, <tt>rcu_dereference_raw()</tt> is used in those
+	(hopefully rare) cases where the required protection cannot
+	be easily described.
+	Finally, <tt>rcu_read_lock_held()</tt> is provided to
+	allow a function to verify that it has been invoked within
+	an RCU read-side critical section.
+	I was made aware of this set of requirements shortly after Thomas
+	Gleixner audited a number of RCU uses.
+<li>	A given function might wish to check for RCU-related preconditions
+	upon entry, before using any other RCU API.
+	The <tt>rcu_lockdep_assert()</tt> does this job,
+	asserting the expression in kernels having lockdep enabled
+	and doing nothing otherwise.
+<li>	It is also easy to forget to use <tt>rcu_assign_pointer()</tt>
+	and <tt>rcu_dereference()</tt>, perhaps (incorrectly)
+	substituting a simple assignment.
+	To catch this sort of error, a given RCU-protected pointer may be
+	tagged with <tt>__rcu</tt>, after which running sparse
+	with <tt>CONFIG_SPARSE_RCU_POINTER=y</tt> will complain
+	about simple-assignment accesses to that pointer.
+	Arnd Bergmann made me aware of this requirement, and also
+	supplied the needed
+	<a href="https://lwn.net/Articles/376011/">patch series</a>.
+<li>	Kernels built with <tt>CONFIG_DEBUG_OBJECTS_RCU_HEAD=y</tt>
+	will splat if a data element is passed to <tt>call_rcu()</tt>
+	twice in a row, without a grace period in between.
+	(This error is similar to a double free.)
+	The corresponding <tt>rcu_head</tt> structures that are
+	dynamically allocated are automatically tracked, but
+	<tt>rcu_head</tt> structures allocated on the stack
+	must be initialized with <tt>init_rcu_head_on_stack()</tt>
+	and cleaned up with <tt>destroy_rcu_head_on_stack()</tt>.
+	Similarly, statically allocated non-stack <tt>rcu_head</tt>
+	structures must be initialized with <tt>init_rcu_head()</tt>
+	and cleaned up with <tt>destroy_rcu_head()</tt>.
+	Mathieu Desnoyers made me aware of this requirement, and also
+	supplied the needed
+	<a href="https://lkml.kernel.org/g/20100319013024.GA28456@Krystal">patch</a>.
+<li>	An infinite loop in an RCU read-side critical section will
+	eventually trigger an RCU CPU stall warning splat, with
+	the duration of &ldquo;eventually&rdquo; being controlled by the
+	<tt>RCU_CPU_STALL_TIMEOUT</tt> <tt>Kconfig</tt> option, or,
+	alternatively, by the
+	<tt>rcupdate.rcu_cpu_stall_timeout</tt> boot/sysfs
+	parameter.
+	However, RCU is not obligated to produce this splat
+	unless there is a grace period waiting on that particular
+	RCU read-side critical section.
+	<p>
+	Some extreme workloads might intentionally delay
+	RCU grace periods, and systems running those workloads can
+	be booted with <tt>rcupdate.rcu_cpu_stall_suppress</tt>
+	to suppress the splats.
+	This kernel parameter may also be set via <tt>sysfs</tt>.
+	Furthermore, RCU CPU stall warnings are counter-productive
+	during sysrq dumps and during panics.
+	RCU therefore supplies the <tt>rcu_sysrq_start()</tt> and
+	<tt>rcu_sysrq_end()</tt> API members to be called before
+	and after long sysrq dumps.
+	RCU also supplies the <tt>rcu_panic()</tt> notifier that is
+	automatically invoked at the beginning of a panic to suppress
+	further RCU CPU stall warnings.
+
+	<p>
+	This requirement made itself known in the early 1990s, pretty
+	much the first time that it was necessary to debug a CPU stall.
+	That said, the initial implementation in DYNIX/ptx was quite
+	generic in comparison with that of Linux.
+<li>	Although it would be very good to detect pointers leaking out
+	of RCU read-side critical sections, there is currently no
+	good way of doing this.
+	One complication is the need to distinguish between pointers
+	leaking and pointers that have been handed off from RCU to
+	some other synchronization mechanism, for example, reference
+	counting.
+<li>	In kernels built with <tt>CONFIG_RCU_TRACE=y</tt>, RCU-related
+	information is provided via both debugfs and event tracing.
+<li>	Open-coded use of <tt>rcu_assign_pointer()</tt> and
+	<tt>rcu_dereference()</tt> to create typical linked
+	data structures can be surprisingly error-prone.
+	Therefore, RCU-protected
+	<a href="https://lwn.net/Articles/609973/#RCU List APIs">linked lists</a>
+	and, more recently, RCU-protected
+	<a href="https://lwn.net/Articles/612100/">hash tables</a>
+	are available.
+	Many other special-purpose RCU-protected data structures are
+	available in the Linux kernel and the userspace RCU library.
+<li>	Some linked structures are created at compile time, but still
+	require <tt>__rcu</tt> checking.
+	The <tt>RCU_POINTER_INITIALIZER()</tt> macro serves this
+	purpose.
+<li>	It is not necessary to use <tt>rcu_assign_pointer()</tt>
+	when creating linked structures that are to be published via
+	a single external pointer.
+	The <tt>RCU_INIT_POINTER()</tt> macro is provided for
+	this task and also for assigning <tt>NULL</tt> pointers
+	at runtime.
+</ol>
+
+<p>
+This not a hard-and-fast list:  RCU's diagnostic capabilities will
+continue to be guided by the number and type of usage bugs found
+in real-world RCU usage.
+
+<h2><a name="Linux Kernel Complications">Linux Kernel Complications</a></h2>
+
+<p>
+The Linux kernel provides an interesting environment for all kinds of
+software, including RCU.
+Some of the relevant points of interest are as follows:
+
+<ol>
+<li>	<a href="#Configuration">Configuration</a>.
+<li>	<a href="#Firmware Interface">Firmware Interface</a>.
+<li>	<a href="#Early Boot">Early Boot</a>.
+<li>	<a href="#Interrupts and NMIs">
+	Interrupts and non-maskable interrupts (NMIs)</a>.
+<li>	<a href="#Loadable Modules">Loadable Modules</a>.
+<li>	<a href="#Hotplug CPU">Hotplug CPU</a>.
+<li>	<a href="#Scheduler and RCU">Scheduler and RCU</a>.
+<li>	<a href="#Tracing and RCU">Tracing and RCU</a>.
+<li>	<a href="#Energy Efficiency">Energy Efficiency</a>.
+<li>	<a href="#Memory Efficiency">Memory Efficiency</a>.
+<li>	<a href="#Performance, Scalability, Response Time, and Reliability">
+	Performance, Scalability, Response Time, and Reliability</a>.
+</ol>
+
+<p>
+This list is probably incomplete, but it does give a feel for the
+most notable Linux-kernel complications.
+Each of the following sections covers one of the above topics.
+
+<h3><a name="Configuration">Configuration</a></h3>
+
+<p>
+RCU's goal is automatic configuration, so that almost nobody
+needs to worry about RCU's <tt>Kconfig</tt> options.
+And for almost all users, RCU does in fact work well
+&ldquo;out of the box.&rdquo;
+
+<p>
+However, there are specialized use cases that are handled by
+kernel boot parameters and <tt>Kconfig</tt> options.
+Unfortunately, the <tt>Kconfig</tt> system will explicitly ask users
+about new <tt>Kconfig</tt> options, which requires almost all of them
+be hidden behind a <tt>CONFIG_RCU_EXPERT</tt> <tt>Kconfig</tt> option.
+
+<p>
+This all should be quite obvious, but the fact remains that
+Linus Torvalds recently had to
+<a href="https://lkml.kernel.org/g/CA+55aFy4wcCwaL4okTs8wXhGZ5h-ibecy_Meg9C4MNQrUnwMcg@mail.gmail.com">remind</a>
+me of this requirement.
+
+<h3><a name="Firmware Interface">Firmware Interface</a></h3>
+
+<p>
+In many cases, kernel obtains information about the system from the
+firmware, and sometimes things are lost in translation.
+Or the translation is accurate, but the original message is bogus.
+
+<p>
+For example, some systems' firmware overreports the number of CPUs,
+sometimes by a large factor.
+If RCU naively believed the firmware, as it used to do,
+it would create too many per-CPU kthreads.
+Although the resulting system will still run correctly, the extra
+kthreads needlessly consume memory and can cause confusion
+when they show up in <tt>ps</tt> listings.
+
+<p>
+RCU must therefore wait for a given CPU to actually come online before
+it can allow itself to believe that the CPU actually exists.
+The resulting &ldquo;ghost CPUs&rdquo; (which are never going to
+come online) cause a number of
+<a href="https://paulmck.livejournal.com/37494.html">interesting complications</a>.
+
+<h3><a name="Early Boot">Early Boot</a></h3>
+
+<p>
+The Linux kernel's boot sequence is an interesting process,
+and RCU is used early, even before <tt>rcu_init()</tt>
+is invoked.
+In fact, a number of RCU's primitives can be used as soon as the
+initial task's <tt>task_struct</tt> is available and the
+boot CPU's per-CPU variables are set up.
+The read-side primitives (<tt>rcu_read_lock()</tt>,
+<tt>rcu_read_unlock()</tt>, <tt>rcu_dereference()</tt>,
+and <tt>rcu_access_pointer()</tt>) will operate normally very early on,
+as will <tt>rcu_assign_pointer()</tt>.
+
+<p>
+Although <tt>call_rcu()</tt> may be invoked at any
+time during boot, callbacks are not guaranteed to be invoked until after
+the scheduler is fully up and running.
+This delay in callback invocation is due to the fact that RCU does not
+invoke callbacks until it is fully initialized, and this full initialization
+cannot occur until after the scheduler has initialized itself to the
+point where RCU can spawn and run its kthreads.
+In theory, it would be possible to invoke callbacks earlier,
+however, this is not a panacea because there would be severe restrictions
+on what operations those callbacks could invoke.
+
+<p>
+Perhaps surprisingly, <tt>synchronize_rcu()</tt>,
+<a href="#Bottom-Half Flavor"><tt>synchronize_rcu_bh()</tt></a>
+(<a href="#Bottom-Half Flavor">discussed below</a>),
+and
+<a href="#Sched Flavor"><tt>synchronize_sched()</tt></a>
+will all operate normally
+during very early boot, the reason being that there is only one CPU
+and preemption is disabled.
+This means that the call <tt>synchronize_rcu()</tt> (or friends)
+itself is a quiescent
+state and thus a grace period, so the early-boot implementation can
+be a no-op.
+
+<p>
+Both <tt>synchronize_rcu_bh()</tt> and <tt>synchronize_sched()</tt>
+continue to operate normally through the remainder of boot, courtesy
+of the fact that preemption is disabled across their RCU read-side
+critical sections and also courtesy of the fact that there is still
+only one CPU.
+However, once the scheduler starts initializing, preemption is enabled.
+There is still only a single CPU, but the fact that preemption is enabled
+means that the no-op implementation of <tt>synchronize_rcu()</tt> no
+longer works in <tt>CONFIG_PREEMPT=y</tt> kernels.
+Therefore, as soon as the scheduler starts initializing, the early-boot
+fastpath is disabled.
+This means that <tt>synchronize_rcu()</tt> switches to its runtime
+mode of operation where it posts callbacks, which in turn means that
+any call to <tt>synchronize_rcu()</tt> will block until the corresponding
+callback is invoked.
+Unfortunately, the callback cannot be invoked until RCU's runtime
+grace-period machinery is up and running, which cannot happen until
+the scheduler has initialized itself sufficiently to allow RCU's
+kthreads to be spawned.
+Therefore, invoking <tt>synchronize_rcu()</tt> during scheduler
+initialization can result in deadlock.
+
+<p><a name="Quick Quiz 14"><b>Quick Quiz 14</b>:</a>
+So what happens with <tt>synchronize_rcu()</tt> during
+scheduler initialization for <tt>CONFIG_PREEMPT=n</tt>
+kernels?
+<br><a href="#qq14answer">Answer</a>
+
+<p>
+I learned of these boot-time requirements as a result of a series of
+system hangs.
+
+<h3><a name="Interrupts and NMIs">Interrupts and NMIs</a></h3>
+
+<p>
+The Linux kernel has interrupts, and RCU read-side critical sections are
+legal within interrupt handlers and within interrupt-disabled regions
+of code, as are invocations of <tt>call_rcu()</tt>.
+
+<p>
+Some Linux-kernel architectures can enter an interrupt handler from
+non-idle process context, and then just never leave it, instead stealthily
+transitioning back to process context.
+This trick is sometimes used to invoke system calls from inside the kernel.
+These &ldquo;half-interrupts&rdquo; mean that RCU has to be very careful
+about how it counts interrupt nesting levels.
+I learned of this requirement the hard way during a rewrite
+of RCU's dyntick-idle code.
+
+<p>
+The Linux kernel has non-maskable interrupts (NMIs), and
+RCU read-side critical sections are legal within NMI handlers.
+Thankfully, RCU update-side primitives, including
+<tt>call_rcu()</tt>, are prohibited within NMI handlers.
+
+<p>
+The name notwithstanding, some Linux-kernel architectures
+can have nested NMIs, which RCU must handle correctly.
+Andy Lutomirski
+<a href="https://lkml.kernel.org/g/CALCETrXLq1y7e_dKFPgou-FKHB6Pu-r8+t-6Ds+8=va7anBWDA@mail.gmail.com">surprised me</a>
+with this requirement;
+he also kindly surprised me with
+<a href="https://lkml.kernel.org/g/CALCETrXSY9JpW3uE6H8WYk81sg56qasA2aqmjMPsq5dOtzso=g@mail.gmail.com">an algorithm</a>
+that meets this requirement.
+
+<h3><a name="Loadable Modules">Loadable Modules</a></h3>
+
+<p>
+The Linux kernel has loadable modules, and these modules can
+also be unloaded.
+After a given module has been unloaded, any attempt to call
+one of its functions results in a segmentation fault.
+The module-unload functions must therefore cancel any
+delayed calls to loadable-module functions, for example,
+any outstanding <tt>mod_timer()</tt> must be dealt with
+via <tt>del_timer_sync()</tt> or similar.
+
+<p>
+Unfortunately, there is no way to cancel an RCU callback;
+once you invoke <tt>call_rcu()</tt>, the callback function is
+going to eventually be invoked, unless the system goes down first.
+Because it is normally considered socially irresponsible to crash the system
+in response to a module unload request, we need some other way
+to deal with in-flight RCU callbacks.
+
+<p>
+RCU therefore provides
+<tt><a href="https://lwn.net/Articles/217484/">rcu_barrier()</a></tt>,
+which waits until all in-flight RCU callbacks have been invoked.
+If a module uses <tt>call_rcu()</tt>, its exit function should therefore
+prevent any future invocation of <tt>call_rcu()</tt>, then invoke
+<tt>rcu_barrier()</tt>.
+In theory, the underlying module-unload code could invoke
+<tt>rcu_barrier()</tt> unconditionally, but in practice this would
+incur unacceptable latencies.
+
+<p>
+Nikita Danilov noted this requirement for an analogous filesystem-unmount
+situation, and Dipankar Sarma incorporated <tt>rcu_barrier()</tt> into RCU.
+The need for <tt>rcu_barrier()</tt> for module unloading became
+apparent later.
+
+<h3><a name="Hotplug CPU">Hotplug CPU</a></h3>
+
+<p>
+The Linux kernel supports CPU hotplug, which means that CPUs
+can come and go.
+It is of course illegal to use any RCU API member from an offline CPU.
+This requirement was present from day one in DYNIX/ptx, but
+on the other hand, the Linux kernel's CPU-hotplug implementation
+is &ldquo;interesting.&rdquo;
+
+<p>
+The Linux-kernel CPU-hotplug implementation has notifiers that
+are used to allow the various kernel subsystems (including RCU)
+to respond appropriately to a given CPU-hotplug operation.
+Most RCU operations may be invoked from CPU-hotplug notifiers,
+including even normal synchronous grace-period operations
+such as <tt>synchronize_rcu()</tt>.
+However, expedited grace-period operations such as
+<tt>synchronize_rcu_expedited()</tt> are not supported,
+due to the fact that current implementations block CPU-hotplug
+operations, which could result in deadlock.
+
+<p>
+In addition, all-callback-wait operations such as
+<tt>rcu_barrier()</tt> are also not supported, due to the
+fact that there are phases of CPU-hotplug operations where
+the outgoing CPU's callbacks will not be invoked until after
+the CPU-hotplug operation ends, which could also result in deadlock.
+
+<h3><a name="Scheduler and RCU">Scheduler and RCU</a></h3>
+
+<p>
+RCU depends on the scheduler, and the scheduler uses RCU to
+protect some of its data structures.
+This means the scheduler is forbidden from acquiring
+the runqueue locks and the priority-inheritance locks
+in the middle of an outermost RCU read-side critical section unless either
+(1)&nbsp;it releases them before exiting that same
+RCU read-side critical section, or
+(2)&nbsp;interrupts are disabled across
+that entire RCU read-side critical section.
+This same prohibition also applies (recursively!) to any lock that is acquired
+while holding any lock to which this prohibition applies.
+Adhering to this rule prevents preemptible RCU from invoking
+<tt>rcu_read_unlock_special()</tt> while either runqueue or
+priority-inheritance locks are held, thus avoiding deadlock.
+
+<p>
+Prior to v4.4, it was only necessary to disable preemption across
+RCU read-side critical sections that acquired scheduler locks.
+In v4.4, expedited grace periods started using IPIs, and these
+IPIs could force a <tt>rcu_read_unlock()</tt> to take the slowpath.
+Therefore, this expedited-grace-period change required disabling of
+interrupts, not just preemption.
+
+<p>
+For RCU's part, the preemptible-RCU <tt>rcu_read_unlock()</tt>
+implementation must be written carefully to avoid similar deadlocks.
+In particular, <tt>rcu_read_unlock()</tt> must tolerate an
+interrupt where the interrupt handler invokes both
+<tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>.
+This possibility requires <tt>rcu_read_unlock()</tt> to use
+negative nesting levels to avoid destructive recursion via
+interrupt handler's use of RCU.
+
+<p>
+This pair of mutual scheduler-RCU requirements came as a
+<a href="https://lwn.net/Articles/453002/">complete surprise</a>.
+
+<p>
+As noted above, RCU makes use of kthreads, and it is necessary to
+avoid excessive CPU-time accumulation by these kthreads.
+This requirement was no surprise, but RCU's violation of it
+when running context-switch-heavy workloads when built with
+<tt>CONFIG_NO_HZ_FULL=y</tt>
+<a href="http://www.rdrop.com/users/paulmck/scalability/paper/BareMetal.2015.01.15b.pdf">did come as a surprise [PDF]</a>.
+RCU has made good progress towards meeting this requirement, even
+for context-switch-have <tt>CONFIG_NO_HZ_FULL=y</tt> workloads,
+but there is room for further improvement.
+
+<h3><a name="Tracing and RCU">Tracing and RCU</a></h3>
+
+<p>
+It is possible to use tracing on RCU code, but tracing itself
+uses RCU.
+For this reason, <tt>rcu_dereference_raw_notrace()</tt>
+is provided for use by tracing, which avoids the destructive
+recursion that could otherwise ensue.
+This API is also used by virtualization in some architectures,
+where RCU readers execute in environments in which tracing
+cannot be used.
+The tracing folks both located the requirement and provided the
+needed fix, so this surprise requirement was relatively painless.
+
+<h3><a name="Energy Efficiency">Energy Efficiency</a></h3>
+
+<p>
+Interrupting idle CPUs is considered socially unacceptable,
+especially by people with battery-powered embedded systems.
+RCU therefore conserves energy by detecting which CPUs are
+idle, including tracking CPUs that have been interrupted from idle.
+This is a large part of the energy-efficiency requirement,
+so I learned of this via an irate phone call.
+
+<p>
+Because RCU avoids interrupting idle CPUs, it is illegal to
+execute an RCU read-side critical section on an idle CPU.
+(Kernels built with <tt>CONFIG_PROVE_RCU=y</tt> will splat
+if you try it.)
+The <tt>RCU_NONIDLE()</tt> macro and <tt>_rcuidle</tt>
+event tracing is provided to work around this restriction.
+In addition, <tt>rcu_is_watching()</tt> may be used to
+test whether or not it is currently legal to run RCU read-side
+critical sections on this CPU.
+I learned of the need for diagnostics on the one hand
+and <tt>RCU_NONIDLE()</tt> on the other while inspecting
+idle-loop code.
+Steven Rostedt supplied <tt>_rcuidle</tt> event tracing,
+which is used quite heavily in the idle loop.
+
+<p>
+It is similarly socially unacceptable to interrupt an
+<tt>nohz_full</tt> CPU running in userspace.
+RCU must therefore track <tt>nohz_full</tt> userspace
+execution.
+And in
+<a href="https://lwn.net/Articles/558284/"><tt>CONFIG_NO_HZ_FULL_SYSIDLE=y</tt></a>
+kernels, RCU must separately track idle CPUs on the one hand and
+CPUs that are either idle or executing in userspace on the other.
+In both cases, RCU must be able to sample state at two points in
+time, and be able to determine whether or not some other CPU spent
+any time idle and/or executing in userspace.
+
+<p>
+These energy-efficiency requirements have proven quite difficult to
+understand and to meet, for example, there have been more than five
+clean-sheet rewrites of RCU's energy-efficiency code, the last of
+which was finally able to demonstrate
+<a href="http://www.rdrop.com/users/paulmck/realtime/paper/AMPenergy.2013.04.19a.pdf">real energy savings running on real hardware [PDF]</a>.
+As noted earlier,
+I learned of many of these requirements via angry phone calls:
+Flaming me on the Linux-kernel mailing list was apparently not
+sufficient to fully vent their ire at RCU's energy-efficiency bugs!
+
+<h3><a name="Memory Efficiency">Memory Efficiency</a></h3>
+
+<p>
+Although small-memory non-realtime systems can simply use Tiny RCU,
+code size is only one aspect of memory efficiency.
+Another aspect is the size of the <tt>rcu_head</tt> structure
+used by <tt>call_rcu()</tt> and <tt>kfree_rcu()</tt>.
+Although this structure contains nothing more than a pair of pointers,
+it does appear in many RCU-protected data structures, including
+some that are size critical.
+The <tt>page</tt> structure is a case in point, as evidenced by
+the many occurrences of the <tt>union</tt> keyword within that structure.
+
+<p>
+This need for memory efficiency is one reason that RCU uses hand-crafted
+singly linked lists to track the <tt>rcu_head</tt> structures that
+are waiting for a grace period to elapse.
+It is also the reason why <tt>rcu_head</tt> structures do not contain
+debug information, such as fields tracking the file and line of the
+<tt>call_rcu()</tt> or <tt>kfree_rcu()</tt> that posted them.
+Although this information might appear in debug-only kernel builds at some
+point, in the meantime, the <tt>-&gt;func</tt> field will often provide
+the needed debug information.
+
+<p>
+However, in some cases, the need for memory efficiency leads to even
+more extreme measures.
+Returning to the <tt>page</tt> structure, the <tt>rcu_head</tt> field
+shares storage with a great many other structures that are used at
+various points in the corresponding page's lifetime.
+In order to correctly resolve certain
+<a href="https://lkml.kernel.org/g/1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com">race conditions</a>,
+the Linux kernel's memory-management subsystem needs a particular bit
+to remain zero during all phases of grace-period processing,
+and that bit happens to map to the bottom bit of the
+<tt>rcu_head</tt> structure's <tt>-&gt;next</tt> field.
+RCU makes this guarantee as long as <tt>call_rcu()</tt>
+is used to post the callback, as opposed to <tt>kfree_rcu()</tt>
+or some future &ldquo;lazy&rdquo;
+variant of <tt>call_rcu()</tt> that might one day be created for
+energy-efficiency purposes.
+
+<h3><a name="Performance, Scalability, Response Time, and Reliability">
+Performance, Scalability, Response Time, and Reliability</a></h3>
+
+<p>
+Expanding on the
+<a href="#Performance and Scalability">earlier discussion</a>,
+RCU is used heavily by hot code paths in performance-critical
+portions of the Linux kernel's networking, security, virtualization,
+and scheduling code paths.
+RCU must therefore use efficient implementations, especially in its
+read-side primitives.
+To that end, it would be good if preemptible RCU's implementation
+of <tt>rcu_read_lock()</tt> could be inlined, however, doing
+this requires resolving <tt>#include</tt> issues with the
+<tt>task_struct</tt> structure.
+
+<p>
+The Linux kernel supports hardware configurations with up to
+4096 CPUs, which means that RCU must be extremely scalable.
+Algorithms that involve frequent acquisitions of global locks or
+frequent atomic operations on global variables simply cannot be
+tolerated within the RCU implementation.
+RCU therefore makes heavy use of a combining tree based on the
+<tt>rcu_node</tt> structure.
+RCU is required to tolerate all CPUs continuously invoking any
+combination of RCU's runtime primitives with minimal per-operation
+overhead.
+In fact, in many cases, increasing load must <i>decrease</i> the
+per-operation overhead, witness the batching optimizations for
+<tt>synchronize_rcu()</tt>, <tt>call_rcu()</tt>,
+<tt>synchronize_rcu_expedited()</tt>, and <tt>rcu_barrier()</tt>.
+As a general rule, RCU must cheerfully accept whatever the
+rest of the Linux kernel decides to throw at it.
+
+<p>
+The Linux kernel is used for real-time workloads, especially
+in conjunction with the
+<a href="https://rt.wiki.kernel.org/index.php/Main_Page">-rt patchset</a>.
+The real-time-latency response requirements are such that the
+traditional approach of disabling preemption across RCU
+read-side critical sections is inappropriate.
+Kernels built with <tt>CONFIG_PREEMPT=y</tt> therefore
+use an RCU implementation that allows RCU read-side critical
+sections to be preempted.
+This requirement made its presence known after users made it
+clear that an earlier
+<a href="https://lwn.net/Articles/107930/">real-time patch</a>
+did not meet their needs, in conjunction with some
+<a href="https://lkml.kernel.org/g/20050318002026.GA2693@us.ibm.com">RCU issues</a>
+encountered by a very early version of the -rt patchset.
+
+<p>
+In addition, RCU must make do with a sub-100-microsecond real-time latency
+budget.
+In fact, on smaller systems with the -rt patchset, the Linux kernel
+provides sub-20-microsecond real-time latencies for the whole kernel,
+including RCU.
+RCU's scalability and latency must therefore be sufficient for
+these sorts of configurations.
+To my surprise, the sub-100-microsecond real-time latency budget
+<a href="http://www.rdrop.com/users/paulmck/realtime/paper/bigrt.2013.01.31a.LCA.pdf">
+applies to even the largest systems [PDF]</a>,
+up to and including systems with 4096 CPUs.
+This real-time requirement motivated the grace-period kthread, which
+also simplified handling of a number of race conditions.
+
+<p>
+Finally, RCU's status as a synchronization primitive means that
+any RCU failure can result in arbitrary memory corruption that can be
+extremely difficult to debug.
+This means that RCU must be extremely reliable, which in
+practice also means that RCU must have an aggressive stress-test
+suite.
+This stress-test suite is called <tt>rcutorture</tt>.
+
+<p>
+Although the need for <tt>rcutorture</tt> was no surprise,
+the current immense popularity of the Linux kernel is posing
+interesting&mdash;and perhaps unprecedented&mdash;validation
+challenges.
+To see this, keep in mind that there are well over one billion
+instances of the Linux kernel running today, given Android
+smartphones, Linux-powered televisions, and servers.
+This number can be expected to increase sharply with the advent of
+the celebrated Internet of Things.
+
+<p>
+Suppose that RCU contains a race condition that manifests on average
+once per million years of runtime.
+This bug will be occurring about three times per <i>day</i> across
+the installed base.
+RCU could simply hide behind hardware error rates, given that no one
+should really expect their smartphone to last for a million years.
+However, anyone taking too much comfort from this thought should
+consider the fact that in most jurisdictions, a successful multi-year
+test of a given mechanism, which might include a Linux kernel,
+suffices for a number of types of safety-critical certifications.
+In fact, rumor has it that the Linux kernel is already being used
+in production for safety-critical applications.
+I don't know about you, but I would feel quite bad if a bug in RCU
+killed someone.
+Which might explain my recent focus on validation and verification.
+
+<h2><a name="Other RCU Flavors">Other RCU Flavors</a></h2>
+
+<p>
+One of the more surprising things about RCU is that there are now
+no fewer than five <i>flavors</i>, or API families.
+In addition, the primary flavor that has been the sole focus up to
+this point has two different implementations, non-preemptible and
+preemptible.
+The other four flavors are listed below, with requirements for each
+described in a separate section.
+
+<ol>
+<li>	<a href="#Bottom-Half Flavor">Bottom-Half Flavor</a>
+<li>	<a href="#Sched Flavor">Sched Flavor</a>
+<li>	<a href="#Sleepable RCU">Sleepable RCU</a>
+<li>	<a href="#Tasks RCU">Tasks RCU</a>
+</ol>
+
+<h3><a name="Bottom-Half Flavor">Bottom-Half Flavor</a></h3>
+
+<p>
+The softirq-disable (AKA &ldquo;bottom-half&rdquo;,
+hence the &ldquo;_bh&rdquo; abbreviations)
+flavor of RCU, or <i>RCU-bh</i>, was developed by
+Dipankar Sarma to provide a flavor of RCU that could withstand the
+network-based denial-of-service attacks researched by Robert
+Olsson.
+These attacks placed so much networking load on the system
+that some of the CPUs never exited softirq execution,
+which in turn prevented those CPUs from ever executing a context switch,
+which, in the RCU implementation of that time, prevented grace periods
+from ever ending.
+The result was an out-of-memory condition and a system hang.
+
+<p>
+The solution was the creation of RCU-bh, which does
+<tt>local_bh_disable()</tt>
+across its read-side critical sections, and which uses the transition
+from one type of softirq processing to another as a quiescent state
+in addition to context switch, idle, user mode, and offline.
+This means that RCU-bh grace periods can complete even when some of
+the CPUs execute in softirq indefinitely, thus allowing algorithms
+based on RCU-bh to withstand network-based denial-of-service attacks.
+
+<p>
+Because
+<tt>rcu_read_lock_bh()</tt> and <tt>rcu_read_unlock_bh()</tt>
+disable and re-enable softirq handlers, any attempt to start a softirq
+handlers during the
+RCU-bh read-side critical section will be deferred.
+In this case, <tt>rcu_read_unlock_bh()</tt>
+will invoke softirq processing, which can take considerable time.
+One can of course argue that this softirq overhead should be associated
+with the code following the RCU-bh read-side critical section rather
+than <tt>rcu_read_unlock_bh()</tt>, but the fact
+is that most profiling tools cannot be expected to make this sort
+of fine distinction.
+For example, suppose that a three-millisecond-long RCU-bh read-side
+critical section executes during a time of heavy networking load.
+There will very likely be an attempt to invoke at least one softirq
+handler during that three milliseconds, but any such invocation will
+be delayed until the time of the <tt>rcu_read_unlock_bh()</tt>.
+This can of course make it appear at first glance as if
+<tt>rcu_read_unlock_bh()</tt> was executing very slowly.
+
+<p>
+The
+<a href="https://lwn.net/Articles/609973/#RCU Per-Flavor API Table">RCU-bh API</a>
+includes
+<tt>rcu_read_lock_bh()</tt>,
+<tt>rcu_read_unlock_bh()</tt>,
+<tt>rcu_dereference_bh()</tt>,
+<tt>rcu_dereference_bh_check()</tt>,
+<tt>synchronize_rcu_bh()</tt>,
+<tt>synchronize_rcu_bh_expedited()</tt>,
+<tt>call_rcu_bh()</tt>,
+<tt>rcu_barrier_bh()</tt>, and
+<tt>rcu_read_lock_bh_held()</tt>.
+
+<h3><a name="Sched Flavor">Sched Flavor</a></h3>
+
+<p>
+Before preemptible RCU, waiting for an RCU grace period had the
+side effect of also waiting for all pre-existing interrupt
+and NMI handlers.
+However, there are legitimate preemptible-RCU implementations that
+do not have this property, given that any point in the code outside
+of an RCU read-side critical section can be a quiescent state.
+Therefore, <i>RCU-sched</i> was created, which follows &ldquo;classic&rdquo;
+RCU in that an RCU-sched grace period waits for for pre-existing
+interrupt and NMI handlers.
+In kernels built with <tt>CONFIG_PREEMPT=n</tt>, the RCU and RCU-sched
+APIs have identical implementations, while kernels built with
+<tt>CONFIG_PREEMPT=y</tt> provide a separate implementation for each.
+
+<p>
+Note well that in <tt>CONFIG_PREEMPT=y</tt> kernels,
+<tt>rcu_read_lock_sched()</tt> and <tt>rcu_read_unlock_sched()</tt>
+disable and re-enable preemption, respectively.
+This means that if there was a preemption attempt during the
+RCU-sched read-side critical section, <tt>rcu_read_unlock_sched()</tt>
+will enter the scheduler, with all the latency and overhead entailed.
+Just as with <tt>rcu_read_unlock_bh()</tt>, this can make it look
+as if <tt>rcu_read_unlock_sched()</tt> was executing very slowly.
+However, the highest-priority task won't be preempted, so that task
+will enjoy low-overhead <tt>rcu_read_unlock_sched()</tt> invocations.
+
+<p>
+The
+<a href="https://lwn.net/Articles/609973/#RCU Per-Flavor API Table">RCU-sched API</a>
+includes
+<tt>rcu_read_lock_sched()</tt>,
+<tt>rcu_read_unlock_sched()</tt>,
+<tt>rcu_read_lock_sched_notrace()</tt>,
+<tt>rcu_read_unlock_sched_notrace()</tt>,
+<tt>rcu_dereference_sched()</tt>,
+<tt>rcu_dereference_sched_check()</tt>,
+<tt>synchronize_sched()</tt>,
+<tt>synchronize_rcu_sched_expedited()</tt>,
+<tt>call_rcu_sched()</tt>,
+<tt>rcu_barrier_sched()</tt>, and
+<tt>rcu_read_lock_sched_held()</tt>.
+However, anything that disables preemption also marks an RCU-sched
+read-side critical section, including
+<tt>preempt_disable()</tt> and <tt>preempt_enable()</tt>,
+<tt>local_irq_save()</tt> and <tt>local_irq_restore()</tt>,
+and so on.
+
+<h3><a name="Sleepable RCU">Sleepable RCU</a></h3>
+
+<p>
+For well over a decade, someone saying &ldquo;I need to block within
+an RCU read-side critical section&rdquo; was a reliable indication
+that this someone did not understand RCU.
+After all, if you are always blocking in an RCU read-side critical
+section, you can probably afford to use a higher-overhead synchronization
+mechanism.
+However, that changed with the advent of the Linux kernel's notifiers,
+whose RCU read-side critical
+sections almost never sleep, but sometimes need to.
+This resulted in the introduction of
+<a href="https://lwn.net/Articles/202847/">sleepable RCU</a>,
+or <i>SRCU</i>.
+
+<p>
+SRCU allows different domains to be defined, with each such domain
+defined by an instance of an <tt>srcu_struct</tt> structure.
+A pointer to this structure must be passed in to each SRCU function,
+for example, <tt>synchronize_srcu(&amp;ss)</tt>, where
+<tt>ss</tt> is the <tt>srcu_struct</tt> structure.
+The key benefit of these domains is that a slow SRCU reader in one
+domain does not delay an SRCU grace period in some other domain.
+That said, one consequence of these domains is that read-side code
+must pass a &ldquo;cookie&rdquo; from <tt>srcu_read_lock()</tt>
+to <tt>srcu_read_unlock()</tt>, for example, as follows:
+
+<blockquote>
+<pre>
+ 1 int idx;
+ 2
+ 3 idx = srcu_read_lock(&amp;ss);
+ 4 do_something();
+ 5 srcu_read_unlock(&amp;ss, idx);
+</pre>
+</blockquote>
+
+<p>
+As noted above, it is legal to block within SRCU read-side critical sections,
+however, with great power comes great responsibility.
+If you block forever in one of a given domain's SRCU read-side critical
+sections, then that domain's grace periods will also be blocked forever.
+Of course, one good way to block forever is to deadlock, which can
+happen if any operation in a given domain's SRCU read-side critical
+section can block waiting, either directly or indirectly, for that domain's
+grace period to elapse.
+For example, this results in a self-deadlock:
+
+<blockquote>
+<pre>
+ 1 int idx;
+ 2
+ 3 idx = srcu_read_lock(&amp;ss);
+ 4 do_something();
+ 5 synchronize_srcu(&amp;ss);
+ 6 srcu_read_unlock(&amp;ss, idx);
+</pre>
+</blockquote>
+
+<p>
+However, if line&nbsp;5 acquired a mutex that was held across
+a <tt>synchronize_srcu()</tt> for domain <tt>ss</tt>,
+deadlock would still be possible.
+Furthermore, if line&nbsp;5 acquired a mutex that was held across
+a <tt>synchronize_srcu()</tt> for some other domain <tt>ss1</tt>,
+and if an <tt>ss1</tt>-domain SRCU read-side critical section
+acquired another mutex that was held across as <tt>ss</tt>-domain
+<tt>synchronize_srcu()</tt>,
+deadlock would again be possible.
+Such a deadlock cycle could extend across an arbitrarily large number
+of different SRCU domains.
+Again, with great power comes great responsibility.
+
+<p>
+Unlike the other RCU flavors, SRCU read-side critical sections can
+run on idle and even offline CPUs.
+This ability requires that <tt>srcu_read_lock()</tt> and
+<tt>srcu_read_unlock()</tt> contain memory barriers, which means
+that SRCU readers will run a bit slower than would RCU readers.
+It also motivates the <tt>smp_mb__after_srcu_read_unlock()</tt>
+API, which, in combination with <tt>srcu_read_unlock()</tt>,
+guarantees a full memory barrier.
+
+<p>
+The
+<a href="https://lwn.net/Articles/609973/#RCU Per-Flavor API Table">SRCU API</a>
+includes
+<tt>srcu_read_lock()</tt>,
+<tt>srcu_read_unlock()</tt>,
+<tt>srcu_dereference()</tt>,
+<tt>srcu_dereference_check()</tt>,
+<tt>synchronize_srcu()</tt>,
+<tt>synchronize_srcu_expedited()</tt>,
+<tt>call_srcu()</tt>,
+<tt>srcu_barrier()</tt>, and
+<tt>srcu_read_lock_held()</tt>.
+It also includes
+<tt>DEFINE_SRCU()</tt>,
+<tt>DEFINE_STATIC_SRCU()</tt>, and
+<tt>init_srcu_struct()</tt>
+APIs for defining and initializing <tt>srcu_struct</tt> structures.
+
+<h3><a name="Tasks RCU">Tasks RCU</a></h3>
+
+<p>
+Some forms of tracing use &ldquo;tramopolines&rdquo; to handle the
+binary rewriting required to install different types of probes.
+It would be good to be able to free old trampolines, which sounds
+like a job for some form of RCU.
+However, because it is necessary to be able to install a trace
+anywhere in the code, it is not possible to use read-side markers
+such as <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>.
+In addition, it does not work to have these markers in the trampoline
+itself, because there would need to be instructions following
+<tt>rcu_read_unlock()</tt>.
+Although <tt>synchronize_rcu()</tt> would guarantee that execution
+reached the <tt>rcu_read_unlock()</tt>, it would not be able to
+guarantee that execution had completely left the trampoline.
+
+<p>
+The solution, in the form of
+<a href="https://lwn.net/Articles/607117/"><i>Tasks RCU</i></a>,
+is to have implicit
+read-side critical sections that are delimited by voluntary context
+switches, that is, calls to <tt>schedule()</tt>,
+<tt>cond_resched_rcu_qs()</tt>, and
+<tt>synchronize_rcu_tasks()</tt>.
+In addition, transitions to and from userspace execution also delimit
+tasks-RCU read-side critical sections.
+
+<p>
+The tasks-RCU API is quite compact, consisting only of
+<tt>call_rcu_tasks()</tt>,
+<tt>synchronize_rcu_tasks()</tt>, and
+<tt>rcu_barrier_tasks()</tt>.
+
+<h2><a name="Possible Future Changes">Possible Future Changes</a></h2>
+
+<p>
+One of the tricks that RCU uses to attain update-side scalability is
+to increase grace-period latency with increasing numbers of CPUs.
+If this becomes a serious problem, it will be necessary to rework the
+grace-period state machine so as to avoid the need for the additional
+latency.
+
+<p>
+Expedited grace periods scan the CPUs, so their latency and overhead
+increases with increasing numbers of CPUs.
+If this becomes a serious problem on large systems, it will be necessary
+to do some redesign to avoid this scalability problem.
+
+<p>
+RCU disables CPU hotplug in a few places, perhaps most notably in the
+expedited grace-period and <tt>rcu_barrier()</tt> operations.
+If there is a strong reason to use expedited grace periods in CPU-hotplug
+notifiers, it will be necessary to avoid disabling CPU hotplug.
+This would introduce some complexity, so there had better be a <i>very</i>
+good reason.
+
+<p>
+The tradeoff between grace-period latency on the one hand and interruptions
+of other CPUs on the other hand may need to be re-examined.
+The desire is of course for zero grace-period latency as well as zero
+interprocessor interrupts undertaken during an expedited grace period
+operation.
+While this ideal is unlikely to be achievable, it is quite possible that
+further improvements can be made.
+
+<p>
+The multiprocessor implementations of RCU use a combining tree that
+groups CPUs so as to reduce lock contention and increase cache locality.
+However, this combining tree does not spread its memory across NUMA
+nodes nor does it align the CPU groups with hardware features such
+as sockets or cores.
+Such spreading and alignment is currently believed to be unnecessary
+because the hotpath read-side primitives do not access the combining
+tree, nor does <tt>call_rcu()</tt> in the common case.
+If you believe that your architecture needs such spreading and alignment,
+then your architecture should also benefit from the
+<tt>rcutree.rcu_fanout_leaf</tt> boot parameter, which can be set
+to the number of CPUs in a socket, NUMA node, or whatever.
+If the number of CPUs is too large, use a fraction of the number of
+CPUs.
+If the number of CPUs is a large prime number, well, that certainly
+is an &ldquo;interesting&rdquo; architectural choice!
+More flexible arrangements might be considered, but only if
+<tt>rcutree.rcu_fanout_leaf</tt> has proven inadequate, and only
+if the inadequacy has been demonstrated by a carefully run and
+realistic system-level workload.
+
+<p>
+Please note that arrangements that require RCU to remap CPU numbers will
+require extremely good demonstration of need and full exploration of
+alternatives.
+
+<p>
+There is an embarrassingly large number of flavors of RCU, and this
+number has been increasing over time.
+Perhaps it will be possible to combine some at some future date.
+
+<p>
+RCU's various kthreads are reasonably recent additions.
+It is quite likely that adjustments will be required to more gracefully
+handle extreme loads.
+It might also be necessary to be able to relate CPU utilization by
+RCU's kthreads and softirq handlers to the code that instigated this
+CPU utilization.
+For example, RCU callback overhead might be charged back to the
+originating <tt>call_rcu()</tt> instance, though probably not
+in production kernels.
+
+<h2><a name="Summary">Summary</a></h2>
+
+<p>
+This document has presented more than two decade's worth of RCU
+requirements.
+Given that the requirements keep changing, this will not be the last
+word on this subject, but at least it serves to get an important
+subset of the requirements set forth.
+
+<h2><a name="Acknowledgments">Acknowledgments</a></h2>
+
+I am grateful to Steven Rostedt, Lai Jiangshan, Ingo Molnar,
+Oleg Nesterov, Borislav Petkov, Peter Zijlstra, Boqun Feng, and
+Andy Lutomirski for their help in rendering
+this article human readable, and to Michelle Rankin for her support
+of this effort.
+Other contributions are acknowledged in the Linux kernel's git archive.
+The cartoon is copyright (c) 2013 by Melissa Broussard,
+and is provided
+under the terms of the Creative Commons Attribution-Share Alike 3.0
+United States license.
+
+<h3><a name="Answers to Quick Quizzes">
+Answers to Quick Quizzes</a></h3>
+
+<a name="qq1answer"></a>
+<p><b>Quick Quiz 1</b>:
+Wait a minute!
+You said that updaters can make useful forward progress concurrently
+with readers, but pre-existing readers will block
+<tt>synchronize_rcu()</tt>!!!
+Just who are you trying to fool???
+
+
+</p><p><b>Answer</b>:
+First, if updaters do not wish to be blocked by readers, they can use
+<tt>call_rcu()</tt> or <tt>kfree_rcu()</tt>, which will
+be discussed later.
+Second, even when using <tt>synchronize_rcu()</tt>, the other
+update-side code does run concurrently with readers, whether pre-existing
+or not.
+
+
+</p><p><a href="#Quick%20Quiz%201"><b>Back to Quick Quiz 1</b>.</a>
+
+<a name="qq2answer"></a>
+<p><b>Quick Quiz 2</b>:
+Why is the <tt>synchronize_rcu()</tt> on line&nbsp;28 needed?
+
+
+</p><p><b>Answer</b>:
+Without that extra grace period, memory reordering could result in
+<tt>do_something_dlm()</tt> executing <tt>do_something()</tt>
+concurrently with the last bits of <tt>recovery()</tt>.
+
+
+</p><p><a href="#Quick%20Quiz%202"><b>Back to Quick Quiz 2</b>.</a>
+
+<a name="qq3answer"></a>
+<p><b>Quick Quiz 3</b>:
+But <tt>rcu_assign_pointer()</tt> does nothing to prevent the
+two assignments to <tt>p-&gt;a</tt> and <tt>p-&gt;b</tt>
+from being reordered.
+Can't that also cause problems?
+
+
+</p><p><b>Answer</b>:
+No, it cannot.
+The readers cannot see either of these two fields until
+the assignment to <tt>gp</tt>, by which time both fields are
+fully initialized.
+So reordering the assignments
+to <tt>p-&gt;a</tt> and <tt>p-&gt;b</tt> cannot possibly
+cause any problems.
+
+
+</p><p><a href="#Quick%20Quiz%203"><b>Back to Quick Quiz 3</b>.</a>
+
+<a name="qq4answer"></a>
+<p><b>Quick Quiz 4</b>:
+Without the <tt>rcu_dereference()</tt> or the
+<tt>rcu_access_pointer()</tt>, what destructive optimizations
+might the compiler make use of?
+
+
+</p><p><b>Answer</b>:
+Let's start with what happens to <tt>do_something_gp()</tt>
+if it fails to use <tt>rcu_dereference()</tt>.
+It could reuse a value formerly fetched from this same pointer.
+It could also fetch the pointer from <tt>gp</tt> in a byte-at-a-time
+manner, resulting in <i>load tearing</i>, in turn resulting a bytewise
+mash-up of two distince pointer values.
+It might even use value-speculation optimizations, where it makes a wrong
+guess, but by the time it gets around to checking the value, an update
+has changed the pointer to match the wrong guess.
+Too bad about any dereferences that returned pre-initialization garbage
+in the meantime!
+
+<p>
+For <tt>remove_gp_synchronous()</tt>, as long as all modifications
+to <tt>gp</tt> are carried out while holding <tt>gp_lock</tt>,
+the above optimizations are harmless.
+However,
+with <tt>CONFIG_SPARSE_RCU_POINTER=y</tt>,
+<tt>sparse</tt> will complain if you
+define <tt>gp</tt> with <tt>__rcu</tt> and then
+access it without using
+either <tt>rcu_access_pointer()</tt> or <tt>rcu_dereference()</tt>.
+
+
+</p><p><a href="#Quick%20Quiz%204"><b>Back to Quick Quiz 4</b>.</a>
+
+<a name="qq5answer"></a>
+<p><b>Quick Quiz 5</b>:
+Given that multiple CPUs can start RCU read-side critical sections
+at any time without any ordering whatsoever, how can RCU possibly tell whether
+or not a given RCU read-side critical section starts before a
+given instance of <tt>synchronize_rcu()</tt>?
+
+
+</p><p><b>Answer</b>:
+If RCU cannot tell whether or not a given
+RCU read-side critical section starts before a
+given instance of <tt>synchronize_rcu()</tt>,
+then it must assume that the RCU read-side critical section
+started first.
+In other words, a given instance of <tt>synchronize_rcu()</tt>
+can avoid waiting on a given RCU read-side critical section only
+if it can prove that <tt>synchronize_rcu()</tt> started first.
+
+
+</p><p><a href="#Quick%20Quiz%205"><b>Back to Quick Quiz 5</b>.</a>
+
+<a name="qq6answer"></a>
+<p><b>Quick Quiz 6</b>:
+The first and second guarantees require unbelievably strict ordering!
+Are all these memory barriers <i> really</i> required?
+
+
+</p><p><b>Answer</b>:
+Yes, they really are required.
+To see why the first guarantee is required, consider the following
+sequence of events:
+
+<ol>
+<li>	CPU 1: <tt>rcu_read_lock()</tt>
+<li>	CPU 1: <tt>q = rcu_dereference(gp);
+	/* Very likely to return p. */</tt>
+<li>	CPU 0: <tt>list_del_rcu(p);</tt>
+<li>	CPU 0: <tt>synchronize_rcu()</tt> starts.
+<li>	CPU 1: <tt>do_something_with(q-&gt;a);
+	/* No smp_mb(), so might happen after kfree(). */</tt>
+<li>	CPU 1: <tt>rcu_read_unlock()</tt>
+<li>	CPU 0: <tt>synchronize_rcu()</tt> returns.
+<li>	CPU 0: <tt>kfree(p);</tt>
+</ol>
+
+<p>
+Therefore, there absolutely must be a full memory barrier between the
+end of the RCU read-side critical section and the end of the
+grace period.
+
+<p>
+The sequence of events demonstrating the necessity of the second rule
+is roughly similar:
+
+<ol>
+<li>	CPU 0: <tt>list_del_rcu(p);</tt>
+<li>	CPU 0: <tt>synchronize_rcu()</tt> starts.
+<li>	CPU 1: <tt>rcu_read_lock()</tt>
+<li>	CPU 1: <tt>q = rcu_dereference(gp);
+	/* Might return p if no memory barrier. */</tt>
+<li>	CPU 0: <tt>synchronize_rcu()</tt> returns.
+<li>	CPU 0: <tt>kfree(p);</tt>
+<li>	CPU 1: <tt>do_something_with(q-&gt;a); /* Boom!!! */</tt>
+<li>	CPU 1: <tt>rcu_read_unlock()</tt>
+</ol>
+
+<p>
+And similarly, without a memory barrier between the beginning of the
+grace period and the beginning of the RCU read-side critical section,
+CPU&nbsp;1 might end up accessing the freelist.
+
+<p>
+The &ldquo;as if&rdquo; rule of course applies, so that any implementation
+that acts as if the appropriate memory barriers were in place is a
+correct implementation.
+That said, it is much easier to fool yourself into believing that you have
+adhered to the as-if rule than it is to actually adhere to it!
+
+
+</p><p><a href="#Quick%20Quiz%206"><b>Back to Quick Quiz 6</b>.</a>
+
+<a name="qq7answer"></a>
+<p><b>Quick Quiz 7</b>:
+But how does the upgrade-to-write operation exclude other readers?
+
+
+</p><p><b>Answer</b>:
+It doesn't, just like normal RCU updates, which also do not exclude
+RCU readers.
+
+
+</p><p><a href="#Quick%20Quiz%207"><b>Back to Quick Quiz 7</b>.</a>
+
+<a name="qq8answer"></a>
+<p><b>Quick Quiz 8</b>:
+Can't the compiler also reorder this code?
+
+
+</p><p><b>Answer</b>:
+No, the volatile casts in <tt>READ_ONCE()</tt> and
+<tt>WRITE_ONCE()</tt> prevent the compiler from reordering in
+this particular case.
+
+
+</p><p><a href="#Quick%20Quiz%208"><b>Back to Quick Quiz 8</b>.</a>
+
+<a name="qq9answer"></a>
+<p><b>Quick Quiz 9</b>:
+Suppose that synchronize_rcu() did wait until all readers had completed.
+Would the updater be able to rely on this?
+
+
+</p><p><b>Answer</b>:
+No.
+Even if <tt>synchronize_rcu()</tt> were to wait until
+all readers had completed, a new reader might start immediately after
+<tt>synchronize_rcu()</tt> completed.
+Therefore, the code following
+<tt>synchronize_rcu()</tt> cannot rely on there being no readers
+in any case.
+
+
+</p><p><a href="#Quick%20Quiz%209"><b>Back to Quick Quiz 9</b>.</a>
+
+<a name="qq10answer"></a>
+<p><b>Quick Quiz 10</b>:
+How long a sequence of grace periods, each separated by an RCU read-side
+critical section, would be required to partition the RCU read-side
+critical sections at the beginning and end of the chain?
+
+
+</p><p><b>Answer</b>:
+In theory, an infinite number.
+In practice, an unknown number that is sensitive to both implementation
+details and timing considerations.
+Therefore, even in practice, RCU users must abide by the theoretical rather
+than the practical answer.
+
+
+</p><p><a href="#Quick%20Quiz%2010"><b>Back to Quick Quiz 10</b>.</a>
+
+<a name="qq11answer"></a>
+<p><b>Quick Quiz 11</b>:
+What about sleeping locks?
+
+
+</p><p><b>Answer</b>:
+These are forbidden within Linux-kernel RCU read-side critical sections
+because it is not legal to place a quiescent state (in this case,
+voluntary context switch) within an RCU read-side critical section.
+However, sleeping locks may be used within userspace RCU read-side critical
+sections, and also within Linux-kernel sleepable RCU
+<a href="#Sleepable RCU">(SRCU)</a>
+read-side critical sections.
+In addition, the -rt patchset turns spinlocks into a sleeping locks so
+that the corresponding critical sections can be preempted, which
+also means that these sleeplockified spinlocks (but not other sleeping locks!)
+may be acquire within -rt-Linux-kernel RCU read-side critical sections.
+
+<p>
+Note that it <i>is</i> legal for a normal RCU read-side critical section
+to conditionally acquire a sleeping locks (as in <tt>mutex_trylock()</tt>),
+but only as long as it does not loop indefinitely attempting to
+conditionally acquire that sleeping locks.
+The key point is that things like <tt>mutex_trylock()</tt>
+either return with the mutex held, or return an error indication if
+the mutex was not immediately available.
+Either way, <tt>mutex_trylock()</tt> returns immediately without sleeping.
+
+
+</p><p><a href="#Quick%20Quiz%2011"><b>Back to Quick Quiz 11</b>.</a>
+
+<a name="qq12answer"></a>
+<p><b>Quick Quiz 12</b>:
+Why does line&nbsp;19 use <tt>rcu_access_pointer()</tt>?
+After all, <tt>call_rcu()</tt> on line&nbsp;25 stores into the
+structure, which would interact badly with concurrent insertions.
+Doesn't this mean that <tt>rcu_dereference()</tt> is required?
+
+
+</p><p><b>Answer</b>:
+Presumably the <tt>-&gt;gp_lock</tt> acquired on line&nbsp;18 excludes
+any changes, including any insertions that <tt>rcu_dereference()</tt>
+would protect against.
+Therefore, any insertions will be delayed until after <tt>-&gt;gp_lock</tt>
+is released on line&nbsp;25, which in turn means that
+<tt>rcu_access_pointer()</tt> suffices.
+
+
+</p><p><a href="#Quick%20Quiz%2012"><b>Back to Quick Quiz 12</b>.</a>
+
+<a name="qq13answer"></a>
+<p><b>Quick Quiz 13</b>:
+Earlier it was claimed that <tt>call_rcu()</tt> and
+<tt>kfree_rcu()</tt> allowed updaters to avoid being blocked
+by readers.
+But how can that be correct, given that the invocation of the callback
+and the freeing of the memory (respectively) must still wait for
+a grace period to elapse?
+
+
+</p><p><b>Answer</b>:
+We could define things this way, but keep in mind that this sort of
+definition would say that updates in garbage-collected languages
+cannot complete until the next time the garbage collector runs,
+which does not seem at all reasonable.
+The key point is that in most cases, an updater using either
+<tt>call_rcu()</tt> or <tt>kfree_rcu()</tt> can proceed to the
+next update as soon as it has invoked <tt>call_rcu()</tt> or
+<tt>kfree_rcu()</tt>, without having to wait for a subsequent
+grace period.
+
+
+</p><p><a href="#Quick%20Quiz%2013"><b>Back to Quick Quiz 13</b>.</a>
+
+<a name="qq14answer"></a>
+<p><b>Quick Quiz 14</b>:
+So what happens with <tt>synchronize_rcu()</tt> during
+scheduler initialization for <tt>CONFIG_PREEMPT=n</tt>
+kernels?
+
+
+</p><p><b>Answer</b>:
+In <tt>CONFIG_PREEMPT=n</tt> kernel, <tt>synchronize_rcu()</tt>
+maps directly to <tt>synchronize_sched()</tt>.
+Therefore, <tt>synchronize_rcu()</tt> works normally throughout
+boot in <tt>CONFIG_PREEMPT=n</tt> kernels.
+However, your code must also work in <tt>CONFIG_PREEMPT=y</tt> kernels,
+so it is still necessary to avoid invoking <tt>synchronize_rcu()</tt>
+during scheduler initialization.
+
+
+</p><p><a href="#Quick%20Quiz%2014"><b>Back to Quick Quiz 14</b>.</a>
+
+
+</body></html>

@@ -431,7 +431,7 @@ xfs_buf_item_unpin(
 	if (freed && stale) {
 		ASSERT(bip->bli_flags & XFS_BLI_STALE);
 		ASSERT(xfs_buf_islocked(bp));
-		ASSERT(XFS_BUF_ISSTALE(bp));
+		ASSERT(bp->b_flags & XBF_STALE);
 		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
 
 		trace_xfs_buf_item_unpin_stale(bip);
@@ -493,7 +493,7 @@ xfs_buf_item_unpin(
 		xfs_buf_hold(bp);
 		bp->b_flags |= XBF_ASYNC;
 		xfs_buf_ioerror(bp, -EIO);
-		XFS_BUF_UNDONE(bp);
+		bp->b_flags &= ~XBF_DONE;
 		xfs_buf_stale(bp);
 		xfs_buf_ioend(bp);
 	}
@@ -1067,7 +1067,7 @@ xfs_buf_iodone_callbacks(
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp)) {
 		xfs_buf_stale(bp);
-		XFS_BUF_DONE(bp);
+		bp->b_flags |= XBF_DONE;
 		trace_xfs_buf_item_iodone(bp, _RET_IP_);
 		goto do_callbacks;
 	}
@@ -1090,7 +1090,7 @@ xfs_buf_iodone_callbacks(
 	 * errors tend to affect the whole device and a failing log write
 	 * will make us give up.  But we really ought to do better here.
 	 */
-	if (XFS_BUF_ISASYNC(bp)) {
+	if (bp->b_flags & XBF_ASYNC) {
 		ASSERT(bp->b_iodone != NULL);
 
 		trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
@@ -1113,7 +1113,7 @@ xfs_buf_iodone_callbacks(
 	 * sure to return the error to the caller of xfs_bwrite().
 	 */
 	xfs_buf_stale(bp);
-	XFS_BUF_DONE(bp);
+	bp->b_flags |= XBF_DONE;
 
 	trace_xfs_buf_error_relse(bp, _RET_IP_);
 

@@ -23,25 +23,10 @@
 #include <net/netfilter/nf_conntrack.h>
 #endif
 
-static struct net *pick_net(struct sk_buff *skb)
-{
-#ifdef CONFIG_NET_NS
-	const struct dst_entry *dst;
-
-	if (skb->dev != NULL)
-		return dev_net(skb->dev);
-	dst = skb_dst(skb);
-	if (dst != NULL && dst->dev != NULL)
-		return dev_net(dst->dev);
-#endif
-	return &init_net;
-}
-
-static bool nf_dup_ipv4_route(struct sk_buff *skb, const struct in_addr *gw,
-			      int oif)
+static bool nf_dup_ipv4_route(struct net *net, struct sk_buff *skb,
+			      const struct in_addr *gw, int oif)
 {
 	const struct iphdr *iph = ip_hdr(skb);
-	struct net *net = pick_net(skb);
 	struct rtable *rt;
 	struct flowi4 fl4;
 
@@ -65,7 +50,7 @@ static bool nf_dup_ipv4_route(struct sk_buff *skb, const struct in_addr *gw,
 	return true;
 }
 
-void nf_dup_ipv4(struct sk_buff *skb, unsigned int hooknum,
+void nf_dup_ipv4(struct net *net, struct sk_buff *skb, unsigned int hooknum,
 		 const struct in_addr *gw, int oif)
 {
 	struct iphdr *iph;
@@ -105,9 +90,9 @@ void nf_dup_ipv4(struct sk_buff *skb, unsigned int hooknum,
 		--iph->ttl;
 	ip_send_check(iph);
 
-	if (nf_dup_ipv4_route(skb, gw, oif)) {
+	if (nf_dup_ipv4_route(net, skb, gw, oif)) {
 		__this_cpu_write(nf_skb_duplicated, true);
-		ip_local_out(skb);
+		ip_local_out(net, skb->sk, skb);
 		__this_cpu_write(nf_skb_duplicated, false);
 	} else {
 		kfree_skb(skb);

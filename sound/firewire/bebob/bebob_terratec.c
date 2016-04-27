@@ -55,30 +55,30 @@ phase24_series_clk_src_get(struct snd_bebob *bebob, unsigned int *id)
 	return 0;
 }
 
-static struct snd_bebob_rate_spec phase_series_rate_spec = {
+static const struct snd_bebob_rate_spec phase_series_rate_spec = {
 	.get	= &snd_bebob_stream_get_rate,
 	.set	= &snd_bebob_stream_set_rate,
 };
 
 /* PHASE 88 Rack FW */
-static struct snd_bebob_clock_spec phase88_rack_clk = {
+static const struct snd_bebob_clock_spec phase88_rack_clk = {
 	.num	= ARRAY_SIZE(phase88_rack_clk_src_types),
 	.types	= phase88_rack_clk_src_types,
 	.get	= &phase88_rack_clk_src_get,
 };
-struct snd_bebob_spec phase88_rack_spec = {
+const struct snd_bebob_spec phase88_rack_spec = {
 	.clock	= &phase88_rack_clk,
 	.rate	= &phase_series_rate_spec,
 	.meter	= NULL
 };
 
 /* 'PHASE 24 FW' and 'PHASE X24 FW' */
-static struct snd_bebob_clock_spec phase24_series_clk = {
+static const struct snd_bebob_clock_spec phase24_series_clk = {
 	.num	= ARRAY_SIZE(phase24_series_clk_src_types),
 	.types	= phase24_series_clk_src_types,
 	.get	= &phase24_series_clk_src_get,
 };
-struct snd_bebob_spec phase24_series_spec = {
+const struct snd_bebob_spec phase24_series_spec = {
 	.clock	= &phase24_series_clk,
 	.rate	= &phase_series_rate_spec,
 	.meter	= NULL

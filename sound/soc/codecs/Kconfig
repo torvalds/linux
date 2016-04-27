@@ -36,6 +36,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4535 if I2C
 	select SND_SOC_AK4554
+	select SND_SOC_AK4613 if I2C
 	select SND_SOC_AK4641 if I2C
 	select SND_SOC_AK4642 if I2C
 	select SND_SOC_AK4671 if I2C
@@ -54,9 +55,12 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4271_SPI if SPI_MASTER
 	select SND_SOC_CS42XX8_I2C if I2C
 	select SND_SOC_CS4349 if I2C
+	select SND_SOC_CS47L24 if MFD_CS47L24
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
+	select SND_SOC_DA7218 if I2C
+	select SND_SOC_DA7219 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
 	select SND_SOC_DMIC
@@ -64,7 +68,9 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
 	select SND_SOC_GTM601
+	select SND_SOC_HDAC_HDMI
 	select SND_SOC_ICS43432
+	select SND_SOC_INNO_RK3036
 	select SND_SOC_ISABELLE if I2C
 	select SND_SOC_JZ4740_CODEC
 	select SND_SOC_LM4857 if I2C
@@ -73,24 +79,32 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98090 if I2C
 	select SND_SOC_MAX98095 if I2C
 	select SND_SOC_MAX98357A if GPIOLIB
+	select SND_SOC_MAX9867 if I2C
 	select SND_SOC_MAX98925 if I2C
+	select SND_SOC_MAX98926 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
-	select SND_SOC_HDMI_CODEC
+	select SND_SOC_NAU8825 if I2C
 	select SND_SOC_PCM1681 if I2C
-	select SND_SOC_PCM1792A if SPI_MASTER
+	select SND_SOC_PCM179X_I2C if I2C
+	select SND_SOC_PCM179X_SPI if SPI_MASTER
 	select SND_SOC_PCM3008
+	select SND_SOC_PCM3168A_I2C if I2C
+	select SND_SOC_PCM3168A_SPI if SPI_MASTER
 	select SND_SOC_PCM512x_I2C if I2C
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
+	select SND_SOC_RT5514 if I2C
+	select SND_SOC_RT5616 if I2C
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_RT5640 if I2C
 	select SND_SOC_RT5645 if I2C
 	select SND_SOC_RT5651 if I2C
+	select SND_SOC_RT5659 if I2C
 	select SND_SOC_RT5670 if I2C
 	select SND_SOC_RT5677 if I2C && SPI_MASTER
 	select SND_SOC_SGTL5000 if I2C
@@ -171,6 +185,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8995 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8996 if I2C
 	select SND_SOC_WM8997 if MFD_WM8997
+	select SND_SOC_WM8998 if MFD_WM8998
 	select SND_SOC_WM9081 if I2C
 	select SND_SOC_WM9090 if I2C
 	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
@@ -192,12 +207,16 @@ config SND_SOC_88PM860X
 
 config SND_SOC_ARIZONA
 	tristate
+	default y if SND_SOC_CS47L24=y
 	default y if SND_SOC_WM5102=y
 	default y if SND_SOC_WM5110=y
 	default y if SND_SOC_WM8997=y
+	default y if SND_SOC_WM8998=y
+	default m if SND_SOC_CS47L24=m
 	default m if SND_SOC_WM5102=m
 	default m if SND_SOC_WM5110=m
 	default m if SND_SOC_WM8997=m
+	default m if SND_SOC_WM8998=m
 
 config SND_SOC_WM_HUBS
 	tristate
@@ -206,9 +225,12 @@ config SND_SOC_WM_HUBS
 
 config SND_SOC_WM_ADSP
 	tristate
+	select SND_SOC_COMPRESS
+	default y if SND_SOC_CS47L24=y
 	default y if SND_SOC_WM5102=y
 	default y if SND_SOC_WM5110=y
 	default y if SND_SOC_WM2200=y
+	default m if SND_SOC_CS47L24=m
 	default m if SND_SOC_WM5102=m
 	default m if SND_SOC_WM5110=m
 	default m if SND_SOC_WM2200=m
@@ -319,6 +341,10 @@ config SND_SOC_AK4535
 config SND_SOC_AK4554
 	tristate "AKM AK4554 CODEC"
 
+config SND_SOC_AK4613
+	tristate "AKM AK4613 CODEC"
+	depends on I2C
+
 config SND_SOC_AK4641
 	tristate
 
@@ -413,6 +439,9 @@ config SND_SOC_CS4349
 	tristate "Cirrus Logic CS4349 CODEC"
 	depends on I2C
 
+config SND_SOC_CS47L24
+	tristate
+
 config SND_SOC_CX20442
 	tristate
 	depends on TTY
@@ -430,6 +459,12 @@ config SND_SOC_DA7210
 config SND_SOC_DA7213
         tristate
 
+config SND_SOC_DA7218
+	tristate
+
+config SND_SOC_DA7219
+        tristate
+
 config SND_SOC_DA732X
         tristate
 
@@ -441,9 +476,6 @@ config SND_SOC_BT_SCO
 
 config SND_SOC_DMIC
 	tristate
-
-config SND_SOC_HDMI_CODEC
-       tristate "HDMI stub CODEC"
 
 config SND_SOC_ES8328
 	tristate "Everest Semi ES8328 CODEC"
@@ -459,8 +491,18 @@ config SND_SOC_ES8328_SPI
 config SND_SOC_GTM601
 	tristate 'GTM601 UMTS modem audio codec'
 
+config SND_SOC_HDAC_HDMI
+	tristate
+	select SND_HDA_EXT_CORE
+	select SND_PCM_ELD
+	select HDMI
+
 config SND_SOC_ICS43432
 	tristate
+
+config SND_SOC_INNO_RK3036
+	tristate "Inno codec driver for RK3036 SoC"
+	select REGMAP_MMIO
 
 config SND_SOC_ISABELLE
         tristate
@@ -480,8 +522,14 @@ config SND_SOC_MAX98095
 config SND_SOC_MAX98357A
        tristate
 
+config SND_SOC_MAX9867
+	tristate
+
 config SND_SOC_MAX98925
        tristate
+
+config SND_SOC_MAX98926
+	tristate
 
 config SND_SOC_MAX9850
 	tristate
@@ -490,12 +538,42 @@ config SND_SOC_PCM1681
 	tristate "Texas Instruments PCM1681 CODEC"
 	depends on I2C
 
-config SND_SOC_PCM1792A
-	tristate "Texas Instruments PCM1792A CODEC"
+config SND_SOC_PCM179X
+	tristate
+
+config SND_SOC_PCM179X_I2C
+	tristate "Texas Instruments PCM179X CODEC (I2C)"
+	depends on I2C
+	select SND_SOC_PCM179X
+	help
+	  Enable support for Texas Instruments PCM179x CODEC.
+	  Select this if your PCM179x is connected via an I2C bus.
+
+config SND_SOC_PCM179X_SPI
+	tristate "Texas Instruments PCM179X CODEC (SPI)"
 	depends on SPI_MASTER
+	select SND_SOC_PCM179X
+	help
+	  Enable support for Texas Instruments PCM179x CODEC.
+	  Select this if your PCM179x is connected via an SPI bus.
 
 config SND_SOC_PCM3008
        tristate
+
+config SND_SOC_PCM3168A
+	tristate
+
+config SND_SOC_PCM3168A_I2C
+	tristate "Texas Instruments PCM3168A CODEC - I2C"
+	depends on I2C
+	select SND_SOC_PCM3168A
+	select REGMAP_I2C
+
+config SND_SOC_PCM3168A_SPI
+	tristate "Texas Instruments PCM3168A CODEC - SPI"
+	depends on SPI_MASTER
+	select SND_SOC_PCM3168A
+	select REGMAP_SPI
 
 config SND_SOC_PCM512x
 	tristate
@@ -514,14 +592,20 @@ config SND_SOC_PCM512x_SPI
 
 config SND_SOC_RL6231
 	tristate
+	default y if SND_SOC_RT5514=y
+	default y if SND_SOC_RT5616=y
 	default y if SND_SOC_RT5640=y
 	default y if SND_SOC_RT5645=y
 	default y if SND_SOC_RT5651=y
+	default y if SND_SOC_RT5659=y
 	default y if SND_SOC_RT5670=y
 	default y if SND_SOC_RT5677=y
+	default m if SND_SOC_RT5514=m
+	default m if SND_SOC_RT5616=m
 	default m if SND_SOC_RT5640=m
 	default m if SND_SOC_RT5645=m
 	default m if SND_SOC_RT5651=m
+	default m if SND_SOC_RT5659=m
 	default m if SND_SOC_RT5670=m
 	default m if SND_SOC_RT5677=m
 
@@ -540,6 +624,12 @@ config SND_SOC_RT298
 	tristate
 	depends on I2C
 
+config SND_SOC_RT5514
+	tristate
+
+config SND_SOC_RT5616
+	tristate "Realtek RT5616 CODEC"
+
 config SND_SOC_RT5631
 	tristate "Realtek ALC5631/RT5631 CODEC"
 	depends on I2C
@@ -551,6 +641,9 @@ config SND_SOC_RT5645
         tristate
 
 config SND_SOC_RT5651
+	tristate
+
+config SND_SOC_RT5659
 	tristate
 
 config SND_SOC_RT5670
@@ -829,7 +922,8 @@ config SND_SOC_WM8971
 	tristate
 
 config SND_SOC_WM8974
-	tristate
+	tristate "Wolfson Microelectronics WM8974 codec"
+	depends on I2C
 
 config SND_SOC_WM8978
 	tristate "Wolfson Microelectronics WM8978 codec"
@@ -865,6 +959,9 @@ config SND_SOC_WM8996
 config SND_SOC_WM8997
 	tristate
 
+config SND_SOC_WM8998
+	tristate
+
 config SND_SOC_WM9081
 	tristate
 
@@ -879,6 +976,7 @@ config SND_SOC_WM9712
 
 config SND_SOC_WM9713
 	tristate
+	select REGMAP_AC97
 
 # Amp
 config SND_SOC_LM4857
@@ -894,6 +992,9 @@ config SND_SOC_MC13783
 	tristate
 
 config SND_SOC_ML26124
+	tristate
+
+config SND_SOC_NAU8825
 	tristate
 
 config SND_SOC_TPA6130A2

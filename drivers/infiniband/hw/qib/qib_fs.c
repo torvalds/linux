@@ -89,14 +89,14 @@ static int create_file(const char *name, umode_t mode,
 {
 	int error;
 
-	mutex_lock(&d_inode(parent)->i_mutex);
+	inode_lock(d_inode(parent));
 	*dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(*dentry))
 		error = qibfs_mknod(d_inode(parent), *dentry,
 				    mode, fops, data);
 	else
 		error = PTR_ERR(*dentry);
-	mutex_unlock(&d_inode(parent)->i_mutex);
+	inode_unlock(d_inode(parent));
 
 	return error;
 }
@@ -481,7 +481,7 @@ static int remove_device_files(struct super_block *sb,
 	int ret, i;
 
 	root = dget(sb->s_root);
-	mutex_lock(&d_inode(root)->i_mutex);
+	inode_lock(d_inode(root));
 	snprintf(unit, sizeof(unit), "%u", dd->unit);
 	dir = lookup_one_len(unit, root, strlen(unit));
 
@@ -491,7 +491,7 @@ static int remove_device_files(struct super_block *sb,
 		goto bail;
 	}
 
-	mutex_lock(&d_inode(dir)->i_mutex);
+	inode_lock(d_inode(dir));
 	remove_file(dir, "counters");
 	remove_file(dir, "counter_names");
 	remove_file(dir, "portcounter_names");
@@ -506,13 +506,13 @@ static int remove_device_files(struct super_block *sb,
 		}
 	}
 	remove_file(dir, "flash");
-	mutex_unlock(&d_inode(dir)->i_mutex);
+	inode_unlock(d_inode(dir));
 	ret = simple_rmdir(d_inode(root), dir);
 	d_delete(dir);
 	dput(dir);
 
 bail:
-	mutex_unlock(&d_inode(root)->i_mutex);
+	inode_unlock(d_inode(root));
 	dput(root);
 	return ret;
 }

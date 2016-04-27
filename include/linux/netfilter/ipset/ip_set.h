@@ -234,6 +234,10 @@ struct ip_set {
 	spinlock_t lock;
 	/* References to the set */
 	u32 ref;
+	/* References to the set for netlink events like dump,
+	 * ref can be swapped out by ip_set_swap
+	 */
+	u32 ref_netlink;
 	/* The core set type */
 	struct ip_set_type *type;
 	/* The type variant doing the real job */
@@ -421,7 +425,7 @@ extern void ip_set_free(void *members);
 extern int ip_set_get_ipaddr4(struct nlattr *nla,  __be32 *ipaddr);
 extern int ip_set_get_ipaddr6(struct nlattr *nla, union nf_inet_addr *ipaddr);
 extern size_t ip_set_elem_len(struct ip_set *set, struct nlattr *tb[],
-			      size_t len);
+			      size_t len, size_t align);
 extern int ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
 				 struct ip_set_ext *ext);
 

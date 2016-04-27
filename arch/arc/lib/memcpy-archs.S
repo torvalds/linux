@@ -50,26 +50,26 @@ ENTRY(memcpy)
 
 ;;; if size <= 8
 	cmp	r2, 8
-	bls.d	@smallchunk
+	bls.d	@.Lsmallchunk
 	mov.f	lp_count, r2
 
 	and.f	r4, r0, 0x03
 	rsub	lp_count, r4, 4
-	lpnz	@aligndestination
+	lpnz	@.Laligndestination
 	;; LOOP BEGIN
 	ldb.ab	r5, [r1,1]
 	sub	r2, r2, 1
 	stb.ab	r5, [r3,1]
-aligndestination:
+.Laligndestination:
 
 ;;; Check the alignment of the source
 	and.f	r4, r1, 0x03
-	bnz.d	@sourceunaligned
+	bnz.d	@.Lsourceunaligned
 
 ;;; CASE 0: Both source and destination are 32bit aligned
 ;;; Convert len to Dwords, unfold x4
 	lsr.f	lp_count, r2, ZOLSHFT
-	lpnz	@copy32_64bytes
+	lpnz	@.Lcopy32_64bytes
 	;; LOOP START
 	LOADX (r6, r1)
 	PREFETCH_READ (r1)
@@ -81,25 +81,25 @@ aligndestination:
 	STOREX (r8, r3)
 	STOREX (r10, r3)
 	STOREX (r4, r3)
-copy32_64bytes:
+.Lcopy32_64bytes:
 
 	and.f	lp_count, r2, ZOLAND ;Last remaining 31 bytes
-smallchunk:
-	lpnz	@copyremainingbytes
+.Lsmallchunk:
+	lpnz	@.Lcopyremainingbytes
 	;; LOOP START
 	ldb.ab	r5, [r1,1]
 	stb.ab	r5, [r3,1]
-copyremainingbytes:
+.Lcopyremainingbytes:
 
 	j	[blink]
 ;;; END CASE 0
 
-sourceunaligned:
+.Lsourceunaligned:
 	cmp	r4, 2
-	beq.d	@unalignedOffby2
+	beq.d	@.LunalignedOffby2
 	sub	r2, r2, 1
 
-	bhi.d	@unalignedOffby3
+	bhi.d	@.LunalignedOffby3
 	ldb.ab	r5, [r1, 1]
 
 ;;; CASE 1: The source is unaligned, off by 1
@@ -114,7 +114,7 @@ sourceunaligned:
 	or	r5, r5, r6
 
 	;; Both src and dst are aligned
-	lpnz	@copy8bytes_1
+	lpnz	@.Lcopy8bytes_1
 	;; LOOP START
 	ld.ab	r6, [r1, 4]
 	prefetch [r1, 28]	;Prefetch the next read location
@@ -131,7 +131,7 @@ sourceunaligned:
 
 	st.ab	r7, [r3, 4]
 	st.ab	r9, [r3, 4]
-copy8bytes_1:
+.Lcopy8bytes_1:
 
 	;; Write back the remaining 16bits
 	EXTRACT_1 (r6, r5, 16)
@@ -141,14 +141,14 @@ copy8bytes_1:
 	stb.ab	r5, [r3, 1]
 
 	and.f	lp_count, r2, 0x07 ;Last 8bytes
-	lpnz	@copybytewise_1
+	lpnz	@.Lcopybytewise_1
 	;; LOOP START
 	ldb.ab	r6, [r1,1]
 	stb.ab	r6, [r3,1]
-copybytewise_1:
+.Lcopybytewise_1:
 	j	[blink]
 
-unalignedOffby2:
+.LunalignedOffby2:
 ;;; CASE 2: The source is unaligned, off by 2
 	ldh.ab	r5, [r1, 2]
 	sub	r2, r2, 1
@@ -159,7 +159,7 @@ unalignedOffby2:
 #ifdef __BIG_ENDIAN__
 	asl.nz	r5, r5, 16
 #endif
-	lpnz	@copy8bytes_2
+	lpnz	@.Lcopy8bytes_2
 	;; LOOP START
 	ld.ab	r6, [r1, 4]
 	prefetch [r1, 28]	;Prefetch the next read location
@@ -176,7 +176,7 @@ unalignedOffby2:
 
 	st.ab	r7, [r3, 4]
 	st.ab	r9, [r3, 4]
-copy8bytes_2:
+.Lcopy8bytes_2:
 
 #ifdef __BIG_ENDIAN__
 	lsr.nz	r5, r5, 16
@@ -184,14 +184,14 @@ copy8bytes_2:
 	sth.ab	r5, [r3, 2]
 
 	and.f	lp_count, r2, 0x07 ;Last 8bytes
-	lpnz	@copybytewise_2
+	lpnz	@.Lcopybytewise_2
 	;; LOOP START
 	ldb.ab	r6, [r1,1]
 	stb.ab	r6, [r3,1]
-copybytewise_2:
+.Lcopybytewise_2:
 	j	[blink]
 
-unalignedOffby3:
+.LunalignedOffby3:
 ;;; CASE 3: The source is unaligned, off by 3
 ;;; Hence, I need to read 1byte for achieve the 32bit alignment
 
@@ -201,7 +201,7 @@ unalignedOffby3:
 #ifdef __BIG_ENDIAN__
 	asl.ne	r5, r5, 24
 #endif
-	lpnz	@copy8bytes_3
+	lpnz	@.Lcopy8bytes_3
 	;; LOOP START
 	ld.ab	r6, [r1, 4]
 	prefetch [r1, 28]	;Prefetch the next read location
@@ -218,7 +218,7 @@ unalignedOffby3:
 
 	st.ab	r7, [r3, 4]
 	st.ab	r9, [r3, 4]
-copy8bytes_3:
+.Lcopy8bytes_3:
 
 #ifdef __BIG_ENDIAN__
 	lsr.nz	r5, r5, 24
@@ -226,11 +226,11 @@ copy8bytes_3:
 	stb.ab	r5, [r3, 1]
 
 	and.f	lp_count, r2, 0x07 ;Last 8bytes
-	lpnz	@copybytewise_3
+	lpnz	@.Lcopybytewise_3
 	;; LOOP START
 	ldb.ab	r6, [r1,1]
 	stb.ab	r6, [r3,1]
-copybytewise_3:
+.Lcopybytewise_3:
 	j	[blink]
 
 END(memcpy)

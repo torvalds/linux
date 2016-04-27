@@ -479,7 +479,10 @@ static enum fsl_diu_monitor_port fsl_diu_name_to_port(const char *s)
 			port = FSL_DIU_PORT_DLVDS;
 	}
 
-	return diu_ops.valid_monitor_port(port);
+	if (diu_ops.valid_monitor_port)
+		port = diu_ops.valid_monitor_port(port);
+
+	return port;
 }
 
 /*
@@ -1915,6 +1918,14 @@ static int __init fsl_diu_init(void)
 #else
 	monitor_port = fsl_diu_name_to_port(monitor_string);
 #endif
+
+	/*
+	 * Must to verify set_pixel_clock. If not implement on platform,
+	 * then that means that there is no platform support for the DIU.
+	 */
+	if (!diu_ops.set_pixel_clock)
+		return -ENODEV;
+
 	pr_info("Freescale Display Interface Unit (DIU) framebuffer driver\n");
 
 #ifdef CONFIG_NOT_COHERENT_CACHE

@@ -51,7 +51,11 @@ struct usb_udc {
 
 static struct class *udc_class;
 static LIST_HEAD(udc_list);
+static LIST_HEAD(gadget_driver_pending_list);
 static DEFINE_MUTEX(udc_lock);
+
+static int udc_bind_to_driver(struct usb_udc *udc,
+		struct usb_gadget_driver *driver);
 
 /* ------------------------------------------------------------------------- */
 
@@ -356,6 +360,7 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 		void (*release)(struct device *dev))
 {
 	struct usb_udc		*udc;
+	struct usb_gadget_driver *driver;
 	int			ret = -ENOMEM;
 
 	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
@@ -365,12 +370,6 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 	dev_set_name(&gadget->dev, "gadget");
 	INIT_WORK(&gadget->work, usb_gadget_state_work);
 	gadget->dev.parent = parent;
-
-#ifdef	CONFIG_HAS_DMA
-	dma_set_coherent_mask(&gadget->dev, parent->coherent_dma_mask);
-	gadget->dev.dma_parms = parent->dma_parms;
-	gadget->dev.dma_mask = parent->dma_mask;
-#endif
 
 	if (release)
 		gadget->dev.release = release;
@@ -403,6 +402,19 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 	usb_gadget_set_state(gadget, USB_STATE_NOTATTACHED);
 	udc->vbus = true;
 
+	/* pick up one of pending gadget drivers */
+	list_for_each_entry(driver, &gadget_driver_pending_list, pending) {
+		if (!driver->udc_name || strcmp(driver->udc_name,
+						dev_name(&udc->dev)) == 0) {
+			ret = udc_bind_to_driver(udc, driver);
+			if (ret != -EPROBE_DEFER)
+				list_del(&driver->pending);
+			if (ret)
+				goto err4;
+			break;
+		}
+	}
+
 	mutex_unlock(&udc_lock);
 
 	return 0;
@@ -423,6 +435,36 @@ err1:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_add_gadget_udc_release);
+
+/**
+ * usb_get_gadget_udc_name - get the name of the first UDC controller
+ * This functions returns the name of the first UDC controller in the system.
+ * Please note that this interface is usefull only for legacy drivers which
+ * assume that there is only one UDC controller in the system and they need to
+ * get its name before initialization. There is no guarantee that the UDC
+ * of the returned name will be still available, when gadget driver registers
+ * itself.
+ *
+ * Returns pointer to string with UDC controller name on success, NULL
+ * otherwise. Caller should kfree() returned string.
+ */
+char *usb_get_gadget_udc_name(void)
+{
+	struct usb_udc *udc;
+	char *name = NULL;
+
+	/* For now we take the first available UDC */
+	mutex_lock(&udc_lock);
+	list_for_each_entry(udc, &udc_list, list) {
+		if (!udc->driver) {
+			name = kstrdup(udc->gadget->name, GFP_KERNEL);
+			break;
+		}
+	}
+	mutex_unlock(&udc_lock);
+	return name;
+}
+EXPORT_SYMBOL_GPL(usb_get_gadget_udc_name);
 
 /**
  * usb_add_gadget_udc - adds a new gadget to the udc class driver list
@@ -473,10 +515,14 @@ void usb_del_gadget_udc(struct usb_gadget *gadget)
 
 	mutex_lock(&udc_lock);
 	list_del(&udc->list);
-	mutex_unlock(&udc_lock);
 
-	if (udc->driver)
+	if (udc->driver) {
+		struct usb_gadget_driver *driver = udc->driver;
+
 		usb_gadget_remove_driver(udc);
+		list_add(&driver->pending, &gadget_driver_pending_list);
+	}
+	mutex_unlock(&udc_lock);
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_REMOVE);
 	flush_work(&gadget->work);
@@ -520,50 +566,36 @@ err1:
 	return ret;
 }
 
-int usb_udc_attach_driver(const char *name, struct usb_gadget_driver *driver)
-{
-	struct usb_udc *udc = NULL;
-	int ret = -ENODEV;
-
-	mutex_lock(&udc_lock);
-	list_for_each_entry(udc, &udc_list, list) {
-		ret = strcmp(name, dev_name(&udc->dev));
-		if (!ret)
-			break;
-	}
-	if (ret) {
-		ret = -ENODEV;
-		goto out;
-	}
-	if (udc->driver) {
-		ret = -EBUSY;
-		goto out;
-	}
-	ret = udc_bind_to_driver(udc, driver);
-out:
-	mutex_unlock(&udc_lock);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(usb_udc_attach_driver);
-
 int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 {
 	struct usb_udc		*udc = NULL;
-	int			ret;
+	int			ret = -ENODEV;
 
 	if (!driver || !driver->bind || !driver->setup)
 		return -EINVAL;
 
 	mutex_lock(&udc_lock);
-	list_for_each_entry(udc, &udc_list, list) {
-		/* For now we take the first one */
-		if (!udc->driver)
+	if (driver->udc_name) {
+		list_for_each_entry(udc, &udc_list, list) {
+			ret = strcmp(driver->udc_name, dev_name(&udc->dev));
+			if (!ret)
+				break;
+		}
+		if (!ret && !udc->driver)
 			goto found;
+	} else {
+		list_for_each_entry(udc, &udc_list, list) {
+			/* For now we take the first one */
+			if (!udc->driver)
+				goto found;
+		}
 	}
 
-	pr_debug("couldn't find an available UDC\n");
+	list_add_tail(&driver->pending, &gadget_driver_pending_list);
+	pr_info("udc-core: couldn't find an available UDC - added [%s] to list of pending drivers\n",
+		driver->function);
 	mutex_unlock(&udc_lock);
-	return -ENODEV;
+	return 0;
 found:
 	ret = udc_bind_to_driver(udc, driver);
 	mutex_unlock(&udc_lock);
@@ -589,6 +621,10 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 			break;
 		}
 
+	if (ret) {
+		list_del(&driver->pending);
+		ret = 0;
+	}
 	mutex_unlock(&udc_lock);
 	return ret;
 }

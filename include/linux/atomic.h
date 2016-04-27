@@ -34,20 +34,29 @@
  * The idea here is to build acquire/release variants by adding explicit
  * barriers on top of the relaxed variant. In the case where the relaxed
  * variant is already fully ordered, no additional barriers are needed.
+ *
+ * Besides, if an arch has a special barrier for acquire/release, it could
+ * implement its own __atomic_op_* and use the same framework for building
+ * variants
  */
+#ifndef __atomic_op_acquire
 #define __atomic_op_acquire(op, args...)				\
 ({									\
 	typeof(op##_relaxed(args)) __ret  = op##_relaxed(args);		\
 	smp_mb__after_atomic();						\
 	__ret;								\
 })
+#endif
 
+#ifndef __atomic_op_release
 #define __atomic_op_release(op, args...)				\
 ({									\
 	smp_mb__before_atomic();					\
 	op##_relaxed(args);						\
 })
+#endif
 
+#ifndef __atomic_op_fence
 #define __atomic_op_fence(op, args...)					\
 ({									\
 	typeof(op##_relaxed(args)) __ret;				\
@@ -56,6 +65,7 @@
 	smp_mb__after_atomic();						\
 	__ret;								\
 })
+#endif
 
 /* atomic_add_return_relaxed */
 #ifndef atomic_add_return_relaxed
@@ -81,6 +91,30 @@
 #endif
 #endif /* atomic_add_return_relaxed */
 
+/* atomic_inc_return_relaxed */
+#ifndef atomic_inc_return_relaxed
+#define  atomic_inc_return_relaxed	atomic_inc_return
+#define  atomic_inc_return_acquire	atomic_inc_return
+#define  atomic_inc_return_release	atomic_inc_return
+
+#else /* atomic_inc_return_relaxed */
+
+#ifndef atomic_inc_return_acquire
+#define  atomic_inc_return_acquire(...)					\
+	__atomic_op_acquire(atomic_inc_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic_inc_return_release
+#define  atomic_inc_return_release(...)					\
+	__atomic_op_release(atomic_inc_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic_inc_return
+#define  atomic_inc_return(...)						\
+	__atomic_op_fence(atomic_inc_return, __VA_ARGS__)
+#endif
+#endif /* atomic_inc_return_relaxed */
+
 /* atomic_sub_return_relaxed */
 #ifndef atomic_sub_return_relaxed
 #define  atomic_sub_return_relaxed	atomic_sub_return
@@ -104,6 +138,30 @@
 	__atomic_op_fence(atomic_sub_return, __VA_ARGS__)
 #endif
 #endif /* atomic_sub_return_relaxed */
+
+/* atomic_dec_return_relaxed */
+#ifndef atomic_dec_return_relaxed
+#define  atomic_dec_return_relaxed	atomic_dec_return
+#define  atomic_dec_return_acquire	atomic_dec_return
+#define  atomic_dec_return_release	atomic_dec_return
+
+#else /* atomic_dec_return_relaxed */
+
+#ifndef atomic_dec_return_acquire
+#define  atomic_dec_return_acquire(...)					\
+	__atomic_op_acquire(atomic_dec_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic_dec_return_release
+#define  atomic_dec_return_release(...)					\
+	__atomic_op_release(atomic_dec_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic_dec_return
+#define  atomic_dec_return(...)						\
+	__atomic_op_fence(atomic_dec_return, __VA_ARGS__)
+#endif
+#endif /* atomic_dec_return_relaxed */
 
 /* atomic_xchg_relaxed */
 #ifndef atomic_xchg_relaxed
@@ -185,6 +243,31 @@
 #endif
 #endif /* atomic64_add_return_relaxed */
 
+/* atomic64_inc_return_relaxed */
+#ifndef atomic64_inc_return_relaxed
+#define  atomic64_inc_return_relaxed	atomic64_inc_return
+#define  atomic64_inc_return_acquire	atomic64_inc_return
+#define  atomic64_inc_return_release	atomic64_inc_return
+
+#else /* atomic64_inc_return_relaxed */
+
+#ifndef atomic64_inc_return_acquire
+#define  atomic64_inc_return_acquire(...)				\
+	__atomic_op_acquire(atomic64_inc_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic64_inc_return_release
+#define  atomic64_inc_return_release(...)				\
+	__atomic_op_release(atomic64_inc_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic64_inc_return
+#define  atomic64_inc_return(...)					\
+	__atomic_op_fence(atomic64_inc_return, __VA_ARGS__)
+#endif
+#endif /* atomic64_inc_return_relaxed */
+
+
 /* atomic64_sub_return_relaxed */
 #ifndef atomic64_sub_return_relaxed
 #define  atomic64_sub_return_relaxed	atomic64_sub_return
@@ -208,6 +291,30 @@
 	__atomic_op_fence(atomic64_sub_return, __VA_ARGS__)
 #endif
 #endif /* atomic64_sub_return_relaxed */
+
+/* atomic64_dec_return_relaxed */
+#ifndef atomic64_dec_return_relaxed
+#define  atomic64_dec_return_relaxed	atomic64_dec_return
+#define  atomic64_dec_return_acquire	atomic64_dec_return
+#define  atomic64_dec_return_release	atomic64_dec_return
+
+#else /* atomic64_dec_return_relaxed */
+
+#ifndef atomic64_dec_return_acquire
+#define  atomic64_dec_return_acquire(...)				\
+	__atomic_op_acquire(atomic64_dec_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic64_dec_return_release
+#define  atomic64_dec_return_release(...)				\
+	__atomic_op_release(atomic64_dec_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic64_dec_return
+#define  atomic64_dec_return(...)					\
+	__atomic_op_fence(atomic64_dec_return, __VA_ARGS__)
+#endif
+#endif /* atomic64_dec_return_relaxed */
 
 /* atomic64_xchg_relaxed */
 #ifndef atomic64_xchg_relaxed
@@ -451,10 +558,30 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 }
 #endif
 
+/**
+ * atomic_fetch_or - perform *p |= mask and return old value of *p
+ * @p: pointer to atomic_t
+ * @mask: mask to OR on the atomic_t
+ */
+#ifndef atomic_fetch_or
+static inline int atomic_fetch_or(atomic_t *p, int mask)
+{
+	int old, val = atomic_read(p);
+
+	for (;;) {
+		old = atomic_cmpxchg(p, val, val | mask);
+		if (old == val)
+			break;
+		val = old;
+	}
+
+	return old;
+}
+#endif
+
 #ifdef CONFIG_GENERIC_ATOMIC64
 #include <asm-generic/atomic64.h>
 #endif
-#include <asm-generic/atomic-long.h>
 
 #ifndef atomic64_andnot
 static inline void atomic64_andnot(long long i, atomic64_t *v)
@@ -462,5 +589,7 @@ static inline void atomic64_andnot(long long i, atomic64_t *v)
 	atomic64_and(~i, v);
 }
 #endif
+
+#include <asm-generic/atomic-long.h>
 
 #endif /* _LINUX_ATOMIC_H */

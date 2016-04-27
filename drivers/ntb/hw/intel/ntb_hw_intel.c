@@ -875,7 +875,7 @@ static int intel_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
 	limit_reg = bar2_off(ndev->xlat_reg->bar2_limit, bar);
 
 	if (bar < 4 || !ndev->bar4_split) {
-		base = ioread64(mmio + base_reg);
+		base = ioread64(mmio + base_reg) & NTB_BAR_MASK_64;
 
 		/* Set the limit if supported, if size is not mw_size */
 		if (limit_reg && size != mw_size)
@@ -906,7 +906,7 @@ static int intel_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
 		if ((addr + size) & (~0ull << 32))
 			return -EINVAL;
 
-		base = ioread32(mmio + base_reg);
+		base = ioread32(mmio + base_reg) & NTB_BAR_MASK_32;
 
 		/* Set the limit if supported, if size is not mw_size */
 		if (limit_reg && size != mw_size)
@@ -2204,17 +2204,17 @@ static const struct intel_ntb_xlat_reg xeon_sec_xlat = {
 };
 
 static struct intel_b2b_addr xeon_b2b_usd_addr = {
-	.bar2_addr64		= XEON_B2B_BAR2_USD_ADDR64,
-	.bar4_addr64		= XEON_B2B_BAR4_USD_ADDR64,
-	.bar4_addr32		= XEON_B2B_BAR4_USD_ADDR32,
-	.bar5_addr32		= XEON_B2B_BAR5_USD_ADDR32,
+	.bar2_addr64		= XEON_B2B_BAR2_ADDR64,
+	.bar4_addr64		= XEON_B2B_BAR4_ADDR64,
+	.bar4_addr32		= XEON_B2B_BAR4_ADDR32,
+	.bar5_addr32		= XEON_B2B_BAR5_ADDR32,
 };
 
 static struct intel_b2b_addr xeon_b2b_dsd_addr = {
-	.bar2_addr64		= XEON_B2B_BAR2_DSD_ADDR64,
-	.bar4_addr64		= XEON_B2B_BAR4_DSD_ADDR64,
-	.bar4_addr32		= XEON_B2B_BAR4_DSD_ADDR32,
-	.bar5_addr32		= XEON_B2B_BAR5_DSD_ADDR32,
+	.bar2_addr64		= XEON_B2B_BAR2_ADDR64,
+	.bar4_addr64		= XEON_B2B_BAR4_ADDR64,
+	.bar4_addr32		= XEON_B2B_BAR4_ADDR32,
+	.bar5_addr32		= XEON_B2B_BAR5_ADDR32,
 };
 
 /* operations for primary side of local ntb */

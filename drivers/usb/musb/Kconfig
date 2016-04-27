@@ -7,6 +7,7 @@
 config USB_MUSB_HDRC
 	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, AW, ...)'
 	depends on (USB || USB_GADGET)
+	depends on HAS_IOMEM
 	help
 	  Say Y here if your system has a dual role high speed USB
 	  controller based on the Mentor Graphics silicon IP.  Then
@@ -85,6 +86,7 @@ config USB_MUSB_DA8XX
 
 config USB_MUSB_TUSB6010
 	tristate "TUSB6010"
+	depends on HAS_IOMEM
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	depends on NOP_USB_XCEIV = USB_MUSB_HDRC # both built-in or both modules
 
@@ -159,7 +161,7 @@ config USB_TI_CPPI_DMA
 
 config USB_TI_CPPI41_DMA
 	bool 'TI CPPI 4.1 (AM335x)'
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP && DMADEVICES
 	select TI_CPPI41
 
 config USB_TUSB_OMAP_DMA

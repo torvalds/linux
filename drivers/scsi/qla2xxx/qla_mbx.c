@@ -489,6 +489,13 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 			    EXTENDED_BB_CREDITS);
 		} else
 			mcp->mb[4] = 0;
+
+		if (ha->flags.exlogins_enabled)
+			mcp->mb[4] |= ENABLE_EXTENDED_LOGIN;
+
+		if (ha->flags.exchoffld_enabled)
+			mcp->mb[4] |= ENABLE_EXCHANGE_OFFLD;
+
 		mcp->out_mb |= MBX_4|MBX_3|MBX_2|MBX_1;
 		mcp->in_mb |= MBX_1;
 	} else {
@@ -515,6 +522,226 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1028,
 			    "Done %s.\n", __func__);
 		}
+	}
+
+	return rval;
+}
+
+/*
+ * qla_get_exlogin_status
+ *	Get extended login status
+ *	uses the memory offload control/status Mailbox
+ *
+ * Input:
+ *	ha:		adapter state pointer.
+ *	fwopt:		firmware options
+ *
+ * Returns:
+ *	qla2x00 local function status
+ *
+ * Context:
+ *	Kernel context.
+ */
+#define	FETCH_XLOGINS_STAT	0x8
+int
+qla_get_exlogin_status(scsi_qla_host_t *vha, uint16_t *buf_sz,
+	uint16_t *ex_logins_cnt)
+{
+	int rval;
+	mbx_cmd_t	mc;
+	mbx_cmd_t	*mcp = &mc;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x118f,
+	    "Entered %s\n", __func__);
+
+	memset(mcp->mb, 0 , sizeof(mcp->mb));
+	mcp->mb[0] = MBC_GET_MEM_OFFLOAD_CNTRL_STAT;
+	mcp->mb[1] = FETCH_XLOGINS_STAT;
+	mcp->out_mb = MBX_1|MBX_0;
+	mcp->in_mb = MBX_10|MBX_4|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1115, "Failed=%x.\n", rval);
+	} else {
+		*buf_sz = mcp->mb[4];
+		*ex_logins_cnt = mcp->mb[10];
+
+		ql_log(ql_log_info, vha, 0x1190,
+		    "buffer size 0x%x, exchange login count=%d\n",
+		    mcp->mb[4], mcp->mb[10]);
+
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1116,
+		    "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
+/*
+ * qla_set_exlogin_mem_cfg
+ *	set extended login memory configuration
+ *	Mbx needs to be issues before init_cb is set
+ *
+ * Input:
+ *	ha:		adapter state pointer.
+ *	buffer:		buffer pointer
+ *	phys_addr:	physical address of buffer
+ *	size:		size of buffer
+ *	TARGET_QUEUE_LOCK must be released
+ *	ADAPTER_STATE_LOCK must be release
+ *
+ * Returns:
+ *	qla2x00 local funxtion status code.
+ *
+ * Context:
+ *	Kernel context.
+ */
+#define CONFIG_XLOGINS_MEM	0x3
+int
+qla_set_exlogin_mem_cfg(scsi_qla_host_t *vha, dma_addr_t phys_addr)
+{
+	int		rval;
+	mbx_cmd_t	mc;
+	mbx_cmd_t	*mcp = &mc;
+	struct qla_hw_data *ha = vha->hw;
+	int configured_count;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x111a,
+	    "Entered %s.\n", __func__);
+
+	memset(mcp->mb, 0 , sizeof(mcp->mb));
+	mcp->mb[0] = MBC_GET_MEM_OFFLOAD_CNTRL_STAT;
+	mcp->mb[1] = CONFIG_XLOGINS_MEM;
+	mcp->mb[2] = MSW(phys_addr);
+	mcp->mb[3] = LSW(phys_addr);
+	mcp->mb[6] = MSW(MSD(phys_addr));
+	mcp->mb[7] = LSW(MSD(phys_addr));
+	mcp->mb[8] = MSW(ha->exlogin_size);
+	mcp->mb[9] = LSW(ha->exlogin_size);
+	mcp->out_mb = MBX_9|MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_11|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		/*EMPTY*/
+		ql_dbg(ql_dbg_mbx, vha, 0x111b, "Failed=%x.\n", rval);
+	} else {
+		configured_count = mcp->mb[11];
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x118c,
+		    "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
+/*
+ * qla_get_exchoffld_status
+ *	Get exchange offload status
+ *	uses the memory offload control/status Mailbox
+ *
+ * Input:
+ *	ha:		adapter state pointer.
+ *	fwopt:		firmware options
+ *
+ * Returns:
+ *	qla2x00 local function status
+ *
+ * Context:
+ *	Kernel context.
+ */
+#define	FETCH_XCHOFFLD_STAT	0x2
+int
+qla_get_exchoffld_status(scsi_qla_host_t *vha, uint16_t *buf_sz,
+	uint16_t *ex_logins_cnt)
+{
+	int rval;
+	mbx_cmd_t	mc;
+	mbx_cmd_t	*mcp = &mc;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1019,
+	    "Entered %s\n", __func__);
+
+	memset(mcp->mb, 0 , sizeof(mcp->mb));
+	mcp->mb[0] = MBC_GET_MEM_OFFLOAD_CNTRL_STAT;
+	mcp->mb[1] = FETCH_XCHOFFLD_STAT;
+	mcp->out_mb = MBX_1|MBX_0;
+	mcp->in_mb = MBX_10|MBX_4|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1155, "Failed=%x.\n", rval);
+	} else {
+		*buf_sz = mcp->mb[4];
+		*ex_logins_cnt = mcp->mb[10];
+
+		ql_log(ql_log_info, vha, 0x118e,
+		    "buffer size 0x%x, exchange offload count=%d\n",
+		    mcp->mb[4], mcp->mb[10]);
+
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1156,
+		    "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
+/*
+ * qla_set_exchoffld_mem_cfg
+ *	Set exchange offload memory configuration
+ *	Mbx needs to be issues before init_cb is set
+ *
+ * Input:
+ *	ha:		adapter state pointer.
+ *	buffer:		buffer pointer
+ *	phys_addr:	physical address of buffer
+ *	size:		size of buffer
+ *	TARGET_QUEUE_LOCK must be released
+ *	ADAPTER_STATE_LOCK must be release
+ *
+ * Returns:
+ *	qla2x00 local funxtion status code.
+ *
+ * Context:
+ *	Kernel context.
+ */
+#define CONFIG_XCHOFFLD_MEM	0x3
+int
+qla_set_exchoffld_mem_cfg(scsi_qla_host_t *vha, dma_addr_t phys_addr)
+{
+	int		rval;
+	mbx_cmd_t	mc;
+	mbx_cmd_t	*mcp = &mc;
+	struct qla_hw_data *ha = vha->hw;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1157,
+	    "Entered %s.\n", __func__);
+
+	memset(mcp->mb, 0 , sizeof(mcp->mb));
+	mcp->mb[0] = MBC_GET_MEM_OFFLOAD_CNTRL_STAT;
+	mcp->mb[1] = CONFIG_XCHOFFLD_MEM;
+	mcp->mb[2] = MSW(phys_addr);
+	mcp->mb[3] = LSW(phys_addr);
+	mcp->mb[6] = MSW(MSD(phys_addr));
+	mcp->mb[7] = LSW(MSD(phys_addr));
+	mcp->mb[8] = MSW(ha->exlogin_size);
+	mcp->mb[9] = LSW(ha->exlogin_size);
+	mcp->out_mb = MBX_9|MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_11|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		/*EMPTY*/
+		ql_dbg(ql_dbg_mbx, vha, 0x1158, "Failed=%x.\n", rval);
+	} else {
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1192,
+		    "Done %s.\n", __func__);
 	}
 
 	return rval;
@@ -594,6 +821,16 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x112f,
 		    "%s: Ext_FwAttributes Upper: 0x%x, Lower: 0x%x.\n",
 		    __func__, mcp->mb[17], mcp->mb[16]);
+
+		if (ha->fw_attributes_h & 0x4)
+			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x118d,
+			    "%s: Firmware supports Extended Login 0x%x\n",
+			    __func__, ha->fw_attributes_h);
+
+		if (ha->fw_attributes_h & 0x8)
+			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1191,
+			    "%s: Firmware supports Exchange Offload 0x%x\n",
+			    __func__, ha->fw_attributes_h);
 	}
 
 	if (IS_QLA27XX(ha)) {
@@ -1112,6 +1349,8 @@ qla2x00_get_adapter_id(scsi_qla_host_t *vha, uint16_t *id, uint8_t *al_pa,
 		mcp->in_mb |= MBX_13|MBX_12|MBX_11|MBX_10;
 	if (IS_FWI2_CAPABLE(vha->hw))
 		mcp->in_mb |= MBX_19|MBX_18|MBX_17|MBX_16;
+	if (IS_QLA27XX(vha->hw))
+		mcp->in_mb |= MBX_15;
 	mcp->tov = MBX_TOV_SECONDS;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -1163,6 +1402,9 @@ qla2x00_get_adapter_id(scsi_qla_host_t *vha, uint16_t *id, uint8_t *al_pa,
 				    wwn_to_u64(vha->port_name));
 			}
 		}
+
+		if (IS_QLA27XX(vha->hw))
+			vha->bbcr = mcp->mb[15];
 	}
 
 	return rval;
@@ -2383,10 +2625,9 @@ qla2x00_get_id_list(scsi_qla_host_t *vha, void *id_list, dma_addr_t id_list_dma,
  *	Kernel context.
  */
 int
-qla2x00_get_resource_cnts(scsi_qla_host_t *vha, uint16_t *cur_xchg_cnt,
-    uint16_t *orig_xchg_cnt, uint16_t *cur_iocb_cnt,
-    uint16_t *orig_iocb_cnt, uint16_t *max_npiv_vports, uint16_t *max_fcfs)
+qla2x00_get_resource_cnts(scsi_qla_host_t *vha)
 {
+	struct qla_hw_data *ha = vha->hw;
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
@@ -2414,19 +2655,16 @@ qla2x00_get_resource_cnts(scsi_qla_host_t *vha, uint16_t *cur_xchg_cnt,
 		    mcp->mb[3], mcp->mb[6], mcp->mb[7], mcp->mb[10],
 		    mcp->mb[11], mcp->mb[12]);
 
-		if (cur_xchg_cnt)
-			*cur_xchg_cnt = mcp->mb[3];
-		if (orig_xchg_cnt)
-			*orig_xchg_cnt = mcp->mb[6];
-		if (cur_iocb_cnt)
-			*cur_iocb_cnt = mcp->mb[7];
-		if (orig_iocb_cnt)
-			*orig_iocb_cnt = mcp->mb[10];
-		if (vha->hw->flags.npiv_supported && max_npiv_vports)
-			*max_npiv_vports = mcp->mb[11];
-		if ((IS_QLA81XX(vha->hw) || IS_QLA83XX(vha->hw) ||
-		    IS_QLA27XX(vha->hw)) && max_fcfs)
-			*max_fcfs = mcp->mb[12];
+		ha->orig_fw_tgt_xcb_count =  mcp->mb[1];
+		ha->cur_fw_tgt_xcb_count = mcp->mb[2];
+		ha->cur_fw_xcb_count = mcp->mb[3];
+		ha->orig_fw_xcb_count = mcp->mb[6];
+		ha->cur_fw_iocb_count = mcp->mb[7];
+		ha->orig_fw_iocb_count = mcp->mb[10];
+		if (ha->flags.npiv_supported)
+			ha->max_npiv_vports = mcp->mb[11];
+		if (IS_QLA81XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha))
+			ha->fw_max_fcf_count = mcp->mb[12];
 	}
 
 	return (rval);
@@ -2521,7 +2759,7 @@ qla2x00_get_link_status(scsi_qla_host_t *vha, uint16_t loop_id,
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
-	uint32_t *siter, *diter, dwords;
+	uint32_t *iter, dwords;
 	struct qla_hw_data *ha = vha->hw;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1084,
@@ -2561,10 +2799,11 @@ qla2x00_get_link_status(scsi_qla_host_t *vha, uint16_t loop_id,
 			/* Copy over data -- firmware data is LE. */
 			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1086,
 			    "Done %s.\n", __func__);
-			dwords = offsetof(struct link_statistics, unused1) / 4;
-			siter = diter = &stats->link_fail_cnt;
-			while (dwords--)
-				*diter++ = le32_to_cpu(*siter++);
+			dwords = offsetof(struct link_statistics,
+					link_up_cnt) / 4;
+			iter = &stats->link_fail_cnt;
+			for ( ; dwords--; iter++)
+				le32_to_cpus(iter);
 		}
 	} else {
 		/* Failed. */
@@ -2581,7 +2820,7 @@ qla24xx_get_isp_stats(scsi_qla_host_t *vha, struct link_statistics *stats,
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
-	uint32_t *siter, *diter, dwords;
+	uint32_t *iter, dwords;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1088,
 	    "Entered %s.\n", __func__);
@@ -2610,9 +2849,9 @@ qla24xx_get_isp_stats(scsi_qla_host_t *vha, struct link_statistics *stats,
 			    "Done %s.\n", __func__);
 			/* Copy over data -- firmware data is LE. */
 			dwords = sizeof(struct link_statistics) / 4;
-			siter = diter = &stats->link_fail_cnt;
-			while (dwords--)
-				*diter++ = le32_to_cpu(*siter++);
+			iter = &stats->link_fail_cnt;
+			for ( ; dwords--; iter++)
+				le32_to_cpus(iter);
 		}
 	} else {
 		/* Failed. */
@@ -3378,6 +3617,9 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		    "port id %02x%02x%02x.\n", vp_idx, MSB(stat),
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]);
+
+		/* buffer to buffer credit flag */
+		vha->flags.bbcr_enable = (rptid_entry->bbcr & 0xf) != 0;
 
 		/* FA-WWN is only for physical port */
 		if (!vp_idx) {

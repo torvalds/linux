@@ -98,6 +98,33 @@ void ath6kl_warn(const char *fmt, ...)
 }
 EXPORT_SYMBOL(ath6kl_warn);
 
+int ath6kl_read_tgt_stats(struct ath6kl *ar, struct ath6kl_vif *vif)
+{
+	long left;
+
+	if (down_interruptible(&ar->sem))
+		return -EBUSY;
+
+	set_bit(STATS_UPDATE_PEND, &vif->flags);
+
+	if (ath6kl_wmi_get_stats_cmd(ar->wmi, 0)) {
+		up(&ar->sem);
+		return -EIO;
+	}
+
+	left = wait_event_interruptible_timeout(ar->event_wq,
+						!test_bit(STATS_UPDATE_PEND,
+						&vif->flags), WMI_TIMEOUT);
+
+	up(&ar->sem);
+
+	if (left <= 0)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+EXPORT_SYMBOL(ath6kl_read_tgt_stats);
+
 #ifdef CONFIG_ATH6KL_DEBUG
 
 void ath6kl_dbg(enum ATH6K_DEBUG_MASK mask, const char *fmt, ...)
@@ -544,42 +571,24 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 	char *buf;
 	unsigned int len = 0, buf_len = 1500;
 	int i;
-	long left;
 	ssize_t ret_cnt;
+	int rv;
 
 	vif = ath6kl_vif_first(ar);
 	if (!vif)
 		return -EIO;
 
-	tgt_stats = &vif->target_stats;
-
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	if (down_interruptible(&ar->sem)) {
+	rv = ath6kl_read_tgt_stats(ar, vif);
+	if (rv < 0) {
 		kfree(buf);
-		return -EBUSY;
+		return rv;
 	}
 
-	set_bit(STATS_UPDATE_PEND, &vif->flags);
-
-	if (ath6kl_wmi_get_stats_cmd(ar->wmi, 0)) {
-		up(&ar->sem);
-		kfree(buf);
-		return -EIO;
-	}
-
-	left = wait_event_interruptible_timeout(ar->event_wq,
-						!test_bit(STATS_UPDATE_PEND,
-						&vif->flags), WMI_TIMEOUT);
-
-	up(&ar->sem);
-
-	if (left <= 0) {
-		kfree(buf);
-		return -ETIMEDOUT;
-	}
+	tgt_stats = &vif->target_stats;
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	len += scnprintf(buf + len, buf_len - len, "%25s\n",

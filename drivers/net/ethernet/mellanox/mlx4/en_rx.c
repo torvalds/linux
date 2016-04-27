@@ -61,7 +61,7 @@ static int mlx4_alloc_pages(struct mlx4_en_priv *priv,
 		gfp_t gfp = _gfp;
 
 		if (order)
-			gfp |= __GFP_COMP | __GFP_NOWARN;
+			gfp |= __GFP_COMP | __GFP_NOWARN | __GFP_NOMEMALLOC;
 		page = alloc_pages(gfp, order);
 		if (likely(page))
 			break;
@@ -82,8 +82,7 @@ static int mlx4_alloc_pages(struct mlx4_en_priv *priv,
 	/* Not doing get_page() for each frag is a big win
 	 * on asymetric workloads. Note we can not use atomic_set().
 	 */
-	atomic_add(page_alloc->page_size / frag_info->frag_stride - 1,
-		   &page->_count);
+	page_ref_add(page, page_alloc->page_size / frag_info->frag_stride - 1);
 	return 0;
 }
 
@@ -127,7 +126,9 @@ out:
 			dma_unmap_page(priv->ddev, page_alloc[i].dma,
 				page_alloc[i].page_size, PCI_DMA_FROMDEVICE);
 			page = page_alloc[i].page;
-			atomic_set(&page->_count, 1);
+			/* Revert changes done by mlx4_alloc_pages */
+			page_ref_sub(page, page_alloc[i].page_size /
+					   priv->frag_info[i].frag_stride - 1);
 			put_page(page);
 		}
 	}
@@ -165,7 +166,7 @@ static int mlx4_en_init_allocator(struct mlx4_en_priv *priv,
 
 		en_dbg(DRV, priv, "  frag %d allocator: - size:%d frags:%d\n",
 		       i, ring->page_alloc[i].page_size,
-		       atomic_read(&ring->page_alloc[i].page->_count));
+		       page_ref_count(ring->page_alloc[i].page));
 	}
 	return 0;
 
@@ -177,7 +178,9 @@ out:
 		dma_unmap_page(priv->ddev, page_alloc->dma,
 			       page_alloc->page_size, PCI_DMA_FROMDEVICE);
 		page = page_alloc->page;
-		atomic_set(&page->_count, 1);
+		/* Revert changes done by mlx4_alloc_pages */
+		page_ref_sub(page, page_alloc->page_size /
+				   priv->frag_info[i].frag_stride - 1);
 		put_page(page);
 		page_alloc->page = NULL;
 	}
@@ -873,10 +876,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		 * - TCP/IP (v4)
 		 * - without IP options
 		 * - not an IP fragment
-		 * - no LLS polling in progress
 		 */
-		if (!mlx4_en_cq_busy_polling(cq) &&
-		    (dev->features & NETIF_F_GRO)) {
+		if (dev->features & NETIF_F_GRO) {
 			struct sk_buff *gro_skb = napi_get_frags(&cq->napi);
 			if (!gro_skb)
 				goto next;
@@ -927,7 +928,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 						PKT_HASH_TYPE_L3);
 
 			skb_record_rx_queue(gro_skb, cq->ring);
-			skb_mark_napi_id(gro_skb, &cq->napi);
 
 			if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
 				timestamp = mlx4_en_get_cqe_ts(cqe);
@@ -943,7 +943,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		/* GRO not possible, complete processing here */
 		skb = mlx4_en_rx_skb(priv, rx_desc, frags, length);
 		if (!skb) {
-			priv->stats.rx_dropped++;
+			ring->dropped++;
 			goto next;
 		}
 
@@ -990,13 +990,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 					       timestamp);
 		}
 
-		skb_mark_napi_id(skb, &cq->napi);
-
-		if (!mlx4_en_cq_busy_polling(cq))
-			napi_gro_receive(&cq->napi, skb);
-		else
-			netif_receive_skb(skb);
-
+		napi_gro_receive(&cq->napi, skb);
 next:
 		for (nr = 0; nr < priv->num_frags; nr++)
 			mlx4_en_free_frag(priv, frags, nr);
@@ -1038,12 +1032,7 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int done;
 
-	if (!mlx4_en_cq_lock_napi(cq))
-		return budget;
-
 	done = mlx4_en_process_rx_cq(dev, cq, budget);
-
-	mlx4_en_cq_unlock_napi(cq);
 
 	/* If we used up all the quota - we're probably not done yet... */
 	if (done == budget) {

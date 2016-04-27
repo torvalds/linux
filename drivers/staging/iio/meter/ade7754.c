@@ -223,7 +223,7 @@ static int ade7754_reset(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	val |= 1 << 6; /* Software Chip Reset */
+	val |= BIT(6); /* Software Chip Reset */
 	return ade7754_spi_write_reg_8(dev, ADE7754_OPMODE, val);
 }
 
@@ -347,19 +347,16 @@ static int ade7754_set_irq(struct device *dev, bool enable)
 
 	ret = ade7754_spi_read_reg_16(dev, ADE7754_IRQEN, &irqen);
 	if (ret)
-		goto error_ret;
+		return ret;
 
 	if (enable)
-		irqen |= 1 << 14; /* Enables an interrupt when a data is
+		irqen |= BIT(14); /* Enables an interrupt when a data is
 				     present in the waveform register */
 	else
-		irqen &= ~(1 << 14);
+		irqen &= ~BIT(14);
 
 	ret = ade7754_spi_write_reg_16(dev, ADE7754_IRQEN, irqen);
-	if (ret)
-		goto error_ret;
 
-error_ret:
 	return ret;
 }
 
@@ -438,7 +435,7 @@ static ssize_t ade7754_write_frequency(struct device *dev,
 	ret = kstrtou16(buf, 10, &val);
 	if (ret)
 		return ret;
-	if (val == 0)
+	if (!val)
 		return -EINVAL;
 
 	mutex_lock(&indio_dev->mlock);
@@ -575,7 +572,6 @@ static int ade7754_remove(struct spi_device *spi)
 static struct spi_driver ade7754_driver = {
 	.driver = {
 		.name = "ade7754",
-		.owner = THIS_MODULE,
 	},
 	.probe = ade7754_probe,
 	.remove = ade7754_remove,

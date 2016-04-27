@@ -22,7 +22,8 @@
 
 unsigned long switcher_addr;
 struct page **lg_switcher_pages;
-static struct vm_struct *switcher_vma;
+static struct vm_struct *switcher_text_vma;
+static struct vm_struct *switcher_stacks_vma;
 
 /* This One Big lock protects all inter-guest data structures. */
 DEFINE_MUTEX(lguest_lock);
@@ -83,54 +84,80 @@ static __init int map_switcher(void)
 	}
 
 	/*
+	 * Copy in the compiled-in Switcher code (from x86/switcher_32.S).
+	 * It goes in the first page, which we map in momentarily.
+	 */
+	memcpy(kmap(lg_switcher_pages[0]), start_switcher_text,
+	       end_switcher_text - start_switcher_text);
+	kunmap(lg_switcher_pages[0]);
+
+	/*
 	 * We place the Switcher underneath the fixmap area, which is the
 	 * highest virtual address we can get.  This is important, since we
 	 * tell the Guest it can't access this memory, so we want its ceiling
 	 * as high as possible.
 	 */
-	switcher_addr = FIXADDR_START - (TOTAL_SWITCHER_PAGES+1)*PAGE_SIZE;
+	switcher_addr = FIXADDR_START - TOTAL_SWITCHER_PAGES*PAGE_SIZE;
 
 	/*
-	 * Now we reserve the "virtual memory area" we want.  We might
-	 * not get it in theory, but in practice it's worked so far.
-	 * The end address needs +1 because __get_vm_area allocates an
-	 * extra guard page, so we need space for that.
+	 * Now we reserve the "virtual memory area"s we want.  We might
+	 * not get them in theory, but in practice it's worked so far.
+	 *
+	 * We want the switcher text to be read-only and executable, and
+	 * the stacks to be read-write and non-executable.
 	 */
-	switcher_vma = __get_vm_area(TOTAL_SWITCHER_PAGES * PAGE_SIZE,
-				     VM_ALLOC, switcher_addr, switcher_addr
-				     + (TOTAL_SWITCHER_PAGES+1) * PAGE_SIZE);
-	if (!switcher_vma) {
+	switcher_text_vma = __get_vm_area(PAGE_SIZE, VM_ALLOC|VM_NO_GUARD,
+					  switcher_addr,
+					  switcher_addr + PAGE_SIZE);
+
+	if (!switcher_text_vma) {
 		err = -ENOMEM;
 		printk("lguest: could not map switcher pages high\n");
 		goto free_pages;
 	}
 
+	switcher_stacks_vma = __get_vm_area(SWITCHER_STACK_PAGES * PAGE_SIZE,
+					    VM_ALLOC|VM_NO_GUARD,
+					    switcher_addr + PAGE_SIZE,
+					    switcher_addr + TOTAL_SWITCHER_PAGES * PAGE_SIZE);
+	if (!switcher_stacks_vma) {
+		err = -ENOMEM;
+		printk("lguest: could not map switcher pages high\n");
+		goto free_text_vma;
+	}
+
 	/*
 	 * This code actually sets up the pages we've allocated to appear at
 	 * switcher_addr.  map_vm_area() takes the vma we allocated above, the
-	 * kind of pages we're mapping (kernel pages), and a pointer to our
-	 * array of struct pages.
+	 * kind of pages we're mapping (kernel text pages and kernel writable
+	 * pages respectively), and a pointer to our array of struct pages.
 	 */
-	err = map_vm_area(switcher_vma, PAGE_KERNEL_EXEC, lg_switcher_pages);
+	err = map_vm_area(switcher_text_vma, PAGE_KERNEL_RX, lg_switcher_pages);
 	if (err) {
-		printk("lguest: map_vm_area failed: %i\n", err);
-		goto free_vma;
+		printk("lguest: text map_vm_area failed: %i\n", err);
+		goto free_vmas;
+	}
+
+	err = map_vm_area(switcher_stacks_vma, PAGE_KERNEL,
+			  lg_switcher_pages + SWITCHER_TEXT_PAGES);
+	if (err) {
+		printk("lguest: stacks map_vm_area failed: %i\n", err);
+		goto free_vmas;
 	}
 
 	/*
 	 * Now the Switcher is mapped at the right address, we can't fail!
-	 * Copy in the compiled-in Switcher code (from x86/switcher_32.S).
 	 */
-	memcpy(switcher_vma->addr, start_switcher_text,
-	       end_switcher_text - start_switcher_text);
-
 	printk(KERN_INFO "lguest: mapped switcher at %p\n",
-	       switcher_vma->addr);
+	       switcher_text_vma->addr);
 	/* And we succeeded... */
 	return 0;
 
-free_vma:
-	vunmap(switcher_vma->addr);
+free_vmas:
+	/* Undoes map_vm_area and __get_vm_area */
+	vunmap(switcher_stacks_vma->addr);
+free_text_vma:
+	vunmap(switcher_text_vma->addr);
 free_pages:
 	i = TOTAL_SWITCHER_PAGES;
 free_some_pages:
@@ -148,7 +175,8 @@ static void unmap_switcher(void)
 	unsigned int i;
 
 	/* vunmap() undoes *both* map_vm_area() and __get_vm_area(). */
-	vunmap(switcher_vma->addr);
+	vunmap(switcher_text_vma->addr);
+	vunmap(switcher_stacks_vma->addr);
 	/* Now we just need to free the pages we copied the switcher into */
 	for (i = 0; i < TOTAL_SWITCHER_PAGES; i++)
 		__free_pages(lg_switcher_pages[i], 0);

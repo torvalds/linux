@@ -348,9 +348,9 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 {
 	u8	wireless_mode;
 	int	sz = 0, rateLen;
-	struct wlan_bssid_ex*	pdev_network = &pregistrypriv->dev_network;
-	u8*	ie = pdev_network->IEs;
-	u16 cap;
+	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
+	u8	*ie = pdev_network->IEs;
+	u16	cap;
 
 	pdev_network->tsf = 0;
 
@@ -444,7 +444,8 @@ static int rtw_get_wpa2_cipher_suite(const u8 *s)
 	return 0;
 }
 
-int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x)
+int rtw_parse_wpa_ie23a(const u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
+			int *pairwise_cipher, int *is_8021x)
 {
 	int i, ret = _SUCCESS;
 	int left, count;

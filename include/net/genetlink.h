@@ -83,7 +83,6 @@ struct genl_family {
  * @attrs: netlink attributes
  * @_net: network namespace
  * @user_ptr: user pointers
- * @dst_sk: destination socket
  */
 struct genl_info {
 	u32			snd_seq;
@@ -94,7 +93,6 @@ struct genl_info {
 	struct nlattr **	attrs;
 	possible_net_t		_net;
 	void *			user_ptr[2];
-	struct sock *		dst_sk;
 };
 
 static inline struct net *genl_info_net(struct genl_info *info)
@@ -114,6 +112,7 @@ static inline void genl_info_net_set(struct genl_info *info, struct net *net)
  * @flags: flags
  * @policy: attribute validation policy
  * @doit: standard command callback
+ * @start: start callback for dumps
  * @dumpit: callback for dumpers
  * @done: completion callback for dumps
  * @ops_list: operations list
@@ -122,6 +121,7 @@ struct genl_ops {
 	const struct nla_policy	*policy;
 	int		       (*doit)(struct sk_buff *skb,
 				       struct genl_info *info);
+	int		       (*start)(struct netlink_callback *cb);
 	int		       (*dumpit)(struct sk_buff *skb,
 					 struct netlink_callback *cb);
 	int		       (*done)(struct netlink_callback *cb);
@@ -183,12 +183,9 @@ _genl_register_family_with_ops_grps(struct genl_family *family,
 					    (grps), ARRAY_SIZE(grps))
 
 int genl_unregister_family(struct genl_family *family);
-void genl_notify(struct genl_family *family,
-		 struct sk_buff *skb, struct net *net, u32 portid,
-		 u32 group, struct nlmsghdr *nlh, gfp_t flags);
+void genl_notify(struct genl_family *family, struct sk_buff *skb,
+		 struct genl_info *info, u32 group, gfp_t flags);
 
-struct sk_buff *genlmsg_new_unicast(size_t payload, struct genl_info *info,
-				    gfp_t flags);
 void *genlmsg_put(struct sk_buff *skb, u32 portid, u32 seq,
 		  struct genl_family *family, int flags, u8 cmd);
 

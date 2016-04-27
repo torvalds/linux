@@ -104,6 +104,7 @@ struct snd_timer_instance {
 			   int event,
 			   struct timespec * tstamp,
 			   unsigned long resolution);
+	void (*disconnect)(struct snd_timer_instance *timeri);
 	void *callback_data;
 	unsigned long ticks;		/* auto-load ticks when expired */
 	unsigned long cticks;		/* current ticks */

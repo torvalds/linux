@@ -21,8 +21,8 @@ exact way to do it depends on the GPIO controller providing the GPIOs, see the
 device tree bindings for your controller.
 
 GPIOs mappings are defined in the consumer device's node, in a property named
-either <function>-gpios or <function>-gpio, where <function> is the function
-the driver will request through gpiod_get(). For example:
+<function>-gpios, where <function> is the function the driver will request
+through gpiod_get(). For example:
 
 	foo_device {
 		compatible = "acme,foo";
@@ -31,8 +31,12 @@ the driver will request through gpiod_get(). For example:
 			    <&gpio 16 GPIO_ACTIVE_HIGH>, /* green */
 			    <&gpio 17 GPIO_ACTIVE_HIGH>; /* blue */
 
-		power-gpio = <&gpio 1 GPIO_ACTIVE_LOW>;
+		power-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
 	};
+
+Properties named <function>-gpio are also considered valid and old bindings use
+it but are only supported for compatibility reasons and should not be used for
+newer bindings since it has been deprecated.
 
 This property will make GPIOs 15, 16 and 17 available to the driver under the
 "led" function, and GPIO 1 as the "power" GPIO:
@@ -107,16 +111,13 @@ files that desire to do so need to include the following header:
 GPIOs are mapped by the means of tables of lookups, containing instances of the
 gpiod_lookup structure. Two macros are defined to help declaring such mappings:
 
-	GPIO_LOOKUP(chip_label, chip_hwnum, dev_id, con_id, flags)
-	GPIO_LOOKUP_IDX(chip_label, chip_hwnum, dev_id, con_id, idx, flags)
+	GPIO_LOOKUP(chip_label, chip_hwnum, con_id, flags)
+	GPIO_LOOKUP_IDX(chip_label, chip_hwnum, con_id, idx, flags)
 
 where
 
   - chip_label is the label of the gpiod_chip instance providing the GPIO
   - chip_hwnum is the hardware number of the GPIO within the chip
-  - dev_id is the identifier of the device that will make use of this GPIO. It
-	can be NULL, in which case it will be matched for calls to gpiod_get()
-	with a NULL device.
   - con_id is the name of the GPIO function from the device point of view. It
 	can be NULL, in which case it will match any function.
   - idx is the index of the GPIO within the function.
@@ -130,7 +131,9 @@ In the future, these flags might be extended to support more properties.
 Note that GPIO_LOOKUP() is just a shortcut to GPIO_LOOKUP_IDX() where idx = 0.
 
 A lookup table can then be defined as follows, with an empty entry defining its
-end:
+end. The 'dev_id' field of the table is the identifier of the device that will
+make use of these GPIOs. It can be NULL, in which case it will be matched for
+calls to gpiod_get() with a NULL device.
 
 struct gpiod_lookup_table gpios_table = {
 	.dev_id = "foo.0",

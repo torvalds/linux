@@ -76,17 +76,19 @@ static struct arm_pmu_platdata db8500_pmu_platdata = {
 static const char *db8500_read_soc_id(void)
 {
 	void __iomem *uid;
+	const char *retstr;
 
 	uid = ioremap(U8500_BB_UID_BASE, 0x20);
 	if (!uid)
 		return NULL;
 	/* Throw these device-specific numbers into the entropy pool */
 	add_device_randomness(uid, 0x14);
-	return kasprintf(GFP_KERNEL, "%08x%08x%08x%08x%08x",
+	retstr = kasprintf(GFP_KERNEL, "%08x%08x%08x%08x%08x",
 			 readl((u32 *)uid+0),
 			 readl((u32 *)uid+1), readl((u32 *)uid+2),
 			 readl((u32 *)uid+3), readl((u32 *)uid+4));
 	iounmap(uid);
+	return retstr;
 }
 
 static struct device * __init db8500_soc_device_init(void)
@@ -156,8 +158,6 @@ static const char * stericsson_dt_platform_compat[] = {
 DT_MACHINE_START(U8500_DT, "ST-Ericsson Ux5x0 platform (Device Tree Support)")
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
-	/* we re-use nomadik timer here */
-	.init_time	= ux500_timer_init,
 	.init_machine	= u8500_init_machine,
 	.init_late	= NULL,
 	.dt_compat      = stericsson_dt_platform_compat,

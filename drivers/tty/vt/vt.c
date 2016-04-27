@@ -568,7 +568,7 @@ static void delete_char(struct vc_data *vc, unsigned int nr)
 			vc->vc_cols - vc->vc_x);
 }
 
-static int softcursor_original;
+static int softcursor_original = -1;
 
 static void add_softcursor(struct vc_data *vc)
 {
@@ -634,7 +634,7 @@ static void set_origin(struct vc_data *vc)
 	vc->vc_pos = vc->vc_origin + vc->vc_size_row * vc->vc_y + 2 * vc->vc_x;
 }
 
-static inline void save_screen(struct vc_data *vc)
+static void save_screen(struct vc_data *vc)
 {
 	WARN_CONSOLE_UNLOCKED();
 
@@ -4250,6 +4250,7 @@ unsigned short *screen_pos(struct vc_data *vc, int w_offset, int viewed)
 {
 	return screenpos(vc, 2 * w_offset, viewed);
 }
+EXPORT_SYMBOL_GPL(screen_pos);
 
 void getconsxy(struct vc_data *vc, unsigned char *p)
 {

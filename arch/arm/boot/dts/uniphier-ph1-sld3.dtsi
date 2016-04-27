@@ -56,16 +56,24 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0>;
+			next-level-cache = <&l2>;
 		};
 
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <1>;
+			next-level-cache = <&l2>;
 		};
 	};
 
 	clocks {
+		refclk: ref {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24576000>;
+		};
+
 		arm_timer_clk: arm_timer_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -92,12 +100,6 @@
 		ranges;
 		interrupt-parent = <&intc>;
 
-		extbus: extbus {
-			compatible = "simple-bus";
-			#address-cells = <2>;
-			#size-cells = <1>;
-		};
-
 		timer@20000200 {
 			compatible = "arm,cortex-a9-global-timer";
 			reg = <0x20000200 0x20>;
@@ -118,6 +120,18 @@
 			interrupt-controller;
 			reg = <0x20001000 0x1000>,
 			      <0x20000100 0x100>;
+		};
+
+		l2: l2-cache@500c0000 {
+			compatible = "socionext,uniphier-system-cache";
+			reg = <0x500c0000 0x2000>, <0x503c0100 0x4>,
+			      <0x506c0000 0x400>;
+			interrupts = <0 174 4>, <0 175 4>;
+			cache-unified;
+			cache-size = <(512 * 1024)>;
+			cache-sets = <256>;
+			cache-line-size = <128>;
+			cache-level = <2>;
 		};
 
 		serial0: serial@54006800 {
@@ -202,10 +216,17 @@
 			clock-frequency = <400000>;
 		};
 
-		system-bus-controller-misc@59800000 {
-			compatible = "socionext,uniphier-system-bus-controller-misc",
-				     "syscon";
-			reg = <0x59800000 0x2000>;
+		system_bus: system-bus@58c00000 {
+			compatible = "socionext,uniphier-system-bus";
+			status = "disabled";
+			reg = <0x58c00000 0x400>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+		};
+
+		smpctrl@59800000 {
+			compatible = "socionext,uniphier-smpctrl";
+			reg = <0x59801000 0x400>;
 		};
 
 		usb0: usb@5a800100 {

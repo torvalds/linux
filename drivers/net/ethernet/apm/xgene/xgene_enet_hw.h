@@ -54,6 +54,11 @@ enum xgene_enet_rm {
 #define IS_BUFFER_POOL		BIT(20)
 #define PREFETCH_BUF_EN		BIT(21)
 #define CSR_RING_ID_BUF		0x000c
+#define CSR_PBM_COAL		0x0014
+#define CSR_PBM_CTICK1		0x001c
+#define CSR_PBM_CTICK2		0x0020
+#define CSR_THRESHOLD0_SET1	0x0030
+#define CSR_THRESHOLD1_SET1	0x0034
 #define CSR_RING_NE_INT_MODE	0x017c
 #define CSR_RING_CONFIG		0x006c
 #define CSR_RING_WR_BASE	0x0070
@@ -101,6 +106,7 @@ enum xgene_enet_rm {
 #define MAC_OFFSET			0x30
 
 #define BLOCK_ETH_CSR_OFFSET		0x2000
+#define BLOCK_ETH_CLE_CSR_OFFSET	0x6000
 #define BLOCK_ETH_RING_IF_OFFSET	0x9000
 #define BLOCK_ETH_CLKRST_CSR_OFFSET	0xc000
 #define BLOCK_ETH_DIAG_CSR_OFFSET	0xD000
@@ -144,6 +150,7 @@ enum xgene_enet_rm {
 #define CFG_BYPASS_UNISEC_RX		BIT(1)
 #define CFG_CLE_BYPASS_EN0		BIT(31)
 #define CFG_TXCLK_MUXSEL0_SET(dst, val)	xgene_set_bits(dst, val, 29, 3)
+#define CFG_RXCLK_MUXSEL0_SET(dst, val)	xgene_set_bits(dst, val, 26, 3)
 
 #define CFG_CLE_IP_PROTOCOL0_SET(dst, val)	xgene_set_bits(dst, val, 16, 2)
 #define CFG_CLE_DSTQID0_SET(dst, val)		xgene_set_bits(dst, val, 0, 12)
@@ -180,6 +187,7 @@ enum xgene_enet_rm {
 #define ENET_LHD_MODE			BIT(25)
 #define ENET_GHD_MODE			BIT(26)
 #define FULL_DUPLEX2			BIT(0)
+#define PAD_CRC				BIT(2)
 #define SCAN_AUTO_INCR			BIT(5)
 #define TBYT_ADDR			0x38
 #define TPKT_ADDR			0x39
@@ -338,8 +346,8 @@ int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata);
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata);
 bool xgene_ring_mgr_init(struct xgene_enet_pdata *p);
 
-extern struct xgene_mac_ops xgene_gmac_ops;
-extern struct xgene_port_ops xgene_gport_ops;
+extern const struct xgene_mac_ops xgene_gmac_ops;
+extern const struct xgene_port_ops xgene_gport_ops;
 extern struct xgene_ring_ops xgene_ring1_ops;
 
 #endif /* __XGENE_ENET_HW_H__ */

@@ -30,7 +30,6 @@
 
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
-#include <linux/platform_data/iommu-omap.h>
 #include <plat/dmtimer.h>
 
 #include "omap_hwmod.h"
@@ -2088,22 +2087,9 @@ static struct omap_hwmod_class omap44xx_mmu_hwmod_class = {
 
 /* mmu ipu */
 
-static struct omap_mmu_dev_attr mmu_ipu_dev_attr = {
-	.nr_tlb_entries = 32,
-};
-
 static struct omap_hwmod omap44xx_mmu_ipu_hwmod;
 static struct omap_hwmod_rst_info omap44xx_mmu_ipu_resets[] = {
 	{ .name = "mmu_cache", .rst_shift = 2 },
-};
-
-static struct omap_hwmod_addr_space omap44xx_mmu_ipu_addrs[] = {
-	{
-		.pa_start	= 0x55082000,
-		.pa_end		= 0x550820ff,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
 };
 
 /* l3_main_2 -> mmu_ipu */
@@ -2111,7 +2097,6 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_2__mmu_ipu = {
 	.master		= &omap44xx_l3_main_2_hwmod,
 	.slave		= &omap44xx_mmu_ipu_hwmod,
 	.clk		= "l3_div_ck",
-	.addr		= omap44xx_mmu_ipu_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -2130,27 +2115,13 @@ static struct omap_hwmod omap44xx_mmu_ipu_hwmod = {
 			.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
-	.dev_attr	= &mmu_ipu_dev_attr,
 };
 
 /* mmu dsp */
 
-static struct omap_mmu_dev_attr mmu_dsp_dev_attr = {
-	.nr_tlb_entries = 32,
-};
-
 static struct omap_hwmod omap44xx_mmu_dsp_hwmod;
 static struct omap_hwmod_rst_info omap44xx_mmu_dsp_resets[] = {
 	{ .name = "mmu_cache", .rst_shift = 1 },
-};
-
-static struct omap_hwmod_addr_space omap44xx_mmu_dsp_addrs[] = {
-	{
-		.pa_start	= 0x4a066000,
-		.pa_end		= 0x4a0660ff,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
 };
 
 /* l4_cfg -> dsp */
@@ -2158,7 +2129,6 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__mmu_dsp = {
 	.master		= &omap44xx_l4_cfg_hwmod,
 	.slave		= &omap44xx_mmu_dsp_hwmod,
 	.clk		= "l4_div_ck",
-	.addr		= omap44xx_mmu_dsp_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -2177,7 +2147,6 @@ static struct omap_hwmod omap44xx_mmu_dsp_hwmod = {
 			.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
-	.dev_attr	= &mmu_dsp_dev_attr,
 };
 
 /*
@@ -3915,21 +3884,11 @@ static struct omap_hwmod_ocp_if omap44xx_l4_per__dss_venc = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_addr_space omap44xx_elm_addrs[] = {
-	{
-		.pa_start	= 0x48078000,
-		.pa_end		= 0x48078fff,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_per -> elm */
 static struct omap_hwmod_ocp_if omap44xx_l4_per__elm = {
 	.master		= &omap44xx_l4_per_hwmod,
 	.slave		= &omap44xx_elm_hwmod,
 	.clk		= "l4_div_ck",
-	.addr		= omap44xx_elm_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -4471,21 +4430,11 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__smartreflex_mpu = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space omap44xx_spinlock_addrs[] = {
-	{
-		.pa_start	= 0x4a0f6000,
-		.pa_end		= 0x4a0f6fff,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_cfg -> spinlock */
 static struct omap_hwmod_ocp_if omap44xx_l4_cfg__spinlock = {
 	.master		= &omap44xx_l4_cfg_hwmod,
 	.slave		= &omap44xx_spinlock_hwmod,
 	.clk		= "l4_div_ck",
-	.addr		= omap44xx_spinlock_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

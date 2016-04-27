@@ -130,10 +130,10 @@ int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status)
 			buf = list_entry(dmaq->active.next,
 					 struct cx25821_buffer, queue);
 
-			v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-			buf->vb.v4l2_buf.sequence = dmaq->count++;
+			buf->vb.vb2_buf.timestamp = ktime_get_ns();
+			buf->vb.sequence = dmaq->count++;
 			list_del(&buf->queue);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		}
 		spin_unlock(&dev->slock);
 		handled++;
@@ -141,28 +141,30 @@ int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status)
 	return handled;
 }
 
-static int cx25821_queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+static int cx25821_queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct cx25821_channel *chan = q->drv_priv;
 	unsigned size = (chan->fmt->depth * chan->width * chan->height) >> 3;
 
-	if (fmt && fmt->fmt.pix.sizeimage < size)
-		return -EINVAL;
+	alloc_ctxs[0] = chan->dev->alloc_ctx;
+
+	if (*num_planes)
+		return sizes[0] < size ? -EINVAL : 0;
 
 	*num_planes = 1;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : size;
-	alloc_ctxs[0] = chan->dev->alloc_ctx;
+	sizes[0] = size;
 	return 0;
 }
 
 static int cx25821_buffer_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx25821_channel *chan = vb->vb2_queue->drv_priv;
 	struct cx25821_dev *dev = chan->dev;
 	struct cx25821_buffer *buf =
-		container_of(vb, struct cx25821_buffer, vb);
+		container_of(vbuf, struct cx25821_buffer, vb);
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 	u32 line0_offset;
 	int bpl_local = LINE_SIZE_D1;
@@ -176,7 +178,7 @@ static int cx25821_buffer_prepare(struct vb2_buffer *vb)
 	if (vb2_plane_size(vb, 0) < chan->height * buf->bpl)
 		return -EINVAL;
 	vb2_set_plane_payload(vb, 0, chan->height * buf->bpl);
-	buf->vb.v4l2_buf.field = chan->field;
+	buf->vb.field = chan->field;
 
 	if (chan->pixel_formats == PIXEL_FRMT_411) {
 		bpl_local = buf->bpl;
@@ -231,7 +233,7 @@ static int cx25821_buffer_prepare(struct vb2_buffer *vb)
 	}
 
 	dprintk(2, "[%p/%d] buffer_prep - %dx%d %dbpp \"%s\" - dma=0x%08lx\n",
-		buf, buf->vb.v4l2_buf.index, chan->width, chan->height,
+		buf, buf->vb.vb2_buf.index, chan->width, chan->height,
 		chan->fmt->depth, chan->fmt->name,
 		(unsigned long)buf->risc.dma);
 
@@ -240,8 +242,9 @@ static int cx25821_buffer_prepare(struct vb2_buffer *vb)
 
 static void cx25821_buffer_finish(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx25821_buffer *buf =
-		container_of(vb, struct cx25821_buffer, vb);
+		container_of(vbuf, struct cx25821_buffer, vb);
 	struct cx25821_channel *chan = vb->vb2_queue->drv_priv;
 	struct cx25821_dev *dev = chan->dev;
 
@@ -250,8 +253,9 @@ static void cx25821_buffer_finish(struct vb2_buffer *vb)
 
 static void cx25821_buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx25821_buffer *buf =
-		container_of(vb, struct cx25821_buffer, vb);
+		container_of(vbuf, struct cx25821_buffer, vb);
 	struct cx25821_channel *chan = vb->vb2_queue->drv_priv;
 	struct cx25821_dev *dev = chan->dev;
 	struct cx25821_buffer *prev;
@@ -300,7 +304,7 @@ static void cx25821_stop_streaming(struct vb2_queue *q)
 			struct cx25821_buffer, queue);
 
 		list_del(&buf->queue);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&dev->slock, flags);
 }

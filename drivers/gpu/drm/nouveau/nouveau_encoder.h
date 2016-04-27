@@ -63,6 +63,9 @@ struct nouveau_encoder {
 			u32 datarate;
 		} dp;
 	};
+
+	void (*enc_save)(struct drm_encoder *encoder);
+	void (*enc_restore)(struct drm_encoder *encoder);
 };
 
 struct nouveau_encoder *
@@ -80,7 +83,7 @@ static inline struct drm_encoder *to_drm_encoder(struct nouveau_encoder *enc)
 	return &enc->base.base;
 }
 
-static inline struct drm_encoder_slave_funcs *
+static inline const struct drm_encoder_slave_funcs *
 get_slave_funcs(struct drm_encoder *enc)
 {
 	return to_encoder_slave(enc)->slave_funcs;

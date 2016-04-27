@@ -47,10 +47,20 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/sun4i-a10.h>
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	model = "Utoo P66";
 	compatible = "utoo,p66", "allwinner,sun5i-a13";
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
+		/* Note levels of 10 / 20% result in backlight off */
+		brightness-levels = <0 30 40 50 60 70 80 90 100>;
+		default-brightness-level = <6>;
+		/* TODO: backlight uses axp gpio1 as enable pin */
+	};
 
 	i2c_lcd: i2c@0 {
 		/* The lcd panel i2c interface is hooked up via gpios */
@@ -61,6 +71,13 @@
 			<&pio 6 10 GPIO_ACTIVE_HIGH>; /* PG10, scl */
 		i2c-gpio,delay-us = <5>;
 	};
+};
+
+&codec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&codec_pa_pin>;
+	allwinner,pa-gpios = <&pio 6 3 GPIO_ACTIVE_HIGH>; /* PG3 */
+	status = "okay";
 };
 
 &cpu0 {
@@ -158,6 +175,13 @@
 };
 
 &pio {
+	codec_pa_pin: codec_pa_pin@0 {
+		allwinner,pins = "PG3";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
 	mmc0_cd_pin_p66: mmc0_cd_pin@0 {
 		allwinner,pins = "PG0";
 		allwinner,function = "gpio_in";
@@ -199,6 +223,12 @@
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0_pins>;
+	status = "okay";
 };
 
 &reg_dcdc2 {

@@ -44,6 +44,8 @@ can.txt
 	- documentation on CAN protocol family.
 cdc_mbim.txt
 	- 3G/LTE USB modem (Mobile Broadband Interface Model)
+checksum-offloads.txt
+	- Explanation of checksum offloads; LCO, RCO
 cops.txt
 	- info on the COPS LocalTalk Linux driver
 cs89x0.txt

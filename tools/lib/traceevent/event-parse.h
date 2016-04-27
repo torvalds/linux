@@ -294,6 +294,7 @@ enum print_arg_type {
 	PRINT_OP,
 	PRINT_FUNC,
 	PRINT_BITMASK,
+	PRINT_DYNAMIC_ARRAY_LEN,
 };
 
 struct print_arg {
@@ -627,6 +628,16 @@ int pevent_register_print_string(struct pevent *pevent, const char *fmt,
 				 unsigned long long addr);
 int pevent_pid_is_registered(struct pevent *pevent, int pid);
 
+void pevent_print_event_task(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record);
+void pevent_print_event_time(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record,
+			     bool use_trace_clock);
+void pevent_print_event_data(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record);
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 			struct pevent_record *record, bool use_trace_clock);
 
@@ -693,6 +704,9 @@ struct event_format *pevent_find_event(struct pevent *pevent, int id);
 struct event_format *
 pevent_find_event_by_name(struct pevent *pevent, const char *sys, const char *name);
 
+struct event_format *
+pevent_find_event_by_record(struct pevent *pevent, struct pevent_record *record);
+
 void pevent_data_lat_fmt(struct pevent *pevent,
 			 struct trace_seq *s, struct pevent_record *record);
 int pevent_data_type(struct pevent *pevent, struct pevent_record *rec);
@@ -704,6 +718,10 @@ struct cmdline *pevent_data_pid_from_comm(struct pevent *pevent, const char *com
 					  struct cmdline *next);
 int pevent_cmdline_pid(struct pevent *pevent, struct cmdline *cmdline);
 
+void pevent_print_field(struct trace_seq *s, void *data,
+			struct format_field *field);
+void pevent_print_fields(struct trace_seq *s, void *data,
+			 int size __maybe_unused, struct event_format *event);
 void pevent_event_info(struct trace_seq *s, struct event_format *event,
 		       struct pevent_record *record);
 int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,

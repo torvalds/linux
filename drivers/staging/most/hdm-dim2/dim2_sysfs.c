@@ -21,7 +21,8 @@
 struct bus_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct medialb_bus *bus, char *buf);
-	ssize_t (*store)(struct medialb_bus *bus, const char *buf, size_t count);
+	ssize_t (*store)(struct medialb_bus *bus, const char *buf,
+			 size_t count);
 };
 
 static ssize_t state_show(struct medialb_bus *bus, char *buf)
@@ -62,7 +63,6 @@ static ssize_t bus_kobj_attr_show(struct kobject *kobj, struct attribute *attr,
 static ssize_t bus_kobj_attr_store(struct kobject *kobj, struct attribute *attr,
 				   const char *buf, size_t count)
 {
-	ssize_t ret;
 	struct medialb_bus *bus =
 		container_of(kobj, struct medialb_bus, kobj_group);
 	struct bus_attr *xattr = container_of(attr, struct bus_attr, attr);
@@ -70,8 +70,7 @@ static ssize_t bus_kobj_attr_store(struct kobject *kobj, struct attribute *attr,
 	if (!xattr->store)
 		return -EIO;
 
-	ret = xattr->store(bus, buf, count);
-	return ret;
+	return xattr->store(bus, buf, count);
 }
 
 static struct sysfs_ops const bus_kobj_sysfs_ops = {

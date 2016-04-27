@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -164,11 +164,12 @@ struct lu_device_operations {
 /**
  * For lu_object_conf flags
  */
-typedef enum {
+enum loc_flags {
 	/* This is a new object to be allocated, or the file
-	 * corresponding to the object does not exists. */
+	 * corresponding to the object does not exists.
+	 */
 	LOC_F_NEW	= 0x00000001,
-} loc_flags_t;
+};
 
 /**
  * Object configuration, describing particulars of object being created. On
@@ -179,7 +180,7 @@ struct lu_object_conf {
 	/**
 	 * Some hints for obj find and alloc.
 	 */
-	loc_flags_t     loc_flags;
+	enum loc_flags     loc_flags;
 };
 
 /**
@@ -392,7 +393,7 @@ struct lu_device_type_operations {
 
 static inline int lu_device_is_md(const struct lu_device *d)
 {
-	return ergo(d != NULL, d->ld_type->ldt_tags & LU_DEVICE_MD);
+	return ergo(d, d->ld_type->ldt_tags & LU_DEVICE_MD);
 }
 
 /**
@@ -488,7 +489,7 @@ enum lu_object_header_flags {
 	/**
 	 * Mark this object has already been taken out of cache.
 	 */
-	LU_OBJECT_UNHASHED = 1
+	LU_OBJECT_UNHASHED = 1,
 };
 
 enum lu_object_header_attr {
@@ -554,9 +555,9 @@ struct fld;
 
 struct lu_site_bkt_data {
 	/**
-	 * number of busy object on this bucket
+	 * number of object in this bucket on the lsb_lru list.
 	 */
-	long		      lsb_busy;
+	long			lsb_lru_len;
 	/**
 	 * LRU list, updated on each access to object. Protected by
 	 * bucket lock of lu_site::ls_obj_hash.
@@ -584,6 +585,7 @@ enum {
 	LU_SS_CACHE_RACE,
 	LU_SS_CACHE_DEATH_RACE,
 	LU_SS_LRU_PURGED,
+	LU_SS_LRU_LEN,	/* # of objects in lsb_lru lists */
 	LU_SS_LAST_STAT
 };
 
@@ -670,9 +672,6 @@ void lu_object_fini       (struct lu_object *o);
 void lu_object_add_top    (struct lu_object_header *h, struct lu_object *o);
 void lu_object_add	(struct lu_object *before, struct lu_object *o);
 
-void lu_dev_add_linkage(struct lu_site *s, struct lu_device *d);
-void lu_dev_del_linkage(struct lu_site *s, struct lu_device *d);
-
 /**
  * Helpers to initialize and finalize device types.
  */
@@ -709,16 +708,12 @@ static inline int lu_object_is_dying(const struct lu_object_header *h)
 }
 
 void lu_object_put(const struct lu_env *env, struct lu_object *o);
-void lu_object_put_nocache(const struct lu_env *env, struct lu_object *o);
 void lu_object_unhash(const struct lu_env *env, struct lu_object *o);
 
 int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr);
 
 void lu_site_print(const struct lu_env *env, struct lu_site *s, void *cookie,
 		   lu_printer_t printer);
-struct lu_object *lu_object_find(const struct lu_env *env,
-				 struct lu_device *dev, const struct lu_fid *f,
-				 const struct lu_object_conf *conf);
 struct lu_object *lu_object_find_at(const struct lu_env *env,
 				    struct lu_device *dev,
 				    const struct lu_fid *f,
@@ -762,7 +757,7 @@ static inline const struct lu_fid *lu_object_fid(const struct lu_object *o)
 /**
  * return device operations vector for this object
  */
-static const inline struct lu_device_operations *
+static inline const struct lu_device_operations *
 lu_object_ops(const struct lu_object *o)
 {
 	return o->lo_dev->ld_ops;
@@ -790,7 +785,7 @@ do {								      \
 									  \
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		     \
 		lu_object_print(env, &msgdata, lu_cdebug_printer, object);\
-		CDEBUG(mask, format , ## __VA_ARGS__);		    \
+		CDEBUG(mask, format, ## __VA_ARGS__);		    \
 	}								 \
 } while (0)
 
@@ -805,7 +800,7 @@ do {								    \
 		lu_object_header_print(env, &msgdata, lu_cdebug_printer,\
 				       (object)->lo_header);	    \
 		lu_cdebug_printer(env, &msgdata, "\n");		 \
-		CDEBUG(mask, format , ## __VA_ARGS__);		  \
+		CDEBUG(mask, format, ## __VA_ARGS__);		  \
 	}							       \
 } while (0)
 
@@ -819,7 +814,6 @@ void lu_object_header_print(const struct lu_env *env, void *cookie,
  * Check object consistency.
  */
 int lu_object_invariant(const struct lu_object *o);
-
 
 /**
  * Check whether object exists, no matter on local or remote storage.
@@ -902,7 +896,8 @@ enum lu_xattr_flags {
 /** @} helpers */
 
 /** \name lu_context
- * @{ */
+ * @{
+ */
 
 /** For lu_context health-checks */
 enum lu_context_state {
@@ -1123,15 +1118,15 @@ struct lu_context_key {
 	{							 \
 		type *value;				      \
 								  \
-		CLASSERT(PAGE_CACHE_SIZE >= sizeof (*value));       \
+		CLASSERT(PAGE_SIZE >= sizeof (*value));       \
 								  \
-		OBD_ALLOC_PTR(value);			     \
-		if (value == NULL)				\
+		value = kzalloc(sizeof(*value), GFP_NOFS);	\
+		if (!value)				\
 			value = ERR_PTR(-ENOMEM);		 \
 								  \
 		return value;				     \
 	}							 \
-	struct __##mod##__dummy_init {;} /* semicolon catcher */
+	struct __##mod##__dummy_init {; } /* semicolon catcher */
 
 #define LU_KEY_FINI(mod, type)					      \
 	static void mod##_key_fini(const struct lu_context *ctx,	    \
@@ -1139,9 +1134,9 @@ struct lu_context_key {
 	{								   \
 		type *info = data;					  \
 									    \
-		OBD_FREE_PTR(info);					 \
+		kfree(info);					 \
 	}								   \
-	struct __##mod##__dummy_fini {;} /* semicolon catcher */
+	struct __##mod##__dummy_fini {; } /* semicolon catcher */
 
 #define LU_KEY_INIT_FINI(mod, type)   \
 	LU_KEY_INIT(mod, type);	\
@@ -1166,7 +1161,6 @@ void *lu_context_key_get     (const struct lu_context *ctx,
 void  lu_context_key_quiesce (struct lu_context_key *key);
 void  lu_context_key_revive  (struct lu_context_key *key);
 
-
 /*
  * LU_KEY_INIT_GENERIC() has to be a macro to correctly determine an
  * owning module.
@@ -1182,7 +1176,7 @@ void  lu_context_key_revive  (struct lu_context_key *key);
 		do {						    \
 			LU_CONTEXT_KEY_INIT(key);		       \
 			key = va_arg(args, struct lu_context_key *);    \
-		} while (key != NULL);				  \
+		} while (key);				  \
 		va_end(args);					   \
 	}
 
@@ -1193,30 +1187,28 @@ void  lu_context_key_revive  (struct lu_context_key *key);
 		mod##_key_init_generic(__VA_ARGS__, NULL);	      \
 		return lu_context_key_register_many(__VA_ARGS__, NULL); \
 	}							       \
-	struct __##mod##_dummy_type_init {;}
+	struct __##mod##_dummy_type_init {; }
 
 #define LU_TYPE_FINI(mod, ...)					  \
 	static void mod##_type_fini(struct lu_device_type *t)	   \
 	{							       \
 		lu_context_key_degister_many(__VA_ARGS__, NULL);	\
 	}							       \
-	struct __##mod##_dummy_type_fini {;}
+	struct __##mod##_dummy_type_fini {; }
 
 #define LU_TYPE_START(mod, ...)				 \
 	static void mod##_type_start(struct lu_device_type *t)  \
 	{						       \
 		lu_context_key_revive_many(__VA_ARGS__, NULL);  \
 	}						       \
-	struct __##mod##_dummy_type_start {;}
+	struct __##mod##_dummy_type_start {; }
 
 #define LU_TYPE_STOP(mod, ...)				  \
 	static void mod##_type_stop(struct lu_device_type *t)   \
 	{						       \
 		lu_context_key_quiesce_many(__VA_ARGS__, NULL); \
 	}						       \
-	struct __##mod##_dummy_type_stop {;}
-
-
+	struct __##mod##_dummy_type_stop {; }
 
 #define LU_TYPE_INIT_FINI(mod, ...)	     \
 	LU_TYPE_INIT(mod, __VA_ARGS__);	 \
@@ -1240,14 +1232,6 @@ void lu_context_key_degister_many(struct lu_context_key *k, ...);
 void lu_context_key_revive_many  (struct lu_context_key *k, ...);
 void lu_context_key_quiesce_many (struct lu_context_key *k, ...);
 
-/*
- * update/clear ctx/ses tags.
- */
-void lu_context_tags_update(__u32 tags);
-void lu_context_tags_clear(__u32 tags);
-void lu_session_tags_update(__u32 tags);
-void lu_session_tags_clear(__u32 tags);
-
 /**
  * Environment.
  */
@@ -1265,7 +1249,6 @@ struct lu_env {
 int  lu_env_init  (struct lu_env *env, __u32 tags);
 void lu_env_fini  (struct lu_env *env);
 int  lu_env_refill(struct lu_env *env);
-int  lu_env_refill_by_tags(struct lu_env *env, __u32 ctags, __u32 stags);
 
 /** @} lu_context */
 
@@ -1317,22 +1300,6 @@ struct lu_kmem_descr {
 
 int  lu_kmem_init(struct lu_kmem_descr *caches);
 void lu_kmem_fini(struct lu_kmem_descr *caches);
-
-void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
-			  const struct lu_fid *fid);
-struct lu_object *lu_object_anon(const struct lu_env *env,
-				 struct lu_device *dev,
-				 const struct lu_object_conf *conf);
-
-/** null buffer */
-extern struct lu_buf LU_BUF_NULL;
-
-void lu_buf_free(struct lu_buf *buf);
-void lu_buf_alloc(struct lu_buf *buf, int size);
-void lu_buf_realloc(struct lu_buf *buf, int size);
-
-int lu_buf_check_and_grow(struct lu_buf *buf, int len);
-struct lu_buf *lu_buf_check_and_alloc(struct lu_buf *buf, int len);
 
 /** @} lu */
 #endif /* __LUSTRE_LU_OBJECT_H */

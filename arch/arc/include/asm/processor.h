@@ -57,11 +57,7 @@ struct task_struct;
  * A lot of busy-wait loops in SMP are based off of non-volatile data otherwise
  * get optimised away by gcc
  */
-#ifdef CONFIG_SMP
 #define cpu_relax()	__asm__ __volatile__ ("" : : : "memory")
-#else
-#define cpu_relax()	do { } while (0)
-#endif
 
 #define cpu_relax_lowlatency() cpu_relax()
 
@@ -114,7 +110,12 @@ extern unsigned int get_wchan(struct task_struct *p);
  * -----------------------------------------------------------------------------
  */
 #define VMALLOC_START	0x70000000
-#define VMALLOC_SIZE	(PAGE_OFFSET - VMALLOC_START)
+
+/*
+ * 1 PGDIR_SIZE each for fixmap/pkmap, 2 PGDIR_SIZE gutter
+ * See asm/highmem.h for details
+ */
+#define VMALLOC_SIZE	(PAGE_OFFSET - VMALLOC_START - PGDIR_SIZE * 4)
 #define VMALLOC_END	(VMALLOC_START + VMALLOC_SIZE)
 
 #define USER_KERNEL_GUTTER    0x10000000

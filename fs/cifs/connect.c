@@ -87,12 +87,15 @@ enum {
 	Opt_sign, Opt_seal, Opt_noac,
 	Opt_fsc, Opt_mfsymlinks,
 	Opt_multiuser, Opt_sloppy, Opt_nosharesock,
+	Opt_persistent, Opt_nopersistent,
+	Opt_resilient, Opt_noresilient,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid, Opt_backupgid, Opt_uid,
 	Opt_cruid, Opt_gid, Opt_file_mode,
 	Opt_dirmode, Opt_port,
 	Opt_rsize, Opt_wsize, Opt_actimeo,
+	Opt_echo_interval,
 
 	/* Mount options which take string value */
 	Opt_user, Opt_pass, Opt_ip,
@@ -169,6 +172,10 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_multiuser, "multiuser" },
 	{ Opt_sloppy, "sloppy" },
 	{ Opt_nosharesock, "nosharesock" },
+	{ Opt_persistent, "persistenthandles"},
+	{ Opt_nopersistent, "nopersistenthandles"},
+	{ Opt_resilient, "resilienthandles"},
+	{ Opt_noresilient, "noresilienthandles"},
 
 	{ Opt_backupuid, "backupuid=%s" },
 	{ Opt_backupgid, "backupgid=%s" },
@@ -182,6 +189,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_rsize, "rsize=%s" },
 	{ Opt_wsize, "wsize=%s" },
 	{ Opt_actimeo, "actimeo=%s" },
+	{ Opt_echo_interval, "echo_interval=%s" },
 
 	{ Opt_blank_user, "user=" },
 	{ Opt_blank_user, "username=" },
@@ -362,7 +370,6 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	server->session_key.response = NULL;
 	server->session_key.len = 0;
 	server->lstrp = jiffies;
-	mutex_unlock(&server->srv_mutex);
 
 	/* mark submitted MIDs for retry and issue callback */
 	INIT_LIST_HEAD(&retry_list);
@@ -375,6 +382,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		list_move(&mid_entry->qhead, &retry_list);
 	}
 	spin_unlock(&GlobalMid_Lock);
+	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "%s: issuing mid callbacks\n", __func__);
 	list_for_each_safe(tmp, tmp2, &retry_list) {
@@ -412,6 +420,7 @@ cifs_echo_request(struct work_struct *work)
 	int rc;
 	struct TCP_Server_Info *server = container_of(work,
 					struct TCP_Server_Info, echo.work);
+	unsigned long echo_interval = server->echo_interval;
 
 	/*
 	 * We cannot send an echo if it is disabled or until the
@@ -421,7 +430,7 @@ cifs_echo_request(struct work_struct *work)
 	 */
 	if (!server->ops->need_neg || server->ops->need_neg(server) ||
 	    (server->ops->can_echo && !server->ops->can_echo(server)) ||
-	    time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
+	    time_before(jiffies, server->lstrp + echo_interval - HZ))
 		goto requeue_echo;
 
 	rc = server->ops->echo ? server->ops->echo(server) : -ENOSYS;
@@ -430,7 +439,7 @@ cifs_echo_request(struct work_struct *work)
 			 server->hostname);
 
 requeue_echo:
-	queue_delayed_work(cifsiod_wq, &server->echo, SMB_ECHO_INTERVAL);
+	queue_delayed_work(cifsiod_wq, &server->echo, echo_interval);
 }
 
 static bool
@@ -481,9 +490,9 @@ server_unresponsive(struct TCP_Server_Info *server)
 	 *     a response in >60s.
 	 */
 	if (server->tcpStatus == CifsGood &&
-	    time_after(jiffies, server->lstrp + 2 * SMB_ECHO_INTERVAL)) {
-		cifs_dbg(VFS, "Server %s has not responded in %d seconds. Reconnecting...\n",
-			 server->hostname, (2 * SMB_ECHO_INTERVAL) / HZ);
+	    time_after(jiffies, server->lstrp + 2 * server->echo_interval)) {
+		cifs_dbg(VFS, "Server %s has not responded in %lu seconds. Reconnecting...\n",
+			 server->hostname, (2 * server->echo_interval) / HZ);
 		cifs_reconnect(server);
 		wake_up(&server->response_q);
 		return true;
@@ -822,7 +831,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	 * 48 bytes is enough to display the header and a little bit
 	 * into the payload for debugging purposes.
 	 */
-	length = server->ops->check_message(buf, server->total_read);
+	length = server->ops->check_message(buf, server->total_read, server);
 	if (length != 0)
 		cifs_dump_mem("Bad SMB: ", buf,
 			min_t(unsigned int, server->total_read, 48));
@@ -1497,6 +1506,33 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		case Opt_nosharesock:
 			vol->nosharesock = true;
 			break;
+		case Opt_nopersistent:
+			vol->nopersistent = true;
+			if (vol->persistent) {
+				cifs_dbg(VFS,
+				  "persistenthandles mount options conflict\n");
+				goto cifs_parse_mount_err;
+			}
+			break;
+		case Opt_persistent:
+			vol->persistent = true;
+			if ((vol->nopersistent) || (vol->resilient)) {
+				cifs_dbg(VFS,
+				  "persistenthandles mount options conflict\n");
+				goto cifs_parse_mount_err;
+			}
+			break;
+		case Opt_resilient:
+			vol->resilient = true;
+			if (vol->persistent) {
+				cifs_dbg(VFS,
+				  "persistenthandles mount options conflict\n");
+				goto cifs_parse_mount_err;
+			}
+			break;
+		case Opt_noresilient:
+			vol->resilient = false; /* already the default */
+			break;
 
 		/* Numeric Values */
 		case Opt_backupuid:
@@ -1590,6 +1626,14 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				cifs_dbg(VFS, "attribute cache timeout too large\n");
 				goto cifs_parse_mount_err;
 			}
+			break;
+		case Opt_echo_interval:
+			if (get_option_ul(args, &option)) {
+				cifs_dbg(VFS, "%s: Invalid echo interval value\n",
+					 __func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->echo_interval = option;
 			break;
 
 		/* String Arguments */
@@ -2056,6 +2100,9 @@ static int match_server(struct TCP_Server_Info *server, struct smb_vol *vol)
 	if (!match_security(server, vol))
 		return 0;
 
+	if (server->echo_interval != vol->echo_interval)
+		return 0;
+
 	return 1;
 }
 
@@ -2175,6 +2222,12 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->tcpStatus = CifsNew;
 	++tcp_ses->srv_count;
 
+	if (volume_info->echo_interval >= SMB_ECHO_INTERVAL_MIN &&
+		volume_info->echo_interval <= SMB_ECHO_INTERVAL_MAX)
+		tcp_ses->echo_interval = volume_info->echo_interval * HZ;
+	else
+		tcp_ses->echo_interval = SMB_ECHO_INTERVAL_DEFAULT * HZ;
+
 	rc = ip_connect(tcp_ses);
 	if (rc < 0) {
 		cifs_dbg(VFS, "Error connecting to socket. Aborting operation.\n");
@@ -2204,7 +2257,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	cifs_fscache_get_client_cookie(tcp_ses);
 
 	/* queue echo request delayed work */
-	queue_delayed_work(cifsiod_wq, &tcp_ses->echo, SMB_ECHO_INTERVAL);
+	queue_delayed_work(cifsiod_wq, &tcp_ses->echo, tcp_ses->echo_interval);
 
 	return tcp_ses;
 
@@ -2325,13 +2378,14 @@ static int
 cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 {
 	int rc = 0;
-	char *desc, *delim, *payload;
+	const char *delim, *payload;
+	char *desc;
 	ssize_t len;
 	struct key *key;
 	struct TCP_Server_Info *server = ses->server;
 	struct sockaddr_in *sa;
 	struct sockaddr_in6 *sa6;
-	struct user_key_payload *upayload;
+	const struct user_key_payload *upayload;
 
 	desc = kmalloc(CIFSCREDS_DESC_SIZE, GFP_KERNEL);
 	if (!desc)
@@ -2374,14 +2428,14 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 	}
 
 	down_read(&key->sem);
-	upayload = key->payload.data;
+	upayload = user_key_payload(key);
 	if (IS_ERR_OR_NULL(upayload)) {
 		rc = upayload ? PTR_ERR(upayload) : -EINVAL;
 		goto out_key_put;
 	}
 
 	/* find first : in payload */
-	payload = (char *)upayload->data;
+	payload = upayload->data;
 	delim = strnchr(payload, upayload->datalen, ':');
 	cifs_dbg(FYI, "payload=%s\n", payload);
 	if (!delim) {
@@ -2654,6 +2708,42 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		cifs_dbg(FYI, "DFS disabled (%d)\n", tcon->Flags);
 	}
 	tcon->seal = volume_info->seal;
+	tcon->use_persistent = false;
+	/* check if SMB2 or later, CIFS does not support persistent handles */
+	if (volume_info->persistent) {
+		if (ses->server->vals->protocol_id == 0) {
+			cifs_dbg(VFS,
+			     "SMB3 or later required for persistent handles\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+#ifdef CONFIG_CIFS_SMB2
+		} else if (ses->server->capabilities &
+			   SMB2_GLOBAL_CAP_PERSISTENT_HANDLES)
+			tcon->use_persistent = true;
+		else /* persistent handles requested but not supported */ {
+			cifs_dbg(VFS,
+				"Persistent handles not supported on share\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+#endif /* CONFIG_CIFS_SMB2 */
+		}
+#ifdef CONFIG_CIFS_SMB2
+	} else if ((tcon->capabilities & SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY)
+	     && (ses->server->capabilities & SMB2_GLOBAL_CAP_PERSISTENT_HANDLES)
+	     && (volume_info->nopersistent == false)) {
+		cifs_dbg(FYI, "enabling persistent handles\n");
+		tcon->use_persistent = true;
+#endif /* CONFIG_CIFS_SMB2 */
+	} else if (volume_info->resilient) {
+		if (ses->server->vals->protocol_id == 0) {
+			cifs_dbg(VFS,
+			     "SMB2.1 or later required for resilient handles\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+		}
+		tcon->use_resilient = true;
+	}
+
 	/*
 	 * We can have only one retry value for a connection to a share so for
 	 * resources mounted more than once to the same server share the last
@@ -2909,8 +2999,7 @@ ip_rfc1001_connect(struct TCP_Server_Info *server)
 	if (ses_init_buf) {
 		ses_init_buf->trailer.session_req.called_len = 32;
 
-		if (server->server_RFC1001_name &&
-		    server->server_RFC1001_name[0] != 0)
+		if (server->server_RFC1001_name[0] != 0)
 			rfc1002mangle(ses_init_buf->trailer.
 				      session_req.called_name,
 				      server->server_RFC1001_name,
@@ -3502,6 +3591,15 @@ try_mount_again:
 		goto mount_fail_check;
 	}
 
+#ifdef CONFIG_CIFS_SMB2
+	if ((volume_info->persistent == true) && ((ses->server->capabilities &
+		SMB2_GLOBAL_CAP_PERSISTENT_HANDLES) == 0)) {
+		cifs_dbg(VFS, "persistent handles not supported by server\n");
+		rc = -EOPNOTSUPP;
+		goto mount_fail_check;
+	}
+#endif /* CONFIG_CIFS_SMB2*/
+
 	/* search for existing tcon to this server share */
 	tcon = cifs_get_tcon(ses, volume_info);
 	if (IS_ERR(tcon)) {
@@ -3532,7 +3630,7 @@ try_mount_again:
 	cifs_sb->rsize = server->ops->negotiate_rsize(tcon, volume_info);
 
 	/* tune readahead according to rsize */
-	cifs_sb->bdi.ra_pages = cifs_sb->rsize / PAGE_CACHE_SIZE;
+	cifs_sb->bdi.ra_pages = cifs_sb->rsize / PAGE_SIZE;
 
 remote_path_check:
 #ifdef CONFIG_CIFS_DFS_UPCALL

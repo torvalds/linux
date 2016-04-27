@@ -49,7 +49,7 @@
  */
 #ifndef __ASSEMBLY__
 struct task_struct;
-#include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <linux/atomic.h>
 
 struct thread_info {
@@ -57,9 +57,7 @@ struct thread_info {
 	__u32			flags;		/* low level flags */
 	__u32			status;		/* thread synchronous flags */
 	__u32			cpu;		/* current CPU */
-	int			saved_preempt_count;
 	mm_segment_t		addr_limit;
-	void __user		*sysenter_return;
 	unsigned int		sig_on_uaccess_error:1;
 	unsigned int		uaccess_err:1;	/* uaccess failed */
 };
@@ -69,7 +67,6 @@ struct thread_info {
 	.task		= &tsk,			\
 	.flags		= 0,			\
 	.cpu		= 0,			\
-	.saved_preempt_count = INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
 }
 
@@ -137,10 +134,13 @@ struct thread_info {
 #define _TIF_ADDR32		(1 << TIF_ADDR32)
 #define _TIF_X32		(1 << TIF_X32)
 
-/* work to do in syscall_trace_enter() */
+/*
+ * work to do in syscall_trace_enter().  Also includes TIF_NOHZ for
+ * enter_from_user_mode()
+ */
 #define _TIF_WORK_SYSCALL_ENTRY	\
 	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_EMU | _TIF_SYSCALL_AUDIT |	\
-	 _TIF_SECCOMP | _TIF_SINGLESTEP | _TIF_SYSCALL_TRACEPOINT |	\
+	 _TIF_SECCOMP | _TIF_SYSCALL_TRACEPOINT |	\
 	 _TIF_NOHZ)
 
 /* work to do on any return to user space */
@@ -276,11 +276,9 @@ static inline bool is_ia32_task(void)
  */
 #define force_iret() set_thread_flag(TIF_NOTIFY_RESUME)
 
-#endif	/* !__ASSEMBLY__ */
-
-#ifndef __ASSEMBLY__
 extern void arch_task_cache_init(void);
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 extern void arch_release_task_struct(struct task_struct *tsk);
-#endif
+#endif	/* !__ASSEMBLY__ */
+
 #endif /* _ASM_X86_THREAD_INFO_H */

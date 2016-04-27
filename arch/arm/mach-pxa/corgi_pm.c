@@ -27,7 +27,7 @@
 
 #include <mach/corgi.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/sharpsl_pm.h>
+#include "sharpsl_pm.h"
 
 #include "generic.h"
 

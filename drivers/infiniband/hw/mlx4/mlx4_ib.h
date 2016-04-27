@@ -129,21 +129,22 @@ struct mlx4_ib_cq {
 	struct list_head		recv_qp_list;
 };
 
+#define MLX4_MR_PAGES_ALIGN 0x40
+
 struct mlx4_ib_mr {
 	struct ib_mr		ibmr;
+	__be64			*pages;
+	dma_addr_t		page_map;
+	u32			npages;
+	u32			max_pages;
 	struct mlx4_mr		mmr;
 	struct ib_umem	       *umem;
+	void			*pages_alloc;
 };
 
 struct mlx4_ib_mw {
 	struct ib_mw		ibmw;
 	struct mlx4_mw		mmw;
-};
-
-struct mlx4_ib_fast_reg_page_list {
-	struct ib_fast_reg_page_list	ibfrpl;
-	__be64			       *mapped_page_list;
-	dma_addr_t			map;
 };
 
 struct mlx4_ib_fmr {
@@ -176,11 +177,18 @@ struct mlx4_ib_wq {
 	unsigned		tail;
 };
 
+enum {
+	MLX4_IB_QP_CREATE_ROCE_V2_GSI = IB_QP_CREATE_RESERVED_START
+};
+
 enum mlx4_ib_qp_flags {
 	MLX4_IB_QP_LSO = IB_QP_CREATE_IPOIB_UD_LSO,
 	MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK = IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK,
 	MLX4_IB_QP_NETIF = IB_QP_CREATE_NETIF_QP,
 	MLX4_IB_QP_CREATE_USE_GFP_NOIO = IB_QP_CREATE_USE_GFP_NOIO,
+
+	/* Mellanox specific flags start from IB_QP_CREATE_RESERVED_START */
+	MLX4_IB_ROCE_V2_GSI_QP = MLX4_IB_QP_CREATE_ROCE_V2_GSI,
 	MLX4_IB_SRIOV_TUNNEL_QP = 1 << 30,
 	MLX4_IB_SRIOV_SQP = 1 << 31,
 };
@@ -320,6 +328,7 @@ struct mlx4_ib_qp {
 	struct list_head	qps_list;
 	struct list_head	cq_recv_list;
 	struct list_head	cq_send_list;
+	struct counter_index	*counter_index;
 };
 
 struct mlx4_ib_srq {
@@ -476,6 +485,7 @@ struct gid_cache_context {
 
 struct gid_entry {
 	union ib_gid	gid;
+	enum ib_gid_type gid_type;
 	struct gid_cache_context *ctx;
 };
 
@@ -528,8 +538,15 @@ struct mlx4_ib_iov_port {
 };
 
 struct counter_index {
+	struct  list_head       list;
 	u32		index;
 	u8		allocated;
+};
+
+struct mlx4_ib_counters {
+	struct list_head        counters_list;
+	struct mutex            mutex; /* mutex for accessing counters list */
+	u32			default_counter;
 };
 
 struct mlx4_ib_dev {
@@ -550,7 +567,7 @@ struct mlx4_ib_dev {
 	struct mutex		cap_mask_mutex;
 	bool			ib_active;
 	struct mlx4_ib_iboe	iboe;
-	struct counter_index    counters[MLX4_MAX_PORTS];
+	struct mlx4_ib_counters counters_table[MLX4_MAX_PORTS];
 	int		       *eq_table;
 	struct kobject	       *iov_parent;
 	struct kobject	       *ports_parent;
@@ -638,11 +655,6 @@ static inline struct mlx4_ib_mw *to_mmw(struct ib_mw *ibmw)
 	return container_of(ibmw, struct mlx4_ib_mw, ibmw);
 }
 
-static inline struct mlx4_ib_fast_reg_page_list *to_mfrpl(struct ib_fast_reg_page_list *ibfrpl)
-{
-	return container_of(ibfrpl, struct mlx4_ib_fast_reg_page_list, ibfrpl);
-}
-
 static inline struct mlx4_ib_fmr *to_mfmr(struct ib_fmr *ibfmr)
 {
 	return container_of(ibfmr, struct mlx4_ib_fmr, ibfmr);
@@ -699,17 +711,15 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int access_flags,
 				  struct ib_udata *udata);
 int mlx4_ib_dereg_mr(struct ib_mr *mr);
-struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
-int mlx4_ib_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
-		    struct ib_mw_bind *mw_bind);
+struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+			       struct ib_udata *udata);
 int mlx4_ib_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *mlx4_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,
 			       u32 max_num_sg);
-struct ib_fast_reg_page_list *mlx4_ib_alloc_fast_reg_page_list(struct ib_device *ibdev,
-							       int page_list_len);
-void mlx4_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list);
-
+int mlx4_ib_map_mr_sg(struct ib_mr *ibmr,
+		      struct scatterlist *sg,
+		      int sg_nents);
 int mlx4_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
 struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
@@ -813,7 +823,7 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
 			 u32 qkey, struct ib_ah_attr *attr, u8 *s_mac,
-			 struct ib_mad *mad);
+			 u16 vlan_id, struct ib_mad *mad);
 
 __be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx);
 

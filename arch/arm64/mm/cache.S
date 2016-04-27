@@ -81,24 +81,30 @@ ENDPROC(__flush_cache_user_range)
 /*
  *	__flush_dcache_area(kaddr, size)
  *
- *	Ensure that the data held in the page kaddr is written back to the
- *	page in question.
+ *	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ *	are cleaned and invalidated to the PoC.
  *
  *	- kaddr   - kernel address
  *	- size    - size in question
  */
 ENTRY(__flush_dcache_area)
-	dcache_line_size x2, x3
-	add	x1, x0, x1
-	sub	x3, x2, #1
-	bic	x0, x0, x3
-1:	dc	civac, x0			// clean & invalidate D line / unified line
-	add	x0, x0, x2
-	cmp	x0, x1
-	b.lo	1b
-	dsb	sy
+	dcache_by_line_op civac, sy, x0, x1, x2, x3
 	ret
-ENDPROC(__flush_dcache_area)
+ENDPIPROC(__flush_dcache_area)
+
+/*
+ *	__clean_dcache_area_pou(kaddr, size)
+ *
+ * 	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ * 	are cleaned to the PoU.
+ *
+ *	- kaddr   - kernel address
+ *	- size    - size in question
+ */
+ENTRY(__clean_dcache_area_pou)
+	dcache_by_line_op cvau, ish, x0, x1, x2, x3
+	ret
+ENDPROC(__clean_dcache_area_pou)
 
 /*
  *	__inval_cache_range(start, end)
@@ -131,7 +137,7 @@ __dma_inv_range:
 	b.lo	2b
 	dsb	sy
 	ret
-ENDPROC(__inval_cache_range)
+ENDPIPROC(__inval_cache_range)
 ENDPROC(__dma_inv_range)
 
 /*
@@ -171,7 +177,7 @@ ENTRY(__dma_flush_range)
 	b.lo	1b
 	dsb	sy
 	ret
-ENDPROC(__dma_flush_range)
+ENDPIPROC(__dma_flush_range)
 
 /*
  *	__dma_map_area(start, size, dir)
@@ -184,7 +190,7 @@ ENTRY(__dma_map_area)
 	cmp	w2, #DMA_FROM_DEVICE
 	b.eq	__dma_inv_range
 	b	__dma_clean_range
-ENDPROC(__dma_map_area)
+ENDPIPROC(__dma_map_area)
 
 /*
  *	__dma_unmap_area(start, size, dir)
@@ -197,4 +203,4 @@ ENTRY(__dma_unmap_area)
 	cmp	w2, #DMA_TO_DEVICE
 	b.ne	__dma_inv_range
 	ret
-ENDPROC(__dma_unmap_area)
+ENDPIPROC(__dma_unmap_area)

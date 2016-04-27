@@ -17,11 +17,15 @@
 #include <asm/xics.h>
 #include <asm/debug.h>
 #include <asm/synch.h>
+#include <asm/cputhreads.h>
 #include <asm/ppc-opcode.h>
 
 #include "book3s_xics.h"
 
 #define DEBUG_PASSUP
+
+int h_ipi_redirect = 1;
+EXPORT_SYMBOL(h_ipi_redirect);
 
 static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 			    u32 new_irq);
@@ -50,11 +54,84 @@ static void ics_rm_check_resend(struct kvmppc_xics *xics,
 
 /* -- ICP routines -- */
 
+#ifdef CONFIG_SMP
+static inline void icp_send_hcore_msg(int hcore, struct kvm_vcpu *vcpu)
+{
+	int hcpu;
+
+	hcpu = hcore << threads_shift;
+	kvmppc_host_rm_ops_hv->rm_core[hcore].rm_data = vcpu;
+	smp_muxed_ipi_set_message(hcpu, PPC_MSG_RM_HOST_ACTION);
+	icp_native_cause_ipi_rm(hcpu);
+}
+#else
+static inline void icp_send_hcore_msg(int hcore, struct kvm_vcpu *vcpu) { }
+#endif
+
+/*
+ * We start the search from our current CPU Id in the core map
+ * and go in a circle until we get back to our ID looking for a
+ * core that is running in host context and that hasn't already
+ * been targeted for another rm_host_ops.
+ *
+ * In the future, could consider using a fairer algorithm (one
+ * that distributes the IPIs better)
+ *
+ * Returns -1, if no CPU could be found in the host
+ * Else, returns a CPU Id which has been reserved for use
+ */
+static inline int grab_next_hostcore(int start,
+		struct kvmppc_host_rm_core *rm_core, int max, int action)
+{
+	bool success;
+	int core;
+	union kvmppc_rm_state old, new;
+
+	for (core = start + 1; core < max; core++)  {
+		old = new = READ_ONCE(rm_core[core].rm_state);
+
+		if (!old.in_host || old.rm_action)
+			continue;
+
+		/* Try to grab this host core if not taken already. */
+		new.rm_action = action;
+
+		success = cmpxchg64(&rm_core[core].rm_state.raw,
+						old.raw, new.raw) == old.raw;
+		if (success) {
+			/*
+			 * Make sure that the store to the rm_action is made
+			 * visible before we return to caller (and the
+			 * subsequent store to rm_data) to synchronize with
+			 * the IPI handler.
+			 */
+			smp_wmb();
+			return core;
+		}
+	}
+
+	return -1;
+}
+
+static inline int find_available_hostcore(int action)
+{
+	int core;
+	int my_core = smp_processor_id() >> threads_shift;
+	struct kvmppc_host_rm_core *rm_core = kvmppc_host_rm_ops_hv->rm_core;
+
+	core = grab_next_hostcore(my_core, rm_core, cpu_nr_cores(), action);
+	if (core == -1)
+		core = grab_next_hostcore(core, rm_core, my_core, action);
+
+	return core;
+}
+
 static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 				struct kvm_vcpu *this_vcpu)
 {
 	struct kvmppc_icp *this_icp = this_vcpu->arch.icp;
 	int cpu;
+	int hcore;
 
 	/* Mark the target VCPU as having an interrupt pending */
 	vcpu->stat.queue_intr++;
@@ -66,11 +143,22 @@ static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 		return;
 	}
 
-	/* Check if the core is loaded, if not, too hard */
+	/*
+	 * Check if the core is loaded,
+	 * if not, find an available host core to post to wake the VCPU,
+	 * if we can't find one, set up state to eventually return too hard.
+	 */
 	cpu = vcpu->arch.thread_cpu;
 	if (cpu < 0 || cpu >= nr_cpu_ids) {
-		this_icp->rm_action |= XICS_RM_KICK_VCPU;
-		this_icp->rm_kick_target = vcpu;
+		hcore = -1;
+		if (kvmppc_host_rm_ops_hv && h_ipi_redirect)
+			hcore = find_available_hostcore(XICS_RM_KICK_VCPU);
+		if (hcore != -1) {
+			icp_send_hcore_msg(hcore, vcpu);
+		} else {
+			this_icp->rm_action |= XICS_RM_KICK_VCPU;
+			this_icp->rm_kick_target = vcpu;
+		}
 		return;
 	}
 
@@ -622,4 +710,41 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	}
  bail:
 	return check_too_hard(xics, icp);
+}
+
+/*  --- Non-real mode XICS-related built-in routines ---  */
+
+/**
+ * Host Operations poked by RM KVM
+ */
+static void rm_host_ipi_action(int action, void *data)
+{
+	switch (action) {
+	case XICS_RM_KICK_VCPU:
+		kvmppc_host_rm_ops_hv->vcpu_kick(data);
+		break;
+	default:
+		WARN(1, "Unexpected rm_action=%d data=%p\n", action, data);
+		break;
+	}
+
+}
+
+void kvmppc_xics_ipi_action(void)
+{
+	int core;
+	unsigned int cpu = smp_processor_id();
+	struct kvmppc_host_rm_core *rm_corep;
+
+	core = cpu >> threads_shift;
+	rm_corep = &kvmppc_host_rm_ops_hv->rm_core[core];
+
+	if (rm_corep->rm_data) {
+		rm_host_ipi_action(rm_corep->rm_state.rm_action,
+							rm_corep->rm_data);
+		/* Order these stores against the real mode KVM */
+		rm_corep->rm_data = NULL;
+		smp_wmb();
+		rm_corep->rm_state.rm_action = 0;
+	}
 }

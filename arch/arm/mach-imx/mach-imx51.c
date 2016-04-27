@@ -40,11 +40,10 @@ static void __init imx51_ipu_mipi_setup(void)
 	WARN_ON(!hsc_addr);
 
 	/* setup MIPI module to legacy mode */
-	__raw_writel(0xf00, hsc_addr);
+	imx_writel(0xf00, hsc_addr);
 
 	/* CSI mode: reserved; DI control mode: legacy (from Freescale BSP) */
-	__raw_writel(__raw_readl(hsc_addr + 0x800) | 0x30ff,
-		hsc_addr + 0x800);
+	imx_writel(imx_readl(hsc_addr + 0x800) | 0x30ff, hsc_addr + 0x800);
 
 	iounmap(hsc_addr);
 }

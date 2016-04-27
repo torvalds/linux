@@ -6,7 +6,7 @@
  *
  * License 1: GPLv2
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  *
  * This file is free software; you may copy, redistribute and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@
  *
  * License 2: Modified BSD
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -518,13 +518,45 @@ static int xgbe_disable_tx_flow_control(struct xgbe_prv_data *pdata)
 
 static int xgbe_enable_tx_flow_control(struct xgbe_prv_data *pdata)
 {
+	struct ieee_pfc *pfc = pdata->pfc;
+	struct ieee_ets *ets = pdata->ets;
 	unsigned int max_q_count, q_count;
 	unsigned int reg, reg_val;
 	unsigned int i;
 
 	/* Set MTL flow control */
-	for (i = 0; i < pdata->rx_q_count; i++)
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, EHFC, 1);
+	for (i = 0; i < pdata->rx_q_count; i++) {
+		unsigned int ehfc = 0;
+
+		if (pfc && ets) {
+			unsigned int prio;
+
+			for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+				unsigned int tc;
+
+				/* Does this queue handle the priority? */
+				if (pdata->prio2q_map[prio] != i)
+					continue;
+
+				/* Get the Traffic Class for this priority */
+				tc = ets->prio_tc[prio];
+
+				/* Check if flow control should be enabled */
+				if (pfc->pfc_en & (1 << tc)) {
+					ehfc = 1;
+					break;
+				}
+			}
+		} else {
+			ehfc = 1;
+		}
+
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, EHFC, ehfc);
+
+		netif_dbg(pdata, drv, pdata->netdev,
+			  "flow control %s for RXq%u\n",
+			  ehfc ? "enabled" : "disabled", i);
+	}
 
 	/* Set MAC flow control */
 	max_q_count = XGMAC_MAX_FLOW_CONTROL_QUEUES;
@@ -702,6 +734,113 @@ static int xgbe_set_xgmii_speed(struct xgbe_prv_data *pdata)
 	return 0;
 }
 
+static int xgbe_enable_rx_vlan_stripping(struct xgbe_prv_data *pdata)
+{
+	/* Put the VLAN tag in the Rx descriptor */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, EVLRXS, 1);
+
+	/* Don't check the VLAN type */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, DOVLTC, 1);
+
+	/* Check only C-TAG (0x8100) packets */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, ERSVLM, 0);
+
+	/* Don't consider an S-TAG (0x88A8) packet as a VLAN packet */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, ESVL, 0);
+
+	/* Enable VLAN tag stripping */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, EVLS, 0x3);
+
+	return 0;
+}
+
+static int xgbe_disable_rx_vlan_stripping(struct xgbe_prv_data *pdata)
+{
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, EVLS, 0);
+
+	return 0;
+}
+
+static int xgbe_enable_rx_vlan_filtering(struct xgbe_prv_data *pdata)
+{
+	/* Enable VLAN filtering */
+	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 1);
+
+	/* Enable VLAN Hash Table filtering */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, VTHM, 1);
+
+	/* Disable VLAN tag inverse matching */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, VTIM, 0);
+
+	/* Only filter on the lower 12-bits of the VLAN tag */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, ETV, 1);
+
+	/* In order for the VLAN Hash Table filtering to be effective,
+	 * the VLAN tag identifier in the VLAN Tag Register must not
+	 * be zero.  Set the VLAN tag identifier to "1" to enable the
+	 * VLAN Hash Table filtering.  This implies that a VLAN tag of
+	 * 1 will always pass filtering.
+	 */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, VL, 1);
+
+	return 0;
+}
+
+static int xgbe_disable_rx_vlan_filtering(struct xgbe_prv_data *pdata)
+{
+	/* Disable VLAN filtering */
+	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 0);
+
+	return 0;
+}
+
+static u32 xgbe_vid_crc32_le(__le16 vid_le)
+{
+	u32 poly = 0xedb88320;	/* CRCPOLY_LE */
+	u32 crc = ~0;
+	u32 temp = 0;
+	unsigned char *data = (unsigned char *)&vid_le;
+	unsigned char data_byte = 0;
+	int i, bits;
+
+	bits = get_bitmask_order(VLAN_VID_MASK);
+	for (i = 0; i < bits; i++) {
+		if ((i % 8) == 0)
+			data_byte = data[i / 8];
+
+		temp = ((crc & 1) ^ data_byte) & 1;
+		crc >>= 1;
+		data_byte >>= 1;
+
+		if (temp)
+			crc ^= poly;
+	}
+
+	return crc;
+}
+
+static int xgbe_update_vlan_hash_table(struct xgbe_prv_data *pdata)
+{
+	u32 crc;
+	u16 vid;
+	__le16 vid_le;
+	u16 vlan_hash_table = 0;
+
+	/* Generate the VLAN Hash Table value */
+	for_each_set_bit(vid, pdata->active_vlans, VLAN_N_VID) {
+		/* Get the CRC32 value of the VLAN ID */
+		vid_le = cpu_to_le16(vid);
+		crc = bitrev32(~xgbe_vid_crc32_le(vid_le)) >> 28;
+
+		vlan_hash_table |= (1 << crc);
+	}
+
+	/* Set the VLAN Hash Table filtering register */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANHTR, VLHT, vlan_hash_table);
+
+	return 0;
+}
+
 static int xgbe_set_promiscuous_mode(struct xgbe_prv_data *pdata,
 				     unsigned int enable)
 {
@@ -713,6 +852,14 @@ static int xgbe_set_promiscuous_mode(struct xgbe_prv_data *pdata,
 	netif_dbg(pdata, drv, pdata->netdev, "%s promiscuous mode\n",
 		  enable ? "entering" : "leaving");
 	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, PR, val);
+
+	/* Hardware will still perform VLAN filtering in promiscuous mode */
+	if (enable) {
+		xgbe_disable_rx_vlan_filtering(pdata);
+	} else {
+		if (pdata->netdev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
+			xgbe_enable_rx_vlan_filtering(pdata);
+	}
 
 	return 0;
 }
@@ -875,6 +1022,7 @@ static int xgbe_config_rx_mode(struct xgbe_prv_data *pdata)
 static int xgbe_read_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 			      int mmd_reg)
 {
+	unsigned long flags;
 	unsigned int mmd_address;
 	int mmd_data;
 
@@ -892,10 +1040,10 @@ static int xgbe_read_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	 * register offsets must therefore be adjusted by left shifting the
 	 * offset 2 bits and reading 32 bits of data.
 	 */
-	mutex_lock(&pdata->xpcs_mutex);
+	spin_lock_irqsave(&pdata->xpcs_lock, flags);
 	XPCS_IOWRITE(pdata, PCS_MMD_SELECT << 2, mmd_address >> 8);
 	mmd_data = XPCS_IOREAD(pdata, (mmd_address & 0xff) << 2);
-	mutex_unlock(&pdata->xpcs_mutex);
+	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
 
 	return mmd_data;
 }
@@ -904,6 +1052,7 @@ static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 				int mmd_reg, int mmd_data)
 {
 	unsigned int mmd_address;
+	unsigned long flags;
 
 	if (mmd_reg & MII_ADDR_C45)
 		mmd_address = mmd_reg & ~MII_ADDR_C45;
@@ -919,10 +1068,10 @@ static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	 * register offsets must therefore be adjusted by left shifting the
 	 * offset 2 bits and reading 32 bits of data.
 	 */
-	mutex_lock(&pdata->xpcs_mutex);
+	spin_lock_irqsave(&pdata->xpcs_lock, flags);
 	XPCS_IOWRITE(pdata, PCS_MMD_SELECT << 2, mmd_address >> 8);
 	XPCS_IOWRITE(pdata, (mmd_address & 0xff) << 2, mmd_data);
-	mutex_unlock(&pdata->xpcs_mutex);
+	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
 }
 
 static int xgbe_tx_complete(struct xgbe_ring_desc *rdesc)
@@ -940,116 +1089,6 @@ static int xgbe_disable_rx_csum(struct xgbe_prv_data *pdata)
 static int xgbe_enable_rx_csum(struct xgbe_prv_data *pdata)
 {
 	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, IPC, 1);
-
-	return 0;
-}
-
-static int xgbe_enable_rx_vlan_stripping(struct xgbe_prv_data *pdata)
-{
-	/* Put the VLAN tag in the Rx descriptor */
-	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, EVLRXS, 1);
-
-	/* Don't check the VLAN type */
-	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, DOVLTC, 1);
-
-	/* Check only C-TAG (0x8100) packets */
-	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, ERSVLM, 0);
-
-	/* Don't consider an S-TAG (0x88A8) packet as a VLAN packet */
-	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, ESVL, 0);
-
-	/* Enable VLAN tag stripping */
-	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, EVLS, 0x3);
-
-	return 0;
-}
-
-static int xgbe_disable_rx_vlan_stripping(struct xgbe_prv_data *pdata)
-{
-	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, EVLS, 0);
-
-	return 0;
-}
-
-static int xgbe_enable_rx_vlan_filtering(struct xgbe_prv_data *pdata)
-{
-	/* Enable VLAN filtering */
-	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 1);
-
-	/* Enable VLAN Hash Table filtering */
-	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, VTHM, 1);
-
-	/* Disable VLAN tag inverse matching */
-	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, VTIM, 0);
-
-	/* Only filter on the lower 12-bits of the VLAN tag */
-	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, ETV, 1);
-
-	/* In order for the VLAN Hash Table filtering to be effective,
-	 * the VLAN tag identifier in the VLAN Tag Register must not
-	 * be zero.  Set the VLAN tag identifier to "1" to enable the
-	 * VLAN Hash Table filtering.  This implies that a VLAN tag of
-	 * 1 will always pass filtering.
-	 */
-	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, VL, 1);
-
-	return 0;
-}
-
-static int xgbe_disable_rx_vlan_filtering(struct xgbe_prv_data *pdata)
-{
-	/* Disable VLAN filtering */
-	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 0);
-
-	return 0;
-}
-
-#ifndef CRCPOLY_LE
-#define CRCPOLY_LE 0xedb88320
-#endif
-static u32 xgbe_vid_crc32_le(__le16 vid_le)
-{
-	u32 poly = CRCPOLY_LE;
-	u32 crc = ~0;
-	u32 temp = 0;
-	unsigned char *data = (unsigned char *)&vid_le;
-	unsigned char data_byte = 0;
-	int i, bits;
-
-	bits = get_bitmask_order(VLAN_VID_MASK);
-	for (i = 0; i < bits; i++) {
-		if ((i % 8) == 0)
-			data_byte = data[i / 8];
-
-		temp = ((crc & 1) ^ data_byte) & 1;
-		crc >>= 1;
-		data_byte >>= 1;
-
-		if (temp)
-			crc ^= poly;
-	}
-
-	return crc;
-}
-
-static int xgbe_update_vlan_hash_table(struct xgbe_prv_data *pdata)
-{
-	u32 crc;
-	u16 vid;
-	__le16 vid_le;
-	u16 vlan_hash_table = 0;
-
-	/* Generate the VLAN Hash Table value */
-	for_each_set_bit(vid, pdata->active_vlans, VLAN_N_VID) {
-		/* Get the CRC32 value of the VLAN ID */
-		vid_le = cpu_to_le16(vid);
-		crc = bitrev32(~xgbe_vid_crc32_le(vid_le)) >> 28;
-
-		vlan_hash_table |= (1 << crc);
-	}
-
-	/* Set the VLAN Hash Table filtering register */
-	XGMAC_IOWRITE_BITS(pdata, MAC_VLANHTR, VLHT, vlan_hash_table);
 
 	return 0;
 }
@@ -1288,11 +1327,42 @@ static int xgbe_config_tstamp(struct xgbe_prv_data *pdata,
 	return 0;
 }
 
+static void xgbe_config_tc(struct xgbe_prv_data *pdata)
+{
+	unsigned int offset, queue, prio;
+	u8 i;
+
+	netdev_reset_tc(pdata->netdev);
+	if (!pdata->num_tcs)
+		return;
+
+	netdev_set_num_tc(pdata->netdev, pdata->num_tcs);
+
+	for (i = 0, queue = 0, offset = 0; i < pdata->num_tcs; i++) {
+		while ((queue < pdata->tx_q_count) &&
+		       (pdata->q2tc_map[queue] == i))
+			queue++;
+
+		netif_dbg(pdata, drv, pdata->netdev, "TC%u using TXq%u-%u\n",
+			  i, offset, queue - 1);
+		netdev_set_tc_queue(pdata->netdev, i, queue - offset, offset);
+		offset = queue;
+	}
+
+	if (!pdata->ets)
+		return;
+
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
+		netdev_set_prio_tc_map(pdata->netdev, prio,
+				       pdata->ets->prio_tc[prio]);
+}
+
 static void xgbe_config_dcb_tc(struct xgbe_prv_data *pdata)
 {
 	struct ieee_ets *ets = pdata->ets;
 	unsigned int total_weight, min_weight, weight;
-	unsigned int i;
+	unsigned int mask, reg, reg_val;
+	unsigned int i, prio;
 
 	if (!ets)
 		return;
@@ -1309,6 +1379,25 @@ static void xgbe_config_dcb_tc(struct xgbe_prv_data *pdata)
 		min_weight = 1;
 
 	for (i = 0; i < pdata->hw_feat.tc_cnt; i++) {
+		/* Map the priorities to the traffic class */
+		mask = 0;
+		for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+			if (ets->prio_tc[prio] == i)
+				mask |= (1 << prio);
+		}
+		mask &= 0xff;
+
+		netif_dbg(pdata, drv, pdata->netdev, "TC%u PRIO mask=%#x\n",
+			  i, mask);
+		reg = MTL_TCPM0R + (MTL_TCPM_INC * (i / MTL_TCPM_TC_PER_REG));
+		reg_val = XGMAC_IOREAD(pdata, reg);
+
+		reg_val &= ~(0xff << ((i % MTL_TCPM_TC_PER_REG) << 3));
+		reg_val |= (mask << ((i % MTL_TCPM_TC_PER_REG) << 3));
+
+		XGMAC_IOWRITE(pdata, reg, reg_val);
+
+		/* Set the traffic class algorithm */
 		switch (ets->tc_tsa[i]) {
 		case IEEE_8021QAZ_TSA_STRICT:
 			netif_dbg(pdata, drv, pdata->netdev,
@@ -1329,38 +1418,12 @@ static void xgbe_config_dcb_tc(struct xgbe_prv_data *pdata)
 			break;
 		}
 	}
+
+	xgbe_config_tc(pdata);
 }
 
 static void xgbe_config_dcb_pfc(struct xgbe_prv_data *pdata)
 {
-	struct ieee_pfc *pfc = pdata->pfc;
-	struct ieee_ets *ets = pdata->ets;
-	unsigned int mask, reg, reg_val;
-	unsigned int tc, prio;
-
-	if (!pfc || !ets)
-		return;
-
-	for (tc = 0; tc < pdata->hw_feat.tc_cnt; tc++) {
-		mask = 0;
-		for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
-			if ((pfc->pfc_en & (1 << prio)) &&
-			    (ets->prio_tc[prio] == tc))
-				mask |= (1 << prio);
-		}
-		mask &= 0xff;
-
-		netif_dbg(pdata, drv, pdata->netdev, "TC%u PFC mask=%#x\n",
-			  tc, mask);
-		reg = MTL_TCPM0R + (MTL_TCPM_INC * (tc / MTL_TCPM_TC_PER_REG));
-		reg_val = XGMAC_IOREAD(pdata, reg);
-
-		reg_val &= ~(0xff << ((tc % MTL_TCPM_TC_PER_REG) << 3));
-		reg_val |= (mask << ((tc % MTL_TCPM_TC_PER_REG) << 3));
-
-		XGMAC_IOWRITE(pdata, reg, reg_val);
-	}
-
 	xgbe_config_flow_control(pdata);
 }
 
@@ -1849,7 +1912,7 @@ static int xgbe_exit(struct xgbe_prv_data *pdata)
 	usleep_range(10, 15);
 
 	/* Poll Until Poll Condition */
-	while (count-- && XGMAC_IOREAD_BITS(pdata, DMA_MR, SWR))
+	while (--count && XGMAC_IOREAD_BITS(pdata, DMA_MR, SWR))
 		usleep_range(500, 600);
 
 	if (!count)
@@ -1873,7 +1936,7 @@ static int xgbe_flush_tx_queues(struct xgbe_prv_data *pdata)
 	/* Poll Until Poll Condition */
 	for (i = 0; i < pdata->tx_q_count; i++) {
 		count = 2000;
-		while (count-- && XGMAC_MTL_IOREAD_BITS(pdata, i,
+		while (--count && XGMAC_MTL_IOREAD_BITS(pdata, i,
 							MTL_Q_TQOMR, FTQ))
 			usleep_range(500, 600);
 
@@ -1940,84 +2003,31 @@ static void xgbe_config_mtl_mode(struct xgbe_prv_data *pdata)
 static unsigned int xgbe_calculate_per_queue_fifo(unsigned int fifo_size,
 						  unsigned int queue_count)
 {
-	unsigned int q_fifo_size = 0;
-	enum xgbe_mtl_fifo_size p_fifo = XGMAC_MTL_FIFO_SIZE_256;
+	unsigned int q_fifo_size;
+	unsigned int p_fifo;
 
-	/* Calculate Tx/Rx fifo share per queue */
-	switch (fifo_size) {
-	case 0:
-		q_fifo_size = XGBE_FIFO_SIZE_B(128);
-		break;
-	case 1:
-		q_fifo_size = XGBE_FIFO_SIZE_B(256);
-		break;
-	case 2:
-		q_fifo_size = XGBE_FIFO_SIZE_B(512);
-		break;
-	case 3:
-		q_fifo_size = XGBE_FIFO_SIZE_KB(1);
-		break;
-	case 4:
-		q_fifo_size = XGBE_FIFO_SIZE_KB(2);
-		break;
-	case 5:
-		q_fifo_size = XGBE_FIFO_SIZE_KB(4);
-		break;
-	case 6:
-		q_fifo_size = XGBE_FIFO_SIZE_KB(8);
-		break;
-	case 7:
-		q_fifo_size = XGBE_FIFO_SIZE_KB(16);
-		break;
-	case 8:
-		q_fifo_size = XGBE_FIFO_SIZE_KB(32);
-		break;
-	case 9:
-		q_fifo_size = XGBE_FIFO_SIZE_KB(64);
-		break;
-	case 10:
-		q_fifo_size = XGBE_FIFO_SIZE_KB(128);
-		break;
-	case 11:
-		q_fifo_size = XGBE_FIFO_SIZE_KB(256);
-		break;
-	}
+	/* Calculate the configured fifo size */
+	q_fifo_size = 1 << (fifo_size + 7);
 
-	/* The configured value is not the actual amount of fifo RAM */
+	/* The configured value may not be the actual amount of fifo RAM */
 	q_fifo_size = min_t(unsigned int, XGBE_FIFO_MAX, q_fifo_size);
 
 	q_fifo_size = q_fifo_size / queue_count;
 
-	/* Set the queue fifo size programmable value */
-	if (q_fifo_size >= XGBE_FIFO_SIZE_KB(256))
-		p_fifo = XGMAC_MTL_FIFO_SIZE_256K;
-	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(128))
-		p_fifo = XGMAC_MTL_FIFO_SIZE_128K;
-	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(64))
-		p_fifo = XGMAC_MTL_FIFO_SIZE_64K;
-	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(32))
-		p_fifo = XGMAC_MTL_FIFO_SIZE_32K;
-	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(16))
-		p_fifo = XGMAC_MTL_FIFO_SIZE_16K;
-	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(8))
-		p_fifo = XGMAC_MTL_FIFO_SIZE_8K;
-	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(4))
-		p_fifo = XGMAC_MTL_FIFO_SIZE_4K;
-	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(2))
-		p_fifo = XGMAC_MTL_FIFO_SIZE_2K;
-	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(1))
-		p_fifo = XGMAC_MTL_FIFO_SIZE_1K;
-	else if (q_fifo_size >= XGBE_FIFO_SIZE_B(512))
-		p_fifo = XGMAC_MTL_FIFO_SIZE_512;
-	else if (q_fifo_size >= XGBE_FIFO_SIZE_B(256))
-		p_fifo = XGMAC_MTL_FIFO_SIZE_256;
+	/* Each increment in the queue fifo size represents 256 bytes of
+	 * fifo, with 0 representing 256 bytes. Distribute the fifo equally
+	 * between the queues.
+	 */
+	p_fifo = q_fifo_size / 256;
+	if (p_fifo)
+		p_fifo--;
 
 	return p_fifo;
 }
 
 static void xgbe_config_tx_fifo_size(struct xgbe_prv_data *pdata)
 {
-	enum xgbe_mtl_fifo_size fifo_size;
+	unsigned int fifo_size;
 	unsigned int i;
 
 	fifo_size = xgbe_calculate_per_queue_fifo(pdata->hw_feat.tx_fifo_size,
@@ -2033,7 +2043,7 @@ static void xgbe_config_tx_fifo_size(struct xgbe_prv_data *pdata)
 
 static void xgbe_config_rx_fifo_size(struct xgbe_prv_data *pdata)
 {
-	enum xgbe_mtl_fifo_size fifo_size;
+	unsigned int fifo_size;
 	unsigned int i;
 
 	fifo_size = xgbe_calculate_per_queue_fifo(pdata->hw_feat.rx_fifo_size,
@@ -2224,7 +2234,7 @@ static u64 xgbe_mmc_read(struct xgbe_prv_data *pdata, unsigned int reg_lo)
 
 	default:
 		read_hi = false;
-	};
+	}
 
 	val = XGMAC_IOREAD(pdata, reg_lo);
 
@@ -2648,6 +2658,32 @@ static void xgbe_disable_tx(struct xgbe_prv_data *pdata)
 	}
 }
 
+static void xgbe_prepare_rx_stop(struct xgbe_prv_data *pdata,
+				 unsigned int queue)
+{
+	unsigned int rx_status;
+	unsigned long rx_timeout;
+
+	/* The Rx engine cannot be stopped if it is actively processing
+	 * packets. Wait for the Rx queue to empty the Rx fifo.  Don't
+	 * wait forever though...
+	 */
+	rx_timeout = jiffies + (XGBE_DMA_STOP_TIMEOUT * HZ);
+	while (time_before(jiffies, rx_timeout)) {
+		rx_status = XGMAC_MTL_IOREAD(pdata, queue, MTL_Q_RQDR);
+		if ((XGMAC_GET_BITS(rx_status, MTL_Q_RQDR, PRXQ) == 0) &&
+		    (XGMAC_GET_BITS(rx_status, MTL_Q_RQDR, RXQSTS) == 0))
+			break;
+
+		usleep_range(500, 1000);
+	}
+
+	if (!time_before(jiffies, rx_timeout))
+		netdev_info(pdata->netdev,
+			    "timed out waiting for Rx queue %u to empty\n",
+			    queue);
+}
+
 static void xgbe_enable_rx(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_channel *channel;
@@ -2685,6 +2721,10 @@ static void xgbe_disable_rx(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, CST, 0);
 	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, ACS, 0);
 	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, RE, 0);
+
+	/* Prepare for Rx DMA channel stop */
+	for (i = 0; i < pdata->rx_q_count; i++)
+		xgbe_prepare_rx_stop(pdata, i);
 
 	/* Disable each Rx queue */
 	XGMAC_IOWRITE(pdata, MAC_RQC0R, 0);
@@ -2934,6 +2974,7 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->get_tx_tstamp = xgbe_get_tx_tstamp;
 
 	/* For Data Center Bridging config */
+	hw_if->config_tc = xgbe_config_tc;
 	hw_if->config_dcb_tc = xgbe_config_dcb_tc;
 	hw_if->config_dcb_pfc = xgbe_config_dcb_pfc;
 

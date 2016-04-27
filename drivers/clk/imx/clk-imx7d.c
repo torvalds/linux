@@ -363,6 +363,17 @@ static const char *pll_video_bypass_sel[] = { "pll_video_main", "pll_video_main_
 
 static struct clk_onecell_data clk_data;
 
+static struct clk ** const uart_clks[] __initconst = {
+	&clks[IMX7D_UART1_ROOT_CLK],
+	&clks[IMX7D_UART2_ROOT_CLK],
+	&clks[IMX7D_UART3_ROOT_CLK],
+	&clks[IMX7D_UART4_ROOT_CLK],
+	&clks[IMX7D_UART5_ROOT_CLK],
+	&clks[IMX7D_UART6_ROOT_CLK],
+	&clks[IMX7D_UART7_ROOT_CLK],
+	NULL
+};
+
 static void __init imx7d_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
@@ -818,13 +829,17 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	clks[IMX7D_CSI_MCLK_ROOT_CLK] = imx_clk_gate2("csi_mclk_root_clk", "csi_mclk_post_div", base + 0x4490, 0);
 	clks[IMX7D_AUDIO_MCLK_ROOT_CLK] = imx_clk_gate2("audio_mclk_root_clk", "audio_mclk_post_div", base + 0x4790, 0);
 	clks[IMX7D_WRCLK_ROOT_CLK] = imx_clk_gate2("wrclk_root_clk", "wrclk_post_div", base + 0x47a0, 0);
+	clks[IMX7D_ADC_ROOT_CLK] = imx_clk_gate2("adc_root_clk", "ipg_root_clk", base + 0x4200, 0);
 
 	clks[IMX7D_GPT_3M_CLK] = imx_clk_fixed_factor("gpt_3m", "osc", 1, 8);
 
-	for (i = 0; i < ARRAY_SIZE(clks); i++)
-		if (IS_ERR(clks[i]))
-			pr_err("i.MX7D clk %d: register failed with %ld\n",
-					i, PTR_ERR(clks[i]));
+	clks[IMX7D_CLK_ARM] = imx_clk_cpu("arm", "arm_a7_root_clk",
+					 clks[IMX7D_ARM_A7_ROOT_CLK],
+					 clks[IMX7D_ARM_A7_ROOT_SRC],
+					 clks[IMX7D_PLL_ARM_MAIN_CLK],
+					 clks[IMX7D_PLL_SYS_MAIN_CLK]);
+
+	imx_check_clocks(clks, ARRAY_SIZE(clks));
 
 	clk_data.clks = clks;
 	clk_data.clk_num = ARRAY_SIZE(clks);
@@ -855,6 +870,8 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 
 	/* set uart module clock's parent clock source that must be great then 80MHz */
 	clk_set_parent(clks[IMX7D_UART1_ROOT_SRC], clks[IMX7D_OSC_24M_CLK]);
+
+	imx_register_uart_clocks(uart_clks);
 
 }
 CLK_OF_DECLARE(imx7d, "fsl,imx7d-ccm", imx7d_clocks_init);

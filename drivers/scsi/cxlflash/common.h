@@ -16,10 +16,12 @@
 #define _CXLFLASH_COMMON_H
 
 #include <linux/list.h>
+#include <linux/rwsem.h>
 #include <linux/types.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 
+extern const struct file_operations cxlflash_cxl_fops;
 
 #define MAX_CONTEXT  CXLFLASH_MAX_CONTEXT       /* num contexts per afu */
 
@@ -32,7 +34,6 @@
 								   sectors
 								*/
 
-#define NUM_RRQ_ENTRY    16     /* for master issued cmds */
 #define MAX_RHT_PER_CONTEXT (PAGE_SIZE / sizeof(struct sisl_rht_entry))
 
 /* AFU command retry limit */
@@ -46,8 +47,11 @@
 							   index derivation
 							 */
 
-#define CXLFLASH_MAX_CMDS               16
+#define CXLFLASH_MAX_CMDS               256
 #define CXLFLASH_MAX_CMDS_PER_LUN       CXLFLASH_MAX_CMDS
+
+/* RRQ for master issued cmds */
+#define NUM_RRQ_ENTRY                   CXLFLASH_MAX_CMDS
 
 
 static inline void check_sizes(void)
@@ -78,7 +82,7 @@ enum cxlflash_init_state {
 
 enum cxlflash_state {
 	STATE_NORMAL,	/* Normal running state, everything good */
-	STATE_LIMBO,	/* Limbo running state, trying to reset/recover */
+	STATE_RESET,	/* Reset state, trying to reset/recover */
 	STATE_FAILTERM	/* Failed/terminating state, error out users/threads */
 };
 
@@ -101,20 +105,17 @@ struct cxlflash_cfg {
 	enum cxlflash_init_state init_state;
 	enum cxlflash_lr_state lr_state;
 	int lr_port;
+	atomic_t scan_host_needed;
 
 	struct cxl_afu *cxl_afu;
-
-	struct pci_pool *cxlflash_cmd_pool;
-	struct pci_dev *parent_dev;
 
 	atomic_t recovery_threads;
 	struct mutex ctx_recovery_mutex;
 	struct mutex ctx_tbl_list_mutex;
+	struct rw_semaphore ioctl_rwsem;
 	struct ctx_info *ctx_tbl[MAX_CONTEXT];
 	struct list_head ctx_err_recovery; /* contexts w/ recovery pending */
 	struct file_operations cxl_fops;
-
-	atomic_t num_user_contexts;
 
 	/* Parameters that are LUN table related */
 	int last_lun_index[CXLFLASH_NUM_FC_PORTS];
@@ -122,8 +123,9 @@ struct cxlflash_cfg {
 	struct list_head lluns; /* list of llun_info structs */
 
 	wait_queue_head_t tmf_waitq;
+	spinlock_t tmf_slock;
 	bool tmf_active;
-	wait_queue_head_t limbo_waitq;
+	wait_queue_head_t reset_waitq;
 	enum cxlflash_state state;
 };
 
@@ -148,7 +150,7 @@ struct afu_cmd {
 struct afu {
 	/* Stuff requiring alignment go first. */
 
-	u64 rrq_entry[NUM_RRQ_ENTRY];	/* 128B RRQ */
+	u64 rrq_entry[NUM_RRQ_ENTRY];	/* 2K RRQ */
 	/*
 	 * Command & data for AFU commands.
 	 */
@@ -160,9 +162,11 @@ struct afu {
 
 	/* AFU HW */
 	struct cxl_ioctl_start_work work;
-	struct cxlflash_afu_map *afu_map;	/* entire MMIO map */
-	struct sisl_host_map *host_map;		/* MC host map */
-	struct sisl_ctrl_map *ctrl_map;		/* MC control map */
+	struct cxlflash_afu_map __iomem *afu_map;	/* entire MMIO map */
+	struct sisl_host_map __iomem *host_map;		/* MC host map */
+	struct sisl_ctrl_map __iomem *ctrl_map;		/* MC control map */
+
+	struct kref mapcount;
 
 	ctx_hndl_t ctx_hndl;	/* master's context handle */
 	u64 *hrrq_start;
@@ -175,7 +179,7 @@ struct afu {
 	u32 cmd_couts;		/* Number of command checkouts */
 	u32 internal_lun;	/* User-desired LUN mode for this AFU */
 
-	char version[8];
+	char version[16];
 	u64 interface_version;
 
 	struct cxlflash_cfg *parent; /* Pointer back to parent cxlflash_cfg */
@@ -184,17 +188,12 @@ struct afu {
 
 static inline u64 lun_to_lunid(u64 lun)
 {
-	u64 lun_id;
+	__be64 lun_id;
 
 	int_to_scsilun(lun, (struct scsi_lun *)&lun_id);
-	return swab64(lun_id);
+	return be64_to_cpu(lun_id);
 }
 
-int cxlflash_send_cmd(struct afu *, struct afu_cmd *);
-void cxlflash_wait_resp(struct afu *, struct afu_cmd *);
-int cxlflash_afu_reset(struct cxlflash_cfg *);
-struct afu_cmd *cxlflash_cmd_checkout(struct afu *);
-void cxlflash_cmd_checkin(struct afu_cmd *);
 int cxlflash_afu_sync(struct afu *, ctx_hndl_t, res_hndl_t, u8);
 void cxlflash_list_init(void);
 void cxlflash_term_global_luns(void);

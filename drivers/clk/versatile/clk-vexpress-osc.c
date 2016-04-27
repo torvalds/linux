@@ -94,7 +94,7 @@ static int vexpress_osc_probe(struct platform_device *pdev)
 		init.name = dev_name(&pdev->dev);
 
 	init.ops = &vexpress_osc_ops;
-	init.flags = CLK_IS_ROOT;
+	init.flags = 0;
 	init.num_parents = 0;
 
 	osc->hw.init = &init;

@@ -529,10 +529,8 @@ static int ads784x_hwmon_register(struct spi_device *spi, struct ads7846 *ts)
 
 	ts->hwmon = hwmon_device_register_with_groups(&spi->dev, spi->modalias,
 						      ts, ads7846_attr_groups);
-	if (IS_ERR(ts->hwmon))
-		return PTR_ERR(ts->hwmon);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(ts->hwmon);
 }
 
 static void ads784x_hwmon_unregister(struct spi_device *spi,
@@ -1500,7 +1498,6 @@ static int ads7846_remove(struct spi_device *spi)
 static struct spi_driver ads7846_driver = {
 	.driver = {
 		.name	= "ads7846",
-		.owner	= THIS_MODULE,
 		.pm	= &ads7846_pm,
 		.of_match_table = of_match_ptr(ads7846_dt_ids),
 	},

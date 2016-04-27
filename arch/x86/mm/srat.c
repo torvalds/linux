@@ -203,6 +203,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		pr_warn("SRAT: Failed to mark hotplug range [mem %#010Lx-%#010Lx] in memblock\n",
 			(unsigned long long)start, (unsigned long long)end - 1);
 
+	max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
+
 	return 0;
 out_err_bad_srat:
 	bad_srat();

@@ -1,0 +1,369 @@
+/*
+ * T104xQDS Device Tree Source
+ *
+ * Copyright 2013 - 2015 Freescale Semiconductor Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *	 notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *	 notice, this list of conditions and the following disclaimer in the
+ *	 documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Freescale Semiconductor nor the
+ *	 names of its contributors may be used to endorse or promote products
+ *	 derived from this software without specific prior written permission.
+ *
+ *
+ * ALTERNATIVELY, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") as published by the Free Software
+ * Foundation, either version 2 of that License or (at your option) any
+ * later version.
+ *
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/ {
+	model = "fsl,T1040QDS";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&mpic>;
+
+	aliases {
+		emi1_rgmii0 = &t1040mdio0;
+		emi1_rgmii1 = &t1040mdio1;
+		emi1_slot3 = &t1040mdio3;
+		emi1_slot5 = &t1040mdio5;
+		emi1_slot6 = &t1040mdio6;
+		emi1_slot7 = &t1040mdio7;
+		rgmii_phy1 = &rgmii_phy1;
+		rgmii_phy2 = &rgmii_phy2;
+		phy_s3_01 = &phy_s3_01;
+		phy_s3_02 = &phy_s3_02;
+		phy_s3_03 = &phy_s3_03;
+		phy_s3_04 = &phy_s3_04;
+		phy_s5_01 = &phy_s5_01;
+		phy_s5_02 = &phy_s5_02;
+		phy_s5_03 = &phy_s5_03;
+		phy_s5_04 = &phy_s5_04;
+		phy_s6_01 = &phy_s6_01;
+		phy_s6_02 = &phy_s6_02;
+		phy_s6_03 = &phy_s6_03;
+		phy_s6_04 = &phy_s6_04;
+		phy_s7_01 = &phy_s7_01;
+		phy_s7_02 = &phy_s7_02;
+		phy_s7_03 = &phy_s7_03;
+		phy_s7_04 = &phy_s7_04;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		bman_fbpr: bman-fbpr {
+			size = <0 0x1000000>;
+			alignment = <0 0x1000000>;
+		};
+		qman_fqd: qman-fqd {
+			size = <0 0x400000>;
+			alignment = <0 0x400000>;
+		};
+		qman_pfdr: qman-pfdr {
+			size = <0 0x2000000>;
+			alignment = <0 0x2000000>;
+		};
+	};
+
+	ifc: localbus@ffe124000 {
+		reg = <0xf 0xfe124000 0 0x2000>;
+		ranges = <0 0 0xf 0xe8000000 0x08000000
+			  2 0 0xf 0xff800000 0x00010000
+			  3 0 0xf 0xffdf0000 0x00008000>;
+
+		nor@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x8000000>;
+
+			bank-width = <2>;
+			device-width = <1>;
+		};
+
+		nand@2,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,ifc-nand";
+			reg = <0x2 0x0 0x10000>;
+		};
+
+		board-control@3,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,fpga-qixis";
+			reg = <3 0 0x300>;
+			ranges = <0 3 0 0x300>;
+
+			mdio-mux-emi1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "mdio-mux-mmioreg", "mdio-mux";
+				mdio-parent-bus = <&mdio0>;
+				reg = <0x54 1>;
+				mux-mask = <0xe0>;
+
+				t1040mdio0: mdio@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x00>;
+					status = "disabled";
+
+					rgmii_phy1: ethernet-phy@1 {
+						reg = <0x1>;
+					};
+				};
+
+				t1040mdio1: mdio@20 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x20>;
+					status = "disabled";
+
+					rgmii_phy2: ethernet-phy@2 {
+						reg = <0x2>;
+					};
+				};
+
+				t1040mdio3: mdio@60 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x60>;
+					status = "disabled";
+
+					phy_s3_01: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					phy_s3_02: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					phy_s3_03: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					phy_s3_04: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+
+				t1040mdio5: mdio@a0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0xa0>;
+
+					phy_s5_01: ethernet-phy@1c {
+						reg = <0x14>;
+					};
+
+					phy_s5_02: ethernet-phy@1d {
+						reg = <0x15>;
+					};
+
+					phy_s5_03: ethernet-phy@1e {
+						reg = <0x16>;
+					};
+
+					phy_s5_04: ethernet-phy@1f {
+						reg = <0x17>;
+					};
+				};
+
+				t1040mdio6: mdio@c0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0xc0>;
+
+					phy_s6_01: ethernet-phy@1c {
+						reg = <0x18>;
+					};
+
+					phy_s6_02: ethernet-phy@1d {
+						reg = <0x19>;
+					};
+
+					phy_s6_03: ethernet-phy@1e {
+						reg = <0x1a>;
+					};
+
+					phy_s6_04: ethernet-phy@1f {
+						reg = <0x1b>;
+					};
+				};
+
+				t1040mdio7: mdio@e0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0xe0>;
+					status = "disabled";
+
+					phy_s7_01: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					phy_s7_02: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					phy_s7_03: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					phy_s7_04: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+			};
+		};
+	};
+
+	memory {
+		device_type = "memory";
+	};
+
+	dcsr: dcsr@f00000000 {
+		ranges = <0x00000000 0xf 0x00000000 0x01072000>;
+	};
+
+	bportals: bman-portals@ff4000000 {
+		ranges = <0x0 0xf 0xf4000000 0x2000000>;
+	};
+
+	qportals: qman-portals@ff6000000 {
+		ranges = <0x0 0xf 0xf6000000 0x2000000>;
+	};
+
+	soc: soc@ffe000000 {
+		ranges = <0x00000000 0xf 0xfe000000 0x1000000>;
+		reg = <0xf 0xfe000000 0 0x00001000>;
+
+		spi@110000 {
+			flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "micron,n25q128a11", "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <10000000>; /* input clock */
+			};
+		};
+
+		i2c@118000 {
+			pca9547@77 {
+				compatible = "philips,pca9547";
+				reg = <0x77>;
+			};
+			rtc@68 {
+				compatible = "dallas,ds3232";
+				reg = <0x68>;
+				interrupts = <0x1 0x1 0 0>;
+			};
+		};
+
+		fman@400000 {
+			ethernet@e0000 {
+				fixed-link = <0 1 1000 0 0>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				fixed-link = <1 1 1000 0 0>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-handle = <&phy_s7_03>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e6000 {
+				phy-handle = <&rgmii_phy1>;
+				phy-connection-type = "rgmii";
+			};
+
+			ethernet@e8000 {
+				phy-handle = <&rgmii_phy2>;
+				phy-connection-type = "rgmii";
+			};
+		};
+	};
+
+	pci0: pcie@ffe240000 {
+		reg = <0xf 0xfe240000 0 0x10000>;
+		ranges = <0x02000000 0 0xe0000000 0xc 0x00000000 0x0 0x10000000
+			  0x01000000 0 0x00000000 0xf 0xf8000000 0x0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xe0000000
+				  0x02000000 0 0xe0000000
+				  0 0x10000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00010000>;
+		};
+	};
+
+	pci1: pcie@ffe250000 {
+		reg = <0xf 0xfe250000 0 0x10000>;
+		ranges = <0x02000000 0x0 0xe0000000 0xc 0x10000000 0x0 0x10000000
+			  0x01000000 0x0 0x00000000 0xf 0xf8010000 0x0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xe0000000
+				  0x02000000 0 0xe0000000
+				  0 0x10000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00010000>;
+		};
+	};
+
+	pci2: pcie@ffe260000 {
+		reg = <0xf 0xfe260000 0 0x10000>;
+		ranges = <0x02000000 0 0xe0000000 0xc 0x20000000 0 0x10000000
+			  0x01000000 0 0x00000000 0xf 0xf8020000 0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xe0000000
+				  0x02000000 0 0xe0000000
+				  0 0x10000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00010000>;
+		};
+	};
+
+	pci3: pcie@ffe270000 {
+		reg = <0xf 0xfe270000 0 0x10000>;
+		ranges = <0x02000000 0 0xe0000000 0xc 0x30000000 0 0x10000000
+			  0x01000000 0 0x00000000 0xf 0xf8030000 0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xe0000000
+				  0x02000000 0 0xe0000000
+				  0 0x10000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00010000>;
+		};
+	};
+};

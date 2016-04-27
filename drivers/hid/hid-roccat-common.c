@@ -134,8 +134,7 @@ ssize_t roccat_common2_sysfs_read(struct file *fp, struct kobject *kobj,
 		char *buf, loff_t off, size_t count,
 		size_t real_size, uint command)
 {
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
+	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct roccat_common2_device *roccat_dev = hid_get_drvdata(dev_get_drvdata(dev));
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	int retval;
@@ -158,8 +157,7 @@ ssize_t roccat_common2_sysfs_write(struct file *fp, struct kobject *kobj,
 		void const *buf, loff_t off, size_t count,
 		size_t real_size, uint command)
 {
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
+	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct roccat_common2_device *roccat_dev = hid_get_drvdata(dev_get_drvdata(dev));
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	int retval;

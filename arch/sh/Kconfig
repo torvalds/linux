@@ -1,5 +1,6 @@
 config SUPERH
 	def_bool y
+	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_PATA_PLATFORM
 	select CLKDEV_LOOKUP
@@ -11,7 +12,6 @@ config SUPERH
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
-	select HAVE_DMA_ATTRS
 	select HAVE_PERF_EVENTS
 	select HAVE_DEBUG_BUGVERBOSE
 	select ARCH_HAVE_CUSTOM_GPIO_H
@@ -128,9 +128,6 @@ config STACKTRACE_SUPPORT
 	def_bool y
 
 config LOCKDEP_SUPPORT
-	def_bool y
-
-config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
 config ARCH_HAS_ILOG2_U32
@@ -851,13 +848,9 @@ config PCI
 config PCI_DOMAINS
 	bool
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 

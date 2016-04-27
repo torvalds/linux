@@ -714,7 +714,7 @@ static void neo_clear_break(struct jsm_channel *ch)
 /*
  * Parse the ISR register.
  */
-static inline void neo_parse_isr(struct jsm_board *brd, u32 port)
+static void neo_parse_isr(struct jsm_board *brd, u32 port)
 {
 	struct jsm_channel *ch;
 	u8 isr;

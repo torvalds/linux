@@ -168,12 +168,6 @@ static inline int bad_user_access_length(void)
 #define __copy_to_user_inatomic __copy_to_user
 #define __copy_from_user_inatomic __copy_from_user
 
-#define copy_to_user_ret(to, from, n, retval) ({ if (copy_to_user(to, from, n))\
-				                 return retval; })
-
-#define copy_from_user_ret(to, from, n, retval) ({ if (copy_from_user(to, from, n))\
-                                                   return retval; })
-
 static inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {

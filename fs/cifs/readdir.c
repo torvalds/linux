@@ -84,7 +84,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 	cifs_dbg(FYI, "%s: for %s\n", __func__, name->name);
 
 	dentry = d_hash_and_lookup(parent, name);
-	if (unlikely(IS_ERR(dentry)))
+	if (IS_ERR(dentry))
 		return;
 
 	if (dentry) {
@@ -847,6 +847,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 		 * if buggy server returns . and .. late do we want to
 		 * check for that here?
 		 */
+		*tmp_buf = 0;
 		rc = cifs_filldir(current_entry, file, ctx,
 				  tmp_buf, max_len);
 		if (rc) {

@@ -28,31 +28,32 @@
  */
 
 #include <dt-bindings/i2c/i2c.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/gpio.h>
-#include <linux/slab.h>
-#include <linux/i2c.h>
-#include <linux/init.h>
-#include <linux/idr.h>
-#include <linux/mutex.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <asm/uaccess.h>
+#include <linux/acpi.h>
 #include <linux/clk/clk-conf.h>
 #include <linux/completion.h>
-#include <linux/hardirq.h>
-#include <linux/irqflags.h>
-#include <linux/rwsem.h>
-#include <linux/pm_runtime.h>
-#include <linux/pm_domain.h>
-#include <linux/pm_wakeirq.h>
-#include <linux/acpi.h>
-#include <linux/jump_label.h>
-#include <asm/uaccess.h>
+#include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/gpio.h>
+#include <linux/hardirq.h>
+#include <linux/i2c.h>
+#include <linux/idr.h>
+#include <linux/init.h>
+#include <linux/irqflags.h>
+#include <linux/jump_label.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
+#include <linux/property.h>
+#include <linux/rwsem.h>
+#include <linux/slab.h>
 
 #include "i2c-core.h"
 
@@ -72,6 +73,7 @@ static struct device_type i2c_client_type;
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 static struct static_key i2c_trace_msg = STATIC_KEY_INIT_FALSE;
+static bool is_registered;
 
 void i2c_transfer_trace_reg(void)
 {
@@ -99,27 +101,40 @@ struct gsb_buffer {
 	};
 } __packed;
 
-static int acpi_i2c_add_resource(struct acpi_resource *ares, void *data)
+struct acpi_i2c_lookup {
+	struct i2c_board_info *info;
+	acpi_handle adapter_handle;
+	acpi_handle device_handle;
+};
+
+static int acpi_i2c_find_address(struct acpi_resource *ares, void *data)
 {
-	struct i2c_board_info *info = data;
+	struct acpi_i2c_lookup *lookup = data;
+	struct i2c_board_info *info = lookup->info;
+	struct acpi_resource_i2c_serialbus *sb;
+	acpi_handle adapter_handle;
+	acpi_status status;
 
-	if (ares->type == ACPI_RESOURCE_TYPE_SERIAL_BUS) {
-		struct acpi_resource_i2c_serialbus *sb;
+	if (info->addr || ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
+		return 1;
 
-		sb = &ares->data.i2c_serial_bus;
-		if (!info->addr && sb->type == ACPI_RESOURCE_SERIAL_TYPE_I2C) {
-			info->addr = sb->slave_address;
-			if (sb->access_mode == ACPI_I2C_10BIT_MODE)
-				info->flags |= I2C_CLIENT_TEN;
-		}
-	} else if (!info->irq) {
-		struct resource r;
+	sb = &ares->data.i2c_serial_bus;
+	if (sb->type != ACPI_RESOURCE_SERIAL_TYPE_I2C)
+		return 1;
 
-		if (acpi_dev_resource_interrupt(ares, 0, &r))
-			info->irq = r.start;
+	/*
+	 * Extract the ResourceSource and make sure that the handle matches
+	 * with the I2C adapter handle.
+	 */
+	status = acpi_get_handle(lookup->device_handle,
+				 sb->resource_source.string_ptr,
+				 &adapter_handle);
+	if (ACPI_SUCCESS(status) && adapter_handle == lookup->adapter_handle) {
+		info->addr = sb->slave_address;
+		if (sb->access_mode == ACPI_I2C_10BIT_MODE)
+			info->flags |= I2C_CLIENT_TEN;
 	}
 
-	/* Tell the ACPI core to skip this resource */
 	return 1;
 }
 
@@ -128,6 +143,8 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 {
 	struct i2c_adapter *adapter = data;
 	struct list_head resource_list;
+	struct acpi_i2c_lookup lookup;
+	struct resource_entry *entry;
 	struct i2c_board_info info;
 	struct acpi_device *adev;
 	int ret;
@@ -140,13 +157,36 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 	memset(&info, 0, sizeof(info));
 	info.fwnode = acpi_fwnode_handle(adev);
 
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.adapter_handle = ACPI_HANDLE(&adapter->dev);
+	lookup.device_handle = handle;
+	lookup.info = &info;
+
+	/*
+	 * Look up for I2cSerialBus resource with ResourceSource that
+	 * matches with this adapter.
+	 */
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_resources(adev, &resource_list,
-				     acpi_i2c_add_resource, &info);
+				     acpi_i2c_find_address, &lookup);
 	acpi_dev_free_resource_list(&resource_list);
 
 	if (ret < 0 || !info.addr)
 		return AE_OK;
+
+	/* Then fill IRQ number if any */
+	ret = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
+	if (ret < 0)
+		return AE_OK;
+
+	resource_list_for_each_entry(entry, &resource_list) {
+		if (resource_type(entry->res) == IORESOURCE_IRQ) {
+			info.irq = entry->res->start;
+			break;
+		}
+	}
+
+	acpi_dev_free_resource_list(&resource_list);
 
 	adev->power.flags.ignore_parent = true;
 	strlcpy(info.type, dev_name(&adev->dev), sizeof(info.type));
@@ -160,6 +200,8 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 	return AE_OK;
 }
 
+#define ACPI_I2C_MAX_SCAN_DEPTH 32
+
 /**
  * acpi_i2c_register_devices - enumerate I2C slave devices behind adapter
  * @adap: pointer to adapter
@@ -170,17 +212,13 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
  */
 static void acpi_i2c_register_devices(struct i2c_adapter *adap)
 {
-	acpi_handle handle;
 	acpi_status status;
 
-	if (!adap->dev.parent)
+	if (!has_acpi_companion(&adap->dev))
 		return;
 
-	handle = ACPI_HANDLE(adap->dev.parent);
-	if (!handle)
-		return;
-
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+				     ACPI_I2C_MAX_SCAN_DEPTH,
 				     acpi_i2c_add_device, NULL,
 				     adap, NULL);
 	if (ACPI_FAILURE(status))
@@ -487,22 +525,16 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-
-/* uevent helps with hotplug: modprobe -q $(MODALIAS) */
 static int i2c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	struct i2c_client	*client = to_i2c_client(dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	int rc;
 
 	rc = acpi_device_uevent_modalias(dev, env);
 	if (rc != -ENODEV)
 		return rc;
 
-	if (add_uevent_var(env, "MODALIAS=%s%s",
-			   I2C_MODULE_PREFIX, client->name))
-		return -ENOMEM;
-	dev_dbg(dev, "uevent\n");
-	return 0;
+	return add_uevent_var(env, "MODALIAS=%s%s", I2C_MODULE_PREFIX, client->name);
 }
 
 /* i2c bus recovery routines */
@@ -679,7 +711,7 @@ static int i2c_device_probe(struct device *dev)
 		if (wakeirq > 0 && wakeirq != client->irq)
 			status = dev_pm_set_dedicated_wake_irq(dev, wakeirq);
 		else if (client->irq > 0)
-			status = dev_pm_set_wake_irq(dev, wakeirq);
+			status = dev_pm_set_wake_irq(dev, client->irq);
 		else
 			status = 0;
 
@@ -1492,7 +1524,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	int res = 0;
 
 	/* Can't register until after driver model init */
-	if (unlikely(WARN_ON(!i2c_bus_type.p))) {
+	if (WARN_ON(!is_registered)) {
 		res = -EAGAIN;
 		goto out_list;
 	}
@@ -1527,6 +1559,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
 	pm_runtime_no_callbacks(&adap->dev);
+	pm_runtime_enable(&adap->dev);
 
 #ifdef CONFIG_I2C_COMPAT
 	res = class_compat_create_link(i2c_adapter_compat_class, &adap->dev,
@@ -1781,6 +1814,8 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	/* device name is gone after device_unregister */
 	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
 
+	pm_runtime_disable(&adap->dev);
+
 	/* wait until all references to the device are gone
 	 *
 	 * FIXME: This is old code and should ideally be replaced by an
@@ -1802,6 +1837,58 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	memset(&adap->dev, 0, sizeof(adap->dev));
 }
 EXPORT_SYMBOL(i2c_del_adapter);
+
+/**
+ * i2c_parse_fw_timings - get I2C related timing parameters from firmware
+ * @dev: The device to scan for I2C timing properties
+ * @t: the i2c_timings struct to be filled with values
+ * @use_defaults: bool to use sane defaults derived from the I2C specification
+ *		  when properties are not found, otherwise use 0
+ *
+ * Scan the device for the generic I2C properties describing timing parameters
+ * for the signal and fill the given struct with the results. If a property was
+ * not found and use_defaults was true, then maximum timings are assumed which
+ * are derived from the I2C specification. If use_defaults is not used, the
+ * results will be 0, so drivers can apply their own defaults later. The latter
+ * is mainly intended for avoiding regressions of existing drivers which want
+ * to switch to this function. New drivers almost always should use the defaults.
+ */
+
+void i2c_parse_fw_timings(struct device *dev, struct i2c_timings *t, bool use_defaults)
+{
+	int ret;
+
+	memset(t, 0, sizeof(*t));
+
+	ret = device_property_read_u32(dev, "clock-frequency", &t->bus_freq_hz);
+	if (ret && use_defaults)
+		t->bus_freq_hz = 100000;
+
+	ret = device_property_read_u32(dev, "i2c-scl-rising-time-ns", &t->scl_rise_ns);
+	if (ret && use_defaults) {
+		if (t->bus_freq_hz <= 100000)
+			t->scl_rise_ns = 1000;
+		else if (t->bus_freq_hz <= 400000)
+			t->scl_rise_ns = 300;
+		else
+			t->scl_rise_ns = 120;
+	}
+
+	ret = device_property_read_u32(dev, "i2c-scl-falling-time-ns", &t->scl_fall_ns);
+	if (ret && use_defaults) {
+		if (t->bus_freq_hz <= 400000)
+			t->scl_fall_ns = 300;
+		else
+			t->scl_fall_ns = 120;
+	}
+
+	device_property_read_u32(dev, "i2c-scl-internal-delay-ns", &t->scl_int_delay_ns);
+
+	ret = device_property_read_u32(dev, "i2c-sda-falling-time-ns", &t->sda_fall_ns);
+	if (ret && use_defaults)
+		t->sda_fall_ns = t->scl_fall_ns;
+}
+EXPORT_SYMBOL_GPL(i2c_parse_fw_timings);
 
 /* ------------------------------------------------------------------------- */
 
@@ -1834,7 +1921,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	int res;
 
 	/* Can't register until after driver model init */
-	if (unlikely(WARN_ON(!i2c_bus_type.p)))
+	if (WARN_ON(!is_registered))
 		return -EAGAIN;
 
 	/* add the driver to the list of i2c drivers in the driver core */
@@ -2012,6 +2099,9 @@ static int __init i2c_init(void)
 	retval = bus_register(&i2c_bus_type);
 	if (retval)
 		return retval;
+
+	is_registered = true;
+
 #ifdef CONFIG_I2C_COMPAT
 	i2c_adapter_compat_class = class_compat_register("i2c-adapter");
 	if (!i2c_adapter_compat_class) {
@@ -2033,6 +2123,7 @@ class_err:
 	class_compat_unregister(i2c_adapter_compat_class);
 bus_err:
 #endif
+	is_registered = false;
 	bus_unregister(&i2c_bus_type);
 	return retval;
 }

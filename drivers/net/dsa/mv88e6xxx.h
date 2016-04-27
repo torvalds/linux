@@ -28,6 +28,10 @@
 #define SMI_CMD_OP_45_READ_DATA_INC	((3 << 10) | SMI_CMD_BUSY)
 #define SMI_DATA		0x01
 
+/* Fiber/SERDES Registers are located at SMI address F, page 1 */
+#define REG_FIBER_SERDES	0x0f
+#define PAGE_FIBER_SERDES	0x01
+
 #define REG_PORT(p)		(0x10 + (p))
 #define PORT_STATUS		0x00
 #define PORT_STATUS_PAUSE_EN	BIT(15)
@@ -45,6 +49,10 @@
 #define PORT_STATUS_MGMII	BIT(6) /* 6185 */
 #define PORT_STATUS_TX_PAUSED	BIT(5)
 #define PORT_STATUS_FLOW_CTRL	BIT(4)
+#define PORT_STATUS_CMODE_MASK	0x0f
+#define PORT_STATUS_CMODE_100BASE_X	0x8
+#define PORT_STATUS_CMODE_1000BASE_X	0x9
+#define PORT_STATUS_CMODE_SGMII		0xa
 #define PORT_PCS_CTRL		0x01
 #define PORT_PCS_CTRL_RGMII_DELAY_RXCLK	BIT(15)
 #define PORT_PCS_CTRL_RGMII_DELAY_TXCLK	BIT(14)
@@ -60,6 +68,8 @@
 #define PORT_PCS_CTRL_UNFORCED		0x03
 #define PORT_PAUSE_CTRL		0x02
 #define PORT_SWITCH_ID		0x03
+#define PORT_SWITCH_ID_PROD_NUM_MASK	0xfff0
+#define PORT_SWITCH_ID_REV_MASK		0x000f
 #define PORT_SWITCH_ID_6031	0x0310
 #define PORT_SWITCH_ID_6035	0x0350
 #define PORT_SWITCH_ID_6046	0x0480
@@ -131,7 +141,9 @@
 #define PORT_CONTROL_STATE_LEARNING	0x02
 #define PORT_CONTROL_STATE_FORWARDING	0x03
 #define PORT_CONTROL_1		0x05
+#define PORT_CONTROL_1_FID_11_4_MASK	(0xff << 0)
 #define PORT_BASE_VLAN		0x06
+#define PORT_BASE_VLAN_FID_3_0_MASK	(0xf << 12)
 #define PORT_DEFAULT_VLAN	0x07
 #define PORT_DEFAULT_VLAN_MASK	0xfff
 #define PORT_CONTROL_2		0x08
@@ -157,6 +169,11 @@
 #define PORT_RATE_CONTROL	0x09
 #define PORT_RATE_CONTROL_2	0x0a
 #define PORT_ASSOC_VECTOR	0x0b
+#define PORT_ASSOC_VECTOR_HOLD_AT_1		BIT(15)
+#define PORT_ASSOC_VECTOR_INT_AGE_OUT		BIT(14)
+#define PORT_ASSOC_VECTOR_LOCKED_PORT		BIT(13)
+#define PORT_ASSOC_VECTOR_IGNORE_WRONG		BIT(12)
+#define PORT_ASSOC_VECTOR_REFRESH_LOCKED	BIT(11)
 #define PORT_ATU_CONTROL	0x0c
 #define PORT_PRI_OVERRIDE	0x0d
 #define PORT_ETH_TYPE		0x0f
@@ -226,12 +243,12 @@
 #define GLOBAL_ATU_OP		0x0b
 #define GLOBAL_ATU_OP_BUSY	BIT(15)
 #define GLOBAL_ATU_OP_NOP		(0 << 12)
-#define GLOBAL_ATU_OP_FLUSH_ALL		((1 << 12) | GLOBAL_ATU_OP_BUSY)
-#define GLOBAL_ATU_OP_FLUSH_NON_STATIC	((2 << 12) | GLOBAL_ATU_OP_BUSY)
+#define GLOBAL_ATU_OP_FLUSH_MOVE_ALL		((1 << 12) | GLOBAL_ATU_OP_BUSY)
+#define GLOBAL_ATU_OP_FLUSH_MOVE_NON_STATIC	((2 << 12) | GLOBAL_ATU_OP_BUSY)
 #define GLOBAL_ATU_OP_LOAD_DB		((3 << 12) | GLOBAL_ATU_OP_BUSY)
 #define GLOBAL_ATU_OP_GET_NEXT_DB	((4 << 12) | GLOBAL_ATU_OP_BUSY)
-#define GLOBAL_ATU_OP_FLUSH_DB		((5 << 12) | GLOBAL_ATU_OP_BUSY)
-#define GLOBAL_ATU_OP_FLUSH_NON_STATIC_DB ((6 << 12) | GLOBAL_ATU_OP_BUSY)
+#define GLOBAL_ATU_OP_FLUSH_MOVE_ALL_DB		((5 << 12) | GLOBAL_ATU_OP_BUSY)
+#define GLOBAL_ATU_OP_FLUSH_MOVE_NON_STATIC_DB ((6 << 12) | GLOBAL_ATU_OP_BUSY)
 #define GLOBAL_ATU_OP_GET_CLR_VIOLATION	  ((7 << 12) | GLOBAL_ATU_OP_BUSY)
 #define GLOBAL_ATU_DATA		0x0c
 #define GLOBAL_ATU_DATA_TRUNK			BIT(15)
@@ -281,6 +298,7 @@
 #define GLOBAL_STATS_OP_HIST_RX		((1 << 10) | GLOBAL_STATS_OP_BUSY)
 #define GLOBAL_STATS_OP_HIST_TX		((2 << 10) | GLOBAL_STATS_OP_BUSY)
 #define GLOBAL_STATS_OP_HIST_RX_TX	((3 << 10) | GLOBAL_STATS_OP_BUSY)
+#define GLOBAL_STATS_OP_BANK_1	BIT(9)
 #define GLOBAL_STATS_COUNTER_32	0x1e
 #define GLOBAL_STATS_COUNTER_01	0x1f
 
@@ -347,6 +365,13 @@
 #define GLOBAL2_QOS_WEIGHT	0x1c
 #define GLOBAL2_MISC		0x1d
 
+#define MV88E6XXX_N_FID		4096
+
+struct mv88e6xxx_switch_id {
+	u16 id;
+	char *name;
+};
+
 struct mv88e6xxx_atu_entry {
 	u16	fid;
 	u8	state;
@@ -364,6 +389,11 @@ struct mv88e6xxx_vtu_stu_entry {
 	u8	sid;
 	bool	valid;
 	u8	data[DSA_MAX_PORTS];
+};
+
+struct mv88e6xxx_priv_port {
+	struct net_device *bridge_dev;
+	u8 state;
 };
 
 struct mv88e6xxx_priv_state {
@@ -402,34 +432,34 @@ struct mv88e6xxx_priv_state {
 	int		id; /* switch product id */
 	int		num_ports;	/* number of switch ports */
 
-	/* hw bridging */
+	struct mv88e6xxx_priv_port	ports[DSA_MAX_PORTS];
 
-	DECLARE_BITMAP(fid_bitmap, VLAN_N_VID);	/* FIDs 1 to 4095 available */
-	u16 fid[DSA_MAX_PORTS];			/* per (non-bridged) port FID */
-	u16 bridge_mask[DSA_MAX_PORTS];		/* br groups (indexed by FID) */
-
-	unsigned long port_state_update_mask;
-	u8 port_state[DSA_MAX_PORTS];
+	DECLARE_BITMAP(port_state_update_mask, DSA_MAX_PORTS);
 
 	struct work_struct bridge_work;
+};
 
-	struct dentry *dbgfs;
+enum stat_type {
+	BANK0,
+	BANK1,
+	PORT,
 };
 
 struct mv88e6xxx_hw_stat {
 	char string[ETH_GSTRING_LEN];
 	int sizeof_stat;
 	int reg;
+	enum stat_type type;
 };
 
 int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active);
+char *mv88e6xxx_lookup_name(struct device *host_dev, int sw_addr,
+			    const struct mv88e6xxx_switch_id *table,
+			    unsigned int num);
 int mv88e6xxx_setup_ports(struct dsa_switch *ds);
 int mv88e6xxx_setup_common(struct dsa_switch *ds);
 int mv88e6xxx_setup_global(struct dsa_switch *ds);
-int __mv88e6xxx_reg_read(struct mii_bus *bus, int sw_addr, int addr, int reg);
 int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg);
-int __mv88e6xxx_reg_write(struct mii_bus *bus, int sw_addr, int addr,
-			  int reg, u16 val);
 int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val);
 int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr);
 int mv88e6xxx_set_addr_indirect(struct dsa_switch *ds, u8 *addr);
@@ -442,7 +472,6 @@ void mv88e6xxx_ppu_state_init(struct dsa_switch *ds);
 int mv88e6xxx_phy_read_ppu(struct dsa_switch *ds, int addr, int regnum);
 int mv88e6xxx_phy_write_ppu(struct dsa_switch *ds, int addr,
 			    int regnum, u16 val);
-void mv88e6xxx_poll_link(struct dsa_switch *ds);
 void mv88e6xxx_get_strings(struct dsa_switch *ds, int port, uint8_t *data);
 void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
 				 uint64_t *data);
@@ -465,28 +494,40 @@ int mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int addr, int regnum,
 int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e);
 int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 		      struct phy_device *phydev, struct ethtool_eee *e);
-int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
-int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
+int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
+			       struct net_device *bridge);
+void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
-int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *vid);
-int mv88e6xxx_port_pvid_set(struct dsa_switch *ds, int port, u16 vid);
-int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
-			    bool untagged);
-int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid);
-int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
-			   unsigned long *ports, unsigned long *untagged);
+int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
+				  bool vlan_filtering);
+int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
+				const struct switchdev_obj_port_vlan *vlan,
+				struct switchdev_trans *trans);
+int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_vlan *vlan,
+			    struct switchdev_trans *trans);
+int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_vlan *vlan);
+int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
+			     struct switchdev_obj_port_vlan *vlan,
+			     int (*cb)(struct switchdev_obj *obj));
+int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_fdb *fdb,
+			       struct switchdev_trans *trans);
 int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid);
+			   const struct switchdev_obj_port_fdb *fdb,
+			   struct switchdev_trans *trans);
 int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid);
-int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
-			       unsigned char *addr, u16 *vid, bool *is_static);
+			   const struct switchdev_obj_port_fdb *fdb);
+int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
+			    struct switchdev_obj_port_fdb *fdb,
+			    int (*cb)(struct switchdev_obj *obj));
 int mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page, int reg);
 int mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
 			     int reg, int val);
 
 extern struct dsa_switch_driver mv88e6131_switch_driver;
-extern struct dsa_switch_driver mv88e6123_61_65_switch_driver;
+extern struct dsa_switch_driver mv88e6123_switch_driver;
 extern struct dsa_switch_driver mv88e6352_switch_driver;
 extern struct dsa_switch_driver mv88e6171_switch_driver;
 

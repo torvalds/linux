@@ -62,8 +62,7 @@
 
 struct tipc_node;
 struct tipc_bearer;
-struct tipc_bcbearer;
-struct tipc_bclink;
+struct tipc_bc_base;
 struct tipc_link;
 struct tipc_name_table;
 struct tipc_server;
@@ -93,8 +92,8 @@ struct tipc_net {
 	struct tipc_bearer __rcu *bearer_list[MAX_BEARERS + 1];
 
 	/* Broadcast link */
-	struct tipc_bcbearer *bcbearer;
-	struct tipc_bclink *bclink;
+	spinlock_t bclock;
+	struct tipc_bc_base *bcbase;
 	struct tipc_link *bcl;
 
 	/* Socket hash table */
@@ -104,6 +103,9 @@ struct tipc_net {
 	spinlock_t nametbl_lock;
 	struct name_table *nametbl;
 
+	/* Name dist queue */
+	struct list_head dist_queue;
+
 	/* Topology subscription server */
 	struct tipc_server *topsrv;
 	atomic_t subscription_count;
@@ -112,6 +114,16 @@ struct tipc_net {
 static inline struct tipc_net *tipc_net(struct net *net)
 {
 	return net_generic(net, tipc_net_id);
+}
+
+static inline int tipc_netid(struct net *net)
+{
+	return tipc_net(net)->net_id;
+}
+
+static inline struct list_head *tipc_nodes(struct net *net)
+{
+	return &tipc_net(net)->node_list;
 }
 
 static inline u16 mod(u16 x)

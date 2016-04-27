@@ -334,7 +334,7 @@ static int da732x_hpf_set(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct soc_enum *enum_ctrl = (struct soc_enum *)kcontrol->private_value;
 	unsigned int reg = enum_ctrl->reg;
-	unsigned int sel = ucontrol->value.integer.value[0];
+	unsigned int sel = ucontrol->value.enumerated.item[0];
 	unsigned int bits;
 
 	switch (sel) {
@@ -368,13 +368,13 @@ static int da732x_hpf_get(struct snd_kcontrol *kcontrol,
 
 	switch (val) {
 	case DA732X_HPF_VOICE_EN:
-		ucontrol->value.integer.value[0] = DA732X_HPF_VOICE;
+		ucontrol->value.enumerated.item[0] = DA732X_HPF_VOICE;
 		break;
 	case DA732X_HPF_MUSIC_EN:
-		ucontrol->value.integer.value[0] = DA732X_HPF_MUSIC;
+		ucontrol->value.enumerated.item[0] = DA732X_HPF_MUSIC;
 		break;
 	default:
-		ucontrol->value.integer.value[0] = DA732X_HPF_DISABLED;
+		ucontrol->value.enumerated.item[0] = DA732X_HPF_DISABLED;
 		break;
 	}
 

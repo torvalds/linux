@@ -21,14 +21,13 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/platform_data/camera-rcar.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
@@ -125,7 +124,7 @@
 #define VNDMR_EXRGB		(1 << 8)
 #define VNDMR_BPSM		(1 << 4)
 #define VNDMR_DTMD_YCSEP	(1 << 1)
-#define VNDMR_DTMD_ARGB1555	(1 << 0)
+#define VNDMR_DTMD_ARGB		(1 << 0)
 
 /* Video n Data Mode Register 2 bits */
 #define VNDMR2_VPS		(1 << 30)
@@ -138,7 +137,13 @@
 
 #define TIMEOUT_MS		100
 
+#define RCAR_VIN_HSYNC_ACTIVE_LOW	(1 << 0)
+#define RCAR_VIN_VSYNC_ACTIVE_LOW	(1 << 1)
+#define RCAR_VIN_BT601			(1 << 2)
+#define RCAR_VIN_BT656			(1 << 3)
+
 enum chip_id {
+	RCAR_GEN3,
 	RCAR_GEN2,
 	RCAR_H1,
 	RCAR_M1,
@@ -478,7 +483,7 @@ struct rcar_vin_priv {
 	struct soc_camera_host		ici;
 	struct list_head		capture;
 #define MAX_BUFFER_NUM			3
-	struct vb2_buffer		*queue_buf[MAX_BUFFER_NUM];
+	struct vb2_v4l2_buffer		*queue_buf[MAX_BUFFER_NUM];
 	struct vb2_alloc_ctx		*alloc_ctx;
 	enum v4l2_field			field;
 	unsigned int			pdata_flags;
@@ -492,7 +497,7 @@ struct rcar_vin_priv {
 #define is_continuous_transfer(priv)	(priv->vb_count > MAX_BUFFER_NUM)
 
 struct rcar_vin_buffer {
-	struct vb2_buffer		vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head		list;
 };
 
@@ -527,7 +532,6 @@ struct rcar_vin_cam {
  * required
  */
 static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
-				   const struct v4l2_format *fmt,
 				   unsigned int *count,
 				   unsigned int *num_planes,
 				   unsigned int sizes[], void *alloc_ctxs[])
@@ -535,36 +539,6 @@ static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rcar_vin_priv *priv = ici->priv;
-
-	if (fmt) {
-		const struct soc_camera_format_xlate *xlate;
-		unsigned int bytes_per_line;
-		int ret;
-
-		if (fmt->fmt.pix.sizeimage < icd->sizeimage)
-			return -EINVAL;
-
-		xlate = soc_camera_xlate_by_fourcc(icd,
-						   fmt->fmt.pix.pixelformat);
-		if (!xlate)
-			return -EINVAL;
-		ret = soc_mbus_bytes_per_line(fmt->fmt.pix.width,
-					      xlate->host_fmt);
-		if (ret < 0)
-			return ret;
-
-		bytes_per_line = max_t(u32, fmt->fmt.pix.bytesperline, ret);
-
-		ret = soc_mbus_image_size(xlate->host_fmt, bytes_per_line,
-					  fmt->fmt.pix.height);
-		if (ret < 0)
-			return ret;
-
-		sizes[0] = max_t(u32, fmt->fmt.pix.sizeimage, ret);
-	} else {
-		/* Called from VIDIOC_REQBUFS or in compatibility mode */
-		sizes[0] = icd->sizeimage;
-	}
 
 	alloc_ctxs[0] = priv->alloc_ctx;
 
@@ -575,13 +549,17 @@ static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
 		*count = 2;
 	priv->vb_count = *count;
 
-	*num_planes = 1;
-
 	/* Number of hardware slots */
 	if (is_continuous_transfer(priv))
 		priv->nr_hw_slots = MAX_BUFFER_NUM;
 	else
 		priv->nr_hw_slots = 1;
+
+	if (*num_planes)
+		return sizes[0] < icd->sizeimage ? -EINVAL : 0;
+
+	sizes[0] = icd->sizeimage;
+	*num_planes = 1;
 
 	dev_dbg(icd->parent, "count=%d, size=%u\n", *count, sizes[0]);
 
@@ -665,21 +643,26 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 		output_is_yuv = true;
 		break;
 	case V4L2_PIX_FMT_RGB555X:
-		dmr = VNDMR_DTMD_ARGB1555;
+		dmr = VNDMR_DTMD_ARGB;
 		break;
 	case V4L2_PIX_FMT_RGB565:
 		dmr = 0;
 		break;
 	case V4L2_PIX_FMT_RGB32:
-		if (priv->chip == RCAR_GEN2 || priv->chip == RCAR_H1 ||
-		    priv->chip == RCAR_E1) {
-			dmr = VNDMR_EXRGB;
-			break;
-		}
+		if (priv->chip != RCAR_GEN2 && priv->chip != RCAR_H1 &&
+		    priv->chip != RCAR_E1)
+			goto e_format;
+
+		dmr = VNDMR_EXRGB;
+		break;
+	case V4L2_PIX_FMT_ARGB32:
+		if (priv->chip != RCAR_GEN3)
+			goto e_format;
+
+		dmr = VNDMR_EXRGB | VNDMR_DTMD_ARGB;
+		break;
 	default:
-		dev_warn(icd->parent, "Invalid fourcc format (0x%x)\n",
-			 icd->current_fmt->host_fmt->fourcc);
-		return -EINVAL;
+		goto e_format;
 	}
 
 	/* Always update on field change */
@@ -701,6 +684,11 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 	iowrite32(vnmc | VNMC_ME, priv->base + VNMC_REG);
 
 	return 0;
+
+e_format:
+	dev_warn(icd->parent, "Invalid fourcc format (0x%x)\n",
+		 icd->current_fmt->host_fmt->fourcc);
+	return -EINVAL;
 }
 
 static void rcar_vin_capture(struct rcar_vin_priv *priv)
@@ -748,7 +736,7 @@ static int rcar_vin_hw_ready(struct rcar_vin_priv *priv)
 /* Moves a buffer from the queue to the HW slots */
 static int rcar_vin_fill_hw_slot(struct rcar_vin_priv *priv)
 {
-	struct vb2_buffer *vb;
+	struct vb2_v4l2_buffer *vbuf;
 	dma_addr_t phys_addr_top;
 	int slot;
 
@@ -760,10 +748,11 @@ static int rcar_vin_fill_hw_slot(struct rcar_vin_priv *priv)
 	if (slot < 0)
 		return 0;
 
-	vb = &list_entry(priv->capture.next, struct rcar_vin_buffer, list)->vb;
-	list_del_init(to_buf_list(vb));
-	priv->queue_buf[slot] = vb;
-	phys_addr_top = vb2_dma_contig_plane_dma_addr(vb, 0);
+	vbuf = &list_entry(priv->capture.next,
+			struct rcar_vin_buffer, list)->vb;
+	list_del_init(to_buf_list(vbuf));
+	priv->queue_buf[slot] = vbuf;
+	phys_addr_top = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 0);
 	iowrite32(phys_addr_top, priv->base + VNMB_REG(slot));
 
 	return 1;
@@ -771,6 +760,7 @@ static int rcar_vin_fill_hw_slot(struct rcar_vin_priv *priv)
 
 static void rcar_vin_videobuf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rcar_vin_priv *priv = ici->priv;
@@ -780,7 +770,7 @@ static void rcar_vin_videobuf_queue(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < size) {
 		dev_err(icd->parent, "Buffer #%d too small (%lu < %lu)\n",
-			vb->v4l2_buf.index, vb2_plane_size(vb, 0), size);
+			vb->index, vb2_plane_size(vb, 0), size);
 		goto error;
 	}
 
@@ -791,14 +781,14 @@ static void rcar_vin_videobuf_queue(struct vb2_buffer *vb)
 
 	spin_lock_irq(&priv->lock);
 
-	list_add_tail(to_buf_list(vb), &priv->capture);
+	list_add_tail(to_buf_list(vbuf), &priv->capture);
 	rcar_vin_fill_hw_slot(priv);
 
 	/* If we weren't running, and have enough buffers, start capturing! */
 	if (priv->state != RUNNING && rcar_vin_hw_ready(priv)) {
 		if (rcar_vin_setup(priv)) {
 			/* Submit error */
-			list_del_init(to_buf_list(vb));
+			list_del_init(to_buf_list(vbuf));
 			spin_unlock_irq(&priv->lock);
 			goto error;
 		}
@@ -854,7 +844,7 @@ static void rcar_vin_stop_streaming(struct vb2_queue *vq)
 
 	for (i = 0; i < MAX_BUFFER_NUM; i++) {
 		if (priv->queue_buf[i]) {
-			vb2_buffer_done(priv->queue_buf[i],
+			vb2_buffer_done(&priv->queue_buf[i]->vb2_buf,
 					VB2_BUF_STATE_ERROR);
 			priv->queue_buf[i] = NULL;
 		}
@@ -862,7 +852,7 @@ static void rcar_vin_stop_streaming(struct vb2_queue *vq)
 
 	list_for_each_safe(buf_head, tmp, &priv->capture) {
 		vb2_buffer_done(&list_entry(buf_head,
-					struct rcar_vin_buffer, list)->vb,
+				struct rcar_vin_buffer, list)->vb.vb2_buf,
 				VB2_BUF_STATE_ERROR);
 		list_del_init(buf_head);
 	}
@@ -907,10 +897,11 @@ static irqreturn_t rcar_vin_irq(int irq, void *data)
 		else
 			slot = 0;
 
-		priv->queue_buf[slot]->v4l2_buf.field = priv->field;
-		priv->queue_buf[slot]->v4l2_buf.sequence = priv->sequence++;
-		v4l2_get_timestamp(&priv->queue_buf[slot]->v4l2_buf.timestamp);
-		vb2_buffer_done(priv->queue_buf[slot], VB2_BUF_STATE_DONE);
+		priv->queue_buf[slot]->field = priv->field;
+		priv->queue_buf[slot]->sequence = priv->sequence++;
+		priv->queue_buf[slot]->vb2_buf.timestamp = ktime_get_ns();
+		vb2_buffer_done(&priv->queue_buf[slot]->vb2_buf,
+				VB2_BUF_STATE_DONE);
 		priv->queue_buf[slot] = NULL;
 
 		if (priv->state != STOPPING)
@@ -964,7 +955,7 @@ static void rcar_vin_remove_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rcar_vin_priv *priv = ici->priv;
-	struct vb2_buffer *vb;
+	struct vb2_v4l2_buffer *vbuf;
 	int i;
 
 	/* disable capture, disable interrupts */
@@ -978,10 +969,10 @@ static void rcar_vin_remove_device(struct soc_camera_device *icd)
 	/* make sure active buffer is cancelled */
 	spin_lock_irq(&priv->lock);
 	for (i = 0; i < MAX_BUFFER_NUM; i++) {
-		vb = priv->queue_buf[i];
-		if (vb) {
-			list_del_init(to_buf_list(vb));
-			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
+		vbuf = priv->queue_buf[i];
+		if (vbuf) {
+			list_del_init(to_buf_list(vbuf));
+			vb2_buffer_done(&vbuf->vb2_buf, VB2_BUF_STATE_ERROR);
 		}
 	}
 	spin_unlock_irq(&priv->lock);
@@ -1323,6 +1314,14 @@ static const struct soc_mbus_pixelfmt rcar_vin_formats[] = {
 		.order			= SOC_MBUS_ORDER_LE,
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
+	{
+		.fourcc			= V4L2_PIX_FMT_ARGB32,
+		.name			= "ARGB8888",
+		.bits_per_sample	= 32,
+		.packing		= SOC_MBUS_PACKING_NONE,
+		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
+	},
 };
 
 static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
@@ -1602,11 +1601,15 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 	case V4L2_FIELD_INTERLACED:
 		/* Query for standard if not explicitly mentioned _TB/_BT */
 		ret = v4l2_subdev_call(sd, video, querystd, &std);
-		if (ret < 0)
-			std = V4L2_STD_625_50;
-
-		field = std & V4L2_STD_625_50 ? V4L2_FIELD_INTERLACED_TB :
-						V4L2_FIELD_INTERLACED_BT;
+		if (ret == -ENOIOCTLCMD) {
+			field = V4L2_FIELD_NONE;
+		} else if (ret < 0) {
+			return ret;
+		} else {
+			field = std & V4L2_STD_625_50 ?
+				V4L2_FIELD_INTERLACED_TB :
+				V4L2_FIELD_INTERLACED_BT;
+		}
 		break;
 	}
 
@@ -1626,6 +1629,7 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 	case V4L2_PIX_FMT_RGB32:
 		can_scale = priv->chip != RCAR_E1;
 		break;
+	case V4L2_PIX_FMT_ARGB32:
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_RGB565:
@@ -1834,6 +1838,7 @@ static struct soc_camera_host_ops rcar_vin_host_ops = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id rcar_vin_of_table[] = {
+	{ .compatible = "renesas,vin-r8a7795", .data = (void *)RCAR_GEN3 },
 	{ .compatible = "renesas,vin-r8a7794", .data = (void *)RCAR_GEN2 },
 	{ .compatible = "renesas,vin-r8a7793", .data = (void *)RCAR_GEN2 },
 	{ .compatible = "renesas,vin-r8a7791", .data = (void *)RCAR_GEN2 },
@@ -1845,65 +1850,43 @@ static const struct of_device_id rcar_vin_of_table[] = {
 MODULE_DEVICE_TABLE(of, rcar_vin_of_table);
 #endif
 
-static struct platform_device_id rcar_vin_id_table[] = {
-	{ "r8a7791-vin",  RCAR_GEN2 },
-	{ "r8a7790-vin",  RCAR_GEN2 },
-	{ "r8a7779-vin",  RCAR_H1 },
-	{ "r8a7778-vin",  RCAR_M1 },
-	{ "uPD35004-vin", RCAR_E1 },
-	{},
-};
-MODULE_DEVICE_TABLE(platform, rcar_vin_id_table);
-
 static int rcar_vin_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match = NULL;
 	struct rcar_vin_priv *priv;
+	struct v4l2_of_endpoint ep;
+	struct device_node *np;
 	struct resource *mem;
-	struct rcar_vin_platform_data *pdata;
 	unsigned int pdata_flags;
 	int irq, ret;
 
-	if (pdev->dev.of_node) {
-		struct v4l2_of_endpoint ep;
-		struct device_node *np;
+	match = of_match_device(of_match_ptr(rcar_vin_of_table), &pdev->dev);
 
-		match = of_match_device(of_match_ptr(rcar_vin_of_table),
-					&pdev->dev);
-
-		np = of_graph_get_next_endpoint(pdev->dev.of_node, NULL);
-		if (!np) {
-			dev_err(&pdev->dev, "could not find endpoint\n");
-			return -EINVAL;
-		}
-
-		ret = v4l2_of_parse_endpoint(np, &ep);
-		if (ret) {
-			dev_err(&pdev->dev, "could not parse endpoint\n");
-			return ret;
-		}
-
-		if (ep.bus_type == V4L2_MBUS_BT656)
-			pdata_flags = RCAR_VIN_BT656;
-		else {
-			pdata_flags = 0;
-			if (ep.bus.parallel.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
-				pdata_flags |= RCAR_VIN_HSYNC_ACTIVE_LOW;
-			if (ep.bus.parallel.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
-				pdata_flags |= RCAR_VIN_VSYNC_ACTIVE_LOW;
-		}
-
-		of_node_put(np);
-
-		dev_dbg(&pdev->dev, "pdata_flags = %08x\n", pdata_flags);
-	} else {
-		pdata = pdev->dev.platform_data;
-		if (!pdata || !pdata->flags) {
-			dev_err(&pdev->dev, "platform data not set\n");
-			return -EINVAL;
-		}
-		pdata_flags = pdata->flags;
+	np = of_graph_get_next_endpoint(pdev->dev.of_node, NULL);
+	if (!np) {
+		dev_err(&pdev->dev, "could not find endpoint\n");
+		return -EINVAL;
 	}
+
+	ret = v4l2_of_parse_endpoint(np, &ep);
+	if (ret) {
+		dev_err(&pdev->dev, "could not parse endpoint\n");
+		return ret;
+	}
+
+	if (ep.bus_type == V4L2_MBUS_BT656)
+		pdata_flags = RCAR_VIN_BT656;
+	else {
+		pdata_flags = 0;
+		if (ep.bus.parallel.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
+			pdata_flags |= RCAR_VIN_HSYNC_ACTIVE_LOW;
+		if (ep.bus.parallel.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
+			pdata_flags |= RCAR_VIN_VSYNC_ACTIVE_LOW;
+	}
+
+	of_node_put(np);
+
+	dev_dbg(&pdev->dev, "pdata_flags = %08x\n", pdata_flags);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (mem == NULL)
@@ -1986,7 +1969,6 @@ static struct platform_driver rcar_vin_driver = {
 		.name		= DRV_NAME,
 		.of_match_table	= of_match_ptr(rcar_vin_of_table),
 	},
-	.id_table	= rcar_vin_id_table,
 };
 
 module_platform_driver(rcar_vin_driver);

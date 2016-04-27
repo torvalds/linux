@@ -43,7 +43,7 @@
 			linux,code = <KEY_POWER>;
 			label = "power key";
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -52,13 +52,13 @@
 		regulator-name = "V_EMMC_2.8V-fixed";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
-		gpio = <&gpk0 2 0>;
+		gpio = <&gpk0 2 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
 	i2c_max77836: i2c-gpio-0 {
 		compatible = "i2c-gpio";
-		gpios = <&gpd0 2 0>, <&gpd0 3 0>;
+		gpios = <&gpd0 2 GPIO_ACTIVE_HIGH>, <&gpd0 3 GPIO_ACTIVE_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -67,7 +67,7 @@
 			interrupt-parent = <&gpx1>;
 			interrupts = <5 0>;
 			reg = <0x25>;
-			wakeup;
+			wakeup-source;
 
 			muic: max77836-muic {
 				compatible = "maxim,max77836-muic";
@@ -161,6 +161,7 @@
 };
 
 &exynos_usbphy {
+	vbus-supply = <&safeout_reg>;
 	status = "okay";
 };
 
@@ -184,7 +185,7 @@
 		interrupt-parent = <&gpx0>;
 		interrupts = <7 0>;
 		reg = <0x66>;
-		wakeup;
+		wakeup-source;
 
 		s2mps14_osc: clocks {
 			compatible = "samsung,s2mps14-clk";
@@ -266,14 +267,14 @@
 				regulator-name = "V_EMMC_1.8V";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				samsung,ext-control-gpios = <&gpk0 2 0>;
+				samsung,ext-control-gpios = <&gpk0 2 GPIO_ACTIVE_HIGH>;
 			};
 
 			ldo12_reg: LDO12 {
 				regulator-name = "V_EMMC_2.8V";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
-				samsung,ext-control-gpios = <&gpk0 2 0>;
+				samsung,ext-control-gpios = <&gpk0 2 GPIO_ACTIVE_HIGH>;
 			};
 
 			ldo13_reg: LDO13 {

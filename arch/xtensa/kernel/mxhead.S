@@ -48,8 +48,6 @@ _SetupOCD:
 	rsync
 
 _SetupMMU:
-	Offset = _SetupMMU - _SecondaryResetVector
-
 #ifdef CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	initialize_mmu
 #endif
@@ -60,26 +58,5 @@ _SetupMMU:
 	movi	a2, 0				#  a2 == NULL
 	movi	a3, _startup
 	jx	a3
-
-	.end    no-absolute-literals
-
-
-	.section 	.SecondaryResetVector.remapped_text, "ax"
-	.global         _RemappedSecondaryResetVector
-
-	.org 0                                  # Need to do org before literals
-
-_RemappedSecondaryResetVector:
-	.begin  no-absolute-literals
-	.literal_position
-
-	_j      _RemappedSetupMMU
-	. = _RemappedSecondaryResetVector + Offset
-
-_RemappedSetupMMU:
-
-#ifdef CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
-	initialize_mmu
-#endif
 
 	.end    no-absolute-literals

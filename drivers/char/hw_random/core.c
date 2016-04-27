@@ -238,7 +238,10 @@ static ssize_t rng_dev_read(struct file *filp, char __user *buf,
 			goto out;
 		}
 
-		mutex_lock(&reading_mutex);
+		if (mutex_lock_interruptible(&reading_mutex)) {
+			err = -ERESTARTSYS;
+			goto out_put;
+		}
 		if (!data_avail) {
 			bytes_read = rng_get_data(rng, rng_buffer,
 				rng_buffer_size(),
@@ -288,6 +291,7 @@ out:
 
 out_unlock_reading:
 	mutex_unlock(&reading_mutex);
+out_put:
 	put_rng(rng);
 	goto out;
 }
@@ -323,7 +327,7 @@ static ssize_t hwrng_attr_current_store(struct device *dev,
 		return -ERESTARTSYS;
 	err = -ENODEV;
 	list_for_each_entry(rng, &rng_list, list) {
-		if (strcmp(rng->name, buf) == 0) {
+		if (sysfs_streq(rng->name, buf)) {
 			err = 0;
 			if (rng != current_rng)
 				err = set_current_rng(rng);

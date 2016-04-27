@@ -52,6 +52,7 @@
 #include <linux/kthread.h>
 #include <linux/acpi.h>
 #include <linux/ctype.h>
+#include <linux/time64.h>
 
 #define PFX "ipmi_ssif: "
 #define DEVICE_NAME "ipmi_ssif"
@@ -919,23 +920,18 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 			msg_done_handler(ssif_info, -EIO, NULL, 0);
 		}
 	} else {
+		/* Ready to request the result. */
 		unsigned long oflags, *flags;
-		bool got_alert;
 
 		ssif_inc_stat(ssif_info, sent_messages);
 		ssif_inc_stat(ssif_info, sent_messages_parts);
 
 		flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
-		got_alert = ssif_info->got_alert;
-		if (got_alert) {
+		if (ssif_info->got_alert) {
+			/* The result is already ready, just start it. */
 			ssif_info->got_alert = false;
-			ssif_info->waiting_alert = false;
-		}
-
-		if (got_alert) {
 			ipmi_ssif_unlock_cond(ssif_info, flags);
-			/* The alert already happened, try now. */
-			retry_timeout((unsigned long) ssif_info);
+			start_get(ssif_info);
 		} else {
 			/* Wait a jiffie then request the next message */
 			ssif_info->waiting_alert = true;
@@ -1041,12 +1037,12 @@ static void sender(void                *send_info,
 	start_next_msg(ssif_info, flags);
 
 	if (ssif_info->ssif_debug & SSIF_DEBUG_TIMING) {
-		struct timeval t;
+		struct timespec64 t;
 
-		do_gettimeofday(&t);
-		pr_info("**Enqueue %02x %02x: %ld.%6.6ld\n",
+		ktime_get_real_ts64(&t);
+		pr_info("**Enqueue %02x %02x: %lld.%6.6ld\n",
 		       msg->data[0], msg->data[1],
-		       (long) t.tv_sec, (long) t.tv_usec);
+		       (long long) t.tv_sec, (long) t.tv_nsec / NSEC_PER_USEC);
 	}
 }
 
@@ -1958,7 +1954,6 @@ MODULE_DEVICE_TABLE(i2c, ssif_id);
 static struct i2c_driver ssif_i2c_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver		= {
-		.owner			= THIS_MODULE,
 		.name			= DEVICE_NAME
 	},
 	.probe		= ssif_probe,

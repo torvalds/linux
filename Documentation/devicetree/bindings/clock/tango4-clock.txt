@@ -1,0 +1,23 @@
+* Sigma Designs Tango4 Clock Generator
+
+The Tango4 clock generator outputs cpu_clk and sys_clk (the latter is used
+for RAM and various peripheral devices). The clock binding described here
+is applicable to all Tango4 SoCs.
+
+Required Properties:
+
+- compatible: should be "sigma,tango4-clkgen".
+- reg: physical base address of the device and length of memory mapped region.
+- clocks: phandle of the input clock (crystal oscillator).
+- clock-output-names: should be "cpuclk" and "sysclk".
+- #clock-cells: should be set to 1.
+
+Example:
+
+	clkgen: clkgen@10000 {
+		compatible = "sigma,tango4-clkgen";
+		reg = <0x10000 0x40>;
+		clocks = <&xtal>;
+		clock-output-names = "cpuclk", "sysclk";
+		#clock-cells = <1>;
+	};

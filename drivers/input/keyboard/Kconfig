@@ -516,7 +516,7 @@ config KEYBOARD_SAMSUNG
 	  module will be called samsung-keypad.
 
 config KEYBOARD_GOLDFISH_EVENTS
-	depends on GOLDFISH
+	depends on GOLDFISH || COMPILE_TEST
 	tristate "Generic Input Event device for Goldfish"
 	help
 	  Say Y here to get an input event device for the Goldfish virtual
@@ -560,7 +560,7 @@ config KEYBOARD_SUNKBD
 
 config KEYBOARD_SH_KEYSC
 	tristate "SuperH KEYSC keypad support"
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  Say Y here if you want to use a keypad attached to the KEYSC block
 	  on SuperH processors such as sh7722 and sh7343.

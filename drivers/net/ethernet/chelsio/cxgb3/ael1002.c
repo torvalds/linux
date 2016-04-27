@@ -198,7 +198,7 @@ static int get_link_status_r(struct cphy *phy, int *link_ok, int *speed,
 	return 0;
 }
 
-static struct cphy_ops ael1002_ops = {
+static const struct cphy_ops ael1002_ops = {
 	.reset = ael1002_reset,
 	.intr_enable = ael1002_intr_noop,
 	.intr_disable = ael1002_intr_noop,
@@ -224,7 +224,7 @@ static int ael1006_reset(struct cphy *phy, int wait)
 	return t3_phy_reset(phy, MDIO_MMD_PMAPMD, wait);
 }
 
-static struct cphy_ops ael1006_ops = {
+static const struct cphy_ops ael1006_ops = {
 	.reset = ael1006_reset,
 	.intr_enable = t3_phy_lasi_intr_enable,
 	.intr_disable = t3_phy_lasi_intr_disable,
@@ -495,7 +495,7 @@ static int ael2005_intr_handler(struct cphy *phy)
 	return ret ? ret : cphy_cause_link_change;
 }
 
-static struct cphy_ops ael2005_ops = {
+static const struct cphy_ops ael2005_ops = {
 	.reset           = ael2005_reset,
 	.intr_enable     = ael2005_intr_enable,
 	.intr_disable    = ael2005_intr_disable,
@@ -801,7 +801,7 @@ static int ael2020_intr_handler(struct cphy *phy)
 	return ret ? ret : cphy_cause_link_change;
 }
 
-static struct cphy_ops ael2020_ops = {
+static const struct cphy_ops ael2020_ops = {
 	.reset           = ael2020_reset,
 	.intr_enable     = ael2020_intr_enable,
 	.intr_disable    = ael2020_intr_disable,
@@ -856,7 +856,7 @@ static int get_link_status_x(struct cphy *phy, int *link_ok, int *speed,
 	return 0;
 }
 
-static struct cphy_ops qt2045_ops = {
+static const struct cphy_ops qt2045_ops = {
 	.reset = ael1006_reset,
 	.intr_enable = t3_phy_lasi_intr_enable,
 	.intr_disable = t3_phy_lasi_intr_disable,
@@ -921,7 +921,7 @@ static int xaui_direct_power_down(struct cphy *phy, int enable)
 	return 0;
 }
 
-static struct cphy_ops xaui_direct_ops = {
+static const struct cphy_ops xaui_direct_ops = {
 	.reset = xaui_direct_reset,
 	.intr_enable = ael1002_intr_noop,
 	.intr_disable = ael1002_intr_noop,

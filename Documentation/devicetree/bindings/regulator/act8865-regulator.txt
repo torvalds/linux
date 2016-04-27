@@ -8,6 +8,8 @@ Required properties:
 Optional properties:
 - system-power-controller: Telling whether or not this pmic is controlling
   the system power. See Documentation/devicetree/bindings/power/power-controller.txt .
+- active-semi,vsel-high: Indicates the VSEL pin is high.
+  If this property is missing, assume the VSEL pin is low(0).
 
 Optional input supply properties:
 - for act8600:
@@ -49,6 +51,7 @@ Example:
 			pmic: act8865@5b {
 				compatible = "active-semi,act8865";
 				reg = <0x5b>;
+				active-semi,vsel-high;
 				status = "disabled";
 
 				regulators {

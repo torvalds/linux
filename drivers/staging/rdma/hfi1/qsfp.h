@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -59,23 +56,28 @@
  * Below are masks for QSFP pins.  Pins are the same for HFI0 and HFI1.
  * _N means asserted low
  */
-#define QSFP_HFI0_I2CCLK    (1 << 0)
-#define QSFP_HFI0_I2CDAT    (1 << 1)
-#define QSFP_HFI0_RESET_N   (1 << 2)
-#define QSFP_HFI0_INT_N	    (1 << 3)
-#define QSFP_HFI0_MODPRST_N (1 << 4)
+#define QSFP_HFI0_I2CCLK    BIT(0)
+#define QSFP_HFI0_I2CDAT    BIT(1)
+#define QSFP_HFI0_RESET_N   BIT(2)
+#define QSFP_HFI0_INT_N	    BIT(3)
+#define QSFP_HFI0_MODPRST_N BIT(4)
 
 /* QSFP is paged at 256 bytes */
 #define QSFP_PAGESIZE 256
+/* Reads/writes cannot cross 128 byte boundaries */
+#define QSFP_RW_BOUNDARY 128
+
+/* number of bytes in i2c offset for QSFP devices */
+#define __QSFP_OFFSET_SIZE 1                           /* num address bytes */
+#define QSFP_OFFSET_SIZE (__QSFP_OFFSET_SIZE << 8)     /* shifted value */
 
 /* Defined fields that Intel requires of qualified cables */
 /* Byte 0 is Identifier, not checked */
 /* Byte 1 is reserved "status MSB" */
-/* Byte 2 is "status LSB" We only care that D2 "Flat Mem" is set. */
-/*
- * Rest of first 128 not used, although 127 is reserved for page select
- * if module is not "Flat memory".
- */
+#define QSFP_TX_CTRL_BYTE_OFFS 86
+#define QSFP_PWR_CTRL_BYTE_OFFS 93
+#define QSFP_CDR_CTRL_BYTE_OFFS 98
+
 #define QSFP_PAGE_SELECT_BYTE_OFFS 127
 /* Byte 128 is Identifier: must be 0x0c for QSFP, or 0x0d for QSFP+ */
 #define QSFP_MOD_ID_OFFS 128
@@ -87,7 +89,8 @@
 /* Byte 130 is Connector type. Not Intel req'd */
 /* Bytes 131..138 are Transceiver types, bit maps for various tech, none IB */
 /* Byte 139 is encoding. code 0x01 is 8b10b. Not Intel req'd */
-/* byte 140 is nominal bit-rate, in units of 100Mbits/sec Not Intel req'd */
+/* byte 140 is nominal bit-rate, in units of 100Mbits/sec */
+#define QSFP_NOM_BIT_RATE_100_OFFS 140
 /* Byte 141 is Extended Rate Select. Not Intel req'd */
 /* Bytes 142..145 are lengths for various fiber types. Not Intel req'd */
 /* Byte 146 is length for Copper. Units of 1 meter */
@@ -135,11 +138,18 @@ extern const char *const hfi1_qsfp_devtech[16];
  */
 #define QSFP_ATTEN_OFFS 186
 #define QSFP_ATTEN_LEN 2
-/* Bytes 188,189 are Wavelength tolerance, not Intel req'd */
+/*
+ * Bytes 188,189 are Wavelength tolerance, if optical
+ * If copper, they are attenuation in dB:
+ * Byte 188 is at 12.5 Gb/s, Byte 189 at 25 Gb/s
+ */
+#define QSFP_CU_ATTEN_7G_OFFS 188
+#define QSFP_CU_ATTEN_12G_OFFS 189
 /* Byte 190 is Max Case Temp. Not Intel req'd */
 /* Byte 191 is LSB of sum of bytes 128..190. Not Intel req'd */
 #define QSFP_CC_OFFS 191
-/* Bytes 192..195 are Options implemented in qsfp. Not Intel req'd */
+#define QSFP_EQ_INFO_OFFS 193
+#define QSFP_CDR_INFO_OFFS 194
 /* Bytes 196..211 are Serial Number, String */
 #define QSFP_SN_OFFS 196
 #define QSFP_SN_LEN 16
@@ -150,6 +160,8 @@ extern const char *const hfi1_qsfp_devtech[16];
 #define QSFP_LOT_OFFS 218
 #define QSFP_LOT_LEN 2
 /* Bytes 220, 221 indicate monitoring options, Not Intel req'd */
+/* Byte 222 indicates nominal bitrate in units of 250Mbits/sec */
+#define QSFP_NOM_BIT_RATE_250_OFFS 222
 /* Byte 223 is LSB of sum of bytes 192..222 */
 #define QSFP_CC_EXT_OFFS 223
 
@@ -191,6 +203,7 @@ extern const char *const hfi1_qsfp_devtech[16];
  */
 
 #define QSFP_PWR(pbyte) (((pbyte) >> 6) & 3)
+#define QSFP_HIGH_PWR(pbyte) (((pbyte) & 3) | 4)
 #define QSFP_ATTEN_SDR(attenarray) (attenarray[0])
 #define QSFP_ATTEN_DDR(attenarray) (attenarray[1])
 
@@ -198,10 +211,12 @@ struct qsfp_data {
 	/* Helps to find our way */
 	struct hfi1_pportdata *ppd;
 	struct work_struct qsfp_work;
-	u8 cache[QSFP_MAX_NUM_PAGES*128];
+	u8 cache[QSFP_MAX_NUM_PAGES * 128];
+	/* protect qsfp data */
 	spinlock_t qsfp_lock;
 	u8 check_interrupt_flags;
-	u8 qsfp_interrupt_functional;
+	u8 reset_needed;
+	u8 limiting_active;
 	u8 cache_valid;
 	u8 cache_refresh_required;
 };
@@ -220,3 +235,7 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	       int len);
 int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	      int len);
+int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
+		   int len);
+int one_qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
+		  int len);

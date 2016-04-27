@@ -51,7 +51,6 @@
 
 #define SEC_GC_INTERVAL (30 * 60)
 
-
 static struct mutex sec_gc_mutex;
 static LIST_HEAD(sec_gc_list);
 static spinlock_t sec_gc_list_lock;
@@ -62,14 +61,13 @@ static spinlock_t sec_gc_ctx_list_lock;
 static struct ptlrpc_thread sec_gc_thread;
 static atomic_t sec_gc_wait_del = ATOMIC_INIT(0);
 
-
 void sptlrpc_gc_add_sec(struct ptlrpc_sec *sec)
 {
 	LASSERT(sec->ps_policy->sp_cops->gc_ctx);
 	LASSERT(sec->ps_gc_interval > 0);
 	LASSERT(list_empty(&sec->ps_gc_list));
 
-	sec->ps_gc_next = get_seconds() + sec->ps_gc_interval;
+	sec->ps_gc_next = ktime_get_real_seconds() + sec->ps_gc_interval;
 
 	spin_lock(&sec_gc_list_lock);
 	list_add_tail(&sec_gc_list, &sec->ps_gc_list);
@@ -103,21 +101,6 @@ void sptlrpc_gc_del_sec(struct ptlrpc_sec *sec)
 }
 EXPORT_SYMBOL(sptlrpc_gc_del_sec);
 
-void sptlrpc_gc_add_ctx(struct ptlrpc_cli_ctx *ctx)
-{
-	LASSERT(list_empty(&ctx->cc_gc_chain));
-
-	CDEBUG(D_SEC, "hand over ctx %p(%u->%s)\n",
-	       ctx, ctx->cc_vcred.vc_uid, sec2target_str(ctx->cc_sec));
-	spin_lock(&sec_gc_ctx_list_lock);
-	list_add(&ctx->cc_gc_chain, &sec_gc_ctx_list);
-	spin_unlock(&sec_gc_ctx_list_lock);
-
-	thread_add_flags(&sec_gc_thread, SVC_SIGNAL);
-	wake_up(&sec_gc_thread.t_ctl_waitq);
-}
-EXPORT_SYMBOL(sptlrpc_gc_add_ctx);
-
 static void sec_process_ctx_list(void)
 {
 	struct ptlrpc_cli_ctx *ctx;
@@ -126,7 +109,7 @@ static void sec_process_ctx_list(void)
 
 	while (!list_empty(&sec_gc_ctx_list)) {
 		ctx = list_entry(sec_gc_ctx_list.next,
-				     struct ptlrpc_cli_ctx, cc_gc_chain);
+				 struct ptlrpc_cli_ctx, cc_gc_chain);
 		list_del_init(&ctx->cc_gc_chain);
 		spin_unlock(&sec_gc_ctx_list_lock);
 
@@ -148,22 +131,22 @@ static void sec_do_gc(struct ptlrpc_sec *sec)
 
 	if (unlikely(sec->ps_gc_next == 0)) {
 		CDEBUG(D_SEC, "sec %p(%s) has 0 gc time\n",
-		      sec, sec->ps_policy->sp_name);
+		       sec, sec->ps_policy->sp_name);
 		return;
 	}
 
 	CDEBUG(D_SEC, "check on sec %p(%s)\n", sec, sec->ps_policy->sp_name);
 
-	if (cfs_time_after(sec->ps_gc_next, get_seconds()))
+	if (sec->ps_gc_next > ktime_get_real_seconds())
 		return;
 
 	sec->ps_policy->sp_cops->gc_ctx(sec);
-	sec->ps_gc_next = get_seconds() + sec->ps_gc_interval;
+	sec->ps_gc_next = ktime_get_real_seconds() + sec->ps_gc_interval;
 }
 
 static int sec_gc_main(void *arg)
 {
-	struct ptlrpc_thread *thread = (struct ptlrpc_thread *) arg;
+	struct ptlrpc_thread *thread = arg;
 	struct l_wait_info lwi;
 
 	unshare_fs_struct();
@@ -183,11 +166,13 @@ again:
 		 * is not optimal. we perhaps want to use balanced binary tree
 		 * to trace each sec as order of expiry time.
 		 * another issue here is we wakeup as fixed interval instead of
-		 * according to each sec's expiry time */
+		 * according to each sec's expiry time
+		 */
 		mutex_lock(&sec_gc_mutex);
 		list_for_each_entry(sec, &sec_gc_list, ps_gc_list) {
 			/* if someone is waiting to be deleted, let it
-			 * proceed as soon as possible. */
+			 * proceed as soon as possible.
+			 */
 			if (atomic_read(&sec_gc_wait_del)) {
 				CDEBUG(D_SEC, "deletion pending, start over\n");
 				mutex_unlock(&sec_gc_mutex);

@@ -372,24 +372,12 @@ static struct platform_driver sta2x11_sctl_platform_driver = {
 	.probe		= sta2x11_sctl_probe,
 };
 
-static int __init sta2x11_sctl_init(void)
-{
-	pr_info("%s\n", __func__);
-	return platform_driver_register(&sta2x11_sctl_platform_driver);
-}
-
 static struct platform_driver sta2x11_platform_driver = {
 	.driver = {
 		.name	= STA2X11_MFD_APBREG_NAME,
 	},
 	.probe		= sta2x11_apbreg_probe,
 };
-
-static int __init sta2x11_apbreg_init(void)
-{
-	pr_info("%s\n", __func__);
-	return platform_driver_register(&sta2x11_platform_driver);
-}
 
 static struct platform_driver sta2x11_apb_soc_regs_platform_driver = {
 	.driver = {
@@ -398,12 +386,6 @@ static struct platform_driver sta2x11_apb_soc_regs_platform_driver = {
 	.probe		= sta2x11_apb_soc_regs_probe,
 };
 
-static int __init sta2x11_apb_soc_regs_init(void)
-{
-	pr_info("%s\n", __func__);
-	return platform_driver_register(&sta2x11_apb_soc_regs_platform_driver);
-}
-
 static struct platform_driver sta2x11_scr_platform_driver = {
 	.driver = {
 		.name = STA2X11_MFD_SCR_NAME,
@@ -411,12 +393,17 @@ static struct platform_driver sta2x11_scr_platform_driver = {
 	.probe = sta2x11_scr_probe,
 };
 
-static int __init sta2x11_scr_init(void)
-{
-	pr_info("%s\n", __func__);
-	return platform_driver_register(&sta2x11_scr_platform_driver);
-}
+static struct platform_driver * const drivers[] = {
+	&sta2x11_platform_driver,
+	&sta2x11_sctl_platform_driver,
+	&sta2x11_apb_soc_regs_platform_driver,
+	&sta2x11_scr_platform_driver,
+};
 
+static int __init sta2x11_drivers_init(void)
+{
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
+}
 
 /*
  * What follows are the PCI devices that host the above pdevs.
@@ -664,10 +651,7 @@ static int __init sta2x11_mfd_init(void)
  * prepares platform drivers very early and probe the PCI device later,
  * but before other PCI devices.
  */
-subsys_initcall(sta2x11_apbreg_init);
-subsys_initcall(sta2x11_sctl_init);
-subsys_initcall(sta2x11_apb_soc_regs_init);
-subsys_initcall(sta2x11_scr_init);
+subsys_initcall(sta2x11_drivers_init);
 rootfs_initcall(sta2x11_mfd_init);
 
 MODULE_LICENSE("GPL v2");

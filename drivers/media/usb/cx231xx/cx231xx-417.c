@@ -37,7 +37,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/cx2341x.h>
+#include <media/drv-intf/cx2341x.h>
 #include <media/tuner.h>
 
 #define CX231xx_FIRM_IMAGE_SIZE 376836
@@ -1382,6 +1382,8 @@ static int cx231xx_bulk_copy(struct cx231xx *dev, struct urb *urb)
 	buffer_size = urb->actual_length;
 
 	buffer = kmalloc(buffer_size, GFP_ATOMIC);
+	if (!buffer)
+		return -ENOMEM;
 
 	memcpy(buffer, dma_q->ps_head, 3);
 	memcpy(buffer+3, p_buffer, buffer_size-3);
@@ -1491,6 +1493,27 @@ static struct videobuf_queue_ops cx231xx_qops = {
 };
 
 /* ------------------------------------------------------------------ */
+
+static int vidioc_cropcap(struct file *file, void *priv,
+			  struct v4l2_cropcap *cc)
+{
+	struct cx231xx_fh *fh = priv;
+	struct cx231xx *dev = fh->dev;
+	bool is_50hz = dev->encodernorm.id & V4L2_STD_625_50;
+
+	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	cc->bounds.left = 0;
+	cc->bounds.top = 0;
+	cc->bounds.width = dev->ts1.width;
+	cc->bounds.height = dev->ts1.height;
+	cc->defrect = cc->bounds;
+	cc->pixelaspect.numerator = is_50hz ? 54 : 11;
+	cc->pixelaspect.denominator = is_50hz ? 59 : 10;
+
+	return 0;
+}
 
 static int vidioc_g_std(struct file *file, void *fh0, v4l2_std_id *norm)
 {
@@ -1834,6 +1857,7 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_g_input		 = cx231xx_g_input,
 	.vidioc_s_input		 = cx231xx_s_input,
 	.vidioc_s_ctrl		 = vidioc_s_ctrl,
+	.vidioc_cropcap		 = vidioc_cropcap,
 	.vidioc_querycap	 = cx231xx_querycap,
 	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap	 = vidioc_g_fmt_vid_cap,
@@ -1901,7 +1925,7 @@ static int cx231xx_s_audio_sampling_freq(struct cx2341x_handler *cxhdl, u32 idx)
 	return 0;
 }
 
-static struct cx2341x_handler_ops cx231xx_ops = {
+static const struct cx2341x_handler_ops cx231xx_ops = {
 	/* needed for the video clock freq */
 	.s_audio_sampling_freq = cx231xx_s_audio_sampling_freq,
 	/* needed for setting up the video resolution */

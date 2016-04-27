@@ -97,8 +97,7 @@ static void arizona_haptics_work(struct work_struct *work)
 
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_HAPTICS_CONTROL_1,
-					 ARIZONA_HAP_CTRL_MASK,
-					 1 << ARIZONA_HAP_CTRL_SHIFT);
+					 ARIZONA_HAP_CTRL_MASK, 0);
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to stop haptics: %d\n",
 				ret);
@@ -179,7 +178,6 @@ static int arizona_haptics_probe(struct platform_device *pdev)
 	input_set_drvdata(haptics->input_dev, haptics);
 
 	haptics->input_dev->name = "arizona:haptics";
-	haptics->input_dev->dev.parent = pdev->dev.parent;
 	haptics->input_dev->close = arizona_haptics_close;
 	__set_bit(FF_RUMBLE, haptics->input_dev->ffbit);
 

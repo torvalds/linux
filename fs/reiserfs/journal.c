@@ -599,18 +599,18 @@ static int journal_list_still_alive(struct super_block *s,
  * This does a check to see if the buffer belongs to one of these
  * lost pages before doing the final put_bh.  If page->mapping was
  * null, it tries to free buffers on the page, which should make the
- * final page_cache_release drop the page from the lru.
+ * final put_page drop the page from the lru.
  */
 static void release_buffer_page(struct buffer_head *bh)
 {
 	struct page *page = bh->b_page;
 	if (!page->mapping && trylock_page(page)) {
-		page_cache_get(page);
+		get_page(page);
 		put_bh(bh);
 		if (!page->mapping)
 			try_to_free_buffers(page);
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	} else {
 		put_bh(bh);
 	}
@@ -618,12 +618,10 @@ static void release_buffer_page(struct buffer_head *bh)
 
 static void reiserfs_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
 {
-	char b[BDEVNAME_SIZE];
-
 	if (buffer_journaled(bh)) {
 		reiserfs_warning(NULL, "clm-2084",
-				 "pinned buffer %lu:%s sent to disk",
-				 bh->b_blocknr, bdevname(bh->b_bdev, b));
+				 "pinned buffer %lu:%pg sent to disk",
+				 bh->b_blocknr, bh->b_bdev);
 	}
 	if (uptodate)
 		set_buffer_uptodate(bh);
@@ -2387,11 +2385,10 @@ static int journal_read(struct super_block *sb)
 	int replay_count = 0;
 	int continue_replay = 1;
 	int ret;
-	char b[BDEVNAME_SIZE];
 
 	cur_dblock = SB_ONDISK_JOURNAL_1st_BLOCK(sb);
-	reiserfs_info(sb, "checking transaction log (%s)\n",
-		      bdevname(journal->j_dev_bd, b));
+	reiserfs_info(sb, "checking transaction log (%pg)\n",
+		      journal->j_dev_bd);
 	start = get_seconds();
 
 	/*
@@ -2651,8 +2648,8 @@ static int journal_init_dev(struct super_block *super,
 
 	set_blocksize(journal->j_dev_bd, super->s_blocksize);
 	reiserfs_info(super,
-		      "journal_init_dev: journal device: %s\n",
-		      bdevname(journal->j_dev_bd, b));
+		      "journal_init_dev: journal device: %pg\n",
+		      journal->j_dev_bd);
 	return 0;
 }
 
@@ -2724,7 +2721,6 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 	struct reiserfs_journal_header *jh;
 	struct reiserfs_journal *journal;
 	struct reiserfs_journal_list *jl;
-	char b[BDEVNAME_SIZE];
 	int ret;
 
 	journal = SB_JOURNAL(sb) = vzalloc(sizeof(struct reiserfs_journal));
@@ -2794,10 +2790,10 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 	    && (le32_to_cpu(jh->jh_journal.jp_journal_magic) !=
 		sb_jp_journal_magic(rs))) {
 		reiserfs_warning(sb, "sh-460",
-				 "journal header magic %x (device %s) does "
+				 "journal header magic %x (device %pg) does "
 				 "not match to magic found in super block %x",
 				 jh->jh_journal.jp_journal_magic,
-				 bdevname(journal->j_dev_bd, b),
+				 journal->j_dev_bd,
 				 sb_jp_journal_magic(rs));
 		brelse(bhjh);
 		goto free_and_return;
@@ -2818,10 +2814,10 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 		journal->j_max_trans_age = commit_max_age;
 	}
 
-	reiserfs_info(sb, "journal params: device %s, size %u, "
+	reiserfs_info(sb, "journal params: device %pg, size %u, "
 		      "journal first block %u, max trans len %u, max batch %u, "
 		      "max commit age %u, max trans age %u\n",
-		      bdevname(journal->j_dev_bd, b),
+		      journal->j_dev_bd,
 		      SB_ONDISK_JOURNAL_SIZE(sb),
 		      SB_ONDISK_JOURNAL_1st_BLOCK(sb),
 		      journal->j_trans_max,

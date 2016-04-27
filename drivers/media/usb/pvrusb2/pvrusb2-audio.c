@@ -23,7 +23,7 @@
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
 #include <linux/videodev2.h>
-#include <media/msp3400.h>
+#include <media/drv-intf/msp3400.h>
 #include <media/v4l2-common.h>
 
 

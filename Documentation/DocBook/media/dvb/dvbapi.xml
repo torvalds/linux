@@ -125,9 +125,6 @@ Added ISDB-T test originally written by Patrick Boettcher
 	&sub-audio;
     </section>
   </chapter>
-  <chapter id="dvb_kdapi">
-    &sub-kdapi;
-  </chapter>
   <chapter id="dvb_examples">
     &sub-examples;
   </chapter>

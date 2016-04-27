@@ -72,7 +72,7 @@ static int map_browser__run(struct map_browser *browser)
 	int key;
 
 	if (ui_browser__show(&browser->b, browser->map->dso->long_name,
-			     "Press <- or ESC to exit, %s / to search",
+			     "Press ESC to exit, %s / to search",
 			     verbose ? "" : "restart with -v to use") < 0)
 		return -1;
 

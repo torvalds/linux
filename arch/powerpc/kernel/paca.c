@@ -17,10 +17,6 @@
 #include <asm/pgtable.h>
 #include <asm/kexec.h>
 
-/* This symbol is provided by the linker - let it fill in the paca
- * field correctly */
-extern unsigned long __toc_start;
-
 #ifdef CONFIG_PPC_BOOK3S
 
 /*
@@ -149,11 +145,6 @@ EXPORT_SYMBOL(paca);
 
 void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 {
-       /* The TOC register (GPR2) points 32kB into the TOC, so that 64kB
-	* of the TOC can be addressed using a single machine instruction.
-	*/
-	unsigned long kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL;
-
 #ifdef CONFIG_PPC_BOOK3S
 	new_paca->lppaca_ptr = new_lppaca(cpu);
 #else
@@ -161,7 +152,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 #endif
 	new_paca->lock_token = 0x8000;
 	new_paca->paca_index = cpu;
-	new_paca->kernel_toc = kernel_toc;
+	new_paca->kernel_toc = kernel_toc_addr();
 	new_paca->kernelbase = (unsigned long) _stext;
 	/* Only set MSR:IR/DR when MMU is initialized */
 	new_paca->kernel_msr = MSR_KERNEL & ~(MSR_IR | MSR_DR);
@@ -204,14 +195,19 @@ static int __initdata paca_size;
 
 void __init allocate_pacas(void)
 {
-	int cpu, limit;
+	u64 limit;
+	int cpu;
 
+	limit = ppc64_rma_size;
+
+#ifdef CONFIG_PPC_BOOK3S_64
 	/*
 	 * We can't take SLB misses on the paca, and we want to access them
 	 * in real mode, so allocate them within the RMA and also within
 	 * the first segment.
 	 */
-	limit = min(0x10000000ULL, ppc64_rma_size);
+	limit = min(0x10000000ULL, limit);
+#endif
 
 	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
 

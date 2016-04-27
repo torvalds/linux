@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
+# Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
 #
 # Marek Lindner, Simon Wunderlich
 #
@@ -18,6 +18,9 @@
 
 obj-$(CONFIG_BATMAN_ADV) += batman-adv.o
 batman-adv-y += bat_iv_ogm.o
+batman-adv-$(CONFIG_BATMAN_ADV_BATMAN_V) += bat_v.o
+batman-adv-$(CONFIG_BATMAN_ADV_BATMAN_V) += bat_v_elp.o
+batman-adv-$(CONFIG_BATMAN_ADV_BATMAN_V) += bat_v_ogm.o
 batman-adv-y += bitarray.o
 batman-adv-$(CONFIG_BATMAN_ADV_BLA) += bridge_loop_avoidance.o
 batman-adv-$(CONFIG_DEBUG_FS) += debugfs.o

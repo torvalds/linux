@@ -273,8 +273,10 @@ static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
 	for_each_child_of_node(np, child) {
 		ret = sh_pfc_dt_subnode_to_map(pctldev, child, map, num_maps,
 					       &index);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(child);
 			goto done;
+		}
 	}
 
 	/* If no mapping has been found in child nodes try the config node. */

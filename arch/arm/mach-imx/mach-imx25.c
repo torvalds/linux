@@ -41,6 +41,7 @@ static const char * const imx25_dt_board_compat[] __initconst = {
 
 DT_MACHINE_START(IMX25_DT, "Freescale i.MX25 (Device Tree Support)")
 	.init_early	= imx25_init_early,
+	.init_late      = imx25_pm_init,
 	.init_irq	= mx25_init_irq,
 	.dt_compat	= imx25_dt_board_compat,
 MACHINE_END

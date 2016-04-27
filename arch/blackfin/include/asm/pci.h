@@ -4,7 +4,6 @@
 #define _ASM_BFIN_PCI_H
 
 #include <linux/scatterlist.h>
-#include <asm-generic/pci-dma-compat.h>
 #include <asm-generic/pci.h>
 
 #define PCIBIOS_MIN_IO 0x00001000

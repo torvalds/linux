@@ -609,7 +609,7 @@ struct uv_cpu_nmi_s {
 
 DECLARE_PER_CPU(struct uv_cpu_nmi_s, uv_cpu_nmi);
 
-#define uv_hub_nmi			(uv_cpu_nmi.hub)
+#define uv_hub_nmi			this_cpu_read(uv_cpu_nmi.hub)
 #define uv_cpu_nmi_per(cpu)		(per_cpu(uv_cpu_nmi, cpu))
 #define uv_hub_nmi_per(cpu)		(uv_cpu_nmi_per(cpu).hub)
 

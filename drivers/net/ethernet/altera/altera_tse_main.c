@@ -131,7 +131,6 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
 	int ret;
-	int i;
 	struct device_node *mdio_node = NULL;
 	struct mii_bus *mdio = NULL;
 	struct device_node *child_node = NULL;
@@ -161,14 +160,6 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	mdio->write = &altera_tse_mdio_write;
 	snprintf(mdio->id, MII_BUS_ID_SIZE, "%s-%u", mdio->name, id);
 
-	mdio->irq = kcalloc(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
-	if (mdio->irq == NULL) {
-		ret = -ENOMEM;
-		goto out_free_mdio;
-	}
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		mdio->irq[i] = PHY_POLL;
-
 	mdio->priv = dev;
 	mdio->parent = priv->device;
 
@@ -176,7 +167,7 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	if (ret != 0) {
 		netdev_err(dev, "Cannot register MDIO bus %s\n",
 			   mdio->id);
-		goto out_free_mdio_irq;
+		goto out_free_mdio;
 	}
 
 	if (netif_msg_drv(priv))
@@ -184,8 +175,6 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 
 	priv->mdio = mdio;
 	return 0;
-out_free_mdio_irq:
-	kfree(mdio->irq);
 out_free_mdio:
 	mdiobus_free(mdio);
 	mdio = NULL;
@@ -204,7 +193,6 @@ static void altera_tse_mdio_destroy(struct net_device *dev)
 			    priv->mdio->id);
 
 	mdiobus_unregister(priv->mdio);
-	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 	priv->mdio = NULL;
 }
@@ -855,7 +843,7 @@ static int init_phy(struct net_device *dev)
 	}
 
 	netdev_dbg(dev, "attached to PHY %d UID 0x%08x Link = %d\n",
-		   phydev->addr, phydev->phy_id, phydev->link);
+		   phydev->mdio.addr, phydev->phy_id, phydev->link);
 
 	priv->phydev = phydev;
 	return 0;

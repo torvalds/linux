@@ -158,9 +158,7 @@ static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 	new_mpls_lse = (__be32 *)skb_mpls_header(skb);
 	*new_mpls_lse = mpls->mpls_lse;
 
-	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->csum = csum_add(skb->csum, csum_partial(new_mpls_lse,
-							     MPLS_HLEN, 0));
+	skb_postpush_rcsum(skb, new_mpls_lse, MPLS_HLEN);
 
 	hdr = eth_hdr(skb);
 	hdr->h_proto = mpls->mpls_ethertype;
@@ -280,7 +278,7 @@ static int set_eth_addr(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	ether_addr_copy_masked(eth_hdr(skb)->h_dest, key->eth_dst,
 			       mask->eth_dst);
 
-	ovs_skb_postpush_rcsum(skb, eth_hdr(skb), ETH_ALEN * 2);
+	skb_postpush_rcsum(skb, eth_hdr(skb), ETH_ALEN * 2);
 
 	ether_addr_copy(flow_key->eth.src, eth_hdr(skb)->h_source);
 	ether_addr_copy(flow_key->eth.dst, eth_hdr(skb)->h_dest);
@@ -463,7 +461,7 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *flow_key,
 		mask_ipv6_addr(saddr, key->ipv6_src, mask->ipv6_src, masked);
 
 		if (unlikely(memcmp(saddr, masked, sizeof(masked)))) {
-			set_ipv6_addr(skb, key->ipv6_proto, saddr, masked,
+			set_ipv6_addr(skb, flow_key->ip.proto, saddr, masked,
 				      true);
 			memcpy(&flow_key->ipv6.addr.src, masked,
 			       sizeof(flow_key->ipv6.addr.src));
@@ -485,7 +483,7 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *flow_key,
 							     NULL, &flags)
 					       != NEXTHDR_ROUTING);
 
-			set_ipv6_addr(skb, key->ipv6_proto, daddr, masked,
+			set_ipv6_addr(skb, flow_key->ip.proto, daddr, masked,
 				      recalc_csum);
 			memcpy(&flow_key->ipv6.addr.dst, masked,
 			       sizeof(flow_key->ipv6.addr.dst));
@@ -620,7 +618,7 @@ static int set_sctp(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
-static int ovs_vport_output(struct sock *sock, struct sk_buff *skb)
+static int ovs_vport_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct ovs_frag_data *data = this_cpu_ptr(&ovs_frag_data_storage);
 	struct vport *vport = data->vport;
@@ -639,7 +637,7 @@ static int ovs_vport_output(struct sock *sock, struct sk_buff *skb)
 	/* Reconstruct the MAC header.  */
 	skb_push(skb, data->l2_len);
 	memcpy(skb->data, &data->l2_data, data->l2_len);
-	ovs_skb_postpush_rcsum(skb, skb->data, data->l2_len);
+	skb_postpush_rcsum(skb, skb->data, data->l2_len);
 	skb_reset_mac_header(skb);
 
 	ovs_vport_send(vport, skb);
@@ -679,8 +677,8 @@ static void prepare_frag(struct vport *vport, struct sk_buff *skb)
 	skb_pull(skb, hlen);
 }
 
-static void ovs_fragment(struct vport *vport, struct sk_buff *skb, u16 mru,
-			 __be16 ethertype)
+static void ovs_fragment(struct net *net, struct vport *vport,
+			 struct sk_buff *skb, u16 mru, __be16 ethertype)
 {
 	if (skb_network_offset(skb) > MAX_L2_LEN) {
 		OVS_NLERR(1, "L2 header too long to fragment");
@@ -700,7 +698,7 @@ static void ovs_fragment(struct vport *vport, struct sk_buff *skb, u16 mru,
 		skb_dst_set_noref(skb, &ovs_dst);
 		IPCB(skb)->frag_max_size = mru;
 
-		ip_do_fragment(skb->sk, skb, ovs_vport_output);
+		ip_do_fragment(net, skb->sk, skb, ovs_vport_output);
 		refdst_drop(orig_dst);
 	} else if (ethertype == htons(ETH_P_IPV6)) {
 		const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
@@ -721,7 +719,7 @@ static void ovs_fragment(struct vport *vport, struct sk_buff *skb, u16 mru,
 		skb_dst_set_noref(skb, &ovs_rt.dst);
 		IP6CB(skb)->frag_max_size = mru;
 
-		v6ops->fragment(skb->sk, skb, ovs_vport_output);
+		v6ops->fragment(net, skb->sk, skb, ovs_vport_output);
 		refdst_drop(orig_dst);
 	} else {
 		WARN_ONCE(1, "Failed fragment ->%s: eth=%04x, MRU=%d, MTU=%d.",
@@ -746,6 +744,7 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 		if (likely(!mru || (skb->len <= mru + ETH_HLEN))) {
 			ovs_vport_send(vport, skb);
 		} else if (mru <= vport->dev->mtu) {
+			struct net *net = read_pnet(&dp->net);
 			__be16 ethertype = key->eth.type;
 
 			if (!is_flow_key_valid(key)) {
@@ -755,7 +754,7 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 					ethertype = vlan_get_protocol(skb);
 			}
 
-			ovs_fragment(vport, skb, mru, ethertype);
+			ovs_fragment(net, vport, skb, mru, ethertype);
 		} else {
 			kfree_skb(skb);
 		}
@@ -1159,17 +1158,26 @@ int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			const struct sw_flow_actions *acts,
 			struct sw_flow_key *key)
 {
-	int level = this_cpu_read(exec_actions_level);
-	int err;
+	static const int ovs_recursion_limit = 5;
+	int err, level;
 
-	this_cpu_inc(exec_actions_level);
+	level = __this_cpu_inc_return(exec_actions_level);
+	if (unlikely(level > ovs_recursion_limit)) {
+		net_crit_ratelimited("ovs: recursion limit reached on datapath %s, probable configuration error\n",
+				     ovs_dp_name(dp));
+		kfree_skb(skb);
+		err = -ENETDOWN;
+		goto out;
+	}
+
 	err = do_execute_actions(dp, skb, key,
 				 acts->actions, acts->actions_len);
 
-	if (!level)
+	if (level == 1)
 		process_deferred_actions(dp);
 
-	this_cpu_dec(exec_actions_level);
+out:
+	__this_cpu_dec(exec_actions_level);
 	return err;
 }
 

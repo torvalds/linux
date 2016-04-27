@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/clk/mmp.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -18,15 +19,14 @@
 
 #include <asm/hardware/cache-tauros2.h>
 #include <asm/mach/time.h>
-#include <mach/addr-map.h>
-#include <mach/regs-apbc.h>
-#include <mach/cputype.h>
-#include <mach/irqs.h>
-#include <mach/dma.h>
-#include <mach/mfp.h>
-#include <mach/devices.h>
-#include <mach/pm-pxa910.h>
-#include <mach/pxa910.h>
+#include "addr-map.h"
+#include "regs-apbc.h"
+#include "cputype.h"
+#include "irqs.h"
+#include "mfp.h"
+#include "devices.h"
+#include "pm-pxa910.h"
+#include "pxa910.h"
 
 #include "common.h"
 
@@ -96,8 +96,10 @@ static int __init pxa910_init(void)
 #endif
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(pxa910_mfp_addr_map);
-		pxa_init_dma(IRQ_PXA910_DMA_INT0, 32);
-		pxa910_clk_init();
+		pxa910_clk_init(APB_PHYS_BASE + 0x50000,
+				AXI_PHYS_BASE + 0x82800,
+				APB_PHYS_BASE + 0x15000,
+				APB_PHYS_BASE + 0x3b000);
 	}
 
 	return 0;

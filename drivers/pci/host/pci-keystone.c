@@ -97,17 +97,15 @@ static int ks_pcie_establish_link(struct keystone_pcie *ks_pcie)
 		return 0;
 	}
 
-	ks_dw_pcie_initiate_link_train(ks_pcie);
 	/* check if the link is up or not */
-	for (retries = 0; retries < 200; retries++) {
-		if (dw_pcie_link_up(pp))
-			return 0;
-		usleep_range(100, 1000);
+	for (retries = 0; retries < 5; retries++) {
 		ks_dw_pcie_initiate_link_train(ks_pcie);
+		if (!dw_pcie_wait_for_link(pp))
+			return 0;
 	}
 
 	dev_err(pp->dev, "phy link never came up\n");
-	return -EINVAL;
+	return -ETIMEDOUT;
 }
 
 static void ks_pcie_msi_irq_handler(struct irq_desc *desc)
@@ -359,6 +357,9 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 
 	/* initialize SerDes Phy if present */
 	phy = devm_phy_get(dev, "pcie-phy");
+	if (PTR_ERR_OR_ZERO(phy) == -EPROBE_DEFER)
+		return PTR_ERR(phy);
+
 	if (!IS_ERR_OR_NULL(phy)) {
 		ret = phy_init(phy);
 		if (ret < 0)

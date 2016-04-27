@@ -5,6 +5,7 @@
 
 struct tcf_connmark_info {
 	struct tcf_common common;
+	struct net *net;
 	u16 zone;
 };
 

@@ -23,7 +23,7 @@
 
 &ecspi3 {
 	flash: m25p80@0 {
-		compatible = "sst,sst25vf016b";
+		compatible = "sst,sst25vf016b", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};

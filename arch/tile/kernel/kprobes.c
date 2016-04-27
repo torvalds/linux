@@ -116,7 +116,7 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 	unsigned long addr_wr;
 
 	/* Operate on writable kernel text mapping. */
-	addr_wr = (unsigned long)p->addr - MEM_SV_START + PAGE_OFFSET;
+	addr_wr = ktext_writable_addr(p->addr);
 
 	if (probe_kernel_write((void *)addr_wr, &breakpoint_insn,
 		sizeof(breakpoint_insn)))
@@ -131,7 +131,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *kp)
 	unsigned long addr_wr;
 
 	/* Operate on writable kernel text mapping. */
-	addr_wr = (unsigned long)kp->addr - MEM_SV_START + PAGE_OFFSET;
+	addr_wr = ktext_writable_addr(kp->addr);
 
 	if (probe_kernel_write((void *)addr_wr, &kp->opcode,
 		sizeof(kp->opcode)))

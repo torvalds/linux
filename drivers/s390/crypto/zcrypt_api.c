@@ -317,11 +317,9 @@ EXPORT_SYMBOL(zcrypt_device_unregister);
 
 void zcrypt_msgtype_register(struct zcrypt_ops *zops)
 {
-	if (zops->owner) {
-		spin_lock_bh(&zcrypt_ops_list_lock);
-		list_add_tail(&zops->list, &zcrypt_ops_list);
-		spin_unlock_bh(&zcrypt_ops_list_lock);
-	}
+	spin_lock_bh(&zcrypt_ops_list_lock);
+	list_add_tail(&zops->list, &zcrypt_ops_list);
+	spin_unlock_bh(&zcrypt_ops_list_lock);
 }
 EXPORT_SYMBOL(zcrypt_msgtype_register);
 
@@ -342,7 +340,7 @@ struct zcrypt_ops *__ops_lookup(unsigned char *name, int variant)
 	spin_lock_bh(&zcrypt_ops_list_lock);
 	list_for_each_entry(zops, &zcrypt_ops_list, list) {
 		if ((zops->variant == variant) &&
-		    (!strncmp(zops->owner->name, name, MODULE_NAME_LEN))) {
+		    (!strncmp(zops->name, name, sizeof(zops->name)))) {
 			found = 1;
 			break;
 		}
@@ -472,8 +470,7 @@ static long zcrypt_rsa_crt(struct ica_rsa_modexpo_crt *crt)
 	unsigned long long z1, z2, z3;
 	int rc, copied;
 
-	if (crt->outputdatalength < crt->inputdatalength ||
-	    (crt->inputdatalength & 1))
+	if (crt->outputdatalength < crt->inputdatalength)
 		return -EINVAL;
 	/*
 	 * As long as outputdatalength is big enough, we can set the
@@ -1431,10 +1428,8 @@ int __init zcrypt_debug_init(void)
 void zcrypt_debug_exit(void)
 {
 	debugfs_remove(debugfs_root);
-	if (zcrypt_dbf_common)
-		debug_unregister(zcrypt_dbf_common);
-	if (zcrypt_dbf_devices)
-		debug_unregister(zcrypt_dbf_devices);
+	debug_unregister(zcrypt_dbf_common);
+	debug_unregister(zcrypt_dbf_devices);
 }
 
 /**

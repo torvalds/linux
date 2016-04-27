@@ -318,8 +318,7 @@ static void omap_8250_set_termios(struct uart_port *port,
 				  struct ktermios *termios,
 				  struct ktermios *old)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	struct omap8250_priv *priv = up->port.private_data;
 	unsigned char cval = 0;
 	unsigned int baud;
@@ -439,7 +438,6 @@ static void omap_8250_set_termios(struct uart_port *port,
 	priv->xoff = termios->c_cc[VSTOP];
 
 	priv->efr = 0;
-	up->mcr &= ~(UART_MCR_RTS | UART_MCR_XONANY);
 	up->port.status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS | UPSTAT_AUTOXOFF);
 
 	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
@@ -683,9 +681,8 @@ static void omap_8250_shutdown(struct uart_port *port)
 
 static void omap_8250_throttle(struct uart_port *port)
 {
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
 
 	pm_runtime_get_sync(port->dev);
 
@@ -698,11 +695,40 @@ static void omap_8250_throttle(struct uart_port *port)
 	pm_runtime_put_autosuspend(port->dev);
 }
 
+static int omap_8250_rs485_config(struct uart_port *port,
+				  struct serial_rs485 *rs485)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	/* Clamp the delays to [0, 100ms] */
+	rs485->delay_rts_before_send = min(rs485->delay_rts_before_send, 100U);
+	rs485->delay_rts_after_send  = min(rs485->delay_rts_after_send, 100U);
+
+	port->rs485 = *rs485;
+
+	/*
+	 * Both serial8250_em485_init and serial8250_em485_destroy
+	 * are idempotent
+	 */
+	if (rs485->flags & SER_RS485_ENABLED) {
+		int ret = serial8250_em485_init(up);
+
+		if (ret) {
+			rs485->flags &= ~SER_RS485_ENABLED;
+			port->rs485.flags &= ~SER_RS485_ENABLED;
+		}
+		return ret;
+	}
+
+	serial8250_em485_destroy(up);
+
+	return 0;
+}
+
 static void omap_8250_unthrottle(struct uart_port *port)
 {
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
 
 	pm_runtime_get_sync(port->dev);
 
@@ -726,6 +752,7 @@ static void __dma_rx_do_complete(struct uart_8250_port *p, bool error)
 	struct dma_tx_state     state;
 	int                     count;
 	unsigned long		flags;
+	int			ret;
 
 	dma_sync_single_for_cpu(dma->rxchan->device->dev, dma->rx_addr,
 				dma->rx_size, DMA_FROM_DEVICE);
@@ -741,8 +768,10 @@ static void __dma_rx_do_complete(struct uart_8250_port *p, bool error)
 
 	count = dma->rx_size - state.residue;
 
-	tty_insert_flip_string(tty_port, dma->rx_buf, count);
-	p->port.icount.rx += count;
+	ret = tty_insert_flip_string(tty_port, dma->rx_buf, count);
+
+	p->port.icount.rx += ret;
+	p->port.icount.buf_overrun += count - ret;
 unlock:
 	spin_unlock_irqrestore(&priv->rx_dma_lock, flags);
 
@@ -1144,6 +1173,7 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.port.shutdown = omap_8250_shutdown;
 	up.port.throttle = omap_8250_throttle;
 	up.port.unthrottle = omap_8250_unthrottle;
+	up.port.rs485_config = omap_8250_rs485_config;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *id;

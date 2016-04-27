@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -68,13 +68,13 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 		seq_puts(s, "???\n");
 	}
 
-	if (vring->va && (vring->size < 1025)) {
+	if (vring->va && (vring->size <= (1 << WIL_RING_SIZE_ORDER_MAX))) {
 		uint i;
 
 		for (i = 0; i < vring->size; i++) {
 			volatile struct vring_tx_desc *d = &vring->va[i].tx;
 
-			if ((i % 64) == 0 && (i != 0))
+			if ((i % 128) == 0 && (i != 0))
 				seq_puts(s, "\n");
 			seq_printf(s, "%c", (d->dma.status & BIT(0)) ?
 					_s : (vring->ctx[i].skb ? _h : 'h'));
@@ -580,16 +580,10 @@ static ssize_t wil_write_file_rxon(struct file *file, const char __user *buf,
 	long channel;
 	bool on;
 
-	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
+	char *kbuf = memdup_user_nul(buf, len);
 
-	if (!kbuf)
-		return -ENOMEM;
-	if (copy_from_user(kbuf, buf, len)) {
-		kfree(kbuf);
-		return -EIO;
-	}
-
-	kbuf[len] = '\0';
+	if (IS_ERR(kbuf))
+		return PTR_ERR(kbuf);
 	rc = kstrtol(kbuf, 0, &channel);
 	kfree(kbuf);
 	if (rc)
@@ -1373,6 +1367,12 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 				}
 			}
 			spin_unlock_bh(&p->tid_rx_lock);
+			seq_printf(s,
+				   "Rx invalid frame: non-data %lu, short %lu, large %lu\n",
+				   p->stats.rx_non_data_frame,
+				   p->stats.rx_short_frame,
+				   p->stats.rx_large_frame);
+
 			seq_puts(s, "Rx/MCS:");
 			for (mcs = 0; mcs < ARRAY_SIZE(p->stats.rx_per_mcs);
 			     mcs++)

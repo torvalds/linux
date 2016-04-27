@@ -226,7 +226,7 @@ config CYCLADES
 
 config CYZ_INTR
 	bool "Cyclades-Z interrupt mode operation"
-	depends on CYCLADES
+	depends on CYCLADES && PCI
 	help
 	  The Cyclades-Z family of multiport cards allows 2 (two) driver op
 	  modes: polling and interrupt. In polling mode, the driver will check

@@ -19,16 +19,24 @@
 struct inode;
 struct dentry;
 
+/*
+ * struct xattr_handler: When @name is set, match attributes with exactly that
+ * name.  When @prefix is set instead, match attributes with that prefix and
+ * with a non-empty suffix.
+ */
 struct xattr_handler {
+	const char *name;
 	const char *prefix;
-	int flags;	/* fs private flags passed back to the handlers */
-	size_t (*list)(struct dentry *dentry, char *list, size_t list_size,
-		       const char *name, size_t name_len, int handler_flags);
-	int (*get)(struct dentry *dentry, const char *name, void *buffer,
-		   size_t size, int handler_flags);
-	int (*set)(struct dentry *dentry, const char *name, const void *buffer,
-		   size_t size, int flags, int handler_flags);
+	int flags;      /* fs private flags */
+	bool (*list)(struct dentry *dentry);
+	int (*get)(const struct xattr_handler *, struct dentry *dentry,
+		   const char *name, void *buffer, size_t size);
+	int (*set)(const struct xattr_handler *, struct dentry *dentry,
+		   const char *name, const void *buffer, size_t size,
+		   int flags);
 };
+
+const char *xattr_full_name(const struct xattr_handler *, const char *);
 
 struct xattr {
 	const char *name;
@@ -49,8 +57,11 @@ int generic_setxattr(struct dentry *dentry, const char *name, const void *value,
 int generic_removexattr(struct dentry *dentry, const char *name);
 ssize_t vfs_getxattr_alloc(struct dentry *dentry, const char *name,
 			   char **xattr_value, size_t size, gfp_t flags);
-int vfs_xattr_cmp(struct dentry *dentry, const char *xattr_name,
-		  const char *value, size_t size, gfp_t flags);
+
+static inline const char *xattr_prefix(const struct xattr_handler *handler)
+{
+	return handler->prefix ?: handler->name;
+}
 
 struct simple_xattrs {
 	struct list_head head;
@@ -91,8 +102,7 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 		     void *buffer, size_t size);
 int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
 		     const void *value, size_t size, int flags);
-int simple_xattr_remove(struct simple_xattrs *xattrs, const char *name);
-ssize_t simple_xattr_list(struct simple_xattrs *xattrs, char *buffer,
+ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs, char *buffer,
 			  size_t size);
 void simple_xattr_list_add(struct simple_xattrs *xattrs,
 			   struct simple_xattr *new_xattr);

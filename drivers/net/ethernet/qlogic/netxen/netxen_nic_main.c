@@ -2891,7 +2891,7 @@ netxen_sysfs_read_crb(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct netxen_adapter *adapter = dev_get_drvdata(dev);
 	u32 data;
 	u64 qmdata;
@@ -2919,7 +2919,7 @@ netxen_sysfs_write_crb(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct netxen_adapter *adapter = dev_get_drvdata(dev);
 	u32 data;
 	u64 qmdata;
@@ -2960,7 +2960,7 @@ netxen_sysfs_read_mem(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct netxen_adapter *adapter = dev_get_drvdata(dev);
 	u64 data;
 	int ret;
@@ -2981,7 +2981,7 @@ static ssize_t netxen_sysfs_write_mem(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t offset, size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct netxen_adapter *adapter = dev_get_drvdata(dev);
 	u64 data;
 	int ret;
@@ -3018,7 +3018,7 @@ netxen_sysfs_read_dimm(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct netxen_adapter *adapter = dev_get_drvdata(dev);
 	struct net_device *netdev = adapter->netdev;
 	struct netxen_dimm_cfg dimm;

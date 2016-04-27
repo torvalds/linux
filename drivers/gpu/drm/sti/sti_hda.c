@@ -326,6 +326,103 @@ static void hda_enable_hd_dacs(struct sti_hda *hda, bool enable)
 	}
 }
 
+#define DBGFS_DUMP(reg) seq_printf(s, "\n  %-25s 0x%08X", #reg, \
+				   readl(hda->regs + reg))
+
+static void hda_dbg_cfg(struct seq_file *s, int val)
+{
+	seq_puts(s, "\tAWG ");
+	seq_puts(s, val & CFG_AWG_ASYNC_EN ? "enabled" : "disabled");
+}
+
+static void hda_dbg_awg_microcode(struct seq_file *s, void __iomem *reg)
+{
+	unsigned int i;
+
+	seq_puts(s, "\n\n");
+	seq_puts(s, "  HDA AWG microcode:");
+	for (i = 0; i < AWG_MAX_INST; i++) {
+		if (i % 8 == 0)
+			seq_printf(s, "\n  %04X:", i);
+		seq_printf(s, " %04X", readl(reg + i * 4));
+	}
+}
+
+static void hda_dbg_video_dacs_ctrl(struct seq_file *s, void __iomem *reg)
+{
+	u32 val = readl(reg);
+	u32 mask;
+
+	switch ((u32)reg & VIDEO_DACS_CONTROL_MASK) {
+	case VIDEO_DACS_CONTROL_SYSCFG2535:
+		mask = DAC_CFG_HD_OFF_MASK;
+		break;
+	case VIDEO_DACS_CONTROL_SYSCFG5072:
+		mask = DAC_CFG_HD_HZUVW_OFF_MASK;
+		break;
+	default:
+		DRM_DEBUG_DRIVER("Warning: DACS ctrl register not supported!");
+		return;
+	}
+
+	seq_puts(s, "\n");
+	seq_printf(s, "\n  %-25s 0x%08X", "VIDEO_DACS_CONTROL", val);
+	seq_puts(s, "\tHD DACs ");
+	seq_puts(s, val & mask ? "disabled" : "enabled");
+}
+
+static int hda_dbg_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_hda *hda = (struct sti_hda *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(s, "HD Analog: (vaddr = 0x%p)", hda->regs);
+	DBGFS_DUMP(HDA_ANA_CFG);
+	hda_dbg_cfg(s, readl(hda->regs + HDA_ANA_CFG));
+	DBGFS_DUMP(HDA_ANA_SCALE_CTRL_Y);
+	DBGFS_DUMP(HDA_ANA_SCALE_CTRL_CB);
+	DBGFS_DUMP(HDA_ANA_SCALE_CTRL_CR);
+	DBGFS_DUMP(HDA_ANA_ANC_CTRL);
+	DBGFS_DUMP(HDA_ANA_SRC_Y_CFG);
+	DBGFS_DUMP(HDA_ANA_SRC_C_CFG);
+	hda_dbg_awg_microcode(s, hda->regs + HDA_SYNC_AWGI);
+	if (hda->video_dacs_ctrl)
+		hda_dbg_video_dacs_ctrl(s, hda->video_dacs_ctrl);
+	seq_puts(s, "\n");
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static struct drm_info_list hda_debugfs_files[] = {
+	{ "hda", hda_dbg_show, 0, NULL },
+};
+
+static void hda_debugfs_exit(struct sti_hda *hda, struct drm_minor *minor)
+{
+	drm_debugfs_remove_files(hda_debugfs_files,
+				 ARRAY_SIZE(hda_debugfs_files),
+				 minor);
+}
+
+static int hda_debugfs_init(struct sti_hda *hda, struct drm_minor *minor)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(hda_debugfs_files); i++)
+		hda_debugfs_files[i].data = hda;
+
+	return drm_debugfs_create_files(hda_debugfs_files,
+					ARRAY_SIZE(hda_debugfs_files),
+					minor->debugfs_root, minor);
+}
+
 /**
  * Configure AWG, writing instructions
  *
@@ -543,8 +640,6 @@ static int sti_hda_connector_get_modes(struct drm_connector *connector)
 		count++;
 	}
 
-	drm_mode_sort(&connector->modes);
-
 	return count;
 }
 
@@ -589,7 +684,8 @@ struct drm_encoder *sti_hda_best_encoder(struct drm_connector *connector)
 	return hda_connector->encoder;
 }
 
-static struct drm_connector_helper_funcs sti_hda_connector_helper_funcs = {
+static const
+struct drm_connector_helper_funcs sti_hda_connector_helper_funcs = {
 	.get_modes = sti_hda_connector_get_modes,
 	.mode_valid = sti_hda_connector_mode_valid,
 	.best_encoder = sti_hda_best_encoder,
@@ -611,7 +707,7 @@ static void sti_hda_connector_destroy(struct drm_connector *connector)
 	kfree(hda_connector);
 }
 
-static struct drm_connector_funcs sti_hda_connector_funcs = {
+static const struct drm_connector_funcs sti_hda_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_hda_connector_detect,
@@ -686,6 +782,12 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 		goto err_sysfs;
 	}
 
+	/* force to disable hd dacs at startup */
+	hda_enable_hd_dacs(hda, false);
+
+	if (hda_debugfs_init(hda, drm_dev->primary))
+		DRM_ERROR("HDA debugfs setup failed\n");
+
 	return 0;
 
 err_sysfs:
@@ -698,7 +800,10 @@ err_connector:
 static void sti_hda_unbind(struct device *dev,
 		struct device *master, void *data)
 {
-	/* do nothing */
+	struct sti_hda *hda = dev_get_drvdata(dev);
+	struct drm_device *drm_dev = data;
+
+	hda_debugfs_exit(hda, drm_dev->primary);
 }
 
 static const struct component_ops sti_hda_ops = {
@@ -783,8 +888,6 @@ struct platform_driver sti_hda_driver = {
 	.probe = sti_hda_probe,
 	.remove = sti_hda_remove,
 };
-
-module_platform_driver(sti_hda_driver);
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics SoC DRM driver");

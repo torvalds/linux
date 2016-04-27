@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ ACPI_MODULE_NAME("rsxface")
 
 /* Local macros for 16,32-bit to 64-bit conversion */
 #define ACPI_COPY_FIELD(out, in, field)  ((out)->field = (in)->field)
-#define ACPI_COPY_ADDRESS(out, in)                      \
+#define ACPI_COPY_ADDRESS(out, in)                       \
 	ACPI_COPY_FIELD(out, in, resource_type);             \
 	ACPI_COPY_FIELD(out, in, producer_consumer);         \
 	ACPI_COPY_FIELD(out, in, decode);                    \
@@ -220,7 +220,7 @@ acpi_get_current_resources(acpi_handle device_handle,
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_current_resources)
-#ifdef ACPI_FUTURE_USAGE
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_possible_resources
@@ -262,7 +262,7 @@ acpi_get_possible_resources(acpi_handle device_handle,
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_possible_resources)
-#endif				/*  ACPI_FUTURE_USAGE  */
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_set_current_resources

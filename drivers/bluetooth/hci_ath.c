@@ -205,7 +205,7 @@ static int ath_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 {
 	struct ath_struct *ath = hu->priv;
 
-	if (bt_cb(skb)->pkt_type == HCI_SCODATA_PKT) {
+	if (hci_skb_pkt_type(skb) == HCI_SCODATA_PKT) {
 		kfree_skb(skb);
 		return 0;
 	}
@@ -213,7 +213,7 @@ static int ath_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	/* Update power management enable flag with parameters of
 	 * HCI sleep enable vendor specific HCI command.
 	 */
-	if (bt_cb(skb)->pkt_type == HCI_COMMAND_PKT) {
+	if (hci_skb_pkt_type(skb) == HCI_COMMAND_PKT) {
 		struct hci_command_hdr *hdr = (void *)skb->data;
 
 		if (__le16_to_cpu(hdr->opcode) == HCI_OP_ATH_SLEEP)
@@ -223,7 +223,7 @@ static int ath_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	BT_DBG("hu %p skb %p", hu, skb);
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 
 	skb_queue_tail(&ath->txq, skb);
 	set_bit(HCI_UART_SENDING, &hu->tx_state);
@@ -243,6 +243,7 @@ static struct sk_buff *ath_dequeue(struct hci_uart *hu)
 static const struct hci_uart_proto athp = {
 	.id		= HCI_UART_ATH3K,
 	.name		= "ATH3K",
+	.manufacturer	= 69,
 	.open		= ath_open,
 	.close		= ath_close,
 	.flush		= ath_flush,

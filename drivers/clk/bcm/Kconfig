@@ -1,6 +1,16 @@
+config CLK_BCM_63XX
+	bool "Broadcom BCM63xx clock support"
+	depends on ARCH_BCM_63XX || COMPILE_TEST
+	depends on COMMON_CLK
+	select COMMON_CLK_IPROC
+	default ARCH_BCM_63XX
+	help
+	  Enable common clock framework support for Broadcom BCM63xx DSL SoCs
+	  based on the ARM architecture
+
 config CLK_BCM_KONA
 	bool "Broadcom Kona CCU clock support"
-	depends on ARCH_BCM_MOBILE
+	depends on ARCH_BCM_MOBILE || COMPILE_TEST
 	depends on COMMON_CLK
 	default y
 	help
@@ -9,10 +19,8 @@ config CLK_BCM_KONA
 	  in the BCM281xx and BCM21664 families.
 
 config COMMON_CLK_IPROC
-	bool "Broadcom iProc clock support"
-	depends on ARCH_BCM_IPROC
+	bool
 	depends on COMMON_CLK
-	default ARCH_BCM_IPROC
 	help
 	  Enable common clock framework support for Broadcom SoCs
 	  based on the iProc architecture

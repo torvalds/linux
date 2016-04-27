@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2003 Ken Chen <kenneth.w.chen@intel.com>
  * Copyright (C) 2003 Asit Mallick <asit.k.mallick@intel.com>
- * Copyright (C) 2005 Christoph Lameter <clameter@sgi.com>
+ * Copyright (C) 2005 Christoph Lameter <cl@linux.com>
  *
  * Based on asm-i386/rwsem.h and other architecture implementation.
  *

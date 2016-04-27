@@ -29,6 +29,8 @@ Optional properties:
 	ti,vref-delay-usecs		vref supply delay in usecs, 0 for
 					external vref (u16).
 	ti,vref-mv			The VREF voltage, in millivolts (u16).
+					Set to 0 to use internal refernce
+					(ADS7846).
 	ti,keep-vref-on			set to keep vref on for differential
 					measurements as well
 	ti,swap-xy			swap x and y axis
@@ -65,6 +67,7 @@ Optional properties:
 	pendown-gpio			GPIO handle describing the pin the !PENIRQ
 					line is connected to.
 	wakeup-source			use any event on touchscreen as wakeup event.
+					(Legacy property support: "linux,wakeup")
 
 
 Example for a TSC2046 chip connected to an McSPI controller of an OMAP SoC::
@@ -86,6 +89,6 @@ Example for a TSC2046 chip connected to an McSPI controller of an OMAP SoC::
 			ti,x-plate-ohms = /bits/ 16 <40>;
 			ti,pressure-max = /bits/ 16 <255>;
 
-			linux,wakeup;
+			wakeup-source;
 		};
 	};

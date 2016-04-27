@@ -21,8 +21,8 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_data/pinctrl-adi2.h>
 #include <linux/spi/adi_spi3.h>
+#include <linux/gpio.h>
 #include <asm/dma.h>
-#include <asm/gpio.h>
 #include <asm/nand.h>
 #include <asm/dpmc.h>
 #include <asm/portmux.h>
@@ -933,7 +933,7 @@ static struct bfin_capture_config bfin_capture_data = {
 #endif
 
 #if IS_ENABLED(CONFIG_VIDEO_ADV7842)
-#include <media/adv7842.h>
+#include <media/i2c/adv7842.h>
 
 static struct v4l2_input adv7842_inputs[] = {
 	{
@@ -1084,7 +1084,7 @@ static const struct ppi_info ppi_info = {
 };
 
 #if IS_ENABLED(CONFIG_VIDEO_ADV7511)
-#include <media/adv7511.h>
+#include <media/i2c/adv7511.h>
 
 static struct v4l2_output adv7511_outputs[] = {
 	{
@@ -1125,7 +1125,7 @@ static struct bfin_display_config bfin_display_data = {
 #endif
 
 #if IS_ENABLED(CONFIG_VIDEO_ADV7343)
-#include <media/adv7343.h>
+#include <media/i2c/adv7343.h>
 
 static struct v4l2_output adv7343_outputs[] = {
 	{

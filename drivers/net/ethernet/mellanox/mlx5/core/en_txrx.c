@@ -54,40 +54,40 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,
 					       napi);
 	bool busy = false;
+	int work_done;
 	int i;
 
 	clear_bit(MLX5E_CHANNEL_NAPI_SCHED, &c->flags);
 
 	for (i = 0; i < c->num_tc; i++)
-		busy |= mlx5e_poll_tx_cq(&c->sq[i].cq);
+		busy |= mlx5e_poll_tx_cq(&c->sq[i].cq, budget);
 
-	busy |= mlx5e_poll_rx_cq(&c->rq.cq, budget);
-
+	work_done = mlx5e_poll_rx_cq(&c->rq.cq, budget);
+	busy |= work_done == budget;
 	busy |= mlx5e_post_rx_wqes(&c->rq);
 
 	if (busy)
 		return budget;
 
-	napi_complete(napi);
+	napi_complete_done(napi, work_done);
 
 	/* avoid losing completion event during/after polling cqs */
 	if (test_bit(MLX5E_CHANNEL_NAPI_SCHED, &c->flags)) {
 		napi_schedule(napi);
-		return 0;
+		return work_done;
 	}
 
 	for (i = 0; i < c->num_tc; i++)
 		mlx5e_cq_arm(&c->sq[i].cq);
 	mlx5e_cq_arm(&c->rq.cq);
 
-	return 0;
+	return work_done;
 }
 
 void mlx5e_completion_event(struct mlx5_core_cq *mcq)
 {
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
 
-	set_bit(MLX5E_CQ_HAS_CQES, &cq->flags);
 	set_bit(MLX5E_CHANNEL_NAPI_SCHED, &cq->channel->flags);
 	barrier();
 	napi_schedule(cq->napi);

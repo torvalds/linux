@@ -252,6 +252,11 @@ GPIO
   devm_gpiod_get_index_optional()
   devm_gpiod_get_optional()
   devm_gpiod_put()
+  devm_gpiochip_add_data()
+  devm_gpiochip_remove()
+  devm_gpio_request()
+  devm_gpio_request_one()
+  devm_gpio_free()
 
 IIO
   devm_iio_device_alloc()

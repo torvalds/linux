@@ -510,10 +510,14 @@ __copy_to_user_std(void __user *to, const void *from, unsigned long n);
 static inline unsigned long __must_check
 __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
+#ifndef CONFIG_UACCESS_WITH_MEMCPY
 	unsigned int __ua_flags = uaccess_save_and_enable();
 	n = arm_copy_to_user(to, from, n);
 	uaccess_restore(__ua_flags);
 	return n;
+#else
+	return arm_copy_to_user(to, from, n);
+#endif
 }
 
 extern unsigned long __must_check

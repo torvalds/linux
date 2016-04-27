@@ -22,20 +22,17 @@
 #endif
 #include <net/netfilter/nf_conntrack_zones.h>
 
-static int nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
+static int nf_ct_ipv4_gather_frags(struct net *net, struct sk_buff *skb,
+				   u_int32_t user)
 {
 	int err;
 
-	skb_orphan(skb);
-
 	local_bh_disable();
-	err = ip_defrag(skb, user);
+	err = ip_defrag(net, skb, user);
 	local_bh_enable();
 
-	if (!err) {
-		ip_send_check(ip_hdr(skb));
+	if (!err)
 		skb->ignore_df = 1;
-	}
 
 	return err;
 }
@@ -61,15 +58,14 @@ static enum ip_defrag_users nf_ct_defrag_user(unsigned int hooknum,
 		return IP_DEFRAG_CONNTRACK_OUT + zone_id;
 }
 
-static unsigned int ipv4_conntrack_defrag(const struct nf_hook_ops *ops,
+static unsigned int ipv4_conntrack_defrag(void *priv,
 					  struct sk_buff *skb,
 					  const struct nf_hook_state *state)
 {
 	struct sock *sk = skb->sk;
-	struct inet_sock *inet = inet_sk(skb->sk);
 
-	if (sk && (sk->sk_family == PF_INET) &&
-	    inet->nodefrag)
+	if (sk && sk_fullsock(sk) && (sk->sk_family == PF_INET) &&
+	    inet_sk(sk)->nodefrag)
 		return NF_ACCEPT;
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
@@ -83,9 +79,9 @@ static unsigned int ipv4_conntrack_defrag(const struct nf_hook_ops *ops,
 	/* Gather fragments. */
 	if (ip_is_fragment(ip_hdr(skb))) {
 		enum ip_defrag_users user =
-			nf_ct_defrag_user(ops->hooknum, skb);
+			nf_ct_defrag_user(state->hook, skb);
 
-		if (nf_ct_ipv4_gather_frags(skb, user))
+		if (nf_ct_ipv4_gather_frags(state->net, skb, user))
 			return NF_STOLEN;
 	}
 	return NF_ACCEPT;
@@ -94,14 +90,12 @@ static unsigned int ipv4_conntrack_defrag(const struct nf_hook_ops *ops,
 static struct nf_hook_ops ipv4_defrag_ops[] = {
 	{
 		.hook		= ipv4_conntrack_defrag,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP_PRI_CONNTRACK_DEFRAG,
 	},
 	{
 		.hook           = ipv4_conntrack_defrag,
-		.owner          = THIS_MODULE,
 		.pf             = NFPROTO_IPV4,
 		.hooknum        = NF_INET_LOCAL_OUT,
 		.priority       = NF_IP_PRI_CONNTRACK_DEFRAG,

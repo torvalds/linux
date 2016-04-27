@@ -103,14 +103,11 @@ static int dp83867_config_intr(struct phy_device *phydev)
 static int dp83867_of_init(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867 = phydev->priv;
-	struct device *dev = &phydev->dev;
+	struct device *dev = &phydev->mdio.dev;
 	struct device_node *of_node = dev->of_node;
 	int ret;
 
-	if (!of_node && dev->parent->of_node)
-		of_node = dev->parent->of_node;
-
-	if (!phydev->dev.of_node)
+	if (!of_node)
 		return -ENODEV;
 
 	ret = of_property_read_u32(of_node, "ti,rx-internal-delay",
@@ -140,7 +137,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 	u16 val, delay;
 
 	if (!phydev->priv) {
-		dp83867 = devm_kzalloc(&phydev->dev, sizeof(*dp83867),
+		dp83867 = devm_kzalloc(&phydev->mdio.dev, sizeof(*dp83867),
 				       GFP_KERNEL);
 		if (!dp83867)
 			return -ENOMEM;
@@ -163,7 +160,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 	if ((phydev->interface >= PHY_INTERFACE_MODE_RGMII_ID) &&
 	    (phydev->interface <= PHY_INTERFACE_MODE_RGMII_RXID)) {
 		val = phy_read_mmd_indirect(phydev, DP83867_RGMIICTL,
-					    DP83867_DEVADDR, phydev->addr);
+					    DP83867_DEVADDR);
 
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
 			val |= (DP83867_RGMII_TX_CLK_DELAY_EN | DP83867_RGMII_RX_CLK_DELAY_EN);
@@ -175,13 +172,13 @@ static int dp83867_config_init(struct phy_device *phydev)
 			val |= DP83867_RGMII_RX_CLK_DELAY_EN;
 
 		phy_write_mmd_indirect(phydev, DP83867_RGMIICTL,
-				       DP83867_DEVADDR, phydev->addr, val);
+				       DP83867_DEVADDR, val);
 
 		delay = (dp83867->rx_id_delay |
 			(dp83867->tx_id_delay << DP83867_RGMII_TX_CLK_DELAY_SHIFT));
 
 		phy_write_mmd_indirect(phydev, DP83867_RGMIIDCTL,
-				       DP83867_DEVADDR, phydev->addr, delay);
+				       DP83867_DEVADDR, delay);
 	}
 
 	return 0;
@@ -217,8 +214,6 @@ static struct phy_driver dp83867_driver[] = {
 		.read_status	= genphy_read_status,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
-
-		.driver		= {.owner = THIS_MODULE,}
 	},
 };
 module_phy_driver(dp83867_driver);

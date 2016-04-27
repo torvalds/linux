@@ -256,11 +256,27 @@ static void uinput_destroy_device(struct uinput_device *udev)
 static int uinput_create_device(struct uinput_device *udev)
 {
 	struct input_dev *dev = udev->dev;
-	int error;
+	int error, nslot;
 
 	if (udev->state != UIST_SETUP_COMPLETE) {
 		printk(KERN_DEBUG "%s: write device info first\n", UINPUT_NAME);
 		return -EINVAL;
+	}
+
+	if (test_bit(ABS_MT_SLOT, dev->absbit)) {
+		nslot = input_abs_get_max(dev, ABS_MT_SLOT) + 1;
+		error = input_mt_init_slots(dev, nslot, 0);
+		if (error)
+			goto fail1;
+	} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
+		input_set_events_per_packet(dev, 60);
+	}
+
+	if (test_bit(EV_FF, dev->evbit) && !udev->ff_effects_max) {
+		printk(KERN_DEBUG "%s: ff_effects_max should be non-zero when FF_BIT is set\n",
+			UINPUT_NAME);
+		error = -EINVAL;
+		goto fail1;
 	}
 
 	if (udev->ff_effects_max) {
@@ -308,10 +324,35 @@ static int uinput_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int uinput_validate_absinfo(struct input_dev *dev, unsigned int code,
+				   const struct input_absinfo *abs)
+{
+	int min, max;
+
+	min = abs->minimum;
+	max = abs->maximum;
+
+	if ((min != 0 || max != 0) && max <= min) {
+		printk(KERN_DEBUG
+		       "%s: invalid abs[%02x] min:%d max:%d\n",
+		       UINPUT_NAME, code, min, max);
+		return -EINVAL;
+	}
+
+	if (abs->flat > max - min) {
+		printk(KERN_DEBUG
+		       "%s: abs_flat #%02x out of range: %d (min:%d/max:%d)\n",
+		       UINPUT_NAME, code, abs->flat, min, max);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int uinput_validate_absbits(struct input_dev *dev)
 {
 	unsigned int cnt;
-	int nslot;
+	int error;
 
 	if (!test_bit(EV_ABS, dev->evbit))
 		return 0;
@@ -321,38 +362,12 @@ static int uinput_validate_absbits(struct input_dev *dev)
 	 */
 
 	for_each_set_bit(cnt, dev->absbit, ABS_CNT) {
-		int min, max;
-
-		min = input_abs_get_min(dev, cnt);
-		max = input_abs_get_max(dev, cnt);
-
-		if ((min != 0 || max != 0) && max <= min) {
-			printk(KERN_DEBUG
-				"%s: invalid abs[%02x] min:%d max:%d\n",
-				UINPUT_NAME, cnt,
-				input_abs_get_min(dev, cnt),
-				input_abs_get_max(dev, cnt));
+		if (!dev->absinfo)
 			return -EINVAL;
-		}
 
-		if (input_abs_get_flat(dev, cnt) >
-		    input_abs_get_max(dev, cnt) - input_abs_get_min(dev, cnt)) {
-			printk(KERN_DEBUG
-				"%s: abs_flat #%02x out of range: %d "
-				"(min:%d/max:%d)\n",
-				UINPUT_NAME, cnt,
-				input_abs_get_flat(dev, cnt),
-				input_abs_get_min(dev, cnt),
-				input_abs_get_max(dev, cnt));
-			return -EINVAL;
-		}
-	}
-
-	if (test_bit(ABS_MT_SLOT, dev->absbit)) {
-		nslot = input_abs_get_max(dev, ABS_MT_SLOT) + 1;
-		input_mt_init_slots(dev, nslot, 0);
-	} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
-		input_set_events_per_packet(dev, 60);
+		error = uinput_validate_absinfo(dev, cnt, &dev->absinfo[cnt]);
+		if (error)
+			return error;
 	}
 
 	return 0;
@@ -370,8 +385,71 @@ static int uinput_allocate_device(struct uinput_device *udev)
 	return 0;
 }
 
-static int uinput_setup_device(struct uinput_device *udev,
-			       const char __user *buffer, size_t count)
+static int uinput_dev_setup(struct uinput_device *udev,
+			    struct uinput_setup __user *arg)
+{
+	struct uinput_setup setup;
+	struct input_dev *dev;
+
+	if (udev->state == UIST_CREATED)
+		return -EINVAL;
+
+	if (copy_from_user(&setup, arg, sizeof(setup)))
+		return -EFAULT;
+
+	if (!setup.name[0])
+		return -EINVAL;
+
+	dev = udev->dev;
+	dev->id = setup.id;
+	udev->ff_effects_max = setup.ff_effects_max;
+
+	kfree(dev->name);
+	dev->name = kstrndup(setup.name, UINPUT_MAX_NAME_SIZE, GFP_KERNEL);
+	if (!dev->name)
+		return -ENOMEM;
+
+	udev->state = UIST_SETUP_COMPLETE;
+	return 0;
+}
+
+static int uinput_abs_setup(struct uinput_device *udev,
+			    struct uinput_setup __user *arg, size_t size)
+{
+	struct uinput_abs_setup setup = {};
+	struct input_dev *dev;
+	int error;
+
+	if (size > sizeof(setup))
+		return -E2BIG;
+
+	if (udev->state == UIST_CREATED)
+		return -EINVAL;
+
+	if (copy_from_user(&setup, arg, size))
+		return -EFAULT;
+
+	if (setup.code > ABS_MAX)
+		return -ERANGE;
+
+	dev = udev->dev;
+
+	error = uinput_validate_absinfo(dev, setup.code, &setup.absinfo);
+	if (error)
+		return error;
+
+	input_alloc_absinfo(dev);
+	if (!dev->absinfo)
+		return -ENOMEM;
+
+	set_bit(setup.code, dev->absbit);
+	dev->absinfo[setup.code] = setup.absinfo;
+	return 0;
+}
+
+/* legacy setup via write() */
+static int uinput_setup_device_legacy(struct uinput_device *udev,
+				      const char __user *buffer, size_t count)
 {
 	struct uinput_user_dev	*user_dev;
 	struct input_dev	*dev;
@@ -474,7 +552,7 @@ static ssize_t uinput_write(struct file *file, const char __user *buffer,
 
 	retval = udev->state == UIST_CREATED ?
 			uinput_inject_events(udev, buffer, count) :
-			uinput_setup_device(udev, buffer, count);
+			uinput_setup_device_legacy(udev, buffer, count);
 
 	mutex_unlock(&udev->mutex);
 
@@ -586,7 +664,7 @@ struct uinput_ff_upload_compat {
 static int uinput_ff_upload_to_user(char __user *buffer,
 				    const struct uinput_ff_upload *ff_up)
 {
-	if (INPUT_COMPAT_TEST) {
+	if (in_compat_syscall()) {
 		struct uinput_ff_upload_compat ff_up_compat;
 
 		ff_up_compat.request_id = ff_up->request_id;
@@ -617,7 +695,7 @@ static int uinput_ff_upload_to_user(char __user *buffer,
 static int uinput_ff_upload_from_user(const char __user *buffer,
 				      struct uinput_ff_upload *ff_up)
 {
-	if (INPUT_COMPAT_TEST) {
+	if (in_compat_syscall()) {
 		struct uinput_ff_upload_compat ff_up_compat;
 
 		if (copy_from_user(&ff_up_compat, buffer,
@@ -734,6 +812,12 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 		case UI_DEV_DESTROY:
 			uinput_destroy_device(udev);
 			goto out;
+
+		case UI_DEV_SETUP:
+			retval = uinput_dev_setup(udev, p);
+			goto out;
+
+		/* UI_ABS_SETUP is handled in the variable size ioctls */
 
 		case UI_SET_EVBIT:
 			retval = uinput_set_bit(arg, evbit, EV_MAX);
@@ -878,6 +962,10 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 		}
 		name = dev_name(&udev->dev->dev);
 		retval = uinput_str_to_user(p, name, size);
+		goto out;
+
+	case UI_ABS_SETUP & ~IOCSIZE_MASK:
+		retval = uinput_abs_setup(udev, p, size);
 		goto out;
 	}
 

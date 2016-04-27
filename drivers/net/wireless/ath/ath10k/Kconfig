@@ -2,6 +2,7 @@ config ATH10K
         tristate "Atheros 802.11ac wireless cards support"
         depends on MAC80211 && HAS_DMA
 	select ATH_COMMON
+	select CRC32
         ---help---
           This module adds support for wireless adapters based on
           Atheros IEEE 802.11ac family of chipsets.
@@ -13,6 +14,12 @@ config ATH10K_PCI
 	depends on ATH10K && PCI
 	---help---
 	  This module adds support for PCIE bus
+
+config ATH10K_AHB
+	bool "Atheros ath10k AHB support"
+	depends on ATH10K_PCI && OF && RESET_CONTROLLER
+	---help---
+	  This module adds support for AHB bus
 
 config ATH10K_DEBUG
 	bool "Atheros ath10k debugging"

@@ -37,37 +37,37 @@
 #define II20K_SIZE			0x400
 #define II20K_MOD_OFFSET		0x100
 #define II20K_ID_REG			0x00
-#define II20K_ID_MOD1_EMPTY		(1 << 7)
-#define II20K_ID_MOD2_EMPTY		(1 << 6)
-#define II20K_ID_MOD3_EMPTY		(1 << 5)
+#define II20K_ID_MOD1_EMPTY		BIT(7)
+#define II20K_ID_MOD2_EMPTY		BIT(6)
+#define II20K_ID_MOD3_EMPTY		BIT(5)
 #define II20K_ID_MASK			0x1f
 #define II20K_ID_PCI20001C_1A		0x1b	/* no on-board DIO */
 #define II20K_ID_PCI20001C_2A		0x1d	/* on-board DIO */
 #define II20K_MOD_STATUS_REG		0x40
-#define II20K_MOD_STATUS_IRQ_MOD1	(1 << 7)
-#define II20K_MOD_STATUS_IRQ_MOD2	(1 << 6)
-#define II20K_MOD_STATUS_IRQ_MOD3	(1 << 5)
+#define II20K_MOD_STATUS_IRQ_MOD1	BIT(7)
+#define II20K_MOD_STATUS_IRQ_MOD2	BIT(6)
+#define II20K_MOD_STATUS_IRQ_MOD3	BIT(5)
 #define II20K_DIO0_REG			0x80
 #define II20K_DIO1_REG			0x81
 #define II20K_DIR_ENA_REG		0x82
-#define II20K_DIR_DIO3_OUT		(1 << 7)
-#define II20K_DIR_DIO2_OUT		(1 << 6)
-#define II20K_BUF_DISAB_DIO3		(1 << 5)
-#define II20K_BUF_DISAB_DIO2		(1 << 4)
-#define II20K_DIR_DIO1_OUT		(1 << 3)
-#define II20K_DIR_DIO0_OUT		(1 << 2)
-#define II20K_BUF_DISAB_DIO1		(1 << 1)
-#define II20K_BUF_DISAB_DIO0		(1 << 0)
+#define II20K_DIR_DIO3_OUT		BIT(7)
+#define II20K_DIR_DIO2_OUT		BIT(6)
+#define II20K_BUF_DISAB_DIO3		BIT(5)
+#define II20K_BUF_DISAB_DIO2		BIT(4)
+#define II20K_DIR_DIO1_OUT		BIT(3)
+#define II20K_DIR_DIO0_OUT		BIT(2)
+#define II20K_BUF_DISAB_DIO1		BIT(1)
+#define II20K_BUF_DISAB_DIO0		BIT(0)
 #define II20K_CTRL01_REG		0x83
-#define II20K_CTRL01_SET		(1 << 7)
-#define II20K_CTRL01_DIO0_IN		(1 << 4)
-#define II20K_CTRL01_DIO1_IN		(1 << 1)
+#define II20K_CTRL01_SET		BIT(7)
+#define II20K_CTRL01_DIO0_IN		BIT(4)
+#define II20K_CTRL01_DIO1_IN		BIT(1)
 #define II20K_DIO2_REG			0xc0
 #define II20K_DIO3_REG			0xc1
 #define II20K_CTRL23_REG		0xc3
-#define II20K_CTRL23_SET		(1 << 7)
-#define II20K_CTRL23_DIO2_IN		(1 << 4)
-#define II20K_CTRL23_DIO3_IN		(1 << 1)
+#define II20K_CTRL23_SET		BIT(7)
+#define II20K_CTRL23_DIO2_IN		BIT(4)
+#define II20K_CTRL23_DIO3_IN		BIT(1)
 
 #define II20K_ID_PCI20006M_1		0xe2	/* 1 AO channels */
 #define II20K_ID_PCI20006M_2		0xe3	/* 2 AO channels */
@@ -78,27 +78,27 @@
 
 #define II20K_ID_PCI20341M_1		0x77	/* 4 AI channels */
 #define II20K_AI_STATUS_CMD_REG		0x01
-#define II20K_AI_STATUS_CMD_BUSY	(1 << 7)
-#define II20K_AI_STATUS_CMD_HW_ENA	(1 << 1)
-#define II20K_AI_STATUS_CMD_EXT_START	(1 << 0)
+#define II20K_AI_STATUS_CMD_BUSY	BIT(7)
+#define II20K_AI_STATUS_CMD_HW_ENA	BIT(1)
+#define II20K_AI_STATUS_CMD_EXT_START	BIT(0)
 #define II20K_AI_LSB_REG		0x02
 #define II20K_AI_MSB_REG		0x03
 #define II20K_AI_PACER_RESET_REG	0x04
 #define II20K_AI_16BIT_DATA_REG		0x06
 #define II20K_AI_CONF_REG		0x10
-#define II20K_AI_CONF_ENA		(1 << 2)
+#define II20K_AI_CONF_ENA		BIT(2)
 #define II20K_AI_OPT_REG		0x11
-#define II20K_AI_OPT_TRIG_ENA		(1 << 5)
-#define II20K_AI_OPT_TRIG_INV		(1 << 4)
+#define II20K_AI_OPT_TRIG_ENA		BIT(5)
+#define II20K_AI_OPT_TRIG_INV		BIT(4)
 #define II20K_AI_OPT_TIMEBASE(x)	(((x) & 0x3) << 1)
-#define II20K_AI_OPT_BURST_MODE		(1 << 0)
+#define II20K_AI_OPT_BURST_MODE		BIT(0)
 #define II20K_AI_STATUS_REG		0x12
-#define II20K_AI_STATUS_INT		(1 << 7)
-#define II20K_AI_STATUS_TRIG		(1 << 6)
-#define II20K_AI_STATUS_TRIG_ENA	(1 << 5)
-#define II20K_AI_STATUS_PACER_ERR	(1 << 2)
-#define II20K_AI_STATUS_DATA_ERR	(1 << 1)
-#define II20K_AI_STATUS_SET_TIME_ERR	(1 << 0)
+#define II20K_AI_STATUS_INT		BIT(7)
+#define II20K_AI_STATUS_TRIG		BIT(6)
+#define II20K_AI_STATUS_TRIG_ENA	BIT(5)
+#define II20K_AI_STATUS_PACER_ERR	BIT(2)
+#define II20K_AI_STATUS_DATA_ERR	BIT(1)
+#define II20K_AI_STATUS_SET_TIME_ERR	BIT(0)
 #define II20K_AI_LAST_CHAN_ADDR_REG	0x13
 #define II20K_AI_CUR_ADDR_REG		0x14
 #define II20K_AI_SET_TIME_REG		0x15
@@ -109,9 +109,9 @@
 #define II20K_AI_START_TRIG_REG		0x1a
 #define II20K_AI_COUNT_RESET_REG	0x1b
 #define II20K_AI_CHANLIST_REG		0x80
-#define II20K_AI_CHANLIST_ONBOARD_ONLY	(1 << 5)
+#define II20K_AI_CHANLIST_ONBOARD_ONLY	BIT(5)
 #define II20K_AI_CHANLIST_GAIN(x)	(((x) & 0x3) << 3)
-#define II20K_AI_CHANLIST_MUX_ENA	(1 << 2)
+#define II20K_AI_CHANLIST_MUX_ENA	BIT(2)
 #define II20K_AI_CHANLIST_CHAN(x)	(((x) & 0x3) << 0)
 #define II20K_AI_CHANLIST_LEN		0x80
 
@@ -153,9 +153,8 @@ static int ii20k_ao_insn_write(struct comedi_device *dev,
 
 		s->readback[chan] = val;
 
-		/* munge data */
-		val += ((s->maxdata + 1) >> 1);
-		val &= s->maxdata;
+		/* munge the offset binary data to 2's complement */
+		val = comedi_offset_munge(s, val);
 
 		writeb(val & 0xff, iobase + II20K_AO_LSB_REG(chan));
 		writeb((val >> 8) & 0xff, iobase + II20K_AO_MSB_REG(chan));
@@ -243,11 +242,8 @@ static int ii20k_ai_insn_read(struct comedi_device *dev,
 		val = readb(iobase + II20K_AI_LSB_REG);
 		val |= (readb(iobase + II20K_AI_MSB_REG) << 8);
 
-		/* munge two's complement data */
-		val += ((s->maxdata + 1) >> 1);
-		val &= s->maxdata;
-
-		data[i] = val;
+		/* munge the 2's complement data to offset binary */
+		data[i] = comedi_offset_munge(s, val);
 	}
 
 	return insn->n;
@@ -523,5 +519,5 @@ static struct comedi_driver ii20k_driver = {
 module_comedi_driver(ii20k_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for Intelligent Instruments PCI-20001C");
 MODULE_LICENSE("GPL");

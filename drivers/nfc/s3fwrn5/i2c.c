@@ -125,7 +125,7 @@ static int s3fwrn5_i2c_write(void *phy_id, struct sk_buff *skb)
 	return 0;
 }
 
-static struct s3fwrn5_phy_ops i2c_phy_ops = {
+static const struct s3fwrn5_phy_ops i2c_phy_ops = {
 	.set_wake = s3fwrn5_i2c_set_wake,
 	.set_mode = s3fwrn5_i2c_set_mode,
 	.get_mode = s3fwrn5_i2c_get_mode,
@@ -258,7 +258,7 @@ static int s3fwrn5_i2c_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	ret = request_threaded_irq(phy->i2c_dev->irq, NULL,
+	ret = devm_request_threaded_irq(&client->dev, phy->i2c_dev->irq, NULL,
 		s3fwrn5_i2c_irq_thread_fn, IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 		S3FWRN5_I2C_DRIVER_NAME, phy);
 	if (ret)

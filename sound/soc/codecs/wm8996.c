@@ -416,7 +416,7 @@ static int wm8996_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	struct wm8996_pdata *pdata = &wm8996->pdata;
 	int block = wm8996_get_retune_mobile_block(kcontrol->id.name);
-	int value = ucontrol->value.integer.value[0];
+	int value = ucontrol->value.enumerated.item[0];
 
 	if (block < 0)
 		return block;
@@ -2204,7 +2204,7 @@ static void wm8996_init_gpio(struct wm8996_priv *wm8996)
 
 	wm8996->gpio_chip = wm8996_template_chip;
 	wm8996->gpio_chip.ngpio = 5;
-	wm8996->gpio_chip.dev = wm8996->dev;
+	wm8996->gpio_chip.parent = wm8996->dev;
 
 	if (wm8996->pdata.gpio_base)
 		wm8996->gpio_chip.base = wm8996->pdata.gpio_base;

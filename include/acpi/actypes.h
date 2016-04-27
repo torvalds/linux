@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1148,7 +1148,7 @@ u32 (*acpi_interface_handler) (acpi_string interface_name, u32 supported);
 
 #define ACPI_PCICLS_STRING_SIZE         7	/* Includes null terminator */
 
-/* Structures used for device/processor HID, UID, CID, and SUB */
+/* Structures used for device/processor HID, UID, CID */
 
 struct acpi_pnp_device_id {
 	u32 length;		/* Length of string + null */
@@ -1178,7 +1178,6 @@ struct acpi_device_info {
 	u64 address;	/* _ADR value */
 	struct acpi_pnp_device_id hardware_id;	/* _HID value */
 	struct acpi_pnp_device_id unique_id;	/* _UID value */
-	struct acpi_pnp_device_id subsystem_id;	/* _SUB value */
 	struct acpi_pnp_device_id class_code;	/* _CLS value */
 	struct acpi_pnp_device_id_list compatible_id_list;	/* _CID list <must be last> */
 };
@@ -1193,13 +1192,12 @@ struct acpi_device_info {
 #define ACPI_VALID_ADR                  0x0002
 #define ACPI_VALID_HID                  0x0004
 #define ACPI_VALID_UID                  0x0008
-#define ACPI_VALID_SUB                  0x0010
 #define ACPI_VALID_CID                  0x0020
 #define ACPI_VALID_CLS                  0x0040
 #define ACPI_VALID_SXDS                 0x0100
 #define ACPI_VALID_SXWS                 0x0200
 
-/* Flags for _STA return value (current_status above) */
+/* Flags for _STA method */
 
 #define ACPI_STA_DEVICE_PRESENT         0x01
 #define ACPI_STA_DEVICE_ENABLED         0x02

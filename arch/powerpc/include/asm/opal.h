@@ -35,6 +35,7 @@ int64_t opal_console_read(int64_t term_number, __be64 *length,
 			  uint8_t *buffer);
 int64_t opal_console_write_buffer_space(int64_t term_number,
 					__be64 *length);
+int64_t opal_console_flush(int64_t term_number);
 int64_t opal_rtc_read(__be32 *year_month_day,
 		      __be64 *hour_minute_second_millisecond);
 int64_t opal_rtc_write(uint32_t year_month_day,
@@ -247,6 +248,7 @@ extern int opal_elog_init(void);
 extern void opal_platform_dump_init(void);
 extern void opal_sys_param_init(void);
 extern void opal_msglog_init(void);
+extern void opal_msglog_sysfs_init(void);
 extern int opal_async_comp_init(void);
 extern int opal_sensor_init(void);
 extern int opal_hmi_handler_init(void);
@@ -262,6 +264,8 @@ extern int opal_resync_timebase(void);
 
 extern void opal_lpc_init(void);
 
+extern void opal_kmsg_init(void);
+
 extern int opal_event_request(unsigned int opal_event_nr);
 
 struct opal_sg_list *opal_vmalloc_to_sg_list(void *vmalloc_addr,
@@ -269,6 +273,8 @@ struct opal_sg_list *opal_vmalloc_to_sg_list(void *vmalloc_addr,
 void opal_free_sg_list(struct opal_sg_list *sg);
 
 extern int opal_error_code(int rc);
+
+ssize_t opal_msglog_copy(char *to, loff_t pos, size_t count);
 
 #endif /* __ASSEMBLY__ */
 

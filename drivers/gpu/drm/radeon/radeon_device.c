@@ -1150,14 +1150,14 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 	}
 
 	if (radeon_vm_size < 1) {
-		dev_warn(rdev->dev, "VM size (%d) to small, min is 1GB\n",
+		dev_warn(rdev->dev, "VM size (%d) too small, min is 1GB\n",
 			 radeon_vm_size);
 		radeon_vm_size = 4;
 	}
 
-       /*
-        * Max GPUVM size for Cayman, SI and CI are 40 bits.
-        */
+	/*
+	 * Max GPUVM size for Cayman, SI and CI are 40 bits.
+	 */
 	if (radeon_vm_size > 1024) {
 		dev_warn(rdev->dev, "VM size (%d) too large, max is 1TB\n",
 			 radeon_vm_size);
@@ -1197,7 +1197,7 @@ static void radeon_check_arguments(struct radeon_device *rdev)
  * radeon_switcheroo_set_state - set switcheroo state
  *
  * @pdev: pci dev pointer
- * @state: vga switcheroo state
+ * @state: vga_switcheroo state
  *
  * Callback for the switcheroo driver.  Suspends or resumes the
  * the asics before or after it is powered up using ACPI methods.
@@ -1299,9 +1299,9 @@ int radeon_device_init(struct radeon_device *rdev,
 	}
 	rdev->fence_context = fence_context_alloc(RADEON_NUM_RINGS);
 
-	DRM_INFO("initializing kernel modesetting (%s 0x%04X:0x%04X 0x%04X:0x%04X).\n",
-		radeon_family_name[rdev->family], pdev->vendor, pdev->device,
-		pdev->subsystem_vendor, pdev->subsystem_device);
+	DRM_INFO("initializing kernel modesetting (%s 0x%04X:0x%04X 0x%04X:0x%04X 0x%02X).\n",
+		 radeon_family_name[rdev->family], pdev->vendor, pdev->device,
+		 pdev->subsystem_vendor, pdev->subsystem_device, pdev->revision);
 
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
@@ -1895,7 +1895,7 @@ int radeon_debugfs_add_files(struct radeon_device *rdev,
 	if (i > RADEON_DEBUGFS_MAX_COMPONENTS) {
 		DRM_ERROR("Reached maximum number of debugfs components.\n");
 		DRM_ERROR("Report so we increase "
-		          "RADEON_DEBUGFS_MAX_COMPONENTS.\n");
+			  "RADEON_DEBUGFS_MAX_COMPONENTS.\n");
 		return -EINVAL;
 	}
 	rdev->debugfs[rdev->debugfs_count].files = files;

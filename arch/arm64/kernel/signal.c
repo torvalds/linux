@@ -115,7 +115,7 @@ static int restore_sigframe(struct pt_regs *regs,
 	 */
 	regs->syscallno = ~0UL;
 
-	err |= !valid_user_regs(&regs->user_regs);
+	err |= !valid_user_regs(&regs->user_regs, current);
 
 	if (err == 0) {
 		struct fpsimd_context *fpsimd_ctx =
@@ -307,7 +307,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	/*
 	 * Check that the resulting registers are actually sane.
 	 */
-	ret |= !valid_user_regs(&regs->user_regs);
+	ret |= !valid_user_regs(&regs->user_regs, current);
 
 	/*
 	 * Fast forward the stepping logic so we step into the signal

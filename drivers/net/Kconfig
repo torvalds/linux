@@ -193,6 +193,14 @@ config GENEVE
 	  To compile this driver as a module, choose M here: the module
 	  will be called geneve.
 
+config MACSEC
+	tristate "IEEE 802.1AE MAC-level encryption (MACsec)"
+	select CRYPTO
+	select CRYPTO_AES
+	select CRYPTO_GCM
+	---help---
+	   MACsec is an encryption standard for Ethernet.
+
 config NETCONSOLE
 	tristate "Network console logging support"
 	---help---
@@ -298,7 +306,10 @@ config NLMON
 
 config NET_VRF
 	tristate "Virtual Routing and Forwarding (Lite)"
-	depends on IP_MULTIPLE_TABLES && IPV6_MULTIPLE_TABLES
+	depends on IP_MULTIPLE_TABLES
+	depends on NET_L3_MASTER_DEV
+	depends on IPV6 || IPV6=n
+	depends on IPV6_MULTIPLE_TABLES || IPV6=n
 	---help---
 	  This option enables the support for mapping interfaces into VRF's. The
 	  support enables VRF devices.

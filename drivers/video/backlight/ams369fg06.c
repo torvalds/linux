@@ -556,7 +556,6 @@ static void ams369fg06_shutdown(struct spi_device *spi)
 static struct spi_driver ams369fg06_driver = {
 	.driver = {
 		.name	= "ams369fg06",
-		.owner	= THIS_MODULE,
 		.pm	= &ams369fg06_pm_ops,
 	},
 	.probe		= ams369fg06_probe,

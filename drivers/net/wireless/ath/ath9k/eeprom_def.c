@@ -126,8 +126,6 @@ static bool ath9k_hw_def_fill_eeprom(struct ath_hw *ah)
 		return __ath9k_hw_def_fill_eeprom(ah);
 }
 
-#undef SIZE_EEPROM_DEF
-
 #if defined(CONFIG_ATH9K_DEBUGFS) || defined(CONFIG_ATH9K_HTC_DEBUGFS)
 static u32 ath9k_def_dump_modal_eeprom(char *buf, u32 len, u32 size,
 				       struct modal_eep_header *modal_hdr)
@@ -257,58 +255,30 @@ static u32 ath9k_hw_def_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 }
 #endif
 
-
 static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 {
 	struct ar5416_eeprom_def *eep = &ah->eeprom.def;
 	struct ath_common *common = ath9k_hw_common(ah);
-	u16 *eepdata, temp, magic;
-	u32 sum = 0, el;
-	bool need_swap = false;
-	int i, addr, size;
+	u32 el;
+	bool need_swap;
+	int i, err;
 
-	if (!ath9k_hw_nvram_read(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
-		ath_err(common, "Reading Magic # failed\n");
-		return false;
-	}
-
-	if (swab16(magic) == AR5416_EEPROM_MAGIC &&
-	    !(ah->ah_flags & AH_NO_EEP_SWAP)) {
-		size = sizeof(struct ar5416_eeprom_def);
-		need_swap = true;
-		eepdata = (u16 *) (&ah->eeprom);
-
-		for (addr = 0; addr < size / sizeof(u16); addr++) {
-			temp = swab16(*eepdata);
-			*eepdata = temp;
-			eepdata++;
-		}
-	}
-
-	ath_dbg(common, EEPROM, "need_swap = %s\n",
-		need_swap ? "True" : "False");
+	err = ath9k_hw_nvram_swap_data(ah, &need_swap, SIZE_EEPROM_DEF);
+	if (err)
+		return err;
 
 	if (need_swap)
-		el = swab16(ah->eeprom.def.baseEepHeader.length);
+		el = swab16(eep->baseEepHeader.length);
 	else
-		el = ah->eeprom.def.baseEepHeader.length;
+		el = eep->baseEepHeader.length;
 
-	if (el > sizeof(struct ar5416_eeprom_def))
-		el = sizeof(struct ar5416_eeprom_def) / sizeof(u16);
-	else
-		el = el / sizeof(u16);
-
-	eepdata = (u16 *)(&ah->eeprom);
-
-	for (i = 0; i < el; i++)
-		sum ^= *eepdata++;
+	el = min(el / sizeof(u16), SIZE_EEPROM_DEF);
+	if (!ath9k_hw_nvram_validate_checksum(ah, el))
+		return -EINVAL;
 
 	if (need_swap) {
 		u32 integer, j;
 		u16 word;
-
-		ath_dbg(common, EEPROM,
-			"EEPROM Endianness is not native.. Changing.\n");
 
 		word = swab16(eep->baseEepHeader.length);
 		eep->baseEepHeader.length = word;
@@ -356,12 +326,9 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 		}
 	}
 
-	if (sum != 0xffff || ah->eep_ops->get_eeprom_ver(ah) != AR5416_EEP_VER ||
-	    ah->eep_ops->get_eeprom_rev(ah) < AR5416_EEP_NO_BACK_VER) {
-		ath_err(common, "Bad EEPROM checksum 0x%x or revision 0x%04x\n",
-			sum, ah->eep_ops->get_eeprom_ver(ah));
+	if (!ath9k_hw_nvram_check_version(ah, AR5416_EEP_VER,
+	    AR5416_EEP_NO_BACK_VER))
 		return -EINVAL;
-	}
 
 	/* Enable fixup for AR_AN_TOP2 if necessary */
 	if ((ah->hw_version.devid == AR9280_DEVID_PCI) &&
@@ -375,6 +342,8 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 
 	return 0;
 }
+
+#undef SIZE_EEPROM_DEF
 
 static u32 ath9k_hw_def_get_eeprom(struct ath_hw *ah,
 				   enum eeprom_param param)

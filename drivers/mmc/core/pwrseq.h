@@ -16,7 +16,7 @@ struct mmc_pwrseq_ops {
 };
 
 struct mmc_pwrseq {
-	struct mmc_pwrseq_ops *ops;
+	const struct mmc_pwrseq_ops *ops;
 };
 
 #ifdef CONFIG_OF

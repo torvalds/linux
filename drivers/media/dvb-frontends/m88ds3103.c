@@ -685,7 +685,7 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, &client->dev);
 	if (ret) {
-		dev_err(&client->dev, "firmare file '%s' not found\n", fw_file);
+		dev_err(&client->dev, "firmware file '%s' not found\n", fw_file);
 		goto err;
 	}
 
@@ -791,11 +791,11 @@ err:
 	return ret;
 }
 
-static int m88ds3103_get_frontend(struct dvb_frontend *fe)
+static int m88ds3103_get_frontend(struct dvb_frontend *fe,
+				  struct dtv_frontend_properties *c)
 {
 	struct m88ds3103_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[3];
 

@@ -16,7 +16,11 @@
 #include <linux/module.h>
 #include <linux/iio/iio.h>
 #include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 
+#include <linux/iio/buffer.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
 #include "ms5611.h"
 
 static bool ms5611_prom_is_valid(u16 *prom, size_t len)
@@ -133,17 +137,17 @@ static int ms5607_temp_and_pressure_compensate(struct ms5611_chip_info *chip_inf
 
 	t = 2000 + ((chip_info->prom[6] * dt) >> 23);
 	if (t < 2000) {
-		s64 off2, sens2, t2;
+		s64 off2, sens2, t2, tmp;
 
 		t2 = (dt * dt) >> 31;
-		off2 = (61 * (t - 2000) * (t - 2000)) >> 4;
-		sens2 = off2 << 1;
+		tmp = (t - 2000) * (t - 2000);
+		off2 = (61 * tmp) >> 4;
+		sens2 = tmp << 1;
 
 		if (t < -1500) {
-			s64 tmp = (t + 1500) * (t + 1500);
-
+			tmp = (t + 1500) * (t + 1500);
 			off2 += 15 * tmp;
-			sens2 += (8 * tmp);
+			sens2 += 8 * tmp;
 		}
 
 		t -= t2;
@@ -171,6 +175,28 @@ static int ms5611_reset(struct iio_dev *indio_dev)
 	usleep_range(3000, 4000);
 
 	return 0;
+}
+
+static irqreturn_t ms5611_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct ms5611_state *st = iio_priv(indio_dev);
+	s32 buf[4]; /* s32 (pressure) + s32 (temp) + 2 * s32 (timestamp) */
+	int ret;
+
+	mutex_lock(&st->lock);
+	ret = ms5611_read_temp_and_pressure(indio_dev, &buf[1], &buf[0]);
+	mutex_unlock(&st->lock);
+	if (ret < 0)
+		goto err;
+
+	iio_push_to_buffers_with_timestamp(indio_dev, buf, iio_get_time_ns());
+
+err:
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
 }
 
 static int ms5611_read_raw(struct iio_dev *indio_dev,
@@ -201,10 +227,24 @@ static int ms5611_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->type) {
+		case IIO_TEMP:
+			*val = 10;
+			return IIO_VAL_INT;
+		case IIO_PRESSURE:
+			*val = 0;
+			*val2 = 1000;
+			return IIO_VAL_INT_PLUS_MICRO;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	return -EINVAL;
 }
+
+static const unsigned long ms5611_scan_masks[] = {0x3, 0};
 
 static struct ms5611_chip_info chip_info_tbl[] = {
 	[MS5611] = {
@@ -218,12 +258,29 @@ static struct ms5611_chip_info chip_info_tbl[] = {
 static const struct iio_chan_spec ms5611_channels[] = {
 	{
 		.type = IIO_PRESSURE,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
+			BIT(IIO_CHAN_INFO_SCALE),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 32,
+			.storagebits = 32,
+			.endianness = IIO_CPU,
+		},
 	},
 	{
 		.type = IIO_TEMP,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
-	}
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
+			BIT(IIO_CHAN_INFO_SCALE),
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 32,
+			.storagebits = 32,
+			.endianness = IIO_CPU,
+		},
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
 
 static const struct iio_info ms5611_info = {
@@ -234,6 +291,18 @@ static const struct iio_info ms5611_info = {
 static int ms5611_init(struct iio_dev *indio_dev)
 {
 	int ret;
+	struct regulator *vdd = devm_regulator_get(indio_dev->dev.parent,
+	                                           "vdd");
+
+	/* Enable attached regulator if any. */
+	if (!IS_ERR(vdd)) {
+		ret = regulator_enable(vdd);
+		if (ret) {
+			dev_err(indio_dev->dev.parent,
+			        "failed to enable Vdd supply: %d\n", ret);
+			return ret;
+		}
+	}
 
 	ret = ms5611_reset(indio_dev);
 	if (ret < 0)
@@ -242,7 +311,8 @@ static int ms5611_init(struct iio_dev *indio_dev)
 	return ms5611_read_prom(indio_dev);
 }
 
-int ms5611_probe(struct iio_dev *indio_dev, struct device *dev, int type)
+int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
+                 const char *name, int type)
 {
 	int ret;
 	struct ms5611_state *st = iio_priv(indio_dev);
@@ -250,19 +320,47 @@ int ms5611_probe(struct iio_dev *indio_dev, struct device *dev, int type)
 	mutex_init(&st->lock);
 	st->chip_info = &chip_info_tbl[type];
 	indio_dev->dev.parent = dev;
-	indio_dev->name = dev->driver->name;
+	indio_dev->name = name;
 	indio_dev->info = &ms5611_info;
 	indio_dev->channels = ms5611_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ms5611_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->available_scan_masks = ms5611_scan_masks;
 
 	ret = ms5611_init(indio_dev);
 	if (ret < 0)
 		return ret;
 
-	return devm_iio_device_register(dev, indio_dev);
+	ret = iio_triggered_buffer_setup(indio_dev, NULL,
+					 ms5611_trigger_handler, NULL);
+	if (ret < 0) {
+		dev_err(dev, "iio triggered buffer setup failed\n");
+		return ret;
+	}
+
+	ret = iio_device_register(indio_dev);
+	if (ret < 0) {
+		dev_err(dev, "unable to register iio device\n");
+		goto err_buffer_cleanup;
+	}
+
+	return 0;
+
+err_buffer_cleanup:
+	iio_triggered_buffer_cleanup(indio_dev);
+
+	return ret;
 }
 EXPORT_SYMBOL(ms5611_probe);
+
+int ms5611_remove(struct iio_dev *indio_dev)
+{
+	iio_device_unregister(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
+
+	return 0;
+}
+EXPORT_SYMBOL(ms5611_remove);
 
 MODULE_AUTHOR("Tomasz Duszynski <tduszyns@gmail.com>");
 MODULE_DESCRIPTION("MS5611 core driver");

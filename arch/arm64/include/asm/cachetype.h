@@ -34,8 +34,8 @@
 
 #define CTR_L1IP(ctr)	(((ctr) >> CTR_L1IP_SHIFT) & CTR_L1IP_MASK)
 
-#define ICACHEF_ALIASING	BIT(0)
-#define ICACHEF_AIVIVT		BIT(1)
+#define ICACHEF_ALIASING	0
+#define ICACHEF_AIVIVT		1
 
 extern unsigned long __icache_flags;
 

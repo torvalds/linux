@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <mostcore.h>
@@ -26,6 +27,7 @@
 #define DRIVER_NAME "sound"
 
 static struct list_head dev_list;
+static struct most_aim audio_aim;
 
 /**
  * struct channel - private structure to keep channel specific data
@@ -44,6 +46,7 @@ static struct list_head dev_list;
  */
 struct channel {
 	struct snd_pcm_substream *substream;
+	struct snd_pcm_hardware pcm_hardware;
 	struct most_interface *iface;
 	struct most_channel_config *cfg;
 	struct snd_card *card;
@@ -64,18 +67,6 @@ struct channel {
 		       SNDRV_PCM_INFO_BATCH | \
 		       SNDRV_PCM_INFO_INTERLEAVED | \
 		       SNDRV_PCM_INFO_BLOCK_TRANSFER)
-
-/**
- * Initialization of struct snd_pcm_hardware
- */
-static struct snd_pcm_hardware pcm_hardware_template = {
-	.info               = MOST_PCM_INFO,
-	.rates              = SNDRV_PCM_RATE_48000,
-	.rate_min           = 48000,
-	.rate_max           = 48000,
-	.channels_min       = 1,
-	.channels_max       = 8,
-};
 
 #define swap16(val) ( \
 	(((u16)(val) << 8) & (u16)0xFF00) | \
@@ -240,8 +231,6 @@ static int playback_thread(void *data)
 {
 	struct channel *const channel = data;
 
-	pr_info("playback thread started\n");
-
 	while (!kthread_should_stop()) {
 		struct mbo *mbo = NULL;
 		bool period_elapsed = false;
@@ -250,8 +239,9 @@ static int playback_thread(void *data)
 		wait_event_interruptible(
 			channel->playback_waitq,
 			kthread_should_stop() ||
-			(mbo = most_get_mbo(channel->iface, channel->id)));
-
+			(channel->is_stream_running &&
+			 (mbo = most_get_mbo(channel->iface, channel->id,
+					     &audio_aim))));
 		if (!mbo)
 			continue;
 
@@ -286,32 +276,25 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct most_channel_config *cfg = channel->cfg;
 
-	pr_info("pcm_open(), %s\n", substream->name);
-
 	channel->substream = substream;
 
 	if (cfg->direction == MOST_CH_TX) {
-		init_waitqueue_head(&channel->playback_waitq);
-		channel->playback_task = kthread_run(&playback_thread, channel,
+		channel->playback_task = kthread_run(playback_thread, channel,
 						     "most_audio_playback");
-		if (IS_ERR(channel->playback_task))
+		if (IS_ERR(channel->playback_task)) {
+			pr_err("Couldn't start thread\n");
 			return PTR_ERR(channel->playback_task);
+		}
 	}
 
-	if (most_start_channel(channel->iface, channel->id)) {
+	if (most_start_channel(channel->iface, channel->id, &audio_aim)) {
 		pr_err("most_start_channel() failed!\n");
 		if (cfg->direction == MOST_CH_TX)
 			kthread_stop(channel->playback_task);
 		return -EBUSY;
 	}
 
-	runtime->hw = pcm_hardware_template;
-	runtime->hw.buffer_bytes_max = cfg->num_buffers * cfg->buffer_size;
-	runtime->hw.period_bytes_min = cfg->buffer_size;
-	runtime->hw.period_bytes_max = cfg->buffer_size;
-	runtime->hw.periods_min = 1;
-	runtime->hw.periods_max = cfg->num_buffers;
-
+	runtime->hw = channel->pcm_hardware;
 	return 0;
 }
 
@@ -329,11 +312,9 @@ static int pcm_close(struct snd_pcm_substream *substream)
 {
 	struct channel *channel = substream->private_data;
 
-	pr_info("pcm_close(), %s\n", substream->name);
-
 	if (channel->cfg->direction == MOST_CH_TX)
 		kthread_stop(channel->playback_task);
-	most_stop_channel(channel->iface, channel->id);
+	most_stop_channel(channel->iface, channel->id, &audio_aim);
 
 	return 0;
 }
@@ -353,8 +334,13 @@ static int pcm_close(struct snd_pcm_substream *substream)
 static int pcm_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params)
 {
-	pr_info("pcm_hw_params()\n");
+	struct channel *channel = substream->private_data;
 
+	if ((params_channels(hw_params) > channel->pcm_hardware.channels_max) ||
+	    (params_channels(hw_params) < channel->pcm_hardware.channels_min)) {
+		pr_err("Requested number of channels not supported.\n");
+		return -EINVAL;
+	}
 	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
 						params_buffer_bytes(hw_params));
 }
@@ -370,8 +356,6 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
  */
 static int pcm_hw_free(struct snd_pcm_substream *substream)
 {
-	pr_info("pcm_hw_free()\n");
-
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }
 
@@ -441,6 +425,7 @@ static int pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		channel->is_stream_running = true;
+		wake_up_interruptible(&channel->playback_waitq);
 		return 0;
 
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -485,8 +470,7 @@ static struct snd_pcm_ops pcm_ops = {
 	.mmap       = snd_pcm_lib_mmap_vmalloc,
 };
 
-
-int split_arg_list(char *buf, char **card_name, char **pcm_format)
+static int split_arg_list(char *buf, char **card_name, char **pcm_format)
 {
 	*card_name = strsep(&buf, ".");
 	if (!*card_name)
@@ -497,31 +481,59 @@ int split_arg_list(char *buf, char **card_name, char **pcm_format)
 	return 0;
 }
 
-int audio_set_pcm_format(char *pcm_format, struct most_channel_config *cfg)
+static int audio_set_hw_params(struct snd_pcm_hardware *pcm_hw,
+			       char *pcm_format,
+			       struct most_channel_config *cfg)
 {
+	pcm_hw->info = MOST_PCM_INFO;
+	pcm_hw->rates = SNDRV_PCM_RATE_48000;
+	pcm_hw->rate_min = 48000;
+	pcm_hw->rate_max = 48000;
+	pcm_hw->buffer_bytes_max = cfg->num_buffers * cfg->buffer_size;
+	pcm_hw->period_bytes_min = cfg->buffer_size;
+	pcm_hw->period_bytes_max = cfg->buffer_size;
+	pcm_hw->periods_min = 1;
+	pcm_hw->periods_max = cfg->num_buffers;
+
 	if (!strcmp(pcm_format, "1x8")) {
 		if (cfg->subbuffer_size != 1)
 			goto error;
 		pr_info("PCM format is 8-bit mono\n");
-		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S8;
+		pcm_hw->channels_min = 1;
+		pcm_hw->channels_max = 1;
+		pcm_hw->formats = SNDRV_PCM_FMTBIT_S8;
 	} else if (!strcmp(pcm_format, "2x16")) {
 		if (cfg->subbuffer_size != 4)
 			goto error;
 		pr_info("PCM format is 16-bit stereo\n");
-		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S16_LE |
-						SNDRV_PCM_FMTBIT_S16_BE;
+		pcm_hw->channels_min = 2;
+		pcm_hw->channels_max = 2;
+		pcm_hw->formats = SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S16_BE;
 	} else if (!strcmp(pcm_format, "2x24")) {
 		if (cfg->subbuffer_size != 6)
 			goto error;
 		pr_info("PCM format is 24-bit stereo\n");
-		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S24_3LE |
-						SNDRV_PCM_FMTBIT_S24_3BE;
+		pcm_hw->channels_min = 2;
+		pcm_hw->channels_max = 2;
+		pcm_hw->formats = SNDRV_PCM_FMTBIT_S24_3LE |
+				  SNDRV_PCM_FMTBIT_S24_3BE;
 	} else if (!strcmp(pcm_format, "2x32")) {
 		if (cfg->subbuffer_size != 8)
 			goto error;
 		pr_info("PCM format is 32-bit stereo\n");
-		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S32_LE |
-						SNDRV_PCM_FMTBIT_S32_BE;
+		pcm_hw->channels_min = 2;
+		pcm_hw->channels_max = 2;
+		pcm_hw->formats = SNDRV_PCM_FMTBIT_S32_LE |
+				  SNDRV_PCM_FMTBIT_S32_BE;
+	} else if (!strcmp(pcm_format, "6x16")) {
+		if (cfg->subbuffer_size != 12)
+			goto error;
+		pr_info("PCM format is 16-bit 5.1 multi channel\n");
+		pcm_hw->channels_min = 6;
+		pcm_hw->channels_max = 6;
+		pcm_hw->formats = SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S16_BE;
 	} else {
 		pr_err("PCM format %s not supported\n", pcm_format);
 		return -EIO;
@@ -559,8 +571,6 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	char *card_name;
 	char *pcm_format;
 
-	pr_info("sound_probe_channel()\n");
-
 	if (!iface)
 		return -EINVAL;
 
@@ -588,8 +598,6 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 		pr_info("PCM format missing\n");
 		return ret;
 	}
-	if (audio_set_pcm_format(pcm_format, cfg))
-		return ret;
 
 	ret = snd_card_new(NULL, -1, card_name, THIS_MODULE,
 			   sizeof(*channel), &card);
@@ -601,9 +609,13 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	channel->cfg = cfg;
 	channel->iface = iface;
 	channel->id = channel_id;
+	init_waitqueue_head(&channel->playback_waitq);
+
+	if (audio_set_hw_params(&channel->pcm_hardware, pcm_format, cfg))
+		goto err_free_card;
 
 	snprintf(card->driver, sizeof(card->driver), "%s", DRIVER_NAME);
-	snprintf(card->shortname, sizeof(card->shortname), "MOST:%d",
+	snprintf(card->shortname, sizeof(card->shortname), "Microchip MOST:%d",
 		 card->number);
 	snprintf(card->longname, sizeof(card->longname), "%s at %s, ch %d",
 		 card->shortname, iface->description, channel_id);
@@ -643,8 +655,6 @@ static int audio_disconnect_channel(struct most_interface *iface,
 				    int channel_id)
 {
 	struct channel *channel;
-
-	pr_info("sound_disconnect_channel()\n");
 
 	channel = get_channel(iface, channel_id);
 	if (!channel) {

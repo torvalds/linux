@@ -27,17 +27,34 @@ enum {
 	HSSRR,				/* Sampling Rate Register */
 	SCPCR,				/* Serial Port Control Register */
 	SCPDR,				/* Serial Port Data Register */
+	SCDL,				/* BRG Frequency Division Register */
+	SCCKS,				/* BRG Clock Select Register */
 
 	SCIx_NR_REGS,
 };
 
 
 /* SCSMR (Serial Mode Register) */
+#define SCSMR_C_A	BIT(7)	/* Communication Mode */
+#define SCSMR_CSYNC	BIT(7)	/*   - Clocked synchronous mode */
+#define SCSMR_ASYNC	0	/*   - Asynchronous mode */
 #define SCSMR_CHR	BIT(6)	/* 7-bit Character Length */
 #define SCSMR_PE	BIT(5)	/* Parity Enable */
 #define SCSMR_ODD	BIT(4)	/* Odd Parity */
 #define SCSMR_STOP	BIT(3)	/* Stop Bit Length */
 #define SCSMR_CKS	0x0003	/* Clock Select */
+
+/* Serial Mode Register, SCIFA/SCIFB only bits */
+#define SCSMR_CKEDG	BIT(12)	/* Transmit/Receive Clock Edge Select */
+#define SCSMR_SRC_MASK	0x0700	/* Sampling Control */
+#define SCSMR_SRC_16	0x0000	/* Sampling rate 1/16 */
+#define SCSMR_SRC_5	0x0100	/* Sampling rate 1/5 */
+#define SCSMR_SRC_7	0x0200	/* Sampling rate 1/7 */
+#define SCSMR_SRC_11	0x0300	/* Sampling rate 1/11 */
+#define SCSMR_SRC_13	0x0400	/* Sampling rate 1/13 */
+#define SCSMR_SRC_17	0x0500	/* Sampling rate 1/17 */
+#define SCSMR_SRC_19	0x0600	/* Sampling rate 1/19 */
+#define SCSMR_SRC_27	0x0700	/* Sampling rate 1/27 */
 
 /* Serial Control Register, SCIFA/SCIFB only bits */
 #define SCSCR_TDRQE	BIT(15)	/* Tx Data Transfer Request Enable */
@@ -54,10 +71,10 @@ enum {
 
 #define SCI_DEFAULT_ERROR_MASK (SCI_PER | SCI_FER)
 
-#define SCI_RDxF_CLEAR	~(SCI_RESERVED | SCI_RDRF)
-#define SCI_ERROR_CLEAR	~(SCI_RESERVED | SCI_PER | SCI_FER | SCI_ORER)
-#define SCI_TDxE_CLEAR	~(SCI_RESERVED | SCI_TEND | SCI_TDRE)
-#define SCI_BREAK_CLEAR	~(SCI_RESERVED | SCI_PER | SCI_FER | SCI_ORER)
+#define SCI_RDxF_CLEAR	(u32)(~(SCI_RESERVED | SCI_RDRF))
+#define SCI_ERROR_CLEAR	(u32)(~(SCI_RESERVED | SCI_PER | SCI_FER | SCI_ORER))
+#define SCI_TDxE_CLEAR	(u32)(~(SCI_RESERVED | SCI_TEND | SCI_TDRE))
+#define SCI_BREAK_CLEAR	(u32)(~(SCI_RESERVED | SCI_PER | SCI_FER | SCI_ORER))
 
 /* SCxSR (Serial Status Register) on SCIF, SCIFA, SCIFB, HSCIF */
 #define SCIF_ER		BIT(7)	/* Receive Error */
@@ -76,10 +93,10 @@ enum {
 
 #define SCIF_DEFAULT_ERROR_MASK (SCIF_PER | SCIF_FER | SCIF_BRK | SCIF_ER)
 
-#define SCIF_RDxF_CLEAR		~(SCIF_DR | SCIF_RDF)
-#define SCIF_ERROR_CLEAR	~(SCIFA_ORER | SCIF_PER | SCIF_FER | SCIF_ER)
-#define SCIF_TDxE_CLEAR		~(SCIF_TDFE)
-#define SCIF_BREAK_CLEAR	~(SCIF_PER | SCIF_FER | SCIF_BRK)
+#define SCIF_RDxF_CLEAR		(u32)(~(SCIF_DR | SCIF_RDF))
+#define SCIF_ERROR_CLEAR	(u32)(~(SCIF_PER | SCIF_FER | SCIF_ER))
+#define SCIF_TDxE_CLEAR		(u32)(~(SCIF_TDFE))
+#define SCIF_BREAK_CLEAR	(u32)(~(SCIF_PER | SCIF_FER | SCIF_BRK))
 
 /* SCFCR (FIFO Control Register) */
 #define SCFCR_MCE	BIT(3)	/* Modem Control Enable */
@@ -109,6 +126,14 @@ enum {
 #define SCPDR_RTSD	BIT(4)	/* Serial Port RTS Output Pin Data */
 #define SCPDR_CTSD	BIT(3)	/* Serial Port CTS Input Pin Data */
 
+/*
+ * BRG Clock Select Register (Some SCIF and HSCIF)
+ * The Baud Rate Generator for external clock can provide a clock source for
+ * the sampling clock. It outputs either its frequency divided clock, or the
+ * (undivided) (H)SCK external clock.
+ */
+#define SCCKS_CKS	BIT(15)	/* Select (H)SCK (1) or divided SC_CLK (0) */
+#define SCCKS_XIN	BIT(14)	/* SC_CLK uses bus clock (1) or SCIF_CLK (0) */
 
 #define SCxSR_TEND(port)	(((port)->type == PORT_SCI) ? SCI_TEND   : SCIF_TEND)
 #define SCxSR_RDxF(port)	(((port)->type == PORT_SCI) ? SCI_RDRF   : SCIF_RDF)
@@ -119,28 +144,11 @@ enum {
 
 #define SCxSR_ERRORS(port)	(to_sci_port(port)->error_mask)
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7705) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7721) || \
-    defined(CONFIG_ARCH_SH73A0) || \
-    defined(CONFIG_ARCH_R8A7740)
-
-# define SCxSR_RDxF_CLEAR(port) \
-	(serial_port_in(port, SCxSR) & SCIF_RDxF_CLEAR)
-# define SCxSR_ERROR_CLEAR(port) \
-	(serial_port_in(port, SCxSR) & SCIF_ERROR_CLEAR)
-# define SCxSR_TDxE_CLEAR(port) \
-	(serial_port_in(port, SCxSR) & SCIF_TDxE_CLEAR)
-# define SCxSR_BREAK_CLEAR(port) \
-	(serial_port_in(port, SCxSR) & SCIF_BREAK_CLEAR)
-#else
-# define SCxSR_RDxF_CLEAR(port) \
-	((((port)->type == PORT_SCI) ? SCI_RDxF_CLEAR : SCIF_RDxF_CLEAR) & 0xff)
-# define SCxSR_ERROR_CLEAR(port) \
-	((((port)->type == PORT_SCI) ? SCI_ERROR_CLEAR : SCIF_ERROR_CLEAR) & 0xff)
-# define SCxSR_TDxE_CLEAR(port) \
-	((((port)->type == PORT_SCI) ? SCI_TDxE_CLEAR : SCIF_TDxE_CLEAR) & 0xff)
-# define SCxSR_BREAK_CLEAR(port) \
-	((((port)->type == PORT_SCI) ? SCI_BREAK_CLEAR : SCIF_BREAK_CLEAR) & 0xff)
-#endif
-
+#define SCxSR_RDxF_CLEAR(port) \
+	(((port)->type == PORT_SCI) ? SCI_RDxF_CLEAR : SCIF_RDxF_CLEAR)
+#define SCxSR_ERROR_CLEAR(port) \
+	(to_sci_port(port)->error_clear)
+#define SCxSR_TDxE_CLEAR(port) \
+	(((port)->type == PORT_SCI) ? SCI_TDxE_CLEAR : SCIF_TDxE_CLEAR)
+#define SCxSR_BREAK_CLEAR(port) \
+	(((port)->type == PORT_SCI) ? SCI_BREAK_CLEAR : SCIF_BREAK_CLEAR)

@@ -65,11 +65,34 @@ static noinline void __init kmalloc_node_oob_right(void)
 	kfree(ptr);
 }
 
-static noinline void __init kmalloc_large_oob_right(void)
+#ifdef CONFIG_SLUB
+static noinline void __init kmalloc_pagealloc_oob_right(void)
 {
 	char *ptr;
 	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
 
+	/* Allocate a chunk that does not fit into a SLUB cache to trigger
+	 * the page allocator fallback.
+	 */
+	pr_info("kmalloc pagealloc allocation: out-of-bounds to right\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	ptr[size] = 0;
+	kfree(ptr);
+}
+#endif
+
+static noinline void __init kmalloc_large_oob_right(void)
+{
+	char *ptr;
+	size_t size = KMALLOC_MAX_CACHE_SIZE - 256;
+	/* Allocate a chunk that is large enough, but still fits into a slab
+	 * and does not trigger the page allocator fallback in SLUB.
+	 */
 	pr_info("kmalloc large allocation: out-of-bounds to right\n");
 	ptr = kmalloc(size, GFP_KERNEL);
 	if (!ptr) {
@@ -136,6 +159,71 @@ static noinline void __init kmalloc_oob_16(void)
 	*ptr1 = *ptr2;
 	kfree(ptr1);
 	kfree(ptr2);
+}
+
+static noinline void __init kmalloc_oob_memset_2(void)
+{
+	char *ptr;
+	size_t size = 8;
+
+	pr_info("out-of-bounds in memset2\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	memset(ptr+7, 0, 2);
+	kfree(ptr);
+}
+
+static noinline void __init kmalloc_oob_memset_4(void)
+{
+	char *ptr;
+	size_t size = 8;
+
+	pr_info("out-of-bounds in memset4\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	memset(ptr+5, 0, 4);
+	kfree(ptr);
+}
+
+
+static noinline void __init kmalloc_oob_memset_8(void)
+{
+	char *ptr;
+	size_t size = 8;
+
+	pr_info("out-of-bounds in memset8\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	memset(ptr+1, 0, 8);
+	kfree(ptr);
+}
+
+static noinline void __init kmalloc_oob_memset_16(void)
+{
+	char *ptr;
+	size_t size = 16;
+
+	pr_info("out-of-bounds in memset16\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	memset(ptr+1, 0, 16);
+	kfree(ptr);
 }
 
 static noinline void __init kmalloc_oob_in_memset(void)
@@ -206,6 +294,8 @@ static noinline void __init kmalloc_uaf2(void)
 	}
 
 	ptr1[40] = 'x';
+	if (ptr1 == ptr2)
+		pr_err("Could not detect use-after-free: ptr1 == ptr2\n");
 	kfree(ptr2);
 }
 
@@ -259,11 +349,18 @@ static int __init kmalloc_tests_init(void)
 	kmalloc_oob_right();
 	kmalloc_oob_left();
 	kmalloc_node_oob_right();
+#ifdef CONFIG_SLUB
+	kmalloc_pagealloc_oob_right();
+#endif
 	kmalloc_large_oob_right();
 	kmalloc_oob_krealloc_more();
 	kmalloc_oob_krealloc_less();
 	kmalloc_oob_16();
 	kmalloc_oob_in_memset();
+	kmalloc_oob_memset_2();
+	kmalloc_oob_memset_4();
+	kmalloc_oob_memset_8();
+	kmalloc_oob_memset_16();
 	kmalloc_uaf();
 	kmalloc_uaf_memset();
 	kmalloc_uaf2();

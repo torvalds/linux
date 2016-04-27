@@ -212,11 +212,11 @@ static void s5pv210_set_refresh(enum s5pv210_dmc_port ch, unsigned long freq)
 	/* Find current DRAM frequency */
 	tmp = s5pv210_dram_conf[ch].freq;
 
-	do_div(tmp, freq);
+	tmp /= freq;
 
 	tmp1 = s5pv210_dram_conf[ch].refresh;
 
-	do_div(tmp1, tmp);
+	tmp1 /= tmp;
 
 	__raw_writel(tmp1, reg);
 }
@@ -576,10 +576,8 @@ static struct cpufreq_driver s5pv210_driver = {
 	.get		= cpufreq_generic_get,
 	.init		= s5pv210_cpu_init,
 	.name		= "s5pv210",
-#ifdef CONFIG_PM
 	.suspend	= cpufreq_generic_suspend,
 	.resume		= cpufreq_generic_suspend, /* We need to set SLEEP FREQ again */
-#endif
 };
 
 static struct notifier_block s5pv210_cpufreq_reboot_notifier = {

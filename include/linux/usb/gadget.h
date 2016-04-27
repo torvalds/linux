@@ -215,6 +215,7 @@ struct usb_ep {
 	struct list_head	ep_list;
 	struct usb_ep_caps	caps;
 	bool			claimed;
+	bool			enabled;
 	unsigned		maxpacket:16;
 	unsigned		maxpacket_limit:16;
 	unsigned		max_streams:16;
@@ -264,7 +265,18 @@ static inline void usb_ep_set_maxpacket_limit(struct usb_ep *ep,
  */
 static inline int usb_ep_enable(struct usb_ep *ep)
 {
-	return ep->ops->enable(ep, ep->desc);
+	int ret;
+
+	if (ep->enabled)
+		return 0;
+
+	ret = ep->ops->enable(ep, ep->desc);
+	if (ret)
+		return ret;
+
+	ep->enabled = true;
+
+	return 0;
 }
 
 /**
@@ -281,7 +293,18 @@ static inline int usb_ep_enable(struct usb_ep *ep)
  */
 static inline int usb_ep_disable(struct usb_ep *ep)
 {
-	return ep->ops->disable(ep);
+	int ret;
+
+	if (!ep->enabled)
+		return 0;
+
+	ret = ep->ops->disable(ep);
+	if (ret)
+		return ret;
+
+	ep->enabled = false;
+
+	return 0;
 }
 
 /**
@@ -379,6 +402,9 @@ static inline void usb_ep_free_request(struct usb_ep *ep,
 static inline int usb_ep_queue(struct usb_ep *ep,
 			       struct usb_request *req, gfp_t gfp_flags)
 {
+	if (WARN_ON_ONCE(!ep->enabled && ep->address))
+		return -ESHUTDOWN;
+
 	return ep->ops->queue(ep, req, gfp_flags);
 }
 
@@ -569,6 +595,10 @@ struct usb_gadget_ops {
  *	only supports HNP on a different root port.
  * @b_hnp_enable: OTG device feature flag, indicating that the A-Host
  *	enabled HNP support.
+ * @hnp_polling_support: OTG device feature flag, indicating if the OTG device
+ *	in peripheral mode can support HNP polling.
+ * @host_request_flag: OTG device feature flag, indicating if A-Peripheral
+ *	or B-Peripheral wants to take host role.
  * @quirk_ep_out_aligned_size: epout requires buffer size to be aligned to
  *	MaxPacketSize.
  * @is_selfpowered: if the gadget is self-powered.
@@ -616,6 +646,8 @@ struct usb_gadget {
 	unsigned			b_hnp_enable:1;
 	unsigned			a_hnp_support:1;
 	unsigned			a_alt_hnp_support:1;
+	unsigned			hnp_polling_support:1;
+	unsigned			host_request_flag:1;
 	unsigned			quirk_ep_out_aligned_size:1;
 	unsigned			quirk_altset_not_supp:1;
 	unsigned			quirk_stall_not_supp:1;
@@ -700,6 +732,16 @@ static inline int gadget_is_dualspeed(struct usb_gadget *g)
 static inline int gadget_is_superspeed(struct usb_gadget *g)
 {
 	return g->max_speed >= USB_SPEED_SUPER;
+}
+
+/**
+ * gadget_is_superspeed_plus() - return true if the hardware handles
+ *	superspeed plus
+ * @g: controller that might support superspeed plus
+ */
+static inline int gadget_is_superspeed_plus(struct usb_gadget *g)
+{
+	return g->max_speed >= USB_SPEED_SUPER_PLUS;
 }
 
 /**
@@ -989,6 +1031,9 @@ static inline int usb_gadget_activate(struct usb_gadget *gadget)
  * @reset: Invoked on USB bus reset. It is mandatory for all gadget drivers
  *	and should be called in_interrupt.
  * @driver: Driver model state for this driver.
+ * @udc_name: A name of UDC this driver should be bound to. If udc_name is NULL,
+ *	this driver will be bound to any available UDC.
+ * @pending: UDC core private data used for deferred probe of this driver.
  *
  * Devices are disabled till a gadget driver successfully bind()s, which
  * means the driver will handle setup() requests needed to enumerate (and
@@ -1049,6 +1094,9 @@ struct usb_gadget_driver {
 
 	/* FIXME support safe rmmod */
 	struct device_driver	driver;
+
+	char			*udc_name;
+	struct list_head	pending;
 };
 
 
@@ -1094,8 +1142,7 @@ extern int usb_add_gadget_udc_release(struct device *parent,
 		struct usb_gadget *gadget, void (*release)(struct device *dev));
 extern int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget);
 extern void usb_del_gadget_udc(struct usb_gadget *gadget);
-extern int usb_udc_attach_driver(const char *name,
-		struct usb_gadget_driver *driver);
+extern char *usb_get_gadget_udc_name(void);
 
 /*-------------------------------------------------------------------------*/
 
@@ -1164,7 +1211,8 @@ struct usb_function;
 int usb_assign_descriptors(struct usb_function *f,
 		struct usb_descriptor_header **fs,
 		struct usb_descriptor_header **hs,
-		struct usb_descriptor_header **ss);
+		struct usb_descriptor_header **ss,
+		struct usb_descriptor_header **ssp);
 void usb_free_all_descriptors(struct usb_function *f);
 
 struct usb_descriptor_header *usb_otg_descriptor_alloc(
@@ -1232,6 +1280,8 @@ extern struct usb_ep *usb_ep_autoconfig(struct usb_gadget *,
 extern struct usb_ep *usb_ep_autoconfig_ss(struct usb_gadget *,
 			struct usb_endpoint_descriptor *,
 			struct usb_ss_ep_comp_descriptor *);
+
+extern void usb_ep_autoconfig_release(struct usb_ep *);
 
 extern void usb_ep_autoconfig_reset(struct usb_gadget *);
 

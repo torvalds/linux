@@ -12,7 +12,7 @@
  *              D E F I N E S
  *----------------------------------------------------------------------------*/
 
-#define AAC_MAX_MSIX		8	/* vectors */
+#define AAC_MAX_MSIX		32	/* vectors */
 #define AAC_PCI_MSI_ENABLE	0x8000
 
 enum {
@@ -62,7 +62,7 @@ enum {
 #define	PMC_GLOBAL_INT_BIT0		0x00000001
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 40709
+# define AAC_DRIVER_BUILD 41052
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -93,6 +93,13 @@ enum {
 
 #define aac_phys_to_logical(x)  ((x)+1)
 #define aac_logical_to_phys(x)  ((x)?(x)-1:0)
+
+/*
+ * These macros are for keeping track of
+ * character device state.
+ */
+#define AAC_CHARDEV_UNREGISTERED	(-1)
+#define AAC_CHARDEV_NEEDS_REINIT	(-2)
 
 /* #define AAC_DETAILED_STATUS_INFO */
 
@@ -547,6 +554,7 @@ struct adapter_ops
 	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
 	int  (*adapter_check_health)(struct aac_dev *dev);
 	int  (*adapter_restart)(struct aac_dev *dev, int bled);
+	void (*adapter_start)(struct aac_dev *dev);
 	/* Transport operations */
 	int  (*adapter_ioremap)(struct aac_dev * dev, u32 size);
 	irq_handler_t adapter_intr;
@@ -843,6 +851,10 @@ struct src_registers {
 						&((AEP)->regs.src.bar0->CSR))
 #define src_writel(AEP, CSR, value)	writel(value, \
 						&((AEP)->regs.src.bar0->CSR))
+#if defined(writeq)
+#define	src_writeq(AEP, CSR, value)	writeq(value, \
+						&((AEP)->regs.src.bar0->CSR))
+#endif
 
 #define SRC_ODR_SHIFT		12
 #define SRC_IDR_SHIFT		9
@@ -939,6 +951,7 @@ struct fib {
 	 */
 	struct list_head	fiblink;
 	void			*data;
+	u32			vector_no;
 	struct hw_fib		*hw_fib_va;		/* Actual shared object */
 	dma_addr_t		hw_fib_pa;		/* physical address of hw_fib*/
 };
@@ -1118,6 +1131,7 @@ struct aac_dev
 	struct fib		*free_fib;
 	spinlock_t		fib_lock;
 
+	struct mutex		ioctl_mutex;
 	struct aac_queue_block *queues;
 	/*
 	 *	The user API will use an IOCTL to register itself to receive
@@ -1162,6 +1176,11 @@ struct aac_dev
 	struct fsa_dev_info	*fsa_dev;
 	struct task_struct	*thread;
 	int			cardtype;
+	/*
+	 *This lock will protect the two 32-bit
+	 *writes to the Inbound Queue
+	 */
+	spinlock_t		iq_lock;
 
 	/*
 	 *	The following is the device specific extension.
@@ -1224,6 +1243,7 @@ struct aac_dev
 	struct msix_entry	msixentry[AAC_MAX_MSIX];
 	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
 	u8			adapter_shutdown;
+	u32			handle_pci_error;
 };
 
 #define aac_adapter_interrupt(dev) \
@@ -1246,6 +1266,9 @@ struct aac_dev
 
 #define aac_adapter_restart(dev,bled) \
 	(dev)->a_ops.adapter_restart(dev,bled)
+
+#define aac_adapter_start(dev) \
+	((dev)->a_ops.adapter_start(dev))
 
 #define aac_adapter_ioremap(dev, size) \
 	(dev)->a_ops.adapter_ioremap(dev, size)
@@ -2097,8 +2120,12 @@ static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 #define AAC_OWNER_ERROR_HANDLER	0x103
 #define AAC_OWNER_FIRMWARE	0x106
 
+int aac_acquire_irq(struct aac_dev *dev);
+void aac_free_irq(struct aac_dev *dev);
 const char *aac_driverinfo(struct Scsi_Host *);
+void aac_fib_vector_assign(struct aac_dev *dev);
 struct fib *aac_fib_alloc(struct aac_dev *dev);
+struct fib *aac_fib_alloc_tag(struct aac_dev *dev, struct scsi_cmnd *scmd);
 int aac_fib_setup(struct aac_dev *dev);
 void aac_fib_map_free(struct aac_dev *dev);
 void aac_fib_free(struct fib * context);
@@ -2127,6 +2154,7 @@ int aac_sa_init(struct aac_dev *dev);
 int aac_src_init(struct aac_dev *dev);
 int aac_srcv_init(struct aac_dev *dev);
 int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw_fib, int wait, struct fib * fibptr, unsigned long *nonotify);
+void aac_define_int_mode(struct aac_dev *dev);
 unsigned int aac_response_normal(struct aac_queue * q);
 unsigned int aac_command_normal(struct aac_queue * q);
 unsigned int aac_intr_normal(struct aac_dev *dev, u32 Index,

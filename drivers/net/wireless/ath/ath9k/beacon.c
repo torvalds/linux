@@ -148,7 +148,8 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 
 	ath_assign_seq(common, skb);
 
-	if (vif->p2p)
+	/* Always assign NOA attr when MCC enabled */
+	if (ath9k_is_chanctx_enabled())
 		ath9k_beacon_add_noa(sc, avp, skb);
 
 	bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,

@@ -20,7 +20,8 @@
 #include "digital.h"
 
 #define DIGITAL_PROTO_NFCA_RF_TECH \
-	(NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK | NFC_PROTO_NFC_DEP_MASK)
+	(NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK | \
+	NFC_PROTO_NFC_DEP_MASK | NFC_PROTO_ISO14443_MASK)
 
 #define DIGITAL_PROTO_NFCB_RF_TECH	NFC_PROTO_ISO14443_B_MASK
 
@@ -631,7 +632,8 @@ static int digital_activate_target(struct nfc_dev *nfc_dev,
 }
 
 static void digital_deactivate_target(struct nfc_dev *nfc_dev,
-				      struct nfc_target *target)
+				      struct nfc_target *target,
+				      u8 mode)
 {
 	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
 

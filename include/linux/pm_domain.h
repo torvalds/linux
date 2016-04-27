@@ -15,10 +15,11 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/notifier.h>
-#include <linux/cpuidle.h>
 
 /* Defines used for the flags field in the struct generic_pm_domain */
 #define GENPD_FLAG_PM_CLK	(1U << 0) /* PM domain uses PM clk */
+
+#define GENPD_MAX_NUM_STATES	8 /* Number of possible low power states */
 
 enum gpd_status {
 	GPD_STATE_ACTIVE = 0,	/* PM domain is active */
@@ -38,9 +39,9 @@ struct gpd_dev_ops {
 	bool (*active_wakeup)(struct device *dev);
 };
 
-struct gpd_cpuidle_data {
-	unsigned int saved_exit_latency;
-	struct cpuidle_state *idle_state;
+struct genpd_power_state {
+	s64 power_off_latency_ns;
+	s64 power_on_latency_ns;
 };
 
 struct generic_pm_domain {
@@ -53,7 +54,6 @@ struct generic_pm_domain {
 	struct dev_power_governor *gov;
 	struct work_struct power_off_work;
 	const char *name;
-	unsigned int in_progress;	/* Number of devices being suspended now */
 	atomic_t sd_count;	/* Number of subdomains with power "on" */
 	enum gpd_status status;	/* Current state of the domain */
 	unsigned int device_count;	/* Number of devices */
@@ -61,19 +61,20 @@ struct generic_pm_domain {
 	unsigned int prepared_count;	/* Suspend counter of prepared devices */
 	bool suspend_power_off;	/* Power status before system suspend */
 	int (*power_off)(struct generic_pm_domain *domain);
-	s64 power_off_latency_ns;
 	int (*power_on)(struct generic_pm_domain *domain);
-	s64 power_on_latency_ns;
 	struct gpd_dev_ops dev_ops;
 	s64 max_off_time_ns;	/* Maximum allowed "suspended" time. */
 	bool max_off_time_changed;
 	bool cached_power_down_ok;
-	struct gpd_cpuidle_data *cpuidle_data;
 	int (*attach_dev)(struct generic_pm_domain *domain,
 			  struct device *dev);
 	void (*detach_dev)(struct generic_pm_domain *domain,
 			   struct device *dev);
 	unsigned int flags;		/* Bit field of configs for genpd */
+	struct genpd_power_state states[GENPD_MAX_NUM_STATES];
+	unsigned int state_count; /* number of states */
+	unsigned int state_idx; /* state that genpd will go to when off */
+
 };
 
 static inline struct generic_pm_domain *pd_to_genpd(struct dev_pm_domain *pd)
@@ -89,10 +90,8 @@ struct gpd_link {
 };
 
 struct gpd_timing_data {
-	s64 stop_latency_ns;
-	s64 start_latency_ns;
-	s64 save_state_latency_ns;
-	s64 restore_state_latency_ns;
+	s64 suspend_latency_ns;
+	s64 resume_latency_ns;
 	s64 effective_constraint_ns;
 	bool constraint_changed;
 	bool cached_stop_ok;
@@ -125,28 +124,14 @@ extern int __pm_genpd_add_device(struct generic_pm_domain *genpd,
 				 struct device *dev,
 				 struct gpd_timing_data *td);
 
-extern int __pm_genpd_name_add_device(const char *domain_name,
-				      struct device *dev,
-				      struct gpd_timing_data *td);
-
 extern int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 				  struct device *dev);
 extern int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 				  struct generic_pm_domain *new_subdomain);
-extern int pm_genpd_add_subdomain_names(const char *master_name,
-					const char *subdomain_name);
 extern int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 				     struct generic_pm_domain *target);
-extern int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state);
-extern int pm_genpd_name_attach_cpuidle(const char *name, int state);
-extern int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd);
-extern int pm_genpd_name_detach_cpuidle(const char *name);
 extern void pm_genpd_init(struct generic_pm_domain *genpd,
 			  struct dev_power_governor *gov, bool is_off);
-
-extern int pm_genpd_poweron(struct generic_pm_domain *genpd);
-extern int pm_genpd_name_poweron(const char *domain_name);
-extern void pm_genpd_poweroff_unused(void);
 
 extern struct dev_power_governor simple_qos_governor;
 extern struct dev_power_governor pm_domain_always_on_gov;
@@ -166,12 +151,6 @@ static inline int __pm_genpd_add_device(struct generic_pm_domain *genpd,
 {
 	return -ENOSYS;
 }
-static inline int __pm_genpd_name_add_device(const char *domain_name,
-					     struct device *dev,
-					     struct gpd_timing_data *td)
-{
-	return -ENOSYS;
-}
 static inline int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 					 struct device *dev)
 {
@@ -182,29 +161,8 @@ static inline int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 {
 	return -ENOSYS;
 }
-static inline int pm_genpd_add_subdomain_names(const char *master_name,
-					       const char *subdomain_name)
-{
-	return -ENOSYS;
-}
 static inline int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 					    struct generic_pm_domain *target)
-{
-	return -ENOSYS;
-}
-static inline int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int st)
-{
-	return -ENOSYS;
-}
-static inline int pm_genpd_name_attach_cpuidle(const char *name, int state)
-{
-	return -ENOSYS;
-}
-static inline int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd)
-{
-	return -ENOSYS;
-}
-static inline int pm_genpd_name_detach_cpuidle(const char *name)
 {
 	return -ENOSYS;
 }
@@ -212,27 +170,12 @@ static inline void pm_genpd_init(struct generic_pm_domain *genpd,
 				 struct dev_power_governor *gov, bool is_off)
 {
 }
-static inline int pm_genpd_poweron(struct generic_pm_domain *genpd)
-{
-	return -ENOSYS;
-}
-static inline int pm_genpd_name_poweron(const char *domain_name)
-{
-	return -ENOSYS;
-}
-static inline void pm_genpd_poweroff_unused(void) {}
 #endif
 
 static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
 				      struct device *dev)
 {
 	return __pm_genpd_add_device(genpd, dev, NULL);
-}
-
-static inline int pm_genpd_name_add_device(const char *domain_name,
-					   struct device *dev)
-{
-	return __pm_genpd_name_add_device(domain_name, dev, NULL);
 }
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS_SLEEP
@@ -306,12 +249,15 @@ static inline int of_genpd_add_provider_onecell(struct device_node *np,
 #ifdef CONFIG_PM
 extern int dev_pm_domain_attach(struct device *dev, bool power_on);
 extern void dev_pm_domain_detach(struct device *dev, bool power_off);
+extern void dev_pm_domain_set(struct device *dev, struct dev_pm_domain *pd);
 #else
 static inline int dev_pm_domain_attach(struct device *dev, bool power_on)
 {
 	return -ENODEV;
 }
 static inline void dev_pm_domain_detach(struct device *dev, bool power_off) {}
+static inline void dev_pm_domain_set(struct device *dev,
+				     struct dev_pm_domain *pd) {}
 #endif
 
 #endif /* _LINUX_PM_DOMAIN_H */

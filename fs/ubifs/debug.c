@@ -2573,7 +2573,7 @@ int dbg_leb_write(struct ubifs_info *c, int lnum, const void *buf,
 {
 	int err, failing;
 
-	if (c->dbg->pc_happened)
+	if (dbg_is_power_cut(c))
 		return -EROFS;
 
 	failing = power_cut_emulated(c, lnum, 1);
@@ -2595,7 +2595,7 @@ int dbg_leb_change(struct ubifs_info *c, int lnum, const void *buf,
 {
 	int err;
 
-	if (c->dbg->pc_happened)
+	if (dbg_is_power_cut(c))
 		return -EROFS;
 	if (power_cut_emulated(c, lnum, 1))
 		return -EROFS;
@@ -2611,7 +2611,7 @@ int dbg_leb_unmap(struct ubifs_info *c, int lnum)
 {
 	int err;
 
-	if (c->dbg->pc_happened)
+	if (dbg_is_power_cut(c))
 		return -EROFS;
 	if (power_cut_emulated(c, lnum, 0))
 		return -EROFS;
@@ -2627,7 +2627,7 @@ int dbg_leb_map(struct ubifs_info *c, int lnum)
 {
 	int err;
 
-	if (c->dbg->pc_happened)
+	if (dbg_is_power_cut(c))
 		return -EROFS;
 	if (power_cut_emulated(c, lnum, 0))
 		return -EROFS;

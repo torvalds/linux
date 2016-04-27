@@ -1086,6 +1086,9 @@ static int irda_create(struct net *net, struct socket *sock, int protocol,
 	struct sock *sk;
 	struct irda_sock *self;
 
+	if (protocol < 0 || protocol > SK_PROTOCOL_MAX)
+		return -EINVAL;
+
 	if (net != &init_net)
 		return -EAFNOSUPPORT;
 
@@ -2123,8 +2126,7 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 		}
 
 		/* Unregister any old registration */
-		if (self->skey)
-			irlmp_unregister_service(self->skey);
+		irlmp_unregister_service(self->skey);
 
 		self->skey = irlmp_register_service((__u16) opt);
 		break;
