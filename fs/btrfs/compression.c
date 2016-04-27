@@ -785,8 +785,10 @@ void __init btrfs_init_compress(void)
 }
 
 /*
- * this finds an available workspace or allocates a new one
- * ERR_PTR is returned if things go bad.
+ * This finds an available workspace or allocates a new one.
+ * If it's not possible to allocate a new one, waits until there's one.
+ * Preallocation makes a forward progress guarantees and we do not return
+ * errors.
  */
 static struct list_head *find_workspace(int type)
 {
@@ -826,6 +828,14 @@ again:
 	if (IS_ERR(workspace)) {
 		atomic_dec(total_ws);
 		wake_up(ws_wait);
+
+		/*
+		 * Do not return the error but go back to waiting. There's a
+		 * workspace preallocated for each type and the compression
+		 * time is bounded so we get to a workspace eventually. This
+		 * makes our caller's life easier.
+		 */
+		goto again;
 	}
 	return workspace;
 }
@@ -913,8 +923,6 @@ int btrfs_compress_pages(int type, struct address_space *mapping,
 	int ret;
 
 	workspace = find_workspace(type);
-	if (IS_ERR(workspace))
-		return PTR_ERR(workspace);
 
 	ret = btrfs_compress_op[type-1]->compress_pages(workspace, mapping,
 						      start, len, pages,
@@ -949,8 +957,6 @@ static int btrfs_decompress_biovec(int type, struct page **pages_in,
 	int ret;
 
 	workspace = find_workspace(type);
-	if (IS_ERR(workspace))
-		return PTR_ERR(workspace);
 
 	ret = btrfs_compress_op[type-1]->decompress_biovec(workspace, pages_in,
 							 disk_start,
@@ -971,8 +977,6 @@ int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 	int ret;
 
 	workspace = find_workspace(type);
-	if (IS_ERR(workspace))
-		return PTR_ERR(workspace);
 
 	ret = btrfs_compress_op[type-1]->decompress(workspace, data_in,
 						  dest_page, start_byte,
