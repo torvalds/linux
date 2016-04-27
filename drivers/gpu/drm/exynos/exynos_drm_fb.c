@@ -97,20 +97,9 @@ static int exynos_drm_fb_create_handle(struct drm_framebuffer *fb,
 				     &exynos_fb->exynos_gem[0]->base, handle);
 }
 
-static int exynos_drm_fb_dirty(struct drm_framebuffer *fb,
-				struct drm_file *file_priv, unsigned flags,
-				unsigned color, struct drm_clip_rect *clips,
-				unsigned num_clips)
-{
-	/* TODO */
-
-	return 0;
-}
-
 static const struct drm_framebuffer_funcs exynos_drm_fb_funcs = {
 	.destroy	= exynos_drm_fb_destroy,
 	.create_handle	= exynos_drm_fb_create_handle,
-	.dirty		= exynos_drm_fb_dirty,
 };
 
 struct drm_framebuffer *
