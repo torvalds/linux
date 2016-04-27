@@ -825,9 +825,9 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	if (!IS_ERR(dst)) {
 		skb_dst_set(buff, dst);
 		ip6_xmit(ctl_sk, buff, &fl6, NULL, tclass);
-		TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
+		__TCP_INC_STATS(net, TCP_MIB_OUTSEGS);
 		if (rst)
-			TCP_INC_STATS_BH(net, TCP_MIB_OUTRSTS);
+			__TCP_INC_STATS(net, TCP_MIB_OUTRSTS);
 		return;
 	}
 
@@ -1276,8 +1276,8 @@ discard:
 	kfree_skb(skb);
 	return 0;
 csum_err:
-	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_CSUMERRORS);
-	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_INERRS);
+	__TCP_INC_STATS(sock_net(sk), TCP_MIB_CSUMERRORS);
+	__TCP_INC_STATS(sock_net(sk), TCP_MIB_INERRS);
 	goto discard;
 
 
@@ -1359,7 +1359,7 @@ static int tcp_v6_rcv(struct sk_buff *skb)
 	/*
 	 *	Count it even if it's bad.
 	 */
-	TCP_INC_STATS_BH(net, TCP_MIB_INSEGS);
+	__TCP_INC_STATS(net, TCP_MIB_INSEGS);
 
 	if (!pskb_may_pull(skb, sizeof(struct tcphdr)))
 		goto discard_it;
@@ -1472,9 +1472,9 @@ no_tcp_socket:
 
 	if (tcp_checksum_complete(skb)) {
 csum_error:
-		TCP_INC_STATS_BH(net, TCP_MIB_CSUMERRORS);
+		__TCP_INC_STATS(net, TCP_MIB_CSUMERRORS);
 bad_packet:
-		TCP_INC_STATS_BH(net, TCP_MIB_INERRS);
+		__TCP_INC_STATS(net, TCP_MIB_INERRS);
 	} else {
 		tcp_v6_send_reset(NULL, skb);
 	}

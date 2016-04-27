@@ -3091,7 +3091,7 @@ void tcp_done(struct sock *sk)
 	struct request_sock *req = tcp_sk(sk)->fastopen_rsk;
 
 	if (sk->sk_state == TCP_SYN_SENT || sk->sk_state == TCP_SYN_RECV)
-		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_ATTEMPTFAILS);
+		__TCP_INC_STATS(sock_net(sk), TCP_MIB_ATTEMPTFAILS);
 
 	tcp_set_state(sk, TCP_CLOSE);
 	tcp_clear_xmit_timers(sk);

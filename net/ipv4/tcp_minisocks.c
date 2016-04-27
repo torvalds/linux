@@ -545,7 +545,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->rack.mstamp.v64 = 0;
 		newtp->rack.advanced = 0;
 
-		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_PASSIVEOPENS);
+		__TCP_INC_STATS(sock_net(sk), TCP_MIB_PASSIVEOPENS);
 	}
 	return newsk;
 }
@@ -729,7 +729,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	 *	   "fourth, check the SYN bit"
 	 */
 	if (flg & (TCP_FLAG_RST|TCP_FLAG_SYN)) {
-		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_ATTEMPTFAILS);
+		__TCP_INC_STATS(sock_net(sk), TCP_MIB_ATTEMPTFAILS);
 		goto embryonic_reset;
 	}
 
