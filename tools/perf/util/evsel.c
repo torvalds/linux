@@ -2336,7 +2336,7 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	case ENODEV:
 		if (target->cpu_list)
 			return scnprintf(msg, size, "%s",
-	 "No such device - did you specify an out-of-range profile CPU?\n");
+	 "No such device - did you specify an out-of-range profile CPU?");
 		break;
 	case EOPNOTSUPP:
 		if (evsel->attr.precise_ip)
@@ -2368,7 +2368,7 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	return scnprintf(msg, size,
 	"The sys_perf_event_open() syscall returned with %d (%s) for event (%s).\n"
 	"/bin/dmesg may provide additional information.\n"
-	"No CONFIG_PERF_EVENTS=y kernel support configured?\n",
+	"No CONFIG_PERF_EVENTS=y kernel support configured?",
 			 err, strerror_r(err, sbuf, sizeof(sbuf)),
 			 perf_evsel__name(evsel));
 }
