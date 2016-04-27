@@ -244,7 +244,8 @@ static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
 {
 	int timeout = 1000;
 
-	while (--timeout && !(sd_ctrl_read16(host, CTL_STATUS2) & (1 << 13)))
+	while (--timeout && !(sd_ctrl_read16_and_16_as_32(host, CTL_STATUS)
+			      & TMIO_STAT_SCLKDIVEN))
 		udelay(1);
 
 	if (!timeout) {

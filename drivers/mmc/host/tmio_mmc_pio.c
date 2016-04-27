@@ -542,7 +542,7 @@ static void tmio_mmc_data_irq(struct tmio_mmc_host *host)
 		 * waiting for one more interrupt fixes the problem.
 		 */
 		if (host->pdata->flags & TMIO_MMC_HAS_IDLE_WAIT) {
-			if (status & TMIO_STAT_ILL_FUNC)
+			if (status & TMIO_STAT_SCLKDIVEN)
 				done = true;
 		} else {
 			if (!(status & TMIO_STAT_CMD_BUSY))
