@@ -131,11 +131,6 @@ static void vlv_steal_power_sequencer(struct drm_device *dev,
 				      enum pipe pipe);
 static void intel_dp_unset_edid(struct intel_dp *intel_dp);
 
-static unsigned int intel_dp_unused_lane_mask(int lane_count)
-{
-	return ~((1 << lane_count) - 1) & 0xf;
-}
-
 static int
 intel_dp_max_link_bw(struct intel_dp  *intel_dp)
 {
@@ -2915,85 +2910,9 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 
 static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
 {
-	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(encoder->base.crtc);
-	enum dpio_channel ch = vlv_dport_to_channel(dport);
-	enum pipe pipe = intel_crtc->pipe;
-	unsigned int lane_mask =
-		intel_dp_unused_lane_mask(intel_crtc->config->lane_count);
-	u32 val;
-
 	intel_dp_prepare(encoder);
 
-	/*
-	 * Must trick the second common lane into life.
-	 * Otherwise we can't even access the PLL.
-	 */
-	if (ch == DPIO_CH0 && pipe == PIPE_B)
-		dport->release_cl2_override =
-			!chv_phy_powergate_ch(dev_priv, DPIO_PHY0, DPIO_CH1, true);
-
-	chv_phy_powergate_lanes(encoder, true, lane_mask);
-
-	mutex_lock(&dev_priv->sb_lock);
-
-	/* Assert data lane reset */
-	chv_data_lane_soft_reset(encoder, true);
-
-	/* program left/right clock distribution */
-	if (pipe != PIPE_B) {
-		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW5_CH0);
-		val &= ~(CHV_BUFLEFTENA1_MASK | CHV_BUFRIGHTENA1_MASK);
-		if (ch == DPIO_CH0)
-			val |= CHV_BUFLEFTENA1_FORCE;
-		if (ch == DPIO_CH1)
-			val |= CHV_BUFRIGHTENA1_FORCE;
-		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW5_CH0, val);
-	} else {
-		val = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW1_CH1);
-		val &= ~(CHV_BUFLEFTENA2_MASK | CHV_BUFRIGHTENA2_MASK);
-		if (ch == DPIO_CH0)
-			val |= CHV_BUFLEFTENA2_FORCE;
-		if (ch == DPIO_CH1)
-			val |= CHV_BUFRIGHTENA2_FORCE;
-		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW1_CH1, val);
-	}
-
-	/* program clock channel usage */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW8(ch));
-	val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
-	if (pipe != PIPE_B)
-		val &= ~CHV_PCS_USEDCLKCHANNEL;
-	else
-		val |= CHV_PCS_USEDCLKCHANNEL;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW8(ch), val);
-
-	if (intel_crtc->config->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW8(ch));
-		val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
-		if (pipe != PIPE_B)
-			val &= ~CHV_PCS_USEDCLKCHANNEL;
-		else
-			val |= CHV_PCS_USEDCLKCHANNEL;
-		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW8(ch), val);
-	}
-
-	/*
-	 * This a a bit weird since generally CL
-	 * matches the pipe, but here we need to
-	 * pick the CL based on the port.
-	 */
-	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW19(ch));
-	if (pipe != PIPE_B)
-		val &= ~CHV_CMN_USEDCLKCHANNEL;
-	else
-		val |= CHV_CMN_USEDCLKCHANNEL;
-	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW19(ch), val);
-
-	mutex_unlock(&dev_priv->sb_lock);
+	chv_phy_pre_pll_enable(encoder);
 }
 
 static void chv_dp_post_pll_disable(struct intel_encoder *encoder)
