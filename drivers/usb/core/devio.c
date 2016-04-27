@@ -216,7 +216,7 @@ static void usbdev_vm_close(struct vm_area_struct *vma)
 	dec_usb_memory_use_count(usbm, &usbm->vma_use_count);
 }
 
-struct vm_operations_struct usbdev_vm_ops = {
+static struct vm_operations_struct usbdev_vm_ops = {
 	.open = usbdev_vm_open,
 	.close = usbdev_vm_close
 };
