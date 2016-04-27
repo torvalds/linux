@@ -127,8 +127,10 @@ struct vop_win_phy {
 
 struct vop_win_data {
 	uint32_t base;
-	const struct vop_win_phy *phy;
 	enum drm_plane_type type;
+	const struct vop_win_phy *phy;
+	const struct vop_win_phy **area;
+	unsigned int area_size;
 };
 
 struct vop_data {
