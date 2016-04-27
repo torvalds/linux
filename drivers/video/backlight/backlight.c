@@ -407,12 +407,6 @@ struct backlight_device *backlight_device_get_by_type(enum backlight_type type)
 }
 EXPORT_SYMBOL(backlight_device_get_by_type);
 
-bool backlight_device_registered(enum backlight_type type)
-{
-	return backlight_device_get_by_type(type) ? true : false;
-}
-EXPORT_SYMBOL(backlight_device_registered);
-
 /**
  * backlight_device_unregister - unregisters a backlight device object.
  * @bd: the backlight device object to be unregistered and freed.
