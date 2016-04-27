@@ -1594,25 +1594,8 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(encoder->base.crtc);
 	const struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
-	enum dpio_channel port = vlv_dport_to_channel(dport);
-	int pipe = intel_crtc->pipe;
-	u32 val;
 
-	/* Enable clock channels for this port */
-	mutex_lock(&dev_priv->sb_lock);
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW8(port));
-	val = 0;
-	if (pipe)
-		val |= (1<<21);
-	else
-		val &= ~(1<<21);
-	val |= 0x001000c4;
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW8(port), val);
-
-	/* Program lane clock */
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW14(port), 0x00760018);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW23(port), 0x00400888);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_phy_pre_encoder_enable(encoder);
 
 	/* HDMI 1.0V-2dB */
 	vlv_set_phy_signal_level(encoder, 0x2b245f5f, 0x00002000, 0x5578b83a,

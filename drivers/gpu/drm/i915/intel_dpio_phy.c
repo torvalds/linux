@@ -423,3 +423,33 @@ void vlv_phy_pre_pll_enable(struct intel_encoder *encoder)
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW14(port), 0x40400000);
 	mutex_unlock(&dev_priv->sb_lock);
 }
+
+void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	enum dpio_channel port = vlv_dport_to_channel(dport);
+	int pipe = intel_crtc->pipe;
+	u32 val;
+
+	mutex_lock(&dev_priv->sb_lock);
+
+	/* Enable clock channels for this port */
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW8(port));
+	val = 0;
+	if (pipe)
+		val |= (1<<21);
+	else
+		val &= ~(1<<21);
+	val |= 0x001000c4;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW8(port), val);
+
+	/* Program lane clock */
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW14(port), 0x00760018);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW23(port), 0x00400888);
+
+	mutex_unlock(&dev_priv->sb_lock);
+}
