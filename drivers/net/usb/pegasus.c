@@ -411,7 +411,7 @@ static int enable_net_traffic(struct net_device *dev, struct usb_device *usb)
 	int ret;
 
 	read_mii_word(pegasus, pegasus->phy, MII_LPA, &linkpart);
-	data[0] = 0xc9;
+	data[0] = 0xc8; /* TX & RX enable, append status, no CRC */
 	data[1] = 0;
 	if (linkpart & (ADVERTISE_100FULL | ADVERTISE_10FULL))
 		data[1] |= 0x20;	/* set full duplex */
@@ -497,7 +497,7 @@ static void read_bulk_callback(struct urb *urb)
 		pkt_len = buf[count - 3] << 8;
 		pkt_len += buf[count - 4];
 		pkt_len &= 0xfff;
-		pkt_len -= 8;
+		pkt_len -= 4;
 	}
 
 	/*
