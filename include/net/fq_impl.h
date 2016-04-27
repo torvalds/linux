@@ -120,24 +120,11 @@ static struct fq_flow *fq_flow_classify(struct fq *fq,
 	return flow;
 }
 
-static void fq_tin_enqueue(struct fq *fq,
-			   struct fq_tin *tin,
-			   struct sk_buff *skb,
-			   fq_skb_free_t free_func,
-			   fq_flow_get_default_t get_default_func)
+static void fq_recalc_backlog(struct fq *fq,
+			      struct fq_tin *tin,
+			      struct fq_flow *flow)
 {
-	struct fq_flow *flow;
 	struct fq_flow *i;
-
-	lockdep_assert_held(&fq->lock);
-
-	flow = fq_flow_classify(fq, tin, skb, get_default_func);
-
-	flow->tin = tin;
-	flow->backlog += skb->len;
-	tin->backlog_bytes += skb->len;
-	tin->backlog_packets++;
-	fq->backlog++;
 
 	if (list_empty(&flow->backlogchain))
 		list_add_tail(&flow->backlogchain, &fq->backlogs);
@@ -149,6 +136,27 @@ static void fq_tin_enqueue(struct fq *fq,
 			break;
 
 	list_move(&flow->backlogchain, &i->backlogchain);
+}
+
+static void fq_tin_enqueue(struct fq *fq,
+			   struct fq_tin *tin,
+			   struct sk_buff *skb,
+			   fq_skb_free_t free_func,
+			   fq_flow_get_default_t get_default_func)
+{
+	struct fq_flow *flow;
+
+	lockdep_assert_held(&fq->lock);
+
+	flow = fq_flow_classify(fq, tin, skb, get_default_func);
+
+	flow->tin = tin;
+	flow->backlog += skb->len;
+	tin->backlog_bytes += skb->len;
+	tin->backlog_packets++;
+	fq->backlog++;
+
+	fq_recalc_backlog(fq, tin, flow);
 
 	if (list_empty(&flow->flowchain)) {
 		flow->deficit = fq->quantum;
