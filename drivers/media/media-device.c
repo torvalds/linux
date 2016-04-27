@@ -419,12 +419,32 @@ static long media_device_get_topology(struct media_device *mdev,
 	return 0;
 }
 
+#define MEDIA_IOC(__cmd) \
+	[_IOC_NR(MEDIA_IOC_##__cmd)] = { .cmd = MEDIA_IOC_##__cmd }
+
+/* the table is indexed by _IOC_NR(cmd) */
+struct media_ioctl_info {
+	unsigned int cmd;
+};
+
+static const struct media_ioctl_info ioctl_info[] = {
+	MEDIA_IOC(DEVICE_INFO),
+	MEDIA_IOC(ENUM_ENTITIES),
+	MEDIA_IOC(ENUM_LINKS),
+	MEDIA_IOC(SETUP_LINK),
+	MEDIA_IOC(G_TOPOLOGY),
+};
+
 static long media_device_ioctl(struct file *filp, unsigned int cmd,
 			       unsigned long arg)
 {
 	struct media_devnode *devnode = media_devnode_data(filp);
 	struct media_device *dev = devnode->media_dev;
 	long ret;
+
+	if (_IOC_NR(cmd) >= ARRAY_SIZE(ioctl_info)
+	    || ioctl_info[_IOC_NR(cmd)].cmd != cmd)
+		return -ENOIOCTLCMD;
 
 	mutex_lock(&dev->graph_mutex);
 	switch (cmd) {
