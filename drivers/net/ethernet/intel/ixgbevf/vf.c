@@ -536,13 +536,11 @@ static s32 ixgbevf_hv_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 /**
  *  ixgbevf_update_xcast_mode - Update Multicast mode
  *  @hw: pointer to the HW structure
- *  @netdev: pointer to net device structure
  *  @xcast_mode: new multicast mode
  *
  *  Updates the Multicast Mode of VF.
  **/
-static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw,
-				     struct net_device *netdev, int xcast_mode)
+static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
@@ -576,9 +574,7 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw,
 /**
  * Hyper-V variant - just a stub.
  */
-static s32 ixgbevf_hv_update_xcast_mode(struct ixgbe_hw *hw,
-					struct net_device *netdev,
-					int xcast_mode)
+static s32 ixgbevf_hv_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 {
 	return -EOPNOTSUPP;
 }
