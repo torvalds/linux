@@ -312,10 +312,9 @@ static void vep_free_request(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct vrequest *req;
 
-	if (!_ep || !_req) {
-		WARN_ON(1);
+	if (WARN_ON(!_ep || !_req))
 		return;
-	}
+
 	req = to_vrequest(_req);
 	kfree(req);
 }
