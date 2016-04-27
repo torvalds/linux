@@ -1147,12 +1147,22 @@ static void usdhi6_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	}
 }
 
+static int usdhi6_sig_volt_switch(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	int ret;
+
+	ret = mmc_regulator_set_vqmmc(mmc, ios);
+
+	return ret;
+}
+
 static struct mmc_host_ops usdhi6_ops = {
 	.request	= usdhi6_request,
 	.set_ios	= usdhi6_set_ios,
 	.get_cd		= usdhi6_get_cd,
 	.get_ro		= usdhi6_get_ro,
 	.enable_sdio_irq = usdhi6_enable_sdio_irq,
+	.start_signal_voltage_switch = usdhi6_sig_volt_switch,
 };
 
 /*			State machine handlers				*/
