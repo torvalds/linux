@@ -299,6 +299,7 @@ int main(void)
 #endif
 	BLANK();
 	DEFINE(EXCDATA_IP, offsetof(struct exception_data, fault_ip));
+	DEFINE(EXCDATA_GP, offsetof(struct exception_data, fault_gp));
 	DEFINE(EXCDATA_SPACE, offsetof(struct exception_data, fault_space));
 	DEFINE(EXCDATA_ADDR, offsetof(struct exception_data, fault_addr));
 	BLANK();

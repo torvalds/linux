@@ -231,12 +231,12 @@ static inline unsigned long
 xfs_preferred_iosize(xfs_mount_t *mp)
 {
 	if (mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE)
-		return PAGE_CACHE_SIZE;
+		return PAGE_SIZE;
 	return (mp->m_swidth ?
 		(mp->m_swidth << mp->m_sb.sb_blocklog) :
 		((mp->m_flags & XFS_MOUNT_DFLT_IOSIZE) ?
 			(1 << (int)MAX(mp->m_readio_log, mp->m_writeio_log)) :
-			PAGE_CACHE_SIZE));
+			PAGE_SIZE));
 }
 
 #define XFS_LAST_UNMOUNT_WAS_CLEAN(mp)	\

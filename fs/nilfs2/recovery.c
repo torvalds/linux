@@ -544,14 +544,14 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 				blocksize, page, NULL);
 
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 
 		(*nr_salvaged_blocks)++;
 		goto next;
 
  failed_page:
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 
  failed_inode:
 		printk(KERN_WARNING

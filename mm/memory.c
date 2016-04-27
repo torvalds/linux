@@ -2054,7 +2054,7 @@ static inline int wp_page_reuse(struct mm_struct *mm,
 		VM_BUG_ON_PAGE(PageAnon(page), page);
 		mapping = page->mapping;
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 
 		if ((dirtied || page_mkwrite) && mapping) {
 			/*
@@ -2188,7 +2188,7 @@ static int wp_page_copy(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	if (new_page)
-		page_cache_release(new_page);
+		put_page(new_page);
 
 	pte_unmap_unlock(page_table, ptl);
 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
@@ -2203,14 +2203,14 @@ static int wp_page_copy(struct mm_struct *mm, struct vm_area_struct *vma,
 				munlock_vma_page(old_page);
 			unlock_page(old_page);
 		}
-		page_cache_release(old_page);
+		put_page(old_page);
 	}
 	return page_copied ? VM_FAULT_WRITE : 0;
 oom_free_new:
-	page_cache_release(new_page);
+	put_page(new_page);
 oom:
 	if (old_page)
-		page_cache_release(old_page);
+		put_page(old_page);
 	return VM_FAULT_OOM;
 }
 
@@ -2258,7 +2258,7 @@ static int wp_page_shared(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	int page_mkwrite = 0;
 
-	page_cache_get(old_page);
+	get_page(old_page);
 
 	if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
 		int tmp;
@@ -2267,7 +2267,7 @@ static int wp_page_shared(struct mm_struct *mm, struct vm_area_struct *vma,
 		tmp = do_page_mkwrite(vma, old_page, address);
 		if (unlikely(!tmp || (tmp &
 				      (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
-			page_cache_release(old_page);
+			put_page(old_page);
 			return tmp;
 		}
 		/*
@@ -2281,7 +2281,7 @@ static int wp_page_shared(struct mm_struct *mm, struct vm_area_struct *vma,
 		if (!pte_same(*page_table, orig_pte)) {
 			unlock_page(old_page);
 			pte_unmap_unlock(page_table, ptl);
-			page_cache_release(old_page);
+			put_page(old_page);
 			return 0;
 		}
 		page_mkwrite = 1;
@@ -2341,7 +2341,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 */
 	if (PageAnon(old_page) && !PageKsm(old_page)) {
 		if (!trylock_page(old_page)) {
-			page_cache_get(old_page);
+			get_page(old_page);
 			pte_unmap_unlock(page_table, ptl);
 			lock_page(old_page);
 			page_table = pte_offset_map_lock(mm, pmd, address,
@@ -2349,10 +2349,10 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			if (!pte_same(*page_table, orig_pte)) {
 				unlock_page(old_page);
 				pte_unmap_unlock(page_table, ptl);
-				page_cache_release(old_page);
+				put_page(old_page);
 				return 0;
 			}
-			page_cache_release(old_page);
+			put_page(old_page);
 		}
 		if (reuse_swap_page(old_page)) {
 			/*
@@ -2375,7 +2375,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	/*
 	 * Ok, we need to copy. Oh, well..
 	 */
-	page_cache_get(old_page);
+	get_page(old_page);
 
 	pte_unmap_unlock(page_table, ptl);
 	return wp_page_copy(mm, vma, address, page_table, pmd,
@@ -2400,7 +2400,6 @@ static inline void unmap_mapping_range_tree(struct rb_root *root,
 
 		vba = vma->vm_pgoff;
 		vea = vba + vma_pages(vma) - 1;
-		/* Assume for now that PAGE_CACHE_SHIFT == PAGE_SHIFT */
 		zba = details->first_index;
 		if (zba < vba)
 			zba = vba;
@@ -2619,7 +2618,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		 * parallel locked swapcache.
 		 */
 		unlock_page(swapcache);
-		page_cache_release(swapcache);
+		put_page(swapcache);
 	}
 
 	if (flags & FAULT_FLAG_WRITE) {
@@ -2641,10 +2640,10 @@ out_nomap:
 out_page:
 	unlock_page(page);
 out_release:
-	page_cache_release(page);
+	put_page(page);
 	if (page != swapcache) {
 		unlock_page(swapcache);
-		page_cache_release(swapcache);
+		put_page(swapcache);
 	}
 	return ret;
 }
@@ -2752,7 +2751,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (userfaultfd_missing(vma)) {
 		pte_unmap_unlock(page_table, ptl);
 		mem_cgroup_cancel_charge(page, memcg, false);
-		page_cache_release(page);
+		put_page(page);
 		return handle_userfault(vma, address, flags,
 					VM_UFFD_MISSING);
 	}
@@ -2771,10 +2770,10 @@ unlock:
 	return 0;
 release:
 	mem_cgroup_cancel_charge(page, memcg, false);
-	page_cache_release(page);
+	put_page(page);
 	goto unlock;
 oom_free_page:
-	page_cache_release(page);
+	put_page(page);
 oom:
 	return VM_FAULT_OOM;
 }
@@ -2807,7 +2806,7 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
 	if (unlikely(PageHWPoison(vmf.page))) {
 		if (ret & VM_FAULT_LOCKED)
 			unlock_page(vmf.page);
-		page_cache_release(vmf.page);
+		put_page(vmf.page);
 		return VM_FAULT_HWPOISON;
 	}
 
@@ -2996,7 +2995,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (unlikely(!pte_same(*pte, orig_pte))) {
 		pte_unmap_unlock(pte, ptl);
 		unlock_page(fault_page);
-		page_cache_release(fault_page);
+		put_page(fault_page);
 		return ret;
 	}
 	do_set_pte(vma, address, fault_page, pte, false, false);
@@ -3024,7 +3023,7 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		return VM_FAULT_OOM;
 
 	if (mem_cgroup_try_charge(new_page, mm, GFP_KERNEL, &memcg, false)) {
-		page_cache_release(new_page);
+		put_page(new_page);
 		return VM_FAULT_OOM;
 	}
 
@@ -3041,7 +3040,7 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		pte_unmap_unlock(pte, ptl);
 		if (fault_page) {
 			unlock_page(fault_page);
-			page_cache_release(fault_page);
+			put_page(fault_page);
 		} else {
 			/*
 			 * The fault handler has no page to lock, so it holds
@@ -3057,7 +3056,7 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_unmap_unlock(pte, ptl);
 	if (fault_page) {
 		unlock_page(fault_page);
-		page_cache_release(fault_page);
+		put_page(fault_page);
 	} else {
 		/*
 		 * The fault handler has no page to lock, so it holds
@@ -3068,7 +3067,7 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	return ret;
 uncharge_out:
 	mem_cgroup_cancel_charge(new_page, memcg, false);
-	page_cache_release(new_page);
+	put_page(new_page);
 	return ret;
 }
 
@@ -3096,7 +3095,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		tmp = do_page_mkwrite(vma, fault_page, address);
 		if (unlikely(!tmp ||
 				(tmp & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
-			page_cache_release(fault_page);
+			put_page(fault_page);
 			return tmp;
 		}
 	}
@@ -3105,7 +3104,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (unlikely(!pte_same(*pte, orig_pte))) {
 		pte_unmap_unlock(pte, ptl);
 		unlock_page(fault_page);
-		page_cache_release(fault_page);
+		put_page(fault_page);
 		return ret;
 	}
 	do_set_pte(vma, address, fault_page, pte, true, false);
@@ -3736,7 +3735,7 @@ static int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
 						    buf, maddr + offset, bytes);
 			}
 			kunmap(page);
-			page_cache_release(page);
+			put_page(page);
 		}
 		len -= bytes;
 		buf += bytes;

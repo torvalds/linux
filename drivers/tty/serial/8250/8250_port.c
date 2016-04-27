@@ -1403,9 +1403,18 @@ static void __do_stop_tx_rs485(struct uart_8250_port *p)
 	/*
 	 * Empty the RX FIFO, we are not interested in anything
 	 * received during the half-duplex transmission.
+	 * Enable previously disabled RX interrupts.
 	 */
-	if (!(p->port.rs485.flags & SER_RS485_RX_DURING_TX))
+	if (!(p->port.rs485.flags & SER_RS485_RX_DURING_TX)) {
 		serial8250_clear_fifos(p);
+
+		serial8250_rpm_get(p);
+
+		p->ier |= UART_IER_RLSI | UART_IER_RDI;
+		serial_port_out(&p->port, UART_IER, p->ier);
+
+		serial8250_rpm_put(p);
+	}
 }
 
 static void serial8250_em485_handle_stop_tx(unsigned long arg)

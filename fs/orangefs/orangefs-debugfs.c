@@ -126,8 +126,7 @@ out:
 
 void orangefs_debugfs_cleanup(void)
 {
-	if (debug_dir)
-		debugfs_remove_recursive(debug_dir);
+	debugfs_remove_recursive(debug_dir);
 }
 
 /* open ORANGEFS_KMOD_DEBUG_HELP_FILE */

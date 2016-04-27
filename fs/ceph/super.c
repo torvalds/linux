@@ -560,7 +560,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 
 	/* set up mempools */
 	err = -ENOMEM;
-	page_count = fsc->mount_options->wsize >> PAGE_CACHE_SHIFT;
+	page_count = fsc->mount_options->wsize >> PAGE_SHIFT;
 	size = sizeof (struct page *) * (page_count ? page_count : 1);
 	fsc->wb_pagevec_pool = mempool_create_kmalloc_pool(10, size);
 	if (!fsc->wb_pagevec_pool)
@@ -912,13 +912,13 @@ static int ceph_register_bdi(struct super_block *sb,
 	int err;
 
 	/* set ra_pages based on rasize mount option? */
-	if (fsc->mount_options->rasize >= PAGE_CACHE_SIZE)
+	if (fsc->mount_options->rasize >= PAGE_SIZE)
 		fsc->backing_dev_info.ra_pages =
-			(fsc->mount_options->rasize + PAGE_CACHE_SIZE - 1)
+			(fsc->mount_options->rasize + PAGE_SIZE - 1)
 			>> PAGE_SHIFT;
 	else
 		fsc->backing_dev_info.ra_pages =
-			VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
+			VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
 
 	err = bdi_register(&fsc->backing_dev_info, NULL, "ceph-%ld",
 			   atomic_long_inc_return(&bdi_seq));

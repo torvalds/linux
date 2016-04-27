@@ -623,7 +623,7 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
  *
  * A page may belong to an inode's memory mapping. In this case, page->mapping
  * is the pointer to the inode, and page->index is the file offset of the page,
- * in units of PAGE_CACHE_SIZE.
+ * in units of PAGE_SIZE.
  *
  * If pagecache pages are not associated with an inode, they are said to be
  * anonymous pages. These may become associated with the swapcache, and in that
@@ -1250,77 +1250,19 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 			    unsigned long start, unsigned long nr_pages,
 			    int write, int force, struct page **pages,
 			    struct vm_area_struct **vmas);
-long get_user_pages6(unsigned long start, unsigned long nr_pages,
+long get_user_pages(unsigned long start, unsigned long nr_pages,
 			    int write, int force, struct page **pages,
 			    struct vm_area_struct **vmas);
-long get_user_pages_locked6(unsigned long start, unsigned long nr_pages,
+long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
 		    int write, int force, struct page **pages, int *locked);
 long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
 			       unsigned long start, unsigned long nr_pages,
 			       int write, int force, struct page **pages,
 			       unsigned int gup_flags);
-long get_user_pages_unlocked5(unsigned long start, unsigned long nr_pages,
+long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
 		    int write, int force, struct page **pages);
 int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			struct page **pages);
-
-/* suppress warnings from use in EXPORT_SYMBOL() */
-#ifndef __DISABLE_GUP_DEPRECATED
-#define __gup_deprecated __deprecated
-#else
-#define __gup_deprecated
-#endif
-/*
- * These macros provide backward-compatibility with the old
- * get_user_pages() variants which took tsk/mm.  These
- * functions/macros provide both compile-time __deprecated so we
- * can catch old-style use and not break the build.  The actual
- * functions also have WARN_ON()s to let us know at runtime if
- * the get_user_pages() should have been the "remote" variant.
- *
- * These are hideous, but temporary.
- *
- * If you run into one of these __deprecated warnings, look
- * at how you are calling get_user_pages().  If you are calling
- * it with current/current->mm as the first two arguments,
- * simply remove those arguments.  The behavior will be the same
- * as it is now.  If you are calling it on another task, use
- * get_user_pages_remote() instead.
- *
- * Any questions?  Ask Dave Hansen <dave@sr71.net>
- */
-long
-__gup_deprecated
-get_user_pages8(struct task_struct *tsk, struct mm_struct *mm,
-		unsigned long start, unsigned long nr_pages,
-		int write, int force, struct page **pages,
-		struct vm_area_struct **vmas);
-#define GUP_MACRO(_1, _2, _3, _4, _5, _6, _7, _8, get_user_pages, ...)	\
-	get_user_pages
-#define get_user_pages(...) GUP_MACRO(__VA_ARGS__,	\
-		get_user_pages8, x,			\
-		get_user_pages6, x, x, x, x, x)(__VA_ARGS__)
-
-__gup_deprecated
-long get_user_pages_locked8(struct task_struct *tsk, struct mm_struct *mm,
-		unsigned long start, unsigned long nr_pages,
-		int write, int force, struct page **pages,
-		int *locked);
-#define GUPL_MACRO(_1, _2, _3, _4, _5, _6, _7, _8, get_user_pages_locked, ...)	\
-	get_user_pages_locked
-#define get_user_pages_locked(...) GUPL_MACRO(__VA_ARGS__,	\
-		get_user_pages_locked8,	x,			\
-		get_user_pages_locked6, x, x, x, x)(__VA_ARGS__)
-
-__gup_deprecated
-long get_user_pages_unlocked7(struct task_struct *tsk, struct mm_struct *mm,
-		unsigned long start, unsigned long nr_pages,
-		int write, int force, struct page **pages);
-#define GUPU_MACRO(_1, _2, _3, _4, _5, _6, _7, get_user_pages_unlocked, ...)	\
-	get_user_pages_unlocked
-#define get_user_pages_unlocked(...) GUPU_MACRO(__VA_ARGS__,	\
-		get_user_pages_unlocked7, x,			\
-		get_user_pages_unlocked5, x, x, x, x)(__VA_ARGS__)
 
 /* Container for pinned pfns / pages */
 struct frame_vector {

@@ -73,8 +73,6 @@ static void shx3_prepare_cpus(unsigned int max_cpus)
 {
 	int i;
 
-	local_timer_setup(0);
-
 	BUILD_BUG_ON(SMP_MSG_NR >= 8);
 
 	for (i = 0; i < SMP_MSG_NR; i++)

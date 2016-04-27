@@ -418,6 +418,8 @@
 #define __NR_membarrier			(__NR_SYSCALL_BASE+389)
 #define __NR_mlock2			(__NR_SYSCALL_BASE+390)
 #define __NR_copy_file_range		(__NR_SYSCALL_BASE+391)
+#define __NR_preadv2			(__NR_SYSCALL_BASE+392)
+#define __NR_pwritev2			(__NR_SYSCALL_BASE+393)
 
 /*
  * The following SWIs are ARM private.
