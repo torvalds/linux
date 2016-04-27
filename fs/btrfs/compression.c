@@ -834,7 +834,21 @@ again:
 		 * workspace preallocated for each type and the compression
 		 * time is bounded so we get to a workspace eventually. This
 		 * makes our caller's life easier.
+		 *
+		 * To prevent silent and low-probability deadlocks (when the
+		 * initial preallocation fails), check if there are any
+		 * workspaces at all.
 		 */
+		if (atomic_read(total_ws) == 0) {
+			static DEFINE_RATELIMIT_STATE(_rs,
+					/* once per minute */ 60 * HZ,
+					/* no burst */ 1);
+
+			if (__ratelimit(&_rs)) {
+				printk(KERN_WARNING
+			    "no compression workspaces, low memory, retrying");
+			}
+		}
 		goto again;
 	}
 	return workspace;
