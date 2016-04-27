@@ -381,31 +381,36 @@ static long copy_arg_to_user(void __user *uarg, void *karg, unsigned int cmd)
 	return 0;
 }
 
-#define MEDIA_IOC_ARG(__cmd, func, from_user, to_user)	\
-	[_IOC_NR(MEDIA_IOC_##__cmd)] = {		\
-		.cmd = MEDIA_IOC_##__cmd,		\
+/* Do acquire the graph mutex */
+#define MEDIA_IOC_FL_GRAPH_MUTEX	BIT(0)
+
+#define MEDIA_IOC_ARG(__cmd, func, fl, from_user, to_user)		\
+	[_IOC_NR(MEDIA_IOC_##__cmd)] = {				\
+		.cmd = MEDIA_IOC_##__cmd,				\
 		.fn = (long (*)(struct media_device *, void *))func,	\
-		.arg_from_user = from_user,		\
-		.arg_to_user = to_user,			\
+		.flags = fl,						\
+		.arg_from_user = from_user,				\
+		.arg_to_user = to_user,					\
 	}
 
-#define MEDIA_IOC(__cmd, func)						\
-	MEDIA_IOC_ARG(__cmd, func, copy_arg_from_user, copy_arg_to_user)
+#define MEDIA_IOC(__cmd, func, fl)					\
+	MEDIA_IOC_ARG(__cmd, func, fl, copy_arg_from_user, copy_arg_to_user)
 
 /* the table is indexed by _IOC_NR(cmd) */
 struct media_ioctl_info {
 	unsigned int cmd;
+	unsigned short flags;
 	long (*fn)(struct media_device *dev, void *arg);
 	long (*arg_from_user)(void *karg, void __user *uarg, unsigned int cmd);
 	long (*arg_to_user)(void __user *uarg, void *karg, unsigned int cmd);
 };
 
 static const struct media_ioctl_info ioctl_info[] = {
-	MEDIA_IOC(DEVICE_INFO, media_device_get_info),
-	MEDIA_IOC(ENUM_ENTITIES, media_device_enum_entities),
-	MEDIA_IOC(ENUM_LINKS, media_device_enum_links),
-	MEDIA_IOC(SETUP_LINK, media_device_setup_link),
-	MEDIA_IOC(G_TOPOLOGY, media_device_get_topology),
+	MEDIA_IOC(DEVICE_INFO, media_device_get_info, MEDIA_IOC_FL_GRAPH_MUTEX),
+	MEDIA_IOC(ENUM_ENTITIES, media_device_enum_entities, MEDIA_IOC_FL_GRAPH_MUTEX),
+	MEDIA_IOC(ENUM_LINKS, media_device_enum_links, MEDIA_IOC_FL_GRAPH_MUTEX),
+	MEDIA_IOC(SETUP_LINK, media_device_setup_link, MEDIA_IOC_FL_GRAPH_MUTEX),
+	MEDIA_IOC(G_TOPOLOGY, media_device_get_topology, MEDIA_IOC_FL_GRAPH_MUTEX),
 };
 
 static long media_device_ioctl(struct file *filp, unsigned int cmd,
@@ -436,9 +441,13 @@ static long media_device_ioctl(struct file *filp, unsigned int cmd,
 			goto out_free;
 	}
 
-	mutex_lock(&dev->graph_mutex);
+	if (info->flags & MEDIA_IOC_FL_GRAPH_MUTEX)
+		mutex_lock(&dev->graph_mutex);
+
 	ret = info->fn(dev, karg);
-	mutex_unlock(&dev->graph_mutex);
+
+	if (info->flags & MEDIA_IOC_FL_GRAPH_MUTEX)
+		mutex_unlock(&dev->graph_mutex);
 
 	if (!ret && info->arg_to_user)
 		ret = info->arg_to_user(arg, karg, cmd);
