@@ -666,6 +666,78 @@ static void dsa_slave_get_strings(struct net_device *dev,
 	}
 }
 
+static void dsa_cpu_port_get_ethtool_stats(struct net_device *dev,
+					   struct ethtool_stats *stats,
+					   uint64_t *data)
+{
+	struct dsa_switch_tree *dst = dev->dsa_ptr;
+	struct dsa_switch *ds = dst->ds[0];
+	s8 cpu_port = dst->cpu_port;
+	int count = 0;
+
+	if (dst->master_ethtool_ops.get_sset_count) {
+		count = dst->master_ethtool_ops.get_sset_count(dev,
+							       ETH_SS_STATS);
+		dst->master_ethtool_ops.get_ethtool_stats(dev, stats, data);
+	}
+
+	if (ds->drv->get_ethtool_stats)
+		ds->drv->get_ethtool_stats(ds, cpu_port, data + count);
+}
+
+static int dsa_cpu_port_get_sset_count(struct net_device *dev, int sset)
+{
+	struct dsa_switch_tree *dst = dev->dsa_ptr;
+	struct dsa_switch *ds = dst->ds[0];
+	int count = 0;
+
+	if (dst->master_ethtool_ops.get_sset_count)
+		count += dst->master_ethtool_ops.get_sset_count(dev, sset);
+
+	if (sset == ETH_SS_STATS && ds->drv->get_sset_count)
+		count += ds->drv->get_sset_count(ds);
+
+	return count;
+}
+
+static void dsa_cpu_port_get_strings(struct net_device *dev,
+				     uint32_t stringset, uint8_t *data)
+{
+	struct dsa_switch_tree *dst = dev->dsa_ptr;
+	struct dsa_switch *ds = dst->ds[0];
+	s8 cpu_port = dst->cpu_port;
+	int len = ETH_GSTRING_LEN;
+	int mcount = 0, count;
+	unsigned int i;
+	uint8_t pfx[4];
+	uint8_t *ndata;
+
+	snprintf(pfx, sizeof(pfx), "p%.2d", cpu_port);
+	/* We do not want to be NULL-terminated, since this is a prefix */
+	pfx[sizeof(pfx) - 1] = '_';
+
+	if (dst->master_ethtool_ops.get_sset_count) {
+		mcount = dst->master_ethtool_ops.get_sset_count(dev,
+								ETH_SS_STATS);
+		dst->master_ethtool_ops.get_strings(dev, stringset, data);
+	}
+
+	if (stringset == ETH_SS_STATS && ds->drv->get_strings) {
+		ndata = data + mcount * len;
+		/* This function copies ETH_GSTRINGS_LEN bytes, we will mangle
+		 * the output after to prepend our CPU port prefix we
+		 * constructed earlier
+		 */
+		ds->drv->get_strings(ds, cpu_port, ndata);
+		count = ds->drv->get_sset_count(ds);
+		for (i = 0; i < count; i++) {
+			memmove(ndata + (i * len + sizeof(pfx)),
+				ndata + i * len, len - sizeof(pfx));
+			memcpy(ndata + i * len, pfx, sizeof(pfx));
+		}
+	}
+}
+
 static void dsa_slave_get_ethtool_stats(struct net_device *dev,
 					struct ethtool_stats *stats,
 					uint64_t *data)
@@ -820,6 +892,8 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.set_eee		= dsa_slave_set_eee,
 	.get_eee		= dsa_slave_get_eee,
 };
+
+static struct ethtool_ops dsa_cpu_port_ethtool_ops;
 
 static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_open	 	= dsa_slave_open,
@@ -1038,6 +1112,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 		     int port, char *name)
 {
 	struct net_device *master = ds->dst->master_netdev;
+	struct dsa_switch_tree *dst = ds->dst;
 	struct net_device *slave_dev;
 	struct dsa_slave_priv *p;
 	int ret;
@@ -1049,6 +1124,19 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	slave_dev->features = master->vlan_features;
 	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
+	if (master->ethtool_ops != &dsa_cpu_port_ethtool_ops) {
+		memcpy(&dst->master_ethtool_ops, master->ethtool_ops,
+		       sizeof(struct ethtool_ops));
+		memcpy(&dsa_cpu_port_ethtool_ops, &dst->master_ethtool_ops,
+		       sizeof(struct ethtool_ops));
+		dsa_cpu_port_ethtool_ops.get_sset_count =
+					dsa_cpu_port_get_sset_count;
+		dsa_cpu_port_ethtool_ops.get_ethtool_stats =
+					dsa_cpu_port_get_ethtool_stats;
+		dsa_cpu_port_ethtool_ops.get_strings =
+					dsa_cpu_port_get_strings;
+		master->ethtool_ops = &dsa_cpu_port_ethtool_ops;
+	}
 	eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->priv_flags |= IFF_NO_QUEUE;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
