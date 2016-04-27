@@ -698,12 +698,12 @@ void rxrpc_data_ready(struct sock *sk)
 	if (skb_checksum_complete(skb)) {
 		rxrpc_free_skb(skb);
 		rxrpc_put_local(local);
-		UDP_INC_STATS_BH(&init_net, UDP_MIB_INERRORS, 0);
+		__UDP_INC_STATS(&init_net, UDP_MIB_INERRORS, 0);
 		_leave(" [CSUM failed]");
 		return;
 	}
 
-	UDP_INC_STATS_BH(&init_net, UDP_MIB_INDATAGRAMS, 0);
+	__UDP_INC_STATS(&init_net, UDP_MIB_INDATAGRAMS, 0);
 
 	/* The socket buffer we have is owned by UDP, with UDP's data all over
 	 * it, but we really want our own data there.
