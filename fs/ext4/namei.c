@@ -1618,7 +1618,7 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsi
 			if (nokey)
 				return ERR_PTR(-ENOKEY);
 			ext4_warning(inode->i_sb,
-				     "Inconsistent encryption contexts: %lu/%lu\n",
+				     "Inconsistent encryption contexts: %lu/%lu",
 				     (unsigned long) dir->i_ino,
 				     (unsigned long) inode->i_ino);
 			return ERR_PTR(-EPERM);

@@ -4935,7 +4935,7 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 	 * boundary.
 	 */
 	if (bit + count > EXT4_BLOCKS_PER_GROUP(sb)) {
-		ext4_warning(sb, "too much blocks added to group %u\n",
+		ext4_warning(sb, "too much blocks added to group %u",
 			     block_group);
 		err = -EINVAL;
 		goto error_return;

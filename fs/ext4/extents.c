@@ -2588,7 +2588,7 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
 		}
 	} else
 		ext4_error(sbi->s_sb, "strange request: removal(2) "
-			   "%u-%u from %u:%u\n",
+			   "%u-%u from %u:%u",
 			   from, to, le32_to_cpu(ex->ee_block), ee_len);
 	return 0;
 }
@@ -3743,7 +3743,7 @@ static int ext4_convert_unwritten_extents_endio(handle_t *handle,
 	if (ee_block != map->m_lblk || ee_len > map->m_len) {
 #ifdef EXT4_DEBUG
 		ext4_warning("Inode (%ld) finished: extent logical block %llu,"
-			     " len %u; IO logical block %llu, len %u\n",
+			     " len %u; IO logical block %llu, len %u",
 			     inode->i_ino, (unsigned long long)ee_block, ee_len,
 			     (unsigned long long)map->m_lblk, map->m_len);
 #endif
