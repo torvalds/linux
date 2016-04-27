@@ -1065,9 +1065,6 @@ struct trace_subsystem_dir {
 	int				nr_events;
 };
 
-extern int filter_check_discard(struct trace_event_file *file, void *rec,
-				struct ring_buffer *buffer,
-				struct ring_buffer_event *event);
 extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
 				     struct ring_buffer *buffer,
 				     struct ring_buffer_event *event);
@@ -1096,12 +1093,14 @@ __event_trigger_test_discard(struct trace_event_file *file,
 	if (eflags & EVENT_FILE_FL_TRIGGER_COND)
 		*tt = event_triggers_call(file, entry);
 
-	if (test_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags))
+	if (test_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags) ||
+	    (unlikely(file->flags & EVENT_FILE_FL_FILTERED) &&
+	     !filter_match_preds(file->filter, entry))) {
 		ring_buffer_discard_commit(buffer, event);
-	else if (!filter_check_discard(file, entry, buffer, event))
-		return false;
+		return true;
+	}
 
-	return true;
+	return false;
 }
 
 /**

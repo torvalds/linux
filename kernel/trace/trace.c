@@ -306,19 +306,6 @@ void trace_array_put(struct trace_array *this_tr)
 	mutex_unlock(&trace_types_lock);
 }
 
-int filter_check_discard(struct trace_event_file *file, void *rec,
-			 struct ring_buffer *buffer,
-			 struct ring_buffer_event *event)
-{
-	if (unlikely(file->flags & EVENT_FILE_FL_FILTERED) &&
-	    !filter_match_preds(file->filter, rec)) {
-		ring_buffer_discard_commit(buffer, event);
-		return 1;
-	}
-
-	return 0;
-}
-
 int call_filter_check_discard(struct trace_event_call *call, void *rec,
 			      struct ring_buffer *buffer,
 			      struct ring_buffer_event *event)
