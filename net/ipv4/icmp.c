@@ -1006,7 +1006,7 @@ int icmp_rcv(struct sk_buff *skb)
 
 	icmph = icmp_hdr(skb);
 
-	ICMPMSGIN_INC_STATS_BH(net, icmph->type);
+	ICMPMSGIN_INC_STATS(net, icmph->type);
 	/*
 	 *	18 is the highest 'known' ICMP type. Anything else is a mystery
 	 *
