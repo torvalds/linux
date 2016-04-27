@@ -287,7 +287,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_sharing_cpus);
  * that this function is *NOT* called under RCU protection or in contexts where
  * mutex cannot be locked.
  */
-int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, cpumask_var_t cpumask)
+int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev,
+				const cpumask_var_t cpumask)
 {
 	struct opp_device *opp_dev;
 	struct opp_table *opp_table;
