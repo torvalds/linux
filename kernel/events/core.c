@@ -8273,6 +8273,20 @@ static void free_pmu_context(struct pmu *pmu)
 out:
 	mutex_unlock(&pmus_lock);
 }
+
+/*
+ * Let userspace know that this PMU supports address range filtering:
+ */
+static ssize_t nr_addr_filters_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *page)
+{
+	struct pmu *pmu = dev_get_drvdata(dev);
+
+	return snprintf(page, PAGE_SIZE - 1, "%d\n", pmu->nr_addr_filters);
+}
+DEVICE_ATTR_RO(nr_addr_filters);
+
 static struct idr pmu_idr;
 
 static ssize_t
@@ -8374,8 +8388,18 @@ static int pmu_dev_alloc(struct pmu *pmu)
 	if (ret)
 		goto free_dev;
 
+	/* For PMUs with address filters, throw in an extra attribute: */
+	if (pmu->nr_addr_filters)
+		ret = device_create_file(pmu->dev, &dev_attr_nr_addr_filters);
+
+	if (ret)
+		goto del_dev;
+
 out:
 	return ret;
+
+del_dev:
+	device_del(pmu->dev);
 
 free_dev:
 	put_device(pmu->dev);
@@ -8512,6 +8536,8 @@ void perf_pmu_unregister(struct pmu *pmu)
 	free_percpu(pmu->pmu_disable_count);
 	if (pmu->type >= PERF_TYPE_MAX)
 		idr_remove(&pmu_idr, pmu->type);
+	if (pmu->nr_addr_filters)
+		device_remove_file(pmu->dev, &dev_attr_nr_addr_filters);
 	device_del(pmu->dev);
 	put_device(pmu->dev);
 	free_pmu_context(pmu);
