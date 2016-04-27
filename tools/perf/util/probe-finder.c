@@ -553,7 +553,7 @@ static int convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 static int find_variable(Dwarf_Die *sc_die, struct probe_finder *pf)
 {
 	Dwarf_Die vr_die;
-	char buf[32], *ptr;
+	char *buf, *ptr;
 	int ret = 0;
 
 	/* Copy raw parameters */
@@ -563,13 +563,13 @@ static int find_variable(Dwarf_Die *sc_die, struct probe_finder *pf)
 	if (pf->pvar->name)
 		pf->tvar->name = strdup(pf->pvar->name);
 	else {
-		ret = synthesize_perf_probe_arg(pf->pvar, buf, 32);
-		if (ret < 0)
-			return ret;
+		buf = synthesize_perf_probe_arg(pf->pvar);
+		if (!buf)
+			return -ENOMEM;
 		ptr = strchr(buf, ':');	/* Change type separator to _ */
 		if (ptr)
 			*ptr = '_';
-		pf->tvar->name = strdup(buf);
+		pf->tvar->name = buf;
 	}
 	if (pf->tvar->name == NULL)
 		return -ENOMEM;
@@ -1334,8 +1334,8 @@ static int collect_variables_cb(Dwarf_Die *die_mem, void *data)
 			if (ret2 == 0) {
 				strlist__add(vl->vars,
 					strbuf_detach(&buf, NULL));
-			}
-			strbuf_release(&buf);
+			} else
+				strbuf_release(&buf);
 		}
 	}
 

@@ -120,7 +120,7 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev);
 /* Events to command string */
 char *synthesize_perf_probe_command(struct perf_probe_event *pev);
 char *synthesize_probe_trace_command(struct probe_trace_event *tev);
-int synthesize_perf_probe_arg(struct perf_probe_arg *pa, char *buf, size_t len);
+char *synthesize_perf_probe_arg(struct perf_probe_arg *pa);
 
 /* Check the perf_probe_event needs debuginfo */
 bool perf_probe_event_need_dwarf(struct perf_probe_event *pev);
