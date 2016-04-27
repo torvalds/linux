@@ -247,7 +247,8 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	const struct common_firmware_header *header = NULL;
 
 	err = amdgpu_bo_create(adev, adev->firmware.fw_size, PAGE_SIZE, true,
-			       AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL, bo);
+				amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
+				0, NULL, NULL, bo);
 	if (err) {
 		dev_err(adev->dev, "(%d) Firmware buffer allocate failed\n", err);
 		goto failed;
@@ -259,7 +260,8 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 		goto failed_reserve;
 	}
 
-	err = amdgpu_bo_pin(*bo, AMDGPU_GEM_DOMAIN_GTT, &fw_mc_addr);
+	err = amdgpu_bo_pin(*bo, amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
+				&fw_mc_addr);
 	if (err) {
 		dev_err(adev->dev, "(%d) Firmware buffer pin failed\n", err);
 		goto failed_pin;
