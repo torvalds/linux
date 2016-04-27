@@ -303,11 +303,6 @@ struct f2fs_dir_entry *find_in_inline_dir(struct inode *dir,
 	else
 		f2fs_put_page(ipage, 0);
 
-	/*
-	 * For the most part, it should be a bug when name_len is zero.
-	 * We stop here for figuring out where the bugs has occurred.
-	 */
-	f2fs_bug_on(sbi, d.max < 0);
 	return de;
 }
 
@@ -437,6 +432,12 @@ static int f2fs_add_inline_entries(struct inode *dir,
 		}
 
 		de = &d.dentry[bit_pos];
+
+		if (unlikely(!de->name_len)) {
+			bit_pos++;
+			continue;
+		}
+
 		new_name.name = d.filename[bit_pos];
 		new_name.len = de->name_len;
 
@@ -447,9 +448,6 @@ static int f2fs_add_inline_entries(struct inode *dir,
 							ino, fake_mode);
 		if (err)
 			goto punch_dentry_pages;
-
-		if (unlikely(!de->name_len))
-			d.max = -1;
 
 		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
 	}
