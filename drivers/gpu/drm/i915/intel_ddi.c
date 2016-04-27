@@ -2209,8 +2209,10 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 
 		if (intel_hdmi->infoframe_enabled(&encoder->base, pipe_config))
 			pipe_config->has_infoframe = true;
-		break;
+		/* fall through */
 	case TRANS_DDI_MODE_SELECT_DVI:
+		pipe_config->lane_count = 4;
+		break;
 	case TRANS_DDI_MODE_SELECT_FDI:
 		break;
 	case TRANS_DDI_MODE_SELECT_DP_SST:

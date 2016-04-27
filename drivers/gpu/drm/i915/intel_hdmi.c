@@ -971,6 +971,8 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 		dotclock /= pipe_config->pixel_multiplier;
 
 	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
+
+	pipe_config->lane_count = 4;
 }
 
 static void intel_enable_hdmi_audio(struct intel_encoder *encoder)
@@ -1371,6 +1373,8 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 
 	/* Set user selected PAR to incoming mode's member */
 	adjusted_mode->picture_aspect_ratio = intel_hdmi->aspect_ratio;
+
+	pipe_config->lane_count = 4;
 
 	return true;
 }
