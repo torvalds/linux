@@ -484,6 +484,12 @@ static const struct of_device_id tegra_soctherm_of_match[] = {
 		.data = &tegra124_soctherm,
 	},
 #endif
+#ifdef CONFIG_ARCH_TEGRA_132_SOC
+	{
+		.compatible = "nvidia,tegra132-soctherm",
+		.data = &tegra132_soctherm,
+	},
+#endif
 #ifdef CONFIG_ARCH_TEGRA_210_SOC
 	{
 		.compatible = "nvidia,tegra210-soctherm",

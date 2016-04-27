@@ -115,6 +115,10 @@ int tegra_calc_tsensor_calib(const struct tegra_tsensor *sensor,
 extern const struct tegra_soctherm_soc tegra124_soctherm;
 #endif
 
+#ifdef CONFIG_ARCH_TEGRA_132_SOC
+extern const struct tegra_soctherm_soc tegra132_soctherm;
+#endif
+
 #ifdef CONFIG_ARCH_TEGRA_210_SOC
 extern const struct tegra_soctherm_soc tegra210_soctherm;
 #endif
