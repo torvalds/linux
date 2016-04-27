@@ -2031,7 +2031,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_UINTEGER(0, "max-stack", &scripting_max_stack,
 		     "Set the maximum stack depth when parsing the callchain, "
 		     "anything beyond the specified depth will be ignored. "
-		     "Default: " __stringify(PERF_MAX_STACK_DEPTH)),
+		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
 		    "display extended information from perf.data file"),
 	OPT_BOOLEAN('\0', "show-kernel-path", &symbol_conf.show_kernel_path,
@@ -2066,6 +2066,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf script [<options>] <top-script> [script-args]",
 		NULL
 	};
+
+	scripting_max_stack = sysctl_perf_event_max_stack;
 
 	setup_scripting();
 

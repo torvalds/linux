@@ -267,6 +267,7 @@ void sighandler_dump_stack(int sig);
 
 extern unsigned int page_size;
 extern int cacheline_size;
+extern unsigned int sysctl_perf_event_max_stack;
 
 struct parse_tag {
 	char tag;

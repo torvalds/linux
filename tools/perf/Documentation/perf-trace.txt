@@ -143,7 +143,7 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
         Implies '--call-graph dwarf' when --call-graph not present on the
         command line, on systems where DWARF unwinding was built in.
 
-        Default: 127
+        Default: /proc/sys/kernel/perf_event_max_stack when present, 127 otherwise.
 
 --min-stack::
         Set the stack depth limit when parsing the callchain, anything

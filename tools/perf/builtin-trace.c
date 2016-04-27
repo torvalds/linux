@@ -3106,7 +3106,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_UINTEGER(0, "max-stack", &trace.max_stack,
 		     "Set the maximum stack depth when parsing the callchain, "
 		     "anything beyond the specified depth will be ignored. "
-		     "Default: " __stringify(PERF_MAX_STACK_DEPTH)),
+		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_END()
@@ -3150,7 +3150,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		mmap_pages_user_set = false;
 
 	if (trace.max_stack == UINT_MAX) {
-		trace.max_stack = PERF_MAX_STACK_DEPTH;
+		trace.max_stack = sysctl_perf_event_max_stack;
 		max_stack_user_set = false;
 	}
 

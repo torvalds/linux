@@ -33,6 +33,8 @@ struct callchain_param	callchain_param = {
 unsigned int page_size;
 int cacheline_size;
 
+unsigned int sysctl_perf_event_max_stack = PERF_MAX_STACK_DEPTH;
+
 bool test_attr__enabled;
 
 bool perf_host  = true;

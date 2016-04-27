@@ -1764,7 +1764,7 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 		 */
 		int mix_chain_nr = i + 1 + lbr_nr + 1;
 
-		if (mix_chain_nr > PERF_MAX_STACK_DEPTH + PERF_MAX_BRANCH_DEPTH) {
+		if (mix_chain_nr > (int)sysctl_perf_event_max_stack + PERF_MAX_BRANCH_DEPTH) {
 			pr_warning("corrupted callchain. skipping...\n");
 			return 0;
 		}
@@ -1825,7 +1825,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	 * Based on DWARF debug information, some architectures skip
 	 * a callchain entry saved by the kernel.
 	 */
-	if (chain->nr < PERF_MAX_STACK_DEPTH)
+	if (chain->nr < sysctl_perf_event_max_stack)
 		skip_idx = arch_skip_callchain_idx(thread, chain);
 
 	/*
@@ -1886,7 +1886,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	}
 
 check_calls:
-	if (chain->nr > PERF_MAX_STACK_DEPTH && (int)chain->nr > max_stack) {
+	if (chain->nr > sysctl_perf_event_max_stack && (int)chain->nr > max_stack) {
 		pr_warning("corrupted callchain. skipping...\n");
 		return 0;
 	}
