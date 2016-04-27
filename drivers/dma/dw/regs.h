@@ -281,9 +281,8 @@ struct dw_dma {
 	u8			all_chan_mask;
 	u8			in_use;
 
-	/* hardware configuration */
-	unsigned char		nr_masters;
-	unsigned char		data_width[DW_DMA_MAX_NR_MASTERS];
+	/* platform data */
+	struct dw_dma_platform_data	*pdata;
 };
 
 static inline struct dw_dma_regs __iomem *__dw_regs(struct dw_dma *dw)

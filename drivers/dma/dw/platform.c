@@ -47,8 +47,8 @@ static struct dma_chan *dw_dma_of_xlate(struct of_phandle_args *dma_spec,
 
 	if (WARN_ON(slave.src_id >= DW_DMA_MAX_NR_REQUESTS ||
 		    slave.dst_id >= DW_DMA_MAX_NR_REQUESTS ||
-		    slave.m_master >= dw->nr_masters ||
-		    slave.p_master >= dw->nr_masters))
+		    slave.m_master >= dw->pdata->nr_masters ||
+		    slave.p_master >= dw->pdata->nr_masters))
 		return NULL;
 
 	dma_cap_zero(cap);

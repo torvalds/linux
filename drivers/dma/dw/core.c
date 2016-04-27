@@ -665,7 +665,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	u8			m_master = dwc->m_master;
 	unsigned int		src_width;
 	unsigned int		dst_width;
-	unsigned int		data_width = dw->data_width[m_master];
+	unsigned int		data_width = dw->pdata->data_width[m_master];
 	u32			ctllo;
 	u8			lms = DWC_LLP_LMS(m_master);
 
@@ -745,7 +745,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	dma_addr_t		reg;
 	unsigned int		reg_width;
 	unsigned int		mem_width;
-	unsigned int		data_width = dw->data_width[m_master];
+	unsigned int		data_width = dw->pdata->data_width[m_master];
 	unsigned int		i;
 	struct scatterlist	*sg;
 	size_t			total_len = 0;
@@ -1444,12 +1444,15 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	struct dw_dma		*dw;
 	bool			autocfg = false;
 	unsigned int		dw_params;
-	unsigned int		max_blk_size = 0;
 	unsigned int		i;
 	int			err;
 
 	dw = devm_kzalloc(chip->dev, sizeof(*dw), GFP_KERNEL);
 	if (!dw)
+		return -ENOMEM;
+
+	dw->pdata = devm_kzalloc(chip->dev, sizeof(*dw->pdata), GFP_KERNEL);
+	if (!dw->pdata)
 		return -ENOMEM;
 
 	dw->regs = chip->regs;
@@ -1467,11 +1470,8 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 			goto err_pdata;
 		}
 
-		pdata = devm_kzalloc(chip->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata) {
-			err = -ENOMEM;
-			goto err_pdata;
-		}
+		/* Reassign the platform data pointer */
+		pdata = dw->pdata;
 
 		/* Get hardware configuration parameters */
 		pdata->nr_channels = (dw_params >> DW_PARAMS_NR_CHAN & 7) + 1;
@@ -1480,7 +1480,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 			pdata->data_width[i] =
 				4 << (dw_params >> DW_PARAMS_DATA_WIDTH(i) & 3);
 		}
-		max_blk_size = dma_readl(dw, MAX_BLK_SIZE);
+		pdata->block_size = dma_readl(dw, MAX_BLK_SIZE);
 
 		/* Fill platform data with the default values */
 		pdata->is_private = true;
@@ -1490,6 +1490,11 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	} else if (pdata->nr_channels > DW_DMA_MAX_NR_CHANNELS) {
 		err = -EINVAL;
 		goto err_pdata;
+	} else {
+		memcpy(dw->pdata, pdata, sizeof(*dw->pdata));
+
+		/* Reassign the platform data pointer */
+		pdata = dw->pdata;
 	}
 
 	dw->chan = devm_kcalloc(chip->dev, pdata->nr_channels, sizeof(*dw->chan),
@@ -1498,11 +1503,6 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 		err = -ENOMEM;
 		goto err_pdata;
 	}
-
-	/* Get hardware configuration parameters */
-	dw->nr_masters = pdata->nr_masters;
-	for (i = 0; i < dw->nr_masters; i++)
-		dw->data_width[i] = pdata->data_width[i];
 
 	/* Calculate all channel mask before DMA setup */
 	dw->all_chan_mask = (1 << pdata->nr_channels) - 1;
@@ -1570,7 +1570,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 			 * up to 0x0a for 4095.
 			 */
 			dwc->block_size =
-				(4 << ((max_blk_size >> 4 * i) & 0xf)) - 1;
+				(4 << ((pdata->block_size >> 4 * i) & 0xf)) - 1;
 			dwc->nollp =
 				(dwc_params >> DWC_PARAMS_MBLK_EN & 0x1) == 0;
 		} else {
