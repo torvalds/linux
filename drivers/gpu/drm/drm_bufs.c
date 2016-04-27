@@ -542,17 +542,34 @@ int drm_legacy_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 }
 EXPORT_SYMBOL(drm_legacy_rmmap_locked);
 
-int drm_legacy_rmmap(struct drm_device *dev, struct drm_local_map *map)
+void drm_legacy_rmmap(struct drm_device *dev, struct drm_local_map *map)
 {
-	int ret;
+	if (!drm_core_check_feature(dev, DRIVER_KMS_LEGACY_CONTEXT) &&
+	    drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = drm_legacy_rmmap_locked(dev, map);
+	drm_legacy_rmmap_locked(dev, map);
 	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
 }
 EXPORT_SYMBOL(drm_legacy_rmmap);
+
+void drm_legacy_master_rmmaps(struct drm_device *dev, struct drm_master *master)
+{
+	struct drm_map_list *r_list, *list_temp;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
+	mutex_lock(&dev->struct_mutex);
+	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head) {
+		if (r_list->master == master) {
+			drm_legacy_rmmap_locked(dev, r_list->map);
+			r_list = NULL;
+		}
+	}
+	mutex_unlock(&dev->struct_mutex);
+}
 
 /* The rmmap ioctl appears to be unnecessary.  All mappings are torn down on
  * the last close of the device, and this is necessary for cleanup when things
