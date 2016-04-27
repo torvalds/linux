@@ -25,7 +25,9 @@
 #include "sdhci-pltfm.h"
 
 #define SDHCI_ARASAN_CLK_CTRL_OFFSET	0x2c
+#define SDHCI_ARASAN_VENDOR_REGISTER	0x78
 
+#define VENDOR_ENHANCED_STROBE		BIT(0)
 #define CLK_CTRL_TIMEOUT_SHIFT		16
 #define CLK_CTRL_TIMEOUT_MASK		(0xf << CLK_CTRL_TIMEOUT_SHIFT)
 #define CLK_CTRL_TIMEOUT_MIN_EXP	13
@@ -53,6 +55,23 @@ static unsigned int sdhci_arasan_get_timeout_clock(struct sdhci_host *host)
 	freq /= 1 << (CLK_CTRL_TIMEOUT_MIN_EXP + div);
 
 	return freq;
+}
+
+static int sdhci_arasan_enhanced_strobe(struct mmc_host *mmc,
+					bool enable)
+{
+	u32 vendor;
+	struct sdhci_host *host = mmc_priv(mmc);
+
+	vendor = readl(host->ioaddr + SDHCI_ARASAN_VENDOR_REGISTER);
+	if (enable)
+		vendor |= VENDOR_ENHANCED_STROBE;
+	else
+		vendor &= (~VENDOR_ENHANCED_STROBE);
+
+	writel(vendor, host->ioaddr + SDHCI_ARASAN_VENDOR_REGISTER);
+
+	return 0;
 }
 
 static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
@@ -249,6 +268,9 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "phy_power_on err.\n");
 			goto err_phy_power;
 		}
+
+		host->mmc_host_ops.prepare_enhanced_strobe =
+					sdhci_arasan_enhanced_strobe;
 	}
 
 	ret = sdhci_add_host(host);
