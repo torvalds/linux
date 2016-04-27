@@ -8,15 +8,19 @@ Required properties:
 	of memory mapped region.
 - clock-names: from common clock binding:
 	Required elements: "24m"
-- rockchip,grf: phandle to the syscon managing the "general register files"
 - #phy-cells : from the generic PHY bindings, must be 0;
 
 Example:
 
-edp_phy: edp-phy {
-	compatible = "rockchip,rk3288-dp-phy";
-	rockchip,grf = <&grf>;
-	clocks = <&cru SCLK_EDP_24M>;
-	clock-names = "24m";
-	#phy-cells = <0>;
+grf: syscon@ff770000 {
+	compatible = "rockchip,rk3288-grf", "syscon", "simple-mfd";
+
+...
+
+	edp_phy: edp-phy {
+		compatible = "rockchip,rk3288-dp-phy";
+		clocks = <&cru SCLK_EDP_24M>;
+		clock-names = "24m";
+		#phy-cells = <0>;
+	};
 };

@@ -71,6 +71,7 @@ struct platform_device *__init imx_add_sdhci_esdhc_imx(
 	if (!pdata)
 		pdata = &default_esdhc_pdata;
 
-	return imx_add_platform_device(data->devid, data->id, res,
-			ARRAY_SIZE(res), pdata, sizeof(*pdata));
+	return imx_add_platform_device_dmamask(data->devid, data->id, res,
+			ARRAY_SIZE(res), pdata, sizeof(*pdata),
+			DMA_BIT_MASK(32));
 }
