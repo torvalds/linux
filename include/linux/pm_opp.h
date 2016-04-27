@@ -66,6 +66,7 @@ int dev_pm_opp_set_regulator(struct device *dev, const char *name);
 void dev_pm_opp_put_regulator(struct device *dev);
 int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq);
 int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, const cpumask_var_t cpumask);
+int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, cpumask_var_t cpumask);
 #else
 static inline unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 {
@@ -182,6 +183,11 @@ static inline int dev_pm_opp_set_rate(struct device *dev, unsigned long target_f
 static inline int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, const cpumask_var_t cpumask)
 {
 	return -ENOTSUPP;
+}
+
+static inline int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, cpumask_var_t cpumask)
+{
+	return -EINVAL;
 }
 
 #endif		/* CONFIG_PM_OPP */
