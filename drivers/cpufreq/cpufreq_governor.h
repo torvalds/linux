@@ -111,7 +111,7 @@ static inline void gov_update_sample_delay(struct policy_dbs_info *policy_dbs,
 /* Per cpu structures */
 struct cpu_dbs_info {
 	u64 prev_cpu_idle;
-	u64 prev_cpu_wall;
+	u64 prev_update_time;
 	u64 prev_cpu_nice;
 	/*
 	 * Used to keep track of load in the previous interval. However, when

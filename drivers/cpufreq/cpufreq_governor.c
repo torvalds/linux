@@ -103,7 +103,7 @@ void gov_update_cpu_data(struct dbs_data *dbs_data)
 		for_each_cpu(j, policy_dbs->policy->cpus) {
 			struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
 
-			j_cdbs->prev_cpu_idle = get_cpu_idle_time(j, &j_cdbs->prev_cpu_wall,
+			j_cdbs->prev_cpu_idle = get_cpu_idle_time(j, &j_cdbs->prev_update_time,
 								  dbs_data->io_is_busy);
 			if (dbs_data->ignore_nice_load)
 				j_cdbs->prev_cpu_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];
@@ -137,14 +137,14 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 	/* Get Absolute Load */
 	for_each_cpu(j, policy->cpus) {
 		struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
-		u64 cur_wall_time, cur_idle_time;
-		unsigned int idle_time, wall_time;
+		u64 update_time, cur_idle_time;
+		unsigned int idle_time, time_elapsed;
 		unsigned int load;
 
-		cur_idle_time = get_cpu_idle_time(j, &cur_wall_time, io_busy);
+		cur_idle_time = get_cpu_idle_time(j, &update_time, io_busy);
 
-		wall_time = cur_wall_time - j_cdbs->prev_cpu_wall;
-		j_cdbs->prev_cpu_wall = cur_wall_time;
+		time_elapsed = update_time - j_cdbs->prev_update_time;
+		j_cdbs->prev_update_time = update_time;
 
 		idle_time = cur_idle_time - j_cdbs->prev_cpu_idle;
 		j_cdbs->prev_cpu_idle = cur_idle_time;
@@ -156,7 +156,7 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 			j_cdbs->prev_cpu_nice = cur_nice;
 		}
 
-		if (unlikely(!wall_time || wall_time < idle_time))
+		if (unlikely(!time_elapsed || time_elapsed < idle_time))
 			continue;
 
 		/*
@@ -177,7 +177,7 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 		 *
 		 * Detecting this situation is easy: the governor's utilization
 		 * update handler would not have run during CPU-idle periods.
-		 * Hence, an unusually large 'wall_time' (as compared to the
+		 * Hence, an unusually large 'time_elapsed' (as compared to the
 		 * sampling rate) indicates this scenario.
 		 *
 		 * prev_load can be zero in two cases and we must recalculate it
@@ -185,7 +185,7 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 		 * - during long idle intervals
 		 * - explicitly set to zero
 		 */
-		if (unlikely(wall_time > (2 * sampling_rate) &&
+		if (unlikely(time_elapsed > 2 * sampling_rate &&
 			     j_cdbs->prev_load)) {
 			load = j_cdbs->prev_load;
 
@@ -196,7 +196,7 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 			 */
 			j_cdbs->prev_load = 0;
 		} else {
-			load = 100 * (wall_time - idle_time) / wall_time;
+			load = 100 * (time_elapsed - idle_time) / time_elapsed;
 			j_cdbs->prev_load = load;
 		}
 
@@ -509,7 +509,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 	for_each_cpu(j, policy->cpus) {
 		struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
 
-		j_cdbs->prev_cpu_idle = get_cpu_idle_time(j, &j_cdbs->prev_cpu_wall, io_busy);
+		j_cdbs->prev_cpu_idle = get_cpu_idle_time(j, &j_cdbs->prev_update_time, io_busy);
 		/*
 		 * Make the first invocation of dbs_update() compute the load.
 		 */
