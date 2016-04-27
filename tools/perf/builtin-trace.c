@@ -56,22 +56,6 @@
 # define MSG_CMSG_CLOEXEC	0x40000000
 #endif
 
-#ifndef PERF_FLAG_FD_NO_GROUP
-# define PERF_FLAG_FD_NO_GROUP		(1UL << 0)
-#endif
-
-#ifndef PERF_FLAG_FD_OUTPUT
-# define PERF_FLAG_FD_OUTPUT		(1UL << 1)
-#endif
-
-#ifndef PERF_FLAG_PID_CGROUP
-# define PERF_FLAG_PID_CGROUP		(1UL << 2) /* pid=cgroup id, per-cpu mode only */
-#endif
-
-#ifndef PERF_FLAG_FD_CLOEXEC
-# define PERF_FLAG_FD_CLOEXEC		(1UL << 3) /* O_CLOEXEC */
-#endif
-
 struct trace {
 	struct perf_tool	tool;
 	struct syscalltbl	*sctbl;
@@ -674,34 +658,6 @@ static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 
 #define SCA_OPEN_FLAGS syscall_arg__scnprintf_open_flags
 
-static size_t syscall_arg__scnprintf_perf_flags(char *bf, size_t size,
-						struct syscall_arg *arg)
-{
-	int printed = 0, flags = arg->val;
-
-	if (flags == 0)
-		return 0;
-
-#define	P_FLAG(n) \
-	if (flags & PERF_FLAG_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
-		flags &= ~PERF_FLAG_##n; \
-	}
-
-	P_FLAG(FD_NO_GROUP);
-	P_FLAG(FD_OUTPUT);
-	P_FLAG(PID_CGROUP);
-	P_FLAG(FD_CLOEXEC);
-#undef P_FLAG
-
-	if (flags)
-		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
-
-	return printed;
-}
-
-#define SCA_PERF_FLAGS syscall_arg__scnprintf_perf_flags
-
 static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
 						struct syscall_arg *arg)
 {
@@ -894,6 +850,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 #include "trace/beauty/pid.c"
 #include "trace/beauty/mmap.c"
 #include "trace/beauty/mode_t.c"
+#include "trace/beauty/perf_event_open.c"
 #include "trace/beauty/sched_policy.c"
 #include "trace/beauty/socket_type.c"
 #include "trace/beauty/waitid_options.c"
@@ -1086,8 +1043,7 @@ static struct syscall_fmt {
 			     [1] = SCA_FILENAME, /* filename */
 			     [2] = SCA_OPEN_FLAGS, /* flags */ }, },
 	{ .name	    = "perf_event_open", .errmsg = true,
-	  .arg_scnprintf = { [1] = SCA_INT, /* pid */
-			     [2] = SCA_INT, /* cpu */
+	  .arg_scnprintf = { [2] = SCA_INT, /* cpu */
 			     [3] = SCA_FD,  /* group_fd */
 			     [4] = SCA_PERF_FLAGS,  /* flags */ }, },
 	{ .name	    = "pipe2",	    .errmsg = true,
@@ -2126,6 +2082,17 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample)
 {
+	int callchain_ret = 0;
+
+	if (sample->callchain) {
+		callchain_ret = trace__resolve_callchain(trace, evsel, sample, &callchain_cursor);
+		if (callchain_ret == 0) {
+			if (callchain_cursor.nr < trace->min_stack)
+				goto out;
+			callchain_ret = 1;
+		}
+	}
+
 	trace__printf_interrupted_entry(trace, sample);
 	trace__fprintf_tstamp(trace, sample->time, trace->output);
 
@@ -2144,11 +2111,11 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 
 	fprintf(trace->output, ")\n");
 
-	if (sample->callchain) {
-		if (trace__resolve_callchain(trace, evsel, sample, &callchain_cursor) == 0)
-			trace__fprintf_callchain(trace, sample);
-	}
-
+	if (callchain_ret > 0)
+		trace__fprintf_callchain(trace, sample);
+	else if (callchain_ret < 0)
+		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
+out:
 	return 0;
 }
 
@@ -2179,8 +2146,19 @@ static int trace__pgfault(struct trace *trace,
 	char map_type = 'd';
 	struct thread_trace *ttrace;
 	int err = -1;
+	int callchain_ret = 0;
 
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
+
+	if (sample->callchain) {
+		callchain_ret = trace__resolve_callchain(trace, evsel, sample, &callchain_cursor);
+		if (callchain_ret == 0) {
+			if (callchain_cursor.nr < trace->min_stack)
+				goto out_put;
+			callchain_ret = 1;
+		}
+	}
+
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		goto out_put;
@@ -2222,6 +2200,11 @@ static int trace__pgfault(struct trace *trace,
 	print_location(trace->output, sample, &al, true, false);
 
 	fprintf(trace->output, " (%c%c)\n", map_type, al.level);
+
+	if (callchain_ret > 0)
+		trace__fprintf_callchain(trace, sample);
+	else if (callchain_ret < 0)
+		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
 out:
 	err = 0;
 out_put:
@@ -2381,8 +2364,7 @@ static bool perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 	return true;
 }
 
-static int perf_evlist__add_pgfault(struct perf_evlist *evlist,
-				    u64 config)
+static struct perf_evsel *perf_evsel__new_pgfault(u64 config)
 {
 	struct perf_evsel *evsel;
 	struct perf_event_attr attr = {
@@ -2396,13 +2378,10 @@ static int perf_evlist__add_pgfault(struct perf_evlist *evlist,
 	event_attr_init(&attr);
 
 	evsel = perf_evsel__new(&attr);
-	if (!evsel)
-		return -ENOMEM;
+	if (evsel)
+		evsel->handler = trace__pgfault;
 
-	evsel->handler = trace__pgfault;
-	perf_evlist__add(evlist, evsel);
-
-	return 0;
+	return evsel;
 }
 
 static void trace__handle_event(struct trace *trace, union perf_event *event, struct perf_sample *sample)
@@ -2504,7 +2483,7 @@ out_enomem:
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = trace->evlist;
-	struct perf_evsel *evsel;
+	struct perf_evsel *evsel, *pgfault_maj = NULL, *pgfault_min = NULL;
 	int err = -1, i;
 	unsigned long before;
 	const bool forks = argc > 0;
@@ -2518,14 +2497,19 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (trace->trace_syscalls)
 		trace->vfs_getname = perf_evlist__add_vfs_getname(evlist);
 
-	if ((trace->trace_pgfaults & TRACE_PFMAJ) &&
-	    perf_evlist__add_pgfault(evlist, PERF_COUNT_SW_PAGE_FAULTS_MAJ)) {
-		goto out_error_mem;
+	if ((trace->trace_pgfaults & TRACE_PFMAJ)) {
+		pgfault_maj = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MAJ);
+		if (pgfault_maj == NULL)
+			goto out_error_mem;
+		perf_evlist__add(evlist, pgfault_maj);
 	}
 
-	if ((trace->trace_pgfaults & TRACE_PFMIN) &&
-	    perf_evlist__add_pgfault(evlist, PERF_COUNT_SW_PAGE_FAULTS_MIN))
-		goto out_error_mem;
+	if ((trace->trace_pgfaults & TRACE_PFMIN)) {
+		pgfault_min = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MIN);
+		if (pgfault_min == NULL)
+			goto out_error_mem;
+		perf_evlist__add(evlist, pgfault_min);
+	}
 
 	if (trace->sched &&
 	    perf_evlist__add_newtp(evlist, "sched", "sched_stat_runtime",
@@ -2546,24 +2530,42 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	perf_evlist__config(evlist, &trace->opts, NULL);
 
-	if (callchain_param.enabled && trace->syscalls.events.sys_exit) {
-		perf_evsel__config_callchain(trace->syscalls.events.sys_exit,
-					     &trace->opts, &callchain_param);
-               /*
-                * Now we have evsels with different sample_ids, use
-                * PERF_SAMPLE_IDENTIFIER to map from sample to evsel
-                * from a fixed position in each ring buffer record.
-                *
-                * As of this the changeset introducing this comment, this
-                * isn't strictly needed, as the fields that can come before
-                * PERF_SAMPLE_ID are all used, but we'll probably disable
-                * some of those for things like copying the payload of
-                * pointer syscall arguments, and for vfs_getname we don't
-                * need PERF_SAMPLE_ADDR and PERF_SAMPLE_IP, so do this
-                * here as a warning we need to use PERF_SAMPLE_IDENTIFIER.
-                */
-		perf_evlist__set_sample_bit(evlist, IDENTIFIER);
-		perf_evlist__reset_sample_bit(evlist, ID);
+	if (callchain_param.enabled) {
+		bool use_identifier = false;
+
+		if (trace->syscalls.events.sys_exit) {
+			perf_evsel__config_callchain(trace->syscalls.events.sys_exit,
+						     &trace->opts, &callchain_param);
+			use_identifier = true;
+		}
+
+		if (pgfault_maj) {
+			perf_evsel__config_callchain(pgfault_maj, &trace->opts, &callchain_param);
+			use_identifier = true;
+		}
+
+		if (pgfault_min) {
+			perf_evsel__config_callchain(pgfault_min, &trace->opts, &callchain_param);
+			use_identifier = true;
+		}
+
+		if (use_identifier) {
+		       /*
+			* Now we have evsels with different sample_ids, use
+			* PERF_SAMPLE_IDENTIFIER to map from sample to evsel
+			* from a fixed position in each ring buffer record.
+			*
+			* As of this the changeset introducing this comment, this
+			* isn't strictly needed, as the fields that can come before
+			* PERF_SAMPLE_ID are all used, but we'll probably disable
+			* some of those for things like copying the payload of
+			* pointer syscall arguments, and for vfs_getname we don't
+			* need PERF_SAMPLE_ADDR and PERF_SAMPLE_IP, so do this
+			* here as a warning we need to use PERF_SAMPLE_IDENTIFIER.
+			*/
+			perf_evlist__set_sample_bit(evlist, IDENTIFIER);
+			perf_evlist__reset_sample_bit(evlist, ID);
+		}
 	}
 
 	signal(SIGCHLD, sig_handler);
@@ -3104,7 +3106,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_UINTEGER(0, "max-stack", &trace.max_stack,
 		     "Set the maximum stack depth when parsing the callchain, "
 		     "anything beyond the specified depth will be ignored. "
-		     "Default: " __stringify(PERF_MAX_STACK_DEPTH)),
+		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_END()
@@ -3148,7 +3150,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		mmap_pages_user_set = false;
 
 	if (trace.max_stack == UINT_MAX) {
-		trace.max_stack = PERF_MAX_STACK_DEPTH;
+		trace.max_stack = sysctl_perf_event_max_stack;
 		max_stack_user_set = false;
 	}
 

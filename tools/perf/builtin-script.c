@@ -570,12 +570,12 @@ static void print_sample_bts(struct perf_sample *sample,
 	/* print branch_from information */
 	if (PRINT_FIELD(IP)) {
 		unsigned int print_opts = output[attr->type].print_ip_opts;
-		struct callchain_cursor *cursor = NULL, cursor_callchain;
+		struct callchain_cursor *cursor = NULL;
 
 		if (symbol_conf.use_callchain && sample->callchain &&
-		    thread__resolve_callchain(al->thread, &cursor_callchain, evsel,
+		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
 					      sample, NULL, NULL, scripting_max_stack) == 0)
-			cursor = &cursor_callchain;
+			cursor = &callchain_cursor;
 
 		if (cursor == NULL) {
 			putchar(' ');
@@ -789,12 +789,12 @@ static void process_event(struct perf_script *script,
 		printf("%16" PRIu64, sample->weight);
 
 	if (PRINT_FIELD(IP)) {
-		struct callchain_cursor *cursor = NULL, cursor_callchain;
+		struct callchain_cursor *cursor = NULL;
 
 		if (symbol_conf.use_callchain && sample->callchain &&
-		    thread__resolve_callchain(al->thread, &cursor_callchain, evsel,
+		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
 					      sample, NULL, NULL, scripting_max_stack) == 0)
-			cursor = &cursor_callchain;
+			cursor = &callchain_cursor;
 
 		putchar(cursor ? '\n' : ' ');
 		sample__fprintf_sym(sample, al, 0, output[attr->type].print_ip_opts, cursor, stdout);
@@ -2031,7 +2031,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_UINTEGER(0, "max-stack", &scripting_max_stack,
 		     "Set the maximum stack depth when parsing the callchain, "
 		     "anything beyond the specified depth will be ignored. "
-		     "Default: " __stringify(PERF_MAX_STACK_DEPTH)),
+		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
 		    "display extended information from perf.data file"),
 	OPT_BOOLEAN('\0', "show-kernel-path", &symbol_conf.show_kernel_path,
@@ -2066,6 +2066,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf script [<options>] <top-script> [script-args]",
 		NULL
 	};
+
+	scripting_max_stack = sysctl_perf_event_max_stack;
 
 	setup_scripting();
 

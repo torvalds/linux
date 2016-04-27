@@ -691,7 +691,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
-		.max_stack		 = PERF_MAX_STACK_DEPTH,
+		.max_stack		 = sysctl_perf_event_max_stack,
 		.pretty_printing_style	 = "normal",
 		.socket_filter		 = -1,
 	};
@@ -744,7 +744,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_INTEGER(0, "max-stack", &report.max_stack,
 		    "Set the maximum stack depth when parsing the callchain, "
 		    "anything beyond the specified depth will be ignored. "
-		    "Default: " __stringify(PERF_MAX_STACK_DEPTH)),
+		    "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN('G', "inverted", &report.inverted_callchain,
 		    "alias for inverted call graph"),
 	OPT_CALLBACK(0, "ignore-callees", NULL, "regex",

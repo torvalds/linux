@@ -1103,7 +1103,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 			},
 			.proc_map_timeout    = 500,
 		},
-		.max_stack	     = PERF_MAX_STACK_DEPTH,
+		.max_stack	     = sysctl_perf_event_max_stack,
 		.sym_pcnt_filter     = 5,
 	};
 	struct record_opts *opts = &top.record_opts;
@@ -1171,7 +1171,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Accumulate callchains of children and show total overhead as well"),
 	OPT_INTEGER(0, "max-stack", &top.max_stack,
 		    "Set the maximum stack depth when parsing the callchain. "
-		    "Default: " __stringify(PERF_MAX_STACK_DEPTH)),
+		    "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_CALLBACK(0, "ignore-callees", NULL, "regex",
 		   "ignore callees of these functions in call graphs",
 		   report_parse_ignore_callees_opt),

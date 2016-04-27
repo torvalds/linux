@@ -1231,6 +1231,21 @@ static void __p_sample_type(char *buf, size_t size, u64 value)
 	__p_bits(buf, size, value, bits);
 }
 
+static void __p_branch_sample_type(char *buf, size_t size, u64 value)
+{
+#define bit_name(n) { PERF_SAMPLE_BRANCH_##n, #n }
+	struct bit_names bits[] = {
+		bit_name(USER), bit_name(KERNEL), bit_name(HV), bit_name(ANY),
+		bit_name(ANY_CALL), bit_name(ANY_RETURN), bit_name(IND_CALL),
+		bit_name(ABORT_TX), bit_name(IN_TX), bit_name(NO_TX),
+		bit_name(COND), bit_name(CALL_STACK), bit_name(IND_JUMP),
+		bit_name(CALL), bit_name(NO_FLAGS), bit_name(NO_CYCLES),
+		{ .name = NULL, }
+	};
+#undef bit_name
+	__p_bits(buf, size, value, bits);
+}
+
 static void __p_read_format(char *buf, size_t size, u64 value)
 {
 #define bit_name(n) { PERF_FORMAT_##n, #n }
@@ -1249,6 +1264,7 @@ static void __p_read_format(char *buf, size_t size, u64 value)
 #define p_unsigned(val)		snprintf(buf, BUF_SIZE, "%"PRIu64, (uint64_t)(val))
 #define p_signed(val)		snprintf(buf, BUF_SIZE, "%"PRId64, (int64_t)(val))
 #define p_sample_type(val)	__p_sample_type(buf, BUF_SIZE, val)
+#define p_branch_sample_type(val) __p_branch_sample_type(buf, BUF_SIZE, val)
 #define p_read_format(val)	__p_read_format(buf, BUF_SIZE, val)
 
 #define PRINT_ATTRn(_n, _f, _p)				\
@@ -1305,7 +1321,7 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	PRINT_ATTRf(bp_type, p_unsigned);
 	PRINT_ATTRn("{ bp_addr, config1 }", bp_addr, p_hex);
 	PRINT_ATTRn("{ bp_len, config2 }", bp_len, p_hex);
-	PRINT_ATTRf(branch_sample_type, p_unsigned);
+	PRINT_ATTRf(branch_sample_type, p_branch_sample_type);
 	PRINT_ATTRf(sample_regs_user, p_hex);
 	PRINT_ATTRf(sample_stack_user, p_unsigned);
 	PRINT_ATTRf(clockid, p_signed);

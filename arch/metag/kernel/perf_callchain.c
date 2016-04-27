@@ -65,7 +65,7 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 	--frame;
 
-	while ((entry->nr < PERF_MAX_STACK_DEPTH) && frame)
+	while ((entry->nr < sysctl_perf_event_max_stack) && frame)
 		frame = user_backtrace(frame, entry);
 }
 

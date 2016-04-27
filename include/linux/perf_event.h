@@ -58,7 +58,7 @@ struct perf_guest_info_callbacks {
 
 struct perf_callchain_entry {
 	__u64				nr;
-	__u64				ip[PERF_MAX_STACK_DEPTH];
+	__u64				ip[0]; /* /proc/sys/kernel/perf_event_max_stack */
 };
 
 struct perf_raw_record {
@@ -993,9 +993,11 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 extern int get_callchain_buffers(void);
 extern void put_callchain_buffers(void);
 
+extern int sysctl_perf_event_max_stack;
+
 static inline int perf_callchain_store(struct perf_callchain_entry *entry, u64 ip)
 {
-	if (entry->nr < PERF_MAX_STACK_DEPTH) {
+	if (entry->nr < sysctl_perf_event_max_stack) {
 		entry->ip[entry->nr++] = ip;
 		return 0;
 	} else {
@@ -1017,6 +1019,8 @@ extern int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp,
 		loff_t *ppos);
 
+int perf_event_max_stack_handler(struct ctl_table *table, int write,
+				 void __user *buffer, size_t *lenp, loff_t *ppos);
 
 static inline bool perf_paranoid_tracepoint_raw(void)
 {

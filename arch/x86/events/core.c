@@ -2277,7 +2277,7 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 
 	fp = compat_ptr(ss_base + regs->bp);
 	pagefault_disable();
-	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+	while (entry->nr < sysctl_perf_event_max_stack) {
 		unsigned long bytes;
 		frame.next_frame     = 0;
 		frame.return_address = 0;
@@ -2337,7 +2337,7 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		return;
 
 	pagefault_disable();
-	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+	while (entry->nr < sysctl_perf_event_max_stack) {
 		unsigned long bytes;
 		frame.next_frame	     = NULL;
 		frame.return_address = 0;

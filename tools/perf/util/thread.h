@@ -71,6 +71,8 @@ static inline int thread__set_comm(struct thread *thread, const char *comm,
 	return __thread__set_comm(thread, comm, timestamp, false);
 }
 
+int thread__set_comm_from_proc(struct thread *thread);
+
 int thread__comm_len(struct thread *thread);
 struct comm *thread__comm(const struct thread *thread);
 struct comm *thread__exec_comm(const struct thread *thread);

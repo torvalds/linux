@@ -17,6 +17,7 @@
 #include <subcmd/parse-options.h>
 #include "util/bpf-loader.h"
 #include "util/debug.h"
+#include <api/fs/fs.h>
 #include <api/fs/tracing_path.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -533,6 +534,7 @@ int main(int argc, const char **argv)
 {
 	const char *cmd;
 	char sbuf[STRERR_BUFSIZE];
+	int value;
 
 	/* libsubcmd init */
 	exec_cmd_init("perf", PREFIX, PERF_EXEC_PATH, EXEC_PATH_ENVIRONMENT);
@@ -541,6 +543,9 @@ int main(int argc, const char **argv)
 	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);
 	cacheline_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+
+	if (sysctl__read_int("kernel/perf_event_max_stack", &value) == 0)
+		sysctl_perf_event_max_stack = value;
 
 	cmd = extract_argv0_path(argv[0]);
 	if (!cmd)
