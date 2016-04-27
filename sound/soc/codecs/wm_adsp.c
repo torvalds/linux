@@ -944,6 +944,13 @@ static void wm_adsp_ctl_work(struct work_struct *work)
 	kfree(ctl_work);
 }
 
+static void wm_adsp_free_ctl_blk(struct wm_coeff_ctl *ctl)
+{
+	kfree(ctl->cache);
+	kfree(ctl->name);
+	kfree(ctl);
+}
+
 static int wm_adsp_create_control(struct wm_adsp *dsp,
 				  const struct wm_adsp_alg_region *alg_region,
 				  unsigned int offset, unsigned int len,
@@ -2339,6 +2346,19 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_init);
+
+void wm_adsp2_remove(struct wm_adsp *dsp)
+{
+	struct wm_coeff_ctl *ctl;
+
+	while (!list_empty(&dsp->ctl_list)) {
+		ctl = list_first_entry(&dsp->ctl_list, struct wm_coeff_ctl,
+					list);
+		list_del(&ctl->list);
+		wm_adsp_free_ctl_blk(ctl);
+	}
+}
+EXPORT_SYMBOL_GPL(wm_adsp2_remove);
 
 int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 {
