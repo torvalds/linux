@@ -421,7 +421,7 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 
 	*flags = ldlm_flags_from_wire(reply->lock_flags);
 	lock->l_flags |= ldlm_flags_from_wire(reply->lock_flags &
-					      LDLM_INHERIT_FLAGS);
+					      LDLM_FL_INHERIT_MASK);
 	/* move NO_TIMEOUT flag to the lock to force ldlm_lock_match()
 	 * to wait with no timeout as well
 	 */

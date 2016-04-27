@@ -37,17 +37,11 @@
 /** l_flags bits marked as "gone" bits */
 #define LDLM_FL_GONE_MASK               0x0006004000000000ULL
 
-/** l_flags bits marked as "hide_lock" bits */
-#define LDLM_FL_HIDE_LOCK_MASK          0x0000206400000000ULL
-
 /** l_flags bits marked as "inherit" bits */
 #define LDLM_FL_INHERIT_MASK            0x0000000000800000ULL
 
-/** l_flags bits marked as "local_only" bits */
-#define LDLM_FL_LOCAL_ONLY_MASK         0x00FFFFFF00000000ULL
-
-/** l_flags bits marked as "on_wire" bits */
-#define LDLM_FL_ON_WIRE_MASK            0x00000000C08F932FULL
+/** l_flags bits marked as "off_wire" bits */
+#define LDLM_FL_OFF_WIRE_MASK           0x00FFFFFF00000000ULL
 
 /** extent, mode, or resource changed */
 #define LDLM_FL_LOCK_CHANGED            0x0000000000000001ULL /* bit 0 */
@@ -389,12 +383,6 @@
 
 /** clear a ldlm_lock flag bit */
 #define LDLM_CLEAR_FLAG(_l, _b)       ((_l)->l_flags &= ~(_b))
-
-/** Mask of flags inherited from parent lock when doing intents. */
-#define LDLM_INHERIT_FLAGS            LDLM_FL_INHERIT_MASK
-
-/** Mask of Flags sent in AST lock_flags to map into the receiving lock. */
-#define LDLM_AST_FLAGS                LDLM_FL_AST_MASK
 
 /** @} subgroup */
 /** @} group */
