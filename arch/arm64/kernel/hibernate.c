@@ -17,6 +17,7 @@
 #define pr_fmt(x) "hibernate: " x
 #include <linux/kvm_host.h>
 #include <linux/mm.h>
+#include <linux/notifier.h>
 #include <linux/pm.h>
 #include <linux/sched.h>
 #include <linux/suspend.h>
@@ -459,3 +460,28 @@ int swsusp_arch_resume(void)
 out:
 	return rc;
 }
+
+static int check_boot_cpu_online_pm_callback(struct notifier_block *nb,
+					     unsigned long action, void *ptr)
+{
+	if (action == PM_HIBERNATION_PREPARE &&
+	     cpumask_first(cpu_online_mask) != 0) {
+		pr_warn("CPU0 is offline.\n");
+		return notifier_from_errno(-ENODEV);
+	}
+
+	return NOTIFY_OK;
+}
+
+static int __init check_boot_cpu_online_init(void)
+{
+	/*
+	 * Set this pm_notifier callback with a lower priority than
+	 * cpu_hotplug_pm_callback, so that cpu_hotplug_pm_callback will be
+	 * called earlier to disable cpu hotplug before the cpu online check.
+	 */
+	pm_notifier(check_boot_cpu_online_pm_callback, -INT_MAX);
+
+	return 0;
+}
+core_initcall(check_boot_cpu_online_init);
