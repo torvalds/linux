@@ -274,6 +274,26 @@
 						function = "uart_c";
 					};
 				};
+
+				eth_pins: eth_c {
+					mux {
+						groups = "eth_mdio",
+						       "eth_mdc",
+						       "eth_clk_rx_clk",
+						       "eth_rx_dv",
+						       "eth_rxd0",
+						       "eth_rxd1",
+						       "eth_rxd2",
+						       "eth_rxd3",
+						       "eth_rgmii_tx_clk",
+						       "eth_tx_en",
+						       "eth_txd0",
+						       "eth_txd1",
+						       "eth_txd2",
+						       "eth_txd3";
+						function = "eth";
+					};
+				};
 			};
 		};
 
@@ -291,6 +311,18 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xd0000000 0x0 0x200000>;
+		};
+
+		ethmac: ethernet@c9410000 {
+			compatible = "amlogic,meson6-dwmac", "snps,dwmac";
+			reg = <0x0 0xc9410000 0x0 0x10000
+			       0x0 0xc8834540 0x0 0x4>;
+			interrupts = <0 8 1>;
+			interrupt-names = "macirq";
+			clocks = <&xtal>;
+			clock-names = "stmmaceth";
+			phy-mode = "rgmii";
+			status = "disabled";
 		};
 	};
 };
