@@ -6285,6 +6285,17 @@ struct wmi_pdev_temperature_event {
 	__le32 temperature;
 } __packed;
 
+struct wmi_pdev_bss_chan_info_event {
+	__le32 freq;
+	__le32 noise_floor;
+	__le64 cycle_busy;
+	__le64 cycle_total;
+	__le64 cycle_tx;
+	__le64 cycle_rx;
+	__le64 cycle_rx_bss;
+	__le32 reserved;
+} __packed;
+
 /* WOW structures */
 enum wmi_wow_wakeup_event {
 	WOW_BMISS_EVENT = 0,

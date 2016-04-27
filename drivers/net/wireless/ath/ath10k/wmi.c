@@ -4794,6 +4794,32 @@ static int ath10k_wmi_event_temperature(struct ath10k *ar, struct sk_buff *skb)
 	return 0;
 }
 
+static int ath10k_wmi_event_pdev_bss_chan_info(struct ath10k *ar,
+					       struct sk_buff *skb)
+{
+	struct wmi_pdev_bss_chan_info_event *ev;
+	u64 busy, total, tx, rx, rx_bss;
+	u32 freq, noise_floor;
+
+	ev = (struct wmi_pdev_bss_chan_info_event *)skb->data;
+	if (WARN_ON(skb->len < sizeof(*ev)))
+		return -EPROTO;
+
+	freq        = __le32_to_cpu(ev->freq);
+	noise_floor = __le32_to_cpu(ev->noise_floor);
+	busy        = __le64_to_cpu(ev->cycle_busy);
+	total       = __le64_to_cpu(ev->cycle_total);
+	tx          = __le64_to_cpu(ev->cycle_tx);
+	rx          = __le64_to_cpu(ev->cycle_rx);
+	rx_bss      = __le64_to_cpu(ev->cycle_rx_bss);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi event pdev bss chan info:\n freq: %d noise: %d cycle: busy %llu total %llu tx %llu rx %llu rx_bss %llu\n",
+		   freq, noise_floor, busy, total, tx, rx, rx_bss);
+
+	return 0;
+}
+
 static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -5137,6 +5163,9 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10_2_PDEV_TEMPERATURE_EVENTID:
 		ath10k_wmi_event_temperature(ar, skb);
 		break;
+	case WMI_10_2_PDEV_BSS_CHAN_INFO_EVENTID:
+		ath10k_wmi_event_pdev_bss_chan_info(ar, skb);
+		break;
 	case WMI_10_2_RTT_KEEPALIVE_EVENTID:
 	case WMI_10_2_GPIO_INPUT_EVENTID:
 	case WMI_10_2_PEER_RATECODE_LIST_EVENTID:
@@ -5222,6 +5251,9 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_4_PDEV_TEMPERATURE_EVENTID:
 		ath10k_wmi_event_temperature(ar, skb);
+		break;
+	case WMI_10_4_PDEV_BSS_CHAN_INFO_EVENTID:
+		ath10k_wmi_event_pdev_bss_chan_info(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
