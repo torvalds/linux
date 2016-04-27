@@ -1935,8 +1935,6 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 		copied = 0;
 		crtc_id = (uint32_t __user *)(unsigned long)card_res->crtc_id_ptr;
 		drm_for_each_crtc(crtc, dev) {
-			DRM_DEBUG_KMS("[CRTC:%d:%s]\n",
-				      crtc->base.id, crtc->name);
 			if (put_user(crtc->base.id, crtc_id + copied)) {
 				ret = -EFAULT;
 				goto out;
@@ -1951,8 +1949,6 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 		copied = 0;
 		encoder_id = (uint32_t __user *)(unsigned long)card_res->encoder_id_ptr;
 		drm_for_each_encoder(encoder, dev) {
-			DRM_DEBUG_KMS("[ENCODER:%d:%s]\n", encoder->base.id,
-					encoder->name);
 			if (put_user(encoder->base.id, encoder_id +
 				     copied)) {
 				ret = -EFAULT;
@@ -1968,9 +1964,6 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 		copied = 0;
 		connector_id = (uint32_t __user *)(unsigned long)card_res->connector_id_ptr;
 		drm_for_each_connector(connector, dev) {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-				connector->base.id,
-				connector->name);
 			if (put_user(connector->base.id,
 				     connector_id + copied)) {
 				ret = -EFAULT;
@@ -1980,9 +1973,6 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 		}
 	}
 	card_res->count_connectors = connector_count;
-
-	DRM_DEBUG_KMS("CRTC[%d] CONNECTORS[%d] ENCODERS[%d]\n", card_res->count_crtcs,
-		  card_res->count_connectors, card_res->count_encoders);
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);
