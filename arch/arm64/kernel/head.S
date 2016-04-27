@@ -627,7 +627,7 @@ ENDPROC(__secondary_switched)
  * If it isn't, park the CPU
  */
 	.section	".idmap.text", "ax"
-__enable_mmu:
+ENTRY(__enable_mmu)
 	mrs	x1, ID_AA64MMFR0_EL1
 	ubfx	x2, x1, #ID_AA64MMFR0_TGRAN_SHIFT, 4
 	cmp	x2, #ID_AA64MMFR0_TGRAN_SUPPORTED
