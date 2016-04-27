@@ -2449,6 +2449,8 @@ enum skl_disp_power_wells {
 #define   DPLL_MD_VGA_UDI_MULTIPLIER_MASK	0x0000003f
 #define   DPLL_MD_VGA_UDI_MULTIPLIER_SHIFT	0
 
+#define RAWCLK_FREQ_VLV		_MMIO(VLV_DISPLAY_BASE + 0x6024)
+
 #define _FPA0	0x6040
 #define _FPA1	0x6044
 #define _FPB0	0x6048

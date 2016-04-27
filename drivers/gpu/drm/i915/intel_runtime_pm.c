@@ -948,6 +948,11 @@ static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
 	 */
 	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
 	I915_WRITE(CBR1_VLV, 0);
+
+	WARN_ON(dev_priv->rawclk_freq == 0);
+
+	I915_WRITE(RAWCLK_FREQ_VLV,
+		   DIV_ROUND_CLOSEST(dev_priv->rawclk_freq, 1000));
 }
 
 static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
