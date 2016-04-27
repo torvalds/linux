@@ -71,6 +71,15 @@ static int intel_th_probe(struct device *dev)
 	if (ret)
 		return ret;
 
+	if (thdrv->attr_group) {
+		ret = sysfs_create_group(&thdev->dev.kobj, thdrv->attr_group);
+		if (ret) {
+			thdrv->remove(thdev);
+
+			return ret;
+		}
+	}
+
 	if (thdev->type == INTEL_TH_OUTPUT &&
 	    !intel_th_output_assigned(thdev))
 		ret = hubdrv->assign(hub, thdev);
@@ -90,6 +99,9 @@ static int intel_th_remove(struct device *dev)
 		if (err)
 			return err;
 	}
+
+	if (thdrv->attr_group)
+		sysfs_remove_group(&thdev->dev.kobj, thdrv->attr_group);
 
 	thdrv->remove(thdev);
 
@@ -171,7 +183,14 @@ static DEVICE_ATTR_RO(port);
 
 static int intel_th_output_activate(struct intel_th_device *thdev)
 {
-	struct intel_th_driver *thdrv = to_intel_th_driver(thdev->dev.driver);
+	struct intel_th_driver *thdrv =
+		to_intel_th_driver_or_null(thdev->dev.driver);
+
+	if (!thdrv)
+		return -ENODEV;
+
+	if (!try_module_get(thdrv->driver.owner))
+		return -ENODEV;
 
 	if (thdrv->activate)
 		return thdrv->activate(thdev);
@@ -183,12 +202,18 @@ static int intel_th_output_activate(struct intel_th_device *thdev)
 
 static void intel_th_output_deactivate(struct intel_th_device *thdev)
 {
-	struct intel_th_driver *thdrv = to_intel_th_driver(thdev->dev.driver);
+	struct intel_th_driver *thdrv =
+		to_intel_th_driver_or_null(thdev->dev.driver);
+
+	if (!thdrv)
+		return;
 
 	if (thdrv->deactivate)
 		thdrv->deactivate(thdev);
 	else
 		intel_th_trace_disable(thdev);
+
+	module_put(thdrv->driver.owner);
 }
 
 static ssize_t active_show(struct device *dev, struct device_attribute *attr,

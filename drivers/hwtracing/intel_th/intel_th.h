@@ -115,6 +115,7 @@ intel_th_output_assigned(struct intel_th_device *thdev)
  * @enable:	enable tracing for a given output device
  * @disable:	disable tracing for a given output device
  * @fops:	file operations for device nodes
+ * @attr_group:	attributes provided by the driver
  *
  * Callbacks @probe and @remove are required for all device types.
  * Switch device driver needs to fill in @assign, @enable and @disable
@@ -139,6 +140,8 @@ struct intel_th_driver {
 	void			(*deactivate)(struct intel_th_device *thdev);
 	/* file_operations for those who want a device node */
 	const struct file_operations *fops;
+	/* optional attributes */
+	struct attribute_group	*attr_group;
 
 	/* source ops */
 	int			(*set_output)(struct intel_th_device *thdev,
@@ -147,6 +150,9 @@ struct intel_th_driver {
 
 #define to_intel_th_driver(_d)					\
 	container_of((_d), struct intel_th_driver, driver)
+
+#define to_intel_th_driver_or_null(_d)		\
+	((_d) ? to_intel_th_driver(_d) : NULL)
 
 static inline struct intel_th_device *
 to_intel_th_hub(struct intel_th_device *thdev)
