@@ -1322,6 +1322,7 @@ F:	drivers/rtc/rtc-armada38x.c
 F:	arch/arm/boot/dts/armada*
 F:	arch/arm/boot/dts/kirkwood*
 F:	arch/arm64/boot/dts/marvell/armada*
+F:	drivers/cpufreq/mvebu-cpufreq.c
 
 
 ARM/Marvell Berlin SoC support
