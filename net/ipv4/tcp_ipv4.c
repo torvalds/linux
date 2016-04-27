@@ -372,7 +372,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 				       th->dest, iph->saddr, ntohs(th->source),
 				       inet_iif(icmp_skb));
 	if (!sk) {
-		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
+		__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
 		return;
 	}
 	if (sk->sk_state == TCP_TIME_WAIT) {
