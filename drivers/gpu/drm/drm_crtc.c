@@ -2142,8 +2142,6 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	memset(&u_mode, 0, sizeof(struct drm_mode_modeinfo));
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:?]\n", out_resp->connector_id);
-
 	mutex_lock(&dev->mode_config.mutex);
 
 	connector = drm_connector_find(dev, out_resp->connector_id);
