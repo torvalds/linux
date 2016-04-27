@@ -175,7 +175,7 @@ extern int sysctl_mld_qrv;
 		_DEVADD(net, ipv6, 64_BH, idev, field, val)
 #define IP6_UPD_PO_STATS(net, idev,field,val)   \
 		_DEVUPD(net, ipv6, 64, idev, field, val)
-#define IP6_UPD_PO_STATS_BH(net, idev,field,val)   \
+#define __IP6_UPD_PO_STATS(net, idev,field,val)   \
 		_DEVUPD(net, ipv6, 64_BH, idev, field, val)
 #define ICMP6_INC_STATS(net, idev, field)	\
 		_DEVINCATOMIC(net, icmpv6, , idev, field)

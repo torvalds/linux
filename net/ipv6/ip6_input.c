@@ -78,7 +78,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 
 	idev = __in6_dev_get(skb->dev);
 
-	IP6_UPD_PO_STATS_BH(net, idev, IPSTATS_MIB_IN, skb->len);
+	__IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_IN, skb->len);
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL ||
 	    !idev || unlikely(idev->cnf.disable_ipv6)) {
@@ -297,7 +297,7 @@ int ip6_mc_input(struct sk_buff *skb)
 	const struct ipv6hdr *hdr;
 	bool deliver;
 
-	IP6_UPD_PO_STATS_BH(dev_net(skb_dst(skb)->dev),
+	__IP6_UPD_PO_STATS(dev_net(skb_dst(skb)->dev),
 			 ip6_dst_idev(skb_dst(skb)), IPSTATS_MIB_INMCAST,
 			 skb->len);
 
