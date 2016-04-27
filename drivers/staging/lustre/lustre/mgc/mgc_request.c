@@ -502,8 +502,12 @@ static void do_requeue(struct config_llog_data *cld)
 	 */
 	down_read(&cld->cld_mgcexp->exp_obd->u.cli.cl_sem);
 	if (cld->cld_mgcexp->exp_obd->u.cli.cl_conn_count != 0) {
+		int rc;
+
 		CDEBUG(D_MGC, "updating log %s\n", cld->cld_logname);
-		mgc_process_log(cld->cld_mgcexp->exp_obd, cld);
+		rc = mgc_process_log(cld->cld_mgcexp->exp_obd, cld);
+		if (rc && rc != -ENOENT)
+			CERROR("failed processing log: %d\n", rc);
 	} else {
 		CDEBUG(D_MGC, "disconnecting, won't update log %s\n",
 		       cld->cld_logname);
