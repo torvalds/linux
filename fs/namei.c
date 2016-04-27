@@ -2828,7 +2828,7 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 			int *opened)
 {
 	struct inode *dir =  nd->path.dentry->d_inode;
-	unsigned open_flag = open_to_namei_flags(op->open_flag);
+	unsigned open_flag = op->open_flag;
 	umode_t mode;
 	int error;
 	int acc_mode;
@@ -2886,8 +2886,9 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 
 	file->f_path.dentry = DENTRY_NOT_SET;
 	file->f_path.mnt = nd->path.mnt;
-	error = dir->i_op->atomic_open(dir, dentry, file, open_flag, mode,
-				      opened);
+	error = dir->i_op->atomic_open(dir, dentry, file,
+				       open_to_namei_flags(open_flag),
+				       mode, opened);
 	if (error < 0) {
 		if (create_error && error == -ENOENT)
 			error = create_error;
