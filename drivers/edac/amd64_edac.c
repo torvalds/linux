@@ -3006,8 +3006,6 @@ static int __init amd64_edac_init(void)
 {
 	int err = -ENODEV;
 
-	printk(KERN_INFO "AMD64 EDAC driver v%s\n", EDAC_AMD64_VERSION);
-
 	opstate_init();
 
 	if (amd_cache_northbridges() < 0)
@@ -3035,6 +3033,8 @@ static int __init amd64_edac_init(void)
 #ifdef CONFIG_X86_32
 	amd64_err("%s on 32-bit is unsupported. USE AT YOUR OWN RISK!\n", EDAC_MOD_STR);
 #endif
+
+	printk(KERN_INFO "AMD64 EDAC driver v%s\n", EDAC_AMD64_VERSION);
 
 	return 0;
 
