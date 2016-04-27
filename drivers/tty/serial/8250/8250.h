@@ -150,6 +150,12 @@ static inline int serial8250_pnp_init(void) { return 0; }
 static inline void serial8250_pnp_exit(void) { }
 #endif
 
+#ifdef CONFIG_SERIAL_8250_FINTEK
+int fintek_8250_probe(struct uart_8250_port *uart);
+#else
+static inline int fintek_8250_probe(struct uart_8250_port *uart) { return 0; }
+#endif
+
 #ifdef CONFIG_ARCH_OMAP1
 static inline int is_omap1_8250(struct uart_8250_port *pt)
 {
