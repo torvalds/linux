@@ -198,7 +198,7 @@
 #define ldlm_set_cancel(_l)             LDLM_SET_FLAG((_l), 1ULL << 36)
 #define ldlm_clear_cancel(_l)           LDLM_CLEAR_FLAG((_l), 1ULL << 36)
 
-/** whatever it might mean */
+/** whatever it might mean -- never transmitted? */
 #define LDLM_FL_LOCAL_ONLY              0x0000002000000000ULL /* bit 37 */
 #define ldlm_is_local_only(_l)          LDLM_TEST_FLAG((_l), 1ULL << 37)
 #define ldlm_set_local_only(_l)         LDLM_SET_FLAG((_l), 1ULL << 37)
@@ -281,18 +281,18 @@
  * has canceled this lock and is waiting for rpc_lock which is taken by
  * the first operation. LDLM_FL_BL_AST is set by ldlm_callback_handler() in
  * the lock to prevent the Early Lock Cancel (ELC) code from cancelling it.
- *
- * LDLM_FL_BL_DONE is to be set by ldlm_cancel_callback() when lock cache is
- * dropped to let ldlm_callback_handler() return EINVAL to the server. It
- * is used when ELC RPC is already prepared and is waiting for rpc_lock,
- * too late to send a separate CANCEL RPC.
  */
 #define LDLM_FL_BL_AST                  0x0000400000000000ULL /* bit 46 */
 #define ldlm_is_bl_ast(_l)              LDLM_TEST_FLAG((_l), 1ULL << 46)
 #define ldlm_set_bl_ast(_l)             LDLM_SET_FLAG((_l), 1ULL << 46)
 #define ldlm_clear_bl_ast(_l)           LDLM_CLEAR_FLAG((_l), 1ULL << 46)
 
-/** whatever it might mean */
+/**
+ * Set by ldlm_cancel_callback() when lock cache is dropped to let
+ * ldlm_callback_handler() return EINVAL to the server. It is used when
+ * ELC RPC is already prepared and is waiting for rpc_lock, too late to
+ * send a separate CANCEL RPC.
+ */
 #define LDLM_FL_BL_DONE                 0x0000800000000000ULL /* bit 47 */
 #define ldlm_is_bl_done(_l)             LDLM_TEST_FLAG((_l), 1ULL << 47)
 #define ldlm_set_bl_done(_l)            LDLM_SET_FLAG((_l), 1ULL << 47)
