@@ -346,6 +346,32 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 	return result;
 }
 
+int osc_over_unstable_soft_limit(struct client_obd *cli)
+{
+	long obd_upages, obd_dpages, osc_upages;
+
+	/* Can't check cli->cl_unstable_count, therefore, no soft limit */
+	if (!cli)
+		return 0;
+
+	obd_upages = atomic_read(&obd_unstable_pages);
+	obd_dpages = atomic_read(&obd_dirty_pages);
+
+	osc_upages = atomic_read(&cli->cl_unstable_count);
+
+	/*
+	 * obd_max_dirty_pages is the max number of (dirty + unstable)
+	 * pages allowed at any given time. To simulate an unstable page
+	 * only limit, we subtract the current number of dirty pages
+	 * from this max. This difference is roughly the amount of pages
+	 * currently available for unstable pages. Thus, the soft limit
+	 * is half of that difference. Check osc_upages to ensure we don't
+	 * set SOFT_SYNC for OSCs without any outstanding unstable pages.
+	 */
+	return osc_upages &&
+	       obd_upages >= (obd_max_dirty_pages - obd_dpages) / 2;
+}
+
 /**
  * Helper function called by osc_io_submit() for every page in an immediate
  * transfer (i.e., transferred synchronously).
@@ -368,6 +394,9 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 	oap->oap_page_off = opg->ops_from;
 	oap->oap_count = opg->ops_to - opg->ops_from;
 	oap->oap_brw_flags = brw_flags | OBD_BRW_SYNC;
+
+	if (osc_over_unstable_soft_limit(oap->oap_cli))
+		oap->oap_brw_flags |= OBD_BRW_SOFT_SYNC;
 
 	if (!client_is_remote(osc_export(obj)) &&
 	    capable(CFS_CAP_SYS_RESOURCE)) {

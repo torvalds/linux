@@ -2437,6 +2437,9 @@ int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
 			return rc;
 	}
 
+	if (osc_over_unstable_soft_limit(cli))
+		brw_flags |= OBD_BRW_SOFT_SYNC;
+
 	oap->oap_cmd = cmd;
 	oap->oap_page_off = ops->ops_from;
 	oap->oap_count = ops->ops_to - ops->ops_from;

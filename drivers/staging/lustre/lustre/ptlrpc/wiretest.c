@@ -1639,6 +1639,12 @@ void lustre_assert_wire_constants(void)
 		OBD_BRW_ASYNC);
 	LASSERTF(OBD_BRW_MEMALLOC == 0x800, "found 0x%.8x\n",
 		OBD_BRW_MEMALLOC);
+	LASSERTF(OBD_BRW_OVER_USRQUOTA == 0x1000, "found 0x%.8x\n",
+		 OBD_BRW_OVER_USRQUOTA);
+	LASSERTF(OBD_BRW_OVER_GRPQUOTA == 0x2000, "found 0x%.8x\n",
+		 OBD_BRW_OVER_GRPQUOTA);
+	LASSERTF(OBD_BRW_SOFT_SYNC == 0x4000, "found 0x%.8x\n",
+		 OBD_BRW_SOFT_SYNC);
 
 	/* Checks for struct ost_body */
 	LASSERTF((int)sizeof(struct ost_body) == 208, "found %lld\n",
