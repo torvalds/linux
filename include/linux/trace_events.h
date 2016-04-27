@@ -413,12 +413,6 @@ enum event_trigger_type {
 
 extern int filter_match_preds(struct event_filter *filter, void *rec);
 
-extern int filter_check_discard(struct trace_event_file *file, void *rec,
-				struct ring_buffer *buffer,
-				struct ring_buffer_event *event);
-extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
-				     struct ring_buffer *buffer,
-				     struct ring_buffer_event *event);
 extern enum event_trigger_type event_triggers_call(struct trace_event_file *file,
 						   void *rec);
 extern void event_triggers_post_call(struct trace_event_file *file,

@@ -1065,6 +1065,12 @@ struct trace_subsystem_dir {
 	int				nr_events;
 };
 
+extern int filter_check_discard(struct trace_event_file *file, void *rec,
+				struct ring_buffer *buffer,
+				struct ring_buffer_event *event);
+extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
+				     struct ring_buffer *buffer,
+				     struct ring_buffer_event *event);
 /*
  * Helper function for event_trigger_unlock_commit{_regs}().
  * If there are event triggers attached to this event that requires

@@ -318,7 +318,6 @@ int filter_check_discard(struct trace_event_file *file, void *rec,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(filter_check_discard);
 
 int call_filter_check_discard(struct trace_event_call *call, void *rec,
 			      struct ring_buffer *buffer,
@@ -332,7 +331,6 @@ int call_filter_check_discard(struct trace_event_call *call, void *rec,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(call_filter_check_discard);
 
 static cycle_t buffer_ftrace_now(struct trace_buffer *buf, int cpu)
 {
