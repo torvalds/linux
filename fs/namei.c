@@ -2908,13 +2908,6 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 		}
 		if (*opened & FILE_CREATED)
 			fsnotify_create(dir, dentry);
-		if (!dentry->d_inode) {
-			WARN_ON(*opened & FILE_CREATED);
-			if (create_error) {
-				error = create_error;
-				goto out;
-			}
-		}
 		goto looked_up;
 	}
 
@@ -2942,11 +2935,11 @@ no_open:
 		if (IS_ERR(dentry))
 			return PTR_ERR(dentry);
 	}
+looked_up:
 	if (create_error && !dentry->d_inode) {
 		error = create_error;
 		goto out;
 	}
-looked_up:
 	path->dentry = dentry;
 	path->mnt = nd->path.mnt;
 	return 1;
