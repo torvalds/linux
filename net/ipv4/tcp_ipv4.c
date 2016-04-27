@@ -1506,16 +1506,16 @@ bool tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 
 	__skb_queue_tail(&tp->ucopy.prequeue, skb);
 	tp->ucopy.memory += skb->truesize;
-	if (tp->ucopy.memory > sk->sk_rcvbuf) {
+	if (skb_queue_len(&tp->ucopy.prequeue) >= 32 ||
+	    tp->ucopy.memory + atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf) {
 		struct sk_buff *skb1;
 
 		BUG_ON(sock_owned_by_user(sk));
+		__NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPPREQUEUEDROPPED,
+				skb_queue_len(&tp->ucopy.prequeue));
 
-		while ((skb1 = __skb_dequeue(&tp->ucopy.prequeue)) != NULL) {
+		while ((skb1 = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
 			sk_backlog_rcv(sk, skb1);
-			__NET_INC_STATS(sock_net(sk),
-					LINUX_MIB_TCPPREQUEUEDROPPED);
-		}
 
 		tp->ucopy.memory = 0;
 	} else if (skb_queue_len(&tp->ucopy.prequeue) == 1) {
