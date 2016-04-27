@@ -82,8 +82,8 @@ alternative_endif
 	/* Here, we're pretty sure the host called HVC. */
 	restore_x0_to_x3
 
-	/* Check for __hyp_get_vectors */
-	cbnz	x0, 1f
+	cmp	x0, #HVC_GET_VECTORS
+	b.ne	1f
 	mrs	x0, vbar_el2
 	b	2f
 
