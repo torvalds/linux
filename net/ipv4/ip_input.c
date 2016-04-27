@@ -358,9 +358,9 @@ static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	rt = skb_rtable(skb);
 	if (rt->rt_type == RTN_MULTICAST) {
-		IP_UPD_PO_STATS_BH(net, IPSTATS_MIB_INMCAST, skb->len);
+		__IP_UPD_PO_STATS(net, IPSTATS_MIB_INMCAST, skb->len);
 	} else if (rt->rt_type == RTN_BROADCAST) {
-		IP_UPD_PO_STATS_BH(net, IPSTATS_MIB_INBCAST, skb->len);
+		__IP_UPD_PO_STATS(net, IPSTATS_MIB_INBCAST, skb->len);
 	} else if (skb->pkt_type == PACKET_BROADCAST ||
 		   skb->pkt_type == PACKET_MULTICAST) {
 		struct in_device *in_dev = __in_dev_get_rcu(skb->dev);
@@ -409,7 +409,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 
 
 	net = dev_net(dev);
-	IP_UPD_PO_STATS_BH(net, IPSTATS_MIB_IN, skb->len);
+	__IP_UPD_PO_STATS(net, IPSTATS_MIB_IN, skb->len);
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb) {
