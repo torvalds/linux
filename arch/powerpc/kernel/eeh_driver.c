@@ -575,7 +575,7 @@ static int eeh_clear_pe_frozen_state(struct eeh_pe *pe,
 
 int eeh_pe_reset_and_recover(struct eeh_pe *pe)
 {
-	int result, ret;
+	int ret;
 
 	/* Bail if the PE is being recovered */
 	if (pe->state & EEH_PE_RECOVERING)
@@ -601,14 +601,8 @@ int eeh_pe_reset_and_recover(struct eeh_pe *pe)
 		return ret;
 	}
 
-	/* Notify completion of reset */
-	eeh_pe_dev_traverse(pe, eeh_report_reset, &result);
-
 	/* Restore device state */
 	eeh_pe_dev_traverse(pe, eeh_dev_restore_state, NULL);
-
-	/* Resume */
-	eeh_pe_dev_traverse(pe, eeh_report_resume, NULL);
 
 	/* Clear recovery mode */
 	eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
