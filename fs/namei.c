@@ -2919,9 +2919,6 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 		acc_mode = 0;
 	}
 	error = may_open(&file->f_path, acc_mode, open_flag);
-	if (error)
-		fput(file);
-
 out:
 	dput(dentry);
 	return error;
@@ -3225,18 +3222,13 @@ finish_open_created:
 	}
 opened:
 	error = open_check_o_direct(file);
-	if (error)
-		goto exit_fput;
-	error = ima_file_check(file, op->acc_mode, *opened);
-	if (error)
-		goto exit_fput;
-
-	if (will_truncate) {
+	if (!error)
+		error = ima_file_check(file, op->acc_mode, *opened);
+	if (!error && will_truncate)
 		error = handle_truncate(file);
-		if (error)
-			goto exit_fput;
-	}
 out:
+	if (unlikely(error) && (*opened & FILE_OPENED))
+		fput(file);
 	if (unlikely(error > 0)) {
 		WARN_ON(1);
 		error = -EINVAL;
@@ -3245,10 +3237,6 @@ out:
 		mnt_drop_write(nd->path.mnt);
 	path_put(&save_parent);
 	return error;
-
-exit_fput:
-	fput(file);
-	goto out;
 
 stale_open:
 	/* If no saved parent or already retried then can't retry */
