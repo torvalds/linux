@@ -86,10 +86,21 @@
 #define SET_PSTATE_UAO(x) __inst_arm(0xd5000000 | REG_PSTATE_UAO_IMM |\
 				     (!!x)<<8 | 0x1f)
 
-/* SCTLR_EL1 */
-#define SCTLR_EL1_CP15BEN	(0x1 << 5)
-#define SCTLR_EL1_SED		(0x1 << 8)
-#define SCTLR_EL1_SPAN		(0x1 << 23)
+/* Common SCTLR_ELx flags. */
+#define SCTLR_ELx_EE    (1 << 25)
+#define SCTLR_ELx_I	(1 << 12)
+#define SCTLR_ELx_SA	(1 << 3)
+#define SCTLR_ELx_C	(1 << 2)
+#define SCTLR_ELx_A	(1 << 1)
+#define SCTLR_ELx_M	1
+
+#define SCTLR_ELx_FLAGS	(SCTLR_ELx_M | SCTLR_ELx_A | SCTLR_ELx_C | \
+			 SCTLR_ELx_SA | SCTLR_ELx_I)
+
+/* SCTLR_EL1 specific flags. */
+#define SCTLR_EL1_SPAN		(1 << 23)
+#define SCTLR_EL1_SED		(1 << 8)
+#define SCTLR_EL1_CP15BEN	(1 << 5)
 
 
 /* id_aa64isar0 */
