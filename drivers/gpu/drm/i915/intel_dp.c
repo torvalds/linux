@@ -2979,16 +2979,10 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 
 static uint32_t vlv_signal_levels(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(dport->base.base.crtc);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	unsigned long demph_reg_value, preemph_reg_value,
 		uniqtranscale_reg_value;
 	uint8_t train_set = intel_dp->train_set[0];
-	enum dpio_channel port = vlv_dport_to_channel(dport);
-	int pipe = intel_crtc->pipe;
 
 	switch (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) {
 	case DP_TRAIN_PRE_EMPH_LEVEL_0:
@@ -3063,16 +3057,8 @@ static uint32_t vlv_signal_levels(struct intel_dp *intel_dp)
 		return 0;
 	}
 
-	mutex_lock(&dev_priv->sb_lock);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), 0x00000000);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW4(port), demph_reg_value);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(port),
-			 uniqtranscale_reg_value);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW3(port), 0x0C782040);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW11(port), 0x00030000);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW9(port), preemph_reg_value);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), 0x80000000);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_set_phy_signal_level(encoder, demph_reg_value, preemph_reg_value,
+				 uniqtranscale_reg_value, 0);
 
 	return 0;
 }

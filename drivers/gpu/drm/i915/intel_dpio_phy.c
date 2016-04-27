@@ -369,3 +369,29 @@ void chv_phy_post_pll_disable(struct intel_encoder *encoder)
 	 */
 	chv_phy_powergate_lanes(encoder, false, 0x0);
 }
+
+void vlv_set_phy_signal_level(struct intel_encoder *encoder,
+			      u32 demph_reg_value, u32 preemph_reg_value,
+			      u32 uniqtranscale_reg_value, u32 tx3_demph)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	enum dpio_channel port = vlv_dport_to_channel(dport);
+	int pipe = intel_crtc->pipe;
+
+	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), 0x00000000);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW4(port), demph_reg_value);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(port),
+			 uniqtranscale_reg_value);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW3(port), 0x0C782040);
+
+	if (tx3_demph)
+		vlv_dpio_write(dev_priv, pipe, VLV_TX3_DW4(port), tx3_demph);
+
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW11(port), 0x00030000);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW9(port), preemph_reg_value);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), DPIO_TX_OCALINIT_EN);
+	mutex_unlock(&dev_priv->sb_lock);
+}

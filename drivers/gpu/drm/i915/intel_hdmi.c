@@ -1609,20 +1609,14 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 	val |= 0x001000c4;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW8(port), val);
 
-	/* HDMI 1.0V-2dB */
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), 0);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW4(port), 0x2b245f5f);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(port), 0x5578b83a);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW3(port), 0x0c782040);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX3_DW4(port), 0x2b247878);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW11(port), 0x00030000);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW9(port), 0x00002000);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), DPIO_TX_OCALINIT_EN);
-
 	/* Program lane clock */
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW14(port), 0x00760018);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW23(port), 0x00400888);
 	mutex_unlock(&dev_priv->sb_lock);
+
+	/* HDMI 1.0V-2dB */
+	vlv_set_phy_signal_level(encoder, 0x2b245f5f, 0x00002000, 0x5578b83a,
+				 0x2b247878);
 
 	intel_hdmi->set_infoframes(&encoder->base,
 				   intel_crtc->config->has_hdmi_sink,

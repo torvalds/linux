@@ -3600,6 +3600,10 @@ void chv_phy_pre_encoder_enable(struct intel_encoder *encoder);
 void chv_phy_release_cl2_override(struct intel_encoder *encoder);
 void chv_phy_post_pll_disable(struct intel_encoder *encoder);
 
+void vlv_set_phy_signal_level(struct intel_encoder *encoder,
+			      u32 demph_reg_value, u32 preemph_reg_value,
+			      u32 uniqtranscale_reg_value, u32 tx3_demph);
+
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
 
