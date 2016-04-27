@@ -2855,33 +2855,30 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 	 * Another problem is returing the "right" error value (e.g. for an
 	 * O_EXCL open we want to return EEXIST not EROFS).
 	 */
-	if (((open_flag & (O_CREAT | O_TRUNC)) ||
-	    (open_flag & O_ACCMODE) != O_RDONLY) && unlikely(!got_write)) {
-		if (!(open_flag & O_CREAT)) {
-			/*
-			 * No O_CREATE -> atomicity not a requirement -> fall
-			 * back to lookup + open
-			 */
-			goto no_open;
-		} else if (open_flag & (O_EXCL | O_TRUNC)) {
-			/* Fall back and fail with the right error */
-			create_error = -EROFS;
-			goto no_open;
-		} else {
-			/* No side effects, safe to clear O_CREAT */
-			create_error = -EROFS;
-			open_flag &= ~O_CREAT;
-		}
-	}
-
 	if (open_flag & O_CREAT) {
-		error = may_o_create(&nd->path, dentry, mode);
-		if (error) {
-			create_error = error;
-			if (open_flag & O_EXCL)
+		if (unlikely(!got_write)) {
+			create_error = -EROFS;
+			if (open_flag & (O_EXCL | O_TRUNC)) {
+				/* Fall back and fail with the right error */
 				goto no_open;
+			}
+			/* No side effects, safe to clear O_CREAT */
 			open_flag &= ~O_CREAT;
+		} else {
+			create_error = may_o_create(&nd->path, dentry, mode);
+			if (create_error) {
+				if (open_flag & O_EXCL)
+					goto no_open;
+				open_flag &= ~O_CREAT;
+			}
 		}
+	} else if ((open_flag & (O_TRUNC|O_WRONLY|O_RDWR)) &&
+		   unlikely(!got_write)) {
+		/*
+		 * No O_CREATE -> atomicity not a requirement -> fall
+		 * back to lookup + open
+		 */
+		goto no_open;
 	}
 
 	if (nd->flags & LOOKUP_DIRECTORY)
