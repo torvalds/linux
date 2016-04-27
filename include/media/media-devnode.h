@@ -33,6 +33,8 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 
+struct media_device;
+
 /*
  * Flag to mark the media_devnode struct as registered. Drivers must not touch
  * this flag directly, it will be set and cleared by media_devnode_register and
@@ -81,6 +83,8 @@ struct media_file_operations {
  * before registering the node.
  */
 struct media_devnode {
+	struct media_device *media_dev;
+
 	/* device ops */
 	const struct media_file_operations *fops;
 
@@ -103,6 +107,7 @@ struct media_devnode {
 /**
  * media_devnode_register - register a media device node
  *
+ * @media_dev: struct media_device we want to register a device node
  * @devnode: media device node structure we want to register
  * @owner: should be filled with %THIS_MODULE
  *
@@ -116,7 +121,8 @@ struct media_devnode {
  * the media_devnode structure is *not* called, so the caller is responsible for
  * freeing any data.
  */
-int __must_check media_devnode_register(struct media_devnode *devnode,
+int __must_check media_devnode_register(struct media_device *mdev,
+					struct media_devnode *devnode,
 					struct module *owner);
 
 /**
@@ -146,9 +152,14 @@ static inline struct media_devnode *media_devnode_data(struct file *filp)
  *	false otherwise.
  *
  * @devnode: pointer to struct &media_devnode.
+ *
+ * Note: If mdev is NULL, it also returns false.
  */
 static inline int media_devnode_is_registered(struct media_devnode *devnode)
 {
+	if (!devnode)
+		return false;
+
 	return test_bit(MEDIA_FLAG_REGISTERED, &devnode->flags);
 }
 
