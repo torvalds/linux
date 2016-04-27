@@ -2351,6 +2351,16 @@ struct cl_client_cache {
 	 * Lock to protect ccc_lru list
 	 */
 	spinlock_t		ccc_lru_lock;
+	/**
+	 * # of unstable pages for this mount point
+	 */
+	atomic_t		ccc_unstable_nr;
+	/**
+	 * Waitq for awaiting unstable pages to reach zero.
+	 * Used at umounting time and signaled on BRW commit
+	 */
+        wait_queue_head_t	ccc_unstable_waitq;
+
 };
 
 /** @} cl_page */

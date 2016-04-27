@@ -477,7 +477,7 @@ struct lov_obd {
 	struct dentry		*lov_pool_debugfs_entry;
 	enum lustre_sec_part    lov_sp_me;
 
-	/* Cached LRU pages from upper layer */
+	/* Cached LRU and unstable data from upper layer */
 	void		       *lov_cache;
 
 	struct rw_semaphore     lov_notify_lock;
