@@ -242,7 +242,7 @@ static int amdgpu_cgs_gmap_gpu_mem(struct cgs_device *cgs_device, cgs_handle_t h
 	r = amdgpu_bo_reserve(obj, false);
 	if (unlikely(r != 0))
 		return r;
-	r = amdgpu_bo_pin_restricted(obj, AMDGPU_GEM_DOMAIN_GTT,
+	r = amdgpu_bo_pin_restricted(obj, obj->prefered_domains,
 				     min_offset, max_offset, mcaddr);
 	amdgpu_bo_unreserve(obj);
 	return r;
