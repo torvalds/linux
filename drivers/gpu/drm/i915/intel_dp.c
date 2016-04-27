@@ -2791,32 +2791,9 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 
 static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder)
 {
-	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(encoder->base.crtc);
-	enum dpio_channel port = vlv_dport_to_channel(dport);
-	int pipe = intel_crtc->pipe;
-
 	intel_dp_prepare(encoder);
 
-	/* Program Tx lane resets to default */
-	mutex_lock(&dev_priv->sb_lock);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(port),
-			 DPIO_PCS_TX_LANE2_RESET |
-			 DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW1(port),
-			 DPIO_PCS_CLK_CRI_RXEB_EIOS_EN |
-			 DPIO_PCS_CLK_CRI_RXDIGFILTSG_EN |
-			 (1<<DPIO_PCS_CLK_DATAWIDTH_SHIFT) |
-				 DPIO_PCS_CLK_SOFT_RESET);
-
-	/* Fix up inter-pair skew failure */
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW12(port), 0x00750f00);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW11(port), 0x00001500);
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW14(port), 0x40400000);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_phy_pre_pll_enable(encoder);
 }
 
 static void chv_pre_enable_dp(struct intel_encoder *encoder)
