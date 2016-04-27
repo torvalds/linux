@@ -838,6 +838,7 @@ static void tty3270_resize_work(struct work_struct *work)
 	ws.ws_row = tp->view.rows - 2;
 	ws.ws_col = tp->view.cols;
 	tty_do_resize(tty, &ws);
+	tty_kref_put(tty);
 }
 
 static void
