@@ -679,30 +679,31 @@ static struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
 	return NULL;
 }
 
+/* When check_messup is true, 'end' must points to a good entry */
 static union perf_event *
-perf_mmap__read(struct perf_mmap *md, bool overwrite, u64 head,
-		u64 old, u64 *prev)
+perf_mmap__read(struct perf_mmap *md, bool check_messup, u64 start,
+		u64 end, u64 *prev)
 {
 	unsigned char *data = md->base + page_size;
 	union perf_event *event = NULL;
-	int diff = head - old;
+	int diff = end - start;
 
-	if (overwrite) {
+	if (check_messup) {
 		/*
 		 * If we're further behind than half the buffer, there's a chance
 		 * the writer will bite our tail and mess up the samples under us.
 		 *
-		 * If we somehow ended up ahead of the head, we got messed up.
+		 * If we somehow ended up ahead of the 'end', we got messed up.
 		 *
-		 * In either case, truncate and restart at head.
+		 * In either case, truncate and restart at 'end'.
 		 */
 		if (diff > md->mask / 2 || diff < 0) {
 			fprintf(stderr, "WARNING: failed to keep up with mmap data.\n");
 
 			/*
-			 * head points to a known good entry, start there.
+			 * 'end' points to a known good entry, start there.
 			 */
-			old = head;
+			start = end;
 			diff = 0;
 		}
 	}
@@ -710,7 +711,7 @@ perf_mmap__read(struct perf_mmap *md, bool overwrite, u64 head,
 	if (diff >= (int)sizeof(event->header)) {
 		size_t size;
 
-		event = (union perf_event *)&data[old & md->mask];
+		event = (union perf_event *)&data[start & md->mask];
 		size = event->header.size;
 
 		if (size < sizeof(event->header) || diff < (int)size) {
@@ -722,8 +723,8 @@ perf_mmap__read(struct perf_mmap *md, bool overwrite, u64 head,
 		 * Event straddles the mmap boundary -- header should always
 		 * be inside due to u64 alignment of output.
 		 */
-		if ((old & md->mask) + size != ((old + size) & md->mask)) {
-			unsigned int offset = old;
+		if ((start & md->mask) + size != ((start + size) & md->mask)) {
+			unsigned int offset = start;
 			unsigned int len = min(sizeof(*event), size), cpy;
 			void *dst = md->event_copy;
 
@@ -738,12 +739,12 @@ perf_mmap__read(struct perf_mmap *md, bool overwrite, u64 head,
 			event = (union perf_event *) md->event_copy;
 		}
 
-		old += size;
+		start += size;
 	}
 
 broken_event:
 	if (prev)
-		*prev = old;
+		*prev = start;
 
 	return event;
 }
@@ -762,7 +763,7 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 
 	head = perf_mmap__read_head(md);
 
-	return perf_mmap__read(md, evlist->overwrite, head, old, &md->prev);
+	return perf_mmap__read(md, evlist->overwrite, old, head, &md->prev);
 }
 
 static bool perf_mmap__empty(struct perf_mmap *md)
