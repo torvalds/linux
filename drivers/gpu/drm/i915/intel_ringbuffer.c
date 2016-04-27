@@ -1573,6 +1573,8 @@ pc_render_add_request(struct drm_i915_gem_request *req)
 static void
 gen6_seqno_barrier(struct intel_engine_cs *engine)
 {
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+
 	/* Workaround to force correct ordering between irq and seqno writes on
 	 * ivb (and maybe also on snb) by reading from a CS register (like
 	 * ACTHD) before reading the status page.
@@ -1584,9 +1586,13 @@ gen6_seqno_barrier(struct intel_engine_cs *engine)
 	 * the write time to land, but that would incur a delay after every
 	 * batch i.e. much more frequent than a delay when waiting for the
 	 * interrupt (with the same net latency).
+	 *
+	 * Also note that to prevent whole machine hangs on gen7, we have to
+	 * take the spinlock to guard against concurrent cacheline access.
 	 */
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	spin_lock_irq(&dev_priv->uncore.lock);
 	POSTING_READ_FW(RING_ACTHD(engine->mmio_base));
+	spin_unlock_irq(&dev_priv->uncore.lock);
 }
 
 static u32
