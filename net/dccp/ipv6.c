@@ -156,7 +156,7 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	case DCCP_RESPOND:  /* Cannot happen.
 			       It can, it SYNs are crossed. --ANK */
 		if (!sock_owned_by_user(sk)) {
-			DCCP_INC_STATS_BH(DCCP_MIB_ATTEMPTFAILS);
+			__DCCP_INC_STATS(DCCP_MIB_ATTEMPTFAILS);
 			sk->sk_err = err;
 			/*
 			 * Wake people up to see the error
@@ -277,8 +277,8 @@ static void dccp_v6_ctl_send_reset(const struct sock *sk, struct sk_buff *rxskb)
 	if (!IS_ERR(dst)) {
 		skb_dst_set(skb, dst);
 		ip6_xmit(ctl_sk, skb, &fl6, NULL, 0);
-		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
-		DCCP_INC_STATS_BH(DCCP_MIB_OUTRSTS);
+		__DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
+		__DCCP_INC_STATS(DCCP_MIB_OUTRSTS);
 		return;
 	}
 
@@ -378,7 +378,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 drop_and_free:
 	reqsk_free(req);
 drop:
-	DCCP_INC_STATS_BH(DCCP_MIB_ATTEMPTFAILS);
+	__DCCP_INC_STATS(DCCP_MIB_ATTEMPTFAILS);
 	return -1;
 }
 

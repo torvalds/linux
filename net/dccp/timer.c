@@ -28,7 +28,7 @@ static void dccp_write_err(struct sock *sk)
 
 	dccp_send_reset(sk, DCCP_RESET_CODE_ABORTED);
 	dccp_done(sk);
-	DCCP_INC_STATS_BH(DCCP_MIB_ABORTONTIMEOUT);
+	__DCCP_INC_STATS(DCCP_MIB_ABORTONTIMEOUT);
 }
 
 /* A write timeout has occurred. Process the after effects. */
@@ -100,7 +100,7 @@ static void dccp_retransmit_timer(struct sock *sk)
 	 * total number of retransmissions of clones of original packets.
 	 */
 	if (icsk->icsk_retransmits == 0)
-		DCCP_INC_STATS_BH(DCCP_MIB_TIMEOUTS);
+		__DCCP_INC_STATS(DCCP_MIB_TIMEOUTS);
 
 	if (dccp_retransmit_skb(sk) != 0) {
 		/*
