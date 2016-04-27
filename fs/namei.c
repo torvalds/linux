@@ -2914,11 +2914,6 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 				error = create_error;
 				goto out;
 			}
-		} else {
-			if (excl && !(*opened & FILE_CREATED)) {
-				error = -EEXIST;
-				goto out;
-			}
 		}
 		goto looked_up;
 	}
