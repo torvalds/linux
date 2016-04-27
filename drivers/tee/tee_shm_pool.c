@@ -13,13 +13,13 @@
  */
 #include <linux/device.h>
 #include <linux/dma-buf.h>
-#include <linux/slab.h>
 #include <linux/genalloc.h>
+#include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include "tee_private.h"
 
 static int pool_op_gen_alloc(struct tee_shm_pool_mgr *poolm,
-			struct tee_shm *shm, size_t size)
+			     struct tee_shm *shm, size_t size)
 {
 	unsigned long va;
 	struct gen_pool *genpool = poolm->private_data;
@@ -35,7 +35,7 @@ static int pool_op_gen_alloc(struct tee_shm_pool_mgr *poolm,
 }
 
 static void pool_op_gen_free(struct tee_shm_pool_mgr *poolm,
-			struct tee_shm *shm)
+			     struct tee_shm *shm)
 {
 	gen_pool_free(poolm->private_data, (unsigned long)shm->kaddr,
 		      shm->size);
@@ -54,7 +54,8 @@ static void pool_res_mem_destroy(struct tee_shm_pool *pool)
 }
 
 static int pool_res_mem_mgr_init(struct tee_shm_pool_mgr *mgr,
-			struct tee_shm_pool_mem_info *info, int min_alloc_order)
+				 struct tee_shm_pool_mem_info *info,
+				 int min_alloc_order)
 {
 	size_t page_mask = PAGE_SIZE - 1;
 	struct gen_pool *genpool = NULL;
@@ -84,6 +85,20 @@ static int pool_res_mem_mgr_init(struct tee_shm_pool_mgr *mgr,
 	return 0;
 }
 
+/**
+ * tee_shm_pool_alloc_res_mem() - Create a shared memory pool from reserved
+ * memory range
+ * @dev:	Device allocating the pool
+ * @priv_info:	Information for driver private shared memory pool
+ * @dmabuf_info: Information for dma-buf shared memory pool
+ *
+ * Start and end of pools will must be page aligned.
+ *
+ * Allocation with the flag TEE_SHM_DMA_BUF set will use the range supplied
+ * in @dmabuf, others will use the range provided by @priv.
+ *
+ * @returns pointer to a 'struct tee_shm_pool' or an ERR_PTR on failure.
+ */
 struct tee_shm_pool *tee_shm_pool_alloc_res_mem(struct device *dev,
 			struct tee_shm_pool_mem_info *priv_info,
 			struct tee_shm_pool_mem_info *dmabuf_info)
@@ -125,6 +140,13 @@ err:
 }
 EXPORT_SYMBOL_GPL(tee_shm_pool_alloc_res_mem);
 
+/**
+ * tee_shm_pool_free() - Free a shared memory pool
+ * @pool:	The shared memory pool to free
+ *
+ * There must be no remaining shared memory allocated from this pool when
+ * this function is called.
+ */
 void tee_shm_pool_free(struct tee_shm_pool *pool)
 {
 	pool->destroy(pool);

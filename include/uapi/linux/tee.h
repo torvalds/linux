@@ -38,7 +38,6 @@
  * data passed back and forth using TEE_IOC_CMD.
  */
 
-
 /* Helpers to make the ioctl defines */
 #define TEE_IOC_MAGIC	0xa4
 #define TEE_IOC_BASE	0
@@ -76,6 +75,7 @@ struct tee_ioctl_version_data {
 	__u32 impl_caps;
 	__u32 gen_caps;
 };
+
 /**
  * TEE_IOC_VERSION - query version of TEE
  *
@@ -100,6 +100,7 @@ struct tee_ioctl_shm_alloc_data {
 	__u32 flags;
 	__s32 id;
 };
+
 /**
  * TEE_IOC_SHM_ALLOC - allocate shared memory
  *
@@ -126,7 +127,6 @@ struct tee_ioctl_buf_data {
 	__u64 buf_ptr;
 	__u64 buf_len;
 };
-
 
 /*
  * Attributes for struct tee_ioctl_param, selects field in the union
@@ -303,6 +303,7 @@ struct tee_ioctl_cancel_arg {
 	__u32 cancel_id;
 	__u32 session;
 };
+
 /**
  * TEE_IOC_CANCEL - Cancels an open session or invoke
  */
@@ -316,6 +317,7 @@ struct tee_ioctl_cancel_arg {
 struct tee_ioctl_close_session_arg {
 	__u32 session;
 };
+
 /**
  * TEE_IOC_CLOSE_SESSION - Closes a session
  */
@@ -345,6 +347,7 @@ struct tee_iocl_supp_recv_arg {
 	 * struct tee_ioctl_param params[num_params];
 	 */
 } __aligned(8);
+
 /**
  * TEE_IOC_SUPPL_RECV - Receive a request for a supplicant function
  *
@@ -353,7 +356,6 @@ struct tee_iocl_supp_recv_arg {
  */
 #define TEE_IOC_SUPPL_RECV	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 6, \
 				     struct tee_ioctl_buf_data)
-
 
 /**
  * struct tee_iocl_supp_send_arg - Send a response to a received request
@@ -382,7 +384,6 @@ struct tee_iocl_supp_send_arg {
  */
 #define TEE_IOC_SUPPL_SEND	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 7, \
 				     struct tee_ioctl_buf_data)
-
 
 /*
  * Five syscalls are used when communicating with the TEE driver.

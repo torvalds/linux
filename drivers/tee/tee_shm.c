@@ -12,11 +12,11 @@
  *
  */
 #include <linux/device.h>
-#include <linux/fdtable.h>
-#include <linux/sched.h>
 #include <linux/dma-buf.h>
-#include <linux/slab.h>
+#include <linux/fdtable.h>
 #include <linux/idr.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include "tee_private.h"
 
@@ -47,7 +47,8 @@ static struct sg_table *tee_shm_op_map_dma_buf(struct dma_buf_attachment
 }
 
 static void tee_shm_op_unmap_dma_buf(struct dma_buf_attachment *attach,
-			struct sg_table *table, enum dma_data_direction dir)
+				     struct sg_table *table,
+				     enum dma_data_direction dir)
 {
 }
 
@@ -58,8 +59,7 @@ static void tee_shm_op_release(struct dma_buf *dmabuf)
 	tee_shm_release(shm);
 }
 
-static void *tee_shm_op_kmap_atomic(struct dma_buf *dmabuf,
-			unsigned long pgnum)
+static void *tee_shm_op_kmap_atomic(struct dma_buf *dmabuf, unsigned long pgnum)
 {
 	return NULL;
 }
@@ -69,8 +69,7 @@ static void *tee_shm_op_kmap(struct dma_buf *dmabuf, unsigned long pgnum)
 	return NULL;
 }
 
-static int tee_shm_op_mmap(struct dma_buf *dmabuf,
-			struct vm_area_struct *vma)
+static int tee_shm_op_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 {
 	struct tee_shm *shm = dmabuf->priv;
 	size_t size = vma->vm_end - vma->vm_start;
@@ -88,8 +87,21 @@ static struct dma_buf_ops tee_shm_dma_buf_ops = {
 	.mmap = tee_shm_op_mmap,
 };
 
-struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size,
-			u32 flags)
+/**
+ * tee_shm_alloc() - Allocate shared memory
+ * @teedev:	Driver that allocates the shared memory
+ * @size:	Requested size of shared memory
+ * @flags:	Flags setting properties for the requested shared memory.
+ *
+ * Memory allocated as global shared memory is automatically freed when the
+ * TEE file pointer is closed. The @flags field uses the bits defined by
+ * TEE_SHM_* above. TEE_SHM_MAPPED must currently always be set. If
+ * TEE_SHM_DMA_BUF global shared memory will be allocated and associated
+ * with a dma-buf handle, else driver private memory.
+ *
+ * @returns a pointer to 'struct tee_shm'
+ */
+struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size, u32 flags)
 {
 	struct tee_shm_pool_mgr *poolm = NULL;
 	struct tee_shm *shm;
@@ -102,7 +114,7 @@ struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if ((flags & ~(TEE_SHM_MAPPED|TEE_SHM_DMA_BUF))) {
+	if ((flags & ~(TEE_SHM_MAPPED | TEE_SHM_DMA_BUF))) {
 		dev_err(teedev->dev.parent, "invalid shm flags 0x%x", flags);
 		return ERR_PTR(-EINVAL);
 	}
@@ -116,7 +128,7 @@ struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size,
 		goto err_dev_put;
 	}
 
-	shm = kzalloc(sizeof(struct tee_shm), GFP_KERNEL);
+	shm = kzalloc(sizeof(*shm), GFP_KERNEL);
 	if (!shm) {
 		ret = ERR_PTR(-ENOMEM);
 		goto err_dev_put;
@@ -134,7 +146,6 @@ struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size,
 		ret = ERR_PTR(rc);
 		goto err_kfree;
 	}
-
 
 	mutex_lock(&teedev->mutex);
 	shm->id = idr_alloc(&teedev->idr, shm, 1, 0, GFP_KERNEL);
@@ -157,11 +168,9 @@ struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size,
 			ret = ERR_CAST(shm->dmabuf);
 			goto err_rem;
 		}
-
 	}
 
 	return shm;
-
 err_rem:
 	mutex_lock(&teedev->mutex);
 	idr_remove(&teedev->idr, shm->id);
@@ -176,6 +185,11 @@ err_dev_put:
 }
 EXPORT_SYMBOL_GPL(tee_shm_alloc);
 
+/**
+ * tee_shm_get_fd() - Increase reference count and return file descriptor
+ * @shm:	Shared memory handle
+ * @returns user space file descriptor to shared memory
+ */
 int tee_shm_get_fd(struct tee_shm *shm)
 {
 	u32 req_flags = TEE_SHM_MAPPED | TEE_SHM_DMA_BUF;
@@ -190,9 +204,12 @@ int tee_shm_get_fd(struct tee_shm *shm)
 	return fd;
 }
 
+/**
+ * tee_shm_free() - Free shared memory
+ * @shm:	Handle to shared memory to free
+ */
 void tee_shm_free(struct tee_shm *shm)
 {
-
 	/*
 	 * dma_buf_put() decreases the dmabuf reference counter and will
 	 * call tee_shm_release() when the last reference is gone.
@@ -207,6 +224,13 @@ void tee_shm_free(struct tee_shm *shm)
 }
 EXPORT_SYMBOL_GPL(tee_shm_free);
 
+/**
+ * tee_shm_va2pa() - Get physical address of a virtual address
+ * @shm:	Shared memory handle
+ * @va:		Virtual address to tranlsate
+ * @pa:		Returned physical address
+ * @returns 0 on success and < 0 on failure
+ */
 int tee_shm_va2pa(struct tee_shm *shm, void *va, phys_addr_t *pa)
 {
 	/* Check that we're in the range of the shm */
@@ -220,6 +244,13 @@ int tee_shm_va2pa(struct tee_shm *shm, void *va, phys_addr_t *pa)
 }
 EXPORT_SYMBOL_GPL(tee_shm_va2pa);
 
+/**
+ * tee_shm_pa2va() - Get virtual address of a physical address
+ * @shm:	Shared memory handle
+ * @pa:		Physical address to tranlsate
+ * @va:		Returned virtual address
+ * @returns 0 on success and < 0 on failure
+ */
 int tee_shm_pa2va(struct tee_shm *shm, phys_addr_t pa, void **va)
 {
 	/* Check that we're in the range of the shm */
@@ -239,6 +270,13 @@ int tee_shm_pa2va(struct tee_shm *shm, phys_addr_t pa, void **va)
 }
 EXPORT_SYMBOL_GPL(tee_shm_pa2va);
 
+/**
+ * tee_shm_get_va() - Get virtual address of a shared memory plus an offset
+ * @shm:	Shared memory handle
+ * @offs:	Offset from start of this shared memory
+ * @returns virtual address of the shared memory + offs if offs is within
+ *	the bounds of this shared memory, else an ERR_PTR
+ */
 void *tee_shm_get_va(struct tee_shm *shm, size_t offs)
 {
 	if (offs >= shm->size)
@@ -247,6 +285,14 @@ void *tee_shm_get_va(struct tee_shm *shm, size_t offs)
 }
 EXPORT_SYMBOL_GPL(tee_shm_get_va);
 
+/**
+ * tee_shm_get_pa() - Get physical address of a shared memory plus an offset
+ * @shm:	Shared memory handle
+ * @offs:	Offset from start of this shared memory
+ * @pa:		Physical address to return
+ * @returns 0 if offs is within the bounds of this shared memory, else an
+ *	error code.
+ */
 int tee_shm_get_pa(struct tee_shm *shm, size_t offs, phys_addr_t *pa)
 {
 	if (offs >= shm->size)
@@ -257,6 +303,12 @@ int tee_shm_get_pa(struct tee_shm *shm, size_t offs, phys_addr_t *pa)
 }
 EXPORT_SYMBOL_GPL(tee_shm_get_pa);
 
+/**
+ * tee_shm_get_from_id() - Find shared memory object and increase referece count
+ * @teedev:	Driver owning the shared mmemory
+ * @id:		Id of shared memory object
+ * @returns a pointer to 'struct tee_shm' on success or an ERR_PTR on failure
+ */
 struct tee_shm *tee_shm_get_from_id(struct tee_device *teedev, int id)
 {
 	struct tee_shm *shm;
@@ -272,12 +324,21 @@ struct tee_shm *tee_shm_get_from_id(struct tee_device *teedev, int id)
 }
 EXPORT_SYMBOL_GPL(tee_shm_get_from_id);
 
+/**
+ * tee_shm_get_id() - Get id of a shared memory object
+ * @shm:	Shared memory handle
+ * @returns id
+ */
 int tee_shm_get_id(struct tee_shm *shm)
 {
 	return shm->id;
 }
 EXPORT_SYMBOL_GPL(tee_shm_get_id);
 
+/**
+ * tee_shm_put() - Decrease reference count on a shared memory handle
+ * @shm:	Shared memory handle
+ */
 void tee_shm_put(struct tee_shm *shm)
 {
 	if (shm->flags & TEE_SHM_DMA_BUF)

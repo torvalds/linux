@@ -67,24 +67,30 @@ struct tee_param {
  * @get_version:	returns version of driver
  * @open:		called when the device file is opened
  * @release:		release this open file
+ * @open_session:	open a new session
+ * @close_session:	close a session
+ * @invoke_func:	invoke a trusted function
+ * @cancel_req:		request cancel of an ongoing invoke or open
+ * @supp_revc:		called for supplicant to get a command
+ * @supp_send:		called for supplicant to send a response
  */
 struct tee_driver_ops {
 	void (*get_version)(struct tee_device *teedev,
-			struct tee_ioctl_version_data *vers);
+			    struct tee_ioctl_version_data *vers);
 	int (*open)(struct tee_context *ctx);
 	void (*release)(struct tee_context *ctx);
 	int (*open_session)(struct tee_context *ctx,
-			struct tee_ioctl_open_session_arg *arg,
-			struct tee_param *param);
+			    struct tee_ioctl_open_session_arg *arg,
+			    struct tee_param *param);
 	int (*close_session)(struct tee_context *ctx, u32 session);
 	int (*invoke_func)(struct tee_context *ctx,
-			struct tee_ioctl_invoke_arg *arg,
-			struct tee_param *param);
+			   struct tee_ioctl_invoke_arg *arg,
+			   struct tee_param *param);
 	int (*cancel_req)(struct tee_context *ctx, u32 cancel_id, u32 session);
 	int (*supp_recv)(struct tee_context *ctx, u32 *func, u32 *num_params,
-			struct tee_param *param);
+			 struct tee_param *param);
 	int (*supp_send)(struct tee_context *ctx, u32 ret, u32 num_params,
-			struct tee_param *param);
+			 struct tee_param *param);
 };
 
 /**
@@ -101,7 +107,6 @@ struct tee_desc {
 	struct module *owner;
 	u32 flags;
 };
-
 
 /**
  * tee_device_alloc() - Allocate a new struct tee_device instance
@@ -199,7 +204,7 @@ void *tee_get_drvdata(struct tee_device *teedev);
  * @returns a pointer to 'struct tee_shm'
  */
 struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size,
-			u32 flags);
+			      u32 flags);
 
 /**
  * tee_shm_free() - Free shared memory
