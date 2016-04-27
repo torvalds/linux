@@ -119,7 +119,7 @@ struct inode *search_inode_for_lustre(struct super_block *sb,
 	rc = md_getattr(sbi->ll_md_exp, op_data, &req);
 	kfree(op_data);
 	if (rc) {
-		CERROR("can't get object attrs, fid "DFID", rc %d\n",
+		CDEBUG(D_INFO, "can't get object attrs, fid "DFID", rc %d\n",
 		       PFID(fid), rc);
 		return ERR_PTR(rc);
 	}
