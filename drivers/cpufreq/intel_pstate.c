@@ -347,6 +347,16 @@ static struct perf_limits *limits = &powersave_limits;
 #endif
 
 #ifdef CONFIG_ACPI
+
+static bool intel_pstate_get_ppc_enable_status(void)
+{
+	if (acpi_gbl_FADT.preferred_profile == PM_ENTERPRISE_SERVER ||
+	    acpi_gbl_FADT.preferred_profile == PM_PERFORMANCE_SERVER)
+		return true;
+
+	return acpi_ppc;
+}
+
 /*
  * The max target pstate ratio is a 8 bit value in both PLATFORM_INFO MSR and
  * in TURBO_RATIO_LIMIT MSR, which pstate driver stores in max_pstate and
@@ -370,7 +380,7 @@ static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 	int ret;
 	int i;
 
-	if (!acpi_ppc)
+	if (!intel_pstate_get_ppc_enable_status())
 		return;
 
 	cpu = all_cpu_data[policy->cpu];
