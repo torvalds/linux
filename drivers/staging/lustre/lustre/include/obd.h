@@ -325,6 +325,7 @@ struct client_obd {
 	atomic_t		 cl_lru_in_list;
 	struct list_head	 cl_lru_list; /* lru page list */
 	spinlock_t		 cl_lru_list_lock; /* page list protector */
+	atomic_t		 cl_unstable_count;
 
 	/* number of in flight destroy rpcs is limited to max_rpcs_in_flight */
 	atomic_t	     cl_destroy_in_flight;

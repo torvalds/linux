@@ -593,6 +593,23 @@ static ssize_t max_pages_per_rpc_store(struct kobject *kobj,
 }
 LUSTRE_RW_ATTR(max_pages_per_rpc);
 
+static ssize_t unstable_stats_show(struct kobject *kobj,
+				   struct attribute *attr,
+				   char *buf)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	struct client_obd *cli = &dev->u.cli;
+	int pages, mb;
+
+	pages = atomic_read(&cli->cl_unstable_count);
+	mb = (pages * PAGE_SIZE) >> 20;
+
+	return sprintf(buf, "unstable_pages: %8d\n"
+		       "unstable_mb:    %8d\n", pages, mb);
+}
+LUSTRE_RO_ATTR(unstable_stats);
+
 LPROC_SEQ_FOPS_RO_TYPE(osc, connect_flags);
 LPROC_SEQ_FOPS_RO_TYPE(osc, server_uuid);
 LPROC_SEQ_FOPS_RO_TYPE(osc, conn_uuid);
@@ -802,6 +819,7 @@ static struct attribute *osc_attrs[] = {
 	&lustre_attr_max_pages_per_rpc.attr,
 	&lustre_attr_max_rpcs_in_flight.attr,
 	&lustre_attr_resend_count.attr,
+	&lustre_attr_unstable_stats.attr,
 	NULL,
 };
 
