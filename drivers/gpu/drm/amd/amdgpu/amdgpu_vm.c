@@ -300,7 +300,8 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring,
 	int r;
 
 	if (ring->funcs->emit_pipeline_sync && (
-	    pd_addr != AMDGPU_VM_NO_FLUSH || gds_switch_needed))
+	    pd_addr != AMDGPU_VM_NO_FLUSH || gds_switch_needed ||
+		    ring->type == AMDGPU_RING_TYPE_COMPUTE))
 		amdgpu_ring_emit_pipeline_sync(ring);
 
 	if (ring->funcs->emit_vm_flush &&
