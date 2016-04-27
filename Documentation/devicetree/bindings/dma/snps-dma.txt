@@ -13,6 +13,11 @@ Required properties:
 - chan_priority: priority of channels. 0 (default): increase from chan 0->n, 1:
   increase from chan n->0
 - block_size: Maximum block size supported by the controller
+- data-width: Maximum data width supported by hardware per AHB master
+  (in bytes, power of 2)
+
+
+Deprecated properties:
 - data_width: Maximum data width supported by hardware per AHB master
   (0 - 8bits, 1 - 16bits, ..., 5 - 256bits)
 
@@ -38,7 +43,7 @@ Example:
 		chan_allocation_order = <1>;
 		chan_priority = <1>;
 		block_size = <0xfff>;
-		data_width = <3 3>;
+		data-width = <8 8>;
 	};
 
 DMA clients connected to the Designware DMA controller must use the format
