@@ -1583,7 +1583,7 @@ endmenu
 
 config MFD_VEXPRESS_SYSREG
 	bool "Versatile Express System Registers"
-	depends on VEXPRESS_CONFIG && GPIOLIB
+	depends on VEXPRESS_CONFIG && GPIOLIB && !ARCH_USES_GETTIMEOFFSET
 	default y
 	select CLKSRC_MMIO
 	select GPIO_GENERIC_PLATFORM
