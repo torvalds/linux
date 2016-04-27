@@ -1392,6 +1392,7 @@ static void ath10k_core_restart(struct work_struct *work)
 	complete_all(&ar->install_key_done);
 	complete_all(&ar->vdev_setup_done);
 	complete_all(&ar->thermal.wmi_sync);
+	complete_all(&ar->bss_survey_done);
 	wake_up(&ar->htt.empty_tx_wq);
 	wake_up(&ar->wmi.tx_credits_wq);
 	wake_up(&ar->peer_mapping_wq);
@@ -1723,6 +1724,9 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		val = 0;
 		if (ath10k_peer_stats_enabled(ar))
 			val = WMI_10_4_PEER_STATS;
+
+		if (test_bit(WMI_SERVICE_BSS_CHANNEL_INFO_64, ar->wmi.svc_map))
+			val |= WMI_10_4_BSS_CHANNEL_INFO_64;
 
 		status = ath10k_mac_ext_resource_config(ar, val);
 		if (status) {
@@ -2085,6 +2089,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	init_completion(&ar->install_key_done);
 	init_completion(&ar->vdev_setup_done);
 	init_completion(&ar->thermal.wmi_sync);
+	init_completion(&ar->bss_survey_done);
 
 	INIT_DELAYED_WORK(&ar->scan.timeout, ath10k_scan_timeout_work);
 
