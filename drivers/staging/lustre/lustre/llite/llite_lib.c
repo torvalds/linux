@@ -1033,8 +1033,8 @@ void ll_clear_inode(struct inode *inode)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p)\n", inode->i_ino,
-	       inode->i_generation, inode);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
+	       PFID(ll_inode2fid(inode)), inode);
 
 	if (S_ISDIR(inode->i_mode)) {
 		/* these should have been cleared in ll_file_release */
@@ -1181,9 +1181,11 @@ static int ll_setattr_done_writing(struct inode *inode,
 		 * from OSTs and send setattr to back to MDS.
 		 */
 		rc = ll_som_update(inode, op_data);
-	else if (rc)
-		CERROR("inode %lu mdc truncate failed: rc = %d\n",
-		       inode->i_ino, rc);
+	else if (rc) {
+		CERROR("%s: inode "DFID" mdc truncate failed: rc = %d\n",
+		      ll_i2sbi(inode)->ll_md_exp->exp_obd->obd_name,
+		      PFID(ll_inode2fid(inode)), rc);
+	}
 	return rc;
 }
 
@@ -1211,12 +1213,9 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	bool file_is_released = false;
 	int rc = 0, rc1 = 0;
 
-	CDEBUG(D_VFSTRACE,
-	       "%s: setattr inode %p/fid:" DFID
-	       " from %llu to %llu, valid %x, hsm_import %d\n",
-	       ll_get_fsname(inode->i_sb, NULL, 0), inode,
-	       PFID(&lli->lli_fid), i_size_read(inode), attr->ia_size,
-	       attr->ia_valid, hsm_import);
+	CDEBUG(D_VFSTRACE, "%s: setattr inode "DFID"(%p) from %llu to %llu, valid %x, hsm_import %d\n",
+	       ll_get_fsname(inode->i_sb, NULL, 0), PFID(&lli->lli_fid), inode,
+	       i_size_read(inode), attr->ia_size, attr->ia_valid, hsm_import);
 
 	if (attr->ia_valid & ATTR_SIZE) {
 		/* Check new size against VFS/VM file size limit and rlimit */
@@ -1590,10 +1589,9 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 		/* FID shouldn't be changed! */
 		if (fid_is_sane(&lli->lli_fid)) {
 			LASSERTF(lu_fid_eq(&lli->lli_fid, &body->fid1),
-				 "Trying to change FID "DFID
-				 " to the "DFID", inode %lu/%u(%p)\n",
+				 "Trying to change FID "DFID" to the "DFID", inode "DFID"(%p)\n",
 				 PFID(&lli->lli_fid), PFID(&body->fid1),
-				 inode->i_ino, inode->i_generation, inode);
+				 PFID(ll_inode2fid(inode)), inode);
 		} else {
 			lli->lli_fid = body->fid1;
 		}
@@ -1620,8 +1618,10 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 				if (lli->lli_flags & (LLIF_DONE_WRITING |
 						      LLIF_EPOCH_PENDING |
 						      LLIF_SOM_DIRTY)) {
-					CERROR("ino %lu flags %u still has size authority! do not trust the size got from MDS\n",
-					       inode->i_ino, lli->lli_flags);
+					CERROR("%s: inode "DFID" flags %u still has size authority! do not trust the size got from MDS\n",
+					       sbi->ll_md_exp->exp_obd->obd_name,
+					       PFID(ll_inode2fid(inode)),
+					       lli->lli_flags);
 				} else {
 					/* Use old size assignment to avoid
 					 * deadlock bz14138 & bz14326
@@ -1713,8 +1713,8 @@ void ll_delete_inode(struct inode *inode)
 		spin_lock_irq(&inode->i_data.tree_lock);
 		spin_unlock_irq(&inode->i_data.tree_lock);
 		LASSERTF(inode->i_data.nrpages == 0,
-			 "inode=%lu/%u(%p) nrpages=%lu, see http://jira.whamcloud.com/browse/LU-118\n",
-			 inode->i_ino, inode->i_generation, inode,
+			 "inode="DFID"(%p) nrpages=%lu, see http://jira.whamcloud.com/browse/LU-118\n",
+			 PFID(ll_inode2fid(inode)), inode,
 			 inode->i_data.nrpages);
 	}
 	/* Workaround end */
@@ -1745,7 +1745,9 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 		rc = md_getattr(sbi->ll_md_exp, op_data, &req);
 		ll_finish_md_op_data(op_data);
 		if (rc) {
-			CERROR("failure %d inode %lu\n", rc, inode->i_ino);
+			CERROR("%s: failure inode "DFID": rc = %d\n",
+			       sbi->ll_md_exp->exp_obd->obd_name,
+			       PFID(ll_inode2fid(inode)), rc);
 			return -abs(rc);
 		}
 

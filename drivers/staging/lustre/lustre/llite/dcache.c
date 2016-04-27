@@ -250,8 +250,8 @@ void ll_invalidate_aliases(struct inode *inode)
 {
 	struct dentry *dentry;
 
-	CDEBUG(D_INODE, "marking dentries for ino %lu/%u(%p) invalid\n",
-	       inode->i_ino, inode->i_generation, inode);
+	CDEBUG(D_INODE, "marking dentries for ino "DFID"(%p) invalid\n",
+	       PFID(ll_inode2fid(inode)), inode);
 
 	ll_lock_dcache(inode);
 	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
@@ -286,8 +286,8 @@ void ll_lookup_finish_locks(struct lookup_intent *it, struct inode *inode)
 	if (it->d.lustre.it_lock_mode && inode) {
 		struct ll_sb_info *sbi = ll_i2sbi(inode);
 
-		CDEBUG(D_DLMTRACE, "setting l_data to inode %p (%lu/%u)\n",
-		       inode, inode->i_ino, inode->i_generation);
+		CDEBUG(D_DLMTRACE, "setting l_data to inode "DFID"(%p)\n",
+		       PFID(ll_inode2fid(inode)), inode);
 		ll_set_lock_data(sbi->ll_md_exp, inode, it, NULL);
 	}
 

@@ -170,13 +170,15 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		 */
 		rc = ll_som_update(inode, op_data);
 		if (rc) {
-			CERROR("inode %lu mdc Size-on-MDS update failed: rc = %d\n",
-			       inode->i_ino, rc);
+			CERROR("%s: inode "DFID" mdc Size-on-MDS update failed: rc = %d\n",
+			       ll_i2mdexp(inode)->exp_obd->obd_name,
+			       PFID(ll_inode2fid(inode)), rc);
 			rc = 0;
 		}
 	} else if (rc) {
-		CERROR("inode %lu mdc close failed: rc = %d\n",
-		       inode->i_ino, rc);
+		CERROR("%s: inode "DFID" mdc close failed: rc = %d\n",
+		       ll_i2mdexp(inode)->exp_obd->obd_name,
+		       PFID(ll_inode2fid(inode)), rc);
 	}
 
 	/* DATA_MODIFIED flag was successfully sent on close, cancel data
@@ -343,8 +345,8 @@ int ll_file_release(struct inode *inode, struct file *file)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p)\n", inode->i_ino,
-	       inode->i_generation, inode);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
+	       PFID(ll_inode2fid(inode)), inode);
 
 #ifdef CONFIG_FS_POSIX_ACL
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
@@ -543,8 +545,8 @@ int ll_file_open(struct inode *inode, struct file *file)
 	struct ll_file_data *fd;
 	int rc = 0, opendir_set = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p), flags %o\n", inode->i_ino,
-	       inode->i_generation, inode, file->f_flags);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), flags %o\n",
+	       PFID(ll_inode2fid(inode)), inode, file->f_flags);
 
 	it = file->private_data; /* XXX: compat macro */
 	file->private_data = NULL; /* prevent ll_local_open assertion */
@@ -1383,8 +1385,8 @@ int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
 	lsm = ccc_inode_lsm_get(inode);
 	if (lsm) {
 		ccc_inode_lsm_put(inode, lsm);
-		CDEBUG(D_IOCTL, "stripe already exists for ino %lu\n",
-		       inode->i_ino);
+		CDEBUG(D_IOCTL, "stripe already exists for inode "DFID"\n",
+		       PFID(ll_inode2fid(inode)));
 		rc = -EEXIST;
 		goto out;
 	}
@@ -2248,8 +2250,8 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct ll_file_data	*fd = LUSTRE_FPRIVATE(file);
 	int			 flags, rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p),cmd=%x\n", inode->i_ino,
-	       inode->i_generation, inode, cmd);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p),cmd=%x\n",
+	       PFID(ll_inode2fid(inode)), inode, cmd);
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_IOCTL, 1);
 
 	/* asm-ppc{,64} declares TCGETS, et. al. as type 't' not 'T' */
@@ -2557,9 +2559,8 @@ static loff_t ll_file_seek(struct file *file, loff_t offset, int origin)
 
 	retval = offset + ((origin == SEEK_END) ? i_size_read(inode) :
 			   (origin == SEEK_CUR) ? file->f_pos : 0);
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p), to=%llu=%#llx(%d)\n",
-	       inode->i_ino, inode->i_generation, inode, retval, retval,
-	       origin);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), to=%llu=%#llx(%d)\n",
+	       PFID(ll_inode2fid(inode)), inode, retval, retval, origin);
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_LLSEEK, 1);
 
 	if (origin == SEEK_END || origin == SEEK_HOLE || origin == SEEK_DATA) {
@@ -2654,8 +2655,8 @@ int ll_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct ptlrpc_request *req;
 	int rc, err;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p)\n", inode->i_ino,
-	       inode->i_generation, inode);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
+	       PFID(ll_inode2fid(inode)), inode);
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_FSYNC, 1);
 
 	rc = filemap_write_and_wait_range(inode->i_mapping, start, end);
@@ -2713,8 +2714,8 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	int rc;
 	int rc2 = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu file_lock=%p\n",
-	       inode->i_ino, file_lock);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID" file_lock=%p\n",
+	       PFID(ll_inode2fid(inode)), file_lock);
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_FLOCK, 1);
 
@@ -2797,9 +2798,9 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	CDEBUG(D_DLMTRACE, "inode=%lu, pid=%u, flags=%#llx, mode=%u, start=%llu, end=%llu\n",
-	       inode->i_ino, flock.l_flock.pid, flags, einfo.ei_mode,
-	       flock.l_flock.start, flock.l_flock.end);
+	CDEBUG(D_DLMTRACE, "inode="DFID", pid=%u, flags=%#llx, mode=%u, start=%llu, end=%llu\n",
+	       PFID(ll_inode2fid(inode)), flock.l_flock.pid, flags,
+	       einfo.ei_mode, flock.l_flock.start, flock.l_flock.end);
 
 	rc = md_enqueue(sbi->ll_md_exp, &einfo, NULL,
 			op_data, &lockh, &flock, 0, NULL /* req */, flags);
@@ -2921,8 +2922,8 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 	struct obd_export *exp;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p),name=%pd\n",
-	       inode->i_ino, inode->i_generation, inode, dentry);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p),name=%pd\n",
+	       PFID(ll_inode2fid(inode)), inode, dentry);
 
 	exp = ll_i2mdexp(inode);
 
@@ -3144,8 +3145,8 @@ int ll_inode_permission(struct inode *inode, int mask)
 			return rc;
 	}
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p), inode mode %x mask %o\n",
-	       inode->i_ino, inode->i_generation, inode, inode->i_mode, mask);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), inode mode %x mask %o\n",
+	       PFID(ll_inode2fid(inode)), inode, inode->i_mode, mask);
 
 	if (ll_i2sbi(inode)->ll_flags & LL_SBI_RMT_CLIENT)
 		return lustre_check_remote_perm(inode, mask);
@@ -3435,8 +3436,8 @@ static int ll_layout_lock_set(struct lustre_handle *lockh, enum ldlm_mode mode,
 	LASSERT(lock);
 	LASSERT(ldlm_has_layout(lock));
 
-	LDLM_DEBUG(lock, "File %p/"DFID" being reconfigured: %d",
-		   inode, PFID(&lli->lli_fid), reconf);
+	LDLM_DEBUG(lock, "File "DFID"(%p) being reconfigured: %d",
+		   PFID(&lli->lli_fid), inode, reconf);
 
 	/* in case this is a caching lock and reinstate with new inode */
 	md_set_lock_data(sbi->ll_md_exp, &lockh->cookie, inode, NULL);
@@ -3507,9 +3508,9 @@ out:
 
 	/* wait for IO to complete if it's still being used. */
 	if (wait_layout) {
-		CDEBUG(D_INODE, "%s: %p/" DFID " wait for layout reconf.\n",
+		CDEBUG(D_INODE, "%s: "DFID"(%p) wait for layout reconf\n",
 		       ll_get_fsname(inode->i_sb, NULL, 0),
-		       inode, PFID(&lli->lli_fid));
+		       PFID(&lli->lli_fid), inode);
 
 		memset(&conf, 0, sizeof(conf));
 		conf.coc_opc = OBJECT_CONF_WAIT;
@@ -3518,7 +3519,8 @@ out:
 		if (rc == 0)
 			rc = -EAGAIN;
 
-		CDEBUG(D_INODE, "file: " DFID " waiting layout return: %d.\n",
+		CDEBUG(D_INODE, "%s: file="DFID" waiting layout return: %d.\n",
+		       ll_get_fsname(inode->i_sb, NULL, 0),
 		       PFID(&lli->lli_fid), rc);
 	}
 	return rc;
@@ -3591,9 +3593,9 @@ again:
 	it.it_op = IT_LAYOUT;
 	lockh.cookie = 0ULL;
 
-	LDLM_DEBUG_NOLOCK("%s: requeue layout lock for file %p/" DFID "",
-			  ll_get_fsname(inode->i_sb, NULL, 0), inode,
-			PFID(&lli->lli_fid));
+	LDLM_DEBUG_NOLOCK("%s: requeue layout lock for file "DFID"(%p)",
+			  ll_get_fsname(inode->i_sb, NULL, 0),
+			  PFID(&lli->lli_fid), inode);
 
 	rc = md_enqueue(sbi->ll_md_exp, &einfo, &it, op_data, &lockh,
 			NULL, 0, NULL, 0);
