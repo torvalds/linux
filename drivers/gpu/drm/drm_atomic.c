@@ -144,15 +144,7 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 		if (!connector)
 			continue;
 
-		/*
-		 * FIXME: Nonblocking commits can race with connector unplugging and
-		 * there's currently nothing that prevents cleanup up state for
-		 * deleted connectors. As long as the callback doesn't look at
-		 * the connector we'll be fine though, so make sure that's the
-		 * case by setting all connector pointers to NULL.
-		 */
-		state->connector_states[i]->connector = NULL;
-		connector->funcs->atomic_destroy_state(NULL,
+		connector->funcs->atomic_destroy_state(connector,
 						       state->connector_states[i]);
 		state->connectors[i] = NULL;
 		state->connector_states[i] = NULL;
@@ -1168,6 +1160,8 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 {
 	struct drm_crtc_state *crtc_state;
 
+	if (crtc)
+		drm_connector_reference(conn_state->connector);
 	if (conn_state->crtc && conn_state->crtc != crtc) {
 		crtc_state = drm_atomic_get_existing_crtc_state(conn_state->state,
 								conn_state->crtc);
@@ -1185,6 +1179,8 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 			1 << drm_connector_index(conn_state->connector);
 	}
 
+	if (conn_state->crtc)
+		drm_connector_unreference(conn_state->connector);
 	conn_state->crtc = crtc;
 
 	if (crtc)
