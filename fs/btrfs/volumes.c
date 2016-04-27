@@ -6254,7 +6254,7 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 			"invalid chunk length %llu", length);
 		return -EIO;
 	}
-	if (!is_power_of_2(stripe_len)) {
+	if (!is_power_of_2(stripe_len) || stripe_len != BTRFS_STRIPE_LEN) {
 		btrfs_err(root->fs_info, "invalid chunk stripe length: %llu",
 			  stripe_len);
 		return -EIO;
