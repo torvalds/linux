@@ -2571,7 +2571,15 @@ static inline struct drm_encoder *drm_encoder_find(struct drm_device *dev,
 	return mo ? obj_to_encoder(mo) : NULL;
 }
 
-static inline struct drm_connector *drm_connector_find(struct drm_device *dev,
+/**
+ * drm_connector_lookup - lookup connector object
+ * @dev: DRM device
+ * @id: connector object id
+ *
+ * This function looks up the connector object specified by id
+ * add takes a reference to it.
+ */
+static inline struct drm_connector *drm_connector_lookup(struct drm_device *dev,
 		uint32_t id)
 {
 	struct drm_mode_object *mo;
@@ -2637,6 +2645,28 @@ static inline void drm_framebuffer_unreference(struct drm_framebuffer *fb)
 static inline uint32_t drm_framebuffer_read_refcount(struct drm_framebuffer *fb)
 {
 	return atomic_read(&fb->base.refcount.refcount);
+}
+
+/**
+ * drm_connector_reference - incr the connector refcnt
+ * @connector: connector
+ *
+ * This function increments the connector's refcount.
+ */
+static inline void drm_connector_reference(struct drm_connector *connector)
+{
+	drm_mode_object_reference(&connector->base);
+}
+
+/**
+ * drm_connector_unreference - unref a connector
+ * @connector: connector to unref
+ *
+ * This function decrements the connector's refcount and frees it if it drops to zero.
+ */
+static inline void drm_connector_unreference(struct drm_connector *connector)
+{
+	drm_mode_object_unreference(&connector->base);
 }
 
 /* Plane list iterator for legacy (overlay only) planes. */

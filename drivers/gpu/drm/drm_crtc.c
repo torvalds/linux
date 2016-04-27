@@ -864,6 +864,16 @@ static void drm_connector_get_cmdline_mode(struct drm_connector *connector)
 		      mode->interlace ?  " interlaced" : "");
 }
 
+static void drm_connector_free(struct kref *kref)
+{
+	struct drm_connector *connector =
+		container_of(kref, struct drm_connector, base.refcount);
+	struct drm_device *dev = connector->dev;
+
+	drm_mode_object_unregister(dev, &connector->base);
+	connector->funcs->destroy(connector);
+}
+
 /**
  * drm_connector_init - Init a preallocated connector
  * @dev: DRM device
@@ -889,7 +899,9 @@ int drm_connector_init(struct drm_device *dev,
 
 	drm_modeset_lock_all(dev);
 
-	ret = drm_mode_object_get_reg(dev, &connector->base, DRM_MODE_OBJECT_CONNECTOR, false, NULL);
+	ret = drm_mode_object_get_reg(dev, &connector->base,
+				      DRM_MODE_OBJECT_CONNECTOR,
+				      false, drm_connector_free);
 	if (ret)
 		goto out_unlock;
 
@@ -2137,7 +2149,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->mode_config.mutex);
 
-	connector = drm_connector_find(dev, out_resp->connector_id);
+	connector = drm_connector_lookup(dev, out_resp->connector_id);
 	if (!connector) {
 		ret = -ENOENT;
 		goto out_unlock;
@@ -2221,6 +2233,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 out:
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 
+	drm_connector_unreference(connector);
 out_unlock:
 	mutex_unlock(&dev->mode_config.mutex);
 
@@ -2865,13 +2878,14 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		}
 
 		for (i = 0; i < crtc_req->count_connectors; i++) {
+			connector_set[i] = NULL;
 			set_connectors_ptr = (uint32_t __user *)(unsigned long)crtc_req->set_connectors_ptr;
 			if (get_user(out_id, &set_connectors_ptr[i])) {
 				ret = -EFAULT;
 				goto out;
 			}
 
-			connector = drm_connector_find(dev, out_id);
+			connector = drm_connector_lookup(dev, out_id);
 			if (!connector) {
 				DRM_DEBUG_KMS("Connector id %d unknown\n",
 						out_id);
@@ -2899,6 +2913,12 @@ out:
 	if (fb)
 		drm_framebuffer_unreference(fb);
 
+	if (connector_set) {
+		for (i = 0; i < crtc_req->count_connectors; i++) {
+			if (connector_set[i])
+				drm_connector_unreference(connector_set[i]);
+		}
+	}
 	kfree(connector_set);
 	drm_mode_destroy(dev, mode);
 	drm_modeset_unlock_all(dev);
@@ -4989,7 +5009,7 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 	property = obj_to_property(prop_obj);
 
 	if (!drm_property_change_valid_get(property, arg->value, &ref))
-		goto out;
+		goto out_unref;
 
 	switch (arg_obj->type) {
 	case DRM_MODE_OBJECT_CONNECTOR:
