@@ -66,7 +66,7 @@ static int ip_forward_finish(struct net *net, struct sock *sk, struct sk_buff *s
 	struct ip_options *opt	= &(IPCB(skb)->opt);
 
 	__IP_INC_STATS(net, IPSTATS_MIB_OUTFORWDATAGRAMS);
-	IP_ADD_STATS_BH(net, IPSTATS_MIB_OUTOCTETS, skb->len);
+	__IP_ADD_STATS(net, IPSTATS_MIB_OUTOCTETS, skb->len);
 
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
