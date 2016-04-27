@@ -761,10 +761,26 @@ void __init btrfs_init_compress(void)
 	int i;
 
 	for (i = 0; i < BTRFS_COMPRESS_TYPES; i++) {
+		struct list_head *workspace;
+
 		INIT_LIST_HEAD(&btrfs_comp_ws[i].idle_ws);
 		spin_lock_init(&btrfs_comp_ws[i].ws_lock);
 		atomic_set(&btrfs_comp_ws[i].total_ws, 0);
 		init_waitqueue_head(&btrfs_comp_ws[i].ws_wait);
+
+		/*
+		 * Preallocate one workspace for each compression type so
+		 * we can guarantee forward progress in the worst case
+		 */
+		workspace = btrfs_compress_op[i]->alloc_workspace();
+		if (IS_ERR(workspace)) {
+			printk(KERN_WARNING
+	"BTRFS: cannot preallocate compression workspace, will try later");
+		} else {
+			atomic_set(&btrfs_comp_ws[i].total_ws, 1);
+			btrfs_comp_ws[i].free_ws = 1;
+			list_add(workspace, &btrfs_comp_ws[i].idle_ws);
+		}
 	}
 }
 
