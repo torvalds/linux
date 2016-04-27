@@ -140,14 +140,40 @@ struct pt_buffer {
 	struct topa_entry	*topa_index[0];
 };
 
+#define PT_FILTERS_NUM	4
+
+/**
+ * struct pt_filter - IP range filter configuration
+ * @msr_a:	range start, goes to RTIT_ADDRn_A
+ * @msr_b:	range end, goes to RTIT_ADDRn_B
+ * @config:	4-bit field in RTIT_CTL
+ */
+struct pt_filter {
+	unsigned long	msr_a;
+	unsigned long	msr_b;
+	unsigned long	config;
+};
+
+/**
+ * struct pt_filters - IP range filtering context
+ * @filter:	filters defined for this context
+ * @nr_filters:	number of defined filters in the @filter array
+ */
+struct pt_filters {
+	struct pt_filter	filter[PT_FILTERS_NUM];
+	unsigned int		nr_filters;
+};
+
 /**
  * struct pt - per-cpu pt context
  * @handle:	perf output handle
+ * @filters:		last configured filters
  * @handle_nmi:	do handle PT PMI on this cpu, there's an active event
  * @vmx_on:	1 if VMX is ON on this cpu
  */
 struct pt {
 	struct perf_output_handle handle;
+	struct pt_filters	filters;
 	int			handle_nmi;
 	int			vmx_on;
 };
