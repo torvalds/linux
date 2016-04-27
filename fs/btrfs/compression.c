@@ -743,8 +743,11 @@ out:
 static struct {
 	struct list_head idle_ws;
 	spinlock_t ws_lock;
-	int num_ws;
-	atomic_t alloc_ws;
+	/* Number of free workspaces */
+	int free_ws;
+	/* Total number of allocated workspaces */
+	atomic_t total_ws;
+	/* Waiters for a free workspace */
 	wait_queue_head_t ws_wait;
 } btrfs_comp_ws[BTRFS_COMPRESS_TYPES];
 
@@ -760,7 +763,7 @@ void __init btrfs_init_compress(void)
 	for (i = 0; i < BTRFS_COMPRESS_TYPES; i++) {
 		INIT_LIST_HEAD(&btrfs_comp_ws[i].idle_ws);
 		spin_lock_init(&btrfs_comp_ws[i].ws_lock);
-		atomic_set(&btrfs_comp_ws[i].alloc_ws, 0);
+		atomic_set(&btrfs_comp_ws[i].total_ws, 0);
 		init_waitqueue_head(&btrfs_comp_ws[i].ws_wait);
 	}
 }
@@ -777,35 +780,35 @@ static struct list_head *find_workspace(int type)
 
 	struct list_head *idle_ws	= &btrfs_comp_ws[idx].idle_ws;
 	spinlock_t *ws_lock		= &btrfs_comp_ws[idx].ws_lock;
-	atomic_t *alloc_ws		= &btrfs_comp_ws[idx].alloc_ws;
+	atomic_t *total_ws		= &btrfs_comp_ws[idx].total_ws;
 	wait_queue_head_t *ws_wait	= &btrfs_comp_ws[idx].ws_wait;
-	int *num_ws			= &btrfs_comp_ws[idx].num_ws;
+	int *free_ws			= &btrfs_comp_ws[idx].free_ws;
 again:
 	spin_lock(ws_lock);
 	if (!list_empty(idle_ws)) {
 		workspace = idle_ws->next;
 		list_del(workspace);
-		(*num_ws)--;
+		(*free_ws)--;
 		spin_unlock(ws_lock);
 		return workspace;
 
 	}
-	if (atomic_read(alloc_ws) > cpus) {
+	if (atomic_read(total_ws) > cpus) {
 		DEFINE_WAIT(wait);
 
 		spin_unlock(ws_lock);
 		prepare_to_wait(ws_wait, &wait, TASK_UNINTERRUPTIBLE);
-		if (atomic_read(alloc_ws) > cpus && !*num_ws)
+		if (atomic_read(total_ws) > cpus && !*free_ws)
 			schedule();
 		finish_wait(ws_wait, &wait);
 		goto again;
 	}
-	atomic_inc(alloc_ws);
+	atomic_inc(total_ws);
 	spin_unlock(ws_lock);
 
 	workspace = btrfs_compress_op[idx]->alloc_workspace();
 	if (IS_ERR(workspace)) {
-		atomic_dec(alloc_ws);
+		atomic_dec(total_ws);
 		wake_up(ws_wait);
 	}
 	return workspace;
@@ -820,21 +823,21 @@ static void free_workspace(int type, struct list_head *workspace)
 	int idx = type - 1;
 	struct list_head *idle_ws	= &btrfs_comp_ws[idx].idle_ws;
 	spinlock_t *ws_lock		= &btrfs_comp_ws[idx].ws_lock;
-	atomic_t *alloc_ws		= &btrfs_comp_ws[idx].alloc_ws;
+	atomic_t *total_ws		= &btrfs_comp_ws[idx].total_ws;
 	wait_queue_head_t *ws_wait	= &btrfs_comp_ws[idx].ws_wait;
-	int *num_ws			= &btrfs_comp_ws[idx].num_ws;
+	int *free_ws			= &btrfs_comp_ws[idx].free_ws;
 
 	spin_lock(ws_lock);
-	if (*num_ws < num_online_cpus()) {
+	if (*free_ws < num_online_cpus()) {
 		list_add(workspace, idle_ws);
-		(*num_ws)++;
+		(*free_ws)++;
 		spin_unlock(ws_lock);
 		goto wake;
 	}
 	spin_unlock(ws_lock);
 
 	btrfs_compress_op[idx]->free_workspace(workspace);
-	atomic_dec(alloc_ws);
+	atomic_dec(total_ws);
 wake:
 	/*
 	 * Make sure counter is updated before we wake up waiters.
@@ -857,7 +860,7 @@ static void free_workspaces(void)
 			workspace = btrfs_comp_ws[i].idle_ws.next;
 			list_del(workspace);
 			btrfs_compress_op[i]->free_workspace(workspace);
-			atomic_dec(&btrfs_comp_ws[i].alloc_ws);
+			atomic_dec(&btrfs_comp_ws[i].total_ws);
 		}
 	}
 }
