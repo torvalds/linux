@@ -5781,15 +5781,18 @@ typedef void (perf_event_aux_output_cb)(struct perf_event *event, void *data);
 static void
 perf_event_aux_ctx(struct perf_event_context *ctx,
 		   perf_event_aux_output_cb output,
-		   void *data)
+		   void *data, bool all)
 {
 	struct perf_event *event;
 
 	list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
-		if (event->state < PERF_EVENT_STATE_INACTIVE)
-			continue;
-		if (!event_filter_match(event))
-			continue;
+		if (!all) {
+			if (event->state < PERF_EVENT_STATE_INACTIVE)
+				continue;
+			if (!event_filter_match(event))
+				continue;
+		}
+
 		output(event, data);
 	}
 }
@@ -5800,7 +5803,7 @@ perf_event_aux_task_ctx(perf_event_aux_output_cb output, void *data,
 {
 	rcu_read_lock();
 	preempt_disable();
-	perf_event_aux_ctx(task_ctx, output, data);
+	perf_event_aux_ctx(task_ctx, output, data, false);
 	preempt_enable();
 	rcu_read_unlock();
 }
@@ -5830,13 +5833,13 @@ perf_event_aux(perf_event_aux_output_cb output, void *data,
 		cpuctx = get_cpu_ptr(pmu->pmu_cpu_context);
 		if (cpuctx->unique_pmu != pmu)
 			goto next;
-		perf_event_aux_ctx(&cpuctx->ctx, output, data);
+		perf_event_aux_ctx(&cpuctx->ctx, output, data, false);
 		ctxn = pmu->task_ctx_nr;
 		if (ctxn < 0)
 			goto next;
 		ctx = rcu_dereference(current->perf_event_ctxp[ctxn]);
 		if (ctx)
-			perf_event_aux_ctx(ctx, output, data);
+			perf_event_aux_ctx(ctx, output, data, false);
 next:
 		put_cpu_ptr(pmu->pmu_cpu_context);
 	}
@@ -5878,10 +5881,10 @@ static int __perf_pmu_output_stop(void *info)
 	};
 
 	rcu_read_lock();
-	perf_event_aux_ctx(&cpuctx->ctx, __perf_event_output_stop, &ro);
+	perf_event_aux_ctx(&cpuctx->ctx, __perf_event_output_stop, &ro, false);
 	if (cpuctx->task_ctx)
 		perf_event_aux_ctx(cpuctx->task_ctx, __perf_event_output_stop,
-				   &ro);
+				   &ro, false);
 	rcu_read_unlock();
 
 	return ro.err;
