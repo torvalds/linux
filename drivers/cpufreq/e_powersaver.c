@@ -22,7 +22,7 @@
 #include <asm/msr.h>
 #include <asm/tsc.h>
 
-#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+#if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
 #include <linux/acpi.h>
 #include <acpi/processor.h>
 #endif
@@ -35,7 +35,7 @@
 
 struct eps_cpu_data {
 	u32 fsb;
-#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+#if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
 	u32 bios_limit;
 #endif
 	struct cpufreq_frequency_table freq_table[];
@@ -48,7 +48,7 @@ static int freq_failsafe_off;
 static int voltage_failsafe_off;
 static int set_max_voltage;
 
-#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+#if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
 static int ignore_acpi_limit;
 
 static struct acpi_processor_performance *eps_acpi_cpu_perf;
@@ -186,7 +186,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	int k, step, voltage;
 	int ret;
 	int states;
-#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+#if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
 	unsigned int limit;
 #endif
 
@@ -286,7 +286,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	/* Calc FSB speed */
 	fsb = cpu_khz / current_multiplier;
 
-#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+#if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
 	/* Check for ACPI processor speed limit */
 	if (!ignore_acpi_limit && !eps_acpi_init()) {
 		if (!acpi_processor_get_bios_limit(policy->cpu, &limit)) {
@@ -333,7 +333,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 
 	/* Copy basic values */
 	centaur->fsb = fsb;
-#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+#if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
 	centaur->bios_limit = limit;
 #endif
 
@@ -418,7 +418,7 @@ module_param(freq_failsafe_off, int, 0644);
 MODULE_PARM_DESC(freq_failsafe_off, "Disable current vs max frequency check");
 module_param(voltage_failsafe_off, int, 0644);
 MODULE_PARM_DESC(voltage_failsafe_off, "Disable current vs max voltage check");
-#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+#if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
 module_param(ignore_acpi_limit, int, 0644);
 MODULE_PARM_DESC(ignore_acpi_limit, "Don't check ACPI's processor speed limit");
 #endif
