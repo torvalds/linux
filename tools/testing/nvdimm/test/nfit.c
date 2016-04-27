@@ -336,6 +336,7 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 {
 	struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
 	struct nfit_test *t = container_of(acpi_desc, typeof(*t), acpi_desc);
+	unsigned int func = cmd;
 	int i, rc = 0, __cmd_rc;
 
 	if (!cmd_rc)
@@ -346,7 +347,21 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 		unsigned long cmd_mask = nvdimm_cmd_mask(nvdimm);
 
-		if (!nfit_mem || !test_bit(cmd, &cmd_mask))
+		if (!nfit_mem)
+			return -ENOTTY;
+
+		if (cmd == ND_CMD_CALL) {
+			struct nd_cmd_pkg *call_pkg = buf;
+
+			buf_len = call_pkg->nd_size_in + call_pkg->nd_size_out;
+			buf = (void *) call_pkg->nd_payload;
+			func = call_pkg->nd_command;
+			if (call_pkg->nd_family != nfit_mem->family)
+				return -ENOTTY;
+		}
+
+		if (!test_bit(cmd, &cmd_mask)
+				|| !test_bit(func, &nfit_mem->dsm_mask))
 			return -ENOTTY;
 
 		/* lookup label space for the given dimm */
@@ -357,7 +372,7 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		if (i >= ARRAY_SIZE(handle))
 			return -ENXIO;
 
-		switch (cmd) {
+		switch (func) {
 		case ND_CMD_GET_CONFIG_SIZE:
 			rc = nfit_test_cmd_get_config_size(buf, buf_len);
 			break;
@@ -378,7 +393,7 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		if (!nd_desc || !test_bit(cmd, &nd_desc->cmd_mask))
 			return -ENOTTY;
 
-		switch (cmd) {
+		switch (func) {
 		case ND_CMD_ARS_CAP:
 			rc = nfit_test_cmd_ars_cap(buf, buf_len);
 			break;
