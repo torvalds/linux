@@ -8541,11 +8541,6 @@ reinit_after_soft_reset:
 	if (rc)
 		goto clean6; /* sg, cmd, irq, shost, pci, lu, aer/h */
 
-	/* hook into SCSI subsystem */
-	rc = hpsa_scsi_add_host(h);
-	if (rc)
-		goto clean7; /* perf, sg, cmd, irq, shost, pci, lu, aer/h */
-
 	/* create the resubmit workqueue */
 	h->rescan_ctlr_wq = hpsa_create_controller_wq(h, "rescan");
 	if (!h->rescan_ctlr_wq) {
@@ -8641,6 +8636,11 @@ reinit_after_soft_reset:
 	if (!h->lastlogicals)
 		dev_info(&h->pdev->dev,
 			"Can't track change to report lun data\n");
+
+	/* hook into SCSI subsystem */
+	rc = hpsa_scsi_add_host(h);
+	if (rc)
+		goto clean7; /* perf, sg, cmd, irq, shost, pci, lu, aer/h */
 
 	/* Monitor the controller for firmware lockups */
 	h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL;
