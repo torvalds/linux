@@ -2360,8 +2360,10 @@ static void process_ioaccel2_completion(struct ctlr_info *h,
 		c2->error_data.serv_response ==
 			IOACCEL2_SERV_RESPONSE_FAILURE) {
 		if (c2->error_data.status ==
-			IOACCEL2_STATUS_SR_IOACCEL_DISABLED)
+			IOACCEL2_STATUS_SR_IOACCEL_DISABLED) {
 			dev->offload_enabled = 0;
+			dev->offload_to_be_enabled = 0;
+		}
 
 		return hpsa_retry_cmd(h, c);
 	}
