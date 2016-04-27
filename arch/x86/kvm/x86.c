@@ -2769,6 +2769,7 @@ static int kvm_vcpu_ioctl_get_lapic(struct kvm_vcpu *vcpu,
 		kvm_x86_ops->sync_pir_to_irr(vcpu);
 
 	memcpy(s->regs, vcpu->arch.apic->regs, sizeof *s);
+	kvm_apic_state_get_fixup(vcpu, s);
 
 	return 0;
 }
@@ -2776,6 +2777,7 @@ static int kvm_vcpu_ioctl_get_lapic(struct kvm_vcpu *vcpu,
 static int kvm_vcpu_ioctl_set_lapic(struct kvm_vcpu *vcpu,
 				    struct kvm_lapic_state *s)
 {
+	kvm_apic_state_set_fixup(vcpu, s);
 	kvm_apic_post_state_restore(vcpu, s);
 	update_cr8_intercept(vcpu);
 

@@ -1583,6 +1583,11 @@ struct kvm_lapic_state {
 Reads the Local APIC registers and copies them into the input argument.  The
 data format and layout are the same as documented in the architecture manual.
 
+Note that the APIC ID is stored in APIC_ID register in big endian format.
+This makes no difference for xAPIC APIC ID, which is still in the top 8 bits,
+but x2APIC ID needs to be byteswapped.  The reason is compatibility with KVM's
+definition of x2APIC.  (The hardware stores x2APIC ID as little endian.)
+
 
 4.58 KVM_SET_LAPIC
 
@@ -1600,6 +1605,7 @@ struct kvm_lapic_state {
 Copies the input argument into the Local APIC registers.  The data format
 and layout are the same as documented in the architecture manual.
 
+See the note about APIC_ID register in KVM_GET_LAPIC.
 
 4.59 KVM_IOEVENTFD
 

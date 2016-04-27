@@ -71,6 +71,10 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 
 u64 kvm_get_apic_base(struct kvm_vcpu *vcpu);
 int kvm_set_apic_base(struct kvm_vcpu *vcpu, struct msr_data *msr_info);
+void kvm_apic_state_get_fixup(struct kvm_vcpu *vcpu,
+		struct kvm_lapic_state *s);
+void kvm_apic_state_set_fixup(struct kvm_vcpu *vcpu,
+		struct kvm_lapic_state *s);
 void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 		struct kvm_lapic_state *s);
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu);
@@ -169,7 +173,8 @@ static inline int kvm_lapic_latched_init(struct kvm_vcpu *vcpu)
 
 static inline u32 kvm_apic_id(struct kvm_lapic *apic)
 {
-	return (kvm_apic_get_reg(apic, APIC_ID) >> 24) & 0xff;
+	u32 id = kvm_apic_get_reg(apic, APIC_ID);
+	return apic_x2apic_mode(apic) ? id : id >> 24;
 }
 
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector);
