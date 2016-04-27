@@ -488,13 +488,16 @@ static ssize_t amlogic_cec_read(struct file *file, char __user *buffer,
 
     retval = entry->size;
 
-    amlogic_cec_set_rx_state(STATE_RX);
-
 error_exit:
     if (entry != NULL)
     {
     	list_del(&entry->list);
     	kfree(entry);
+    }
+
+    if (list_empty(&cec_rx_struct.list))
+    {
+        amlogic_cec_set_rx_state(STATE_RX);
     }
 
     spin_unlock_irqrestore(&cec_rx_struct.lock, spin_flags);
@@ -590,8 +593,10 @@ static long amlogic_cec_ioctl(struct file *file, unsigned int cmd,
 
 static u32 amlogic_cec_poll(struct file *file, poll_table *wait)
 {
-    poll_wait(file, &cec_rx_struct.waitq, wait);
-
+    if (atomic_read(&cec_rx_struct.state) != STATE_DONE)
+    {
+        poll_wait(file, &cec_rx_struct.waitq, wait);
+    }
     if (atomic_read(&cec_rx_struct.state) == STATE_DONE)
     {
 	return POLLIN | POLLRDNORM;
