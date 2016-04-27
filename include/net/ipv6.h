@@ -167,11 +167,11 @@ extern int sysctl_mld_qrv;
 
 #define IP6_INC_STATS(net, idev,field)		\
 		_DEVINC(net, ipv6, 64, idev, field)
-#define IP6_INC_STATS_BH(net, idev,field)	\
+#define __IP6_INC_STATS(net, idev,field)	\
 		_DEVINC(net, ipv6, 64_BH, idev, field)
 #define IP6_ADD_STATS(net, idev,field,val)	\
 		_DEVADD(net, ipv6, 64, idev, field, val)
-#define IP6_ADD_STATS_BH(net, idev,field,val)	\
+#define __IP6_ADD_STATS(net, idev,field,val)	\
 		_DEVADD(net, ipv6, 64_BH, idev, field, val)
 #define IP6_UPD_PO_STATS(net, idev,field,val)   \
 		_DEVUPD(net, ipv6, 64, idev, field, val)
