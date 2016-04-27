@@ -2851,16 +2851,13 @@ static void delayed_ref_async_start(struct btrfs_work *work)
 
 	async = container_of(work, struct async_delayed_refs, work);
 
-	trans = btrfs_attach_transaction(async->root);
-	if (IS_ERR(trans)) {
-		if (PTR_ERR(trans) != -ENOENT)
-			async->error = PTR_ERR(trans);
+	/* if the commit is already started, we don't need to wait here */
+	if (btrfs_transaction_blocked(async->root->fs_info))
 		goto done;
-	}
 
-	/* Don't bother flushing if we got into a different transaction */
-	if (trans->transid != async->transid) {
-		btrfs_end_transaction(trans, async->root);
+	trans = btrfs_join_transaction(async->root);
+	if (IS_ERR(trans)) {
+		async->error = PTR_ERR(trans);
 		goto done;
 	}
 
@@ -2869,10 +2866,15 @@ static void delayed_ref_async_start(struct btrfs_work *work)
 	 * wait on delayed refs
 	 */
 	trans->sync = true;
+
+	/* Don't bother flushing if we got into a different transaction */
+	if (trans->transid > async->transid)
+		goto end;
+
 	ret = btrfs_run_delayed_refs(trans, async->root, async->count);
 	if (ret)
 		async->error = ret;
-
+end:
 	ret = btrfs_end_transaction(trans, async->root);
 	if (ret && !async->error)
 		async->error = ret;
