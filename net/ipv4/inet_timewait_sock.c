@@ -147,9 +147,9 @@ static void tw_timer_handler(unsigned long data)
 	struct inet_timewait_sock *tw = (struct inet_timewait_sock *)data;
 
 	if (tw->tw_kill)
-		NET_INC_STATS_BH(twsk_net(tw), LINUX_MIB_TIMEWAITKILLED);
+		__NET_INC_STATS(twsk_net(tw), LINUX_MIB_TIMEWAITKILLED);
 	else
-		NET_INC_STATS_BH(twsk_net(tw), LINUX_MIB_TIMEWAITED);
+		__NET_INC_STATS(twsk_net(tw), LINUX_MIB_TIMEWAITED);
 	inet_twsk_kill(tw);
 }
 

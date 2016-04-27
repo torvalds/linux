@@ -1743,7 +1743,7 @@ static inline __u32 cookie_init_sequence(const struct tcp_request_sock_ops *ops,
 					 __u16 *mss)
 {
 	tcp_synq_overflow(sk);
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESSENT);
+	__NET_INC_STATS(sock_net(sk), LINUX_MIB_SYNCOOKIESSENT);
 	return ops->cookie_init_seq(skb, mss);
 }
 #else
@@ -1852,7 +1852,7 @@ static inline void tcp_segs_in(struct tcp_sock *tp, const struct sk_buff *skb)
 static inline void tcp_listendrop(const struct sock *sk)
 {
 	atomic_inc(&((struct sock *)sk)->sk_drops);
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENDROPS);
 }
 
 #endif	/* _TCP_H */

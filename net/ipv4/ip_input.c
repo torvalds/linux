@@ -337,7 +337,7 @@ static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 					       iph->tos, skb->dev);
 		if (unlikely(err)) {
 			if (err == -EXDEV)
-				NET_INC_STATS_BH(net, LINUX_MIB_IPRPFILTER);
+				__NET_INC_STATS(net, LINUX_MIB_IPRPFILTER);
 			goto drop;
 		}
 	}
