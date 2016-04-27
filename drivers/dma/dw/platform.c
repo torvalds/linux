@@ -161,7 +161,7 @@ static int dw_probe(struct platform_device *pdev)
 	struct dw_dma_chip *chip;
 	struct device *dev = &pdev->dev;
 	struct resource *mem;
-	struct dw_dma_platform_data *pdata;
+	const struct dw_dma_platform_data *pdata;
 	int err;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
@@ -186,6 +186,7 @@ static int dw_probe(struct platform_device *pdev)
 		pdata = dw_dma_parse_dt(pdev);
 
 	chip->dev = dev;
+	chip->pdata = pdata;
 
 	chip->clk = devm_clk_get(chip->dev, "hclk");
 	if (IS_ERR(chip->clk))
@@ -196,7 +197,7 @@ static int dw_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	err = dw_dma_probe(chip, pdata);
+	err = dw_dma_probe(chip);
 	if (err)
 		goto err_dw_dma_probe;
 

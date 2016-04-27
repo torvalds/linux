@@ -1248,7 +1248,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	hsdev->dma->dev = &ofdev->dev;
 
 	/* Initialize AHB DMAC */
-	err = dw_dma_probe(hsdev->dma, NULL);
+	err = dw_dma_probe(hsdev->dma);
 	if (err)
 		goto error_dma_iomap;
 

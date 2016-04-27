@@ -1439,8 +1439,9 @@ EXPORT_SYMBOL(dw_dma_cyclic_free);
 
 /*----------------------------------------------------------------------*/
 
-int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
+int dw_dma_probe(struct dw_dma_chip *chip)
 {
+	struct dw_dma_platform_data *pdata;
 	struct dw_dma		*dw;
 	bool			autocfg = false;
 	unsigned int		dw_params;
@@ -1460,7 +1461,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 	pm_runtime_get_sync(chip->dev);
 
-	if (!pdata) {
+	if (!chip->pdata) {
 		dw_params = dma_readl(dw, DW_PARAMS);
 		dev_dbg(chip->dev, "DW_PARAMS: 0x%08x\n", dw_params);
 
@@ -1487,11 +1488,11 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 		pdata->is_memcpy = true;
 		pdata->chan_allocation_order = CHAN_ALLOCATION_ASCENDING;
 		pdata->chan_priority = CHAN_PRIORITY_ASCENDING;
-	} else if (pdata->nr_channels > DW_DMA_MAX_NR_CHANNELS) {
+	} else if (chip->pdata->nr_channels > DW_DMA_MAX_NR_CHANNELS) {
 		err = -EINVAL;
 		goto err_pdata;
 	} else {
-		memcpy(dw->pdata, pdata, sizeof(*dw->pdata));
+		memcpy(dw->pdata, chip->pdata, sizeof(*dw->pdata));
 
 		/* Reassign the platform data pointer */
 		pdata = dw->pdata;
