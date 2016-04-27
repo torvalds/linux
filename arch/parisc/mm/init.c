@@ -22,7 +22,7 @@
 #include <linux/swap.h>
 #include <linux/unistd.h>
 #include <linux/nodemask.h>	/* for node_online_map */
-#include <linux/pagemap.h>	/* for release_pages and page_cache_release */
+#include <linux/pagemap.h>	/* for release_pages */
 #include <linux/compat.h>
 
 #include <asm/pgalloc.h>

@@ -194,7 +194,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 		while (compressed_size > 0) {
 			cpage = compressed_pages[i];
 			cur_size = min_t(unsigned long, compressed_size,
-				       PAGE_CACHE_SIZE);
+				       PAGE_SIZE);
 
 			kaddr = kmap_atomic(cpage);
 			write_extent_buffer(leaf, kaddr, ptr, cur_size);
@@ -208,13 +208,13 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 						  compress_type);
 	} else {
 		page = find_get_page(inode->i_mapping,
-				     start >> PAGE_CACHE_SHIFT);
+				     start >> PAGE_SHIFT);
 		btrfs_set_file_extent_compression(leaf, ei, 0);
 		kaddr = kmap_atomic(page);
-		offset = start & (PAGE_CACHE_SIZE - 1);
+		offset = start & (PAGE_SIZE - 1);
 		write_extent_buffer(leaf, kaddr + offset, ptr, size);
 		kunmap_atomic(kaddr);
-		page_cache_release(page);
+		put_page(page);
 	}
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(path);
@@ -322,7 +322,7 @@ out:
 	 * And at reserve time, it's always aligned to page size, so
 	 * just free one page here.
 	 */
-	btrfs_qgroup_free_data(inode, 0, PAGE_CACHE_SIZE);
+	btrfs_qgroup_free_data(inode, 0, PAGE_SIZE);
 	btrfs_free_path(path);
 	btrfs_end_transaction(trans, root);
 	return ret;
@@ -435,8 +435,8 @@ static noinline void compress_file_range(struct inode *inode,
 	actual_end = min_t(u64, isize, end + 1);
 again:
 	will_compress = 0;
-	nr_pages = (end >> PAGE_CACHE_SHIFT) - (start >> PAGE_CACHE_SHIFT) + 1;
-	nr_pages = min_t(unsigned long, nr_pages, SZ_128K / PAGE_CACHE_SIZE);
+	nr_pages = (end >> PAGE_SHIFT) - (start >> PAGE_SHIFT) + 1;
+	nr_pages = min_t(unsigned long, nr_pages, SZ_128K / PAGE_SIZE);
 
 	/*
 	 * we don't want to send crud past the end of i_size through
@@ -514,7 +514,7 @@ again:
 
 		if (!ret) {
 			unsigned long offset = total_compressed &
-				(PAGE_CACHE_SIZE - 1);
+				(PAGE_SIZE - 1);
 			struct page *page = pages[nr_pages_ret - 1];
 			char *kaddr;
 
@@ -524,7 +524,7 @@ again:
 			if (offset) {
 				kaddr = kmap_atomic(page);
 				memset(kaddr + offset, 0,
-				       PAGE_CACHE_SIZE - offset);
+				       PAGE_SIZE - offset);
 				kunmap_atomic(kaddr);
 			}
 			will_compress = 1;
@@ -580,7 +580,7 @@ cont:
 		 * one last check to make sure the compression is really a
 		 * win, compare the page count read with the blocks on disk
 		 */
-		total_in = ALIGN(total_in, PAGE_CACHE_SIZE);
+		total_in = ALIGN(total_in, PAGE_SIZE);
 		if (total_compressed >= total_in) {
 			will_compress = 0;
 		} else {
@@ -594,7 +594,7 @@ cont:
 		 */
 		for (i = 0; i < nr_pages_ret; i++) {
 			WARN_ON(pages[i]->mapping);
-			page_cache_release(pages[i]);
+			put_page(pages[i]);
 		}
 		kfree(pages);
 		pages = NULL;
@@ -650,7 +650,7 @@ cleanup_and_bail_uncompressed:
 free_pages_out:
 	for (i = 0; i < nr_pages_ret; i++) {
 		WARN_ON(pages[i]->mapping);
-		page_cache_release(pages[i]);
+		put_page(pages[i]);
 	}
 	kfree(pages);
 }
@@ -664,7 +664,7 @@ static void free_async_extent_pages(struct async_extent *async_extent)
 
 	for (i = 0; i < async_extent->nr_pages; i++) {
 		WARN_ON(async_extent->pages[i]->mapping);
-		page_cache_release(async_extent->pages[i]);
+		put_page(async_extent->pages[i]);
 	}
 	kfree(async_extent->pages);
 	async_extent->nr_pages = 0;
@@ -966,7 +966,7 @@ static noinline int cow_file_range(struct inode *inode,
 				     PAGE_END_WRITEBACK);
 
 			*nr_written = *nr_written +
-			     (end - start + PAGE_CACHE_SIZE) / PAGE_CACHE_SIZE;
+			     (end - start + PAGE_SIZE) / PAGE_SIZE;
 			*page_started = 1;
 			goto out;
 		} else if (ret < 0) {
@@ -1106,8 +1106,8 @@ static noinline void async_cow_submit(struct btrfs_work *work)
 	async_cow = container_of(work, struct async_cow, work);
 
 	root = async_cow->root;
-	nr_pages = (async_cow->end - async_cow->start + PAGE_CACHE_SIZE) >>
-		PAGE_CACHE_SHIFT;
+	nr_pages = (async_cow->end - async_cow->start + PAGE_SIZE) >>
+		PAGE_SHIFT;
 
 	/*
 	 * atomic_sub_return implies a barrier for waitqueue_active
@@ -1164,8 +1164,8 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 				async_cow_start, async_cow_submit,
 				async_cow_free);
 
-		nr_pages = (cur_end - start + PAGE_CACHE_SIZE) >>
-			PAGE_CACHE_SHIFT;
+		nr_pages = (cur_end - start + PAGE_SIZE) >>
+			PAGE_SHIFT;
 		atomic_add(nr_pages, &root->fs_info->async_delalloc_pages);
 
 		btrfs_queue_work(root->fs_info->delalloc_workers,
@@ -1960,7 +1960,7 @@ static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end,
 			      struct extent_state **cached_state)
 {
-	WARN_ON((end & (PAGE_CACHE_SIZE - 1)) == 0);
+	WARN_ON((end & (PAGE_SIZE - 1)) == 0);
 	return set_extent_delalloc(&BTRFS_I(inode)->io_tree, start, end,
 				   cached_state, GFP_NOFS);
 }
@@ -1993,7 +1993,7 @@ again:
 
 	inode = page->mapping->host;
 	page_start = page_offset(page);
-	page_end = page_offset(page) + PAGE_CACHE_SIZE - 1;
+	page_end = page_offset(page) + PAGE_SIZE - 1;
 
 	lock_extent_bits(&BTRFS_I(inode)->io_tree, page_start, page_end,
 			 &cached_state);
@@ -2003,7 +2003,7 @@ again:
 		goto out;
 
 	ordered = btrfs_lookup_ordered_range(inode, page_start,
-					PAGE_CACHE_SIZE);
+					PAGE_SIZE);
 	if (ordered) {
 		unlock_extent_cached(&BTRFS_I(inode)->io_tree, page_start,
 				     page_end, &cached_state, GFP_NOFS);
@@ -2014,7 +2014,7 @@ again:
 	}
 
 	ret = btrfs_delalloc_reserve_space(inode, page_start,
-					   PAGE_CACHE_SIZE);
+					   PAGE_SIZE);
 	if (ret) {
 		mapping_set_error(page->mapping, ret);
 		end_extent_writepage(page, ret, page_start, page_end);
@@ -2030,7 +2030,7 @@ out:
 			     &cached_state, GFP_NOFS);
 out_page:
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 	kfree(fixup);
 }
 
@@ -2063,7 +2063,7 @@ static int btrfs_writepage_start_hook(struct page *page, u64 start, u64 end)
 		return -EAGAIN;
 
 	SetPageChecked(page);
-	page_cache_get(page);
+	get_page(page);
 	btrfs_init_work(&fixup->work, btrfs_fixup_helper,
 			btrfs_writepage_fixup_worker, NULL, NULL);
 	fixup->page = page;
@@ -4247,7 +4247,7 @@ static int truncate_inline_extent(struct inode *inode,
 
 	if (btrfs_file_extent_compression(leaf, fi) != BTRFS_COMPRESS_NONE) {
 		loff_t offset = new_size;
-		loff_t page_end = ALIGN(offset, PAGE_CACHE_SIZE);
+		loff_t page_end = ALIGN(offset, PAGE_SIZE);
 
 		/*
 		 * Zero out the remaining of the last page of our inline extent,
@@ -4633,7 +4633,7 @@ int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
 	struct extent_state *cached_state = NULL;
 	char *kaddr;
 	u32 blocksize = root->sectorsize;
-	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+	pgoff_t index = from >> PAGE_SHIFT;
 	unsigned offset = from & (blocksize - 1);
 	struct page *page;
 	gfp_t mask = btrfs_alloc_write_mask(mapping);
@@ -4668,7 +4668,7 @@ again:
 		lock_page(page);
 		if (page->mapping != mapping) {
 			unlock_page(page);
-			page_cache_release(page);
+			put_page(page);
 			goto again;
 		}
 		if (!PageUptodate(page)) {
@@ -4686,7 +4686,7 @@ again:
 		unlock_extent_cached(io_tree, block_start, block_end,
 				     &cached_state, GFP_NOFS);
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 		btrfs_start_ordered_extent(inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
@@ -4728,7 +4728,7 @@ out_unlock:
 		btrfs_delalloc_release_space(inode, block_start,
 					     blocksize);
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 out:
 	return ret;
 }
@@ -6717,7 +6717,7 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 
 	read_extent_buffer(leaf, tmp, ptr, inline_size);
 
-	max_size = min_t(unsigned long, PAGE_CACHE_SIZE, max_size);
+	max_size = min_t(unsigned long, PAGE_SIZE, max_size);
 	ret = btrfs_decompress(compress_type, tmp, page,
 			       extent_offset, inline_size, max_size);
 	kfree(tmp);
@@ -6879,8 +6879,8 @@ next:
 
 		size = btrfs_file_extent_inline_len(leaf, path->slots[0], item);
 		extent_offset = page_offset(page) + pg_offset - extent_start;
-		copy_size = min_t(u64, PAGE_CACHE_SIZE - pg_offset,
-				size - extent_offset);
+		copy_size = min_t(u64, PAGE_SIZE - pg_offset,
+				  size - extent_offset);
 		em->start = extent_start + extent_offset;
 		em->len = ALIGN(copy_size, root->sectorsize);
 		em->orig_block_len = em->len;
@@ -6899,9 +6899,9 @@ next:
 				map = kmap(page);
 				read_extent_buffer(leaf, map + pg_offset, ptr,
 						   copy_size);
-				if (pg_offset + copy_size < PAGE_CACHE_SIZE) {
+				if (pg_offset + copy_size < PAGE_SIZE) {
 					memset(map + pg_offset + copy_size, 0,
-					       PAGE_CACHE_SIZE - pg_offset -
+					       PAGE_SIZE - pg_offset -
 					       copy_size);
 				}
 				kunmap(page);
@@ -7336,12 +7336,12 @@ bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end)
 	int start_idx;
 	int end_idx;
 
-	start_idx = start >> PAGE_CACHE_SHIFT;
+	start_idx = start >> PAGE_SHIFT;
 
 	/*
 	 * end is the last byte in the last page.  end == start is legal
 	 */
-	end_idx = end >> PAGE_CACHE_SHIFT;
+	end_idx = end >> PAGE_SHIFT;
 
 	rcu_read_lock();
 
@@ -7382,7 +7382,7 @@ bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end)
 		 * include/linux/pagemap.h for details.
 		 */
 		if (unlikely(page != *pagep)) {
-			page_cache_release(page);
+			put_page(page);
 			page = NULL;
 		}
 	}
@@ -7390,7 +7390,7 @@ bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end)
 	if (page) {
 		if (page->index <= end_idx)
 			found = true;
-		page_cache_release(page);
+		put_page(page);
 	}
 
 	rcu_read_unlock();
@@ -8719,7 +8719,7 @@ static int __btrfs_releasepage(struct page *page, gfp_t gfp_flags)
 	if (ret == 1) {
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
-		page_cache_release(page);
+		put_page(page);
 	}
 	return ret;
 }
@@ -8739,7 +8739,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 	struct btrfs_ordered_extent *ordered;
 	struct extent_state *cached_state = NULL;
 	u64 page_start = page_offset(page);
-	u64 page_end = page_start + PAGE_CACHE_SIZE - 1;
+	u64 page_end = page_start + PAGE_SIZE - 1;
 	u64 start;
 	u64 end;
 	int inode_evicting = inode->i_state & I_FREEING;
@@ -8822,7 +8822,7 @@ again:
 	 * 2) Not written to disk
 	 *    This means the reserved space should be freed here.
 	 */
-	btrfs_qgroup_free_data(inode, page_start, PAGE_CACHE_SIZE);
+	btrfs_qgroup_free_data(inode, page_start, PAGE_SIZE);
 	if (!inode_evicting) {
 		clear_extent_bit(tree, page_start, page_end,
 				 EXTENT_LOCKED | EXTENT_DIRTY |
@@ -8837,7 +8837,7 @@ again:
 	if (PagePrivate(page)) {
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
-		page_cache_release(page);
+		put_page(page);
 	}
 }
 
@@ -8874,11 +8874,11 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	u64 page_end;
 	u64 end;
 
-	reserved_space = PAGE_CACHE_SIZE;
+	reserved_space = PAGE_SIZE;
 
 	sb_start_pagefault(inode->i_sb);
 	page_start = page_offset(page);
-	page_end = page_start + PAGE_CACHE_SIZE - 1;
+	page_end = page_start + PAGE_SIZE - 1;
 	end = page_end;
 
 	/*
@@ -8934,15 +8934,15 @@ again:
 		goto again;
 	}
 
-	if (page->index == ((size - 1) >> PAGE_CACHE_SHIFT)) {
+	if (page->index == ((size - 1) >> PAGE_SHIFT)) {
 		reserved_space = round_up(size - page_start, root->sectorsize);
-		if (reserved_space < PAGE_CACHE_SIZE) {
+		if (reserved_space < PAGE_SIZE) {
 			end = page_start + reserved_space - 1;
 			spin_lock(&BTRFS_I(inode)->lock);
 			BTRFS_I(inode)->outstanding_extents++;
 			spin_unlock(&BTRFS_I(inode)->lock);
 			btrfs_delalloc_release_space(inode, page_start,
-						PAGE_CACHE_SIZE - reserved_space);
+						PAGE_SIZE - reserved_space);
 		}
 	}
 
@@ -8969,14 +8969,14 @@ again:
 	ret = 0;
 
 	/* page is wholly or partially inside EOF */
-	if (page_start + PAGE_CACHE_SIZE > size)
-		zero_start = size & ~PAGE_CACHE_MASK;
+	if (page_start + PAGE_SIZE > size)
+		zero_start = size & ~PAGE_MASK;
 	else
-		zero_start = PAGE_CACHE_SIZE;
+		zero_start = PAGE_SIZE;
 
-	if (zero_start != PAGE_CACHE_SIZE) {
+	if (zero_start != PAGE_SIZE) {
 		kaddr = kmap(page);
-		memset(kaddr + zero_start, 0, PAGE_CACHE_SIZE - zero_start);
+		memset(kaddr + zero_start, 0, PAGE_SIZE - zero_start);
 		flush_dcache_page(page);
 		kunmap(page);
 	}
