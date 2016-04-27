@@ -1390,6 +1390,7 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			seq_printf(s,
 				   "Could not retrieve pin %i conf0 reg\n",
 				   pin);
+			raw_spin_unlock_irqrestore(&vg->lock, flags);
 			continue;
 		}
 		conf0 = readl(reg);
@@ -1398,6 +1399,8 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		if (!reg) {
 			seq_printf(s,
 				   "Could not retrieve pin %i val reg\n", pin);
+			raw_spin_unlock_irqrestore(&vg->lock, flags);
+			continue;
 		}
 		val = readl(reg);
 		raw_spin_unlock_irqrestore(&vg->lock, flags);
