@@ -199,7 +199,7 @@ static void qxl_fb_fillrect(struct fb_info *info,
 {
 	struct qxl_fbdev *qfbdev = info->par;
 
-	drm_fb_helper_sys_fillrect(info, rect);
+	sys_fillrect(info, rect);
 	qxl_dirty_update(qfbdev, rect->dx, rect->dy, rect->width,
 			 rect->height);
 }
@@ -209,7 +209,7 @@ static void qxl_fb_copyarea(struct fb_info *info,
 {
 	struct qxl_fbdev *qfbdev = info->par;
 
-	drm_fb_helper_sys_copyarea(info, area);
+	sys_copyarea(info, area);
 	qxl_dirty_update(qfbdev, area->dx, area->dy, area->width,
 			 area->height);
 }
@@ -219,7 +219,7 @@ static void qxl_fb_imageblit(struct fb_info *info,
 {
 	struct qxl_fbdev *qfbdev = info->par;
 
-	drm_fb_helper_sys_imageblit(info, image);
+	sys_imageblit(info, image);
 	qxl_dirty_update(qfbdev, image->dx, image->dy, image->width,
 			 image->height);
 }
