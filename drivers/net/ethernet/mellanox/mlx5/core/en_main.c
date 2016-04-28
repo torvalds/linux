@@ -1691,6 +1691,9 @@ int mlx5e_open_locked(struct net_device *netdev)
 	mlx5e_redirect_rqts(priv);
 	mlx5e_update_carrier(priv);
 	mlx5e_timestamp_init(priv);
+#ifdef CONFIG_RFS_ACCEL
+	priv->netdev->rx_cpu_rmap = priv->mdev->rmap;
+#endif
 
 	schedule_delayed_work(&priv->update_stats_work, 0);
 
