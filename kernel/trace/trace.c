@@ -1696,7 +1696,6 @@ void trace_buffer_unlock_commit(struct trace_array *tr,
 	ftrace_trace_stack(tr, buffer, flags, 6, pc, NULL);
 	ftrace_trace_userstack(buffer, flags, pc);
 }
-EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit);
 
 static struct ring_buffer *temp_buffer;
 
@@ -1748,7 +1747,6 @@ void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 	ftrace_trace_stack(tr, buffer, flags, 0, pc, regs);
 	ftrace_trace_userstack(buffer, flags, pc);
 }
-EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit_regs);
 
 void trace_current_buffer_discard_commit(struct ring_buffer *buffer,
 					 struct ring_buffer_event *event)
