@@ -585,11 +585,6 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 	if (!sgl)
 		return NULL;
 
-	if (!is_slave_direction(dir)) {
-		dev_err(chan2dev(chan), "Invalid DMA direction\n");
-		return NULL;
-	}
-
 	ret = set_config(sdev, sconfig, dir, &lli_cfg);
 	if (ret) {
 		dev_err(chan2dev(chan), "Invalid DMA configuration\n");
