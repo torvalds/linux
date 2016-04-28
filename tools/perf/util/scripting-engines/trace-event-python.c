@@ -41,6 +41,7 @@
 #include "../thread-stack.h"
 #include "../trace-event.h"
 #include "../machine.h"
+#include "../call-path.h"
 #include "thread_map.h"
 #include "cpumap.h"
 #include "stat.h"

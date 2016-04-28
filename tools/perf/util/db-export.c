@@ -23,6 +23,7 @@
 #include "event.h"
 #include "util.h"
 #include "thread-stack.h"
+#include "call-path.h"
 #include "db-export.h"
 
 struct deferred_export {
