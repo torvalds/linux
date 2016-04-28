@@ -1135,7 +1135,7 @@ void intel_pt_interrupt(void)
 	 * after PT has been disabled by pt_event_stop(). Make sure we don't
 	 * do anything (particularly, re-enable) for this event here.
 	 */
-	if (!ACCESS_ONCE(pt->handle_nmi))
+	if (!READ_ONCE(pt->handle_nmi))
 		return;
 
 	/*
@@ -1237,7 +1237,7 @@ static void pt_event_start(struct perf_event *event, int mode)
 			goto fail_end_stop;
 	}
 
-	ACCESS_ONCE(pt->handle_nmi) = 1;
+	WRITE_ONCE(pt->handle_nmi, 1);
 	hwc->state = 0;
 
 	pt_config_buffer(buf->cur->table, buf->cur_idx,
@@ -1260,7 +1260,7 @@ static void pt_event_stop(struct perf_event *event, int mode)
 	 * Protect against the PMI racing with disabling wrmsr,
 	 * see comment in intel_pt_interrupt().
 	 */
-	ACCESS_ONCE(pt->handle_nmi) = 0;
+	WRITE_ONCE(pt->handle_nmi, 0);
 
 	pt_config_stop(event);
 
