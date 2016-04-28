@@ -4402,7 +4402,7 @@ static void ar9003_hw_selfgen_tpc_txpower(struct ath_hw *ah,
 }
 
 /* Set tx power registers to array of values passed in */
-static int ar9003_hw_tx_power_regwrite(struct ath_hw *ah, u8 * pPwrArray)
+int ar9003_hw_tx_power_regwrite(struct ath_hw *ah, u8 * pPwrArray)
 {
 #define POW_SM(_r, _s)     (((_r) & 0x3f) << (_s))
 	/* make sure forced gain is not set */
