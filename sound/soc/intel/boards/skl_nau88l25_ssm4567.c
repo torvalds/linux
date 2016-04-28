@@ -440,7 +440,6 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.platform_name = "0000:00:1f.3",
 		.init = NULL,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
 		.nonatomic = 1,
 		.dynamic = 1,
 		.ops = &skylaye_refcap_ops,
