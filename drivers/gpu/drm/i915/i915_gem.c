@@ -2576,6 +2576,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	struct drm_i915_private *dev_priv;
 	struct intel_ringbuffer *ringbuf;
 	u32 request_start;
+	u32 reserved_tail;
 	int ret;
 
 	if (WARN_ON(request == NULL))
@@ -2590,9 +2591,10 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 * should already have been reserved in the ring buffer. Let the ring
 	 * know that it is time to use that space up.
 	 */
-	intel_ring_reserved_space_use(ringbuf);
-
 	request_start = intel_ring_get_tail(ringbuf);
+	reserved_tail = request->reserved_space;
+	request->reserved_space = 0;
+
 	/*
 	 * Emit any outstanding flushes - execbuf can fail to emit the flush
 	 * after having emitted the batchbuffer command. Hence we need to fix
@@ -2656,7 +2658,13 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	intel_mark_busy(dev_priv->dev);
 
 	/* Sanity check that the reserved size was large enough. */
-	intel_ring_reserved_space_end(ringbuf);
+	ret = intel_ring_get_tail(ringbuf) - request_start;
+	if (ret < 0)
+		ret += ringbuf->size;
+	WARN_ONCE(ret > reserved_tail,
+		  "Not enough space reserved (%d bytes) "
+		  "for adding the request (%d bytes)\n",
+		  reserved_tail, ret);
 }
 
 static bool i915_context_is_banned(struct drm_i915_private *dev_priv,
@@ -2777,17 +2785,14 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 * to be redone if the request is not actually submitted straight
 	 * away, e.g. because a GPU scheduler has deferred it.
 	 */
-	if (i915.enable_execlists)
-		ret = intel_logical_ring_reserve_space(req);
-	else
-		ret = intel_ring_reserve_space(req);
+	req->reserved_space = MIN_SPACE_FOR_ADD_REQUEST;
+	ret = intel_ring_begin(req, 0);
 	if (ret) {
 		/*
 		 * At this point, the request is fully allocated even if not
 		 * fully prepared. Thus it can be cleaned up using the proper
-		 * free code.
+		 * free code, along with any reserved space.
 		 */
-		intel_ring_reserved_space_cancel(req->ringbuf);
 		i915_gem_request_unreference(req);
 		return ret;
 	}

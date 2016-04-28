@@ -772,21 +772,6 @@ intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 	return 0;
 }
 
-int intel_logical_ring_reserve_space(struct drm_i915_gem_request *request)
-{
-	/*
-	 * The first call merely notes the reserve request and is common for
-	 * all back ends. The subsequent localised _begin() call actually
-	 * ensures that the reservation is available. Without the begin, if
-	 * the request creator immediately submitted the request without
-	 * adding any commands to it then there might not actually be
-	 * sufficient room for the submission commands.
-	 */
-	intel_ring_reserved_space_reserve(request->ringbuf, MIN_SPACE_FOR_ADD_REQUEST);
-
-	return intel_ring_begin(request, 0);
-}
-
 /**
  * execlists_submission() - submit a batchbuffer for execution, Execlists style
  * @dev: DRM device.

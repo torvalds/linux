@@ -2278,6 +2278,9 @@ struct drm_i915_gem_request {
 	/** Position in the ringbuffer of the end of the whole request */
 	u32 tail;
 
+	/** Preallocate space in the ringbuffer for the emitting the request */
+	u32 reserved_space;
+
 	/**
 	 * Context and ring buffer related to this request
 	 * Contexts are refcounted, so when this request is associated with a
