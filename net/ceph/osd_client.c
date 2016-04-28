@@ -143,14 +143,6 @@ osd_req_op_extent_osd_data(struct ceph_osd_request *osd_req,
 }
 EXPORT_SYMBOL(osd_req_op_extent_osd_data);
 
-struct ceph_osd_data *
-osd_req_op_cls_response_data(struct ceph_osd_request *osd_req,
-			unsigned int which)
-{
-	return osd_req_op_data(osd_req, which, cls, response_data);
-}
-EXPORT_SYMBOL(osd_req_op_cls_response_data);	/* ??? */
-
 void osd_req_op_raw_data_in_pages(struct ceph_osd_request *osd_req,
 			unsigned int which, struct page **pages,
 			u64 length, u32 alignment,
@@ -2166,8 +2158,7 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 			dout("applying incremental map %u len %d\n",
 			     epoch, maplen);
 			newmap = osdmap_apply_incremental(&p, next,
-							  osdc->osdmap,
-							  &osdc->client->msgr);
+							  osdc->osdmap);
 			if (IS_ERR(newmap)) {
 				err = PTR_ERR(newmap);
 				goto bad;
@@ -2674,8 +2665,6 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 	osdc->client = client;
 	osdc->osdmap = NULL;
 	init_rwsem(&osdc->map_sem);
-	init_completion(&osdc->map_waiters);
-	osdc->last_requested_map = 0;
 	mutex_init(&osdc->request_mutex);
 	osdc->last_tid = 0;
 	osdc->osds = RB_ROOT;

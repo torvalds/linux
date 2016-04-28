@@ -37,10 +37,8 @@ struct ceph_osd {
 	struct list_head o_osd_lru;
 	struct ceph_auth_handshake o_auth;
 	unsigned long lru_ttl;
-	int o_marked_for_keepalive;
 	struct list_head o_keepalive_item;
 };
-
 
 #define CEPH_OSD_SLAB_OPS	2
 #define CEPH_OSD_MAX_OPS	16
@@ -206,13 +204,10 @@ struct ceph_osd_client {
 
 	struct ceph_osdmap     *osdmap;       /* current map */
 	struct rw_semaphore    map_sem;
-	struct completion      map_waiters;
-	u64                    last_requested_map;
 
 	struct mutex           request_mutex;
 	struct rb_root         osds;          /* osds */
 	struct list_head       osd_lru;       /* idle osds */
-	u64                    timeout_tid;   /* tid of timeout triggering rq */
 	u64                    last_tid;      /* tid of last request */
 	struct rb_root         requests;      /* pending requests */
 	struct list_head       req_lru;	      /* in-flight lru */
@@ -269,9 +264,6 @@ extern void osd_req_op_extent_dup_last(struct ceph_osd_request *osd_req,
 				       unsigned int which, u64 offset_inc);
 
 extern struct ceph_osd_data *osd_req_op_extent_osd_data(
-					struct ceph_osd_request *osd_req,
-					unsigned int which);
-extern struct ceph_osd_data *osd_req_op_cls_response_data(
 					struct ceph_osd_request *osd_req,
 					unsigned int which);
 

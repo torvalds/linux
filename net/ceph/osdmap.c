@@ -1204,8 +1204,7 @@ struct ceph_osdmap *ceph_osdmap_decode(void **p, void *end)
  * decode and apply an incremental map update.
  */
 struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
-					     struct ceph_osdmap *map,
-					     struct ceph_messenger *msgr)
+					     struct ceph_osdmap *map)
 {
 	struct crush_map *newcrush = NULL;
 	struct ceph_fsid fsid;

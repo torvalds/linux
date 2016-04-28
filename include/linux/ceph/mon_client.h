@@ -77,7 +77,6 @@ struct ceph_mon_client {
 
 	/* pending generic requests */
 	struct rb_root generic_request_tree;
-	int num_generic_requests;
 	u64 last_tid;
 
 	/* subs, indexed with CEPH_SUB_* */

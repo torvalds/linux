@@ -579,7 +579,6 @@ static int __do_generic_request(struct ceph_mon_client *monc, u64 tid,
 	req->tid = tid != 0 ? tid : ++monc->last_tid;
 	req->request->hdr.tid = cpu_to_le64(req->tid);
 	__insert_generic_request(monc, req);
-	monc->num_generic_requests++;
 	ceph_con_send(&monc->con, ceph_msg_get(req->request));
 	mutex_unlock(&monc->mutex);
 
@@ -587,7 +586,6 @@ static int __do_generic_request(struct ceph_mon_client *monc, u64 tid,
 
 	mutex_lock(&monc->mutex);
 	rb_erase(&req->node, &monc->generic_request_tree);
-	monc->num_generic_requests--;
 
 	if (!err)
 		err = req->result;
@@ -914,7 +912,6 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 
 	INIT_DELAYED_WORK(&monc->delayed_work, delayed_work);
 	monc->generic_request_tree = RB_ROOT;
-	monc->num_generic_requests = 0;
 	monc->last_tid = 0;
 
 	return 0;

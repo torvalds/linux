@@ -123,7 +123,6 @@ struct ceph_pg_mapping {
 struct ceph_osdmap {
 	struct ceph_fsid fsid;
 	u32 epoch;
-	u32 mkfs_epoch;
 	struct ceph_timespec created, modified;
 
 	u32 flags;         /* CEPH_OSDMAP_* */
@@ -205,9 +204,8 @@ static inline int ceph_decode_pgid(void **p, void *end, struct ceph_pg *pgid)
 }
 
 extern struct ceph_osdmap *ceph_osdmap_decode(void **p, void *end);
-extern struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
-					    struct ceph_osdmap *map,
-					    struct ceph_messenger *msgr);
+struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
+					     struct ceph_osdmap *map);
 extern void ceph_osdmap_destroy(struct ceph_osdmap *map);
 
 /* calculate mapping of a file extent to an object */
