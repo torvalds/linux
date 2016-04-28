@@ -1523,6 +1523,7 @@ retry_lookup:
 
 		di = dn->d_fsdata;
 		di->offset = ceph_make_fpos(frag, i + req->r_readdir_offset);
+		rde->offset = di->offset;
 
 		update_dentry_lease(dn, rde->lease, req->r_session,
 				    req->r_request_started);

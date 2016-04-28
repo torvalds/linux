@@ -214,6 +214,8 @@ static int parse_reply_info_dir(void **p, void *end,
 		err = parse_reply_info_in(p, end, &rde->inode, features);
 		if (err < 0)
 			goto out_bad;
+		/* ceph_readdir_prepopulate() will update it */
+		rde->offset = 0;
 		i++;
 		num--;
 	}

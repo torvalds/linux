@@ -635,7 +635,6 @@ struct ceph_file_info {
 	struct ceph_mds_request *last_readdir;
 
 	/* readdir: position within a frag */
-	unsigned offset;       /* offset of last chunk, adjusted for . and .. */
 	unsigned next_offset;  /* offset of next chunk (last_name's + 1) */
 	char *last_name;       /* last entry in previous chunk */
 	long long dir_release_count;

@@ -52,6 +52,7 @@ struct ceph_mds_reply_dir_entry {
 	u32                           name_len;
 	struct ceph_mds_reply_lease   *lease;
 	struct ceph_mds_reply_info_in inode;
+	loff_t			      offset;
 };
 
 /*
