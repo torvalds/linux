@@ -679,7 +679,9 @@ restart:
 		if (rc)
 			goto out_och_free;
 
-		LASSERT(it_disposition(it, DISP_ENQ_OPEN_REF));
+		LASSERTF(it_disposition(it, DISP_ENQ_OPEN_REF),
+			 "inode %p: disposition %x, status %d\n", inode,
+			 it_disposition(it, ~0), it->d.lustre.it_status);
 
 		rc = ll_local_open(file, it, fd, *och_p);
 		if (rc)
