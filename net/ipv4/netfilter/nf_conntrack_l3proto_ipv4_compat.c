@@ -115,6 +115,7 @@ static inline void ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 #endif
 
 static bool ct_seq_should_skip(const struct nf_conn *ct,
+			       const struct net *net,
 			       const struct nf_conntrack_tuple_hash *hash)
 {
 	/* we only want to print DIR_ORIGINAL */
@@ -122,6 +123,9 @@ static bool ct_seq_should_skip(const struct nf_conn *ct,
 		return true;
 
 	if (nf_ct_l3num(ct) != AF_INET)
+		return true;
+
+	if (!net_eq(nf_ct_net(ct), net))
 		return true;
 
 	return false;
@@ -136,7 +140,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	int ret = 0;
 
 	NF_CT_ASSERT(ct);
-	if (ct_seq_should_skip(ct, hash))
+	if (ct_seq_should_skip(ct, seq_file_net(s), hash))
 		return 0;
 
 	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
@@ -144,7 +148,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 	/* check if we raced w. object reuse */
 	if (!nf_ct_is_confirmed(ct) ||
-	    ct_seq_should_skip(ct, hash))
+	    ct_seq_should_skip(ct, seq_file_net(s), hash))
 		goto release;
 
 	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
