@@ -1126,18 +1126,6 @@ static void remove_osd(struct ceph_osd_client *osdc, struct ceph_osd *osd)
 	}
 }
 
-static void remove_all_osds(struct ceph_osd_client *osdc)
-{
-	dout("%s %p\n", __func__, osdc);
-	mutex_lock(&osdc->request_mutex);
-	while (!RB_EMPTY_ROOT(&osdc->osds)) {
-		struct ceph_osd *osd = rb_entry(rb_first(&osdc->osds),
-						struct ceph_osd, o_node);
-		remove_osd(osdc, osd);
-	}
-	mutex_unlock(&osdc->request_mutex);
-}
-
 static void __move_osd_to_lru(struct ceph_osd_client *osdc,
 			      struct ceph_osd *osd)
 {
@@ -1163,20 +1151,6 @@ static void __remove_osd_from_lru(struct ceph_osd *osd)
 	dout("__remove_osd_from_lru %p\n", osd);
 	if (!list_empty(&osd->o_osd_lru))
 		list_del_init(&osd->o_osd_lru);
-}
-
-static void remove_old_osds(struct ceph_osd_client *osdc)
-{
-	struct ceph_osd *osd, *nosd;
-
-	dout("__remove_old_osds %p\n", osdc);
-	mutex_lock(&osdc->request_mutex);
-	list_for_each_entry_safe(osd, nosd, &osdc->osd_lru, o_osd_lru) {
-		if (time_before(jiffies, osd->lru_ttl))
-			break;
-		remove_osd(osdc, osd);
-	}
-	mutex_unlock(&osdc->request_mutex);
 }
 
 /*
@@ -1671,12 +1645,21 @@ static void handle_osds_timeout(struct work_struct *work)
 		container_of(work, struct ceph_osd_client,
 			     osds_timeout_work.work);
 	unsigned long delay = osdc->client->options->osd_idle_ttl / 4;
+	struct ceph_osd *osd, *nosd;
 
-	dout("osds timeout\n");
+	dout("%s osdc %p\n", __func__, osdc);
 	down_read(&osdc->map_sem);
-	remove_old_osds(osdc);
-	up_read(&osdc->map_sem);
+	mutex_lock(&osdc->request_mutex);
 
+	list_for_each_entry_safe(osd, nosd, &osdc->osd_lru, o_osd_lru) {
+		if (time_before(jiffies, osd->lru_ttl))
+			break;
+
+		remove_osd(osdc, osd);
+	}
+
+	mutex_unlock(&osdc->request_mutex);
+	up_read(&osdc->map_sem);
 	schedule_delayed_work(&osdc->osds_timeout_work,
 			      round_jiffies_relative(delay));
 }
@@ -2722,11 +2705,19 @@ void ceph_osdc_stop(struct ceph_osd_client *osdc)
 	destroy_workqueue(osdc->notify_wq);
 	cancel_delayed_work_sync(&osdc->timeout_work);
 	cancel_delayed_work_sync(&osdc->osds_timeout_work);
+
+	mutex_lock(&osdc->request_mutex);
+	while (!RB_EMPTY_ROOT(&osdc->osds)) {
+		struct ceph_osd *osd = rb_entry(rb_first(&osdc->osds),
+						struct ceph_osd, o_node);
+		remove_osd(osdc, osd);
+	}
+	mutex_unlock(&osdc->request_mutex);
+
 	if (osdc->osdmap) {
 		ceph_osdmap_destroy(osdc->osdmap);
 		osdc->osdmap = NULL;
 	}
-	remove_all_osds(osdc);
 	mempool_destroy(osdc->req_mempool);
 	ceph_msgpool_destroy(&osdc->msgpool_op);
 	ceph_msgpool_destroy(&osdc->msgpool_op_reply);
