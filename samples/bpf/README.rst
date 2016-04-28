@@ -36,6 +36,9 @@ top level directory::
 
 Do notice the "/" slash after the directory name.
 
+It is also possible to call make from this directory.  This will just
+hide the the invocation of make as above with the appended "/".
+
 Manually compiling LLVM with 'bpf' support
 ------------------------------------------
 

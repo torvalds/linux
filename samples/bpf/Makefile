@@ -85,6 +85,14 @@ HOSTLOADLIBES_test_overhead += -lelf -lrt
 #  make samples/bpf/ LLC=~/git/llvm/build/bin/llc
 LLC ?= llc
 
+# Trick to allow make to be run from this directory
+all:
+	$(MAKE) -C ../../ $$PWD/
+
+clean:
+	$(MAKE) -C ../../ M=$$PWD clean
+	@rm -f *~
+
 # Verify LLVM compiler is available and bpf target is supported
 .PHONY: verify_cmd_llc verify_target_bpf
 
