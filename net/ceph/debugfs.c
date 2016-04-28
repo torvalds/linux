@@ -66,12 +66,14 @@ static int osdmap_show(struct seq_file *s, void *p)
 		   (map->flags & CEPH_OSDMAP_FULL) ?  " FULL" : "");
 
 	for (n = rb_first(&map->pg_pools); n; n = rb_next(n)) {
-		struct ceph_pg_pool_info *pool =
+		struct ceph_pg_pool_info *pi =
 			rb_entry(n, struct ceph_pg_pool_info, node);
 
-		seq_printf(s, "pool %lld pg_num %u (%d) read_tier %lld write_tier %lld\n",
-			   pool->id, pool->pg_num, pool->pg_num_mask,
-			   pool->read_tier, pool->write_tier);
+		seq_printf(s, "pool %lld '%s' type %d size %d min_size %d pg_num %u pg_num_mask %d flags 0x%llx lfor %u read_tier %lld write_tier %lld\n",
+			   pi->id, pi->name, pi->type, pi->size, pi->min_size,
+			   pi->pg_num, pi->pg_num_mask, pi->flags,
+			   pi->last_force_request_resend, pi->read_tier,
+			   pi->write_tier);
 	}
 	for (i = 0; i < map->max_osd; i++) {
 		struct ceph_entity_addr *addr = &map->osd_addr[i];

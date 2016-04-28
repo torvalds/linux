@@ -597,7 +597,9 @@ static int decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 	*p += 4;  /* skip crash_replay_interval */
 
 	if (ev >= 7)
-		*p += 1;  /* skip min_size */
+		pi->min_size = ceph_decode_8(p);
+	else
+		pi->min_size = pi->size - pi->size / 2;
 
 	if (ev >= 8)
 		*p += 8 + 8;  /* skip quota_max_* */
@@ -616,6 +618,50 @@ static int decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 		pi->read_tier = -1;
 		pi->write_tier = -1;
 	}
+
+	if (ev >= 10) {
+		/* skip properties */
+		num = ceph_decode_32(p);
+		while (num--) {
+			len = ceph_decode_32(p);
+			*p += len; /* key */
+			len = ceph_decode_32(p);
+			*p += len; /* val */
+		}
+	}
+
+	if (ev >= 11) {
+		/* skip hit_set_params */
+		*p += 1 + 1; /* versions */
+		len = ceph_decode_32(p);
+		*p += len;
+
+		*p += 4; /* skip hit_set_period */
+		*p += 4; /* skip hit_set_count */
+	}
+
+	if (ev >= 12)
+		*p += 4; /* skip stripe_width */
+
+	if (ev >= 13) {
+		*p += 8; /* skip target_max_bytes */
+		*p += 8; /* skip target_max_objects */
+		*p += 4; /* skip cache_target_dirty_ratio_micro */
+		*p += 4; /* skip cache_target_full_ratio_micro */
+		*p += 4; /* skip cache_min_flush_age */
+		*p += 4; /* skip cache_min_evict_age */
+	}
+
+	if (ev >=  14) {
+		/* skip erasure_code_profile */
+		len = ceph_decode_32(p);
+		*p += len;
+	}
+
+	if (ev >= 15)
+		pi->last_force_request_resend = ceph_decode_32(p);
+	else
+		pi->last_force_request_resend = 0;
 
 	/* ignore the rest */
 

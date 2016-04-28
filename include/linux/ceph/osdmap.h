@@ -26,20 +26,23 @@ struct ceph_pg {
 
 int ceph_pg_compare(const struct ceph_pg *lhs, const struct ceph_pg *rhs);
 
-#define CEPH_POOL_FLAG_HASHPSPOOL  1
+#define CEPH_POOL_FLAG_HASHPSPOOL	(1ULL << 0) /* hash pg seed and pool id
+						       together */
 
 struct ceph_pg_pool_info {
 	struct rb_node node;
 	s64 id;
-	u8 type;
+	u8 type; /* CEPH_POOL_TYPE_* */
 	u8 size;
+	u8 min_size;
 	u8 crush_ruleset;
 	u8 object_hash;
+	u32 last_force_request_resend;
 	u32 pg_num, pgp_num;
 	int pg_num_mask, pgp_num_mask;
 	s64 read_tier;
 	s64 write_tier; /* wins for read+write ops */
-	u64 flags;
+	u64 flags; /* CEPH_POOL_FLAG_* */
 	char *name;
 };
 
