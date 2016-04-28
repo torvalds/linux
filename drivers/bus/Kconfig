@@ -48,7 +48,7 @@ config ARM_CCI5xx_PMU
 	  If unsure, say Y
 
 config ARM_CCN
-	bool "ARM CCN driver support"
+	tristate "ARM CCN driver support"
 	depends on ARM || ARM64
 	depends on PERF_EVENTS
 	help

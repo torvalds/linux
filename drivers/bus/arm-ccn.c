@@ -1189,7 +1189,7 @@ static int arm_ccn_pmu_cpu_notifier(struct notifier_block *nb,
 		perf_pmu_migrate_context(&dt->pmu, cpu, target);
 		cpumask_set_cpu(target, &dt->cpu);
 		if (ccn->irq)
-			WARN_ON(irq_set_affinity(ccn->irq, &dt->cpu) != 0);
+			WARN_ON(irq_set_affinity_hint(ccn->irq, &dt->cpu) != 0);
 	default:
 		break;
 	}
@@ -1278,7 +1278,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 
 	/* Also make sure that the overflow interrupt is handled by this CPU */
 	if (ccn->irq) {
-		err = irq_set_affinity(ccn->irq, &ccn->dt.cpu);
+		err = irq_set_affinity_hint(ccn->irq, &ccn->dt.cpu);
 		if (err) {
 			dev_err(ccn->dev, "Failed to set interrupt affinity!\n");
 			goto error_set_affinity;
@@ -1306,7 +1306,8 @@ static void arm_ccn_pmu_cleanup(struct arm_ccn *ccn)
 {
 	int i;
 
-	irq_set_affinity(ccn->irq, cpu_possible_mask);
+	if (ccn->irq)
+		irq_set_affinity_hint(ccn->irq, NULL);
 	unregister_cpu_notifier(&ccn->dt.cpu_nb);
 	for (i = 0; i < ccn->num_xps; i++)
 		writel(0, ccn->xp[i].base + CCN_XP_DT_CONTROL);
