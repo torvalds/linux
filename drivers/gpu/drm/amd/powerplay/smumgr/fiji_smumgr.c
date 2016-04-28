@@ -396,7 +396,8 @@ static int fiji_start_smu(struct pp_smumgr *smumgr)
 	struct fiji_smumgr *priv = (struct fiji_smumgr *)(smumgr->backend);
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!smu7_is_smc_ram_running(smumgr)) {
+	if (!(smu7_is_smc_ram_running(smumgr)
+		|| cgs_is_virtualization_enabled(smumgr->device))) {
 		fiji_avfs_event_mgr(smumgr, false);
 
 		/* Check if SMU is running in protected mode */
@@ -442,6 +443,9 @@ static bool fiji_is_hw_avfs_present(struct pp_smumgr *smumgr)
 
 	uint32_t efuse = 0;
 	uint32_t mask = (1 << ((AVFS_EN_MSB - AVFS_EN_LSB) + 1)) - 1;
+
+	if (cgs_is_virtualization_enabled(smumgr->device))
+		return 0;
 
 	if (!atomctrl_read_efuse(smumgr->device, AVFS_EN_LSB, AVFS_EN_MSB,
 			mask, &efuse)) {
