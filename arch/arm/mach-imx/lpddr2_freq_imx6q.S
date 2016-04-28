@@ -626,7 +626,7 @@ done:
 
 	ldr	r10,=100000000
 	cmp	r0, r10
-	blt	skip_mmdc_clk_check
+	ble	skip_mmdc_clk_check
 	mmdc_clk_above_100MHz
 
 skip_mmdc_clk_check:
