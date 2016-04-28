@@ -3,9 +3,7 @@
 
 #include <linux/mutex.h>
 #include <linux/bitops.h>
-
-/* Since UDF 2.01 is ISO 13346 based... */
-#define UDF_SUPER_MAGIC			0x15013346
+#include <linux/magic.h>
 
 #define UDF_MAX_READ_VERSION		0x0250
 #define UDF_MAX_WRITE_VERSION		0x0201
