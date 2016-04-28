@@ -470,10 +470,30 @@ static int set_config(struct sun6i_dma_dev *sdev,
 {
 	s8 src_width, dst_width, src_burst, dst_burst;
 
-	src_burst = convert_burst(sconfig->src_maxburst);
-	src_width = convert_buswidth(sconfig->src_addr_width);
-	dst_burst = convert_burst(sconfig->dst_maxburst);
-	dst_width = convert_buswidth(sconfig->dst_addr_width);
+	switch (direction) {
+	case DMA_MEM_TO_DEV:
+		src_burst = convert_burst(sconfig->src_maxburst ?
+					sconfig->src_maxburst : 8);
+		src_width = convert_buswidth(sconfig->src_addr_width !=
+						DMA_SLAVE_BUSWIDTH_UNDEFINED ?
+				sconfig->src_addr_width :
+				DMA_SLAVE_BUSWIDTH_4_BYTES);
+		dst_burst = convert_burst(sconfig->dst_maxburst);
+		dst_width = convert_buswidth(sconfig->dst_addr_width);
+		break;
+	case DMA_DEV_TO_MEM:
+		src_burst = convert_burst(sconfig->src_maxburst);
+		src_width = convert_buswidth(sconfig->src_addr_width);
+		dst_burst = convert_burst(sconfig->dst_maxburst ?
+					sconfig->dst_maxburst : 8);
+		dst_width = convert_buswidth(sconfig->dst_addr_width !=
+						DMA_SLAVE_BUSWIDTH_UNDEFINED ?
+				sconfig->dst_addr_width :
+				DMA_SLAVE_BUSWIDTH_4_BYTES);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	if (src_burst < 0)
 		return src_burst;
