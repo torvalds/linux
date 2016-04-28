@@ -331,10 +331,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	else
 		sbi->ll_md_brw_size = PAGE_SIZE;
 
-	if (data->ocd_connect_flags & OBD_CONNECT_LAYOUTLOCK) {
-		LCONSOLE_INFO("Layout lock feature supported.\n");
+	if (data->ocd_connect_flags & OBD_CONNECT_LAYOUTLOCK)
 		sbi->ll_flags |= LL_SBI_LAYOUT_LOCK;
-	}
 
 	if (data->ocd_ibits_known & MDS_INODELOCK_XATTR) {
 		if (!(data->ocd_connect_flags & OBD_CONNECT_MAX_EASIZE)) {
