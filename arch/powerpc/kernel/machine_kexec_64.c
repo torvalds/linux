@@ -403,7 +403,6 @@ static struct property htab_size_prop = {
 static int __init export_htab_values(void)
 {
 	struct device_node *node;
-	struct property *prop;
 
 	/* On machines with no htab htab_address is NULL */
 	if (!htab_address)
@@ -414,12 +413,8 @@ static int __init export_htab_values(void)
 		return -ENODEV;
 
 	/* remove any stale propertys so ours can be found */
-	prop = of_find_property(node, htab_base_prop.name, NULL);
-	if (prop)
-		of_remove_property(node, prop);
-	prop = of_find_property(node, htab_size_prop.name, NULL);
-	if (prop)
-		of_remove_property(node, prop);
+	of_remove_property(node, of_find_property(node, htab_base_prop.name, NULL));
+	of_remove_property(node, of_find_property(node, htab_size_prop.name, NULL));
 
 	htab_base = cpu_to_be64(__pa(htab_address));
 	of_add_property(node, &htab_base_prop);
