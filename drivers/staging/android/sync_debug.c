@@ -262,8 +262,7 @@ static long sw_sync_ioctl_create_fence(struct sw_sync_timeline *obj,
 		goto err;
 	}
 
-	data.name[sizeof(data.name) - 1] = '\0';
-	sync_file = sync_file_create(data.name, fence);
+	sync_file = sync_file_create(fence);
 	if (!sync_file) {
 		fence_put(fence);
 		err = -ENOMEM;

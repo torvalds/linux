@@ -136,7 +136,7 @@ struct fence *sync_pt_create(struct sync_timeline *obj, int size)
 }
 EXPORT_SYMBOL(sync_pt_create);
 
-static struct sync_file *sync_file_alloc(int size, const char *name)
+static struct sync_file *sync_file_alloc(int size)
 {
 	struct sync_file *sync_file;
 
@@ -150,7 +150,6 @@ static struct sync_file *sync_file_alloc(int size, const char *name)
 		goto err;
 
 	kref_init(&sync_file->kref);
-	strlcpy(sync_file->name, name, sizeof(sync_file->name));
 
 	init_waitqueue_head(&sync_file->wq);
 
@@ -175,23 +174,25 @@ static void fence_check_cb_func(struct fence *f, struct fence_cb *cb)
 
 /**
  * sync_fence_create() - creates a sync fence
- * @name:	name of fence to create
  * @fence:	fence to add to the sync_fence
  *
  * Creates a sync_file containg @fence. Once this is called, the sync_file
  * takes ownership of @fence.
  */
-struct sync_file *sync_file_create(const char *name, struct fence *fence)
+struct sync_file *sync_file_create(struct fence *fence)
 {
 	struct sync_file *sync_file;
 
-	sync_file = sync_file_alloc(offsetof(struct sync_file, cbs[1]),
-				    name);
+	sync_file = sync_file_alloc(offsetof(struct sync_file, cbs[1]));
 	if (!sync_file)
 		return NULL;
 
 	sync_file->num_fences = 1;
 	atomic_set(&sync_file->status, 1);
+	snprintf(sync_file->name, sizeof(sync_file->name), "%s-%s%d-%d",
+		 fence->ops->get_driver_name(fence),
+		 fence->ops->get_timeline_name(fence), fence->context,
+		 fence->seqno);
 
 	sync_file->cbs[0].fence = fence;
 	sync_file->cbs[0].sync_file = sync_file;
@@ -260,7 +261,7 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 	int i, i_a, i_b;
 	unsigned long size = offsetof(struct sync_file, cbs[num_fences]);
 
-	sync_file = sync_file_alloc(size, name);
+	sync_file = sync_file_alloc(size);
 	if (!sync_file)
 		return NULL;
 
@@ -306,6 +307,7 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 		atomic_sub(num_fences - i, &sync_file->status);
 	sync_file->num_fences = i;
 
+	strlcpy(sync_file->name, name, sizeof(sync_file->name));
 	sync_file_debug_add(sync_file);
 	return sync_file;
 }
