@@ -2803,8 +2803,12 @@ static void mlx5e_build_netdev(struct net_device *netdev)
 	if (FT_CAP(flow_modify_en) &&
 	    FT_CAP(modify_root) &&
 	    FT_CAP(identified_miss_table_mode) &&
-	    FT_CAP(flow_table_modify))
-		priv->netdev->hw_features      |= NETIF_F_HW_TC;
+	    FT_CAP(flow_table_modify)) {
+		netdev->hw_features      |= NETIF_F_HW_TC;
+#ifdef CONFIG_RFS_ACCEL
+		netdev->hw_features	 |= NETIF_F_NTUPLE;
+#endif
+	}
 
 	netdev->features         |= NETIF_F_HIGHDMA;
 

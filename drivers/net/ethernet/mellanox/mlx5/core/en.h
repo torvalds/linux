@@ -48,6 +48,8 @@
 #include "mlx5_core.h"
 #include "en_stats.h"
 
+#define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
+
 #define MLX5E_MAX_NUM_TC	8
 
 #define MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x6
@@ -446,12 +448,38 @@ struct mlx5e_ttc_table {
 	struct mlx5_flow_rule	 *rules[MLX5E_NUM_TT];
 };
 
+struct arfs_table {
+	struct mlx5e_flow_table  ft;
+	struct mlx5_flow_rule    *default_rule;
+};
+
+enum  arfs_type {
+	ARFS_IPV4_TCP,
+	ARFS_IPV6_TCP,
+	ARFS_IPV4_UDP,
+	ARFS_IPV6_UDP,
+	ARFS_NUM_TYPES,
+};
+
+struct mlx5e_arfs_tables {
+	struct arfs_table arfs_tables[ARFS_NUM_TYPES];
+};
+
+/* NIC prio FTS */
+enum {
+	MLX5E_VLAN_FT_LEVEL = 0,
+	MLX5E_L2_FT_LEVEL,
+	MLX5E_TTC_FT_LEVEL,
+	MLX5E_ARFS_FT_LEVEL
+};
+
 struct mlx5e_flow_steering {
 	struct mlx5_flow_namespace      *ns;
 	struct mlx5e_tc_table           tc;
 	struct mlx5e_vlan_table         vlan;
 	struct mlx5e_l2_table           l2;
 	struct mlx5e_ttc_table          ttc;
+	struct mlx5e_arfs_tables        arfs;
 };
 
 struct mlx5e_direct_tir {
@@ -570,6 +598,7 @@ void mlx5e_update_stats(struct mlx5e_priv *priv);
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_init_l2_addr(struct mlx5e_priv *priv);
+void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
 void mlx5e_set_rx_mode_work(struct work_struct *work);
 
 void mlx5e_fill_hwstamp(struct mlx5e_tstamp *clock, u64 timestamp,
@@ -644,6 +673,18 @@ extern const struct ethtool_ops mlx5e_ethtool_ops;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 extern const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops;
 int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets);
+#endif
+
+#ifndef CONFIG_RFS_ACCEL
+static inline int mlx5e_arfs_create_tables(struct mlx5e_priv *priv)
+{
+	return 0;
+}
+
+static inline void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv) {}
+#else
+int mlx5e_arfs_create_tables(struct mlx5e_priv *priv);
+void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv);
 #endif
 
 u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev);

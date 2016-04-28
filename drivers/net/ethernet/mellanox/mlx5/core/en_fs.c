@@ -42,15 +42,6 @@ static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
 static void mlx5e_del_l2_flow_rule(struct mlx5e_priv *priv,
 				   struct mlx5e_l2_rule *ai);
 
-/* NIC prio FTS */
-enum {
-	MLX5E_VLAN_FT_LEVEL = 0,
-	MLX5E_L2_FT_LEVEL,
-	MLX5E_TTC_FT_LEVEL
-};
-
-#define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
-
 enum {
 	MLX5E_FULLMATCH = 0,
 	MLX5E_ALLMULTI  = 1,
@@ -530,7 +521,7 @@ void mlx5e_init_l2_addr(struct mlx5e_priv *priv)
 	ether_addr_copy(priv->fs.l2.broadcast.addr, priv->netdev->broadcast);
 }
 
-static void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft)
+void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft)
 {
 	mlx5e_destroy_groups(ft);
 	kfree(ft->g);
@@ -1083,11 +1074,18 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 	if (!priv->fs.ns)
 		return -EINVAL;
 
+	err = mlx5e_arfs_create_tables(priv);
+	if (err) {
+		netdev_err(priv->netdev, "Failed to create arfs tables, err=%d\n",
+			   err);
+		priv->netdev->hw_features &= ~NETIF_F_NTUPLE;
+	}
+
 	err = mlx5e_create_ttc_table(priv);
 	if (err) {
 		netdev_err(priv->netdev, "Failed to create ttc table, err=%d\n",
 			   err);
-		return err;
+		goto err_destroy_arfs_tables;
 	}
 
 	err = mlx5e_create_l2_table(priv);
@@ -1110,6 +1108,8 @@ err_destroy_l2_table:
 	mlx5e_destroy_l2_table(priv);
 err_destroy_ttc_table:
 	mlx5e_destroy_ttc_table(priv);
+err_destroy_arfs_tables:
+	mlx5e_arfs_destroy_tables(priv);
 
 	return err;
 }
@@ -1120,4 +1120,5 @@ void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv)
 	mlx5e_destroy_vlan_table(priv);
 	mlx5e_destroy_l2_table(priv);
 	mlx5e_destroy_ttc_table(priv);
+	mlx5e_arfs_destroy_tables(priv);
 }
