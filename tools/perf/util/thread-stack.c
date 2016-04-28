@@ -25,19 +25,6 @@
 #include "call-path.h"
 #include "thread-stack.h"
 
-/**
- * struct call_return_processor - provides a call-back to consume call-return
- *                                information.
- * @cpr: call path root
- * @process: call-back that accepts call/return information
- * @data: anonymous data for call-back
- */
-struct call_return_processor {
-	struct call_path_root *cpr;
-	int (*process)(struct call_return *cr, void *data);
-	void *data;
-};
-
 #define STACK_GROWTH 2048
 
 /**

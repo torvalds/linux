@@ -25,7 +25,6 @@ struct comm;
 struct ip_callchain;
 struct symbol;
 struct dso;
-struct call_return_processor;
 struct comm;
 struct perf_sample;
 struct addr_location;
@@ -66,6 +65,19 @@ struct call_return {
 	u64 return_ref;
 	u64 db_id;
 	u32 flags;
+};
+
+/**
+ * struct call_return_processor - provides a call-back to consume call-return
+ *                                information.
+ * @cpr: call path root
+ * @process: call-back that accepts call/return information
+ * @data: anonymous data for call-back
+ */
+struct call_return_processor {
+	struct call_path_root *cpr;
+	int (*process)(struct call_return *cr, void *data);
+	void *data;
 };
 
 int thread_stack__event(struct thread *thread, u32 flags, u64 from_ip,

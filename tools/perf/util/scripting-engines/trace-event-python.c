@@ -682,7 +682,7 @@ static int python_export_sample(struct db_export *dbe,
 	struct tables *tables = container_of(dbe, struct tables, dbe);
 	PyObject *t;
 
-	t = tuple_new(21);
+	t = tuple_new(22);
 
 	tuple_set_u64(t, 0, es->db_id);
 	tuple_set_u64(t, 1, es->evsel->db_id);
@@ -705,6 +705,7 @@ static int python_export_sample(struct db_export *dbe,
 	tuple_set_u64(t, 18, es->sample->data_src);
 	tuple_set_s32(t, 19, es->sample->flags & PERF_BRANCH_MASK);
 	tuple_set_s32(t, 20, !!(es->sample->flags & PERF_IP_FLAG_IN_TX));
+	tuple_set_u64(t, 21, es->call_path_id);
 
 	call_object(tables->sample_handler, t, "sample_table");
 
@@ -999,8 +1000,10 @@ static void set_table_handlers(struct tables *tables)
 {
 	const char *perf_db_export_mode = "perf_db_export_mode";
 	const char *perf_db_export_calls = "perf_db_export_calls";
-	PyObject *db_export_mode, *db_export_calls;
+	const char *perf_db_export_callchains = "perf_db_export_callchains";
+	PyObject *db_export_mode, *db_export_calls, *db_export_callchains;
 	bool export_calls = false;
+	bool export_callchains = false;
 	int ret;
 
 	memset(tables, 0, sizeof(struct tables));
@@ -1017,6 +1020,7 @@ static void set_table_handlers(struct tables *tables)
 	if (!ret)
 		return;
 
+	/* handle export calls */
 	tables->dbe.crp = NULL;
 	db_export_calls = PyDict_GetItemString(main_dict, perf_db_export_calls);
 	if (db_export_calls) {
@@ -1031,6 +1035,33 @@ static void set_table_handlers(struct tables *tables)
 			call_return_processor__new(python_process_call_return,
 						   &tables->dbe);
 		if (!tables->dbe.crp)
+			Py_FatalError("failed to create calls processor");
+	}
+
+	/* handle export callchains */
+	tables->dbe.cpr = NULL;
+	db_export_callchains = PyDict_GetItemString(main_dict,
+						    perf_db_export_callchains);
+	if (db_export_callchains) {
+		ret = PyObject_IsTrue(db_export_callchains);
+		if (ret == -1)
+			handler_call_die(perf_db_export_callchains);
+		export_callchains = !!ret;
+	}
+
+	if (export_callchains) {
+		/*
+		 * Attempt to use the call path root from the call return
+		 * processor, if the call return processor is in use. Otherwise,
+		 * we allocate a new call path root. This prevents exporting
+		 * duplicate call path ids when both are in use simultaniously.
+		 */
+		if (tables->dbe.crp)
+			tables->dbe.cpr = tables->dbe.crp->cpr;
+		else
+			tables->dbe.cpr = call_path_root__new();
+
+		if (!tables->dbe.cpr)
 			Py_FatalError("failed to create calls processor");
 	}
 
