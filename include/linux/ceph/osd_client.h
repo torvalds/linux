@@ -151,6 +151,7 @@ struct ceph_osd_request_target {
 struct ceph_osd_request {
 	u64             r_tid;              /* unique for this client */
 	struct rb_node  r_node;
+	struct rb_node  r_mc_node;          /* map check */
 	struct ceph_osd *r_osd;
 
 	struct ceph_osd_request_target r_t;
@@ -191,6 +192,7 @@ struct ceph_osd_request {
 	int r_attempts;
 	struct ceph_eversion r_replay_version; /* aka reassert_version */
 	u32 r_last_force_resend;
+	u32 r_map_dne_bound;
 
 	struct ceph_osd_req_op r_ops[];
 };
@@ -218,6 +220,7 @@ struct ceph_osd_linger_request {
 
 	struct ceph_osd_request_target t;
 	u32 last_force_resend;
+	u32 map_dne_bound;
 
 	struct timespec mtime;
 
@@ -225,6 +228,7 @@ struct ceph_osd_linger_request {
 	struct mutex lock;
 	struct rb_node node;            /* osd */
 	struct rb_node osdc_node;       /* osdc */
+	struct rb_node mc_node;         /* map check */
 	struct list_head scan_item;
 
 	struct completion reg_commit_wait;
@@ -257,6 +261,8 @@ struct ceph_osd_client {
 	atomic64_t             last_tid;      /* tid of last request */
 	u64                    last_linger_id;
 	struct rb_root         linger_requests; /* lingering requests */
+	struct rb_root         map_checks;
+	struct rb_root         linger_map_checks;
 	atomic_t               num_requests;
 	atomic_t               num_homeless;
 	struct delayed_work    timeout_work;
