@@ -1164,25 +1164,34 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 				   1 << slave_port, 0, 0, ALE_MCAST_FWD_2);
 
-	if (slave->data->phy_node)
+	if (slave->data->phy_node) {
 		slave->phy = of_phy_connect(priv->ndev, slave->data->phy_node,
 				 &cpsw_adjust_link, 0, slave->data->phy_if);
-	else
+		if (!slave->phy) {
+			dev_err(priv->dev, "phy \"%s\" not found on slave %d\n",
+				slave->data->phy_node->full_name,
+				slave->slave_num);
+			return;
+		}
+	} else {
 		slave->phy = phy_connect(priv->ndev, slave->data->phy_id,
 				 &cpsw_adjust_link, slave->data->phy_if);
-	if (IS_ERR(slave->phy)) {
-		dev_err(priv->dev, "phy %s not found on slave %d\n",
-			slave->data->phy_id, slave->slave_num);
-		slave->phy = NULL;
-	} else {
-		dev_info(priv->dev, "phy found : id is : 0x%x\n",
-			 slave->phy->phy_id);
-		phy_start(slave->phy);
-
-		/* Configure GMII_SEL register */
-		cpsw_phy_sel(&priv->pdev->dev, slave->phy->interface,
-			     slave->slave_num);
+		if (IS_ERR(slave->phy)) {
+			dev_err(priv->dev,
+				"phy \"%s\" not found on slave %d, err %ld\n",
+				slave->data->phy_id, slave->slave_num,
+				PTR_ERR(slave->phy));
+			slave->phy = NULL;
+			return;
+		}
 	}
+
+	dev_info(priv->dev, "phy found : id is : 0x%x\n", slave->phy->phy_id);
+
+	phy_start(slave->phy);
+
+	/* Configure GMII_SEL register */
+	cpsw_phy_sel(&priv->pdev->dev, slave->phy->interface, slave->slave_num);
 }
 
 static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
