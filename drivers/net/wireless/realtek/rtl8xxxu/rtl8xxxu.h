@@ -1350,6 +1350,7 @@ struct rtl8xxxu_fileops {
 
 extern int rtl8xxxu_debug;
 
+extern struct rtl8xxxu_reg8val rtl8xxxu_gen1_mac_init_table[];
 extern const u32 rtl8xxxu_iqk_phy_iq_bb_reg[];
 u8 rtl8xxxu_read8(struct rtl8xxxu_priv *priv, u16 addr);
 u16 rtl8xxxu_read16(struct rtl8xxxu_priv *priv, u16 addr);
@@ -1392,13 +1393,28 @@ int rtl8xxxu_flush_fifo(struct rtl8xxxu_priv *priv);
 int rtl8723a_h2c_cmd(struct rtl8xxxu_priv *priv, struct h2c_cmd *h2c, int len);
 int rtl8xxxu_active_to_lps(struct rtl8xxxu_priv *priv);
 void rtl8723a_disabled_to_emu(struct rtl8xxxu_priv *priv);
+int rtl8xxxu_init_llt_table(struct rtl8xxxu_priv *priv, u8 last_tx_page);
+void rtl8xxxu_gen1_phy_iq_calibrate(struct rtl8xxxu_priv *priv);
+void rtl8xxxu_gen1_init_phy_bb(struct rtl8xxxu_priv *priv);
+void rtl8xxxu_gen1_set_tx_power(struct rtl8xxxu_priv *priv,
+				int channel, bool ht40);
+void rtl8xxxu_gen1_config_channel(struct ieee80211_hw *hw);
 void rtl8xxxu_gen2_config_channel(struct ieee80211_hw *hw);
+void rtl8xxxu_gen1_usb_quirks(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen2_usb_quirks(struct rtl8xxxu_priv *priv);
+void rtl8xxxu_update_rate_mask(struct rtl8xxxu_priv *priv,
+			       u32 ramask, int sgi);
 void rtl8xxxu_gen2_update_rate_mask(struct rtl8xxxu_priv *priv,
 				    u32 ramask, int sgi);
+void rtl8xxxu_gen1_report_connect(struct rtl8xxxu_priv *priv,
+				  u8 macid, bool connect);
 void rtl8xxxu_gen2_report_connect(struct rtl8xxxu_priv *priv,
 				  u8 macid, bool connect);
+void rtl8xxxu_gen1_enable_rf(struct rtl8xxxu_priv *priv);
+void rtl8xxxu_gen1_disable_rf(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen2_disable_rf(struct rtl8xxxu_priv *priv);
+int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
+			    struct ieee80211_rx_status *rx_status);
 int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
 			    struct ieee80211_rx_status *rx_status);
 int rtl8xxxu_gen2_channel_to_group(int channel);
@@ -1406,4 +1422,5 @@ bool rtl8xxxu_gen2_simularity_compare(struct rtl8xxxu_priv *priv,
 				      int result[][8], int c1, int c2);
 
 extern struct rtl8xxxu_fileops rtl8192eu_fops;
+extern struct rtl8xxxu_fileops rtl8723au_fops;
 extern struct rtl8xxxu_fileops rtl8723bu_fops;
