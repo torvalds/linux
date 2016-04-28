@@ -1348,12 +1348,16 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 		set_bit(I40E_VF_STAT_IWARPENA, &vf->vf_states);
 	}
 
-	if (pf->flags & I40E_FLAG_RSS_AQ_CAPABLE) {
-		if (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ)
-			vfres->vf_offload_flags |=
-				I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ;
+	if (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF) {
+		vfres->vf_offload_flags |= I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF;
 	} else {
-		vfres->vf_offload_flags |= I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG;
+		if ((pf->flags & I40E_FLAG_RSS_AQ_CAPABLE) &&
+		    (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ))
+			vfres->vf_offload_flags |=
+					I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ;
+		else
+			vfres->vf_offload_flags |=
+					I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG;
 	}
 
 	if (pf->flags & I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE) {
@@ -1382,6 +1386,9 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	vfres->num_vsis = num_vsis;
 	vfres->num_queue_pairs = vf->num_queue_pairs;
 	vfres->max_vectors = pf->hw.func_caps.num_msix_vectors_vf;
+	vfres->rss_key_size = I40E_HKEY_ARRAY_SIZE;
+	vfres->rss_lut_size = I40E_VF_HLUT_ARRAY_SIZE;
+
 	if (vf->lan_vsi_idx) {
 		vfres->vsi_res[0].vsi_id = vf->lan_vsi_id;
 		vfres->vsi_res[0].vsi_type = I40E_VSI_SRIOV;
@@ -1420,6 +1427,25 @@ static void i40e_vc_reset_vf_msg(struct i40e_vf *vf)
 }
 
 /**
+ * i40e_getnum_vf_vsi_vlan_filters
+ * @vsi: pointer to the vsi
+ *
+ * called to get the number of VLANs offloaded on this VF
+ **/
+static inline int i40e_getnum_vf_vsi_vlan_filters(struct i40e_vsi *vsi)
+{
+	struct i40e_mac_filter *f;
+	int num_vlans = 0;
+
+	list_for_each_entry(f, &vsi->mac_filter_list, list) {
+		if (f->vlan >= 0 && f->vlan <= I40E_MAX_VLANID)
+			num_vlans++;
+	}
+
+	return num_vlans;
+}
+
+/**
  * i40e_vc_config_promiscuous_mode_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
@@ -1435,22 +1461,122 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 	    (struct i40e_virtchnl_promisc_info *)msg;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_hw *hw = &pf->hw;
-	struct i40e_vsi *vsi;
+	struct i40e_mac_filter *f;
+	i40e_status aq_ret = 0;
 	bool allmulti = false;
-	i40e_status aq_ret;
+	struct i40e_vsi *vsi;
+	bool alluni = false;
+	int aq_err = 0;
 
 	vsi = i40e_find_vsi_from_id(pf, info->vsi_id);
 	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
 	    !test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps) ||
-	    !i40e_vc_isvalid_vsi_id(vf, info->vsi_id) ||
-	    (vsi->type != I40E_VSI_FCOE)) {
+	    !i40e_vc_isvalid_vsi_id(vf, info->vsi_id)) {
+		dev_err(&pf->pdev->dev,
+			"VF %d doesn't meet requirements to enter promiscuous mode\n",
+			vf->vf_id);
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
+	/* Multicast promiscuous handling*/
 	if (info->flags & I40E_FLAG_VF_MULTICAST_PROMISC)
 		allmulti = true;
-	aq_ret = i40e_aq_set_vsi_multicast_promiscuous(hw, vsi->seid,
-						       allmulti, NULL);
+
+	if (vf->port_vlan_id) {
+		aq_ret = i40e_aq_set_vsi_mc_promisc_on_vlan(hw, vsi->seid,
+							    allmulti,
+							    vf->port_vlan_id,
+							    NULL);
+	} else if (i40e_getnum_vf_vsi_vlan_filters(vsi)) {
+		list_for_each_entry(f, &vsi->mac_filter_list, list) {
+			if (f->vlan < 0 || f->vlan > I40E_MAX_VLANID)
+				continue;
+			aq_ret = i40e_aq_set_vsi_mc_promisc_on_vlan(hw,
+								    vsi->seid,
+								    allmulti,
+								    f->vlan,
+								    NULL);
+			aq_err = pf->hw.aq.asq_last_status;
+			if (aq_ret) {
+				dev_err(&pf->pdev->dev,
+					"Could not add VLAN %d to multicast promiscuous domain err %s aq_err %s\n",
+					f->vlan,
+					i40e_stat_str(&pf->hw, aq_ret),
+					i40e_aq_str(&pf->hw, aq_err));
+				break;
+			}
+		}
+	} else {
+		aq_ret = i40e_aq_set_vsi_multicast_promiscuous(hw, vsi->seid,
+							       allmulti, NULL);
+		aq_err = pf->hw.aq.asq_last_status;
+		if (aq_ret) {
+			dev_err(&pf->pdev->dev,
+				"VF %d failed to set multicast promiscuous mode err %s aq_err %s\n",
+				vf->vf_id,
+				i40e_stat_str(&pf->hw, aq_ret),
+				i40e_aq_str(&pf->hw, aq_err));
+			goto error_param_int;
+		}
+	}
+
+	if (!aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "VF %d successfully set multicast promiscuous mode\n",
+			 vf->vf_id);
+		if (allmulti)
+			set_bit(I40E_VF_STAT_MC_PROMISC, &vf->vf_states);
+		else
+			clear_bit(I40E_VF_STAT_MC_PROMISC, &vf->vf_states);
+	}
+
+	if (info->flags & I40E_FLAG_VF_UNICAST_PROMISC)
+		alluni = true;
+	if (vf->port_vlan_id) {
+		aq_ret = i40e_aq_set_vsi_uc_promisc_on_vlan(hw, vsi->seid,
+							    alluni,
+							    vf->port_vlan_id,
+							    NULL);
+	} else if (i40e_getnum_vf_vsi_vlan_filters(vsi)) {
+		list_for_each_entry(f, &vsi->mac_filter_list, list) {
+			aq_ret = 0;
+			if (f->vlan >= 0 && f->vlan <= I40E_MAX_VLANID)
+				aq_ret =
+				i40e_aq_set_vsi_uc_promisc_on_vlan(hw,
+								   vsi->seid,
+								   alluni,
+								   f->vlan,
+								   NULL);
+				aq_err = pf->hw.aq.asq_last_status;
+			if (aq_ret)
+				dev_err(&pf->pdev->dev,
+					"Could not add VLAN %d to Unicast promiscuous domain err %s aq_err %s\n",
+					f->vlan,
+					i40e_stat_str(&pf->hw, aq_ret),
+					i40e_aq_str(&pf->hw, aq_err));
+		}
+	} else {
+		aq_ret = i40e_aq_set_vsi_unicast_promiscuous(hw, vsi->seid,
+							     allmulti, NULL);
+		aq_err = pf->hw.aq.asq_last_status;
+		if (aq_ret)
+			dev_err(&pf->pdev->dev,
+				"VF %d failed to set unicast promiscuous mode %8.8x err %s aq_err %s\n",
+				vf->vf_id, info->flags,
+				i40e_stat_str(&pf->hw, aq_ret),
+				i40e_aq_str(&pf->hw, aq_err));
+	}
+
+error_param_int:
+	if (!aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "VF %d successfully set unicast promiscuous mode\n",
+			 vf->vf_id);
+		if (alluni)
+			set_bit(I40E_VF_STAT_UC_PROMISC, &vf->vf_states);
+		else
+			clear_bit(I40E_VF_STAT_UC_PROMISC, &vf->vf_states);
+	}
 
 error_param:
 	/* send the response to the VF */
@@ -1912,6 +2038,17 @@ static int i40e_vc_add_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		/* add new VLAN filter */
 		int ret = i40e_vsi_add_vlan(vsi, vfl->vlan_id[i]);
 
+		if (test_bit(I40E_VF_STAT_UC_PROMISC, &vf->vf_states))
+			i40e_aq_set_vsi_uc_promisc_on_vlan(&pf->hw, vsi->seid,
+							   true,
+							   vfl->vlan_id[i],
+							   NULL);
+		if (test_bit(I40E_VF_STAT_MC_PROMISC, &vf->vf_states))
+			i40e_aq_set_vsi_mc_promisc_on_vlan(&pf->hw, vsi->seid,
+							   true,
+							   vfl->vlan_id[i],
+							   NULL);
+
 		if (ret)
 			dev_err(&pf->pdev->dev,
 				"Unable to add VLAN filter %d for VF %d, error %d\n",
@@ -1963,6 +2100,17 @@ static int i40e_vc_remove_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 
 	for (i = 0; i < vfl->num_elements; i++) {
 		int ret = i40e_vsi_kill_vlan(vsi, vfl->vlan_id[i]);
+
+		if (test_bit(I40E_VF_STAT_UC_PROMISC, &vf->vf_states))
+			i40e_aq_set_vsi_uc_promisc_on_vlan(&pf->hw, vsi->seid,
+							   false,
+							   vfl->vlan_id[i],
+							   NULL);
+		if (test_bit(I40E_VF_STAT_MC_PROMISC, &vf->vf_states))
+			i40e_aq_set_vsi_mc_promisc_on_vlan(&pf->hw, vsi->seid,
+							   false,
+							   vfl->vlan_id[i],
+							   NULL);
 
 		if (ret)
 			dev_err(&pf->pdev->dev,
@@ -2039,6 +2187,139 @@ error_param:
 			       config ? I40E_VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP :
 			       I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP,
 			       aq_ret);
+}
+
+/**
+ * i40e_vc_config_rss_key
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ * @msglen: msg length
+ *
+ * Configure the VF's RSS key
+ **/
+static int i40e_vc_config_rss_key(struct i40e_vf *vf, u8 *msg, u16 msglen)
+{
+	struct i40e_virtchnl_rss_key *vrk =
+		(struct i40e_virtchnl_rss_key *)msg;
+	struct i40e_pf *pf = vf->pf;
+	struct i40e_vsi *vsi = NULL;
+	u16 vsi_id = vrk->vsi_id;
+	i40e_status aq_ret = 0;
+
+	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	    !test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps) ||
+	    !i40e_vc_isvalid_vsi_id(vf, vsi_id) ||
+	    (vrk->key_len != I40E_HKEY_ARRAY_SIZE)) {
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	}
+
+	vsi = pf->vsi[vf->lan_vsi_idx];
+	aq_ret = i40e_config_rss(vsi, vrk->key, NULL, 0);
+err:
+	/* send the response to the VF */
+	return i40e_vc_send_resp_to_vf(vf, I40E_VIRTCHNL_OP_CONFIG_RSS_KEY,
+				       aq_ret);
+}
+
+/**
+ * i40e_vc_config_rss_lut
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ * @msglen: msg length
+ *
+ * Configure the VF's RSS LUT
+ **/
+static int i40e_vc_config_rss_lut(struct i40e_vf *vf, u8 *msg, u16 msglen)
+{
+	struct i40e_virtchnl_rss_lut *vrl =
+		(struct i40e_virtchnl_rss_lut *)msg;
+	struct i40e_pf *pf = vf->pf;
+	struct i40e_vsi *vsi = NULL;
+	u16 vsi_id = vrl->vsi_id;
+	i40e_status aq_ret = 0;
+
+	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	    !test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps) ||
+	    !i40e_vc_isvalid_vsi_id(vf, vsi_id) ||
+	    (vrl->lut_entries != I40E_VF_HLUT_ARRAY_SIZE)) {
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	}
+
+	vsi = pf->vsi[vf->lan_vsi_idx];
+	aq_ret = i40e_config_rss(vsi, NULL, vrl->lut, I40E_VF_HLUT_ARRAY_SIZE);
+	/* send the response to the VF */
+err:
+	return i40e_vc_send_resp_to_vf(vf, I40E_VIRTCHNL_OP_CONFIG_RSS_LUT,
+				       aq_ret);
+}
+
+/**
+ * i40e_vc_get_rss_hena
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ * @msglen: msg length
+ *
+ * Return the RSS HENA bits allowed by the hardware
+ **/
+static int i40e_vc_get_rss_hena(struct i40e_vf *vf, u8 *msg, u16 msglen)
+{
+	struct i40e_virtchnl_rss_hena *vrh = NULL;
+	struct i40e_pf *pf = vf->pf;
+	i40e_status aq_ret = 0;
+	int len = 0;
+
+	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	    !test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps)) {
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	}
+	len = sizeof(struct i40e_virtchnl_rss_hena);
+
+	vrh = kzalloc(len, GFP_KERNEL);
+	if (!vrh) {
+		aq_ret = I40E_ERR_NO_MEMORY;
+		len = 0;
+		goto err;
+	}
+	vrh->hena = i40e_pf_get_default_rss_hena(pf);
+err:
+	/* send the response back to the VF */
+	aq_ret = i40e_vc_send_msg_to_vf(vf, I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS,
+					aq_ret, (u8 *)vrh, len);
+	return aq_ret;
+}
+
+/**
+ * i40e_vc_set_rss_hena
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ * @msglen: msg length
+ *
+ * Set the RSS HENA bits for the VF
+ **/
+static int i40e_vc_set_rss_hena(struct i40e_vf *vf, u8 *msg, u16 msglen)
+{
+	struct i40e_virtchnl_rss_hena *vrh =
+		(struct i40e_virtchnl_rss_hena *)msg;
+	struct i40e_pf *pf = vf->pf;
+	struct i40e_hw *hw = &pf->hw;
+	i40e_status aq_ret = 0;
+
+	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	    !test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps)) {
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	}
+	i40e_write_rx_ctl(hw, I40E_VFQF_HENA1(0, vf->vf_id), (u32)vrh->hena);
+	i40e_write_rx_ctl(hw, I40E_VFQF_HENA1(1, vf->vf_id),
+			  (u32)(vrh->hena >> 32));
+
+	/* send the response to the VF */
+err:
+	return i40e_vc_send_resp_to_vf(vf, I40E_VIRTCHNL_OP_SET_RSS_HENA,
+				       aq_ret);
 }
 
 /**
@@ -2162,6 +2443,36 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 				sizeof(struct i40e_virtchnl_iwarp_qv_info));
 		}
 		break;
+	case I40E_VIRTCHNL_OP_CONFIG_RSS_KEY:
+		valid_len = sizeof(struct i40e_virtchnl_rss_key);
+		if (msglen >= valid_len) {
+			struct i40e_virtchnl_rss_key *vrk =
+				(struct i40e_virtchnl_rss_key *)msg;
+			if (vrk->key_len != I40E_HKEY_ARRAY_SIZE) {
+				err_msg_format = true;
+				break;
+			}
+			valid_len += vrk->key_len - 1;
+		}
+		break;
+	case I40E_VIRTCHNL_OP_CONFIG_RSS_LUT:
+		valid_len = sizeof(struct i40e_virtchnl_rss_lut);
+		if (msglen >= valid_len) {
+			struct i40e_virtchnl_rss_lut *vrl =
+				(struct i40e_virtchnl_rss_lut *)msg;
+			if (vrl->lut_entries != I40E_VF_HLUT_ARRAY_SIZE) {
+				err_msg_format = true;
+				break;
+			}
+			valid_len += vrl->lut_entries - 1;
+		}
+		break;
+	case I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS:
+		valid_len = 0;
+		break;
+	case I40E_VIRTCHNL_OP_SET_RSS_HENA:
+		valid_len = sizeof(struct i40e_virtchnl_rss_hena);
+		break;
 	/* These are always errors coming from the VF. */
 	case I40E_VIRTCHNL_OP_EVENT:
 	case I40E_VIRTCHNL_OP_UNKNOWN:
@@ -2260,6 +2571,19 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, u16 vf_id, u32 v_opcode,
 	case I40E_VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP:
 		ret = i40e_vc_iwarp_qvmap_msg(vf, msg, msglen, false);
 		break;
+	case I40E_VIRTCHNL_OP_CONFIG_RSS_KEY:
+		ret = i40e_vc_config_rss_key(vf, msg, msglen);
+		break;
+	case I40E_VIRTCHNL_OP_CONFIG_RSS_LUT:
+		ret = i40e_vc_config_rss_lut(vf, msg, msglen);
+		break;
+	case I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS:
+		ret = i40e_vc_get_rss_hena(vf, msg, msglen);
+		break;
+	case I40E_VIRTCHNL_OP_SET_RSS_HENA:
+		ret = i40e_vc_set_rss_hena(vf, msg, msglen);
+		break;
+
 	case I40E_VIRTCHNL_OP_UNKNOWN:
 	default:
 		dev_err(&pf->pdev->dev, "Unsupported opcode %d from VF %d\n",

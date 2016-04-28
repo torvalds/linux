@@ -202,6 +202,7 @@ struct i40e_lump_tracking {
 
 #define I40E_HKEY_ARRAY_SIZE ((I40E_PFQF_HKEY_MAX_INDEX + 1) * 4)
 #define I40E_HLUT_ARRAY_SIZE ((I40E_PFQF_HLUT_MAX_INDEX + 1) * 4)
+#define I40E_VF_HLUT_ARRAY_SIZE ((I40E_VFQF_HLUT1_MAX_INDEX + 1) * 4)
 
 enum i40e_fd_stat_idx {
 	I40E_FD_STAT_ATR,

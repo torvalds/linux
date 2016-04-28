@@ -275,6 +275,11 @@ struct i40e_hw_capabilities {
 #define I40E_FLEX10_STATUS_DCC_ERROR	0x1
 #define I40E_FLEX10_STATUS_VC_MODE	0x2
 
+	bool sec_rev_disabled;
+	bool update_disabled;
+#define I40E_NVM_MGMT_SEC_REV_DISABLED	0x1
+#define I40E_NVM_MGMT_UPDATE_DISABLED	0x2
+
 	bool mgmt_cem;
 	bool ieee_1588;
 	bool iwarp;
@@ -550,6 +555,7 @@ struct i40e_hw {
 	struct i40e_aq_desc nvm_wb_desc;
 	struct i40e_virt_mem nvm_buff;
 	bool nvm_release_on_done;
+	u16 nvm_wait_opcode;
 
 	/* HMC info */
 	struct i40e_hmc_info hmc; /* HMC info struct */
