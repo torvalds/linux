@@ -332,9 +332,8 @@ bool tcp_check_oom(struct sock *sk, int shift);
 extern struct proto tcp_prot;
 
 #define TCP_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.tcp_statistics, field)
-#define TCP_INC_STATS_BH(net, field)	SNMP_INC_STATS_BH((net)->mib.tcp_statistics, field)
+#define __TCP_INC_STATS(net, field)	__SNMP_INC_STATS((net)->mib.tcp_statistics, field)
 #define TCP_DEC_STATS(net, field)	SNMP_DEC_STATS((net)->mib.tcp_statistics, field)
-#define TCP_ADD_STATS_USER(net, field, val) SNMP_ADD_STATS_USER((net)->mib.tcp_statistics, field, val)
 #define TCP_ADD_STATS(net, field, val)	SNMP_ADD_STATS((net)->mib.tcp_statistics, field, val)
 
 void tcp_tasklet_init(void);
@@ -1298,10 +1297,10 @@ bool tcp_oow_rate_limited(struct net *net, const struct sk_buff *skb,
 static inline void tcp_mib_init(struct net *net)
 {
 	/* See RFC 2012 */
-	TCP_ADD_STATS_USER(net, TCP_MIB_RTOALGORITHM, 1);
-	TCP_ADD_STATS_USER(net, TCP_MIB_RTOMIN, TCP_RTO_MIN*1000/HZ);
-	TCP_ADD_STATS_USER(net, TCP_MIB_RTOMAX, TCP_RTO_MAX*1000/HZ);
-	TCP_ADD_STATS_USER(net, TCP_MIB_MAXCONN, -1);
+	TCP_ADD_STATS(net, TCP_MIB_RTOALGORITHM, 1);
+	TCP_ADD_STATS(net, TCP_MIB_RTOMIN, TCP_RTO_MIN*1000/HZ);
+	TCP_ADD_STATS(net, TCP_MIB_RTOMAX, TCP_RTO_MAX*1000/HZ);
+	TCP_ADD_STATS(net, TCP_MIB_MAXCONN, -1);
 }
 
 /* from STCP */
@@ -1744,7 +1743,7 @@ static inline __u32 cookie_init_sequence(const struct tcp_request_sock_ops *ops,
 					 __u16 *mss)
 {
 	tcp_synq_overflow(sk);
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESSENT);
+	__NET_INC_STATS(sock_net(sk), LINUX_MIB_SYNCOOKIESSENT);
 	return ops->cookie_init_seq(skb, mss);
 }
 #else
@@ -1853,7 +1852,7 @@ static inline void tcp_segs_in(struct tcp_sock *tp, const struct sk_buff *skb)
 static inline void tcp_listendrop(const struct sock *sk)
 {
 	atomic_inc(&((struct sock *)sk)->sk_drops);
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENDROPS);
 }
 
 #endif	/* _TCP_H */

@@ -436,7 +436,7 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 	if (IS_ERR(rt))
 		return 1;
 	if (rt->dst.dev != dev) {
-		NET_INC_STATS_BH(net, LINUX_MIB_ARPFILTER);
+		__NET_INC_STATS(net, LINUX_MIB_ARPFILTER);
 		flag = 1;
 	}
 	ip_rt_put(rt);

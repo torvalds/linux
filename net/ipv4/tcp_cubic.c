@@ -402,11 +402,11 @@ static void hystart_update(struct sock *sk, u32 delay)
 			ca->last_ack = now;
 			if ((s32)(now - ca->round_start) > ca->delay_min >> 4) {
 				ca->found |= HYSTART_ACK_TRAIN;
-				NET_INC_STATS_BH(sock_net(sk),
-						 LINUX_MIB_TCPHYSTARTTRAINDETECT);
-				NET_ADD_STATS_BH(sock_net(sk),
-						 LINUX_MIB_TCPHYSTARTTRAINCWND,
-						 tp->snd_cwnd);
+				__NET_INC_STATS(sock_net(sk),
+						LINUX_MIB_TCPHYSTARTTRAINDETECT);
+				__NET_ADD_STATS(sock_net(sk),
+						LINUX_MIB_TCPHYSTARTTRAINCWND,
+						tp->snd_cwnd);
 				tp->snd_ssthresh = tp->snd_cwnd;
 			}
 		}
@@ -423,11 +423,11 @@ static void hystart_update(struct sock *sk, u32 delay)
 			if (ca->curr_rtt > ca->delay_min +
 			    HYSTART_DELAY_THRESH(ca->delay_min >> 3)) {
 				ca->found |= HYSTART_DELAY;
-				NET_INC_STATS_BH(sock_net(sk),
-						 LINUX_MIB_TCPHYSTARTDELAYDETECT);
-				NET_ADD_STATS_BH(sock_net(sk),
-						 LINUX_MIB_TCPHYSTARTDELAYCWND,
-						 tp->snd_cwnd);
+				__NET_INC_STATS(sock_net(sk),
+						LINUX_MIB_TCPHYSTARTDELAYDETECT);
+				__NET_ADD_STATS(sock_net(sk),
+						LINUX_MIB_TCPHYSTARTDELAYCWND,
+						tp->snd_cwnd);
 				tp->snd_ssthresh = tp->snd_cwnd;
 			}
 		}

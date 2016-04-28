@@ -45,12 +45,8 @@
 
 #ifdef CONFIG_XFRM_STATISTICS
 #define XFRM_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.xfrm_statistics, field)
-#define XFRM_INC_STATS_BH(net, field)	SNMP_INC_STATS_BH((net)->mib.xfrm_statistics, field)
-#define XFRM_INC_STATS_USER(net, field)	SNMP_INC_STATS_USER((net)-mib.xfrm_statistics, field)
 #else
 #define XFRM_INC_STATS(net, field)	((void)(net))
-#define XFRM_INC_STATS_BH(net, field)	((void)(net))
-#define XFRM_INC_STATS_USER(net, field)	((void)(net))
 #endif
 
 

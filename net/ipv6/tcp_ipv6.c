@@ -336,8 +336,8 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 					skb->dev->ifindex);
 
 	if (!sk) {
-		ICMP6_INC_STATS_BH(net, __in6_dev_get(skb->dev),
-				   ICMP6_MIB_INERRORS);
+		__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev),
+				  ICMP6_MIB_INERRORS);
 		return;
 	}
 
@@ -352,13 +352,13 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk) && type != ICMPV6_PKT_TOOBIG)
-		NET_INC_STATS_BH(net, LINUX_MIB_LOCKDROPPEDICMPS);
+		__NET_INC_STATS(net, LINUX_MIB_LOCKDROPPEDICMPS);
 
 	if (sk->sk_state == TCP_CLOSE)
 		goto out;
 
 	if (ipv6_hdr(skb)->hop_limit < inet6_sk(sk)->min_hopcount) {
-		NET_INC_STATS_BH(net, LINUX_MIB_TCPMINTTLDROP);
+		__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
 		goto out;
 	}
 
@@ -368,7 +368,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	snd_una = fastopen ? tcp_rsk(fastopen)->snt_isn : tp->snd_una;
 	if (sk->sk_state != TCP_LISTEN &&
 	    !between(seq, snd_una, tp->snd_nxt)) {
-		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
+		__NET_INC_STATS(net, LINUX_MIB_OUTOFWINDOWICMPS);
 		goto out;
 	}
 
@@ -649,12 +649,12 @@ static bool tcp_v6_inbound_md5_hash(const struct sock *sk,
 		return false;
 
 	if (hash_expected && !hash_location) {
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPMD5NOTFOUND);
+		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5NOTFOUND);
 		return true;
 	}
 
 	if (!hash_expected && hash_location) {
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPMD5UNEXPECTED);
+		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5UNEXPECTED);
 		return true;
 	}
 
@@ -825,9 +825,9 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	if (!IS_ERR(dst)) {
 		skb_dst_set(buff, dst);
 		ip6_xmit(ctl_sk, buff, &fl6, NULL, tclass);
-		TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
+		__TCP_INC_STATS(net, TCP_MIB_OUTSEGS);
 		if (rst)
-			TCP_INC_STATS_BH(net, TCP_MIB_OUTRSTS);
+			__TCP_INC_STATS(net, TCP_MIB_OUTRSTS);
 		return;
 	}
 
@@ -1165,7 +1165,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	return newsk;
 
 out_overflow:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
+	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
 out_nonewsk:
 	dst_release(dst);
 out:
@@ -1276,8 +1276,8 @@ discard:
 	kfree_skb(skb);
 	return 0;
 csum_err:
-	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_CSUMERRORS);
-	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_INERRS);
+	__TCP_INC_STATS(sock_net(sk), TCP_MIB_CSUMERRORS);
+	__TCP_INC_STATS(sock_net(sk), TCP_MIB_INERRS);
 	goto discard;
 
 
@@ -1359,7 +1359,7 @@ static int tcp_v6_rcv(struct sk_buff *skb)
 	/*
 	 *	Count it even if it's bad.
 	 */
-	TCP_INC_STATS_BH(net, TCP_MIB_INSEGS);
+	__TCP_INC_STATS(net, TCP_MIB_INSEGS);
 
 	if (!pskb_may_pull(skb, sizeof(struct tcphdr)))
 		goto discard_it;
@@ -1421,7 +1421,7 @@ process:
 		}
 	}
 	if (hdr->hop_limit < inet6_sk(sk)->min_hopcount) {
-		NET_INC_STATS_BH(net, LINUX_MIB_TCPMINTTLDROP);
+		__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
 		goto discard_and_relse;
 	}
 
@@ -1454,7 +1454,7 @@ process:
 	} else if (unlikely(sk_add_backlog(sk, skb,
 					   sk->sk_rcvbuf + sk->sk_sndbuf))) {
 		bh_unlock_sock(sk);
-		NET_INC_STATS_BH(net, LINUX_MIB_TCPBACKLOGDROP);
+		__NET_INC_STATS(net, LINUX_MIB_TCPBACKLOGDROP);
 		goto discard_and_relse;
 	}
 	bh_unlock_sock(sk);
@@ -1472,9 +1472,9 @@ no_tcp_socket:
 
 	if (tcp_checksum_complete(skb)) {
 csum_error:
-		TCP_INC_STATS_BH(net, TCP_MIB_CSUMERRORS);
+		__TCP_INC_STATS(net, TCP_MIB_CSUMERRORS);
 bad_packet:
-		TCP_INC_STATS_BH(net, TCP_MIB_INERRS);
+		__TCP_INC_STATS(net, TCP_MIB_INERRS);
 	} else {
 		tcp_v6_send_reset(NULL, skb);
 	}

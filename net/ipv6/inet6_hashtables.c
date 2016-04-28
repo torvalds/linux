@@ -222,7 +222,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	__sk_nulls_add_node_rcu(sk, &head->chain);
 	if (tw) {
 		sk_nulls_del_node_init_rcu((struct sock *)tw);
-		NET_INC_STATS_BH(net, LINUX_MIB_TIMEWAITRECYCLED);
+		__NET_INC_STATS(net, LINUX_MIB_TIMEWAITRECYCLED);
 	}
 	spin_unlock(lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);

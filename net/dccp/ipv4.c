@@ -205,7 +205,7 @@ void dccp_req_err(struct sock *sk, u64 seq)
 	 * socket here.
 	 */
 	if (!between48(seq, dccp_rsk(req)->dreq_iss, dccp_rsk(req)->dreq_gss)) {
-		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
+		__NET_INC_STATS(net, LINUX_MIB_OUTOFWINDOWICMPS);
 	} else {
 		/*
 		 * Still in RESPOND, just remove it silently.
@@ -247,7 +247,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 
 	if (skb->len < offset + sizeof(*dh) ||
 	    skb->len < offset + __dccp_basic_hdr_len(dh)) {
-		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
+		__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
 		return;
 	}
 
@@ -256,7 +256,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 				       iph->saddr, ntohs(dh->dccph_sport),
 				       inet_iif(skb));
 	if (!sk) {
-		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
+		__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
 		return;
 	}
 
@@ -273,7 +273,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 	 * servers this needs to be solved differently.
 	 */
 	if (sock_owned_by_user(sk))
-		NET_INC_STATS_BH(net, LINUX_MIB_LOCKDROPPEDICMPS);
+		__NET_INC_STATS(net, LINUX_MIB_LOCKDROPPEDICMPS);
 
 	if (sk->sk_state == DCCP_CLOSED)
 		goto out;
@@ -281,7 +281,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 	dp = dccp_sk(sk);
 	if ((1 << sk->sk_state) & ~(DCCPF_REQUESTING | DCCPF_LISTEN) &&
 	    !between48(seq, dp->dccps_awl, dp->dccps_awh)) {
-		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
+		__NET_INC_STATS(net, LINUX_MIB_OUTOFWINDOWICMPS);
 		goto out;
 	}
 
@@ -318,7 +318,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 	case DCCP_REQUESTING:
 	case DCCP_RESPOND:
 		if (!sock_owned_by_user(sk)) {
-			DCCP_INC_STATS_BH(DCCP_MIB_ATTEMPTFAILS);
+			__DCCP_INC_STATS(DCCP_MIB_ATTEMPTFAILS);
 			sk->sk_err = err;
 
 			sk->sk_error_report(sk);
@@ -431,11 +431,11 @@ struct sock *dccp_v4_request_recv_sock(const struct sock *sk,
 	return newsk;
 
 exit_overflow:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
+	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
 exit_nonewsk:
 	dst_release(dst);
 exit:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENDROPS);
 	return NULL;
 put_and_exit:
 	inet_csk_prepare_forced_close(newsk);
@@ -462,7 +462,7 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 	security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));
 	rt = ip_route_output_flow(net, &fl4, sk);
 	if (IS_ERR(rt)) {
-		IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
+		__IP_INC_STATS(net, IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
 	}
 
@@ -533,8 +533,8 @@ static void dccp_v4_ctl_send_reset(const struct sock *sk, struct sk_buff *rxskb)
 	bh_unlock_sock(ctl_sk);
 
 	if (net_xmit_eval(err) == 0) {
-		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
-		DCCP_INC_STATS_BH(DCCP_MIB_OUTRSTS);
+		__DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
+		__DCCP_INC_STATS(DCCP_MIB_OUTRSTS);
 	}
 out:
 	 dst_release(dst);
@@ -637,7 +637,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 drop_and_free:
 	reqsk_free(req);
 drop:
-	DCCP_INC_STATS_BH(DCCP_MIB_ATTEMPTFAILS);
+	__DCCP_INC_STATS(DCCP_MIB_ATTEMPTFAILS);
 	return -1;
 }
 EXPORT_SYMBOL_GPL(dccp_v4_conn_request);

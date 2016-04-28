@@ -4982,8 +4982,8 @@ bool sk_busy_loop(struct sock *sk, int nonblock)
 			netpoll_poll_unlock(have);
 		}
 		if (rc > 0)
-			NET_ADD_STATS_BH(sock_net(sk),
-					 LINUX_MIB_BUSYPOLLRXPACKETS, rc);
+			__NET_ADD_STATS(sock_net(sk),
+					LINUX_MIB_BUSYPOLLRXPACKETS, rc);
 		local_bh_enable();
 
 		if (rc == LL_FLUSH_FAILED)

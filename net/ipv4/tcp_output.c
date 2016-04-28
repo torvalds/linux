@@ -2212,8 +2212,8 @@ static bool skb_still_in_host_queue(const struct sock *sk,
 				    const struct sk_buff *skb)
 {
 	if (unlikely(skb_fclone_busy(sk, skb))) {
-		NET_INC_STATS_BH(sock_net(sk),
-				 LINUX_MIB_TCPSPURIOUS_RTX_HOSTQUEUES);
+		__NET_INC_STATS(sock_net(sk),
+				LINUX_MIB_TCPSPURIOUS_RTX_HOSTQUEUES);
 		return true;
 	}
 	return false;
@@ -2275,7 +2275,7 @@ void tcp_send_loss_probe(struct sock *sk)
 	tp->tlp_high_seq = tp->snd_nxt;
 
 probe_sent:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPLOSSPROBES);
+	__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPLOSSPROBES);
 	/* Reset s.t. tcp_rearm_rto will restart timer from now */
 	inet_csk(sk)->icsk_pending = 0;
 rearm_timer:
@@ -2656,7 +2656,7 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 		/* Update global TCP statistics. */
 		TCP_ADD_STATS(sock_net(sk), TCP_MIB_RETRANSSEGS, segs);
 		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)
-			NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPSYNRETRANS);
+			__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPSYNRETRANS);
 		tp->total_retrans += segs;
 	}
 	return err;
@@ -2681,7 +2681,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 			tp->retrans_stamp = tcp_skb_timestamp(skb);
 
 	} else if (err != -EBUSY) {
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPRETRANSFAIL);
+		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPRETRANSFAIL);
 	}
 
 	if (tp->undo_retrans < 0)
@@ -2805,7 +2805,7 @@ begin_fwd:
 		if (tcp_retransmit_skb(sk, skb, segs))
 			return;
 
-		NET_INC_STATS_BH(sock_net(sk), mib_idx);
+		__NET_INC_STATS(sock_net(sk), mib_idx);
 
 		if (tcp_in_cwnd_reduction(sk))
 			tp->prr_out += tcp_skb_pcount(skb);
@@ -3042,7 +3042,7 @@ struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 	th->window = htons(min(req->rsk_rcv_wnd, 65535U));
 	tcp_options_write((__be32 *)(th + 1), NULL, &opts);
 	th->doff = (tcp_header_size >> 2);
-	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_OUTSEGS);
+	__TCP_INC_STATS(sock_net(sk), TCP_MIB_OUTSEGS);
 
 #ifdef CONFIG_TCP_MD5SIG
 	/* Okay, we have all we need - do the md5 hash if needed */
@@ -3540,8 +3540,8 @@ int tcp_rtx_synack(const struct sock *sk, struct request_sock *req)
 	tcp_rsk(req)->txhash = net_tx_rndhash();
 	res = af_ops->send_synack(sk, NULL, &fl, req, NULL, TCP_SYNACK_NORMAL);
 	if (!res) {
-		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPSYNRETRANS);
+		__TCP_INC_STATS(sock_net(sk), TCP_MIB_RETRANSSEGS);
+		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPSYNRETRANS);
 	}
 	return res;
 }
