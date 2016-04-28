@@ -20,8 +20,8 @@
 #include <linux/spinlock.h>
 #include <linux/fence.h>
 
-#include "sync_file.h"
-#include "uapi/sync_file.h"
+#include <linux/sync_file.h>
+#include <uapi/linux/sync_file.h>
 
 struct sync_timeline;
 

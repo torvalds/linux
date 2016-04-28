@@ -23,8 +23,8 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/anon_inodes.h>
-#include "sync_file.h"
-#include "uapi/sync_file.h"
+#include <linux/sync_file.h>
+#include <uapi/linux/sync_file.h>
 
 static const struct file_operations sync_file_fops;
 
