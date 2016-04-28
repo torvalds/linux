@@ -24,6 +24,7 @@
 #include <linux/platform_data/iommu-omap.h>
 #include <linux/platform_data/wkup_m3.h>
 #include <linux/platform_data/pwm_omap_dmtimer.h>
+#include <linux/platform_data/media/ir-rx51.h>
 #include <plat/dmtimer.h>
 
 #include "common.h"
@@ -31,6 +32,7 @@
 #include "dss-common.h"
 #include "control.h"
 #include "omap_device.h"
+#include "omap-pm.h"
 #include "omap-secure.h"
 #include "soc.h"
 #include "hsmmc.h"
@@ -268,6 +270,8 @@ static struct platform_device omap3_rom_rng_device = {
 	},
 };
 
+static struct platform_device rx51_lirc_device;
+
 static void __init nokia_n900_legacy_init(void)
 {
 	hsmmc2_internal_input_clk();
@@ -286,6 +290,8 @@ static void __init nokia_n900_legacy_init(void)
 		platform_device_register(&omap3_rom_rng_device);
 
 	}
+
+	platform_device_register(&rx51_lirc_device);
 }
 
 static void __init omap3_tao3530_legacy_init(void)
@@ -453,8 +459,14 @@ void omap_auxdata_legacy_init(struct device *dev)
 
 /* Dual mode timer PWM callbacks platdata */
 #if IS_ENABLED(CONFIG_OMAP_DM_TIMER)
-struct pwm_omap_dmtimer_pdata pwm_dmtimer_pdata = {
+static struct pwm_omap_dmtimer_pdata pwm_dmtimer_pdata = {
 	.request_by_node = omap_dm_timer_request_by_node,
+	.request_specific = omap_dm_timer_request_specific,
+	.request = omap_dm_timer_request,
+	.set_source = omap_dm_timer_set_source,
+	.get_irq = omap_dm_timer_get_irq,
+	.set_int_enable = omap_dm_timer_set_int_enable,
+	.set_int_disable = omap_dm_timer_set_int_disable,
 	.free = omap_dm_timer_free,
 	.enable = omap_dm_timer_enable,
 	.disable = omap_dm_timer_disable,
@@ -465,9 +477,28 @@ struct pwm_omap_dmtimer_pdata pwm_dmtimer_pdata = {
 	.set_match = omap_dm_timer_set_match,
 	.set_pwm = omap_dm_timer_set_pwm,
 	.set_prescaler = omap_dm_timer_set_prescaler,
+	.read_counter = omap_dm_timer_read_counter,
 	.write_counter = omap_dm_timer_write_counter,
+	.read_status = omap_dm_timer_read_status,
+	.write_status = omap_dm_timer_write_status,
 };
 #endif
+
+static struct lirc_rx51_platform_data __maybe_unused rx51_lirc_data = {
+	.set_max_mpu_wakeup_lat = omap_pm_set_max_mpu_wakeup_lat,
+	.pwm_timer = 9, /* Use GPT 9 for CIR */
+#if IS_ENABLED(CONFIG_OMAP_DM_TIMER)
+	.dmtimer = &pwm_dmtimer_pdata,
+#endif
+};
+
+static struct platform_device __maybe_unused rx51_lirc_device = {
+	.name           = "lirc_rx51",
+	.id             = -1,
+	.dev            = {
+		.platform_data = &rx51_lirc_data,
+	},
+};
 
 /*
  * Few boards still need auxdata populated before we populate
