@@ -481,7 +481,7 @@ execlists_check_remove_request(struct intel_engine_cs *engine, u32 request_id)
 	if (!head_req)
 		return 0;
 
-	if (unlikely(head_req->ctx->hw_id != request_id))
+	if (unlikely(head_req->ctx_hw_id != request_id))
 		return 0;
 
 	WARN(head_req->elsp_submitted == 0, "Never submitted head request\n");
@@ -619,6 +619,7 @@ static void execlists_context_queue(struct drm_i915_gem_request *request)
 	}
 
 	list_add_tail(&request->execlist_link, &engine->execlist_queue);
+	request->ctx_hw_id = request->ctx->hw_id;
 	if (num_elements == 0)
 		execlists_context_unqueue(engine);
 

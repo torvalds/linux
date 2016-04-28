@@ -2352,6 +2352,8 @@ struct drm_i915_gem_request {
 	/** Execlists no. of times this request has been sent to the ELSP */
 	int elsp_submitted;
 
+	/** Execlists context hardware id. */
+	unsigned ctx_hw_id;
 };
 
 struct drm_i915_gem_request * __must_check
