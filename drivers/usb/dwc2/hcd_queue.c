@@ -1709,7 +1709,8 @@ void dwc2_hcd_qh_unlink(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 
 	dwc2_deschedule_periodic(hsotg, qh);
 	hsotg->periodic_qh_count--;
-	if (!hsotg->periodic_qh_count) {
+	if (!hsotg->periodic_qh_count &&
+	    hsotg->core_params->dma_desc_enable <= 0) {
 		intr_mask = dwc2_readl(hsotg->regs + GINTMSK);
 		intr_mask &= ~GINTSTS_SOF;
 		dwc2_writel(intr_mask, hsotg->regs + GINTMSK);

@@ -240,10 +240,7 @@ static int phy_8x16_read_devicetree(struct phy_8x16 *qphy)
 
 	qphy->switch_gpio = devm_gpiod_get_optional(dev, "switch",
 						   GPIOD_OUT_LOW);
-	if (IS_ERR(qphy->switch_gpio))
-		return PTR_ERR(qphy->switch_gpio);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(qphy->switch_gpio);
 }
 
 static int phy_8x16_reboot_notify(struct notifier_block *this,
