@@ -314,6 +314,7 @@ config CRYPTO_DEV_OMAP_DES
 	depends on ARCH_OMAP2PLUS
 	select CRYPTO_DES
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_ENGINE
 	help
 	  OMAP processors have DES/3DES module accelerator. Select this if you
 	  want to use the OMAP module for DES and 3DES algorithms. Currently
