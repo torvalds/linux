@@ -2095,20 +2095,23 @@ static int init_phys_status_page(struct intel_engine_cs *engine)
 
 void intel_unpin_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
 {
+	GEM_BUG_ON(ringbuf->vma == NULL);
+	GEM_BUG_ON(ringbuf->virtual_start == NULL);
+
 	if (HAS_LLC(ringbuf->obj->base.dev) && !ringbuf->obj->stolen)
 		i915_gem_object_unpin_map(ringbuf->obj);
 	else
-		iounmap(ringbuf->virtual_start);
+		i915_vma_unpin_iomap(ringbuf->vma);
 	ringbuf->virtual_start = NULL;
-	ringbuf->vma = NULL;
+
 	i915_gem_object_ggtt_unpin(ringbuf->obj);
+	ringbuf->vma = NULL;
 }
 
 int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 				     struct intel_ringbuffer *ringbuf)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_gem_object *obj = ringbuf->obj;
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
 	unsigned flags = PIN_OFFSET_BIAS | 4096;
@@ -2142,10 +2145,9 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 		/* Access through the GTT requires the device to be awake. */
 		assert_rpm_wakelock_held(dev_priv);
 
-		addr = ioremap_wc(ggtt->mappable_base +
-				  i915_gem_obj_ggtt_offset(obj), ringbuf->size);
-		if (addr == NULL) {
-			ret = -ENOMEM;
+		addr = i915_vma_pin_iomap(i915_gem_obj_to_ggtt(obj));
+		if (IS_ERR(addr)) {
+			ret = PTR_ERR(addr);
 			goto err_unpin;
 		}
 	}
