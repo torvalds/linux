@@ -1349,6 +1349,7 @@ static int class_config_parse_rec(struct llog_rec_hdr *rec, char *buf,
 					lustre_cfg_string(lcfg, i));
 		}
 	}
+	ptr += snprintf(ptr, end - ptr, "\n");
 	/* return consumed bytes */
 	rc = ptr - buf;
 	return rc;
