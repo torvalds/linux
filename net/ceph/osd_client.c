@@ -2668,28 +2668,36 @@ void ceph_osdc_cancel_request(struct ceph_osd_request *req)
 EXPORT_SYMBOL(ceph_osdc_cancel_request);
 
 /*
+ * @timeout: in jiffies, 0 means "wait forever"
+ */
+static int wait_request_timeout(struct ceph_osd_request *req,
+				unsigned long timeout)
+{
+	long left;
+
+	dout("%s req %p tid %llu\n", __func__, req, req->r_tid);
+	left = wait_for_completion_interruptible_timeout(&req->r_completion,
+						ceph_timeout_jiffies(timeout));
+	if (left <= 0) {
+		left = left ?: -ETIMEDOUT;
+		ceph_osdc_cancel_request(req);
+
+		/* kludge - need to to wake ceph_osdc_sync() */
+		complete_all(&req->r_safe_completion);
+	} else {
+		left = req->r_result; /* completed */
+	}
+
+	return left;
+}
+
+/*
  * wait for a request to complete
  */
 int ceph_osdc_wait_request(struct ceph_osd_client *osdc,
 			   struct ceph_osd_request *req)
 {
-	int rc;
-
-	dout("%s %p tid %llu\n", __func__, req, req->r_tid);
-
-	rc = wait_for_completion_interruptible(&req->r_completion);
-	if (rc < 0) {
-		dout("%s %p tid %llu interrupted\n", __func__, req, req->r_tid);
-		ceph_osdc_cancel_request(req);
-
-		/* kludge - need to to wake ceph_osdc_sync() */
-		complete_all(&req->r_safe_completion);
-		return rc;
-	}
-
-	dout("%s %p tid %llu result %d\n", __func__, req, req->r_tid,
-	     req->r_result);
-	return req->r_result;
+	return wait_request_timeout(req, 0);
 }
 EXPORT_SYMBOL(ceph_osdc_wait_request);
 
