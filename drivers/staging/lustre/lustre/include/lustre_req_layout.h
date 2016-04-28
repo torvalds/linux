@@ -199,7 +199,7 @@ extern struct req_format RQF_OST_BRW_READ;
 extern struct req_format RQF_OST_BRW_WRITE;
 extern struct req_format RQF_OST_STATFS;
 extern struct req_format RQF_OST_SET_GRANT_INFO;
-extern struct req_format RQF_OST_GET_INFO_GENERIC;
+extern struct req_format RQF_OST_GET_INFO;
 extern struct req_format RQF_OST_GET_INFO_LAST_ID;
 extern struct req_format RQF_OST_GET_INFO_LAST_FID;
 extern struct req_format RQF_OST_SET_INFO_LAST_FID;
