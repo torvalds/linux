@@ -124,9 +124,15 @@ int ldlm_debugfs_setup(void)
 	}
 
 	rc = ldebugfs_add_vars(ldlm_debugfs_dir, ldlm_debugfs_list, NULL);
+	if (rc) {
+		CERROR("LProcFS failed in ldlm-init\n");
+		goto err_svc;
+	}
 
 	return 0;
 
+err_svc:
+	ldebugfs_remove(&ldlm_svc_debugfs_dir);
 err_ns:
 	ldebugfs_remove(&ldlm_ns_debugfs_dir);
 err_type:
