@@ -173,7 +173,14 @@ static void fence_check_cb_func(struct fence *f, struct fence_cb *cb)
 		wake_up_all(&sync_file->wq);
 }
 
-/* TODO: implement a create which takes more that one fence */
+/**
+ * sync_fence_create() - creates a sync fence
+ * @name:	name of fence to create
+ * @fence:	fence to add to the sync_fence
+ *
+ * Creates a sync_file containg @fence. Once this is called, the sync_file
+ * takes ownership of @fence.
+ */
 struct sync_file *sync_file_create(const char *name, struct fence *fence)
 {
 	struct sync_file *sync_file;
@@ -198,6 +205,13 @@ struct sync_file *sync_file_create(const char *name, struct fence *fence)
 }
 EXPORT_SYMBOL(sync_file_create);
 
+/**
+ * sync_file_fdget() - get a sync_file from an fd
+ * @fd:		fd referencing a fence
+ *
+ * Ensures @fd references a valid sync_file, increments the refcount of the
+ * backing file. Returns the sync_file or NULL in case of error.
+ */
 struct sync_file *sync_file_fdget(int fd)
 {
 	struct file *file = fget(fd);
@@ -229,6 +243,16 @@ static void sync_file_add_pt(struct sync_file *sync_file, int *i,
 	}
 }
 
+/**
+ * sync_file_merge() - merge two sync_files
+ * @name:	name of new fence
+ * @a:		sync_file a
+ * @b:		sync_file b
+ *
+ * Creates a new sync_file which contains copies of all the fences in both
+ * @a and @b.  @a and @b remain valid, independent sync_file. Returns the
+ * new merged sync_file or NULL in case of error.
+ */
 struct sync_file *sync_file_merge(const char *name,
 				  struct sync_file *a, struct sync_file *b)
 {

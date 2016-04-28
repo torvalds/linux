@@ -167,40 +167,9 @@ void sync_timeline_signal(struct sync_timeline *obj);
  */
 struct fence *sync_pt_create(struct sync_timeline *parent, int size);
 
-/**
- * sync_fence_create() - creates a sync fence
- * @name:	name of fence to create
- * @fence:	fence to add to the sync_fence
- *
- * Creates a sync_file containg @fence. Once this is called, the sync_file
- * takes ownership of @fence.
- */
 struct sync_file *sync_file_create(const char *name, struct fence *fence);
-
-/*
- * API for sync_file consumers
- */
-
-/**
- * sync_file_merge() - merge two sync_files
- * @name:	name of new fence
- * @a:		sync_file a
- * @b:		sync_file b
- *
- * Creates a new sync_file which contains copies of all the fences in both
- * @a and @b.  @a and @b remain valid, independent sync_file. Returns the
- * new merged sync_file or NULL in case of error.
- */
 struct sync_file *sync_file_merge(const char *name,
 				    struct sync_file *a, struct sync_file *b);
-
-/**
- * sync_file_fdget() - get a sync_file from an fd
- * @fd:		fd referencing a fence
- *
- * Ensures @fd references a valid sync_file, increments the refcount of the
- * backing file. Returns the sync_file or NULL in case of error.
- */
 struct sync_file *sync_file_fdget(int fd);
 
 #ifdef CONFIG_DEBUG_FS
