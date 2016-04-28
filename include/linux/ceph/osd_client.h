@@ -224,6 +224,7 @@ struct ceph_osd_client {
 	struct mutex           request_mutex;
 	struct rb_root         osds;          /* osds */
 	struct list_head       osd_lru;       /* idle osds */
+	spinlock_t             osd_lru_lock;
 	u64                    last_tid;      /* tid of last request */
 	struct rb_root         requests;      /* pending requests */
 	struct list_head       req_lru;	      /* in-flight lru */
