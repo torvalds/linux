@@ -1,5 +1,6 @@
 #define pr_fmt(fmt) "kcov: " fmt
 
+#define DISABLE_BRANCH_PROFILING
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/file.h>
