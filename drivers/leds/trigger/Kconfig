@@ -121,6 +121,9 @@ config LEDS_TRIGGER_PANIC
 	depends on LEDS_TRIGGERS
 	help
 	  This allows LEDs to be configured to blink on a kernel panic.
+	  Enabling this option will allow to mark certain LEDs as panic indicators,
+	  allowing to blink them on a kernel panic, even if they are set to
+	  a different trigger.
 	  If unsure, say Y.
 
 endif # LEDS_TRIGGERS
