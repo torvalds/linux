@@ -1053,7 +1053,7 @@ static void rtl8xxxu_stop_tx_beacon(struct rtl8xxxu_priv *priv)
  *
  * Note: We index from 0 in the code
  */
-static int rtl8723a_channel_to_group(int channel)
+static int rtl8xxxu_gen1_channel_to_group(int channel)
 {
 	int group;
 
@@ -1350,7 +1350,7 @@ rtl8xxxu_gen1_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 	u8 val8;
 	int group, i;
 
-	group = rtl8723a_channel_to_group(channel);
+	group = rtl8xxxu_gen1_channel_to_group(channel);
 
 	cck[0] = priv->cck_tx_power_index_A[group] - 1;
 	cck[1] = priv->cck_tx_power_index_B[group] - 1;
