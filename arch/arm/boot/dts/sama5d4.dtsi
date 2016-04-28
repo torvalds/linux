@@ -1302,6 +1302,7 @@
 			watchdog@fc068640 {
 				compatible = "atmel,sama5d4-wdt";
 				reg = <0xfc068640 0x10>;
+				interrupts = <4 IRQ_TYPE_LEVEL_HIGH 7>;
 				clocks = <&clk32k>;
 				status = "disabled";
 			};

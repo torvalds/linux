@@ -1030,6 +1030,15 @@
 				clocks = <&clk32k>;
 			};
 
+			shdwc@f8048010 {
+				compatible = "atmel,sama5d2-shdwc";
+				reg = <0xf8048010 0x10>;
+				clocks = <&clk32k>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				atmel,wakeup-rtc-timer;
+			};
+
 			pit: timer@f8048030 {
 				compatible = "atmel,at91sam9260-pit";
 				reg = <0xf8048030 0x10>;
@@ -1041,6 +1050,7 @@
 				compatible = "atmel,sama5d4-wdt";
 				reg = <0xf8048040 0x10>;
 				interrupts = <4 IRQ_TYPE_LEVEL_HIGH 7>;
+				clocks = <&clk32k>;
 				status = "disabled";
 			};
 
