@@ -239,16 +239,6 @@ static const char * const reg_type_str[] = {
 	[CONST_IMM]		= "imm",
 };
 
-static const struct {
-	int map_type;
-	int func_id;
-} func_limit[] = {
-	{BPF_MAP_TYPE_PROG_ARRAY, BPF_FUNC_tail_call},
-	{BPF_MAP_TYPE_PERF_EVENT_ARRAY, BPF_FUNC_perf_event_read},
-	{BPF_MAP_TYPE_PERF_EVENT_ARRAY, BPF_FUNC_perf_event_output},
-	{BPF_MAP_TYPE_STACK_TRACE, BPF_FUNC_get_stackid},
-};
-
 static void print_verifier_state(struct verifier_env *env)
 {
 	enum bpf_reg_type t;
@@ -921,27 +911,52 @@ static int check_func_arg(struct verifier_env *env, u32 regno,
 
 static int check_map_func_compatibility(struct bpf_map *map, int func_id)
 {
-	bool bool_map, bool_func;
-	int i;
-
 	if (!map)
 		return 0;
 
-	for (i = 0; i < ARRAY_SIZE(func_limit); i++) {
-		bool_map = (map->map_type == func_limit[i].map_type);
-		bool_func = (func_id == func_limit[i].func_id);
-		/* only when map & func pair match it can continue.
-		 * don't allow any other map type to be passed into
-		 * the special func;
-		 */
-		if (bool_func && bool_map != bool_func) {
-			verbose("cannot pass map_type %d into func %d\n",
-				map->map_type, func_id);
-			return -EINVAL;
-		}
+	/* We need a two way check, first is from map perspective ... */
+	switch (map->map_type) {
+	case BPF_MAP_TYPE_PROG_ARRAY:
+		if (func_id != BPF_FUNC_tail_call)
+			goto error;
+		break;
+	case BPF_MAP_TYPE_PERF_EVENT_ARRAY:
+		if (func_id != BPF_FUNC_perf_event_read &&
+		    func_id != BPF_FUNC_perf_event_output)
+			goto error;
+		break;
+	case BPF_MAP_TYPE_STACK_TRACE:
+		if (func_id != BPF_FUNC_get_stackid)
+			goto error;
+		break;
+	default:
+		break;
+	}
+
+	/* ... and second from the function itself. */
+	switch (func_id) {
+	case BPF_FUNC_tail_call:
+		if (map->map_type != BPF_MAP_TYPE_PROG_ARRAY)
+			goto error;
+		break;
+	case BPF_FUNC_perf_event_read:
+	case BPF_FUNC_perf_event_output:
+		if (map->map_type != BPF_MAP_TYPE_PERF_EVENT_ARRAY)
+			goto error;
+		break;
+	case BPF_FUNC_get_stackid:
+		if (map->map_type != BPF_MAP_TYPE_STACK_TRACE)
+			goto error;
+		break;
+	default:
+		break;
 	}
 
 	return 0;
+error:
+	verbose("cannot pass map_type %d into func %d\n",
+		map->map_type, func_id);
+	return -EINVAL;
 }
 
 static int check_call(struct verifier_env *env, int func_id)
