@@ -2977,7 +2977,7 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 
 	mlx5e_create_q_counter(priv);
 
-	mlx5e_init_eth_addr(priv);
+	mlx5e_init_l2_addr(priv);
 
 	mlx5e_vxlan_init(priv);
 
