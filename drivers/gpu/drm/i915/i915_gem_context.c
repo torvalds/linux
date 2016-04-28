@@ -601,6 +601,37 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	return ret;
 }
 
+int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice)
+{
+	struct intel_engine_cs *engine = req->engine;
+	struct drm_device *dev = engine->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 *remap_info = dev_priv->l3_parity.remap_info[slice];
+	int i, ret;
+
+	if (!HAS_L3_DPF(dev) || !remap_info)
+		return 0;
+
+	ret = intel_ring_begin(req, GEN7_L3LOG_SIZE / 4 * 3);
+	if (ret)
+		return ret;
+
+	/*
+	 * Note: We do not worry about the concurrent register cacheline hang
+	 * here because no other code should access these registers other than
+	 * at initialization time.
+	 */
+	for (i = 0; i < GEN7_L3LOG_SIZE / 4; i++) {
+		intel_ring_emit(engine, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit_reg(engine, GEN7_L3LOG(slice, i));
+		intel_ring_emit(engine, remap_info[i]);
+	}
+
+	intel_ring_advance(engine);
+
+	return ret;
+}
+
 static inline bool skip_rcs_switch(struct intel_engine_cs *engine,
 				   struct intel_context *to)
 {
