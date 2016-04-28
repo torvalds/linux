@@ -2842,6 +2842,7 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 	error = dir->i_op->atomic_open(dir, dentry, file,
 				       open_to_namei_flags(open_flag),
 				       mode, opened);
+	d_lookup_done(dentry);
 	if (!error) {
 		/*
 		 * We didn't have the inode before the open, so check open
@@ -2903,23 +2904,36 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 	int open_flag = op->open_flag;
 	struct dentry *dentry;
 	int error, create_error = 0;
-	bool need_lookup = false;
 	umode_t mode = op->mode;
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 
 	if (unlikely(IS_DEADDIR(dir_inode)))
 		return -ENOENT;
 
 	*opened &= ~FILE_CREATED;
-	dentry = lookup_dcache(&nd->last, dir, nd->flags);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
+	dentry = d_lookup(dir, &nd->last);
+	for (;;) {
+		if (!dentry) {
+			dentry = d_alloc_parallel(dir, &nd->last, &wq);
+			if (IS_ERR(dentry))
+				return PTR_ERR(dentry);
+		}
+		if (d_in_lookup(dentry))
+			break;
 
-	if (!dentry) {
-		dentry = d_alloc(dir, &nd->last);
-		if (unlikely(!dentry))
-			return -ENOMEM;
-		need_lookup = true;
-	} else if (dentry->d_inode) {
+		if (!(dentry->d_flags & DCACHE_OP_REVALIDATE))
+			break;
+
+		error = d_revalidate(dentry, nd->flags);
+		if (likely(error > 0))
+			break;
+		if (error)
+			goto out_dput;
+		d_invalidate(dentry);
+		dput(dentry);
+		dentry = NULL;
+	}
+	if (dentry->d_inode) {
 		/* Cached positive dentry: will open in f_op->open */
 		goto out_no_open;
 	}
@@ -2968,9 +2982,10 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 	}
 
 no_open:
-	if (need_lookup) {
+	if (d_in_lookup(dentry)) {
 		struct dentry *res = dir_inode->i_op->lookup(dir_inode, dentry,
 							     nd->flags);
+		d_lookup_done(dentry);
 		if (unlikely(res)) {
 			if (IS_ERR(res)) {
 				error = PTR_ERR(res);
