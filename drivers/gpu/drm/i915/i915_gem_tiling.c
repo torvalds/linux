@@ -229,7 +229,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 */
 		if (obj->map_and_fenceable &&
 		    !i915_gem_object_fence_ok(obj, args->tiling_mode))
-			ret = i915_gem_object_ggtt_unbind(obj);
+			ret = i915_vma_unbind(i915_gem_obj_to_ggtt(obj));
 
 		if (ret == 0) {
 			if (obj->pages &&

@@ -3279,12 +3279,6 @@ i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
 				   alignment, flags | PIN_GLOBAL);
 }
 
-static inline int
-i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj)
-{
-	return i915_vma_unbind(i915_gem_obj_to_ggtt(obj));
-}
-
 void i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
 				     const struct i915_ggtt_view *view);
 static inline void
