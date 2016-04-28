@@ -1043,10 +1043,7 @@ static struct ceph_osd *create_osd(struct ceph_osd_client *osdc, int onum)
 
 	WARN_ON(onum == CEPH_HOMELESS_OSD);
 
-	osd = kzalloc(sizeof(*osd), GFP_NOFS);
-	if (!osd)
-		return NULL;
-
+	osd = kzalloc(sizeof(*osd), GFP_NOIO | __GFP_NOFAIL);
 	osd_init(osd);
 	osd->o_osdc = osdc;
 	osd->o_osd = onum;
