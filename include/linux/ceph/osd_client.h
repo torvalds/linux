@@ -20,8 +20,7 @@ struct ceph_osd_client;
 /*
  * completion callback for async writepages
  */
-typedef void (*ceph_osdc_callback_t)(struct ceph_osd_request *,
-				     struct ceph_msg *);
+typedef void (*ceph_osdc_callback_t)(struct ceph_osd_request *);
 typedef void (*ceph_osdc_unsafe_callback_t)(struct ceph_osd_request *, bool);
 
 #define CEPH_HOMELESS_OSD	-1

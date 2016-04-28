@@ -1828,13 +1828,12 @@ static void rbd_osd_call_callback(struct rbd_obj_request *obj_request)
 		obj_request_done_set(obj_request);
 }
 
-static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
-				struct ceph_msg *msg)
+static void rbd_osd_req_callback(struct ceph_osd_request *osd_req)
 {
 	struct rbd_obj_request *obj_request = osd_req->r_priv;
 	u16 opcode;
 
-	dout("%s: osd_req %p msg %p\n", __func__, osd_req, msg);
+	dout("%s: osd_req %p\n", __func__, osd_req);
 	rbd_assert(osd_req == obj_request->osd_req);
 	if (obj_request_img_data_test(obj_request)) {
 		rbd_assert(obj_request->img_request);

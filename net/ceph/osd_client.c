@@ -2048,7 +2048,7 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 		    result >= 0 && !(flags & CEPH_OSD_FLAG_ONDISK))
 			req->r_unsafe_callback(req, true);
 		if (req->r_callback)
-			req->r_callback(req, msg);
+			req->r_callback(req);
 		else
 			complete_all(&req->r_completion);
 	}
@@ -2072,7 +2072,7 @@ bad_put:
 	req->r_result = -EIO;
 	__unregister_request(osdc, req);
 	if (req->r_callback)
-		req->r_callback(req, msg);
+		req->r_callback(req);
 	else
 		complete_all(&req->r_completion);
 	complete_request(req);

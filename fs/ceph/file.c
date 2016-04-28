@@ -616,8 +616,7 @@ static void ceph_aio_complete(struct inode *inode,
 	kfree(aio_req);
 }
 
-static void ceph_aio_complete_req(struct ceph_osd_request *req,
-				  struct ceph_msg *msg)
+static void ceph_aio_complete_req(struct ceph_osd_request *req)
 {
 	int rc = req->r_result;
 	struct inode *inode = req->r_inode;
@@ -740,7 +739,7 @@ static void ceph_aio_retry_work(struct work_struct *work)
 out:
 	if (ret < 0) {
 		req->r_result = ret;
-		ceph_aio_complete_req(req, NULL);
+		ceph_aio_complete_req(req);
 	}
 
 	ceph_put_snap_context(snapc);
@@ -961,7 +960,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 							      req, false);
 			if (ret < 0) {
 				req->r_result = ret;
-				ceph_aio_complete_req(req, NULL);
+				ceph_aio_complete_req(req);
 			}
 		}
 		return -EIOCBQUEUED;

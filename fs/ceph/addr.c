@@ -257,12 +257,12 @@ static int ceph_readpage(struct file *filp, struct page *page)
 /*
  * Finish an async read(ahead) op.
  */
-static void finish_read(struct ceph_osd_request *req, struct ceph_msg *msg)
+static void finish_read(struct ceph_osd_request *req)
 {
 	struct inode *inode = req->r_inode;
 	struct ceph_osd_data *osd_data;
-	int rc = req->r_result;
-	int bytes = le32_to_cpu(msg->hdr.data_len);
+	int rc = req->r_result <= 0 ? req->r_result : 0;
+	int bytes = req->r_result >= 0 ? req->r_result : 0;
 	int num_pages;
 	int i;
 
@@ -598,8 +598,7 @@ static void ceph_release_pages(struct page **pages, int num)
  * If we get an error, set the mapping error bit, but not the individual
  * page error bits.
  */
-static void writepages_finish(struct ceph_osd_request *req,
-			      struct ceph_msg *msg)
+static void writepages_finish(struct ceph_osd_request *req)
 {
 	struct inode *inode = req->r_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
