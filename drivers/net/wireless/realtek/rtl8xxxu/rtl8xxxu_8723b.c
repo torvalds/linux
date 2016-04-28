@@ -322,7 +322,7 @@ static void rtl8723bu_write_btreg(struct rtl8xxxu_priv *priv, u8 reg, u8 data)
 	h2c.bt_mp_oper.operreq = 0 | (reqnum << 4);
 	h2c.bt_mp_oper.opcode = BT_MP_OP_WRITE_REG_VALUE;
 	h2c.bt_mp_oper.data = data;
-	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.bt_mp_oper));
+	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.bt_mp_oper));
 
 	reqnum++;
 	memset(&h2c, 0, sizeof(struct h2c_cmd));
@@ -330,7 +330,7 @@ static void rtl8723bu_write_btreg(struct rtl8xxxu_priv *priv, u8 reg, u8 data)
 	h2c.bt_mp_oper.operreq = 0 | (reqnum << 4);
 	h2c.bt_mp_oper.opcode = BT_MP_OP_WRITE_REG_VALUE;
 	h2c.bt_mp_oper.addr = reg;
-	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.bt_mp_oper));
+	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.bt_mp_oper));
 }
 
 static void rtl8723bu_reset_8051(struct rtl8xxxu_priv *priv)
@@ -1529,7 +1529,7 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	memset(&h2c, 0, sizeof(struct h2c_cmd));
 	h2c.bt_grant.cmd = H2C_8723B_BT_GRANT;
 	h2c.bt_grant.data = 0;
-	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.bt_grant));
+	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.bt_grant));
 
 	/*
 	 * WLAN action by PTA
@@ -1574,7 +1574,7 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	h2c.ant_sel_rsv.cmd = H2C_8723B_ANT_SEL_RSV;
 	h2c.ant_sel_rsv.ant_inverse = 1;
 	h2c.ant_sel_rsv.int_switch_type = 0;
-	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.ant_sel_rsv));
+	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.ant_sel_rsv));
 
 	/*
 	 * 0x280, 0x00, 0x200, 0x80 - not clear
@@ -1596,12 +1596,12 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	memset(&h2c, 0, sizeof(struct h2c_cmd));
 	h2c.bt_info.cmd = H2C_8723B_BT_INFO;
 	h2c.bt_info.data = BIT(0);
-	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.bt_info));
+	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.bt_info));
 
 	memset(&h2c, 0, sizeof(struct h2c_cmd));
 	h2c.ignore_wlan.cmd = H2C_8723B_BT_IGNORE_WLANACT;
 	h2c.ignore_wlan.data = 0;
-	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.ignore_wlan));
+	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.ignore_wlan));
 }
 
 static void rtl8723bu_init_aggregation(struct rtl8xxxu_priv *priv)
