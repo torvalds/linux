@@ -162,13 +162,14 @@ struct ceph_osd_request {
 	unsigned int		r_num_ops;
 
 	int               r_result;
-	int               r_got_reply;
+	bool              r_got_reply;
 	int		  r_linger;
 
 	struct ceph_osd_client *r_osdc;
 	struct kref       r_kref;
 	bool              r_mempool;
-	struct completion r_completion, r_safe_completion;
+	struct completion r_completion;
+	struct completion r_safe_completion;  /* fsync waiter */
 	ceph_osdc_callback_t r_callback;
 	ceph_osdc_unsafe_callback_t r_unsafe_callback;
 	struct list_head  r_unsafe_item;

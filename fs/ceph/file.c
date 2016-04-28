@@ -770,6 +770,8 @@ static void ceph_sync_write_unsafe(struct ceph_osd_request *req, bool unsafe)
 		list_add_tail(&req->r_unsafe_item,
 			      &ci->i_unsafe_writes);
 		spin_unlock(&ci->i_unsafe_lock);
+
+		complete_all(&req->r_completion);
 	} else {
 		spin_lock(&ci->i_unsafe_lock);
 		list_del_init(&req->r_unsafe_item);
