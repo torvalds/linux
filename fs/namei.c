@@ -3084,7 +3084,7 @@ static int do_last(struct nameidata *nd,
 	}
 
 retry_lookup:
-	if (op->open_flag & (O_CREAT | O_TRUNC | O_WRONLY | O_RDWR)) {
+	if (open_flag & (O_CREAT | O_TRUNC | O_WRONLY | O_RDWR)) {
 		error = mnt_want_write(nd->path.mnt);
 		if (!error)
 			got_write = true;
@@ -3094,9 +3094,15 @@ retry_lookup:
 		 * dropping this one anyway.
 		 */
 	}
-	inode_lock(dir->d_inode);
+	if (open_flag & O_CREAT)
+		inode_lock(dir->d_inode);
+	else
+		inode_lock_shared(dir->d_inode);
 	error = lookup_open(nd, &path, file, op, got_write, opened);
-	inode_unlock(dir->d_inode);
+	if (open_flag & O_CREAT)
+		inode_unlock(dir->d_inode);
+	else
+		inode_unlock_shared(dir->d_inode);
 
 	if (error <= 0) {
 		if (error)

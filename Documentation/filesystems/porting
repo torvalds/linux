@@ -575,3 +575,6 @@ in your dentry operations instead.
 
 	Old method is only used if the new one is absent; eventually it will
 	be removed.  Switch while you still can; the old one won't stay.
+--
+[mandatory]
+	->atomic_open() calls without O_CREAT may happen in parallel.
