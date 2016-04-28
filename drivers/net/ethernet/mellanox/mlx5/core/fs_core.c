@@ -74,9 +74,10 @@
 #define BY_PASS_MIN_LEVEL (KERNEL_MIN_LEVEL + MLX5_BY_PASS_NUM_PRIOS +\
 			   LEFTOVERS_NUM_PRIOS)
 
-#define KERNEL_NUM_LEVELS 3
-#define KERNEL_NUM_PRIOS 2
-#define KERNEL_MIN_LEVEL 2
+#define KERNEL_NIC_PRIO_NUM_LEVELS 2
+#define KERNEL_NIC_NUM_PRIOS 1
+/* One more level for tc */
+#define KERNEL_MIN_LEVEL (KERNEL_NIC_PRIO_NUM_LEVELS + 1)
 
 #define ANCHOR_NUM_LEVELS 1
 #define ANCHOR_NUM_PRIOS 1
@@ -106,8 +107,9 @@ static struct init_tree_node {
 			 ADD_NS(ADD_MULTIPLE_PRIO(MLX5_BY_PASS_NUM_PRIOS,
 						  BY_PASS_PRIO_NUM_LEVELS))),
 		ADD_PRIO(0, KERNEL_MIN_LEVEL, 0, {},
-			 ADD_NS(ADD_MULTIPLE_PRIO(KERNEL_NUM_PRIOS,
-						  KERNEL_NUM_LEVELS))),
+			 ADD_NS(ADD_MULTIPLE_PRIO(1, 1),
+				ADD_MULTIPLE_PRIO(KERNEL_NIC_NUM_PRIOS,
+						  KERNEL_NIC_PRIO_NUM_LEVELS))),
 		ADD_PRIO(0, BY_PASS_MIN_LEVEL, 0,
 			 FS_REQUIRED_CAPS(FS_CAP(flow_table_properties_nic_receive.flow_modify_en),
 					  FS_CAP(flow_table_properties_nic_receive.modify_root),
@@ -1375,14 +1377,14 @@ static struct mlx5_flow_namespace *fs_create_namespace(struct fs_prio *prio)
 	return ns;
 }
 
-static int create_leaf_prios(struct mlx5_flow_namespace *ns, struct init_tree_node
-			     *prio_metadata)
+static int create_leaf_prios(struct mlx5_flow_namespace *ns, int prio,
+			     struct init_tree_node *prio_metadata)
 {
 	struct fs_prio *fs_prio;
 	int i;
 
 	for (i = 0; i < prio_metadata->num_leaf_prios; i++) {
-		fs_prio = fs_create_prio(ns, i, prio_metadata->num_levels);
+		fs_prio = fs_create_prio(ns, prio++, prio_metadata->num_levels);
 		if (IS_ERR(fs_prio))
 			return PTR_ERR(fs_prio);
 	}
@@ -1409,7 +1411,7 @@ static int init_root_tree_recursive(struct mlx5_core_dev *dev,
 				    struct init_tree_node *init_node,
 				    struct fs_node *fs_parent_node,
 				    struct init_tree_node *init_parent_node,
-				    int index)
+				    int prio)
 {
 	int max_ft_level = MLX5_CAP_FLOWTABLE(dev,
 					      flow_table_properties_nic_receive.
@@ -1427,8 +1429,8 @@ static int init_root_tree_recursive(struct mlx5_core_dev *dev,
 
 		fs_get_obj(fs_ns, fs_parent_node);
 		if (init_node->num_leaf_prios)
-			return create_leaf_prios(fs_ns, init_node);
-		fs_prio = fs_create_prio(fs_ns, index, init_node->num_levels);
+			return create_leaf_prios(fs_ns, prio, init_node);
+		fs_prio = fs_create_prio(fs_ns, prio, init_node->num_levels);
 		if (IS_ERR(fs_prio))
 			return PTR_ERR(fs_prio);
 		base = &fs_prio->node;
@@ -1441,11 +1443,16 @@ static int init_root_tree_recursive(struct mlx5_core_dev *dev,
 	} else {
 		return -EINVAL;
 	}
+	prio = 0;
 	for (i = 0; i < init_node->ar_size; i++) {
 		err = init_root_tree_recursive(dev, &init_node->children[i],
-					       base, init_node, i);
+					       base, init_node, prio);
 		if (err)
 			return err;
+		if (init_node->children[i].type == FS_TYPE_PRIO &&
+		    init_node->children[i].num_leaf_prios) {
+			prio += init_node->children[i].num_leaf_prios;
+		}
 	}
 
 	return 0;
