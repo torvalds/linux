@@ -405,7 +405,10 @@ tty3270_update(struct tty3270 *tp)
 			if (raw3270_request_add_data(wrq, str, len) != 0)
 				break;
 			list_del_init(&s->update);
-			sba = s->string + s->len - 3;
+			if (s->string[s->len - 4] == TO_RA)
+				sba = s->string + s->len - 3;
+			else
+				sba = invalid_sba;
 		}
 		if (list_empty(&tp->update))
 			updated |= TTY_UPDATE_LIST;
