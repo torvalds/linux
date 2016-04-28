@@ -107,7 +107,7 @@ struct fs_fte {
 /* Type of children is mlx5_flow_table/namespace */
 struct fs_prio {
 	struct fs_node			node;
-	unsigned int			max_ft;
+	unsigned int			num_levels;
 	unsigned int			start_level;
 	unsigned int			prio;
 	unsigned int			num_ft;

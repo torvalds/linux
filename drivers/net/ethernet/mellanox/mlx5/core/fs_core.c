@@ -40,18 +40,18 @@
 #define INIT_TREE_NODE_ARRAY_SIZE(...)	(sizeof((struct init_tree_node[]){__VA_ARGS__}) /\
 					 sizeof(struct init_tree_node))
 
-#define ADD_PRIO(num_prios_val, min_level_val, max_ft_val, caps_val,\
+#define ADD_PRIO(num_prios_val, min_level_val, num_levels_val, caps_val,\
 		 ...) {.type = FS_TYPE_PRIO,\
 	.min_ft_level = min_level_val,\
-	.max_ft = max_ft_val,\
+	.num_levels = num_levels_val,\
 	.num_leaf_prios = num_prios_val,\
 	.caps = caps_val,\
 	.children = (struct init_tree_node[]) {__VA_ARGS__},\
 	.ar_size = INIT_TREE_NODE_ARRAY_SIZE(__VA_ARGS__) \
 }
 
-#define ADD_MULTIPLE_PRIO(num_prios_val, max_ft_val, ...)\
-	ADD_PRIO(num_prios_val, 0, max_ft_val, {},\
+#define ADD_MULTIPLE_PRIO(num_prios_val, num_levels_val, ...)\
+	ADD_PRIO(num_prios_val, 0, num_levels_val, {},\
 		 __VA_ARGS__)\
 
 #define ADD_NS(...) {.type = FS_TYPE_NAMESPACE,\
@@ -67,17 +67,18 @@
 #define FS_REQUIRED_CAPS(...) {.arr_sz = INIT_CAPS_ARRAY_SIZE(__VA_ARGS__), \
 			       .caps = (long[]) {__VA_ARGS__} }
 
-#define LEFTOVERS_MAX_FT 1
+#define LEFTOVERS_NUM_LEVELS 1
 #define LEFTOVERS_NUM_PRIOS 1
-#define BY_PASS_PRIO_MAX_FT 1
-#define BY_PASS_MIN_LEVEL (KENREL_MIN_LEVEL + MLX5_BY_PASS_NUM_PRIOS +\
-			   LEFTOVERS_MAX_FT)
 
-#define KERNEL_MAX_FT 3
+#define BY_PASS_PRIO_NUM_LEVELS 1
+#define BY_PASS_MIN_LEVEL (KERNEL_MIN_LEVEL + MLX5_BY_PASS_NUM_PRIOS +\
+			   LEFTOVERS_NUM_PRIOS)
+
+#define KERNEL_NUM_LEVELS 3
 #define KERNEL_NUM_PRIOS 2
-#define KENREL_MIN_LEVEL 2
+#define KERNEL_MIN_LEVEL 2
 
-#define ANCHOR_MAX_FT 1
+#define ANCHOR_NUM_LEVELS 1
 #define ANCHOR_NUM_PRIOS 1
 #define ANCHOR_MIN_LEVEL (BY_PASS_MIN_LEVEL + 1)
 struct node_caps {
@@ -92,7 +93,7 @@ static struct init_tree_node {
 	int min_ft_level;
 	int num_leaf_prios;
 	int prio;
-	int max_ft;
+	int num_levels;
 } root_fs = {
 	.type = FS_TYPE_NAMESPACE,
 	.ar_size = 4,
@@ -102,17 +103,19 @@ static struct init_tree_node {
 					  FS_CAP(flow_table_properties_nic_receive.modify_root),
 					  FS_CAP(flow_table_properties_nic_receive.identified_miss_table_mode),
 					  FS_CAP(flow_table_properties_nic_receive.flow_table_modify)),
-			 ADD_NS(ADD_MULTIPLE_PRIO(MLX5_BY_PASS_NUM_PRIOS, BY_PASS_PRIO_MAX_FT))),
-		ADD_PRIO(0, KENREL_MIN_LEVEL, 0, {},
-			 ADD_NS(ADD_MULTIPLE_PRIO(KERNEL_NUM_PRIOS, KERNEL_MAX_FT))),
+			 ADD_NS(ADD_MULTIPLE_PRIO(MLX5_BY_PASS_NUM_PRIOS,
+						  BY_PASS_PRIO_NUM_LEVELS))),
+		ADD_PRIO(0, KERNEL_MIN_LEVEL, 0, {},
+			 ADD_NS(ADD_MULTIPLE_PRIO(KERNEL_NUM_PRIOS,
+						  KERNEL_NUM_LEVELS))),
 		ADD_PRIO(0, BY_PASS_MIN_LEVEL, 0,
 			 FS_REQUIRED_CAPS(FS_CAP(flow_table_properties_nic_receive.flow_modify_en),
 					  FS_CAP(flow_table_properties_nic_receive.modify_root),
 					  FS_CAP(flow_table_properties_nic_receive.identified_miss_table_mode),
 					  FS_CAP(flow_table_properties_nic_receive.flow_table_modify)),
-			 ADD_NS(ADD_MULTIPLE_PRIO(LEFTOVERS_NUM_PRIOS, LEFTOVERS_MAX_FT))),
+			 ADD_NS(ADD_MULTIPLE_PRIO(LEFTOVERS_NUM_PRIOS, LEFTOVERS_NUM_LEVELS))),
 		ADD_PRIO(0, ANCHOR_MIN_LEVEL, 0, {},
-			 ADD_NS(ADD_MULTIPLE_PRIO(ANCHOR_NUM_PRIOS, ANCHOR_MAX_FT))),
+			 ADD_NS(ADD_MULTIPLE_PRIO(ANCHOR_NUM_PRIOS, ANCHOR_NUM_LEVELS))),
 	}
 };
 
@@ -716,7 +719,7 @@ struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 		err = -EINVAL;
 		goto unlock_root;
 	}
-	if (fs_prio->num_ft == fs_prio->max_ft) {
+	if (fs_prio->num_ft == fs_prio->num_levels) {
 		err = -ENOSPC;
 		goto unlock_root;
 	}
@@ -1311,7 +1314,7 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 EXPORT_SYMBOL(mlx5_get_flow_namespace);
 
 static struct fs_prio *fs_create_prio(struct mlx5_flow_namespace *ns,
-				      unsigned prio, int max_ft)
+				      unsigned int prio, int num_levels)
 {
 	struct fs_prio *fs_prio;
 
@@ -1322,7 +1325,7 @@ static struct fs_prio *fs_create_prio(struct mlx5_flow_namespace *ns,
 	fs_prio->node.type = FS_TYPE_PRIO;
 	tree_init_node(&fs_prio->node, 1, NULL);
 	tree_add_node(&fs_prio->node, &ns->node);
-	fs_prio->max_ft = max_ft;
+	fs_prio->num_levels = num_levels;
 	fs_prio->prio = prio;
 	list_add_tail(&fs_prio->node.list, &ns->node.children);
 
@@ -1360,7 +1363,7 @@ static int create_leaf_prios(struct mlx5_flow_namespace *ns, struct init_tree_no
 	int i;
 
 	for (i = 0; i < prio_metadata->num_leaf_prios; i++) {
-		fs_prio = fs_create_prio(ns, i, prio_metadata->max_ft);
+		fs_prio = fs_create_prio(ns, i, prio_metadata->num_levels);
 		if (IS_ERR(fs_prio))
 			return PTR_ERR(fs_prio);
 	}
@@ -1406,7 +1409,7 @@ static int init_root_tree_recursive(struct mlx5_core_dev *dev,
 		fs_get_obj(fs_ns, fs_parent_node);
 		if (init_node->num_leaf_prios)
 			return create_leaf_prios(fs_ns, init_node);
-		fs_prio = fs_create_prio(fs_ns, index, init_node->max_ft);
+		fs_prio = fs_create_prio(fs_ns, index, init_node->num_levels);
 		if (IS_ERR(fs_prio))
 			return PTR_ERR(fs_prio);
 		base = &fs_prio->node;
@@ -1479,9 +1482,9 @@ static int set_prio_attrs_in_ns(struct mlx5_flow_namespace *ns, int acc_level)
 	struct fs_prio *prio;
 
 	fs_for_each_prio(prio, ns) {
-		 /* This updates prio start_level and max_ft */
+		 /* This updates prio start_level and num_levels */
 		set_prio_attrs_in_prio(prio, acc_level);
-		acc_level += prio->max_ft;
+		acc_level += prio->num_levels;
 	}
 	return acc_level;
 }
@@ -1493,11 +1496,11 @@ static void set_prio_attrs_in_prio(struct fs_prio *prio, int acc_level)
 
 	prio->start_level = acc_level;
 	fs_for_each_ns(ns, prio)
-		/* This updates start_level and max_ft of ns's priority descendants */
+		/* This updates start_level and num_levels of ns's priority descendants */
 		acc_level_ns = set_prio_attrs_in_ns(ns, acc_level);
-	if (!prio->max_ft)
-		prio->max_ft = acc_level_ns - prio->start_level;
-	WARN_ON(prio->max_ft < acc_level_ns - prio->start_level);
+	if (!prio->num_levels)
+		prio->num_levels = acc_level_ns - prio->start_level;
+	WARN_ON(prio->num_levels < acc_level_ns - prio->start_level);
 }
 
 static void set_prio_attrs(struct mlx5_flow_root_namespace *root_ns)
@@ -1508,7 +1511,7 @@ static void set_prio_attrs(struct mlx5_flow_root_namespace *root_ns)
 
 	fs_for_each_prio(prio, ns) {
 		set_prio_attrs_in_prio(prio, start_level);
-		start_level += prio->max_ft;
+		start_level += prio->num_levels;
 	}
 }
 
