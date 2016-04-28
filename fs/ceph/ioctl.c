@@ -221,7 +221,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 		return r;
 	}
 
-	dl.osd = ceph_calc_pg_primary(osdc->osdmap, pgid);
+	dl.osd = ceph_pg_to_acting_primary(osdc->osdmap, &pgid);
 	if (dl.osd >= 0) {
 		struct ceph_entity_addr *a =
 			ceph_osd_addr(osdc->osdmap, dl.osd);

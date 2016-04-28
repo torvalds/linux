@@ -236,8 +236,8 @@ void ceph_pg_to_up_acting_osds(struct ceph_osdmap *osdmap,
 			       const struct ceph_pg *raw_pgid,
 			       struct ceph_osds *up,
 			       struct ceph_osds *acting);
-extern int ceph_calc_pg_primary(struct ceph_osdmap *osdmap,
-				struct ceph_pg pgid);
+int ceph_pg_to_acting_primary(struct ceph_osdmap *osdmap,
+			      const struct ceph_pg *raw_pgid);
 
 extern struct ceph_pg_pool_info *ceph_pg_pool_by_id(struct ceph_osdmap *map,
 						    u64 id);

@@ -1896,13 +1896,14 @@ out:
 }
 
 /*
- * Return primary osd for given pgid, or -1 if none.
+ * Return acting primary for given PG, or -1 if none.
  */
-int ceph_calc_pg_primary(struct ceph_osdmap *osdmap, struct ceph_pg pgid)
+int ceph_pg_to_acting_primary(struct ceph_osdmap *osdmap,
+			      const struct ceph_pg *raw_pgid)
 {
 	struct ceph_osds up, acting;
 
-	ceph_pg_to_up_acting_osds(osdmap, &pgid, &up, &acting);
+	ceph_pg_to_up_acting_osds(osdmap, raw_pgid, &up, &acting);
 	return acting.primary;
 }
-EXPORT_SYMBOL(ceph_calc_pg_primary);
+EXPORT_SYMBOL(ceph_pg_to_acting_primary);
