@@ -2662,7 +2662,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	queue_delayed_work(dev_priv->wq,
 			   &dev_priv->mm.retire_work,
 			   round_jiffies_up_relative(HZ));
-	intel_mark_busy(dev_priv->dev);
+	intel_mark_busy(dev_priv);
 
 	/* Sanity check that the reserved size was large enough. */
 	ret = intel_ring_get_tail(ringbuf) - request_start;
@@ -3044,7 +3044,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	 * Also locking seems to be fubar here, engine->request_list is protected
 	 * by dev->struct_mutex. */
 
-	intel_mark_idle(dev);
+	intel_mark_idle(dev_priv);
 
 	if (mutex_trylock(&dev->struct_mutex)) {
 		for_each_engine(engine, dev_priv)

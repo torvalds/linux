@@ -10802,31 +10802,27 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	return mode;
 }
 
-void intel_mark_busy(struct drm_device *dev)
+void intel_mark_busy(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	if (dev_priv->mm.busy)
 		return;
 
 	intel_runtime_pm_get(dev_priv);
 	i915_update_gfx_val(dev_priv);
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (INTEL_GEN(dev_priv) >= 6)
 		gen6_rps_busy(dev_priv);
 	dev_priv->mm.busy = true;
 }
 
-void intel_mark_idle(struct drm_device *dev)
+void intel_mark_idle(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	if (!dev_priv->mm.busy)
 		return;
 
 	dev_priv->mm.busy = false;
 
-	if (INTEL_INFO(dev)->gen >= 6)
-		gen6_rps_idle(dev->dev_private);
+	if (INTEL_GEN(dev_priv) >= 6)
+		gen6_rps_idle(dev_priv);
 
 	intel_runtime_pm_put(dev_priv);
 }
