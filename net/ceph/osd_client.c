@@ -875,45 +875,7 @@ EXPORT_SYMBOL(ceph_osdc_new_request);
 /*
  * We keep osd requests in an rbtree, sorted by ->r_tid.
  */
-static void __insert_request(struct ceph_osd_client *osdc,
-			     struct ceph_osd_request *new)
-{
-	struct rb_node **p = &osdc->requests.rb_node;
-	struct rb_node *parent = NULL;
-	struct ceph_osd_request *req = NULL;
-
-	while (*p) {
-		parent = *p;
-		req = rb_entry(parent, struct ceph_osd_request, r_node);
-		if (new->r_tid < req->r_tid)
-			p = &(*p)->rb_left;
-		else if (new->r_tid > req->r_tid)
-			p = &(*p)->rb_right;
-		else
-			BUG();
-	}
-
-	rb_link_node(&new->r_node, parent, p);
-	rb_insert_color(&new->r_node, &osdc->requests);
-}
-
-static struct ceph_osd_request *__lookup_request(struct ceph_osd_client *osdc,
-						 u64 tid)
-{
-	struct ceph_osd_request *req;
-	struct rb_node *n = osdc->requests.rb_node;
-
-	while (n) {
-		req = rb_entry(n, struct ceph_osd_request, r_node);
-		if (tid < req->r_tid)
-			n = n->rb_left;
-		else if (tid > req->r_tid)
-			n = n->rb_right;
-		else
-			return req;
-	}
-	return NULL;
-}
+DEFINE_RB_FUNCS(request, struct ceph_osd_request, r_tid, r_node)
 
 static struct ceph_osd_request *
 __lookup_request_ge(struct ceph_osd_client *osdc,
@@ -1101,6 +1063,8 @@ static void put_osd(struct ceph_osd *osd)
 	}
 }
 
+DEFINE_RB_FUNCS(osd, struct ceph_osd, o_osd, o_node)
+
 /*
  * remove an osd from our map
  */
@@ -1111,8 +1075,7 @@ static void __remove_osd(struct ceph_osd_client *osdc, struct ceph_osd *osd)
 	WARN_ON(!list_empty(&osd->o_linger_requests));
 
 	list_del_init(&osd->o_osd_lru);
-	rb_erase(&osd->o_node, &osdc->osds);
-	RB_CLEAR_NODE(&osd->o_node);
+	erase_osd(&osdc->osds, osd);
 }
 
 static void remove_osd(struct ceph_osd_client *osdc, struct ceph_osd *osd)
@@ -1188,45 +1151,6 @@ static int __reset_osd(struct ceph_osd_client *osdc, struct ceph_osd *osd)
 	return 0;
 }
 
-static void __insert_osd(struct ceph_osd_client *osdc, struct ceph_osd *new)
-{
-	struct rb_node **p = &osdc->osds.rb_node;
-	struct rb_node *parent = NULL;
-	struct ceph_osd *osd = NULL;
-
-	dout("__insert_osd %p osd%d\n", new, new->o_osd);
-	while (*p) {
-		parent = *p;
-		osd = rb_entry(parent, struct ceph_osd, o_node);
-		if (new->o_osd < osd->o_osd)
-			p = &(*p)->rb_left;
-		else if (new->o_osd > osd->o_osd)
-			p = &(*p)->rb_right;
-		else
-			BUG();
-	}
-
-	rb_link_node(&new->o_node, parent, p);
-	rb_insert_color(&new->o_node, &osdc->osds);
-}
-
-static struct ceph_osd *__lookup_osd(struct ceph_osd_client *osdc, int o)
-{
-	struct ceph_osd *osd;
-	struct rb_node *n = osdc->osds.rb_node;
-
-	while (n) {
-		osd = rb_entry(n, struct ceph_osd, o_node);
-		if (o < osd->o_osd)
-			n = n->rb_left;
-		else if (o > osd->o_osd)
-			n = n->rb_right;
-		else
-			return osd;
-	}
-	return NULL;
-}
-
 static void __schedule_osd_timeout(struct ceph_osd_client *osdc)
 {
 	schedule_delayed_work(&osdc->timeout_work,
@@ -1248,7 +1172,7 @@ static void __register_request(struct ceph_osd_client *osdc,
 	req->r_tid = ++osdc->last_tid;
 	req->r_request->hdr.tid = cpu_to_le64(req->r_tid);
 	dout("__register_request %p tid %lld\n", req, req->r_tid);
-	__insert_request(osdc, req);
+	insert_request(&osdc->requests, req);
 	ceph_osdc_get_request(req);
 	osdc->num_requests++;
 	if (osdc->num_requests == 1) {
@@ -1270,8 +1194,7 @@ static void __unregister_request(struct ceph_osd_client *osdc,
 	}
 
 	dout("__unregister_request %p tid %lld\n", req, req->r_tid);
-	rb_erase(&req->r_node, &osdc->requests);
-	RB_CLEAR_NODE(&req->r_node);
+	erase_request(&osdc->requests, req);
 	osdc->num_requests--;
 
 	if (req->r_osd) {
@@ -1482,7 +1405,7 @@ static int __map_request(struct ceph_osd_client *osdc,
 		req->r_osd = NULL;
 	}
 
-	req->r_osd = __lookup_osd(osdc, o);
+	req->r_osd = lookup_osd(&osdc->osds, o);
 	if (!req->r_osd && o >= 0) {
 		err = -ENOMEM;
 		req->r_osd = create_osd(osdc, o);
@@ -1492,7 +1415,7 @@ static int __map_request(struct ceph_osd_client *osdc,
 		}
 
 		dout("map_request osd %p is osd%d\n", req->r_osd, o);
-		__insert_osd(osdc, req->r_osd);
+		insert_osd(&osdc->osds, req->r_osd);
 
 		ceph_con_open(&req->r_osd->o_con,
 			      CEPH_ENTITY_TYPE_OSD, o,
@@ -1822,7 +1745,7 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 	/* lookup */
 	down_read(&osdc->map_sem);
 	mutex_lock(&osdc->request_mutex);
-	req = __lookup_request(osdc, tid);
+	req = lookup_request(&osdc->requests, tid);
 	if (req == NULL) {
 		dout("handle_reply tid %llu dne\n", tid);
 		goto bad_mutex;
@@ -2880,7 +2803,7 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 
 	tid = le64_to_cpu(hdr->tid);
 	mutex_lock(&osdc->request_mutex);
-	req = __lookup_request(osdc, tid);
+	req = lookup_request(&osdc->requests, tid);
 	if (!req) {
 		dout("%s osd%d tid %llu unknown, skipping\n", __func__,
 		     osd->o_osd, tid);

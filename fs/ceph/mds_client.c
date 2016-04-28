@@ -567,51 +567,23 @@ void ceph_mdsc_release_request(struct kref *kref)
 	kfree(req);
 }
 
+DEFINE_RB_FUNCS(request, struct ceph_mds_request, r_tid, r_node)
+
 /*
  * lookup session, bump ref if found.
  *
  * called under mdsc->mutex.
  */
-static struct ceph_mds_request *__lookup_request(struct ceph_mds_client *mdsc,
-					     u64 tid)
+static struct ceph_mds_request *
+lookup_get_request(struct ceph_mds_client *mdsc, u64 tid)
 {
 	struct ceph_mds_request *req;
-	struct rb_node *n = mdsc->request_tree.rb_node;
 
-	while (n) {
-		req = rb_entry(n, struct ceph_mds_request, r_node);
-		if (tid < req->r_tid)
-			n = n->rb_left;
-		else if (tid > req->r_tid)
-			n = n->rb_right;
-		else {
-			ceph_mdsc_get_request(req);
-			return req;
-		}
-	}
-	return NULL;
-}
+	req = lookup_request(&mdsc->request_tree, tid);
+	if (req)
+		ceph_mdsc_get_request(req);
 
-static void __insert_request(struct ceph_mds_client *mdsc,
-			     struct ceph_mds_request *new)
-{
-	struct rb_node **p = &mdsc->request_tree.rb_node;
-	struct rb_node *parent = NULL;
-	struct ceph_mds_request *req = NULL;
-
-	while (*p) {
-		parent = *p;
-		req = rb_entry(parent, struct ceph_mds_request, r_node);
-		if (new->r_tid < req->r_tid)
-			p = &(*p)->rb_left;
-		else if (new->r_tid > req->r_tid)
-			p = &(*p)->rb_right;
-		else
-			BUG();
-	}
-
-	rb_link_node(&new->r_node, parent, p);
-	rb_insert_color(&new->r_node, &mdsc->request_tree);
+	return req;
 }
 
 /*
@@ -630,7 +602,7 @@ static void __register_request(struct ceph_mds_client *mdsc,
 				  req->r_num_caps);
 	dout("__register_request %p tid %lld\n", req, req->r_tid);
 	ceph_mdsc_get_request(req);
-	__insert_request(mdsc, req);
+	insert_request(&mdsc->request_tree, req);
 
 	req->r_uid = current_fsuid();
 	req->r_gid = current_fsgid();
@@ -663,8 +635,7 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 		}
 	}
 
-	rb_erase(&req->r_node, &mdsc->request_tree);
-	RB_CLEAR_NODE(&req->r_node);
+	erase_request(&mdsc->request_tree, req);
 
 	if (req->r_unsafe_dir && req->r_got_unsafe) {
 		struct ceph_inode_info *ci = ceph_inode(req->r_unsafe_dir);
@@ -1722,6 +1693,7 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 	INIT_LIST_HEAD(&req->r_unsafe_target_item);
 	req->r_fmode = -1;
 	kref_init(&req->r_kref);
+	RB_CLEAR_NODE(&req->r_node);
 	INIT_LIST_HEAD(&req->r_wait);
 	init_completion(&req->r_completion);
 	init_completion(&req->r_safe_completion);
@@ -2414,7 +2386,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	/* get request, session */
 	tid = le64_to_cpu(msg->hdr.tid);
 	mutex_lock(&mdsc->mutex);
-	req = __lookup_request(mdsc, tid);
+	req = lookup_get_request(mdsc, tid);
 	if (!req) {
 		dout("handle_reply on unknown tid %llu\n", tid);
 		mutex_unlock(&mdsc->mutex);
@@ -2604,7 +2576,7 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 	fwd_seq = ceph_decode_32(&p);
 
 	mutex_lock(&mdsc->mutex);
-	req = __lookup_request(mdsc, tid);
+	req = lookup_get_request(mdsc, tid);
 	if (!req) {
 		dout("forward tid %llu to mds%d - req dne\n", tid, next_mds);
 		goto out;  /* dup reply? */
