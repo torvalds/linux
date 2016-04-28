@@ -2425,6 +2425,9 @@ static irqreturn_t dwc2_hsotg_irq(int irq, void *pw)
 	u32 gintsts;
 	u32 gintmsk;
 
+	if (!dwc2_is_device_mode(hsotg))
+		return IRQ_NONE;
+
 	spin_lock(&hsotg->lock);
 irq_retry:
 	gintsts = dwc2_readl(hsotg->regs + GINTSTS);
