@@ -124,10 +124,12 @@ struct klp_patch {
 };
 
 #define klp_for_each_object(patch, obj) \
-	for (obj = patch->objs; obj->funcs; obj++)
+	for (obj = patch->objs; obj->funcs || obj->name; obj++)
 
 #define klp_for_each_func(obj, func) \
-	for (func = obj->funcs; func->old_name; func++)
+	for (func = obj->funcs; \
+	     func->old_name || func->new_func || func->old_sympos; \
+	     func++)
 
 int klp_register_patch(struct klp_patch *);
 int klp_unregister_patch(struct klp_patch *);

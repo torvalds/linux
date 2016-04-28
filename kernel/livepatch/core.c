@@ -683,6 +683,9 @@ static void klp_free_patch(struct klp_patch *patch)
 
 static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 {
+	if (!func->old_name || !func->new_func)
+		return -EINVAL;
+
 	INIT_LIST_HEAD(&func->stack_node);
 	func->state = KLP_DISABLED;
 
