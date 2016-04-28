@@ -38,6 +38,7 @@ config SW_SYNC
 	bool "Software synchronization objects"
 	default n
 	depends on SYNC
+	depends on SYNC_FILE
 	---help---
 	  A sync object driver that uses a 32bit counter to coordinate
 	  synchronization.  Useful when there is no hardware primitive backing

@@ -1,0 +1,11 @@
+menu "DMABUF options"
+
+config SYNC_FILE
+	bool "sync_file support for fences"
+	default n
+	select ANON_INODES
+	select DMA_SHARED_BUFFER
+	---help---
+	  This option enables the fence framework synchronization to export
+	  sync_files to userspace that can represent one or more fences.
+endmenu
