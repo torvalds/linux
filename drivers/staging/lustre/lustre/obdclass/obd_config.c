@@ -1367,7 +1367,7 @@ int class_config_dump_handler(const struct lu_env *env,
 
 	if (rec->lrh_type == OBD_CFG_REC) {
 		class_config_parse_rec(rec, outstr, 256);
-		LCONSOLE(D_WARNING, "   %s\n", outstr);
+		LCONSOLE(D_WARNING, "   %s", outstr);
 	} else {
 		LCONSOLE(D_WARNING, "unhandled lrh_type: %#x\n", rec->lrh_type);
 		rc = -EINVAL;
