@@ -2001,7 +2001,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		    ctx->legacy_hw_ctx.rcs_state == NULL)
 			continue;
 
-		seq_puts(m, "HW context ");
+		seq_printf(m, "HW context %u ", ctx->hw_id);
 		describe_ctx(m, ctx);
 		if (ctx == dev_priv->kernel_context)
 			seq_printf(m, "(kernel context) ");

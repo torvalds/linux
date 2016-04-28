@@ -171,6 +171,8 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	if (ctx->legacy_hw_ctx.rcs_state)
 		drm_gem_object_unreference(&ctx->legacy_hw_ctx.rcs_state->base);
 	list_del(&ctx->link);
+
+	ida_simple_remove(&ctx->i915->context_hw_ida, ctx->hw_id);
 	kfree(ctx);
 }
 
@@ -211,6 +213,28 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 	return obj;
 }
 
+static int assign_hw_id(struct drm_i915_private *dev_priv, unsigned *out)
+{
+	int ret;
+
+	ret = ida_simple_get(&dev_priv->context_hw_ida,
+			     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
+	if (ret < 0) {
+		/* Contexts are only released when no longer active.
+		 * Flush any pending retires to hopefully release some
+		 * stale contexts and try again.
+		 */
+		i915_gem_retire_requests(dev_priv->dev);
+		ret = ida_simple_get(&dev_priv->context_hw_ida,
+				     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
+		if (ret < 0)
+			return ret;
+	}
+
+	*out = ret;
+	return 0;
+}
+
 static struct intel_context *
 __create_hw_context(struct drm_device *dev,
 		    struct drm_i915_file_private *file_priv)
@@ -222,6 +246,12 @@ __create_hw_context(struct drm_device *dev,
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL)
 		return ERR_PTR(-ENOMEM);
+
+	ret = assign_hw_id(dev_priv, &ctx->hw_id);
+	if (ret) {
+		kfree(ctx);
+		return ERR_PTR(ret);
+	}
 
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->context_list);
@@ -366,6 +396,10 @@ int i915_gem_context_init(struct drm_device *dev)
 		}
 	}
 
+	/* Using the simple ida interface, the max is limited by sizeof(int) */
+	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > INT_MAX);
+	ida_init(&dev_priv->context_hw_ida);
+
 	if (i915.enable_execlists) {
 		/* NB: intentionally left blank. We will allocate our own
 		 * backing objects as we need them, thank you very much */
@@ -429,6 +463,8 @@ void i915_gem_context_fini(struct drm_device *dev)
 
 	i915_gem_context_unreference(dctx);
 	dev_priv->kernel_context = NULL;
+
+	ida_destroy(&dev_priv->context_hw_ida);
 }
 
 static int context_idr_cleanup(int id, void *p, void *data)

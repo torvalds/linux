@@ -851,6 +851,9 @@ struct intel_context {
 	struct i915_ctx_hang_stats hang_stats;
 	struct i915_hw_ppgtt *ppgtt;
 
+	/* Unique identifier for this context, used by the hw for tracking */
+	unsigned hw_id;
+
 	/* Legacy ring buffer submission */
 	struct {
 		struct drm_i915_gem_object *rcs_state;
@@ -1837,6 +1840,13 @@ struct drm_i915_private {
 	struct i915_gem_mm mm;
 	DECLARE_HASHTABLE(mm_structs, 7);
 	struct mutex mm_lock;
+
+	/* The hw wants to have a stable context identifier for the lifetime
+	 * of the context (for OA, PASID, faults, etc). This is limited
+	 * in execlists to 21 bits.
+	 */
+	struct ida context_hw_ida;
+#define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
 
 	/* Kernel Modesetting */
 
