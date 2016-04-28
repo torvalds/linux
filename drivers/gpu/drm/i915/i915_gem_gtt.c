@@ -2193,20 +2193,6 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 	return 0;
 }
 
-int i915_ppgtt_init_ring(struct drm_i915_gem_request *req)
-{
-	struct drm_i915_private *dev_priv = req->i915;
-	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-
-	if (i915.enable_execlists)
-		return 0;
-
-	if (!ppgtt)
-		return 0;
-
-	return ppgtt->switch_mm(ppgtt, req);
-}
-
 struct i915_hw_ppgtt *
 i915_ppgtt_create(struct drm_device *dev, struct drm_i915_file_private *fpriv)
 {
