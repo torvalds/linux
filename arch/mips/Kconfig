@@ -2930,6 +2930,10 @@ choice
 
 	config MIPS_CMDLINE_FROM_BOOTLOADER
 		bool "Bootloader kernel arguments if available"
+
+	config MIPS_CMDLINE_BUILTIN_EXTEND
+		depends on CMDLINE_BOOL
+		bool "Extend builtin kernel arguments with bootloader arguments"
 endchoice
 
 endmenu
