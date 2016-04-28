@@ -242,7 +242,7 @@ static unsigned int sync_file_poll(struct file *file, poll_table *wait)
 }
 
 static long sync_file_ioctl_merge(struct sync_file *sync_file,
-				   unsigned long arg)
+				  unsigned long arg)
 {
 	int fd = get_unused_fd_flags(O_CLOEXEC);
 	int err;
@@ -297,7 +297,7 @@ err_put_fd:
 }
 
 static void sync_fill_fence_info(struct fence *fence,
-				struct sync_fence_info *info)
+				 struct sync_fence_info *info)
 {
 	strlcpy(info->obj_name, fence->ops->get_timeline_name(fence),
 		sizeof(info->obj_name));
@@ -311,7 +311,7 @@ static void sync_fill_fence_info(struct fence *fence,
 }
 
 static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
-					unsigned long arg)
+				       unsigned long arg)
 {
 	struct sync_file_info info;
 	struct sync_fence_info *fence_info = NULL;
@@ -370,7 +370,7 @@ out:
 }
 
 static long sync_file_ioctl(struct file *file, unsigned int cmd,
-			     unsigned long arg)
+			    unsigned long arg)
 {
 	struct sync_file *sync_file = file->private_data;
 
