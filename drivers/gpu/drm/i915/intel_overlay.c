@@ -198,7 +198,7 @@ intel_overlay_map_regs(struct intel_overlay *overlay)
 		regs = (struct overlay_registers __iomem *)overlay->reg_bo->phys_handle->vaddr;
 	else
 		regs = io_mapping_map_wc(ggtt->mappable,
-					 i915_gem_obj_ggtt_offset(overlay->reg_bo));
+					 overlay->flip_addr);
 
 	return regs;
 }
@@ -1493,7 +1493,7 @@ intel_overlay_map_regs_atomic(struct intel_overlay *overlay)
 			overlay->reg_bo->phys_handle->vaddr;
 	else
 		regs = io_mapping_map_atomic_wc(ggtt->mappable,
-						i915_gem_obj_ggtt_offset(overlay->reg_bo));
+						overlay->flip_addr);
 
 	return regs;
 }
@@ -1523,10 +1523,7 @@ intel_overlay_capture_error_state(struct drm_device *dev)
 
 	error->dovsta = I915_READ(DOVSTA);
 	error->isr = I915_READ(ISR);
-	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
-		error->base = (__force long)overlay->reg_bo->phys_handle->vaddr;
-	else
-		error->base = i915_gem_obj_ggtt_offset(overlay->reg_bo);
+	error->base = overlay->flip_addr;
 
 	regs = intel_overlay_map_regs_atomic(overlay);
 	if (!regs)
