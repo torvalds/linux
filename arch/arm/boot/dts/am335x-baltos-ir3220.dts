@@ -16,21 +16,13 @@
 #include "am335x-baltos.dtsi"
 
 / {
-	model = "OnRISC Baltos iR 5221";
+	model = "OnRISC Baltos iR 3220";
 };
 
 &am33xx_pinmux {
 	tca6416_pins: pinmux_tca6416_pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x9b4, PIN_INPUT_PULLUP | MUX_MODE7)      /* xdma_event_intr1.gpio0[20] tca6416 stuff */
-		>;
-	};
-
-
-	dcan1_pins: pinmux_dcan1_pins {
-		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x968, PIN_OUTPUT | MUX_MODE2)      /* uart0_ctsn.dcan1_tx_mux0 */
-			AM33XX_IOPAD(0x96c, PIN_INPUT | MUX_MODE2)      /* uart0_rtsn.dcan1_rx_mux0 */
 		>;
 	};
 
@@ -61,7 +53,6 @@
 			AM33XX_IOPAD(0x9a0, PIN_INPUT_PULLUP | MUX_MODE7)      /* mcasp0_aclkr.gpio3[18], INPUT_PULLDOWN | MODE7 */
 		>;
 	};
-
 };
 
 &uart1 {
@@ -103,24 +94,18 @@
 	status = "okay";
 };
 
-&usb1_phy {
-	status = "okay";
-};
-
 &usb0 {
 	status = "okay";
 	dr_mode = "host";
 };
 
-&usb1 {
-	status = "okay";
-	dr_mode = "otg";
-};
-
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
 	phy-mode = "rmii";
 	dual_emac_res_vlan = <1>;
+	fixed-link {
+		speed = <100>;
+		full-duplex;
+	};
 };
 
 &cpsw_emac1 {
@@ -131,11 +116,4 @@
 
 &phy_sel {
 	rmii-clock-ext = <1>;
-};
-
-&dcan1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dcan1_pins>;
-
-	status = "okay";
 };

@@ -6,6 +6,8 @@
  * published by the Free Software Foundation.
  */
 
+#include "am57xx-industrial-grade.dtsi"
+
 / {
 	aliases {
 		rtc0 = &tps659038_rtc;
