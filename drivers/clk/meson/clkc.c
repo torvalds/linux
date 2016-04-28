@@ -21,7 +21,7 @@
 
 #include "clkc.h"
 
-static DEFINE_SPINLOCK(clk_lock);
+DEFINE_SPINLOCK(clk_lock);
 
 static struct clk **clks;
 static struct clk_onecell_data clk_data;
@@ -188,10 +188,6 @@ void __init meson_clk_register_clks(const struct clk_conf *clk_confs,
 			break;
 		case CLK_CPU:
 			clk = meson_clk_register_cpu(clk_conf, clk_base,
-						     &clk_lock);
-			break;
-		case CLK_PLL:
-			clk = meson_clk_register_pll(clk_conf, clk_base,
 						     &clk_lock);
 			break;
 		default:

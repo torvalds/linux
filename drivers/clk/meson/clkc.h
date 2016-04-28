@@ -34,12 +34,13 @@ struct parm {
 	u8	shift;
 	u8	width;
 };
-#define PARM(_r, _s, _w)						\
-	{								\
-		.reg_off	= (_r),					\
-		.shift		= (_s),					\
-		.width		= (_w),					\
-	}								\
+
+#define PARM(_r, _s, _w)                                               \
+{                                                                      \
+	.reg_off        = (_r),                                        \
+	.shift          = (_s),                                        \
+	.width          = (_w),                                        \
+}                                                                      \
 
 struct pll_rate_table {
 	unsigned long	rate;
@@ -55,12 +56,18 @@ struct pll_rate_table {
 		.od		= (_od),				\
 	}								\
 
-struct pll_conf {
-	const struct pll_rate_table	*rate_table;
-	struct parm			m;
-	struct parm			n;
-	struct parm			od;
+struct meson_clk_pll {
+	struct clk_hw hw;
+	void __iomem *base;
+	struct parm m;
+	struct parm n;
+	struct parm od;
+	const struct pll_rate_table *rate_table;
+	unsigned int rate_count;
+	spinlock_t *lock;
 };
+
+#define to_meson_clk_pll(_hw) container_of(_hw, struct meson_clk_pll, hw)
 
 struct fixed_fact_conf {
 	unsigned int	div;
@@ -86,7 +93,6 @@ enum clk_type {
 	CLK_FIXED_FACTOR,
 	CLK_COMPOSITE,
 	CLK_CPU,
-	CLK_PLL,
 };
 
 struct clk_conf {
@@ -100,22 +106,9 @@ struct clk_conf {
 	union {
 		struct fixed_fact_conf		fixed_fact;
 		const struct composite_conf		*composite;
-		struct pll_conf			*pll;
 		const struct clk_div_table	*div_table;
 	} conf;
 };
-
-#define PLL(_ro, _ci, _cn, _cp, _f, _c)					\
-	{								\
-		.reg_off			= (_ro),		\
-		.clk_type			= CLK_PLL,		\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.clks_parent			= (_cp),		\
-		.num_parents			= ARRAY_SIZE(_cp),	\
-		.flags				= (_f),			\
-		.conf.pll			= (_c),			\
-	}								\
 
 #define FIXED_FACTOR_DIV(_ci, _cn, _cp, _f, _d)				\
 	{								\
@@ -155,7 +148,12 @@ void meson_clk_register_clks(const struct clk_conf *clk_confs,
 			     unsigned int nr_confs, void __iomem *clk_base);
 struct clk *meson_clk_register_cpu(const struct clk_conf *clk_conf,
 				   void __iomem *reg_base, spinlock_t *lock);
-struct clk *meson_clk_register_pll(const struct clk_conf *clk_conf,
-				   void __iomem *reg_base, spinlock_t *lock);
+
+/* shared data */
+extern spinlock_t clk_lock;
+
+/* clk_ops */
+extern const struct clk_ops meson_clk_pll_ro_ops;
+extern const struct clk_ops meson_clk_pll_ops;
 
 #endif /* __CLKC_H */
