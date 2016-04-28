@@ -861,6 +861,20 @@ static void nmk_gpio_latent_irq_handler(struct irq_desc *desc)
 
 /* I/O Functions */
 
+static int nmk_gpio_get_dir(struct gpio_chip *chip, unsigned offset)
+{
+	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(chip);
+	int dir;
+
+	clk_enable(nmk_chip->clk);
+
+	dir = !!(readl(nmk_chip->addr + NMK_GPIO_DIR) & BIT(offset));
+
+	clk_disable(nmk_chip->clk);
+
+	return dir;
+}
+
 static int nmk_gpio_make_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(chip);
@@ -1220,6 +1234,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	chip = &nmk_chip->chip;
 	chip->request = gpiochip_generic_request;
 	chip->free = gpiochip_generic_free;
+	chip->get_direction = nmk_gpio_get_dir;
 	chip->direction_input = nmk_gpio_make_input;
 	chip->get = nmk_gpio_get_input;
 	chip->direction_output = nmk_gpio_make_output;
