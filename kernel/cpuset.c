@@ -58,7 +58,6 @@
 #include <asm/uaccess.h>
 #include <linux/atomic.h>
 #include <linux/mutex.h>
-#include <linux/workqueue.h>
 #include <linux/cgroup.h>
 #include <linux/wait.h>
 
@@ -1016,7 +1015,7 @@ static void cpuset_migrate_mm(struct mm_struct *mm, const nodemask_t *from,
 	}
 }
 
-void cpuset_post_attach_flush(void)
+static void cpuset_post_attach(void)
 {
 	flush_workqueue(cpuset_migrate_mm_wq);
 }
@@ -2087,6 +2086,7 @@ struct cgroup_subsys cpuset_cgrp_subsys = {
 	.can_attach	= cpuset_can_attach,
 	.cancel_attach	= cpuset_cancel_attach,
 	.attach		= cpuset_attach,
+	.post_attach	= cpuset_post_attach,
 	.bind		= cpuset_bind,
 	.legacy_cftypes	= files,
 	.early_init	= true,

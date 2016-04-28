@@ -3176,35 +3176,9 @@ static void addrconf_gre_config(struct net_device *dev)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
-/* If the host route is cached on the addr struct make sure it is associated
- * with the proper table. e.g., enslavement can change and if so the cached
- * host route needs to move to the new table.
- */
-static void l3mdev_check_host_rt(struct inet6_dev *idev,
-				  struct inet6_ifaddr *ifp)
-{
-	if (ifp->rt) {
-		u32 tb_id = l3mdev_fib_table(idev->dev) ? : RT6_TABLE_LOCAL;
-
-		if (tb_id != ifp->rt->rt6i_table->tb6_id) {
-			ip6_del_rt(ifp->rt);
-			ifp->rt = NULL;
-		}
-	}
-}
-#else
-static void l3mdev_check_host_rt(struct inet6_dev *idev,
-				  struct inet6_ifaddr *ifp)
-{
-}
-#endif
-
 static int fixup_permanent_addr(struct inet6_dev *idev,
 				struct inet6_ifaddr *ifp)
 {
-	l3mdev_check_host_rt(idev, ifp);
-
 	if (!ifp->rt) {
 		struct rt6_info *rt;
 
@@ -3304,6 +3278,9 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			break;
 
 		if (event == NETDEV_UP) {
+			/* restore routes for permanent addresses */
+			addrconf_permanent_addr(dev);
+
 			if (!addrconf_qdisc_ok(dev)) {
 				/* device is not ready yet. */
 				pr_info("ADDRCONF(NETDEV_UP): %s: link is not ready\n",
@@ -3336,9 +3313,6 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 
 			run_pending = 1;
 		}
-
-		/* restore routes for permanent addresses */
-		addrconf_permanent_addr(dev);
 
 		switch (dev->type) {
 #if IS_ENABLED(CONFIG_IPV6_SIT)
@@ -3556,6 +3530,8 @@ restart:
 
 	INIT_LIST_HEAD(&del_list);
 	list_for_each_entry_safe(ifa, tmp, &idev->addr_list, if_list) {
+		struct rt6_info *rt = NULL;
+
 		addrconf_del_dad_work(ifa);
 
 		write_unlock_bh(&idev->lock);
@@ -3568,6 +3544,9 @@ restart:
 			ifa->state = 0;
 			if (!(ifa->flags & IFA_F_NODAD))
 				ifa->flags |= IFA_F_TENTATIVE;
+
+			rt = ifa->rt;
+			ifa->rt = NULL;
 		} else {
 			state = ifa->state;
 			ifa->state = INET6_IFADDR_STATE_DEAD;
@@ -3577,6 +3556,9 @@ restart:
 		}
 
 		spin_unlock_bh(&ifa->lock);
+
+		if (rt)
+			ip6_del_rt(rt);
 
 		if (state != INET6_IFADDR_STATE_DEAD) {
 			__ipv6_ifa_notify(RTM_DELADDR, ifa);
@@ -5343,10 +5325,10 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 			if (rt)
 				ip6_del_rt(rt);
 		}
-		dst_hold(&ifp->rt->dst);
-
-		ip6_del_rt(ifp->rt);
-
+		if (ifp->rt) {
+			dst_hold(&ifp->rt->dst);
+			ip6_del_rt(ifp->rt);
+		}
 		rt_genid_bump_ipv6(net);
 		break;
 	}
