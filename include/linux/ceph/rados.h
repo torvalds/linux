@@ -114,8 +114,8 @@ struct ceph_object_layout {
  * compound epoch+version, used by storage layer to serialize mutations
  */
 struct ceph_eversion {
-	__le32 epoch;
 	__le64 version;
+	__le32 epoch;
 } __attribute__ ((packed));
 
 /*
