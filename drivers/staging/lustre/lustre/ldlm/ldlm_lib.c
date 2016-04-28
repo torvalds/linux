@@ -438,6 +438,7 @@ int client_obd_cleanup(struct obd_device *obddev)
 	ldlm_namespace_free_post(obddev->obd_namespace);
 	obddev->obd_namespace = NULL;
 
+	obd_cleanup_client_import(obddev);
 	LASSERT(!obddev->u.cli.cl_import);
 
 	ldlm_put_ref();
