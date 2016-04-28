@@ -469,11 +469,18 @@ ____nf_conntrack_find(struct net *net, const struct nf_conntrack_zone *zone,
 		      const struct nf_conntrack_tuple *tuple, u32 hash)
 {
 	struct nf_conntrack_tuple_hash *h;
+	struct hlist_nulls_head *ct_hash;
 	struct hlist_nulls_node *n;
-	unsigned int bucket = hash_bucket(hash, net);
+	unsigned int bucket, sequence;
 
 begin:
-	hlist_nulls_for_each_entry_rcu(h, n, &net->ct.hash[bucket], hnnode) {
+	do {
+		sequence = read_seqcount_begin(&nf_conntrack_generation);
+		bucket = hash_bucket(hash, net);
+		ct_hash = net->ct.hash;
+	} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
+
+	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[bucket], hnnode) {
 		if (nf_ct_key_equal(h, tuple, zone)) {
 			NF_CT_STAT_INC_ATOMIC(net, found);
 			return h;
@@ -722,15 +729,21 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 	struct net *net = nf_ct_net(ignored_conntrack);
 	const struct nf_conntrack_zone *zone;
 	struct nf_conntrack_tuple_hash *h;
+	struct hlist_nulls_head *ct_hash;
+	unsigned int hash, sequence;
 	struct hlist_nulls_node *n;
 	struct nf_conn *ct;
-	unsigned int hash;
 
 	zone = nf_ct_zone(ignored_conntrack);
-	hash = hash_conntrack(net, tuple);
 
 	rcu_read_lock();
-	hlist_nulls_for_each_entry_rcu(h, n, &net->ct.hash[hash], hnnode) {
+	do {
+		sequence = read_seqcount_begin(&nf_conntrack_generation);
+		hash = hash_conntrack(net, tuple);
+		ct_hash = net->ct.hash;
+	} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
+
+	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[hash], hnnode) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
 		if (ct != ignored_conntrack &&
 		    nf_ct_tuple_equal(tuple, &h->tuple) &&
@@ -1607,6 +1620,7 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 	nf_conntrack_all_unlock();
 	local_bh_enable();
 
+	synchronize_net();
 	nf_ct_free_hashtable(old_hash, old_size);
 	return 0;
 }
