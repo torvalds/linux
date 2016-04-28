@@ -2206,6 +2206,13 @@
 					<4 RK_PC1 1 &pcfg_pull_none>,
 					<4 RK_PC0 1 &pcfg_pull_none>;
 			};
+
+			i2c3_gpio: i2c3_gpio {
+				rockchip,pins =
+					<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>,
+					<4 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
+
 		};
 
 		i2c4 {
