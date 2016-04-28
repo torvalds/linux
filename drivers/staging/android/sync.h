@@ -203,25 +203,6 @@ struct sync_file *sync_file_merge(const char *name,
  */
 struct sync_file *sync_file_fdget(int fd);
 
-/**
- * sync_file_put() - puts a reference of a sync_file
- * @sync_file:	sync_file to put
- *
- * Puts a reference on @sync_fence.  If this is the last reference, the
- * sync_fil and all it's sync_pts will be freed
- */
-void sync_file_put(struct sync_file *sync_file);
-
-/**
- * sync_file_install() - installs a sync_file into a file descriptor
- * @sync_file:	sync_file to install
- * @fd:		file descriptor in which to install the fence
- *
- * Installs @sync_file into @fd.  @fd's should be acquired through
- * get_unused_fd_flags(O_CLOEXEC).
- */
-void sync_file_install(struct sync_file *sync_file, int fd);
-
 #ifdef CONFIG_DEBUG_FS
 
 void sync_timeline_debug_add(struct sync_timeline *obj);

@@ -216,18 +216,6 @@ err:
 }
 EXPORT_SYMBOL(sync_file_fdget);
 
-void sync_file_put(struct sync_file *sync_file)
-{
-	fput(sync_file->file);
-}
-EXPORT_SYMBOL(sync_file_put);
-
-void sync_file_install(struct sync_file *sync_file, int fd)
-{
-	fd_install(fd, sync_file->file);
-}
-EXPORT_SYMBOL(sync_file_install);
-
 static void sync_file_add_pt(struct sync_file *sync_file, int *i,
 			     struct fence *fence)
 {
@@ -469,15 +457,15 @@ static long sync_file_ioctl_merge(struct sync_file *sync_file,
 		goto err_put_fence3;
 	}
 
-	sync_file_install(fence3, fd);
-	sync_file_put(fence2);
+	fd_install(fd, fence3->file);
+	fput(fence2->file);
 	return 0;
 
 err_put_fence3:
-	sync_file_put(fence3);
+	fput(fence3->file);
 
 err_put_fence2:
-	sync_file_put(fence2);
+	fput(fence2->file);
 
 err_put_fd:
 	put_unused_fd(fd);

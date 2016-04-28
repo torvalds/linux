@@ -272,12 +272,12 @@ static long sw_sync_ioctl_create_fence(struct sw_sync_timeline *obj,
 
 	data.fence = fd;
 	if (copy_to_user((void __user *)arg, &data, sizeof(data))) {
-		sync_file_put(sync_file);
+		fput(sync_file->file);
 		err = -EFAULT;
 		goto err;
 	}
 
-	sync_file_install(sync_file, fd);
+	fd_install(fd, sync_file->file);
 
 	return 0;
 
