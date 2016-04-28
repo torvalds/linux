@@ -1413,6 +1413,13 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	list_del_init(&request->list);
 	i915_gem_request_remove_from_client(request);
 
+	if (request->ctx) {
+		if (i915.enable_execlists)
+			intel_lr_context_unpin(request->ctx, request->engine);
+
+		i915_gem_context_unreference(request->ctx);
+	}
+
 	i915_gem_request_unreference(request);
 }
 
@@ -2716,18 +2723,6 @@ void i915_gem_request_free(struct kref *req_ref)
 {
 	struct drm_i915_gem_request *req = container_of(req_ref,
 						 typeof(*req), ref);
-	struct intel_context *ctx = req->ctx;
-
-	if (req->file_priv)
-		i915_gem_request_remove_from_client(req);
-
-	if (ctx) {
-		if (i915.enable_execlists)
-			intel_lr_context_unpin(ctx, req->engine);
-
-		i915_gem_context_unreference(ctx);
-	}
-
 	kmem_cache_free(req->i915->requests, req);
 }
 
@@ -3176,7 +3171,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			ret = __i915_wait_request(req[i], true,
 						  args->timeout_ns > 0 ? &args->timeout_ns : NULL,
 						  to_rps_client(file));
-		i915_gem_request_unreference__unlocked(req[i]);
+		i915_gem_request_unreference(req[i]);
 	}
 	return ret;
 
@@ -4202,7 +4197,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (ret == 0)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
 
-	i915_gem_request_unreference__unlocked(target);
+	i915_gem_request_unreference(target);
 
 	return ret;
 }

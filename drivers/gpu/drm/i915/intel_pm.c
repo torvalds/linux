@@ -7385,7 +7385,7 @@ static void __intel_rps_boost_work(struct work_struct *work)
 		gen6_rps_boost(to_i915(req->engine->dev), NULL,
 			       req->emitted_jiffies);
 
-	i915_gem_request_unreference__unlocked(req);
+	i915_gem_request_unreference(req);
 	kfree(boost);
 }
 
