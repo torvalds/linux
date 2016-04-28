@@ -1661,6 +1661,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		hwp_only
 			Only load intel_pstate on systems which support
 			hardware P state control (HWP) if available.
+		support_acpi_ppc
+			Enforce ACPI _PPC performance limits. If the Fixed ACPI
+			Description Table, specifies preferred power management
+			profile as "Enterprise Server" or "Performance Server",
+			then this feature is turned on by default.
 
 	intremap=	[X86-64, Intel-IOMMU]
 			on	enable Interrupt Remapping (default)

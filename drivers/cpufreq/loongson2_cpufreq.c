@@ -10,6 +10,9 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/err.h>
@@ -76,7 +79,7 @@ static int loongson2_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	cpuclk = clk_get(NULL, "cpu_clk");
 	if (IS_ERR(cpuclk)) {
-		printk(KERN_ERR "cpufreq: couldn't get CPU clk\n");
+		pr_err("couldn't get CPU clk\n");
 		return PTR_ERR(cpuclk);
 	}
 
@@ -163,7 +166,7 @@ static int __init cpufreq_init(void)
 	if (ret)
 		return ret;
 
-	pr_info("cpufreq: Loongson-2F CPU frequency driver.\n");
+	pr_info("Loongson-2F CPU frequency driver\n");
 
 	cpufreq_register_notifier(&loongson2_cpufreq_notifier_block,
 				  CPUFREQ_TRANSITION_NOTIFIER);

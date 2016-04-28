@@ -24,20 +24,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 
-/*
- * The polling frequency depends on the capability of the processor. Default
- * polling frequency is 1000 times the transition latency of the processor. The
- * governor will work on any processor with transition latency <= 10ms, using
- * appropriate sampling rate.
- *
- * For CPUs with transition latency > 10ms (mostly drivers with CPUFREQ_ETERNAL)
- * this governor will not work. All times here are in us (micro seconds).
- */
-#define MIN_SAMPLING_RATE_RATIO			(2)
-#define LATENCY_MULTIPLIER			(1000)
-#define MIN_LATENCY_MULTIPLIER			(20)
-#define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
-
 /* Ondemand Sampling types */
 enum {OD_NORMAL_SAMPLE, OD_SUB_SAMPLE};
 
@@ -52,7 +38,7 @@ enum {OD_NORMAL_SAMPLE, OD_SUB_SAMPLE};
 
 /* Governor demand based switching data (per-policy or global). */
 struct dbs_data {
-	int usage_count;
+	struct gov_attr_set attr_set;
 	void *tuners;
 	unsigned int min_sampling_rate;
 	unsigned int ignore_nice_load;
@@ -60,37 +46,27 @@ struct dbs_data {
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;
 	unsigned int io_is_busy;
-
-	struct kobject kobj;
-	struct list_head policy_dbs_list;
-	/*
-	 * Protect concurrent updates to governor tunables from sysfs,
-	 * policy_dbs_list and usage_count.
-	 */
-	struct mutex mutex;
 };
 
-/* Governor's specific attributes */
-struct dbs_data;
-struct governor_attr {
-	struct attribute attr;
-	ssize_t (*show)(struct dbs_data *dbs_data, char *buf);
-	ssize_t (*store)(struct dbs_data *dbs_data, const char *buf,
-			 size_t count);
-};
+static inline struct dbs_data *to_dbs_data(struct gov_attr_set *attr_set)
+{
+	return container_of(attr_set, struct dbs_data, attr_set);
+}
 
 #define gov_show_one(_gov, file_name)					\
 static ssize_t show_##file_name						\
-(struct dbs_data *dbs_data, char *buf)					\
+(struct gov_attr_set *attr_set, char *buf)				\
 {									\
+	struct dbs_data *dbs_data = to_dbs_data(attr_set);		\
 	struct _gov##_dbs_tuners *tuners = dbs_data->tuners;		\
 	return sprintf(buf, "%u\n", tuners->file_name);			\
 }
 
 #define gov_show_one_common(file_name)					\
 static ssize_t show_##file_name						\
-(struct dbs_data *dbs_data, char *buf)					\
+(struct gov_attr_set *attr_set, char *buf)				\
 {									\
+	struct dbs_data *dbs_data = to_dbs_data(attr_set);		\
 	return sprintf(buf, "%u\n", dbs_data->file_name);		\
 }
 
@@ -135,7 +111,7 @@ static inline void gov_update_sample_delay(struct policy_dbs_info *policy_dbs,
 /* Per cpu structures */
 struct cpu_dbs_info {
 	u64 prev_cpu_idle;
-	u64 prev_cpu_wall;
+	u64 prev_update_time;
 	u64 prev_cpu_nice;
 	/*
 	 * Used to keep track of load in the previous interval. However, when
@@ -184,7 +160,7 @@ void od_register_powersave_bias_handler(unsigned int (*f)
 		(struct cpufreq_policy *, unsigned int, unsigned int),
 		unsigned int powersave_bias);
 void od_unregister_powersave_bias_handler(void);
-ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
+ssize_t store_sampling_rate(struct gov_attr_set *attr_set, const char *buf,
 			    size_t count);
 void gov_update_cpu_data(struct dbs_data *dbs_data);
 #endif /* _CPUFREQ_GOVERNOR_H */
