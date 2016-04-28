@@ -673,13 +673,15 @@ static void __init arch_mem_init(char **cmdline_p)
 		strlcpy(boot_command_line, arcs_cmdline, COMMAND_LINE_SIZE);
 
 	if (EXTEND_WITH_PROM && arcs_cmdline[0]) {
-		strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
+		if (boot_command_line[0])
+			strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
 		strlcat(boot_command_line, arcs_cmdline, COMMAND_LINE_SIZE);
 	}
 
 #if defined(CONFIG_CMDLINE_BOOL)
 	if (builtin_cmdline[0]) {
-		strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
+		if (boot_command_line[0])
+			strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
 		strlcat(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
 	}
 #endif
