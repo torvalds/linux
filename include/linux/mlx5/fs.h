@@ -113,4 +113,7 @@ mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		   struct mlx5_flow_destination *dest);
 void mlx5_del_flow_rule(struct mlx5_flow_rule *fr);
 
+int mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
+				 struct mlx5_flow_destination *dest);
+
 #endif

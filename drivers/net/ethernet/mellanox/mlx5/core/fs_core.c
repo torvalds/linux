@@ -615,8 +615,8 @@ static int update_root_ft_create(struct mlx5_flow_table *ft, struct fs_prio
 	return err;
 }
 
-static int mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
-					struct mlx5_flow_destination *dest)
+int mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
+				 struct mlx5_flow_destination *dest)
 {
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
