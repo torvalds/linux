@@ -1,0 +1,69 @@
+/*
+ * Hikey specific energy cost model data.
+ */
+
+/* static struct idle_state idle_states_cluster_a53[] = { */
+/*        { .power = 47 }, /\* arch_cpu_idle() (active idle) = WFI *\/ */
+/*        { .power = 47 }, /\* WFI *\/ */
+/*        { .power = 47 }, /\* cpu-sleep-0 *\/ */
+/*        { .power = 0  }, /\* cluster-sleep-0 *\/ */
+/* }; */
+
+/* static struct capacity_state cap_states_cluster_a53[] = { */
+/*        /\* Power per cluster *\/ */
+/*        { .cap =  178, .power =  16, }, /\*  200 MHz *\/ */
+/*        { .cap =  369, .power =  29, }, /\*  432 MHz *\/ */
+/*        { .cap =  622, .power =  47, }, /\*  729 MHz *\/ */
+/*        { .cap =  819, .power =  75, }, /\*  960 MHz *\/ */
+/*        { .cap = 1024, .power = 112, }, /\* 1200 Mhz *\/ */
+/* }; */
+
+/* static struct idle_state idle_states_core_a53[] = { */
+/*        { .power = 15 }, /\* arch_cpu_idle() (active idle) = WFI *\/ */
+/*        { .power = 15 }, /\* WFI *\/ */
+/*        { .power =  0 }, /\* cpu-sleep-0 *\/ */
+/*        { .power =  0 }, /\* cluster-sleep-0 *\/ */
+/* }; */
+
+/* static struct capacity_state cap_states_core_a53[] = { */
+/*         /\* Power per cpu *\/ */
+/*        { .cap =  178, .power =  69, }, /\*  200 MHz *\/ */
+/*        { .cap =  369, .power = 124, }, /\*  432 MHz *\/ */
+/*        { .cap =  622, .power = 224, }, /\*  729 MHz *\/ */
+/*        { .cap =  819, .power = 367, }, /\*  960 MHz *\/ */
+/*        { .cap = 1024, .power = 670, }, /\* 1200 Mhz *\/ */
+/* }; */
+
+energy-costs {
+	CPU_COST: core-cost {
+		busy-cost-data = <
+			178    69
+			369   124
+			622   224
+			819   367
+		       1024   670
+		>;
+		idle-cost-data = <
+		         15
+		         15
+		          0
+		          0
+		>;
+	};
+
+	CLUSTER_COST: cluster-cost {
+		busy-cost-data = <
+			178    16
+			369    29
+			622    47
+			819    75
+		       1024   112
+		>;
+		idle-cost-data = <
+			 47
+			 47
+			 47
+			  0
+		>;
+	};
+};
