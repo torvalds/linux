@@ -44,6 +44,7 @@ struct export_sample {
 	u64			addr_dso_db_id;
 	u64			addr_sym_db_id;
 	u64			addr_offset; /* addr offset from symbol start */
+	u64			call_path_id;
 };
 
 struct db_export {

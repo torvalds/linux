@@ -408,8 +408,10 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		struct call_path *cp = call_path_from_sample(dbe, al->machine,
 							     thread, sample,
 							     evsel);
-		if (cp)
+		if (cp) {
 			db_export__call_path(dbe, cp);
+			es.call_path_id = cp->db_id;
+		}
 	}
 
 	if ((evsel->attr.sample_type & PERF_SAMPLE_ADDR) &&
