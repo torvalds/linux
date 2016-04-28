@@ -987,7 +987,6 @@
 		interrupts = <0 112 0>;
 		clocks = <&clock CLK_SSS>;
 		clock-names = "secss";
-		status = "disabled";
 	};
 
 	prng: rng@10830400 {
@@ -995,6 +994,5 @@
 		reg = <0x10830400 0x200>;
 		clocks = <&clock CLK_SSS>;
 		clock-names = "secss";
-		status = "disabled";
 	};
 };
