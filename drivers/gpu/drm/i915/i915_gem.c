@@ -2874,13 +2874,7 @@ static void i915_gem_reset_engine_cleanup(struct drm_i915_private *dev_priv,
 		/* Ensure irq handler finishes or is cancelled. */
 		tasklet_kill(&engine->irq_tasklet);
 
-		spin_lock_bh(&engine->execlist_lock);
-		/* list_splice_tail_init checks for empty lists */
-		list_splice_tail_init(&engine->execlist_queue,
-				      &engine->execlist_retired_req_list);
-		spin_unlock_bh(&engine->execlist_lock);
-
-		intel_execlists_retire_requests(engine);
+		intel_execlists_cancel_requests(engine);
 	}
 
 	/*
@@ -3004,8 +2998,6 @@ i915_gem_retire_requests(struct drm_device *dev)
 			spin_lock_bh(&engine->execlist_lock);
 			idle &= list_empty(&engine->execlist_queue);
 			spin_unlock_bh(&engine->execlist_lock);
-
-			intel_execlists_retire_requests(engine);
 		}
 	}
 

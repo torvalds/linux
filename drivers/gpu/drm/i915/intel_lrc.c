@@ -435,8 +435,8 @@ static void execlists_context_unqueue(struct intel_engine_cs *engine)
 			/* Same ctx: ignore first request, as second request
 			 * will update tail past first request's workload */
 			cursor->elsp_submitted = req0->elsp_submitted;
-			list_move_tail(&req0->execlist_link,
-				       &engine->execlist_retired_req_list);
+			list_del(&req0->execlist_link);
+			i915_gem_request_unreference(req0);
 			req0 = cursor;
 		} else {
 			req1 = cursor;
@@ -468,7 +468,7 @@ static void execlists_context_unqueue(struct intel_engine_cs *engine)
 }
 
 static unsigned int
-execlists_check_remove_request(struct intel_engine_cs *engine, u32 request_id)
+execlists_check_remove_request(struct intel_engine_cs *engine, u32 ctx_id)
 {
 	struct drm_i915_gem_request *head_req;
 
@@ -478,19 +478,16 @@ execlists_check_remove_request(struct intel_engine_cs *engine, u32 request_id)
 					    struct drm_i915_gem_request,
 					    execlist_link);
 
-	if (!head_req)
-		return 0;
-
-	if (unlikely(head_req->ctx_hw_id != request_id))
-		return 0;
+	if (WARN_ON(!head_req || (head_req->ctx_hw_id != ctx_id)))
+               return 0;
 
 	WARN(head_req->elsp_submitted == 0, "Never submitted head request\n");
 
 	if (--head_req->elsp_submitted > 0)
 		return 0;
 
-	list_move_tail(&head_req->execlist_link,
-		       &engine->execlist_retired_req_list);
+	list_del(&head_req->execlist_link);
+	i915_gem_request_unreference(head_req);
 
 	return 1;
 }
@@ -594,9 +591,6 @@ static void execlists_context_queue(struct drm_i915_gem_request *request)
 	struct drm_i915_gem_request *cursor;
 	int num_elements = 0;
 
-	intel_lr_context_pin(request->ctx, request->engine);
-	i915_gem_request_reference(request);
-
 	spin_lock_bh(&engine->execlist_lock);
 
 	list_for_each_entry(cursor, &engine->execlist_queue, execlist_link)
@@ -613,11 +607,12 @@ static void execlists_context_queue(struct drm_i915_gem_request *request)
 		if (request->ctx == tail_req->ctx) {
 			WARN(tail_req->elsp_submitted != 0,
 				"More than 2 already-submitted reqs queued\n");
-			list_move_tail(&tail_req->execlist_link,
-				       &engine->execlist_retired_req_list);
+			list_del(&tail_req->execlist_link);
+			i915_gem_request_unreference(tail_req);
 		}
 	}
 
+	i915_gem_request_reference(request);
 	list_add_tail(&request->execlist_link, &engine->execlist_queue);
 	request->ctx_hw_id = request->ctx->hw_id;
 	if (num_elements == 0)
@@ -883,23 +878,18 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 	return 0;
 }
 
-void intel_execlists_retire_requests(struct intel_engine_cs *engine)
+void intel_execlists_cancel_requests(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *req, *tmp;
-	struct list_head retired_list;
+	LIST_HEAD(cancel_list);
 
 	WARN_ON(!mutex_is_locked(&engine->dev->struct_mutex));
-	if (list_empty(&engine->execlist_retired_req_list))
-		return;
 
-	INIT_LIST_HEAD(&retired_list);
 	spin_lock_bh(&engine->execlist_lock);
-	list_replace_init(&engine->execlist_retired_req_list, &retired_list);
+	list_replace_init(&engine->execlist_queue, &cancel_list);
 	spin_unlock_bh(&engine->execlist_lock);
 
-	list_for_each_entry_safe(req, tmp, &retired_list, execlist_link) {
-		intel_lr_context_unpin(req->ctx, engine);
-
+	list_for_each_entry_safe(req, tmp, &cancel_list, execlist_link) {
 		list_del(&req->execlist_link);
 		i915_gem_request_unreference(req);
 	}
@@ -1993,7 +1983,6 @@ logical_ring_init(struct drm_device *dev, struct intel_engine_cs *engine)
 
 	INIT_LIST_HEAD(&engine->buffers);
 	INIT_LIST_HEAD(&engine->execlist_queue);
-	INIT_LIST_HEAD(&engine->execlist_retired_req_list);
 	spin_lock_init(&engine->execlist_lock);
 
 	tasklet_init(&engine->irq_tasklet,
