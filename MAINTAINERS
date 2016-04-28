@@ -6400,7 +6400,7 @@ F:	mm/kmemleak.c
 F:	mm/kmemleak-test.c
 
 KPROBES
-M:	Ananth N Mavinakayanahalli <ananth@in.ibm.com>
+M:	Ananth N Mavinakayanahalli <ananth@linux.vnet.ibm.com>
 M:	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Masami Hiramatsu <mhiramat@kernel.org>
