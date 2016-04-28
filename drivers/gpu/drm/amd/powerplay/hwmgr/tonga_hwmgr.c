@@ -6214,6 +6214,7 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.powergate_uvd = tonga_phm_powergate_uvd,
 	.powergate_vce = tonga_phm_powergate_vce,
 	.disable_clock_power_gating = tonga_phm_disable_clock_power_gating,
+	.update_clock_gatings = tonga_phm_update_clock_gatings,
 	.notify_smc_display_config_after_ps_adjustment = tonga_notify_smc_display_config_after_ps_adjustment,
 	.display_config_changed = tonga_display_configuration_changed_task,
 	.set_max_fan_pwm_output = tonga_set_max_fan_pwm_output,
