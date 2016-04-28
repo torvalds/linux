@@ -54,16 +54,15 @@ static int osdmap_show(struct seq_file *s, void *p)
 {
 	int i;
 	struct ceph_client *client = s->private;
-	struct ceph_osdmap *map = client->osdc.osdmap;
+	struct ceph_osd_client *osdc = &client->osdc;
+	struct ceph_osdmap *map = osdc->osdmap;
 	struct rb_node *n;
 
 	if (map == NULL)
 		return 0;
 
-	seq_printf(s, "epoch %d\n", map->epoch);
-	seq_printf(s, "flags%s%s\n",
-		   (map->flags & CEPH_OSDMAP_NEARFULL) ?  " NEARFULL" : "",
-		   (map->flags & CEPH_OSDMAP_FULL) ?  " FULL" : "");
+	down_read(&osdc->lock);
+	seq_printf(s, "epoch %d flags 0x%x\n", map->epoch, map->flags);
 
 	for (n = rb_first(&map->pg_pools); n; n = rb_next(n)) {
 		struct ceph_pg_pool_info *pi =
@@ -105,6 +104,7 @@ static int osdmap_show(struct seq_file *s, void *p)
 			   pg->pgid.seed, pg->primary_temp.osd);
 	}
 
+	up_read(&osdc->lock);
 	return 0;
 }
 
