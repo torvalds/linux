@@ -161,7 +161,7 @@ static int osdc_show(struct seq_file *s, void *pp)
 
 		seq_printf(s, "%lld\tosd%d\t%lld.%x\t", req->r_tid,
 			   req->r_osd ? req->r_osd->o_osd : -1,
-			   req->r_pgid.pool, req->r_pgid.seed);
+			   req->r_t.pgid.pool, req->r_t.pgid.seed);
 
 		seq_printf(s, "%*pE", req->r_base_oid.name_len,
 			   req->r_base_oid.name);

@@ -150,12 +150,13 @@ struct ceph_osd_request {
 	struct list_head r_linger_item;
 	struct list_head r_linger_osd_item;
 	struct ceph_osd *r_osd;
-	struct ceph_pg   r_pgid;
-	int              r_pg_osds[CEPH_PG_MAX_SIZE];
-	int              r_num_pg_osds;
+
+	struct ceph_osd_request_target r_t;
+#define r_base_oid	r_t.base_oid
+#define r_base_oloc	r_t.base_oloc
+#define r_flags		r_t.flags
 
 	struct ceph_msg  *r_request, *r_reply;
-	int               r_flags;     /* any additional flags for the osd */
 	u32               r_sent;      /* >0 if r_request is sending/sent */
 
 	/* request osd ops array  */
@@ -167,7 +168,6 @@ struct ceph_osd_request {
 	__le64           *r_request_pool;
 	void             *r_request_pgid;
 	__le32           *r_request_attempts;
-	bool              r_paused;
 	struct ceph_eversion *r_request_reassert_version;
 
 	int               r_result;
@@ -185,11 +185,6 @@ struct ceph_osd_request {
 
 	struct inode *r_inode;         	      /* for use by callbacks */
 	void *r_priv;			      /* ditto */
-
-	struct ceph_object_locator r_base_oloc;
-	struct ceph_object_id r_base_oid;
-	struct ceph_object_locator r_target_oloc;
-	struct ceph_object_id r_target_oid;
 
 	u64               r_snapid;
 	unsigned long     r_stamp;            /* send OR check time */
