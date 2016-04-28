@@ -129,8 +129,8 @@ struct iwl_drv {
 };
 
 enum {
-	DVM_OP_MODE =	0,
-	MVM_OP_MODE =	1,
+	DVM_OP_MODE,
+	MVM_OP_MODE,
 };
 
 /* Protects the table contents, i.e. the ops pointer & drv list */
