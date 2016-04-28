@@ -206,8 +206,9 @@ static void dump_linger_request(struct seq_file *s,
 	seq_printf(s, "%llu\t", lreq->linger_id);
 	dump_target(s, &lreq->t);
 
-	seq_printf(s, "\t%u\t%s/%d\n", lreq->register_gen,
-		   lreq->committed ? "C" : "", lreq->last_error);
+	seq_printf(s, "\t%u\t%s%s/%d\n", lreq->register_gen,
+		   lreq->is_watch ? "W" : "N", lreq->committed ? "C" : "",
+		   lreq->last_error);
 }
 
 static void dump_linger_requests(struct seq_file *s, struct ceph_osd *osd)

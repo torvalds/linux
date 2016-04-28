@@ -115,6 +115,11 @@ struct ceph_osd_req_op {
 			struct ceph_osd_data request_data;
 		} notify_ack;
 		struct {
+			u64 cookie;
+			struct ceph_osd_data request_data;
+			struct ceph_osd_data response_data;
+		} notify;
+		struct {
 			u64 expected_object_size;
 			u64 expected_write_size;
 		} alloc_hint;
@@ -202,6 +207,7 @@ struct ceph_osd_linger_request {
 	struct ceph_osd_client *osdc;
 	u64 linger_id;
 	bool committed;
+	bool is_watch;                  /* watch or notify */
 
 	struct ceph_osd *osd;
 	struct ceph_osd_request *reg_req;
@@ -220,14 +226,20 @@ struct ceph_osd_linger_request {
 	struct list_head scan_item;
 
 	struct completion reg_commit_wait;
+	struct completion notify_finish_wait;
 	int reg_commit_error;
+	int notify_finish_error;
 	int last_error;
 
 	u32 register_gen;
+	u64 notify_id;
 
 	rados_watchcb2_t wcb;
 	rados_watcherrcb_t errcb;
 	void *data;
+
+	struct page ***preply_pages;
+	size_t *preply_len;
 };
 
 struct ceph_osd_client {
@@ -397,5 +409,13 @@ int ceph_osdc_notify_ack(struct ceph_osd_client *osdc,
 			 u64 cookie,
 			 void *payload,
 			 size_t payload_len);
+int ceph_osdc_notify(struct ceph_osd_client *osdc,
+		     struct ceph_object_id *oid,
+		     struct ceph_object_locator *oloc,
+		     void *payload,
+		     size_t payload_len,
+		     u32 timeout,
+		     struct page ***preply_pages,
+		     size_t *preply_len);
 #endif
 
