@@ -163,8 +163,6 @@ static int cl_echo_object_put(struct echo_object *eco);
 static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 			      struct page **pages, int npages, int async);
 
-static struct echo_thread_info *echo_env_info(const struct lu_env *env);
-
 struct echo_thread_info {
 	struct echo_object_conf eti_conf;
 	struct lustre_md	eti_md;
