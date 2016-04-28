@@ -2729,9 +2729,6 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 	osdc->event_tree = RB_ROOT;
 	osdc->event_count = 0;
 
-	schedule_delayed_work(&osdc->osds_timeout_work,
-	    round_jiffies_relative(osdc->client->options->osd_idle_ttl));
-
 	err = -ENOMEM;
 	osdc->req_mempool = mempool_create_slab_pool(10,
 						     ceph_osd_request_cache);
@@ -2751,6 +2748,9 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 	osdc->notify_wq = create_singlethread_workqueue("ceph-watch-notify");
 	if (!osdc->notify_wq)
 		goto out_msgpool_reply;
+
+	schedule_delayed_work(&osdc->osds_timeout_work,
+	    round_jiffies_relative(osdc->client->options->osd_idle_ttl));
 
 	return 0;
 
