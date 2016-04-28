@@ -2339,8 +2339,22 @@ int intel_engine_idle(struct intel_engine_cs *engine)
 
 int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 {
+	int ret;
+
+	/* Flush enough space to reduce the likelihood of waiting after
+	 * we start building the request - in which case we will just
+	 * have to repeat work.
+	 */
+	request->reserved_space += MIN_SPACE_FOR_ADD_REQUEST;
+
 	request->ringbuf = request->engine->buffer;
-	return intel_ring_begin(request, 0);
+
+	ret = intel_ring_begin(request, 0);
+	if (ret)
+		return ret;
+
+	request->reserved_space -= MIN_SPACE_FOR_ADD_REQUEST;
+	return 0;
 }
 
 static int wait_for_space(struct drm_i915_gem_request *req, int bytes)

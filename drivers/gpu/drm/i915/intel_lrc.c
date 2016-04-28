@@ -700,6 +700,12 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 {
 	int ret;
 
+	/* Flush enough space to reduce the likelihood of waiting after
+	 * we start building the request - in which case we will just
+	 * have to repeat work.
+	 */
+	request->reserved_space += MIN_SPACE_FOR_ADD_REQUEST;
+
 	request->ringbuf = request->ctx->engine[request->engine->id].ringbuf;
 
 	if (i915.enable_guc_submission) {
@@ -725,6 +731,7 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 	if (ret)
 		goto err_unpin;
 
+	request->reserved_space -= MIN_SPACE_FOR_ADD_REQUEST;
 	return 0;
 
 err_unpin:
