@@ -228,6 +228,8 @@ enum {
 #define GEN8_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x17
 #define GEN9_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x26
 
+static int execlists_context_deferred_alloc(struct intel_context *ctx,
+					    struct intel_engine_cs *engine);
 static int intel_lr_context_pin(struct intel_context *ctx,
 				struct intel_engine_cs *engine);
 
@@ -684,6 +686,12 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 	 * have to repeat work.
 	 */
 	request->reserved_space += MIN_SPACE_FOR_ADD_REQUEST;
+
+	if (request->ctx->engine[engine->id].state == NULL) {
+		ret = execlists_context_deferred_alloc(request->ctx, engine);
+		if (ret)
+			return ret;
+	}
 
 	request->ringbuf = request->ctx->engine[engine->id].ringbuf;
 
@@ -2008,7 +2016,7 @@ logical_ring_init(struct drm_device *dev, struct intel_engine_cs *engine)
 	if (ret)
 		goto error;
 
-	ret = intel_lr_context_deferred_alloc(dctx, engine);
+	ret = execlists_context_deferred_alloc(dctx, engine);
 	if (ret)
 		goto error;
 
@@ -2482,9 +2490,9 @@ uint32_t intel_lr_context_size(struct intel_engine_cs *engine)
 }
 
 /**
- * intel_lr_context_deferred_alloc() - create the LRC specific bits of a context
+ * execlists_context_deferred_alloc() - create the LRC specific bits of a context
  * @ctx: LR context to create.
- * @ring: engine to be used with the context.
+ * @engine: engine to be used with the context.
  *
  * This function can be called more than once, with different engines, if we plan
  * to use the context with them. The context backing objects and the ringbuffers
@@ -2494,9 +2502,8 @@ uint32_t intel_lr_context_size(struct intel_engine_cs *engine)
  *
  * Return: non-zero on error.
  */
-
-int intel_lr_context_deferred_alloc(struct intel_context *ctx,
-				    struct intel_engine_cs *engine)
+static int execlists_context_deferred_alloc(struct intel_context *ctx,
+					    struct intel_engine_cs *engine)
 {
 	struct drm_device *dev = engine->dev;
 	struct drm_i915_gem_object *ctx_obj;

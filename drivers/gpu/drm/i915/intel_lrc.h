@@ -101,8 +101,6 @@ static inline void intel_logical_ring_emit_reg(struct intel_ringbuffer *ringbuf,
 
 void intel_lr_context_free(struct intel_context *ctx);
 uint32_t intel_lr_context_size(struct intel_engine_cs *engine);
-int intel_lr_context_deferred_alloc(struct intel_context *ctx,
-				    struct intel_engine_cs *engine);
 void intel_lr_context_unpin(struct intel_context *ctx,
 			    struct intel_engine_cs *engine);
 
