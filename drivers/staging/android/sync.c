@@ -253,8 +253,8 @@ static void sync_file_add_pt(struct sync_file *sync_file, int *i,
  * @a and @b.  @a and @b remain valid, independent sync_file. Returns the
  * new merged sync_file or NULL in case of error.
  */
-struct sync_file *sync_file_merge(const char *name,
-				  struct sync_file *a, struct sync_file *b)
+static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
+					 struct sync_file *b)
 {
 	int num_fences = a->num_fences + b->num_fences;
 	struct sync_file *sync_file;
@@ -310,7 +310,6 @@ struct sync_file *sync_file_merge(const char *name,
 	sync_file_debug_add(sync_file);
 	return sync_file;
 }
-EXPORT_SYMBOL(sync_file_merge);
 
 static const char *android_fence_get_driver_name(struct fence *fence)
 {
