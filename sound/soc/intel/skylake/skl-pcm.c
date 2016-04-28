@@ -213,7 +213,7 @@ static int skl_be_prepare(struct snd_pcm_substream *substream,
 	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_module_cfg *mconfig;
 
-	if ((dai->playback_active > 1) || (dai->capture_active > 1))
+	if (dai->playback_widget->power || dai->capture_widget->power)
 		return 0;
 
 	mconfig = skl_tplg_be_get_cpr_module(dai, substream->stream);
