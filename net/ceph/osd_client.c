@@ -1138,17 +1138,6 @@ static int __reset_osd(struct ceph_osd_client *osdc, struct ceph_osd *osd)
 	return 0;
 }
 
-static void __schedule_osd_timeout(struct ceph_osd_client *osdc)
-{
-	schedule_delayed_work(&osdc->timeout_work,
-			      osdc->client->options->osd_keepalive_timeout);
-}
-
-static void __cancel_osd_timeout(struct ceph_osd_client *osdc)
-{
-	cancel_delayed_work(&osdc->timeout_work);
-}
-
 /*
  * Register request, assign tid.  If this is the first request, set up
  * the timeout event.
@@ -1162,10 +1151,6 @@ static void __register_request(struct ceph_osd_client *osdc,
 	insert_request(&osdc->requests, req);
 	ceph_osdc_get_request(req);
 	osdc->num_requests++;
-	if (osdc->num_requests == 1) {
-		dout(" first request, scheduling timeout\n");
-		__schedule_osd_timeout(osdc);
-	}
 }
 
 /*
@@ -1196,11 +1181,6 @@ static void __unregister_request(struct ceph_osd_client *osdc,
 
 	list_del_init(&req->r_req_lru_item);
 	ceph_osdc_put_request(req);
-
-	if (osdc->num_requests == 0) {
-		dout(" no requests, canceling timeout\n");
-		__cancel_osd_timeout(osdc);
-	}
 }
 
 /*
@@ -1702,13 +1682,10 @@ static void __complete_request(struct ceph_osd_request *req)
 }
 
 /*
- * Timeout callback, called every N seconds when 1 or more osd
- * requests has been active for more than N seconds.  When this
- * happens, we ping all OSDs with requests who have timed out to
- * ensure any communications channel reset is detected.  Reset the
- * request timeouts another N seconds in the future as we go.
- * Reschedule the timeout event another N seconds in future (unless
- * there are no open requests).
+ * Timeout callback, called every N seconds.  When 1 or more OSD
+ * requests has been active for more than N seconds, we send a keepalive
+ * (tag + timestamp) to its OSD to ensure any communications channel
+ * reset is detected.
  */
 static void handle_timeout(struct work_struct *work)
 {
@@ -1749,10 +1726,12 @@ static void handle_timeout(struct work_struct *work)
 		ceph_con_keepalive(&osd->o_con);
 	}
 
-	__schedule_osd_timeout(osdc);
 	__send_queued(osdc);
 	mutex_unlock(&osdc->request_mutex);
 	up_read(&osdc->map_sem);
+
+	schedule_delayed_work(&osdc->timeout_work,
+			      osdc->client->options->osd_keepalive_timeout);
 }
 
 static void handle_osds_timeout(struct work_struct *work)
@@ -2749,6 +2728,8 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 	if (!osdc->notify_wq)
 		goto out_msgpool_reply;
 
+	schedule_delayed_work(&osdc->timeout_work,
+			      osdc->client->options->osd_keepalive_timeout);
 	schedule_delayed_work(&osdc->osds_timeout_work,
 	    round_jiffies_relative(osdc->client->options->osd_idle_ttl));
 
