@@ -1413,13 +1413,13 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	list_del_init(&request->list);
 	i915_gem_request_remove_from_client(request);
 
-	if (request->ctx) {
+	if (request->previous_context) {
 		if (i915.enable_execlists)
-			intel_lr_context_unpin(request->ctx, request->engine);
-
-		i915_gem_context_unreference(request->ctx);
+			intel_lr_context_unpin(request->previous_context,
+					       request->engine);
 	}
 
+	i915_gem_context_unreference(request->ctx);
 	i915_gem_request_unreference(request);
 }
 

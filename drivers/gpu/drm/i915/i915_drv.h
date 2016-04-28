@@ -2305,6 +2305,17 @@ struct drm_i915_gem_request {
 	struct intel_context *ctx;
 	struct intel_ringbuffer *ringbuf;
 
+	/**
+	 * Context related to the previous request.
+	 * As the contexts are accessed by the hardware until the switch is
+	 * completed to a new context, the hardware may still be writing
+	 * to the context object after the breadcrumb is visible. We must
+	 * not unpin/unbind/prune that object whilst still active and so
+	 * we keep the previous context pinned until the following (this)
+	 * request is retired.
+	 */
+	struct intel_context *previous_context;
+
 	/** Batch buffer related to this request if any (used for
 	    error state dump only) */
 	struct drm_i915_gem_object *batch_obj;
