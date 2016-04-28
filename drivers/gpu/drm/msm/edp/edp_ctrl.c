@@ -302,21 +302,24 @@ static void edp_clk_disable(struct edp_ctrl *ctrl, u32 clk_mask)
 static int edp_regulator_init(struct edp_ctrl *ctrl)
 {
 	struct device *dev = &ctrl->pdev->dev;
+	int ret;
 
 	DBG("");
 	ctrl->vdda_vreg = devm_regulator_get(dev, "vdda");
-	if (IS_ERR(ctrl->vdda_vreg)) {
-		pr_err("%s: Could not get vdda reg, ret = %ld\n", __func__,
-				PTR_ERR(ctrl->vdda_vreg));
+	ret = PTR_ERR_OR_ZERO(ctrl->vdda_vreg);
+	if (ret) {
+		pr_err("%s: Could not get vdda reg, ret = %d\n", __func__,
+				ret);
 		ctrl->vdda_vreg = NULL;
-		return PTR_ERR(ctrl->vdda_vreg);
+		return ret;
 	}
 	ctrl->lvl_vreg = devm_regulator_get(dev, "lvl-vdd");
-	if (IS_ERR(ctrl->lvl_vreg)) {
-		pr_err("Could not get lvl-vdd reg, %ld",
-				PTR_ERR(ctrl->lvl_vreg));
+	ret = PTR_ERR_OR_ZERO(ctrl->lvl_vreg);
+	if (ret) {
+		pr_err("%s: Could not get lvl-vdd reg, ret = %d\n", __func__,
+				ret);
 		ctrl->lvl_vreg = NULL;
-		return PTR_ERR(ctrl->lvl_vreg);
+		return ret;
 	}
 
 	return 0;
