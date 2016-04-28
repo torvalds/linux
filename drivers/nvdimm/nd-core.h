@@ -37,7 +37,7 @@ struct nvdimm_bus {
 struct nvdimm {
 	unsigned long flags;
 	void *provider_data;
-	unsigned long *dsm_mask;
+	unsigned long cmd_mask;
 	struct device dev;
 	atomic_t busy;
 	int id;

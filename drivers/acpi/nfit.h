@@ -132,8 +132,8 @@ struct acpi_nfit_desc {
 	size_t ars_status_size;
 	struct work_struct work;
 	unsigned int cancel:1;
-	unsigned long dimm_dsm_force_en;
-	unsigned long bus_dsm_force_en;
+	unsigned long dimm_cmd_force_en;
+	unsigned long bus_cmd_force_en;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 };

@@ -175,7 +175,7 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 	union acpi_object in_obj, in_buf, *out_obj;
 	struct device *dev = acpi_desc->dev;
 	const char *cmd_name, *dimm_name;
-	unsigned long dsm_mask;
+	unsigned long cmd_mask;
 	acpi_handle handle;
 	const u8 *uuid;
 	u32 offset;
@@ -189,7 +189,7 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 			return -ENOTTY;
 		dimm_name = nvdimm_name(nvdimm);
 		cmd_name = nvdimm_cmd_name(cmd);
-		dsm_mask = nfit_mem->dsm_mask;
+		cmd_mask = nvdimm_cmd_mask(nvdimm);
 		desc = nd_cmd_dimm_desc(cmd);
 		uuid = to_nfit_uuid(NFIT_DEV_DIMM);
 		handle = adev->handle;
@@ -197,7 +197,7 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		struct acpi_device *adev = to_acpi_dev(acpi_desc);
 
 		cmd_name = nvdimm_bus_cmd_name(cmd);
-		dsm_mask = nd_desc->dsm_mask;
+		cmd_mask = nd_desc->cmd_mask;
 		desc = nd_cmd_bus_desc(cmd);
 		uuid = to_nfit_uuid(NFIT_DEV_BUS);
 		handle = adev->handle;
@@ -207,7 +207,7 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 	if (!desc || (cmd && (desc->out_num + desc->in_num == 0)))
 		return -ENOTTY;
 
-	if (!test_bit(cmd, &dsm_mask))
+	if (!test_bit(cmd, &cmd_mask))
 		return -ENOTTY;
 
 	in_obj.type = ACPI_TYPE_PACKAGE;
@@ -926,7 +926,8 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	const u8 *uuid = to_nfit_uuid(NFIT_DEV_DIMM);
 	int i;
 
-	nfit_mem->dsm_mask = acpi_desc->dimm_dsm_force_en;
+	/* nfit test assumes 1:1 relationship between commands and dsms */
+	nfit_mem->dsm_mask = acpi_desc->dimm_cmd_force_en;
 	adev = to_acpi_dev(acpi_desc);
 	if (!adev)
 		return 0;
@@ -976,9 +977,13 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 		if (rc)
 			continue;
 
+		/*
+		 * For now there is 1:1 relationship between cmd_mask and
+		 * dsm_mask.
+		 */
 		nvdimm = nvdimm_create(acpi_desc->nvdimm_bus, nfit_mem,
 				acpi_nfit_dimm_attribute_groups,
-				flags, &nfit_mem->dsm_mask);
+				flags, nfit_mem->dsm_mask);
 		if (!nvdimm)
 			return -ENOMEM;
 
@@ -1007,14 +1012,14 @@ static void acpi_nfit_init_dsms(struct acpi_nfit_desc *acpi_desc)
 	struct acpi_device *adev;
 	int i;
 
-	nd_desc->dsm_mask = acpi_desc->bus_dsm_force_en;
+	nd_desc->cmd_mask = acpi_desc->bus_cmd_force_en;
 	adev = to_acpi_dev(acpi_desc);
 	if (!adev)
 		return;
 
 	for (i = ND_CMD_ARS_CAP; i <= ND_CMD_CLEAR_ERROR; i++)
 		if (acpi_check_dsm(adev->handle, uuid, 1, 1ULL << i))
-			set_bit(i, &nd_desc->dsm_mask);
+			set_bit(i, &nd_desc->cmd_mask);
 }
 
 static ssize_t range_index_show(struct device *dev,
