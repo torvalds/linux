@@ -47,6 +47,13 @@ struct ceph_mds_reply_info_in {
 	u32 pool_ns_len;
 };
 
+struct ceph_mds_reply_dir_entry {
+	char                          *name;
+	u32                           name_len;
+	struct ceph_mds_reply_lease   *lease;
+	struct ceph_mds_reply_info_in inode;
+};
+
 /*
  * parsed info about an mds reply, including information about
  * either: 1) the target inode and/or its parent directory and dentry,
@@ -73,11 +80,8 @@ struct ceph_mds_reply_info_parsed {
 			struct ceph_mds_reply_dirfrag *dir_dir;
 			size_t			      dir_buf_size;
 			int                           dir_nr;
-			char                          **dir_dname;
-			u32                           *dir_dname_len;
-			struct ceph_mds_reply_lease   **dir_dlease;
-			struct ceph_mds_reply_info_in *dir_in;
 			u8                            dir_complete, dir_end;
+			struct ceph_mds_reply_dir_entry  *dir_entries;
 		};
 
 		/* for create results */

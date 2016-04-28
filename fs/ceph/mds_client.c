@@ -186,12 +186,9 @@ static int parse_reply_info_dir(void **p, void *end,
 	if (num == 0)
 		goto done;
 
-	BUG_ON(!info->dir_in);
-	info->dir_dname = (void *)(info->dir_in + num);
-	info->dir_dname_len = (void *)(info->dir_dname + num);
-	info->dir_dlease = (void *)(info->dir_dname_len + num);
-	if ((unsigned long)(info->dir_dlease + num) >
-	    (unsigned long)info->dir_in + info->dir_buf_size) {
+	BUG_ON(!info->dir_entries);
+	if ((unsigned long)(info->dir_entries + num) >
+	    (unsigned long)info->dir_entries + info->dir_buf_size) {
 		pr_err("dir contents are larger than expected\n");
 		WARN_ON(1);
 		goto bad;
@@ -199,19 +196,19 @@ static int parse_reply_info_dir(void **p, void *end,
 
 	info->dir_nr = num;
 	while (num) {
+		struct ceph_mds_reply_dir_entry *rde = info->dir_entries + i;
 		/* dentry */
 		ceph_decode_need(p, end, sizeof(u32)*2, bad);
-		info->dir_dname_len[i] = ceph_decode_32(p);
-		ceph_decode_need(p, end, info->dir_dname_len[i], bad);
-		info->dir_dname[i] = *p;
-		*p += info->dir_dname_len[i];
-		dout("parsed dir dname '%.*s'\n", info->dir_dname_len[i],
-		     info->dir_dname[i]);
-		info->dir_dlease[i] = *p;
+		rde->name_len = ceph_decode_32(p);
+		ceph_decode_need(p, end, rde->name_len, bad);
+		rde->name = *p;
+		*p += rde->name_len;
+		dout("parsed dir dname '%.*s'\n", rde->name_len, rde->name);
+		rde->lease = *p;
 		*p += sizeof(struct ceph_mds_reply_lease);
 
 		/* inode */
-		err = parse_reply_info_in(p, end, &info->dir_in[i], features);
+		err = parse_reply_info_in(p, end, &rde->inode, features);
 		if (err < 0)
 			goto out_bad;
 		i++;
@@ -345,9 +342,9 @@ out_bad:
 
 static void destroy_reply_info(struct ceph_mds_reply_info_parsed *info)
 {
-	if (!info->dir_in)
+	if (!info->dir_entries)
 		return;
-	free_pages((unsigned long)info->dir_in, get_order(info->dir_buf_size));
+	free_pages((unsigned long)info->dir_entries, get_order(info->dir_buf_size));
 }
 
 
@@ -1656,8 +1653,7 @@ int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
 	struct ceph_inode_info *ci = ceph_inode(dir);
 	struct ceph_mds_reply_info_parsed *rinfo = &req->r_reply_info;
 	struct ceph_mount_options *opt = req->r_mdsc->fsc->mount_options;
-	size_t size = sizeof(*rinfo->dir_in) + sizeof(*rinfo->dir_dname_len) +
-		      sizeof(*rinfo->dir_dname) + sizeof(*rinfo->dir_dlease);
+	size_t size = sizeof(struct ceph_mds_reply_dir_entry);
 	int order, num_entries;
 
 	spin_lock(&ci->i_ceph_lock);
@@ -1668,14 +1664,14 @@ int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
 
 	order = get_order(size * num_entries);
 	while (order >= 0) {
-		rinfo->dir_in = (void*)__get_free_pages(GFP_KERNEL |
-							__GFP_NOWARN,
-							order);
-		if (rinfo->dir_in)
+		rinfo->dir_entries = (void*)__get_free_pages(GFP_KERNEL |
+							     __GFP_NOWARN,
+							     order);
+		if (rinfo->dir_entries)
 			break;
 		order--;
 	}
-	if (!rinfo->dir_in)
+	if (!rinfo->dir_entries)
 		return -ENOMEM;
 
 	num_entries = (PAGE_SIZE << order) / size;

@@ -1308,12 +1308,13 @@ static int readdir_prepopulate_inodes_only(struct ceph_mds_request *req,
 	int i, err = 0;
 
 	for (i = 0; i < rinfo->dir_nr; i++) {
+		struct ceph_mds_reply_dir_entry *rde = rinfo->dir_entries + i;
 		struct ceph_vino vino;
 		struct inode *in;
 		int rc;
 
-		vino.ino = le64_to_cpu(rinfo->dir_in[i].in->ino);
-		vino.snap = le64_to_cpu(rinfo->dir_in[i].in->snapid);
+		vino.ino = le64_to_cpu(rde->inode.in->ino);
+		vino.snap = le64_to_cpu(rde->inode.in->snapid);
 
 		in = ceph_get_inode(req->r_dentry->d_sb, vino);
 		if (IS_ERR(in)) {
@@ -1321,7 +1322,7 @@ static int readdir_prepopulate_inodes_only(struct ceph_mds_request *req,
 			dout("new_inode badness got %d\n", err);
 			continue;
 		}
-		rc = fill_inode(in, NULL, &rinfo->dir_in[i], NULL, session,
+		rc = fill_inode(in, NULL, &rde->inode, NULL, session,
 				req->r_request_started, -1,
 				&req->r_caps_reservation);
 		if (rc < 0) {
@@ -1433,14 +1434,15 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 
 	/* FIXME: release caps/leases if error occurs */
 	for (i = 0; i < rinfo->dir_nr; i++) {
+		struct ceph_mds_reply_dir_entry *rde = rinfo->dir_entries + i;
 		struct ceph_vino vino;
 
-		dname.name = rinfo->dir_dname[i];
-		dname.len = rinfo->dir_dname_len[i];
+		dname.name = rde->name;
+		dname.len = rde->name_len;
 		dname.hash = full_name_hash(dname.name, dname.len);
 
-		vino.ino = le64_to_cpu(rinfo->dir_in[i].in->ino);
-		vino.snap = le64_to_cpu(rinfo->dir_in[i].in->snapid);
+		vino.ino = le64_to_cpu(rde->inode.in->ino);
+		vino.snap = le64_to_cpu(rde->inode.in->snapid);
 
 retry_lookup:
 		dn = d_lookup(parent, &dname);
@@ -1486,7 +1488,7 @@ retry_lookup:
 			}
 		}
 
-		ret = fill_inode(in, NULL, &rinfo->dir_in[i], NULL, session,
+		ret = fill_inode(in, NULL, &rde->inode, NULL, session,
 				 req->r_request_started, -1,
 				 &req->r_caps_reservation);
 		if (ret < 0) {
@@ -1522,8 +1524,7 @@ retry_lookup:
 		di = dn->d_fsdata;
 		di->offset = ceph_make_fpos(frag, i + req->r_readdir_offset);
 
-		update_dentry_lease(dn, rinfo->dir_dlease[i],
-				    req->r_session,
+		update_dentry_lease(dn, rde->lease, req->r_session,
 				    req->r_request_started);
 
 		if (err == 0 && skipped == 0 && cache_ctl.index >= 0) {

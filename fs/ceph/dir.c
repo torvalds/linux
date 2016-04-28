@@ -416,9 +416,9 @@ more:
 			fi->last_name = NULL;
 			fi->next_offset = 2;
 		} else {
-			err = note_last_dentry(fi,
-				       rinfo->dir_dname[rinfo->dir_nr-1],
-				       rinfo->dir_dname_len[rinfo->dir_nr-1],
+			struct ceph_mds_reply_dir_entry *rde =
+					rinfo->dir_entries + (rinfo->dir_nr-1);
+			err = note_last_dentry(fi, rde->name, rde->name_len,
 				       fi->next_offset + rinfo->dir_nr);
 			if (err)
 				return err;
@@ -431,24 +431,21 @@ more:
 
 	ctx->pos = ceph_make_fpos(frag, off);
 	while (off >= fi->offset && off - fi->offset < rinfo->dir_nr) {
-		struct ceph_mds_reply_inode *in =
-			rinfo->dir_in[off - fi->offset].in;
+		struct ceph_mds_reply_dir_entry *rde =
+			rinfo->dir_entries + (off - fi->offset);
 		struct ceph_vino vino;
 		ino_t ino;
 
 		dout("readdir off %d (%d/%d) -> %lld '%.*s' %p\n",
 		     off, off - fi->offset, rinfo->dir_nr, ctx->pos,
-		     rinfo->dir_dname_len[off - fi->offset],
-		     rinfo->dir_dname[off - fi->offset], in);
-		BUG_ON(!in);
-		ftype = le32_to_cpu(in->mode) >> 12;
-		vino.ino = le64_to_cpu(in->ino);
-		vino.snap = le64_to_cpu(in->snapid);
+		     rde->name_len, rde->name, &rde->inode.in);
+		BUG_ON(!rde->inode.in);
+		ftype = le32_to_cpu(rde->inode.in->mode) >> 12;
+		vino.ino = le64_to_cpu(rde->inode.in->ino);
+		vino.snap = le64_to_cpu(rde->inode.in->snapid);
 		ino = ceph_vino_to_ino(vino);
-		if (!dir_emit(ctx,
-			    rinfo->dir_dname[off - fi->offset],
-			    rinfo->dir_dname_len[off - fi->offset],
-			    ceph_translate_ino(inode->i_sb, ino), ftype)) {
+		if (!dir_emit(ctx, rde->name, rde->name_len,
+			      ceph_translate_ino(inode->i_sb, ino), ftype)) {
 			dout("filldir stopping us...\n");
 			return 0;
 		}
