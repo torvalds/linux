@@ -868,6 +868,7 @@ struct intel_context {
 		struct i915_vma *lrc_vma;
 		u64 lrc_desc;
 		uint32_t *lrc_reg_state;
+		bool initialised;
 	} engine[I915_NUM_ENGINES];
 
 	struct list_head link;
