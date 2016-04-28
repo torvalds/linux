@@ -61,6 +61,13 @@ struct pl061_gpio {
 #endif
 };
 
+static int pl061_get_direction(struct gpio_chip *gc, unsigned offset)
+{
+	struct pl061_gpio *chip = gpiochip_get_data(gc);
+
+	return !(readb(chip->base + GPIODIR) & BIT(offset));
+}
+
 static int pl061_direction_input(struct gpio_chip *gc, unsigned offset)
 {
 	struct pl061_gpio *chip = gpiochip_get_data(gc);
@@ -315,6 +322,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 		chip->gc.free = gpiochip_generic_free;
 	}
 
+	chip->gc.get_direction = pl061_get_direction;
 	chip->gc.direction_input = pl061_direction_input;
 	chip->gc.direction_output = pl061_direction_output;
 	chip->gc.get = pl061_get_value;
