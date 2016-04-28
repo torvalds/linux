@@ -2969,9 +2969,16 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 
 no_open:
 	if (need_lookup) {
-		dentry = lookup_real(dir_inode, dentry, nd->flags);
-		if (IS_ERR(dentry))
-			return PTR_ERR(dentry);
+		struct dentry *res = dir_inode->i_op->lookup(dir_inode, dentry,
+							     nd->flags);
+		if (unlikely(res)) {
+			if (IS_ERR(res)) {
+				error = PTR_ERR(res);
+				goto out_dput;
+			}
+			dput(dentry);
+			dentry = res;
+		}
 	}
 
 	/* Negative dentry, just create the file */
