@@ -1383,9 +1383,15 @@ int rtl8xxxu_init_phy_rf(struct rtl8xxxu_priv *priv,
 int rtl8xxxu_init_phy_regs(struct rtl8xxxu_priv *priv,
 			   struct rtl8xxxu_reg32val *array);
 int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, char *fw_name);
+void rtl8xxxu_firmware_self_reset(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_reset_8051(struct rtl8xxxu_priv *priv);
 int rtl8xxxu_auto_llt_table(struct rtl8xxxu_priv *priv, u8 last_tx_page);
+void rtl8xxxu_prepare_calibrate(struct rtl8xxxu_priv *priv, u8 start);
+int rtl8xxxu_flush_fifo(struct rtl8xxxu_priv *priv);
+int rtl8723a_h2c_cmd(struct rtl8xxxu_priv *priv, struct h2c_cmd *h2c, int len);
+int rtl8xxxu_active_to_lps(struct rtl8xxxu_priv *priv);
+void rtl8723a_disabled_to_emu(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen2_config_channel(struct ieee80211_hw *hw);
 void rtl8xxxu_gen2_usb_quirks(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen2_update_rate_mask(struct rtl8xxxu_priv *priv,
@@ -1400,3 +1406,4 @@ bool rtl8xxxu_gen2_simularity_compare(struct rtl8xxxu_priv *priv,
 				      int result[][8], int c1, int c2);
 
 extern struct rtl8xxxu_fileops rtl8192eu_fops;
+extern struct rtl8xxxu_fileops rtl8723bu_fops;
