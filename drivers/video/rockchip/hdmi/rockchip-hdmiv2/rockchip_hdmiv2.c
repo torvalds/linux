@@ -482,17 +482,6 @@ static int rockchip_hdmiv2_parse_dt(struct hdmi_dev *hdmi_dev)
 		syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(hdmi_dev->grf_base)) {
 		hdmi_dev->grf_base = NULL;
-	} else {
-		if (of_property_read_u32(np, "rockchip,grf_reg_offset",
-					 &hdmi_dev->grf_reg_offset)) {
-			pr_err("get cru_reg_offset failed\n");
-			return -ENXIO;
-		}
-		if (of_property_read_u32(np, "rockchip,grf_reg_shift",
-					 &hdmi_dev->grf_reg_shift)) {
-			pr_err("get cru_reg_shift failed\n");
-			return -ENXIO;
-		}
 	}
 	#endif
 	return 0;
@@ -558,6 +547,7 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 	pm_runtime_enable(hdmi_dev->dev);
 	/*enable pd and pclk and hdcp_clk*/
 	if (rockchip_hdmiv2_clk_enable(hdmi_dev) < 0) {
+		dev_err(&pdev->dev, "failed to enable hdmi clk\n");
 		ret = -ENXIO;
 		goto failed1;
 	}
@@ -699,7 +689,7 @@ failed:
 	kfree(hdmi_dev->phy_table);
 	kfree(hdmi_dev);
 	hdmi_dev = NULL;
-	dev_err(&pdev->dev, "rk3288 hdmi probe error.\n");
+	dev_err(&pdev->dev, "rockchip hdmiv2 probe error.\n");
 	return ret;
 }
 
