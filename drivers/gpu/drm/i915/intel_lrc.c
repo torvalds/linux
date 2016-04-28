@@ -305,10 +305,11 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
  * which remains valid until the context is unpinned.
  *
  * This is what a descriptor looks like, from LSB to MSB:
- *    bits 0-11:    flags, GEN8_CTX_* (cached in ctx_desc_template)
+ *    bits  0-11:    flags, GEN8_CTX_* (cached in ctx_desc_template)
  *    bits 12-31:    LRCA, GTT address of (the HWSP of) this context
- *    bits 32-51:    ctx ID, a globally unique tag (the LRCA again!)
- *    bits 52-63:    reserved, may encode the engine ID (for GuC)
+ *    bits 32-52:    ctx ID, a globally unique tag (the LRCA again!)
+ *    bits 53-54:    mbz, reserved for use by hardware
+ *    bits 55-63:    group ID, currently unused and set to 0
  */
 static void
 intel_lr_context_descriptor_update(struct intel_context *ctx,
@@ -319,9 +320,9 @@ intel_lr_context_descriptor_update(struct intel_context *ctx,
 	lrca = ctx->engine[engine->id].lrc_vma->node.start +
 	       LRC_PPHWSP_PN * PAGE_SIZE;
 
-	desc = engine->ctx_desc_template;			   /* bits  0-11 */
+	desc = engine->ctx_desc_template;		   /* bits  0-11 */
 	desc |= lrca;					   /* bits 12-31 */
-	desc |= (lrca >> PAGE_SHIFT) << GEN8_CTX_ID_SHIFT; /* bits 32-51 */
+	desc |= (lrca >> PAGE_SHIFT) << GEN8_CTX_ID_SHIFT; /* bits 32-52 */
 
 	ctx->engine[engine->id].lrc_desc = desc;
 }
