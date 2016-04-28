@@ -2557,6 +2557,9 @@ static void vxlan_setup(struct net_device *dev)
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	unsigned int h;
 
+	eth_hw_addr_random(dev);
+	ether_setup(dev);
+
 	dev->destructor = free_netdev;
 	SET_NETDEV_DEVTYPE(dev, &vxlan_type);
 
@@ -2592,8 +2595,6 @@ static void vxlan_setup(struct net_device *dev)
 
 static void vxlan_ether_setup(struct net_device *dev)
 {
-	eth_hw_addr_random(dev);
-	ether_setup(dev);
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	dev->netdev_ops = &vxlan_netdev_ether_ops;
@@ -2601,11 +2602,10 @@ static void vxlan_ether_setup(struct net_device *dev)
 
 static void vxlan_raw_setup(struct net_device *dev)
 {
+	dev->header_ops = NULL;
 	dev->type = ARPHRD_NONE;
 	dev->hard_header_len = 0;
 	dev->addr_len = 0;
-	dev->mtu = ETH_DATA_LEN;
-	dev->tx_queue_len = 1000;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
 	dev->netdev_ops = &vxlan_netdev_raw_ops;
 }
