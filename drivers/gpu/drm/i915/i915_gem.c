@@ -4719,6 +4719,7 @@ i915_gem_suspend(struct drm_device *dev)
 	i915_gem_retire_requests(dev);
 
 	i915_gem_stop_engines(dev);
+	i915_gem_context_lost(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
