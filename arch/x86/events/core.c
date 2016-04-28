@@ -360,6 +360,9 @@ int x86_add_exclusive(unsigned int what)
 {
 	int i;
 
+	if (x86_pmu.lbr_pt_coexist)
+		return 0;
+
 	if (!atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what])) {
 		mutex_lock(&pmc_reserve_mutex);
 		for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++) {
@@ -380,6 +383,9 @@ fail_unlock:
 
 void x86_del_exclusive(unsigned int what)
 {
+	if (x86_pmu.lbr_pt_coexist)
+		return;
+
 	atomic_dec(&x86_pmu.lbr_exclusive[what]);
 	atomic_dec(&active_events);
 }
