@@ -23,9 +23,9 @@
  * @pad:	padding for 64-bit alignment, should always be zero
  */
 struct sync_merge_data {
-	char	name[32]; /* name of new fence */
-	__s32	fd2; /* fd of second fence */
-	__s32	fence; /* fd on newly created fence */
+	char	name[32];
+	__s32	fd2;
+	__s32	fence;
 	__u32	flags;
 	__u32	pad;
 };
@@ -33,8 +33,8 @@ struct sync_merge_data {
 /**
  * struct sync_fence_info - detailed fence information
  * @obj_name:		name of parent sync_timeline
- * @driver_name:	name of driver implementing the parent
- * @status:		status of the fence 0:active 1:signaled <0:error
+* @driver_name:	name of driver implementing the parent
+* @status:		status of the fence 0:active 1:signaled <0:error
  * @flags:		fence_info flags
  * @timestamp_ns:	timestamp of status change in nanoseconds
  */
