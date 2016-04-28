@@ -834,15 +834,15 @@ int hns_mac_init(struct dsaf_device *dsaf_dev)
 	struct fwnode_handle *child;
 
 	device_for_each_child_node(dsaf_dev->dev, child) {
-		ret = fwnode_property_read_u32(child, "port-id", &port_id);
+		ret = fwnode_property_read_u32(child, "reg", &port_id);
 		if (ret) {
 			dev_err(dsaf_dev->dev,
-				"get port-id fail, ret=%d!\n", ret);
+				"get reg fail, ret=%d!\n", ret);
 			return ret;
 		}
 		if (port_id >= max_port_num) {
 			dev_err(dsaf_dev->dev,
-				"port-id(%u) out of range!\n", port_id);
+				"reg(%u) out of range!\n", port_id);
 			return -EINVAL;
 		}
 		mac_cb = devm_kzalloc(dsaf_dev->dev, sizeof(*mac_cb),
