@@ -84,7 +84,7 @@ static int bh1780_debugfs_reg_access(struct iio_dev *indio_dev,
 	int ret;
 
 	if (!readval)
-		bh1780_write(bh1780, (u8)reg, (u8)writeval);
+		return bh1780_write(bh1780, (u8)reg, (u8)writeval);
 
 	ret = bh1780_read(bh1780, (u8)reg);
 	if (ret < 0)
