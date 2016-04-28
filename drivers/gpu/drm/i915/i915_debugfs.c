@@ -2043,14 +2043,12 @@ static void i915_dump_lrc_obj(struct seq_file *m,
 	struct drm_i915_gem_object *ctx_obj = ctx->engine[engine->id].state;
 	unsigned long ggtt_offset = 0;
 
+	seq_printf(m, "CONTEXT: %s %u\n", engine->name, ctx->hw_id);
+
 	if (ctx_obj == NULL) {
-		seq_printf(m, "Context on %s with no gem object\n",
-			   engine->name);
+		seq_puts(m, "\tNot allocated\n");
 		return;
 	}
-
-	seq_printf(m, "CONTEXT: %s %u\n", engine->name,
-		   intel_execlists_ctx_id(ctx, engine));
 
 	if (!i915_gem_obj_ggtt_bound(ctx_obj))
 		seq_puts(m, "\tNot bound in GGTT\n");
@@ -2170,8 +2168,8 @@ static int i915_execlists(struct seq_file *m, void *data)
 
 		seq_printf(m, "\t%d requests in queue\n", count);
 		if (head_req) {
-			seq_printf(m, "\tHead request id: %u\n",
-				   intel_execlists_ctx_id(head_req->ctx, engine));
+			seq_printf(m, "\tHead request context: %u\n",
+				   head_req->ctx->hw_id);
 			seq_printf(m, "\tHead request tail: %u\n",
 				   head_req->tail);
 		}

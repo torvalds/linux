@@ -224,6 +224,7 @@ enum {
 	FAULT_AND_CONTINUE /* Unsupported */
 };
 #define GEN8_CTX_ID_SHIFT 32
+#define GEN8_CTX_ID_WIDTH 21
 #define GEN8_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x17
 #define GEN9_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x26
 
@@ -307,7 +308,7 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
  * This is what a descriptor looks like, from LSB to MSB:
  *    bits  0-11:    flags, GEN8_CTX_* (cached in ctx_desc_template)
  *    bits 12-31:    LRCA, GTT address of (the HWSP of) this context
- *    bits 32-52:    ctx ID, a globally unique tag (the LRCA again!)
+ *    bits 32-52:    ctx ID, a globally unique tag
  *    bits 53-54:    mbz, reserved for use by hardware
  *    bits 55-63:    group ID, currently unused and set to 0
  */
@@ -315,14 +316,14 @@ static void
 intel_lr_context_descriptor_update(struct intel_context *ctx,
 				   struct intel_engine_cs *engine)
 {
-	uint64_t lrca, desc;
+	u64 desc;
 
-	lrca = ctx->engine[engine->id].lrc_vma->node.start +
+	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > (1<<GEN8_CTX_ID_WIDTH));
+
+	desc = engine->ctx_desc_template;			/* bits  0-11 */
+	desc |= ctx->engine[engine->id].lrc_vma->node.start +	/* bits 12-31 */
 	       LRC_PPHWSP_PN * PAGE_SIZE;
-
-	desc = engine->ctx_desc_template;		   /* bits  0-11 */
-	desc |= lrca;					   /* bits 12-31 */
-	desc |= (lrca >> PAGE_SHIFT) << GEN8_CTX_ID_SHIFT; /* bits 32-52 */
+	desc |= (u64)ctx->hw_id << GEN8_CTX_ID_SHIFT;		/* bits 32-52 */
 
 	ctx->engine[engine->id].lrc_desc = desc;
 }
@@ -331,28 +332,6 @@ uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
 				     struct intel_engine_cs *engine)
 {
 	return ctx->engine[engine->id].lrc_desc;
-}
-
-/**
- * intel_execlists_ctx_id() - get the Execlists Context ID
- * @ctx: Context to get the ID for
- * @ring: Engine to get the ID for
- *
- * Do not confuse with ctx->id! Unfortunately we have a name overload
- * here: the old context ID we pass to userspace as a handler so that
- * they can refer to a context, and the new context ID we pass to the
- * ELSP so that the GPU can inform us of the context status via
- * interrupts.
- *
- * The context ID is a portion of the context descriptor, so we can
- * just extract the required part from the cached descriptor.
- *
- * Return: 20-bits globally unique context ID.
- */
-u32 intel_execlists_ctx_id(struct intel_context *ctx,
-			   struct intel_engine_cs *engine)
-{
-	return intel_lr_context_descriptor(ctx, engine) >> GEN8_CTX_ID_SHIFT;
 }
 
 static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
@@ -500,7 +479,7 @@ execlists_check_remove_request(struct intel_engine_cs *engine, u32 request_id)
 	if (!head_req)
 		return 0;
 
-	if (unlikely(intel_execlists_ctx_id(head_req->ctx, engine) != request_id))
+	if (unlikely(head_req->ctx->hw_id != request_id))
 		return 0;
 
 	WARN(head_req->elsp_submitted == 0, "Never submitted head request\n");
