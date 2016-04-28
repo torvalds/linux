@@ -208,6 +208,20 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 					     struct ceph_osdmap *map);
 extern void ceph_osdmap_destroy(struct ceph_osdmap *map);
 
+struct ceph_osds {
+	int osds[CEPH_PG_MAX_SIZE];
+	int size;
+	int primary; /* id, NOT index */
+};
+
+static inline void ceph_osds_init(struct ceph_osds *set)
+{
+	set->size = 0;
+	set->primary = -1;
+}
+
+void ceph_osds_copy(struct ceph_osds *dest, const struct ceph_osds *src);
+
 /* calculate mapping of a file extent to an object */
 extern int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 					 u64 off, u64 len,
@@ -218,9 +232,10 @@ int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
 			      struct ceph_object_locator *oloc,
 			      struct ceph_pg *raw_pgid);
 
-extern int ceph_calc_pg_acting(struct ceph_osdmap *osdmap,
-			       struct ceph_pg pgid,
-			       int *osds, int *primary);
+void ceph_pg_to_up_acting_osds(struct ceph_osdmap *osdmap,
+			       const struct ceph_pg *raw_pgid,
+			       struct ceph_osds *up,
+			       struct ceph_osds *acting);
 extern int ceph_calc_pg_primary(struct ceph_osdmap *osdmap,
 				struct ceph_pg pgid);
 

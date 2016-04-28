@@ -1358,8 +1358,7 @@ static int __map_request(struct ceph_osd_client *osdc,
 			 struct ceph_osd_request *req, int force_resend)
 {
 	struct ceph_pg pgid;
-	int acting[CEPH_PG_MAX_SIZE];
-	int num, o;
+	struct ceph_osds up, acting;
 	int err;
 	bool was_paused;
 
@@ -1372,9 +1371,7 @@ static int __map_request(struct ceph_osd_client *osdc,
 	}
 	req->r_pgid = pgid;
 
-	num = ceph_calc_pg_acting(osdc->osdmap, pgid, acting, &o);
-	if (num < 0)
-		num = 0;
+	ceph_pg_to_up_acting_osds(osdc->osdmap, &pgid, &up, &acting);
 
 	was_paused = req->r_paused;
 	req->r_paused = __req_should_be_paused(osdc, req);
@@ -1382,21 +1379,23 @@ static int __map_request(struct ceph_osd_client *osdc,
 		force_resend = 1;
 
 	if ((!force_resend &&
-	     req->r_osd && req->r_osd->o_osd == o &&
+	     req->r_osd && req->r_osd->o_osd == acting.primary &&
 	     req->r_sent >= req->r_osd->o_incarnation &&
-	     req->r_num_pg_osds == num &&
-	     memcmp(req->r_pg_osds, acting, sizeof(acting[0])*num) == 0) ||
-	    (req->r_osd == NULL && o == -1) ||
+	     req->r_num_pg_osds == acting.size &&
+	     memcmp(req->r_pg_osds, acting.osds,
+		    acting.size * sizeof(acting.osds[0])) == 0) ||
+	    (req->r_osd == NULL && acting.primary == -1) ||
 	    req->r_paused)
 		return 0;  /* no change */
 
 	dout("map_request tid %llu pgid %lld.%x osd%d (was osd%d)\n",
-	     req->r_tid, pgid.pool, pgid.seed, o,
+	     req->r_tid, pgid.pool, pgid.seed, acting.primary,
 	     req->r_osd ? req->r_osd->o_osd : -1);
 
 	/* record full pg acting set */
-	memcpy(req->r_pg_osds, acting, sizeof(acting[0]) * num);
-	req->r_num_pg_osds = num;
+	memcpy(req->r_pg_osds, acting.osds,
+	       acting.size * sizeof(acting.osds[0]));
+	req->r_num_pg_osds = acting.size;
 
 	if (req->r_osd) {
 		__cancel_request(req);
@@ -1405,21 +1404,22 @@ static int __map_request(struct ceph_osd_client *osdc,
 		req->r_osd = NULL;
 	}
 
-	req->r_osd = lookup_osd(&osdc->osds, o);
-	if (!req->r_osd && o >= 0) {
+	req->r_osd = lookup_osd(&osdc->osds, acting.primary);
+	if (!req->r_osd && acting.primary >= 0) {
 		err = -ENOMEM;
-		req->r_osd = create_osd(osdc, o);
+		req->r_osd = create_osd(osdc, acting.primary);
 		if (!req->r_osd) {
 			list_move(&req->r_req_lru_item, &osdc->req_notarget);
 			goto out;
 		}
 
-		dout("map_request osd %p is osd%d\n", req->r_osd, o);
+		dout("map_request osd %p is osd%d\n", req->r_osd,
+		     acting.primary);
 		insert_osd(&osdc->osds, req->r_osd);
 
 		ceph_con_open(&req->r_osd->o_con,
-			      CEPH_ENTITY_TYPE_OSD, o,
-			      &osdc->osdmap->osd_addr[o]);
+			      CEPH_ENTITY_TYPE_OSD, acting.primary,
+			      &osdc->osdmap->osd_addr[acting.primary]);
 	}
 
 	__enqueue_request(req);
