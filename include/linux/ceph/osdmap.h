@@ -24,6 +24,8 @@ struct ceph_pg {
 	uint32_t seed;
 };
 
+int ceph_pg_compare(const struct ceph_pg *lhs, const struct ceph_pg *rhs);
+
 #define CEPH_POOL_FLAG_HASHPSPOOL  1
 
 struct ceph_pg_pool_info {

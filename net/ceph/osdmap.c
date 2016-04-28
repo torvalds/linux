@@ -380,23 +380,24 @@ bad:
 	return ERR_PTR(err);
 }
 
+int ceph_pg_compare(const struct ceph_pg *lhs, const struct ceph_pg *rhs)
+{
+	if (lhs->pool < rhs->pool)
+		return -1;
+	if (lhs->pool > rhs->pool)
+		return 1;
+	if (lhs->seed < rhs->seed)
+		return -1;
+	if (lhs->seed > rhs->seed)
+		return 1;
+
+	return 0;
+}
+
 /*
  * rbtree of pg_mapping for handling pg_temp (explicit mapping of pgid
  * to a set of osds) and primary_temp (explicit primary setting)
  */
-static int pgid_cmp(struct ceph_pg l, struct ceph_pg r)
-{
-	if (l.pool < r.pool)
-		return -1;
-	if (l.pool > r.pool)
-		return 1;
-	if (l.seed < r.seed)
-		return -1;
-	if (l.seed > r.seed)
-		return 1;
-	return 0;
-}
-
 static int __insert_pg_mapping(struct ceph_pg_mapping *new,
 			       struct rb_root *root)
 {
@@ -409,7 +410,7 @@ static int __insert_pg_mapping(struct ceph_pg_mapping *new,
 	while (*p) {
 		parent = *p;
 		pg = rb_entry(parent, struct ceph_pg_mapping, node);
-		c = pgid_cmp(new->pgid, pg->pgid);
+		c = ceph_pg_compare(&new->pgid, &pg->pgid);
 		if (c < 0)
 			p = &(*p)->rb_left;
 		else if (c > 0)
@@ -432,7 +433,7 @@ static struct ceph_pg_mapping *__lookup_pg_mapping(struct rb_root *root,
 
 	while (n) {
 		pg = rb_entry(n, struct ceph_pg_mapping, node);
-		c = pgid_cmp(pgid, pg->pgid);
+		c = ceph_pg_compare(&pgid, &pg->pgid);
 		if (c < 0) {
 			n = n->rb_left;
 		} else if (c > 0) {
