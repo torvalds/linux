@@ -386,17 +386,33 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 	struct drm_i915_private *dev_priv =
 		container_of(nb, struct drm_i915_private, mm.vmap_notifier);
 	struct shrinker_lock_uninterruptible slu;
-	unsigned long freed_pages;
+	struct i915_vma *vma, *next;
+	unsigned long freed_pages = 0;
+	int ret;
 
 	if (!i915_gem_shrinker_lock_uninterruptible(dev_priv, &slu, 5000))
 		return NOTIFY_DONE;
 
-	freed_pages = i915_gem_shrink(dev_priv, -1UL,
-				      I915_SHRINK_BOUND |
-				      I915_SHRINK_UNBOUND |
-				      I915_SHRINK_ACTIVE |
-				      I915_SHRINK_VMAPS);
+	/* Force everything onto the inactive lists */
+	ret = i915_gpu_idle(dev_priv->dev);
+	if (ret)
+		goto out;
 
+	freed_pages += i915_gem_shrink(dev_priv, -1UL,
+				       I915_SHRINK_BOUND |
+				       I915_SHRINK_UNBOUND |
+				       I915_SHRINK_ACTIVE |
+				       I915_SHRINK_VMAPS);
+
+	/* We also want to clear any cached iomaps as they wrap vmap */
+	list_for_each_entry_safe(vma, next,
+				 &dev_priv->ggtt.base.inactive_list, vm_link) {
+		unsigned long count = vma->node.size >> PAGE_SHIFT;
+		if (vma->iomap && i915_vma_unbind(vma) == 0)
+			freed_pages += count;
+	}
+
+out:
 	i915_gem_shrinker_unlock_uninterruptible(dev_priv, &slu);
 
 	*(unsigned long *)ptr += freed_pages;
