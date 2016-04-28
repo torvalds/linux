@@ -409,8 +409,8 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 	err = bgpio_init(&port->gc, gpio->dev, 4, dat, set, NULL, dirout,
 			 NULL, false);
 	if (err) {
-		dev_err(gpio->dev, "failed to init gpio chip for %s\n",
-			pp->name);
+		dev_err(gpio->dev, "failed to init gpio chip for port%d\n",
+			port->idx);
 		return err;
 	}
 
@@ -429,8 +429,8 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 
 	err = gpiochip_add_data(&port->gc, port);
 	if (err)
-		dev_err(gpio->dev, "failed to register gpiochip for %s\n",
-			pp->name);
+		dev_err(gpio->dev, "failed to register gpiochip for port%d\n",
+			port->idx);
 	else
 		port->is_registered = true;
 
@@ -480,15 +480,16 @@ dwapb_gpio_get_pdata_of(struct device *dev)
 
 		if (of_property_read_u32(port_np, "reg", &pp->idx) ||
 		    pp->idx >= DWAPB_MAX_PORTS) {
-			dev_err(dev, "missing/invalid port index for %s\n",
-				port_np->full_name);
+			dev_err(dev,
+				"missing/invalid port index for port%d\n", i);
 			return ERR_PTR(-EINVAL);
 		}
 
 		if (of_property_read_u32(port_np, "snps,nr-gpios",
 					 &pp->ngpio)) {
-			dev_info(dev, "failed to get number of gpios for %s\n",
-				 port_np->full_name);
+			dev_info(dev,
+				 "failed to get number of gpios for port%d\n",
+				 i);
 			pp->ngpio = 32;
 		}
 
@@ -499,15 +500,12 @@ dwapb_gpio_get_pdata_of(struct device *dev)
 		if (pp->idx == 0 &&
 		    of_property_read_bool(port_np, "interrupt-controller")) {
 			pp->irq = irq_of_parse_and_map(port_np, 0);
-			if (!pp->irq) {
-				dev_warn(dev, "no irq for bank %s\n",
-					 port_np->full_name);
-			}
+			if (!pp->irq)
+				dev_warn(dev, "no irq for port%d\n", pp->idx);
 		}
 
 		pp->irq_shared	= false;
 		pp->gpio_base	= -1;
-		pp->name	= port_np->full_name;
 	}
 
 	return pdata;

@@ -16,7 +16,6 @@
 
 struct dwapb_port_property {
 	struct device_node *node;
-	const char	*name;
 	unsigned int	idx;
 	unsigned int	ngpio;
 	unsigned int	gpio_base;
