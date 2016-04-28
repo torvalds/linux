@@ -1029,8 +1029,7 @@ void rtl8xxxu_gen1_disable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_SPS0_CTRL, sps0);
 }
 
-
-static void rtl8723a_stop_tx_beacon(struct rtl8xxxu_priv *priv)
+static void rtl8xxxu_stop_tx_beacon(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
 
@@ -4440,7 +4439,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 			rtl8xxxu_write8(priv, REG_BCN_MAX_ERR, 0xff);
 
-			rtl8723a_stop_tx_beacon(priv);
+			rtl8xxxu_stop_tx_beacon(priv);
 
 			/* joinbss sequence */
 			rtl8xxxu_write16(priv, REG_BCN_PSR_RPT,
@@ -5276,7 +5275,7 @@ static int rtl8xxxu_add_interface(struct ieee80211_hw *hw,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		rtl8723a_stop_tx_beacon(priv);
+		rtl8xxxu_stop_tx_beacon(priv);
 
 		val8 = rtl8xxxu_read8(priv, REG_BEACON_CTRL);
 		val8 |= BEACON_ATIM | BEACON_FUNCTION_ENABLE |
