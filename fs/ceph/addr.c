@@ -1774,7 +1774,7 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci, u32 pool)
 	wr_req->r_flags = CEPH_OSD_FLAG_WRITE |
 			  CEPH_OSD_FLAG_ACK | CEPH_OSD_FLAG_ONDISK;
 	osd_req_op_init(wr_req, 0, CEPH_OSD_OP_CREATE, CEPH_OSD_OP_FLAG_EXCL);
-	wr_req->r_base_oloc.pool = pool;
+	ceph_oloc_copy(&wr_req->r_base_oloc, &rd_req->r_base_oloc);
 	ceph_oid_copy(&wr_req->r_base_oid, &rd_req->r_base_oid);
 
 	err = ceph_osdc_alloc_messages(wr_req, GFP_NOFS);

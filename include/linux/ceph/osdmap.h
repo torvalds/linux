@@ -28,6 +28,7 @@ int ceph_pg_compare(const struct ceph_pg *lhs, const struct ceph_pg *rhs);
 
 #define CEPH_POOL_FLAG_HASHPSPOOL	(1ULL << 0) /* hash pg seed and pool id
 						       together */
+#define CEPH_POOL_FLAG_FULL		(1ULL << 1) /* pool is full */
 
 struct ceph_pg_pool_info {
 	struct rb_node node;
@@ -61,6 +62,22 @@ static inline bool ceph_can_shift_osds(struct ceph_pg_pool_info *pool)
 struct ceph_object_locator {
 	s64 pool;
 };
+
+static inline void ceph_oloc_init(struct ceph_object_locator *oloc)
+{
+	oloc->pool = -1;
+}
+
+static inline bool ceph_oloc_empty(const struct ceph_object_locator *oloc)
+{
+	return oloc->pool == -1;
+}
+
+static inline void ceph_oloc_copy(struct ceph_object_locator *dest,
+				  const struct ceph_object_locator *src)
+{
+	dest->pool = src->pool;
+}
 
 /*
  * Maximum supported by kernel client object name length
@@ -226,6 +243,23 @@ static inline void ceph_osds_init(struct ceph_osds *set)
 }
 
 void ceph_osds_copy(struct ceph_osds *dest, const struct ceph_osds *src);
+
+bool ceph_is_new_interval(const struct ceph_osds *old_acting,
+			  const struct ceph_osds *new_acting,
+			  const struct ceph_osds *old_up,
+			  const struct ceph_osds *new_up,
+			  int old_size,
+			  int new_size,
+			  int old_min_size,
+			  int new_min_size,
+			  u32 old_pg_num,
+			  u32 new_pg_num,
+			  bool old_sort_bitwise,
+			  bool new_sort_bitwise,
+			  const struct ceph_pg *pgid);
+bool ceph_osds_changed(const struct ceph_osds *old_acting,
+		       const struct ceph_osds *new_acting,
+		       bool any_change);
 
 /* calculate mapping of a file extent to an object */
 extern int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,

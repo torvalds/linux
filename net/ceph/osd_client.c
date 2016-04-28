@@ -299,6 +299,30 @@ static void osd_req_op_data_release(struct ceph_osd_request *osd_req,
 }
 
 /*
+ * Assumes @t is zero-initialized.
+ */
+static void target_init(struct ceph_osd_request_target *t)
+{
+	ceph_oid_init(&t->base_oid);
+	ceph_oloc_init(&t->base_oloc);
+	ceph_oid_init(&t->target_oid);
+	ceph_oloc_init(&t->target_oloc);
+
+	ceph_osds_init(&t->acting);
+	ceph_osds_init(&t->up);
+	t->size = -1;
+	t->min_size = -1;
+
+	t->osd = CEPH_HOMELESS_OSD;
+}
+
+static void target_destroy(struct ceph_osd_request_target *t)
+{
+	ceph_oid_destroy(&t->base_oid);
+	ceph_oid_destroy(&t->target_oid);
+}
+
+/*
  * requests
  */
 static void ceph_osdc_release_request(struct kref *kref)
@@ -1273,6 +1297,11 @@ void ceph_osdc_set_request_linger(struct ceph_osd_client *osdc,
 }
 EXPORT_SYMBOL(ceph_osdc_set_request_linger);
 
+static bool __pool_full(struct ceph_pg_pool_info *pi)
+{
+	return pi->flags & CEPH_POOL_FLAG_FULL;
+}
+
 /*
  * Returns whether a request should be blocked from being sent
  * based on the current osdmap and osd_client settings.
@@ -1287,6 +1316,20 @@ static bool __req_should_be_paused(struct ceph_osd_client *osdc,
 		ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL);
 	return (req->r_flags & CEPH_OSD_FLAG_READ && pauserd) ||
 		(req->r_flags & CEPH_OSD_FLAG_WRITE && pausewr);
+}
+
+static bool target_should_be_paused(struct ceph_osd_client *osdc,
+				    const struct ceph_osd_request_target *t,
+				    struct ceph_pg_pool_info *pi)
+{
+	bool pauserd = ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_PAUSERD);
+	bool pausewr = ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_PAUSEWR) ||
+		       ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL) ||
+		       __pool_full(pi);
+
+	WARN_ON(pi->id != t->base_oloc.pool);
+	return (t->flags & CEPH_OSD_FLAG_READ && pauserd) ||
+	       (t->flags & CEPH_OSD_FLAG_WRITE && pausewr);
 }
 
 /*
@@ -1326,6 +1369,116 @@ static int __calc_request_pg(struct ceph_osdmap *osdmap,
 
 	return ceph_object_locator_to_pg(osdmap, &req->r_target_oid,
 					 &req->r_target_oloc, pg_out);
+}
+
+enum calc_target_result {
+	CALC_TARGET_NO_ACTION = 0,
+	CALC_TARGET_NEED_RESEND,
+	CALC_TARGET_POOL_DNE,
+};
+
+static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
+					   struct ceph_osd_request_target *t,
+					   u32 *last_force_resend,
+					   bool any_change)
+{
+	struct ceph_pg_pool_info *pi;
+	struct ceph_pg pgid, last_pgid;
+	struct ceph_osds up, acting;
+	bool force_resend = false;
+	bool need_check_tiering = false;
+	bool need_resend = false;
+	bool sort_bitwise = ceph_osdmap_flag(osdc->osdmap,
+					     CEPH_OSDMAP_SORTBITWISE);
+	enum calc_target_result ct_res;
+	int ret;
+
+	pi = ceph_pg_pool_by_id(osdc->osdmap, t->base_oloc.pool);
+	if (!pi) {
+		t->osd = CEPH_HOMELESS_OSD;
+		ct_res = CALC_TARGET_POOL_DNE;
+		goto out;
+	}
+
+	if (osdc->osdmap->epoch == pi->last_force_request_resend) {
+		if (last_force_resend &&
+		    *last_force_resend < pi->last_force_request_resend) {
+			*last_force_resend = pi->last_force_request_resend;
+			force_resend = true;
+		} else if (!last_force_resend) {
+			force_resend = true;
+		}
+	}
+	if (ceph_oid_empty(&t->target_oid) || force_resend) {
+		ceph_oid_copy(&t->target_oid, &t->base_oid);
+		need_check_tiering = true;
+	}
+	if (ceph_oloc_empty(&t->target_oloc) || force_resend) {
+		ceph_oloc_copy(&t->target_oloc, &t->base_oloc);
+		need_check_tiering = true;
+	}
+
+	if (need_check_tiering &&
+	    (t->flags & CEPH_OSD_FLAG_IGNORE_OVERLAY) == 0) {
+		if (t->flags & CEPH_OSD_FLAG_READ && pi->read_tier >= 0)
+			t->target_oloc.pool = pi->read_tier;
+		if (t->flags & CEPH_OSD_FLAG_WRITE && pi->write_tier >= 0)
+			t->target_oloc.pool = pi->write_tier;
+	}
+
+	ret = ceph_object_locator_to_pg(osdc->osdmap, &t->target_oid,
+					&t->target_oloc, &pgid);
+	if (ret) {
+		WARN_ON(ret != -ENOENT);
+		t->osd = CEPH_HOMELESS_OSD;
+		ct_res = CALC_TARGET_POOL_DNE;
+		goto out;
+	}
+	last_pgid.pool = pgid.pool;
+	last_pgid.seed = ceph_stable_mod(pgid.seed, t->pg_num, t->pg_num_mask);
+
+	ceph_pg_to_up_acting_osds(osdc->osdmap, &pgid, &up, &acting);
+	if (any_change &&
+	    ceph_is_new_interval(&t->acting,
+				 &acting,
+				 &t->up,
+				 &up,
+				 t->size,
+				 pi->size,
+				 t->min_size,
+				 pi->min_size,
+				 t->pg_num,
+				 pi->pg_num,
+				 t->sort_bitwise,
+				 sort_bitwise,
+				 &last_pgid))
+		force_resend = true;
+
+	if (t->paused && !target_should_be_paused(osdc, t, pi)) {
+		t->paused = false;
+		need_resend = true;
+	}
+
+	if (ceph_pg_compare(&t->pgid, &pgid) ||
+	    ceph_osds_changed(&t->acting, &acting, any_change) ||
+	    force_resend) {
+		t->pgid = pgid; /* struct */
+		ceph_osds_copy(&t->acting, &acting);
+		ceph_osds_copy(&t->up, &up);
+		t->size = pi->size;
+		t->min_size = pi->min_size;
+		t->pg_num = pi->pg_num;
+		t->pg_num_mask = pi->pg_num_mask;
+		t->sort_bitwise = sort_bitwise;
+
+		t->osd = acting.primary;
+		need_resend = true;
+	}
+
+	ct_res = need_resend ? CALC_TARGET_NEED_RESEND : CALC_TARGET_NO_ACTION;
+out:
+	dout("%s t %p -> ct_res %d osd %d\n", __func__, t, ct_res, t->osd);
+	return ct_res;
 }
 
 static void __enqueue_request(struct ceph_osd_request *req)
@@ -1805,12 +1958,12 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 		redir.oloc.pool = -1;
 	}
 
-	if (redir.oloc.pool != -1) {
+	if (!ceph_oloc_empty(&redir.oloc)) {
 		dout("redirect pool %lld\n", redir.oloc.pool);
 
 		__unregister_request(osdc, req);
 
-		req->r_target_oloc = redir.oloc; /* struct */
+		ceph_oloc_copy(&req->r_target_oloc, &redir.oloc);
 
 		/*
 		 * Start redirect requests with nofail=true.  If

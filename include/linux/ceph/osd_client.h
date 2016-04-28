@@ -24,6 +24,8 @@ typedef void (*ceph_osdc_callback_t)(struct ceph_osd_request *,
 				     struct ceph_msg *);
 typedef void (*ceph_osdc_unsafe_callback_t)(struct ceph_osd_request *, bool);
 
+#define CEPH_HOMELESS_OSD	-1
+
 /* a given osd we're communicating with */
 struct ceph_osd {
 	atomic_t o_ref;
@@ -116,6 +118,27 @@ struct ceph_osd_req_op {
 			u64 expected_write_size;
 		} alloc_hint;
 	};
+};
+
+struct ceph_osd_request_target {
+	struct ceph_object_id base_oid;
+	struct ceph_object_locator base_oloc;
+	struct ceph_object_id target_oid;
+	struct ceph_object_locator target_oloc;
+
+	struct ceph_pg pgid;
+	u32 pg_num;
+	u32 pg_num_mask;
+	struct ceph_osds acting;
+	struct ceph_osds up;
+	int size;
+	int min_size;
+	bool sort_bitwise;
+
+	unsigned int flags;                /* CEPH_OSD_FLAG_* */
+	bool paused;
+
+	int osd;
 };
 
 /* an in-flight request */

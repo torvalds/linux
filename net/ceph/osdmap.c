@@ -1521,6 +1521,32 @@ void ceph_oid_destroy(struct ceph_object_id *oid)
 }
 EXPORT_SYMBOL(ceph_oid_destroy);
 
+/*
+ * osds only
+ */
+static bool __osds_equal(const struct ceph_osds *lhs,
+			 const struct ceph_osds *rhs)
+{
+	if (lhs->size == rhs->size &&
+	    !memcmp(lhs->osds, rhs->osds, rhs->size * sizeof(rhs->osds[0])))
+		return true;
+
+	return false;
+}
+
+/*
+ * osds + primary
+ */
+static bool osds_equal(const struct ceph_osds *lhs,
+		       const struct ceph_osds *rhs)
+{
+	if (__osds_equal(lhs, rhs) &&
+	    lhs->primary == rhs->primary)
+		return true;
+
+	return false;
+}
+
 static bool osds_valid(const struct ceph_osds *set)
 {
 	/* non-empty set */
@@ -1551,6 +1577,101 @@ void ceph_osds_copy(struct ceph_osds *dest, const struct ceph_osds *src)
 	memcpy(dest->osds, src->osds, src->size * sizeof(src->osds[0]));
 	dest->size = src->size;
 	dest->primary = src->primary;
+}
+
+static bool is_split(const struct ceph_pg *pgid,
+		     u32 old_pg_num,
+		     u32 new_pg_num)
+{
+	int old_bits = calc_bits_of(old_pg_num);
+	int old_mask = (1 << old_bits) - 1;
+	int n;
+
+	WARN_ON(pgid->seed >= old_pg_num);
+	if (new_pg_num <= old_pg_num)
+		return false;
+
+	for (n = 1; ; n++) {
+		int next_bit = n << (old_bits - 1);
+		u32 s = next_bit | pgid->seed;
+
+		if (s < old_pg_num || s == pgid->seed)
+			continue;
+		if (s >= new_pg_num)
+			break;
+
+		s = ceph_stable_mod(s, old_pg_num, old_mask);
+		if (s == pgid->seed)
+			return true;
+	}
+
+	return false;
+}
+
+bool ceph_is_new_interval(const struct ceph_osds *old_acting,
+			  const struct ceph_osds *new_acting,
+			  const struct ceph_osds *old_up,
+			  const struct ceph_osds *new_up,
+			  int old_size,
+			  int new_size,
+			  int old_min_size,
+			  int new_min_size,
+			  u32 old_pg_num,
+			  u32 new_pg_num,
+			  bool old_sort_bitwise,
+			  bool new_sort_bitwise,
+			  const struct ceph_pg *pgid)
+{
+	return !osds_equal(old_acting, new_acting) ||
+	       !osds_equal(old_up, new_up) ||
+	       old_size != new_size ||
+	       old_min_size != new_min_size ||
+	       is_split(pgid, old_pg_num, new_pg_num) ||
+	       old_sort_bitwise != new_sort_bitwise;
+}
+
+static int calc_pg_rank(int osd, const struct ceph_osds *acting)
+{
+	int i;
+
+	for (i = 0; i < acting->size; i++) {
+		if (acting->osds[i] == osd)
+			return i;
+	}
+
+	return -1;
+}
+
+static bool primary_changed(const struct ceph_osds *old_acting,
+			    const struct ceph_osds *new_acting)
+{
+	if (!old_acting->size && !new_acting->size)
+		return false; /* both still empty */
+
+	if (!old_acting->size ^ !new_acting->size)
+		return true; /* was empty, now not, or vice versa */
+
+	if (old_acting->primary != new_acting->primary)
+		return true; /* primary changed */
+
+	if (calc_pg_rank(old_acting->primary, old_acting) !=
+	    calc_pg_rank(new_acting->primary, new_acting))
+		return true;
+
+	return false; /* same primary (tho replicas may have changed) */
+}
+
+bool ceph_osds_changed(const struct ceph_osds *old_acting,
+		       const struct ceph_osds *new_acting,
+		       bool any_change)
+{
+	if (primary_changed(old_acting, new_acting))
+		return true;
+
+	if (any_change && !__osds_equal(old_acting, new_acting))
+		return true;
+
+	return false;
 }
 
 /*
