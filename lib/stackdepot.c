@@ -210,10 +210,6 @@ depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
 		goto fast_exit;
 
 	hash = hash_stack(trace->entries, trace->nr_entries);
-	/* Bad luck, we won't store this stack. */
-	if (hash == 0)
-		goto exit;
-
 	bucket = &stack_table[hash & STACK_HASH_MASK];
 
 	/*
