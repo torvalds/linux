@@ -1,0 +1,48 @@
+ROCKCHIP USB2.0 PHY WITH INNO IP BLOCK
+
+Required properties (phy (parent) node):
+ - compatible: should contain:
+	* "rockchip,rk3366-usb2phy"
+ - #clock-cells: should be 0.
+ - clock-names: specify the 480m output clk name.
+
+Optional properties:
+ - vbus_host-gpio: pull gpio high/low to control the host vbus power.
+
+Required nodes: a sub-node is required for each port the phy provides.
+		The sub-node name is used to identify host or otg port.
+
+Required properties (port (child) node):
+ - #phy-cells: must be 0. See ./phy-bindings.txt for details.
+ - interrupts: irq number for host/otg port.
+ - interrupt-names: interrupt name, in line with irq number.
+
+Example:
+
+grf: syscon@ff770000 {
+	compatible = "rockchip,rk3366-grf", "syscon", "simple-mfd";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+...
+
+	u2phy: usb2-phy {
+		compatible = "rockchip,rk3366-usb2phy";
+		#clock-cells = <0>;
+		clock-output-names = "sclk_otgphy0_480m";
+
+		u2phy_otg: otg-port {
+			#phy-cells = <0>;
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "linestate";
+			status = "okay";
+		};
+
+		u2phy_host: host-port {
+			#phy-cells = <0>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "linestate";
+			status = "okay";
+		};
+	};
+};
