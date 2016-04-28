@@ -3246,10 +3246,7 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev)
 	return 0;
 }
 
-/*
- * Tear down a watch request, synchronously.
- */
-static void rbd_dev_header_unwatch_sync(struct rbd_device *rbd_dev)
+static void __rbd_dev_header_unwatch_sync(struct rbd_device *rbd_dev)
 {
 	struct rbd_obj_request *obj_request;
 
@@ -3269,6 +3266,14 @@ static void rbd_dev_header_unwatch_sync(struct rbd_device *rbd_dev)
 
 	ceph_osdc_cancel_event(rbd_dev->watch_event);
 	rbd_dev->watch_event = NULL;
+}
+
+/*
+ * Tear down a watch request, synchronously.
+ */
+static void rbd_dev_header_unwatch_sync(struct rbd_device *rbd_dev)
+{
+	__rbd_dev_header_unwatch_sync(rbd_dev);
 
 	dout("%s flushing notifies\n", __func__);
 	ceph_osdc_flush_notifies(&rbd_dev->rbd_client->client->osdc);
