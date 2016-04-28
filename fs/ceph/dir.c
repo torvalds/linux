@@ -546,7 +546,6 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct ceph_file_info *fi = file->private_data;
 	struct inode *inode = file->f_mapping->host;
-	loff_t old_offset = ceph_make_fpos(fi->frag, fi->next_offset);
 	loff_t retval;
 
 	inode_lock(inode);
@@ -573,10 +572,6 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int whence)
 		if (need_reset_readdir(fi, offset)) {
 			dout("dir_llseek dropping %p content\n", file);
 			reset_readdir(fi);
-		} else if (fpos_cmp(offset, old_offset) > 0) {
-			/* reset dir_release_count if we did a forward seek */
-			fi->dir_release_count = 0;
-			fi->readdir_cache_idx = -1;
 		}
 	}
 out:
