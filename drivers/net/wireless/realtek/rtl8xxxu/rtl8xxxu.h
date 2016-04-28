@@ -1329,8 +1329,6 @@ struct rtl8xxxu_fileops {
 	void (*report_connect) (struct rtl8xxxu_priv *priv,
 				u8 macid, bool connect);
 	int writeN_block_size;
-	u16 mbox_ext_reg;
-	char mbox_ext_width;
 	char tx_desc_size;
 	char rx_desc_size;
 	char has_s0s1;
