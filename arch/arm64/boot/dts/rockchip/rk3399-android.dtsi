@@ -293,7 +293,22 @@
 	hdmi_rk_fb: hdmi-rk-fb@ff940000 {
 		compatible = "rockchip,rk3399-hdmi";
 		reg = <0x0 0xff940000 0x0 0x20000>;
-		status = "disabled";
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_HDMI_CTRL>,
+			 <&cru SCLK_HDMI_SFR>,
+			 <&cru SCLK_HDMI_CEC>,
+			 <&cru PLL_VPLL>;
+		clock-names = "pclk_hdmi",
+			      "hdcp_clk_hdmi",
+			      "cec_clk_hdmi",
+			      "dclk_hdmi_phy";
+		resets = <&cru SRST_HDMI_CTRL>;
+		reset-names = "hdmi";
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&hdmi_i2c_xfer &hdmi_cec>;
+		pinctrl-1 = <&i2c3_gpio>;
+		rockchip,grf = <&grf>;
 	};
 
 	mipi0_rk_fb: mipi-rk-fb@ff960000 {
