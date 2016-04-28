@@ -60,7 +60,7 @@ Quick sniplet for manually compiling LLVM and clang
  $ cmake .. -DLLVM_TARGETS_TO_BUILD="BPF;X86"
  $ make -j $(getconf _NPROCESSORS_ONLN)
 
-It is also possible to point make to the newly compiled 'llc' command
-via redefining LLC on the make command line::
+It is also possible to point make to the newly compiled 'llc' or
+'clang' command via redefining LLC or CLANG on the make command line::
 
- make samples/bpf/ LLC=~/git/llvm/build/bin/llc
+ make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
