@@ -454,6 +454,10 @@ void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 	skl_clear_module_table(ctx->dsp);
 	skl_ipc_free(&ctx->ipc);
 	ctx->dsp->ops->free(ctx->dsp);
+	if (ctx->boot_complete) {
+		ctx->dsp->cl_dev.ops.cl_cleanup_controller(ctx->dsp);
+		skl_cldma_int_disable(ctx->dsp);
+	}
 }
 EXPORT_SYMBOL_GPL(skl_sst_dsp_cleanup);
 
