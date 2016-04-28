@@ -287,7 +287,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 out_destroy_fbi:
 	drm_fb_helper_release_fbi(helper);
 out_unpin:
-	i915_gem_object_ggtt_unpin(obj);
+	intel_unpin_fb_obj(&ifbdev->fb->base, BIT(DRM_ROTATE_0));
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -551,6 +551,11 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 
 	if (ifbdev->fb) {
 		drm_framebuffer_unregister_private(&ifbdev->fb->base);
+
+		mutex_lock(&dev->struct_mutex);
+		intel_unpin_fb_obj(&ifbdev->fb->base, BIT(DRM_ROTATE_0));
+		mutex_unlock(&dev->struct_mutex);
+
 		drm_framebuffer_remove(&ifbdev->fb->base);
 	}
 }
