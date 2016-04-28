@@ -450,16 +450,8 @@ void i915_gem_context_fini(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_context *dctx = dev_priv->kernel_context;
 
-	i915_gem_context_lost(dev_priv);
-
-	if (dctx->legacy_hw_ctx.rcs_state) {
-		/* The only known way to stop the gpu from accessing the hw context is
-		 * to reset it. Do this as the very last operation to avoid confusing
-		 * other code, leading to spurious errors. */
-		intel_gpu_reset(dev, ALL_ENGINES);
-
+	if (dctx->legacy_hw_ctx.rcs_state)
 		i915_gem_object_ggtt_unpin(dctx->legacy_hw_ctx.rcs_state);
-	}
 
 	i915_gem_context_unreference(dctx);
 	dev_priv->kernel_context = NULL;

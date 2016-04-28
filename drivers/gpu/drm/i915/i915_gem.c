@@ -4969,14 +4969,6 @@ i915_gem_cleanup_engines(struct drm_device *dev)
 
 	for_each_engine(engine, dev_priv)
 		dev_priv->gt.cleanup_engine(engine);
-
-	if (i915.enable_execlists)
-		/*
-		 * Neither the BIOS, ourselves or any other kernel
-		 * expects the system to be in execlists mode on startup,
-		 * so we need to reset the GPU back to legacy mode.
-		 */
-		intel_gpu_reset(dev, ALL_ENGINES);
 }
 
 static void
