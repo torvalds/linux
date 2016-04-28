@@ -39,7 +39,7 @@ gb-audio-apbridgea-y := audio_apbridgea.o
 gb-audio-manager-y += audio_manager.o
 gb-audio-manager-y += audio_manager_module.o
 gb-camera-y := camera.o
-gb-firmware-y := fw-core.o
+gb-firmware-y := fw-core.o fw-download.o
 
 obj-m += greybus.o
 obj-m += gb-phy.o

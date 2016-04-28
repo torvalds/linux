@@ -9,9 +9,11 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/firmware.h>
+#include "firmware.h"
 #include "greybus.h"
 
 struct gb_fw_core {
+	struct gb_connection	*download_connection;
 	struct gb_connection	*mgmt_connection;
 };
 
@@ -52,10 +54,29 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 				dev_err(&bundle->dev,
 					"failed to create management connection (%d)\n",
 					ret);
-				goto err_free_fw_core;
+				goto err_destroy_connections;
 			}
 
 			fw_core->mgmt_connection = connection;
+			break;
+		case GREYBUS_PROTOCOL_FW_DOWNLOAD:
+			/* Disallow multiple Firmware Download CPorts */
+			if (fw_core->download_connection) {
+				dev_err(&bundle->dev,
+					"multiple download CPorts found\n");
+				ret = -EINVAL;
+				goto err_destroy_connections;
+			}
+
+			connection = gb_connection_create(bundle, cport_id,
+						gb_fw_download_request_handler);
+			if (IS_ERR(connection)) {
+				dev_err(&bundle->dev, "failed to create download connection (%ld)\n",
+					PTR_ERR(connection));
+			} else {
+				fw_core->download_connection = connection;
+			}
+
 			break;
 		default:
 			dev_err(&bundle->dev, "invalid protocol id (0x%02x)\n",
@@ -69,7 +90,16 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 	if (!fw_core->mgmt_connection) {
 		dev_err(&bundle->dev, "missing management connection\n");
 		ret = -ENODEV;
-		goto err_free_fw_core;
+		goto err_destroy_connections;
+	}
+
+	ret = gb_fw_download_connection_init(fw_core->download_connection);
+	if (ret) {
+		/* We may still be able to work with the Interface */
+		dev_err(&bundle->dev, "failed to initialize firmware download connection, disable it (%d)\n",
+			ret);
+		gb_connection_destroy(fw_core->download_connection);
+		fw_core->download_connection = NULL;
 	}
 
 	greybus_set_drvdata(bundle, fw_core);
@@ -77,6 +107,7 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 	return 0;
 
 err_destroy_connections:
+	gb_connection_destroy(fw_core->download_connection);
 	gb_connection_destroy(fw_core->mgmt_connection);
 err_free_fw_core:
 	kfree(fw_core);
@@ -88,6 +119,8 @@ static void gb_fw_core_disconnect(struct gb_bundle *bundle)
 {
 	struct gb_fw_core *fw_core = greybus_get_drvdata(bundle);
 
+	gb_fw_download_connection_exit(fw_core->download_connection);
+	gb_connection_destroy(fw_core->download_connection);
 	gb_connection_destroy(fw_core->mgmt_connection);
 
 	kfree(fw_core);

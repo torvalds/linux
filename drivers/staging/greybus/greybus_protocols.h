@@ -213,6 +213,43 @@ struct gb_control_timesync_authoritative_request {
 #define GB_APB_REQUEST_CPORT_FEAT_EN	0x0b
 #define GB_APB_REQUEST_CPORT_FEAT_DIS	0x0c
 
+/* Firmware Download Protocol */
+
+/* Request Types */
+#define GB_FW_DOWNLOAD_TYPE_FIND_FIRMWARE	0x01
+#define GB_FW_DOWNLOAD_TYPE_FETCH_FIRMWARE	0x02
+#define GB_FW_DOWNLOAD_TYPE_RELEASE_FIRMWARE	0x03
+
+#define GB_FIRMWARE_TAG_MAX_LEN			10
+
+/* firmware download find firmware request/response */
+struct gb_fw_download_find_firmware_request {
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+} __packed;
+
+struct gb_fw_download_find_firmware_response {
+	__u8			firmware_id;
+	__le32			size;
+} __packed;
+
+/* firmware download fetch firmware request/response */
+struct gb_fw_download_fetch_firmware_request {
+	__u8			firmware_id;
+	__le32			offset;
+	__le32			size;
+} __packed;
+
+struct gb_fw_download_fetch_firmware_response {
+	__u8			data[0];
+} __packed;
+
+/* firmware download release firmware request */
+struct gb_fw_download_release_firmware_request {
+	__u8			firmware_id;
+} __packed;
+/* firmware download release firmware response has no payload */
+
+
 /* Bootrom Protocol */
 
 /* Version of the Greybus bootrom protocol we support */
