@@ -287,7 +287,7 @@ static void udl_fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect
 {
 	struct udl_fbdev *ufbdev = info->par;
 
-	drm_fb_helper_sys_fillrect(info, rect);
+	sys_fillrect(info, rect);
 
 	udl_handle_damage(&ufbdev->ufb, rect->dx, rect->dy, rect->width,
 			  rect->height);
@@ -297,7 +297,7 @@ static void udl_fb_copyarea(struct fb_info *info, const struct fb_copyarea *regi
 {
 	struct udl_fbdev *ufbdev = info->par;
 
-	drm_fb_helper_sys_copyarea(info, region);
+	sys_copyarea(info, region);
 
 	udl_handle_damage(&ufbdev->ufb, region->dx, region->dy, region->width,
 			  region->height);
@@ -307,7 +307,7 @@ static void udl_fb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct udl_fbdev *ufbdev = info->par;
 
-	drm_fb_helper_sys_imageblit(info, image);
+	sys_imageblit(info, image);
 
 	udl_handle_damage(&ufbdev->ufb, image->dx, image->dy, image->width,
 			  image->height);
