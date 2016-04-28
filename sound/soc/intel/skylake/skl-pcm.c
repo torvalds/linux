@@ -402,23 +402,33 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct skl_module_cfg *mconfig;
 	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
+	struct snd_soc_dapm_widget *w;
 	int ret;
 
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
 	if (!mconfig)
 		return -EIO;
 
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		w = dai->playback_widget;
+	else
+		w = dai->capture_widget;
+
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
-		skl_pcm_prepare(substream, dai);
-		/*
-		 * enable DMA Resume enable bit for the stream, set the dpib
-		 * & lpib position to resune before starting the DMA
-		 */
-		snd_hdac_ext_stream_drsm_enable(ebus, true,
-					hdac_stream(stream)->index);
-		snd_hdac_ext_stream_set_dpibr(ebus, stream, stream->dpib);
-		snd_hdac_ext_stream_set_lpib(stream, stream->lpib);
+		if (!w->ignore_suspend) {
+			skl_pcm_prepare(substream, dai);
+			/*
+			 * enable DMA Resume enable bit for the stream, set the
+			 * dpib & lpib position to resume before starting the
+			 * DMA
+			 */
+			snd_hdac_ext_stream_drsm_enable(ebus, true,
+						hdac_stream(stream)->index);
+			snd_hdac_ext_stream_set_dpibr(ebus, stream,
+							stream->dpib);
+			snd_hdac_ext_stream_set_lpib(stream, stream->lpib);
+		}
 
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -448,7 +458,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 			return ret;
 
 		ret = skl_decoupled_trigger(substream, cmd);
-		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND) {
+		if ((cmd == SNDRV_PCM_TRIGGER_SUSPEND) && !w->ignore_suspend) {
 			/* save the dpib and lpib positions */
 			stream->dpib = readl(ebus->bus.remap_addr +
 					AZX_REG_VS_SDXDPIB_XBASE +
