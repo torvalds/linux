@@ -388,6 +388,17 @@ enum mlx5e_traffic_types {
 	MLX5E_NUM_INDIR_TIRS = MLX5E_TT_ANY,
 };
 
+enum {
+	MLX5E_STATE_ASYNC_EVENTS_ENABLE,
+	MLX5E_STATE_OPENED,
+	MLX5E_STATE_DESTROYING,
+};
+
+struct mlx5e_vxlan_db {
+	spinlock_t			lock; /* protect vxlan table */
+	struct radix_tree_root		tree;
+};
+
 struct mlx5e_eth_addr_info {
 	u8  addr[ETH_ALEN + 2];
 	u32 tt_vec;
@@ -396,7 +407,14 @@ struct mlx5e_eth_addr_info {
 
 #define MLX5E_ETH_ADDR_HASH_SIZE (1 << BITS_PER_BYTE)
 
-struct mlx5e_eth_addr_db {
+struct mlx5e_flow_table {
+	int num_groups;
+	struct mlx5_flow_table *t;
+	struct mlx5_flow_group **g;
+};
+
+struct mlx5e_main_table {
+	struct mlx5e_flow_table	   ft;
 	struct hlist_head          netdev_uc[MLX5E_ETH_ADDR_HASH_SIZE];
 	struct hlist_head          netdev_mc[MLX5E_ETH_ADDR_HASH_SIZE];
 	struct mlx5e_eth_addr_info broadcast;
@@ -407,13 +425,15 @@ struct mlx5e_eth_addr_db {
 	bool                       promisc_enabled;
 };
 
-enum {
-	MLX5E_STATE_ASYNC_EVENTS_ENABLE,
-	MLX5E_STATE_OPENED,
-	MLX5E_STATE_DESTROYING,
+struct mlx5e_tc_table {
+	struct mlx5_flow_table		*t;
+
+	struct rhashtable_params        ht_params;
+	struct rhashtable               ht;
 };
 
-struct mlx5e_vlan_db {
+struct mlx5e_vlan_table {
+	struct mlx5e_flow_table		ft;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct mlx5_flow_rule	*active_vlans_rule[VLAN_N_VID];
 	struct mlx5_flow_rule	*untagged_rule;
@@ -421,34 +441,21 @@ struct mlx5e_vlan_db {
 	bool          filter_disabled;
 };
 
-struct mlx5e_vxlan_db {
-	spinlock_t			lock; /* protect vxlan table */
-	struct radix_tree_root		tree;
-};
-
-struct mlx5e_flow_table {
-	int num_groups;
-	struct mlx5_flow_table		*t;
-	struct mlx5_flow_group		**g;
-};
-
-struct mlx5e_tc_flow_table {
-	struct mlx5_flow_table		*t;
-
-	struct rhashtable_params        ht_params;
-	struct rhashtable               ht;
-};
-
-struct mlx5e_flow_tables {
-	struct mlx5_flow_namespace	*ns;
-	struct mlx5e_tc_flow_table	tc;
-	struct mlx5e_flow_table		vlan;
-	struct mlx5e_flow_table		main;
+struct mlx5e_flow_steering {
+	struct mlx5_flow_namespace      *ns;
+	struct mlx5e_tc_table           tc;
+	struct mlx5e_vlan_table         vlan;
+	struct mlx5e_main_table         main;
 };
 
 struct mlx5e_direct_tir {
 	u32              tirn;
 	u32              rqtn;
+};
+
+enum {
+	MLX5E_TC_PRIO = 0,
+	MLX5E_NIC_PRIO
 };
 
 struct mlx5e_priv {
@@ -472,9 +479,7 @@ struct mlx5e_priv {
 	u32                        indir_tirn[MLX5E_NUM_INDIR_TIRS];
 	struct mlx5e_direct_tir    direct_tir[MLX5E_MAX_NUM_CHANNELS];
 
-	struct mlx5e_flow_tables   fts;
-	struct mlx5e_eth_addr_db   eth_addr;
-	struct mlx5e_vlan_db       vlan;
+	struct mlx5e_flow_steering fs;
 	struct mlx5e_vxlan_db      vxlan;
 
 	struct mlx5e_params        params;
@@ -556,8 +561,8 @@ struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
 
-int mlx5e_create_flow_tables(struct mlx5e_priv *priv);
-void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv);
+int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
+void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_init_eth_addr(struct mlx5e_priv *priv);
 void mlx5e_set_rx_mode_work(struct work_struct *work);
 

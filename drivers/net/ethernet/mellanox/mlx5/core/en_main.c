@@ -2969,9 +2969,9 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 		goto err_destroy_rqts;
 	}
 
-	err = mlx5e_create_flow_tables(priv);
+	err = mlx5e_create_flow_steering(priv);
 	if (err) {
-		mlx5_core_warn(mdev, "create flow tables failed, %d\n", err);
+		mlx5_core_warn(mdev, "create flow steering failed, %d\n", err);
 		goto err_destroy_tirs;
 	}
 
@@ -3011,7 +3011,7 @@ err_tc_cleanup:
 
 err_dealloc_q_counters:
 	mlx5e_destroy_q_counter(priv);
-	mlx5e_destroy_flow_tables(priv);
+	mlx5e_destroy_flow_steering(priv);
 
 err_destroy_tirs:
 	mlx5e_destroy_tirs(priv);
@@ -3069,7 +3069,7 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 	mlx5e_tc_cleanup(priv);
 	mlx5e_vxlan_cleanup(priv);
 	mlx5e_destroy_q_counter(priv);
-	mlx5e_destroy_flow_tables(priv);
+	mlx5e_destroy_flow_steering(priv);
 	mlx5e_destroy_tirs(priv);
 	mlx5e_destroy_rqts(priv);
 	mlx5e_close_drop_rq(priv);
