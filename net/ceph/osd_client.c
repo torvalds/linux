@@ -354,6 +354,15 @@ static void target_destroy(struct ceph_osd_request_target *t)
 /*
  * requests
  */
+static void request_release_checks(struct ceph_osd_request *req)
+{
+	WARN_ON(!RB_EMPTY_NODE(&req->r_node));
+	WARN_ON(!list_empty(&req->r_linger_item));
+	WARN_ON(!list_empty(&req->r_linger_osd_item));
+	WARN_ON(!list_empty(&req->r_unsafe_item));
+	WARN_ON(req->r_osd);
+}
+
 static void ceph_osdc_release_request(struct kref *kref)
 {
 	struct ceph_osd_request *req = container_of(kref,
@@ -362,10 +371,7 @@ static void ceph_osdc_release_request(struct kref *kref)
 
 	dout("%s %p (r_request %p r_reply %p)\n", __func__, req,
 	     req->r_request, req->r_reply);
-	WARN_ON(!RB_EMPTY_NODE(&req->r_node));
-	WARN_ON(!list_empty(&req->r_linger_item));
-	WARN_ON(!list_empty(&req->r_linger_osd_item));
-	WARN_ON(req->r_osd);
+	request_release_checks(req);
 
 	if (req->r_request)
 		ceph_msg_put(req->r_request);
@@ -404,6 +410,22 @@ void ceph_osdc_put_request(struct ceph_osd_request *req)
 }
 EXPORT_SYMBOL(ceph_osdc_put_request);
 
+static void request_init(struct ceph_osd_request *req)
+{
+	/* req only, each op is zeroed in _osd_req_op_init() */
+	memset(req, 0, sizeof(*req));
+
+	kref_init(&req->r_kref);
+	init_completion(&req->r_completion);
+	init_completion(&req->r_safe_completion);
+	RB_CLEAR_NODE(&req->r_node);
+	INIT_LIST_HEAD(&req->r_linger_item);
+	INIT_LIST_HEAD(&req->r_linger_osd_item);
+	INIT_LIST_HEAD(&req->r_unsafe_item);
+
+	target_init(&req->r_t);
+}
+
 struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 					       struct ceph_snap_context *snapc,
 					       unsigned int num_ops,
@@ -425,24 +447,12 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	if (unlikely(!req))
 		return NULL;
 
-	/* req only, each op is zeroed in _osd_req_op_init() */
-	memset(req, 0, sizeof(*req));
-
+	request_init(req);
 	req->r_osdc = osdc;
 	req->r_mempool = use_mempool;
 	req->r_num_ops = num_ops;
 	req->r_snapid = CEPH_NOSNAP;
 	req->r_snapc = ceph_get_snap_context(snapc);
-
-	kref_init(&req->r_kref);
-	init_completion(&req->r_completion);
-	init_completion(&req->r_safe_completion);
-	RB_CLEAR_NODE(&req->r_node);
-	INIT_LIST_HEAD(&req->r_unsafe_item);
-	INIT_LIST_HEAD(&req->r_linger_item);
-	INIT_LIST_HEAD(&req->r_linger_osd_item);
-
-	target_init(&req->r_t);
 
 	dout("%s req %p\n", __func__, req);
 	return req;
