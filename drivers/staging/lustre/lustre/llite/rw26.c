@@ -446,7 +446,7 @@ out:
 	}
 
 	cl_env_put(env, &refcheck);
-	return tot_bytes ? : result;
+	return tot_bytes ? tot_bytes : result;
 }
 
 /**
