@@ -2255,7 +2255,7 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 	struct ceph_fsid fsid;
 	bool was_full;
 
-	dout("handle_map have %u\n", osdc->osdmap ? osdc->osdmap->epoch : 0);
+	dout("handle_map have %u\n", osdc->osdmap->epoch);
 	p = msg->front.iov_base;
 	end = p + msg->front.iov_len;
 
@@ -2278,7 +2278,7 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 		maplen = ceph_decode_32(&p);
 		ceph_decode_need(&p, end, maplen, bad);
 		next = p + maplen;
-		if (osdc->osdmap && osdc->osdmap->epoch+1 == epoch) {
+		if (osdc->osdmap->epoch+1 == epoch) {
 			dout("applying incremental map %u len %d\n",
 			     epoch, maplen);
 			newmap = osdmap_apply_incremental(&p, next,
@@ -2317,7 +2317,7 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 		if (nr_maps > 1) {
 			dout("skipping non-latest full map %u len %d\n",
 			     epoch, maplen);
-		} else if (osdc->osdmap && osdc->osdmap->epoch >= epoch) {
+		} else if (osdc->osdmap->epoch >= epoch) {
 			dout("skipping full map %u len %d, "
 			     "older than our %u\n", epoch, maplen,
 			     osdc->osdmap->epoch);
@@ -2347,8 +2347,6 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 		nr_maps--;
 	}
 
-	if (!osdc->osdmap)
-		goto bad;
 done:
 	downgrade_write(&osdc->map_sem);
 	ceph_monc_got_map(&osdc->client->monc, CEPH_SUB_OSDMAP,
@@ -2690,7 +2688,6 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 
 	dout("init\n");
 	osdc->client = client;
-	osdc->osdmap = NULL;
 	init_rwsem(&osdc->map_sem);
 	mutex_init(&osdc->request_mutex);
 	osdc->last_tid = 0;
@@ -2709,10 +2706,14 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 	osdc->event_count = 0;
 
 	err = -ENOMEM;
+	osdc->osdmap = ceph_osdmap_alloc();
+	if (!osdc->osdmap)
+		goto out;
+
 	osdc->req_mempool = mempool_create_slab_pool(10,
 						     ceph_osd_request_cache);
 	if (!osdc->req_mempool)
-		goto out;
+		goto out_map;
 
 	err = ceph_msgpool_init(&osdc->msgpool_op, CEPH_MSG_OSD_OP,
 				PAGE_SIZE, 10, true, "osd_op");
@@ -2741,6 +2742,8 @@ out_msgpool:
 	ceph_msgpool_destroy(&osdc->msgpool_op);
 out_mempool:
 	mempool_destroy(osdc->req_mempool);
+out_map:
+	ceph_osdmap_destroy(osdc->osdmap);
 out:
 	return err;
 }
@@ -2760,10 +2763,7 @@ void ceph_osdc_stop(struct ceph_osd_client *osdc)
 	}
 	mutex_unlock(&osdc->request_mutex);
 
-	if (osdc->osdmap) {
-		ceph_osdmap_destroy(osdc->osdmap);
-		osdc->osdmap = NULL;
-	}
+	ceph_osdmap_destroy(osdc->osdmap);
 	mempool_destroy(osdc->req_mempool);
 	ceph_msgpool_destroy(&osdc->msgpool_op);
 	ceph_msgpool_destroy(&osdc->msgpool_op_reply);

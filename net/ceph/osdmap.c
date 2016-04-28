@@ -707,6 +707,23 @@ bad:
 /*
  * osd map
  */
+struct ceph_osdmap *ceph_osdmap_alloc(void)
+{
+	struct ceph_osdmap *map;
+
+	map = kzalloc(sizeof(*map), GFP_NOIO);
+	if (!map)
+		return NULL;
+
+	map->pg_pools = RB_ROOT;
+	map->pool_max = -1;
+	map->pg_temp = RB_ROOT;
+	map->primary_temp = RB_ROOT;
+	mutex_init(&map->crush_scratch_mutex);
+
+	return map;
+}
+
 void ceph_osdmap_destroy(struct ceph_osdmap *map)
 {
 	dout("osdmap_destroy %p\n", map);
@@ -1230,13 +1247,9 @@ struct ceph_osdmap *ceph_osdmap_decode(void **p, void *end)
 	struct ceph_osdmap *map;
 	int ret;
 
-	map = kzalloc(sizeof(*map), GFP_NOFS);
+	map = ceph_osdmap_alloc();
 	if (!map)
 		return ERR_PTR(-ENOMEM);
-
-	map->pg_temp = RB_ROOT;
-	map->primary_temp = RB_ROOT;
-	mutex_init(&map->crush_scratch_mutex);
 
 	ret = osdmap_decode(p, end, map);
 	if (ret) {
