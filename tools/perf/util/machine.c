@@ -1817,8 +1817,6 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	int skip_idx = -1;
 	int first_call = 0;
 
-	callchain_cursor_reset(cursor);
-
 	if (perf_evsel__has_branch_callstack(evsel)) {
 		err = resolve_lbr_callchain_sample(thread, cursor, sample, parent,
 						   root_al, max_stack);
@@ -1929,20 +1927,12 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 				       entry->map, entry->sym);
 }
 
-int thread__resolve_callchain(struct thread *thread,
-			      struct callchain_cursor *cursor,
-			      struct perf_evsel *evsel,
-			      struct perf_sample *sample,
-			      struct symbol **parent,
-			      struct addr_location *root_al,
-			      int max_stack)
+static int thread__resolve_callchain_unwind(struct thread *thread,
+					    struct callchain_cursor *cursor,
+					    struct perf_evsel *evsel,
+					    struct perf_sample *sample,
+					    int max_stack)
 {
-	int ret = thread__resolve_callchain_sample(thread, cursor, evsel,
-						   sample, parent,
-						   root_al, max_stack);
-	if (ret)
-		return ret;
-
 	/* Can we do dwarf post unwind? */
 	if (!((evsel->attr.sample_type & PERF_SAMPLE_REGS_USER) &&
 	      (evsel->attr.sample_type & PERF_SAMPLE_STACK_USER)))
@@ -1955,7 +1945,43 @@ int thread__resolve_callchain(struct thread *thread,
 
 	return unwind__get_entries(unwind_entry, cursor,
 				   thread, sample, max_stack);
+}
 
+int thread__resolve_callchain(struct thread *thread,
+			      struct callchain_cursor *cursor,
+			      struct perf_evsel *evsel,
+			      struct perf_sample *sample,
+			      struct symbol **parent,
+			      struct addr_location *root_al,
+			      int max_stack)
+{
+	int ret = 0;
+
+	callchain_cursor_reset(&callchain_cursor);
+
+	if (callchain_param.order == ORDER_CALLEE) {
+		ret = thread__resolve_callchain_sample(thread, cursor,
+						       evsel, sample,
+						       parent, root_al,
+						       max_stack);
+		if (ret)
+			return ret;
+		ret = thread__resolve_callchain_unwind(thread, cursor,
+						       evsel, sample,
+						       max_stack);
+	} else {
+		ret = thread__resolve_callchain_unwind(thread, cursor,
+						       evsel, sample,
+						       max_stack);
+		if (ret)
+			return ret;
+		ret = thread__resolve_callchain_sample(thread, cursor,
+						       evsel, sample,
+						       parent, root_al,
+						       max_stack);
+	}
+
+	return ret;
 }
 
 int machine__for_each_thread(struct machine *machine,
