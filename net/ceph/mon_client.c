@@ -376,6 +376,14 @@ void ceph_monc_got_map(struct ceph_mon_client *monc, int sub, u32 epoch)
 }
 EXPORT_SYMBOL(ceph_monc_got_map);
 
+void ceph_monc_renew_subs(struct ceph_mon_client *monc)
+{
+	mutex_lock(&monc->mutex);
+	__send_subscribe(monc);
+	mutex_unlock(&monc->mutex);
+}
+EXPORT_SYMBOL(ceph_monc_renew_subs);
+
 /*
  * Register interest in the next osdmap
  */

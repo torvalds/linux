@@ -45,6 +45,8 @@ struct ceph_pg_pool_info {
 	s64 write_tier; /* wins for read+write ops */
 	u64 flags; /* CEPH_POOL_FLAG_* */
 	char *name;
+
+	bool was_full;  /* for handle_one_map() */
 };
 
 static inline bool ceph_can_shift_osds(struct ceph_pg_pool_info *pool)
