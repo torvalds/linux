@@ -72,13 +72,86 @@ struct arfs_rule {
 	for (j = 0; j < ARFS_HASH_SIZE; j++) \
 		hlist_for_each_entry_safe(hn, tmp, &hash[j], hlist)
 
+static enum mlx5e_traffic_types arfs_get_tt(enum arfs_type type)
+{
+	switch (type) {
+	case ARFS_IPV4_TCP:
+		return MLX5E_TT_IPV4_TCP;
+	case ARFS_IPV4_UDP:
+		return MLX5E_TT_IPV4_UDP;
+	case ARFS_IPV6_TCP:
+		return MLX5E_TT_IPV6_TCP;
+	case ARFS_IPV6_UDP:
+		return MLX5E_TT_IPV6_UDP;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int arfs_disable(struct mlx5e_priv *priv)
+{
+	struct mlx5_flow_destination dest;
+	u32 *tirn = priv->indir_tirn;
+	int err = 0;
+	int tt;
+	int i;
+
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
+	for (i = 0; i < ARFS_NUM_TYPES; i++) {
+		dest.tir_num = tirn[i];
+		tt = arfs_get_tt(i);
+		/* Modify ttc rules destination to bypass the aRFS tables*/
+		err = mlx5_modify_rule_destination(priv->fs.ttc.rules[tt],
+						   &dest);
+		if (err) {
+			netdev_err(priv->netdev,
+				   "%s: modify ttc destination failed\n",
+				   __func__);
+			return err;
+		}
+	}
+	return 0;
+}
+
+static void arfs_del_rules(struct mlx5e_priv *priv);
+
+int mlx5e_arfs_disable(struct mlx5e_priv *priv)
+{
+	arfs_del_rules(priv);
+
+	return arfs_disable(priv);
+}
+
+int mlx5e_arfs_enable(struct mlx5e_priv *priv)
+{
+	struct mlx5_flow_destination dest;
+	int err = 0;
+	int tt;
+	int i;
+
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	for (i = 0; i < ARFS_NUM_TYPES; i++) {
+		dest.ft = priv->fs.arfs.arfs_tables[i].ft.t;
+		tt = arfs_get_tt(i);
+		/* Modify ttc rules destination to point on the aRFS FTs */
+		err = mlx5_modify_rule_destination(priv->fs.ttc.rules[tt],
+						   &dest);
+		if (err) {
+			netdev_err(priv->netdev,
+				   "%s: modify ttc destination failed err=%d\n",
+				   __func__, err);
+			arfs_disable(priv);
+			return err;
+		}
+	}
+	return 0;
+}
+
 static void arfs_destroy_table(struct arfs_table *arfs_t)
 {
 	mlx5_del_flow_rule(arfs_t->default_rule);
 	mlx5e_destroy_flow_table(&arfs_t->ft);
 }
-
-static void arfs_del_rules(struct mlx5e_priv *priv);
 
 void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv)
 {

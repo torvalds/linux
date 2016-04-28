@@ -690,9 +690,21 @@ static inline int mlx5e_arfs_create_tables(struct mlx5e_priv *priv)
 }
 
 static inline void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv) {}
+
+static inline int mlx5e_arfs_enable(struct mlx5e_priv *priv)
+{
+	return -ENOTSUPP;
+}
+
+static inline int mlx5e_arfs_disable(struct mlx5e_priv *priv)
+{
+	return -ENOTSUPP;
+}
 #else
 int mlx5e_arfs_create_tables(struct mlx5e_priv *priv);
 void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv);
+int mlx5e_arfs_enable(struct mlx5e_priv *priv);
+int mlx5e_arfs_disable(struct mlx5e_priv *priv);
 int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 			u16 rxq_index, u32 flow_id);
 #endif
