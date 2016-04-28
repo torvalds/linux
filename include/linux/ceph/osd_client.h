@@ -213,6 +213,8 @@ struct ceph_osd_linger_request {
 	struct ceph_osd_request *reg_req;
 	struct ceph_osd_request *ping_req;
 	unsigned long ping_sent;
+	unsigned long watch_valid_thru;
+	struct list_head pending_lworks;
 
 	struct ceph_osd_request_target t;
 	u32 last_force_resend;
@@ -417,5 +419,7 @@ int ceph_osdc_notify(struct ceph_osd_client *osdc,
 		     u32 timeout,
 		     struct page ***preply_pages,
 		     size_t *preply_len);
+int ceph_osdc_watch_check(struct ceph_osd_client *osdc,
+			  struct ceph_osd_linger_request *lreq);
 #endif
 
