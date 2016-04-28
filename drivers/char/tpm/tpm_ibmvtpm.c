@@ -627,7 +627,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 
 	crq_q->index = 0;
 
-	dev_set_drvdata(&chip->dev, ibmvtpm)
+	dev_set_drvdata(&chip->dev, ibmvtpm);
 
 	spin_lock_init(&ibmvtpm->rtce_lock);
 
