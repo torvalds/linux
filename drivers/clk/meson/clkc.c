@@ -167,36 +167,6 @@ meson_clk_register_fixed_factor(const struct clk_conf *clk_conf,
 	return clk;
 }
 
-static struct clk * __init
-meson_clk_register_fixed_rate(const struct clk_conf *clk_conf,
-			      void __iomem *clk_base)
-{
-	struct clk *clk;
-	const struct fixed_rate_conf *fixed_rate_conf;
-	const struct parm *r;
-	unsigned long rate;
-	u32 reg;
-
-	fixed_rate_conf = &clk_conf->conf.fixed_rate;
-	rate = fixed_rate_conf->rate;
-
-	if (!rate) {
-		r = &fixed_rate_conf->rate_parm;
-		reg = readl(clk_base + clk_conf->reg_off + r->reg_off);
-		rate = PARM_GET(r->width, r->shift, reg);
-	}
-
-	rate *= 1000000;
-
-	clk = clk_register_fixed_rate(NULL,
-			clk_conf->clk_name,
-			clk_conf->num_parents
-				? clk_conf->clks_parent[0] : NULL,
-			clk_conf->flags, rate);
-
-	return clk;
-}
-
 void __init meson_clk_register_clks(const struct clk_conf *clk_confs,
 				    unsigned int nr_confs,
 				    void __iomem *clk_base)
@@ -208,10 +178,6 @@ void __init meson_clk_register_clks(const struct clk_conf *clk_confs,
 		const struct clk_conf *clk_conf = &clk_confs[i];
 
 		switch (clk_conf->clk_type) {
-		case CLK_FIXED_RATE:
-			clk = meson_clk_register_fixed_rate(clk_conf,
-							    clk_base);
-			break;
 		case CLK_FIXED_FACTOR:
 			clk = meson_clk_register_fixed_factor(clk_conf,
 							      clk_base);

@@ -69,11 +69,6 @@ struct fixed_fact_conf {
 	struct parm	mult_parm;
 };
 
-struct fixed_rate_conf {
-	unsigned long	rate;
-	struct parm	rate_parm;
-};
-
 struct composite_conf {
 	struct parm		mux_parm;
 	struct parm		div_parm;
@@ -89,7 +84,6 @@ struct composite_conf {
 
 enum clk_type {
 	CLK_FIXED_FACTOR,
-	CLK_FIXED_RATE,
 	CLK_COMPOSITE,
 	CLK_CPU,
 	CLK_PLL,
@@ -105,31 +99,11 @@ struct clk_conf {
 	unsigned long			flags;
 	union {
 		struct fixed_fact_conf		fixed_fact;
-		struct fixed_rate_conf		fixed_rate;
 		const struct composite_conf		*composite;
 		struct pll_conf			*pll;
 		const struct clk_div_table	*div_table;
 	} conf;
 };
-
-#define FIXED_RATE_P(_ro, _ci, _cn, _f, _c)				\
-	{								\
-		.reg_off			= (_ro),		\
-		.clk_type			= CLK_FIXED_RATE,	\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.flags				= (_f),			\
-		.conf.fixed_rate.rate_parm	= _c,			\
-	}								\
-
-#define FIXED_RATE(_ci, _cn, _f, _r)					\
-	{								\
-		.clk_type			= CLK_FIXED_RATE,	\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.flags				= (_f),			\
-		.conf.fixed_rate.rate		= (_r),			\
-	}								\
 
 #define PLL(_ro, _ci, _cn, _cp, _f, _c)					\
 	{								\

@@ -33,7 +33,6 @@
  *
  * [0] http://dn.odroid.com/S805/Datasheet/S805_Datasheet%20V0.8%2020150126.pdf
  */
-#define MESON8B_REG_CTL0_ADDR		0x0000
 #define MESON8B_REG_SYS_CPU_CNTL1	0x015c /* 0x57 offset in data sheet */
 #define MESON8B_REG_HHI_MPEG		0x0174 /* 0x5d offset in data sheet */
 #define MESON8B_REG_MALI		0x01b0 /* 0x6c offset in data sheet */
@@ -149,12 +148,25 @@ static const struct composite_conf mali_conf __initconst = {
 	.gate_parm		= PARM(0x00, 8, 1),
 };
 
-static const struct clk_conf meson8b_xtal_conf __initconst =
-	FIXED_RATE_P(MESON8B_REG_CTL0_ADDR, CLKID_XTAL, "xtal", 0,
-			PARM(0x00, 4, 7));
+static struct clk_fixed_rate meson8b_xtal = {
+	.fixed_rate = 24000000,
+	.hw.init = &(struct clk_init_data){
+		.name = "xtal",
+		.num_parents = 0,
+		.ops = &clk_fixed_rate_ops,
+	},
+};
+
+static struct clk_fixed_rate meson8b_zero = {
+	.fixed_rate = 0,
+	.hw.init = &(struct clk_init_data){
+		.name = "zero",
+		.num_parents = 0,
+		.ops = &clk_fixed_rate_ops,
+	},
+};
 
 static const struct clk_conf meson8b_clk_confs[] __initconst = {
-	FIXED_RATE(CLKID_ZERO, "zero", 0, 0),
 	PLL(MESON8B_REG_PLL_FIXED, CLKID_PLL_FIXED, "fixed_pll",
 	    p_xtal, 0, &pll_confs),
 	PLL(MESON8B_REG_PLL_VID, CLKID_PLL_VID, "vid_pll",
@@ -174,22 +186,28 @@ static const struct clk_conf meson8b_clk_confs[] __initconst = {
 		  CLK_IGNORE_UNUSED, &mali_conf),
 };
 
+/*
+ * FIXME we cannot register two providers w/o breaking things. Luckily only
+ * clk81 is actually used by any drivers. Convert clk81 to use
+ * clk_hw_onecell_data last and flip the switch to call of_clk_add_hw_provider
+ * instead of of_clk_add_provider in the clk81 conversion patch to keep from
+ * breaking bisect. Then delete this comment ;-)
+ */
+static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
+	.hws = {
+		[CLKID_XTAL] = &meson8b_xtal.hw,
+		[CLKID_ZERO] = &meson8b_zero.hw,
+	},
+	.num = CLK_NR_CLKS,
+};
+
 static void __init meson8b_clkc_init(struct device_node *np)
 {
 	void __iomem *clk_base;
+	int ret, clkid;
 
 	if (!meson_clk_init(np, CLK_NR_CLKS))
 		return;
-
-	/* XTAL */
-	clk_base = of_iomap(np, 0);
-	if (!clk_base) {
-		pr_err("%s: Unable to map xtal base\n", __func__);
-		return;
-	}
-
-	meson_clk_register_clks(&meson8b_xtal_conf, 1, clk_base);
-	iounmap(clk_base);
 
 	/*  Generic clocks and PLLs */
 	clk_base = of_iomap(np, 1);
@@ -198,8 +216,29 @@ static void __init meson8b_clkc_init(struct device_node *np)
 		return;
 	}
 
+	/*
+	 * register all clks
+	 * CLKID_UNUSED = 0, so skip it and start with CLKID_XTAL = 1
+	 */
+	for (clkid = CLKID_XTAL; clkid < CLK_NR_CLKS; clkid++) {
+		/* array might be sparse */
+		if (!meson8b_hw_onecell_data.hws[clkid])
+			continue;
+
+		/* FIXME convert to devm_clk_register */
+		ret = clk_hw_register(NULL, meson8b_hw_onecell_data.hws[clkid]);
+		if (ret)
+			goto unregister;
+	}
+
 	meson_clk_register_clks(meson8b_clk_confs,
 				ARRAY_SIZE(meson8b_clk_confs),
 				clk_base);
+	return;
+
+/* FIXME remove after converting to platform_driver/devm_clk_register */
+unregister:
+	for (clkid = CLK_NR_CLKS - 1; clkid >= 0; clkid--)
+		clk_hw_unregister(meson8b_hw_onecell_data.hws[clkid]);
 }
 CLK_OF_DECLARE(meson8b_clock, "amlogic,meson8b-clkc", meson8b_clkc_init);
