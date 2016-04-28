@@ -114,6 +114,19 @@ static inline void ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 }
 #endif
 
+static bool ct_seq_should_skip(const struct nf_conn *ct,
+			       const struct nf_conntrack_tuple_hash *hash)
+{
+	/* we only want to print DIR_ORIGINAL */
+	if (NF_CT_DIRECTION(hash))
+		return true;
+
+	if (nf_ct_l3num(ct) != AF_INET)
+		return true;
+
+	return false;
+}
+
 static int ct_seq_show(struct seq_file *s, void *v)
 {
 	struct nf_conntrack_tuple_hash *hash = v;
@@ -123,14 +136,15 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	int ret = 0;
 
 	NF_CT_ASSERT(ct);
+	if (ct_seq_should_skip(ct, hash))
+		return 0;
+
 	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
 		return 0;
 
-
-	/* we only want to print DIR_ORIGINAL */
-	if (NF_CT_DIRECTION(hash))
-		goto release;
-	if (nf_ct_l3num(ct) != AF_INET)
+	/* check if we raced w. object reuse */
+	if (!nf_ct_is_confirmed(ct) ||
+	    ct_seq_should_skip(ct, hash))
 		goto release;
 
 	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
