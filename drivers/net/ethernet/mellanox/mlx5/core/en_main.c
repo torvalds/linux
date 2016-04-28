@@ -2938,8 +2938,11 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 		goto err_tc_cleanup;
 	}
 
-	if (mlx5e_vxlan_allowed(mdev))
+	if (mlx5e_vxlan_allowed(mdev)) {
+		rtnl_lock();
 		vxlan_get_rx_port(netdev);
+		rtnl_unlock();
+	}
 
 	mlx5e_enable_async_events(priv);
 	schedule_work(&priv->set_rx_mode_work);
