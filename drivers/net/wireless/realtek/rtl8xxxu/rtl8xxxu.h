@@ -1347,3 +1347,56 @@ struct rtl8xxxu_fileops {
 	u8 page_num_lo;
 	u8 page_num_norm;
 };
+
+extern int rtl8xxxu_debug;
+
+extern const u32 rtl8xxxu_iqk_phy_iq_bb_reg[];
+u8 rtl8xxxu_read8(struct rtl8xxxu_priv *priv, u16 addr);
+u16 rtl8xxxu_read16(struct rtl8xxxu_priv *priv, u16 addr);
+u32 rtl8xxxu_read32(struct rtl8xxxu_priv *priv, u16 addr);
+int rtl8xxxu_write8(struct rtl8xxxu_priv *priv, u16 addr, u8 val);
+int rtl8xxxu_write16(struct rtl8xxxu_priv *priv, u16 addr, u16 val);
+int rtl8xxxu_write32(struct rtl8xxxu_priv *priv, u16 addr, u32 val);
+u32 rtl8xxxu_read_rfreg(struct rtl8xxxu_priv *priv,
+			enum rtl8xxxu_rfpath path, u8 reg);
+int rtl8xxxu_write_rfreg(struct rtl8xxxu_priv *priv,
+			 enum rtl8xxxu_rfpath path, u8 reg, u32 data);
+void rtl8xxxu_save_regs(struct rtl8xxxu_priv *priv, const u32 *regs,
+			u32 *backup, int count);
+void rtl8xxxu_restore_regs(struct rtl8xxxu_priv *priv, const u32 *regs,
+			   u32 *backup, int count);
+void rtl8xxxu_save_mac_regs(struct rtl8xxxu_priv *priv,
+			    const u32 *reg, u32 *backup);
+void rtl8xxxu_restore_mac_regs(struct rtl8xxxu_priv *priv,
+			       const u32 *reg, u32 *backup);
+void rtl8xxxu_path_adda_on(struct rtl8xxxu_priv *priv, const u32 *regs,
+			   bool path_a_on);
+void rtl8xxxu_mac_calibration(struct rtl8xxxu_priv *priv,
+			      const u32 *regs, u32 *backup);
+void rtl8xxxu_fill_iqk_matrix_a(struct rtl8xxxu_priv *priv, bool iqk_ok,
+				int result[][8], int candidate, bool tx_only);
+void rtl8xxxu_fill_iqk_matrix_b(struct rtl8xxxu_priv *priv, bool iqk_ok,
+				int result[][8], int candidate, bool tx_only);
+int rtl8xxxu_init_phy_rf(struct rtl8xxxu_priv *priv,
+			 struct rtl8xxxu_rfregval *table,
+			 enum rtl8xxxu_rfpath path);
+int rtl8xxxu_init_phy_regs(struct rtl8xxxu_priv *priv,
+			   struct rtl8xxxu_reg32val *array);
+int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, char *fw_name);
+void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv);
+void rtl8xxxu_reset_8051(struct rtl8xxxu_priv *priv);
+int rtl8xxxu_auto_llt_table(struct rtl8xxxu_priv *priv, u8 last_tx_page);
+void rtl8xxxu_gen2_config_channel(struct ieee80211_hw *hw);
+void rtl8xxxu_gen2_usb_quirks(struct rtl8xxxu_priv *priv);
+void rtl8xxxu_gen2_update_rate_mask(struct rtl8xxxu_priv *priv,
+				    u32 ramask, int sgi);
+void rtl8xxxu_gen2_report_connect(struct rtl8xxxu_priv *priv,
+				  u8 macid, bool connect);
+void rtl8xxxu_gen2_disable_rf(struct rtl8xxxu_priv *priv);
+int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
+			    struct ieee80211_rx_status *rx_status);
+int rtl8xxxu_gen2_channel_to_group(int channel);
+bool rtl8xxxu_gen2_simularity_compare(struct rtl8xxxu_priv *priv,
+				      int result[][8], int c1, int c2);
+
+extern struct rtl8xxxu_fileops rtl8192eu_fops;
