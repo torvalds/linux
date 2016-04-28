@@ -226,6 +226,9 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_CPORT_FEATURES;
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_INTERFACE_VERSION;
 		break;
+	default:
+		intf->quirks &= ~GB_INTERFACE_QUIRK_NO_CPORT_FEATURES;
+		intf->quirks &= ~GB_INTERFACE_QUIRK_NO_INTERFACE_VERSION;
 	}
 
 	/* Clear the init status. */
