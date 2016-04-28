@@ -2049,15 +2049,18 @@ static int replace_map_fd_with_map_ptr(struct verifier_env *env)
 				return -E2BIG;
 			}
 
-			/* remember this map */
-			env->used_maps[env->used_map_cnt++] = map;
-
 			/* hold the map. If the program is rejected by verifier,
 			 * the map will be released by release_maps() or it
 			 * will be used by the valid program until it's unloaded
 			 * and all maps are released in free_bpf_prog_info()
 			 */
-			bpf_map_inc(map, false);
+			map = bpf_map_inc(map, false);
+			if (IS_ERR(map)) {
+				fdput(f);
+				return PTR_ERR(map);
+			}
+			env->used_maps[env->used_map_cnt++] = map;
+
 			fdput(f);
 next_insn:
 			insn++;
