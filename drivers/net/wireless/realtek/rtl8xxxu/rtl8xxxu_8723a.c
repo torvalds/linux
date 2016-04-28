@@ -331,7 +331,7 @@ static int rtl8723au_power_on(struct rtl8xxxu_priv *priv)
 	 */
 	rtl8xxxu_write8(priv, REG_RSV_CTRL, 0x0);
 
-	rtl8723a_disabled_to_emu(priv);
+	rtl8xxxu_disabled_to_emu(priv);
 
 	ret = rtl8723a_emu_to_active(priv);
 	if (ret)

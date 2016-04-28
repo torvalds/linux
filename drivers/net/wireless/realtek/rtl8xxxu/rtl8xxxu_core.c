@@ -3607,7 +3607,7 @@ exit:
 	return ret;
 }
 
-void rtl8723a_disabled_to_emu(struct rtl8xxxu_priv *priv)
+void rtl8xxxu_disabled_to_emu(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
 

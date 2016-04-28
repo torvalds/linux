@@ -1406,7 +1406,7 @@ static int rtl8723bu_power_on(struct rtl8xxxu_priv *priv)
 	u32 val32;
 	int ret;
 
-	rtl8723a_disabled_to_emu(priv);
+	rtl8xxxu_disabled_to_emu(priv);
 
 	ret = rtl8723b_emu_to_active(priv);
 	if (ret)
