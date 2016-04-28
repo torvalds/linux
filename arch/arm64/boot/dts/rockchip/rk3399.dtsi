@@ -1477,6 +1477,13 @@
 					<4 17 RK_FUNC_1 &pcfg_pull_none>,
 					<4 16 RK_FUNC_1 &pcfg_pull_none>;
 			};
+
+			i2c3_gpio: i2c3_gpio {
+				rockchip,pins =
+					<4 17 RK_FUNC_GPIO &pcfg_pull_none>,
+					<4 16 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
+
 		};
 
 		i2c4 {
@@ -1898,6 +1905,19 @@
 			edp_hpd: edp-hpd {
 				rockchip,pins =
 					<4 23 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		hdmi {
+			hdmi_i2c_xfer: hdmi-i2c-xfer {
+				rockchip,pins =
+					<4 17 RK_FUNC_3 &pcfg_pull_none>,
+					<4 16 RK_FUNC_3 &pcfg_pull_none>;
+			};
+
+			hdmi_cec: hdmi-cec {
+				rockchip,pins =
+					<4 23 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 	};
