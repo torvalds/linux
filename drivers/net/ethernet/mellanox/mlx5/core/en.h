@@ -448,9 +448,12 @@ struct mlx5e_ttc_table {
 	struct mlx5_flow_rule	 *rules[MLX5E_NUM_TT];
 };
 
+#define ARFS_HASH_SHIFT BITS_PER_BYTE
+#define ARFS_HASH_SIZE BIT(BITS_PER_BYTE)
 struct arfs_table {
 	struct mlx5e_flow_table  ft;
 	struct mlx5_flow_rule    *default_rule;
+	struct hlist_head	 rules_hash[ARFS_HASH_SIZE];
 };
 
 enum  arfs_type {
@@ -463,6 +466,11 @@ enum  arfs_type {
 
 struct mlx5e_arfs_tables {
 	struct arfs_table arfs_tables[ARFS_NUM_TYPES];
+	/* Protect aRFS rules list */
+	spinlock_t                     arfs_lock;
+	struct list_head               rules;
+	int                            last_filter_id;
+	struct workqueue_struct        *wq;
 };
 
 /* NIC prio FTS */
@@ -685,6 +693,8 @@ static inline void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv) {}
 #else
 int mlx5e_arfs_create_tables(struct mlx5e_priv *priv);
 void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv);
+int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
+			u16 rxq_index, u32 flow_id);
 #endif
 
 u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev);
