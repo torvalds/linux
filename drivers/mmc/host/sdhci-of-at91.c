@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/module.h>
@@ -31,6 +32,8 @@
 #define SDMMC_CACR	0x230
 #define		SDMMC_CACR_CAPWREN	BIT(0)
 #define		SDMMC_CACR_KEY		(0x46 << 8)
+
+#define SDHCI_AT91_PRESET_COMMON_CONF	0x400 /* drv type B, programmable clock mode */
 
 struct sdhci_at91_priv {
 	struct clk *hclock;
@@ -163,6 +166,7 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 	unsigned int			clk_base, clk_mul;
 	unsigned int			gck_rate, real_gck_rate;
 	int				ret;
+	unsigned int			preset_div;
 
 	match = of_match_device(sdhci_at91_dt_match, &pdev->dev);
 	if (!match)
@@ -229,6 +233,28 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "update clk mul to %u as gck rate is %u Hz\n",
 			 clk_mul, real_gck_rate);
 	}
+
+	/*
+	 * We have to set preset values because it depends on the clk_mul
+	 * value. Moreover, SDR104 is supported in a degraded mode since the
+	 * maximum sd clock value is 120 MHz instead of 208 MHz. For that
+	 * reason, we need to use presets to support SDR104.
+	 */
+	preset_div = DIV_ROUND_UP(real_gck_rate, 24000000) - 1;
+	writew(SDHCI_AT91_PRESET_COMMON_CONF | preset_div,
+	       host->ioaddr + SDHCI_PRESET_FOR_SDR12);
+	preset_div = DIV_ROUND_UP(real_gck_rate, 50000000) - 1;
+	writew(SDHCI_AT91_PRESET_COMMON_CONF | preset_div,
+	       host->ioaddr + SDHCI_PRESET_FOR_SDR25);
+	preset_div = DIV_ROUND_UP(real_gck_rate, 100000000) - 1;
+	writew(SDHCI_AT91_PRESET_COMMON_CONF | preset_div,
+	       host->ioaddr + SDHCI_PRESET_FOR_SDR50);
+	preset_div = DIV_ROUND_UP(real_gck_rate, 120000000) - 1;
+	writew(SDHCI_AT91_PRESET_COMMON_CONF | preset_div,
+	       host->ioaddr + SDHCI_PRESET_FOR_SDR104);
+	preset_div = DIV_ROUND_UP(real_gck_rate, 50000000) - 1;
+	writew(SDHCI_AT91_PRESET_COMMON_CONF | preset_div,
+	       host->ioaddr + SDHCI_PRESET_FOR_DDR50);
 
 	clk_prepare_enable(priv->mainck);
 	clk_prepare_enable(priv->gck);
