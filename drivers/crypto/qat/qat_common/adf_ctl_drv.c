@@ -471,6 +471,9 @@ static int __init adf_register_ctl_device_driver(void)
 	if (adf_init_aer())
 		goto err_aer;
 
+	if (adf_init_pf_wq())
+		goto err_pf_wq;
+
 	if (adf_init_vf_wq())
 		goto err_vf_wq;
 
@@ -482,6 +485,8 @@ static int __init adf_register_ctl_device_driver(void)
 err_crypto_register:
 	adf_exit_vf_wq();
 err_vf_wq:
+	adf_exit_pf_wq();
+err_pf_wq:
 	adf_exit_aer();
 err_aer:
 	adf_chr_drv_destroy();
@@ -495,6 +500,7 @@ static void __exit adf_unregister_ctl_device_driver(void)
 	adf_chr_drv_destroy();
 	adf_exit_aer();
 	adf_exit_vf_wq();
+	adf_exit_pf_wq();
 	qat_crypto_unregister();
 	adf_clean_vf_map(false);
 	mutex_destroy(&adf_ctl_lock);
