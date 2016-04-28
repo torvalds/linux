@@ -128,7 +128,6 @@ bool ceph_monc_want_map(struct ceph_mon_client *monc, int sub, u32 epoch,
 void ceph_monc_got_map(struct ceph_mon_client *monc, int sub, u32 epoch);
 void ceph_monc_renew_subs(struct ceph_mon_client *monc);
 
-extern void ceph_monc_request_next_osdmap(struct ceph_mon_client *monc);
 extern int ceph_monc_wait_osdmap(struct ceph_mon_client *monc, u32 epoch,
 				 unsigned long timeout);
 

@@ -385,20 +385,6 @@ void ceph_monc_renew_subs(struct ceph_mon_client *monc)
 EXPORT_SYMBOL(ceph_monc_renew_subs);
 
 /*
- * Register interest in the next osdmap
- */
-void ceph_monc_request_next_osdmap(struct ceph_mon_client *monc)
-{
-	dout("%s have %u\n", __func__, monc->subs[CEPH_SUB_OSDMAP].have);
-	mutex_lock(&monc->mutex);
-	if (__ceph_monc_want_map(monc, CEPH_SUB_OSDMAP,
-				 monc->subs[CEPH_SUB_OSDMAP].have + 1, false))
-		__send_subscribe(monc);
-	mutex_unlock(&monc->mutex);
-}
-EXPORT_SYMBOL(ceph_monc_request_next_osdmap);
-
-/*
  * Wait for an osdmap with a given epoch.
  *
  * @epoch: epoch to wait for

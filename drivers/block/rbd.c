@@ -4902,7 +4902,7 @@ again:
 			return ret;
 
 		if (rbdc->client->osdc.osdmap->epoch < newest_epoch) {
-			ceph_monc_request_next_osdmap(&rbdc->client->monc);
+			ceph_osdc_maybe_request_map(&rbdc->client->osdc);
 			(void) ceph_monc_wait_osdmap(&rbdc->client->monc,
 						     newest_epoch,
 						     opts->mount_timeout);

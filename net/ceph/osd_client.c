@@ -3869,6 +3869,13 @@ void ceph_osdc_flush_notifies(struct ceph_osd_client *osdc)
 }
 EXPORT_SYMBOL(ceph_osdc_flush_notifies);
 
+void ceph_osdc_maybe_request_map(struct ceph_osd_client *osdc)
+{
+	down_read(&osdc->lock);
+	maybe_request_map(osdc);
+	up_read(&osdc->lock);
+}
+EXPORT_SYMBOL(ceph_osdc_maybe_request_map);
 
 /*
  * init, shutdown
