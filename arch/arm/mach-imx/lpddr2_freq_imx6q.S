@@ -236,7 +236,7 @@ wait_div_update2:
 	str	r6, [r8, #0x18]
 
 	/* Adjust LPDDR2 timings for 24Mhz operation */
-	ldr	r5, =0x03032073
+	ldr	r5, =0x03162073
 	str	r5, [r8, #0xC]  	/* MMDC0_MDCFG0 */
 	ldr	r7, =0x00020482
 	str	r7, [r8, #0x10] 	/* MMDC0_MDCFG1 */
