@@ -108,8 +108,6 @@ struct intel_ringbuffer {
 	int size;
 	int effective_size;
 	int reserved_size;
-	int reserved_tail;
-	bool reserved_in_use;
 
 	/** We track the position of the requests in the ring buffer, and
 	 * when each is retired we increment last_retired_head as the GPU
@@ -460,7 +458,6 @@ static inline void intel_ring_advance(struct intel_engine_cs *engine)
 }
 int __intel_ring_space(int head, int tail, int size);
 void intel_ring_update_space(struct intel_ringbuffer *ringbuf);
-int intel_ring_space(struct intel_ringbuffer *ringbuf);
 bool intel_engine_stopped(struct intel_engine_cs *engine);
 
 int __must_check intel_engine_idle(struct intel_engine_cs *engine);
