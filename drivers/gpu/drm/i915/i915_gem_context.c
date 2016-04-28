@@ -601,7 +601,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	return ret;
 }
 
-int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice)
+static int remap_l3(struct drm_i915_gem_request *req, int slice)
 {
 	u32 *remap_info = req->i915->l3_parity.remap_info[slice];
 	struct intel_engine_cs *engine = req->engine;
@@ -799,7 +799,7 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 		if (!(to->remap_slice & (1<<i)))
 			continue;
 
-		ret = i915_gem_l3_remap(req, i);
+		ret = remap_l3(req, i);
 		if (ret)
 			return ret;
 

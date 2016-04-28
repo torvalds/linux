@@ -4842,7 +4842,7 @@ i915_gem_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
-	int ret, j;
+	int ret;
 
 	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
 		return -EIO;
@@ -4922,14 +4922,6 @@ i915_gem_init_hw(struct drm_device *dev)
 		if (IS_ERR(req)) {
 			ret = PTR_ERR(req);
 			break;
-		}
-
-		if (engine->id == RCS) {
-			for (j = 0; j < NUM_L3_SLICES(dev); j++) {
-				ret = i915_gem_l3_remap(req, j);
-				if (ret)
-					goto err_request;
-			}
 		}
 
 		ret = i915_ppgtt_init_ring(req);
