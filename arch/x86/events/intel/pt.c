@@ -136,8 +136,20 @@ static int __init pt_pmu_hw_init(void)
 	struct dev_ext_attribute *de_attrs;
 	struct attribute **attrs;
 	size_t size;
+	u64 reg;
 	int ret;
 	long i;
+
+	if (boot_cpu_has(X86_FEATURE_VMX)) {
+		/*
+		 * Intel SDM, 36.5 "Tracing post-VMXON" says that
+		 * "IA32_VMX_MISC[bit 14]" being 1 means PT can trace
+		 * post-VMXON.
+		 */
+		rdmsrl(MSR_IA32_VMX_MISC, reg);
+		if (reg & BIT(14))
+			pt_pmu.vmx = true;
+	}
 
 	attrs = NULL;
 
@@ -269,19 +281,22 @@ static void pt_config(struct perf_event *event)
 
 	reg |= (event->attr.config & PT_CONFIG_MASK);
 
+	event->hw.config = reg;
 	wrmsrl(MSR_IA32_RTIT_CTL, reg);
 }
 
-static void pt_config_start(bool start)
+static void pt_config_stop(struct perf_event *event)
 {
-	u64 ctl;
+	u64 ctl = READ_ONCE(event->hw.config);
 
-	rdmsrl(MSR_IA32_RTIT_CTL, ctl);
-	if (start)
-		ctl |= RTIT_CTL_TRACEEN;
-	else
-		ctl &= ~RTIT_CTL_TRACEEN;
+	/* may be already stopped by a PMI */
+	if (!(ctl & RTIT_CTL_TRACEEN))
+		return;
+
+	ctl &= ~RTIT_CTL_TRACEEN;
 	wrmsrl(MSR_IA32_RTIT_CTL, ctl);
+
+	WRITE_ONCE(event->hw.config, ctl);
 
 	/*
 	 * A wrmsr that disables trace generation serializes other PT
@@ -291,8 +306,7 @@ static void pt_config_start(bool start)
 	 * The below WMB, separating data store and aux_head store matches
 	 * the consumer's RMB that separates aux_head load and data load.
 	 */
-	if (!start)
-		wmb();
+	wmb();
 }
 
 static void pt_config_buffer(void *buf, unsigned int topa_idx,
@@ -922,10 +936,16 @@ void intel_pt_interrupt(void)
 	if (!ACCESS_ONCE(pt->handle_nmi))
 		return;
 
-	pt_config_start(false);
+	/*
+	 * If VMX is on and PT does not support it, don't touch anything.
+	 */
+	if (READ_ONCE(pt->vmx_on))
+		return;
 
 	if (!event)
 		return;
+
+	pt_config_stop(event);
 
 	buf = perf_get_aux(&pt->handle);
 	if (!buf)
@@ -963,6 +983,35 @@ void intel_pt_interrupt(void)
 	}
 }
 
+void intel_pt_handle_vmx(int on)
+{
+	struct pt *pt = this_cpu_ptr(&pt_ctx);
+	struct perf_event *event;
+	unsigned long flags;
+
+	/* PT plays nice with VMX, do nothing */
+	if (pt_pmu.vmx)
+		return;
+
+	/*
+	 * VMXON will clear RTIT_CTL.TraceEn; we need to make
+	 * sure to not try to set it while VMX is on. Disable
+	 * interrupts to avoid racing with pmu callbacks;
+	 * concurrent PMI should be handled fine.
+	 */
+	local_irq_save(flags);
+	WRITE_ONCE(pt->vmx_on, on);
+
+	if (on) {
+		/* prevent pt_config_stop() from writing RTIT_CTL */
+		event = pt->handle.event;
+		if (event)
+			event->hw.config = 0;
+	}
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(intel_pt_handle_vmx);
+
 /*
  * PMU callbacks
  */
@@ -972,6 +1021,9 @@ static void pt_event_start(struct perf_event *event, int mode)
 	struct hw_perf_event *hwc = &event->hw;
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	struct pt_buffer *buf;
+
+	if (READ_ONCE(pt->vmx_on))
+		return;
 
 	buf = perf_aux_output_begin(&pt->handle, event);
 	if (!buf)
@@ -1007,7 +1059,8 @@ static void pt_event_stop(struct perf_event *event, int mode)
 	 * see comment in intel_pt_interrupt().
 	 */
 	ACCESS_ONCE(pt->handle_nmi) = 0;
-	pt_config_start(false);
+
+	pt_config_stop(event);
 
 	if (event->hw.state == PERF_HES_STOPPED)
 		return;
