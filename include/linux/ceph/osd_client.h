@@ -33,12 +33,13 @@ struct ceph_osd {
 	int o_incarnation;
 	struct rb_node o_node;
 	struct ceph_connection o_con;
-	struct list_head o_requests;
+	struct rb_root o_requests;
 	struct list_head o_linger_requests;
 	struct list_head o_osd_lru;
 	struct ceph_auth_handshake o_auth;
 	unsigned long lru_ttl;
 	struct list_head o_keepalive_item;
+	struct mutex lock;
 };
 
 #define CEPH_OSD_SLAB_OPS	2
@@ -144,8 +145,6 @@ struct ceph_osd_request_target {
 struct ceph_osd_request {
 	u64             r_tid;              /* unique for this client */
 	struct rb_node  r_node;
-	struct list_head r_req_lru_item;
-	struct list_head r_osd_item;
 	struct list_head r_linger_item;
 	struct list_head r_linger_osd_item;
 	struct ceph_osd *r_osd;
@@ -219,19 +218,16 @@ struct ceph_osd_client {
 	struct ceph_client     *client;
 
 	struct ceph_osdmap     *osdmap;       /* current map */
-	struct rw_semaphore    map_sem;
+	struct rw_semaphore    lock;
 
-	struct mutex           request_mutex;
 	struct rb_root         osds;          /* osds */
 	struct list_head       osd_lru;       /* idle osds */
 	spinlock_t             osd_lru_lock;
-	u64                    last_tid;      /* tid of last request */
-	struct rb_root         requests;      /* pending requests */
-	struct list_head       req_lru;	      /* in-flight lru */
-	struct list_head       req_unsent;    /* unsent/need-resend queue */
-	struct list_head       req_notarget;  /* map to no osd */
 	struct list_head       req_linger;    /* lingering requests */
-	int                    num_requests;
+	struct ceph_osd        homeless_osd;
+	atomic64_t             last_tid;      /* tid of last request */
+	atomic_t               num_requests;
+	atomic_t               num_homeless;
 	struct delayed_work    timeout_work;
 	struct delayed_work    osds_timeout_work;
 #ifdef CONFIG_DEBUG_FS

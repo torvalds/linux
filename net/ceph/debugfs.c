@@ -182,21 +182,39 @@ static void dump_request(struct seq_file *s, struct ceph_osd_request *req)
 	seq_putc(s, '\n');
 }
 
+static void dump_requests(struct seq_file *s, struct ceph_osd *osd)
+{
+	struct rb_node *n;
+
+	mutex_lock(&osd->lock);
+	for (n = rb_first(&osd->o_requests); n; n = rb_next(n)) {
+		struct ceph_osd_request *req =
+		    rb_entry(n, struct ceph_osd_request, r_node);
+
+		dump_request(s, req);
+	}
+
+	mutex_unlock(&osd->lock);
+}
+
 static int osdc_show(struct seq_file *s, void *pp)
 {
 	struct ceph_client *client = s->private;
 	struct ceph_osd_client *osdc = &client->osdc;
-	struct rb_node *p;
+	struct rb_node *n;
 
-	mutex_lock(&osdc->request_mutex);
-	for (p = rb_first(&osdc->requests); p; p = rb_next(p)) {
-		struct ceph_osd_request *req;
+	down_read(&osdc->lock);
+	seq_printf(s, "REQUESTS %d homeless %d\n",
+		   atomic_read(&osdc->num_requests),
+		   atomic_read(&osdc->num_homeless));
+	for (n = rb_first(&osdc->osds); n; n = rb_next(n)) {
+		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_node);
 
-		req = rb_entry(p, struct ceph_osd_request, r_node);
-
-		dump_request(s, req);
+		dump_requests(s, osd);
 	}
-	mutex_unlock(&osdc->request_mutex);
+	dump_requests(s, &osdc->homeless_osd);
+
+	up_read(&osdc->lock);
 	return 0;
 }
 

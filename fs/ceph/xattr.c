@@ -75,7 +75,7 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 	char buf[128];
 
 	dout("ceph_vxattrcb_layout %p\n", &ci->vfs_inode);
-	down_read(&osdc->map_sem);
+	down_read(&osdc->lock);
 	pool_name = ceph_pg_pool_name_by_id(osdc->osdmap, pool);
 	if (pool_name) {
 		size_t len = strlen(pool_name);
@@ -107,7 +107,7 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 				ret = -ERANGE;
 		}
 	}
-	up_read(&osdc->map_sem);
+	up_read(&osdc->lock);
 	return ret;
 }
 
@@ -141,13 +141,13 @@ static size_t ceph_vxattrcb_layout_pool(struct ceph_inode_info *ci,
 	s64 pool = ceph_file_layout_pg_pool(ci->i_layout);
 	const char *pool_name;
 
-	down_read(&osdc->map_sem);
+	down_read(&osdc->lock);
 	pool_name = ceph_pg_pool_name_by_id(osdc->osdmap, pool);
 	if (pool_name)
 		ret = snprintf(val, size, "%s", pool_name);
 	else
 		ret = snprintf(val, size, "%lld", (unsigned long long)pool);
-	up_read(&osdc->map_sem);
+	up_read(&osdc->lock);
 	return ret;
 }
 
