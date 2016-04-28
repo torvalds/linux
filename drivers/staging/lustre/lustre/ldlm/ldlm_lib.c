@@ -356,6 +356,12 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	cli->cl_max_pages_per_rpc = min_t(int, PTLRPC_MAX_BRW_PAGES,
 					  LNET_MTU >> PAGE_SHIFT);
 
+	/*
+	 * set cl_chunkbits default value to PAGE_CACHE_SHIFT,
+	 * it will be updated at OSC connection time.
+	 */
+	cli->cl_chunkbits = PAGE_SHIFT;
+
 	if (!strcmp(name, LUSTRE_MDC_NAME)) {
 		cli->cl_max_rpcs_in_flight = MDC_MAX_RIF_DEFAULT;
 	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 128 /* MB */) {
