@@ -864,6 +864,11 @@ EXPORT_SYMBOL(ceph_osdc_new_request);
  */
 DEFINE_RB_FUNCS(request, struct ceph_osd_request, r_tid, r_node)
 
+static bool osd_homeless(struct ceph_osd *osd)
+{
+	return osd->o_osd == CEPH_HOMELESS_OSD;
+}
+
 static struct ceph_osd_request *
 __lookup_request_ge(struct ceph_osd_client *osdc,
 		    u64 tid)
@@ -1002,28 +1007,52 @@ static void osd_reset(struct ceph_connection *con)
 }
 
 /*
+ * Assumes @osd is zero-initialized.
+ */
+static void osd_init(struct ceph_osd *osd)
+{
+	atomic_set(&osd->o_ref, 1);
+	RB_CLEAR_NODE(&osd->o_node);
+	INIT_LIST_HEAD(&osd->o_requests);
+	INIT_LIST_HEAD(&osd->o_linger_requests);
+	INIT_LIST_HEAD(&osd->o_osd_lru);
+	INIT_LIST_HEAD(&osd->o_keepalive_item);
+	osd->o_incarnation = 1;
+}
+
+static void osd_cleanup(struct ceph_osd *osd)
+{
+	WARN_ON(!RB_EMPTY_NODE(&osd->o_node));
+	WARN_ON(!list_empty(&osd->o_requests));
+	WARN_ON(!list_empty(&osd->o_linger_requests));
+	WARN_ON(!list_empty(&osd->o_osd_lru));
+	WARN_ON(!list_empty(&osd->o_keepalive_item));
+
+	if (osd->o_auth.authorizer) {
+		WARN_ON(osd_homeless(osd));
+		ceph_auth_destroy_authorizer(osd->o_auth.authorizer);
+	}
+}
+
+/*
  * Track open sessions with osds.
  */
 static struct ceph_osd *create_osd(struct ceph_osd_client *osdc, int onum)
 {
 	struct ceph_osd *osd;
 
+	WARN_ON(onum == CEPH_HOMELESS_OSD);
+
 	osd = kzalloc(sizeof(*osd), GFP_NOFS);
 	if (!osd)
 		return NULL;
 
-	atomic_set(&osd->o_ref, 1);
+	osd_init(osd);
 	osd->o_osdc = osdc;
 	osd->o_osd = onum;
-	RB_CLEAR_NODE(&osd->o_node);
-	INIT_LIST_HEAD(&osd->o_requests);
-	INIT_LIST_HEAD(&osd->o_linger_requests);
-	INIT_LIST_HEAD(&osd->o_osd_lru);
-	osd->o_incarnation = 1;
 
 	ceph_con_init(&osd->o_con, osd, &osd_con_ops, &osdc->client->msgr);
 
-	INIT_LIST_HEAD(&osd->o_keepalive_item);
 	return osd;
 }
 
@@ -1044,8 +1073,7 @@ static void put_osd(struct ceph_osd *osd)
 	dout("put_osd %p %d -> %d\n", osd, atomic_read(&osd->o_ref),
 	     atomic_read(&osd->o_ref) - 1);
 	if (atomic_dec_and_test(&osd->o_ref)) {
-		if (osd->o_auth.authorizer)
-			ceph_auth_destroy_authorizer(osd->o_auth.authorizer);
+		osd_cleanup(osd);
 		kfree(osd);
 	}
 }
