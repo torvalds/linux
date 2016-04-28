@@ -125,48 +125,6 @@ error:
 	return clk;
 }
 
-static struct clk * __init
-meson_clk_register_fixed_factor(const struct clk_conf *clk_conf,
-				void __iomem *clk_base)
-{
-	struct clk *clk;
-	const struct fixed_fact_conf *fixed_fact_conf;
-	const struct parm *p;
-	unsigned int mult, div;
-	u32 reg;
-
-	fixed_fact_conf = &clk_conf->conf.fixed_fact;
-
-	mult = clk_conf->conf.fixed_fact.mult;
-	div = clk_conf->conf.fixed_fact.div;
-
-	if (!mult) {
-		mult = 1;
-		p = &fixed_fact_conf->mult_parm;
-		if (MESON_PARM_APPLICABLE(p)) {
-			reg = readl(clk_base + clk_conf->reg_off + p->reg_off);
-			mult = PARM_GET(p->width, p->shift, reg);
-		}
-	}
-
-	if (!div) {
-		div = 1;
-		p = &fixed_fact_conf->div_parm;
-		if (MESON_PARM_APPLICABLE(p)) {
-			reg = readl(clk_base + clk_conf->reg_off + p->reg_off);
-			mult = PARM_GET(p->width, p->shift, reg);
-		}
-	}
-
-	clk = clk_register_fixed_factor(NULL,
-			clk_conf->clk_name,
-			clk_conf->clks_parent[0],
-			clk_conf->flags,
-			mult, div);
-
-	return clk;
-}
-
 void __init meson_clk_register_clks(const struct clk_conf *clk_confs,
 				    unsigned int nr_confs,
 				    void __iomem *clk_base)
@@ -178,10 +136,6 @@ void __init meson_clk_register_clks(const struct clk_conf *clk_confs,
 		const struct clk_conf *clk_conf = &clk_confs[i];
 
 		switch (clk_conf->clk_type) {
-		case CLK_FIXED_FACTOR:
-			clk = meson_clk_register_fixed_factor(clk_conf,
-							      clk_base);
-			break;
 		case CLK_COMPOSITE:
 			clk = meson_clk_register_composite(clk_conf,
 							   clk_base);

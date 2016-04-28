@@ -69,13 +69,6 @@ struct meson_clk_pll {
 
 #define to_meson_clk_pll(_hw) container_of(_hw, struct meson_clk_pll, hw)
 
-struct fixed_fact_conf {
-	unsigned int	div;
-	unsigned int	mult;
-	struct parm	div_parm;
-	struct parm	mult_parm;
-};
-
 struct composite_conf {
 	struct parm		mux_parm;
 	struct parm		div_parm;
@@ -90,7 +83,6 @@ struct composite_conf {
 #define PNAME(x) static const char *x[]
 
 enum clk_type {
-	CLK_FIXED_FACTOR,
 	CLK_COMPOSITE,
 	CLK_CPU,
 };
@@ -104,21 +96,10 @@ struct clk_conf {
 	int				num_parents;
 	unsigned long			flags;
 	union {
-		struct fixed_fact_conf		fixed_fact;
 		const struct composite_conf		*composite;
 		const struct clk_div_table	*div_table;
 	} conf;
 };
-
-#define FIXED_FACTOR_DIV(_ci, _cn, _cp, _f, _d)				\
-	{								\
-		.clk_type			= CLK_FIXED_FACTOR,	\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.clks_parent			= (_cp),		\
-		.num_parents			= ARRAY_SIZE(_cp),	\
-		.conf.fixed_fact.div		= (_d),			\
-	}								\
 
 #define CPU(_ro, _ci, _cn, _cp, _dt)					\
 	{								\
