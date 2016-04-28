@@ -35,13 +35,6 @@ struct parm {
 	u8	width;
 };
 
-#define PARM(_r, _s, _w)                                               \
-{                                                                      \
-	.reg_off        = (_r),                                        \
-	.shift          = (_s),                                        \
-	.width          = (_w),                                        \
-}                                                                      \
-
 struct pll_rate_table {
 	unsigned long	rate;
 	u16		m;
@@ -77,57 +70,8 @@ struct meson_clk_cpu {
 	const struct clk_div_table *div_table;
 };
 
-struct composite_conf {
-	struct parm		mux_parm;
-	struct parm		div_parm;
-	struct parm		gate_parm;
-	struct clk_div_table	*div_table;
-	u32			*mux_table;
-	u8			mux_flags;
-	u8			div_flags;
-	u8			gate_flags;
-};
-
-#define PNAME(x) static const char *x[]
-
-enum clk_type {
-	CLK_COMPOSITE,
-};
-
-struct clk_conf {
-	u16				reg_off;
-	enum clk_type			clk_type;
-	unsigned int			clk_id;
-	const char			*clk_name;
-	const char			**clks_parent;
-	int				num_parents;
-	unsigned long			flags;
-	union {
-		const struct composite_conf		*composite;
-		const struct clk_div_table	*div_table;
-	} conf;
-};
-
-#define COMPOSITE(_ro, _ci, _cn, _cp, _f, _c)				\
-	{								\
-		.reg_off			= (_ro),		\
-		.clk_type			= CLK_COMPOSITE,	\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.clks_parent			= (_cp),		\
-		.num_parents			= ARRAY_SIZE(_cp),	\
-		.flags				= (_f),			\
-		.conf.composite			= (_c),			\
-	}								\
-
-struct clk **meson_clk_init(struct device_node *np, unsigned long nr_clks);
-void meson_clk_register_clks(const struct clk_conf *clk_confs,
-			     unsigned int nr_confs, void __iomem *clk_base);
 int meson_clk_cpu_notifier_cb(struct notifier_block *nb, unsigned long event,
 		void *data);
-
-/* shared data */
-extern spinlock_t clk_lock;
 
 /* clk_ops */
 extern const struct clk_ops meson_clk_pll_ro_ops;

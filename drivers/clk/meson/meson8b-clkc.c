@@ -41,6 +41,8 @@
 #define MESON8B_REG_PLL_SYS		0x0300
 #define MESON8B_REG_PLL_VID		0x0320
 
+static DEFINE_SPINLOCK(clk_lock);
+
 static const struct pll_rate_table sys_pll_rate_table[] = {
 	PLL_RATE(312000000, 52, 1, 2),
 	PLL_RATE(336000000, 56, 1, 2),
@@ -109,18 +111,6 @@ static const struct clk_div_table cpu_div_table[] = {
 	{ .val = 7, .div = 14 },
 	{ .val = 8, .div = 16 },
 	{ /* sentinel */ },
-};
-
-PNAME(p_clk81)		= { "fclk_div3", "fclk_div4", "fclk_div5" };
-
-static u32 mux_table_clk81[]	= { 6, 5, 7 };
-
-static const struct composite_conf clk81_conf __initconst = {
-	.mux_table		= mux_table_clk81,
-	.mux_flags		= CLK_MUX_READ_ONLY,
-	.mux_parm		= PARM(0x00, 12, 3),
-	.div_parm		= PARM(0x00, 0, 7),
-	.gate_parm		= PARM(0x00, 7, 1),
 };
 
 static struct clk_fixed_rate meson8b_xtal = {
@@ -267,6 +257,11 @@ static struct clk_fixed_factor meson8b_fclk_div7 = {
 	},
 };
 
+/*
+ * FIXME cpu clocks and the legacy composite clocks (e.g. clk81) are both PLL
+ * post-dividers and should be modeled with their respective PLLs via the
+ * forthcoming coordinated clock rates feature
+ */
 static struct meson_clk_cpu meson8b_cpu_clk = {
 	.reg_off = MESON8B_REG_SYS_CPU_CNTL1,
 	.div_table = cpu_div_table,
@@ -279,18 +274,57 @@ static struct meson_clk_cpu meson8b_cpu_clk = {
 	},
 };
 
-static const struct clk_conf meson8b_clk_confs[] __initconst = {
-	COMPOSITE(MESON8B_REG_HHI_MPEG, CLKID_CLK81, "clk81", p_clk81,
-		  CLK_SET_RATE_NO_REPARENT | CLK_IGNORE_UNUSED, &clk81_conf),
+static u32 mux_table_clk81[]	= { 6, 5, 7 };
+
+struct clk_mux meson8b_mpeg_clk_sel = {
+	.reg = (void *)MESON8B_REG_HHI_MPEG,
+	.mask = 0x7,
+	.shift = 12,
+	.flags = CLK_MUX_READ_ONLY,
+	.table = mux_table_clk81,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "mpeg_clk_sel",
+		.ops = &clk_mux_ro_ops,
+		/*
+		 * FIXME bits 14:12 selects from 8 possible parents:
+		 * xtal, 1'b0 (wtf), fclk_div7, mpll_clkout1, mpll_clkout2,
+		 * fclk_div4, fclk_div3, fclk_div5
+		 */
+		.parent_names = (const char *[]){ "fclk_div3", "fclk_div4",
+			"fclk_div5" },
+		.num_parents = 3,
+		.flags = (CLK_SET_RATE_NO_REPARENT | CLK_IGNORE_UNUSED),
+	},
 };
 
-/*
- * FIXME we cannot register two providers w/o breaking things. Luckily only
- * clk81 is actually used by any drivers. Convert clk81 to use
- * clk_hw_onecell_data last and flip the switch to call of_clk_add_hw_provider
- * instead of of_clk_add_provider in the clk81 conversion patch to keep from
- * breaking bisect. Then delete this comment ;-)
- */
+struct clk_divider meson8b_mpeg_clk_div = {
+	.reg = (void *)MESON8B_REG_HHI_MPEG,
+	.shift = 0,
+	.width = 7,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "mpeg_clk_div",
+		.ops = &clk_divider_ops,
+		.parent_names = (const char *[]){ "mpeg_clk_sel" },
+		.num_parents = 1,
+		.flags = (CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED),
+	},
+};
+
+struct clk_gate meson8b_clk81 = {
+	.reg = (void *)MESON8B_REG_HHI_MPEG,
+	.bit_idx = 7,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "clk81",
+		.ops = &clk_gate_ops,
+		.parent_names = (const char *[]){ "mpeg_clk_div" },
+		.num_parents = 1,
+		.flags = (CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED),
+	},
+};
+
 static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 	.hws = {
 		[CLKID_XTAL] = &meson8b_xtal.hw,
@@ -303,6 +337,9 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_FCLK_DIV5] = &meson8b_fclk_div5.hw,
 		[CLKID_FCLK_DIV7] = &meson8b_fclk_div7.hw,
 		[CLKID_CPUCLK] = &meson8b_cpu_clk.hw,
+		[CLKID_MPEG_SEL] = &meson8b_mpeg_clk_sel.hw,
+		[CLKID_MPEG_DIV] = &meson8b_mpeg_clk_div.hw,
+		[CLKID_CLK81] = &meson8b_clk81.hw,
 	},
 	.num = CLK_NR_CLKS,
 };
@@ -320,9 +357,6 @@ static void __init meson8b_clkc_init(struct device_node *np)
 	struct clk_hw *parent_hw;
 	struct clk *parent_clk;
 
-	if (!meson_clk_init(np, CLK_NR_CLKS))
-		return;
-
 	/*  Generic clocks and PLLs */
 	clk_base = of_iomap(np, 1);
 	if (!clk_base) {
@@ -336,6 +370,11 @@ static void __init meson8b_clkc_init(struct device_node *np)
 
 	/* Populate the base address for CPU clk */
 	meson8b_cpu_clk.base = clk_base;
+
+	/* Populate the base address for the MPEG clks */
+	meson8b_mpeg_clk_sel.reg = clk_base + (u32)meson8b_mpeg_clk_sel.reg;
+	meson8b_mpeg_clk_div.reg = clk_base + (u32)meson8b_mpeg_clk_div.reg;
+	meson8b_clk81.reg = clk_base + (u32)meson8b_clk81.reg;
 
 	/*
 	 * register all clks
@@ -375,9 +414,7 @@ static void __init meson8b_clkc_init(struct device_node *np)
 		goto unregister_clk_nb;
 	}
 
-	meson_clk_register_clks(meson8b_clk_confs,
-				ARRAY_SIZE(meson8b_clk_confs),
-				clk_base);
+	of_clk_add_hw_provider(np, of_clk_hw_onecell_get, &meson8b_hw_onecell_data);
 	return;
 
 /* FIXME remove after converting to platform_driver/devm_clk_register */
