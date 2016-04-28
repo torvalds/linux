@@ -276,7 +276,9 @@ void lustre_assert_wire_constants(void)
 		 (long long)FLD_QUERY);
 	LASSERTF(FLD_FIRST_OPC == 900, "found %lld\n",
 		 (long long)FLD_FIRST_OPC);
-	LASSERTF(FLD_LAST_OPC == 901, "found %lld\n",
+	LASSERTF(FLD_READ == 901, "found %lld\n",
+		 (long long)FLD_READ);
+	LASSERTF(FLD_LAST_OPC == 902, "found %lld\n",
 		 (long long)FLD_LAST_OPC);
 	LASSERTF(SEQ_QUERY == 700, "found %lld\n",
 		 (long long)SEQ_QUERY);
