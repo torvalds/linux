@@ -32,7 +32,7 @@ struct sync_file_cb {
  * @kref:		reference count on fence.
  * @name:		name of sync_file.  Useful for debugging
  * @sync_file_list:	membership in global file list
- * @num_fences		number of sync_pts in the fence
+ * @num_fences:		number of sync_pts in the fence
  * @wq:			wait queue for fence signaling
  * @status:		0: signaled, >0:active, <0: error
  * @cbs:		sync_pts callback information

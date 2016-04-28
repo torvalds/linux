@@ -65,11 +65,12 @@ static void fence_check_cb_func(struct fence *f, struct fence_cb *cb)
 }
 
 /**
- * sync_fence_create() - creates a sync fence
+ * sync_file_create() - creates a sync file
  * @fence:	fence to add to the sync_fence
  *
  * Creates a sync_file containg @fence. Once this is called, the sync_file
- * takes ownership of @fence.
+ * takes ownership of @fence. The sync_file can be released with
+ * fput(sync_file->file). Returns the sync_file or NULL in case of error.
  */
 struct sync_file *sync_file_create(struct fence *fence)
 {
