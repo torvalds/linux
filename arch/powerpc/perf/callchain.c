@@ -47,7 +47,7 @@ static int valid_next_sp(unsigned long sp, unsigned long prev_sp)
 }
 
 void
-perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	unsigned long sp, next_sp;
 	unsigned long next_ip;
@@ -232,7 +232,7 @@ static int sane_signal_64_frame(unsigned long sp)
 		puc == (unsigned long) &sf->uc;
 }
 
-static void perf_callchain_user_64(struct perf_callchain_entry *entry,
+static void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,
 				   struct pt_regs *regs)
 {
 	unsigned long sp, next_sp;
@@ -247,7 +247,7 @@ static void perf_callchain_user_64(struct perf_callchain_entry *entry,
 	sp = regs->gpr[1];
 	perf_callchain_store(entry, next_ip);
 
-	while (entry->nr < sysctl_perf_event_max_stack) {
+	while (entry->entry->nr < entry->max_stack) {
 		fp = (unsigned long __user *) sp;
 		if (!valid_user_sp(sp, 1) || read_user_stack_64(fp, &next_sp))
 			return;
@@ -319,7 +319,7 @@ static int read_user_stack_32(unsigned int __user *ptr, unsigned int *ret)
 	return rc;
 }
 
-static inline void perf_callchain_user_64(struct perf_callchain_entry *entry,
+static inline void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,
 					  struct pt_regs *regs)
 {
 }
@@ -439,7 +439,7 @@ static unsigned int __user *signal_frame_32_regs(unsigned int sp,
 	return mctx->mc_gregs;
 }
 
-static void perf_callchain_user_32(struct perf_callchain_entry *entry,
+static void perf_callchain_user_32(struct perf_callchain_entry_ctx *entry,
 				   struct pt_regs *regs)
 {
 	unsigned int sp, next_sp;
@@ -453,7 +453,7 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 	sp = regs->gpr[1];
 	perf_callchain_store(entry, next_ip);
 
-	while (entry->nr < sysctl_perf_event_max_stack) {
+	while (entry->entry->nr < entry->max_stack) {
 		fp = (unsigned int __user *) (unsigned long) sp;
 		if (!valid_user_sp(sp, 0) || read_user_stack_32(fp, &next_sp))
 			return;
@@ -487,7 +487,7 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 }
 
 void
-perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	if (current_is_64bit())
 		perf_callchain_user_64(entry, regs);
