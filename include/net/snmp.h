@@ -166,9 +166,9 @@ struct linux_xfrm_mib {
 
 #define SNMP_ADD_STATS64(mib, field, addend) 				\
 	do {								\
-		preempt_disable();					\
+		local_bh_disable();					\
 		__SNMP_ADD_STATS64(mib, field, addend);			\
-		preempt_enable();					\
+		local_bh_enable();				\
 	} while (0)
 
 #define __SNMP_INC_STATS64(mib, field) SNMP_ADD_STATS64(mib, field, 1)
@@ -184,9 +184,9 @@ struct linux_xfrm_mib {
 	} while (0)
 #define SNMP_UPD_PO_STATS64(mib, basefield, addend)			\
 	do {								\
-		preempt_disable();					\
+		local_bh_disable();					\
 		__SNMP_UPD_PO_STATS64(mib, basefield, addend);		\
-		preempt_enable();					\
+		local_bh_enable();				\
 	} while (0)
 #else
 #define __SNMP_INC_STATS64(mib, field)		__SNMP_INC_STATS(mib, field)
