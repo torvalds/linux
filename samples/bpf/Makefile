@@ -85,6 +85,24 @@ HOSTLOADLIBES_test_overhead += -lelf -lrt
 #  make samples/bpf/ LLC=~/git/llvm/build/bin/llc
 LLC ?= llc
 
+# Verify LLVM compiler is available and bpf target is supported
+.PHONY: verify_cmd_llc verify_target_bpf
+
+verify_cmd_llc:
+	@if ! (which "${LLC}" > /dev/null 2>&1); then \
+		echo "*** ERROR: Cannot find LLVM tool 'llc' (${LLC})" ;\
+		exit 1; \
+	else true; fi
+
+verify_target_bpf: verify_cmd_llc
+	@if ! (${LLC} -march=bpf -mattr=help > /dev/null 2>&1); then \
+		echo "*** ERROR: LLVM (${LLC}) does not support 'bpf' target" ;\
+		echo "   NOTICE: LLVM version >= 3.7.1 required" ;\
+		exit 2; \
+	else true; fi
+
+$(src)/*.c: verify_target_bpf
+
 # asm/sysreg.h - inline assembly used by it is incompatible with llvm.
 # But, there is no easy way to fix it, so just exclude it since it is
 # useless for BPF samples.
