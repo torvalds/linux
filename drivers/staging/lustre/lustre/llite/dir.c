@@ -163,6 +163,11 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 
 	LASSERT(max_pages > 0 && max_pages <= MD_MAX_BRW_PAGES);
 
+	op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
+				     LUSTRE_OPC_ANY, NULL);
+	if (IS_ERR(op_data))
+		return PTR_ERR(op_data);
+
 	page_pool = kcalloc(max_pages, sizeof(page), GFP_NOFS);
 	if (page_pool) {
 		page_pool[0] = page0;
@@ -177,8 +182,6 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 		page_pool[npages] = page;
 	}
 
-	op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
-				     LUSTRE_OPC_ANY, NULL);
 	op_data->op_npages = npages;
 	op_data->op_offset = hash;
 	rc = md_readpage(exp, op_data, page_pool, &request);
