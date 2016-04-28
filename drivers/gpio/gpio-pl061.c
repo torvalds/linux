@@ -67,9 +67,6 @@ static int pl061_direction_input(struct gpio_chip *gc, unsigned offset)
 	unsigned long flags;
 	unsigned char gpiodir;
 
-	if (offset >= gc->ngpio)
-		return -EINVAL;
-
 	spin_lock_irqsave(&chip->lock, flags);
 	gpiodir = readb(chip->base + GPIODIR);
 	gpiodir &= ~(BIT(offset));
@@ -85,9 +82,6 @@ static int pl061_direction_output(struct gpio_chip *gc, unsigned offset,
 	struct pl061_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 	unsigned char gpiodir;
-
-	if (offset >= gc->ngpio)
-		return -EINVAL;
 
 	spin_lock_irqsave(&chip->lock, flags);
 	writeb(!!value << offset, chip->base + (BIT(offset + 2)));
