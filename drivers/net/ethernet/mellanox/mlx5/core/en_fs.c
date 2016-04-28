@@ -247,7 +247,7 @@ static int __mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
 				   outer_headers.dmac_47_16);
 	u8 *mv_dmac = MLX5_ADDR_OF(fte_match_param, mv,
 				   outer_headers.dmac_47_16);
-	u32 *tirn = priv->tirn;
+	u32 *tirn = priv->indir_tirn;
 	u32 tt_vec;
 	int err = 0;
 
@@ -274,7 +274,7 @@ static int __mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
 
 	if (tt_vec & BIT(MLX5E_TT_ANY)) {
 		rule_p = &ai->ft_rule[MLX5E_TT_ANY];
-		dest.tir_num = tirn[MLX5E_TT_ANY];
+		dest.tir_num = priv->direct_tir[0].tirn;
 		*rule_p = mlx5_add_flow_rule(ft, match_criteria_enable, mc, mv,
 					     MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 					     MLX5_FS_DEFAULT_FLOW_TAG, &dest);

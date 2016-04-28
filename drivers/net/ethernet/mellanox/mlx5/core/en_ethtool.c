@@ -826,9 +826,8 @@ static void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in, int inlen)
 	MLX5_SET(modify_tir_in, in, bitmask.hash, 1);
 	mlx5e_build_tir_ctx_hash(tirc, priv);
 
-	for (i = 0; i < MLX5E_NUM_TT; i++)
-		if (IS_HASHING_TT(i))
-			mlx5_core_modify_tir(mdev, priv->tirn[i], in, inlen);
+	for (i = 0; i < MLX5E_NUM_INDIR_TIRS; i++)
+		mlx5_core_modify_tir(mdev, priv->indir_tirn[i], in, inlen);
 }
 
 static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
@@ -850,9 +849,11 @@ static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	mutex_lock(&priv->state_lock);
 
 	if (indir) {
+		u32 rqtn = priv->indir_rqtn;
+
 		memcpy(priv->params.indirection_rqt, indir,
 		       sizeof(priv->params.indirection_rqt));
-		mlx5e_redirect_rqt(priv, MLX5E_INDIRECTION_RQT);
+		mlx5e_redirect_rqt(priv, rqtn, MLX5E_INDIR_RQT_SIZE, 0);
 	}
 
 	if (key)
