@@ -93,6 +93,13 @@
  *
  */
 
+static inline struct i915_ggtt *
+i915_vm_to_ggtt(struct i915_address_space *vm)
+{
+	GEM_BUG_ON(!i915_is_ggtt(vm));
+	return container_of(vm, struct i915_ggtt, base);
+}
+
 static int
 i915_get_ggtt_vma_pages(struct i915_vma *vma);
 
@@ -2365,7 +2372,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 				     enum i915_cache_level level, u32 unused)
 {
 	struct drm_i915_private *dev_priv = to_i915(vm->dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	unsigned first_entry = start >> PAGE_SHIFT;
 	gen8_pte_t __iomem *gtt_entries =
 		(gen8_pte_t __iomem *)ggtt->gsm + first_entry;
@@ -2443,7 +2450,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 				     enum i915_cache_level level, u32 flags)
 {
 	struct drm_i915_private *dev_priv = to_i915(vm->dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	unsigned first_entry = start >> PAGE_SHIFT;
 	gen6_pte_t __iomem *gtt_entries =
 		(gen6_pte_t __iomem *)ggtt->gsm + first_entry;
@@ -2487,7 +2494,7 @@ static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 				  bool use_scratch)
 {
 	struct drm_i915_private *dev_priv = to_i915(vm->dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	unsigned first_entry = start >> PAGE_SHIFT;
 	unsigned num_entries = length >> PAGE_SHIFT;
 	gen8_pte_t scratch_pte, __iomem *gtt_base =
@@ -2519,7 +2526,7 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 				  bool use_scratch)
 {
 	struct drm_i915_private *dev_priv = to_i915(vm->dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	unsigned first_entry = start >> PAGE_SHIFT;
 	unsigned num_entries = length >> PAGE_SHIFT;
 	gen6_pte_t scratch_pte, __iomem *gtt_base =
