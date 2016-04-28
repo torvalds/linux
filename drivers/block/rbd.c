@@ -4896,8 +4896,8 @@ static int rbd_add_get_pool_id(struct rbd_client *rbdc, const char *pool_name)
 again:
 	ret = ceph_pg_poolid_by_name(rbdc->client->osdc.osdmap, pool_name);
 	if (ret == -ENOENT && tries++ < 1) {
-		ret = ceph_monc_do_get_version(&rbdc->client->monc, "osdmap",
-					       &newest_epoch);
+		ret = ceph_monc_get_version(&rbdc->client->monc, "osdmap",
+					    &newest_epoch);
 		if (ret < 0)
 			return ret;
 

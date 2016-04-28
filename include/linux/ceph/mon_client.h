@@ -39,20 +39,31 @@ struct ceph_mon_request {
 	ceph_monc_request_func_t do_request;
 };
 
+typedef void (*ceph_monc_callback_t)(struct ceph_mon_generic_request *);
+
 /*
  * ceph_mon_generic_request is being used for the statfs and
  * mon_get_version requests which are being done a bit differently
  * because we need to get data back to the caller
  */
 struct ceph_mon_generic_request {
+	struct ceph_mon_client *monc;
 	struct kref kref;
 	u64 tid;
 	struct rb_node node;
 	int result;
-	void *buf;
+
 	struct completion completion;
+	ceph_monc_callback_t complete_cb;
+	u64 private_data;          /* r_tid/linger_id */
+
 	struct ceph_msg *request;  /* original request */
 	struct ceph_msg *reply;    /* and reply */
+
+	union {
+		struct ceph_statfs *st;
+		u64 newest;
+	} u;
 };
 
 struct ceph_mon_client {
@@ -124,8 +135,10 @@ extern int ceph_monc_wait_osdmap(struct ceph_mon_client *monc, u32 epoch,
 extern int ceph_monc_do_statfs(struct ceph_mon_client *monc,
 			       struct ceph_statfs *buf);
 
-extern int ceph_monc_do_get_version(struct ceph_mon_client *monc,
-				    const char *what, u64 *newest);
+int ceph_monc_get_version(struct ceph_mon_client *monc, const char *what,
+			  u64 *newest);
+int ceph_monc_get_version_async(struct ceph_mon_client *monc, const char *what,
+				ceph_monc_callback_t cb, u64 private_data);
 
 extern int ceph_monc_open_session(struct ceph_mon_client *monc);
 
