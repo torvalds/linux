@@ -82,12 +82,14 @@ struct mlx5_flow_table *
 mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 				    int prio,
 				    int num_flow_table_entries,
-				    int max_num_groups);
+				    int max_num_groups,
+				    u32 level);
 
 struct mlx5_flow_table *
 mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 		       int prio,
-		       int num_flow_table_entries);
+		       int num_flow_table_entries,
+		       u32 level);
 int mlx5_destroy_flow_table(struct mlx5_flow_table *ft);
 
 /* inbox should be set with the following values:

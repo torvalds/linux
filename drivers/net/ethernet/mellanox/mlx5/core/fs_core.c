@@ -225,19 +225,6 @@ static struct fs_prio *find_prio(struct mlx5_flow_namespace *ns,
 	return NULL;
 }
 
-static unsigned int find_next_free_level(struct fs_prio *prio)
-{
-	if (!list_empty(&prio->node.children)) {
-		struct mlx5_flow_table *ft;
-
-		ft = list_last_entry(&prio->node.children,
-				     struct mlx5_flow_table,
-				     node.list);
-		return ft->level + 1;
-	}
-	return prio->start_level;
-}
-
 static bool masked_memcmp(void *mask, void *val1, void *val2, size_t size)
 {
 	unsigned int i;
@@ -696,9 +683,23 @@ static int connect_flow_table(struct mlx5_core_dev *dev, struct mlx5_flow_table 
 	return err;
 }
 
+static void list_add_flow_table(struct mlx5_flow_table *ft,
+				struct fs_prio *prio)
+{
+	struct list_head *prev = &prio->node.children;
+	struct mlx5_flow_table *iter;
+
+	fs_for_each_ft(iter, prio) {
+		if (iter->level > ft->level)
+			break;
+		prev = &iter->node.list;
+	}
+	list_add(&ft->node.list, prev);
+}
+
 struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
-					       int prio,
-					       int max_fte)
+					       int prio, int max_fte,
+					       u32 level)
 {
 	struct mlx5_flow_table *next_ft = NULL;
 	struct mlx5_flow_table *ft;
@@ -719,12 +720,15 @@ struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 		err = -EINVAL;
 		goto unlock_root;
 	}
-	if (fs_prio->num_ft == fs_prio->num_levels) {
+	if (level >= fs_prio->num_levels) {
 		err = -ENOSPC;
 		goto unlock_root;
 	}
-
-	ft = alloc_flow_table(find_next_free_level(fs_prio),
+	/* The level is related to the
+	 * priority level range.
+	 */
+	level += fs_prio->start_level;
+	ft = alloc_flow_table(level,
 			      roundup_pow_of_two(max_fte),
 			      root->table_type);
 	if (!ft) {
@@ -745,7 +749,7 @@ struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 		goto destroy_ft;
 	lock_ref_node(&fs_prio->node);
 	tree_add_node(&ft->node, &fs_prio->node);
-	list_add_tail(&ft->node.list, &fs_prio->node.children);
+	list_add_flow_table(ft, fs_prio);
 	fs_prio->num_ft++;
 	unlock_ref_node(&fs_prio->node);
 	mutex_unlock(&root->chain_lock);
@@ -762,14 +766,15 @@ unlock_root:
 struct mlx5_flow_table *mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 							    int prio,
 							    int num_flow_table_entries,
-							    int max_num_groups)
+							    int max_num_groups,
+							    u32 level)
 {
 	struct mlx5_flow_table *ft;
 
 	if (max_num_groups > num_flow_table_entries)
 		return ERR_PTR(-EINVAL);
 
-	ft = mlx5_create_flow_table(ns, prio, num_flow_table_entries);
+	ft = mlx5_create_flow_table(ns, prio, num_flow_table_entries, level);
 	if (IS_ERR(ft))
 		return ft;
 
@@ -1068,6 +1073,20 @@ unlock_fg:
 	return rule;
 }
 
+static bool dest_is_valid(struct mlx5_flow_destination *dest,
+			  u32 action,
+			  struct mlx5_flow_table *ft)
+{
+	if (!(action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
+		return true;
+
+	if (!dest || ((dest->type ==
+	    MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE) &&
+	    (dest->ft->level <= ft->level)))
+		return false;
+	return true;
+}
+
 static struct mlx5_flow_rule *
 _mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		    u8 match_criteria_enable,
@@ -1080,7 +1099,7 @@ _mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 	struct mlx5_flow_group *g;
 	struct mlx5_flow_rule *rule;
 
-	if ((action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) && !dest)
+	if (!dest_is_valid(dest, action, ft))
 		return ERR_PTR(-EINVAL);
 
 	nested_lock_ref_node(&ft->node, FS_MUTEX_GRANDPARENT);
@@ -1517,6 +1536,7 @@ static void set_prio_attrs(struct mlx5_flow_root_namespace *root_ns)
 
 #define ANCHOR_PRIO 0
 #define ANCHOR_SIZE 1
+#define ANCHOR_LEVEL 0
 static int create_anchor_flow_table(struct mlx5_core_dev
 							*dev)
 {
@@ -1526,7 +1546,7 @@ static int create_anchor_flow_table(struct mlx5_core_dev
 	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ANCHOR);
 	if (!ns)
 		return -EINVAL;
-	ft = mlx5_create_flow_table(ns, ANCHOR_PRIO, ANCHOR_SIZE);
+	ft = mlx5_create_flow_table(ns, ANCHOR_PRIO, ANCHOR_SIZE, ANCHOR_LEVEL);
 	if (IS_ERR(ft)) {
 		mlx5_core_err(dev, "Failed to create last anchor flow table");
 		return PTR_ERR(ft);

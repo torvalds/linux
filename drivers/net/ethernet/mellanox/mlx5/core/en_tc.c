@@ -64,7 +64,8 @@ static struct mlx5_flow_rule *mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 		priv->fts.tc.t =
 			mlx5_create_auto_grouped_flow_table(priv->fts.ns, 0,
 							    MLX5E_TC_FLOW_TABLE_NUM_ENTRIES,
-							    MLX5E_TC_FLOW_TABLE_NUM_GROUPS);
+							    MLX5E_TC_FLOW_TABLE_NUM_GROUPS,
+							    0);
 		if (IS_ERR(priv->fts.tc.t)) {
 			netdev_err(priv->netdev,
 				   "Failed to create tc offload table\n");
