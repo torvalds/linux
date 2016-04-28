@@ -1108,7 +1108,7 @@ static void rtl8723bu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 	s32 reg_tmp = 0;
 	bool simu;
 
-	rtl8xxxu_prepare_calibrate(priv, 1);
+	rtl8xxxu_gen2_prepare_calibrate(priv, 1);
 
 	memset(result, 0, sizeof(result));
 	candidate = -1;
@@ -1217,7 +1217,7 @@ static void rtl8723bu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 	if (priv->rf_paths > 1)
 		dev_dbg(dev, "%s: 8723BU 2T not supported\n", __func__);
 
-	rtl8xxxu_prepare_calibrate(priv, 0);
+	rtl8xxxu_gen2_prepare_calibrate(priv, 0);
 }
 
 static int rtl8723bu_active_to_emu(struct rtl8xxxu_priv *priv)

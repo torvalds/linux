@@ -1388,7 +1388,7 @@ void rtl8xxxu_firmware_self_reset(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_reset_8051(struct rtl8xxxu_priv *priv);
 int rtl8xxxu_auto_llt_table(struct rtl8xxxu_priv *priv, u8 last_tx_page);
-void rtl8xxxu_prepare_calibrate(struct rtl8xxxu_priv *priv, u8 start);
+void rtl8xxxu_gen2_prepare_calibrate(struct rtl8xxxu_priv *priv, u8 start);
 int rtl8xxxu_flush_fifo(struct rtl8xxxu_priv *priv);
 int rtl8xxxu_gen2_h2c_cmd(struct rtl8xxxu_priv *priv,
 			  struct h2c_cmd *h2c, int len);
