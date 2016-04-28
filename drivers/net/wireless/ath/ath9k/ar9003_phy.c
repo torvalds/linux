@@ -1844,13 +1844,9 @@ static void ar9003_hw_tx99_set_txpower(struct ath_hw *ah, u8 txpower)
 	static u8 p_pwr_array[ar9300RateSize] = { 0 };
 	unsigned int i;
 
-	if (txpower <= MAX_RATE_POWER) {
-		for (i = 0; i < ar9300RateSize; i++)
-			p_pwr_array[i] = txpower;
-	} else {
-		for (i = 0; i < ar9300RateSize; i++)
-			p_pwr_array[i] = MAX_RATE_POWER;
-	}
+	txpower = txpower <= MAX_RATE_POWER ? txpower : MAX_RATE_POWER;
+	for (i = 0; i < ar9300RateSize; i++)
+		p_pwr_array[i] = txpower;
 
 	ar9003_hw_tx_power_regwrite(ah, p_pwr_array);
 }
