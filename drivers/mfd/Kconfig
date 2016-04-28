@@ -527,6 +527,21 @@ config MFD_MAX14577
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_MAX77620
+	bool "Maxim Semiconductor MAX77620 and MAX20024 PMIC Support"
+	depends on I2C=y
+	depends on OF
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select IRQ_DOMAIN
+	help
+	  Say yes here to add support for Maxim Semiconductor MAX77620 and
+	  MAX20024 which are Power Management IC with General purpose pins,
+	  RTC, regulators, clock generator, watchdog etc. This driver
+	  provides common support for accessing the device; additional drivers
+	  must be enabled in order to use the functionality of the device.
+
 config MFD_MAX77686
 	tristate "Maxim Semiconductor MAX77686/802 PMIC Support"
 	depends on I2C
