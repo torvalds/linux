@@ -1324,8 +1324,8 @@ static int __calc_request_pg(struct ceph_osdmap *osdmap,
 		/* !pi is caught in ceph_oloc_oid_to_pg() */
 	}
 
-	return ceph_oloc_oid_to_pg(osdmap, &req->r_target_oloc,
-				   &req->r_target_oid, pg_out);
+	return ceph_object_locator_to_pg(osdmap, &req->r_target_oid,
+					 &req->r_target_oloc, pg_out);
 }
 
 static void __enqueue_request(struct ceph_osd_request *req)

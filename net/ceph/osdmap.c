@@ -1545,30 +1545,31 @@ invalid:
 EXPORT_SYMBOL(ceph_calc_file_object_mapping);
 
 /*
- * Calculate mapping of a (oloc, oid) pair to a PG.  Should only be
- * called with target's (oloc, oid), since tiering isn't taken into
- * account.
+ * Map an object into a PG.
+ *
+ * Should only be called with target_oid and target_oloc (as opposed to
+ * base_oid and base_oloc), since tiering isn't taken into account.
  */
-int ceph_oloc_oid_to_pg(struct ceph_osdmap *osdmap,
-			struct ceph_object_locator *oloc,
-			struct ceph_object_id *oid,
-			struct ceph_pg *pg_out)
+int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
+			      struct ceph_object_id *oid,
+			      struct ceph_object_locator *oloc,
+			      struct ceph_pg *raw_pgid)
 {
 	struct ceph_pg_pool_info *pi;
 
-	pi = __lookup_pg_pool(&osdmap->pg_pools, oloc->pool);
+	pi = ceph_pg_pool_by_id(osdmap, oloc->pool);
 	if (!pi)
-		return -EIO;
+		return -ENOENT;
 
-	pg_out->pool = oloc->pool;
-	pg_out->seed = ceph_str_hash(pi->object_hash, oid->name,
-				     oid->name_len);
+	raw_pgid->pool = oloc->pool;
+	raw_pgid->seed = ceph_str_hash(pi->object_hash, oid->name,
+				       oid->name_len);
 
-	dout("%s %*pE pgid %llu.%x\n", __func__, oid->name_len, oid->name,
-	     pg_out->pool, pg_out->seed);
+	dout("%s %*pE -> raw_pgid %llu.%x\n", __func__, oid->name_len,
+	     oid->name, raw_pgid->pool, raw_pgid->seed);
 	return 0;
 }
-EXPORT_SYMBOL(ceph_oloc_oid_to_pg);
+EXPORT_SYMBOL(ceph_object_locator_to_pg);
 
 static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 		    int *result, int result_max,
