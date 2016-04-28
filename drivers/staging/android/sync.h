@@ -168,7 +168,6 @@ void sync_timeline_signal(struct sync_timeline *obj);
 struct fence *sync_pt_create(struct sync_timeline *parent, int size);
 
 struct sync_file *sync_file_create(const char *name, struct fence *fence);
-struct sync_file *sync_file_fdget(int fd);
 
 #ifdef CONFIG_DEBUG_FS
 

@@ -212,7 +212,7 @@ EXPORT_SYMBOL(sync_file_create);
  * Ensures @fd references a valid sync_file, increments the refcount of the
  * backing file. Returns the sync_file or NULL in case of error.
  */
-struct sync_file *sync_file_fdget(int fd)
+static struct sync_file *sync_file_fdget(int fd)
 {
 	struct file *file = fget(fd);
 
@@ -228,7 +228,6 @@ err:
 	fput(file);
 	return NULL;
 }
-EXPORT_SYMBOL(sync_file_fdget);
 
 static void sync_file_add_pt(struct sync_file *sync_file, int *i,
 			     struct fence *fence)
