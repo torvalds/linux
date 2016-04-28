@@ -2340,7 +2340,7 @@ int intel_engine_idle(struct intel_engine_cs *engine)
 int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 {
 	request->ringbuf = request->engine->buffer;
-	return 0;
+	return intel_ring_begin(request, 0);
 }
 
 static int wait_for_space(struct drm_i915_gem_request *req, int bytes)

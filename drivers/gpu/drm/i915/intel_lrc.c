@@ -698,7 +698,7 @@ static int execlists_move_to_gpu(struct drm_i915_gem_request *req,
 
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 {
-	int ret = 0;
+	int ret;
 
 	request->ringbuf = request->ctx->engine[request->engine->id].ringbuf;
 
@@ -715,9 +715,21 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 			return ret;
 	}
 
-	if (request->ctx != request->i915->kernel_context)
+	if (request->ctx != request->i915->kernel_context) {
 		ret = intel_lr_context_pin(request->ctx, request->engine);
+		if (ret)
+			return ret;
+	}
 
+	ret = intel_ring_begin(request, 0);
+	if (ret)
+		goto err_unpin;
+
+	return 0;
+
+err_unpin:
+	if (request->ctx != request->i915->kernel_context)
+		intel_lr_context_unpin(request->ctx, request->engine);
 	return ret;
 }
 

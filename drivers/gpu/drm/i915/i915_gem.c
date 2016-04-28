@@ -2769,15 +2769,6 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->ctx  = ctx;
 	i915_gem_context_reference(req->ctx);
 
-	if (i915.enable_execlists)
-		ret = intel_logical_ring_alloc_request_extras(req);
-	else
-		ret = intel_ring_alloc_request_extras(req);
-	if (ret) {
-		i915_gem_context_unreference(req->ctx);
-		goto err;
-	}
-
 	/*
 	 * Reserve space in the ring buffer for all the commands required to
 	 * eventually emit this request. This is to guarantee that the
@@ -2786,20 +2777,19 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 * away, e.g. because a GPU scheduler has deferred it.
 	 */
 	req->reserved_space = MIN_SPACE_FOR_ADD_REQUEST;
-	ret = intel_ring_begin(req, 0);
-	if (ret) {
-		/*
-		 * At this point, the request is fully allocated even if not
-		 * fully prepared. Thus it can be cleaned up using the proper
-		 * free code, along with any reserved space.
-		 */
-		i915_gem_request_unreference(req);
-		return ret;
-	}
+
+	if (i915.enable_execlists)
+		ret = intel_logical_ring_alloc_request_extras(req);
+	else
+		ret = intel_ring_alloc_request_extras(req);
+	if (ret)
+		goto err_ctx;
 
 	*req_out = req;
 	return 0;
 
+err_ctx:
+	i915_gem_context_unreference(ctx);
 err:
 	kmem_cache_free(dev_priv->requests, req);
 	return ret;
