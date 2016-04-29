@@ -191,7 +191,7 @@ static void handle_relocations(void *output, unsigned long output_len)
 	int *reloc;
 	unsigned long delta, map, ptr;
 	unsigned long min_addr = (unsigned long)output;
-	unsigned long max_addr = min_addr + output_len;
+	unsigned long max_addr = min_addr + (VO___bss_start - VO__text);
 
 	/*
 	 * Calculate the delta between where vmlinux was linked to load
