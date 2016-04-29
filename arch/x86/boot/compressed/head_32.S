@@ -238,7 +238,6 @@ relocated:
  * Do the extraction, and jump to the new kernel..
  */
 				/* push arguments for extract_kernel: */
-	pushl	$z_run_size	/* size of kernel with .bss and .brk */
 	pushl	$z_output_len	/* decompressed length, end of relocs */
 
 	movl    BP_init_size(%esi), %eax
@@ -254,7 +253,7 @@ relocated:
 	pushl	%eax		/* heap area */
 	pushl	%esi		/* real mode pointer */
 	call	extract_kernel	/* returns kernel location in %eax */
-	addl	$28, %esp
+	addl	$24, %esp
 
 /*
  * Jump to the extracted kernel.

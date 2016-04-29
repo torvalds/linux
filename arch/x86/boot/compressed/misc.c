@@ -340,9 +340,9 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 				  unsigned char *input_data,
 				  unsigned long input_len,
 				  unsigned char *output,
-				  unsigned long output_len,
-				  unsigned long run_size)
+				  unsigned long output_len)
 {
+	const unsigned long kernel_total_size = VO__end - VO__text;
 	unsigned char *output_orig = output;
 
 	/* Retain x86 boot parameters pointer passed from startup_32/64. */
@@ -364,8 +364,6 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 	lines = boot_params->screen_info.orig_video_lines;
 	cols = boot_params->screen_info.orig_video_cols;
 
-	run_size = VO__end - VO__text;
-
 	console_init();
 	debug_putstr("early console in extract_kernel\n");
 
@@ -377,7 +375,7 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 	debug_putaddr(input_len);
 	debug_putaddr(output);
 	debug_putaddr(output_len);
-	debug_putaddr(run_size);
+	debug_putaddr(kernel_total_size);
 
 	/*
 	 * The memory hole needed for the kernel is the larger of either
@@ -385,8 +383,7 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 	 * entire decompressed kernel plus .bss and .brk sections.
 	 */
 	output = choose_random_location(input_data, input_len, output,
-					output_len > run_size ? output_len
-							      : run_size);
+					max(output_len, kernel_total_size));
 
 	/* Validate memory location choices. */
 	if ((unsigned long)output & (MIN_KERNEL_ALIGN - 1))
