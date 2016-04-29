@@ -37,26 +37,7 @@
 	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE, (prot))
 
 #ifdef CONFIG_HUGETLB_PAGE
-/*
- * For 4k page size, we support explicit hugepage via hugepd
- */
-static inline int pmd_huge(pmd_t pmd)
-{
-	return 0;
-}
-
-static inline int pud_huge(pud_t pud)
-{
-	return 0;
-}
-
-static inline int pgd_huge(pgd_t pgd)
-{
-	return 0;
-}
-#define pgd_huge pgd_huge
-
-static inline int hugepd_ok(hugepd_t hpd)
+static inline int hash__hugepd_ok(hugepd_t hpd)
 {
 	/*
 	 * if it is not a pte and have hugepd shift mask
@@ -67,7 +48,6 @@ static inline int hugepd_ok(hugepd_t hpd)
 		return true;
 	return false;
 }
-#define is_hugepd(hpd)		(hugepd_ok(hpd))
 #endif
 
 #endif /* !__ASSEMBLY__ */
