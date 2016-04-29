@@ -32,7 +32,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include <linux/of_device.h>
-#include <linux/omap-dmaengine.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/core.h>
 #include <linux/mmc/mmc.h>
@@ -1993,8 +1992,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq;
 	const struct of_device_id *match;
-	dma_cap_mask_t mask;
-	unsigned tx_req, rx_req;
 	const struct omap_mmc_of_data *data;
 	void __iomem *base;
 
@@ -2124,44 +2121,17 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	omap_hsmmc_conf_bus_power(host);
 
-	if (!pdev->dev.of_node) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
-		if (!res) {
-			dev_err(mmc_dev(host->mmc), "cannot get DMA TX channel\n");
-			ret = -ENXIO;
-			goto err_irq;
-		}
-		tx_req = res->start;
-
-		res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
-		if (!res) {
-			dev_err(mmc_dev(host->mmc), "cannot get DMA RX channel\n");
-			ret = -ENXIO;
-			goto err_irq;
-		}
-		rx_req = res->start;
-	}
-
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-
-	host->rx_chan =
-		dma_request_slave_channel_compat(mask, omap_dma_filter_fn,
-						 &rx_req, &pdev->dev, "rx");
-
-	if (!host->rx_chan) {
-		dev_err(mmc_dev(host->mmc), "unable to obtain RX DMA engine channel\n");
-		ret = -ENXIO;
+	host->rx_chan = dma_request_chan(&pdev->dev, "rx");
+	if (IS_ERR(host->rx_chan)) {
+		dev_err(mmc_dev(host->mmc), "RX DMA channel request failed\n");
+		ret = PTR_ERR(host->rx_chan);
 		goto err_irq;
 	}
 
-	host->tx_chan =
-		dma_request_slave_channel_compat(mask, omap_dma_filter_fn,
-						 &tx_req, &pdev->dev, "tx");
-
-	if (!host->tx_chan) {
-		dev_err(mmc_dev(host->mmc), "unable to obtain TX DMA engine channel\n");
-		ret = -ENXIO;
+	host->tx_chan = dma_request_chan(&pdev->dev, "tx");
+	if (IS_ERR(host->tx_chan)) {
+		dev_err(mmc_dev(host->mmc), "TX DMA channel request failed\n");
+		ret = PTR_ERR(host->tx_chan);
 		goto err_irq;
 	}
 
@@ -2219,9 +2189,9 @@ err_slot_name:
 	mmc_remove_host(mmc);
 err_irq:
 	device_init_wakeup(&pdev->dev, false);
-	if (host->tx_chan)
+	if (!IS_ERR_OR_NULL(host->tx_chan))
 		dma_release_channel(host->tx_chan);
-	if (host->rx_chan)
+	if (!IS_ERR_OR_NULL(host->rx_chan))
 		dma_release_channel(host->rx_chan);
 	pm_runtime_dont_use_autosuspend(host->dev);
 	pm_runtime_put_sync(host->dev);
