@@ -147,15 +147,21 @@ struct uv_scir_s {
  */
 struct uv_hub_info_s {
 	unsigned long		global_mmr_base;
+	unsigned long		global_mmr_shift;
 	unsigned long		gpa_mask;
-	unsigned int		gnode_extra;
+	unsigned short		min_socket;
+	unsigned short		min_pnode;
 	unsigned char		hub_revision;
 	unsigned char		apic_pnode_shift;
+	unsigned char		gpa_shift;
 	unsigned char		m_shift;
 	unsigned char		n_lshift;
+	unsigned int		gnode_extra;
 	unsigned long		gnode_upper;
 	unsigned long		lowmem_remap_top;
 	unsigned long		lowmem_remap_base;
+	unsigned long		global_gru_base;
+	unsigned long		global_gru_shift;
 	unsigned short		pnode;
 	unsigned short		pnode_mask;
 	unsigned short		coherency_domain_number;
@@ -362,7 +368,8 @@ union uvh_apicid {
 #define UV_GLOBAL_GRU_MMR_BASE		0x4000000
 
 #define UV_GLOBAL_MMR32_PNODE_SHIFT	15
-#define UV_GLOBAL_MMR64_PNODE_SHIFT	26
+#define _UV_GLOBAL_MMR64_PNODE_SHIFT	26
+#define UV_GLOBAL_MMR64_PNODE_SHIFT	(uv_hub_info->global_mmr_shift)
 
 #define UV_GLOBAL_MMR32_PNODE_BITS(p)	((p) << (UV_GLOBAL_MMR32_PNODE_SHIFT))
 
