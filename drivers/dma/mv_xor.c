@@ -34,6 +34,7 @@
 enum mv_xor_type {
 	XOR_ORION,
 	XOR_ARMADA_38X,
+	XOR_ARMADA_37XX,
 };
 
 enum mv_xor_mode {
@@ -1093,6 +1094,33 @@ mv_xor_conf_mbus_windows(struct mv_xor_device *xordev,
 	writel(0, base + WINDOW_OVERRIDE_CTRL(1));
 }
 
+static void
+mv_xor_conf_mbus_windows_a3700(struct mv_xor_device *xordev)
+{
+	void __iomem *base = xordev->xor_high_base;
+	u32 win_enable = 0;
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		writel(0, base + WINDOW_BASE(i));
+		writel(0, base + WINDOW_SIZE(i));
+		if (i < 4)
+			writel(0, base + WINDOW_REMAP_HIGH(i));
+	}
+	/*
+	 * For Armada3700 open default 4GB Mbus window. The dram
+	 * related configuration are done at AXIS level.
+	 */
+	writel(0xffff0000, base + WINDOW_SIZE(0));
+	win_enable |= 1;
+	win_enable |= 3 << 16;
+
+	writel(win_enable, base + WINDOW_BAR_ENABLE(0));
+	writel(win_enable, base + WINDOW_BAR_ENABLE(1));
+	writel(0, base + WINDOW_OVERRIDE_CTRL(0));
+	writel(0, base + WINDOW_OVERRIDE_CTRL(1));
+}
+
 /*
  * Since this XOR driver is basically used only for RAID5, we don't
  * need to care about synchronizing ->suspend with DMA activity,
@@ -1137,6 +1165,11 @@ static int mv_xor_resume(struct platform_device *dev)
 			       XOR_INTR_MASK(mv_chan));
 	}
 
+	if (xordev->xor_type == XOR_ARMADA_37XX) {
+		mv_xor_conf_mbus_windows_a3700(xordev);
+		return 0;
+	}
+
 	dram = mv_mbus_dram_info();
 	if (dram)
 		mv_xor_conf_mbus_windows(xordev, dram);
@@ -1147,6 +1180,7 @@ static int mv_xor_resume(struct platform_device *dev)
 static const struct of_device_id mv_xor_dt_ids[] = {
 	{ .compatible = "marvell,orion-xor", .data = (void *)XOR_ORION },
 	{ .compatible = "marvell,armada-380-xor", .data = (void *)XOR_ARMADA_38X },
+	{ .compatible = "marvell,armada-3700-xor", .data = (void *)XOR_ARMADA_37XX },
 	{},
 };
 
@@ -1204,9 +1238,13 @@ static int mv_xor_probe(struct platform_device *pdev)
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
 	 */
-	dram = mv_mbus_dram_info();
-	if (dram)
-		mv_xor_conf_mbus_windows(xordev, dram);
+	if (xordev->xor_type == XOR_ARMADA_37XX) {
+		mv_xor_conf_mbus_windows_a3700(xordev);
+	} else {
+		dram = mv_mbus_dram_info();
+		if (dram)
+			mv_xor_conf_mbus_windows(xordev, dram);
+	}
 
 	/* Not all platforms can gate the clock, so it is not
 	 * an error if the clock does not exists.
@@ -1220,12 +1258,16 @@ static int mv_xor_probe(struct platform_device *pdev)
 	 * order for async_tx to perform well. So we limit the number
 	 * of engines and channels so that we take into account this
 	 * constraint. Note that we also want to use channels from
-	 * separate engines when possible.
+	 * separate engines when possible.  For dual-CPU Armada 3700
+	 * SoC with single XOR engine allow using its both channels.
 	 */
 	max_engines = num_present_cpus();
-	max_channels = min_t(unsigned int,
-			     MV_XOR_MAX_CHANNELS,
-			     DIV_ROUND_UP(num_present_cpus(), 2));
+	if (xordev->xor_type == XOR_ARMADA_37XX)
+		max_channels =	num_present_cpus();
+	else
+		max_channels = min_t(unsigned int,
+				     MV_XOR_MAX_CHANNELS,
+				     DIV_ROUND_UP(num_present_cpus(), 2));
 
 	if (mv_xor_engine_count >= max_engines)
 		return 0;
