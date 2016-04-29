@@ -78,10 +78,13 @@ out:
 /*
  * Exposes device descriptor from the gadget driver.
  */
-static ssize_t dev_desc_show(struct device *dev,
-			       struct device_attribute *attr, char *out)
+static ssize_t dev_desc_read(struct file *file, struct kobject *kobj,
+			     struct bin_attribute *attr, char *out,
+			     loff_t off, size_t count)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct vudc *udc = (struct vudc *)dev_get_drvdata(dev);
+	char *desc_ptr = (char *) &udc->dev_desc;
 	unsigned long flags;
 	int ret;
 
@@ -91,13 +94,13 @@ static ssize_t dev_desc_show(struct device *dev,
 		goto unlock;
 	}
 
-	memcpy(out, &udc->dev_desc, sizeof(udc->dev_desc));
-	ret = sizeof(udc->dev_desc);
+	memcpy(out, desc_ptr + off, count);
+	ret = count;
 unlock:
 	spin_unlock_irqrestore(&udc->lock, flags);
 	return ret;
 }
-static DEVICE_ATTR_RO(dev_desc);
+static BIN_ATTR_RO(dev_desc, sizeof(struct usb_device_descriptor));
 
 static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 		     const char *in, size_t count)
@@ -210,12 +213,17 @@ static ssize_t usbip_status_show(struct device *dev,
 static DEVICE_ATTR_RO(usbip_status);
 
 static struct attribute *dev_attrs[] = {
-	&dev_attr_dev_desc.attr,
 	&dev_attr_usbip_sockfd.attr,
 	&dev_attr_usbip_status.attr,
 	NULL,
 };
 
+static struct bin_attribute *dev_bin_attrs[] = {
+	&bin_attr_dev_desc,
+	NULL,
+};
+
 const struct attribute_group vudc_attr_group = {
 	.attrs = dev_attrs,
+	.bin_attrs = dev_bin_attrs,
 };
