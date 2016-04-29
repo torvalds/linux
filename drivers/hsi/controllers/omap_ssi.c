@@ -140,7 +140,7 @@ static const struct file_operations ssi_gdd_regs_fops = {
 	.release	= single_release,
 };
 
-static int __init ssi_debug_add_ctrl(struct hsi_controller *ssi)
+static int ssi_debug_add_ctrl(struct hsi_controller *ssi)
 {
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
 	struct dentry *dir;
@@ -290,7 +290,7 @@ static unsigned long ssi_get_clk_rate(struct hsi_controller *ssi)
 	return rate;
 }
 
-static int __init ssi_get_iomem(struct platform_device *pd,
+static int ssi_get_iomem(struct platform_device *pd,
 		const char *name, void __iomem **pbase, dma_addr_t *phy)
 {
 	struct resource *mem;
@@ -310,7 +310,7 @@ static int __init ssi_get_iomem(struct platform_device *pd,
 	return 0;
 }
 
-static int __init ssi_add_controller(struct hsi_controller *ssi,
+static int ssi_add_controller(struct hsi_controller *ssi,
 						struct platform_device *pd)
 {
 	struct omap_ssi_controller *omap_ssi;
@@ -386,7 +386,7 @@ out_err:
 	return err;
 }
 
-static int __init ssi_hw_init(struct hsi_controller *ssi)
+static int ssi_hw_init(struct hsi_controller *ssi)
 {
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
 	unsigned int i;
@@ -456,7 +456,7 @@ static int ssi_remove_ports(struct device *dev, void *c)
 	return 0;
 }
 
-static int __init ssi_probe(struct platform_device *pd)
+static int ssi_probe(struct platform_device *pd)
 {
 	struct platform_device *childpdev;
 	struct device_node *np = pd->dev.of_node;
@@ -522,7 +522,7 @@ out1:
 	return err;
 }
 
-static int __exit ssi_remove(struct platform_device *pd)
+static int ssi_remove(struct platform_device *pd)
 {
 	struct hsi_controller *ssi = platform_get_drvdata(pd);
 
@@ -592,7 +592,8 @@ MODULE_DEVICE_TABLE(of, omap_ssi_of_match);
 #endif
 
 static struct platform_driver ssi_pdriver = {
-	.remove	= __exit_p(ssi_remove),
+	.probe = ssi_probe,
+	.remove	= ssi_remove,
 	.driver	= {
 		.name	= "omap_ssi",
 		.pm     = DEV_PM_OPS,
@@ -600,7 +601,7 @@ static struct platform_driver ssi_pdriver = {
 	},
 };
 
-module_platform_driver_probe(ssi_pdriver, ssi_probe);
+module_platform_driver(ssi_pdriver);
 
 MODULE_ALIAS("platform:omap_ssi");
 MODULE_AUTHOR("Carlos Chinea <carlos.chinea@nokia.com>");

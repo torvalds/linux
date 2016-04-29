@@ -171,7 +171,7 @@ static int ssi_div_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(ssi_sst_div_fops, ssi_div_get, ssi_div_set, "%llu\n");
 
-static int __init ssi_debug_add_port(struct omap_ssi_port *omap_port,
+static int ssi_debug_add_port(struct omap_ssi_port *omap_port,
 				     struct dentry *dir)
 {
 	struct hsi_port *port = to_hsi_port(omap_port->dev);
@@ -1007,7 +1007,7 @@ static irqreturn_t ssi_wake_isr(int irq __maybe_unused, void *ssi_port)
 	return IRQ_HANDLED;
 }
 
-static int __init ssi_port_irq(struct hsi_port *port,
+static int ssi_port_irq(struct hsi_port *port,
 						struct platform_device *pd)
 {
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
@@ -1029,7 +1029,7 @@ static int __init ssi_port_irq(struct hsi_port *port,
 	return err;
 }
 
-static int __init ssi_wake_irq(struct hsi_port *port,
+static int ssi_wake_irq(struct hsi_port *port,
 						struct platform_device *pd)
 {
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
@@ -1060,7 +1060,7 @@ static int __init ssi_wake_irq(struct hsi_port *port,
 	return err;
 }
 
-static void __init ssi_queues_init(struct omap_ssi_port *omap_port)
+static void ssi_queues_init(struct omap_ssi_port *omap_port)
 {
 	unsigned int ch;
 
@@ -1071,7 +1071,7 @@ static void __init ssi_queues_init(struct omap_ssi_port *omap_port)
 	INIT_LIST_HEAD(&omap_port->brkqueue);
 }
 
-static int __init ssi_port_get_iomem(struct platform_device *pd,
+static int ssi_port_get_iomem(struct platform_device *pd,
 		const char *name, void __iomem **pbase, dma_addr_t *phy)
 {
 	struct hsi_port *port = platform_get_drvdata(pd);
@@ -1104,7 +1104,7 @@ static int __init ssi_port_get_iomem(struct platform_device *pd,
 	return 0;
 }
 
-static int __init ssi_port_probe(struct platform_device *pd)
+static int ssi_port_probe(struct platform_device *pd)
 {
 	struct device_node *np = pd->dev.of_node;
 	struct hsi_port *port;
@@ -1217,7 +1217,7 @@ error:
 	return err;
 }
 
-static int __exit ssi_port_remove(struct platform_device *pd)
+static int ssi_port_remove(struct platform_device *pd)
 {
 	struct hsi_port *port = platform_get_drvdata(pd);
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
@@ -1370,7 +1370,8 @@ MODULE_DEVICE_TABLE(of, omap_ssi_port_of_match);
 #endif
 
 static struct platform_driver ssi_port_pdriver = {
-	.remove	= __exit_p(ssi_port_remove),
+	.probe = ssi_port_probe,
+	.remove	= ssi_port_remove,
 	.driver	= {
 		.name	= "omap_ssi_port",
 		.of_match_table = omap_ssi_port_of_match,
@@ -1378,7 +1379,7 @@ static struct platform_driver ssi_port_pdriver = {
 	},
 };
 
-module_platform_driver_probe(ssi_port_pdriver, ssi_port_probe);
+module_platform_driver(ssi_port_pdriver);
 
 MODULE_ALIAS("platform:omap_ssi_port");
 MODULE_AUTHOR("Carlos Chinea <carlos.chinea@nokia.com>");
