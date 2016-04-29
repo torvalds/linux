@@ -231,6 +231,9 @@ int perf_evsel__append_filter(struct perf_evsel *evsel,
 			      const char *op, const char *filter);
 int perf_evsel__apply_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 			     const char *filter);
+int perf_evsel__apply_drv_configs(struct perf_evsel *evsel,
+				  int ncpus, int nthreads,
+				  struct perf_evsel_config_term **err_term);
 int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads);
 int perf_evsel__disable(struct perf_evsel *evsel);
 
