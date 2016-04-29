@@ -97,5 +97,25 @@ extern int mmu_vmalloc_psize;
 extern int mmu_vmemmap_psize;
 extern int mmu_io_psize;
 
+/* MMU initialization */
+extern void hash__early_init_mmu(void);
+static inline void early_init_mmu(void)
+{
+	return hash__early_init_mmu();
+}
+extern void hash__early_init_mmu_secondary(void);
+static inline void early_init_mmu_secondary(void)
+{
+	return hash__early_init_mmu_secondary();
+}
+
+extern void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
+					 phys_addr_t first_memblock_size);
+static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+					      phys_addr_t first_memblock_size)
+{
+	return hash__setup_initial_memory_limit(first_memblock_base,
+					   first_memblock_size);
+}
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_H_ */
