@@ -343,11 +343,10 @@ xilinx_vdma_alloc_tx_segment(struct xilinx_vdma_chan *chan)
 	struct xilinx_vdma_tx_segment *segment;
 	dma_addr_t phys;
 
-	segment = dma_pool_alloc(chan->desc_pool, GFP_ATOMIC, &phys);
+	segment = dma_pool_zalloc(chan->desc_pool, GFP_ATOMIC, &phys);
 	if (!segment)
 		return NULL;
 
-	memset(segment, 0, sizeof(*segment));
 	segment->phys = phys;
 
 	return segment;
