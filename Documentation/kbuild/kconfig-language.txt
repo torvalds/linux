@@ -241,9 +241,8 @@ comment "module support disabled"
 	depends on !MODULES
 
 MODVERSIONS directly depends on MODULES, this means it's only visible if
-MODULES is different from 'n'. The comment on the other hand is always
-visible when MODULES is visible (the (empty) dependency of MODULES is
-also part of the comment dependencies).
+MODULES is different from 'n'. The comment on the other hand is only
+visible when MODULES is set to 'n'.
 
 
 Kconfig syntax
