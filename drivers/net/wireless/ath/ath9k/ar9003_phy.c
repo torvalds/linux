@@ -1010,7 +1010,7 @@ static void ar9003_hw_set_rfmode(struct ath_hw *ah,
 	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		rfMode |= (AR_PHY_MODE_DYNAMIC | AR_PHY_MODE_DYN_CCK_DISABLE);
 
-	if (rfMode & (AR_PHY_MODE_QUARTER | AR_PHY_MODE_HALF))
+	if (IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan))
 		REG_RMW_FIELD(ah, AR_PHY_FRAME_CTL,
 			      AR_PHY_FRAME_CTL_CF_OVERLAP_WINDOW, 3);
 
