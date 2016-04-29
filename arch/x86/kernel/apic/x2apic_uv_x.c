@@ -1055,12 +1055,12 @@ void __init uv_system_init(void)
 
 		uv_cpu_hub_info(cpu)->numa_blade_id = blade;
 		uv_cpu_hub_info(cpu)->pnode = pnode;
-		uv_cpu_hub_info(cpu)->blade_processor_id = lcpu;
 		uv_node_to_blade[nodeid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
 
 		/* Initialize per cpu info list */
 		uv_cpu_info_per(cpu)->p_uv_hub_info = uv_cpu_hub_info(cpu);
+		uv_cpu_info_per(cpu)->blade_cpu_id = lcpu;
 		uv_cpu_info_per(cpu)->scir.offset = uv_scir_offset(apicid);
 	}
 

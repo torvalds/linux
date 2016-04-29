@@ -159,7 +159,6 @@ struct uv_hub_info_s {
 	unsigned short		pnode_mask;
 	unsigned short		coherency_domain_number;
 	unsigned short		numa_blade_id;
-	unsigned char		blade_processor_id;
 	unsigned char		m_val;
 	unsigned char		n_val;
 };
@@ -572,8 +571,15 @@ extern short uv_possible_blades;
 /* Blade-local cpu number of current cpu. Numbered 0 .. <# cpus on the blade> */
 static inline int uv_blade_processor_id(void)
 {
-	return uv_hub_info->blade_processor_id;
+	return uv_cpu_info->blade_cpu_id;
 }
+
+/* Blade-local cpu number of cpu N. Numbered 0 .. <# cpus on the blade> */
+static inline int uv_cpu_blade_processor_id(int cpu)
+{
+	return uv_cpu_info_per(cpu)->blade_cpu_id;
+}
+#define _uv_cpu_blade_processor_id 1	/* indicate function available */
 
 /* Blade number of current cpu. Numnbered 0 .. <#blades -1> */
 static inline int uv_numa_blade_id(void)

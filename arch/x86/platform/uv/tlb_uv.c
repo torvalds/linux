@@ -2040,7 +2040,8 @@ static int scan_sock(struct socket_desc *sdp, struct uvhub_desc *bdp,
 			return 1;
 		}
 		bcp->uvhub_master = *hmasterp;
-		bcp->uvhub_cpu = uv_cpu_hub_info(cpu)->blade_processor_id;
+		bcp->uvhub_cpu = uv_cpu_blade_processor_id(cpu);
+
 		if (bcp->uvhub_cpu >= MAX_CPUS_PER_UVHUB) {
 			printk(KERN_EMERG "%d cpus per uvhub invalid\n",
 				bcp->uvhub_cpu);
