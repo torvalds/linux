@@ -354,3 +354,23 @@ void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	/* Finally limit subsequent allocations */
 	memblock_set_current_limit(first_memblock_base + first_memblock_size);
 }
+
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+int __meminit radix__vmemmap_create_mapping(unsigned long start,
+				      unsigned long page_size,
+				      unsigned long phys)
+{
+	/* Create a PTE encoding */
+	unsigned long flags = _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_KERNEL_RW;
+
+	BUG_ON(radix__map_kernel_page(start, phys, __pgprot(flags), page_size));
+	return 0;
+}
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+void radix__vmemmap_remove_mapping(unsigned long start, unsigned long page_size)
+{
+	/* FIXME!! intel does more. We should free page tables mapping vmemmap ? */
+}
+#endif
+#endif

@@ -130,6 +130,12 @@ static inline int radix__pmd_trans_huge(pmd_t pmd)
 
 #endif
 
+extern int __meminit radix__vmemmap_create_mapping(unsigned long start,
+					     unsigned long page_size,
+					     unsigned long phys);
+extern void radix__vmemmap_remove_mapping(unsigned long start,
+				    unsigned long page_size);
+
 extern int radix__map_kernel_page(unsigned long ea, unsigned long pa,
 				 pgprot_t flags, unsigned int psz);
 #endif /* __ASSEMBLY__ */
