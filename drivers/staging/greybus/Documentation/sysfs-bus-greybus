@@ -6,6 +6,13 @@ Description:
 		The "root" greybus device for the Greybus device tree, or bus,
 		where N is a dynamically assigned 1-based id.
 
+What:		/sys/bus/greybus/devices/greybusN/bus_id
+Date:		April 2016
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The ID of the "root" greybus device, or bus.
+
 What:		/sys/bus/greybus/device/N-M
 Date:		March 2016
 KernelVersion:	4.XX
