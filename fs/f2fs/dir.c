@@ -805,7 +805,7 @@ bool f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 			int save_len = fstr->len;
 			int ret;
 
-			de_name.name = kmalloc(de_name.len, GFP_NOFS);
+			de_name.name = f2fs_kmalloc(de_name.len, GFP_NOFS);
 			if (!de_name.name)
 				return false;
 

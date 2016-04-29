@@ -1644,6 +1644,11 @@ static inline bool f2fs_may_extent_tree(struct inode *inode)
 	return S_ISREG(inode->i_mode);
 }
 
+static inline void *f2fs_kmalloc(size_t size, gfp_t flags)
+{
+	return kmalloc(size, flags);
+}
+
 static inline void *f2fs_kvmalloc(size_t size, gfp_t flags)
 {
 	void *ret;
