@@ -19,6 +19,8 @@
 #include <asm/mmu.h>
 #include <asm/firmware.h>
 
+#include <trace/events/thp.h>
+
 static int native_update_partition_table(u64 patb1)
 {
 	partition_tb->patb1 = cpu_to_be64(patb1);
@@ -407,3 +409,118 @@ void radix__vmemmap_remove_mapping(unsigned long start, unsigned long page_size)
 }
 #endif
 #endif
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+
+unsigned long radix__pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
+				  pmd_t *pmdp, unsigned long clr,
+				  unsigned long set)
+{
+	unsigned long old;
+
+#ifdef CONFIG_DEBUG_VM
+	WARN_ON(!radix__pmd_trans_huge(*pmdp));
+	assert_spin_locked(&mm->page_table_lock);
+#endif
+
+	old = radix__pte_update(mm, addr, (pte_t *)pmdp, clr, set, 1);
+	trace_hugepage_update(addr, old, clr, set);
+
+	return old;
+}
+
+pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
+			pmd_t *pmdp)
+
+{
+	pmd_t pmd;
+
+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+	VM_BUG_ON(radix__pmd_trans_huge(*pmdp));
+	/*
+	 * khugepaged calls this for normal pmd
+	 */
+	pmd = *pmdp;
+	pmd_clear(pmdp);
+	/*FIXME!!  Verify whether we need this kick below */
+	kick_all_cpus_sync();
+	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+	return pmd;
+}
+
+/*
+ * For us pgtable_t is pte_t *. Inorder to save the deposisted
+ * page table, we consider the allocated page table as a list
+ * head. On withdraw we need to make sure we zero out the used
+ * list_head memory area.
+ */
+void radix__pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+				 pgtable_t pgtable)
+{
+        struct list_head *lh = (struct list_head *) pgtable;
+
+        assert_spin_locked(pmd_lockptr(mm, pmdp));
+
+        /* FIFO */
+        if (!pmd_huge_pte(mm, pmdp))
+                INIT_LIST_HEAD(lh);
+        else
+                list_add(lh, (struct list_head *) pmd_huge_pte(mm, pmdp));
+        pmd_huge_pte(mm, pmdp) = pgtable;
+}
+
+pgtable_t radix__pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
+{
+        pte_t *ptep;
+        pgtable_t pgtable;
+        struct list_head *lh;
+
+        assert_spin_locked(pmd_lockptr(mm, pmdp));
+
+        /* FIFO */
+        pgtable = pmd_huge_pte(mm, pmdp);
+        lh = (struct list_head *) pgtable;
+        if (list_empty(lh))
+                pmd_huge_pte(mm, pmdp) = NULL;
+        else {
+                pmd_huge_pte(mm, pmdp) = (pgtable_t) lh->next;
+                list_del(lh);
+        }
+        ptep = (pte_t *) pgtable;
+        *ptep = __pte(0);
+        ptep++;
+        *ptep = __pte(0);
+        return pgtable;
+}
+
+
+pmd_t radix__pmdp_huge_get_and_clear(struct mm_struct *mm,
+			       unsigned long addr, pmd_t *pmdp)
+{
+	pmd_t old_pmd;
+	unsigned long old;
+
+	old = radix__pmd_hugepage_update(mm, addr, pmdp, ~0UL, 0);
+	old_pmd = __pmd(old);
+	/*
+	 * Serialize against find_linux_pte_or_hugepte which does lock-less
+	 * lookup in page tables with local interrupts disabled. For huge pages
+	 * it casts pmd_t to pte_t. Since format of pte_t is different from
+	 * pmd_t we want to prevent transit from pmd pointing to page table
+	 * to pmd pointing to huge page (and back) while interrupts are disabled.
+	 * We clear pmd to possibly replace it with page table pointer in
+	 * different code paths. So make sure we wait for the parallel
+	 * find_linux_pte_or_hugepage to finish.
+	 */
+	kick_all_cpus_sync();
+	return old_pmd;
+}
+
+int radix__has_transparent_hugepage(void)
+{
+	/* For radix 2M at PMD level means thp */
+	if (mmu_psize_defs[MMU_PAGE_2M].shift == PMD_SHIFT)
+		return 1;
+	return 0;
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */

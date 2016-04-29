@@ -71,6 +71,8 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 
 static inline pmd_t pmd_mkhuge(pmd_t pmd)
 {
+	if (radix_enabled())
+		return radix__pmd_mkhuge(pmd);
 	return hash__pmd_mkhuge(pmd);
 }
 

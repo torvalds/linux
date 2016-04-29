@@ -827,6 +827,8 @@ extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 extern int hash__has_transparent_hugepage(void);
 static inline int has_transparent_hugepage(void)
 {
+	if (radix_enabled())
+		return radix__has_transparent_hugepage();
 	return hash__has_transparent_hugepage();
 }
 
@@ -834,6 +836,8 @@ static inline unsigned long
 pmd_hugepage_update(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp,
 		    unsigned long clr, unsigned long set)
 {
+	if (radix_enabled())
+		return radix__pmd_hugepage_update(mm, addr, pmdp, clr, set);
 	return hash__pmd_hugepage_update(mm, addr, pmdp, clr, set);
 }
 
@@ -885,12 +889,16 @@ extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 					    unsigned long addr, pmd_t *pmdp)
 {
+	if (radix_enabled())
+		return radix__pmdp_huge_get_and_clear(mm, addr, pmdp);
 	return hash__pmdp_huge_get_and_clear(mm, addr, pmdp);
 }
 
 static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
 					unsigned long address, pmd_t *pmdp)
 {
+	if (radix_enabled())
+		return radix__pmdp_collapse_flush(vma, address, pmdp);
 	return hash__pmdp_collapse_flush(vma, address, pmdp);
 }
 #define pmdp_collapse_flush pmdp_collapse_flush
@@ -899,6 +907,8 @@ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
 static inline void pgtable_trans_huge_deposit(struct mm_struct *mm,
 					      pmd_t *pmdp, pgtable_t pgtable)
 {
+	if (radix_enabled())
+		return radix__pgtable_trans_huge_deposit(mm, pmdp, pgtable);
 	return hash__pgtable_trans_huge_deposit(mm, pmdp, pgtable);
 }
 
@@ -906,6 +916,8 @@ static inline void pgtable_trans_huge_deposit(struct mm_struct *mm,
 static inline pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm,
 						    pmd_t *pmdp)
 {
+	if (radix_enabled())
+		return radix__pgtable_trans_huge_withdraw(mm, pmdp);
 	return hash__pgtable_trans_huge_withdraw(mm, pmdp);
 }
 
@@ -917,6 +929,8 @@ extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 static inline void pmdp_huge_split_prepare(struct vm_area_struct *vma,
 					   unsigned long address, pmd_t *pmdp)
 {
+	if (radix_enabled())
+		return radix__pmdp_huge_split_prepare(vma, address, pmdp);
 	return hash__pmdp_huge_split_prepare(vma, address, pmdp);
 }
 
@@ -925,6 +939,8 @@ struct spinlock;
 static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
 					 struct spinlock *old_pmd_ptl)
 {
+	if (radix_enabled())
+		return false;
 	/*
 	 * Archs like ppc64 use pgtable to store per pmd
 	 * specific information. So when we switch the pmd,

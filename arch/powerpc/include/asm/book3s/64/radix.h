@@ -196,6 +196,28 @@ static inline int radix__pmd_trans_huge(pmd_t pmd)
 	return !!(pmd_val(pmd) & _PAGE_PTE);
 }
 
+static inline pmd_t radix__pmd_mkhuge(pmd_t pmd)
+{
+	return __pmd(pmd_val(pmd) | _PAGE_PTE);
+}
+static inline void radix__pmdp_huge_split_prepare(struct vm_area_struct *vma,
+					    unsigned long address, pmd_t *pmdp)
+{
+	/* Nothing to do for radix. */
+	return;
+}
+
+extern unsigned long radix__pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
+					  pmd_t *pmdp, unsigned long clr,
+					  unsigned long set);
+extern pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma,
+				  unsigned long address, pmd_t *pmdp);
+extern void radix__pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+					pgtable_t pgtable);
+extern pgtable_t radix__pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
+extern pmd_t radix__pmdp_huge_get_and_clear(struct mm_struct *mm,
+				      unsigned long addr, pmd_t *pmdp);
+extern int radix__has_transparent_hugepage(void);
 #endif
 
 extern int __meminit radix__vmemmap_create_mapping(unsigned long start,
