@@ -522,7 +522,6 @@ unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
 	assert_spin_locked(&mm->page_table_lock);
 #endif
 
-#ifdef PTE_ATOMIC_UPDATES
 	__asm__ __volatile__(
 	"1:	ldarx	%0,0,%3\n\
 		andi.	%1,%0,%6\n\
@@ -534,10 +533,7 @@ unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
 	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
 	: "r" (pmdp), "r" (clr), "m" (*pmdp), "i" (_PAGE_BUSY), "r" (set)
 	: "cc" );
-#else
-	old = pmd_val(*pmdp);
-	*pmdp = __pmd((old & ~clr) | set);
-#endif
+
 	trace_hugepage_update(addr, old, clr, set);
 	if (old & _PAGE_HASHPTE)
 		hpte_do_hugepage_flush(mm, addr, pmdp, old);

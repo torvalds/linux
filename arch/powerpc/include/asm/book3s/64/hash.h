@@ -127,8 +127,6 @@
 #define _PTEIDX_SECONDARY	0x8
 #define _PTEIDX_GROUP_IX	0x7
 
-/* Hash table based platforms need atomic updates of the linux PTE */
-#define PTE_ATOMIC_UPDATES	1
 #define _PTE_NONE_MASK	_PAGE_HPTEFLAGS
 /*
  * The mask convered by the RPN must be a ULL on 32-bit platforms with
