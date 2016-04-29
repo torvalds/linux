@@ -288,7 +288,11 @@ extern long long virt_phys_offset;
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_PPC_BOOK3S_64
+#include <asm/pgtable-be-types.h>
+#else
 #include <asm/pgtable-types.h>
+#endif
 
 typedef struct { signed long pd; } hugepd_t;
 

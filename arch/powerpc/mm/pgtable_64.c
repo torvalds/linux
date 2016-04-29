@@ -515,7 +515,8 @@ unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
 				  unsigned long set)
 {
 
-	unsigned long old, tmp;
+	__be64 old_be, tmp;
+	unsigned long old;
 
 #ifdef CONFIG_DEBUG_VM
 	WARN_ON(!pmd_trans_huge(*pmdp));
@@ -524,15 +525,18 @@ unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
 
 	__asm__ __volatile__(
 	"1:	ldarx	%0,0,%3\n\
-		andi.	%1,%0,%6\n\
+		and.	%1,%0,%6\n\
 		bne-	1b \n\
 		andc	%1,%0,%4 \n\
 		or	%1,%1,%7\n\
 		stdcx.	%1,0,%3 \n\
 		bne-	1b"
-	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
-	: "r" (pmdp), "r" (clr), "m" (*pmdp), "i" (_PAGE_BUSY), "r" (set)
+	: "=&r" (old_be), "=&r" (tmp), "=m" (*pmdp)
+	: "r" (pmdp), "r" (cpu_to_be64(clr)), "m" (*pmdp),
+	  "r" (cpu_to_be64(_PAGE_BUSY)), "r" (cpu_to_be64(set))
 	: "cc" );
+
+	old = be64_to_cpu(old_be);
 
 	trace_hugepage_update(addr, old, clr, set);
 	if (old & _PAGE_HASHPTE)

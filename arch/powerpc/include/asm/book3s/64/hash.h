@@ -247,23 +247,26 @@ static inline unsigned long pte_update(struct mm_struct *mm,
 				       unsigned long set,
 				       int huge)
 {
-	unsigned long old, tmp;
+	__be64 old_be, tmp_be;
+	unsigned long old;
 
 	__asm__ __volatile__(
 	"1:	ldarx	%0,0,%3		# pte_update\n\
-	andi.	%1,%0,%6\n\
+	and.	%1,%0,%6\n\
 	bne-	1b \n\
 	andc	%1,%0,%4 \n\
 	or	%1,%1,%7\n\
 	stdcx.	%1,0,%3 \n\
 	bne-	1b"
-	: "=&r" (old), "=&r" (tmp), "=m" (*ptep)
-	: "r" (ptep), "r" (clr), "m" (*ptep), "i" (_PAGE_BUSY), "r" (set)
+	: "=&r" (old_be), "=&r" (tmp_be), "=m" (*ptep)
+	: "r" (ptep), "r" (cpu_to_be64(clr)), "m" (*ptep),
+	  "r" (cpu_to_be64(_PAGE_BUSY)), "r" (cpu_to_be64(set))
 	: "cc" );
 	/* huge pages use the old page table lock */
 	if (!huge)
 		assert_pte_locked(mm, addr);
 
+	old = be64_to_cpu(old_be);
 	if (old & _PAGE_HASHPTE)
 		hpte_need_flush(mm, addr, ptep, old, huge);
 
@@ -344,21 +347,22 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
  */
 static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 {
-	unsigned long bits = pte_val(entry) &
-		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC |
-		 _PAGE_SOFT_DIRTY);
+	__be64 old, tmp, val, mask;
 
-	unsigned long old, tmp;
+	mask = cpu_to_be64(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW |
+			   _PAGE_EXEC | _PAGE_SOFT_DIRTY);
+
+	val = pte_raw(entry) & mask;
 
 	__asm__ __volatile__(
 	"1:	ldarx	%0,0,%4\n\
-		andi.	%1,%0,%6\n\
+		and.	%1,%0,%6\n\
 		bne-	1b \n\
 		or	%0,%3,%0\n\
 		stdcx.	%0,0,%4\n\
 		bne-	1b"
 	:"=&r" (old), "=&r" (tmp), "=m" (*ptep)
-	:"r" (bits), "r" (ptep), "m" (*ptep), "i" (_PAGE_BUSY)
+	:"r" (val), "r" (ptep), "m" (*ptep), "r" (cpu_to_be64(_PAGE_BUSY))
 	:"cc");
 }
 
