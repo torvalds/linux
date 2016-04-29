@@ -140,6 +140,11 @@ merged:
 ENDPROC(__kvm_hyp_init)
 
 	/*
+	 * Reset kvm back to the hyp stub. This is the trampoline dance in
+	 * reverse. If kvm used an extended idmap, __extended_idmap_trampoline
+	 * calls this code directly in the idmap. In this case switching to the
+	 * boot tables is a no-op.
+	 *
 	 * x0: HYP boot pgd
 	 * x1: HYP phys_idmap_start
 	 */
