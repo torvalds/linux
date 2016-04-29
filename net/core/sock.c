@@ -2019,33 +2019,27 @@ static void __release_sock(struct sock *sk)
 	__releases(&sk->sk_lock.slock)
 	__acquires(&sk->sk_lock.slock)
 {
-	struct sk_buff *skb = sk->sk_backlog.head;
+	struct sk_buff *skb, *next;
 
-	do {
+	while ((skb = sk->sk_backlog.head) != NULL) {
 		sk->sk_backlog.head = sk->sk_backlog.tail = NULL;
-		bh_unlock_sock(sk);
+
+		spin_unlock_bh(&sk->sk_lock.slock);
 
 		do {
-			struct sk_buff *next = skb->next;
-
+			next = skb->next;
 			prefetch(next);
 			WARN_ON_ONCE(skb_dst_is_noref(skb));
 			skb->next = NULL;
 			sk_backlog_rcv(sk, skb);
 
-			/*
-			 * We are in process context here with softirqs
-			 * disabled, use cond_resched_softirq() to preempt.
-			 * This is safe to do because we've taken the backlog
-			 * queue private:
-			 */
-			cond_resched_softirq();
+			cond_resched();
 
 			skb = next;
 		} while (skb != NULL);
 
-		bh_lock_sock(sk);
-	} while ((skb = sk->sk_backlog.head) != NULL);
+		spin_lock_bh(&sk->sk_lock.slock);
+	}
 
 	/*
 	 * Doing the zeroing here guarantee we can not loop forever
