@@ -1328,8 +1328,8 @@ static int readdir_prepopulate_inodes_only(struct ceph_mds_request *req,
 		if (rc < 0) {
 			pr_err("fill_inode badness on %p got %d\n", in, rc);
 			err = rc;
-			continue;
 		}
+		iput(in);
 	}
 
 	return err;
