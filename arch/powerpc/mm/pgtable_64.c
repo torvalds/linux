@@ -367,6 +367,7 @@ pte_t *pte_fragment_alloc(struct mm_struct *mm, unsigned long vmaddr, int kernel
 
 	return __alloc_for_cache(mm, kernel);
 }
+#endif /* CONFIG_PPC_64K_PAGES */
 
 void pte_fragment_free(unsigned long *table, int kernel)
 {
@@ -413,7 +414,6 @@ void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
 	}
 }
 #endif
-#endif /* CONFIG_PPC_64K_PAGES */
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
