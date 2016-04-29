@@ -21,19 +21,20 @@
 
 #include <linux/efi.h>
 #include <linux/export.h>
+#include <linux/slab.h>
 #include <asm/efi.h>
 #include <linux/io.h>
 #include <asm/uv/bios.h>
 #include <asm/uv/uv_hub.h>
 
-static struct uv_systab uv_systab;
+struct uv_systab *uv_systab;
 
 s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5)
 {
-	struct uv_systab *tab = &uv_systab;
+	struct uv_systab *tab = uv_systab;
 	s64 ret;
 
-	if (!tab->function)
+	if (!tab || !tab->function)
 		/*
 		 * BIOS does not support UV systab
 		 */
@@ -183,34 +184,31 @@ int uv_bios_set_legacy_vga_target(bool decode, int domain, int bus)
 }
 EXPORT_SYMBOL_GPL(uv_bios_set_legacy_vga_target);
 
-
 #ifdef CONFIG_EFI
 void uv_bios_init(void)
 {
-	struct uv_systab *tab;
-
-	if ((efi.uv_systab == EFI_INVALID_TABLE_ADDR) ||
-	    (efi.uv_systab == (unsigned long)NULL)) {
-		printk(KERN_CRIT "No EFI UV System Table.\n");
-		uv_systab.function = (unsigned long)NULL;
+	uv_systab = NULL;
+	if ((efi.uv_systab == EFI_INVALID_TABLE_ADDR) || !efi.uv_systab) {
+		pr_crit("UV: UVsystab: missing\n");
 		return;
 	}
 
-	tab = (struct uv_systab *)ioremap(efi.uv_systab,
-					sizeof(struct uv_systab));
-	if (strncmp(tab->signature, "UVST", 4) != 0)
-		printk(KERN_ERR "bad signature in UV system table!");
+	uv_systab = ioremap(efi.uv_systab, sizeof(struct uv_systab));
+	if (!uv_systab || strncmp(uv_systab->signature, UV_SYSTAB_SIG, 4)) {
+		pr_err("UV: UVsystab: bad signature!\n");
+		iounmap(uv_systab);
+		return;
+	}
 
-	/*
-	 * Copy table to permanent spot for later use.
-	 */
-	memcpy(&uv_systab, tab, sizeof(struct uv_systab));
-	iounmap(tab);
-
-	printk(KERN_INFO "EFI UV System Table Revision %d\n",
-					uv_systab.revision);
+	if (uv_systab->revision >= UV_SYSTAB_VERSION_UV4) {
+		iounmap(uv_systab);
+		uv_systab = ioremap(efi.uv_systab, uv_systab->size);
+		if (!uv_systab) {
+			pr_err("UV: UVsystab: ioremap(%d) failed!\n",
+				uv_systab->size);
+			return;
+		}
+	}
+	pr_info("UV: UVsystab: Revision:%x\n", uv_systab->revision);
 }
-#else	/* !CONFIG_EFI */
-
-void uv_bios_init(void) { }
 #endif
