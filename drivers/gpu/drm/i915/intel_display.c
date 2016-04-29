@@ -11823,6 +11823,11 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	 * Visibility is calculated as if the crtc was on, but
 	 * after scaler setup everything depends on it being off
 	 * when the crtc isn't active.
+	 *
+	 * FIXME this is wrong for watermarks. Watermarks should also
+	 * be computed as if the pipe would be active. Perhaps move
+	 * per-plane wm computation to the .check_plane() hook, and
+	 * only combine the results from all planes in the current place?
 	 */
 	if (!is_crtc_enabled)
 		to_intel_plane_state(plane_state)->visible = visible = false;
