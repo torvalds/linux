@@ -48,6 +48,16 @@ static u64 gru_start_paddr, gru_end_paddr;
 static u64 gru_dist_base, gru_first_node_paddr = -1LL, gru_last_node_paddr;
 static u64 gru_dist_lmask, gru_dist_umask;
 static union uvh_apicid uvh_apicid;
+
+/* info derived from CPUID */
+static struct {
+	unsigned int apicid_shift;
+	unsigned int apicid_mask;
+	unsigned int socketid_shift;	/* aka pnode_shift for UV1/2/3 */
+	unsigned int pnode_mask;
+	unsigned int gpa_shift;
+} uv_cpuid;
+
 int uv_min_hub_revision_id;
 EXPORT_SYMBOL_GPL(uv_min_hub_revision_id);
 unsigned int uv_apicid_hibits;
@@ -127,18 +137,65 @@ static int __init early_get_pnodeid(void)
 	}
 
 	uv_hub_info->hub_revision = uv_min_hub_revision_id;
-	pnode = (node_id.s.node_id >> 1) & ((1 << m_n_config.s.n_skt) - 1);
+	uv_cpuid.pnode_mask = (1 << m_n_config.s.n_skt) - 1;
+	pnode = (node_id.s.node_id >> 1) & uv_cpuid.pnode_mask;
+	uv_cpuid.gpa_shift = 46;	/* default unless changed */
+
+	pr_info("UV: rev:%d part#:%x nodeid:%04x n_skt:%d pnmsk:%x pn:%x\n",
+		node_id.s.revision, node_id.s.part_number, node_id.s.node_id,
+		m_n_config.s.n_skt, uv_cpuid.pnode_mask, pnode);
 	return pnode;
 }
 
-static void __init early_get_apic_pnode_shift(void)
+/* [copied from arch/x86/kernel/cpu/topology.c:detect_extended_topology()] */
+#define SMT_LEVEL	0	/* leaf 0xb SMT level */
+#define INVALID_TYPE	0	/* leaf 0xb sub-leaf types */
+#define SMT_TYPE	1
+#define CORE_TYPE	2
+#define LEAFB_SUBTYPE(ecx)		(((ecx) >> 8) & 0xff)
+#define BITS_SHIFT_NEXT_LEVEL(eax)	((eax) & 0x1f)
+
+static void set_x2apic_bits(void)
 {
-	uvh_apicid.v = uv_early_read_mmr(UVH_APICID);
-	if (!uvh_apicid.v)
-		/*
-		 * Old bios, use default value
-		 */
-		uvh_apicid.s.pnode_shift = UV_APIC_PNODE_SHIFT;
+	unsigned int eax, ebx, ecx, edx, sub_index;
+	unsigned int sid_shift;
+
+	cpuid(0, &eax, &ebx, &ecx, &edx);
+	if (eax < 0xb) {
+		pr_info("UV: CPU does not have CPUID.11\n");
+		return;
+	}
+	cpuid_count(0xb, SMT_LEVEL, &eax, &ebx, &ecx, &edx);
+	if (ebx == 0 || (LEAFB_SUBTYPE(ecx) != SMT_TYPE)) {
+		pr_info("UV: CPUID.11 not implemented\n");
+		return;
+	}
+	sid_shift = BITS_SHIFT_NEXT_LEVEL(eax);
+	sub_index = 1;
+	do {
+		cpuid_count(0xb, sub_index, &eax, &ebx, &ecx, &edx);
+		if (LEAFB_SUBTYPE(ecx) == CORE_TYPE) {
+			sid_shift = BITS_SHIFT_NEXT_LEVEL(eax);
+			break;
+		}
+		sub_index++;
+	} while (LEAFB_SUBTYPE(ecx) != INVALID_TYPE);
+	uv_cpuid.apicid_shift = 0;
+	uv_cpuid.apicid_mask = (~(-1 << sid_shift));
+	uv_cpuid.socketid_shift = sid_shift;
+}
+
+static void __init early_get_apic_socketid_shift(void)
+{
+	if (is_uv2_hub() || is_uv3_hub())
+		uvh_apicid.v = uv_early_read_mmr(UVH_APICID);
+
+	set_x2apic_bits();
+
+	pr_info("UV: apicid_shift:%d apicid_mask:0x%x\n",
+		uv_cpuid.apicid_shift, uv_cpuid.apicid_mask);
+	pr_info("UV: socketid_shift:%d pnode_mask:0x%x\n",
+		uv_cpuid.socketid_shift, uv_cpuid.pnode_mask);
 }
 
 /*
@@ -186,7 +243,7 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 		goto badbios;
 
 	pnodeid = early_get_pnodeid();
-	early_get_apic_pnode_shift();
+	early_get_apic_socketid_shift();
 	x86_platform.is_untracked_pat_range =  uv_is_untracked_pat_range;
 	x86_platform.nmi_init = uv_nmi_init;
 
@@ -917,11 +974,13 @@ void __init uv_init_hub_info(struct uv_hub_info_s *hub_info)
 	hub_info->m_val = mn.m_val;
 	hub_info->n_val = mn.n_val;
 	hub_info->m_shift = mn.m_shift;
-	hub_info->n_lshift = mn.n_lshift;
+	hub_info->n_lshift = mn.n_lshift ? mn.n_lshift : 0;
 
 	hub_info->hub_revision = uv_hub_info->hub_revision;
-	hub_info->pnode_mask = (1 << mn.n_val) - 1;
-	hub_info->gpa_mask = (1UL << (mn.m_val + mn.n_val)) - 1;
+	hub_info->pnode_mask = uv_cpuid.pnode_mask;
+	hub_info->gpa_mask = mn.m_val ?
+		(1UL << (mn.m_val + mn.n_val)) - 1 :
+		(1UL << uv_cpuid.gpa_shift) - 1;
 
 	node_id.v = uv_read_local_mmr(UVH_NODE_ID);
 	hub_info->gnode_extra =
@@ -937,7 +996,7 @@ void __init uv_init_hub_info(struct uv_hub_info_s *hub_info)
 	get_lowmem_redirect(
 		&hub_info->lowmem_remap_base, &hub_info->lowmem_remap_top);
 
-	hub_info->apic_pnode_shift = uvh_apicid.s.pnode_shift;
+	hub_info->apic_pnode_shift = uv_cpuid.socketid_shift;
 
 	/* show system specific info */
 	pr_info("UV: N:%d M:%d m_shift:%d n_lshift:%d\n",
