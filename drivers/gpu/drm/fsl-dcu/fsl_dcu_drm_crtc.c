@@ -67,12 +67,10 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 	struct drm_display_mode *mode = &crtc->state->mode;
-	unsigned int hbp, hfp, hsw, vbp, vfp, vsw, div, index, pol = 0;
-	unsigned long dcuclk;
+	unsigned int hbp, hfp, hsw, vbp, vfp, vsw, index, pol = 0;
 
 	index = drm_crtc_index(crtc);
-	dcuclk = clk_get_rate(fsl_dev->clk);
-	div = dcuclk / mode->clock / 1000;
+	clk_set_rate(fsl_dev->pix_clk, mode->clock * 1000);
 
 	/* Configure timings: */
 	hbp = mode->htotal - mode->hsync_end;
@@ -99,7 +97,6 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	regmap_write(fsl_dev->regmap, DCU_DISP_SIZE,
 		     DCU_DISP_SIZE_DELTA_Y(mode->vdisplay) |
 		     DCU_DISP_SIZE_DELTA_X(mode->hdisplay));
-	regmap_write(fsl_dev->regmap, DCU_DIV_RATIO, div);
 	regmap_write(fsl_dev->regmap, DCU_SYN_POL, pol);
 	regmap_write(fsl_dev->regmap, DCU_BGND, DCU_BGND_R(0) |
 		     DCU_BGND_G(0) | DCU_BGND_B(0));

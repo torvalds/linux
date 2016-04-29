@@ -183,6 +183,8 @@ struct fsl_dcu_drm_device {
 	struct regmap *regmap;
 	int irq;
 	struct clk *clk;
+	struct clk *pix_clk;
+	struct fsl_tcon *tcon;
 	/*protects hardware register*/
 	spinlock_t irq_lock;
 	struct drm_device *drm;
