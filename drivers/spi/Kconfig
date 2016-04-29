@@ -569,7 +569,7 @@ config SPI_SIRF
 
 config SPI_ST_SSC4
 	tristate "STMicroelectronics SPI SSC-based driver"
-	depends on ARCH_STI
+	depends on ARCH_STI || COMPILE_TEST
 	help
 	  STMicroelectronics SoCs support for SPI. If you say yes to
 	  this option, support will be included for the SSC driven SPI.
