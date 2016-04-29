@@ -201,7 +201,7 @@ static ssize_t usbip_status_show(struct device *dev,
 	int status;
 
 	if (!udc) {
-		dev_err(&udc->pdev->dev, "no device");
+		dev_err(dev, "no device");
 		return -ENODEV;
 	}
 	spin_lock_irq(&udc->ud.lock);
