@@ -130,5 +130,7 @@ static inline int radix__pmd_trans_huge(pmd_t pmd)
 
 #endif
 
+extern int radix__map_kernel_page(unsigned long ea, unsigned long pa,
+				 pgprot_t flags, unsigned int psz);
 #endif /* __ASSEMBLY__ */
 #endif

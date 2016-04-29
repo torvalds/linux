@@ -16,7 +16,10 @@ struct mmu_psize_def {
 	int		penc[MMU_PAGE_COUNT];	/* HPTE encoding */
 	unsigned int	tlbiel;	/* tlbiel supported for that page size */
 	unsigned long	avpnm;	/* bits to mask out in AVPN in the HPTE */
-	unsigned long	sllp;	/* SLB L||LP (exact mask to use in slbmte) */
+	union {
+		unsigned long	sllp;	/* SLB L||LP (exact mask to use in slbmte) */
+		unsigned long ap;	/* Ap encoding used by PowerISA 3.0 */
+	};
 };
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 
@@ -98,22 +101,34 @@ extern int mmu_vmemmap_psize;
 extern int mmu_io_psize;
 
 /* MMU initialization */
+extern void radix_init_native(void);
 extern void hash__early_init_mmu(void);
+extern void radix__early_init_mmu(void);
 static inline void early_init_mmu(void)
 {
+	if (radix_enabled())
+		return radix__early_init_mmu();
 	return hash__early_init_mmu();
 }
 extern void hash__early_init_mmu_secondary(void);
+extern void radix__early_init_mmu_secondary(void);
 static inline void early_init_mmu_secondary(void)
 {
+	if (radix_enabled())
+		return radix__early_init_mmu_secondary();
 	return hash__early_init_mmu_secondary();
 }
 
 extern void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 					 phys_addr_t first_memblock_size);
+extern void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
+					 phys_addr_t first_memblock_size);
 static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 					      phys_addr_t first_memblock_size)
 {
+	if (radix_enabled())
+		return radix__setup_initial_memory_limit(first_memblock_base,
+						   first_memblock_size);
 	return hash__setup_initial_memory_limit(first_memblock_base,
 					   first_memblock_size);
 }
