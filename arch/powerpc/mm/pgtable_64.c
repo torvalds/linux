@@ -253,7 +253,7 @@ void __iomem * __ioremap(phys_addr_t addr, unsigned long size,
 
 void __iomem * ioremap(phys_addr_t addr, unsigned long size)
 {
-	unsigned long flags = _PAGE_NO_CACHE | _PAGE_GUARDED;
+	unsigned long flags = pgprot_val(pgprot_noncached(__pgprot(0)));
 	void *caller = __builtin_return_address(0);
 
 	if (ppc_md.ioremap)
@@ -263,7 +263,7 @@ void __iomem * ioremap(phys_addr_t addr, unsigned long size)
 
 void __iomem * ioremap_wc(phys_addr_t addr, unsigned long size)
 {
-	unsigned long flags = _PAGE_NO_CACHE;
+	unsigned long flags = pgprot_val(pgprot_noncached_wc(__pgprot(0)));
 	void *caller = __builtin_return_address(0);
 
 	if (ppc_md.ioremap)
