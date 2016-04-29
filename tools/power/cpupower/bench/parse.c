@@ -65,7 +65,7 @@ FILE *prepare_output(const char *dirname)
 {
 	FILE *output = NULL;
 	int len;
-	char *filename;
+	char *filename, *filename_tmp;
 	struct utsname sysdata;
 	DIR *dir;
 
@@ -88,13 +88,15 @@ FILE *prepare_output(const char *dirname)
 
 	if (uname(&sysdata) == 0) {
 		len += strlen(sysdata.nodename) + strlen(sysdata.release);
-		filename = realloc(filename, sizeof(char) * len);
+		filename_tmp = realloc(filename, sizeof(*filename) * len);
 
-		if (!filename) {
+		if (filename_tmp == NULL) {
+			free(filename);
 			perror("realloc");
 			goto out_dir;
 		}
 
+		filename = filename_tmp;
 		snprintf(filename, len - 1, "%s/benchmark_%s_%s_%li.log",
 			dirname, sysdata.nodename, sysdata.release, time(NULL));
 	} else {
