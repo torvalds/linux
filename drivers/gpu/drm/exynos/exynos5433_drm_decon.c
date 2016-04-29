@@ -439,8 +439,6 @@ static void decon_te_irq_handler(struct exynos_drm_crtc *crtc)
 
 	if (test_and_clear_bit(BIT_WIN_UPDATED, &ctx->flags))
 		decon_set_bits(ctx, DECON_TRIGCON, TRIGCON_SWTRIGCMD, ~0);
-
-	drm_crtc_handle_vblank(&ctx->crtc->base);
 }
 
 static void decon_clear_channels(struct exynos_drm_crtc *crtc)
@@ -573,6 +571,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 
 		/* clear */
 		writel(val, ctx->addr + DECON_VIDINTCON1);
+		drm_crtc_handle_vblank(&ctx->crtc->base);
 	}
 
 out:
