@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/memblock.h>
+#include <linux/iommu.h>
 
 #include <asm/iommu.h>
 #include <asm/pnv-pci.h>
@@ -154,7 +155,7 @@ static struct pnv_ioda_pe *get_gpu_pci_dev_and_pe(struct pnv_ioda_pe *npe,
 	return pe;
 }
 
-static long pnv_npu_set_window(struct pnv_ioda_pe *npe,
+long pnv_npu_set_window(struct pnv_ioda_pe *npe, int num,
 		struct iommu_table *tbl)
 {
 	struct pnv_phb *phb = npe->phb;
@@ -182,13 +183,13 @@ static long pnv_npu_set_window(struct pnv_ioda_pe *npe,
 	pnv_pci_ioda2_tce_invalidate_entire(phb, false);
 
 	/* Add the table to the list so its TCE cache will get invalidated */
-	pnv_pci_link_table_and_group(phb->hose->node, 0,
+	pnv_pci_link_table_and_group(phb->hose->node, num,
 			tbl, &npe->table_group);
 
 	return 0;
 }
 
-static long pnv_npu_unset_window(struct pnv_ioda_pe *npe)
+long pnv_npu_unset_window(struct pnv_ioda_pe *npe, int num)
 {
 	struct pnv_phb *phb = npe->phb;
 	int64_t rc;
@@ -205,7 +206,7 @@ static long pnv_npu_unset_window(struct pnv_ioda_pe *npe)
 	}
 	pnv_pci_ioda2_tce_invalidate_entire(phb, false);
 
-	pnv_pci_unlink_table_and_group(npe->table_group.tables[0],
+	pnv_pci_unlink_table_and_group(npe->table_group.tables[num],
 			&npe->table_group);
 
 	return 0;
@@ -231,7 +232,7 @@ static void pnv_npu_dma_set_32(struct pnv_ioda_pe *npe)
 	if (!gpe)
 		return;
 
-	rc = pnv_npu_set_window(npe, gpe->table_group.tables[0]);
+	rc = pnv_npu_set_window(npe, 0, gpe->table_group.tables[0]);
 
 	/*
 	 * We don't initialise npu_pe->tce32_table as we always use
@@ -255,7 +256,7 @@ static int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe)
 	if (phb->type != PNV_PHB_NPU || !npe->pdev)
 		return -EINVAL;
 
-	rc = pnv_npu_unset_window(npe);
+	rc = pnv_npu_unset_window(npe, 0);
 	if (rc != OPAL_SUCCESS)
 		return rc;
 
@@ -306,4 +307,55 @@ void pnv_npu_try_dma_set_bypass(struct pci_dev *gpdev, bool bypass)
 			pnv_npu_dma_set_32(npe);
 		}
 	}
+}
+
+/* Switch ownership from platform code to external user (e.g. VFIO) */
+void pnv_npu_take_ownership(struct pnv_ioda_pe *npe)
+{
+	struct pnv_phb *phb = npe->phb;
+	int64_t rc;
+
+	/*
+	 * Note: NPU has just a single TVE in the hardware which means that
+	 * while used by the kernel, it can have either 32bit window or
+	 * DMA bypass but never both. So we deconfigure 32bit window only
+	 * if it was enabled at the moment of ownership change.
+	 */
+	if (npe->table_group.tables[0]) {
+		pnv_npu_unset_window(npe, 0);
+		return;
+	}
+
+	/* Disable bypass */
+	rc = opal_pci_map_pe_dma_window_real(phb->opal_id,
+			npe->pe_number, npe->pe_number,
+			0 /* bypass base */, 0);
+	if (rc) {
+		pe_err(npe, "Failed to disable bypass, err %lld\n", rc);
+		return;
+	}
+	pnv_pci_ioda2_tce_invalidate_entire(npe->phb, false);
+}
+
+struct pnv_ioda_pe *pnv_pci_npu_setup_iommu(struct pnv_ioda_pe *npe)
+{
+	struct pnv_phb *phb = npe->phb;
+	struct pci_bus *pbus = phb->hose->bus;
+	struct pci_dev *npdev, *gpdev = NULL, *gptmp;
+	struct pnv_ioda_pe *gpe = get_gpu_pci_dev_and_pe(npe, &gpdev);
+
+	if (!gpe || !gpdev)
+		return NULL;
+
+	list_for_each_entry(npdev, &pbus->devices, bus_list) {
+		gptmp = pnv_pci_get_gpu_dev(npdev);
+
+		if (gptmp != gpdev)
+			continue;
+
+		pe_info(gpe, "Attached NPU %s\n", dev_name(&npdev->dev));
+		iommu_group_add_device(gpe->table_group.group, &npdev->dev);
+	}
+
+	return gpe;
 }

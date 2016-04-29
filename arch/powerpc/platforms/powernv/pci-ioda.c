@@ -2389,6 +2389,116 @@ static struct iommu_table_group_ops pnv_pci_ioda2_ops = {
 	.take_ownership = pnv_ioda2_take_ownership,
 	.release_ownership = pnv_ioda2_release_ownership,
 };
+
+static int gpe_table_group_to_npe_cb(struct device *dev, void *opaque)
+{
+	struct pci_controller *hose;
+	struct pnv_phb *phb;
+	struct pnv_ioda_pe **ptmppe = opaque;
+	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dn *pdn = pci_get_pdn(pdev);
+
+	if (!pdn || pdn->pe_number == IODA_INVALID_PE)
+		return 0;
+
+	hose = pci_bus_to_host(pdev->bus);
+	phb = hose->private_data;
+	if (phb->type != PNV_PHB_NPU)
+		return 0;
+
+	*ptmppe = &phb->ioda.pe_array[pdn->pe_number];
+
+	return 1;
+}
+
+/*
+ * This returns PE of associated NPU.
+ * This assumes that NPU is in the same IOMMU group with GPU and there is
+ * no other PEs.
+ */
+static struct pnv_ioda_pe *gpe_table_group_to_npe(
+		struct iommu_table_group *table_group)
+{
+	struct pnv_ioda_pe *npe = NULL;
+	int ret = iommu_group_for_each_dev(table_group->group, &npe,
+			gpe_table_group_to_npe_cb);
+
+	BUG_ON(!ret || !npe);
+
+	return npe;
+}
+
+static long pnv_pci_ioda2_npu_set_window(struct iommu_table_group *table_group,
+		int num, struct iommu_table *tbl)
+{
+	long ret = pnv_pci_ioda2_set_window(table_group, num, tbl);
+
+	if (ret)
+		return ret;
+
+	ret = pnv_npu_set_window(gpe_table_group_to_npe(table_group), num, tbl);
+	if (ret)
+		pnv_pci_ioda2_unset_window(table_group, num);
+
+	return ret;
+}
+
+static long pnv_pci_ioda2_npu_unset_window(
+		struct iommu_table_group *table_group,
+		int num)
+{
+	long ret = pnv_pci_ioda2_unset_window(table_group, num);
+
+	if (ret)
+		return ret;
+
+	return pnv_npu_unset_window(gpe_table_group_to_npe(table_group), num);
+}
+
+static void pnv_ioda2_npu_take_ownership(struct iommu_table_group *table_group)
+{
+	/*
+	 * Detach NPU first as pnv_ioda2_take_ownership() will destroy
+	 * the iommu_table if 32bit DMA is enabled.
+	 */
+	pnv_npu_take_ownership(gpe_table_group_to_npe(table_group));
+	pnv_ioda2_take_ownership(table_group);
+}
+
+static struct iommu_table_group_ops pnv_pci_ioda2_npu_ops = {
+	.get_table_size = pnv_pci_ioda2_get_table_size,
+	.create_table = pnv_pci_ioda2_create_table,
+	.set_window = pnv_pci_ioda2_npu_set_window,
+	.unset_window = pnv_pci_ioda2_npu_unset_window,
+	.take_ownership = pnv_ioda2_npu_take_ownership,
+	.release_ownership = pnv_ioda2_release_ownership,
+};
+
+static void pnv_pci_ioda_setup_iommu_api(void)
+{
+	struct pci_controller *hose, *tmp;
+	struct pnv_phb *phb;
+	struct pnv_ioda_pe *pe, *gpe;
+
+	/*
+	 * Now we have all PHBs discovered, time to add NPU devices to
+	 * the corresponding IOMMU groups.
+	 */
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		phb = hose->private_data;
+
+		if (phb->type != PNV_PHB_NPU)
+			continue;
+
+		list_for_each_entry(pe, &phb->ioda.pe_list, list) {
+			gpe = pnv_pci_npu_setup_iommu(pe);
+			if (gpe)
+				gpe->table_group.ops = &pnv_pci_ioda2_npu_ops;
+		}
+	}
+}
+#else /* !CONFIG_IOMMU_API */
+static void pnv_pci_ioda_setup_iommu_api(void) { };
 #endif
 
 static void pnv_pci_ioda_setup_opal_tce_kill(struct pnv_phb *phb)
@@ -3115,6 +3225,8 @@ static void pnv_pci_ioda_setup_DMA(void)
 		phb = hose->private_data;
 		phb->initialized = 1;
 	}
+
+	pnv_pci_ioda_setup_iommu_api();
 }
 
 static void pnv_pci_ioda_create_dbgfs(void)
