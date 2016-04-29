@@ -76,6 +76,7 @@ int default_machine_kexec_prepare(struct kimage *image)
 	 * end of the blocked region (begin >= high).  Use the
 	 * boolean identity !(a || b)  === (!a && !b).
 	 */
+#ifdef CONFIG_PPC_STD_MMU_64
 	if (htab_address) {
 		low = __pa(htab_address);
 		high = low + htab_size_bytes;
@@ -88,6 +89,7 @@ int default_machine_kexec_prepare(struct kimage *image)
 				return -ETXTBSY;
 		}
 	}
+#endif /* CONFIG_PPC_STD_MMU_64 */
 
 	/* We also should not overwrite the tce tables */
 	for_each_node_by_type(node, "pci") {
@@ -381,7 +383,7 @@ void default_machine_kexec(struct kimage *image)
 	/* NOTREACHED */
 }
 
-#ifndef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_STD_MMU_64
 /* Values we need to export to the second kernel via the device tree. */
 static unsigned long htab_base;
 static unsigned long htab_size;
@@ -428,4 +430,4 @@ static int __init export_htab_values(void)
 	return 0;
 }
 late_initcall(export_htab_values);
-#endif /* !CONFIG_PPC_BOOK3E */
+#endif /* CONFIG_PPC_STD_MMU_64 */

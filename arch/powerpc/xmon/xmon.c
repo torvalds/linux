@@ -2913,7 +2913,7 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 	printf("%s", after);
 }
 
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_STD_MMU_64
 void dump_segments(void)
 {
 	int i;
