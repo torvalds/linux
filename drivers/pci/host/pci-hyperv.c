@@ -2268,11 +2268,6 @@ static int hv_pci_remove(struct hv_device *hdev)
 
 	hbus = hv_get_drvdata(hdev);
 
-	ret = hv_send_resources_released(hdev);
-	if (ret)
-		dev_err(&hdev->device,
-			"Couldn't send resources released packet(s)\n");
-
 	memset(&pkt.teardown_packet, 0, sizeof(pkt.teardown_packet));
 	init_completion(&comp_pkt.host_event);
 	pkt.teardown_packet.completion_func = hv_pci_generic_compl;
@@ -2294,6 +2289,11 @@ static int hv_pci_remove(struct hv_device *hdev)
 		pci_remove_root_bus(hbus->pci_bus);
 		pci_unlock_rescan_remove();
 	}
+
+	ret = hv_send_resources_released(hdev);
+	if (ret)
+		dev_err(&hdev->device,
+			"Couldn't send resources released packet(s)\n");
 
 	vmbus_close(hdev->channel);
 
