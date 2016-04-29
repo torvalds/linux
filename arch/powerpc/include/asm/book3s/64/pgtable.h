@@ -177,6 +177,12 @@ extern unsigned long __pgd_val_bits;
 #define PMD_VAL_BITS	__pmd_val_bits
 #define PUD_VAL_BITS	__pud_val_bits
 #define PGD_VAL_BITS	__pgd_val_bits
+
+extern unsigned long __pte_frag_nr;
+#define PTE_FRAG_NR __pte_frag_nr
+extern unsigned long __pte_frag_size_shift;
+#define PTE_FRAG_SIZE_SHIFT __pte_frag_size_shift
+#define PTE_FRAG_SIZE (1UL << PTE_FRAG_SIZE_SHIFT)
 /*
  * Pgtable size used by swapper, init in asm code
  */

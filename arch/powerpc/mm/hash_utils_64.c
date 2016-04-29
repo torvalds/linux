@@ -873,6 +873,9 @@ void __init hash__early_init_mmu(void)
 	/*
 	 * initialize page table size
 	 */
+	__pte_frag_nr = H_PTE_FRAG_NR;
+	__pte_frag_size_shift = H_PTE_FRAG_SIZE_SHIFT;
+
 	__pte_index_size = H_PTE_INDEX_SIZE;
 	__pmd_index_size = H_PMD_INDEX_SIZE;
 	__pud_index_size = H_PUD_INDEX_SIZE;
