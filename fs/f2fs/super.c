@@ -41,6 +41,11 @@ static struct kset *f2fs_kset;
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 u32 f2fs_fault_rate = 0;
+atomic_t f2fs_ops;
+
+char *fault_name[FAULT_MAX] = {
+	[FAULT_KMALLOC]		= "kmalloc",
+};
 #endif
 
 /* f2fs-wide shrinker description */
@@ -447,6 +452,7 @@ static int parse_options(struct super_block *sb, char *options)
 				return -EINVAL;
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 			f2fs_fault_rate = arg;
+			atomic_set(&f2fs_ops, 0);
 #else
 			f2fs_msg(sb, KERN_INFO,
 				"FAULT_INJECTION was not selected");

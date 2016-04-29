@@ -37,6 +37,31 @@
 	} while (0)
 #endif
 
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+enum {
+	FAULT_KMALLOC,
+	FAULT_MAX,
+};
+
+extern u32 f2fs_fault_rate;
+extern atomic_t f2fs_ops;
+extern char *fault_name[FAULT_MAX];
+
+static inline bool time_to_inject(int type)
+{
+	atomic_inc(&f2fs_ops);
+	if (f2fs_fault_rate && (atomic_read(&f2fs_ops) >= f2fs_fault_rate)) {
+		atomic_set(&f2fs_ops, 0);
+		printk("%sF2FS-fs : inject %s in %pF\n",
+				KERN_INFO,
+				fault_name[type],
+				__builtin_return_address(0));
+		return true;
+	}
+	return false;
+}
+#endif
+
 /*
  * For mount options
  */
@@ -1647,6 +1672,10 @@ static inline bool f2fs_may_extent_tree(struct inode *inode)
 
 static inline void *f2fs_kmalloc(size_t size, gfp_t flags)
 {
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	if (time_to_inject(FAULT_KMALLOC))
+		return NULL;
+#endif
 	return kmalloc(size, flags);
 }
 
