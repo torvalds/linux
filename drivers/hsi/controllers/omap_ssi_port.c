@@ -24,7 +24,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/debugfs.h>
 
 #include "omap_ssi_regs.h"
@@ -43,7 +43,7 @@ static inline int hsi_dummy_cl(struct hsi_client *cl __maybe_unused)
 static inline unsigned int ssi_wakein(struct hsi_port *port)
 {
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
-	return gpio_get_value(omap_port->wake_gpio);
+	return gpiod_get_value(omap_port->wake_gpio);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1036,12 +1036,12 @@ static int __init ssi_wake_irq(struct hsi_port *port,
 	int cawake_irq;
 	int err;
 
-	if (omap_port->wake_gpio == -1) {
+	if (!omap_port->wake_gpio) {
 		omap_port->wake_irq = -1;
 		return 0;
 	}
 
-	cawake_irq = gpio_to_irq(omap_port->wake_gpio);
+	cawake_irq = gpiod_to_irq(omap_port->wake_gpio);
 
 	omap_port->wake_irq = cawake_irq;
 	tasklet_init(&omap_port->wake_tasklet, ssi_wake_tasklet,
@@ -1111,7 +1111,7 @@ static int __init ssi_port_probe(struct platform_device *pd)
 	struct omap_ssi_port *omap_port;
 	struct hsi_controller *ssi = dev_get_drvdata(pd->dev.parent);
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
-	int cawake_gpio = 0;
+	struct gpio_desc *cawake_gpio = NULL;
 	u32 port_id;
 	int err;
 
@@ -1147,20 +1147,10 @@ static int __init ssi_port_probe(struct platform_device *pd)
 		goto error;
 	}
 
-	err = of_get_named_gpio(np, "ti,ssi-cawake-gpio", 0);
-	if (err < 0) {
-		dev_err(&pd->dev, "DT data is missing cawake gpio (err=%d)\n",
-			err);
-		goto error;
-	}
-	cawake_gpio = err;
-
-	err = devm_gpio_request_one(&port->device, cawake_gpio, GPIOF_DIR_IN,
-		"cawake");
-	if (err) {
-		dev_err(&pd->dev, "could not request cawake gpio (err=%d)!\n",
-			err);
-		err = -ENXIO;
+	cawake_gpio = devm_gpiod_get(&pd->dev, "ti,ssi-cawake", GPIOD_IN);
+	if (IS_ERR(cawake_gpio)) {
+		err = PTR_ERR(cawake_gpio);
+		dev_err(&pd->dev, "couldn't get cawake gpio (err=%d)!\n", err);
 		goto error;
 	}
 
@@ -1219,8 +1209,7 @@ static int __init ssi_port_probe(struct platform_device *pd)
 
 	hsi_add_clients_from_dt(port, np);
 
-	dev_info(&pd->dev, "ssi port %u successfully initialized (cawake=%d)\n",
-		port_id, cawake_gpio);
+	dev_info(&pd->dev, "ssi port %u successfully initialized\n", port_id);
 
 	return 0;
 

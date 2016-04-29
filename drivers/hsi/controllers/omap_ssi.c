@@ -24,7 +24,6 @@
 #include <linux/err.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>

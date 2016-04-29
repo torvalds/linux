@@ -27,7 +27,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/hsi/hsi.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 
@@ -97,7 +97,7 @@ struct omap_ssi_port {
 	struct list_head	brkqueue;
 	unsigned int		irq;
 	int			wake_irq;
-	int			wake_gpio;
+	struct gpio_desc	*wake_gpio;
 	struct tasklet_struct	pio_tasklet;
 	struct tasklet_struct	wake_tasklet;
 	bool			wktest:1; /* FIXME: HACK to be removed */
