@@ -421,4 +421,6 @@ config PHY_CYGNUS_PCIE
 	  Enable this to support the Broadcom Cygnus PCIe PHY.
 	  If unsure, say N.
 
+source "drivers/phy/tegra/Kconfig"
+
 endmenu
