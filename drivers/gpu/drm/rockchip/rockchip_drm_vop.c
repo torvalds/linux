@@ -341,7 +341,7 @@ static void scl_vop_cal_scl_fac(struct vop *vop, struct vop_win *win,
 	uint16_t vsu_mode;
 	uint16_t lb_mode;
 	uint32_t val;
-	int vskiplines;
+	int vskiplines = 0;
 
 	if (!win->phy->scl)
 		return;
