@@ -38,16 +38,16 @@ static inline int is_exec_fault(void)
 
 /* We only try to do i/d cache coherency on stuff that looks like
  * reasonably "normal" PTEs. We currently require a PTE to be present
- * and we avoid _PAGE_SPECIAL and _PAGE_NO_CACHE. We also only do that
+ * and we avoid _PAGE_SPECIAL and cache inhibited pte. We also only do that
  * on userspace PTEs
  */
 static inline int pte_looks_normal(pte_t pte)
 {
 
 #if defined(CONFIG_PPC_BOOK3S_64)
-	if ((pte_val(pte) &
-	     (_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE)) ==
-	    _PAGE_PRESENT) {
+	if ((pte_val(pte) & (_PAGE_PRESENT | _PAGE_SPECIAL)) == _PAGE_PRESENT) {
+		if (pte_ci(pte))
+			return 0;
 		if (pte_user(pte))
 			return 1;
 	}

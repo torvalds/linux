@@ -276,19 +276,24 @@ static inline unsigned long hpte_make_readonly(unsigned long ptel)
 	return ptel;
 }
 
-static inline int hpte_cache_flags_ok(unsigned long ptel, unsigned long io_type)
+static inline bool hpte_cache_flags_ok(unsigned long hptel, bool is_ci)
 {
-	unsigned int wimg = ptel & HPTE_R_WIMG;
+	unsigned int wimg = hptel & HPTE_R_WIMG;
 
 	/* Handle SAO */
 	if (wimg == (HPTE_R_W | HPTE_R_I | HPTE_R_M) &&
 	    cpu_has_feature(CPU_FTR_ARCH_206))
 		wimg = HPTE_R_M;
 
-	if (!io_type)
+	if (!is_ci)
 		return wimg == HPTE_R_M;
-
-	return (wimg & (HPTE_R_W | HPTE_R_I)) == io_type;
+	/*
+	 * if host is mapped cache inhibited, make sure hptel also have
+	 * cache inhibited.
+	 */
+	if (wimg & HPTE_R_W) /* FIXME!! is this ok for all guest. ? */
+		return false;
+	return !!(wimg & HPTE_R_I);
 }
 
 /*
@@ -323,18 +328,6 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing)
 			break;
 	}
 	return new_pte;
-}
-
-
-/* Return HPTE cache control bits corresponding to Linux pte bits */
-static inline unsigned long hpte_cache_bits(unsigned long pte_val)
-{
-#if _PAGE_NO_CACHE == HPTE_R_I && _PAGE_WRITETHRU == HPTE_R_W
-	return pte_val & (HPTE_R_W | HPTE_R_I);
-#else
-	return ((pte_val & _PAGE_NO_CACHE) ? HPTE_R_I : 0) +
-		((pte_val & _PAGE_WRITETHRU) ? HPTE_R_W : 0);
-#endif
 }
 
 static inline bool hpte_read_permission(unsigned long pp, unsigned long key)

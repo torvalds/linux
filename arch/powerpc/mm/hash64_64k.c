@@ -244,7 +244,7 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 		 * If so, bail out and refault as a 4k page
 		 */
 		if (!mmu_has_feature(MMU_FTR_CI_LARGE_PAGE) &&
-		    unlikely(old_pte & _PAGE_NO_CACHE))
+		    unlikely(pte_ci(pte)))
 			return 0;
 		/*
 		 * Try to lock the PTE, add ACCESSED and DIRTY if it was
