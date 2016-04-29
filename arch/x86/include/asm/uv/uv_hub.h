@@ -20,6 +20,7 @@
 #include <asm/types.h>
 #include <asm/percpu.h>
 #include <asm/uv/uv_mmrs.h>
+#include <asm/uv/bios.h>
 #include <asm/irq_vectors.h>
 #include <asm/io_apic.h>
 
@@ -104,7 +105,6 @@
  *	      processor APICID register.
  */
 
-
 /*
  * Maximum number of bricks in all partitions and in all coherency domains.
  * This is the total number of bricks accessible in the numalink fabric. It
@@ -139,6 +139,14 @@ struct uv_scir_s {
 	unsigned char	enabled;
 };
 
+/* GAM (globally addressed memory) range table */
+struct uv_gam_range_s {
+	u32	limit;		/* PA bits 56:26 (GAM_RANGE_SHFT) */
+	u16	nasid;		/* node's global physical address */
+	s8	base;		/* entry index of node's base addr */
+	u8	reserved;
+};
+
 /*
  * The following defines attributes of the HUB chip. These attributes are
  * frequently referenced and are kept in a common per hub struct.
@@ -152,8 +160,12 @@ struct uv_hub_info_s {
 	unsigned short		*socket_to_node;
 	unsigned short		*socket_to_pnode;
 	unsigned short		*pnode_to_socket;
+	struct uv_gam_range_s	*gr_table;
 	unsigned short		min_socket;
 	unsigned short		min_pnode;
+	unsigned char		m_val;
+	unsigned char		n_val;
+	unsigned char		gr_table_len;
 	unsigned char		hub_revision;
 	unsigned char		apic_pnode_shift;
 	unsigned char		gpa_shift;
@@ -169,8 +181,6 @@ struct uv_hub_info_s {
 	unsigned short		pnode_mask;
 	unsigned short		coherency_domain_number;
 	unsigned short		numa_blade_id;
-	unsigned char		m_val;
-	unsigned char		n_val;
 	unsigned short		nr_possible_cpus;
 	unsigned short		nr_online_cpus;
 	short			memory_nid;
@@ -419,17 +429,73 @@ union uvh_apicid {
  *	      between socket virtual and socket physical addresses.
  */
 
+/* global bits offset - number of local address bits in gpa for this UV arch */
+static inline unsigned int uv_gpa_shift(void)
+{
+	return uv_hub_info->gpa_shift;
+}
+#define	_uv_gpa_shift
+
+/* Find node that has the address range that contains global address  */
+static inline struct uv_gam_range_s *uv_gam_range(unsigned long pa)
+{
+	struct uv_gam_range_s *gr = uv_hub_info->gr_table;
+	unsigned long pal = (pa & uv_hub_info->gpa_mask) >> UV_GAM_RANGE_SHFT;
+	int i, num = uv_hub_info->gr_table_len;
+
+	if (gr) {
+		for (i = 0; i < num; i++, gr++) {
+			if (pal < gr->limit)
+				return gr;
+		}
+	}
+	pr_crit("UV: GAM Range for 0x%lx not found at %p!\n", pa, gr);
+	BUG();
+}
+
+/* Return base address of node that contains global address  */
+static inline unsigned long uv_gam_range_base(unsigned long pa)
+{
+	struct uv_gam_range_s *gr = uv_gam_range(pa);
+	int base = gr->base;
+
+	if (base < 0)
+		return 0UL;
+
+	return uv_hub_info->gr_table[base].limit;
+}
+
+/* socket phys RAM --> UV global NASID (UV4+) */
+static inline unsigned long uv_soc_phys_ram_to_nasid(unsigned long paddr)
+{
+	return uv_gam_range(paddr)->nasid;
+}
+#define	_uv_soc_phys_ram_to_nasid
+
+/* socket virtual --> UV global NASID (UV4+) */
+static inline unsigned long uv_gpa_nasid(void *v)
+{
+	return uv_soc_phys_ram_to_nasid(__pa(v));
+}
+
 /* socket phys RAM --> UV global physical address */
 static inline unsigned long uv_soc_phys_ram_to_gpa(unsigned long paddr)
 {
+	unsigned int m_val = uv_hub_info->m_val;
+
 	if (paddr < uv_hub_info->lowmem_remap_top)
 		paddr |= uv_hub_info->lowmem_remap_base;
 	paddr |= uv_hub_info->gnode_upper;
-	paddr = ((paddr << uv_hub_info->m_shift) >> uv_hub_info->m_shift) |
-		((paddr >> uv_hub_info->m_val) << uv_hub_info->n_lshift);
+	if (m_val)
+		paddr = ((paddr << uv_hub_info->m_shift)
+						>> uv_hub_info->m_shift) |
+			((paddr >> uv_hub_info->m_val)
+						<< uv_hub_info->n_lshift);
+	else
+		paddr |= uv_soc_phys_ram_to_nasid(paddr)
+						<< uv_hub_info->gpa_shift;
 	return paddr;
 }
-
 
 /* socket virtual --> UV global physical address */
 static inline unsigned long uv_gpa(void *v)
@@ -450,20 +516,27 @@ static inline unsigned long uv_gpa_to_soc_phys_ram(unsigned long gpa)
 	unsigned long paddr;
 	unsigned long remap_base = uv_hub_info->lowmem_remap_base;
 	unsigned long remap_top =  uv_hub_info->lowmem_remap_top;
+	unsigned int m_val = uv_hub_info->m_val;
 
-	gpa = ((gpa << uv_hub_info->m_shift) >> uv_hub_info->m_shift) |
-		((gpa >> uv_hub_info->n_lshift) << uv_hub_info->m_val);
+	if (m_val)
+		gpa = ((gpa << uv_hub_info->m_shift) >> uv_hub_info->m_shift) |
+			((gpa >> uv_hub_info->n_lshift) << uv_hub_info->m_val);
+
 	paddr = gpa & uv_hub_info->gpa_mask;
 	if (paddr >= remap_base && paddr < remap_base + remap_top)
 		paddr -= remap_base;
 	return paddr;
 }
 
-
 /* gpa -> gnode */
 static inline unsigned long uv_gpa_to_gnode(unsigned long gpa)
 {
-	return gpa >> uv_hub_info->n_lshift;
+	unsigned int n_lshift = uv_hub_info->n_lshift;
+
+	if (n_lshift)
+		return gpa >> n_lshift;
+
+	return uv_gam_range(gpa)->nasid >> 1;
 }
 
 /* gpa -> pnode */
@@ -475,21 +548,45 @@ static inline int uv_gpa_to_pnode(unsigned long gpa)
 /* gpa -> node offset */
 static inline unsigned long uv_gpa_to_offset(unsigned long gpa)
 {
-	return (gpa << uv_hub_info->m_shift) >> uv_hub_info->m_shift;
+	unsigned int m_shift = uv_hub_info->m_shift;
+
+	if (m_shift)
+		return (gpa << m_shift) >> m_shift;
+
+	return (gpa & uv_hub_info->gpa_mask) - uv_gam_range_base(gpa);
+}
+
+/* Convert socket to node */
+static inline int _uv_socket_to_node(int socket, unsigned short *s2nid)
+{
+	return s2nid ? s2nid[socket - uv_hub_info->min_socket] : socket;
+}
+
+static inline int uv_socket_to_node(int socket)
+{
+	return _uv_socket_to_node(socket, uv_hub_info->socket_to_node);
 }
 
 /* pnode, offset --> socket virtual */
 static inline void *uv_pnode_offset_to_vaddr(int pnode, unsigned long offset)
 {
-	return __va(((unsigned long)pnode << uv_hub_info->m_val) | offset);
-}
+	unsigned int m_val = uv_hub_info->m_val;
+	unsigned long base;
+	unsigned short sockid, node, *p2s;
 
-/* Convert socket to node */
-static inline int uv_socket_to_node(int socket)
-{
-	unsigned short *s2nid = uv_hub_info->socket_to_node;
+	if (m_val)
+		return __va(((unsigned long)pnode << m_val) | offset);
 
-	return s2nid ? s2nid[socket - uv_hub_info->min_socket] : socket;
+	p2s = uv_hub_info->pnode_to_socket;
+	sockid = p2s ? p2s[pnode - uv_hub_info->min_pnode] : pnode;
+	node = uv_socket_to_node(sockid);
+
+	/* limit address of previous socket is our base, except node 0 is 0 */
+	if (!node)
+		return __va((unsigned long)offset);
+
+	base = (unsigned long)(uv_hub_info->gr_table[node - 1].limit);
+	return __va(base << UV_GAM_RANGE_SHFT | offset);
 }
 
 /* Extract/Convert a PNODE from an APICID (full apicid, not processor subset) */

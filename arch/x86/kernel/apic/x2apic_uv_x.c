@@ -310,6 +310,7 @@ static __initdata struct uv_gam_parameters *uv_gp_table;
 static __initdata unsigned short *_socket_to_node;
 static __initdata unsigned short *_socket_to_pnode;
 static __initdata unsigned short *_pnode_to_socket;
+static __initdata struct uv_gam_range_s *_gr_table;
 #define	SOCK_EMPTY	((unsigned short)~0)
 
 extern int uv_hub_info_version(void)
@@ -317,6 +318,97 @@ extern int uv_hub_info_version(void)
 	return UV_HUB_INFO_VERSION;
 }
 EXPORT_SYMBOL(uv_hub_info_version);
+
+/* Build GAM range lookup table */
+static __init void build_uv_gr_table(void)
+{
+	struct uv_gam_range_entry *gre = uv_gre_table;
+	struct uv_gam_range_s *grt;
+	unsigned long last_limit = 0, ram_limit = 0;
+	int bytes, i, sid, lsid = -1;
+
+	if (!gre)
+		return;
+
+	bytes = _gr_table_len * sizeof(struct uv_gam_range_s);
+	grt = kzalloc(bytes, GFP_KERNEL);
+	BUG_ON(!grt);
+	_gr_table = grt;
+
+	for (; gre->type != UV_GAM_RANGE_TYPE_UNUSED; gre++) {
+		if (gre->type == UV_GAM_RANGE_TYPE_HOLE) {
+			if (!ram_limit) {   /* mark hole between ram/non-ram */
+				ram_limit = last_limit;
+				last_limit = gre->limit;
+				lsid++;
+				continue;
+			}
+			last_limit = gre->limit;
+			pr_info("UV: extra hole in GAM RE table @%d\n",
+				(int)(gre - uv_gre_table));
+			continue;
+		}
+		if (_max_socket < gre->sockid) {
+			pr_err("UV: GAM table sockid(%d) too large(>%d) @%d\n",
+				gre->sockid, _max_socket,
+				(int)(gre - uv_gre_table));
+			continue;
+		}
+		sid = gre->sockid - _min_socket;
+		if (lsid < sid) {		/* new range */
+			grt = &_gr_table[sid];
+			grt->base = lsid;
+			grt->nasid = gre->nasid;
+			grt->limit = last_limit = gre->limit;
+			lsid = sid;
+			continue;
+		}
+		if (lsid == sid && !ram_limit) {	/* update range */
+			if (grt->limit == last_limit) {	/* .. if contiguous */
+				grt->limit = last_limit = gre->limit;
+				continue;
+			}
+		}
+		if (!ram_limit) {		/* non-contiguous ram range */
+			grt++;
+			grt->base = sid - 1;
+			grt->nasid = gre->nasid;
+			grt->limit = last_limit = gre->limit;
+			continue;
+		}
+		grt++;				/* non-contiguous/non-ram */
+		grt->base = grt - _gr_table;	/* base is this entry */
+		grt->nasid = gre->nasid;
+		grt->limit = last_limit = gre->limit;
+		lsid++;
+	}
+
+	/* shorten table if possible */
+	grt++;
+	i = grt - _gr_table;
+	if (i < _gr_table_len) {
+		void *ret;
+
+		bytes = i * sizeof(struct uv_gam_range_s);
+		ret = krealloc(_gr_table, bytes, GFP_KERNEL);
+		if (ret) {
+			_gr_table = ret;
+			_gr_table_len = i;
+		}
+	}
+
+	/* display resultant gam range table */
+	for (i = 0, grt = _gr_table; i < _gr_table_len; i++, grt++) {
+		int gb = grt->base;
+		unsigned long start = gb < 0 ?  0 :
+			(unsigned long)_gr_table[gb].limit << UV_GAM_RANGE_SHFT;
+		unsigned long end =
+			(unsigned long)grt->limit << UV_GAM_RANGE_SHFT;
+
+		pr_info("UV: GAM Range %2d %04x 0x%013lx-0x%013lx (%d)\n",
+			i, grt->nasid, start, end, gb);
+	}
+}
 
 static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 {
@@ -992,6 +1084,8 @@ void __init uv_init_hub_info(struct uv_hub_info_s *hub_info)
 	hub_info->pnode_to_socket = _pnode_to_socket;
 	hub_info->socket_to_node = _socket_to_node;
 	hub_info->socket_to_pnode = _socket_to_pnode;
+	hub_info->gr_table_len = _gr_table_len;
+	hub_info->gr_table = _gr_table;
 	hub_info->gpa_mask = mn.m_val ?
 		(1UL << (mn.m_val + mn.n_val)) - 1 :
 		(1UL << uv_cpuid.gpa_shift) - 1;
@@ -1086,7 +1180,6 @@ static void __init decode_gam_rng_tbl(unsigned long ptr)
 		if (pnode_max < gre->pnode)
 			pnode_max = gre->pnode;
 	}
-
 	_min_socket = sock_min;
 	_max_socket = sock_max;
 	_min_pnode = pnode_min;
@@ -1332,6 +1425,7 @@ void __init uv_system_init(void)
 	uv_bios_init();			/* get uv_systab for decoding */
 	decode_uv_systab();
 	build_socket_tables();
+	build_uv_gr_table();
 	uv_init_hub_info(&hub_info);
 	uv_possible_blades = num_possible_nodes();
 	if (!_node_to_pnode)
