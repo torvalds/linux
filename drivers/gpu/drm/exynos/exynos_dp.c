@@ -48,14 +48,11 @@ int exynos_dp_crtc_clock_enable(struct analogix_dp_plat_data *plat_data,
 {
 	struct exynos_dp_device *dp = to_dp(plat_data);
 	struct drm_encoder *encoder = &dp->encoder;
-	struct exynos_drm_crtc *crtc;
 
-	if (!encoder)
-		return -1;
+	if (!encoder->crtc)
+		return -EPERM;
 
-	crtc = to_exynos_crtc(encoder->crtc);
-	if (crtc && crtc->ops && crtc->ops->clock_enable)
-		crtc->ops->clock_enable(crtc, enable);
+	exynos_drm_pipe_clk_enable(to_exynos_crtc(encoder->crtc), enable);
 
 	return 0;
 }

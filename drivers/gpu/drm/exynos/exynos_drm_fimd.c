@@ -102,6 +102,7 @@ struct fimd_driver_data {
 	unsigned int has_vidoutcon:1;
 	unsigned int has_vtsel:1;
 	unsigned int has_mic_bypass:1;
+	unsigned int has_dp_clk:1;
 };
 
 static struct fimd_driver_data s3c64xx_fimd_driver_data = {
@@ -145,6 +146,7 @@ static struct fimd_driver_data exynos5_fimd_driver_data = {
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
 	.has_vtsel = 1,
+	.has_dp_clk = 1,
 };
 
 static struct fimd_driver_data exynos5420_fimd_driver_data = {
@@ -157,6 +159,7 @@ static struct fimd_driver_data exynos5420_fimd_driver_data = {
 	.has_vidoutcon = 1,
 	.has_vtsel = 1,
 	.has_mic_bypass = 1,
+	.has_dp_clk = 1,
 };
 
 struct fimd_context {
@@ -184,6 +187,7 @@ struct fimd_context {
 
 	struct fimd_driver_data *driver_data;
 	struct drm_encoder *encoder;
+	struct exynos_drm_clk		dp_clk;
 };
 
 static const struct of_device_id fimd_driver_dt_match[] = {
@@ -878,21 +882,12 @@ static void fimd_te_handler(struct exynos_drm_crtc *crtc)
 		drm_crtc_handle_vblank(&ctx->crtc->base);
 }
 
-static void fimd_dp_clock_enable(struct exynos_drm_crtc *crtc, bool enable)
+static void fimd_dp_clock_enable(struct exynos_drm_clk *clk, bool enable)
 {
-	struct fimd_context *ctx = crtc->ctx;
-	u32 val;
+	struct fimd_context *ctx = container_of(clk, struct fimd_context,
+						dp_clk);
+	u32 val = enable ? DP_MIE_CLK_DP_ENABLE : DP_MIE_CLK_DISABLE;
 
-	/*
-	 * Only Exynos 5250, 5260, 5410 and 542x requires enabling DP/MIE
-	 * clock. On these SoCs the bootloader may enable it but any
-	 * power domain off/on will reset it to disable state.
-	 */
-	if (ctx->driver_data != &exynos5_fimd_driver_data &&
-	    ctx->driver_data != &exynos5420_fimd_driver_data)
-		return;
-
-	val = enable ? DP_MIE_CLK_DP_ENABLE : DP_MIE_CLK_DISABLE;
 	writel(val, ctx->regs + DP_MIE_CLKCON);
 }
 
@@ -908,7 +903,6 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.disable_plane = fimd_disable_plane,
 	.atomic_flush = fimd_atomic_flush,
 	.te_handler = fimd_te_handler,
-	.clock_enable = fimd_dp_clock_enable,
 };
 
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
@@ -986,6 +980,11 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 					   &fimd_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc))
 		return PTR_ERR(ctx->crtc);
+
+	if (ctx->driver_data->has_dp_clk) {
+		ctx->dp_clk.enable = fimd_dp_clock_enable;
+		ctx->crtc->pipe_clk = &ctx->dp_clk;
+	}
 
 	if (ctx->encoder)
 		exynos_dpi_bind(drm_dev, ctx->encoder);
