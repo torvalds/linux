@@ -1232,8 +1232,7 @@ static void __init decode_uv_systab(void)
  */
 static __init void boot_init_possible_blades(struct uv_hub_info_s *hub_info)
 {
-	size_t bytes;
-	int blade, i, j, uv_pb = 0, num_nodes = num_possible_nodes();
+	int i, uv_pb = 0;
 
 	pr_info("UV: NODE_PRESENT_DEPTH = %d\n", UVH_NODE_PRESENT_TABLE_DEPTH);
 	for (i = 0; i < UVH_NODE_PRESENT_TABLE_DEPTH; i++) {
@@ -1247,28 +1246,6 @@ static __init void boot_init_possible_blades(struct uv_hub_info_s *hub_info)
 	}
 	if (uv_possible_blades != uv_pb)
 		uv_possible_blades = uv_pb;
-
-	bytes = num_nodes * sizeof(_node_to_pnode[0]);
-	_node_to_pnode = kmalloc(bytes, GFP_KERNEL);
-	BUG_ON(!_node_to_pnode);
-
-	for (blade = 0, i = 0; i < UVH_NODE_PRESENT_TABLE_DEPTH; i++) {
-		unsigned short pnode;
-		unsigned long present =
-			uv_read_local_mmr(UVH_NODE_PRESENT_TABLE + i * 8);
-
-		for (j = 0; j < 64; j++) {
-			if (!test_bit(j, &present))
-				continue;
-			pnode = (i * 64 + j) & hub_info->pnode_mask;
-			_node_to_pnode[blade++] = pnode;
-		}
-		if (blade > num_nodes) {
-			pr_err("UV: blade count(%d) exceeds node count(%d)!\n",
-				blade, num_nodes);
-			BUG();
-		}
-	}
 }
 
 static void __init build_socket_tables(void)
@@ -1449,7 +1426,6 @@ void __init uv_system_init(void)
 	bytes = sizeof(struct uv_hub_info_s);
 	for_each_node(nodeid) {
 		struct uv_hub_info_s *new_hub;
-		unsigned short pnode;
 
 		if (__uv_hub_info_list[nodeid]) {
 			pr_err("UV: Node %d UV HUB already initialized!?\n",
@@ -1467,10 +1443,11 @@ void __init uv_system_init(void)
 		BUG_ON(!new_hub);
 		*new_hub = hub_info;
 
-		pnode = _node_to_pnode[nodeid];
-		min_pnode = min(pnode, min_pnode);
-		max_pnode = max(pnode, max_pnode);
-		new_hub->pnode = pnode;
+		/* Use information from GAM table if available */
+		if (_node_to_pnode)
+			new_hub->pnode = _node_to_pnode[nodeid];
+		else	/* Fill in during cpu loop */
+			new_hub->pnode = 0xffff;
 		new_hub->numa_blade_id = uv_node_to_blade_id(nodeid);
 		new_hub->memory_nid = -1;
 		new_hub->nr_possible_cpus = 0;
@@ -1480,18 +1457,39 @@ void __init uv_system_init(void)
 	/* Initialize per cpu info */
 	for_each_possible_cpu(cpu) {
 		int apicid = per_cpu(x86_cpu_to_apicid, cpu);
+		int numa_node_id;
+		unsigned short pnode;
 
 		nodeid = cpu_to_node(cpu);
+		numa_node_id = numa_cpu_node(cpu);
+		pnode = uv_apicid_to_pnode(apicid);
+
 		uv_cpu_info_per(cpu)->p_uv_hub_info = uv_hub_info_list(nodeid);
 		uv_cpu_info_per(cpu)->blade_cpu_id =
 			uv_cpu_hub_info(cpu)->nr_possible_cpus++;
 		if (uv_cpu_hub_info(cpu)->memory_nid == -1)
 			uv_cpu_hub_info(cpu)->memory_nid = cpu_to_node(cpu);
+		if (nodeid != numa_node_id &&	/* init memoryless node */
+		    uv_hub_info_list(numa_node_id)->pnode == 0xffff)
+			uv_hub_info_list(numa_node_id)->pnode = pnode;
+		else if (uv_cpu_hub_info(cpu)->pnode == 0xffff)
+			uv_cpu_hub_info(cpu)->pnode = pnode;
 		uv_cpu_scir_info(cpu)->offset = uv_scir_offset(apicid);
 	}
 
-	/* Display per node info */
 	for_each_node(nodeid) {
+		unsigned short pnode = uv_hub_info_list(nodeid)->pnode;
+
+		/* Add pnode info for pre-GAM list nodes without cpus */
+		if (pnode == 0xffff) {
+			unsigned long paddr;
+
+			paddr = node_start_pfn(nodeid) << PAGE_SHIFT;
+			pnode = uv_gpa_to_pnode(uv_soc_phys_ram_to_gpa(paddr));
+			uv_hub_info_list(nodeid)->pnode = pnode;
+		}
+		min_pnode = min(pnode, min_pnode);
+		max_pnode = max(pnode, max_pnode);
 		pr_info("UV: UVHUB node:%2d pn:%02x nrcpus:%d\n",
 			nodeid,
 			uv_hub_info_list(nodeid)->pnode,
