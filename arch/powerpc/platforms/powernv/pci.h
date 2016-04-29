@@ -24,16 +24,12 @@ enum pnv_phb_model {
 #define PNV_IODA_PE_MASTER	(1 << 3)	/* Master PE in compound case	*/
 #define PNV_IODA_PE_SLAVE	(1 << 4)	/* Slave PE in compound case	*/
 #define PNV_IODA_PE_VF		(1 << 5)	/* PE for one VF 		*/
-#define PNV_IODA_PE_PEER	(1 << 6)	/* PE has peers			*/
 
 /* Data associated with a PE, including IOMMU tracking etc.. */
 struct pnv_phb;
 struct pnv_ioda_pe {
 	unsigned long		flags;
 	struct pnv_phb		*phb;
-
-#define PNV_IODA_MAX_PEER_PES	8
-	struct pnv_ioda_pe	*peers[PNV_IODA_MAX_PEER_PES];
 
 	/* A PE can be associated with a single device or an
 	 * entire bus (& children). In the former case, pdev
@@ -227,8 +223,6 @@ extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 	pe_level_printk(pe, KERN_INFO, fmt, ##__VA_ARGS__)
 
 /* Nvlink functions */
-extern void pnv_npu_init_dma_pe(struct pnv_ioda_pe *npe);
-extern void pnv_npu_setup_dma_pe(struct pnv_ioda_pe *npe);
 extern void pnv_npu_try_dma_set_bypass(struct pci_dev *gpdev, bool bypass);
 extern void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_phb *phb, bool rm);
 

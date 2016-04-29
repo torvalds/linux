@@ -1845,23 +1845,12 @@ static inline void pnv_pci_ioda2_tce_invalidate_pe(struct pnv_ioda_pe *pe)
 	/* 01xb - invalidate TCEs that match the specified PE# */
 	unsigned long val = TCE_KILL_INVAL_PE | (pe->pe_number & 0xFF);
 	struct pnv_phb *phb = pe->phb;
-	struct pnv_ioda_pe *npe;
-	int i;
 
 	if (!phb->ioda.tce_inval_reg)
 		return;
 
 	mb(); /* Ensure above stores are visible */
 	__raw_writeq(cpu_to_be64(val), phb->ioda.tce_inval_reg);
-
-	if (pe->flags & PNV_IODA_PE_PEER)
-		for (i = 0; i < PNV_IODA_MAX_PEER_PES; i++) {
-			npe = pe->peers[i];
-			if (!npe || npe->phb->type != PNV_PHB_NPU)
-				continue;
-
-			pnv_pci_ioda2_tce_invalidate_entire(npe->phb, false);
-		}
 }
 
 static void pnv_pci_ioda2_do_tce_invalidate(unsigned pe_number, bool rm,
@@ -1896,33 +1885,24 @@ static void pnv_pci_ioda2_tce_invalidate(struct iommu_table *tbl,
 	struct iommu_table_group_link *tgl;
 
 	list_for_each_entry_rcu(tgl, &tbl->it_group_list, next) {
-		struct pnv_ioda_pe *npe;
 		struct pnv_ioda_pe *pe = container_of(tgl->table_group,
 				struct pnv_ioda_pe, table_group);
 		__be64 __iomem *invalidate = rm ?
 			(__be64 __iomem *)pe->phb->ioda.tce_inval_reg_phys :
 			pe->phb->ioda.tce_inval_reg;
-		int i;
 
-		pnv_pci_ioda2_do_tce_invalidate(pe->pe_number, rm,
-			invalidate, tbl->it_page_shift,
-			index, npages);
-
-		if (pe->flags & PNV_IODA_PE_PEER)
+		if (pe->phb->type == PNV_PHB_NPU) {
 			/*
 			 * The NVLink hardware does not support TCE kill
 			 * per TCE entry so we have to invalidate
 			 * the entire cache for it.
 			 */
-			for (i = 0; i < PNV_IODA_MAX_PEER_PES; i++) {
-				npe = pe->peers[i];
-				if (!npe || npe->phb->type != PNV_PHB_NPU ||
-						!npe->phb->ioda.tce_inval_reg)
-					continue;
-
-				pnv_pci_ioda2_tce_invalidate_entire(npe->phb,
-						rm);
-			}
+			pnv_pci_ioda2_tce_invalidate_entire(pe->phb, rm);
+			continue;
+		}
+		pnv_pci_ioda2_do_tce_invalidate(pe->pe_number, rm,
+			invalidate, tbl->it_page_shift,
+			index, npages);
 	}
 }
 
@@ -3156,31 +3136,6 @@ static void pnv_pci_ioda_create_dbgfs(void)
 #endif /* CONFIG_DEBUG_FS */
 }
 
-static void pnv_npu_ioda_fixup(void)
-{
-	bool enable_bypass;
-	struct pci_controller *hose, *tmp;
-	struct pnv_phb *phb;
-	struct pnv_ioda_pe *pe;
-	unsigned int weight;
-
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		phb = hose->private_data;
-		if (phb->type != PNV_PHB_NPU)
-			continue;
-
-		list_for_each_entry(pe, &phb->ioda.pe_list, list) {
-			weight = pnv_pci_ioda_pe_dma_weight(pe);
-			if (WARN_ON(!weight))
-				continue;
-
-			enable_bypass = dma_get_mask(&pe->pdev->dev) ==
-				DMA_BIT_MASK(64);
-			pnv_npu_init_dma_pe(pe);
-		}
-	}
-}
-
 static void pnv_pci_ioda_fixup(void)
 {
 	pnv_pci_ioda_setup_PEs();
@@ -3193,9 +3148,6 @@ static void pnv_pci_ioda_fixup(void)
 	eeh_init();
 	eeh_addr_cache_build();
 #endif
-
-	/* Link NPU IODA tables to their PCI devices. */
-	pnv_npu_ioda_fixup();
 }
 
 /*
