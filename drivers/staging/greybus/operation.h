@@ -178,6 +178,9 @@ int gb_operation_sync_timeout(struct gb_connection *connection, int type,
 				void *request, int request_size,
 				void *response, int response_size,
 				unsigned int timeout);
+int gb_operation_unidirectional_timeout(struct gb_connection *connection,
+				int type, void *request, int request_size,
+				unsigned int timeout);
 
 static inline int gb_operation_sync(struct gb_connection *connection, int type,
 		      void *request, int request_size,
@@ -186,6 +189,13 @@ static inline int gb_operation_sync(struct gb_connection *connection, int type,
 	return gb_operation_sync_timeout(connection, type,
 			request, request_size, response, response_size,
 			GB_OPERATION_TIMEOUT_DEFAULT);
+}
+
+static inline int gb_operation_unidirectional(struct gb_connection *connection,
+				int type, void *request, int request_size)
+{
+	return gb_operation_unidirectional_timeout(connection, type,
+			request, request_size, GB_OPERATION_TIMEOUT_DEFAULT);
 }
 
 int gb_operation_init(void);

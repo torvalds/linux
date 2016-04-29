@@ -1090,6 +1090,53 @@ int gb_operation_sync_timeout(struct gb_connection *connection, int type,
 }
 EXPORT_SYMBOL_GPL(gb_operation_sync_timeout);
 
+/**
+ * gb_operation_unidirectional_timeout() - initiate a unidirectional operation
+ * @connection:		connection to use
+ * @type:		type of operation to send
+ * @request:		memory buffer to copy the request from
+ * @request_size:	size of @request
+ * @timeout:		send timeout in milliseconds
+ *
+ * Initiate a unidirectional operation by sending a request message and
+ * waiting for it to be acknowledged as sent by the host device.
+ *
+ * Note that successful send of a unidirectional operation does not imply that
+ * the request as actually reached the remote end of the connection.
+ */
+int gb_operation_unidirectional_timeout(struct gb_connection *connection,
+				int type, void *request, int request_size,
+				unsigned int timeout)
+{
+	struct gb_operation *operation;
+	int ret;
+
+	if (request_size && !request)
+		return -EINVAL;
+
+	operation = gb_operation_create_flags(connection, type,
+					request_size, 0,
+					GB_OPERATION_FLAG_UNIDIRECTIONAL,
+					GFP_KERNEL);
+	if (!operation)
+		return -ENOMEM;
+
+	if (request_size)
+		memcpy(operation->request->payload, request, request_size);
+
+	ret = gb_operation_request_send_sync_timeout(operation, timeout);
+	if (ret) {
+		dev_err(&connection->hd->dev,
+			"%s: unidirectional operation of type 0x%02x failed: %d\n",
+			connection->name, type, ret);
+	}
+
+	gb_operation_put(operation);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gb_operation_unidirectional_timeout);
+
 int __init gb_operation_init(void)
 {
 	gb_message_cache = kmem_cache_create("gb_message_cache",
