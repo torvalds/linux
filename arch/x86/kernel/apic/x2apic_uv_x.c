@@ -608,6 +608,7 @@ static __initdata struct mmioh_config mmiohs[] = {
 	},
 };
 
+/* UV3 & UV4 have identical MMIOH overlay configs */
 static __init void map_mmioh_high_uv3(int index, int min_pnode, int max_pnode)
 {
 	union uv3h_rh_gam_mmioh_overlay_config0_mmr_u overlay;
@@ -687,7 +688,7 @@ static __init void map_mmioh_high(int min_pnode, int max_pnode)
 	unsigned long mmr, base;
 	int shift, enable, m_io, n_io;
 
-	if (is_uv3_hub()) {
+	if (is_uv3_hub() || is_uv4_hub()) {
 		/* Map both MMIOH Regions */
 		map_mmioh_high_uv3(0, min_pnode, max_pnode);
 		map_mmioh_high_uv3(1, min_pnode, max_pnode);
