@@ -21,8 +21,6 @@
 #include "edp.h"
 #include "edp.xml.h"
 
-#define VDDA_MIN_UV		1800000	/* uV units */
-#define VDDA_MAX_UV		1800000	/* uV units */
 #define VDDA_UA_ON_LOAD		100000	/* uA units */
 #define VDDA_UA_OFF_LOAD	100	/* uA units */
 
@@ -67,7 +65,7 @@ struct edp_ctrl {
 	void __iomem *base;
 
 	/* regulators */
-	struct regulator *vdda_vreg;
+	struct regulator *vdda_vreg;	/* 1.8 V */
 	struct regulator *lvl_vreg;
 
 	/* clocks */
@@ -328,12 +326,6 @@ static int edp_regulator_init(struct edp_ctrl *ctrl)
 static int edp_regulator_enable(struct edp_ctrl *ctrl)
 {
 	int ret;
-
-	ret = regulator_set_voltage(ctrl->vdda_vreg, VDDA_MIN_UV, VDDA_MAX_UV);
-	if (ret) {
-		pr_err("%s:vdda_vreg set_voltage failed, %d\n", __func__, ret);
-		goto vdda_set_fail;
-	}
 
 	ret = regulator_set_load(ctrl->vdda_vreg, VDDA_UA_ON_LOAD);
 	if (ret < 0) {
