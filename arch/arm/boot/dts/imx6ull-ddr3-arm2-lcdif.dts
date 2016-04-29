@@ -27,3 +27,25 @@
 &pwm1 {
 	status = "okay";
 };
+
+&i2c1 {
+	status = "disabled";
+};
+
+&reg_usb_otg1_vbus {
+	pinctrl-0 = < >;
+	gpio = < >;
+};
+
+&usbotg1 {
+	status = "disabled";
+};
+
+&tsc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_tsc>;
+	status = "okay";
+	xnur-gpio = <&gpio1 3 0>;
+	measure_delay_time = <0xfff>;
+	pre_charge_time = <0xffff>;
+};
