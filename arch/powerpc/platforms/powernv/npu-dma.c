@@ -204,8 +204,7 @@ static void pnv_npu_disable_bypass(struct pnv_ioda_pe *npe)
 	struct pnv_phb *phb = npe->phb;
 	struct pci_dev *gpdev;
 	struct pnv_ioda_pe *gpe;
-	void *addr;
-	unsigned int size;
+	struct iommu_table *tbl;
 	int64_t rc;
 
 	/*
@@ -219,11 +218,11 @@ static void pnv_npu_disable_bypass(struct pnv_ioda_pe *npe)
 	if (!gpe)
 		return;
 
-	addr = (void *)gpe->table_group.tables[0]->it_base;
-	size = gpe->table_group.tables[0]->it_size << 3;
+	tbl = gpe->table_group.tables[0];
 	rc = opal_pci_map_pe_dma_window(phb->opal_id, npe->pe_number,
-					npe->pe_number, 1, __pa(addr),
-					size, 0x1000);
+					npe->pe_number, 1, __pa(tbl->it_base),
+					tbl->it_size << 3,
+					IOMMU_PAGE_SIZE(tbl));
 	if (rc != OPAL_SUCCESS)
 		pr_warn("%s: Error %lld setting DMA window on PHB#%d-PE#%d\n",
 			__func__, rc, phb->hose->global_number, npe->pe_number);
