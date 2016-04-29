@@ -176,7 +176,9 @@ preferred_addr:
 1:
 
 	/* Target address to relocate to for decompression */
-	addl	$z_extract_offset, %ebx
+	movl    BP_init_size(%esi), %eax
+	subl    $_end, %eax
+	addl    %eax, %ebx
 
 	/* Set up the stack */
 	leal	boot_stack_end(%ebx), %esp
@@ -238,8 +240,13 @@ relocated:
 				/* push arguments for extract_kernel: */
 	pushl	$z_run_size	/* size of kernel with .bss and .brk */
 	pushl	$z_output_len	/* decompressed length, end of relocs */
-	leal	z_extract_offset_negative(%ebx), %ebp
+
+	movl    BP_init_size(%esi), %eax
+	subl    $_end, %eax
+	movl    %ebx, %ebp
+	subl    %eax, %ebp
 	pushl	%ebp		/* output address */
+
 	pushl	$z_input_len	/* input_len */
 	leal	input_data(%ebx), %eax
 	pushl	%eax		/* input_data */

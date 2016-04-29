@@ -85,9 +85,6 @@ int main(int argc, char *argv[])
 	printf("z_output_len = %lu\n", (unsigned long)olen);
 	printf(".globl z_extract_offset\n");
 	printf("z_extract_offset = 0x%lx\n", offs);
-	/* z_extract_offset_negative allows simplification of head_32.S */
-	printf(".globl z_extract_offset_negative\n");
-	printf("z_extract_offset_negative = -0x%lx\n", offs);
 	printf(".globl z_run_size\n");
 	printf("z_run_size = %lu\n", run_size);
 

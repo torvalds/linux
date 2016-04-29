@@ -318,6 +318,23 @@ static void parse_elf(void *output)
 	free(phdrs);
 }
 
+/*
+ * The compressed kernel image (ZO), has been moved so that its position
+ * is against the end of the buffer used to hold the uncompressed kernel
+ * image (VO) and the execution environment (.bss, .brk), which makes sure
+ * there is room to do the in-place decompression. (See header.S for the
+ * calculations.)
+ *
+ *                             |-----compressed kernel image------|
+ *                             V                                  V
+ * 0                       extract_offset                      +INIT_SIZE
+ * |-----------|---------------|-------------------------|--------|
+ *             |               |                         |        |
+ *           VO__text      startup_32 of ZO          VO__end    ZO__end
+ *             ^                                         ^
+ *             |-------uncompressed kernel image---------|
+ *
+ */
 asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 				  unsigned char *input_data,
 				  unsigned long input_len,
