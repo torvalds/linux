@@ -185,6 +185,11 @@ extern struct page *pgd_page(pgd_t pgd);
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val((pte)) & ~_PAGE_PTE })
 #define __swp_entry_to_pte(x)	__pte((x).val | _PAGE_PTE)
 
+static inline bool pte_user(pte_t pte)
+{
+	return !!(pte_val(pte) & _PAGE_USER);
+}
+
 #ifdef CONFIG_MEM_SOFT_DIRTY
 #define _PAGE_SWP_SOFT_DIRTY   (1UL << (SWP_TYPE_BITS + _PAGE_BIT_SWAP_TYPE))
 #else
