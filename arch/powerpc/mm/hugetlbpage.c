@@ -711,6 +711,9 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	struct hstate *hstate = hstate_file(file);
 	int mmu_psize = shift_to_mmu_psize(huge_page_shift(hstate));
 
+	if (radix_enabled())
+		return radix__hugetlb_get_unmapped_area(file, addr, len,
+						       pgoff, flags);
 	return slice_get_unmapped_area(addr, len, flags, mmu_psize, 1);
 }
 #endif
@@ -823,7 +826,7 @@ static int __init hugetlbpage_init(void)
 {
 	int psize;
 
-	if (!mmu_has_feature(MMU_FTR_16M_PAGE))
+	if (!radix_enabled() && !mmu_has_feature(MMU_FTR_16M_PAGE))
 		return -ENODEV;
 
 	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
@@ -863,6 +866,9 @@ static int __init hugetlbpage_init(void)
 		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_16M].shift;
 	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
 		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_1M].shift;
+	else if (mmu_psize_defs[MMU_PAGE_2M].shift)
+		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_2M].shift;
+
 
 	return 0;
 }
