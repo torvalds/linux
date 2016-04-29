@@ -807,15 +807,20 @@
 	status = "okay";
 };
 
+&u2phy {
+	vbus_host-gpio = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+};
+
 &dwc_control_usb {
-	host_drv_gpio = <&gpio0 16 GPIO_ACTIVE_LOW>; /* GPIO_C0 = 16 */
 	otg_drv_gpio = <&gpio0 10 GPIO_ACTIVE_LOW>; /* GPIO_B2 = 10 */
 
 	rockchip,remote_wakeup;
 	rockchip,usb_irq_wakeup;
 };
 
-&usb_host0_echi {
+&usb_host0_ehci {
+	assigned-clocks = <&cru SCLK_USBPHY480M>;
+	assigned-clock-parents = <&u2phy>;
 	status = "okay";
 };
 
@@ -832,8 +837,6 @@
 	reset-names = "otg_ahb", "otg_phy", "otg_controller";
 	/* 0 - Normal, 1 - Force Host, 2 - Force Device */
 	rockchip,usb-mode = <0>;
-	assigned-clocks = <&cru SCLK_USBPHY480M>;
-	assigned-clock-parents = <&usbphy0>;
 	status = "okay";
 };
 
