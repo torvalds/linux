@@ -218,15 +218,10 @@ extern int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type);
 extern void pnv_teardown_msi_irqs(struct pci_dev *pdev);
 
 /* Nvlink functions */
-extern void pnv_npu_tce_invalidate_entire(struct pnv_ioda_pe *npe);
-extern void pnv_npu_tce_invalidate(struct pnv_ioda_pe *npe,
-				       struct iommu_table *tbl,
-				       unsigned long index,
-				       unsigned long npages,
-				       bool rm);
 extern void pnv_npu_init_dma_pe(struct pnv_ioda_pe *npe);
 extern void pnv_npu_setup_dma_pe(struct pnv_ioda_pe *npe);
 extern int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe, bool enabled);
 extern int pnv_npu_dma_set_mask(struct pci_dev *npdev, u64 dma_mask);
+extern void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_phb *phb, bool rm);
 
 #endif /* __POWERNV_PCI_H */

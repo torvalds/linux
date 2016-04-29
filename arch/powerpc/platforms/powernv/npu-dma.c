@@ -25,8 +25,6 @@
  * Other types of TCE cache invalidation are not functional in the
  * hardware.
  */
-#define TCE_KILL_INVAL_ALL PPC_BIT(0)
-
 static struct pci_dev *get_pci_dev(struct device_node *dn)
 {
 	return PCI_DN(dn)->pcidev;
@@ -159,45 +157,6 @@ static struct pnv_ioda_pe *get_gpu_pci_dev_and_pe(struct pnv_ioda_pe *npe,
 		*gpdev = pdev;
 
 	return pe;
-}
-
-void pnv_npu_tce_invalidate_entire(struct pnv_ioda_pe *npe)
-{
-	struct pnv_phb *phb = npe->phb;
-
-	if (WARN_ON(phb->type != PNV_PHB_NPU ||
-		    !phb->ioda.tce_inval_reg ||
-		    !(npe->flags & PNV_IODA_PE_DEV)))
-		return;
-
-	mb(); /* Ensure previous TCE table stores are visible */
-	__raw_writeq(cpu_to_be64(TCE_KILL_INVAL_ALL),
-		phb->ioda.tce_inval_reg);
-}
-
-void pnv_npu_tce_invalidate(struct pnv_ioda_pe *npe,
-				struct iommu_table *tbl,
-				unsigned long index,
-				unsigned long npages,
-				bool rm)
-{
-	struct pnv_phb *phb = npe->phb;
-
-	/* We can only invalidate the whole cache on NPU */
-	unsigned long val = TCE_KILL_INVAL_ALL;
-
-	if (WARN_ON(phb->type != PNV_PHB_NPU ||
-		    !phb->ioda.tce_inval_reg ||
-		    !(npe->flags & PNV_IODA_PE_DEV)))
-		return;
-
-	mb(); /* Ensure previous TCE table stores are visible */
-	if (rm)
-		__raw_rm_writeq(cpu_to_be64(val),
-		  (__be64 __iomem *) phb->ioda.tce_inval_reg_phys);
-	else
-		__raw_writeq(cpu_to_be64(val),
-			phb->ioda.tce_inval_reg);
 }
 
 void pnv_npu_init_dma_pe(struct pnv_ioda_pe *npe)

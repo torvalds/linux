@@ -1840,8 +1840,22 @@ static struct iommu_table_ops pnv_ioda1_iommu_ops = {
 	.get = pnv_tce_get,
 };
 
+#define TCE_KILL_INVAL_ALL  PPC_BIT(0)
 #define TCE_KILL_INVAL_PE   PPC_BIT(1)
 #define TCE_KILL_INVAL_TCE  PPC_BIT(2)
+
+void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_phb *phb, bool rm)
+{
+	const unsigned long val = TCE_KILL_INVAL_ALL;
+
+	mb(); /* Ensure previous TCE table stores are visible */
+	if (rm)
+		__raw_rm_writeq(cpu_to_be64(val),
+				(__be64 __iomem *)
+				phb->ioda.tce_inval_reg_phys);
+	else
+		__raw_writeq(cpu_to_be64(val), phb->ioda.tce_inval_reg);
+}
 
 static inline void pnv_pci_ioda2_tce_invalidate_pe(struct pnv_ioda_pe *pe)
 {
@@ -1863,7 +1877,7 @@ static inline void pnv_pci_ioda2_tce_invalidate_pe(struct pnv_ioda_pe *pe)
 			if (!npe || npe->phb->type != PNV_PHB_NPU)
 				continue;
 
-			pnv_npu_tce_invalidate_entire(npe);
+			pnv_pci_ioda2_tce_invalidate_entire(npe->phb, false);
 		}
 }
 
@@ -1912,14 +1926,19 @@ static void pnv_pci_ioda2_tce_invalidate(struct iommu_table *tbl,
 			index, npages);
 
 		if (pe->flags & PNV_IODA_PE_PEER)
-			/* Invalidate PEs using the same TCE table */
+			/*
+			 * The NVLink hardware does not support TCE kill
+			 * per TCE entry so we have to invalidate
+			 * the entire cache for it.
+			 */
 			for (i = 0; i < PNV_IODA_MAX_PEER_PES; i++) {
 				npe = pe->peers[i];
-				if (!npe || npe->phb->type != PNV_PHB_NPU)
+				if (!npe || npe->phb->type != PNV_PHB_NPU ||
+						!npe->phb->ioda.tce_inval_reg)
 					continue;
 
-				pnv_npu_tce_invalidate(npe, tbl, index,
-							npages, rm);
+				pnv_pci_ioda2_tce_invalidate_entire(npe->phb,
+						rm);
 			}
 	}
 }
