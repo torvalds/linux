@@ -121,5 +121,14 @@ static inline int radix__pgd_bad(pgd_t pgd)
 	return !!(pgd_val(pgd) & RADIX_PGD_BAD_BITS);
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+
+static inline int radix__pmd_trans_huge(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_PTE);
+}
+
+#endif
+
 #endif /* __ASSEMBLY__ */
 #endif

@@ -89,6 +89,29 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 	pmd_hugepage_update(mm, addr, pmdp, _PAGE_WRITE, 0);
 }
 
+static inline int pmd_trans_huge(pmd_t pmd)
+{
+	if (radix_enabled())
+		return radix__pmd_trans_huge(pmd);
+	return hash__pmd_trans_huge(pmd);
+}
+
+#define __HAVE_ARCH_PMD_SAME
+static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+{
+	if (radix_enabled())
+		return radix__pmd_same(pmd_a, pmd_b);
+	return hash__pmd_same(pmd_a, pmd_b);
+}
 #endif /*  CONFIG_TRANSPARENT_HUGEPAGE */
+
+static inline int remap_4k_pfn(struct vm_area_struct *vma, unsigned long addr,
+			       unsigned long pfn, pgprot_t prot)
+{
+	if (radix_enabled())
+		BUG();
+	return hash__remap_4k_pfn(vma, addr, pfn, prot);
+
+}
 #endif	/* __ASSEMBLY__ */
 #endif /*_ASM_POWERPC_BOOK3S_64_PGTABLE_64K_H */

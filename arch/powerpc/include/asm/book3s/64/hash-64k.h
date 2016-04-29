@@ -97,8 +97,8 @@ extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
 
 extern int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
 			   unsigned long pfn, unsigned long size, pgprot_t);
-static inline int remap_4k_pfn(struct vm_area_struct *vma, unsigned long addr,
-			       unsigned long pfn, pgprot_t prot)
+static inline int hash__remap_4k_pfn(struct vm_area_struct *vma, unsigned long addr,
+				 unsigned long pfn, pgprot_t prot)
 {
 	if (pfn > (PTE_RPN_MASK >> PAGE_SHIFT)) {
 		WARN(1, "remap_4k_pfn called with wrong pfn value\n");
@@ -182,14 +182,13 @@ static inline void mark_hpte_slot_valid(unsigned char *hpte_slot_array,
  * that for explicit huge pages.
  *
  */
-static inline int pmd_trans_huge(pmd_t pmd)
+static inline int hash__pmd_trans_huge(pmd_t pmd)
 {
 	return !!((pmd_val(pmd) & (_PAGE_PTE | H_PAGE_THP_HUGE)) ==
 		  (_PAGE_PTE | H_PAGE_THP_HUGE));
 }
 
-#define __HAVE_ARCH_PMD_SAME
-static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+static inline int hash__pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 {
 	return (((pmd_raw(pmd_a) ^ pmd_raw(pmd_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
 }
