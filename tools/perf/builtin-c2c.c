@@ -301,6 +301,33 @@ static int dcacheline_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	return scnprintf(hpp->buf, hpp->size, "%*s", width, HEX_STR(buf, addr));
 }
 
+static int offset_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+			struct hist_entry *he)
+{
+	uint64_t addr = 0;
+	int width = c2c_width(fmt, hpp, he->hists);
+	char buf[20];
+
+	if (he->mem_info)
+		addr = cl_offset(he->mem_info->daddr.al_addr);
+
+	return scnprintf(hpp->buf, hpp->size, "%*s", width, HEX_STR(buf, addr));
+}
+
+static int64_t
+offset_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
+	   struct hist_entry *left, struct hist_entry *right)
+{
+	uint64_t l = 0, r = 0;
+
+	if (left->mem_info)
+		l = cl_offset(left->mem_info->daddr.addr);
+	if (right->mem_info)
+		r = cl_offset(right->mem_info->daddr.addr);
+
+	return (int64_t)(r - l);
+}
+
 #define HEADER_LOW(__h)			\
 	{				\
 		.line[1] = {		\
@@ -344,8 +371,17 @@ static struct c2c_dimension dim_dcacheline = {
 	.width		= 18,
 };
 
+static struct c2c_dimension dim_offset = {
+	.header		= HEADER_BOTH("Data address", "Offset"),
+	.name		= "offset",
+	.cmp		= offset_cmp,
+	.entry		= offset_entry,
+	.width		= 18,
+};
+
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
+	&dim_offset,
 	NULL,
 };
 
