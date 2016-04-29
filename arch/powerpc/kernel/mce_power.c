@@ -72,6 +72,9 @@ void __flush_tlb_power8(unsigned int action)
 
 void __flush_tlb_power9(unsigned int action)
 {
+	if (radix_enabled())
+		flush_tlb_206(POWER9_TLB_SETS_RADIX, action);
+
 	flush_tlb_206(POWER9_TLB_SETS_HASH, action);
 }
 

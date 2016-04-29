@@ -58,6 +58,7 @@ extern void __flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 
 #elif defined(CONFIG_PPC_STD_MMU_32)
 
+#define MMU_NO_CONTEXT      (0)
 /*
  * TLB flushing for "classic" hash-MMU 32-bit CPUs, 6xx, 7xx, 7xxx
  */

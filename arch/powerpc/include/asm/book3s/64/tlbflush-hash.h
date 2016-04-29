@@ -1,8 +1,6 @@
 #ifndef _ASM_POWERPC_BOOK3S_64_TLBFLUSH_HASH_H
 #define _ASM_POWERPC_BOOK3S_64_TLBFLUSH_HASH_H
 
-#define MMU_NO_CONTEXT		0
-
 /*
  * TLB flushing for 64-bit hash-MMU CPUs
  */
@@ -29,14 +27,21 @@ extern void __flush_tlb_pending(struct ppc64_tlb_batch *batch);
 
 static inline void arch_enter_lazy_mmu_mode(void)
 {
-	struct ppc64_tlb_batch *batch = this_cpu_ptr(&ppc64_tlb_batch);
+	struct ppc64_tlb_batch *batch;
 
+	if (radix_enabled())
+		return;
+	batch = this_cpu_ptr(&ppc64_tlb_batch);
 	batch->active = 1;
 }
 
 static inline void arch_leave_lazy_mmu_mode(void)
 {
-	struct ppc64_tlb_batch *batch = this_cpu_ptr(&ppc64_tlb_batch);
+	struct ppc64_tlb_batch *batch;
+
+	if (radix_enabled())
+		return;
+	batch = this_cpu_ptr(&ppc64_tlb_batch);
 
 	if (batch->index)
 		__flush_tlb_pending(batch);
