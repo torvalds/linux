@@ -995,7 +995,7 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
 		return ERR_PTR(-EPERM);
 
-	page = grab_cache_page(NODE_MAPPING(sbi), dn->nid);
+	page = f2fs_grab_cache_page(NODE_MAPPING(sbi), dn->nid, false);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
@@ -1087,7 +1087,7 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	if (apage)
 		return;
 
-	apage = grab_cache_page(NODE_MAPPING(sbi), nid);
+	apage = f2fs_grab_cache_page(NODE_MAPPING(sbi), nid, false);
 	if (!apage)
 		return;
 
@@ -1128,7 +1128,7 @@ static struct page *__get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid,
 		return ERR_PTR(-ENOENT);
 	f2fs_bug_on(sbi, check_nid_range(sbi, nid));
 repeat:
-	page = grab_cache_page(NODE_MAPPING(sbi), nid);
+	page = f2fs_grab_cache_page(NODE_MAPPING(sbi), nid, false);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
@@ -2012,7 +2012,7 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	if (unlikely(old_ni.blk_addr != NULL_ADDR))
 		return -EINVAL;
 
-	ipage = grab_cache_page(NODE_MAPPING(sbi), ino);
+	ipage = f2fs_grab_cache_page(NODE_MAPPING(sbi), ino, false);
 	if (!ipage)
 		return -ENOMEM;
 
