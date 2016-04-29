@@ -1307,7 +1307,7 @@ static int gen8_rcs_signal(struct drm_i915_gem_request *signaller_req,
 		intel_ring_emit(signaller, GFX_OP_PIPE_CONTROL(6));
 		intel_ring_emit(signaller, PIPE_CONTROL_GLOBAL_GTT_IVB |
 					   PIPE_CONTROL_QW_WRITE |
-					   PIPE_CONTROL_FLUSH_ENABLE);
+					   PIPE_CONTROL_CS_STALL);
 		intel_ring_emit(signaller, lower_32_bits(gtt_offset));
 		intel_ring_emit(signaller, upper_32_bits(gtt_offset));
 		intel_ring_emit(signaller, seqno);
@@ -1489,7 +1489,6 @@ gen8_ring_sync(struct drm_i915_gem_request *waiter_req,
 
 	intel_ring_emit(waiter, MI_SEMAPHORE_WAIT |
 				MI_SEMAPHORE_GLOBAL_GTT |
-				MI_SEMAPHORE_POLL |
 				MI_SEMAPHORE_SAD_GTE_SDD);
 	intel_ring_emit(waiter, seqno);
 	intel_ring_emit(waiter,
