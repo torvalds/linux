@@ -1006,7 +1006,7 @@ void gb_operation_cancel_incoming(struct gb_operation *operation, int errno)
 }
 
 /**
- * gb_operation_sync: implement a "simple" synchronous gb operation.
+ * gb_operation_sync_timeout() - implement a "simple" synchronous operation
  * @connection: the Greybus connection to send this to
  * @type: the type of operation to send
  * @request: pointer to a memory buffer to copy the request from
