@@ -232,7 +232,7 @@ static void handle_relocations(void *output, unsigned long output_len)
 	 * So we work backwards from the end of the decompressed image.
 	 */
 	for (reloc = output + output_len - sizeof(*reloc); *reloc; reloc--) {
-		int extended = *reloc;
+		long extended = *reloc;
 		extended += map;
 
 		ptr = (unsigned long)extended;
