@@ -351,7 +351,25 @@ void radix__early_init_mmu_secondary(void)
 void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
-	/* Finally limit subsequent allocations */
+	/* We don't currently support the first MEMBLOCK not mapping 0
+	 * physical on those processors
+	 */
+	BUG_ON(first_memblock_base != 0);
+	/*
+	 * We limit the allocation that depend on ppc64_rma_size
+	 * to first_memblock_size. We also clamp it to 1GB to
+	 * avoid some funky things such as RTAS bugs.
+	 *
+	 * On radix config we really don't have a limitation
+	 * on real mode access. But keeping it as above works
+	 * well enough.
+	 */
+	ppc64_rma_size = min_t(u64, first_memblock_size, 0x40000000);
+	/*
+	 * Finally limit subsequent allocations. We really don't want
+	 * to limit the memblock allocations to rma_size. FIXME!! should
+	 * we even limit at all ?
+	 */
 	memblock_set_current_limit(first_memblock_base + first_memblock_size);
 }
 
