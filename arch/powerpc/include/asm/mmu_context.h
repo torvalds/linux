@@ -37,10 +37,14 @@ extern void switch_slb(struct task_struct *tsk, struct mm_struct *mm);
 extern void set_context(unsigned long id, pgd_t *pgd);
 
 #ifdef CONFIG_PPC_BOOK3S_64
+extern void radix__switch_mmu_context(struct mm_struct *prev,
+				     struct mm_struct *next);
 static inline void switch_mmu_context(struct mm_struct *prev,
 				      struct mm_struct *next,
 				      struct task_struct *tsk)
 {
+	if (radix_enabled())
+		return radix__switch_mmu_context(prev, next);
 	return switch_slb(tsk, next);
 }
 
