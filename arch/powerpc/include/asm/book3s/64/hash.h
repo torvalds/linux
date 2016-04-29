@@ -90,18 +90,8 @@
 
 #ifndef __ASSEMBLY__
 #define	pmd_bad(pmd)		(pmd_val(pmd) & PMD_BAD_BITS)
-#define pmd_page_vaddr(pmd)	__va(pmd_val(pmd) & ~PMD_MASKED_BITS)
 
 #define	pud_bad(pud)		(pud_val(pud) & PUD_BAD_BITS)
-#define pud_page_vaddr(pud)	__va(pud_val(pud) & ~PUD_MASKED_BITS)
-
-/* Pointers in the page table tree are physical addresses */
-#define __pgtable_ptr_val(ptr)	__pa(ptr)
-
-#define pgd_index(address) (((address) >> (PGDIR_SHIFT)) & (PTRS_PER_PGD - 1))
-#define pud_index(address) (((address) >> (PUD_SHIFT)) & (PTRS_PER_PUD - 1))
-#define pmd_index(address) (((address) >> (PMD_SHIFT)) & (PTRS_PER_PMD - 1))
-#define pte_index(address) (((address) >> (PAGE_SHIFT)) & (PTRS_PER_PTE - 1))
 
 extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 			    pte_t *ptep, unsigned long pte, int huge);
@@ -173,12 +163,6 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
 {
 	return (((pte_raw(pte_a) ^ pte_raw(pte_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
 }
-
-static inline unsigned long pgd_page_vaddr(pgd_t pgd)
-{
-	return (unsigned long)__va(pgd_val(pgd) & ~PGD_MASKED_BITS);
-}
-
 
 /* Generic accessors to PTE bits */
 static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~H_PTE_NONE_MASK) == 0; }
