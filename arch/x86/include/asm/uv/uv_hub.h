@@ -549,8 +549,6 @@ struct uv_blade_info {
 	unsigned short	nr_online_cpus;
 	unsigned short	pnode;
 	short		memory_nid;
-	spinlock_t	nmi_lock;	/* obsolete, see uv_hub_nmi */
-	unsigned long	nmi_count;	/* obsolete, see uv_hub_nmi */
 };
 extern struct uv_blade_info *uv_blade_info;
 extern short *uv_node_to_blade;
@@ -635,14 +633,7 @@ extern void uv_nmi_setup(void);
 /* Newer SMM NMI handler, not present in all systems */
 #define UVH_NMI_MMRX		UVH_EVENT_OCCURRED0
 #define UVH_NMI_MMRX_CLEAR	UVH_EVENT_OCCURRED0_ALIAS
-
-#ifdef	UVH_EVENT_OCCURRED0_EXTIO_INT0_SHFT
 #define UVH_NMI_MMRX_SHIFT	UVH_EVENT_OCCURRED0_EXTIO_INT0_SHFT
-#else
-#define UVH_NMI_MMRX_SHIFT	(is_uv1_hub() ? \
-					UV1H_EVENT_OCCURRED0_EXTIO_INT0_SHFT :\
-					UVXH_EVENT_OCCURRED0_EXTIO_INT0_SHFT)
-#endif
 #define	UVH_NMI_MMRX_TYPE	"EXTIO_INT0"
 
 /* Non-zero indicates newer SMM NMI handler present */
