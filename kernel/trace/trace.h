@@ -1069,15 +1069,20 @@ extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
 				     struct ring_buffer *buffer,
 				     struct ring_buffer_event *event);
 
-void trace_buffer_unlock_commit(struct trace_array *tr,
-				struct ring_buffer *buffer,
-				struct ring_buffer_event *event,
-				unsigned long flags, int pc);
 void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 				     struct ring_buffer *buffer,
 				     struct ring_buffer_event *event,
 				     unsigned long flags, int pc,
 				     struct pt_regs *regs);
+
+static inline void trace_buffer_unlock_commit(struct trace_array *tr,
+					      struct ring_buffer *buffer,
+					      struct ring_buffer_event *event,
+					      unsigned long flags, int pc)
+{
+	trace_buffer_unlock_commit_regs(tr, buffer, event, flags, pc, NULL);
+}
+
 /*
  * Helper function for event_trigger_unlock_commit{_regs}().
  * If there are event triggers attached to this event that requires
