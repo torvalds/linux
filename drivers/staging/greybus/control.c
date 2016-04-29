@@ -149,6 +149,13 @@ int gb_control_disconnected_operation(struct gb_control *control, u16 cport_id)
 				 sizeof(request), NULL, 0);
 }
 
+int gb_control_mode_switch_operation(struct gb_control *control)
+{
+	return gb_operation_unidirectional(control->connection,
+						GB_CONTROL_TYPE_MODE_SWITCH,
+						NULL, 0);
+}
+
 int gb_control_get_interface_version_operation(struct gb_interface *intf)
 {
 	struct gb_control_interface_version_response response;

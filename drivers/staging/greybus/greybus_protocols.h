@@ -123,6 +123,7 @@ struct gb_protocol_version_response {
 #define GB_CONTROL_TYPE_TIMESYNC_AUTHORITATIVE	0x09
 #define GB_CONTROL_TYPE_INTERFACE_VERSION	0x0a
 #define GB_CONTROL_TYPE_BUNDLE_VERSION		0x0b
+#define GB_CONTROL_TYPE_MODE_SWITCH		0x0e
 
 struct gb_control_version_request {
 	__u8	major;
