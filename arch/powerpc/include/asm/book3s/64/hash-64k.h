@@ -40,15 +40,6 @@
 /* PTE flags to conserve for HPTE identification */
 #define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_F_SECOND | \
 			 _PAGE_F_GIX | _PAGE_HASHPTE | _PAGE_COMBO)
-
-/* Shift to put page number into pte.
- *
- * That gives us a max RPN of 41 bits, which means a max of 57 bits
- * of addressable physical space, or 53 bits for the special 4k PFNs.
- */
-#define PTE_RPN_SHIFT	(16)
-#define PTE_RPN_SIZE	(41)
-
 /*
  * we support 16 fragments per PTE page of 64K size.
  */
@@ -68,6 +59,7 @@
 #define PGD_MASKED_BITS		0xc0000000000000ffUL
 
 #ifndef __ASSEMBLY__
+#include <asm/errno.h>
 
 /*
  * With 64K pages on hash table, we have a special PTE format that
@@ -124,10 +116,18 @@ extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
 #define pte_pagesize_index(mm, addr, pte)	\
 	(((pte) & _PAGE_COMBO)? MMU_PAGE_4K: MMU_PAGE_64K)
 
-#define remap_4k_pfn(vma, addr, pfn, prot)				\
-	(WARN_ON(((pfn) >= (1UL << PTE_RPN_SIZE))) ? -EINVAL :	\
-		remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE,	\
-			__pgprot(pgprot_val((prot)) | _PAGE_4K_PFN)))
+extern int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+			   unsigned long pfn, unsigned long size, pgprot_t);
+static inline int remap_4k_pfn(struct vm_area_struct *vma, unsigned long addr,
+			       unsigned long pfn, pgprot_t prot)
+{
+	if (pfn > (PTE_RPN_MASK >> PAGE_SHIFT)) {
+		WARN(1, "remap_4k_pfn called with wrong pfn value\n");
+		return -EINVAL;
+	}
+	return remap_pfn_range(vma, addr, pfn, PAGE_SIZE,
+			       __pgprot(pgprot_val(prot) | _PAGE_4K_PFN));
+}
 
 #define PTE_TABLE_SIZE	PTE_FRAG_SIZE
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

@@ -757,7 +757,7 @@ pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
 {
 	unsigned long pmdv;
 
-	pmdv = (pfn << PTE_RPN_SHIFT) & PTE_RPN_MASK;
+	pmdv = (pfn << PAGE_SHIFT) & PTE_RPN_MASK;
 	return pmd_set_protbits(__pmd(pmdv), pgprot);
 }
 
