@@ -526,6 +526,9 @@ static int __exit ssi_remove(struct platform_device *pd)
 {
 	struct hsi_controller *ssi = platform_get_drvdata(pd);
 
+	/* cleanup of of_platform_populate() call */
+	device_for_each_child(&pd->dev, NULL, ssi_remove_ports);
+
 #ifdef CONFIG_DEBUG_FS
 	ssi_debug_remove_ctrl(ssi);
 #endif
@@ -533,9 +536,6 @@ static int __exit ssi_remove(struct platform_device *pd)
 	platform_set_drvdata(pd, NULL);
 
 	pm_runtime_disable(&pd->dev);
-
-	/* cleanup of of_platform_populate() call */
-	device_for_each_child(&pd->dev, NULL, ssi_remove_ports);
 
 	return 0;
 }
