@@ -85,23 +85,26 @@
 #define _PTEIDX_SECONDARY	0x8
 #define _PTEIDX_GROUP_IX	0x7
 
-#define PMD_BAD_BITS		(PTE_TABLE_SIZE-1)
-#define PUD_BAD_BITS		(PMD_TABLE_SIZE-1)
+#define H_PMD_BAD_BITS		(PTE_TABLE_SIZE-1)
+#define H_PUD_BAD_BITS		(PMD_TABLE_SIZE-1)
 
 #ifndef __ASSEMBLY__
-#define	pmd_bad(pmd)		(pmd_val(pmd) & PMD_BAD_BITS)
-
-#define	pud_bad(pud)		(pud_val(pud) & PUD_BAD_BITS)
+#define	hash__pmd_bad(pmd)		(pmd_val(pmd) & H_PMD_BAD_BITS)
+#define	hash__pud_bad(pud)		(pud_val(pud) & H_PUD_BAD_BITS)
+static inline int hash__pgd_bad(pgd_t pgd)
+{
+	return (pgd_val(pgd) == 0);
+}
 
 extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 			    pte_t *ptep, unsigned long pte, int huge);
 extern unsigned long htab_convert_pte_flags(unsigned long pteflags);
 /* Atomic PTE updates */
-static inline unsigned long pte_update(struct mm_struct *mm,
-				       unsigned long addr,
-				       pte_t *ptep, unsigned long clr,
-				       unsigned long set,
-				       int huge)
+static inline unsigned long hash__pte_update(struct mm_struct *mm,
+					 unsigned long addr,
+					 pte_t *ptep, unsigned long clr,
+					 unsigned long set,
+					 int huge)
 {
 	__be64 old_be, tmp_be;
 	unsigned long old;
@@ -132,7 +135,7 @@ static inline unsigned long pte_update(struct mm_struct *mm,
 /* Set the dirty and/or accessed bits atomically in a linux PTE, this
  * function doesn't need to flush the hash entry
  */
-static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
+static inline void hash__ptep_set_access_flags(pte_t *ptep, pte_t entry)
 {
 	__be64 old, tmp, val, mask;
 
@@ -153,27 +156,23 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 	:"cc");
 }
 
-static inline int pgd_bad(pgd_t pgd)
-{
-	return (pgd_val(pgd) == 0);
-}
-
-#define __HAVE_ARCH_PTE_SAME
-static inline int pte_same(pte_t pte_a, pte_t pte_b)
+static inline int hash__pte_same(pte_t pte_a, pte_t pte_b)
 {
 	return (((pte_raw(pte_a) ^ pte_raw(pte_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
 }
 
-/* Generic accessors to PTE bits */
-static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~H_PTE_NONE_MASK) == 0; }
+static inline int hash__pte_none(pte_t pte)
+{
+	return (pte_val(pte) & ~H_PTE_NONE_MASK) == 0;
+}
 
 /* This low level function performs the actual PTE insertion
  * Setting the PTE depends on the MMU type and other factors. It's
  * an horrible mess that I'm not going to try to clean up now but
  * I'm keeping it in one place rather than spread around
  */
-static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
-				pte_t *ptep, pte_t pte, int percpu)
+static inline void hash__set_pte_at(struct mm_struct *mm, unsigned long addr,
+				  pte_t *ptep, pte_t pte, int percpu)
 {
 	/*
 	 * Anything else just stores the PTE normally. That covers all 64-bit

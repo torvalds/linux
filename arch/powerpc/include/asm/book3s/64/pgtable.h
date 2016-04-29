@@ -262,6 +262,14 @@ extern unsigned long __pgd_table_size;
 
 #endif /* __real_pte */
 
+static inline unsigned long pte_update(struct mm_struct *mm, unsigned long addr,
+				       pte_t *ptep, unsigned long clr,
+				       unsigned long set, int huge)
+{
+	if (radix_enabled())
+		return radix__pte_update(mm, addr, ptep, clr, set, huge);
+	return hash__pte_update(mm, addr, ptep, clr, set, huge);
+}
 /*
  * For hash even if we have _PAGE_ACCESSED = 0, we do a pte_update.
  * We currently remove entries from the hashtable regardless of whether
@@ -501,6 +509,39 @@ static inline bool check_pte_access(unsigned long access, unsigned long ptev)
 
 	return true;
 }
+/*
+ * Generic functions with hash/radix callbacks
+ */
+
+static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
+{
+	if (radix_enabled())
+		return radix__ptep_set_access_flags(ptep, entry);
+	return hash__ptep_set_access_flags(ptep, entry);
+}
+
+#define __HAVE_ARCH_PTE_SAME
+static inline int pte_same(pte_t pte_a, pte_t pte_b)
+{
+	if (radix_enabled())
+		return radix__pte_same(pte_a, pte_b);
+	return hash__pte_same(pte_a, pte_b);
+}
+
+static inline int pte_none(pte_t pte)
+{
+	if (radix_enabled())
+		return radix__pte_none(pte);
+	return hash__pte_none(pte);
+}
+
+static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
+				pte_t *ptep, pte_t pte, int percpu)
+{
+	if (radix_enabled())
+		return radix__set_pte_at(mm, addr, ptep, pte, percpu);
+	return hash__set_pte_at(mm, addr, ptep, pte, percpu);
+}
 
 #define _PAGE_CACHE_CTL	(_PAGE_NON_IDEMPOTENT | _PAGE_TOLERANT)
 
@@ -555,6 +596,13 @@ static inline void pmd_clear(pmd_t *pmdp)
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define	pmd_present(pmd)	(!pmd_none(pmd))
 
+static inline int pmd_bad(pmd_t pmd)
+{
+	if (radix_enabled())
+		return radix__pmd_bad(pmd);
+	return hash__pmd_bad(pmd);
+}
+
 static inline void pud_set(pud_t *pudp, unsigned long val)
 {
 	*pudp = __pud(val);
@@ -580,6 +628,15 @@ static inline pud_t pte_pud(pte_t pte)
 	return __pud(pte_val(pte));
 }
 #define pud_write(pud)		pte_write(pud_pte(pud))
+
+static inline int pud_bad(pud_t pud)
+{
+	if (radix_enabled())
+		return radix__pud_bad(pud);
+	return hash__pud_bad(pud);
+}
+
+
 #define pgd_write(pgd)		pte_write(pgd_pte(pgd))
 static inline void pgd_set(pgd_t *pgdp, unsigned long val)
 {
@@ -602,6 +659,13 @@ static inline pte_t pgd_pte(pgd_t pgd)
 static inline pgd_t pte_pgd(pte_t pte)
 {
 	return __pgd(pte_val(pte));
+}
+
+static inline int pgd_bad(pgd_t pgd)
+{
+	if (radix_enabled())
+		return radix__pgd_bad(pgd);
+	return hash__pgd_bad(pgd);
 }
 
 extern struct page *pgd_page(pgd_t pgd);
