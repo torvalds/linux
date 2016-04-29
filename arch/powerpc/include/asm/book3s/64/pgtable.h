@@ -206,6 +206,13 @@ extern unsigned long __pgd_table_size;
 
 #include <asm/book3s/64/hash.h>
 #include <asm/book3s/64/radix.h>
+
+#ifdef CONFIG_PPC_64K_PAGES
+#include <asm/book3s/64/pgtable-64k.h>
+#else
+#include <asm/book3s/64/pgtable-4k.h>
+#endif
+
 #include <asm/barrier.h>
 
 /*
