@@ -178,22 +178,43 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 #define UV3_HUB_REVISION_BASE		5
 #define UV4_HUB_REVISION_BASE		7
 
+#ifdef	UV1_HUB_IS_SUPPORTED
 static inline int is_uv1_hub(void)
 {
 	return uv_hub_info->hub_revision < UV2_HUB_REVISION_BASE;
 }
+#else
+static inline int is_uv1_hub(void)
+{
+	return 0;
+}
+#endif
 
+#ifdef	UV2_HUB_IS_SUPPORTED
 static inline int is_uv2_hub(void)
 {
 	return ((uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE) &&
 		(uv_hub_info->hub_revision < UV3_HUB_REVISION_BASE));
 }
+#else
+static inline int is_uv2_hub(void)
+{
+	return 0;
+}
+#endif
 
+#ifdef	UV3_HUB_IS_SUPPORTED
 static inline int is_uv3_hub(void)
 {
 	return ((uv_hub_info->hub_revision >= UV3_HUB_REVISION_BASE) &&
 		(uv_hub_info->hub_revision < UV4_HUB_REVISION_BASE));
 }
+#else
+static inline int is_uv3_hub(void)
+{
+	return 0;
+}
+#endif
 
 #ifdef	UV4_HUB_IS_SUPPORTED
 static inline int is_uv4_hub(void)
@@ -207,15 +228,20 @@ static inline int is_uv4_hub(void)
 }
 #endif
 
-static inline int is_uv_hub(void)
-{
-	return uv_hub_info->hub_revision;
-}
-
-/* code common to uv2/3/4 only */
 static inline int is_uvx_hub(void)
 {
-	return uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE;
+	if (uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE)
+		return uv_hub_info->hub_revision;
+
+	return 0;
+}
+
+static inline int is_uv_hub(void)
+{
+#ifdef	UV1_HUB_IS_SUPPORTED
+	return uv_hub_info->hub_revision;
+#endif
+	return is_uvx_hub();
 }
 
 union uvh_apicid {
