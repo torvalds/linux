@@ -635,9 +635,10 @@ static void gb_operation_sync_callback(struct gb_operation *operation)
  *
  * The caller has filled in any payload so the request message is ready to go.
  * The callback function supplied will be called when the response message has
- * arrived, or the operation is cancelled, indicating that the operation is
- * complete. The callback function can fetch the result of the operation using
- * gb_operation_result() if desired.
+ * arrived, a unidirectional request has been sent, or the operation is
+ * cancelled, indicating that the operation is complete. The callback function
+ * can fetch the result of the operation using gb_operation_result() if
+ * desired.
  *
  * Return: 0 if the request was successfully queued in the host-driver queues,
  * or a negative errno.
@@ -653,6 +654,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 
 	if (!callback)
 		return -EINVAL;
+
 	/*
 	 * Record the callback function, which is executed in
 	 * non-atomic (workqueue) context when the final result
@@ -662,10 +664,15 @@ int gb_operation_request_send(struct gb_operation *operation,
 
 	/*
 	 * Assign the operation's id, and store it in the request header.
-	 * Zero is a reserved operation id.
+	 * Zero is a reserved operation id for unidirectional operations.
 	 */
-	cycle = (unsigned int)atomic_inc_return(&connection->op_cycle);
-	operation->id = (u16)(cycle % U16_MAX + 1);
+	if (gb_operation_is_unidirectional(operation)) {
+		operation->id = 0;
+	} else {
+		cycle = (unsigned int)atomic_inc_return(&connection->op_cycle);
+		operation->id = (u16)(cycle % U16_MAX + 1);
+	}
+
 	header = operation->request->header;
 	header->operation_id = cpu_to_le16(operation->id);
 
@@ -799,10 +806,11 @@ void greybus_message_sent(struct gb_host_device *hd,
 	 * reference to the operation.  If an error occurred, report
 	 * it.
 	 *
-	 * For requests, if there's no error, there's nothing more
-	 * to do until the response arrives.  If an error occurred
-	 * attempting to send it, record that as the result of
-	 * the operation and schedule its completion.
+	 * For requests, if there's no error and the operation in not
+	 * unidirectional, there's nothing more to do until the response
+	 * arrives. If an error occurred attempting to send it, or if the
+	 * operation is unidrectional, record the result of the operation and
+	 * schedule its completion.
 	 */
 	if (message == operation->response) {
 		if (status) {
@@ -810,9 +818,10 @@ void greybus_message_sent(struct gb_host_device *hd,
 				"%s: error sending response 0x%02x: %d\n",
 				connection->name, operation->type, status);
 		}
+
 		gb_operation_put_active(operation);
 		gb_operation_put(operation);
-	} else if (status) {
+	} else if (status || gb_operation_is_unidirectional(operation)) {
 		if (gb_operation_result_set(operation, status)) {
 			queue_work(gb_operation_completion_wq,
 					&operation->work);
@@ -875,6 +884,13 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	struct gb_message *message;
 	int errno = gb_operation_status_map(result);
 	size_t message_size;
+
+	if (!operation_id) {
+		dev_err(&connection->hd->dev,
+				"%s: invalid response id 0 received\n",
+				connection->name);
+		return;
+	}
 
 	operation = gb_operation_find_outgoing(connection, operation_id);
 	if (!operation) {
