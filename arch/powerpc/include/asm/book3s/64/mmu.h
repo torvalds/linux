@@ -21,12 +21,39 @@ struct mmu_psize_def {
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 #endif /* __ASSEMBLY__ */
 
-#ifdef CONFIG_PPC_STD_MMU_64
 /* 64-bit classic hash table MMU */
 #include <asm/book3s/64/mmu-hash.h>
-#endif
 
 #ifndef __ASSEMBLY__
+/*
+ * ISA 3.0 partiton and process table entry format
+ */
+struct prtb_entry {
+	__be64 prtb0;
+	__be64 prtb1;
+};
+extern struct prtb_entry *process_tb;
+
+struct patb_entry {
+	__be64 patb0;
+	__be64 patb1;
+};
+extern struct patb_entry *partition_tb;
+
+#define PATB_HR		(1UL << 63)
+#define PATB_GR		(1UL << 63)
+#define RPDB_MASK	0x0ffffffffffff00fUL
+#define RPDB_SHIFT	(1UL << 8)
+/*
+ * Limit process table to PAGE_SIZE table. This
+ * also limit the max pid we can support.
+ * MAX_USER_CONTEXT * 16 bytes of space.
+ */
+#define PRTB_SIZE_SHIFT	(CONTEXT_BITS + 4)
+/*
+ * Power9 currently only support 64K partition table size.
+ */
+#define PATB_SIZE_SHIFT	16
 
 typedef unsigned long mm_context_id_t;
 struct spinlock;
