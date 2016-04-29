@@ -251,6 +251,13 @@
 			mmu-masters;
 		};
 
+		pinctrl: pinctrl@6501d130 {
+			compatible = "brcm,ns2-pinmux";
+			reg = <0x6501d130 0x08>,
+			      <0x660a0028 0x04>,
+			      <0x660009b0 0x40>;
+		};
+
 		gic: interrupt-controller@65210000 {
 			compatible = "arm,gic-400";
 			#interrupt-cells = <3>;
