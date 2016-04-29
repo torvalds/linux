@@ -649,12 +649,12 @@ static bool tcp_v6_inbound_md5_hash(const struct sock *sk,
 		return false;
 
 	if (hash_expected && !hash_location) {
-		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5NOTFOUND);
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5NOTFOUND);
 		return true;
 	}
 
 	if (!hash_expected && hash_location) {
-		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5UNEXPECTED);
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5UNEXPECTED);
 		return true;
 	}
 
@@ -825,9 +825,9 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	if (!IS_ERR(dst)) {
 		skb_dst_set(buff, dst);
 		ip6_xmit(ctl_sk, buff, &fl6, NULL, tclass);
-		__TCP_INC_STATS(net, TCP_MIB_OUTSEGS);
+		TCP_INC_STATS(net, TCP_MIB_OUTSEGS);
 		if (rst)
-			__TCP_INC_STATS(net, TCP_MIB_OUTRSTS);
+			TCP_INC_STATS(net, TCP_MIB_OUTRSTS);
 		return;
 	}
 
@@ -1276,8 +1276,8 @@ discard:
 	kfree_skb(skb);
 	return 0;
 csum_err:
-	__TCP_INC_STATS(sock_net(sk), TCP_MIB_CSUMERRORS);
-	__TCP_INC_STATS(sock_net(sk), TCP_MIB_INERRS);
+	TCP_INC_STATS(sock_net(sk), TCP_MIB_CSUMERRORS);
+	TCP_INC_STATS(sock_net(sk), TCP_MIB_INERRS);
 	goto discard;
 
 

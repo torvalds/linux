@@ -2221,14 +2221,13 @@ bool tcp_schedule_loss_probe(struct sock *sk)
 /* Thanks to skb fast clones, we can detect if a prior transmit of
  * a packet is still in a qdisc or driver queue.
  * In this case, there is very little point doing a retransmit !
- * Note: This is called from BH context only.
  */
 static bool skb_still_in_host_queue(const struct sock *sk,
 				    const struct sk_buff *skb)
 {
 	if (unlikely(skb_fclone_busy(sk, skb))) {
-		__NET_INC_STATS(sock_net(sk),
-				LINUX_MIB_TCPSPURIOUS_RTX_HOSTQUEUES);
+		NET_INC_STATS(sock_net(sk),
+			      LINUX_MIB_TCPSPURIOUS_RTX_HOSTQUEUES);
 		return true;
 	}
 	return false;
@@ -2290,7 +2289,7 @@ void tcp_send_loss_probe(struct sock *sk)
 	tp->tlp_high_seq = tp->snd_nxt;
 
 probe_sent:
-	__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPLOSSPROBES);
+	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPLOSSPROBES);
 	/* Reset s.t. tcp_rearm_rto will restart timer from now */
 	inet_csk(sk)->icsk_pending = 0;
 rearm_timer:
@@ -2699,7 +2698,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 			tp->retrans_stamp = tcp_skb_timestamp(skb);
 
 	} else if (err != -EBUSY) {
-		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPRETRANSFAIL);
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPRETRANSFAIL);
 	}
 
 	if (tp->undo_retrans < 0)
@@ -2823,7 +2822,7 @@ begin_fwd:
 		if (tcp_retransmit_skb(sk, skb, segs))
 			return;
 
-		__NET_INC_STATS(sock_net(sk), mib_idx);
+		NET_INC_STATS(sock_net(sk), mib_idx);
 
 		if (tcp_in_cwnd_reduction(sk))
 			tp->prr_out += tcp_skb_pcount(skb);
