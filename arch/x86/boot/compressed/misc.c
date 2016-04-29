@@ -13,6 +13,7 @@
 
 #include "misc.h"
 #include "../string.h"
+#include "../voffset.h"
 
 /*
  * WARNING!!
@@ -362,6 +363,8 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 
 	lines = boot_params->screen_info.orig_video_lines;
 	cols = boot_params->screen_info.orig_video_cols;
+
+	run_size = VO__end - VO__text;
 
 	console_init();
 	debug_putstr("early console in extract_kernel\n");
