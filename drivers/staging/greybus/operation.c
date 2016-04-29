@@ -627,13 +627,20 @@ static void gb_operation_sync_callback(struct gb_operation *operation)
 	complete(&operation->completion);
 }
 
-/*
- * Send an operation request message. The caller has filled in any payload so
- * the request message is ready to go. The callback function supplied will be
- * called when the response message has arrived indicating the operation is
- * complete. In that case, the callback function is responsible for fetching
- * the result of the operation using gb_operation_result() if desired, and
- * dropping the initial reference to the operation.
+/**
+ * gb_operation_request_send() - send an operation request message
+ * @operation:	the operation to initiate
+ * @callback:	the operation completion callback
+ * @gfp:	the memory flags to use for any allocations
+ *
+ * The caller has filled in any payload so the request message is ready to go.
+ * The callback function supplied will be called when the response message has
+ * arrived, or the operation is cancelled, indicating that the operation is
+ * complete. The callback function can fetch the result of the operation using
+ * gb_operation_result() if desired.
+ *
+ * Return: 0 if the request was successfully queued in the host-driver queues,
+ * or a negative errno.
  */
 int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback,
