@@ -722,6 +722,26 @@ extern struct page *pgd_page(pgd_t pgd);
 void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
 void pgtable_cache_init(void);
 
+static inline int map_kernel_page(unsigned long ea, unsigned long pa,
+				  unsigned long flags)
+{
+	return hash__map_kernel_page(ea, pa, flags);
+}
+
+static inline int __meminit vmemmap_create_mapping(unsigned long start,
+						   unsigned long page_size,
+						   unsigned long phys)
+{
+	return hash__vmemmap_create_mapping(start, page_size, phys);
+}
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+static inline void vmemmap_remove_mapping(unsigned long start,
+					  unsigned long page_size)
+{
+	return hash__vmemmap_remove_mapping(start, page_size);
+}
+#endif
 struct page *realmode_pfn_to_page(unsigned long pfn);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

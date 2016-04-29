@@ -193,6 +193,14 @@ static inline void hpte_do_hugepage_flush(struct mm_struct *mm,
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
+
+extern int hash__map_kernel_page(unsigned long ea, unsigned long pa,
+			     unsigned long flags);
+extern int __meminit hash__vmemmap_create_mapping(unsigned long start,
+					      unsigned long page_size,
+					      unsigned long phys);
+extern void hash__vmemmap_remove_mapping(unsigned long start,
+				     unsigned long page_size);
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_HASH_H */
