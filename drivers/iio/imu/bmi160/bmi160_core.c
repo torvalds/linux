@@ -364,8 +364,8 @@ int bmi160_set_odr(struct bmi160_data *data, enum bmi160_sensor_type t,
 
 	return regmap_update_bits(data->regmap,
 				  bmi160_regs[t].config,
-				  bmi160_odr_table[t].tbl[i].bits,
-				  bmi160_regs[t].config_odr_mask);
+				  bmi160_regs[t].config_odr_mask,
+				  bmi160_odr_table[t].tbl[i].bits);
 }
 
 static int bmi160_get_odr(struct bmi160_data *data, enum bmi160_sensor_type t,
