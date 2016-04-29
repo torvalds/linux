@@ -350,7 +350,7 @@ struct rbd_device {
 	struct rbd_spec		*spec;
 	struct rbd_options	*opts;
 
-	char			*header_name;
+	struct ceph_object_id	header_oid;
 
 	struct ceph_file_layout	layout;
 
@@ -3117,7 +3117,7 @@ static int rbd_obj_notify_ack_sync(struct rbd_device *rbd_dev, u64 notify_id)
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	int ret;
 
-	obj_request = rbd_obj_request_create(rbd_dev->header_name, 0, 0,
+	obj_request = rbd_obj_request_create(rbd_dev->header_oid.name, 0, 0,
 							OBJ_REQUEST_NODATA);
 	if (!obj_request)
 		return -ENOMEM;
@@ -3148,7 +3148,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	int ret;
 
 	dout("%s: \"%s\" notify_id %llu opcode %u\n", __func__,
-		rbd_dev->header_name, (unsigned long long)notify_id,
+		rbd_dev->header_oid.name, (unsigned long long)notify_id,
 		(unsigned int)opcode);
 
 	/*
@@ -3179,7 +3179,7 @@ static struct rbd_obj_request *rbd_obj_watch_request_helper(
 	struct rbd_obj_request *obj_request;
 	int ret;
 
-	obj_request = rbd_obj_request_create(rbd_dev->header_name, 0, 0,
+	obj_request = rbd_obj_request_create(rbd_dev->header_oid.name, 0, 0,
 					     OBJ_REQUEST_NODATA);
 	if (!obj_request)
 		return ERR_PTR(-ENOMEM);
@@ -3612,7 +3612,7 @@ static int rbd_dev_v1_header_info(struct rbd_device *rbd_dev)
 		if (!ondisk)
 			return -ENOMEM;
 
-		ret = rbd_obj_read_sync(rbd_dev, rbd_dev->header_name,
+		ret = rbd_obj_read_sync(rbd_dev, rbd_dev->header_oid.name,
 				       0, size, ondisk);
 		if (ret < 0)
 			goto out;
@@ -4054,6 +4054,8 @@ static void rbd_dev_release(struct device *dev)
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 	bool need_put = !!rbd_dev->opts;
 
+	ceph_oid_destroy(&rbd_dev->header_oid);
+
 	rbd_put_client(rbd_dev->rbd_client);
 	rbd_spec_put(rbd_dev->spec);
 	kfree(rbd_dev->opts);
@@ -4083,6 +4085,8 @@ static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 	atomic_set(&rbd_dev->parent_ref, 0);
 	INIT_LIST_HEAD(&rbd_dev->node);
 	init_rwsem(&rbd_dev->header_rwsem);
+
+	ceph_oid_init(&rbd_dev->header_oid);
 
 	rbd_dev->dev.bus = &rbd_bus_type;
 	rbd_dev->dev.type = &rbd_device_type;
@@ -4132,7 +4136,7 @@ static int _rbd_dev_v2_snap_size(struct rbd_device *rbd_dev, u64 snap_id,
 		__le64 size;
 	} __attribute__ ((packed)) size_buf = { 0 };
 
-	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_oid.name,
 				"rbd", "get_size",
 				&snapid, sizeof (snapid),
 				&size_buf, sizeof (size_buf));
@@ -4172,7 +4176,7 @@ static int rbd_dev_v2_object_prefix(struct rbd_device *rbd_dev)
 	if (!reply_buf)
 		return -ENOMEM;
 
-	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_oid.name,
 				"rbd", "get_object_prefix", NULL, 0,
 				reply_buf, RBD_OBJ_PREFIX_LEN_MAX);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
@@ -4207,7 +4211,7 @@ static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
 	u64 unsup;
 	int ret;
 
-	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_oid.name,
 				"rbd", "get_features",
 				&snapid, sizeof (snapid),
 				&features_buf, sizeof (features_buf));
@@ -4269,7 +4273,7 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 	}
 
 	snapid = cpu_to_le64(rbd_dev->spec->snap_id);
-	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_oid.name,
 				"rbd", "get_parent",
 				&snapid, sizeof (snapid),
 				reply_buf, size);
@@ -4372,7 +4376,7 @@ static int rbd_dev_v2_striping_info(struct rbd_device *rbd_dev)
 	u64 stripe_count;
 	int ret;
 
-	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_oid.name,
 				"rbd", "get_stripe_unit_count", NULL, 0,
 				(char *)&striping_info_buf, size);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
@@ -4620,7 +4624,7 @@ static int rbd_dev_v2_snap_context(struct rbd_device *rbd_dev)
 	if (!reply_buf)
 		return -ENOMEM;
 
-	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_oid.name,
 				"rbd", "get_snapcontext", NULL, 0,
 				reply_buf, size);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
@@ -4685,7 +4689,7 @@ static const char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev,
 		return ERR_PTR(-ENOMEM);
 
 	snapid = cpu_to_le64(snap_id);
-	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_oid.name,
 				"rbd", "get_snapshot_name",
 				&snapid, sizeof (snapid),
 				reply_buf, size);
@@ -5281,35 +5285,25 @@ err_out_unlock:
 static int rbd_dev_header_name(struct rbd_device *rbd_dev)
 {
 	struct rbd_spec *spec = rbd_dev->spec;
-	size_t size;
+	int ret;
 
 	/* Record the header object name for this rbd image. */
 
 	rbd_assert(rbd_image_format_valid(rbd_dev->image_format));
 
 	if (rbd_dev->image_format == 1)
-		size = strlen(spec->image_name) + sizeof (RBD_SUFFIX);
+		ret = ceph_oid_aprintf(&rbd_dev->header_oid, GFP_KERNEL, "%s%s",
+				       spec->image_name, RBD_SUFFIX);
 	else
-		size = sizeof (RBD_HEADER_PREFIX) + strlen(spec->image_id);
+		ret = ceph_oid_aprintf(&rbd_dev->header_oid, GFP_KERNEL, "%s%s",
+				       RBD_HEADER_PREFIX, spec->image_id);
 
-	rbd_dev->header_name = kmalloc(size, GFP_KERNEL);
-	if (!rbd_dev->header_name)
-		return -ENOMEM;
-
-	if (rbd_dev->image_format == 1)
-		sprintf(rbd_dev->header_name, "%s%s",
-			spec->image_name, RBD_SUFFIX);
-	else
-		sprintf(rbd_dev->header_name, "%s%s",
-			RBD_HEADER_PREFIX, spec->image_id);
-	return 0;
+	return ret;
 }
 
 static void rbd_dev_image_release(struct rbd_device *rbd_dev)
 {
 	rbd_dev_unprobe(rbd_dev);
-	kfree(rbd_dev->header_name);
-	rbd_dev->header_name = NULL;
 	rbd_dev->image_format = 0;
 	kfree(rbd_dev->spec->image_id);
 	rbd_dev->spec->image_id = NULL;
@@ -5348,7 +5342,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 				pr_info("image %s/%s does not exist\n",
 					rbd_dev->spec->pool_name,
 					rbd_dev->spec->image_name);
-			goto out_header_name;
+			goto err_out_format;
 		}
 	}
 
@@ -5394,7 +5388,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 		goto err_out_probe;
 
 	dout("discovered format %u image, header name is %s\n",
-		rbd_dev->image_format, rbd_dev->header_name);
+		rbd_dev->image_format, rbd_dev->header_oid.name);
 	return 0;
 
 err_out_probe:
@@ -5402,9 +5396,6 @@ err_out_probe:
 err_out_watch:
 	if (!depth)
 		rbd_dev_header_unwatch_sync(rbd_dev);
-out_header_name:
-	kfree(rbd_dev->header_name);
-	rbd_dev->header_name = NULL;
 err_out_format:
 	rbd_dev->image_format = 0;
 	kfree(rbd_dev->spec->image_id);
