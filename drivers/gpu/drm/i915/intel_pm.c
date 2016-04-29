@@ -2012,10 +2012,10 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 }
 
 static uint32_t
-hsw_compute_linetime_wm(struct drm_device *dev,
-			struct intel_crtc_state *cstate)
+hsw_compute_linetime_wm(const struct intel_crtc_state *cstate)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct intel_atomic_state *intel_state =
+		to_intel_atomic_state(cstate->base.state);
 	const struct drm_display_mode *adjusted_mode =
 		&cstate->base.adjusted_mode;
 	u32 linetime, ips_linetime;
@@ -2024,7 +2024,7 @@ hsw_compute_linetime_wm(struct drm_device *dev,
 		return 0;
 	if (WARN_ON(adjusted_mode->crtc_clock == 0))
 		return 0;
-	if (WARN_ON(dev_priv->cdclk_freq == 0))
+	if (WARN_ON(intel_state->cdclk == 0))
 		return 0;
 
 	/* The WM are computed with base on how long it takes to fill a single
@@ -2033,7 +2033,7 @@ hsw_compute_linetime_wm(struct drm_device *dev,
 	linetime = DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
 				     adjusted_mode->crtc_clock);
 	ips_linetime = DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
-					 dev_priv->cdclk_freq);
+					 intel_state->cdclk);
 
 	return PIPE_WM_LINETIME_IPS_LINETIME(ips_linetime) |
 	       PIPE_WM_LINETIME_TIME(linetime);
@@ -2352,7 +2352,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 	pipe_wm->wm[0] = pipe_wm->raw_wm[0];
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-		pipe_wm->linetime = hsw_compute_linetime_wm(dev, cstate);
+		pipe_wm->linetime = hsw_compute_linetime_wm(cstate);
 
 	if (!ilk_validate_pipe_wm(dev, pipe_wm))
 		return -EINVAL;
