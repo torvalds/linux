@@ -1321,7 +1321,7 @@ int vme_lm_get(struct vme_resource *resource, unsigned long long *lm_base,
 EXPORT_SYMBOL(vme_lm_get);
 
 int vme_lm_attach(struct vme_resource *resource, int monitor,
-	void (*callback)(int))
+	void (*callback)(void *), void *data)
 {
 	struct vme_bridge *bridge = find_bridge(resource);
 	struct vme_lm_resource *lm;
@@ -1338,7 +1338,7 @@ int vme_lm_attach(struct vme_resource *resource, int monitor,
 		return -EINVAL;
 	}
 
-	return bridge->lm_attach(lm, monitor, callback);
+	return bridge->lm_attach(lm, monitor, callback, data);
 }
 EXPORT_SYMBOL(vme_lm_attach);
 

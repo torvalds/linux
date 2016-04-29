@@ -385,13 +385,13 @@ location monitor location. Each location monitor can monitor a number of
 adjacent locations:
 
 	int vme_lm_attach(struct vme_resource *res, int num,
-		void (*callback)(int));
+		void (*callback)(void *));
 
 	int vme_lm_detach(struct vme_resource *res, int num);
 
 The callback function is declared as follows.
 
-	void callback(int num);
+	void callback(void *data);
 
 
 Slot Detection
