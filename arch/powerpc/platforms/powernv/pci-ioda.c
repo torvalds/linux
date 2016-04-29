@@ -1840,10 +1840,13 @@ static struct iommu_table_ops pnv_ioda1_iommu_ops = {
 	.get = pnv_tce_get,
 };
 
+#define TCE_KILL_INVAL_PE   PPC_BIT(1)
+#define TCE_KILL_INVAL_TCE  PPC_BIT(2)
+
 static inline void pnv_pci_ioda2_tce_invalidate_pe(struct pnv_ioda_pe *pe)
 {
 	/* 01xb - invalidate TCEs that match the specified PE# */
-	unsigned long val = (0x4ull << 60) | (pe->pe_number & 0xFF);
+	unsigned long val = TCE_KILL_INVAL_PE | (pe->pe_number & 0xFF);
 	struct pnv_phb *phb = pe->phb;
 	struct pnv_ioda_pe *npe;
 	int i;
@@ -1871,7 +1874,7 @@ static void pnv_pci_ioda2_do_tce_invalidate(unsigned pe_number, bool rm,
 	unsigned long start, end, inc;
 
 	/* We'll invalidate DMA address in PE scope */
-	start = 0x2ull << 60;
+	start = TCE_KILL_INVAL_TCE;
 	start |= (pe_number & 0xFF);
 	end = start;
 
