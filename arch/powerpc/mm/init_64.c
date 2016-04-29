@@ -189,75 +189,6 @@ static int __meminit vmemmap_populated(unsigned long start, int page_size)
 	return 0;
 }
 
-/* On hash-based CPUs, the vmemmap is bolted in the hash table.
- *
- * On Book3E CPUs, the vmemmap is currently mapped in the top half of
- * the vmalloc space using normal page tables, though the size of
- * pages encoded in the PTEs can be different
- */
-
-#ifdef CONFIG_PPC_BOOK3E
-static int __meminit vmemmap_create_mapping(unsigned long start,
-					    unsigned long page_size,
-					    unsigned long phys)
-{
-	/* Create a PTE encoding without page size */
-	unsigned long i, flags = _PAGE_PRESENT | _PAGE_ACCESSED |
-		_PAGE_KERNEL_RW;
-
-	/* PTEs only contain page size encodings up to 32M */
-	BUG_ON(mmu_psize_defs[mmu_vmemmap_psize].enc > 0xf);
-
-	/* Encode the size in the PTE */
-	flags |= mmu_psize_defs[mmu_vmemmap_psize].enc << 8;
-
-	/* For each PTE for that area, map things. Note that we don't
-	 * increment phys because all PTEs are of the large size and
-	 * thus must have the low bits clear
-	 */
-	for (i = 0; i < page_size; i += PAGE_SIZE)
-		BUG_ON(map_kernel_page(start + i, phys, flags));
-
-	return 0;
-}
-
-#ifdef CONFIG_MEMORY_HOTPLUG
-static void vmemmap_remove_mapping(unsigned long start,
-				   unsigned long page_size)
-{
-}
-#endif
-#else /* CONFIG_PPC_BOOK3E */
-static int __meminit vmemmap_create_mapping(unsigned long start,
-					    unsigned long page_size,
-					    unsigned long phys)
-{
-	int rc = htab_bolt_mapping(start, start + page_size, phys,
-				   pgprot_val(PAGE_KERNEL),
-				   mmu_vmemmap_psize, mmu_kernel_ssize);
-	if (rc < 0) {
-		int rc2 = htab_remove_mapping(start, start + page_size,
-					      mmu_vmemmap_psize,
-					      mmu_kernel_ssize);
-		BUG_ON(rc2 && (rc2 != -ENOENT));
-	}
-	return rc;
-}
-
-#ifdef CONFIG_MEMORY_HOTPLUG
-static void vmemmap_remove_mapping(unsigned long start,
-				   unsigned long page_size)
-{
-	int rc = htab_remove_mapping(start, start + page_size,
-				     mmu_vmemmap_psize,
-				     mmu_kernel_ssize);
-	BUG_ON((rc < 0) && (rc != -ENOENT));
-	WARN_ON(rc == -ENOENT);
-}
-#endif
-
-#endif /* CONFIG_PPC_BOOK3E */
-
 struct vmemmap_backing *vmemmap_list;
 static struct vmemmap_backing *next;
 static int num_left;
@@ -309,6 +240,9 @@ static __meminit void vmemmap_list_populate(unsigned long phys,
 	vmemmap_list = vmem_back;
 }
 
+extern int __meminit vmemmap_create_mapping(unsigned long start,
+					    unsigned long page_size,
+					    unsigned long phys);
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 {
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
@@ -347,6 +281,8 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
+extern void vmemmap_remove_mapping(unsigned long start,
+				   unsigned long page_size);
 static unsigned long vmemmap_list_free(unsigned long start)
 {
 	struct vmemmap_backing *vmem_back, *vmem_back_prev;
