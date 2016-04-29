@@ -423,7 +423,7 @@ static int exynos_bus_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err;
 
-	/* Initalize the struct profile and governor data for parent device */
+	/* Initialize the struct profile and governor data for parent device */
 	profile->polling_ms = 50;
 	profile->target = exynos_bus_target;
 	profile->get_dev_status = exynos_bus_get_dev_status;
@@ -471,7 +471,7 @@ static int exynos_bus_probe(struct platform_device *pdev)
 
 	goto out;
 passive:
-	/* Initalize the struct profile and governor data for passive device */
+	/* Initialize the struct profile and governor data for passive device */
 	profile->target = exynos_bus_passive_target;
 	profile->exit = exynos_bus_passive_exit;
 

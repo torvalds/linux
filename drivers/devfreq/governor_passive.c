@@ -196,8 +196,6 @@ static void __exit devfreq_passive_exit(void)
 	ret = devfreq_remove_governor(&devfreq_passive);
 	if (ret)
 		pr_err("%s: failed remove governor %d\n", __func__, ret);
-
-	return;
 }
 module_exit(devfreq_passive_exit);
 
