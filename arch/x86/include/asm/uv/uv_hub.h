@@ -139,8 +139,9 @@ struct uv_scir_s {
 
 /*
  * The following defines attributes of the HUB chip. These attributes are
- * frequently referenced and are kept in the per-cpu data areas of each cpu.
- * They are kept together in a struct to minimize cache misses.
+ * frequently referenced and are kept in a common per hub struct.
+ * After setup, the struct is read only, so it should be readily
+ * available in the L3 cache on the cpu socket for the node.
  */
 struct uv_hub_info_s {
 	unsigned long		global_mmr_base;
@@ -167,9 +168,19 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 #define uv_hub_info		this_cpu_ptr(&__uv_hub_info)
 #define uv_cpu_hub_info(cpu)	(&per_cpu(__uv_hub_info, cpu))
 
+/* CPU specific info with a pointer to the hub common info struct */
+struct uv_cpu_info_s {
+	void			*p_uv_hub_info;
+	unsigned char		blade_cpu_id;
+	struct uv_scir_s	scir;
+};
+DECLARE_PER_CPU(struct uv_cpu_info_s, __uv_cpu_info);
+
+#define uv_cpu_info		this_cpu_ptr(&__uv_cpu_info)
+#define uv_cpu_info_per(cpu)	(&per_cpu(__uv_cpu_info, cpu))
+
 /*
- * Hub revisions less than UV2_HUB_REVISION_BASE are UV1 hubs. All UV2
- * hubs have revision numbers greater than or equal to UV2_HUB_REVISION_BASE.
+ * HUB revision ranges for each UV HUB architecture.
  * This is a software convention - NOT the hardware revision numbers in
  * the hub chip.
  */

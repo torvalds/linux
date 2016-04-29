@@ -231,6 +231,9 @@ EXPORT_SYMBOL_GPL(is_uv_system);
 DEFINE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info);
 
+DEFINE_PER_CPU(struct uv_cpu_info_s, __uv_cpu_info);
+EXPORT_PER_CPU_SYMBOL_GPL(__uv_cpu_info);
+
 struct uv_blade_info *uv_blade_info;
 EXPORT_SYMBOL_GPL(uv_blade_info);
 
@@ -990,11 +993,10 @@ void __init uv_system_init(void)
 		  hweight64(uv_read_local_mmr( UVH_NODE_PRESENT_TABLE + i * 8));
 
 	/* uv_num_possible_blades() is really the hub count */
-	pr_info("UV: Found %d blades, %d hubs\n",
-			is_uv1_hub() ?
-				uv_num_possible_blades() :
-				(uv_num_possible_blades() + 1) / 2,
-			uv_num_possible_blades());
+	pr_info("UV: Found %d hubs, %d nodes, %d cpus\n",
+			uv_num_possible_blades(),
+			num_possible_nodes(),
+			num_possible_cpus());
 
 	bytes = sizeof(struct uv_blade_info) * uv_num_possible_blades();
 	uv_blade_info = kzalloc(bytes, GFP_KERNEL);
@@ -1057,6 +1059,9 @@ void __init uv_system_init(void)
 		uv_cpu_hub_info(cpu)->blade_processor_id = lcpu;
 		uv_node_to_blade[nodeid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
+
+		/* Initialize per cpu info list */
+		uv_cpu_info_per(cpu)->p_uv_hub_info = uv_cpu_hub_info(cpu);
 	}
 
 	/* Add blade/pnode info for nodes without cpus */
