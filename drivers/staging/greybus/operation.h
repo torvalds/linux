@@ -18,12 +18,6 @@ struct gb_operation;
 #define GB_OPERATION_TIMEOUT_DEFAULT	1000	/* milliseconds */
 
 /*
- * No protocol may define an operation that has numeric value 0x00.
- * It is reserved as an explicitly invalid value.
- */
-#define GB_OPERATION_TYPE_INVALID	((u8)0x00)
-
-/*
  * The top bit of the type in an operation message header indicates
  * whether the message is a request (bit clear) or response (bit set)
  */

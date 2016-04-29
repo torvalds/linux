@@ -95,9 +95,9 @@ struct gb_operation_msg_hdr {
 } __packed;
 
 
-/* Generic request numbers supported by all modules */
-#define GB_REQUEST_TYPE_INVALID			0x00
+/* Generic request types */
 #define GB_REQUEST_TYPE_PROTOCOL_VERSION	0x01
+#define GB_REQUEST_TYPE_INVALID			0x7f
 
 struct gb_protocol_version_request {
 	__u8	major;

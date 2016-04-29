@@ -282,10 +282,10 @@ static void gb_operation_message_init(struct gb_host_device *hd,
 
 	/*
 	 * The type supplied for incoming message buffers will be
-	 * 0x00.  Such buffers will be overwritten by arriving data
-	 * so there's no need to initialize the message header.
+	 * GB_REQUEST_TYPE_INVALID. Such buffers will be overwritten by
+	 * arriving data so there's no need to initialize the message header.
 	 */
-	if (type != GB_OPERATION_TYPE_INVALID) {
+	if (type != GB_REQUEST_TYPE_INVALID) {
 		u16 message_size = (u16)(sizeof(*header) + payload_size);
 
 		/*
@@ -536,7 +536,7 @@ gb_operation_create_flags(struct gb_connection *connection,
 				size_t response_size, unsigned long flags,
 				gfp_t gfp)
 {
-	if (WARN_ON_ONCE(type == GB_OPERATION_TYPE_INVALID))
+	if (WARN_ON_ONCE(type == GB_REQUEST_TYPE_INVALID))
 		return NULL;
 	if (WARN_ON_ONCE(type & GB_MESSAGE_TYPE_RESPONSE))
 		type &= ~GB_MESSAGE_TYPE_RESPONSE;
@@ -573,7 +573,9 @@ gb_operation_create_incoming(struct gb_connection *connection, u16 id,
 		flags |= GB_OPERATION_FLAG_UNIDIRECTIONAL;
 
 	operation = gb_operation_create_common(connection, type,
-					request_size, 0, flags, GFP_ATOMIC);
+						request_size,
+						GB_REQUEST_TYPE_INVALID,
+						flags, GFP_ATOMIC);
 	if (!operation)
 		return NULL;
 
