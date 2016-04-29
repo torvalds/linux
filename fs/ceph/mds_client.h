@@ -81,7 +81,9 @@ struct ceph_mds_reply_info_parsed {
 			struct ceph_mds_reply_dirfrag *dir_dir;
 			size_t			      dir_buf_size;
 			int                           dir_nr;
-			bool			      dir_complete, dir_end;
+			bool			      dir_complete;
+			bool			      dir_end;
+			bool			      hash_order;
 			struct ceph_mds_reply_dir_entry  *dir_entries;
 		};
 

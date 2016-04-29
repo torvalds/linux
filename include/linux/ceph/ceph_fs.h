@@ -357,6 +357,7 @@ extern const char *ceph_mds_op_name(int op);
  */
 #define CEPH_READDIR_FRAG_END		(1<<0)
 #define CEPH_READDIR_FRAG_COMPLETE	(1<<8)
+#define CEPH_READDIR_HASH_ORDER		(1<<9)
 
 union ceph_mds_request_args {
 	struct {
