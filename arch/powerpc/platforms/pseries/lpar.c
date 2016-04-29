@@ -89,18 +89,21 @@ void vpa_init(int cpu)
 		       "%lx failed with %ld\n", cpu, hwcpu, addr, ret);
 		return;
 	}
+
+#ifdef CONFIG_PPC_STD_MMU_64
 	/*
 	 * PAPR says this feature is SLB-Buffer but firmware never
 	 * reports that.  All SPLPAR support SLB shadow buffer.
 	 */
-	addr = __pa(paca[cpu].slb_shadow_ptr);
-	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
+	if (!radix_enabled() && firmware_has_feature(FW_FEATURE_SPLPAR)) {
+		addr = __pa(paca[cpu].slb_shadow_ptr);
 		ret = register_slb_shadow(hwcpu, addr);
 		if (ret)
 			pr_err("WARNING: SLB shadow buffer registration for "
 			       "cpu %d (hw %d) of area %lx failed with %ld\n",
 			       cpu, hwcpu, addr, ret);
 	}
+#endif /* CONFIG_PPC_STD_MMU_64 */
 
 	/*
 	 * Register dispatch trace log, if one has been allocated.
@@ -122,6 +125,8 @@ void vpa_init(int cpu)
 		lppaca_of(cpu).dtl_enable_mask = 2;
 	}
 }
+
+#ifdef CONFIG_PPC_STD_MMU_64
 
 static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 				     unsigned long vpn, unsigned long pa,
@@ -655,6 +660,8 @@ static void pSeries_set_page_state(struct page *page, int order,
 
 void arch_free_page(struct page *page, int order)
 {
+	if (radix_enabled())
+		return;
 	if (!cmo_free_hint_flag || !firmware_has_feature(FW_FEATURE_CMO))
 		return;
 
@@ -662,7 +669,8 @@ void arch_free_page(struct page *page, int order)
 }
 EXPORT_SYMBOL(arch_free_page);
 
-#endif
+#endif /* CONFIG_PPC_SMLPAR */
+#endif /* CONFIG_PPC_STD_MMU_64 */
 
 #ifdef CONFIG_TRACEPOINTS
 #ifdef HAVE_JUMP_LABEL
