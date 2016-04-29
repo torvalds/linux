@@ -45,17 +45,17 @@
 /*
  * Define the address range of the kernel non-linear virtual area
  */
-#define KERN_VIRT_START ASM_CONST(0xD000000000000000)
-#define KERN_VIRT_SIZE	ASM_CONST(0x0000100000000000)
+#define H_KERN_VIRT_START ASM_CONST(0xD000000000000000)
+#define H_KERN_VIRT_SIZE	ASM_CONST(0x0000100000000000)
 
 /*
  * The vmalloc space starts at the beginning of that region, and
  * occupies half of it on hash CPUs and a quarter of it on Book3E
  * (we keep a quarter for the virtual memmap)
  */
-#define VMALLOC_START	KERN_VIRT_START
-#define VMALLOC_SIZE	(KERN_VIRT_SIZE >> 1)
-#define VMALLOC_END	(VMALLOC_START + VMALLOC_SIZE)
+#define H_VMALLOC_START	H_KERN_VIRT_START
+#define H_VMALLOC_SIZE	(H_KERN_VIRT_SIZE >> 1)
+#define H_VMALLOC_END	(H_VMALLOC_START + H_VMALLOC_SIZE)
 
 /*
  * Region IDs
@@ -64,7 +64,7 @@
 #define REGION_MASK		(0xfUL << REGION_SHIFT)
 #define REGION_ID(ea)		(((unsigned long)(ea)) >> REGION_SHIFT)
 
-#define VMALLOC_REGION_ID	(REGION_ID(VMALLOC_START))
+#define VMALLOC_REGION_ID	(REGION_ID(H_VMALLOC_START))
 #define KERNEL_REGION_ID	(REGION_ID(PAGE_OFFSET))
 #define VMEMMAP_REGION_ID	(0xfUL)	/* Server only */
 #define USER_REGION_ID		(0UL)
@@ -73,7 +73,7 @@
  * Defines the address of the vmemap area, in its own region on
  * hash table CPUs.
  */
-#define VMEMMAP_BASE		(VMEMMAP_REGION_ID << REGION_SHIFT)
+#define H_VMEMMAP_BASE		(VMEMMAP_REGION_ID << REGION_SHIFT)
 
 #ifdef CONFIG_PPC_MM_SLICES
 #define HAVE_ARCH_UNMAPPED_AREA

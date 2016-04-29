@@ -31,6 +31,74 @@
 			      RADIX_PUD_INDEX_SIZE + RADIX_PGD_INDEX_SIZE + PAGE_SHIFT)
 #define RADIX_PGTABLE_RANGE (ASM_CONST(1) << RADIX_PGTABLE_EADDR_SIZE)
 
+/*
+ * We support 52 bit address space, Use top bit for kernel
+ * virtual mapping. Also make sure kernel fit in the top
+ * quadrant.
+ *
+ *           +------------------+
+ *           +------------------+  Kernel virtual map (0xc008000000000000)
+ *           |                  |
+ *           |                  |
+ *           |                  |
+ * 0b11......+------------------+  Kernel linear map (0xc....)
+ *           |                  |
+ *           |     2 quadrant   |
+ *           |                  |
+ * 0b10......+------------------+
+ *           |                  |
+ *           |    1 quadrant    |
+ *           |                  |
+ * 0b01......+------------------+
+ *           |                  |
+ *           |    0 quadrant    |
+ *           |                  |
+ * 0b00......+------------------+
+ *
+ *
+ * 3rd quadrant expanded:
+ * +------------------------------+
+ * |                              |
+ * |                              |
+ * |                              |
+ * +------------------------------+  Kernel IO map end (0xc010000000000000)
+ * |                              |
+ * |                              |
+ * |      1/2 of virtual map      |
+ * |                              |
+ * |                              |
+ * +------------------------------+  Kernel IO map start
+ * |                              |
+ * |      1/4 of virtual map      |
+ * |                              |
+ * +------------------------------+  Kernel vmemap start
+ * |                              |
+ * |     1/4 of virtual map       |
+ * |                              |
+ * +------------------------------+  Kernel virt start (0xc008000000000000)
+ * |                              |
+ * |                              |
+ * |                              |
+ * +------------------------------+  Kernel linear (0xc.....)
+ */
+
+#define RADIX_KERN_VIRT_START ASM_CONST(0xc008000000000000)
+#define RADIX_KERN_VIRT_SIZE  ASM_CONST(0x0008000000000000)
+
+/*
+ * The vmalloc space starts at the beginning of that region, and
+ * occupies a quarter of it on radix config.
+ * (we keep a quarter for the virtual memmap)
+ */
+#define RADIX_VMALLOC_START	RADIX_KERN_VIRT_START
+#define RADIX_VMALLOC_SIZE	(RADIX_KERN_VIRT_SIZE >> 2)
+#define RADIX_VMALLOC_END	(RADIX_VMALLOC_START + RADIX_VMALLOC_SIZE)
+/*
+ * Defines the address of the vmemap area, in its own region on
+ * hash table CPUs.
+ */
+#define RADIX_VMEMMAP_BASE		(RADIX_VMALLOC_END)
+
 #ifndef __ASSEMBLY__
 #define RADIX_PTE_TABLE_SIZE	(sizeof(pte_t) << RADIX_PTE_INDEX_SIZE)
 #define RADIX_PMD_TABLE_SIZE	(sizeof(pmd_t) << RADIX_PMD_INDEX_SIZE)

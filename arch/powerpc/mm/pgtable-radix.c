@@ -328,6 +328,13 @@ void __init radix__early_init_mmu(void)
 	__pud_val_bits = RADIX_PUD_VAL_BITS;
 	__pgd_val_bits = RADIX_PGD_VAL_BITS;
 
+	__kernel_virt_start = RADIX_KERN_VIRT_START;
+	__kernel_virt_size = RADIX_KERN_VIRT_SIZE;
+	__vmalloc_start = RADIX_VMALLOC_START;
+	__vmalloc_end = RADIX_VMALLOC_END;
+	vmemmap = (struct page *)RADIX_VMEMMAP_BASE;
+	ioremap_bot = IOREMAP_BASE;
+
 	radix_init_page_sizes();
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		radix_init_partition_table();

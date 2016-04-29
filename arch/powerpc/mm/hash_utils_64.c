@@ -889,6 +889,14 @@ void __init hash__early_init_mmu(void)
 	__pmd_val_bits = 0;
 	__pud_val_bits = 0;
 	__pgd_val_bits = 0;
+
+	__kernel_virt_start = H_KERN_VIRT_START;
+	__kernel_virt_size = H_KERN_VIRT_SIZE;
+	__vmalloc_start = H_VMALLOC_START;
+	__vmalloc_end = H_VMALLOC_END;
+	vmemmap = (struct page *)H_VMEMMAP_BASE;
+	ioremap_bot = IOREMAP_BASE;
+
 	/* Initialize the MMU Hash table and create the linear mapping
 	 * of memory. Has to be done before SLB initialization as this is
 	 * currently where the page size encoding is obtained.
