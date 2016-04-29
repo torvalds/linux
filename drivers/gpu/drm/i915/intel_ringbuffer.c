@@ -1481,6 +1481,7 @@ gen8_ring_sync(struct drm_i915_gem_request *waiter_req,
 {
 	struct intel_engine_cs *waiter = waiter_req->engine;
 	struct drm_i915_private *dev_priv = waiter->dev->dev_private;
+	struct i915_hw_ppgtt *ppgtt;
 	int ret;
 
 	ret = intel_ring_begin(waiter_req, 4);
@@ -1496,6 +1497,15 @@ gen8_ring_sync(struct drm_i915_gem_request *waiter_req,
 	intel_ring_emit(waiter,
 			upper_32_bits(GEN8_WAIT_OFFSET(waiter, signaller->id)));
 	intel_ring_advance(waiter);
+
+	/* When the !RCS engines idle waiting upon a semaphore, they lose their
+	 * pagetables and we must reload them before executing the batch.
+	 * We do this on the i915_switch_context() following the wait and
+	 * before the dispatch.
+	 */
+	ppgtt = waiter_req->ctx->ppgtt;
+	if (ppgtt && waiter_req->engine->id != RCS)
+		ppgtt->pd_dirty_rings |= intel_engine_flag(waiter_req->engine);
 	return 0;
 }
 
