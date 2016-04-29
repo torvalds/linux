@@ -16,6 +16,7 @@
 #include <linux/percpu.h>
 #include <linux/timer.h>
 #include <linux/io.h>
+#include <linux/topology.h>
 #include <asm/types.h>
 #include <asm/percpu.h>
 #include <asm/uv/uv_mmrs.h>
@@ -161,6 +162,9 @@ struct uv_hub_info_s {
 	unsigned short		numa_blade_id;
 	unsigned char		m_val;
 	unsigned char		n_val;
+	unsigned short		nr_possible_cpus;
+	unsigned short		nr_online_cpus;
+	short			memory_nid;
 };
 
 /* CPU specific info with a pointer to the hub common info struct */
@@ -446,7 +450,7 @@ static inline unsigned long uv_gpa_to_soc_phys_ram(unsigned long gpa)
 }
 
 
-/* gpa -> pnode */
+/* gpa -> gnode */
 static inline unsigned long uv_gpa_to_gnode(unsigned long gpa)
 {
 	return gpa >> uv_hub_info->n_lshift;
@@ -455,12 +459,10 @@ static inline unsigned long uv_gpa_to_gnode(unsigned long gpa)
 /* gpa -> pnode */
 static inline int uv_gpa_to_pnode(unsigned long gpa)
 {
-	unsigned long n_mask = (1UL << uv_hub_info->n_val) - 1;
-
-	return uv_gpa_to_gnode(gpa) & n_mask;
+	return uv_gpa_to_gnode(gpa) & uv_hub_info->pnode_mask;
 }
 
-/* gpa -> node offset*/
+/* gpa -> node offset */
 static inline unsigned long uv_gpa_to_offset(unsigned long gpa)
 {
 	return (gpa << uv_hub_info->m_shift) >> uv_hub_info->m_shift;
@@ -472,18 +474,13 @@ static inline void *uv_pnode_offset_to_vaddr(int pnode, unsigned long offset)
 	return __va(((unsigned long)pnode << uv_hub_info->m_val) | offset);
 }
 
-
-/*
- * Extract a PNODE from an APICID (full apicid, not processor subset)
- */
+/* Extract a PNODE from an APICID (full apicid, not processor subset) */
 static inline int uv_apicid_to_pnode(int apicid)
 {
 	return (apicid >> uv_hub_info->apic_pnode_shift);
 }
 
-/*
- * Convert an apicid to the socket number on the blade
- */
+/* Convert an apicid to the socket number on the blade */
 static inline int uv_apicid_to_socket(int apicid)
 {
 	if (is_uv1_hub())
@@ -581,21 +578,6 @@ static inline void uv_write_local_mmr8(unsigned long offset, unsigned char val)
 	writeb(val, uv_local_mmr_address(offset));
 }
 
-/*
- * Structures and definitions for converting between cpu, node, pnode, and blade
- * numbers.
- */
-struct uv_blade_info {
-	unsigned short	nr_possible_cpus;
-	unsigned short	nr_online_cpus;
-	unsigned short	pnode;
-	short		memory_nid;
-};
-extern struct uv_blade_info *uv_blade_info;
-extern short *uv_node_to_blade;
-extern short *uv_cpu_to_blade;
-extern short uv_possible_blades;
-
 /* Blade-local cpu number of current cpu. Numbered 0 .. <# cpus on the blade> */
 static inline int uv_blade_processor_id(void)
 {
@@ -609,61 +591,72 @@ static inline int uv_cpu_blade_processor_id(int cpu)
 }
 #define _uv_cpu_blade_processor_id 1	/* indicate function available */
 
+/* Blade number to Node number (UV1..UV4 is 1:1) */
+static inline int uv_blade_to_node(int blade)
+{
+	return blade;
+}
+
 /* Blade number of current cpu. Numnbered 0 .. <#blades -1> */
 static inline int uv_numa_blade_id(void)
 {
 	return uv_hub_info->numa_blade_id;
 }
 
+/*
+ * Convert linux node number to the UV blade number.
+ * .. Currently for UV1 thru UV4 the node and the blade are identical.
+ * .. If this changes then you MUST check references to this function!
+ */
+static inline int uv_node_to_blade_id(int nid)
+{
+	return nid;
+}
+
 /* Convert a cpu number to the the UV blade number */
 static inline int uv_cpu_to_blade_id(int cpu)
 {
-	return uv_cpu_to_blade[cpu];
-}
-
-/* Convert linux node number to the UV blade number */
-static inline int uv_node_to_blade_id(int nid)
-{
-	return uv_node_to_blade[nid];
+	return uv_node_to_blade_id(cpu_to_node(cpu));
 }
 
 /* Convert a blade id to the PNODE of the blade */
 static inline int uv_blade_to_pnode(int bid)
 {
-	return uv_blade_info[bid].pnode;
+	return uv_hub_info_list(uv_blade_to_node(bid))->pnode;
 }
 
 /* Nid of memory node on blade. -1 if no blade-local memory */
 static inline int uv_blade_to_memory_nid(int bid)
 {
-	return uv_blade_info[bid].memory_nid;
+	return uv_hub_info_list(uv_blade_to_node(bid))->memory_nid;
 }
 
 /* Determine the number of possible cpus on a blade */
 static inline int uv_blade_nr_possible_cpus(int bid)
 {
-	return uv_blade_info[bid].nr_possible_cpus;
+	return uv_hub_info_list(uv_blade_to_node(bid))->nr_possible_cpus;
 }
 
 /* Determine the number of online cpus on a blade */
 static inline int uv_blade_nr_online_cpus(int bid)
 {
-	return uv_blade_info[bid].nr_online_cpus;
+	return uv_hub_info_list(uv_blade_to_node(bid))->nr_online_cpus;
 }
 
 /* Convert a cpu id to the PNODE of the blade containing the cpu */
 static inline int uv_cpu_to_pnode(int cpu)
 {
-	return uv_blade_info[uv_cpu_to_blade_id(cpu)].pnode;
+	return uv_cpu_hub_info(cpu)->pnode;
 }
 
 /* Convert a linux node number to the PNODE of the blade */
 static inline int uv_node_to_pnode(int nid)
 {
-	return uv_blade_info[uv_node_to_blade_id(nid)].pnode;
+	return uv_hub_info_list(nid)->pnode;
 }
 
 /* Maximum possible number of blades */
+extern short uv_possible_blades;
 static inline int uv_num_possible_blades(void)
 {
 	return uv_possible_blades;
