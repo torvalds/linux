@@ -20,12 +20,16 @@
 /*
  * Software bits
  */
+#define _RPAGE_SW0		0x2000000000000000UL
+#define _RPAGE_SW1		0x00800
+#define _RPAGE_SW2		0x00400
+#define _RPAGE_SW3		0x00200
 #ifdef CONFIG_MEM_SOFT_DIRTY
-#define _PAGE_SOFT_DIRTY	0x00200 /* software: software dirty tracking */
+#define _PAGE_SOFT_DIRTY	_RPAGE_SW3 /* software: software dirty tracking */
 #else
 #define _PAGE_SOFT_DIRTY	0x00000
 #endif
-#define _PAGE_SPECIAL		0x00400 /* software: special page */
+#define _PAGE_SPECIAL		_RPAGE_SW2 /* software: special page */
 
 
 #define _PAGE_PTE		(1ul << 62)	/* distinguishes PTEs from pointers */
