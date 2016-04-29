@@ -187,7 +187,7 @@ extern struct page *pgd_page(pgd_t pgd);
 
 static inline bool pte_user(pte_t pte)
 {
-	return !!(pte_val(pte) & _PAGE_USER);
+	return !(pte_val(pte) & _PAGE_PRIVILEGED);
 }
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
@@ -210,6 +210,22 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
 	return __pte(pte_val(pte) & ~_PAGE_SWP_SOFT_DIRTY);
 }
 #endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
+
+static inline bool check_pte_access(unsigned long access, unsigned long ptev)
+{
+	/*
+	 * This check for _PAGE_RWX and _PAGE_PRESENT bits
+	 */
+	if (access & ~ptev)
+		return false;
+	/*
+	 * This check for access to privilege space
+	 */
+	if ((access & _PAGE_PRIVILEGED) != (ptev & _PAGE_PRIVILEGED))
+		return false;
+
+	return true;
+}
 
 void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
 void pgtable_cache_init(void);

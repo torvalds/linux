@@ -40,7 +40,7 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 		if (unlikely(old_pmd & _PAGE_BUSY))
 			return 0;
 		/* If PMD permissions don't match, take page fault */
-		if (unlikely(access & ~old_pmd))
+		if (unlikely(!check_pte_access(access, old_pmd)))
 			return 1;
 		/*
 		 * Try to lock the PTE, add ACCESSED and DIRTY if it was

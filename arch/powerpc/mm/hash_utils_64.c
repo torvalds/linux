@@ -174,7 +174,7 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 	 * User area is mapped with PP=0x2 for read/write
 	 * or PP=0x3 for read-only (including writeable but clean pages).
 	 */
-	if (pteflags & _PAGE_USER) {
+	if (!(pteflags & _PAGE_PRIVILEGED)) {
 		if (pteflags & _PAGE_RWX)
 			rflags |= 0x2;
 		if (!((pteflags & _PAGE_WRITE) && (pteflags & _PAGE_DIRTY)))
@@ -1090,7 +1090,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	/* Pre-check access permissions (will be re-checked atomically
 	 * in __hash_page_XX but this pre-check is a fast path
 	 */
-	if (access & ~pte_val(*ptep)) {
+	if (!check_pte_access(access, pte_val(*ptep))) {
 		DBG_LOW(" no access !\n");
 		rc = 1;
 		goto bail;
@@ -1228,12 +1228,16 @@ int __hash_page(unsigned long ea, unsigned long msr, unsigned long trap,
 	if (dsisr & DSISR_ISSTORE)
 		access |= _PAGE_WRITE;
 	/*
-	 * We need to set the _PAGE_USER bit if MSR_PR is set or if we are
-	 * accessing a userspace segment (even from the kernel). We assume
-	 * kernel addresses always have the high bit set.
+	 * We set _PAGE_PRIVILEGED only when
+	 * kernel mode access kernel space.
+	 *
+	 * _PAGE_PRIVILEGED is NOT set
+	 * 1) when kernel mode access user space
+	 * 2) user space access kernel space.
 	 */
+	access |= _PAGE_PRIVILEGED;
 	if ((msr & MSR_PR) || (REGION_ID(ea) == USER_REGION_ID))
-		access |= _PAGE_USER;
+		access &= ~_PAGE_PRIVILEGED;
 
 	if (trap == 0x400)
 		access |= _PAGE_EXEC;

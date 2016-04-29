@@ -1003,7 +1003,7 @@ int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 		end = pte_end;
 
 	pte = READ_ONCE(*ptep);
-	mask = _PAGE_PRESENT | _PAGE_USER | _PAGE_READ;
+	mask = _PAGE_PRESENT | _PAGE_READ;
 	if (write)
 		mask |= _PAGE_WRITE;
 

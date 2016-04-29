@@ -280,8 +280,17 @@ void __iomem * ioremap_prot(phys_addr_t addr, unsigned long size,
 	if (flags & _PAGE_WRITE)
 		flags |= _PAGE_DIRTY;
 
-	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
-	flags &= ~(_PAGE_USER | _PAGE_EXEC);
+	/* we don't want to let _PAGE_EXEC leak out */
+	flags &= ~_PAGE_EXEC;
+	/*
+	 * Force kernel mapping.
+	 */
+#if defined(CONFIG_PPC_BOOK3S_64)
+	flags |= _PAGE_PRIVILEGED;
+#else
+	flags &= ~_PAGE_USER;
+#endif
+
 
 #ifdef _PAGE_BAP_SR
 	/* _PAGE_USER contains _PAGE_BAP_SR on BookE using the new PTE format
@@ -664,7 +673,7 @@ void pmdp_huge_split_prepare(struct vm_area_struct *vma,
 	 * the translation is still valid, because we will withdraw
 	 * pgtable_t after this.
 	 */
-	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_USER, 0);
+	pmd_hugepage_update(vma->vm_mm, address, pmdp, 0, _PAGE_PRIVILEGED);
 }
 
 

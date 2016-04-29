@@ -37,7 +37,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 		if (unlikely(old_pte & _PAGE_BUSY))
 			return 0;
 		/* If PTE permissions don't match, take page fault */
-		if (unlikely(access & ~old_pte))
+		if (unlikely(!check_pte_access(access, old_pte)))
 			return 1;
 		/*
 		 * Try to lock the PTE, add ACCESSED and DIRTY if it was

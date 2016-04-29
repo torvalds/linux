@@ -43,9 +43,20 @@ static inline int is_exec_fault(void)
  */
 static inline int pte_looks_normal(pte_t pte)
 {
+
+#if defined(CONFIG_PPC_BOOK3S_64)
+	if ((pte_val(pte) &
+	     (_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE)) ==
+	    _PAGE_PRESENT) {
+		if (pte_user(pte))
+			return 1;
+	}
+	return 0;
+#else
 	return (pte_val(pte) &
-	    (_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE | _PAGE_USER)) ==
-	    (_PAGE_PRESENT | _PAGE_USER);
+		(_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE | _PAGE_USER)) ==
+		(_PAGE_PRESENT | _PAGE_USER);
+#endif
 }
 
 static struct page *maybe_pte_to_page(pte_t pte)
