@@ -307,6 +307,9 @@ static __initdata unsigned short _min_socket, _max_socket;
 static __initdata unsigned short _min_pnode, _max_pnode, _gr_table_len;
 static __initdata struct uv_gam_range_entry *uv_gre_table;
 static __initdata struct uv_gam_parameters *uv_gp_table;
+static __initdata unsigned short *_socket_to_node;
+static __initdata unsigned short *_socket_to_pnode;
+static __initdata unsigned short *_pnode_to_socket;
 #define	SOCK_EMPTY	((unsigned short)~0)
 
 extern int uv_hub_info_version(void)
@@ -985,6 +988,10 @@ void __init uv_init_hub_info(struct uv_hub_info_s *hub_info)
 	hub_info->hub_revision = uv_hub_info->hub_revision;
 	hub_info->pnode_mask = uv_cpuid.pnode_mask;
 	hub_info->min_pnode = _min_pnode;
+	hub_info->min_socket = _min_socket;
+	hub_info->pnode_to_socket = _pnode_to_socket;
+	hub_info->socket_to_node = _socket_to_node;
+	hub_info->socket_to_pnode = _socket_to_pnode;
 	hub_info->gpa_mask = mn.m_val ?
 		(1UL << (mn.m_val + mn.n_val)) - 1 :
 		(1UL << uv_cpuid.gpa_shift) - 1;
@@ -1171,6 +1178,137 @@ static __init void boot_init_possible_blades(struct uv_hub_info_s *hub_info)
 	}
 }
 
+static void __init build_socket_tables(void)
+{
+	struct uv_gam_range_entry *gre = uv_gre_table;
+	int num, nump;
+	int cpu, i, lnid;
+	int minsock = _min_socket;
+	int maxsock = _max_socket;
+	int minpnode = _min_pnode;
+	int maxpnode = _max_pnode;
+	size_t bytes;
+
+	if (!gre) {
+		if (is_uv1_hub() || is_uv2_hub() || is_uv3_hub()) {
+			pr_info("UV: No UVsystab socket table, ignoring\n");
+			return;		/* not required */
+		}
+		pr_crit(
+		"UV: Error: UVsystab address translations not available!\n");
+		BUG();
+	}
+
+	/* build socket id -> node id, pnode */
+	num = maxsock - minsock + 1;
+	bytes = num * sizeof(_socket_to_node[0]);
+	_socket_to_node = kmalloc(bytes, GFP_KERNEL);
+	_socket_to_pnode = kmalloc(bytes, GFP_KERNEL);
+
+	nump = maxpnode - minpnode + 1;
+	bytes = nump * sizeof(_pnode_to_socket[0]);
+	_pnode_to_socket = kmalloc(bytes, GFP_KERNEL);
+	BUG_ON(!_socket_to_node || !_socket_to_pnode || !_pnode_to_socket);
+
+	for (i = 0; i < num; i++)
+		_socket_to_node[i] = _socket_to_pnode[i] = SOCK_EMPTY;
+
+	for (i = 0; i < nump; i++)
+		_pnode_to_socket[i] = SOCK_EMPTY;
+
+	/* fill in pnode/node/addr conversion list values */
+	pr_info("UV: GAM Building socket/pnode/pxm conversion tables\n");
+	for (; gre->type != UV_GAM_RANGE_TYPE_UNUSED; gre++) {
+		if (gre->type == UV_GAM_RANGE_TYPE_HOLE)
+			continue;
+		i = gre->sockid - minsock;
+		if (_socket_to_pnode[i] != SOCK_EMPTY)
+			continue;	/* duplicate */
+		_socket_to_pnode[i] = gre->pnode;
+		_socket_to_node[i] = gre->pxm;
+
+		i = gre->pnode - minpnode;
+		_pnode_to_socket[i] = gre->sockid;
+
+		pr_info(
+		"UV: sid:%02x type:%d nasid:%04x pn:%02x pxm:%2d pn2s:%2x\n",
+			gre->sockid, gre->type, gre->nasid,
+			_socket_to_pnode[gre->sockid - minsock],
+			_socket_to_node[gre->sockid - minsock],
+			_pnode_to_socket[gre->pnode - minpnode]);
+	}
+
+	/* check socket -> node values */
+	lnid = -1;
+	for_each_present_cpu(cpu) {
+		int nid = cpu_to_node(cpu);
+		int apicid, sockid;
+
+		if (lnid == nid)
+			continue;
+		lnid = nid;
+		apicid = per_cpu(x86_cpu_to_apicid, cpu);
+		sockid = apicid >> uv_cpuid.socketid_shift;
+		i = sockid - minsock;
+
+		if (nid != _socket_to_node[i]) {
+			pr_warn(
+			"UV: %02x: type:%d socket:%02x PXM:%02x != node:%2d\n",
+				i, sockid, gre->type, _socket_to_node[i], nid);
+			_socket_to_node[i] = nid;
+		}
+	}
+
+	/* Setup physical blade to pnode translation from GAM Range Table */
+	bytes = num_possible_nodes() * sizeof(_node_to_pnode[0]);
+	_node_to_pnode = kmalloc(bytes, GFP_KERNEL);
+	BUG_ON(!_node_to_pnode);
+
+	for (lnid = 0; lnid < num_possible_nodes(); lnid++) {
+		unsigned short sockid;
+
+		for (sockid = minsock; sockid <= maxsock; sockid++) {
+			if (lnid == _socket_to_node[sockid - minsock]) {
+				_node_to_pnode[lnid] =
+					_socket_to_pnode[sockid - minsock];
+				break;
+			}
+		}
+		if (sockid > maxsock) {
+			pr_err("UV: socket for node %d not found!\n", lnid);
+			BUG();
+		}
+	}
+
+	/*
+	 * If socket id == pnode or socket id == node for all nodes,
+	 *   system runs faster by removing corresponding conversion table.
+	 */
+	pr_info("UV: Checking socket->node/pnode for identity maps\n");
+	if (minsock == 0) {
+		for (i = 0; i < num; i++)
+			if (_socket_to_node[i] == SOCK_EMPTY ||
+				i != _socket_to_node[i])
+				break;
+		if (i >= num) {
+			kfree(_socket_to_node);
+			_socket_to_node = NULL;
+			pr_info("UV: 1:1 socket_to_node table removed\n");
+		}
+	}
+	if (minsock == minpnode) {
+		for (i = 0; i < num; i++)
+			if (_socket_to_pnode[i] != SOCK_EMPTY &&
+				_socket_to_pnode[i] != i + minpnode)
+				break;
+		if (i >= num) {
+			kfree(_socket_to_pnode);
+			_socket_to_pnode = NULL;
+			pr_info("UV: 1:1 socket_to_pnode table removed\n");
+		}
+	}
+}
+
 void __init uv_system_init(void)
 {
 	struct uv_hub_info_s hub_info = {0};
@@ -1193,6 +1331,7 @@ void __init uv_system_init(void)
 
 	uv_bios_init();			/* get uv_systab for decoding */
 	decode_uv_systab();
+	build_socket_tables();
 	uv_init_hub_info(&hub_info);
 	uv_possible_blades = num_possible_nodes();
 	if (!_node_to_pnode)

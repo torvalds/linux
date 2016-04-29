@@ -149,6 +149,9 @@ struct uv_hub_info_s {
 	unsigned long		global_mmr_base;
 	unsigned long		global_mmr_shift;
 	unsigned long		gpa_mask;
+	unsigned short		*socket_to_node;
+	unsigned short		*socket_to_pnode;
+	unsigned short		*pnode_to_socket;
 	unsigned short		min_socket;
 	unsigned short		min_pnode;
 	unsigned char		hub_revision;
@@ -481,10 +484,21 @@ static inline void *uv_pnode_offset_to_vaddr(int pnode, unsigned long offset)
 	return __va(((unsigned long)pnode << uv_hub_info->m_val) | offset);
 }
 
-/* Extract a PNODE from an APICID (full apicid, not processor subset) */
+/* Convert socket to node */
+static inline int uv_socket_to_node(int socket)
+{
+	unsigned short *s2nid = uv_hub_info->socket_to_node;
+
+	return s2nid ? s2nid[socket - uv_hub_info->min_socket] : socket;
+}
+
+/* Extract/Convert a PNODE from an APICID (full apicid, not processor subset) */
 static inline int uv_apicid_to_pnode(int apicid)
 {
-	return (apicid >> uv_hub_info->apic_pnode_shift);
+	int pnode = apicid >> uv_hub_info->apic_pnode_shift;
+	unsigned short *s2pn = uv_hub_info->socket_to_pnode;
+
+	return s2pn ? s2pn[pnode - uv_hub_info->min_socket] : pnode;
 }
 
 /* Convert an apicid to the socket number on the blade */
