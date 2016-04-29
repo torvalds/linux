@@ -15,6 +15,7 @@
 #if !defined(_UAPI_ASM_ARC_UNISTD_H) || defined(__SYSCALL)
 #define _UAPI_ASM_ARC_UNISTD_H
 
+#define __ARCH_WANT_RENAMEAT
 #define __ARCH_WANT_SYS_EXECVE
 #define __ARCH_WANT_SYS_CLONE
 #define __ARCH_WANT_SYS_VFORK
