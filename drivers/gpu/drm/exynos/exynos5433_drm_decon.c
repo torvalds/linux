@@ -434,7 +434,8 @@ static void decon_te_irq_handler(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
-	if (!test_bit(BIT_CLKS_ENABLED, &ctx->flags))
+	if (!test_bit(BIT_CLKS_ENABLED, &ctx->flags) ||
+	    (ctx->out_type & I80_HW_TRG))
 		return;
 
 	if (test_and_clear_bit(BIT_WIN_UPDATED, &ctx->flags))
