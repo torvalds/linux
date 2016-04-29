@@ -1538,7 +1538,7 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 	mci = get_mci_for_node_id(mce->socketid);
 	if (!mci)
-		return NOTIFY_BAD;
+		return NOTIFY_DONE;
 	pvt = mci->pvt_info;
 
 	/*

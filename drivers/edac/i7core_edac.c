@@ -1878,7 +1878,7 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 	i7_dev = get_i7core_dev(mce->socketid);
 	if (!i7_dev)
-		return NOTIFY_BAD;
+		return NOTIFY_DONE;
 
 	mci = i7_dev->mci;
 	pvt = mci->pvt_info;
