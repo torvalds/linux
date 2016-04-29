@@ -554,6 +554,7 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 		*slot1 = bearer_id;
 		tipc_node_fsm_evt(n, SELF_ESTABL_CONTACT_EVT);
 		n->action_flags |= TIPC_NOTIFY_NODE_UP;
+		tipc_link_set_active(nl, true);
 		tipc_bcast_add_peer(n->net, nl, xmitq);
 		return;
 	}
