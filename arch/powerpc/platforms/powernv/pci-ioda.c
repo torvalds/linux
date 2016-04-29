@@ -57,7 +57,7 @@
 
 static void pnv_pci_ioda2_table_free_pages(struct iommu_table *tbl);
 
-static void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
+void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 			    const char *fmt, ...)
 {
 	struct va_format vaf;
@@ -87,13 +87,6 @@ static void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 
 	va_end(args);
 }
-
-#define pe_err(pe, fmt, ...)					\
-	pe_level_printk(pe, KERN_ERR, fmt, ##__VA_ARGS__)
-#define pe_warn(pe, fmt, ...)					\
-	pe_level_printk(pe, KERN_WARNING, fmt, ##__VA_ARGS__)
-#define pe_info(pe, fmt, ...)					\
-	pe_level_printk(pe, KERN_INFO, fmt, ##__VA_ARGS__)
 
 static bool pnv_iommu_bypass_disabled __read_mostly;
 
