@@ -39,6 +39,10 @@ static struct proc_dir_entry *f2fs_proc_root;
 static struct kmem_cache *f2fs_inode_cachep;
 static struct kset *f2fs_kset;
 
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+u32 f2fs_fault_rate = 0;
+#endif
+
 /* f2fs-wide shrinker description */
 static struct shrinker f2fs_shrinker_info = {
 	.scan_objects = f2fs_shrink_scan,
@@ -68,6 +72,7 @@ enum {
 	Opt_noextent_cache,
 	Opt_noinline_data,
 	Opt_data_flush,
+	Opt_fault_injection,
 	Opt_err,
 };
 
@@ -93,6 +98,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_noextent_cache, "noextent_cache"},
 	{Opt_noinline_data, "noinline_data"},
 	{Opt_data_flush, "data_flush"},
+	{Opt_fault_injection, "fault_injection=%u"},
 	{Opt_err, NULL},
 };
 
@@ -300,6 +306,9 @@ static int parse_options(struct super_block *sb, char *options)
 	char *p, *name;
 	int arg = 0;
 
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	f2fs_fault_rate = 0;
+#endif
 	if (!options)
 		return 0;
 
@@ -432,6 +441,16 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 		case Opt_data_flush:
 			set_opt(sbi, DATA_FLUSH);
+			break;
+		case Opt_fault_injection:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+			f2fs_fault_rate = arg;
+#else
+			f2fs_msg(sb, KERN_INFO,
+				"FAULT_INJECTION was not selected");
+#endif
 			break;
 		default:
 			f2fs_msg(sb, KERN_ERR,
