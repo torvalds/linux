@@ -43,8 +43,6 @@ static const struct {
 	{ "rng", TIOCM_RNG, false, },
 	{ "rts", TIOCM_RTS, true, },
 	{ "dtr", TIOCM_DTR, true, },
-	{ "out1", TIOCM_OUT1, true, },
-	{ "out2", TIOCM_OUT2, true, },
 };
 
 void mctrl_gpio_set(struct mctrl_gpios *gpios, unsigned int mctrl)
