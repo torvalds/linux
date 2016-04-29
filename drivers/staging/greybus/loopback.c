@@ -800,9 +800,6 @@ static int gb_loopback_request_handler(struct gb_operation *operation)
 
 	/* By convention, the AP initiates the version operation */
 	switch (operation->type) {
-	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
-		dev_err(dev, "module-initiated version operation\n");
-		return -EINVAL;
 	case GB_LOOPBACK_TYPE_PING:
 	case GB_LOOPBACK_TYPE_SINK:
 		return 0;
