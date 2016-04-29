@@ -372,7 +372,11 @@ static inline int pgd_bad(pgd_t pgd)
 }
 
 #define __HAVE_ARCH_PTE_SAME
-#define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HPTEFLAGS) == 0)
+static inline int pte_same(pte_t pte_a, pte_t pte_b)
+{
+	return (((pte_raw(pte_a) ^ pte_raw(pte_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
+}
+
 static inline unsigned long pgd_page_vaddr(pgd_t pgd)
 {
 	return (unsigned long)__va(pgd_val(pgd) & ~PGD_MASKED_BITS);

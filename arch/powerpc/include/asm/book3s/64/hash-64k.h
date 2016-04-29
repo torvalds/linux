@@ -272,7 +272,7 @@ static inline pmd_t pmd_mknotpresent(pmd_t pmd)
 #define __HAVE_ARCH_PMD_SAME
 static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 {
-	return (((pmd_val(pmd_a) ^ pmd_val(pmd_b)) & ~_PAGE_HPTEFLAGS) == 0);
+	return (((pmd_raw(pmd_a) ^ pmd_raw(pmd_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
 }
 
 static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
