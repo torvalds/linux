@@ -24,6 +24,8 @@ soc0: soc@000000000 {
 	};
 
 	dsaf0: dsa@c7000000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		compatible = "hisilicon,hns-dsaf-v1";
 		mode = "6port-16rss";
 		interrupt-parent = <&mbigen_dsa>;
@@ -124,20 +126,20 @@ soc0: soc@000000000 {
 		dma-coherent;
 
 		port@0 {
-			port-id = <0>;
+			reg = <0>;
 			serdes-syscon = <&serdes_ctrl0>;
 		};
 		port@1 {
-			port-id = <1>;
+			reg = <1>;
 			serdes-syscon = <&serdes_ctrl0>;
 		};
 		port@4 {
-			port-id = <4>;
+			reg = <4>;
 			phy-handle = <&soc0_phy0>;
 			serdes-syscon = <&serdes_ctrl1>;
 		};
 		port@5 {
-			port-id = <5>;
+			reg = <5>;
 			phy-handle = <&soc0_phy1>;
 			serdes-syscon = <&serdes_ctrl1>;
 		};
