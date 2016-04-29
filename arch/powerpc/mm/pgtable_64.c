@@ -357,7 +357,7 @@ static pte_t *__alloc_for_cache(struct mm_struct *mm, int kernel)
 	return (pte_t *)ret;
 }
 
-pte_t *page_table_alloc(struct mm_struct *mm, unsigned long vmaddr, int kernel)
+pte_t *pte_fragment_alloc(struct mm_struct *mm, unsigned long vmaddr, int kernel)
 {
 	pte_t *pte;
 
@@ -368,7 +368,7 @@ pte_t *page_table_alloc(struct mm_struct *mm, unsigned long vmaddr, int kernel)
 	return __alloc_for_cache(mm, kernel);
 }
 
-void page_table_free(struct mm_struct *mm, unsigned long *table, int kernel)
+void pte_fragment_free(unsigned long *table, int kernel)
 {
 	struct page *page = virt_to_page(table);
 	if (put_page_testzero(page)) {
@@ -379,15 +379,6 @@ void page_table_free(struct mm_struct *mm, unsigned long *table, int kernel)
 }
 
 #ifdef CONFIG_SMP
-static void page_table_free_rcu(void *table)
-{
-	struct page *page = virt_to_page(table);
-	if (put_page_testzero(page)) {
-		pgtable_page_dtor(page);
-		free_hot_cold_page(page, 0);
-	}
-}
-
 void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
 {
 	unsigned long pgf = (unsigned long)table;
@@ -404,7 +395,7 @@ void __tlb_remove_table(void *_table)
 
 	if (!shift)
 		/* PTE page needs special handling */
-		page_table_free_rcu(table);
+		pte_fragment_free(table, 0);
 	else {
 		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
 		kmem_cache_free(PGT_CACHE(shift), table);
@@ -415,11 +406,7 @@ void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
 {
 	if (!shift) {
 		/* PTE page needs special handling */
-		struct page *page = virt_to_page(table);
-		if (put_page_testzero(page)) {
-			pgtable_page_dtor(page);
-			free_hot_cold_page(page, 0);
-		}
+		pte_fragment_free(table, 0);
 	} else {
 		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
 		kmem_cache_free(PGT_CACHE(shift), table);
