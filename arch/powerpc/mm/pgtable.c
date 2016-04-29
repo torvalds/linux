@@ -82,6 +82,9 @@ static struct page *maybe_pte_to_page(pte_t pte)
 
 static pte_t set_pte_filter(pte_t pte)
 {
+	if (radix_enabled())
+		return pte;
+
 	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
 	if (pte_looks_normal(pte) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
 				       cpu_has_feature(CPU_FTR_NOEXECUTE))) {
