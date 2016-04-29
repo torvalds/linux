@@ -508,13 +508,10 @@ pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
 # To avoid problems with the compressed data's meta information an extra 18
 # bytes are needed.  Leading to the formula:
 #
-# extra_bytes = (uncompressed_size >> 12) + 32768 + 18 + decompressor_size
+# extra_bytes = (uncompressed_size >> 12) + 32768 + 18
 #
 # Adding 8 bytes per 32K is a bit excessive but much easier to calculate.
 # Adding 32768 instead of 32767 just makes for round numbers.
-# Adding the decompressor_size is necessary as it musht live after all
-# of the data as well.  Last I measured the decompressor is about 14K.
-# 10K of actual data and 4K of bss.
 #
 # Above analysis is for decompressing gzip compressed kernel only. Up to
 # now 6 different decompressor are supported all together. And among them
@@ -524,17 +521,35 @@ pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
 # the description in lib/decompressor_xxx.c for specific information.
 #
 # extra_bytes = (uncompressed_size >> 12) + 65536 + 128
-#
-# Note that this calculation, which results in z_extract_offset (below),
-# is currently generated in compressed/mkpiggy.c
 
-#define ZO_INIT_SIZE	(ZO__end - ZO_startup_32 + ZO_z_extract_offset)
+#define ZO_z_extra_bytes	((ZO_z_output_len >> 12) + 65536 + 128)
+#if ZO_z_output_len > ZO_z_input_len
+# define ZO_z_extract_offset	(ZO_z_output_len + ZO_z_extra_bytes - \
+				 ZO_z_input_len)
+#else
+# define ZO_z_extract_offset	ZO_z_extra_bytes
+#endif
+
+/*
+ * The extract_offset has to be bigger than ZO head section. Otherwise when
+ * the head code is running to move ZO to the end of the buffer, it will
+ * overwrite the head code itself.
+ */
+#if (ZO__ehead - ZO_startup_32) > ZO_z_extract_offset
+# define ZO_z_min_extract_offset ((ZO__ehead - ZO_startup_32 + 4095) & ~4095)
+#else
+# define ZO_z_min_extract_offset ((ZO_z_extract_offset + 4095) & ~4095)
+#endif
+
+#define ZO_INIT_SIZE	(ZO__end - ZO_startup_32 + ZO_z_min_extract_offset)
+
 #define VO_INIT_SIZE	(VO__end - VO__text)
 #if ZO_INIT_SIZE > VO_INIT_SIZE
-#define INIT_SIZE ZO_INIT_SIZE
+# define INIT_SIZE ZO_INIT_SIZE
 #else
-#define INIT_SIZE VO_INIT_SIZE
+# define INIT_SIZE VO_INIT_SIZE
 #endif
+
 init_size:		.long INIT_SIZE		# kernel initialization size
 handover_offset:	.long 0			# Filled in by build.c
 
