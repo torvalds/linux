@@ -7000,9 +7000,10 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
 	}
 
 	/*
-	 * In the presence of smp nice balancing, certain scenarios can have
-	 * max load less than avg load(as we skip the groups at or below
-	 * its cpu_capacity, while calculating max_load..)
+	 * Avg load of busiest sg can be less and avg load of local sg can
+	 * be greater than avg load across all sgs of sd because avg load
+	 * factors in sg capacity and sgs with smaller group_type are
+	 * skipped when updating the busiest sg:
 	 */
 	if (busiest->avg_load <= sds->avg_load ||
 	    local->avg_load >= sds->avg_load) {
