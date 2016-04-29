@@ -34,6 +34,11 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+/* Rough estimate of the typical request size, performing a flush,
+ * set-context and then emitting the batch.
+ */
+#define LEGACY_REQUEST_SIZE 200
+
 int __intel_ring_space(int head, int tail, int size)
 {
 	int space = head - tail;
@@ -2345,7 +2350,7 @@ int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 	 * we start building the request - in which case we will just
 	 * have to repeat work.
 	 */
-	request->reserved_space += MIN_SPACE_FOR_ADD_REQUEST;
+	request->reserved_space += LEGACY_REQUEST_SIZE;
 
 	request->ringbuf = request->engine->buffer;
 
@@ -2353,7 +2358,7 @@ int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 	if (ret)
 		return ret;
 
-	request->reserved_space -= MIN_SPACE_FOR_ADD_REQUEST;
+	request->reserved_space -= LEGACY_REQUEST_SIZE;
 	return 0;
 }
 
