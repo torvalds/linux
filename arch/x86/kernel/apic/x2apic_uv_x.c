@@ -108,6 +108,9 @@ static int __init early_get_pnodeid(void)
 	case UV3_HUB_PART_NUMBER_X:
 		uv_min_hub_revision_id += UV3_HUB_REVISION_BASE;
 		break;
+	case UV4_HUB_PART_NUMBER:
+		uv_min_hub_revision_id += UV4_HUB_REVISION_BASE - 1;
+		break;
 	}
 
 	uv_hub_info->hub_revision = uv_min_hub_revision_id;
@@ -155,8 +158,10 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	 *   SGI: UV100/1000
 	 *   SGI2: UV2000/3000
 	 *   SGI3: UV300 (truncated to 4 chars because of different varieties)
+	 *   SGI4: UV400 (truncated to 4 chars because of different varieties)
 	 */
 	uv_hub_info->hub_revision =
+		!strncmp(oem_id, "SGI4", 4) ? UV4_HUB_REVISION_BASE :
 		!strncmp(oem_id, "SGI3", 4) ? UV3_HUB_REVISION_BASE :
 		!strcmp(oem_id, "SGI2") ? UV2_HUB_REVISION_BASE :
 		!strcmp(oem_id, "SGI") ? UV1_HUB_REVISION_BASE : 0;
@@ -881,9 +886,10 @@ void __init uv_system_init(void)
 	unsigned long mmr_base, present, paddr;
 	unsigned short pnode_mask;
 	unsigned char n_lshift;
-	char *hub = (is_uv1_hub() ? "UV100/1000" :
-		    (is_uv2_hub() ? "UV2000/3000" :
-		    (is_uv3_hub() ? "UV300" : NULL)));
+	char *hub = is_uv4_hub() ? "UV400" :
+		    is_uv3_hub() ? "UV300" :
+		    is_uv2_hub() ? "UV2000/3000" :
+		    is_uv1_hub() ? "UV100/1000" : NULL;
 
 	if (!hub) {
 		pr_err("UV: Unknown/unsupported UV hub\n");
