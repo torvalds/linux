@@ -54,6 +54,7 @@ unsigned int uv_apicid_hibits;
 EXPORT_SYMBOL_GPL(uv_apicid_hibits);
 
 static struct apic apic_x2apic_uv_x;
+static struct uv_hub_info_s uv_hub_info_node0;
 
 /* Set this to use hardware error handler instead of kernel panic */
 static int disable_uv_undefined_panic = 1;
@@ -165,6 +166,9 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	if (strncmp(oem_id, "SGI", 3) != 0)
 		return 0;
 
+	/* Setup early hub type field in uv_hub_info for Node 0 */
+	uv_cpu_info->p_uv_hub_info = &uv_hub_info_node0;
+
 	/*
 	 * Determine UV arch type.
 	 *   SGI: UV100/1000
@@ -228,8 +232,8 @@ int is_uv_system(void)
 }
 EXPORT_SYMBOL_GPL(is_uv_system);
 
-DEFINE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
-EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info);
+void **__uv_hub_info_list;
+EXPORT_SYMBOL_GPL(__uv_hub_info_list);
 
 DEFINE_PER_CPU(struct uv_cpu_info_s, __uv_cpu_info);
 EXPORT_PER_CPU_SYMBOL_GPL(__uv_cpu_info);
@@ -248,6 +252,12 @@ EXPORT_SYMBOL_GPL(uv_possible_blades);
 
 unsigned long sn_rtc_cycles_per_second;
 EXPORT_SYMBOL(sn_rtc_cycles_per_second);
+
+extern int uv_hub_info_version(void)
+{
+	return UV_HUB_INFO_VERSION;
+}
+EXPORT_SYMBOL(uv_hub_info_version);
 
 static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 {
@@ -988,9 +998,15 @@ void __init uv_system_init(void)
 
 	uv_init_hub_info(&hub_info);
 
-	for(i = 0; i < UVH_NODE_PRESENT_TABLE_DEPTH; i++)
-		uv_possible_blades +=
-		  hweight64(uv_read_local_mmr( UVH_NODE_PRESENT_TABLE + i * 8));
+	pr_info("UV: NODE_PRESENT_DEPTH = %d\n", UVH_NODE_PRESENT_TABLE_DEPTH);
+	for (i = 0; i < UVH_NODE_PRESENT_TABLE_DEPTH; i++) {
+		unsigned long np;
+
+		np = uv_read_local_mmr(UVH_NODE_PRESENT_TABLE + i * 8);
+		if (np)
+			pr_info("UV: NODE_PRESENT(%d) = 0x%016lx\n", i, np);
+		uv_possible_blades += hweight64(np);
+	}
 
 	/* uv_num_possible_blades() is really the hub count */
 	pr_info("UV: Found %d hubs, %d nodes, %d cpus\n",
@@ -1016,6 +1032,10 @@ void __init uv_system_init(void)
 	BUG_ON(!uv_cpu_to_blade);
 	memset(uv_cpu_to_blade, 255, bytes);
 
+	bytes = sizeof(void *) * uv_num_possible_blades();
+	__uv_hub_info_list = kzalloc(bytes, GFP_KERNEL);
+	BUG_ON(!__uv_hub_info_list);
+
 	blade = 0;
 	for (i = 0; i < UVH_NODE_PRESENT_TABLE_DEPTH; i++) {
 		unsigned long present =
@@ -1040,28 +1060,37 @@ void __init uv_system_init(void)
 	uv_rtc_init();
 
 	for_each_present_cpu(cpu) {
+		struct uv_hub_info_s *new_hub = NULL;
 		int apicid = per_cpu(x86_cpu_to_apicid, cpu);
 		int nodeid = cpu_to_node(cpu);
-		int lcpu;
 
-		*uv_cpu_hub_info(cpu) = hub_info;	/* common hub values */
-		pnode = uv_apicid_to_pnode(apicid);
-		blade = boot_pnode_to_blade(pnode);
-		lcpu = uv_blade_info[blade].nr_possible_cpus;
-		uv_blade_info[blade].nr_possible_cpus++;
+		/* Allocate new per hub info list */
+		if (uv_hub_info_list(nodeid) == NULL) {
+			if (cpu == 0)
+				__uv_hub_info_list[0] = &uv_hub_info_node0;
+			else
+				__uv_hub_info_list[nodeid] =
+					kzalloc_node(bytes, GFP_KERNEL, nodeid);
+
+			new_hub = uv_hub_info_list(nodeid);
+			BUG_ON(!new_hub);
+			*new_hub = hub_info;
+			blade = boot_pnode_to_blade(new_hub->pnode);
+			new_hub->pnode = uv_apicid_to_pnode(apicid);
+			new_hub->numa_blade_id = blade;
+		}
 
 		/* Any node on the blade, else will contain -1. */
 		uv_blade_info[blade].memory_nid = nodeid;
 
-		uv_cpu_hub_info(cpu)->numa_blade_id = blade;
-		uv_cpu_hub_info(cpu)->pnode = pnode;
 		uv_node_to_blade[nodeid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
 
 		/* Initialize per cpu info list */
-		uv_cpu_info_per(cpu)->p_uv_hub_info = uv_cpu_hub_info(cpu);
-		uv_cpu_info_per(cpu)->blade_cpu_id = lcpu;
+		uv_cpu_info_per(cpu)->p_uv_hub_info = uv_hub_info_list(nodeid);
 		uv_cpu_info_per(cpu)->scir.offset = uv_scir_offset(apicid);
+		uv_cpu_info_per(cpu)->blade_cpu_id =
+			uv_blade_info[blade].nr_possible_cpus++;
 	}
 
 	/* Add blade/pnode info for nodes without cpus */

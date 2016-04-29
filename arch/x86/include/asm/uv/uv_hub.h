@@ -163,10 +163,6 @@ struct uv_hub_info_s {
 	unsigned char		n_val;
 };
 
-DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
-#define uv_hub_info		this_cpu_ptr(&__uv_hub_info)
-#define uv_cpu_hub_info(cpu)	(&per_cpu(__uv_hub_info, cpu))
-
 /* CPU specific info with a pointer to the hub common info struct */
 struct uv_cpu_info_s {
 	void			*p_uv_hub_info;
@@ -180,6 +176,38 @@ DECLARE_PER_CPU(struct uv_cpu_info_s, __uv_cpu_info);
 
 #define	uv_scir_info		(&uv_cpu_info->scir)
 #define	uv_cpu_scir_info(cpu)	(&uv_cpu_info_per(cpu)->scir)
+
+/* Node specific hub common info struct */
+extern void **__uv_hub_info_list;
+static inline struct uv_hub_info_s *uv_hub_info_list(int node)
+{
+	return (struct uv_hub_info_s *)__uv_hub_info_list[node];
+}
+
+static inline struct uv_hub_info_s *_uv_hub_info(void)
+{
+	return (struct uv_hub_info_s *)uv_cpu_info->p_uv_hub_info;
+}
+#define	uv_hub_info	_uv_hub_info()
+
+static inline struct uv_hub_info_s *uv_cpu_hub_info(int cpu)
+{
+	return (struct uv_hub_info_s *)uv_cpu_info_per(cpu)->p_uv_hub_info;
+}
+
+#define	UV_HUB_INFO_VERSION	0x7150
+extern int uv_hub_info_version(void);
+static inline int uv_hub_info_check(int version)
+{
+	if (uv_hub_info_version() == version)
+		return 0;
+
+	pr_crit("UV: uv_hub_info version(%x) mismatch, expecting(%x)\n",
+		uv_hub_info_version(), version);
+
+	BUG();	/* Catastrophic - cannot continue on unknown UV system */
+}
+#define	_uv_hub_info_check()	uv_hub_info_check(UV_HUB_INFO_VERSION)
 
 /*
  * HUB revision ranges for each UV HUB architecture.
