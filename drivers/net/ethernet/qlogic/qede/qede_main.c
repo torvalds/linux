@@ -668,7 +668,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static int qede_txq_has_work(struct qede_tx_queue *txq)
+int qede_txq_has_work(struct qede_tx_queue *txq)
 {
 	u16 hw_bd_cons;
 
@@ -751,7 +751,7 @@ static int qede_tx_int(struct qede_dev *edev,
 	return 0;
 }
 
-static bool qede_has_rx_work(struct qede_rx_queue *rxq)
+bool qede_has_rx_work(struct qede_rx_queue *rxq)
 {
 	u16 hw_comp_cons, sw_comp_cons;
 
@@ -806,8 +806,8 @@ static inline void qede_reuse_page(struct qede_dev *edev,
 /* In case of allocation failures reuse buffers
  * from consumer index to produce buffers for firmware
  */
-static void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq,
-				    struct qede_dev *edev, u8 count)
+void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq,
+			     struct qede_dev *edev, u8 count)
 {
 	struct sw_rx_data *curr_cons;
 
