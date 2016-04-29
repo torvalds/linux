@@ -3809,6 +3809,13 @@ S:	Supported
 F:	drivers/gpu/drm/atmel-hlcdc/
 F:	Documentation/devicetree/bindings/drm/atmel/
 
+DRM DRIVERS FOR ALLWINNER A10
+M:	Maxime Ripard  <maxime.ripard@free-electrons.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/sun4i/
+F:	Documentation/devicetree/bindings/display/sunxi/sun4i-drm.txt
+
 DRM DRIVERS FOR EXYNOS
 M:	Inki Dae <inki.dae@samsung.com>
 M:	Joonyoung Shim <jy0922.shim@samsung.com>

@@ -24,6 +24,8 @@ struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 	unsigned int plane);
 
 #ifdef CONFIG_DEBUG_FS
+struct seq_file;
+
 int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg);
 #endif
 
